@@ -394,24 +394,43 @@ limbs4 reduce(const wide8& t) {
 
 SECP256K1_HOT_FUNCTION
 limbs4 mul_impl(const limbs4& a, const limbs4& b) {
+    fprintf(stderr, "[mul_impl] ENTRY: a=[%016llx,%016llx,%016llx,%016llx] b=[%016llx,%016llx,%016llx,%016llx]\n",
+        (unsigned long long)a[0], (unsigned long long)a[1], (unsigned long long)a[2], (unsigned long long)a[3],
+        (unsigned long long)b[0], (unsigned long long)b[1], (unsigned long long)b[2], (unsigned long long)b[3]);
+    fflush(stderr);
 #ifdef SECP256K1_HAS_RISCV_ASM
+    fprintf(stderr, "[mul_impl] Taking RISCV_ASM path\n");
+    fflush(stderr);
     // RISC-V: Use assembly optimizations (2-3x faster)
     FieldElement result = field_mul_riscv(
         FieldElement::from_limbs(a), 
         FieldElement::from_limbs(b)
     );
+    fprintf(stderr, "[mul_impl] field_mul_riscv returned\n");
+    fflush(stderr);
     return result.limbs();
 #else
+    fprintf(stderr, "[mul_impl] Taking x86/generic path\n");
+    fflush(stderr);
     // x86/x64: Use BMI2 if available for better performance
     static bool bmi2_available = has_bmi2_support();
     if (bmi2_available) {
+        fprintf(stderr, "[mul_impl] Using BMI2 path\n");
+        fflush(stderr);
         FieldElement result = field_mul_bmi2(
             FieldElement::from_limbs(a), 
             FieldElement::from_limbs(b)
         );
+        fprintf(stderr, "[mul_impl] field_mul_bmi2 returned\n");
+        fflush(stderr);
         return result.limbs();
     }
-    return reduce(mul_wide(a, b));
+    fprintf(stderr, "[mul_impl] Using generic reduce(mul_wide) path\n");
+    fflush(stderr);
+    auto result = reduce(mul_wide(a, b));
+    fprintf(stderr, "[mul_impl] reduce returned successfully\n");
+    fflush(stderr);
+    return result;
 #endif
 }
 
@@ -437,9 +456,17 @@ limbs4 square_impl(const limbs4& a) {
 }
 
 void normalize(limbs4& value) {
+    fprintf(stderr, "[normalize] ENTRY: value=[%016llx,%016llx,%016llx,%016llx]\n",
+        (unsigned long long)value[0], (unsigned long long)value[1], (unsigned long long)value[2], (unsigned long long)value[3]);
+    fflush(stderr);
     while (ge(value, PRIME)) {
+        fprintf(stderr, "[normalize] value >= PRIME, subtracting...\n");
+        fflush(stderr);
         value = sub_impl(value, PRIME);
     }
+    fprintf(stderr, "[normalize] EXIT: value=[%016llx,%016llx,%016llx,%016llx]\n",
+        (unsigned long long)value[0], (unsigned long long)value[1], (unsigned long long)value[2], (unsigned long long)value[3]);
+    fflush(stderr);
 }
 
 constexpr std::array<std::uint8_t, 32> kPrimeMinusTwo{
@@ -1592,9 +1619,19 @@ FieldElement FieldElement::from_uint64(std::uint64_t value) {
 }
 
 FieldElement FieldElement::from_limbs(const FieldElement::limbs_type& limbs) {
+    fprintf(stderr, "[from_limbs] ENTRY: limbs=[%016llx,%016llx,%016llx,%016llx]\\n",
+        (unsigned long long)limbs[0], (unsigned long long)limbs[1], (unsigned long long)limbs[2], (unsigned long long)limbs[3]);
+    fflush(stderr);
     FieldElement fe;
+    fprintf(stderr, "[from_limbs] FieldElement constructed, copying limbs...\\n");
+    fflush(stderr);
     fe.limbs_ = limbs;
+    fprintf(stderr, "[from_limbs] Limbs copied, calling normalize...\\n");
+    fflush(stderr);
     normalize(fe.limbs_);
+    fprintf(stderr, "[from_limbs] normalize returned, limbs=[%016llx,%016llx,%016llx,%016llx]\\n",
+        (unsigned long long)fe.limbs_[0], (unsigned long long)fe.limbs_[1], (unsigned long long)fe.limbs_[2], (unsigned long long)fe.limbs_[3]);
+    fflush(stderr);
     return fe;
 }
 
@@ -1687,7 +1724,15 @@ FieldElement FieldElement::operator-(const FieldElement& rhs) const {
 }
 
 FieldElement FieldElement::operator*(const FieldElement& rhs) const {
-    return FieldElement(mul_impl(limbs_, rhs.limbs_), true);
+    fprintf(stderr, "[operator*] ENTRY: lhs=[%016llx,%016llx,%016llx,%016llx] rhs=[%016llx,%016llx,%016llx,%016llx]\n",
+        (unsigned long long)limbs_[0], (unsigned long long)limbs_[1], (unsigned long long)limbs_[2], (unsigned long long)limbs_[3],
+        (unsigned long long)rhs.limbs_[0], (unsigned long long)rhs.limbs_[1], (unsigned long long)rhs.limbs_[2], (unsigned long long)rhs.limbs_[3]);
+    fprintf(stderr, "[operator*] Calling mul_impl...\n");
+    fflush(stderr);
+    auto result_limbs = mul_impl(limbs_, rhs.limbs_);
+    fprintf(stderr, "[operator*] mul_impl returned successfully\n");
+    fflush(stderr);
+    return FieldElement(result_limbs, true);
 }
 
 FieldElement FieldElement::square() const {

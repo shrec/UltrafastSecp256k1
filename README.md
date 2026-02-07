@@ -51,7 +51,8 @@ Ultra high-performance secp256k1 elliptic curve cryptography library with multi-
 ### Prerequisites
 
 - CMake 3.18+
-- C++20 compiler (GCC 11+, Clang 15+, MSVC 2022+)
+- C++20 compiler (GCC 11+, Clang/LLVM 15+)
+  - MSVC 2022+ (optional, disabled by default - use `-DSECP256K1_ALLOW_MSVC=ON`)
 - CUDA Toolkit 12.0+ (optional, for GPU support)
 - Ninja (recommended)
 

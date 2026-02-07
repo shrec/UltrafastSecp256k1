@@ -1373,11 +1373,16 @@ static std::array<std::uint64_t, 8> mul_128x256_raw(const Limbs4& a_limbs, const
             std::uint64_t lo, hi;
             lo = _umul128(a_limbs[0], b_limbs[j], &hi);
             
-            unsigned char c = COMPAT_ADDCARRY_U64(0, result[j], lo, &result[j]);
-            c = COMPAT_ADDCARRY_U64(c, result[j + 1], hi, &result[j + 1]);
-            if (c && j + 2 < 8) {
-                COMPAT_ADDCARRY_U64(c, result[j + 2], 0, &result[j + 2]);
-            }
+            // Add to result[i+j]
+            std::uint64_t sum_lo = result[j] + lo;
+            std::uint64_t carry1 = (sum_lo < result[j]) ? 1 : 0;
+
+            // Add carry from previous
+            sum_lo += carry;
+            std::uint64_t carry2 = (sum_lo < carry) ? 1 : 0;
+
+            result[j] = sum_lo;
+            carry = hi + carry1 + carry2;
         }
     }
     
@@ -1388,11 +1393,16 @@ static std::array<std::uint64_t, 8> mul_128x256_raw(const Limbs4& a_limbs, const
             std::uint64_t lo, hi;
             lo = _umul128(a_limbs[1], b_limbs[j], &hi);
             
-            unsigned char c = COMPAT_ADDCARRY_U64(0, result[1 + j], lo, &result[1 + j]);
-            c = COMPAT_ADDCARRY_U64(c, result[1 + j + 1], hi, &result[1 + j + 1]);
-            if (c && 1 + j + 2 < 8) {
-                COMPAT_ADDCARRY_U64(c, result[1 + j + 2], 0, &result[1 + j + 2]);
-            }
+            // Add to result[i+j]
+            std::uint64_t sum_lo = result[1 + j] + lo;
+            std::uint64_t carry1 = (sum_lo < result[1 + j]) ? 1 : 0;
+
+            // Add carry from previous
+            sum_lo += carry;
+            std::uint64_t carry2 = (sum_lo < carry) ? 1 : 0;
+
+            result[1 + j] = sum_lo;
+            carry = hi + carry1 + carry2;
         }
     }
     
@@ -2322,12 +2332,6 @@ bool load_fixed_base_config_file(const std::string& path, FixedBaseConfig& out) 
             unsigned u; if (parse_uint(val, u)) cfg.autotune_max_w = u;
         } else if (key == "autotune_log") {
             cfg.autotune_log_path = val;
-        } else if (key == "db_path") {
-            cfg.db_path = val;
-        } else if (key == "bloom_filter") {
-            cfg.bloom_filter_path = val;
-        } else if (key == "fulldb_path" || key == "fulldb") {
-            cfg.fulldb_path = val;
         }
     }
 
@@ -2353,7 +2357,7 @@ bool write_default_fixed_base_config(const std::string& path) {
         std::ifstream in(path);
         if (in.is_open()) return false;
     }
-    std::ofstream out(path, std::ios::binary);
+    std::ofstream out(path, std::ios::binary | std::ios::trunc);
     if (!out.is_open()) return false;
     out << "# secp256k1-fast library configuration (auto-generated)\n";
     out << "# Lines beginning with '#' or ';' are comments.\n";
@@ -2380,10 +2384,6 @@ bool write_default_fixed_base_config(const std::string& path) {
     out << "autotune_min_w=2\n";
     out << "autotune_max_w=20\n";
     out << "autotune_log=autotune.log\n";
-    out << "\n# RocksDB integration (application-level)\n";
-    out << "db_path=R:\\SmallDB\n";
-    out << "bloom_filter=none\n";
-    out << "fulldb_path=none\n";
     out.close();
     return true;
 }
@@ -2664,15 +2664,12 @@ bool write_fixed_base_config(const std::string& path, const FixedBaseConfig& cfg
     out << "thread_count=" << cfg.thread_count << "\n";
     out << "use_comb=" << (cfg.use_comb ? "true" : "false") << "\n";
     out << "comb_width=" << cfg.comb_width << "\n";
-    if (!cfg.db_path.empty()) {
-        out << "db_path=" << cfg.db_path << "\n";
-    }
-    if (!cfg.bloom_filter_path.empty()) {
-        out << "bloom_filter=" << cfg.bloom_filter_path << "\n";
-    }
-    if (!cfg.fulldb_path.empty()) {
-        out << "fulldb_path=" << cfg.fulldb_path << "\n";
-    }
+    out << "\n# Auto-tune on first run (set to true, then it will be disabled after tuning)\n";
+    out << "autotune=false\n";
+    out << "autotune_iters=2000\n";
+    out << "autotune_min_w=2\n";
+    out << "autotune_max_w=20\n";
+    out << "autotune_log=autotune.log\n";
     out.close();
     return true;
 }
@@ -2778,8 +2775,8 @@ std::vector<int32_t> compute_wnaf(const Scalar& scalar, unsigned window_bits) {
         k[1] = (k[1] >> 1) | (k[2] << 63);
         k[2] = (k[2] >> 1) | (k[3] << 63);
         k[3] = (k[3] >> 1) | (k[4] << 63);
-        k[4] = k[4] >> 1;
-        
+        k[4] >>= 1;
+
         ++bit_pos;
         
         // Safety check to prevent infinite loops
@@ -2857,7 +2854,7 @@ void compute_wnaf_into(const Scalar& scalar,
         k[1] = (k[1] >> 1) | (k[2] << 63);
         k[2] = (k[2] >> 1) | (k[3] << 63);
         k[3] = (k[3] >> 1) | (k[4] << 63);
-        k[4] = k[4] >> 1;
+        k[4] >>= 1;
 
         ++bit_pos;
         if (bit_pos > max_length) {
@@ -3408,9 +3405,6 @@ Point scalar_mul_arbitrary(const Point& base, const Scalar& scalar, unsigned win
         // Get absolute value and sign
         bool is_negative = (digit < 0);
         unsigned abs_digit = is_negative ? static_cast<unsigned>(-digit) : static_cast<unsigned>(digit);
-        
-        // wNAF digits are odd, so digit = 2*index + 1
-        // Therefore: index = (abs_digit - 1) / 2
         unsigned index = (abs_digit - 1) / 2;
         
         if (index >= table_size) {
@@ -3431,230 +3425,478 @@ Point scalar_mul_arbitrary(const Point& base, const Scalar& scalar, unsigned win
     return Point::from_jacobian_coords(result.x, result.y, result.z, result.infinity);
 }
 
-// ============================================================================
-// Optimized scalar multiplication for CONSTANT K (precomputed decomposition)
-// ============================================================================
+// GLV multiplication with pre-decomposed scalar (no decomposition overhead)
+// Use this when scalar is constant and decomposition can be done once at compile/init time
+Point scalar_mul_generator_glv_predecomposed(const Scalar& k1, const Scalar& k2, bool neg1, bool neg2) {
+    std::unique_lock<std::mutex> lock(g_mutex);
+    ensure_built_locked();
+    PrecomputeContext& ctx = *g_context;
 
-// Helper: Get β constant (cube root of 1 mod p)
-// β³ ≡ 1 (mod p), β ≠ 1
-// Used for endomorphism: ψ(x,y) = (β*x, y)
-inline FieldElement const_beta() {
-    static const FieldElement value = FieldElement::from_bytes(kBetaBytes);
-    return value;
-}
+    if (!ctx.config.enable_glv) {
+        throw std::runtime_error("GLV must be enabled for predecomposed multiplication");
+    }
 
-// Precompute constant scalar K for repeated multiplication with different Q
-// This performs the expensive GLV decomposition and wNAF generation ONCE
-// Result can be reused for many Q values
-PrecomputedScalar precompute_scalar_for_arbitrary(const Scalar& K, unsigned window_bits) {
-    // Validate window size
-    // w=4 is optimal for constant K scenario (8 points per table, minimal overhead)
-    if (window_bits < 4) window_bits = 4;
-    if (window_bits > 7) window_bits = 7;
-    
-    // Step 1: GLV decomposition K → (k₁, k₂)
-    // Cost: ~14 μs (done ONCE, amortized over many operations)
-    ScalarDecomposition decomp = split_scalar_glv(K);
-    
-    // Step 2: Generate wNAF digits for both k₁ and k₂
-    // These will be cached and reused for every Q
-    std::vector<int32_t> wnaf1 = compute_wnaf(decomp.k1, window_bits);
-    std::vector<int32_t> wnaf2 = compute_wnaf(decomp.k2, window_bits);
-    
-    // Return precomputed structure
-    return PrecomputedScalar{
-        decomp.k1,
-        decomp.k2,
-        decomp.neg1,
-        decomp.neg2,
-        std::move(wnaf1),
-        std::move(wnaf2),
-        window_bits
-    };
-}
+    lock.unlock();
 
-// Scalar multiplication with precomputed constant K
-// This is the FAST path - no decomposition overhead!
-// Expected: 190-260 μs (1.3-1.8x faster than scalar_mul_arbitrary)
-Point scalar_mul_arbitrary_precomputed(const Point& Q, const PrecomputedScalar& precomp) {
-#if SECP256K1_PROFILE_PRECOMPUTED
-    uint64_t t_start = __rdtsc();
-#endif
+    const std::size_t window_count = ctx.window_count;
 
-    // Validate inputs
-    if (!precomp.is_valid()) {
-        throw std::invalid_argument("Invalid PrecomputedScalar");
-    }
-    if (Q.is_infinity()) {
-        return Point::infinity();
-    }
-    
-#if SECP256K1_PROFILE_PRECOMPUTED
-    uint64_t t1 = __rdtsc();
-#endif
-    
-    // Get β constant for endomorphism
-    const FieldElement beta = const_beta();
-    
-    // Convert Q to Jacobian
-    JacobianPoint Q_jac = {Q.x_raw(), Q.y_raw(), Q.z_raw(), Q.is_infinity()};
-    
-    // Compute ψ(Q) = (β*X : Y : Z) in Jacobian
-    // This is the ONLY per-operation overhead (1 field multiplication)
-    JacobianPoint psi_Q = Q_jac;
-    psi_Q.x = Q_jac.x * beta;  // ψ(x,y) = (β*x, y)
-    // y and z remain unchanged
-    
-    // Apply negations if needed from GLV decomposition
-    if (precomp.neg1) {
-        Q_jac = negate_jacobian(Q_jac);
-    }
-    if (precomp.neg2) {
-        psi_Q = negate_jacobian(psi_Q);
-    }
-    
-#if SECP256K1_PROFILE_PRECOMPUTED
-    uint64_t t2 = __rdtsc();
-#endif
-    
-    // Precompute small tables for 2D wNAF
-    // Table for Q:    [Q, 3Q, 5Q, ..., (2^w-1)Q]
-    // Table for ψ(Q): [ψ(Q), 3ψ(Q), 5ψ(Q), ..., (2^w-1)ψ(Q)]
-    const unsigned table_size = 1U << (precomp.window_bits - 1);
-    
-    // Build Jacobian tables
-    std::vector<JacobianPoint> table_Q;
-    std::vector<JacobianPoint> table_psi;
-    table_Q.reserve(table_size);
-    table_psi.reserve(table_size);
-    
-    table_Q.push_back(Q_jac);
-    table_psi.push_back(psi_Q);
-    
-    JacobianPoint double_Q = jacobian_double(Q_jac);
-    JacobianPoint double_psi = jacobian_double(psi_Q);
-    
-    JacobianPoint current_Q = Q_jac;
-    JacobianPoint current_psi = psi_Q;
-    
-    for (unsigned i = 1; i < table_size; ++i) {
-        current_Q = jacobian_add(current_Q, double_Q);
-        current_psi = jacobian_add(current_psi, double_psi);
-        table_Q.push_back(current_Q);
-        table_psi.push_back(current_psi);
-    }
-    
-#if SECP256K1_PROFILE_PRECOMPUTED
-    uint64_t t3 = __rdtsc();
-#endif
-    
-    // Convert all to affine using batch inversion (Montgomery trick)
-    std::vector<FieldElement> z_coords_Q, z_coords_psi;
-    z_coords_Q.reserve(table_size);
-    z_coords_psi.reserve(table_size);
-    
-    for (unsigned i = 0; i < table_size; ++i) {
-        z_coords_Q.push_back(table_Q[i].z);
-        z_coords_psi.push_back(table_psi[i].z);
-    }
-    
-    batch_inverse(z_coords_Q);
-    batch_inverse(z_coords_psi);
-    
-    std::vector<AffinePointPacked> affine_Q, affine_psi;
-    affine_Q.reserve(table_size);
-    affine_psi.reserve(table_size);
-    
-    for (unsigned i = 0; i < table_size; ++i) {
-        FieldElement z_inv = z_coords_Q[i];
-        FieldElement z_inv2 = z_inv.square();
-        FieldElement z_inv3 = z_inv2 * z_inv;
-        affine_Q.push_back({table_Q[i].x * z_inv2, table_Q[i].y * z_inv3, table_Q[i].infinity});
-        
-        z_inv = z_coords_psi[i];
-        z_inv2 = z_inv.square();
-        z_inv3 = z_inv2 * z_inv;
-        affine_psi.push_back({table_psi[i].x * z_inv2, table_psi[i].y * z_inv3, table_psi[i].infinity});
-    }
-    
-#if SECP256K1_PROFILE_PRECOMPUTED
-    uint64_t t4 = __rdtsc();
-#endif
-    
-    // 2D wNAF loop with PRECOMPUTED digits
-    // This is the core speedup - no wNAF generation, just lookup!
-    const auto& wnaf1 = precomp.wnaf1;
-    const auto& wnaf2 = precomp.wnaf2;
-    
-    // Pad to same length
-    size_t max_len = std::max(wnaf1.size(), wnaf2.size());
-    
-    JacobianPoint result = {FieldElement::zero(), FieldElement::one(), FieldElement::zero(), true};
-    
-    for (int i = static_cast<int>(max_len) - 1; i >= 0; --i) {
-        result = jacobian_double(result);
-        
-        // Process wnaf1 digit (for Q)
-        if (i < static_cast<int>(wnaf1.size())) {
-            int32_t digit = wnaf1[i];
-            if (digit != 0) {
-                bool is_negative = (digit < 0);
-                unsigned abs_digit = is_negative ? static_cast<unsigned>(-digit) : static_cast<unsigned>(digit);
-                unsigned index = (abs_digit - 1) / 2;
-                
-                if (index < table_size) {
-                    AffinePointPacked pt = affine_Q[index];
-                    if (is_negative) {
-                        pt.y = negate_fe(pt.y);
-                    }
-                    result = jacobian_add_mixed_local(result, pt);
-                }
-            }
-        }
-        
-        // Process wnaf2 digit (for ψ(Q))
-        if (i < static_cast<int>(wnaf2.size())) {
-            int32_t digit = wnaf2[i];
-            if (digit != 0) {
-                bool is_negative = (digit < 0);
-                unsigned abs_digit = is_negative ? static_cast<unsigned>(-digit) : static_cast<unsigned>(digit);
-                unsigned index = (abs_digit - 1) / 2;
-                
-                if (index < table_size) {
-                    AffinePointPacked pt = affine_psi[index];
-                    if (is_negative) {
-                        pt.y = negate_fe(pt.y);
-                    }
-                    result = jacobian_add_mixed_local(result, pt);
-                }
-            }
+    // Compute digits from the pre-decomposed scalars
+    auto digits1 = compute_window_digits(k1, ctx.window_bits, window_count);
+    auto digits2 = compute_window_digits(k2, ctx.window_bits, window_count);
+
+    // Apply negation flags
+    if (neg1) {
+        for (auto& d : digits1) {
+            if (d != 0) d = -d;
         }
     }
-    
-#if SECP256K1_PROFILE_PRECOMPUTED
-    uint64_t t5 = __rdtsc();
-    uint64_t total = t5 - t_start;
-    uint64_t psi_compute = t2 - t1;
-    uint64_t table_build = t3 - t2;
-    uint64_t batch_inverse = t4 - t3;
-    uint64_t main_loop = t5 - t4;
-    
-    std::cout << "\n[PROFILE] scalar_mul_arbitrary_precomputed:\n";
-    std::cout << "  1. ψ(Q) computation:    " << psi_compute << " cycles (" 
-              << (100.0 * psi_compute / total) << "%)\n";
-    std::cout << "  2. Table building:      " << table_build << " cycles (" 
-              << (100.0 * table_build / total) << "%)\n";
-    std::cout << "  3. Batch inversion:     " << batch_inverse << " cycles (" 
-              << (100.0 * batch_inverse / total) << "%)\n";
-    std::cout << "  4. Main 2D loop:        " << main_loop << " cycles (" 
-              << (100.0 * main_loop / total) << "%)\n";
-    std::cout << "  TOTAL:                  " << total << " cycles\n";
-#endif
-    
+    if (neg2) {
+        for (auto& d : digits2) {
+            if (d != 0) d = -d;
+        }
+    }
+
+    // Use Shamir's trick with pre-computed digits
+    JacobianPoint result = shamir_windowed_glv(digits1, digits2, ctx.base_tables, ctx.psi_tables, window_count);
+
     return Point::from_jacobian_coords(result.x, result.y, result.z, result.infinity);
 }
 
-// ===================================================================
+bool save_precompute_cache(const std::string& path) {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    return save_precompute_cache_locked(path);
+}
+
+bool load_precompute_cache(const std::string& path, unsigned max_windows) {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    return load_precompute_cache_locked(path, max_windows);
+}
+
+// Optimized scalar multiplication for arbitrary points using fixed-window method
+// Precomputes odd multiples: [Q, 3Q, 5Q, 7Q, ..., (2^w-1)Q] where w = window_bits
+// Then uses wNAF to minimize point additions
+//
+// OPTIMIZATION: Store table in AFFINE coordinates for mixed Jacobian-Affine addition
+// Mixed addition: 8 field muls (vs 12 for full Jacobian-Jacobian)
+// Expected speedup: 30-40% over Jacobian table
+Point scalar_mul_arbitrary(const Point& base, const Scalar& scalar, unsigned window_bits) {
+    // Validate inputs
+    if (base.is_infinity()) {
+        return Point::infinity();
+    }
+
+    // Clamp window_bits to reasonable range (4-7)
+    // w=4: 8 precomputed points (512 bytes in affine)
+    // w=5: 16 points (1024 bytes) - RECOMMENDED
+    // w=6: 32 points (2048 bytes)
+    // w=7: 64 points (4096 bytes)
+    if (window_bits < 4) window_bits = 4;
+    if (window_bits > 7) window_bits = 7;
+    
+    // Compute wNAF representation
+    auto wnaf = compute_wnaf(scalar, window_bits);
+
+    // Precompute odd multiples in AFFINE coordinates: [1Q, 3Q, 5Q, ..., (2^w-1)Q]
+    // We need (2^(w-1)) points for odd multiples
+    const unsigned table_size = 1U << (window_bits - 1);
+    std::vector<AffinePointPacked> table;
+    table.reserve(table_size);
+
+    // Convert base to Jacobian for computation
+    JacobianPoint current = {base.x_raw(), base.y_raw(), base.z_raw(), base.is_infinity()};
+
+    // Build Jacobian points first, then batch convert to affine
+    std::vector<JacobianPoint> jacobian_table;
+    jacobian_table.reserve(table_size);
+    jacobian_table.push_back(current);  // table[0] = Q
+
+    // Precompute 2Q in Jacobian (for incremental building)
+    JacobianPoint double_base = jacobian_double(current);
+
+    // Build table incrementally: (2i+1)*Q = (2i-1)*Q + 2Q
+    // table[1] = 3Q = Q + 2Q
+    // table[2] = 5Q = 3Q + 2Q
+    // ...
+    for (unsigned i = 1; i < table_size; ++i) {
+        current = jacobian_add(current, double_base);
+        jacobian_table.push_back(current);
+    }
+
+    // MONTGOMERY BATCH INVERSION: Convert all Z coordinates at once
+    // Collect Z coordinates for batch inversion
+    std::vector<FieldElement> z_coords;
+    z_coords.reserve(table_size);
+    for (unsigned i = 0; i < table_size; ++i) {
+        z_coords.push_back(jacobian_table[i].z);
+    }
+
+    // Batch invert: N inversions → 1 inverse + 3N muls (~15x faster!)
+    batch_inverse(z_coords);
+
+    // Convert all points to affine using batched Z inverses
+    for (unsigned i = 0; i < table_size; ++i) {
+        const JacobianPoint& jac = jacobian_table[i];
+        const FieldElement& z_inv = z_coords[i];
+
+        FieldElement z_inv2 = z_inv.square();
+        FieldElement z_inv3 = z_inv2 * z_inv;
+
+        AffinePointPacked affine;
+        affine.x = jac.x * z_inv2;
+        affine.y = jac.y * z_inv3;
+        affine.infinity = jac.infinity;
+        table.push_back(affine);
+    }
+
+    // Process wNAF digits from most significant to least significant
+    JacobianPoint result = {FieldElement::zero(), FieldElement::one(), FieldElement::zero(), true};
+
+    for (int i = static_cast<int>(wnaf.size()) - 1; i >= 0; --i) {
+        result = jacobian_double(result);
+
+        int32_t digit = wnaf[i];
+        if (digit == 0) {
+            continue;  // No addition needed
+        }
+
+        // Get absolute value and sign
+        bool is_negative = (digit < 0);
+        unsigned abs_digit = is_negative ? static_cast<unsigned>(-digit) : static_cast<unsigned>(digit);
+        unsigned index = (abs_digit - 1) / 2;
+
+        if (index >= table_size) {
+            // Should never happen with correct wNAF, but safety check
+            continue;
+        }
+
+        // Get affine point from table
+        AffinePointPacked affine_pt = table[index];
+        if (is_negative) {
+            affine_pt.y = negate_fe(affine_pt.y);
+        }
+
+        // Mixed addition: Jacobian + Affine → Jacobian (8 muls vs 12)
+        result = jacobian_add_mixed_local(result, affine_pt);
+    }
+
+    return Point::from_jacobian_coords(result.x, result.y, result.z, result.infinity);
+}
+
+// GLV multiplication with pre-decomposed scalar (no decomposition overhead)
+// Use this when scalar is constant and decomposition can be done once at compile/init time
+Point scalar_mul_generator_glv_predecomposed(const Scalar& k1, const Scalar& k2, bool neg1, bool neg2) {
+    std::unique_lock<std::mutex> lock(g_mutex);
+    ensure_built_locked();
+    PrecomputeContext& ctx = *g_context;
+
+    if (!ctx.config.enable_glv) {
+        throw std::runtime_error("GLV must be enabled for predecomposed multiplication");
+    }
+
+    lock.unlock();
+
+    const std::size_t window_count = ctx.window_count;
+
+    // Compute digits from the pre-decomposed scalars
+    auto digits1 = compute_window_digits(k1, ctx.window_bits, window_count);
+    auto digits2 = compute_window_digits(k2, ctx.window_bits, window_count);
+
+    // Apply negation flags
+    if (neg1) {
+        for (auto& d : digits1) {
+            if (d != 0) d = -d;
+        }
+    }
+    if (neg2) {
+        for (auto& d : digits2) {
+            if (d != 0) d = -d;
+        }
+    }
+
+    // Use Shamir's trick with pre-computed digits
+    JacobianPoint result = shamir_windowed_glv(digits1, digits2, ctx.base_tables, ctx.psi_tables, window_count);
+
+    return Point::from_jacobian_coords(result.x, result.y, result.z, result.infinity);
+}
+
+bool save_precompute_cache(const std::string& path) {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    return save_precompute_cache_locked(path);
+}
+
+bool load_precompute_cache(const std::string& path, unsigned max_windows) {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    return load_precompute_cache_locked(path, max_windows);
+}
+
+// Optimized scalar multiplication for arbitrary points using fixed-window method
+// Precomputes odd multiples: [Q, 3Q, 5Q, 7Q, ..., (2^w-1)Q] where w = window_bits
+// Then uses wNAF to minimize point additions
+//
+// OPTIMIZATION: Store table in AFFINE coordinates for mixed Jacobian-Affine addition
+// Mixed addition: 8 field muls (vs 12 for full Jacobian-Jacobian)
+// Expected speedup: 30-40% over Jacobian table
+Point scalar_mul_arbitrary(const Point& base, const Scalar& scalar, unsigned window_bits) {
+    // Validate inputs
+    if (base.is_infinity()) {
+        return Point::infinity();
+    }
+    
+    // Clamp window_bits to reasonable range (4-7)
+    // w=4: 8 precomputed points (512 bytes in affine)
+    // w=5: 16 points (1024 bytes) - RECOMMENDED
+    // w=6: 32 points (2048 bytes)
+    // w=7: 64 points (4096 bytes)
+    if (window_bits < 4) window_bits = 4;
+    if (window_bits > 7) window_bits = 7;
+
+    // Compute wNAF representation
+    auto wnaf = compute_wnaf(scalar, window_bits);
+
+    // Precompute odd multiples in AFFINE coordinates: [1Q, 3Q, 5Q, ..., (2^w-1)Q]
+    // We need (2^(w-1)) points for odd multiples
+    const unsigned table_size = 1U << (window_bits - 1);
+    std::vector<AffinePointPacked> table;
+    table.reserve(table_size);
+
+    // Convert base to Jacobian for computation
+    JacobianPoint current = {base.x_raw(), base.y_raw(), base.z_raw(), base.is_infinity()};
+
+    // Build Jacobian points first, then batch convert to affine
+    std::vector<JacobianPoint> jacobian_table;
+    jacobian_table.reserve(table_size);
+    jacobian_table.push_back(current);  // table[0] = Q
+
+    // Precompute 2Q in Jacobian (for incremental building)
+    JacobianPoint double_base = jacobian_double(current);
+
+    // Build table incrementally: (2i+1)*Q = (2i-1)*Q + 2Q
+    // table[1] = 3Q = Q + 2Q
+    // table[2] = 5Q = 3Q + 2Q
+    // ...
+    for (unsigned i = 1; i < table_size; ++i) {
+        current = jacobian_add(current, double_base);
+        jacobian_table.push_back(current);
+    }
+    
+    // MONTGOMERY BATCH INVERSION: Convert all Z coordinates at once
+    // Collect Z coordinates for batch inversion
+    std::vector<FieldElement> z_coords;
+    z_coords.reserve(table_size);
+    for (unsigned i = 0; i < table_size; ++i) {
+        z_coords.push_back(jacobian_table[i].z);
+    }
+    
+    // Batch invert: N inversions → 1 inverse + 3N muls (~15x faster!)
+    batch_inverse(z_coords);
+
+    // Convert all points to affine using batched Z inverses
+    for (unsigned i = 0; i < table_size; ++i) {
+        const JacobianPoint& jac = jacobian_table[i];
+        const FieldElement& z_inv = z_coords[i];
+
+        FieldElement z_inv2 = z_inv.square();
+        FieldElement z_inv3 = z_inv2 * z_inv;
+
+        AffinePointPacked affine;
+        affine.x = jac.x * z_inv2;
+        affine.y = jac.y * z_inv3;
+        affine.infinity = jac.infinity;
+        table.push_back(affine);
+    }
+    
+    // Process wNAF digits from most significant to least significant
+    JacobianPoint result = {FieldElement::zero(), FieldElement::one(), FieldElement::zero(), true};
+    
+    for (int i = static_cast<int>(wnaf.size()) - 1; i >= 0; --i) {
+        result = jacobian_double(result);
+        
+        int32_t digit = wnaf[i];
+        if (digit == 0) {
+            continue;  // No addition needed
+        }
+
+        // Get absolute value and sign
+        bool is_negative = (digit < 0);
+        unsigned abs_digit = is_negative ? static_cast<unsigned>(-digit) : static_cast<unsigned>(digit);
+        unsigned index = (abs_digit - 1) / 2;
+
+        if (index >= table_size) {
+            // Should never happen with correct wNAF, but safety check
+            continue;
+        }
+
+        // Get affine point from table
+        AffinePointPacked affine_pt = table[index];
+        if (is_negative) {
+            affine_pt.y = negate_fe(affine_pt.y);
+        }
+
+        // Mixed addition: Jacobian + Affine → Jacobian (8 muls vs 12)
+        result = jacobian_add_mixed_local(result, affine_pt);
+    }
+
+    return Point::from_jacobian_coords(result.x, result.y, result.z, result.infinity);
+}
+
+// GLV multiplication with pre-decomposed scalar (no decomposition overhead)
+// Use this when scalar is constant and decomposition can be done once at compile/init time
+Point scalar_mul_generator_glv_predecomposed(const Scalar& k1, const Scalar& k2, bool neg1, bool neg2) {
+    std::unique_lock<std::mutex> lock(g_mutex);
+    ensure_built_locked();
+    PrecomputeContext& ctx = *g_context;
+
+    if (!ctx.config.enable_glv) {
+        throw std::runtime_error("GLV must be enabled for predecomposed multiplication");
+    }
+
+    lock.unlock();
+
+    const std::size_t window_count = ctx.window_count;
+
+    // Compute digits from the pre-decomposed scalars
+    auto digits1 = compute_window_digits(k1, ctx.window_bits, window_count);
+    auto digits2 = compute_window_digits(k2, ctx.window_bits, window_count);
+
+    // Apply negation flags
+    if (neg1) {
+        for (auto& d : digits1) {
+            if (d != 0) d = -d;
+        }
+    }
+    if (neg2) {
+        for (auto& d : digits2) {
+            if (d != 0) d = -d;
+        }
+    }
+
+    // Use Shamir's trick with pre-computed digits
+    JacobianPoint result = shamir_windowed_glv(digits1, digits2, ctx.base_tables, ctx.psi_tables, window_count);
+
+    return Point::from_jacobian_coords(result.x, result.y, result.z, result.infinity);
+}
+
+bool save_precompute_cache(const std::string& path) {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    return save_precompute_cache_locked(path);
+}
+
+bool load_precompute_cache(const std::string& path, unsigned max_windows) {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    return load_precompute_cache_locked(path, max_windows);
+}
+
+// Optimized scalar multiplication for arbitrary points using fixed-window method
+// Precomputes odd multiples: [Q, 3Q, 5Q, 7Q, ..., (2^w-1)Q] where w = window_bits
+// Then uses wNAF to minimize point additions
+//
+// OPTIMIZATION: Store table in AFFINE coordinates for mixed Jacobian-Affine addition
+// Mixed addition: 8 field muls (vs 12 for full Jacobian-Jacobian)
+// Expected speedup: 30-40% over Jacobian table
+Point scalar_mul_arbitrary(const Point& base, const Scalar& scalar, unsigned window_bits) {
+    // Validate inputs
+    if (base.is_infinity()) {
+        return Point::infinity();
+    }
+
+    // Clamp window_bits to reasonable range (4-7)
+    // w=4: 8 precomputed points (512 bytes in affine)
+    // w=5: 16 points (1024 bytes) - RECOMMENDED
+    // w=6: 32 points (2048 bytes)
+    // w=7: 64 points (4096 bytes)
+    if (window_bits < 4) window_bits = 4;
+    if (window_bits > 7) window_bits = 7;
+
+    // Compute wNAF representation
+    auto wnaf = compute_wnaf(scalar, window_bits);
+
+    // Precompute odd multiples in AFFINE coordinates: [1Q, 3Q, 5Q, ..., (2^w-1)Q]
+    // We need (2^(w-1)) points for odd multiples
+    const unsigned table_size = 1U << (window_bits - 1);
+    std::vector<AffinePointPacked> table;
+    table.reserve(table_size);
+
+    // Convert base to Jacobian for computation
+    JacobianPoint current = {base.x_raw(), base.y_raw(), base.z_raw(), base.is_infinity()};
+
+    // Build Jacobian points first, then batch convert to affine
+    std::vector<JacobianPoint> jacobian_table;
+    jacobian_table.reserve(table_size);
+    jacobian_table.push_back(current);  // table[0] = Q
+
+    // Precompute 2Q in Jacobian (for incremental building)
+    JacobianPoint double_base = jacobian_double(current);
+
+    // Build table incrementally: (2i+1)*Q = (2i-1)*Q + 2Q
+    // table[1] = 3Q = Q + 2Q
+    // table[2] = 5Q = 3Q + 2Q
+    // ...
+    for (unsigned i = 1; i < table_size; ++i) {
+        current = jacobian_add(current, double_base);
+        jacobian_table.push_back(current);
+    }
+
+    // MONTGOMERY BATCH INVERSION: Convert all Z coordinates at once
+    // Collect Z coordinates for batch inversion
+    std::vector<FieldElement> z_coords;
+    z_coords.reserve(table_size);
+    for (unsigned i = 0; i < table_size; ++i) {
+        z_coords.push_back(jacobian_table[i].z);
+    }
+
+    // Batch invert: N inversions → 1 inverse + 3N muls (~15x faster!)
+    batch_inverse(z_coords);
+
+    // Convert all points to affine using batched Z inverses
+    for (unsigned i = 0; i < table_size; ++i) {
+        const JacobianPoint& jac = jacobian_table[i];
+        const FieldElement& z_inv = z_coords[i];
+
+        FieldElement z_inv2 = z_inv.square();
+        FieldElement z_inv3 = z_inv2 * z_inv;
+
+        AffinePointPacked affine;
+        affine.x = jac.x * z_inv2;
+        affine.y = jac.y * z_inv3;
+        affine.infinity = jac.infinity;
+        table.push_back(affine);
+    }
+
+    // Process wNAF digits from most significant to least significant
+    JacobianPoint result = {FieldElement::zero(), FieldElement::one(), FieldElement::zero(), true};
+
+    for (int i = static_cast<int>(wnaf.size()) - 1; i >= 0; --i) {
+        result = jacobian_double(result);
+
+        int32_t digit = wnaf[i];
+        if (digit == 0) {
+            continue;  // No addition needed
+        }
+        
+        // Get absolute value and sign
+        bool is_negative = (digit < 0);
+        unsigned abs_digit = is_negative ? static_cast<unsigned>(-digit) : static_cast<unsigned>(digit);
+        unsigned index = (abs_digit - 1) / 2;
+
+        if (index >= table_size) {
+            // Should never happen with correct wNAF, but safety check
+            continue;
+        }
+
+        // Get affine point from table
+        AffinePointPacked affine_pt = table[index];
+        if (is_negative) {
+            affine_pt.y = negate_fe(affine_pt.y);
+        }
+
+        // Mixed addition: Jacobian + Affine → Jacobian (8 muls vs 12)
+        result = jacobian_add_mixed_local(result, affine_pt);
+    }
+
+    return Point::from_jacobian_coords(result.x, result.y, result.z, result.infinity);
+}
+
+// ============================================================================
 // OPTIMIZED PRECOMPUTATION - Zero Runtime Overhead
 // ===================================================================
 
@@ -3797,34 +4039,33 @@ Point scalar_mul_arbitrary_precomputed_optimized(const Point& Q, const Precomput
     }
     
     // Convert to affine using batch inversion
-    std::vector<FieldElement> z_values;
-    z_values.reserve(table_size * 2);
+    std::vector<FieldElement> all_z;
+    all_z.reserve(table_size * 2);
     for (unsigned i = 0; i < table_size; ++i) {
-        z_values.push_back(table_Q[i].z);
-        z_values.push_back(table_psi[i].z);
+        all_z.push_back(table_Q[i].z);
+        all_z.push_back(table_psi[i].z);
     }
-    
-    batch_inverse(z_values);
+    batch_inverse(all_z);
     
     // Build affine tables
     std::vector<AffinePointPacked> affine_Q(table_size);
     std::vector<AffinePointPacked> affine_psi(table_size);
     
     for (unsigned i = 0; i < table_size; ++i) {
-        FieldElement z_inv_Q = z_values[i*2];
-        FieldElement z2_inv = z_inv_Q.square();
-        FieldElement z3_inv = z2_inv * z_inv_Q;
+        FieldElement z_inv = all_z[i*2];
+        FieldElement z2 = z_inv.square();
+        FieldElement z3 = z2 * z_inv;
         
-        affine_Q[i].x = table_Q[i].x * z2_inv;
-        affine_Q[i].y = table_Q[i].y * z3_inv;
+        affine_Q[i].x = table_Q[i].x * z2;
+        affine_Q[i].y = table_Q[i].y * z3;
         affine_Q[i].infinity = false;
         
-        FieldElement z_inv_psi = z_values[i*2 + 1];
-        z2_inv = z_inv_psi.square();
-        z3_inv = z2_inv * z_inv_psi;
+        z_inv = all_z[i*2 + 1];
+        z2 = z_inv.square();
+        z3 = z2 * z_inv;
         
-        affine_psi[i].x = table_psi[i].x * z2_inv;
-        affine_psi[i].y = table_psi[i].y * z3_inv;
+        affine_psi[i].x = table_psi[i].x * z2;
+        affine_psi[i].y = table_psi[i].y * z3;
         affine_psi[i].infinity = false;
     }
     
@@ -3867,129 +4108,4 @@ Point scalar_mul_arbitrary_precomputed_optimized(const Point& Q, const Precomput
     
     return Point::from_jacobian_coords(result.x, result.y, result.z, result.infinity);
 }
-
-// ===================================================================
-// NO-TABLE MODE - For K constant + Q variable
-// Only builds necessary Q and ψ(Q) tables, skips unnecessary precomputation
-// ===================================================================
-
-Point scalar_mul_arbitrary_precomputed_notable(const Point& Q, const PrecomputedScalarOptimized& precomp) {
-    if (!precomp.is_valid()) {
-        throw std::invalid_argument("Invalid PrecomputedScalarOptimized");
-    }
-    
-    // Special case: Q is identity
-    if (Q.is_infinity()) {
-        return Point::infinity();
-    }
-    
-    // Get β constant for endomorphism
-    const FieldElement beta = const_beta();
-    
-    // Convert Q to Jacobian
-    JacobianPoint Q_jac = {Q.x_raw(), Q.y_raw(), Q.z_raw(), Q.is_infinity()};
-    
-    // Compute ψ(Q) = (β*X : Y : Z) in Jacobian
-    JacobianPoint psi_Q = Q_jac;
-    psi_Q.x = Q_jac.x * beta;
-    
-    // Apply negations from GLV decomposition
-    if (precomp.neg1) {
-        Q_jac = negate_jacobian(Q_jac);
-    }
-    if (precomp.neg2) {
-        psi_Q = negate_jacobian(psi_Q);
-    }
-    
-    // Build minimal tables for odd multiples [Q, 3Q, 5Q, ...] and [ψ(Q), 3ψ(Q), ...]
-    unsigned window_bits = precomp.window_bits;
-    unsigned table_size = (1u << (window_bits - 1));
-    
-    std::vector<JacobianPoint> table_Q_jac(table_size);
-    std::vector<JacobianPoint> table_psi_jac(table_size);
-    
-    table_Q_jac[0] = Q_jac;
-    table_psi_jac[0] = psi_Q;
-    
-    if (table_size > 1) {
-        JacobianPoint Q2 = jacobian_double(Q_jac);
-        JacobianPoint psi2 = jacobian_double(psi_Q);
-        
-        for (unsigned i = 1; i < table_size; ++i) {
-            table_Q_jac[i] = jacobian_add(table_Q_jac[i-1], Q2);
-            table_psi_jac[i] = jacobian_add(table_psi_jac[i-1], psi2);
-        }
-    }
-    
-    // Convert tables to affine (batch inversion)
-    std::vector<FieldElement> all_z;
-    all_z.reserve(table_size * 2);
-    for (unsigned i = 0; i < table_size; ++i) {
-        all_z.push_back(table_Q_jac[i].z);
-        all_z.push_back(table_psi_jac[i].z);
-    }
-    batch_inverse(all_z);
-    
-    std::vector<AffinePointPacked> affine_Q(table_size);
-    std::vector<AffinePointPacked> affine_psi(table_size);
-    
-    for (unsigned i = 0; i < table_size; ++i) {
-        FieldElement z_inv = all_z[i*2];
-        FieldElement z2 = z_inv.square();
-        FieldElement z3 = z2 * z_inv;
-        
-        affine_Q[i].x = table_Q_jac[i].x * z2;
-        affine_Q[i].y = table_Q_jac[i].y * z3;
-        affine_Q[i].infinity = false;
-        
-        z_inv = all_z[i*2 + 1];
-        z2 = z_inv.square();
-        z3 = z2 * z_inv;
-        
-        affine_psi[i].x = table_psi_jac[i].x * z2;
-        affine_psi[i].y = table_psi_jac[i].y * z3;
-        affine_psi[i].infinity = false;
-    }
-    
-    // Main loop - same as optimized version
-    JacobianPoint result = {FieldElement::zero(), FieldElement::one(), FieldElement::zero(), true};
-    
-    for (const auto& step : precomp.steps) {
-        // Batch doubles (RLE optimization)
-        for (uint16_t d = 0; d < step.num_doubles; ++d) {
-            result = jacobian_double(result);
-        }
-        
-        // Add from Q table
-        if (step.idx1 != 0xFF) {
-            const AffinePointPacked& pt = affine_Q[step.idx1];
-            
-            if (step.neg1) {
-                AffinePointPacked negated = pt;
-                negated.y = negate_fe(pt.y);
-                result = jacobian_add_mixed_local(result, negated);
-            } else {
-                result = jacobian_add_mixed_local(result, pt);
-            }
-        }
-        
-        // Add from ψ(Q) table
-        if (step.idx2 != 0xFF) {
-            const AffinePointPacked& pt = affine_psi[step.idx2];
-            
-            if (step.neg2) {
-                AffinePointPacked negated = pt;
-                negated.y = negate_fe(pt.y);
-                result = jacobian_add_mixed_local(result, negated);
-            } else {
-                result = jacobian_add_mixed_local(result, pt);
-            }
-        }
-    }
-    
-    return Point::from_jacobian_coords(result.x, result.y, result.z, result.infinity);
-}
-
-} // namespace secp256k1::fast
-
 

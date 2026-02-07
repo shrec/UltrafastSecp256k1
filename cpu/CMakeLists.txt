@@ -12,12 +12,6 @@ set(SECP256K1_SOURCES
     src/sorted_ecc_db.cpp  # SortedEccDB - native x86/x64 database
 )
 
-# Optional RocksDB support
-if(SECP256K1_USE_ROCKSDB)
-    list(APPEND SECP256K1_SOURCES src/rocksdb_lookup.cpp)
-    message(STATUS "Secp256k1: RocksDB lookup support enabled")
-endif()
-
 # Optional inline assembly (Tier 3: Maximum performance, x64/RISC-V)
 option(SECP256K1_USE_ASM "Enable inline assembly optimizations (x64/RISC-V, 2-5x speedup)" ON)
 
@@ -103,13 +97,6 @@ else()
     set(SECP256K1_HAS_ASM FALSE)
 endif()
 
-if(SECP256K1_USE_ROCKSDB)
-    list(APPEND SECP256K1_SOURCES 
-        src/storage.cpp
-        src/rocksdb_wrapper.cpp
-    )
-endif()
-
 if(NOT TARGET ${SECP256K1_LIB_NAME})
     add_library(${SECP256K1_LIB_NAME} STATIC ${SECP256K1_SOURCES})
     add_library(secp256k1::fast ALIAS ${SECP256K1_LIB_NAME})
@@ -146,18 +133,6 @@ if(SECP256K1_HAS_ASM)
     message(STATUS "  -> field_mul: ~8ns (vs 27ns intrinsics, 40ns portable)")
     message(STATUS "  -> field_square: ~7ns (vs 21ns intrinsics, 35ns portable)")
     message(STATUS "  -> Expected K*Q: ~18-24 μs (vs 66 μs current)")
-endif()
-
-if(SECP256K1_USE_ROCKSDB)
-    find_package(Threads REQUIRED)
-    target_compile_definitions(${SECP256K1_LIB_NAME} PUBLIC SECP256K1_HAVE_ROCKSDB=1)
-    target_link_libraries(${SECP256K1_LIB_NAME}
-        PUBLIC
-            secp256k1::rocksdb
-            Threads::Threads
-    )
-else()
-    target_compile_definitions(${SECP256K1_LIB_NAME} PUBLIC SECP256K1_HAVE_ROCKSDB=0)
 endif()
 
 # ============================================================================
@@ -279,4 +254,9 @@ if(BUILD_TESTING)
     add_executable(test_large_scalar_multiplication tests/test_large_scalar_multiplication.cpp)
     target_link_libraries(test_large_scalar_multiplication PRIVATE ${SECP256K1_LIB_NAME})
     add_test(NAME test_large_scalar_multiplication COMMAND test_large_scalar_multiplication)
+    
+    # Test: Simple multiplication for debugging
+    add_executable(test_mul tests/test_mul.cpp)
+    target_link_libraries(test_mul PRIVATE ${SECP256K1_LIB_NAME})
+    add_test(NAME test_mul COMMAND test_mul)
 endif()

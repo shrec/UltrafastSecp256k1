@@ -11,7 +11,7 @@ namespace secp256k1::fast {
 /**
  * SortedDBAdapter - Adapter to use sorted_db with secp256k1 FieldElements
  * 
- * Provides the same API as RocksDBLookup but uses binary search on sorted file.
+ * Provides the same lookup API but uses binary search on sorted file.
  * Drop-in replacement for maximum performance.
  */
 class SortedDBAdapter {
@@ -30,7 +30,7 @@ public:
     SortedDBAdapter& operator=(SortedDBAdapter&&) noexcept = default;
     
     /**
-     * Fast point lookup using raw bytes (compatible with RocksDBLookup API)
+     * Fast point lookup using raw bytes (compatible with legacy lookup API)
      * @param x Field element (X coordinate) to search for
      * @return true if found, false otherwise
      */
@@ -46,7 +46,7 @@ public:
     }
     
     /**
-     * Batch lookup using raw bytes (compatible with RocksDBLookup API)
+     * Batch lookup using raw bytes (compatible with legacy lookup API)
      * @param x_coords Array of X coordinates to search for
      * @param count Number of elements in array
      * @param results Output array of booleans (true if found)
@@ -81,7 +81,7 @@ public:
     }
     
     /**
-     * Get statistics (compatible with RocksDBLookup API)
+     * Get statistics (compatible with legacy lookup API)
      * @return Statistics string with performance metrics
      */
     std::string get_statistics() const {
