@@ -20,6 +20,7 @@
 #include <cstring>
 #include <algorithm>
 #include <sstream>
+#include <functional>
 #include "secp256k1/fast.hpp"
 #include "secp256k1/selftest.hpp"
 
@@ -164,6 +165,71 @@ std::vector<Scalar> generate_random_scalars(size_t count) {
     }
 
     return result;
+}
+
+static void warmup_benchmark(const std::vector<FieldElement>& fields,
+                             const std::vector<Scalar>& scalars) {
+    constexpr size_t kFieldWarmIters = 2048;
+    constexpr size_t kPointWarmIters = 256;
+    constexpr size_t kScalarWarmIters = 32;
+
+    FieldElement fe = fields[0];
+    for (size_t i = 0; i < kFieldWarmIters; ++i) {
+        const auto& other = fields[i % fields.size()];
+        fe = (fe * other).square();
+        fe = fe + other;
+        fe = fe - other;
+    }
+    for (size_t i = 0; i < 8; ++i) {
+        volatile auto inv = fields[i % fields.size()].inverse();
+        (void)inv;
+    }
+
+    Point G = Point::generator();
+    Point P = G.scalar_mul(Scalar::from_uint64(7));
+    Point Q = G.scalar_mul(Scalar::from_uint64(11));
+    for (size_t i = 0; i < kPointWarmIters; ++i) {
+        P = P.add(Q);
+        P = P.dbl();
+    }
+    for (size_t i = 0; i < kScalarWarmIters; ++i) {
+        P = Q.scalar_mul(scalars[i % scalars.size()]);
+    }
+
+    std::array<FieldElement, 32> batch{};
+    for (size_t i = 0; i < batch.size(); ++i) {
+        batch[i] = fields[i % fields.size()];
+    }
+    fe_batch_inverse(batch.data(), batch.size());
+
+    volatile auto prevent_opt = fe.limbs()[0] ^ P.x_raw().limbs()[0] ^ batch[0].limbs()[0];
+    (void)prevent_opt;
+}
+
+// Helper to run benchmark with warmup and median filtering
+template <typename Func>
+double measure_with_warmup(Func&& func, int warmup_runs, int measure_runs) {
+    std::vector<double> timings;
+    timings.reserve(measure_runs);
+
+    // Warmup runs (discard result)
+    for (int i = 0; i < warmup_runs; ++i) {
+        func();
+    }
+
+    // Measurement runs
+    for (int i = 0; i < measure_runs; ++i) {
+        timings.push_back(func());
+    }
+
+    // Sort to find median
+    std::sort(timings.begin(), timings.end());
+
+    if (measure_runs % 2 == 0) {
+        return (timings[measure_runs / 2 - 1] + timings[measure_runs / 2]) / 2.0;
+    } else {
+        return timings[measure_runs / 2];
+    }
 }
 
 // ============================================================
@@ -420,7 +486,11 @@ double bench_batch_inversion(size_t batch_size) {
 
 int main()
 {
-    Selftest(true);
+    const bool selftest_ok = Selftest(true);
+    if (!selftest_ok) {
+        std::cerr << "Self-test failed; benchmark aborted.\n";
+        return 1;
+    }
 
     std::cout << "============================================================\n";
     std::cout << "  UltrafastSecp256k1 Comprehensive Benchmark\n";
@@ -460,6 +530,16 @@ int main()
     auto scalars = generate_random_scalars(scalar_count);
     std::cout << "Test data ready.\n\n";
 
+    std::cout << "Warming up benchmark...\n";
+    warmup_benchmark(fields, scalars);
+    std::cout << "Warm-up done.\n\n";
+
+    constexpr int kBenchWarmupRuns = 1;
+    constexpr int kBenchMeasureRuns = 3;
+    std::cout << "Benchmark runs: warmup=" << kBenchWarmupRuns
+              << ", measure=" << kBenchMeasureRuns
+              << " (median)\n\n";
+
     // Store results for logging
     struct BenchResult {
         std::string name;
@@ -474,35 +554,45 @@ int main()
 
     {
         const size_t iterations = 100000;
-        double time = bench_field_mul(fields, iterations);
+        double time = measure_with_warmup([&]() {
+            return bench_field_mul(fields, iterations);
+        }, kBenchWarmupRuns, kBenchMeasureRuns);
         results.push_back({"Field Mul", time});
         std::cout << "Field Mul:       " << std::setw(10) << format_time(time) << "\n";
     }
 
     {
         const size_t iterations = 100000;
-        double time = bench_field_square(fields, iterations);
+        double time = measure_with_warmup([&]() {
+            return bench_field_square(fields, iterations);
+        }, kBenchWarmupRuns, kBenchMeasureRuns);
         results.push_back({"Field Square", time});
         std::cout << "Field Square:    " << std::setw(10) << format_time(time) << "\n";
     }
 
     {
         const size_t iterations = 100000;
-        double time = bench_field_add(fields, iterations);
+        double time = measure_with_warmup([&]() {
+            return bench_field_add(fields, iterations);
+        }, kBenchWarmupRuns, kBenchMeasureRuns);
         results.push_back({"Field Add", time});
         std::cout << "Field Add:       " << std::setw(10) << format_time(time) << "\n";
     }
 
     {
         const size_t iterations = 100000;
-        double time = bench_field_sub(fields, iterations);
+        double time = measure_with_warmup([&]() {
+            return bench_field_sub(fields, iterations);
+        }, kBenchWarmupRuns, kBenchMeasureRuns);
         results.push_back({"Field Sub", time});
         std::cout << "Field Sub:       " << std::setw(10) << format_time(time) << "\n";
     }
 
     {
         const size_t iterations = 1000;
-        double time = bench_field_inverse(fields, iterations);
+        double time = measure_with_warmup([&]() {
+            return bench_field_inverse(fields, iterations);
+        }, kBenchWarmupRuns, kBenchMeasureRuns);
         results.push_back({"Field Inverse", time});
         std::cout << "Field Inverse:   " << std::setw(10) << format_time(time) << "\n";
     }
@@ -516,28 +606,36 @@ int main()
 
     {
         const size_t iterations = 10000;
-        double time = bench_point_add(iterations);
+        double time = measure_with_warmup([&]() {
+            return bench_point_add(iterations);
+        }, kBenchWarmupRuns, kBenchMeasureRuns);
         results.push_back({"Point Add", time});
         std::cout << "Point Add:       " << std::setw(10) << format_time(time) << "\n";
     }
 
     {
         const size_t iterations = 10000;
-        double time = bench_point_double(iterations);
+        double time = measure_with_warmup([&]() {
+            return bench_point_double(iterations);
+        }, kBenchWarmupRuns, kBenchMeasureRuns);
         results.push_back({"Point Double", time});
         std::cout << "Point Double:    " << std::setw(10) << format_time(time) << "\n";
     }
 
     {
         const size_t iterations = 100;
-        double time = bench_point_scalar_mul(scalars, iterations);
+        double time = measure_with_warmup([&]() {
+            return bench_point_scalar_mul(scalars, iterations);
+        }, kBenchWarmupRuns, kBenchMeasureRuns);
         results.push_back({"Point Scalar Mul", time});
         std::cout << "Point Scalar Mul:" << std::setw(10) << format_time(time) << "\n";
     }
 
     {
         const size_t iterations = 100;
-        double time = bench_generator_mul(scalars, iterations);
+        double time = measure_with_warmup([&]() {
+            return bench_generator_mul(scalars, iterations);
+        }, kBenchWarmupRuns, kBenchMeasureRuns);
         results.push_back({"Generator Mul", time});
         std::cout << "Generator Mul:   " << std::setw(10) << format_time(time) << "\n";
     }
@@ -551,14 +649,18 @@ int main()
 
     {
         const size_t batch_size = 100;
-        double time = bench_batch_inversion(batch_size);
+        double time = measure_with_warmup([&]() {
+            return bench_batch_inversion(batch_size);
+        }, kBenchWarmupRuns, kBenchMeasureRuns);
         results.push_back({"Batch Inverse (n=100)", time});
         std::cout << "Batch Inverse (n=100): " << std::setw(10) << format_time(time) << " per element\n";
     }
 
     {
         const size_t batch_size = 1000;
-        double time = bench_batch_inversion(batch_size);
+        double time = measure_with_warmup([&]() {
+            return bench_batch_inversion(batch_size);
+        }, kBenchWarmupRuns, kBenchMeasureRuns);
         results.push_back({"Batch Inverse (n=1000)", time});
         std::cout << "Batch Inverse (n=1000):" << std::setw(10) << format_time(time) << " per element\n";
     }
@@ -621,6 +723,10 @@ int main()
         logfile << "  Assembly:     " << platform_detect::get_asm_status() << "\n";
         logfile << "  SIMD:         " << platform_detect::get_simd_status() << "\n";
         logfile << "\n";
+
+        logfile << "Benchmark Runs:\n";
+        logfile << "  Warmup:  " << kBenchWarmupRuns << "\n";
+        logfile << "  Measure: " << kBenchMeasureRuns << " (median)\n\n";
 
         logfile << "Benchmark Results:\n";
         logfile << "-----------------------------------------------------------------\n";

@@ -358,16 +358,16 @@ RISC-V results were collected on **Milk-V Mars** (RV64 + RVV).
 
 | Operation | Time |
 |-----------|------:|
-| Field Mul | 195 ns |
+| Field Mul | 194 ns |
 | Field Square | 178 ns |
 | Field Add | 36 ns |
 | Field Sub | 33 ns |
 | Field Inverse | 19 us |
 | Point Add | 3 us |
 | Point Double | 1 us |
-| Point Scalar Mul | 656 us |
+| Point Scalar Mul | 649 us |
 | Generator Mul | 43 us |
-| Batch Inverse (n=100) | 960 ns |
+| Batch Inverse (n=100) | 757 ns |
 | Batch Inverse (n=1000) | 595 ns |
 
 ### CUDA (RTX 4090)

@@ -47,10 +47,9 @@
     .globl field_mul_asm_riscv64
     .type field_mul_asm_riscv64, @function
 field_mul_asm_riscv64:
-    # RISC-V ABI: Save callee-saved registers (s0-s11) and ra
-    # Stack layout: [ra, s0-s11: 104 bytes] [scratch: 64 bytes] = 176 bytes (aligned to 16)
+    # RISC-V ABI: Save callee-saved registers used in this function (keep stack layout stable)
+    # Stack layout: [s0-s7,s11: 72 bytes] [scratch: 64 bytes] = 176 bytes (aligned to 16)
     addi    sp, sp, -176
-    sd      ra, 0(sp)
     sd      s0, 8(sp)
     sd      s1, 16(sp)
     sd      s2, 24(sp)
@@ -59,9 +58,6 @@ field_mul_asm_riscv64:
     sd      s5, 48(sp)
     sd      s6, 56(sp)
     sd      s7, 64(sp)
-    sd      s8, 72(sp)
-    sd      s9, 80(sp)
-    sd      s10, 88(sp)
     sd      s11, 96(sp)
 
     # Save result pointer in s11 (callee-saved)
@@ -74,450 +70,384 @@ field_mul_asm_riscv64:
     ld      s3, 24(a1)      # a[3]
 
     # Load operand b into s4-s7
-    ld      s4, 0(a2)       # b[0]
-    ld      s5, 8(a2)       # b[1]
-    ld      s6, 16(a2)      # b[2]
-    ld      s7, 24(a2)      # b[3]
+    ld      s4, 0(a2)
+    ld      s5, 8(a2)
+    ld      s6, 16(a2)
+    ld      s7, 24(a2)
 
-    #
-    # Comba multiplication: compute 8-limb product
-    # Product limbs stored on stack at offset 104: sp[104..167] (8 × 8 bytes)
-    # Using simplified, correct carry propagation
-    #
+    # -------------------------------------------------------------------------
+    # Comba Multiplication (512-bit result in t0-t6, s8)
+    # r0..r6 -> t0..t6
+    # r7 -> s8
+    # carry -> s9
+    # scratch -> a1..a7
+    # -------------------------------------------------------------------------
 
-    # Column 0: r[0] = a[0]*b[0]
-    mul     t0, s0, s4      # low
-    mulhu   t1, s0, s4      # high
-    sd      t0, 104(sp)     # r[0] at offset 104
-    mv      t2, t1          # carry0 = high part
-    li      t3, 0           # carry1 = 0
+    # Column 0: r0 = a0*b0
+    mul     t0, s0, s4
+    mulhu   s9, s0, s4
 
-    # Column 1: r[1] = a[0]*b[1] + a[1]*b[0] + carry
-    mul     t0, s0, s5      # a[0]*b[1] low
-    mulhu   t1, s0, s5      # a[0]*b[1] high
-    add     t0, t0, t2      # add carry from previous column
-    sltu    a0, t0, t2      # overflow?
-    add     t1, t1, a0      # propagate to high part
+    # Column 1: r1 = a0*b1 + a1*b0 + c
+    mul     a1, s0, s5
+    mulhu   a2, s0, s5
+    add     t1, a1, s9
+    sltu    a3, t1, s9
+    add     s9, a2, a3
 
-    mul     t4, s1, s4      # a[1]*b[0] low
-    mulhu   t5, s1, s4      # a[1]*b[0] high
-    add     t0, t0, t4      # add to column
-    sltu    a0, t0, t4      # overflow?
-    add     t1, t1, t5      # add high part
-    sltu    a1, t1, t5      # overflow from high add?
-    add     t1, t1, a0      # add carry from low overflow
-    sltu    a2, t1, a0      # overflow from carry add?
-    add     t2, a1, a2      # total carry out
+    mul     a1, s1, s4
+    mulhu   a2, s1, s4
+    add     t1, t1, a1
+    sltu    a3, t1, a1
+    add     s9, s9, a3
+    add     s9, s9, a2
 
-    sd      t0, 112(sp)     # r[1]
+    # Column 2: r2 = a0*b2 + a1*b1 + a2*b0 + c
+    mul     a1, s0, s6
+    mulhu   a2, s0, s6
+    add     t2, a1, s9
+    sltu    a3, t2, s9
+    add     s9, a2, a3
 
-    # Column 2: r[2] = a[0]*b[2] + a[1]*b[1] + a[2]*b[0] + carry
-    mul     t0, s0, s6      # a[0]*b[2] low
-    mulhu   t4, s0, s6      # a[0]*b[2] high
-    add     t0, t0, t1      # add carry (high from column 1)
-    sltu    a0, t0, t1      # overflow?
-    add     t4, t4, a0      # propagate
-    add     t4, t4, t2      # add second-level carry
-    sltu    a0, t4, t2      # overflow?
+    mul     a1, s1, s5
+    mulhu   a2, s1, s5
+    add     t2, t2, a1
+    sltu    a3, t2, a1
+    add     s9, s9, a3
+    add     s9, s9, a2
 
-    mul     t5, s1, s5      # a[1]*b[1] low
-    mulhu   t6, s1, s5      # a[1]*b[1] high
-    add     t0, t0, t5      # add low
-    sltu    a1, t0, t5
-    add     t4, t4, t6      # add high
-    sltu    a2, t4, t6
-    add     t4, t4, a1      # add carry from low
-    sltu    a3, t4, a1
-    add     a0, a0, a2
-    add     a0, a0, a3
+    mul     a1, s2, s4
+    mulhu   a2, s2, s4
+    add     t2, t2, a1
+    sltu    a3, t2, a1
+    add     s9, s9, a3
+    add     s9, s9, a2
 
-    mul     t5, s2, s4      # a[2]*b[0] low
-    mulhu   t6, s2, s4      # a[2]*b[0] high
-    add     t0, t0, t5
-    sltu    a1, t0, t5
-    add     t4, t4, t6
-    sltu    a2, t4, t6
+    # Column 3: r3 = a0*b3 + a1*b2 + a2*b1 + a3*b0 + c
+    mul     a1, s0, s7
+    mulhu   a2, s0, s7
+    add     t3, a1, s9
+    sltu    a3, t3, s9
+    add     s9, a2, a3
+
+    mul     a1, s1, s6
+    mulhu   a2, s1, s6
+    add     t3, t3, a1
+    sltu    a3, t3, a1
+    add     s9, s9, a3
+    add     s9, s9, a2
+
+    mul     a1, s2, s5
+    mulhu   a2, s2, s5
+    add     t3, t3, a1
+    sltu    a3, t3, a1
+    add     s9, s9, a3
+    add     s9, s9, a2
+
+    mul     a1, s3, s4
+    mulhu   a2, s3, s4
+    add     t3, t3, a1
+    sltu    a3, t3, a1
+    add     s9, s9, a3
+    add     s9, s9, a2
+
+    # Column 4: r4 = a1*b3 + a2*b2 + a3*b1 + c
+    mul     a1, s1, s7
+    mulhu   a2, s1, s7
+    add     t4, a1, s9
+    sltu    a3, t4, s9
+    add     s9, a2, a3
+
+    mul     a1, s2, s6
+    mulhu   a2, s2, s6
     add     t4, t4, a1
     sltu    a3, t4, a1
-    add     a0, a0, a2
-    add     t2, a0, a3      # carry out
+    add     s9, s9, a3
+    add     s9, s9, a2
 
-    mv      t1, t4          # move high to carry
-    sd      t0, 120(sp)     # r[2]
-
-    # Column 3: r[3] = a[0]*b[3] + a[1]*b[2] + a[2]*b[1] + a[3]*b[0] + carry
-    mul     t0, s0, s7      # a[0]*b[3] low
-    mulhu   t4, s0, s7      # a[0]*b[3] high
-    add     t0, t0, t1      # add carry
-    sltu    a0, t0, t1
-    add     t4, t4, a0
-    add     t4, t4, t2      # add second-level carry
-    sltu    a0, t4, t2
-
-    mul     t5, s1, s6      # a[1]*b[2]
-    mulhu   t6, s1, s6
-    add     t0, t0, t5
-    sltu    a1, t0, t5
-    add     t4, t4, t6
-    sltu    a2, t4, t6
+    mul     a1, s3, s5
+    mulhu   a2, s3, s5
     add     t4, t4, a1
     sltu    a3, t4, a1
-    add     a0, a0, a2
-    add     a0, a0, a3
+    add     s9, s9, a3
+    add     s9, s9, a2
 
-    mul     t5, s2, s5      # a[2]*b[1]
-    mulhu   t6, s2, s5
-    add     t0, t0, t5
-    sltu    a1, t0, t5
-    add     t4, t4, t6
-    sltu    a2, t4, t6
-    add     t4, t4, a1
-    sltu    a3, t4, a1
-    add     a0, a0, a2
-    add     a0, a0, a3
+    # Column 5: r5 = a2*b3 + a3*b2 + c
+    mul     a1, s2, s7
+    mulhu   a2, s2, s7
+    add     t5, a1, s9
+    sltu    a3, t5, s9
+    add     s9, a2, a3
 
-    mul     t5, s3, s4      # a[3]*b[0]
-    mulhu   t6, s3, s4
-    add     t0, t0, t5
-    sltu    a1, t0, t5
-    add     t4, t4, t6
-    sltu    a2, t4, t6
-    add     t4, t4, a1
-    sltu    a3, t4, a1
-    add     a0, a0, a2
-    add     t2, a0, a3
+    mul     a1, s3, s6
+    mulhu   a2, s3, s6
+    add     t5, t5, a1
+    sltu    a3, t5, a1
+    add     s9, s9, a3
+    add     s9, s9, a2
 
-    mv      t1, t4
-    sd      t0, 128(sp)     # r[3]
+    # Column 6: r6 = a3*b3 + c
+    mul     a1, s3, s7
+    mulhu   a2, s3, s7
+    add     t6, a1, s9
+    sltu    a3, t6, s9
+    add     s9, a2, a3
 
-    # Column 4: r[4] = a[1]*b[3] + a[2]*b[2] + a[3]*b[1] + carry
-    mul     t0, s1, s7      # a[1]*b[3]
-    mulhu   t4, s1, s7
-    add     t0, t0, t1
-    sltu    a0, t0, t1
-    add     t4, t4, a0
-    add     t4, t4, t2
-    sltu    a0, t4, t2
+    # Column 7: r7 = carry
+    mv      s8, s9
 
-    mul     t5, s2, s6      # a[2]*b[2]
-    mulhu   t6, s2, s6
-    add     t0, t0, t5
-    sltu    a1, t0, t5
-    add     t4, t4, t6
-    sltu    a2, t4, t6
-    add     t4, t4, a1
-    sltu    a3, t4, a1
-    add     a0, a0, a2
-    add     a0, a0, a3
+    # -------------------------------------------------------------------------
+    # Fast Modular Reduction (Operates on t0-t6, s8)
+    # Result stored in s0-s3 (reusing A registers, final result)
+    # -------------------------------------------------------------------------
 
-    mul     t5, s3, s5      # a[3]*b[1]
-    mulhu   t6, s3, s5
-    add     t0, t0, t5
-    sltu    a1, t0, t5
-    add     t4, t4, t6
-    sltu    a2, t4, t6
-    add     t4, t4, a1
-    sltu    a3, t4, a1
-    add     a0, a0, a2
-    add     t2, a0, a3
+    # s10 = 977
+    li      s10, 977
+    # s9 = overflow accumulator (reused)
+    li      s9, 0
 
-    mv      t1, t4
-    sd      t0, 136(sp)     # r[4]
+    # --- Process r4 (t4) ---
+    # 1. Mul by 977
+    mul     a1, t4, s10
+    mulhu   a2, t4, s10
+    add     t0, t0, a1
+    sltu    a3, t0, a1
+    add     t1, t1, a3
+    sltu    a4, t1, a3
+    add     t1, t1, a2
+    sltu    a3, t1, a2
 
-    # Column 5: r[5] = a[2]*b[3] + a[3]*b[2] + carry
-    mul     t0, s2, s7      # a[2]*b[3]
-    mulhu   t4, s2, s7
-    add     t0, t0, t1
-    sltu    a0, t0, t1
-    add     t4, t4, a0
-    add     t4, t4, t2
-    sltu    a0, t4, t2
-
-    mul     t5, s3, s6      # a[3]*b[2]
-    mulhu   t6, s3, s6
-    add     t0, t0, t5
-    sltu    a1, t0, t5
-    add     t4, t4, t6
-    sltu    a2, t4, t6
-    add     t4, t4, a1
-    sltu    a3, t4, a1
-    add     t2, a0, a2
+    add     t2, t2, a4
+    sltu    a4, t2, a4
     add     t2, t2, a3
+    sltu    a3, t2, a3
 
-    mv      t1, t4
-    sd      t0, 144(sp)     # r[5]
+    add     t3, t3, a4
+    sltu    a4, t3, a4
+    add     t3, t3, a3
+    sltu    a3, t3, a3
+    add     s9, s9, a4
+    add     s9, s9, a3
 
-    # Column 6,7: r[6:7] = a[3]*b[3] + carry
-    mul     t0, s3, s7      # a[3]*b[3]
-    mulhu   t4, s3, s7
-    add     t0, t0, t1
-    sltu    a0, t0, t1
-    add     t4, t4, a0
-    add     t4, t4, t2      # add final carry
+    # 2. Shift << 32
+    slli    a1, t4, 32
+    srli    a2, t4, 32
+    add     t0, t0, a1
+    sltu    a3, t0, a1
+    add     t1, t1, a2
+    sltu    a4, t1, a2
+    add     t1, t1, a3
+    sltu    a3, t1, a3
 
-    sd      t0, 152(sp)     # r[6]
-    sd      t4, 160(sp)     # r[7]
+    add     t2, t2, a4
+    sltu    a4, t2, a4
+    add     t2, t2, a3
+    sltu    a3, t2, a3
 
-#ifdef SECP256K1_RISCV_FAST_REDUCTION
-    #
-    # Full modular reduction: reduce 8-limb (512-bit) product mod p
-    # Algorithm (matching x64):
-    #   For each high limb h[i]:
-    #     result += h[i] * 977
-    #     result += h[i] << 32
-    #   Loop until overflow is zero
-    #   Final check: if result >= P, add K (which is subtract P mod 2^256)
-    #
-    # P = 2^256 - 2^32 - 977
-    # K = 2^32 + 977 = 0x1000003D1
-    #
+    add     t3, t3, a4
+    sltu    a4, t3, a4
+    add     t3, t3, a3
+    sltu    a3, t3, a3
+    add     s9, s9, a4
+    add     s9, s9, a3
 
-    # Load low 256 bits into s3-s6 (use callee-saved as working registers)
-    ld      s3, 104(sp)     # r0 at offset 104
-    ld      s4, 112(sp)     # r1 at offset 112
-    ld      s5, 120(sp)     # r2 at offset 120
-    ld      s6, 128(sp)     # r3 at offset 128
+    # --- Process r5 (t5) ---
+    # 1. Mul by 977
+    mul     a1, t5, s10
+    mulhu   a2, t5, s10
+    add     t1, t1, a1
+    sltu    a3, t1, a1
+    add     t2, t2, a3
+    sltu    a4, t2, a3
+    add     t2, t2, a2
+    sltu    a3, t2, a2
 
-    li      s2, 977         # constant for multiplication
-    li      s1, 0           # overflow/carry accumulator
+    add     t3, t3, a4
+    sltu    a4, t3, a4
+    add     t3, t3, a3
+    sltu    a3, t3, a3
+    add     s9, s9, a4
+    add     s9, s9, a3
 
-    # === Process limb 4 (r[4]) ===
-    ld      s0, 136(sp)     # h0 = r[4] at offset 136
+    # 2. Shift << 32
+    slli    a1, t5, 32
+    srli    a2, t5, 32
+    add     t1, t1, a1
+    sltu    a3, t1, a1
+    add     t2, t2, a2
+    sltu    a4, t2, a2
+    add     t2, t2, a3
+    sltu    a3, t2, a3
 
-    # 1. Multiply by 977
-    mul     a0, s0, s2      # low
-    mulhu   a1, s0, s2      # high
-    add     s3, s3, a0
-    sltu    a2, s3, a0
-    add     s4, s4, a1
-    sltu    a3, s4, a1
-    add     s4, s4, a2
-    sltu    a2, s4, a2
-    or      a3, a3, a2      # combine carries
-    add     s5, s5, a3
-    sltu    a3, s5, a3
-    add     s6, s6, a3
-    sltu    a3, s6, a3
-    add     s1, s1, a3      # accumulate to overflow
+    add     t3, t3, a4
+    sltu    a4, t3, a4
+    add     t3, t3, a3
+    sltu    a3, t3, a3
+    add     s9, s9, a4
+    add     s9, s9, a3
 
-    # 2. Shift by 32 bits and add
-    slli    a0, s0, 32      # low part (s0 << 32)
-    srli    a1, s0, 32      # high part (s0 >> 32)
-    add     s3, s3, a0
-    sltu    a2, s3, a0
-    add     s4, s4, a1
-    sltu    a3, s4, a1
-    add     s4, s4, a2
-    sltu    a2, s4, a2
-    or      a3, a3, a2
-    add     s5, s5, a3
-    sltu    a3, s5, a3
-    add     s6, s6, a3
-    sltu    a3, s6, a3
-    add     s1, s1, a3
+    # --- Process r6 (t6) ---
+    # 1. Mul by 977
+    mul     a1, t6, s10
+    mulhu   a2, t6, s10
+    add     t2, t2, a1
+    sltu    a3, t2, a1
+    add     t3, t3, a3
+    sltu    a4, t3, a3
+    add     t3, t3, a2
+    sltu    a3, t3, a2
+    add     s9, s9, a4
+    add     s9, s9, a3
 
-    # === Process limb 5 (r[5]) ===
-    ld      s0, 144(sp)     # h1 = r[5] at offset 144
+    # 2. Shift << 32
+    slli    a1, t6, 32
+    srli    a2, t6, 32
+    add     t2, t2, a1
+    sltu    a3, t2, a1
+    add     t3, t3, a2
+    sltu    a4, t3, a2
+    add     t3, t3, a3
+    sltu    a3, t3, a3
+    add     s9, s9, a4
+    add     s9, s9, a3
 
-    # 1. Multiply by 977
-    mul     a0, s0, s2
-    mulhu   a1, s0, s2
-    add     s4, s4, a0
-    sltu    a2, s4, a0
-    add     s5, s5, a1
-    sltu    a3, s5, a1
-    add     s5, s5, a2
-    sltu    a2, s5, a2
-    or      a3, a3, a2
-    add     s6, s6, a3
-    sltu    a3, s6, a3
-    add     s1, s1, a3
+    # --- Process r7 (s8) ---
+    # 1. Mul by 977
+    mul     a1, s8, s10
+    mulhu   a2, s8, s10
+    add     t3, t3, a1
+    sltu    a3, t3, a1
+    add     s9, s9, a2
+    add     s9, s9, a3
 
-    # 2. Shift by 32
-    slli    a0, s0, 32
-    srli    a1, s0, 32
-    add     s4, s4, a0
-    sltu    a2, s4, a0
-    add     s5, s5, a1
-    sltu    a3, s5, a1
-    add     s5, s5, a2
-    sltu    a2, s5, a2
-    or      a3, a3, a2
-    add     s6, s6, a3
-    sltu    a3, s6, a3
-    add     s1, s1, a3
+    # 2. Shift << 32
+    slli    a1, s8, 32
+    srli    a2, s8, 32
+    add     t3, t3, a1
+    sltu    a3, t3, a1
+    add     s9, s9, a2
+    add     s9, s9, a3
 
-    # === Process limb 6 (r[6]) ===
-    ld      s0, 152(sp)     # h2 = r[6] at offset 152
-
-    # 1. Multiply by 977
-    mul     a0, s0, s2
-    mulhu   a1, s0, s2
-    add     s5, s5, a0
-    sltu    a2, s5, a0
-    add     s6, s6, a1
-    sltu    a3, s6, a1
-    add     s6, s6, a2
-    sltu    a2, s6, a2
-    or      a3, a3, a2
-    add     s1, s1, a3
-
-    # 2. Shift by 32
-    slli    a0, s0, 32
-    srli    a1, s0, 32
-    add     s5, s5, a0
-    sltu    a2, s5, a0
-    add     s6, s6, a1
-    sltu    a3, s6, a1
-    add     s6, s6, a2
-    sltu    a2, s6, a2
-    or      a3, a3, a2
-    add     s1, s1, a3
-
-    # === Process limb 7 (r[7]) ===
-    ld      s0, 160(sp)     # h3 = r[7] at offset 160
-
-    # 1. Multiply by 977
-    mul     a0, s0, s2
-    mulhu   a1, s0, s2
-    add     s6, s6, a0
-    sltu    a2, s6, a0
-    add     s1, s1, a1      # accumulate overflow
-    add     s1, s1, a2
-
-    # 2. Shift by 32
-    slli    a0, s0, 32
-    srli    a1, s0, 32
-    add     s6, s6, a0
-    sltu    a2, s6, a0
-    add     s1, s1, a1
-    add     s1, s1, a2
-
-    # === Loop: reduce overflow ===
+    # Loop for overflow reduction (s9)
+    # Reuse t4 for overflow processing to avoid clobbering reduced limbs t0-t3
 .Lreduce_loop:
-    beqz    s1, .Lcheck_mod_p
+    beqz    s9, .Lfinal_check
 
-    mv      s0, s1
-    li      s1, 0           # clear for next iteration
+    mv      t4, s9
+    li      s9, 0
 
-    # 1. Multiply by 977 and add to result
-    mul     a0, s0, s2      # low
-    mulhu   a1, s0, s2      # high
-    add     s3, s3, a0      # add to limb 0
-    sltu    a2, s3, a0      # carry from limb 0
-    add     s4, s4, a1      # add high to limb 1
-    sltu    a3, s4, a1      # carry from high add
-    add     s4, s4, a2      # add carry from limb 0
-    sltu    a4, s4, a2      # carry from carry add
-    or      a3, a3, a4      # combine carries
-    add     s5, s5, a3      # propagate to limb 2
-    sltu    a3, s5, a3      # carry from limb 2
-    add     s6, s6, a3      # propagate to limb 3
-    sltu    a3, s6, a3      # carry from limb 3
-    add     s1, s1, a3      # accumulate overflow
+    # Mul by 977
+    mul     a1, t4, s10
+    mulhu   a2, t4, s10
+    add     t0, t0, a1
+    sltu    a3, t0, a1
+    add     t1, t1, a3
+    sltu    a4, t1, a3
+    add     t1, t1, a2
+    sltu    a3, t1, a2
 
-    # 2. Shift by 32 and add to result
-    slli    a0, s0, 32      # low part (s0 << 32)
-    srli    a1, s0, 32      # high part (s0 >> 32)
-    add     s3, s3, a0      # add to limb 0
-    sltu    a2, s3, a0      # carry from limb 0
-    add     s4, s4, a1      # add high to limb 1
-    sltu    a3, s4, a1      # carry from high add
-    add     s4, s4, a2      # add carry from limb 0
-    sltu    a4, s4, a2      # carry from carry add
-    or      a3, a3, a4      # combine carries
-    add     s5, s5, a3      # propagate to limb 2
-    sltu    a3, s5, a3      # carry from limb 2
-    add     s6, s6, a3      # propagate to limb 3
-    sltu    a3, s6, a3      # carry from limb 3
-    add     s1, s1, a3      # accumulate overflow
+    add     t2, t2, a4
+    sltu    a4, t2, a4
+    add     t2, t2, a3
+    sltu    a3, t2, a3
+
+    add     t3, t3, a4
+    sltu    a4, t3, a4
+    add     t3, t3, a3
+    sltu    a3, t3, a3
+    add     s9, s9, a4
+    add     s9, s9, a3
+
+    # Shift << 32
+    slli    a1, t4, 32
+    srli    a2, t4, 32
+    add     t0, t0, a1
+    sltu    a3, t0, a1
+    add     t1, t1, a2
+    sltu    a4, t1, a2
+    add     t1, t1, a3
+    sltu    a3, t1, a3
+
+    add     t2, t2, a4
+    sltu    a4, t2, a4
+    add     t2, t2, a3
+    sltu    a3, t2, a3
+
+    add     t3, t3, a4
+    sltu    a4, t3, a4
+    add     t3, t3, a3
+    sltu    a3, t3, a3
+    add     s9, s9, a4
+    add     s9, s9, a3
 
     j       .Lreduce_loop
 
-.Lcheck_mod_p:
-    # Final reduction: if (result >= P) { result -= P }
-    # Method: result >= P <=> result + K >= 2^256 (Carry out)
-    # K = 2^32 + 977 = 0x1000003D1
-    # P = 2^256 - K
-    #
-    # BRANCHLESS implementation matching x64 cmovc:
-    # 1. Compute temp = result + K
-    # 2. If carry out (result >= P), use temp (which is result - P mod 2^256), else keep result
-    #
-    # Result is currently in s3-s6
+.Lfinal_check:
+    # Final comparison magnitude check: result >= P
+    # Same logic as before: Add K, check carry.
+    # Result is in t0, t1, t2, t3
 
-    li      t4, 0x3D1       # K = 0x1000003D1
-    li      t5, 1
-    slli    t5, t5, 32
-    or      t4, t4, t5      # t4 = K
+    li      a1, 0x3D1
+    li      a2, 1
+    slli    a2, a2, 32
+    or      a1, a1, a2      # K
 
-    # Compute temp = result + K (use t0-t3 for temp)
-    add     t0, s3, t4      # temp[0] = result[0] + K
-    sltu    a0, t0, s3      # carry from limb 0 (FIXED: compare with original!)
-    add     t1, s4, a0      # temp[1] = result[1] + carry
-    sltu    a1, t1, s4      # carry from limb 1 (compare with original!)
-    add     t2, s5, a1      # temp[2] = result[2] + carry
-    sltu    a2, t2, s5      # carry from limb 2 (compare with original!)
-    add     t3, s6, a2      # temp[3] = result[3] + carry
-    sltu    a3, t3, s6      # final carry out (a3 = 1 if result >= P)
+    add     a2, t0, a1      # r0 + K
+    sltu    a3, a2, t0      # c (check vs original)
 
-    # BRANCHLESS conditional move using mask
-    # If a3 == 1 (carry happened): use temp (t0-t3)
-    # If a3 == 0 (no carry): use original (s3-s6)
-    #
-    # Create mask: if a3=1 then mask=0xFFFFFFFFFFFFFFFF, if a3=0 then mask=0
-    # RISC-V trick: -a3 = (a3==0)?0:(a3==1)?-1
-    neg     a4, a3          # a4 = -a3 (if a3=1, then a4=-1=0xFFFF..., if a3=0, then a4=0)
+    add     a4, t1, a3
+    sltu    a3, a4, t1
 
-    # CORRECTED: For each limb: if (carry) result = temp; else result = original
-    # Using: result = (temp & mask) | (original & ~mask)
-    # Optimized: result = original ^ ((original ^ temp) & mask)
+    add     a5, t2, a3
+    sltu    a3, a5, t2
 
-    xor     a5, s3, t0      # a5 = s3 ^ t0
-    and     a5, a5, a4      # a5 = (s3 ^ t0) & mask
-    xor     s3, s3, a5      # s3 = s3 ^ ((s3 ^ t0) & mask)
+    add     a6, t3, a3
+    sltu    a7, a6, t3      # a7 = carry out (needs reduction)
 
-    xor     a5, s4, t1
-    and     a5, a5, a4
-    xor     s4, s4, a5
+    # Condition mask: -a7
+    neg     a7, a7
 
-    xor     a5, s5, t2
-    and     a5, a5, a4
-    xor     s5, s5, a5
+    # Select: if carry, result = r+K (a2, a4, a5, a6)
+    # otherwise result = r (t0, t1, t2, t3)
 
-    xor     a5, s6, t3
-    and     a5, a5, a4
-    xor     s6, s6, a5
+    xor     s0, t0, a2
+    and     s0, s0, a7
+    xor     t0, t0, s0
 
+    xor     s0, t1, a4
+    and     s0, s0, a7
+    xor     t1, t1, s0
 
-.Ldone_reduction:
-    # Store reduced result (from s3-s6)
-    sd      s3, 0(s11)
-    sd      s4, 8(s11)
-    sd      s5, 16(s11)
-    sd      s6, 24(s11)
+    xor     s0, t2, a5
+    and     s0, s0, a7
+    xor     t2, t2, s0
 
-#endif  /* SECP256K1_RISCV_FAST_REDUCTION */
+    xor     s0, t3, a6
+    and     s0, s0, a7
+    xor     t3, t3, s0
 
-    # Restore callee-saved registers
-    ld      ra, 0(sp)
-    ld      s0, 8(sp)
-    ld      s1, 16(sp)
-    ld      s2, 24(sp)
-    ld      s3, 32(sp)
-    ld      s4, 40(sp)
-    ld      s5, 48(sp)
-    ld      s6, 56(sp)
-    ld      s7, 64(sp)
-    ld      s8, 72(sp)
-    ld      s9, 80(sp)
-    ld      s10, 88(sp)
-    ld      s11, 96(sp)
+    # Store result to (s11)
+    sd      t0, 0(s11)
+    sd      t1, 8(s11)
+    sd      t2, 16(s11)
+    sd      t3, 24(s11)
 
-    # Clean up stack
-    addi    sp, sp, 176
+    # Restore registers
+    ld      s0, 0(sp)
+    ld      s1, 8(sp)
+    ld      s2, 16(sp)
+    ld      s3, 24(sp)
+    ld      s4, 32(sp)
+    ld      s5, 40(sp)
+    ld      s6, 48(sp)
+    ld      s7, 56(sp)
+    ld      s8, 64(sp)
+    ld      s9, 72(sp)
+    ld      s10, 80(sp)
+    ld      s11, 88(sp)
+    ld      ra, 96(sp)
+    addi    sp, sp, 144
     ret
-    .size field_mul_asm_riscv64, .-field_mul_asm_riscv64
+.Lfield_mul_asm_riscv64_end:
 
 /*
  * field_sub_asm_riscv64
@@ -527,9 +457,8 @@ field_mul_asm_riscv64:
     .globl field_sub_asm_riscv64
     .type field_sub_asm_riscv64, @function
 field_sub_asm_riscv64:
-    # Save callee-saved registers and ra
+    # Save callee-saved registers
     addi    sp, sp, -80
-    sd      ra, 0(sp)
     sd      s0, 8(sp)
     sd      s1, 16(sp)
     sd      s2, 24(sp)
@@ -627,8 +556,7 @@ field_sub_asm_riscv64:
     sd      s2, 16(a0)
     sd      s5, 24(a0)
 
-    # Restore callee-saved registers and ra
-    ld      ra, 0(sp)
+    # Restore callee-saved registers
     ld      s0, 8(sp)
     ld      s1, 16(sp)
     ld      s2, 24(sp)
@@ -639,7 +567,7 @@ field_sub_asm_riscv64:
     ld      s7, 64(sp)
     addi    sp, sp, 80
     ret
-    .size field_sub_asm_riscv64, .-field_sub_asm_riscv64
+.Lfield_sub_asm_riscv64_end:
 
 /*
  * field_negate_asm_riscv64
@@ -649,9 +577,8 @@ field_sub_asm_riscv64:
     .globl field_negate_asm_riscv64
     .type field_negate_asm_riscv64, @function
 field_negate_asm_riscv64:
-    # Save callee-saved registers and ra
+    # Save callee-saved registers
     addi    sp, sp, -64
-    sd      ra, 0(sp)
     sd      s0, 8(sp)
     sd      s1, 16(sp)
     sd      s2, 24(sp)
@@ -706,8 +633,7 @@ field_negate_asm_riscv64:
     sd      s0, 16(a0)
     sd      s1, 24(a0)
 
-    # Restore callee-saved registers and ra
-    ld      ra, 0(sp)
+    # Restore callee-saved registers
     ld      s0, 8(sp)
     ld      s1, 16(sp)
     ld      s2, 24(sp)
@@ -716,7 +642,7 @@ field_negate_asm_riscv64:
     ld      s5, 48(sp)
     addi    sp, sp, 64
     ret
-    .size field_negate_asm_riscv64, .-field_negate_asm_riscv64
+.Lfield_negate_asm_riscv64_end:
 
 /*
  * field_square_asm_riscv64
@@ -826,7 +752,7 @@ field_add_asm_riscv64:
     sd      t3, 24(a0)
     
     ret
-    .size field_add_asm_riscv64, .-field_add_asm_riscv64
+.Lfield_add_asm_riscv64_end:
 
 
 #ifdef SECP256K1_HAS_RISCV_VECTOR
