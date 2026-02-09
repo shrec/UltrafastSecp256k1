@@ -678,6 +678,7 @@ field_sub_asm_riscv64:
     ld      s7, 64(sp)
     addi    sp, sp, 80
     ret
+    .size field_sub_asm_riscv64, .-field_sub_asm_riscv64
 .Lfield_sub_asm_riscv64_end:
 
 /*
@@ -719,7 +720,7 @@ field_negate_asm_riscv64:
     mv      t6, t1
     sub     t6, t6, t5      # P[1] - borrow
     sltu    s0, t1, t5      # underflow from borrow
-    sltu    s1, t6, a4      # will borrow from a[1]
+    sltu    s1, t6, a4      # will borrow from a[1] subtraction
     sub     t6, t6, a4      # result[1]
     or      t5, s0, s1      # combined borrow
 
@@ -753,6 +754,7 @@ field_negate_asm_riscv64:
     ld      s5, 48(sp)
     addi    sp, sp, 64
     ret
+    .size field_negate_asm_riscv64, .-field_negate_asm_riscv64
 .Lfield_negate_asm_riscv64_end:
 
 /*
