@@ -655,13 +655,424 @@ field_negate_asm_riscv64:
  * field_square_asm_riscv64
  *
  * Square a field element: r = a² (mod p)
+ *
+ * Optimized squaring exploits symmetry: a[i]*a[j] = a[j]*a[i]
+ * Instead of 16 multiplications, we do 10 muls + shifts
+ *
+ * 512-bit product structure for a² where a = [a0, a1, a2, a3]:
+ *   r0 = a0²
+ *   r1 = 2·a0·a1
+ *   r2 = 2·a0·a2 + a1²
+ *   r3 = 2·a0·a3 + 2·a1·a2
+ *   r4 = 2·a1·a3 + a2²
+ *   r5 = 2·a2·a3
+ *   r6 = a3²
  */
     .align 3
     .globl field_square_asm_riscv64
     .type field_square_asm_riscv64, @function
 field_square_asm_riscv64:
-    mv      a2, a1
-    tail    field_mul_asm_riscv64
+    addi    sp, sp, -112
+    sd      s0, 0(sp)
+    sd      s1, 8(sp)
+    sd      s2, 16(sp)
+    sd      s3, 24(sp)
+    sd      s4, 32(sp)
+    sd      s5, 40(sp)
+    sd      s6, 48(sp)
+    sd      s7, 56(sp)
+    sd      s8, 64(sp)
+    sd      s9, 72(sp)
+    sd      s10, 80(sp)
+    sd      s11, 88(sp)
+
+    mv      s11, a0         # Save result pointer
+
+    # Load input a[0..3]
+    ld      s0, 0(a1)       # a0
+    ld      s1, 8(a1)       # a1
+    ld      s2, 16(a1)      # a2
+    ld      s3, 24(a1)      # a3
+
+    # =========================================================
+    # r0 = a0² (diagonal)
+    # =========================================================
+    mul     t0, s0, s0      # r0_lo
+    mulhu   s9, s0, s0      # r0_hi -> carry to r1
+
+    # =========================================================
+    # r1 = 2·a0·a1 (off-diagonal, doubled)
+    # =========================================================
+    mul     a1, s0, s1      # (a0·a1)_lo
+    mulhu   a2, s0, s1      # (a0·a1)_hi
+
+    # Double: 2·(a0·a1)
+    slli    t1, a1, 1       # low << 1
+    srli    a3, a1, 63      # high bit of low
+    slli    a4, a2, 1       # high << 1
+    or      a4, a4, a3      # high | carry_from_low
+    srli    s10, a2, 63     # overflow bit
+
+    # Add carry from r0
+    add     t1, t1, s9
+    sltu    a3, t1, s9
+    add     s9, a4, a3      # s9 = carry to r2
+    add     s10, s10, zero  # s10 = overflow (usually 0)
+
+    # =========================================================
+    # r2 = 2·a0·a2 + a1²
+    # =========================================================
+    # First: a1² (diagonal)
+    mul     a5, s1, s1      # (a1²)_lo
+    mulhu   a6, s1, s1      # (a1²)_hi
+
+    # Second: 2·a0·a2 (off-diagonal)
+    mul     a1, s0, s2
+    mulhu   a2, s0, s2
+    slli    a7, a1, 1
+    srli    a3, a1, 63
+    slli    t6, a2, 1
+    or      t6, t6, a3
+    srli    a4, a2, 63      # overflow
+
+    # Sum: 2·a0·a2 + a1²
+    add     t2, a7, a5
+    sltu    a3, t2, a5
+    add     a6, a6, t6
+    sltu    t6, a6, t6
+    add     a6, a6, a3
+    sltu    a3, a6, a3
+    add     t6, t6, a3
+    add     t6, t6, a4      # carry chain
+
+    # Add carry from r1
+    add     t2, t2, s9
+    sltu    a3, t2, s9
+    add     s9, a6, a3
+    sltu    a3, s9, a3
+    add     s10, t6, a3
+
+    # =========================================================
+    # r3 = 2·a0·a3 + 2·a1·a2
+    # =========================================================
+    # a0·a3
+    mul     a1, s0, s3
+    mulhu   a2, s0, s3
+
+    # a1·a2
+    mul     a5, s1, s2
+    mulhu   a6, s1, s2
+
+    # Sum before doubling
+    add     a1, a1, a5
+    sltu    a3, a1, a5
+    add     a2, a2, a6
+    sltu    a4, a2, a6
+    add     a2, a2, a3
+    sltu    a3, a2, a3
+    add     a4, a4, a3      # overflow
+
+    # Double the sum
+    slli    t3, a1, 1
+    srli    a3, a1, 63
+    slli    a5, a2, 1
+    or      a5, a5, a3
+    srli    a6, a2, 63
+    slli    a4, a4, 1
+    or      a4, a4, a6
+
+    # Add carry from r2
+    add     t3, t3, s9
+    sltu    a3, t3, s9
+    add     s9, a5, a3
+    sltu    a3, s9, a3
+    add     s10, a4, a3
+    add     s10, s10, zero
+
+    # =========================================================
+    # r4 = 2·a1·a3 + a2²
+    # =========================================================
+    # a2² (diagonal)
+    mul     a5, s2, s2
+    mulhu   a6, s2, s2
+
+    # 2·a1·a3 (off-diagonal)
+    mul     a1, s1, s3
+    mulhu   a2, s1, s3
+    slli    a7, a1, 1
+    srli    a3, a1, 63
+    slli    t6, a2, 1
+    or      t6, t6, a3
+    srli    a4, a2, 63
+
+    # Sum
+    add     t4, a7, a5
+    sltu    a3, t4, a5
+    add     a6, a6, t6
+    sltu    t6, a6, t6
+    add     a6, a6, a3
+    sltu    a3, a6, a3
+    add     t6, t6, a3
+    add     t6, t6, a4
+
+    # Add carry from r3
+    add     t4, t4, s9
+    sltu    a3, t4, s9
+    add     s9, a6, a3
+    sltu    a3, s9, a3
+    add     s10, t6, a3
+
+    # =========================================================
+    # r5 = 2·a2·a3
+    # =========================================================
+    mul     a1, s2, s3
+    mulhu   a2, s2, s3
+    slli    t5, a1, 1
+    srli    a3, a1, 63
+    slli    a4, a2, 1
+    or      a4, a4, a3
+    srli    a5, a2, 63
+
+    # Add carry from r4
+    add     t5, t5, s9
+    sltu    a3, t5, s9
+    add     s9, a4, a3
+    sltu    a3, s9, a3
+    add     s10, a5, a3
+
+    # =========================================================
+    # r6 = a3² (diagonal)
+    # =========================================================
+    mul     t6, s3, s3
+    mulhu   s8, s3, s3
+
+    # Add carry from r5
+    add     t6, t6, s9
+    sltu    a3, t6, s9
+    add     s8, s8, a3
+
+    # =========================================================
+    # Reduction: 512-bit -> 256-bit mod p
+    # p = 2^256 - 2^32 - 977
+    # High limbs [r4,r5,r6,r7] * (2^32 + 977) added to [r0,r1,r2,r3]
+    # =========================================================
+    li      s10, 977
+    li      s9, 0
+
+    # --- Process r4 (t4) ---
+    mul     a1, t4, s10
+    mulhu   a2, t4, s10
+    add     t0, t0, a1
+    sltu    a3, t0, a1
+    add     t1, t1, a3
+    sltu    a4, t1, a3
+    add     t1, t1, a2
+    sltu    a3, t1, a2
+    add     t2, t2, a4
+    sltu    a4, t2, a4
+    add     t2, t2, a3
+    sltu    a3, t2, a3
+    add     t3, t3, a4
+    sltu    a4, t3, a4
+    add     t3, t3, a3
+    sltu    a3, t3, a3
+    add     s9, s9, a4
+    add     s9, s9, a3
+
+    slli    a1, t4, 32
+    srli    a2, t4, 32
+    add     t0, t0, a1
+    sltu    a3, t0, a1
+    add     t1, t1, a2
+    sltu    a4, t1, a2
+    add     t1, t1, a3
+    sltu    a3, t1, a3
+    add     t2, t2, a4
+    sltu    a4, t2, a4
+    add     t2, t2, a3
+    sltu    a3, t2, a3
+    add     t3, t3, a4
+    sltu    a4, t3, a4
+    add     t3, t3, a3
+    sltu    a3, t3, a3
+    add     s9, s9, a4
+    add     s9, s9, a3
+
+    # --- Process r5 (t5) ---
+    mul     a1, t5, s10
+    mulhu   a2, t5, s10
+    add     t1, t1, a1
+    sltu    a3, t1, a1
+    add     t2, t2, a3
+    sltu    a4, t2, a3
+    add     t2, t2, a2
+    sltu    a3, t2, a2
+    add     t3, t3, a4
+    sltu    a4, t3, a4
+    add     t3, t3, a3
+    sltu    a3, t3, a3
+    add     s9, s9, a4
+    add     s9, s9, a3
+
+    slli    a1, t5, 32
+    srli    a2, t5, 32
+    add     t1, t1, a1
+    sltu    a3, t1, a1
+    add     t2, t2, a2
+    sltu    a4, t2, a2
+    add     t2, t2, a3
+    sltu    a3, t2, a3
+    add     t3, t3, a4
+    sltu    a4, t3, a4
+    add     t3, t3, a3
+    sltu    a3, t3, a3
+    add     s9, s9, a4
+    add     s9, s9, a3
+
+    # --- Process r6 (t6) ---
+    mul     a1, t6, s10
+    mulhu   a2, t6, s10
+    add     t2, t2, a1
+    sltu    a3, t2, a1
+    add     t3, t3, a3
+    sltu    a4, t3, a3
+    add     t3, t3, a2
+    sltu    a3, t3, a2
+    add     s9, s9, a4
+    add     s9, s9, a3
+
+    slli    a1, t6, 32
+    srli    a2, t6, 32
+    add     t2, t2, a1
+    sltu    a3, t2, a1
+    add     t3, t3, a2
+    sltu    a4, t3, a2
+    add     t3, t3, a3
+    sltu    a3, t3, a3
+    add     s9, s9, a4
+    add     s9, s9, a3
+
+    # --- Process r7 (s8) ---
+    mul     a1, s8, s10
+    mulhu   a2, s8, s10
+    add     t3, t3, a1
+    sltu    a3, t3, a1
+    add     s9, s9, a2
+    add     s9, s9, a3
+
+    slli    a1, s8, 32
+    srli    a2, s8, 32
+    add     t3, t3, a1
+    sltu    a3, t3, a1
+    add     s9, s9, a2
+    add     s9, s9, a3
+
+    # =========================================================
+    # Final reduction loop (handle overflow in s9)
+    # =========================================================
+.Lsquare_reduce_loop:
+    beqz    s9, .Lsquare_final_check
+
+    mv      t4, s9
+    li      s9, 0
+
+    mul     a1, t4, s10
+    mulhu   a2, t4, s10
+    add     t0, t0, a1
+    sltu    a3, t0, a1
+    add     t1, t1, a3
+    sltu    a4, t1, a3
+    add     t1, t1, a2
+    sltu    a3, t1, a2
+    add     t2, t2, a4
+    sltu    a4, t2, a4
+    add     t2, t2, a3
+    sltu    a3, t2, a3
+    add     t3, t3, a4
+    sltu    a4, t3, a4
+    add     t3, t3, a3
+    sltu    a3, t3, a3
+    add     s9, s9, a4
+    add     s9, s9, a3
+
+    slli    a1, t4, 32
+    srli    a2, t4, 32
+    add     t0, t0, a1
+    sltu    a3, t0, a1
+    add     t1, t1, a2
+    sltu    a4, t1, a2
+    add     t1, t1, a3
+    sltu    a3, t1, a3
+    add     t2, t2, a4
+    sltu    a4, t2, a4
+    add     t2, t2, a3
+    sltu    a3, t2, a3
+    add     t3, t3, a4
+    sltu    a4, t3, a4
+    add     t3, t3, a3
+    sltu    a3, t3, a3
+    add     s9, s9, a4
+    add     s9, s9, a3
+
+    j       .Lsquare_reduce_loop
+
+.Lsquare_final_check:
+    # Branchless final reduction: if result >= p, subtract p
+    # K = 2^32 + 977 = 0x1000003D1
+    li      a1, 0x3D1
+    li      a2, 1
+    slli    a2, a2, 32
+    or      a1, a1, a2
+
+    add     a2, t0, a1
+    sltu    a3, a2, t0
+    add     a4, t1, a3
+    sltu    a3, a4, t1
+    add     a5, t2, a3
+    sltu    a3, a5, t2
+    add     a6, t3, a3
+    sltu    a7, a6, t3
+
+    # Branchless select: if overflow, use reduced result
+    neg     a7, a7
+
+    xor     s0, t0, a2
+    and     s0, s0, a7
+    xor     t0, t0, s0
+
+    xor     s0, t1, a4
+    and     s0, s0, a7
+    xor     t1, t1, s0
+
+    xor     s0, t2, a5
+    and     s0, s0, a7
+    xor     t2, t2, s0
+
+    xor     s0, t3, a6
+    and     s0, s0, a7
+    xor     t3, t3, s0
+
+    # Store result
+    sd      t0, 0(s11)
+    sd      t1, 8(s11)
+    sd      t2, 16(s11)
+    sd      t3, 24(s11)
+
+    # Restore callee-saved registers
+    ld      s0, 0(sp)
+    ld      s1, 8(sp)
+    ld      s2, 16(sp)
+    ld      s3, 24(sp)
+    ld      s4, 32(sp)
+    ld      s5, 40(sp)
+    ld      s6, 48(sp)
+    ld      s7, 56(sp)
+    ld      s8, 64(sp)
+    ld      s9, 72(sp)
+    ld      s10, 80(sp)
+    ld      s11, 88(sp)
+    addi    sp, sp, 112
+    ret
     .size field_square_asm_riscv64, .-field_square_asm_riscv64
 
 /*
