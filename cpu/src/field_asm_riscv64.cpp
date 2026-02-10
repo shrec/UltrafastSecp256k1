@@ -70,6 +70,27 @@ FieldElement field_negate_riscv(const FieldElement& a) {
     return result;
 }
 
+
+} // namespace secp256k1::fast
+
+// Scalar arithmetic (outside namespace for C linkage compatibility)
+extern "C" {
+    void scalar_add_asm_riscv64(uint64_t* r, const uint64_t* a, const uint64_t* b);
+    void scalar_sub_asm_riscv64(uint64_t* r, const uint64_t* a, const uint64_t* b);
+}
+
+namespace secp256k1::fast {
+
+// Scalar add wrapper (for GLV decomposition) - mod N arithmetic
+void scalar_add_riscv(uint64_t* r, const uint64_t* a, const uint64_t* b) {
+    scalar_add_asm_riscv64(r, a, b);
+}
+
+// Scalar sub wrapper (for GLV decomposition) - mod N arithmetic
+void scalar_sub_riscv(uint64_t* r, const uint64_t* a, const uint64_t* b) {
+    scalar_sub_asm_riscv64(r, a, b);
+}
+
 } // namespace secp256k1::fast
 
 #endif // SECP256K1_HAS_RISCV_ASM

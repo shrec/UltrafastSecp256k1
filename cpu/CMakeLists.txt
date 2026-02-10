@@ -22,6 +22,12 @@ option(SECP256K1_USE_FAST_REDUCTION "Use fast modular reduction (RISC-V asm, x64
 option(SECP256K1_RISCV_USE_VECTOR "Enable RISC-V Vector Extension (RVV) if available" ON)
 option(SECP256K1_RISCV_USE_PREFETCH "Enable prefetch hints for cache optimization" ON)
 
+# LTO/PGO options
+option(SECP256K1_USE_LTO "Enable Link Time Optimization (LTO) for C++ code" OFF)
+option(SECP256K1_USE_PGO_GEN "Enable Profile-Guided Optimization - Generate profile" OFF)
+option(SECP256K1_USE_PGO_USE "Enable Profile-Guided Optimization - Use profile" OFF)
+set(SECP256K1_PGO_PROFILE_DIR "${CMAKE_BINARY_DIR}/pgo_profiles" CACHE PATH "Directory for PGO profiles")
+
 if(SECP256K1_USE_ASM)
     if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|X64" AND CMAKE_SIZEOF_VOID_P EQUAL 8)
         # x64 Assembly (Windows/Linux/macOS)
@@ -121,8 +127,8 @@ if(SECP256K1_USE_ASM)
         endif()
         
         message(STATUS "Secp256k1: Inline assembly enabled (RISC-V 64-bit ${RISCV_FEATURES}) - Expected 2-3x speedup")
-        
-        list(APPEND SECP256K1_SOURCES 
+
+        list(APPEND SECP256K1_SOURCES
             src/field_asm_riscv64.S
             src/field_asm_riscv64.cpp
         )
@@ -130,6 +136,7 @@ if(SECP256K1_USE_ASM)
         # RISC-V assembler flags with detected march
         set_source_files_properties(src/field_asm_riscv64.S PROPERTIES 
             COMPILE_FLAGS "-x assembler-with-cpp -march=${RISCV_MARCH_FLAG} -fno-lto")
+
         add_compile_definitions(SECP256K1_HAS_RISCV_ASM=1)
         set(SECP256K1_HAS_ASM TRUE CACHE INTERNAL "Assembly support enabled")
     else()
@@ -145,11 +152,74 @@ if(NOT TARGET ${SECP256K1_LIB_NAME})
     add_library(${SECP256K1_LIB_NAME} STATIC ${SECP256K1_SOURCES})
     add_library(secp256k1::fast ALIAS ${SECP256K1_LIB_NAME})
 
-    # Enable IPO/LTO for this CPU library in Release on native (non-Windows) builds.
-    # This is intentionally per-target to avoid leaking LTO flags into CUDA device-link steps.
-    # DISABLED: Causing link errors with GNU ld on Linux when LLD is missing.
-    if(FALSE AND NOT CMAKE_SYSTEM_NAME MATCHES "Windows")
-        set_property(TARGET ${SECP256K1_LIB_NAME} PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
+    # ========================================================================
+    # LTO (Link Time Optimization) Support
+    # ========================================================================
+    # Note: Assembly files (.S) must use -fno-lto, but C++ benefits from LTO
+    # We skip CheckIPOSupported because it doesn't use our -fuse-ld=lld flag
+    message(STATUS "Secp256k1: LTO check - SECP256K1_USE_LTO=${SECP256K1_USE_LTO}, Compiler=${CMAKE_CXX_COMPILER_ID}")
+
+    if(SECP256K1_USE_LTO)
+        if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+            # Clang ThinLTO - requires lld linker (set via CMAKE_EXE_LINKER_FLAGS)
+            target_compile_options(${SECP256K1_LIB_NAME} PRIVATE -flto=thin)
+            message(STATUS "Secp256k1: ✓ LTO ENABLED (ThinLTO with Clang, expect 5-15% improvement)")
+        elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+            target_compile_options(${SECP256K1_LIB_NAME} PRIVATE -flto)
+            target_link_options(${SECP256K1_LIB_NAME} PRIVATE -flto)
+            message(STATUS "Secp256k1: ✓ LTO ENABLED (GCC LTO, expect 5-15% improvement)")
+        else()
+            message(STATUS "Secp256k1: LTO not available for compiler ${CMAKE_CXX_COMPILER_ID}")
+        endif()
+    else()
+        message(STATUS "Secp256k1: LTO disabled (use -DSECP256K1_USE_LTO=ON to enable)")
+    endif()
+
+    # ========================================================================
+    # PGO (Profile-Guided Optimization) Support
+    # ========================================================================
+    # Usage:
+    #   1. Build with -DSECP256K1_USE_PGO_GEN=ON
+    #   2. Run representative workload (benchmark)
+    #   3. Rebuild with -DSECP256K1_USE_PGO_USE=ON
+    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+        if(SECP256K1_USE_PGO_GEN)
+            message(STATUS "Secp256k1: PGO instrumentation enabled (generating profiles)")
+            if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+                target_compile_options(${SECP256K1_LIB_NAME} PRIVATE
+                    -fprofile-generate=${SECP256K1_PGO_PROFILE_DIR}
+                )
+                target_link_options(${SECP256K1_LIB_NAME} PRIVATE
+                    -fprofile-generate=${SECP256K1_PGO_PROFILE_DIR}
+                )
+            else()  # GCC
+                target_compile_options(${SECP256K1_LIB_NAME} PRIVATE
+                    -fprofile-generate -fprofile-dir=${SECP256K1_PGO_PROFILE_DIR}
+                )
+                target_link_options(${SECP256K1_LIB_NAME} PRIVATE
+                    -fprofile-generate
+                )
+            endif()
+        elseif(SECP256K1_USE_PGO_USE)
+            message(STATUS "Secp256k1: PGO optimization enabled (using profiles from ${SECP256K1_PGO_PROFILE_DIR})")
+            if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+                # Clang needs merged profile
+                set(PGO_PROFILE_FILE "${SECP256K1_PGO_PROFILE_DIR}/default.profdata")
+                if(EXISTS "${PGO_PROFILE_FILE}")
+                    target_compile_options(${SECP256K1_LIB_NAME} PRIVATE
+                        -fprofile-use=${PGO_PROFILE_FILE}
+                    )
+                else()
+                    message(WARNING "Secp256k1: PGO profile not found at ${PGO_PROFILE_FILE}")
+                    message(WARNING "  Run: llvm-profdata merge -o ${PGO_PROFILE_FILE} ${SECP256K1_PGO_PROFILE_DIR}/*.profraw")
+                endif()
+            else()  # GCC
+                target_compile_options(${SECP256K1_LIB_NAME} PRIVATE
+                    -fprofile-use -fprofile-dir=${SECP256K1_PGO_PROFILE_DIR}
+                    -fprofile-correction  # Handle missing data gracefully
+                )
+            endif()
+        endif()
     endif()
 
     target_include_directories(${SECP256K1_LIB_NAME}
@@ -307,6 +377,16 @@ if(BUILD_TESTING)
     # Legacy alias for compatibility
     add_executable(bench_comprehensive_riscv bench/bench_comprehensive_riscv.cpp)
     target_link_libraries(bench_comprehensive_riscv PRIVATE ${SECP256K1_LIB_NAME})
+
+    # LTO link options for benchmarks (must use lld for Clang LTO)
+    if(SECP256K1_USE_LTO AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        target_compile_options(bench_comprehensive PRIVATE -flto=thin)
+        target_link_options(bench_comprehensive PRIVATE -flto=thin -fuse-ld=lld)
+        target_compile_options(bench_comprehensive_riscv PRIVATE -flto=thin)
+        target_link_options(bench_comprehensive_riscv PRIVATE -flto=thin -fuse-ld=lld)
+        target_compile_options(bench_atomic_operations PRIVATE -flto=thin)
+        target_link_options(bench_atomic_operations PRIVATE -flto=thin -fuse-ld=lld)
+    endif()
 
     # NOTE: Benchmarks use default optimization (-O3 from CMAKE_CXX_FLAGS_RELEASE)
     # Over-optimizing benchmark code can distort measurements (aggressive inlining, etc.)
