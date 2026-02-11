@@ -473,7 +473,15 @@ We offer flexible licensing options for commercial applications.
 - Issues: [GitHub Issues](https://github.com/shrec/Secp256K1fast/issues)
 - Discussions: [GitHub Discussions](https://github.com/shrec/Secp256K1fast/discussions)
 
+## ☕ Support the Project
 
+If you find this library useful, consider buying me a coffee!
+
+[![PayPal](https://img.shields.io/badge/PayPal-Donate-blue.svg?logo=paypal)](https://paypal.me/IChkheidze)
+
+**PayPal:** [paypal.me/IChkheidze](https://paypal.me/IChkheidze)
+
+Your support helps maintain and improve this project. Thank you! 🙏
 
 ---
 
