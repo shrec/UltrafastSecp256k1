@@ -2,10 +2,11 @@
 
 Ultra high-performance secp256k1 elliptic curve cryptography library with multi-platform support.
 
+[![GitHub stars](https://img.shields.io/github/stars/shrec/UltrafastSecp256k1?style=social)](https://github.com/shrec/UltrafastSecp256k1/stargazers)
+[![GitHub forks](https://img.shields.io/github/forks/shrec/UltrafastSecp256k1?style=social)](https://github.com/shrec/UltrafastSecp256k1/network/members)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 [![C++20](https://img.shields.io/badge/C%2B%2B-20-blue.svg)](https://en.cppreference.com/w/cpp/20)
 [![CUDA](https://img.shields.io/badge/CUDA-12.0+-green.svg)](https://developer.nvidia.com/cuda-toolkit)
-[![GitHub](https://img.shields.io/badge/GitHub-shrec%2FSecp256K1fast-blue)](https://github.com/shrec/Secp256K1fast)
 
 ## 🚀 Features
 
@@ -46,6 +47,40 @@ Ultra high-performance secp256k1 elliptic curve cryptography library with multi-
   - High-throughput cryptographic services
   - Embedded systems (RISC-V support)
 
+## 🔐 Security Model
+
+UltrafastSecp256k1 is primarily a performance-focused secp256k1 engine designed for high-throughput elliptic curve operations across multiple platforms.
+
+By default, this library prioritizes speed and research flexibility.
+
+⚠️ **Constant-time behavior is NOT guaranteed unless explicitly built in hardened mode.**
+
+Two security profiles are planned and partially implemented:
+
+### FAST Profile (Default)
+
+* Optimized for maximum performance
+* May use variable-time algorithms
+* Intended for:
+  * Public-key operations
+  * Verification workloads
+  * Research and benchmarking
+  * Closed systems where side-channel exposure is not a concern
+
+### CT / HARDENED Profile (Planned / Ongoing)
+
+* Intended for secret scalar operations (private key handling, signing)
+* Will enforce:
+  * Constant-time arithmetic paths
+  * Side-channel resistant table access
+  * Optional Montgomery ladder implementations
+  * Restricted compiler flags (no `-Ofast`, no unsafe math optimizations)
+
+Users are responsible for selecting the appropriate build configuration for their use case.
+
+This project does **not** encourage misuse and does **not** include brute-force or attack logic.
+It is a mathematical cryptographic engine intended for legitimate cryptographic applications.
+
 ## 🛠️ Building
 
 ### Prerequisites
@@ -83,6 +118,36 @@ cmake --build build -j
 | `SECP256K1_BUILD_BENCH` | ON | Build benchmarks |
 | `SECP256K1_RISCV_FAST_REDUCTION` | ON | Fast modular reduction (RISC-V) |
 | `SECP256K1_RISCV_USE_VECTOR` | ON | RVV vector extension (RISC-V) |
+
+### Build Profiles
+
+UltrafastSecp256k1 is designed with two conceptual build targets:
+
+#### 1️⃣ FAST (Performance Research Mode)
+
+* Maximum throughput
+* Aggressive compiler optimizations allowed
+* Suitable for:
+  * Benchmarking
+  * Public key generation
+  * Batch verification
+  * High-performance research environments
+
+#### 2️⃣ CT (Constant-Time Hardened Mode)
+
+* Secret-dependent branches avoided
+* Deterministic execution paths
+* Safer for:
+  * Private key operations
+  * Signing workflows
+  * External-facing cryptographic services
+
+CT mode is under continuous development and will be expanded with:
+
+* Montgomery ladder options
+* Constant-time table selection
+* Optional blinding techniques
+* Timing regression testing integration
 
 ## 🎯 Quick Start
 
@@ -401,6 +466,60 @@ secp256k1-fast/
 │   └── tests/         # CUDA tests
 └── opencl/            # OpenCL support (future)
 ```
+
+## 🔬 Research Statement
+
+This project represents over a year of research and several months of implementation effort focused on:
+
+* Efficient field arithmetic
+* Optimized scalar multiplication
+* Cross-architecture portability
+* Clean dependency-free design
+
+The goal is to explore the practical performance limits of secp256k1 implementations while maintaining responsible cryptographic engineering practices.
+
+Community feedback, peer review, and constructive criticism are welcome.
+
+## 📚 Variant Overview
+
+The different internal variants represent experimental optimization stages and research branches.
+
+### `secp256k1_32_fast`
+
+Early performance-focused implementation.
+Optimized for speed without strict constant-time guarantees.
+
+### `secp256k1_32_hybrid_smart`
+
+Introduces algorithmic balance between raw speed and structural clarity.
+Used for experimentation with mixed optimization strategies.
+
+### `secp256k1_32_hybrid_final`
+
+Refined hybrid approach with improved arithmetic consistency and cleaner internal flow.
+
+### `secp256k1_32_really_final`
+
+Stable experimental branch consolidating performance refinements.
+Represents the most mature 32-bit variant in the research series.
+
+These variants are part of ongoing development and benchmarking.
+Detailed performance comparisons will be added progressively.
+
+## 🚫 Clarification on Usage
+
+UltrafastSecp256k1 is a cryptographic arithmetic library.
+
+It does not implement:
+
+* Brute-force search engines
+* Key cracking tools
+* Wallet recovery systems
+* Attack frameworks
+
+It provides optimized elliptic curve math primitives.
+
+Any higher-level usage is entirely external to this repository.
 
 ## 📚 Documentation
 
