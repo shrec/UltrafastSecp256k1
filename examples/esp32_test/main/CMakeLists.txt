@@ -7,6 +7,7 @@ idf_component_register(
            "../../../cpu/src/selftest.cpp"
     INCLUDE_DIRS "."
                  "../../../cpu/include"
+                 "../../../include"
     REQUIRES esp_timer
 )
 

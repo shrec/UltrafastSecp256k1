@@ -58,6 +58,52 @@ extern "C" void app_main() {
     printf("Running SECP256K1 Library Self-Test...\n");
     printf("(This may take a few seconds on ESP32)\n\n");
 
+    // Quick field diagnostics BEFORE selftest
+    printf("\n=== Field Arithmetic Diagnostics ===\n");
+    {
+        // (p-1)^2 should equal 1
+        FieldElement pm1 = FieldElement::from_limbs({
+            0xFFFFFFFEFFFFFC2EULL, 0xFFFFFFFFFFFFFFFFULL,
+            0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL
+        });
+        FieldElement pm1_mul = pm1 * pm1;
+        printf("  (p-1)*(p-1)==1?  %s\n", (pm1_mul == FieldElement::one()) ? "PASS" : "FAIL");
+        if (pm1_mul != FieldElement::one()) {
+            printf("    Got: %s\n", pm1_mul.to_hex().c_str());
+        }
+        FieldElement pm1_sq = pm1; pm1_sq.square_inplace();
+        printf("  (p-1).sq()==1?   %s\n", (pm1_sq == FieldElement::one()) ? "PASS" : "FAIL");
+        if (pm1_sq != FieldElement::one()) {
+            printf("    Got: %s\n", pm1_sq.to_hex().c_str());
+        }
+        printf("  sq==mul?         %s\n", (pm1_sq == pm1_mul) ? "PASS" : "FAIL");
+
+        // Random-ish values
+        FieldElement x = FieldElement::from_limbs({
+            0xA1B2C3D4E5F60718ULL, 0x1928374655647382ULL,
+            0xBBAACCDDEEFF0011ULL, 0x2233445566778899ULL
+        });
+        FieldElement y = FieldElement::from_limbs({
+            0xFEDCBA9876543210ULL, 0x0123456789ABCDEFULL,
+            0x1122334455667788ULL, 0x99AABBCCDDEEFF00ULL
+        });
+        FieldElement z = FieldElement::from_limbs({
+            0x1111111122222222ULL, 0x3333333344444444ULL,
+            0x5555555566666666ULL, 0x7777777788888888ULL
+        });
+        printf("  x*y==y*x?        %s\n", (x*y == y*x) ? "PASS" : "FAIL");
+        printf("  (x*y)*z==x*(y*z)? %s\n", ((x*y)*z == x*(y*z)) ? "PASS" : "FAIL");
+        FieldElement xsq = x; xsq.square_inplace();
+        FieldElement xmul = x * x;
+        printf("  x.sq==x*x?       %s\n", (xsq == xmul) ? "PASS" : "FAIL");
+        if (xsq != xmul) {
+            printf("    sq:  %s\n", xsq.to_hex().c_str());
+            printf("    mul: %s\n", xmul.to_hex().c_str());
+        }
+        printf("  x*(y+z)==x*y+x*z? %s\n", (x*(y+z) == x*y + x*z) ? "PASS" : "FAIL");
+    }
+    printf("=== End Diagnostics ===\n\n");
+
     bool test_passed = Selftest(true);  // verbose = true
 
     printf("\n");
@@ -90,7 +136,8 @@ extern "C" void app_main() {
         }
         int64_t elapsed = esp_timer_get_time() - start;
         printf("  Field Mul:    %5lld ns/op\n", (elapsed * 1000) / iterations);
-        (void)result; // Prevent optimization
+        // Force use of result to prevent optimization
+        if (result == FieldElement::zero()) printf("!");
     }
 
     // Field Squaring
@@ -102,7 +149,7 @@ extern "C" void app_main() {
         }
         int64_t elapsed = esp_timer_get_time() - start;
         printf("  Field Square: %5lld ns/op\n", (elapsed * 1000) / iterations);
-        (void)result;
+        if (result == FieldElement::zero()) printf("!");
     }
 
     // Field Addition
@@ -114,22 +161,41 @@ extern "C" void app_main() {
         }
         int64_t elapsed = esp_timer_get_time() - start;
         printf("  Field Add:    %5lld ns/op\n", (elapsed * 1000) / iterations);
-        (void)result;
+        if (result == FieldElement::zero()) printf("!");
     }
 
-    // Scalar Multiplication (if tests passed)
-    if (test_passed) {
-        printf("\n  Scalar Mul benchmark (10 iterations):\n");
+    // Field Inversion
+    {
         int64_t start = esp_timer_get_time();
+        FieldElement result = a;
+        for (int i = 0; i < 100; i++) {
+            result = result.inverse();
+        }
+        int64_t elapsed = esp_timer_get_time() - start;
+        printf("  Field Inv:    %5lld us/op\n", elapsed / 100);
+        if (result == FieldElement::zero()) printf("!");
+    }
+
+    // Scalar Multiplication (full 256-bit scalar)
+    if (test_passed) {
+        printf("\n  Scalar Mul benchmark (full 256-bit scalar):\n");
+        Scalar k = Scalar::from_hex("4727daf2986a9804b1117f8261aba645c34537e4474e19be58700792d501a591");
         Point G = Point::generator();
+
+        // Warmup
+        volatile uint64_t sink = 0;
+        Point warmup = G.scalar_mul(k);
+        sink = warmup.x().limbs()[0];
+
+        int64_t start = esp_timer_get_time();
         Point result = G;
-        Scalar k = Scalar::from_hex("0000000000000000000000000000000000000000000000000000000000000005");
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < 5; i++) {
             result = G.scalar_mul(k);
         }
         int64_t elapsed = esp_timer_get_time() - start;
-        printf("  Scalar*G:     %5lld us/op\n", elapsed / 10);
-        (void)result;
+        sink = result.x().limbs()[0];
+        printf("  Scalar*G:     %5lld us/op\n", elapsed / 5);
+        (void)sink;
     }
 
     printf("\n");

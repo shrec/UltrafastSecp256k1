@@ -1,4 +1,6 @@
 // GLV endomorphism implementation for secp256k1
+// Correct decomposition following libsecp256k1 algorithm:
+//   k = k1 + k2·λ (mod n), where |k1|,|k2| ≈ √n
 
 #include "secp256k1/glv.hpp"
 #include "secp256k1/field.hpp"
@@ -6,96 +8,170 @@
 
 namespace secp256k1::fast {
 
-// Helper: multiply 256-bit scalar by 128-bit value
-// Returns the high 256 bits of the product (for division approximation)
-static void scalar_mul_shift_256(const Scalar& k, const std::array<uint8_t, 16>& multiplier,
-                                  std::array<uint8_t, 32>& result) {
-    // Simple implementation: convert to wide integer and multiply
-    // For production, this should use optimized 256x128 multiplication
-    
-    // Get k as bytes (big-endian)
-    auto k_bytes = k.to_bytes();
-    
-    // Perform multiplication (simplified - treating as big-endian)
-    uint64_t carry = 0;
-    std::array<uint64_t, 8> wide_result{};
-    
-    // Convert multiplier to uint64_t array (big-endian)
-    uint64_t mult_high = 0, mult_low = 0;
-    for (int i = 0; i < 8; i++) {
-        mult_high = (mult_high << 8) | multiplier[i];
-        mult_low = (mult_low << 8) | multiplier[i + 8];
-    }
-    
-    // Convert k to uint64_t array (big-endian)
-    std::array<uint64_t, 4> k_limbs{};
-    for (int i = 0; i < 4; i++) {
-        k_limbs[i] = 0;
-        for (int j = 0; j < 8; j++) {
-            k_limbs[i] = (k_limbs[i] << 8) | k_bytes[i * 8 + j];
+// ============================================================================
+//  Internal helpers for GLV decomposition (32-bit safe, no __int128)
+// ============================================================================
+
+// Comba product-scanning: 8×8 → 16 words (256×256 → 512 bit)
+// Same algorithm as esp32_mul_comba in field.cpp, duplicated here to avoid
+// cross-TU dependency (glv.cpp must be self-contained).
+static void glv_mul_comba(const std::uint32_t a[8], const std::uint32_t b[8],
+                          std::uint32_t r[16]) {
+    std::uint32_t c0 = 0, c1 = 0, c2 = 0;
+    for (int k = 0; k < 15; k++) {
+        const int lo = (k < 8) ? 0 : (k - 7);
+        const int hi = (k < 8) ? k : 7;
+        for (int i = lo; i <= hi; i++) {
+            std::uint64_t p = (std::uint64_t)a[i] * b[k - i];
+            std::uint32_t plo = (std::uint32_t)p;
+            std::uint32_t phi = (std::uint32_t)(p >> 32);
+            std::uint64_t s = (std::uint64_t)c0 + plo;
+            c0 = (std::uint32_t)s;
+            s = (std::uint64_t)c1 + phi + (s >> 32);
+            c1 = (std::uint32_t)s;
+            c2 += (std::uint32_t)(s >> 32);
         }
+        r[k] = c0;
+        c0 = c1;
+        c1 = c2;
+        c2 = 0;
     }
-    
-    // Multiply and accumulate
+    r[15] = c0;
+}
+
+// Convert uint64_t[4] LE limbs to uint32_t[8] LE limbs
+static void limbs64_to_32(const std::uint64_t* src, std::uint32_t* dst) {
     for (int i = 0; i < 4; i++) {
-        uint64_t prod_low_low = (k_limbs[i] & 0xFFFFFFFF) * (mult_low & 0xFFFFFFFF);
-        uint64_t prod_low_high = (k_limbs[i] & 0xFFFFFFFF) * (mult_low >> 32);
-        uint64_t prod_high_low = (k_limbs[i] >> 32) * (mult_low & 0xFFFFFFFF);
-        uint64_t prod_high_high = (k_limbs[i] >> 32) * (mult_low >> 32);
-        
-        // Accumulate (simplified)
-        wide_result[i + 2] += prod_low_low;
-        wide_result[i + 1] += prod_low_high + prod_high_low;
-        wide_result[i] += prod_high_high;
-    }
-    
-    // Extract high 256 bits (shifted result)
-    for (int i = 0; i < 4; i++) {
-        for (int j = 0; j < 8; j++) {
-            result[i * 8 + j] = (wide_result[i] >> (56 - j * 8)) & 0xFF;
-        }
+        dst[2 * i]     = (std::uint32_t)src[i];
+        dst[2 * i + 1] = (std::uint32_t)(src[i] >> 32);
     }
 }
 
+// Compute (a * b) >> 384 with rounding bit (libsecp256k1 style)
+// a, b: 256-bit values as LE uint64_t[4]
+// Returns upper ~128 bits as LE uint64_t[4] (top two limbs typically 0)
+static std::array<std::uint64_t, 4> mul_shift_384(
+    const std::array<std::uint64_t, 4>& a,
+    const std::array<std::uint64_t, 4>& b) {
+
+    std::uint32_t a32[8], b32[8], prod[16];
+    limbs64_to_32(a.data(), a32);
+    limbs64_to_32(b.data(), b32);
+    glv_mul_comba(a32, b32, prod);
+
+    // Bits 384..511 sit in prod[12..15] (since 384/32 = 12)
+    std::array<std::uint64_t, 4> result{};
+    result[0] = (std::uint64_t)prod[12] | ((std::uint64_t)prod[13] << 32);
+    result[1] = (std::uint64_t)prod[14] | ((std::uint64_t)prod[15] << 32);
+    // result[2] = result[3] = 0
+
+    // Rounding bit: bit 383 = MSB of prod[11]
+    if (prod[11] >> 31) {
+        result[0]++;
+        if (result[0] == 0) result[1]++;
+    }
+    return result;
+}
+
+// Bit-length of a Scalar (for sign selection: pick shorter representation)
+static unsigned scalar_bitlen(const Scalar& s) {
+    auto& limbs = s.limbs();
+    for (int i = 3; i >= 0; --i) {
+        if (limbs[i] != 0) {
+#if defined(_MSC_VER) && !defined(__clang__)
+            unsigned long index;
+            _BitScanReverse64(&index, limbs[i]);
+            return (unsigned)(i * 64 + index + 1);
+#else
+            // 32-bit CLZ for portability (ESP32 Xtensa has NSAU for 32-bit)
+            std::uint32_t hi32 = (std::uint32_t)(limbs[i] >> 32);
+            if (hi32) return (unsigned)(i * 64 + 64 - __builtin_clz(hi32));
+            return (unsigned)(i * 64 + 32 - __builtin_clz((std::uint32_t)limbs[i]));
+#endif
+        }
+    }
+    return 0;
+}
+
+// ============================================================================
+//  GLV decomposition constants (matching libsecp256k1/precompute.cpp)
+// ============================================================================
+
+// g1/g2: precomputed multipliers for c1 = round(k·g1 / 2^384), c2 = round(k·g2 / 2^384)
+// (little-endian 64-bit limbs)
+static constexpr std::array<std::uint64_t, 4> kG1{{
+    0xE893209A45DBB031ULL, 0x3DAA8A1471E8CA7FULL,
+    0xE86C90E49284EB15ULL, 0x3086D221A7D46BCDULL
+}};
+static constexpr std::array<std::uint64_t, 4> kG2{{
+    0x1571B4AE8AC47F71ULL, 0x221208AC9DF506C6ULL,
+    0x6F547FA90ABFE4C4ULL, 0xE4437ED6010E8828ULL
+}};
+
+// minus_b1 and minus_b2 as big-endian 32-byte arrays (for Scalar::from_bytes)
+static constexpr std::array<std::uint8_t, 32> kMinusB1Bytes{{
+    0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0xE4,0x43,0x7E,0xD6,0x01,0x0E,0x88,0x28,
+    0x6F,0x54,0x7F,0xA9,0x0A,0xBF,0xE4,0xC3
+}};
+static constexpr std::array<std::uint8_t, 32> kMinusB2Bytes{{
+    0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
+    0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFE,
+    0x8A,0x28,0x0A,0xC5,0x07,0x74,0x34,0x6D,
+    0xD7,0x65,0xCD,0xA8,0x3D,0xB1,0x56,0x2C
+}};
+
+// λ (lambda) scalar as big-endian bytes
+static constexpr std::array<std::uint8_t, 32> kGlvLambdaBytes{{
+    0x53,0x63,0xAD,0x4C,0xC0,0x5C,0x30,0xE0,
+    0xA5,0x26,0x1C,0x02,0x88,0x12,0x64,0x5A,
+    0x12,0x2E,0x22,0xEA,0x20,0x81,0x66,0x78,
+    0xDF,0x02,0x96,0x7C,0x1B,0x23,0xBD,0x72
+}};
+
+// ============================================================================
+//  Public API
+// ============================================================================
+
 GLVDecomposition glv_decompose(const Scalar& k) {
-    using namespace glv_constants;
-    
     GLVDecomposition result;
-    
-    // Step 1: Compute c1 = round(b2 * k / n) and c2 = round(-b1 * k / n)
-    // These are approximations of k/λ using the lattice basis
-    
-    std::array<uint8_t, 32> c1_bytes{};
-    std::array<uint8_t, 32> c2_bytes{};
-    
-    scalar_mul_shift_256(k, B2, c1_bytes);
-    scalar_mul_shift_256(k, MINUS_B1, c2_bytes);
-    
-    // Step 2: Compute k1 = k - c1*a1 - c2*a2
-    // Step 3: Compute k2 = -c1*b1 - c2*b2
-    
-    // For now, simplified implementation
-    // TODO: Implement proper lattice reduction
-    
-    // Temporary: just split k into two halves for testing
-    auto k_bytes = k.to_bytes();
-    
-    std::array<uint8_t, 32> k1_bytes{};
-    std::array<uint8_t, 32> k2_bytes{};
-    
-    // k1 = lower 128 bits
-    std::memset(k1_bytes.data(), 0, 16);
-    std::memcpy(k1_bytes.data() + 16, k_bytes.data() + 16, 16);
-    
-    // k2 = upper 128 bits  
-    std::memset(k2_bytes.data(), 0, 16);
-    std::memcpy(k2_bytes.data() + 16, k_bytes.data(), 16);
-    
-    result.k1 = Scalar::from_bytes(k1_bytes);
-    result.k2 = Scalar::from_bytes(k2_bytes);
-    result.k1_neg = false;
-    result.k2_neg = false;
-    
+
+    // Step 1: c1 = round(k · g1 / 2^384),  c2 = round(k · g2 / 2^384)
+    auto k_limbs = k.limbs();
+    auto c1_limbs = mul_shift_384({k_limbs[0], k_limbs[1], k_limbs[2], k_limbs[3]}, kG1);
+    auto c2_limbs = mul_shift_384({k_limbs[0], k_limbs[1], k_limbs[2], k_limbs[3]}, kG2);
+
+    Scalar c1 = Scalar::from_limbs(c1_limbs);
+    Scalar c2 = Scalar::from_limbs(c2_limbs);
+
+    // Step 2: k2 = c1·(-b1) + c2·(-b2)  (mod n)
+    // Lazy-init constants (thread-safe in C++11+)
+    static const Scalar minus_b1 = Scalar::from_bytes(kMinusB1Bytes);
+    static const Scalar minus_b2 = Scalar::from_bytes(kMinusB2Bytes);
+    static const Scalar lambda   = Scalar::from_bytes(kGlvLambdaBytes);
+
+    Scalar k2_mod = (c1 * minus_b1) + (c2 * minus_b2);
+
+    // Step 3: pick shorter representation for k2
+    Scalar k2_neg = Scalar::zero() - k2_mod;
+    bool k2_is_neg = (scalar_bitlen(k2_neg) < scalar_bitlen(k2_mod));
+    Scalar k2_abs    = k2_is_neg ? k2_neg : k2_mod;
+    Scalar k2_signed = k2_is_neg ? (Scalar::zero() - k2_abs) : k2_abs;
+
+    // Step 4: k1 = k − λ·k2  (mod n)
+    Scalar k1_mod = k - lambda * k2_signed;
+
+    // Step 5: pick shorter representation for k1
+    Scalar k1_neg = Scalar::zero() - k1_mod;
+    bool k1_is_neg = (scalar_bitlen(k1_neg) < scalar_bitlen(k1_mod));
+    Scalar k1_abs = k1_is_neg ? k1_neg : k1_mod;
+
+    result.k1     = k1_abs;
+    result.k2     = k2_abs;
+    result.k1_neg = k1_is_neg;
+    result.k2_neg = k2_is_neg;
+
     return result;
 }
 

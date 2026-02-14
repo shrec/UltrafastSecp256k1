@@ -416,6 +416,197 @@ limbs4 reduce(const wide8& t) {
     return out;
 }
 
+// ============================================================================
+// ESP32-Optimized Field Arithmetic (32-bit Comba / Product-Scanning)
+// ============================================================================
+// ESP32-S3 Xtensa LX7 is a 32-bit processor with native 32x32→64 multiply.
+// The standard 64-bit limb path emulates 64x64→128 via 4 native multiplies
+// plus significant decomposition/carry overhead per mul64 call.
+//
+// This Comba implementation works directly with 8 x 32-bit limbs:
+//  - Eliminates mul64 decomposition overhead entirely
+//  - Uses a compact 3-word (96-bit) accumulator for carry propagation
+//  - Dedicated square exploits a[i]*a[j] = a[j]*a[i] symmetry (36 vs 64 muls)
+//  - secp256k1-specific reduction in 32-bit for p = 2^256 - (2^32 + 977)
+// ============================================================================
+#if defined(SECP256K1_PLATFORM_ESP32) || defined(__XTENSA__)
+
+// Comba product-scanning: 8×8 → 16 words (256×256 → 512 bit)
+// 3-word accumulator (c0,c1,c2) = 96 bits. Max column sum = 8×(2^32-1)^2 ≈ 2^67
+static void esp32_mul_comba(const std::uint32_t a[8], const std::uint32_t b[8],
+                            std::uint32_t r[16]) {
+    std::uint32_t c0 = 0, c1 = 0, c2 = 0;
+
+    for (int k = 0; k < 15; k++) {
+        const int lo = (k < 8) ? 0 : (k - 7);
+        const int hi = (k < 8) ? k : 7;
+
+        for (int i = lo; i <= hi; i++) {
+            std::uint64_t p = (std::uint64_t)a[i] * b[k - i];
+            std::uint32_t plo = (std::uint32_t)p;
+            std::uint32_t phi = (std::uint32_t)(p >> 32);
+            std::uint64_t s = (std::uint64_t)c0 + plo;
+            c0 = (std::uint32_t)s;
+            s = (std::uint64_t)c1 + phi + (s >> 32);
+            c1 = (std::uint32_t)s;
+            c2 += (std::uint32_t)(s >> 32);
+        }
+
+        r[k] = c0;
+        c0 = c1;
+        c1 = c2;
+        c2 = 0;
+    }
+    r[15] = c0;
+}
+
+// Comba squaring: exploits a[i]*a[j] == a[j]*a[i] symmetry
+// Only 36 multiplications vs 64 for general multiplication (44% savings)
+static void esp32_sqr_comba(const std::uint32_t a[8], std::uint32_t r[16]) {
+    std::uint32_t c0 = 0, c1 = 0, c2 = 0;
+
+    for (int k = 0; k < 15; k++) {
+        const int lo = (k < 8) ? 0 : (k - 7);
+        const int hi = (k < 8) ? k : 7;
+
+        // Cross products: pairs (i, k-i) where i < k-i, doubled
+        for (int i = lo; i <= hi; i++) {
+            int j = k - i;
+            if (i >= j) break;
+
+            std::uint64_t p = (std::uint64_t)a[i] * a[j];
+            std::uint32_t plo = (std::uint32_t)p;
+            std::uint32_t phi = (std::uint32_t)(p >> 32);
+
+            // Add 2*p (double contribution)
+            std::uint64_t s = (std::uint64_t)c0 + plo;
+            c0 = (std::uint32_t)s;
+            s = (std::uint64_t)c1 + phi + (s >> 32);
+            c1 = (std::uint32_t)s;
+            c2 += (std::uint32_t)(s >> 32);
+
+            s = (std::uint64_t)c0 + plo;
+            c0 = (std::uint32_t)s;
+            s = (std::uint64_t)c1 + phi + (s >> 32);
+            c1 = (std::uint32_t)s;
+            c2 += (std::uint32_t)(s >> 32);
+        }
+
+        // Diagonal term: a[k/2]^2 when k is even
+        if ((k & 1) == 0) {
+            int mid = k / 2;
+            if (mid >= lo && mid <= hi) {
+                std::uint64_t p = (std::uint64_t)a[mid] * a[mid];
+                std::uint32_t plo = (std::uint32_t)p;
+                std::uint32_t phi = (std::uint32_t)(p >> 32);
+                std::uint64_t s = (std::uint64_t)c0 + plo;
+                c0 = (std::uint32_t)s;
+                s = (std::uint64_t)c1 + phi + (s >> 32);
+                c1 = (std::uint32_t)s;
+                c2 += (std::uint32_t)(s >> 32);
+            }
+        }
+
+        r[k] = c0;
+        c0 = c1;
+        c1 = c2;
+        c2 = 0;
+    }
+    r[15] = c0;
+}
+
+// secp256k1 modular reduction: 512-bit (16 × 32-bit) → 256-bit (4 × 64-bit)
+// p = 2^256 - C where C = 2^32 + 977
+// r[0..7] += r[8..15] × C
+//   Position 0:     r[0] + 977·r[8]
+//   Position i>0:   r[i] + 977·r[8+i] + r[8+i-1]
+//   Position 8:     carry + r[15]
+static limbs4 esp32_reduce_secp256k1(const std::uint32_t r[16]) {
+    std::uint64_t acc;
+    std::uint32_t res[8];
+
+    // First reduction pass: fold r[8..15] into r[0..7]
+    acc = (std::uint64_t)r[0] + (std::uint64_t)r[8] * 977ULL;
+    res[0] = (std::uint32_t)acc;
+    acc >>= 32;
+
+    for (int i = 1; i < 8; i++) {
+        acc += (std::uint64_t)r[i] + (std::uint64_t)r[8 + i] * 977ULL + r[8 + i - 1];
+        res[i] = (std::uint32_t)acc;
+        acc >>= 32;
+    }
+
+    // Position 8 overflow: carry + r[15] can be up to ~33 bits
+    acc += r[15];
+    // acc is now the full overflow value (kept as uint64_t, not truncated)
+
+    // Second reduction: fold overflow back into res[0..7]
+    // overflow * 2^256 ≡ overflow * (977 + 2^32) (mod p)
+    while (acc) {
+        std::uint64_t ov = acc;
+
+        acc = (std::uint64_t)res[0] + ov * 977ULL;
+        res[0] = (std::uint32_t)acc;
+        acc >>= 32;
+
+        acc += (std::uint64_t)res[1] + ov;
+        res[1] = (std::uint32_t)acc;
+        acc >>= 32;
+
+        for (int i = 2; i < 8; i++) {
+            if (!acc) break;
+            acc += res[i];
+            res[i] = (std::uint32_t)acc;
+            acc >>= 32;
+        }
+        // acc is the new overflow (0 or very small, loop terminates quickly)
+    }
+
+    // Convert 8×32 → 4×64
+    limbs4 out;
+    for (int i = 0; i < 4; i++) {
+        out[i] = (std::uint64_t)res[2 * i] |
+                 ((std::uint64_t)res[2 * i + 1] << 32);
+    }
+
+    // Final conditional subtraction of p (at most once)
+    if (ge(out, PRIME)) {
+        sub_in_place(out, PRIME);
+    }
+
+    return out;
+}
+
+// Combined multiply + reduce
+static limbs4 esp32_mul_mod(const limbs4& a, const limbs4& b) {
+    std::uint32_t a32[8], b32[8], prod[16];
+
+    for (int i = 0; i < 4; i++) {
+        a32[2 * i]     = (std::uint32_t)a[i];
+        a32[2 * i + 1] = (std::uint32_t)(a[i] >> 32);
+        b32[2 * i]     = (std::uint32_t)b[i];
+        b32[2 * i + 1] = (std::uint32_t)(b[i] >> 32);
+    }
+
+    esp32_mul_comba(a32, b32, prod);
+    return esp32_reduce_secp256k1(prod);
+}
+
+// Combined square + reduce (44% fewer multiplies than mul)
+static limbs4 esp32_sqr_mod(const limbs4& a) {
+    std::uint32_t a32[8], prod[16];
+
+    for (int i = 0; i < 4; i++) {
+        a32[2 * i]     = (std::uint32_t)a[i];
+        a32[2 * i + 1] = (std::uint32_t)(a[i] >> 32);
+    }
+
+    esp32_sqr_comba(a32, prod);
+    return esp32_reduce_secp256k1(prod);
+}
+
+#endif // SECP256K1_PLATFORM_ESP32 || __XTENSA__
+
 SECP256K1_HOT_FUNCTION
 limbs4 mul_impl(const limbs4& a, const limbs4& b) {
 #ifdef SECP256K1_HAS_RISCV_ASM
@@ -425,8 +616,11 @@ limbs4 mul_impl(const limbs4& a, const limbs4& b) {
         FieldElement::from_limbs(b)
     );
     return result.limbs();
-#elif defined(SECP256K1_PLATFORM_ESP32) || defined(__XTENSA__) || defined(SECP256K1_NO_ASM)
-    // ESP32 / Xtensa / No-ASM: Pure portable C++ implementation
+#elif defined(SECP256K1_PLATFORM_ESP32) || defined(__XTENSA__)
+    // ESP32 / Xtensa: Optimized 32-bit Comba multiplication
+    return esp32_mul_mod(a, b);
+#elif defined(SECP256K1_NO_ASM)
+    // Generic no-asm fallback
     auto result = reduce(mul_wide(a, b));
     return result;
 #else
@@ -452,8 +646,13 @@ limbs4 square_impl(const limbs4& a) {
         FieldElement::from_limbs(a)
     );
     return result.limbs();
-#elif defined(SECP256K1_PLATFORM_ESP32) || defined(__XTENSA__) || defined(SECP256K1_NO_ASM)
-    // ESP32 / Xtensa / No-ASM: Pure portable C++ implementation
+#elif defined(SECP256K1_PLATFORM_ESP32) || defined(__XTENSA__)
+    // ESP32 / Xtensa: Optimized 32-bit Comba squaring
+    // Note: reuse general Comba mul(a,a) — dedicated sqr loop generates worse
+    // code on Xtensa due to conditional branches in cross/diagonal handling
+    return esp32_mul_mod(a, a);
+#elif defined(SECP256K1_NO_ASM)
+    // Generic no-asm fallback
     return reduce(mul_wide(a, a));
 #else
     // x86/x64: Use BMI2 if available for better performance

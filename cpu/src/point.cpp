@@ -804,7 +804,89 @@ Point Point::scalar_mul(const Scalar& scalar) const {
     }
 #endif
 
-    // wNAF with w=5: better balance of precomputation vs operations
+#if defined(SECP256K1_PLATFORM_ESP32) || defined(ESP_PLATFORM)
+    // ---------------------------------------------------------------
+    // ESP32: GLV decomposition + Shamir's trick
+    // Splits 256-bit scalar into two ~128-bit half-scalars and processes
+    // both streams simultaneously, halving the number of doublings.
+    //   k*P = sign1·|k1|*P + sign2·|k2|*φ(P)
+    //   where k = k1 + k2·λ (mod n), |k1|,|k2| ≈ √n
+    // ---------------------------------------------------------------
+
+    // Step 1: Decompose scalar
+    GLVDecomposition decomp = glv_decompose(scalar);
+
+    // Step 2: Handle k1 sign by negating base point before precomputation
+    Point P_base = decomp.k1_neg ? this->negate() : *this;
+
+    // Step 3: Compute wNAF for both half-scalars (stack-allocated)
+    // w=4 for ~128-bit scalars: table_size=8, ~32 additions per stream
+    constexpr unsigned glv_window = 4;
+    constexpr int glv_table_size = (1 << (glv_window - 1));  // 8
+
+    std::array<int32_t, 140> wnaf1_buf{}, wnaf2_buf{};
+    std::size_t wnaf1_len = 0, wnaf2_len = 0;
+    compute_wnaf_into(decomp.k1, glv_window,
+                      wnaf1_buf.data(), wnaf1_buf.size(), wnaf1_len);
+    compute_wnaf_into(decomp.k2, glv_window,
+                      wnaf2_buf.data(), wnaf2_buf.size(), wnaf2_len);
+
+    // Step 4: Precompute odd multiples [1, 3, 5, …, 15] for P
+    std::array<Point, glv_table_size> tbl_P, tbl_phiP;
+
+    tbl_P[0] = P_base;
+    Point dbl_P = P_base;
+    dbl_P.dbl_inplace();
+    for (int i = 1; i < glv_table_size; i++) {
+        tbl_P[i] = tbl_P[i - 1];
+        tbl_P[i].add_inplace(dbl_P);
+    }
+
+    // Derive φ(P) table from P table using the endomorphism: φ(X:Y:Z) = (β·X:Y:Z)
+    // This costs only 8 field muls vs 7 additions + 1 doubling (~10× cheaper)
+    // Sign adjustment: tbl_P has k1 sign baked in; flip to k2 sign if different
+    bool flip_phi = (decomp.k1_neg != decomp.k2_neg);
+    for (int i = 0; i < glv_table_size; i++) {
+        tbl_phiP[i] = apply_endomorphism(tbl_P[i]);
+        if (flip_phi) tbl_phiP[i].negate_inplace();
+    }
+
+    // Step 5: Shamir's trick — one doubling per iteration, two lookups
+    Point result = Point::infinity();
+    std::size_t max_len = (wnaf1_len > wnaf2_len) ? wnaf1_len : wnaf2_len;
+
+    for (int i = static_cast<int>(max_len) - 1; i >= 0; --i) {
+        result.dbl_inplace();
+
+        // k1 contribution
+        if (static_cast<std::size_t>(i) < wnaf1_len) {
+            int32_t d = wnaf1_buf[static_cast<std::size_t>(i)];
+            if (d > 0) {
+                result.add_inplace(tbl_P[(d - 1) / 2]);
+            } else if (d < 0) {
+                Point neg = tbl_P[(-d - 1) / 2];
+                neg.negate_inplace();
+                result.add_inplace(neg);
+            }
+        }
+
+        // k2 contribution
+        if (static_cast<std::size_t>(i) < wnaf2_len) {
+            int32_t d = wnaf2_buf[static_cast<std::size_t>(i)];
+            if (d > 0) {
+                result.add_inplace(tbl_phiP[(d - 1) / 2]);
+            } else if (d < 0) {
+                Point neg = tbl_phiP[(-d - 1) / 2];
+                neg.negate_inplace();
+                result.add_inplace(neg);
+            }
+        }
+    }
+
+    return result;
+
+#else
+    // Desktop: wNAF with w=5 (GLV handled at higher level)
     // w=5 means 16 precomputed points, ~51 additions for 256-bit scalar
     constexpr unsigned window_width = 5;
     // No-alloc wNAF: write into stack buffer
@@ -848,6 +930,7 @@ Point Point::scalar_mul(const Scalar& scalar) const {
     }
     
     return result;
+#endif
 }
 
 // Step 1: Use existing GLV decomposition from K*G implementation
