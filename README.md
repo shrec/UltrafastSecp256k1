@@ -16,8 +16,8 @@ Ultra high-performance secp256k1 elliptic curve cryptography library with multi-
 - **Multi-Platform Architecture**
   - CPU: Optimized for x86-64 (BMI2/ADX) and RISC-V (RV64GC)
   - Embedded: ESP32-S3 support (Xtensa LX7, portable C++)
-  - GPU/CUDA: Batch operations with 2.06M kG/s throughput
-  - GPU/OpenCL: PTX inline asm, 3.39M kG/s (beats CUDA 1.64×)
+  - GPU/CUDA: Batch operations with 4.63M kG/s throughput
+  - GPU/OpenCL: PTX inline asm, 3.39M kG/s
 
 - **Performance**
   - x86-64: 3-5× speedup with BMI2/ADX assembly
@@ -456,13 +456,13 @@ RISC-V results were collected on **Milk-V Mars** (RV64 + RVV).
 
 | Operation | Time/Op | Throughput |
 |-----------|---------|------------|
-| Field Mul | 0.2 ns | 4,140 M/s |
-| Field Add | 0.2 ns | 4,130 M/s |
-| Field Inv | 12.1 ns | 82.66 M/s |
-| Point Add | 2.1 ns | 478.8 M/s |
-| Point Double | 1.6 ns | 643.3 M/s |
-| Scalar Mul (P×k) | 384.6 ns | 2.60 M/s |
-| Generator Mul (G×k) | 485.1 ns | 2.06 M/s |
+| Field Mul | 0.2 ns | 4,139 M/s |
+| Field Add | 0.2 ns | 4,122 M/s |
+| Field Inv | 12.1 ns | 82.65 M/s |
+| Point Add | 1.1 ns | 916 M/s |
+| Point Double | 0.7 ns | 1,352 M/s |
+| Scalar Mul (P×k) | 266.5 ns | 3.75 M/s |
+| Generator Mul (G×k) | 216.1 ns | 4.63 M/s |
 
 *CUDA 12.0, sm_86;sm_89, batch=1M, RTX 5060 Ti (36 SMs, 2602 MHz)*
 
@@ -487,11 +487,11 @@ RISC-V results were collected on **Milk-V Mars** (RV64 + RVV).
 | Field Mul | 0.2 ns | 0.2 ns | Tie |
 | Field Add | 0.2 ns | 0.2 ns | Tie |
 | Field Inv | 12.1 ns | 14.3 ns | CUDA 1.18× |
-| Point Double | 1.6 ns | 0.9 ns | **OpenCL 1.78×** |
-| Point Add | 2.1 ns | 1.6 ns | **OpenCL 1.31×** |
-| kG (Generator Mul) | 485.1 ns | 295.1 ns | **OpenCL 1.64×** |
+| Point Double | 0.7 ns | 0.9 ns | **CUDA 1.29×** |
+| Point Add | 1.1 ns | 1.6 ns | **CUDA 1.45×** |
+| kG (Generator Mul) | 216.1 ns | 295.1 ns | **CUDA 1.37×** |
 
-> **Note:** Both measurements are kernel-only (no buffer allocation/copy overhead). OpenCL uses PTX inline assembly for NVIDIA GPUs, achieving parity or better on most operations.
+> **Note:** Both measurements are kernel-only (no buffer allocation/copy overhead). CUDA uses local-variable optimization for zero pointer-aliasing overhead.
 
 *Benchmarks: 2026-02-14, Linux x86_64, NVIDIA Driver 580.126.09*
 

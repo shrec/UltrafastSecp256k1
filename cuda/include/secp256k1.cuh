@@ -952,8 +952,9 @@ __device__ inline void field_sqr(const FieldElement* a, FieldElement* r) {
 
 #endif // !SECP256K1_CUDA_LIMBS_32
 
-// Point doubling - dbl-2007-a formula for a=0 curves (secp256k1)
-// Optimized for minimal stack usage (3 temporaries instead of 9)
+// Point doubling - dbl-2001-b formula for a=0 curves (secp256k1)
+// Optimized: all computation in local registers, write output once at end
+// 3M + 4S + 7add/sub (matches OpenCL kernel throughput)
 __device__ inline void jacobian_double(const JacobianPoint* p, JacobianPoint* r) {
     if (p->infinity) {
         r->infinity = true;
@@ -966,58 +967,50 @@ __device__ inline void jacobian_double(const JacobianPoint* p, JacobianPoint* r)
         return;
     }
 
-    FieldElement t1, t2, t3;
+    FieldElement S, M, X3, Y3, Z3, YY, YYYY, t1;
 
-    // r->z = 2 * Y * Z
-    field_mul(&p->y, &p->z, &r->z);
-    field_add(&r->z, &r->z, &r->z);
+    // YY = Y^2  [1S]
+    field_sqr(&p->y, &YY);
 
-    // t1 = X^2
-    field_sqr(&p->x, &t1);
+    // S = 4*X*Y^2  [1M + 2add]
+    field_mul(&p->x, &YY, &S);
+    field_add(&S, &S, &S);
+    field_add(&S, &S, &S);
 
-    // t2 = Y^2
-    field_sqr(&p->y, &t2);
+    // M = 3*X^2  [2S + 2add]
+    field_sqr(&p->x, &M);
+    field_add(&M, &M, &t1);     // t1 = 2*X^2
+    field_add(&M, &t1, &M);     // M = 3*X^2
 
-    // t3 = B^2 = Y^4
-    field_sqr(&t2, &t3);
+    // X3 = M^2 - 2*S  [3S + 1add + 1sub]
+    field_sqr(&M, &X3);
+    field_add(&S, &S, &t1);     // t1 = 2*S
+    field_sub(&X3, &t1, &X3);
 
-    // D = 2*((X+B)^2 - A - C)
-    // Store D in r->x temporarily
-    field_add(&p->x, &t2, &r->x); // X+B
-    field_sqr(&r->x, &r->x);      // (X+B)^2
-    field_sub(&r->x, &t1, &r->x); // ... - A
-    field_sub(&r->x, &t3, &r->x); // ... - C
-    field_add(&r->x, &r->x, &r->x); // D
+    // YYYY = Y^4  [4S]
+    field_sqr(&YY, &YYYY);
 
-    // E = 3*A. Store in t1.
-    field_add(&t1, &t1, &t2); // 2*A (use t2 as temp)
-    field_add(&t2, &t1, &t1); // E = 3*A
+    // Y3 = M*(S - X3) - 8*Y^4  [1sub + 2M + 3add + 1sub]
+    field_add(&YYYY, &YYYY, &t1);   // 2*Y^4
+    field_add(&t1, &t1, &t1);       // 4*Y^4
+    field_add(&t1, &t1, &t1);       // 8*Y^4
+    field_sub(&S, &X3, &S);         // S - X3 (reuse S)
+    field_mul(&M, &S, &Y3);         // M*(S - X3)
+    field_sub(&Y3, &t1, &Y3);       // Y3 final
 
-    // F = E^2. Store in t2.
-    field_sqr(&t1, &t2);
+    // Z3 = 2*Y*Z  [3M + 1add]
+    field_mul(&p->y, &p->z, &Z3);
+    field_add(&Z3, &Z3, &Z3);
 
-    // Save D in r->y for later
-    r->y = r->x;
-
-    // X' = F - 2*D
-    field_add(&r->x, &r->x, &r->x); // 2*D
-    field_sub(&t2, &r->x, &r->x);   // X'
-
-    // Y' = E*(D - X') - 8*C
-    field_sub(&r->y, &r->x, &r->y); // D - X'
-    field_mul(&t1, &r->y, &r->y);   // E*(...)
-    
-    // 8*C in t3
-    field_add(&t3, &t3, &t3); // 2C
-    field_add(&t3, &t3, &t3); // 4C
-    field_add(&t3, &t3, &t3); // 8C
-    
-    field_sub(&r->y, &t3, &r->y); // Y'
-
+    // Write output once
+    r->x = X3;
+    r->y = Y3;
+    r->z = Z3;
     r->infinity = false;
 }
 
 // Mixed addition: P (Jacobian) + Q (Affine) -> Result (Jacobian)
+// All computation in local registers, single output write at end
 __device__ inline void jacobian_add_mixed(const JacobianPoint* p, const AffinePoint* q, JacobianPoint* r) {
     if (p->infinity) {
         r->x = q->x;
@@ -1027,31 +1020,27 @@ __device__ inline void jacobian_add_mixed(const JacobianPoint* p, const AffinePo
         return;
     }
     
-    // Z1²
-    FieldElement z1z1;
+    FieldElement z1z1, u2, s2, h, hh, i, j, rr, v;
+    FieldElement X3, Y3, Z3, t1, t2;
+
+    // Z1² [1S]
     field_sqr(&p->z, &z1z1);
     
-    // U2 = X2*Z1²
-    FieldElement u2;
+    // U2 = X2*Z1² [1M]
     field_mul(&q->x, &z1z1, &u2);
     
-    // S2 = Y2*Z1³
-    FieldElement s2, temp;
-    field_mul(&p->z, &z1z1, &temp);  // Z1³
-    field_mul(&q->y, &temp, &s2);
+    // S2 = Y2*Z1³ [2M, 3M]
+    field_mul(&p->z, &z1z1, &t1);
+    field_mul(&q->y, &t1, &s2);
     
-    // Check if same point
-    bool x_eq = true;
-    for (int i = 0; i < 4; ++i) {
-        if (p->x.limbs[i] != u2.limbs[i]) { x_eq = false; break; }
-    }
-    
-    if (x_eq) {
-        bool y_eq = true;
-        for (int i = 0; i < 4; ++i) {
-            if (p->y.limbs[i] != s2.limbs[i]) { y_eq = false; break; }
-        }
-        if (y_eq) {
+    // H = U2 - X1
+    field_sub(&u2, &p->x, &h);
+
+    // Check if same x-coordinate (branchless zero check)
+    if (field_is_zero(&h)) {
+        // rr = S2 - Y1
+        field_sub(&s2, &p->y, &t1);
+        if (field_is_zero(&t1)) {
             jacobian_double(p, r);
             return;
         }
@@ -1059,53 +1048,46 @@ __device__ inline void jacobian_add_mixed(const JacobianPoint* p, const AffinePo
         return;
     }
     
-    // H = U2 - X1
-    FieldElement h;
-    field_sub(&u2, &p->x, &h);
-    
-    // HH = H²
-    FieldElement hh;
+    // HH = H² [2S]
     field_sqr(&h, &hh);
     
     // I = 4*HH
-    FieldElement i;
-    field_add(&hh, &hh, &temp);
-    field_add(&temp, &temp, &i);
+    field_add(&hh, &hh, &i);
+    field_add(&i, &i, &i);
     
-    // J = H*I
-    FieldElement j;
+    // J = H*I [4M]
     field_mul(&h, &i, &j);
     
-    // r = 2*(S2 - Y1)
-    FieldElement rr;
-    field_sub(&s2, &p->y, &temp);
-    field_add(&temp, &temp, &rr);
+    // rr = 2*(S2 - Y1)
+    field_sub(&s2, &p->y, &t1);
+    field_add(&t1, &t1, &rr);
     
-    // V = X1*I
-    FieldElement v;
+    // V = X1*I [5M]
     field_mul(&p->x, &i, &v);
     
-    // X3 = r² - J - 2*V
-    FieldElement two_v;
-    field_add(&v, &v, &two_v);
-    field_sqr(&rr, &r->x);
-    field_sub(&r->x, &j, &r->x);
-    field_sub(&r->x, &two_v, &r->x);
+    // X3 = rr² - J - 2*V [3S]
+    field_sqr(&rr, &X3);
+    field_sub(&X3, &j, &X3);
+    field_add(&v, &v, &t1);
+    field_sub(&X3, &t1, &X3);
     
-    // Y3 = r*(V - X3) - 2*Y1*J
-    FieldElement y1j, two_y1j;
-    field_mul(&p->y, &j, &y1j);
-    field_add(&y1j, &y1j, &two_y1j);
-    field_sub(&v, &r->x, &temp);
-    field_mul(&rr, &temp, &r->y);
-    field_sub(&r->y, &two_y1j, &r->y);
+    // Y3 = rr*(V - X3) - 2*Y1*J [6M, 7M]
+    field_sub(&v, &X3, &t1);
+    field_mul(&rr, &t1, &Y3);
+    field_mul(&p->y, &j, &t2);
+    field_add(&t2, &t2, &t2);
+    field_sub(&Y3, &t2, &Y3);
     
-    // Z3 = (Z1+H)² - Z1² - HH
-    field_add(&p->z, &h, &temp);
-    field_sqr(&temp, &r->z);
-    field_sub(&r->z, &z1z1, &r->z);
-    field_sub(&r->z, &hh, &r->z);
-    
+    // Z3 = (Z1+H)² - Z1² - HH [4S]
+    field_add(&p->z, &h, &t1);
+    field_sqr(&t1, &Z3);
+    field_sub(&Z3, &z1z1, &Z3);
+    field_sub(&Z3, &hh, &Z3);
+
+    // Write output once
+    r->x = X3;
+    r->y = Y3;
+    r->z = Z3;
     r->infinity = false;
 }
 
@@ -1171,22 +1153,25 @@ __device__ inline void jacobian_add_mixed_h(const JacobianPoint* p, const Affine
     field_mul(&p->x, &hh, &v);
 
     // X3 = r² - H³ - 2*V [1S]
-    FieldElement two_v;
-    field_add(&v, &v, &two_v);
-    field_sqr(&rr, &r->x);
-    field_sub(&r->x, &hhh, &r->x);
-    field_sub(&r->x, &two_v, &r->x);
+    FieldElement X3, Y3, Z3, t1;
+    field_add(&v, &v, &t1);
+    field_sqr(&rr, &X3);
+    field_sub(&X3, &hhh, &X3);
+    field_sub(&X3, &t1, &X3);
 
     // Y3 = r*(V - X3) - Y1*H³ [2M]
-    FieldElement y1h3;
-    field_mul(&p->y, &hhh, &y1h3);
-    field_sub(&v, &r->x, &temp);
-    field_mul(&rr, &temp, &r->y);
-    field_sub(&r->y, &y1h3, &r->y);
+    field_mul(&p->y, &hhh, &t1);
+    field_sub(&v, &X3, &v);       // reuse v
+    field_mul(&rr, &v, &Y3);
+    field_sub(&Y3, &t1, &Y3);
 
     // Z3 = Z1 * H [1M]
-    field_mul(&p->z, &h, &r->z);
+    field_mul(&p->z, &h, &Z3);
 
+    // Write output once
+    r->x = X3;
+    r->y = Y3;
+    r->z = Z3;
     r->infinity = false;
 }
 
@@ -1257,30 +1242,33 @@ __device__ inline void jacobian_add_mixed_h2(const JacobianPoint* p, const Affin
     field_mul(&p->x, &i_val, &v);
 
     // X3 = r²-J-2*V [1S]
-    FieldElement two_v;
-    field_add(&v, &v, &two_v);
-    field_sqr(&rr, &r->x);
-    field_sub(&r->x, &j, &r->x);
-    field_sub(&r->x, &two_v, &r->x);
+    FieldElement X3, Y3, Z3;
+    field_add(&v, &v, &temp);
+    field_sqr(&rr, &X3);
+    field_sub(&X3, &j, &X3);
+    field_sub(&X3, &temp, &X3);
 
     // Y3 = r*(V-X3) - 2*Y1*J [2M]
-    FieldElement y1j, two_y1j;
+    FieldElement y1j;
     field_mul(&p->y, &j, &y1j);
-    field_add(&y1j, &y1j, &two_y1j);
-    field_sub(&v, &r->x, &temp);
-    field_mul(&rr, &temp, &r->y);
-    field_sub(&r->y, &two_y1j, &r->y);
+    field_add(&y1j, &y1j, &y1j);
+    field_sub(&v, &X3, &temp);
+    field_mul(&rr, &temp, &Y3);
+    field_sub(&Y3, &y1j, &Y3);
 
     // Z3 = (Z1+H)²-Z1Z1-HH = 2*Z1*H [1S instead of 1M!]
-    FieldElement z1_plus_h;
-    field_add(&p->z, &h, &z1_plus_h);
-    field_sqr(&z1_plus_h, &r->z);
-    field_sub(&r->z, &z1z1, &r->z);
-    field_sub(&r->z, &hh, &r->z);
+    field_add(&p->z, &h, &temp);
+    field_sqr(&temp, &Z3);
+    field_sub(&Z3, &z1z1, &Z3);
+    field_sub(&Z3, &hh, &Z3);
 
     // Return 2*H for serial inversion: Z_n = Z_0 * ∏(2*H_i) = Z_0 * 2^N * ∏H_i
     field_add(&h, &h, &h_out);
 
+    // Write output once
+    r->x = X3;
+    r->y = Y3;
+    r->z = Z3;
     r->infinity = false;
 }
 
@@ -1332,22 +1320,23 @@ __device__ inline void jacobian_add_mixed_h_z1(const JacobianPoint* p, const Aff
     field_mul(&p->x, &hh, &v);
 
     // X3 = r² - H³ - 2*V [1S]
-    FieldElement two_v;
-    field_add(&v, &v, &two_v);
-    field_sqr(&rr, &r->x);
-    field_sub(&r->x, &hhh, &r->x);
-    field_sub(&r->x, &two_v, &r->x);
+    FieldElement X3, Y3, t1;
+    field_add(&v, &v, &t1);
+    field_sqr(&rr, &X3);
+    field_sub(&X3, &hhh, &X3);
+    field_sub(&X3, &t1, &X3);
 
     // Y3 = r*(V - X3) - Y1*H³ [2M]
-    FieldElement y1h3, temp;
-    field_mul(&p->y, &hhh, &y1h3);
-    field_sub(&v, &r->x, &temp);
-    field_mul(&rr, &temp, &r->y);
-    field_sub(&r->y, &y1h3, &r->y);
+    field_mul(&p->y, &hhh, &t1);
+    field_sub(&v, &X3, &v);       // reuse v
+    field_mul(&rr, &v, &Y3);
+    field_sub(&Y3, &t1, &Y3);
 
     // Z3 = 1 * H = H [0M saved! just copy]
+    // Write output once
+    r->x = X3;
+    r->y = Y3;
     r->z = h;
-
     r->infinity = false;
 }
 
@@ -1399,22 +1388,25 @@ __device__ inline void jacobian_add_mixed_const(
     field_mul(&p->x, &hh, &v);
 
     // X3 = r² - H³ - 2*V [1S]
-    FieldElement two_v, temp;
-    field_add(&v, &v, &two_v);
-    field_sqr(&rr, &r->x);
-    field_sub(&r->x, &hhh, &r->x);
-    field_sub(&r->x, &two_v, &r->x);
+    FieldElement X3, Y3, Z3, t1;
+    field_add(&v, &v, &t1);
+    field_sqr(&rr, &X3);
+    field_sub(&X3, &hhh, &X3);
+    field_sub(&X3, &t1, &X3);
 
     // Y3 = r*(V - X3) - Y1*H³ [2M]
-    FieldElement y1h3;
-    field_mul(&p->y, &hhh, &y1h3);
-    field_sub(&v, &r->x, &temp);
-    field_mul(&rr, &temp, &r->y);
-    field_sub(&r->y, &y1h3, &r->y);
+    field_mul(&p->y, &hhh, &t1);
+    field_sub(&v, &X3, &v);       // reuse v
+    field_mul(&rr, &v, &Y3);
+    field_sub(&Y3, &t1, &Y3);
 
     // Z3 = Z1 * H [1M]
-    field_mul(&p->z, &h, &r->z);
+    field_mul(&p->z, &h, &Z3);
 
+    // Write output once
+    r->x = X3;
+    r->y = Y3;
+    r->z = Z3;
     r->infinity = false;
 }
 
@@ -1468,30 +1460,33 @@ __device__ inline void jacobian_add_mixed_const_7m4s(
     field_mul(&p->x, &i_val, &v);
 
     // X3 = r²-J-2*V [1S]
-    FieldElement two_v;
-    field_add(&v, &v, &two_v);
-    field_sqr(&rr, &r->x);
-    field_sub(&r->x, &j, &r->x);
-    field_sub(&r->x, &two_v, &r->x);
+    FieldElement X3, Y3, Z3;
+    field_add(&v, &v, &temp);
+    field_sqr(&rr, &X3);
+    field_sub(&X3, &j, &X3);
+    field_sub(&X3, &temp, &X3);
 
     // Y3 = r*(V-X3) - 2*Y1*J [2M]
-    FieldElement y1j, two_y1j;
+    FieldElement y1j;
     field_mul(&p->y, &j, &y1j);
-    field_add(&y1j, &y1j, &two_y1j);
-    field_sub(&v, &r->x, &temp);
-    field_mul(&rr, &temp, &r->y);
-    field_sub(&r->y, &two_y1j, &r->y);
+    field_add(&y1j, &y1j, &y1j);
+    field_sub(&v, &X3, &temp);
+    field_mul(&rr, &temp, &Y3);
+    field_sub(&Y3, &y1j, &Y3);
 
     // Z3 = (Z1+H)²-Z1Z1-HH = 2*Z1*H [1S instead of 1M! KEY OPTIMIZATION]
-    FieldElement z1_plus_h;
-    field_add(&p->z, &h, &z1_plus_h);
-    field_sqr(&z1_plus_h, &r->z);
-    field_sub(&r->z, &z1z1, &r->z);
-    field_sub(&r->z, &hh, &r->z);
+    field_add(&p->z, &h, &temp);
+    field_sqr(&temp, &Z3);
+    field_sub(&Z3, &z1z1, &Z3);
+    field_sub(&Z3, &hh, &Z3);
 
     // Return 2*H for batch inversion
     field_add(&h, &h, &h_out);
 
+    // Write output once
+    r->x = X3;
+    r->y = Y3;
+    r->z = Z3;
     r->infinity = false;
 }
 
@@ -1702,38 +1697,38 @@ __device__ inline void jacobian_add(const JacobianPoint* p1, const JacobianPoint
     if (p1->infinity) { *r = *p2; return; }
     if (p2->infinity) { *r = *p1; return; }
 
-    FieldElement t1, t4, t5;
+    FieldElement Z1Z1, Z2Z2, U1, U2, S1, S2, H, I, J, rr, V;
+    FieldElement X3, Y3, Z3, t1, t2;
 
-    // t1 = Z2^2
-    field_sqr(&p2->z, &t1);
-    
-    // r->x = U1 = X1 * Z2^2
-    // Safe even if p1==r because p1->x is read before write inside field_mul
-    field_mul(&p1->x, &t1, &r->x);
-    
-    // r->y = S1 = Y1 * Z2^3 = Y1 * Z2^2 * Z2
-    // Safe even if p1==r because p1->y is read before write inside field_mul
-    field_mul(&p1->y, &t1, &r->y);
-    field_mul(&r->y, &p2->z, &r->y);
-    
-    // t1 = Z1^2
-    field_sqr(&p1->z, &t1);
-    
-    // t4 = U2 = X2 * Z1^2
-    field_mul(&p2->x, &t1, &t4);
-    
-    // t1 = S2 = Y2 * Z1^3 = Y2 * Z1^2 * Z1
-    field_mul(&p2->y, &t1, &t1);
-    field_mul(&t1, &p1->z, &t1);
-    
-    // H = U2 - U1 = t4 - r->x. Store in t4.
-    field_sub(&t4, &r->x, &t4);
-    
-    // R = S2 - S1 = t1 - r->y. Store in t1.
-    field_sub(&t1, &r->y, &t1);
-    
-    if (field_is_zero(&t4)) {
-        if (field_is_zero(&t1)) {
+    // Z1Z1 = Z1^2  [1S]
+    field_sqr(&p1->z, &Z1Z1);
+
+    // Z2Z2 = Z2^2  [2S]
+    field_sqr(&p2->z, &Z2Z2);
+
+    // U1 = X1*Z2Z2  [1M]
+    field_mul(&p1->x, &Z2Z2, &U1);
+
+    // U2 = X2*Z1Z1  [2M]
+    field_mul(&p2->x, &Z1Z1, &U2);
+
+    // S1 = Y1*Z2*Z2Z2  [3M, 4M]
+    field_mul(&p1->y, &p2->z, &t1);
+    field_mul(&t1, &Z2Z2, &S1);
+
+    // S2 = Y2*Z1*Z1Z1  [5M, 6M]
+    field_mul(&p2->y, &p1->z, &t1);
+    field_mul(&t1, &Z1Z1, &S2);
+
+    // H = U2 - U1
+    field_sub(&U2, &U1, &H);
+
+    // rr = 2*(S2 - S1)
+    field_sub(&S2, &S1, &rr);
+    field_add(&rr, &rr, &rr);
+
+    if (field_is_zero(&H)) {
+        if (field_is_zero(&rr)) {
             jacobian_double(p1, r);
             return;
         } else {
@@ -1741,44 +1736,41 @@ __device__ inline void jacobian_add(const JacobianPoint* p1, const JacobianPoint
             return;
         }
     }
-    
-    // Z3 = H*Z1*Z2
-    // Safe to overwrite r->z (if p1==r) because p1->z is not needed anymore
-    // (p1->z was used for Z1^2 and S2, which are done)
-    field_mul(&t4, &p1->z, &r->z);
-    field_mul(&r->z, &p2->z, &r->z);
-    
-    // X3 = R^2 - H^3 - 2*U1*H^2
-    
-    // t5 = H^2
-    field_sqr(&t4, &t5);
-    
-    // H^3. Store in t4 (overwrite H).
-    field_mul(&t5, &t4, &t4); // t4 = H^3
-    
-    // U1*H^2. U1 is in r->x. H^2 is in t5.
-    // Store in t5.
-    field_mul(&r->x, &t5, &t5); // t5 = U1*H^2
-    
-    // X3 = R^2 - H^3 - 2*U1*H^2
-    // Use r->x for X3 (overwrite U1).
-    field_sqr(&t1, &r->x); // r->x = R^2
-    field_sub(&r->x, &t4, &r->x); // r->x = R^2 - H^3
-    field_sub(&r->x, &t5, &r->x); // r->x = R^2 - H^3 - U1*H^2
-    field_sub(&r->x, &t5, &r->x); // r->x = X3
-    
-    // Y3 = R*(U1*H^2 - X3) - S1*H^3
-    // U1*H^2 is in t5. X3 is in r->x.
-    field_sub(&t5, &r->x, &t5); // t5 = U1*H^2 - X3
-    field_mul(&t1, &t5, &t5);   // t5 = R * (...)
-    
-    // S1*H^3. S1 is in r->y. H^3 is in t4.
-    // Store in t4 (overwrite H^3).
-    field_mul(&r->y, &t4, &t4); // t4 = S1*H^3
-    
-    // Y3 = t5 - t4
-    field_sub(&t5, &t4, &r->y); // r->y = Y3
-    
+
+    // I = (2*H)^2  [3S]
+    field_add(&H, &H, &I);
+    field_sqr(&I, &I);
+
+    // J = H*I  [7M]
+    field_mul(&H, &I, &J);
+
+    // V = U1*I  [8M]
+    field_mul(&U1, &I, &V);
+
+    // X3 = rr^2 - J - 2*V  [4S]
+    field_sqr(&rr, &X3);
+    field_sub(&X3, &J, &X3);
+    field_add(&V, &V, &t1);
+    field_sub(&X3, &t1, &X3);
+
+    // Y3 = rr*(V - X3) - 2*S1*J  [9M, 10M]
+    field_sub(&V, &X3, &t1);
+    field_mul(&rr, &t1, &Y3);
+    field_mul(&S1, &J, &t2);
+    field_add(&t2, &t2, &t2);
+    field_sub(&Y3, &t2, &Y3);
+
+    // Z3 = ((Z1+Z2)^2 - Z1Z1 - Z2Z2) * H  [5S + 11M]
+    field_add(&p1->z, &p2->z, &t1);
+    field_sqr(&t1, &t1);
+    field_sub(&t1, &Z1Z1, &t1);
+    field_sub(&t1, &Z2Z2, &t1);
+    field_mul(&t1, &H, &Z3);
+
+    // Write output once
+    r->x = X3;
+    r->y = Y3;
+    r->z = Z3;
     r->infinity = false;
 }
 

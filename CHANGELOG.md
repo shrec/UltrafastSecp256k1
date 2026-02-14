@@ -27,17 +27,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **OpenCL**: Added `static_assert` layout compatibility checks + `to_data()`/
   `from_data()` conversion utilities
 - **OpenCL point ops optimized**: 3-temp point doubling (was 12-temp),
-  alias-safe mixed addition — OpenCL now **1.64× faster** than CUDA on kG
-- **CUDA point ops optimized**: Same 3-temp doubling applied
+  alias-safe mixed addition
+- **CUDA point ops optimized**: Local-variable rewrite eliminates pointer aliasing —
+  Point Double **2.29× faster** (1.6→0.7 ns), Point Add **1.91× faster** (2.1→1.1 ns),
+  kG **2.25× faster** (485→216 ns). CUDA now beats OpenCL on all point ops.
 - **PTX inline assembly** for NVIDIA OpenCL: Field ops now at parity with CUDA
 - **Benchmarks updated**: Full CUDA + OpenCL numbers on RTX 5060 Ti
 
 ### Performance (RTX 5060 Ti, kernel-only)
-- CUDA kG: 485.1 ns (2.06 M/s)
-- OpenCL kG: 295.1 ns (3.39 M/s) — **1.64× faster**
-- Point Double: CUDA 1.6 ns, OpenCL 0.9 ns
-- Point Add: CUDA 2.1 ns, OpenCL 1.6 ns
-- Field Mul: 0.2 ns on both (4,140 M/s)
+- CUDA kG: 216.1 ns (4.63 M/s) — **CUDA 1.37× faster than OpenCL**
+- OpenCL kG: 295.1 ns (3.39 M/s)
+- Point Double: CUDA 0.7 ns (1,352 M/s), OpenCL 0.9 ns — **CUDA 1.29×**
+- Point Add: CUDA 1.1 ns (916 M/s), OpenCL 1.6 ns — **CUDA 1.45×**
+- Field Mul: 0.2 ns on both (4,139 M/s)
 
 ## [1.0.0] - 2026-02-02
 

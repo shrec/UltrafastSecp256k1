@@ -10,7 +10,7 @@ Benchmark results for UltrafastSecp256k1 across different platforms.
 |----------|-----------|------------|---------------|
 | x86-64 (i5, AVX2) | 33 ns | 110 μs | 5 μs |
 | RISC-V 64 (RVV) | 198 ns | 672 μs | 40 μs |
-| CUDA (RTX 5060 Ti) | 0.2 ns | 384.6 ns | 485.1 ns |
+| CUDA (RTX 5060 Ti) | 0.2 ns | 266.5 ns | 216.1 ns |
 | OpenCL (RTX 5060 Ti) | 0.2 ns | 295.1 ns | 307.7 ns |
 
 ---
@@ -82,13 +82,13 @@ Benchmark results for UltrafastSecp256k1 across different platforms.
 
 | Operation | Time/Op | Throughput | Notes |
 |-----------|---------|------------|-------|
-| Field Mul | 0.2 ns | 4,140 M/s | Kernel-only, batch 1M |
-| Field Add | 0.2 ns | 4,130 M/s | Kernel-only, batch 1M |
-| Field Inv | 12.1 ns | 82.66 M/s | Kernel-only, batch 64K |
-| Point Add | 2.1 ns | 478.8 M/s | Kernel-only, batch 256K |
-| Point Double | 1.6 ns | 643.3 M/s | Kernel-only, batch 256K |
-| Scalar Mul (P*k) | 384.6 ns | 2.60 M/s | Kernel-only, batch 64K |
-| Generator Mul (G*k) | 485.1 ns | 2.06 M/s | Kernel-only, batch 128K |
+| Field Mul | 0.2 ns | 4,139 M/s | Kernel-only, batch 1M |
+| Field Add | 0.2 ns | 4,122 M/s | Kernel-only, batch 1M |
+| Field Inv | 12.1 ns | 82.65 M/s | Kernel-only, batch 64K |
+| Point Add | 1.1 ns | 916 M/s | Kernel-only, batch 256K |
+| Point Double | 0.7 ns | 1,352 M/s | Kernel-only, batch 256K |
+| Scalar Mul (P*k) | 266.5 ns | 3.75 M/s | Kernel-only, batch 64K |
+| Generator Mul (G*k) | 216.1 ns | 4.63 M/s | Kernel-only, batch 128K |
 
 ---
 
@@ -138,9 +138,9 @@ Benchmark results for UltrafastSecp256k1 across different platforms.
 | Field Mul | 0.2 ns | 0.2 ns | Tie |
 | Field Add | 0.2 ns | 0.2 ns | Tie |
 | Field Inv | 12.1 ns | 14.3 ns | CUDA 1.18× |
-| Point Double | 1.6 ns | 0.9 ns | **OpenCL 1.78×** |
-| Point Add | 2.1 ns | 1.6 ns | **OpenCL 1.31×** |
-| Scalar Mul (kG) | 485.1 ns | 295.1 ns | **OpenCL 1.64×** |
+| Point Double | 0.7 ns | 0.9 ns | **CUDA 1.29×** |
+| Point Add | 1.1 ns | 1.6 ns | **CUDA 1.45×** |
+| Scalar Mul (kG) | 216.1 ns | 295.1 ns | **CUDA 1.37×** |
 
 ---
 
