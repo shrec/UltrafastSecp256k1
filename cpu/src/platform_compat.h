@@ -8,7 +8,12 @@
 #define SECP256K1_ESP32_BUILD 1
 #endif
 
-#if defined(SECP256K1_ESP32_BUILD)
+// STM32 platform detection (Cortex-M3, bare-metal)
+#if defined(SECP256K1_PLATFORM_STM32)
+#define SECP256K1_STM32_BUILD 1
+#endif
+
+#if defined(SECP256K1_ESP32_BUILD) || defined(SECP256K1_STM32_BUILD)
 // ESP32 platform - minimal definitions, no POSIX mmap or Windows APIs
 #include <cstdint>
 #include <cstring>

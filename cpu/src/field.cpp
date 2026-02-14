@@ -429,7 +429,7 @@ limbs4 reduce(const wide8& t) {
 //  - Dedicated square exploits a[i]*a[j] = a[j]*a[i] symmetry (36 vs 64 muls)
 //  - secp256k1-specific reduction in 32-bit for p = 2^256 - (2^32 + 977)
 // ============================================================================
-#if defined(SECP256K1_PLATFORM_ESP32) || defined(__XTENSA__)
+#if defined(SECP256K1_PLATFORM_ESP32) || defined(__XTENSA__) || defined(SECP256K1_PLATFORM_STM32)
 
 // ============================================================================
 // Fully unrolled Comba multiplication and squaring for ESP32 / Xtensa
@@ -637,7 +637,7 @@ static limbs4 esp32_sqr_mod(const limbs4& a) {
     return esp32_reduce_secp256k1(prod);
 }
 
-#endif // SECP256K1_PLATFORM_ESP32 || __XTENSA__
+#endif // SECP256K1_PLATFORM_ESP32 || __XTENSA__ || SECP256K1_PLATFORM_STM32
 
 SECP256K1_HOT_FUNCTION
 limbs4 mul_impl(const limbs4& a, const limbs4& b) {
@@ -648,8 +648,8 @@ limbs4 mul_impl(const limbs4& a, const limbs4& b) {
         FieldElement::from_limbs(b)
     );
     return result.limbs();
-#elif defined(SECP256K1_PLATFORM_ESP32) || defined(__XTENSA__)
-    // ESP32 / Xtensa: Optimized 32-bit Comba multiplication
+#elif defined(SECP256K1_PLATFORM_ESP32) || defined(__XTENSA__) || defined(SECP256K1_PLATFORM_STM32)
+    // ESP32 / Xtensa / STM32: Optimized 32-bit Comba multiplication
     return esp32_mul_mod(a, b);
 #elif defined(SECP256K1_NO_ASM)
     // Generic no-asm fallback
@@ -678,8 +678,8 @@ limbs4 square_impl(const limbs4& a) {
         FieldElement::from_limbs(a)
     );
     return result.limbs();
-#elif defined(SECP256K1_PLATFORM_ESP32) || defined(__XTENSA__)
-    // ESP32 / Xtensa: Fully unrolled Comba squaring (36 muls vs 64, branch-free)
+#elif defined(SECP256K1_PLATFORM_ESP32) || defined(__XTENSA__) || defined(SECP256K1_PLATFORM_STM32)
+    // ESP32 / Xtensa / STM32: Fully unrolled Comba squaring (36 muls vs 64, branch-free)
     return esp32_sqr_mod(a);
 #elif defined(SECP256K1_NO_ASM)
     // Generic no-asm fallback
@@ -1918,8 +1918,8 @@ std::string FieldElement::to_hex() const {
 
 FieldElement FieldElement::from_hex(const std::string& hex) {
     if (hex.length() != 64) {
-        #if defined(SECP256K1_ESP32) || defined(SECP256K1_PLATFORM_ESP32) || defined(__XTENSA__)
-            return FieldElement::zero(); // ESP32: no exceptions, return zero
+        #if defined(SECP256K1_ESP32) || defined(SECP256K1_PLATFORM_ESP32) || defined(__XTENSA__) || defined(SECP256K1_PLATFORM_STM32)
+            return FieldElement::zero(); // Embedded: no exceptions, return zero
         #else
             throw std::invalid_argument("Hex string must be exactly 64 characters (32 bytes)");
         #endif
@@ -1934,8 +1934,8 @@ FieldElement FieldElement::from_hex(const std::string& hex) {
             if (c >= '0' && c <= '9') return c - '0';
             if (c >= 'a' && c <= 'f') return c - 'a' + 10;
             if (c >= 'A' && c <= 'F') return c - 'A' + 10;
-            #if defined(SECP256K1_ESP32) || defined(SECP256K1_PLATFORM_ESP32) || defined(__XTENSA__)
-                return 0; // ESP32: no exceptions, return 0
+            #if defined(SECP256K1_ESP32) || defined(SECP256K1_PLATFORM_ESP32) || defined(__XTENSA__) || defined(SECP256K1_PLATFORM_STM32)
+                return 0; // Embedded: no exceptions, return 0
             #else
                 throw std::invalid_argument("Invalid hex character");
             #endif
@@ -1966,8 +1966,8 @@ FieldElement FieldElement::square() const {
 
 FieldElement FieldElement::inverse() const {
     if (*this == zero()) {
-        #if defined(SECP256K1_ESP32) || defined(SECP256K1_PLATFORM_ESP32) || defined(__XTENSA__)
-            return zero(); // ESP32: no exceptions, return zero
+        #if defined(SECP256K1_ESP32) || defined(SECP256K1_PLATFORM_ESP32) || defined(__XTENSA__) || defined(SECP256K1_PLATFORM_STM32)
+            return zero(); // Embedded: no exceptions, return zero
         #else
             throw std::runtime_error("Inverse of zero not defined");
         #endif
@@ -1997,8 +1997,8 @@ void FieldElement::square_inplace() {
 
 void FieldElement::inverse_inplace() {
     if (*this == zero()) {
-        #if defined(SECP256K1_ESP32) || defined(SECP256K1_PLATFORM_ESP32) || defined(__XTENSA__)
-            *this = zero(); // ESP32: no exceptions, set to zero
+        #if defined(SECP256K1_ESP32) || defined(SECP256K1_PLATFORM_ESP32) || defined(__XTENSA__) || defined(SECP256K1_PLATFORM_STM32)
+            *this = zero(); // Embedded: no exceptions, set to zero
             return;
         #else
             throw std::runtime_error("Inverse of zero not defined");

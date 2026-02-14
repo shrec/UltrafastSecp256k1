@@ -213,8 +213,8 @@ std::string Scalar::to_hex() const {
 
 Scalar Scalar::from_hex(const std::string& hex) {
     if (hex.length() != 64) {
-        #if defined(SECP256K1_ESP32) || defined(SECP256K1_PLATFORM_ESP32) || defined(__XTENSA__)
-            return Scalar::zero(); // ESP32: no exceptions, return zero
+        #if defined(SECP256K1_ESP32) || defined(SECP256K1_PLATFORM_ESP32) || defined(__XTENSA__) || defined(SECP256K1_PLATFORM_STM32)
+            return Scalar::zero(); // Embedded: no exceptions, return zero
         #else
             throw std::invalid_argument("Hex string must be exactly 64 characters (32 bytes)");
         #endif
@@ -229,8 +229,8 @@ Scalar Scalar::from_hex(const std::string& hex) {
             if (c >= '0' && c <= '9') return c - '0';
             if (c >= 'a' && c <= 'f') return c - 'a' + 10;
             if (c >= 'A' && c <= 'F') return c - 'A' + 10;
-            #if defined(SECP256K1_ESP32) || defined(SECP256K1_PLATFORM_ESP32) || defined(__XTENSA__)
-                return 0; // ESP32: no exceptions, return 0
+            #if defined(SECP256K1_ESP32) || defined(SECP256K1_PLATFORM_ESP32) || defined(__XTENSA__) || defined(SECP256K1_PLATFORM_STM32)
+                return 0; // Embedded: no exceptions, return 0
             #else
                 throw std::invalid_argument("Invalid hex character");
             #endif
@@ -548,8 +548,8 @@ std::vector<int8_t> Scalar::to_naf() const {
 // This reduces precompute table size by ~50% (only odd multiples needed)
 std::vector<int8_t> Scalar::to_wnaf(unsigned width) const {
     if (width < 2 || width > 8) {
-        #if defined(SECP256K1_ESP32) || defined(SECP256K1_PLATFORM_ESP32) || defined(__XTENSA__)
-            return std::vector<int8_t>(); // ESP32: no exceptions, return empty
+        #if defined(SECP256K1_ESP32) || defined(SECP256K1_PLATFORM_ESP32) || defined(__XTENSA__) || defined(SECP256K1_PLATFORM_STM32)
+            return std::vector<int8_t>(); // Embedded: no exceptions, return empty
         #else
             throw std::invalid_argument("wNAF width must be between 2 and 8");
         #endif

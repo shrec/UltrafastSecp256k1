@@ -4,7 +4,7 @@
 
 #include "secp256k1/point.hpp"
 #include "secp256k1/scalar.hpp"
-#if !defined(SECP256K1_PLATFORM_ESP32) && !defined(ESP_PLATFORM) && !defined(IDF_VER)
+#if !defined(SECP256K1_PLATFORM_ESP32) && !defined(ESP_PLATFORM) && !defined(IDF_VER) && !defined(SECP256K1_PLATFORM_STM32)
 #include "secp256k1/precompute.hpp"
 #endif
 #include "secp256k1/glv.hpp"
@@ -14,8 +14,8 @@
 #include <cstdlib>
 #include <cstdio>
 
-// ESP32 platform: use printf instead of iostream
-#if defined(SECP256K1_PLATFORM_ESP32) || defined(ESP_PLATFORM) || defined(IDF_VER)
+// ESP32/STM32 platform: use printf instead of iostream
+#if defined(SECP256K1_PLATFORM_ESP32) || defined(ESP_PLATFORM) || defined(IDF_VER) || defined(SECP256K1_PLATFORM_STM32)
     #define SELFTEST_PRINT(...) printf(__VA_ARGS__)
 #else
     #include <iostream>
@@ -27,9 +27,9 @@
 
 namespace secp256k1::fast {
 
-// ESP32: local scalar_mul_generator that uses Point::scalar_mul
+// ESP32/STM32: local scalar_mul_generator that uses Point::scalar_mul
 // Desktop: use precomputed tables from precompute.hpp
-#if defined(SECP256K1_PLATFORM_ESP32) || defined(ESP_PLATFORM) || defined(IDF_VER)
+#if defined(SECP256K1_PLATFORM_ESP32) || defined(ESP_PLATFORM) || defined(IDF_VER) || defined(SECP256K1_PLATFORM_STM32)
 static inline Point scalar_mul_generator(const Scalar& k) {
     return Point::generator().scalar_mul(k);
 }
@@ -603,8 +603,8 @@ static bool test_sequential_increment_property(bool verbose) {
 //  ADD;x1;y1;x2;y2;expX;expY;desc
 //  SUB;x1;y1;x2;y2;expX;expY;desc
 static bool run_external_vectors(bool verbose) {
-#if defined(SECP256K1_PLATFORM_ESP32) || defined(ESP_PLATFORM) || defined(IDF_VER)
-    // Skip external vectors on ESP32 - no filesystem
+#if defined(SECP256K1_PLATFORM_ESP32) || defined(ESP_PLATFORM) || defined(IDF_VER) || defined(SECP256K1_PLATFORM_STM32)
+    // Skip external vectors on embedded - no filesystem
     (void)verbose;
     return true;
 #else
@@ -944,9 +944,9 @@ bool Selftest(bool verbose) {
         SELFTEST_PRINT("==============================================\n");
     }
     
-#if !defined(SECP256K1_PLATFORM_ESP32) && !defined(ESP_PLATFORM) && !defined(IDF_VER)
+#if !defined(SECP256K1_PLATFORM_ESP32) && !defined(ESP_PLATFORM) && !defined(IDF_VER) && !defined(SECP256K1_PLATFORM_STM32)
     // Initialize precomputed tables (allow env overrides for quick toggles)
-    // Only on desktop platforms - ESP32 uses simple scalar_mul
+    // Only on desktop platforms - embedded uses simple scalar_mul
     FixedBaseConfig cfg{};
     // Environment variable overrides only on desktop platforms
     if (const char* w = std::getenv("SECP256K1_WINDOW_BITS")) {
@@ -1099,8 +1099,8 @@ bool Selftest(bool verbose) {
     // Bilinearity for K*Q with ±G
     total++; if (test_bilinearity_K_times_Q(verbose)) passed++;
 
-#if !defined(SECP256K1_PLATFORM_ESP32) && !defined(ESP_PLATFORM) && !defined(IDF_VER)
-    // Fixed-K plan equivalence (GLV-based, not available on ESP32)
+#if !defined(SECP256K1_PLATFORM_ESP32) && !defined(ESP_PLATFORM) && !defined(IDF_VER) && !defined(SECP256K1_PLATFORM_STM32)
+    // Fixed-K plan equivalence (GLV-based, not available on embedded)
     total++; if (test_fixedK_plan(verbose)) passed++;
 #endif
 

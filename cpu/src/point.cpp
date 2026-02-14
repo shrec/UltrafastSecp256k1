@@ -1,5 +1,5 @@
 #include "secp256k1/point.hpp"
-#if !defined(SECP256K1_PLATFORM_ESP32) && !defined(ESP_PLATFORM)
+#if !defined(SECP256K1_PLATFORM_ESP32) && !defined(ESP_PLATFORM) && !defined(SECP256K1_PLATFORM_STM32)
 #include "secp256k1/precompute.hpp"
 #endif
 #include "secp256k1/glv.hpp"
@@ -12,8 +12,8 @@
 namespace secp256k1::fast {
 namespace {
 
-// ESP32 local wNAF helpers (when precompute.hpp not included)
-#if defined(SECP256K1_PLATFORM_ESP32) || defined(ESP_PLATFORM)
+// ESP32/STM32 local wNAF helpers (when precompute.hpp not included)
+#if defined(SECP256K1_PLATFORM_ESP32) || defined(ESP_PLATFORM) || defined(SECP256K1_PLATFORM_STM32)
 // Simple wNAF computation for ESP32 (inline, no heap allocation)
 static void compute_wnaf_into(const Scalar& scalar, unsigned window_width,
                                int32_t* out, std::size_t out_capacity,
@@ -395,7 +395,7 @@ static void batch_to_affine_into(const JacobianPoint* jacobian_points,
 } // namespace
 
 // KPlan implementation: Cache all K-dependent work for Fixed K × Variable Q
-#if !defined(SECP256K1_PLATFORM_ESP32) && !defined(ESP_PLATFORM)
+#if !defined(SECP256K1_PLATFORM_ESP32) && !defined(ESP_PLATFORM) && !defined(SECP256K1_PLATFORM_STM32)
 KPlan KPlan::from_scalar(const Scalar& k, uint8_t w) {
     // Step 1: GLV decomposition (K → k1, k2, signs)
     auto decomp = split_scalar_glv(k);
@@ -665,8 +665,8 @@ void Point::sub_inplace(const Point& other) {
 
 // Mutable in-place doubling: *this = 2*this (no allocation overhead)
 void Point::dbl_inplace() {
-#if defined(SECP256K1_PLATFORM_ESP32) || defined(__XTENSA__)
-    // ESP32-optimized: 5S + 2M formula (saves 2S vs generic 7S + 1M)
+#if defined(SECP256K1_PLATFORM_ESP32) || defined(__XTENSA__) || defined(SECP256K1_PLATFORM_STM32)
+    // Optimized: 5S + 2M formula (saves 2S vs generic 7S + 1M)
     // Z3 = 2·Y·Z (1M) replaces (Y+Z)²-Y²-Z² (2S), operates on fields directly
     if (infinity_) return;
 
@@ -952,20 +952,23 @@ static Point gen_fixed_mul(const Scalar& k) {
 #endif  // SECP256K1_PLATFORM_ESP32
 
 Point Point::scalar_mul(const Scalar& scalar) const {
-#if !defined(SECP256K1_PLATFORM_ESP32) && !defined(ESP_PLATFORM)
+#if !defined(SECP256K1_PLATFORM_ESP32) && !defined(ESP_PLATFORM) && !defined(SECP256K1_PLATFORM_STM32)
     if (is_generator_) {
         return scalar_mul_generator(scalar);
     }
 #endif
 
+#if defined(SECP256K1_PLATFORM_ESP32) || defined(ESP_PLATFORM) || defined(SECP256K1_PLATFORM_STM32)
+    // ESP32 only: generator uses precomputed fixed-base table (~4ms vs ~12ms)
+    // STM32 skips this (64KB SRAM too tight for 30KB table)
 #if defined(SECP256K1_PLATFORM_ESP32) || defined(ESP_PLATFORM)
-    // Fast path: generator uses precomputed fixed-base table (~4ms vs ~12ms)
     if (is_generator_) {
         return gen_fixed_mul(scalar);
     }
+#endif
 
     // ---------------------------------------------------------------
-    // ESP32: GLV decomposition + Shamir's trick
+    // Embedded: GLV decomposition + Shamir's trick
     // Splits 256-bit scalar into two ~128-bit half-scalars and processes
     // both streams simultaneously, halving the number of doublings.
     //   k*P = sign1·|k1|*P + sign2·|k2|*φ(P)
@@ -1094,7 +1097,7 @@ Point Point::scalar_mul(const Scalar& scalar) const {
 
 // Step 1: Use existing GLV decomposition from K*G implementation
 // Q * k = Q * k1 + φ(Q) * k2
-#if !defined(SECP256K1_PLATFORM_ESP32) && !defined(ESP_PLATFORM)
+#if !defined(SECP256K1_PLATFORM_ESP32) && !defined(ESP_PLATFORM) && !defined(SECP256K1_PLATFORM_STM32)
 Point Point::scalar_mul_precomputed_k(const Scalar& k) const {
     // Use the proven GLV decomposition from scalar_mul_generator
     auto decomp = split_scalar_glv(k);
@@ -1113,7 +1116,7 @@ Point Point::scalar_mul_precomputed_k(const Scalar& k) const {
 // K decomposition is done once at startup, not per operation
 Point Point::scalar_mul_predecomposed(const Scalar& k1, const Scalar& k2, 
                                        bool neg1, bool neg2) const {
-#if !defined(SECP256K1_PLATFORM_ESP32) && !defined(ESP_PLATFORM)
+#if !defined(SECP256K1_PLATFORM_ESP32) && !defined(ESP_PLATFORM) && !defined(SECP256K1_PLATFORM_STM32)
     // If both signs are positive, use fast Shamir's trick
     // Otherwise, fall back to separate computation (sign handling is complex)
     if (!neg1 && !neg2) {
@@ -1243,9 +1246,8 @@ Point Point::scalar_mul_precomputed_wnaf(const std::vector<int32_t>& wnaf1,
 // All K-dependent work is cached in KPlan (GLV decomposition + wNAF computation)
 // Runtime: φ(Q), tables, Shamir's trick (if signs allow) or separate computation
 Point Point::scalar_mul_with_plan(const KPlan& plan) const {
-#if defined(SECP256K1_PLATFORM_ESP32) || defined(ESP_PLATFORM)
-    // ESP32: GLV not supported, fallback to regular scalar_mul using stored k1
-    // Note: This is slower but works without locks
+#if defined(SECP256K1_PLATFORM_ESP32) || defined(ESP_PLATFORM) || defined(SECP256K1_PLATFORM_STM32)
+    // Embedded: fallback to regular scalar_mul using stored k1
     return scalar_mul(plan.k1);
 #else
     // Fast path: Interleaved Shamir using precomputed wNAF digits from plan
