@@ -190,8 +190,8 @@ int main(int argc, char* argv[]) {
     }
 
     // Pre-generate points for point_double and point_add benchmarks
-    // Use smaller batch for point generation (it's scalar_mul which is slow)
-    std::size_t point_batch = std::min(batch_size, static_cast<std::size_t>(4096));
+    // Match CUDA benchmark batch size for fair comparison
+    std::size_t point_batch = std::min(batch_size, static_cast<std::size_t>(262144));
     std::vector<Scalar> point_scalars(point_batch);
     std::vector<JacobianPoint> pd_in(point_batch), pd_out(point_batch);
     std::vector<JacobianPoint> pa_in1(point_batch), pa_in2(point_batch), pa_out(point_batch);
@@ -344,9 +344,123 @@ int main(int argc, char* argv[]) {
         auto r_sqr = kernel_bench("Field Sqr", (cl_kernel)ctx->native_kernel("field_sqr"), false);
         print_result(r_sqr); results.push_back(r_sqr);
 
+        // Field Inv (kernel-only) — single-input kernel like field_sqr
+        auto r_inv = kernel_bench("Field Inv", (cl_kernel)ctx->native_kernel("field_inv"), false);
+        print_result(r_inv); results.push_back(r_inv);
+
         clReleaseMemObject(buf_a);
         clReleaseMemObject(buf_b);
         clReleaseMemObject(buf_r);
+
+        // ==================================================================
+        // Point / Scalar kernel-only benchmarks
+        // ==================================================================
+        std::cout << "\nPoint & Scalar (kernel-only, batch=" << point_batch << "):\n";
+        std::cout << std::string(50, '-') << "\n";
+
+        cl_uint pcnt = static_cast<cl_uint>(point_batch);
+        std::size_t p_local_sz = 256;
+        std::size_t p_global_sz = ((point_batch + p_local_sz - 1) / p_local_sz) * p_local_sz;
+
+        // Upload pre-generated Jacobian points (pd_in, pa_in1, pa_in2 from batch section)
+        cl_mem buf_jp1 = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                                         point_batch * sizeof(JacobianPoint), (void*)pd_in.data(), &err);
+        cl_mem buf_jp2 = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                                         point_batch * sizeof(JacobianPoint), (void*)pa_in2.data(), &err);
+        cl_mem buf_jpr = clCreateBuffer(cl_ctx, CL_MEM_WRITE_ONLY,
+                                         point_batch * sizeof(JacobianPoint), nullptr, &err);
+        clFinish(cl_q);
+
+        // Point Double (kernel-only)
+        {
+            cl_kernel kern = (cl_kernel)ctx->native_kernel("point_double");
+            clSetKernelArg(kern, 0, sizeof(cl_mem), &buf_jp1);
+            clSetKernelArg(kern, 1, sizeof(cl_mem), &buf_jpr);
+            clSetKernelArg(kern, 2, sizeof(cl_uint), &pcnt);
+
+            for (int i = 0; i < k_warmup; ++i)
+                clEnqueueNDRangeKernel(cl_q, kern, 1, nullptr, &p_global_sz, &p_local_sz, 0, nullptr, nullptr);
+            clFinish(cl_q);
+
+            auto t0 = std::chrono::high_resolution_clock::now();
+            for (int i = 0; i < k_iters; ++i)
+                clEnqueueNDRangeKernel(cl_q, kern, 1, nullptr, &p_global_sz, &p_local_sz, 0, nullptr, nullptr);
+            clFinish(cl_q);
+            auto t1 = std::chrono::high_resolution_clock::now();
+
+            double ns = std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count();
+            double total_ops = static_cast<double>(point_batch) * k_iters;
+            BenchResult r = {"Point Double", ns / total_ops, total_ops / (ns * 1e-9)};
+            print_result(r); results.push_back(r);
+        }
+
+        // Point Add (kernel-only)
+        {
+            cl_kernel kern = (cl_kernel)ctx->native_kernel("point_add");
+            clSetKernelArg(kern, 0, sizeof(cl_mem), &buf_jp1);
+            clSetKernelArg(kern, 1, sizeof(cl_mem), &buf_jp2);
+            clSetKernelArg(kern, 2, sizeof(cl_mem), &buf_jpr);
+            clSetKernelArg(kern, 3, sizeof(cl_uint), &pcnt);
+
+            for (int i = 0; i < k_warmup; ++i)
+                clEnqueueNDRangeKernel(cl_q, kern, 1, nullptr, &p_global_sz, &p_local_sz, 0, nullptr, nullptr);
+            clFinish(cl_q);
+
+            auto t0 = std::chrono::high_resolution_clock::now();
+            for (int i = 0; i < k_iters; ++i)
+                clEnqueueNDRangeKernel(cl_q, kern, 1, nullptr, &p_global_sz, &p_local_sz, 0, nullptr, nullptr);
+            clFinish(cl_q);
+            auto t1 = std::chrono::high_resolution_clock::now();
+
+            double ns = std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count();
+            double total_ops = static_cast<double>(point_batch) * k_iters;
+            BenchResult r = {"Point Add", ns / total_ops, total_ops / (ns * 1e-9)};
+            print_result(r); results.push_back(r);
+        }
+
+        // Scalar Mul Generator (kernel-only) — smaller batch due to cost
+        {
+            std::size_t smk_batch = std::min(point_batch, static_cast<std::size_t>(65536));
+            cl_uint smk_cnt = static_cast<cl_uint>(smk_batch);
+            std::size_t smk_global = ((smk_batch + p_local_sz - 1) / p_local_sz) * p_local_sz;
+
+            // Use existing point_scalars for scalar data
+            cl_mem buf_sc = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                                            smk_batch * sizeof(Scalar), (void*)point_scalars.data(), &err);
+            cl_mem buf_smr = clCreateBuffer(cl_ctx, CL_MEM_WRITE_ONLY,
+                                             smk_batch * sizeof(JacobianPoint), nullptr, &err);
+            clFinish(cl_q);
+
+            cl_kernel kern = (cl_kernel)ctx->native_kernel("scalar_mul_generator");
+            clSetKernelArg(kern, 0, sizeof(cl_mem), &buf_sc);
+            clSetKernelArg(kern, 1, sizeof(cl_mem), &buf_smr);
+            clSetKernelArg(kern, 2, sizeof(cl_uint), &smk_cnt);
+
+            int smk_warmup = 2;
+            int smk_iters = 5;
+
+            for (int i = 0; i < smk_warmup; ++i)
+                clEnqueueNDRangeKernel(cl_q, kern, 1, nullptr, &smk_global, &p_local_sz, 0, nullptr, nullptr);
+            clFinish(cl_q);
+
+            auto t0 = std::chrono::high_resolution_clock::now();
+            for (int i = 0; i < smk_iters; ++i)
+                clEnqueueNDRangeKernel(cl_q, kern, 1, nullptr, &smk_global, &p_local_sz, 0, nullptr, nullptr);
+            clFinish(cl_q);
+            auto t1 = std::chrono::high_resolution_clock::now();
+
+            double ns = std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count();
+            double total_ops = static_cast<double>(smk_batch) * smk_iters;
+            BenchResult r = {"kG (kernel)", ns / total_ops, total_ops / (ns * 1e-9)};
+            print_result(r); results.push_back(r);
+
+            clReleaseMemObject(buf_sc);
+            clReleaseMemObject(buf_smr);
+        }
+
+        clReleaseMemObject(buf_jp1);
+        clReleaseMemObject(buf_jp2);
+        clReleaseMemObject(buf_jpr);
     }
 
     // ==========================================================================

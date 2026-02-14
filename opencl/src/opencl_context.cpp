@@ -666,74 +666,208 @@ R"KERNEL(
 inline int point_is_infinity(const JacobianPoint* p) { return p->infinity || ((p->z.limbs[0] | p->z.limbs[1] | p->z.limbs[2] | p->z.limbs[3]) == 0); }
 inline void point_set_infinity(JacobianPoint* p) { p->x.limbs[0]=0; p->x.limbs[1]=0; p->x.limbs[2]=0; p->x.limbs[3]=0; p->y.limbs[0]=1; p->y.limbs[1]=0; p->y.limbs[2]=0; p->y.limbs[3]=0; p->z.limbs[0]=0; p->z.limbs[1]=0; p->z.limbs[2]=0; p->z.limbs[3]=0; p->infinity=1; }
 
-// Point doubling using dbl-2007-a formula for a=0 curves (secp256k1)
-// Formula from CPU implementation - EXACT MATCH REQUIRED
-// Operations: 4 squarings + 4 multiplications
+// Point doubling: dbl-2007-a for a=0 (secp256k1)
+// CUDA-matched: 3 temps, write directly into r
 inline void point_double_impl(JacobianPoint* r, const JacobianPoint* p) {
     if (point_is_infinity(p)) { point_set_infinity(r); return; }
-    // Check if Y is zero
     if ((p->y.limbs[0] | p->y.limbs[1] | p->y.limbs[2] | p->y.limbs[3]) == 0) {
         point_set_infinity(r); return;
     }
 
-    FieldElement A, B, C, D, E, F, temp, x3, y3, z3, two_D, eight_C;
+    FieldElement t1, t2, t3;
 
-    // A = X²
-    field_sqr_impl(&A, &p->x);
+    // Z' = 2*Y*Z (compute first, only reads p->y, p->z)
+    field_mul_impl(&r->z, &p->y, &p->z);
+    field_add_impl(&r->z, &r->z, &r->z);
 
-    // B = Y²
-    field_sqr_impl(&B, &p->y);
+    // t1 = X^2 (A)
+    field_sqr_impl(&t1, &p->x);
 
-    // C = B² = Y⁴
-    field_sqr_impl(&C, &B);
+    // t2 = Y^2 (B)
+    field_sqr_impl(&t2, &p->y);
 
-    // D = 2*((X + B)² - A - C)
-    field_add_impl(&temp, &p->x, &B);       // temp = X + B
-    field_sqr_impl(&temp, &temp);           // temp = (X + B)²
-    field_sub_impl(&temp, &temp, &A);       // temp = (X + B)² - A
-    field_sub_impl(&temp, &temp, &C);       // temp = (X + B)² - A - C
-    field_add_impl(&D, &temp, &temp);       // D = 2*((X + B)² - A - C)
+    // t3 = Y^4 (C = B^2)
+    field_sqr_impl(&t3, &t2);
 
-    // E = 3*A
-    field_add_impl(&E, &A, &A);             // E = 2*A
-    field_add_impl(&E, &E, &A);             // E = 3*A
+    // D = 2*((X+B)^2 - A - C), store in r->x
+    field_add_impl(&r->x, &p->x, &t2);
+    field_sqr_impl(&r->x, &r->x);
+    field_sub_impl(&r->x, &r->x, &t1);
+    field_sub_impl(&r->x, &r->x, &t3);
+    field_add_impl(&r->x, &r->x, &r->x);
 
-    // F = E²
-    field_sqr_impl(&F, &E);
+    // E = 3*A, store in t1 (reuse t2 as scratch)
+    field_add_impl(&t2, &t1, &t1);       // 2A
+    field_add_impl(&t1, &t2, &t1);       // 3A = E
+
+    // F = E^2, store in t2
+    field_sqr_impl(&t2, &t1);
+
+    // Save D in r->y
+    r->y = r->x;
 
     // X' = F - 2*D
-    field_add_impl(&two_D, &D, &D);         // two_D = 2*D
-    field_sub_impl(&x3, &F, &two_D);        // x3 = F - 2*D
+    field_add_impl(&r->x, &r->x, &r->x);
+    field_sub_impl(&r->x, &t2, &r->x);
 
     // Y' = E*(D - X') - 8*C
-    field_sub_impl(&temp, &D, &x3);         // temp = D - X'
-    field_mul_impl(&y3, &E, &temp);         // y3 = E*(D - X')
-    field_add_impl(&eight_C, &C, &C);       // 2C
-    field_add_impl(&eight_C, &eight_C, &eight_C);  // 4C
-    field_add_impl(&eight_C, &eight_C, &eight_C);  // 8C
-    field_sub_impl(&y3, &y3, &eight_C);     // y3 = E*(D - X') - 8*C
+    field_sub_impl(&r->y, &r->y, &r->x);
+    field_mul_impl(&r->y, &t1, &r->y);
+    field_add_impl(&t3, &t3, &t3);       // 2C
+    field_add_impl(&t3, &t3, &t3);       // 4C
+    field_add_impl(&t3, &t3, &t3);       // 8C
+    field_sub_impl(&r->y, &r->y, &t3);
 
-    // Z' = 2*Y*Z
-    field_mul_impl(&z3, &p->y, &p->z);      // z3 = Y*Z
-    field_add_impl(&z3, &z3, &z3);          // z3 = 2*Y*Z
-
-    r->x = x3; r->y = y3; r->z = z3; r->infinity = 0;
+    r->infinity = 0;
 }
 
+// Mixed addition: Jacobian + Affine → Jacobian (CUDA-matched, write directly to r)
 inline void point_add_mixed_impl(JacobianPoint* r, const JacobianPoint* p, const AffinePoint* q) {
     if (point_is_infinity(p)) { r->x = q->x; r->y = q->y; r->z.limbs[0]=1; r->z.limbs[1]=0; r->z.limbs[2]=0; r->z.limbs[3]=0; r->infinity=0; return; }
-    FieldElement Z1Z1,U2,S2,H,HH,I,J,rr,V,X3,Y3,Z3,t1,t2;
-    field_sqr_impl(&Z1Z1, &p->z); field_mul_impl(&U2, &q->x, &Z1Z1);
+    FieldElement z1z1, u2, s2, h, hh, i, j, rr, v, t1;
+    field_sqr_impl(&z1z1, &p->z);
+    field_mul_impl(&u2, &q->x, &z1z1);
+    field_mul_impl(&t1, &p->z, &z1z1);       // Z1^3
+    field_mul_impl(&s2, &q->y, &t1);
+    field_sub_impl(&h, &u2, &p->x);
+    if ((h.limbs[0]|h.limbs[1]|h.limbs[2]|h.limbs[3]) == 0) { field_sub_impl(&t1, &s2, &p->y); if ((t1.limbs[0]|t1.limbs[1]|t1.limbs[2]|t1.limbs[3]) == 0) { point_double_impl(r, p); return; } point_set_infinity(r); return; }
+    field_sqr_impl(&hh, &h);
+    field_add_impl(&i, &hh, &hh); field_add_impl(&i, &i, &i);  // I = 4*HH
+    field_mul_impl(&j, &h, &i);
+    field_sub_impl(&rr, &s2, &p->y); field_add_impl(&rr, &rr, &rr);  // rr = 2*(S2-Y1)
+    field_mul_impl(&v, &p->x, &i);
+    // X3 = rr^2 - J - 2*V
+    field_sqr_impl(&r->x, &rr);
+    field_sub_impl(&r->x, &r->x, &j);
+    field_add_impl(&t1, &v, &v);
+    field_sub_impl(&r->x, &r->x, &t1);
+    // Y3 = rr*(V - X3) - 2*Y1*J  (compute Y1*J BEFORE writing r->y for r==p safety)
+    field_mul_impl(&t1, &p->y, &j);
+    field_add_impl(&t1, &t1, &t1);
+    field_sub_impl(&v, &v, &r->x);
+    field_mul_impl(&r->y, &rr, &v);
+    field_sub_impl(&r->y, &r->y, &t1);
+    // Z3 = (Z1+H)^2 - Z1^2 - HH  (reads p->z before writing r->z)
+    field_add_impl(&t1, &p->z, &h);
+    field_sqr_impl(&r->z, &t1);
+    field_sub_impl(&r->z, &r->z, &z1z1);
+    field_sub_impl(&r->z, &r->z, &hh);
+    r->infinity = 0;
+}
+
+inline void point_add_impl(JacobianPoint* r, const JacobianPoint* p, const JacobianPoint* q) {
+    if (point_is_infinity(p)) { *r = *q; return; }
+    if (point_is_infinity(q)) { *r = *p; return; }
+    FieldElement U1,U2,S1,S2,H,I,J,rr,V,X3,Y3,Z3,Z1Z1,Z2Z2,t1,t2;
+    field_sqr_impl(&Z1Z1, &p->z); field_sqr_impl(&Z2Z2, &q->z);
+    field_mul_impl(&U1, &p->x, &Z2Z2); field_mul_impl(&U2, &q->x, &Z1Z1);
+    field_mul_impl(&t1, &p->y, &q->z); field_mul_impl(&S1, &t1, &Z2Z2);
     field_mul_impl(&t1, &q->y, &p->z); field_mul_impl(&S2, &t1, &Z1Z1);
-    field_sub_impl(&H, &U2, &p->x);
-    if ((H.limbs[0]|H.limbs[1]|H.limbs[2]|H.limbs[3]) == 0) { field_sub_impl(&t1, &S2, &p->y); if ((t1.limbs[0]|t1.limbs[1]|t1.limbs[2]|t1.limbs[3]) == 0) { point_double_impl(r, p); return; } point_set_infinity(r); return; }
-    field_sqr_impl(&HH, &H); field_add_impl(&I, &HH, &HH); field_add_impl(&I, &I, &I);
-    field_mul_impl(&J, &H, &I); field_sub_impl(&rr, &S2, &p->y); field_add_impl(&rr, &rr, &rr);
-    field_mul_impl(&V, &p->x, &I);
+    field_sub_impl(&H, &U2, &U1);
+    if ((H.limbs[0]|H.limbs[1]|H.limbs[2]|H.limbs[3]) == 0) { field_sub_impl(&t1, &S2, &S1); if ((t1.limbs[0]|t1.limbs[1]|t1.limbs[2]|t1.limbs[3]) == 0) { point_double_impl(r, p); return; } point_set_infinity(r); return; }
+    field_add_impl(&I, &H, &H); field_sqr_impl(&I, &I); field_mul_impl(&J, &H, &I);
+    field_sub_impl(&rr, &S2, &S1); field_add_impl(&rr, &rr, &rr); field_mul_impl(&V, &U1, &I);
     field_sqr_impl(&X3, &rr); field_sub_impl(&X3, &X3, &J); field_add_impl(&t1, &V, &V); field_sub_impl(&X3, &X3, &t1);
-    field_sub_impl(&t1, &V, &X3); field_mul_impl(&Y3, &rr, &t1); field_mul_impl(&t2, &p->y, &J); field_add_impl(&t2, &t2, &t2); field_sub_impl(&Y3, &Y3, &t2);
-    field_add_impl(&t1, &p->z, &H); field_sqr_impl(&Z3, &t1); field_sub_impl(&Z3, &Z3, &Z1Z1); field_sub_impl(&Z3, &Z3, &HH);
+    field_sub_impl(&t1, &V, &X3); field_mul_impl(&Y3, &rr, &t1); field_mul_impl(&t2, &S1, &J); field_add_impl(&t2, &t2, &t2); field_sub_impl(&Y3, &Y3, &t2);
+    field_add_impl(&t1, &p->z, &q->z); field_sqr_impl(&t1, &t1); field_sub_impl(&t1, &t1, &Z1Z1); field_sub_impl(&t1, &t1, &Z2Z2); field_mul_impl(&Z3, &t1, &H);
     r->x = X3; r->y = Y3; r->z = Z3; r->infinity = 0;
+}
+
+// =============================================================================
+// Field negation: r = -a mod p  (delegates to PTX-optimized field_sub)
+// =============================================================================
+inline void field_neg_impl(FieldElement* r, const FieldElement* a) {
+    FieldElement zero;
+    zero.limbs[0]=0; zero.limbs[1]=0; zero.limbs[2]=0; zero.limbs[3]=0;
+    field_sub_impl(r, &zero, a);
+}
+
+// =============================================================================
+// Scalar helpers for wNAF encoding (plain integer arithmetic, no mod-order)
+// =============================================================================
+inline int scalar_is_zero_cl(const Scalar* s) {
+    return (s->limbs[0] | s->limbs[1] | s->limbs[2] | s->limbs[3]) == 0;
+}
+
+inline void scalar_add_u64_cl(Scalar* a, ulong val) {
+    ulong s = a->limbs[0] + val;
+    ulong c = (s < a->limbs[0]) ? 1UL : 0UL;
+    a->limbs[0] = s;
+    s = a->limbs[1] + c; c = (s < a->limbs[1]) ? 1UL : 0UL;
+    a->limbs[1] = s;
+    s = a->limbs[2] + c; c = (s < a->limbs[2]) ? 1UL : 0UL;
+    a->limbs[2] = s;
+    a->limbs[3] += c;
+}
+
+inline void scalar_sub_u64_cl(Scalar* a, ulong val) {
+    ulong d = a->limbs[0] - val;
+    ulong b = (a->limbs[0] < val) ? 1UL : 0UL;
+    a->limbs[0] = d;
+    d = a->limbs[1] - b; b = (a->limbs[1] < b) ? 1UL : 0UL;
+    a->limbs[1] = d;
+    d = a->limbs[2] - b; b = (a->limbs[2] < b) ? 1UL : 0UL;
+    a->limbs[2] = d;
+    a->limbs[3] -= b;
+}
+
+inline void scalar_shr1_cl(Scalar* s) {
+    s->limbs[0] = (s->limbs[0] >> 1) | (s->limbs[1] << 63);
+    s->limbs[1] = (s->limbs[1] >> 1) | (s->limbs[2] << 63);
+    s->limbs[2] = (s->limbs[2] >> 1) | (s->limbs[3] << 63);
+    s->limbs[3] = s->limbs[3] >> 1;
+}
+
+// wNAF encoding (window width 5): digits in {-15,...,15}, ~51 non-zero digits
+inline int scalar_to_wnaf_cl(const Scalar* k, int* wnaf) {
+    Scalar temp = *k;
+    int len = 0;
+    while (!scalar_is_zero_cl(&temp) && len < 260) {
+        if (temp.limbs[0] & 1UL) {
+            int digit = (int)(temp.limbs[0] & 31UL);
+            if (digit >= 16) {
+                digit -= 32;
+                scalar_add_u64_cl(&temp, (ulong)(-digit));
+            } else {
+                scalar_sub_u64_cl(&temp, (ulong)digit);
+            }
+            wnaf[len] = digit;
+        } else {
+            wnaf[len] = 0;
+        }
+        scalar_shr1_cl(&temp);
+        len++;
+    }
+    return len;
+}
+
+// wNAF scalar multiplication core: precompute table [P,3P,...,15P], scan MSB→LSB
+inline void scalar_mul_wnaf(JacobianPoint* r, const Scalar* k, const JacobianPoint* base_jac) {
+    // wNAF encode
+    int wnaf[260];
+    int wnaf_len = scalar_to_wnaf_cl(k, wnaf);
+
+    // Precompute odd multiples: table[i] = (2i+1)*base
+    JacobianPoint table[8];
+    JacobianPoint dbl;
+    table[0] = *base_jac;
+    point_double_impl(&dbl, base_jac);
+    for (int i = 1; i < 8; i++)
+        point_add_impl(&table[i], &table[i-1], &dbl);
+
+    // Scan from MSB
+    point_set_infinity(r);
+    for (int i = wnaf_len - 1; i >= 0; --i) {
+        point_double_impl(r, r);
+        int digit = wnaf[i];
+        if (digit > 0) {
+            point_add_impl(r, r, &table[(digit - 1) >> 1]);
+        } else if (digit < 0) {
+            JacobianPoint neg = table[(-digit - 1) >> 1];
+            field_neg_impl(&neg.y, &neg.y);
+            point_add_impl(r, r, &neg);
+        }
+    }
 }
 
 #define GX0 0x59F2815B16F81798UL
@@ -768,24 +902,6 @@ __kernel void point_double(__global const JacobianPoint* points, __global Jacobi
     uint gid = get_global_id(0); if (gid >= count) return;
     JacobianPoint p_local = points[gid];
     JacobianPoint r; point_double_impl(&r, &p_local); results[gid] = r;
-}
-
-inline void point_add_impl(JacobianPoint* r, const JacobianPoint* p, const JacobianPoint* q) {
-    if (point_is_infinity(p)) { *r = *q; return; }
-    if (point_is_infinity(q)) { *r = *p; return; }
-    FieldElement U1,U2,S1,S2,H,I,J,rr,V,X3,Y3,Z3,Z1Z1,Z2Z2,t1,t2;
-    field_sqr_impl(&Z1Z1, &p->z); field_sqr_impl(&Z2Z2, &q->z);
-    field_mul_impl(&U1, &p->x, &Z2Z2); field_mul_impl(&U2, &q->x, &Z1Z1);
-    field_mul_impl(&t1, &p->y, &q->z); field_mul_impl(&S1, &t1, &Z2Z2);
-    field_mul_impl(&t1, &q->y, &p->z); field_mul_impl(&S2, &t1, &Z1Z1);
-    field_sub_impl(&H, &U2, &U1);
-    if ((H.limbs[0]|H.limbs[1]|H.limbs[2]|H.limbs[3]) == 0) { field_sub_impl(&t1, &S2, &S1); if ((t1.limbs[0]|t1.limbs[1]|t1.limbs[2]|t1.limbs[3]) == 0) { point_double_impl(r, p); return; } point_set_infinity(r); return; }
-    field_add_impl(&I, &H, &H); field_sqr_impl(&I, &I); field_mul_impl(&J, &H, &I);
-    field_sub_impl(&rr, &S2, &S1); field_add_impl(&rr, &rr, &rr); field_mul_impl(&V, &U1, &I);
-    field_sqr_impl(&X3, &rr); field_sub_impl(&X3, &X3, &J); field_add_impl(&t1, &V, &V); field_sub_impl(&X3, &X3, &t1);
-    field_sub_impl(&t1, &V, &X3); field_mul_impl(&Y3, &rr, &t1); field_mul_impl(&t2, &S1, &J); field_add_impl(&t2, &t2, &t2); field_sub_impl(&Y3, &Y3, &t2);
-    field_add_impl(&t1, &p->z, &q->z); field_sqr_impl(&t1, &t1); field_sub_impl(&t1, &t1, &Z1Z1); field_sub_impl(&t1, &t1, &Z2Z2); field_mul_impl(&Z3, &t1, &H);
-    r->x = X3; r->y = Y3; r->z = Z3; r->infinity = 0;
 }
 
 __kernel void point_add(__global const JacobianPoint* p, __global const JacobianPoint* q, __global JacobianPoint* results, uint count) {
