@@ -1774,50 +1774,47 @@ __device__ inline void jacobian_add(const JacobianPoint* p1, const JacobianPoint
     r->infinity = false;
 }
 
-// Scalar multiplication: P * k using wNAF window-5
+// Scalar multiplication: P * k using simple double-and-add with mixed addition
+// Lower register pressure and higher occupancy than wNAF on GPU
 __device__ inline void scalar_mul(const JacobianPoint* p, const Scalar* k, JacobianPoint* r) {
-    // wNAF with window width 5
-    int8_t wnaf[260];
-    int wnaf_len = scalar_to_wnaf(k, wnaf, 260);
-    
-    // Precompute table: [P, 3P, ..., 15P]
-    JacobianPoint table[8];
-    JacobianPoint double_p;
-    jacobian_double(p, &double_p);
-    
-    table[0] = *p;
-    for (int i = 1; i < 8; i++) {
-        jacobian_add(&table[i-1], &double_p, &table[i]);
+    // Convert base point to affine (assumes Z==1 for generator, or normalizes)
+    AffinePoint base;
+    if (p->z.limbs[0] == 1 && p->z.limbs[1] == 0 && p->z.limbs[2] == 0 && p->z.limbs[3] == 0) {
+        base.x = p->x;
+        base.y = p->y;
+    } else {
+        // General case: compute affine from Jacobian
+        FieldElement z_inv, z_inv2, z_inv3;
+        field_inv(&p->z, &z_inv);
+        field_sqr(&z_inv, &z_inv2);
+        field_mul(&z_inv2, &z_inv, &z_inv3);
+        field_mul(&p->x, &z_inv2, &base.x);
+        field_mul(&p->y, &z_inv3, &base.y);
     }
-    
-    // Initialize result as infinity
+
     r->infinity = true;
     field_set_zero(&r->x);
     field_set_one(&r->y);
     field_set_zero(&r->z);
-    
-    int8_t digit;
-    int idx;
-    JacobianPoint neg_point;
-    FieldElement zero;
-    field_set_zero(&zero);
 
-    // Process wNAF from MSB to LSB
-    for (int i = wnaf_len - 1; i >= 0; --i) {
-        jacobian_double(r, r);
-        
-        digit = wnaf[i];
-        if (digit > 0) {
-            idx = (digit - 1) / 2;
-            // Use general addition because table[idx] is Jacobian (Z!=1)
-            jacobian_add(r, &table[idx], r);
-        } else if (digit < 0) {
-            idx = (-digit - 1) / 2;
-            neg_point = table[idx];
-            // Negate Y
-            field_sub(&zero, &neg_point.y, &neg_point.y);
-            // Use general addition
-            jacobian_add(r, &neg_point, r);
+    bool started = false;
+    #pragma unroll 1
+    for (int limb = 3; limb >= 0; limb--) {
+        uint64_t w = k->limbs[limb];
+        #pragma unroll 1
+        for (int bit = 63; bit >= 0; bit--) {
+            if (started) jacobian_double(r, r);
+            if ((w >> bit) & 1ULL) {
+                if (!started) {
+                    r->x = base.x;
+                    r->y = base.y;
+                    field_set_one(&r->z);
+                    r->infinity = false;
+                    started = true;
+                } else {
+                    jacobian_add_mixed(r, &base, r);
+                }
+            }
         }
     }
 }
