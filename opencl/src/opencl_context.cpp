@@ -313,12 +313,15 @@ bool Context::Impl::init(const DeviceConfig& cfg) {
     }
     std::cerr << "[DEBUG] Context created successfully" << std::endl;
 
-    // Create command queue
+    // Create command queue with profiling enabled
 #ifdef CL_VERSION_2_0
-    cl_queue_properties props[] = {0};
+    cl_queue_properties props[] = {
+        CL_QUEUE_PROPERTIES, CL_QUEUE_PROFILING_ENABLE,
+        0
+    };
     queue = clCreateCommandQueueWithProperties(context, device, props, &err);
 #else
-    queue = clCreateCommandQueue(context, device, 0, &err);
+    queue = clCreateCommandQueue(context, device, CL_QUEUE_PROFILING_ENABLE, &err);
 #endif
 
     if (err != CL_SUCCESS) {
@@ -363,6 +366,103 @@ typedef struct { ulong limbs[4]; } Scalar;
 typedef struct { FieldElement x; FieldElement y; } AffinePoint;
 typedef struct { FieldElement x; FieldElement y; FieldElement z; uint infinity; uint pad[7]; } JacobianPoint;
 
+// =============================================================================
+// NVIDIA PTX Optimized Helpers (hardware carry-chain multiply + reduce)
+// =============================================================================
+#ifdef __NV_CL_C_VERSION
+
+#define PTX_MAD_ACC(c0, c1, c2, a, b) \
+    asm volatile( \
+        "mad.lo.cc.u64 %0, %3, %4, %0;\n\t" \
+        "madc.hi.cc.u64 %1, %3, %4, %1;\n\t" \
+        "addc.u64 %2, %2, 0;\n\t" \
+        : "+l"(c0), "+l"(c1), "+l"(c2) \
+        : "l"((ulong)(a)), "l"((ulong)(b)) \
+    )
+
+inline void mul_256_512_cl(const ulong* a, const ulong* b, ulong* r) {
+    ulong a0=a[0],a1=a[1],a2=a[2],a3=a[3];
+    ulong b0=b[0],b1=b[1],b2=b[2],b3=b[3];
+    ulong c0=0,c1=0,c2=0;
+    PTX_MAD_ACC(c0,c1,c2,a0,b0);
+    r[0]=c0; c0=c1; c1=c2; c2=0;
+    PTX_MAD_ACC(c0,c1,c2,a0,b1); PTX_MAD_ACC(c0,c1,c2,a1,b0);
+    r[1]=c0; c0=c1; c1=c2; c2=0;
+    PTX_MAD_ACC(c0,c1,c2,a0,b2); PTX_MAD_ACC(c0,c1,c2,a1,b1); PTX_MAD_ACC(c0,c1,c2,a2,b0);
+    r[2]=c0; c0=c1; c1=c2; c2=0;
+    PTX_MAD_ACC(c0,c1,c2,a0,b3); PTX_MAD_ACC(c0,c1,c2,a1,b2); PTX_MAD_ACC(c0,c1,c2,a2,b1); PTX_MAD_ACC(c0,c1,c2,a3,b0);
+    r[3]=c0; c0=c1; c1=c2; c2=0;
+    PTX_MAD_ACC(c0,c1,c2,a1,b3); PTX_MAD_ACC(c0,c1,c2,a2,b2); PTX_MAD_ACC(c0,c1,c2,a3,b1);
+    r[4]=c0; c0=c1; c1=c2; c2=0;
+    PTX_MAD_ACC(c0,c1,c2,a2,b3); PTX_MAD_ACC(c0,c1,c2,a3,b2);
+    r[5]=c0; c0=c1; c1=c2; c2=0;
+    PTX_MAD_ACC(c0,c1,c2,a3,b3);
+    r[6]=c0; r[7]=c1;
+}
+
+inline void sqr_256_512_cl(const ulong* a, ulong* r) {
+    ulong a0=a[0],a1=a[1],a2=a[2],a3=a[3];
+    ulong c0=0,c1=0,c2=0;
+    PTX_MAD_ACC(c0,c1,c2,a0,a0);
+    r[0]=c0; c0=c1; c1=c2; c2=0;
+    PTX_MAD_ACC(c0,c1,c2,a0,a1); PTX_MAD_ACC(c0,c1,c2,a0,a1);
+    r[1]=c0; c0=c1; c1=c2; c2=0;
+    PTX_MAD_ACC(c0,c1,c2,a0,a2); PTX_MAD_ACC(c0,c1,c2,a0,a2); PTX_MAD_ACC(c0,c1,c2,a1,a1);
+    r[2]=c0; c0=c1; c1=c2; c2=0;
+    PTX_MAD_ACC(c0,c1,c2,a0,a3); PTX_MAD_ACC(c0,c1,c2,a0,a3); PTX_MAD_ACC(c0,c1,c2,a1,a2); PTX_MAD_ACC(c0,c1,c2,a1,a2);
+    r[3]=c0; c0=c1; c1=c2; c2=0;
+    PTX_MAD_ACC(c0,c1,c2,a1,a3); PTX_MAD_ACC(c0,c1,c2,a1,a3); PTX_MAD_ACC(c0,c1,c2,a2,a2);
+    r[4]=c0; c0=c1; c1=c2; c2=0;
+    PTX_MAD_ACC(c0,c1,c2,a2,a3); PTX_MAD_ACC(c0,c1,c2,a2,a3);
+    r[5]=c0; c0=c1; c1=c2; c2=0;
+    PTX_MAD_ACC(c0,c1,c2,a3,a3);
+    r[6]=c0; r[7]=c1;
+}
+
+inline void reduce_512_to_256_cl(ulong* t, FieldElement* r) {
+    ulong t0=t[0],t1=t[1],t2=t[2],t3=t[3],t4=t[4],t5=t[5],t6=t[6],t7=t[7];
+    ulong a0,a1,a2,a3,a4;
+    asm volatile("mul.lo.u64 %0, %5, 977;\n\t" "mul.hi.u64 %1, %5, 977;\n\t"
+        "mad.lo.cc.u64 %1, %6, 977, %1;\n\t" "madc.hi.u64 %2, %6, 977, 0;\n\t"
+        "mad.lo.cc.u64 %2, %7, 977, %2;\n\t" "madc.hi.u64 %3, %7, 977, 0;\n\t"
+        "mad.lo.cc.u64 %3, %8, 977, %3;\n\t" "madc.hi.u64 %4, %8, 977, 0;\n\t"
+        :"=l"(a0),"=l"(a1),"=l"(a2),"=l"(a3),"=l"(a4):"l"(t4),"l"(t5),"l"(t6),"l"(t7));
+    ulong carry_a;
+    asm volatile("add.cc.u64 %0,%0,%5;\n\t" "addc.cc.u64 %1,%1,%6;\n\t"
+        "addc.cc.u64 %2,%2,%7;\n\t" "addc.cc.u64 %3,%3,%8;\n\t" "addc.u64 %4,0,0;\n\t"
+        :"+l"(t0),"+l"(t1),"+l"(t2),"+l"(t3),"=l"(carry_a):"l"(a0),"l"(a1),"l"(a2),"l"(a3));
+    ulong s0=(t4<<32),s1=(t4>>32)|(t5<<32),s2=(t5>>32)|(t6<<32),s3=(t6>>32)|(t7<<32);
+    ulong carry_s;
+    asm volatile("add.cc.u64 %0,%0,%5;\n\t" "addc.cc.u64 %1,%1,%6;\n\t"
+        "addc.cc.u64 %2,%2,%7;\n\t" "addc.cc.u64 %3,%3,%8;\n\t" "addc.u64 %4,0,0;\n\t"
+        :"+l"(t0),"+l"(t1),"+l"(t2),"+l"(t3),"=l"(carry_s):"l"(s0),"l"(s1),"l"(s2),"l"(s3));
+    ulong extra = a4 + (t7>>32) + carry_a + carry_s;
+    ulong e_lo=extra*977, e_sh=extra<<32, e_sh_hi=extra>>32;
+    ulong c=0, ct=0;
+    asm volatile("add.cc.u64 %0,%0,%5;\n\t" "addc.cc.u64 %1,%1,0;\n\t"
+        "addc.cc.u64 %2,%2,0;\n\t" "addc.cc.u64 %3,%3,0;\n\t" "addc.u64 %4,0,0;\n\t"
+        :"+l"(t0),"+l"(t1),"+l"(t2),"+l"(t3),"=l"(ct):"l"(e_lo)); c+=ct;
+    asm volatile("add.cc.u64 %0,%0,%5;\n\t" "addc.cc.u64 %1,%1,%6;\n\t"
+        "addc.cc.u64 %2,%2,0;\n\t" "addc.cc.u64 %3,%3,0;\n\t" "addc.u64 %4,0,0;\n\t"
+        :"+l"(t0),"+l"(t1),"+l"(t2),"+l"(t3),"=l"(ct):"l"(e_sh),"l"(e_sh_hi)); c+=ct;
+    if (c) { ulong kv=SECP256K1_K;
+        asm volatile("add.cc.u64 %0,%0,%4;\n\t" "addc.cc.u64 %1,%1,0;\n\t"
+            "addc.cc.u64 %2,%2,0;\n\t" "addc.u64 %3,%3,0;\n\t"
+            :"+l"(t0),"+l"(t1),"+l"(t2),"+l"(t3):"l"(kv));
+    }
+    ulong r0,r1,r2,r3,bw;
+    ulong p0=SECP256K1_P0,p1=SECP256K1_P1,p2=SECP256K1_P2,p3=SECP256K1_P3;
+    asm volatile("sub.cc.u64 %0,%5,%9;\n\t" "subc.cc.u64 %1,%6,%10;\n\t"
+        "subc.cc.u64 %2,%7,%11;\n\t" "subc.cc.u64 %3,%8,%12;\n\t" "subc.u64 %4,0,0;\n\t"
+        :"=l"(r0),"=l"(r1),"=l"(r2),"=l"(r3),"=l"(bw)
+        :"l"(t0),"l"(t1),"l"(t2),"l"(t3),"l"(p0),"l"(p1),"l"(p2),"l"(p3));
+    if (bw==0) { r->limbs[0]=r0; r->limbs[1]=r1; r->limbs[2]=r2; r->limbs[3]=r3; }
+    else { r->limbs[0]=t0; r->limbs[1]=t1; r->limbs[2]=t2; r->limbs[3]=t3; }
+}
+
+#endif // __NV_CL_C_VERSION
+// =============================================================================
+
 inline ulong2 mul64_full(ulong a, ulong b) {
     return (ulong2)(a * b, mul_hi(a, b));
 }
@@ -399,6 +499,25 @@ inline void field_reduce(FieldElement* r, const ulong* a8) {
 }
 
 inline void field_add_impl(FieldElement* r, const FieldElement* a, const FieldElement* b) {
+#ifdef __NV_CL_C_VERSION
+    ulong a0=a->limbs[0],a1=a->limbs[1],a2=a->limbs[2],a3=a->limbs[3];
+    ulong b0=b->limbs[0],b1=b->limbs[1],b2=b->limbs[2],b3=b->limbs[3];
+    ulong s0,s1,s2,s3,carry;
+    asm volatile("add.cc.u64 %0,%5,%9;\n\t" "addc.cc.u64 %1,%6,%10;\n\t"
+        "addc.cc.u64 %2,%7,%11;\n\t" "addc.cc.u64 %3,%8,%12;\n\t" "addc.u64 %4,0,0;\n\t"
+        :"=l"(s0),"=l"(s1),"=l"(s2),"=l"(s3),"=l"(carry)
+        :"l"(a0),"l"(a1),"l"(a2),"l"(a3),"l"(b0),"l"(b1),"l"(b2),"l"(b3));
+    ulong d0,d1,d2,d3,borrow;
+    ulong p0=SECP256K1_P0,p1=SECP256K1_P1,p2=SECP256K1_P2,p3=SECP256K1_P3;
+    asm volatile("sub.cc.u64 %0,%5,%9;\n\t" "subc.cc.u64 %1,%6,%10;\n\t"
+        "subc.cc.u64 %2,%7,%11;\n\t" "subc.cc.u64 %3,%8,%12;\n\t" "subc.u64 %4,0,0;\n\t"
+        :"=l"(d0),"=l"(d1),"=l"(d2),"=l"(d3),"=l"(borrow)
+        :"l"(s0),"l"(s1),"l"(s2),"l"(s3),"l"(p0),"l"(p1),"l"(p2),"l"(p3));
+    ulong use_diff = (carry != 0) | (borrow == 0);
+    ulong mask = use_diff ? ~0UL : 0UL;
+    r->limbs[0]=(d0&mask)|(s0&~mask); r->limbs[1]=(d1&mask)|(s1&~mask);
+    r->limbs[2]=(d2&mask)|(s2&~mask); r->limbs[3]=(d3&mask)|(s3&~mask);
+#else
     ulong carry = 0; ulong sum[4];
     sum[0] = add_with_carry(a->limbs[0], b->limbs[0], 0, &carry);
     sum[1] = add_with_carry(a->limbs[1], b->limbs[1], carry, &carry);
@@ -415,9 +534,27 @@ inline void field_add_impl(FieldElement* r, const FieldElement* a, const FieldEl
     r->limbs[1] = (diff[1] & mask) | (sum[1] & ~mask);
     r->limbs[2] = (diff[2] & mask) | (sum[2] & ~mask);
     r->limbs[3] = (diff[3] & mask) | (sum[3] & ~mask);
+#endif
 }
 
 inline void field_sub_impl(FieldElement* r, const FieldElement* a, const FieldElement* b) {
+#ifdef __NV_CL_C_VERSION
+    ulong a0=a->limbs[0],a1=a->limbs[1],a2=a->limbs[2],a3=a->limbs[3];
+    ulong b0=b->limbs[0],b1=b->limbs[1],b2=b->limbs[2],b3=b->limbs[3];
+    ulong d0,d1,d2,d3,borrow;
+    asm volatile("sub.cc.u64 %0,%5,%9;\n\t" "subc.cc.u64 %1,%6,%10;\n\t"
+        "subc.cc.u64 %2,%7,%11;\n\t" "subc.cc.u64 %3,%8,%12;\n\t" "subc.u64 %4,0,0;\n\t"
+        :"=l"(d0),"=l"(d1),"=l"(d2),"=l"(d3),"=l"(borrow)
+        :"l"(a0),"l"(a1),"l"(a2),"l"(a3),"l"(b0),"l"(b1),"l"(b2),"l"(b3));
+    ulong mp0 = (borrow!=0) ? (ulong)SECP256K1_P0 : 0UL;
+    ulong mp1 = (borrow!=0) ? (ulong)SECP256K1_P1 : 0UL;
+    ulong mp2 = (borrow!=0) ? (ulong)SECP256K1_P2 : 0UL;
+    ulong mp3 = (borrow!=0) ? (ulong)SECP256K1_P3 : 0UL;
+    asm volatile("add.cc.u64 %0,%0,%4;\n\t" "addc.cc.u64 %1,%1,%5;\n\t"
+        "addc.cc.u64 %2,%2,%6;\n\t" "addc.u64 %3,%3,%7;\n\t"
+        :"+l"(d0),"+l"(d1),"+l"(d2),"+l"(d3):"l"(mp0),"l"(mp1),"l"(mp2),"l"(mp3));
+    r->limbs[0]=d0; r->limbs[1]=d1; r->limbs[2]=d2; r->limbs[3]=d3;
+#else
     ulong borrow = 0; ulong diff[4];
     diff[0] = sub_with_borrow(a->limbs[0], b->limbs[0], 0, &borrow);
     diff[1] = sub_with_borrow(a->limbs[1], b->limbs[1], borrow, &borrow);
@@ -429,9 +566,13 @@ inline void field_sub_impl(FieldElement* r, const FieldElement* a, const FieldEl
     r->limbs[1] = add_with_carry(diff[1], SECP256K1_P1 & mask, carry, &carry);
     r->limbs[2] = add_with_carry(diff[2], SECP256K1_P2 & mask, carry, &carry);
     r->limbs[3] = add_with_carry(diff[3], SECP256K1_P3 & mask, carry, &carry);
+#endif
 }
 
 inline void field_mul_impl(FieldElement* r, const FieldElement* a, const FieldElement* b) {
+#ifdef __NV_CL_C_VERSION
+    ulong t[8]; mul_256_512_cl(a->limbs, b->limbs, t); reduce_512_to_256_cl(t, r);
+#else
     ulong product[8] = {0,0,0,0,0,0,0,0};
     for (int i = 0; i < 4; i++) {
         ulong carry = 0;
@@ -444,24 +585,46 @@ inline void field_mul_impl(FieldElement* r, const FieldElement* a, const FieldEl
         product[i+4] += carry;
     }
     field_reduce(r, product);
+#endif
 }
 
 inline void field_sqr_impl(FieldElement* r, const FieldElement* a) {
-    // Use multiplication directly for correctness
-    // Can optimize later once basic tests pass
+#ifdef __NV_CL_C_VERSION
+    ulong t[8]; sqr_256_512_cl(a->limbs, t); reduce_512_to_256_cl(t, r);
+#else
     field_mul_impl(r, a, a);
+#endif
+}
+
+inline void field_sqr_n_impl(FieldElement* r, int n) {
+    for (int i = 0; i < n; i++) { FieldElement tmp = *r; field_sqr_impl(r, &tmp); }
 }
 
 inline void field_inv_impl(FieldElement* r, const FieldElement* a) {
-    FieldElement base = *a; FieldElement result; result.limbs[0] = 1; result.limbs[1] = 0; result.limbs[2] = 0; result.limbs[3] = 0;
-    const ulong exp[4] = {0xFFFFFFFEFFFFFC2DUL, 0xFFFFFFFFFFFFFFFFUL, 0xFFFFFFFFFFFFFFFFUL, 0xFFFFFFFFFFFFFFFFUL};
-    for (int limb = 0; limb < 4; limb++) {
-        for (int bit = 0; bit < 64; bit++) {
-            if ((exp[limb] >> bit) & 1) field_mul_impl(&result, &result, &base);
-            field_sqr_impl(&base, &base);
-        }
-    }
-    *r = result;
+    FieldElement x2,x3,x6,x12,x24,x48,x96,x192,x7,x31,x223,x5,x11,x22,t;
+    field_sqr_impl(&x2, a); field_mul_impl(&x2, &x2, a);
+    field_sqr_impl(&x3, &x2); field_mul_impl(&x3, &x3, a);
+    t=x3; field_sqr_n_impl(&t,3); field_mul_impl(&x6,&t,&x3);
+    t=x6; field_sqr_n_impl(&t,6); field_mul_impl(&x12,&t,&x6);
+    t=x12; field_sqr_n_impl(&t,12); field_mul_impl(&x24,&t,&x12);
+    t=x24; field_sqr_n_impl(&t,24); field_mul_impl(&x48,&t,&x24);
+    t=x48; field_sqr_n_impl(&t,48); field_mul_impl(&x96,&t,&x48);
+    t=x96; field_sqr_n_impl(&t,96); field_mul_impl(&x192,&t,&x96);
+    field_sqr_impl(&x7,&x6); field_mul_impl(&x7,&x7,a);
+    t=x24; field_sqr_n_impl(&t,7); field_mul_impl(&x31,&t,&x7);
+    t=x192; field_sqr_n_impl(&t,31); field_mul_impl(&x223,&t,&x31);
+    t=x3; field_sqr_n_impl(&t,2); field_mul_impl(&x5,&t,&x2);
+    t=x6; field_sqr_n_impl(&t,5); field_mul_impl(&x11,&t,&x5);
+    t=x11; field_sqr_n_impl(&t,11); field_mul_impl(&x22,&t,&x11);
+    field_sqr_impl(&t,&x223);
+    field_sqr_n_impl(&t,22); field_mul_impl(&t,&t,&x22);
+    field_sqr_n_impl(&t,4);
+    field_sqr_impl(&t,&t); field_mul_impl(&t,&t,a);
+    field_sqr_impl(&t,&t);
+    field_sqr_impl(&t,&t); field_mul_impl(&t,&t,a);
+    field_sqr_impl(&t,&t); field_mul_impl(&t,&t,a);
+    field_sqr_impl(&t,&t);
+    field_sqr_impl(&t,&t); field_mul_impl(r,&t,a);
 }
 
 __kernel void field_add(__global const FieldElement* a, __global const FieldElement* b, __global FieldElement* r, uint count) {
@@ -693,10 +856,12 @@ bool Context::Impl::build_program() {
     }
 
     // Build options
-    std::string build_options = "-cl-std=CL1.2 -cl-fast-relaxed-math";
+    std::string build_options = "-cl-std=CL1.2 -cl-fast-relaxed-math -cl-mad-enable";
 
-    // Note: Intel-specific flags like -cl-intel-gtpin-rera are avoided
-    // for broad compatibility across all OpenCL drivers
+    // NVIDIA-specific optimization flags
+    if (device_info.is_nvidia) {
+        build_options += " -cl-nv-opt-level=3";
+    }
 
     // Build program
     err = clBuildProgram(program, 1, &device, build_options.c_str(), nullptr, nullptr);
@@ -1302,6 +1467,32 @@ void Context::async_batch_scalar_mul_generator(const Scalar* scalars, JacobianPo
 
 void Context::sync() {
     clFinish(impl_->queue);
+}
+
+void Context::flush() {
+    clFinish(impl_->queue);
+}
+
+void* Context::native_context() const {
+    return impl_->context;
+}
+
+void* Context::native_queue() const {
+    return impl_->queue;
+}
+
+void* Context::native_kernel(const char* name) const {
+    std::string n(name);
+    if (n == "field_add") return impl_->kernel_field_add;
+    if (n == "field_sub") return impl_->kernel_field_sub;
+    if (n == "field_mul") return impl_->kernel_field_mul;
+    if (n == "field_sqr") return impl_->kernel_field_sqr;
+    if (n == "field_inv") return impl_->kernel_field_inv;
+    if (n == "point_double") return impl_->kernel_point_double;
+    if (n == "point_add") return impl_->kernel_point_add;
+    if (n == "scalar_mul") return impl_->kernel_scalar_mul;
+    if (n == "scalar_mul_generator") return impl_->kernel_scalar_mul_generator;
+    return nullptr;
 }
 
 std::unique_ptr<Buffer> Context::allocate(std::size_t size) {

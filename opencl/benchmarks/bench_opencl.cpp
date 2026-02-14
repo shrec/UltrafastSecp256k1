@@ -1,11 +1,12 @@
 // =============================================================================
-// UltrafastSecp256k1 OpenCL - Benchmark (Batch Throughput)
+// UltrafastSecp256k1 OpenCL - Benchmark (Batch Throughput + Kernel-Only)
 // =============================================================================
-// All benchmarks use batch dispatch (same methodology as CUDA benchmarks)
-// to measure true kernel throughput without API overhead.
+// Includes both batch dispatch (with buffer overhead) and kernel-only timing
+// (matching CUDA cudaEvent methodology) for fair cross-platform comparison.
 // =============================================================================
 
 #include "secp256k1_opencl.hpp"
+#include <CL/cl.h>
 #include <iostream>
 #include <chrono>
 #include <vector>
@@ -24,7 +25,7 @@ struct BenchResult {
 
 // Batch benchmark helper: warmup, then measure over multiple iterations
 template<typename F>
-BenchResult bench_batch(const std::string& name, F&& func, std::size_t batch_size, int warmup_iters = 2, int measure_iters = 5) {
+BenchResult bench_batch(const std::string& name, F&& func, std::size_t batch_size, int warmup_iters = 3, int measure_iters = 10) {
     // Warmup
     for (int i = 0; i < warmup_iters; ++i) func();
 
@@ -71,7 +72,7 @@ int main(int argc, char* argv[]) {
     int platform_id = -1;
     int device_id = 0;
     bool prefer_intel = false; // Default to NVIDIA for benchmark
-    std::size_t batch_size = 65536; // Default batch size
+    std::size_t batch_size = 1048576; // 1M default (matches CUDA benchmark)
 
     for (int i = 1; i < argc; i++) {
         std::string arg = argv[i];
@@ -269,6 +270,86 @@ int main(int argc, char* argv[]) {
     }
 
     // ==========================================================================
+    // KERNEL-ONLY Benchmarks (matching CUDA cudaEvent methodology)
+    // Pre-allocate buffers, upload once, time only kernel launches
+    // ==========================================================================
+    std::cout << "\n" << std::string(60, '=') << "\n";
+    std::cout << "KERNEL-ONLY Timing (no buffer alloc/copy overhead):\n";
+    std::cout << std::string(60, '=') << "\n";
+
+    {
+        cl_context cl_ctx = (cl_context)ctx->native_context();
+        cl_command_queue cl_q = (cl_command_queue)ctx->native_queue();
+        cl_int err;
+
+        std::size_t ksz = batch_size;
+        cl_uint kcnt = static_cast<cl_uint>(ksz);
+
+        // Pre-allocate persistent buffers
+        cl_mem buf_a = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                                       ksz * sizeof(FieldElement), (void*)fe_a.data(), &err);
+        cl_mem buf_b = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                                       ksz * sizeof(FieldElement), (void*)fe_b.data(), &err);
+        cl_mem buf_r = clCreateBuffer(cl_ctx, CL_MEM_WRITE_ONLY,
+                                       ksz * sizeof(FieldElement), nullptr, &err);
+        clFinish(cl_q);
+
+        std::size_t local_sz = 256;
+        std::size_t global_sz = ((ksz + local_sz - 1) / local_sz) * local_sz;
+
+        int k_warmup = 5;
+        int k_iters = 20;
+
+        // Lambda for kernel-only bench
+        auto kernel_bench = [&](const char* name, cl_kernel kern, bool two_inputs) -> BenchResult {
+            clSetKernelArg(kern, 0, sizeof(cl_mem), &buf_a);
+            if (two_inputs) {
+                clSetKernelArg(kern, 1, sizeof(cl_mem), &buf_b);
+                clSetKernelArg(kern, 2, sizeof(cl_mem), &buf_r);
+                clSetKernelArg(kern, 3, sizeof(cl_uint), &kcnt);
+            } else {
+                clSetKernelArg(kern, 1, sizeof(cl_mem), &buf_r);
+                clSetKernelArg(kern, 2, sizeof(cl_uint), &kcnt);
+            }
+
+            // Warmup
+            for (int i = 0; i < k_warmup; ++i)
+                clEnqueueNDRangeKernel(cl_q, kern, 1, nullptr, &global_sz, &local_sz, 0, nullptr, nullptr);
+            clFinish(cl_q);
+
+            // Measure
+            auto t0 = std::chrono::high_resolution_clock::now();
+            for (int i = 0; i < k_iters; ++i)
+                clEnqueueNDRangeKernel(cl_q, kern, 1, nullptr, &global_sz, &local_sz, 0, nullptr, nullptr);
+            clFinish(cl_q);
+            auto t1 = std::chrono::high_resolution_clock::now();
+
+            double ns = std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count();
+            double total_ops = static_cast<double>(ksz) * k_iters;
+            return {name, ns / total_ops, total_ops / (ns * 1e-9)};
+        };
+
+        std::cout << "\nField Arithmetic (kernel-only, batch=" << ksz << "):\n";
+        std::cout << std::string(50, '-') << "\n";
+
+        auto r_add = kernel_bench("Field Add", (cl_kernel)ctx->native_kernel("field_add"), true);
+        print_result(r_add); results.push_back(r_add);
+
+        auto r_sub = kernel_bench("Field Sub", (cl_kernel)ctx->native_kernel("field_sub"), true);
+        print_result(r_sub); results.push_back(r_sub);
+
+        auto r_mul = kernel_bench("Field Mul", (cl_kernel)ctx->native_kernel("field_mul"), true);
+        print_result(r_mul); results.push_back(r_mul);
+
+        auto r_sqr = kernel_bench("Field Sqr", (cl_kernel)ctx->native_kernel("field_sqr"), false);
+        print_result(r_sqr); results.push_back(r_sqr);
+
+        clReleaseMemObject(buf_a);
+        clReleaseMemObject(buf_b);
+        clReleaseMemObject(buf_r);
+    }
+
+    // ==========================================================================
     // Summary Table
     // ==========================================================================
     std::cout << "\n" << std::string(60, '=') << "\n";
@@ -281,4 +362,3 @@ int main(int argc, char* argv[]) {
     std::cout << "\nBenchmark complete!\n";
     return 0;
 }
-

@@ -219,6 +219,14 @@ public:
     // Wait for all pending operations to complete
     void sync();
 
+    // Flush command queue (clFinish)
+    void flush();
+
+    // Native handle access (for benchmarking / advanced use)
+    void* native_context() const;
+    void* native_queue() const;
+    void* native_kernel(const char* name) const;
+
     // ==========================================================================
     // Memory Management
     // ==========================================================================
