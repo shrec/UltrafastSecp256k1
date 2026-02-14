@@ -83,10 +83,12 @@
 | Operation | CUDA | OpenCL | Winner |
 |-----------|------|--------|--------|
 | Field Mul | 0.2 ns | 0.2 ns | Tie |
-| Field Inv | 12.1 ns | 14.3 ns | CUDA 1.18× |
-| Point Double | 1.6 ns | 0.9 ns | **OpenCL 1.78×** |
-| Point Add | 2.1 ns | 1.6 ns | **OpenCL 1.31×** |
-| kG | 485.1 ns | 295.1 ns | **OpenCL 1.64×** |
+| Field Inv | 10.2 ns | 14.3 ns | **CUDA 1.40×** |
+| Point Double | 0.7 ns | 0.9 ns | **CUDA 1.29×** |
+| Point Add | 0.9 ns | 1.6 ns | **CUDA 1.78×** |
+| kG | 221.7 ns | 295.1 ns | **CUDA 1.33×** |
 
-**OpenCL wins** on point ops and scalar multiplication due to optimized
-3-temp point doubling and alias-safe mixed addition with PTX inline assembly.
+**CUDA wins** across all operations after the 32-bit hybrid Comba optimization
+(PTX `mad.lo.cc.u32` / `madc.hi.u32` with hardware carry flags).
+OpenCL uses portable `mul_hi(ulong)` which NVIDIA's compiler already decomposes
+into optimal 32-bit PTX — manual 32-bit Comba adds no benefit on OpenCL.

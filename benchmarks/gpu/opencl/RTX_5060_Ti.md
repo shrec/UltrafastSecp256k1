@@ -66,6 +66,6 @@
 ## Notes
 
 - All times are amortized per-element from batch dispatch (same methodology as CUDA benchmark)
-- Scalar multiplication at batch=65K achieves 2.39 M/s — competitive with CUDA's 1.69 M/s
-- Field arithmetic ~50× slower than CUDA due to OpenCL mul_hi() overhead vs native PTX
+- Scalar multiplication at batch=65K achieves 2.39 M/s (CUDA now achieves 4.51 M/s after 32-bit hybrid optimization)
+- Field arithmetic ~50× slower than CUDA due to OpenCL buffer transfer overhead vs in-register CUDA kernel
 - 32/32 correctness tests pass
