@@ -10,25 +10,23 @@
 // Output: 512-bit result for reduce_512_to_256
 // ============================================================================
 
-__device__ __forceinline__ void mul_256_512_hybrid(
+// Core 32-bit Comba multiplication → raw uint32_t[16] output (no packing)
+// Separated from wrapper to allow direct use with 32-bit reduction
+__device__ __forceinline__ void mul_256_comba32(
     const secp256k1::cuda::FieldElement* a,
     const secp256k1::cuda::FieldElement* b, 
-    uint64_t t[8]
+    uint32_t t32[16]
 ) {
-    // Explicit split to avoid aliasing UB (compiled to register moves, zero-cost)
-    // Extract 32-bit limbs from 64-bit storage
     uint32_t a32[8], b32[8];
     #pragma unroll
     for (int i = 0; i < 4; i++) {
-        a32[2*i]   = (uint32_t)(a->limbs[i]);       // low 32 bits
-        a32[2*i+1] = (uint32_t)(a->limbs[i] >> 32); // high 32 bits
+        a32[2*i]   = (uint32_t)(a->limbs[i]);
+        a32[2*i+1] = (uint32_t)(a->limbs[i] >> 32);
         b32[2*i]   = (uint32_t)(b->limbs[i]);
         b32[2*i+1] = (uint32_t)(b->limbs[i] >> 32);
     }
     
-    // Comba multiplication with 3 accumulators
     uint32_t r0 = 0, r1 = 0, r2 = 0;
-    uint32_t t32[16];  // Intermediate 32-bit result
     
     #define MUL32_ACC(ai, bj) { \
         asm volatile( \
@@ -102,8 +100,16 @@ __device__ __forceinline__ void mul_256_512_hybrid(
     t32[15] = r1;
     
     #undef MUL32_ACC
-    
-    // Pack 32-bit result into 64-bit output (explicit, UB-safe)
+}
+
+// Legacy wrapper: packs 32-bit output to uint64_t[8] (for Montgomery path)
+__device__ __forceinline__ void mul_256_512_hybrid(
+    const secp256k1::cuda::FieldElement* a,
+    const secp256k1::cuda::FieldElement* b, 
+    uint64_t t[8]
+) {
+    uint32_t t32[16];
+    mul_256_comba32(a, b, t32);
     #pragma unroll
     for (int i = 0; i < 8; i++) {
         t[i] = ((uint64_t)t32[2*i+1] << 32) | t32[2*i];
@@ -116,11 +122,11 @@ __device__ __forceinline__ void mul_256_512_hybrid(
 // ~40% fewer multiplications than generic multiplication
 // ============================================================================
 
-__device__ __forceinline__ void sqr_256_512_hybrid(
+// Core 32-bit Comba squaring → raw uint32_t[16] output
+__device__ __forceinline__ void sqr_256_comba32(
     const secp256k1::cuda::FieldElement* a,
-    uint64_t t[8]
+    uint32_t t32[16]
 ) {
-    // Explicit split to avoid aliasing UB
     uint32_t a32[8];
     #pragma unroll
     for (int i = 0; i < 4; i++) {
@@ -128,7 +134,6 @@ __device__ __forceinline__ void sqr_256_512_hybrid(
         a32[2*i+1] = (uint32_t)(a->limbs[i] >> 32);
     }
     
-    uint32_t t32[16];  // Intermediate 32-bit result
     uint32_t r0 = 0, r1 = 0, r2 = 0;
     
     // Diagonal multiplication (no doubling)
@@ -247,8 +252,15 @@ __device__ __forceinline__ void sqr_256_512_hybrid(
     
     #undef SQR32_DIAG
     #undef SQR32_MUL2
-    
-    // Pack 32-bit result into 64-bit output (explicit, UB-safe)
+}
+
+// Legacy wrapper: packs to uint64_t[8] (for Montgomery path)
+__device__ __forceinline__ void sqr_256_512_hybrid(
+    const secp256k1::cuda::FieldElement* a,
+    uint64_t t[8]
+) {
+    uint32_t t32[16];
+    sqr_256_comba32(a, t32);
     #pragma unroll
     for (int i = 0; i < 8; i++) {
         t[i] = ((uint64_t)t32[2*i+1] << 32) | t32[2*i];
@@ -256,7 +268,146 @@ __device__ __forceinline__ void sqr_256_512_hybrid(
 }
 
 // ============================================================================
-// Hybrid field operations: 32-bit mul/sqr + proven 64-bit reduce
+// 32-bit secp256k1 reduction (consumer GPU optimized)
+// On consumer NVIDIA GPUs (Turing/Ampere/Ada/Blackwell), INT64 multiply
+// throughput is 1/32 of INT32. By doing the main T_hi × K_MOD multiplication
+// in 32-bit, we avoid the INT64 multiply bottleneck.
+// Phase 1+2: fully 32-bit (T_hi × K_MOD + add to T_lo)
+// Phase 3+4: 64-bit (overflow handling + conditional subtraction — proven code)
+// ============================================================================
+__device__ __forceinline__ void reduce_512_to_256_32(
+    uint32_t t32[16],
+    secp256k1::cuda::FieldElement* r
+) {
+    uint32_t t0 = t32[0], t1 = t32[1], t2 = t32[2], t3 = t32[3];
+    uint32_t t4 = t32[4], t5 = t32[5], t6 = t32[6], t7 = t32[7];
+    const uint32_t t8  = t32[8],  t9  = t32[9],  t10 = t32[10], t11 = t32[11];
+    const uint32_t t12 = t32[12], t13 = t32[13], t14 = t32[14], t15 = t32[15];
+
+    // ---- Phase 1: A = T_hi × 977 (32-bit scalar MAD chain → 9 limbs) ----
+    uint32_t a0, a1, a2, a3, a4, a5, a6, a7, a8;
+    asm volatile(
+        "mul.lo.u32 %0, %9, 977;\n\t"
+        "mul.hi.u32 %1, %9, 977;\n\t"
+        "mad.lo.cc.u32 %1, %10, 977, %1;\n\t"
+        "madc.hi.u32 %2, %10, 977, 0;\n\t"
+        "mad.lo.cc.u32 %2, %11, 977, %2;\n\t"
+        "madc.hi.u32 %3, %11, 977, 0;\n\t"
+        "mad.lo.cc.u32 %3, %12, 977, %3;\n\t"
+        "madc.hi.u32 %4, %12, 977, 0;\n\t"
+        "mad.lo.cc.u32 %4, %13, 977, %4;\n\t"
+        "madc.hi.u32 %5, %13, 977, 0;\n\t"
+        "mad.lo.cc.u32 %5, %14, 977, %5;\n\t"
+        "madc.hi.u32 %6, %14, 977, 0;\n\t"
+        "mad.lo.cc.u32 %6, %15, 977, %6;\n\t"
+        "madc.hi.u32 %7, %15, 977, 0;\n\t"
+        "mad.lo.cc.u32 %7, %16, 977, %7;\n\t"
+        "madc.hi.u32 %8, %16, 977, 0;\n\t"
+        : "=r"(a0), "=r"(a1), "=r"(a2), "=r"(a3), "=r"(a4),
+          "=r"(a5), "=r"(a6), "=r"(a7), "=r"(a8)
+        : "r"(t8), "r"(t9), "r"(t10), "r"(t11),
+          "r"(t12), "r"(t13), "r"(t14), "r"(t15)
+    );
+
+    // ---- Phase 1b: Add T_hi << 32 (shift by 1 limb = ×2^32 component of K_MOD) ----
+    uint32_t a9;
+    asm volatile(
+        "add.cc.u32 %0, %0, %9;\n\t"
+        "addc.cc.u32 %1, %1, %10;\n\t"
+        "addc.cc.u32 %2, %2, %11;\n\t"
+        "addc.cc.u32 %3, %3, %12;\n\t"
+        "addc.cc.u32 %4, %4, %13;\n\t"
+        "addc.cc.u32 %5, %5, %14;\n\t"
+        "addc.cc.u32 %6, %6, %15;\n\t"
+        "addc.cc.u32 %7, %7, %16;\n\t"
+        "addc.u32 %8, 0, 0;\n\t"
+        : "+r"(a1), "+r"(a2), "+r"(a3), "+r"(a4),
+          "+r"(a5), "+r"(a6), "+r"(a7), "+r"(a8), "=r"(a9)
+        : "r"(t8), "r"(t9), "r"(t10), "r"(t11),
+          "r"(t12), "r"(t13), "r"(t14), "r"(t15)
+    );
+
+    // ---- Phase 2: T_lo[0..7] += R[0..7] (32-bit carry chain) ----
+    uint32_t carry;
+    asm volatile(
+        "add.cc.u32 %0, %0, %9;\n\t"
+        "addc.cc.u32 %1, %1, %10;\n\t"
+        "addc.cc.u32 %2, %2, %11;\n\t"
+        "addc.cc.u32 %3, %3, %12;\n\t"
+        "addc.cc.u32 %4, %4, %13;\n\t"
+        "addc.cc.u32 %5, %5, %14;\n\t"
+        "addc.cc.u32 %6, %6, %15;\n\t"
+        "addc.cc.u32 %7, %7, %16;\n\t"
+        "addc.u32 %8, 0, 0;\n\t"
+        : "+r"(t0), "+r"(t1), "+r"(t2), "+r"(t3),
+          "+r"(t4), "+r"(t5), "+r"(t6), "+r"(t7), "=r"(carry)
+        : "r"(a0), "r"(a1), "r"(a2), "r"(a3),
+          "r"(a4), "r"(a5), "r"(a6), "r"(a7)
+    );
+
+    // ---- Phase 3: Overflow reduction (64-bit for proven correctness) ----
+    // Pack lower 256 bits to 64-bit
+    uint64_t r0 = ((uint64_t)t1 << 32) | t0;
+    uint64_t r1 = ((uint64_t)t3 << 32) | t2;
+    uint64_t r2 = ((uint64_t)t5 << 32) | t4;
+    uint64_t r3 = ((uint64_t)t7 << 32) | t6;
+
+    // extra = a8 + carry + a9 * 2^32 (up to ~2^33)
+    uint64_t extra = (uint64_t)a8 + carry + ((uint64_t)a9 << 32);
+    uint64_t ek_lo, ek_hi;
+    asm volatile(
+        "mul.lo.u64 %0, %2, %3;\n\t"
+        "mul.hi.u64 %1, %2, %3;\n\t"
+        : "=l"(ek_lo), "=l"(ek_hi)
+        : "l"(extra), "l"((uint64_t)0x1000003D1ULL)
+    );
+
+    uint64_t c;
+    asm volatile(
+        "add.cc.u64 %0, %0, %5;\n\t"
+        "addc.cc.u64 %1, %1, %6;\n\t"
+        "addc.cc.u64 %2, %2, 0;\n\t"
+        "addc.cc.u64 %3, %3, 0;\n\t"
+        "addc.u64 %4, 0, 0;\n\t"
+        : "+l"(r0), "+l"(r1), "+l"(r2), "+l"(r3), "=l"(c)
+        : "l"(ek_lo), "l"(ek_hi)
+    );
+
+    if (c) {
+        asm volatile(
+            "add.cc.u64 %0, %0, %4;\n\t"
+            "addc.cc.u64 %1, %1, 0;\n\t"
+            "addc.cc.u64 %2, %2, 0;\n\t"
+            "addc.u64 %3, %3, 0;\n\t"
+            : "+l"(r0), "+l"(r1), "+l"(r2), "+l"(r3)
+            : "l"((uint64_t)0x1000003D1ULL)
+        );
+    }
+
+    // ---- Phase 4: Conditional subtraction of P ----
+    uint64_t s0, s1, s2, s3, borrow;
+    asm volatile(
+        "sub.cc.u64 %0, %5, %9;\n\t"
+        "subc.cc.u64 %1, %6, %10;\n\t"
+        "subc.cc.u64 %2, %7, %11;\n\t"
+        "subc.cc.u64 %3, %8, %12;\n\t"
+        "subc.u64 %4, 0, 0;\n\t"
+        : "=l"(s0), "=l"(s1), "=l"(s2), "=l"(s3), "=l"(borrow)
+        : "l"(r0), "l"(r1), "l"(r2), "l"(r3),
+          "l"(MODULUS[0]), "l"(MODULUS[1]), "l"(MODULUS[2]), "l"(MODULUS[3])
+    );
+
+    if (borrow == 0) {
+        r->limbs[0] = s0; r->limbs[1] = s1; r->limbs[2] = s2; r->limbs[3] = s3;
+    } else {
+        r->limbs[0] = r0; r->limbs[1] = r1; r->limbs[2] = r2; r->limbs[3] = r3;
+    }
+}
+
+// ============================================================================
+// Hybrid field operations: 32-bit mul/sqr + 32-bit reduce (optimized)
+// Consumer GPUs have INT32 multiply throughput 32× higher than INT64.
+// By keeping the main reduction in 32-bit, we avoid the INT64 bottleneck.
 // ============================================================================
 
 __device__ __forceinline__ void field_mul_hybrid(
@@ -264,18 +415,18 @@ __device__ __forceinline__ void field_mul_hybrid(
     const secp256k1::cuda::FieldElement* b,
     secp256k1::cuda::FieldElement* r
 ) {
-    uint64_t t[8];
-    mul_256_512_hybrid(a, b, t);
-    reduce_512_to_256(t, r);  // Use proven 64-bit reduction
+    uint32_t t32[16];
+    mul_256_comba32(a, b, t32);
+    reduce_512_to_256_32(t32, r);
 }
 
 __device__ __forceinline__ void field_sqr_hybrid(
     const secp256k1::cuda::FieldElement* a,
     secp256k1::cuda::FieldElement* r
 ) {
-    uint64_t t[8];
-    sqr_256_512_hybrid(a, t);  // Optimized squaring!
-    reduce_512_to_256(t, r);
+    uint32_t t32[16];
+    sqr_256_comba32(a, t32);
+    reduce_512_to_256_32(t32, r);
 }
 
 // ============================================================================
