@@ -47,47 +47,7 @@ struct JacobianPoint {
 // Uses shared POD type from secp256k1/types.hpp
 using AffinePoint = ::secp256k1::AffinePointData;
 
-// ============================================================================
-// HYBRID 32/64-bit support: Zero-cost view for optimized operations
-// ============================================================================
-// MidFieldElement provides 32-bit limb view of FieldElement for operations
-// where 32-bit multiplication is faster (benchmarked 1.10x faster than 64-bit)
-// Memory layout is IDENTICAL - just different interpretation!
-
-struct MidFieldElement {
-    uint32_t limbs[8];  // Same 256 bits, different view
-    
-    // Zero-cost conversion back to 64-bit representation
-    __device__ __forceinline__ FieldElement* ToFieldElement() {
-        return reinterpret_cast<FieldElement*>(this);
-    }
-    
-    __device__ __forceinline__ const FieldElement* ToFieldElement() const {
-        return reinterpret_cast<const FieldElement*>(this);
-    }
-    
-    // Legacy lowercase (compatibility)
-    __device__ __forceinline__ FieldElement* toFieldElement() {
-        return reinterpret_cast<FieldElement*>(this);
-    }
-    
-    __device__ __forceinline__ const FieldElement* toFieldElement() const {
-        return reinterpret_cast<const FieldElement*>(this);
-    }
-};
-
-// Zero-cost conversions for FieldElement -> MidFieldElement
-__device__ __forceinline__ MidFieldElement* toMid(FieldElement* fe) {
-    return reinterpret_cast<MidFieldElement*>(fe);
-}
-
-__device__ __forceinline__ const MidFieldElement* toMid(const FieldElement* fe) {
-    return reinterpret_cast<const MidFieldElement*>(fe);
-}
-
 // Compile-time verification
-static_assert(sizeof(FieldElement) == sizeof(MidFieldElement), 
-              "FieldElement and MidFieldElement must be same size");
 static_assert(sizeof(FieldElement) == 32, "Must be 256 bits");
 
 // Cross-backend layout compatibility (shared types contract)
@@ -97,8 +57,6 @@ static_assert(sizeof(Scalar) == sizeof(::secp256k1::ScalarData),
               "CUDA Scalar must match shared data layout");
 static_assert(sizeof(AffinePoint) == sizeof(::secp256k1::AffinePointData),
               "CUDA AffinePoint must match shared data layout");
-static_assert(sizeof(MidFieldElement) == sizeof(::secp256k1::MidFieldElementData),
-              "CUDA MidFieldElement must match shared data layout");
 
 // Constants
 __constant__ static const uint64_t MODULUS[4] = {
@@ -820,77 +778,6 @@ __device__ inline void jacobian_add_mixed(const JacobianPoint* p, const AffinePo
 #endif // SECP256K1_CUDA_LIMBS_32
 
 #ifndef SECP256K1_CUDA_LIMBS_32
-// CIOS Montgomery Multiplication
-__device__ inline void field_mul_mont_cios(const FieldElement* a, const FieldElement* b, FieldElement* r) {
-    uint64_t t[6] = {0};
-    
-    #pragma unroll
-    for (int i = 0; i < 4; ++i) {
-        uint64_t u = a->limbs[i];
-        uint64_t carry = 0;
-        
-        // T += a[i] * b
-        #pragma unroll
-        for (int j = 0; j < 4; ++j) {
-            unsigned __int128 prod = (unsigned __int128)u * b->limbs[j] + t[j] + carry;
-            t[j] = (uint64_t)prod;
-            carry = (uint64_t)(prod >> 64);
-        }
-        uint64_t carry_add = 0;
-        t[4] = add_cc(t[4], carry, carry_add);
-        t[5] += carry_add;
-        
-        // Reduce
-        uint64_t m = t[0] * 0xD838091DD2253531ULL;
-        
-        // Subtract m*977
-        uint64_t borrow = 0;
-        unsigned __int128 mk = (unsigned __int128)m * 977;
-        t[0] = sub_cc(t[0], (uint64_t)mk, borrow);
-        t[1] = sub_cc(t[1], (uint64_t)(mk >> 64), borrow);
-        t[2] = sub_cc(t[2], 0, borrow);
-        t[3] = sub_cc(t[3], 0, borrow);
-        t[4] = sub_cc(t[4], 0, borrow);
-        t[5] = sub_cc(t[5], 0, borrow);
-        
-        // Subtract m*2^32
-        borrow = 0;
-        uint64_t m_lo = m << 32;
-        uint64_t m_hi = m >> 32;
-        t[0] = sub_cc(t[0], m_lo, borrow);
-        t[1] = sub_cc(t[1], m_hi, borrow);
-        t[2] = sub_cc(t[2], 0, borrow);
-        t[3] = sub_cc(t[3], 0, borrow);
-        t[4] = sub_cc(t[4], 0, borrow);
-        t[5] = sub_cc(t[5], 0, borrow);
-        
-        // Add m*2^256 (to t[4])
-        uint64_t carry_add2 = 0;
-        t[4] = add_cc(t[4], m, carry_add2);
-        t[5] += carry_add2;
-        
-        // Shift
-        t[0] = t[1]; t[1] = t[2]; t[2] = t[3]; t[3] = t[4]; t[4] = t[5]; t[5] = 0;
-    }
-    
-    uint64_t k = 0x1000003D1ULL;
-    uint64_t r0, r1, r2, r3, c;
-    
-    // Final conditional subtraction
-    uint64_t carry = 0;
-    r0 = add_cc(t[0], k, carry);
-    r1 = add_cc(t[1], 0, carry);
-    r2 = add_cc(t[2], 0, carry);
-    r3 = add_cc(t[3], 0, carry);
-    c = carry;
-    
-    if (t[4] || c) {
-        r->limbs[0] = r0; r->limbs[1] = r1; r->limbs[2] = r2; r->limbs[3] = r3;
-    } else {
-        r->limbs[0] = t[0]; r->limbs[1] = t[1]; r->limbs[2] = t[2]; r->limbs[3] = t[3];
-    }
-}
-
 // Field Multiplication with Reduction
 // Uses smart hybrid: proven 32-bit mul + proven 64-bit reduce
 __device__ __forceinline__ void field_mul(const FieldElement* a, const FieldElement* b, FieldElement* r) {
@@ -1790,97 +1677,6 @@ __device__ inline void scalar_mul(const JacobianPoint* p, const Scalar* k, Jacob
 }
 
 #ifndef SECP256K1_CUDA_LIMBS_32
-// Helpers for EEA Inverse
-__device__ inline void field_rshift1(FieldElement* a) {
-    uint64_t carry = 0;
-    #pragma unroll
-    for (int i = 3; i >= 0; i--) {
-        uint64_t next_carry = a->limbs[i] & 1;
-        a->limbs[i] = (a->limbs[i] >> 1) | (carry << 63);
-        carry = next_carry;
-    }
-}
-
-__device__ inline int field_cmp(const FieldElement* a, const FieldElement* b) {
-    #pragma unroll
-    for (int i = 3; i >= 0; i--) {
-        if (a->limbs[i] > b->limbs[i]) return 1;
-        if (a->limbs[i] < b->limbs[i]) return -1;
-    }
-    return 0;
-}
-
-__device__ inline void field_sub_int(FieldElement* a, const FieldElement* b) {
-    uint64_t borrow = 0;
-    a->limbs[0] = sub_cc(a->limbs[0], b->limbs[0], borrow);
-    a->limbs[1] = sub_cc(a->limbs[1], b->limbs[1], borrow);
-    a->limbs[2] = sub_cc(a->limbs[2], b->limbs[2], borrow);
-    a->limbs[3] = sub_cc(a->limbs[3], b->limbs[3], borrow);
-}
-
-__device__ inline void field_add_int(FieldElement* a, const FieldElement* b) {
-    uint64_t carry = 0;
-    a->limbs[0] = add_cc(a->limbs[0], b->limbs[0], carry);
-    a->limbs[1] = add_cc(a->limbs[1], b->limbs[1], carry);
-    a->limbs[2] = add_cc(a->limbs[2], b->limbs[2], carry);
-    a->limbs[3] = add_cc(a->limbs[3], b->limbs[3], carry);
-}
-
-__device__ inline bool field_is_one(const FieldElement* a) {
-#if SECP256K1_CUDA_USE_MONTGOMERY
-    // In Montgomery domain, 1 is represented as R mod p = 0x1000003D1
-    return (a->limbs[0] == 0x1000003D1ULL) && (a->limbs[1] == 0) && (a->limbs[2] == 0) && (a->limbs[3] == 0);
-#else
-    return (a->limbs[0] == 1) && (a->limbs[1] == 0) && (a->limbs[2] == 0) && (a->limbs[3] == 0);
-#endif
-}
-
-__device__ inline bool field_is_even(const FieldElement* a) {
-    return (a->limbs[0] & 1) == 0;
-}
-
-__device__ inline void field_div2_mod(FieldElement* a) {
-    if ((a->limbs[0] & 1) == 0) {
-        field_rshift1(a);
-    } else {
-        // P >> 1
-        const uint64_t p_half[4] = {
-            0xFFFFFFFF7FFFFE17ULL,
-            0xFFFFFFFFFFFFFFFFULL,
-            0xFFFFFFFFFFFFFFFFULL,
-            0x7FFFFFFFFFFFFFFFULL
-        };
-        
-        field_rshift1(a);
-        
-        uint64_t c = 0;
-        a->limbs[0] = add_cc(a->limbs[0], p_half[0], c);
-        a->limbs[1] = add_cc(a->limbs[1], p_half[1], c);
-        a->limbs[2] = add_cc(a->limbs[2], p_half[2], c);
-        a->limbs[3] = add_cc(a->limbs[3], p_half[3], c);
-        
-        c = 0;
-        a->limbs[0] = add_cc(a->limbs[0], 1, c);
-        a->limbs[1] = add_cc(a->limbs[1], 0, c);
-        a->limbs[2] = add_cc(a->limbs[2], 0, c);
-        a->limbs[3] = add_cc(a->limbs[3], 0, c);
-    }
-}
-
-// Standard (non-Montgomery) versions of mul/sqr for use in inversion
-__device__ __forceinline__ void field_mul_std(const FieldElement* a, const FieldElement* b, FieldElement* r) {
-    uint64_t t[8];
-    mul_256_512(a, b, t);
-    reduce_512_to_256(t, r);
-}
-#endif
-
-#ifndef SECP256K1_CUDA_LIMBS_32
-__device__ __forceinline__ void field_sqr_std(const FieldElement* a, FieldElement* r) {
-    uint64_t t[8];
-    sqr_256_512(a, t);
-    reduce_512_to_256(t, r);
-}
 
 // Repeated squaring helper (in-place), keep loops from unrolling to limit reg pressure
 __device__ __forceinline__ void field_sqr_n(FieldElement* a, int n) {
@@ -1986,38 +1782,6 @@ __device__ inline void field_inv(const FieldElement* a, FieldElement* r) {
     // Standard: a^(p-2) = a^-1
     // The "wrong" inversion actually works because of how affine conversion uses it!
     field_inv_fermat_chain_impl(a, r);
-}
-
-// Scalar multiplication with precomputed table (avoids stack allocation)
-__device__ inline void scalar_mul_wNAF_custom_table(const JacobianPoint* table, const int8_t* wnaf, int wnaf_len, JacobianPoint* r) {
-    // Initialize result as infinity
-    r->infinity = true;
-    field_set_zero(&r->x);
-    field_set_one(&r->y);
-    field_set_zero(&r->z);
-    
-    int8_t digit;
-    int idx;
-    JacobianPoint neg_point;
-    FieldElement zero;
-    field_set_zero(&zero);
-
-    // Process wNAF from MSB to LSB
-    for (int i = wnaf_len - 1; i >= 0; --i) {
-        jacobian_double(r, r);
-        
-        digit = wnaf[i];
-        if (digit > 0) {
-            idx = (digit - 1) / 2;
-            jacobian_add(r, &table[idx], r);
-        } else if (digit < 0) {
-            idx = (-digit - 1) / 2;
-            neg_point = table[idx];
-            // Negate Y
-            field_sub(&zero, &neg_point.y, &neg_point.y);
-            jacobian_add(r, &neg_point, r);
-        }
-    }
 }
 
 #endif // SECP256K1_CUDA_LIMBS_32
