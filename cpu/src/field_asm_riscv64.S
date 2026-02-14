@@ -378,9 +378,10 @@ field_mul_asm_riscv64:
     add     s9, s9, a2
     add     s9, s9, a3
 
-.Lreduce_loop:
-    beqz    s9, .Lfinal_check
-
+    # Branchless single-pass overflow reduce (no loop)
+    # After first-pass reduction s9 < 2^34. One unconditional pass
+    # brings s9 to {0,1}. Enhanced final check handles residual
+    # via OR with carry flag: value >= p iff (overflow OR s9==1).
     mv      t4, s9
     li      s9, 0
 
@@ -422,9 +423,8 @@ field_mul_asm_riscv64:
     add     s9, s9, a4
     add     s9, s9, a3
 
-    j       .Lreduce_loop
-
-.Lfinal_check:
+    # Branchless final reduction (s9 is now 0 or 1)
+    # Try adding C = p's complement. Select reduced if overflow OR s9==1.
     li      a1, 0x3D1
     li      a2, 1
     slli    a2, a2, 32
@@ -439,6 +439,7 @@ field_mul_asm_riscv64:
     add     a6, t3, a3
     sltu    a7, a6, t3
 
+    or      a7, a7, s9
     neg     a7, a7
 
     xor     s0, t0, a2
@@ -1019,10 +1020,10 @@ field_square_asm_riscv64:
     add     s9, s9, a2
     add     s9, s9, a3
 
-    # Final reduction loop
-.Lsq_reduce_loop:
-    beqz    s9, .Lsq_final_reduce
-
+    # Branchless single-pass overflow reduce (no loop)
+    # After first-pass reduction s9 < 2^34. One unconditional pass
+    # brings s9 to {0,1}. Enhanced final check handles residual
+    # via OR with carry flag: value >= p iff (overflow OR s9==1).
     mv      t4, s9
     li      s9, 0
 
@@ -1064,10 +1065,8 @@ field_square_asm_riscv64:
     add     s9, s9, a4
     add     s9, s9, a3
 
-    j       .Lsq_reduce_loop
-
-.Lsq_final_reduce:
-    # Branchless final reduction
+    # Branchless final reduction (s9 is now 0 or 1)
+    # Try adding C = p's complement. Select reduced if overflow OR s9==1.
     li      a1, 0x3D1
     li      a2, 1
     slli    a2, a2, 32
@@ -1082,6 +1081,7 @@ field_square_asm_riscv64:
     add     a6, t3, a3
     sltu    a7, a6, t3
 
+    or      a7, a7, s9
     neg     a7, a7
 
     xor     s0, t0, a2
