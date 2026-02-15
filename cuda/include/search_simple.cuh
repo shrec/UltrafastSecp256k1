@@ -6,11 +6,15 @@
 namespace secp256k1 {
 namespace cuda {
 
+// SearchResult defined in search_cpu_identical.cuh — use that as canonical definition
+#ifndef SECP256K1_CUDA_SEARCH_RESULT_DEFINED
+#define SECP256K1_CUDA_SEARCH_RESULT_DEFINED
 // 40-byte structure for results
 struct SearchResult {
     uint64_t x[4];   // 32 bytes (Affine X coordinate)
     int64_t index;   // 8 bytes (iteration index)
 };
+#endif
 
 // CPU Algorithm Translation - EXACT REPLICA:
 // Phase 1: Q[i+1] = Q[i] + G (incremental)

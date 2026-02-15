@@ -10,10 +10,13 @@ namespace cuda {
 __constant__ AffinePoint c_kg_affine;       // K*G for forward direction
 __constant__ AffinePoint c_neg_kg_affine;   // -K*G for backward direction
 
+#ifndef SECP256K1_CUDA_SEARCH_RESULT_DEFINED
+#define SECP256K1_CUDA_SEARCH_RESULT_DEFINED
 struct SearchResult {
     uint64_t x[4];
     int64_t index;
 };
+#endif
 
 // CPU-IDENTICAL Algorithm: Incremental Addition (like CPU megabatch)
 // Each batch iteration does: P[i+1] = P[i] + K*G (one addition per iteration)
