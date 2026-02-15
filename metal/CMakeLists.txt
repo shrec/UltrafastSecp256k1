@@ -116,7 +116,7 @@ if(METAL_COMPILER)
         COMMAND ${METAL_COMPILER} -sdk macosx metal
             -I ${SHADER_DIR}
             -O2
-            -std=metal2.4
+            -std=macos-metal2.4
             -o ${METAL_AIR}
             -c ${METAL_SOURCE}
         DEPENDS
