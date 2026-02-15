@@ -1,16 +1,19 @@
 // ============================================================================
-// UltrafastSecp256k1 — Android ARM64 On-Device Test
+// UltrafastSecp256k1 — Android ARM64 On-Device Test + Benchmarks
 // ============================================================================
 // Standalone test binary (no JNI, no Java). Push via adb and run in shell.
 // Tests: selftest, point ops, scalar ops, CT ops, ECDH, timing.
+// Benchmarks: field ops, point ops, scalar_mul, CT ops, ECDH
 // ============================================================================
 
 #include <cstdio>
 #include <cstring>
 #include <chrono>
 #include <array>
+#include <algorithm>
 
 #include <secp256k1/field.hpp>
+#include <secp256k1/field_asm.hpp>
 #include <secp256k1/scalar.hpp>
 #include <secp256k1/point.hpp>
 #include <secp256k1/init.hpp>
@@ -30,7 +33,29 @@ static void print_hex(const uint8_t* data, size_t len) {
     for (size_t i = 0; i < len; ++i) printf("%02x", data[i]);
 }
 
-int main() {
+// Prevent dead-code elimination
+static volatile uint64_t g_sink = 0;
+
+template<typename F>
+static long long bench(const char* name, int iterations, F&& fn) {
+    // Warmup
+    for (int i = 0; i < std::max(iterations / 10, 2); ++i) fn();
+
+    auto t0 = std::chrono::high_resolution_clock::now();
+    for (int i = 0; i < iterations; ++i) fn();
+    auto t1 = std::chrono::high_resolution_clock::now();
+    long long ns = std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count();
+    long long per_op_ns = ns / iterations;
+    
+    printf("  %-36s %6lld ns/op  (%d ops in %lld us)\n", 
+           name, per_op_ns, iterations, ns / 1000);
+    return per_op_ns;
+}
+
+// ============================================================================
+// Correctness Tests
+// ============================================================================
+static int run_tests() {
     printf("=============================================\n");
     printf("UltrafastSecp256k1 — Android ARM64 Test\n");
     printf("=============================================\n\n");
@@ -134,36 +159,175 @@ int main() {
     bool scalar_ok = !sum.is_zero() && !prod.is_zero();
     printf("%s\n", scalar_ok ? "PASS" : "FAIL");
 
-    // 11. Benchmark: 100 fast scalar_mul
-    printf("[11] Benchmark: 100x fast scalar_mul... ");
-    fflush(stdout);
-    t0 = std::chrono::high_resolution_clock::now();
-    PT acc = g;
-    for (int i = 0; i < 100; ++i) {
-        acc = acc.scalar_mul(SC::from_uint64(i + 1));
-    }
-    t1 = std::chrono::high_resolution_clock::now();
-    auto bench_ms = std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count();
-    printf("%lld ms (avg %lld us/op)\n", (long long)bench_ms, (long long)(bench_ms * 1000 / 100));
+    // 11. Field arithmetic verification (ARM64 assembly correctness)
+    printf("[11] Field mul/sqr verify... ");
+    FE fa = FE::from_uint64(0xDEADBEEF12345678ULL);
+    FE fb = FE::from_uint64(0xCAFEBABE87654321ULL);
+    FE fc = fa * fb;
+    FE fd = fa.square();
+    // Verify a * a == a²
+    FE fe = fa * fa;
+    bool field_ok = (fd == fe) && !(fc == FE::zero());
+    printf("%s\n", field_ok ? "PASS" : "FAIL");
+    if (!field_ok) { printf("ERROR: Field arithmetic mismatch!\n"); return 1; }
 
-    // 12. Benchmark: 10 CT scalar_mul
-    printf("[12] Benchmark: 10x CT scalar_mul... ");
-    fflush(stdout);
-    t0 = std::chrono::high_resolution_clock::now();
-    for (int i = 0; i < 10; ++i) {
-        PT tmp = ct::scalar_mul(g, SC::from_uint64(i + 1));
-        (void)tmp;
-    }
-    t1 = std::chrono::high_resolution_clock::now();
-    auto ct_bench_ms = std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count();
-    printf("%lld ms (avg %lld us/op)\n", (long long)ct_bench_ms, (long long)(ct_bench_ms * 1000 / 10));
+    // 12. Field inverse verification
+    printf("[12] Field inverse verify... ");
+    FE fi = fa.inverse();
+    FE should_one = fa * fi;
+    bool inv_ok = (should_one == FE::one());
+    printf("%s\n", inv_ok ? "PASS" : "FAIL");
+    if (!inv_ok) { printf("ERROR: Field inverse failed!\n"); return 1; }
 
-    printf("\n=============================================\n");
-    printf("ALL TESTS PASSED on Android ARM64!\n");
-    printf("  Fast scalar_mul: ~%lld us\n", (long long)fast_us);
-    printf("  CT scalar_mul:   ~%lld us\n", (long long)ct_us);
-    printf("  CT/Fast ratio:   %.1fx\n", ct_us > 0 ? (double)ct_us / fast_us : 0.0);
+    printf("\nAll correctness tests PASSED.\n\n");
+    return 0;
+}
+
+// ============================================================================
+// Benchmarks
+// ============================================================================
+static void run_benchmarks() {
     printf("=============================================\n");
+    printf("BENCHMARKS — ARM64 (%s)\n", 
+#ifdef SECP256K1_HAS_ARM64_ASM
+        "ASM optimized"
+#else
+        "generic C++"
+#endif
+    );
+    printf("=============================================\n\n");
 
+    // Setup test data
+    FE fa = FE::from_uint64(0xDEADBEEF12345678ULL);
+    FE fb = FE::from_uint64(0xCAFEBABE87654321ULL);
+    SC sk = SC::from_uint64(0x123456789ABCDEF0ULL);
+    PT g = PT::generator();
+    PT p2 = g.dbl();
+
+    // ---- Field Operations ----
+    printf("--- Field Operations ---\n");
+    
+    long long mul_ns = bench("field_mul (a*b mod p)", 100000, [&]() {
+        fa = fa * fb;
+        g_sink ^= fa.limbs()[0];
+    });
+    
+    long long sqr_ns = bench("field_sqr (a² mod p)", 100000, [&]() {
+        fa = fa.square();
+        g_sink ^= fa.limbs()[0];
+    });
+    
+    fa = FE::from_uint64(0xDEADBEEF12345678ULL);
+    long long add_ns = bench("field_add (a+b mod p)", 100000, [&]() {
+        fa = fa + fb;
+        g_sink ^= fa.limbs()[0];
+    });
+
+    fa = FE::from_uint64(0xDEADBEEF12345678ULL);
+    long long sub_ns = bench("field_sub (a-b mod p)", 100000, [&]() {
+        fa = fa - fb;
+        g_sink ^= fa.limbs()[0];
+    });
+
+    fa = FE::from_uint64(0xDEADBEEF12345678ULL);
+    long long inv_ns = bench("field_inverse (a^(-1) mod p)", 1000, [&]() {
+        fa = fa.inverse();
+        g_sink ^= fa.limbs()[0];
+    });
+
+    printf("\n--- Scalar Operations ---\n");
+    
+    SC sa = SC::from_uint64(0xDEADBEEF12345678ULL);
+    SC sb = SC::from_uint64(0xCAFEBABE87654321ULL);
+    
+    bench("scalar_mul (a*b mod n)", 100000, [&]() {
+        sa = sa * sb;
+        g_sink ^= sa.limbs()[0];
+    });
+    
+    bench("scalar_add (a+b mod n)", 100000, [&]() {
+        sa = sa + sb;
+        g_sink ^= sa.limbs()[0];
+    });
+
+    printf("\n--- Point Operations ---\n");
+    
+    bench("point_dbl (2P)", 10000, [&]() {
+        p2 = p2.dbl();
+        g_sink ^= p2.x().limbs()[0];
+    });
+    
+    p2 = g.dbl();
+    PT p3 = p2;
+    bench("point_add (P+Q)", 10000, [&]() {
+        p3 = p3.add(g);
+        g_sink ^= p3.x().limbs()[0];
+    });
+
+    printf("\n--- Scalar Multiplication (Fast) ---\n");
+    
+    long long fast_mul_ns = bench("scalar_mul (k*G, fast)", 500, [&]() {
+        PT r = g.scalar_mul(sk);
+        g_sink ^= r.x().limbs()[0];
+    });
+
+    bench("scalar_mul (k*P, fast, non-G)", 500, [&]() {
+        PT r = p2.scalar_mul(sk);
+        g_sink ^= r.x().limbs()[0];
+    });
+
+    printf("\n--- Scalar Multiplication (CT) ---\n");
+    
+    long long ct_mul_ns = bench("ct::scalar_mul (k*G)", 100, [&]() {
+        PT r = ct::scalar_mul(g, sk);
+        g_sink ^= r.x().limbs()[0];
+    });
+
+    bench("ct::generator_mul (k*G)", 100, [&]() {
+        PT r = ct::generator_mul(sk);
+        g_sink ^= r.x().limbs()[0];
+    });
+
+    bench("ct::scalar_mul (k*P, non-G)", 100, [&]() {
+        PT r = ct::scalar_mul(p2, sk);
+        g_sink ^= r.x().limbs()[0];
+    });
+
+    printf("\n--- ECDH ---\n");
+    
+    SC priv = SC::from_uint64(42);
+    PT pub = ct::generator_mul(SC::from_uint64(99));
+    
+    bench("ECDH (full: ct::scalar_mul)", 100, [&]() {
+        PT shared = ct::scalar_mul(pub, priv);
+        g_sink ^= shared.x().limbs()[0];
+    });
+
+    // ---- Summary ----
+    printf("\n=============================================\n");
+    printf("SUMMARY — ARM64 Performance\n");
+    printf("=============================================\n");
+    printf("  field_mul:       %6lld ns/op\n", mul_ns);
+    printf("  field_sqr:       %6lld ns/op\n", sqr_ns);
+    printf("  field_add:       %6lld ns/op\n", add_ns);
+    printf("  field_sub:       %6lld ns/op\n", sub_ns);
+    printf("  field_inverse:   %6lld ns/op\n", inv_ns);
+    printf("  fast scalar_mul: %6lld ns/op  (%lld us)\n", fast_mul_ns, fast_mul_ns / 1000);
+    printf("  CT scalar_mul:   %6lld ns/op  (%lld us)\n", ct_mul_ns, ct_mul_ns / 1000);
+    printf("  CT/Fast ratio:   %.1fx\n", (double)ct_mul_ns / fast_mul_ns);
+#ifdef SECP256K1_HAS_ARM64_ASM
+    printf("  Backend: ARM64 inline assembly (MUL/UMULH)\n");
+#else
+    printf("  Backend: Generic C++ (portable)\n");
+#endif
+    printf("=============================================\n");
+}
+
+int main() {
+    int ret = run_tests();
+    if (ret != 0) return ret;
+    
+    run_benchmarks();
+    
     return 0;
 }

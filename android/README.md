@@ -57,3 +57,19 @@ android/
 ```
 
 See [Android Guide](../docs/wiki/Android-Guide.md) for full documentation.
+
+## Benchmarks (RK3588, Cortex-A55/A76, ARM64 ASM)
+
+| Operation | Time |
+|-----------|------|
+| field_mul (a*b mod p) | 85 ns |
+| field_sqr (a² mod p) | 66 ns |
+| field_add (a+b mod p) | 18 ns |
+| field_sub (a-b mod p) | 16 ns |
+| field_inverse | 2,621 ns |
+| **fast scalar_mul (k*G)** | **7.6 μs** |
+| fast scalar_mul (k*P) | 77.6 μs |
+| CT scalar_mul (k*G) | 545 μs |
+| ECDH (full CT) | 545 μs |
+
+Backend: ARM64 inline assembly (MUL/UMULH). ~5x faster than generic C++.

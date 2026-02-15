@@ -31,6 +31,38 @@ FieldElement field_mul_bmi2(const FieldElement& a, const FieldElement& b);
 FieldElement field_square_bmi2(const FieldElement& a);
 
 // ===================================================================
+// ARM64 (AArch64) assembly optimizations
+// ===================================================================
+
+#if defined(__aarch64__) || defined(_M_ARM64)
+#define SECP256K1_HAS_ARM64_ASM 1
+
+// Internal ARM64 assembly functions (direct pointer interface for hot paths)
+namespace arm64 {
+    void field_mul_arm64(uint64_t out[4], const uint64_t a[4], const uint64_t b[4]) noexcept;
+    void field_sqr_arm64(uint64_t out[4], const uint64_t a[4]) noexcept;
+    void field_add_arm64(uint64_t out[4], const uint64_t a[4], const uint64_t b[4]) noexcept;
+    void field_sub_arm64(uint64_t out[4], const uint64_t a[4], const uint64_t b[4]) noexcept;
+    void field_neg_arm64(uint64_t out[4], const uint64_t a[4]) noexcept;
+} // namespace arm64
+
+// Multiply two field elements using ARM64 MUL/UMULH assembly
+// ~50-80 cycles on Cortex-A76, ~80-120 on Cortex-A55
+FieldElement field_mul_arm64(const FieldElement& a, const FieldElement& b);
+
+// Square a field element using ARM64 assembly (10 muls vs 16)
+FieldElement field_square_arm64(const FieldElement& a);
+
+// Add/Sub with branchless normalization
+FieldElement field_add_arm64(const FieldElement& a, const FieldElement& b);
+FieldElement field_sub_arm64(const FieldElement& a, const FieldElement& b);
+
+// Negate field element (branchless p - a)
+FieldElement field_negate_arm64(const FieldElement& a);
+
+#endif // __aarch64__ || _M_ARM64
+
+// ===================================================================
 // RISC-V assembly optimizations (RV64GC)
 // ===================================================================
 

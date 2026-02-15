@@ -998,6 +998,11 @@ limbs4 mul_impl(const limbs4& a, const limbs4& b) {
 #elif defined(SECP256K1_PLATFORM_ESP32) || defined(__XTENSA__) || defined(SECP256K1_PLATFORM_STM32)
     // ESP32 / Xtensa / STM32: Optimized 32-bit Comba multiplication
     return esp32_mul_mod(a, b);
+#elif defined(SECP256K1_HAS_ARM64_ASM)
+    // ARM64: Direct inline assembly (MUL/UMULH + secp256k1 reduction)
+    limbs4 out;
+    arm64::field_mul_arm64(out.data(), a.data(), b.data());
+    return out;
 #elif defined(SECP256K1_NO_ASM)
     // Generic no-asm fallback
     auto result = reduce(mul_wide(a, b));
@@ -1027,6 +1032,11 @@ limbs4 square_impl(const limbs4& a) {
 #elif defined(SECP256K1_PLATFORM_ESP32) || defined(__XTENSA__) || defined(SECP256K1_PLATFORM_STM32)
     // ESP32 / Xtensa / STM32: Fully unrolled Comba squaring (36 muls vs 64, branch-free)
     return esp32_sqr_mod(a);
+#elif defined(SECP256K1_HAS_ARM64_ASM)
+    // ARM64: Optimized squaring (10 muls + doubling vs 16 muls)
+    limbs4 out;
+    arm64::field_sqr_arm64(out.data(), a.data());
+    return out;
 #elif defined(SECP256K1_NO_ASM)
     // Generic no-asm fallback
     return reduce(mul_wide(a, a));

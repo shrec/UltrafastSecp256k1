@@ -143,9 +143,26 @@ if(SECP256K1_USE_ASM)
 
         add_compile_definitions(SECP256K1_HAS_RISCV_ASM=1)
         set(SECP256K1_HAS_ASM TRUE CACHE INTERNAL "Assembly support enabled")
+    elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|ARM64|arm64")
+        # ARM64 (AArch64) Assembly Support
+        # Uses MUL/UMULH inline assembly for field arithmetic
+        # Available on: Android NDK, Linux aarch64, macOS Apple Silicon
+        message(STATUS "Secp256k1: ARM64 inline assembly enabled (MUL/UMULH) - Expected 2-4x speedup on field operations")
+        
+        list(APPEND SECP256K1_SOURCES
+            src/field_asm_arm64.cpp
+        )
+        
+        add_compile_definitions(SECP256K1_HAS_ARM64_ASM=1)
+        set(SECP256K1_HAS_ASM TRUE CACHE INTERNAL "Assembly support enabled")
+        
+        if(SECP256K1_USE_FAST_REDUCTION)
+            add_compile_definitions(SECP256K1_USE_FAST_REDUCTION=1)
+            message(STATUS "Secp256k1: Fast modular reduction enabled (ARM64 secp256k1-specific)")
+        endif()
     else()
         message(WARNING "Secp256k1: Inline assembly requested but not available for ${CMAKE_SYSTEM_PROCESSOR} on ${CMAKE_SYSTEM_NAME}")
-        message(WARNING "  Assembly is enabled only on: Linux x86_64 (GAS), Windows x64 (MSVC+MASM), Linux RISC-V (GAS). Falling back.")
+        message(WARNING "  Assembly is enabled only on: x86_64, RISC-V 64-bit, ARM64 (aarch64). Falling back.")
         set(SECP256K1_HAS_ASM FALSE)
     endif()
 else()

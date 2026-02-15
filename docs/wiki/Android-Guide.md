@@ -26,12 +26,12 @@ android/
 
 | ABI | არქიტექტურა | `__int128` | Assembly | შენიშვნა |
 |-----|-------------|-----------|----------|---------|
-| `arm64-v8a` | ARMv8-A + crypto + NEON | ✅ | ❌ (pure C++) | პირველადი target |
+| `arm64-v8a` | ARMv8-A + crypto + NEON | ✅ | ✅ ARM64 ASM (MUL/UMULH) | პირველადი target |
 | `armeabi-v7a` | ARMv7-A + NEON | ❌ (32-bit) | ❌ | `SECP256K1_NO_INT128` fallback |
 | `x86_64` | x86-64 + SSE4.2 | ✅ | ❌ (cross-compile) | ემულატორისთვის |
 | `x86` | i686 + SSE3 | ❌ (32-bit) | ❌ | ემულატორისთვის |
 
-> **შენიშვნა**: ARM64-ზე assembly ოპტიმიზაცია არ არის (x64/RISC-V only), მაგრამ NDK Clang-ის auto-vectorization + NEON უზრუნველყოფს კარგ წარმადობას.
+> **შენიშვნა**: ARM64-ზე ახლა inline assembly ოპტიმიზაცია ჩართულია — `MUL`/`UMULH` ინსტრუქციები field arithmetic-ისთვის (mul, sqr, add, sub, neg). ეს უზრუნველყოფს **~5x დაჩქარებას** generic C++ კოდთან შედარებით scalar_mul ოპერაციებზე.
 
 ## სწრაფი დაწყება
 
@@ -188,11 +188,34 @@ val secret = Secp256k1.ctEcdh(myPrivkey, theirPubkey)
 
 ### ARM64 ოპტიმიზაციები
 
-NDK Clang ავტომატურად იყენებს:
+**Inline Assembly** (`cpu/src/field_asm_arm64.cpp`):
+- **`field_mul_arm64`** — 4×4 schoolbook MUL/UMULH + secp256k1 fast reduction (85 ns/op)
+- **`field_sqr_arm64`** — ოპტიმიზებული squaring (10 mul vs 16) (66 ns/op)
+- **`field_add_arm64`** — ADDS/ADCS + branchless normalization (18 ns/op)
+- **`field_sub_arm64`** — SUBS/SBCS + conditional add p (16 ns/op)
+- **`field_neg_arm64`** — Branchless p - a with CSEL
+
+NDK Clang დამატებით იყენებს:
 - **NEON**: 128-bit SIMD (იმპლიციტურია ARMv8-A-ში)
 - **Crypto extensions**: AES/SHA hardware acceleration
 - **`__int128`**: 64×64→128 გამრავლება (scalar/field ოპერაციებში)
 - **Auto-vectorization**: `-ftree-vectorize -funroll-loops`
+
+### Benchmark შედეგები (RK3588, Cortex-A55/A76)
+
+| ოპერაცია | ARM64 ASM | Generic C++ | დაჩქარება |
+|---------|-----------|-------------|-----------|
+| field_mul (a*b mod p) | **85 ns** | ~350 ns | ~4x |
+| field_sqr (a² mod p) | **66 ns** | ~280 ns | ~4x |
+| field_add (a+b mod p) | **18 ns** | ~30 ns | ~1.7x |
+| field_sub (a-b mod p) | **16 ns** | ~28 ns | ~1.8x |
+| field_inverse | **2,621 ns** | ~11,000 ns | ~4x |
+| **fast scalar_mul (k*G)** | **7.6 μs** | ~40 μs | **~5.3x** |
+| fast scalar_mul (k*P) | **77.6 μs** | ~400 μs | **~5.1x** |
+| CT scalar_mul (k*G) | 545 μs | ~400 μs | 0.7x* |
+| ECDH (full CT) | 545 μs | — | — |
+
+\* CT რეჟიმი generic C++ იყენებს (constant-time გარანტიისთვის)
 
 ### ARMv7 (32-bit) შეზღუდვები
 
