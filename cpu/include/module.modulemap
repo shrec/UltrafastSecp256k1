@@ -1,0 +1,6 @@
+module UltrafastSecp256k1 {
+    umbrella header "UltrafastSecp256k1.hpp"
+    export *
+    module * { export * }
+    requires cplusplus
+}

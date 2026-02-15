@@ -99,3 +99,52 @@ jobs:
 
       - name: Test
         run: ctest --test-dir build --output-on-failure -j$(sysctl -n hw.logicalcpu)
+
+  # ── iOS (CMake + Xcode, ARM64) ─────────────────────────────────────────────
+  ios:
+    runs-on: macos-14
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [OS, SIMULATOR]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure (iOS ${{ matrix.platform }})
+        run: |
+          cmake -S . -B build-ios \
+            -G Xcode \
+            -DCMAKE_TOOLCHAIN_FILE=cmake/ios.toolchain.cmake \
+            -DIOS_PLATFORM=${{ matrix.platform }}
+
+      - name: Build
+        run: cmake --build build-ios --config Release --target fastsecp256k1 -- -quiet
+
+      - name: Verify library
+        run: |
+          LIB=$(find build-ios -name "libfastsecp256k1.a" -path "*/Release*" | head -1)
+          echo "Library: $LIB"
+          file "$LIB"
+          lipo -info "$LIB"
+          echo "Size: $(du -h "$LIB" | cut -f1)"
+
+  # ── iOS XCFramework ────────────────────────────────────────────────────────
+  ios-xcframework:
+    runs-on: macos-14
+    needs: [ios]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build XCFramework
+        run: |
+          chmod +x scripts/build_xcframework.sh
+          ./scripts/build_xcframework.sh
+
+      - name: Upload XCFramework
+        uses: actions/upload-artifact@v4
+        with:
+          name: UltrafastSecp256k1.xcframework
+          path: build-xcframework/output/UltrafastSecp256k1.xcframework
+          retention-days: 30

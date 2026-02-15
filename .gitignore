@@ -31,6 +31,7 @@ Testing/
 DartConfiguration.tcl
 compile_commands.json
 *.cmake
+!cmake/*.cmake
 
 # Test outputs
 *.log
