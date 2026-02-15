@@ -9,6 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [3.2.0] - 2025-07-24
+
+### Added — Cryptographic Features
+- **ECDH key exchange** — `ecdh_compute` (SHA-256 of compressed point), `ecdh_compute_xonly` (SHA-256 of x-coordinate), `ecdh_compute_raw` (raw x-coordinate) (`cpu/include/ecdh.hpp`, `cpu/src/ecdh.cpp`)
+- **ECDSA public key recovery** — `ecdsa_sign_recoverable` (deterministic recid), `ecdsa_recover` (reconstruct pubkey from signature + recid), compact 65-byte serialization (`cpu/include/recovery.hpp`, `cpu/src/recovery.cpp`)
+- **Taproot (BIP-341/342)** — Tweak hash, output key computation, private key tweaking, commitment verification, TapLeaf/TapBranch hashing, Merkle root/proof construction (`cpu/include/taproot.hpp`, `cpu/src/taproot.cpp`)
+- **Constant-time byte utilities** — `ct_equal`, `ct_is_zero`, `ct_compare`, `ct_memzero` (volatile + asm barrier), `ct_memcpy_if`, `ct_memswap_if`, `ct_select_byte` (`cpu/include/ct_utils.hpp`)
+
+### Added — Performance
+- **AVX2/AVX-512 SIMD batch field ops** — Runtime CPUID detection, auto-dispatching `batch_field_add/sub/mul/sqr`, Montgomery batch inverse (1 inversion + 3(n-1) multiplications) (`cpu/include/field_simd.hpp`, `cpu/src/field_simd.cpp`)
+
+### Added — Build & Packaging
+- **vcpkg manifest** — `vcpkg.json` with optional features (asm, cuda, lto)
+- **Conan 2.x recipe** — `conanfile.py` with CMakeToolchain integration and shared/fPIC/asm/lto options
+- **Benchmark dashboard CI** — GitHub Actions workflow (`benchmark.yml`) running benchmarks on Linux + Windows, `parse_benchmark.py` for JSON output, `github-action-benchmark` integration with 120% alert threshold
+
+### Added — Tests (84 new)
+- `test_ecdh_recovery_taproot` — 76 tests: ECDH (basic/xonly/raw/zero-key/infinity), Recovery (sign+recover/multiple-keys/compact-roundtrip/wrong-recid/invalid), Taproot (tweak-hash/output-key/privkey-tweak/commitment/leaf-branch/merkle-tree/proof/full-flow), CT Utils (equal/zero/compare/memzero/conditional), Wycheproof vectors (ECDSA edge 8, Schnorr edge 3, Recovery edge 5+)
+- `test_simd_batch` — 8 tests: SIMD detection, batch add/sub/mul/sqr, batch inverse (basic/single/scratch)
+
+---
+
 ## [3.1.0] - 2025-07-23
 
 ### Added — Cryptographic Features

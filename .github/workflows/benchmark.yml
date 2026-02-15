@@ -1,0 +1,111 @@
+# ============================================================================
+# Benchmark Dashboard — Performance Tracking CI
+# ============================================================================
+# Runs benchmarks on every push to dev/main and stores results.
+# Uses github-action-benchmark to track performance regressions.
+#
+# Results published to GitHub Pages (gh-pages branch).
+# Alert threshold: 120% (warns if >20% slower than baseline).
+# ============================================================================
+
+name: Benchmark Dashboard
+
+on:
+  push:
+    branches: [dev, main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  deployments: write
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y ninja-build cmake
+
+    - name: Configure (Release)
+      run: |
+        cmake -S . -B build-bench \
+          -G Ninja \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DBUILD_TESTING=ON \
+          -DSECP256K1_USE_ASM=ON
+
+    - name: Build
+      run: cmake --build build-bench -j$(nproc)
+
+    - name: Run benchmark suite
+      run: |
+        mkdir -p benchmark_results
+        
+        # Run comprehensive benchmark and capture output
+        ./build-bench/cpu/bench_comprehensive 2>&1 | tee benchmark_results/raw_output.txt
+        
+        # Parse output into benchmark.js-compatible JSON
+        python3 .github/scripts/parse_benchmark.py \
+          benchmark_results/raw_output.txt \
+          benchmark_results/benchmark.json
+
+    - name: Store benchmark result
+      if: github.event_name == 'push'
+      uses: benchmark-action/github-action-benchmark@v1
+      with:
+        name: 'UltrafastSecp256k1 Performance'
+        tool: 'customSmallerIsBetter'
+        output-file-path: benchmark_results/benchmark.json
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        auto-push: true
+        alert-threshold: '120%'
+        comment-on-alert: true
+        fail-on-alert: false
+        benchmark-data-dir-path: 'dev/bench'
+
+    - name: Summary
+      run: |
+        echo "## Benchmark Results" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        cat benchmark_results/raw_output.txt | head -60 >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+
+  benchmark-windows:
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Configure (Release, MSVC)
+      run: |
+        cmake -S . -B build-bench -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
+
+    - name: Build
+      run: cmake --build build-bench --config Release -j $env:NUMBER_OF_PROCESSORS
+
+    - name: Run benchmark suite
+      run: |
+        New-Item -Path benchmark_results -ItemType Directory -Force
+        & .\build-bench\cpu\Release\bench_comprehensive.exe 2>&1 | Tee-Object -FilePath benchmark_results\raw_output.txt
+
+    - name: Summary
+      run: |
+        echo "## Windows Benchmark Results" >> $env:GITHUB_STEP_SUMMARY
+        echo '```' >> $env:GITHUB_STEP_SUMMARY
+        Get-Content benchmark_results\raw_output.txt | Select-Object -First 60 >> $env:GITHUB_STEP_SUMMARY
+        echo '```' >> $env:GITHUB_STEP_SUMMARY

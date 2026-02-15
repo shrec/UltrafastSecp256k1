@@ -1,0 +1,19 @@
+{
+  "name": "ultrafastsecp256k1",
+  "version": "3.2.0",
+  "description": "High-performance secp256k1 elliptic curve library — ECDSA, Schnorr (BIP-340), ECDH, Taproot (BIP-341), MuSig2 (BIP-327), BIP-32 HD derivation",
+  "homepage": "https://github.com/shrec/UltrafastSecp256k1",
+  "license": "MIT",
+  "supports": "x64 | arm64",
+  "features": {
+    "asm": {
+      "description": "Enable inline assembly optimizations (x64/ARM64/RISC-V)"
+    },
+    "cuda": {
+      "description": "Enable CUDA GPU acceleration"
+    },
+    "lto": {
+      "description": "Enable Link-Time Optimization"
+    }
+  }
+}

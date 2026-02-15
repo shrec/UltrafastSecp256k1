@@ -20,6 +20,10 @@ set(SECP256K1_SOURCES
     src/batch_verify.cpp # Batch ECDSA/Schnorr verification
     src/bip32.cpp        # BIP-32 HD key derivation
     src/musig2.cpp       # MuSig2 multi-signatures (BIP-327)
+    src/ecdh.cpp         # ECDH key exchange
+    src/recovery.cpp     # ECDSA public key recovery
+    src/taproot.cpp      # Taproot (BIP-341/342) key tweaking
+    src/field_simd.cpp   # SIMD batch field operations + Montgomery batch inverse
 )
 
 # Optional inline assembly (Tier 3: Maximum performance, x64/RISC-V)
@@ -530,4 +534,14 @@ if(BUILD_TESTING)
     add_executable(test_musig2 tests/test_musig2.cpp)
     target_link_libraries(test_musig2 PRIVATE ${SECP256K1_LIB_NAME})
     add_test(NAME test_musig2 COMMAND test_musig2)
+
+    # Test: ECDH + Recovery + Taproot + CT Utils + Wycheproof vectors
+    add_executable(test_ecdh_recovery_taproot tests/test_ecdh_recovery_taproot.cpp)
+    target_link_libraries(test_ecdh_recovery_taproot PRIVATE ${SECP256K1_LIB_NAME})
+    add_test(NAME test_ecdh_recovery_taproot COMMAND test_ecdh_recovery_taproot)
+
+    # Test: SIMD batch field operations
+    add_executable(test_simd_batch tests/test_simd_batch.cpp)
+    target_link_libraries(test_simd_batch PRIVATE ${SECP256K1_LIB_NAME})
+    add_test(NAME test_simd_batch COMMAND test_simd_batch)
 endif()
