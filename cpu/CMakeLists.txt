@@ -24,6 +24,10 @@ set(SECP256K1_SOURCES
     src/recovery.cpp     # ECDSA public key recovery
     src/taproot.cpp      # Taproot (BIP-341/342) key tweaking
     src/field_simd.cpp   # SIMD batch field operations + Montgomery batch inverse
+    src/pedersen.cpp      # Pedersen commitments (homomorphic)
+    src/frost.cpp         # FROST threshold signatures (t-of-n)
+    src/adaptor.cpp       # Adaptor signatures (Schnorr + ECDSA)
+    src/address.cpp       # Address generation + BIP-352 Silent Payments
 )
 
 # Optional inline assembly (Tier 3: Maximum performance, x64/RISC-V)
@@ -544,4 +548,9 @@ if(BUILD_TESTING)
     add_executable(test_simd_batch tests/test_simd_batch.cpp)
     target_link_libraries(test_simd_batch PRIVATE ${SECP256K1_LIB_NAME})
     add_test(NAME test_simd_batch COMMAND test_simd_batch)
+
+    # Test: v4.0.0 features — Pedersen, FROST, Adaptor, Address, Silent Payments
+    add_executable(test_v4_features tests/test_v4_features.cpp)
+    target_link_libraries(test_v4_features PRIVATE ${SECP256K1_LIB_NAME})
+    add_test(NAME test_v4_features COMMAND test_v4_features)
 endif()

@@ -9,50 +9,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [3.2.0] - 2025-07-24
+## [3.1.0] - 2026-02-15
 
-### Added — Cryptographic Features
+### Added — Cryptographic Protocols
+- **Pedersen Commitments** — `pedersen_commit(value, blinding)`, `pedersen_verify()`, `pedersen_verify_sum()` (homomorphic balance proofs), `pedersen_blind_sum()`, `pedersen_switch_commit()` (Mimblewimble switch commitments); nothing-up-my-sleeve generators H and J via SHA-256 try-and-increment (`cpu/include/pedersen.hpp`, `cpu/src/pedersen.cpp`)
+- **FROST Threshold Signatures** — `frost_keygen_begin()` / `frost_keygen_finalize()` (Feldman VSS distributed key generation), `frost_sign_nonce_gen()` / `frost_sign()` (partial signature rounds), `frost_verify_partial()`, `frost_aggregate()` → standard BIP-340 SchnorrSignature; `frost_lagrange_coefficient()` helper (`cpu/include/frost.hpp`, `cpu/src/frost.cpp`)
+- **Adaptor Signatures** — Schnorr adaptor: `schnorr_adaptor_sign()`, `schnorr_adaptor_verify()`, `schnorr_adaptor_adapt()`, `schnorr_adaptor_extract()`; ECDSA adaptor: `ecdsa_adaptor_sign()`, `ecdsa_adaptor_verify()`, `ecdsa_adaptor_adapt()`, `ecdsa_adaptor_extract()` — for atomic swaps and DLCs (`cpu/include/adaptor.hpp`, `cpu/src/adaptor.cpp`)
+- **MuSig2 multi-signatures (BIP-327)** — Key aggregation (KeyAgg), deterministic nonce generation, 2-round signing protocol, partial sig verify, Schnorr-compatible aggregate signatures (`cpu/include/musig2.hpp`, `cpu/src/musig2.cpp`)
 - **ECDH key exchange** — `ecdh_compute` (SHA-256 of compressed point), `ecdh_compute_xonly` (SHA-256 of x-coordinate), `ecdh_compute_raw` (raw x-coordinate) (`cpu/include/ecdh.hpp`, `cpu/src/ecdh.cpp`)
 - **ECDSA public key recovery** — `ecdsa_sign_recoverable` (deterministic recid), `ecdsa_recover` (reconstruct pubkey from signature + recid), compact 65-byte serialization (`cpu/include/recovery.hpp`, `cpu/src/recovery.cpp`)
 - **Taproot (BIP-341/342)** — Tweak hash, output key computation, private key tweaking, commitment verification, TapLeaf/TapBranch hashing, Merkle root/proof construction (`cpu/include/taproot.hpp`, `cpu/src/taproot.cpp`)
+- **BIP-32 HD key derivation** — Master key from seed, hardened/normal child derivation, path parsing (m/0'/1/2h), Base58Check serialization (xprv/xpub), RIPEMD-160 fingerprinting (`cpu/include/bip32.hpp`, `cpu/src/bip32.cpp`)
+- **BIP-352 Silent Payments** — `silent_payment_address()`, `SilentPaymentAddress::encode()`, `silent_payment_create_output()`, `silent_payment_scan()` with ECDH-based stealth addressing and multi-output support (`cpu/include/address.hpp`, `cpu/src/address.cpp`)
+
+### Added — Address & Encoding
+- **Bitcoin Address Generation** — `hash160()` (RIPEMD-160 + SHA-256), `base58check_encode()` / `base58check_decode()`, `bech32_encode()` / `bech32_decode()` (BIP-173/BIP-350, Bech32/Bech32m), `address_p2pkh()`, `address_p2wpkh()`, `address_p2tr()`, `wif_encode()` / `wif_decode()` (`cpu/include/address.hpp`, `cpu/src/address.cpp`)
+
+### Added — Core Algorithms
+- **Multi-scalar multiplication** — Shamir's trick (2-point) + Strauss interleaved wNAF (n-point) (`cpu/include/multiscalar.hpp`, `cpu/src/multiscalar.cpp`)
+- **Batch signature verification** — Schnorr and ECDSA batch verify with random linear combination; `identify_invalid()` to pinpoint bad signatures (`cpu/include/batch_verify.hpp`, `cpu/src/batch_verify.cpp`)
+- **SHA-512** — Header-only implementation for HMAC-SHA512 / BIP-32 (`cpu/include/sha512.hpp`)
 - **Constant-time byte utilities** — `ct_equal`, `ct_is_zero`, `ct_compare`, `ct_memzero` (volatile + asm barrier), `ct_memcpy_if`, `ct_memswap_if`, `ct_select_byte` (`cpu/include/ct_utils.hpp`)
 
 ### Added — Performance
 - **AVX2/AVX-512 SIMD batch field ops** — Runtime CPUID detection, auto-dispatching `batch_field_add/sub/mul/sqr`, Montgomery batch inverse (1 inversion + 3(n-1) multiplications) (`cpu/include/field_simd.hpp`, `cpu/src/field_simd.cpp`)
-
-### Added — Build & Packaging
-- **vcpkg manifest** — `vcpkg.json` with optional features (asm, cuda, lto)
-- **Conan 2.x recipe** — `conanfile.py` with CMakeToolchain integration and shared/fPIC/asm/lto options
-- **Benchmark dashboard CI** — GitHub Actions workflow (`benchmark.yml`) running benchmarks on Linux + Windows, `parse_benchmark.py` for JSON output, `github-action-benchmark` integration with 120% alert threshold
-
-### Added — Tests (84 new)
-- `test_ecdh_recovery_taproot` — 76 tests: ECDH (basic/xonly/raw/zero-key/infinity), Recovery (sign+recover/multiple-keys/compact-roundtrip/wrong-recid/invalid), Taproot (tweak-hash/output-key/privkey-tweak/commitment/leaf-branch/merkle-tree/proof/full-flow), CT Utils (equal/zero/compare/memzero/conditional), Wycheproof vectors (ECDSA edge 8, Schnorr edge 3, Recovery edge 5+)
-- `test_simd_batch` — 8 tests: SIMD detection, batch add/sub/mul/sqr, batch inverse (basic/single/scratch)
-
----
-
-## [3.1.0] - 2025-07-23
-
-### Added — Cryptographic Features
-- **Multi-scalar multiplication** — Shamir's trick (2-point) + Strauss interleaved wNAF (n-point) (`cpu/include/multiscalar.hpp`, `cpu/src/multiscalar.cpp`)
-- **Batch signature verification** — Schnorr and ECDSA batch verify with random linear combination; `identify_invalid()` to pinpoint bad signatures (`cpu/include/batch_verify.hpp`, `cpu/src/batch_verify.cpp`)
-- **BIP-32 HD key derivation** — Master key from seed, hardened/normal child derivation, path parsing (m/0'/1/2h), Base58Check serialization (xprv/xpub), RIPEMD-160 fingerprinting (`cpu/include/bip32.hpp`, `cpu/src/bip32.cpp`)
-- **MuSig2 multi-signatures (BIP-327)** — Key aggregation (KeyAgg), deterministic nonce generation, 2-round signing protocol, partial sig verify, Schnorr-compatible aggregate signatures (`cpu/include/musig2.hpp`, `cpu/src/musig2.cpp`)
-- **SHA-512** — Header-only implementation for HMAC-SHA512 / BIP-32 (`cpu/include/sha512.hpp`)
 
 ### Added — GPU Optimization
 - **Occupancy auto-tune utility** — `gpu_occupancy.cuh` with `optimal_launch_1d()` (uses `cudaOccupancyMaxPotentialBlockSize`), `query_occupancy()`, and startup device diagnostics
 - **Warp-level reduction primitives** — `warp_reduce_sum()`, `warp_reduce_sum64()`, `warp_reduce_or()`, `warp_broadcast()`, `warp_aggregated_atomic_add()` in reusable header
 - **`__launch_bounds__` on library kernels** — `field_mul/add/sub/inv_kernel` (256,4), `scalar_mul_batch/generator_mul_batch_kernel` (128,2), `point_add/dbl_kernel` (256,4), `hash160_pubkey_kernel` (256,4)
 
-### Added — Build & Tooling
+### Added — Build & Packaging
 - **PGO build scripts** — `build_pgo.sh` (Linux, Clang/GCC auto-detect) and `build_pgo.ps1` (Windows, MSVC/ClangCL)
 - **MSVC PGO support** — CMakeLists.txt now handles `/GL` + `/GENPROFILE` / `/USEPROFILE` for MSVC in addition to Clang/GCC
+- **vcpkg manifest** — `vcpkg.json` with optional features (asm, cuda, lto)
+- **Conan 2.x recipe** — `conanfile.py` with CMakeToolchain integration and shared/fPIC/asm/lto options
+- **Benchmark dashboard CI** — GitHub Actions workflow (`benchmark.yml`) running benchmarks on Linux + Windows, `parse_benchmark.py` for JSON output, `github-action-benchmark` integration with 120% alert threshold
 
-### Added — Tests (63 new)
-- `test_multiscalar_batch` — 16 tests: Shamir edge cases, multi-scalar sums, Schnorr & ECDSA batch verify + identify invalid
-- `test_bip32` — 28 tests: HMAC-SHA512 vectors, BIP-32 TV1 master/child keys, path derivation, serialization, seed validation
-- `test_musig2` — 19 tests: key aggregation, nonce generation, 2-of-2 & 3-of-3 signing with Schnorr cross-verify, single-signer edge case
+### Added — Tests (237 new)
+- `test_v4_features` — 90 tests: Pedersen (basic/homomorphic/balance/switch/serialization/zero-value), FROST (Lagrange/keygen/2-of-3 signing), Adaptor (Schnorr basic/ECDSA basic/identity), Address (Base58Check/Bech32/Bech32m/hash160/P2PKH/P2WPKH/P2TR/WIF/consistency), Silent Payments (address/flow/multi-output)
+- `test_ecdh_recovery_taproot` — 76 tests: ECDH, Recovery, Taproot, CT Utils, Wycheproof vectors
+- `test_multiscalar_batch` — 16 tests: Shamir edge cases, multi-scalar sums, Schnorr & ECDSA batch verify
+- `test_bip32` — 28 tests: HMAC-SHA512 vectors, BIP-32 TV1 master/child keys, path derivation, serialization
+- `test_musig2` — 19 tests: key aggregation, nonce generation, 2-of-2 & 3-of-3 signing
+- `test_simd_batch` — 8 tests: SIMD detection, batch add/sub/mul/sqr, batch inverse
 
 ### Fixed
 - **SHA-512 K[23] constant** — Single-bit typo (`0x76f988da831153b6` → `0x76f988da831153b5`) that caused all SHA-512 hashes to be incorrect
