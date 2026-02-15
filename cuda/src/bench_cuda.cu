@@ -1,5 +1,5 @@
 /**
- * CUDA Benchmark for UltrafastSecp256k1
+ * CUDA Benchmark for Secp256k1
  *
  * Comprehensive benchmark of all CUDA operations:
  * - Field arithmetic (mul, square, add, sub, inverse)
@@ -432,7 +432,7 @@ void print_device_info() {
     CUDA_CHECK(cudaGetDeviceProperties(&prop, 0));
 
     std::cout << "============================================================\n";
-    std::cout << "  UltrafastSecp256k1 CUDA Benchmark\n";
+    std::cout << "  Secp256k1 CUDA Benchmark\n";
     std::cout << "============================================================\n\n";
 
     std::cout << "GPU Information:\n";
