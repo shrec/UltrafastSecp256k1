@@ -11,6 +11,7 @@ Ultra high-performance secp256k1 elliptic curve cryptography library with multi-
 [![RISC-V](https://img.shields.io/badge/RISC--V-RV64GC-orange.svg)](https://riscv.org/)
 [![ARM64](https://img.shields.io/badge/ARM64-Cortex--A55%2FA76-orange.svg)](https://developer.android.com/ndk)
 [![ESP32-S3](https://img.shields.io/badge/ESP32--S3-Xtensa%20LX7-orange.svg)](https://www.espressif.com/en/products/socs/esp32-s3)
+[![ESP32](https://img.shields.io/badge/ESP32-Xtensa%20LX6-orange.svg)](https://www.espressif.com/en/products/socs/esp32)
 [![STM32](https://img.shields.io/badge/STM32-Cortex--M3-orange.svg)](https://www.st.com/en/microcontrollers-microprocessors/stm32f103ze.html)
 
 ## 🚀 Features
@@ -18,7 +19,7 @@ Ultra high-performance secp256k1 elliptic curve cryptography library with multi-
 - **Multi-Platform Architecture**
   - CPU: Optimized for x86-64 (BMI2/ADX), RISC-V (RV64GC), and ARM64 (MUL/UMULH)
   - Mobile: Android ARM64 (NDK r27, Clang 18)
-  - Embedded: ESP32-S3 (Xtensa LX7) + STM32F103 (ARM Cortex-M3) support
+  - Embedded: ESP32-S3 (Xtensa LX7) + ESP32-PICO-D4 (Xtensa LX6) + STM32F103 (ARM Cortex-M3) support
   - GPU/CUDA: Batch operations with 4.63M kG/s throughput
   - GPU/OpenCL: PTX inline asm, 3.39M kG/s
 
@@ -457,6 +458,22 @@ RISC-V results were collected on **Milk-V Mars** (RV64 + RVV).
 
 *Portable C++ (no `__int128`, no assembly). All 35 library tests pass. See [examples/esp32_test/](examples/esp32_test/) for details.*
 
+### ESP32-PICO-D4 / Embedded (Xtensa LX6 Dual Core @ 240 MHz, ESP-IDF v5.5.1, -O3)
+
+| Operation | Time |
+|-----------|------:|
+| Field Mul | 6,993 ns |
+| Field Square | 6,247 ns |
+| Field Add | 985 ns |
+| Field Inv | 609 μs |
+| Scalar × G (Generator Mul) | 6,203 μs |
+| CT Scalar × G | 44,810 μs |
+| CT Add (complete) | 249,672 ns |
+| CT Dbl | 87,113 ns |
+| CT/Fast ratio | 6.5× |
+
+*Portable C++ (no `__int128`, no assembly). All 35 self-tests + 8 CT tests pass. See [examples/esp32_test/](examples/esp32_test/) for details.*
+
 ### STM32F103ZET6 / Embedded (ARM Cortex-M3 @ 72 MHz, GCC 13.3.1, -O3)
 
 | Operation | Time |
@@ -491,13 +508,13 @@ RISC-V results were collected on **Milk-V Mars** (RV64 + RVV).
 
 ### Embedded Cross-Platform Comparison
 
-| Operation | ESP32-S3 (240 MHz) | STM32F103 (72 MHz) | Ratio (STM32/ESP32) | Clock-Normalized |
-|-----------|-------------------:|-------------------:|--------------------:|------------------:|
-| Field Mul | 7,458 ns | 15,331 ns | 2.06× | 0.62× |
-| Field Square | 7,592 ns | 12,083 ns | 1.59× | 0.48× |
-| Field Add | 636 ns | 4,139 ns | 6.51× | 1.95× |
-| Field Inv | 844 μs | 1,645 μs | 1.95× | 0.58× |
-| Scalar × G | 2,483 μs | 37,982 μs | 15.30× | 4.59× |
+| Operation | ESP32-S3 LX7 (240 MHz) | ESP32 LX6 (240 MHz) | STM32F103 (72 MHz) |
+|-----------|-------------------:|-------------------:|-------------------:|
+| Field Mul | 7,458 ns | 6,993 ns | 15,331 ns |
+| Field Square | 7,592 ns | 6,247 ns | 12,083 ns |
+| Field Add | 636 ns | 985 ns | 4,139 ns |
+| Field Inv | 844 μs | 609 μs | 1,645 μs |
+| Scalar × G | 2,483 μs | 6,203 μs | 37,982 μs |
 
 *Clock-Normalized = (STM32 time × 72) / (ESP32 time × 240). Values < 1.0 mean STM32 is faster per-clock.*
 
