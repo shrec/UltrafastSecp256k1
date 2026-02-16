@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771218945045,
+  "lastUpdate": 1771218953228,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -838,6 +838,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Field Sub",
             "value": 16,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 576,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": false,
+          "id": "205a756e1e290e865d266c93e15d3f9943945da3",
+          "message": "fix: switch docs deployment to gh-pages branch\n\ndocs.yml was using actions/deploy-pages@v4 (workflow mode) which\nconflicted with benchmark.yml pushing to gh-pages branch (legacy mode).\nNow both docs and benchmark push to gh-pages branch:\n- docs -> /docs/ subdirectory\n- benchmark -> /dev/bench/ subdirectory\nNo more environment protection rule conflicts.",
+          "timestamp": "2026-02-16T09:14:44+04:00",
+          "tree_id": "28fdd14c229b3b88114f2df8859a7c395a511550",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/205a756e1e290e865d266c93e15d3f9943945da3"
+        },
+        "date": 1771218952033,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Field Mul",
+            "value": 58,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 55,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 22,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Sub",
+            "value": 16,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Add",
+            "value": 986,
             "unit": "ns"
           },
           {
