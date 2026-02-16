@@ -348,6 +348,182 @@ int main(int argc, char* argv[]) {
         auto r_inv = kernel_bench("Field Inv", (cl_kernel)ctx->native_kernel("field_inv"), false);
         print_result(r_inv); results.push_back(r_inv);
 
+        // ==================================================================
+        // Affine Point Addition kernel-only benchmarks
+        // ==================================================================
+        std::cout << "\nAffine Point Addition (kernel-only, batch=" << point_batch << "):\n";
+        std::cout << std::string(50, '-') << "\n";
+
+        {
+            cl_uint aff_cnt = static_cast<cl_uint>(point_batch);
+            std::size_t aff_global = ((point_batch + local_sz - 1) / local_sz) * local_sz;
+
+            // Generate random affine point data (separate x,y arrays)
+            std::vector<FieldElement> aff_px(point_batch), aff_py(point_batch);
+            std::vector<FieldElement> aff_qx(point_batch), aff_qy(point_batch);
+            std::vector<FieldElement> aff_hinv(point_batch);
+            for (std::size_t i = 0; i < point_batch; ++i) {
+                aff_px[i] = {{rng(), rng(), rng(), rng()}};
+                aff_py[i] = {{rng(), rng(), rng(), rng()}};
+                aff_qx[i] = {{rng(), rng(), rng(), rng()}};
+                aff_qy[i] = {{rng(), rng(), rng(), rng()}};
+                aff_hinv[i] = {{rng(), rng(), rng(), rng()}};
+                aff_px[i].limbs[3] &= 0x7FFFFFFFFFFFFFFFULL;
+                aff_py[i].limbs[3] &= 0x7FFFFFFFFFFFFFFFULL;
+                aff_qx[i].limbs[3] &= 0x7FFFFFFFFFFFFFFFULL;
+                aff_qy[i].limbs[3] &= 0x7FFFFFFFFFFFFFFFULL;
+                aff_hinv[i].limbs[3] &= 0x7FFFFFFFFFFFFFFFULL;
+            }
+
+            std::size_t fe_sz = point_batch * sizeof(FieldElement);
+            cl_mem buf_px = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                                            fe_sz, (void*)aff_px.data(), &err);
+            cl_mem buf_py = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                                            fe_sz, (void*)aff_py.data(), &err);
+            cl_mem buf_qx = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                                            fe_sz, (void*)aff_qx.data(), &err);
+            cl_mem buf_qy = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                                            fe_sz, (void*)aff_qy.data(), &err);
+            cl_mem buf_hinv = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                                              fe_sz, (void*)aff_hinv.data(), &err);
+            cl_mem buf_rx = clCreateBuffer(cl_ctx, CL_MEM_WRITE_ONLY, fe_sz, nullptr, &err);
+            cl_mem buf_ry = clCreateBuffer(cl_ctx, CL_MEM_WRITE_ONLY, fe_sz, nullptr, &err);
+            clFinish(cl_q);
+
+            // Affine Add (2M + 1S + inv)
+            {
+                cl_kernel kern = (cl_kernel)ctx->native_kernel("affine_add");
+                if (kern) {
+                    clSetKernelArg(kern, 0, sizeof(cl_mem), &buf_px);
+                    clSetKernelArg(kern, 1, sizeof(cl_mem), &buf_py);
+                    clSetKernelArg(kern, 2, sizeof(cl_mem), &buf_qx);
+                    clSetKernelArg(kern, 3, sizeof(cl_mem), &buf_qy);
+                    clSetKernelArg(kern, 4, sizeof(cl_mem), &buf_rx);
+                    clSetKernelArg(kern, 5, sizeof(cl_mem), &buf_ry);
+                    clSetKernelArg(kern, 6, sizeof(cl_uint), &aff_cnt);
+
+                    for (int i = 0; i < k_warmup; ++i)
+                        clEnqueueNDRangeKernel(cl_q, kern, 1, nullptr, &aff_global, &local_sz, 0, nullptr, nullptr);
+                    clFinish(cl_q);
+
+                    auto t0 = std::chrono::high_resolution_clock::now();
+                    for (int i = 0; i < k_iters; ++i)
+                        clEnqueueNDRangeKernel(cl_q, kern, 1, nullptr, &aff_global, &local_sz, 0, nullptr, nullptr);
+                    clFinish(cl_q);
+                    auto t1 = std::chrono::high_resolution_clock::now();
+
+                    double ns = std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count();
+                    double total_ops = static_cast<double>(point_batch) * k_iters;
+                    BenchResult r = {"Affine Add (2M+1S+inv)", ns / total_ops, total_ops / (ns * 1e-9)};
+                    print_result(r); results.push_back(r);
+                } else {
+                    std::cout << "  [SKIP] affine_add kernel not found\n";
+                }
+            }
+
+            // Affine Lambda (2M + 1S, pre-inverted H)
+            {
+                cl_kernel kern = (cl_kernel)ctx->native_kernel("affine_add_lambda");
+                if (kern) {
+                    clSetKernelArg(kern, 0, sizeof(cl_mem), &buf_px);
+                    clSetKernelArg(kern, 1, sizeof(cl_mem), &buf_py);
+                    clSetKernelArg(kern, 2, sizeof(cl_mem), &buf_qx);
+                    clSetKernelArg(kern, 3, sizeof(cl_mem), &buf_qy);
+                    clSetKernelArg(kern, 4, sizeof(cl_mem), &buf_hinv);
+                    clSetKernelArg(kern, 5, sizeof(cl_mem), &buf_rx);
+                    clSetKernelArg(kern, 6, sizeof(cl_mem), &buf_ry);
+                    clSetKernelArg(kern, 7, sizeof(cl_uint), &aff_cnt);
+
+                    for (int i = 0; i < k_warmup; ++i)
+                        clEnqueueNDRangeKernel(cl_q, kern, 1, nullptr, &aff_global, &local_sz, 0, nullptr, nullptr);
+                    clFinish(cl_q);
+
+                    auto t0 = std::chrono::high_resolution_clock::now();
+                    for (int i = 0; i < k_iters; ++i)
+                        clEnqueueNDRangeKernel(cl_q, kern, 1, nullptr, &aff_global, &local_sz, 0, nullptr, nullptr);
+                    clFinish(cl_q);
+                    auto t1 = std::chrono::high_resolution_clock::now();
+
+                    double ns = std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count();
+                    double total_ops = static_cast<double>(point_batch) * k_iters;
+                    BenchResult r = {"Affine Lambda (2M+1S)", ns / total_ops, total_ops / (ns * 1e-9)};
+                    print_result(r); results.push_back(r);
+                } else {
+                    std::cout << "  [SKIP] affine_add_lambda kernel not found\n";
+                }
+            }
+
+            // Affine X-Only (1M + 1S, pre-inverted H)
+            {
+                cl_kernel kern = (cl_kernel)ctx->native_kernel("affine_add_x_only");
+                if (kern) {
+                    clSetKernelArg(kern, 0, sizeof(cl_mem), &buf_px);
+                    clSetKernelArg(kern, 1, sizeof(cl_mem), &buf_py);
+                    clSetKernelArg(kern, 2, sizeof(cl_mem), &buf_qx);
+                    clSetKernelArg(kern, 3, sizeof(cl_mem), &buf_qy);
+                    clSetKernelArg(kern, 4, sizeof(cl_mem), &buf_hinv);
+                    clSetKernelArg(kern, 5, sizeof(cl_mem), &buf_rx);
+                    clSetKernelArg(kern, 6, sizeof(cl_uint), &aff_cnt);
+
+                    for (int i = 0; i < k_warmup; ++i)
+                        clEnqueueNDRangeKernel(cl_q, kern, 1, nullptr, &aff_global, &local_sz, 0, nullptr, nullptr);
+                    clFinish(cl_q);
+
+                    auto t0 = std::chrono::high_resolution_clock::now();
+                    for (int i = 0; i < k_iters; ++i)
+                        clEnqueueNDRangeKernel(cl_q, kern, 1, nullptr, &aff_global, &local_sz, 0, nullptr, nullptr);
+                    clFinish(cl_q);
+                    auto t1 = std::chrono::high_resolution_clock::now();
+
+                    double ns = std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count();
+                    double total_ops = static_cast<double>(point_batch) * k_iters;
+                    BenchResult r = {"Affine X-Only (1M+1S)", ns / total_ops, total_ops / (ns * 1e-9)};
+                    print_result(r); results.push_back(r);
+                } else {
+                    std::cout << "  [SKIP] affine_add_x_only kernel not found\n";
+                }
+            }
+
+            // Jacobian → Affine conversion
+            {
+                cl_kernel kern = (cl_kernel)ctx->native_kernel("jacobian_to_affine");
+                if (kern) {
+                    // Reuse buf_px, buf_py as J.x, J.y; buf_qx as J.z
+                    clSetKernelArg(kern, 0, sizeof(cl_mem), &buf_px);
+                    clSetKernelArg(kern, 1, sizeof(cl_mem), &buf_py);
+                    clSetKernelArg(kern, 2, sizeof(cl_mem), &buf_qx);
+                    clSetKernelArg(kern, 3, sizeof(cl_mem), &buf_rx);
+                    clSetKernelArg(kern, 4, sizeof(cl_mem), &buf_ry);
+                    clSetKernelArg(kern, 5, sizeof(cl_uint), &aff_cnt);
+
+                    for (int i = 0; i < k_warmup; ++i)
+                        clEnqueueNDRangeKernel(cl_q, kern, 1, nullptr, &aff_global, &local_sz, 0, nullptr, nullptr);
+                    clFinish(cl_q);
+
+                    auto t0 = std::chrono::high_resolution_clock::now();
+                    for (int i = 0; i < k_iters; ++i)
+                        clEnqueueNDRangeKernel(cl_q, kern, 1, nullptr, &aff_global, &local_sz, 0, nullptr, nullptr);
+                    clFinish(cl_q);
+                    auto t1 = std::chrono::high_resolution_clock::now();
+
+                    double ns = std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count();
+                    double total_ops = static_cast<double>(point_batch) * k_iters;
+                    BenchResult r = {"Jac→Affine (per-pt)", ns / total_ops, total_ops / (ns * 1e-9)};
+                    print_result(r); results.push_back(r);
+                } else {
+                    std::cout << "  [SKIP] jacobian_to_affine kernel not found\n";
+                }
+            }
+
+            clReleaseMemObject(buf_px);
+            clReleaseMemObject(buf_py);
+            clReleaseMemObject(buf_qx);
+            clReleaseMemObject(buf_qy);
+            clReleaseMemObject(buf_hinv);
+            clReleaseMemObject(buf_rx);
+            clReleaseMemObject(buf_ry);
+        }
+
         clReleaseMemObject(buf_a);
         clReleaseMemObject(buf_b);
         clReleaseMemObject(buf_r);

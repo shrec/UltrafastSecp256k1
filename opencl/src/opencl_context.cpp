@@ -145,6 +145,12 @@ struct Context::Impl {
     cl_kernel kernel_batch_inversion = nullptr;
     cl_kernel kernel_batch_jacobian_to_affine = nullptr;
 
+    // Affine point addition kernels
+    cl_kernel kernel_affine_add = nullptr;
+    cl_kernel kernel_affine_add_lambda = nullptr;
+    cl_kernel kernel_affine_add_x_only = nullptr;
+    cl_kernel kernel_jacobian_to_affine = nullptr;
+
     DeviceInfo device_info;
     std::string last_error;
     DeviceConfig config;
@@ -166,6 +172,10 @@ struct Context::Impl {
         if (kernel_scalar_mul_generator) clReleaseKernel(kernel_scalar_mul_generator);
         if (kernel_batch_inversion) clReleaseKernel(kernel_batch_inversion);
         if (kernel_batch_jacobian_to_affine) clReleaseKernel(kernel_batch_jacobian_to_affine);
+        if (kernel_affine_add) clReleaseKernel(kernel_affine_add);
+        if (kernel_affine_add_lambda) clReleaseKernel(kernel_affine_add_lambda);
+        if (kernel_affine_add_x_only) clReleaseKernel(kernel_affine_add_x_only);
+        if (kernel_jacobian_to_affine) clReleaseKernel(kernel_jacobian_to_affine);
 
         // Release program
         if (program) clReleaseProgram(program);
@@ -956,6 +966,134 @@ __kernel void batch_jacobian_to_affine_kernel(
     affines[gid].x = ax;
     affines[gid].y = ay;
 }
+
+// ---- Affine point addition kernels ----
+
+// affine_add_impl: P + Q -> R, all affine (2M + 1S + inv)
+inline void affine_add_impl(AffinePoint* r,
+                             const FieldElement* px, const FieldElement* py,
+                             const FieldElement* qx, const FieldElement* qy) {
+    FieldElement h, rr, t, lam;
+    field_sub_impl(&h, qx, px);
+    field_sub_impl(&rr, qy, py);
+    field_inv_impl(&t, &h);
+    field_mul_impl(&lam, &rr, &t);
+    field_sqr_impl(&r->x, &lam);
+    field_sub_impl(&r->x, &r->x, px);
+    field_sub_impl(&r->x, &r->x, qx);
+    field_sub_impl(&r->y, px, &r->x);
+    field_mul_impl(&r->y, &lam, &r->y);
+    field_sub_impl(&r->y, &r->y, py);
+}
+
+// affine_add_lambda_impl: with pre-inverted H (2M + 1S)
+inline void affine_add_lambda_impl(AffinePoint* r,
+                                    const FieldElement* px, const FieldElement* py,
+                                    const FieldElement* qx, const FieldElement* qy,
+                                    const FieldElement* h_inv) {
+    FieldElement rr, lam;
+    field_sub_impl(&rr, qy, py);
+    field_mul_impl(&lam, &rr, h_inv);
+    field_sqr_impl(&r->x, &lam);
+    field_sub_impl(&r->x, &r->x, px);
+    field_sub_impl(&r->x, &r->x, qx);
+    field_sub_impl(&r->y, px, &r->x);
+    field_mul_impl(&r->y, &lam, &r->y);
+    field_sub_impl(&r->y, &r->y, py);
+}
+
+// affine_add_x_only_impl: X-only with pre-inverted H (1M + 1S)
+inline void affine_add_x_only_impl(FieldElement* rx,
+                                    const FieldElement* px, const FieldElement* py,
+                                    const FieldElement* qx, const FieldElement* qy,
+                                    const FieldElement* h_inv) {
+    FieldElement rr, lam;
+    field_sub_impl(&rr, qy, py);
+    field_mul_impl(&lam, &rr, h_inv);
+    field_sqr_impl(rx, &lam);
+    field_sub_impl(rx, rx, px);
+    field_sub_impl(rx, rx, qx);
+}
+
+// jacobian_to_affine_convert_impl: single point
+inline void jacobian_to_affine_convert_impl(AffinePoint* r,
+                                             const FieldElement* x,
+                                             const FieldElement* y,
+                                             const FieldElement* z) {
+    FieldElement z_inv, z_inv2, z_inv3;
+    field_inv_impl(&z_inv, z);
+    field_sqr_impl(&z_inv2, &z_inv);
+    field_mul_impl(&z_inv3, &z_inv, &z_inv2);
+    field_mul_impl(&r->x, x, &z_inv2);
+    field_mul_impl(&r->y, y, &z_inv3);
+}
+
+__kernel void affine_add(
+    __global const FieldElement* px, __global const FieldElement* py,
+    __global const FieldElement* qx, __global const FieldElement* qy,
+    __global FieldElement* rx, __global FieldElement* ry,
+    const uint count
+) {
+    uint gid = get_global_id(0);
+    if (gid >= count) return;
+    FieldElement lpx = px[gid], lpy = py[gid];
+    FieldElement lqx = qx[gid], lqy = qy[gid];
+    AffinePoint r;
+    affine_add_impl(&r, &lpx, &lpy, &lqx, &lqy);
+    rx[gid] = r.x;
+    ry[gid] = r.y;
+}
+
+__kernel void affine_add_lambda(
+    __global const FieldElement* px, __global const FieldElement* py,
+    __global const FieldElement* qx, __global const FieldElement* qy,
+    __global const FieldElement* h_inv,
+    __global FieldElement* rx, __global FieldElement* ry,
+    const uint count
+) {
+    uint gid = get_global_id(0);
+    if (gid >= count) return;
+    FieldElement lpx = px[gid], lpy = py[gid];
+    FieldElement lqx = qx[gid], lqy = qy[gid];
+    FieldElement lhinv = h_inv[gid];
+    AffinePoint r;
+    affine_add_lambda_impl(&r, &lpx, &lpy, &lqx, &lqy, &lhinv);
+    rx[gid] = r.x;
+    ry[gid] = r.y;
+}
+
+__kernel void affine_add_x_only(
+    __global const FieldElement* px, __global const FieldElement* py,
+    __global const FieldElement* qx, __global const FieldElement* qy,
+    __global const FieldElement* h_inv,
+    __global FieldElement* rx,
+    const uint count
+) {
+    uint gid = get_global_id(0);
+    if (gid >= count) return;
+    FieldElement lpx = px[gid], lpy = py[gid];
+    FieldElement lqx = qx[gid], lqy = qy[gid];
+    FieldElement lhinv = h_inv[gid];
+    FieldElement lrx;
+    affine_add_x_only_impl(&lrx, &lpx, &lpy, &lqx, &lqy, &lhinv);
+    rx[gid] = lrx;
+}
+
+__kernel void jacobian_to_affine(
+    __global const FieldElement* jx,
+    __global const FieldElement* jy,
+    __global const FieldElement* jz,
+    __global FieldElement* ax, __global FieldElement* ay,
+    const uint count
+) {
+    uint gid = get_global_id(0);
+    if (gid >= count) return;
+    FieldElement lx = jx[gid], ly = jy[gid], lz = jz[gid];
+    AffinePoint r;
+    jacobian_to_affine_convert_impl(&r, &lx, &ly, &lz);
+    ax[gid] = r.x;
+    ay[gid] = r.y;
+}
 )KERNEL";
 
 bool Context::Impl::build_program() {
@@ -1027,8 +1165,34 @@ bool Context::Impl::create_kernels() {
     kernel_scalar_mul = clCreateKernel(program, "scalar_mul", &err);
     if (err != CL_SUCCESS) { last_error = "Failed to create scalar_mul kernel"; return false; }
 
-    kernel_batch_jacobian_to_affine = clCreateKernel(program, "batch_jacobian_to_affine_kernel", &err);
-    if (err != CL_SUCCESS) { last_error = "Failed to create batch_jacobian_to_affine kernel"; return false; }
+    kernel_batch_jacobian_to_affine = clCreateKernel(program, "batch_jacobian_to_affine", &err);
+    if (err != CL_SUCCESS) {
+        // Non-fatal — kernel may not exist in older builds
+        kernel_batch_jacobian_to_affine = nullptr;
+    }
+
+    // Affine point addition kernels (optional — benchmark/utility)
+    err = CL_SUCCESS;
+    kernel_affine_add = clCreateKernel(program, "affine_add", &err);
+    if (err != CL_SUCCESS) {
+        if (config.verbose) std::cerr << "[DEBUG] affine_add kernel: err=" << err << "\n";
+        kernel_affine_add = nullptr;
+    }
+    kernel_affine_add_lambda = clCreateKernel(program, "affine_add_lambda", &err);
+    if (err != CL_SUCCESS) {
+        if (config.verbose) std::cerr << "[DEBUG] affine_add_lambda kernel: err=" << err << "\n";
+        kernel_affine_add_lambda = nullptr;
+    }
+    kernel_affine_add_x_only = clCreateKernel(program, "affine_add_x_only", &err);
+    if (err != CL_SUCCESS) {
+        if (config.verbose) std::cerr << "[DEBUG] affine_add_x_only kernel: err=" << err << "\n";
+        kernel_affine_add_x_only = nullptr;
+    }
+    kernel_jacobian_to_affine = clCreateKernel(program, "jacobian_to_affine", &err);
+    if (err != CL_SUCCESS) {
+        if (config.verbose) std::cerr << "[DEBUG] jacobian_to_affine kernel: err=" << err << "\n";
+        kernel_jacobian_to_affine = nullptr;
+    }
 
     return true;
 }
@@ -1608,6 +1772,10 @@ void* Context::native_kernel(const char* name) const {
     if (n == "point_add") return impl_->kernel_point_add;
     if (n == "scalar_mul") return impl_->kernel_scalar_mul;
     if (n == "scalar_mul_generator") return impl_->kernel_scalar_mul_generator;
+    if (n == "affine_add") return impl_->kernel_affine_add;
+    if (n == "affine_add_lambda") return impl_->kernel_affine_add_lambda;
+    if (n == "affine_add_x_only") return impl_->kernel_affine_add_x_only;
+    if (n == "jacobian_to_affine") return impl_->kernel_jacobian_to_affine;
     return nullptr;
 }
 

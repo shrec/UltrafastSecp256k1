@@ -178,4 +178,83 @@ inline void batch_jacobian_to_affine_serial_impl(FieldElement* x,       // [n] J
     field_mul_impl(&y[0], &y[0], &z_inv3);
 }
 
+// =============================================================================
+// Benchmark / dispatch kernels for affine operations
+// =============================================================================
+
+// Full affine add (2M + 1S + per-element inv)
+__kernel void affine_add(
+    __global const FieldElement* px, __global const FieldElement* py,
+    __global const FieldElement* qx, __global const FieldElement* qy,
+    __global FieldElement* rx, __global FieldElement* ry,
+    const uint count
+) {
+    uint gid = get_global_id(0);
+    if (gid >= count) return;
+
+    FieldElement lpx = px[gid], lpy = py[gid];
+    FieldElement lqx = qx[gid], lqy = qy[gid];
+    AffinePoint r;
+    affine_add_impl(&r, &lpx, &lpy, &lqx, &lqy);
+    rx[gid] = r.x;
+    ry[gid] = r.y;
+}
+
+// Affine add with pre-inverted H — full X,Y (2M + 1S)
+__kernel void affine_add_lambda(
+    __global const FieldElement* px, __global const FieldElement* py,
+    __global const FieldElement* qx, __global const FieldElement* qy,
+    __global const FieldElement* h_inv,
+    __global FieldElement* rx, __global FieldElement* ry,
+    const uint count
+) {
+    uint gid = get_global_id(0);
+    if (gid >= count) return;
+
+    FieldElement lpx = px[gid], lpy = py[gid];
+    FieldElement lqx = qx[gid], lqy = qy[gid];
+    FieldElement lhinv = h_inv[gid];
+    AffinePoint r;
+    affine_add_lambda_impl(&r, &lpx, &lpy, &lqx, &lqy, &lhinv);
+    rx[gid] = r.x;
+    ry[gid] = r.y;
+}
+
+// Affine add X-only with pre-inverted H (1M + 1S)
+__kernel void affine_add_x_only(
+    __global const FieldElement* px, __global const FieldElement* py,
+    __global const FieldElement* qx, __global const FieldElement* qy,
+    __global const FieldElement* h_inv,
+    __global FieldElement* rx,
+    const uint count
+) {
+    uint gid = get_global_id(0);
+    if (gid >= count) return;
+
+    FieldElement lpx = px[gid], lpy = py[gid];
+    FieldElement lqx = qx[gid], lqy = qy[gid];
+    FieldElement lhinv = h_inv[gid];
+    FieldElement lrx;
+    affine_add_x_only_impl(&lrx, &lpx, &lpy, &lqx, &lqy, &lhinv);
+    rx[gid] = lrx;
+}
+
+// Jacobian → Affine conversion (per-element)
+__kernel void jacobian_to_affine(
+    __global const FieldElement* jx,
+    __global const FieldElement* jy,
+    __global const FieldElement* jz,
+    __global FieldElement* ax, __global FieldElement* ay,
+    const uint count
+) {
+    uint gid = get_global_id(0);
+    if (gid >= count) return;
+
+    FieldElement lx = jx[gid], ly = jy[gid], lz = jz[gid];
+    AffinePoint r;
+    jacobian_to_affine_convert_impl(&r, &lx, &ly, &lz);
+    ax[gid] = r.x;
+    ay[gid] = r.y;
+}
+
 #endif // SECP256K1_AFFINE_CL
