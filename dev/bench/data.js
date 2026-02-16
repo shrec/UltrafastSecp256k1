@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771218953228,
+  "lastUpdate": 1771219525309,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -897,6 +897,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Point Double",
             "value": 576,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": false,
+          "id": "5c987154e35d230d2b1179fd2af676691a5a28ec",
+          "message": "feat: add FUNDING.yml, polish README contact section with Wiki/Discussions/Sponsor links",
+          "timestamp": "2026-02-16T09:24:20+04:00",
+          "tree_id": "25b5f697bb399aeb1e7b765af5688771069f93cd",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/5c987154e35d230d2b1179fd2af676691a5a28ec"
+        },
+        "date": 1771219524960,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Field Mul",
+            "value": 59,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 55,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 21,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Sub",
+            "value": 16,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Add",
+            "value": 998,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 580,
             "unit": "ns"
           }
         ]
