@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771218841686,
+  "lastUpdate": 1771218846034,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -740,6 +740,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Point Double",
             "value": 575,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "d980f11729931294554ac1d56cb8ec07f375f1d6",
+          "message": "fix: restore Stars/Forks badges and reorganize badge layout",
+          "timestamp": "2026-02-16T09:12:57+04:00",
+          "tree_id": "4214de35d8d7d3266a6677082025bd9d15cfa379",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/d980f11729931294554ac1d56cb8ec07f375f1d6"
+        },
+        "date": 1771218845082,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Field Mul",
+            "value": 58,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 55,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 21,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Sub",
+            "value": 16,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Add",
+            "value": 996,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 578,
             "unit": "ns"
           }
         ]
