@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771216222590,
+  "lastUpdate": 1771216223817,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -372,6 +372,55 @@ window.BENCHMARK_DATA = {
           {
             "name": "Point Double",
             "value": 578,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "eaa7ebd653ead5bf0daf584e2b80e6b4627be381",
+          "message": "ci: raise benchmark alert threshold to 150%\n\nCI VMs have ~20-30% noise between runs. 120% threshold produces\nfalse positive alerts. 150% is more appropriate for shared runners.",
+          "timestamp": "2026-02-16T08:29:21+04:00",
+          "tree_id": "a09000e14025abb6b2df1804151d6c50eadd14ac",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/eaa7ebd653ead5bf0daf584e2b80e6b4627be381"
+        },
+        "date": 1771216223269,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Field Mul",
+            "value": 59,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 55,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 21,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Sub",
+            "value": 16,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 576,
             "unit": "ns"
           }
         ]
