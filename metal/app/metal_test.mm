@@ -62,7 +62,17 @@ static std::string get_exe_dir(const char* argv0) {
 
 static bool test_generator_mul(MetalRuntime& runtime) {
     std::cout << "\n=== Test: Generator Multiplication (G × k) ===\n";
-    
+
+    // scalar_mul kernel (16-entry precompute + field inversion) requires
+    // real Apple Silicon GPU.  Paravirtual / non-Apple7+ devices cannot
+    // compile the pipeline, so skip gracefully.
+    auto info = runtime.device_info();
+    if (!info.supports_family_apple7) {
+        std::cout << "  SKIP: generator_mul requires Apple7+ GPU (M1 or later)\n"
+                  << "  Device '" << info.name << "' does not support this kernel\n";
+        return true;  // not a failure — unsupported hardware
+    }
+
     auto pipeline = runtime.make_pipeline("generator_mul_batch");
     if (!pipeline.valid()) {
         std::cerr << "  FAIL: Could not create pipeline\n";
@@ -238,7 +248,13 @@ static void bench_field_mul(MetalRuntime& runtime, int count = 1024 * 1024) {
 
 static void bench_scalar_mul(MetalRuntime& runtime, int count = 4096) {
     std::cout << "\n=== Benchmark: Generator Scalar Multiplication (" << count << " ops) ===\n";
-    
+
+    auto info = runtime.device_info();
+    if (!info.supports_family_apple7) {
+        std::cout << "  SKIP: requires Apple7+ GPU (M1 or later)\n";
+        return;
+    }
+
     auto pipeline = runtime.make_pipeline("generator_mul_batch");
     if (!pipeline.valid()) { std::cerr << "  Pipeline creation failed\n"; return; }
     
