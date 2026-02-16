@@ -32,6 +32,8 @@ int test_ecdh_recovery_taproot_run();
 int test_simd_batch_run();
 int test_v4_features_run();
 int test_coins_run();
+int test_batch_add_affine_run();
+int test_hash_accel_run();
 
 // ── Module descriptor ────────────────────────────────────────────────────────
 struct TestModule {
@@ -52,6 +54,8 @@ static const TestModule MODULES[] = {
     { "SIMD batch",                       test_simd_batch_run },
     { "v4 features (Pedersen/FROST/etc)", test_v4_features_run },
     { "coins layer",                      test_coins_run },
+    { "affine batch addition",             test_batch_add_affine_run },
+    { "accelerated hashing",                test_hash_accel_run },
 };
 
 static constexpr int NUM_MODULES = sizeof(MODULES) / sizeof(MODULES[0]);
