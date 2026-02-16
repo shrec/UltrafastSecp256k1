@@ -103,7 +103,7 @@ var NAVTREE =
       [ "Commercial License", "index.html#autotoc_md67", null ]
     ] ],
     [ "🙏 Acknowledgments", "index.html#autotoc_md68", null ],
-    [ "📧 Contact", "index.html#autotoc_md69", null ],
+    [ "📧 Contact & Community", "index.html#autotoc_md69", null ],
     [ "☕ Support the Project", "index.html#autotoc_md70", null ],
     [ "Namespaces", "namespaces.html", [
       [ "Namespace List", "namespaces.html", "namespaces_dup" ],
