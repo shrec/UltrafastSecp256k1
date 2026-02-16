@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771218438923,
+  "lastUpdate": 1771218442812,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -632,6 +632,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Point Double",
             "value": 574,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": false,
+          "id": "60f6e85e63c04dfd86641d51c921cb8c7018bc9c",
+          "message": "docs: v3.3.0 community & visibility improvements\n\n- README: Add Apple Silicon/Metal/CI/Bench/Release badges, update to v3.3.0\n- CHANGELOG: Add comprehensive v3.3.0 release notes\n- Issue templates: Crypto-specific bug report & feature request fields\n- Issue config: Add Security, Benchmark Dashboard, Build Guide links\n- CMakeLists: Bump VERSION 3.2.0 -> 3.3.0",
+          "timestamp": "2026-02-16T09:06:13+04:00",
+          "tree_id": "4a8ddd81981f32934ae57c905bcf95a50c335931",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/60f6e85e63c04dfd86641d51c921cb8c7018bc9c"
+        },
+        "date": 1771218442015,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Field Mul",
+            "value": 48,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 44,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 17,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Sub",
+            "value": 12,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Add",
+            "value": 818,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 469,
             "unit": "ns"
           }
         ]
