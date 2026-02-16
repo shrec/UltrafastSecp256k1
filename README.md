@@ -18,6 +18,26 @@ Ultra high-performance secp256k1 elliptic curve cryptography library with multi-
 [![ROCm](https://img.shields.io/badge/ROCm-6.3%20HIP-red.svg)](cuda/README.md)
 [![Android](https://img.shields.io/badge/Android-NDK%20r27-brightgreen.svg)](android/)
 
+## ⚠️ Security Notice
+
+**Research & Development Project - Not Audited**
+
+This library has **not undergone independent security audits**. It is provided for research, educational, and experimental purposes.
+
+**Production Use:**
+- ❌ Not recommended without independent cryptographic audit
+- ❌ No formal security guarantees
+- ✅ All self-tests pass (76/76 including all backends)
+- ✅ Constant-time (CT) layer available for side-channel resistance
+
+**Reporting Security Issues:**
+Please report security vulnerabilities via [GitHub Issues](https://github.com/shrec/UltrafastSecp256k1/issues) or contact the maintainers directly.
+
+**Disclaimer:**
+Users assume all risks. For production cryptographic systems, prefer audited libraries like [libsecp256k1](https://github.com/bitcoin-core/secp256k1).
+
+---
+
 ## 🚀 Features
 
 - **Multi-Platform Architecture**
