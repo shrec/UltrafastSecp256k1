@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771216048287,
+  "lastUpdate": 1771216049542,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -264,6 +264,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Point Double",
             "value": 575,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "21e08131286ad695e9ae853b15bf6982d78d960e",
+          "message": "ci: run WASM benchmark in CI after build\n\nAdd Node.js 20 setup + bench_wasm.mjs execution to the WASM CI job.\nAlso fix module resolution for running from build-wasm/dist/ directory.",
+          "timestamp": "2026-02-16T08:26:24+04:00",
+          "tree_id": "04163e6f2ca4a44c9229b939a604d7282239da1a",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/21e08131286ad695e9ae853b15bf6982d78d960e"
+        },
+        "date": 1771216048725,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Field Mul",
+            "value": 58,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 55,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 21,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Sub",
+            "value": 16,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Add",
+            "value": 994,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 574,
             "unit": "ns"
           }
         ]
