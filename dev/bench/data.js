@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771216223817,
+  "lastUpdate": 1771216505064,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -421,6 +421,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Point Double",
             "value": 576,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": false,
+          "id": "c6915a0f50f8448e308299874d297ed5f542cbfe",
+          "message": "fix(wasm): fix runtime crash in WASM benchmark\n\n- Remove --closure 1: Closure compiler breaks Emscripten's atexit/\n  exception handling runtime (null .push TypeError)\n- Add -fno-exceptions: not needed by this library, avoids broken\n  exception stubs\n- Increase INITIAL_MEMORY to 4MB and STACK_SIZE to 512KB: selftest\n  uses std::vector which needs more memory\n- Make selftest non-fatal in benchmark (try/catch + continue)",
+          "timestamp": "2026-02-16T08:34:04+04:00",
+          "tree_id": "6defe0c5e0779a4b0014ca3a3a87e76afaabfefc",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/c6915a0f50f8448e308299874d297ed5f542cbfe"
+        },
+        "date": 1771216504662,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Field Mul",
+            "value": 48,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 44,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 17,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Sub",
+            "value": 12,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Add",
+            "value": 820,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 469,
             "unit": "ns"
           }
         ]
