@@ -1,0 +1,19 @@
+var searchData=
+[
+  ['name_0',['name',['../structsecp256k1_1_1CurveContext.html#ac783090abed92bb9011d5063982d8c90',1,'secp256k1::CurveContext::name'],['../structsecp256k1_1_1coins_1_1CoinParams.html#a12d1e5759867e1d5f5910dd9766eb99a',1,'secp256k1::coins::CoinParams::name']]],
+  ['namecoin_1',['Namecoin',['../namespacesecp256k1_1_1coins.html#a2b213e0327a73e15d8084f46ea89fb5c',1,'secp256k1::coins']]],
+  ['ndk_20r27_20clang_2018_20o3_2',['Android ARM64 (RK3588, Cortex-A55/A76 @ 2.4 GHz, NDK r27 Clang 18, -O3)',['../index.html#autotoc_md44',1,'']]],
+  ['needs_5fnegation_3',['needs_negation',['../structsecp256k1_1_1SchnorrAdaptorSig.html#a6ce6acb403b03373b98ce970a7ffc23c',1,'secp256k1::SchnorrAdaptorSig']]],
+  ['neg1_4',['neg1',['../structsecp256k1_1_1fast_1_1KPlan.html#ac006e0d79699c537d09045f3af25162f',1,'secp256k1::fast::KPlan::neg1'],['../structsecp256k1_1_1fast_1_1ScalarDecomposition.html#ab213f8bfcad6dd0674fafa4e527fccc4',1,'secp256k1::fast::ScalarDecomposition::neg1'],['../structsecp256k1_1_1fast_1_1PrecomputedScalar.html#a8a22731dfb22c46c1585ed4bc60bbd78',1,'secp256k1::fast::PrecomputedScalar::neg1'],['../structsecp256k1_1_1fast_1_1PrecomputedScalarOptimized_1_1Step.html#ad1c8ca2ef9593c5df625ca56e1687067',1,'secp256k1::fast::PrecomputedScalarOptimized::Step::neg1'],['../structsecp256k1_1_1fast_1_1PrecomputedScalarOptimized.html#abe2e0b579149888e8168ead3fa83acb0',1,'secp256k1::fast::PrecomputedScalarOptimized::neg1']]],
+  ['neg2_5',['neg2',['../structsecp256k1_1_1fast_1_1KPlan.html#ae49d80947553f0423ba86fd2e1ab950e',1,'secp256k1::fast::KPlan::neg2'],['../structsecp256k1_1_1fast_1_1ScalarDecomposition.html#a709e42d58ff878dccbfd76a9cdf3e85c',1,'secp256k1::fast::ScalarDecomposition::neg2'],['../structsecp256k1_1_1fast_1_1PrecomputedScalar.html#ad58b708c971b3f63b8590fa7b10a94bb',1,'secp256k1::fast::PrecomputedScalar::neg2'],['../structsecp256k1_1_1fast_1_1PrecomputedScalarOptimized_1_1Step.html#a004366d92d3400be496d3a1277123700',1,'secp256k1::fast::PrecomputedScalarOptimized::Step::neg2'],['../structsecp256k1_1_1fast_1_1PrecomputedScalarOptimized.html#af1647edca6adce74163fa0a21f908855',1,'secp256k1::fast::PrecomputedScalarOptimized::neg2']]],
+  ['negate_6',['negate',['../classsecp256k1_1_1fast_1_1Scalar.html#acc52e92477f518388b7e0827e3a3ce86',1,'secp256k1::fast::Scalar::negate()'],['../classsecp256k1_1_1fast_1_1Point.html#a2273e8eafa4c276586a4430ca256d751',1,'secp256k1::fast::Point::negate() const']]],
+  ['negate_5finplace_7',['negate_inplace',['../classsecp256k1_1_1fast_1_1Point.html#ad7e7d16e529447135496dd13aef1253e',1,'secp256k1::fast::Point']]],
+  ['network_8',['network',['../structsecp256k1_1_1WIFDecodeResult.html#a1cb361831192e9d20c2f7acfe4c8a15e',1,'secp256k1::WIFDecodeResult::network'],['../namespacesecp256k1.html#a4fc755caaebc0d236e4b1e209a0389ad',1,'secp256k1::Network']]],
+  ['next_9',['next',['../classsecp256k1_1_1fast_1_1Point.html#a5790c1b1df12b49a5a8c824c3914f0d6',1,'secp256k1::fast::Point']]],
+  ['next_5finplace_10',['next_inplace',['../classsecp256k1_1_1fast_1_1Point.html#a145df55054f0e03c21f08219edda5ad5',1,'secp256k1::fast::Point']]],
+  ['normalize_11',['normalize',['../structsecp256k1_1_1ECDSASignature.html#a72798c30cb0019e6f73ed22949e5c752',1,'secp256k1::ECDSASignature']]],
+  ['notice_12',['⚠️ Security Notice',['../index.html#autotoc_md1',1,'']]],
+  ['num_5fdoubles_13',['num_doubles',['../structsecp256k1_1_1fast_1_1PrecomputedScalarOptimized_1_1Step.html#af842895248026ce9637e794a3d92dabc',1,'secp256k1::fast::PrecomputedScalarOptimized::Step']]],
+  ['num_5fparticipants_14',['num_participants',['../structsecp256k1_1_1FrostKeyPackage.html#aed19689e4542503b0c4fab9ce4cb9162',1,'secp256k1::FrostKeyPackage']]],
+  ['nvidia_20rtx_205060_20ti_20—_20kernel_20only_15',['nvidia rtx 5060 ti — kernel only',['../index.html#autotoc_md46',1,'CUDA (NVIDIA RTX 5060 Ti) — Kernel-Only'],['../index.html#autotoc_md47',1,'OpenCL (NVIDIA RTX 5060 Ti) — Kernel-Only']]]
+];

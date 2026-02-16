@@ -1,0 +1,4 @@
+var searchData=
+[
+  ['y_0',['y',['../structsecp256k1_1_1ct_1_1CTJacobianPoint.html#aa171ae766955c2ad22d0a9c3a1473f38',1,'secp256k1::ct::CTJacobianPoint::y'],['../structsecp256k1_1_1AffinePointData.html#adb8fb420d9f2ef38222af3b0717165dd',1,'secp256k1::AffinePointData::y'],['../structsecp256k1_1_1JacobianPointData.html#aff2e8c837578b634de6176b1cb8f380a',1,'secp256k1::JacobianPointData::y']]]
+];

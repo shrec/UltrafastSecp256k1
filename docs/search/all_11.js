@@ -1,0 +1,28 @@
+var searchData=
+[
+  ['i_20b_20i_0',['4. Batch Modular Division: a[i] / b[i]',['../index.html#autotoc_md14',1,'']]],
+  ['i5_20clang_2019_201_207_20avx2_20release_1',['x86_64 / Linux (i5, Clang 19.1.7, AVX2, Release)',['../index.html#autotoc_md39',1,'']]],
+  ['id_2',['id',['../structsecp256k1_1_1FrostShare.html#a527637ae3ac7c04d8aae6f87244640b0',1,'secp256k1::FrostShare::id'],['../structsecp256k1_1_1FrostKeyPackage.html#a9e1bafc6aac63f4d77f7af42bc540e41',1,'secp256k1::FrostKeyPackage::id'],['../structsecp256k1_1_1FrostNonceCommitment.html#aed2479c9a05078ebe914f19c0aabb573',1,'secp256k1::FrostNonceCommitment::id'],['../structsecp256k1_1_1FrostPartialSig.html#a7f780aec8ed5dca6d9dbd7be069162bf',1,'secp256k1::FrostPartialSig::id']]],
+  ['idf_20v5_205_201_20o3_3',['idf v5 5 1 o3',['../index.html#autotoc_md42',1,'ESP32-PICO-D4 / Embedded (Xtensa LX6 Dual Core @ 240 MHz, ESP-IDF v5.5.1, -O3)'],['../index.html#autotoc_md41',1,'ESP32-S3 / Embedded (Xtensa LX7 @ 240 MHz, ESP-IDF v5.5.1, -O3)']]],
+  ['idx1_4',['idx1',['../structsecp256k1_1_1fast_1_1PrecomputedScalarOptimized_1_1Step.html#aa0715da4fecab1f626e337ff1ece8a5f',1,'secp256k1::fast::PrecomputedScalarOptimized::Step']]],
+  ['idx2_5',['idx2',['../structsecp256k1_1_1fast_1_1PrecomputedScalarOptimized_1_1Step.html#ac794af6e6f3949643d483e0c1d02c11e',1,'secp256k1::fast::PrecomputedScalarOptimized::Step']]],
+  ['implemented_6',['CT / HARDENED Profile (Implemented)',['../index.html#autotoc_md20',1,'']]],
+  ['in_20selftest_7',['Built-in Selftest',['../index.html#autotoc_md56',1,'']]],
+  ['infinity_8',['infinity',['../structsecp256k1_1_1ct_1_1CTJacobianPoint.html#afda5a955a13917e1ef2ecb44bbb5d376',1,'secp256k1::ct::CTJacobianPoint::infinity'],['../structsecp256k1_1_1JacobianPointData.html#a23bb2599f632ccf156846f1fdf41faa9',1,'secp256k1::JacobianPointData::infinity'],['../classsecp256k1_1_1fast_1_1Point.html#ae04bdd076cb60aef576a5fe34bb55699',1,'secp256k1::fast::Point::infinity()']]],
+  ['init_2ehpp_9',['init.hpp',['../init_8hpp.html',1,'']]],
+  ['inverse_10',['inverse',['../classsecp256k1_1_1fast_1_1FieldElement.html#ac6d7aceb9b580a7867972a7754091315',1,'secp256k1::fast::FieldElement::inverse()'],['../classsecp256k1_1_1fast_1_1Scalar.html#a88aa3f6f52d66b5e8a5c312b5fa59ac9',1,'secp256k1::fast::Scalar::inverse()']]],
+  ['inverse_20montgomery_20trick_11',['� Batch Modular Inverse (Montgomery Trick)',['../index.html#autotoc_md5',1,'']]],
+  ['inverse_20use_20cases_12',['Other Batch Inverse Use Cases',['../index.html#autotoc_md10',1,'']]],
+  ['inverse_3a_20collecting_20z_20values_20for_20cheap_20jacobian→affine_13',['Mixed Add + Batch Inverse: Collecting Z Values for Cheap Jacobian→Affine',['../index.html#autotoc_md8',1,'']]],
+  ['inverse_5finplace_14',['inverse_inplace',['../classsecp256k1_1_1fast_1_1FieldElement.html#a6c6b6e5e2469bcfd77f1423985cdd78c',1,'secp256k1::fast::FieldElement']]],
+  ['inversion_20tt_20jacobian_5fadd_5fmixed_5fh_20tt_15',['GPU Pattern: H-Product Serial Inversion (&lt;tt&gt;jacobian_add_mixed_h&lt;/tt&gt;)',['../index.html#autotoc_md9',1,'']]],
+  ['ios_20xcframework_16',['iOS (XCFramework)',['../index.html#autotoc_md26',1,'']]],
+  ['is_5feven_17',['is_even',['../classsecp256k1_1_1fast_1_1Scalar.html#a1f51a144033a654a1823ddb200db5c1a',1,'secp256k1::fast::Scalar']]],
+  ['is_5finfinity_18',['is_infinity',['../classsecp256k1_1_1fast_1_1Point.html#a85cc13e97c5ac6cd05bea3e4967ad714',1,'secp256k1::fast::Point']]],
+  ['is_5flow_5fs_19',['is_low_s',['../structsecp256k1_1_1ECDSASignature.html#a4ca47335fdf9e6533fa8f21a1eea493f',1,'secp256k1::ECDSASignature']]],
+  ['is_5fnonzero_5fmask_20',['is_nonzero_mask',['../namespacesecp256k1_1_1ct.html#a51e67ed0c010816389b43cea440a1f60',1,'secp256k1::ct']]],
+  ['is_5fprivate_21',['is_private',['../structsecp256k1_1_1ExtendedKey.html#a902c84a548f6559cc8acf3b6e30aef3e',1,'secp256k1::ExtendedKey']]],
+  ['is_5fvalid_22',['is_valid',['../structsecp256k1_1_1fast_1_1PrecomputedScalarOptimized.html#af0f0752f2e562ecafd64ddb2d622637c',1,'secp256k1::fast::PrecomputedScalarOptimized::is_valid()'],['../structsecp256k1_1_1fast_1_1PrecomputedScalar.html#a4ad46dfbf58e682be48d84e25eceaea9',1,'secp256k1::fast::PrecomputedScalar::is_valid()']]],
+  ['is_5fzero_23',['is_zero',['../classsecp256k1_1_1fast_1_1Scalar.html#a2b3d5b020282b431e602d2ad60f099ae',1,'secp256k1::fast::Scalar']]],
+  ['is_5fzero_5fmask_24',['is_zero_mask',['../namespacesecp256k1_1_1ct.html#af4781ecf28374567287c31f52e96b42e',1,'secp256k1::ct']]]
+];

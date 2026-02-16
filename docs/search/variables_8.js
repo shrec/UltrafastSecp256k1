@@ -1,0 +1,8 @@
+var searchData=
+[
+  ['id_0',['id',['../structsecp256k1_1_1FrostShare.html#a527637ae3ac7c04d8aae6f87244640b0',1,'secp256k1::FrostShare::id'],['../structsecp256k1_1_1FrostKeyPackage.html#a9e1bafc6aac63f4d77f7af42bc540e41',1,'secp256k1::FrostKeyPackage::id'],['../structsecp256k1_1_1FrostNonceCommitment.html#aed2479c9a05078ebe914f19c0aabb573',1,'secp256k1::FrostNonceCommitment::id'],['../structsecp256k1_1_1FrostPartialSig.html#a7f780aec8ed5dca6d9dbd7be069162bf',1,'secp256k1::FrostPartialSig::id']]],
+  ['idx1_1',['idx1',['../structsecp256k1_1_1fast_1_1PrecomputedScalarOptimized_1_1Step.html#aa0715da4fecab1f626e337ff1ece8a5f',1,'secp256k1::fast::PrecomputedScalarOptimized::Step']]],
+  ['idx2_2',['idx2',['../structsecp256k1_1_1fast_1_1PrecomputedScalarOptimized_1_1Step.html#ac794af6e6f3949643d483e0c1d02c11e',1,'secp256k1::fast::PrecomputedScalarOptimized::Step']]],
+  ['infinity_3',['infinity',['../structsecp256k1_1_1ct_1_1CTJacobianPoint.html#afda5a955a13917e1ef2ecb44bbb5d376',1,'secp256k1::ct::CTJacobianPoint::infinity'],['../structsecp256k1_1_1JacobianPointData.html#a23bb2599f632ccf156846f1fdf41faa9',1,'secp256k1::JacobianPointData::infinity']]],
+  ['is_5fprivate_4',['is_private',['../structsecp256k1_1_1ExtendedKey.html#a902c84a548f6559cc8acf3b6e30aef3e',1,'secp256k1::ExtendedKey']]]
+];

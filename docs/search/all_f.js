@@ -1,0 +1,16 @@
+var searchData=
+[
+  ['gcc_2013_203_201_20o3_0',['STM32F103ZET6 / Embedded (ARM Cortex-M3 @ 72 MHz, GCC 13.3.1, -O3)',['../index.html#autotoc_md43',1,'']]],
+  ['generation_1',['CUDA: Batch Address Generation',['../index.html#autotoc_md35',1,'']]],
+  ['generator_2',['generator',['../structsecp256k1_1_1CurveContext.html#aa977fa55f6c81a2633a94a5fd17e2187',1,'secp256k1::CurveContext::generator'],['../classsecp256k1_1_1fast_1_1Point.html#ab8925efdda5643d2e239b5000d5a0144',1,'secp256k1::fast::Point::generator()']]],
+  ['generator_5fmul_3',['generator_mul',['../namespacesecp256k1_1_1ct.html#ab2d86fc45186b174895078e32e58b936',1,'secp256k1::ct']]],
+  ['ghz_20ndk_20r27_20clang_2018_20o3_4',['Android ARM64 (RK3588, Cortex-A55/A76 @ 2.4 GHz, NDK r27 Clang 18, -O3)',['../index.html#autotoc_md44',1,'']]],
+  ['glv_2ehpp_5',['glv.hpp',['../glv_8hpp.html',1,'']]],
+  ['glv_5fdecompose_6',['glv_decompose',['../namespacesecp256k1_1_1fast.html#a4e566678d95ce5c9074d2b7a3a8e82ef',1,'secp256k1::fast']]],
+  ['glv_5fmin_5fwindow_5fbits_7',['glv_min_window_bits',['../structsecp256k1_1_1fast_1_1FixedBaseConfig.html#afcdca513306042ac77b324010e88ef99',1,'secp256k1::fast::FixedBaseConfig']]],
+  ['glvdecomposition_8',['GLVDecomposition',['../structsecp256k1_1_1fast_1_1GLVDecomposition.html',1,'secp256k1::fast']]],
+  ['gpu_20acceleration_9',['CUDA GPU Acceleration',['../index.html#autotoc_md34',1,'']]],
+  ['gpu_20pattern_3a_20h_20product_20serial_20inversion_20tt_20jacobian_5fadd_5fmixed_5fh_20tt_10',['GPU Pattern: H-Product Serial Inversion (&lt;tt&gt;jacobian_add_mixed_h&lt;/tt&gt;)',['../index.html#autotoc_md9',1,'']]],
+  ['groestlcoin_11',['Groestlcoin',['../namespacesecp256k1_1_1coins.html#ad4a6bedd62cdee8e37ca99ab6dd8a1b4',1,'secp256k1::coins']]],
+  ['group_5fpublic_5fkey_12',['group_public_key',['../structsecp256k1_1_1FrostKeyPackage.html#afc77ac1bfdef6a9ce44cdd9a27314783',1,'secp256k1::FrostKeyPackage']]]
+];
