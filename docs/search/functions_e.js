@@ -46,10 +46,12 @@ var searchData=
   ['pow_5fp_5fminus_5f2_5fwindow4_43',['pow_p_minus_2_window4',['../namespacesecp256k1_1_1fast.html#a549591bddbe22577193cbc4b083e8894',1,'secp256k1::fast']]],
   ['pow_5fp_5fminus_5f2_5fwindow_5fnaf_5fv2_44',['pow_p_minus_2_window_naf_v2',['../namespacesecp256k1_1_1fast.html#a5ce92108fe9c4fd597f5e032878425e1',1,'secp256k1::fast']]],
   ['pow_5fp_5fminus_5f2_5fyao_45',['pow_p_minus_2_yao',['../namespacesecp256k1_1_1fast.html#a0e0ce5c3b500e561fa323a75e951f3b5',1,'secp256k1::fast']]],
-  ['precompute_5fscalar_5ffor_5farbitrary_46',['precompute_scalar_for_arbitrary',['../namespacesecp256k1_1_1fast.html#abb5647a06f57b62181db6746aa97ff72',1,'secp256k1::fast']]],
-  ['precompute_5fscalar_5foptimized_47',['precompute_scalar_optimized',['../namespacesecp256k1_1_1fast.html#aa0957a2cda67bf896601faea18f1f997',1,'secp256k1::fast']]],
-  ['prev_48',['prev',['../classsecp256k1_1_1fast_1_1Point.html#a6bdc3c07e2719efa22bf1eb18839136b',1,'secp256k1::fast::Point']]],
-  ['prev_5finplace_49',['prev_inplace',['../classsecp256k1_1_1fast_1_1Point.html#a799ad7adc180235caaf11e47c98e2086',1,'secp256k1::fast::Point']]],
-  ['private_5fkey_50',['private_key',['../structsecp256k1_1_1ExtendedKey.html#a05c9809a4292dc2ffc6b99c940af9788',1,'secp256k1::ExtendedKey']]],
-  ['public_5fkey_51',['public_key',['../structsecp256k1_1_1ExtendedKey.html#a196e6cfe0ad5d64b3fbdb8887fe35fdd',1,'secp256k1::ExtendedKey']]]
+  ['precompute_5fg_5fmultiples_46',['precompute_g_multiples',['../namespacesecp256k1_1_1fast.html#a856c5e7b6375a837269dcd5b5983529d',1,'secp256k1::fast']]],
+  ['precompute_5fpoint_5fmultiples_47',['precompute_point_multiples',['../namespacesecp256k1_1_1fast.html#a21586840de0faa324a1348e631e4f6d8',1,'secp256k1::fast']]],
+  ['precompute_5fscalar_5ffor_5farbitrary_48',['precompute_scalar_for_arbitrary',['../namespacesecp256k1_1_1fast.html#abb5647a06f57b62181db6746aa97ff72',1,'secp256k1::fast']]],
+  ['precompute_5fscalar_5foptimized_49',['precompute_scalar_optimized',['../namespacesecp256k1_1_1fast.html#aa0957a2cda67bf896601faea18f1f997',1,'secp256k1::fast']]],
+  ['prev_50',['prev',['../classsecp256k1_1_1fast_1_1Point.html#a6bdc3c07e2719efa22bf1eb18839136b',1,'secp256k1::fast::Point']]],
+  ['prev_5finplace_51',['prev_inplace',['../classsecp256k1_1_1fast_1_1Point.html#a799ad7adc180235caaf11e47c98e2086',1,'secp256k1::fast::Point']]],
+  ['private_5fkey_52',['private_key',['../structsecp256k1_1_1ExtendedKey.html#a05c9809a4292dc2ffc6b99c940af9788',1,'secp256k1::ExtendedKey']]],
+  ['public_5fkey_53',['public_key',['../structsecp256k1_1_1ExtendedKey.html#a196e6cfe0ad5d64b3fbdb8887fe35fdd',1,'secp256k1::ExtendedKey']]]
 ];

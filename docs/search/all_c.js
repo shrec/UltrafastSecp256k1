@@ -16,12 +16,13 @@ var searchData=
   ['derive_5fnormal_13',['derive_normal',['../structsecp256k1_1_1ExtendedKey.html#ace6567c69c897ffacdbac9752b364ce9',1,'secp256k1::ExtendedKey']]],
   ['derive_5fpublic_5fkey_14',['derive_public_key',['../namespacesecp256k1.html#a5c0f3b14972eec08501b08b595d25dd0',1,'secp256k1']]],
   ['deserialize_15',['deserialize',['../structsecp256k1_1_1MuSig2PubNonce.html#a46aab0cf4cb3d6a55eb5b77a6808ef02',1,'secp256k1::MuSig2PubNonce']]],
-  ['detect_5fsimd_5ftier_16',['detect_simd_tier',['../namespacesecp256k1_1_1simd.html#a60293c3683aa104f3f3b4dd29ee2f3d4',1,'secp256k1::simd']]],
-  ['development_20setup_17',['Development Setup',['../index.html#autotoc_md65',1,'']]],
-  ['digest_5ftype_18',['digest_type',['../classsecp256k1_1_1SHA512.html#aeff28df05751f2335296f033eb70af8f',1,'secp256k1::SHA512::digest_type'],['../classsecp256k1_1_1SHA256.html#afe548d04a90858ec7601e304fdaadbb5',1,'secp256k1::SHA256::digest_type']]],
-  ['digibyte_19',['DigiByte',['../namespacesecp256k1_1_1coins.html#af8584b5a9a5909c5fe48b5d0e747a4e9',1,'secp256k1::coins']]],
-  ['division_3a_20a_20i_20b_20i_20',['4. Batch Modular Division: a[i] / b[i]',['../index.html#autotoc_md14',1,'']]],
-  ['documentation_21',['📚 Documentation',['../index.html#autotoc_md55',1,'']]],
-  ['dogecoin_22',['Dogecoin',['../namespacesecp256k1_1_1coins.html#a53cc055722f1672418ff9a50820e4139',1,'secp256k1::coins']]],
-  ['dual_20core_20240_20mhz_20esp_20idf_20v5_205_201_20o3_23',['ESP32-PICO-D4 / Embedded (Xtensa LX6 Dual Core @ 240 MHz, ESP-IDF v5.5.1, -O3)',['../index.html#autotoc_md42',1,'']]]
+  ['detect_5fhash_5ftier_16',['detect_hash_tier',['../namespacesecp256k1_1_1hash.html#ac1691b10cf03655683e2710c0e46bf31',1,'secp256k1::hash']]],
+  ['detect_5fsimd_5ftier_17',['detect_simd_tier',['../namespacesecp256k1_1_1simd.html#a60293c3683aa104f3f3b4dd29ee2f3d4',1,'secp256k1::simd']]],
+  ['development_20setup_18',['Development Setup',['../index.html#autotoc_md65',1,'']]],
+  ['digest_5ftype_19',['digest_type',['../classsecp256k1_1_1SHA512.html#aeff28df05751f2335296f033eb70af8f',1,'secp256k1::SHA512::digest_type'],['../classsecp256k1_1_1SHA256.html#afe548d04a90858ec7601e304fdaadbb5',1,'secp256k1::SHA256::digest_type']]],
+  ['digibyte_20',['DigiByte',['../namespacesecp256k1_1_1coins.html#af8584b5a9a5909c5fe48b5d0e747a4e9',1,'secp256k1::coins']]],
+  ['division_3a_20a_20i_20b_20i_21',['4. Batch Modular Division: a[i] / b[i]',['../index.html#autotoc_md14',1,'']]],
+  ['documentation_22',['📚 Documentation',['../index.html#autotoc_md55',1,'']]],
+  ['dogecoin_23',['Dogecoin',['../namespacesecp256k1_1_1coins.html#a53cc055722f1672418ff9a50820e4139',1,'secp256k1::coins']]],
+  ['dual_20core_20240_20mhz_20esp_20idf_20v5_205_201_20o3_24',['ESP32-PICO-D4 / Embedded (Xtensa LX6 Dual Core @ 240 MHz, ESP-IDF v5.5.1, -O3)',['../index.html#autotoc_md42',1,'']]]
 ];

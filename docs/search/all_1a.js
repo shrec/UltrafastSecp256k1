@@ -1,8 +1,8 @@
 var searchData=
 [
-  ['r_0',['r',['../structsecp256k1_1_1MuSig2Session.html#ab2280405f267eb375a9599cb2a0bd190',1,'secp256k1::MuSig2Session::R'],['../structsecp256k1_1_1ECDSAAdaptorSig.html#a9513a5eb20260a6cffedb8edd84e2887',1,'secp256k1::ECDSAAdaptorSig::r'],['../structsecp256k1_1_1ECDSASignature.html#a6daa57e289be9b8066565cedaddb1d01',1,'secp256k1::ECDSASignature::r'],['../structsecp256k1_1_1SchnorrSignature.html#a0722820db8b0278eee0bde4a2e372339',1,'secp256k1::SchnorrSignature::r']]],
+  ['r_0',['r',['../structsecp256k1_1_1ECDSAAdaptorSig.html#a9513a5eb20260a6cffedb8edd84e2887',1,'secp256k1::ECDSAAdaptorSig::r'],['../structsecp256k1_1_1ECDSASignature.html#a6daa57e289be9b8066565cedaddb1d01',1,'secp256k1::ECDSASignature::r'],['../structsecp256k1_1_1SchnorrSignature.html#a0722820db8b0278eee0bde4a2e372339',1,'secp256k1::SchnorrSignature::r'],['../structsecp256k1_1_1MuSig2Session.html#ab2280405f267eb375a9599cb2a0bd190',1,'secp256k1::MuSig2Session::R']]],
   ['r1_1',['r1',['../structsecp256k1_1_1MuSig2PubNonce.html#a277a14dbcdb33d43a13f87cfbdfbbf97',1,'secp256k1::MuSig2PubNonce::R1'],['../structsecp256k1_1_1MuSig2AggNonce.html#a3eff932b197290a6d54ce068fb0aeae3',1,'secp256k1::MuSig2AggNonce::R1']]],
-  ['r2_2',['r2',['../structsecp256k1_1_1MuSig2PubNonce.html#a016fc90ae3043926589a43ffa00c6ea5',1,'secp256k1::MuSig2PubNonce::R2'],['../structsecp256k1_1_1MuSig2AggNonce.html#aa3df9b09984c6187eabf730e425f5799',1,'secp256k1::MuSig2AggNonce::R2']]],
+  ['r2_2',['r2',['../structsecp256k1_1_1MuSig2AggNonce.html#aa3df9b09984c6187eabf730e425f5799',1,'secp256k1::MuSig2AggNonce::R2'],['../structsecp256k1_1_1MuSig2PubNonce.html#a016fc90ae3043926589a43ffa00c6ea5',1,'secp256k1::MuSig2PubNonce::R2']]],
   ['r27_20clang_2018_20o3_3',['Android ARM64 (RK3588, Cortex-A55/A76 @ 2.4 GHz, NDK r27 Clang 18, -O3)',['../index.html#autotoc_md44',1,'']]],
   ['r_5fhat_4',['r_hat',['../structsecp256k1_1_1SchnorrAdaptorSig.html#ac54d552c57d85dd5df00fce45af77fce',1,'secp256k1::SchnorrAdaptorSig::R_hat'],['../structsecp256k1_1_1ECDSAAdaptorSig.html#a49f088841d3b05f7a10990c3d6bcf347',1,'secp256k1::ECDSAAdaptorSig::R_hat']]],
   ['r_5fnegated_5',['R_negated',['../structsecp256k1_1_1MuSig2Session.html#a86660687a67d26f9939ca7e3ac0b6e2c',1,'secp256k1::MuSig2Session']]],
@@ -20,10 +20,14 @@ var searchData=
   ['reset_17',['reset',['../classsecp256k1_1_1SHA512.html#add0507d1f7c3bd47ccb2eeae2a23513b',1,'secp256k1::SHA512::reset()'],['../classsecp256k1_1_1SHA256.html#a33bcfb1a14a778a43a6b2cd4bbd085f8',1,'secp256k1::SHA256::reset()']]],
   ['reuse_18',['5. Scratch Buffer Reuse',['../index.html#autotoc_md15',1,'']]],
   ['rfc6979_5fnonce_19',['rfc6979_nonce',['../namespacesecp256k1.html#a944c4d81e26ad0af5325655767a77e37',1,'secp256k1']]],
-  ['risc_20v_2064_20bit_20linux_20milk_20v_20mars_20rvv_20clang_2021_201_208_20release_20',['RISC-V 64-bit / Linux (Milk-V Mars, RVV, Clang 21.1.8, Release)',['../index.html#autotoc_md40',1,'']]],
-  ['rk3588_20cortex_20a55_20a76_202_204_20ghz_20ndk_20r27_20clang_2018_20o3_21',['Android ARM64 (RK3588, Cortex-A55/A76 @ 2.4 GHz, NDK r27 Clang 18, -O3)',['../index.html#autotoc_md44',1,'']]],
-  ['rtx_205060_20ti_22',['CUDA vs OpenCL — Kernel-Only Comparison (RTX 5060 Ti)',['../index.html#autotoc_md48',1,'']]],
-  ['rtx_205060_20ti_20—_20kernel_20only_23',['rtx 5060 ti — kernel only',['../index.html#autotoc_md46',1,'CUDA (NVIDIA RTX 5060 Ti) — Kernel-Only'],['../index.html#autotoc_md47',1,'OpenCL (NVIDIA RTX 5060 Ti) — Kernel-Only']]],
-  ['running_20tests_24',['Running Tests',['../index.html#autotoc_md61',1,'']]],
-  ['rvv_20clang_2021_201_208_20release_25',['RISC-V 64-bit / Linux (Milk-V Mars, RVV, Clang 21.1.8, Release)',['../index.html#autotoc_md40',1,'']]]
+  ['ripemd160_20',['ripemd160',['../namespacesecp256k1_1_1hash.html#a45ddaa3ca6297a3934dd19c92f45e866',1,'secp256k1::hash']]],
+  ['ripemd160_5f32_21',['ripemd160_32',['../namespacesecp256k1_1_1hash_1_1scalar.html#a32b9ee0ad802a167605efa0e10d3a1d3',1,'secp256k1::hash::scalar::ripemd160_32()'],['../namespacesecp256k1_1_1hash.html#a0214e4c44ab40858a379c7e412c5ea78',1,'secp256k1::hash::ripemd160_32(const std::uint8_t *in32, std::uint8_t *out20) noexcept']]],
+  ['ripemd160_5f32_5fbatch_22',['ripemd160_32_batch',['../namespacesecp256k1_1_1hash.html#ad86bbb4d3840a70a54e7c91063d73a20',1,'secp256k1::hash']]],
+  ['ripemd160_5fcompress_23',['ripemd160_compress',['../namespacesecp256k1_1_1hash_1_1scalar.html#a9dcba478bf700bf13315c69f947126f2',1,'secp256k1::hash::scalar']]],
+  ['risc_20v_2064_20bit_20linux_20milk_20v_20mars_20rvv_20clang_2021_201_208_20release_24',['RISC-V 64-bit / Linux (Milk-V Mars, RVV, Clang 21.1.8, Release)',['../index.html#autotoc_md40',1,'']]],
+  ['rk3588_20cortex_20a55_20a76_202_204_20ghz_20ndk_20r27_20clang_2018_20o3_25',['Android ARM64 (RK3588, Cortex-A55/A76 @ 2.4 GHz, NDK r27 Clang 18, -O3)',['../index.html#autotoc_md44',1,'']]],
+  ['rtx_205060_20ti_26',['CUDA vs OpenCL — Kernel-Only Comparison (RTX 5060 Ti)',['../index.html#autotoc_md48',1,'']]],
+  ['rtx_205060_20ti_20—_20kernel_20only_27',['rtx 5060 ti — kernel only',['../index.html#autotoc_md46',1,'CUDA (NVIDIA RTX 5060 Ti) — Kernel-Only'],['../index.html#autotoc_md47',1,'OpenCL (NVIDIA RTX 5060 Ti) — Kernel-Only']]],
+  ['running_20tests_28',['Running Tests',['../index.html#autotoc_md61',1,'']]],
+  ['rvv_20clang_2021_201_208_20release_29',['RISC-V 64-bit / Linux (Milk-V Mars, RVV, Clang 21.1.8, Release)',['../index.html#autotoc_md40',1,'']]]
 ];

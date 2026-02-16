@@ -11,6 +11,7 @@ var annotated_dup =
         [ "CTJacobianPoint", "structsecp256k1_1_1ct_1_1CTJacobianPoint.html", "structsecp256k1_1_1ct_1_1CTJacobianPoint" ]
       ] ],
       [ "fast", "namespacesecp256k1_1_1fast.html", [
+        [ "AffinePointCompact", "structsecp256k1_1_1fast_1_1AffinePointCompact.html", "structsecp256k1_1_1fast_1_1AffinePointCompact" ],
         [ "FieldElement", "classsecp256k1_1_1fast_1_1FieldElement.html", "classsecp256k1_1_1fast_1_1FieldElement" ],
         [ "FixedBaseConfig", "structsecp256k1_1_1fast_1_1FixedBaseConfig.html", "structsecp256k1_1_1fast_1_1FixedBaseConfig" ],
         [ "GLVDecomposition", "structsecp256k1_1_1fast_1_1GLVDecomposition.html", "structsecp256k1_1_1fast_1_1GLVDecomposition" ],

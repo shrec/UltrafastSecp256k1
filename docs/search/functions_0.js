@@ -13,6 +13,6 @@ var searchData=
   ['apply_5fendomorphism_10',['apply_endomorphism',['../namespacesecp256k1_1_1fast.html#ab4a40a44d316fd9c0a4ec6635bb16a0e',1,'secp256k1::fast']]],
   ['auto_5ftune_5fand_5fwrite_5fconfig_11',['auto_tune_and_write_config',['../namespacesecp256k1_1_1fast.html#a8bf4841897ffc813adc3a3f20352d655',1,'secp256k1::fast']]],
   ['auto_5ftune_5ffixed_5fbase_12',['auto_tune_fixed_base',['../namespacesecp256k1_1_1fast.html#acc62b62046e16ab0b660ec03615a9dc7',1,'secp256k1::fast']]],
-  ['avx2_5favailable_13',['avx2_available',['../namespacesecp256k1_1_1simd.html#a6d90a4c3494e6cdcac9ea7058a727d6c',1,'secp256k1::simd']]],
-  ['avx512_5favailable_14',['avx512_available',['../namespacesecp256k1_1_1simd.html#a947e80d2d353e2d5c117d8bf53df1fca',1,'secp256k1::simd']]]
+  ['avx2_5favailable_13',['avx2_available',['../namespacesecp256k1_1_1simd.html#a6d90a4c3494e6cdcac9ea7058a727d6c',1,'secp256k1::simd::avx2_available()'],['../namespacesecp256k1_1_1hash.html#acaa50972a7c883534f52aed6830e4a73',1,'secp256k1::hash::avx2_available()']]],
+  ['avx512_5favailable_14',['avx512_available',['../namespacesecp256k1_1_1simd.html#a947e80d2d353e2d5c117d8bf53df1fca',1,'secp256k1::simd::avx512_available()'],['../namespacesecp256k1_1_1hash.html#aee36f0cd5d0b9126b5b59674152903d4',1,'secp256k1::hash::avx512_available()']]]
 ];

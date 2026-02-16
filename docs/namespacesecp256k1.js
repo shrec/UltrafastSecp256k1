@@ -3,6 +3,7 @@ var namespacesecp256k1 =
     [ "coins", "namespacesecp256k1_1_1coins.html", "namespacesecp256k1_1_1coins" ],
     [ "ct", "namespacesecp256k1_1_1ct.html", "namespacesecp256k1_1_1ct" ],
     [ "fast", "namespacesecp256k1_1_1fast.html", "namespacesecp256k1_1_1fast" ],
+    [ "hash", "namespacesecp256k1_1_1hash.html", "namespacesecp256k1_1_1hash" ],
     [ "simd", "namespacesecp256k1_1_1simd.html", "namespacesecp256k1_1_1simd" ],
     [ "AffinePointData", "structsecp256k1_1_1AffinePointData.html", "structsecp256k1_1_1AffinePointData" ],
     [ "Bech32DecodeResult", "structsecp256k1_1_1Bech32DecodeResult.html", "structsecp256k1_1_1Bech32DecodeResult" ],

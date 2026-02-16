@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['keccak256_2ehpp_0',['keccak256.hpp',['../keccak256_8hpp.html',1,'']]]
+  ['init_2ehpp_0',['init.hpp',['../init_8hpp.html',1,'']]]
 ];

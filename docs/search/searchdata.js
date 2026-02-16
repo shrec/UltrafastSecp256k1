@@ -3,11 +3,11 @@ var indexSectionsWithContent =
   0: "012345678abcdefghijklmnopqrstuvwxyz—→☕⚠⚡�🎯🏗📄📊📚📧🔐🔬🙏🚀🚫🛠🤝🧪",
   1: "abcefgjkmprsw",
   2: "s",
-  3: "abcefgikmoprstu",
+  3: "abcefghikmoprstu",
   4: "abcdefghiklmnoprstuvwxyz",
   5: "abcdefghiklmnopqrstuvwxyz",
   6: "dflps",
-  7: "abdns",
+  7: "abdhns",
   8: "abcehkmst",
   9: "bs",
   10: "u"
