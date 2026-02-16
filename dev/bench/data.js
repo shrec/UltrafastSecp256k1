@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771255194049,
+  "lastUpdate": 1771261013109,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -1113,6 +1113,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Point Double",
             "value": 467,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "shrec@users.noreply.github.com",
+            "name": "shrec",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "shrec@users.noreply.github.com",
+            "name": "shrec",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "a4e6cd462e41986c19eb073b3550839b2ff97c29",
+          "message": "Merge remote-tracking branch 'origin/dev' into dev",
+          "timestamp": "2026-02-16T16:55:37Z",
+          "tree_id": "c601ae06f81920a58af0208e68a934502df81cd7",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/a4e6cd462e41986c19eb073b3550839b2ff97c29"
+        },
+        "date": 1771261012735,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Field Mul",
+            "value": 58,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 55,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 21,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Sub",
+            "value": 16,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Add",
+            "value": 981,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 577,
             "unit": "ns"
           }
         ]
