@@ -4,7 +4,8 @@
 
 | Version | Supported |
 |---------|-----------|
-| 3.0.x   | ✅ Active  |
+| 3.2.x   | ✅ Active  |
+| 3.0.x–3.1.x | ⚠️ Critical fixes only |
 | 2.x.x   | ⚠️ Critical fixes only |
 | < 2.0   | ❌ Unsupported |
 
@@ -14,24 +15,61 @@ Security fixes apply to the latest release on the `main` branch.
 
 ## Reporting a Vulnerability
 
-If you discover a potential security issue related to:
+**Do NOT open a public issue for suspected vulnerabilities.**
+
+Report privately via one of:
+
+1. **GitHub Security Advisories** (preferred):
+   [Create advisory](https://github.com/shrec/UltrafastSecp256k1/security/advisories/new)
+2. **Email**: [payysoon@gmail.com](mailto:payysoon@gmail.com)
+
+We will acknowledge within **72 hours** and provide a fix timeline.
+
+### What to Report
 
 - Incorrect field or scalar arithmetic
 - Point operation errors (addition, doubling, scalar multiplication)
-- ECDSA signature forgery or invalid verification
-- Schnorr signature forgery or invalid verification
-- SHA-256 hash collisions or incorrect output
+- ECDSA / Schnorr signature forgery or invalid verification
+- MuSig2, FROST, Adaptor Signature, or Pedersen Commitment correctness failures
+- SHA-256 / tagged-hash collisions or incorrect output
 - Determinism violations (RFC 6979 nonce generation)
-- Constant-time violations (timing side channels)
+- Constant-time violations (timing side channels in `ct::` namespace)
 - Memory safety issues (buffer overflows, use-after-free)
-- GPU kernel correctness issues (CUDA, ROCm, OpenCL)
+- GPU kernel correctness issues (CUDA, ROCm, OpenCL, Metal)
+- BIP-32 / BIP-44 HD derivation errors
+- Coin-specific address generation errors (27-coin dispatch)
 - Undefined behavior affecting cryptographic correctness
 
-**Do NOT open a public issue for suspected vulnerabilities.**
+---
 
-Instead, use [GitHub Security Advisories](https://github.com/shrec/UltrafastSecp256k1/security/advisories/new) to report privately, or contact the maintainer directly via GitHub.
+## Audit Status
 
-We will investigate and respond within **72 hours**.
+This library has **not undergone an independent security audit**.
+It is provided for research, educational, and experimental purposes.
+
+For production cryptographic systems, prefer audited libraries such as
+[libsecp256k1](https://github.com/bitcoin-core/secp256k1).
+
+See [THREAT_MODEL.md](THREAT_MODEL.md) for a layer-by-layer risk assessment.
+
+---
+
+## Production Readiness
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| Field / Scalar arithmetic | Stable | Extensive KAT + fuzz coverage |
+| Point operations (add, dbl, mul) | Stable | Deterministic selftest (smoke/ci/stress) |
+| ECDSA (RFC 6979) | Stable | Deterministic nonces, input validation |
+| Schnorr (BIP-340) | Stable | Tagged hashing, input validation |
+| Constant-time layer (`ct::`) | Stable | No secret-dependent branches; ~5–7× penalty |
+| Batch inverse / multi-scalar | Stable | Sweep-tested up to 8192 elements |
+| GPU backends (CUDA, ROCm, OpenCL, Metal) | Beta | Functional, not constant-time |
+| MuSig2 / FROST / Adaptor | Experimental | API may change |
+| Pedersen Commitments | Experimental | API may change |
+| Taproot (BIP-341) | Experimental | API may change |
+| HD Derivation (BIP-32/44) | Experimental | API may change |
+| 27-Coin Address Dispatch | Experimental | API may change |
 
 ---
 
@@ -39,7 +77,7 @@ We will investigate and respond within **72 hours**.
 
 ### Constant-Time Operations
 
-v3.0.0 includes a constant-time layer (`ct::` namespace) providing:
+The constant-time layer (`ct::` namespace) provides:
 
 - `ct::field_mul`, `ct::field_inv` — timing-safe field arithmetic
 - `ct::scalar_mul` — timing-safe scalar multiplication
@@ -47,7 +85,7 @@ v3.0.0 includes a constant-time layer (`ct::` namespace) providing:
 
 The CT layer uses no secret-dependent branches or memory access patterns. It carries a ~5–7× performance penalty relative to the optimized (variable-time) path.
 
-**Note**: The default (non-CT) operations prioritize performance and are NOT constant-time. Use the `ct::` variants when processing secret keys or nonces.
+**Important**: The default (non-CT) operations prioritize performance and are NOT constant-time. Use the `ct::` variants when processing secret keys or nonces.
 
 ### ECDSA & Schnorr
 
@@ -63,19 +101,53 @@ The CT layer uses no secret-dependent branches or memory access patterns. It car
 
 ---
 
+## Fuzz Testing
+
+libFuzzer harnesses cover the core arithmetic layers:
+
+| Target | File | Operations |
+|--------|------|------------|
+| Field  | `cpu/fuzz/fuzz_field.cpp` | add/sub round-trip, mul identity, square, inverse |
+| Scalar | `cpu/fuzz/fuzz_scalar.cpp` | add/sub, mul identity, distributive law |
+| Point  | `cpu/fuzz/fuzz_point.cpp` | on-curve check, negate, compress round-trip, dbl vs add |
+
+```bash
+# Example: run field fuzzer
+clang++ -fsanitize=fuzzer,address -O2 -std=c++20 \
+  -I cpu/include cpu/fuzz/fuzz_field.cpp cpu/src/field.cpp cpu/src/field_asm.cpp \
+  -o fuzz_field
+./fuzz_field -max_len=64 -runs=10000000
+```
+
+---
+
 ## Scope
 
 UltrafastSecp256k1 provides:
 
 - Finite field arithmetic (𝔽ₚ for secp256k1 prime)
 - Scalar arithmetic (mod n, curve order)
-- Elliptic curve point operations (add, double, scalar multiply)
+- Elliptic curve point operations (add, double, scalar multiply, multi-scalar)
+- Batch inverse (Montgomery trick)
 - ECDSA signatures (RFC 6979)
 - Schnorr signatures (BIP-340)
-- SHA-256 hashing
-- GPU-accelerated batch operations (CUDA, ROCm, OpenCL)
+- MuSig2 / FROST / Adaptor Signatures / Pedersen Commitments
+- Taproot (BIP-341/342)
+- HD key derivation (BIP-32/44)
+- 27-coin address generation dispatch
+- SHA-256 / tagged hashing
+- GPU-accelerated batch operations (CUDA, ROCm, OpenCL, Metal)
+- Constant-time layer (`ct::` namespace)
 
-**Out of scope**: Key management, wallet functionality, network protocols, and application-layer cryptographic protocols. Security responsibility for higher-level integrations remains with the integrating application.
+**Out of scope**: Key storage, wallet software, network protocols, consensus rules, and application-layer cryptographic protocols. Security responsibility for higher-level integrations remains with the integrating application.
+
+---
+
+## API Stability
+
+The public API is **not yet stable**. Breaking changes may occur in any minor release before v4.0.
+
+Layers marked "Stable" in the Production Readiness table above have mature interfaces that are unlikely to change, but no formal compatibility guarantee exists until v4.0.
 
 ---
 
@@ -85,4 +157,4 @@ We appreciate responsible disclosure. Contributors who report valid security iss
 
 ---
 
-*UltrafastSecp256k1 v3.0.0 — Security Policy*
+*UltrafastSecp256k1 v3.2.0 — Security Policy*

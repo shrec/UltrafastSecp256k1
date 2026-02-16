@@ -432,34 +432,28 @@ N=1024: 1×3.5μs + 3069×5ns ≈ 18.8μs (vs 1024×3.5μs = 3584μs → 190× f
 
 ## 🔐 Security Model
 
-UltrafastSecp256k1 is primarily a performance-focused secp256k1 engine designed for high-throughput elliptic curve operations across multiple platforms.
+UltrafastSecp256k1 is a performance-focused secp256k1 engine with two security profiles.
+See [THREAT_MODEL.md](THREAT_MODEL.md) for a full layer-by-layer risk assessment.
 
-By default, this library prioritizes speed and research flexibility.
-
-⚠️ **Constant-time behavior is NOT guaranteed unless explicitly built in hardened mode.**
-
-Two security profiles are planned and partially implemented:
+⚠️ **Constant-time behavior is NOT guaranteed unless you use the `ct::` namespace.**
 
 ### FAST Profile (Default)
 
-* Optimized for maximum performance
-* May use variable-time algorithms
+* Optimized for maximum throughput
+* Variable-time algorithms (timing side-channels possible)
 * Intended for:
-  * Public-key operations
-  * Verification workloads
+  * Public-key operations and verification
+  * Batch processing and GPU workloads
   * Research and benchmarking
-  * Closed systems where side-channel exposure is not a concern
 
-### CT / HARDENED Profile (Planned / Ongoing)
+### CT / HARDENED Profile (Implemented)
 
-* Intended for secret scalar operations (private key handling, signing)
-* Will enforce:
-  * Constant-time arithmetic paths
-  * Side-channel resistant table access
-  * Optional Montgomery ladder implementations
-  * Restricted compiler flags (no `-Ofast`, no unsafe math optimizations)
+* Constant-time arithmetic — no secret-dependent branches or memory access
+* ~5–7× performance penalty vs FAST
+* Provides: `ct::field_mul`, `ct::field_inv`, `ct::scalar_mul`, `ct::point_add_complete`, `ct::point_dbl`
+* Use for: private key handling, signing, nonce operations
 
-Choose the appropriate profile for your use case.
+**Choose the appropriate profile for your use case.** Using FAST with secret data is a security vulnerability.
 
 ## 🛠️ Building
 
@@ -995,8 +989,16 @@ Internal 32-bit arithmetic variants (historical optimization stages):
 
 ## 🚫 Scope
 
-This is an ECC arithmetic library. It provides field/scalar/point operations.
-It does not include key cracking, wallet recovery, or attack tools.
+This is an ECC arithmetic library. It provides field/scalar/point operations, signature schemes (ECDSA, Schnorr, MuSig2, FROST, Adaptor), Pedersen commitments, Taproot, HD derivation (BIP-32/44), and 27-coin address generation.
+It does not include key storage, wallet software, network protocols, or attack tools.
+
+## ⚠️ API Stability
+
+The public API is **not yet stable**. Breaking changes may occur in any minor release before **v4.0**.
+
+Core layers (field, scalar, point, ECDSA, Schnorr) have mature interfaces unlikely to change. Experimental layers (MuSig2, FROST, Adaptor, Pedersen, Taproot, HD, Coins) may see breaking changes in any release.
+
+Pin your dependency version and review changelogs before upgrading.
 
 ## 📚 Documentation
 
@@ -1004,6 +1006,7 @@ It does not include key cracking, wallet recovery, or attack tools.
 - [API Reference](docs/API_REFERENCE.md)
 - [Build Guide](docs/BUILDING.md)
 - [Benchmarks](docs/BENCHMARKS.md)
+- [Threat Model](THREAT_MODEL.md)
 - [Contributing](CONTRIBUTING.md)
 - [Security Policy](SECURITY.md)
 - [Changelog](CHANGELOG.md)
@@ -1089,6 +1092,22 @@ ctest --test-dir build --output-on-failure
 | ROCm/HIP | CPU + GPU | ROCm 6.3 | ✅ CI | - | Compile + CPU test |
 
 > Community-tested platforms: if you run selftest on a new platform, submit the log via PR and we'll add a row.
+
+### Fuzz Testing
+
+libFuzzer harnesses cover core arithmetic (`cpu/fuzz/`):
+
+| Target | What it tests |
+|--------|---------------|
+| `fuzz_field` | add/sub round-trip, mul identity, square equivalence, inverse |
+| `fuzz_scalar` | add/sub, mul identity, distributive law |
+| `fuzz_point` | on-curve check, negate, compress round-trip, dbl vs add |
+
+```bash
+clang++ -fsanitize=fuzzer,address -O2 -std=c++20 \
+  -I cpu/include cpu/fuzz/fuzz_field.cpp cpu/src/field.cpp cpu/src/field_asm.cpp \
+  -o fuzz_field && ./fuzz_field -max_len=64 -runs=10000000
+```
 
 ## 🤝 Contributing
 
