@@ -4,6 +4,8 @@
  * Comprehensive benchmark of all CUDA operations:
  * - Field arithmetic (mul, square, add, sub, inverse)
  * - Point operations (add, double)
+ * - Affine point addition (2M+1S vs Jacobian 11M+5S)
+ * - Batch inversion (Montgomery's trick)
  * - Scalar multiplication (batch)
  * - Generator multiplication (batch)
  *
@@ -15,6 +17,7 @@
  */
 
 #include "secp256k1.cuh"
+#include "affine_add.cuh"
 #include <cuda_runtime.h>
 #include <chrono>
 #include <iostream>
@@ -114,6 +117,108 @@ void generate_random_points(JacobianPoint* h_data, int count) {
         h_data[i].x.limbs[3] &= 0x7FFFFFFFFFFFFFFFULL;
         h_data[i].y.limbs[3] &= 0x7FFFFFFFFFFFFFFFULL;
         h_data[i].infinity = false;
+    }
+}
+
+void generate_random_affine_points(FieldElement* h_x, FieldElement* h_y, int count) {
+    std::mt19937_64 rng(789);
+    for (int i = 0; i < count; ++i) {
+        for (int j = 0; j < 4; ++j) {
+            h_x[i].limbs[j] = rng();
+            h_y[i].limbs[j] = rng();
+        }
+        h_x[i].limbs[3] &= 0x7FFFFFFFFFFFFFFFULL;
+        h_y[i].limbs[3] &= 0x7FFFFFFFFFFFFFFFULL;
+    }
+}
+
+// ============================================================================
+// Affine benchmark wrapper kernels (__device__ → __global__)
+// ============================================================================
+
+// Full affine add (includes per-element inversion — 2M + 1S + inv)
+__global__ void bench_affine_add_kernel(
+    const FieldElement* __restrict__ px, const FieldElement* __restrict__ py,
+    const FieldElement* __restrict__ qx, const FieldElement* __restrict__ qy,
+    FieldElement* __restrict__ rx, FieldElement* __restrict__ ry,
+    int count
+) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < count) {
+        secp256k1::cuda::affine_add(&px[idx], &py[idx], &qx[idx], &qy[idx],
+                                    &rx[idx], &ry[idx]);
+    }
+}
+
+// Affine add with pre-inverted H — full X,Y output (2M + 1S)
+__global__ void bench_affine_add_lambda_kernel(
+    const FieldElement* __restrict__ px, const FieldElement* __restrict__ py,
+    const FieldElement* __restrict__ qx, const FieldElement* __restrict__ qy,
+    const FieldElement* __restrict__ h_inv,
+    FieldElement* __restrict__ rx, FieldElement* __restrict__ ry,
+    int count
+) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < count) {
+        secp256k1::cuda::affine_add_lambda(&px[idx], &py[idx], &qx[idx], &qy[idx],
+                                           &h_inv[idx], &rx[idx], &ry[idx]);
+    }
+}
+
+// Affine add X-only with pre-inverted H (1M + 1S)
+__global__ void bench_affine_add_xonly_kernel(
+    const FieldElement* __restrict__ px, const FieldElement* __restrict__ py,
+    const FieldElement* __restrict__ qx, const FieldElement* __restrict__ qy,
+    const FieldElement* __restrict__ h_inv,
+    FieldElement* __restrict__ rx,
+    int count
+) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < count) {
+        secp256k1::cuda::affine_add_x_only(&px[idx], &py[idx], &qx[idx], &qy[idx],
+                                           &h_inv[idx], &rx[idx]);
+    }
+}
+
+// Compute H = Q.x - P.x (for pre-inversion step timing)
+__global__ void bench_affine_compute_h_kernel(
+    const FieldElement* __restrict__ px,
+    const FieldElement* __restrict__ qx,
+    FieldElement* __restrict__ h,
+    int count
+) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < count) {
+        secp256k1::cuda::affine_compute_h(&px[idx], &qx[idx], &h[idx]);
+    }
+}
+
+// Batch inversion kernel — one thread processes a serial batch of CHAIN_LEN elements
+static constexpr int BATCH_INV_CHAIN_LEN = 64;
+
+__global__ void bench_batch_inv_kernel(
+    FieldElement* __restrict__ h,
+    FieldElement* __restrict__ prefix,
+    int total_count
+) {
+    int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    int offset = tid * BATCH_INV_CHAIN_LEN;
+    if (offset + BATCH_INV_CHAIN_LEN <= total_count) {
+        secp256k1::cuda::affine_batch_inv_serial(
+            &h[offset], &prefix[offset], BATCH_INV_CHAIN_LEN);
+    }
+}
+
+// Jacobian → Affine conversion kernel
+__global__ void bench_jac_to_affine_kernel(
+    FieldElement* __restrict__ x,
+    FieldElement* __restrict__ y,
+    const FieldElement* __restrict__ z,
+    int count
+) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < count) {
+        secp256k1::cuda::jacobian_to_affine(&x[idx], &y[idx], &z[idx]);
     }
 }
 
@@ -425,6 +530,272 @@ BenchResult bench_generator_mul(const BenchConfig& cfg) {
 }
 
 // ============================================================================
+// Affine point addition benchmarks
+// ============================================================================
+
+BenchResult bench_affine_add(const BenchConfig& cfg) {
+    int batch = std::min(cfg.batch_size, 1 << 18);  // Max 256K
+
+    FieldElement *d_px, *d_py, *d_qx, *d_qy, *d_rx, *d_ry;
+    std::vector<FieldElement> h_px(batch), h_py(batch), h_qx(batch), h_qy(batch);
+
+    generate_random_affine_points(h_px.data(), h_py.data(), batch);
+    generate_random_affine_points(h_qx.data(), h_qy.data(), batch);
+
+    size_t size = batch * sizeof(FieldElement);
+    CUDA_CHECK(cudaMalloc(&d_px, size));
+    CUDA_CHECK(cudaMalloc(&d_py, size));
+    CUDA_CHECK(cudaMalloc(&d_qx, size));
+    CUDA_CHECK(cudaMalloc(&d_qy, size));
+    CUDA_CHECK(cudaMalloc(&d_rx, size));
+    CUDA_CHECK(cudaMalloc(&d_ry, size));
+
+    CUDA_CHECK(cudaMemcpy(d_px, h_px.data(), size, cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(d_py, h_py.data(), size, cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(d_qx, h_qx.data(), size, cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(d_qy, h_qy.data(), size, cudaMemcpyHostToDevice));
+
+    int blocks = (batch + cfg.threads_per_block - 1) / cfg.threads_per_block;
+
+    for (int i = 0; i < cfg.warmup_iterations; ++i) {
+        bench_affine_add_kernel<<<blocks, cfg.threads_per_block>>>(
+            d_px, d_py, d_qx, d_qy, d_rx, d_ry, batch);
+    }
+    CUDA_CHECK(cudaDeviceSynchronize());
+
+    CudaTimer timer;
+    timer.start();
+    for (int i = 0; i < cfg.measure_iterations; ++i) {
+        bench_affine_add_kernel<<<blocks, cfg.threads_per_block>>>(
+            d_px, d_py, d_qx, d_qy, d_rx, d_ry, batch);
+    }
+    float total_ms = timer.stop();
+
+    double avg_ms = total_ms / cfg.measure_iterations;
+    double throughput = (batch / avg_ms) / 1000.0;
+    double ns_per_op = (avg_ms * 1e6) / batch;
+
+    CUDA_CHECK(cudaFree(d_px));
+    CUDA_CHECK(cudaFree(d_py));
+    CUDA_CHECK(cudaFree(d_qx));
+    CUDA_CHECK(cudaFree(d_qy));
+    CUDA_CHECK(cudaFree(d_rx));
+    CUDA_CHECK(cudaFree(d_ry));
+
+    return {"Affine Add (2M+1S+inv)", avg_ms, batch, throughput, ns_per_op};
+}
+
+BenchResult bench_affine_add_lambda(const BenchConfig& cfg) {
+    int batch = std::min(cfg.batch_size, 1 << 18);
+
+    FieldElement *d_px, *d_py, *d_qx, *d_qy, *d_hinv, *d_rx, *d_ry;
+    std::vector<FieldElement> h_px(batch), h_py(batch), h_qx(batch), h_qy(batch), h_hinv(batch);
+
+    generate_random_affine_points(h_px.data(), h_py.data(), batch);
+    generate_random_affine_points(h_qx.data(), h_qy.data(), batch);
+    // Pre-compute H^{-1} on host (random values simulate pre-inverted state)
+    generate_random_field_elements(h_hinv.data(), batch);
+
+    size_t size = batch * sizeof(FieldElement);
+    CUDA_CHECK(cudaMalloc(&d_px, size));
+    CUDA_CHECK(cudaMalloc(&d_py, size));
+    CUDA_CHECK(cudaMalloc(&d_qx, size));
+    CUDA_CHECK(cudaMalloc(&d_qy, size));
+    CUDA_CHECK(cudaMalloc(&d_hinv, size));
+    CUDA_CHECK(cudaMalloc(&d_rx, size));
+    CUDA_CHECK(cudaMalloc(&d_ry, size));
+
+    CUDA_CHECK(cudaMemcpy(d_px, h_px.data(), size, cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(d_py, h_py.data(), size, cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(d_qx, h_qx.data(), size, cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(d_qy, h_qy.data(), size, cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(d_hinv, h_hinv.data(), size, cudaMemcpyHostToDevice));
+
+    int blocks = (batch + cfg.threads_per_block - 1) / cfg.threads_per_block;
+
+    for (int i = 0; i < cfg.warmup_iterations; ++i) {
+        bench_affine_add_lambda_kernel<<<blocks, cfg.threads_per_block>>>(
+            d_px, d_py, d_qx, d_qy, d_hinv, d_rx, d_ry, batch);
+    }
+    CUDA_CHECK(cudaDeviceSynchronize());
+
+    CudaTimer timer;
+    timer.start();
+    for (int i = 0; i < cfg.measure_iterations; ++i) {
+        bench_affine_add_lambda_kernel<<<blocks, cfg.threads_per_block>>>(
+            d_px, d_py, d_qx, d_qy, d_hinv, d_rx, d_ry, batch);
+    }
+    float total_ms = timer.stop();
+
+    double avg_ms = total_ms / cfg.measure_iterations;
+    double throughput = (batch / avg_ms) / 1000.0;
+    double ns_per_op = (avg_ms * 1e6) / batch;
+
+    CUDA_CHECK(cudaFree(d_px));
+    CUDA_CHECK(cudaFree(d_py));
+    CUDA_CHECK(cudaFree(d_qx));
+    CUDA_CHECK(cudaFree(d_qy));
+    CUDA_CHECK(cudaFree(d_hinv));
+    CUDA_CHECK(cudaFree(d_rx));
+    CUDA_CHECK(cudaFree(d_ry));
+
+    return {"Affine Lambda (2M+1S)", avg_ms, batch, throughput, ns_per_op};
+}
+
+BenchResult bench_affine_add_xonly(const BenchConfig& cfg) {
+    int batch = std::min(cfg.batch_size, 1 << 18);
+
+    FieldElement *d_px, *d_py, *d_qx, *d_qy, *d_hinv, *d_rx;
+    std::vector<FieldElement> h_px(batch), h_py(batch), h_qx(batch), h_qy(batch), h_hinv(batch);
+
+    generate_random_affine_points(h_px.data(), h_py.data(), batch);
+    generate_random_affine_points(h_qx.data(), h_qy.data(), batch);
+    generate_random_field_elements(h_hinv.data(), batch);
+
+    size_t size = batch * sizeof(FieldElement);
+    CUDA_CHECK(cudaMalloc(&d_px, size));
+    CUDA_CHECK(cudaMalloc(&d_py, size));
+    CUDA_CHECK(cudaMalloc(&d_qx, size));
+    CUDA_CHECK(cudaMalloc(&d_qy, size));
+    CUDA_CHECK(cudaMalloc(&d_hinv, size));
+    CUDA_CHECK(cudaMalloc(&d_rx, size));
+
+    CUDA_CHECK(cudaMemcpy(d_px, h_px.data(), size, cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(d_py, h_py.data(), size, cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(d_qx, h_qx.data(), size, cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(d_qy, h_qy.data(), size, cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(d_hinv, h_hinv.data(), size, cudaMemcpyHostToDevice));
+
+    int blocks = (batch + cfg.threads_per_block - 1) / cfg.threads_per_block;
+
+    for (int i = 0; i < cfg.warmup_iterations; ++i) {
+        bench_affine_add_xonly_kernel<<<blocks, cfg.threads_per_block>>>(
+            d_px, d_py, d_qx, d_qy, d_hinv, d_rx, batch);
+    }
+    CUDA_CHECK(cudaDeviceSynchronize());
+
+    CudaTimer timer;
+    timer.start();
+    for (int i = 0; i < cfg.measure_iterations; ++i) {
+        bench_affine_add_xonly_kernel<<<blocks, cfg.threads_per_block>>>(
+            d_px, d_py, d_qx, d_qy, d_hinv, d_rx, batch);
+    }
+    float total_ms = timer.stop();
+
+    double avg_ms = total_ms / cfg.measure_iterations;
+    double throughput = (batch / avg_ms) / 1000.0;
+    double ns_per_op = (avg_ms * 1e6) / batch;
+
+    CUDA_CHECK(cudaFree(d_px));
+    CUDA_CHECK(cudaFree(d_py));
+    CUDA_CHECK(cudaFree(d_qx));
+    CUDA_CHECK(cudaFree(d_qy));
+    CUDA_CHECK(cudaFree(d_hinv));
+    CUDA_CHECK(cudaFree(d_rx));
+
+    return {"Affine X-Only (1M+1S)", avg_ms, batch, throughput, ns_per_op};
+}
+
+BenchResult bench_batch_inversion(const BenchConfig& cfg) {
+    // Each thread processes BATCH_INV_CHAIN_LEN elements
+    int chains = std::min(cfg.batch_size / BATCH_INV_CHAIN_LEN, 1 << 14);  // Max 16K chains
+    int total = chains * BATCH_INV_CHAIN_LEN;
+
+    FieldElement *d_h, *d_prefix;
+    std::vector<FieldElement> h_data(total);
+    generate_random_field_elements(h_data.data(), total);
+
+    size_t size = total * sizeof(FieldElement);
+    CUDA_CHECK(cudaMalloc(&d_h, size));
+    CUDA_CHECK(cudaMalloc(&d_prefix, size));
+
+    CUDA_CHECK(cudaMemcpy(d_h, h_data.data(), size, cudaMemcpyHostToDevice));
+
+    int blocks = (chains + cfg.threads_per_block - 1) / cfg.threads_per_block;
+
+    for (int i = 0; i < cfg.warmup_iterations; ++i) {
+        // Reload data (kernel is in-place)
+        CUDA_CHECK(cudaMemcpy(d_h, h_data.data(), size, cudaMemcpyHostToDevice));
+        bench_batch_inv_kernel<<<blocks, cfg.threads_per_block>>>(d_h, d_prefix, total);
+    }
+    CUDA_CHECK(cudaDeviceSynchronize());
+
+    CudaTimer timer;
+    timer.start();
+    for (int i = 0; i < cfg.measure_iterations; ++i) {
+        CUDA_CHECK(cudaMemcpy(d_h, h_data.data(), size, cudaMemcpyHostToDevice));
+        bench_batch_inv_kernel<<<blocks, cfg.threads_per_block>>>(d_h, d_prefix, total);
+    }
+    float total_ms = timer.stop();
+
+    double avg_ms = total_ms / cfg.measure_iterations;
+    double throughput = (total / avg_ms) / 1000.0;
+    double ns_per_op = (avg_ms * 1e6) / total;
+
+    CUDA_CHECK(cudaFree(d_h));
+    CUDA_CHECK(cudaFree(d_prefix));
+
+    return {"Batch Inv (Montgomery)", avg_ms, total, throughput, ns_per_op};
+}
+
+BenchResult bench_jacobian_to_affine(const BenchConfig& cfg) {
+    int batch = std::min(cfg.batch_size, 1 << 16);  // Max 64K (has inv per element)
+
+    FieldElement *d_x, *d_y, *d_z;
+    std::vector<FieldElement> h_x(batch), h_y(batch), h_z(batch);
+
+    std::mt19937_64 rng(999);
+    for (int i = 0; i < batch; ++i) {
+        for (int j = 0; j < 4; ++j) {
+            h_x[i].limbs[j] = rng();
+            h_y[i].limbs[j] = rng();
+            h_z[i].limbs[j] = rng();
+        }
+        h_x[i].limbs[3] &= 0x7FFFFFFFFFFFFFFFULL;
+        h_y[i].limbs[3] &= 0x7FFFFFFFFFFFFFFFULL;
+        h_z[i].limbs[3] &= 0x7FFFFFFFFFFFFFFFULL;
+    }
+
+    size_t size = batch * sizeof(FieldElement);
+    CUDA_CHECK(cudaMalloc(&d_x, size));
+    CUDA_CHECK(cudaMalloc(&d_y, size));
+    CUDA_CHECK(cudaMalloc(&d_z, size));
+
+    CUDA_CHECK(cudaMemcpy(d_x, h_x.data(), size, cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(d_y, h_y.data(), size, cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(d_z, h_z.data(), size, cudaMemcpyHostToDevice));
+
+    int blocks = (batch + cfg.threads_per_block - 1) / cfg.threads_per_block;
+
+    for (int i = 0; i < cfg.warmup_iterations; ++i) {
+        // Reload (in-place modification)
+        CUDA_CHECK(cudaMemcpy(d_x, h_x.data(), size, cudaMemcpyHostToDevice));
+        CUDA_CHECK(cudaMemcpy(d_y, h_y.data(), size, cudaMemcpyHostToDevice));
+        bench_jac_to_affine_kernel<<<blocks, cfg.threads_per_block>>>(d_x, d_y, d_z, batch);
+    }
+    CUDA_CHECK(cudaDeviceSynchronize());
+
+    CudaTimer timer;
+    timer.start();
+    for (int i = 0; i < cfg.measure_iterations; ++i) {
+        CUDA_CHECK(cudaMemcpy(d_x, h_x.data(), size, cudaMemcpyHostToDevice));
+        CUDA_CHECK(cudaMemcpy(d_y, h_y.data(), size, cudaMemcpyHostToDevice));
+        bench_jac_to_affine_kernel<<<blocks, cfg.threads_per_block>>>(d_x, d_y, d_z, batch);
+    }
+    float total_ms = timer.stop();
+
+    double avg_ms = total_ms / cfg.measure_iterations;
+    double throughput = (batch / avg_ms) / 1000.0;
+    double ns_per_op = (avg_ms * 1e6) / batch;
+
+    CUDA_CHECK(cudaFree(d_x));
+    CUDA_CHECK(cudaFree(d_y));
+    CUDA_CHECK(cudaFree(d_z));
+
+    return {"Jac→Affine (per-pt)", avg_ms, batch, throughput, ns_per_op};
+}
+
+// ============================================================================
 // Print results
 // ============================================================================
 void print_device_info() {
@@ -550,6 +921,23 @@ int main(int argc, char** argv) {
     print_result(results.back());
 
     results.push_back(bench_generator_mul(cfg));
+    print_result(results.back());
+
+    // Affine point operations
+    std::cout << "\n=== Affine Point Addition ===\n";
+    results.push_back(bench_affine_add(cfg));
+    print_result(results.back());
+
+    results.push_back(bench_affine_add_lambda(cfg));
+    print_result(results.back());
+
+    results.push_back(bench_affine_add_xonly(cfg));
+    print_result(results.back());
+
+    results.push_back(bench_batch_inversion(cfg));
+    print_result(results.back());
+
+    results.push_back(bench_jacobian_to_affine(cfg));
     print_result(results.back());
 
     // Print summary table

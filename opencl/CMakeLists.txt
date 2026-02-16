@@ -147,11 +147,13 @@ target_compile_definitions(secp256k1_opencl PRIVATE
 set(KERNEL_FILE_1 "${CMAKE_CURRENT_SOURCE_DIR}/kernels/secp256k1_field.cl")
 set(KERNEL_FILE_2 "${CMAKE_CURRENT_SOURCE_DIR}/kernels/secp256k1_point.cl")
 set(KERNEL_FILE_3 "${CMAKE_CURRENT_SOURCE_DIR}/kernels/secp256k1_batch.cl")
+set(KERNEL_FILE_4 "${CMAKE_CURRENT_SOURCE_DIR}/kernels/secp256k1_affine.cl")
 
 set(KERNEL_FILES_LIST
     ${KERNEL_FILE_1}
     ${KERNEL_FILE_2}
     ${KERNEL_FILE_3}
+    ${KERNEL_FILE_4}
 )
 
 set(KERNEL_HEADER "${CMAKE_CURRENT_BINARY_DIR}/include/secp256k1_kernels_embedded.hpp")
