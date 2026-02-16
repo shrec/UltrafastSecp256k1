@@ -1163,21 +1163,24 @@ We offer flexible licensing options for commercial applications.
 - RISC-V assembly contributions
 - CUDA kernel optimizations
 
-## 📧 Contact
+## 📧 Contact & Community
 
-- Issues: [GitHub Issues](https://github.com/shrec/UltrafastSecp256k1/issues)
-- Discussions: [GitHub Discussions](https://github.com/shrec/UltrafastSecp256k1/discussions)
-- Benchmark Dashboard: [Live Results](https://shrec.github.io/UltrafastSecp256k1/dev/bench/)
+| Channel | Link |
+|---------|------|
+| Issues | [GitHub Issues](https://github.com/shrec/UltrafastSecp256k1/issues) |
+| Discussions | [GitHub Discussions](https://github.com/shrec/UltrafastSecp256k1/discussions) |
+| Wiki | [Documentation Wiki](https://github.com/shrec/UltrafastSecp256k1/wiki) |
+| Benchmarks | [Live Dashboard](https://shrec.github.io/UltrafastSecp256k1/dev/bench/) |
+| API Docs | [Doxygen](https://shrec.github.io/UltrafastSecp256k1/docs/) |
+| Security | [Report Vulnerability](https://github.com/shrec/UltrafastSecp256k1/security/advisories/new) |
+| Commercial | [payysoon@gmail.com](mailto:payysoon@gmail.com) |
 
 ## ☕ Support the Project
 
-If you find this library useful, consider buying me a coffee!
+If you find this library useful, consider supporting development!
 
+[![Sponsor](https://img.shields.io/badge/Sponsor-GitHub%20Sponsors-ea4aaa.svg?logo=github)](https://github.com/sponsors/shrec)
 [![PayPal](https://img.shields.io/badge/PayPal-Donate-blue.svg?logo=paypal)](https://paypal.me/IChkheidze)
-
-**PayPal:** [paypal.me/IChkheidze](https://paypal.me/IChkheidze)
-
-Your support helps maintain and improve this project. Thank you! 🙏
 
 ---
 
