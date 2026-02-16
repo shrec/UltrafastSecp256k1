@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771216509469,
+  "lastUpdate": 1771216821929,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -524,6 +524,55 @@ window.BENCHMARK_DATA = {
           {
             "name": "Point Add",
             "value": 992,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 575,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "7186c2972dd0541c1a3e98af9ec96ab2e7cc9bfb",
+          "message": "Merge dev: v3.3.0 — Metal/WASM benchmarks, CI hardening, security docs",
+          "timestamp": "2026-02-16T08:39:16+04:00",
+          "tree_id": "6defe0c5e0779a4b0014ca3a3a87e76afaabfefc",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/7186c2972dd0541c1a3e98af9ec96ab2e7cc9bfb"
+        },
+        "date": 1771216821409,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Field Mul",
+            "value": 58,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 55,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 21,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Sub",
+            "value": 16,
             "unit": "ns"
           },
           {
