@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771235707116,
+  "lastUpdate": 1771255194049,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -1059,6 +1059,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Point Double",
             "value": 575,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "079cf9f9e77f498f6691834229976c2d57041545",
+          "message": "fix(ci): move immintrin.h include to file scope to fix Linux builds\n\nOn Linux GCC/Clang, immintrin.h transitively includes <stdlib.h> via\nmm_malloc.h. When included inside namespace secp256k1::hash{}, this\ncaused stdlib symbols (malloc, calloc, abs, etc.) to be declared in the\nwrong namespace, breaking <cstdlib> and producing hundreds of errors.\n\nMove the #include <immintrin.h> from inside the namespace block (line 390)\nto file scope alongside other system headers.",
+          "timestamp": "2026-02-16T19:18:46+04:00",
+          "tree_id": "539ce87c7104faa8f7c595a4dec1c19a3192f414",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/079cf9f9e77f498f6691834229976c2d57041545"
+        },
+        "date": 1771255193419,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Field Mul",
+            "value": 48,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 44,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 17,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Sub",
+            "value": 12,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Add",
+            "value": 851,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 467,
             "unit": "ns"
           }
         ]
