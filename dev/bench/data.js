@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771215752055,
+  "lastUpdate": 1771215757316,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -161,6 +161,55 @@ window.BENCHMARK_DATA = {
           {
             "name": "Point Double",
             "value": 576,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": false,
+          "id": "7151b14a7ca273d4f35b215b3826c40f7a5ef71e",
+          "message": "bench: comprehensive Metal + WASM benchmarks\n\nMetal:\n  - Add field_add/sub/inv GPU kernels to secp256k1_kernels.metal\n  - Create bench_metal.mm: full benchmark (field mul/add/sub/sqr/inv,\n    point add/double, scalar_mul, generator_mul) matching CUDA format\n  - Wire metal_secp256k1_bench_full target in CMakeLists.txt\n  - Simplify metal_test.mm: remove inline scalar bench, redirect to bench_full\n\nWASM:\n  - Create bench_wasm.mjs: Node.js benchmark for all WASM operations\n    (pubkeyCreate, pointMul, pointAdd, ecdsaSign/Verify, schnorrSign/Verify,\n    SHA-256) with warmup, timing, and throughput table output",
+          "timestamp": "2026-02-16T08:21:29+04:00",
+          "tree_id": "dbce6be03a4ecc9c0369ffd4dbfe56aa9f437cec",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/7151b14a7ca273d4f35b215b3826c40f7a5ef71e"
+        },
+        "date": 1771215756905,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Field Mul",
+            "value": 59,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 55,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 21,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Sub",
+            "value": 16,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 577,
             "unit": "ns"
           }
         ]
