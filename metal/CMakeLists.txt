@@ -98,6 +98,24 @@ target_compile_options(metal_secp256k1_test PRIVATE
 )
 
 # ─────────────────────────────────────────────────────────────
+# Comprehensive Benchmark (matching CUDA benchmark format)
+# ─────────────────────────────────────────────────────────────
+
+add_executable(metal_secp256k1_bench_full
+    app/bench_metal.mm
+)
+
+target_link_libraries(metal_secp256k1_bench_full PRIVATE
+    secp256k1_metal_lib
+    ${METAL_FRAMEWORK}
+    ${FOUNDATION_FRAMEWORK}
+)
+
+target_compile_options(metal_secp256k1_bench_full PRIVATE
+    $<$<COMPILE_LANGUAGE:OBJCXX>:-fobjc-arc>
+)
+
+# ─────────────────────────────────────────────────────────────
 # Compile Metal Shaders → .metallib
 # ─────────────────────────────────────────────────────────────
 
@@ -140,13 +158,20 @@ if(METAL_COMPILER)
     # Custom target for shader compilation
     add_custom_target(metal_shaders ALL DEPENDS ${METAL_LIB})
     add_dependencies(metal_secp256k1_test metal_shaders)
+    add_dependencies(metal_secp256k1_bench_full metal_shaders)
 
     # Copy metallib to test binary directory
     add_custom_command(TARGET metal_secp256k1_test POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
             ${METAL_LIB}
             $<TARGET_FILE_DIR:metal_secp256k1_test>/secp256k1_kernels.metallib
-        COMMENT "[Metal] Copying metallib to binary directory"
+        COMMENT "[Metal] Copying metallib to test binary directory"
+    )
+    add_custom_command(TARGET metal_secp256k1_bench_full POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            ${METAL_LIB}
+            $<TARGET_FILE_DIR:metal_secp256k1_bench_full>/secp256k1_kernels.metallib
+        COMMENT "[Metal] Copying metallib to bench binary directory"
     )
 else()
     message(WARNING "secp256k1-metal: 'xcrun' not found; shaders must be compiled at runtime")
@@ -177,6 +202,21 @@ foreach(SHADER ${SHADER_FILES})
     )
 endforeach()
 
+# Also copy shader sources for bench_full (runtime compilation fallback)
+add_custom_command(TARGET metal_secp256k1_bench_full POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory
+        $<TARGET_FILE_DIR:metal_secp256k1_bench_full>/shaders
+)
+
+foreach(SHADER ${SHADER_FILES})
+    get_filename_component(SHADER_NAME ${SHADER} NAME)
+    add_custom_command(TARGET metal_secp256k1_bench_full POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            ${SHADER}
+            $<TARGET_FILE_DIR:metal_secp256k1_bench_full>/shaders/${SHADER_NAME}
+    )
+endforeach()
+
 # ─────────────────────────────────────────────────────────────
 # CTest integration
 # ─────────────────────────────────────────────────────────────
@@ -187,3 +227,6 @@ add_test(NAME secp256k1_metal_test
 
 add_test(NAME secp256k1_metal_bench
          COMMAND metal_secp256k1_test --bench)
+
+add_test(NAME secp256k1_metal_bench_full
+         COMMAND metal_secp256k1_bench_full)

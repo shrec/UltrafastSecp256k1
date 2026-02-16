@@ -199,8 +199,10 @@ static bool test_field_mul(MetalRuntime& runtime) {
 // Benchmark: Field Multiplication Throughput
 // =============================================================================
 
+// Quick inline benchmark (field_mul only, for --bench flag)
+// For full comprehensive benchmark use metal_secp256k1_bench_full
 static void bench_field_mul(MetalRuntime& runtime, int count = 1024 * 1024) {
-    std::cout << "\n=== Benchmark: Field Multiplication (" << count << " ops) ===\n";
+    std::cout << "\n=== Quick Benchmark: Field Multiplication (" << count << " ops) ===\n";
     
     auto pipeline = runtime.make_pipeline("field_mul_bench");
     if (!pipeline.valid()) { std::cerr << "  Pipeline creation failed\n"; return; }
@@ -210,7 +212,6 @@ static void bench_field_mul(MetalRuntime& runtime, int count = 1024 * 1024) {
     auto r_buf = runtime.alloc_buffer(count * 32);
     auto count_buf = runtime.alloc_buffer(4);
     
-    // Fill with pseudo-random data
     uint32_t* a_data = (uint32_t*)a_buf.contents();
     uint32_t* b_data = (uint32_t*)b_buf.contents();
     uint32_t seed = 0x12345678;
@@ -236,58 +237,11 @@ static void bench_field_mul(MetalRuntime& runtime, int count = 1024 * 1024) {
     runtime.dispatch_sync(pipeline, count, tg_size, buffers);
     
     double ms = runtime.last_kernel_time_ms();
-    double mops = (double)count / ms / 1000.0; // Million ops/s
+    double mops = (double)count / ms / 1000.0;
     
     std::cout << "  Time: " << ms << " ms\n"
-              << "  Throughput: " << mops << " M field_mul/s\n";
-}
-
-// =============================================================================
-// Benchmark: Scalar Multiplication Throughput
-// =============================================================================
-
-static void bench_scalar_mul(MetalRuntime& runtime, int count = 4096) {
-    std::cout << "\n=== Benchmark: Generator Scalar Multiplication (" << count << " ops) ===\n";
-
-    auto info = runtime.device_info();
-    if (!info.supports_family_apple7) {
-        std::cout << "  SKIP: requires Apple7+ GPU (M1 or later)\n";
-        return;
-    }
-
-    auto pipeline = runtime.make_pipeline("generator_mul_batch");
-    if (!pipeline.valid()) { std::cerr << "  Pipeline creation failed\n"; return; }
-    
-    auto scalars_buf = runtime.alloc_buffer(count * 32);
-    auto results_buf = runtime.alloc_buffer(count * 64);
-    auto count_buf = runtime.alloc_buffer(4);
-    
-    // Fill with sequential scalars
-    uint32_t* s_data = (uint32_t*)scalars_buf.contents();
-    for (int i = 0; i < count; i++) {
-        memset(s_data + i * 8, 0, 32);
-        s_data[i * 8] = i + 1; // scalar = i+1
-    }
-    
-    uint32_t cnt = count;
-    count_buf.write(&cnt, 1);
-    
-    uint32_t tg_size = pipeline.threadExecutionWidth();
-    if (tg_size == 0) tg_size = 256;
-    
-    std::vector<MetalBuffer*> buffers = {&scalars_buf, &results_buf, &count_buf};
-    
-    // Warmup
-    runtime.dispatch_sync(pipeline, count, tg_size, buffers);
-    
-    // Timed run
-    runtime.dispatch_sync(pipeline, count, tg_size, buffers);
-    
-    double ms = runtime.last_kernel_time_ms();
-    double ops_per_sec = (double)count / ms * 1000.0;
-    
-    std::cout << "  Time: " << ms << " ms\n"
-              << "  Throughput: " << ops_per_sec << " scalar_mul/s\n";
+              << "  Throughput: " << mops << " M field_mul/s\n"
+              << "  (For full benchmark run: metal_secp256k1_bench_full)\n";
 }
 
 // =============================================================================
@@ -336,23 +290,23 @@ int main(int argc, char* argv[]) {
     if (!test_field_mul(runtime)) failures++;
     if (!test_generator_mul(runtime)) failures++;
     
-    // Run benchmarks
+    // Run benchmarks (quick — field_mul only)
     bool bench = (argc > 1 && std::string(argv[1]) == "--bench");
     if (bench) {
         bench_field_mul(runtime);
-        bench_scalar_mul(runtime);
     }
     
     // Summary
     std::cout << "\n=== Summary ===\n";
     if (failures == 0) {
-        std::cout << "  All tests PASSED ✓\n";
+        std::cout << "  All tests PASSED\n";
     } else {
-        std::cout << "  " << failures << " test(s) FAILED ✗\n";
+        std::cout << "  " << failures << " test(s) FAILED\n";
     }
     
     if (!bench) {
-        std::cout << "  (Run with --bench for performance benchmarks)\n";
+        std::cout << "  (Run with --bench for quick benchmark)\n"
+                  << "  (Run metal_secp256k1_bench_full for comprehensive benchmark)\n";
     }
     
     return failures > 0 ? 1 : 0;

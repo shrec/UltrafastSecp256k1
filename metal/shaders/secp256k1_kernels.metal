@@ -11,14 +11,17 @@
 //   - Branchless bloom check with coalesced memory access
 //
 // Kernels:
-//   1. search_kernel          — Batch ECC search (O(1) offset + bloom check)
-//   2. scalar_mul_batch       — Batch scalar multiplication
-//   3. generator_mul_batch    — Batch G×k multiplication
-//   4. field_mul_bench        — Field multiplication benchmark
-//   5. field_sqr_bench        — Field squaring benchmark
-//   6. batch_inverse          — Chunked Montgomery batch inverse
-//   7. point_add_kernel       — Point addition (testing)
-//   8. point_double_kernel    — Point doubling (testing)
+//   1.  search_kernel          — Batch ECC search (O(1) offset + bloom check)
+//   2.  scalar_mul_batch       — Batch scalar multiplication
+//   3.  generator_mul_batch    — Batch G×k multiplication
+//   4.  field_mul_bench        — Field multiplication benchmark
+//   5.  field_sqr_bench        — Field squaring benchmark
+//   5b. field_add_bench        — Field addition benchmark
+//   5c. field_sub_bench        — Field subtraction benchmark
+//   5d. field_inv_bench        — Field inversion benchmark
+//   6.  batch_inverse          — Chunked Montgomery batch inverse
+//   7.  point_add_kernel       — Point addition (testing)
+//   8.  point_double_kernel    — Point doubling (testing)
 // =============================================================================
 
 #include <metal_stdlib>
@@ -188,6 +191,55 @@ kernel void field_sqr_bench(
     if (tid >= count) return;
     FieldElement a = a_arr[tid];
     r_arr[tid] = field_sqr(a);
+}
+
+// =============================================================================
+// Kernel 5b: Field Addition Benchmark
+// =============================================================================
+
+kernel void field_add_bench(
+    device const FieldElement *a_arr  [[buffer(0)]],
+    device const FieldElement *b_arr  [[buffer(1)]],
+    device FieldElement *r_arr        [[buffer(2)]],
+    constant uint &count              [[buffer(3)]],
+    uint tid [[thread_position_in_grid]]
+) {
+    if (tid >= count) return;
+    FieldElement a = a_arr[tid];
+    FieldElement b = b_arr[tid];
+    r_arr[tid] = field_add(a, b);
+}
+
+// =============================================================================
+// Kernel 5c: Field Subtraction Benchmark
+// =============================================================================
+
+kernel void field_sub_bench(
+    device const FieldElement *a_arr  [[buffer(0)]],
+    device const FieldElement *b_arr  [[buffer(1)]],
+    device FieldElement *r_arr        [[buffer(2)]],
+    constant uint &count              [[buffer(3)]],
+    uint tid [[thread_position_in_grid]]
+) {
+    if (tid >= count) return;
+    FieldElement a = a_arr[tid];
+    FieldElement b = b_arr[tid];
+    r_arr[tid] = field_sub(a, b);
+}
+
+// =============================================================================
+// Kernel 5d: Field Inversion Benchmark
+// =============================================================================
+
+kernel void field_inv_bench(
+    device const FieldElement *a_arr  [[buffer(0)]],
+    device FieldElement *r_arr        [[buffer(1)]],
+    constant uint &count              [[buffer(2)]],
+    uint tid [[thread_position_in_grid]]
+) {
+    if (tid >= count) return;
+    FieldElement a = a_arr[tid];
+    r_arr[tid] = field_inv(a);
 }
 
 // =============================================================================
