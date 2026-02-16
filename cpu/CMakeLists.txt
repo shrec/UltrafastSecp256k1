@@ -23,6 +23,8 @@ set(SECP256K1_SOURCES
     src/recovery.cpp     # ECDSA public key recovery
     src/taproot.cpp      # Taproot (BIP-341/342) key tweaking
     src/field_simd.cpp   # SIMD batch field operations + Montgomery batch inverse
+    src/batch_add_affine.cpp  # Affine batch addition for sequential ECC search
+    src/hash_accel.cpp    # Accelerated SHA-256 (SHA-NI) + RIPEMD-160 + Hash160
     src/pedersen.cpp      # Pedersen commitments (homomorphic)
     src/frost.cpp         # FROST threshold signatures (t-of-n)
     src/adaptor.cpp       # Adaptor signatures (Schnorr + ECDSA)
@@ -518,6 +520,8 @@ if(BUILD_TESTING)
         tests/test_simd_batch.cpp
         tests/test_v4_features.cpp
         tests/test_coins.cpp
+        tests/test_batch_add_affine.cpp
+        tests/test_hash_accel.cpp
     )
     target_link_libraries(run_selftest PRIVATE ${SECP256K1_LIB_NAME})
 
@@ -527,4 +531,20 @@ if(BUILD_TESTING)
     endif()
 
     add_test(NAME selftest COMMAND run_selftest)
+
+    # Standalone affine batch add test (independent of full test runner)
+    add_executable(test_batch_add_affine_standalone
+        tests/test_batch_add_affine.cpp
+    )
+    target_link_libraries(test_batch_add_affine_standalone PRIVATE ${SECP256K1_LIB_NAME})
+    target_compile_definitions(test_batch_add_affine_standalone PRIVATE STANDALONE_TEST)
+    add_test(NAME batch_add_affine COMMAND test_batch_add_affine_standalone)
+
+    # Standalone hash accel test
+    add_executable(test_hash_accel_standalone
+        tests/test_hash_accel.cpp
+    )
+    target_link_libraries(test_hash_accel_standalone PRIVATE ${SECP256K1_LIB_NAME})
+    target_compile_definitions(test_hash_accel_standalone PRIVATE STANDALONE_TEST)
+    add_test(NAME hash_accel COMMAND test_hash_accel_standalone)
 endif()

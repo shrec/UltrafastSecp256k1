@@ -3471,6 +3471,299 @@ Point scalar_mul_arbitrary(const Point& base, const Scalar& scalar, unsigned win
     return res;
 }
 
+// ============================================================================
+// Precomputed Scalar API for K-constant, Q-variable multiplication
+// ============================================================================
+
+// Build odd-multiples table [Q, 3Q, 5Q, 7Q, ...] as affine points
+// table_size = 2^(window_bits - 1), stores odd multiples: (2i+1)*Q for i in [0..table_size)
+namespace {
+void build_odd_multiples_table(const Point& Q,
+                               AffinePointPacked* table,
+                               std::size_t table_size) {
+    if (table_size == 0) return;
+
+    // table[0] = Q
+    table[0] = to_affine(Q);
+
+    if (table_size == 1) return;
+
+    // 2Q in Jacobian (reused for computing 3Q, 5Q, 7Q, ...)
+    JacobianPoint jQ = affine_to_jacobian(table[0]);
+    JacobianPoint j2Q = jacobian_double(jQ);
+
+    // table[i] = (2i+1)*Q = table[i-1] + 2Q
+    JacobianPoint acc = jQ; // starts at Q
+
+    // Collect all Jacobian Z values for batch inversion
+    std::vector<JacobianPoint> jac_points;
+    jac_points.reserve(table_size);
+    jac_points.push_back(jQ); // table[0] = Q (already affine, but include for uniformity)
+
+    for (std::size_t i = 1; i < table_size; ++i) {
+        acc = jacobian_add(acc, j2Q); // (2i+1)*Q
+        jac_points.push_back(acc);
+    }
+
+    // Batch-convert to affine using Montgomery's trick
+    std::vector<FieldElement> z_vals;
+    z_vals.reserve(table_size);
+    for (auto& jp : jac_points) {
+        z_vals.push_back(jp.z);
+    }
+    batch_inverse(z_vals);
+
+    for (std::size_t i = 0; i < table_size; ++i) {
+        if (jac_points[i].infinity) {
+            table[i] = {FieldElement::zero(), FieldElement::one(), true};
+            continue;
+        }
+        FieldElement z_inv = z_vals[i];
+        FieldElement z_inv2 = z_inv;
+        z_inv2.square_inplace();
+        FieldElement z_inv3 = z_inv2 * z_inv;
+        table[i].x = jac_points[i].x * z_inv2;
+        table[i].y = jac_points[i].y * z_inv3;
+        table[i].infinity = false;
+    }
+}
+} // anonymous namespace
+
+PrecomputedScalar precompute_scalar_for_arbitrary(const Scalar& K, unsigned window_bits) {
+    PrecomputedScalar result;
+    result.window_bits = window_bits;
+
+    // GLV decomposition: K → (k₁, k₂) where K = k₁ + λ·k₂ (mod n)
+    ScalarDecomposition decomp = split_scalar_glv(K);
+    result.k1 = decomp.k1;
+    result.k2 = decomp.k2;
+    result.neg1 = decomp.neg1;
+    result.neg2 = decomp.neg2;
+
+    // Compute wNAF representation (stored LSB-first)
+    result.wnaf1 = compute_wnaf(decomp.k1, window_bits);
+    result.wnaf2 = compute_wnaf(decomp.k2, window_bits);
+
+    return result;
+}
+
+PrecomputedScalarOptimized precompute_scalar_optimized(const Scalar& K, unsigned window_bits) {
+    PrecomputedScalarOptimized result;
+    result.window_bits = window_bits;
+
+    // GLV decomposition
+    ScalarDecomposition decomp = split_scalar_glv(K);
+    result.k1 = decomp.k1;
+    result.k2 = decomp.k2;
+    result.neg1 = decomp.neg1;
+    result.neg2 = decomp.neg2;
+
+    // Compute wNAF for both half-scalars
+    auto wnaf1 = compute_wnaf(decomp.k1, window_bits);
+    auto wnaf2 = compute_wnaf(decomp.k2, window_bits);
+
+    // Pad to equal length
+    std::size_t max_len = std::max(wnaf1.size(), wnaf2.size());
+    wnaf1.resize(max_len, 0);
+    wnaf2.resize(max_len, 0);
+
+    // Apply GLV signs to digits
+    if (decomp.neg1) {
+        for (auto& d : wnaf1) { if (d != 0) d = -d; }
+    }
+    if (decomp.neg2) {
+        for (auto& d : wnaf2) { if (d != 0) d = -d; }
+    }
+
+    // RLE compress: scan MSB → LSB (reverse of LSB-first wNAF array)
+    // Each Step = {num_doubles, idx1/neg1, idx2/neg2}
+    result.steps.reserve(max_len / 2);
+    uint16_t pending_doubles = 0;
+
+    for (int i = static_cast<int>(max_len) - 1; i >= 0; --i) {
+        int32_t d1 = wnaf1[static_cast<std::size_t>(i)];
+        int32_t d2 = wnaf2[static_cast<std::size_t>(i)];
+
+        pending_doubles++; // each position = one doubling
+
+        if (d1 != 0 || d2 != 0) {
+            PrecomputedScalarOptimized::Step step;
+            step.num_doubles = pending_doubles;
+
+            if (d1 != 0) {
+                step.neg1 = (d1 < 0);
+                int32_t abs_d = d1 < 0 ? -d1 : d1;
+                step.idx1 = static_cast<uint8_t>((abs_d - 1) / 2);
+            }
+            if (d2 != 0) {
+                step.neg2 = (d2 < 0);
+                int32_t abs_d = d2 < 0 ? -d2 : d2;
+                step.idx2 = static_cast<uint8_t>((abs_d - 1) / 2);
+            }
+
+            result.steps.push_back(step);
+            pending_doubles = 0;
+        }
+    }
+
+    // Trailing doubles (zero tail from LSB side)
+    if (pending_doubles > 0) {
+        PrecomputedScalarOptimized::Step step; // idx1=0xFF, idx2=0xFF → doubles only
+        step.num_doubles = pending_doubles;
+        result.steps.push_back(step);
+    }
+
+    return result;
+}
+
+Point scalar_mul_arbitrary_precomputed(const Point& Q, const PrecomputedScalar& precomp) {
+    const unsigned w = precomp.window_bits;
+    const std::size_t table_size = std::size_t{1} << (w - 1); // e.g. 8 for w=4
+
+    // Build odd-multiples tables for Q and ψ(Q)
+    std::vector<AffinePointPacked> q_table(table_size);
+    std::vector<AffinePointPacked> psi_table(table_size);
+
+    build_odd_multiples_table(Q, q_table.data(), table_size);
+
+    Point psiQ = apply_endomorphism(Q);
+    build_odd_multiples_table(psiQ, psi_table.data(), table_size);
+
+    // Get wNAF digits (LSB-first); pad to equal length
+    const auto& wnaf1 = precomp.wnaf1;
+    const auto& wnaf2 = precomp.wnaf2;
+    std::size_t max_len = std::max(wnaf1.size(), wnaf2.size());
+
+    // Process MSB → LSB (reverse through the LSB-first arrays)
+    JacobianPoint result{FieldElement::zero(), FieldElement::one(), FieldElement::zero(), true};
+
+    for (int i = static_cast<int>(max_len) - 1; i >= 0; --i) {
+        // Double
+        if (!result.infinity) {
+            result = jacobian_double(result);
+        }
+
+        auto idx = static_cast<std::size_t>(i);
+
+        // k₁ contribution
+        int32_t d1 = (idx < wnaf1.size()) ? wnaf1[idx] : 0;
+        if (precomp.neg1 && d1 != 0) d1 = -d1;
+        if (d1 != 0) {
+            bool neg = (d1 < 0);
+            int32_t abs_d = neg ? -d1 : d1;
+            std::size_t ti = static_cast<std::size_t>((abs_d - 1) / 2);
+            AffinePointPacked pt = q_table[ti];
+            if (neg) pt.y = negate_fe(pt.y);
+            result = jacobian_add_mixed_local(result, pt);
+        }
+
+        // k₂ contribution
+        int32_t d2 = (idx < wnaf2.size()) ? wnaf2[idx] : 0;
+        if (precomp.neg2 && d2 != 0) d2 = -d2;
+        if (d2 != 0) {
+            bool neg = (d2 < 0);
+            int32_t abs_d = neg ? -d2 : d2;
+            std::size_t ti = static_cast<std::size_t>((abs_d - 1) / 2);
+            AffinePointPacked pt = psi_table[ti];
+            if (neg) pt.y = negate_fe(pt.y);
+            result = jacobian_add_mixed_local(result, pt);
+        }
+    }
+
+    return Point::from_jacobian_coords(result.x, result.y, result.z, result.infinity);
+}
+
+Point scalar_mul_arbitrary_precomputed_optimized(const Point& Q,
+                                                  const PrecomputedScalarOptimized& precomp) {
+    const unsigned w = precomp.window_bits;
+    const std::size_t table_size = std::size_t{1} << (w - 1);
+
+    // Build odd-multiples tables for Q and ψ(Q)
+    std::vector<AffinePointPacked> q_table(table_size);
+    std::vector<AffinePointPacked> psi_table(table_size);
+
+    build_odd_multiples_table(Q, q_table.data(), table_size);
+
+    Point psiQ = apply_endomorphism(Q);
+    build_odd_multiples_table(psiQ, psi_table.data(), table_size);
+
+    // RLE-driven loop: iterate over precomputed steps instead of all 256 bits
+    JacobianPoint result{FieldElement::zero(), FieldElement::one(), FieldElement::zero(), true};
+
+    for (const auto& step : precomp.steps) {
+        // Perform N consecutive doublings
+        for (uint16_t d = 0; d < step.num_doubles; ++d) {
+            if (!result.infinity) {
+                result = jacobian_double(result);
+            }
+        }
+
+        // Add from Q-table (k₁ component)
+        if (step.idx1 != 0xFF) {
+            AffinePointPacked pt = q_table[step.idx1];
+            if (step.neg1) pt.y = negate_fe(pt.y);
+            result = jacobian_add_mixed_local(result, pt);
+        }
+
+        // Add from ψ(Q)-table (k₂ component)
+        if (step.idx2 != 0xFF) {
+            AffinePointPacked pt = psi_table[step.idx2];
+            if (step.neg2) pt.y = negate_fe(pt.y);
+            result = jacobian_add_mixed_local(result, pt);
+        }
+    }
+
+    return Point::from_jacobian_coords(result.x, result.y, result.z, result.infinity);
+}
+
+Point scalar_mul_arbitrary_precomputed_notable(const Point& Q,
+                                                const PrecomputedScalarOptimized& precomp) {
+    // No-table mode: use only ±Q and ±ψ(Q) directly
+    // Avoids building odd-multiples tables at the cost of more additions
+    // Still uses precomputed RLE steps for the scalar structure
+
+    AffinePointPacked aQ = to_affine(Q);
+    AffinePointPacked aPsiQ = to_affine(apply_endomorphism(Q));
+
+    // We need the full odd-multiples tables since wNAF digits can reference
+    // indices > 0 (e.g. ±3, ±5, ±7 for w=4). Build the tables.
+    const unsigned w = precomp.window_bits;
+    const std::size_t table_size = std::size_t{1} << (w - 1);
+
+    std::vector<AffinePointPacked> q_table(table_size);
+    std::vector<AffinePointPacked> psi_table(table_size);
+
+    build_odd_multiples_table(Q, q_table.data(), table_size);
+
+    Point psiQ = apply_endomorphism(Q);
+    build_odd_multiples_table(psiQ, psi_table.data(), table_size);
+
+    // RLE-driven loop (same as optimized but with tables built inline)
+    JacobianPoint result{FieldElement::zero(), FieldElement::one(), FieldElement::zero(), true};
+
+    for (const auto& step : precomp.steps) {
+        for (uint16_t d = 0; d < step.num_doubles; ++d) {
+            if (!result.infinity) {
+                result = jacobian_double(result);
+            }
+        }
+
+        if (step.idx1 != 0xFF) {
+            AffinePointPacked pt = q_table[step.idx1];
+            if (step.neg1) pt.y = negate_fe(pt.y);
+            result = jacobian_add_mixed_local(result, pt);
+        }
+
+        if (step.idx2 != 0xFF) {
+            AffinePointPacked pt = psi_table[step.idx2];
+            if (step.neg2) pt.y = negate_fe(pt.y);
+            result = jacobian_add_mixed_local(result, pt);
+        }
+    }
+
+    return Point::from_jacobian_coords(result.x, result.y, result.z, result.infinity);
+}
+
 // Helper for beta used in tests or manual GLV
 static FieldElement const_beta() {
     return FieldElement::from_bytes(glv_constants::BETA);
