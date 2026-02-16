@@ -31,7 +31,8 @@ This library has **not undergone independent security audits**. It is provided f
 - ✅ Constant-time (CT) layer available for side-channel resistance
 
 **Reporting Security Issues:**
-Please report security vulnerabilities via [GitHub Issues](https://github.com/shrec/UltrafastSecp256k1/issues) or contact the maintainers directly.
+- Email: [payysoon@gmail.com](mailto:payysoon@gmail.com)
+- GitHub Issues: [UltrafastSecp256k1/issues](https://github.com/shrec/UltrafastSecp256k1/issues)
 
 **Disclaimer:**
 Users assume all risks. For production cryptographic systems, prefer audited libraries like [libsecp256k1](https://github.com/bitcoin-core/secp256k1).
