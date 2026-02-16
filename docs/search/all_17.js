@@ -2,18 +2,18 @@ var searchData=
 [
   ['o3_0',['o3',['../index.html#autotoc_md44',1,'Android ARM64 (RK3588, Cortex-A55/A76 @ 2.4 GHz, NDK r27 Clang 18, -O3)'],['../index.html#autotoc_md42',1,'ESP32-PICO-D4 / Embedded (Xtensa LX6 Dual Core @ 240 MHz, ESP-IDF v5.5.1, -O3)'],['../index.html#autotoc_md41',1,'ESP32-S3 / Embedded (Xtensa LX7 @ 240 MHz, ESP-IDF v5.5.1, -O3)'],['../index.html#autotoc_md43',1,'STM32F103ZET6 / Embedded (ARM Cortex-M3 @ 72 MHz, GCC 13.3.1, -O3)']]],
   ['one_1',['one',['../classsecp256k1_1_1fast_1_1FieldElement.html#acba3f6493ff465149640c1591aab170f',1,'secp256k1::fast::FieldElement::one()'],['../classsecp256k1_1_1fast_1_1Scalar.html#a4f73ed4ef89bb0d541ce330d38674cce',1,'secp256k1::fast::Scalar::one()']]],
-  ['only_2',['only',['../index.html#autotoc_md46',1,'CUDA (NVIDIA RTX 5060 Ti) — Kernel-Only'],['../index.html#autotoc_md47',1,'OpenCL (NVIDIA RTX 5060 Ti) — Kernel-Only']]],
+  ['only_2',['only',['../index.html#autotoc_md49',1,'Apple Metal (Apple M3 Pro) — Kernel-Only'],['../index.html#autotoc_md46',1,'CUDA (NVIDIA RTX 5060 Ti) — Kernel-Only'],['../index.html#autotoc_md47',1,'OpenCL (NVIDIA RTX 5060 Ti) — Kernel-Only']]],
   ['only_20build_3',['CPU-Only Build',['../index.html#autotoc_md23',1,'']]],
   ['only_20comparison_20rtx_205060_20ti_4',['CUDA vs OpenCL — Kernel-Only Comparison (RTX 5060 Ti)',['../index.html#autotoc_md48',1,'']]],
   ['only_20coordinate_20extraction_5',['2. X-Only Coordinate Extraction',['../index.html#autotoc_md12',1,'']]],
-  ['open_20source_20license_6',['Open Source License',['../index.html#autotoc_md66',1,'']]],
+  ['open_20source_20license_6',['Open Source License',['../index.html#autotoc_md67',1,'']]],
   ['opencl_20—_20kernel_20only_20comparison_20rtx_205060_20ti_7',['CUDA vs OpenCL — Kernel-Only Comparison (RTX 5060 Ti)',['../index.html#autotoc_md48',1,'']]],
   ['opencl_20nvidia_20rtx_205060_20ti_20—_20kernel_20only_8',['OpenCL (NVIDIA RTX 5060 Ti) — Kernel-Only',['../index.html#autotoc_md47',1,'']]],
   ['operator_21_3d_9',['operator!=',['../classsecp256k1_1_1fast_1_1FieldElement.html#a8224960553bd25c3fb6e8b948b3dcadf',1,'secp256k1::fast::FieldElement::operator!=()'],['../classsecp256k1_1_1fast_1_1Scalar.html#aaeeb41bb6d76f5face39ef4a2dec0eca',1,'secp256k1::fast::Scalar::operator!=()']]],
   ['operator_2a_10',['operator*',['../classsecp256k1_1_1fast_1_1FieldElement.html#ac317d794e2d4c542619d119058ef0d63',1,'secp256k1::fast::FieldElement::operator*()'],['../classsecp256k1_1_1fast_1_1Scalar.html#ad13485e9057842577c63e7bef9ef3742',1,'secp256k1::fast::Scalar::operator*()']]],
   ['operator_2a_3d_11',['operator*=',['../classsecp256k1_1_1fast_1_1FieldElement.html#a4271580143bb03d70b2ec54967cedcf4',1,'secp256k1::fast::FieldElement::operator*=()'],['../classsecp256k1_1_1fast_1_1Scalar.html#a8f6b80a4a6a232a86598bab6e10c3e9d',1,'secp256k1::fast::Scalar::operator*=()']]],
-  ['operator_2b_12',['operator+',['../classsecp256k1_1_1fast_1_1FieldElement.html#a317ab57a8e469184c6cb02c57fc9af9e',1,'secp256k1::fast::FieldElement::operator+()'],['../structsecp256k1_1_1PedersenCommitment.html#aae14e7ec3b3c8014f078cf53b155a446',1,'secp256k1::PedersenCommitment::operator+()'],['../classsecp256k1_1_1fast_1_1Scalar.html#a849dcd337c631c72b882565581cd76d1',1,'secp256k1::fast::Scalar::operator+(const Scalar &amp;rhs) const']]],
-  ['operator_2b_3d_13',['operator+=',['../classsecp256k1_1_1fast_1_1Scalar.html#a0945587a9cb06c74acc2e7752bba1068',1,'secp256k1::fast::Scalar::operator+=()'],['../classsecp256k1_1_1fast_1_1FieldElement.html#a1238da7fc9066da40f8fb7a2b23a0bc6',1,'secp256k1::fast::FieldElement::operator+=()']]],
+  ['operator_2b_12',['operator+',['../classsecp256k1_1_1fast_1_1FieldElement.html#a317ab57a8e469184c6cb02c57fc9af9e',1,'secp256k1::fast::FieldElement::operator+()'],['../structsecp256k1_1_1PedersenCommitment.html#aae14e7ec3b3c8014f078cf53b155a446',1,'secp256k1::PedersenCommitment::operator+()'],['../classsecp256k1_1_1fast_1_1Scalar.html#a849dcd337c631c72b882565581cd76d1',1,'secp256k1::fast::Scalar::operator+()']]],
+  ['operator_2b_3d_13',['operator+=',['../classsecp256k1_1_1fast_1_1FieldElement.html#a1238da7fc9066da40f8fb7a2b23a0bc6',1,'secp256k1::fast::FieldElement::operator+=()'],['../classsecp256k1_1_1fast_1_1Scalar.html#a0945587a9cb06c74acc2e7752bba1068',1,'secp256k1::fast::Scalar::operator+=(const Scalar &amp;rhs)']]],
   ['operator_2d_14',['operator-',['../classsecp256k1_1_1fast_1_1Scalar.html#a3521e585d241fd14800eb42254f1f8ca',1,'secp256k1::fast::Scalar::operator-()'],['../classsecp256k1_1_1fast_1_1FieldElement.html#ac358f67b6dade36b92ca3cd3807e32d5',1,'secp256k1::fast::FieldElement::operator-()']]],
   ['operator_2d_3d_15',['operator-=',['../classsecp256k1_1_1fast_1_1Scalar.html#a07d5444b4c14f4010ff2b01b0c8c0b9d',1,'secp256k1::fast::Scalar::operator-=()'],['../classsecp256k1_1_1fast_1_1FieldElement.html#a6d7bc730553a64babff7898173ed222d',1,'secp256k1::fast::FieldElement::operator-=()']]],
   ['operator_3d_3d_16',['operator==',['../classsecp256k1_1_1fast_1_1Scalar.html#acbf0d186d913d57027e06a809e6e46a7',1,'secp256k1::fast::Scalar::operator==()'],['../classsecp256k1_1_1fast_1_1FieldElement.html#a5760a20c72ac845240f4695d35e7cf78',1,'secp256k1::fast::FieldElement::operator==()']]],
@@ -22,5 +22,5 @@ var searchData=
   ['options_19',['Build Options',['../index.html#autotoc_md27',1,'']]],
   ['order_20',['order',['../structsecp256k1_1_1CurveContext.html#a5ff0f892afb44e87a38953d10ca9274f',1,'secp256k1::CurveContext']]],
   ['other_20batch_20inverse_20use_20cases_21',['Other Batch Inverse Use Cases',['../index.html#autotoc_md10',1,'']]],
-  ['overview_22',['📚 Variant Overview',['../index.html#autotoc_md51',1,'']]]
+  ['overview_22',['📚 Variant Overview',['../index.html#autotoc_md52',1,'']]]
 ];

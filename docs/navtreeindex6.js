@@ -1,5 +1,6 @@
 var NAVTREEINDEX6 =
 {
+"structsecp256k1_1_1coins_1_1CoinKeyPair.html#ab07af41a852cb1b5e14e0213b9044688":[21,0,0,0,1,1],
 "structsecp256k1_1_1coins_1_1CoinKeyPair.html#ab07af41a852cb1b5e14e0213b9044688":[22,0,0,0,1,1],
 "structsecp256k1_1_1coins_1_1CoinKeyPair.html#af85e18af8963ed680ebec91c211731a9":[21,0,0,0,1,2],
 "structsecp256k1_1_1coins_1_1CoinKeyPair.html#af85e18af8963ed680ebec91c211731a9":[22,0,0,0,1,2],

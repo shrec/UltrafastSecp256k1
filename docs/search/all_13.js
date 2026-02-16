@@ -7,7 +7,7 @@ var searchData=
   ['keccak256_4',['keccak256',['../namespacesecp256k1_1_1coins.html#a938922c0a6dfc2461fc0dbabb8d720fda9349208927787ab8a2b7f36398437107',1,'secp256k1::coins::KECCAK256'],['../namespacesecp256k1_1_1coins.html#ae23fd2c01c7fdd7613299ffdac732d42',1,'secp256k1::coins::keccak256(const std::uint8_t *data, std::size_t len)']]],
   ['keccak256_2ehpp_5',['keccak256.hpp',['../keccak256_8hpp.html',1,'']]],
   ['keccak256state_6',['keccak256state',['../structsecp256k1_1_1coins_1_1Keccak256State.html#a09471ed7e7e33b6c57fd47f9015852ea',1,'secp256k1::coins::Keccak256State::Keccak256State()'],['../structsecp256k1_1_1coins_1_1Keccak256State.html',1,'secp256k1::coins::Keccak256State']]],
-  ['kernel_20only_7',['kernel only',['../index.html#autotoc_md46',1,'CUDA (NVIDIA RTX 5060 Ti) — Kernel-Only'],['../index.html#autotoc_md47',1,'OpenCL (NVIDIA RTX 5060 Ti) — Kernel-Only']]],
+  ['kernel_20only_7',['kernel only',['../index.html#autotoc_md49',1,'Apple Metal (Apple M3 Pro) — Kernel-Only'],['../index.html#autotoc_md46',1,'CUDA (NVIDIA RTX 5060 Ti) — Kernel-Only'],['../index.html#autotoc_md47',1,'OpenCL (NVIDIA RTX 5060 Ti) — Kernel-Only']]],
   ['kernel_20only_20comparison_20rtx_205060_20ti_8',['CUDA vs OpenCL — Kernel-Only Comparison (RTX 5060 Ti)',['../index.html#autotoc_md48',1,'']]],
   ['key_9',['key',['../structsecp256k1_1_1ExtendedKey.html#a380ec5519c570fcceafc96de21f77dd0',1,'secp256k1::ExtendedKey::key'],['../structsecp256k1_1_1WIFDecodeResult.html#a4e6eafd2a2b9580f38292f1bbd7e158c',1,'secp256k1::WIFDecodeResult::key']]],
   ['key_5fcoefficients_10',['key_coefficients',['../structsecp256k1_1_1MuSig2KeyAggCtx.html#a11b4bfa558ecfb2ae94fddddc5e99bf1',1,'secp256k1::MuSig2KeyAggCtx']]],

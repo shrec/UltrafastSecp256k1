@@ -7,7 +7,7 @@ var searchData=
   ['value_4',['value',['../structsecp256k1_1_1FrostShare.html#a9ff08f5b6de0be1a4deb180fedbdbe82',1,'secp256k1::FrostShare']]],
   ['value_5fbarrier_5',['value_barrier',['../namespacesecp256k1_1_1ct.html#a85a7d82aa4c208dbbd1f5de6b6f7d8ac',1,'secp256k1::ct::value_barrier(std::uint64_t &amp;v) noexcept'],['../namespacesecp256k1_1_1ct.html#afd63109c8236d3322af884fe4ada2645',1,'secp256k1::ct::value_barrier(std::uint32_t &amp;v) noexcept']]],
   ['values_20for_20cheap_20jacobian→affine_6',['Mixed Add + Batch Inverse: Collecting Z Values for Cheap Jacobian→Affine',['../index.html#autotoc_md8',1,'']]],
-  ['variant_20overview_7',['📚 Variant Overview',['../index.html#autotoc_md51',1,'']]],
+  ['variant_20overview_7',['📚 Variant Overview',['../index.html#autotoc_md52',1,'']]],
   ['verification_8',['Advanced: Batch Signature Verification',['../index.html#autotoc_md33',1,'']]],
   ['verification_5fshare_9',['verification_share',['../structsecp256k1_1_1FrostKeyPackage.html#a490ca4fa4e222cf6cc2284c27e932be2',1,'secp256k1::FrostKeyPackage']]],
   ['verify_10',['verify',['../structsecp256k1_1_1PedersenCommitment.html#a8436974737e12a1dd79efbd7873276f9',1,'secp256k1::PedersenCommitment']]],

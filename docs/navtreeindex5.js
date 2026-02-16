@@ -1,5 +1,6 @@
 var NAVTREEINDEX5 =
 {
+"structsecp256k1_1_1ECDSAAdaptorSig.html#a49f088841d3b05f7a10990c3d6bcf347":[21,0,0,7,1],
 "structsecp256k1_1_1ECDSAAdaptorSig.html#a49f088841d3b05f7a10990c3d6bcf347":[22,0,0,6,1],
 "structsecp256k1_1_1ECDSAAdaptorSig.html#a9513a5eb20260a6cffedb8edd84e2887":[21,0,0,7,0],
 "structsecp256k1_1_1ECDSAAdaptorSig.html#a9513a5eb20260a6cffedb8edd84e2887":[22,0,0,6,0],
@@ -248,6 +249,5 @@ var NAVTREEINDEX5 =
 "structsecp256k1_1_1coins_1_1CoinKeyPair.html#a567b731a80f5f420a614c00e76232a45":[22,0,0,0,1,3],
 "structsecp256k1_1_1coins_1_1CoinKeyPair.html#a567b731a80f5f420a614c00e76232a45":[21,0,0,0,1,3],
 "structsecp256k1_1_1coins_1_1CoinKeyPair.html#a7b0f7e721d4a07e0b0075ae70a957b37":[22,0,0,0,1,0],
-"structsecp256k1_1_1coins_1_1CoinKeyPair.html#a7b0f7e721d4a07e0b0075ae70a957b37":[21,0,0,0,1,0],
-"structsecp256k1_1_1coins_1_1CoinKeyPair.html#ab07af41a852cb1b5e14e0213b9044688":[21,0,0,0,1,1]
+"structsecp256k1_1_1coins_1_1CoinKeyPair.html#a7b0f7e721d4a07e0b0075ae70a957b37":[21,0,0,0,1,0]
 };

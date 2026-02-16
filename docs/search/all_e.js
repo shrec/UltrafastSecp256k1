@@ -106,5 +106,5 @@ var searchData=
   ['full_20algorithm_20explanation_103',['Montgomery Trick — Full Algorithm Explanation',['../index.html#autotoc_md16',1,'']]],
   ['full_20point_20conversion_3a_20jacobian_20→_20affine_20x_20y_104',['1. Full Point Conversion: Jacobian → Affine (X + Y)',['../index.html#autotoc_md11',1,'']]],
   ['fulldb_5fpath_105',['fulldb_path',['../structsecp256k1_1_1fast_1_1FixedBaseConfig.html#ad8faaba103016c58f730ae4d8a3e424e',1,'secp256k1::fast::FixedBaseConfig']]],
-  ['fuzz_20testing_106',['Fuzz Testing',['../index.html#autotoc_md62',1,'']]]
+  ['fuzz_20testing_106',['Fuzz Testing',['../index.html#autotoc_md63',1,'']]]
 ];

@@ -78,33 +78,34 @@ var NAVTREE =
       [ "Embedded Cross-Platform Comparison", "index.html#autotoc_md45", null ],
       [ "CUDA (NVIDIA RTX 5060 Ti) — Kernel-Only", "index.html#autotoc_md46", null ],
       [ "OpenCL (NVIDIA RTX 5060 Ti) — Kernel-Only", "index.html#autotoc_md47", null ],
-      [ "CUDA vs OpenCL — Kernel-Only Comparison (RTX 5060 Ti)", "index.html#autotoc_md48", null ]
+      [ "CUDA vs OpenCL — Kernel-Only Comparison (RTX 5060 Ti)", "index.html#autotoc_md48", null ],
+      [ "Apple Metal (Apple M3 Pro) — Kernel-Only", "index.html#autotoc_md49", null ]
     ] ],
-    [ "🏗️ Architecture", "index.html#autotoc_md49", null ],
-    [ "🔬 Research Statement", "index.html#autotoc_md50", null ],
-    [ "📚 Variant Overview", "index.html#autotoc_md51", null ],
-    [ "🚫 Scope", "index.html#autotoc_md52", null ],
-    [ "⚠️ API Stability", "index.html#autotoc_md53", null ],
-    [ "📚 Documentation", "index.html#autotoc_md54", null ],
-    [ "🧪 Testing", "index.html#autotoc_md55", [
-      [ "Built-in Selftest", "index.html#autotoc_md56", null ],
-      [ "Three Modes", "index.html#autotoc_md57", null ],
-      [ "Repro Bundle", "index.html#autotoc_md58", null ],
-      [ "Sanitizer Builds", "index.html#autotoc_md59", null ],
-      [ "Running Tests", "index.html#autotoc_md60", null ],
-      [ "Platform Coverage Dashboard", "index.html#autotoc_md61", null ],
-      [ "Fuzz Testing", "index.html#autotoc_md62", null ]
+    [ "🏗️ Architecture", "index.html#autotoc_md50", null ],
+    [ "🔬 Research Statement", "index.html#autotoc_md51", null ],
+    [ "📚 Variant Overview", "index.html#autotoc_md52", null ],
+    [ "🚫 Scope", "index.html#autotoc_md53", null ],
+    [ "⚠️ API Stability", "index.html#autotoc_md54", null ],
+    [ "📚 Documentation", "index.html#autotoc_md55", null ],
+    [ "🧪 Testing", "index.html#autotoc_md56", [
+      [ "Built-in Selftest", "index.html#autotoc_md57", null ],
+      [ "Three Modes", "index.html#autotoc_md58", null ],
+      [ "Repro Bundle", "index.html#autotoc_md59", null ],
+      [ "Sanitizer Builds", "index.html#autotoc_md60", null ],
+      [ "Running Tests", "index.html#autotoc_md61", null ],
+      [ "Platform Coverage Dashboard", "index.html#autotoc_md62", null ],
+      [ "Fuzz Testing", "index.html#autotoc_md63", null ]
     ] ],
-    [ "🤝 Contributing", "index.html#autotoc_md63", [
-      [ "Development Setup", "index.html#autotoc_md64", null ]
+    [ "🤝 Contributing", "index.html#autotoc_md64", [
+      [ "Development Setup", "index.html#autotoc_md65", null ]
     ] ],
-    [ "📄 License", "index.html#autotoc_md65", [
-      [ "Open Source License", "index.html#autotoc_md66", null ],
-      [ "Commercial License", "index.html#autotoc_md67", null ]
+    [ "📄 License", "index.html#autotoc_md66", [
+      [ "Open Source License", "index.html#autotoc_md67", null ],
+      [ "Commercial License", "index.html#autotoc_md68", null ]
     ] ],
-    [ "🙏 Acknowledgments", "index.html#autotoc_md68", null ],
-    [ "📧 Contact & Community", "index.html#autotoc_md69", null ],
-    [ "☕ Support the Project", "index.html#autotoc_md70", null ],
+    [ "🙏 Acknowledgments", "index.html#autotoc_md69", null ],
+    [ "📧 Contact & Community", "index.html#autotoc_md70", null ],
+    [ "☕ Support the Project", "index.html#autotoc_md71", null ],
     [ "Namespaces", "namespaces.html", [
       [ "Namespace List", "namespaces.html", "namespaces_dup" ],
       [ "Namespace Members", "namespacemembers.html", [
@@ -141,8 +142,8 @@ var NAVTREEINDEX =
 "UltrafastSecp256k1_8hpp.html",
 "classsecp256k1_1_1fast_1_1Scalar.html#a6813aa404ba9f4fcd40265bb8cf4370f",
 "field__asm_8hpp.html#a86d58238414a3a540d0d0de8cb545a2c",
-"namespacesecp256k1.html#a0c50436c571f4ffc30510e2eb8ace6d1",
-"namespacesecp256k1_1_1fast.html#a5c4c7dc34608e05e08f917856876114a",
+"namespacesecp256k1.html#a0783bb6cc6d40ee3d07892c6b606c21d",
+"namespacesecp256k1_1_1fast.html#a5c4b11584ee36120bbdacbb8f2ecad96",
 "structsecp256k1_1_1ECDSAAdaptorSig.html#a49f088841d3b05f7a10990c3d6bcf347",
 "structsecp256k1_1_1coins_1_1CoinKeyPair.html#ab07af41a852cb1b5e14e0213b9044688"
 ];

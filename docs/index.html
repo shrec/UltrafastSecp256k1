@@ -1109,7 +1109,32 @@ CUDA vs OpenCL — Kernel-Only Comparison (RTX 5060 Ti)</h2>
 <p>&zwj;<b>Note:</b> Both measurements are kernel-only (no buffer allocation/copy overhead). CUDA uses local-variable optimization for zero pointer-aliasing overhead. </p>
 </blockquote>
 <p><em>Benchmarks: 2026-02-14, Linux x86_64, NVIDIA Driver 580.126.09</em></p>
-<h1><a class="anchor" id="autotoc_md49"></a>
+<h2><a class="anchor" id="autotoc_md49"></a>
+Apple Metal (Apple M3 Pro) — Kernel-Only</h2>
+<table class="markdownTable">
+<tr class="markdownTableHead">
+<th class="markdownTableHeadNone">Operation   </th><th class="markdownTableHeadNone">Time/Op   </th><th class="markdownTableHeadNone">Throughput    </th></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone">Field Mul   </td><td class="markdownTableBodyNone">1.9 ns   </td><td class="markdownTableBodyNone">527 M/s    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone">Field Add   </td><td class="markdownTableBodyNone">1.0 ns   </td><td class="markdownTableBodyNone">990 M/s    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone">Field Sub   </td><td class="markdownTableBodyNone">1.1 ns   </td><td class="markdownTableBodyNone">892 M/s    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone">Field Sqr   </td><td class="markdownTableBodyNone">1.1 ns   </td><td class="markdownTableBodyNone">872 M/s    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone">Field Inv   </td><td class="markdownTableBodyNone">106.4 ns   </td><td class="markdownTableBodyNone">9.40 M/s    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone">Point Add   </td><td class="markdownTableBodyNone">10.1 ns   </td><td class="markdownTableBodyNone">98.6 M/s    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone">Point Double   </td><td class="markdownTableBodyNone">5.1 ns   </td><td class="markdownTableBodyNone">196 M/s    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone">Scalar Mul (P×k)   </td><td class="markdownTableBodyNone">2.94 μs   </td><td class="markdownTableBodyNone">0.34 M/s    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone">Generator Mul (G×k)   </td><td class="markdownTableBodyNone">3.00 μs   </td><td class="markdownTableBodyNone">0.33 M/s   </td></tr>
+</table>
+<p><em>Metal 2.4, 8×32-bit Comba limbs, Apple M3 Pro (18 GPU cores, Unified Memory 18 GB)</em></p>
+<h1><a class="anchor" id="autotoc_md50"></a>
 🏗️ Architecture</h1>
 <div class="fragment"><div class="line">secp256k1-fast/</div>
 <div class="line">├── cpu/                 # CPU-optimized implementation</div>
@@ -1134,10 +1159,10 @@ CUDA vs OpenCL — Kernel-Only Comparison (RTX 5060 Ti)</h2>
 <div class="line">└── examples/</div>
 <div class="line">    ├── esp32_test/    # ESP32-S3 Xtensa LX7 port</div>
 <div class="line">    └── stm32_test/    # STM32F103ZET6 ARM Cortex-M3 port</div>
-</div><!-- fragment --><h1><a class="anchor" id="autotoc_md50"></a>
+</div><!-- fragment --><h1><a class="anchor" id="autotoc_md51"></a>
 🔬 Research Statement</h1>
 <p>This library explores the performance ceiling of <a class="el" href="namespacesecp256k1.html">secp256k1</a> across CPU architectures (x64, ARM64, RISC-V, Cortex-M, Xtensa) and GPUs (CUDA, OpenCL, Metal, ROCm). Zero external dependencies.</p>
-<h1><a class="anchor" id="autotoc_md51"></a>
+<h1><a class="anchor" id="autotoc_md52"></a>
 📚 Variant Overview</h1>
 <p>Internal 32-bit arithmetic variants (historical optimization stages):</p>
 <table class="markdownTable">
@@ -1152,15 +1177,15 @@ CUDA vs OpenCL — Kernel-Only Comparison (RTX 5060 Ti)</h2>
 <tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone"><code>secp256k1_32_really_final</code>   </td><td class="markdownTableBodyNone">Most mature 32-bit variant   </td></tr>
 </table>
-<h1><a class="anchor" id="autotoc_md52"></a>
+<h1><a class="anchor" id="autotoc_md53"></a>
 🚫 Scope</h1>
 <p>This is an ECC arithmetic library. It provides field/scalar/point operations, signature schemes (ECDSA, Schnorr, MuSig2, FROST, Adaptor), Pedersen commitments, Taproot, HD derivation (BIP-32/44), and 27-coin address generation. It does not include key storage, wallet software, network protocols, or attack tools.</p>
-<h1><a class="anchor" id="autotoc_md53"></a>
+<h1><a class="anchor" id="autotoc_md54"></a>
 ⚠️ API Stability</h1>
 <p>The public API is <b>not yet stable</b>. Breaking changes may occur in any minor release before <b>v4.0</b>.</p>
 <p>Core layers (field, scalar, point, ECDSA, Schnorr) have mature interfaces unlikely to change. Experimental layers (MuSig2, FROST, Adaptor, Pedersen, Taproot, HD, Coins) may see breaking changes in any release.</p>
 <p>Pin your dependency version and review changelogs before upgrading.</p>
-<h1><a class="anchor" id="autotoc_md54"></a>
+<h1><a class="anchor" id="autotoc_md55"></a>
 📚 Documentation</h1>
 <ul>
 <li>Documentation Index</li>
@@ -1172,12 +1197,12 @@ CUDA vs OpenCL — Kernel-Only Comparison (RTX 5060 Ti)</h2>
 <li>Security Policy</li>
 <li>Changelog</li>
 </ul>
-<h1><a class="anchor" id="autotoc_md55"></a>
+<h1><a class="anchor" id="autotoc_md56"></a>
 🧪 Testing</h1>
-<h2><a class="anchor" id="autotoc_md56"></a>
+<h2><a class="anchor" id="autotoc_md57"></a>
 Built-in Selftest</h2>
 <p>The library includes a comprehensive self-test (<code>Selftest()</code>) that runs <b>deterministic KAT vectors</b> covering all arithmetic operations. Every test/bench executable runs this selftest on startup.</p>
-<h2><a class="anchor" id="autotoc_md57"></a>
+<h2><a class="anchor" id="autotoc_md58"></a>
 Three Modes</h2>
 <table class="markdownTable">
 <tr class="markdownTableHead">
@@ -1200,7 +1225,7 @@ Three Modes</h2>
 <div class="line">Selftest(<span class="keyword">true</span>, SelftestMode::ci);                  <span class="comment">// Full CI suite</span></div>
 <div class="line">Selftest(<span class="keyword">true</span>, SelftestMode::stress, 0xDEADBEEF); <span class="comment">// Nightly with custom seed</span></div>
 <div class="ttc" id="aselftest_8hpp_html"><div class="ttname"><a href="selftest_8hpp.html">selftest.hpp</a></div></div>
-</div><!-- fragment --><h2><a class="anchor" id="autotoc_md58"></a>
+</div><!-- fragment --><h2><a class="anchor" id="autotoc_md59"></a>
 Repro Bundle</h2>
 <p>On verbose output, selftest prints everything needed to reproduce a failure:</p>
 <div class="fragment"><div class="line">Mode:     ci</div>
@@ -1210,7 +1235,7 @@ Repro Bundle</h2>
 <div class="line">Build:    Release</div>
 <div class="line">ASM:      enabled</div>
 <div class="line">Repro:    Selftest(true, SelftestMode::ci, 0x53454350324b3147)</div>
-</div><!-- fragment --><h2><a class="anchor" id="autotoc_md59"></a>
+</div><!-- fragment --><h2><a class="anchor" id="autotoc_md60"></a>
 Sanitizer Builds</h2>
 <div class="fragment"><div class="line"># ASan + UBSan (catches UB, out-of-bounds, use-after-free)</div>
 <div class="line">cmake --preset cpu-asan</div>
@@ -1221,13 +1246,13 @@ Sanitizer Builds</h2>
 <div class="line">cmake --preset cpu-tsan</div>
 <div class="line">cmake --build build/cpu-tsan -j</div>
 <div class="line">ctest --test-dir build/cpu-tsan --output-on-failure</div>
-</div><!-- fragment --><h2><a class="anchor" id="autotoc_md60"></a>
+</div><!-- fragment --><h2><a class="anchor" id="autotoc_md61"></a>
 Running Tests</h2>
 <div class="fragment"><div class="line"># Build and run all tests (ci mode)</div>
 <div class="line">cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DSECP256K1_BUILD_TESTS=ON</div>
 <div class="line">cmake --build build -j</div>
 <div class="line">ctest --test-dir build --output-on-failure</div>
-</div><!-- fragment --><h2><a class="anchor" id="autotoc_md61"></a>
+</div><!-- fragment --><h2><a class="anchor" id="autotoc_md62"></a>
 Platform Coverage Dashboard</h2>
 <table class="markdownTable">
 <tr class="markdownTableHead">
@@ -1258,7 +1283,7 @@ Platform Coverage Dashboard</h2>
 <blockquote class="doxtable">
 <p>&zwj;Community-tested platforms: if you run selftest on a new platform, submit the log via PR and we'll add a row. </p>
 </blockquote>
-<h2><a class="anchor" id="autotoc_md62"></a>
+<h2><a class="anchor" id="autotoc_md63"></a>
 Fuzz Testing</h2>
 <p>libFuzzer harnesses cover core arithmetic (<code>cpu/fuzz/</code>):</p>
 <table class="markdownTable">
@@ -1274,19 +1299,19 @@ Fuzz Testing</h2>
 <div class="fragment"><div class="line">clang++ -fsanitize=fuzzer,address -O2 -std=c++20 \</div>
 <div class="line">  -I cpu/include cpu/fuzz/fuzz_field.cpp cpu/src/field.cpp cpu/src/field_asm.cpp \</div>
 <div class="line">  -o fuzz_field &amp;&amp; ./fuzz_field -max_len=64 -runs=10000000</div>
-</div><!-- fragment --><h1><a class="anchor" id="autotoc_md63"></a>
+</div><!-- fragment --><h1><a class="anchor" id="autotoc_md64"></a>
 🤝 Contributing</h1>
 <p>Contributions are welcome! Please read CONTRIBUTING.md for guidelines.</p>
-<h2><a class="anchor" id="autotoc_md64"></a>
+<h2><a class="anchor" id="autotoc_md65"></a>
 Development Setup</h2>
 <div class="fragment"><div class="line">git clone https://github.com/shrec/UltrafastSecp256k1.git</div>
 <div class="line">cd UltrafastSecp256k1</div>
 <div class="line">cmake -S . -B build-dev -G Ninja -DCMAKE_BUILD_TYPE=Debug</div>
 <div class="line">cmake --build build-dev -j</div>
-</div><!-- fragment --><h1><a class="anchor" id="autotoc_md65"></a>
+</div><!-- fragment --><h1><a class="anchor" id="autotoc_md66"></a>
 📄 License</h1>
 <p>This project is licensed under the <b>GNU Affero General Public License v3.0 (AGPL-3.0)</b>.</p>
-<h2><a class="anchor" id="autotoc_md66"></a>
+<h2><a class="anchor" id="autotoc_md67"></a>
 Open Source License</h2>
 <p>The library is free to use under AGPL-3.0 for open source projects. This means:</p><ul>
 <li>✅ You can use, modify, and distribute the code</li>
@@ -1295,7 +1320,7 @@ Open Source License</h2>
 <li>✅ You must provide network access to your source code if you run it as a service</li>
 </ul>
 <p>See [LICENSE](LICENSE) for full details.</p>
-<h2><a class="anchor" id="autotoc_md67"></a>
+<h2><a class="anchor" id="autotoc_md68"></a>
 Commercial License</h2>
 <p><b>For commercial/proprietary use without AGPL-3.0 obligations:</b></p>
 <p>If you want to use this library in a proprietary/closed-source product or service without disclosing your source code, please contact us for a commercial license.</p>
@@ -1304,7 +1329,7 @@ Commercial License</h2>
 <li>GitHub: <a href="https://github.com/shrec/UltrafastSecp256k1">https://github.com/shrec/UltrafastSecp256k1</a></li>
 </ul>
 <p>We offer flexible licensing options for commercial applications.</p>
-<h1><a class="anchor" id="autotoc_md68"></a>
+<h1><a class="anchor" id="autotoc_md69"></a>
 🙏 Acknowledgments</h1>
 <ul>
 <li>Based on optimized <a class="el" href="namespacesecp256k1.html">secp256k1</a> implementations</li>
@@ -1312,7 +1337,7 @@ Commercial License</h2>
 <li>RISC-V assembly contributions</li>
 <li>CUDA kernel optimizations</li>
 </ul>
-<h1><a class="anchor" id="autotoc_md69"></a>
+<h1><a class="anchor" id="autotoc_md70"></a>
 📧 Contact &amp; Community</h1>
 <table class="markdownTable">
 <tr class="markdownTableHead">
@@ -1332,7 +1357,7 @@ Commercial License</h2>
 <tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone">Commercial   </td><td class="markdownTableBodyNone"><a href="#" onclick="location.href='mai'+'lto:'+'pay'+'ys'+'oon'+'@g'+'mai'+'l.'+'com'; return false;">payysoon@gmail.com</a>   </td></tr>
 </table>
-<h1><a class="anchor" id="autotoc_md70"></a>
+<h1><a class="anchor" id="autotoc_md71"></a>
 ☕ Support the Project</h1>
 <p>If you find this library useful, consider supporting development!</p>
 <p><a href="https://github.com/sponsors/shrec"><img src="https://img.shields.io/badge/Sponsor-GitHub%20Sponsors-ea4aaa.svg?logo=github" alt="Sponsor" style="pointer-events: none;" class="inline"/></a> <a href="https://paypal.me/IChkheidze"><img src="https://img.shields.io/badge/PayPal-Donate-blue.svg?logo=paypal" alt="PayPal" style="pointer-events: none;" class="inline"/></a></p>

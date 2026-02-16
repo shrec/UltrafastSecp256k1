@@ -14,9 +14,9 @@ var searchData=
   ['recoverablesignature_11',['RecoverableSignature',['../structsecp256k1_1_1RecoverableSignature.html',1,'secp256k1']]],
   ['recovery_2ehpp_12',['recovery.hpp',['../recovery_8hpp.html',1,'']]],
   ['release_13',['release',['../index.html#autotoc_md40',1,'RISC-V 64-bit / Linux (Milk-V Mars, RVV, Clang 21.1.8, Release)'],['../index.html#autotoc_md39',1,'x86_64 / Linux (i5, Clang 19.1.7, AVX2, Release)'],['../index.html#autotoc_md38',1,'x86_64 / Windows (Clang 21.1.0, Release)']]],
-  ['repro_20bundle_14',['Repro Bundle',['../index.html#autotoc_md58',1,'']]],
+  ['repro_20bundle_14',['Repro Bundle',['../index.html#autotoc_md59',1,'']]],
   ['research_20mode_15',['1️⃣ FAST (Performance Research Mode)',['../index.html#autotoc_md29',1,'']]],
-  ['research_20statement_16',['🔬 Research Statement',['../index.html#autotoc_md50',1,'']]],
+  ['research_20statement_16',['🔬 Research Statement',['../index.html#autotoc_md51',1,'']]],
   ['reset_17',['reset',['../classsecp256k1_1_1SHA512.html#add0507d1f7c3bd47ccb2eeae2a23513b',1,'secp256k1::SHA512::reset()'],['../classsecp256k1_1_1SHA256.html#a33bcfb1a14a778a43a6b2cd4bbd085f8',1,'secp256k1::SHA256::reset()']]],
   ['reuse_18',['5. Scratch Buffer Reuse',['../index.html#autotoc_md15',1,'']]],
   ['rfc6979_5fnonce_19',['rfc6979_nonce',['../namespacesecp256k1.html#a944c4d81e26ad0af5325655767a77e37',1,'secp256k1']]],
@@ -24,6 +24,6 @@ var searchData=
   ['rk3588_20cortex_20a55_20a76_202_204_20ghz_20ndk_20r27_20clang_2018_20o3_21',['Android ARM64 (RK3588, Cortex-A55/A76 @ 2.4 GHz, NDK r27 Clang 18, -O3)',['../index.html#autotoc_md44',1,'']]],
   ['rtx_205060_20ti_22',['CUDA vs OpenCL — Kernel-Only Comparison (RTX 5060 Ti)',['../index.html#autotoc_md48',1,'']]],
   ['rtx_205060_20ti_20—_20kernel_20only_23',['rtx 5060 ti — kernel only',['../index.html#autotoc_md46',1,'CUDA (NVIDIA RTX 5060 Ti) — Kernel-Only'],['../index.html#autotoc_md47',1,'OpenCL (NVIDIA RTX 5060 Ti) — Kernel-Only']]],
-  ['running_20tests_24',['Running Tests',['../index.html#autotoc_md60',1,'']]],
+  ['running_20tests_24',['Running Tests',['../index.html#autotoc_md61',1,'']]],
   ['rvv_20clang_2021_201_208_20release_25',['RISC-V 64-bit / Linux (Milk-V Mars, RVV, Clang 21.1.8, Release)',['../index.html#autotoc_md40',1,'']]]
 ];
