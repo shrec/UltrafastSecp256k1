@@ -52,6 +52,45 @@ jobs:
       - name: Test
         run: ctest --test-dir build --output-on-failure -j$(nproc)
 
+  # ── Sanitizers (ASan+UBSan, Clang on Linux) ────────────────────────────────
+  sanitizers:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        sanitizer: [asan, tsan]
+        include:
+          - sanitizer: asan
+            cmake_flags: "-DCMAKE_C_FLAGS='-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer' -DCMAKE_CXX_FLAGS='-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer' -DCMAKE_EXE_LINKER_FLAGS='-fsanitize=address,undefined'"
+            label: "ASan+UBSan"
+          - sanitizer: tsan
+            cmake_flags: "-DCMAKE_C_FLAGS='-fsanitize=thread -fno-omit-frame-pointer' -DCMAKE_CXX_FLAGS='-fsanitize=thread -fno-omit-frame-pointer' -DCMAKE_EXE_LINKER_FLAGS='-fsanitize=thread'"
+            label: "TSan"
+
+    name: "Sanitizers (${{ matrix.label }})"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Clang 17
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y clang-17 lld-17
+
+      - name: Configure (${{ matrix.label }})
+        run: |
+          export CC=clang-17 CXX=clang++-17
+          cmake -S . -B build-${{ matrix.sanitizer }} \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DSECP256K1_BUILD_TESTS=ON \
+            -DSECP256K1_USE_ASM=OFF \
+            ${{ matrix.cmake_flags }}
+
+      - name: Build
+        run: cmake --build build-${{ matrix.sanitizer }} -j$(nproc)
+
+      - name: Test (${{ matrix.label }})
+        run: ctest --test-dir build-${{ matrix.sanitizer }} --output-on-failure -j$(nproc)
+
   # ── Windows (MSVC + Clang-cl) ──────────────────────────────────────────────
   windows:
     runs-on: windows-latest

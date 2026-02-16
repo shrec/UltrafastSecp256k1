@@ -1,9 +1,11 @@
 // SECP256K1 Library Self-Test
 // Comprehensive arithmetic verification with known test vectors
 // This ensures all math operations (scalar mul, point add/sub) are correct
+// Supports 3 modes: smoke (fast), ci (full), stress (extended)
 
 #include "secp256k1/point.hpp"
 #include "secp256k1/scalar.hpp"
+#include "secp256k1/selftest.hpp"
 #if !defined(SECP256K1_PLATFORM_ESP32) && !defined(ESP_PLATFORM) && !defined(IDF_VER) && !defined(SECP256K1_PLATFORM_STM32)
 #include "secp256k1/precompute.hpp"
 #endif
@@ -869,6 +871,102 @@ static bool test_batch_inverse_sweep(bool verbose) {
     return ok;
 }
 
+// NOTE: fe_batch_inverse() requires ALL inputs to be non-zero.
+// Zero inputs cause undefined cumulative product. This is the standard
+// Montgomery trick contract (same as libsecp256k1). Callers must skip
+// zero lanes before calling. No zero-input test is needed here;
+// the contract is enforced by documentation, not runtime checks.
+
+// ── Repro bundle: prints environment info for reproducibility ──
+static void print_repro_bundle(SelftestMode mode, uint64_t seed) {
+    const char* mode_str = "smoke";
+    if (mode == SelftestMode::ci) mode_str = "ci";
+    else if (mode == SelftestMode::stress) mode_str = "stress";
+
+    SELFTEST_PRINT("  Mode:     %s\n", mode_str);
+    SELFTEST_PRINT("  Seed:     0x%016llx\n", (unsigned long long)seed);
+
+    // Compiler
+#if defined(_MSC_VER)
+    SELFTEST_PRINT("  Compiler: MSVC %d\n", _MSC_VER);
+#elif defined(__clang_major__)
+    SELFTEST_PRINT("  Compiler: Clang %d.%d.%d\n", __clang_major__, __clang_minor__, __clang_patchlevel__);
+#elif defined(__GNUC__)
+    SELFTEST_PRINT("  Compiler: GCC %d.%d.%d\n", __GNUC__, __GNUC_MINOR__, __GNUC_PATCHLEVEL__);
+#else
+    SELFTEST_PRINT("  Compiler: unknown\n");
+#endif
+
+    // Platform
+#if defined(_WIN64)
+    SELFTEST_PRINT("  Platform: Windows x64\n");
+#elif defined(_WIN32)
+    SELFTEST_PRINT("  Platform: Windows x86\n");
+#elif defined(__APPLE__)
+    #if defined(__aarch64__)
+    SELFTEST_PRINT("  Platform: macOS ARM64\n");
+    #else
+    SELFTEST_PRINT("  Platform: macOS x64\n");
+    #endif
+#elif defined(__linux__)
+    #if defined(__riscv)
+    SELFTEST_PRINT("  Platform: Linux RISC-V\n");
+    #elif defined(__aarch64__)
+    SELFTEST_PRINT("  Platform: Linux ARM64\n");
+    #else
+    SELFTEST_PRINT("  Platform: Linux x64\n");
+    #endif
+#elif defined(SECP256K1_PLATFORM_ESP32) || defined(ESP_PLATFORM)
+    SELFTEST_PRINT("  Platform: ESP32\n");
+#elif defined(SECP256K1_PLATFORM_STM32)
+    SELFTEST_PRINT("  Platform: STM32\n");
+#elif defined(__EMSCRIPTEN__)
+    SELFTEST_PRINT("  Platform: WASM\n");
+#else
+    SELFTEST_PRINT("  Platform: unknown\n");
+#endif
+
+    // Build type
+#if defined(NDEBUG)
+    SELFTEST_PRINT("  Build:    Release\n");
+#else
+    SELFTEST_PRINT("  Build:    Debug\n");
+#endif
+
+    // Assembly
+#if defined(SECP256K1_HAS_ASM) || defined(SECP256K1_HAS_RISCV_ASM) || defined(SECP256K1_HAS_ARM64_ASM)
+    SELFTEST_PRINT("  ASM:      enabled\n");
+#else
+    SELFTEST_PRINT("  ASM:      disabled\n");
+#endif
+
+    // Sanitizers
+#if defined(__SANITIZE_ADDRESS__)
+    SELFTEST_PRINT("  ASan:     ON\n");
+#elif defined(__has_feature)
+  #if __has_feature(address_sanitizer)
+    SELFTEST_PRINT("  ASan:     ON\n");
+  #endif
+#endif
+#if defined(__SANITIZE_THREAD__)
+    SELFTEST_PRINT("  TSan:     ON\n");
+#elif defined(__has_feature)
+  #if __has_feature(thread_sanitizer)
+    SELFTEST_PRINT("  TSan:     ON\n");
+  #endif
+#endif
+#if defined(__SANITIZE_UNDEFINED__)
+    SELFTEST_PRINT("  UBSan:    ON\n");
+#elif defined(__has_feature)
+  #if __has_feature(undefined_behavior_sanitizer)
+    SELFTEST_PRINT("  UBSan:    ON\n");
+  #endif
+#endif
+
+    SELFTEST_PRINT("  Repro:    Selftest(true, SelftestMode::%s, 0x%016llx)\n",
+                   mode_str, (unsigned long long)seed);
+}
+
 // ── Extended kG known vectors: 4G..9G, 15G, 255G ──
 static bool test_extended_kg_vectors(bool verbose) {
     if (verbose) SELFTEST_PRINT("\nExtended kG Vectors (4G-9G, 15G, 255G):\n");
@@ -1107,12 +1205,20 @@ static bool test_point_advanced(bool verbose) {
     return ok;
 }
 
-// Main self-test function
+// Main self-test function (legacy API — delegates to ci mode)
 bool Selftest(bool verbose) {
+    return Selftest(verbose, SelftestMode::ci, 0);
+}
+
+// ── Mode-aware self-test with repro bundle ──
+bool Selftest(bool verbose, SelftestMode mode, uint64_t seed) {
+    if (seed == 0) seed = 0x53454350324B3147ULL; // "SECP2K1G" default
+
     if (verbose) {
         SELFTEST_PRINT("\n==============================================\n");
         SELFTEST_PRINT("  SECP256K1 Library Self-Test\n");
         SELFTEST_PRINT("==============================================\n");
+        print_repro_bundle(mode, seed);
     }
     
 #if !defined(SECP256K1_PLATFORM_ESP32) && !defined(ESP_PLATFORM) && !defined(IDF_VER) && !defined(SECP256K1_PLATFORM_STM32)
@@ -1137,10 +1243,20 @@ bool Selftest(bool verbose) {
     ensure_fixed_base_ready();
 #endif
 
+    const bool is_smoke  = (mode == SelftestMode::smoke);
+    const bool is_ci     = (mode == SelftestMode::ci) || (mode == SelftestMode::stress);
+    const bool is_stress = (mode == SelftestMode::stress);
+    (void)is_stress; // used below in stress-only sections
+
     int passed = 0;
     int total = 0;
     
-    // Test scalar multiplication
+    // ═══════════════════════════════════════════════════════════════
+    // TIER 1: SMOKE — Core KAT vectors + basic identities (~1-2s)
+    // Always run in every mode
+    // ═══════════════════════════════════════════════════════════════
+    
+    // Test scalar multiplication (10 known vectors)
     if (verbose) {
         SELFTEST_PRINT("\nScalar Multiplication Tests:\n");
     }
@@ -1165,40 +1281,83 @@ bool Selftest(bool verbose) {
     if (verbose) {
         SELFTEST_PRINT("\nPoint Subtraction Test:\n");
     }
-        // Field arithmetic
-        total++;
-        if (test_field_arithmetic(verbose)) passed++;
+    total++;
+    if (test_subtraction(verbose)) {
+        passed++;
+    }
 
-        // Scalar arithmetic (basic identities)
-        total++;
-        if (test_scalar_arithmetic(verbose)) passed++;
+    // Field arithmetic
+    total++;
+    if (test_field_arithmetic(verbose)) passed++;
 
-        // Point group identities
-        total++;
-        if (test_point_identities(verbose)) passed++;
+    // Scalar arithmetic (basic identities)
+    total++;
+    if (test_scalar_arithmetic(verbose)) passed++;
 
-        // External vectors (optional, environment-driven)
-        total++;
-        if (run_external_vectors(verbose)) passed++;
-        // Point serialization
-        total++;
-        if (test_point_serialization(verbose)) passed++;
-        // Batch inverse
-        total++;
-        if (test_batch_inverse(verbose)) passed++;
-        // Constant-expected point ops
-        total++;
-        if (test_addition_constants(verbose)) passed++;
-        total++;
-        if (test_subtraction_constants(verbose)) passed++;
-        total++;
-        if (test_doubling_constants(verbose)) passed++;
-        total++;
-        if (test_negation_constants(verbose)) passed++;
+    // Point group identities
+    total++;
+    if (test_point_identities(verbose)) passed++;
 
-    // Additional high-coverage checks
-    // 1) Doubling chain vs scalar multiples: for i=1..20, (2^i)G via dbl() equals scalar_mul
-    auto test_pow2_chain = [&](){
+    // Point serialization
+    total++;
+    if (test_point_serialization(verbose)) passed++;
+
+    // Batch inverse (small)
+    total++;
+    if (test_batch_inverse(verbose)) passed++;
+
+    // Constant-expected point ops
+    total++;
+    if (test_addition_constants(verbose)) passed++;
+    total++;
+    if (test_subtraction_constants(verbose)) passed++;
+    total++;
+    if (test_doubling_constants(verbose)) passed++;
+    total++;
+    if (test_negation_constants(verbose)) passed++;
+
+    // Boundary scalar KAT (limb/order edges)
+    total++;
+    if (test_boundary_scalar_vectors(verbose)) passed++;
+
+    // Field limb boundaries
+    total++;
+    if (test_field_limb_boundaries(verbose)) passed++;
+
+    // Extended kG vectors (4G-9G, 15G, 255G)
+    total++;
+    if (test_extended_kg_vectors(verbose)) passed++;
+
+    // Point advanced (comm/assoc/mixed/dist/edge)
+    total++;
+    if (test_point_advanced(verbose)) passed++;
+
+    if (is_smoke) {
+        // Smoke mode ends here
+        if (verbose) {
+            SELFTEST_PRINT("\n==============================================\n");
+            SELFTEST_PRINT("  Results: %d/%d tests passed (smoke)\n", passed, total);
+            if (passed == total) {
+                SELFTEST_PRINT("  [OK] ALL SMOKE TESTS PASSED\n");
+            } else {
+                SELFTEST_PRINT("  [FAIL] SOME SMOKE TESTS FAILED\n");
+            }
+            SELFTEST_PRINT("==============================================\n\n");
+        }
+        return (passed == total);
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // TIER 2: CI — Full coverage (~30-90s)
+    // Runs all smoke + cross-checks, stress, sweeps, bilinearity
+    // ═══════════════════════════════════════════════════════════════
+
+    // External vectors (optional, environment-driven)
+    total++;
+    if (run_external_vectors(verbose)) passed++;
+
+    // Doubling chain vs scalar multiples: for i=1..20, (2^i)G via dbl() equals scalar_mul
+    {
         if (verbose) SELFTEST_PRINT("\nDoubling chain vs scalar multiples (2^i * G):\n");
         bool ok = true;
         Point cur = Point::generator(); // 1*G
@@ -1209,15 +1368,13 @@ bool Selftest(bool verbose) {
             if (!points_equal(cur, exp)) { ok = false; break; }
         }
         if (verbose) SELFTEST_PRINT(ok ? "    PASS\n" : "    FAIL\n");
-        return ok;
-    };
-    total++; if (test_pow2_chain()) passed++;
+        total++; if (ok) passed++;
+    }
 
-    // 2) Large scalar cross-checks (fast vs affine fallback)
-    auto test_large_scalars = [&](){
+    // Large scalar cross-checks (fast vs affine fallback)
+    {
         if (verbose) SELFTEST_PRINT("\nLarge scalar cross-checks (fast vs affine):\n");
         bool ok = true;
-        // representative large scalars (hex, reduced mod n by Scalar::from_hex)
         const char* L[] = {
             "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
             "8000000000000000000000000000000000000000000000000000000000000000",
@@ -1233,15 +1390,13 @@ bool Selftest(bool verbose) {
             if (!points_equal(fast, ref)) { ok = false; break; }
         }
         if (verbose) SELFTEST_PRINT(ok ? "    PASS\n" : "    FAIL\n");
-        return ok;
-    };
-    total++; if (test_large_scalars()) passed++;
+        total++; if (ok) passed++;
+    }
 
-    // 3) Squared scalar cases: k^2 * G (to mitigate high-bit corner mistakes)
-    auto test_squared_scalars = [&](){
+    // Squared scalar cases: k^2 * G
+    {
         if (verbose) SELFTEST_PRINT("\nSquared scalars k^2 * G (fast vs affine):\n");
         bool ok = true;
-        // take a mix of known and random-looking scalars
         const char* K[] = {
             TEST_VECTORS[0].scalar_hex,
             TEST_VECTORS[1].scalar_hex,
@@ -1261,19 +1416,17 @@ bool Selftest(bool verbose) {
             if (!points_equal(fast, ref)) { ok = false; break; }
         }
         if (verbose) SELFTEST_PRINT(ok ? "    PASS\n" : "    FAIL\n");
-        return ok;
-    };
-    total++; if (test_squared_scalars()) passed++;
+        total++; if (ok) passed++;
+    }
 
-    // Expanded batch inverse
+    // Expanded batch inverse (32 elements)
     total++; if (test_batch_inverse_expanded(verbose)) passed++;
+
     // Bilinearity for K*Q with ±G
     total++; if (test_bilinearity_K_times_Q(verbose)) passed++;
 
-    // ── Boundary & sweep tests ──
-    total++; if (test_boundary_scalar_vectors(verbose)) passed++;
-    total++; if (test_field_limb_boundaries(verbose)) passed++;
 #if !defined(SECP256K1_PLATFORM_ESP32) && !defined(ESP_PLATFORM) && !defined(IDF_VER) && !defined(SECP256K1_PLATFORM_STM32)
+    // Batch inverse size sweep (21 sizes)
     total++; if (test_batch_inverse_sweep(verbose)) passed++;
 #endif
 
@@ -1284,24 +1437,135 @@ bool Selftest(bool verbose) {
 
     // Sequential increment property
     total++; if (test_sequential_increment_property(verbose)) passed++;
-    total++;
-    if (test_subtraction(verbose)) {
-        passed++;
-    }
 
-    // ── Expanded comprehensive tests (integrated from test files) ──
-    total++; if (test_extended_kg_vectors(verbose)) passed++;
+    // Fast kG vs generic kG (small 1-20 + 20 random)
     total++; if (test_fast_vs_generic_kG(verbose)) passed++;
+
+    // Repeated addition consistency (k=2..10)
     total++; if (test_repeated_addition_consistency(verbose)) passed++;
+
+    // Field stress (normalization + random algebraic laws)
     total++; if (test_field_stress(verbose)) passed++;
+
+    // Scalar stress ((n-1)^2=1 + random algebraic laws)
     total++; if (test_scalar_stress(verbose)) passed++;
+
+    // NAF/wNAF encoding validation
     total++; if (test_naf_wnaf(verbose)) passed++;
-    total++; if (test_point_advanced(verbose)) passed++;
+
+    // ═══════════════════════════════════════════════════════════════
+    // TIER 3: STRESS — Extended iterations (~10-60 min)
+    // Large random sweeps with user-provided seed
+    // ═══════════════════════════════════════════════════════════════
+
+    if (is_stress) {
+        // Stress: extended fast vs generic kG with many random scalars
+        {
+            if (verbose) SELFTEST_PRINT("\n[STRESS] Extended fast vs generic kG (1000 random scalars):\n");
+            bool ok = true;
+            Point G = Point::generator();
+            Point G_aff = Point::from_affine(G.x(), G.y());
+            SelftestRng rng(seed);
+            for (int i = 0; i < 1000 && ok; ++i) {
+                std::array<uint64_t, 4> ls{rng.next(), rng.next(), rng.next(), rng.next()};
+                Scalar k = Scalar::from_limbs(ls);
+                Point fast = scalar_mul_generator(k);
+                Point slow = G_aff.scalar_mul(k);
+                if (!points_equal(fast, slow)) {
+                    ok = false;
+                    if (verbose) SELFTEST_PRINT("    FAIL at i=%d\n", i);
+                }
+            }
+            if (verbose) SELFTEST_PRINT(ok ? "    PASS\n" : "    FAIL\n");
+            total++; if (ok) passed++;
+        }
+
+        // Stress: extended field algebraic laws (500 random triples)
+        {
+            if (verbose) SELFTEST_PRINT("\n[STRESS] Extended field algebraic laws (500 triples):\n");
+            bool ok = true;
+            SelftestRng rng(seed ^ 0xF1E1DULL);
+            for (int i = 0; i < 500 && ok; ++i) {
+                std::array<uint64_t, 4> la{rng.next(), rng.next(), rng.next(), rng.next()};
+                std::array<uint64_t, 4> lb{rng.next(), rng.next(), rng.next(), rng.next()};
+                std::array<uint64_t, 4> lc{rng.next(), rng.next(), rng.next(), rng.next()};
+                FieldElement a = FieldElement::from_limbs(la);
+                FieldElement b = FieldElement::from_limbs(lb);
+                FieldElement c = FieldElement::from_limbs(lc);
+                if (!(a * b == b * a)) ok = false;
+                if (!((a * b) * c == a * (b * c))) ok = false;
+                if (!(a * (b + c) == a * b + a * c)) ok = false;
+                if (!((a - b) + b == a)) ok = false;
+                FieldElement sq = a; sq.square_inplace();
+                if (!(sq == a * a)) ok = false;
+            }
+            if (verbose) SELFTEST_PRINT(ok ? "    PASS\n" : "    FAIL\n");
+            total++; if (ok) passed++;
+        }
+
+        // Stress: extended bilinearity K*(Q±G) (100 random K,Q pairs)
+        {
+            if (verbose) SELFTEST_PRINT("\n[STRESS] Extended bilinearity K*(Q±G) (100 pairs):\n");
+            bool ok = true;
+            SelftestRng rng(seed ^ 0xB11FULL);
+            Point G = Point::generator();
+            for (int i = 0; i < 100 && ok; ++i) {
+                std::array<uint64_t, 4> lk{rng.next(), rng.next(), rng.next(), rng.next()};
+                std::array<uint64_t, 4> lq{rng.next(), rng.next(), rng.next(), rng.next()};
+                Scalar K = Scalar::from_limbs(lk);
+                Scalar qk = Scalar::from_limbs(lq);
+                Point Q = scalar_mul_generator(qk);
+                Point KG = scalar_mul_generator(K);
+
+                Point Lp = Q.add(G).scalar_mul(K);
+                Point Rp = Q.scalar_mul(K).add(KG);
+                if (!points_equal(Lp, Rp)) { ok = false; break; }
+
+                Point Lm = Q.add(G.negate()).scalar_mul(K);
+                Point Rm = Q.scalar_mul(K).add(KG.negate());
+                if (!points_equal(Lm, Rm)) { ok = false; break; }
+            }
+            if (verbose) SELFTEST_PRINT(ok ? "    PASS\n" : "    FAIL\n");
+            total++; if (ok) passed++;
+        }
+
+#if !defined(SECP256K1_PLATFORM_ESP32) && !defined(ESP_PLATFORM) && !defined(IDF_VER) && !defined(SECP256K1_PLATFORM_STM32)
+        // Stress: batch inverse large sweep (up to 8192)
+        {
+            if (verbose) SELFTEST_PRINT("\n[STRESS] Batch inverse large sweep (up to 8192):\n");
+            static const size_t SIZES[] = { 2048, 3072, 4096, 6144, 8192 };
+            bool ok = true;
+            SelftestRng rng(seed ^ 0xBA7C4ULL);
+            for (size_t sz : SIZES) {
+                std::vector<FieldElement> elems(sz);
+                std::vector<FieldElement> copy(sz);
+                for (size_t j = 0; j < sz; ++j) {
+                    uint64_t v = rng.next() | 1ULL; // ensure nonzero
+                    elems[j] = FieldElement::from_uint64(v);
+                    copy[j] = elems[j];
+                }
+                fe_batch_inverse(elems.data(), sz);
+                // Spot-check first/last/middle
+                for (size_t idx : {(size_t)0, sz/2, sz-1}) {
+                    if (!(copy[idx].inverse() == elems[idx])) {
+                        ok = false;
+                        if (verbose) SELFTEST_PRINT("    FAIL at size=%zu, idx=%zu\n", sz, idx);
+                        break;
+                    }
+                }
+                if (!ok) break;
+            }
+            if (verbose) SELFTEST_PRINT(ok ? "    PASS\n" : "    FAIL\n");
+            total++; if (ok) passed++;
+        }
+#endif
+    }
 
     // Summary
     if (verbose) {
+        const char* mode_label = is_stress ? "stress" : "ci";
         SELFTEST_PRINT("\n==============================================\n");
-        SELFTEST_PRINT("  Results: %d/%d tests passed\n", passed, total);
+        SELFTEST_PRINT("  Results: %d/%d tests passed (%s)\n", passed, total, mode_label);
         if (passed == total) {
             SELFTEST_PRINT("  [OK] ALL TESTS PASSED\n");
         } else {

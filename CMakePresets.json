@@ -101,6 +101,38 @@
                 "SECP256K1_BUILD_BENCH": "ON",
                 "CMAKE_CUDA_ARCHITECTURES": "89"
             }
+        },
+        {
+            "name": "cpu-asan",
+            "displayName": "CPU ASan+UBSan",
+            "description": "CPU debug with AddressSanitizer + UndefinedBehaviorSanitizer",
+            "inherits": "base-linux",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "SECP256K1_BUILD_CPU": "ON",
+                "SECP256K1_BUILD_CUDA": "OFF",
+                "SECP256K1_BUILD_TESTS": "ON",
+                "SECP256K1_USE_ASM": "OFF",
+                "CMAKE_C_FLAGS": "-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer",
+                "CMAKE_CXX_FLAGS": "-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer",
+                "CMAKE_EXE_LINKER_FLAGS": "-fsanitize=address,undefined"
+            }
+        },
+        {
+            "name": "cpu-tsan",
+            "displayName": "CPU TSan",
+            "description": "CPU debug with ThreadSanitizer (for multi-threaded tests)",
+            "inherits": "base-linux",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "SECP256K1_BUILD_CPU": "ON",
+                "SECP256K1_BUILD_CUDA": "OFF",
+                "SECP256K1_BUILD_TESTS": "ON",
+                "SECP256K1_USE_ASM": "OFF",
+                "CMAKE_C_FLAGS": "-fsanitize=thread -fno-omit-frame-pointer",
+                "CMAKE_CXX_FLAGS": "-fsanitize=thread -fno-omit-frame-pointer",
+                "CMAKE_EXE_LINKER_FLAGS": "-fsanitize=thread"
+            }
         }
     ],
     "buildPresets": [
@@ -123,7 +155,12 @@
         {
             "name": "cuda-release-5060ti",
             "configurePreset": "cuda-release-5060ti"
-        }
-    ]
-}
+        },
+        {
+            "name": "cpu-asan",
+            "configurePreset": "cpu-asan"
+        },
+        {
+            "name": "cpu-tsan",
+            "configurePreset": "cpu-tsan"
 

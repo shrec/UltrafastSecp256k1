@@ -1010,15 +1010,85 @@ It does not include key cracking, wallet recovery, or attack tools.
 
 ## 🧪 Testing
 
-```bash
-# Run all tests
-ctest --test-dir build --output-on-failure
+### Built-in Selftest
 
-# Run benchmarks
-./build/cpu/bench/benchmark_field
-./build/cpu/bench/benchmark_point
-./build/cuda/tests/cuda_benchmark
+The library includes a comprehensive self-test (`Selftest()`) that runs **deterministic KAT vectors** covering all arithmetic operations. Every test/bench executable runs this selftest on startup.
+
+### Three Modes
+
+| Mode | Time | When | What |
+|------|------|------|------|
+| **smoke** | ~1-2s | App startup, embedded | Core KAT (10 scalar mul, field/scalar identities, point ops, batch inverse, boundary vectors) |
+| **ci** | ~30-90s | Every push (CI) | Smoke + cross-checks, bilinearity, NAF/wNAF, batch sweeps, fast-vs-generic, algebraic stress |
+| **stress** | ~10-60min | Nightly / manual | CI + 1000 random scalar muls, 500 field triples, 100 bilinearity pairs, batch inverse up to 8192 |
+
+```cpp
+#include "secp256k1/selftest.hpp"
+using namespace secp256k1::fast;
+
+// Legacy (runs ci mode):
+Selftest(true);
+
+// Explicit mode + seed:
+Selftest(true, SelftestMode::smoke);              // Fast startup check
+Selftest(true, SelftestMode::ci);                  // Full CI suite
+Selftest(true, SelftestMode::stress, 0xDEADBEEF); // Nightly with custom seed
 ```
+
+### Repro Bundle
+
+On verbose output, selftest prints everything needed to reproduce a failure:
+
+```
+  Mode:     ci
+  Seed:     0x53454350324b3147
+  Compiler: Clang 17.0.6
+  Platform: Linux x64
+  Build:    Release
+  ASM:      enabled
+  Repro:    Selftest(true, SelftestMode::ci, 0x53454350324b3147)
+```
+
+### Sanitizer Builds
+
+```bash
+# ASan + UBSan (catches UB, out-of-bounds, use-after-free)
+cmake --preset cpu-asan
+cmake --build build/cpu-asan -j
+ctest --test-dir build/cpu-asan --output-on-failure
+
+# TSan (catches data races in multi-threaded code)
+cmake --preset cpu-tsan
+cmake --build build/cpu-tsan -j
+ctest --test-dir build/cpu-tsan --output-on-failure
+```
+
+### Running Tests
+
+```bash
+# Build and run all tests (ci mode)
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DSECP256K1_BUILD_TESTS=ON
+cmake --build build -j
+ctest --test-dir build --output-on-failure
+```
+
+### Platform Coverage Dashboard
+
+| Platform | Backend | Compiler | Selftest CI | Stress | Notes |
+|----------|---------|----------|-------------|--------|-------|
+| Linux x64 | CPU | GCC 13 | ✅ CI | - | Debug + Release |
+| Linux x64 | CPU | Clang 17 | ✅ CI | - | Debug + Release |
+| Linux x64 | CPU | Clang 17 (ASan+UBSan) | ✅ CI | - | Sanitizer build |
+| Linux x64 | CPU | Clang 17 (TSan) | ✅ CI | - | Thread sanitizer |
+| Windows x64 | CPU | MSVC 2022 | ✅ CI | - | Release |
+| macOS ARM64 | CPU + Metal | AppleClang | ✅ CI | - | Apple Silicon |
+| macOS ARM64 | Metal GPU | AppleClang | ✅ CI | - | GPU shader tests |
+| iOS ARM64 | CPU | Xcode | ✅ CI | - | Device + Simulator |
+| Android ARM64 | CPU | NDK r27c | ✅ CI | - | arm64-v8a |
+| WebAssembly | CPU | Emscripten | ✅ CI | - | Compile-only |
+| ROCm/HIP | CPU + GPU | ROCm 6.3 | ✅ CI | - | Compile + CPU test |
+
+> Community-tested platforms: if you run selftest on a new platform, submit the log via PR and we'll add a row.
 
 ## 🤝 Contributing
 
