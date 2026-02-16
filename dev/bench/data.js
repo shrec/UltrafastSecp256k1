@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771219527487,
+  "lastUpdate": 1771235707116,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -1005,6 +1005,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Point Double",
             "value": 574,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "c068e1d011b8647d91d7df5f185548ba3bf83432",
+          "message": "fix: Apple9+ GPU family detection + add Metal benchmark results\n\n- Fix MTLGPUFamilyApple9 detection (enum, not macro — use SDK version guard)\n- Add Metal (Apple M3 Pro) benchmarks to README.md and docs/BENCHMARKS.md\n- Add Metal vs CUDA vs OpenCL comparison table\n- Mark Metal backend as done in Future Optimizations",
+          "timestamp": "2026-02-16T13:52:06+04:00",
+          "tree_id": "e153e1f9e1aef40db3584ff6fd048319d3db4c5a",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/c068e1d011b8647d91d7df5f185548ba3bf83432"
+        },
+        "date": 1771235706752,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Field Mul",
+            "value": 59,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 55,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 22,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Sub",
+            "value": 16,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Add",
+            "value": 991,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 575,
             "unit": "ns"
           }
         ]
