@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771410285109,
+  "lastUpdate": 1771413979009,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -1305,6 +1305,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Optimal Mul",
             "value": 31,
+            "unit": "ns"
+          },
+          {
+            "name": "Optimal Sqr",
+            "value": 28,
+            "unit": "ns"
+          },
+          {
+            "name": "Optimal Add",
+            "value": 6,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "83139bd1638e14bd57aade607711043352e5ed35",
+          "message": "fix(c_api): implement modular sqrt + MSVC standalone build\n\n- Replace non-existent FieldElement::sqrt() with addition-chain\n  exponentiation: y = y2^((p+1)/4) using the standard secp256k1\n  chain (x2→x3→x6→x9→x11→x22→x44→x88→x176→x220→x223→result).\n- Replace non-existent FieldElement::negate() with (zero - y).\n- Guard #define ULTRAFAST_SECP256K1_BUILDING with #ifndef.\n- CMakeLists standalone build: exclude field_52.cpp on MSVC (hard\n  #error without __uint128_t) and define SECP256K1_NO_INT128 so\n  scalar.cpp uses the 32-bit fallback multiply.\n\nFixes CI build-capi failures on all three platforms.",
+          "timestamp": "2026-02-18T15:24:54+04:00",
+          "tree_id": "ae64da25f6bd7058e7e63eb7bb76371abd82081f",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/83139bd1638e14bd57aade607711043352e5ed35"
+        },
+        "date": 1771413978372,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Field Mul",
+            "value": 59,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 55,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 21,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Sub",
+            "value": 16,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 573,
+            "unit": "ns"
+          },
+          {
+            "name": "10x26 Mul",
+            "value": 50,
+            "unit": "ns"
+          },
+          {
+            "name": "10x26 Sqr",
+            "value": 40,
+            "unit": "ns"
+          },
+          {
+            "name": "10x26 Add",
+            "value": 6,
+            "unit": "ns"
+          },
+          {
+            "name": "10x26 Neg",
+            "value": 6,
+            "unit": "ns"
+          },
+          {
+            "name": "5x52 Mul",
+            "value": 29,
+            "unit": "ns"
+          },
+          {
+            "name": "5x52 Sqr",
+            "value": 27,
+            "unit": "ns"
+          },
+          {
+            "name": "5x52 Add",
+            "value": 6,
+            "unit": "ns"
+          },
+          {
+            "name": "Optimal Mul",
+            "value": 30,
             "unit": "ns"
           },
           {
