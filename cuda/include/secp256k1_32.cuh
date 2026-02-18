@@ -779,6 +779,183 @@ __device__ inline int scalar_to_wnaf(const Scalar* k, int8_t* wnaf, int max_len)
     return len;
 }
 
+// ============================================================================
+// Extended scalar arithmetic (mod ORDER) - 32-bit backend
+// ============================================================================
+
+// Barrett constant: mu = floor(2^512 / ORDER), 10 x 32-bit limbs (LE)
+__constant__ static const uint32_t BARRETT_MU_32[10] = {
+    0x2FC9BEC0, 0x402DA173, 0x50B75FC4, 0x45512319,
+    0x00000001, 0x00000000, 0x00000000, 0x00000000,
+    0x00000001, 0x00000000
+};
+
+// n - 2 (for Fermat inversion), 8 x 32-bit LE limbs
+__constant__ static const uint32_t ORDER_MINUS_2[8] = {
+    0xD036413F, 0xBFD25E8C, 0xAF48A03B, 0xBAAEDCE6,
+    0xFFFFFFFE, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF
+};
+
+// Scalar negation: r = -a mod n (branchless)
+__device__ inline void scalar_negate(const Scalar* a, Scalar* r) {
+    uint32_t borrow = 0;
+    #pragma unroll
+    for (int i = 0; i < 8; i++) {
+        int64_t d = (int64_t)ORDER[i] - (int64_t)a->limbs[i] - (int64_t)borrow;
+        r->limbs[i] = (uint32_t)d;
+        borrow = (d < 0) ? 1u : 0u;
+    }
+    // If a == 0, result must be 0 (branchless mask)
+    uint32_t nz = 0;
+    #pragma unroll
+    for (int i = 0; i < 8; i++) nz |= a->limbs[i];
+    uint32_t mask = -(uint32_t)(nz != 0);
+    #pragma unroll
+    for (int i = 0; i < 8; i++) r->limbs[i] &= mask;
+}
+
+// Scalar parity check
+__device__ __forceinline__ bool scalar_is_even(const Scalar* s) {
+    return (s->limbs[0] & 1) == 0;
+}
+
+// Scalar equality
+__device__ __forceinline__ bool scalar_eq(const Scalar* a, const Scalar* b) {
+    uint32_t diff = 0;
+    #pragma unroll
+    for (int i = 0; i < 8; i++) diff |= (a->limbs[i] ^ b->limbs[i]);
+    return diff == 0;
+}
+
+// Scalar multiplication mod ORDER: r = a * b (mod n)
+// Schoolbook 8x8 -> 16-limb product + Barrett reduction
+__device__ inline void scalar_mul_mod_n(const Scalar* a, const Scalar* b, Scalar* r) {
+    uint32_t prod[16];
+    #pragma unroll
+    for (int i = 0; i < 16; i++) prod[i] = 0;
+
+    // Schoolbook 8x8 multiplication
+    for (int i = 0; i < 8; i++) {
+        uint32_t carry = 0;
+        for (int j = 0; j < 8; j++) {
+            uint64_t p = (uint64_t)a->limbs[i] * b->limbs[j] + prod[i + j] + carry;
+            prod[i + j] = (uint32_t)p;
+            carry = (uint32_t)(p >> 32);
+        }
+        prod[i + 8] = carry;
+    }
+
+    // Barrett reduction
+    // q = prod[8..15] (high 256 bits)
+    // q * BARRETT_MU_32 -> take limbs [8..15] as q_approx
+    uint32_t qmu[18];
+    #pragma unroll
+    for (int i = 0; i < 18; i++) qmu[i] = 0;
+
+    for (int i = 0; i < 8; i++) {
+        uint32_t carry = 0;
+        for (int j = 0; j < 10; j++) {
+            uint64_t p = (uint64_t)prod[8 + i] * BARRETT_MU_32[j] + qmu[i + j] + carry;
+            qmu[i + j] = (uint32_t)p;
+            carry = (uint32_t)(p >> 32);
+        }
+        qmu[i + 10] = carry;
+    }
+
+    // q_approx = qmu[8..15]
+    // q_approx * ORDER -> low 9 limbs
+    uint32_t qn[9];
+    #pragma unroll
+    for (int i = 0; i < 9; i++) qn[i] = 0;
+
+    for (int i = 0; i < 8; i++) {
+        uint32_t carry = 0;
+        for (int j = 0; j < 8; j++) {
+            if (i + j >= 9) break;
+            uint64_t p = (uint64_t)qmu[8 + i] * ORDER[j] + qn[i + j] + carry;
+            qn[i + j] = (uint32_t)p;
+            carry = (uint32_t)(p >> 32);
+        }
+        if (i + 8 < 9) qn[i + 8] = carry;
+    }
+
+    // r = prod[0..7] - qn[0..7]
+    uint32_t borrow = 0;
+    #pragma unroll
+    for (int i = 0; i < 8; i++) {
+        int64_t d = (int64_t)prod[i] - qn[i] - borrow;
+        r->limbs[i] = (uint32_t)d;
+        borrow = (d < 0) ? 1u : 0u;
+    }
+    uint32_t r8 = prod[8] - qn[8] - borrow;
+
+    // At most 2 conditional subtracts to bring into [0, ORDER)
+    if (r8 > 0 || scalar_ge(r, ORDER)) {
+        borrow = 0;
+        #pragma unroll
+        for (int i = 0; i < 8; i++) {
+            int64_t d = (int64_t)r->limbs[i] - ORDER[i] - borrow;
+            r->limbs[i] = (uint32_t)d;
+            borrow = (d < 0) ? 1u : 0u;
+        }
+        r8 -= borrow;
+    }
+    if (r8 > 0 || scalar_ge(r, ORDER)) {
+        borrow = 0;
+        #pragma unroll
+        for (int i = 0; i < 8; i++) {
+            int64_t d = (int64_t)r->limbs[i] - ORDER[i] - borrow;
+            r->limbs[i] = (uint32_t)d;
+            borrow = (d < 0) ? 1u : 0u;
+        }
+    }
+}
+
+// Scalar squaring mod ORDER: r = a^2 (mod n)
+__device__ inline void scalar_sqr_mod_n(const Scalar* a, Scalar* r) {
+    scalar_mul_mod_n(a, a, r);
+}
+
+// Scalar inverse: r = a^(n-2) mod n (Fermat's little theorem)
+// Square-and-multiply, MSB to LSB
+__device__ inline void scalar_inverse(const Scalar* a, Scalar* r) {
+    if (scalar_is_zero(a)) {
+        #pragma unroll
+        for (int i = 0; i < 8; i++) r->limbs[i] = 0;
+        return;
+    }
+
+    Scalar result;
+    result.limbs[0] = 1;
+    #pragma unroll
+    for (int i = 1; i < 8; i++) result.limbs[i] = 0;
+    Scalar base = *a;
+
+    for (int i = 255; i >= 0; --i) {
+        Scalar tmp;
+        scalar_sqr_mod_n(&result, &tmp);
+        result = tmp;
+
+        int limb_idx = i / 32;
+        int bit_idx = i % 32;
+        if ((ORDER_MINUS_2[limb_idx] >> bit_idx) & 1) {
+            scalar_mul_mod_n(&result, &base, &tmp);
+            result = tmp;
+        }
+    }
+    *r = result;
+}
+
+// Bit-length of a scalar (for GLV sign selection)
+__device__ inline int scalar_bitlen(const Scalar* s) {
+    for (int i = 7; i >= 0; --i) {
+        if (s->limbs[i] != 0) {
+            return i * 32 + (32 - __clz(s->limbs[i]));
+        }
+    }
+    return 0;
+}
+
 // --- Late-bound Wrappers ---
 // field_mul / field_sqr moved up for access by field_inv
 

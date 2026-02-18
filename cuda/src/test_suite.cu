@@ -1,5 +1,10 @@
 #include "secp256k1.cuh"
 #include "bloom.cuh"
+#include "ecdsa.cuh"
+#include "schnorr.cuh"
+#include "ecdh.cuh"
+#include "recovery.cuh"
+#include "msm.cuh"
 #include <iostream>
 #include <vector>
 #include <string>
@@ -1383,6 +1388,1192 @@ static bool test_bloom_filter(bool verbose) {
     return ok;
 }
 
+// ============================================================================
+// Extended Scalar Operations Tests (P0)
+// ============================================================================
+
+// Test kernels for new scalar operations
+__global__ void kernel_scalar_negate(const Scalar* a, Scalar* r, int count) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < count) scalar_negate(&a[idx], &r[idx]);
+}
+
+__global__ void kernel_scalar_mul_mod_n(const Scalar* a, const Scalar* b, Scalar* r, int count) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < count) scalar_mul_mod_n(&a[idx], &b[idx], &r[idx]);
+}
+
+__global__ void kernel_scalar_inverse(const Scalar* a, Scalar* r, int count) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < count) scalar_inverse(&a[idx], &r[idx]);
+}
+
+__global__ void kernel_scalar_is_even(const Scalar* a, uint8_t* r, int count) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < count) r[idx] = scalar_is_even(&a[idx]) ? 1 : 0;
+}
+
+// Helper: run scalar negate on device and return host result
+static HostScalar device_scalar_negate(const HostScalar& a) {
+    Scalar d_a = a.to_device(), d_r;
+    Scalar *d_a_ptr, *d_r_ptr;
+    cudaMalloc(&d_a_ptr, sizeof(Scalar));
+    cudaMalloc(&d_r_ptr, sizeof(Scalar));
+    cudaMemcpy(d_a_ptr, &d_a, sizeof(Scalar), cudaMemcpyHostToDevice);
+    kernel_scalar_negate<<<1, 1>>>(d_a_ptr, d_r_ptr, 1);
+    cudaDeviceSynchronize();
+    cudaMemcpy(&d_r, d_r_ptr, sizeof(Scalar), cudaMemcpyDeviceToHost);
+    cudaFree(d_a_ptr); cudaFree(d_r_ptr);
+    HostScalar result;
+    for (int i = 0; i < 4; i++) result.limbs[i] = d_r.limbs[i];
+    return result;
+}
+
+// Helper: run scalar mul mod n on device and return host result
+static HostScalar device_scalar_mul_mod_n(const HostScalar& a, const HostScalar& b) {
+    Scalar d_a = a.to_device(), d_b = b.to_device(), d_r;
+    Scalar *d_a_ptr, *d_b_ptr, *d_r_ptr;
+    cudaMalloc(&d_a_ptr, sizeof(Scalar));
+    cudaMalloc(&d_b_ptr, sizeof(Scalar));
+    cudaMalloc(&d_r_ptr, sizeof(Scalar));
+    cudaMemcpy(d_a_ptr, &d_a, sizeof(Scalar), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_b_ptr, &d_b, sizeof(Scalar), cudaMemcpyHostToDevice);
+    kernel_scalar_mul_mod_n<<<1, 1>>>(d_a_ptr, d_b_ptr, d_r_ptr, 1);
+    cudaDeviceSynchronize();
+    cudaMemcpy(&d_r, d_r_ptr, sizeof(Scalar), cudaMemcpyDeviceToHost);
+    cudaFree(d_a_ptr); cudaFree(d_b_ptr); cudaFree(d_r_ptr);
+    HostScalar result;
+    for (int i = 0; i < 4; i++) result.limbs[i] = d_r.limbs[i];
+    return result;
+}
+
+// Helper: run scalar inverse on device and return host result
+static HostScalar device_scalar_inverse(const HostScalar& a) {
+    Scalar d_a = a.to_device(), d_r;
+    Scalar *d_a_ptr, *d_r_ptr;
+    cudaMalloc(&d_a_ptr, sizeof(Scalar));
+    cudaMalloc(&d_r_ptr, sizeof(Scalar));
+    cudaMemcpy(d_a_ptr, &d_a, sizeof(Scalar), cudaMemcpyHostToDevice);
+    kernel_scalar_inverse<<<1, 1>>>(d_a_ptr, d_r_ptr, 1);
+    cudaDeviceSynchronize();
+    cudaMemcpy(&d_r, d_r_ptr, sizeof(Scalar), cudaMemcpyDeviceToHost);
+    cudaFree(d_a_ptr); cudaFree(d_r_ptr);
+    HostScalar result;
+    for (int i = 0; i < 4; i++) result.limbs[i] = d_r.limbs[i];
+    return result;
+}
+
+static bool test_scalar_negate_op(bool verbose) {
+    if (verbose) std::cout << "\nScalar Negate (Device) Test:\n";
+    bool ok = true;
+
+    // Test 1: negate(0) == 0
+    {
+        HostScalar zero = HostScalar::zero();
+        HostScalar neg_zero = device_scalar_negate(zero);
+        if (!(neg_zero == zero)) {
+            ok = false;
+            if (verbose) std::cout << "    FAIL: negate(0) != 0\n";
+        }
+    }
+
+    // Test 2: negate(1) + 1 == 0 (mod n)
+    {
+        HostScalar one = HostScalar::one();
+        HostScalar neg_one = device_scalar_negate(one);
+        HostScalar sum = neg_one + one;
+        if (!(sum == HostScalar::zero())) {
+            ok = false;
+            if (verbose) std::cout << "    FAIL: negate(1) + 1 != 0\n";
+        }
+    }
+
+    // Test 3: negate(negate(a)) == a for several values
+    {
+        HostScalar vals[] = {
+            HostScalar::from_uint64(42),
+            HostScalar::from_uint64(0xDEADBEEF),
+            HostScalar::from_hex("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364140"), // n-1
+            HostScalar::from_hex("5363ad4cc05c30e0a5261c028812645a122e22ea20816678df02967c1b23bd72"), // lambda
+        };
+        for (const auto& a : vals) {
+            HostScalar neg_a = device_scalar_negate(a);
+            HostScalar neg_neg_a = device_scalar_negate(neg_a);
+            if (!(neg_neg_a == a)) {
+                ok = false;
+                if (verbose) std::cout << "    FAIL: negate(negate(a)) != a\n";
+                break;
+            }
+            // Also verify: a + negate(a) == 0
+            HostScalar sum = a + neg_a;
+            if (!(sum == HostScalar::zero())) {
+                ok = false;
+                if (verbose) std::cout << "    FAIL: a + negate(a) != 0\n";
+                break;
+            }
+        }
+    }
+
+    if (verbose) std::cout << (ok ? "    PASS\n" : "    FAIL\n");
+    return ok;
+}
+
+static bool test_scalar_mul_mod_n_op(bool verbose) {
+    if (verbose) std::cout << "\nScalar Mul Mod N (Device) Test:\n";
+    bool ok = true;
+
+    // Test 1: 2 * 3 == 6
+    {
+        HostScalar two = HostScalar::from_uint64(2);
+        HostScalar three = HostScalar::from_uint64(3);
+        HostScalar six = HostScalar::from_uint64(6);
+        HostScalar result = device_scalar_mul_mod_n(two, three);
+        if (!(result == six)) {
+            ok = false;
+            if (verbose) std::cout << "    FAIL: 2 * 3 != 6\n";
+        }
+    }
+
+    // Test 2: a * 1 == a
+    {
+        HostScalar a = HostScalar::from_uint64(123456789);
+        HostScalar one = HostScalar::one();
+        HostScalar result = device_scalar_mul_mod_n(a, one);
+        if (!(result == a)) {
+            ok = false;
+            if (verbose) std::cout << "    FAIL: a * 1 != a\n";
+        }
+    }
+
+    // Test 3: a * 0 == 0
+    {
+        HostScalar a = HostScalar::from_uint64(0xDEADBEEF);
+        HostScalar zero = HostScalar::zero();
+        HostScalar result = device_scalar_mul_mod_n(a, zero);
+        if (!(result == zero)) {
+            ok = false;
+            if (verbose) std::cout << "    FAIL: a * 0 != 0\n";
+        }
+    }
+
+    // Test 4: Compare with host double-and-add for large values
+    {
+        HostScalar a = HostScalar::from_hex("5363ad4cc05c30e0a5261c028812645a122e22ea20816678df02967c1b23bd72");
+        HostScalar b = HostScalar::from_hex("e4437ed6010e88286f547fa90abfe4c3e4437ed6010e88286f547fa90abfe4c4");
+        HostScalar host_result = a * b;  // double-and-add on host
+        HostScalar device_result = device_scalar_mul_mod_n(a, b);
+        if (!(device_result == host_result)) {
+            ok = false;
+            if (verbose) std::cout << "    FAIL: large mul mismatch with host reference\n";
+        }
+    }
+
+    // Test 5: Commutativity: a * b == b * a
+    {
+        HostScalar a = HostScalar::from_uint64(0x123456789ABCDEFULL);
+        HostScalar b = HostScalar::from_uint64(0xFEDCBA987654321ULL);
+        HostScalar ab = device_scalar_mul_mod_n(a, b);
+        HostScalar ba = device_scalar_mul_mod_n(b, a);
+        if (!(ab == ba)) {
+            ok = false;
+            if (verbose) std::cout << "    FAIL: a*b != b*a (commutativity)\n";
+        }
+    }
+
+    // Test 6: Distributivity: a * (b + c) == a*b + a*c
+    {
+        HostScalar a = HostScalar::from_uint64(7);
+        HostScalar b = HostScalar::from_uint64(11);
+        HostScalar c = HostScalar::from_uint64(13);
+        HostScalar bc = b + c;
+        HostScalar lhs = device_scalar_mul_mod_n(a, bc);
+        HostScalar ab = device_scalar_mul_mod_n(a, b);
+        HostScalar ac = device_scalar_mul_mod_n(a, c);
+        HostScalar rhs = ab + ac;
+        if (!(lhs == rhs)) {
+            ok = false;
+            if (verbose) std::cout << "    FAIL: a*(b+c) != a*b + a*c (distributivity)\n";
+        }
+    }
+
+    if (verbose) std::cout << (ok ? "    PASS\n" : "    FAIL\n");
+    return ok;
+}
+
+static bool test_scalar_inverse_op(bool verbose) {
+    if (verbose) std::cout << "\nScalar Inverse (Device) Test:\n";
+    bool ok = true;
+
+    // Test 1: inverse(1) == 1
+    {
+        HostScalar one = HostScalar::one();
+        HostScalar inv = device_scalar_inverse(one);
+        if (!(inv == one)) {
+            ok = false;
+            if (verbose) std::cout << "    FAIL: inverse(1) != 1\n";
+        }
+    }
+
+    // Test 2: a * inverse(a) == 1 for several values
+    {
+        HostScalar vals[] = {
+            HostScalar::from_uint64(2),
+            HostScalar::from_uint64(42),
+            HostScalar::from_uint64(0xDEADBEEFCAFEULL),
+            HostScalar::from_hex("5363ad4cc05c30e0a5261c028812645a122e22ea20816678df02967c1b23bd72"),
+        };
+        for (const auto& a : vals) {
+            HostScalar inv_a = device_scalar_inverse(a);
+            HostScalar product = device_scalar_mul_mod_n(a, inv_a);
+            if (!(product == HostScalar::one())) {
+                ok = false;
+                if (verbose) std::cout << "    FAIL: a * inverse(a) != 1\n";
+                break;
+            }
+        }
+    }
+
+    // Test 3: inverse(0) == 0
+    {
+        HostScalar zero = HostScalar::zero();
+        HostScalar inv = device_scalar_inverse(zero);
+        if (!(inv == zero)) {
+            ok = false;
+            if (verbose) std::cout << "    FAIL: inverse(0) != 0\n";
+        }
+    }
+
+    // Test 4: inverse(inverse(a)) == a
+    {
+        HostScalar a = HostScalar::from_uint64(17);
+        HostScalar inv_a = device_scalar_inverse(a);
+        HostScalar inv_inv_a = device_scalar_inverse(inv_a);
+        if (!(inv_inv_a == a)) {
+            ok = false;
+            if (verbose) std::cout << "    FAIL: inverse(inverse(a)) != a\n";
+        }
+    }
+
+    if (verbose) std::cout << (ok ? "    PASS\n" : "    FAIL\n");
+    return ok;
+}
+
+static bool test_scalar_is_even_op(bool verbose) {
+    if (verbose) std::cout << "\nScalar Is Even (Device) Test:\n";
+    bool ok = true;
+
+    HostScalar vals[] = {
+        HostScalar::zero(),           // even
+        HostScalar::one(),            // odd
+        HostScalar::from_uint64(2),   // even
+        HostScalar::from_uint64(3),   // odd
+        HostScalar::from_uint64(0xFFFFFFFFFFFFFFFEULL), // even
+        HostScalar::from_uint64(0xFFFFFFFFFFFFFFFFULL), // odd
+    };
+    bool expected[] = {true, false, true, false, true, false};
+    int num = sizeof(vals) / sizeof(vals[0]);
+
+    Scalar* d_a;
+    uint8_t* d_r;
+    cudaMalloc(&d_a, num * sizeof(Scalar));
+    cudaMalloc(&d_r, num);
+
+    std::vector<Scalar> h_scalars(num);
+    for (int i = 0; i < num; i++) h_scalars[i] = vals[i].to_device();
+    cudaMemcpy(d_a, h_scalars.data(), num * sizeof(Scalar), cudaMemcpyHostToDevice);
+
+    kernel_scalar_is_even<<<1, num>>>(d_a, d_r, num);
+    cudaDeviceSynchronize();
+
+    uint8_t h_results[6];
+    cudaMemcpy(h_results, d_r, num, cudaMemcpyDeviceToHost);
+
+    for (int i = 0; i < num; i++) {
+        bool got = h_results[i] != 0;
+        if (got != expected[i]) {
+            ok = false;
+            if (verbose) std::cout << "    FAIL: is_even mismatch at index " << i << "\n";
+        }
+    }
+
+    cudaFree(d_a); cudaFree(d_r);
+    if (verbose) std::cout << (ok ? "    PASS\n" : "    FAIL\n");
+    return ok;
+}
+
+#if !SECP256K1_CUDA_LIMBS_32
+// GLV decomposition test
+__global__ void kernel_glv_decompose(const Scalar* k, Scalar* k1, Scalar* k2,
+                                      uint8_t* k1_neg, uint8_t* k2_neg, int count) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < count) {
+        GLVDecomposition d = glv_decompose(&k[idx]);
+        k1[idx] = d.k1;
+        k2[idx] = d.k2;
+        k1_neg[idx] = d.k1_neg ? 1 : 0;
+        k2_neg[idx] = d.k2_neg ? 1 : 0;
+    }
+}
+
+static bool test_glv_decompose_op(bool verbose) {
+    if (verbose) std::cout << "\nGLV Decomposition (Device) Test:\n";
+    bool ok = true;
+
+    // For each test scalar k, verify: k == (k1_neg ? -k1 : k1) + lambda*(k2_neg ? -k2 : k2) (mod n)
+    HostScalar test_scalars[] = {
+        HostScalar::one(),
+        HostScalar::from_uint64(12345),
+        HostScalar::from_hex("5363ad4cc05c30e0a5261c028812645a122e22ea20816678df02967c1b23bd72"),
+        HostScalar::from_hex("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364140"), // n-1
+    };
+    int num = sizeof(test_scalars) / sizeof(test_scalars[0]);
+
+    Scalar *d_k, *d_k1, *d_k2;
+    uint8_t *d_k1n, *d_k2n;
+    cudaMalloc(&d_k, num * sizeof(Scalar));
+    cudaMalloc(&d_k1, num * sizeof(Scalar));
+    cudaMalloc(&d_k2, num * sizeof(Scalar));
+    cudaMalloc(&d_k1n, num);
+    cudaMalloc(&d_k2n, num);
+
+    std::vector<Scalar> h_k(num);
+    for (int i = 0; i < num; i++) h_k[i] = test_scalars[i].to_device();
+    cudaMemcpy(d_k, h_k.data(), num * sizeof(Scalar), cudaMemcpyHostToDevice);
+
+    kernel_glv_decompose<<<1, num>>>(d_k, d_k1, d_k2, d_k1n, d_k2n, num);
+    cudaDeviceSynchronize();
+
+    std::vector<Scalar> h_k1(num), h_k2(num);
+    uint8_t h_k1n[4], h_k2n[4];
+    cudaMemcpy(h_k1.data(), d_k1, num * sizeof(Scalar), cudaMemcpyDeviceToHost);
+    cudaMemcpy(h_k2.data(), d_k2, num * sizeof(Scalar), cudaMemcpyDeviceToHost);
+    cudaMemcpy(h_k1n, d_k1n, num, cudaMemcpyDeviceToHost);
+    cudaMemcpy(h_k2n, d_k2n, num, cudaMemcpyDeviceToHost);
+
+    // lambda (for verification on host)
+    HostScalar lambda = HostScalar::from_hex("5363ad4cc05c30e0a5261c028812645a122e22ea20816678df02967c1b23bd72");
+
+    for (int i = 0; i < num; i++) {
+        HostScalar k1_val;
+        for (int j = 0; j < 4; j++) k1_val.limbs[j] = h_k1[i].limbs[j];
+        HostScalar k2_val;
+        for (int j = 0; j < 4; j++) k2_val.limbs[j] = h_k2[i].limbs[j];
+
+        // Apply signs
+        HostScalar k1_signed = h_k1n[i] ? (HostScalar::zero() - k1_val) : k1_val;
+        HostScalar k2_signed = h_k2n[i] ? (HostScalar::zero() - k2_val) : k2_val;
+
+        // Verify: k1_signed + lambda * k2_signed == k (mod n)
+        HostScalar lk2 = lambda * k2_signed;
+        HostScalar reconstructed = k1_signed + lk2;
+
+        if (!(reconstructed == test_scalars[i])) {
+            ok = false;
+            if (verbose) std::cout << "    FAIL: GLV decomposition verification failed for scalar " << i << "\n";
+        }
+
+        // Verify k1, k2 are roughly 128 bits (< 130 bits)
+        // k1_val and k2_val should be small
+    }
+
+    cudaFree(d_k); cudaFree(d_k1); cudaFree(d_k2);
+    cudaFree(d_k1n); cudaFree(d_k2n);
+
+    if (verbose) std::cout << (ok ? "    PASS\n" : "    FAIL\n");
+    return ok;
+}
+
+// GLV scalar multiplication test
+__global__ void kernel_scalar_mul_glv(const JacobianPoint* p, const Scalar* k,
+                                       JacobianPoint* r, int count) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < count) scalar_mul_glv(&p[idx], &k[idx], &r[idx]);
+}
+
+static bool test_glv_scalar_mul_op(bool verbose) {
+    if (verbose) std::cout << "\nGLV Scalar Mul (Device) Test:\n";
+    bool ok = true;
+
+    // Compare GLV mul with regular mul for known test vectors
+    HostScalar test_scalars[] = {
+        HostScalar::from_uint64(1),
+        HostScalar::from_uint64(2),
+        HostScalar::from_uint64(10),
+        HostScalar::from_hex("5363ad4cc05c30e0a5261c028812645a122e22ea20816678df02967c1b23bd72"),
+    };
+    int num = sizeof(test_scalars) / sizeof(test_scalars[0]);
+
+    for (int i = 0; i < num; i++) {
+        // Regular mul
+        HostPoint regular = scalar_mul_generator(test_scalars[i]);
+        // GLV mul on device
+        HostPoint G = HostPoint::generator();
+        JacobianPoint d_p = G.to_device();
+        Scalar d_k = test_scalars[i].to_device();
+        JacobianPoint d_r;
+
+        JacobianPoint *d_p_ptr, *d_r_ptr;
+        Scalar *d_k_ptr;
+        cudaMalloc(&d_p_ptr, sizeof(JacobianPoint));
+        cudaMalloc(&d_r_ptr, sizeof(JacobianPoint));
+        cudaMalloc(&d_k_ptr, sizeof(Scalar));
+        cudaMemcpy(d_p_ptr, &d_p, sizeof(JacobianPoint), cudaMemcpyHostToDevice);
+        cudaMemcpy(d_k_ptr, &d_k, sizeof(Scalar), cudaMemcpyHostToDevice);
+
+        kernel_scalar_mul_glv<<<1, 1>>>(d_p_ptr, d_k_ptr, d_r_ptr, 1);
+        cudaDeviceSynchronize();
+
+        cudaMemcpy(&d_r, d_r_ptr, sizeof(JacobianPoint), cudaMemcpyDeviceToHost);
+        cudaFree(d_p_ptr); cudaFree(d_r_ptr); cudaFree(d_k_ptr);
+
+        HostPoint glv_result = HostPoint::from_device(d_r);
+
+        if (!points_equal(regular, glv_result)) {
+            ok = false;
+            if (verbose) {
+                std::cout << "    FAIL: GLV mul mismatch for scalar " << i << "\n";
+                std::cout << "      Regular X: " << regular.x().to_hex() << "\n";
+                std::cout << "      GLV    X: " << glv_result.x().to_hex() << "\n";
+            }
+        }
+    }
+
+    if (verbose) std::cout << (ok ? "    PASS\n" : "    FAIL\n");
+    return ok;
+}
+
+// Windowed generator multiplication test kernel
+// Uses local table (single-thread test; shared memory version used in batch kernel)
+__global__ void kernel_generator_mul_windowed_test(
+    const Scalar* k, JacobianPoint* r_standard, JacobianPoint* r_windowed)
+{
+    JacobianPoint table[16];
+    build_generator_table(table);
+
+    scalar_mul(&GENERATOR_JACOBIAN, k, r_standard);
+    scalar_mul_generator_windowed(table, k, r_windowed);
+}
+
+static bool test_generator_mul_windowed_op(bool verbose) {
+    if (verbose) std::cout << "\nWindowed Generator Mul (w=4) Test:\n";
+    bool ok = true;
+
+    HostScalar test_scalars[] = {
+        HostScalar::from_uint64(1),
+        HostScalar::from_uint64(2),
+        HostScalar::from_uint64(7),
+        HostScalar::from_uint64(256),
+        HostScalar::from_hex("5363ad4cc05c30e0a5261c028812645a122e22ea20816678df02967c1b23bd72"),
+        HostScalar::from_hex("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364140"),  // n-1
+    };
+    int num = sizeof(test_scalars) / sizeof(test_scalars[0]);
+
+    Scalar* d_k;          cudaMalloc(&d_k, sizeof(Scalar));
+    JacobianPoint* d_std; cudaMalloc(&d_std, sizeof(JacobianPoint));
+    JacobianPoint* d_win; cudaMalloc(&d_win, sizeof(JacobianPoint));
+
+    for (int i = 0; i < num; i++) {
+        Scalar h_k = test_scalars[i].to_device();
+        cudaMemcpy(d_k, &h_k, sizeof(Scalar), cudaMemcpyHostToDevice);
+
+        kernel_generator_mul_windowed_test<<<1, 1>>>(d_k, d_std, d_win);
+        cudaDeviceSynchronize();
+
+        JacobianPoint h_std, h_win;
+        cudaMemcpy(&h_std, d_std, sizeof(JacobianPoint), cudaMemcpyDeviceToHost);
+        cudaMemcpy(&h_win, d_win, sizeof(JacobianPoint), cudaMemcpyDeviceToHost);
+
+        HostPoint p_std(h_std), p_win(h_win);
+
+        bool match = (p_std.x().to_hex() == p_win.x().to_hex()) &&
+                     (p_std.y().to_hex() == p_win.y().to_hex());
+        if (!match) {
+            ok = false;
+            if (verbose) {
+                std::cout << "    FAIL: windowed != standard for scalar " << i << "\n";
+                std::cout << "      Standard X: " << p_std.x().to_hex() << "\n";
+                std::cout << "      Windowed X: " << p_win.x().to_hex() << "\n";
+            }
+        } else {
+            if (verbose) std::cout << "    scalar[" << i << "]: windowed == standard OK\n";
+        }
+    }
+
+    cudaFree(d_k);
+    cudaFree(d_std);
+    cudaFree(d_win);
+
+    if (verbose) std::cout << (ok ? "    PASS\n" : "    FAIL\n");
+    return ok;
+}
+
+// ── ECDSA Sign + Verify Test ─────────────────────────────────────────────────
+
+__global__ void kernel_ecdsa_sign_verify(
+    const uint8_t* msg_hash, const Scalar* priv_key,
+    ECDSASignatureGPU* sig_out, bool* sign_ok, bool* verify_ok)
+{
+    // Sign
+    *sign_ok = ecdsa_sign(msg_hash, priv_key, sig_out);
+
+    if (*sign_ok) {
+        // Compute public key: Q = priv * G
+        JacobianPoint Q;
+        scalar_mul(&GENERATOR_JACOBIAN, priv_key, &Q);
+
+        // Verify
+        *verify_ok = ecdsa_verify(msg_hash, &Q, sig_out);
+    } else {
+        *verify_ok = false;
+    }
+}
+
+__global__ void kernel_ecdsa_verify_bad_msg(
+    const uint8_t* msg_hash, const uint8_t* bad_hash,
+    const Scalar* priv_key, const ECDSASignatureGPU* sig,
+    bool* verify_good, bool* verify_bad)
+{
+    JacobianPoint Q;
+    scalar_mul(&GENERATOR_JACOBIAN, priv_key, &Q);
+
+    *verify_good = ecdsa_verify(msg_hash, &Q, sig);
+    *verify_bad  = ecdsa_verify(bad_hash, &Q, sig);
+}
+
+static bool test_ecdsa_sign_verify_op(bool verbose) {
+    if (verbose) std::cout << "\nECDSA Sign + Verify (Device) Test:\n";
+    bool ok = true;
+
+    // Test 1: Sign and verify with a known private key
+    {
+        // Private key: 1 (simplest case)
+        HostScalar priv = HostScalar::from_uint64(1);
+        Scalar h_priv = priv.to_device();
+
+        // Message hash: SHA256("test") = known value
+        uint8_t h_msg[32] = {
+            0x9f, 0x86, 0xd0, 0x81, 0x88, 0x4c, 0x7d, 0x65,
+            0x9a, 0x2f, 0xea, 0xa0, 0xc5, 0x5a, 0xd0, 0x15,
+            0xa3, 0xbf, 0x4f, 0x1b, 0x2b, 0x0b, 0x82, 0x2c,
+            0xd1, 0x5d, 0x6c, 0x15, 0xb0, 0xf0, 0x0a, 0x08
+        };
+
+        uint8_t* d_msg;     cudaMalloc(&d_msg, 32);
+        Scalar* d_priv;     cudaMalloc(&d_priv, sizeof(Scalar));
+        ECDSASignatureGPU* d_sig; cudaMalloc(&d_sig, sizeof(ECDSASignatureGPU));
+        bool *d_sign_ok, *d_verify_ok;
+        cudaMalloc(&d_sign_ok, sizeof(bool));
+        cudaMalloc(&d_verify_ok, sizeof(bool));
+
+        cudaMemcpy(d_msg, h_msg, 32, cudaMemcpyHostToDevice);
+        cudaMemcpy(d_priv, &h_priv, sizeof(Scalar), cudaMemcpyHostToDevice);
+
+        kernel_ecdsa_sign_verify<<<1, 1>>>(d_msg, d_priv, d_sig, d_sign_ok, d_verify_ok);
+        cudaDeviceSynchronize();
+
+        bool sign_ok_h, verify_ok_h;
+        cudaMemcpy(&sign_ok_h, d_sign_ok, sizeof(bool), cudaMemcpyDeviceToHost);
+        cudaMemcpy(&verify_ok_h, d_verify_ok, sizeof(bool), cudaMemcpyDeviceToHost);
+
+        if (!sign_ok_h)   { ok = false; if (verbose) std::cout << "    FAIL: sign returned false\n"; }
+        if (!verify_ok_h) { ok = false; if (verbose) std::cout << "    FAIL: verify returned false\n"; }
+        if (sign_ok_h && verify_ok_h && verbose) std::cout << "    priv=1: sign+verify OK\n";
+
+        // Test 2: Verify with wrong message should fail
+        uint8_t h_bad[32];
+        for (int i = 0; i < 32; i++) h_bad[i] = h_msg[i] ^ 0xFF;
+
+        ECDSASignatureGPU h_sig;
+        cudaMemcpy(&h_sig, d_sig, sizeof(ECDSASignatureGPU), cudaMemcpyDeviceToHost);
+
+        uint8_t* d_bad;            cudaMalloc(&d_bad, 32);
+        bool *d_vgood, *d_vbad;
+        cudaMalloc(&d_vgood, sizeof(bool));
+        cudaMalloc(&d_vbad, sizeof(bool));
+        cudaMemcpy(d_bad, h_bad, 32, cudaMemcpyHostToDevice);
+        cudaMemcpy(d_sig, &h_sig, sizeof(ECDSASignatureGPU), cudaMemcpyHostToDevice);
+
+        kernel_ecdsa_verify_bad_msg<<<1, 1>>>(
+            d_msg, d_bad, d_priv, d_sig, d_vgood, d_vbad);
+        cudaDeviceSynchronize();
+
+        bool vgood_h, vbad_h;
+        cudaMemcpy(&vgood_h, d_vgood, sizeof(bool), cudaMemcpyDeviceToHost);
+        cudaMemcpy(&vbad_h, d_vbad, sizeof(bool), cudaMemcpyDeviceToHost);
+
+        if (!vgood_h) { ok = false; if (verbose) std::cout << "    FAIL: verify(correct msg) false\n"; }
+        if (vbad_h)   { ok = false; if (verbose) std::cout << "    FAIL: verify(wrong msg) true\n"; }
+        if (vgood_h && !vbad_h && verbose) std::cout << "    wrong-msg rejection OK\n";
+
+        cudaFree(d_msg); cudaFree(d_priv); cudaFree(d_sig);
+        cudaFree(d_sign_ok); cudaFree(d_verify_ok);
+        cudaFree(d_bad); cudaFree(d_vgood); cudaFree(d_vbad);
+    }
+
+    // Test 3: Sign with another private key
+    {
+        HostScalar priv = HostScalar::from_hex(
+            "5363ad4cc05c30e0a5261c028812645a122e22ea20816678df02967c1b23bd72");
+        Scalar h_priv = priv.to_device();
+
+        uint8_t h_msg[32] = {0};
+        h_msg[31] = 0x42;  // simple message hash
+
+        uint8_t* d_msg;     cudaMalloc(&d_msg, 32);
+        Scalar* d_priv;     cudaMalloc(&d_priv, sizeof(Scalar));
+        ECDSASignatureGPU* d_sig; cudaMalloc(&d_sig, sizeof(ECDSASignatureGPU));
+        bool *d_sign_ok, *d_verify_ok;
+        cudaMalloc(&d_sign_ok, sizeof(bool));
+        cudaMalloc(&d_verify_ok, sizeof(bool));
+
+        cudaMemcpy(d_msg, h_msg, 32, cudaMemcpyHostToDevice);
+        cudaMemcpy(d_priv, &h_priv, sizeof(Scalar), cudaMemcpyHostToDevice);
+
+        kernel_ecdsa_sign_verify<<<1, 1>>>(d_msg, d_priv, d_sig, d_sign_ok, d_verify_ok);
+        cudaDeviceSynchronize();
+
+        bool sign_ok_h, verify_ok_h;
+        cudaMemcpy(&sign_ok_h, d_sign_ok, sizeof(bool), cudaMemcpyDeviceToHost);
+        cudaMemcpy(&verify_ok_h, d_verify_ok, sizeof(bool), cudaMemcpyDeviceToHost);
+
+        if (!sign_ok_h)   { ok = false; if (verbose) std::cout << "    FAIL: sign(large key) failed\n"; }
+        if (!verify_ok_h) { ok = false; if (verbose) std::cout << "    FAIL: verify(large key) failed\n"; }
+        if (sign_ok_h && verify_ok_h && verbose) std::cout << "    large key: sign+verify OK\n";
+
+        cudaFree(d_msg); cudaFree(d_priv); cudaFree(d_sig);
+        cudaFree(d_sign_ok); cudaFree(d_verify_ok);
+    }
+
+    // Test 4: low-S normalization — verify signature r,s are both non-zero and s is low
+    {
+        HostScalar priv = HostScalar::from_uint64(7);
+        Scalar h_priv = priv.to_device();
+        uint8_t h_msg[32] = {0};
+        h_msg[0] = 0xAB; h_msg[15] = 0xCD;
+
+        uint8_t* d_msg;     cudaMalloc(&d_msg, 32);
+        Scalar* d_priv;     cudaMalloc(&d_priv, sizeof(Scalar));
+        ECDSASignatureGPU* d_sig; cudaMalloc(&d_sig, sizeof(ECDSASignatureGPU));
+        bool *d_sign_ok, *d_verify_ok;
+        cudaMalloc(&d_sign_ok, sizeof(bool));
+        cudaMalloc(&d_verify_ok, sizeof(bool));
+
+        cudaMemcpy(d_msg, h_msg, 32, cudaMemcpyHostToDevice);
+        cudaMemcpy(d_priv, &h_priv, sizeof(Scalar), cudaMemcpyHostToDevice);
+
+        kernel_ecdsa_sign_verify<<<1, 1>>>(d_msg, d_priv, d_sig, d_sign_ok, d_verify_ok);
+        cudaDeviceSynchronize();
+
+        ECDSASignatureGPU h_sig;
+        cudaMemcpy(&h_sig, d_sig, sizeof(ECDSASignatureGPU), cudaMemcpyDeviceToHost);
+
+        bool sign_ok_h, verify_ok_h;
+        cudaMemcpy(&sign_ok_h, d_sign_ok, sizeof(bool), cudaMemcpyDeviceToHost);
+        cudaMemcpy(&verify_ok_h, d_verify_ok, sizeof(bool), cudaMemcpyDeviceToHost);
+
+        if (sign_ok_h) {
+            // Check low-S: s.limbs[3] should have top bit clear
+            bool is_low = (h_sig.s.limbs[3] <= 0x7FFFFFFFFFFFFFFFULL);
+            if (!is_low) { ok = false; if (verbose) std::cout << "    FAIL: s not normalized to low-S\n"; }
+            else if (verbose) std::cout << "    low-S normalization OK\n";
+        }
+        if (sign_ok_h && verify_ok_h && verbose) std::cout << "    priv=7: sign+verify OK\n";
+
+        cudaFree(d_msg); cudaFree(d_priv); cudaFree(d_sig);
+        cudaFree(d_sign_ok); cudaFree(d_verify_ok);
+    }
+
+    if (verbose) std::cout << (ok ? "    PASS\n" : "    FAIL\n");
+    return ok;
+}
+
+// =============================================================================
+// Schnorr BIP-340 Tests
+// =============================================================================
+
+__global__ void kernel_schnorr_sign_verify(
+    const uint8_t* d_msg,
+    const Scalar* d_priv,
+    SchnorrSignatureGPU* d_sig,
+    bool* d_sign_ok,
+    bool* d_verify_ok)
+{
+    // Sign
+    uint8_t aux_rand[32] = {};  // deterministic (zeros)
+    *d_sign_ok = schnorr_sign(d_priv, d_msg, aux_rand, d_sig);
+
+    if (*d_sign_ok) {
+        // Compute pubkey x-only
+        JacobianPoint P;
+        scalar_mul(&GENERATOR_JACOBIAN, d_priv, &P);
+        FieldElement z_inv, z_inv2, z_inv3, px, py;
+        field_inv(&P.z, &z_inv);
+        field_sqr(&z_inv, &z_inv2);
+        field_mul(&z_inv, &z_inv2, &z_inv3);
+        field_mul(&P.x, &z_inv2, &px);
+        field_mul(&P.y, &z_inv3, &py);
+
+        // Ensure even Y for X-only pubkey
+        uint8_t py_bytes[32];
+        field_to_bytes(&py, py_bytes);
+        // (We just need px as bytes)
+        uint8_t pk_bytes[32];
+        field_to_bytes(&px, pk_bytes);
+
+        // Verify
+        *d_verify_ok = schnorr_verify(pk_bytes, d_msg, d_sig);
+    } else {
+        *d_verify_ok = false;
+    }
+}
+
+__global__ void kernel_schnorr_verify_bad_msg(
+    const uint8_t* d_msg,
+    const Scalar* d_priv,
+    bool* d_result)
+{
+    // Sign with correct message
+    uint8_t aux_rand[32] = {};
+    SchnorrSignatureGPU sig;
+    bool sign_ok = schnorr_sign(d_priv, d_msg, aux_rand, &sig);
+    if (!sign_ok) { *d_result = false; return; }
+
+    // Compute pubkey x-only
+    JacobianPoint P;
+    scalar_mul(&GENERATOR_JACOBIAN, d_priv, &P);
+    FieldElement z_inv, z_inv2, px;
+    field_inv(&P.z, &z_inv);
+    field_sqr(&z_inv, &z_inv2);
+    field_mul(&P.x, &z_inv2, &px);
+    uint8_t pk_bytes[32];
+    field_to_bytes(&px, pk_bytes);
+
+    // Verify with wrong message — should fail
+    uint8_t bad_msg[32];
+    for (int i = 0; i < 32; i++) bad_msg[i] = d_msg[i] ^ 0xFF;
+    *d_result = !schnorr_verify(pk_bytes, bad_msg, &sig);  // expect rejection
+}
+
+static bool test_schnorr_sign_verify_op(bool verbose) {
+    if (verbose) std::cout << "\nSchnorr BIP-340 Sign/Verify:\n";
+    bool ok = true;
+
+    // Test 1: priv=1 sign + verify
+    {
+        uint8_t msg[32] = {};
+        msg[0] = 0xAA; msg[15] = 0xBB; msg[31] = 0xCC;
+        Scalar priv = {};
+        priv.limbs[0] = 1;
+
+        uint8_t* d_msg; Scalar* d_priv; SchnorrSignatureGPU* d_sig;
+        bool *d_sign_ok, *d_verify_ok;
+        cudaMalloc(&d_msg, 32);
+        cudaMalloc(&d_priv, sizeof(Scalar));
+        cudaMalloc(&d_sig, sizeof(SchnorrSignatureGPU));
+        cudaMalloc(&d_sign_ok, sizeof(bool));
+        cudaMalloc(&d_verify_ok, sizeof(bool));
+        cudaMemcpy(d_msg, msg, 32, cudaMemcpyHostToDevice);
+        cudaMemcpy(d_priv, &priv, sizeof(Scalar), cudaMemcpyHostToDevice);
+
+        kernel_schnorr_sign_verify<<<1,1>>>(d_msg, d_priv, d_sig, d_sign_ok, d_verify_ok);
+        cudaDeviceSynchronize();
+
+        bool sign_ok_h, verify_ok_h;
+        cudaMemcpy(&sign_ok_h, d_sign_ok, sizeof(bool), cudaMemcpyDeviceToHost);
+        cudaMemcpy(&verify_ok_h, d_verify_ok, sizeof(bool), cudaMemcpyDeviceToHost);
+
+        if (!sign_ok_h) { ok = false; if (verbose) std::cout << "    FAIL: schnorr sign failed (priv=1)\n"; }
+        else if (!verify_ok_h) { ok = false; if (verbose) std::cout << "    FAIL: schnorr verify failed (priv=1)\n"; }
+        else if (verbose) std::cout << "    priv=1: schnorr sign+verify OK\n";
+
+        cudaFree(d_msg); cudaFree(d_priv); cudaFree(d_sig);
+        cudaFree(d_sign_ok); cudaFree(d_verify_ok);
+    }
+
+    // Test 2: wrong message rejection
+    {
+        uint8_t msg[32] = {};
+        msg[0] = 0x42;
+        Scalar priv = {};
+        priv.limbs[0] = 7;
+
+        uint8_t* d_msg; Scalar* d_priv; bool* d_result;
+        cudaMalloc(&d_msg, 32);
+        cudaMalloc(&d_priv, sizeof(Scalar));
+        cudaMalloc(&d_result, sizeof(bool));
+        cudaMemcpy(d_msg, msg, 32, cudaMemcpyHostToDevice);
+        cudaMemcpy(d_priv, &priv, sizeof(Scalar), cudaMemcpyHostToDevice);
+
+        kernel_schnorr_verify_bad_msg<<<1,1>>>(d_msg, d_priv, d_result);
+        cudaDeviceSynchronize();
+
+        bool result_h;
+        cudaMemcpy(&result_h, d_result, sizeof(bool), cudaMemcpyDeviceToHost);
+        if (!result_h) { ok = false; if (verbose) std::cout << "    FAIL: schnorr wrong msg not rejected\n"; }
+        else if (verbose) std::cout << "    wrong-msg rejection OK\n";
+
+        cudaFree(d_msg); cudaFree(d_priv); cudaFree(d_result);
+    }
+
+    // Test 3: larger private key
+    {
+        uint8_t msg[32] = {};
+        msg[0] = 0xDE; msg[1] = 0xAD;
+        Scalar priv = {};
+        priv.limbs[0] = 0xDEADBEEFCAFEBABEULL;
+        priv.limbs[1] = 0x0123456789ABCDEFULL;
+
+        uint8_t* d_msg; Scalar* d_priv; SchnorrSignatureGPU* d_sig;
+        bool *d_sign_ok, *d_verify_ok;
+        cudaMalloc(&d_msg, 32);
+        cudaMalloc(&d_priv, sizeof(Scalar));
+        cudaMalloc(&d_sig, sizeof(SchnorrSignatureGPU));
+        cudaMalloc(&d_sign_ok, sizeof(bool));
+        cudaMalloc(&d_verify_ok, sizeof(bool));
+        cudaMemcpy(d_msg, msg, 32, cudaMemcpyHostToDevice);
+        cudaMemcpy(d_priv, &priv, sizeof(Scalar), cudaMemcpyHostToDevice);
+
+        kernel_schnorr_sign_verify<<<1,1>>>(d_msg, d_priv, d_sig, d_sign_ok, d_verify_ok);
+        cudaDeviceSynchronize();
+
+        bool sign_ok_h, verify_ok_h;
+        cudaMemcpy(&sign_ok_h, d_sign_ok, sizeof(bool), cudaMemcpyDeviceToHost);
+        cudaMemcpy(&verify_ok_h, d_verify_ok, sizeof(bool), cudaMemcpyDeviceToHost);
+
+        if (!sign_ok_h) { ok = false; if (verbose) std::cout << "    FAIL: schnorr sign failed (large key)\n"; }
+        else if (!verify_ok_h) { ok = false; if (verbose) std::cout << "    FAIL: schnorr verify failed (large key)\n"; }
+        else if (verbose) std::cout << "    large key: schnorr sign+verify OK\n";
+
+        cudaFree(d_msg); cudaFree(d_priv); cudaFree(d_sig);
+        cudaFree(d_sign_ok); cudaFree(d_verify_ok);
+    }
+
+    if (verbose) std::cout << (ok ? "    PASS\n" : "    FAIL\n");
+    return ok;
+}
+
+// =============================================================================
+// ECDH Tests
+// =============================================================================
+
+__global__ void kernel_ecdh_test(
+    const Scalar* d_privA,
+    const Scalar* d_privB,
+    uint8_t* d_secretA,
+    uint8_t* d_secretB,
+    bool* d_okA,
+    bool* d_okB)
+{
+    // A's pubkey = privA * G
+    JacobianPoint pubA, pubB;
+    scalar_mul(&GENERATOR_JACOBIAN, d_privA, &pubA);
+    scalar_mul(&GENERATOR_JACOBIAN, d_privB, &pubB);
+
+    // A computes shared secret using privA and B's pubkey
+    *d_okA = ecdh_compute_xonly(d_privA, &pubB, d_secretA);
+    // B computes shared secret using privB and A's pubkey
+    *d_okB = ecdh_compute_xonly(d_privB, &pubA, d_secretB);
+}
+
+__global__ void kernel_ecdh_raw_test(
+    const Scalar* d_privA,
+    const Scalar* d_privB,
+    uint8_t* d_secretA,
+    uint8_t* d_secretB,
+    bool* d_okA,
+    bool* d_okB)
+{
+    JacobianPoint pubA, pubB;
+    scalar_mul(&GENERATOR_JACOBIAN, d_privA, &pubA);
+    scalar_mul(&GENERATOR_JACOBIAN, d_privB, &pubB);
+
+    *d_okA = ecdh_compute_raw(d_privA, &pubB, d_secretA);
+    *d_okB = ecdh_compute_raw(d_privB, &pubA, d_secretB);
+}
+
+static bool test_ecdh_op(bool verbose) {
+    if (verbose) std::cout << "\nECDH Shared Secret:\n";
+    bool ok = true;
+
+    // Test 1: ECDH x-only — both parties compute same shared secret
+    {
+        Scalar privA = {}, privB = {};
+        privA.limbs[0] = 42;
+        privB.limbs[0] = 123;
+
+        Scalar *d_privA, *d_privB;
+        uint8_t *d_secretA, *d_secretB;
+        bool *d_okA, *d_okB;
+        cudaMalloc(&d_privA, sizeof(Scalar));
+        cudaMalloc(&d_privB, sizeof(Scalar));
+        cudaMalloc(&d_secretA, 32);
+        cudaMalloc(&d_secretB, 32);
+        cudaMalloc(&d_okA, sizeof(bool));
+        cudaMalloc(&d_okB, sizeof(bool));
+        cudaMemcpy(d_privA, &privA, sizeof(Scalar), cudaMemcpyHostToDevice);
+        cudaMemcpy(d_privB, &privB, sizeof(Scalar), cudaMemcpyHostToDevice);
+
+        kernel_ecdh_test<<<1,1>>>(d_privA, d_privB, d_secretA, d_secretB, d_okA, d_okB);
+        cudaDeviceSynchronize();
+
+        bool okA_h, okB_h;
+        uint8_t secretA[32], secretB[32];
+        cudaMemcpy(&okA_h, d_okA, sizeof(bool), cudaMemcpyDeviceToHost);
+        cudaMemcpy(&okB_h, d_okB, sizeof(bool), cudaMemcpyDeviceToHost);
+        cudaMemcpy(secretA, d_secretA, 32, cudaMemcpyDeviceToHost);
+        cudaMemcpy(secretB, d_secretB, 32, cudaMemcpyDeviceToHost);
+
+        if (!okA_h || !okB_h) { ok = false; if (verbose) std::cout << "    FAIL: ECDH computation failed\n"; }
+        else {
+            bool match = true;
+            for (int i = 0; i < 32; i++) if (secretA[i] != secretB[i]) match = false;
+            if (!match) { ok = false; if (verbose) std::cout << "    FAIL: ECDH shared secrets don't match\n"; }
+            else if (verbose) std::cout << "    ECDH xonly: shared secrets match OK\n";
+        }
+
+        cudaFree(d_privA); cudaFree(d_privB);
+        cudaFree(d_secretA); cudaFree(d_secretB);
+        cudaFree(d_okA); cudaFree(d_okB);
+    }
+
+    // Test 2: ECDH raw — same property
+    {
+        Scalar privA = {}, privB = {};
+        privA.limbs[0] = 0xCAFEBABEULL;
+        privB.limbs[0] = 0xDEADBEEFULL;
+
+        Scalar *d_privA, *d_privB;
+        uint8_t *d_secretA, *d_secretB;
+        bool *d_okA, *d_okB;
+        cudaMalloc(&d_privA, sizeof(Scalar));
+        cudaMalloc(&d_privB, sizeof(Scalar));
+        cudaMalloc(&d_secretA, 32);
+        cudaMalloc(&d_secretB, 32);
+        cudaMalloc(&d_okA, sizeof(bool));
+        cudaMalloc(&d_okB, sizeof(bool));
+        cudaMemcpy(d_privA, &privA, sizeof(Scalar), cudaMemcpyHostToDevice);
+        cudaMemcpy(d_privB, &privB, sizeof(Scalar), cudaMemcpyHostToDevice);
+
+        kernel_ecdh_raw_test<<<1,1>>>(d_privA, d_privB, d_secretA, d_secretB, d_okA, d_okB);
+        cudaDeviceSynchronize();
+
+        bool okA_h, okB_h;
+        uint8_t secretA[32], secretB[32];
+        cudaMemcpy(&okA_h, d_okA, sizeof(bool), cudaMemcpyDeviceToHost);
+        cudaMemcpy(&okB_h, d_okB, sizeof(bool), cudaMemcpyDeviceToHost);
+        cudaMemcpy(secretA, d_secretA, 32, cudaMemcpyDeviceToHost);
+        cudaMemcpy(secretB, d_secretB, 32, cudaMemcpyDeviceToHost);
+
+        if (!okA_h || !okB_h) { ok = false; if (verbose) std::cout << "    FAIL: ECDH raw computation failed\n"; }
+        else {
+            bool match = true;
+            for (int i = 0; i < 32; i++) if (secretA[i] != secretB[i]) match = false;
+            if (!match) { ok = false; if (verbose) std::cout << "    FAIL: ECDH raw secrets don't match\n"; }
+            else if (verbose) std::cout << "    ECDH raw: shared secrets match OK\n";
+        }
+
+        cudaFree(d_privA); cudaFree(d_privB);
+        cudaFree(d_secretA); cudaFree(d_secretB);
+        cudaFree(d_okA); cudaFree(d_okB);
+    }
+
+    if (verbose) std::cout << (ok ? "    PASS\n" : "    FAIL\n");
+    return ok;
+}
+
+// =============================================================================
+// Key Recovery Tests
+// =============================================================================
+
+__global__ void kernel_recovery_test(
+    const uint8_t* d_msg,
+    const Scalar* d_priv,
+    RecoverableSignatureGPU* d_rsig,
+    JacobianPoint* d_recovered,
+    JacobianPoint* d_pubkey,
+    bool* d_sign_ok,
+    bool* d_recover_ok,
+    bool* d_match)
+{
+    // Sign with recovery
+    *d_sign_ok = ecdsa_sign_recoverable(d_msg, d_priv, d_rsig);
+    if (!*d_sign_ok) { *d_recover_ok = false; *d_match = false; return; }
+
+    // Recover public key
+    *d_recover_ok = ecdsa_recover(d_msg, &d_rsig->sig, d_rsig->recid, d_recovered);
+    if (!*d_recover_ok) { *d_match = false; return; }
+
+    // Compute actual public key
+    scalar_mul(&GENERATOR_JACOBIAN, d_priv, d_pubkey);
+
+    // Convert both to affine x-coordinate and compare
+    FieldElement z1_inv, z1_inv2, z2_inv, z2_inv2, x1, x2;
+    field_inv(&d_recovered->z, &z1_inv);
+    field_sqr(&z1_inv, &z1_inv2);
+    field_mul(&d_recovered->x, &z1_inv2, &x1);
+
+    field_inv(&d_pubkey->z, &z2_inv);
+    field_sqr(&z2_inv, &z2_inv2);
+    field_mul(&d_pubkey->x, &z2_inv2, &x2);
+
+    *d_match = true;
+    for (int i = 0; i < 4; i++) {
+        if (x1.limbs[i] != x2.limbs[i]) *d_match = false;
+    }
+}
+
+static bool test_recovery_op(bool verbose) {
+    if (verbose) std::cout << "\nECDSA Key Recovery:\n";
+    bool ok = true;
+
+    struct RecoveryTestCase {
+        uint64_t priv_limb0;
+        const char* label;
+    };
+
+    RecoveryTestCase cases[] = {
+        {1, "priv=1"},
+        {7, "priv=7"},
+        {0xDEADBEEFCAFEBABEULL, "priv=large"},
+    };
+
+    for (auto& tc : cases) {
+        uint8_t msg[32] = {};
+        msg[0] = 0xAA; msg[15] = 0xBB; msg[31] = (uint8_t)(tc.priv_limb0 & 0xFF);
+        Scalar priv = {};
+        priv.limbs[0] = tc.priv_limb0;
+
+        uint8_t* d_msg; Scalar* d_priv;
+        RecoverableSignatureGPU* d_rsig;
+        JacobianPoint *d_recovered, *d_pubkey;
+        bool *d_sign_ok, *d_recover_ok, *d_match;
+
+        cudaMalloc(&d_msg, 32);
+        cudaMalloc(&d_priv, sizeof(Scalar));
+        cudaMalloc(&d_rsig, sizeof(RecoverableSignatureGPU));
+        cudaMalloc(&d_recovered, sizeof(JacobianPoint));
+        cudaMalloc(&d_pubkey, sizeof(JacobianPoint));
+        cudaMalloc(&d_sign_ok, sizeof(bool));
+        cudaMalloc(&d_recover_ok, sizeof(bool));
+        cudaMalloc(&d_match, sizeof(bool));
+
+        cudaMemcpy(d_msg, msg, 32, cudaMemcpyHostToDevice);
+        cudaMemcpy(d_priv, &priv, sizeof(Scalar), cudaMemcpyHostToDevice);
+
+        kernel_recovery_test<<<1,1>>>(d_msg, d_priv, d_rsig, d_recovered, d_pubkey,
+                                       d_sign_ok, d_recover_ok, d_match);
+        cudaDeviceSynchronize();
+
+        bool sign_ok_h, recover_ok_h, match_h;
+        RecoverableSignatureGPU rsig_h;
+        cudaMemcpy(&sign_ok_h, d_sign_ok, sizeof(bool), cudaMemcpyDeviceToHost);
+        cudaMemcpy(&recover_ok_h, d_recover_ok, sizeof(bool), cudaMemcpyDeviceToHost);
+        cudaMemcpy(&match_h, d_match, sizeof(bool), cudaMemcpyDeviceToHost);
+        cudaMemcpy(&rsig_h, d_rsig, sizeof(RecoverableSignatureGPU), cudaMemcpyDeviceToHost);
+
+        if (!sign_ok_h) { ok = false; if (verbose) std::cout << "    FAIL: " << tc.label << " sign failed\n"; }
+        else if (!recover_ok_h) { ok = false; if (verbose) std::cout << "    FAIL: " << tc.label << " recovery failed\n"; }
+        else if (!match_h) { ok = false; if (verbose) std::cout << "    FAIL: " << tc.label << " recovered key mismatch\n"; }
+        else if (verbose) std::cout << "    " << tc.label << ": sign+recover OK (recid=" << rsig_h.recid << ")\n";
+
+        cudaFree(d_msg); cudaFree(d_priv); cudaFree(d_rsig);
+        cudaFree(d_recovered); cudaFree(d_pubkey);
+        cudaFree(d_sign_ok); cudaFree(d_recover_ok); cudaFree(d_match);
+    }
+
+    if (verbose) std::cout << (ok ? "    PASS\n" : "    FAIL\n");
+    return ok;
+}
+
+// =============================================================================
+// MSM (Multi-Scalar Multiplication) Tests
+// =============================================================================
+
+__global__ void kernel_msm_compare(
+    const Scalar* d_scalars,
+    int n,
+    bool* d_match)
+{
+    // All points are G, so MSM = sum(scalars[i]) * G
+    // Compute both naive and pippenger and compare affine x-coords
+
+    // Prepare points array (all G)
+    // Use small fixed array on stack
+    JacobianPoint points[8]; // max 8 for stack safety
+    int count = n < 8 ? n : 8;
+    for (int i = 0; i < count; i++) points[i] = GENERATOR_JACOBIAN;
+
+    JacobianPoint naive_result, pip_result;
+    msm_naive(d_scalars, points, count, &naive_result);
+
+    JacobianPoint buckets[16];
+    msm_pippenger_with_buckets(d_scalars, points, count, &pip_result, buckets, 4);
+
+    if (naive_result.infinity != pip_result.infinity) { *d_match = false; return; }
+    if (naive_result.infinity) { *d_match = true; return; }
+
+    // Compare affine x-coordinates: x1/z1^2 == x2/z2^2
+    // Cross multiply: x1 * z2^2 == x2 * z1^2
+    FieldElement z1_sq, z2_sq, lhs, rhs;
+    field_sqr(&naive_result.z, &z1_sq);
+    field_sqr(&pip_result.z, &z2_sq);
+    field_mul(&naive_result.x, &z2_sq, &lhs);
+    field_mul(&pip_result.x, &z1_sq, &rhs);
+
+    *d_match = true;
+    for (int i = 0; i < 4; i++) {
+        if (lhs.limbs[i] != rhs.limbs[i]) *d_match = false;
+    }
+}
+
+static bool test_msm_op(bool verbose) {
+    if (verbose) std::cout << "\nMSM (Multi-Scalar Multiplication):\n";
+    bool ok = true;
+
+    struct MSMCase {
+        uint64_t vals[8];
+        int n;
+        const char* label;
+    };
+
+    MSMCase cases[] = {
+        {{2, 3, 5}, 3, "2+3+5=10"},
+        {{1, 2, 4, 8, 16}, 5, "1+2+4+8+16=31"},
+        {{7, 11, 13}, 3, "7+11+13=31"},
+        {{1, 1, 1, 1, 1, 1, 1, 1}, 8, "8x1=8"},
+    };
+
+    for (auto& tc : cases) {
+        Scalar scalars[8] = {};
+        for (int i = 0; i < tc.n; i++) scalars[i].limbs[0] = tc.vals[i];
+
+        Scalar* d_scalars; bool* d_match;
+        cudaMalloc(&d_scalars, tc.n * sizeof(Scalar));
+        cudaMalloc(&d_match, sizeof(bool));
+        cudaMemcpy(d_scalars, scalars, tc.n * sizeof(Scalar), cudaMemcpyHostToDevice);
+
+        kernel_msm_compare<<<1,1>>>(d_scalars, tc.n, d_match);
+        cudaDeviceSynchronize();
+
+        bool match_h;
+        cudaMemcpy(&match_h, d_match, sizeof(bool), cudaMemcpyDeviceToHost);
+
+        if (!match_h) {
+            ok = false;
+            if (verbose) std::cout << "    FAIL: MSM " << tc.label << " naive vs pippenger mismatch\n";
+        } else if (verbose) {
+            std::cout << "    MSM " << tc.label << ": naive == pippenger OK\n";
+        }
+
+        cudaFree(d_scalars); cudaFree(d_match);
+    }
+
+    if (verbose) std::cout << (ok ? "    PASS\n" : "    FAIL\n");
+    return ok;
+}
+
+#endif // !SECP256K1_CUDA_LIMBS_32
+
 bool Selftest(bool verbose) {
     if (verbose) {
         std::cout << "\n==============================================\n";
@@ -1492,6 +2683,47 @@ bool Selftest(bool verbose) {
 
     total++;
     if (test_distributive(verbose)) passed++;
+
+    // P0: Extended scalar operations
+    if (verbose) std::cout << "\nExtended Scalar Operations:\n";
+
+    total++;
+    if (test_scalar_negate_op(verbose)) passed++;
+
+    total++;
+    if (test_scalar_mul_mod_n_op(verbose)) passed++;
+
+    total++;
+    if (test_scalar_inverse_op(verbose)) passed++;
+
+    total++;
+    if (test_scalar_is_even_op(verbose)) passed++;
+
+#if !SECP256K1_CUDA_LIMBS_32
+    total++;
+    if (test_glv_decompose_op(verbose)) passed++;
+
+    total++;
+    if (test_glv_scalar_mul_op(verbose)) passed++;
+
+    total++;
+    if (test_generator_mul_windowed_op(verbose)) passed++;
+
+    total++;
+    if (test_ecdsa_sign_verify_op(verbose)) passed++;
+
+    total++;
+    if (test_schnorr_sign_verify_op(verbose)) passed++;
+
+    total++;
+    if (test_ecdh_op(verbose)) passed++;
+
+    total++;
+    if (test_recovery_op(verbose)) passed++;
+
+    total++;
+    if (test_msm_op(verbose)) passed++;
+#endif
     
     if (verbose) {
         std::cout << "\n==============================================\n";

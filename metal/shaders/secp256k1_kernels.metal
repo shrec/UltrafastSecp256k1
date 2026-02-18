@@ -28,6 +28,8 @@
 #include "secp256k1_field.h"
 #include "secp256k1_point.h"
 #include "secp256k1_bloom.h"
+#include "secp256k1_extended.h"
+#include "secp256k1_hash160.h"
 
 using namespace metal;
 
@@ -329,3 +331,403 @@ kernel void point_double_kernel(
     JacobianPoint a_local = a_arr[tid];
     r_arr[tid] = jacobian_double(a_local);
 }
+
+// =============================================================================
+// Kernel 9: Batch ECDSA Sign
+// =============================================================================
+
+kernel void ecdsa_sign_batch(
+    device const uchar *msg_hashes     [[buffer(0)]],   // N × 32 bytes
+    device const uchar *privkeys       [[buffer(1)]],   // N × 32 bytes
+    device uchar *signatures           [[buffer(2)]],   // N × 64 bytes (r ∥ s)
+    constant uint &count               [[buffer(3)]],
+    uint tid [[thread_position_in_grid]]
+) {
+    if (tid >= count) return;
+
+    Scalar256 msg, sec;
+    for (int i = 0; i < 8; i++) {
+        uint idx = tid * 32 + i * 4;
+        msg.limbs[7 - i] = ((uint)msg_hashes[idx] << 24) |
+                            ((uint)msg_hashes[idx+1] << 16) |
+                            ((uint)msg_hashes[idx+2] << 8) |
+                            ((uint)msg_hashes[idx+3]);
+        sec.limbs[7 - i] = ((uint)privkeys[idx] << 24) |
+                            ((uint)privkeys[idx+1] << 16) |
+                            ((uint)privkeys[idx+2] << 8) |
+                            ((uint)privkeys[idx+3]);
+    }
+
+    Scalar256 r_sig, s_sig;
+    ecdsa_sign(msg, sec, r_sig, s_sig);
+
+    // Write r ∥ s as big-endian
+    uint out_off = tid * 64;
+    for (int i = 0; i < 8; i++) {
+        uint rv = r_sig.limbs[7 - i];
+        signatures[out_off + i*4 + 0] = (uchar)(rv >> 24);
+        signatures[out_off + i*4 + 1] = (uchar)(rv >> 16);
+        signatures[out_off + i*4 + 2] = (uchar)(rv >> 8);
+        signatures[out_off + i*4 + 3] = (uchar)(rv);
+    }
+    for (int i = 0; i < 8; i++) {
+        uint sv = s_sig.limbs[7 - i];
+        signatures[out_off + 32 + i*4 + 0] = (uchar)(sv >> 24);
+        signatures[out_off + 32 + i*4 + 1] = (uchar)(sv >> 16);
+        signatures[out_off + 32 + i*4 + 2] = (uchar)(sv >> 8);
+        signatures[out_off + 32 + i*4 + 3] = (uchar)(sv);
+    }
+}
+
+// =============================================================================
+// Kernel 10: Batch ECDSA Verify
+// =============================================================================
+
+kernel void ecdsa_verify_batch(
+    device const uchar *msg_hashes     [[buffer(0)]],   // N × 32
+    device const uchar *pubkeys        [[buffer(1)]],   // N × 64 (x ∥ y, uncompressed coords)
+    device const uchar *signatures     [[buffer(2)]],   // N × 64 (r ∥ s)
+    device uint *results               [[buffer(3)]],   // N × 1 (0=invalid, 1=valid)
+    constant uint &count               [[buffer(4)]],
+    uint tid [[thread_position_in_grid]]
+) {
+    if (tid >= count) return;
+
+    Scalar256 msg, r_sig, s_sig;
+    AffinePoint pub;
+
+    uint base_msg = tid * 32;
+    uint base_pub = tid * 64;
+    uint base_sig = tid * 64;
+
+    for (int i = 0; i < 8; i++) {
+        msg.limbs[7 - i] = ((uint)msg_hashes[base_msg + i*4] << 24) |
+                            ((uint)msg_hashes[base_msg + i*4+1] << 16) |
+                            ((uint)msg_hashes[base_msg + i*4+2] << 8) |
+                            ((uint)msg_hashes[base_msg + i*4+3]);
+
+        pub.x.limbs[7 - i] = ((uint)pubkeys[base_pub + i*4] << 24) |
+                              ((uint)pubkeys[base_pub + i*4+1] << 16) |
+                              ((uint)pubkeys[base_pub + i*4+2] << 8) |
+                              ((uint)pubkeys[base_pub + i*4+3]);
+        pub.y.limbs[7 - i] = ((uint)pubkeys[base_pub + 32 + i*4] << 24) |
+                              ((uint)pubkeys[base_pub + 32 + i*4+1] << 16) |
+                              ((uint)pubkeys[base_pub + 32 + i*4+2] << 8) |
+                              ((uint)pubkeys[base_pub + 32 + i*4+3]);
+
+        r_sig.limbs[7 - i] = ((uint)signatures[base_sig + i*4] << 24) |
+                              ((uint)signatures[base_sig + i*4+1] << 16) |
+                              ((uint)signatures[base_sig + i*4+2] << 8) |
+                              ((uint)signatures[base_sig + i*4+3]);
+        s_sig.limbs[7 - i] = ((uint)signatures[base_sig + 32 + i*4] << 24) |
+                              ((uint)signatures[base_sig + 32 + i*4+1] << 16) |
+                              ((uint)signatures[base_sig + 32 + i*4+2] << 8) |
+                              ((uint)signatures[base_sig + 32 + i*4+3]);
+    }
+
+    results[tid] = ecdsa_verify(msg, pub, r_sig, s_sig) ? 1u : 0u;
+}
+
+// =============================================================================
+// Kernel 11: Batch Schnorr Sign (BIP-340)
+// =============================================================================
+
+kernel void schnorr_sign_batch(
+    device const uchar *msg_hashes     [[buffer(0)]],   // N × 32
+    device const uchar *privkeys       [[buffer(1)]],   // N × 32
+    device uchar *signatures           [[buffer(2)]],   // N × 64 (R.x ∥ s)
+    constant uint &count               [[buffer(3)]],
+    uint tid [[thread_position_in_grid]]
+) {
+    if (tid >= count) return;
+
+    Scalar256 msg, sec;
+    for (int i = 0; i < 8; i++) {
+        uint idx = tid * 32 + i * 4;
+        msg.limbs[7 - i] = ((uint)msg_hashes[idx] << 24) |
+                            ((uint)msg_hashes[idx+1] << 16) |
+                            ((uint)msg_hashes[idx+2] << 8) |
+                            ((uint)msg_hashes[idx+3]);
+        sec.limbs[7 - i] = ((uint)privkeys[idx] << 24) |
+                            ((uint)privkeys[idx+1] << 16) |
+                            ((uint)privkeys[idx+2] << 8) |
+                            ((uint)privkeys[idx+3]);
+    }
+
+    Scalar256 sig_rx, sig_s;
+    schnorr_sign(msg, sec, sig_rx, sig_s);
+
+    uint out_off = tid * 64;
+    for (int i = 0; i < 8; i++) {
+        uint rv = sig_rx.limbs[7 - i];
+        signatures[out_off + i*4 + 0] = (uchar)(rv >> 24);
+        signatures[out_off + i*4 + 1] = (uchar)(rv >> 16);
+        signatures[out_off + i*4 + 2] = (uchar)(rv >> 8);
+        signatures[out_off + i*4 + 3] = (uchar)(rv);
+    }
+    for (int i = 0; i < 8; i++) {
+        uint sv = sig_s.limbs[7 - i];
+        signatures[out_off + 32 + i*4 + 0] = (uchar)(sv >> 24);
+        signatures[out_off + 32 + i*4 + 1] = (uchar)(sv >> 16);
+        signatures[out_off + 32 + i*4 + 2] = (uchar)(sv >> 8);
+        signatures[out_off + 32 + i*4 + 3] = (uchar)(sv);
+    }
+}
+
+// =============================================================================
+// Kernel 12: Batch Schnorr Verify (BIP-340)
+// =============================================================================
+
+kernel void schnorr_verify_batch(
+    device const uchar *msg_hashes     [[buffer(0)]],   // N × 32
+    device const uchar *pubkeys_x      [[buffer(1)]],   // N × 32 (x-only)
+    device const uchar *signatures     [[buffer(2)]],   // N × 64 (R.x ∥ s)
+    device uint *results               [[buffer(3)]],
+    constant uint &count               [[buffer(4)]],
+    uint tid [[thread_position_in_grid]]
+) {
+    if (tid >= count) return;
+
+    Scalar256 msg, pub_x, sig_rx, sig_s;
+    for (int i = 0; i < 8; i++) {
+        uint mi = tid * 32 + i * 4;
+        msg.limbs[7 - i] = ((uint)msg_hashes[mi] << 24) |
+                            ((uint)msg_hashes[mi+1] << 16) |
+                            ((uint)msg_hashes[mi+2] << 8) |
+                            ((uint)msg_hashes[mi+3]);
+
+        pub_x.limbs[7 - i] = ((uint)pubkeys_x[mi] << 24) |
+                              ((uint)pubkeys_x[mi+1] << 16) |
+                              ((uint)pubkeys_x[mi+2] << 8) |
+                              ((uint)pubkeys_x[mi+3]);
+
+        uint si = tid * 64 + i * 4;
+        sig_rx.limbs[7 - i] = ((uint)signatures[si] << 24) |
+                               ((uint)signatures[si+1] << 16) |
+                               ((uint)signatures[si+2] << 8) |
+                               ((uint)signatures[si+3]);
+        sig_s.limbs[7 - i] = ((uint)signatures[si + 32] << 24) |
+                              ((uint)signatures[si + 32 +1] << 16) |
+                              ((uint)signatures[si + 32 +2] << 8) |
+                              ((uint)signatures[si + 32 +3]);
+    }
+
+    // Convert pub_x to FieldElement for schnorr_verify
+    FieldElement px;
+    for (int i = 0; i < 8; i++) px.limbs[i] = pub_x.limbs[i];
+
+    results[tid] = schnorr_verify(msg, px, sig_rx, sig_s) ? 1u : 0u;
+}
+
+// =============================================================================
+// Kernel 13: Batch ECDH Shared Secret
+// =============================================================================
+
+kernel void ecdh_batch(
+    device const uchar *privkeys       [[buffer(0)]],   // N × 32
+    device const uchar *pubkeys        [[buffer(1)]],   // N × 64 (x ∥ y)
+    device uchar *shared_secrets       [[buffer(2)]],   // N × 32 (x-only)
+    constant uint &count               [[buffer(3)]],
+    uint tid [[thread_position_in_grid]]
+) {
+    if (tid >= count) return;
+
+    Scalar256 sec;
+    AffinePoint pub;
+    for (int i = 0; i < 8; i++) {
+        uint ki = tid * 32 + i * 4;
+        sec.limbs[7 - i] = ((uint)privkeys[ki] << 24) |
+                            ((uint)privkeys[ki+1] << 16) |
+                            ((uint)privkeys[ki+2] << 8) |
+                            ((uint)privkeys[ki+3]);
+
+        uint pi = tid * 64 + i * 4;
+        pub.x.limbs[7 - i] = ((uint)pubkeys[pi] << 24) |
+                              ((uint)pubkeys[pi+1] << 16) |
+                              ((uint)pubkeys[pi+2] << 8) |
+                              ((uint)pubkeys[pi+3]);
+        uint yi = tid * 64 + 32 + i * 4;
+        pub.y.limbs[7 - i] = ((uint)pubkeys[yi] << 24) |
+                              ((uint)pubkeys[yi+1] << 16) |
+                              ((uint)pubkeys[yi+2] << 8) |
+                              ((uint)pubkeys[yi+3]);
+    }
+
+    FieldElement shared_x = ecdh_shared_secret_xonly(sec, pub);
+
+    // Output x as big-endian
+    uint out_off = tid * 32;
+    for (int i = 0; i < 8; i++) {
+        uint v = shared_x.limbs[7 - i];
+        shared_secrets[out_off + i*4 + 0] = (uchar)(v >> 24);
+        shared_secrets[out_off + i*4 + 1] = (uchar)(v >> 16);
+        shared_secrets[out_off + i*4 + 2] = (uchar)(v >> 8);
+        shared_secrets[out_off + i*4 + 3] = (uchar)(v);
+    }
+}
+
+// =============================================================================
+// Kernel 14: Batch Hash160 of public keys
+// =============================================================================
+
+kernel void hash160_batch(
+    device const uchar *pubkeys        [[buffer(0)]],
+    device uchar *hashes               [[buffer(1)]],   // N × 20
+    constant uint &stride              [[buffer(2)]],   // 33 or 65
+    constant uint &count               [[buffer(3)]],
+    uint tid [[thread_position_in_grid]]
+) {
+    if (tid >= count) return;
+
+    uchar pk[65];
+    const uint pk_len = (stride <= 65u) ? stride : 65u;
+    for (uint i = 0; i < pk_len; ++i) {
+        pk[i] = pubkeys[tid * stride + i];
+    }
+
+    uchar h160[20];
+    hash160_pubkey(pk, pk_len, h160);
+
+    for (int i = 0; i < 20; ++i) {
+        hashes[tid * 20 + i] = h160[i];
+    }
+}
+
+// =============================================================================
+// Kernel 15: Batch Key Recovery
+// =============================================================================
+
+kernel void ecrecover_batch(
+    device const uchar *msg_hashes     [[buffer(0)]],   // N × 32
+    device const uchar *signatures     [[buffer(1)]],   // N × 64 (r ∥ s)
+    device const uint *recids          [[buffer(2)]],    // N × 1 (recovery id 0-3)
+    device uchar *pubkeys              [[buffer(3)]],    // N × 64 (x ∥ y)
+    device uint *valid                 [[buffer(4)]],    // N × 1 (0=fail, 1=ok)
+    constant uint &count               [[buffer(5)]],
+    uint tid [[thread_position_in_grid]]
+) {
+    if (tid >= count) return;
+
+    Scalar256 msg, r_sig, s_sig;
+    for (int i = 0; i < 8; i++) {
+        uint mi = tid * 32 + i * 4;
+        msg.limbs[7 - i] = ((uint)msg_hashes[mi] << 24) |
+                            ((uint)msg_hashes[mi+1] << 16) |
+                            ((uint)msg_hashes[mi+2] << 8) |
+                            ((uint)msg_hashes[mi+3]);
+
+        uint si = tid * 64 + i * 4;
+        r_sig.limbs[7 - i] = ((uint)signatures[si] << 24) |
+                              ((uint)signatures[si+1] << 16) |
+                              ((uint)signatures[si+2] << 8) |
+                              ((uint)signatures[si+3]);
+        s_sig.limbs[7 - i] = ((uint)signatures[si + 32] << 24) |
+                              ((uint)signatures[si + 32 +1] << 16) |
+                              ((uint)signatures[si + 32 +2] << 8) |
+                              ((uint)signatures[si + 32 +3]);
+    }
+
+    AffinePoint recovered;
+    bool ok = ecdsa_recover(msg, r_sig, s_sig, recids[tid], recovered);
+    valid[tid] = ok ? 1u : 0u;
+
+    if (ok) {
+        uint out_off = tid * 64;
+        for (int i = 0; i < 8; i++) {
+            uint xv = recovered.x.limbs[7 - i];
+            pubkeys[out_off + i*4 + 0] = (uchar)(xv >> 24);
+            pubkeys[out_off + i*4 + 1] = (uchar)(xv >> 16);
+            pubkeys[out_off + i*4 + 2] = (uchar)(xv >> 8);
+            pubkeys[out_off + i*4 + 3] = (uchar)(xv);
+        }
+        for (int i = 0; i < 8; i++) {
+            uint yv = recovered.y.limbs[7 - i];
+            pubkeys[out_off + 32 + i*4 + 0] = (uchar)(yv >> 24);
+            pubkeys[out_off + 32 + i*4 + 1] = (uchar)(yv >> 16);
+            pubkeys[out_off + 32 + i*4 + 2] = (uchar)(yv >> 8);
+            pubkeys[out_off + 32 + i*4 + 3] = (uchar)(yv);
+        }
+    }
+}
+
+// =============================================================================
+// Kernel 16: SHA-256 Benchmark
+// =============================================================================
+
+kernel void sha256_bench(
+    device const uchar *inputs         [[buffer(0)]],   // N × 64 bytes
+    device uchar *outputs              [[buffer(1)]],   // N × 32 bytes
+    constant uint &count               [[buffer(2)]],
+    uint tid [[thread_position_in_grid]]
+) {
+    if (tid >= count) return;
+
+    uchar data[64];
+    for (int i = 0; i < 64; i++) data[i] = inputs[tid * 64 + i];
+
+    uchar hash[32];
+    sha256_oneshot(data, 64, hash);
+
+    for (int i = 0; i < 32; i++) outputs[tid * 32 + i] = hash[i];
+}
+
+// =============================================================================
+// Kernel 17: Hash160 Benchmark
+// =============================================================================
+
+kernel void hash160_bench(
+    device const uchar *inputs         [[buffer(0)]],   // N × 33 bytes (compressed pubkeys)
+    device uchar *outputs              [[buffer(1)]],   // N × 20 bytes
+    constant uint &count               [[buffer(2)]],
+    uint tid [[thread_position_in_grid]]
+) {
+    if (tid >= count) return;
+
+    uchar pk[33];
+    for (int i = 0; i < 33; i++) pk[i] = inputs[tid * 33 + i];
+
+    uchar h160[20];
+    hash160_pubkey(pk, 33, h160);
+
+    for (int i = 0; i < 20; i++) outputs[tid * 20 + i] = h160[i];
+}
+
+// =============================================================================
+// Kernel 18: ECDSA Sign Benchmark (sign + verify round-trip)
+// =============================================================================
+
+kernel void ecdsa_bench(
+    device const uchar *msg_hashes     [[buffer(0)]],
+    device const uchar *privkeys       [[buffer(1)]],
+    device uint *results               [[buffer(2)]],
+    constant uint &count               [[buffer(3)]],
+    uint tid [[thread_position_in_grid]]
+) {
+    if (tid >= count) return;
+
+    Scalar256 msg, sec;
+    for (int i = 0; i < 8; i++) {
+        uint idx = tid * 32 + i * 4;
+        msg.limbs[7 - i] = ((uint)msg_hashes[idx] << 24) |
+                            ((uint)msg_hashes[idx+1] << 16) |
+                            ((uint)msg_hashes[idx+2] << 8) |
+                            ((uint)msg_hashes[idx+3]);
+        sec.limbs[7 - i] = ((uint)privkeys[idx] << 24) |
+                            ((uint)privkeys[idx+1] << 16) |
+                            ((uint)privkeys[idx+2] << 8) |
+                            ((uint)privkeys[idx+3]);
+    }
+
+    // Sign
+    Scalar256 r_sig, s_sig;
+    ecdsa_sign(msg, sec, r_sig, s_sig);
+
+    // Derive public key
+    AffinePoint gen = generator_affine();
+    JacobianPoint pub_jac = scalar_mul(gen, sec);
+    AffinePoint pub_aff = jacobian_to_affine(pub_jac);
+
+    // Verify
+    results[tid] = ecdsa_verify(msg, pub_aff, r_sig, s_sig) ? 1u : 0u;
+}
+

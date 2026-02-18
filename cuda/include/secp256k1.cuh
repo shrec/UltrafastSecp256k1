@@ -585,6 +585,308 @@ __device__ inline uint8_t scalar_bit(const Scalar* s, int index) {
 }
 
 // ============================================================================
+// Extended scalar arithmetic (mod ORDER)
+// ============================================================================
+
+// Barrett constant: mu = floor(2^512 / ORDER), 5 limbs (LE)
+__constant__ static const uint64_t BARRETT_MU[5] = {
+    0x402DA1732FC9BEC0ULL,
+    0x4551231950B75FC4ULL,
+    0x0000000000000001ULL,
+    0x0000000000000000ULL,
+    0x0000000000000001ULL
+};
+
+// n - 2 (for Fermat inversion), LE limbs
+__constant__ static const uint64_t ORDER_MINUS_2[4] = {
+    0xBFD25E8CD036413FULL,
+    0xBAAEDCE6AF48A03BULL,
+    0xFFFFFFFFFFFFFFFEULL,
+    0xFFFFFFFFFFFFFFFFULL
+};
+
+// Scalar negation: r = -a mod n (branchless)
+__device__ inline void scalar_negate(const Scalar* a, Scalar* r) {
+    uint64_t borrow = 0;
+    r->limbs[0] = sub_cc(ORDER[0], a->limbs[0], borrow);
+    r->limbs[1] = sub_cc(ORDER[1], a->limbs[1], borrow);
+    r->limbs[2] = sub_cc(ORDER[2], a->limbs[2], borrow);
+    r->limbs[3] = sub_cc(ORDER[3], a->limbs[3], borrow);
+    // If a == 0, result must be 0 (branchless mask)
+    uint64_t nz = a->limbs[0] | a->limbs[1] | a->limbs[2] | a->limbs[3];
+    uint64_t mask = -(uint64_t)(nz != 0);
+    r->limbs[0] &= mask;
+    r->limbs[1] &= mask;
+    r->limbs[2] &= mask;
+    r->limbs[3] &= mask;
+}
+
+// Scalar parity check
+__device__ __forceinline__ bool scalar_is_even(const Scalar* s) {
+    return (s->limbs[0] & 1) == 0;
+}
+
+// Scalar equality
+__device__ __forceinline__ bool scalar_eq(const Scalar* a, const Scalar* b) {
+    return (a->limbs[0] == b->limbs[0]) &&
+           (a->limbs[1] == b->limbs[1]) &&
+           (a->limbs[2] == b->limbs[2]) &&
+           (a->limbs[3] == b->limbs[3]);
+}
+
+// Scalar multiplication mod ORDER: r = a * b (mod n)
+// Schoolbook 4x4 -> 8-limb product + Barrett reduction
+__device__ inline void scalar_mul_mod_n(const Scalar* a, const Scalar* b, Scalar* r) {
+    uint64_t prod[8] = {};
+
+    // Schoolbook 4x4 multiplication
+    for (int i = 0; i < 4; i++) {
+        uint64_t carry = 0;
+        for (int j = 0; j < 4; j++) {
+            uint64_t lo, hi;
+            mul64(a->limbs[i], b->limbs[j], lo, hi);
+            uint64_t c1 = 0;
+            uint64_t tmp = add_cc(lo, carry, c1);
+            uint64_t c2 = 0;
+            prod[i + j] = add_cc(prod[i + j], tmp, c2);
+            carry = hi + c1 + c2;
+        }
+        prod[i + 4] = carry;
+    }
+
+    // Barrett reduction: q = prod[4..7], q_approx = floor(q * mu / 2^256)
+    uint64_t qmu[9] = {};
+    for (int i = 0; i < 4; i++) {
+        uint64_t carry_mu = 0;
+        for (int j = 0; j < 5; j++) {
+            uint64_t lo, hi;
+            mul64(prod[4 + i], BARRETT_MU[j], lo, hi);
+            uint64_t c1 = 0;
+            uint64_t tmp = add_cc(lo, carry_mu, c1);
+            uint64_t c2 = 0;
+            qmu[i + j] = add_cc(qmu[i + j], tmp, c2);
+            carry_mu = hi + c1 + c2;
+        }
+        if (i + 5 < 9) qmu[i + 5] = carry_mu;
+    }
+
+    // q_approx = qmu[4..7]
+    // Compute q_approx * ORDER (only low 5 limbs needed)
+    uint64_t qn[5] = {};
+    for (int i = 0; i < 4; i++) {
+        uint64_t carry_qn = 0;
+        for (int j = 0; j < 4; j++) {
+            if (i + j >= 5) break;
+            uint64_t lo, hi;
+            mul64(qmu[4 + i], ORDER[j], lo, hi);
+            uint64_t c1 = 0;
+            uint64_t tmp = add_cc(lo, carry_qn, c1);
+            uint64_t c2 = 0;
+            qn[i + j] = add_cc(qn[i + j], tmp, c2);
+            carry_qn = hi + c1 + c2;
+        }
+        if (i + 4 < 5) qn[i + 4] = carry_qn;
+    }
+
+    // r = prod[0..3] - qn[0..3]
+    uint64_t borrow = 0;
+    r->limbs[0] = sub_cc(prod[0], qn[0], borrow);
+    r->limbs[1] = sub_cc(prod[1], qn[1], borrow);
+    r->limbs[2] = sub_cc(prod[2], qn[2], borrow);
+    r->limbs[3] = sub_cc(prod[3], qn[3], borrow);
+    uint64_t r4 = prod[4] - qn[4] - borrow;
+
+    // At most 2 conditional subtracts to bring into [0, ORDER)
+    if (r4 > 0 || scalar_ge(r, ORDER)) {
+        borrow = 0;
+        r->limbs[0] = sub_cc(r->limbs[0], ORDER[0], borrow);
+        r->limbs[1] = sub_cc(r->limbs[1], ORDER[1], borrow);
+        r->limbs[2] = sub_cc(r->limbs[2], ORDER[2], borrow);
+        r->limbs[3] = sub_cc(r->limbs[3], ORDER[3], borrow);
+        r4 -= borrow;
+    }
+    if (r4 > 0 || scalar_ge(r, ORDER)) {
+        borrow = 0;
+        r->limbs[0] = sub_cc(r->limbs[0], ORDER[0], borrow);
+        r->limbs[1] = sub_cc(r->limbs[1], ORDER[1], borrow);
+        r->limbs[2] = sub_cc(r->limbs[2], ORDER[2], borrow);
+        r->limbs[3] = sub_cc(r->limbs[3], ORDER[3], borrow);
+    }
+}
+
+// Scalar squaring mod ORDER: r = a^2 (mod n)
+__device__ inline void scalar_sqr_mod_n(const Scalar* a, Scalar* r) {
+    scalar_mul_mod_n(a, a, r);
+}
+
+// Scalar inverse: r = a^(n-2) mod n (Fermat's little theorem)
+// Square-and-multiply, MSB to LSB
+__device__ inline void scalar_inverse(const Scalar* a, Scalar* r) {
+    if (scalar_is_zero(a)) {
+        r->limbs[0] = r->limbs[1] = r->limbs[2] = r->limbs[3] = 0;
+        return;
+    }
+
+    Scalar result;
+    result.limbs[0] = 1; result.limbs[1] = 0;
+    result.limbs[2] = 0; result.limbs[3] = 0;
+    Scalar base = *a;
+
+    for (int i = 255; i >= 0; --i) {
+        Scalar tmp;
+        scalar_sqr_mod_n(&result, &tmp);
+        result = tmp;
+
+        int limb_idx = i / 64;
+        int bit_idx = i % 64;
+        if ((ORDER_MINUS_2[limb_idx] >> bit_idx) & 1) {
+            scalar_mul_mod_n(&result, &base, &tmp);
+            result = tmp;
+        }
+    }
+    *r = result;
+}
+
+// GLV decomposition constants (LE 64-bit limbs, matching libsecp256k1)
+// g1, g2: multipliers for c1 = round(k * g1 / 2^384), c2 = round(k * g2 / 2^384)
+__constant__ static const uint64_t GLV_G1[4] = {
+    0xE893209A45DBB031ULL, 0x3DAA8A1471E8CA7FULL,
+    0xE86C90E49284EB15ULL, 0x3086D221A7D46BCDULL
+};
+__constant__ static const uint64_t GLV_G2[4] = {
+    0x1571B4AE8AC47F71ULL, 0x221208AC9DF506C6ULL,
+    0x6F547FA90ABFE4C4ULL, 0xE4437ED6010E8828ULL
+};
+// -b1, -b2 as 256-bit values (LE limbs): used in k2 = c1*(-b1) + c2*(-b2)
+__constant__ static const uint64_t GLV_MINUS_B1[4] = {
+    0x6F547FA90ABFE4C3ULL, 0xE4437ED6010E8828ULL, 0x0ULL, 0x0ULL
+};
+__constant__ static const uint64_t GLV_MINUS_B2[4] = {
+    0xD765CDA83DB1562CULL, 0x8A280AC50774346DULL,
+    0xFFFFFFFFFFFFFFFEULL, 0xFFFFFFFFFFFFFFFFULL
+};
+
+// Compute (a * b) >> 384 with rounding bit (for GLV decomposition)
+// a, b: 256-bit values as LE uint64_t[4]
+// Returns upper ~128 bits as LE uint64_t[4]
+__device__ inline void mul_shift_384(const uint64_t a[4], const uint64_t b[4], uint64_t result[4]) {
+    // Full 4x4 schoolbook -> 512-bit product, then take bits [384..511]
+    uint64_t prod[8] = {};
+    for (int i = 0; i < 4; i++) {
+        uint64_t carry = 0;
+        for (int j = 0; j < 4; j++) {
+            uint64_t lo, hi;
+            mul64(a[i], b[j], lo, hi);
+            uint64_t c1 = 0;
+            uint64_t tmp = add_cc(lo, carry, c1);
+            uint64_t c2 = 0;
+            prod[i + j] = add_cc(prod[i + j], tmp, c2);
+            carry = hi + c1 + c2;
+        }
+        prod[i + 4] = carry;
+    }
+    // Bits 384..511 = prod[6..7] (since 384/64 = 6)
+    result[0] = prod[6];
+    result[1] = prod[7];
+    result[2] = 0;
+    result[3] = 0;
+    // Rounding bit: bit 383 = MSB of prod[5]
+    if (prod[5] >> 63) {
+        result[0]++;
+        if (result[0] == 0) result[1]++;
+    }
+}
+
+// Bit-length of a scalar (for GLV sign selection)
+__device__ inline int scalar_bitlen(const Scalar* s) {
+    for (int i = 3; i >= 0; --i) {
+        if (s->limbs[i] != 0) {
+            // Count leading zeros
+            uint64_t v = s->limbs[i];
+            int bits = 0;
+            uint32_t hi32 = (uint32_t)(v >> 32);
+            if (hi32) {
+                bits = 64 - __clz(hi32);
+            } else {
+                bits = 32 - __clz((uint32_t)v);
+            }
+            return i * 64 + bits;
+        }
+    }
+    return 0;
+}
+
+// GLV decomposition result
+struct GLVDecomposition {
+    Scalar k1;
+    Scalar k2;
+    bool k1_neg;
+    bool k2_neg;
+};
+
+// Decompose scalar k into k1, k2 such that k = k1 + k2*lambda (mod n)
+// The resulting k1, k2 are roughly half the bit length (~128 bits each)
+__device__ inline GLVDecomposition glv_decompose(const Scalar* k) {
+    GLVDecomposition result;
+
+    // Step 1: c1 = round(k * g1 / 2^384), c2 = round(k * g2 / 2^384)
+    uint64_t c1_limbs[4], c2_limbs[4];
+    mul_shift_384(k->limbs, GLV_G1, c1_limbs);
+    mul_shift_384(k->limbs, GLV_G2, c2_limbs);
+
+    Scalar c1, c2;
+    for (int i = 0; i < 4; i++) { c1.limbs[i] = c1_limbs[i]; c2.limbs[i] = c2_limbs[i]; }
+    // Normalize in case >= ORDER
+    if (scalar_ge(&c1, ORDER)) scalar_sub(&c1, (const Scalar*)ORDER, &c1);
+    if (scalar_ge(&c2, ORDER)) scalar_sub(&c2, (const Scalar*)ORDER, &c2);
+
+    // Step 2: k2 = c1*(-b1) + c2*(-b2) (mod n)
+    Scalar minus_b1, minus_b2;
+    for (int i = 0; i < 4; i++) { minus_b1.limbs[i] = GLV_MINUS_B1[i]; minus_b2.limbs[i] = GLV_MINUS_B2[i]; }
+
+    Scalar t1, t2, k2_mod;
+    scalar_mul_mod_n(&c1, &minus_b1, &t1);
+    scalar_mul_mod_n(&c2, &minus_b2, &t2);
+    scalar_add(&t1, &t2, &k2_mod);
+
+    // Step 3: pick shorter representation for k2
+    Scalar k2_neg_val;
+    scalar_negate(&k2_mod, &k2_neg_val);
+    bool k2_is_neg = (scalar_bitlen(&k2_neg_val) < scalar_bitlen(&k2_mod));
+    Scalar k2_abs = k2_is_neg ? k2_neg_val : k2_mod;
+
+    // For k2_signed: if k2_is_neg, k2_signed = -k2_abs = k2_mod; else k2_signed = k2_abs = k2_mod
+    // We need k2_signed for computing k1 = k - lambda*k2_signed
+    Scalar k2_signed;
+    if (k2_is_neg) {
+        scalar_negate(&k2_abs, &k2_signed);
+    } else {
+        k2_signed = k2_abs;
+    }
+
+    // Step 4: k1 = k - lambda*k2_signed (mod n)
+    Scalar lambda_s;
+    for (int i = 0; i < 4; i++) lambda_s.limbs[i] = LAMBDA[i];
+    Scalar lk2;
+    scalar_mul_mod_n(&lambda_s, &k2_signed, &lk2);
+    Scalar k1_mod;
+    scalar_sub(k, &lk2, &k1_mod);
+
+    // Step 5: pick shorter representation for k1
+    Scalar k1_neg_val;
+    scalar_negate(&k1_mod, &k1_neg_val);
+    bool k1_is_neg = (scalar_bitlen(&k1_neg_val) < scalar_bitlen(&k1_mod));
+    Scalar k1_abs = k1_is_neg ? k1_neg_val : k1_mod;
+
+    result.k1 = k1_abs;
+    result.k2 = k2_abs;
+    result.k1_neg = k1_is_neg;
+    result.k2_neg = k2_is_neg;
+
+    return result;
+}
+
+// ============================================================================
 // Standard 64-bit field operations (used for add/sub - faster for these!)
 // ============================================================================
 
@@ -1919,6 +2221,83 @@ __device__ inline void scalar_mul(const JacobianPoint* p, const Scalar* k, Jacob
     }
 }
 
+#if !SECP256K1_CUDA_LIMBS_32
+// GLV-accelerated scalar multiplication: r = k * P
+// Splits k into k1 + k2*lambda and computes k1*P + k2*phi(P) with Shamir's trick
+// Only available in 64-bit limb mode (glv_decompose requires 64-bit scalar ops)
+__device__ inline void scalar_mul_glv(const JacobianPoint* p, const Scalar* k, JacobianPoint* r) {
+    GLVDecomposition decomp = glv_decompose(k);
+
+    // Compute phi(P) = (beta*P.x, P.y, P.z)
+    JacobianPoint phi_p;
+    apply_endomorphism(p, &phi_p);
+
+    // If k1_neg, negate P (negate y coordinate: y = -y mod p)
+    JacobianPoint p1 = *p;
+    if (decomp.k1_neg) {
+        FieldElement zero_fe;
+        field_set_zero(&zero_fe);
+        field_sub(&zero_fe, &p1.y, &p1.y);
+    }
+    // If k2_neg, negate phi(P)
+    JacobianPoint p2 = phi_p;
+    if (decomp.k2_neg) {
+        FieldElement zero_fe;
+        field_set_zero(&zero_fe);
+        field_sub(&zero_fe, &p2.y, &p2.y);
+    }
+
+    // Shamir's trick: interleaved double-and-add with both k1 and k2
+    r->infinity = true;
+    field_set_zero(&r->x);
+    field_set_one(&r->y);
+    field_set_zero(&r->z);
+
+    int len1 = scalar_bitlen(&decomp.k1);
+    int len2 = scalar_bitlen(&decomp.k2);
+    int max_len = (len1 > len2) ? len1 : len2;
+
+    for (int i = max_len - 1; i >= 0; --i) {
+        if (!r->infinity) {
+            JacobianPoint tmp;
+            jacobian_double(r, &tmp);
+            *r = tmp;
+        }
+
+        int b1 = scalar_bit(&decomp.k1, i);
+        int b2 = scalar_bit(&decomp.k2, i);
+
+        if (b1 && b2) {
+            JacobianPoint sum12;
+            jacobian_add(&p1, &p2, &sum12);
+            if (r->infinity) {
+                *r = sum12;
+            } else {
+                JacobianPoint tmp;
+                jacobian_add(r, &sum12, &tmp);
+                *r = tmp;
+            }
+        } else if (b1) {
+            if (r->infinity) {
+                *r = p1;
+            } else {
+                JacobianPoint tmp;
+                jacobian_add(r, &p1, &tmp);
+                *r = tmp;
+            }
+        } else if (b2) {
+            if (r->infinity) {
+                *r = p2;
+            } else {
+                JacobianPoint tmp;
+                jacobian_add(r, &p2, &tmp);
+                *r = tmp;
+            }
+        }
+    }
+}
+#endif // !SECP256K1_CUDA_LIMBS_32
+
 #ifndef SECP256K1_CUDA_LIMBS_32
 
 // Repeated squaring helper (in-place), keep loops from unrolling to limit reg pressure
@@ -2027,6 +2406,82 @@ __device__ inline void field_inv(const FieldElement* a, FieldElement* r) {
     field_inv_fermat_chain_impl(a, r);
 }
 
+// ── Field Square Root ────────────────────────────────────────────────────────
+// Computes r = sqrt(a) = a^((p+1)/4) for secp256k1 where p ≡ 3 (mod 4).
+// (p+1)/4 = 0x3FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFBFFFFF0C
+// Returns a valid sqrt if a is a quadratic residue; caller must verify r²==a.
+// Optimized addition chain: 255 squarings + 14 multiplications = 269 ops.
+__device__ inline void field_sqrt(const FieldElement* a, FieldElement* r) {
+    FieldElement x2, x3, x6, x22, x44, t;
+
+    // x2 = a^(2^2-1) = a^3
+    field_sqr(a, &x2);
+    field_mul(&x2, a, &x2);
+
+    // x3 = a^(2^3-1) = a^7
+    field_sqr(&x2, &x3);
+    field_mul(&x3, a, &x3);
+
+    // x6 = a^(2^6-1)
+    t = x3; field_sqr_n(&t, 3);
+    field_mul(&t, &x3, &x6);
+
+    // x9 = a^(2^9-1) [in t]
+    t = x6; field_sqr_n(&t, 3);
+    field_mul(&t, &x3, &t);
+
+    // x11 = a^(2^11-1) [in t]
+    field_sqr_n(&t, 2);
+    field_mul(&t, &x2, &t);
+
+    // x22 = a^(2^22-1)
+    x3 = t;  // save x11
+    field_sqr_n(&t, 11);
+    field_mul(&t, &x3, &x22);
+
+    // x44 = a^(2^44-1)
+    t = x22; field_sqr_n(&t, 22);
+    field_mul(&t, &x22, &x44);
+
+    // x88 = a^(2^88-1) [in t]
+    t = x44; field_sqr_n(&t, 44);
+    field_mul(&t, &x44, &t);
+
+    // x176 = a^(2^176-1) [in t]
+    x3 = t;  // save x88
+    field_sqr_n(&t, 88);
+    field_mul(&t, &x3, &t);
+
+    // x220 = a^(2^220-1) [in t]
+    field_sqr_n(&t, 44);
+    field_mul(&t, &x44, &t);
+
+    // x222 = a^(2^222-1) [in t]
+    field_sqr_n(&t, 2);
+    field_mul(&t, &x2, &t);
+
+    // Tail: extend 1^222 → 1^223 0 1^22 0000 11 00
+    // x223: t = t^2 * a
+    field_sqr(&t, &t);
+    field_mul(&t, a, &t);
+
+    // Shift left 1: pattern 1^222 10
+    field_sqr(&t, &t);
+
+    // Shift left 22, add x22: pattern 1^222 10 1^22
+    field_sqr_n(&t, 22);
+    field_mul(&t, &x22, &t);
+
+    // a^12 = x2^4 = (a^3)^4 [in x6]
+    x6 = x2;
+    field_sqr(&x6, &x6);
+    field_sqr(&x6, &x6);
+
+    // Shift left 8, add a^12: pattern 1^222 10 1^22 0000 11 00 = (p+1)/4
+    field_sqr_n(&t, 8);
+    field_mul(&t, &x6, r);
+}
+
 #endif // SECP256K1_CUDA_LIMBS_32
 
 // Kernel declarations
@@ -2045,6 +2500,10 @@ __global__ void scalar_mul_batch_kernel(const JacobianPoint* points, const Scala
 
 // Generator multiplication kernel (optimized for G * k)
 __global__ void generator_mul_batch_kernel(const Scalar* scalars, JacobianPoint* results, int count);
+
+// Windowed generator multiplication kernel (w=4, shared-memory precomputed table)
+// ~30-40% faster than plain double-and-add: 252 doublings + ≤64 adds vs 256 + ~128.
+__global__ void generator_mul_windowed_batch_kernel(const Scalar* scalars, JacobianPoint* results, int count);
 
 // Generator constant (inline definition for proper linkage across translation units)
 // Generator G in Jacobian coordinates (X, Y, Z)
@@ -2069,6 +2528,77 @@ __device__ __constant__ static const JacobianPoint GENERATOR_JACOBIAN = {
 #endif
     false
 };
+
+// ── Precomputed Generator Table Builder ──────────────────────────────────────
+// Builds table[i] = i*G for i=0..15 using Jacobian coordinates.
+// Called by a single thread (threadIdx.x == 0).
+// Caller MUST issue __syncthreads() after this returns.
+__device__ inline void build_generator_table(JacobianPoint* table) {
+    // table[0] = O (point at infinity)
+    table[0].infinity = true;
+    field_set_zero(&table[0].x);
+    field_set_one(&table[0].y);
+    field_set_zero(&table[0].z);
+
+    // table[1] = G
+    table[1] = GENERATOR_JACOBIAN;
+
+    // table[2] = 2G
+    jacobian_double(&table[1], &table[2]);
+
+    // table[3..15] = iG via mixed addition with G (affine, Z=1)
+    AffinePoint G_aff;
+    G_aff.x = GENERATOR_JACOBIAN.x;
+    G_aff.y = GENERATOR_JACOBIAN.y;
+
+    for (int i = 3; i <= 15; i++) {
+        jacobian_add_mixed(&table[i - 1], &G_aff, &table[i]);
+    }
+}
+
+// ── Fixed-Window (w=4) Generator Scalar Multiplication ──────────────────────
+// Uses precomputed table[0..15] = i*G from build_generator_table.
+// Processes scalar 4 bits at a time (MSB to LSB): 64 windows.
+// Cost: 252 doublings + ≤64 jacobian_adds.
+// Compared to plain double-and-add: saves ~50% of point additions.
+__device__ inline void scalar_mul_generator_windowed(
+    const JacobianPoint* table, const Scalar* k, JacobianPoint* r)
+{
+    r->infinity = true;
+    field_set_zero(&r->x);
+    field_set_one(&r->y);
+    field_set_zero(&r->z);
+
+    bool started = false;
+
+    #pragma unroll 1
+    for (int limb = 3; limb >= 0; limb--) {
+        uint64_t w = k->limbs[limb];
+        #pragma unroll 1
+        for (int nib = 15; nib >= 0; nib--) {
+            uint32_t idx = (uint32_t)((w >> (nib * 4)) & 0xFULL);
+
+            if (started) {
+                jacobian_double(r, r);
+                jacobian_double(r, r);
+                jacobian_double(r, r);
+                jacobian_double(r, r);
+            }
+
+            if (idx != 0) {
+                if (!started) {
+                    *r = table[idx];
+                    started = true;
+                } else {
+                    JacobianPoint tmp;
+                    jacobian_add(r, &table[idx], &tmp);
+                    *r = tmp;
+                }
+            }
+        }
+    }
+}
+
 #endif
 
 } // namespace cuda
