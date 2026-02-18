@@ -49,7 +49,7 @@ inline void field_cmovznz(FieldElement* r, const FieldElement* a,
                           const FieldElement* b, std::uint64_t flag) noexcept {
     // Convert flag to mask: 0 → 0x0000000000000000, nonzero → 0xFFFFFFFFFFFFFFFF
     // Use bitwise OR reduction across all bits to detect nonzero
-    std::uint64_t mask = -(flag | (-flag)) >> 63; // Branchless nonzero test
+    std::uint64_t mask = (flag | (-flag)) >> 63; // Branchless nonzero test
     mask = -mask; // Expand to full 64-bit mask
     
     auto& r_limbs = const_cast<std::array<std::uint64_t, 4>&>(r->limbs());

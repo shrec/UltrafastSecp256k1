@@ -34,6 +34,8 @@ int test_v4_features_run();
 int test_coins_run();
 int test_batch_add_affine_run();
 int test_hash_accel_run();
+int run_exhaustive_tests();
+int test_comprehensive_run();
 
 // ── Module descriptor ────────────────────────────────────────────────────────
 struct TestModule {
@@ -56,6 +58,8 @@ static const TestModule MODULES[] = {
     { "coins layer",                      test_coins_run },
     { "affine batch addition",             test_batch_add_affine_run },
     { "accelerated hashing",                test_hash_accel_run },
+    { "exhaustive algebraic verification",  run_exhaustive_tests },
+    { "comprehensive 500+ test suite",        test_comprehensive_run },
 };
 
 static constexpr int NUM_MODULES = sizeof(MODULES) / sizeof(MODULES[0]);

@@ -23,6 +23,12 @@
 #include <functional>
 #include "secp256k1/fast.hpp"
 #include "secp256k1/selftest.hpp"
+#include "secp256k1/field_26.hpp"
+#include "secp256k1/field_optimal.hpp"
+#if defined(__SIZEOF_INT128__) || (defined(__GNUC__) && !defined(__i386__) && !defined(__arm__) && !defined(__xtensa__))
+#include "secp256k1/field_52.hpp"
+#define BENCH_HAS_FIELD52 1
+#endif
 
 using namespace secp256k1::fast;
 
@@ -666,8 +672,245 @@ int main()
     }
 
     std::cout << "\n";
+
+    // ========== 10×26 FIELD ELEMENT BENCHMARK ==========
+    std::cout << "==============================================\n";
+    std::cout << "  10x26 Field Element Benchmark\n";
+    std::cout << "  (Lazy-Reduction for 32-bit Platforms)\n";
+    std::cout << "==============================================\n";
+
+    {
+        // Correctness checks
+        FieldElement fe_a = fields[0];
+        FieldElement fe_b = fields[1];
+        FieldElement26 a26 = FieldElement26::from_fe(fe_a);
+        FieldElement26 b26 = FieldElement26::from_fe(fe_b);
+
+        FieldElement26 mul26 = a26 * b26;
+        FieldElement ref_mul = fe_a * fe_b;
+        bool mul_ok = (mul26.to_fe() == ref_mul);
+        std::cout << "  10x26 mul OK: " << (mul_ok ? "PASS" : "FAIL") << "\n";
+
+        FieldElement26 sqr26 = a26.square();
+        FieldElement ref_sqr = fe_a.square();
+        bool sqr_ok = (sqr26.to_fe() == ref_sqr);
+        std::cout << "  10x26 sqr OK: " << (sqr_ok ? "PASS" : "FAIL") << "\n";
+
+        FieldElement26 add26 = a26 + b26;
+        FieldElement ref_add = fe_a + fe_b;
+        bool add_ok = (add26.to_fe() == ref_add);
+        std::cout << "  10x26 add OK: " << (add_ok ? "PASS" : "FAIL") << "\n";
+
+        // Benchmarks
+        const size_t fe26_iters = 100000;
+
+        // Mul
+        {
+            FieldElement26 acc = a26;
+            for (size_t i = 0; i < 1000; ++i)
+                acc = acc * b26;
+            auto start = std::chrono::high_resolution_clock::now();
+            for (size_t i = 0; i < fe26_iters; ++i)
+                acc = acc * b26;
+            auto end = std::chrono::high_resolution_clock::now();
+            double ns = double(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count()) / fe26_iters;
+            volatile auto sink = acc.n[0]; (void)sink;
+            results.push_back({"10x26 Mul", ns});
+            std::cout << "  10x26 Mul:    " << std::setw(10) << format_time(ns) << "\n";
+        }
+        // Sqr
+        {
+            FieldElement26 acc = a26;
+            for (size_t i = 0; i < 1000; ++i)
+                acc = acc.square();
+            auto start = std::chrono::high_resolution_clock::now();
+            for (size_t i = 0; i < fe26_iters; ++i)
+                acc = acc.square();
+            auto end = std::chrono::high_resolution_clock::now();
+            double ns = double(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count()) / fe26_iters;
+            volatile auto sink = acc.n[0]; (void)sink;
+            results.push_back({"10x26 Sqr", ns});
+            std::cout << "  10x26 Sqr:    " << std::setw(10) << format_time(ns) << "\n";
+        }
+        // Add (lazy)
+        {
+            FieldElement26 acc = a26;
+            for (size_t i = 0; i < 1000; ++i)
+                acc = acc + b26;
+            auto start = std::chrono::high_resolution_clock::now();
+            for (size_t i = 0; i < fe26_iters; ++i)
+                acc = acc + b26;
+            auto end = std::chrono::high_resolution_clock::now();
+            double ns = double(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count()) / fe26_iters;
+            volatile auto sink = acc.n[0]; (void)sink;
+            results.push_back({"10x26 Add (lazy)", ns});
+            std::cout << "  10x26 Add:    " << std::setw(10) << format_time(ns) << " (LAZY)\n";
+        }
+        // Neg
+        {
+            FieldElement26 acc = a26;
+            for (size_t i = 0; i < 1000; ++i)
+                acc = acc.negate(1);
+            auto start = std::chrono::high_resolution_clock::now();
+            for (size_t i = 0; i < fe26_iters; ++i)
+                acc = acc.negate(1);
+            auto end = std::chrono::high_resolution_clock::now();
+            double ns = double(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count()) / fe26_iters;
+            volatile auto sink = acc.n[0]; (void)sink;
+            results.push_back({"10x26 Neg", ns});
+            std::cout << "  10x26 Neg:    " << std::setw(10) << format_time(ns) << "\n";
+        }
+    }
+
+    std::cout << "\n";
+
+    // ========== 5×52 FIELD ELEMENT BENCHMARK ==========
+#ifdef BENCH_HAS_FIELD52
+    std::cout << "==============================================\n";
+    std::cout << "  5x52 Field Element Benchmark\n";
+    std::cout << "  (Lazy-Reduction, __int128)\n";
+    std::cout << "==============================================\n";
+
+    {
+        FieldElement fe_a = fields[0];
+        FieldElement fe_b = fields[1];
+        FieldElement52 a52 = FieldElement52::from_fe(fe_a);
+        FieldElement52 b52 = FieldElement52::from_fe(fe_b);
+
+        // Correctness
+        FieldElement52 mul52 = a52 * b52;
+        bool mul_ok = (mul52.to_fe() == (fe_a * fe_b));
+        std::cout << "  5x52 mul OK: " << (mul_ok ? "PASS" : "FAIL") << "\n";
+
+        FieldElement52 sqr52 = a52.square();
+        bool sqr_ok = (sqr52.to_fe() == fe_a.square());
+        std::cout << "  5x52 sqr OK: " << (sqr_ok ? "PASS" : "FAIL") << "\n";
+
+        FieldElement52 add52 = a52 + b52;
+        bool add_ok = (add52.to_fe() == (fe_a + fe_b));
+        std::cout << "  5x52 add OK: " << (add_ok ? "PASS" : "FAIL") << "\n";
+
+        const size_t fe52_iters = 100000;
+
+        // Mul
+        {
+            FieldElement52 acc = a52;
+            for (size_t i = 0; i < 1000; ++i)
+                acc = acc * b52;
+            auto start = std::chrono::high_resolution_clock::now();
+            for (size_t i = 0; i < fe52_iters; ++i)
+                acc = acc * b52;
+            auto end = std::chrono::high_resolution_clock::now();
+            double ns = double(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count()) / fe52_iters;
+            volatile auto sink = acc.n[0]; (void)sink;
+            results.push_back({"5x52 Mul", ns});
+            std::cout << "  5x52 Mul:     " << std::setw(10) << format_time(ns) << "\n";
+        }
+        // Sqr
+        {
+            FieldElement52 acc = a52;
+            for (size_t i = 0; i < 1000; ++i)
+                acc = acc.square();
+            auto start = std::chrono::high_resolution_clock::now();
+            for (size_t i = 0; i < fe52_iters; ++i)
+                acc = acc.square();
+            auto end = std::chrono::high_resolution_clock::now();
+            double ns = double(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count()) / fe52_iters;
+            volatile auto sink = acc.n[0]; (void)sink;
+            results.push_back({"5x52 Sqr", ns});
+            std::cout << "  5x52 Sqr:     " << std::setw(10) << format_time(ns) << "\n";
+        }
+        // Add
+        {
+            FieldElement52 acc = a52;
+            for (size_t i = 0; i < 1000; ++i)
+                acc = acc + b52;
+            auto start = std::chrono::high_resolution_clock::now();
+            for (size_t i = 0; i < fe52_iters; ++i)
+                acc = acc + b52;
+            auto end = std::chrono::high_resolution_clock::now();
+            double ns = double(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count()) / fe52_iters;
+            volatile auto sink = acc.n[0]; (void)sink;
+            results.push_back({"5x52 Add", ns});
+            std::cout << "  5x52 Add:     " << std::setw(10) << format_time(ns) << "\n";
+        }
+    }
+
+    std::cout << "\n";
+#endif // BENCH_HAS_FIELD52
+
+    // ========== OPTIMAL DISPATCH BENCHMARK ==========
+    std::cout << "==============================================\n";
+    std::cout << "  Optimal Field Element (Auto-Dispatch)\n";
+    std::cout << "  Selected: " << secp256k1::fast::kOptimalTierName << "\n";
+    std::cout << "==============================================\n";
+
+    {
+        using OFE = secp256k1::fast::OptimalFieldElement;
+        FieldElement fe_a = fields[0];
+        FieldElement fe_b = fields[1];
+        OFE oa = secp256k1::fast::to_optimal(fe_a);
+        OFE ob = secp256k1::fast::to_optimal(fe_b);
+
+        // Correctness
+        OFE omul = oa * ob;
+        bool omul_ok = (secp256k1::fast::from_optimal(omul) == (fe_a * fe_b));
+        std::cout << "  Optimal Mul OK: " << (omul_ok ? "PASS" : "FAIL") << "\n";
+
+        OFE osqr = oa.square();
+        bool osqr_ok = (secp256k1::fast::from_optimal(osqr) == fe_a.square());
+        std::cout << "  Optimal Sqr OK: " << (osqr_ok ? "PASS" : "FAIL") << "\n";
+
+        const size_t opt_iters = 100000;
+
+        // Mul
+        {
+            OFE acc = oa;
+            for (size_t i = 0; i < 1000; ++i)
+                acc = acc * ob;
+            auto start = std::chrono::high_resolution_clock::now();
+            for (size_t i = 0; i < opt_iters; ++i)
+                acc = acc * ob;
+            auto end = std::chrono::high_resolution_clock::now();
+            double ns = double(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count()) / opt_iters;
+            volatile auto sink = secp256k1::fast::from_optimal(acc).limbs()[0]; (void)sink;
+            results.push_back({"Optimal Mul", ns});
+            std::cout << "  Optimal Mul:  " << std::setw(10) << format_time(ns) << "\n";
+        }
+        // Sqr
+        {
+            OFE acc = oa;
+            for (size_t i = 0; i < 1000; ++i)
+                acc = acc.square();
+            auto start = std::chrono::high_resolution_clock::now();
+            for (size_t i = 0; i < opt_iters; ++i)
+                acc = acc.square();
+            auto end = std::chrono::high_resolution_clock::now();
+            double ns = double(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count()) / opt_iters;
+            volatile auto sink = secp256k1::fast::from_optimal(acc).limbs()[0]; (void)sink;
+            results.push_back({"Optimal Sqr", ns});
+            std::cout << "  Optimal Sqr:  " << std::setw(10) << format_time(ns) << "\n";
+        }
+        // Add
+        {
+            OFE acc = oa;
+            for (size_t i = 0; i < 1000; ++i)
+                acc = acc + ob;
+            auto start = std::chrono::high_resolution_clock::now();
+            for (size_t i = 0; i < opt_iters; ++i)
+                acc = acc + ob;
+            auto end = std::chrono::high_resolution_clock::now();
+            double ns = double(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count()) / opt_iters;
+            volatile auto sink = secp256k1::fast::from_optimal(acc).limbs()[0]; (void)sink;
+            results.push_back({"Optimal Add", ns});
+            std::cout << "  Optimal Add:  " << std::setw(10) << format_time(ns) << "\n";
+        }
+    }
+
+    std::cout << "\n";
     std::cout << "==============================================\n";
     std::cout << "  Benchmark Complete\n";
+    std::cout << "  Optimal Tier: " << secp256k1::fast::kOptimalTierName << "\n";
     std::cout << "==============================================\n";
 
     // Generate summary table for README

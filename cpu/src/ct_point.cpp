@@ -272,6 +272,9 @@ Point scalar_mul(const Point& p, const Scalar& k) noexcept {
         table[i] = point_add_complete(table[i - 1], base);
     }
 
+    // Declassify table (public data derived from public point; only scalar is secret)
+    SECP256K1_DECLASSIFY(table, sizeof(table));
+
     // Process from MSB to LSB in 4-bit windows
     // 256 bits / 4 = 64 windows, indices 63..0
     CTJacobianPoint R = CTJacobianPoint::make_infinity();
@@ -293,7 +296,10 @@ Point scalar_mul(const Point& p, const Scalar& k) noexcept {
         R = point_add_complete(R, T_d);
     }
 
-    return R.to_point();
+    // Declassify result (output is public)
+    Point result = R.to_point();
+    SECP256K1_DECLASSIFY(&result, sizeof(result));
+    return result;
 }
 
 // ─── CT Generator Multiplication ─────────────────────────────────────────────

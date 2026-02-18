@@ -22,6 +22,37 @@
 #include <cstdint>
 #include <cstddef>
 
+// ─── Declassify / Classify Markers ───────────────────────────────────────────
+// For constant-time verification with Valgrind (memcheck) or MSAN.
+//
+// SECP256K1_CLASSIFY(ptr, len)   — Mark memory as secret (undefined).
+//                                  Call on inputs before CT operations.
+// SECP256K1_DECLASSIFY(ptr, len) — Mark memory as public (defined).
+//                                  Call on outputs after CT operations.
+//
+// Under normal compilation these are no-ops. When compiled with:
+//   -DSECP256K1_CT_VALGRIND=1 and Valgrind headers available:
+//     maps to VALGRIND_MAKE_MEM_{UNDEFINED,DEFINED}
+//
+// Usage in tests:
+//   Scalar k;
+//   SECP256K1_CLASSIFY(&k, sizeof(k));   // treat k as secret
+//   Point R = ct::scalar_mul(G, k);      // CT operation under test
+//   SECP256K1_DECLASSIFY(&R, sizeof(R)); // declassify result for comparison
+//
+// If valgrind reports a "conditional jump depends on uninitialised value"
+// error BETWEEN classify and declassify, the code has a CT violation.
+// ─────────────────────────────────────────────────────────────────────────────
+
+#if defined(SECP256K1_CT_VALGRIND) && SECP256K1_CT_VALGRIND
+    #include <valgrind/memcheck.h>
+    #define SECP256K1_CLASSIFY(ptr, len)   VALGRIND_MAKE_MEM_UNDEFINED((ptr), (len))
+    #define SECP256K1_DECLASSIFY(ptr, len) VALGRIND_MAKE_MEM_DEFINED((ptr), (len))
+#else
+    #define SECP256K1_CLASSIFY(ptr, len)   ((void)(ptr), (void)(len))
+    #define SECP256K1_DECLASSIFY(ptr, len) ((void)(ptr), (void)(len))
+#endif
+
 namespace secp256k1::ct {
 
 // ─── Compiler barrier ────────────────────────────────────────────────────────

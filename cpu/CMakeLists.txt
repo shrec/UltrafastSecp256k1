@@ -3,6 +3,8 @@ set(SECP256K1_LIB_NAME fastsecp256k1)
 # Core sources (always available - Tier 1: Portable C++)
 set(SECP256K1_SOURCES
     src/field.cpp
+    src/field_52.cpp   # 5×52 lazy-reduction field (hybrid scheme)
+    src/field_26.cpp   # 10×26 lazy-reduction field (32-bit platforms)
     src/scalar.cpp
     src/point.cpp
     src/precompute.cpp
@@ -34,6 +36,9 @@ set(SECP256K1_SOURCES
     src/coin_address.cpp  # Unified per-coin address generation
     src/ethereum.cpp      # Ethereum EIP-55 checksummed addresses
     src/coin_hd.cpp       # BIP-44 coin-type HD derivation
+    # Advanced algorithms — Pippenger MSM + Comb generator multiplication
+    src/pippenger.cpp        # Pippenger bucket method MSM (n > 128)
+    src/ecmult_gen_comb.cpp  # Lim-Lee comb method for fast k*G
 )
 
 # Optional inline assembly (Tier 3: Maximum performance, x64/RISC-V)
@@ -480,6 +485,14 @@ if(BUILD_TESTING)
     add_executable(bench_ct bench/bench_ct.cpp)
     target_link_libraries(bench_ct PRIVATE ${SECP256K1_LIB_NAME})
 
+    # Field 5×52 vs 4×64 comparison benchmark
+    add_executable(bench_field_52 bench/bench_field_52.cpp)
+    target_link_libraries(bench_field_52 PRIVATE ${SECP256K1_LIB_NAME})
+
+    # Field 10×26 vs 4×64 comparison benchmark (32-bit platform target)
+    add_executable(bench_field_26 bench/bench_field_26.cpp)
+    target_link_libraries(bench_field_26 PRIVATE ${SECP256K1_LIB_NAME})
+
     # Comprehensive cross-platform benchmark (all operations for README performance table)
     add_executable(bench_comprehensive bench/bench_comprehensive_riscv.cpp)
     target_link_libraries(bench_comprehensive PRIVATE ${SECP256K1_LIB_NAME})
@@ -522,6 +535,8 @@ if(BUILD_TESTING)
         tests/test_coins.cpp
         tests/test_batch_add_affine.cpp
         tests/test_hash_accel.cpp
+        tests/test_exhaustive.cpp
+        tests/test_comprehensive.cpp
     )
     target_link_libraries(run_selftest PRIVATE ${SECP256K1_LIB_NAME})
 
@@ -547,4 +562,42 @@ if(BUILD_TESTING)
     target_link_libraries(test_hash_accel_standalone PRIVATE ${SECP256K1_LIB_NAME})
     target_compile_definitions(test_hash_accel_standalone PRIVATE STANDALONE_TEST)
     add_test(NAME hash_accel COMMAND test_hash_accel_standalone)
+
+    # Standalone 5×52 field test
+    add_executable(test_field_52_standalone
+        tests/test_field_52.cpp
+    )
+    target_link_libraries(test_field_52_standalone PRIVATE ${SECP256K1_LIB_NAME})
+    target_compile_definitions(test_field_52_standalone PRIVATE STANDALONE_TEST)
+    add_test(NAME field_52 COMMAND test_field_52_standalone)
+
+    # Standalone 10×26 field test
+    add_executable(test_field_26_standalone
+        tests/test_field_26.cpp
+    )
+    target_link_libraries(test_field_26_standalone PRIVATE ${SECP256K1_LIB_NAME})
+    target_compile_definitions(test_field_26_standalone PRIVATE STANDALONE_TEST)
+    add_test(NAME field_26 COMMAND test_field_26_standalone)
+
+    # Standalone exhaustive algebraic verification test
+    add_executable(test_exhaustive_standalone
+        tests/test_exhaustive.cpp
+    )
+    target_link_libraries(test_exhaustive_standalone PRIVATE ${SECP256K1_LIB_NAME})
+    target_compile_definitions(test_exhaustive_standalone PRIVATE STANDALONE_TEST)
+    if(MSVC OR (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND WIN32))
+        target_link_options(test_exhaustive_standalone PRIVATE "LINKER:/STACK:8388608")
+    endif()
+    add_test(NAME exhaustive COMMAND test_exhaustive_standalone)
+
+    # Standalone comprehensive test (500+ checks across all categories)
+    add_executable(test_comprehensive_standalone
+        tests/test_comprehensive.cpp
+    )
+    target_link_libraries(test_comprehensive_standalone PRIVATE ${SECP256K1_LIB_NAME})
+    target_compile_definitions(test_comprehensive_standalone PRIVATE STANDALONE_TEST)
+    if(MSVC OR (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND WIN32))
+        target_link_options(test_comprehensive_standalone PRIVATE "LINKER:/STACK:8388608")
+    endif()
+    add_test(NAME comprehensive COMMAND test_comprehensive_standalone)
 endif()
