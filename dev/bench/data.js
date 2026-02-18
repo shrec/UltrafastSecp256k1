@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771418674462,
+  "lastUpdate": 1771420766329,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -1617,6 +1617,110 @@ window.BENCHMARK_DATA = {
           {
             "name": "Optimal Add",
             "value": 6,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "e63ab1ed9765c7ed6f4569c4820d51b762d7ffa2",
+          "message": "docs: add head-to-head libsecp256k1 comparison + all benchmark targets\n\n- Run all 12 bench targets on Windows x64 (Clang 21.1.0, Release, AVX2)\n- Build and run Bitcoin Core libsecp256k1 with same compiler/flags\n- README: updated x86_64/Windows table with 5x52/4x64 field data\n- README: added scalar mul breakdown, field representation comparison,\n  CT layer overhead, and head-to-head comparison section\n- README: added 12 available benchmark targets with descriptions\n- docs/BENCHMARKS.md: replaced placeholder comparison with real data\n  (field/point/scalar/high-level ops side-by-side)\n- docs/BENCHMARKS.md: added x86-64 Windows section, specialized\n  benchmark results (5x52 vs 4x64, CT overhead, multi-scalar,\n  atomic building blocks)\n- docs/BENCHMARKS.md: added available benchmark targets catalog\n\nKey findings:\n  - Generator Mul (kxG): 8.5 us vs 15.3 us (1.8x faster)\n  - ECDSA Sign path: 8.5 us vs 26.2 us (3.1x faster)\n  - Field Mul (5x52): 22 ns vs 15.3 ns (1.44x slower)\n  - Point Add: 937 ns vs 255 ns (3.67x slower)\n  - ECDSA Verify: 137 us vs 37.3 us (3.7x slower)",
+          "timestamp": "2026-02-18T17:18:05+04:00",
+          "tree_id": "00c54bda15ae21e96a5959242d191eabf7f597b5",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/e63ab1ed9765c7ed6f4569c4820d51b762d7ffa2"
+        },
+        "date": 1771420765132,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Field Mul",
+            "value": 48,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 43,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 17,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Sub",
+            "value": 12,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Add",
+            "value": 818,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 467,
+            "unit": "ns"
+          },
+          {
+            "name": "10x26 Mul",
+            "value": 48,
+            "unit": "ns"
+          },
+          {
+            "name": "10x26 Sqr",
+            "value": 34,
+            "unit": "ns"
+          },
+          {
+            "name": "10x26 Add",
+            "value": 4,
+            "unit": "ns"
+          },
+          {
+            "name": "10x26 Neg",
+            "value": 4,
+            "unit": "ns"
+          },
+          {
+            "name": "5x52 Mul",
+            "value": 31,
+            "unit": "ns"
+          },
+          {
+            "name": "5x52 Sqr",
+            "value": 25,
+            "unit": "ns"
+          },
+          {
+            "name": "5x52 Add",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Optimal Mul",
+            "value": 32,
+            "unit": "ns"
+          },
+          {
+            "name": "Optimal Sqr",
+            "value": 26,
+            "unit": "ns"
+          },
+          {
+            "name": "Optimal Add",
+            "value": 4,
             "unit": "ns"
           }
         ]
