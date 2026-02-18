@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771261304620,
+  "lastUpdate": 1771410285109,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -1216,6 +1216,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Point Double",
             "value": 571,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "995804e80cc26a498e9941ea5818eccb5b9fb6e3",
+          "message": "feat(bindings): add 12-language binding suite + CI workflow\n\nLanguage bindings for the C API shared library:\n- C API: shared lib (libultrafast_secp256k1) with ABI-stable header\n- Python: ctypes FFI wrapper (PyPI-ready)\n- C#: P/Invoke (.NET 6/7/8 multi-target)\n- Rust: sys crate (raw FFI) + safe wrapper (edition 2024)\n- Node.js: ffi-napi + TypeScript declarations\n- PHP: FFI class (PHP 8.1+, Composer/PSR-4)\n- Go: cgo wrapper (go 1.21+, typed [32]byte arrays)\n- Java: JNI bridge (C impl + Java class + CMake)\n- Swift: SPM package (macOS 12+ / iOS 15+, Foundation Data)\n- React Native: NativeModules (Android Java + iOS ObjC + JS/TS)\n- Ruby: FFI gem wrapper (Ruby 3.0+)\n- Dart: dart:ffi bindings (Dart 3.0+, DynamicLibrary)\n\nCI: add bindings.yml GitHub Actions workflow\n- Builds C API on Linux/macOS/Windows\n- Compile-checks each binding (syntax, type-check, lint)\n- Summary matrix for all 12 languages\n\nUpdate .gitignore for benchmark outputs + binding build artifacts",
+          "timestamp": "2026-02-18T13:55:27+04:00",
+          "tree_id": "80660c451daebd42ba6b218ad0e79e00fe4130d5",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/995804e80cc26a498e9941ea5818eccb5b9fb6e3"
+        },
+        "date": 1771410284450,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Field Mul",
+            "value": 58,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 55,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 21,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Sub",
+            "value": 16,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 572,
+            "unit": "ns"
+          },
+          {
+            "name": "10x26 Mul",
+            "value": 50,
+            "unit": "ns"
+          },
+          {
+            "name": "10x26 Sqr",
+            "value": 40,
+            "unit": "ns"
+          },
+          {
+            "name": "10x26 Add",
+            "value": 6,
+            "unit": "ns"
+          },
+          {
+            "name": "10x26 Neg",
+            "value": 6,
+            "unit": "ns"
+          },
+          {
+            "name": "5x52 Mul",
+            "value": 29,
+            "unit": "ns"
+          },
+          {
+            "name": "5x52 Sqr",
+            "value": 27,
+            "unit": "ns"
+          },
+          {
+            "name": "5x52 Add",
+            "value": 6,
+            "unit": "ns"
+          },
+          {
+            "name": "Optimal Mul",
+            "value": 31,
+            "unit": "ns"
+          },
+          {
+            "name": "Optimal Sqr",
+            "value": 28,
+            "unit": "ns"
+          },
+          {
+            "name": "Optimal Add",
+            "value": 6,
             "unit": "ns"
           }
         ]
