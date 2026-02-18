@@ -18,9 +18,14 @@
 // clang-cl, GCC, and Clang all support this on 64-bit targets.
 #if defined(__SIZEOF_INT128__) || defined(__GNUC__) || defined(__clang__)
     using uint128_t = unsigned __int128;
+    #define SECP256K1_HAS_UINT128 1
 #else
-    #error "FieldElement52 requires __uint128_t (GCC/Clang/clang-cl on 64-bit)"
+    // MSVC (non-clang-cl) lacks __uint128_t.
+    // FieldElement52 is unavailable; this TU compiles as empty.
+    // The portable FieldElement (4×64 with carry chains) is used instead.
 #endif
+
+#ifdef SECP256K1_HAS_UINT128
 
 namespace secp256k1::fast {
 
@@ -498,3 +503,5 @@ FieldElement52 FieldElement52::half() const noexcept {
 }
 
 } // namespace secp256k1::fast
+
+#endif // SECP256K1_HAS_UINT128

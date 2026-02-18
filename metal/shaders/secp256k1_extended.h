@@ -687,7 +687,8 @@ inline bool schnorr_sign(thread const Scalar256 &priv, thread const uchar msg[32
     field_to_bytes(P_aff.x, px_bytes);
 
     uchar t_hash[32];
-    tagged_hash((const thread uchar*)"BIP0340/aux", 12, aux_rand, 32, t_hash);
+    const uchar tag_aux[] = {'B','I','P','0','3','4','0','/','a','u','x'};
+    tagged_hash(tag_aux, 11, aux_rand, 32, t_hash);
 
     uchar d_bytes[32];
     scalar_to_bytes(d, d_bytes);
@@ -700,7 +701,8 @@ inline bool schnorr_sign(thread const Scalar256 &priv, thread const uchar msg[32
     for (int i = 0; i < 32; i++) nonce_input[64+i] = msg[i];
 
     uchar rand_hash[32];
-    tagged_hash((const thread uchar*)"BIP0340/nonce", 13, nonce_input, 96, rand_hash);
+    const uchar tag_nonce[] = {'B','I','P','0','3','4','0','/','n','o','n','c','e'};
+    tagged_hash(tag_nonce, 13, nonce_input, 96, rand_hash);
 
     Scalar256 k_prime = scalar_from_bytes(rand_hash);
     if (scalar256_is_zero(k_prime)) return false;
@@ -721,7 +723,8 @@ inline bool schnorr_sign(thread const Scalar256 &priv, thread const uchar msg[32
     for (int i = 0; i < 32; i++) challenge_input[64+i] = msg[i];
 
     uchar e_hash[32];
-    tagged_hash((const thread uchar*)"BIP0340/challenge", 19, challenge_input, 96, e_hash);
+    const uchar tag_chal[] = {'B','I','P','0','3','4','0','/','c','h','a','l','l','e','n','g','e'};
+    tagged_hash(tag_chal, 17, challenge_input, 96, e_hash);
     Scalar256 e = scalar_from_bytes(e_hash);
 
     Scalar256 ed = scalar_mul_mod_n(e, d);
@@ -742,7 +745,8 @@ inline bool schnorr_verify(thread const uchar pubkey_x[32], thread const uchar m
     for (int i = 0; i < 32; i++) challenge_input[64+i] = msg[i];
 
     uchar e_hash[32];
-    tagged_hash((const thread uchar*)"BIP0340/challenge", 19, challenge_input, 96, e_hash);
+    const uchar tag_chal2[] = {'B','I','P','0','3','4','0','/','c','h','a','l','l','e','n','g','e'};
+    tagged_hash(tag_chal2, 17, challenge_input, 96, e_hash);
     Scalar256 e = scalar_from_bytes(e_hash);
 
     AffinePoint G = generator_affine();
@@ -994,6 +998,83 @@ inline JacobianPoint msm_pippenger(thread const Scalar256* scalars, thread const
         result = jacobian_add(result, partial_sum);
     }
     return result;
+}
+
+// =============================================================================
+// Adapter overloads for batch kernel calling conventions
+// =============================================================================
+
+// ecdsa_sign: separated Scalar256 r/s outputs
+inline bool ecdsa_sign(thread const Scalar256 &msg_scalar, thread const Scalar256 &priv,
+                        thread Scalar256 &r_out, thread Scalar256 &s_out) {
+    uchar msg_hash[32];
+    scalar_to_bytes(msg_scalar, msg_hash);
+    ECDSASignature sig;
+    if (!ecdsa_sign(msg_hash, priv, sig)) return false;
+    r_out = sig.r;
+    s_out = sig.s;
+    return true;
+}
+
+// ecdsa_verify: AffinePoint pubkey + separated Scalar256 r/s
+inline bool ecdsa_verify(thread const Scalar256 &msg_scalar, thread const AffinePoint &pub,
+                          thread const Scalar256 &r, thread const Scalar256 &s) {
+    uchar msg_hash[32];
+    scalar_to_bytes(msg_scalar, msg_hash);
+    JacobianPoint pub_jac;
+    pub_jac.x = pub.x; pub_jac.y = pub.y; pub_jac.z = field_one(); pub_jac.infinity = 0;
+    ECDSASignature sig;
+    sig.r = r; sig.s = s;
+    return ecdsa_verify(msg_hash, pub_jac, sig);
+}
+
+// schnorr_sign: Scalar256 msg + priv → separated Scalar256 r/s
+inline bool schnorr_sign(thread const Scalar256 &msg_scalar, thread const Scalar256 &priv,
+                          thread Scalar256 &sig_rx, thread Scalar256 &sig_s) {
+    uchar msg_hash[32], aux[32];
+    scalar_to_bytes(msg_scalar, msg_hash);
+    scalar_to_bytes(priv, aux);  // deterministic aux for batch
+    SchnorrSignature sig;
+    if (!schnorr_sign(priv, msg_hash, aux, sig)) return false;
+    sig_rx = scalar_from_bytes(sig.r);
+    sig_s = sig.s;
+    return true;
+}
+
+// schnorr_verify: Scalar msg + FieldElement pubkey_x + separated r/s
+inline bool schnorr_verify(thread const Scalar256 &msg_scalar, thread const FieldElement &pubkey_x,
+                            thread const Scalar256 &sig_rx, thread const Scalar256 &sig_s) {
+    uchar msg_hash[32], pk_bytes[32];
+    scalar_to_bytes(msg_scalar, msg_hash);
+    field_to_bytes(pubkey_x, pk_bytes);
+    SchnorrSignature sig;
+    uchar rx_bytes[32];
+    scalar_to_bytes(sig_rx, rx_bytes);
+    for (int i = 0; i < 32; i++) sig.r[i] = rx_bytes[i];
+    sig.s = sig_s;
+    return schnorr_verify(pk_bytes, msg_hash, sig);
+}
+
+// ecdh_shared_secret_xonly: returns raw x coordinate as FieldElement
+inline FieldElement ecdh_shared_secret_xonly(thread const Scalar256 &priv,
+                                              thread const AffinePoint &peer) {
+    JacobianPoint shared = scalar_mul(peer, priv);
+    AffinePoint shared_aff = jacobian_to_affine(shared);
+    return shared_aff.x;
+}
+
+// ecdsa_recover: separated Scalar256 r/s + recid → AffinePoint output
+inline bool ecdsa_recover(thread const Scalar256 &msg_scalar, thread const Scalar256 &r,
+                           thread const Scalar256 &s, uint recid,
+                           thread AffinePoint &recovered) {
+    uchar msg_hash[32];
+    scalar_to_bytes(msg_scalar, msg_hash);
+    ECDSASignature sig;
+    sig.r = r; sig.s = s;
+    JacobianPoint Q;
+    if (!ecdsa_recover(msg_hash, sig, (int)recid, Q)) return false;
+    recovered = jacobian_to_affine(Q);
+    return true;
 }
 
 // =============================================================================

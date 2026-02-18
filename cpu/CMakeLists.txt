@@ -485,9 +485,11 @@ if(BUILD_TESTING)
     add_executable(bench_ct bench/bench_ct.cpp)
     target_link_libraries(bench_ct PRIVATE ${SECP256K1_LIB_NAME})
 
-    # Field 5×52 vs 4×64 comparison benchmark
-    add_executable(bench_field_52 bench/bench_field_52.cpp)
-    target_link_libraries(bench_field_52 PRIVATE ${SECP256K1_LIB_NAME})
+    # Field 5×52 vs 4×64 comparison benchmark (requires __uint128_t; skip on MSVC)
+    if(NOT (MSVC AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
+        add_executable(bench_field_52 bench/bench_field_52.cpp)
+        target_link_libraries(bench_field_52 PRIVATE ${SECP256K1_LIB_NAME})
+    endif()
 
     # Field 10×26 vs 4×64 comparison benchmark (32-bit platform target)
     add_executable(bench_field_26 bench/bench_field_26.cpp)
@@ -563,13 +565,15 @@ if(BUILD_TESTING)
     target_compile_definitions(test_hash_accel_standalone PRIVATE STANDALONE_TEST)
     add_test(NAME hash_accel COMMAND test_hash_accel_standalone)
 
-    # Standalone 5×52 field test
-    add_executable(test_field_52_standalone
-        tests/test_field_52.cpp
-    )
-    target_link_libraries(test_field_52_standalone PRIVATE ${SECP256K1_LIB_NAME})
-    target_compile_definitions(test_field_52_standalone PRIVATE STANDALONE_TEST)
-    add_test(NAME field_52 COMMAND test_field_52_standalone)
+    # Standalone 5×52 field test (requires __uint128_t; skip on MSVC)
+    if(NOT (MSVC AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
+        add_executable(test_field_52_standalone
+            tests/test_field_52.cpp
+        )
+        target_link_libraries(test_field_52_standalone PRIVATE ${SECP256K1_LIB_NAME})
+        target_compile_definitions(test_field_52_standalone PRIVATE STANDALONE_TEST)
+        add_test(NAME field_52 COMMAND test_field_52_standalone)
+    endif()
 
     # Standalone 10×26 field test
     add_executable(test_field_26_standalone
