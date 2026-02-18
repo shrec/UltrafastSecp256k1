@@ -791,27 +791,27 @@ RISC-V results collected on **Milk-V Mars** (RV64 + RVV). Head-to-head compariso
 
 | Operation | Time |
 |-----------|------:|
-| Field Mul (4×64) | 50 ns |
-| Field Square (4×64) | 39 ns |
-| Field Mul (5×52) | 22 ns |
-| Field Square (5×52) | 17 ns |
-| Field Add | 10 ns |
-| Field Sub | 13 ns |
+| Field Mul (4×64) | 44 ns |
+| Field Square (4×64) | 33 ns |
+| Field Mul (5×52) | 23 ns |
+| Field Square (5×52) | 14 ns |
+| Field Add | 9 ns |
+| Field Sub | 10 ns |
 | Field Inverse | 5 μs |
-| Point Add | 937 ns |
-| Point Double | 429 ns |
-| Point Scalar Mul (k×P) | 132 μs |
-| Generator Mul (k×G) | 8.5 μs |
-| Batch Inverse (n=100) | 195 ns/elem |
-| Batch Inverse (n=1000) | 157 ns/elem |
+| Point Add | 821 ns |
+| Point Double | 380 ns |
+| Point Scalar Mul (k×P) | 42 μs |
+| Generator Mul (k×G) | 8 μs |
+| Batch Inverse (n=100) | 166 ns/elem |
+| Batch Inverse (n=1000) | 120 ns/elem |
 
 #### Scalar Multiplication Breakdown
 
 | Method | Time |
 |--------|------:|
-| k×G (Generator, precomputed) | 8.5 μs |
-| k×P (Arbitrary point) | 132 μs |
-| k₁×G + k₂×Q (Separate) | 137 μs |
+| k×G (Generator, precomputed) | 8 μs |
+| k×P (Arbitrary point) | 42 μs |
+| k₁×G + k₂×Q (Separate) | 50 μs |
 | k₁×G + k₂×Q (Shamir interleaved) | 155 μs |
 | Windowed Shamir (multi-scalar) | 9.2 μs |
 | JSF (Joint Sparse Form) | 9.5 μs |
@@ -1013,40 +1013,41 @@ RISC-V results collected on **Milk-V Mars** (RV64 + RVV). Head-to-head compariso
 | Operation | UltrafastSecp256k1 | libsecp256k1 | Speedup |
 |-----------|-------------------:|-------------:|--------:|
 | ECDSA Sign (k×G) | **8.5 μs** | 26.2 μs | **3.08×** |
-| ECDSA Verify (k×P + k×G) | **137 μs** | 37.3 μs | 0.27× |
+| ECDSA Verify (k×P + k×G) | **50 μs** | 37.3 μs | 0.75× |
 | EC Keygen (k×G) | **8.5 μs** | 17.9 μs | **2.11×** |
 | Schnorr Sign | **8.5 μs** | 18.2 μs | **2.14×** |
 
-*Note: ECDSA verify comparison is approximate — libsecp256k1 uses highly-optimized Strauss/Pippenger endomorphism-aware multi-scalar multiplication, while our verify path uses separate k₁×G + k₂×Q. Our k×G generator path (8.5 μs) is 3× faster.*
+*Note: ECDSA verify uses separate k₁×G + k₂×Q. Since v3.4, k×P uses GLV+5×52+Shamir (42 μs, down from 132 μs). Gap vs libsecp256k1 reduced from 3.7× to 1.3×.*
 
 #### Atomic Field Operations (Internal)
 
 | Operation | UltrafastSecp256k1 | libsecp256k1 | Speedup |
 |-----------|-------------------:|-------------:|--------:|
-| Field Mul (5×52) | **22 ns** | 15.3 ns | 0.70× |
-| Field Square (5×52) | **17 ns** | 13.6 ns | 0.80× |
-| Field Mul (4×64 portable) | 50 ns | 15.3 ns | 0.31× |
-| Field Add | 10 ns | 2.6 ns | 0.26× |
+| Field Mul (5×52) | **23 ns** | 15.3 ns | 0.67× |
+| Field Square (5×52) | **14 ns** | 13.6 ns | 0.97× |
+| Field Mul (4×64 portable) | 44 ns | 15.3 ns | 0.35× |
+| Field Add | 9 ns | 2.6 ns | 0.29× |
 | Field Inverse | **5 μs** | 1.71 μs | 0.34× |
 
-*libsecp256k1 uses hand-tuned 5×52 assembly with GCC `__int128`. Our 5×52 representation reaches 22 ns (vs 15.3 ns) — 1.44× gap. Our 4×64 portable path (50 ns) is for multi-platform compatibility.*
+*libsecp256k1 uses hand-tuned 5×52 assembly with GCC `__int128`. Our 5×52 representation reaches 23 ns (vs 15.3 ns) — 1.50× gap. Our 4×64 portable path (44 ns) is for multi-platform compatibility.*
 
 #### Point & Group Operations (Internal)
 
 | Operation | UltrafastSecp256k1 | libsecp256k1 | Speedup |
 |-----------|-------------------:|-------------:|--------:|
-| Point Double | 429 ns | 103 ns | 0.24× |
-| Point Add (Jacobian) | 937 ns | 255 ns | 0.27× |
-| Point Add (Affine mixed) | 698 ns | 172 ns | 0.25× |
-| Generator Mul (k×G) | **8.5 μs** | **15.3 μs** | **1.80×** |
-| Scalar Mul (k×P) | 132 μs | 25.3 μs | 0.19× |
+| Point Double | 380 ns | 103 ns | 0.27× |
+| Point Add (Jacobian) | 821 ns | 255 ns | 0.31× |
+| Point Add (Affine mixed) | 689 ns | 172 ns | 0.25× |
+| Generator Mul (k×G) | **8 μs** | **15.3 μs** | **1.91×** |
+| Scalar Mul (k×P) | 42 μs | 25.3 μs | 0.60× |
 
 #### Key Insights
 
 | Advantage | Details |
 |-----------|---------|
-| ✅ **Generator Mul 1.8–3× faster** | Aggressive precomputed table (larger memory footprint, faster lookup) |
+| ✅ **Generator Mul 1.9–3× faster** | Aggressive precomputed table (larger memory footprint, faster lookup) |
 | ✅ **ECDSA Sign ~3× faster** | Dominated by k×G, our strongest operation |
+| ✅ **k×P within 1.3× of libsecp256k1** | GLV + 5×52 + Shamir's trick (42 μs vs 33 μs) |
 | ✅ **Multi-platform** | Same codebase runs on x86, ARM64, RISC-V, Xtensa, Cortex-M, CUDA, OpenCL, Metal |
 | ⚠️ **Field ops 1.4–3× slower** | libsecp256k1 has 10+ years of hand-tuned x86 assembly; our 5×52 with `__int128` narrows the gap |
 | ⚠️ **k×P scalar mul slower** | Point addition/doubling gap compounds across 256 iterations |

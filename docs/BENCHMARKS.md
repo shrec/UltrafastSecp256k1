@@ -9,7 +9,7 @@ Benchmark results for UltrafastSecp256k1 across all supported platforms.
 | Platform | Field Mul | Generator Mul | Scalar Mul |
 |----------|-----------|---------------|------------|
 | x86-64 (i5, AVX2) | 33 ns | 5 μs | 110 μs |
-| x86-64 (Clang 21, Win) | 50 ns (4×64) / 22 ns (5×52) | 8.5 μs | 132 μs |
+| x86-64 (Clang 21, Win) | 44 ns (4×64) / 23 ns (5×52) | 8 μs | 42 μs |
 | RISC-V 64 (RVV) | 173 ns | 37 μs | 621 μs |
 | ARM64 (RK3588) | 85 ns | 7.6 μs | 77.6 μs |
 | ESP32-S3 (LX7, 240 MHz) | 7,458 ns | 2,483 μs | — |
@@ -55,19 +55,19 @@ Benchmark results for UltrafastSecp256k1 across all supported platforms.
 
 | Operation | Time | Notes |
 |-----------|------|-------|
-| Field Mul (4×64) | 50 ns | Portable representation |
-| Field Mul (5×52) | 22 ns | `__int128` lazy reduction |
-| Field Square (4×64) | 39 ns | |
-| Field Square (5×52) | 17 ns | |
-| Field Add | 10 ns | |
-| Field Sub | 13 ns | |
+| Field Mul (4×64) | 44 ns | Portable representation |
+| Field Mul (5×52) | 23 ns | `__int128` lazy reduction |
+| Field Square (4×64) | 33 ns | |
+| Field Square (5×52) | 14 ns | |
+| Field Add | 9 ns | |
+| Field Sub | 10 ns | |
 | Field Inverse | 5 μs | Fermat's little theorem |
-| Point Add | 937 ns | Jacobian coordinates |
-| Point Double | 429 ns | |
-| Point Scalar Mul (k×P) | 132 μs | wNAF |
-| Generator Mul (k×G) | 8.5 μs | Precomputed tables |
-| Batch Inverse (n=100) | 195 ns/elem | Montgomery's trick |
-| Batch Inverse (n=1000) | 157 ns/elem | |
+| Point Add | 821 ns | Jacobian coordinates |
+| Point Double | 380 ns | |
+| Point Scalar Mul (k×P) | 42 μs | GLV + 5×52 + Shamir |
+| Generator Mul (k×G) | 8 μs | Precomputed tables |
+| Batch Inverse (n=100) | 166 ns/elem | Montgomery's trick |
+| Batch Inverse (n=1000) | 120 ns/elem | |
 
 ---
 
@@ -325,12 +325,13 @@ All 35 library self-tests pass.
 | ECDSA Sign (k×G dominated) | **8.5 μs** | 26.2 μs | ✅ **Ours 3.1×** |
 | EC Keygen | **8.5 μs** | 17.9 μs | ✅ **Ours 2.1×** |
 | Schnorr Sign | **8.5 μs** | 18.2 μs | ✅ **Ours 2.1×** |
-| ECDSA Verify | 137 μs | **37.3 μs** | ⚠️ Theirs 3.7× |
+| ECDSA Verify (k₁×G+k₂×Q) | 50 μs | **37.3 μs** | ⚠️ Theirs 1.3× |
 | ECDSA Recover | — | 37.8 μs | — |
 | ECDH | — | 36.3 μs | — |
 
 *ECDSA Sign dominated by k×G generator multiplication, where our precomputed tables excel.*  
-*ECDSA Verify requires k₁×G + k₂×Q; libsecp256k1 uses Strauss endomorphism-aware multi-scalar, we use separate computation.*
+*ECDSA Verify requires k₁×G + k₂×Q; libsecp256k1 uses Strauss endomorphism-aware multi-scalar, we use separate computation.*  
+*Since v3.4: GLV endomorphism + 5×52 lazy-reduction + Shamir's trick reduced K×Q from 132→42 μs (3.1× faster).*
 
 #### Internal Field Operations
 
@@ -348,11 +349,14 @@ All 35 library self-tests pass.
 
 | Operation | UltrafastSecp256k1 | libsecp256k1 | Ratio |
 |-----------|-------------------:|-------------:|------:|
-| Point Double | 429 ns | **103 ns** | 4.17× |
-| Point Add (Jacobian) | 937 ns | **255 ns** | 3.67× |
-| Point Add (Affine mixed) | 698 ns | **172 ns** | 4.06× |
-| Generator Mul (k×G) | **8.5 μs** | 15.3 μs | **0.56×** |
-| ecmult\_const (k×P) | 132 μs | **33.1 μs** | 3.99× |
+| Point Double | 380 ns | **103 ns** | 3.69× |
+| Point Add (Jacobian) | 821 ns | **255 ns** | 3.22× |
+| Point Add (Affine mixed) | 689 ns | **172 ns** | 4.01× |
+| Generator Mul (k×G) | **8 μs** | 15.3 μs | **0.52×** |
+| ecmult\_const (k×P) | 42 μs | **33.1 μs** | 1.27× |
+
+*Since v3.4: k×P uses GLV decomposition + 5×52 field arithmetic + Shamir's trick.*  
+*Previous k×P was 132 μs (wNAF only) → 42 μs with GLV+5×52 (3.1× improvement).*
 
 #### Internal Scalar Operations
 
@@ -371,7 +375,8 @@ All 35 library self-tests pass.
 | **ECDSA Signing** | ✅ UltrafastSecp256k1 | 3× faster (dominated by k×G) |
 | **Field arithmetic (atomic)** | ⚠️ libsecp256k1 | 10+ years of hand-tuned x86-64 assembly |
 | **Point operations (atomic)** | ⚠️ libsecp256k1 | Tighter formulas + field advantage compounds |
-| **ECDSA Verification** | ⚠️ libsecp256k1 | Strauss multi-scalar w/ endomorphism |
+| **Arbitrary-Point Scalar Mul (k×P)** | ≈ parity | GLV+5×52+Shamir → 42 μs vs 33 μs (1.27×) |
+| **ECDSA Verification** | ⚠️ libsecp256k1 | Strauss multi-scalar w/ endomorphism (1.3×) |
 | **Platform breadth** | ✅ UltrafastSecp256k1 | x86, ARM64, RISC-V, Xtensa, Cortex-M, CUDA, OpenCL, Metal |
 
 *libsecp256k1 is the gold standard for single-threaded x86 CPU secp256k1. UltrafastSecp256k1 trades some single-op latency for portability, GPU backends, and faster generator-based operations.*
@@ -380,8 +385,8 @@ All 35 library self-tests pass.
 
 | Operation | UltrafastSecp256k1 | tiny-ecdsa | Speedup |
 |-----------|-------------------|------------|---------|
-| Scalar Mul | 132 μs | ~500 μs | ~3.8× |
-| Field Mul | 50 ns | ~200 ns | ~4× |
+| Scalar Mul | 42 μs | ~500 μs | ~12× |
+| Field Mul | 44 ns | ~200 ns | ~4.5× |
 
 ---
 
