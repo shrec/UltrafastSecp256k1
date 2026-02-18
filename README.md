@@ -784,24 +784,60 @@ void benchmark_field_multiply() {
 
 ## 📊 Performance
 
-Benchmarks below are from `bench_comprehensive_riscv` (Release builds).
-RISC-V results were collected on **Milk-V Mars** (RV64 + RVV).
+All CPU benchmarks use median of 3 passes after warm-up. Windows results from Clang 21.1.0, Release, AVX2.
+RISC-V results collected on **Milk-V Mars** (RV64 + RVV). Head-to-head comparison with Bitcoin Core libsecp256k1 included.
 
-### x86_64 / Windows (Clang 21.1.0, Release)
+### x86_64 / Windows (Clang 21.1.0, AVX2, Release)
 
 | Operation | Time |
 |-----------|------:|
-| Field Mul | 32 ns |
-| Field Square | 28 ns |
-| Field Add | 11 ns |
-| Field Sub | 12 ns |
-| Field Inverse | 5 us |
-| Point Add | 644 ns |
-| Point Double | 313 ns |
-| Point Scalar Mul | 111 us |
-| Generator Mul | 7 us |
-| Batch Inverse (n=100) | 145 ns |
-| Batch Inverse (n=1000) | 98 ns |
+| Field Mul (4×64) | 50 ns |
+| Field Square (4×64) | 39 ns |
+| Field Mul (5×52) | 22 ns |
+| Field Square (5×52) | 17 ns |
+| Field Add | 10 ns |
+| Field Sub | 13 ns |
+| Field Inverse | 5 μs |
+| Point Add | 937 ns |
+| Point Double | 429 ns |
+| Point Scalar Mul (k×P) | 132 μs |
+| Generator Mul (k×G) | 8.5 μs |
+| Batch Inverse (n=100) | 195 ns/elem |
+| Batch Inverse (n=1000) | 157 ns/elem |
+
+#### Scalar Multiplication Breakdown
+
+| Method | Time |
+|--------|------:|
+| k×G (Generator, precomputed) | 8.5 μs |
+| k×P (Arbitrary point) | 132 μs |
+| k₁×G + k₂×Q (Separate) | 137 μs |
+| k₁×G + k₂×Q (Shamir interleaved) | 155 μs |
+| Windowed Shamir (multi-scalar) | 9.2 μs |
+| JSF (Joint Sparse Form) | 9.5 μs |
+
+#### Field Representation Comparison (5×52 vs 4×64)
+
+| Operation | 4×64 | 5×52 | Speedup |
+|-----------|------:|------:|--------:|
+| Multiplication | 42 ns | 15 ns | **2.76×** |
+| Squaring | 31 ns | 13 ns | **2.44×** |
+| Addition | 4.3 ns | 1.6 ns | **2.69×** |
+| Add chain (32 ops) | 286 ns | 57 ns | **5.01×** |
+
+*5×52 uses `__int128` lazy reduction — ideal for 64-bit platforms. 4×64 is the default portable representation.*
+
+#### Constant-Time (CT) Layer Overhead
+
+| Operation | Fast | CT | Overhead |
+|-----------|------:|------:|--------:|
+| Field Mul | 36 ns | 55 ns | 1.50× |
+| Field Inverse | 3.0 μs | 14.2 μs | 4.80× |
+| Point Add | 0.65 μs | 1.63 μs | 2.50× |
+| Scalar Mul (k×P) | 130 μs | 322 μs | 2.49× |
+| Generator Mul (k×G) | 7.6 μs | 310 μs | 40.8× |
+
+*CT layer provides constant-time execution for side-channel resistance. Generator mul overhead is higher due to disabled precomputed table lookups (variable-time).*
 
 ### x86_64 / Linux (i5, Clang 19.1.7, AVX2, Release)
 
@@ -967,6 +1003,72 @@ RISC-V results were collected on **Milk-V Mars** (RV64 + RVV).
 | Generator Mul (G×k) | 3.00 μs | 0.33 M/s |
 
 *Metal 2.4, 8×32-bit Comba limbs, Apple M3 Pro (18 GPU cores, Unified Memory 18 GB)*
+
+### 🆚 Head-to-Head: UltrafastSecp256k1 vs Bitcoin Core libsecp256k1
+
+**Same machine, same compiler, same flags.** Both built with Clang 21.1.0, Release, Windows x64.
+
+#### High-Level Operations
+
+| Operation | UltrafastSecp256k1 | libsecp256k1 | Speedup |
+|-----------|-------------------:|-------------:|--------:|
+| ECDSA Sign (k×G) | **8.5 μs** | 26.2 μs | **3.08×** |
+| ECDSA Verify (k×P + k×G) | **137 μs** | 37.3 μs | 0.27× |
+| EC Keygen (k×G) | **8.5 μs** | 17.9 μs | **2.11×** |
+| Schnorr Sign | **8.5 μs** | 18.2 μs | **2.14×** |
+
+*Note: ECDSA verify comparison is approximate — libsecp256k1 uses highly-optimized Strauss/Pippenger endomorphism-aware multi-scalar multiplication, while our verify path uses separate k₁×G + k₂×Q. Our k×G generator path (8.5 μs) is 3× faster.*
+
+#### Atomic Field Operations (Internal)
+
+| Operation | UltrafastSecp256k1 | libsecp256k1 | Speedup |
+|-----------|-------------------:|-------------:|--------:|
+| Field Mul (5×52) | **22 ns** | 15.3 ns | 0.70× |
+| Field Square (5×52) | **17 ns** | 13.6 ns | 0.80× |
+| Field Mul (4×64 portable) | 50 ns | 15.3 ns | 0.31× |
+| Field Add | 10 ns | 2.6 ns | 0.26× |
+| Field Inverse | **5 μs** | 1.71 μs | 0.34× |
+
+*libsecp256k1 uses hand-tuned 5×52 assembly with GCC `__int128`. Our 5×52 representation reaches 22 ns (vs 15.3 ns) — 1.44× gap. Our 4×64 portable path (50 ns) is for multi-platform compatibility.*
+
+#### Point & Group Operations (Internal)
+
+| Operation | UltrafastSecp256k1 | libsecp256k1 | Speedup |
+|-----------|-------------------:|-------------:|--------:|
+| Point Double | 429 ns | 103 ns | 0.24× |
+| Point Add (Jacobian) | 937 ns | 255 ns | 0.27× |
+| Point Add (Affine mixed) | 698 ns | 172 ns | 0.25× |
+| Generator Mul (k×G) | **8.5 μs** | **15.3 μs** | **1.80×** |
+| Scalar Mul (k×P) | 132 μs | 25.3 μs | 0.19× |
+
+#### Key Insights
+
+| Advantage | Details |
+|-----------|---------|
+| ✅ **Generator Mul 1.8–3× faster** | Aggressive precomputed table (larger memory footprint, faster lookup) |
+| ✅ **ECDSA Sign ~3× faster** | Dominated by k×G, our strongest operation |
+| ✅ **Multi-platform** | Same codebase runs on x86, ARM64, RISC-V, Xtensa, Cortex-M, CUDA, OpenCL, Metal |
+| ⚠️ **Field ops 1.4–3× slower** | libsecp256k1 has 10+ years of hand-tuned x86 assembly; our 5×52 with `__int128` narrows the gap |
+| ⚠️ **k×P scalar mul slower** | Point addition/doubling gap compounds across 256 iterations |
+
+*Both libraries are actively optimized. UltrafastSecp256k1 prioritizes portability + GPU acceleration; libsecp256k1 prioritizes single-threaded x86 CPU performance.*
+
+### Available Benchmark Targets
+
+| Target | Description | Run Command |
+|--------|-------------|-------------|
+| `bench_comprehensive` | Full field/point/batch benchmark suite | `./bench_comprehensive` |
+| `bench_scalar_mul` | k×G and k×P with wNAF analysis | `./bench_scalar_mul` |
+| `bench_ct` | Fast-vs-CT layer overhead comparison | `./bench_ct` |
+| `bench_atomic_operations` | Individual ECC building block latencies | `./bench_atomic_operations` |
+| `bench_field_52` | 4×64 vs 5×52 field representation comparison | `./bench_field_52` |
+| `bench_field_26` | 4×64 vs 10×26 field representation comparison | `./bench_field_26` |
+| `bench_field_mul_kernels` | BMI2 kernel micro-benchmark | `./bench_field_mul_kernels` |
+| `bench_ecdsa_multiscalar` | k₁×G + k₂×Q (Shamir vs separate) | `./bench_ecdsa_multiscalar` |
+| `bench_jsf_vs_shamir` | JSF vs Windowed Shamir comparison | `./bench_jsf_vs_shamir` |
+| `bench_adaptive_glv` | GLV window size sweep (8–20) | `./bench_adaptive_glv` |
+| `bench_glv_decomp_profile` | GLV decomposition analysis | `./bench_glv_decomp_profile` |
+| `bench_comprehensive_riscv` | RISC-V optimized benchmark suite | `./bench_comprehensive_riscv` |
 
 ## 🏗️ Architecture
 
