@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771414402956,
+  "lastUpdate": 1771418674462,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -1508,6 +1508,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Optimal Mul",
             "value": 39,
+            "unit": "ns"
+          },
+          {
+            "name": "Optimal Sqr",
+            "value": 30,
+            "unit": "ns"
+          },
+          {
+            "name": "Optimal Add",
+            "value": 6,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "92eed013aa3c2e12f5541faa3d94006294540081",
+          "message": "fix(ci): MSVC field_52 uint128 guard + Metal shader address space and signature fixes\n\n- field_52.cpp: replace #error with #ifdef SECP256K1_HAS_UINT128 guard (compiles as empty TU on MSVC)\n- CMakeLists.txt: skip bench_field_52 and test_field_52_standalone on MSVC (no-op without uint128)\n- secp256k1_extended.h: fix tagged_hash constant->thread address space casts (use thread-local arrays)\n- secp256k1_extended.h: add adapter overloads for batch kernel calling conventions\n  (ecdsa_sign/verify, schnorr_sign/verify, ecdsa_recover, ecdh_shared_secret_xonly)\n\nFixes: Windows CI error C1189 (#error on MSVC), macOS CI 12 Metal shader compilation errors",
+          "timestamp": "2026-02-18T16:43:06+04:00",
+          "tree_id": "7d66ff9afed97f12754557ec83f36d7286d25bdd",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/92eed013aa3c2e12f5541faa3d94006294540081"
+        },
+        "date": 1771418673058,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Field Mul",
+            "value": 59,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 55,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 21,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Sub",
+            "value": 16,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 594,
+            "unit": "ns"
+          },
+          {
+            "name": "10x26 Mul",
+            "value": 50,
+            "unit": "ns"
+          },
+          {
+            "name": "10x26 Sqr",
+            "value": 40,
+            "unit": "ns"
+          },
+          {
+            "name": "10x26 Add",
+            "value": 6,
+            "unit": "ns"
+          },
+          {
+            "name": "10x26 Neg",
+            "value": 6,
+            "unit": "ns"
+          },
+          {
+            "name": "5x52 Mul",
+            "value": 29,
+            "unit": "ns"
+          },
+          {
+            "name": "5x52 Sqr",
+            "value": 27,
+            "unit": "ns"
+          },
+          {
+            "name": "5x52 Add",
+            "value": 6,
+            "unit": "ns"
+          },
+          {
+            "name": "Optimal Mul",
+            "value": 40,
             "unit": "ns"
           },
           {
