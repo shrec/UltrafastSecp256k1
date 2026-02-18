@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771413979009,
+  "lastUpdate": 1771414402956,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -1409,6 +1409,110 @@ window.BENCHMARK_DATA = {
           {
             "name": "Optimal Sqr",
             "value": 28,
+            "unit": "ns"
+          },
+          {
+            "name": "Optimal Add",
+            "value": 6,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "2e8e8bfb7562436686c0d9fb6a5758f0531e65ce",
+          "message": "fix(ci): fix Python/Rust/Java binding CI failures\n\n- Python: remove unused 'import sys' and unused 'c'/'p' locals (pyflakes)\n- Rust: edition 2024 → 2021 (wider CI toolchain compat)\n- Java: generate JNI header via javac -h; use gcc -fsyntax-only\n  instead of cmake build (avoids needing linked C API lib)",
+          "timestamp": "2026-02-18T15:32:05+04:00",
+          "tree_id": "5aea11752e62ac182e58bc94d864c25ecb5663ee",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/2e8e8bfb7562436686c0d9fb6a5758f0531e65ce"
+        },
+        "date": 1771414402397,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Field Mul",
+            "value": 58,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 55,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 21,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Sub",
+            "value": 16,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Add",
+            "value": 990,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 578,
+            "unit": "ns"
+          },
+          {
+            "name": "10x26 Mul",
+            "value": 50,
+            "unit": "ns"
+          },
+          {
+            "name": "10x26 Sqr",
+            "value": 40,
+            "unit": "ns"
+          },
+          {
+            "name": "10x26 Add",
+            "value": 6,
+            "unit": "ns"
+          },
+          {
+            "name": "10x26 Neg",
+            "value": 6,
+            "unit": "ns"
+          },
+          {
+            "name": "5x52 Mul",
+            "value": 29,
+            "unit": "ns"
+          },
+          {
+            "name": "5x52 Sqr",
+            "value": 27,
+            "unit": "ns"
+          },
+          {
+            "name": "5x52 Add",
+            "value": 6,
+            "unit": "ns"
+          },
+          {
+            "name": "Optimal Mul",
+            "value": 39,
+            "unit": "ns"
+          },
+          {
+            "name": "Optimal Sqr",
+            "value": 30,
             "unit": "ns"
           },
           {
