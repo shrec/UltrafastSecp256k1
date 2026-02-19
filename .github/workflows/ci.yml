@@ -52,6 +52,38 @@ jobs:
       - name: Test
         run: ctest --test-dir build --output-on-failure -j$(nproc)
 
+  # ── Linux ARM64 (cross-compile, aarch64-linux-gnu) ───────────────────────
+  linux-arm64:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install cross toolchain
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y g++-13-aarch64-linux-gnu ninja-build
+
+      - name: Configure (aarch64 Release)
+        run: |
+          cmake -S . -B build-arm64 -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_SYSTEM_NAME=Linux \
+            -DCMAKE_SYSTEM_PROCESSOR=aarch64 \
+            -DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc-13 \
+            -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++-13 \
+            -DSECP256K1_BUILD_TESTS=ON \
+            -DSECP256K1_BUILD_BENCH=ON \
+            -DSECP256K1_BUILD_METAL=OFF
+
+      - name: Build
+        run: cmake --build build-arm64 -j$(nproc)
+
+      - name: Verify binary
+        run: |
+          file build-arm64/cpu/libfastsecp256k1.a
+          echo "Library size: $(du -h build-arm64/cpu/libfastsecp256k1.a | cut -f1)"
+
   # ── Sanitizers (ASan+UBSan, Clang on Linux) ────────────────────────────────
   sanitizers:
     runs-on: ubuntu-24.04
@@ -280,10 +312,15 @@ jobs:
             build-wasm/dist/package.json
           retention-days: 30
 
-  # ── Android NDK (ARM64) ────────────────────────────────────────────────────
+  # ── Android NDK (ARM64, ARMv7, x86_64) ──────────────────────────────────
   android:
     runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        abi: [arm64-v8a, armeabi-v7a, x86_64]
 
+    name: "android (${{ matrix.abi }})"
     steps:
       - uses: actions/checkout@v4
 
@@ -293,11 +330,11 @@ jobs:
         with:
           ndk-version: r27c
 
-      - name: Configure (Android arm64-v8a)
+      - name: Configure (Android ${{ matrix.abi }})
         run: |
           cmake -S android -B build-android \
             -DCMAKE_TOOLCHAIN_FILE=${{ steps.ndk.outputs.ndk-path }}/build/cmake/android.toolchain.cmake \
-            -DANDROID_ABI=arm64-v8a \
+            -DANDROID_ABI=${{ matrix.abi }} \
             -DANDROID_PLATFORM=android-24 \
             -DCMAKE_BUILD_TYPE=Release \
             -G Ninja

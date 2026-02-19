@@ -410,7 +410,7 @@ endif()
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
 target_compile_options(${SECP256K1_LIB_NAME} PRIVATE 
     -O3                      # Maximum optimization
-    ${ARCH_FLAGS}            # Platform-specific architecture
+    "SHELL:${ARCH_FLAGS}"    # Platform-specific architecture (SHELL: splits by whitespace)
     # REMOVED: -ffast-math, -ffinite-math-only, -fno-signed-zeros (break point arithmetic!)
     -fno-math-errno          # Don't set errno for math functions
     -fno-trapping-math       # No FP exceptions
