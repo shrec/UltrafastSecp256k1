@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771539483333,
+  "lastUpdate": 1771539491040,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -3062,6 +3062,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Point Double",
             "value": 146,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": false,
+          "id": "744a41c44195af3be5d4be17ab30c75b2e1a9a1d",
+          "message": "build: automate version from VERSION file + git tag injection in CI\n\n- Add VERSION file (single source of truth: 3.8.0)\n- Root CMakeLists.txt, ufsecp, android, wasm all read from VERSION\n- ufsecp_version.h auto-generated via configure_file from .h.in template\n- All 11 binding configs set to 0.0.0-dev (CI injects real version from tag)\n- release.yml: 5 build jobs write tag version to VERSION before cmake\n- release.yml: 4 pack jobs sed-inject version into binding configs\n- nuget nuspec + conanfile.py also set to 0.0.0-dev placeholder\n\nNo more hardcoded versions — tag drives everything.",
+          "timestamp": "2026-02-20T02:16:53+04:00",
+          "tree_id": "b58c14294adb89b60066305d20936bf97fe9516e",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/744a41c44195af3be5d4be17ab30c75b2e1a9a1d"
+        },
+        "date": 1771539490610,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Field Mul",
+            "value": 25,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 23,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 0,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Add",
+            "value": 256,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 145,
             "unit": "ns"
           }
         ]
