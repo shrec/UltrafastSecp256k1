@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771539526521,
+  "lastUpdate": 1771540361934,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -3224,6 +3224,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Point Double",
             "value": 147,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "bc9025d48225bed5b7ee6b2c3b923a6f15bff293",
+          "message": "fix: rename VERSION -> VERSION.txt (C++20 <version> header clash on macOS)\n\nmacOS uses a case-insensitive filesystem, so our VERSION file\n(containing '3.9.0') was being found instead of the C++20\n<version> standard library header, breaking all macOS/iOS builds.\n\n- git mv VERSION -> VERSION.txt\n- Update all 4 CMakeLists.txt to read VERSION.txt\n- Update all 5 release.yml 'Set version from tag' steps",
+          "timestamp": "2026-02-20T02:31:28+04:00",
+          "tree_id": "c02521b6fb7c2a798ae2eb254b5819ea384a3fe1",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/bc9025d48225bed5b7ee6b2c3b923a6f15bff293"
+        },
+        "date": 1771540361266,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Field Mul",
+            "value": 25,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 23,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 0,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Add",
+            "value": 256,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 146,
             "unit": "ns"
           }
         ]
