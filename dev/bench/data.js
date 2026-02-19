@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771535589172,
+  "lastUpdate": 1771535596999,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -2846,6 +2846,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Point Double",
             "value": 127,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "de925177218f582e8b269e67d2c973ce9c00156c",
+          "message": "Merge branch 'dev'",
+          "timestamp": "2026-02-20T01:12:08+04:00",
+          "tree_id": "9ba633dce8c4d818c1ac42785fa4286817f12e7e",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/de925177218f582e8b269e67d2c973ce9c00156c"
+        },
+        "date": 1771535595874,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Field Mul",
+            "value": 25,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 23,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 0,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Add",
+            "value": 256,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 147,
             "unit": "ns"
           }
         ]
