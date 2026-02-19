@@ -8,7 +8,7 @@ Gem::Specification.new do |s|
   s.homepage    = 'https://github.com/AvraSasmo/UltrafastSecp256k1'
   s.required_ruby_version = '>= 3.0'
   s.add_dependency 'ffi', '~> 1.15'
-  s.files = Dir['lib/ufsecp.rb'] + ['README.md']
+  s.files = Dir['lib/**/*'] + Dir['lib/native/*']
   s.metadata = {
     'source_code_uri' => 'https://github.com/AvraSasmo/UltrafastSecp256k1',
     'bug_tracker_uri' => 'https://github.com/AvraSasmo/UltrafastSecp256k1/issues'

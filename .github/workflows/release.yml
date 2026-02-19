@@ -395,22 +395,62 @@ jobs:
           pip install wheel setuptools build
           cd bindings/python
 
-          # For each platform, create a wheel with the native lib in ufsecp/
-          for PLAT_DIR in ../../native-dist/UltrafastSecp256k1-*; do
-            PLAT=$(basename "$PLAT_DIR" | sed 's/UltrafastSecp256k1-[^-]*-//')
-            echo "=== Packaging wheel for: ${PLAT} ==="
+          # Use the ufsecp manifest (not the old ultrafast-secp256k1 one)
+          cp pyproject.ufsecp.toml pyproject.toml
 
-            # Extract native lib into ufsecp/ package dir
-            tar xf "${PLAT_DIR}"/*.tar.gz 2>/dev/null || true
-            find . -maxdepth 3 \( -name "libufsecp.so*" -o -name "ufsecp.dll" -o -name "libufsecp.dylib" \) \
-              -exec cp {} ufsecp/ \; 2>/dev/null || true
+          # Platform → wheel platform tag mapping
+          declare -A WHEEL_TAGS=(
+            ["linux-x64"]="manylinux_2_17_x86_64"
+            ["linux-arm64"]="manylinux_2_17_aarch64"
+            ["macos-arm64"]="macosx_11_0_arm64"
+            ["win-x64"]="win_amd64"
+          )
 
-            # Build wheel
-            python -m build --wheel --outdir "wheelhouse/${PLAT}" 2>/dev/null || true
+          mkdir -p wheelhouse
 
-            # Clean up
+          for PLAT in linux-x64 linux-arm64 macos-arm64 win-x64; do
+            WHEEL_PLAT="${WHEEL_TAGS[$PLAT]}"
+            ARTIFACT_DIR="../../native-dist/UltrafastSecp256k1-${{ github.ref_name }}-${PLAT}"
+            echo "=== Packaging wheel for: ${PLAT} (tag: ${WHEEL_PLAT}) ==="
+
+            if [ ! -d "$ARTIFACT_DIR" ]; then
+              echo "  SKIP: artifact dir not found: $ARTIFACT_DIR"
+              continue
+            fi
+
+            # Extract archive (tar.gz or zip)
+            if ls "${ARTIFACT_DIR}"/*.tar.gz 1>/dev/null 2>&1; then
+              tar xf "${ARTIFACT_DIR}"/*.tar.gz
+            elif ls "${ARTIFACT_DIR}"/*.zip 1>/dev/null 2>&1; then
+              unzip -o "${ARTIFACT_DIR}"/*.zip
+            fi
+
+            # Copy native lib into ufsecp/ package dir
+            find . -maxdepth 4 \( -name "libufsecp.so" -o -name "libufsecp.so.*" \
+              -o -name "ufsecp.dll" -o -name "libufsecp.dylib" \) \
+              ! -path "*/wheelhouse/*" -exec cp {} ufsecp/ \; 2>/dev/null || true
+
+            # Verify native lib was found
+            if ! ls ufsecp/libufsecp.* ufsecp/ufsecp.dll 2>/dev/null; then
+              echo "  WARN: No native lib found for ${PLAT}, skipping"
+              rm -rf UltrafastSecp256k1-*/
+              continue
+            fi
+
+            # Build wheel then tag with correct platform
+            python -m build --wheel --outdir tmp_wheel/
+            for whl in tmp_wheel/*.whl; do
+              NEW_NAME=$(basename "$whl" | sed "s/py3-none-any/py3-none-${WHEEL_PLAT}/")
+              mv "$whl" "wheelhouse/${NEW_NAME}"
+            done
+
+            # Clean up extracted dirs + native lib copies
+            rm -rf tmp_wheel/ UltrafastSecp256k1-*/
             rm -f ufsecp/libufsecp.* ufsecp/ufsecp.dll
           done
+
+          echo "=== Built wheels ==="
+          ls -la wheelhouse/
 
       - name: Upload Python wheels
         uses: actions/upload-artifact@v4
@@ -442,22 +482,48 @@ jobs:
           cd bindings/nodejs
           cp package.ufsecp.json package.json
 
-          # Copy native libs into prebuilds/<platform>-<arch>/
-          for PLAT_DIR in ../../native-dist/UltrafastSecp256k1-*; do
-            PLAT=$(basename "$PLAT_DIR" | sed 's/UltrafastSecp256k1-[^-]*-//')
-            mkdir -p "prebuilds/${PLAT}"
+          # npm prebuild dir naming: <os>-<arch>
+          declare -A NPM_PLATS=(
+            ["linux-x64"]="linux-x64"
+            ["linux-arm64"]="linux-arm64"
+            ["macos-arm64"]="darwin-arm64"
+            ["win-x64"]="win32-x64"
+          )
 
-            # Extract and copy
-            cd ../../native-dist
-            tar xf "$(basename $PLAT_DIR)"/*.tar.gz 2>/dev/null || true
-            cd ../bindings/nodejs
+          for PLAT in linux-x64 linux-arm64 macos-arm64 win-x64; do
+            NPM_DIR="${NPM_PLATS[$PLAT]}"
+            ARTIFACT_DIR="../../native-dist/UltrafastSecp256k1-${{ github.ref_name }}-${PLAT}"
+            echo "=== Copying prebuilds for: ${PLAT} → prebuilds/${NPM_DIR} ==="
 
-            find ../../native-dist -maxdepth 5 \( -name "libufsecp.so*" -o -name "ufsecp.dll" -o -name "libufsecp.dylib" \) \
-              -exec cp {} "prebuilds/${PLAT}/" \; 2>/dev/null || true
+            if [ ! -d "$ARTIFACT_DIR" ]; then
+              echo "  SKIP: artifact dir not found"
+              continue
+            fi
+
+            mkdir -p "prebuilds/${NPM_DIR}"
+
+            # Extract archive to temp dir
+            TMPDIR=$(mktemp -d)
+            if ls "${ARTIFACT_DIR}"/*.tar.gz 1>/dev/null 2>&1; then
+              tar xf "${ARTIFACT_DIR}"/*.tar.gz -C "$TMPDIR"
+            elif ls "${ARTIFACT_DIR}"/*.zip 1>/dev/null 2>&1; then
+              unzip -o "${ARTIFACT_DIR}"/*.zip -d "$TMPDIR"
+            fi
+
+            find "$TMPDIR" -maxdepth 6 \
+              \( -name "libufsecp.so" -o -name "libufsecp.so.*" \
+              -o -name "ufsecp.dll" -o -name "libufsecp.dylib" \) \
+              -exec cp {} "prebuilds/${NPM_DIR}/" \; 2>/dev/null || true
+
+            rm -rf "$TMPDIR"
           done
 
+          echo "=== Prebuilds ==="
+          find prebuilds/ -type f 2>/dev/null || echo "(none)"
+
           npm pack
-          echo "NPM_PKG=$(ls ufsecp-*.tgz)" >> "$GITHUB_ENV"
+          echo "=== NPM package ==="
+          ls -la ufsecp-*.tgz
 
       - name: Upload npm tarball
         uses: actions/upload-artifact@v4
@@ -477,7 +543,9 @@ jobs:
 
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: |
+            8.0.x
+            9.0.x
 
       - name: Download desktop artifacts
         uses: actions/download-artifact@v4
@@ -488,28 +556,51 @@ jobs:
         run: |
           cd bindings/csharp/Ufsecp
 
-          # Copy native libs into runtimes/<rid>/native/
-          for PLAT_DIR in ../../../native-dist/UltrafastSecp256k1-*; do
-            PLAT=$(basename "$PLAT_DIR" | sed 's/UltrafastSecp256k1-[^-]*-//')
+          # Platform → .NET RID mapping
+          declare -A RIDS=(
+            ["linux-x64"]="linux-x64"
+            ["linux-arm64"]="linux-arm64"
+            ["win-x64"]="win-x64"
+            ["macos-arm64"]="osx-arm64"
+          )
 
-            case "$PLAT" in
-              linux-x64)   RID="linux-x64" ;;
-              linux-arm64) RID="linux-arm64" ;;
-              win-x64)     RID="win-x64" ;;
-              macos-arm64) RID="osx-arm64" ;;
-              *) continue ;;
-            esac
+          for PLAT in linux-x64 linux-arm64 macos-arm64 win-x64; do
+            RID="${RIDS[$PLAT]}"
+            ARTIFACT_DIR="../../../native-dist/UltrafastSecp256k1-${{ github.ref_name }}-${PLAT}"
+            echo "=== Extracting native libs for RID: ${RID} ==="
+
+            if [ ! -d "$ARTIFACT_DIR" ]; then
+              echo "  SKIP: artifact dir not found"
+              continue
+            fi
 
             mkdir -p "runtimes/${RID}/native"
-            find "../../../native-dist/$(basename $PLAT_DIR)" -maxdepth 5 \
-              \( -name "libufsecp.so*" -o -name "ufsecp.dll" -o -name "libufsecp.dylib" \) \
+
+            # Extract archive to temp
+            TMPDIR=$(mktemp -d)
+            if ls "${ARTIFACT_DIR}"/*.tar.gz 1>/dev/null 2>&1; then
+              tar xf "${ARTIFACT_DIR}"/*.tar.gz -C "$TMPDIR"
+            elif ls "${ARTIFACT_DIR}"/*.zip 1>/dev/null 2>&1; then
+              unzip -o "${ARTIFACT_DIR}"/*.zip -d "$TMPDIR"
+            fi
+
+            find "$TMPDIR" "${ARTIFACT_DIR}" -maxdepth 6 \
+              \( -name "libufsecp.so" -o -name "libufsecp.so.*" \
+              -o -name "ufsecp.dll" -o -name "libufsecp.dylib" \) \
               -exec cp {} "runtimes/${RID}/native/" \; 2>/dev/null || true
+
+            rm -rf "$TMPDIR"
           done
+
+          echo "=== Runtimes structure ==="
+          find runtimes/ -type f 2>/dev/null || echo "(none)"
 
       - name: Build NuGet package
         run: |
           cd bindings/csharp/Ufsecp
           dotnet pack -c Release -o nupkgs
+          echo "=== NuGet packages ==="
+          ls -la nupkgs/
 
       - name: Upload NuGet
         uses: actions/upload-artifact@v4
@@ -541,12 +632,37 @@ jobs:
           cd bindings/ruby
           mkdir -p lib/native
 
-          # Copy platform libs
-          find ../../native-dist -maxdepth 6 \
-            \( -name "libufsecp.so*" -o -name "ufsecp.dll" -o -name "libufsecp.dylib" \) \
-            -exec cp {} lib/native/ \; 2>/dev/null || true
+          # Extract and copy native libs from all desktop platforms
+          for PLAT in linux-x64 linux-arm64 macos-arm64 win-x64; do
+            ARTIFACT_DIR="../../native-dist/UltrafastSecp256k1-${{ github.ref_name }}-${PLAT}"
+            echo "=== Extracting native libs for: ${PLAT} ==="
+
+            if [ ! -d "$ARTIFACT_DIR" ]; then
+              echo "  SKIP: artifact dir not found"
+              continue
+            fi
+
+            TMPDIR=$(mktemp -d)
+            if ls "${ARTIFACT_DIR}"/*.tar.gz 1>/dev/null 2>&1; then
+              tar xf "${ARTIFACT_DIR}"/*.tar.gz -C "$TMPDIR"
+            elif ls "${ARTIFACT_DIR}"/*.zip 1>/dev/null 2>&1; then
+              unzip -o "${ARTIFACT_DIR}"/*.zip -d "$TMPDIR"
+            fi
+
+            find "$TMPDIR" -maxdepth 6 \
+              \( -name "libufsecp.so" -o -name "libufsecp.so.*" \
+              -o -name "ufsecp.dll" -o -name "libufsecp.dylib" \) \
+              -exec cp {} lib/native/ \; 2>/dev/null || true
+
+            rm -rf "$TMPDIR"
+          done
+
+          echo "=== Native libs ==="
+          ls -la lib/native/ 2>/dev/null || echo "(none)"
 
           gem build ufsecp.gemspec
+          echo "=== Gem ==="
+          ls -la ufsecp-*.gem
 
       - name: Upload gem
         uses: actions/upload-artifact@v4
@@ -577,27 +693,62 @@ jobs:
       - name: Build JNI JAR
         run: |
           cd bindings/java
+          VERSION="${GITHUB_REF_NAME#v}"
 
           # Build JNI natives directory structure
-          mkdir -p build-jar/native/linux-x64 build-jar/native/linux-arm64 \
-                   build-jar/native/win-x64 build-jar/native/macos-arm64 \
-                   build-jar/native/android-arm64 build-jar/native/android-armv7
+          for DIR in linux-x64 linux-arm64 win-x64 macos-arm64 android-arm64 android-armv7 android-x64; do
+            mkdir -p "build-jar/native/${DIR}"
+          done
 
           # Copy native libs from platform builds
-          for PLAT_DIR in ../../native-dist/UltrafastSecp256k1-*; do
-            PLAT=$(basename "$PLAT_DIR" | sed 's/UltrafastSecp256k1-[^-]*-//')
-            find "$PLAT_DIR" -maxdepth 5 \
-              \( -name "libufsecp*.so*" -o -name "ufsecp*.dll" -o -name "libufsecp*.dylib" \) \
+          for PLAT in linux-x64 linux-arm64 win-x64 macos-arm64 android-arm64 android-armv7 android-x64; do
+            ARTIFACT_DIR="../../native-dist/UltrafastSecp256k1-${{ github.ref_name }}-${PLAT}"
+            echo "=== Extracting for: ${PLAT} ==="
+
+            if [ ! -d "$ARTIFACT_DIR" ]; then
+              echo "  SKIP: artifact dir not found"
+              continue
+            fi
+
+            TMPDIR=$(mktemp -d)
+            if ls "${ARTIFACT_DIR}"/*.tar.gz 1>/dev/null 2>&1; then
+              tar xf "${ARTIFACT_DIR}"/*.tar.gz -C "$TMPDIR"
+            elif ls "${ARTIFACT_DIR}"/*.zip 1>/dev/null 2>&1; then
+              unzip -o "${ARTIFACT_DIR}"/*.zip -d "$TMPDIR"
+            fi
+
+            find "$TMPDIR" -maxdepth 6 \
+              \( -name "libufsecp*.so" -o -name "libufsecp*.so.*" \
+              -o -name "ufsecp*.dll" -o -name "libufsecp*.dylib" \
+              -o -name "libsecp256k1_jni.so" \) \
               -exec cp {} "build-jar/native/${PLAT}/" \; 2>/dev/null || true
+
+            rm -rf "$TMPDIR"
           done
+
+          echo "=== Native libs structure ==="
+          find build-jar/native/ -type f 2>/dev/null || echo "(none)"
 
           # Compile Java source
           mkdir -p build-jar/classes
           javac -d build-jar/classes src/com/ultrafast/ufsecp/*.java
 
-          # Package JAR
+          # Package JAR with classes + native libs
           cd build-jar
-          jar cf ../ufsecp-3.4.0.jar -C classes . -C ../../../native-dist . native/
+          jar cf "../ufsecp-${VERSION}.jar" -C classes . -C .. build-jar/native/
+          cd ..
+
+          # Re-pack properly: classes at root, native/ at root
+          mkdir -p jar-staging
+          cp -r build-jar/classes/* jar-staging/
+          cp -r build-jar/native jar-staging/
+          cd jar-staging
+          jar cf "../ufsecp-${VERSION}.jar" .
+          cd ..
+
+          echo "=== JAR ==="
+          ls -la ufsecp-*.jar
+          jar tf "ufsecp-${VERSION}.jar" | head -30
 
       - name: Upload JAR
         uses: actions/upload-artifact@v4
