@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771534692170,
+  "lastUpdate": 1771534701138,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -2738,6 +2738,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Point Double",
             "value": 147,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "93c133b5be268e1d4a9b0dc512221f5e188d135b",
+          "message": "merge: dev -> main — fix arm64 cross-compile (SECP256K1_NO_ASM guard)",
+          "timestamp": "2026-02-20T00:57:07+04:00",
+          "tree_id": "8975f87572e416a8378a110ac9465c81bbb80f7c",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/93c133b5be268e1d4a9b0dc512221f5e188d135b"
+        },
+        "date": 1771534699947,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Field Mul",
+            "value": 25,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 23,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 0,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Add",
+            "value": 257,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 145,
             "unit": "ns"
           }
         ]
