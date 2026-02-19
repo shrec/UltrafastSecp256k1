@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771518272472,
+  "lastUpdate": 1771520157681,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -1874,6 +1874,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Point Double",
             "value": 163,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "shrec@users.noreply.github.com",
+            "name": "shrec",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "shrec@users.noreply.github.com",
+            "name": "shrec",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "75536e59645bd663d82e4aa7ab6a5a2e1efe7842",
+          "message": "GPU: port CPU signature/verify optimizations to CUDA\n\nMajor CUDA verification/signing performance optimizations:\n\nsecp256k1.cuh:\n- Add scalar_to_wnaf4: wNAF w=4 signed-digit encoding\n- Add scalar_mul_wnaf: wNAF scalar mul with 8 precomputed affine odd multiples\n- Add scalar_mul_glv_wnaf: GLV + Shamir bit interleaving (~128 doublings)\n- Add shamir_double_mul: basic a*P + b*Q with 4-combo table\n- Add shamir_double_mul_glv: 4-way GLV decomposition for a*P + b*Q\n  (decomposes both scalars, single ~128-bit doubling chain)\n- Add GENERATOR_TABLE_AFFINE[16] in __constant__ memory (Python-verified i*G)\n- Add scalar_mul_generator_const: w=4 fixed-window generator mul using\n  __constant__ table (no shared mem / __syncthreads needed)\n\necdsa.cuh:\n- ecdsa_verify: replace 2x scalar_mul + add with shamir_double_mul_glv\n  (~2x fewer doublings, single pass)\n- ecdsa_sign: replace scalar_mul with scalar_mul_generator_const\n  (precomputed table, no runtime table build)\n\nschnorr.cuh:\n- Add BIP340_MIDSTATES[3][8] __constant__: precomputed SHA-256 midstates\n  for BIP0340/aux, BIP0340/nonce, BIP0340/challenge tags\n- Add tagged_hash_fast: skips 2 SHA-256 compressions per call\n- schnorr_sign: use scalar_mul_generator_const + tagged_hash_fast (3 calls)\n- schnorr_verify: replace 2x scalar_mul + negate + add with\n  shamir_double_mul_glv + tagged_hash_fast\n\nAll 52 CUDA tests pass, 12/12 CTest pass.",
+          "timestamp": "2026-02-19T16:54:41Z",
+          "tree_id": "51bf938c8365b4b69a0b5216a64dd0ebf4e35a16",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/75536e59645bd663d82e4aa7ab6a5a2e1efe7842"
+        },
+        "date": 1771520156460,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Field Mul",
+            "value": 25,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 23,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 0,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Add",
+            "value": 257,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 147,
             "unit": "ns"
           }
         ]
