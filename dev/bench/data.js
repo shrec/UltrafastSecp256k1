@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771532673090,
+  "lastUpdate": 1771534692170,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -2654,6 +2654,60 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/shrec/UltrafastSecp256k1/commit/a5ab921ac510151374ad0a71337122bd980365ca"
         },
         "date": 1771532672601,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Field Mul",
+            "value": 25,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 23,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 0,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Add",
+            "value": 256,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 147,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "07494c85ac51ba6a26a91bb4072853cca9430605",
+          "message": "fix(ci): arm64 cross-compile linker failure — guard header auto-detection with SECP256K1_NO_ASM\n\nfield_asm.hpp unconditionally defined SECP256K1_HAS_ARM64_ASM when\n__aarch64__ was detected, ignoring CMake's SECP256K1_USE_ASM=OFF.\nThis caused field.cpp to call arm64::field_mul_arm64/field_sqr_arm64\nwithout the source files being compiled.\n\nFix:\n- field_asm.hpp: Add !defined(SECP256K1_NO_ASM) guard to ARM64 auto-detection\n- cpu/CMakeLists.txt: Define SECP256K1_NO_ASM=1 when SECP256K1_USE_ASM=OFF\n- release.yml: Enable ASM=ON for arm64 cross-compile (inline C++ asm works fine)",
+          "timestamp": "2026-02-20T00:56:53+04:00",
+          "tree_id": "8975f87572e416a8378a110ac9465c81bbb80f7c",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/07494c85ac51ba6a26a91bb4072853cca9430605"
+        },
+        "date": 1771534691033,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
