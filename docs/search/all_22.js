@@ -1,5 +1,11 @@
 var searchData=
 [
-  ['y_0',['y',['../index.html#autotoc_md28',1,'1. Full Point Conversion: Jacobian → Affine (X + Y)'],['../structsecp256k1_1_1fast_1_1AffinePointCompact.html#a6c5032dff9d90831f93dec5d4cbf0dca',1,'secp256k1::fast::AffinePointCompact::y'],['../structsecp256k1_1_1ct_1_1CTJacobianPoint.html#aa171ae766955c2ad22d0a9c3a1473f38',1,'secp256k1::ct::CTJacobianPoint::y'],['../structsecp256k1_1_1fast_1_1CombAffinePoint.html#a7b7de3f6e29624bf9902ce11ea876f94',1,'secp256k1::fast::CombAffinePoint::y'],['../structsecp256k1_1_1AffinePointData.html#adb8fb420d9f2ef38222af3b0717165dd',1,'secp256k1::AffinePointData::y'],['../structsecp256k1_1_1JacobianPointData.html#aff2e8c837578b634de6176b1cb8f380a',1,'secp256k1::JacobianPointData::y'],['../classsecp256k1_1_1fast_1_1Point.html#aa1c473d6c48e571884b379ca1859c23c',1,'secp256k1::fast::Point::y() const'],['../classsecp256k1_1_1fast_1_1Point.html#a23d72f82e6f8c91521775536619a58c8',1,'secp256k1::fast::Point::Y() const noexcept']]],
-  ['y_5fraw_1',['y_raw',['../classsecp256k1_1_1fast_1_1Point.html#aad02148b52c03ce59824e7da2048a5e7',1,'secp256k1::fast::Point']]]
+  ['—_20cross_20platform_20comparison_0',['secp256k1 Benchmarks — Cross-Platform Comparison',['../index.html#autotoc_md36',1,'']]],
+  ['—_20experimental_20no_20abi_20promise_1',['Tier 2 — Experimental (no ABI promise)',['../md_include_2ufsecp_2SUPPORTED__GUARANTEES.html#autotoc_md6',1,'']]],
+  ['—_20fastest_20open_20source_20secp256k1_20library_2',['UltrafastSecp256k1 — Fastest Open-Source secp256k1 Library',['../index.html',1,'']]],
+  ['—_20ffi_20bindings_3',['secp256k1 Stable C ABI (&lt;tt&gt;ufsecp&lt;/tt&gt;) — FFI Bindings',['../index.html#autotoc_md51',1,'']]],
+  ['—_20internal_20never_20exposed_4',['Tier 3 — Internal (never exposed)',['../md_include_2ufsecp_2SUPPORTED__GUARANTEES.html#autotoc_md8',1,'']]],
+  ['—_20kernel_20only_5',['Apple Metal (M3 Pro) — Kernel-Only',['../index.html#autotoc_md29',1,'']]],
+  ['—_20stable_20abi_20≥_201_6',['Tier 1 — Stable (ABI ≥ 1)',['../md_include_2ufsecp_2SUPPORTED__GUARANTEES.html#autotoc_md2',1,'']]],
+  ['—_20tt_20ufsecp_20tt_20c_20abi_7',['Supported Guarantees — &lt;tt&gt;ufsecp&lt;/tt&gt; C ABI',['../md_include_2ufsecp_2SUPPORTED__GUARANTEES.html',1,'']]]
 ];
