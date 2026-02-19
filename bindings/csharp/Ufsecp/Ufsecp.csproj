@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks>net6.0;net7.0;net8.0</TargetFrameworks>
+    <TargetFrameworks>net8.0;net9.0</TargetFrameworks>
     <RootNamespace>Ultrafast.Ufsecp</RootNamespace>
     <AssemblyName>Ufsecp</AssemblyName>
     <Version>3.4.0</Version>
@@ -12,6 +12,11 @@
     <PackageProjectUrl>https://github.com/AvraSasmo/UltrafastSecp256k1</PackageProjectUrl>
     <RepositoryUrl>https://github.com/AvraSasmo/UltrafastSecp256k1</RepositoryUrl>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
   </PropertyGroup>
+
+  <!-- Bundle native libraries for multi-RID NuGet package -->
+  <ItemGroup>
+    <Content Include="runtimes\**\*" Pack="true" PackagePath="runtimes" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

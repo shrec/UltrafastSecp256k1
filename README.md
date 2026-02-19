@@ -15,8 +15,8 @@
 
 ---
 
-[![GitHub stars](https://img.shields.io/github/stars/shrec/UltrafastSecp256k1?style=social)](https://github.com/shrec/UltrafastSecp256k1/stargazers)
-[![GitHub forks](https://img.shields.io/github/forks/shrec/UltrafastSecp256k1?style=social)](https://github.com/shrec/UltrafastSecp256k1/network/members)
+[![GitHub stars](https://img.shields.io/github/stars/shrec/UltrafastSecp256k1?style=flat-square&logo=github&label=Stars)](https://github.com/shrec/UltrafastSecp256k1/stargazers)
+[![GitHub forks](https://img.shields.io/github/forks/shrec/UltrafastSecp256k1?style=flat-square&logo=github&label=Forks)](https://github.com/shrec/UltrafastSecp256k1/network/members)
 [![CI](https://img.shields.io/github/actions/workflow/status/shrec/UltrafastSecp256k1/ci.yml?branch=main&label=CI)](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/ci.yml)
 [![Benchmark](https://img.shields.io/github/actions/workflow/status/shrec/UltrafastSecp256k1/benchmark.yml?branch=main&label=Bench)](https://shrec.github.io/UltrafastSecp256k1/dev/bench/)
 [![Release](https://img.shields.io/github/v/release/shrec/UltrafastSecp256k1?label=Release)](https://github.com/shrec/UltrafastSecp256k1/releases/latest)

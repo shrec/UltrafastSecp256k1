@@ -37,3 +37,6 @@ Documentation = "https://github.com/AvraSasmo/UltrafastSecp256k1/tree/main/bindi
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["ufsecp*"]
+
+[tool.setuptools.package-data]
+ufsecp = ["*.so", "*.so.*", "*.dll", "*.dylib"]
