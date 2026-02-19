@@ -406,6 +406,8 @@ else()
     set(ARCH_FLAGS "")
 endif()
 
+# GCC/Clang optimization flags (skip on MSVC — it uses /O2 /GL from top-level)
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
 target_compile_options(${SECP256K1_LIB_NAME} PRIVATE 
     -O3                      # Maximum optimization
     ${ARCH_FLAGS}            # Platform-specific architecture
@@ -420,6 +422,7 @@ target_compile_options(${SECP256K1_LIB_NAME} PRIVATE
     -ftree-vectorize         # Auto-vectorization (AVX2/SSE)
     -fno-lto                 # Explicitly disable LTO to avoid linker format errors
 )
+endif()
 
 # GCC-specific aggressive optimizations (not supported by Clang)
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
@@ -437,6 +440,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 endif()
 
 # Special flags for field_asm.cpp (maximize BMI2/MULX utilization on x86)
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|X64")
     set_source_files_properties(src/field_asm.cpp PROPERTIES 
         COMPILE_FLAGS "-O3 ${ARCH_FLAGS} -mbmi2 -madx -mpopcnt -funroll-loops -ftree-vectorize -fno-exceptions -fno-rtti"
@@ -447,8 +451,9 @@ else()
         COMPILE_FLAGS "-O3 ${ARCH_FLAGS} -funroll-loops -ftree-vectorize -fno-exceptions -fno-rtti"
     )
 endif()
+endif()
 
-# Aggressive optimization for critical hotspot files
+# Aggressive optimization for critical hotspot files (GCC/Clang only)
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     set_source_files_properties(src/field.cpp PROPERTIES 
         COMPILE_FLAGS "-O3 ${ARCH_FLAGS} -funroll-loops -ftree-vectorize -fipa-pta -fpredictive-commoning"
@@ -456,8 +461,8 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     set_source_files_properties(src/point.cpp PROPERTIES 
         COMPILE_FLAGS "-O3 ${ARCH_FLAGS} -funroll-loops -ftree-vectorize -fipa-pta -fpredictive-commoning"
     )
-else()
-    # Clang/other compilers (no GCC-specific flags)
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    # Clang: no GCC-specific flags
     set_source_files_properties(src/field.cpp PROPERTIES 
         COMPILE_FLAGS "-O3 ${ARCH_FLAGS} -funroll-loops -ftree-vectorize"
     )
@@ -465,6 +470,7 @@ else()
         COMPILE_FLAGS "-O3 ${ARCH_FLAGS} -funroll-loops -ftree-vectorize"
     )
 endif()
+# MSVC: uses /O2 /GL from top-level, no per-file overrides needed
 
 # Static linking for MinGW (portable executables without DLL dependencies)
     if(MINGW)

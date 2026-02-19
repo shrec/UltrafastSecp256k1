@@ -86,6 +86,16 @@ public:
     FieldElement& operator-=(const FieldElement& rhs);
     FieldElement& operator*=(const FieldElement& rhs);
     
+    // Modular negation: returns p - this (mod p).
+    // `magnitude` parameter exists for API compatibility with FieldElement52/26
+    // (lazy-reduction magnitude tracking); ignored here since FE64 is always normalized.
+    FieldElement negate(unsigned /*magnitude*/ = 1) const {
+        return FieldElement::zero() - *this;
+    }
+    void negate_assign(unsigned /*magnitude*/ = 1) {
+        *this = FieldElement::zero() - *this;
+    }
+
     // In-place mutable versions (modify this object directly)
     // ~10-15% faster than immutable versions due to no memory allocation
     void square_inplace();    // this = this² (modifies this)
