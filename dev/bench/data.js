@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771521588514,
+  "lastUpdate": 1771523436506,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -2031,6 +2031,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Point Add",
             "value": 256,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 147,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "shrec@users.noreply.github.com",
+            "name": "shrec",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "shrec@users.noreply.github.com",
+            "name": "shrec",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "d7d153309da5a394a9b1619325452b929ad2f24c",
+          "message": "feat: GPU signature benchmarks (ECDSA + Schnorr) + docs update v3.5.0\n\n- Add 6 batch kernel wrappers: ecdsa_sign/verify, schnorr_sign/verify,\n  ecdsa_sign_recoverable, ecdsa_recover (all __launch_bounds__(128,2))\n- Add 5 GPU signature benchmarks to bench_cuda.cu with\n  prepare_ecdsa_test_data() helper for verify correctness\n- Results (RTX 5060 Ti): ECDSA Sign 204.8ns/4.88M/s, Verify 410.1ns/2.44M/s,\n  Schnorr Sign 273.4ns/3.66M/s, Verify 354.6ns/2.82M/s\n- README: blockchain coin badges, GPU signature benchmark tables,\n  27-coin supported coins section, SEO metadata footer\n- BENCHMARKS.md: split CUDA into Core ECC + Signature tables, update all numbers\n- API_REFERENCE.md: add CUDA Signature Operations section with full API docs\n- CHANGELOG.md: add v3.5.0 entry\n- Wiki: update Benchmarks.md and CUDA-Guide.md with signature operations\n\nNo other open-source GPU library provides secp256k1 ECDSA+Schnorr sign/verify.",
+          "timestamp": "2026-02-19T17:49:18Z",
+          "tree_id": "774456bb75caf8ff3428c7e31d668cac653f24bd",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/d7d153309da5a394a9b1619325452b929ad2f24c"
+        },
+        "date": 1771523435285,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Field Mul",
+            "value": 25,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 23,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 0,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Add",
+            "value": 257,
             "unit": "ns"
           },
           {
