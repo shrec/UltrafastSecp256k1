@@ -799,10 +799,492 @@ jobs:
           retention-days: 5
 
   # ══════════════════════════════════════════════════════════════════════════
-  # 11) Create GitHub Release (collects ALL artifacts)
+  # 11) Package bindings — Go (source + native libs)
+  # ══════════════════════════════════════════════════════════════════════════
+  pack-go:
+    needs: [build-desktop, build-linux-arm64]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download desktop artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: native-dist
+
+      - name: Build Go package
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          PKG="ufsecp-go-${VERSION}"
+          mkdir -p "${PKG}/native"
+
+          # Copy Go binding sources
+          cp bindings/go/go.mod "${PKG}/"
+          cp bindings/go/ufsecp.go "${PKG}/"
+          cp bindings/go/secp256k1.go "${PKG}/" 2>/dev/null || true
+
+          # Copy C header (needed for cgo)
+          mkdir -p "${PKG}/include"
+          cp include/ufsecp/ufsecp.h "${PKG}/include/"
+          cp include/ufsecp/ufsecp_error.h "${PKG}/include/"
+          cp include/ufsecp/ufsecp_version.h "${PKG}/include/"
+
+          # Inject version into go.mod comment
+          sed -i "1s|^|// ufsecp v${VERSION}\n|" "${PKG}/go.mod"
+
+          # Extract native libs per platform
+          for PLAT in linux-x64 linux-arm64 macos-arm64 win-x64; do
+            ARTIFACT_DIR="native-dist/UltrafastSecp256k1-${{ github.ref_name }}-${PLAT}"
+            if [ ! -d "$ARTIFACT_DIR" ]; then
+              echo "  SKIP: ${PLAT}"
+              continue
+            fi
+            mkdir -p "${PKG}/native/${PLAT}"
+            TMPDIR=$(mktemp -d)
+            if ls "${ARTIFACT_DIR}"/*.tar.gz 1>/dev/null 2>&1; then
+              tar xf "${ARTIFACT_DIR}"/*.tar.gz -C "$TMPDIR"
+            elif ls "${ARTIFACT_DIR}"/*.zip 1>/dev/null 2>&1; then
+              unzip -o "${ARTIFACT_DIR}"/*.zip -d "$TMPDIR"
+            fi
+            find "$TMPDIR" -maxdepth 6 \
+              \( -name "libufsecp.so" -o -name "libufsecp.so.*" \
+              -o -name "ufsecp.dll" -o -name "libufsecp.dylib" \) \
+              -exec cp {} "${PKG}/native/${PLAT}/" \; 2>/dev/null || true
+            rm -rf "$TMPDIR"
+          done
+
+          echo "=== Go package contents ==="
+          find "${PKG}" -type f | sort
+          tar czf "${PKG}.tar.gz" "${PKG}"
+          ls -la "${PKG}.tar.gz"
+
+      - name: Upload Go package
+        uses: actions/upload-artifact@v4
+        with:
+          name: ufsecp-go
+          path: ufsecp-go-*.tar.gz
+          retention-days: 5
+
+  # ══════════════════════════════════════════════════════════════════════════
+  # 12) Package bindings — Rust crate (source + native libs)
+  # ══════════════════════════════════════════════════════════════════════════
+  pack-rust:
+    needs: [build-desktop, build-linux-arm64]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download desktop artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: native-dist
+
+      - name: Build Rust package
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          PKG="ufsecp-rust-${VERSION}"
+          mkdir -p "${PKG}/native"
+
+          # Copy Rust crate sources (ufsecp + ufsecp-sys)
+          cp -r bindings/rust/ufsecp "${PKG}/"
+          cp -r bindings/rust/ufsecp-sys "${PKG}/"
+
+          # Inject version from git tag
+          sed -i "s/^version = .*/version = \"${VERSION}\"/" "${PKG}/ufsecp/Cargo.toml"
+          sed -i "s/^version = .*/version = \"${VERSION}\"/" "${PKG}/ufsecp-sys/Cargo.toml"
+          sed -i "s/version = \"0.0.0-dev\"/version = \"${VERSION}\"/" "${PKG}/ufsecp/Cargo.toml"
+
+          # Copy C header (needed for sys crate build.rs)
+          mkdir -p "${PKG}/include"
+          cp include/ufsecp/ufsecp.h "${PKG}/include/"
+          cp include/ufsecp/ufsecp_error.h "${PKG}/include/"
+          cp include/ufsecp/ufsecp_version.h "${PKG}/include/"
+
+          # Extract native libs per platform
+          for PLAT in linux-x64 linux-arm64 macos-arm64 win-x64; do
+            ARTIFACT_DIR="native-dist/UltrafastSecp256k1-${{ github.ref_name }}-${PLAT}"
+            if [ ! -d "$ARTIFACT_DIR" ]; then
+              echo "  SKIP: ${PLAT}"
+              continue
+            fi
+            mkdir -p "${PKG}/native/${PLAT}"
+            TMPDIR=$(mktemp -d)
+            if ls "${ARTIFACT_DIR}"/*.tar.gz 1>/dev/null 2>&1; then
+              tar xf "${ARTIFACT_DIR}"/*.tar.gz -C "$TMPDIR"
+            elif ls "${ARTIFACT_DIR}"/*.zip 1>/dev/null 2>&1; then
+              unzip -o "${ARTIFACT_DIR}"/*.zip -d "$TMPDIR"
+            fi
+            find "$TMPDIR" -maxdepth 6 \
+              \( -name "libufsecp.so" -o -name "libufsecp.so.*" \
+              -o -name "ufsecp.dll" -o -name "libufsecp.dylib" \) \
+              -exec cp {} "${PKG}/native/${PLAT}/" \; 2>/dev/null || true
+            rm -rf "$TMPDIR"
+          done
+
+          echo "=== Rust package contents ==="
+          find "${PKG}" -type f | sort
+          tar czf "${PKG}.tar.gz" "${PKG}"
+          ls -la "${PKG}.tar.gz"
+
+      - name: Upload Rust package
+        uses: actions/upload-artifact@v4
+        with:
+          name: ufsecp-rust
+          path: ufsecp-rust-*.tar.gz
+          retention-days: 5
+
+  # ══════════════════════════════════════════════════════════════════════════
+  # 13) Package bindings — Dart/Flutter (source + native libs)
+  # ══════════════════════════════════════════════════════════════════════════
+  pack-dart:
+    needs: [build-desktop, build-linux-arm64, build-android, build-ios]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: native-dist
+
+      - name: Build Dart package
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          PKG="ufsecp-dart-${VERSION}"
+          mkdir -p "${PKG}/native"
+
+          # Copy Dart binding sources (use ufsecp manifest)
+          cp bindings/dart/pubspec.ufsecp.yaml "${PKG}/pubspec.yaml"
+          cp -r bindings/dart/lib "${PKG}/"
+
+          # Inject version from git tag
+          sed -i "s/^version: .*/version: ${VERSION}/" "${PKG}/pubspec.yaml"
+
+          # Extract native libs: desktop + mobile
+          for PLAT in linux-x64 linux-arm64 macos-arm64 win-x64 android-arm64 android-armv7 android-x64; do
+            ARTIFACT_DIR="native-dist/UltrafastSecp256k1-${{ github.ref_name }}-${PLAT}"
+            if [ ! -d "$ARTIFACT_DIR" ]; then
+              echo "  SKIP: ${PLAT}"
+              continue
+            fi
+            mkdir -p "${PKG}/native/${PLAT}"
+            TMPDIR=$(mktemp -d)
+            if ls "${ARTIFACT_DIR}"/*.tar.gz 1>/dev/null 2>&1; then
+              tar xf "${ARTIFACT_DIR}"/*.tar.gz -C "$TMPDIR"
+            elif ls "${ARTIFACT_DIR}"/*.zip 1>/dev/null 2>&1; then
+              unzip -o "${ARTIFACT_DIR}"/*.zip -d "$TMPDIR"
+            fi
+            find "$TMPDIR" -maxdepth 6 \
+              \( -name "libufsecp.so" -o -name "libufsecp.so.*" \
+              -o -name "ufsecp.dll" -o -name "libufsecp.dylib" \) \
+              -exec cp {} "${PKG}/native/${PLAT}/" \; 2>/dev/null || true
+            rm -rf "$TMPDIR"
+          done
+
+          # Also include iOS XCFramework if available
+          IOS_DIR="native-dist/UltrafastSecp256k1-${{ github.ref_name }}-ios-xcframework"
+          if [ -d "$IOS_DIR" ]; then
+            mkdir -p "${PKG}/native/ios"
+            cp "${IOS_DIR}"/*.tar.gz "${PKG}/native/ios/" 2>/dev/null || true
+            # Also extract xcframework
+            TMPDIR=$(mktemp -d)
+            tar xf "${IOS_DIR}"/*.tar.gz -C "$TMPDIR" 2>/dev/null || true
+            find "$TMPDIR" -name "*.xcframework" -type d -exec cp -r {} "${PKG}/native/ios/" \; 2>/dev/null || true
+            rm -rf "$TMPDIR"
+          fi
+
+          echo "=== Dart package contents ==="
+          find "${PKG}" -type f | sort
+          tar czf "${PKG}.tar.gz" "${PKG}"
+          ls -la "${PKG}.tar.gz"
+
+      - name: Upload Dart package
+        uses: actions/upload-artifact@v4
+        with:
+          name: ufsecp-dart
+          path: ufsecp-dart-*.tar.gz
+          retention-days: 5
+
+  # ══════════════════════════════════════════════════════════════════════════
+  # 14) Package bindings — PHP Composer (source + native libs)
+  # ══════════════════════════════════════════════════════════════════════════
+  pack-php:
+    needs: [build-desktop, build-linux-arm64]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download desktop artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: native-dist
+
+      - name: Build PHP package
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          PKG="ufsecp-php-${VERSION}"
+          mkdir -p "${PKG}/native"
+
+          # Copy PHP binding sources (use ufsecp manifest)
+          cp bindings/php/composer.ufsecp.json "${PKG}/composer.json"
+          cp -r bindings/php/src "${PKG}/"
+
+          # Inject version from git tag
+          sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"${VERSION}\"/" "${PKG}/composer.json"
+
+          # Copy C header (for PHP FFI definition loading)
+          mkdir -p "${PKG}/include"
+          cp include/ufsecp/ufsecp.h "${PKG}/include/"
+          cp include/ufsecp/ufsecp_error.h "${PKG}/include/"
+
+          # Extract native libs per platform
+          for PLAT in linux-x64 linux-arm64 macos-arm64 win-x64; do
+            ARTIFACT_DIR="native-dist/UltrafastSecp256k1-${{ github.ref_name }}-${PLAT}"
+            if [ ! -d "$ARTIFACT_DIR" ]; then
+              echo "  SKIP: ${PLAT}"
+              continue
+            fi
+            mkdir -p "${PKG}/native/${PLAT}"
+            TMPDIR=$(mktemp -d)
+            if ls "${ARTIFACT_DIR}"/*.tar.gz 1>/dev/null 2>&1; then
+              tar xf "${ARTIFACT_DIR}"/*.tar.gz -C "$TMPDIR"
+            elif ls "${ARTIFACT_DIR}"/*.zip 1>/dev/null 2>&1; then
+              unzip -o "${ARTIFACT_DIR}"/*.zip -d "$TMPDIR"
+            fi
+            find "$TMPDIR" -maxdepth 6 \
+              \( -name "libufsecp.so" -o -name "libufsecp.so.*" \
+              -o -name "ufsecp.dll" -o -name "libufsecp.dylib" \) \
+              -exec cp {} "${PKG}/native/${PLAT}/" \; 2>/dev/null || true
+            rm -rf "$TMPDIR"
+          done
+
+          echo "=== PHP package contents ==="
+          find "${PKG}" -type f | sort
+          tar czf "${PKG}.tar.gz" "${PKG}"
+          ls -la "${PKG}.tar.gz"
+
+      - name: Upload PHP package
+        uses: actions/upload-artifact@v4
+        with:
+          name: ufsecp-php
+          path: ufsecp-php-*.tar.gz
+          retention-days: 5
+
+  # ══════════════════════════════════════════════════════════════════════════
+  # 15) Package bindings — React Native (npm + Android/iOS native libs)
+  # ══════════════════════════════════════════════════════════════════════════
+  pack-react-native:
+    needs: [build-desktop, build-android, build-ios]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: native-dist
+
+      - name: Build React Native package
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          cd bindings/react-native
+
+          # Use ufsecp manifest
+          cp package.ufsecp.json package.json
+
+          # Inject version from git tag
+          sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"${VERSION}\"/" package.json
+
+          # Copy prebuilt native libs into platform dirs
+          mkdir -p prebuilds
+
+          for PLAT in android-arm64 android-armv7 android-x64; do
+            ARTIFACT_DIR="../../native-dist/UltrafastSecp256k1-${{ github.ref_name }}-${PLAT}"
+            if [ ! -d "$ARTIFACT_DIR" ]; then
+              echo "  SKIP: ${PLAT}"
+              continue
+            fi
+            mkdir -p "prebuilds/${PLAT}"
+            TMPDIR=$(mktemp -d)
+            if ls "${ARTIFACT_DIR}"/*.tar.gz 1>/dev/null 2>&1; then
+              tar xf "${ARTIFACT_DIR}"/*.tar.gz -C "$TMPDIR"
+            elif ls "${ARTIFACT_DIR}"/*.zip 1>/dev/null 2>&1; then
+              unzip -o "${ARTIFACT_DIR}"/*.zip -d "$TMPDIR"
+            fi
+            find "$TMPDIR" -maxdepth 6 \
+              \( -name "libufsecp.so" -o -name "libufsecp.so.*" \) \
+              -exec cp {} "prebuilds/${PLAT}/" \; 2>/dev/null || true
+            rm -rf "$TMPDIR"
+          done
+
+          # iOS XCFramework
+          IOS_DIR="../../native-dist/UltrafastSecp256k1-${{ github.ref_name }}-ios-xcframework"
+          if [ -d "$IOS_DIR" ]; then
+            mkdir -p prebuilds/ios
+            TMPDIR=$(mktemp -d)
+            tar xf "${IOS_DIR}"/*.tar.gz -C "$TMPDIR" 2>/dev/null || true
+            find "$TMPDIR" -name "*.xcframework" -type d -exec cp -r {} prebuilds/ios/ \; 2>/dev/null || true
+            find "$TMPDIR" -name "*.a" -exec cp {} prebuilds/ios/ \; 2>/dev/null || true
+            rm -rf "$TMPDIR"
+          fi
+
+          echo "=== Prebuilds ==="
+          find prebuilds/ -type f 2>/dev/null || echo "(none)"
+
+          npm pack
+          echo "=== React Native package ==="
+          ls -la react-native-ufsecp-*.tgz
+
+      - name: Upload React Native package
+        uses: actions/upload-artifact@v4
+        with:
+          name: ufsecp-react-native
+          path: bindings/react-native/react-native-ufsecp-*.tgz
+          retention-days: 5
+
+  # ══════════════════════════════════════════════════════════════════════════
+  # 16) Package bindings — Swift (Package.swift + sources + native libs)
+  # ══════════════════════════════════════════════════════════════════════════
+  pack-swift:
+    needs: [build-desktop, build-ios]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: native-dist
+
+      - name: Build Swift package
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          PKG="ufsecp-swift-${VERSION}"
+          mkdir -p "${PKG}/native"
+
+          # Copy Swift binding sources (use ufsecp manifest)
+          cp bindings/swift/Package.ufsecp.swift "${PKG}/Package.swift"
+          cp -r bindings/swift/Sources/Ufsecp "${PKG}/Sources/Ufsecp" 2>/dev/null || true
+          cp -r bindings/swift/Sources/CUfsecp "${PKG}/Sources/CUfsecp" 2>/dev/null || true
+          mkdir -p "${PKG}/Sources/CUfsecp"
+          mkdir -p "${PKG}/Sources/Ufsecp"
+
+          # Copy C headers into the CUfsecp module
+          cp include/ufsecp/ufsecp.h "${PKG}/Sources/CUfsecp/" 2>/dev/null || true
+          cp include/ufsecp/ufsecp_error.h "${PKG}/Sources/CUfsecp/" 2>/dev/null || true
+          cp include/ufsecp/ufsecp_version.h "${PKG}/Sources/CUfsecp/" 2>/dev/null || true
+
+          # macOS native lib
+          MACOS_DIR="native-dist/UltrafastSecp256k1-${{ github.ref_name }}-macos-arm64"
+          if [ -d "$MACOS_DIR" ]; then
+            mkdir -p "${PKG}/native/macos-arm64"
+            TMPDIR=$(mktemp -d)
+            if ls "${MACOS_DIR}"/*.tar.gz 1>/dev/null 2>&1; then
+              tar xf "${MACOS_DIR}"/*.tar.gz -C "$TMPDIR"
+            fi
+            find "$TMPDIR" -maxdepth 6 -name "libufsecp.dylib" \
+              -exec cp {} "${PKG}/native/macos-arm64/" \; 2>/dev/null || true
+            rm -rf "$TMPDIR"
+          fi
+
+          # iOS XCFramework
+          IOS_DIR="native-dist/UltrafastSecp256k1-${{ github.ref_name }}-ios-xcframework"
+          if [ -d "$IOS_DIR" ]; then
+            mkdir -p "${PKG}/native/ios"
+            TMPDIR=$(mktemp -d)
+            tar xf "${IOS_DIR}"/*.tar.gz -C "$TMPDIR" 2>/dev/null || true
+            find "$TMPDIR" -name "*.xcframework" -type d -exec cp -r {} "${PKG}/native/ios/" \; 2>/dev/null || true
+            rm -rf "$TMPDIR"
+          fi
+
+          echo "=== Swift package contents ==="
+          find "${PKG}" -type f | sort
+          tar czf "${PKG}.tar.gz" "${PKG}"
+          ls -la "${PKG}.tar.gz"
+
+      - name: Upload Swift package
+        uses: actions/upload-artifact@v4
+        with:
+          name: ufsecp-swift
+          path: ufsecp-swift-*.tar.gz
+          retention-days: 5
+
+  # ══════════════════════════════════════════════════════════════════════════
+  # 17) Package — C/C++ headers + native libs (all platforms)
+  # ══════════════════════════════════════════════════════════════════════════
+  pack-c-headers:
+    needs: [build-desktop, build-linux-arm64]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download desktop artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: native-dist
+
+      - name: Build C/C++ SDK package
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          PKG="ufsecp-c-${VERSION}"
+
+          # Copy public C API headers
+          mkdir -p "${PKG}/include"
+          cp include/ufsecp/ufsecp.h "${PKG}/include/"
+          cp include/ufsecp/ufsecp_error.h "${PKG}/include/"
+          cp include/ufsecp/ufsecp_version.h "${PKG}/include/"
+
+          # Copy example if present
+          if [ -d include/ufsecp/examples ]; then
+            cp -r include/ufsecp/examples "${PKG}/examples"
+          fi
+
+          # Copy pkg-config template
+          cp include/ufsecp/ufsecp.pc.in "${PKG}/" 2>/dev/null || true
+
+          # Extract native libs per platform
+          for PLAT in linux-x64 linux-arm64 macos-arm64 win-x64; do
+            ARTIFACT_DIR="native-dist/UltrafastSecp256k1-${{ github.ref_name }}-${PLAT}"
+            if [ ! -d "$ARTIFACT_DIR" ]; then
+              echo "  SKIP: ${PLAT}"
+              continue
+            fi
+            mkdir -p "${PKG}/lib/${PLAT}"
+            TMPDIR=$(mktemp -d)
+            if ls "${ARTIFACT_DIR}"/*.tar.gz 1>/dev/null 2>&1; then
+              tar xf "${ARTIFACT_DIR}"/*.tar.gz -C "$TMPDIR"
+            elif ls "${ARTIFACT_DIR}"/*.zip 1>/dev/null 2>&1; then
+              unzip -o "${ARTIFACT_DIR}"/*.zip -d "$TMPDIR"
+            fi
+            find "$TMPDIR" -maxdepth 6 \
+              \( -name "libufsecp.so" -o -name "libufsecp.so.*" \
+              -o -name "ufsecp.dll" -o -name "ufsecp.lib" \
+              -o -name "libufsecp.dylib" -o -name "libufsecp.a" \) \
+              -exec cp {} "${PKG}/lib/${PLAT}/" \; 2>/dev/null || true
+            rm -rf "$TMPDIR"
+          done
+
+          echo "=== C SDK package contents ==="
+          find "${PKG}" -type f | sort
+          tar czf "${PKG}.tar.gz" "${PKG}"
+          ls -la "${PKG}.tar.gz"
+
+      - name: Upload C SDK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ufsecp-c-headers
+          path: ufsecp-c-*.tar.gz
+          retention-days: 5
+
+  # ══════════════════════════════════════════════════════════════════════════
+  # 18) Create GitHub Release (collects ALL artifacts)
   # ══════════════════════════════════════════════════════════════════════════
   release:
-    needs: [build-desktop, build-linux-arm64, build-android, build-ios, build-wasm, pack-python, pack-npm, pack-nuget, pack-gem, pack-java]
+    needs: [build-desktop, build-linux-arm64, build-android, build-ios, build-wasm, pack-python, pack-npm, pack-nuget, pack-gem, pack-java, pack-go, pack-rust, pack-dart, pack-php, pack-react-native, pack-swift, pack-c-headers]
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
