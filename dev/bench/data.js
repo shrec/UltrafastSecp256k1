@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771532105177,
+  "lastUpdate": 1771532354253,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -2517,6 +2517,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Point Add",
             "value": 257,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 147,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "shrec@users.noreply.github.com",
+            "name": "shrec",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "shrec@users.noreply.github.com",
+            "name": "shrec",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "5afd7b3f5eab478f52e901769209c142243c6205",
+          "message": "fix(field_52): guard __int128 with __SIZEOF_INT128__ only\n\nThe previous guard (#if __SIZEOF_INT128__ || __GNUC__ || __clang__)\nincorrectly allowed __int128 on 32-bit ARM (armeabi-v7a) where\n__GNUC__/__clang__ are defined but __int128 is not supported.\n\nUse __SIZEOF_INT128__ alone — the canonical 64-bit check that\nfield_52_impl.hpp already uses.",
+          "timestamp": "2026-02-19T20:18:09Z",
+          "tree_id": "b1b2bb4280e8ea2a72b3e2d5071397111e8fd328",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/5afd7b3f5eab478f52e901769209c142243c6205"
+        },
+        "date": 1771532353708,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Field Mul",
+            "value": 25,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 23,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 0,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Add",
+            "value": 258,
             "unit": "ns"
           },
           {
