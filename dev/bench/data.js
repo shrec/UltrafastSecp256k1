@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771532354253,
+  "lastUpdate": 1771532497420,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -2576,6 +2576,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Point Double",
             "value": 147,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "shrec@users.noreply.github.com",
+            "name": "shrec",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "shrec@users.noreply.github.com",
+            "name": "shrec",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "780f111608de8f69c01a0da8065b39d4bdae01d5",
+          "message": "fix(field_asm): guard __uint128_t with __SIZEOF_INT128__, add 32-bit fallback\n\nsubborrow64() used __uint128_t under '#elif __GNUC__ || __clang__' which\nfires on 32-bit ARM where __int128 is unavailable. Switch to\n__SIZEOF_INT128__ and add a portable borrow-chain fallback for armeabi-v7a.",
+          "timestamp": "2026-02-19T20:20:24Z",
+          "tree_id": "40f1bdbfa50a292887c52b38a42b150d67c4d72f",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/780f111608de8f69c01a0da8065b39d4bdae01d5"
+        },
+        "date": 1771532496479,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Field Mul",
+            "value": 25,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 23,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 0,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Add",
+            "value": 257,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 146,
             "unit": "ns"
           }
         ]
