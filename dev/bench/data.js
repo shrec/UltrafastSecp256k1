@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771523436506,
+  "lastUpdate": 1771523492481,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -2090,6 +2090,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Point Double",
             "value": 147,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "shrec@users.noreply.github.com",
+            "name": "shrec",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "shrec@users.noreply.github.com",
+            "name": "shrec",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "b99f2ba02a109dd41aa5fe6a4c50c5727a8ada31",
+          "message": "fix: version numbering 3.5.0→3.6.0 (v3.5.0 tag already exists)",
+          "timestamp": "2026-02-19T17:50:16Z",
+          "tree_id": "872569a6aa24920ffba0e6ba8591ab5bdd24970d",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/b99f2ba02a109dd41aa5fe6a4c50c5727a8ada31"
+        },
+        "date": 1771523491423,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Field Mul",
+            "value": 25,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 23,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 0,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Add",
+            "value": 257,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 145,
             "unit": "ns"
           }
         ]
