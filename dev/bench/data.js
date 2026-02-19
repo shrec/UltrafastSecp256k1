@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771528822414,
+  "lastUpdate": 1771530376532,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -2360,6 +2360,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Point Double",
             "value": 127,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "shrec@users.noreply.github.com",
+            "name": "shrec",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "shrec@users.noreply.github.com",
+            "name": "shrec",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "eb8c196c6e6266523a8021b60f2f9f77234e7a10",
+          "message": "docs: add Acknowledgements section to README",
+          "timestamp": "2026-02-19T19:45:06Z",
+          "tree_id": "fc26d1c6e0dbe23c1b59128888922abc3bb12f84",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/eb8c196c6e6266523a8021b60f2f9f77234e7a10"
+        },
+        "date": 1771530375840,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Field Mul",
+            "value": 25,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 23,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 0,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Add",
+            "value": 256,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 147,
             "unit": "ns"
           }
         ]
