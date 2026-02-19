@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771534701138,
+  "lastUpdate": 1771535589172,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -2792,6 +2792,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Point Double",
             "value": 145,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "4fa9e15cd26d9fc1399c2eaca9eca25d5dc695fa",
+          "message": "fix(ci): fix all packaging jobs — NuGet/gem/Python/npm/Java\n\n- pack-nuget: update target frameworks net6.0/7.0→net8.0/9.0 (EOL fix),\n  install both SDK versions, add native Content items to .csproj\n- pack-gem: fix gemspec s.files (remove missing README.md, include\n  lib/native/* for bundled native libs)\n- pack-python: copy pyproject.ufsecp.toml→pyproject.toml (was using wrong\n  package manifest), add package-data for .so/.dll/.dylib, add platform\n  wheel tags (manylinux/macosx/win), handle .zip extraction for win-x64\n- pack-npm: use correct prebuild dir names (darwin-arm64, win32-x64),\n  extract via mktemp for clean handling, handle .zip + .tar.gz\n- pack-java: fix jar packaging (proper classes+native structure),\n  derive version from tag instead of hardcoded 3.4.0",
+          "timestamp": "2026-02-20T01:11:55+04:00",
+          "tree_id": "9ba633dce8c4d818c1ac42785fa4286817f12e7e",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/4fa9e15cd26d9fc1399c2eaca9eca25d5dc695fa"
+        },
+        "date": 1771535587992,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Field Mul",
+            "value": 24,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 19,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 0,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Add",
+            "value": 247,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 127,
             "unit": "ns"
           }
         ]
