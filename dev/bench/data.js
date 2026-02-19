@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771530376532,
+  "lastUpdate": 1771531299168,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -2414,6 +2414,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Point Double",
             "value": 147,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "shrec@users.noreply.github.com",
+            "name": "shrec",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "shrec@users.noreply.github.com",
+            "name": "shrec",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "2d77b548f2effa1c3e3f04f4a1978b2106e0d6f5",
+          "message": "ci: add linux-arm64 cross-compile + android armeabi-v7a, x86_64 targets",
+          "timestamp": "2026-02-19T20:00:10Z",
+          "tree_id": "13629bb98a3758264c2bcffc3df59ace0a42cdcb",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/2d77b548f2effa1c3e3f04f4a1978b2106e0d6f5"
+        },
+        "date": 1771531297987,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Field Mul",
+            "value": 25,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 23,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 0,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Add",
+            "value": 256,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 148,
             "unit": "ns"
           }
         ]
