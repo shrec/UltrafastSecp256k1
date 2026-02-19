@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771545529656,
+  "lastUpdate": 1771545530720,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -3710,6 +3710,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Point Double",
             "value": 146,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": false,
+          "id": "7cddd84179136288c58194e60a91aa7de67b6726",
+          "message": "ci: publish ufsecp + react-native-ufsecp to npmjs.com public registry\n\nUses NPM_TOKEN secret for authentication against registry.npmjs.org.\nBoth packages published with original unscoped names.",
+          "timestamp": "2026-02-20T03:57:35+04:00",
+          "tree_id": "f563c33bd9335e4af7fce3de8c8841aa5c31acdd",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/7cddd84179136288c58194e60a91aa7de67b6726"
+        },
+        "date": 1771545530227,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Field Mul",
+            "value": 25,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 23,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 0,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Add",
+            "value": 256,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 147,
             "unit": "ns"
           }
         ]
