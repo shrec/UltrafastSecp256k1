@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771523492481,
+  "lastUpdate": 1771523666338,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -2144,6 +2144,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Point Double",
             "value": 145,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "shrec@users.noreply.github.com",
+            "name": "shrec",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "shrec@users.noreply.github.com",
+            "name": "shrec",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "307ab420e0bc4676ef6ca2b314f321bbdd711421",
+          "message": "Merge dev into main: v3.6.0 — GPU signature operations (ECDSA + Schnorr)\n\n- 6 CUDA batch kernels: ecdsa_sign/verify, schnorr_sign/verify, recoverable, recover\n- Benchmarks: ECDSA Sign 204.8ns/4.88M/s, Verify 410.1ns/2.44M/s, Schnorr Sign 273.4ns/3.66M/s, Verify 354.6ns/2.82M/s\n- CPU optimizations ported to GPU: Shamir, GLV, wNAF, precomputed tables, tagged hash midstates\n- C ABI (ufsecp), 12 language bindings, scalar_mul 3.1x speedup, multi-backend fixes\n- Full doc update: README, BENCHMARKS, API_REFERENCE, CHANGELOG, wiki",
+          "timestamp": "2026-02-19T17:52:53Z",
+          "tree_id": "872569a6aa24920ffba0e6ba8591ab5bdd24970d",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/307ab420e0bc4676ef6ca2b314f321bbdd711421"
+        },
+        "date": 1771523665845,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Field Mul",
+            "value": 25,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 23,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 0,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Add",
+            "value": 257,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 147,
             "unit": "ns"
           }
         ]
