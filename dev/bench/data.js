@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771531299168,
+  "lastUpdate": 1771532105177,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -2468,6 +2468,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Point Double",
             "value": 148,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "shrec@users.noreply.github.com",
+            "name": "shrec",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "shrec@users.noreply.github.com",
+            "name": "shrec",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "5e92027d7277edca37f3f97efaea8022dd0cf3c5",
+          "message": "fix(ci): ARCH_FLAGS quoting (SHELL: prefix) + enable arm64 ASM for cross-compile\n\n- cpu/CMakeLists.txt: Use SHELL:${ARCH_FLAGS} in target_compile_options so\n  multi-word flags (e.g. '-march=armv7-a -mfpu=neon-vfpv4 -mfloat-abi=softfp')\n  are split into separate compiler arguments instead of one quoted string.\n  Fixes android armeabi-v7a and x86_64 builds.\n\n- ci.yml: Remove -DSECP256K1_USE_ASM=OFF from linux-arm64 job. ARM64 'asm'\n  files are .cpp with inline asm (not standalone .S), so they compile fine\n  with aarch64-linux-gnu-g++-13. Fixes undefined reference to field_mul_arm64.",
+          "timestamp": "2026-02-19T20:13:55Z",
+          "tree_id": "24e636f5f875fb1e21af0578005bb29813d7e167",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/5e92027d7277edca37f3f97efaea8022dd0cf3c5"
+        },
+        "date": 1771532104691,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Field Mul",
+            "value": 25,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 23,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 0,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Add",
+            "value": 257,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 147,
             "unit": "ns"
           }
         ]
