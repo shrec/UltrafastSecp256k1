@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['🙏_20acknowledgments_0',['🙏 Acknowledgments',['../index.html#autotoc_md69',1,'']]]
+  ['📧_20contact_20community_0',['📧 Contact &amp; Community',['../index.html#autotoc_md100',1,'']]]
 ];

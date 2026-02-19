@@ -2,9 +2,13 @@ var namespacesecp256k1 =
 [
     [ "coins", "namespacesecp256k1_1_1coins.html", "namespacesecp256k1_1_1coins" ],
     [ "ct", "namespacesecp256k1_1_1ct.html", "namespacesecp256k1_1_1ct" ],
+    [ "detail", "namespacesecp256k1_1_1detail.html", [
+      [ "sha256_compress_dispatch", "namespacesecp256k1_1_1detail.html#aeb7ac005ebf31bbcf37bc8c253bbad40", null ]
+    ] ],
     [ "fast", "namespacesecp256k1_1_1fast.html", "namespacesecp256k1_1_1fast" ],
     [ "hash", "namespacesecp256k1_1_1hash.html", "namespacesecp256k1_1_1hash" ],
     [ "simd", "namespacesecp256k1_1_1simd.html", "namespacesecp256k1_1_1simd" ],
+    [ "test", "namespacesecp256k1_1_1test.html", "namespacesecp256k1_1_1test" ],
     [ "AffinePointData", "structsecp256k1_1_1AffinePointData.html", "structsecp256k1_1_1AffinePointData" ],
     [ "Bech32DecodeResult", "structsecp256k1_1_1Bech32DecodeResult.html", "structsecp256k1_1_1Bech32DecodeResult" ],
     [ "CurveContext", "structsecp256k1_1_1CurveContext.html", "structsecp256k1_1_1CurveContext" ],
@@ -82,6 +86,8 @@ var namespacesecp256k1 =
     [ "frost_verify_partial", "namespacesecp256k1.html#a4f2f9f284b70ca6ea7fe03e84fd8438e", null ],
     [ "hash160", "namespacesecp256k1.html#a60845c5582c3d501cc42d8f3ec7c4b9f", null ],
     [ "hmac_sha512", "namespacesecp256k1.html#a5b674e02b3a37bc4c91097ac1502b980", null ],
+    [ "msm", "namespacesecp256k1.html#a5c035fd3478f23b2eb5281e4a765ab84", null ],
+    [ "msm", "namespacesecp256k1.html#a2f1ebb75ed0e1a36a0d24b815d5adee8", null ],
     [ "multi_scalar_mul", "namespacesecp256k1.html#a882905c11972263399924316d1d2b926", null ],
     [ "multi_scalar_mul", "namespacesecp256k1.html#a03ccaf89eefb01c0e251db92af63f745", null ],
     [ "musig2_key_agg", "namespacesecp256k1.html#a193d22c028b107d14dd814fa3b760020", null ],
@@ -98,6 +104,9 @@ var namespacesecp256k1 =
     [ "pedersen_switch_commit", "namespacesecp256k1.html#a1c348fae3b31230c8c7e364fa39bd206", null ],
     [ "pedersen_verify", "namespacesecp256k1.html#a90ce24eb3d14058f1365f87dbb51b8ae", null ],
     [ "pedersen_verify_sum", "namespacesecp256k1.html#a3cb1d2501e54a3918bba6083b8372e3c", null ],
+    [ "pippenger_msm", "namespacesecp256k1.html#a4bdee64ecbf1a84fc6f848b4ca171e47", null ],
+    [ "pippenger_msm", "namespacesecp256k1.html#a2e465ff33f201449c757ce9fc34ff470", null ],
+    [ "pippenger_optimal_window", "namespacesecp256k1.html#a2decdd21aabdcb47b80e43e74208bd47", null ],
     [ "recoverable_from_compact", "namespacesecp256k1.html#aa758c046c3cc7b47ba5e45cc016ba714", null ],
     [ "recoverable_to_compact", "namespacesecp256k1.html#a21f1a36b23f6e1e9fdb994f25fb46224", null ],
     [ "rfc6979_nonce", "namespacesecp256k1.html#a944c4d81e26ad0af5325655767a77e37", null ],

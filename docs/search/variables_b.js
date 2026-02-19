@@ -1,7 +1,8 @@
 var searchData=
 [
-  ['max_5fwindows_5fto_5fload_0',['max_windows_to_load',['../structsecp256k1_1_1fast_1_1FixedBaseConfig.html#ac2d2100e410f8454de0bc2bd16c455c3',1,'secp256k1::fast::FixedBaseConfig']]],
-  ['message_1',['message',['../structsecp256k1_1_1SchnorrBatchEntry.html#aaf920755c5fadadc7d7a6c4f53bcc3a6',1,'secp256k1::SchnorrBatchEntry']]],
-  ['minus_5fb1_2',['MINUS_B1',['../namespacesecp256k1_1_1fast_1_1glv__constants.html#a08bcc168109784e84eb68b5e752d3442',1,'secp256k1::fast::glv_constants']]],
-  ['msg_5fhash_3',['msg_hash',['../structsecp256k1_1_1ECDSABatchEntry.html#a7f93edf3342a38fe845061a078456c69',1,'secp256k1::ECDSABatchEntry']]]
+  ['lambda_0',['LAMBDA',['../namespacesecp256k1_1_1fast_1_1glv__constants.html#a987c298a74084ed501ee88ec70131b72',1,'secp256k1::fast::glv_constants']]],
+  ['last_5ferr_1',['last_err',['../structufsecp__ctx.html#ad53c3d43a6ff6396f4e4045216d86b22',1,'ufsecp_ctx']]],
+  ['last_5fmsg_2',['last_msg',['../structufsecp__ctx.html#aa5a1301838abefdcd8ebfcf8ec22ded7',1,'ufsecp_ctx']]],
+  ['limbs_3',['limbs',['../structsecp256k1_1_1fast_1_1MidFieldElement.html#a404da8c0dccabe650316a90db209edf3',1,'secp256k1::fast::MidFieldElement::limbs'],['../structsecp256k1_1_1FieldElementData.html#a2ded31b1bdf973e35ade41240bc96bb9',1,'secp256k1::FieldElementData::limbs'],['../structsecp256k1_1_1MidFieldElementData.html#ac940c01594bd9eaddfd7404290fbbb28',1,'secp256k1::MidFieldElementData::limbs'],['../structsecp256k1_1_1ScalarData.html#ae407462b76480b74153ba5bf47e5f1e0',1,'secp256k1::ScalarData::limbs']]],
+  ['litecoin_4',['Litecoin',['../namespacesecp256k1_1_1coins.html#ac54c95af7577aa020c8c03730b0e9ff3',1,'secp256k1::coins']]]
 ];

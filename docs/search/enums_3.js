@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['hashtier_0',['HashTier',['../namespacesecp256k1_1_1hash.html#a4caba186460712ebd064679ef90b2685',1,'secp256k1::hash']]]
+  ['fieldtier_0',['FieldTier',['../namespacesecp256k1_1_1fast.html#acde831e11e1dcaddfc8b9c9c70e777d4',1,'secp256k1::fast']]]
 ];

@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['⚡_20mixed_20addition_20jacobian_20affine_0',['⚡ Mixed Addition (Jacobian + Affine)',['../index.html#autotoc_md6',1,'']]]
+  ['≥_201_0',['Tier 1 — Stable (ABI ≥ 1)',['../md_include_2ufsecp_2SUPPORTED__GUARANTEES.html#autotoc_md2',1,'']]]
 ];

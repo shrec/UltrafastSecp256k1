@@ -1,5 +1,4 @@
 var searchData=
 [
-  ['📚_20documentation_0',['📚 Documentation',['../index.html#autotoc_md55',1,'']]],
-  ['📚_20variant_20overview_1',['📚 Variant Overview',['../index.html#autotoc_md52',1,'']]]
+  ['🏗️_20architecture_0',['🏗️ Architecture',['../index.html#autotoc_md79',1,'']]]
 ];

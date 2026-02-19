@@ -95,7 +95,8 @@ $(document).ready(function(){initNavTree('namespacesecp256k1_1_1fast.html',''); 
 <a href="#nested-classes">Classes</a> &#124;
 <a href="#typedef-members">Typedefs</a> &#124;
 <a href="#enum-members">Enumerations</a> &#124;
-<a href="#func-members">Functions</a>  </div>
+<a href="#func-members">Functions</a> &#124;
+<a href="#var-members">Variables</a>  </div>
   <div class="headertitle"><div class="title">secp256k1::fast Namespace Reference</div></div>
 </div><!--header-->
 <div class="contents">
@@ -103,6 +104,10 @@ $(document).ready(function(){initNavTree('namespacesecp256k1_1_1fast.html',''); 
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="namespaces" name="namespaces"></a>
 Namespaces</h2></td></tr>
 <tr class="memitem:namespacesecp256k1_1_1fast_1_1detail" id="r_namespacesecp256k1_1_1fast_1_1detail"><td class="memItemLeft" align="right" valign="top">namespace &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1fast_1_1detail.html">detail</a></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:namespacesecp256k1_1_1fast_1_1fe26__constants" id="r_namespacesecp256k1_1_1fast_1_1fe26__constants"><td class="memItemLeft" align="right" valign="top">namespace &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1fast_1_1fe26__constants.html">fe26_constants</a></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:namespacesecp256k1_1_1fast_1_1fe52__constants" id="r_namespacesecp256k1_1_1fast_1_1fe52__constants"><td class="memItemLeft" align="right" valign="top">namespace &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1fast_1_1fe52__constants.html">fe52_constants</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:namespacesecp256k1_1_1fast_1_1glv__constants" id="r_namespacesecp256k1_1_1fast_1_1glv__constants"><td class="memItemLeft" align="right" valign="top">namespace &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1fast_1_1glv__constants.html">glv_constants</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -113,7 +118,15 @@ Namespaces</h2></td></tr>
 Classes</h2></td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structsecp256k1_1_1fast_1_1AffinePointCompact.html">AffinePointCompact</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structsecp256k1_1_1fast_1_1CombAffinePoint.html">CombAffinePoint</a></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classsecp256k1_1_1fast_1_1CombGenContext.html">CombGenContext</a></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structsecp256k1_1_1fast_1_1FieldElement26.html">FieldElement26</a></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structsecp256k1_1_1fast_1_1FieldElement52.html">FieldElement52</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structsecp256k1_1_1fast_1_1FixedBaseConfig.html">FixedBaseConfig</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -136,11 +149,18 @@ Classes</h2></td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="typedef-members" name="typedef-members"></a>
 Typedefs</h2></td></tr>
+<tr class="memitem:ad889772ac557be09629ddc6f15b093f8" id="r_ad889772ac557be09629ddc6f15b093f8"><td class="memItemLeft" align="right" valign="top">using&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1fast.html#ad889772ac557be09629ddc6f15b093f8">OptimalFieldElement</a> = <a class="el" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a></td></tr>
+<tr class="separator:ad889772ac557be09629ddc6f15b093f8"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a37c1f085bc37d25789620da90ed4988a" id="r_a37c1f085bc37d25789620da90ed4988a"><td class="memItemLeft" align="right" valign="top">using&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1fast.html#a37c1f085bc37d25789620da90ed4988a">ProgressCallback</a> = void(*)(size_t, size_t, unsigned, unsigned)</td></tr>
 <tr class="separator:a37c1f085bc37d25789620da90ed4988a"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="enum-members" name="enum-members"></a>
 Enumerations</h2></td></tr>
+<tr class="memitem:acde831e11e1dcaddfc8b9c9c70e777d4" id="r_acde831e11e1dcaddfc8b9c9c70e777d4"><td class="memItemLeft" align="right" valign="top">enum class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1fast.html#acde831e11e1dcaddfc8b9c9c70e777d4">FieldTier</a> { <a class="el" href="namespacesecp256k1_1_1fast.html#acde831e11e1dcaddfc8b9c9c70e777d4a6e1d26616f2e87e0a0b534bc6357cb84">FE64</a>
+, <a class="el" href="namespacesecp256k1_1_1fast.html#acde831e11e1dcaddfc8b9c9c70e777d4a95990f4b1bea2398e23ca5c8eb746d6a">FE52</a>
+, <a class="el" href="namespacesecp256k1_1_1fast.html#acde831e11e1dcaddfc8b9c9c70e777d4a0220c35e8e7b548084256c53654d0a59">FE26</a>
+ }</td></tr>
+<tr class="separator:acde831e11e1dcaddfc8b9c9c70e777d4"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aa79919388fa732a5045d756e9fe2830a" id="r_aa79919388fa732a5045d756e9fe2830a"><td class="memItemLeft" align="right" valign="top">enum class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1fast.html#aa79919388fa732a5045d756e9fe2830a">SelftestMode</a> : uint8_t { <a class="el" href="namespacesecp256k1_1_1fast.html#aa79919388fa732a5045d756e9fe2830aafdfa02ecf86feac3801254da57c1c9ba">smoke</a> = 0
 , <a class="el" href="namespacesecp256k1_1_1fast.html#aa79919388fa732a5045d756e9fe2830aa35ea51baf1fe7f0142ad5f950855dde0">ci</a> = 1
 , <a class="el" href="namespacesecp256k1_1_1fast.html#aa79919388fa732a5045d756e9fe2830aae10a36f1a5231e597daf8f42dc1ab55a">stress</a> = 2
@@ -165,6 +185,14 @@ Functions</h2></td></tr>
 <tr class="separator:aaf180accadaa322d54fb218f9b565229"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a45d351a8fa0a9c55d3785a7b494b144d" id="r_a45d351a8fa0a9c55d3785a7b494b144d"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1fast.html#a45d351a8fa0a9c55d3785a7b494b144d">batch_add_affine_x_with_parity</a> (const <a class="el" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a> &amp;base_x, const <a class="el" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a> &amp;base_y, const <a class="el" href="structsecp256k1_1_1fast_1_1AffinePointCompact.html">AffinePointCompact</a> *offsets, <a class="el" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a> *out_x, uint8_t *out_parity, std::size_t count, std::vector&lt; <a class="el" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a> &gt; &amp;scratch)</td></tr>
 <tr class="separator:a45d351a8fa0a9c55d3785a7b494b144d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a3ffa8c1ca7d309b4878c17adda3155b6" id="r_a3ffa8c1ca7d309b4878c17adda3155b6"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1fast.html#a3ffa8c1ca7d309b4878c17adda3155b6">init_comb_gen</a> (unsigned teeth=15)</td></tr>
+<tr class="separator:a3ffa8c1ca7d309b4878c17adda3155b6"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ac3a5de9f507a1b192d743b5557a050ac" id="r_ac3a5de9f507a1b192d743b5557a050ac"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1fast.html#ac3a5de9f507a1b192d743b5557a050ac">comb_gen_ready</a> ()</td></tr>
+<tr class="separator:ac3a5de9f507a1b192d743b5557a050ac"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a41378871634150e7254bdcfb6a79da81" id="r_a41378871634150e7254bdcfb6a79da81"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classsecp256k1_1_1fast_1_1Point.html">Point</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1fast.html#a41378871634150e7254bdcfb6a79da81">comb_gen_mul</a> (const <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">Scalar</a> &amp;k)</td></tr>
+<tr class="separator:a41378871634150e7254bdcfb6a79da81"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a7351530a09b2c36386085378b24488c6" id="r_a7351530a09b2c36386085378b24488c6"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classsecp256k1_1_1fast_1_1Point.html">Point</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1fast.html#a7351530a09b2c36386085378b24488c6">comb_gen_mul_ct</a> (const <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">Scalar</a> &amp;k)</td></tr>
+<tr class="separator:a7351530a09b2c36386085378b24488c6"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:abc96c67855e4991d413d35284c148f50" id="r_abc96c67855e4991d413d35284c148f50"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structsecp256k1_1_1fast_1_1MidFieldElement.html">MidFieldElement</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1fast.html#abc96c67855e4991d413d35284c148f50">toMid</a> (<a class="el" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a> *fe) noexcept</td></tr>
 <tr class="separator:abc96c67855e4991d413d35284c148f50"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a299678fa62af6171cad9ac631856acf0" id="r_a299678fa62af6171cad9ac631856acf0"><td class="memItemLeft" align="right" valign="top">const <a class="el" href="structsecp256k1_1_1fast_1_1MidFieldElement.html">MidFieldElement</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1fast.html#a299678fa62af6171cad9ac631856acf0">toMid</a> (const <a class="el" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a> *fe) noexcept</td></tr>
@@ -241,6 +269,8 @@ Functions</h2></td></tr>
 <tr class="separator:a3ae45c25c5eea3750b3752f2c2940444"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:afb796e34f6d662a818fd5d773018a9f2" id="r_afb796e34f6d662a818fd5d773018a9f2"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1fast.html#afb796e34f6d662a818fd5d773018a9f2">fe_inverse_hybrid_eea</a> (const <a class="el" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a> &amp;value)</td></tr>
 <tr class="separator:afb796e34f6d662a818fd5d773018a9f2"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a56d02e3575ab0cfb07be81f2bd970cb6" id="r_a56d02e3575ab0cfb07be81f2bd970cb6"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1fast.html#a56d02e3575ab0cfb07be81f2bd970cb6">fe_inverse_safegcd</a> (const <a class="el" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a> &amp;value)</td></tr>
+<tr class="separator:a56d02e3575ab0cfb07be81f2bd970cb6"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:afc5db0e6e3b871b872191ce68c1d980e" id="r_afc5db0e6e3b871b872191ce68c1d980e"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1fast.html#afc5db0e6e3b871b872191ce68c1d980e">fe_inverse_yao</a> (const <a class="el" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a> &amp;value)</td></tr>
 <tr class="separator:afc5db0e6e3b871b872191ce68c1d980e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a38cfcf3d788c87e1510f09de33cd9f2b" id="r_a38cfcf3d788c87e1510f09de33cd9f2b"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1fast.html#a38cfcf3d788c87e1510f09de33cd9f2b">fe_inverse_bos_coster</a> (const <a class="el" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a> &amp;value)</td></tr>
@@ -293,6 +323,16 @@ Functions</h2></td></tr>
 <tr class="separator:a5f6d44db4d6748a26426e73520a662a9"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ac1290968c6448aa57bf2c88647791598" id="r_ac1290968c6448aa57bf2c88647791598"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1fast.html#ac1290968c6448aa57bf2c88647791598">fe_batch_inverse</a> (<a class="el" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a> *elements, size_t count, std::vector&lt; <a class="el" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a> &gt; &amp;scratch)</td></tr>
 <tr class="separator:ac1290968c6448aa57bf2c88647791598"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ad8775d33255b6a1cbcbf842e3dc50541" id="r_ad8775d33255b6a1cbcbf842e3dc50541"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1fast.html#ad8775d33255b6a1cbcbf842e3dc50541">fe26_mul_inner</a> (std::uint32_t *r, const std::uint32_t *a, const std::uint32_t *b) noexcept</td></tr>
+<tr class="separator:ad8775d33255b6a1cbcbf842e3dc50541"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aebd5eaa38549ccb639d523883d9e6ca0" id="r_aebd5eaa38549ccb639d523883d9e6ca0"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1fast.html#aebd5eaa38549ccb639d523883d9e6ca0">fe26_sqr_inner</a> (std::uint32_t *r, const std::uint32_t *a) noexcept</td></tr>
+<tr class="separator:aebd5eaa38549ccb639d523883d9e6ca0"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ac2bc6c70f9287687a5de0cd111e2c057" id="r_ac2bc6c70f9287687a5de0cd111e2c057"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1fast.html#ac2bc6c70f9287687a5de0cd111e2c057">fe26_normalize</a> (std::uint32_t *r) noexcept</td></tr>
+<tr class="separator:ac2bc6c70f9287687a5de0cd111e2c057"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a530ca250881c7559dc7316ec3b33c12b" id="r_a530ca250881c7559dc7316ec3b33c12b"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1fast.html#a530ca250881c7559dc7316ec3b33c12b">fe26_normalize_weak</a> (std::uint32_t *r) noexcept</td></tr>
+<tr class="separator:a530ca250881c7559dc7316ec3b33c12b"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a58b6275b7c90d8d69ecc2c07a913a2d7" id="r_a58b6275b7c90d8d69ecc2c07a913a2d7"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1fast.html#a58b6275b7c90d8d69ecc2c07a913a2d7">fe52_normalize</a> (std::uint64_t *r) noexcept</td></tr>
+<tr class="separator:a58b6275b7c90d8d69ecc2c07a913a2d7"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a2bd3922bd58f8a6d328d28d52003c3a1" id="r_a2bd3922bd58f8a6d328d28d52003c3a1"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1fast.html#a2bd3922bd58f8a6d328d28d52003c3a1">has_bmi2_support</a> ()</td></tr>
 <tr class="separator:a2bd3922bd58f8a6d328d28d52003c3a1"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ade123a28fb68bbc8b622687d7d44c770" id="r_ade123a28fb68bbc8b622687d7d44c770"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1fast.html#ade123a28fb68bbc8b622687d7d44c770">has_adx_support</a> ()</td></tr>
@@ -329,6 +369,10 @@ Functions</h2></td></tr>
 <tr class="separator:a7f16e9e295808b8e747764b2b52506d7"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a9e1a0b35fa1a92f083acdef2dbebc971" id="r_a9e1a0b35fa1a92f083acdef2dbebc971"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1fast.html#a9e1a0b35fa1a92f083acdef2dbebc971">fe_h_based_inversion_batched</a> (<a class="el" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a> *h_values, const <a class="el" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a> *z0_values, std::size_t n_threads, std::size_t batch_size)</td></tr>
 <tr class="separator:a9e1a0b35fa1a92f083acdef2dbebc971"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:abb486389b82ab227c311dc3574ca6a11" id="r_abb486389b82ab227c311dc3574ca6a11"><td class="memItemLeft" align="right" valign="top"><a class="el" href="namespacesecp256k1_1_1fast.html#ad889772ac557be09629ddc6f15b093f8">OptimalFieldElement</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1fast.html#abb486389b82ab227c311dc3574ca6a11">to_optimal</a> (const <a class="el" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a> &amp;fe) noexcept</td></tr>
+<tr class="separator:abb486389b82ab227c311dc3574ca6a11"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a71a5591636949c2011f46b872dc0c0e4" id="r_a71a5591636949c2011f46b872dc0c0e4"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1fast.html#a71a5591636949c2011f46b872dc0c0e4">from_optimal</a> (const <a class="el" href="namespacesecp256k1_1_1fast.html#ad889772ac557be09629ddc6f15b093f8">OptimalFieldElement</a> &amp;ofe) noexcept</td></tr>
+<tr class="separator:a71a5591636949c2011f46b872dc0c0e4"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a4e566678d95ce5c9074d2b7a3a8e82ef" id="r_a4e566678d95ce5c9074d2b7a3a8e82ef"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structsecp256k1_1_1fast_1_1GLVDecomposition.html">GLVDecomposition</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1fast.html#a4e566678d95ce5c9074d2b7a3a8e82ef">glv_decompose</a> (const <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">Scalar</a> &amp;k)</td></tr>
 <tr class="separator:a4e566678d95ce5c9074d2b7a3a8e82ef"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ab4a40a44d316fd9c0a4ec6635bb16a0e" id="r_ab4a40a44d316fd9c0a4ec6635bb16a0e"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classsecp256k1_1_1fast_1_1Point.html">Point</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1fast.html#ab4a40a44d316fd9c0a4ec6635bb16a0e">apply_endomorphism</a> (const <a class="el" href="classsecp256k1_1_1fast_1_1Point.html">Point</a> &amp;P)</td></tr>
@@ -393,8 +437,31 @@ Functions</h2></td></tr>
 <tr class="separator:a0f2630617093e195459d21cdac4db28a"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ae749942cd0a5c56c5b1a95b7e051f71b" id="r_ae749942cd0a5c56c5b1a95b7e051f71b"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1fast.html#ae749942cd0a5c56c5b1a95b7e051f71b">Selftest</a> (bool verbose, <a class="el" href="namespacesecp256k1_1_1fast.html#aa79919388fa732a5045d756e9fe2830a">SelftestMode</a> mode, uint64_t seed=0)</td></tr>
 <tr class="separator:ae749942cd0a5c56c5b1a95b7e051f71b"><td class="memSeparator" colspan="2">&#160;</td></tr>
+</table><table class="memberdecls">
+<tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="var-members" name="var-members"></a>
+Variables</h2></td></tr>
+<tr class="memitem:ac077839f3cd4edb76742bd262e204772" id="r_ac077839f3cd4edb76742bd262e204772"><td class="memItemLeft" align="right" valign="top">constexpr <a class="el" href="namespacesecp256k1_1_1fast.html#acde831e11e1dcaddfc8b9c9c70e777d4">FieldTier</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1fast.html#ac077839f3cd4edb76742bd262e204772">kOptimalTier</a> = <a class="el" href="namespacesecp256k1_1_1fast.html#acde831e11e1dcaddfc8b9c9c70e777d4a6e1d26616f2e87e0a0b534bc6357cb84">FieldTier::FE64</a></td></tr>
+<tr class="separator:ac077839f3cd4edb76742bd262e204772"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a1e421faed0a680753b2c618fef2a1444" id="r_a1e421faed0a680753b2c618fef2a1444"><td class="memItemLeft" align="right" valign="top">constexpr const char *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1fast.html#a1e421faed0a680753b2c618fef2a1444">kOptimalTierName</a> = &quot;4x64 (baseline)&quot;</td></tr>
+<tr class="separator:a1e421faed0a680753b2c618fef2a1444"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <h2 class="groupheader">Typedef Documentation</h2>
+<a id="ad889772ac557be09629ddc6f15b093f8" name="ad889772ac557be09629ddc6f15b093f8"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ad889772ac557be09629ddc6f15b093f8">&#9670;&#160;</a></span>OptimalFieldElement</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">using <a class="el" href="namespacesecp256k1_1_1fast.html#ad889772ac557be09629ddc6f15b093f8">secp256k1::fast::OptimalFieldElement</a> = typedef <a class="el" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p class="definition">Definition at line <a class="el" href="field__optimal_8hpp_source.html#l00117">117</a> of file <a class="el" href="field__optimal_8hpp_source.html">field_optimal.hpp</a>.</p>
+
+</div>
+</div>
 <a id="a37c1f085bc37d25789620da90ed4988a" name="a37c1f085bc37d25789620da90ed4988a"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a37c1f085bc37d25789620da90ed4988a">&#9670;&#160;</a></span>ProgressCallback</h2>
 
@@ -412,6 +479,35 @@ Functions</h2></td></tr>
 </div>
 </div>
 <h2 class="groupheader">Enumeration Type Documentation</h2>
+<a id="acde831e11e1dcaddfc8b9c9c70e777d4" name="acde831e11e1dcaddfc8b9c9c70e777d4"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#acde831e11e1dcaddfc8b9c9c70e777d4">&#9670;&#160;</a></span>FieldTier</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">enum class <a class="el" href="namespacesecp256k1_1_1fast.html#acde831e11e1dcaddfc8b9c9c70e777d4">secp256k1::fast::FieldTier</a></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">strong</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+<table class="fieldtable">
+<tr><th colspan="2">Enumerator</th></tr><tr><td class="fieldname"><a id="acde831e11e1dcaddfc8b9c9c70e777d4a6e1d26616f2e87e0a0b534bc6357cb84" name="acde831e11e1dcaddfc8b9c9c70e777d4a6e1d26616f2e87e0a0b534bc6357cb84"></a>FE64&#160;</td><td class="fielddoc"></td></tr>
+<tr><td class="fieldname"><a id="acde831e11e1dcaddfc8b9c9c70e777d4a95990f4b1bea2398e23ca5c8eb746d6a" name="acde831e11e1dcaddfc8b9c9c70e777d4a95990f4b1bea2398e23ca5c8eb746d6a"></a>FE52&#160;</td><td class="fielddoc"></td></tr>
+<tr><td class="fieldname"><a id="acde831e11e1dcaddfc8b9c9c70e777d4a0220c35e8e7b548084256c53654d0a59" name="acde831e11e1dcaddfc8b9c9c70e777d4a0220c35e8e7b548084256c53654d0a59"></a>FE26&#160;</td><td class="fielddoc"></td></tr>
+</table>
+
+<p class="definition">Definition at line <a class="el" href="field__optimal_8hpp_source.html#l00121">121</a> of file <a class="el" href="field__optimal_8hpp_source.html">field_optimal.hpp</a>.</p>
+
+</div>
+</div>
 <a id="aa79919388fa732a5045d756e9fe2830a" name="aa79919388fa732a5045d756e9fe2830a"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#aa79919388fa732a5045d756e9fe2830a">&#9670;&#160;</a></span>SelftestMode</h2>
 
@@ -861,6 +957,59 @@ Functions</h2></td></tr>
 
 </div>
 </div>
+<a id="a41378871634150e7254bdcfb6a79da81" name="a41378871634150e7254bdcfb6a79da81"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a41378871634150e7254bdcfb6a79da81">&#9670;&#160;</a></span>comb_gen_mul()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="classsecp256k1_1_1fast_1_1Point.html">Point</a> secp256k1::fast::comb_gen_mul </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">Scalar</a> &amp;&#160;</td>
+          <td class="paramname"><em>k</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="a7351530a09b2c36386085378b24488c6" name="a7351530a09b2c36386085378b24488c6"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a7351530a09b2c36386085378b24488c6">&#9670;&#160;</a></span>comb_gen_mul_ct()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="classsecp256k1_1_1fast_1_1Point.html">Point</a> secp256k1::fast::comb_gen_mul_ct </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">Scalar</a> &amp;&#160;</td>
+          <td class="paramname"><em>k</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="ac3a5de9f507a1b192d743b5557a050ac" name="ac3a5de9f507a1b192d743b5557a050ac"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ac3a5de9f507a1b192d743b5557a050ac">&#9670;&#160;</a></span>comb_gen_ready()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">bool secp256k1::fast::comb_gen_ready </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
 <a id="a1dc02366f6b79e850c2c590c1e67a55a" name="a1dc02366f6b79e850c2c590c1e67a55a"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a1dc02366f6b79e850c2c590c1e67a55a">&#9670;&#160;</a></span>compute_wnaf()</h2>
 
@@ -1067,6 +1216,164 @@ Functions</h2></td></tr>
 <p class="definition">Definition at line <a class="el" href="init_8hpp_source.html#l00013">13</a> of file <a class="el" href="init_8hpp_source.html">init.hpp</a>.</p>
 
 <p class="reference">References <a class="el" href="namespacesecp256k1_1_1fast.html#aa1ade8639ae8e331731389af48483662">Selftest()</a>.</p>
+
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00182">ufsecp_ctx_create()</a>.</p>
+
+</div>
+</div>
+<a id="ad8775d33255b6a1cbcbf842e3dc50541" name="ad8775d33255b6a1cbcbf842e3dc50541"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ad8775d33255b6a1cbcbf842e3dc50541">&#9670;&#160;</a></span>fe26_mul_inner()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void secp256k1::fast::fe26_mul_inner </td>
+          <td>(</td>
+          <td class="paramtype">std::uint32_t *&#160;</td>
+          <td class="paramname"><em>r</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const std::uint32_t *&#160;</td>
+          <td class="paramname"><em>a</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const std::uint32_t *&#160;</td>
+          <td class="paramname"><em>b</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="ac2bc6c70f9287687a5de0cd111e2c057" name="ac2bc6c70f9287687a5de0cd111e2c057"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ac2bc6c70f9287687a5de0cd111e2c057">&#9670;&#160;</a></span>fe26_normalize()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void secp256k1::fast::fe26_normalize </td>
+          <td>(</td>
+          <td class="paramtype">std::uint32_t *&#160;</td>
+          <td class="paramname"><em>r</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="a530ca250881c7559dc7316ec3b33c12b" name="a530ca250881c7559dc7316ec3b33c12b"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a530ca250881c7559dc7316ec3b33c12b">&#9670;&#160;</a></span>fe26_normalize_weak()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void secp256k1::fast::fe26_normalize_weak </td>
+          <td>(</td>
+          <td class="paramtype">std::uint32_t *&#160;</td>
+          <td class="paramname"><em>r</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="aebd5eaa38549ccb639d523883d9e6ca0" name="aebd5eaa38549ccb639d523883d9e6ca0"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aebd5eaa38549ccb639d523883d9e6ca0">&#9670;&#160;</a></span>fe26_sqr_inner()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void secp256k1::fast::fe26_sqr_inner </td>
+          <td>(</td>
+          <td class="paramtype">std::uint32_t *&#160;</td>
+          <td class="paramname"><em>r</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const std::uint32_t *&#160;</td>
+          <td class="paramname"><em>a</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="a58b6275b7c90d8d69ecc2c07a913a2d7" name="a58b6275b7c90d8d69ecc2c07a913a2d7"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a58b6275b7c90d8d69ecc2c07a913a2d7">&#9670;&#160;</a></span>fe52_normalize()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void secp256k1::fast::fe52_normalize </td>
+          <td>(</td>
+          <td class="paramtype">std::uint64_t *&#160;</td>
+          <td class="paramname"><em>r</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
 
 </div>
 </div>
@@ -1661,6 +1968,24 @@ This function is optimized for fixed-step ECC walks where we have a deterministi
       <table class="memname">
         <tr>
           <td class="memname"><a class="el" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a> secp256k1::fast::fe_inverse_rtl_binary </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a> &amp;&#160;</td>
+          <td class="paramname"><em>value</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="a56d02e3575ab0cfb07be81f2bd970cb6" name="a56d02e3575ab0cfb07be81f2bd970cb6"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a56d02e3575ab0cfb07be81f2bd970cb6">&#9670;&#160;</a></span>fe_inverse_safegcd()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a> secp256k1::fast::fe_inverse_safegcd </td>
           <td>(</td>
           <td class="paramtype">const <a class="el" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a> &amp;&#160;</td>
           <td class="paramname"><em>value</em></td><td>)</td>
@@ -2326,6 +2651,34 @@ This function is optimized for fixed-step ECC walks where we have a deterministi
 
 </div>
 </div>
+<a id="a71a5591636949c2011f46b872dc0c0e4" name="a71a5591636949c2011f46b872dc0c0e4"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a71a5591636949c2011f46b872dc0c0e4">&#9670;&#160;</a></span>from_optimal()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a> secp256k1::fast::from_optimal </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="namespacesecp256k1_1_1fast.html#ad889772ac557be09629ddc6f15b093f8">OptimalFieldElement</a> &amp;&#160;</td>
+          <td class="paramname"><em>ofe</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p class="definition">Definition at line <a class="el" href="field__optimal_8hpp_source.html#l00158">158</a> of file <a class="el" href="field__optimal_8hpp_source.html">field_optimal.hpp</a>.</p>
+
+</div>
+</div>
 <a id="a4e566678d95ce5c9074d2b7a3a8e82ef" name="a4e566678d95ce5c9074d2b7a3a8e82ef"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a4e566678d95ce5c9074d2b7a3a8e82ef">&#9670;&#160;</a></span>glv_decompose()</h2>
 
@@ -2371,6 +2724,24 @@ This function is optimized for fixed-step ECC walks where we have a deterministi
           <td class="memname">bool secp256k1::fast::has_bmi2_support </td>
           <td>(</td>
           <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="a3ffa8c1ca7d309b4878c17adda3155b6" name="a3ffa8c1ca7d309b4878c17adda3155b6"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a3ffa8c1ca7d309b4878c17adda3155b6">&#9670;&#160;</a></span>init_comb_gen()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void secp256k1::fast::init_comb_gen </td>
+          <td>(</td>
+          <td class="paramtype">unsigned&#160;</td>
+          <td class="paramname"><em>teeth</em> = <code>15</code></td><td>)</td>
           <td></td>
         </tr>
       </table>
@@ -3441,6 +3812,36 @@ This function is optimized for fixed-step ECC walks where we have a deterministi
 
 </div>
 </div>
+<a id="abb486389b82ab227c311dc3574ca6a11" name="abb486389b82ab227c311dc3574ca6a11"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#abb486389b82ab227c311dc3574ca6a11">&#9670;&#160;</a></span>to_optimal()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="namespacesecp256k1_1_1fast.html#ad889772ac557be09629ddc6f15b093f8">OptimalFieldElement</a> secp256k1::fast::to_optimal </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a> &amp;&#160;</td>
+          <td class="paramname"><em>fe</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p class="definition">Definition at line <a class="el" href="field__optimal_8hpp_source.html#l00148">148</a> of file <a class="el" href="field__optimal_8hpp_source.html">field_optimal.hpp</a>.</p>
+
+<p class="reference">References <a class="el" href="structsecp256k1_1_1fast_1_1FieldElement26.html#a6be9dd851f130c220e082cbd2946ce32">secp256k1::fast::FieldElement26::from_fe()</a>, and <a class="el" href="structsecp256k1_1_1fast_1_1FieldElement52.html#a2cf1c2fc614346709068cfb9d69c40b4">secp256k1::fast::FieldElement52::from_fe()</a>.</p>
+
+</div>
+</div>
 <a id="a299678fa62af6171cad9ac631856acf0" name="a299678fa62af6171cad9ac631856acf0"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a299678fa62af6171cad9ac631856acf0">&#9670;&#160;</a></span>toMid() <span class="overload">[1/2]</span></h2>
 
@@ -3465,7 +3866,7 @@ This function is optimized for fixed-step ECC walks where we have a deterministi
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="field_8hpp_source.html#l00106">106</a> of file <a class="el" href="field_8hpp_source.html">field.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="field_8hpp_source.html#l00119">119</a> of file <a class="el" href="field_8hpp_source.html">field.hpp</a>.</p>
 
 </div>
 </div>
@@ -3493,7 +3894,7 @@ This function is optimized for fixed-step ECC walks where we have a deterministi
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="field_8hpp_source.html#l00102">102</a> of file <a class="el" href="field_8hpp_source.html">field.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="field_8hpp_source.html#l00115">115</a> of file <a class="el" href="field_8hpp_source.html">field.hpp</a>.</p>
 
 </div>
 </div>
@@ -3558,6 +3959,55 @@ This function is optimized for fixed-step ECC walks where we have a deterministi
         </tr>
       </table>
 </div><div class="memdoc">
+
+</div>
+</div>
+<h2 class="groupheader">Variable Documentation</h2>
+<a id="ac077839f3cd4edb76742bd262e204772" name="ac077839f3cd4edb76742bd262e204772"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ac077839f3cd4edb76742bd262e204772">&#9670;&#160;</a></span>kOptimalTier</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">constexpr <a class="el" href="namespacesecp256k1_1_1fast.html#acde831e11e1dcaddfc8b9c9c70e777d4">FieldTier</a> secp256k1::fast::kOptimalTier = <a class="el" href="namespacesecp256k1_1_1fast.html#acde831e11e1dcaddfc8b9c9c70e777d4a6e1d26616f2e87e0a0b534bc6357cb84">FieldTier::FE64</a></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">constexpr</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p class="definition">Definition at line <a class="el" href="field__optimal_8hpp_source.html#l00134">134</a> of file <a class="el" href="field__optimal_8hpp_source.html">field_optimal.hpp</a>.</p>
+
+</div>
+</div>
+<a id="a1e421faed0a680753b2c618fef2a1444" name="a1e421faed0a680753b2c618fef2a1444"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a1e421faed0a680753b2c618fef2a1444">&#9670;&#160;</a></span>kOptimalTierName</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">constexpr const char* secp256k1::fast::kOptimalTierName = &quot;4x64 (baseline)&quot;</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">constexpr</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p class="definition">Definition at line <a class="el" href="field__optimal_8hpp_source.html#l00140">140</a> of file <a class="el" href="field__optimal_8hpp_source.html">field_optimal.hpp</a>.</p>
 
 </div>
 </div>

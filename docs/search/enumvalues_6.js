@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['mainnet_0',['Mainnet',['../namespacesecp256k1.html#a4fc755caaebc0d236e4b1e209a0389ada953c0a0c67e864d0f080b5e705f45a81',1,'secp256k1']]]
+  ['hash160_0',['HASH160',['../namespacesecp256k1_1_1coins.html#a938922c0a6dfc2461fc0dbabb8d720fda1af0faac30c308df3d59a5dbd47b762a',1,'secp256k1::coins']]]
 ];

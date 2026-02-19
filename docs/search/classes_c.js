@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['wifdecoderesult_0',['WIFDecodeResult',['../structsecp256k1_1_1WIFDecodeResult.html',1,'secp256k1']]]
+  ['testcounters_0',['TestCounters',['../structsecp256k1_1_1test_1_1TestCounters.html',1,'secp256k1::test']]]
 ];

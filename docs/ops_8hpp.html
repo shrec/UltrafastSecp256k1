@@ -92,6 +92,7 @@ $(document).ready(function(){initNavTree('ops_8hpp.html',''); initResizable(); }
 <div class="header">
   <div class="summary">
 <a href="#namespaces">Namespaces</a> &#124;
+<a href="#define-members">Macros</a> &#124;
 <a href="#func-members">Functions</a>  </div>
   <div class="headertitle"><div class="title">ops.hpp File Reference</div></div>
 </div><!--header-->
@@ -107,6 +108,13 @@ Namespaces</h2></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:namespacesecp256k1_1_1ct" id="r_namespacesecp256k1_1_1ct"><td class="memItemLeft" align="right" valign="top">namespace &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1ct.html">secp256k1::ct</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+</table><table class="memberdecls">
+<tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="define-members" name="define-members"></a>
+Macros</h2></td></tr>
+<tr class="memitem:a8b0fab70453a2cf85b3d7f3f7e55ba78" id="r_a8b0fab70453a2cf85b3d7f3f7e55ba78"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ops_8hpp.html#a8b0fab70453a2cf85b3d7f3f7e55ba78">SECP256K1_CLASSIFY</a>(ptr,  len)&#160;&#160;&#160;((void)(ptr), (void)(len))</td></tr>
+<tr class="separator:a8b0fab70453a2cf85b3d7f3f7e55ba78"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a10028caa63adfa2c6c2ff075a0de6377" id="r_a10028caa63adfa2c6c2ff075a0de6377"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ops_8hpp.html#a10028caa63adfa2c6c2ff075a0de6377">SECP256K1_DECLASSIFY</a>(ptr,  len)&#160;&#160;&#160;((void)(ptr), (void)(len))</td></tr>
+<tr class="separator:a10028caa63adfa2c6c2ff075a0de6377"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="func-members" name="func-members"></a>
 Functions</h2></td></tr>
@@ -137,6 +145,67 @@ Functions</h2></td></tr>
 <tr class="memitem:adff0e3684ec36dd476379ee09a3637fa" id="r_adff0e3684ec36dd476379ee09a3637fa"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1ct.html#adff0e3684ec36dd476379ee09a3637fa">secp256k1::ct::ct_lookup_256</a> (const std::uint64_t table[][4], std::size_t count, std::size_t index, std::uint64_t out[4]) noexcept</td></tr>
 <tr class="separator:adff0e3684ec36dd476379ee09a3637fa"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
+<h2 class="groupheader">Macro Definition Documentation</h2>
+<a id="a8b0fab70453a2cf85b3d7f3f7e55ba78" name="a8b0fab70453a2cf85b3d7f3f7e55ba78"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a8b0fab70453a2cf85b3d7f3f7e55ba78">&#9670;&#160;</a></span>SECP256K1_CLASSIFY</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">#define SECP256K1_CLASSIFY</td>
+          <td>(</td>
+          <td class="paramtype">&#160;</td>
+          <td class="paramname">ptr, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">&#160;</td>
+          <td class="paramname">len&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td>&#160;&#160;&#160;((void)(ptr), (void)(len))</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p class="definition">Definition at line <a class="el" href="ops_8hpp_source.html#l00052">52</a> of file <a class="el" href="ops_8hpp_source.html">ops.hpp</a>.</p>
+
+</div>
+</div>
+<a id="a10028caa63adfa2c6c2ff075a0de6377" name="a10028caa63adfa2c6c2ff075a0de6377"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a10028caa63adfa2c6c2ff075a0de6377">&#9670;&#160;</a></span>SECP256K1_DECLASSIFY</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">#define SECP256K1_DECLASSIFY</td>
+          <td>(</td>
+          <td class="paramtype">&#160;</td>
+          <td class="paramname">ptr, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">&#160;</td>
+          <td class="paramname">len&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td>&#160;&#160;&#160;((void)(ptr), (void)(len))</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p class="definition">Definition at line <a class="el" href="ops_8hpp_source.html#l00053">53</a> of file <a class="el" href="ops_8hpp_source.html">ops.hpp</a>.</p>
+
+</div>
+</div>
 </div><!-- contents -->
 </div><!-- doc-content -->
 <!-- start footer part -->

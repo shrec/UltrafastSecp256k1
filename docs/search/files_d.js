@@ -5,5 +5,6 @@ var searchData=
   ['secp256k1_5fwasm_2eh_2',['secp256k1_wasm.h',['../secp256k1__wasm_8h.html',1,'']]],
   ['selftest_2ehpp_3',['selftest.hpp',['../selftest_8hpp.html',1,'']]],
   ['sha256_2ehpp_4',['sha256.hpp',['../sha256_8hpp.html',1,'']]],
-  ['sha512_2ehpp_5',['sha512.hpp',['../sha512_8hpp.html',1,'']]]
+  ['sha512_2ehpp_5',['sha512.hpp',['../sha512_8hpp.html',1,'']]],
+  ['supported_5fguarantees_2emd_6',['SUPPORTED_GUARANTEES.md',['../SUPPORTED__GUARANTEES_8md.html',1,'']]]
 ];

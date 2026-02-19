@@ -26,6 +26,7 @@ var field_8hpp =
     [ "fe_inverse_parallel_window", "field_8hpp.html#a5b280076aa94b376113bc0eb67c26c3f", null ],
     [ "fe_inverse_pippenger", "field_8hpp.html#ae293281617cc06d8031e54b7fbcb7a89", null ],
     [ "fe_inverse_rtl_binary", "field_8hpp.html#af466851a34f8e7bf4fd8270b443e1e63", null ],
+    [ "fe_inverse_safegcd", "field_8hpp.html#a56d02e3575ab0cfb07be81f2bd970cb6", null ],
     [ "fe_inverse_secp256k1_special", "field_8hpp.html#a040c0a200ea7eab845619f0870c6924c", null ],
     [ "fe_inverse_sliding_dynamic", "field_8hpp.html#aa045a3cd8a366164bfa946ea276fde1e", null ],
     [ "fe_inverse_stein", "field_8hpp.html#ac1d3a041dfc2c325e73a34e5d3a40ea7", null ],

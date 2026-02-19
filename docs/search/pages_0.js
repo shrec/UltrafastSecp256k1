@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['ultrafastsecp256k1_0',['UltrafastSecp256k1',['../index.html',1,'']]]
+  ['abi_0',['Supported Guarantees — &lt;tt&gt;ufsecp&lt;/tt&gt; C ABI',['../md_include_2ufsecp_2SUPPORTED__GUARANTEES.html',1,'']]]
 ];

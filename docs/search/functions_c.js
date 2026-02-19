@@ -1,9 +1,12 @@
 var searchData=
 [
-  ['negate_0',['negate',['../classsecp256k1_1_1fast_1_1Point.html#a2273e8eafa4c276586a4430ca256d751',1,'secp256k1::fast::Point::negate()'],['../classsecp256k1_1_1fast_1_1Scalar.html#acc52e92477f518388b7e0827e3a3ce86',1,'secp256k1::fast::Scalar::negate()']]],
+  ['negate_0',['negate',['../structsecp256k1_1_1fast_1_1FieldElement26.html#aff8e7ddf42b601f483a006cb746ac40a',1,'secp256k1::fast::FieldElement26::negate()'],['../structsecp256k1_1_1fast_1_1FieldElement52.html#adb59a2e353297636ca16e5ac8b305aa8',1,'secp256k1::fast::FieldElement52::negate()'],['../classsecp256k1_1_1fast_1_1Point.html#a2273e8eafa4c276586a4430ca256d751',1,'secp256k1::fast::Point::negate()'],['../classsecp256k1_1_1fast_1_1Scalar.html#acc52e92477f518388b7e0827e3a3ce86',1,'secp256k1::fast::Scalar::negate()']]],
   ['negate_5faffine_5ftable_1',['negate_affine_table',['../namespacesecp256k1_1_1fast.html#aaf180accadaa322d54fb218f9b565229',1,'secp256k1::fast']]],
-  ['negate_5finplace_2',['negate_inplace',['../classsecp256k1_1_1fast_1_1Point.html#ad7e7d16e529447135496dd13aef1253e',1,'secp256k1::fast::Point']]],
-  ['next_3',['next',['../classsecp256k1_1_1fast_1_1Point.html#a5790c1b1df12b49a5a8c824c3914f0d6',1,'secp256k1::fast::Point']]],
-  ['next_5finplace_4',['next_inplace',['../classsecp256k1_1_1fast_1_1Point.html#a145df55054f0e03c21f08219edda5ad5',1,'secp256k1::fast::Point']]],
-  ['normalize_5',['normalize',['../structsecp256k1_1_1ECDSASignature.html#a72798c30cb0019e6f73ed22949e5c752',1,'secp256k1::ECDSASignature']]]
+  ['negate_5fassign_2',['negate_assign',['../structsecp256k1_1_1fast_1_1FieldElement26.html#a787819a87299efdf84dc4f7ad29e15ab',1,'secp256k1::fast::FieldElement26::negate_assign()'],['../structsecp256k1_1_1fast_1_1FieldElement52.html#a84e6a90341bafcb014706353f4a6208c',1,'secp256k1::fast::FieldElement52::negate_assign()']]],
+  ['negate_5finplace_3',['negate_inplace',['../classsecp256k1_1_1fast_1_1Point.html#ad7e7d16e529447135496dd13aef1253e',1,'secp256k1::fast::Point']]],
+  ['next_4',['next',['../classsecp256k1_1_1fast_1_1Point.html#a5790c1b1df12b49a5a8c824c3914f0d6',1,'secp256k1::fast::Point']]],
+  ['next_5finplace_5',['next_inplace',['../classsecp256k1_1_1fast_1_1Point.html#a145df55054f0e03c21f08219edda5ad5',1,'secp256k1::fast::Point']]],
+  ['normalize_6',['normalize',['../structsecp256k1_1_1ECDSASignature.html#a72798c30cb0019e6f73ed22949e5c752',1,'secp256k1::ECDSASignature::normalize()'],['../structsecp256k1_1_1fast_1_1FieldElement26.html#ab6307327660f5c25fc7b0d026ca44bfc',1,'secp256k1::fast::FieldElement26::normalize()'],['../structsecp256k1_1_1fast_1_1FieldElement52.html#a8f2773a7ddea4d872c3d8af75c93d957',1,'secp256k1::fast::FieldElement52::normalize()']]],
+  ['normalize_5fweak_7',['normalize_weak',['../structsecp256k1_1_1fast_1_1FieldElement26.html#a00640e812a09e913f402cd8e5a266d93',1,'secp256k1::fast::FieldElement26::normalize_weak()'],['../structsecp256k1_1_1fast_1_1FieldElement52.html#ad76dda46ae7e38ffcef34b3e489ecbce',1,'secp256k1::fast::FieldElement52::normalize_weak() noexcept']]],
+  ['normalizes_5fto_5fzero_8',['normalizes_to_zero',['../structsecp256k1_1_1fast_1_1FieldElement52.html#a8e82255645dce898c2f864a81c2d3d0a',1,'secp256k1::fast::FieldElement52']]]
 ];

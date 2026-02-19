@@ -12,7 +12,11 @@ var annotated_dup =
       ] ],
       [ "fast", "namespacesecp256k1_1_1fast.html", [
         [ "AffinePointCompact", "structsecp256k1_1_1fast_1_1AffinePointCompact.html", "structsecp256k1_1_1fast_1_1AffinePointCompact" ],
+        [ "CombAffinePoint", "structsecp256k1_1_1fast_1_1CombAffinePoint.html", "structsecp256k1_1_1fast_1_1CombAffinePoint" ],
+        [ "CombGenContext", "classsecp256k1_1_1fast_1_1CombGenContext.html", "classsecp256k1_1_1fast_1_1CombGenContext" ],
         [ "FieldElement", "classsecp256k1_1_1fast_1_1FieldElement.html", "classsecp256k1_1_1fast_1_1FieldElement" ],
+        [ "FieldElement26", "structsecp256k1_1_1fast_1_1FieldElement26.html", "structsecp256k1_1_1fast_1_1FieldElement26" ],
+        [ "FieldElement52", "structsecp256k1_1_1fast_1_1FieldElement52.html", "structsecp256k1_1_1fast_1_1FieldElement52" ],
         [ "FixedBaseConfig", "structsecp256k1_1_1fast_1_1FixedBaseConfig.html", "structsecp256k1_1_1fast_1_1FixedBaseConfig" ],
         [ "GLVDecomposition", "structsecp256k1_1_1fast_1_1GLVDecomposition.html", "structsecp256k1_1_1fast_1_1GLVDecomposition" ],
         [ "KPlan", "structsecp256k1_1_1fast_1_1KPlan.html", "structsecp256k1_1_1fast_1_1KPlan" ],
@@ -22,6 +26,9 @@ var annotated_dup =
         [ "PrecomputedScalarOptimized", "structsecp256k1_1_1fast_1_1PrecomputedScalarOptimized.html", "structsecp256k1_1_1fast_1_1PrecomputedScalarOptimized" ],
         [ "Scalar", "classsecp256k1_1_1fast_1_1Scalar.html", "classsecp256k1_1_1fast_1_1Scalar" ],
         [ "ScalarDecomposition", "structsecp256k1_1_1fast_1_1ScalarDecomposition.html", "structsecp256k1_1_1fast_1_1ScalarDecomposition" ]
+      ] ],
+      [ "test", "namespacesecp256k1_1_1test.html", [
+        [ "TestCounters", "structsecp256k1_1_1test_1_1TestCounters.html", "structsecp256k1_1_1test_1_1TestCounters" ]
       ] ],
       [ "AffinePointData", "structsecp256k1_1_1AffinePointData.html", "structsecp256k1_1_1AffinePointData" ],
       [ "Bech32DecodeResult", "structsecp256k1_1_1Bech32DecodeResult.html", "structsecp256k1_1_1Bech32DecodeResult" ],
@@ -54,5 +61,7 @@ var annotated_dup =
       [ "SHA512", "classsecp256k1_1_1SHA512.html", "classsecp256k1_1_1SHA512" ],
       [ "SilentPaymentAddress", "structsecp256k1_1_1SilentPaymentAddress.html", "structsecp256k1_1_1SilentPaymentAddress" ],
       [ "WIFDecodeResult", "structsecp256k1_1_1WIFDecodeResult.html", "structsecp256k1_1_1WIFDecodeResult" ]
-    ] ]
+    ] ],
+    [ "ufsecp_bip32_key", "structufsecp__bip32__key.html", "structufsecp__bip32__key" ],
+    [ "ufsecp_ctx", "structufsecp__ctx.html", "structufsecp__ctx" ]
 ];

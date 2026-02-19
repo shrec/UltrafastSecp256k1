@@ -1,7 +1,25 @@
 var searchData=
 [
-  ['q_0',['Q',['../structsecp256k1_1_1MuSig2KeyAggCtx.html#a5f6b04c54f6372fbd2f72cf8db93bfda',1,'secp256k1::MuSig2KeyAggCtx']]],
-  ['q_5fnegated_1',['Q_negated',['../structsecp256k1_1_1MuSig2KeyAggCtx.html#a9884acb63a92bcac3727893d362d9817',1,'secp256k1::MuSig2KeyAggCtx']]],
-  ['q_5fx_2',['Q_x',['../structsecp256k1_1_1MuSig2KeyAggCtx.html#aa41f3d2da6676f796021841cb13dfef1',1,'secp256k1::MuSig2KeyAggCtx']]],
-  ['qtum_3',['Qtum',['../namespacesecp256k1_1_1coins.html#a8afd0775b34eec6206fbe1d3b782c7df',1,'secp256k1::coins']]]
+  ['p0_0',['p0',['../namespacesecp256k1_1_1fast_1_1fe52__constants.html#afcae42521adfa1bbe1b0eda3fdd4f74a',1,'secp256k1::fast::fe52_constants::P0'],['../namespacesecp256k1_1_1fast_1_1fe26__constants.html#a1fa13d2fee511f0283a6d6040248fb9e',1,'secp256k1::fast::fe26_constants::P0']]],
+  ['p1_1',['p1',['../namespacesecp256k1_1_1fast_1_1fe52__constants.html#a6987d1b06dd3f7b0fe53f57c2fa1f76b',1,'secp256k1::fast::fe52_constants::P1'],['../namespacesecp256k1_1_1fast_1_1fe26__constants.html#a9dc0203b68c38e6b3137883fc5c7df64',1,'secp256k1::fast::fe26_constants::P1']]],
+  ['p2_2',['p2',['../namespacesecp256k1_1_1fast_1_1fe52__constants.html#ab6098b48289e25c3e87e123f89d21bf3',1,'secp256k1::fast::fe52_constants::P2'],['../namespacesecp256k1_1_1fast_1_1fe26__constants.html#a6f0778a55eae9c8881f1d58f571c928e',1,'secp256k1::fast::fe26_constants::P2']]],
+  ['p2pkh_5fversion_3',['p2pkh_version',['../structsecp256k1_1_1coins_1_1CoinParams.html#a0a1b7a27aeb6e2b82e1fdd1443596782',1,'secp256k1::coins::CoinParams']]],
+  ['p2pkh_5fversion_5ftest_4',['p2pkh_version_test',['../structsecp256k1_1_1coins_1_1CoinParams.html#aa1bc7b038b0f9034e257f2ae5b7d797e',1,'secp256k1::coins::CoinParams']]],
+  ['p2sh_5fversion_5',['p2sh_version',['../structsecp256k1_1_1coins_1_1CoinParams.html#ad40cd72203bcb96a7cb86738e58bfb90',1,'secp256k1::coins::CoinParams']]],
+  ['p3_6',['p3',['../namespacesecp256k1_1_1fast_1_1fe26__constants.html#ab6a10014e14dc08ae370c5399813a160',1,'secp256k1::fast::fe26_constants::P3'],['../namespacesecp256k1_1_1fast_1_1fe52__constants.html#a9eac05a57e600d3c0a09bd2d63d0813f',1,'secp256k1::fast::fe52_constants::P3']]],
+  ['p4_7',['p4',['../namespacesecp256k1_1_1fast_1_1fe26__constants.html#a2bff671448bdd22c99e9e3a06eda21de',1,'secp256k1::fast::fe26_constants::P4'],['../namespacesecp256k1_1_1fast_1_1fe52__constants.html#a7aa11f62b64299616aa4b785bfc6ae26',1,'secp256k1::fast::fe52_constants::P4']]],
+  ['p5_8',['P5',['../namespacesecp256k1_1_1fast_1_1fe26__constants.html#a3e83d9684551dbf7c3d989d794f322f6',1,'secp256k1::fast::fe26_constants']]],
+  ['p6_9',['P6',['../namespacesecp256k1_1_1fast_1_1fe26__constants.html#ad7c7373e7ecaadd19fbeee8735ac6c73',1,'secp256k1::fast::fe26_constants']]],
+  ['p7_10',['P7',['../namespacesecp256k1_1_1fast_1_1fe26__constants.html#a5aab9774eed18e1088ff47b193963a34',1,'secp256k1::fast::fe26_constants']]],
+  ['p8_11',['P8',['../namespacesecp256k1_1_1fast_1_1fe26__constants.html#a1ac0578d75d1712652253fd3f326ac55',1,'secp256k1::fast::fe26_constants']]],
+  ['p9_12',['P9',['../namespacesecp256k1_1_1fast_1_1fe26__constants.html#aafd9b45381559394db7fc62ddaa8558c',1,'secp256k1::fast::fe26_constants']]],
+  ['parent_5ffingerprint_13',['parent_fingerprint',['../structsecp256k1_1_1ExtendedKey.html#abc023f96773788fad06de5108bb49e6a',1,'secp256k1::ExtendedKey']]],
+  ['passed_14',['passed',['../structsecp256k1_1_1test_1_1TestCounters.html#af61094071ee42c1027a95c403445d6ad',1,'secp256k1::test::TestCounters']]],
+  ['peercoin_15',['Peercoin',['../namespacesecp256k1_1_1coins.html#ad161d866561cfc0413329d61f08b9b5b',1,'secp256k1::coins']]],
+  ['point_16',['point',['../structsecp256k1_1_1PedersenCommitment.html#aea692ceb3cb7317917b103d5ede41577',1,'secp256k1::PedersenCommitment']]],
+  ['polygon_17',['Polygon',['../namespacesecp256k1_1_1coins.html#af39cdac6b34b6dc59104bf2d5cf68029',1,'secp256k1::coins']]],
+  ['private_5fkey_18',['private_key',['../structsecp256k1_1_1coins_1_1CoinKeyPair.html#ab07af41a852cb1b5e14e0213b9044688',1,'secp256k1::coins::CoinKeyPair']]],
+  ['progress_5fcallback_19',['progress_callback',['../structsecp256k1_1_1fast_1_1FixedBaseConfig.html#aa1f806b046e9491e03a6063c556891e3',1,'secp256k1::fast::FixedBaseConfig']]],
+  ['pubkey_5fx_20',['pubkey_x',['../structsecp256k1_1_1SchnorrBatchEntry.html#acd36cca81dba3bdbe3005828be899b7e',1,'secp256k1::SchnorrBatchEntry']]],
+  ['public_5fkey_21',['public_key',['../structsecp256k1_1_1coins_1_1CoinKeyPair.html#af85e18af8963ed680ebec91c211731a9',1,'secp256k1::coins::CoinKeyPair::public_key'],['../structsecp256k1_1_1ECDSABatchEntry.html#a77503c972c1c25b7396110c47cf810ad',1,'secp256k1::ECDSABatchEntry::public_key']]]
 ];

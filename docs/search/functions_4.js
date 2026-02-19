@@ -23,5 +23,7 @@ var searchData=
   ['eq_5fmask_20',['eq_mask',['../namespacesecp256k1_1_1ct.html#acbdbc65cfa2b7d46a7132edafd449be8',1,'secp256k1::ct']]],
   ['ethereum_5faddress_21',['ethereum_address',['../namespacesecp256k1_1_1coins.html#a79fa943ea7269358a946d18845e94532',1,'secp256k1::coins']]],
   ['ethereum_5faddress_5fbytes_22',['ethereum_address_bytes',['../namespacesecp256k1_1_1coins.html#a00543249d74cf2496e1734235c3f8617',1,'secp256k1::coins']]],
-  ['ethereum_5faddress_5fraw_23',['ethereum_address_raw',['../namespacesecp256k1_1_1coins.html#a8d4a39519388b7d1d84a5232f7c8b3ee',1,'secp256k1::coins']]]
+  ['ethereum_5faddress_5fraw_23',['ethereum_address_raw',['../namespacesecp256k1_1_1coins.html#a8d4a39519388b7d1d84a5232f7c8b3ee',1,'secp256k1::coins']]],
+  ['extkey_5ffrom_5fuf_24',['extkey_from_uf',['../ufsecp__impl_8cpp.html#adebc614f6e1b4b881d62a3ed518c8403',1,'ufsecp_impl.cpp']]],
+  ['extkey_5fto_5fuf_25',['extkey_to_uf',['../ufsecp__impl_8cpp.html#a32328e07be5a1b296eba8709a11f7fc4',1,'ufsecp_impl.cpp']]]
 ];

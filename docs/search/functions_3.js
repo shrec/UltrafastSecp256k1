@@ -9,5 +9,6 @@ var searchData=
   ['derive_5fpublic_5fkey_6',['derive_public_key',['../namespacesecp256k1.html#a5c0f3b14972eec08501b08b595d25dd0',1,'secp256k1']]],
   ['deserialize_7',['deserialize',['../structsecp256k1_1_1MuSig2PubNonce.html#a46aab0cf4cb3d6a55eb5b77a6808ef02',1,'secp256k1::MuSig2PubNonce']]],
   ['detect_5fhash_5ftier_8',['detect_hash_tier',['../namespacesecp256k1_1_1hash.html#ac1691b10cf03655683e2710c0e46bf31',1,'secp256k1::hash']]],
-  ['detect_5fsimd_5ftier_9',['detect_simd_tier',['../namespacesecp256k1_1_1simd.html#a60293c3683aa104f3f3b4dd29ee2f3d4',1,'secp256k1::simd']]]
+  ['detect_5fsimd_5ftier_9',['detect_simd_tier',['../namespacesecp256k1_1_1simd.html#a60293c3683aa104f3f3b4dd29ee2f3d4',1,'secp256k1::simd']]],
+  ['dual_5fscalar_5fmul_5fgen_5fpoint_10',['dual_scalar_mul_gen_point',['../classsecp256k1_1_1fast_1_1Point.html#a092a382e549cb6faac5ee7bc61066078',1,'secp256k1::fast::Point']]]
 ];

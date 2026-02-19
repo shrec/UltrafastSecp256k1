@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['📧_20contact_20community_0',['📧 Contact &amp; Community',['../index.html#autotoc_md70',1,'']]]
+  ['📄_20license_0',['📄 License',['../index.html#autotoc_md96',1,'']]]
 ];

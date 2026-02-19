@@ -1,16 +1,8 @@
 var searchData=
 [
-  ['k1_0',['k1',['../structsecp256k1_1_1fast_1_1GLVDecomposition.html#af617da095c0e9cf66a59074225bf8f08',1,'secp256k1::fast::GLVDecomposition::k1'],['../structsecp256k1_1_1MuSig2SecNonce.html#af381a9343fd7a018eb667ee1e495a0aa',1,'secp256k1::MuSig2SecNonce::k1'],['../structsecp256k1_1_1fast_1_1KPlan.html#a303f1c59f4a039fa2f004451c4bb311c',1,'secp256k1::fast::KPlan::k1'],['../structsecp256k1_1_1fast_1_1ScalarDecomposition.html#a883cbfefc14e67fe9fc5757b38b3cbc9',1,'secp256k1::fast::ScalarDecomposition::k1'],['../structsecp256k1_1_1fast_1_1PrecomputedScalar.html#a2fdb38f288ade02eb8961b115bf25e47',1,'secp256k1::fast::PrecomputedScalar::k1'],['../structsecp256k1_1_1fast_1_1PrecomputedScalarOptimized.html#a7ea064bf8de535e569efec3895a6dce9',1,'secp256k1::fast::PrecomputedScalarOptimized::k1']]],
-  ['k1_5fneg_1',['k1_neg',['../structsecp256k1_1_1fast_1_1GLVDecomposition.html#a0afdaf7bd780112db47d436be197193b',1,'secp256k1::fast::GLVDecomposition']]],
-  ['k2_2',['k2',['../structsecp256k1_1_1fast_1_1GLVDecomposition.html#a51998b9bedcae48c93980f2e76ebac5c',1,'secp256k1::fast::GLVDecomposition::k2'],['../structsecp256k1_1_1MuSig2SecNonce.html#aad1aaf8e37fc3df4209a07053c327c39',1,'secp256k1::MuSig2SecNonce::k2'],['../structsecp256k1_1_1fast_1_1KPlan.html#acdc9bd7ec35e384f3c0e4c3db2684d2e',1,'secp256k1::fast::KPlan::k2'],['../structsecp256k1_1_1fast_1_1ScalarDecomposition.html#a23dabdc87eb6581c15faa5a882fd57dd',1,'secp256k1::fast::ScalarDecomposition::k2'],['../structsecp256k1_1_1fast_1_1PrecomputedScalar.html#aa9afd1cc662e616c1a83b76935690ab4',1,'secp256k1::fast::PrecomputedScalar::k2'],['../structsecp256k1_1_1fast_1_1PrecomputedScalarOptimized.html#ac3aa92af84ffcf9e5efec14cd0b6e6fc',1,'secp256k1::fast::PrecomputedScalarOptimized::k2']]],
-  ['k2_5fneg_3',['k2_neg',['../structsecp256k1_1_1fast_1_1GLVDecomposition.html#aa9246522721a2a7d34d2e07360cdd5de',1,'secp256k1::fast::GLVDecomposition']]],
-  ['keccak256_4',['keccak256',['../namespacesecp256k1_1_1coins.html#a938922c0a6dfc2461fc0dbabb8d720fda9349208927787ab8a2b7f36398437107',1,'secp256k1::coins::KECCAK256'],['../namespacesecp256k1_1_1coins.html#ae23fd2c01c7fdd7613299ffdac732d42',1,'secp256k1::coins::keccak256(const std::uint8_t *data, std::size_t len)']]],
-  ['keccak256_2ehpp_5',['keccak256.hpp',['../keccak256_8hpp.html',1,'']]],
-  ['keccak256state_6',['keccak256state',['../structsecp256k1_1_1coins_1_1Keccak256State.html#a09471ed7e7e33b6c57fd47f9015852ea',1,'secp256k1::coins::Keccak256State::Keccak256State()'],['../structsecp256k1_1_1coins_1_1Keccak256State.html',1,'secp256k1::coins::Keccak256State']]],
-  ['kernel_20only_7',['kernel only',['../index.html#autotoc_md49',1,'Apple Metal (Apple M3 Pro) — Kernel-Only'],['../index.html#autotoc_md46',1,'CUDA (NVIDIA RTX 5060 Ti) — Kernel-Only'],['../index.html#autotoc_md47',1,'OpenCL (NVIDIA RTX 5060 Ti) — Kernel-Only']]],
-  ['kernel_20only_20comparison_20rtx_205060_20ti_8',['CUDA vs OpenCL — Kernel-Only Comparison (RTX 5060 Ti)',['../index.html#autotoc_md48',1,'']]],
-  ['key_9',['key',['../structsecp256k1_1_1ExtendedKey.html#a380ec5519c570fcceafc96de21f77dd0',1,'secp256k1::ExtendedKey::key'],['../structsecp256k1_1_1WIFDecodeResult.html#a4e6eafd2a2b9580f38292f1bbd7e158c',1,'secp256k1::WIFDecodeResult::key']]],
-  ['key_5fcoefficients_10',['key_coefficients',['../structsecp256k1_1_1MuSig2KeyAggCtx.html#a11b4bfa558ecfb2ae94fddddc5e99bf1',1,'secp256k1::MuSig2KeyAggCtx']]],
-  ['komodo_11',['Komodo',['../namespacesecp256k1_1_1coins.html#a9d201e64ae77de5a741877bc933592ac',1,'secp256k1::coins']]],
-  ['kplan_12',['KPlan',['../structsecp256k1_1_1fast_1_1KPlan.html',1,'secp256k1::fast']]]
+  ['jacobian→affine_0',['Mixed Add + Batch Inverse: Collecting Z Values for Cheap Jacobian→Affine',['../index.html#autotoc_md25',1,'']]],
+  ['jacobian_20→_20affine_20x_20y_1',['1. Full Point Conversion: Jacobian → Affine (X + Y)',['../index.html#autotoc_md28',1,'']]],
+  ['jacobian_20affine_2',['⚡ Mixed Addition (Jacobian + Affine)',['../index.html#autotoc_md23',1,'']]],
+  ['jacobian_5fadd_5fmixed_5fh_20tt_3',['GPU Pattern: H-Product Serial Inversion (&lt;tt&gt;jacobian_add_mixed_h&lt;/tt&gt;)',['../index.html#autotoc_md26',1,'']]],
+  ['jacobianpointdata_4',['JacobianPointData',['../structsecp256k1_1_1JacobianPointData.html',1,'secp256k1']]]
 ];

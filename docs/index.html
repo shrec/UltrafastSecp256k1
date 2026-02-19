@@ -93,11 +93,17 @@ $(document).ready(function(){initNavTree('index.html',''); initResizable(); });
   <div class="headertitle"><div class="title">UltrafastSecp256k1 </div></div>
 </div><!--header-->
 <div class="contents">
-<div class="textblock"><p><a class="anchor" id="md_README"></a> Ultra high-performance <a class="el" href="namespacesecp256k1.html">secp256k1</a> elliptic curve cryptography library with multi-platform support.</p>
+<div class="textblock"><p><a class="anchor" id="md_README"></a> The <b>world's fastest open-source <a class="el" href="namespacesecp256k1.html">secp256k1</a></b> elliptic curve cryptography library — GPU-accelerated ECDSA &amp; Schnorr signatures, multi-platform, zero dependencies.</p>
+<blockquote class="doxtable">
+<p>&zwj;<b>4.88M ECDSA signs/s</b> · <b>2.44M ECDSA verifies/s</b> · <b>3.66M Schnorr signs/s</b> · <b>2.82M Schnorr verifies/s</b> on a single GPU </p>
+</blockquote>
 <p><a href="https://github.com/shrec/UltrafastSecp256k1/stargazers"><img src="https://img.shields.io/github/stars/shrec/UltrafastSecp256k1?style=social" alt="GitHub stars" class="inline"/></a> <a href="https://github.com/shrec/UltrafastSecp256k1/network/members"><img src="https://img.shields.io/github/forks/shrec/UltrafastSecp256k1?style=social" alt="GitHub forks" class="inline"/></a></p>
 <p><a href="https://github.com/shrec/UltrafastSecp256k1/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/shrec/UltrafastSecp256k1/ci.yml?branch=main&amp;label=CI" alt="CI" class="inline"/></a> <a href="https://shrec.github.io/UltrafastSecp256k1/dev/bench/"><img src="https://img.shields.io/github/actions/workflow/status/shrec/UltrafastSecp256k1/benchmark.yml?branch=main&amp;label=Bench" alt="Benchmark" class="inline"/></a> <a href="https://github.com/shrec/UltrafastSecp256k1/releases/latest"><img src="https://img.shields.io/github/v/release/shrec/UltrafastSecp256k1?label=Release" alt="Release" class="inline"/></a> <a href="https://www.gnu.org/licenses/agpl-3.0"><img src="https://img.shields.io/badge/License-AGPL%20v3-blue.svg" alt="License: AGPL v3" style="pointer-events: none;" class="inline"/></a> <a href="https://en.cppreference.com/w/cpp/20"><img src="https://img.shields.io/badge/C%2B%2B-20-blue.svg" alt="C++20" style="pointer-events: none;" class="inline"/></a></p>
+<p><b>Supported Blockchains (secp256k1-based):</b></p>
+<p><a href="https://bitcoin.org"><img src="https://img.shields.io/badge/Bitcoin-BTC-F7931A.svg?logo=bitcoin&amp;logoColor=white" alt="Bitcoin" style="pointer-events: none;" class="inline"/></a> <a href="https://ethereum.org"><img src="https://img.shields.io/badge/Ethereum-ETH-3C3C3D.svg?logo=ethereum&amp;logoColor=white" alt="Ethereum" style="pointer-events: none;" class="inline"/></a> <a href="https://litecoin.org"><img src="https://img.shields.io/badge/Litecoin-LTC-A6A9AA.svg?logo=litecoin&amp;logoColor=white" alt="Litecoin" style="pointer-events: none;" class="inline"/></a> <a href="https://dogecoin.com"><img src="https://img.shields.io/badge/Dogecoin-DOGE-C2A633.svg?logo=dogecoin&amp;logoColor=white" alt="Dogecoin" style="pointer-events: none;" class="inline"/></a> <a href="https://bitcoincash.org"><img src="https://img.shields.io/badge/Bitcoin%20Cash-BCH-8DC351.svg?logo=bitcoincash&amp;logoColor=white" alt="Bitcoin Cash" style="pointer-events: none;" class="inline"/></a> <a href="https://z.cash"><img src="https://img.shields.io/badge/Zcash-ZEC-F4B728.svg" alt="Zcash" style="pointer-events: none;" class="inline"/></a> <a href="https://dash.org"><img src="https://img.shields.io/badge/Dash-DASH-008CE7.svg?logo=dash&amp;logoColor=white" alt="Dash" style="pointer-events: none;" class="inline"/></a> <a href="https://www.bnbchain.org"><img src="https://img.shields.io/badge/BNB%20Chain-BNB-F0B90B.svg?logo=binance&amp;logoColor=white" alt="BNB Chain" style="pointer-events: none;" class="inline"/></a> <a href="https://polygon.technology"><img src="https://img.shields.io/badge/Polygon-MATIC-8247E5.svg?logo=polygon&amp;logoColor=white" alt="Polygon" style="pointer-events: none;" class="inline"/></a> <a href="https://avax.network"><img src="https://img.shields.io/badge/Avalanche-AVAX-E84142.svg?logo=avalanche&amp;logoColor=white" alt="Avalanche" style="pointer-events: none;" class="inline"/></a> <a href="https://arbitrum.io"><img src="https://img.shields.io/badge/Arbitrum-ARB-28A0F0.svg" alt="Arbitrum" style="pointer-events: none;" class="inline"/></a> <a href="https://optimism.io"><img src="https://img.shields.io/badge/Optimism-OP-FF0420.svg" alt="Optimism" style="pointer-events: none;" class="inline"/></a> ![+15 more](https://img.shields.io/badge/+15%20more-secp256k1%20coins-grey.svg)</p>
+<p><b>GPU &amp; Platform Support:</b></p>
 <p><a href="https://developer.nvidia.com/cuda-toolkit"><img src="https://img.shields.io/badge/CUDA-12.0+-green.svg" alt="CUDA" style="pointer-events: none;" class="inline"/></a> <a href="https://www.khronos.org/opencl/"><img src="https://img.shields.io/badge/OpenCL-3.0-green.svg" alt="OpenCL" style="pointer-events: none;" class="inline"/></a> <a href="metal/"><img src="https://img.shields.io/badge/Apple%20Silicon-M1%2FM2%2FM3%2FM4-black.svg?logo=apple" alt="Apple Silicon" style="pointer-events: none;" class="inline"/></a> <a href="metal/"><img src="https://img.shields.io/badge/Metal-GPU%20Compute-silver.svg?logo=apple" alt="Metal" style="pointer-events: none;" class="inline"/></a> ![ROCm](https://img.shields.io/badge/ROCm-6.3%20HIP-red.svg) <a href="wasm/"><img src="https://img.shields.io/badge/WebAssembly-Emscripten-purple.svg" alt="WebAssembly" style="pointer-events: none;" class="inline"/></a> <a href="https://developer.android.com/ndk"><img src="https://img.shields.io/badge/ARM64-Cortex--A55%2FA76-orange.svg" alt="ARM64" style="pointer-events: none;" class="inline"/></a> <a href="https://riscv.org/"><img src="https://img.shields.io/badge/RISC--V-RV64GC-orange.svg" alt="RISC-V" style="pointer-events: none;" class="inline"/></a> <a href="android/"><img src="https://img.shields.io/badge/Android-NDK%20r27-brightgreen.svg" alt="Android" style="pointer-events: none;" class="inline"/></a> <a href="cmake/ios.toolchain.cmake"><img src="https://img.shields.io/badge/iOS-17%2B%20XCFramework-lightgrey.svg" alt="iOS" style="pointer-events: none;" class="inline"/></a> <a href="https://www.espressif.com/en/products/socs/esp32-s3"><img src="https://img.shields.io/badge/ESP32--S3-Xtensa%20LX7-orange.svg" alt="ESP32-S3" style="pointer-events: none;" class="inline"/></a> <a href="https://www.espressif.com/en/products/socs/esp32"><img src="https://img.shields.io/badge/ESP32-Xtensa%20LX6-orange.svg" alt="ESP32" style="pointer-events: none;" class="inline"/></a> <a href="https://www.st.com/en/microcontrollers-microprocessors/stm32f103ze.html"><img src="https://img.shields.io/badge/STM32-Cortex--M3-orange.svg" alt="STM32" style="pointer-events: none;" class="inline"/></a></p>
-<h1><a class="anchor" id="autotoc_md1"></a>
+<h1><a class="anchor" id="autotoc_md18"></a>
 ⚠️ Security Notice</h1>
 <p><b>Research &amp; Development Project - Not Audited</b></p>
 <p>This library has <b>not undergone independent security audits</b>. It is provided for research, educational, and experimental purposes.</p>
@@ -105,7 +111,8 @@ $(document).ready(function(){initNavTree('index.html',''); initResizable(); });
 <li>❌ Not recommended without independent cryptographic audit</li>
 <li>❌ No formal security guarantees</li>
 <li>✅ All self-tests pass (76/76 including all backends)</li>
-<li>✅ Constant-time (CT) layer available for side-channel resistance</li>
+<li>✅ Dual-layer constant-time architecture (FAST + CT always active)</li>
+<li>✅ Stable C ABI (<code>ufsecp</code>) with 45 exported functions</li>
 </ul>
 <p><b>Reporting Security Issues:</b></p><ul>
 <li>Email: <a href="#" onclick="location.href='mai'+'lto:'+'pay'+'ys'+'oon'+'@g'+'mai'+'l.'+'com'; return false;">payysoon@gmail.com</a></li>
@@ -113,7 +120,7 @@ $(document).ready(function(){initNavTree('index.html',''); initResizable(); });
 </ul>
 <p><b>Disclaimer:</b> Users assume all risks. For production cryptographic systems, prefer audited libraries like <a href="https://github.com/bitcoin-core/secp256k1">libsecp256k1</a>.</p>
 <hr  />
-<h1><a class="anchor" id="autotoc_md3"></a>
+<h1><a class="anchor" id="autotoc_md20"></a>
 🚀 Features</h1>
 <ul>
 <li><b>Multi-Platform Architecture</b><ul>
@@ -121,7 +128,7 @@ $(document).ready(function(){initNavTree('index.html',''); initResizable(); });
 <li>Mobile: Android ARM64 (NDK r27, Clang 18) + iOS 17+ (XCFramework, SPM, CocoaPods)</li>
 <li>WebAssembly: Emscripten ES6 module with TypeScript declarations</li>
 <li>Embedded: ESP32-S3 (Xtensa LX7) + ESP32-PICO-D4 (Xtensa LX6) + STM32F103 (ARM Cortex-M3)</li>
-<li>GPU/CUDA: Batch operations with 4.63M kG/s throughput</li>
+<li>GPU/CUDA: Batch ECDSA sign 4.88M/s, verify 2.44M/s, Schnorr sign 3.66M/s, verify 2.82M/s</li>
 <li>GPU/Metal: Apple Silicon (M1/M2/M3/M4) with Comba-accelerated field arithmetic</li>
 <li>GPU/ROCm (HIP): Portable PTX→__int128 fallbacks for AMD GPUs</li>
 <li>GPU/OpenCL: PTX inline asm, 3.39M kG/s</li>
@@ -131,7 +138,7 @@ $(document).ready(function(){initNavTree('index.html',''); initResizable(); });
 <li>x86-64: 3-5× speedup with BMI2/ADX assembly</li>
 <li>ARM64: ~5× speedup with MUL/UMULH inline assembly</li>
 <li>RISC-V: 2-3× speedup with native assembly</li>
-<li>CUDA: Batch processing of thousands of operations in parallel</li>
+<li>CUDA: Batch ECDSA &amp; Schnorr signatures at millions/second</li>
 </ul>
 </li>
 <li><b>Features</b><ul>
@@ -147,8 +154,8 @@ $(document).ready(function(){initNavTree('index.html',''); initResizable(); });
 </ul>
 </li>
 </ul>
-<h2><a class="anchor" id="autotoc_md4"></a>
-Feature Coverage (v3.3.0)</h2>
+<h2><a class="anchor" id="autotoc_md21"></a>
+Feature Coverage (v3.4.0)</h2>
 <table class="markdownTable">
 <tr class="markdownTableHead">
 <th class="markdownTableHeadNone">Category   </th><th class="markdownTableHeadNone">Component   </th><th class="markdownTableHeadNone">Status    </th></tr>
@@ -189,7 +196,7 @@ Feature Coverage (v3.3.0)</h2>
 <tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone"><b>Silent Pay</b>   </td><td class="markdownTableBodyNone">BIP-352   </td><td class="markdownTableBodyNone">✅    </td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone"><b>Hashing</b>   </td><td class="markdownTableBodyNone">SHA-256, SHA-512, HMAC, Keccak-256   </td><td class="markdownTableBodyNone">✅    </td></tr>
+<td class="markdownTableBodyNone"><b>Hashing</b>   </td><td class="markdownTableBodyNone">SHA-256 (SHA-NI), SHA-512, HMAC, Keccak-256   </td><td class="markdownTableBodyNone">✅    </td></tr>
 <tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone"><b>Coins</b>   </td><td class="markdownTableBodyNone">27 coins, auto-dispatch, EIP-55   </td><td class="markdownTableBodyNone">✅    </td></tr>
 <tr class="markdownTableRowOdd">
@@ -197,13 +204,15 @@ Feature Coverage (v3.3.0)</h2>
 <tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone"><b>BIP-44</b>   </td><td class="markdownTableBodyNone">Coin-type HD, auto-purpose   </td><td class="markdownTableBodyNone">✅    </td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone"><b>Self-test</b>   </td><td class="markdownTableBodyNone">Known vector verification   </td><td class="markdownTableBodyNone">✅    </td></tr>
+<td class="markdownTableBodyNone"><b>C ABI</b>   </td><td class="markdownTableBodyNone"><code>ufsecp</code> stable FFI (45 exports, C/C#/Python/Go/…)   </td><td class="markdownTableBodyNone">✅    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone"><b>GPU</b>   </td><td class="markdownTableBodyNone">CUDA, Metal, OpenCL, ROCm kernels   </td><td class="markdownTableBodyNone">✅    </td></tr>
+<td class="markdownTableBodyNone"><b>Self-test</b>   </td><td class="markdownTableBodyNone">Known vector verification   </td><td class="markdownTableBodyNone">✅    </td></tr>
 <tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone"><b>GPU</b>   </td><td class="markdownTableBodyNone">CUDA, Metal, OpenCL, ROCm kernels   </td><td class="markdownTableBodyNone">✅    </td></tr>
+<tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone"><b>Platforms</b>   </td><td class="markdownTableBodyNone">x64, ARM64, RISC-V, ESP32, WASM, iOS, Android, Metal, ROCm   </td><td class="markdownTableBodyNone">✅   </td></tr>
 </table>
-<h1><a class="anchor" id="autotoc_md5"></a>
+<h1><a class="anchor" id="autotoc_md22"></a>
 � Batch Modular Inverse (Montgomery Trick)</h1>
 <p>All backends include <b>batch modular inversion</b> — a critical building block for Jacobian→Affine conversion and high-throughput point operations:</p>
 <table class="markdownTable">
@@ -225,7 +234,7 @@ Feature Coverage (v3.3.0)</h2>
 <td class="markdownTableBodyNone"><b>Metal</b>   </td><td class="markdownTableBodyNone"><code>metal/shaders/secp256k1_kernels.metal</code>   </td><td class="markdownTableBodyNone"><code>batch_inverse</code> — chunked Montgomery inverse (parallel threadgroups)   </td></tr>
 </table>
 <p><b>Algorithm</b>: Montgomery batch inverse computes N field inversions using only <b>1 modular inversion + 3(N−1) multiplications</b>, amortizing the expensive inversion across the entire batch. </p>
-<h1><a class="anchor" id="autotoc_md6"></a>
+<h1><a class="anchor" id="autotoc_md23"></a>
 ⚡ Mixed Addition (Jacobian + Affine)</h1>
 <p>The library provides <b>branchless mixed addition</b> (<code>add_mixed_inplace</code>) — the fastest way to add a point with known affine coordinates (Z=1) to a Jacobian point. Uses the <b>madd-2007-bl</b> formula (7M + 4S, vs 11M + 5S for full Jacobian add).</p>
 <table class="markdownTable">
@@ -234,9 +243,9 @@ Feature Coverage (v3.3.0)</h2>
 <tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone"><b>CPU</b>   </td><td class="markdownTableBodyNone"><code>cpu/src/point.cpp</code>   </td><td class="markdownTableBodyNone"><code>jacobian_add_mixed(JacobianPoint&amp;, AffinePoint&amp;)</code>    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone"><b>CPU</b>   </td><td class="markdownTableBodyNone"><code>cpu/src/point.cpp</code>   </td><td class="markdownTableBodyNone"><code>Point::add_mixed_inplace(FieldElement&amp;, FieldElement&amp;)</code>    </td></tr>
+<td class="markdownTableBodyNone"><b>CPU</b>   </td><td class="markdownTableBodyNone"><code>cpu/src/point.cpp</code>   </td><td class="markdownTableBodyNone"><code><a class="el" href="classsecp256k1_1_1fast_1_1Point.html#ab1c2e6e7b9d44952844ec3915dae9301">Point::add_mixed_inplace</a>(FieldElement&amp;, FieldElement&amp;)</code>    </td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone"><b>CPU</b>   </td><td class="markdownTableBodyNone"><code>cpu/src/point.cpp</code>   </td><td class="markdownTableBodyNone"><code>Point::sub_mixed_inplace(FieldElement&amp;, FieldElement&amp;)</code>    </td></tr>
+<td class="markdownTableBodyNone"><b>CPU</b>   </td><td class="markdownTableBodyNone"><code>cpu/src/point.cpp</code>   </td><td class="markdownTableBodyNone"><code><a class="el" href="classsecp256k1_1_1fast_1_1Point.html#a6eaf43dcf6153248964d52f67fe32c8f">Point::sub_mixed_inplace</a>(FieldElement&amp;, FieldElement&amp;)</code>    </td></tr>
 <tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone"><b>CPU</b>   </td><td class="markdownTableBodyNone"><code>cpu/src/precompute.cpp</code>   </td><td class="markdownTableBodyNone"><code>jacobian_add_mixed_local(JacobianPoint&amp;, AffinePointPacked&amp;)</code>    </td></tr>
 <tr class="markdownTableRowOdd">
@@ -244,21 +253,21 @@ Feature Coverage (v3.3.0)</h2>
 <tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone"><b>Metal</b>   </td><td class="markdownTableBodyNone"><code>metal/shaders/secp256k1_point.h</code>   </td><td class="markdownTableBodyNone"><code>jacobian_add_mixed(JacobianPoint&amp;, AffinePoint&amp;)</code>   </td></tr>
 </table>
-<h2><a class="anchor" id="autotoc_md7"></a>
+<h2><a class="anchor" id="autotoc_md24"></a>
 Usage Example (CPU)</h2>
 <div class="fragment"><div class="line"><span class="preprocessor">#include &lt;<a class="code" href="point_8hpp.html">secp256k1/point.hpp</a>&gt;</span></div>
 <div class="line"> </div>
 <div class="line"><span class="keyword">using namespace </span><a class="code hl_namespace" href="namespacesecp256k1_1_1fast.html">secp256k1::fast</a>;</div>
 <div class="line"> </div>
 <div class="line"><span class="comment">// Start with generator point G</span></div>
-<div class="line"><a class="code hl_class" href="classsecp256k1_1_1fast_1_1Point.html">Point</a> P = Point::generator();</div>
+<div class="line"><a class="code hl_class" href="classsecp256k1_1_1fast_1_1Point.html">Point</a> P = <a class="code hl_function" href="classsecp256k1_1_1fast_1_1Point.html#ab8925efdda5643d2e239b5000d5a0144">Point::generator</a>();</div>
 <div class="line"> </div>
 <div class="line"><span class="comment">// Get affine coordinates of G for mixed addition</span></div>
 <div class="line"><a class="code hl_class" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a> gx = P.<a class="code hl_function" href="classsecp256k1_1_1fast_1_1Point.html#a9fac69f2a5fe229eb3bd933577eda9a4">x</a>();</div>
 <div class="line"><a class="code hl_class" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a> gy = P.<a class="code hl_function" href="classsecp256k1_1_1fast_1_1Point.html#aa1c473d6c48e571884b379ca1859c23c">y</a>();</div>
 <div class="line"> </div>
 <div class="line"><span class="comment">// Compute 2G using mixed add (Jacobian + Affine, 7M + 4S)</span></div>
-<div class="line"><a class="code hl_class" href="classsecp256k1_1_1fast_1_1Point.html">Point</a> Q = Point::generator();</div>
+<div class="line"><a class="code hl_class" href="classsecp256k1_1_1fast_1_1Point.html">Point</a> Q = <a class="code hl_function" href="classsecp256k1_1_1fast_1_1Point.html#ab8925efdda5643d2e239b5000d5a0144">Point::generator</a>();</div>
 <div class="line">Q.<a class="code hl_function" href="classsecp256k1_1_1fast_1_1Point.html#ab1c2e6e7b9d44952844ec3915dae9301">add_mixed_inplace</a>(gx, gy);  <span class="comment">// Q = G + G = 2G</span></div>
 <div class="line"> </div>
 <div class="line"><span class="comment">// Subtraction variant: Q = Q - G</span></div>
@@ -271,14 +280,15 @@ Usage Example (CPU)</h2>
 <div class="line">    <span class="comment">// ... process walker ...</span></div>
 <div class="line">}</div>
 <div class="ttc" id="aclasssecp256k1_1_1fast_1_1FieldElement_html"><div class="ttname"><a href="classsecp256k1_1_1fast_1_1FieldElement.html">secp256k1::fast::FieldElement</a></div><div class="ttdef"><b>Definition</b> <a href="field_8hpp_source.html#l00042">field.hpp:42</a></div></div>
-<div class="ttc" id="aclasssecp256k1_1_1fast_1_1Point_html"><div class="ttname"><a href="classsecp256k1_1_1fast_1_1Point.html">secp256k1::fast::Point</a></div><div class="ttdef"><b>Definition</b> <a href="point_8hpp_source.html#l00026">point.hpp:26</a></div></div>
+<div class="ttc" id="aclasssecp256k1_1_1fast_1_1Point_html"><div class="ttname"><a href="classsecp256k1_1_1fast_1_1Point.html">secp256k1::fast::Point</a></div><div class="ttdef"><b>Definition</b> <a href="point_8hpp_source.html#l00037">point.hpp:37</a></div></div>
 <div class="ttc" id="aclasssecp256k1_1_1fast_1_1Point_html_a6eaf43dcf6153248964d52f67fe32c8f"><div class="ttname"><a href="classsecp256k1_1_1fast_1_1Point.html#a6eaf43dcf6153248964d52f67fe32c8f">secp256k1::fast::Point::sub_mixed_inplace</a></div><div class="ttdeci">void sub_mixed_inplace(const FieldElement &amp;ax, const FieldElement &amp;ay)</div></div>
 <div class="ttc" id="aclasssecp256k1_1_1fast_1_1Point_html_a9fac69f2a5fe229eb3bd933577eda9a4"><div class="ttname"><a href="classsecp256k1_1_1fast_1_1Point.html#a9fac69f2a5fe229eb3bd933577eda9a4">secp256k1::fast::Point::x</a></div><div class="ttdeci">FieldElement x() const</div></div>
 <div class="ttc" id="aclasssecp256k1_1_1fast_1_1Point_html_aa1c473d6c48e571884b379ca1859c23c"><div class="ttname"><a href="classsecp256k1_1_1fast_1_1Point.html#aa1c473d6c48e571884b379ca1859c23c">secp256k1::fast::Point::y</a></div><div class="ttdeci">FieldElement y() const</div></div>
 <div class="ttc" id="aclasssecp256k1_1_1fast_1_1Point_html_ab1c2e6e7b9d44952844ec3915dae9301"><div class="ttname"><a href="classsecp256k1_1_1fast_1_1Point.html#ab1c2e6e7b9d44952844ec3915dae9301">secp256k1::fast::Point::add_mixed_inplace</a></div><div class="ttdeci">void add_mixed_inplace(const FieldElement &amp;ax, const FieldElement &amp;ay)</div></div>
+<div class="ttc" id="aclasssecp256k1_1_1fast_1_1Point_html_ab8925efdda5643d2e239b5000d5a0144"><div class="ttname"><a href="classsecp256k1_1_1fast_1_1Point.html#ab8925efdda5643d2e239b5000d5a0144">secp256k1::fast::Point::generator</a></div><div class="ttdeci">static Point generator()</div></div>
 <div class="ttc" id="anamespacesecp256k1_1_1fast_html"><div class="ttname"><a href="namespacesecp256k1_1_1fast.html">secp256k1::fast</a></div><div class="ttdef"><b>Definition</b> <a href="batch__add__affine_8hpp_source.html#l00008">batch_add_affine.hpp:8</a></div></div>
 <div class="ttc" id="apoint_8hpp_html"><div class="ttname"><a href="point_8hpp.html">point.hpp</a></div></div>
-</div><!-- fragment --> <h2><a class="anchor" id="autotoc_md8"></a>
+</div><!-- fragment --> <h2><a class="anchor" id="autotoc_md25"></a>
 Mixed Add + Batch Inverse: Collecting Z Values for Cheap Jacobian→Affine</h2>
 <p>During serial mixed additions, each point accumulates a growing Z coordinate. To extract affine X for comparison, you need Z⁻² — which requires an expensive modular inversion. <b>Solution</b>: Collect Z values in a batch, then invert them all at once with Montgomery trick (1 inversion + 3N multiplications instead of N inversions).</p>
 <div class="fragment"><div class="line"><span class="preprocessor">#include &lt;<a class="code" href="point_8hpp.html">secp256k1/point.hpp</a>&gt;</span></div>
@@ -293,7 +303,7 @@ Mixed Add + Batch Inverse: Collecting Z Values for Cheap Jacobian→Affine</h2>
 <div class="line"><a class="code hl_class" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a> batch_z[BATCH_SIZE];</div>
 <div class="line"> </div>
 <div class="line"><span class="comment">// Start from some point P</span></div>
-<div class="line"><a class="code hl_class" href="classsecp256k1_1_1fast_1_1Point.html">Point</a> walker = Point::generator();</div>
+<div class="line"><a class="code hl_class" href="classsecp256k1_1_1fast_1_1Point.html">Point</a> walker = <a class="code hl_function" href="classsecp256k1_1_1fast_1_1Point.html#ab8925efdda5643d2e239b5000d5a0144">Point::generator</a>();</div>
 <div class="line"><a class="code hl_class" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a> gx = walker.<a class="code hl_function" href="classsecp256k1_1_1fast_1_1Point.html#a9fac69f2a5fe229eb3bd933577eda9a4">x</a>();</div>
 <div class="line"><a class="code hl_class" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a> gy = walker.<a class="code hl_function" href="classsecp256k1_1_1fast_1_1Point.html#aa1c473d6c48e571884b379ca1859c23c">y</a>();</div>
 <div class="line"> </div>
@@ -322,13 +332,13 @@ Mixed Add + Batch Inverse: Collecting Z Values for Cheap Jacobian→Affine</h2>
 <div class="line">        idx = 0;  <span class="comment">// Reset batch</span></div>
 <div class="line">    }</div>
 <div class="line">}</div>
-<div class="ttc" id="aclasssecp256k1_1_1fast_1_1FieldElement_html_a03e8e10d02591b02b4620037fe7bbe03"><div class="ttname"><a href="classsecp256k1_1_1fast_1_1FieldElement.html#a03e8e10d02591b02b4620037fe7bbe03">secp256k1::fast::FieldElement::data</a></div><div class="ttdeci">const ::secp256k1::FieldElementData &amp; data() const noexcept</div><div class="ttdef"><b>Definition</b> <a href="field_8hpp_source.html#l00085">field.hpp:85</a></div></div>
+<div class="ttc" id="aclasssecp256k1_1_1fast_1_1FieldElement_html_a03e8e10d02591b02b4620037fe7bbe03"><div class="ttname"><a href="classsecp256k1_1_1fast_1_1FieldElement.html#a03e8e10d02591b02b4620037fe7bbe03">secp256k1::fast::FieldElement::data</a></div><div class="ttdeci">const ::secp256k1::FieldElementData &amp; data() const noexcept</div><div class="ttdef"><b>Definition</b> <a href="field_8hpp_source.html#l00098">field.hpp:98</a></div></div>
 <div class="ttc" id="aclasssecp256k1_1_1fast_1_1FieldElement_html_a2a0ace299feb8784be069c602ba788ca"><div class="ttname"><a href="classsecp256k1_1_1fast_1_1FieldElement.html#a2a0ace299feb8784be069c602ba788ca">secp256k1::fast::FieldElement::square</a></div><div class="ttdeci">FieldElement square() const</div></div>
-<div class="ttc" id="aclasssecp256k1_1_1fast_1_1Point_html_aa775c3b7871aa652fb9574c29db6c17d"><div class="ttname"><a href="classsecp256k1_1_1fast_1_1Point.html#aa775c3b7871aa652fb9574c29db6c17d">secp256k1::fast::Point::z</a></div><div class="ttdeci">const FieldElement &amp; z() const noexcept</div><div class="ttdef"><b>Definition</b> <a href="point_8hpp_source.html#l00051">point.hpp:51</a></div></div>
-<div class="ttc" id="aclasssecp256k1_1_1fast_1_1Point_html_adb2783460ffc366169a78e7655da82ce"><div class="ttname"><a href="classsecp256k1_1_1fast_1_1Point.html#adb2783460ffc366169a78e7655da82ce">secp256k1::fast::Point::X</a></div><div class="ttdeci">const FieldElement &amp; X() const noexcept</div><div class="ttdef"><b>Definition</b> <a href="point_8hpp_source.html#l00049">point.hpp:49</a></div></div>
+<div class="ttc" id="aclasssecp256k1_1_1fast_1_1Point_html_aa775c3b7871aa652fb9574c29db6c17d"><div class="ttname"><a href="classsecp256k1_1_1fast_1_1Point.html#aa775c3b7871aa652fb9574c29db6c17d">secp256k1::fast::Point::z</a></div><div class="ttdeci">const FieldElement &amp; z() const noexcept</div><div class="ttdef"><b>Definition</b> <a href="point_8hpp_source.html#l00072">point.hpp:72</a></div></div>
+<div class="ttc" id="aclasssecp256k1_1_1fast_1_1Point_html_adb2783460ffc366169a78e7655da82ce"><div class="ttname"><a href="classsecp256k1_1_1fast_1_1Point.html#adb2783460ffc366169a78e7655da82ce">secp256k1::fast::Point::X</a></div><div class="ttdeci">const FieldElement &amp; X() const noexcept</div><div class="ttdef"><b>Definition</b> <a href="point_8hpp_source.html#l00070">point.hpp:70</a></div></div>
 <div class="ttc" id="afield_8hpp_html"><div class="ttname"><a href="field_8hpp.html">field.hpp</a></div></div>
 </div><!-- fragment --><p><b>Performance</b>: For N=1024 batch, this is **~500× cheaper** than individual inversions. A single field inversion costs ~3.5μs (Fermat), while batch amortizes to ~7ns per element.</p>
-<h2><a class="anchor" id="autotoc_md9"></a>
+<h2><a class="anchor" id="autotoc_md26"></a>
 GPU Pattern: H-Product Serial Inversion (&lt;tt&gt;jacobian_add_mixed_h&lt;/tt&gt;)</h2>
 <p>Production GPU apps use a more memory-efficient variant: instead of storing full Z coordinates, <code>jacobian_add_mixed_h</code> returns <b>H = U2 − X1</b> separately from each addition. Since Z_{k} = Z_0 · H_0 · H_1 · … · H_{k-1}, we can reconstruct and invert the entire Z chain from just the H values + initial Z_0.</p>
 <p><b>Step 1 — Collect H values during serial additions</b> (CUDA kernel): </p><div class="fragment"><div class="line">// jacobian_add_mixed_h: madd-2004-hmv (8M+3S), outputs H separately</div>
@@ -376,9 +386,9 @@ GPU Pattern: H-Product Serial Inversion (&lt;tt&gt;jacobian_add_mixed_h&lt;/tt&g
 <blockquote class="doxtable">
 <p>&zwj;See production usage: <code>apps/secp256k1_search_gpu_only/gpu_only.cu</code> (step kernel) + <code>unified_split.cuh</code> (batch inversion kernel) </p>
 </blockquote>
-<h2><a class="anchor" id="autotoc_md10"></a>
+<h2><a class="anchor" id="autotoc_md27"></a>
 Other Batch Inverse Use Cases</h2>
-<h3><a class="anchor" id="autotoc_md11"></a>
+<h3><a class="anchor" id="autotoc_md28"></a>
 1. Full Point Conversion: Jacobian → Affine (X + Y)</h3>
 <p>When you need both X and Y (precompute table, serialization, debugging):</p>
 <div class="fragment"><div class="line"><span class="comment">// N Jacobian points → N Affine points (1 inversion)</span></div>
@@ -395,7 +405,7 @@ Other Batch Inverse Use Cases</h2>
 <div class="line">    affine_x[i] = points[i].X() * z2;         <span class="comment">// X_affine = X_jac · Z^(-2)</span></div>
 <div class="line">    affine_y[i] = points[i].Y() * z3;         <span class="comment">// Y_affine = Y_jac · Z^(-3)</span></div>
 <div class="line">}</div>
-</div><!-- fragment --><h3><a class="anchor" id="autotoc_md12"></a>
+</div><!-- fragment --><h3><a class="anchor" id="autotoc_md29"></a>
 2. X-Only Coordinate Extraction</h3>
 <p>In most cases you don't need Y — only the affine X coordinate is required:</p>
 <div class="fragment"><div class="line"><span class="comment">// CPU pattern</span></div>
@@ -421,7 +431,7 @@ Other Batch Inverse Use Cases</h2>
 <div class="line">        batch_idx = 0;</div>
 <div class="line">    }</div>
 <div class="line">}</div>
-</div><!-- fragment --><h3><a class="anchor" id="autotoc_md13"></a>
+</div><!-- fragment --><h3><a class="anchor" id="autotoc_md30"></a>
 3. CUDA: Z Extraction → batch_inverse_kernel → Affine X</h3>
 <p>On GPU where you have an array of <code>JacobianPoint</code> — Z coordinates are extracted separately, inversion uses shared memory:</p>
 <div class="fragment"><div class="line">// Step 1: Extract Z coordinates (1 kernel)</div>
@@ -446,7 +456,7 @@ Other Batch Inverse Use Cases</h2>
 <div class="line">    field_mul(&amp;points[idx].x, &amp;z2, &amp;x_aff);  // X_affine</div>
 <div class="line">    // Use x_aff as needed</div>
 <div class="line">}</div>
-</div><!-- fragment --><h3><a class="anchor" id="autotoc_md14"></a>
+</div><!-- fragment --><h3><a class="anchor" id="autotoc_md31"></a>
 4. Batch Modular Division: a[i] / b[i]</h3>
 <p>Arbitrary batch division for field elements:</p>
 <div class="fragment"><div class="line"><a class="code hl_class" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a> denominators[] = {b0, b1, b2, b3};</div>
@@ -456,7 +466,7 @@ Other Batch Inverse Use Cases</h2>
 <div class="line"><a class="code hl_class" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a> r1 = a1 * denominators[1];  <span class="comment">// a1 / b1</span></div>
 <div class="line"><a class="code hl_class" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a> r2 = a2 * denominators[2];  <span class="comment">// a2 / b2</span></div>
 <div class="line"><a class="code hl_class" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a> r3 = a3 * denominators[3];  <span class="comment">// a3 / b3</span></div>
-</div><!-- fragment --><h3><a class="anchor" id="autotoc_md15"></a>
+</div><!-- fragment --><h3><a class="anchor" id="autotoc_md32"></a>
 5. Scratch Buffer Reuse</h3>
 <p>When processing multiple rounds, a single pre-allocated scratch buffer is reused across all rounds:</p>
 <div class="fragment"><div class="line">std::vector&lt;FieldElement&gt; scratch;</div>
@@ -467,7 +477,7 @@ Other Batch Inverse Use Cases</h2>
 <div class="line">    fe_batch_inverse(batch_z.<a class="code hl_function" href="classsecp256k1_1_1fast_1_1FieldElement.html#a03e8e10d02591b02b4620037fe7bbe03">data</a>(), N, scratch);  <span class="comment">// Reuses scratch buffer</span></div>
 <div class="line">    <span class="comment">// ... affine conversion ...</span></div>
 <div class="line">}</div>
-</div><!-- fragment --><h2><a class="anchor" id="autotoc_md16"></a>
+</div><!-- fragment --><h2><a class="anchor" id="autotoc_md33"></a>
 Montgomery Trick — Full Algorithm Explanation</h2>
 <div class="fragment"><div class="line">Input: [a₀, a₁, a₂, ..., aₙ₋₁]</div>
 <div class="line"> </div>
@@ -491,7 +501,7 @@ Montgomery Trick — Full Algorithm Explanation</h2>
 <div class="line"> </div>
 <div class="line">Cost: 1 inversion + 3(N-1) multiplications</div>
 <div class="line">N=1024: 1×3.5μs + 3069×5ns ≈ 18.8μs (vs 1024×3.5μs = 3584μs → 190× faster!)</div>
-</div><!-- fragment --><h1><a class="anchor" id="autotoc_md17"></a>
+</div><!-- fragment --><h1><a class="anchor" id="autotoc_md34"></a>
 �📦 Use Cases</h1>
 <blockquote class="doxtable">
 <p>&zwj;### ⚠️ Testers Wanted We need community testers for platforms we cannot fully validate in CI:</p><ul>
@@ -521,11 +531,11 @@ Montgomery Trick — Full Algorithm Explanation</h2>
 </ul>
 </li>
 </ul>
-<h1><a class="anchor" id="autotoc_md18"></a>
+<h1><a class="anchor" id="autotoc_md35"></a>
 🔐 Security Model</h1>
 <p>UltrafastSecp256k1 is a performance-focused <a class="el" href="namespacesecp256k1.html">secp256k1</a> engine with two security profiles. See THREAT_MODEL.md for a full layer-by-layer risk assessment.</p>
 <p>⚠️ <b>Constant-time behavior is NOT guaranteed unless you use the <code>ct::</code> namespace.</b></p>
-<h2><a class="anchor" id="autotoc_md19"></a>
+<h2><a class="anchor" id="autotoc_md36"></a>
 FAST Profile (Default)</h2>
 <ul>
 <li>Optimized for maximum throughput</li>
@@ -537,7 +547,7 @@ FAST Profile (Default)</h2>
 </ul>
 </li>
 </ul>
-<h2><a class="anchor" id="autotoc_md20"></a>
+<h2><a class="anchor" id="autotoc_md37"></a>
 CT / HARDENED Profile (Implemented)</h2>
 <ul>
 <li>Constant-time arithmetic — no secret-dependent branches or memory access</li>
@@ -546,9 +556,97 @@ CT / HARDENED Profile (Implemented)</h2>
 <li>Use for: private key handling, signing, nonce operations</li>
 </ul>
 <p><b>Choose the appropriate profile for your use case.</b> Using FAST with secret data is a security vulnerability.</p>
-<h1><a class="anchor" id="autotoc_md21"></a>
-🛠️ Building</h1>
-<h2><a class="anchor" id="autotoc_md22"></a>
+<h1><a class="anchor" id="autotoc_md38"></a>
+� Stable C ABI (&lt;tt&gt;ufsecp&lt;/tt&gt;)</h1>
+<p>Starting with <b>v3.4.0</b>, UltrafastSecp256k1 ships a stable C ABI — <code>ufsecp</code> — designed for FFI bindings (C#, Python, Rust, Go, Java, etc.) and embedding.</p>
+<h2><a class="anchor" id="autotoc_md39"></a>
+Architecture</h2>
+<div class="fragment"><div class="line">┌──────────────────────────────────────────────────┐</div>
+<div class="line">│                  Your Application                │</div>
+<div class="line">│          (C, C#, Python, Go, Rust, …)            │</div>
+<div class="line">└──────────────────┬───────────────────────────────┘</div>
+<div class="line">                   │  ufsecp C ABI (45 functions)</div>
+<div class="line">┌──────────────────▼───────────────────────────────┐</div>
+<div class="line">│           ufsecp.dll / libufsecp.so              │</div>
+<div class="line">│  Opaque ctx  │  Error model  │  ABI versioning   │</div>
+<div class="line">├──────────────┴───────────────┴───────────────────┤</div>
+<div class="line">│                FAST layer                        │</div>
+<div class="line">│  Variable-time point/field/scalar operations     │</div>
+<div class="line">├──────────────────────────────────────────────────┤</div>
+<div class="line">│                CT layer (always active)           │</div>
+<div class="line">│  Constant-time signing, nonce gen, secret ops    │</div>
+<div class="line">│  Complete addition (12M+2S), Valgrind markers    │</div>
+<div class="line">└──────────────────────────────────────────────────┘</div>
+</div><!-- fragment --><p>Both layers are <b>always active</b> — no flag-based selection. Public operations use the FAST layer; secret-key operations (sign, derive, ECDH) use the CT layer internally.</p>
+<h2><a class="anchor" id="autotoc_md40"></a>
+Quick Start (C)</h2>
+<div class="fragment"><div class="line"><span class="preprocessor">#include &quot;<a class="code" href="ufsecp_8h.html">ufsecp.h</a>&quot;</span></div>
+<div class="line"> </div>
+<div class="line"><a class="code hl_struct" href="structufsecp__ctx.html">ufsecp_ctx</a>* ctx = NULL;</div>
+<div class="line"><a class="code hl_function" href="ufsecp_8h.html#ad59bb140d404cf17909ad63955e8e948">ufsecp_ctx_create</a>(&amp;ctx);</div>
+<div class="line"> </div>
+<div class="line"><span class="comment">// Generate keypair</span></div>
+<div class="line"><span class="keywordtype">unsigned</span> <span class="keywordtype">char</span> seckey[32], pubkey[33];</div>
+<div class="line">ufsecp_keygen(ctx, seckey, pubkey);</div>
+<div class="line"> </div>
+<div class="line"><span class="comment">// ECDSA sign</span></div>
+<div class="line"><span class="keywordtype">unsigned</span> <span class="keywordtype">char</span> msg[32] = { <span class="comment">/* SHA-256 hash */</span> };</div>
+<div class="line"><span class="keywordtype">unsigned</span> <span class="keywordtype">char</span> sig[64];</div>
+<div class="line"><a class="code hl_function" href="ufsecp_8h.html#a4e1fa2ddc0f82ca0772ce2e4b500c55e">ufsecp_ecdsa_sign</a>(ctx, seckey, msg, sig);</div>
+<div class="line"> </div>
+<div class="line"><span class="comment">// Verify</span></div>
+<div class="line"><span class="keywordtype">int</span> valid = 0;</div>
+<div class="line"><a class="code hl_function" href="ufsecp_8h.html#a3bcb3e21569903007e46c2a377637a84">ufsecp_ecdsa_verify</a>(ctx, pubkey, 33, msg, sig, &amp;valid);</div>
+<div class="line"> </div>
+<div class="line"><a class="code hl_function" href="ufsecp_8h.html#a87d42e60b2f61d1931c088231b6e6b59">ufsecp_ctx_destroy</a>(ctx);</div>
+<div class="ttc" id="astructufsecp__ctx_html"><div class="ttname"><a href="structufsecp__ctx.html">ufsecp_ctx</a></div><div class="ttdef"><b>Definition</b> <a href="ufsecp__impl_8cpp_source.html#l00046">ufsecp_impl.cpp:46</a></div></div>
+<div class="ttc" id="aufsecp_8h_html"><div class="ttname"><a href="ufsecp_8h.html">ufsecp.h</a></div></div>
+<div class="ttc" id="aufsecp_8h_html_a3bcb3e21569903007e46c2a377637a84"><div class="ttname"><a href="ufsecp_8h.html#a3bcb3e21569903007e46c2a377637a84">ufsecp_ecdsa_verify</a></div><div class="ttdeci">UFSECP_API ufsecp_error_t ufsecp_ecdsa_verify(ufsecp_ctx *ctx, const uint8_t msg32[32], const uint8_t sig64[64], const uint8_t pubkey33[33])</div><div class="ttdef"><b>Definition</b> <a href="ufsecp__impl_8cpp_source.html#l00388">ufsecp_impl.cpp:388</a></div></div>
+<div class="ttc" id="aufsecp_8h_html_a4e1fa2ddc0f82ca0772ce2e4b500c55e"><div class="ttname"><a href="ufsecp_8h.html#a4e1fa2ddc0f82ca0772ce2e4b500c55e">ufsecp_ecdsa_sign</a></div><div class="ttdeci">UFSECP_API ufsecp_error_t ufsecp_ecdsa_sign(ufsecp_ctx *ctx, const uint8_t msg32[32], const uint8_t privkey[32], uint8_t sig64_out[64])</div><div class="ttdef"><b>Definition</b> <a href="ufsecp__impl_8cpp_source.html#l00368">ufsecp_impl.cpp:368</a></div></div>
+<div class="ttc" id="aufsecp_8h_html_a87d42e60b2f61d1931c088231b6e6b59"><div class="ttname"><a href="ufsecp_8h.html#a87d42e60b2f61d1931c088231b6e6b59">ufsecp_ctx_destroy</a></div><div class="ttdeci">UFSECP_API void ufsecp_ctx_destroy(ufsecp_ctx *ctx)</div><div class="ttdef"><b>Definition</b> <a href="ufsecp__impl_8cpp_source.html#l00217">ufsecp_impl.cpp:217</a></div></div>
+<div class="ttc" id="aufsecp_8h_html_ad59bb140d404cf17909ad63955e8e948"><div class="ttname"><a href="ufsecp_8h.html#ad59bb140d404cf17909ad63955e8e948">ufsecp_ctx_create</a></div><div class="ttdeci">UFSECP_API ufsecp_error_t ufsecp_ctx_create(ufsecp_ctx **ctx_out)</div><div class="ttdef"><b>Definition</b> <a href="ufsecp__impl_8cpp_source.html#l00182">ufsecp_impl.cpp:182</a></div></div>
+</div><!-- fragment --><h2><a class="anchor" id="autotoc_md41"></a>
+API Coverage</h2>
+<table class="markdownTable">
+<tr class="markdownTableHead">
+<th class="markdownTableHeadNone">Category   </th><th class="markdownTableHeadNone">Functions    </th></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone"><b>Context</b>   </td><td class="markdownTableBodyNone"><code>ctx_create</code>, <code>ctx_destroy</code>, <code>selftest</code>, <code>last_error</code>    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone"><b>Keys</b>   </td><td class="markdownTableBodyNone"><code>keygen</code>, <code>seckey_verify</code>, <code>pubkey_create</code>, <code>pubkey_parse</code>, <code>pubkey_serialize</code>    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone"><b>ECDSA</b>   </td><td class="markdownTableBodyNone"><code>ecdsa_sign</code>, <code>ecdsa_verify</code>, <code>ecdsa_sign_der</code>, <code>ecdsa_verify_der</code>, <code>ecdsa_recover</code>    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone"><b>Schnorr</b>   </td><td class="markdownTableBodyNone"><code>schnorr_sign</code>, <code>schnorr_verify</code>    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone"><b>SHA-256</b>   </td><td class="markdownTableBodyNone"><code>sha256</code> (SHA-NI accelerated)    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone"><b>ECDH</b>   </td><td class="markdownTableBodyNone"><code>ecdh_compressed</code>, <code>ecdh_xonly</code>, <code>ecdh_raw</code>    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone"><b>BIP-32</b>   </td><td class="markdownTableBodyNone"><code>bip32_from_seed</code>, <code>bip32_derive_child</code>, <code>bip32_serialize</code>    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone"><b>Address</b>   </td><td class="markdownTableBodyNone"><code>address_p2pkh</code>, <code>address_p2wpkh</code>, <code>address_p2tr</code>    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone"><b>WIF</b>   </td><td class="markdownTableBodyNone"><code>wif_encode</code>, <code>wif_decode</code>    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone"><b>Tweak</b>   </td><td class="markdownTableBodyNone"><code>pubkey_tweak_add</code>, <code>pubkey_tweak_mul</code>    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone"><b>Version</b>   </td><td class="markdownTableBodyNone"><code>version</code>, <code>abi_version</code>, <code>version_string</code>   </td></tr>
+</table>
+<h2><a class="anchor" id="autotoc_md42"></a>
+Building ufsecp</h2>
+<div class="fragment"><div class="line"># Sub-project (from UltrafastSecp256k1 root — preferred)</div>
+<div class="line">cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release</div>
+<div class="line">cmake --build build -j</div>
+<div class="line"> </div>
+<div class="line"># Standalone</div>
+<div class="line">cmake -S include/ufsecp -B build-ufsecp -DCMAKE_BUILD_TYPE=Release</div>
+<div class="line">cmake --build build-ufsecp -j</div>
+</div><!-- fragment --><p>Output: <code>ufsecp.dll</code> (shared) + <code>ufsecp_s.lib</code> (static).</p>
+<p>See <a class="el" href="md_include_2ufsecp_2SUPPORTED__GUARANTEES.html">SUPPORTED_GUARANTEES.md</a> for Tier 1/2/3 stability guarantees.</p>
+<h1><a class="anchor" id="autotoc_md43"></a>
+�🛠️ Building</h1>
+<h2><a class="anchor" id="autotoc_md44"></a>
 Prerequisites</h2>
 <ul>
 <li>CMake 3.18+</li>
@@ -559,26 +657,26 @@ Prerequisites</h2>
 <li>CUDA Toolkit 12.0+ (optional, for GPU support)</li>
 <li>Ninja (recommended)</li>
 </ul>
-<h2><a class="anchor" id="autotoc_md23"></a>
+<h2><a class="anchor" id="autotoc_md45"></a>
 CPU-Only Build</h2>
 <div class="fragment"><div class="line">cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release</div>
 <div class="line">cmake --build build -j</div>
-</div><!-- fragment --><h2><a class="anchor" id="autotoc_md24"></a>
+</div><!-- fragment --><h2><a class="anchor" id="autotoc_md46"></a>
 With CUDA Support</h2>
 <div class="fragment"><div class="line">cmake -S . -B build -G Ninja \</div>
 <div class="line">  -DCMAKE_BUILD_TYPE=Release \</div>
 <div class="line">  -DSECP256K1_BUILD_CUDA=ON</div>
 <div class="line">cmake --build build -j</div>
-</div><!-- fragment --><h2><a class="anchor" id="autotoc_md25"></a>
+</div><!-- fragment --><h2><a class="anchor" id="autotoc_md47"></a>
 WebAssembly (Emscripten)</h2>
 <div class="fragment"><div class="line"># Requires Emscripten SDK (emsdk)</div>
 <div class="line">./scripts/build_wasm.sh        # → build-wasm/dist/</div>
 </div><!-- fragment --><p>Output: <code>secp256k1_wasm.wasm</code> + <code>secp256k1.mjs</code> (ES6 module with TypeScript types). See wasm/README.md for JS/TS usage.</p>
-<h2><a class="anchor" id="autotoc_md26"></a>
+<h2><a class="anchor" id="autotoc_md48"></a>
 iOS (XCFramework)</h2>
 <div class="fragment"><div class="line">./scripts/build_xcframework.sh  # → build-xcframework/output/</div>
 </div><!-- fragment --><p>Produces a universal XCFramework (arm64 device + arm64 simulator). Also available via <b>Swift Package Manager</b> and <b>CocoaPods</b>.</p>
-<h2><a class="anchor" id="autotoc_md27"></a>
+<h2><a class="anchor" id="autotoc_md49"></a>
 Build Options</h2>
 <table class="markdownTable">
 <tr class="markdownTableHead">
@@ -600,10 +698,10 @@ Build Options</h2>
 <tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone"><code>SECP256K1_RISCV_USE_VECTOR</code>   </td><td class="markdownTableBodyNone">ON   </td><td class="markdownTableBodyNone">RVV vector extension (RISC-V)   </td></tr>
 </table>
-<h2><a class="anchor" id="autotoc_md28"></a>
+<h2><a class="anchor" id="autotoc_md50"></a>
 Build Profiles</h2>
 <p>UltrafastSecp256k1 is designed with two conceptual build targets:</p>
-<h3><a class="anchor" id="autotoc_md29"></a>
+<h3><a class="anchor" id="autotoc_md51"></a>
 1️⃣ FAST (Performance Research Mode)</h3>
 <ul>
 <li>Maximum throughput</li>
@@ -616,7 +714,7 @@ Build Profiles</h2>
 </ul>
 </li>
 </ul>
-<h3><a class="anchor" id="autotoc_md30"></a>
+<h3><a class="anchor" id="autotoc_md52"></a>
 2️⃣ CT (Constant-Time Hardened Mode)</h3>
 <ul>
 <li>Secret-dependent branches avoided</li>
@@ -635,9 +733,9 @@ Build Profiles</h2>
 <li>Optional blinding techniques</li>
 <li>Timing regression testing integration</li>
 </ul>
-<h1><a class="anchor" id="autotoc_md31"></a>
+<h1><a class="anchor" id="autotoc_md53"></a>
 🎯 Quick Start</h1>
-<h2><a class="anchor" id="autotoc_md32"></a>
+<h2><a class="anchor" id="autotoc_md54"></a>
 Basic CPU Usage</h2>
 <div class="fragment"><div class="line"><span class="preprocessor">#include &lt;<a class="code" href="field_8hpp.html">secp256k1/field.hpp</a>&gt;</span></div>
 <div class="line"><span class="preprocessor">#include &lt;<a class="code" href="point_8hpp.html">secp256k1/point.hpp</a>&gt;</span></div>
@@ -663,8 +761,8 @@ Basic CPU Usage</h2>
 <div class="line">    std::cout &lt;&lt; <span class="stringliteral">&quot;Product: &quot;</span> &lt;&lt; product.to_hex() &lt;&lt; <span class="stringliteral">&quot;\n&quot;</span>;</div>
 <div class="line">    </div>
 <div class="line">    <span class="comment">// 2. Point operations (public key derivation)</span></div>
-<div class="line">    <span class="keyword">auto</span> generator = Point::generator();</div>
-<div class="line">    <span class="keyword">auto</span> private_key = Scalar::from_hex(</div>
+<div class="line">    <span class="keyword">auto</span> generator = <a class="code hl_function" href="classsecp256k1_1_1fast_1_1Point.html#ab8925efdda5643d2e239b5000d5a0144">Point::generator</a>();</div>
+<div class="line">    <span class="keyword">auto</span> private_key = <a class="code hl_function" href="classsecp256k1_1_1fast_1_1Scalar.html#a405303c64f84eeb9d9f8eafe2474342f">Scalar::from_hex</a>(</div>
 <div class="line">        <span class="stringliteral">&quot;E9873D79C6D87DC0FB6A5778633389F4453213303DA61F20BD67FC233AA33262&quot;</span></div>
 <div class="line">    );</div>
 <div class="line">    </div>
@@ -688,11 +786,12 @@ Basic CPU Usage</h2>
 <div class="line">    </div>
 <div class="line">    <span class="keywordflow">return</span> 0;</div>
 <div class="line">}</div>
+<div class="ttc" id="aclasssecp256k1_1_1fast_1_1Scalar_html_a405303c64f84eeb9d9f8eafe2474342f"><div class="ttname"><a href="classsecp256k1_1_1fast_1_1Scalar.html#a405303c64f84eeb9d9f8eafe2474342f">secp256k1::fast::Scalar::from_hex</a></div><div class="ttdeci">static Scalar from_hex(const std::string &amp;hex)</div></div>
 <div class="ttc" id="ascalar_8hpp_html"><div class="ttname"><a href="scalar_8hpp.html">scalar.hpp</a></div></div>
 </div><!-- fragment --><p><b>Compile &amp; Run:</b> </p><div class="fragment"><div class="line"># Link with the library</div>
 <div class="line">g++ -std=c++20 example.cpp -lsecp256k1-fast-cpu -o example</div>
 <div class="line">./example</div>
-</div><!-- fragment --><h2><a class="anchor" id="autotoc_md33"></a>
+</div><!-- fragment --><h2><a class="anchor" id="autotoc_md55"></a>
 Advanced: Batch Signature Verification</h2>
 <div class="fragment"><div class="line"><span class="preprocessor">#include &lt;<a class="code" href="point_8hpp.html">secp256k1/point.hpp</a>&gt;</span></div>
 <div class="line"><span class="preprocessor">#include &lt;<a class="code" href="scalar_8hpp.html">secp256k1/scalar.hpp</a>&gt;</span></div>
@@ -706,11 +805,11 @@ Advanced: Batch Signature Verification</h2>
 <div class="line">    <span class="keyword">const</span> std::vector&lt;Scalar&gt;&amp; r_values,</div>
 <div class="line">    <span class="keyword">const</span> std::vector&lt;Scalar&gt;&amp; s_values</div>
 <div class="line">) {</div>
-<div class="line">    <span class="keyword">auto</span> generator = Point::generator();</div>
+<div class="line">    <span class="keyword">auto</span> generator = <a class="code hl_function" href="classsecp256k1_1_1fast_1_1Point.html#ab8925efdda5643d2e239b5000d5a0144">Point::generator</a>();</div>
 <div class="line">    </div>
 <div class="line">    <span class="keywordflow">for</span> (<span class="keywordtype">size_t</span> i = 0; i &lt; public_keys.size(); ++i) {</div>
 <div class="line">        <span class="comment">// Hash message</span></div>
-<div class="line">        <span class="keyword">auto</span> msg_hash = Scalar::from_bytes(messages[i]);</div>
+<div class="line">        <span class="keyword">auto</span> msg_hash = <a class="code hl_function" href="classsecp256k1_1_1fast_1_1Scalar.html#ab42c494ac695a8a1f01ecb662d52883e">Scalar::from_bytes</a>(messages[i]);</div>
 <div class="line">        </div>
 <div class="line">        <span class="comment">// Verify: s*G = R + hash*PubKey</span></div>
 <div class="line">        <span class="keyword">auto</span> s_inv = s_values[i].inverse();</div>
@@ -726,7 +825,8 @@ Advanced: Batch Signature Verification</h2>
 <div class="line">    </div>
 <div class="line">    <span class="keywordflow">return</span> <span class="keyword">true</span>;</div>
 <div class="line">}</div>
-</div><!-- fragment --><h2><a class="anchor" id="autotoc_md34"></a>
+<div class="ttc" id="aclasssecp256k1_1_1fast_1_1Scalar_html_ab42c494ac695a8a1f01ecb662d52883e"><div class="ttname"><a href="classsecp256k1_1_1fast_1_1Scalar.html#ab42c494ac695a8a1f01ecb662d52883e">secp256k1::fast::Scalar::from_bytes</a></div><div class="ttdeci">static Scalar from_bytes(const std::array&lt; std::uint8_t, 32 &gt; &amp;bytes)</div></div>
+</div><!-- fragment --><h2><a class="anchor" id="autotoc_md56"></a>
 CUDA GPU Acceleration</h2>
 <div class="fragment"><div class="line"><span class="preprocessor">#include &lt;secp256k1_cuda/batch_operations.hpp&gt;</span></div>
 <div class="line"><span class="preprocessor">#include &lt;<a class="code" href="point_8hpp.html">secp256k1/point.hpp</a>&gt;</span></div>
@@ -741,7 +841,7 @@ CUDA GPU Acceleration</h2>
 <div class="line">    </div>
 <div class="line">    <span class="comment">// Fill with data...</span></div>
 <div class="line">    <span class="keywordflow">for</span> (<span class="keywordtype">size_t</span> i = 0; i &lt; base_points.size(); ++i) {</div>
-<div class="line">        base_points[i] = Point::generator();</div>
+<div class="line">        base_points[i] = <a class="code hl_function" href="classsecp256k1_1_1fast_1_1Point.html#ab8925efdda5643d2e239b5000d5a0144">Point::generator</a>();</div>
 <div class="line">        scalars[i] = Scalar::random();</div>
 <div class="line">    }</div>
 <div class="line">    </div>
@@ -772,7 +872,7 @@ CUDA GPU Acceleration</h2>
 <div class="line">     -lsecp256k1-fast-cpu -lsecp256k1-fast-cuda \</div>
 <div class="line">     -o cuda_example</div>
 <div class="line">./cuda_example</div>
-</div><!-- fragment --><h2><a class="anchor" id="autotoc_md35"></a>
+</div><!-- fragment --><h2><a class="anchor" id="autotoc_md57"></a>
 CUDA: Batch Address Generation</h2>
 <div class="fragment"><div class="line"><span class="preprocessor">#include &lt;secp256k1_cuda/batch_operations.hpp&gt;</span></div>
 <div class="line"><span class="preprocessor">#include &lt;secp256k1_cuda/address_generator.hpp&gt;</span></div>
@@ -802,7 +902,7 @@ CUDA: Batch Address Generation</h2>
 <div class="line">    </div>
 <div class="line">    <span class="keywordflow">return</span> 0;</div>
 <div class="line">}</div>
-</div><!-- fragment --><h2><a class="anchor" id="autotoc_md36"></a>
+</div><!-- fragment --><h2><a class="anchor" id="autotoc_md58"></a>
 Performance Tuning Example</h2>
 <div class="fragment"><div class="line"><span class="preprocessor">#include &lt;<a class="code" href="field_8hpp.html">secp256k1/field.hpp</a>&gt;</span></div>
 <div class="line"><span class="preprocessor">#include &lt;<a class="code" href="field__asm_8hpp.html">secp256k1/field_asm.hpp</a>&gt;</span></div>
@@ -848,38 +948,103 @@ Performance Tuning Example</h2>
 <div class="line">}</div>
 <div class="ttc" id="afield__asm_8hpp_html"><div class="ttname"><a href="field__asm_8hpp.html">field_asm.hpp</a></div></div>
 <div class="ttc" id="anamespacesecp256k1_1_1fast_html_a2bd3922bd58f8a6d328d28d52003c3a1"><div class="ttname"><a href="namespacesecp256k1_1_1fast.html#a2bd3922bd58f8a6d328d28d52003c3a1">secp256k1::fast::has_bmi2_support</a></div><div class="ttdeci">bool has_bmi2_support()</div></div>
-</div><!-- fragment --><h1><a class="anchor" id="autotoc_md37"></a>
+</div><!-- fragment --><h1><a class="anchor" id="autotoc_md59"></a>
 📊 Performance</h1>
-<p>Benchmarks below are from <code>bench_comprehensive_riscv</code> (Release builds). RISC-V results were collected on <b>Milk-V Mars</b> (RV64 + RVV).</p>
-<h2><a class="anchor" id="autotoc_md38"></a>
-x86_64 / Windows (Clang 21.1.0, Release)</h2>
+<p>All CPU benchmarks use median of 3 passes after warm-up. Windows results from Clang 21.1.0, Release, AVX2. RISC-V results collected on <b>Milk-V Mars</b> (RV64 + RVV).</p>
+<h2><a class="anchor" id="autotoc_md60"></a>
+x86_64 / Windows (Clang 21.1.0, AVX2, BMI2/ADX, Release)</h2>
 <table class="markdownTable">
 <tr class="markdownTableHead">
 <th class="markdownTableHeadNone">Operation   </th><th class="markdownTableHeadRight">Time    </th></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone">Field Mul   </td><td class="markdownTableBodyRight">32 ns    </td></tr>
+<td class="markdownTableBodyNone">Field Mul (5×52)   </td><td class="markdownTableBodyRight">17 ns    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone">Field Square   </td><td class="markdownTableBodyRight">28 ns    </td></tr>
+<td class="markdownTableBodyNone">Field Square (5×52)   </td><td class="markdownTableBodyRight">13 ns    </td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone">Field Add   </td><td class="markdownTableBodyRight">11 ns    </td></tr>
+<td class="markdownTableBodyNone">Field Add   </td><td class="markdownTableBodyRight">1 ns    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone">Field Sub   </td><td class="markdownTableBodyRight">12 ns    </td></tr>
+<td class="markdownTableBodyNone">Field Negate   </td><td class="markdownTableBodyRight">&lt;1 ns    </td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone">Field Inverse   </td><td class="markdownTableBodyRight">5 us    </td></tr>
+<td class="markdownTableBodyNone">Field Inverse   </td><td class="markdownTableBodyRight">1 μs    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone">Point Add   </td><td class="markdownTableBodyRight">644 ns    </td></tr>
+<td class="markdownTableBodyNone">Point Add   </td><td class="markdownTableBodyRight">172 ns    </td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone">Point Double   </td><td class="markdownTableBodyRight">313 ns    </td></tr>
+<td class="markdownTableBodyNone">Point Double   </td><td class="markdownTableBodyRight">83 ns    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone">Point Scalar Mul   </td><td class="markdownTableBodyRight">111 us    </td></tr>
+<td class="markdownTableBodyNone">Point Scalar Mul (k×P)   </td><td class="markdownTableBodyRight">24 μs    </td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone">Generator Mul   </td><td class="markdownTableBodyRight">7 us    </td></tr>
+<td class="markdownTableBodyNone">Generator Mul (k×G)   </td><td class="markdownTableBodyRight">7 μs    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone">Batch Inverse (n=100)   </td><td class="markdownTableBodyRight">145 ns    </td></tr>
+<td class="markdownTableBodyNone"><b>ECDSA Sign</b>   </td><td class="markdownTableBodyRight"><b>33 μs</b>    </td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone">Batch Inverse (n=1000)   </td><td class="markdownTableBodyRight">98 ns   </td></tr>
+<td class="markdownTableBodyNone"><b>ECDSA Verify</b>   </td><td class="markdownTableBodyRight"><b>57 μs</b>    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone"><b>Schnorr Sign (BIP-340)</b>   </td><td class="markdownTableBodyRight"><b>23 μs</b>    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone"><b>Schnorr Verify (BIP-340)</b>   </td><td class="markdownTableBodyRight"><b>58 μs</b>    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone">Batch Inverse (n=100)   </td><td class="markdownTableBodyRight">118 ns/elem    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone">Batch Inverse (n=1000)   </td><td class="markdownTableBodyRight">105 ns/elem   </td></tr>
 </table>
-<h2><a class="anchor" id="autotoc_md39"></a>
+<h3><a class="anchor" id="autotoc_md61"></a>
+Signature Performance Summary</h3>
+<table class="markdownTable">
+<tr class="markdownTableHead">
+<th class="markdownTableHeadNone">Operation   </th><th class="markdownTableHeadRight">Time   </th><th class="markdownTableHeadNone">Notes    </th></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone">ECDSA Sign (RFC 6979)   </td><td class="markdownTableBodyRight">33 μs   </td><td class="markdownTableBodyNone">Deterministic nonce, low-S normalized    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone">ECDSA Verify   </td><td class="markdownTableBodyRight">57 μs   </td><td class="markdownTableBodyNone">Accepts both low-S and high-S    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone">Schnorr Sign (BIP-340)   </td><td class="markdownTableBodyRight">23 μs   </td><td class="markdownTableBodyNone">Tagged hashing, x-only pubkeys    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone">Schnorr Verify (BIP-340)   </td><td class="markdownTableBodyRight">58 μs   </td><td class="markdownTableBodyNone">Standard BIP-340 verification   </td></tr>
+</table>
+<p><em>Schnorr sign is ~30% faster than ECDSA sign due to simpler nonce derivation (no modular inverse). Verification speed is comparable — both require two scalar multiplications (k₁×G + k₂×Q).</em></p>
+<h3><a class="anchor" id="autotoc_md62"></a>
+Scalar Multiplication Breakdown</h3>
+<table class="markdownTable">
+<tr class="markdownTableHead">
+<th class="markdownTableHeadNone">Method   </th><th class="markdownTableHeadRight">Time    </th></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone">k×G (Generator, precomputed)   </td><td class="markdownTableBodyRight">7 μs    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone">k×P (Arbitrary point)   </td><td class="markdownTableBodyRight">24 μs   </td></tr>
+</table>
+<h3><a class="anchor" id="autotoc_md63"></a>
+Field Representation Comparison (5×52 vs 4×64)</h3>
+<table class="markdownTable">
+<tr class="markdownTableHead">
+<th class="markdownTableHeadNone">Operation   </th><th class="markdownTableHeadRight">4×64   </th><th class="markdownTableHeadRight">5×52   </th><th class="markdownTableHeadRight">Speedup    </th></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone">Multiplication   </td><td class="markdownTableBodyRight">42 ns   </td><td class="markdownTableBodyRight">15 ns   </td><td class="markdownTableBodyRight"><b>2.76×</b>    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone">Squaring   </td><td class="markdownTableBodyRight">31 ns   </td><td class="markdownTableBodyRight">13 ns   </td><td class="markdownTableBodyRight"><b>2.44×</b>    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone">Addition   </td><td class="markdownTableBodyRight">4.3 ns   </td><td class="markdownTableBodyRight">1.6 ns   </td><td class="markdownTableBodyRight"><b>2.69×</b>    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone">Add chain (32 ops)   </td><td class="markdownTableBodyRight">286 ns   </td><td class="markdownTableBodyRight">57 ns   </td><td class="markdownTableBodyRight"><b>5.01×</b>   </td></tr>
+</table>
+<p><em>5×52 uses <code>__int128</code> lazy reduction — ideal for 64-bit platforms. 4×64 is the default portable representation.</em></p>
+<h3><a class="anchor" id="autotoc_md64"></a>
+Constant-Time (CT) Layer Overhead</h3>
+<table class="markdownTable">
+<tr class="markdownTableHead">
+<th class="markdownTableHeadNone">Operation   </th><th class="markdownTableHeadRight">Fast   </th><th class="markdownTableHeadRight">CT   </th><th class="markdownTableHeadRight">Overhead    </th></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone">Field Mul   </td><td class="markdownTableBodyRight">36 ns   </td><td class="markdownTableBodyRight">55 ns   </td><td class="markdownTableBodyRight">1.50×    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone">Field Inverse   </td><td class="markdownTableBodyRight">3.0 μs   </td><td class="markdownTableBodyRight">14.2 μs   </td><td class="markdownTableBodyRight">4.80×    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone">Point Add   </td><td class="markdownTableBodyRight">0.65 μs   </td><td class="markdownTableBodyRight">1.63 μs   </td><td class="markdownTableBodyRight">2.50×    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone">Scalar Mul (k×P)   </td><td class="markdownTableBodyRight">130 μs   </td><td class="markdownTableBodyRight">322 μs   </td><td class="markdownTableBodyRight">2.49×    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone">Generator Mul (k×G)   </td><td class="markdownTableBodyRight">7.6 μs   </td><td class="markdownTableBodyRight">310 μs   </td><td class="markdownTableBodyRight">40.8×   </td></tr>
+</table>
+<p><em>CT layer provides constant-time execution for side-channel resistance. Generator mul overhead is higher due to disabled precomputed table lookups (variable-time).</em></p>
+<h2><a class="anchor" id="autotoc_md65"></a>
 x86_64 / Linux (i5, Clang 19.1.7, AVX2, Release)</h2>
 <table class="markdownTable">
 <tr class="markdownTableHead">
@@ -907,7 +1072,7 @@ x86_64 / Linux (i5, Clang 19.1.7, AVX2, Release)</h2>
 <tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone">Batch Inverse (n=1000)   </td><td class="markdownTableBodyRight">92 ns   </td></tr>
 </table>
-<h2><a class="anchor" id="autotoc_md40"></a>
+<h2><a class="anchor" id="autotoc_md66"></a>
 RISC-V 64-bit / Linux (Milk-V Mars, RVV, Clang 21.1.8, Release)</h2>
 <table class="markdownTable">
 <tr class="markdownTableHead">
@@ -936,7 +1101,7 @@ RISC-V 64-bit / Linux (Milk-V Mars, RVV, Clang 21.1.8, Release)</h2>
 <td class="markdownTableBodyNone">Batch Inverse (n=1000)   </td><td class="markdownTableBodyRight">547 ns   </td></tr>
 </table>
 <p><em>See RISCV_OPTIMIZATIONS.md for optimization details.</em></p>
-<h2><a class="anchor" id="autotoc_md41"></a>
+<h2><a class="anchor" id="autotoc_md67"></a>
 ESP32-S3 / Embedded (Xtensa LX7 @ 240 MHz, ESP-IDF v5.5.1, -O3)</h2>
 <table class="markdownTable">
 <tr class="markdownTableHead">
@@ -953,7 +1118,7 @@ ESP32-S3 / Embedded (Xtensa LX7 @ 240 MHz, ESP-IDF v5.5.1, -O3)</h2>
 <td class="markdownTableBodyNone">Scalar × G (Generator Mul)   </td><td class="markdownTableBodyRight">2,483 μs   </td></tr>
 </table>
 <p><em>Portable C++ (no <code>__int128</code>, no assembly). All 35 library tests pass. See <a href="examples/esp32_test/">examples/esp32_test/</a> for details.</em></p>
-<h2><a class="anchor" id="autotoc_md42"></a>
+<h2><a class="anchor" id="autotoc_md68"></a>
 ESP32-PICO-D4 / Embedded (Xtensa LX6 Dual Core @ 240 MHz, ESP-IDF v5.5.1, -O3)</h2>
 <table class="markdownTable">
 <tr class="markdownTableHead">
@@ -978,7 +1143,7 @@ ESP32-PICO-D4 / Embedded (Xtensa LX6 Dual Core @ 240 MHz, ESP-IDF v5.5.1, -O3)</
 <td class="markdownTableBodyNone">CT/Fast ratio   </td><td class="markdownTableBodyRight">6.5×   </td></tr>
 </table>
 <p><em>Portable C++ (no <code>__int128</code>, no assembly). All 35 self-tests + 8 CT tests pass. See <a href="examples/esp32_test/">examples/esp32_test/</a> for details.</em></p>
-<h2><a class="anchor" id="autotoc_md43"></a>
+<h2><a class="anchor" id="autotoc_md69"></a>
 STM32F103ZET6 / Embedded (ARM Cortex-M3 @ 72 MHz, GCC 13.3.1, -O3)</h2>
 <table class="markdownTable">
 <tr class="markdownTableHead">
@@ -995,7 +1160,7 @@ STM32F103ZET6 / Embedded (ARM Cortex-M3 @ 72 MHz, GCC 13.3.1, -O3)</h2>
 <td class="markdownTableBodyNone">Scalar × G (Generator Mul)   </td><td class="markdownTableBodyRight">37,982 μs   </td></tr>
 </table>
 <p><em>ARM Cortex-M3 inline assembly (UMULL/ADDS/ADCS) for multiply/squaring/reduction. Portable C++ for field add/sub. All 35 library tests pass. See <a href="examples/stm32_test/">examples/stm32_test/</a> for details.</em></p>
-<h2><a class="anchor" id="autotoc_md44"></a>
+<h2><a class="anchor" id="autotoc_md70"></a>
 Android ARM64 (RK3588, Cortex-A55/A76 @ 2.4 GHz, NDK r27 Clang 18, -O3)</h2>
 <table class="markdownTable">
 <tr class="markdownTableHead">
@@ -1028,7 +1193,7 @@ Android ARM64 (RK3588, Cortex-A55/A76 @ 2.4 GHz, NDK r27 Clang 18, -O3)</h2>
 <td class="markdownTableBodyNone">CT ECDH   </td><td class="markdownTableBodyRight">545 μs   </td></tr>
 </table>
 <p><em>ARM64 inline assembly (MUL/UMULH) for field mul/sqr/add/sub/neg. ~5× faster than generic C++. All 12 Android tests pass. See <a href="android/">android/</a> for details.</em></p>
-<h2><a class="anchor" id="autotoc_md45"></a>
+<h2><a class="anchor" id="autotoc_md71"></a>
 Embedded Cross-Platform Comparison</h2>
 <table class="markdownTable">
 <tr class="markdownTableHead">
@@ -1045,28 +1210,59 @@ Embedded Cross-Platform Comparison</h2>
 <td class="markdownTableBodyNone">Scalar × G   </td><td class="markdownTableBodyRight">2,483 μs   </td><td class="markdownTableBodyRight">6,203 μs   </td><td class="markdownTableBodyRight">37,982 μs   </td></tr>
 </table>
 <p><em>Clock-Normalized = (STM32 time × 72) / (ESP32 time × 240). Values &lt; 1.0 mean STM32 is faster per-clock.</em></p>
-<h2><a class="anchor" id="autotoc_md46"></a>
+<h2><a class="anchor" id="autotoc_md72"></a>
 CUDA (NVIDIA RTX 5060 Ti) — Kernel-Only</h2>
+<h3><a class="anchor" id="autotoc_md73"></a>
+Core ECC Operations</h3>
 <table class="markdownTable">
 <tr class="markdownTableHead">
 <th class="markdownTableHeadNone">Operation   </th><th class="markdownTableHeadNone">Time/Op   </th><th class="markdownTableHeadNone">Throughput    </th></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone">Field Mul   </td><td class="markdownTableBodyNone">0.2 ns   </td><td class="markdownTableBodyNone">4,139 M/s    </td></tr>
+<td class="markdownTableBodyNone">Field Mul   </td><td class="markdownTableBodyNone">0.2 ns   </td><td class="markdownTableBodyNone">4,142 M/s    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone">Field Add   </td><td class="markdownTableBodyNone">0.2 ns   </td><td class="markdownTableBodyNone">4,122 M/s    </td></tr>
+<td class="markdownTableBodyNone">Field Add   </td><td class="markdownTableBodyNone">0.2 ns   </td><td class="markdownTableBodyNone">4,130 M/s    </td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone">Field Inv   </td><td class="markdownTableBodyNone">12.1 ns   </td><td class="markdownTableBodyNone">82.65 M/s    </td></tr>
+<td class="markdownTableBodyNone">Field Inv   </td><td class="markdownTableBodyNone">10.2 ns   </td><td class="markdownTableBodyNone">98.35 M/s    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone">Point Add   </td><td class="markdownTableBodyNone">1.1 ns   </td><td class="markdownTableBodyNone">916 M/s    </td></tr>
+<td class="markdownTableBodyNone">Point Add   </td><td class="markdownTableBodyNone">1.6 ns   </td><td class="markdownTableBodyNone">619 M/s    </td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone">Point Double   </td><td class="markdownTableBodyNone">0.7 ns   </td><td class="markdownTableBodyNone">1,352 M/s    </td></tr>
+<td class="markdownTableBodyNone">Point Double   </td><td class="markdownTableBodyNone">0.8 ns   </td><td class="markdownTableBodyNone">1,282 M/s    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone">Scalar Mul (P×k)   </td><td class="markdownTableBodyNone">266.5 ns   </td><td class="markdownTableBodyNone">3.75 M/s    </td></tr>
+<td class="markdownTableBodyNone">Scalar Mul (P×k)   </td><td class="markdownTableBodyNone">225.8 ns   </td><td class="markdownTableBodyNone">4.43 M/s    </td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone">Generator Mul (G×k)   </td><td class="markdownTableBodyNone">216.1 ns   </td><td class="markdownTableBodyNone">4.63 M/s   </td></tr>
+<td class="markdownTableBodyNone">Generator Mul (G×k)   </td><td class="markdownTableBodyNone">217.7 ns   </td><td class="markdownTableBodyNone">4.59 M/s    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone">Affine Add (2M+1S+inv)   </td><td class="markdownTableBodyNone">0.4 ns   </td><td class="markdownTableBodyNone">2,532 M/s    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone">Affine Lambda (2M+1S)   </td><td class="markdownTableBodyNone">0.6 ns   </td><td class="markdownTableBodyNone">1,654 M/s    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone">Affine X-Only (1M+1S)   </td><td class="markdownTableBodyNone">0.4 ns   </td><td class="markdownTableBodyNone">2,328 M/s    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone">Batch Inv (Montgomery)   </td><td class="markdownTableBodyNone">2.9 ns   </td><td class="markdownTableBodyNone">340 M/s    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone">Jac→Affine (per-pt)   </td><td class="markdownTableBodyNone">14.9 ns   </td><td class="markdownTableBodyNone">66.9 M/s   </td></tr>
 </table>
-<p><em>CUDA 12.0, sm_86;sm_89, batch=1M, RTX 5060 Ti (36 SMs, 2602 MHz)</em></p>
-<h2><a class="anchor" id="autotoc_md47"></a>
+<h3><a class="anchor" id="autotoc_md74"></a>
+GPU Signature Operations (ECDSA + Schnorr)</h3>
+<table class="markdownTable">
+<tr class="markdownTableHead">
+<th class="markdownTableHeadNone">Operation   </th><th class="markdownTableHeadNone">Time/Op   </th><th class="markdownTableHeadNone">Throughput   </th><th class="markdownTableHeadNone">Protocol    </th></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone"><b>ECDSA Sign</b>   </td><td class="markdownTableBodyNone"><b>204.8 ns</b>   </td><td class="markdownTableBodyNone"><b>4.88 M/s</b>   </td><td class="markdownTableBodyNone">RFC 6979 + low-S    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone"><b>ECDSA Verify</b>   </td><td class="markdownTableBodyNone"><b>410.1 ns</b>   </td><td class="markdownTableBodyNone"><b>2.44 M/s</b>   </td><td class="markdownTableBodyNone">Shamir + GLV    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone"><b>ECDSA Sign+Recid</b>   </td><td class="markdownTableBodyNone"><b>311.5 ns</b>   </td><td class="markdownTableBodyNone"><b>3.21 M/s</b>   </td><td class="markdownTableBodyNone">Recoverable (EIP-155)    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone"><b>Schnorr Sign</b>   </td><td class="markdownTableBodyNone"><b>273.4 ns</b>   </td><td class="markdownTableBodyNone"><b>3.66 M/s</b>   </td><td class="markdownTableBodyNone">BIP-340    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone"><b>Schnorr Verify</b>   </td><td class="markdownTableBodyNone"><b>354.6 ns</b>   </td><td class="markdownTableBodyNone"><b>2.82 M/s</b>   </td><td class="markdownTableBodyNone">BIP-340 + GLV   </td></tr>
+</table>
+<blockquote class="doxtable">
+<p>&zwj;<b>No other open-source GPU library provides <a class="el" href="namespacesecp256k1.html">secp256k1</a> ECDSA+Schnorr sign/verify.</b> This is the only CUDA+OpenCL+Metal implementation with full signature support. </p>
+</blockquote>
+<p><em>CUDA 12.0, sm_86;sm_89, batch=16K signatures, RTX 5060 Ti (36 SMs, 2602 MHz)</em></p>
+<h2><a class="anchor" id="autotoc_md75"></a>
 OpenCL (NVIDIA RTX 5060 Ti) — Kernel-Only</h2>
 <table class="markdownTable">
 <tr class="markdownTableHead">
@@ -1087,7 +1283,7 @@ OpenCL (NVIDIA RTX 5060 Ti) — Kernel-Only</h2>
 <td class="markdownTableBodyNone">kG (Generator Mul)   </td><td class="markdownTableBodyNone">295.1 ns   </td><td class="markdownTableBodyNone">3.39 M/s   </td></tr>
 </table>
 <p><em>OpenCL 3.0 CUDA, Driver 580.126.09, PTX inline asm, batch=256K–1M</em></p>
-<h2><a class="anchor" id="autotoc_md48"></a>
+<h2><a class="anchor" id="autotoc_md76"></a>
 CUDA vs OpenCL — Kernel-Only Comparison (RTX 5060 Ti)</h2>
 <table class="markdownTable">
 <tr class="markdownTableHead">
@@ -1097,19 +1293,19 @@ CUDA vs OpenCL — Kernel-Only Comparison (RTX 5060 Ti)</h2>
 <tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone">Field Add   </td><td class="markdownTableBodyNone">0.2 ns   </td><td class="markdownTableBodyNone">0.2 ns   </td><td class="markdownTableBodyNone">Tie    </td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone">Field Inv   </td><td class="markdownTableBodyNone">12.1 ns   </td><td class="markdownTableBodyNone">14.3 ns   </td><td class="markdownTableBodyNone">CUDA 1.18×    </td></tr>
+<td class="markdownTableBodyNone">Field Inv   </td><td class="markdownTableBodyNone">10.2 ns   </td><td class="markdownTableBodyNone">14.3 ns   </td><td class="markdownTableBodyNone"><b>CUDA 1.40×</b>    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone">Point Double   </td><td class="markdownTableBodyNone">0.7 ns   </td><td class="markdownTableBodyNone">0.9 ns   </td><td class="markdownTableBodyNone"><b>CUDA 1.29×</b>    </td></tr>
+<td class="markdownTableBodyNone">Point Double   </td><td class="markdownTableBodyNone">0.8 ns   </td><td class="markdownTableBodyNone">0.9 ns   </td><td class="markdownTableBodyNone"><b>CUDA 1.13×</b>    </td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone">Point Add   </td><td class="markdownTableBodyNone">1.1 ns   </td><td class="markdownTableBodyNone">1.6 ns   </td><td class="markdownTableBodyNone"><b>CUDA 1.45×</b>    </td></tr>
+<td class="markdownTableBodyNone">Point Add   </td><td class="markdownTableBodyNone">1.6 ns   </td><td class="markdownTableBodyNone">1.6 ns   </td><td class="markdownTableBodyNone">Tie    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone">kG (Generator Mul)   </td><td class="markdownTableBodyNone">216.1 ns   </td><td class="markdownTableBodyNone">295.1 ns   </td><td class="markdownTableBodyNone"><b>CUDA 1.37×</b>   </td></tr>
+<td class="markdownTableBodyNone">kG (Generator Mul)   </td><td class="markdownTableBodyNone">217.7 ns   </td><td class="markdownTableBodyNone">295.1 ns   </td><td class="markdownTableBodyNone"><b>CUDA 1.36×</b>   </td></tr>
 </table>
 <blockquote class="doxtable">
 <p>&zwj;<b>Note:</b> Both measurements are kernel-only (no buffer allocation/copy overhead). CUDA uses local-variable optimization for zero pointer-aliasing overhead. </p>
 </blockquote>
 <p><em>Benchmarks: 2026-02-14, Linux x86_64, NVIDIA Driver 580.126.09</em></p>
-<h2><a class="anchor" id="autotoc_md49"></a>
+<h2><a class="anchor" id="autotoc_md77"></a>
 Apple Metal (Apple M3 Pro) — Kernel-Only</h2>
 <table class="markdownTable">
 <tr class="markdownTableHead">
@@ -1134,7 +1330,37 @@ Apple Metal (Apple M3 Pro) — Kernel-Only</h2>
 <td class="markdownTableBodyNone">Generator Mul (G×k)   </td><td class="markdownTableBodyNone">3.00 μs   </td><td class="markdownTableBodyNone">0.33 M/s   </td></tr>
 </table>
 <p><em>Metal 2.4, 8×32-bit Comba limbs, Apple M3 Pro (18 GPU cores, Unified Memory 18 GB)</em></p>
-<h1><a class="anchor" id="autotoc_md50"></a>
+<h2><a class="anchor" id="autotoc_md78"></a>
+Available Benchmark Targets</h2>
+<table class="markdownTable">
+<tr class="markdownTableHead">
+<th class="markdownTableHeadNone">Target   </th><th class="markdownTableHeadNone">Description   </th><th class="markdownTableHeadNone">Run Command    </th></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone"><code>bench_comprehensive</code>   </td><td class="markdownTableBodyNone">Full field/point/batch/signature benchmark suite   </td><td class="markdownTableBodyNone"><code>./bench_comprehensive</code>    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone"><code>bench_scalar_mul</code>   </td><td class="markdownTableBodyNone">k×G and k×P with wNAF analysis   </td><td class="markdownTableBodyNone"><code>./bench_scalar_mul</code>    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone"><code>bench_ct</code>   </td><td class="markdownTableBodyNone">Fast-vs-CT layer overhead comparison   </td><td class="markdownTableBodyNone"><code>./bench_ct</code>    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone"><code>bench_atomic_operations</code>   </td><td class="markdownTableBodyNone">Individual ECC building block latencies   </td><td class="markdownTableBodyNone"><code>./bench_atomic_operations</code>    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone"><code>bench_field_52</code>   </td><td class="markdownTableBodyNone">4×64 vs 5×52 field representation comparison   </td><td class="markdownTableBodyNone"><code>./bench_field_52</code>    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone"><code>bench_field_26</code>   </td><td class="markdownTableBodyNone">4×64 vs 10×26 field representation comparison   </td><td class="markdownTableBodyNone"><code>./bench_field_26</code>    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone"><code>bench_field_mul_kernels</code>   </td><td class="markdownTableBodyNone">BMI2 kernel micro-benchmark   </td><td class="markdownTableBodyNone"><code>./bench_field_mul_kernels</code>    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone"><code>bench_ecdsa_multiscalar</code>   </td><td class="markdownTableBodyNone">k₁×G + k₂×Q (Shamir vs separate)   </td><td class="markdownTableBodyNone"><code>./bench_ecdsa_multiscalar</code>    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone"><code>bench_jsf_vs_shamir</code>   </td><td class="markdownTableBodyNone">JSF vs Windowed Shamir comparison   </td><td class="markdownTableBodyNone"><code>./bench_jsf_vs_shamir</code>    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone"><code>bench_adaptive_glv</code>   </td><td class="markdownTableBodyNone">GLV window size sweep (8–20)   </td><td class="markdownTableBodyNone"><code>./bench_adaptive_glv</code>    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone"><code>bench_glv_decomp_profile</code>   </td><td class="markdownTableBodyNone">GLV decomposition analysis   </td><td class="markdownTableBodyNone"><code>./bench_glv_decomp_profile</code>    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone"><code>bench_comprehensive_riscv</code>   </td><td class="markdownTableBodyNone">RISC-V optimized benchmark suite   </td><td class="markdownTableBodyNone"><code>./bench_comprehensive_riscv</code>   </td></tr>
+</table>
+<h1><a class="anchor" id="autotoc_md79"></a>
 🏗️ Architecture</h1>
 <div class="fragment"><div class="line">secp256k1-fast/</div>
 <div class="line">├── cpu/                 # CPU-optimized implementation</div>
@@ -1159,10 +1385,10 @@ Apple Metal (Apple M3 Pro) — Kernel-Only</h2>
 <div class="line">└── examples/</div>
 <div class="line">    ├── esp32_test/    # ESP32-S3 Xtensa LX7 port</div>
 <div class="line">    └── stm32_test/    # STM32F103ZET6 ARM Cortex-M3 port</div>
-</div><!-- fragment --><h1><a class="anchor" id="autotoc_md51"></a>
+</div><!-- fragment --><h1><a class="anchor" id="autotoc_md80"></a>
 🔬 Research Statement</h1>
 <p>This library explores the performance ceiling of <a class="el" href="namespacesecp256k1.html">secp256k1</a> across CPU architectures (x64, ARM64, RISC-V, Cortex-M, Xtensa) and GPUs (CUDA, OpenCL, Metal, ROCm). Zero external dependencies.</p>
-<h1><a class="anchor" id="autotoc_md52"></a>
+<h1><a class="anchor" id="autotoc_md81"></a>
 📚 Variant Overview</h1>
 <p>Internal 32-bit arithmetic variants (historical optimization stages):</p>
 <table class="markdownTable">
@@ -1177,15 +1403,77 @@ Apple Metal (Apple M3 Pro) — Kernel-Only</h2>
 <tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone"><code>secp256k1_32_really_final</code>   </td><td class="markdownTableBodyNone">Most mature 32-bit variant   </td></tr>
 </table>
-<h1><a class="anchor" id="autotoc_md53"></a>
+<h1><a class="anchor" id="autotoc_md82"></a>
+🪙 Supported Coins</h1>
+<p>All 27 secp256k1-based cryptocurrencies with native address generation (P2PKH, P2WPKH, P2TR, EIP-55):</p>
+<table class="markdownTable">
+<tr class="markdownTableHead">
+<th class="markdownTableHeadNone">#   </th><th class="markdownTableHeadNone">Coin   </th><th class="markdownTableHeadNone">Ticker   </th><th class="markdownTableHeadNone">Address Types   </th><th class="markdownTableHeadNone">BIP-44    </th></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone">1   </td><td class="markdownTableBodyNone"><b>Bitcoin</b>   </td><td class="markdownTableBodyNone">BTC   </td><td class="markdownTableBodyNone">P2PKH, P2WPKH (Bech32), P2TR (Bech32m)   </td><td class="markdownTableBodyNone">m/86'/0'    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone">2   </td><td class="markdownTableBodyNone"><b>Ethereum</b>   </td><td class="markdownTableBodyNone">ETH   </td><td class="markdownTableBodyNone">EIP-55 Checksum   </td><td class="markdownTableBodyNone">m/44'/60'    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone">3   </td><td class="markdownTableBodyNone"><b>Litecoin</b>   </td><td class="markdownTableBodyNone">LTC   </td><td class="markdownTableBodyNone">P2PKH, P2WPKH   </td><td class="markdownTableBodyNone">m/84'/2'    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone">4   </td><td class="markdownTableBodyNone"><b>Dogecoin</b>   </td><td class="markdownTableBodyNone">DOGE   </td><td class="markdownTableBodyNone">P2PKH   </td><td class="markdownTableBodyNone">m/44'/3'    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone">5   </td><td class="markdownTableBodyNone"><b>Bitcoin Cash</b>   </td><td class="markdownTableBodyNone">BCH   </td><td class="markdownTableBodyNone">P2PKH   </td><td class="markdownTableBodyNone">m/44'/145'    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone">6   </td><td class="markdownTableBodyNone"><b>Bitcoin SV</b>   </td><td class="markdownTableBodyNone">BSV   </td><td class="markdownTableBodyNone">P2PKH   </td><td class="markdownTableBodyNone">m/44'/236'    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone">7   </td><td class="markdownTableBodyNone"><b>Zcash</b>   </td><td class="markdownTableBodyNone">ZEC   </td><td class="markdownTableBodyNone">P2PKH (transparent)   </td><td class="markdownTableBodyNone">m/44'/133'    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone">8   </td><td class="markdownTableBodyNone"><b>Dash</b>   </td><td class="markdownTableBodyNone">DASH   </td><td class="markdownTableBodyNone">P2PKH   </td><td class="markdownTableBodyNone">m/44'/5'    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone">9   </td><td class="markdownTableBodyNone"><b>DigiByte</b>   </td><td class="markdownTableBodyNone">DGB   </td><td class="markdownTableBodyNone">P2PKH, P2WPKH   </td><td class="markdownTableBodyNone">m/44'/20'    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone">10   </td><td class="markdownTableBodyNone"><b>Namecoin</b>   </td><td class="markdownTableBodyNone">NMC   </td><td class="markdownTableBodyNone">P2PKH   </td><td class="markdownTableBodyNone">m/44'/7'    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone">11   </td><td class="markdownTableBodyNone"><b>Peercoin</b>   </td><td class="markdownTableBodyNone">PPC   </td><td class="markdownTableBodyNone">P2PKH   </td><td class="markdownTableBodyNone">m/44'/6'    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone">12   </td><td class="markdownTableBodyNone"><b>Vertcoin</b>   </td><td class="markdownTableBodyNone">VTC   </td><td class="markdownTableBodyNone">P2PKH, P2WPKH   </td><td class="markdownTableBodyNone">m/44'/28'    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone">13   </td><td class="markdownTableBodyNone"><b>Viacoin</b>   </td><td class="markdownTableBodyNone">VIA   </td><td class="markdownTableBodyNone">P2PKH   </td><td class="markdownTableBodyNone">m/44'/14'    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone">14   </td><td class="markdownTableBodyNone"><b>Groestlcoin</b>   </td><td class="markdownTableBodyNone">GRS   </td><td class="markdownTableBodyNone">P2PKH, P2WPKH   </td><td class="markdownTableBodyNone">m/44'/17'    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone">15   </td><td class="markdownTableBodyNone"><b>Syscoin</b>   </td><td class="markdownTableBodyNone">SYS   </td><td class="markdownTableBodyNone">P2PKH   </td><td class="markdownTableBodyNone">m/44'/57'    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone">16   </td><td class="markdownTableBodyNone"><b>BNB Smart Chain</b>   </td><td class="markdownTableBodyNone">BNB   </td><td class="markdownTableBodyNone">EIP-55   </td><td class="markdownTableBodyNone">m/44'/60'    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone">17   </td><td class="markdownTableBodyNone"><b>Polygon</b>   </td><td class="markdownTableBodyNone">MATIC   </td><td class="markdownTableBodyNone">EIP-55   </td><td class="markdownTableBodyNone">m/44'/60'    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone">18   </td><td class="markdownTableBodyNone"><b>Avalanche</b>   </td><td class="markdownTableBodyNone">AVAX   </td><td class="markdownTableBodyNone">EIP-55 (C-Chain)   </td><td class="markdownTableBodyNone">m/44'/60'    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone">19   </td><td class="markdownTableBodyNone"><b>Fantom</b>   </td><td class="markdownTableBodyNone">FTM   </td><td class="markdownTableBodyNone">EIP-55   </td><td class="markdownTableBodyNone">m/44'/60'    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone">20   </td><td class="markdownTableBodyNone"><b>Arbitrum</b>   </td><td class="markdownTableBodyNone">ARB   </td><td class="markdownTableBodyNone">EIP-55   </td><td class="markdownTableBodyNone">m/44'/60'    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone">21   </td><td class="markdownTableBodyNone"><b>Optimism</b>   </td><td class="markdownTableBodyNone">OP   </td><td class="markdownTableBodyNone">EIP-55   </td><td class="markdownTableBodyNone">m/44'/60'    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone">22   </td><td class="markdownTableBodyNone"><b>Ravencoin</b>   </td><td class="markdownTableBodyNone">RVN   </td><td class="markdownTableBodyNone">P2PKH   </td><td class="markdownTableBodyNone">m/44'/175'    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone">23   </td><td class="markdownTableBodyNone"><b>Flux</b>   </td><td class="markdownTableBodyNone">FLUX   </td><td class="markdownTableBodyNone">P2PKH   </td><td class="markdownTableBodyNone">m/44'/19167'    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone">24   </td><td class="markdownTableBodyNone"><b>Qtum</b>   </td><td class="markdownTableBodyNone">QTUM   </td><td class="markdownTableBodyNone">P2PKH   </td><td class="markdownTableBodyNone">m/44'/2301'    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone">25   </td><td class="markdownTableBodyNone"><b>Horizen</b>   </td><td class="markdownTableBodyNone">ZEN   </td><td class="markdownTableBodyNone">P2PKH   </td><td class="markdownTableBodyNone">m/44'/121'    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone">26   </td><td class="markdownTableBodyNone"><b>Bitcoin Gold</b>   </td><td class="markdownTableBodyNone">BTG   </td><td class="markdownTableBodyNone">P2PKH   </td><td class="markdownTableBodyNone">m/44'/156'    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone">27   </td><td class="markdownTableBodyNone"><b>Komodo</b>   </td><td class="markdownTableBodyNone">KMD   </td><td class="markdownTableBodyNone">P2PKH   </td><td class="markdownTableBodyNone">m/44'/141'   </td></tr>
+</table>
+<p>All EVM chains (ETH, BNB, MATIC, AVAX, FTM, ARB, OP) share the same address format (EIP-55 checksummed hex).</p>
+<h1><a class="anchor" id="autotoc_md83"></a>
 🚫 Scope</h1>
 <p>This is an ECC arithmetic library. It provides field/scalar/point operations, signature schemes (ECDSA, Schnorr, MuSig2, FROST, Adaptor), Pedersen commitments, Taproot, HD derivation (BIP-32/44), and 27-coin address generation. It does not include key storage, wallet software, network protocols, or attack tools.</p>
-<h1><a class="anchor" id="autotoc_md54"></a>
+<h1><a class="anchor" id="autotoc_md84"></a>
 ⚠️ API Stability</h1>
-<p>The public API is <b>not yet stable</b>. Breaking changes may occur in any minor release before <b>v4.0</b>.</p>
-<p>Core layers (field, scalar, point, ECDSA, Schnorr) have mature interfaces unlikely to change. Experimental layers (MuSig2, FROST, Adaptor, Pedersen, Taproot, HD, Coins) may see breaking changes in any release.</p>
+<p><b>C++ API</b>: Not yet stable. Breaking changes may occur in any minor release before <b>v4.0</b>. Core layers (field, scalar, point, ECDSA, Schnorr) have mature interfaces unlikely to change. Experimental layers (MuSig2, FROST, Adaptor, Pedersen, Taproot, HD, Coins) may see breaking changes.</p>
+<p>**C ABI (<code>ufsecp</code>)**: Stable from v3.4.0. ABI version is tracked separately — minor version bumps add new functions without breaking existing ones. See <a class="el" href="md_include_2ufsecp_2SUPPORTED__GUARANTEES.html">SUPPORTED_GUARANTEES.md</a> for tier details.</p>
 <p>Pin your dependency version and review changelogs before upgrading.</p>
-<h1><a class="anchor" id="autotoc_md55"></a>
+<h1><a class="anchor" id="autotoc_md85"></a>
 📚 Documentation</h1>
 <ul>
 <li>Documentation Index</li>
@@ -1197,12 +1485,12 @@ Apple Metal (Apple M3 Pro) — Kernel-Only</h2>
 <li>Security Policy</li>
 <li>Changelog</li>
 </ul>
-<h1><a class="anchor" id="autotoc_md56"></a>
+<h1><a class="anchor" id="autotoc_md86"></a>
 🧪 Testing</h1>
-<h2><a class="anchor" id="autotoc_md57"></a>
+<h2><a class="anchor" id="autotoc_md87"></a>
 Built-in Selftest</h2>
 <p>The library includes a comprehensive self-test (<code>Selftest()</code>) that runs <b>deterministic KAT vectors</b> covering all arithmetic operations. Every test/bench executable runs this selftest on startup.</p>
-<h2><a class="anchor" id="autotoc_md58"></a>
+<h2><a class="anchor" id="autotoc_md88"></a>
 Three Modes</h2>
 <table class="markdownTable">
 <tr class="markdownTableHead">
@@ -1225,7 +1513,7 @@ Three Modes</h2>
 <div class="line">Selftest(<span class="keyword">true</span>, SelftestMode::ci);                  <span class="comment">// Full CI suite</span></div>
 <div class="line">Selftest(<span class="keyword">true</span>, SelftestMode::stress, 0xDEADBEEF); <span class="comment">// Nightly with custom seed</span></div>
 <div class="ttc" id="aselftest_8hpp_html"><div class="ttname"><a href="selftest_8hpp.html">selftest.hpp</a></div></div>
-</div><!-- fragment --><h2><a class="anchor" id="autotoc_md59"></a>
+</div><!-- fragment --><h2><a class="anchor" id="autotoc_md89"></a>
 Repro Bundle</h2>
 <p>On verbose output, selftest prints everything needed to reproduce a failure:</p>
 <div class="fragment"><div class="line">Mode:     ci</div>
@@ -1235,7 +1523,7 @@ Repro Bundle</h2>
 <div class="line">Build:    Release</div>
 <div class="line">ASM:      enabled</div>
 <div class="line">Repro:    Selftest(true, SelftestMode::ci, 0x53454350324b3147)</div>
-</div><!-- fragment --><h2><a class="anchor" id="autotoc_md60"></a>
+</div><!-- fragment --><h2><a class="anchor" id="autotoc_md90"></a>
 Sanitizer Builds</h2>
 <div class="fragment"><div class="line"># ASan + UBSan (catches UB, out-of-bounds, use-after-free)</div>
 <div class="line">cmake --preset cpu-asan</div>
@@ -1246,13 +1534,13 @@ Sanitizer Builds</h2>
 <div class="line">cmake --preset cpu-tsan</div>
 <div class="line">cmake --build build/cpu-tsan -j</div>
 <div class="line">ctest --test-dir build/cpu-tsan --output-on-failure</div>
-</div><!-- fragment --><h2><a class="anchor" id="autotoc_md61"></a>
+</div><!-- fragment --><h2><a class="anchor" id="autotoc_md91"></a>
 Running Tests</h2>
 <div class="fragment"><div class="line"># Build and run all tests (ci mode)</div>
 <div class="line">cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DSECP256K1_BUILD_TESTS=ON</div>
 <div class="line">cmake --build build -j</div>
 <div class="line">ctest --test-dir build --output-on-failure</div>
-</div><!-- fragment --><h2><a class="anchor" id="autotoc_md62"></a>
+</div><!-- fragment --><h2><a class="anchor" id="autotoc_md92"></a>
 Platform Coverage Dashboard</h2>
 <table class="markdownTable">
 <tr class="markdownTableHead">
@@ -1283,7 +1571,7 @@ Platform Coverage Dashboard</h2>
 <blockquote class="doxtable">
 <p>&zwj;Community-tested platforms: if you run selftest on a new platform, submit the log via PR and we'll add a row. </p>
 </blockquote>
-<h2><a class="anchor" id="autotoc_md63"></a>
+<h2><a class="anchor" id="autotoc_md93"></a>
 Fuzz Testing</h2>
 <p>libFuzzer harnesses cover core arithmetic (<code>cpu/fuzz/</code>):</p>
 <table class="markdownTable">
@@ -1299,19 +1587,19 @@ Fuzz Testing</h2>
 <div class="fragment"><div class="line">clang++ -fsanitize=fuzzer,address -O2 -std=c++20 \</div>
 <div class="line">  -I cpu/include cpu/fuzz/fuzz_field.cpp cpu/src/field.cpp cpu/src/field_asm.cpp \</div>
 <div class="line">  -o fuzz_field &amp;&amp; ./fuzz_field -max_len=64 -runs=10000000</div>
-</div><!-- fragment --><h1><a class="anchor" id="autotoc_md64"></a>
+</div><!-- fragment --><h1><a class="anchor" id="autotoc_md94"></a>
 🤝 Contributing</h1>
 <p>Contributions are welcome! Please read CONTRIBUTING.md for guidelines.</p>
-<h2><a class="anchor" id="autotoc_md65"></a>
+<h2><a class="anchor" id="autotoc_md95"></a>
 Development Setup</h2>
 <div class="fragment"><div class="line">git clone https://github.com/shrec/UltrafastSecp256k1.git</div>
 <div class="line">cd UltrafastSecp256k1</div>
 <div class="line">cmake -S . -B build-dev -G Ninja -DCMAKE_BUILD_TYPE=Debug</div>
 <div class="line">cmake --build build-dev -j</div>
-</div><!-- fragment --><h1><a class="anchor" id="autotoc_md66"></a>
+</div><!-- fragment --><h1><a class="anchor" id="autotoc_md96"></a>
 📄 License</h1>
 <p>This project is licensed under the <b>GNU Affero General Public License v3.0 (AGPL-3.0)</b>.</p>
-<h2><a class="anchor" id="autotoc_md67"></a>
+<h2><a class="anchor" id="autotoc_md97"></a>
 Open Source License</h2>
 <p>The library is free to use under AGPL-3.0 for open source projects. This means:</p><ul>
 <li>✅ You can use, modify, and distribute the code</li>
@@ -1320,7 +1608,7 @@ Open Source License</h2>
 <li>✅ You must provide network access to your source code if you run it as a service</li>
 </ul>
 <p>See [LICENSE](LICENSE) for full details.</p>
-<h2><a class="anchor" id="autotoc_md68"></a>
+<h2><a class="anchor" id="autotoc_md98"></a>
 Commercial License</h2>
 <p><b>For commercial/proprietary use without AGPL-3.0 obligations:</b></p>
 <p>If you want to use this library in a proprietary/closed-source product or service without disclosing your source code, please contact us for a commercial license.</p>
@@ -1329,7 +1617,7 @@ Commercial License</h2>
 <li>GitHub: <a href="https://github.com/shrec/UltrafastSecp256k1">https://github.com/shrec/UltrafastSecp256k1</a></li>
 </ul>
 <p>We offer flexible licensing options for commercial applications.</p>
-<h1><a class="anchor" id="autotoc_md69"></a>
+<h1><a class="anchor" id="autotoc_md99"></a>
 🙏 Acknowledgments</h1>
 <ul>
 <li>Based on optimized <a class="el" href="namespacesecp256k1.html">secp256k1</a> implementations</li>
@@ -1337,7 +1625,7 @@ Commercial License</h2>
 <li>RISC-V assembly contributions</li>
 <li>CUDA kernel optimizations</li>
 </ul>
-<h1><a class="anchor" id="autotoc_md70"></a>
+<h1><a class="anchor" id="autotoc_md100"></a>
 📧 Contact &amp; Community</h1>
 <table class="markdownTable">
 <tr class="markdownTableHead">
@@ -1357,12 +1645,12 @@ Commercial License</h2>
 <tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone">Commercial   </td><td class="markdownTableBodyNone"><a href="#" onclick="location.href='mai'+'lto:'+'pay'+'ys'+'oon'+'@g'+'mai'+'l.'+'com'; return false;">payysoon@gmail.com</a>   </td></tr>
 </table>
-<h1><a class="anchor" id="autotoc_md71"></a>
+<h1><a class="anchor" id="autotoc_md101"></a>
 ☕ Support the Project</h1>
 <p>If you find this library useful, consider supporting development!</p>
 <p><a href="https://github.com/sponsors/shrec"><img src="https://img.shields.io/badge/Sponsor-GitHub%20Sponsors-ea4aaa.svg?logo=github" alt="Sponsor" style="pointer-events: none;" class="inline"/></a> <a href="https://paypal.me/IChkheidze"><img src="https://img.shields.io/badge/PayPal-Donate-blue.svg?logo=paypal" alt="PayPal" style="pointer-events: none;" class="inline"/></a></p>
 <hr  />
-<p><b>UltrafastSecp256k1</b> - Ultra high-performance elliptic curve cryptography for modern hardware. </p>
+<p><b>UltrafastSecp256k1</b> — The fastest open-source <a class="el" href="namespacesecp256k1.html">secp256k1</a> library. GPU-accelerated ECDSA &amp; Schnorr signatures for Bitcoin, Ethereum, and 25+ blockchains. </p>
 </div></div><!-- PageDoc -->
 </div><!-- contents -->
 </div><!-- doc-content -->

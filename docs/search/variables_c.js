@@ -1,11 +1,11 @@
 var searchData=
 [
-  ['name_0',['name',['../structsecp256k1_1_1CurveContext.html#ac783090abed92bb9011d5063982d8c90',1,'secp256k1::CurveContext::name'],['../structsecp256k1_1_1coins_1_1CoinParams.html#a12d1e5759867e1d5f5910dd9766eb99a',1,'secp256k1::coins::CoinParams::name']]],
-  ['namecoin_1',['Namecoin',['../namespacesecp256k1_1_1coins.html#a2b213e0327a73e15d8084f46ea89fb5c',1,'secp256k1::coins']]],
-  ['needs_5fnegation_2',['needs_negation',['../structsecp256k1_1_1SchnorrAdaptorSig.html#a6ce6acb403b03373b98ce970a7ffc23c',1,'secp256k1::SchnorrAdaptorSig']]],
-  ['neg1_3',['neg1',['../structsecp256k1_1_1fast_1_1KPlan.html#ac006e0d79699c537d09045f3af25162f',1,'secp256k1::fast::KPlan::neg1'],['../structsecp256k1_1_1fast_1_1ScalarDecomposition.html#ab213f8bfcad6dd0674fafa4e527fccc4',1,'secp256k1::fast::ScalarDecomposition::neg1'],['../structsecp256k1_1_1fast_1_1PrecomputedScalar.html#a8a22731dfb22c46c1585ed4bc60bbd78',1,'secp256k1::fast::PrecomputedScalar::neg1'],['../structsecp256k1_1_1fast_1_1PrecomputedScalarOptimized_1_1Step.html#ad1c8ca2ef9593c5df625ca56e1687067',1,'secp256k1::fast::PrecomputedScalarOptimized::Step::neg1'],['../structsecp256k1_1_1fast_1_1PrecomputedScalarOptimized.html#abe2e0b579149888e8168ead3fa83acb0',1,'secp256k1::fast::PrecomputedScalarOptimized::neg1']]],
-  ['neg2_4',['neg2',['../structsecp256k1_1_1fast_1_1KPlan.html#ae49d80947553f0423ba86fd2e1ab950e',1,'secp256k1::fast::KPlan::neg2'],['../structsecp256k1_1_1fast_1_1ScalarDecomposition.html#a709e42d58ff878dccbfd76a9cdf3e85c',1,'secp256k1::fast::ScalarDecomposition::neg2'],['../structsecp256k1_1_1fast_1_1PrecomputedScalar.html#ad58b708c971b3f63b8590fa7b10a94bb',1,'secp256k1::fast::PrecomputedScalar::neg2'],['../structsecp256k1_1_1fast_1_1PrecomputedScalarOptimized_1_1Step.html#a004366d92d3400be496d3a1277123700',1,'secp256k1::fast::PrecomputedScalarOptimized::Step::neg2'],['../structsecp256k1_1_1fast_1_1PrecomputedScalarOptimized.html#af1647edca6adce74163fa0a21f908855',1,'secp256k1::fast::PrecomputedScalarOptimized::neg2']]],
-  ['network_5',['network',['../structsecp256k1_1_1WIFDecodeResult.html#a1cb361831192e9d20c2f7acfe4c8a15e',1,'secp256k1::WIFDecodeResult']]],
-  ['num_5fdoubles_6',['num_doubles',['../structsecp256k1_1_1fast_1_1PrecomputedScalarOptimized_1_1Step.html#af842895248026ce9637e794a3d92dabc',1,'secp256k1::fast::PrecomputedScalarOptimized::Step']]],
-  ['num_5fparticipants_7',['num_participants',['../structsecp256k1_1_1FrostKeyPackage.html#aed19689e4542503b0c4fab9ce4cb9162',1,'secp256k1::FrostKeyPackage']]]
+  ['m22_0',['M22',['../namespacesecp256k1_1_1fast_1_1fe26__constants.html#a5363f3e95452d2d501b333c9c0c89783',1,'secp256k1::fast::fe26_constants']]],
+  ['m26_1',['M26',['../namespacesecp256k1_1_1fast_1_1fe26__constants.html#af7f084a10f45f7bf680b4c7426bb311c',1,'secp256k1::fast::fe26_constants']]],
+  ['m48_2',['M48',['../namespacesecp256k1_1_1fast_1_1fe52__constants.html#a87b119bba7d2e01e7a6cb2361d523c62',1,'secp256k1::fast::fe52_constants']]],
+  ['m52_3',['M52',['../namespacesecp256k1_1_1fast_1_1fe52__constants.html#a93eea5d396c98be6f7d85cbf37e429ed',1,'secp256k1::fast::fe52_constants']]],
+  ['max_5fwindows_5fto_5fload_4',['max_windows_to_load',['../structsecp256k1_1_1fast_1_1FixedBaseConfig.html#ac2d2100e410f8454de0bc2bd16c455c3',1,'secp256k1::fast::FixedBaseConfig']]],
+  ['message_5',['message',['../structsecp256k1_1_1SchnorrBatchEntry.html#aaf920755c5fadadc7d7a6c4f53bcc3a6',1,'secp256k1::SchnorrBatchEntry']]],
+  ['minus_5fb1_6',['MINUS_B1',['../namespacesecp256k1_1_1fast_1_1glv__constants.html#a08bcc168109784e84eb68b5e752d3442',1,'secp256k1::fast::glv_constants']]],
+  ['msg_5fhash_7',['msg_hash',['../structsecp256k1_1_1ECDSABatchEntry.html#a7f93edf3342a38fe845061a078456c69',1,'secp256k1::ECDSABatchEntry']]]
 ];

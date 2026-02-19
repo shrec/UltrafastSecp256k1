@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['🚫_20scope_0',['🚫 Scope',['../index.html#autotoc_md53',1,'']]]
+  ['🔬_20research_20statement_0',['🔬 Research Statement',['../index.html#autotoc_md80',1,'']]]
 ];

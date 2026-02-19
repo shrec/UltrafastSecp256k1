@@ -1,5 +1,7 @@
 var ops_8hpp =
 [
+    [ "SECP256K1_CLASSIFY", "ops_8hpp.html#a8b0fab70453a2cf85b3d7f3f7e55ba78", null ],
+    [ "SECP256K1_DECLASSIFY", "ops_8hpp.html#a10028caa63adfa2c6c2ff075a0de6377", null ],
     [ "bool_to_mask", "ops_8hpp.html#afeef0db6bdf114f53c2a9a156d551055", null ],
     [ "cmov256", "ops_8hpp.html#a64999411c70b8fbc3e914a6969074744", null ],
     [ "cmov64", "ops_8hpp.html#a1e5b7e2fb038f58c50a09666fc9b9315", null ],
