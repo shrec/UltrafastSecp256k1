@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771527939359,
+  "lastUpdate": 1771528822414,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -2306,6 +2306,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Point Double",
             "value": 147,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "shrec@users.noreply.github.com",
+            "name": "shrec",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "shrec@users.noreply.github.com",
+            "name": "shrec",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "38978ca7e5fd5072fc9ef66fd53f70b4561b68bc",
+          "message": "docs: SEO optimization — README rewrite, PORTING.md, version updates\n\n- README.md: Complete rewrite with SEO-friendly keyword-rich H2 headings\n  - 'secp256k1 GPU Acceleration', 'secp256k1 on Embedded', 'WASM secp256k1',\n    'Constant-Time secp256k1', 'secp256k1 Benchmarks — Cross-Platform Comparison'\n  - First 20 lines: what-is-it, why, quick links to Benchmarks/Security/Porting\n  - Cross-platform comparison tables (CPU/GPU/Embedded side-by-side)\n  - Expanded SEO keyword comment block\n  - Zero-dependency messaging prominent throughout\n- PORTING.md: New porting guide for CPU architectures, embedded targets, GPU backends\n  - Step-by-step checklists for each port type\n  - Reference implementation table (CUDA/OpenCL/Metal/ROCm)\n  - Submission process for community ports\n- SECURITY.md: Updated supported versions to v3.6.0\n- THREAT_MODEL.md: Updated version references to v3.6.0\n- docs/README.md: Version bump to 3.6.0, added Porting Guide + Security section links",
+          "timestamp": "2026-02-19T19:19:07Z",
+          "tree_id": "bc6c1642e033a7d6b267afe5d66781b975c2a5d4",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/38978ca7e5fd5072fc9ef66fd53f70b4561b68bc"
+        },
+        "date": 1771528820796,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Field Mul",
+            "value": 24,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 19,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 0,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Add",
+            "value": 248,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 127,
             "unit": "ns"
           }
         ]
