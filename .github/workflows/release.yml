@@ -582,6 +582,16 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Publish to npmjs.com (public registry)
+        run: |
+          cd bindings/nodejs
+          # Restore original unscoped name for npmjs.com
+          sed -i 's/"name": "@shrec\/ufsecp"/"name": "ufsecp"/' package.json
+          echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > .npmrc
+          npm publish --access public || echo "WARN: npmjs.com publish failed (may already exist)"
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
   # ══════════════════════════════════════════════════════════════════════════
   # 8) Package bindings — NuGet (.nupkg with multi-RID runtimes)
   # ══════════════════════════════════════════════════════════════════════════
@@ -1248,6 +1258,16 @@ jobs:
           npm publish --access public || echo "WARN: npm publish failed (may already exist)"
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish to npmjs.com (public registry — React Native)
+        run: |
+          cd bindings/react-native
+          # Restore original unscoped name for npmjs.com
+          sed -i 's/"name": "@shrec\/react-native-ufsecp"/"name": "react-native-ufsecp"/' package.json
+          echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > .npmrc
+          npm publish --access public || echo "WARN: npmjs.com publish failed (may already exist)"
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   # ══════════════════════════════════════════════════════════════════════════
   # 16) Package bindings — Swift (Package.swift + sources + native libs)
