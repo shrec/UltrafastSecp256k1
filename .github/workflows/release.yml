@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: write
+  packages: write
 
 env:
   CMAKE_BUILD_TYPE: Release
@@ -564,6 +565,23 @@ jobs:
           path: bindings/nodejs/ufsecp-*.tgz
           retention-days: 5
 
+      - name: Publish to GitHub Packages (npm)
+        run: |
+          cd bindings/nodejs
+          VERSION="${GITHUB_REF_NAME#v}"
+
+          # GitHub Packages npm requires scoped package name
+          # Rewrite name to @shrec/ufsecp for the registry
+          sed -i 's/"name": "ufsecp"/"name": "@shrec\/ufsecp"/' package.json
+
+          # Configure npm to use GitHub Packages registry for @shrec scope
+          echo "@shrec:registry=https://npm.pkg.github.com" > .npmrc
+          echo "//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}" >> .npmrc
+
+          npm publish --access public || echo "WARN: npm publish failed (may already exist)"
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   # ══════════════════════════════════════════════════════════════════════════
   # 8) Package bindings — NuGet (.nupkg with multi-RID runtimes)
   # ══════════════════════════════════════════════════════════════════════════
@@ -645,6 +663,13 @@ jobs:
           path: bindings/csharp/Ufsecp/nupkgs/*.nupkg
           retention-days: 5
 
+      - name: Publish to GitHub Packages (NuGet)
+        run: |
+          dotnet nuget push bindings/csharp/Ufsecp/nupkgs/*.nupkg \
+            --source "https://nuget.pkg.github.com/shrec/index.json" \
+            --api-key "${{ secrets.GITHUB_TOKEN }}" \
+            --skip-duplicate || echo "WARN: NuGet push failed (may already exist)"
+
   # ══════════════════════════════════════════════════════════════════════════
   # 9) Package bindings — Ruby gem
   # ══════════════════════════════════════════════════════════════════════════
@@ -711,6 +736,19 @@ jobs:
           name: ufsecp-gem
           path: bindings/ruby/ufsecp-*.gem
           retention-days: 5
+
+      - name: Publish to GitHub Packages (RubyGems)
+        run: |
+          # Configure gem credentials for GitHub Packages
+          mkdir -p ~/.gem
+          printf -- "---\n:github: Bearer %s\n" "${GEM_HOST_API_KEY}" > ~/.gem/credentials
+          chmod 0600 ~/.gem/credentials
+
+          cd bindings/ruby
+          gem push --key github --host https://rubygems.pkg.github.com/shrec \
+            ufsecp-*.gem || echo "WARN: gem push failed (may already exist)"
+        env:
+          GEM_HOST_API_KEY: ${{ secrets.GITHUB_TOKEN }}
 
   # ══════════════════════════════════════════════════════════════════════════
   # 10) Package bindings — Java JNI JAR (multi-platform native libs)
@@ -797,6 +835,61 @@ jobs:
           name: ufsecp-java
           path: bindings/java/ufsecp-*.jar
           retention-days: 5
+
+      - name: Publish to GitHub Packages (Maven)
+        run: |
+          cd bindings/java
+          VERSION="${GITHUB_REF_NAME#v}"
+          JAR="ufsecp-${VERSION}.jar"
+          GROUP="com.ultrafast"
+          ARTIFACT="ufsecp"
+          REPO_URL="https://maven.pkg.github.com/shrec/UltrafastSecp256k1"
+
+          # Generate minimal POM
+          cat > pom.xml <<'POMEOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <project xmlns="http://maven.apache.org/POM/4.0.0">
+            <modelVersion>4.0.0</modelVersion>
+            <groupId>com.ultrafast</groupId>
+            <artifactId>ufsecp</artifactId>
+            <version>0.0.0</version>
+            <packaging>jar</packaging>
+            <name>UltrafastSecp256k1 JNI</name>
+            <description>Java JNI bindings for UltrafastSecp256k1</description>
+            <url>https://github.com/shrec/UltrafastSecp256k1</url>
+          </project>
+          POMEOF
+          # Fix version in POM (heredoc can't expand shell vars with quoted delimiter)
+          sed -i "s|<version>0.0.0</version>|<version>${VERSION}</version>|" pom.xml
+
+          # Generate settings.xml with GitHub Packages credentials
+          cat > settings.xml <<'SETEOF'
+          <settings>
+            <servers>
+              <server>
+                <id>github</id>
+                <username>${env.GITHUB_ACTOR}</username>
+                <password>${env.GITHUB_TOKEN}</password>
+              </server>
+            </servers>
+          </settings>
+          SETEOF
+
+          # Deploy JAR to GitHub Packages Maven registry
+          mvn deploy:deploy-file \
+            -DgroupId="${GROUP}" \
+            -DartifactId="${ARTIFACT}" \
+            -Dversion="${VERSION}" \
+            -Dpackaging=jar \
+            -Dfile="${JAR}" \
+            -DpomFile=pom.xml \
+            -DrepositoryId=github \
+            -Durl="${REPO_URL}" \
+            -DretryFailedDeploymentCount=3 \
+            --settings settings.xml \
+            || echo "WARN: Maven deploy failed (may already exist)"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # ══════════════════════════════════════════════════════════════════════════
   # 11) Package bindings — Go (source + native libs)
