@@ -3456,13 +3456,14 @@ bool load_precompute_cache(const std::string& path, unsigned max_windows) {
 
 Point scalar_mul_arbitrary(const Point& base, const Scalar& scalar, unsigned window_bits) {
     (void)window_bits; // unused in this simple fallback
-    // Simple naive double-and-add for fallback/testing
+    // Simple naive double-and-add (LSB-first)
     Point res = Point::infinity();
     Point temp = base;
-    std::array<uint8_t, 32> bits = scalar.to_bytes(); // Big-endian
+    std::array<uint8_t, 32> bits = scalar.to_bytes(); // Big-endian bytes
 
     for (int i = 0; i < 256; ++i) {
-        bool bit = (bits[(255 - i) / 8] >> ((255 - i) % 8)) & 1;
+        // Bit i of the scalar: byte (31 - i/8) contains the group, bit (i%8) within that byte
+        bool bit = (bits[31 - i / 8] >> (i % 8)) & 1;
         if (bit) {
             res.add_inplace(temp);
         }
