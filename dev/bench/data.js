@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771520157681,
+  "lastUpdate": 1771520674614,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -1928,6 +1928,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Point Double",
             "value": 147,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "shrec@users.noreply.github.com",
+            "name": "shrec",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "shrec@users.noreply.github.com",
+            "name": "shrec",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "387caeab1380541d63e738c650f3efae961c88d2",
+          "message": "docs: remove external library comparison benchmarks\n\nRemove head-to-head comparison sections with libsecp256k1 and tiny-ecdsa\nfrom README.md, docs/BENCHMARKS.md, and docs/wiki/Benchmarks.md.\nKeep only internal benchmark numbers (our own platforms/backends).",
+          "timestamp": "2026-02-19T17:02:37Z",
+          "tree_id": "2e299a97cf526187045d42f7a14fffa2226e82ab",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/387caeab1380541d63e738c650f3efae961c88d2"
+        },
+        "date": 1771520673935,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Field Mul",
+            "value": 25,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 23,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 0,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Add",
+            "value": 256,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 146,
             "unit": "ns"
           }
         ]
