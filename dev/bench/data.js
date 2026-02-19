@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771427327700,
+  "lastUpdate": 1771518272472,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -1820,6 +1820,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Optimal Add",
             "value": 6,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "shrec@users.noreply.github.com",
+            "name": "shrec",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "shrec@users.noreply.github.com",
+            "name": "shrec",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "dd07e32768ef4dedb949755129b177b300d2e327",
+          "message": "fix: build system (PIC, install guard) and Dart lint cleanup\n\n- cpu/CMakeLists.txt: POSITION_INDEPENDENT_CODE ON for shared lib linking\n- include/ufsecp/CMakeLists.txt: install(EXPORT) guard for sub-project use\n- bindings/dart: remove unused typedefs, add errorString(), remove dead finalizer\n- dart analyze --fatal-infos passes clean",
+          "timestamp": "2026-02-19T16:23:19Z",
+          "tree_id": "deca4c5a260edbbebc81821839b6ff9bfffb36a0",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/dd07e32768ef4dedb949755129b177b300d2e327"
+        },
+        "date": 1771518272015,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Field Mul",
+            "value": 28,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 26,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 0,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Add",
+            "value": 283,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 163,
             "unit": "ns"
           }
         ]
