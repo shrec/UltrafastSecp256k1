@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771538137895,
+  "lastUpdate": 1771538151966,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -2944,6 +2944,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Field Negate",
             "value": 0,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Add",
+            "value": 255,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 145,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": false,
+          "id": "5dd538147931ca55c38435d6ce63d66dfcd3f383",
+          "message": "fix: correct carry propagation in generic reduce() function\n\nThe no-ASM reduce() path had broken carry propagation when adding\nhi_limb * (2^32 + 977) to the result array. Manual carry chains\nonly propagated 1-2 positions, losing carries when result limbs\nwere near-max (e.g. 0xFFFFFFFFFFFFFFFF). This caused incorrect\nmultiplication results for inputs involving large field elements.\n\nFix: replace manual add64+carry chains with add_into() which\nproperly propagates carries through the entire 5-limb array.\n\nAffects: sanitizer builds (SECP256K1_USE_ASM=OFF) and any platform\nwithout BMI2/ARM64/RISC-V assembly (ESP32, STM32 fallback).\n\nVerified: field_26 test 269/269 pass (MSVC Debug, ASM=OFF).",
+          "timestamp": "2026-02-20T01:54:25+04:00",
+          "tree_id": "2f1693f9449ee9c7e7a16066e655664f91081d5b",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/5dd538147931ca55c38435d6ce63d66dfcd3f383"
+        },
+        "date": 1771538150859,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Field Mul",
+            "value": 25,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 23,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 1,
             "unit": "ns"
           },
           {
