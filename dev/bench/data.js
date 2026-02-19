@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771544762139,
+  "lastUpdate": 1771544766297,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -3602,6 +3602,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Point Double",
             "value": 146,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": false,
+          "id": "326b8a3763499cb890b11b7704ec281f0c06792b",
+          "message": "ci: publish react-native-ufsecp to GitHub Packages npm registry\n\nAdd npm publish step to pack-react-native job, scoping package\nas @shrec/react-native-ufsecp for npm.pkg.github.com.",
+          "timestamp": "2026-02-20T03:44:51+04:00",
+          "tree_id": "3fbb34d139ad8bbdc369c77180140be40d959ed7",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/326b8a3763499cb890b11b7704ec281f0c06792b"
+        },
+        "date": 1771544765816,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Field Mul",
+            "value": 25,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 23,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 0,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Add",
+            "value": 256,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 145,
             "unit": "ns"
           }
         ]
