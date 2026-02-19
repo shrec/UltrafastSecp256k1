@@ -490,70 +490,46 @@ limbs4 reduce(const wide8& t) {
 
     // Step 2: Process each high limb: add high[i] * (2^32 + 977) to appropriate position
     // For each t[4+i], we add:
-    //   - t[4+i] * 977 to position i
-    //   - t[4+i] * 2^32 to position i (which is t[4+i] << 32)
+    //   - t[4+i] * 977 to position i   (128-bit product: lo at i, hi at i+1)
+    //   - t[4+i] * 2^32 to position i  (shift: low32 at i, high32 at i+1)
+    // Use add_into() for proper carry propagation through the full array.
     for (std::size_t i = 0; i < 4; ++i) {
         std::uint64_t hi_limb = t[4 + i];
         if (hi_limb == 0) continue;
-        
+
         // Add hi_limb * 977 starting at position i
         std::uint64_t lo = 0, hi = 0;
         mul64(hi_limb, 977ULL, lo, hi);
-        unsigned char carry = 0;
-        result[i] = add64(result[i], lo, carry);
-        result[i + 1] = add64(result[i + 1], hi, carry);
-        if (i + 2 < 5) {
-            result[i + 2] = add64(result[i + 2], 0ULL, carry);
-        }
-        
+        add_into(result, i, lo);
+        add_into(result, i + 1, hi);
+
         // Add hi_limb * 2^32 (shift left by 32 bits)
-        // This adds (hi_limb << 32) at position i
-        std::uint64_t shift_low = hi_limb << 32;
-        std::uint64_t shift_high = hi_limb >> 32;
-        carry = 0;
-        result[i] = add64(result[i], shift_low, carry);
-        result[i + 1] = add64(result[i + 1], shift_high, carry);
-        if (i + 2 < 5) {
-            result[i + 2] = add64(result[i + 2], 0ULL, carry);
-            if (carry && i + 3 < 5) {
-                result[i + 3] = add64(result[i + 3], 0ULL, carry);
-            }
-        }
+        add_into(result, i, hi_limb << 32);
+        add_into(result, i + 1, hi_limb >> 32);
     }
-    
+
     // Step 3: Handle overflow in result[4] if present
     while (result[4] != 0) {
         std::uint64_t overflow = result[4];
         result[4] = 0;
-        
-        // Add overflow * 977
+
+        // Add overflow * (2^32 + 977)
         std::uint64_t lo = 0, hi = 0;
         mul64(overflow, 977ULL, lo, hi);
-        unsigned char carry = 0;
-        result[0] = add64(result[0], lo, carry);
-        result[1] = add64(result[1], hi, carry);
-        result[2] = add64(result[2], 0ULL, carry);
-        result[3] = add64(result[3], 0ULL, carry);
-        result[4] = add64(result[4], 0ULL, carry);
-        
-        // Add overflow * 2^32
-        std::uint64_t shift_low = overflow << 32;
-        std::uint64_t shift_high = overflow >> 32;
-        carry = 0;
-        result[0] = add64(result[0], shift_low, carry);
-        result[1] = add64(result[1], shift_high, carry);
-        result[2] = add64(result[2], 0ULL, carry);
-        result[3] = add64(result[3], 0ULL, carry);
-        result[4] = add64(result[4], 0ULL, carry);
+        add_into(result, static_cast<std::size_t>(0), lo);
+        add_into(result, static_cast<std::size_t>(1), hi);
+
+        add_into(result, static_cast<std::size_t>(0), overflow << 32);
+        add_into(result, static_cast<std::size_t>(1), overflow >> 32);
     }
-    
+
     // Step 4: Extract final 256-bit result and normalize
     limbs4 out{result[0], result[1], result[2], result[3]};
-    
+
     while (ge(out, PRIME)) {
         out = sub_impl(out, PRIME);
     }
-    
+
     return out;
 }
 
