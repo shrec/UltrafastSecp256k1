@@ -511,6 +511,6 @@ All targets registered in CMake. Build with `cmake --build build -j` then run fr
 
 ## Version
 
-UltrafastSecp256k1 v3.5.0  
+UltrafastSecp256k1 v3.6.0  
 Benchmarks updated: 2026-02-20
 

@@ -144,7 +144,7 @@ __device__ void hash160_compressed(const uint8_t pubkey[33], uint8_t hash[20]);
 __device__ void hash160_uncompressed(const uint8_t pubkey[65], uint8_t hash[20]);
 ```
 
-### Signature Operations (NEW in v3.5.0)
+### Signature Operations (NEW in v3.6.0)
 
 > **World-first:** No other open-source GPU library provides secp256k1 ECDSA + Schnorr on GPU.
 

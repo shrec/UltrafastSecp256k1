@@ -5,7 +5,7 @@ All notable changes to UltrafastSecp256k1 are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [3.5.0] - 2026-02-20
+## [3.6.0] - 2026-02-20
 
 ### Added — GPU Signature Operations (CUDA)
 - **ECDSA Sign on GPU** — `ecdsa_sign_batch_kernel` with RFC 6979 deterministic nonces, low-S normalization. **204.8 ns / 4.88 M/s** per signature.

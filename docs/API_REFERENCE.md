@@ -1033,7 +1033,7 @@ int main() {
 
 ## Version
 
-UltrafastSecp256k1 v3.5.0
+UltrafastSecp256k1 v3.6.0
 
 For more information, see the [README](../README.md) or [GitHub repository](https://github.com/shrec/UltrafastSecp256k1).
 
