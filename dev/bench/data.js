@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771541730483,
+  "lastUpdate": 1771543670323,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -3440,6 +3440,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Point Double",
             "value": 146,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": false,
+          "id": "ab1a43ff0ea23811a3df1e92563367d869240067",
+          "message": "feat: publish packages to GitHub Packages registries\n\nAdd publish steps to 4 pack jobs:\n  - npm → npm.pkg.github.com (@shrec/ufsecp)\n  - NuGet → nuget.pkg.github.com (Ufsecp)\n  - RubyGems → rubygems.pkg.github.com (ufsecp)\n  - Maven → maven.pkg.github.com (com.ultrafast:ufsecp)\n\nAdd packages:write permission. No extra secrets needed —\nGITHUB_TOKEN handles all GitHub Packages authentication.\n\nUsers can now install directly via package managers:\n  npm install @shrec/ufsecp\n  dotnet add package Ufsecp\n  gem install ufsecp (from GitHub source)\n  Maven: com.ultrafast:ufsecp",
+          "timestamp": "2026-02-20T03:26:36+04:00",
+          "tree_id": "2a5d7178e5f7bd5e2dc1a3f47f43e78b3ec73a22",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/ab1a43ff0ea23811a3df1e92563367d869240067"
+        },
+        "date": 1771543669216,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Field Mul",
+            "value": 25,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 23,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 0,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Add",
+            "value": 255,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 147,
             "unit": "ns"
           }
         ]
