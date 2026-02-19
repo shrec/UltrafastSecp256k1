@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771540465665,
+  "lastUpdate": 1771541729077,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -3332,6 +3332,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Point Double",
             "value": 147,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": false,
+          "id": "6e79852c7bfacbb1754d79eb1456ce8b959edaea",
+          "message": "feat: add pack jobs for Go, Rust, Dart, PHP, React Native, Swift, C SDK\n\nComplete release coverage: every binding now ships as a ready-to-use\npackage with prebuilt native libs for all platforms. Users can drop\nthese into their projects without building from source.\n\nNew pack jobs (7):\n  - pack-go:            Go source + native libs\n  - pack-rust:          ufsecp + ufsecp-sys crates + native libs\n  - pack-dart:          Dart/Flutter package + desktop/mobile native libs\n  - pack-php:           Composer package + native libs + C headers (FFI)\n  - pack-react-native:  npm package + Android .so + iOS XCFramework\n  - pack-swift:         Package.swift + CUfsecp module + macOS/iOS libs\n  - pack-c-headers:     C API headers + native libs for all platforms\n\nRelease job now depends on all 12 pack jobs (was 5).",
+          "timestamp": "2026-02-20T02:54:10+04:00",
+          "tree_id": "11824b413c73ba0cf3e06accf5b5ed39fe50335e",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/6e79852c7bfacbb1754d79eb1456ce8b959edaea"
+        },
+        "date": 1771541728437,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Field Mul",
+            "value": 25,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 22,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 0,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Add",
+            "value": 256,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 146,
             "unit": "ns"
           }
         ]
