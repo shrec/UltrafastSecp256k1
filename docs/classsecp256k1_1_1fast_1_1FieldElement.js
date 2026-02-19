@@ -14,6 +14,8 @@ var classsecp256k1_1_1fast_1_1FieldElement =
     [ "inverse", "classsecp256k1_1_1fast_1_1FieldElement.html#ac6d7aceb9b580a7867972a7754091315", null ],
     [ "inverse_inplace", "classsecp256k1_1_1fast_1_1FieldElement.html#a6c6b6e5e2469bcfd77f1423985cdd78c", null ],
     [ "limbs", "classsecp256k1_1_1fast_1_1FieldElement.html#a0d2d12a0c06e62965c27856432e490de", null ],
+    [ "negate", "classsecp256k1_1_1fast_1_1FieldElement.html#add85f7e245c3b34df168eb54b604f1fe", null ],
+    [ "negate_assign", "classsecp256k1_1_1fast_1_1FieldElement.html#a42d21e14a25a5fa2b60f31bf2e44fed5", null ],
     [ "one", "classsecp256k1_1_1fast_1_1FieldElement.html#acba3f6493ff465149640c1591aab170f", null ],
     [ "operator!=", "classsecp256k1_1_1fast_1_1FieldElement.html#a8224960553bd25c3fb6e8b948b3dcadf", null ],
     [ "operator*", "classsecp256k1_1_1fast_1_1FieldElement.html#ac317d794e2d4c542619d119058ef0d63", null ],

@@ -1,5 +1,9 @@
 var NAVTREEINDEX7 =
 {
+"structsecp256k1_1_1PedersenCommitment.html#aacbd8dbfab914b46ad93b52d44ad6788":[24,0,0,28,1],
+"structsecp256k1_1_1PedersenCommitment.html#aacbd8dbfab914b46ad93b52d44ad6788":[25,0,0,25,1],
+"structsecp256k1_1_1PedersenCommitment.html#aae14e7ec3b3c8014f078cf53b155a446":[24,0,0,28,0],
+"structsecp256k1_1_1PedersenCommitment.html#aae14e7ec3b3c8014f078cf53b155a446":[25,0,0,25,0],
 "structsecp256k1_1_1PedersenCommitment.html#aea692ceb3cb7317917b103d5ede41577":[24,0,0,28,3],
 "structsecp256k1_1_1PedersenCommitment.html#aea692ceb3cb7317917b103d5ede41577":[25,0,0,25,3],
 "structsecp256k1_1_1RecoverableSignature.html":[25,0,0,26],
@@ -245,9 +249,5 @@ var NAVTREEINDEX7 =
 "structsecp256k1_1_1fast_1_1FixedBaseConfig.html#a1bca90c39dd74eb434d629c5f4e99462":[25,0,0,2,6,6],
 "structsecp256k1_1_1fast_1_1FixedBaseConfig.html#a1bca90c39dd74eb434d629c5f4e99462":[24,0,0,3,11,6],
 "structsecp256k1_1_1fast_1_1FixedBaseConfig.html#a396164a341524f277197abcbeec24f51":[24,0,0,3,11,16],
-"structsecp256k1_1_1fast_1_1FixedBaseConfig.html#a396164a341524f277197abcbeec24f51":[25,0,0,2,6,16],
-"structsecp256k1_1_1fast_1_1FixedBaseConfig.html#a49ec39077d6e057d10ec3df4308eeabc":[24,0,0,3,11,20],
-"structsecp256k1_1_1fast_1_1FixedBaseConfig.html#a49ec39077d6e057d10ec3df4308eeabc":[25,0,0,2,6,20],
-"structsecp256k1_1_1fast_1_1FixedBaseConfig.html#a5ac4e526603e4a04d4239acfeda935ac":[25,0,0,2,6,11],
-"structsecp256k1_1_1fast_1_1FixedBaseConfig.html#a5ac4e526603e4a04d4239acfeda935ac":[24,0,0,3,11,11]
+"structsecp256k1_1_1fast_1_1FixedBaseConfig.html#a396164a341524f277197abcbeec24f51":[25,0,0,2,6,16]
 };

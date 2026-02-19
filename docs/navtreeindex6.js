@@ -1,5 +1,9 @@
 var NAVTREEINDEX6 =
 {
+"precompute_8hpp.html#aec97c3e9d6fb0e5fff4dcf590c97f463":[26,0,0,0,0,31,24],
+"precompute_8hpp_source.html":[26,0,0,0,0,31],
+"recovery_8hpp.html":[26,0,0,0,0,32],
+"recovery_8hpp.html#a21f1a36b23f6e1e9fdb994f25fb46224":[26,0,0,0,0,32,4],
 "recovery_8hpp.html#a225e86fbf960bfcb2ff28b56a803b7ab":[26,0,0,0,0,32,2],
 "recovery_8hpp.html#aa758c046c3cc7b47ba5e45cc016ba714":[26,0,0,0,0,32,3],
 "recovery_8hpp.html#acbcfaa342e3f423b75cf5a3b3a9981a8":[26,0,0,0,0,32,1],
@@ -245,9 +249,5 @@ var NAVTREEINDEX6 =
 "structsecp256k1_1_1PedersenCommitment.html":[25,0,0,25],
 "structsecp256k1_1_1PedersenCommitment.html":[24,0,0,28],
 "structsecp256k1_1_1PedersenCommitment.html#a8436974737e12a1dd79efbd7873276f9":[24,0,0,28,2],
-"structsecp256k1_1_1PedersenCommitment.html#a8436974737e12a1dd79efbd7873276f9":[25,0,0,25,2],
-"structsecp256k1_1_1PedersenCommitment.html#aacbd8dbfab914b46ad93b52d44ad6788":[24,0,0,28,1],
-"structsecp256k1_1_1PedersenCommitment.html#aacbd8dbfab914b46ad93b52d44ad6788":[25,0,0,25,1],
-"structsecp256k1_1_1PedersenCommitment.html#aae14e7ec3b3c8014f078cf53b155a446":[24,0,0,28,0],
-"structsecp256k1_1_1PedersenCommitment.html#aae14e7ec3b3c8014f078cf53b155a446":[25,0,0,25,0]
+"structsecp256k1_1_1PedersenCommitment.html#a8436974737e12a1dd79efbd7873276f9":[25,0,0,25,2]
 };
