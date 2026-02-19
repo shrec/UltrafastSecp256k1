@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771523666338,
+  "lastUpdate": 1771527499096,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -2198,6 +2198,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Point Double",
             "value": 147,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "shrec@users.noreply.github.com",
+            "name": "shrec",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "shrec@users.noreply.github.com",
+            "name": "shrec",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "5978ce6fe4a33669f015aa94a3e8bee48ffc6c57",
+          "message": "fix(ci): add FieldElement::negate() for MSVC + guard GCC compile flags\n\n- Add negate()/negate_assign() to base FieldElement class (4x64)\n  FieldElement52 and FieldElement26 already had negate(), but the base\n  FieldElement used as OptimalFieldElement on MSVC (no __int128) lacked it.\n  bench_comprehensive_riscv.cpp calls .negate(1) on OFE → build failure.\n\n- Guard GCC/Clang-specific compile flags with compiler ID check\n  target_compile_options -O3 -fno-math-errno etc. were applied\n  unconditionally, causing D9002 warnings on MSVC cl.exe.\n\n- Guard set_source_files_properties for field_asm.cpp/field.cpp/point.cpp\n  GCC-specific flags (-fipa-pta, -mbmi2) now only applied to GCC/Clang.\n\nVerified: both NO_INT128 and normal builds pass (0 errors, 8/8 tests).",
+          "timestamp": "2026-02-19T18:56:58Z",
+          "tree_id": "ec5bc8f5661666a13888855cd7c0ac59f0c5ea3b",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/5978ce6fe4a33669f015aa94a3e8bee48ffc6c57"
+        },
+        "date": 1771527498536,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Field Mul",
+            "value": 25,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 23,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 0,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Add",
+            "value": 256,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 146,
             "unit": "ns"
           }
         ]
