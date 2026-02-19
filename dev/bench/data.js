@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771520674614,
+  "lastUpdate": 1771521588514,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -1982,6 +1982,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Point Double",
             "value": 146,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "shrec@users.noreply.github.com",
+            "name": "shrec",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "shrec@users.noreply.github.com",
+            "name": "shrec",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "06044233332d5fd006c1802d3eb583d1c95ac9f1",
+          "message": "bench: fix scalar_mul/generator_mul using 128 threads matching __launch_bounds__\n\nThe kernel's __launch_bounds__(128, 2) caused silent launch failures\nwhen bench used cfg.threads_per_block=256. Kernels never executed,\nproducing 0.0 ns. Now uses constexpr kThreads=128 and adds\ncudaGetLastError() check after warmup launches.",
+          "timestamp": "2026-02-19T17:18:35Z",
+          "tree_id": "50b591f7dfde2711497d44e0dce13f33bf482e0a",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/06044233332d5fd006c1802d3eb583d1c95ac9f1"
+        },
+        "date": 1771521587848,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Field Mul",
+            "value": 25,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 23,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 0,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Add",
+            "value": 256,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 147,
             "unit": "ns"
           }
         ]
