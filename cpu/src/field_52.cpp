@@ -15,12 +15,13 @@
 #include <cstring>
 
 // Require 128-bit integer support for the mul/sqr kernels.
-// clang-cl, GCC, and Clang all support this on 64-bit targets.
-#if defined(__SIZEOF_INT128__) || defined(__GNUC__) || defined(__clang__)
+// __SIZEOF_INT128__ is the canonical check — defined on 64-bit GCC/Clang,
+// NOT on 32-bit targets (armv7, i686, ESP32) even though __GNUC__ is set.
+#if defined(__SIZEOF_INT128__)
     using uint128_t = unsigned __int128;
     #define SECP256K1_HAS_UINT128 1
 #else
-    // MSVC (non-clang-cl) lacks __uint128_t.
+    // 32-bit or MSVC: __int128 unavailable.
     // FieldElement52 is unavailable; this TU compiles as empty.
     // The portable FieldElement (4×64 with carry chains) is used instead.
 #endif
