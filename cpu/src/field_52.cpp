@@ -99,6 +99,127 @@ bool FieldElement52::operator!=(const FieldElement52& rhs) const noexcept {
 
 // half: now inline in field_52_impl.hpp
 
+// ═══════════════════════════════════════════════════════════════════════════
+// Inverse: a^(p-2) via Fermat addition chain (255S + 14M in native FE52)
+// ═══════════════════════════════════════════════════════════════════════════
+// p-2 = FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2D
+// Shared addition chain with sqrt up to x223; final stage differs.
+
+FieldElement52 FieldElement52::inverse() const noexcept {
+    FieldElement52 x2, x3, x6, x9, x11, x22, x44, x88, x176, x220, x223, t;
+    const FieldElement52& a = *this;
+
+    x2 = a.square() * a;
+    x3 = x2.square() * a;
+
+    x6 = x3;
+    for (int j = 0; j < 3; ++j) x6.square_inplace();
+    x6 = x6 * x3;
+
+    x9 = x6;
+    for (int j = 0; j < 3; ++j) x9.square_inplace();
+    x9 = x9 * x3;
+
+    x11 = x9;
+    for (int j = 0; j < 2; ++j) x11.square_inplace();
+    x11 = x11 * x2;
+
+    x22 = x11;
+    for (int j = 0; j < 11; ++j) x22.square_inplace();
+    x22 = x22 * x11;
+
+    x44 = x22;
+    for (int j = 0; j < 22; ++j) x44.square_inplace();
+    x44 = x44 * x22;
+
+    x88 = x44;
+    for (int j = 0; j < 44; ++j) x88.square_inplace();
+    x88 = x88 * x44;
+
+    x176 = x88;
+    for (int j = 0; j < 88; ++j) x176.square_inplace();
+    x176 = x176 * x88;
+
+    x220 = x176;
+    for (int j = 0; j < 44; ++j) x220.square_inplace();
+    x220 = x220 * x44;
+
+    x223 = x220;
+    for (int j = 0; j < 3; ++j) x223.square_inplace();
+    x223 = x223 * x3;
+
+    // Final: 23S·x22 · 5S·a · 3S·x2 · 2S·a
+    t = x223;
+    for (int j = 0; j < 23; ++j) t.square_inplace();
+    t = t * x22;
+    for (int j = 0; j < 5; ++j) t.square_inplace();
+    t = t * a;
+    for (int j = 0; j < 3; ++j) t.square_inplace();
+    t = t * x2;
+    for (int j = 0; j < 2; ++j) t.square_inplace();
+    t = t * a;
+    return t;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Square Root: a^((p+1)/4) via addition chain (253S + 13M in native FE52)
+// ═══════════════════════════════════════════════════════════════════════════
+// (p+1)/4 for secp256k1 shares the x223 chain with inverse; final stage differs.
+
+FieldElement52 FieldElement52::sqrt() const noexcept {
+    FieldElement52 x2, x3, x6, x9, x11, x22, x44, x88, x176, x220, x223, t;
+    const FieldElement52& a = *this;
+
+    x2 = a.square() * a;
+    x3 = x2.square() * a;
+
+    x6 = x3;
+    for (int j = 0; j < 3; ++j) x6.square_inplace();
+    x6 = x6 * x3;
+
+    x9 = x6;
+    for (int j = 0; j < 3; ++j) x9.square_inplace();
+    x9 = x9 * x3;
+
+    x11 = x9;
+    for (int j = 0; j < 2; ++j) x11.square_inplace();
+    x11 = x11 * x2;
+
+    x22 = x11;
+    for (int j = 0; j < 11; ++j) x22.square_inplace();
+    x22 = x22 * x11;
+
+    x44 = x22;
+    for (int j = 0; j < 22; ++j) x44.square_inplace();
+    x44 = x44 * x22;
+
+    x88 = x44;
+    for (int j = 0; j < 44; ++j) x88.square_inplace();
+    x88 = x88 * x44;
+
+    x176 = x88;
+    for (int j = 0; j < 88; ++j) x176.square_inplace();
+    x176 = x176 * x88;
+
+    x220 = x176;
+    for (int j = 0; j < 44; ++j) x220.square_inplace();
+    x220 = x220 * x44;
+
+    x223 = x220;
+    for (int j = 0; j < 3; ++j) x223.square_inplace();
+    x223 = x223 * x3;
+
+    // Final: 23S·x22 · 6S·x2 · 2S (no trailing mul)
+    t = x223;
+    for (int j = 0; j < 23; ++j) t.square_inplace();
+    t = t * x22;
+    for (int j = 0; j < 6; ++j) t.square_inplace();
+    t = t * x2;
+    t.square_inplace();
+    t.square_inplace();
+    return t;
+}
+
 } // namespace secp256k1::fast
 
 #endif // SECP256K1_HAS_UINT128

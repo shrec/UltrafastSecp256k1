@@ -31,12 +31,26 @@ struct SchnorrSignature {
     static SchnorrSignature from_bytes(const std::array<std::uint8_t, 64>& data);
 };
 
+// ── Pre-computed Schnorr Keypair ──────────────────────────────────────────────
+// Equivalent to libsecp256k1's secp256k1_keypair: pre-computes pubkey x-bytes
+// and adjusts private key for even-Y, saving 1 gen_mul + 1 inverse per sign.
+
+struct SchnorrKeypair {
+    fast::Scalar d;                         // signing key (negated for even Y)
+    std::array<std::uint8_t, 32> px;        // x-coordinate bytes of pubkey
+};
+
+// Create a pre-computed keypair (call once, then reuse for multiple signs).
+SchnorrKeypair schnorr_keypair_create(const fast::Scalar& private_key);
+
 // ── BIP-340 Operations ───────────────────────────────────────────────────────
 
-// Sign a 32-byte message using BIP-340.
-// private_key: 32-byte secret key (scalar)
-// msg: 32-byte message (typically a hash)
-// aux_rand: 32 bytes of auxiliary randomness (can be zeros for deterministic)
+// Sign using pre-computed keypair (fast: only 1 gen_mul per sign).
+SchnorrSignature schnorr_sign(const SchnorrKeypair& kp,
+                              const std::array<std::uint8_t, 32>& msg,
+                              const std::array<std::uint8_t, 32>& aux_rand);
+
+// Sign from raw private key (convenience: creates keypair internally).
 SchnorrSignature schnorr_sign(const fast::Scalar& private_key,
                               const std::array<std::uint8_t, 32>& msg,
                               const std::array<std::uint8_t, 32>& aux_rand);
@@ -46,6 +60,28 @@ SchnorrSignature schnorr_sign(const fast::Scalar& private_key,
 // msg: 32-byte message
 // sig: 64-byte signature
 bool schnorr_verify(const std::array<std::uint8_t, 32>& pubkey_x,
+                    const std::array<std::uint8_t, 32>& msg,
+                    const SchnorrSignature& sig);
+
+// ── Pre-cached X-only Public Key ─────────────────────────────────────────────
+// Caches the full Point (avoiding sqrt per verify), similar to libsecp's
+// secp256k1_xonly_pubkey which internally stores the cached (x,y) point.
+
+struct SchnorrXonlyPubkey {
+    fast::Point point;
+    std::array<std::uint8_t, 32> x_bytes;
+};
+
+// Parse an x-only pubkey (call once; lift_x + sqrt done here).
+// Returns false if the x-coordinate is not on the curve.
+bool schnorr_xonly_pubkey_parse(SchnorrXonlyPubkey& out,
+                                const std::array<std::uint8_t, 32>& pubkey_x);
+
+// Create from keypair (no sqrt needed — point already known).
+SchnorrXonlyPubkey schnorr_xonly_from_keypair(const SchnorrKeypair& kp);
+
+// Verify using pre-cached pubkey (fast: skips lift_x sqrt).
+bool schnorr_verify(const SchnorrXonlyPubkey& pubkey,
                     const std::array<std::uint8_t, 32>& msg,
                     const SchnorrSignature& sig);
 

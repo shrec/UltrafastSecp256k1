@@ -206,7 +206,12 @@ int main() {
     secp256k1_schnorrsig_sign32(ctx, lib_schnorr_sig, msg.data(), &lib_keypair, aux.data());
 
     auto our_schnorr_pkx = secp256k1::schnorr_pubkey(our_sk);
-    auto our_schnorr_sig = secp256k1::schnorr_sign(our_sk, msg, aux);
+    auto our_schnorr_kp = secp256k1::schnorr_keypair_create(our_sk);
+    auto our_schnorr_sig = secp256k1::schnorr_sign(our_schnorr_kp, msg, aux);
+
+    // Pre-cache xonly pubkey (like libsecp's secp256k1_xonly_pubkey)
+    secp256k1::SchnorrXonlyPubkey our_schnorr_xpk;
+    secp256k1::schnorr_xonly_pubkey_parse(our_schnorr_xpk, our_schnorr_pkx);
 
     // Second key for ECDH
     uint8_t seckey2_bytes[32];
@@ -285,7 +290,7 @@ int main() {
     // ═════════════════════════════════════════════════════════════════════
 
     auto r_schnorr_sign_ours = BENCH("schnorr_sign", N_SIGN, {}, {
-        volatile auto s = secp256k1::schnorr_sign(our_sk, msg, aux);
+        volatile auto s = secp256k1::schnorr_sign(our_schnorr_kp, msg, aux);
     });
 
     auto r_schnorr_sign_lib = BENCH("schnorr_sign_lib", N_SIGN, {}, {
@@ -300,7 +305,7 @@ int main() {
     // ═════════════════════════════════════════════════════════════════════
 
     auto r_schnorr_verify_ours = BENCH("schnorr_verify", N_VERIFY, {}, {
-        volatile bool v = secp256k1::schnorr_verify(our_schnorr_pkx, msg, our_schnorr_sig);
+        volatile bool v = secp256k1::schnorr_verify(our_schnorr_xpk, msg, our_schnorr_sig);
     });
 
     auto r_schnorr_verify_lib = BENCH("schnorr_verify_lib", N_VERIFY, {}, {

@@ -110,6 +110,16 @@ struct alignas(8) FieldElement52 {
     // ── Half ─────────────────────────────────────────────────────────
     // Computes a/2 mod p. Branchless.
     FieldElement52 half() const noexcept;
+
+    // ── Inverse (Fermat) ─────────────────────────────────────────────
+    // a^(p-2) mod p. 255 squarings + 14 multiplications in native FE52.
+    // ~1.6μs — faster than binary GCD (~3μs) or SafeGCD (~3-5μs in 4×64).
+    FieldElement52 inverse() const noexcept;
+
+    // ── Square Root ──────────────────────────────────────────────────
+    // a^((p+1)/4) mod p. 253 squarings + 13 multiplications in native FE52.
+    // Returns a candidate y such that y² ≡ a (mod p). Caller must verify.
+    FieldElement52 sqrt() const noexcept;
 };
 
 // ── Free Functions ────────────────────────────────────────────────────────────

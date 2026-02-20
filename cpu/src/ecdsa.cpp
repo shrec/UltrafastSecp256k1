@@ -1,6 +1,7 @@
 #include "secp256k1/ecdsa.hpp"
 #include "secp256k1/sha256.hpp"
 #include "secp256k1/multiscalar.hpp"
+#include "secp256k1/field_52.hpp"
 #include <cstring>
 
 namespace secp256k1 {
@@ -253,17 +254,58 @@ bool ecdsa_verify(const std::array<uint8_t, 32>& msg_hash,
     // u2 = r * w mod n
     auto u2 = sig.r * w;
 
-    // R' = u1 * G + u2 * Q  (Shamir's trick — single pass, ~1.5× faster)
-    auto G = Point::generator();
-    auto R_prime = shamir_trick(u1, G, u2, public_key);
+    // R' = u1 * G + u2 * Q  (4-stream GLV Strauss — single interleaved loop)
+    auto R_prime = Point::dual_scalar_mul_gen_point(u1, u2, public_key);
 
     if (R_prime.is_infinity()) return false;
 
-    // v = R'.x mod n
-    auto v_bytes = R_prime.x().to_bytes();
-    auto v = Scalar::from_bytes(v_bytes);
+    // ── Fast Z²-based x-coordinate check (avoids field inverse) ──────
+    // Check: R'.x/R'.z² mod n == sig.r
+    // Equivalent: sig.r * R'.z² == R'.x (mod p)
+    // This saves ~3μs by avoiding the field inversion in Point::x().
+    using FE52 = fast::FieldElement52;
 
-    return v == sig.r;
+    FE52 r52 = FE52::from_fe(FieldElement::from_bytes(sig.r.to_bytes()));
+    FE52 z2 = R_prime.Z52().square();    // Z²  [1S] mag=1
+    FE52 lhs = r52 * z2;                 // r·Z² [1M] mag=1
+    lhs.normalize();
+
+    FE52 rx = R_prime.X52();
+    rx.normalize();
+
+    if (lhs == rx) return true;
+
+    // Rare case: x_R mod p ∈ [n, p), so x_R mod n = x_R - n = sig.r
+    // → need to check (sig.r + n) · Z² == X.  Probability ~2^-128.
+    // n = order, p - n ≈ 2^129.  sig.r < n, so sig.r + n < p iff sig.r < p - n.
+    static const std::array<uint8_t, 32> P_MINUS_N = {{
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x01,
+        0x45,0x51,0x23,0x19,0x50,0xb7,0x5f,0xc4,
+        0x40,0x2d,0xa1,0x73,0x2f,0xc9,0xbe,0xbf
+    }};
+    // Quick check: if sig.r >= p-n (upper 128 bits non-zero), skip
+    auto r_bytes = sig.r.to_bytes();
+    bool r_might_overflow = true;
+    for (int i = 0; i < 15; ++i) {
+        if (r_bytes[i] != P_MINUS_N[i]) {
+            r_might_overflow = (r_bytes[i] < P_MINUS_N[i]);
+            break;
+        }
+    }
+    if (r_might_overflow) {
+        // sig.r < p - n, so (sig.r + n) is a valid field element
+        // Compute (r + n) as field element and retry
+        static const Scalar N_SCALAR = Scalar::from_hex(
+            "fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141");
+        auto r_plus_n_bytes = (sig.r + N_SCALAR).to_bytes();
+        FE52 r2_52 = FE52::from_fe(FieldElement::from_bytes(r_plus_n_bytes));
+        FE52 lhs2 = r2_52 * z2;
+        lhs2.normalize();
+        if (lhs2 == rx) return true;
+    }
+
+    return false;
 }
 
 } // namespace secp256k1
