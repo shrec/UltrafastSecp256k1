@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771545530720,
+  "lastUpdate": 1771547373978,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -3744,6 +3744,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Field Square",
             "value": 23,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 0,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Add",
+            "value": 256,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 147,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "f650ccd3df1348f118b5dabb1b1d8c0837297fdf",
+          "message": "ci: publish Ufsecp NuGet package to nuget.org public registry\n\nUses NUGET_ORG_API_KEY secret. Package will be discoverable\nin Visual Studio NuGet Package Manager by default.",
+          "timestamp": "2026-02-20T04:28:19+04:00",
+          "tree_id": "1fc6b4468ebe4ea21efe0f4d4536319fe1c65ca9",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/f650ccd3df1348f118b5dabb1b1d8c0837297fdf"
+        },
+        "date": 1771547373289,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Field Mul",
+            "value": 25,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 22,
             "unit": "ns"
           },
           {
