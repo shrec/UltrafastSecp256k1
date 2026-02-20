@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771621154120,
+  "lastUpdate": 1771622444350,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -4029,6 +4029,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Point Add",
             "value": 256,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 147,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "shrec@users.noreply.github.com",
+            "name": "shrec",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "shrec@users.noreply.github.com",
+            "name": "shrec",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "fc98b36e3f231b825bd8750d570c35d31c30ec20",
+          "message": "Fix cross-platform build: guard FE52 code with SECP256K1_FAST_52BIT\n\nMSVC (Windows x64) and Android ARMv7 lack __int128, so\nSECP256K1_FAST_52BIT is not defined on those platforms.\n\nChanges:\n- ct/point.hpp: FE52 type alias conditional (FieldElement52 vs FieldElement)\n- ct_point.cpp: wrap FE52 optimized path in #ifdef, add ~200-line fallback\n  stubs that delegate to fast:: Point operations\n- ecdsa.cpp: guard Z²-based x-coordinate check, add Point::x() fallback\n- schnorr.cpp: guard 5 FE52-using blocks (lift_x, Z² checks, Y negate),\n  add 4×64 FieldElement fallbacks\n\nNon-52bit fallbacks are functional but NOT constant-time (acceptable for\nMSVC/ARM32 targets used for testing and C API bindings).\n\nVerify: ninja -C build_rel fastsecp256k1 && ctest --test-dir build_rel -R audit_ct",
+          "timestamp": "2026-02-20T21:19:04Z",
+          "tree_id": "c1db28beb0251d5221397526deda9ceb26309cca",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/fc98b36e3f231b825bd8750d570c35d31c30ec20"
+        },
+        "date": 1771622443543,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Field Mul",
+            "value": 25,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 23,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 0,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Add",
+            "value": 257,
             "unit": "ns"
           },
           {
