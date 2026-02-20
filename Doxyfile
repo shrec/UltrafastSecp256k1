@@ -6,7 +6,7 @@
 # ============================================================================
 
 PROJECT_NAME           = "UltrafastSecp256k1"
-PROJECT_NUMBER         = 3.0.0
+PROJECT_NUMBER         = 0.0.0-dev
 PROJECT_BRIEF          = "Ultra high-performance secp256k1 elliptic curve cryptography library"
 PROJECT_LOGO           =
 

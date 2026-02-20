@@ -33,6 +33,12 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y doxygen
 
+      - name: Inject version into Doxyfile
+        run: |
+          VERSION=$(cat VERSION.txt 2>/dev/null || echo "dev")
+          sed -i "s/^PROJECT_NUMBER.*/PROJECT_NUMBER         = ${VERSION}/" Doxyfile
+          echo "Doxyfile PROJECT_NUMBER = ${VERSION}"
+
       - name: Generate documentation
         run: doxygen Doxyfile
 
