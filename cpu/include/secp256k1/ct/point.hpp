@@ -50,13 +50,49 @@ struct CTJacobianPoint {
     static CTJacobianPoint make_infinity() noexcept;
 };
 
+// ─── CT Affine Point (for precomputed tables) ────────────────────────────────
+// Compact representation with Z=1 implied. Used in precomputed tables
+// where mixed Jacobian+Affine addition saves ~4 field multiplications.
+struct CTAffinePoint {
+    FieldElement x;
+    FieldElement y;
+    std::uint64_t infinity;  // 0 = normal, 0xFFFF...F = infinity
+
+    static CTAffinePoint make_infinity() noexcept {
+        CTAffinePoint r;
+        r.x = FieldElement::zero();
+        r.y = FieldElement::zero();
+        r.infinity = ~static_cast<std::uint64_t>(0);
+        return r;
+    }
+
+    static CTAffinePoint from_point(const Point& p) noexcept {
+        CTAffinePoint r;
+        if (p.is_infinity()) {
+            r = make_infinity();
+        } else {
+            r.x = p.x();
+            r.y = p.y();
+            r.infinity = 0;
+        }
+        return r;
+    }
+};
+
 // ─── Complete Addition ───────────────────────────────────────────────────────
 // Handles ALL cases in a single branchless codepath:
 //   P + Q,  P + P (doubling),  P + O,  O + Q,  P + (-P) = O
-// No secret-dependent branches. Fixed 12M + 2S cost.
+// No secret-dependent branches. Fixed 13M + 9S cost.
 
 CTJacobianPoint point_add_complete(const CTJacobianPoint& p,
                                    const CTJacobianPoint& q) noexcept;
+
+// ─── Mixed Jacobian+Affine Complete Addition ─────────────────────────────────
+// Same complete formula but optimized for Q in affine (Z2=1).
+// Saves ~4 field multiplications vs general Jacobian+Jacobian.
+// Cost: 9M + 8S (fixed, no branches)
+CTJacobianPoint point_add_mixed_complete(const CTJacobianPoint& p,
+                                         const CTAffinePoint& q) noexcept;
 
 // ─── CT Point Doubling ───────────────────────────────────────────────────────
 // Branchless doubling (handles identity via cmov, no branch)
@@ -79,6 +115,15 @@ CTJacobianPoint point_table_lookup(const CTJacobianPoint* table,
                                    std::size_t table_size,
                                    std::size_t index) noexcept;
 
+// CT affine table lookup — scans all entries, returns table[index].
+CTAffinePoint affine_table_lookup(const CTAffinePoint* table,
+                                  std::size_t table_size,
+                                  std::size_t index) noexcept;
+
+// CT conditional operations on affine points
+void affine_cmov(CTAffinePoint* r, const CTAffinePoint& a,
+                 std::uint64_t mask) noexcept;
+
 // ─── CT Scalar Multiplication ────────────────────────────────────────────────
 // The core CT operation. Fixed execution trace regardless of scalar value.
 //
@@ -94,8 +139,16 @@ CTJacobianPoint point_table_lookup(const CTJacobianPoint* table,
 Point scalar_mul(const Point& p, const Scalar& k) noexcept;
 
 // CT generator multiplication: k * G
-// Uses the same CT algorithm but with the standard generator point.
+// Optimized with precomputed table (64 × 16 affine points).
+// Uses mixed Jacobian+Affine addition — NO doublings needed at runtime.
+// Cost: 64 mixed_complete_add + 64 CT_lookup(16)
+// Approximately 3x faster than generic scalar_mul(G, k).
 Point generator_mul(const Scalar& k) noexcept;
+
+// Initialize the precomputed generator table.
+// Called automatically on first generator_mul() call.
+// Can be called explicitly at startup to avoid first-call latency.
+void init_generator_table() noexcept;
 
 // ─── CT Verify (for ECDSA) ──────────────────────────────────────────────────
 // Returns all-ones mask if point is on curve, else 0. CT.
