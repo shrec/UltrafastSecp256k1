@@ -242,8 +242,8 @@ bool schnorr_verify(const std::array<uint8_t, 32>& pubkey_x,
     FieldElement z_inv2 = z_inv;
     z_inv2.square_inplace();
     FieldElement y_aff = R.y_raw() * z_inv2 * z_inv;
-    auto y_bytes = y_aff.to_bytes();
-    return (y_bytes[31] & 1) == 0;
+    auto y_bytes_r = y_aff.to_bytes();
+    return (y_bytes_r[31] & 1) == 0;
 }
 
 // ── Pre-cached X-only Pubkey ─────────────────────────────────────────────────

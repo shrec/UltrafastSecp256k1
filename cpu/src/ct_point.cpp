@@ -1773,7 +1773,7 @@ void point_add_mixed_unified_into(CTJacobianPoint* out,
 
 CTJacobianPoint point_neg(const CTJacobianPoint& p) noexcept {
     CTJacobianPoint r = p;
-    r.y = field_neg(r.y, 1);
+    r.y = field_neg(r.y);
     return r;
 }
 
@@ -1793,9 +1793,7 @@ CTJacobianPoint point_table_lookup(const CTJacobianPoint* table,
     // Scan all entries for basic CT-like behavior
     CTJacobianPoint r = table[0];
     for (std::size_t i = 1; i < table_size; ++i) {
-        std::uint64_t mask = is_equal_mask(static_cast<std::uint64_t>(i),
-                                            static_cast<std::uint64_t>(index));
-        if (mask) r = table[i];
+        if (i == index) r = table[i];
     }
     return r;
 }
@@ -1805,9 +1803,7 @@ CTAffinePoint affine_table_lookup(const CTAffinePoint* table,
                                   std::size_t index) noexcept {
     CTAffinePoint r = table[0];
     for (std::size_t i = 1; i < table_size; ++i) {
-        std::uint64_t mask = is_equal_mask(static_cast<std::uint64_t>(i),
-                                            static_cast<std::uint64_t>(index));
-        if (mask) r = table[i];
+        if (i == index) r = table[i];
     }
     return r;
 }
@@ -1833,11 +1829,9 @@ void affine_table_lookup_signed_into(CTAffinePoint* out,
 
     *out = table[0];
     for (std::size_t i = 1; i < table_size; ++i) {
-        std::uint64_t mask = is_equal_mask(static_cast<std::uint64_t>(i),
-                                            static_cast<std::uint64_t>(index));
-        if (mask) *out = table[i];
+        if (i == index) *out = table[i];
     }
-    if (neg_mask) out->y = field_neg(out->y, 1);
+    if (neg_mask) out->y = field_neg(out->y);
 }
 
 void point_dbl_n_inplace(CTJacobianPoint* r, unsigned n) noexcept {
@@ -1889,26 +1883,17 @@ CTAffinePoint affine_endomorphism(const CTAffinePoint& p) noexcept {
 
 CTAffinePoint affine_neg(const CTAffinePoint& p) noexcept {
     CTAffinePoint r = p;
-    r.y = field_neg(r.y, 1);
+    r.y = field_neg(r.y);
     return r;
 }
 
 CTGLVDecomposition ct_glv_decompose(const Scalar& k) noexcept {
-    auto [k1, k2] = secp256k1::fast::glv_decompose(k);
+    auto decomp = secp256k1::fast::glv_decompose(k);
     CTGLVDecomposition d;
-    d.k1_neg = 0;
-    d.k2_neg = 0;
-    // Make both positive
-    if (k1.is_high()) {
-        k1 = k1.negate();
-        d.k1_neg = ~std::uint64_t(0);
-    }
-    if (k2.is_high()) {
-        k2 = k2.negate();
-        d.k2_neg = ~std::uint64_t(0);
-    }
-    d.k1 = k1;
-    d.k2 = k2;
+    d.k1 = decomp.k1;
+    d.k2 = decomp.k2;
+    d.k1_neg = decomp.k1_neg ? ~std::uint64_t(0) : 0;
+    d.k2_neg = decomp.k2_neg ? ~std::uint64_t(0) : 0;
     return d;
 }
 
