@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771622444350,
+  "lastUpdate": 1771622910722,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -4058,6 +4058,60 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/shrec/UltrafastSecp256k1/commit/fc98b36e3f231b825bd8750d570c35d31c30ec20"
         },
         "date": 1771622443543,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Field Mul",
+            "value": 25,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 23,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 0,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Add",
+            "value": 257,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 147,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "shrec@users.noreply.github.com",
+            "name": "shrec",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "shrec@users.noreply.github.com",
+            "name": "shrec",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "551a95ffa6a1262051567512b4a8e4fb0aeca390",
+          "message": "Fix MSVC fallback: field_neg arity, is_equal_mask, GLV decompose, y_bytes redef\n\nct_point.cpp:\n- field_neg(x,1) → field_neg(x): 4×64 version takes 1 arg\n- is_equal_mask → direct i==index comparison (non-CT fallback)\n- GLV decompose: use GLVDecomposition members directly (k1_neg/k2_neg\n  are bools, not structured binding of 2)\n- Remove is_high() calls (doesn't exist on Scalar)\n\nschnorr.cpp:\n- Rename y_bytes → y_bytes_r in Step 6 to avoid redefinition with\n  the #else block's y_bytes in same scope on MSVC",
+          "timestamp": "2026-02-20T21:27:16Z",
+          "tree_id": "1df58661ffe47370a34955d35395b91ba0764af6",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/551a95ffa6a1262051567512b4a8e4fb0aeca390"
+        },
+        "date": 1771622909481,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
