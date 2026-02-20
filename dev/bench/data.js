@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771548879838,
+  "lastUpdate": 1771621154120,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -3980,6 +3980,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Point Double",
             "value": 145,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "shrec@users.noreply.github.com",
+            "name": "shrec",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "shrec@users.noreply.github.com",
+            "name": "shrec",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "e6624ccc315065ce68527dc307088b25c4ff15b0",
+          "message": "Phase 11: CT hot-path inlining + template optimization\n\nCore changes (ct_point.cpp):\n- Created always_inline template core versions of hot functions:\n  table_lookup_core<NORMALIZE_Y>, unified_add_core<CHECK_INFINITY>,\n  point_dbl_n_core(). Public API wrappers delegate to cores.\n- scalar_mul/generator_mul main loops call cores directly with\n  CHECK_INFINITY=false (saves 3 fe52_cmov + 1 fe52_is_zero per add)\n  and NORMALIZE_Y=false (skips unnecessary normalize_weak on table\n  entries already at magnitude 1).\n- Added fe52_normalizes_to_zero(): cheaper CT zero check using\n  normalize_weak + overflow reduce + dual representation check\n  (~40 ops vs ~64 for full fe52_is_zero). Matches libsecp approach.\n- Added #pragma clang loop unroll(disable) on main loops to prevent\n  code bloat from inlined 66KB function body.\n\nBenchmark improvements (bench_ct.cpp, bench_atomic_operations.cpp):\n- Use pool of 32 random 256-bit scalars to prevent branch-predictor\n  warming and ensure realistic workload measurements.\n- Use full 256-bit field elements/scalars instead of trivially small\n  values in atomic operation benchmarks.\n\nResults (i5-14400F, clang-19, -O3 -march=native):\n- CT scalar_mul:    23.3us -> 22.0us (~5% improvement, 1.25x -> 1.18x vs libsecp)\n- CT generator_mul: 11.0us ->  9.6us (~13% improvement, 0.99x -> 0.87x vs libsecp)\n- All CT audit tests pass (120,652 checks, 0 failures)",
+          "timestamp": "2026-02-20T20:41:35Z",
+          "tree_id": "5f45e7d2ff0692610de76e213dd594c39f287324",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/e6624ccc315065ce68527dc307088b25c4ff15b0"
+        },
+        "date": 1771621153602,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Field Mul",
+            "value": 25,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 23,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 0,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Add",
+            "value": 256,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 147,
             "unit": "ns"
           }
         ]
