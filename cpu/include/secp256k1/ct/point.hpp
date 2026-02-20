@@ -150,6 +150,29 @@ Point generator_mul(const Scalar& k) noexcept;
 // Can be called explicitly at startup to avoid first-call latency.
 void init_generator_table() noexcept;
 
+// ─── CT GLV Endomorphism ─────────────────────────────────────────────────────
+// Apply secp256k1 endomorphism: φ(P) = (β·X, Y, Z) where β³ ≡ 1 (mod p).
+// Constant-time (just one field multiplication, no branches).
+CTJacobianPoint point_endomorphism(const CTJacobianPoint& p) noexcept;
+
+// CT affine endomorphism
+CTAffinePoint affine_endomorphism(const CTAffinePoint& p) noexcept;
+
+// CT affine negation
+CTAffinePoint affine_neg(const CTAffinePoint& p) noexcept;
+
+// ─── CT GLV Decomposition ────────────────────────────────────────────────────
+// Split scalar k = k1 + k2·λ (mod n) where |k1|, |k2| ≈ 128 bits.
+// Fully constant-time: no branches on scalar values.
+struct CTGLVDecomposition {
+    Scalar k1;           // |k1| ≈ 128 bits (always positive after abs)
+    Scalar k2;           // |k2| ≈ 128 bits (always positive after abs)
+    std::uint64_t k1_neg;  // all-ones if k1 was negated, 0 otherwise
+    std::uint64_t k2_neg;  // all-ones if k2 was negated, 0 otherwise
+};
+
+CTGLVDecomposition ct_glv_decompose(const Scalar& k) noexcept;
+
 // ─── CT Verify (for ECDSA) ──────────────────────────────────────────────────
 // Returns all-ones mask if point is on curve, else 0. CT.
 std::uint64_t point_is_on_curve(const Point& p) noexcept;

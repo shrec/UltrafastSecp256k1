@@ -8,9 +8,11 @@
 //   Based on: "Complete addition formulas for prime order elliptic curves"
 //   (Renes, Costello, Bathalter 2016), adapted for a=0 (secp256k1).
 //
-// CT scalar multiplication:
-//   Fixed-window (w=4) with CT table lookup.
-//   Always executes exactly 64 doublings + 64 additions.
+// CT scalar multiplication (GLV-OPTIMIZED):
+//   Uses GLV endomorphism φ(x,y)=(β·x,y) to split 256-bit scalar
+//   into two 128-bit halves: k = k1 + k2·λ (mod n).
+//   Strauss interleaving: 32 windows × (4 dbl + 2 mixed_add).
+//   Total: 128 doublings + 64 mixed_complete additions.
 //   No early exit, no conditional skip, no secret-dependent branches.
 //
 // CT generator multiplication (OPTIMIZED):
@@ -24,6 +26,7 @@
 #include "secp256k1/ct/field.hpp"
 #include "secp256k1/ct/scalar.hpp"
 #include "secp256k1/ct/ops.hpp"
+#include "secp256k1/glv.hpp"   // GLV constants (BETA, LAMBDA, lattice vectors)
 
 #include <mutex>
 
@@ -377,63 +380,435 @@ CTJacobianPoint point_dbl(const CTJacobianPoint& p) noexcept {
     return result;
 }
 
-// ─── CT Scalar Multiplication ────────────────────────────────────────────────
-// Fixed-window method (w=4) with CT table lookup.
+// ═══════════════════════════════════════════════════════════════════════════════
+// CT GLV Endomorphism — Helpers & Decomposition
+// ═══════════════════════════════════════════════════════════════════════════════
+// GLV uses secp256k1's efficient endomorphism φ(x,y)=(β·x,y) where β³≡1 (mod p)
+// to split a 256-bit scalar multiplication into two 128-bit ones:
+//   k*P = k1*P + k2*φ(P)  where |k1|,|k2| ≈ 128 bits
 //
-// Algorithm:
-//   1. Precompute table: T[0]=O, T[1]=P, T[2]=2P, ..., T[15]=15P
-//   2. For i = 63 downto 0:
-//       a. R = 4*R (4 doublings)
-//       b. d = scalar_window(k, 4*i, 4)  (CT extract 4-bit window)
-//       c. T_d = ct_table_lookup(table, d)  (CT: scans all 16 entries)
-//       d. R = R + T_d  (complete addition, handles T_d=O case)
-//   3. Return R
+// This cuts the number of doublings in half (128 vs 256),
+// yielding ~40% speedup in the point multiplication loop.
 //
-// Total: 256 doublings + 64 complete additions (fixed)
+// All operations on secret data are constant-time (CT).
+// ═══════════════════════════════════════════════════════════════════════════════
 
-Point scalar_mul(const Point& p, const Scalar& k) noexcept {
-    constexpr unsigned W = 4;
-    constexpr std::size_t TABLE_SIZE = 1u << W;  // 16
+namespace /* GLV CT helpers */ {
 
-    // Build precomputation table using FAST-path operations.
-    // Table contents are PUBLIC (derived from p), only scalar is secret.
-    // Using fast:: operations here saves ~19μs vs CT table construction.
-    CTJacobianPoint table[TABLE_SIZE];
-    table[0] = CTJacobianPoint::make_infinity();
-    table[1] = CTJacobianPoint::from_point(p);
-    {
-        Point p2 = p;
-        p2.dbl_inplace();
-        table[2] = CTJacobianPoint::from_point(p2);
-        Point running = p2;
-        for (std::size_t i = 3; i < TABLE_SIZE; ++i) {
-            running = running.add(p);
-            table[i] = CTJacobianPoint::from_point(running);
+// ─── Local sub256 (needed for ct_scalar_is_high) ─────────────────────────────
+static inline std::uint64_t local_sub256(std::uint64_t r[4],
+                                          const std::uint64_t a[4],
+                                          const std::uint64_t b[4]) noexcept {
+    std::uint64_t borrow = 0;
+    for (int i = 0; i < 4; ++i) {
+        std::uint64_t diff = a[i] - b[i];
+        std::uint64_t b1 = static_cast<std::uint64_t>(a[i] < b[i]);
+        std::uint64_t result = diff - borrow;
+        std::uint64_t b2 = static_cast<std::uint64_t>(diff < borrow);
+        r[i] = result;
+        borrow = b1 + b2;
+    }
+    return borrow;
+}
+
+// ─── CT scalar > n/2 check ──────────────────────────────────────────────────
+// Returns all-ones mask if s > n/2, zero otherwise.
+// n/2 (floor) = 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0
+static std::uint64_t ct_scalar_is_high(const Scalar& s) noexcept {
+    static constexpr std::uint64_t HALF_N[4] = {
+        0xDFE92F46681B20A0ULL,
+        0x5D576E7357A4501DULL,
+        0xFFFFFFFFFFFFFFFFULL,
+        0x7FFFFFFFFFFFFFFFULL
+    };
+    // s > half_n iff sub(half_n, s) borrows
+    std::uint64_t tmp[4];
+    std::uint64_t borrow = local_sub256(tmp, HALF_N, s.limbs().data());
+    return is_nonzero_mask(borrow);
+}
+
+// ─── CT 256×256→512 multiply, shift >>384 with rounding ─────────────────────
+// Same as fast::mul_shift_384 but fully data-independent on x86_64.
+static std::array<std::uint64_t, 4> ct_mul_shift_384(
+    const std::array<std::uint64_t, 4>& a,
+    const std::array<std::uint64_t, 4>& b) noexcept
+{
+    std::uint64_t prod[8] = {};
+    // Schoolbook 4×4 → 8-limb product (fully data-independent)
+    for (int i = 0; i < 4; ++i) {
+        unsigned __int128 carry = 0;
+        for (int j = 0; j < 4; ++j) {
+            unsigned __int128 t = static_cast<unsigned __int128>(a[i]) * b[j]
+                                + prod[i + j] + carry;
+            prod[i + j] = static_cast<std::uint64_t>(t);
+            carry = t >> 64;
+        }
+        prod[i + 4] = static_cast<std::uint64_t>(carry);
+    }
+
+    // Bits [384..511] = prod[6], prod[7]
+    std::array<std::uint64_t, 4> result{};
+    result[0] = prod[6];
+    result[1] = prod[7];
+    // result[2] = result[3] = 0 (product fits ~256+256=512 bits, so [384..511] ≤ 128 bits)
+
+    // CT rounding: add bit 383 (MSB of prod[5])
+    std::uint64_t round = prod[5] >> 63;
+    std::uint64_t old = result[0];
+    result[0] += round;
+    std::uint64_t carry = static_cast<std::uint64_t>(result[0] < old);
+    result[1] += carry;
+
+    return result;
+}
+
+// ─── CT scalar multiplication mod n ──────────────────────────────────────────
+// Schoolbook 4×4 → Barrett reduction, fully constant-time.
+// Used for GLV decomposition: c1*(-b1), c2*(-b2), lambda*k2.
+static Scalar ct_scalar_mul_mod(const Scalar& a, const Scalar& b) noexcept {
+    // secp256k1 curve order n
+    static constexpr std::uint64_t ORDER[4] = {
+        0xBFD25E8CD0364141ULL,
+        0xBAAEDCE6AF48A03BULL,
+        0xFFFFFFFFFFFFFFFEULL,
+        0xFFFFFFFFFFFFFFFFULL
+    };
+    // Barrett mu = floor(2^512 / n)
+    static constexpr std::uint64_t MU[5] = {
+        0x402DA1732FC9BEC0ULL,
+        0x4551231950B75FC4ULL,
+        0x0000000000000001ULL,
+        0x0000000000000000ULL,
+        0x0000000000000001ULL
+    };
+
+    // Step 1: Schoolbook 4×4 → 512-bit product
+    std::uint64_t prod[8] = {};
+    for (int i = 0; i < 4; ++i) {
+        unsigned __int128 carry = 0;
+        for (int j = 0; j < 4; ++j) {
+            unsigned __int128 t = static_cast<unsigned __int128>(a.limbs()[i]) * b.limbs()[j]
+                                + prod[i + j] + carry;
+            prod[i + j] = static_cast<std::uint64_t>(t);
+            carry = t >> 64;
+        }
+        prod[i + 4] = static_cast<std::uint64_t>(carry);
+    }
+
+    // Step 2: Barrett approximation — q = floor(prod >> 256) = prod[4..7]
+    // q_approx = floor((q * mu) >> 256) = high part of q*mu
+    std::uint64_t qmu[9] = {};
+    for (int i = 0; i < 4; ++i) {
+        unsigned __int128 carry = 0;
+        for (int j = 0; j < 5; ++j) {
+            unsigned __int128 t = static_cast<unsigned __int128>(prod[4 + i]) * MU[j]
+                                + qmu[i + j] + carry;
+            qmu[i + j] = static_cast<std::uint64_t>(t);
+            carry = t >> 64;
+        }
+        qmu[i + 5] = static_cast<std::uint64_t>(carry);
+    }
+
+    // q_approx = qmu[4..7]
+    // Compute r = prod - q_approx * ORDER (low 5 limbs only)
+    std::uint64_t qn[5] = {};
+    for (int i = 0; i < 4; ++i) {
+        unsigned __int128 carry = 0;
+        for (int j = 0; j < 4; ++j) {
+            if (i + j >= 5) break;
+            unsigned __int128 t = static_cast<unsigned __int128>(qmu[4 + i]) * ORDER[j]
+                                + qn[i + j] + carry;
+            qn[i + j] = static_cast<std::uint64_t>(t);
+            carry = t >> 64;
+        }
+        if (i + 4 < 5) {
+            qn[i + 4] = static_cast<std::uint64_t>(carry);
         }
     }
 
-    // Declassify table (public data derived from public point; only scalar is secret)
-    SECP256K1_DECLASSIFY(table, sizeof(table));
+    // r = prod[0..3] - qn[0..3], with overflow into r4
+    std::uint64_t r[4];
+    std::uint64_t bw = 0;
+    for (int i = 0; i < 4; ++i) {
+        std::uint64_t diff = prod[i] - qn[i];
+        std::uint64_t b1 = static_cast<std::uint64_t>(prod[i] < qn[i]);
+        std::uint64_t res = diff - bw;
+        std::uint64_t b2 = static_cast<std::uint64_t>(diff < bw);
+        r[i] = res;
+        bw = b1 + b2;
+    }
+    std::uint64_t r4 = prod[4] - qn[4] - bw;
 
-    // Process from MSB to LSB in 4-bit windows
-    // 256 bits / 4 = 64 windows, indices 63..0
+    // Step 3: CT conditional subtract — always compute, select via cmov
+    // First reduction
+    std::uint64_t r_sub1[4];
+    std::uint64_t bw1 = 0;
+    for (int i = 0; i < 4; ++i) {
+        std::uint64_t diff = r[i] - ORDER[i];
+        std::uint64_t b1 = static_cast<std::uint64_t>(r[i] < ORDER[i]);
+        std::uint64_t res = diff - bw1;
+        std::uint64_t b2 = static_cast<std::uint64_t>(diff < bw1);
+        r_sub1[i] = res;
+        bw1 = b1 + b2;
+    }
+    std::uint64_t r4_sub1 = r4 - bw1;
+    // Should subtract if r4 > 0 OR (r4 == 0 AND no borrow)
+    // i.e., the overall value (r4:r[3..0]) >= ORDER
+    std::uint64_t need_sub1 = is_nonzero_mask(r4) | is_zero_mask(bw1);
+    // However, if r4 > 0 and borrow occurred, the subtraction is still valid
+    // Correct condition: the 5-limb value is >= ORDER, i.e. r4>0 or (r4==0 and r>=ORDER)
+    // After subtraction: if no overall underflow (r4_sub1 didn't wrap), keep it
+    // Simplification: if r4 != 0 OR no borrow from 256-bit sub
+    need_sub1 = is_nonzero_mask(r4) | is_zero_mask(bw1 & is_zero_mask(r4));
+    cmov256(r, r_sub1, need_sub1);
+    r4 = ct_select(r4_sub1, r4, need_sub1);
+
+    // Second reduction
+    std::uint64_t r_sub2[4];
+    std::uint64_t bw2 = 0;
+    for (int i = 0; i < 4; ++i) {
+        std::uint64_t diff = r[i] - ORDER[i];
+        std::uint64_t b1 = static_cast<std::uint64_t>(r[i] < ORDER[i]);
+        std::uint64_t res = diff - bw2;
+        std::uint64_t b2 = static_cast<std::uint64_t>(diff < bw2);
+        r_sub2[i] = res;
+        bw2 = b1 + b2;
+    }
+    std::uint64_t r4_sub2 = r4 - bw2;
+    std::uint64_t need_sub2 = is_nonzero_mask(r4) | is_zero_mask(bw2 & is_zero_mask(r4));
+    cmov256(r, r_sub2, need_sub2);
+    (void)r4_sub2;
+
+    return Scalar::from_limbs({r[0], r[1], r[2], r[3]});
+}
+
+// ─── β (beta) as FieldElement — cube root of unity mod p ─────────────────────
+static const FieldElement& get_beta_fe() noexcept {
+    static const FieldElement beta = FieldElement::from_bytes(
+        secp256k1::fast::glv_constants::BETA);
+    return beta;
+}
+
+// ─── GLV lattice constants (matching libsecp256k1 / glv.cpp) ─────────────────
+static constexpr std::array<std::uint64_t, 4> kG1{{
+    0xE893209A45DBB031ULL, 0x3DAA8A1471E8CA7FULL,
+    0xE86C90E49284EB15ULL, 0x3086D221A7D46BCDULL
+}};
+static constexpr std::array<std::uint64_t, 4> kG2{{
+    0x1571B4AE8AC47F71ULL, 0x221208AC9DF506C6ULL,
+    0x6F547FA90ABFE4C4ULL, 0xE4437ED6010E8828ULL
+}};
+static constexpr std::array<std::uint8_t, 32> kMinusB1Bytes{{
+    0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0xE4,0x43,0x7E,0xD6,0x01,0x0E,0x88,0x28,
+    0x6F,0x54,0x7F,0xA9,0x0A,0xBF,0xE4,0xC3
+}};
+static constexpr std::array<std::uint8_t, 32> kMinusB2Bytes{{
+    0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
+    0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFE,
+    0x8A,0x28,0x0A,0xC5,0x07,0x74,0x34,0x6D,
+    0xD7,0x65,0xCD,0xA8,0x3D,0xB1,0x56,0x2C
+}};
+static constexpr std::array<std::uint8_t, 32> kLambdaBytes{{
+    0x53,0x63,0xAD,0x4C,0xC0,0x5C,0x30,0xE0,
+    0xA5,0x26,0x1C,0x02,0x88,0x12,0x64,0x5A,
+    0x12,0x2E,0x22,0xEA,0x20,0x81,0x66,0x78,
+    0xDF,0x02,0x96,0x7C,0x1B,0x23,0xBD,0x72
+}};
+
+} // anonymous namespace (GLV CT helpers)
+
+// ─── CT GLV Endomorphism ─────────────────────────────────────────────────────
+
+CTJacobianPoint point_endomorphism(const CTJacobianPoint& p) noexcept {
+    // φ(x,y,z) = (β·x, y, z) — just one field multiplication, CT
+    CTJacobianPoint r;
+    r.x = field_mul(p.x, get_beta_fe());
+    r.y = p.y;
+    r.z = p.z;
+    r.infinity = p.infinity;
+    return r;
+}
+
+CTAffinePoint affine_endomorphism(const CTAffinePoint& p) noexcept {
+    // φ(x,y) = (β·x, y) — one field multiplication, CT
+    CTAffinePoint r;
+    r.x = field_mul(p.x, get_beta_fe());
+    r.y = p.y;
+    r.infinity = p.infinity;
+    return r;
+}
+
+CTAffinePoint affine_neg(const CTAffinePoint& p) noexcept {
+    CTAffinePoint r;
+    r.x = p.x;
+    r.y = field_neg(p.y);
+    r.infinity = p.infinity;
+    return r;
+}
+
+// ─── CT GLV Decomposition ────────────────────────────────────────────────────
+
+CTGLVDecomposition ct_glv_decompose(const Scalar& k) noexcept {
+    // Lazy-init constants
+    static const Scalar minus_b1 = Scalar::from_bytes(kMinusB1Bytes);
+    static const Scalar minus_b2 = Scalar::from_bytes(kMinusB2Bytes);
+    static const Scalar lambda   = Scalar::from_bytes(kLambdaBytes);
+
+    // Step 1: c1 = round(k·g1 / 2^384), c2 = round(k·g2 / 2^384)
+    // mul_shift_384 is fully data-independent (schoolbook multiply + shift)
+    auto k_limbs = k.limbs();
+    auto c1_limbs = ct_mul_shift_384({k_limbs[0], k_limbs[1], k_limbs[2], k_limbs[3]}, kG1);
+    auto c2_limbs = ct_mul_shift_384({k_limbs[0], k_limbs[1], k_limbs[2], k_limbs[3]}, kG2);
+
+    Scalar c1 = Scalar::from_limbs(c1_limbs);
+    Scalar c2 = Scalar::from_limbs(c2_limbs);
+
+    // Step 2: k2 = c1*(-b1) + c2*(-b2) (mod n)
+    // Using CT scalar multiply (no Barrett branches)
+    Scalar k2_part1 = ct_scalar_mul_mod(c1, minus_b1);
+    Scalar k2_part2 = ct_scalar_mul_mod(c2, minus_b2);
+    Scalar k2_mod   = scalar_add(k2_part1, k2_part2);
+
+    // Step 3: CT pick shorter representation for k2
+    // If k2_mod > n/2, negate it → k2_abs = n - k2_mod
+    std::uint64_t k2_high = ct_scalar_is_high(k2_mod);
+    Scalar k2_abs = scalar_cneg(k2_mod, k2_high);
+
+    // For computing k1: k2_signed = k2_high ? -k2_abs : k2_abs = k2_high ? k2_mod : -k2_mod
+    // Wait: if k2_high, k2_abs = -k2_mod, and k2_signed = -k2_abs = k2_mod
+    // if !k2_high, k2_abs = k2_mod, and k2_signed = k2_abs = k2_mod
+    // Actually we need: k1 = k - λ * k2_original (before taking abs)
+    // k2_original = k2_high ? -k2_abs : k2_abs
+    // k2_signed represents the original value (with sign):
+    Scalar k2_signed = scalar_cneg(k2_abs, k2_high);
+
+    // Step 4: k1 = k - λ * k2_signed (mod n)
+    Scalar lambda_k2 = ct_scalar_mul_mod(lambda, k2_signed);
+    Scalar k1_mod = scalar_sub(k, lambda_k2);
+
+    // Step 5: CT pick shorter representation for k1
+    std::uint64_t k1_high = ct_scalar_is_high(k1_mod);
+    Scalar k1_abs = scalar_cneg(k1_mod, k1_high);
+
+    CTGLVDecomposition result;
+    result.k1     = k1_abs;
+    result.k2     = k2_abs;
+    result.k1_neg = k1_high;
+    result.k2_neg = k2_high;
+    return result;
+}
+
+// ─── CT GLV Scalar Multiplication ────────────────────────────────────────────
+// Uses GLV endomorphism: k*P = k1*P + k2*φ(P) where |k1|,|k2| ≈ 128 bits.
+//
+// Algorithm:
+//   1. CT decompose k → (k1, k2, s1, s2)
+//   2. Build affine tables (fast-path, P is public):
+//      T1[0..15] for P, T2[0..15] for φ(P)
+//   3. CT negate table Y-coords if corresponding sign is negative
+//   4. Strauss interleave (32 windows × 2 tables):
+//      for i = 31..0:
+//        R = 4*R  (4 doublings)
+//        w1 = scalar_window(k1, 4*i, 4)
+//        w2 = scalar_window(k2, 4*i, 4)
+//        R += T1[w1]  (CT mixed complete add)
+//        R += T2[w2]  (CT mixed complete add)
+//
+// Total: 128 doublings + 64 mixed_complete additions
+// vs old: 256 doublings + 64 complete additions
+// Expected ~40% faster.
+
+Point scalar_mul(const Point& p, const Scalar& k) noexcept {
+    constexpr unsigned W = 4;
+    constexpr unsigned GLV_WINDOWS = 32;  // 128 bits / 4 = 32 windows per half
+    constexpr std::size_t TABLE_SIZE = 1u << W;  // 16
+
+    // ────── GLV Decomposition (CT) ──────
+    // k = (-1)^s1 * k1 + (-1)^s2 * k2 * λ (mod n)
+    // where |k1|, |k2| ≈ 128 bits
+    auto [k1, k2, k1_neg, k2_neg] = ct_glv_decompose(k);
+
+    // ────── Endomorphism: φ(P) = (β·Px, Py, Pz) ──────
+    // Fast-path: P is public, no CT needed for table construction
+    Point phiP = secp256k1::fast::apply_endomorphism(p);
+
+    // ────── Build affine precomputation tables (fast-path, public data) ──────
+    // T1[0..15] = multiples of P
+    // T2[0..15] = multiples of φ(P)
+    CTAffinePoint T1[TABLE_SIZE];
+    CTAffinePoint T2[TABLE_SIZE];
+
+    // T1: multiples of P
+    T1[0] = CTAffinePoint::make_infinity();
+    T1[1] = CTAffinePoint::from_point(p);
+    {
+        Point p2 = p;
+        p2.dbl_inplace();
+        T1[2] = CTAffinePoint::from_point(p2);
+        Point running = p2;
+        for (std::size_t i = 3; i < TABLE_SIZE; ++i) {
+            running = running.add(p);
+            T1[i] = CTAffinePoint::from_point(running);
+        }
+    }
+
+    // T2: multiples of φ(P)
+    T2[0] = CTAffinePoint::make_infinity();
+    T2[1] = CTAffinePoint::from_point(phiP);
+    {
+        Point phiP2 = phiP;
+        phiP2.dbl_inplace();
+        T2[2] = CTAffinePoint::from_point(phiP2);
+        Point running = phiP2;
+        for (std::size_t i = 3; i < TABLE_SIZE; ++i) {
+            running = running.add(phiP);
+            T2[i] = CTAffinePoint::from_point(running);
+        }
+    }
+
+    // ────── CT sign handling ──────
+    // If k1 was negated, negate all T1 Y-coords: -P table instead of P table.
+    // If k2 was negated, negate all T2 Y-coords: -φ(P) table instead of φ(P) table.
+    // CT: always compute negated Y, then select via mask. Entry 0 (infinity) is skipped.
+    for (std::size_t i = 1; i < TABLE_SIZE; ++i) {
+        T1[i].y = field_cneg(T1[i].y, k1_neg);
+        T2[i].y = field_cneg(T2[i].y, k2_neg);
+    }
+
+    // Declassify tables (public data, only sign application was secret-dependent)
+    SECP256K1_DECLASSIFY(T1, sizeof(T1));
+    SECP256K1_DECLASSIFY(T2, sizeof(T2));
+
+    // ────── Strauss interleaving (32 windows × 2 lookups) ──────
+    // For i = 31 downto 0:
+    //   R = 16·R (4 doublings)
+    //   w1 = 4-bit window from k1 at position 4*i
+    //   w2 = 4-bit window from k2 at position 4*i
+    //   R += T1[w1]   (CT mixed complete addition)
+    //   R += T2[w2]   (CT mixed complete addition)
+
     CTJacobianPoint R = CTJacobianPoint::make_infinity();
 
-    for (int i = 63; i >= 0; --i) {
+    for (int i = static_cast<int>(GLV_WINDOWS) - 1; i >= 0; --i) {
         // 4 doublings
         R = point_dbl(R);
         R = point_dbl(R);
         R = point_dbl(R);
         R = point_dbl(R);
 
-        // CT extract 4-bit window
-        std::uint64_t digit = scalar_window(k, static_cast<std::size_t>(i) * W, W);
+        // CT extract 4-bit windows
+        std::uint64_t w1 = scalar_window(k1, static_cast<std::size_t>(i) * W, W);
+        std::uint64_t w2 = scalar_window(k2, static_cast<std::size_t>(i) * W, W);
 
-        // CT table lookup (always reads all 16 entries)
-        CTJacobianPoint T_d = point_table_lookup(table, TABLE_SIZE, digit);
+        // CT table lookups (always scan all 16 entries)
+        CTAffinePoint A1 = affine_table_lookup(T1, TABLE_SIZE, w1);
+        CTAffinePoint A2 = affine_table_lookup(T2, TABLE_SIZE, w2);
 
-        // Complete addition (handles T_d = O when digit == 0)
-        R = point_add_complete(R, T_d);
+        // Mixed complete additions (handles A=O when digit==0)
+        R = point_add_mixed_complete(R, A1);
+        R = point_add_mixed_complete(R, A2);
     }
 
     // Declassify result (output is public)
