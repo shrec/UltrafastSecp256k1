@@ -130,28 +130,33 @@ CTAffinePoint affine_table_lookup(const CTAffinePoint* table,
                                   std::size_t table_size,
                                   std::size_t index) noexcept;
 
+// Signed-digit affine table lookup (Hamburg encoding).
+// Table stores odd multiples [1P, 3P, ..., (2^group_size-1)P].
+// n is a group_size-bit value interpreted as signed digit.
+// Result is NEVER infinity.
+CTAffinePoint affine_table_lookup_signed(const CTAffinePoint* table,
+                                          std::size_t table_size,
+                                          std::uint64_t n,
+                                          unsigned group_size) noexcept;
+
 // CT conditional operations on affine points
 void affine_cmov(CTAffinePoint* r, const CTAffinePoint& a,
                  std::uint64_t mask) noexcept;
 
 // ─── CT Scalar Multiplication ────────────────────────────────────────────────
-// The core CT operation. Fixed execution trace regardless of scalar value.
+// Hamburg signed-digit comb + GLV endomorphism (GROUP_SIZE=5).
 //
-// Method: Fixed-window (w=4) with CT table lookup
-//   - 256/4 = 64 doublings + 64 additions (always, no skip)
-//   - Each addition uses CT table lookup (scans all 16 entries)
-//   - Complete addition formula (no special-case branches)
-//   - Handles all edge cases: k=0, k=1, k=n-1, P=O
-//
-// Cost: ~64 * (4 dbl + 1 complete_add + 1 CT_lookup)
-// Slower than fast:: (~2-3x) but constant-time.
+// Method: Transform scalar via s = (k+K)/2, GLV split → v1, v2 (129 bits each).
+// Process 26 groups of 5 bits, each yielding a guaranteed non-zero odd digit.
+// Table: 16 odd multiples per curve ([1P, 3P, ..., 31P], [1λP, ..., 31λP]).
+// Cost: 125 dbl + 52 unified_add + 52 signed_lookups(16).
 
 Point scalar_mul(const Point& p, const Scalar& k) noexcept;
 
 // CT generator multiplication: k * G
-// Optimized with precomputed table (64 × 16 affine points).
-// Uses mixed Jacobian+Affine addition — NO doublings needed at runtime.
-// Cost: 64 mixed_complete_add + 64 CT_lookup(16)
+// Hamburg signed-digit encoding: v = (k + 2^256 - 1)/2 mod n.
+// Every 4-bit window is guaranteed odd → 8-entry table, no cmov skip.
+// Cost: 64 unified_add + 64 signed_lookups(8). No doublings.
 // Approximately 3x faster than generic scalar_mul(G, k).
 Point generator_mul(const Scalar& k) noexcept;
 

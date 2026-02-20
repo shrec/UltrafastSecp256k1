@@ -27,6 +27,9 @@ Scalar scalar_sub(const Scalar& a, const Scalar& b) noexcept;
 // CT modular negation: r = -a mod n
 Scalar scalar_neg(const Scalar& a) noexcept;
 
+// CT modular halving: r = a/2 mod n  (if a is odd: (a+n)/2, else a/2)
+Scalar scalar_half(const Scalar& a) noexcept;
+
 // ─── CT Conditional Operations ───────────────────────────────────────────────
 
 // CT conditional move: if (mask) r = a; else r unchanged

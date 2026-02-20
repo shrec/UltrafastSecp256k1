@@ -100,6 +100,33 @@ Scalar scalar_neg(const Scalar& a) noexcept {
     return Scalar::from_limbs({r[0], r[1], r[2], r[3]});
 }
 
+Scalar scalar_half(const Scalar& a) noexcept {
+    // Compute a/2 mod n.
+    // If a is odd: r = (a + n) >> 1  (n is odd, so a+n is even)
+    // If a is even: r = a >> 1
+    const auto& al = a.limbs();
+    std::uint64_t odd = al[0] & 1;  // 1 if odd, 0 if even
+    // Branchless: conditionally add n
+    std::uint64_t t[4];
+    std::uint64_t carry = 0;
+    for (int i = 0; i < 4; ++i) {
+        std::uint64_t n_masked = N[i] & static_cast<std::uint64_t>(-odd);
+        std::uint64_t sum_lo = al[i] + n_masked;
+        std::uint64_t c1 = static_cast<std::uint64_t>(sum_lo < al[i]);
+        std::uint64_t sum = sum_lo + carry;
+        std::uint64_t c2 = static_cast<std::uint64_t>(sum < sum_lo);
+        t[i] = sum;
+        carry = c1 + c2;
+    }
+    // Right shift by 1 (carry bit goes into top)
+    std::uint64_t r[4];
+    r[0] = (t[0] >> 1) | (t[1] << 63);
+    r[1] = (t[1] >> 1) | (t[2] << 63);
+    r[2] = (t[2] >> 1) | (t[3] << 63);
+    r[3] = (t[3] >> 1) | (carry << 63);
+    return Scalar::from_limbs({r[0], r[1], r[2], r[3]});
+}
+
 // ─── Conditional Operations ──────────────────────────────────────────────────
 
 void scalar_cmov(Scalar* r, const Scalar& a, std::uint64_t mask) noexcept {
@@ -166,12 +193,22 @@ std::uint64_t scalar_bit(const Scalar& a, std::size_t index) noexcept {
 
 std::uint64_t scalar_window(const Scalar& a, std::size_t pos,
                             unsigned width) noexcept {
-    // Extract w-bit window starting at position 'pos'
-    std::uint64_t result = 0;
-    for (unsigned i = 0; i < width; ++i) {
-        result |= scalar_bit(a, pos + i) << i;
+    // Direct limb access: pos and width are public (derived from loop counter),
+    // so variable-time access to the limb index is safe. Only the scalar VALUE
+    // is secret, and shift+mask doesn't leak it.
+    const auto& limbs = a.limbs();
+    std::size_t limb_idx = pos >> 6;
+    std::size_t bit_idx  = pos & 63;
+    std::uint64_t mask   = (1ULL << width) - 1;
+
+    // Fast path: window doesn't span limb boundary
+    if (bit_idx + width <= 64) {
+        return (limbs[limb_idx] >> bit_idx) & mask;
     }
-    return result;
+    // Slow path: window crosses limb boundary (only when bit_idx + width > 64)
+    std::uint64_t lo = limbs[limb_idx] >> bit_idx;
+    std::uint64_t hi = (limb_idx + 1 < 4) ? limbs[limb_idx + 1] : 0;
+    return (lo | (hi << (64 - bit_idx))) & mask;
 }
 
 } // namespace secp256k1::ct

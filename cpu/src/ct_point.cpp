@@ -230,6 +230,50 @@ CTAffinePoint affine_table_lookup(const CTAffinePoint* table,
     return result;
 }
 
+// ─── Signed-Digit Affine Table Lookup (Hamburg encoding) ─────────────────────
+// Table stores odd multiples: [1·P, 3·P, 5·P, ..., (2^group_size - 1)·P]
+// (table_size = 2^(group_size-1) entries)
+//
+// n is a group_size-bit value. Its bits are interpreted as signs of powers:
+//   value = sum((2*bit[i]-1) * 2^i, i=0..group_size-1)
+// This always yields an ODD number in [-(2^group_size-1), (2^group_size-1)].
+//
+// The top bit selects sign (0 = negative), remaining bits encode the index.
+// Result is NEVER infinity — the signed-digit transform guarantees this.
+
+CTAffinePoint affine_table_lookup_signed(const CTAffinePoint* table,
+                                          std::size_t table_size,
+                                          std::uint64_t n,
+                                          unsigned group_size) noexcept {
+    // Top bit 0 → negative (we XOR lower bits to get correct index)
+    std::uint64_t negative = ((n >> (group_size - 1)) ^ 1u) & 1u;
+    std::uint64_t neg_mask = static_cast<std::uint64_t>(-negative);  // all-ones if neg
+
+    // Compute index into table:
+    // If positive (top bit=1): index = lower bits
+    // If negative (top bit=0): index = ~(lower bits) & mask
+    unsigned index_bits = group_size - 1;
+    std::uint64_t index = (static_cast<std::uint64_t>(-negative) ^ n) &
+                          ((1ULL << index_bits) - 1u);
+
+    // CT scan of table
+    CTAffinePoint result = table[0];
+    for (std::size_t m = 1; m < table_size; ++m) {
+        std::uint64_t mask = eq_mask(static_cast<std::uint64_t>(m),
+                                     static_cast<std::uint64_t>(index));
+        affine_cmov(&result, table[m], mask);
+    }
+
+    // Conditional Y-negate (sign handling)
+    FE52 neg_y = result.y;
+    neg_y.normalize_weak();
+    neg_y = neg_y.negate(1);
+    fe52_cmov(&result.y, neg_y, neg_mask);
+
+    result.infinity = 0;  // signed digits are NEVER zero
+    return result;
+}
+
 // ─── Complete Addition (Jacobian, a=0, 5×52) ────────────────────────────────
 // Complete formula for y²=x³+b on Jacobian coordinates.
 // Handles all cases without branches:
@@ -479,6 +523,62 @@ CTJacobianPoint point_dbl(const CTJacobianPoint& p) noexcept {
     point_cmov(&result, inf, p.infinity);
     return result;
 }
+
+// ─── Batch N Doublings (5×52, no infinity) ───────────────────────────────────
+// Performs n consecutive doublings in-place, normalizing only at the start.
+// The doubling formula (dbl-2007-a for a=0) has self-stabilizing magnitudes:
+// all negate() parameters depend on intermediate values (always M=1 from
+// mul/sqr), NOT on input magnitude. So consecutive doublings are safe without
+// per-step normalize_weak.
+//
+// Precondition: p is NOT infinity (caller ensures).
+// Output: 2^n · p
+
+namespace {
+
+CTJacobianPoint point_dbl_n(const CTJacobianPoint& p, unsigned n) noexcept {
+    FE52 X = p.x; X.normalize_weak();
+    FE52 Y = p.y; Y.normalize_weak();
+    FE52 Z = p.z; Z.normalize_weak();
+
+    for (unsigned i = 0; i < n; ++i) {
+        FE52 A = X.square();
+        FE52 B = Y.square();
+        FE52 C = B.square();
+
+        FE52 xb = X + B;
+        FE52 AC = A + C;
+        FE52 D = xb.square() + AC.negate(2);
+        D = D + D;
+
+        FE52 E = (A + A) + A;
+        FE52 F = E.square();
+
+        FE52 DD = D + D;
+        FE52 x_new = F + DD.negate(16);
+
+        FE52 C8 = C + C; C8 = C8 + C8; C8 = C8 + C8;
+
+        FE52 Dx = D + x_new.negate(18);
+        FE52 y_new = (E * Dx) + C8.negate(8);
+
+        FE52 yz = Y * Z;
+        FE52 z_new = yz + yz;
+
+        X = x_new;
+        Y = y_new;
+        Z = z_new;
+    }
+
+    CTJacobianPoint result;
+    result.x = X;
+    result.y = Y;
+    result.z = Z;
+    result.infinity = 0;
+    return result;
+}
+
+} // anonymous namespace
 
 // ─── Brier-Joye Unified Mixed Addition (Jacobian + Affine, a=0) ─────────────
 // Cost: 7M + 5S (vs 9M+8S for complete formula) — ~40% cheaper
@@ -839,98 +939,126 @@ CTGLVDecomposition ct_glv_decompose(const Scalar& k) noexcept {
     return result;
 }
 
-// ─── CT GLV Scalar Multiplication (5×52) ─────────────────────────────────────
+// ─── CT GLV Scalar Multiplication — Hamburg Signed-Digit (GROUP_SIZE=5) ──────
+// Combines Hamburg's signed-digit comb (ePrint 2012/309 §3.3) with GLV.
+//
+// Algorithm:
+//   1. s = (k + K) / 2 mod n, where K = (2^BITS-2^129-1)*(1+lambda) mod n
+//   2. Split s into (s1, s2) via GLV
+//   3. v1 = s1 + 2^128,  v2 = s2 + 2^128  (non-negative, fits in 129 bits)
+//   4. Process GROUPS groups of GROUP_SIZE bits from v1, v2 (high to low)
+//   5. Each group's bits encode a signed odd digit → table lookup
+//
+// GROUP_SIZE=5: TABLE_SIZE=16 odd multiples, GROUPS=26, BITS=130.
+// Cost: 125 doublings + 52 additions (ALL real, no digit=0 waste).
+// Table lookup: 26 groups × 2 tables × 15 cmov = 780 cmov iterations.
 
 Point scalar_mul(const Point& p, const Scalar& k) noexcept {
-    constexpr unsigned W = 4;
-    constexpr unsigned GLV_WINDOWS = 32;
-    constexpr std::size_t TABLE_SIZE = 1u << W;
+    constexpr unsigned GROUP_SIZE = 5;
+    constexpr unsigned TABLE_SIZE = 1u << (GROUP_SIZE - 1);  // 16 odd multiples
+    constexpr unsigned GROUPS = 26;   // ceil(129/5)
+    // BITS = GROUPS * GROUP_SIZE = 130 (used for K derivation)
 
-    // GLV Decomposition (CT)
-    auto [k1, k2, k1_neg, k2_neg] = ct_glv_decompose(k);
+    // K = (2^BITS - 2^129 - 1) * (1 + lambda) mod n
+    // For GROUP_SIZE=5, BITS=130: K = (2^130 - 2^129 - 1)*(1+lambda) = (2^129 - 1)*(1+lambda)
+    // Precomputed constant (same as libsecp256k1 ECMULT_CONST_BITS=130):
+    static const Scalar K_CONST = Scalar::from_limbs({
+        0xb5c2c1dcde9798d9ULL, 0x589ae84826ba29e4ULL,
+        0xc2bdd6bf7c118d6bULL, 0xa4e88a7dcb13034eULL
+    });
 
-    // ── Build T1 table via batch inversion (fast) ────────────────────────
-    // Step 1: Compute P, 2P, 3P, ..., 15P in Jacobian (fast-path, public data)
-    CTAffinePoint T1[TABLE_SIZE];
-    CTAffinePoint T2[TABLE_SIZE];
+    // Offset to make s1, s2 non-negative: 2^128
+    static const Scalar S_OFFSET = Scalar::from_limbs({0, 0, 1, 0});
 
+    // ── 1. Compute v1, v2 via Hamburg transform + GLV split ──────────────
+    Scalar s = scalar_add(k, K_CONST);
+    s = scalar_half(s);
+
+    // GLV split: s = s1 + s2*lambda  (|s1|, |s2| < 2^128)
+    auto [k1_abs, k2_abs, k1_neg, k2_neg] = ct_glv_decompose(s);
+
+    // We need the SIGNED values for the Hamburg transform
+    Scalar s1 = scalar_cneg(k1_abs, k1_neg);
+    Scalar s2 = scalar_cneg(k2_abs, k2_neg);
+
+    // v1 = s1 + 2^128,  v2 = s2 + 2^128
+    Scalar v1 = scalar_add(s1, S_OFFSET);
+    Scalar v2 = scalar_add(s2, S_OFFSET);
+
+    // ── 2. Build odd-multiples table via batch inversion ─────────────────
+    // Table stores [1·P, 3·P, 5·P, ..., 31·P] in affine
+    CTAffinePoint pre_a[TABLE_SIZE];
+    CTAffinePoint pre_a_lam[TABLE_SIZE];
+
+    // Compute odd multiples in Jacobian: 1P, 3P, 5P, ..., 31P
     Point jac[TABLE_SIZE];
-    jac[0] = Point::infinity();
-    jac[1] = p;
-    {
-        Point p2 = p;
-        p2.dbl_inplace();
-        jac[2] = p2;
-        Point running = p2;
-        for (std::size_t i = 3; i < TABLE_SIZE; ++i) {
-            running = running.add(p);
-            jac[i] = running;
-        }
+    jac[0] = p;  // 1·P
+    Point p2 = p;
+    p2.dbl_inplace();  // 2·P
+    for (std::size_t i = 1; i < TABLE_SIZE; ++i) {
+        jac[i] = jac[i - 1].add(p2);  // (2i-1)P + 2P = (2i+1)P
     }
 
-    // Step 2: Batch-invert Z coordinates (1 inversion + 3×14 muls ≈ 1.3μs)
-    constexpr std::size_t NZ = TABLE_SIZE - 1;  // 15 entries (skip infinity)
-    FE52 zs[NZ];
-    FE52 z_invs[NZ];
-    for (std::size_t i = 0; i < NZ; ++i) {
-        zs[i] = jac[i + 1].Z52();
+    // Batch-invert Z coordinates
+    FE52 zs[TABLE_SIZE], z_invs[TABLE_SIZE];
+    for (std::size_t i = 0; i < TABLE_SIZE; ++i) {
+        zs[i] = jac[i].Z52();
     }
-    fe52_batch_inverse(z_invs, zs, NZ);
+    fe52_batch_inverse(z_invs, zs, TABLE_SIZE);
 
-    // Step 3: Convert to affine via x_aff = X·Z^{-2}, y_aff = Y·Z^{-3}
-    T1[0] = CTAffinePoint::make_infinity();
-    for (std::size_t i = 0; i < NZ; ++i) {
+    // Convert to affine
+    const FE52& beta = get_beta_fe52();
+    for (std::size_t i = 0; i < TABLE_SIZE; ++i) {
         FE52 zinv2 = z_invs[i].square();
         FE52 zinv3 = zinv2 * z_invs[i];
-        T1[i + 1].x = jac[i + 1].X52() * zinv2;     // M=1
-        T1[i + 1].y = jac[i + 1].Y52() * zinv3;     // M=1
-        T1[i + 1].infinity = 0;
+        pre_a[i].x = jac[i].X52() * zinv2;
+        pre_a[i].y = jac[i].Y52() * zinv3;
+        pre_a[i].infinity = 0;
+        // Lambda table: φ(x,y) = (β·x, y)
+        pre_a_lam[i].x = pre_a[i].x * beta;
+        pre_a_lam[i].y = pre_a[i].y;
+        pre_a_lam[i].infinity = 0;
     }
 
-    // Step 4: Compute T2 via endomorphism φ(x,y) = (β·x, y)
-    // Since φ is an endomorphism: φ(kP) = k·φ(P), so T2[i] = φ(T1[i])
-    const FE52& beta = get_beta_fe52();
-    T2[0] = CTAffinePoint::make_infinity();
-    for (std::size_t i = 1; i < TABLE_SIZE; ++i) {
-        T2[i].x = T1[i].x * beta;      // M=1
-        T2[i].y = T1[i].y;             // M=1
-        T2[i].infinity = 0;
-    }
+    // NOTE: No table Y-negation needed.
+    // Hamburg signed-digit encoding bakes the sign into v1/v2 (via the offset
+    // and signed GLV decomposition). The lookup_signed function handles
+    // conditional Y-negate at runtime based on each window's top bit.
 
-    // CT sign handling: if k1/k2 was negated, negate table Y-coords
-    for (std::size_t i = 1; i < TABLE_SIZE; ++i) {
-        T1[i].y = fe52_cneg(T1[i].y, k1_neg, 1);
-        T2[i].y = fe52_cneg(T2[i].y, k2_neg, 1);
-    }
+    SECP256K1_DECLASSIFY(pre_a, sizeof(pre_a));
+    SECP256K1_DECLASSIFY(pre_a_lam, sizeof(pre_a_lam));
 
-    SECP256K1_DECLASSIFY(T1, sizeof(T1));
-    SECP256K1_DECLASSIFY(T2, sizeof(T2));
-
-    // Strauss interleaving (32 windows × 2 unified additions)
-    // Uses Brier-Joye unified formula (7M+5S) instead of complete (9M+8S).
-    // Unified handles a=infinity (cmov at end). For b=infinity (digit=0),
-    // we compute garbage and cmov to keep R unchanged — fully CT.
+    // ── 3. Main loop: process GROUPS groups of GROUP_SIZE bits ───────────
     CTJacobianPoint R = CTJacobianPoint::make_infinity();
 
-    for (int i = static_cast<int>(GLV_WINDOWS) - 1; i >= 0; --i) {
-        R = point_dbl(R);
-        R = point_dbl(R);
-        R = point_dbl(R);
-        R = point_dbl(R);
+    for (int group = static_cast<int>(GROUPS) - 1; group >= 0; --group) {
+        std::uint64_t bits1 = scalar_window(v1, static_cast<std::size_t>(group) * GROUP_SIZE, GROUP_SIZE);
+        std::uint64_t bits2 = scalar_window(v2, static_cast<std::size_t>(group) * GROUP_SIZE, GROUP_SIZE);
 
-        std::uint64_t w1 = scalar_window(k1, static_cast<std::size_t>(i) * W, W);
-        std::uint64_t w2 = scalar_window(k2, static_cast<std::size_t>(i) * W, W);
+        CTAffinePoint t;
 
-        CTAffinePoint A1 = affine_table_lookup(T1, TABLE_SIZE, w1);
-        CTAffinePoint A2 = affine_table_lookup(T2, TABLE_SIZE, w2);
+        // Lookup from pre_a table using signed-digit encoding
+        t = affine_table_lookup_signed(pre_a, TABLE_SIZE, bits1, GROUP_SIZE);
 
-        // Unified addition: b must not be infinity. When digit=0,
-        // table returns infinity → compute garbage, then cmov ignore.
-        CTJacobianPoint R1 = point_add_mixed_unified(R, A1);
-        point_cmov(&R, R1, ~A1.infinity);   // update only if A1 was valid
+        if (group == static_cast<int>(GROUPS) - 1) {
+            // First iteration: set R directly (Jacobian from affine)
+            R.x = t.x;
+            R.y = t.y;
+            R.z = FE52::one();
+            R.infinity = 0;
+        } else {
+            // Shift result up by GROUP_SIZE doublings.
+            // Uses batched doubling: normalize once, no per-step normalize_weak.
+            // R is never infinity here (first group already set it).
+            R = point_dbl_n(R, GROUP_SIZE);
 
-        CTJacobianPoint R2 = point_add_mixed_unified(R, A2);
-        point_cmov(&R, R2, ~A2.infinity);   // update only if A2 was valid
+            // Add first table entry (guaranteed non-infinity)
+            R = point_add_mixed_unified(R, t);
+        }
+
+        // Lookup from lambda table and add (guaranteed non-infinity)
+        t = affine_table_lookup_signed(pre_a_lam, TABLE_SIZE, bits2, GROUP_SIZE);
+        R = point_add_mixed_unified(R, t);
     }
 
     Point result = R.to_point();
@@ -939,15 +1067,40 @@ Point scalar_mul(const Point& p, const Scalar& k) noexcept {
 }
 
 // ─── CT Generator Multiplication (5×52) ──────────────────────────────────────
+// Uses Hamburg signed-digit encoding (Mike Hamburg, "Fast and compact
+// elliptic-curve cryptography", IACR ePrint 2012/309, Section 3.3).
+//
+// Key insight: interpret scalar bits as signs (+1/-1) instead of (1/0).
+// Given l-bit value v, define C_l(v, A) = sum((2*v[i]-1)*2^i*A, i=0..l-1).
+// Then C_l(v, A) = (2*v + 1 - 2^l)*A.
+// So to compute k*G: set v = (k + 2^256 - 1)/2 mod n, then C_256(v, G) = k*G.
+//
+// Every GROUP_SIZE-bit window of v, interpreted as a signed digit, is ODD:
+// it's always in {±1, ±3, ..., ±(2^GROUP_SIZE - 1)}.
+// → Table stores only odd multiples (half the entries!)
+// → No digit-0 case → no cmov skip → every addition contributes.
+//
+// Table: GEN_WINDOWS × GEN_SIGNED_TABLE_SIZE affine points.
+// Lookup: GEN_SIGNED_TABLE_SIZE-1 cmov iterations (vs 2×GEN_SIGNED_TABLE_SIZE-1 before).
 
 namespace {
 
 constexpr unsigned GEN_W = 4;
-constexpr unsigned GEN_WINDOWS = 64;
-constexpr std::size_t GEN_TABLE_SIZE = 1u << GEN_W;
+constexpr unsigned GEN_WINDOWS = 64;   // 256 / GEN_W
+constexpr std::size_t GEN_SIGNED_TABLE_SIZE = 1u << (GEN_W - 1);  // 8 odd multiples
+
+// Hamburg constant: K_gen = (2^256 - 1) mod n
+// 2^256 mod n = 2^256 - n = {0x402DA1732FC9BEBF, 0x4551231950B75FC4, 1, 0}
+// K_gen = (2^256 - 1) mod n = (2^256 mod n) - 1
+static constexpr std::uint64_t K_GEN[4] = {
+    0x402DA1732FC9BEBEULL,
+    0x4551231950B75FC4ULL,
+    0x0000000000000001ULL,
+    0x0000000000000000ULL
+};
 
 struct alignas(64) GenPrecompTable {
-    CTAffinePoint entries[GEN_WINDOWS][GEN_TABLE_SIZE];
+    CTAffinePoint entries[GEN_WINDOWS][GEN_SIGNED_TABLE_SIZE];
     bool initialized = false;
 };
 
@@ -959,39 +1112,35 @@ void build_gen_table() noexcept {
     Point base = G;
 
     for (unsigned w = 0; w < GEN_WINDOWS; ++w) {
-        // Build entries 1..15 in Jacobian
-        Point jac[GEN_TABLE_SIZE];
-        jac[0] = Point::infinity();
-        jac[1] = base;
+        // Build ODD multiples: [1·base, 3·base, 5·base, ..., 15·base]
+        // Using: (2i+1)·base for i=0..7
+        Point jac[GEN_SIGNED_TABLE_SIZE];
+        jac[0] = base;  // 1·base
 
         Point doubled = base;
-        doubled.dbl_inplace();
-        jac[2] = doubled;
+        doubled.dbl_inplace();  // 2·base
 
-        Point running = doubled;
-        for (std::size_t j = 3; j < GEN_TABLE_SIZE; ++j) {
-            running = running.add(base);
-            jac[j] = running;
+        for (std::size_t j = 1; j < GEN_SIGNED_TABLE_SIZE; ++j) {
+            jac[j] = jac[j - 1].add(doubled);  // (2j-1)·base + 2·base = (2j+1)·base
         }
 
-        // Batch-invert Z coordinates for entries 1..15
-        constexpr std::size_t NZ = GEN_TABLE_SIZE - 1;
-        FE52 zs[NZ], z_invs[NZ];
-        for (std::size_t j = 0; j < NZ; ++j) {
-            zs[j] = jac[j + 1].Z52();
+        // Batch-invert Z coordinates
+        FE52 zs[GEN_SIGNED_TABLE_SIZE], z_invs[GEN_SIGNED_TABLE_SIZE];
+        for (std::size_t j = 0; j < GEN_SIGNED_TABLE_SIZE; ++j) {
+            zs[j] = jac[j].Z52();
         }
-        fe52_batch_inverse(z_invs, zs, NZ);
+        fe52_batch_inverse(z_invs, zs, GEN_SIGNED_TABLE_SIZE);
 
         // Convert to affine
-        g_gen_table.entries[w][0] = CTAffinePoint::make_infinity();
-        for (std::size_t j = 0; j < NZ; ++j) {
+        for (std::size_t j = 0; j < GEN_SIGNED_TABLE_SIZE; ++j) {
             FE52 zinv2 = z_invs[j].square();
             FE52 zinv3 = zinv2 * z_invs[j];
-            g_gen_table.entries[w][j + 1].x = jac[j + 1].X52() * zinv2;
-            g_gen_table.entries[w][j + 1].y = jac[j + 1].Y52() * zinv3;
-            g_gen_table.entries[w][j + 1].infinity = 0;
+            g_gen_table.entries[w][j].x = jac[j].X52() * zinv2;
+            g_gen_table.entries[w][j].y = jac[j].Y52() * zinv3;
+            g_gen_table.entries[w][j].infinity = 0;
         }
 
+        // Advance base by 2^GEN_W for next window
         base.dbl_inplace();
         base.dbl_inplace();
         base.dbl_inplace();
@@ -1010,18 +1159,37 @@ void init_generator_table() noexcept {
 Point generator_mul(const Scalar& k) noexcept {
     init_generator_table();
 
-    CTJacobianPoint R = CTJacobianPoint::make_infinity();
+    // ── Hamburg scalar transform ──────────────────────────────────────────
+    // v = (k + K_gen) / 2 mod n
+    // This ensures that interpreting v's bits as signs (+1/-1) gives k*G.
+    static const Scalar K_gen_scalar = Scalar::from_limbs(
+        {K_GEN[0], K_GEN[1], K_GEN[2], K_GEN[3]});
 
-    for (unsigned i = 0; i < GEN_WINDOWS; ++i) {
-        std::uint64_t digit = scalar_window(k, static_cast<std::size_t>(i) * GEN_W, GEN_W);
+    Scalar s = scalar_add(k, K_gen_scalar);
+    Scalar v = scalar_half(s);
 
-        CTAffinePoint T = affine_table_lookup(g_gen_table.entries[i],
-                                              GEN_TABLE_SIZE, digit);
+    CTJacobianPoint R;
 
-        // Unified addition: handles R=infinity (first iterations) via internal cmov.
-        // When digit=0, T=infinity → compute garbage, cmov ignore.
-        CTJacobianPoint R_new = point_add_mixed_unified(R, T);
-        point_cmov(&R, R_new, ~T.infinity);
+    // ── Main loop: sum signed-digit lookups (no doublings) ───────────────
+    // First window: set R directly (avoids unified add on infinity)
+    {
+        std::uint64_t digit0 = scalar_window(v, 0, GEN_W);
+        CTAffinePoint T0 = affine_table_lookup_signed(
+            g_gen_table.entries[0], GEN_SIGNED_TABLE_SIZE, digit0, GEN_W);
+        R.x = T0.x;
+        R.y = T0.y;
+        R.z = FE52::one();
+        R.infinity = 0;
+    }
+
+    // Remaining windows: unified add (T is guaranteed non-infinity)
+    for (unsigned i = 1; i < GEN_WINDOWS; ++i) {
+        std::uint64_t digit = scalar_window(v, static_cast<std::size_t>(i) * GEN_W, GEN_W);
+
+        CTAffinePoint T = affine_table_lookup_signed(
+            g_gen_table.entries[i], GEN_SIGNED_TABLE_SIZE, digit, GEN_W);
+
+        R = point_add_mixed_unified(R, T);
     }
 
     Point result = R.to_point();
