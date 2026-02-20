@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771622910722,
+  "lastUpdate": 1771623473739,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -4137,6 +4137,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Point Add",
             "value": 257,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 147,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "shrec@users.noreply.github.com",
+            "name": "shrec",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "shrec@users.noreply.github.com",
+            "name": "shrec",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "f7577638ab852f24dc59fe046264963f6f8f8431",
+          "message": "ci: fix npm/nuget publishing\n\n- NUGET_ORG_API_KEY → NUGET_TOKEN (match repo secret name)\n  even when Windows build fails\n- Remove || echo WARN from publish steps (errors were silently\n  swallowed); use continue-on-error on GitHub Packages steps\n  instead (non-critical)",
+          "timestamp": "2026-02-20T21:36:32Z",
+          "tree_id": "fe90d3e9ee2d40530e50ec451117e4a61dec8b61",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/f7577638ab852f24dc59fe046264963f6f8f8431"
+        },
+        "date": 1771623472450,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Field Mul",
+            "value": 25,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 23,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 0,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Add",
+            "value": 256,
             "unit": "ns"
           },
           {
