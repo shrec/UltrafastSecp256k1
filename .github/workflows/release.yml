@@ -493,6 +493,7 @@ jobs:
   # ══════════════════════════════════════════════════════════════════════════
   pack-npm:
     needs: [build-desktop, build-linux-arm64]
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -566,6 +567,7 @@ jobs:
           retention-days: 5
 
       - name: Publish to GitHub Packages (npm)
+        continue-on-error: true
         run: |
           cd bindings/nodejs
           VERSION="${GITHUB_REF_NAME#v}"
@@ -578,7 +580,7 @@ jobs:
           echo "@shrec:registry=https://npm.pkg.github.com" > .npmrc
           echo "//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}" >> .npmrc
 
-          npm publish --access public || echo "WARN: npm publish failed (may already exist)"
+          npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -588,7 +590,7 @@ jobs:
           # Restore original unscoped name for npmjs.com
           sed -i 's/"name": "@shrec\/ufsecp"/"name": "ufsecp"/' package.json
           echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > .npmrc
-          npm publish --access public || echo "WARN: npmjs.com publish failed (may already exist)"
+          npm publish --access public
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
@@ -597,6 +599,7 @@ jobs:
   # ══════════════════════════════════════════════════════════════════════════
   pack-nuget:
     needs: [build-desktop, build-linux-arm64]
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -674,18 +677,19 @@ jobs:
           retention-days: 5
 
       - name: Publish to GitHub Packages (NuGet)
+        continue-on-error: true
         run: |
           dotnet nuget push bindings/csharp/Ufsecp/nupkgs/*.nupkg \
             --source "https://nuget.pkg.github.com/shrec/index.json" \
             --api-key "${{ secrets.GITHUB_TOKEN }}" \
-            --skip-duplicate || echo "WARN: NuGet push failed (may already exist)"
+            --skip-duplicate
 
       - name: Publish to nuget.org (public registry)
         run: |
           dotnet nuget push bindings/csharp/Ufsecp/nupkgs/*.nupkg \
             --source "https://api.nuget.org/v3/index.json" \
-            --api-key "${{ secrets.NUGET_ORG_API_KEY }}" \
-            --skip-duplicate || echo "WARN: nuget.org push failed (may already exist)"
+            --api-key "${{ secrets.NUGET_TOKEN }}" \
+            --skip-duplicate
 
   # ══════════════════════════════════════════════════════════════════════════
   # 9) Package bindings — Ruby gem
@@ -1257,12 +1261,13 @@ jobs:
           retention-days: 5
 
       - name: Publish to GitHub Packages (npm — React Native)
+        continue-on-error: true
         run: |
           cd bindings/react-native
           sed -i 's/"name": "react-native-ufsecp"/"name": "@shrec\/react-native-ufsecp"/' package.json
           echo "@shrec:registry=https://npm.pkg.github.com" > .npmrc
           echo "//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}" >> .npmrc
-          npm publish --access public || echo "WARN: npm publish failed (may already exist)"
+          npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -1272,7 +1277,7 @@ jobs:
           # Restore original unscoped name for npmjs.com
           sed -i 's/"name": "@shrec\/react-native-ufsecp"/"name": "react-native-ufsecp"/' package.json
           echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > .npmrc
-          npm publish --access public || echo "WARN: npmjs.com publish failed (may already exist)"
+          npm publish --access public
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
