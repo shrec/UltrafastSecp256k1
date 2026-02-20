@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771626585901,
+  "lastUpdate": 1771627916315,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -4358,6 +4358,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Point Double",
             "value": 162,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "shrec@users.noreply.github.com",
+            "name": "shrec",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "shrec@users.noreply.github.com",
+            "name": "shrec",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "bff9d85d2b8a9bbf4c3f2e2a042946ff68b88c61",
+          "message": "refactor: replace Barrett reduction with specialized GLV multiplies\n\nReplace the generic ct_scalar_mul_mod (Barrett 256×256 reduction) with:\n- ct_mul_lo128_mod: 128×128 schoolbook + conditional subtract (4 muls)\n- ct_mul_256x_lo128_mod: 256×128 schoolbook + secp256k1-specific\n  single-phase reduction (8 muls + 4 muls NC)\n\nGLV decomposition now exploits operand sizes directly:\n- c1*(-b1): both 128-bit → ct_mul_lo128_mod\n- c2*(-b2): reformulated as -(c2*b2) where b2 is 128-bit\n- λ×|k2|: 256×128 → ct_mul_256x_lo128_mod, then scalar_cneg\n\nRemoves: Barrett quotient/reduce loops (~100 lines), MU constant,\nkMinusB1Bytes, kMinusB2Bytes. Adds inline b2_pos_lo, minus_b1_lo\nconstants (verified against n - minus_b2).\n\nPerformance: neutral (~20.2μs scalar_mul, 1.09x vs libsecp).\nAll 12023 comprehensive tests pass.",
+          "timestamp": "2026-02-20T22:50:32Z",
+          "tree_id": "adbb0a7807c98c65a6e2502710f3546de3fe80ed",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/bff9d85d2b8a9bbf4c3f2e2a042946ff68b88c61"
+        },
+        "date": 1771627915647,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Field Mul",
+            "value": 25,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 23,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 0,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Add",
+            "value": 256,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 146,
             "unit": "ns"
           }
         ]
