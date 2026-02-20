@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771623473739,
+  "lastUpdate": 1771624821086,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -4166,6 +4166,60 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/shrec/UltrafastSecp256k1/commit/f7577638ab852f24dc59fe046264963f6f8f8431"
         },
         "date": 1771623472450,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Field Mul",
+            "value": 25,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 23,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 0,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Add",
+            "value": 256,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 147,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "shrec@users.noreply.github.com",
+            "name": "shrec",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "shrec@users.noreply.github.com",
+            "name": "shrec",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "652e8238d1db70e66c468d44afac1bdc53b8cf93",
+          "message": "fix: CT complete_add fallback uses affine x()/y() instead of raw X()/Y()\n\nOn MSVC (no SECP256K1_FAST_52BIT), CTJacobianPoint::from_point() called\np.x() and p.y() which compute affine coordinates (divide by Z²/Z³),\nbut p.z() returns raw Jacobian Z. This created an inconsistent\n(x_affine, y_affine, z_jac) representation, breaking complete addition\nwhenever the result had Z≠1 (doubling, general addition).\n\nFix: use X()/Y()/z() which all return raw Jacobian coordinates.\n\nFixes: ct complete add: G+G==2G, complete_add: G+2G==3G",
+          "timestamp": "2026-02-20T21:59:04Z",
+          "tree_id": "d660a3effd9b1009a671c7f30f14e59853b0659a",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/652e8238d1db70e66c468d44afac1bdc53b8cf93"
+        },
+        "date": 1771624820534,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
