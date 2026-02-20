@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771626323005,
+  "lastUpdate": 1771626585901,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -4274,6 +4274,60 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/shrec/UltrafastSecp256k1/commit/db42bd3e45cde347d3a02fd17ac347452a5d265f"
         },
         "date": 1771626322339,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Field Mul",
+            "value": 28,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 26,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 0,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Add",
+            "value": 282,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 162,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "shrec@users.noreply.github.com",
+            "name": "shrec",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "shrec@users.noreply.github.com",
+            "name": "shrec",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "d783f6a168a8d25f75c6f49d38884605d3e66b85",
+          "message": "chore: remove dead code superseded by Z-ratio normalization\n\nRemove fe52_eq, fe52_cneg, jac_add_ge_var (non-zr), fe52_inverse_var,\nfe52_batch_inverse_var, and the u256 helpers namespace.\n\nAll were orphaned after scalar_mul switched to backward Z-ratio\nnormalization in db42bd3. The CT variants (fe52_inverse,\nfe52_batch_inverse) remain — used by generator_mul.\n\n-213 lines, 0 warnings from our code.",
+          "timestamp": "2026-02-20T22:28:24Z",
+          "tree_id": "dd67c9f0429085030425d36c09954ad2a4f77f6d",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/d783f6a168a8d25f75c6f49d38884605d3e66b85"
+        },
+        "date": 1771626585344,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
