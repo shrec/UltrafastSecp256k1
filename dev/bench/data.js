@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771624821086,
+  "lastUpdate": 1771626323005,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -4250,6 +4250,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Point Double",
             "value": 147,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "shrec@users.noreply.github.com",
+            "name": "shrec",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "shrec@users.noreply.github.com",
+            "name": "shrec",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "db42bd3e45cde347d3a02fd17ac347452a5d265f",
+          "message": "perf: eliminate field inverse in CT scalar_mul precomputation\n\nReplace batch inverse (Montgomery's trick + Fermat inverse) with\nZ-ratio backward normalization for table precomputation. This is\nthe same technique used by bitcoin-core/secp256k1.\n\nApproach:\n- Track Z-ratios (h values) during isomorphic curve table building\n- Normalize backward: accumulate Z-ratio products, apply (zs², zs³)\n  to bring all entries to the same implicit global Z denominator\n- Apply global Z correction once at end: R.z *= global_z\n\nThe field inverse (253 squarings + 14 muls ≈ 4.6μs) is eliminated.\nPrecomputation overhead drops from ~7.8μs to ~3.7μs.\n\nBenchmark results (CT vs libsecp256k1):\n  scalar_mul: 22.0μs→20.3μs (1.20x→1.09x) ≈ parity\n  ECDSA verify: 26.9μs→24.0μs (1.17x→1.07x) ≈ parity\n  Schnorr verify: 27.7μs→24.7μs (1.16x→1.05x) ≈ parity\n\nAll 12023 comprehensive tests pass.",
+          "timestamp": "2026-02-20T22:22:37Z",
+          "tree_id": "9c5241b7fd9736545d16afe70b52cd44f54aadd4",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/db42bd3e45cde347d3a02fd17ac347452a5d265f"
+        },
+        "date": 1771626322339,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Field Mul",
+            "value": 28,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 26,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 0,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Add",
+            "value": 282,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 162,
             "unit": "ns"
           }
         ]
