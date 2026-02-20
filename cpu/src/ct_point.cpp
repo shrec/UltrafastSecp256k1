@@ -134,23 +134,6 @@ inline std::uint64_t fe52_normalizes_to_zero(const FE52& a) noexcept {
     return is_zero_mask(z0) | is_zero_mask(z1);
 }
 
-// CT equality: normalizes both, then compares. Returns all-ones if equal.
-inline std::uint64_t fe52_eq(const FE52& a, const FE52& b) noexcept {
-    FE52 ta = a; ta.normalize();
-    FE52 tb = b; tb.normalize();
-    std::uint64_t diff = (ta.n[0] ^ tb.n[0]) | (ta.n[1] ^ tb.n[1]) |
-                         (ta.n[2] ^ tb.n[2]) | (ta.n[3] ^ tb.n[3]) |
-                         (ta.n[4] ^ tb.n[4]);
-    return is_zero_mask(diff);
-}
-
-// CT conditional negate: if mask==all-ones, return -a; else a.
-// 'mag' is the current magnitude of a.
-inline FE52 fe52_cneg(const FE52& a, std::uint64_t mask, unsigned mag) noexcept {
-    FE52 neg = a.negate(mag);
-    return fe52_select(neg, a, mask);
-}
-
 // ─── Variable-time Jacobian + Affine Addition (for table build) ──────────────
 // NOT constant-time: used only for table precomputation where the POINT (not
 // scalar) is public. Standard formula: 3S + 8M per addition vs 5S + 12M for
@@ -159,38 +142,10 @@ inline FE52 fe52_cneg(const FE52& a, std::uint64_t mask, unsigned mag) noexcept 
 // Stores the Jacobian result in (rx, ry, rz). FE52-native throughout.
 // Output magnitudes: x M=7, y M=3, z M=1 (self-stabilizing — safe to chain
 // without normalize_weak). bx, by must be M=1 (from mul/sqr).
+// Also outputs the Z-ratio (h) for global-Z normalization.
+// The Z-ratio satisfies: result.z = a.z * zr_out.
 struct JacFE52 { FE52 x, y, z; };
 
-inline JacFE52 jac_add_ge_var(const JacFE52& a,
-                               const FE52& bx, const FE52& by) noexcept {
-    // Input magnitudes: a.x ≤ 7, a.y ≤ 3, a.z ≤ 1 (from prior mul/iteration)
-    FE52 z1sq = a.z.square();                        // Z1²        [1S] M=1
-    FE52 u2   = bx * z1sq;                           // U2=X2·Z1²  [1M] M=1
-    FE52 z1cu = z1sq * a.z;                          // Z1³        [1M] M=1
-    FE52 s2   = by * z1cu;                           // S2=Y2·Z1³  [1M] M=1
-
-    FE52 h  = u2 + a.x.negate(7);                    // H = U2-U1  M≤9
-    FE52 r  = s2 + a.y.negate(3);                    // R = S2-S1  M≤5
-
-    FE52 h2  = h.square();                           // H²         [1S] M=1
-    FE52 h3  = h * h2;                               // H³         [1M] M=1
-    FE52 u1h2 = a.x * h2;                            // U1·H²      [1M] M=1
-
-    FE52 r2  = r.square();                           // R²         [1S] M=1
-    FE52 x3  = r2 + h3.negate(1) + u1h2.negate(1) + u1h2.negate(1); // M=7
-
-    FE52 diff = u1h2 + x3.negate(7);                 // U1·H²-X3   M=9
-    FE52 y3  = (r * diff) + (a.y * h3).negate(1);    // M=3   [2M]
-
-    FE52 z3  = a.z * h;                              // Z3=Z1·H    [1M] M=1
-
-    // No normalize_weak needed: magnitudes are self-stabilizing (7,3,1).
-    return {x3, y3, z3};
-}
-// Total: 3S + 8M per addition (vs 5S+12M for Jac+Jac)
-
-// Version that also outputs the Z-ratio (h) for global-Z normalization.
-// The Z-ratio satisfies: result.z = a.z * zr_out.
 inline JacFE52 jac_add_ge_var_zr(const JacFE52& a,
                                   const FE52& bx, const FE52& by,
                                   FE52* zr_out) noexcept {
@@ -297,172 +252,6 @@ inline FE52 fe52_inverse(const FE52& a) noexcept {
     t1 = t1 * a;
 
     return t1;
-}
-
-// ─── Variable-Time FE52 Inverse via Binary Extended GCD ─────────────────────
-// NOT constant-time: branches on values. ~2-3μs vs ~7μs for Fermat chain.
-// Only for non-CT contexts (table build where point is public).
-//
-// Uses classical binary extended GCD on 4×64 limbs:
-//   u = a, v = p, x1 = 1, x2 = 0
-//   Iterate until u == 1, then x1 == a^{-1} mod p.
-
-// 256-bit helpers using 4×uint64_t arrays (little-endian)
-namespace {
-namespace u256 {
-
-inline bool is_one(const std::uint64_t v[4]) noexcept {
-    return v[0] == 1 && v[1] == 0 && v[2] == 0 && v[3] == 0;
-}
-
-inline bool is_even(const std::uint64_t v[4]) noexcept {
-    return (v[0] & 1) == 0;
-}
-
-// v >>= 1
-inline void rshift1(std::uint64_t v[4]) noexcept {
-    v[0] = (v[0] >> 1) | (v[1] << 63);
-    v[1] = (v[1] >> 1) | (v[2] << 63);
-    v[2] = (v[2] >> 1) | (v[3] << 63);
-    v[3] >>= 1;
-}
-
-// r = a + b, returns carry
-inline std::uint64_t add(std::uint64_t r[4], const std::uint64_t a[4], const std::uint64_t b[4]) noexcept {
-    unsigned __int128 c = 0;
-    for (int i = 0; i < 4; ++i) {
-        c += (unsigned __int128)a[i] + b[i];
-        r[i] = (std::uint64_t)c;
-        c >>= 64;
-    }
-    return (std::uint64_t)c;
-}
-
-// r = a - b, returns borrow (1 if a < b)
-inline std::uint64_t sub(std::uint64_t r[4], const std::uint64_t a[4], const std::uint64_t b[4]) noexcept {
-    unsigned __int128 borrow = 0;
-    for (int i = 0; i < 4; ++i) {
-        unsigned __int128 diff = (unsigned __int128)a[i] - b[i] - borrow;
-        r[i] = (std::uint64_t)diff;
-        borrow = (diff >> 127) & 1;  // borrow if negative
-    }
-    return (std::uint64_t)borrow;
-}
-
-// a >= b ?
-inline bool ge(const std::uint64_t a[4], const std::uint64_t b[4]) noexcept {
-    for (int i = 3; i >= 0; --i) {
-        if (a[i] > b[i]) return true;
-        if (a[i] < b[i]) return false;
-    }
-    return true;  // equal
-}
-
-// x = (x + p) >> 1  (used when x is odd before halving)
-inline void add_p_rshift1(std::uint64_t x[4]) noexcept {
-    static constexpr std::uint64_t P[4] = {
-        0xFFFFFFFEFFFFFC2FULL, 0xFFFFFFFFFFFFFFFFULL,
-        0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL
-    };
-    unsigned __int128 c = 0;
-    for (int i = 0; i < 4; ++i) {
-        c += (unsigned __int128)x[i] + P[i];
-        x[i] = (std::uint64_t)c;
-        c >>= 64;
-    }
-    // Now right-shift by 1 (carry from add becomes MSB)
-    std::uint64_t carry_bit = (std::uint64_t)c;
-    x[0] = (x[0] >> 1) | (x[1] << 63);
-    x[1] = (x[1] >> 1) | (x[2] << 63);
-    x[2] = (x[2] >> 1) | (x[3] << 63);
-    x[3] = (x[3] >> 1) | (carry_bit << 63);
-}
-
-} // namespace u256
-} // namespace
-
-inline FE52 fe52_inverse_var(const FE52& a) noexcept {
-    // Normalize and extract to 4×64
-    FE52 an = a;
-    an.normalize();
-    std::uint64_t val[4];
-    val[0] = an.n[0] | (an.n[1] << 52);
-    val[1] = (an.n[1] >> 12) | (an.n[2] << 40);
-    val[2] = (an.n[2] >> 24) | (an.n[3] << 28);
-    val[3] = (an.n[3] >> 36) | (an.n[4] << 16);
-
-    static constexpr std::uint64_t P[4] = {
-        0xFFFFFFFEFFFFFC2FULL, 0xFFFFFFFFFFFFFFFFULL,
-        0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL
-    };
-
-    std::uint64_t u[4] = { val[0], val[1], val[2], val[3] };
-    std::uint64_t v[4] = { P[0], P[1], P[2], P[3] };
-    std::uint64_t x1[4] = { 1, 0, 0, 0 };
-    std::uint64_t x2[4] = { 0, 0, 0, 0 };
-
-    while (!u256::is_one(u) && !u256::is_one(v)) {
-        while (u256::is_even(u)) {
-            u256::rshift1(u);
-            if (u256::is_even(x1)) {
-                u256::rshift1(x1);
-            } else {
-                u256::add_p_rshift1(x1);
-            }
-        }
-        while (u256::is_even(v)) {
-            u256::rshift1(v);
-            if (u256::is_even(x2)) {
-                u256::rshift1(x2);
-            } else {
-                u256::add_p_rshift1(x2);
-            }
-        }
-        if (u256::ge(u, v)) {
-            u256::sub(u, u, v);
-            if (u256::sub(x1, x1, x2)) {
-                u256::add(x1, x1, P);
-            }
-        } else {
-            u256::sub(v, v, u);
-            if (u256::sub(x2, x2, x1)) {
-                u256::add(x2, x2, P);
-            }
-        }
-    }
-
-    // Result is x1 if u==1, else x2
-    std::uint64_t* result = u256::is_one(u) ? x1 : x2;
-
-    // Convert 4×64 back to FE52
-    constexpr std::uint64_t M52 = 0x000FFFFFFFFFFFFFULL;
-    FE52 r;
-    r.n[0] = result[0] & M52;
-    r.n[1] = ((result[0] >> 52) | (result[1] << 12)) & M52;
-    r.n[2] = ((result[1] >> 40) | (result[2] << 24)) & M52;
-    r.n[3] = ((result[2] >> 28) | (result[3] << 36)) & M52;
-    r.n[4] = result[3] >> 16;
-    return r;
-}
-
-// ─── Variable-Time Batch Inversion (for table build) ────────────────────────
-// Same structure as CT batch inverse but uses fe52_inverse_var for speed.
-inline void fe52_batch_inverse_var(FE52* z_inv, const FE52* z, std::size_t n) noexcept {
-    if (n == 0) return;
-    if (n == 1) { z_inv[0] = fe52_inverse_var(z[0]); return; }
-
-    z_inv[0] = z[0];
-    for (std::size_t i = 1; i < n; ++i) {
-        z_inv[i] = z_inv[i - 1] * z[i];
-    }
-
-    FE52 acc = fe52_inverse_var(z_inv[n - 1]);
-
-    for (std::size_t i = n - 1; i > 0; --i) {
-        z_inv[i] = z_inv[i - 1] * acc;
-        acc = acc * z[i];
-    }
-    z_inv[0] = acc;
 }
 
 // ─── FE52 Batch Inversion (Montgomery's trick) ──────────────────────────────
