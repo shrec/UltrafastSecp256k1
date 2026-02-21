@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771632661497,
+  "lastUpdate": 1771634021512,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -4466,6 +4466,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Point Double",
             "value": 146,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "shrec@users.noreply.github.com",
+            "name": "shrec",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "shrec@users.noreply.github.com",
+            "name": "shrec",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "0ea424c171a1f1615354e682cb041e9dbf777d0a",
+          "message": "perf: eliminate redundant normalize in ct_field + mul_impl/square_impl\n\nAll CT field operations (add, sub, mul, sqr, neg, normalize, select)\nalready produce canonical results in [0, p) via branchless conditional\nsubtract or field_mul_full_asm reduction. The from_limbs() wrapper was\nperforming a second redundant normalize (4× sbb + conditional select)\non every call.\n\nSimilarly, mul_impl and square_impl BMI2 paths passed already-normalized\nFieldElement limbs through from_limbs() which re-normalized the inputs\nbefore passing to field_mul_bmi2/field_square_bmi2.\n\nFix: from_limbs() → from_limbs_raw() in all 7 ct_field.cpp return sites\nand 3 field.cpp BMI2 fallback sites.\n\nImpact: removes ~12 wasted instructions per CT field op. For CT paths\ndoing ~1200+ field ops per scalar_mul, this eliminates ~14,400 redundant\ninstructions per operation.\n\nAll 51 CT tests, 4237 field, 319 scalar, 22 ECDSA+Schnorr, 16 verify,\n28 BIP32 tests pass.",
+          "timestamp": "2026-02-21T00:32:19Z",
+          "tree_id": "9f82a52208dd89cc7e122dff1627c5fb05cee27b",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/0ea424c171a1f1615354e682cb041e9dbf777d0a"
+        },
+        "date": 1771634020413,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Field Mul",
+            "value": 25,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 24,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 0,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Add",
+            "value": 256,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 147,
             "unit": "ns"
           }
         ]
