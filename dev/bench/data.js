@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771638591877,
+  "lastUpdate": 1771638598177,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -4839,6 +4839,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Point Add",
             "value": 276,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 147,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "shrec@users.noreply.github.com",
+            "name": "shrec",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "shrec@users.noreply.github.com",
+            "name": "shrec",
+            "username": "shrec"
+          },
+          "distinct": false,
+          "id": "e68fa08e8bd0c4abbdb146bba0e6cd499f1542c9",
+          "message": "ci: add workflow_dispatch to release.yml for manual re-runs",
+          "timestamp": "2026-02-21T01:48:46Z",
+          "tree_id": "8e8d56f4fa2ca178a8e6c0dc854cf189f26be161",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/e68fa08e8bd0c4abbdb146bba0e6cd499f1542c9"
+        },
+        "date": 1771638596934,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Field Mul",
+            "value": 25,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 23,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 0,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Add",
+            "value": 288,
             "unit": "ns"
           },
           {
