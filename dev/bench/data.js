@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771634021512,
+  "lastUpdate": 1771634203497,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -4520,6 +4520,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Point Double",
             "value": 147,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "shrec@users.noreply.github.com",
+            "name": "shrec",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "shrec@users.noreply.github.com",
+            "name": "shrec",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "703f6836cd94db52c6faf8e3c04e0a5127420845",
+          "message": "refactor: combine Schnorr X-check + Y-parity into single Z inverse (FE52)\n\nMerges Step 5 (X-check) and Step 6 (Y-parity) into one Z inverse\ncomputation, keeping all arithmetic in FE52 domain.\n\nBefore: X-check used Z²-based multiply (no inverse), then Y-parity\nused a separate FE(4×64) inverse + 3 FE(4×64) ops + 2 FE52→FE\nconversions.\n\nAfter: single inverse_safegcd() + 1 sqr + 3 mul, all in FE52.\nEliminates the last FE(4×64) arithmetic from Schnorr verify hot path.\n\nAlso fixes schnorr_verify_precomputed:\n- FE52::from_fe(FieldElement::from_bytes(sig.r)) → FE52::from_bytes()\n- to_bytes()[31]&1 → normalize + n[0]&1\n\nAll tests pass (51 CT, 4237 field, 319 scalar, 22 ECDSA+Schnorr,\n16 verify, 28 BIP32).",
+          "timestamp": "2026-02-21T00:35:24Z",
+          "tree_id": "17db0b061a6e2e0967a303c040d610de6614424f",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/703f6836cd94db52c6faf8e3c04e0a5127420845"
+        },
+        "date": 1771634202810,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Field Mul",
+            "value": 23,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 19,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 0,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Add",
+            "value": 247,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 128,
             "unit": "ns"
           }
         ]
