@@ -615,9 +615,10 @@ static JacobianPoint52 jac52_add_mixed(const JacobianPoint52& p, const AffinePoi
 
 // ── In-Place Mixed Addition (5×52): Jacobian + Affine → Jacobian ─────────────
 // Same formula as jac52_add_mixed but overwrites p in-place.
-// always_inline: lets compiler eliminate JacobianPoint52↔Point member copies
-SECP256K1_HOT_FUNCTION __attribute__((always_inline))
-static inline void jac52_add_mixed_inplace(JacobianPoint52& p, const AffinePoint52& q) {
+// noinline: reduces hot-loop code size from ~5KB to ~1KB, improving I-cache.
+// The 127KB dual_scalar_mul_gen_point thrashes L1 I-cache (32-48KB) when inlined.
+SECP256K1_HOT_FUNCTION __attribute__((noinline))
+static void jac52_add_mixed_inplace(JacobianPoint52& p, const AffinePoint52& q) {
     if (SECP256K1_UNLIKELY(p.infinity)) {
         p.x = q.x; p.y = q.y; p.z = FieldElement52::one(); p.infinity = false;
         return;
