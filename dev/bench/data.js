@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771627916315,
+  "lastUpdate": 1771632661497,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -4407,6 +4407,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Point Add",
             "value": 256,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 146,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "shrec@users.noreply.github.com",
+            "name": "shrec",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "shrec@users.noreply.github.com",
+            "name": "shrec",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "ffde56b5f8d643bdc7c78f5eee45e769a6d776b5",
+          "message": "Phase 13: Eliminate format conversion overhead in hot paths\n\nCore changes:\n- FE52::from_4x64_limbs(): direct Scalar→FE52 without intermediate FieldElement\n- FE52::from_bytes(): direct bytes→FE52 without FieldElement intermediary\n- FE52::inverse_safegcd(): wraps to_fe().inverse() for batch inverse sites\n- Point::from_affine52(): zero-conversion affine point construction\n\nECDSA verify:\n- Scalar→FE52 via from_4x64_limbs (was: Scalar→bytes→FE→FE52)\n- Rare case (r+n >= p): correct 256-bit integer add with __int128 carry\n- Limb-level p-n comparison replaces byte-level check\n\nCT point:\n- from_point: uses X52/Y52/Z52 directly (was: FE52→FE→FE52 roundtrip)\n- to_point: uses from_jacobian52 + z.is_zero() safety check\n\nSchnorr verify:\n- from_bytes() direct for pubkey/sig.r (was: bytes→FE→FE52)\n- from_affine52() for point construction (was: FE52→FE for both coords)\n- Parity check via limbs()[0]&1 (was: to_bytes + byte check)\n\nBatch inverse (3 sites): uses inverse_safegcd() wrapper\n\nPre-negated G/H tables: negative wNAF digits use pre-computed\nneg_tbl_G/neg_tbl_H instead of copy+negate+normalize_weak per digit.\n\nAll 51 CT tests, 4237 field, 319 scalar, 22 ECDSA+Schnorr,\n16 verify, 28 BIP32 tests pass. ECDSA verify improved ~1.12x→1.06x.",
+          "timestamp": "2026-02-21T00:09:43Z",
+          "tree_id": "812a6ed019230f41a3088e475b81b0ae85a71617",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/ffde56b5f8d643bdc7c78f5eee45e769a6d776b5"
+        },
+        "date": 1771632660265,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Field Mul",
+            "value": 25,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 22,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 0,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Add",
+            "value": 258,
             "unit": "ns"
           },
           {
