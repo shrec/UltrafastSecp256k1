@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771634203497,
+  "lastUpdate": 1771634971753,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -4574,6 +4574,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Point Double",
             "value": 128,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "shrec@users.noreply.github.com",
+            "name": "shrec",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "shrec@users.noreply.github.com",
+            "name": "shrec",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "0d775d223f6bddb27107df75f9f4cba50f3bb3d6",
+          "message": "Phase 15: noinline jac52_add_mixed_inplace — 59% I-cache miss reduction\n\nChanged jac52_add_mixed_inplace from always_inline to noinline.\n\nBefore (always_inline):\n  - dual_scalar_mul_gen_point compiled to 127,059 bytes (4x L1 I-cache)\n  - 53M L1 I-cache misses per benchmark run\n\nAfter (noinline):\n  - dual_scalar_mul_gen_point: 21,822 bytes (83% reduction)\n  - jac52_add_mixed_inplace: 17,427 bytes (separate function)\n  - 21.6M L1 I-cache misses (59% reduction)\n\nWall-clock benchmark times approximately unchanged — function call overhead\nroughly cancels I-cache savings — but reduced I-cache pressure benefits overall\nsystem behavior and leaves more I-cache available for other code paths.\n\nAll tests pass: 51 CT, 4237 field, 319 scalar, 22 ECDSA+Schnorr, 16 verify, 28 BIP32.",
+          "timestamp": "2026-02-21T00:48:11Z",
+          "tree_id": "56ef09e42debf7c05005cc1ea277af9c9dae99fd",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/0d775d223f6bddb27107df75f9f4cba50f3bb3d6"
+        },
+        "date": 1771634970830,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Field Mul",
+            "value": 25,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 23,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 0,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Add",
+            "value": 276,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 147,
             "unit": "ns"
           }
         ]
