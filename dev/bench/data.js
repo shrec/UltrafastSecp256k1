@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771634971753,
+  "lastUpdate": 1771635972448,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -4628,6 +4628,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Point Double",
             "value": 147,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "shrec@users.noreply.github.com",
+            "name": "shrec",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "shrec@users.noreply.github.com",
+            "name": "shrec",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "472a9ed45dce63a9fa6ea7605186bcb63ce402a5",
+          "message": "fix: guard scalar_mul_glv52 against infinity base / zero scalar\n\nscalar_mul_glv52 batch-inverts Z-coordinates of odd-multiples table\nusing Montgomery's trick. When base is infinity (Z=0) or scalar is\nzero, the product of Z-values is zero, causing FieldElement::inverse()\nto throw 'Inverse of zero not defined'.\n\nAdd early-return guard: if base.is_infinity() or scalar.is_zero(),\nreturn Point::infinity() immediately before entering the GLV path.\n\nThis fixes CI failures on GCC-13 / Clang-17 / macOS / sanitizers\nwhere test_ecdh_infinity calls ecdh_compute(sk, Point::infinity()).\n\nVerified: 16/16 selftest modules pass (12023 tests, GCC-13 + Clang-19).",
+          "timestamp": "2026-02-21T01:04:54Z",
+          "tree_id": "1e5451517c5bf7bbf4aa68b0e9abca5861e46d7e",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/472a9ed45dce63a9fa6ea7605186bcb63ce402a5"
+        },
+        "date": 1771635971112,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Field Mul",
+            "value": 23,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 20,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 0,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Add",
+            "value": 255,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 129,
             "unit": "ns"
           }
         ]
