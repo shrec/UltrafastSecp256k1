@@ -1,6 +1,6 @@
 var searchData=
 [
-  ['make_5finfinity_0',['make_infinity',['../structsecp256k1_1_1ct_1_1CTJacobianPoint.html#a0fd7b56b08df9084d6665a03e58cc42c',1,'secp256k1::ct::CTJacobianPoint']]],
+  ['make_5finfinity_0',['make_infinity',['../structsecp256k1_1_1ct_1_1CTAffinePoint.html#a3a5f40dd9ddc7cfdea32c743ac9f489b',1,'secp256k1::ct::CTAffinePoint::make_infinity()'],['../structsecp256k1_1_1ct_1_1CTJacobianPoint.html#a0fd7b56b08df9084d6665a03e58cc42c',1,'secp256k1::ct::CTJacobianPoint::make_infinity()']]],
   ['merge_1',['merge',['../structsecp256k1_1_1test_1_1TestCounters.html#acfc030f8e11c91a80f5beb16744d00e7',1,'secp256k1::test::TestCounters']]],
   ['montgomery_5freduce_5fbmi2_2',['montgomery_reduce_bmi2',['../namespacesecp256k1_1_1fast_1_1detail.html#a7d00018b23eadb27cd36af28e2999e6e',1,'secp256k1::fast::detail']]],
   ['msm_3',['msm',['../namespacesecp256k1.html#a5c035fd3478f23b2eb5281e4a765ab84',1,'secp256k1::msm(const fast::Scalar *scalars, const fast::Point *points, std::size_t n)'],['../namespacesecp256k1.html#a2f1ebb75ed0e1a36a0d24b815d5adee8',1,'secp256k1::msm(const std::vector&lt; fast::Scalar &gt; &amp;scalars, const std::vector&lt; fast::Point &gt; &amp;points)']]],

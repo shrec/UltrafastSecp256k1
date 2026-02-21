@@ -8,6 +8,8 @@ var annotated_dup =
         [ "Keccak256State", "structsecp256k1_1_1coins_1_1Keccak256State.html", "structsecp256k1_1_1coins_1_1Keccak256State" ]
       ] ],
       [ "ct", "namespacesecp256k1_1_1ct.html", [
+        [ "CTAffinePoint", "structsecp256k1_1_1ct_1_1CTAffinePoint.html", "structsecp256k1_1_1ct_1_1CTAffinePoint" ],
+        [ "CTGLVDecomposition", "structsecp256k1_1_1ct_1_1CTGLVDecomposition.html", "structsecp256k1_1_1ct_1_1CTGLVDecomposition" ],
         [ "CTJacobianPoint", "structsecp256k1_1_1ct_1_1CTJacobianPoint.html", "structsecp256k1_1_1ct_1_1CTJacobianPoint" ]
       ] ],
       [ "fast", "namespacesecp256k1_1_1fast.html", [
@@ -56,7 +58,9 @@ var annotated_dup =
       [ "ScalarData", "structsecp256k1_1_1ScalarData.html", "structsecp256k1_1_1ScalarData" ],
       [ "SchnorrAdaptorSig", "structsecp256k1_1_1SchnorrAdaptorSig.html", "structsecp256k1_1_1SchnorrAdaptorSig" ],
       [ "SchnorrBatchEntry", "structsecp256k1_1_1SchnorrBatchEntry.html", "structsecp256k1_1_1SchnorrBatchEntry" ],
+      [ "SchnorrKeypair", "structsecp256k1_1_1SchnorrKeypair.html", "structsecp256k1_1_1SchnorrKeypair" ],
       [ "SchnorrSignature", "structsecp256k1_1_1SchnorrSignature.html", "structsecp256k1_1_1SchnorrSignature" ],
+      [ "SchnorrXonlyPubkey", "structsecp256k1_1_1SchnorrXonlyPubkey.html", "structsecp256k1_1_1SchnorrXonlyPubkey" ],
       [ "SHA256", "classsecp256k1_1_1SHA256.html", "classsecp256k1_1_1SHA256" ],
       [ "SHA512", "classsecp256k1_1_1SHA512.html", "classsecp256k1_1_1SHA512" ],
       [ "SilentPaymentAddress", "structsecp256k1_1_1SilentPaymentAddress.html", "structsecp256k1_1_1SilentPaymentAddress" ],

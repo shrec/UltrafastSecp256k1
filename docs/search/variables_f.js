@@ -16,10 +16,11 @@ var searchData=
   ['parent_5ffingerprint_13',['parent_fingerprint',['../structsecp256k1_1_1ExtendedKey.html#abc023f96773788fad06de5108bb49e6a',1,'secp256k1::ExtendedKey']]],
   ['passed_14',['passed',['../structsecp256k1_1_1test_1_1TestCounters.html#af61094071ee42c1027a95c403445d6ad',1,'secp256k1::test::TestCounters']]],
   ['peercoin_15',['Peercoin',['../namespacesecp256k1_1_1coins.html#ad161d866561cfc0413329d61f08b9b5b',1,'secp256k1::coins']]],
-  ['point_16',['point',['../structsecp256k1_1_1PedersenCommitment.html#aea692ceb3cb7317917b103d5ede41577',1,'secp256k1::PedersenCommitment']]],
+  ['point_16',['point',['../structsecp256k1_1_1SchnorrXonlyPubkey.html#a70a3b6e258dc7b2af6f7267e42d5e06c',1,'secp256k1::SchnorrXonlyPubkey::point'],['../structsecp256k1_1_1PedersenCommitment.html#aea692ceb3cb7317917b103d5ede41577',1,'secp256k1::PedersenCommitment::point']]],
   ['polygon_17',['Polygon',['../namespacesecp256k1_1_1coins.html#af39cdac6b34b6dc59104bf2d5cf68029',1,'secp256k1::coins']]],
   ['private_5fkey_18',['private_key',['../structsecp256k1_1_1coins_1_1CoinKeyPair.html#ab07af41a852cb1b5e14e0213b9044688',1,'secp256k1::coins::CoinKeyPair']]],
   ['progress_5fcallback_19',['progress_callback',['../structsecp256k1_1_1fast_1_1FixedBaseConfig.html#aa1f806b046e9491e03a6063c556891e3',1,'secp256k1::fast::FixedBaseConfig']]],
   ['pubkey_5fx_20',['pubkey_x',['../structsecp256k1_1_1SchnorrBatchEntry.html#acd36cca81dba3bdbe3005828be899b7e',1,'secp256k1::SchnorrBatchEntry']]],
-  ['public_5fkey_21',['public_key',['../structsecp256k1_1_1coins_1_1CoinKeyPair.html#af85e18af8963ed680ebec91c211731a9',1,'secp256k1::coins::CoinKeyPair::public_key'],['../structsecp256k1_1_1ECDSABatchEntry.html#a77503c972c1c25b7396110c47cf810ad',1,'secp256k1::ECDSABatchEntry::public_key']]]
+  ['public_5fkey_21',['public_key',['../structsecp256k1_1_1coins_1_1CoinKeyPair.html#af85e18af8963ed680ebec91c211731a9',1,'secp256k1::coins::CoinKeyPair::public_key'],['../structsecp256k1_1_1ECDSABatchEntry.html#a77503c972c1c25b7396110c47cf810ad',1,'secp256k1::ECDSABatchEntry::public_key']]],
+  ['px_22',['px',['../structsecp256k1_1_1SchnorrKeypair.html#a7eefdd9e21715b60f6fffa47ea99df81',1,'secp256k1::SchnorrKeypair']]]
 ];

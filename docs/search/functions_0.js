@@ -11,10 +11,16 @@ var searchData=
   ['address_5fp2tr_5fraw_8',['address_p2tr_raw',['../namespacesecp256k1.html#a3785b85c37019ba1c1aa33a4410cd53e',1,'secp256k1']]],
   ['address_5fp2wpkh_9',['address_p2wpkh',['../namespacesecp256k1.html#a6dfad5fbaf4f7381e377423c2ab2a1e9',1,'secp256k1']]],
   ['adox64_10',['adox64',['../namespacesecp256k1_1_1fast_1_1detail.html#aa1db22e8bece98f43b019f7cc922fe0b',1,'secp256k1::fast::detail']]],
-  ['all_5fpass_11',['all_pass',['../structsecp256k1_1_1test_1_1TestCounters.html#a416ea9d0c3d5990ea006cf9dc095f3a2',1,'secp256k1::test::TestCounters']]],
-  ['apply_5fendomorphism_12',['apply_endomorphism',['../namespacesecp256k1_1_1fast.html#ab4a40a44d316fd9c0a4ec6635bb16a0e',1,'secp256k1::fast']]],
-  ['auto_5ftune_5fand_5fwrite_5fconfig_13',['auto_tune_and_write_config',['../namespacesecp256k1_1_1fast.html#a8bf4841897ffc813adc3a3f20352d655',1,'secp256k1::fast']]],
-  ['auto_5ftune_5ffixed_5fbase_14',['auto_tune_fixed_base',['../namespacesecp256k1_1_1fast.html#acc62b62046e16ab0b660ec03615a9dc7',1,'secp256k1::fast']]],
-  ['avx2_5favailable_15',['avx2_available',['../namespacesecp256k1_1_1simd.html#a6d90a4c3494e6cdcac9ea7058a727d6c',1,'secp256k1::simd::avx2_available()'],['../namespacesecp256k1_1_1hash.html#acaa50972a7c883534f52aed6830e4a73',1,'secp256k1::hash::avx2_available()']]],
-  ['avx512_5favailable_16',['avx512_available',['../namespacesecp256k1_1_1simd.html#a947e80d2d353e2d5c117d8bf53df1fca',1,'secp256k1::simd::avx512_available()'],['../namespacesecp256k1_1_1hash.html#aee36f0cd5d0b9126b5b59674152903d4',1,'secp256k1::hash::avx512_available()']]]
+  ['affine_5fcmov_11',['affine_cmov',['../namespacesecp256k1_1_1ct.html#aff0e1fe7b98c16fb4375341f48563dc1',1,'secp256k1::ct']]],
+  ['affine_5fendomorphism_12',['affine_endomorphism',['../namespacesecp256k1_1_1ct.html#a611bfda97274ca71ad2a1ae20706e3bd',1,'secp256k1::ct']]],
+  ['affine_5fneg_13',['affine_neg',['../namespacesecp256k1_1_1ct.html#a27e453e87fbb837d211f40c3d46fe64a',1,'secp256k1::ct']]],
+  ['affine_5ftable_5flookup_14',['affine_table_lookup',['../namespacesecp256k1_1_1ct.html#a37a061a5106c30dc12f8509ae8f3c3d2',1,'secp256k1::ct']]],
+  ['affine_5ftable_5flookup_5fsigned_15',['affine_table_lookup_signed',['../namespacesecp256k1_1_1ct.html#a70151035f2c87ed4a2e8d741fa58a81a',1,'secp256k1::ct']]],
+  ['affine_5ftable_5flookup_5fsigned_5finto_16',['affine_table_lookup_signed_into',['../namespacesecp256k1_1_1ct.html#a9318c71df40cf00c16d37a425e4a364b',1,'secp256k1::ct']]],
+  ['all_5fpass_17',['all_pass',['../structsecp256k1_1_1test_1_1TestCounters.html#a416ea9d0c3d5990ea006cf9dc095f3a2',1,'secp256k1::test::TestCounters']]],
+  ['apply_5fendomorphism_18',['apply_endomorphism',['../namespacesecp256k1_1_1fast.html#ab4a40a44d316fd9c0a4ec6635bb16a0e',1,'secp256k1::fast']]],
+  ['auto_5ftune_5fand_5fwrite_5fconfig_19',['auto_tune_and_write_config',['../namespacesecp256k1_1_1fast.html#a8bf4841897ffc813adc3a3f20352d655',1,'secp256k1::fast']]],
+  ['auto_5ftune_5ffixed_5fbase_20',['auto_tune_fixed_base',['../namespacesecp256k1_1_1fast.html#acc62b62046e16ab0b660ec03615a9dc7',1,'secp256k1::fast']]],
+  ['avx2_5favailable_21',['avx2_available',['../namespacesecp256k1_1_1simd.html#a6d90a4c3494e6cdcac9ea7058a727d6c',1,'secp256k1::simd::avx2_available()'],['../namespacesecp256k1_1_1hash.html#acaa50972a7c883534f52aed6830e4a73',1,'secp256k1::hash::avx2_available()']]],
+  ['avx512_5favailable_22',['avx512_available',['../namespacesecp256k1_1_1simd.html#a947e80d2d353e2d5c117d8bf53df1fca',1,'secp256k1::simd::avx512_available()'],['../namespacesecp256k1_1_1hash.html#aee36f0cd5d0b9126b5b59674152903d4',1,'secp256k1::hash::avx512_available()']]]
 ];

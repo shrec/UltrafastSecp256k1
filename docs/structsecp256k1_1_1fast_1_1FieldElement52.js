@@ -1,8 +1,13 @@
 var structsecp256k1_1_1fast_1_1FieldElement52 =
 [
     [ "add_assign", "structsecp256k1_1_1fast_1_1FieldElement52.html#a0e380c641df6925278d9a41ec7b7520d", null ],
+    [ "from_4x64_limbs", "structsecp256k1_1_1fast_1_1FieldElement52.html#a921eb1aa837a9e8986849252646f357d", null ],
+    [ "from_bytes", "structsecp256k1_1_1fast_1_1FieldElement52.html#a6e784b39f8de494cd3b2438caeb5cac6", null ],
+    [ "from_bytes", "structsecp256k1_1_1fast_1_1FieldElement52.html#a2475a86895c879fa33b5d350c331f54d", null ],
     [ "from_fe", "structsecp256k1_1_1fast_1_1FieldElement52.html#a2cf1c2fc614346709068cfb9d69c40b4", null ],
     [ "half", "structsecp256k1_1_1fast_1_1FieldElement52.html#aa23fbd8f65ff50426f0cd240733f18c5", null ],
+    [ "inverse", "structsecp256k1_1_1fast_1_1FieldElement52.html#a2667243b917ac94a0061c2846fa4c931", null ],
+    [ "inverse_safegcd", "structsecp256k1_1_1fast_1_1FieldElement52.html#a4eb5b4863f14f5132d15e575393409e5", null ],
     [ "is_zero", "structsecp256k1_1_1fast_1_1FieldElement52.html#a384081dc831059847e38ea1732b0815c", null ],
     [ "mul_assign", "structsecp256k1_1_1fast_1_1FieldElement52.html#a373d49872942dd13cd78c1fe7b333dfd", null ],
     [ "negate", "structsecp256k1_1_1fast_1_1FieldElement52.html#adb59a2e353297636ca16e5ac8b305aa8", null ],
@@ -15,6 +20,7 @@ var structsecp256k1_1_1fast_1_1FieldElement52 =
     [ "operator*", "structsecp256k1_1_1fast_1_1FieldElement52.html#aa1efce8652c878e9a72a582ed7444cea", null ],
     [ "operator+", "structsecp256k1_1_1fast_1_1FieldElement52.html#afdef545d855ff153c80bed403377f9cc", null ],
     [ "operator==", "structsecp256k1_1_1fast_1_1FieldElement52.html#a2b67481d515dfabef3bc79b32e048af1", null ],
+    [ "sqrt", "structsecp256k1_1_1fast_1_1FieldElement52.html#aa8f36e2cca82906af5ec173800e3a87c", null ],
     [ "square", "structsecp256k1_1_1fast_1_1FieldElement52.html#ad0ad2badd14e23d6fdd87336b211d644", null ],
     [ "square_inplace", "structsecp256k1_1_1fast_1_1FieldElement52.html#aae6837846080665b58e57ab9e80bfc5a", null ],
     [ "to_fe", "structsecp256k1_1_1fast_1_1FieldElement52.html#a6ec75dad67d689031f823f490f40fcf0", null ],

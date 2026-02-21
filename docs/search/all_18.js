@@ -1,6 +1,6 @@
 var searchData=
 [
-  ['r_0',['r',['../structsecp256k1_1_1MuSig2Session.html#ab2280405f267eb375a9599cb2a0bd190',1,'secp256k1::MuSig2Session::R'],['../structsecp256k1_1_1ECDSAAdaptorSig.html#a9513a5eb20260a6cffedb8edd84e2887',1,'secp256k1::ECDSAAdaptorSig::r'],['../structsecp256k1_1_1ECDSASignature.html#a6daa57e289be9b8066565cedaddb1d01',1,'secp256k1::ECDSASignature::r'],['../structsecp256k1_1_1SchnorrSignature.html#a0722820db8b0278eee0bde4a2e372339',1,'secp256k1::SchnorrSignature::r']]],
+  ['r_0',['r',['../structsecp256k1_1_1ECDSAAdaptorSig.html#a9513a5eb20260a6cffedb8edd84e2887',1,'secp256k1::ECDSAAdaptorSig::r'],['../structsecp256k1_1_1ECDSASignature.html#a6daa57e289be9b8066565cedaddb1d01',1,'secp256k1::ECDSASignature::r'],['../structsecp256k1_1_1SchnorrSignature.html#a0722820db8b0278eee0bde4a2e372339',1,'secp256k1::SchnorrSignature::r'],['../structsecp256k1_1_1MuSig2Session.html#ab2280405f267eb375a9599cb2a0bd190',1,'secp256k1::MuSig2Session::R']]],
   ['r1_1',['r1',['../structsecp256k1_1_1MuSig2PubNonce.html#a277a14dbcdb33d43a13f87cfbdfbbf97',1,'secp256k1::MuSig2PubNonce::R1'],['../structsecp256k1_1_1MuSig2AggNonce.html#a3eff932b197290a6d54ce068fb0aeae3',1,'secp256k1::MuSig2AggNonce::R1']]],
   ['r2_2',['r2',['../structsecp256k1_1_1MuSig2AggNonce.html#aa3df9b09984c6187eabf730e425f5799',1,'secp256k1::MuSig2AggNonce::R2'],['../structsecp256k1_1_1MuSig2PubNonce.html#a016fc90ae3043926589a43ffa00c6ea5',1,'secp256k1::MuSig2PubNonce::R2']]],
   ['r52_3',['R52',['../namespacesecp256k1_1_1fast_1_1fe52__constants.html#a21d9a635299e1c907233ae0470ab98c3',1,'secp256k1::fast::fe52_constants']]],
@@ -15,7 +15,7 @@ var searchData=
   ['recoverablesignature_12',['RecoverableSignature',['../structsecp256k1_1_1RecoverableSignature.html',1,'secp256k1']]],
   ['recovery_13',['Recovery',['../namespacesecp256k1_1_1test.html#a67d5ad2842e24c72d6e79f845fb96335ad8afbc541b39d23648c823057cffe3a5',1,'secp256k1::test']]],
   ['recovery_2ehpp_14',['recovery.hpp',['../recovery_8hpp.html',1,'']]],
-  ['release_15',['CPU Signature Benchmarks (x86-64, Clang 21, AVX2, Release)',['../index.html#autotoc_md32',1,'']]],
+  ['release_15',['CPU Signature Benchmarks (x86-64, Clang 19, AVX2, Release)',['../index.html#autotoc_md32',1,'']]],
   ['representation_3a_205×52_20vs_204×64_16',['Field Representation: 5×52 vs 4×64',['../index.html#autotoc_md40',1,'']]],
   ['research_20statement_17',['Research Statement',['../index.html#autotoc_md85',1,'']]],
   ['reset_18',['reset',['../classsecp256k1_1_1SHA256.html#a33bcfb1a14a778a43a6b2cd4bbd085f8',1,'secp256k1::SHA256::reset()'],['../classsecp256k1_1_1SHA512.html#add0507d1f7c3bd47ccb2eeae2a23513b',1,'secp256k1::SHA512::reset()']]],

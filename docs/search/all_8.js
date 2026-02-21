@@ -35,7 +35,7 @@ var searchData=
   ['bech32m_32',['BECH32M',['../namespacesecp256k1.html#ad0bcd9acaefe52ddd34bef83f78855a9ae5747421d490e83aa21f61eae1ae3778',1,'secp256k1']]],
   ['benchmark_20targets_33',['secp256k1 Benchmark Targets',['../index.html#autotoc_md83',1,'']]],
   ['benchmarks_20—_20cross_20platform_20comparison_34',['secp256k1 Benchmarks — Cross-Platform Comparison',['../index.html#autotoc_md36',1,'']]],
-  ['benchmarks_20x86_2064_20clang_2021_20avx2_20release_35',['CPU Signature Benchmarks (x86-64, Clang 21, AVX2, Release)',['../index.html#autotoc_md32',1,'']]],
+  ['benchmarks_20x86_2064_20clang_2019_20avx2_20release_35',['CPU Signature Benchmarks (x86-64, Clang 19, AVX2, Release)',['../index.html#autotoc_md32',1,'']]],
   ['best_5fpurpose_36',['best_purpose',['../namespacesecp256k1_1_1coins.html#a94a9fd080c98fa0c1110edf774fbd8ce',1,'secp256k1::coins']]],
   ['beta_37',['BETA',['../namespacesecp256k1_1_1fast_1_1glv__constants.html#ae67ff54a26ac7cea257b4739a7129ed4',1,'secp256k1::fast::glv_constants']]],
   ['binding_5fnonce_38',['binding_nonce',['../structsecp256k1_1_1FrostNonce.html#a3a31511001167acfe4ff2426b6e674c9',1,'secp256k1::FrostNonce']]],

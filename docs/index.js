@@ -10,7 +10,7 @@ var index =
       [ "Apple Metal (M3 Pro) — Kernel-Only", "index.html#autotoc_md29", null ]
     ] ],
     [ "secp256k1 ECDSA & Schnorr Signatures (BIP-340, RFC 6979)", "index.html#autotoc_md31", [
-      [ "CPU Signature Benchmarks (x86-64, Clang 21, AVX2, Release)", "index.html#autotoc_md32", null ]
+      [ "CPU Signature Benchmarks (x86-64, Clang 19, AVX2, Release)", "index.html#autotoc_md32", null ]
     ] ],
     [ "Constant-Time secp256k1 (Side-Channel Resistance)", "index.html#autotoc_md34", null ],
     [ "secp256k1 Benchmarks — Cross-Platform Comparison", "index.html#autotoc_md36", [

@@ -76,14 +76,14 @@ var NAVTREEINDEX =
 [
 "UltrafastSecp256k1_8hpp.html",
 "classsecp256k1_1_1fast_1_1Point.html#abff5c00ffb3074c4cd1b502e447b33c7",
-"field_8hpp.html#a2a0daebfdeafbf5c13da255f371d6673",
-"hash__accel_8hpp.html#aa9baa48a38bbe07a5b3a664e5767bc92",
-"namespacesecp256k1.html#ae508026a4b6a2d3be70fbe3f4e96d4c6",
-"namespacesecp256k1_1_1fast.html#ac604f7acb9e495a0ed210c2efd7a9b53",
-"secp256k1__wasm_8h.html#acf24fdbfbd82e46515fd7ab7e565e750",
-"structsecp256k1_1_1SchnorrBatchEntry.html",
-"structsecp256k1_1_1fast_1_1FixedBaseConfig.html#ad128b6e5247dee768f63059adb8cfc63",
-"ufsecp__error_8h.html#aba178017981654417291869b891fe7d4"
+"ethereum_8hpp.html#a3e64a7241c4087ff107c77bce0209348",
+"hash__accel_8hpp.html#a0214e4c44ab40858a379c7e412c5ea78",
+"namespacesecp256k1.html#abdafefa1bbce97d2a9de0b9f5ea112c3",
+"namespacesecp256k1_1_1fast.html#a9028e0408ad56011572059859ae0fae0",
+"precompute_8hpp.html#a84571daeea5cce1f3a0458fc424f1605",
+"structsecp256k1_1_1MuSig2SecNonce.html#aad1aaf8e37fc3df4209a07053c327c39",
+"structsecp256k1_1_1fast_1_1FieldElement26.html#aff8e7ddf42b601f483a006cb746ac40a",
+"test__framework_8hpp.html#a67d5ad2842e24c72d6e79f845fb96335a9694a81a719cd3ae2c7c1a821313a4df"
 ];
 
 var SYNCONMSG = 'click to disable panel synchronisation';
