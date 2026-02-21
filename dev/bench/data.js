@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771635972448,
+  "lastUpdate": 1771636969763,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -4682,6 +4682,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Point Double",
             "value": 129,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "shrec@users.noreply.github.com",
+            "name": "shrec",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "shrec@users.noreply.github.com",
+            "name": "shrec",
+            "username": "shrec"
+          },
+          "distinct": false,
+          "id": "4d04082ece62b9fda98c8c95396cd6c9d06c2732",
+          "message": "v3.10.0: release prep — VERSION, CHANGELOG, README benchmarks\n\n- VERSION.txt: 3.9.0 → 3.10.0\n- CHANGELOG.md: add v3.10.0 section (27 commits: CT hot-path optimization Phases 5-15, I-cache optimization, infinity guard fix, CI fixes)\n- README.md: update CPU Signature + CT benchmark tables with fresh standalone numbers (no libsecp comparison)",
+          "timestamp": "2026-02-21T01:21:09Z",
+          "tree_id": "eec6ee9d0d4cab9367adeaa4fe64483b9f820200",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/4d04082ece62b9fda98c8c95396cd6c9d06c2732"
+        },
+        "date": 1771636968600,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Field Mul",
+            "value": 25,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 23,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 0,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Add",
+            "value": 276,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 149,
             "unit": "ns"
           }
         ]
