@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771770265711,
+  "lastUpdate": 1771772594880,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -5168,6 +5168,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Point Double",
             "value": 145,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "226972dbe13171ebbf7bdb53cab6b5d456c0e52c",
+          "message": "esp32: full comprehensive benchmark (matching x86 format)\n\nRewrote ESP32 main.cpp to match bench_comprehensive_riscv.cpp structure:\n 1. Field Arithmetic (mul/sqr/add/neg/inv)\n 2. Point Operations (add/dbl/scalar_mul/generator_mul)\n 3. ECDSA & Schnorr Signatures (sign/verify)\n 4. Batch Operations (batch inverse n=32,100)\n 5. CT Layer (correctness 4/4 + perf: scalar_mul/gen_mul/add/dbl)\n 6. libsecp256k1 comparison\n\nAdded to CMakeLists.txt: ecdsa.cpp, schnorr.cpp, multiscalar.cpp,\nhash_accel.cpp, field_52.cpp (compiles as empty on 32-bit).\n\nMedian-of-3 measurement, per-op warmup, Markdown summary table.\nAll 37/37 + 4/4 CT tests pass.",
+          "timestamp": "2026-02-22T19:01:59+04:00",
+          "tree_id": "2ba1c48f8f17283ff94e67ea8bef81ec6217cb97",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/226972dbe13171ebbf7bdb53cab6b5d456c0e52c"
+        },
+        "date": 1771772594123,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Field Mul",
+            "value": 25,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 23,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 0,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Add",
+            "value": 277,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 146,
             "unit": "ns"
           }
         ]
