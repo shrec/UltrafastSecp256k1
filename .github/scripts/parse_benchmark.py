@@ -26,9 +26,12 @@ def parse_benchmark_output(text: str) -> list[dict]:
     # Examples:
     #   scalar_mul:     18.45 µs
     #   field_mul:       8.23 ns
+    # NOTE: Match both U+00B5 (MICRO SIGN µ) and U+03BC (GREEK MU μ)
+    # because C++ source emits μ (Greek) while editors may produce µ (micro).
+    # Name class includes = for entries like "Batch Inverse (n=100)".
     pattern = re.compile(
-        r'^\s*([a-zA-Z0-9_\s\(\)/\*\+\-]+?):\s+'
-        r'([\d,\.]+)\s*(ns|µs|us|ms|s)\b',
+        r'^\s*([a-zA-Z0-9_\s\(\)/\*\+\-=]+?):\s+'
+        r'([\d,\.]+)\s*(ns|[µμ]s|us|ms|s)\b',
         re.MULTILINE
     )
 
@@ -43,9 +46,11 @@ def parse_benchmark_output(text: str) -> list[dict]:
             continue
 
         # Normalize to nanoseconds for consistent comparison
+        # Handle both µ (U+00B5) and μ (U+03BC) for microseconds
         multiplier = {
             'ns': 1.0,
             'µs': 1000.0,
+            'μs': 1000.0,
             'us': 1000.0,
             'ms': 1_000_000.0,
             's': 1_000_000_000.0,

@@ -72,7 +72,9 @@ jobs:
         alert-threshold: '150%'
         comment-on-alert: true
         fail-on-alert: false
-        benchmark-data-dir-path: 'dev/bench'
+        # v2: baseline reset after DoNotOptimize harness migration
+        # (old baseline had 0ns for optimized-away operations)
+        benchmark-data-dir-path: 'dev/bench-v2'
 
     - name: Summary
       run: |
