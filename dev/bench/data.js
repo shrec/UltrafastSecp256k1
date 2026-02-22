@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771750081336,
+  "lastUpdate": 1771759563101,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -5060,6 +5060,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Point Double",
             "value": 146,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "03414ce2331ad0cb249fedfb3840177c5a2273a6",
+          "message": "add field_asm52_arm64_v2.cpp: interleaved MUL/UMULH 5x52 ARM64 kernel\n\nMissing from git but referenced in cmake. Contains hand-scheduled\nCortex-A76 optimized 5x52 field_mul/field_sqr with NEON add/sub.",
+          "timestamp": "2026-02-22T15:24:46+04:00",
+          "tree_id": "9d15775f09dfcb9c1878b4dc9b9988f6411c369f",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/03414ce2331ad0cb249fedfb3840177c5a2273a6"
+        },
+        "date": 1771759562659,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Field Mul",
+            "value": 25,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 23,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 0,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Add",
+            "value": 277,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 147,
             "unit": "ns"
           }
         ]
