@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771795978902,
+  "lastUpdate": 1771796264386,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -5408,6 +5408,60 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/shrec/UltrafastSecp256k1/commit/cd6f8de57922fe80321698376d1346b5c90ba958"
         },
         "date": 1771795977839,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Field Mul",
+            "value": 27,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 22,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Add",
+            "value": 282,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 147,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "51d6f85d25bd003789489c099a121a91e7436cfa",
+          "message": "cmake: add cmake_minimum_required(3.18) for CMake 4.x compat",
+          "timestamp": "2026-02-23T01:36:29+04:00",
+          "tree_id": "3dbb139e5652c6a3c12fe4629c07c8e58fdec795",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/51d6f85d25bd003789489c099a121a91e7436cfa"
+        },
+        "date": 1771796263885,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
