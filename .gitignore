@@ -111,3 +111,7 @@ test_f52.txt
 test_f52_err.txt
 test_output.txt
 benchmark-*.txt
+
+# Removed submodule (bitcoin-core/secp256k1 reference copy)
+cpu/secp256k1/
+
