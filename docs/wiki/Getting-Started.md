@@ -18,7 +18,7 @@ This guide will help you build and use UltrafastSecp256k1 in your project.
 
 ```bash
 # Clone
-git clone --recursive https://github.com/shrec/UltrafastSecp256k1.git
+git clone --recursive https://github.com/shrec/Secp256K1fast.git
 cd UltrafastSecp256k1
 
 # Configure

@@ -6,7 +6,7 @@
 // Exposes C++20 headers directly (no Swift wrapper)
 //
 // Usage in Package.swift:
-//   .package(url: "https://github.com/shrec/UltrafastSecp256k1.git", from: "3.0.0")
+//   .package(url: "https://github.com/shrec/Secp256K1fast.git", from: "3.0.0")
 //
 // Usage in target:
 //   .target(name: "MyApp", dependencies: ["UltrafastSecp256k1"])

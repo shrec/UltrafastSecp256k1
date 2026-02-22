@@ -38,7 +38,7 @@ brew install cmake ninja
 ### Development Build
 
 ```bash
-git clone https://github.com/shrec/UltrafastSecp256k1.git
+git clone https://github.com/shrec/Secp256K1fast.git
 cd UltrafastSecp256k1
 cmake -S . -B build-dev -G Ninja \
   -DCMAKE_BUILD_TYPE=Debug \
@@ -264,8 +264,8 @@ Include:
 
 ## 📧 Contact
 
-- **Issues**: [GitHub Issues](https://github.com/shrec/UltrafastSecp256k1/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/shrec/UltrafastSecp256k1/discussions)
+- **Issues**: [GitHub Issues](https://github.com/shrec/Secp256K1fast/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/shrec/Secp256K1fast/discussions)
 
 ---
 

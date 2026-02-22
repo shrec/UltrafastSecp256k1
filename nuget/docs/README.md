@@ -1,6 +1,6 @@
 # UltrafastSecp256k1.Native
 
-Native runtime package for [UltrafastSecp256k1](https://github.com/shrec/UltrafastSecp256k1) — providing the `ufsecp` stable C ABI for secp256k1 elliptic curve cryptography.
+Native runtime package for [UltrafastSecp256k1](https://github.com/shrec/Secp256K1fast) — providing the `ufsecp` stable C ABI for secp256k1 elliptic curve cryptography.
 
 ## What's included
 
@@ -31,6 +31,6 @@ All secret-key operations (signing, ECDH, key derivation) automatically use the 
 
 ## Links
 
-- [GitHub](https://github.com/shrec/UltrafastSecp256k1)
-- [CHANGELOG](https://github.com/shrec/UltrafastSecp256k1/blob/main/CHANGELOG.md)
-- [Stability Guarantees](https://github.com/shrec/UltrafastSecp256k1/blob/main/include/ufsecp/SUPPORTED_GUARANTEES.md)
+- [GitHub](https://github.com/shrec/Secp256K1fast)
+- [CHANGELOG](https://github.com/shrec/Secp256K1fast/blob/main/libs/UltrafastSecp256k1/CHANGELOG.md)
+- [Stability Guarantees](https://github.com/shrec/Secp256K1fast/blob/main/libs/UltrafastSecp256k1/include/ufsecp/SUPPORTED_GUARANTEES.md)

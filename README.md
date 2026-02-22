@@ -15,11 +15,11 @@
 
 ---
 
-[![GitHub stars](https://img.shields.io/github/stars/shrec/UltrafastSecp256k1?style=flat-square&logo=github&label=Stars)](https://github.com/shrec/UltrafastSecp256k1/stargazers)
-[![GitHub forks](https://img.shields.io/github/forks/shrec/UltrafastSecp256k1?style=flat-square&logo=github&label=Forks)](https://github.com/shrec/UltrafastSecp256k1/network/members)
-[![CI](https://img.shields.io/github/actions/workflow/status/shrec/UltrafastSecp256k1/ci.yml?branch=main&label=CI)](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/ci.yml)
-[![Benchmark](https://img.shields.io/github/actions/workflow/status/shrec/UltrafastSecp256k1/benchmark.yml?branch=main&label=Bench)](https://shrec.github.io/UltrafastSecp256k1/dev/bench/)
-[![Release](https://img.shields.io/github/v/release/shrec/UltrafastSecp256k1?label=Release)](https://github.com/shrec/UltrafastSecp256k1/releases/latest)
+[![GitHub stars](https://img.shields.io/github/stars/shrec/Secp256K1fast?style=flat-square&logo=github&label=Stars)](https://github.com/shrec/Secp256K1fast/stargazers)
+[![GitHub forks](https://img.shields.io/github/forks/shrec/Secp256K1fast?style=flat-square&logo=github&label=Forks)](https://github.com/shrec/Secp256K1fast/network/members)
+[![CI](https://img.shields.io/github/actions/workflow/status/shrec/Secp256K1fast/ci.yml?branch=main&label=CI)](https://github.com/shrec/Secp256K1fast/actions/workflows/ci.yml)
+[![Benchmark](https://img.shields.io/github/actions/workflow/status/shrec/Secp256K1fast/benchmark.yml?branch=main&label=Bench)](https://shrec.github.io/Secp256K1fast/dev/bench/)
+[![Release](https://img.shields.io/github/v/release/shrec/Secp256K1fast?label=Release)](https://github.com/shrec/Secp256K1fast/releases/latest)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 [![C++20](https://img.shields.io/badge/C%2B%2B-20-blue.svg)](https://en.cppreference.com/w/cpp/20)
 [![Discord](https://img.shields.io/badge/Discord-Join%20Us-5865F2?logo=discord&logoColor=white)](https://discord.gg/sUmW7cc5)
@@ -70,7 +70,7 @@ This library has **not undergone independent security audits**. It is provided f
 - ✅ Stable C ABI (`ufsecp`) with 45 exported functions
 - ✅ Fuzz-tested core arithmetic (libFuzzer + ASan)
 
-**Report vulnerabilities** via [GitHub Security Advisories](https://github.com/shrec/UltrafastSecp256k1/security/advisories/new) or email [payysoon@gmail.com](mailto:payysoon@gmail.com).
+**Report vulnerabilities** via [GitHub Security Advisories](https://github.com/shrec/Secp256K1fast/security/advisories/new) or email [payysoon@gmail.com](mailto:payysoon@gmail.com).
 For production cryptographic systems, prefer audited libraries like [libsecp256k1](https://github.com/bitcoin-core/secp256k1).
 
 ---
@@ -433,7 +433,7 @@ See [SUPPORTED_GUARANTEES.md](include/ufsecp/SUPPORTED_GUARANTEES.md) for Tier 1
 > - **iOS** — Build & run on real iPhone/iPad hardware with Xcode
 > - **AMD GPU (ROCm/HIP)** — Test on AMD Radeon RX / Instinct GPUs
 >
-> [Open an issue](https://github.com/shrec/UltrafastSecp256k1/issues) with your results!
+> [Open an issue](https://github.com/shrec/Secp256K1fast/issues) with your results!
 
 ---
 
@@ -734,7 +734,7 @@ This library explores the **performance ceiling of secp256k1** across CPU archit
 Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ```bash
-git clone https://github.com/shrec/UltrafastSecp256k1.git
+git clone https://github.com/shrec/Secp256K1fast.git
 cd UltrafastSecp256k1
 cmake -S . -B build-dev -G Ninja -DCMAKE_BUILD_TYPE=Debug
 cmake --build build-dev -j
@@ -761,11 +761,11 @@ See [LICENSE](LICENSE) for full details.
 
 | Channel | Link |
 |---------|------|
-| Issues | [GitHub Issues](https://github.com/shrec/UltrafastSecp256k1/issues) |
-| Discussions | [GitHub Discussions](https://github.com/shrec/UltrafastSecp256k1/discussions) |
-| Wiki | [Documentation Wiki](https://github.com/shrec/UltrafastSecp256k1/wiki) |
-| Benchmarks | [Live Dashboard](https://shrec.github.io/UltrafastSecp256k1/dev/bench/) |
-| Security | [Report Vulnerability](https://github.com/shrec/UltrafastSecp256k1/security/advisories/new) |
+| Issues | [GitHub Issues](https://github.com/shrec/Secp256K1fast/issues) |
+| Discussions | [GitHub Discussions](https://github.com/shrec/Secp256K1fast/discussions) |
+| Wiki | [Documentation Wiki](https://github.com/shrec/Secp256K1fast/wiki) |
+| Benchmarks | [Live Dashboard](https://shrec.github.io/Secp256K1fast/dev/bench/) |
+| Security | [Report Vulnerability](https://github.com/shrec/Secp256K1fast/security/advisories/new) |
 | Commercial | [payysoon@gmail.com](mailto:payysoon@gmail.com) |
 
 ---

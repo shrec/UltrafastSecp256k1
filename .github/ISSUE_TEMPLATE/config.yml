@@ -1,11 +1,11 @@
 blank_issues_enabled: false
 contact_links:
   - name: Security Vulnerability
-    url: https://github.com/shrec/UltrafastSecp256k1/security/advisories/new
+    url: https://github.com/shrec/Secp256K1fast/security/advisories/new
     about: Report security vulnerabilities privately via GitHub Security Advisories
   - name: Benchmark Dashboard
-    url: https://shrec.github.io/UltrafastSecp256k1/dev/bench/
+    url: https://shrec.github.io/Secp256K1fast/dev/bench/
     about: View continuous benchmark results and performance trends
   - name: Build Guide
-    url: https://github.com/shrec/UltrafastSecp256k1/blob/main/BUILD_GUIDE.md
+    url: https://github.com/shrec/Secp256K1fast/blob/main/BUILD_GUIDE.md
     about: Check the build guide before reporting build issues

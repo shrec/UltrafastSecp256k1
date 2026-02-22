@@ -397,17 +397,64 @@ bool ecdsa_verify(const std::array<uint8_t, 32>& msg_hash,
 
     return false;
 #else
-    // Fallback: extract affine x via field inverse
-    auto r_fe = FieldElement::from_bytes(sig.r.to_bytes());
-    auto rx_fe = R_prime.x();
-    if (r_fe == rx_fe) return true;
+    // ── Z²-based x-coordinate check for 4×64 path (ESP32/MSVC/generic) ──
+    // Avoids field inverse: sig.r * Z² == X (mod p)
+    // Since sig.r < n < p, raw scalar limbs are a valid field element.
+    auto r_fe = FieldElement::from_limbs(sig.r.limbs());
+    auto z2   = R_prime.z_raw().square();     // Z²
+    auto lhs  = r_fe * z2;                    // r·Z²
+    auto rx   = R_prime.x_raw();              // Jacobian X
 
-    // Rare case: check (sig.r + n) mod p
-    static const Scalar N_SCALAR = Scalar::from_hex(
-        "fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141");
-    auto r_plus_n_bytes = (sig.r + N_SCALAR).to_bytes();
-    auto r2_fe = FieldElement::from_bytes(r_plus_n_bytes);
-    return r2_fe == rx_fe;
+    if (lhs == rx) return true;
+
+    // Rare case (probability ~2^-128): x_R mod p ∈ [n, p),
+    // so x_R mod n == sig.r means we need to check (sig.r + n)·Z² == X.
+    // sig.r + n < p  iff  sig.r < p - n.
+    // p - n ≈ 2^129:  0x14551231950b75fc4402da1732fc9bebf
+    static constexpr std::uint64_t PMN_0 = 0x402da1732fc9bebfULL;
+    static constexpr std::uint64_t PMN_1 = 0x14551231950b75fcULL;
+    const auto& rl = sig.r.limbs();
+
+    bool r_less_than_pmn;
+    if (rl[3] != 0 || rl[2] != 0) {
+        r_less_than_pmn = false;
+    } else if (rl[1] != PMN_1) {
+        r_less_than_pmn = (rl[1] < PMN_1);
+    } else {
+        r_less_than_pmn = (rl[0] < PMN_0);
+    }
+
+    if (r_less_than_pmn) {
+        // 256-bit addition r + n without __int128 (ESP32/MSVC safe)
+        static constexpr std::uint64_t N_LIMBS[4] = {
+            0xBFD25E8CD0364141ULL, 0xBAAEDCE6AF48A03BULL,
+            0xFFFFFFFFFFFFFFFEULL, 0xFFFFFFFFFFFFFFFFULL
+        };
+        std::uint64_t rn[4];
+        std::uint64_t carry = 0;
+        // limb 0
+        rn[0] = rl[0] + N_LIMBS[0];
+        carry = (rn[0] < rl[0]) ? 1u : 0u;
+        // limb 1
+        std::uint64_t tmp1 = rl[1] + N_LIMBS[1];
+        std::uint64_t c1   = (tmp1 < rl[1]) ? 1u : 0u;
+        rn[1] = tmp1 + carry;
+        carry = c1 + ((rn[1] < tmp1) ? 1u : 0u);
+        // limb 2
+        std::uint64_t tmp2 = rl[2] + N_LIMBS[2];
+        std::uint64_t c2   = (tmp2 < rl[2]) ? 1u : 0u;
+        rn[2] = tmp2 + carry;
+        carry = c2 + ((rn[2] < tmp2) ? 1u : 0u);
+        // limb 3
+        rn[3] = rl[3] + N_LIMBS[3] + carry;
+
+        FieldElement::limbs_type rn_arr = {rn[0], rn[1], rn[2], rn[3]};
+        auto r2_fe = FieldElement::from_limbs(rn_arr);
+        auto lhs2 = r2_fe * z2;
+        if (lhs2 == rx) return true;
+    }
+
+    return false;
 #endif
 }
 

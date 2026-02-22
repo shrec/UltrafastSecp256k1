@@ -948,27 +948,22 @@ static void normalize_30(S30& r, int32_t sign, const ModInfo& mod) {
 }
 
 // Convert 4×64-bit limbs → signed-30 representation
+// Direct extraction per limb — avoids accumulator overflow that drops
+// high bits when shifting uint64_t left (x[1]<<4 loses bits 124-127, etc.).
 static S30 limbs_to_s30(const limbs4& x) {
     S30 r{};
-    // Pack 256 bits (4×64) into 9×30-bit signed limbs
-    // Total: 9×30 = 270 bits, top limb holds remaining 256 - 8×30 = 16 bits
     const uint32_t M30 = 0x3FFFFFFFu;
-    uint64_t acc = x[0];
-    r.v[0] = (int32_t)(acc & M30); acc >>= 30;
-    r.v[1] = (int32_t)(acc & M30); acc >>= 30;
-    // acc has 4 bits left from x[0]; need 26 more from x[1]
-    acc |= (x[1] << 4);
-    r.v[2] = (int32_t)(acc & M30); acc >>= 30;
-    r.v[3] = (int32_t)(acc & M30); acc >>= 30;
-    // acc has 8 bits left; need 22 from x[2]
-    acc |= (x[2] << 8);
-    r.v[4] = (int32_t)(acc & M30); acc >>= 30;
-    r.v[5] = (int32_t)(acc & M30); acc >>= 30;
-    // acc has 12 bits left; need 18 from x[3]
-    acc |= (x[3] << 12);
-    r.v[6] = (int32_t)(acc & M30); acc >>= 30;
-    r.v[7] = (int32_t)(acc & M30); acc >>= 30;
-    r.v[8] = (int32_t)(acc);       // remaining 16 bits
+    // Bit layout: x[0]=[0,64), x[1]=[64,128), x[2]=[128,192), x[3]=[192,256)
+    // v[i] covers bits [i*30, (i+1)*30), v[8] covers [240,256) (16 bits).
+    r.v[0] = (int32_t)( x[0]        & M30);              // bits [  0, 30)
+    r.v[1] = (int32_t)((x[0] >> 30) & M30);              // bits [ 30, 60)
+    r.v[2] = (int32_t)(((x[0] >> 60) | (x[1] <<  4)) & M30); // bits [ 60, 90)
+    r.v[3] = (int32_t)((x[1] >> 26) & M30);              // bits [ 90,120)
+    r.v[4] = (int32_t)(((x[1] >> 56) | (x[2] <<  8)) & M30); // bits [120,150)
+    r.v[5] = (int32_t)((x[2] >> 22) & M30);              // bits [150,180)
+    r.v[6] = (int32_t)(((x[2] >> 52) | (x[3] << 12)) & M30); // bits [180,210)
+    r.v[7] = (int32_t)((x[3] >> 18) & M30);              // bits [210,240)
+    r.v[8] = (int32_t)( x[3] >> 48);                     // bits [240,256)
     return r;
 }
 

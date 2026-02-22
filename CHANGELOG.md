@@ -263,7 +263,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > - **AMD GPU (ROCm/HIP)** — AMD Radeon RX / Instinct hardware
 >
 > If you have access to these platforms, please run the build and report results!
-> Open an issue at https://github.com/shrec/UltrafastSecp256k1/issues
+> Open an issue at https://github.com/shrec/Secp256K1fast/issues
 
 ---
 

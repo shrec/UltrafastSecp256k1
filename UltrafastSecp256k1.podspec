@@ -8,7 +8,7 @@ Pod::Spec.new do |s|
     Optimized for Apple Silicon with MUL/UMULH instructions.
   DESC
 
-  s.homepage     = "https://github.com/shrec/UltrafastSecp256k1"
+  s.homepage     = "https://github.com/shrec/Secp256K1fast"
   s.license      = { :type => "AGPL-3.0", :file => "LICENSE" }
   s.author       = { "shrec" => "https://github.com/shrec" }
 
@@ -19,7 +19,7 @@ Pod::Spec.new do |s|
   s.visionos.deployment_target = "1.0"
 
   s.source = {
-    :git => "https://github.com/shrec/UltrafastSecp256k1.git",
+    :git => "https://github.com/shrec/Secp256K1fast.git",
     :tag => s.version.to_s
   }
 

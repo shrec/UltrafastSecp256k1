@@ -13,7 +13,7 @@ project(UltrafastSecp256k1
 )
 
 # Project metadata
-set(PROJECT_HOMEPAGE_URL "https://github.com/shrec/UltrafastSecp256k1")
+set(PROJECT_HOMEPAGE_URL "https://github.com/shrec/Secp256K1fast")
 set(PROJECT_LICENSE "AGPL-3.0")
 
 # C++20 required
@@ -237,7 +237,7 @@ set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
 set(CPACK_PACKAGE_VENDOR "shrec")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY
     "High-performance secp256k1 ECC library with stable C ABI (ufsecp)")
-set(CPACK_PACKAGE_HOMEPAGE_URL "https://github.com/shrec/UltrafastSecp256k1")
+set(CPACK_PACKAGE_HOMEPAGE_URL "https://github.com/shrec/Secp256K1fast")
 set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE")
 set(CPACK_PACKAGE_FILE_NAME
     "${CPACK_PACKAGE_NAME}-${PROJECT_VERSION}-${CMAKE_SYSTEM_NAME}-${CMAKE_SYSTEM_PROCESSOR}")

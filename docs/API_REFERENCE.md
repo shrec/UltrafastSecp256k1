@@ -1035,5 +1035,5 @@ int main() {
 
 UltrafastSecp256k1 v3.6.0
 
-For more information, see the [README](../README.md) or [GitHub repository](https://github.com/shrec/UltrafastSecp256k1).
+For more information, see the [README](../README.md) or [GitHub repository](https://github.com/shrec/Secp256K1fast).
 

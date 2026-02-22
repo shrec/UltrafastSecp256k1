@@ -21,7 +21,7 @@ Security fixes apply to the latest release on the `main` branch.
 Report privately via one of:
 
 1. **GitHub Security Advisories** (preferred):
-   [Create advisory](https://github.com/shrec/UltrafastSecp256k1/security/advisories/new)
+   [Create advisory](https://github.com/shrec/Secp256K1fast/security/advisories/new)
 2. **Email**: [payysoon@gmail.com](mailto:payysoon@gmail.com)
 
 We will acknowledge within **72 hours** and provide a fix timeline.

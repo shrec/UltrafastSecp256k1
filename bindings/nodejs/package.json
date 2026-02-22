@@ -30,9 +30,10 @@
     "taproot"
   ],
   "license": "MIT",
+  "homepage": "https://github.com/shrec/Secp256K1fast",
   "repository": {
     "type": "git",
-    "url": "https://github.com/UltrafastSecp256k1/UltrafastSecp256k1"
+    "url": "https://github.com/shrec/Secp256K1fast.git"
   },
   "engines": {
     "node": ">=16.0.0"

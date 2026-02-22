@@ -28,7 +28,7 @@ include(FetchContent)
 
 FetchContent_Declare(
   secp256k1_fast
-  GIT_REPOSITORY https://github.com/shrec/UltrafastSecp256k1.git
+  GIT_REPOSITORY https://github.com/shrec/Secp256K1fast.git
   GIT_TAG        v3.3.0
 )
 
@@ -50,7 +50,7 @@ target_link_libraries(my_app PRIVATE secp256k1_fast)
 If you vendor the library or use git submodules:
 
 ```bash
-git submodule add https://github.com/shrec/UltrafastSecp256k1.git third_party/secp256k1_fast
+git submodule add https://github.com/shrec/Secp256K1fast.git third_party/secp256k1_fast
 ```
 
 ```cmake

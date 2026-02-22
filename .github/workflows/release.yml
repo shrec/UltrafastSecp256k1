@@ -871,7 +871,7 @@ jobs:
           JAR="ufsecp-${VERSION}.jar"
           GROUP="com.ultrafast"
           ARTIFACT="ufsecp"
-          REPO_URL="https://maven.pkg.github.com/shrec/UltrafastSecp256k1"
+          REPO_URL="https://maven.pkg.github.com/shrec/Secp256K1fast"
 
           # Generate minimal POM
           cat > pom.xml <<'POMEOF'
@@ -884,7 +884,7 @@ jobs:
             <packaging>jar</packaging>
             <name>UltrafastSecp256k1 JNI</name>
             <description>Java JNI bindings for UltrafastSecp256k1</description>
-            <url>https://github.com/shrec/UltrafastSecp256k1</url>
+            <url>https://github.com/shrec/Secp256K1fast</url>
           </project>
           POMEOF
           # Fix version in POM (heredoc can't expand shell vars with quoted delimiter)

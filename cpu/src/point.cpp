@@ -2532,8 +2532,180 @@ Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const P
 
     return from_jac52(result52);
 }
+#elif defined(SECP256K1_PLATFORM_ESP32) || defined(ESP_PLATFORM) || defined(SECP256K1_PLATFORM_STM32)
+// ── ESP32/Embedded: 4-stream GLV Strauss (4×64 field) ────────────────────
+// Combines a*G + b*P into a single doubling chain with 4 wNAF streams,
+// halving the doublings compared to two separate scalar_mul calls.
+// Expected speedup: ~25-30% on ECDSA verify.
+Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const Point& P) {
+
+    // ── GLV decompose both scalars ────────────────────────────────────
+    GLVDecomposition decomp_a = glv_decompose(a);
+    GLVDecomposition decomp_b = glv_decompose(b);
+
+    // ── Build wNAF w=5 for all 4 half-scalars ────────────────────────
+    constexpr unsigned WINDOW = 5;
+    constexpr int TABLE_SIZE = (1 << (WINDOW - 2));  // 8
+
+    std::array<int32_t, 260> wnaf_a1{}, wnaf_a2{}, wnaf_b1{}, wnaf_b2{};
+    std::size_t len_a1 = 0, len_a2 = 0, len_b1 = 0, len_b2 = 0;
+    compute_wnaf_into(decomp_a.k1, WINDOW, wnaf_a1.data(), wnaf_a1.size(), len_a1);
+    compute_wnaf_into(decomp_a.k2, WINDOW, wnaf_a2.data(), wnaf_a2.size(), len_a2);
+    compute_wnaf_into(decomp_b.k1, WINDOW, wnaf_b1.data(), wnaf_b1.size(), len_b1);
+    compute_wnaf_into(decomp_b.k2, WINDOW, wnaf_b2.data(), wnaf_b2.size(), len_b2);
+
+    // ── Precompute G tables (static, computed once) ──────────────────
+    // Odd multiples [1,3,5,...,15]×G and [1,3,...,15]×φ(G) in affine
+    struct DualGenTables {
+        AffinePoint tbl_G[TABLE_SIZE];
+        AffinePoint tbl_phiG[TABLE_SIZE];
+        AffinePoint neg_tbl_G[TABLE_SIZE];
+        AffinePoint neg_tbl_phiG[TABLE_SIZE];
+    };
+
+    static DualGenTables* s_gen4 = nullptr;
+    if (!s_gen4) {
+        s_gen4 = new DualGenTables;
+
+        // Build [1,3,5,...,15]×G in Jacobian, then batch-invert to affine
+        Point G = Point::generator();
+        Point pts_j[TABLE_SIZE];
+        pts_j[0] = G;
+        Point dbl_G = G; dbl_G.dbl_inplace();
+        for (int i = 1; i < TABLE_SIZE; i++) {
+            pts_j[i] = pts_j[i - 1];
+            pts_j[i].add_inplace(dbl_G);
+        }
+
+        // Batch invert Z coordinates to get affine
+        FieldElement z_orig[TABLE_SIZE], z_pfx[TABLE_SIZE];
+        for (int i = 0; i < TABLE_SIZE; i++) z_orig[i] = pts_j[i].z_raw();
+        z_pfx[0] = z_orig[0];
+        for (int i = 1; i < TABLE_SIZE; i++) z_pfx[i] = z_pfx[i - 1] * z_orig[i];
+
+        FieldElement inv = z_pfx[TABLE_SIZE - 1].inverse();
+        FieldElement z_inv[TABLE_SIZE];
+        for (int i = TABLE_SIZE - 1; i > 0; --i) {
+            z_inv[i] = inv * z_pfx[i - 1];
+            inv = inv * z_orig[i];
+        }
+        z_inv[0] = inv;
+
+        static const FieldElement beta = FieldElement::from_bytes(glv_constants::BETA);
+
+        for (int i = 0; i < TABLE_SIZE; i++) {
+            FieldElement zi2 = z_inv[i].square();
+            FieldElement zi3 = zi2 * z_inv[i];
+            FieldElement ax = pts_j[i].x_raw() * zi2;
+            FieldElement ay = pts_j[i].y_raw() * zi3;
+
+            s_gen4->tbl_G[i] = {ax, ay};
+            s_gen4->neg_tbl_G[i] = {ax, FieldElement::zero() - ay};
+
+            // φ(G): x → β·x, y → y (same parity)
+            FieldElement phix = ax * beta;
+            s_gen4->tbl_phiG[i] = {phix, ay};
+            s_gen4->neg_tbl_phiG[i] = {phix, FieldElement::zero() - ay};
+        }
+    }
+
+    // ── Precompute P tables (per-call: 8 odd multiples + negated + endomorphism) ──
+    Point P_base = decomp_b.k1_neg ? P.negate() : P;
+    std::array<AffinePoint, TABLE_SIZE> tbl_P, tbl_phiP, neg_tbl_P, neg_tbl_phiP;
+
+    {
+        Point pts_j[TABLE_SIZE];
+        pts_j[0] = P_base;
+        Point dbl_P = P_base; dbl_P.dbl_inplace();
+        for (int i = 1; i < TABLE_SIZE; i++) {
+            pts_j[i] = pts_j[i - 1];
+            pts_j[i].add_inplace(dbl_P);
+        }
+
+        FieldElement z_orig[TABLE_SIZE], z_pfx[TABLE_SIZE];
+        for (int i = 0; i < TABLE_SIZE; i++) z_orig[i] = pts_j[i].z_raw();
+        z_pfx[0] = z_orig[0];
+        for (int i = 1; i < TABLE_SIZE; i++) z_pfx[i] = z_pfx[i - 1] * z_orig[i];
+
+        FieldElement inv = z_pfx[TABLE_SIZE - 1].inverse();
+        FieldElement z_inv[TABLE_SIZE];
+        for (int i = TABLE_SIZE - 1; i > 0; --i) {
+            z_inv[i] = inv * z_pfx[i - 1];
+            inv = inv * z_orig[i];
+        }
+        z_inv[0] = inv;
+
+        static const FieldElement beta = FieldElement::from_bytes(glv_constants::BETA);
+        bool flip_phi = (decomp_b.k1_neg != decomp_b.k2_neg);
+
+        for (int i = 0; i < TABLE_SIZE; i++) {
+            FieldElement zi2 = z_inv[i].square();
+            FieldElement zi3 = zi2 * z_inv[i];
+            FieldElement px = pts_j[i].x_raw() * zi2;
+            FieldElement py = pts_j[i].y_raw() * zi3;
+
+            tbl_P[i] = {px, py};
+            neg_tbl_P[i] = {px, FieldElement::zero() - py};
+
+            FieldElement phix = px * beta;
+            FieldElement phiy = flip_phi ? (FieldElement::zero() - py) : py;
+            tbl_phiP[i] = {phix, phiy};
+            neg_tbl_phiP[i] = {phix, FieldElement::zero() - phiy};
+        }
+    }
+
+    // ── Handle G sign: if a decomposed with k1_neg, use neg tables ──
+    const AffinePoint* g_pos  = decomp_a.k1_neg ? s_gen4->neg_tbl_G : s_gen4->tbl_G;
+    const AffinePoint* g_neg  = decomp_a.k1_neg ? s_gen4->tbl_G : s_gen4->neg_tbl_G;
+    // φ(G) sign: flip if k1_neg != k2_neg for a
+    bool flip_a = (decomp_a.k1_neg != decomp_a.k2_neg);
+    const AffinePoint* pg_pos = flip_a ? s_gen4->neg_tbl_phiG : s_gen4->tbl_phiG;
+    const AffinePoint* pg_neg = flip_a ? s_gen4->tbl_phiG : s_gen4->neg_tbl_phiG;
+
+    // ── 4-stream Shamir interleaved scan ─────────────────────────────
+    std::size_t max_len = len_a1;
+    if (len_a2 > max_len) max_len = len_a2;
+    if (len_b1 > max_len) max_len = len_b1;
+    if (len_b2 > max_len) max_len = len_b2;
+
+    Point result = Point::infinity();
+
+    for (int i = static_cast<int>(max_len) - 1; i >= 0; --i) {
+        result.dbl_inplace();
+
+        // Stream 1: a1 * G
+        {
+            int32_t d = wnaf_a1[static_cast<std::size_t>(i)];
+            if (d > 0) result.add_inplace(Point::from_affine(g_pos[(d-1)>>1].x, g_pos[(d-1)>>1].y));
+            else if (d < 0) result.add_inplace(Point::from_affine(g_neg[(-d-1)>>1].x, g_neg[(-d-1)>>1].y));
+        }
+
+        // Stream 2: a2 * φ(G)
+        {
+            int32_t d = wnaf_a2[static_cast<std::size_t>(i)];
+            if (d > 0) result.add_inplace(Point::from_affine(pg_pos[(d-1)>>1].x, pg_pos[(d-1)>>1].y));
+            else if (d < 0) result.add_inplace(Point::from_affine(pg_neg[(-d-1)>>1].x, pg_neg[(-d-1)>>1].y));
+        }
+
+        // Stream 3: b1 * P
+        {
+            int32_t d = wnaf_b1[static_cast<std::size_t>(i)];
+            if (d > 0) result.add_inplace(Point::from_affine(tbl_P[(d-1)>>1].x, tbl_P[(d-1)>>1].y));
+            else if (d < 0) result.add_inplace(Point::from_affine(neg_tbl_P[(-d-1)>>1].x, neg_tbl_P[(-d-1)>>1].y));
+        }
+
+        // Stream 4: b2 * φ(P)
+        {
+            int32_t d = wnaf_b2[static_cast<std::size_t>(i)];
+            if (d > 0) result.add_inplace(Point::from_affine(tbl_phiP[(d-1)>>1].x, tbl_phiP[(d-1)>>1].y));
+            else if (d < 0) result.add_inplace(Point::from_affine(neg_tbl_phiP[(-d-1)>>1].x, neg_tbl_phiP[(-d-1)>>1].y));
+        }
+    }
+
+    return result;
+}
 #else
-// Non-52bit fallback: separate multiplications
+// Non-52bit / non-embedded fallback: separate multiplications
 Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const Point& P) {
     auto aG = Point::generator().scalar_mul(a);
     aG.add_inplace(P.scalar_mul(b));
