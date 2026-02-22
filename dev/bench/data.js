@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771774788548,
+  "lastUpdate": 1771779318739,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -5271,6 +5271,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Point Add",
             "value": 277,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 146,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "9e5468289ee594c450365ff3ee60ed5d412b020d",
+          "message": "ESP32 4-stream GLV Strauss + Z²-verify + fix repo URLs\n\nPerformance:\n- dual_scalar_mul_gen_point: 4-stream GLV Strauss for ESP32/embedded\n  (single doubling chain instead of two separate scalar_muls)\n  ECDSA Verify: 22ms -> 19ms (14%), Schnorr Verify: 27ms -> 24ms (11%)\n- Z²-based ECDSA verify for non-52bit path (ESP32/MSVC)\n  Avoids field inverse: sig.r * Z² == X_jacobian\n  256-bit carry chain without __int128 (ESP32/MSVC safe)\n\nBug fix (prior commit):\n- limbs_to_s30: fixed accumulator overflow in SafeGCD30 scalar inverse\n\nRepository links:\n- Fix all GitHub URLs from shrec/UltrafastSecp256k1 to shrec/Secp256K1fast\n- Add homepage/repository to nodejs and react-native package.json\n- Fix NuGet nuspec projectUrl, releaseNotes, repository URL\n- Fix wasm package.json homepage, repository.url, directory path\n- Fix URLs in README badges, wiki, docs, conanfile, podspec, vcpkg, etc.\n\nVerified: 9/9 tests pass (MSVC x64), 37/37 ESP32-S3 selftest + 4/4 CT pass\nvs bitcoin-core: 1.39x faster verify, 1.64x faster gen_mul on ESP32",
+          "timestamp": "2026-02-22T20:53:49+04:00",
+          "tree_id": "4bfb085fea1e088508bea030dc0bb6f756e6ed70",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/9e5468289ee594c450365ff3ee60ed5d412b020d"
+        },
+        "date": 1771779317884,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Field Mul",
+            "value": 25,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 23,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 0,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Add",
+            "value": 275,
             "unit": "ns"
           },
           {
