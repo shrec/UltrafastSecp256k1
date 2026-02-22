@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771772594880,
+  "lastUpdate": 1771774788548,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -5202,6 +5202,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Field Square",
             "value": 23,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 0,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Add",
+            "value": 277,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 146,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "c9547360e6c0066313147b93a2fa72383df2c199",
+          "message": "perf: SafeGCD30 scalar inverse + optimized SHA-256/HMAC/RFC-6979\n\n- Replace Fermat inverse (9ms) with 30-bit SafeGCD divsteps (130us) on 32-bit\n  platforms (ESP32/RISC-V/ARM32): 69x faster scalar modular inverse\n- Optimize SHA256::finalize(): direct buffer padding vs byte-by-byte update()\n- HMAC_Ctx with precomputed ipad/opad midstates (eliminates recomputation)\n- RFC-6979 nonce: midstate reuse between steps sharing same K (4 fewer compress)\n\nESP32-S3 results:\n  ECDSA Sign:   18ms -> 10ms (1.8x faster, now matches libsecp256k1)\n  ECDSA Verify: 30ms -> 22ms (1.36x faster, beats libsecp 26ms)\n  Scalar Inv:   9ms  -> 130us (69x faster)\n\nAll 37/37 ESP32 selftests pass. All 8/8 x86 ctest pass.",
+          "timestamp": "2026-02-22T19:38:32+04:00",
+          "tree_id": "3a585000811d3496cba6ac7dd47f1aecdec8a918",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/c9547360e6c0066313147b93a2fa72383df2c199"
+        },
+        "date": 1771774788086,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Field Mul",
+            "value": 25,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 22,
             "unit": "ns"
           },
           {
