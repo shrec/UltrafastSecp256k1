@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771759563101,
+  "lastUpdate": 1771770265711,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -5114,6 +5114,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Point Double",
             "value": 147,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "aaab9cc9bdb02db36ce61fd7f26393a35b0e7ec6",
+          "message": "perf(esp32): CT optimizations + reduction bugfix + libsecp256k1 benchmark\n\nCT Performance Improvements (ESP32-S3 @ 240MHz):\n- CT Scalar*G: 38,899 -> 15,527 us (2.51x faster vs original)\n- CT Generator*k: 4,951 us (new Comb 43x32 benchmark)\n- CT/Fast ratio: 7.0x -> 2.7x\n- 1.66x faster than libsecp256k1 (bitcoin-core) on generator mul\n\nOptimizations applied:\n- ct_field.cpp: Remove redundant field_normalize in mul/sqr (already\n  normalized by operator*), in-place XOR for field_cmov/field_cswap\n- field.cpp: Fix uint32_t truncation bug in esp32_reduce_secp256k1\n  second-pass overflow fold (caused (p-1)^2 != 1 for ov >= 2^32).\n  Made reduction fully branchless for CT safety.\n\nBug fix:\n- esp32_reduce_secp256k1: (uint32_t)ov -> ov in word-1 addition.\n  Previous code silently dropped high bits when overflow exceeded\n  32 bits, producing wrong results for edge-case inputs like (p-1)^2.\n  Now 37/37 tests PASS (was 35/37).\n\nNew: libsecp256k1 comparison benchmark on ESP32:\n- Added libsecp_bench.c (single-TU compilation of bitcoin-core v0.7.2)\n- COMB 11x6 tables (22KB) for ESP32 memory constraints\n- Results: libsecp gen*k 8,209us vs ours 4,951us\n\nVerified: x86 4x64 path 6/6 tests PASS, ESP32-S3 37/37 tests PASS",
+          "timestamp": "2026-02-22T18:23:05+04:00",
+          "tree_id": "9181dbbed4d4c6173da97eb452fa35247f2edb78",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/aaab9cc9bdb02db36ce61fd7f26393a35b0e7ec6"
+        },
+        "date": 1771770264561,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Field Mul",
+            "value": 25,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 23,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 0,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Add",
+            "value": 279,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 145,
             "unit": "ns"
           }
         ]
