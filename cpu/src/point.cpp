@@ -856,36 +856,57 @@ static Point scalar_mul_glv52(const Point& base, const Scalar& scalar) {
     while (wnaf2_len > 0 && wnaf2_buf[wnaf2_len - 1] == 0) --wnaf2_len;
 
     // -- Precompute odd multiples [1P, 3P, 5P, ..., 15P] in 5x52 ------
+    // Uses effective-affine technique: build table on isomorphic curve where
+    // 2P is affine, so table additions use cheaper mixed add (7M+4S) instead
+    // of full Jacobian add (12M+5S). Saves ~33M + 6S = ~5us on RISC-V.
     std::array<AffinePoint52, glv_table_size> tbl_P;
     std::array<AffinePoint52, glv_table_size> tbl_phiP;
 
-    // Build Jacobian table, then batch-convert to affine
-    std::array<JacobianPoint52, glv_table_size> jtbl;
-    jtbl[0] = P52;
-    JacobianPoint52 dbl52 = jac52_double(P52);
-    for (int i = 1; i < glv_table_size; i++) {
-        jtbl[i] = jac52_add(jtbl[i - 1], dbl52);
-    }
-
-    // Batch-convert to affine: 1 inverse + (3n-3) muls (Montgomery's trick)
     {
-        std::array<FieldElement52, glv_table_size> zs;
-        std::array<FieldElement52, glv_table_size> prods;
-        prods[0] = jtbl[0].z;
+        // d = 2*P (Jacobian)
+        JacobianPoint52 d = jac52_double(P52);
+        FieldElement52 C  = d.z;              // C = d.Z
+        FieldElement52 C2 = C.square();       // C^2
+        FieldElement52 C3 = C2 * C;           // C^3
+
+        // d as affine on iso curve (Z cancels in isomorphism)
+        AffinePoint52 d_aff = {d.x, d.y};
+
+        // Transform P onto iso curve: phi(P) = (P.X*C^2, P.Y*C^3, P.Z)
+        std::array<JacobianPoint52, glv_table_size> iso;
+        iso[0] = {P52.x * C2, P52.y * C3, P52.z, false};
+
+        // Build rest using mixed adds on iso curve (7M+4S each, not 12M+5S)
         for (int i = 1; i < glv_table_size; i++) {
-            prods[i] = prods[i - 1] * jtbl[i].z;
+            iso[i] = iso[i - 1];
+            jac52_add_mixed_inplace(iso[i], d_aff);
+        }
+
+        // Batch-invert effective Z: true Z on secp256k1 = Z_iso * C
+        std::array<FieldElement52, glv_table_size> eff_z;
+        for (int i = 0; i < glv_table_size; i++) {
+            eff_z[i] = iso[i].z * C;
+        }
+
+        std::array<FieldElement52, glv_table_size> prods;
+        prods[0] = eff_z[0];
+        for (int i = 1; i < glv_table_size; i++) {
+            prods[i] = prods[i - 1] * eff_z[i];
         }
         FieldElement52 inv = prods[glv_table_size - 1].inverse_safegcd();
+        std::array<FieldElement52, glv_table_size> zs;
         for (int i = glv_table_size - 1; i > 0; --i) {
             zs[i] = prods[i - 1] * inv;
-            inv = inv * jtbl[i].z;
+            inv = inv * eff_z[i];
         }
         zs[0] = inv;
+
+        // Convert from iso to secp256k1 affine
         for (int i = 0; i < glv_table_size; i++) {
             FieldElement52 zinv2 = zs[i].square();
             FieldElement52 zinv3 = zinv2 * zs[i];
-            tbl_P[i].x = jtbl[i].x * zinv2;
-            tbl_P[i].y = jtbl[i].y * zinv3;
+            tbl_P[i].x = iso[i].x * zinv2;
+            tbl_P[i].y = iso[i].y * zinv3;
         }
     }
 
