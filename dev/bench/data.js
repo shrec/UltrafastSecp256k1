@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771785635619,
+  "lastUpdate": 1771795978902,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -5379,6 +5379,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Point Add",
             "value": 275,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 147,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "cd6f8de57922fe80321698376d1346b5c90ba958",
+          "message": "bench: unified benchmark harness + refactor all 4 bench files\n\n- Add benchmark_harness.hpp: RDTSC/chrono timer, 500 warmup, 11 passes,\n  IQR outlier removal, median, DoNotOptimize/ClobberMemory barriers\n- Refactor bench_field_52.cpp: bench_ns -> H.run, escape -> DoNotOptimize\n- Refactor bench_comprehensive_riscv.cpp: 15 functions rewritten, remove\n  measure_with_warmup wrapper\n- Refactor bench_ct.cpp: bench_us redefined, all volatile -> DoNotOptimize\n- Refactor bench_scalar_mul.cpp: chrono -> H.run, add pin_thread_and_elevate",
+          "timestamp": "2026-02-23T01:31:43+04:00",
+          "tree_id": "347ece42bfc6f87865befd1adf034fda2824d815",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/cd6f8de57922fe80321698376d1346b5c90ba958"
+        },
+        "date": 1771795977839,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Field Mul",
+            "value": 27,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 22,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Add",
+            "value": 282,
             "unit": "ns"
           },
           {
