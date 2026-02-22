@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771639067718,
+  "lastUpdate": 1771750081336,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -5006,6 +5006,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Point Double",
             "value": 148,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "b0987d545ea72fb0d286af7260e2155326fe004b",
+          "message": "perf(ct): comprehensive CT layer optimization - beat libsecp256k1\n\nfield_mul/sqr: inline FE52 5x52 on x86-64 (zero call overhead)\npoint_add_complete: Brier-Joye unified J+J (11M+6S, was 13M+9S)\npoint_add_mixed_complete: Brier-Joye J+A (7M+5S, was 11M+9S)\npoint_dbl: libsecp-style 3M+4S+half (was 2M+5S)\nfield_inv: SafeGCD 10x59=590 divsteps (was 10x62=620)\ncleanup: removed dead ASM infra, unused fe52_is_zero\n\nx86-64 Clang 21: kG 10.4us (+51%), dbl 0.098us, mixed_add 0.185us\nARM64 Clang 17: field_mul +18%, field_inv +17%, kG +4% vs libsecp\nAll 12023 tests pass on both platforms.",
+          "timestamp": "2026-02-22T12:46:50+04:00",
+          "tree_id": "55d5491c5696ad7097369ba7439685d4a026d31d",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/b0987d545ea72fb0d286af7260e2155326fe004b"
+        },
+        "date": 1771750080662,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Field Mul",
+            "value": 25,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 23,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 0,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Add",
+            "value": 276,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 146,
             "unit": "ns"
           }
         ]
