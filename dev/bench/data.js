@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771779318739,
+  "lastUpdate": 1771785635619,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -5330,6 +5330,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Point Double",
             "value": 146,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "b647dc1cfc5872f21626b3587c2c0e98e4339f08",
+          "message": "feat: SafeGCD30 field inverse for non-__int128__ platforms (ESP32 118us vs 3ms)\n\n- Implement field_safegcd30 namespace in field.cpp: Bernstein-Yang divsteps\n  with 30-bit batches using only int32*int32->int64 multiplies\n- Wire FieldElement::inverse() and inverse_inplace() to use SafeGCD30\n  on platforms without __int128__ (was pow_p_minus_2_binary, 255 sq + 15 mul)\n- Fix private constructor access in point.cpp gen_fixed_mul(): use\n  Point::from_jacobian_coords() public factory instead of private ctor\n- ESP32 verified: 37/37 tests PASS, CT 4/4 PASS\n- Field Inverse: 3ms -> 118us (25.4x faster)\n- ECDSA Sign: 14ms -> 9ms, Generator Mul: 9ms -> 6ms",
+          "timestamp": "2026-02-22T22:39:27+04:00",
+          "tree_id": "ee7ae5c1df4184a03ffe940ed34f01b3165f8f3c",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/b647dc1cfc5872f21626b3587c2c0e98e4339f08"
+        },
+        "date": 1771785635145,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Field Mul",
+            "value": 25,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 23,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 0,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Add",
+            "value": 275,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 147,
             "unit": "ns"
           }
         ]
