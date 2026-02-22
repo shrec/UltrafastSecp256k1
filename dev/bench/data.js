@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771796264386,
+  "lastUpdate": 1771796410910,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -5487,6 +5487,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Point Add",
             "value": 282,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 147,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "eadf878bd67ef588a21680449dc9b35ff6eef8b4",
+          "message": "cmake: standalone build support (project + CTest for CMake 4.x)",
+          "timestamp": "2026-02-23T01:39:01+04:00",
+          "tree_id": "518e6277a03144be22f87c303ed315de1ce86712",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/eadf878bd67ef588a21680449dc9b35ff6eef8b4"
+        },
+        "date": 1771796409798,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Field Mul",
+            "value": 27,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 22,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Add",
+            "value": 283,
             "unit": "ns"
           },
           {
