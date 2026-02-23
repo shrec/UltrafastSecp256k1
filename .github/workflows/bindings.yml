@@ -47,7 +47,7 @@ jobs:
             lib_name: ultrafast_secp256k1.dll
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Configure & Build C API
         shell: bash
@@ -73,7 +73,7 @@ jobs:
     runs-on: ubuntu-24.04
     needs: build-capi
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: actions/setup-python@v5
         with:
@@ -94,7 +94,7 @@ jobs:
     runs-on: ubuntu-24.04
     needs: build-capi
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: actions/setup-dotnet@v4
         with:
@@ -109,7 +109,7 @@ jobs:
     runs-on: ubuntu-24.04
     needs: build-capi
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: dtolnay/rust-toolchain@stable
 
@@ -138,7 +138,7 @@ jobs:
     runs-on: ubuntu-24.04
     needs: build-capi
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: actions/setup-node@v4
         with:
@@ -159,7 +159,7 @@ jobs:
     runs-on: ubuntu-24.04
     needs: build-capi
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: shivammathur/setup-php@v2
         with:
@@ -175,7 +175,7 @@ jobs:
     runs-on: ubuntu-24.04
     needs: build-capi
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: actions/setup-go@v5
         with:
@@ -206,7 +206,7 @@ jobs:
     runs-on: ubuntu-24.04
     needs: build-capi
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: actions/setup-java@v4
         with:
@@ -235,7 +235,7 @@ jobs:
     runs-on: macos-14
     needs: build-capi
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Download C API
         uses: actions/download-artifact@v4
@@ -260,7 +260,7 @@ jobs:
     runs-on: ubuntu-24.04
     needs: build-capi
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: actions/setup-node@v4
         with:
@@ -290,7 +290,7 @@ jobs:
     runs-on: ubuntu-24.04
     needs: build-capi
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: ruby/setup-ruby@v1
         with:
@@ -310,7 +310,7 @@ jobs:
     runs-on: ubuntu-24.04
     needs: build-capi
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: dart-lang/setup-dart@v1
         with:

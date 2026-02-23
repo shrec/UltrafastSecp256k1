@@ -21,7 +21,7 @@ jobs:
         build_type: [Release, Debug]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install compiler
         run: |
@@ -57,7 +57,7 @@ jobs:
     runs-on: ubuntu-24.04
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install cross toolchain
         run: |
@@ -101,7 +101,7 @@ jobs:
 
     name: "Sanitizers (${{ matrix.label }})"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install Clang 17
         run: |
@@ -132,7 +132,7 @@ jobs:
         build_type: [Release]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Configure (MSVC)
         run: |
@@ -157,7 +157,7 @@ jobs:
         build_type: [Release]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Configure
         run: |
@@ -194,7 +194,7 @@ jobs:
         platform: [OS, SIMULATOR]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Configure (iOS ${{ matrix.platform }})
         run: |
@@ -220,7 +220,7 @@ jobs:
     needs: [ios]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Build XCFramework
         run: |
@@ -244,7 +244,7 @@ jobs:
       image: rocm/dev-ubuntu-24.04:6.3-complete
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install build tools
         run: |
@@ -271,7 +271,7 @@ jobs:
     runs-on: ubuntu-24.04
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Emscripten
         uses: mymindstorm/setup-emsdk@v14
@@ -322,7 +322,7 @@ jobs:
 
     name: "android (${{ matrix.abi }})"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Android NDK
         uses: nttld/setup-ndk@v1
@@ -355,7 +355,7 @@ jobs:
     if: github.event_name == 'push'
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install tools
         run: |
