@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771847766748,
+  "lastUpdate": 1771852856801,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -2350,6 +2350,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "ECDSA Sign",
             "value": 17000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 47000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 23000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 53000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 139,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 130,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "27bd9726cb67ea982ac57ede100686f0536fd91b",
+          "message": "chore: pin actions by SHA, bump deps, fix CodeQL alerts\n\n- Pin all 24 GitHub Actions by SHA hash with version comments\n- Bump: checkout v6, setup-go v6, setup-java v5, setup-node v6, setup-python v6\n- Bump: node-addon-api ^8.5.0, node-gyp ^12.2.0, react ^19.2.4\n- Fix CodeQL: constant-comparison (DER parser), path-injection (selftest),\n  stack-address-escape (bench), unused variables, commented-out-code,\n  offset-use-before-range-check, missing-check-scanf, suspicious-pointer-scaling\n- Add [[maybe_unused]] to ~45 unused static functions (future-use)\n- Add SEO keywords to README\n- All 9/10 tests pass (CUDA not built)",
+          "timestamp": "2026-02-23T17:16:46+04:00",
+          "tree_id": "fe6c1001e2d687ea2f865bbf5a396d40bca33024",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/27bd9726cb67ea982ac57ede100686f0536fd91b"
+        },
+        "date": 1771852855590,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 27,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 22,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 279,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 149,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 38000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 9000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 14000,
             "unit": "ns"
           },
           {
