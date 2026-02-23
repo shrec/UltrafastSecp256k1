@@ -151,7 +151,7 @@ jobs:
 
       # -- Upload artifact --
       - name: Upload
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: ${{ env.PKG_NAME }}
           path: ${{ env.PKG_NAME }}.${{ matrix.ext }}
@@ -222,7 +222,7 @@ jobs:
           echo "PKG_NAME=${PKG_NAME}" >> "$GITHUB_ENV"
 
       - name: Upload
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: ${{ env.PKG_NAME }}
           path: ${{ env.PKG_NAME }}.tar.gz
@@ -305,7 +305,7 @@ jobs:
           echo "PKG_NAME=${PKG_NAME}" >> "$GITHUB_ENV"
 
       - name: Upload
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: ${{ env.PKG_NAME }}
           path: ${{ env.PKG_NAME }}.tar.gz
@@ -354,7 +354,7 @@ jobs:
           echo "PKG_NAME=${PKG_NAME}" >> "$GITHUB_ENV"
 
       - name: Upload
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: ${{ env.PKG_NAME }}
           path: ${{ env.PKG_NAME }}.tar.gz
@@ -423,7 +423,7 @@ jobs:
           echo "PKG_NAME=${PKG_NAME}" >> "$GITHUB_ENV"
 
       - name: Upload
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: ${{ env.PKG_NAME }}
           path: ${{ env.PKG_NAME }}.tar.gz
@@ -515,7 +515,7 @@ jobs:
           ls -la wheelhouse/
 
       - name: Upload Python wheels
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: ufsecp-python-wheels
           path: bindings/python/wheelhouse/
@@ -598,7 +598,7 @@ jobs:
           ls -la ufsecp-*.tgz
 
       - name: Upload npm tarball
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: ufsecp-npm
           path: bindings/nodejs/ufsecp-*.tgz
@@ -714,7 +714,7 @@ jobs:
           ls -la nupkgs/
 
       - name: Upload NuGet
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: ufsecp-nuget
           path: bindings/csharp/Ufsecp/nupkgs/*.nupkg
@@ -802,7 +802,7 @@ jobs:
           ls -la ufsecp-*.gem
 
       - name: Upload gem
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: ufsecp-gem
           path: bindings/ruby/ufsecp-*.gem
@@ -906,7 +906,7 @@ jobs:
           jar tf "ufsecp-${VERSION}.jar" | head -30
 
       - name: Upload JAR
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: ufsecp-java
           path: bindings/java/ufsecp-*.jar
@@ -1033,7 +1033,7 @@ jobs:
           ls -la "${PKG}.tar.gz"
 
       - name: Upload Go package
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: ufsecp-go
           path: ufsecp-go-*.tar.gz
@@ -1106,7 +1106,7 @@ jobs:
           ls -la "${PKG}.tar.gz"
 
       - name: Upload Rust package
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: ufsecp-rust
           path: ufsecp-rust-*.tar.gz
@@ -1183,7 +1183,7 @@ jobs:
           ls -la "${PKG}.tar.gz"
 
       - name: Upload Dart package
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: ufsecp-dart
           path: ufsecp-dart-*.tar.gz
@@ -1253,7 +1253,7 @@ jobs:
           ls -la "${PKG}.tar.gz"
 
       - name: Upload PHP package
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: ufsecp-php
           path: ufsecp-php-*.tar.gz
@@ -1334,7 +1334,7 @@ jobs:
           ls -la react-native-ufsecp-*.tgz
 
       - name: Upload React Native package
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: ufsecp-react-native
           path: bindings/react-native/react-native-ufsecp-*.tgz
@@ -1428,7 +1428,7 @@ jobs:
           ls -la "${PKG}.tar.gz"
 
       - name: Upload Swift package
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: ufsecp-swift
           path: ufsecp-swift-*.tar.gz
@@ -1500,7 +1500,7 @@ jobs:
           ls -la "${PKG}.tar.gz"
 
       - name: Upload C SDK
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: ufsecp-c-headers
           path: ufsecp-c-*.tar.gz
