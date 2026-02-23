@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771881913153,
+  "lastUpdate": 1771881925658,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -7820,6 +7820,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Batch Inverse (n=1000)",
             "value": 132,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "9a0c8b66c9b5502d00b7c40f58e0b21a4f8e47c1",
+          "message": "fix(ci): add __int128 pragma guards, fix SonarCloud coverage, make dudect advisory\n\n- Add #pragma GCC diagnostic ignored \"-Wpedantic\" around all __int128 usage\n  in ct_field.cpp, ct_point.cpp, ecdsa.cpp, precompute.cpp, field_asm.hpp\n  (fixes g++-13 -Werror -Wpedantic build failure)\n- Fix SonarCloud: use absolute LLVM_PROFILE_FILE path and find-based profraw\n  discovery (fixes 'No such file' in coverage collection)\n- Make dudect timing analysis advisory on CI: always exit 0, report variance\n  as warning (statistical tests are unreliable on shared CI runners)\n\nLocal: 11/11 tests pass, 0 warnings",
+          "timestamp": "2026-02-24T01:22:23+04:00",
+          "tree_id": "1323aa3576ab0c29d4b6929f7395d81842e5b88c",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/9a0c8b66c9b5502d00b7c40f58e0b21a4f8e47c1"
+        },
+        "date": 1771881924441,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 27,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 22,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 284,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 149,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 37000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 9000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 14000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 47000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 23000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 53000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 139,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 130,
             "unit": "ns"
           }
         ]
