@@ -44,6 +44,20 @@ Individuals who report vulnerabilities through [GitHub Security Advisories](http
 - All CI checks must pass before a release is tagged.
 - Release assets are built and published via GitHub Actions ([release.yml](.github/workflows/release.yml)).
 
+## Continuity Plan (Bus Factor)
+
+The project is structured so that it can continue with minimal interruption if the lead maintainer becomes unavailable:
+
+- **Source code**: Hosted on GitHub under the [`shrec`](https://github.com/shrec) organization. The repository is public; anyone can fork and continue development under the AGPL-3.0-or-later license at any time.
+- **CI/CD**: All build, test, and release workflows are fully automated via GitHub Actions and defined in-repo (`.github/workflows/`). No external infrastructure or personal servers are required.
+- **Releases**: The `release.yml` workflow automatically builds and publishes release assets when a tag is pushed. Any user with repository write access can trigger a release.
+- **Issue tracking**: GitHub Issues and Security Advisories remain functional regardless of individual availability.
+- **Credentials & access**: A trusted backup maintainer has been designated with GitHub organization owner access, enabling them to manage repository settings, merge PRs, create releases, and close issues within days of any disruption.
+- **DNS / external services**: The project has no external DNS or hosting dependencies beyond GitHub.
+- **Legal rights**: The AGPL-3.0-or-later license and DCO sign-offs ensure all contributions are legally redistributable. No individual holds exclusive rights that would prevent continuation.
+
+In the event of prolonged unavailability (>2 weeks) of the lead maintainer, the backup maintainer assumes the BDFL role and all associated responsibilities.
+
 ## Amendments
 
 This governance model may be updated by the lead maintainer. Significant governance changes will be documented in the commit history and announced in the relevant release notes.
