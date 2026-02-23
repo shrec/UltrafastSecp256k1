@@ -106,6 +106,72 @@ For production cryptographic systems, prefer audited libraries like [libsecp256k
 
 ---
 
+## Installation
+
+### Linux (APT — Debian / Ubuntu)
+
+```bash
+# Add repository
+curl -fsSL https://shrec.github.io/UltrafastSecp256k1/apt/KEY.gpg | sudo gpg --dearmor -o /etc/apt/keyrings/ultrafastsecp256k1.gpg
+echo "deb [signed-by=/etc/apt/keyrings/ultrafastsecp256k1.gpg] https://shrec.github.io/UltrafastSecp256k1/apt stable main" \
+  | sudo tee /etc/apt/sources.list.d/ultrafastsecp256k1.list
+sudo apt update
+
+# Install (runtime only)
+sudo apt install libsecp256k1-fast3
+
+# Install (development — headers, static lib, cmake/pkgconfig)
+sudo apt install libsecp256k1-fast-dev
+```
+
+### Linux (RPM — Fedora / RHEL)
+
+```bash
+# Download from GitHub Releases
+curl -LO https://github.com/shrec/UltrafastSecp256k1/releases/latest/download/UltrafastSecp256k1-*.rpm
+sudo dnf install ./UltrafastSecp256k1-*.rpm
+```
+
+### Arch Linux (AUR)
+
+```bash
+# Using yay
+yay -S libsecp256k1-fast
+
+# Or manually
+git clone https://aur.archlinux.org/libsecp256k1-fast.git
+cd libsecp256k1-fast && makepkg -si
+```
+
+### From source (any platform)
+
+```bash
+cmake -S . -B build -G Ninja \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DSECP256K1_BUILD_SHARED=ON \
+    -DSECP256K1_INSTALL=ON \
+    -DSECP256K1_USE_ASM=ON
+cmake --build build -j$(nproc)
+sudo cmake --install build
+sudo ldconfig
+```
+
+### Use in your CMake project
+
+```cmake
+find_package(secp256k1-fast 3 REQUIRED COMPONENTS CPU)
+target_link_libraries(myapp PRIVATE secp256k1::fastsecp256k1)
+```
+
+### Use with pkg-config
+
+```bash
+g++ myapp.cpp $(pkg-config --cflags --libs secp256k1-fast) -o myapp
+```
+
+---
+
 ## secp256k1 GPU Acceleration (CUDA / OpenCL / Metal / ROCm)
 
 UltrafastSecp256k1 is the **only open-source library** that provides full secp256k1 ECDSA + Schnorr sign/verify on GPU across four backends:
