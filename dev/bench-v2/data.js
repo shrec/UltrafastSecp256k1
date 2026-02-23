@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771880204123,
+  "lastUpdate": 1771880364368,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -7523,6 +7523,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Batch Inverse (n=1000)",
             "value": 130,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "d568699451bac508c207243fa2f024f07bcb36b2",
+          "message": "fix(ci): add coverage collection to SonarCloud workflow\n\nSonarCloud Quality Gate requires >=80% coverage on new code.\nPreviously the workflow only built but never ran tests, resulting\nin 0% coverage data.\n\nChanges:\n- sonarcloud.yml: add -fprofile-instr-generate -fcoverage-mapping flags,\n  run CTest after build, collect coverage via llvm-profdata/llvm-cov\n- sonar-project.properties: add build/** to exclusions pattern",
+          "timestamp": "2026-02-24T00:57:51+04:00",
+          "tree_id": "3b059f2b8d0780dafee99df08200c2cbbee623fe",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/d568699451bac508c207243fa2f024f07bcb36b2"
+        },
+        "date": 1771880363456,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 39,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 29,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 8,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 284,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 150,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 38000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 9000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 13000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 47000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 23000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 53000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 140,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 131,
             "unit": "ns"
           }
         ]
