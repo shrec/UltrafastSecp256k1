@@ -1,0 +1,31 @@
+# CODEOWNERS — defines code review ownership
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+#
+# These owners are automatically requested for review on pull requests
+# that modify the matched files.
+
+# Default owner for everything
+* @shrec
+
+# Core cryptographic code — requires careful review
+/cpu/src/        @shrec
+/cpu/include/    @shrec
+
+# GPU backends
+/cuda/           @shrec
+/opencl/         @shrec
+/metal/          @shrec
+
+# Security-sensitive files
+/SECURITY.md     @shrec
+/THREAT_MODEL.md @shrec
+
+# CI/CD workflows
+/.github/        @shrec
+
+# Packaging
+/packaging/      @shrec
+
+# Bindings (C ABI, Java, Python, etc.)
+/bindings/       @shrec
+/include/ufsecp/ @shrec
