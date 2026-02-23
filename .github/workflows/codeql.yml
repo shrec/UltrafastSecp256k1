@@ -13,14 +13,16 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  security-events: write
   contents: read
-  actions: read
 
 jobs:
   analyze:
     name: Analyze (C/C++)
     runs-on: ubuntu-24.04
+    permissions:
+      security-events: write
+      contents: read
+      actions: read
 
     steps:
       - name: Harden the runner (Audit all outbound calls)

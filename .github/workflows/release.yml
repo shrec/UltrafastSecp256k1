@@ -451,7 +451,7 @@ jobs:
       - name: Build ufsecp Python wheels
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          pip install wheel==0.45.1 setuptools==75.8.0 build==1.2.2
+          pip install --require-hashes -r .github/requirements/release-build.txt
           cd bindings/python
 
           # Use the ufsecp manifest (not the old ultrafast-secp256k1 one)

@@ -1,0 +1,10 @@
+# Pinned lint dependencies for bindings workflow (hash-verified)
+# Regenerate: pip-compile --generate-hashes
+pyflakes==3.2.0 \
+    --hash=sha256:84b5be138a2dfbb40689ca07e2152deb896a65c3a3e24c251c5c62489568074a
+mypy==1.14.1 \
+    --hash=sha256:553c293b1fbdebb6c3c4030589dab9fafb6dfa768995a453d8a5d3b23784af2e
+mypy_extensions==1.0.0 \
+    --hash=sha256:4392f6c0eb8a5668a69e23d168ffa70f0be9ccfd32b5cc2d26a34ae5b844552d
+typing_extensions==4.12.2 \
+    --hash=sha256:04e5ca0351e0f3f85c6853954072df659d0d13fac324d0072316b67d7794700d

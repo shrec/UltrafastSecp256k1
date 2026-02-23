@@ -93,7 +93,7 @@ jobs:
           python-version: '3.12'
 
       - name: Install tools
-        run: pip install pyflakes==3.2.0 mypy==1.14.1
+        run: pip install --require-hashes -r .github/requirements/bindings-lint.txt
 
       - name: Syntax check
         run: python -m py_compile bindings/python/ultrafast_secp256k1/__init__.py
