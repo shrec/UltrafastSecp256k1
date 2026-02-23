@@ -25,7 +25,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.10.0</span>
+   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.11.0</span>
    </div>
    <div id="projectbrief">Ultra high-performance secp256k1 elliptic curve cryptography library</div>
   </td>
@@ -128,7 +128,7 @@ $(document).ready(function(){initNavTree('pedersen_8hpp_source.html',''); initRe
 <div class="line"><a id="l00028" name="l00028"></a><span class="lineno">   28</span> </div>
 <div class="line"><a id="l00029" name="l00029"></a><span class="lineno">   29</span><span class="keyword">namespace </span><a class="code hl_namespace" href="namespacesecp256k1.html">secp256k1</a> {</div>
 <div class="line"><a id="l00030" name="l00030"></a><span class="lineno">   30</span> </div>
-<div class="line"><a id="l00031" name="l00031"></a><span class="lineno">   31</span><span class="comment">// ── Pedersen Commitment ──────────────────────────────────────────────────────</span></div>
+<div class="line"><a id="l00031" name="l00031"></a><span class="lineno">   31</span><span class="comment">// -- Pedersen Commitment ------------------------------------------------------</span></div>
 <div class="line"><a id="l00032" name="l00032"></a><span class="lineno">   32</span> </div>
 <div class="foldopen" id="foldopen00033" data-start="{" data-end="};">
 <div class="line"><a id="l00033" name="l00033"></a><span class="lineno"><a class="line" href="structsecp256k1_1_1PedersenCommitment.html">   33</a></span><span class="keyword">struct </span><a class="code hl_struct" href="structsecp256k1_1_1PedersenCommitment.html">PedersenCommitment</a> {</div>
@@ -145,13 +145,13 @@ $(document).ready(function(){initNavTree('pedersen_8hpp_source.html',''); initRe
 <div class="line"><a id="l00044" name="l00044"></a><span class="lineno">   44</span>};</div>
 </div>
 <div class="line"><a id="l00045" name="l00045"></a><span class="lineno">   45</span> </div>
-<div class="line"><a id="l00046" name="l00046"></a><span class="lineno">   46</span><span class="comment">// ── Alternate Generator H ────────────────────────────────────────────────────</span></div>
+<div class="line"><a id="l00046" name="l00046"></a><span class="lineno">   46</span><span class="comment">// -- Alternate Generator H ----------------------------------------------------</span></div>
 <div class="line"><a id="l00047" name="l00047"></a><span class="lineno">   47</span> </div>
 <div class="line"><a id="l00048" name="l00048"></a><span class="lineno">   48</span><span class="comment">// Get alternate generator H (nothing-up-my-sleeve: H = lift_x(SHA256(&quot;Pedersen_H&quot;)))</span></div>
 <div class="line"><a id="l00049" name="l00049"></a><span class="lineno">   49</span><span class="comment">// Cached after first call.</span></div>
 <div class="line"><a id="l00050" name="l00050"></a><span class="lineno"><a class="line" href="namespacesecp256k1.html#af9830b7e4d067b4e9ff83989cf67e0e7">   50</a></span><span class="keyword">const</span> <a class="code hl_class" href="classsecp256k1_1_1fast_1_1Point.html">fast::Point</a>&amp; <a class="code hl_function" href="namespacesecp256k1.html#af9830b7e4d067b4e9ff83989cf67e0e7">pedersen_generator_H</a>();</div>
 <div class="line"><a id="l00051" name="l00051"></a><span class="lineno">   51</span> </div>
-<div class="line"><a id="l00052" name="l00052"></a><span class="lineno">   52</span><span class="comment">// ── Commit / Open ────────────────────────────────────────────────────────────</span></div>
+<div class="line"><a id="l00052" name="l00052"></a><span class="lineno">   52</span><span class="comment">// -- Commit / Open ------------------------------------------------------------</span></div>
 <div class="line"><a id="l00053" name="l00053"></a><span class="lineno">   53</span> </div>
 <div class="line"><a id="l00054" name="l00054"></a><span class="lineno">   54</span><span class="comment">// Create Pedersen commitment: C = v*H + r*G</span></div>
 <div class="line"><a id="l00055" name="l00055"></a><span class="lineno">   55</span><span class="comment">// value: the committed value</span></div>
@@ -165,7 +165,7 @@ $(document).ready(function(){initNavTree('pedersen_8hpp_source.html',''); initRe
 <div class="line"><a id="l00063" name="l00063"></a><span class="lineno">   63</span>                     <span class="keyword">const</span> <a class="code hl_class" href="classsecp256k1_1_1fast_1_1Scalar.html">fast::Scalar</a>&amp; value,</div>
 <div class="line"><a id="l00064" name="l00064"></a><span class="lineno">   64</span>                     <span class="keyword">const</span> <a class="code hl_class" href="classsecp256k1_1_1fast_1_1Scalar.html">fast::Scalar</a>&amp; blinding);</div>
 <div class="line"><a id="l00065" name="l00065"></a><span class="lineno">   65</span> </div>
-<div class="line"><a id="l00066" name="l00066"></a><span class="lineno">   66</span><span class="comment">// ── Homomorphic Operations ───────────────────────────────────────────────────</span></div>
+<div class="line"><a id="l00066" name="l00066"></a><span class="lineno">   66</span><span class="comment">// -- Homomorphic Operations ---------------------------------------------------</span></div>
 <div class="line"><a id="l00067" name="l00067"></a><span class="lineno">   67</span> </div>
 <div class="line"><a id="l00068" name="l00068"></a><span class="lineno">   68</span><span class="comment">// Verify that commitments sum to zero (for balance proofs):</span></div>
 <div class="line"><a id="l00069" name="l00069"></a><span class="lineno">   69</span><span class="comment">// sum(commitments) + excess*G == 0</span></div>
@@ -185,7 +185,7 @@ $(document).ready(function(){initNavTree('pedersen_8hpp_source.html',''); initRe
 <div class="line"><a id="l00083" name="l00083"></a><span class="lineno">   83</span>                                <span class="keyword">const</span> <a class="code hl_class" href="classsecp256k1_1_1fast_1_1Scalar.html">fast::Scalar</a>* blinds_out,</div>
 <div class="line"><a id="l00084" name="l00084"></a><span class="lineno">   84</span>                                std::size_t n_out);</div>
 <div class="line"><a id="l00085" name="l00085"></a><span class="lineno">   85</span> </div>
-<div class="line"><a id="l00086" name="l00086"></a><span class="lineno">   86</span><span class="comment">// ── Switch Commitment (Mimblewimble) ─────────────────────────────────────────</span></div>
+<div class="line"><a id="l00086" name="l00086"></a><span class="lineno">   86</span><span class="comment">// -- Switch Commitment (Mimblewimble) -----------------------------------------</span></div>
 <div class="line"><a id="l00087" name="l00087"></a><span class="lineno">   87</span> </div>
 <div class="line"><a id="l00088" name="l00088"></a><span class="lineno">   88</span><span class="comment">// Create switch commitment: C = v*H + r*G + switch_blind*J</span></div>
 <div class="line"><a id="l00089" name="l00089"></a><span class="lineno">   89</span><span class="comment">// J is a third generator for switch commitments</span></div>

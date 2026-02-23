@@ -36,6 +36,7 @@ var namespacesecp256k1_1_1ct =
     [ "field_cneg", "namespacesecp256k1_1_1ct.html#a41642a1bb320aa3166d8a0a86ca75917", null ],
     [ "field_cswap", "namespacesecp256k1_1_1ct.html#ae729b44672ebcd37629410a6611c6406", null ],
     [ "field_eq", "namespacesecp256k1_1_1ct.html#add65c049aa03551f7affbd401d531f9d", null ],
+    [ "field_half", "namespacesecp256k1_1_1ct.html#a0076337fce993cc7c95f76f60460017b", null ],
     [ "field_inv", "namespacesecp256k1_1_1ct.html#addf541f893310c9d9c062824d63a2f03", null ],
     [ "field_is_zero", "namespacesecp256k1_1_1ct.html#afdee242f81d5a15a96ddce432b7ced32", null ],
     [ "field_mul", "namespacesecp256k1_1_1ct.html#a2f05db23711d5a45e8a1ef188d140716", null ],

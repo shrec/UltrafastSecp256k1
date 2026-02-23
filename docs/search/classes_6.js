@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['jacobianpointdata_0',['JacobianPointData',['../structsecp256k1_1_1JacobianPointData.html',1,'secp256k1']]]
+  ['harness_0',['Harness',['../classbench_1_1Harness.html',1,'bench']]]
 ];

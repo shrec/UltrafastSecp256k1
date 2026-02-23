@@ -25,7 +25,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.10.0</span>
+   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.11.0</span>
    </div>
    <div id="projectbrief">Ultra high-performance secp256k1 elliptic curve cryptography library</div>
   </td>
@@ -864,7 +864,7 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-<p>Normal or hardened child derivation (index ≥ 0x80000000 = hardened). </p>
+<p>Normal or hardened child derivation (index &gt;= 0x80000000 = hardened). </p>
 
 <p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l00792">792</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
 
@@ -954,7 +954,7 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-<p>Master key from seed (16–64 bytes). </p>
+<p>Master key from seed (16-64 bytes). </p>
 
 <p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l00775">775</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
 
@@ -1088,7 +1088,7 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-<p>Create a new context. Runs library self-test on first call (cached globally). Both fast and CT layers are always active — no flags needed. </p><dl class="params"><dt>Parameters</dt><dd>
+<p>Create a new context. Runs library self-test on first call (cached globally). Both fast and CT layers are always active &ndash; no flags needed. </p><dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">ctx_out</td><td>receives the new context pointer. </td></tr>
   </table>
@@ -1412,7 +1412,7 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-<p>Encode compact sig to DER. der_len: in = buffer size (≥72), out = actual DER length. </p>
+<p>Encode compact sig to DER. der_len: in = buffer size (&gt;=72), out = actual DER length. </p>
 
 <p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l00409">409</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
 
@@ -1457,7 +1457,7 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-<p>Sign a 32-byte hash. Output: 64-byte compact R‖S (low-S normalised). </p>
+<p>Sign a 32-byte hash. Output: 64-byte compact R||S (low-S normalised). </p>
 
 <p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l00368">368</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
 
@@ -1954,7 +1954,7 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-<p>Negate privkey in-place: key ← −key mod n. </p>
+<p>Negate privkey in-place: key &lt;- -key mod n. </p>
 
 <p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l00246">246</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
 
@@ -1993,7 +1993,7 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-<p>privkey ← (privkey + tweak) mod n. </p>
+<p>privkey &lt;- (privkey + tweak) mod n. </p>
 
 <p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l00254">254</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
 
@@ -2032,7 +2032,7 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-<p>privkey ← (privkey × tweak) mod n. </p>
+<p>privkey &lt;- (privkey x tweak) mod n. </p>
 
 <p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l00267">267</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
 
@@ -2399,7 +2399,7 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-<p>Decode WIF string → private key. </p>
+<p>Decode WIF string -&gt; private key. </p>
 
 <p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l00727">727</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
 
@@ -2456,7 +2456,7 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-<p>Encode private key → WIF string. wif_len: in = buf size, out = strlen. </p>
+<p>Encode private key -&gt; WIF string. wif_len: in = buf size, out = strlen. </p>
 
 <p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l00709">709</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
 

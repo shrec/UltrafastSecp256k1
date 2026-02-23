@@ -25,7 +25,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.10.0</span>
+   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.11.0</span>
    </div>
    <div id="projectbrief">Ultra high-performance secp256k1 elliptic curve cryptography library</div>
   </td>
@@ -109,7 +109,7 @@ $(document).ready(function(){initNavTree('batch__add__affine_8hpp_source.html','
 <div class="line"><a id="l00008" name="l00008"></a><span class="lineno"><a class="line" href="namespacesecp256k1_1_1fast.html">    8</a></span><span class="keyword">namespace </span><a class="code hl_namespace" href="namespacesecp256k1_1_1fast.html">secp256k1::fast</a> {</div>
 <div class="line"><a id="l00009" name="l00009"></a><span class="lineno">    9</span> </div>
 <div class="line"><a id="l00010" name="l00010"></a><span class="lineno">   10</span><span class="comment">// ============================================================================</span></div>
-<div class="line"><a id="l00011" name="l00011"></a><span class="lineno">   11</span><span class="comment">// AFFINE BATCH ADDITION — Fastest CPU pipeline for sequential ECC search</span></div>
+<div class="line"><a id="l00011" name="l00011"></a><span class="lineno">   11</span><span class="comment">// AFFINE BATCH ADDITION -- Fastest CPU pipeline for sequential ECC search</span></div>
 <div class="line"><a id="l00012" name="l00012"></a><span class="lineno">   12</span><span class="comment">// ============================================================================</span></div>
 <div class="line"><a id="l00013" name="l00013"></a><span class="lineno">   13</span><span class="comment">//</span></div>
 <div class="line"><a id="l00014" name="l00014"></a><span class="lineno">   14</span><span class="comment">// ## THE IDEA</span></div>
@@ -119,22 +119,22 @@ $(document).ready(function(){initNavTree('batch__add__affine_8hpp_source.html','
 <div class="line"><a id="l00018" name="l00018"></a><span class="lineno">   18</span><span class="comment">//</span></div>
 <div class="line"><a id="l00019" name="l00019"></a><span class="lineno">   19</span><span class="comment">// ## WHY THIS IS FAST</span></div>
 <div class="line"><a id="l00020" name="l00020"></a><span class="lineno">   20</span><span class="comment">// Standard Jacobian mixed-add: P += G costs 7M + 4S = ~354 ns/point</span></div>
-<div class="line"><a id="l00021" name="l00021"></a><span class="lineno">   21</span><span class="comment">// with subsequent batch Z-inverse adding ~62 ns → total ~463 ns/point.</span></div>
+<div class="line"><a id="l00021" name="l00021"></a><span class="lineno">   21</span><span class="comment">// with subsequent batch Z-inverse adding ~62 ns -&gt; total ~463 ns/point.</span></div>
 <div class="line"><a id="l00022" name="l00022"></a><span class="lineno">   22</span><span class="comment">//</span></div>
 <div class="line"><a id="l00023" name="l00023"></a><span class="lineno">   23</span><span class="comment">// Affine batch add uses Montgomery batch inversion on dx values:</span></div>
-<div class="line"><a id="l00024" name="l00024"></a><span class="lineno">   24</span><span class="comment">//   dx[i] = x_T[i] - x_base               → 1 sub</span></div>
-<div class="line"><a id="l00025" name="l00025"></a><span class="lineno">   25</span><span class="comment">//   batch_inverse(dx, N)                    → 3(N-1) mul + 1 inv ≈ 69 ns/pt</span></div>
-<div class="line"><a id="l00026" name="l00026"></a><span class="lineno">   26</span><span class="comment">//   λ[i]  = (y_T[i] - y_base) * dx_inv[i]  → 1 mul</span></div>
-<div class="line"><a id="l00027" name="l00027"></a><span class="lineno">   27</span><span class="comment">//   x3[i] = λ[i]² - x_base - x_T[i]        → 1 sqr + 2 sub</span></div>
-<div class="line"><a id="l00028" name="l00028"></a><span class="lineno">   28</span><span class="comment">//   y3[i] = λ[i] * (x_base - x3[i]) - y_base → 2 mul + 1 sub</span></div>
+<div class="line"><a id="l00024" name="l00024"></a><span class="lineno">   24</span><span class="comment">//   dx[i] = x_T[i] - x_base               -&gt; 1 sub</span></div>
+<div class="line"><a id="l00025" name="l00025"></a><span class="lineno">   25</span><span class="comment">//   batch_inverse(dx, N)                    -&gt; 3(N-1) mul + 1 inv ~= 69 ns/pt</span></div>
+<div class="line"><a id="l00026" name="l00026"></a><span class="lineno">   26</span><span class="comment">//   lambda[i]  = (y_T[i] - y_base) * dx_inv[i]  -&gt; 1 mul</span></div>
+<div class="line"><a id="l00027" name="l00027"></a><span class="lineno">   27</span><span class="comment">//   x3[i] = lambda[i]^2 - x_base - x_T[i]        -&gt; 1 sqr + 2 sub</span></div>
+<div class="line"><a id="l00028" name="l00028"></a><span class="lineno">   28</span><span class="comment">//   y3[i] = lambda[i] * (x_base - x3[i]) - y_base -&gt; 2 mul + 1 sub</span></div>
 <div class="line"><a id="l00029" name="l00029"></a><span class="lineno">   29</span><span class="comment">//</span></div>
-<div class="line"><a id="l00030" name="l00030"></a><span class="lineno">   30</span><span class="comment">// Cost: ~6M + 1S per point ≈ 150 ns/point → 3× faster than Jacobian!</span></div>
+<div class="line"><a id="l00030" name="l00030"></a><span class="lineno">   30</span><span class="comment">// Cost: ~6M + 1S per point ~= 150 ns/point -&gt; 3x faster than Jacobian!</span></div>
 <div class="line"><a id="l00031" name="l00031"></a><span class="lineno">   31</span><span class="comment">//</span></div>
 <div class="line"><a id="l00032" name="l00032"></a><span class="lineno">   32</span><span class="comment">// ## USE CASE</span></div>
 <div class="line"><a id="l00033" name="l00033"></a><span class="lineno">   33</span><span class="comment">// Satoshi puzzle / vanity search: walk through key range sequentially.</span></div>
 <div class="line"><a id="l00034" name="l00034"></a><span class="lineno">   34</span><span class="comment">// Pre-compute T[i] = i*G in affine, then for each batch:</span></div>
 <div class="line"><a id="l00035" name="l00035"></a><span class="lineno">   35</span><span class="comment">//   1. P_base = start_scalar * G (compute once per batch)</span></div>
-<div class="line"><a id="l00036" name="l00036"></a><span class="lineno">   36</span><span class="comment">//   2. result[i] = P_base + T[i]  (affine batch add — this function!)</span></div>
+<div class="line"><a id="l00036" name="l00036"></a><span class="lineno">   36</span><span class="comment">//   2. result[i] = P_base + T[i]  (affine batch add -- this function!)</span></div>
 <div class="line"><a id="l00037" name="l00037"></a><span class="lineno">   37</span><span class="comment">//   3. Check result X-coordinates against target(s)</span></div>
 <div class="line"><a id="l00038" name="l00038"></a><span class="lineno">   38</span><span class="comment">//   4. P_base += B*G (advance by batch size)</span></div>
 <div class="line"><a id="l00039" name="l00039"></a><span class="lineno">   39</span><span class="comment">//</span></div>

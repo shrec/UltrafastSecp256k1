@@ -25,7 +25,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.10.0</span>
+   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.11.0</span>
    </div>
    <div id="projectbrief">Ultra high-performance secp256k1 elliptic curve cryptography library</div>
   </td>
@@ -103,16 +103,16 @@ $(document).ready(function(){initNavTree('coin__hd_8hpp_source.html',''); initRe
 <div class="line"><a id="l00003" name="l00003"></a><span class="lineno">    3</span><span class="preprocessor">#pragma once</span></div>
 <div class="line"><a id="l00004" name="l00004"></a><span class="lineno">    4</span> </div>
 <div class="line"><a id="l00005" name="l00005"></a><span class="lineno">    5</span><span class="comment">// ============================================================================</span></div>
-<div class="line"><a id="l00006" name="l00006"></a><span class="lineno">    6</span><span class="comment">// Coin HD — BIP-44 Hierarchical Deterministic Derivation per Coin</span></div>
+<div class="line"><a id="l00006" name="l00006"></a><span class="lineno">    6</span><span class="comment">// Coin HD -- BIP-44 Hierarchical Deterministic Derivation per Coin</span></div>
 <div class="line"><a id="l00007" name="l00007"></a><span class="lineno">    7</span><span class="comment">// ============================================================================</span></div>
 <div class="line"><a id="l00008" name="l00008"></a><span class="lineno">    8</span><span class="comment">// Wraps BIP-32 derivation with coin-aware path construction:</span></div>
 <div class="line"><a id="l00009" name="l00009"></a><span class="lineno">    9</span><span class="comment">//   m / purpose&#39; / coin_type&#39; / account&#39; / change / address_index</span></div>
 <div class="line"><a id="l00010" name="l00010"></a><span class="lineno">   10</span><span class="comment">//</span></div>
 <div class="line"><a id="l00011" name="l00011"></a><span class="lineno">   11</span><span class="comment">// Standard purposes:</span></div>
-<div class="line"><a id="l00012" name="l00012"></a><span class="lineno">   12</span><span class="comment">//   44&#39; — P2PKH (BIP-44)</span></div>
-<div class="line"><a id="l00013" name="l00013"></a><span class="lineno">   13</span><span class="comment">//   49&#39; — P2SH-P2WPKH (BIP-49)</span></div>
-<div class="line"><a id="l00014" name="l00014"></a><span class="lineno">   14</span><span class="comment">//   84&#39; — P2WPKH Native SegWit (BIP-84)</span></div>
-<div class="line"><a id="l00015" name="l00015"></a><span class="lineno">   15</span><span class="comment">//   86&#39; — P2TR Taproot (BIP-86)</span></div>
+<div class="line"><a id="l00012" name="l00012"></a><span class="lineno">   12</span><span class="comment">//   44&#39; -- P2PKH (BIP-44)</span></div>
+<div class="line"><a id="l00013" name="l00013"></a><span class="lineno">   13</span><span class="comment">//   49&#39; -- P2SH-P2WPKH (BIP-49)</span></div>
+<div class="line"><a id="l00014" name="l00014"></a><span class="lineno">   14</span><span class="comment">//   84&#39; -- P2WPKH Native SegWit (BIP-84)</span></div>
+<div class="line"><a id="l00015" name="l00015"></a><span class="lineno">   15</span><span class="comment">//   86&#39; -- P2TR Taproot (BIP-86)</span></div>
 <div class="line"><a id="l00016" name="l00016"></a><span class="lineno">   16</span><span class="comment">//</span></div>
 <div class="line"><a id="l00017" name="l00017"></a><span class="lineno">   17</span><span class="comment">// Usage:</span></div>
 <div class="line"><a id="l00018" name="l00018"></a><span class="lineno">   18</span><span class="comment">//   auto master = bip32_master_key(seed, 64);</span></div>
@@ -132,7 +132,7 @@ $(document).ready(function(){initNavTree('coin__hd_8hpp_source.html',''); initRe
 <div class="line"><a id="l00032" name="l00032"></a><span class="lineno">   32</span> </div>
 <div class="line"><a id="l00033" name="l00033"></a><span class="lineno">   33</span><span class="keyword">namespace </span><a class="code hl_namespace" href="namespacesecp256k1_1_1coins.html">secp256k1::coins</a> {</div>
 <div class="line"><a id="l00034" name="l00034"></a><span class="lineno">   34</span> </div>
-<div class="line"><a id="l00035" name="l00035"></a><span class="lineno">   35</span><span class="comment">// ── BIP-44 Purposes ──────────────────────────────────────────────────────────</span></div>
+<div class="line"><a id="l00035" name="l00035"></a><span class="lineno">   35</span><span class="comment">// -- BIP-44 Purposes ----------------------------------------------------------</span></div>
 <div class="line"><a id="l00036" name="l00036"></a><span class="lineno">   36</span> </div>
 <div class="foldopen" id="foldopen00037" data-start="{" data-end="};">
 <div class="line"><a id="l00037" name="l00037"></a><span class="lineno"><a class="line" href="namespacesecp256k1_1_1coins.html#a44467d0c04134e75dedf0430221cf8a5">   37</a></span><span class="keyword">enum class</span> <a class="code hl_enumeration" href="namespacesecp256k1_1_1coins.html#a44467d0c04134e75dedf0430221cf8a5">DerivationPurpose</a> : std::uint32_t {</div>
@@ -143,11 +143,11 @@ $(document).ready(function(){initNavTree('coin__hd_8hpp_source.html',''); initRe
 <div class="line"><a id="l00042" name="l00042"></a><span class="lineno">   42</span>};</div>
 </div>
 <div class="line"><a id="l00043" name="l00043"></a><span class="lineno">   43</span> </div>
-<div class="line"><a id="l00044" name="l00044"></a><span class="lineno">   44</span><span class="comment">// ── Path Construction ────────────────────────────────────────────────────────</span></div>
+<div class="line"><a id="l00044" name="l00044"></a><span class="lineno">   44</span><span class="comment">// -- Path Construction --------------------------------------------------------</span></div>
 <div class="line"><a id="l00045" name="l00045"></a><span class="lineno">   45</span> </div>
 <div class="line"><a id="l00046" name="l00046"></a><span class="lineno">   46</span><span class="comment">// Build BIP-44 derivation path string.</span></div>
-<div class="line"><a id="l00047" name="l00047"></a><span class="lineno">   47</span><span class="comment">// Example: coin_derive_path(Bitcoin, 0, false, 0) → &quot;m/44&#39;/0&#39;/0&#39;/0/0&quot;</span></div>
-<div class="line"><a id="l00048" name="l00048"></a><span class="lineno">   48</span><span class="comment">// Example: coin_derive_path(Ethereum, 0, false, 0, BIP44) → &quot;m/44&#39;/60&#39;/0&#39;/0/0&quot;</span></div>
+<div class="line"><a id="l00047" name="l00047"></a><span class="lineno">   47</span><span class="comment">// Example: coin_derive_path(Bitcoin, 0, false, 0) -&gt; &quot;m/44&#39;/0&#39;/0&#39;/0/0&quot;</span></div>
+<div class="line"><a id="l00048" name="l00048"></a><span class="lineno">   48</span><span class="comment">// Example: coin_derive_path(Ethereum, 0, false, 0, BIP44) -&gt; &quot;m/44&#39;/60&#39;/0&#39;/0/0&quot;</span></div>
 <div class="line"><a id="l00049" name="l00049"></a><span class="lineno"><a class="line" href="namespacesecp256k1_1_1coins.html#afb1968e9af2472f4b9b4a7fc7ecf48ab">   49</a></span>std::string <a class="code hl_function" href="namespacesecp256k1_1_1coins.html#afb1968e9af2472f4b9b4a7fc7ecf48ab">coin_derive_path</a>(<span class="keyword">const</span> <a class="code hl_struct" href="structsecp256k1_1_1coins_1_1CoinParams.html">CoinParams</a>&amp; coin,</div>
 <div class="line"><a id="l00050" name="l00050"></a><span class="lineno">   50</span>                             std::uint32_t account = 0,</div>
 <div class="line"><a id="l00051" name="l00051"></a><span class="lineno">   51</span>                             <span class="keywordtype">bool</span> change = <span class="keyword">false</span>,</div>
@@ -155,10 +155,10 @@ $(document).ready(function(){initNavTree('coin__hd_8hpp_source.html',''); initRe
 <div class="line"><a id="l00053" name="l00053"></a><span class="lineno">   53</span>                             <a class="code hl_enumeration" href="namespacesecp256k1_1_1coins.html#a44467d0c04134e75dedf0430221cf8a5">DerivationPurpose</a> purpose = <a class="code hl_enumvalue" href="namespacesecp256k1_1_1coins.html#a44467d0c04134e75dedf0430221cf8a5adb430d137df0c2de3478ab4d19a1fe46">DerivationPurpose::BIP44</a>);</div>
 <div class="line"><a id="l00054" name="l00054"></a><span class="lineno">   54</span> </div>
 <div class="line"><a id="l00055" name="l00055"></a><span class="lineno">   55</span><span class="comment">// Select best derivation purpose for a coin.</span></div>
-<div class="line"><a id="l00056" name="l00056"></a><span class="lineno">   56</span><span class="comment">// Bitcoin → BIP84 (native SegWit), Taproot → BIP86, Legacy → BIP44</span></div>
+<div class="line"><a id="l00056" name="l00056"></a><span class="lineno">   56</span><span class="comment">// Bitcoin -&gt; BIP84 (native SegWit), Taproot -&gt; BIP86, Legacy -&gt; BIP44</span></div>
 <div class="line"><a id="l00057" name="l00057"></a><span class="lineno"><a class="line" href="namespacesecp256k1_1_1coins.html#a94a9fd080c98fa0c1110edf774fbd8ce">   57</a></span><a class="code hl_enumeration" href="namespacesecp256k1_1_1coins.html#a44467d0c04134e75dedf0430221cf8a5">DerivationPurpose</a> <a class="code hl_function" href="namespacesecp256k1_1_1coins.html#a94a9fd080c98fa0c1110edf774fbd8ce">best_purpose</a>(<span class="keyword">const</span> <a class="code hl_struct" href="structsecp256k1_1_1coins_1_1CoinParams.html">CoinParams</a>&amp; coin);</div>
 <div class="line"><a id="l00058" name="l00058"></a><span class="lineno">   58</span> </div>
-<div class="line"><a id="l00059" name="l00059"></a><span class="lineno">   59</span><span class="comment">// ── Key Derivation ───────────────────────────────────────────────────────────</span></div>
+<div class="line"><a id="l00059" name="l00059"></a><span class="lineno">   59</span><span class="comment">// -- Key Derivation -----------------------------------------------------------</span></div>
 <div class="line"><a id="l00060" name="l00060"></a><span class="lineno">   60</span> </div>
 <div class="line"><a id="l00061" name="l00061"></a><span class="lineno">   61</span><span class="comment">// Derive a coin-specific child key from master key.</span></div>
 <div class="line"><a id="l00062" name="l00062"></a><span class="lineno">   62</span><span class="comment">// Automatically selects the best purpose for the coin.</span></div>
@@ -179,9 +179,9 @@ $(document).ready(function(){initNavTree('coin__hd_8hpp_source.html',''); initRe
 <div class="line"><a id="l00077" name="l00077"></a><span class="lineno">   77</span>                             <span class="keywordtype">bool</span> change = <span class="keyword">false</span>,</div>
 <div class="line"><a id="l00078" name="l00078"></a><span class="lineno">   78</span>                             std::uint32_t address_index = 0);</div>
 <div class="line"><a id="l00079" name="l00079"></a><span class="lineno">   79</span> </div>
-<div class="line"><a id="l00080" name="l00080"></a><span class="lineno">   80</span><span class="comment">// ── Convenience: Seed → Address ──────────────────────────────────────────────</span></div>
+<div class="line"><a id="l00080" name="l00080"></a><span class="lineno">   80</span><span class="comment">// -- Convenience: Seed -&gt; Address ----------------------------------------------</span></div>
 <div class="line"><a id="l00081" name="l00081"></a><span class="lineno">   81</span> </div>
-<div class="line"><a id="l00082" name="l00082"></a><span class="lineno">   82</span><span class="comment">// Full pipeline: seed bytes → BIP-44 derived address string.</span></div>
+<div class="line"><a id="l00082" name="l00082"></a><span class="lineno">   82</span><span class="comment">// Full pipeline: seed bytes -&gt; BIP-44 derived address string.</span></div>
 <div class="line"><a id="l00083" name="l00083"></a><span class="lineno">   83</span><span class="comment">// Returns {address, success}</span></div>
 <div class="line"><a id="l00084" name="l00084"></a><span class="lineno">   84</span>std::pair&lt;std::string, bool&gt;</div>
 <div class="line"><a id="l00085" name="l00085"></a><span class="lineno"><a class="line" href="namespacesecp256k1_1_1coins.html#a1323bc055b6bad4d8c4915ecc5e9c50e">   85</a></span><a class="code hl_function" href="namespacesecp256k1_1_1coins.html#a1323bc055b6bad4d8c4915ecc5e9c50e">coin_address_from_seed</a>(<span class="keyword">const</span> std::uint8_t* seed, std::size_t seed_len,</div>

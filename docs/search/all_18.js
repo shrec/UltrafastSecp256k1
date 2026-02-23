@@ -29,5 +29,8 @@ var searchData=
   ['risc_20v_26',['CPU: x86-64 vs ARM64 vs RISC-V',['../index.html#autotoc_md37',1,'']]],
   ['rocm_27',['secp256k1 GPU Acceleration (CUDA / OpenCL / Metal / ROCm)',['../index.html#autotoc_md25',1,'']]],
   ['rtx_205060_20ti_28',['CUDA vs OpenCL Comparison (RTX 5060 Ti)',['../index.html#autotoc_md28',1,'']]],
-  ['rules_29',['Versioning Rules',['../md_include_2ufsecp_2SUPPORTED__GUARANTEES.html#autotoc_md13',1,'']]]
+  ['rules_29',['Versioning Rules',['../md_include_2ufsecp_2SUPPORTED__GUARANTEES.html#autotoc_md13',1,'']]],
+  ['run_30',['run',['../classbench_1_1Harness.html#a225f81e5b5389154b07a1aba05233353',1,'bench::Harness']]],
+  ['run_5fand_5fprint_31',['run_and_print',['../classbench_1_1Harness.html#ab41b76464cc0c0dbb337aa184e77158b',1,'bench::Harness']]],
+  ['run_5fstats_32',['run_stats',['../classbench_1_1Harness.html#a05298bd1b0f0af2b03b7e4768749d9ed',1,'bench::Harness']]]
 ];

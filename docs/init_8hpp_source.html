@@ -25,7 +25,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.10.0</span>
+   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.11.0</span>
    </div>
    <div id="projectbrief">Ultra high-performance secp256k1 elliptic curve cryptography library</div>
   </td>
@@ -124,7 +124,7 @@ $(document).ready(function(){initNavTree('init_8hpp_source.html',''); initResiza
 <div class="line"><a id="l00023" name="l00023"></a><span class="lineno">   23</span>        tested = <span class="keyword">true</span>;</div>
 <div class="line"><a id="l00024" name="l00024"></a><span class="lineno">   24</span>        </div>
 <div class="line"><a id="l00025" name="l00025"></a><span class="lineno">   25</span>        <span class="keywordflow">if</span> (!result) {</div>
-<div class="line"><a id="l00026" name="l00026"></a><span class="lineno">   26</span>            std::cerr &lt;&lt; <span class="stringliteral">&quot;\n❌ CRITICAL: Library integrity check FAILED!\n&quot;</span>;</div>
+<div class="line"><a id="l00026" name="l00026"></a><span class="lineno">   26</span>            std::cerr &lt;&lt; <span class="stringliteral">&quot;\n[FAIL] CRITICAL: Library integrity check FAILED!\n&quot;</span>;</div>
 <div class="line"><a id="l00027" name="l00027"></a><span class="lineno">   27</span>            std::cerr &lt;&lt; <span class="stringliteral">&quot;   The secp256k1 library has failed self-validation.\n&quot;</span>;</div>
 <div class="line"><a id="l00028" name="l00028"></a><span class="lineno">   28</span>            std::cerr &lt;&lt; <span class="stringliteral">&quot;   This application cannot continue safely.\n&quot;</span> &lt;&lt; std::flush;</div>
 <div class="line"><a id="l00029" name="l00029"></a><span class="lineno">   29</span>            std::abort();</div>

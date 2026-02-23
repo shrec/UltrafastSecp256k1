@@ -1,5 +1,5 @@
 var searchData=
 [
-  ['ufsecp_5fbip32_5fkey_0',['ufsecp_bip32_key',['../structufsecp__bip32__key.html',1,'']]],
-  ['ufsecp_5fctx_1',['ufsecp_ctx',['../structufsecp__ctx.html',1,'']]]
+  ['testcounters_0',['TestCounters',['../structsecp256k1_1_1test_1_1TestCounters.html',1,'secp256k1::test']]],
+  ['timer_1',['Timer',['../structbench_1_1Timer.html',1,'bench']]]
 ];

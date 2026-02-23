@@ -25,7 +25,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.10.0</span>
+   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.11.0</span>
    </div>
    <div id="projectbrief">Ultra high-performance secp256k1 elliptic curve cryptography library</div>
   </td>
@@ -99,8 +99,8 @@ $(document).ready(function(){initNavTree('glv_8hpp_source.html',''); initResizab
 </div><!--header-->
 <div class="contents">
 <a href="glv_8hpp.html">Go to the documentation of this file.</a><div class="fragment"><div class="line"><a id="l00001" name="l00001"></a><span class="lineno">    1</span><span class="comment">// GLV endomorphism optimization for secp256k1</span></div>
-<div class="line"><a id="l00002" name="l00002"></a><span class="lineno">    2</span><span class="comment">// φ(x,y) = (β·x, y) where β³ ≡ 1 (mod p)</span></div>
-<div class="line"><a id="l00003" name="l00003"></a><span class="lineno">    3</span><span class="comment">// λ·P = φ(P) where λ² + λ + 1 ≡ 0 (mod n)</span></div>
+<div class="line"><a id="l00002" name="l00002"></a><span class="lineno">    2</span><span class="comment">// phi(x,y) = (beta*x, y) where beta^3 == 1 (mod p)</span></div>
+<div class="line"><a id="l00003" name="l00003"></a><span class="lineno">    3</span><span class="comment">// lambda*P = phi(P) where lambda^2 + lambda + 1 == 0 (mod n)</span></div>
 <div class="line"><a id="l00004" name="l00004"></a><span class="lineno">    4</span> </div>
 <div class="line"><a id="l00005" name="l00005"></a><span class="lineno">    5</span><span class="preprocessor">#pragma once</span></div>
 <div class="line"><a id="l00006" name="l00006"></a><span class="lineno">    6</span> </div>
@@ -114,8 +114,8 @@ $(document).ready(function(){initNavTree('glv_8hpp_source.html',''); initResizab
 <div class="line"><a id="l00014" name="l00014"></a><span class="lineno">   14</span><span class="comment">// GLV constants for secp256k1</span></div>
 <div class="foldopen" id="foldopen00015" data-start="{" data-end="}">
 <div class="line"><a id="l00015" name="l00015"></a><span class="lineno"><a class="line" href="namespacesecp256k1_1_1fast_1_1glv__constants.html">   15</a></span><span class="keyword">namespace </span>glv_constants {</div>
-<div class="line"><a id="l00016" name="l00016"></a><span class="lineno">   16</span>    <span class="comment">// λ (lambda) - eigenvalue where λ·G = φ(G)</span></div>
-<div class="line"><a id="l00017" name="l00017"></a><span class="lineno">   17</span>    <span class="comment">// λ = 0x5363ad4cc05c30e0a5261c028812645a122e22ea20816678df02967c1b23bd72</span></div>
+<div class="line"><a id="l00016" name="l00016"></a><span class="lineno">   16</span>    <span class="comment">// lambda (lambda) - eigenvalue where lambda*G = phi(G)</span></div>
+<div class="line"><a id="l00017" name="l00017"></a><span class="lineno">   17</span>    <span class="comment">// lambda = 0x5363ad4cc05c30e0a5261c028812645a122e22ea20816678df02967c1b23bd72</span></div>
 <div class="foldopen" id="foldopen00018" data-start="{" data-end="};">
 <div class="line"><a id="l00018" name="l00018"></a><span class="lineno"><a class="line" href="namespacesecp256k1_1_1fast_1_1glv__constants.html#a987c298a74084ed501ee88ec70131b72">   18</a></span>    <span class="keyword">constexpr</span> std::array&lt;uint8_t, 32&gt; <a class="code hl_variable" href="namespacesecp256k1_1_1fast_1_1glv__constants.html#a987c298a74084ed501ee88ec70131b72">LAMBDA</a> = {</div>
 <div class="line"><a id="l00019" name="l00019"></a><span class="lineno">   19</span>        0x53, 0x63, 0xad, 0x4c, 0xc0, 0x5c, 0x30, 0xe0,</div>
@@ -125,8 +125,8 @@ $(document).ready(function(){initNavTree('glv_8hpp_source.html',''); initResizab
 <div class="line"><a id="l00023" name="l00023"></a><span class="lineno">   23</span>    };</div>
 </div>
 <div class="line"><a id="l00024" name="l00024"></a><span class="lineno">   24</span>    </div>
-<div class="line"><a id="l00025" name="l00025"></a><span class="lineno">   25</span>    <span class="comment">// β (beta) - cube root of unity mod p</span></div>
-<div class="line"><a id="l00026" name="l00026"></a><span class="lineno">   26</span>    <span class="comment">// β = 0x7ae96a2b657c07106e64479eac3434e99cf0497512f58995c1396c28719501ee</span></div>
+<div class="line"><a id="l00025" name="l00025"></a><span class="lineno">   25</span>    <span class="comment">// beta (beta) - cube root of unity mod p</span></div>
+<div class="line"><a id="l00026" name="l00026"></a><span class="lineno">   26</span>    <span class="comment">// beta = 0x7ae96a2b657c07106e64479eac3434e99cf0497512f58995c1396c28719501ee</span></div>
 <div class="foldopen" id="foldopen00027" data-start="{" data-end="};">
 <div class="line"><a id="l00027" name="l00027"></a><span class="lineno"><a class="line" href="namespacesecp256k1_1_1fast_1_1glv__constants.html#ae67ff54a26ac7cea257b4739a7129ed4">   27</a></span>    <span class="keyword">constexpr</span> std::array&lt;uint8_t, 32&gt; <a class="code hl_variable" href="namespacesecp256k1_1_1fast_1_1glv__constants.html#ae67ff54a26ac7cea257b4739a7129ed4">BETA</a> = {</div>
 <div class="line"><a id="l00028" name="l00028"></a><span class="lineno">   28</span>        0x7a, 0xe9, 0x6a, 0x2b, 0x65, 0x7c, 0x07, 0x10,</div>
@@ -137,7 +137,7 @@ $(document).ready(function(){initNavTree('glv_8hpp_source.html',''); initResizab
 </div>
 <div class="line"><a id="l00033" name="l00033"></a><span class="lineno">   33</span>    </div>
 <div class="line"><a id="l00034" name="l00034"></a><span class="lineno">   34</span>    <span class="comment">// Precomputed values for GLV decomposition</span></div>
-<div class="line"><a id="l00035" name="l00035"></a><span class="lineno">   35</span>    <span class="comment">// These are used to split k → (k1, k2) such that k = k1 + k2·λ (mod n)</span></div>
+<div class="line"><a id="l00035" name="l00035"></a><span class="lineno">   35</span>    <span class="comment">// These are used to split k -&gt; (k1, k2) such that k = k1 + k2*lambda (mod n)</span></div>
 <div class="line"><a id="l00036" name="l00036"></a><span class="lineno">   36</span>    <span class="comment">// Using the lattice basis vectors from secp256k1 optimization</span></div>
 <div class="line"><a id="l00037" name="l00037"></a><span class="lineno">   37</span>    </div>
 <div class="line"><a id="l00038" name="l00038"></a><span class="lineno">   38</span>    <span class="comment">// a1 = 0x3086d221a7d46bcde86c90e49284eb15</span></div>
@@ -184,16 +184,16 @@ $(document).ready(function(){initNavTree('glv_8hpp_source.html',''); initResizab
 <div class="line"><a id="l00069" name="l00069"></a><span class="lineno">   69</span>};</div>
 </div>
 <div class="line"><a id="l00070" name="l00070"></a><span class="lineno">   70</span> </div>
-<div class="line"><a id="l00071" name="l00071"></a><span class="lineno">   71</span><span class="comment">// Decompose scalar k into k1, k2 such that k = k1 + k2·λ (mod n)</span></div>
+<div class="line"><a id="l00071" name="l00071"></a><span class="lineno">   71</span><span class="comment">// Decompose scalar k into k1, k2 such that k = k1 + k2*lambda (mod n)</span></div>
 <div class="line"><a id="l00072" name="l00072"></a><span class="lineno">   72</span><span class="comment">// The resulting k1, k2 are roughly half the bit length of k (~128 bits each)</span></div>
 <div class="line"><a id="l00073" name="l00073"></a><span class="lineno"><a class="line" href="namespacesecp256k1_1_1fast.html#a4e566678d95ce5c9074d2b7a3a8e82ef">   73</a></span><a class="code hl_struct" href="structsecp256k1_1_1fast_1_1GLVDecomposition.html">GLVDecomposition</a> <a class="code hl_function" href="namespacesecp256k1_1_1fast.html#a4e566678d95ce5c9074d2b7a3a8e82ef">glv_decompose</a>(<span class="keyword">const</span> <a class="code hl_class" href="classsecp256k1_1_1fast_1_1Scalar.html">Scalar</a>&amp; k);</div>
 <div class="line"><a id="l00074" name="l00074"></a><span class="lineno">   74</span> </div>
-<div class="line"><a id="l00075" name="l00075"></a><span class="lineno">   75</span><span class="comment">// Apply endomorphism to point: φ(x,y) = (β·x, y)</span></div>
+<div class="line"><a id="l00075" name="l00075"></a><span class="lineno">   75</span><span class="comment">// Apply endomorphism to point: phi(x,y) = (beta*x, y)</span></div>
 <div class="line"><a id="l00076" name="l00076"></a><span class="lineno">   76</span><span class="comment">// This is very cheap - just one field multiplication</span></div>
 <div class="line"><a id="l00077" name="l00077"></a><span class="lineno"><a class="line" href="namespacesecp256k1_1_1fast.html#ab4a40a44d316fd9c0a4ec6635bb16a0e">   77</a></span><a class="code hl_class" href="classsecp256k1_1_1fast_1_1Point.html">Point</a> <a class="code hl_function" href="namespacesecp256k1_1_1fast.html#ab4a40a44d316fd9c0a4ec6635bb16a0e">apply_endomorphism</a>(<span class="keyword">const</span> <a class="code hl_class" href="classsecp256k1_1_1fast_1_1Point.html">Point</a>&amp; P);</div>
 <div class="line"><a id="l00078" name="l00078"></a><span class="lineno">   78</span> </div>
 <div class="line"><a id="l00079" name="l00079"></a><span class="lineno">   79</span><span class="comment">// Verify endomorphism properties (for testing)</span></div>
-<div class="line"><a id="l00080" name="l00080"></a><span class="lineno">   80</span><span class="comment">// Should verify: φ(φ(P)) + P = O (point at infinity)</span></div>
+<div class="line"><a id="l00080" name="l00080"></a><span class="lineno">   80</span><span class="comment">// Should verify: phi(phi(P)) + P = O (point at infinity)</span></div>
 <div class="line"><a id="l00081" name="l00081"></a><span class="lineno"><a class="line" href="namespacesecp256k1_1_1fast.html#ae2a576d7169ad2a60399a9ef367c5255">   81</a></span><span class="keywordtype">bool</span> <a class="code hl_function" href="namespacesecp256k1_1_1fast.html#ae2a576d7169ad2a60399a9ef367c5255">verify_endomorphism</a>(<span class="keyword">const</span> <a class="code hl_class" href="classsecp256k1_1_1fast_1_1Point.html">Point</a>&amp; P);</div>
 <div class="line"><a id="l00082" name="l00082"></a><span class="lineno">   82</span> </div>
 <div class="line"><a id="l00083" name="l00083"></a><span class="lineno">   83</span>} <span class="comment">// namespace secp256k1::fast</span></div>

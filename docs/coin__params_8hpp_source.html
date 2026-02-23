@@ -25,7 +25,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.10.0</span>
+   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.11.0</span>
    </div>
    <div id="projectbrief">Ultra high-performance secp256k1 elliptic curve cryptography library</div>
   </td>
@@ -103,7 +103,7 @@ $(document).ready(function(){initNavTree('coin__params_8hpp_source.html',''); in
 <div class="line"><a id="l00003" name="l00003"></a><span class="lineno">    3</span><span class="preprocessor">#pragma once</span></div>
 <div class="line"><a id="l00004" name="l00004"></a><span class="lineno">    4</span> </div>
 <div class="line"><a id="l00005" name="l00005"></a><span class="lineno">    5</span><span class="comment">// ============================================================================</span></div>
-<div class="line"><a id="l00006" name="l00006"></a><span class="lineno">    6</span><span class="comment">// Coin Parameters — constexpr definitions for all secp256k1-based coins</span></div>
+<div class="line"><a id="l00006" name="l00006"></a><span class="lineno">    6</span><span class="comment">// Coin Parameters -- constexpr definitions for all secp256k1-based coins</span></div>
 <div class="line"><a id="l00007" name="l00007"></a><span class="lineno">    7</span><span class="comment">// ============================================================================</span></div>
 <div class="line"><a id="l00008" name="l00008"></a><span class="lineno">    8</span><span class="comment">// Each CoinParams holds:</span></div>
 <div class="line"><a id="l00009" name="l00009"></a><span class="lineno">    9</span><span class="comment">//   - Network prefixes (P2PKH version byte, WIF prefix)</span></div>
@@ -113,7 +113,7 @@ $(document).ready(function(){initNavTree('coin__params_8hpp_source.html',''); in
 <div class="line"><a id="l00013" name="l00013"></a><span class="lineno">   13</span><span class="comment">//   - Feature flags (supports_segwit, supports_taproot, etc.)</span></div>
 <div class="line"><a id="l00014" name="l00014"></a><span class="lineno">   14</span><span class="comment">//   - Display name + ticker</span></div>
 <div class="line"><a id="l00015" name="l00015"></a><span class="lineno">   15</span><span class="comment">//</span></div>
-<div class="line"><a id="l00016" name="l00016"></a><span class="lineno">   16</span><span class="comment">// All data is constexpr — zero runtime cost, no heap allocation.</span></div>
+<div class="line"><a id="l00016" name="l00016"></a><span class="lineno">   16</span><span class="comment">// All data is constexpr -- zero runtime cost, no heap allocation.</span></div>
 <div class="line"><a id="l00017" name="l00017"></a><span class="lineno">   17</span><span class="comment">// ============================================================================</span></div>
 <div class="line"><a id="l00018" name="l00018"></a><span class="lineno">   18</span> </div>
 <div class="line"><a id="l00019" name="l00019"></a><span class="lineno">   19</span><span class="preprocessor">#include &lt;cstdint&gt;</span></div>
@@ -121,17 +121,17 @@ $(document).ready(function(){initNavTree('coin__params_8hpp_source.html',''); in
 <div class="line"><a id="l00021" name="l00021"></a><span class="lineno">   21</span> </div>
 <div class="line"><a id="l00022" name="l00022"></a><span class="lineno">   22</span><span class="keyword">namespace </span><a class="code hl_namespace" href="namespacesecp256k1_1_1coins.html">secp256k1::coins</a> {</div>
 <div class="line"><a id="l00023" name="l00023"></a><span class="lineno">   23</span> </div>
-<div class="line"><a id="l00024" name="l00024"></a><span class="lineno">   24</span><span class="comment">// ── Address Hash Algorithm ───────────────────────────────────────────────────</span></div>
+<div class="line"><a id="l00024" name="l00024"></a><span class="lineno">   24</span><span class="comment">// -- Address Hash Algorithm ---------------------------------------------------</span></div>
 <div class="line"><a id="l00025" name="l00025"></a><span class="lineno">   25</span> </div>
 <div class="foldopen" id="foldopen00026" data-start="{" data-end="};">
 <div class="line"><a id="l00026" name="l00026"></a><span class="lineno"><a class="line" href="namespacesecp256k1_1_1coins.html#a938922c0a6dfc2461fc0dbabb8d720fd">   26</a></span><span class="keyword">enum class</span> <a class="code hl_enumeration" href="namespacesecp256k1_1_1coins.html#a938922c0a6dfc2461fc0dbabb8d720fd">AddressHash</a> : std::uint8_t {</div>
-<div class="line"><a id="l00027" name="l00027"></a><span class="lineno">   27</span>    <a class="code hl_enumvalue" href="namespacesecp256k1_1_1coins.html#a938922c0a6dfc2461fc0dbabb8d720fda1af0faac30c308df3d59a5dbd47b762a">HASH160</a>,     <span class="comment">// RIPEMD160(SHA256(pubkey)) — Bitcoin, Litecoin, etc.</span></div>
-<div class="line"><a id="l00028" name="l00028"></a><span class="lineno">   28</span>    <a class="code hl_enumvalue" href="namespacesecp256k1_1_1coins.html#a938922c0a6dfc2461fc0dbabb8d720fda9349208927787ab8a2b7f36398437107">KECCAK256</a>,   <span class="comment">// Keccak-256(pubkey[1:]) — Ethereum, BNB, etc.</span></div>
-<div class="line"><a id="l00029" name="l00029"></a><span class="lineno">   29</span>    <a class="code hl_enumvalue" href="namespacesecp256k1_1_1coins.html#a938922c0a6dfc2461fc0dbabb8d720fda7907906fb1d05d579b6ea7a1a718d4ab">BLAKE2B_160</a>, <span class="comment">// BLAKE2b-160 — reserved for future use</span></div>
+<div class="line"><a id="l00027" name="l00027"></a><span class="lineno">   27</span>    <a class="code hl_enumvalue" href="namespacesecp256k1_1_1coins.html#a938922c0a6dfc2461fc0dbabb8d720fda1af0faac30c308df3d59a5dbd47b762a">HASH160</a>,     <span class="comment">// RIPEMD160(SHA256(pubkey)) -- Bitcoin, Litecoin, etc.</span></div>
+<div class="line"><a id="l00028" name="l00028"></a><span class="lineno">   28</span>    <a class="code hl_enumvalue" href="namespacesecp256k1_1_1coins.html#a938922c0a6dfc2461fc0dbabb8d720fda9349208927787ab8a2b7f36398437107">KECCAK256</a>,   <span class="comment">// Keccak-256(pubkey[1:]) -- Ethereum, BNB, etc.</span></div>
+<div class="line"><a id="l00029" name="l00029"></a><span class="lineno">   29</span>    <a class="code hl_enumvalue" href="namespacesecp256k1_1_1coins.html#a938922c0a6dfc2461fc0dbabb8d720fda7907906fb1d05d579b6ea7a1a718d4ab">BLAKE2B_160</a>, <span class="comment">// BLAKE2b-160 -- reserved for future use</span></div>
 <div class="line"><a id="l00030" name="l00030"></a><span class="lineno">   30</span>};</div>
 </div>
 <div class="line"><a id="l00031" name="l00031"></a><span class="lineno">   31</span> </div>
-<div class="line"><a id="l00032" name="l00032"></a><span class="lineno">   32</span><span class="comment">// ── Address Encoding ─────────────────────────────────────────────────────────</span></div>
+<div class="line"><a id="l00032" name="l00032"></a><span class="lineno">   32</span><span class="comment">// -- Address Encoding ---------------------------------------------------------</span></div>
 <div class="line"><a id="l00033" name="l00033"></a><span class="lineno">   33</span> </div>
 <div class="foldopen" id="foldopen00034" data-start="{" data-end="};">
 <div class="line"><a id="l00034" name="l00034"></a><span class="lineno"><a class="line" href="namespacesecp256k1_1_1coins.html#a1106e7d010a62072fb5c3a4ce65735a8">   34</a></span><span class="keyword">enum class</span> <a class="code hl_enumeration" href="namespacesecp256k1_1_1coins.html#a1106e7d010a62072fb5c3a4ce65735a8">AddressEncoding</a> : std::uint8_t {</div>
@@ -142,7 +142,7 @@ $(document).ready(function(){initNavTree('coin__params_8hpp_source.html',''); in
 <div class="line"><a id="l00039" name="l00039"></a><span class="lineno">   39</span>};</div>
 </div>
 <div class="line"><a id="l00040" name="l00040"></a><span class="lineno">   40</span> </div>
-<div class="line"><a id="l00041" name="l00041"></a><span class="lineno">   41</span><span class="comment">// ── Feature Flags ────────────────────────────────────────────────────────────</span></div>
+<div class="line"><a id="l00041" name="l00041"></a><span class="lineno">   41</span><span class="comment">// -- Feature Flags ------------------------------------------------------------</span></div>
 <div class="line"><a id="l00042" name="l00042"></a><span class="lineno">   42</span> </div>
 <div class="foldopen" id="foldopen00043" data-start="{" data-end="};">
 <div class="line"><a id="l00043" name="l00043"></a><span class="lineno"><a class="line" href="structsecp256k1_1_1coins_1_1CoinFeatures.html">   43</a></span><span class="keyword">struct </span><a class="code hl_struct" href="structsecp256k1_1_1coins_1_1CoinFeatures.html">CoinFeatures</a> {</div>
@@ -155,7 +155,7 @@ $(document).ready(function(){initNavTree('coin__params_8hpp_source.html',''); in
 <div class="line"><a id="l00050" name="l00050"></a><span class="lineno">   50</span>};</div>
 </div>
 <div class="line"><a id="l00051" name="l00051"></a><span class="lineno">   51</span> </div>
-<div class="line"><a id="l00052" name="l00052"></a><span class="lineno">   52</span><span class="comment">// ── Coin Parameters ──────────────────────────────────────────────────────────</span></div>
+<div class="line"><a id="l00052" name="l00052"></a><span class="lineno">   52</span><span class="comment">// -- Coin Parameters ----------------------------------------------------------</span></div>
 <div class="line"><a id="l00053" name="l00053"></a><span class="lineno">   53</span> </div>
 <div class="foldopen" id="foldopen00054" data-start="{" data-end="};">
 <div class="line"><a id="l00054" name="l00054"></a><span class="lineno"><a class="line" href="structsecp256k1_1_1coins_1_1CoinParams.html">   54</a></span><span class="keyword">struct </span><a class="code hl_struct" href="structsecp256k1_1_1coins_1_1CoinParams.html">CoinParams</a> {</div>
@@ -195,7 +195,7 @@ $(document).ready(function(){initNavTree('coin__params_8hpp_source.html',''); in
 <div class="line"><a id="l00087" name="l00087"></a><span class="lineno">   87</span><span class="comment">// ============================================================================</span></div>
 <div class="line"><a id="l00088" name="l00088"></a><span class="lineno">   88</span><span class="comment">// All secp256k1-based cryptocurrencies</span></div>
 <div class="line"><a id="l00089" name="l00089"></a><span class="lineno">   89</span> </div>
-<div class="line"><a id="l00090" name="l00090"></a><span class="lineno">   90</span><span class="comment">// ── Bitcoin (BTC) ────────────────────────────────────────────────────────────</span></div>
+<div class="line"><a id="l00090" name="l00090"></a><span class="lineno">   90</span><span class="comment">// -- Bitcoin (BTC) ------------------------------------------------------------</span></div>
 <div class="foldopen" id="foldopen00091" data-start="{" data-end="};">
 <div class="line"><a id="l00091" name="l00091"></a><span class="lineno"><a class="line" href="namespacesecp256k1_1_1coins.html#acf4e38367cdb5f0cb33b7d6d1dca7de7">   91</a></span><span class="keyword">inline</span> <span class="keyword">constexpr</span> <a class="code hl_struct" href="structsecp256k1_1_1coins_1_1CoinParams.html">CoinParams</a> <a class="code hl_variable" href="namespacesecp256k1_1_1coins.html#acf4e38367cdb5f0cb33b7d6d1dca7de7">Bitcoin</a> = {</div>
 <div class="line"><a id="l00092" name="l00092"></a><span class="lineno">   92</span>    .<a class="code hl_variable" href="structsecp256k1_1_1coins_1_1CoinParams.html#a12d1e5759867e1d5f5910dd9766eb99a">name</a>               = <span class="stringliteral">&quot;Bitcoin&quot;</span>,</div>
@@ -216,7 +216,7 @@ $(document).ready(function(){initNavTree('coin__params_8hpp_source.html',''); in
 <div class="line"><a id="l00107" name="l00107"></a><span class="lineno">  107</span>};</div>
 </div>
 <div class="line"><a id="l00108" name="l00108"></a><span class="lineno">  108</span> </div>
-<div class="line"><a id="l00109" name="l00109"></a><span class="lineno">  109</span><span class="comment">// ── Litecoin (LTC) ──────────────────────────────────────────────────────────</span></div>
+<div class="line"><a id="l00109" name="l00109"></a><span class="lineno">  109</span><span class="comment">// -- Litecoin (LTC) ----------------------------------------------------------</span></div>
 <div class="foldopen" id="foldopen00110" data-start="{" data-end="};">
 <div class="line"><a id="l00110" name="l00110"></a><span class="lineno"><a class="line" href="namespacesecp256k1_1_1coins.html#ac54c95af7577aa020c8c03730b0e9ff3">  110</a></span><span class="keyword">inline</span> <span class="keyword">constexpr</span> <a class="code hl_struct" href="structsecp256k1_1_1coins_1_1CoinParams.html">CoinParams</a> <a class="code hl_variable" href="namespacesecp256k1_1_1coins.html#ac54c95af7577aa020c8c03730b0e9ff3">Litecoin</a> = {</div>
 <div class="line"><a id="l00111" name="l00111"></a><span class="lineno">  111</span>    .<a class="code hl_variable" href="structsecp256k1_1_1coins_1_1CoinParams.html#a12d1e5759867e1d5f5910dd9766eb99a">name</a>               = <span class="stringliteral">&quot;Litecoin&quot;</span>,</div>
@@ -237,7 +237,7 @@ $(document).ready(function(){initNavTree('coin__params_8hpp_source.html',''); in
 <div class="line"><a id="l00126" name="l00126"></a><span class="lineno">  126</span>};</div>
 </div>
 <div class="line"><a id="l00127" name="l00127"></a><span class="lineno">  127</span> </div>
-<div class="line"><a id="l00128" name="l00128"></a><span class="lineno">  128</span><span class="comment">// ── Dogecoin (DOGE) ──────────────────────────────────────────────────────────</span></div>
+<div class="line"><a id="l00128" name="l00128"></a><span class="lineno">  128</span><span class="comment">// -- Dogecoin (DOGE) ----------------------------------------------------------</span></div>
 <div class="foldopen" id="foldopen00129" data-start="{" data-end="};">
 <div class="line"><a id="l00129" name="l00129"></a><span class="lineno"><a class="line" href="namespacesecp256k1_1_1coins.html#a53cc055722f1672418ff9a50820e4139">  129</a></span><span class="keyword">inline</span> <span class="keyword">constexpr</span> <a class="code hl_struct" href="structsecp256k1_1_1coins_1_1CoinParams.html">CoinParams</a> <a class="code hl_variable" href="namespacesecp256k1_1_1coins.html#a53cc055722f1672418ff9a50820e4139">Dogecoin</a> = {</div>
 <div class="line"><a id="l00130" name="l00130"></a><span class="lineno">  130</span>    .<a class="code hl_variable" href="structsecp256k1_1_1coins_1_1CoinParams.html#a12d1e5759867e1d5f5910dd9766eb99a">name</a>               = <span class="stringliteral">&quot;Dogecoin&quot;</span>,</div>
@@ -258,7 +258,7 @@ $(document).ready(function(){initNavTree('coin__params_8hpp_source.html',''); in
 <div class="line"><a id="l00145" name="l00145"></a><span class="lineno">  145</span>};</div>
 </div>
 <div class="line"><a id="l00146" name="l00146"></a><span class="lineno">  146</span> </div>
-<div class="line"><a id="l00147" name="l00147"></a><span class="lineno">  147</span><span class="comment">// ── Dash (DASH) ──────────────────────────────────────────────────────────────</span></div>
+<div class="line"><a id="l00147" name="l00147"></a><span class="lineno">  147</span><span class="comment">// -- Dash (DASH) --------------------------------------------------------------</span></div>
 <div class="foldopen" id="foldopen00148" data-start="{" data-end="};">
 <div class="line"><a id="l00148" name="l00148"></a><span class="lineno"><a class="line" href="namespacesecp256k1_1_1coins.html#af1a6b40521b40c747c2892c55c28424e">  148</a></span><span class="keyword">inline</span> <span class="keyword">constexpr</span> <a class="code hl_struct" href="structsecp256k1_1_1coins_1_1CoinParams.html">CoinParams</a> <a class="code hl_variable" href="namespacesecp256k1_1_1coins.html#af1a6b40521b40c747c2892c55c28424e">Dash</a> = {</div>
 <div class="line"><a id="l00149" name="l00149"></a><span class="lineno">  149</span>    .<a class="code hl_variable" href="structsecp256k1_1_1coins_1_1CoinParams.html#a12d1e5759867e1d5f5910dd9766eb99a">name</a>               = <span class="stringliteral">&quot;Dash&quot;</span>,</div>
@@ -279,7 +279,7 @@ $(document).ready(function(){initNavTree('coin__params_8hpp_source.html',''); in
 <div class="line"><a id="l00164" name="l00164"></a><span class="lineno">  164</span>};</div>
 </div>
 <div class="line"><a id="l00165" name="l00165"></a><span class="lineno">  165</span> </div>
-<div class="line"><a id="l00166" name="l00166"></a><span class="lineno">  166</span><span class="comment">// ── Ethereum (ETH) ───────────────────────────────────────────────────────────</span></div>
+<div class="line"><a id="l00166" name="l00166"></a><span class="lineno">  166</span><span class="comment">// -- Ethereum (ETH) -----------------------------------------------------------</span></div>
 <div class="foldopen" id="foldopen00167" data-start="{" data-end="};">
 <div class="line"><a id="l00167" name="l00167"></a><span class="lineno"><a class="line" href="namespacesecp256k1_1_1coins.html#a9798cff636f55e2bc051dd386a4dc668">  167</a></span><span class="keyword">inline</span> <span class="keyword">constexpr</span> <a class="code hl_struct" href="structsecp256k1_1_1coins_1_1CoinParams.html">CoinParams</a> <a class="code hl_variable" href="namespacesecp256k1_1_1coins.html#a9798cff636f55e2bc051dd386a4dc668">Ethereum</a> = {</div>
 <div class="line"><a id="l00168" name="l00168"></a><span class="lineno">  168</span>    .<a class="code hl_variable" href="structsecp256k1_1_1coins_1_1CoinParams.html#a12d1e5759867e1d5f5910dd9766eb99a">name</a>               = <span class="stringliteral">&quot;Ethereum&quot;</span>,</div>
@@ -300,7 +300,7 @@ $(document).ready(function(){initNavTree('coin__params_8hpp_source.html',''); in
 <div class="line"><a id="l00183" name="l00183"></a><span class="lineno">  183</span>};</div>
 </div>
 <div class="line"><a id="l00184" name="l00184"></a><span class="lineno">  184</span> </div>
-<div class="line"><a id="l00185" name="l00185"></a><span class="lineno">  185</span><span class="comment">// ── Bitcoin Cash (BCH) ───────────────────────────────────────────────────────</span></div>
+<div class="line"><a id="l00185" name="l00185"></a><span class="lineno">  185</span><span class="comment">// -- Bitcoin Cash (BCH) -------------------------------------------------------</span></div>
 <div class="foldopen" id="foldopen00186" data-start="{" data-end="};">
 <div class="line"><a id="l00186" name="l00186"></a><span class="lineno"><a class="line" href="namespacesecp256k1_1_1coins.html#ac1ff5191517994931c9408403ed57f41">  186</a></span><span class="keyword">inline</span> <span class="keyword">constexpr</span> <a class="code hl_struct" href="structsecp256k1_1_1coins_1_1CoinParams.html">CoinParams</a> <a class="code hl_variable" href="namespacesecp256k1_1_1coins.html#ac1ff5191517994931c9408403ed57f41">BitcoinCash</a> = {</div>
 <div class="line"><a id="l00187" name="l00187"></a><span class="lineno">  187</span>    .<a class="code hl_variable" href="structsecp256k1_1_1coins_1_1CoinParams.html#a12d1e5759867e1d5f5910dd9766eb99a">name</a>               = <span class="stringliteral">&quot;Bitcoin Cash&quot;</span>,</div>
@@ -321,7 +321,7 @@ $(document).ready(function(){initNavTree('coin__params_8hpp_source.html',''); in
 <div class="line"><a id="l00202" name="l00202"></a><span class="lineno">  202</span>};</div>
 </div>
 <div class="line"><a id="l00203" name="l00203"></a><span class="lineno">  203</span> </div>
-<div class="line"><a id="l00204" name="l00204"></a><span class="lineno">  204</span><span class="comment">// ── Bitcoin SV (BSV) ─────────────────────────────────────────────────────────</span></div>
+<div class="line"><a id="l00204" name="l00204"></a><span class="lineno">  204</span><span class="comment">// -- Bitcoin SV (BSV) ---------------------------------------------------------</span></div>
 <div class="foldopen" id="foldopen00205" data-start="{" data-end="};">
 <div class="line"><a id="l00205" name="l00205"></a><span class="lineno"><a class="line" href="namespacesecp256k1_1_1coins.html#aca8eaf4780da4eba71b217a62f129103">  205</a></span><span class="keyword">inline</span> <span class="keyword">constexpr</span> <a class="code hl_struct" href="structsecp256k1_1_1coins_1_1CoinParams.html">CoinParams</a> <a class="code hl_variable" href="namespacesecp256k1_1_1coins.html#aca8eaf4780da4eba71b217a62f129103">BitcoinSV</a> = {</div>
 <div class="line"><a id="l00206" name="l00206"></a><span class="lineno">  206</span>    .<a class="code hl_variable" href="structsecp256k1_1_1coins_1_1CoinParams.html#a12d1e5759867e1d5f5910dd9766eb99a">name</a>               = <span class="stringliteral">&quot;Bitcoin SV&quot;</span>,</div>
@@ -342,7 +342,7 @@ $(document).ready(function(){initNavTree('coin__params_8hpp_source.html',''); in
 <div class="line"><a id="l00221" name="l00221"></a><span class="lineno">  221</span>};</div>
 </div>
 <div class="line"><a id="l00222" name="l00222"></a><span class="lineno">  222</span> </div>
-<div class="line"><a id="l00223" name="l00223"></a><span class="lineno">  223</span><span class="comment">// ── Zcash (ZEC) ──────────────────────────────────────────────────────────────</span></div>
+<div class="line"><a id="l00223" name="l00223"></a><span class="lineno">  223</span><span class="comment">// -- Zcash (ZEC) --------------------------------------------------------------</span></div>
 <div class="foldopen" id="foldopen00224" data-start="{" data-end="};">
 <div class="line"><a id="l00224" name="l00224"></a><span class="lineno"><a class="line" href="namespacesecp256k1_1_1coins.html#ae9978405d4dfef91cc06d90518d512d5">  224</a></span><span class="keyword">inline</span> <span class="keyword">constexpr</span> <a class="code hl_struct" href="structsecp256k1_1_1coins_1_1CoinParams.html">CoinParams</a> <a class="code hl_variable" href="namespacesecp256k1_1_1coins.html#ae9978405d4dfef91cc06d90518d512d5">Zcash</a> = {</div>
 <div class="line"><a id="l00225" name="l00225"></a><span class="lineno">  225</span>    .<a class="code hl_variable" href="structsecp256k1_1_1coins_1_1CoinParams.html#a12d1e5759867e1d5f5910dd9766eb99a">name</a>               = <span class="stringliteral">&quot;Zcash&quot;</span>,</div>
@@ -363,7 +363,7 @@ $(document).ready(function(){initNavTree('coin__params_8hpp_source.html',''); in
 <div class="line"><a id="l00240" name="l00240"></a><span class="lineno">  240</span>};</div>
 </div>
 <div class="line"><a id="l00241" name="l00241"></a><span class="lineno">  241</span> </div>
-<div class="line"><a id="l00242" name="l00242"></a><span class="lineno">  242</span><span class="comment">// ── DigiByte (DGB) ───────────────────────────────────────────────────────────</span></div>
+<div class="line"><a id="l00242" name="l00242"></a><span class="lineno">  242</span><span class="comment">// -- DigiByte (DGB) -----------------------------------------------------------</span></div>
 <div class="foldopen" id="foldopen00243" data-start="{" data-end="};">
 <div class="line"><a id="l00243" name="l00243"></a><span class="lineno"><a class="line" href="namespacesecp256k1_1_1coins.html#af8584b5a9a5909c5fe48b5d0e747a4e9">  243</a></span><span class="keyword">inline</span> <span class="keyword">constexpr</span> <a class="code hl_struct" href="structsecp256k1_1_1coins_1_1CoinParams.html">CoinParams</a> <a class="code hl_variable" href="namespacesecp256k1_1_1coins.html#af8584b5a9a5909c5fe48b5d0e747a4e9">DigiByte</a> = {</div>
 <div class="line"><a id="l00244" name="l00244"></a><span class="lineno">  244</span>    .<a class="code hl_variable" href="structsecp256k1_1_1coins_1_1CoinParams.html#a12d1e5759867e1d5f5910dd9766eb99a">name</a>               = <span class="stringliteral">&quot;DigiByte&quot;</span>,</div>
@@ -384,7 +384,7 @@ $(document).ready(function(){initNavTree('coin__params_8hpp_source.html',''); in
 <div class="line"><a id="l00259" name="l00259"></a><span class="lineno">  259</span>};</div>
 </div>
 <div class="line"><a id="l00260" name="l00260"></a><span class="lineno">  260</span> </div>
-<div class="line"><a id="l00261" name="l00261"></a><span class="lineno">  261</span><span class="comment">// ── Namecoin (NMC) ───────────────────────────────────────────────────────────</span></div>
+<div class="line"><a id="l00261" name="l00261"></a><span class="lineno">  261</span><span class="comment">// -- Namecoin (NMC) -----------------------------------------------------------</span></div>
 <div class="foldopen" id="foldopen00262" data-start="{" data-end="};">
 <div class="line"><a id="l00262" name="l00262"></a><span class="lineno"><a class="line" href="namespacesecp256k1_1_1coins.html#a2b213e0327a73e15d8084f46ea89fb5c">  262</a></span><span class="keyword">inline</span> <span class="keyword">constexpr</span> <a class="code hl_struct" href="structsecp256k1_1_1coins_1_1CoinParams.html">CoinParams</a> <a class="code hl_variable" href="namespacesecp256k1_1_1coins.html#a2b213e0327a73e15d8084f46ea89fb5c">Namecoin</a> = {</div>
 <div class="line"><a id="l00263" name="l00263"></a><span class="lineno">  263</span>    .<a class="code hl_variable" href="structsecp256k1_1_1coins_1_1CoinParams.html#a12d1e5759867e1d5f5910dd9766eb99a">name</a>               = <span class="stringliteral">&quot;Namecoin&quot;</span>,</div>
@@ -405,7 +405,7 @@ $(document).ready(function(){initNavTree('coin__params_8hpp_source.html',''); in
 <div class="line"><a id="l00278" name="l00278"></a><span class="lineno">  278</span>};</div>
 </div>
 <div class="line"><a id="l00279" name="l00279"></a><span class="lineno">  279</span> </div>
-<div class="line"><a id="l00280" name="l00280"></a><span class="lineno">  280</span><span class="comment">// ── Peercoin (PPC) ───────────────────────────────────────────────────────────</span></div>
+<div class="line"><a id="l00280" name="l00280"></a><span class="lineno">  280</span><span class="comment">// -- Peercoin (PPC) -----------------------------------------------------------</span></div>
 <div class="foldopen" id="foldopen00281" data-start="{" data-end="};">
 <div class="line"><a id="l00281" name="l00281"></a><span class="lineno"><a class="line" href="namespacesecp256k1_1_1coins.html#ad161d866561cfc0413329d61f08b9b5b">  281</a></span><span class="keyword">inline</span> <span class="keyword">constexpr</span> <a class="code hl_struct" href="structsecp256k1_1_1coins_1_1CoinParams.html">CoinParams</a> <a class="code hl_variable" href="namespacesecp256k1_1_1coins.html#ad161d866561cfc0413329d61f08b9b5b">Peercoin</a> = {</div>
 <div class="line"><a id="l00282" name="l00282"></a><span class="lineno">  282</span>    .<a class="code hl_variable" href="structsecp256k1_1_1coins_1_1CoinParams.html#a12d1e5759867e1d5f5910dd9766eb99a">name</a>               = <span class="stringliteral">&quot;Peercoin&quot;</span>,</div>
@@ -426,7 +426,7 @@ $(document).ready(function(){initNavTree('coin__params_8hpp_source.html',''); in
 <div class="line"><a id="l00297" name="l00297"></a><span class="lineno">  297</span>};</div>
 </div>
 <div class="line"><a id="l00298" name="l00298"></a><span class="lineno">  298</span> </div>
-<div class="line"><a id="l00299" name="l00299"></a><span class="lineno">  299</span><span class="comment">// ── Vertcoin (VTC) ───────────────────────────────────────────────────────────</span></div>
+<div class="line"><a id="l00299" name="l00299"></a><span class="lineno">  299</span><span class="comment">// -- Vertcoin (VTC) -----------------------------------------------------------</span></div>
 <div class="foldopen" id="foldopen00300" data-start="{" data-end="};">
 <div class="line"><a id="l00300" name="l00300"></a><span class="lineno"><a class="line" href="namespacesecp256k1_1_1coins.html#a70b837939709bbc5a1eba5bb399844ef">  300</a></span><span class="keyword">inline</span> <span class="keyword">constexpr</span> <a class="code hl_struct" href="structsecp256k1_1_1coins_1_1CoinParams.html">CoinParams</a> <a class="code hl_variable" href="namespacesecp256k1_1_1coins.html#a70b837939709bbc5a1eba5bb399844ef">Vertcoin</a> = {</div>
 <div class="line"><a id="l00301" name="l00301"></a><span class="lineno">  301</span>    .<a class="code hl_variable" href="structsecp256k1_1_1coins_1_1CoinParams.html#a12d1e5759867e1d5f5910dd9766eb99a">name</a>               = <span class="stringliteral">&quot;Vertcoin&quot;</span>,</div>
@@ -447,7 +447,7 @@ $(document).ready(function(){initNavTree('coin__params_8hpp_source.html',''); in
 <div class="line"><a id="l00316" name="l00316"></a><span class="lineno">  316</span>};</div>
 </div>
 <div class="line"><a id="l00317" name="l00317"></a><span class="lineno">  317</span> </div>
-<div class="line"><a id="l00318" name="l00318"></a><span class="lineno">  318</span><span class="comment">// ── Viacoin (VIA) ────────────────────────────────────────────────────────────</span></div>
+<div class="line"><a id="l00318" name="l00318"></a><span class="lineno">  318</span><span class="comment">// -- Viacoin (VIA) ------------------------------------------------------------</span></div>
 <div class="foldopen" id="foldopen00319" data-start="{" data-end="};">
 <div class="line"><a id="l00319" name="l00319"></a><span class="lineno"><a class="line" href="namespacesecp256k1_1_1coins.html#a29ed3b1245c0b95505e944796b4e59f4">  319</a></span><span class="keyword">inline</span> <span class="keyword">constexpr</span> <a class="code hl_struct" href="structsecp256k1_1_1coins_1_1CoinParams.html">CoinParams</a> <a class="code hl_variable" href="namespacesecp256k1_1_1coins.html#a29ed3b1245c0b95505e944796b4e59f4">Viacoin</a> = {</div>
 <div class="line"><a id="l00320" name="l00320"></a><span class="lineno">  320</span>    .<a class="code hl_variable" href="structsecp256k1_1_1coins_1_1CoinParams.html#a12d1e5759867e1d5f5910dd9766eb99a">name</a>               = <span class="stringliteral">&quot;Viacoin&quot;</span>,</div>
@@ -468,7 +468,7 @@ $(document).ready(function(){initNavTree('coin__params_8hpp_source.html',''); in
 <div class="line"><a id="l00335" name="l00335"></a><span class="lineno">  335</span>};</div>
 </div>
 <div class="line"><a id="l00336" name="l00336"></a><span class="lineno">  336</span> </div>
-<div class="line"><a id="l00337" name="l00337"></a><span class="lineno">  337</span><span class="comment">// ── Groestlcoin (GRS) ────────────────────────────────────────────────────────</span></div>
+<div class="line"><a id="l00337" name="l00337"></a><span class="lineno">  337</span><span class="comment">// -- Groestlcoin (GRS) --------------------------------------------------------</span></div>
 <div class="foldopen" id="foldopen00338" data-start="{" data-end="};">
 <div class="line"><a id="l00338" name="l00338"></a><span class="lineno"><a class="line" href="namespacesecp256k1_1_1coins.html#ad4a6bedd62cdee8e37ca99ab6dd8a1b4">  338</a></span><span class="keyword">inline</span> <span class="keyword">constexpr</span> <a class="code hl_struct" href="structsecp256k1_1_1coins_1_1CoinParams.html">CoinParams</a> <a class="code hl_variable" href="namespacesecp256k1_1_1coins.html#ad4a6bedd62cdee8e37ca99ab6dd8a1b4">Groestlcoin</a> = {</div>
 <div class="line"><a id="l00339" name="l00339"></a><span class="lineno">  339</span>    .<a class="code hl_variable" href="structsecp256k1_1_1coins_1_1CoinParams.html#a12d1e5759867e1d5f5910dd9766eb99a">name</a>               = <span class="stringliteral">&quot;Groestlcoin&quot;</span>,</div>
@@ -489,7 +489,7 @@ $(document).ready(function(){initNavTree('coin__params_8hpp_source.html',''); in
 <div class="line"><a id="l00354" name="l00354"></a><span class="lineno">  354</span>};</div>
 </div>
 <div class="line"><a id="l00355" name="l00355"></a><span class="lineno">  355</span> </div>
-<div class="line"><a id="l00356" name="l00356"></a><span class="lineno">  356</span><span class="comment">// ── Syscoin (SYS) ────────────────────────────────────────────────────────────</span></div>
+<div class="line"><a id="l00356" name="l00356"></a><span class="lineno">  356</span><span class="comment">// -- Syscoin (SYS) ------------------------------------------------------------</span></div>
 <div class="foldopen" id="foldopen00357" data-start="{" data-end="};">
 <div class="line"><a id="l00357" name="l00357"></a><span class="lineno"><a class="line" href="namespacesecp256k1_1_1coins.html#a1720afe3709d38993d496c8a7c810e96">  357</a></span><span class="keyword">inline</span> <span class="keyword">constexpr</span> <a class="code hl_struct" href="structsecp256k1_1_1coins_1_1CoinParams.html">CoinParams</a> <a class="code hl_variable" href="namespacesecp256k1_1_1coins.html#a1720afe3709d38993d496c8a7c810e96">Syscoin</a> = {</div>
 <div class="line"><a id="l00358" name="l00358"></a><span class="lineno">  358</span>    .<a class="code hl_variable" href="structsecp256k1_1_1coins_1_1CoinParams.html#a12d1e5759867e1d5f5910dd9766eb99a">name</a>               = <span class="stringliteral">&quot;Syscoin&quot;</span>,</div>
@@ -510,7 +510,7 @@ $(document).ready(function(){initNavTree('coin__params_8hpp_source.html',''); in
 <div class="line"><a id="l00373" name="l00373"></a><span class="lineno">  373</span>};</div>
 </div>
 <div class="line"><a id="l00374" name="l00374"></a><span class="lineno">  374</span> </div>
-<div class="line"><a id="l00375" name="l00375"></a><span class="lineno">  375</span><span class="comment">// ── BNB Smart Chain (BNB) ────────────────────────────────────────────────────</span></div>
+<div class="line"><a id="l00375" name="l00375"></a><span class="lineno">  375</span><span class="comment">// -- BNB Smart Chain (BNB) ----------------------------------------------------</span></div>
 <div class="foldopen" id="foldopen00376" data-start="{" data-end="};">
 <div class="line"><a id="l00376" name="l00376"></a><span class="lineno"><a class="line" href="namespacesecp256k1_1_1coins.html#a76432ddb4aad2093674906d6ab3de77c">  376</a></span><span class="keyword">inline</span> <span class="keyword">constexpr</span> <a class="code hl_struct" href="structsecp256k1_1_1coins_1_1CoinParams.html">CoinParams</a> <a class="code hl_variable" href="namespacesecp256k1_1_1coins.html#a76432ddb4aad2093674906d6ab3de77c">BNBSmartChain</a> = {</div>
 <div class="line"><a id="l00377" name="l00377"></a><span class="lineno">  377</span>    .<a class="code hl_variable" href="structsecp256k1_1_1coins_1_1CoinParams.html#a12d1e5759867e1d5f5910dd9766eb99a">name</a>               = <span class="stringliteral">&quot;BNB Smart Chain&quot;</span>,</div>
@@ -531,7 +531,7 @@ $(document).ready(function(){initNavTree('coin__params_8hpp_source.html',''); in
 <div class="line"><a id="l00392" name="l00392"></a><span class="lineno">  392</span>};</div>
 </div>
 <div class="line"><a id="l00393" name="l00393"></a><span class="lineno">  393</span> </div>
-<div class="line"><a id="l00394" name="l00394"></a><span class="lineno">  394</span><span class="comment">// ── Polygon (MATIC / POL) ────────────────────────────────────────────────────</span></div>
+<div class="line"><a id="l00394" name="l00394"></a><span class="lineno">  394</span><span class="comment">// -- Polygon (MATIC / POL) ----------------------------------------------------</span></div>
 <div class="foldopen" id="foldopen00395" data-start="{" data-end="};">
 <div class="line"><a id="l00395" name="l00395"></a><span class="lineno"><a class="line" href="namespacesecp256k1_1_1coins.html#af39cdac6b34b6dc59104bf2d5cf68029">  395</a></span><span class="keyword">inline</span> <span class="keyword">constexpr</span> <a class="code hl_struct" href="structsecp256k1_1_1coins_1_1CoinParams.html">CoinParams</a> <a class="code hl_variable" href="namespacesecp256k1_1_1coins.html#af39cdac6b34b6dc59104bf2d5cf68029">Polygon</a> = {</div>
 <div class="line"><a id="l00396" name="l00396"></a><span class="lineno">  396</span>    .<a class="code hl_variable" href="structsecp256k1_1_1coins_1_1CoinParams.html#a12d1e5759867e1d5f5910dd9766eb99a">name</a>               = <span class="stringliteral">&quot;Polygon&quot;</span>,</div>
@@ -552,7 +552,7 @@ $(document).ready(function(){initNavTree('coin__params_8hpp_source.html',''); in
 <div class="line"><a id="l00411" name="l00411"></a><span class="lineno">  411</span>};</div>
 </div>
 <div class="line"><a id="l00412" name="l00412"></a><span class="lineno">  412</span> </div>
-<div class="line"><a id="l00413" name="l00413"></a><span class="lineno">  413</span><span class="comment">// ── Avalanche C-Chain (AVAX) ─────────────────────────────────────────────────</span></div>
+<div class="line"><a id="l00413" name="l00413"></a><span class="lineno">  413</span><span class="comment">// -- Avalanche C-Chain (AVAX) -------------------------------------------------</span></div>
 <div class="foldopen" id="foldopen00414" data-start="{" data-end="};">
 <div class="line"><a id="l00414" name="l00414"></a><span class="lineno"><a class="line" href="namespacesecp256k1_1_1coins.html#a687e77712b00dfcd4cac5a6814dd0c31">  414</a></span><span class="keyword">inline</span> <span class="keyword">constexpr</span> <a class="code hl_struct" href="structsecp256k1_1_1coins_1_1CoinParams.html">CoinParams</a> <a class="code hl_variable" href="namespacesecp256k1_1_1coins.html#a687e77712b00dfcd4cac5a6814dd0c31">Avalanche</a> = {</div>
 <div class="line"><a id="l00415" name="l00415"></a><span class="lineno">  415</span>    .<a class="code hl_variable" href="structsecp256k1_1_1coins_1_1CoinParams.html#a12d1e5759867e1d5f5910dd9766eb99a">name</a>               = <span class="stringliteral">&quot;Avalanche&quot;</span>,</div>
@@ -573,7 +573,7 @@ $(document).ready(function(){initNavTree('coin__params_8hpp_source.html',''); in
 <div class="line"><a id="l00430" name="l00430"></a><span class="lineno">  430</span>};</div>
 </div>
 <div class="line"><a id="l00431" name="l00431"></a><span class="lineno">  431</span> </div>
-<div class="line"><a id="l00432" name="l00432"></a><span class="lineno">  432</span><span class="comment">// ── Fantom (FTM) ─────────────────────────────────────────────────────────────</span></div>
+<div class="line"><a id="l00432" name="l00432"></a><span class="lineno">  432</span><span class="comment">// -- Fantom (FTM) -------------------------------------------------------------</span></div>
 <div class="foldopen" id="foldopen00433" data-start="{" data-end="};">
 <div class="line"><a id="l00433" name="l00433"></a><span class="lineno"><a class="line" href="namespacesecp256k1_1_1coins.html#ab03b1ab58695ee79859c2e251c81194a">  433</a></span><span class="keyword">inline</span> <span class="keyword">constexpr</span> <a class="code hl_struct" href="structsecp256k1_1_1coins_1_1CoinParams.html">CoinParams</a> <a class="code hl_variable" href="namespacesecp256k1_1_1coins.html#ab03b1ab58695ee79859c2e251c81194a">Fantom</a> = {</div>
 <div class="line"><a id="l00434" name="l00434"></a><span class="lineno">  434</span>    .<a class="code hl_variable" href="structsecp256k1_1_1coins_1_1CoinParams.html#a12d1e5759867e1d5f5910dd9766eb99a">name</a>               = <span class="stringliteral">&quot;Fantom&quot;</span>,</div>
@@ -594,7 +594,7 @@ $(document).ready(function(){initNavTree('coin__params_8hpp_source.html',''); in
 <div class="line"><a id="l00449" name="l00449"></a><span class="lineno">  449</span>};</div>
 </div>
 <div class="line"><a id="l00450" name="l00450"></a><span class="lineno">  450</span> </div>
-<div class="line"><a id="l00451" name="l00451"></a><span class="lineno">  451</span><span class="comment">// ── Arbitrum (ARB) ───────────────────────────────────────────────────────────</span></div>
+<div class="line"><a id="l00451" name="l00451"></a><span class="lineno">  451</span><span class="comment">// -- Arbitrum (ARB) -----------------------------------------------------------</span></div>
 <div class="foldopen" id="foldopen00452" data-start="{" data-end="};">
 <div class="line"><a id="l00452" name="l00452"></a><span class="lineno"><a class="line" href="namespacesecp256k1_1_1coins.html#ac0e162c11624302a1b1bfa1c30813dd6">  452</a></span><span class="keyword">inline</span> <span class="keyword">constexpr</span> <a class="code hl_struct" href="structsecp256k1_1_1coins_1_1CoinParams.html">CoinParams</a> <a class="code hl_variable" href="namespacesecp256k1_1_1coins.html#ac0e162c11624302a1b1bfa1c30813dd6">Arbitrum</a> = {</div>
 <div class="line"><a id="l00453" name="l00453"></a><span class="lineno">  453</span>    .<a class="code hl_variable" href="structsecp256k1_1_1coins_1_1CoinParams.html#a12d1e5759867e1d5f5910dd9766eb99a">name</a>               = <span class="stringliteral">&quot;Arbitrum&quot;</span>,</div>
@@ -615,7 +615,7 @@ $(document).ready(function(){initNavTree('coin__params_8hpp_source.html',''); in
 <div class="line"><a id="l00468" name="l00468"></a><span class="lineno">  468</span>};</div>
 </div>
 <div class="line"><a id="l00469" name="l00469"></a><span class="lineno">  469</span> </div>
-<div class="line"><a id="l00470" name="l00470"></a><span class="lineno">  470</span><span class="comment">// ── Optimism (OP) ────────────────────────────────────────────────────────────</span></div>
+<div class="line"><a id="l00470" name="l00470"></a><span class="lineno">  470</span><span class="comment">// -- Optimism (OP) ------------------------------------------------------------</span></div>
 <div class="foldopen" id="foldopen00471" data-start="{" data-end="};">
 <div class="line"><a id="l00471" name="l00471"></a><span class="lineno"><a class="line" href="namespacesecp256k1_1_1coins.html#a3dca5afd650bd11449db34f9fc63c4a9">  471</a></span><span class="keyword">inline</span> <span class="keyword">constexpr</span> <a class="code hl_struct" href="structsecp256k1_1_1coins_1_1CoinParams.html">CoinParams</a> <a class="code hl_variable" href="namespacesecp256k1_1_1coins.html#a3dca5afd650bd11449db34f9fc63c4a9">Optimism</a> = {</div>
 <div class="line"><a id="l00472" name="l00472"></a><span class="lineno">  472</span>    .<a class="code hl_variable" href="structsecp256k1_1_1coins_1_1CoinParams.html#a12d1e5759867e1d5f5910dd9766eb99a">name</a>               = <span class="stringliteral">&quot;Optimism&quot;</span>,</div>
@@ -636,7 +636,7 @@ $(document).ready(function(){initNavTree('coin__params_8hpp_source.html',''); in
 <div class="line"><a id="l00487" name="l00487"></a><span class="lineno">  487</span>};</div>
 </div>
 <div class="line"><a id="l00488" name="l00488"></a><span class="lineno">  488</span> </div>
-<div class="line"><a id="l00489" name="l00489"></a><span class="lineno">  489</span><span class="comment">// ── Ravencoin (RVN) ──────────────────────────────────────────────────────────</span></div>
+<div class="line"><a id="l00489" name="l00489"></a><span class="lineno">  489</span><span class="comment">// -- Ravencoin (RVN) ----------------------------------------------------------</span></div>
 <div class="foldopen" id="foldopen00490" data-start="{" data-end="};">
 <div class="line"><a id="l00490" name="l00490"></a><span class="lineno"><a class="line" href="namespacesecp256k1_1_1coins.html#ac6b0477033f1a1058c2959fd4316c59a">  490</a></span><span class="keyword">inline</span> <span class="keyword">constexpr</span> <a class="code hl_struct" href="structsecp256k1_1_1coins_1_1CoinParams.html">CoinParams</a> <a class="code hl_variable" href="namespacesecp256k1_1_1coins.html#ac6b0477033f1a1058c2959fd4316c59a">Ravencoin</a> = {</div>
 <div class="line"><a id="l00491" name="l00491"></a><span class="lineno">  491</span>    .<a class="code hl_variable" href="structsecp256k1_1_1coins_1_1CoinParams.html#a12d1e5759867e1d5f5910dd9766eb99a">name</a>               = <span class="stringliteral">&quot;Ravencoin&quot;</span>,</div>
@@ -657,7 +657,7 @@ $(document).ready(function(){initNavTree('coin__params_8hpp_source.html',''); in
 <div class="line"><a id="l00506" name="l00506"></a><span class="lineno">  506</span>};</div>
 </div>
 <div class="line"><a id="l00507" name="l00507"></a><span class="lineno">  507</span> </div>
-<div class="line"><a id="l00508" name="l00508"></a><span class="lineno">  508</span><span class="comment">// ── Flux (FLUX) ──────────────────────────────────────────────────────────────</span></div>
+<div class="line"><a id="l00508" name="l00508"></a><span class="lineno">  508</span><span class="comment">// -- Flux (FLUX) --------------------------------------------------------------</span></div>
 <div class="foldopen" id="foldopen00509" data-start="{" data-end="};">
 <div class="line"><a id="l00509" name="l00509"></a><span class="lineno"><a class="line" href="namespacesecp256k1_1_1coins.html#a9a573eecbcb84bef02367ba24a94442f">  509</a></span><span class="keyword">inline</span> <span class="keyword">constexpr</span> <a class="code hl_struct" href="structsecp256k1_1_1coins_1_1CoinParams.html">CoinParams</a> <a class="code hl_variable" href="namespacesecp256k1_1_1coins.html#a9a573eecbcb84bef02367ba24a94442f">Flux</a> = {</div>
 <div class="line"><a id="l00510" name="l00510"></a><span class="lineno">  510</span>    .<a class="code hl_variable" href="structsecp256k1_1_1coins_1_1CoinParams.html#a12d1e5759867e1d5f5910dd9766eb99a">name</a>               = <span class="stringliteral">&quot;Flux&quot;</span>,</div>
@@ -678,7 +678,7 @@ $(document).ready(function(){initNavTree('coin__params_8hpp_source.html',''); in
 <div class="line"><a id="l00525" name="l00525"></a><span class="lineno">  525</span>};</div>
 </div>
 <div class="line"><a id="l00526" name="l00526"></a><span class="lineno">  526</span> </div>
-<div class="line"><a id="l00527" name="l00527"></a><span class="lineno">  527</span><span class="comment">// ── Qtum (QTUM) ──────────────────────────────────────────────────────────────</span></div>
+<div class="line"><a id="l00527" name="l00527"></a><span class="lineno">  527</span><span class="comment">// -- Qtum (QTUM) --------------------------------------------------------------</span></div>
 <div class="foldopen" id="foldopen00528" data-start="{" data-end="};">
 <div class="line"><a id="l00528" name="l00528"></a><span class="lineno"><a class="line" href="namespacesecp256k1_1_1coins.html#a8afd0775b34eec6206fbe1d3b782c7df">  528</a></span><span class="keyword">inline</span> <span class="keyword">constexpr</span> <a class="code hl_struct" href="structsecp256k1_1_1coins_1_1CoinParams.html">CoinParams</a> <a class="code hl_variable" href="namespacesecp256k1_1_1coins.html#a8afd0775b34eec6206fbe1d3b782c7df">Qtum</a> = {</div>
 <div class="line"><a id="l00529" name="l00529"></a><span class="lineno">  529</span>    .<a class="code hl_variable" href="structsecp256k1_1_1coins_1_1CoinParams.html#a12d1e5759867e1d5f5910dd9766eb99a">name</a>               = <span class="stringliteral">&quot;Qtum&quot;</span>,</div>
@@ -699,7 +699,7 @@ $(document).ready(function(){initNavTree('coin__params_8hpp_source.html',''); in
 <div class="line"><a id="l00544" name="l00544"></a><span class="lineno">  544</span>};</div>
 </div>
 <div class="line"><a id="l00545" name="l00545"></a><span class="lineno">  545</span> </div>
-<div class="line"><a id="l00546" name="l00546"></a><span class="lineno">  546</span><span class="comment">// ── Horizen (ZEN) ────────────────────────────────────────────────────────────</span></div>
+<div class="line"><a id="l00546" name="l00546"></a><span class="lineno">  546</span><span class="comment">// -- Horizen (ZEN) ------------------------------------------------------------</span></div>
 <div class="foldopen" id="foldopen00547" data-start="{" data-end="};">
 <div class="line"><a id="l00547" name="l00547"></a><span class="lineno"><a class="line" href="namespacesecp256k1_1_1coins.html#a1854f765e4e0cd90d8d1fa8e878acaf6">  547</a></span><span class="keyword">inline</span> <span class="keyword">constexpr</span> <a class="code hl_struct" href="structsecp256k1_1_1coins_1_1CoinParams.html">CoinParams</a> <a class="code hl_variable" href="namespacesecp256k1_1_1coins.html#a1854f765e4e0cd90d8d1fa8e878acaf6">Horizen</a> = {</div>
 <div class="line"><a id="l00548" name="l00548"></a><span class="lineno">  548</span>    .<a class="code hl_variable" href="structsecp256k1_1_1coins_1_1CoinParams.html#a12d1e5759867e1d5f5910dd9766eb99a">name</a>               = <span class="stringliteral">&quot;Horizen&quot;</span>,</div>
@@ -720,7 +720,7 @@ $(document).ready(function(){initNavTree('coin__params_8hpp_source.html',''); in
 <div class="line"><a id="l00563" name="l00563"></a><span class="lineno">  563</span>};</div>
 </div>
 <div class="line"><a id="l00564" name="l00564"></a><span class="lineno">  564</span> </div>
-<div class="line"><a id="l00565" name="l00565"></a><span class="lineno">  565</span><span class="comment">// ── Bitcoin Gold (BTG) ───────────────────────────────────────────────────────</span></div>
+<div class="line"><a id="l00565" name="l00565"></a><span class="lineno">  565</span><span class="comment">// -- Bitcoin Gold (BTG) -------------------------------------------------------</span></div>
 <div class="foldopen" id="foldopen00566" data-start="{" data-end="};">
 <div class="line"><a id="l00566" name="l00566"></a><span class="lineno"><a class="line" href="namespacesecp256k1_1_1coins.html#a4938787c2a5b525a86bb70c44fb3f385">  566</a></span><span class="keyword">inline</span> <span class="keyword">constexpr</span> <a class="code hl_struct" href="structsecp256k1_1_1coins_1_1CoinParams.html">CoinParams</a> <a class="code hl_variable" href="namespacesecp256k1_1_1coins.html#a4938787c2a5b525a86bb70c44fb3f385">BitcoinGold</a> = {</div>
 <div class="line"><a id="l00567" name="l00567"></a><span class="lineno">  567</span>    .<a class="code hl_variable" href="structsecp256k1_1_1coins_1_1CoinParams.html#a12d1e5759867e1d5f5910dd9766eb99a">name</a>               = <span class="stringliteral">&quot;Bitcoin Gold&quot;</span>,</div>
@@ -741,7 +741,7 @@ $(document).ready(function(){initNavTree('coin__params_8hpp_source.html',''); in
 <div class="line"><a id="l00582" name="l00582"></a><span class="lineno">  582</span>};</div>
 </div>
 <div class="line"><a id="l00583" name="l00583"></a><span class="lineno">  583</span> </div>
-<div class="line"><a id="l00584" name="l00584"></a><span class="lineno">  584</span><span class="comment">// ── Komodo (KMD) ─────────────────────────────────────────────────────────────</span></div>
+<div class="line"><a id="l00584" name="l00584"></a><span class="lineno">  584</span><span class="comment">// -- Komodo (KMD) -------------------------------------------------------------</span></div>
 <div class="foldopen" id="foldopen00585" data-start="{" data-end="};">
 <div class="line"><a id="l00585" name="l00585"></a><span class="lineno"><a class="line" href="namespacesecp256k1_1_1coins.html#a9d201e64ae77de5a741877bc933592ac">  585</a></span><span class="keyword">inline</span> <span class="keyword">constexpr</span> <a class="code hl_struct" href="structsecp256k1_1_1coins_1_1CoinParams.html">CoinParams</a> <a class="code hl_variable" href="namespacesecp256k1_1_1coins.html#a9d201e64ae77de5a741877bc933592ac">Komodo</a> = {</div>
 <div class="line"><a id="l00586" name="l00586"></a><span class="lineno">  586</span>    .<a class="code hl_variable" href="structsecp256k1_1_1coins_1_1CoinParams.html#a12d1e5759867e1d5f5910dd9766eb99a">name</a>               = <span class="stringliteral">&quot;Komodo&quot;</span>,</div>
@@ -763,7 +763,7 @@ $(document).ready(function(){initNavTree('coin__params_8hpp_source.html',''); in
 </div>
 <div class="line"><a id="l00602" name="l00602"></a><span class="lineno">  602</span> </div>
 <div class="line"><a id="l00603" name="l00603"></a><span class="lineno">  603</span><span class="comment">// ============================================================================</span></div>
-<div class="line"><a id="l00604" name="l00604"></a><span class="lineno">  604</span><span class="comment">// Coin Registry — Lookup by coin_type or ticker</span></div>
+<div class="line"><a id="l00604" name="l00604"></a><span class="lineno">  604</span><span class="comment">// Coin Registry -- Lookup by coin_type or ticker</span></div>
 <div class="line"><a id="l00605" name="l00605"></a><span class="lineno">  605</span><span class="comment">// ============================================================================</span></div>
 <div class="line"><a id="l00606" name="l00606"></a><span class="lineno">  606</span> </div>
 <div class="line"><a id="l00607" name="l00607"></a><span class="lineno">  607</span><span class="comment">// All predefined coins for iteration</span></div>

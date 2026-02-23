@@ -25,7 +25,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.10.0</span>
+   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.11.0</span>
    </div>
    <div id="projectbrief">Ultra high-performance secp256k1 elliptic curve cryptography library</div>
   </td>
@@ -99,7 +99,7 @@ $(document).ready(function(){initNavTree('include_2secp256k1_2types_8hpp_source.
 </div><!--header-->
 <div class="contents">
 <a href="include_2secp256k1_2types_8hpp.html">Go to the documentation of this file.</a><div class="fragment"><div class="line"><a id="l00001" name="l00001"></a><span class="lineno">    1</span><span class="comment">// =============================================================================</span></div>
-<div class="line"><a id="l00002" name="l00002"></a><span class="lineno">    2</span><span class="comment">// UltrafastSecp256k1 — Shared POD Data Types</span></div>
+<div class="line"><a id="l00002" name="l00002"></a><span class="lineno">    2</span><span class="comment">// UltrafastSecp256k1 -- Shared POD Data Types</span></div>
 <div class="line"><a id="l00003" name="l00003"></a><span class="lineno">    3</span><span class="comment">// =============================================================================</span></div>
 <div class="line"><a id="l00004" name="l00004"></a><span class="lineno">    4</span><span class="comment">// Canonical data layouts for secp256k1 field elements, scalars, and points.</span></div>
 <div class="line"><a id="l00005" name="l00005"></a><span class="lineno">    5</span><span class="comment">// These types define the MEMORY LAYOUT contract between all backends</span></div>
@@ -124,39 +124,39 @@ $(document).ready(function(){initNavTree('include_2secp256k1_2types_8hpp_source.
 <div class="line"><a id="l00024" name="l00024"></a><span class="lineno">   24</span> </div>
 <div class="line"><a id="l00025" name="l00025"></a><span class="lineno">   25</span><span class="keyword">namespace </span><a class="code hl_namespace" href="namespacesecp256k1.html">secp256k1</a> {</div>
 <div class="line"><a id="l00026" name="l00026"></a><span class="lineno">   26</span> </div>
-<div class="line"><a id="l00027" name="l00027"></a><span class="lineno">   27</span><span class="comment">// ─────────────────────────────────────────────────────────────────────────────</span></div>
+<div class="line"><a id="l00027" name="l00027"></a><span class="lineno">   27</span><span class="comment">// -----------------------------------------------------------------------------</span></div>
 <div class="line"><a id="l00028" name="l00028"></a><span class="lineno">   28</span><span class="comment">// Field element: 256-bit integer mod p (secp256k1 prime)</span></div>
 <div class="line"><a id="l00029" name="l00029"></a><span class="lineno">   29</span><span class="comment">// p = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F</span></div>
-<div class="line"><a id="l00030" name="l00030"></a><span class="lineno">   30</span><span class="comment">// ─────────────────────────────────────────────────────────────────────────────</span></div>
+<div class="line"><a id="l00030" name="l00030"></a><span class="lineno">   30</span><span class="comment">// -----------------------------------------------------------------------------</span></div>
 <div class="foldopen" id="foldopen00031" data-start="{" data-end="};">
 <div class="line"><a id="l00031" name="l00031"></a><span class="lineno"><a class="line" href="structsecp256k1_1_1FieldElementData.html">   31</a></span><span class="keyword">struct </span><a class="code hl_struct" href="structsecp256k1_1_1FieldElementData.html">FieldElementData</a> {</div>
 <div class="line"><a id="l00032" name="l00032"></a><span class="lineno"><a class="line" href="structsecp256k1_1_1FieldElementData.html#a2ded31b1bdf973e35ade41240bc96bb9">   32</a></span>    uint64_t <a class="code hl_variable" href="structsecp256k1_1_1FieldElementData.html#a2ded31b1bdf973e35ade41240bc96bb9">limbs</a>[4];  <span class="comment">// Little-endian: limbs[0] = bits [0..63]</span></div>
 <div class="line"><a id="l00033" name="l00033"></a><span class="lineno">   33</span>};</div>
 </div>
 <div class="line"><a id="l00034" name="l00034"></a><span class="lineno">   34</span> </div>
-<div class="line"><a id="l00035" name="l00035"></a><span class="lineno">   35</span><span class="comment">// ─────────────────────────────────────────────────────────────────────────────</span></div>
+<div class="line"><a id="l00035" name="l00035"></a><span class="lineno">   35</span><span class="comment">// -----------------------------------------------------------------------------</span></div>
 <div class="line"><a id="l00036" name="l00036"></a><span class="lineno">   36</span><span class="comment">// 32-bit view of field element (same 256 bits, different interpretation)</span></div>
-<div class="line"><a id="l00037" name="l00037"></a><span class="lineno">   37</span><span class="comment">// Memory layout is IDENTICAL to FieldElementData — safe to reinterpret_cast</span></div>
-<div class="line"><a id="l00038" name="l00038"></a><span class="lineno">   38</span><span class="comment">// ─────────────────────────────────────────────────────────────────────────────</span></div>
+<div class="line"><a id="l00037" name="l00037"></a><span class="lineno">   37</span><span class="comment">// Memory layout is IDENTICAL to FieldElementData -- safe to reinterpret_cast</span></div>
+<div class="line"><a id="l00038" name="l00038"></a><span class="lineno">   38</span><span class="comment">// -----------------------------------------------------------------------------</span></div>
 <div class="foldopen" id="foldopen00039" data-start="{" data-end="};">
 <div class="line"><a id="l00039" name="l00039"></a><span class="lineno"><a class="line" href="structsecp256k1_1_1MidFieldElementData.html">   39</a></span><span class="keyword">struct </span><a class="code hl_struct" href="structsecp256k1_1_1MidFieldElementData.html">MidFieldElementData</a> {</div>
 <div class="line"><a id="l00040" name="l00040"></a><span class="lineno"><a class="line" href="structsecp256k1_1_1MidFieldElementData.html#ac940c01594bd9eaddfd7404290fbbb28">   40</a></span>    uint32_t <a class="code hl_variable" href="structsecp256k1_1_1MidFieldElementData.html#ac940c01594bd9eaddfd7404290fbbb28">limbs</a>[8];  <span class="comment">// Little-endian: limbs[0] = bits [0..31]</span></div>
 <div class="line"><a id="l00041" name="l00041"></a><span class="lineno">   41</span>};</div>
 </div>
 <div class="line"><a id="l00042" name="l00042"></a><span class="lineno">   42</span> </div>
-<div class="line"><a id="l00043" name="l00043"></a><span class="lineno">   43</span><span class="comment">// ─────────────────────────────────────────────────────────────────────────────</span></div>
+<div class="line"><a id="l00043" name="l00043"></a><span class="lineno">   43</span><span class="comment">// -----------------------------------------------------------------------------</span></div>
 <div class="line"><a id="l00044" name="l00044"></a><span class="lineno">   44</span><span class="comment">// Scalar: 256-bit integer mod n (curve order)</span></div>
 <div class="line"><a id="l00045" name="l00045"></a><span class="lineno">   45</span><span class="comment">// n = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141</span></div>
-<div class="line"><a id="l00046" name="l00046"></a><span class="lineno">   46</span><span class="comment">// ─────────────────────────────────────────────────────────────────────────────</span></div>
+<div class="line"><a id="l00046" name="l00046"></a><span class="lineno">   46</span><span class="comment">// -----------------------------------------------------------------------------</span></div>
 <div class="foldopen" id="foldopen00047" data-start="{" data-end="};">
 <div class="line"><a id="l00047" name="l00047"></a><span class="lineno"><a class="line" href="structsecp256k1_1_1ScalarData.html">   47</a></span><span class="keyword">struct </span><a class="code hl_struct" href="structsecp256k1_1_1ScalarData.html">ScalarData</a> {</div>
 <div class="line"><a id="l00048" name="l00048"></a><span class="lineno"><a class="line" href="structsecp256k1_1_1ScalarData.html#ae407462b76480b74153ba5bf47e5f1e0">   48</a></span>    uint64_t <a class="code hl_variable" href="structsecp256k1_1_1ScalarData.html#ae407462b76480b74153ba5bf47e5f1e0">limbs</a>[4];  <span class="comment">// Little-endian: limbs[0] = bits [0..63]</span></div>
 <div class="line"><a id="l00049" name="l00049"></a><span class="lineno">   49</span>};</div>
 </div>
 <div class="line"><a id="l00050" name="l00050"></a><span class="lineno">   50</span> </div>
-<div class="line"><a id="l00051" name="l00051"></a><span class="lineno">   51</span><span class="comment">// ─────────────────────────────────────────────────────────────────────────────</span></div>
-<div class="line"><a id="l00052" name="l00052"></a><span class="lineno">   52</span><span class="comment">// Affine point: (x, y) on the curve y² = x³ + 7</span></div>
-<div class="line"><a id="l00053" name="l00053"></a><span class="lineno">   53</span><span class="comment">// ─────────────────────────────────────────────────────────────────────────────</span></div>
+<div class="line"><a id="l00051" name="l00051"></a><span class="lineno">   51</span><span class="comment">// -----------------------------------------------------------------------------</span></div>
+<div class="line"><a id="l00052" name="l00052"></a><span class="lineno">   52</span><span class="comment">// Affine point: (x, y) on the curve y^2 = x^3 + 7</span></div>
+<div class="line"><a id="l00053" name="l00053"></a><span class="lineno">   53</span><span class="comment">// -----------------------------------------------------------------------------</span></div>
 <div class="foldopen" id="foldopen00054" data-start="{" data-end="};">
 <div class="line"><a id="l00054" name="l00054"></a><span class="lineno"><a class="line" href="structsecp256k1_1_1AffinePointData.html">   54</a></span><span class="keyword">struct </span><a class="code hl_struct" href="structsecp256k1_1_1AffinePointData.html">AffinePointData</a> {</div>
 <div class="line"><a id="l00055" name="l00055"></a><span class="lineno"><a class="line" href="structsecp256k1_1_1AffinePointData.html#a5c0f248080c89f07973d08ae5bb97631">   55</a></span>    <a class="code hl_struct" href="structsecp256k1_1_1FieldElementData.html">FieldElementData</a> <a class="code hl_variable" href="structsecp256k1_1_1AffinePointData.html#a5c0f248080c89f07973d08ae5bb97631">x</a>;</div>
@@ -164,18 +164,18 @@ $(document).ready(function(){initNavTree('include_2secp256k1_2types_8hpp_source.
 <div class="line"><a id="l00057" name="l00057"></a><span class="lineno">   57</span>};</div>
 </div>
 <div class="line"><a id="l00058" name="l00058"></a><span class="lineno">   58</span> </div>
-<div class="line"><a id="l00059" name="l00059"></a><span class="lineno">   59</span><span class="comment">// ─────────────────────────────────────────────────────────────────────────────</span></div>
-<div class="line"><a id="l00060" name="l00060"></a><span class="lineno">   60</span><span class="comment">// Jacobian point: (X, Y, Z) where affine (x, y) = (X/Z², Y/Z³)</span></div>
+<div class="line"><a id="l00059" name="l00059"></a><span class="lineno">   59</span><span class="comment">// -----------------------------------------------------------------------------</span></div>
+<div class="line"><a id="l00060" name="l00060"></a><span class="lineno">   60</span><span class="comment">// Jacobian point: (X, Y, Z) where affine (x, y) = (X/Z^2, Y/Z^3)</span></div>
 <div class="line"><a id="l00061" name="l00061"></a><span class="lineno">   61</span><span class="comment">//</span></div>
 <div class="line"><a id="l00062" name="l00062"></a><span class="lineno">   62</span><span class="comment">// NOTE: The infinity flag representation varies by backend:</span></div>
-<div class="line"><a id="l00063" name="l00063"></a><span class="lineno">   63</span><span class="comment">//   - CPU:    bool   (1 byte)  — inside Point class</span></div>
-<div class="line"><a id="l00064" name="l00064"></a><span class="lineno">   64</span><span class="comment">//   - CUDA:   bool   (1 byte)  — in JacobianPoint struct</span></div>
+<div class="line"><a id="l00063" name="l00063"></a><span class="lineno">   63</span><span class="comment">//   - CPU:    bool   (1 byte)  -- inside Point class</span></div>
+<div class="line"><a id="l00064" name="l00064"></a><span class="lineno">   64</span><span class="comment">//   - CUDA:   bool   (1 byte)  -- in JacobianPoint struct</span></div>
 <div class="line"><a id="l00065" name="l00065"></a><span class="lineno">   65</span><span class="comment">//   - OpenCL: uint32_t (4 bytes, GPU-friendly with padding)</span></div>
 <div class="line"><a id="l00066" name="l00066"></a><span class="lineno">   66</span><span class="comment">//</span></div>
 <div class="line"><a id="l00067" name="l00067"></a><span class="lineno">   67</span><span class="comment">// This reference layout uses uint32_t for maximum portability.</span></div>
 <div class="line"><a id="l00068" name="l00068"></a><span class="lineno">   68</span><span class="comment">// Backends may define their own JacobianPoint with a different infinity type</span></div>
 <div class="line"><a id="l00069" name="l00069"></a><span class="lineno">   69</span><span class="comment">// as long as the x/y/z field offsets match.</span></div>
-<div class="line"><a id="l00070" name="l00070"></a><span class="lineno">   70</span><span class="comment">// ─────────────────────────────────────────────────────────────────────────────</span></div>
+<div class="line"><a id="l00070" name="l00070"></a><span class="lineno">   70</span><span class="comment">// -----------------------------------------------------------------------------</span></div>
 <div class="foldopen" id="foldopen00071" data-start="{" data-end="};">
 <div class="line"><a id="l00071" name="l00071"></a><span class="lineno"><a class="line" href="structsecp256k1_1_1JacobianPointData.html">   71</a></span><span class="keyword">struct </span><a class="code hl_struct" href="structsecp256k1_1_1JacobianPointData.html">JacobianPointData</a> {</div>
 <div class="line"><a id="l00072" name="l00072"></a><span class="lineno"><a class="line" href="structsecp256k1_1_1JacobianPointData.html#a437fb41d9166aae5bb01f09cfab37078">   72</a></span>    <a class="code hl_struct" href="structsecp256k1_1_1FieldElementData.html">FieldElementData</a> <a class="code hl_variable" href="structsecp256k1_1_1JacobianPointData.html#a437fb41d9166aae5bb01f09cfab37078">x</a>;</div>

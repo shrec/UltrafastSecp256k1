@@ -25,7 +25,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.10.0</span>
+   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.11.0</span>
    </div>
    <div id="projectbrief">Ultra high-performance secp256k1 elliptic curve cryptography library</div>
   </td>
@@ -108,7 +108,7 @@ $(document).ready(function(){initNavTree('multiscalar_8hpp_source.html',''); ini
 <div class="line"><a id="l00008" name="l00008"></a><span class="lineno">    8</span><span class="comment">// Computes: R = s1*P1 + s2*P2 + ... + sN*PN</span></div>
 <div class="line"><a id="l00009" name="l00009"></a><span class="lineno">    9</span><span class="comment">//</span></div>
 <div class="line"><a id="l00010" name="l00010"></a><span class="lineno">   10</span><span class="comment">// Algorithms:</span></div>
-<div class="line"><a id="l00011" name="l00011"></a><span class="lineno">   11</span><span class="comment">//   - Strauss (interleaved wNAF): optimal for N ≤ ~128</span></div>
+<div class="line"><a id="l00011" name="l00011"></a><span class="lineno">   11</span><span class="comment">//   - Strauss (interleaved wNAF): optimal for N &lt;= ~128</span></div>
 <div class="line"><a id="l00012" name="l00012"></a><span class="lineno">   12</span><span class="comment">//   - Naive (sequential): fallback / reference</span></div>
 <div class="line"><a id="l00013" name="l00013"></a><span class="lineno">   13</span><span class="comment">//</span></div>
 <div class="line"><a id="l00014" name="l00014"></a><span class="lineno">   14</span><span class="comment">// Also provides Shamir&#39;s trick (2-point special case, used by ECDSA verify).</span></div>
@@ -121,13 +121,13 @@ $(document).ready(function(){initNavTree('multiscalar_8hpp_source.html',''); ini
 <div class="line"><a id="l00021" name="l00021"></a><span class="lineno">   21</span> </div>
 <div class="line"><a id="l00022" name="l00022"></a><span class="lineno">   22</span><span class="keyword">namespace </span><a class="code hl_namespace" href="namespacesecp256k1.html">secp256k1</a> {</div>
 <div class="line"><a id="l00023" name="l00023"></a><span class="lineno">   23</span> </div>
-<div class="line"><a id="l00024" name="l00024"></a><span class="lineno">   24</span><span class="comment">// ── Shamir&#39;s Trick (2-point) ─────────────────────────────────────────────────</span></div>
+<div class="line"><a id="l00024" name="l00024"></a><span class="lineno">   24</span><span class="comment">// -- Shamir&#39;s Trick (2-point) -------------------------------------------------</span></div>
 <div class="line"><a id="l00025" name="l00025"></a><span class="lineno">   25</span><span class="comment">// Computes: R = a*P + b*Q  in a single pass (joint double-and-add).</span></div>
 <div class="line"><a id="l00026" name="l00026"></a><span class="lineno">   26</span><span class="comment">// ~1.5x faster than two separate scalar_mul + add.</span></div>
 <div class="line"><a id="l00027" name="l00027"></a><span class="lineno"><a class="line" href="namespacesecp256k1.html#a710d5963b9ce553b958f007209438faf">   27</a></span><a class="code hl_class" href="classsecp256k1_1_1fast_1_1Point.html">fast::Point</a> <a class="code hl_function" href="namespacesecp256k1.html#a710d5963b9ce553b958f007209438faf">shamir_trick</a>(<span class="keyword">const</span> <a class="code hl_class" href="classsecp256k1_1_1fast_1_1Scalar.html">fast::Scalar</a>&amp; a, <span class="keyword">const</span> <a class="code hl_class" href="classsecp256k1_1_1fast_1_1Point.html">fast::Point</a>&amp; P,</div>
 <div class="line"><a id="l00028" name="l00028"></a><span class="lineno">   28</span>                         <span class="keyword">const</span> <a class="code hl_class" href="classsecp256k1_1_1fast_1_1Scalar.html">fast::Scalar</a>&amp; b, <span class="keyword">const</span> <a class="code hl_class" href="classsecp256k1_1_1fast_1_1Point.html">fast::Point</a>&amp; Q);</div>
 <div class="line"><a id="l00029" name="l00029"></a><span class="lineno">   29</span> </div>
-<div class="line"><a id="l00030" name="l00030"></a><span class="lineno">   30</span><span class="comment">// ── Multi-Scalar Multiplication (Strauss) ────────────────────────────────────</span></div>
+<div class="line"><a id="l00030" name="l00030"></a><span class="lineno">   30</span><span class="comment">// -- Multi-Scalar Multiplication (Strauss) ------------------------------------</span></div>
 <div class="line"><a id="l00031" name="l00031"></a><span class="lineno">   31</span><span class="comment">// Computes: R = sum( scalars[i] * points[i] ) for i in [0, n).</span></div>
 <div class="line"><a id="l00032" name="l00032"></a><span class="lineno">   32</span><span class="comment">// Uses interleaved wNAF (Strauss&#39; algorithm) for efficiency.</span></div>
 <div class="line"><a id="l00033" name="l00033"></a><span class="lineno">   33</span><span class="comment">//</span></div>
@@ -147,9 +147,9 @@ $(document).ready(function(){initNavTree('multiscalar_8hpp_source.html',''); ini
 <div class="line"><a id="l00047" name="l00047"></a><span class="lineno"><a class="line" href="namespacesecp256k1.html#a03ccaf89eefb01c0e251db92af63f745">   47</a></span><a class="code hl_class" href="classsecp256k1_1_1fast_1_1Point.html">fast::Point</a> <a class="code hl_function" href="namespacesecp256k1.html#a882905c11972263399924316d1d2b926">multi_scalar_mul</a>(<span class="keyword">const</span> std::vector&lt;fast::Scalar&gt;&amp; scalars,</div>
 <div class="line"><a id="l00048" name="l00048"></a><span class="lineno">   48</span>                             <span class="keyword">const</span> std::vector&lt;fast::Point&gt;&amp; points);</div>
 <div class="line"><a id="l00049" name="l00049"></a><span class="lineno">   49</span> </div>
-<div class="line"><a id="l00050" name="l00050"></a><span class="lineno">   50</span><span class="comment">// ── Strauss Window Width Selection ───────────────────────────────────────────</span></div>
+<div class="line"><a id="l00050" name="l00050"></a><span class="lineno">   50</span><span class="comment">// -- Strauss Window Width Selection -------------------------------------------</span></div>
 <div class="line"><a id="l00051" name="l00051"></a><span class="lineno">   51</span><span class="comment">// Returns optimal wNAF window width for n points.</span></div>
-<div class="line"><a id="l00052" name="l00052"></a><span class="lineno">   52</span><span class="comment">// w=4 for n&lt;32, w=5 for n&lt;128, w=6 for n≥128.</span></div>
+<div class="line"><a id="l00052" name="l00052"></a><span class="lineno">   52</span><span class="comment">// w=4 for n&lt;32, w=5 for n&lt;128, w=6 for n&gt;=128.</span></div>
 <div class="line"><a id="l00053" name="l00053"></a><span class="lineno"><a class="line" href="namespacesecp256k1.html#a8a55e5dd23941219c03aec3fab3011d8">   53</a></span><span class="keywordtype">unsigned</span> <a class="code hl_function" href="namespacesecp256k1.html#a8a55e5dd23941219c03aec3fab3011d8">strauss_optimal_window</a>(std::size_t n);</div>
 <div class="line"><a id="l00054" name="l00054"></a><span class="lineno">   54</span> </div>
 <div class="line"><a id="l00055" name="l00055"></a><span class="lineno">   55</span>} <span class="comment">// namespace secp256k1</span></div>

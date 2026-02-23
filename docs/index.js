@@ -66,5 +66,5 @@ var index =
     [ "License", "index.html#autotoc_md93", null ],
     [ "Contact & Community", "index.html#autotoc_md95", null ],
     [ "Acknowledgements", "index.html#autotoc_md97", null ],
-    [ "Support the Project", "index.html#autotoc_md99", null ]
+    [ "⚡ Support the Project", "index.html#autotoc_md99", null ]
 ];

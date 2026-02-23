@@ -25,7 +25,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.10.0</span>
+   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.11.0</span>
    </div>
    <div id="projectbrief">Ultra high-performance secp256k1 elliptic curve cryptography library</div>
   </td>
@@ -106,28 +106,28 @@ $(document).ready(function(){initNavTree('ecmult__gen__comb_8hpp_source.html',''
 <div class="line"><a id="l00006" name="l00006"></a><span class="lineno">    6</span><span class="comment">// ecmult_gen: Lim-Lee Comb Method for Generator Multiplication</span></div>
 <div class="line"><a id="l00007" name="l00007"></a><span class="lineno">    7</span><span class="comment">// ============================================================================</span></div>
 <div class="line"><a id="l00008" name="l00008"></a><span class="lineno">    8</span><span class="comment">//</span></div>
-<div class="line"><a id="l00009" name="l00009"></a><span class="lineno">    9</span><span class="comment">// Computes k·G using the comb method (Lim &amp; Lee, 1994).</span></div>
+<div class="line"><a id="l00009" name="l00009"></a><span class="lineno">    9</span><span class="comment">// Computes k*G using the comb method (Lim &amp; Lee, 1994).</span></div>
 <div class="line"><a id="l00010" name="l00010"></a><span class="lineno">   10</span><span class="comment">// This is the algorithm used by bitcoin-core/secp256k1&#39;s ecmult_gen.</span></div>
 <div class="line"><a id="l00011" name="l00011"></a><span class="lineno">   11</span><span class="comment">//</span></div>
 <div class="line"><a id="l00012" name="l00012"></a><span class="lineno">   12</span><span class="comment">// Key advantage over windowed methods:</span></div>
 <div class="line"><a id="l00013" name="l00013"></a><span class="lineno">   13</span><span class="comment">//   - Table is precomputed ONCE for G (at init time or from cache)</span></div>
-<div class="line"><a id="l00014" name="l00014"></a><span class="lineno">   14</span><span class="comment">//   - No runtime GLV decomposition (saves ~14μs overhead per mul)</span></div>
+<div class="line"><a id="l00014" name="l00014"></a><span class="lineno">   14</span><span class="comment">//   - No runtime GLV decomposition (saves ~14us overhead per mul)</span></div>
 <div class="line"><a id="l00015" name="l00015"></a><span class="lineno">   15</span><span class="comment">//   - Table fits in L1/L2 cache for reasonable tooth counts</span></div>
 <div class="line"><a id="l00016" name="l00016"></a><span class="lineno">   16</span><span class="comment">//   - Exactly 256/teeth doublings + 256/teeth additions (fixed cost)</span></div>
 <div class="line"><a id="l00017" name="l00017"></a><span class="lineno">   17</span><span class="comment">//</span></div>
 <div class="line"><a id="l00018" name="l00018"></a><span class="lineno">   18</span><span class="comment">// Algorithm:</span></div>
 <div class="line"><a id="l00019" name="l00019"></a><span class="lineno">   19</span><span class="comment">//   Given teeth t and spacing d = ceil(256/t):</span></div>
-<div class="line"><a id="l00020" name="l00020"></a><span class="lineno">   20</span><span class="comment">//   1. Pre-compute table[i][j] = (2^(j*d)) · G for i=0..d-1, j=0..t-1</span></div>
+<div class="line"><a id="l00020" name="l00020"></a><span class="lineno">   20</span><span class="comment">//   1. Pre-compute table[i][j] = (2^(j*d)) * G for i=0..d-1, j=0..t-1</span></div>
 <div class="line"><a id="l00021" name="l00021"></a><span class="lineno">   21</span><span class="comment">//      Actually stored per-comb: table[comb][entry] where entry is t-bit index</span></div>
 <div class="line"><a id="l00022" name="l00022"></a><span class="lineno">   22</span><span class="comment">//   2. For each bit position b from d-1 down to 0:</span></div>
-<div class="line"><a id="l00023" name="l00023"></a><span class="lineno">   23</span><span class="comment">//      a. R = 2·R (double)</span></div>
+<div class="line"><a id="l00023" name="l00023"></a><span class="lineno">   23</span><span class="comment">//      a. R = 2*R (double)</span></div>
 <div class="line"><a id="l00024" name="l00024"></a><span class="lineno">   24</span><span class="comment">//      b. For each comb c, look up bits at positions b, b+d, b+2d, ...</span></div>
-<div class="line"><a id="l00025" name="l00025"></a><span class="lineno">   25</span><span class="comment">//         forming a t-bit index → add table[c][index] to R</span></div>
+<div class="line"><a id="l00025" name="l00025"></a><span class="lineno">   25</span><span class="comment">//         forming a t-bit index -&gt; add table[c][index] to R</span></div>
 <div class="line"><a id="l00026" name="l00026"></a><span class="lineno">   26</span><span class="comment">//</span></div>
 <div class="line"><a id="l00027" name="l00027"></a><span class="lineno">   27</span><span class="comment">// Table size: d * 2^t affine points</span></div>
-<div class="line"><a id="l00028" name="l00028"></a><span class="lineno">   28</span><span class="comment">//   teeth=15, d=17: 17 * 2^15 = 557K points ≈ 35 MB</span></div>
-<div class="line"><a id="l00029" name="l00029"></a><span class="lineno">   29</span><span class="comment">//   teeth=11, d=24: 24 * 2^11 = 49K points  ≈ 3 MB (L2-friendly)</span></div>
-<div class="line"><a id="l00030" name="l00030"></a><span class="lineno">   30</span><span class="comment">//   teeth= 6, d=43: 43 * 2^6  = 2752 points ≈ 176 KB (L1-friendly)</span></div>
+<div class="line"><a id="l00028" name="l00028"></a><span class="lineno">   28</span><span class="comment">//   teeth=15, d=17: 17 * 2^15 = 557K points ~= 35 MB</span></div>
+<div class="line"><a id="l00029" name="l00029"></a><span class="lineno">   29</span><span class="comment">//   teeth=11, d=24: 24 * 2^11 = 49K points  ~= 3 MB (L2-friendly)</span></div>
+<div class="line"><a id="l00030" name="l00030"></a><span class="lineno">   30</span><span class="comment">//   teeth= 6, d=43: 43 * 2^6  = 2752 points ~= 176 KB (L1-friendly)</span></div>
 <div class="line"><a id="l00031" name="l00031"></a><span class="lineno">   31</span><span class="comment">//</span></div>
 <div class="line"><a id="l00032" name="l00032"></a><span class="lineno">   32</span><span class="comment">// Cost: d doublings + d*combs additions = d*(1 + combs) point ops</span></div>
 <div class="line"><a id="l00033" name="l00033"></a><span class="lineno">   33</span><span class="comment">//   teeth=15: 17 dbl + 17 add  = 34 ops  (fastest, but big table)</span></div>
@@ -151,7 +151,7 @@ $(document).ready(function(){initNavTree('ecmult__gen__comb_8hpp_source.html',''
 <div class="line"><a id="l00051" name="l00051"></a><span class="lineno">   51</span> </div>
 <div class="line"><a id="l00052" name="l00052"></a><span class="lineno">   52</span><span class="keyword">namespace </span><a class="code hl_namespace" href="namespacesecp256k1_1_1fast.html">secp256k1::fast</a> {</div>
 <div class="line"><a id="l00053" name="l00053"></a><span class="lineno">   53</span> </div>
-<div class="line"><a id="l00054" name="l00054"></a><span class="lineno">   54</span><span class="comment">// ── Stored affine point (compact, cache-friendly) ────────────────────────────</span></div>
+<div class="line"><a id="l00054" name="l00054"></a><span class="lineno">   54</span><span class="comment">// -- Stored affine point (compact, cache-friendly) ----------------------------</span></div>
 <div class="foldopen" id="foldopen00055" data-start="{" data-end="};">
 <div class="line"><a id="l00055" name="l00055"></a><span class="lineno"><a class="line" href="structsecp256k1_1_1fast_1_1CombAffinePoint.html">   55</a></span><span class="keyword">struct </span><a class="code hl_struct" href="structsecp256k1_1_1fast_1_1CombAffinePoint.html">CombAffinePoint</a> {</div>
 <div class="line"><a id="l00056" name="l00056"></a><span class="lineno"><a class="line" href="structsecp256k1_1_1fast_1_1CombAffinePoint.html#a3c0061bc53e2e749cc672a93043cd1bd">   56</a></span>    <a class="code hl_class" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a> <a class="code hl_variable" href="structsecp256k1_1_1fast_1_1CombAffinePoint.html#a3c0061bc53e2e749cc672a93043cd1bd">x</a>;</div>
@@ -160,7 +160,7 @@ $(document).ready(function(){initNavTree('ecmult__gen__comb_8hpp_source.html',''
 <div class="line"><a id="l00059" name="l00059"></a><span class="lineno">   59</span>};</div>
 </div>
 <div class="line"><a id="l00060" name="l00060"></a><span class="lineno">   60</span> </div>
-<div class="line"><a id="l00061" name="l00061"></a><span class="lineno">   61</span><span class="comment">// ── Comb Generator Context ───────────────────────────────────────────────────</span></div>
+<div class="line"><a id="l00061" name="l00061"></a><span class="lineno">   61</span><span class="comment">// -- Comb Generator Context ---------------------------------------------------</span></div>
 <div class="foldopen" id="foldopen00062" data-start="{" data-end="};">
 <div class="line"><a id="l00062" name="l00062"></a><span class="lineno"><a class="line" href="classsecp256k1_1_1fast_1_1CombGenContext.html">   62</a></span><span class="keyword">class </span><a class="code hl_class" href="classsecp256k1_1_1fast_1_1CombGenContext.html">CombGenContext</a> {</div>
 <div class="line"><a id="l00063" name="l00063"></a><span class="lineno">   63</span><span class="keyword">public</span>:</div>
@@ -174,15 +174,15 @@ $(document).ready(function(){initNavTree('ecmult__gen__comb_8hpp_source.html',''
 <div class="line"><a id="l00071" name="l00071"></a><span class="lineno"><a class="line" href="classsecp256k1_1_1fast_1_1CombGenContext.html#a7325799e3a0bbef93cbd7208d2a9c87e">   71</a></span>    <a class="code hl_class" href="classsecp256k1_1_1fast_1_1CombGenContext.html">CombGenContext</a>&amp; <a class="code hl_function" href="classsecp256k1_1_1fast_1_1CombGenContext.html#a7325799e3a0bbef93cbd7208d2a9c87e">operator=</a>(<a class="code hl_class" href="classsecp256k1_1_1fast_1_1CombGenContext.html">CombGenContext</a>&amp;&amp;) = <span class="keywordflow">default</span>;</div>
 <div class="line"><a id="l00072" name="l00072"></a><span class="lineno">   72</span> </div>
 <div class="line"><a id="l00073" name="l00073"></a><span class="lineno">   73</span>    <span class="comment">// Initialize with given number of teeth (comb width).</span></div>
-<div class="line"><a id="l00074" name="l00074"></a><span class="lineno">   74</span>    <span class="comment">// teeth=15 → libsecp256k1 default (fastest, 35MB table)</span></div>
-<div class="line"><a id="l00075" name="l00075"></a><span class="lineno">   75</span>    <span class="comment">// teeth=11 → good balance (3MB, fits L2)</span></div>
-<div class="line"><a id="l00076" name="l00076"></a><span class="lineno">   76</span>    <span class="comment">// teeth=6  → compact (176KB, fits L1)</span></div>
+<div class="line"><a id="l00074" name="l00074"></a><span class="lineno">   74</span>    <span class="comment">// teeth=15 -&gt; libsecp256k1 default (fastest, 35MB table)</span></div>
+<div class="line"><a id="l00075" name="l00075"></a><span class="lineno">   75</span>    <span class="comment">// teeth=11 -&gt; good balance (3MB, fits L2)</span></div>
+<div class="line"><a id="l00076" name="l00076"></a><span class="lineno">   76</span>    <span class="comment">// teeth=6  -&gt; compact (176KB, fits L1)</span></div>
 <div class="line"><a id="l00077" name="l00077"></a><span class="lineno"><a class="line" href="classsecp256k1_1_1fast_1_1CombGenContext.html#a19f1cd8d7f84dad39f4b3448071ab1a5">   77</a></span>    <span class="keywordtype">void</span> <a class="code hl_function" href="classsecp256k1_1_1fast_1_1CombGenContext.html#a19f1cd8d7f84dad39f4b3448071ab1a5">init</a>(<span class="keywordtype">unsigned</span> <a class="code hl_function" href="classsecp256k1_1_1fast_1_1CombGenContext.html#a39f7b0f5e9c3e2e2ee4fa78fde132e83">teeth</a> = 15);</div>
 <div class="line"><a id="l00078" name="l00078"></a><span class="lineno">   78</span> </div>
 <div class="line"><a id="l00079" name="l00079"></a><span class="lineno">   79</span>    <span class="comment">// Is context initialized?</span></div>
 <div class="line"><a id="l00080" name="l00080"></a><span class="lineno"><a class="line" href="classsecp256k1_1_1fast_1_1CombGenContext.html#ad3b03e46871691096f83744009317863">   80</a></span>    <span class="keywordtype">bool</span> <a class="code hl_function" href="classsecp256k1_1_1fast_1_1CombGenContext.html#ad3b03e46871691096f83744009317863">ready</a>() const noexcept { <span class="keywordflow">return</span> teeth_ &gt; 0; }</div>
 <div class="line"><a id="l00081" name="l00081"></a><span class="lineno">   81</span> </div>
-<div class="line"><a id="l00082" name="l00082"></a><span class="lineno">   82</span>    <span class="comment">// Generator multiplication: R = k·G</span></div>
+<div class="line"><a id="l00082" name="l00082"></a><span class="lineno">   82</span>    <span class="comment">// Generator multiplication: R = k*G</span></div>
 <div class="line"><a id="l00083" name="l00083"></a><span class="lineno">   83</span>    <span class="comment">// Fixed-cost: spacing_ doublings + spacing_ additions.</span></div>
 <div class="line"><a id="l00084" name="l00084"></a><span class="lineno"><a class="line" href="classsecp256k1_1_1fast_1_1CombGenContext.html#a8598cd96005e4323a98d66b998c69309">   84</a></span>    <a class="code hl_class" href="classsecp256k1_1_1fast_1_1Point.html">Point</a> <a class="code hl_function" href="classsecp256k1_1_1fast_1_1CombGenContext.html#a8598cd96005e4323a98d66b998c69309">mul</a>(<span class="keyword">const</span> <a class="code hl_class" href="classsecp256k1_1_1fast_1_1Scalar.html">Scalar</a>&amp; k) <span class="keyword">const</span>;</div>
 <div class="line"><a id="l00085" name="l00085"></a><span class="lineno">   85</span> </div>
@@ -216,7 +216,7 @@ $(document).ready(function(){initNavTree('ecmult__gen__comb_8hpp_source.html',''
 <div class="line"><a id="l00113" name="l00113"></a><span class="lineno">  113</span>};</div>
 </div>
 <div class="line"><a id="l00114" name="l00114"></a><span class="lineno">  114</span> </div>
-<div class="line"><a id="l00115" name="l00115"></a><span class="lineno">  115</span><span class="comment">// ── Global comb context (singleton, like libsecp256k1&#39;s secp256k1_ecmult_gen_context) ──</span></div>
+<div class="line"><a id="l00115" name="l00115"></a><span class="lineno">  115</span><span class="comment">// -- Global comb context (singleton, like libsecp256k1&#39;s secp256k1_ecmult_gen_context) --</span></div>
 <div class="line"><a id="l00116" name="l00116"></a><span class="lineno"><a class="line" href="namespacesecp256k1_1_1fast.html#a3ffa8c1ca7d309b4878c17adda3155b6">  116</a></span><span class="keywordtype">void</span> <a class="code hl_function" href="namespacesecp256k1_1_1fast.html#a3ffa8c1ca7d309b4878c17adda3155b6">init_comb_gen</a>(<span class="keywordtype">unsigned</span> <a class="code hl_function" href="classsecp256k1_1_1fast_1_1CombGenContext.html#a39f7b0f5e9c3e2e2ee4fa78fde132e83">teeth</a> = 15);</div>
 <div class="line"><a id="l00117" name="l00117"></a><span class="lineno"><a class="line" href="namespacesecp256k1_1_1fast.html#ac3a5de9f507a1b192d743b5557a050ac">  117</a></span><span class="keywordtype">bool</span> <a class="code hl_function" href="namespacesecp256k1_1_1fast.html#ac3a5de9f507a1b192d743b5557a050ac">comb_gen_ready</a>();</div>
 <div class="line"><a id="l00118" name="l00118"></a><span class="lineno"><a class="line" href="namespacesecp256k1_1_1fast.html#a41378871634150e7254bdcfb6a79da81">  118</a></span><a class="code hl_class" href="classsecp256k1_1_1fast_1_1Point.html">Point</a> <a class="code hl_function" href="namespacesecp256k1_1_1fast.html#a41378871634150e7254bdcfb6a79da81">comb_gen_mul</a>(const <a class="code hl_class" href="classsecp256k1_1_1fast_1_1Scalar.html">Scalar</a>&amp; k);</div>

@@ -8,5 +8,6 @@ var searchData=
   ['next_5finplace_5',['next_inplace',['../classsecp256k1_1_1fast_1_1Point.html#a145df55054f0e03c21f08219edda5ad5',1,'secp256k1::fast::Point']]],
   ['normalize_6',['normalize',['../structsecp256k1_1_1ECDSASignature.html#a72798c30cb0019e6f73ed22949e5c752',1,'secp256k1::ECDSASignature::normalize()'],['../structsecp256k1_1_1fast_1_1FieldElement26.html#ab6307327660f5c25fc7b0d026ca44bfc',1,'secp256k1::fast::FieldElement26::normalize()'],['../structsecp256k1_1_1fast_1_1FieldElement52.html#a8f2773a7ddea4d872c3d8af75c93d957',1,'secp256k1::fast::FieldElement52::normalize()']]],
   ['normalize_5fweak_7',['normalize_weak',['../structsecp256k1_1_1fast_1_1FieldElement26.html#a00640e812a09e913f402cd8e5a266d93',1,'secp256k1::fast::FieldElement26::normalize_weak()'],['../structsecp256k1_1_1fast_1_1FieldElement52.html#ad76dda46ae7e38ffcef34b3e489ecbce',1,'secp256k1::fast::FieldElement52::normalize_weak() noexcept']]],
-  ['normalizes_5fto_5fzero_8',['normalizes_to_zero',['../structsecp256k1_1_1fast_1_1FieldElement52.html#a8e82255645dce898c2f864a81c2d3d0a',1,'secp256k1::fast::FieldElement52']]]
+  ['normalizes_5fto_5fzero_8',['normalizes_to_zero',['../structsecp256k1_1_1fast_1_1FieldElement52.html#a8e82255645dce898c2f864a81c2d3d0a',1,'secp256k1::fast::FieldElement52']]],
+  ['now_9',['now',['../structbench_1_1Timer.html#a9aeee552886e3350d32eebbd648880fa',1,'bench::Timer']]]
 ];

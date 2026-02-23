@@ -25,7 +25,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.10.0</span>
+   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.11.0</span>
    </div>
    <div id="projectbrief">Ultra high-performance secp256k1 elliptic curve cryptography library</div>
   </td>
@@ -103,23 +103,23 @@ $(document).ready(function(){initNavTree('hash__accel_8hpp_source.html',''); ini
 <div class="line"><a id="l00003" name="l00003"></a><span class="lineno">    3</span><span class="preprocessor">#pragma once</span></div>
 <div class="line"><a id="l00004" name="l00004"></a><span class="lineno">    4</span> </div>
 <div class="line"><a id="l00005" name="l00005"></a><span class="lineno">    5</span><span class="comment">// ============================================================================</span></div>
-<div class="line"><a id="l00006" name="l00006"></a><span class="lineno">    6</span><span class="comment">// Accelerated Hashing — SHA-256 / RIPEMD-160 / Hash160</span></div>
+<div class="line"><a id="l00006" name="l00006"></a><span class="lineno">    6</span><span class="comment">// Accelerated Hashing -- SHA-256 / RIPEMD-160 / Hash160</span></div>
 <div class="line"><a id="l00007" name="l00007"></a><span class="lineno">    7</span><span class="comment">// ============================================================================</span></div>
 <div class="line"><a id="l00008" name="l00008"></a><span class="lineno">    8</span><span class="comment">//</span></div>
 <div class="line"><a id="l00009" name="l00009"></a><span class="lineno">    9</span><span class="comment">// ## Three tiers of acceleration (runtime-detected):</span></div>
 <div class="line"><a id="l00010" name="l00010"></a><span class="lineno">   10</span><span class="comment">//</span></div>
-<div class="line"><a id="l00011" name="l00011"></a><span class="lineno">   11</span><span class="comment">//   Tier 0: SCALAR   — Portable C++ (baseline, always available)</span></div>
-<div class="line"><a id="l00012" name="l00012"></a><span class="lineno">   12</span><span class="comment">//   Tier 1: SHA-NI   — Intel SHA Extensions (single-message HW accel, ~3-5×)</span></div>
-<div class="line"><a id="l00013" name="l00013"></a><span class="lineno">   13</span><span class="comment">//   Tier 2: AVX2     — 4-way multi-buffer SHA-256 (interleaved, ~8-12×)</span></div>
+<div class="line"><a id="l00011" name="l00011"></a><span class="lineno">   11</span><span class="comment">//   Tier 0: SCALAR   -- Portable C++ (baseline, always available)</span></div>
+<div class="line"><a id="l00012" name="l00012"></a><span class="lineno">   12</span><span class="comment">//   Tier 1: SHA-NI   -- Intel SHA Extensions (single-message HW accel, ~3-5x)</span></div>
+<div class="line"><a id="l00013" name="l00013"></a><span class="lineno">   13</span><span class="comment">//   Tier 2: AVX2     -- 4-way multi-buffer SHA-256 (interleaved, ~8-12x)</span></div>
 <div class="line"><a id="l00014" name="l00014"></a><span class="lineno">   14</span><span class="comment">//                       + optimized RIPEMD-160 with BMI/BMI2</span></div>
-<div class="line"><a id="l00015" name="l00015"></a><span class="lineno">   15</span><span class="comment">//   Tier 3: AVX-512  — 8-way multi-buffer SHA-256 (if available, ~16×)</span></div>
+<div class="line"><a id="l00015" name="l00015"></a><span class="lineno">   15</span><span class="comment">//   Tier 3: AVX-512  -- 8-way multi-buffer SHA-256 (if available, ~16x)</span></div>
 <div class="line"><a id="l00016" name="l00016"></a><span class="lineno">   16</span><span class="comment">//</span></div>
 <div class="line"><a id="l00017" name="l00017"></a><span class="lineno">   17</span><span class="comment">// ## Hot-path API for search pipeline:</span></div>
 <div class="line"><a id="l00018" name="l00018"></a><span class="lineno">   18</span><span class="comment">//</span></div>
-<div class="line"><a id="l00019" name="l00019"></a><span class="lineno">   19</span><span class="comment">//   Compressed pubkey (33 bytes) → SHA-256 → RIPEMD-160 = Hash160 (20 bytes)</span></div>
+<div class="line"><a id="l00019" name="l00019"></a><span class="lineno">   19</span><span class="comment">//   Compressed pubkey (33 bytes) -&gt; SHA-256 -&gt; RIPEMD-160 = Hash160 (20 bytes)</span></div>
 <div class="line"><a id="l00020" name="l00020"></a><span class="lineno">   20</span><span class="comment">//</span></div>
-<div class="line"><a id="l00021" name="l00021"></a><span class="lineno">   21</span><span class="comment">//   - hash160_single():       single pubkey → 20 bytes</span></div>
-<div class="line"><a id="l00022" name="l00022"></a><span class="lineno">   22</span><span class="comment">//   - hash160_batch():        N pubkeys → N×20 bytes (multi-buffer SIMD)</span></div>
+<div class="line"><a id="l00021" name="l00021"></a><span class="lineno">   21</span><span class="comment">//   - hash160_single():       single pubkey -&gt; 20 bytes</span></div>
+<div class="line"><a id="l00022" name="l00022"></a><span class="lineno">   22</span><span class="comment">//   - hash160_batch():        N pubkeys -&gt; Nx20 bytes (multi-buffer SIMD)</span></div>
 <div class="line"><a id="l00023" name="l00023"></a><span class="lineno">   23</span><span class="comment">//   - sha256_33():            SHA-256 of exactly 33 bytes (pubkey-optimized)</span></div>
 <div class="line"><a id="l00024" name="l00024"></a><span class="lineno">   24</span><span class="comment">//   - ripemd160_32():         RIPEMD-160 of exactly 32 bytes (SHA output)</span></div>
 <div class="line"><a id="l00025" name="l00025"></a><span class="lineno">   25</span><span class="comment">//</span></div>
@@ -145,7 +145,7 @@ $(document).ready(function(){initNavTree('hash__accel_8hpp_source.html',''); ini
 <div class="foldopen" id="foldopen00045" data-start="{" data-end="}">
 <div class="line"><a id="l00045" name="l00045"></a><span class="lineno"><a class="line" href="namespacesecp256k1_1_1hash.html">   45</a></span><span class="keyword">namespace </span><a class="code hl_namespace" href="namespacesecp256k1_1_1hash.html">secp256k1::hash</a> {</div>
 <div class="line"><a id="l00046" name="l00046"></a><span class="lineno">   46</span> </div>
-<div class="line"><a id="l00047" name="l00047"></a><span class="lineno">   47</span><span class="comment">// ── Feature Detection ────────────────────────────────────────────────────────</span></div>
+<div class="line"><a id="l00047" name="l00047"></a><span class="lineno">   47</span><span class="comment">// -- Feature Detection --------------------------------------------------------</span></div>
 <div class="line"><a id="l00048" name="l00048"></a><span class="lineno">   48</span> </div>
 <div class="foldopen" id="foldopen00049" data-start="{" data-end="};">
 <div class="line"><a id="l00049" name="l00049"></a><span class="lineno"><a class="line" href="namespacesecp256k1_1_1hash.html#a4caba186460712ebd064679ef90b2685">   49</a></span><span class="keyword">enum class</span> <a class="code hl_enumeration" href="namespacesecp256k1_1_1hash.html#a4caba186460712ebd064679ef90b2685">HashTier</a> : <span class="keywordtype">int</span> {</div>
@@ -164,7 +164,7 @@ $(document).ready(function(){initNavTree('hash__accel_8hpp_source.html',''); ini
 <div class="line"><a id="l00064" name="l00064"></a><span class="lineno"><a class="line" href="namespacesecp256k1_1_1hash.html#acaa50972a7c883534f52aed6830e4a73">   64</a></span><span class="keywordtype">bool</span> <a class="code hl_function" href="namespacesecp256k1_1_1hash.html#acaa50972a7c883534f52aed6830e4a73">avx2_available</a>() noexcept;</div>
 <div class="line"><a id="l00065" name="l00065"></a><span class="lineno"><a class="line" href="namespacesecp256k1_1_1hash.html#aee36f0cd5d0b9126b5b59674152903d4">   65</a></span><span class="keywordtype">bool</span> <a class="code hl_function" href="namespacesecp256k1_1_1hash.html#aee36f0cd5d0b9126b5b59674152903d4">avx512_available</a>() noexcept;</div>
 <div class="line"><a id="l00066" name="l00066"></a><span class="lineno">   66</span> </div>
-<div class="line"><a id="l00067" name="l00067"></a><span class="lineno">   67</span><span class="comment">// ── Single-message SHA-256 ───────────────────────────────────────────────────</span></div>
+<div class="line"><a id="l00067" name="l00067"></a><span class="lineno">   67</span><span class="comment">// -- Single-message SHA-256 ---------------------------------------------------</span></div>
 <div class="line"><a id="l00068" name="l00068"></a><span class="lineno">   68</span> </div>
 <div class="line"><a id="l00070" name="l00070"></a><span class="lineno"><a class="line" href="namespacesecp256k1_1_1hash.html#aa6787a03bd05e16254c43a777dce5efd">   70</a></span>std::array&lt;std::uint8_t, 32&gt; <a class="code hl_function" href="namespacesecp256k1_1_1hash.html#aa6787a03bd05e16254c43a777dce5efd">sha256</a>(const <span class="keywordtype">void</span>* data, std::<span class="keywordtype">size_t</span> len) noexcept;</div>
 <div class="line"><a id="l00071" name="l00071"></a><span class="lineno">   71</span> </div>
@@ -174,19 +174,19 @@ $(document).ready(function(){initNavTree('hash__accel_8hpp_source.html',''); ini
 <div class="line"><a id="l00078" name="l00078"></a><span class="lineno">   78</span> </div>
 <div class="line"><a id="l00080" name="l00080"></a><span class="lineno"><a class="line" href="namespacesecp256k1_1_1hash.html#aac8f364cad1ff1db408782ccae00465c">   80</a></span>std::array&lt;std::uint8_t, 32&gt; <a class="code hl_function" href="namespacesecp256k1_1_1hash.html#aac8f364cad1ff1db408782ccae00465c">sha256d</a>(const <span class="keywordtype">void</span>* data, std::<span class="keywordtype">size_t</span> len) noexcept;</div>
 <div class="line"><a id="l00081" name="l00081"></a><span class="lineno">   81</span> </div>
-<div class="line"><a id="l00082" name="l00082"></a><span class="lineno">   82</span><span class="comment">// ── Single-message RIPEMD-160 ────────────────────────────────────────────────</span></div>
+<div class="line"><a id="l00082" name="l00082"></a><span class="lineno">   82</span><span class="comment">// -- Single-message RIPEMD-160 ------------------------------------------------</span></div>
 <div class="line"><a id="l00083" name="l00083"></a><span class="lineno">   83</span> </div>
 <div class="line"><a id="l00085" name="l00085"></a><span class="lineno"><a class="line" href="namespacesecp256k1_1_1hash.html#a45ddaa3ca6297a3934dd19c92f45e866">   85</a></span>std::array&lt;std::uint8_t, 20&gt; <a class="code hl_function" href="namespacesecp256k1_1_1hash.html#a45ddaa3ca6297a3934dd19c92f45e866">ripemd160</a>(const <span class="keywordtype">void</span>* data, std::<span class="keywordtype">size_t</span> len) noexcept;</div>
 <div class="line"><a id="l00086" name="l00086"></a><span class="lineno">   86</span> </div>
 <div class="line"><a id="l00089" name="l00089"></a><span class="lineno"><a class="line" href="namespacesecp256k1_1_1hash.html#a0214e4c44ab40858a379c7e412c5ea78">   89</a></span><span class="keywordtype">void</span> <a class="code hl_function" href="namespacesecp256k1_1_1hash.html#a0214e4c44ab40858a379c7e412c5ea78">ripemd160_32</a>(const std::uint8_t* in32, std::uint8_t* out20) noexcept;</div>
 <div class="line"><a id="l00090" name="l00090"></a><span class="lineno">   90</span> </div>
-<div class="line"><a id="l00091" name="l00091"></a><span class="lineno">   91</span><span class="comment">// ── Hash160 — RIPEMD160(SHA256(data)) ────────────────────────────────────────</span></div>
+<div class="line"><a id="l00091" name="l00091"></a><span class="lineno">   91</span><span class="comment">// -- Hash160 -- RIPEMD160(SHA256(data)) ----------------------------------------</span></div>
 <div class="line"><a id="l00092" name="l00092"></a><span class="lineno">   92</span> </div>
 <div class="line"><a id="l00094" name="l00094"></a><span class="lineno"><a class="line" href="namespacesecp256k1_1_1hash.html#ae4d1bf2bea3ec830c3ad489329c027cc">   94</a></span>std::array&lt;std::uint8_t, 20&gt; <a class="code hl_function" href="namespacesecp256k1_1_1hash.html#ae4d1bf2bea3ec830c3ad489329c027cc">hash160</a>(const <span class="keywordtype">void</span>* data, std::<span class="keywordtype">size_t</span> len) noexcept;</div>
 <div class="line"><a id="l00095" name="l00095"></a><span class="lineno">   95</span> </div>
 <div class="line"><a id="l00098" name="l00098"></a><span class="lineno"><a class="line" href="namespacesecp256k1_1_1hash.html#a54adce0e32313060c0c7c72b353e91e3">   98</a></span><span class="keywordtype">void</span> <a class="code hl_function" href="namespacesecp256k1_1_1hash.html#a54adce0e32313060c0c7c72b353e91e3">hash160_33</a>(const std::uint8_t* pubkey33, std::uint8_t* out20) noexcept;</div>
 <div class="line"><a id="l00099" name="l00099"></a><span class="lineno">   99</span> </div>
-<div class="line"><a id="l00100" name="l00100"></a><span class="lineno">  100</span><span class="comment">// ── Batch operations (multi-buffer SIMD) ─────────────────────────────────────</span></div>
+<div class="line"><a id="l00100" name="l00100"></a><span class="lineno">  100</span><span class="comment">// -- Batch operations (multi-buffer SIMD) -------------------------------------</span></div>
 <div class="line"><a id="l00101" name="l00101"></a><span class="lineno">  101</span><span class="comment">//</span></div>
 <div class="line"><a id="l00102" name="l00102"></a><span class="lineno">  102</span><span class="comment">// Process multiple independent messages simultaneously using SIMD lanes.</span></div>
 <div class="line"><a id="l00103" name="l00103"></a><span class="lineno">  103</span><span class="comment">// AVX2: 4 messages per cycle, AVX-512: 8 messages per cycle.</span></div>
@@ -199,21 +199,21 @@ $(document).ready(function(){initNavTree('hash__accel_8hpp_source.html',''); ini
 <div class="line"><a id="l00110" name="l00110"></a><span class="lineno">  110</span><span class="comment">// Hot-path contract: No heap allocation if scratch is pre-sized.</span></div>
 <div class="line"><a id="l00111" name="l00111"></a><span class="lineno">  111</span> </div>
 <div class="line"><a id="l00114" name="l00114"></a><span class="lineno"><a class="line" href="namespacesecp256k1_1_1hash.html#ab962cc520bec39e3fc36372f5c38e5b8">  114</a></span><span class="keywordtype">void</span> <a class="code hl_function" href="namespacesecp256k1_1_1hash.html#ab962cc520bec39e3fc36372f5c38e5b8">sha256_33_batch</a>(</div>
-<div class="line"><a id="l00115" name="l00115"></a><span class="lineno">  115</span>    const std::uint8_t* pubkeys,    <span class="comment">// count × 33 bytes (packed)</span></div>
-<div class="line"><a id="l00116" name="l00116"></a><span class="lineno">  116</span>    std::uint8_t* out32s,           <span class="comment">// count × 32 bytes output</span></div>
+<div class="line"><a id="l00115" name="l00115"></a><span class="lineno">  115</span>    const std::uint8_t* pubkeys,    <span class="comment">// count x 33 bytes (packed)</span></div>
+<div class="line"><a id="l00116" name="l00116"></a><span class="lineno">  116</span>    std::uint8_t* out32s,           <span class="comment">// count x 32 bytes output</span></div>
 <div class="line"><a id="l00117" name="l00117"></a><span class="lineno">  117</span>    std::<span class="keywordtype">size_t</span> count) noexcept;</div>
 <div class="line"><a id="l00118" name="l00118"></a><span class="lineno">  118</span> </div>
 <div class="line"><a id="l00121" name="l00121"></a><span class="lineno"><a class="line" href="namespacesecp256k1_1_1hash.html#ad86bbb4d3840a70a54e7c91063d73a20">  121</a></span><span class="keywordtype">void</span> <a class="code hl_function" href="namespacesecp256k1_1_1hash.html#ad86bbb4d3840a70a54e7c91063d73a20">ripemd160_32_batch</a>(</div>
-<div class="line"><a id="l00122" name="l00122"></a><span class="lineno">  122</span>    const std::uint8_t* in32s,      <span class="comment">// count × 32 bytes</span></div>
-<div class="line"><a id="l00123" name="l00123"></a><span class="lineno">  123</span>    std::uint8_t* out20s,           <span class="comment">// count × 20 bytes output</span></div>
+<div class="line"><a id="l00122" name="l00122"></a><span class="lineno">  122</span>    const std::uint8_t* in32s,      <span class="comment">// count x 32 bytes</span></div>
+<div class="line"><a id="l00123" name="l00123"></a><span class="lineno">  123</span>    std::uint8_t* out20s,           <span class="comment">// count x 20 bytes output</span></div>
 <div class="line"><a id="l00124" name="l00124"></a><span class="lineno">  124</span>    std::<span class="keywordtype">size_t</span> count) noexcept;</div>
 <div class="line"><a id="l00125" name="l00125"></a><span class="lineno">  125</span> </div>
 <div class="line"><a id="l00129" name="l00129"></a><span class="lineno"><a class="line" href="namespacesecp256k1_1_1hash.html#a32fbb7abeca9984820687e48ac6f177d">  129</a></span><span class="keywordtype">void</span> <a class="code hl_function" href="namespacesecp256k1_1_1hash.html#a32fbb7abeca9984820687e48ac6f177d">hash160_33_batch</a>(</div>
-<div class="line"><a id="l00130" name="l00130"></a><span class="lineno">  130</span>    const std::uint8_t* pubkeys,    <span class="comment">// count × 33 bytes (packed)</span></div>
-<div class="line"><a id="l00131" name="l00131"></a><span class="lineno">  131</span>    std::uint8_t* out20s,           <span class="comment">// count × 20 bytes output</span></div>
+<div class="line"><a id="l00130" name="l00130"></a><span class="lineno">  130</span>    const std::uint8_t* pubkeys,    <span class="comment">// count x 33 bytes (packed)</span></div>
+<div class="line"><a id="l00131" name="l00131"></a><span class="lineno">  131</span>    std::uint8_t* out20s,           <span class="comment">// count x 20 bytes output</span></div>
 <div class="line"><a id="l00132" name="l00132"></a><span class="lineno">  132</span>    std::<span class="keywordtype">size_t</span> count) noexcept;</div>
 <div class="line"><a id="l00133" name="l00133"></a><span class="lineno">  133</span> </div>
-<div class="line"><a id="l00134" name="l00134"></a><span class="lineno">  134</span><span class="comment">// ── Implementation selectors (for benchmarking / testing) ────────────────────</span></div>
+<div class="line"><a id="l00134" name="l00134"></a><span class="lineno">  134</span><span class="comment">// -- Implementation selectors (for benchmarking / testing) --------------------</span></div>
 <div class="line"><a id="l00135" name="l00135"></a><span class="lineno">  135</span><span class="comment">// These bypass auto-detection to force a specific tier.</span></div>
 <div class="line"><a id="l00136" name="l00136"></a><span class="lineno">  136</span> </div>
 <div class="foldopen" id="foldopen00137" data-start="{" data-end="}">

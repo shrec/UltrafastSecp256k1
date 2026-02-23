@@ -25,7 +25,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.10.0</span>
+   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.11.0</span>
    </div>
    <div id="projectbrief">Ultra high-performance secp256k1 elliptic curve cryptography library</div>
   </td>
@@ -738,20 +738,20 @@ Variables</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-<p>Compute P + T[i] for all i ∈ [0, count), returning affine X-coordinates.</p>
+<p>Compute P + T[i] for all i in [0, count), returning affine X-coordinates.</p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">base_x</td><td>Base point X coordinate (affine) </td></tr>
     <tr><td class="paramname">base_y</td><td>Base point Y coordinate (affine) </td></tr>
     <tr><td class="paramname">offsets</td><td>Array of precomputed affine offset points T[0..count-1] </td></tr>
-    <tr><td class="paramname">out_x</td><td>Output: X-coordinates of P + T[i] (caller-allocated, size ≥ count) </td></tr>
+    <tr><td class="paramname">out_x</td><td>Output: X-coordinates of P + T[i] (caller-allocated, size &gt;= count) </td></tr>
     <tr><td class="paramname">count</td><td>Number of offset points </td></tr>
     <tr><td class="paramname">scratch</td><td>Reusable scratch buffer (avoids allocation; resized internally if needed)</td></tr>
   </table>
   </dd>
 </dl>
 <dl class="section note"><dt>Note</dt><dd>Edge cases (P == T[i] or P == -T[i]) are handled via branchless sentinel: output X is set to <a class="el" href="classsecp256k1_1_1fast_1_1FieldElement.html#a7def1a58663c0f5caa6339ea1db9c1e3">FieldElement::zero()</a> which is never a valid curve X. Caller should skip zero results if exactness matters (astronomically rare in search).</dd></dl>
-<p>Hot-path contract: No heap allocation when scratch is pre-sized ≥ count. </p>
+<p>Hot-path contract: No heap allocation when scratch is pre-sized &gt;= count. </p>
 
 </div>
 </div>
@@ -885,7 +885,7 @@ Variables</h2></td></tr>
 <p>Extract Y-parity bit for each result point. parity[i] = lowest bit of Y-coordinate (0x02 or 0x03 prefix). Use when you need compressed pubkey prefix without computing full Y.</p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">out_parity</td><td>Output: 0 for even Y, 1 for odd Y (caller-allocated, size ≥ count) </td></tr>
+    <tr><td class="paramname">out_parity</td><td>Output: 0 for even Y, 1 for odd Y (caller-allocated, size &gt;= count) </td></tr>
   </table>
   </dd>
 </dl>
@@ -950,7 +950,7 @@ Variables</h2></td></tr>
 <p>Same as above but also outputs Y-coordinates.</p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">out_y</td><td>Output: Y-coordinates of P + T[i] (caller-allocated, size ≥ count) </td></tr>
+    <tr><td class="paramname">out_y</td><td>Output: Y-coordinates of P + T[i] (caller-allocated, size &gt;= count) </td></tr>
   </table>
   </dd>
 </dl>
@@ -1493,12 +1493,12 @@ This function is optimized for fixed-step ECC walks where we have a deterministi
 <p>Example usage: </p><div class="fragment"><div class="line">std::vector&lt;FieldElement&gt; h_values = compute_jacobian_walk_h_values(Q, 256);</div>
 <div class="line"><a class="code hl_class" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a> z0 = Q.z;</div>
 <div class="line"> </div>
-<div class="line"><span class="comment">// Convert H values → Z^{-2} values (in-place)</span></div>
+<div class="line"><span class="comment">// Convert H values -&gt; Z^{-2} values (in-place)</span></div>
 <div class="line"><a class="code hl_function" href="namespacesecp256k1_1_1fast.html#a7f16e9e295808b8e747764b2b52506d7">fe_h_based_inversion</a>(h_values.data(), z0, h_values.size());</div>
 <div class="line"> </div>
 <div class="line"><span class="comment">// Now h_values contains Z^{-2} for each point</span></div>
 <div class="line"><span class="keywordflow">for</span> (<span class="keywordtype">size_t</span> i = 0; i &lt; h_values.size(); i++) {</div>
-<div class="line">    <a class="code hl_class" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a> x_affine = jacobian_x[i] * h_values[i];  <span class="comment">// X / Z²</span></div>
+<div class="line">    <a class="code hl_class" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a> x_affine = jacobian_x[i] * h_values[i];  <span class="comment">// X / Z^2</span></div>
 <div class="line">}</div>
 <div class="ttc" id="aclasssecp256k1_1_1fast_1_1FieldElement_html"><div class="ttname"><a href="classsecp256k1_1_1fast_1_1FieldElement.html">secp256k1::fast::FieldElement</a></div><div class="ttdef"><b>Definition</b> <a href="field_8hpp_source.html#l00042">field.hpp:42</a></div></div>
 <div class="ttc" id="anamespacesecp256k1_1_1fast_html_a7f16e9e295808b8e747764b2b52506d7"><div class="ttname"><a href="namespacesecp256k1_1_1fast.html#a7f16e9e295808b8e747764b2b52506d7">secp256k1::fast::fe_h_based_inversion</a></div><div class="ttdeci">void fe_h_based_inversion(FieldElement *h_values, const FieldElement &amp;z0_value, std::size_t count)</div><div class="ttdef"><b>Definition</b> <a href="field__h__based_8hpp_source.html#l00095">field_h_based.hpp:95</a></div></div>
@@ -1554,7 +1554,7 @@ This function is optimized for fixed-step ECC walks where we have a deterministi
   </tr>
 </table>
 </div><div class="memdoc">
-<p>H-based serial inversion with explicit Z₀ per point</p>
+<p>H-based serial inversion with explicit Z_0 per point</p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">h_values</td><td>[IN/OUT] H values per batch (size: batch_size * n_threads) </td></tr>
@@ -3443,7 +3443,7 @@ This function is optimized for fixed-step ECC walks where we have a deterministi
   </dd>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>Vector of affine G-multiples</dd></dl>
-<dl class="section note"><dt>Note</dt><dd>This is a one-time cost at startup. For batch_size=1024: ~370 μs (1024 point additions + 1 batch inverse). Table size: 1024 * 64 = 64 KB (fits in L1 cache!). </dd></dl>
+<dl class="section note"><dt>Note</dt><dd>This is a one-time cost at startup. For batch_size=1024: ~370 us (1024 point additions + 1 batch inverse). Table size: 1024 * 64 = 64 KB (fits in L1 cache!). </dd></dl>
 
 </div>
 </div>

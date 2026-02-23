@@ -25,7 +25,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.10.0</span>
+   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.11.0</span>
    </div>
    <div id="projectbrief">Ultra high-performance secp256k1 elliptic curve cryptography library</div>
   </td>
@@ -130,7 +130,7 @@ $(document).ready(function(){initNavTree('field__branchless_8hpp_source.html',''
 <div class="foldopen" id="foldopen00030" data-start="{" data-end="}">
 <div class="line"><a id="l00030" name="l00030"></a><span class="lineno"><a class="line" href="namespacesecp256k1_1_1fast.html#a603a42650d410d6b890cf7b2faebf04a">   30</a></span><span class="keyword">inline</span> <span class="keywordtype">void</span> <a class="code hl_function" href="namespacesecp256k1_1_1fast.html#a603a42650d410d6b890cf7b2faebf04a">field_cmov</a>(<a class="code hl_class" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a>* r, <span class="keyword">const</span> <a class="code hl_class" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a>* a, </div>
 <div class="line"><a id="l00031" name="l00031"></a><span class="lineno">   31</span>                       <span class="keyword">const</span> <a class="code hl_class" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a>* b, <span class="keywordtype">bool</span> flag) <span class="keyword">noexcept</span> {</div>
-<div class="line"><a id="l00032" name="l00032"></a><span class="lineno">   32</span>    <span class="comment">// Convert flag to mask: 0 → 0x0000000000000000, 1 → 0xFFFFFFFFFFFFFFFF</span></div>
+<div class="line"><a id="l00032" name="l00032"></a><span class="lineno">   32</span>    <span class="comment">// Convert flag to mask: 0 -&gt; 0x0000000000000000, 1 -&gt; 0xFFFFFFFFFFFFFFFF</span></div>
 <div class="line"><a id="l00033" name="l00033"></a><span class="lineno">   33</span>    std::uint64_t mask = -<span class="keyword">static_cast&lt;</span>std::uint64_t<span class="keyword">&gt;</span>(flag);</div>
 <div class="line"><a id="l00034" name="l00034"></a><span class="lineno">   34</span>    </div>
 <div class="line"><a id="l00035" name="l00035"></a><span class="lineno">   35</span>    <span class="keyword">auto</span>&amp; r_limbs = <span class="keyword">const_cast&lt;</span>std::array&lt;std::uint64_t, 4&gt;&amp;<span class="keyword">&gt;</span>(r-&gt;limbs());</div>
@@ -150,7 +150,7 @@ $(document).ready(function(){initNavTree('field__branchless_8hpp_source.html',''
 <div class="foldopen" id="foldopen00048" data-start="{" data-end="}">
 <div class="line"><a id="l00048" name="l00048"></a><span class="lineno"><a class="line" href="namespacesecp256k1_1_1fast.html#afa550e59a1898ab2a80384b3f9d282b5">   48</a></span><span class="keyword">inline</span> <span class="keywordtype">void</span> <a class="code hl_function" href="namespacesecp256k1_1_1fast.html#afa550e59a1898ab2a80384b3f9d282b5">field_cmovznz</a>(<a class="code hl_class" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a>* r, <span class="keyword">const</span> <a class="code hl_class" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a>* a, </div>
 <div class="line"><a id="l00049" name="l00049"></a><span class="lineno">   49</span>                          <span class="keyword">const</span> <a class="code hl_class" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a>* b, std::uint64_t flag) <span class="keyword">noexcept</span> {</div>
-<div class="line"><a id="l00050" name="l00050"></a><span class="lineno">   50</span>    <span class="comment">// Convert flag to mask: 0 → 0x0000000000000000, nonzero → 0xFFFFFFFFFFFFFFFF</span></div>
+<div class="line"><a id="l00050" name="l00050"></a><span class="lineno">   50</span>    <span class="comment">// Convert flag to mask: 0 -&gt; 0x0000000000000000, nonzero -&gt; 0xFFFFFFFFFFFFFFFF</span></div>
 <div class="line"><a id="l00051" name="l00051"></a><span class="lineno">   51</span>    <span class="comment">// Use bitwise OR reduction across all bits to detect nonzero</span></div>
 <div class="line"><a id="l00052" name="l00052"></a><span class="lineno">   52</span>    std::uint64_t mask = (flag | (-flag)) &gt;&gt; 63; <span class="comment">// Branchless nonzero test</span></div>
 <div class="line"><a id="l00053" name="l00053"></a><span class="lineno">   53</span>    mask = -mask; <span class="comment">// Expand to full 64-bit mask</span></div>

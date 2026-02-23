@@ -25,7 +25,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.10.0</span>
+   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.11.0</span>
    </div>
    <div id="projectbrief">Ultra high-performance secp256k1 elliptic curve cryptography library</div>
   </td>
@@ -99,7 +99,7 @@ $(document).ready(function(){initNavTree('ufsecp__error_8h_source.html',''); ini
 </div><!--header-->
 <div class="contents">
 <a href="ufsecp__error_8h.html">Go to the documentation of this file.</a><div class="fragment"><div class="line"><a id="l00001" name="l00001"></a><span class="lineno">    1</span><span class="comment">/* ============================================================================</span></div>
-<div class="line"><a id="l00002" name="l00002"></a><span class="lineno">    2</span><span class="comment"> * UltrafastSecp256k1 — Error Model</span></div>
+<div class="line"><a id="l00002" name="l00002"></a><span class="lineno">    2</span><span class="comment"> * UltrafastSecp256k1 -- Error Model</span></div>
 <div class="line"><a id="l00003" name="l00003"></a><span class="lineno">    3</span><span class="comment"> * ============================================================================</span></div>
 <div class="line"><a id="l00004" name="l00004"></a><span class="lineno">    4</span><span class="comment"> * Every ufsecp_* function returns ufsecp_error_t (0 = success).</span></div>
 <div class="line"><a id="l00005" name="l00005"></a><span class="lineno">    5</span><span class="comment"> * For detailed diagnostics, call ufsecp_last_error() / ufsecp_last_error_msg()</span></div>
@@ -117,7 +117,7 @@ $(document).ready(function(){initNavTree('ufsecp__error_8h_source.html',''); ini
 <div class="line"><a id="l00017" name="l00017"></a><span class="lineno">   17</span><span class="keyword">extern</span> <span class="stringliteral">&quot;C&quot;</span> {</div>
 <div class="line"><a id="l00018" name="l00018"></a><span class="lineno">   18</span><span class="preprocessor">#endif</span></div>
 <div class="line"><a id="l00019" name="l00019"></a><span class="lineno">   19</span> </div>
-<div class="line"><a id="l00020" name="l00020"></a><span class="lineno">   20</span><span class="comment">/* ── Error codes ──────────────────────────────────────────────────────────── */</span></div>
+<div class="line"><a id="l00020" name="l00020"></a><span class="lineno">   20</span><span class="comment">/* -- Error codes ------------------------------------------------------------ */</span></div>
 <div class="line"><a id="l00021" name="l00021"></a><span class="lineno">   21</span> </div>
 <div class="line"><a id="l00022" name="l00022"></a><span class="lineno"><a class="line" href="ufsecp__error_8h.html#ace9807a2d7e727c5d4dc3f8473118c9b">   22</a></span><span class="keyword">typedef</span> <span class="keywordtype">int</span> <a class="code hl_typedef" href="ufsecp__error_8h.html#ace9807a2d7e727c5d4dc3f8473118c9b">ufsecp_error_t</a>;</div>
 <div class="line"><a id="l00023" name="l00023"></a><span class="lineno">   23</span> </div>
@@ -132,7 +132,7 @@ $(document).ready(function(){initNavTree('ufsecp__error_8h_source.html',''); ini
 <div class="line"><a id="l00032" name="l00032"></a><span class="lineno"><a class="line" href="ufsecp__error_8h.html#a4d1412fd84b54474e2e24a14ad735403">   32</a></span><span class="preprocessor">#define UFSECP_ERR_SELFTEST      8   </span></div>
 <div class="line"><a id="l00033" name="l00033"></a><span class="lineno"><a class="line" href="ufsecp__error_8h.html#a10160096e5ad28390a45f068596729f0">   33</a></span><span class="preprocessor">#define UFSECP_ERR_INTERNAL      9   </span></div>
 <div class="line"><a id="l00034" name="l00034"></a><span class="lineno"><a class="line" href="ufsecp__error_8h.html#aac465156a57ce9deb878d85c6e713274">   34</a></span><span class="preprocessor">#define UFSECP_ERR_BUF_TOO_SMALL 10  </span></div>
-<div class="line"><a id="l00036" name="l00036"></a><span class="lineno">   36</span><span class="comment">/* ── Error inspection ─────────────────────────────────────────────────────── */</span></div>
+<div class="line"><a id="l00036" name="l00036"></a><span class="lineno">   36</span><span class="comment">/* -- Error inspection ------------------------------------------------------- */</span></div>
 <div class="line"><a id="l00037" name="l00037"></a><span class="lineno">   37</span> </div>
 <div class="line"><a id="l00039" name="l00039"></a><span class="lineno">   39</span><a class="code hl_define" href="ufsecp__version_8h.html#a407719474ce7a71be9faf26f27f38c6c">UFSECP_API</a> <span class="keyword">const</span> <span class="keywordtype">char</span>* <a class="code hl_function" href="ufsecp__error_8h.html#ab056bb1244281889756527da6cb8161c">ufsecp_error_str</a>(<a class="code hl_typedef" href="ufsecp__error_8h.html#ace9807a2d7e727c5d4dc3f8473118c9b">ufsecp_error_t</a> err);</div>
 <div class="line"><a id="l00040" name="l00040"></a><span class="lineno">   40</span> </div>

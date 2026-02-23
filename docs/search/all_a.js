@@ -17,12 +17,13 @@ var searchData=
   ['deserialize_14',['deserialize',['../structsecp256k1_1_1MuSig2PubNonce.html#a46aab0cf4cb3d6a55eb5b77a6808ef02',1,'secp256k1::MuSig2PubNonce']]],
   ['detect_5fhash_5ftier_15',['detect_hash_tier',['../namespacesecp256k1_1_1hash.html#ac1691b10cf03655683e2710c0e46bf31',1,'secp256k1::hash']]],
   ['detect_5fsimd_5ftier_16',['detect_simd_tier',['../namespacesecp256k1_1_1simd.html#a60293c3683aa104f3f3b4dd29ee2f3d4',1,'secp256k1::simd']]],
-  ['digest_5ftype_17',['digest_type',['../classsecp256k1_1_1SHA256.html#afe548d04a90858ec7601e304fdaadbb5',1,'secp256k1::SHA256::digest_type'],['../classsecp256k1_1_1SHA512.html#aeff28df05751f2335296f033eb70af8f',1,'secp256k1::SHA512::digest_type']]],
+  ['digest_5ftype_17',['digest_type',['../classsecp256k1_1_1SHA512.html#aeff28df05751f2335296f033eb70af8f',1,'secp256k1::SHA512::digest_type'],['../classsecp256k1_1_1SHA256.html#afe548d04a90858ec7601e304fdaadbb5',1,'secp256k1::SHA256::digest_type']]],
   ['digibyte_18',['DigiByte',['../namespacesecp256k1_1_1coins.html#af8584b5a9a5909c5fe48b5d0e747a4e9',1,'secp256k1::coins']]],
   ['do_19',['What This Library Does NOT Do',['../md_include_2ufsecp_2SUPPORTED__GUARANTEES.html#autotoc_md15',1,'']]],
   ['documentation_20',['Documentation',['../index.html#autotoc_md89',1,'']]],
   ['does_20not_20do_21',['What This Library Does NOT Do',['../md_include_2ufsecp_2SUPPORTED__GUARANTEES.html#autotoc_md15',1,'']]],
   ['dogecoin_22',['Dogecoin',['../namespacesecp256k1_1_1coins.html#a53cc055722f1672418ff9a50820e4139',1,'secp256k1::coins']]],
-  ['dual_20layer_20model_23',['Constant-Time Architecture (Dual-Layer Model)',['../md_include_2ufsecp_2SUPPORTED__GUARANTEES.html#autotoc_md10',1,'']]],
-  ['dual_5fscalar_5fmul_5fgen_5fpoint_24',['dual_scalar_mul_gen_point',['../classsecp256k1_1_1fast_1_1Point.html#a092a382e549cb6faac5ee7bc61066078',1,'secp256k1::fast::Point']]]
+  ['donotoptimize_23',['donotoptimize',['../namespacebench.html#a30176299d4be413891cfb20229bdeca7',1,'bench::DoNotOptimize(T const &amp;value)'],['../namespacebench.html#a91fdf78584b5ac7cb09cd02b536ee818',1,'bench::DoNotOptimize(T &amp;value)']]],
+  ['dual_20layer_20model_24',['Constant-Time Architecture (Dual-Layer Model)',['../md_include_2ufsecp_2SUPPORTED__GUARANTEES.html#autotoc_md10',1,'']]],
+  ['dual_5fscalar_5fmul_5fgen_5fpoint_25',['dual_scalar_mul_gen_point',['../classsecp256k1_1_1fast_1_1Point.html#a092a382e549cb6faac5ee7bc61066078',1,'secp256k1::fast::Point']]]
 ];

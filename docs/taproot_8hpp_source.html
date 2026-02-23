@@ -25,7 +25,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.10.0</span>
+   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.11.0</span>
    </div>
    <div id="projectbrief">Ultra high-performance secp256k1 elliptic curve cryptography library</div>
   </td>
@@ -102,7 +102,7 @@ $(document).ready(function(){initNavTree('taproot_8hpp_source.html',''); initRes
 <div class="line"><a id="l00002" name="l00002"></a><span class="lineno">    2</span><span class="preprocessor">#define SECP256K1_TAPROOT_HPP</span></div>
 <div class="line"><a id="l00003" name="l00003"></a><span class="lineno">    3</span> </div>
 <div class="line"><a id="l00004" name="l00004"></a><span class="lineno">    4</span><span class="comment">// ============================================================================</span></div>
-<div class="line"><a id="l00005" name="l00005"></a><span class="lineno">    5</span><span class="comment">// Taproot (BIP-341 / BIP-342) — secp256k1</span></div>
+<div class="line"><a id="l00005" name="l00005"></a><span class="lineno">    5</span><span class="comment">// Taproot (BIP-341 / BIP-342) -- secp256k1</span></div>
 <div class="line"><a id="l00006" name="l00006"></a><span class="lineno">    6</span><span class="comment">// ============================================================================</span></div>
 <div class="line"><a id="l00007" name="l00007"></a><span class="lineno">    7</span><span class="comment">// Implements BIP-341 key tweaking and output key derivation for Taproot.</span></div>
 <div class="line"><a id="l00008" name="l00008"></a><span class="lineno">    8</span><span class="comment">//</span></div>
@@ -139,7 +139,7 @@ $(document).ready(function(){initNavTree('taproot_8hpp_source.html',''); initRes
 <div class="line"><a id="l00039" name="l00039"></a><span class="lineno">   39</span><span class="keyword">using </span>fast::Scalar;</div>
 <div class="line"><a id="l00040" name="l00040"></a><span class="lineno">   40</span><span class="keyword">using </span>fast::Point;</div>
 <div class="line"><a id="l00041" name="l00041"></a><span class="lineno">   41</span> </div>
-<div class="line"><a id="l00042" name="l00042"></a><span class="lineno">   42</span><span class="comment">// ── Taproot Tagged Hashes (BIP-341 §5.2) ─────────────────────────────────────</span></div>
+<div class="line"><a id="l00042" name="l00042"></a><span class="lineno">   42</span><span class="comment">// -- Taproot Tagged Hashes (BIP-341 S.5.2) -------------------------------------</span></div>
 <div class="line"><a id="l00043" name="l00043"></a><span class="lineno">   43</span> </div>
 <div class="line"><a id="l00044" name="l00044"></a><span class="lineno">   44</span><span class="comment">// TapTweak hash: t = H_TapTweak(internal_key_x || data)</span></div>
 <div class="line"><a id="l00045" name="l00045"></a><span class="lineno">   45</span><span class="comment">// If merkle_root is empty (key-path only), uses just internal_key_x.</span></div>
@@ -159,7 +159,7 @@ $(document).ready(function(){initNavTree('taproot_8hpp_source.html',''); initRes
 <div class="line"><a id="l00059" name="l00059"></a><span class="lineno">   59</span>    <span class="keyword">const</span> std::array&lt;std::uint8_t, 32&gt;&amp; a,</div>
 <div class="line"><a id="l00060" name="l00060"></a><span class="lineno">   60</span>    <span class="keyword">const</span> std::array&lt;std::uint8_t, 32&gt;&amp; b);</div>
 <div class="line"><a id="l00061" name="l00061"></a><span class="lineno">   61</span> </div>
-<div class="line"><a id="l00062" name="l00062"></a><span class="lineno">   62</span><span class="comment">// ── Output Key Derivation ────────────────────────────────────────────────────</span></div>
+<div class="line"><a id="l00062" name="l00062"></a><span class="lineno">   62</span><span class="comment">// -- Output Key Derivation ----------------------------------------------------</span></div>
 <div class="line"><a id="l00063" name="l00063"></a><span class="lineno">   63</span> </div>
 <div class="line"><a id="l00064" name="l00064"></a><span class="lineno">   64</span><span class="comment">// Derive Taproot output key Q = P + t*G</span></div>
 <div class="line"><a id="l00065" name="l00065"></a><span class="lineno">   65</span><span class="comment">// Returns {output_key_x (32 bytes), parity (0 = even, 1 = odd)}</span></div>
@@ -169,7 +169,7 @@ $(document).ready(function(){initNavTree('taproot_8hpp_source.html',''); initRes
 <div class="line"><a id="l00069" name="l00069"></a><span class="lineno">   69</span>    <span class="keyword">const</span> std::uint8_t* merkle_root = <span class="keyword">nullptr</span>,</div>
 <div class="line"><a id="l00070" name="l00070"></a><span class="lineno">   70</span>    std::size_t merkle_root_len = 0);</div>
 <div class="line"><a id="l00071" name="l00071"></a><span class="lineno">   71</span> </div>
-<div class="line"><a id="l00072" name="l00072"></a><span class="lineno">   72</span><span class="comment">// ── Private Key Tweaking ─────────────────────────────────────────────────────</span></div>
+<div class="line"><a id="l00072" name="l00072"></a><span class="lineno">   72</span><span class="comment">// -- Private Key Tweaking -----------------------------------------------------</span></div>
 <div class="line"><a id="l00073" name="l00073"></a><span class="lineno">   73</span> </div>
 <div class="line"><a id="l00074" name="l00074"></a><span class="lineno">   74</span><span class="comment">// Tweak a private key for key-path spending:</span></div>
 <div class="line"><a id="l00075" name="l00075"></a><span class="lineno">   75</span><span class="comment">//   d&#39; = d + t  (if P has even y)</span></div>
@@ -181,10 +181,10 @@ $(document).ready(function(){initNavTree('taproot_8hpp_source.html',''); initRes
 <div class="line"><a id="l00081" name="l00081"></a><span class="lineno">   81</span>    <span class="keyword">const</span> std::uint8_t* merkle_root = <span class="keyword">nullptr</span>,</div>
 <div class="line"><a id="l00082" name="l00082"></a><span class="lineno">   82</span>    std::size_t merkle_root_len = 0);</div>
 <div class="line"><a id="l00083" name="l00083"></a><span class="lineno">   83</span> </div>
-<div class="line"><a id="l00084" name="l00084"></a><span class="lineno">   84</span><span class="comment">// ── Taproot Signature Validation ─────────────────────────────────────────────</span></div>
+<div class="line"><a id="l00084" name="l00084"></a><span class="lineno">   84</span><span class="comment">// -- Taproot Signature Validation ---------------------------------------------</span></div>
 <div class="line"><a id="l00085" name="l00085"></a><span class="lineno">   85</span> </div>
 <div class="line"><a id="l00086" name="l00086"></a><span class="lineno">   86</span><span class="comment">// Verify that output_key was correctly derived from internal_key + merkle_root.</span></div>
-<div class="line"><a id="l00087" name="l00087"></a><span class="lineno">   87</span><span class="comment">// This is the &quot;control block&quot; validation from BIP-341 §4.2.</span></div>
+<div class="line"><a id="l00087" name="l00087"></a><span class="lineno">   87</span><span class="comment">// This is the &quot;control block&quot; validation from BIP-341 S.4.2.</span></div>
 <div class="line"><a id="l00088" name="l00088"></a><span class="lineno"><a class="line" href="namespacesecp256k1.html#ad9d3f5afa97615b9adf0f6102c5a09ea">   88</a></span><span class="keywordtype">bool</span> <a class="code hl_function" href="namespacesecp256k1.html#ad9d3f5afa97615b9adf0f6102c5a09ea">taproot_verify_commitment</a>(</div>
 <div class="line"><a id="l00089" name="l00089"></a><span class="lineno">   89</span>    <span class="keyword">const</span> std::array&lt;std::uint8_t, 32&gt;&amp; output_key_x,</div>
 <div class="line"><a id="l00090" name="l00090"></a><span class="lineno">   90</span>    <span class="keywordtype">int</span> output_key_parity,</div>
@@ -192,7 +192,7 @@ $(document).ready(function(){initNavTree('taproot_8hpp_source.html',''); initRes
 <div class="line"><a id="l00092" name="l00092"></a><span class="lineno">   92</span>    <span class="keyword">const</span> std::uint8_t* merkle_root = <span class="keyword">nullptr</span>,</div>
 <div class="line"><a id="l00093" name="l00093"></a><span class="lineno">   93</span>    std::size_t merkle_root_len = 0);</div>
 <div class="line"><a id="l00094" name="l00094"></a><span class="lineno">   94</span> </div>
-<div class="line"><a id="l00095" name="l00095"></a><span class="lineno">   95</span><span class="comment">// ── Script Path: Merkle Proof ────────────────────────────────────────────────</span></div>
+<div class="line"><a id="l00095" name="l00095"></a><span class="lineno">   95</span><span class="comment">// -- Script Path: Merkle Proof ------------------------------------------------</span></div>
 <div class="line"><a id="l00096" name="l00096"></a><span class="lineno">   96</span> </div>
 <div class="line"><a id="l00097" name="l00097"></a><span class="lineno">   97</span><span class="comment">// Compute merkle root from a leaf hash and proof path.</span></div>
 <div class="line"><a id="l00098" name="l00098"></a><span class="lineno">   98</span><span class="comment">// Each proof element is a 32-byte sibling hash. The leaf is combined</span></div>
@@ -201,7 +201,7 @@ $(document).ready(function(){initNavTree('taproot_8hpp_source.html',''); initRes
 <div class="line"><a id="l00101" name="l00101"></a><span class="lineno">  101</span>    <span class="keyword">const</span> std::array&lt;std::uint8_t, 32&gt;&amp; leaf_hash,</div>
 <div class="line"><a id="l00102" name="l00102"></a><span class="lineno">  102</span>    <span class="keyword">const</span> std::vector&lt;std::array&lt;std::uint8_t, 32&gt;&gt;&amp; proof);</div>
 <div class="line"><a id="l00103" name="l00103"></a><span class="lineno">  103</span> </div>
-<div class="line"><a id="l00104" name="l00104"></a><span class="lineno">  104</span><span class="comment">// ── TapScript Utilities ──────────────────────────────────────────────────────</span></div>
+<div class="line"><a id="l00104" name="l00104"></a><span class="lineno">  104</span><span class="comment">// -- TapScript Utilities ------------------------------------------------------</span></div>
 <div class="line"><a id="l00105" name="l00105"></a><span class="lineno">  105</span> </div>
 <div class="line"><a id="l00106" name="l00106"></a><span class="lineno">  106</span><span class="comment">// Construct a simple Merkle tree from a list of TapLeaf hashes.</span></div>
 <div class="line"><a id="l00107" name="l00107"></a><span class="lineno">  107</span><span class="comment">// Returns the Merkle root. Handles odd-count leaves by promoting the last one.</span></div>

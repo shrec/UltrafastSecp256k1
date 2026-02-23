@@ -25,7 +25,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.10.0</span>
+   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.11.0</span>
    </div>
    <div id="projectbrief">Ultra high-performance secp256k1 elliptic curve cryptography library</div>
   </td>
@@ -378,7 +378,7 @@ Functions</h2></td></tr>
   </tr>
 </table>
 </div><div class="memdoc">
-<p>Batch Hash160 of N×33-byte compressed pubkeys. Fused pipeline: strides of 4/8 messages through SHA256→RIPEMD160. out20s: caller-allocated, at least count×20 bytes. </p>
+<p>Batch Hash160 of Nx33-byte compressed pubkeys. Fused pipeline: strides of 4/8 messages through SHA256-&gt;RIPEMD160. out20s: caller-allocated, at least countx20 bytes. </p>
 
 </div>
 </div>
@@ -481,7 +481,7 @@ Functions</h2></td></tr>
   </tr>
 </table>
 </div><div class="memdoc">
-<p>RIPEMD-160 of exactly 32 bytes (SHA-256 output → Hash160 hot path). Precomputed padding — no branches, no buffer management. </p>
+<p>RIPEMD-160 of exactly 32 bytes (SHA-256 output -&gt; Hash160 hot path). Precomputed padding &ndash; no branches, no buffer management. </p>
 
 </div>
 </div>
@@ -524,7 +524,7 @@ Functions</h2></td></tr>
   </tr>
 </table>
 </div><div class="memdoc">
-<p>Batch RIPEMD-160 of N×32-byte SHA-256 digests. out20s: caller-allocated, at least count×20 bytes. </p>
+<p>Batch RIPEMD-160 of Nx32-byte SHA-256 digests. out20s: caller-allocated, at least countx20 bytes. </p>
 
 </div>
 </div>
@@ -637,7 +637,7 @@ Functions</h2></td></tr>
   </tr>
 </table>
 </div><div class="memdoc">
-<p>SHA-256 of exactly 33 bytes (compressed pubkey hot path). Precomputed padding — no branches, no buffer management. </p>
+<p>SHA-256 of exactly 33 bytes (compressed pubkey hot path). Precomputed padding &ndash; no branches, no buffer management. </p>
 
 </div>
 </div>
@@ -680,7 +680,7 @@ Functions</h2></td></tr>
   </tr>
 </table>
 </div><div class="memdoc">
-<p>Batch SHA-256 of N×33-byte compressed pubkeys. out32s: caller-allocated, at least count×32 bytes. </p>
+<p>Batch SHA-256 of Nx33-byte compressed pubkeys. out32s: caller-allocated, at least countx32 bytes. </p>
 
 </div>
 </div>

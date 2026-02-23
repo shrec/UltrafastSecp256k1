@@ -25,7 +25,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.10.0</span>
+   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.11.0</span>
    </div>
    <div id="projectbrief">Ultra high-performance secp256k1 elliptic curve cryptography library</div>
   </td>
@@ -111,7 +111,7 @@ $(document).ready(function(){initNavTree('field__h__based_8hpp_source.html','');
 <div class="line"><a id="l00011" name="l00011"></a><span class="lineno">   11</span><span class="comment">// ============================================================================</span></div>
 <div class="line"><a id="l00012" name="l00012"></a><span class="lineno">   12</span><span class="comment">// </span></div>
 <div class="line"><a id="l00013" name="l00013"></a><span class="lineno">   13</span><span class="comment">// This is a revolutionary batch inversion method for fixed-step ECC walks.</span></div>
-<div class="line"><a id="l00014" name="l00014"></a><span class="lineno">   14</span><span class="comment">// GPU version showed **7.75× speedup** over standard Montgomery batch inversion!</span></div>
+<div class="line"><a id="l00014" name="l00014"></a><span class="lineno">   14</span><span class="comment">// GPU version showed **7.75x speedup** over standard Montgomery batch inversion!</span></div>
 <div class="line"><a id="l00015" name="l00015"></a><span class="lineno">   15</span><span class="comment">//</span></div>
 <div class="line"><a id="l00016" name="l00016"></a><span class="lineno">   16</span><span class="comment">// ## THE PROBLEM:</span></div>
 <div class="line"><a id="l00017" name="l00017"></a><span class="lineno">   17</span><span class="comment">// Standard batch inversion (Montgomery&#39;s trick):</span></div>
@@ -132,7 +132,7 @@ $(document).ready(function(){initNavTree('field__h__based_8hpp_source.html','');
 <div class="line"><a id="l00032" name="l00032"></a><span class="lineno">   32</span><span class="comment">//    Z_current = Z_0</span></div>
 <div class="line"><a id="l00033" name="l00033"></a><span class="lineno">   33</span><span class="comment">//    for each H_i:</span></div>
 <div class="line"><a id="l00034" name="l00034"></a><span class="lineno">   34</span><span class="comment">//        Z_current = Z_current * H_i  // Serial accumulation</span></div>
-<div class="line"><a id="l00035" name="l00035"></a><span class="lineno">   35</span><span class="comment">//    Result: Z_final = Z_0 * ∏H_i</span></div>
+<div class="line"><a id="l00035" name="l00035"></a><span class="lineno">   35</span><span class="comment">//    Result: Z_final = Z_0 * prodH_i</span></div>
 <div class="line"><a id="l00036" name="l00036"></a><span class="lineno">   36</span><span class="comment">//</span></div>
 <div class="line"><a id="l00037" name="l00037"></a><span class="lineno">   37</span><span class="comment">// 2. **Single inversion** (1 expensive operation):</span></div>
 <div class="line"><a id="l00038" name="l00038"></a><span class="lineno">   38</span><span class="comment">//    Z_final_inv = Z_final^{-1}</span></div>
@@ -141,7 +141,7 @@ $(document).ready(function(){initNavTree('field__h__based_8hpp_source.html','');
 <div class="line"><a id="l00041" name="l00041"></a><span class="lineno">   41</span><span class="comment">//    Z_inv_current = Z_final_inv</span></div>
 <div class="line"><a id="l00042" name="l00042"></a><span class="lineno">   42</span><span class="comment">//    for each H_i (reverse order):</span></div>
 <div class="line"><a id="l00043" name="l00043"></a><span class="lineno">   43</span><span class="comment">//        Z_inv_current = Z_inv_current * H_i  // Unwind the product chain</span></div>
-<div class="line"><a id="l00044" name="l00044"></a><span class="lineno">   44</span><span class="comment">//        Store Z_inv_current² for affine conversion</span></div>
+<div class="line"><a id="l00044" name="l00044"></a><span class="lineno">   44</span><span class="comment">//        Store Z_inv_current^2 for affine conversion</span></div>
 <div class="line"><a id="l00045" name="l00045"></a><span class="lineno">   45</span><span class="comment">//    Result: All Z_i^{-2} values computed</span></div>
 <div class="line"><a id="l00046" name="l00046"></a><span class="lineno">   46</span><span class="comment">//</span></div>
 <div class="line"><a id="l00047" name="l00047"></a><span class="lineno">   47</span><span class="comment">// ## PERFORMANCE:</span></div>
@@ -153,18 +153,18 @@ $(document).ready(function(){initNavTree('field__h__based_8hpp_source.html','');
 <div class="line"><a id="l00053" name="l00053"></a><span class="lineno">   53</span><span class="comment">// Compared to Montgomery batch:</span></div>
 <div class="line"><a id="l00054" name="l00054"></a><span class="lineno">   54</span><span class="comment">//   - Less memory traffic (no prefix product array)</span></div>
 <div class="line"><a id="l00055" name="l00055"></a><span class="lineno">   55</span><span class="comment">//   - Better cache/register locality</span></div>
-<div class="line"><a id="l00056" name="l00056"></a><span class="lineno">   56</span><span class="comment">//   - GPU: 7.75× faster (measured on RTX 4090)</span></div>
-<div class="line"><a id="l00057" name="l00057"></a><span class="lineno">   57</span><span class="comment">//   - CPU: Expected 2-3× faster for large batches (N &gt; 100)</span></div>
+<div class="line"><a id="l00056" name="l00056"></a><span class="lineno">   56</span><span class="comment">//   - GPU: 7.75x faster (measured on RTX 4090)</span></div>
+<div class="line"><a id="l00057" name="l00057"></a><span class="lineno">   57</span><span class="comment">//   - CPU: Expected 2-3x faster for large batches (N &gt; 100)</span></div>
 <div class="line"><a id="l00058" name="l00058"></a><span class="lineno">   58</span><span class="comment">//</span></div>
 <div class="line"><a id="l00059" name="l00059"></a><span class="lineno">   59</span><span class="comment">// ## WHY IT WORKS:</span></div>
 <div class="line"><a id="l00060" name="l00060"></a><span class="lineno">   60</span><span class="comment">// Field multiplication (~18ns) is MUCH cheaper than inversion (~350ns).</span></div>
-<div class="line"><a id="l00061" name="l00061"></a><span class="lineno">   61</span><span class="comment">// Even with 2×N multiplications, as long as N &lt; 35, we win:</span></div>
+<div class="line"><a id="l00061" name="l00061"></a><span class="lineno">   61</span><span class="comment">// Even with 2xN multiplications, as long as N &lt; 35, we win:</span></div>
 <div class="line"><a id="l00062" name="l00062"></a><span class="lineno">   62</span><span class="comment">//   Standard: N muls + 1 inv = N*18 + 350 ns</span></div>
 <div class="line"><a id="l00063" name="l00063"></a><span class="lineno">   63</span><span class="comment">//   H-based:  2N muls + 1 inv = 2N*18 + 350 ns</span></div>
-<div class="line"><a id="l00064" name="l00064"></a><span class="lineno">   64</span><span class="comment">//   Break-even: N ≈ ∞ (multiplication cost is negligible vs inversion)</span></div>
+<div class="line"><a id="l00064" name="l00064"></a><span class="lineno">   64</span><span class="comment">//   Break-even: N ~= inf (multiplication cost is negligible vs inversion)</span></div>
 <div class="line"><a id="l00065" name="l00065"></a><span class="lineno">   65</span><span class="comment">//</span></div>
 <div class="line"><a id="l00066" name="l00066"></a><span class="lineno">   66</span><span class="comment">// The real win: Memory access patterns. H-based has sequential access;</span></div>
-<div class="line"><a id="l00067" name="l00067"></a><span class="lineno">   67</span><span class="comment">// Montgomery has random access to prefix array → cache misses kill performance.</span></div>
+<div class="line"><a id="l00067" name="l00067"></a><span class="lineno">   67</span><span class="comment">// Montgomery has random access to prefix array -&gt; cache misses kill performance.</span></div>
 <div class="line"><a id="l00068" name="l00068"></a><span class="lineno">   68</span><span class="comment">//</span></div>
 <div class="line"><a id="l00069" name="l00069"></a><span class="lineno">   69</span><span class="comment">// ============================================================================</span></div>
 <div class="line"><a id="l00070" name="l00070"></a><span class="lineno">   70</span> </div>
@@ -173,7 +173,7 @@ $(document).ready(function(){initNavTree('field__h__based_8hpp_source.html','');
 <div class="line"><a id="l00096" name="l00096"></a><span class="lineno">   96</span>                                  std::size_t count) {</div>
 <div class="line"><a id="l00097" name="l00097"></a><span class="lineno">   97</span>    <span class="keywordflow">if</span> (count == 0) <span class="keywordflow">return</span>;</div>
 <div class="line"><a id="l00098" name="l00098"></a><span class="lineno">   98</span>    </div>
-<div class="line"><a id="l00099" name="l00099"></a><span class="lineno">   99</span>    <span class="comment">// Forward pass: build Z_final = Z_0 * ∏H_i</span></div>
+<div class="line"><a id="l00099" name="l00099"></a><span class="lineno">   99</span>    <span class="comment">// Forward pass: build Z_final = Z_0 * prodH_i</span></div>
 <div class="line"><a id="l00100" name="l00100"></a><span class="lineno">  100</span>    <a class="code hl_class" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a> z_current = z0_value;</div>
 <div class="line"><a id="l00101" name="l00101"></a><span class="lineno">  101</span>    <span class="keywordflow">for</span> (std::size_t i = 0; i &lt; count; ++i) {</div>
 <div class="line"><a id="l00102" name="l00102"></a><span class="lineno">  102</span>        z_current *= h_values[i];  <span class="comment">// Z_{i+1} = Z_i * H_i</span></div>
@@ -205,7 +205,7 @@ $(document).ready(function(){initNavTree('field__h__based_8hpp_source.html','');
 <div class="line"><a id="l00149" name="l00149"></a><span class="lineno">  149</span>    <span class="comment">// Process each thread&#39;s sequence independently</span></div>
 <div class="line"><a id="l00150" name="l00150"></a><span class="lineno">  150</span>    <span class="comment">// (Parallel on multi-core CPU via OpenMP, TBB, or std::execution)</span></div>
 <div class="line"><a id="l00151" name="l00151"></a><span class="lineno">  151</span>    <span class="keywordflow">for</span> (std::size_t tid = 0; tid &lt; n_threads; ++tid) {</div>
-<div class="line"><a id="l00152" name="l00152"></a><span class="lineno">  152</span>        <span class="comment">// Forward pass: Z_final = Z_0 * ∏H_i</span></div>
+<div class="line"><a id="l00152" name="l00152"></a><span class="lineno">  152</span>        <span class="comment">// Forward pass: Z_final = Z_0 * prodH_i</span></div>
 <div class="line"><a id="l00153" name="l00153"></a><span class="lineno">  153</span>        <a class="code hl_class" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a> z_current = z0_values[tid];</div>
 <div class="line"><a id="l00154" name="l00154"></a><span class="lineno">  154</span>        </div>
 <div class="line"><a id="l00155" name="l00155"></a><span class="lineno">  155</span>        <span class="keywordflow">for</span> (std::size_t slot = 0; slot &lt; batch_size; ++slot) {</div>

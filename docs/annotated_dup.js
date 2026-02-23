@@ -1,5 +1,10 @@
 var annotated_dup =
 [
+    [ "bench", "namespacebench.html", [
+      [ "Harness", "classbench_1_1Harness.html", "classbench_1_1Harness" ],
+      [ "Stats", "structbench_1_1Stats.html", "structbench_1_1Stats" ],
+      [ "Timer", "structbench_1_1Timer.html", "structbench_1_1Timer" ]
+    ] ],
     [ "secp256k1", "namespacesecp256k1.html", [
       [ "coins", "namespacesecp256k1_1_1coins.html", [
         [ "CoinFeatures", "structsecp256k1_1_1coins_1_1CoinFeatures.html", "structsecp256k1_1_1coins_1_1CoinFeatures" ],

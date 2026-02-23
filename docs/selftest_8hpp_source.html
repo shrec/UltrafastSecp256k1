@@ -25,7 +25,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.10.0</span>
+   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.11.0</span>
    </div>
    <div id="projectbrief">Ultra high-performance secp256k1 elliptic curve cryptography library</div>
   </td>
@@ -104,12 +104,12 @@ $(document).ready(function(){initNavTree('selftest_8hpp_source.html',''); initRe
 <div class="line"><a id="l00004" name="l00004"></a><span class="lineno">    4</span> </div>
 <div class="line"><a id="l00005" name="l00005"></a><span class="lineno">    5</span><span class="keyword">namespace </span><a class="code hl_namespace" href="namespacesecp256k1_1_1fast.html">secp256k1::fast</a> {</div>
 <div class="line"><a id="l00006" name="l00006"></a><span class="lineno">    6</span> </div>
-<div class="line"><a id="l00007" name="l00007"></a><span class="lineno">    7</span><span class="comment">// ── Selftest execution modes ──</span></div>
+<div class="line"><a id="l00007" name="l00007"></a><span class="lineno">    7</span><span class="comment">// -- Selftest execution modes --</span></div>
 <div class="line"><a id="l00008" name="l00008"></a><span class="lineno">    8</span><span class="comment">// Controls which test subsets run and how many iterations stress tests perform.</span></div>
 <div class="line"><a id="l00009" name="l00009"></a><span class="lineno">    9</span><span class="comment">//</span></div>
-<div class="line"><a id="l00010" name="l00010"></a><span class="lineno">   10</span><span class="comment">//   smoke  — 1-2 seconds, core KAT vectors only (suitable for app startup)</span></div>
-<div class="line"><a id="l00011" name="l00011"></a><span class="lineno">   11</span><span class="comment">//   ci     — 30-90 seconds, full coverage (GitHub Actions / every push)</span></div>
-<div class="line"><a id="l00012" name="l00012"></a><span class="lineno">   12</span><span class="comment">//   stress — 10-60 minutes, extended iterations + big sweeps (nightly / manual)</span></div>
+<div class="line"><a id="l00010" name="l00010"></a><span class="lineno">   10</span><span class="comment">//   smoke  -- 1-2 seconds, core KAT vectors only (suitable for app startup)</span></div>
+<div class="line"><a id="l00011" name="l00011"></a><span class="lineno">   11</span><span class="comment">//   ci     -- 30-90 seconds, full coverage (GitHub Actions / every push)</span></div>
+<div class="line"><a id="l00012" name="l00012"></a><span class="lineno">   12</span><span class="comment">//   stress -- 10-60 minutes, extended iterations + big sweeps (nightly / manual)</span></div>
 <div class="foldopen" id="foldopen00013" data-start="{" data-end="};">
 <div class="line"><a id="l00013" name="l00013"></a><span class="lineno"><a class="line" href="namespacesecp256k1_1_1fast.html#aa79919388fa732a5045d756e9fe2830a">   13</a></span><span class="keyword">enum class</span> <a class="code hl_enumeration" href="namespacesecp256k1_1_1fast.html#aa79919388fa732a5045d756e9fe2830a">SelftestMode</a> : uint8_t {</div>
 <div class="line"><a id="l00014" name="l00014"></a><span class="lineno">   14</span>    <a class="code hl_enumvalue" href="namespacesecp256k1_1_1fast.html#aa79919388fa732a5045d756e9fe2830aafdfa02ecf86feac3801254da57c1c9ba">smoke</a>  = 0,   <span class="comment">// Core vectors + field/scalar identities (~1-2 s)</span></div>
