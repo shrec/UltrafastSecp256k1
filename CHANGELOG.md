@@ -5,6 +5,43 @@ All notable changes to UltrafastSecp256k1 are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.11.0] - 2026-02-23
+
+### Performance — Effective-Affine & RISC-V Optimization
+- **Effective-affine GLV table** — batch-normalize P-multiples to affine in `scalar_mul_glv52`, eliminating Z-coordinate arithmetic from the main loop. Point Add 821→159 ns on x86-64.
+- **RISC-V auto-detect CPU** — CMake reads `/proc/cpuinfo` uarch field to set `-mcpu=sifive-u74` automatically. **28–34% speedup** on Milk-V Mars (Scalar Mul 235→154 μs).
+- **RISC-V ThinLTO propagation** — ARCH_FLAGS propagated via INTERFACE compile+link options so ThinLTO codegen uses correct CPU scheduling at link time.
+- **RISC-V Zba/Zbb fix** — explicit `-march=rv64gc_zba_zbb` alongside `-mcpu` since Clang's sifive-u74 model omits these extensions.
+- **ARM64 10×26 field representation** — verified as optimal for Cortex-A76 (74 ns mul vs 100 ns with 5×52).
+
+### Performance — Embedded
+- **SafeGCD30 field inverse** — GCD-based modular inverse for non-`__int128` platforms: ESP32 **118 μs** (was 3 ms).
+- **SafeGCD30 scalar inverse** — same technique for scalar field; optimized SHA-256/HMAC/RFC-6979 for embedded.
+- **ESP32 4-stream GLV Strauss** — parallel endomorphism streams + Z²-verify optimization.
+- **CT layer optimizations** — comprehensive CT optimization pass for embedded targets.
+
+### Changed
+- **Unified benchmark harness** — all 4 bench binaries share common framework with IQR outlier removal and RDTSCP/chrono auto-selection.
+- **CMake 4.x compatibility** — standalone build support with `cmake_minimum_required(3.18)` + project-level CTest.
+- **Disable RISC-V FE52 asm** — C++ `__int128` inline is 26–33% faster than hand-written FE52 assembly on RISC-V.
+- **Benchmark data refresh** — all platforms re-measured: x86-64 (Clang 21), ARM64 (RK3588), RISC-V (Milk-V Mars).
+- **Remove competitor comparison tables** — benchmarks show only UltrafastSecp256k1 results.
+
+### Added
+- **Lightning donation** — `shrec@stacker.news` badge in README.
+- **ARM64 5×52 MUL/UMULH kernel** — interleaved multiply for exploration (10×26 remains default).
+- **ESP32 comprehensive benchmark** — full benchmark matching x86 format.
+
+### Fixed
+- **CI Unicode cleanup** — replaced all Unicode characters with ASCII across codebase.
+- **CI benchmark parse fix** — reset baseline for Unicode-free benchmark output.
+- **Orphaned submodule** — removed stale `cpu/secp256k1` submodule entry.
+
+### Acknowledgments
+- Stacker News, Delving Bitcoin, and @0xbitcoiner for community support.
+
+---
+
 ## [3.10.0] - 2026-02-21
 
 ### Performance — CT Hot-Path Optimization (Phases 5–15)
