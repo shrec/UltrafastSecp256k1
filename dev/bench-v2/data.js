@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771859513470,
+  "lastUpdate": 1771859533886,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -3756,6 +3756,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
             "value": 139,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 130,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "Vano Chkheidze",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b1a5b477e64105744c30b590c9bdddbaaec15eec",
+          "message": "Merge pull request #28 from shrec/dependabot/github_actions/actions/upload-artifact-6.0.0\n\nci(deps): bump actions/upload-artifact from 4.6.2 to 6.0.0",
+          "timestamp": "2026-02-23T19:10:53+04:00",
+          "tree_id": "f951f3e7137273b27f37e53c89fa3ea6aa59b33f",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/b1a5b477e64105744c30b590c9bdddbaaec15eec"
+        },
+        "date": 1771859532610,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 27,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 22,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 278,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 150,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 37000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 9000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 14000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 47000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 23000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 53000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 140,
             "unit": "ns"
           },
           {
