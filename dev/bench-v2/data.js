@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771859616779,
+  "lastUpdate": 1771860041469,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -4157,6 +4157,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Batch Inverse (n=1000)",
             "value": 131,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "3c91cd712ceb6ad98f93c03819748d45f343135a",
+          "message": "fix(ci): pin pip deps by hash, move codeql write perms to job-level\n\n- Create .github/requirements/ with hash-pinned requirements files\n- release.yml: use release-build.txt with wheel/setuptools/build + deps\n- bindings.yml: use bindings-lint.txt with pyflakes/mypy + deps\n- codeql.yml: move security-events:write from top-level to job-level\n  (fixes Scorecard TokenPermissions alert #122)",
+          "timestamp": "2026-02-23T19:19:18+04:00",
+          "tree_id": "1f6b84d09e751e5ce69edeae0a853eafebbc3eb3",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/3c91cd712ceb6ad98f93c03819748d45f343135a"
+        },
+        "date": 1771860040825,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 31,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 24,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 4,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 301,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 166,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 40000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 11000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 15000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 81000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 25000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 56000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 157,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 148,
             "unit": "ns"
           }
         ]
