@@ -2,14 +2,29 @@
 
 Thank you for your interest in contributing to UltrafastSecp256k1! This document provides guidelines for contributing to the project.
 
+## ⚠️ Requirements for Acceptable Contributions
+
+All contributions **MUST** comply with the following before they can be accepted:
+
+1. **Coding Standards** — read and follow the [Coding Standards](https://github.com/shrec/UltrafastSecp256k1/blob/main/docs/CODING_STANDARDS.md) document in full
+2. **All tests pass** — `ctest --test-dir build-dev --output-on-failure`
+3. **Code formatted** — `clang-format -i <files>` (`.clang-format` config in repo root)
+4. **No compiler warnings** — clean build with `-Wall -Wextra`
+5. **License** — all contributions are licensed under [AGPL-3.0-or-later](https://github.com/shrec/UltrafastSecp256k1/blob/main/LICENSE)
+6. **Security** — follow the [Security Policy](https://github.com/shrec/UltrafastSecp256k1/blob/main/SECURITY.md); never open public issues for vulnerabilities
+
+Pull requests that do not meet these requirements will be rejected.
+
 ## 📋 Table of Contents
 
+- [Requirements for Acceptable Contributions](#️-requirements-for-acceptable-contributions)
 - [Code of Conduct](#code-of-conduct)
 - [Getting Started](#getting-started)
 - [Development Process](#development-process)
 - [Coding Standards](#coding-standards)
 - [Testing](#testing)
 - [Pull Request Process](#pull-request-process)
+- [Reporting Issues](#reporting-issues)
 - [Areas for Contribution](#areas-for-contribution)
 
 ## 🤝 Code of Conduct
@@ -63,6 +78,10 @@ cmake --build build-dev -j
 - `refactor/` - Code refactoring
 
 ## 📝 Coding Standards
+
+> **Full reference:** [docs/CODING_STANDARDS.md](https://github.com/shrec/UltrafastSecp256k1/blob/main/docs/CODING_STANDARDS.md)
+
+The complete coding standards document covers naming, formatting, hot-path contracts, memory model, cryptographic correctness, GPU rules, and commit standards. Below is a summary.
 
 ### C++ Style
 
