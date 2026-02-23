@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771883544431,
+  "lastUpdate": 1771883557667,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -8414,6 +8414,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Batch Inverse (n=1000)",
             "value": 200,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "7febc2161bf348f8091820b184505f249fe9da42",
+          "message": "Merge dev: fix code scanning alerts #281 #282",
+          "timestamp": "2026-02-24T01:51:11+04:00",
+          "tree_id": "d342f9090c8149d127d4a2b38adb4919fcfa5e7a",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/7febc2161bf348f8091820b184505f249fe9da42"
+        },
+        "date": 1771883556890,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 27,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 22,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 278,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 147,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 37000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 9000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 15000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 47000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 23000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 53000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 139,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 130,
             "unit": "ns"
           }
         ]
