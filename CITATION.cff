@@ -1,0 +1,31 @@
+cff-version: 1.2.0
+title: "UltrafastSecp256k1"
+message: "If you use this software, please cite it as below."
+type: software
+authors:
+  - family-names: "Chkheidze"
+    given-names: "Irakli"
+    alias: "shrec"
+repository-code: "https://github.com/shrec/UltrafastSecp256k1"
+url: "https://shrec.github.io/UltrafastSecp256k1/docs/"
+license: AGPL-3.0-or-later
+version: "3.12.1"
+date-released: "2025-06-15"
+keywords:
+  - secp256k1
+  - elliptic-curve-cryptography
+  - ECDSA
+  - Schnorr-signatures
+  - CUDA
+  - GPU-acceleration
+  - constant-time
+  - Bitcoin
+  - Ethereum
+  - high-performance
+  - zero-dependency
+  - C++20
+abstract: >-
+  Ultra high-performance secp256k1 ECC library featuring GPU-accelerated
+  ECDSA and Schnorr signatures (CUDA, Metal, OpenCL, ROCm), constant-time
+  side-channel protection, 12+ platform targets, and zero external
+  dependencies. Achieves 4.88M ECDSA signs/s on a single GPU.

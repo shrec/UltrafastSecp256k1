@@ -51,12 +51,26 @@ However, the following automated security measures are in place:
 
 - **CodeQL** — static analysis on every push/PR (C/C++ security-and-quality queries)
 - **OpenSSF Scorecard** — weekly supply-chain security assessment
+- **Security Audit CI** — `-Werror -Wall -Wextra -Wpedantic -Wconversion -Wshadow` build, ASan+UBSan test suite, Valgrind memcheck (weekly + on push)
+- **Clang-Tidy** — 30+ static analysis checks (bugprone, cert, performance, readability, clang-analyzer) on every push/PR
+- **SonarCloud** — continuous code quality and security hotspot analysis
 - **ASan + UBSan** — address/undefined-behavior sanitizers in CI
 - **TSan** — thread sanitizer in CI
+- **Valgrind Memcheck** — memory error detection in Security Audit workflow
 - **Artifact Attestation** — SLSA provenance for all release artifacts
 - **SHA-256 Checksums** — `SHA256SUMS.txt` ships with every release
 - **Dependabot** — automated dependency updates for all ecosystems
+- **Dependency Review** — PR-level vulnerable dependency scanning
 - **libFuzzer harnesses** — continuous fuzz testing of field/scalar/point layers
+- **Docker SHA-pinned images** — reproducible builds with digest-pinned base images
+
+### Planned Security Improvements
+
+- [ ] Independent third-party cryptographic audit (seeking funding)
+- [ ] `dudect` side-channel leakage testing for CT layer
+- [ ] Formal verification of field/scalar arithmetic (Fiat-Crypto / Cryptol)
+- [ ] Hardware timing analysis on multiple CPU microarchitectures
+- [ ] FROST / MuSig2 protocol-level test vectors from reference implementations
 
 For production cryptographic systems, prefer audited libraries such as
 [libsecp256k1](https://github.com/bitcoin-core/secp256k1).
@@ -168,4 +182,4 @@ We appreciate responsible disclosure. Contributors who report valid security iss
 
 ---
 
-*UltrafastSecp256k1 v3.11.0 — Security Policy*
+*UltrafastSecp256k1 v3.12.1 — Security Policy*
