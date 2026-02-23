@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771812743672,
+  "lastUpdate": 1771812749016,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -1682,6 +1682,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Batch Inverse (n=1000)",
             "value": 136,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": false,
+          "id": "a83f74d14cc33189f5512253118558d1d31f0df2",
+          "message": "fix: update all repository URLs to shrec/UltrafastSecp256k1\n\n- Replace AvraSasmo/UltrafastSecp256k1 with shrec/UltrafastSecp256k1 in all binding configs\n- Replace shrec/Secp256K1fast with shrec/UltrafastSecp256k1 in CI, docs, package managers\n- Fix WASM release archive to use wasm/README.md instead of root README.md\n- Fix Package.swift and conanfile.py URLs\n\n24 files changed across: bindings (npm, nuget, dart, php, python, ruby, rust, react-native),\nCI workflows, docs, Package.swift, conanfile.py, podspec, vcpkg.json, CMakeLists.txt",
+          "timestamp": "2026-02-23T06:11:06+04:00",
+          "tree_id": "440c3419cb1f210c5d5a1a94fbeefcf1d07beaf0",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/a83f74d14cc33189f5512253118558d1d31f0df2"
+        },
+        "date": 1771812747713,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 27,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 22,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 279,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 149,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 37000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 9000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 14000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 47000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 23000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 53000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 139,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 130,
             "unit": "ns"
           }
         ]
