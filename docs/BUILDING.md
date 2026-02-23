@@ -617,7 +617,49 @@ ctest --test-dir build --output-on-failure
 
 ---
 
+## Install from Linux Packages
+
+Pre-built packages are available for each [GitHub Release](https://github.com/shrec/UltrafastSecp256k1/releases).
+
+### Debian / Ubuntu (APT)
+
+```bash
+# Add the repository
+curl -fsSL https://shrec.github.io/UltrafastSecp256k1/apt/KEY.gpg \
+  | sudo gpg --dearmor -o /etc/apt/keyrings/ultrafastsecp256k1.gpg
+echo "deb [signed-by=/etc/apt/keyrings/ultrafastsecp256k1.gpg] \
+  https://shrec.github.io/UltrafastSecp256k1/apt stable main" \
+  | sudo tee /etc/apt/sources.list.d/ultrafastsecp256k1.list
+
+sudo apt update
+sudo apt install libsecp256k1-fast-dev   # headers + static + shared
+```
+
+### Fedora / RHEL (RPM)
+
+```bash
+# Download the latest .rpm from GitHub Releases
+curl -LO "https://github.com/shrec/UltrafastSecp256k1/releases/latest/download/\
+UltrafastSecp256k1-$(rpm -E %{_arch}).rpm"
+sudo dnf install ./UltrafastSecp256k1-*.rpm
+```
+
+### Arch Linux (AUR)
+
+```bash
+yay -S libsecp256k1-fast
+```
+
+### Docker (build from source)
+
+```bash
+docker build -t ultrafastsecp256k1 -f Dockerfile .
+docker run --rm ultrafastsecp256k1 ctest --output-on-failure
+```
+
+---
+
 ## Version
 
-UltrafastSecp256k1 v3.0.0
+Current version is read from `VERSION.txt` at configure time.
 
