@@ -1,0 +1,78 @@
+name: Clang-Tidy
+
+on:
+  push:
+    branches: [main, dev]
+    paths:
+      - 'cpu/**'
+      - 'include/**'
+      - '.clang-tidy'
+      - '.github/workflows/clang-tidy.yml'
+  pull_request:
+    branches: [main, dev]
+    paths:
+      - 'cpu/**'
+      - 'include/**'
+      - '.clang-tidy'
+      - '.github/workflows/clang-tidy.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  clang-tidy:
+    name: Static Analysis (clang-tidy)
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@5ef0c079ce82195b2a36a210272d6b661572d83e # v2.14.2
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Install toolchain
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y clang-17 clang-tidy-17 lld-17 ninja-build
+
+      - name: Configure (compile_commands.json)
+        run: |
+          cmake -S . -B build \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_COMPILER=clang-17 \
+            -DCMAKE_CXX_COMPILER=clang++-17 \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+            -DSECP256K1_BUILD_TESTS=ON \
+            -DSECP256K1_BUILD_BENCH=ON \
+            -DSECP256K1_BUILD_EXAMPLES=ON
+
+      - name: Build (needed for generated headers)
+        run: cmake --build build -j$(nproc)
+
+      - name: Run clang-tidy
+        run: |
+          # Gather all C++ source files under cpu/ and include/
+          find cpu/ include/ -type f \( -name '*.cpp' -o -name '*.hpp' -o -name '*.h' \) \
+            | sort \
+            | xargs clang-tidy-17 -p build --warnings-as-errors='' 2>&1 \
+            | tee clang-tidy-output.txt
+          # Fail if clang-tidy found any warnings (exit code from clang-tidy)
+          if grep -qE '^.+:[0-9]+:[0-9]+: (warning|error):' clang-tidy-output.txt; then
+            echo "::warning::clang-tidy found issues (non-blocking for now)"
+            # To make blocking later, uncomment: exit 1
+          fi
+
+      - name: Upload clang-tidy report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: clang-tidy-report
+          path: clang-tidy-output.txt
+          retention-days: 30
