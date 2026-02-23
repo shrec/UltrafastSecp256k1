@@ -1,5 +1,12 @@
 var NAVTREEINDEX9 =
 {
+"structsecp256k1_1_1fast_1_1PrecomputedScalar.html#ae83be6d9b05c9b0feae26a062e4d8474":[3,0,1,2,11,6],
+"structsecp256k1_1_1fast_1_1PrecomputedScalar.html#ae83be6d9b05c9b0feae26a062e4d8474":[2,0,1,3,16,6],
+"structsecp256k1_1_1fast_1_1PrecomputedScalarOptimized.html":[2,0,1,3,17],
+"structsecp256k1_1_1fast_1_1PrecomputedScalarOptimized.html":[3,0,1,2,12],
+"structsecp256k1_1_1fast_1_1PrecomputedScalarOptimized.html#a7ea064bf8de535e569efec3895a6dce9":[3,0,1,2,12,2],
+"structsecp256k1_1_1fast_1_1PrecomputedScalarOptimized.html#a7ea064bf8de535e569efec3895a6dce9":[2,0,1,3,17,2],
+"structsecp256k1_1_1fast_1_1PrecomputedScalarOptimized.html#ab144de574bc2bee76cc58d895c4412a5":[2,0,1,3,17,7],
 "structsecp256k1_1_1fast_1_1PrecomputedScalarOptimized.html#ab144de574bc2bee76cc58d895c4412a5":[3,0,1,2,12,7],
 "structsecp256k1_1_1fast_1_1PrecomputedScalarOptimized.html#abe2e0b579149888e8168ead3fa83acb0":[3,0,1,2,12,4],
 "structsecp256k1_1_1fast_1_1PrecomputedScalarOptimized.html#abe2e0b579149888e8168ead3fa83acb0":[2,0,1,3,17,4],
@@ -242,12 +249,5 @@ var NAVTREEINDEX9 =
 "ufsecp__impl_8cpp.html#af5825a1d4efec1269be2232554083959":[4,0,1,1,2,42],
 "ufsecp__impl_8cpp.html#afab0f4032597d1596387884f06d2d053":[4,0,1,1,2,24],
 "ufsecp__impl_8cpp_source.html":[4,0,1,1,2],
-"ufsecp__version_8h.html":[4,0,1,1,3],
-"ufsecp__version_8h.html#a00aefa3a9a204565f192db4e1eb0a585":[4,0,1,1,3,8],
-"ufsecp__version_8h.html#a2152da1f53e65d8b80e428ca26e1e976":[4,0,1,1,3,9],
-"ufsecp__version_8h.html#a407719474ce7a71be9faf26f27f38c6c":[4,0,1,1,3,1],
-"ufsecp__version_8h.html#a4a9308f6f4b597d81f2dbc85ba939cb1":[4,0,1,1,3,4],
-"ufsecp__version_8h.html#a6f36afedc3749943c23749d1bc00fd8c":[4,0,1,1,3,3],
-"ufsecp__version_8h.html#a8ee870947b1eb197414dbd5e9e40b476":[4,0,1,1,3,2],
-"ufsecp__version_8h.html#aa3b62982ff799462e2f8b46c4411e2a6":[4,0,1,1,3,6]
+"ufsecp__version_8h.html":[4,0,1,1,3]
 };

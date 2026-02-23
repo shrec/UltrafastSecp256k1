@@ -78,13 +78,13 @@ var NAVTREEINDEX =
 "classsecp256k1_1_1fast_1_1Point.html#a799ad7adc180235caaf11e47c98e2086",
 "ct__utils_8hpp_source.html",
 "functions_q.html",
-"namespacesecp256k1.html#a193d22c028b107d14dd814fa3b760020",
-"namespacesecp256k1_1_1fast.html#a25726236e14f0fe2ca350f396b583e69",
-"namespacesecp256k1_1_1test.html#a67d5ad2842e24c72d6e79f845fb96335ad8afbc541b39d23648c823057cffe3a5",
-"structsecp256k1_1_1FrostCommitment.html#a1920a92c37e05822662360e3e9ead77b",
-"structsecp256k1_1_1ct_1_1CTAffinePoint.html#a3a5f40dd9ddc7cfdea32c743ac9f489b",
-"structsecp256k1_1_1fast_1_1PrecomputedScalarOptimized.html#ab144de574bc2bee76cc58d895c4412a5",
-"ufsecp__version_8h.html#ab2da3f29bf4348b5e781f4e9bbefc26a"
+"namespacesecp256k1.html#a0508ad0ead12c8b68e3e5ceb647e65eb",
+"namespacesecp256k1_1_1fast.html#a1af2b5f26a2f1eafd5c29948db4ae158",
+"namespacesecp256k1_1_1test.html#a67d5ad2842e24c72d6e79f845fb96335ab1870fa8801941a8b0faddfd614d3493",
+"structsecp256k1_1_1FieldElementData.html",
+"structsecp256k1_1_1coins_1_1Keccak256State.html#ab4b13479b11af716069bb9e4a8ab3418",
+"structsecp256k1_1_1fast_1_1PrecomputedScalar.html#ae83be6d9b05c9b0feae26a062e4d8474",
+"ufsecp__version_8h.html#a00aefa3a9a204565f192db4e1eb0a585"
 ];
 
 var SYNCONMSG = 'click to disable panel synchronisation';

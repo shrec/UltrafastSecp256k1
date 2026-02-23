@@ -1,5 +1,12 @@
 var NAVTREEINDEX8 =
 {
+"structsecp256k1_1_1coins_1_1Keccak256State.html#ab4b13479b11af716069bb9e4a8ab3418":[2,0,1,0,3,3],
+"structsecp256k1_1_1coins_1_1Keccak256State.html#ab4b13479b11af716069bb9e4a8ab3418":[3,0,1,0,3,3],
+"structsecp256k1_1_1coins_1_1Keccak256State.html#afad88379d6ee32e366173b3b3ec1fe16":[2,0,1,0,3,2],
+"structsecp256k1_1_1coins_1_1Keccak256State.html#afad88379d6ee32e366173b3b3ec1fe16":[3,0,1,0,3,2],
+"structsecp256k1_1_1ct_1_1CTAffinePoint.html":[3,0,1,1,0],
+"structsecp256k1_1_1ct_1_1CTAffinePoint.html":[2,0,1,1,0],
+"structsecp256k1_1_1ct_1_1CTAffinePoint.html#a3a5f40dd9ddc7cfdea32c743ac9f489b":[3,0,1,1,0,1],
 "structsecp256k1_1_1ct_1_1CTAffinePoint.html#a3a5f40dd9ddc7cfdea32c743ac9f489b":[2,0,1,1,0,1],
 "structsecp256k1_1_1ct_1_1CTAffinePoint.html#a4f83360cd603b11e36ce2301013b335d":[3,0,1,1,0,4],
 "structsecp256k1_1_1ct_1_1CTAffinePoint.html#a4f83360cd603b11e36ce2301013b335d":[2,0,1,1,0,4],
@@ -242,12 +249,5 @@ var NAVTREEINDEX8 =
 "structsecp256k1_1_1fast_1_1PrecomputedScalar.html#ab5f139f5395513323622a8b95a016ed6":[2,0,1,3,16,7],
 "structsecp256k1_1_1fast_1_1PrecomputedScalar.html#ab5f139f5395513323622a8b95a016ed6":[3,0,1,2,11,7],
 "structsecp256k1_1_1fast_1_1PrecomputedScalar.html#ad58b708c971b3f63b8590fa7b10a94bb":[2,0,1,3,16,4],
-"structsecp256k1_1_1fast_1_1PrecomputedScalar.html#ad58b708c971b3f63b8590fa7b10a94bb":[3,0,1,2,11,4],
-"structsecp256k1_1_1fast_1_1PrecomputedScalar.html#ae83be6d9b05c9b0feae26a062e4d8474":[3,0,1,2,11,6],
-"structsecp256k1_1_1fast_1_1PrecomputedScalar.html#ae83be6d9b05c9b0feae26a062e4d8474":[2,0,1,3,16,6],
-"structsecp256k1_1_1fast_1_1PrecomputedScalarOptimized.html":[2,0,1,3,17],
-"structsecp256k1_1_1fast_1_1PrecomputedScalarOptimized.html":[3,0,1,2,12],
-"structsecp256k1_1_1fast_1_1PrecomputedScalarOptimized.html#a7ea064bf8de535e569efec3895a6dce9":[3,0,1,2,12,2],
-"structsecp256k1_1_1fast_1_1PrecomputedScalarOptimized.html#a7ea064bf8de535e569efec3895a6dce9":[2,0,1,3,17,2],
-"structsecp256k1_1_1fast_1_1PrecomputedScalarOptimized.html#ab144de574bc2bee76cc58d895c4412a5":[2,0,1,3,17,7]
+"structsecp256k1_1_1fast_1_1PrecomputedScalar.html#ad58b708c971b3f63b8590fa7b10a94bb":[3,0,1,2,11,4]
 };

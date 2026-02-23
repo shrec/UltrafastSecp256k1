@@ -1,5 +1,12 @@
 var NAVTREEINDEX7 =
 {
+"structsecp256k1_1_1FieldElementData.html":[2,0,1,14],
+"structsecp256k1_1_1FieldElementData.html":[3,0,1,11],
+"structsecp256k1_1_1FieldElementData.html#a2ded31b1bdf973e35ade41240bc96bb9":[2,0,1,14,0],
+"structsecp256k1_1_1FieldElementData.html#a2ded31b1bdf973e35ade41240bc96bb9":[3,0,1,11,0],
+"structsecp256k1_1_1FrostCommitment.html":[2,0,1,15],
+"structsecp256k1_1_1FrostCommitment.html":[3,0,1,12],
+"structsecp256k1_1_1FrostCommitment.html#a1920a92c37e05822662360e3e9ead77b":[3,0,1,12,0],
 "structsecp256k1_1_1FrostCommitment.html#a1920a92c37e05822662360e3e9ead77b":[2,0,1,15,0],
 "structsecp256k1_1_1FrostCommitment.html#a2c8f7a7ce6f8950bc9d73e0a487e7780":[3,0,1,12,1],
 "structsecp256k1_1_1FrostCommitment.html#a2c8f7a7ce6f8950bc9d73e0a487e7780":[2,0,1,15,1],
@@ -242,12 +249,5 @@ var NAVTREEINDEX7 =
 "structsecp256k1_1_1coins_1_1Keccak256State.html#a8d51099720b131d798e0d552142bb110":[2,0,1,0,3,5],
 "structsecp256k1_1_1coins_1_1Keccak256State.html#a8d51099720b131d798e0d552142bb110":[3,0,1,0,3,5],
 "structsecp256k1_1_1coins_1_1Keccak256State.html#a95fb0fbe8cbb37c76896fd1a4fc7a96c":[2,0,1,0,3,1],
-"structsecp256k1_1_1coins_1_1Keccak256State.html#a95fb0fbe8cbb37c76896fd1a4fc7a96c":[3,0,1,0,3,1],
-"structsecp256k1_1_1coins_1_1Keccak256State.html#ab4b13479b11af716069bb9e4a8ab3418":[2,0,1,0,3,3],
-"structsecp256k1_1_1coins_1_1Keccak256State.html#ab4b13479b11af716069bb9e4a8ab3418":[3,0,1,0,3,3],
-"structsecp256k1_1_1coins_1_1Keccak256State.html#afad88379d6ee32e366173b3b3ec1fe16":[2,0,1,0,3,2],
-"structsecp256k1_1_1coins_1_1Keccak256State.html#afad88379d6ee32e366173b3b3ec1fe16":[3,0,1,0,3,2],
-"structsecp256k1_1_1ct_1_1CTAffinePoint.html":[3,0,1,1,0],
-"structsecp256k1_1_1ct_1_1CTAffinePoint.html":[2,0,1,1,0],
-"structsecp256k1_1_1ct_1_1CTAffinePoint.html#a3a5f40dd9ddc7cfdea32c743ac9f489b":[3,0,1,1,0,1]
+"structsecp256k1_1_1coins_1_1Keccak256State.html#a95fb0fbe8cbb37c76896fd1a4fc7a96c":[3,0,1,0,3,1]
 };
