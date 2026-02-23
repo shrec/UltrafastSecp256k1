@@ -1358,7 +1358,9 @@ Point scalar_mul(const Point& p, const Scalar& k) noexcept {
     // Remaining groups: in-place dbl_n + in-place adds (no infinity possible)
     // Prevent unrolling: the inlined body is large (~2.5KB per iteration);
     // unrolling 25 iterations would blow the L1 i-cache (32KB).
+    #ifdef __clang__
     #pragma clang loop unroll(disable)
+    #endif
     for (int group = static_cast<int>(GROUPS) - 2; group >= 0; --group) {
         std::uint64_t bits1 = scalar_window(v1, static_cast<std::size_t>(group) * GROUP_SIZE, GROUP_SIZE);
         std::uint64_t bits2 = scalar_window(v2, static_cast<std::size_t>(group) * GROUP_SIZE, GROUP_SIZE);
@@ -1626,7 +1628,9 @@ Point generator_mul(const Scalar& k) noexcept {
     }
 
     // Remaining 42 blocks: lookup + unified add
+    #ifdef __clang__
     #pragma clang loop unroll(disable)
+    #endif
     for (unsigned b = 1; b < COMB_BLOCKS; ++b) {
         std::uint64_t digit = extract_comb_digit(v, b);
         comb_lookup(&T, g_comb_table.entries[b], digit);
