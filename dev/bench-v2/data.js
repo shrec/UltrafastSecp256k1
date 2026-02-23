@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771812749016,
+  "lastUpdate": 1771844070778,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -1781,6 +1781,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Batch Inverse (n=1000)",
             "value": 130,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "5d62d1ac9341723ca40f803b3c340607fd91a1ea",
+          "message": "docs: comprehensive wiki documentation update\n\n- Home.md: updated features list, performance tables (CPU/GPU/Embedded), Discord link\n- Benchmarks.md: all current numbers for x86-64, ARM64, RISC-V, CUDA, OpenCL, Metal, ESP32, STM32\n- CPU-Guide.md: ARM64 promoted to Production (was Planned), updated perf numbers, algorithm details\n- API-Reference.md: added ECDSA, Schnorr, ECDH, BIP-32, Address, SHA-256, WIF, ufsecp C ABI (45 functions)\n- CUDA-Guide.md: added Blackwell architecture (sm_120, RTX 5060-5090)\n- Getting-Started.md: added missing build options (OpenCL, Metal, ROCm, MSVC)\n- Examples.md: added ECDSA sign/verify, recoverable signatures, Schnorr BIP-340 examples",
+          "timestamp": "2026-02-23T14:53:16+04:00",
+          "tree_id": "28aa8e4d8d2ba4a504b9eb0fba4360d08d686110",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/5d62d1ac9341723ca40f803b3c340607fd91a1ea"
+        },
+        "date": 1771844070057,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 31,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 24,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 4,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 4,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 299,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 165,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 40000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 11000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 15000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 49000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 26000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 56000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 157,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 166,
             "unit": "ns"
           }
         ]
