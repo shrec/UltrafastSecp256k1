@@ -457,7 +457,7 @@ Porting to New Platforms</h2>
 <h1><a class="anchor" id="autotoc_md53"></a>
 WASM secp256k1 (Browser &amp; Node.js)</h1>
 <p>WebAssembly build via Emscripten — runs <a class="el" href="namespacesecp256k1.html">secp256k1</a> in any modern browser or Node.js:</p>
-<div class="fragment"><div class="line">./scripts/build_wasm.sh        # → build-wasm/dist/</div>
+<div class="fragment"><div class="line">./scripts/build_wasm.sh        # → build/wasm/dist/</div>
 </div><!-- fragment --><p>Output: <code>secp256k1_wasm.wasm</code> + <code>secp256k1.mjs</code> (ES6 module with TypeScript declarations). See wasm/README.md for JavaScript/TypeScript integration.</p>
 <hr  />
 <h1><a class="anchor" id="autotoc_md55"></a>
@@ -630,10 +630,10 @@ With CUDA GPU Support</h2>
 <div class="line">cmake --build build -j</div>
 </div><!-- fragment --><h2><a class="anchor" id="autotoc_md69"></a>
 WebAssembly (Emscripten)</h2>
-<div class="fragment"><div class="line">./scripts/build_wasm.sh        # → build-wasm/dist/</div>
+<div class="fragment"><div class="line">./scripts/build_wasm.sh        # → build/wasm/dist/</div>
 </div><!-- fragment --><h2><a class="anchor" id="autotoc_md70"></a>
 iOS (XCFramework)</h2>
-<div class="fragment"><div class="line">./scripts/build_xcframework.sh  # → build-xcframework/output/</div>
+<div class="fragment"><div class="line">./scripts/build_xcframework.sh  # → build/xcframework/output/</div>
 </div><!-- fragment --><p>Universal XCFramework (arm64 device + arm64 simulator). Also available via <b>Swift Package Manager</b> and <b>CocoaPods</b>.</p>
 <h2><a class="anchor" id="autotoc_md71"></a>
 Build Options</h2>
@@ -938,9 +938,9 @@ Contributing</h1>
 <p>Contributions are welcome! Please read CONTRIBUTING.md.</p>
 <div class="fragment"><div class="line">git clone https://github.com/shrec/UltrafastSecp256k1.git</div>
 <div class="line">cd UltrafastSecp256k1</div>
-<div class="line">cmake -S . -B build-dev -G Ninja -DCMAKE_BUILD_TYPE=Debug</div>
-<div class="line">cmake --build build-dev -j</div>
-<div class="line">ctest --test-dir build-dev --output-on-failure</div>
+<div class="line">cmake -S . -B build/dev -G Ninja -DCMAKE_BUILD_TYPE=Debug</div>
+<div class="line">cmake --build build/dev -j</div>
+<div class="line">ctest --test-dir build/dev --output-on-failure</div>
 </div><!-- fragment --><hr  />
 <h1><a class="anchor" id="autotoc_md101"></a>
 License</h1>
