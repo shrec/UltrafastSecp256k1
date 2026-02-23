@@ -4,10 +4,10 @@
 
 | Version | Supported |
 |---------|-----------|
-| 3.11.x  | ✅ Active  |
+| 3.12.x  | ✅ Active  |
+| 3.11.x  | ⚠️ Critical fixes only |
 | 3.9.x–3.10.x | ⚠️ Critical fixes only |
-| 3.6.x–3.8.x | ⚠️ Critical fixes only |
-| < 3.6   | ❌ Unsupported |
+| < 3.9   | ❌ Unsupported |
 
 Security fixes apply to the latest release on the `main` branch.
 
