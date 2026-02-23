@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771855188643,
+  "lastUpdate": 1771856701229,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -2870,6 +2870,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Batch Inverse (n=1000)",
             "value": 147,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "bcffd1ccef1ef5bc569e4654927779145faab2db",
+          "message": "fix: suppress 62+ code scanning alerts, harden PR #25 fixes\n\n- Add .github/codeql/codeql-config.yml: exclude cpp/unused-static-function (52),\n  cpp/constant-comparison (4), cpp/stack-address-escape (1), cpp/path-injection (3)\n- Reference config-file in codeql.yml CodeQL init step\n- Fix dependency-review.yml: checkout v4->v6, ubuntu-latest->ubuntu-24.04\n- Clean .pre-commit-config.yaml: remove irrelevant PHP/Java/Ruby/Go/eslint/pylint\n  hooks, keep gitleaks/shellcheck/cpplint/pre-commit-hooks, bump versions\n- Pin pip versions: wheel==0.45.1, setuptools==75.8.0, build==1.2.2 (release.yml),\n  pyflakes==3.2.0, mypy==1.14.1 (bindings.yml) for Scorecard PinnedDependenciesID\n- Suppress unused-local-variable: (void)a_inf in ct_point.cpp,\n  (void)parity in test_ecdh_recovery_taproot.cpp\n\nEliminates: 52 unused-static-function, 4 constant-comparison,\n3 path-injection, 2 unused-local-variable, 1 stack-address-escape,\n2 PinnedDependenciesID = 64 alerts resolved.\nRemaining 8: 4 TokenPermissions (legitimate), 4 repo-level (not code-fixable).",
+          "timestamp": "2026-02-23T18:23:36+04:00",
+          "tree_id": "eb04f8e0590905cceb64b960c252112515979a32",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/bcffd1ccef1ef5bc569e4654927779145faab2db"
+        },
+        "date": 1771856700505,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 27,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 22,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 293,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 149,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 37000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 9000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 14000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 47000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 23000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 53000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 140,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 131,
             "unit": "ns"
           }
         ]
