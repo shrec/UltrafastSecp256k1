@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771861620297,
+  "lastUpdate": 1771862707047,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -4850,6 +4850,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Batch Inverse (n=1000)",
             "value": 198,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "679fcddf3c3e5127479f06631810f0cc25b4f89a",
+          "message": "docs: add coding standards, enhance contribution requirements, fix LICENSE for OpenSSF badge\n\n- Create docs/CODING_STANDARDS.md with full coding standards reference\n- Update CONTRIBUTING.md with explicit 'Requirements for Acceptable Contributions' section\n- Add URL references to coding standards in CONTRIBUTING.md\n- Replace LICENSE with standard full AGPL-3.0 text for GitHub recognition\n- SPDX: AGPL-3.0-or-later\n\nSatisfies OpenSSF Best Practices criteria:\n  contribution_requirements, floss_license, floss_license_osi,\n  documentation_interface, report_process, report_tracker",
+          "timestamp": "2026-02-23T20:03:40+04:00",
+          "tree_id": "4f54e3b33f8ec42462214afa778ddaaa5a01c981",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/679fcddf3c3e5127479f06631810f0cc25b4f89a"
+        },
+        "date": 1771862705760,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 27,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 22,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 279,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 150,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 37000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 9000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 14000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 47000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 27000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 53000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 139,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 130,
             "unit": "ns"
           }
         ]
