@@ -1,0 +1,61 @@
+name: SonarCloud
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  sonarcloud:
+    name: SonarCloud Analysis
+    runs-on: ubuntu-24.04
+
+    env:
+      BUILD_WRAPPER_OUT_DIR: build-wrapper-output
+
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@5ef0c079ce82195b2a36a210272d6b661572d83e # v2.14.2
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0  # Full history for blame / new-code detection
+
+      - name: Install compiler
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y clang-17 lld-17 ninja-build
+
+      - name: Install SonarCloud scanner + build-wrapper
+        uses: SonarSource/sonarqube-scan-action/setup@aa6cc715daacb01090c506683ad5093e6609090c # v5.2.0
+
+      - name: Build with build-wrapper
+        run: |
+          export CC=clang-17 CXX=clang++-17
+          cmake -S . -B build-sonar -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+            -DSECP256K1_BUILD_TESTS=ON \
+            -DSECP256K1_BUILD_BENCH=OFF \
+            -DSECP256K1_BUILD_EXAMPLES=OFF \
+            -DSECP256K1_USE_ASM=OFF
+          build-wrapper-linux-x86-64 --out-dir ${{ env.BUILD_WRAPPER_OUT_DIR }} \
+            cmake --build build-sonar -j$(nproc)
+
+      - name: Run SonarCloud scan
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          sonar-scanner \
+            --define sonar.cfamily.compile-commands="${{ env.BUILD_WRAPPER_OUT_DIR }}/compile_commands.json"
