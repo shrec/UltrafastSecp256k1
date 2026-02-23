@@ -41,6 +41,7 @@ jobs:
           languages: c-cpp
           build-mode: manual
           queries: security-and-quality
+          config-file: .github/codeql/codeql-config.yml
 
       - name: Build for analysis
         run: |

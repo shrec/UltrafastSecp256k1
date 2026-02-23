@@ -301,6 +301,7 @@ static void test_taproot_privkey_tweak() {
     auto tweaked_pk_x = tweaked_pk.x().to_bytes();
 
     auto [output_x, parity] = taproot_output_key(pk_x);
+    (void)parity; // CodeQL: suppress unused-local-variable (structured binding)
     check(tweaked_pk_x == output_x, "Taproot: tweaked key produces output key");
 }
 

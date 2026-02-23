@@ -874,6 +874,7 @@ void unified_add_core(CTJacobianPoint* out,
     FE52 Y1 = a.y;
     FE52 Z1 = a.z;
     [[maybe_unused]] std::uint64_t a_inf = a.infinity;
+    (void)a_inf; // CodeQL: suppress unused-local-variable (kept for ABI symmetry)
 
     // -- Shared intermediates --
     FE52 zz = Z1.square();                          // Z1^2       [1S]  M=1

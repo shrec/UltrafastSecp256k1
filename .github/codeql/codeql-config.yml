@@ -1,0 +1,20 @@
+# CodeQL configuration for UltrafastSecp256k1
+# Excludes code-quality queries that are false positives or irrelevant
+# for this crypto library's coding style.
+
+name: "UltrafastSecp256k1 CodeQL Config"
+
+# Filter out non-security queries that generate noise
+query-filters:
+  # 52 functions deliberately kept with [[maybe_unused]] for ABI/future use
+  - exclude:
+      id: cpp/unused-static-function
+  # DER parser defensive bounds checks — intentionally redundant for safety
+  - exclude:
+      id: cpp/constant-comparison
+  # Benchmark anti-optimization pattern (intentional stack-address escape to sink)
+  - exclude:
+      id: cpp/stack-address-escape
+  # Config-derived cache paths — no web/user input in this crypto library
+  - exclude:
+      id: cpp/path-injection
