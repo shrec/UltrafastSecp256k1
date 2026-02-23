@@ -39,12 +39,19 @@ static const SHA256 g_nonce_midstate     = make_tag_midstate("BIP0340/nonce");
 static const SHA256 g_challenge_midstate = make_tag_midstate("BIP0340/challenge");
 
 // Fast tagged hash using cached midstate (avoids re-computing tag prefix)
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Warray-bounds"
+#endif
 static std::array<uint8_t, 32> cached_tagged_hash(const SHA256& midstate,
                                                     const void* data, std::size_t len) {
-    SHA256 ctx = midstate;  // copy pre-computed state (trivial, ~108 bytes)
+    SHA256 ctx = midstate;  // copy pre-computed state (trivial, ~112 bytes)
     ctx.update(data, len);
     return ctx.finalize();
 }
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
 
 // -- Tagged Hash (BIP-340) -- generic fallback ---------------------------------
 

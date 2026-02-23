@@ -130,8 +130,8 @@ static inline uint64_t _umul128(uint64_t a, uint64_t b, uint64_t* hi) {
 #endif
 [[maybe_unused]] static inline uint64_t _umul128(uint64_t a, uint64_t b, uint64_t* hi) {
     unsigned __int128 r = (unsigned __int128)a * b;
-    *hi = r >> 64;
-    return (uint64_t)r;
+    *hi = static_cast<uint64_t>(r >> 64);
+    return static_cast<uint64_t>(r);
 }
 #if defined(__GNUC__)
 #pragma GCC diagnostic pop
@@ -2680,11 +2680,11 @@ static std::vector<TuneCandidate> discover_candidates(const FixedBaseConfig& bas
         if (fname.rfind("cache_w", 0) == 0 && p.extension() == ".bin") {
             // Extract digits after 'cache_w'
             size_t pos = std::string("cache_w").size();
-            size_t end = pos;
-            while (end < fname.size() && isdigit(static_cast<unsigned char>(fname[end]))) ++end;
-            if (end == pos) continue;
-            unsigned wb = static_cast<unsigned>(std::strtoul(fname.substr(pos, end - pos).c_str(), nullptr, 10));
-            bool is_glv = (fname.find("_glv", end) != std::string::npos);
+            size_t num_end = pos;
+            while (num_end < fname.size() && isdigit(static_cast<unsigned char>(fname[num_end]))) ++num_end;
+            if (num_end == pos) continue;
+            unsigned wb = static_cast<unsigned>(std::strtoul(fname.substr(pos, num_end - pos).c_str(), nullptr, 10));
+            bool is_glv = (fname.find("_glv", num_end) != std::string::npos);
             auto& f = windows[wb];
             if (is_glv) f.glv = true; else f.non_glv = true;
         }
@@ -3760,8 +3760,10 @@ Point scalar_mul_arbitrary_precomputed_notable(const Point& Q,
     // Avoids building odd-multiples tables at the cost of more additions
     // Still uses precomputed RLE steps for the scalar structure
 
-    AffinePointPacked aQ = to_affine(Q);
-    AffinePointPacked aPsiQ = to_affine(apply_endomorphism(Q));
+    // (aQ / aPsiQ were originally planned for a no-table fast path but the
+    //  current implementation builds full odd-multiples tables below instead.)
+    (void)to_affine(Q);            // kept for future use
+    (void)to_affine(apply_endomorphism(Q));
 
     // We need the full odd-multiples tables since wNAF digits can reference
     // indices > 0 (e.g. +/-3, +/-5, +/-7 for w=4). Build the tables.
