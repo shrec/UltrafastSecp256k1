@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771879077651,
+  "lastUpdate": 1771879250815,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -7325,6 +7325,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Batch Inverse (n=1000)",
             "value": 133,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "f043c57cd0d82c3046d584163b0eff2e17de6614",
+          "message": "fix(ci): correct WASM benchmark relative path for build/wasm/dist\n\nbuild/wasm/dist is 3 levels deep from repo root, not 2.\n../../wasm/bench_wasm.mjs resolved to build/wasm/bench_wasm.mjs (wrong).\n../../../wasm/bench_wasm.mjs correctly reaches repo root.",
+          "timestamp": "2026-02-24T00:39:28+04:00",
+          "tree_id": "17ad289e2e27fc40f89d8adab6c64aa0f98233c5",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/f043c57cd0d82c3046d584163b0eff2e17de6614"
+        },
+        "date": 1771879249131,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 25,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 20,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 259,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 138,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 35000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 9000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 12000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 43000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 22000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 49000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 131,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 122,
             "unit": "ns"
           }
         ]
