@@ -6,7 +6,7 @@
 # Bench:  docker run --rm ultrafastsecp256k1 ./build/cpu/bench_comprehensive
 # ===========================================================================
 
-FROM ubuntu:24.04 AS builder
+FROM ubuntu:24.04@sha256:d1e2e92c075e5ca139d51a140fff46f84315c0fdce203eab2807c7e495eff4f9 AS builder
 
 RUN apt-get update -qq && \
     apt-get install -y --no-install-recommends \
@@ -31,7 +31,7 @@ RUN ctest --test-dir build --output-on-failure
 # --------------------------------------------------------------------------
 # Runtime image (minimal)
 # --------------------------------------------------------------------------
-FROM ubuntu:24.04 AS runtime
+FROM ubuntu:24.04@sha256:d1e2e92c075e5ca139d51a140fff46f84315c0fdce203eab2807c7e495eff4f9 AS runtime
 
 RUN apt-get update -qq && \
     apt-get install -y --no-install-recommends libstdc++6 && \
