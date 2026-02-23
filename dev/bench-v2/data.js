@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771859484843,
+  "lastUpdate": 1771859512176,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -3563,6 +3563,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Batch Inverse (n=1000)",
             "value": 147,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "Vano Chkheidze",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3efc0f814d6bc63488fd24f8540fb479b0316511",
+          "message": "Merge pull request #26 from shrec/dependabot/github_actions/github/codeql-action-4.32.4\n\nci(deps): bump github/codeql-action from 3.32.4 to 4.32.4",
+          "timestamp": "2026-02-23T19:10:25+04:00",
+          "tree_id": "50296e6fdfda64a6c3ccd194d5db2167eaae11df",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/3efc0f814d6bc63488fd24f8540fb479b0316511"
+        },
+        "date": 1771859511247,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 27,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 22,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 279,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 149,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 38000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 9000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 14000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 47000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 23000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 53000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 139,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 130,
             "unit": "ns"
           }
         ]
