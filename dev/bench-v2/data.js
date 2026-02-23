@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771868870787,
+  "lastUpdate": 1771868896197,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -6830,6 +6830,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Batch Inverse (n=1000)",
             "value": 132,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "Vano Chkheidze",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "daab2be2dfbc83c694cc3d4060040ee063286cfb",
+          "message": "feat: add security audit CI, CITATION.cff, enhance SEO + badges (#41)\n\n- New security-audit.yml: -Werror build, ASan/UBSan tests, Valgrind memcheck (weekly + push/PR)\n- New CITATION.cff: structured citation for Google Scholar / Zenodo\n- README: add Security Audit, Clang-Tidy, SonarCloud badges; expand SEO keywords\n- SECURITY.md: document all 14 security measures; add planned improvements roadmap; bump to v3.12.1\n- GitHub topics: replace niche (milk-v, lx6) with high-SEO (constant-time, ecdsa, ethereum, gpu-cryptography, schnorr-signatures)",
+          "timestamp": "2026-02-23T21:46:34+04:00",
+          "tree_id": "4207117fbcdb943cc5a4f0a2b9e877a38c2ef784",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/daab2be2dfbc83c694cc3d4060040ee063286cfb"
+        },
+        "date": 1771868892824,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 27,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 22,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 278,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 149,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 38000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 9000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 14000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 47000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 24000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 53000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 140,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 130,
             "unit": "ns"
           }
         ]
