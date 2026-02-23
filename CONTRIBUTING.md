@@ -18,6 +18,7 @@ Pull requests that do not meet these requirements will be rejected.
 ## 📋 Table of Contents
 
 - [Requirements for Acceptable Contributions](#️-requirements-for-acceptable-contributions)
+- [Developer Certificate of Origin (DCO)](#developer-certificate-of-origin-dco)
 - [Code of Conduct](#code-of-conduct)
 - [Getting Started](#getting-started)
 - [Development Process](#development-process)
@@ -26,6 +27,32 @@ Pull requests that do not meet these requirements will be rejected.
 - [Pull Request Process](#pull-request-process)
 - [Reporting Issues](#reporting-issues)
 - [Areas for Contribution](#areas-for-contribution)
+
+## 📜 Developer Certificate of Origin (DCO)
+
+All contributors **MUST** sign off their commits to certify they have the legal right to submit the contribution under the project's license. This project uses the [Developer Certificate of Origin (DCO)](https://developercertificate.org/).
+
+By adding a `Signed-off-by` line to your commit messages, you certify that:
+
+1. The contribution was created in whole or in part by you, and you have the right to submit it under the AGPL-3.0-or-later license; or
+2. The contribution is based on previous work that, to the best of your knowledge, is covered under an appropriate open-source license; or
+3. The contribution was provided to you by someone who certified (1) or (2), and you have not modified it.
+
+### How to Sign Off
+
+Add `-s` (or `--signoff`) to your `git commit` command:
+
+```bash
+git commit -s -m "Add new feature"
+```
+
+This appends a line like:
+
+```
+Signed-off-by: Your Name <your.email@example.com>
+```
+
+All commits in a pull request **must** include this sign-off line. Commits without it will not be accepted.
 
 ## 🤝 Code of Conduct
 
