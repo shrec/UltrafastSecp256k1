@@ -1,27 +1,33 @@
 # Threat Model
 
-UltrafastSecp256k1 v3.6.0 — Layer-by-Layer Risk Assessment
+UltrafastSecp256k1 v3.12.1 — Layer-by-Layer Risk Assessment
 
 ---
 
 ## Architecture Overview
 
 ```
-┌──────────────────────────────────────────────────┐
-│                  Application                     │
-├──────────────┬───────────────┬───────────────────┤
-│  Coins (27)  │  HD (BIP-32)  │  Taproot/MuSig2  │
-├──────────────┴───────────────┴───────────────────┤
-│            ECDSA / Schnorr / Adaptor             │
-├──────────────────────────────────────────────────┤
-│  FAST (variable-time)  │  CT (constant-time)     │
-├────────────────────────┴─────────────────────────┤
-│         Field / Scalar / Point core              │
-├──────────────────────────────────────────────────┤
-│  CPU (x64, ARM64, RISC-V, M3, Xtensa)           │
-│  GPU (CUDA, ROCm/HIP, OpenCL, Metal)            │
-└──────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                     Application Layer                           │
+│  (Wallet, Signer, Verifier, Key Manager, Address Generator)     │
+├──────────────┬───────────────┬───────────────────┬──────────────┤
+│  Coins (27)  │  HD (BIP-32)  │  Taproot/MuSig2   │ FROST/Adaptor│
+├──────────────┴───────────────┴───────────────────┴──────────────┤
+│      ECDSA (RFC 6979)  │  Schnorr (BIP-340)  │  Pedersen       │
+├─────────────────────────────────────────────────────────────────┤
+│  FAST (variable-time)  │  CT (constant-time)                    │
+│  secp256k1::fast::     │  secp256k1::ct::                       │
+├─────────────────────────────────────────────────────────────────┤
+│         Field / Scalar / Point core (4×64 limbs)                │
+├─────────────────────────────────────────────────────────────────┤
+│  CPU (x64 BMI2/ADX, ARM64, RISC-V, Xtensa, Cortex-M3)         │
+│  GPU (CUDA PTX, ROCm/HIP, OpenCL 3.0, Metal)                   │
+│  WASM (Emscripten)                                              │
+└─────────────────────────────────────────────────────────────────┘
 ```
+
+> See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed technical architecture.
+> See [AUDIT_GUIDE.md](AUDIT_GUIDE.md) for the auditor navigation guide.
 
 ---
 
@@ -139,6 +145,68 @@ NOT TRUSTED (caller responsibility):
 
 ---
 
+## Attack Surface Analysis
+
+### A1: Timing Side Channels
+
+| Vector | Risk | Mitigation |
+|--------|------|------------|
+| Variable-time scalar mul leaking secret bits | HIGH (if `fast::` used with secrets) | Always use `ct::` for secret-dependent ops |
+| Variable-time field inversion | MEDIUM | CT inversion uses fixed-length chain |
+| Cache-timing on table lookups | MEDIUM | CT uses linear scan + cmov, not indexed |
+| Compiler-introduced branches | MEDIUM | `asm volatile` barriers, `-O2` recommended |
+| Microarchitecture-specific timing | LOW | dudect testing on x86-64, ARM64 |
+
+**Testing**: `tests/test_ct_sidechannel.cpp` — dudect Welch t-test, |t| < 4.5
+
+### A2: Nonce Attacks
+
+| Vector | Risk | Mitigation |
+|--------|------|------------|
+| ECDSA random nonce reuse → key recovery | CRITICAL | RFC 6979 deterministic nonces (no randomness needed) |
+| Biased nonces → lattice attack | HIGH | RFC 6979 provides uniform distribution |
+| Schnorr nonce bias | HIGH | BIP-340 tagged hash nonce derivation |
+| FROST nonce mishandling | MEDIUM | Experimental — under review |
+
+### A3: Arithmetic Errors
+
+| Vector | Risk | Mitigation |
+|--------|------|------------|
+| Incorrect field reduction | CRITICAL | 641,194 audit checks, fuzz testing |
+| Point addition edge cases (P+P, P+O, P+(-P)) | CRITICAL | Complete addition formulas in CT, sweep tests |
+| GLV decomposition error | HIGH | Reconstruction test: k1+k2·λ ≡ k for random k |
+| SafeGCD inverse error | HIGH | Cross-checked against Fermat chain |
+| Batch inverse corrupting elements | MEDIUM | Sweep-tested up to 8192 elements |
+
+### A4: Memory Safety
+
+| Vector | Risk | Mitigation |
+|--------|------|------------|
+| Buffer overflow in field/scalar ops | CRITICAL | Fixed-size POD types, no dynamic allocation |
+| Use-after-free | HIGH | ASan in CI, no heap pointers in hot path |
+| Uninitialized memory reads | MEDIUM | Valgrind memcheck (weekly CI) |
+| Stack-based secret leakage | MEDIUM | Caller must zero sensitive buffers |
+
+### A5: Supply Chain
+
+| Vector | Risk | Mitigation |
+|--------|------|------------|
+| Compromised dependency | HIGH | Dependabot, Dependency Review, SLSA attestation |
+| Malicious PR injection | HIGH | Branch protection, CODEOWNERS, required reviews |
+| Build reproducibility | MEDIUM | Docker SHA-pinned, deterministic builds |
+| Typosquatting (npm/vcpkg) | LOW | Official package names documented |
+
+### A6: GPU-Specific
+
+| Vector | Risk | Mitigation |
+|--------|------|------------|
+| GPU shared memory observable | HIGH | GPU is for public data ONLY |
+| Branch divergence leaking data | HIGH | No CT guarantees on GPU |
+| Device memory not zeroed | MEDIUM | Do not pass secrets to GPU |
+| PCIe bus snooping | LOW | Physical access required |
+
+---
+
 ## Recommendations for Integrators
 
 1. **Always use `ct::` for secret scalar operations** (signing, key derivation)
@@ -147,7 +215,42 @@ NOT TRUSTED (caller responsibility):
 4. **Run selftest on startup** (`Selftest(false, SelftestMode::smoke)`)
 5. **Do not expose GPU memory** to untrusted contexts
 6. **Pin your dependency version** — API may change before v4.0
+7. **Review CT_VERIFICATION.md** for known constant-time limitations
+8. **Use `-O2` for production CT builds** — higher levels may break CT properties
+9. **Run dudect test** on your target hardware before deployment
 
 ---
 
-*UltrafastSecp256k1 v3.6.0 — Threat Model*
+## Automated Security Measures (v3.12.1)
+
+| Measure | Frequency | What It Catches |
+|---------|-----------|-----------------|
+| CodeQL | Every push/PR | Static security bugs, injection, overflow |
+| OpenSSF Scorecard | Weekly | Supply-chain weaknesses |
+| Security Audit CI | Push/PR + weekly | Compiler warnings (-Werror), memory errors, UB |
+| Clang-Tidy (30+ checks) | Every push/PR | Bugprone patterns, cert violations |
+| SonarCloud | Every push/PR | Code quality, security hotspots |
+| ASan + UBSan | CI | Address errors, undefined behavior |
+| TSan | CI | Data races, thread safety |
+| Valgrind | Weekly | Memory leaks, invalid access |
+| Dependabot | Daily | Vulnerable dependency updates |
+| Dependency Review | Every PR | New vulnerable dependencies |
+| SLSA Attestation | Every release | Build provenance verification |
+| libFuzzer | Continuous | Random input crashes |
+
+---
+
+## Related Documents
+
+| Document | Purpose |
+|----------|---------|
+| [AUDIT_GUIDE.md](AUDIT_GUIDE.md) | Auditor navigation and checklist |
+| [AUDIT_REPORT.md](AUDIT_REPORT.md) | Internal audit: 641,194 checks |
+| [SECURITY.md](SECURITY.md) | Vulnerability reporting, production readiness |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Technical architecture deep-dive |
+| [docs/CT_VERIFICATION.md](docs/CT_VERIFICATION.md) | Constant-time methodology |
+| [docs/TEST_MATRIX.md](docs/TEST_MATRIX.md) | Test coverage matrix |
+
+---
+
+*UltrafastSecp256k1 v3.12.1 — Threat Model*

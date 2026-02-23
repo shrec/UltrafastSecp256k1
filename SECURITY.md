@@ -47,7 +47,22 @@ We will acknowledge within **72 hours** and provide a fix timeline.
 This library has **not undergone an independent security audit**.
 It is provided for research, educational, and experimental purposes.
 
-However, the following automated security measures are in place:
+### Audit Documentation
+
+For auditors and security researchers, the following documents are available:
+
+| Document | Purpose |
+|----------|---------|
+| [AUDIT_GUIDE.md](AUDIT_GUIDE.md) | **Start here** — Auditor navigation, checklist, reproduction commands |
+| [AUDIT_REPORT.md](AUDIT_REPORT.md) | Internal audit: 641,194 checks, 8 suites, 0 failures |
+| [THREAT_MODEL.md](THREAT_MODEL.md) | Layer-by-layer risk + attack surface analysis |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Technical architecture for auditors |
+| [docs/CT_VERIFICATION.md](docs/CT_VERIFICATION.md) | Constant-time methodology, dudect, known limitations |
+| [docs/TEST_MATRIX.md](docs/TEST_MATRIX.md) | Function → test coverage map with gap analysis |
+
+### Automated Security Measures
+
+The following automated security measures are in place:
 
 - **CodeQL** — static analysis on every push/PR (C/C++ security-and-quality queries)
 - **OpenSSF Scorecard** — weekly supply-chain security assessment
@@ -63,14 +78,18 @@ However, the following automated security measures are in place:
 - **Dependency Review** — PR-level vulnerable dependency scanning
 - **libFuzzer harnesses** — continuous fuzz testing of field/scalar/point layers
 - **Docker SHA-pinned images** — reproducible builds with digest-pinned base images
+- **dudect timing analysis** — Welch t-test side-channel detection (1300+ line test suite)
+- **Internal audit suite** — 641,194 checks across 8 dedicated audit test suites
 
 ### Planned Security Improvements
 
 - [ ] Independent third-party cryptographic audit (seeking funding)
-- [ ] `dudect` side-channel leakage testing for CT layer
 - [ ] Formal verification of field/scalar arithmetic (Fiat-Crypto / Cryptol)
+- [ ] ct-verif LLVM pass integration for compile-time CT verification
 - [ ] Hardware timing analysis on multiple CPU microarchitectures
+- [ ] Multi-µarch dudect campaign (Intel, AMD, ARM, Apple Silicon)
 - [ ] FROST / MuSig2 protocol-level test vectors from reference implementations
+- [ ] Cross-ABI / FFI correctness tests across calling conventions
 
 For production cryptographic systems, prefer audited libraries such as
 [libsecp256k1](https://github.com/bitcoin-core/secp256k1).

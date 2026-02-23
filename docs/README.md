@@ -1,6 +1,6 @@
 # UltrafastSecp256k1 Documentation
 
-> **Version 3.6.0** — Cross-platform secp256k1 ECC library
+> **Version 3.12.1** — Cross-platform secp256k1 ECC library
 
 ---
 
@@ -15,12 +15,17 @@
 | [RISC-V Optimizations](../RISCV_OPTIMIZATIONS.md) | RISC-V assembly & RVV details |
 | [Porting Guide](../PORTING.md) | Add new platforms, architectures, GPU backends |
 
-## Security
+## Security & Audit
 
 | Document | Description |
 |----------|-------------|
+| [Audit Guide](../AUDIT_GUIDE.md) | **Start here** — Auditor navigation, checklist, reproduction commands |
+| [Architecture](ARCHITECTURE.md) | Technical architecture deep-dive for auditors |
+| [CT Verification](CT_VERIFICATION.md) | Constant-time methodology, dudect, known limitations |
+| [Test Matrix](TEST_MATRIX.md) | Function → test coverage map with gap analysis |
 | [Security Policy](../SECURITY.md) | Vulnerability reporting, audit status, production readiness |
-| [Threat Model](../THREAT_MODEL.md) | Layer-by-layer risk assessment (FAST vs CT) |
+| [Threat Model](../THREAT_MODEL.md) | Layer-by-layer risk + attack surface analysis |
+| [Audit Report](../AUDIT_REPORT.md) | Internal audit: 641,194 checks, 8 suites, 0 failures |
 
 ## Adoption & Integration
 
