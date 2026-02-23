@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771883247445,
+  "lastUpdate": 1771883544431,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -8315,6 +8315,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Batch Inverse (n=1000)",
             "value": 131,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "372cf397ec4f3d1e7543694498b616f16aa22daf",
+          "message": "fix(security): resolve code scanning alerts #281 #282\n\n- differential_test.cpp: suppress unused 'der' variable (CodeQL #282)\n- security-audit.yml: remove unnecessary security-events:write permission (Scorecard #281)\n- Dismissed #273, #274, #275 as won't-fix (write perms required by design)",
+          "timestamp": "2026-02-24T01:51:00+04:00",
+          "tree_id": "d342f9090c8149d127d4a2b38adb4919fcfa5e7a",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/372cf397ec4f3d1e7543694498b616f16aa22daf"
+        },
+        "date": 1771883542664,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 27,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 22,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 278,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 148,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 37000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 9000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 13000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 47000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 23000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 53000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 208,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 200,
             "unit": "ns"
           }
         ]
