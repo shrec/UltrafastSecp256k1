@@ -135,16 +135,30 @@ inline void mulx64(uint64_t a, uint64_t b, uint64_t& lo, uint64_t& hi) {
                 lo = p0 + (p1 << 32) + (p2 << 32);
                 hi = p3 + (p1 >> 32) + (p2 >> 32) + carry;
             #else
+                #if defined(__GNUC__)
+                #pragma GCC diagnostic push
+                #pragma GCC diagnostic ignored "-Wpedantic"
+                #endif
                 __uint128_t result = static_cast<__uint128_t>(a) * b;
                 lo = static_cast<uint64_t>(result);
                 hi = static_cast<uint64_t>(result >> 64);
+                #if defined(__GNUC__)
+                #pragma GCC diagnostic pop
+                #endif
             #endif
         #endif
     #else
         // Fallback: 128-bit wide multiply (GCC/Clang, all 64-bit targets)
+        #if defined(__GNUC__)
+        #pragma GCC diagnostic push
+        #pragma GCC diagnostic ignored "-Wpedantic"
+        #endif
         __uint128_t result = static_cast<__uint128_t>(a) * b;
         lo = static_cast<uint64_t>(result);
         hi = static_cast<uint64_t>(result >> 64);
+        #if defined(__GNUC__)
+        #pragma GCC diagnostic pop
+        #endif
     #endif
 }
 
@@ -174,11 +188,18 @@ inline uint8_t adcx64(uint64_t a, uint64_t b, uint8_t carry, uint64_t& result) {
         }
         return new_carry;
     #else
+        #if defined(__GNUC__)
+        #pragma GCC diagnostic push
+        #pragma GCC diagnostic ignored "-Wpedantic"
+        #endif
         unsigned __int128 sum = static_cast<unsigned __int128>(a) +
                                 static_cast<unsigned __int128>(b) +
                                 static_cast<unsigned __int128>(carry);
         result = static_cast<uint64_t>(sum);
         return static_cast<uint8_t>(sum >> 64);
+        #if defined(__GNUC__)
+        #pragma GCC diagnostic pop
+        #endif
     #endif
 }
 #endif

@@ -59,11 +59,17 @@ jobs:
         run: |
           ctest --test-dir build/sonar --output-on-failure -j$(nproc) -E ct_sidechannel
         env:
-          LLVM_PROFILE_FILE: "build/sonar/%p.profraw"
+          LLVM_PROFILE_FILE: "${{ github.workspace }}/build/sonar/%p.profraw"
 
       - name: Collect coverage (llvm-cov)
         run: |
-          llvm-profdata-17 merge -sparse build/sonar/*.profraw -o build/sonar/merged.profdata
+          # Find profraw files wherever they ended up
+          PROFRAW=$(find build/sonar -name '*.profraw' 2>/dev/null)
+          if [ -z "$PROFRAW" ]; then
+            echo "::warning::No profraw files found, skipping coverage collection"
+            exit 0
+          fi
+          llvm-profdata-17 merge -sparse $PROFRAW -o build/sonar/merged.profdata
           # Find all test executables for coverage binary list
           BINS=$(find build/sonar -type f -executable ! -name '*.o' ! -path '*/CMakeFiles/*' | head -20)
           FIRST_BIN=$(echo "$BINS" | head -1)

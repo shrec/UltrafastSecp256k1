@@ -337,6 +337,10 @@ bool ecdsa_verify(const std::array<uint8_t, 32>& msg_hash,
     // Equivalent: sig.r * R'.z^2 == R'.x (mod p)
     // This saves ~3us by avoiding the field inversion in Point::x().
 #if defined(SECP256K1_FAST_52BIT)
+#if defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+#endif
     using FE52 = fast::FieldElement52;
 
     // Direct Scalar->FE52: sig.r limbs are 4x64 LE, same layout as FieldElement.
@@ -396,6 +400,9 @@ bool ecdsa_verify(const std::array<uint8_t, 32>& msg_hash,
     }
 
     return false;
+#if defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
 #else
     // -- Z^2-based x-coordinate check for 4x64 path (ESP32/MSVC/generic) --
     // Avoids field inverse: sig.r * Z^2 == X (mod p)

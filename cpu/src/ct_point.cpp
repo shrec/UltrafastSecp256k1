@@ -56,6 +56,10 @@ static const FieldElement B7 = FieldElement::from_uint64(7);
 // 5x52 Optimized Path (requires __int128 / SECP256K1_FAST_52BIT)
 // ============================================================================
 #if defined(SECP256K1_FAST_52BIT)
+#if defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+#endif
 
 // --- Type aliases ------------------------------------------------------------
 using FE52 = secp256k1::fast::FieldElement52;
@@ -1637,6 +1641,9 @@ Point generator_mul(const Scalar& k) noexcept {
     return result;
 }
 
+#if defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
 #else // !SECP256K1_FAST_52BIT -- Full CT for 4x64 FieldElement
 
 // ===============================================================================

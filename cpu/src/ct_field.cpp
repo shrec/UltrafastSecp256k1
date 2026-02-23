@@ -206,6 +206,10 @@ FieldElement field_half(const FieldElement& a) noexcept {
 
 // -- CT SafeGCD building blocks (extracted for register allocation) ----------
 #if defined(__SIZEOF_INT128__)
+#if defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+#endif
 namespace {
 
 struct SG62   { int64_t v[5]; };
@@ -378,10 +382,17 @@ static void ct_sg_normalize(SG62& r, int64_t f_sign) noexcept {
 }
 
 } // anonymous namespace
+#if defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
 #endif // __SIZEOF_INT128__
 
 FieldElement field_inv(const FieldElement& a) noexcept {
 #if defined(__SIZEOF_INT128__)
+#if defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+#endif
     // -- CT SafeGCD inverse -----------------------------------------------
     // Bernstein-Yang divstep: 10 x 59 = 590 branchless divsteps.
     // Matches bitcoin-core/secp256k1 proven bound for 256-bit modular inverse.
@@ -522,6 +533,9 @@ FieldElement field_inv(const FieldElement& a) noexcept {
     t = field_mul(t, x);
 
     return t;
+#if defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
 #endif  // __SIZEOF_INT128__
 }
 

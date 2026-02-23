@@ -124,11 +124,18 @@ static inline uint64_t _umul128(uint64_t a, uint64_t b, uint64_t* hi) {
     return (mid << 32) | (uint32_t)p0;
 }
 #else
+#if defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+#endif
 [[maybe_unused]] static inline uint64_t _umul128(uint64_t a, uint64_t b, uint64_t* hi) {
     unsigned __int128 r = (unsigned __int128)a * b;
     *hi = r >> 64;
     return (uint64_t)r;
 }
+#if defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
 #endif
 
 static inline unsigned char _BitScanReverse64(unsigned long* index, uint64_t mask) {
@@ -416,8 +423,15 @@ static void mul64x64(std::uint64_t a, std::uint64_t b, std::uint64_t& lo, std::u
     uint64_t lo = _umul128(a, b, &hi);
     return make_uint128(lo, hi);
 #else
+#if defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+#endif
     const unsigned __int128 product = static_cast<unsigned __int128>(a) * static_cast<unsigned __int128>(b);
     return make_uint128(static_cast<std::uint64_t>(product), static_cast<std::uint64_t>(product >> 64));
+#if defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
 #endif
 }
 
@@ -822,9 +836,16 @@ template <std::size_t N>
         rhat = u_lo - qv_lo;
         if (qv_lo > u_lo) rhat = 0; // underflow protection
 #else
+#if defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+#endif
         unsigned __int128 dividend = (static_cast<unsigned __int128>(u_hi) << 64) | u_lo;
         std::uint64_t qhat = static_cast<std::uint64_t>(dividend / v_hi);
         rhat = static_cast<std::uint64_t>(dividend % v_hi);
+#if defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
 #endif
         // Adjust qhat if qhat*v[2] > rhat*B + u[j+2]
         while (true) {
@@ -1407,9 +1428,16 @@ static void mul64x64(std::uint64_t a, std::uint64_t b, std::uint64_t& lo, std::u
 #elif defined(SECP256K1_NO_INT128) || defined(SECP256K1_PLATFORM_ESP32)
     lo = _umul128(a, b, &hi);
 #else
+#if defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+#endif
     unsigned __int128 product = static_cast<unsigned __int128>(a) * b;
     lo = static_cast<std::uint64_t>(product);
     hi = static_cast<std::uint64_t>(product >> 64);
+#if defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
 #endif
 }
 
@@ -1969,9 +1997,16 @@ ScalarDecomposition split_scalar_internal(const Scalar& scalar) {
 #elif defined(SECP256K1_NO_INT128) || defined(SECP256K1_PLATFORM_ESP32)
                 uint64_t lo = _umul128(a[i], b[j], &hi);
 #else
+#if defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+#endif
                 unsigned __int128 prod = (unsigned __int128)a[i] * (unsigned __int128)b[j];
                 uint64_t lo = (uint64_t)prod;
                 hi = (uint64_t)(prod >> 64);
+#if defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
 #endif
                 int k = i + j;
                 // Add low part with carry propagation
