@@ -103,3 +103,23 @@ updates:
     commit-message:
       prefix: "deps"
       include: "scope"
+
+  - package-ecosystem: nuget
+    directory: /bindings/csharp/Ufsecp
+    schedule:
+      interval: daily
+
+  - package-ecosystem: nuget
+    directory: /bindings/csharp/UfsepcBenchmark
+    schedule:
+      interval: daily
+
+  - package-ecosystem: nuget
+    directory: /bindings/csharp/UltrafastSecp256k1
+    schedule:
+      interval: daily
+
+  - package-ecosystem: gomod
+    directory: /bindings/go
+    schedule:
+      interval: daily
