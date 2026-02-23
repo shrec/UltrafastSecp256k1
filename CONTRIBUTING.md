@@ -41,13 +41,13 @@ Pull requests that do not meet these requirements will be rejected.
 ```bash
 # Install dependencies
 # Ubuntu/Debian
-sudo apt install cmake ninja-build g++-11
+sudo apt install cmake ninja-build g++-13 clang-tidy
 
 # Arch Linux
-sudo pacman -S cmake ninja gcc
+sudo pacman -S cmake ninja gcc clang
 
 # macOS
-brew install cmake ninja
+brew install cmake ninja llvm
 ```
 
 ### Development Build
@@ -172,39 +172,11 @@ TEST(FieldElement, MultiplicationIsCommutative) {
 1. **Build** successfully: `cmake --build build-dev`
 2. **Pass all tests**: `ctest --test-dir build-dev`
 3. **Format code**: `clang-format -i <files>`
-4. **Update documentation** if needed
-5. **Add tests** for new features
+4. **Run clang-tidy**: `clang-tidy -p build-dev cpu/src/*.cpp`
+5. **Update documentation** if needed
+6. **Add tests** for new features
 
-### PR Template
-
-```markdown
-## Description
-Brief description of changes
-
-## Type of Change
-- [ ] Bug fix
-- [ ] New feature
-- [ ] Performance improvement
-- [ ] Documentation update
-
-## Testing
-- [ ] All existing tests pass
-- [ ] New tests added
-- [ ] Manual testing completed
-
-## Performance Impact
-Describe any performance changes (with benchmarks if applicable)
-
-## Breaking Changes
-List any breaking changes
-
-## Checklist
-- [ ] Code follows project style
-- [ ] Self-reviewed code
-- [ ] Commented complex logic
-- [ ] Updated documentation
-- [ ] No compiler warnings
-```
+A PR checklist template is automatically applied — see [.github/PULL_REQUEST_TEMPLATE.md](https://github.com/shrec/UltrafastSecp256k1/blob/main/.github/PULL_REQUEST_TEMPLATE.md).
 
 ### Review Process
 
@@ -241,7 +213,7 @@ List any breaking changes
 
 ### Already Implemented ✅
 
-The following were previously listed as desired contributions and are now part of v3.0.0:
+The following were previously listed as desired contributions and are now part of v3.12:
 
 - ✅ ARM64/AArch64 assembly optimizations (MUL/UMULH)
 - ✅ OpenCL implementation (3.39M kG/s)
@@ -253,6 +225,10 @@ The following were previously listed as desired contributions and are now part o
 - ✅ Android NDK support
 - ✅ ROCm/HIP GPU support
 - ✅ ESP32/STM32 embedded support
+- ✅ Linux distribution packaging (DEB, RPM, Arch/AUR)
+- ✅ Docker multi-stage build
+- ✅ Clang-tidy CI integration
+- ✅ GitHub Scorecard + OpenSSF Best Practices badge
 
 ## 🐛 Reporting Issues
 
