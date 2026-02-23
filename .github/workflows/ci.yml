@@ -291,7 +291,7 @@ jobs:
           echo "WASM size: $(du -h build-wasm/dist/secp256k1_wasm.wasm | cut -f1)"
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 20
 
