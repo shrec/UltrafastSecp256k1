@@ -170,13 +170,13 @@ static void test_point_arithmetic() {
     // G + G == 2G
     auto G2_add = G.add(G);
     auto G2_dbl = G.dbl();
-    CHECK(G2_add.x().equals(G2_dbl.x()) && G2_add.y().equals(G2_dbl.y()),
+    CHECK(G2_add.x() == G2_dbl.x() && G2_add.y() == G2_dbl.y(),
           "G+G == 2G");
 
     // 2G + G == 3G
     auto G3 = G2_dbl.add(G);
     auto G3_mul = G.scalar_mul(Scalar::from_uint64(3));
-    CHECK(G3.x().equals(G3_mul.x()) && G3.y().equals(G3_mul.y()),
+    CHECK(G3.x() == G3_mul.x() && G3.y() == G3_mul.y(),
           "2G+G == 3*G");
 
     // k*G + (n-k)*G = infinity (where n is the curve order)
@@ -194,7 +194,7 @@ static void test_point_arithmetic() {
         auto O = Point::infinity();
         auto P = G.scalar_mul(Scalar::from_uint64(7));
         auto result = P.add(O);
-        CHECK(result.x().equals(P.x()) && result.y().equals(P.y()),
+        CHECK(result.x() == P.x() && result.y() == P.y(),
               "P + O == P");
     }
 
@@ -214,7 +214,7 @@ static void test_point_arithmetic() {
         auto left = G.scalar_mul(ab);
         auto bG = G.scalar_mul(b);
         auto right = bG.scalar_mul(a);
-        CHECK(left.x().equals(right.x()) && left.y().equals(right.y()),
+        CHECK(left.x() == right.x() && left.y() == right.y(),
               "(a*b)*G == a*(b*G)");
     }
 
@@ -272,10 +272,10 @@ static void test_field_arithmetic() {
     for (int i = 0; i < 100; ++i) {
         auto bytes = random_bytes();
         auto x = FieldElement::from_bytes(bytes);
-        if (x.is_zero()) continue;
+        if (x == FieldElement::zero()) continue;
         auto inv = x.inverse();
         auto product = x * inv;
-        CHECK(product.equals(FieldElement::one()), "x * x^-1 == 1");
+        CHECK(product == FieldElement::one(), "x * x^-1 == 1");
     }
 
     // sqrt(x^2) == +/-x
@@ -285,7 +285,7 @@ static void test_field_arithmetic() {
         auto x2 = x * x;
         auto s = x2.sqrt();
         auto s2 = s * s;
-        CHECK(s2.equals(x2), "sqrt(x^2)^2 == x^2");
+        CHECK(s2 == x2, "sqrt(x^2)^2 == x^2");
     }
 
     printf("    %d total checks passed\n\n", g_pass);

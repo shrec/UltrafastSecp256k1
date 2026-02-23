@@ -16,7 +16,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-BUILD_DIR="${SCRIPT_DIR}/build-pgo"
+BUILD_DIR="${SCRIPT_DIR}/build/pgo"
 PGO_DIR="${BUILD_DIR}/pgo_profiles"
 COMPILER="${1:---compiler}"
 JOBS="$(nproc 2>/dev/null || echo 4)"

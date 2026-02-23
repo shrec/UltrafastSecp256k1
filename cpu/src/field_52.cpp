@@ -18,6 +18,10 @@
 // __SIZEOF_INT128__ is the canonical check -- defined on 64-bit GCC/Clang,
 // NOT on 32-bit targets (armv7, i686, ESP32) even though __GNUC__ is set.
 #if defined(__SIZEOF_INT128__)
+#if defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+#endif
     using uint128_t = unsigned __int128;
     #define SECP256K1_HAS_UINT128 1
 #else
@@ -222,4 +226,7 @@ FieldElement52 FieldElement52::sqrt() const noexcept {
 
 } // namespace secp256k1::fast
 
+#if defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
 #endif // SECP256K1_HAS_UINT128

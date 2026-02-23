@@ -176,12 +176,12 @@ std::uint64_t scalar_eq(const Scalar& a, const Scalar& b) noexcept {
 // --- Bit Access --------------------------------------------------------------
 
 std::uint64_t scalar_bit(const Scalar& a, std::size_t index) noexcept {
-    // Always access the same limb pattern (CT)
+    // CT w.r.t. scalar value (the secret). Position is public (loop counter).
     // index / 64 = limb, index % 64 = bit within limb
     std::size_t limb_idx = index >> 6;
-    std::size_t bit_idx = index & 63;
+    std::size_t bit_idx  = index & 63;
 
-    // CT: always read all 4 limbs, select the right one
+    // CT: always read all 4 limbs, select the right one via branchless mask
     std::uint64_t val = 0;
     for (std::size_t i = 0; i < 4; ++i) {
         std::uint64_t mask = eq_mask(static_cast<std::uint64_t>(i),

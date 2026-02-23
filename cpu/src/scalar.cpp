@@ -67,11 +67,18 @@ inline std::uint64_t add64(std::uint64_t a, std::uint64_t b, unsigned char& carr
 
 #else
 
+#if defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+#endif
 inline std::uint64_t add64(std::uint64_t a, std::uint64_t b, unsigned char& carry) {
     unsigned __int128 sum = static_cast<unsigned __int128>(a) + b + carry;
     carry = static_cast<unsigned char>(sum >> 64);
     return static_cast<std::uint64_t>(sum);
 }
+#if defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
 
 #endif // SECP256K1_NO_INT128
 
@@ -228,9 +235,9 @@ Scalar Scalar::from_hex(const std::string& hex) {
         char c2 = hex[i * 2 + 1];
         
         auto hex_to_nibble = [](char c) -> uint8_t {
-            if (c >= '0' && c <= '9') return c - '0';
-            if (c >= 'a' && c <= 'f') return c - 'a' + 10;
-            if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+            if (c >= '0' && c <= '9') return static_cast<uint8_t>(c - '0');
+            if (c >= 'a' && c <= 'f') return static_cast<uint8_t>(c - 'a' + 10);
+            if (c >= 'A' && c <= 'F') return static_cast<uint8_t>(c - 'A' + 10);
             #if defined(SECP256K1_ESP32) || defined(SECP256K1_PLATFORM_ESP32) || defined(__XTENSA__) || defined(SECP256K1_PLATFORM_STM32)
                 return 0; // Embedded: no exceptions, return 0
             #else
@@ -296,6 +303,10 @@ Scalar Scalar::operator*(const Scalar& rhs) const {
     }
 #else
     // 64-bit path: use __int128
+#if defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+#endif
     for (std::size_t i = 0; i < 4; ++i) {
         unsigned __int128 carry = 0;
         for (std::size_t j = 0; j < 4; ++j) {
@@ -306,6 +317,9 @@ Scalar Scalar::operator*(const Scalar& rhs) const {
         }
         prod[i + 4] = static_cast<std::uint64_t>(carry);
     }
+#if defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
 #endif
 
     // Step 2: Barrett reduction
@@ -358,6 +372,10 @@ Scalar Scalar::operator*(const Scalar& rhs) const {
     }
 #else
     // 64-bit path
+#if defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+#endif
     std::array<std::uint64_t, 9> qmu{};
     for (std::size_t i = 0; i < 4; ++i) {
         unsigned __int128 carry = 0;
@@ -369,6 +387,9 @@ Scalar Scalar::operator*(const Scalar& rhs) const {
         }
         qmu[i + 5] = static_cast<std::uint64_t>(carry);
     }
+#if defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
 #endif
 
     // q_approx = high part of qmu = qmu[4..8]
@@ -414,6 +435,10 @@ Scalar Scalar::operator*(const Scalar& rhs) const {
     }
 #else
     // 64-bit path: q_approx * ORDER, only low 5 limbs
+#if defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+#endif
     std::array<std::uint64_t, 5> qn{};
     for (std::size_t i = 0; i < 4; ++i) {
         unsigned __int128 carry = 0;
@@ -428,6 +453,9 @@ Scalar Scalar::operator*(const Scalar& rhs) const {
             qn[i + 4] = static_cast<std::uint64_t>(carry);
         }
     }
+#if defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
 #endif
 
     // r = prod[0..3] - qn[0..3], tracking overflow into r4
@@ -496,6 +524,10 @@ bool Scalar::operator==(const Scalar& rhs) const noexcept {
 #if defined(__SIZEOF_INT128__)
 namespace scalar_safegcd {
 
+#if defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+#endif
 using i128 = __int128;
 
 struct S62  { int64_t v[5]; };
@@ -734,6 +766,9 @@ static limbs4 inverse_impl(const limbs4& x) {
     return s62_to_limbs(d);
 }
 
+#if defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
 } // namespace scalar_safegcd
 
 Scalar Scalar::inverse() const {

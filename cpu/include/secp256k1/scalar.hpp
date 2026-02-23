@@ -52,12 +52,19 @@ public:
     bool is_even() const noexcept;
 
     // Zero-cost conversion to/from shared data type (for cross-backend interop)
+#if defined(__GNUC__)
+    _Pragma("GCC diagnostic push")
+    _Pragma("GCC diagnostic ignored \"-Wstrict-aliasing\"")
+#endif
     const ::secp256k1::ScalarData& data() const noexcept {
         return *reinterpret_cast<const ::secp256k1::ScalarData*>(&limbs_);
     }
     ::secp256k1::ScalarData& data() noexcept {
         return *reinterpret_cast<::secp256k1::ScalarData*>(&limbs_);
     }
+#if defined(__GNUC__)
+    _Pragma("GCC diagnostic pop")
+#endif
     static Scalar from_data(const ::secp256k1::ScalarData& d) {
         return from_limbs({d.limbs[0], d.limbs[1], d.limbs[2], d.limbs[3]});
     }

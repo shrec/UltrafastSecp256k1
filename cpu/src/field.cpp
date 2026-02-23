@@ -77,6 +77,10 @@ inline void mul64(std::uint64_t a, std::uint64_t b, std::uint64_t& lo, std::uint
 
 #else
 // __int128 available
+#if defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+#endif
 inline std::uint64_t add64(std::uint64_t a, std::uint64_t b, unsigned char& carry) {
     unsigned __int128 sum = static_cast<unsigned __int128>(a) + b + carry;
     carry = static_cast<unsigned char>(sum >> 64);
@@ -97,6 +101,9 @@ inline void mul64(std::uint64_t a, std::uint64_t b, std::uint64_t& lo, std::uint
     lo = static_cast<std::uint64_t>(product);
     hi = static_cast<std::uint64_t>(product >> 64);
 }
+#if defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
 
 #endif // SECP256K1_NO_INT128
 
@@ -1419,7 +1426,6 @@ FieldElement pow_p_minus_2_binary(FieldElement base) {
     // Focus on reducing operation count
     
     FieldElement result = FieldElement::one();
-    FieldElement power = base;
     
     // Process p-2 in chunks
     const unsigned char* exp = kPrimeMinusTwo.data();
@@ -1488,13 +1494,13 @@ FieldElement pow_p_minus_2_binary(FieldElement base) {
     // Process in 4-bit chunks
     for (auto byte : kPrimeMinusTwo) {
         // High nibble
-        for (int i = 0; i < bucket_size; ++i) {
+        for (size_t i = 0; i < bucket_size; ++i) {
             result = result.square();
         }
         result = result * buckets[(byte >> 4) & 0xF];
         
         // Low nibble
-        for (int i = 0; i < bucket_size; ++i) {
+        for (size_t i = 0; i < bucket_size; ++i) {
             result = result.square();
         }
         result = result * buckets[byte & 0xF];
@@ -2227,7 +2233,6 @@ FieldElement pow_p_minus_2_binary(FieldElement base) {
     std::array<FieldElement, 8> table{};
     table[0] = FieldElement::one();
     table[1] = base;
-    FieldElement base2 = base.square();
     for (std::size_t i = 2; i < 8; ++i) {
         table[i] = table[i-1] * base;
     }
@@ -2361,9 +2366,9 @@ FieldElement FieldElement::from_hex(const std::string& hex) {
         char c2 = hex[i * 2 + 1];
         
         auto hex_to_nibble = [](char c) -> uint8_t {
-            if (c >= '0' && c <= '9') return c - '0';
-            if (c >= 'a' && c <= 'f') return c - 'a' + 10;
-            if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+            if (c >= '0' && c <= '9') return static_cast<uint8_t>(c - '0');
+            if (c >= 'a' && c <= 'f') return static_cast<uint8_t>(c - 'a' + 10);
+            if (c >= 'A' && c <= 'F') return static_cast<uint8_t>(c - 'A' + 10);
             #if defined(SECP256K1_ESP32) || defined(SECP256K1_PLATFORM_ESP32) || defined(__XTENSA__) || defined(SECP256K1_PLATFORM_STM32)
                 return 0; // Embedded: no exceptions, return 0
             #else
@@ -2385,6 +2390,11 @@ FieldElement FieldElement::from_hex(const std::string& hex) {
 // ============================================================================
 #if defined(__SIZEOF_INT128__)
 namespace {
+
+#if defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+#endif
 
 // Signed 62-bit limb representation: value = Sum v[i]*2^(62*i)
 struct SafeGCD_Int { int64_t v[5]; };
@@ -2624,6 +2634,10 @@ static void safegcd_normalize(SafeGCD_Int& r, int64_t f_sign) {
 
     r.v[0] = r0; r.v[1] = r1; r.v[2] = r2; r.v[3] = r3; r.v[4] = r4;
 }
+
+#if defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
 
 } // anonymous namespace (safegcd helpers)
 

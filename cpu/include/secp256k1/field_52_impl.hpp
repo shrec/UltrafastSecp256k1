@@ -30,6 +30,12 @@
 // NOT on 32-bit (ESP32 Xtensa, Cortex-M, etc.) even though __GNUC__ is set.
 #if defined(__SIZEOF_INT128__)
 
+// Suppress GCC -Wpedantic for __int128 (universally supported on 64-bit GCC/Clang)
+#if defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+#endif
+
 // -- ARM64 optimized field kernels ----------------------------------------
 // With -mcpu=cortex-a76, Clang already knows the A76 pipeline and schedules
 // MUL/UMULH interleaving optimally from __int128 C code. The hand-scheduled
@@ -585,6 +591,9 @@ FieldElement52 FieldElement52::inverse_safegcd() const noexcept {
 
 } // namespace secp256k1::fast
 
+#if defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
 #endif // __int128 guard
 
 #undef SECP256K1_FE52_FORCE_INLINE

@@ -15,7 +15,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$BuildDir  = Join-Path $ScriptDir "build-pgo"
+$BuildDir  = Join-Path $ScriptDir "build/pgo"
 $PGODir    = Join-Path $BuildDir "pgo_profiles"
 
 # ── Phase 1: Instrumentation ──────────────────────────────────────────────

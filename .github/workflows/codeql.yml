@@ -48,13 +48,13 @@ jobs:
       - name: Build for analysis
         run: |
           export CC=clang-17 CXX=clang++-17
-          cmake -S . -B build-codeql -G Ninja \
+          cmake -S . -B build/codeql -G Ninja \
             -DCMAKE_BUILD_TYPE=Debug \
             -DSECP256K1_BUILD_TESTS=ON \
             -DSECP256K1_BUILD_BENCH=OFF \
             -DSECP256K1_BUILD_EXAMPLES=OFF \
             -DSECP256K1_USE_ASM=OFF
-          cmake --build build-codeql -j$(nproc)
+          cmake --build build/codeql -j$(nproc)
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@89a39a4e59826350b863aa6b6252a07ad50cf83e # v4.32.4

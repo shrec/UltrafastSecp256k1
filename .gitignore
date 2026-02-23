@@ -115,3 +115,6 @@ benchmark-*.txt
 # Removed submodule (bitcoin-core/secp256k1 reference copy)
 cpu/secp256k1/
 
+
+# Local working documents (not for repo)
+INDUSTRIAL_ROADMAP_WORKING.md

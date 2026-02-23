@@ -357,7 +357,7 @@ See [PORTING.md](PORTING.md) for a step-by-step checklist to add new CPU archite
 WebAssembly build via Emscripten — runs secp256k1 in any modern browser or Node.js:
 
 ```bash
-./scripts/build_wasm.sh        # → build-wasm/dist/
+./scripts/build_wasm.sh        # → build/wasm/dist/
 ```
 
 Output: `secp256k1_wasm.wasm` + `secp256k1.mjs` (ES6 module with TypeScript declarations).
@@ -527,13 +527,13 @@ cmake --build build -j
 ### WebAssembly (Emscripten)
 
 ```bash
-./scripts/build_wasm.sh        # → build-wasm/dist/
+./scripts/build_wasm.sh        # → build/wasm/dist/
 ```
 
 ### iOS (XCFramework)
 
 ```bash
-./scripts/build_xcframework.sh  # → build-xcframework/output/
+./scripts/build_xcframework.sh  # → build/xcframework/output/
 ```
 
 Universal XCFramework (arm64 device + arm64 simulator). Also available via **Swift Package Manager** and **CocoaPods**.
@@ -798,9 +798,9 @@ Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md).
 ```bash
 git clone https://github.com/shrec/UltrafastSecp256k1.git
 cd UltrafastSecp256k1
-cmake -S . -B build-dev -G Ninja -DCMAKE_BUILD_TYPE=Debug
-cmake --build build-dev -j
-ctest --test-dir build-dev --output-on-failure
+cmake -S . -B build/dev -G Ninja -DCMAKE_BUILD_TYPE=Debug
+cmake --build build/dev -j
+ctest --test-dir build/dev --output-on-failure
 ```
 
 ---

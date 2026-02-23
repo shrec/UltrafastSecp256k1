@@ -268,7 +268,7 @@ jobs:
 
       - name: Configure
         run: |
-          cmake -S android -B build-android \
+          cmake -S android -B build/android \
             -DCMAKE_TOOLCHAIN_FILE=${{ steps.ndk.outputs.ndk-path }}/build/cmake/android.toolchain.cmake \
             -DANDROID_ABI=${{ matrix.abi }} \
             -DANDROID_PLATFORM=android-24 \
@@ -276,7 +276,7 @@ jobs:
             -G Ninja
 
       - name: Build
-        run: cmake --build build-android -j$(nproc)
+        run: cmake --build build/android -j$(nproc)
 
       - name: Collect release artifacts
         run: |
@@ -288,12 +288,12 @@ jobs:
           cp include/ufsecp/ufsecp_error.h   "${PKG_NAME}/include/ufsecp/"
 
           # Static CPU lib
-          find build-android -name "libfastsecp256k1.a" ! -path "*/CMakeFiles/*" | while read f; do
+          find build/android -name "libfastsecp256k1.a" ! -path "*/CMakeFiles/*" | while read f; do
             cp "$f" "${PKG_NAME}/lib/" 2>/dev/null || true
           done
 
           # JNI shared lib
-          find build-android -name "libsecp256k1_jni.so" ! -path "*/CMakeFiles/*" | while read f; do
+          find build/android -name "libsecp256k1_jni.so" ! -path "*/CMakeFiles/*" | while read f; do
             cp "$f" "${PKG_NAME}/lib/" 2>/dev/null || true
           done
 
@@ -338,7 +338,7 @@ jobs:
           mkdir -p "${PKG_NAME}"
 
           # Copy the XCFramework bundle
-          cp -R build-xcframework/output/UltrafastSecp256k1.xcframework "${PKG_NAME}/"
+          cp -R build/xcframework/output/UltrafastSecp256k1.xcframework "${PKG_NAME}/"
 
           # Headers
           mkdir -p "${PKG_NAME}/include/ufsecp"
@@ -382,16 +382,16 @@ jobs:
         run: echo "${GITHUB_REF_NAME#v}" > VERSION.txt
 
       - name: Configure
-        run: emcmake cmake -S wasm -B build-wasm -DCMAKE_BUILD_TYPE=Release
+        run: emcmake cmake -S wasm -B build/wasm -DCMAKE_BUILD_TYPE=Release
 
       - name: Build
-        run: cmake --build build-wasm -j$(nproc)
+        run: cmake --build build/wasm -j$(nproc)
 
       - name: Verify WASM output
         run: |
-          ls -lh build-wasm/dist/secp256k1_wasm.js
-          ls -lh build-wasm/dist/secp256k1_wasm.wasm
-          echo "WASM size: $(du -h build-wasm/dist/secp256k1_wasm.wasm | cut -f1)"
+          ls -lh build/wasm/dist/secp256k1_wasm.js
+          ls -lh build/wasm/dist/secp256k1_wasm.wasm
+          echo "WASM size: $(du -h build/wasm/dist/secp256k1_wasm.wasm | cut -f1)"
 
       - name: Setup Node.js
         uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6
@@ -400,8 +400,8 @@ jobs:
 
       - name: Test WASM
         run: |
-          cd build-wasm/dist
-          node ../../wasm/bench_wasm.mjs
+          cd build/wasm/dist
+          node ../../../wasm/bench_wasm.mjs
 
       - name: Collect release artifacts
         run: |
@@ -409,11 +409,11 @@ jobs:
           mkdir -p "${PKG_NAME}"
 
           # WASM dist files
-          cp build-wasm/dist/secp256k1_wasm.js    "${PKG_NAME}/" 2>/dev/null || true
-          cp build-wasm/dist/secp256k1_wasm.wasm   "${PKG_NAME}/" 2>/dev/null || true
-          cp build-wasm/dist/secp256k1.mjs         "${PKG_NAME}/" 2>/dev/null || true
-          cp build-wasm/dist/secp256k1.d.ts        "${PKG_NAME}/" 2>/dev/null || true
-          cp build-wasm/dist/package.json          "${PKG_NAME}/" 2>/dev/null || true
+          cp build/wasm/dist/secp256k1_wasm.js    "${PKG_NAME}/" 2>/dev/null || true
+          cp build/wasm/dist/secp256k1_wasm.wasm   "${PKG_NAME}/" 2>/dev/null || true
+          cp build/wasm/dist/secp256k1.mjs         "${PKG_NAME}/" 2>/dev/null || true
+          cp build/wasm/dist/secp256k1.d.ts        "${PKG_NAME}/" 2>/dev/null || true
+          cp build/wasm/dist/package.json          "${PKG_NAME}/" 2>/dev/null || true
 
           cp LICENSE      "${PKG_NAME}/" 2>/dev/null || true
           cp wasm/README.md "${PKG_NAME}/" 2>/dev/null || true

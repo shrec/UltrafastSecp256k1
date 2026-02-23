@@ -492,7 +492,7 @@ target_compile_options(${SECP256K1_LIB_NAME} PRIVATE
     -finline-functions       # Inline everything possible
     -fomit-frame-pointer     # Remove frame pointers for speed
     -fno-stack-protector     # Disable stack canaries (no security)
-    $<$<NOT:$<PLATFORM_ID:Darwin>>:-fno-plt>  # No PLT (ELF only, not macOS Mach-O)
+    $<$<PLATFORM_ID:Linux>:-fno-plt>  # No PLT (ELF/Linux only; skipped on macOS/Windows)
     -ftree-vectorize         # Auto-vectorization (AVX2/SSE/NEON)
     # Note: LTO is controlled separately by SECP256K1_USE_LTO option
     # Do NOT add -fno-lto here — it would override the LTO setting
@@ -649,6 +649,9 @@ if(BUILD_TESTING)
         tests/test_hash_accel.cpp
         tests/test_exhaustive.cpp
         tests/test_comprehensive.cpp
+        tests/test_bip340_vectors.cpp
+        tests/test_rfc6979_vectors.cpp
+        tests/test_ecc_properties.cpp
     )
     target_link_libraries(run_selftest PRIVATE ${SECP256K1_LIB_NAME})
 
@@ -714,4 +717,51 @@ if(BUILD_TESTING)
         target_link_options(test_comprehensive_standalone PRIVATE "LINKER:/STACK:8388608")
     endif()
     add_test(NAME comprehensive COMMAND test_comprehensive_standalone)
+
+    # Standalone BIP-340 official test vectors
+    add_executable(test_bip340_vectors_standalone
+        tests/test_bip340_vectors.cpp
+    )
+    target_link_libraries(test_bip340_vectors_standalone PRIVATE ${SECP256K1_LIB_NAME})
+    target_compile_definitions(test_bip340_vectors_standalone PRIVATE STANDALONE_TEST)
+    add_test(NAME bip340_vectors COMMAND test_bip340_vectors_standalone)
+
+    # Standalone RFC 6979 ECDSA test vectors
+    add_executable(test_rfc6979_vectors_standalone
+        tests/test_rfc6979_vectors.cpp
+    )
+    target_link_libraries(test_rfc6979_vectors_standalone PRIVATE ${SECP256K1_LIB_NAME})
+    target_compile_definitions(test_rfc6979_vectors_standalone PRIVATE STANDALONE_TEST)
+    add_test(NAME rfc6979_vectors COMMAND test_rfc6979_vectors_standalone)
+
+    # Standalone ECC property-based algebraic invariant tests
+    add_executable(test_ecc_properties_standalone
+        tests/test_ecc_properties.cpp
+    )
+    target_link_libraries(test_ecc_properties_standalone PRIVATE ${SECP256K1_LIB_NAME})
+    target_compile_definitions(test_ecc_properties_standalone PRIVATE STANDALONE_TEST)
+    if(MSVC OR (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND WIN32))
+        target_link_options(test_ecc_properties_standalone PRIVATE "LINKER:/STACK:8388608")
+    endif()
+    add_test(NAME ecc_properties COMMAND test_ecc_properties_standalone)
+
+    # Standalone dudect side-channel timing test (from top-level tests/)
+    add_executable(test_ct_sidechannel_standalone
+        ${CMAKE_CURRENT_SOURCE_DIR}/../tests/test_ct_sidechannel.cpp
+    )
+    target_link_libraries(test_ct_sidechannel_standalone PRIVATE ${SECP256K1_LIB_NAME})
+    target_compile_definitions(test_ct_sidechannel_standalone PRIVATE STANDALONE_TEST)
+    if(MSVC OR (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND WIN32))
+        target_link_options(test_ct_sidechannel_standalone PRIVATE "LINKER:/STACK:8388608")
+    endif()
+    add_test(NAME ct_sidechannel COMMAND test_ct_sidechannel_standalone)
+    set_tests_properties(ct_sidechannel PROPERTIES TIMEOUT 300)
+
+    # Standalone differential/self-consistency test (from top-level tests/)
+    add_executable(test_differential_standalone
+        ${CMAKE_CURRENT_SOURCE_DIR}/../tests/differential_test.cpp
+    )
+    target_link_libraries(test_differential_standalone PRIVATE ${SECP256K1_LIB_NAME})
+    add_test(NAME differential COMMAND test_differential_standalone)
+    set_tests_properties(differential PROPERTIES TIMEOUT 120)
 endif()

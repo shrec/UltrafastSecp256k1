@@ -58,7 +58,7 @@ jobs:
         run: cmake --build build -j$(nproc)
 
       - name: Test
-        run: ctest --test-dir build --output-on-failure -j$(nproc)
+        run: ctest --test-dir build --output-on-failure -j$(nproc) -E ct_sidechannel
 
   # -- Linux ARM64 (cross-compile, aarch64-linux-gnu) -----------------------
   linux-arm64:
@@ -79,7 +79,7 @@ jobs:
 
       - name: Configure (aarch64 Release)
         run: |
-          cmake -S . -B build-arm64 -G Ninja \
+          cmake -S . -B build/arm64 -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_SYSTEM_NAME=Linux \
             -DCMAKE_SYSTEM_PROCESSOR=aarch64 \
@@ -90,12 +90,12 @@ jobs:
             -DSECP256K1_BUILD_METAL=OFF
 
       - name: Build
-        run: cmake --build build-arm64 -j$(nproc)
+        run: cmake --build build/arm64 -j$(nproc)
 
       - name: Verify binary
         run: |
-          file build-arm64/cpu/libfastsecp256k1.a
-          echo "Library size: $(du -h build-arm64/cpu/libfastsecp256k1.a | cut -f1)"
+          file build/arm64/cpu/libfastsecp256k1.a
+          echo "Library size: $(du -h build/arm64/cpu/libfastsecp256k1.a | cut -f1)"
 
   # -- Sanitizers (ASan+UBSan, Clang on Linux) --------------------------------
   sanitizers:
@@ -129,17 +129,17 @@ jobs:
       - name: Configure (${{ matrix.label }})
         run: |
           export CC=clang-17 CXX=clang++-17
-          cmake -S . -B build-${{ matrix.sanitizer }} \
+          cmake -S . -B build/${{ matrix.sanitizer }} \
             -DCMAKE_BUILD_TYPE=Debug \
             -DSECP256K1_BUILD_TESTS=ON \
             -DSECP256K1_USE_ASM=OFF \
             ${{ matrix.cmake_flags }}
 
       - name: Build
-        run: cmake --build build-${{ matrix.sanitizer }} -j$(nproc)
+        run: cmake --build build/${{ matrix.sanitizer }} -j$(nproc)
 
       - name: Test (${{ matrix.label }})
-        run: ctest --test-dir build-${{ matrix.sanitizer }} --output-on-failure -j$(nproc)
+        run: ctest --test-dir build/${{ matrix.sanitizer }} --output-on-failure -j$(nproc) -E ct_sidechannel
 
   # -- Windows (MSVC + Clang-cl) ----------------------------------------------
   windows:
@@ -169,7 +169,7 @@ jobs:
         run: cmake --build build --config ${{ matrix.build_type }} -j
 
       - name: Test
-        run: ctest --test-dir build -C ${{ matrix.build_type }} --output-on-failure -j
+        run: ctest --test-dir build -C ${{ matrix.build_type }} --output-on-failure -j -E ct_sidechannel
 
   # -- macOS (AppleClang + Metal GPU) -----------------------------------------
   macos:
@@ -200,7 +200,7 @@ jobs:
         run: cmake --build build -j$(sysctl -n hw.logicalcpu)
 
       - name: Test (all including Metal GPU)
-        run: ctest --test-dir build --output-on-failure -j$(sysctl -n hw.logicalcpu)
+        run: ctest --test-dir build --output-on-failure -j$(sysctl -n hw.logicalcpu) -E ct_sidechannel
 
       - name: Metal GPU benchmarks
         if: success()
@@ -231,17 +231,17 @@ jobs:
 
       - name: Configure (iOS ${{ matrix.platform }})
         run: |
-          cmake -S . -B build-ios \
+          cmake -S . -B build/ios \
             -G Xcode \
             -DCMAKE_TOOLCHAIN_FILE=cmake/ios.toolchain.cmake \
             -DIOS_PLATFORM=${{ matrix.platform }}
 
       - name: Build
-        run: cmake --build build-ios --config Release --target fastsecp256k1 -- -quiet
+        run: cmake --build build/ios --config Release --target fastsecp256k1 -- -quiet
 
       - name: Verify library
         run: |
-          LIB=$(find build-ios -name "libfastsecp256k1.a" -path "*/Release*" | head -1)
+          LIB=$(find build/ios -name "libfastsecp256k1.a" -path "*/Release*" | head -1)
           echo "Library: $LIB"
           file "$LIB"
           lipo -info "$LIB"
@@ -269,7 +269,7 @@ jobs:
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: UltrafastSecp256k1.xcframework
-          path: build-xcframework/output/UltrafastSecp256k1.xcframework
+          path: build/xcframework/output/UltrafastSecp256k1.xcframework
           retention-days: 30
 
   # -- ROCm/HIP (AMD GPU, compile check) ---------------------------------------
@@ -296,7 +296,7 @@ jobs:
 
       - name: Configure (ROCm/HIP)
         run: |
-          cmake -S . -B build-rocm -G Ninja \
+          cmake -S . -B build/rocm -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DSECP256K1_BUILD_CPU=ON \
             -DSECP256K1_BUILD_ROCM=ON \
@@ -304,10 +304,10 @@ jobs:
             -DCMAKE_HIP_ARCHITECTURES="gfx906;gfx908;gfx90a;gfx1030;gfx1100"
 
       - name: Build
-        run: cmake --build build-rocm -j$(nproc)
+        run: cmake --build build/rocm -j$(nproc)
 
       - name: Test (CPU-only, compile check)
-        run: ctest --test-dir build-rocm --output-on-failure -j$(nproc)
+        run: ctest --test-dir build/rocm --output-on-failure -j$(nproc) -E ct_sidechannel
 
   # -- WebAssembly (Emscripten) -----------------------------------------------
   wasm:
@@ -327,16 +327,16 @@ jobs:
           version: 3.1.51
 
       - name: Configure (WASM)
-        run: emcmake cmake -S wasm -B build-wasm -DCMAKE_BUILD_TYPE=Release
+        run: emcmake cmake -S wasm -B build/wasm -DCMAKE_BUILD_TYPE=Release
 
       - name: Build
-        run: cmake --build build-wasm -j$(nproc)
+        run: cmake --build build/wasm -j$(nproc)
 
       - name: Verify output
         run: |
-          ls -lh build-wasm/dist/secp256k1_wasm.js
-          ls -lh build-wasm/dist/secp256k1_wasm.wasm
-          echo "WASM size: $(du -h build-wasm/dist/secp256k1_wasm.wasm | cut -f1)"
+          ls -lh build/wasm/dist/secp256k1_wasm.js
+          ls -lh build/wasm/dist/secp256k1_wasm.wasm
+          echo "WASM size: $(du -h build/wasm/dist/secp256k1_wasm.wasm | cut -f1)"
 
       - name: Setup Node.js
         uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6
@@ -345,19 +345,19 @@ jobs:
 
       - name: Run WASM benchmark
         run: |
-          cd build-wasm/dist
-          node ../../wasm/bench_wasm.mjs
+          cd build/wasm/dist
+          node ../../../wasm/bench_wasm.mjs
 
       - name: Upload WASM artifact
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: secp256k1-wasm
           path: |
-            build-wasm/dist/secp256k1_wasm.js
-            build-wasm/dist/secp256k1_wasm.wasm
-            build-wasm/dist/secp256k1.mjs
-            build-wasm/dist/secp256k1.d.ts
-            build-wasm/dist/package.json
+            build/wasm/dist/secp256k1_wasm.js
+            build/wasm/dist/secp256k1_wasm.wasm
+            build/wasm/dist/secp256k1.mjs
+            build/wasm/dist/secp256k1.d.ts
+            build/wasm/dist/package.json
           retention-days: 30
 
   # -- Android NDK (ARM64, ARMv7, x86_64) ----------------------------------
@@ -385,7 +385,7 @@ jobs:
 
       - name: Configure (Android ${{ matrix.abi }})
         run: |
-          cmake -S android -B build-android \
+          cmake -S android -B build/android \
             -DCMAKE_TOOLCHAIN_FILE=${{ steps.ndk.outputs.ndk-path }}/build/cmake/android.toolchain.cmake \
             -DANDROID_ABI=${{ matrix.abi }} \
             -DANDROID_PLATFORM=android-24 \
@@ -393,14 +393,14 @@ jobs:
             -G Ninja
 
       - name: Build
-        run: cmake --build build-android -j$(nproc)
+        run: cmake --build build/android -j$(nproc)
 
       - name: Verify
         run: |
-          file build-android/cpu/libfastsecp256k1.a
-          file build-android/libsecp256k1_jni.so
-          echo "Static lib: $(du -h build-android/cpu/libfastsecp256k1.a | cut -f1)"
-          echo "JNI shared: $(du -h build-android/libsecp256k1_jni.so | cut -f1)"
+          file build/android/cpu/libfastsecp256k1.a
+          file build/android/libsecp256k1_jni.so
+          echo "Static lib: $(du -h build/android/cpu/libfastsecp256k1.a | cut -f1)"
+          echo "JNI shared: $(du -h build/android/libsecp256k1_jni.so | cut -f1)"
 
   # -- Code Coverage (lcov + Codecov) -----------------------------------------
   coverage:
@@ -423,7 +423,7 @@ jobs:
       - name: Configure (coverage)
         run: |
           export CC=clang-17 CXX=clang++-17
-          cmake -S . -B build-cov -G Ninja \
+          cmake -S . -B build/cov -G Ninja \
             -DCMAKE_BUILD_TYPE=Debug \
             -DSECP256K1_BUILD_TESTS=ON \
             -DSECP256K1_BUILD_BENCH=OFF \
@@ -432,18 +432,18 @@ jobs:
             -DCMAKE_CXX_FLAGS="--coverage -fprofile-instr-generate -fcoverage-mapping"
 
       - name: Build
-        run: cmake --build build-cov -j$(nproc)
+        run: cmake --build build/cov -j$(nproc)
 
       - name: Test
-        run: ctest --test-dir build-cov --output-on-failure -j$(nproc)
+        run: ctest --test-dir build/cov --output-on-failure -j$(nproc) -E ct_sidechannel
         env:
           LLVM_PROFILE_FILE: "%p.profraw"
 
       - name: Collect coverage
         run: |
-          llvm-profdata-17 merge -sparse build-cov/**/*.profraw -o coverage.profdata 2>/dev/null || true
+          llvm-profdata-17 merge -sparse build/cov/**/*.profraw -o coverage.profdata 2>/dev/null || true
           # Fallback to lcov for gcc-style .gcda
-          lcov --capture --directory build-cov --output-file coverage.info \
+          lcov --capture --directory build/cov --output-file coverage.info \
             --gcov-tool llvm-cov-17 --ignore-errors inconsistent,inconsistent 2>/dev/null || true
           lcov --remove coverage.info '*/tests/*' '*/bench/*' '*/examples/*' '/usr/*' \
             --output-file coverage.info --ignore-errors unused 2>/dev/null || true

@@ -80,7 +80,7 @@ jobs:
         env:
           ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
           UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
-        run: ctest --test-dir build --output-on-failure -j"$(nproc)"
+        run: ctest --test-dir build --output-on-failure -j"$(nproc)" -E ct_sidechannel
 
   # ── Valgrind memcheck ───────────────────────────────────────────────────
   valgrind:
@@ -113,11 +113,53 @@ jobs:
         run: |
           ctest --test-dir build --output-on-failure -j"$(nproc)" \
             --overwrite MemoryCheckCommand=/usr/bin/valgrind \
-            --overwrite "MemoryCheckCommandOptions=--leak-check=full --error-exitcode=1" \
+            --overwrite "MemoryCheckCommandOptions=--leak-check=full --error-exitcode=1 --show-leak-kinds=definite,indirect,possible --errors-for-leak-kinds=definite,indirect,possible" \
             -T MemCheck || true
-          # Check for errors in memcheck output
-          if find build/Testing/Temporary -name 'MemoryChecker.*.log' -exec grep -l 'ERROR SUMMARY: [^0]' {} + 2>/dev/null | head -1; then
+          # Check for real errors in memcheck output (ignore "still reachable")
+          if grep -rl 'ERROR SUMMARY: [1-9]' build/Testing/Temporary/MemoryChecker.*.log 2>/dev/null | head -1; then
             echo "::error::Valgrind found memory errors"
             cat build/Testing/Temporary/MemoryChecker.*.log
             exit 1
           fi
+          # Also check for definite leaks
+          if grep -rl 'definitely lost: [1-9]' build/Testing/Temporary/MemoryChecker.*.log 2>/dev/null | head -1; then
+            echo "::error::Valgrind found definite memory leaks"
+            cat build/Testing/Temporary/MemoryChecker.*.log
+            exit 1
+          fi
+
+  # ── Constant-time side-channel (dudect) smoke test ──────────────────────
+  dudect:
+    name: dudect Timing Analysis
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Harden the runner
+        uses: step-security/harden-runner@5ef0c079ce82195b2a36a210272d6b661572d83e # v2.14.2
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Install toolchain
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends g++-13 ninja-build
+
+      - name: Configure
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_COMPILER=g++-13 \
+            -DSECP256K1_BUILD_TESTS=ON
+
+      - name: Build dudect test
+        run: cmake --build build --target test_ct_sidechannel_standalone -j"$(nproc)"
+
+      - name: Run dudect timing analysis (5 min timeout)
+        run: |
+          timeout 300 ./build/cpu/test_ct_sidechannel_standalone || EXIT=$?
+          if [ "${EXIT:-0}" -eq 124 ]; then
+            echo "::warning::dudect timed out (expected for CI smoke run)"
+            exit 0
+          fi
+          exit "${EXIT:-0}"

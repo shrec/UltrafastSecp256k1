@@ -14,7 +14,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 BUILD_TYPE="${1:-Release}"
-BUILD_DIR="$PROJECT_ROOT/build-wasm"
+BUILD_DIR="$PROJECT_ROOT/build/wasm"
 
 echo "╔══════════════════════════════════════════════════════╗"
 echo "║  UltrafastSecp256k1 — WebAssembly Build             ║"

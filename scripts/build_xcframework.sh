@@ -3,7 +3,7 @@
 # Build UltrafastSecp256k1.xcframework for iOS
 # ============================================================================
 # Requirements: macOS with Xcode 15+ and CMake 3.18+
-# Output:       build-xcframework/UltrafastSecp256k1.xcframework
+# Output:       build/xcframework/UltrafastSecp256k1.xcframework
 #
 # Usage:
 #   ./scripts/build_xcframework.sh
@@ -15,7 +15,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-BUILD_DIR="$ROOT_DIR/build-xcframework"
+BUILD_DIR="$ROOT_DIR/build/xcframework"
 OUTPUT_DIR="$BUILD_DIR/output"
 BUILD_TYPE="${1:---release}"
 

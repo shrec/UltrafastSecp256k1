@@ -23,7 +23,7 @@ ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 # ── Defaults ──
 BUILD_TYPE="Release"
 SKIP_TESTS=false
-BUILD_DIR="${ROOT_DIR}/build-release-pkg"
+BUILD_DIR="${ROOT_DIR}/build/release-pkg"
 RELEASE_DIR="${ROOT_DIR}/release"
 
 # ── Parse args ──

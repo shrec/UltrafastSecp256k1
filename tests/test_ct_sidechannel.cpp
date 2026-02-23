@@ -29,6 +29,11 @@
 #include <random>
 #include <chrono>
 #include <algorithm>
+#include <atomic>
+
+#ifdef _MSC_VER
+#include <intrin.h>
+#endif
 
 // -- Our CT layer -------------------------------------------------------------
 #include "secp256k1/field.hpp"
@@ -45,16 +50,38 @@
 using namespace secp256k1::fast;
 
 // ===========================================================================
+// Compiler barriers -- prevent reordering/optimization across measurement
+// ===========================================================================
+// BARRIER_OPAQUE(v): treat v as modified by unknown side-effect (value barrier)
+// BARRIER_FENCE():   full compiler reordering barrier (memory fence)
+
+#ifdef _MSC_VER
+// MSVC: use atomic fence as compiler barrier + volatile trick for value barrier
+#define BARRIER_FENCE()       std::atomic_signal_fence(std::memory_order_seq_cst)
+#define BARRIER_OPAQUE(v)     do { volatile auto _bv = (v); (v) = _bv; \
+                                   std::atomic_signal_fence(std::memory_order_seq_cst); } while(0)
+#else
+// GCC / Clang: inline asm barriers
+#define BARRIER_FENCE()       asm volatile("" ::: "memory")
+#define BARRIER_OPAQUE(v)     asm volatile("" : "+r"(v) :: "memory")
+#endif
+
+// ===========================================================================
 // Timer -- rdtsc(p) on x86_64, cntvct on aarch64
 // ===========================================================================
 
-#if defined(__x86_64__) || defined(_M_X64)
+#if defined(_MSC_VER) && defined(_M_X64)
+static inline uint64_t rdtsc() {
+    unsigned int aux;
+    return __rdtscp(&aux);
+}
+#elif defined(__x86_64__)
 static inline uint64_t rdtsc() {
     uint32_t lo, hi;
     asm volatile("rdtscp" : "=a"(lo), "=d"(hi) :: "ecx");
     return (static_cast<uint64_t>(hi) << 32) | lo;
 }
-#elif defined(__aarch64__)
+#elif defined(__aarch64__) && !defined(_MSC_VER)
 static inline uint64_t rdtsc() {
     uint64_t val;
     asm volatile("mrs %0, cntvct_el0" : "=r"(val));
@@ -156,14 +183,14 @@ static void test_ct_primitives() {
             int cls = classes[i];
             uint64_t val = inputs[cls][i];
 
-            asm volatile("" : "+r"(val) :: "memory");
+            BARRIER_OPAQUE(val);
             uint64_t t0 = rdtsc();
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
             volatile uint64_t r = secp256k1::ct::is_zero_mask(val);
             (void)r;
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
             uint64_t t1 = rdtsc();
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
 
             ws.push(cls, static_cast<double>(t1 - t0));
         }
@@ -189,14 +216,14 @@ static void test_ct_primitives() {
             int cls = classes[i];
             bool flag = inputs[cls][i];
 
-            asm volatile("" : "+r"(flag) :: "memory");
+            BARRIER_OPAQUE(flag);
             uint64_t t0 = rdtsc();
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
             volatile uint64_t m = secp256k1::ct::bool_to_mask(flag);
             (void)m;
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
             uint64_t t1 = rdtsc();
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
 
             ws.push(cls, static_cast<double>(t1 - t0));
         }
@@ -224,13 +251,13 @@ static void test_ct_primitives() {
             int cls = classes[i];
             uint64_t mask = masks[cls][i];
 
-            asm volatile("" : "+r"(mask) :: "memory");
+            BARRIER_OPAQUE(mask);
             uint64_t t0 = rdtsc();
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
             secp256k1::ct::cmov256(dst, src, mask);
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
             uint64_t t1 = rdtsc();
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
 
             ws.push(cls, static_cast<double>(t1 - t0));
         }
@@ -257,13 +284,13 @@ static void test_ct_primitives() {
             int cls = classes[i];
             uint64_t mask = masks[cls][i];
 
-            asm volatile("" : "+r"(mask) :: "memory");
+            BARRIER_OPAQUE(mask);
             uint64_t t0 = rdtsc();
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
             secp256k1::ct::cswap256(a, b, mask);
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
             uint64_t t1 = rdtsc();
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
 
             ws.push(cls, static_cast<double>(t1 - t0));
         }
@@ -293,13 +320,13 @@ static void test_ct_primitives() {
             int cls = classes[i];
             size_t idx = indices[cls][i];
 
-            asm volatile("" : "+r"(idx) :: "memory");
+            BARRIER_OPAQUE(idx);
             uint64_t t0 = rdtsc();
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
             secp256k1::ct::ct_lookup_256(table, 16, idx, out);
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
             uint64_t t1 = rdtsc();
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
 
             ws.push(cls, static_cast<double>(t1 - t0));
         }
@@ -331,14 +358,14 @@ static void test_ct_primitives() {
             const uint8_t* a = (cls == 0) ? pairs0[i].a : pairs1[i].a;
             const uint8_t* b = (cls == 0) ? pairs0[i].b : pairs1[i].b;
 
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
             uint64_t t0 = rdtsc();
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
             volatile bool eq = secp256k1::ct::ct_equal(a, b, 32);
             (void)eq;
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
             uint64_t t1 = rdtsc();
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
 
             ws.push(cls, static_cast<double>(t1 - t0));
         }
@@ -384,14 +411,14 @@ static void test_ct_field() {
             int cls = classes[i];
             auto& op = (cls == 0) ? fe_cls0[i] : fe_cls1[i];
 
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
             uint64_t t0 = rdtsc();
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
             volatile auto r = secp256k1::ct::field_add(fe_base[i], op);
             (void)r;
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
             uint64_t t1 = rdtsc();
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
 
             ws.push(cls, static_cast<double>(t1 - t0));
         }
@@ -408,14 +435,14 @@ static void test_ct_field() {
             int cls = classes[i];
             auto& op = (cls == 0) ? fe_cls0[i] : fe_cls1[i];
 
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
             uint64_t t0 = rdtsc();
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
             volatile auto r = secp256k1::ct::field_mul(fe_base[i], op);
             (void)r;
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
             uint64_t t1 = rdtsc();
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
 
             ws.push(cls, static_cast<double>(t1 - t0));
         }
@@ -435,14 +462,14 @@ static void test_ct_field() {
             int cls = classes[i];
             auto& op = (cls == 0) ? fe_cls0[i] : fe_cls1[i];
 
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
             uint64_t t0 = rdtsc();
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
             volatile auto r = secp256k1::ct::field_sqr(op);
             (void)r;
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
             uint64_t t1 = rdtsc();
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
 
             ws.push(cls, static_cast<double>(t1 - t0));
         }
@@ -467,14 +494,14 @@ static void test_ct_field() {
             int cls = classes[i];
             auto& op = (cls == 0) ? fe_cls0[i] : fe_cls1[i];
 
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
             uint64_t t0 = rdtsc();
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
             volatile auto r = secp256k1::ct::field_inv(op);
             (void)r;
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
             uint64_t t1 = rdtsc();
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
 
             ws.push(cls, static_cast<double>(t1 - t0));
         }
@@ -497,13 +524,13 @@ static void test_ct_field() {
             auto dst = fe_base[i];
             auto src = fe_cls1[i];
 
-            asm volatile("" : "+r"(mask) :: "memory");
+            BARRIER_OPAQUE(mask);
             uint64_t t0 = rdtsc();
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
             secp256k1::ct::field_cmov(&dst, src, mask);
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
             uint64_t t1 = rdtsc();
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
 
             ws.push(cls, static_cast<double>(t1 - t0));
         }
@@ -522,14 +549,14 @@ static void test_ct_field() {
             int cls = classes[i];
             auto& op = (cls == 0) ? fe_cls0[i] : fe_cls1[i];
 
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
             uint64_t t0 = rdtsc();
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
             volatile auto m = secp256k1::ct::field_is_zero(op);
             (void)m;
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
             uint64_t t1 = rdtsc();
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
 
             ws.push(cls, static_cast<double>(t1 - t0));
         }
@@ -578,14 +605,14 @@ static void test_ct_scalar() {
             int cls = classes[i];
             auto& op = (cls == 0) ? sc_cls0[i] : sc_cls1[i];
 
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
             uint64_t t0 = rdtsc();
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
             volatile auto r = secp256k1::ct::scalar_add(sc_base[i], op);
             (void)r;
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
             uint64_t t1 = rdtsc();
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
 
             ws.push(cls, static_cast<double>(t1 - t0));
         }
@@ -602,14 +629,14 @@ static void test_ct_scalar() {
             int cls = classes[i];
             auto& op = (cls == 0) ? sc_cls0[i] : sc_cls1[i];
 
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
             uint64_t t0 = rdtsc();
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
             volatile auto r = secp256k1::ct::scalar_sub(sc_base[i], op);
             (void)r;
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
             uint64_t t1 = rdtsc();
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
 
             ws.push(cls, static_cast<double>(t1 - t0));
         }
@@ -629,13 +656,13 @@ static void test_ct_scalar() {
             auto dst = sc_base[i];
             auto src = sc_cls1[i];
 
-            asm volatile("" : "+r"(mask) :: "memory");
+            BARRIER_OPAQUE(mask);
             uint64_t t0 = rdtsc();
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
             secp256k1::ct::scalar_cmov(&dst, src, mask);
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
             uint64_t t1 = rdtsc();
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
 
             ws.push(cls, static_cast<double>(t1 - t0));
         }
@@ -654,14 +681,14 @@ static void test_ct_scalar() {
             int cls = classes[i];
             auto& op = (cls == 0) ? sc_cls0[i] : sc_cls1[i];
 
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
             uint64_t t0 = rdtsc();
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
             volatile auto m = secp256k1::ct::scalar_is_zero(op);
             (void)m;
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
             uint64_t t1 = rdtsc();
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
 
             ws.push(cls, static_cast<double>(t1 - t0));
         }
@@ -671,28 +698,39 @@ static void test_ct_scalar() {
         check(t < T_THRESHOLD, "ct::scalar_is_zero timing leak");
     }
 
-    // -- 3e: scalar_bit (position 0 vs random position) ------------------
+    // -- 3e: scalar_bit (class 0: scalar with bit=0, class 1: scalar with bit=1 at same position) --
     {
-        // Pre-generate positions. Test: same scalar, different bit positions
-        size_t positions[2][N];
+        // Security-relevant test: same position (public), different scalar values.
+        // In scalar mul, position is the loop counter (public); scalar is secret.
+        // We test that timing doesn't reveal the bit VALUE at a fixed position.
+        constexpr size_t TEST_POS = 128;  // middle bit, limb 2
+
+        // Pre-generate scalars where bit TEST_POS is forced to 0 or 1
+        static Scalar sc_cls[2][N];
         for (int i = 0; i < N; ++i) {
-            positions[0][i] = 0;          // always bit 0
-            positions[1][i] = rng() % 256; // random bit
+            auto s = random_scalar();
+            auto limbs = s.limbs();
+            // Class 0: force bit to 0
+            limbs[TEST_POS / 64] &= ~(uint64_t(1) << (TEST_POS % 64));
+            sc_cls[0][i] = Scalar::from_limbs(limbs);
+            // Class 1: force bit to 1
+            limbs[TEST_POS / 64] |= (uint64_t(1) << (TEST_POS % 64));
+            sc_cls[1][i] = Scalar::from_limbs(limbs);
         }
 
         WelchState ws;
         for (int i = 0; i < N; ++i) {
             int cls = classes[i];
-            size_t pos = positions[cls][i];
+            const auto& sc = sc_cls[cls][i];
 
-            asm volatile("" : "+r"(pos) :: "memory");
+            BARRIER_FENCE();
             uint64_t t0 = rdtsc();
-            asm volatile("" ::: "memory");
-            volatile auto bit = secp256k1::ct::scalar_bit(sc_base[i], pos);
+            BARRIER_FENCE();
+            volatile auto bit = secp256k1::ct::scalar_bit(sc, TEST_POS);
             (void)bit;
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
             uint64_t t1 = rdtsc();
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
 
             ws.push(cls, static_cast<double>(t1 - t0));
         }
@@ -715,14 +753,14 @@ static void test_ct_scalar() {
             int cls = classes[i];
             size_t pos = positions[cls][i];
 
-            asm volatile("" : "+r"(pos) :: "memory");
+            BARRIER_OPAQUE(pos);
             uint64_t t0 = rdtsc();
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
             volatile auto w = secp256k1::ct::scalar_window(sc_base[i], pos, 4);
             (void)w;
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
             uint64_t t1 = rdtsc();
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
 
             ws.push(cls, static_cast<double>(t1 - t0));
         }
@@ -767,14 +805,14 @@ static void test_ct_point() {
             int cls = classes[i];
             auto& rhs = rhs_arr[cls];
 
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
             uint64_t t0 = rdtsc();
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
             volatile auto r = secp256k1::ct::point_add_complete(ct_G, rhs);
             (void)r;
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
             uint64_t t1 = rdtsc();
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
 
             ws.push(cls, static_cast<double>(t1 - t0));
         }
@@ -802,14 +840,14 @@ static void test_ct_point() {
             int cls = classes[i];
             auto& rhs = rhs_arr[cls];
 
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
             uint64_t t0 = rdtsc();
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
             volatile auto r = secp256k1::ct::point_add_complete(ct_G, rhs);
             (void)r;
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
             uint64_t t1 = rdtsc();
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
 
             ws.push(cls, static_cast<double>(t1 - t0));
         }
@@ -839,14 +877,14 @@ static void test_ct_point() {
             int cls = classes[i];
             auto& k = scalars[cls][i];
 
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
             uint64_t t0 = rdtsc();
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
             volatile auto R = secp256k1::ct::scalar_mul(G, k);
             (void)R;
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
             uint64_t t1 = rdtsc();
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
 
             ws.push(cls, static_cast<double>(t1 - t0));
         }
@@ -876,14 +914,14 @@ static void test_ct_point() {
             int cls = classes[i];
             auto& k = scalars[cls][i];
 
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
             uint64_t t0 = rdtsc();
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
             volatile auto R = secp256k1::ct::scalar_mul(G, k);
             (void)R;
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
             uint64_t t1 = rdtsc();
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
 
             ws.push(cls, static_cast<double>(t1 - t0));
         }
@@ -915,14 +953,14 @@ static void test_ct_point() {
             int cls = classes[i];
             auto& k = scalars[cls][i];
 
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
             uint64_t t0 = rdtsc();
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
             volatile auto R = secp256k1::ct::generator_mul(k);
             (void)R;
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
             uint64_t t1 = rdtsc();
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
 
             ws.push(cls, static_cast<double>(t1 - t0));
         }
@@ -957,14 +995,14 @@ static void test_ct_point() {
             int cls = classes[i];
             size_t idx = indices[cls][i];
 
-            asm volatile("" : "+r"(idx) :: "memory");
+            BARRIER_OPAQUE(idx);
             uint64_t t0 = rdtsc();
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
             volatile auto p = secp256k1::ct::point_table_lookup(table, 16, idx);
             (void)p;
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
             uint64_t t1 = rdtsc();
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
 
             ws.push(cls, static_cast<double>(t1 - t0));
         }
@@ -999,13 +1037,13 @@ static void test_ct_utils() {
             int cls = classes[i];
             bool flag = flags[cls];
 
-            asm volatile("" : "+r"(flag) :: "memory");
+            BARRIER_OPAQUE(flag);
             uint64_t t0 = rdtsc();
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
             secp256k1::ct::ct_memcpy_if(dst, src, 32, flag);
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
             uint64_t t1 = rdtsc();
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
 
             ws.push(cls, static_cast<double>(t1 - t0));
         }
@@ -1030,13 +1068,13 @@ static void test_ct_utils() {
             int cls = classes[i];
             bool flag = flags[cls];
 
-            asm volatile("" : "+r"(flag) :: "memory");
+            BARRIER_OPAQUE(flag);
             uint64_t t0 = rdtsc();
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
             secp256k1::ct::ct_memswap_if(a, b, 32, flag);
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
             uint64_t t1 = rdtsc();
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
 
             ws.push(cls, static_cast<double>(t1 - t0));
         }
@@ -1064,13 +1102,13 @@ static void test_ct_utils() {
             int cls = classes[i];
             uint8_t* buf = (cls == 0) ? bufs0[i].data : bufs1[i].data;
 
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
             uint64_t t0 = rdtsc();
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
             secp256k1::ct::ct_memzero(buf, 32);
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
             uint64_t t1 = rdtsc();
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
 
             ws.push(cls, static_cast<double>(t1 - t0));
         }
@@ -1102,14 +1140,14 @@ static void test_ct_utils() {
             const uint8_t* a = (cls == 0) ? pairs0[i].a : pairs1[i].a;
             const uint8_t* b = (cls == 0) ? pairs0[i].b : pairs1[i].b;
 
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
             uint64_t t0 = rdtsc();
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
             volatile int cmp = secp256k1::ct::ct_compare(a, b, 32);
             (void)cmp;
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
             uint64_t t1 = rdtsc();
-            asm volatile("" ::: "memory");
+            BARRIER_FENCE();
 
             ws.push(cls, static_cast<double>(t1 - t0));
         }
@@ -1149,14 +1187,14 @@ static void test_fast_not_ct() {
         int cls = classes[i];
         auto& k = scalars[cls][i];
 
-        asm volatile("" ::: "memory");
+        BARRIER_FENCE();
         uint64_t t0 = rdtsc();
-        asm volatile("" ::: "memory");
+        BARRIER_FENCE();
         volatile auto R = G.scalar_mul(k);
         (void)R;
-        asm volatile("" ::: "memory");
+        BARRIER_FENCE();
         uint64_t t1 = rdtsc();
-        asm volatile("" ::: "memory");
+        BARRIER_FENCE();
 
         ws.push(cls, static_cast<double>(t1 - t0));
     }

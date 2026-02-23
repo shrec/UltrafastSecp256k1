@@ -35,7 +35,7 @@ cd UltrafastSecp256k1
 ./scripts/build_wasm.sh
 ```
 
-Output in `build-wasm/dist/`:
+Output in `build/wasm/dist/`:
 | File | Description |
 |------|-------------|
 | `secp256k1_wasm.wasm` | WebAssembly binary |
@@ -130,8 +130,8 @@ For direct use from C/C++ or custom WASM bindings, see [`secp256k1_wasm.h`](secp
 ./scripts/build_wasm.sh debug
 
 # Or manually:
-emcmake cmake -S wasm -B build-wasm -DCMAKE_BUILD_TYPE=Debug
-cmake --build build-wasm -j
+emcmake cmake -S wasm -B build/wasm -DCMAKE_BUILD_TYPE=Debug
+cmake --build build/wasm -j
 ```
 
 ## License

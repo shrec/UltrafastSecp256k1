@@ -36,6 +36,9 @@ int test_batch_add_affine_run();
 int test_hash_accel_run();
 int run_exhaustive_tests();
 int test_comprehensive_run();
+int test_bip340_vectors_run();
+int test_rfc6979_vectors_run();
+int test_ecc_properties_run();
 
 // -- Module descriptor --------------------------------------------------------
 struct TestModule {
@@ -60,6 +63,9 @@ static const TestModule MODULES[] = {
     { "accelerated hashing",                test_hash_accel_run },
     { "exhaustive algebraic verification",  run_exhaustive_tests },
     { "comprehensive 500+ test suite",        test_comprehensive_run },
+    { "BIP-340 official test vectors",          test_bip340_vectors_run },
+    { "RFC 6979 ECDSA test vectors",              test_rfc6979_vectors_run },
+    { "ECC property-based invariants",              test_ecc_properties_run },
 };
 
 static constexpr int NUM_MODULES = sizeof(MODULES) / sizeof(MODULES[0]);
