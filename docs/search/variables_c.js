@@ -11,5 +11,6 @@ var searchData=
   ['message_8',['message',['../structsecp256k1_1_1SchnorrBatchEntry.html#aaf920755c5fadadc7d7a6c4f53bcc3a6',1,'secp256k1::SchnorrBatchEntry']]],
   ['min_5fns_9',['min_ns',['../structbench_1_1Stats.html#ac24571992ceb4cfeda039a9a76fa14f6',1,'bench::Stats']]],
   ['minus_5fb1_10',['MINUS_B1',['../namespacesecp256k1_1_1fast_1_1glv__constants.html#a08bcc168109784e84eb68b5e752d3442',1,'secp256k1::fast::glv_constants']]],
-  ['msg_5fhash_11',['msg_hash',['../structsecp256k1_1_1ECDSABatchEntry.html#a7f93edf3342a38fe845061a078456c69',1,'secp256k1::ECDSABatchEntry']]]
+  ['mode_11',['mode',['../structsecp256k1_1_1fast_1_1SelftestReport.html#a01e6efb46ffde2d9ab9125b0881cd6b5',1,'secp256k1::fast::SelftestReport']]],
+  ['msg_5fhash_12',['msg_hash',['../structsecp256k1_1_1ECDSABatchEntry.html#a7f93edf3342a38fe845061a078456c69',1,'secp256k1::ECDSABatchEntry']]]
 ];

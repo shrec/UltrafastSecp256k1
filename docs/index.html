@@ -186,7 +186,7 @@ secp256k1 Feature Overview</h1>
 <h1><a class="anchor" id="autotoc_md25"></a>
 60-Second Quickstart</h1>
 <p>Get a working selftest in under a minute:</p>
-<p><b>Option A — Linux (apt)</b> </p><div class="fragment"><div class="line">sudo apt install libsecp256k1-fast3</div>
+<p><b>Option A — Linux (apt)</b> </p><div class="fragment"><div class="line">sudo apt install libufsecp3</div>
 <div class="line">ufsecp_selftest          # Expected: &quot;OK (version 3.x, backend CPU)&quot;</div>
 </div><!-- fragment --><p><b>Option B — npm (any OS)</b> </p><div class="fragment"><div class="line">npm i ufsecp</div>
 <div class="line">node -e &quot;require(&#39;ufsecp&#39;).selftest()&quot;   # Expected: &quot;OK&quot;</div>
@@ -202,7 +202,7 @@ Platform Support Matrix</h1>
 <tr class="markdownTableHead">
 <th class="markdownTableHeadNone">Target   </th><th class="markdownTableHeadNone">Backend   </th><th class="markdownTableHeadNone">Install / Entry Point   </th><th class="markdownTableHeadNone">Status    </th></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone"><b>Linux x64</b>   </td><td class="markdownTableBodyNone">CPU   </td><td class="markdownTableBodyNone"><code>apt install libsecp256k1-fast3</code>   </td><td class="markdownTableBodyNone">✅ Stable    </td></tr>
+<td class="markdownTableBodyNone"><b>Linux x64</b>   </td><td class="markdownTableBodyNone">CPU   </td><td class="markdownTableBodyNone"><code>apt install libufsecp3</code>   </td><td class="markdownTableBodyNone">✅ Stable    </td></tr>
 <tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone"><b>Windows x64</b>   </td><td class="markdownTableBodyNone">CPU   </td><td class="markdownTableBodyNone">NuGet <code>UltrafastSecp256k1</code> / <a href="https://github.com/shrec/UltrafastSecp256k1/releases">Release .zip</a>   </td><td class="markdownTableBodyNone">✅ Stable    </td></tr>
 <tr class="markdownTableRowOdd">
@@ -224,10 +224,10 @@ Linux (APT — Debian / Ubuntu)</h2>
 <div class="line">sudo apt update</div>
 <div class="line"> </div>
 <div class="line"># Install (runtime only)</div>
-<div class="line">sudo apt install libsecp256k1-fast3</div>
+<div class="line">sudo apt install libufsecp3</div>
 <div class="line"> </div>
 <div class="line"># Install (development — headers, static lib, cmake/pkgconfig)</div>
-<div class="line">sudo apt install libsecp256k1-fast-dev</div>
+<div class="line">sudo apt install libufsecp-dev</div>
 </div><!-- fragment --><h2><a class="anchor" id="autotoc_md31"></a>
 Linux (RPM — Fedora / RHEL)</h2>
 <div class="fragment"><div class="line"># Download from GitHub Releases</div>
@@ -236,11 +236,11 @@ Linux (RPM — Fedora / RHEL)</h2>
 </div><!-- fragment --><h2><a class="anchor" id="autotoc_md32"></a>
 Arch Linux (AUR)</h2>
 <div class="fragment"><div class="line"># Using yay</div>
-<div class="line">yay -S libsecp256k1-fast</div>
+<div class="line">yay -S libufsecp</div>
 <div class="line"> </div>
 <div class="line"># Or manually</div>
-<div class="line">git clone https://aur.archlinux.org/libsecp256k1-fast.git</div>
-<div class="line">cd libsecp256k1-fast &amp;&amp; makepkg -si</div>
+<div class="line">git clone https://aur.archlinux.org/libufsecp.git</div>
+<div class="line">cd libufsecp &amp;&amp; makepkg -si</div>
 </div><!-- fragment --><h2><a class="anchor" id="autotoc_md33"></a>
 From source (any platform)</h2>
 <div class="fragment"><div class="line">cmake -S . -B build -G Ninja \</div>
@@ -254,11 +254,11 @@ From source (any platform)</h2>
 <div class="line">sudo ldconfig</div>
 </div><!-- fragment --><h2><a class="anchor" id="autotoc_md34"></a>
 Use in your CMake project</h2>
-<div class="fragment"><div class="line">find_package(secp256k1-fast 3 REQUIRED COMPONENTS CPU)</div>
-<div class="line">target_link_libraries(myapp PRIVATE secp256k1::fastsecp256k1)</div>
+<div class="fragment"><div class="line">find_package(ufsecp 3 REQUIRED)</div>
+<div class="line">target_link_libraries(myapp PRIVATE ufsecp::ufsecp)</div>
 </div><!-- fragment --><h2><a class="anchor" id="autotoc_md35"></a>
 Use with pkg-config</h2>
-<div class="fragment"><div class="line">g++ myapp.cpp $(pkg-config --cflags --libs secp256k1-fast) -o myapp</div>
+<div class="fragment"><div class="line">g++ myapp.cpp $(pkg-config --cflags --libs ufsecp) -o myapp</div>
 </div><!-- fragment --><hr  />
 <h1><a class="anchor" id="autotoc_md37"></a>
 secp256k1 GPU Acceleration (CUDA / OpenCL / Metal / ROCm)</h1>
@@ -743,7 +743,7 @@ Basic Point Operations</h2>
 <div class="ttc" id="aclasssecp256k1_1_1fast_1_1Scalar_html_a405303c64f84eeb9d9f8eafe2474342f"><div class="ttname"><a href="classsecp256k1_1_1fast_1_1Scalar.html#a405303c64f84eeb9d9f8eafe2474342f">secp256k1::fast::Scalar::from_hex</a></div><div class="ttdeci">static Scalar from_hex(const std::string &amp;hex)</div></div>
 <div class="ttc" id="afield_8hpp_html"><div class="ttname"><a href="field_8hpp.html">field.hpp</a></div></div>
 <div class="ttc" id="ascalar_8hpp_html"><div class="ttname"><a href="scalar_8hpp.html">scalar.hpp</a></div></div>
-</div><!-- fragment --><div class="fragment"><div class="line">g++ -std=c++20 example.cpp -lsecp256k1-fast-cpu -o example &amp;&amp; ./example</div>
+</div><!-- fragment --><div class="fragment"><div class="line">g++ -std=c++20 example.cpp -lufsecp -o example &amp;&amp; ./example</div>
 </div><!-- fragment --><h2><a class="anchor" id="autotoc_md80"></a>
 GPU Batch Multiplication</h2>
 <div class="fragment"><div class="line"><span class="preprocessor">#include &lt;secp256k1_cuda/batch_operations.hpp&gt;</span></div>

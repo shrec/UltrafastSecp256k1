@@ -7,11 +7,12 @@ var searchData=
   ['all_5fcategories_4',['ALL_CATEGORIES',['../namespacesecp256k1_1_1test.html#ae6121db6640489bd689211e350d2dced',1,'secp256k1::test']]],
   ['all_5fcoins_5',['ALL_COINS',['../namespacesecp256k1_1_1coins.html#ac3609eeb54f2706d0e8d0743b9fd05a1',1,'secp256k1::coins']]],
   ['all_5fcoins_5fcount_6',['ALL_COINS_COUNT',['../namespacesecp256k1_1_1coins.html#aeff28fb4c71738b9baf242f7828122b4',1,'secp256k1::coins']]],
-  ['arbitrum_7',['Arbitrum',['../namespacesecp256k1_1_1coins.html#ac0e162c11624302a1b1bfa1c30813dd6',1,'secp256k1::coins']]],
-  ['autotune_8',['autotune',['../structsecp256k1_1_1fast_1_1FixedBaseConfig.html#abef46a711eaf162a22976723cd290d45',1,'secp256k1::fast::FixedBaseConfig']]],
-  ['autotune_5fiters_9',['autotune_iters',['../structsecp256k1_1_1fast_1_1FixedBaseConfig.html#ad128b6e5247dee768f63059adb8cfc63',1,'secp256k1::fast::FixedBaseConfig']]],
-  ['autotune_5flog_5fpath_10',['autotune_log_path',['../structsecp256k1_1_1fast_1_1FixedBaseConfig.html#a9a8a1f831e25a6a41b3862455832be90',1,'secp256k1::fast::FixedBaseConfig']]],
-  ['autotune_5fmax_5fw_11',['autotune_max_w',['../structsecp256k1_1_1fast_1_1FixedBaseConfig.html#aec53ff7cd6913105b2d54ed5051e451f',1,'secp256k1::fast::FixedBaseConfig']]],
-  ['autotune_5fmin_5fw_12',['autotune_min_w',['../structsecp256k1_1_1fast_1_1FixedBaseConfig.html#af1d69f8253f2931bc7d49f5784333ea1',1,'secp256k1::fast::FixedBaseConfig']]],
-  ['avalanche_13',['Avalanche',['../namespacesecp256k1_1_1coins.html#a687e77712b00dfcd4cac5a6814dd0c31',1,'secp256k1::coins']]]
+  ['all_5fpassed_7',['all_passed',['../structsecp256k1_1_1fast_1_1SelftestReport.html#aa790b0ff05ae7d2588aa9ceaa25b8eec',1,'secp256k1::fast::SelftestReport']]],
+  ['arbitrum_8',['Arbitrum',['../namespacesecp256k1_1_1coins.html#ac0e162c11624302a1b1bfa1c30813dd6',1,'secp256k1::coins']]],
+  ['autotune_9',['autotune',['../structsecp256k1_1_1fast_1_1FixedBaseConfig.html#abef46a711eaf162a22976723cd290d45',1,'secp256k1::fast::FixedBaseConfig']]],
+  ['autotune_5fiters_10',['autotune_iters',['../structsecp256k1_1_1fast_1_1FixedBaseConfig.html#ad128b6e5247dee768f63059adb8cfc63',1,'secp256k1::fast::FixedBaseConfig']]],
+  ['autotune_5flog_5fpath_11',['autotune_log_path',['../structsecp256k1_1_1fast_1_1FixedBaseConfig.html#a9a8a1f831e25a6a41b3862455832be90',1,'secp256k1::fast::FixedBaseConfig']]],
+  ['autotune_5fmax_5fw_12',['autotune_max_w',['../structsecp256k1_1_1fast_1_1FixedBaseConfig.html#aec53ff7cd6913105b2d54ed5051e451f',1,'secp256k1::fast::FixedBaseConfig']]],
+  ['autotune_5fmin_5fw_13',['autotune_min_w',['../structsecp256k1_1_1fast_1_1FixedBaseConfig.html#af1d69f8253f2931bc7d49f5784333ea1',1,'secp256k1::fast::FixedBaseConfig']]],
+  ['avalanche_14',['Avalanche',['../namespacesecp256k1_1_1coins.html#a687e77712b00dfcd4cac5a6814dd0c31',1,'secp256k1::coins']]]
 ];

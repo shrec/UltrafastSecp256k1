@@ -32,7 +32,9 @@ var annotated_dup =
         [ "PrecomputedScalar", "structsecp256k1_1_1fast_1_1PrecomputedScalar.html", "structsecp256k1_1_1fast_1_1PrecomputedScalar" ],
         [ "PrecomputedScalarOptimized", "structsecp256k1_1_1fast_1_1PrecomputedScalarOptimized.html", "structsecp256k1_1_1fast_1_1PrecomputedScalarOptimized" ],
         [ "Scalar", "classsecp256k1_1_1fast_1_1Scalar.html", "classsecp256k1_1_1fast_1_1Scalar" ],
-        [ "ScalarDecomposition", "structsecp256k1_1_1fast_1_1ScalarDecomposition.html", "structsecp256k1_1_1fast_1_1ScalarDecomposition" ]
+        [ "ScalarDecomposition", "structsecp256k1_1_1fast_1_1ScalarDecomposition.html", "structsecp256k1_1_1fast_1_1ScalarDecomposition" ],
+        [ "SelftestCaseResult", "structsecp256k1_1_1fast_1_1SelftestCaseResult.html", "structsecp256k1_1_1fast_1_1SelftestCaseResult" ],
+        [ "SelftestReport", "structsecp256k1_1_1fast_1_1SelftestReport.html", "structsecp256k1_1_1fast_1_1SelftestReport" ]
       ] ],
       [ "test", "namespacesecp256k1_1_1test.html", [
         [ "TestCounters", "structsecp256k1_1_1test_1_1TestCounters.html", "structsecp256k1_1_1test_1_1TestCounters" ]

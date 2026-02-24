@@ -1,7 +1,7 @@
 var searchData=
 [
   ['n_0',['n',['../structsecp256k1_1_1fast_1_1FieldElement52.html#a6a0b7114d293cd72b6964e8eaa0f82c0',1,'secp256k1::fast::FieldElement52::n'],['../structsecp256k1_1_1fast_1_1FieldElement26.html#ab3109a333ee577be7716d811695e4278',1,'secp256k1::fast::FieldElement26::n']]],
-  ['name_1',['name',['../structsecp256k1_1_1coins_1_1CoinParams.html#a12d1e5759867e1d5f5910dd9766eb99a',1,'secp256k1::coins::CoinParams::name'],['../structsecp256k1_1_1CurveContext.html#ac783090abed92bb9011d5063982d8c90',1,'secp256k1::CurveContext::name']]],
+  ['name_1',['name',['../structsecp256k1_1_1coins_1_1CoinParams.html#a12d1e5759867e1d5f5910dd9766eb99a',1,'secp256k1::coins::CoinParams::name'],['../structsecp256k1_1_1CurveContext.html#ac783090abed92bb9011d5063982d8c90',1,'secp256k1::CurveContext::name'],['../structsecp256k1_1_1fast_1_1SelftestCaseResult.html#a3339655c35c66bab1f188fc2d5c3c4fe',1,'secp256k1::fast::SelftestCaseResult::name']]],
   ['namecoin_2',['Namecoin',['../namespacesecp256k1_1_1coins.html#a2b213e0327a73e15d8084f46ea89fb5c',1,'secp256k1::coins']]],
   ['namespace_3',['CT / Hardened Profile (&lt;tt&gt;ct::&lt;/tt&gt; namespace)',['../index.html#autotoc_md84',1,'']]],
   ['needs_5fnegation_4',['needs_negation',['../structsecp256k1_1_1SchnorrAdaptorSig.html#a6ce6acb403b03373b98ce970a7ffc23c',1,'secp256k1::SchnorrAdaptorSig']]],

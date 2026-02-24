@@ -58,6 +58,8 @@ var namespacesecp256k1_1_1fast =
     [ "PrecomputedScalarOptimized", "structsecp256k1_1_1fast_1_1PrecomputedScalarOptimized.html", "structsecp256k1_1_1fast_1_1PrecomputedScalarOptimized" ],
     [ "Scalar", "classsecp256k1_1_1fast_1_1Scalar.html", "classsecp256k1_1_1fast_1_1Scalar" ],
     [ "ScalarDecomposition", "structsecp256k1_1_1fast_1_1ScalarDecomposition.html", "structsecp256k1_1_1fast_1_1ScalarDecomposition" ],
+    [ "SelftestCaseResult", "structsecp256k1_1_1fast_1_1SelftestCaseResult.html", "structsecp256k1_1_1fast_1_1SelftestCaseResult" ],
+    [ "SelftestReport", "structsecp256k1_1_1fast_1_1SelftestReport.html", "structsecp256k1_1_1fast_1_1SelftestReport" ],
     [ "OptimalFieldElement", "namespacesecp256k1_1_1fast.html#ad889772ac557be09629ddc6f15b093f8", null ],
     [ "ProgressCallback", "namespacesecp256k1_1_1fast.html#a37c1f085bc37d25789620da90ed4988a", null ],
     [ "FieldTier", "namespacesecp256k1_1_1fast.html#acde831e11e1dcaddfc8b9c9c70e777d4", [
@@ -197,6 +199,7 @@ var namespacesecp256k1_1_1fast =
     [ "scalar_mul_generator_glv_predecomposed", "namespacesecp256k1_1_1fast.html#a4a1d98ebe3ad209dc842065b216535b0", null ],
     [ "Selftest", "namespacesecp256k1_1_1fast.html#aa1ade8639ae8e331731389af48483662", null ],
     [ "Selftest", "namespacesecp256k1_1_1fast.html#ae749942cd0a5c56c5b1a95b7e051f71b", null ],
+    [ "selftest_report", "namespacesecp256k1_1_1fast.html#a811eb7556b7b171489fca5e2503d461d", null ],
     [ "split_scalar_glv", "namespacesecp256k1_1_1fast.html#ad3ced354357f695073913024f5539a8d", null ],
     [ "to_optimal", "namespacesecp256k1_1_1fast.html#abb486389b82ab227c311dc3574ca6a11", null ],
     [ "toMid", "namespacesecp256k1_1_1fast.html#a299678fa62af6171cad9ac631856acf0", null ],

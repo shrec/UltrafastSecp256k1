@@ -146,6 +146,10 @@ Classes</h2></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structsecp256k1_1_1fast_1_1ScalarDecomposition.html">ScalarDecomposition</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structsecp256k1_1_1fast_1_1SelftestCaseResult.html">SelftestCaseResult</a></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structsecp256k1_1_1fast_1_1SelftestReport.html">SelftestReport</a></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="typedef-members" name="typedef-members"></a>
 Typedefs</h2></td></tr>
@@ -437,6 +441,8 @@ Functions</h2></td></tr>
 <tr class="separator:a0f2630617093e195459d21cdac4db28a"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ae749942cd0a5c56c5b1a95b7e051f71b" id="r_ae749942cd0a5c56c5b1a95b7e051f71b"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1fast.html#ae749942cd0a5c56c5b1a95b7e051f71b">Selftest</a> (bool verbose, <a class="el" href="namespacesecp256k1_1_1fast.html#aa79919388fa732a5045d756e9fe2830a">SelftestMode</a> mode, uint64_t seed=0)</td></tr>
 <tr class="separator:ae749942cd0a5c56c5b1a95b7e051f71b"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a811eb7556b7b171489fca5e2503d461d" id="r_a811eb7556b7b171489fca5e2503d461d"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structsecp256k1_1_1fast_1_1SelftestReport.html">SelftestReport</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1fast.html#a811eb7556b7b171489fca5e2503d461d">selftest_report</a> (<a class="el" href="namespacesecp256k1_1_1fast.html#aa79919388fa732a5045d756e9fe2830a">SelftestMode</a> mode=<a class="el" href="namespacesecp256k1_1_1fast.html#aa79919388fa732a5045d756e9fe2830aafdfa02ecf86feac3801254da57c1c9ba">SelftestMode::smoke</a>, uint64_t seed=0)</td></tr>
+<tr class="separator:a811eb7556b7b171489fca5e2503d461d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="var-members" name="var-members"></a>
 Variables</h2></td></tr>
@@ -533,7 +539,7 @@ Variables</h2></td></tr>
 <tr><td class="fieldname"><a id="aa79919388fa732a5045d756e9fe2830aae10a36f1a5231e597daf8f42dc1ab55a" name="aa79919388fa732a5045d756e9fe2830aae10a36f1a5231e597daf8f42dc1ab55a"></a>stress&#160;</td><td class="fielddoc"></td></tr>
 </table>
 
-<p class="definition">Definition at line <a class="el" href="selftest_8hpp_source.html#l00013">13</a> of file <a class="el" href="selftest_8hpp_source.html">selftest.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="selftest_8hpp_source.html#l00015">15</a> of file <a class="el" href="selftest_8hpp_source.html">selftest.hpp</a>.</p>
 
 </div>
 </div>
@@ -3777,6 +3783,34 @@ This function is optimized for fixed-step ECC walks where we have a deterministi
           <td></td>
           <td class="paramtype"><a class="el" href="namespacesecp256k1_1_1fast.html#aa79919388fa732a5045d756e9fe2830a">SelftestMode</a>&#160;</td>
           <td class="paramname"><em>mode</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint64_t&#160;</td>
+          <td class="paramname"><em>seed</em> = <code>0</code>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="a811eb7556b7b171489fca5e2503d461d" name="a811eb7556b7b171489fca5e2503d461d"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a811eb7556b7b171489fca5e2503d461d">&#9670;&#160;</a></span>selftest_report()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="structsecp256k1_1_1fast_1_1SelftestReport.html">SelftestReport</a> secp256k1::fast::selftest_report </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="namespacesecp256k1_1_1fast.html#aa79919388fa732a5045d756e9fe2830a">SelftestMode</a>&#160;</td>
+          <td class="paramname"><em>mode</em> = <code><a class="el" href="namespacesecp256k1_1_1fast.html#aa79919388fa732a5045d756e9fe2830aafdfa02ecf86feac3801254da57c1c9ba">SelftestMode::smoke</a></code>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>

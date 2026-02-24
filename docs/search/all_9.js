@@ -7,7 +7,7 @@ var searchData=
   ['cache_5fdir_4',['cache_dir',['../structsecp256k1_1_1fast_1_1FixedBaseConfig.html#aa65a692f6b7fe8c26ca61bbf9833944d',1,'secp256k1::fast::FixedBaseConfig']]],
   ['cache_5fpath_5',['cache_path',['../structsecp256k1_1_1fast_1_1FixedBaseConfig.html#a061b88ecd5aa5e6b9062b849fe7c2b9a',1,'secp256k1::fast::FixedBaseConfig']]],
   ['cached_5ftagged_5fhash_6',['cached_tagged_hash',['../namespacesecp256k1_1_1detail.html#a54d7fd6888249cc08d4440b12f3db547',1,'secp256k1::detail']]],
-  ['cases_7',['secp256k1 Use Cases',['../index.html#autotoc_md68',1,'']]],
+  ['cases_7',['cases',['../structsecp256k1_1_1fast_1_1SelftestReport.html#a699400f6c168f85fefbe8c43c50a10e8',1,'secp256k1::fast::SelftestReport::cases'],['../index.html#autotoc_md68',1,'secp256k1 Use Cases']]],
   ['cashaddr_8',['CASHADDR',['../namespacesecp256k1_1_1coins.html#a1106e7d010a62072fb5c3a4ce65735a8a7a41d8518193e1934aa4710b7df4525e',1,'secp256k1::coins']]],
   ['category_5fname_9',['category_name',['../namespacesecp256k1_1_1test.html#a986fba5fc2c32e003111229034f2ee26',1,'secp256k1::test']]],
   ['chain_5fcode_10',['chain_code',['../structsecp256k1_1_1ExtendedKey.html#af2bb96e9b7e88844e3dda97598f02c0c',1,'secp256k1::ExtendedKey']]],
