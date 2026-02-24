@@ -19,8 +19,8 @@ cd build && cpack -G DEB
 ```
 
 Produces:
-- `libsecp256k1-fast3_<ver>_<arch>.deb` — shared library
-- `libsecp256k1-fast-dev_<ver>_<arch>.deb` — headers + static lib + cmake/pkgconfig
+- `libufsecp3_<ver>_<arch>.deb` — shared library
+- `libufsecp-dev_<ver>_<arch>.deb` — headers + static lib + cmake/pkgconfig
 
 ## Fedora / RHEL / CentOS (.rpm)
 
@@ -29,7 +29,7 @@ Produces:
 sudo dnf install cmake ninja-build gcc-c++ rpm-build
 
 # Build RPM from spec
-rpmbuild -ba packaging/rpm/libsecp256k1-fast.spec
+rpmbuild -ba packaging/rpm/libufsecp.spec
 # — or use CPack —
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
     -DSECP256K1_BUILD_SHARED=ON -DSECP256K1_INSTALL=ON
@@ -65,13 +65,13 @@ sudo ldconfig
 ```
 
 After install, applications can find the library via:
-- **pkg-config**: `pkg-config --cflags --libs secp256k1-fast`
-- **CMake**: `find_package(secp256k1-fast 3 REQUIRED COMPONENTS CPU)`
+- **pkg-config**: `pkg-config --cflags --libs ufsecp`
+- **CMake**: `find_package(ufsecp 3 REQUIRED)`
 
 ## Package naming convention
 
 | Distro | Runtime | Development |
 |--------|---------|-------------|
-| Debian/Ubuntu | `libsecp256k1-fast3` | `libsecp256k1-fast-dev` |
-| Fedora/RHEL | `libsecp256k1-fast` | `libsecp256k1-fast-devel` |
-| Arch | `libsecp256k1-fast` | (included in main package) |
+| Debian/Ubuntu | `libufsecp3` | `libufsecp-dev` |
+| Fedora/RHEL | `libufsecp` | `libufsecp-devel` |
+| Arch | `libufsecp` | (included in main package) |

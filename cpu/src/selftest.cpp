@@ -1214,6 +1214,48 @@ static bool test_point_advanced(bool verbose) {
     return ok;
 }
 
+// ---------------------------------------------------------------
+// Thread-local report collector for selftest_report()
+// When non-null, tally() appends case results into this report.
+// ---------------------------------------------------------------
+static thread_local SelftestReport* s_active_report = nullptr;
+
+static inline void tally(int& total, int& passed,
+                         const char* name, bool ok) {
+    total++;
+    if (ok) passed++;
+    if (s_active_report) {
+        s_active_report->cases.push_back({name, ok, ok ? "" : "FAIL"});
+    }
+}
+
+// Platform string (compile-time)
+static const char* get_platform_string() {
+#if defined(_WIN64)
+    return "Windows x64";
+#elif defined(_WIN32)
+    return "Windows x86";
+#elif defined(__APPLE__) && defined(__aarch64__)
+    return "macOS ARM64";
+#elif defined(__APPLE__)
+    return "macOS x64";
+#elif defined(__linux__) && defined(__riscv)
+    return "Linux RISC-V";
+#elif defined(__linux__) && defined(__aarch64__)
+    return "Linux ARM64";
+#elif defined(__linux__)
+    return "Linux x64";
+#elif defined(SECP256K1_PLATFORM_ESP32) || defined(ESP_PLATFORM)
+    return "ESP32";
+#elif defined(SECP256K1_PLATFORM_STM32)
+    return "STM32";
+#elif defined(__EMSCRIPTEN__)
+    return "WASM";
+#else
+    return "unknown";
+#endif
+}
+
 // Main self-test function (legacy API -- delegates to ci mode)
 bool Selftest(bool verbose) {
     return Selftest(verbose, SelftestMode::ci, 0);
@@ -1271,10 +1313,12 @@ bool Selftest(bool verbose, SelftestMode mode, uint64_t seed) {
         SELFTEST_PRINT("\nScalar Multiplication Tests:\n");
     }
     
-    for (const auto& vec : TEST_VECTORS) {
-        total++;
-        if (test_scalar_mul(vec, verbose)) {
-            passed++;
+    {
+        int vi = 0;
+        for (const auto& vec : TEST_VECTORS) {
+            char vname[48];
+            std::snprintf(vname, sizeof(vname), "scalar_mul_vector_%d", ++vi);
+            tally(total, passed, vname, test_scalar_mul(vec, verbose));
         }
     }
     
@@ -1282,65 +1326,46 @@ bool Selftest(bool verbose, SelftestMode mode, uint64_t seed) {
     if (verbose) {
         SELFTEST_PRINT("\nPoint Addition Test:\n");
     }
-    total++;
-    if (test_addition(verbose)) {
-        passed++;
-    }
+    tally(total, passed, "point_addition", test_addition(verbose));
     
     // Test point subtraction
     if (verbose) {
         SELFTEST_PRINT("\nPoint Subtraction Test:\n");
     }
-    total++;
-    if (test_subtraction(verbose)) {
-        passed++;
-    }
+    tally(total, passed, "point_subtraction", test_subtraction(verbose));
 
     // Field arithmetic
-    total++;
-    if (test_field_arithmetic(verbose)) passed++;
+    tally(total, passed, "field_arithmetic", test_field_arithmetic(verbose));
 
     // Scalar arithmetic (basic identities)
-    total++;
-    if (test_scalar_arithmetic(verbose)) passed++;
+    tally(total, passed, "scalar_arithmetic", test_scalar_arithmetic(verbose));
 
     // Point group identities
-    total++;
-    if (test_point_identities(verbose)) passed++;
+    tally(total, passed, "point_identities", test_point_identities(verbose));
 
     // Point serialization
-    total++;
-    if (test_point_serialization(verbose)) passed++;
+    tally(total, passed, "point_serialization", test_point_serialization(verbose));
 
     // Batch inverse (small)
-    total++;
-    if (test_batch_inverse(verbose)) passed++;
+    tally(total, passed, "batch_inverse", test_batch_inverse(verbose));
 
     // Constant-expected point ops
-    total++;
-    if (test_addition_constants(verbose)) passed++;
-    total++;
-    if (test_subtraction_constants(verbose)) passed++;
-    total++;
-    if (test_doubling_constants(verbose)) passed++;
-    total++;
-    if (test_negation_constants(verbose)) passed++;
+    tally(total, passed, "addition_constants", test_addition_constants(verbose));
+    tally(total, passed, "subtraction_constants", test_subtraction_constants(verbose));
+    tally(total, passed, "doubling_constants", test_doubling_constants(verbose));
+    tally(total, passed, "negation_constants", test_negation_constants(verbose));
 
     // Boundary scalar KAT (limb/order edges)
-    total++;
-    if (test_boundary_scalar_vectors(verbose)) passed++;
+    tally(total, passed, "boundary_scalar_vectors", test_boundary_scalar_vectors(verbose));
 
     // Field limb boundaries
-    total++;
-    if (test_field_limb_boundaries(verbose)) passed++;
+    tally(total, passed, "field_limb_boundaries", test_field_limb_boundaries(verbose));
 
     // Extended kG vectors (4G-9G, 15G, 255G)
-    total++;
-    if (test_extended_kg_vectors(verbose)) passed++;
+    tally(total, passed, "extended_kg_vectors", test_extended_kg_vectors(verbose));
 
     // Point advanced (comm/assoc/mixed/dist/edge)
-    total++;
-    if (test_point_advanced(verbose)) passed++;
+    tally(total, passed, "point_advanced", test_point_advanced(verbose));
 
     if (is_smoke) {
         // Smoke mode ends here
@@ -1363,8 +1388,7 @@ bool Selftest(bool verbose, SelftestMode mode, uint64_t seed) {
     // ===============================================================
 
     // External vectors (optional, environment-driven)
-    total++;
-    if (run_external_vectors(verbose)) passed++;
+    tally(total, passed, "external_vectors", run_external_vectors(verbose));
 
     // Doubling chain vs scalar multiples: for i=1..20, (2^i)G via dbl() equals scalar_mul
     {
@@ -1378,7 +1402,7 @@ bool Selftest(bool verbose, SelftestMode mode, uint64_t seed) {
             if (!points_equal(cur, exp)) { ok = false; break; }
         }
         if (verbose) SELFTEST_PRINT(ok ? "    PASS\n" : "    FAIL\n");
-        total++; if (ok) passed++;
+        tally(total, passed, "doubling_chain_vs_scalar", ok);
     }
 
     // Large scalar cross-checks (fast vs affine fallback)
@@ -1400,7 +1424,7 @@ bool Selftest(bool verbose, SelftestMode mode, uint64_t seed) {
             if (!points_equal(fast, ref)) { ok = false; break; }
         }
         if (verbose) SELFTEST_PRINT(ok ? "    PASS\n" : "    FAIL\n");
-        total++; if (ok) passed++;
+        tally(total, passed, "large_scalar_cross_checks", ok);
     }
 
     // Squared scalar cases: k^2 * G
@@ -1426,42 +1450,42 @@ bool Selftest(bool verbose, SelftestMode mode, uint64_t seed) {
             if (!points_equal(fast, ref)) { ok = false; break; }
         }
         if (verbose) SELFTEST_PRINT(ok ? "    PASS\n" : "    FAIL\n");
-        total++; if (ok) passed++;
+        tally(total, passed, "squared_scalar_cases", ok);
     }
 
     // Expanded batch inverse (32 elements)
-    total++; if (test_batch_inverse_expanded(verbose)) passed++;
+    tally(total, passed, "batch_inverse_expanded", test_batch_inverse_expanded(verbose));
 
     // Bilinearity for K*Q with +/-G
-    total++; if (test_bilinearity_K_times_Q(verbose)) passed++;
+    tally(total, passed, "bilinearity_K_times_Q", test_bilinearity_K_times_Q(verbose));
 
 #if !defined(SECP256K1_PLATFORM_ESP32) && !defined(ESP_PLATFORM) && !defined(IDF_VER) && !defined(SECP256K1_PLATFORM_STM32)
     // Batch inverse size sweep (21 sizes)
-    total++; if (test_batch_inverse_sweep(verbose)) passed++;
+    tally(total, passed, "batch_inverse_sweep", test_batch_inverse_sweep(verbose));
 #endif
 
 #if !defined(SECP256K1_PLATFORM_ESP32) && !defined(ESP_PLATFORM) && !defined(IDF_VER) && !defined(SECP256K1_PLATFORM_STM32)
     // Fixed-K plan equivalence (GLV-based, not available on embedded)
-    total++; if (test_fixedK_plan(verbose)) passed++;
+    tally(total, passed, "fixedK_plan", test_fixedK_plan(verbose));
 #endif
 
     // Sequential increment property
-    total++; if (test_sequential_increment_property(verbose)) passed++;
+    tally(total, passed, "sequential_increment_property", test_sequential_increment_property(verbose));
 
     // Fast kG vs generic kG (small 1-20 + 20 random)
-    total++; if (test_fast_vs_generic_kG(verbose)) passed++;
+    tally(total, passed, "fast_vs_generic_kG", test_fast_vs_generic_kG(verbose));
 
     // Repeated addition consistency (k=2..10)
-    total++; if (test_repeated_addition_consistency(verbose)) passed++;
+    tally(total, passed, "repeated_addition_consistency", test_repeated_addition_consistency(verbose));
 
     // Field stress (normalization + random algebraic laws)
-    total++; if (test_field_stress(verbose)) passed++;
+    tally(total, passed, "field_stress", test_field_stress(verbose));
 
     // Scalar stress ((n-1)^2=1 + random algebraic laws)
-    total++; if (test_scalar_stress(verbose)) passed++;
+    tally(total, passed, "scalar_stress", test_scalar_stress(verbose));
 
     // NAF/wNAF encoding validation
-    total++; if (test_naf_wnaf(verbose)) passed++;
+    tally(total, passed, "naf_wnaf", test_naf_wnaf(verbose));
 
     // ===============================================================
     // TIER 3: STRESS -- Extended iterations (~10-60 min)
@@ -1487,7 +1511,7 @@ bool Selftest(bool verbose, SelftestMode mode, uint64_t seed) {
                 }
             }
             if (verbose) SELFTEST_PRINT(ok ? "    PASS\n" : "    FAIL\n");
-            total++; if (ok) passed++;
+            tally(total, passed, "stress_fast_vs_generic_kG_1000", ok);
         }
 
         // Stress: extended field algebraic laws (500 random triples)
@@ -1510,7 +1534,7 @@ bool Selftest(bool verbose, SelftestMode mode, uint64_t seed) {
                 if (!(sq == a * a)) ok = false;
             }
             if (verbose) SELFTEST_PRINT(ok ? "    PASS\n" : "    FAIL\n");
-            total++; if (ok) passed++;
+            tally(total, passed, "stress_field_algebraic_laws_500", ok);
         }
 
         // Stress: extended bilinearity K*(Q+/-G) (100 random K,Q pairs)
@@ -1536,7 +1560,7 @@ bool Selftest(bool verbose, SelftestMode mode, uint64_t seed) {
                 if (!points_equal(Lm, Rm)) { ok = false; break; }
             }
             if (verbose) SELFTEST_PRINT(ok ? "    PASS\n" : "    FAIL\n");
-            total++; if (ok) passed++;
+            tally(total, passed, "stress_bilinearity_100", ok);
         }
 
 #if !defined(SECP256K1_PLATFORM_ESP32) && !defined(ESP_PLATFORM) && !defined(IDF_VER) && !defined(SECP256K1_PLATFORM_STM32)
@@ -1566,7 +1590,7 @@ bool Selftest(bool verbose, SelftestMode mode, uint64_t seed) {
                 if (!ok) break;
             }
             if (verbose) SELFTEST_PRINT(ok ? "    PASS\n" : "    FAIL\n");
-            total++; if (ok) passed++;
+            tally(total, passed, "stress_batch_inverse_8192", ok);
         }
 #endif
     }

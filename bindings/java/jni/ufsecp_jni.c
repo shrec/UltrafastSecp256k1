@@ -280,7 +280,301 @@ JNIEXPORT jint JNICALL Java_com_ultrafast_ufsecp_Ufsecp_nativeVersion(JNIEnv *en
     return (jint)ufsecp_version();
 }
 
+JNIEXPORT jint JNICALL Java_com_ultrafast_ufsecp_Ufsecp_nativeAbiVersion(JNIEnv *env, jclass clz) {
+    (void)env; (void)clz;
+    return (jint)ufsecp_abi_version();
+}
+
 JNIEXPORT jstring JNICALL Java_com_ultrafast_ufsecp_Ufsecp_nativeVersionString(JNIEnv *env, jclass clz) {
     (void)clz;
     return (*env)->NewStringUTF(env, ufsecp_version_string());
+}
+
+/* ── Context extras ──────────────────────────────────────────────────── */
+
+JNIEXPORT jlong JNICALL Java_com_ultrafast_ufsecp_Ufsecp_nativeClone(JNIEnv *env, jclass clz, jlong ptr) {
+    (void)clz;
+    ufsecp_ctx *clone = NULL;
+    int rc = ufsecp_ctx_clone((const ufsecp_ctx*)(uintptr_t)ptr, &clone);
+    if (throw_on_err(env, rc, "ctx_clone")) return 0;
+    return (jlong)(uintptr_t)clone;
+}
+
+JNIEXPORT jint JNICALL Java_com_ultrafast_ufsecp_Ufsecp_nativeLastError(JNIEnv *env, jclass clz, jlong ptr) {
+    (void)env; (void)clz;
+    return (jint)ufsecp_last_error((const ufsecp_ctx*)(uintptr_t)ptr);
+}
+
+JNIEXPORT jstring JNICALL Java_com_ultrafast_ufsecp_Ufsecp_nativeLastErrorMsg(JNIEnv *env, jclass clz, jlong ptr) {
+    (void)clz;
+    return (*env)->NewStringUTF(env, ufsecp_last_error_msg((const ufsecp_ctx*)(uintptr_t)ptr));
+}
+
+/* ── Key ops extras ──────────────────────────────────────────────────── */
+
+JNIEXPORT jbyteArray JNICALL Java_com_ultrafast_ufsecp_Ufsecp_nativeSeckeyNegate(
+    JNIEnv *env, jclass clz, jlong ctx, jbyteArray privkey) {
+    (void)clz;
+    jbyte *pk = pin(env, privkey);
+    uint8_t buf[32];
+    memcpy(buf, pk, 32);
+    unpin(env, privkey, pk);
+    int rc = ufsecp_seckey_negate((ufsecp_ctx*)(uintptr_t)ctx, buf);
+    if (throw_on_err(env, rc, "seckey_negate")) return NULL;
+    return mk(env, buf, 32);
+}
+
+JNIEXPORT jbyteArray JNICALL Java_com_ultrafast_ufsecp_Ufsecp_nativeSeckeyTweakAdd(
+    JNIEnv *env, jclass clz, jlong ctx, jbyteArray privkey, jbyteArray tweak) {
+    (void)clz;
+    jbyte *pk = pin(env, privkey);
+    jbyte *tw = pin(env, tweak);
+    uint8_t buf[32];
+    memcpy(buf, pk, 32);
+    int rc = ufsecp_seckey_tweak_add((ufsecp_ctx*)(uintptr_t)ctx, buf, (const uint8_t*)tw);
+    unpin(env, tweak, tw);
+    unpin(env, privkey, pk);
+    if (throw_on_err(env, rc, "seckey_tweak_add")) return NULL;
+    return mk(env, buf, 32);
+}
+
+JNIEXPORT jbyteArray JNICALL Java_com_ultrafast_ufsecp_Ufsecp_nativeSeckeyTweakMul(
+    JNIEnv *env, jclass clz, jlong ctx, jbyteArray privkey, jbyteArray tweak) {
+    (void)clz;
+    jbyte *pk = pin(env, privkey);
+    jbyte *tw = pin(env, tweak);
+    uint8_t buf[32];
+    memcpy(buf, pk, 32);
+    int rc = ufsecp_seckey_tweak_mul((ufsecp_ctx*)(uintptr_t)ctx, buf, (const uint8_t*)tw);
+    unpin(env, tweak, tw);
+    unpin(env, privkey, pk);
+    if (throw_on_err(env, rc, "seckey_tweak_mul")) return NULL;
+    return mk(env, buf, 32);
+}
+
+JNIEXPORT jbyteArray JNICALL Java_com_ultrafast_ufsecp_Ufsecp_nativePubkeyParse(
+    JNIEnv *env, jclass clz, jlong ctx, jbyteArray pubkey) {
+    (void)clz;
+    jbyte *pk = pin(env, pubkey);
+    jsize len = (*env)->GetArrayLength(env, pubkey);
+    uint8_t out[33];
+    int rc = ufsecp_pubkey_parse((ufsecp_ctx*)(uintptr_t)ctx, (const uint8_t*)pk, (size_t)len, out);
+    unpin(env, pubkey, pk);
+    if (throw_on_err(env, rc, "pubkey_parse")) return NULL;
+    return mk(env, out, 33);
+}
+
+JNIEXPORT jbyteArray JNICALL Java_com_ultrafast_ufsecp_Ufsecp_nativePubkeyXonly(
+    JNIEnv *env, jclass clz, jlong ctx, jbyteArray privkey) {
+    (void)clz;
+    jbyte *pk = pin(env, privkey);
+    uint8_t out[32];
+    int rc = ufsecp_pubkey_xonly((ufsecp_ctx*)(uintptr_t)ctx, (const uint8_t*)pk, out);
+    unpin(env, privkey, pk);
+    if (throw_on_err(env, rc, "pubkey_xonly")) return NULL;
+    return mk(env, out, 32);
+}
+
+/* ── ECDSA extras ────────────────────────────────────────────────────── */
+
+JNIEXPORT jbyteArray JNICALL Java_com_ultrafast_ufsecp_Ufsecp_nativeEcdsaSigToDer(
+    JNIEnv *env, jclass clz, jlong ctx, jbyteArray sig) {
+    (void)clz;
+    jbyte *s = pin(env, sig);
+    uint8_t der[72];
+    size_t dlen = 72;
+    int rc = ufsecp_ecdsa_sig_to_der((ufsecp_ctx*)(uintptr_t)ctx, (const uint8_t*)s, der, &dlen);
+    unpin(env, sig, s);
+    if (throw_on_err(env, rc, "ecdsa_sig_to_der")) return NULL;
+    return mk(env, der, (int)dlen);
+}
+
+JNIEXPORT jbyteArray JNICALL Java_com_ultrafast_ufsecp_Ufsecp_nativeEcdsaSigFromDer(
+    JNIEnv *env, jclass clz, jlong ctx, jbyteArray der) {
+    (void)clz;
+    jbyte *d = pin(env, der);
+    jsize dlen = (*env)->GetArrayLength(env, der);
+    uint8_t sig[64];
+    int rc = ufsecp_ecdsa_sig_from_der((ufsecp_ctx*)(uintptr_t)ctx, (const uint8_t*)d, (size_t)dlen, sig);
+    unpin(env, der, d);
+    if (throw_on_err(env, rc, "ecdsa_sig_from_der")) return NULL;
+    return mk(env, sig, 64);
+}
+
+JNIEXPORT jobject JNICALL Java_com_ultrafast_ufsecp_Ufsecp_nativeEcdsaSignRecoverable(
+    JNIEnv *env, jclass clz, jlong ctx, jbyteArray msgHash, jbyteArray privkey) {
+    (void)clz;
+    jbyte *msg = pin(env, msgHash);
+    jbyte *pk  = pin(env, privkey);
+    uint8_t sig[64];
+    int recid = 0;
+    int rc = ufsecp_ecdsa_sign_recoverable((ufsecp_ctx*)(uintptr_t)ctx,
+        (const uint8_t*)msg, (const uint8_t*)pk, sig, &recid);
+    unpin(env, privkey, pk);
+    unpin(env, msgHash, msg);
+    if (throw_on_err(env, rc, "ecdsa_sign_recoverable")) return NULL;
+
+    jbyteArray sigArr = mk(env, sig, 64);
+    jclass cls = (*env)->FindClass(env, "com/ultrafast/ufsecp/RecoverableSignature");
+    jmethodID ctor = (*env)->GetMethodID(env, cls, "<init>", "([BI)V");
+    return (*env)->NewObject(env, cls, ctor, sigArr, (jint)recid);
+}
+
+JNIEXPORT jbyteArray JNICALL Java_com_ultrafast_ufsecp_Ufsecp_nativeEcdsaRecover(
+    JNIEnv *env, jclass clz, jlong ctx, jbyteArray msgHash, jbyteArray sig, jint recid) {
+    (void)clz;
+    jbyte *msg = pin(env, msgHash);
+    jbyte *s   = pin(env, sig);
+    uint8_t pub[33];
+    int rc = ufsecp_ecdsa_recover((ufsecp_ctx*)(uintptr_t)ctx,
+        (const uint8_t*)msg, (const uint8_t*)s, (int)recid, pub);
+    unpin(env, sig, s);
+    unpin(env, msgHash, msg);
+    if (throw_on_err(env, rc, "ecdsa_recover")) return NULL;
+    return mk(env, pub, 33);
+}
+
+/* ── ECDH extras ─────────────────────────────────────────────────────── */
+
+JNIEXPORT jbyteArray JNICALL Java_com_ultrafast_ufsecp_Ufsecp_nativeEcdhXonly(
+    JNIEnv *env, jclass clz, jlong ctx, jbyteArray privkey, jbyteArray pubkey) {
+    (void)clz;
+    jbyte *pk  = pin(env, privkey);
+    jbyte *pub = pin(env, pubkey);
+    uint8_t out[32];
+    int rc = ufsecp_ecdh_xonly((ufsecp_ctx*)(uintptr_t)ctx, (const uint8_t*)pk, (const uint8_t*)pub, out);
+    unpin(env, pubkey, pub);
+    unpin(env, privkey, pk);
+    if (throw_on_err(env, rc, "ecdh_xonly")) return NULL;
+    return mk(env, out, 32);
+}
+
+JNIEXPORT jbyteArray JNICALL Java_com_ultrafast_ufsecp_Ufsecp_nativeEcdhRaw(
+    JNIEnv *env, jclass clz, jlong ctx, jbyteArray privkey, jbyteArray pubkey) {
+    (void)clz;
+    jbyte *pk  = pin(env, privkey);
+    jbyte *pub = pin(env, pubkey);
+    uint8_t out[32];
+    int rc = ufsecp_ecdh_raw((ufsecp_ctx*)(uintptr_t)ctx, (const uint8_t*)pk, (const uint8_t*)pub, out);
+    unpin(env, pubkey, pub);
+    unpin(env, privkey, pk);
+    if (throw_on_err(env, rc, "ecdh_raw")) return NULL;
+    return mk(env, out, 32);
+}
+
+/* ── Hash extras ─────────────────────────────────────────────────────── */
+
+JNIEXPORT jbyteArray JNICALL Java_com_ultrafast_ufsecp_Ufsecp_nativeTaggedHash(
+    JNIEnv *env, jclass clz, jbyteArray tag, jbyteArray data) {
+    (void)clz;
+    const char *t = (const char*)(*env)->GetByteArrayElements(env, tag, NULL);
+    jsize tlen = (*env)->GetArrayLength(env, tag);
+    /* null-terminate the tag */
+    char tbuf[256];
+    if (tlen >= (jsize)sizeof(tbuf)) tlen = (jsize)sizeof(tbuf) - 1;
+    memcpy(tbuf, t, tlen);
+    tbuf[tlen] = '\0';
+    (*env)->ReleaseByteArrayElements(env, tag, (jbyte*)t, JNI_ABORT);
+
+    jbyte *d = pin(env, data);
+    jsize dlen = (*env)->GetArrayLength(env, data);
+    uint8_t out[32];
+    int rc = ufsecp_tagged_hash(tbuf, (const uint8_t*)d, (size_t)dlen, out);
+    unpin(env, data, d);
+    if (throw_on_err(env, rc, "tagged_hash")) return NULL;
+    return mk(env, out, 32);
+}
+
+/* ── WIF extras ──────────────────────────────────────────────────────── */
+
+JNIEXPORT jobject JNICALL Java_com_ultrafast_ufsecp_Ufsecp_nativeWifDecode(
+    JNIEnv *env, jclass clz, jlong ctx, jstring wif) {
+    (void)clz;
+    const char *w = (*env)->GetStringUTFChars(env, wif, NULL);
+    uint8_t privkey[32];
+    int comp = 0, net = 0;
+    int rc = ufsecp_wif_decode((ufsecp_ctx*)(uintptr_t)ctx, w, privkey, &comp, &net);
+    (*env)->ReleaseStringUTFChars(env, wif, w);
+    if (throw_on_err(env, rc, "wif_decode")) return NULL;
+
+    jbyteArray keyArr = mk(env, privkey, 32);
+    jclass cls = (*env)->FindClass(env, "com/ultrafast/ufsecp/WifDecoded");
+    jmethodID ctor = (*env)->GetMethodID(env, cls, "<init>", "([BZI)V");
+    return (*env)->NewObject(env, cls, ctor, keyArr, (jboolean)(comp == 1), (jint)net);
+}
+
+/* ── BIP-32 extras ───────────────────────────────────────────────────── */
+
+JNIEXPORT jbyteArray JNICALL Java_com_ultrafast_ufsecp_Ufsecp_nativeBip32Privkey(
+    JNIEnv *env, jclass clz, jlong ctx, jbyteArray key) {
+    (void)clz;
+    jbyte *k = pin(env, key);
+    uint8_t priv[32];
+    int rc = ufsecp_bip32_privkey((ufsecp_ctx*)(uintptr_t)ctx, (const uint8_t*)k, priv);
+    unpin(env, key, k);
+    if (throw_on_err(env, rc, "bip32_privkey")) return NULL;
+    return mk(env, priv, 32);
+}
+
+JNIEXPORT jbyteArray JNICALL Java_com_ultrafast_ufsecp_Ufsecp_nativeBip32Pubkey(
+    JNIEnv *env, jclass clz, jlong ctx, jbyteArray key) {
+    (void)clz;
+    jbyte *k = pin(env, key);
+    uint8_t pub[33];
+    int rc = ufsecp_bip32_pubkey((ufsecp_ctx*)(uintptr_t)ctx, (const uint8_t*)k, pub);
+    unpin(env, key, k);
+    if (throw_on_err(env, rc, "bip32_pubkey")) return NULL;
+    return mk(env, pub, 33);
+}
+
+/* ── Taproot ─────────────────────────────────────────────────────────── */
+
+JNIEXPORT jobject JNICALL Java_com_ultrafast_ufsecp_Ufsecp_nativeTaprootOutputKey(
+    JNIEnv *env, jclass clz, jlong ctx, jbyteArray internalX, jbyteArray merkleRoot) {
+    (void)clz;
+    jbyte *ix = pin(env, internalX);
+    jbyte *mr = merkleRoot ? pin(env, merkleRoot) : NULL;
+    uint8_t outx[32];
+    int parity = 0;
+    int rc = ufsecp_taproot_output_key((ufsecp_ctx*)(uintptr_t)ctx,
+        (const uint8_t*)ix, mr ? (const uint8_t*)mr : NULL, outx, &parity);
+    if (mr) unpin(env, merkleRoot, mr);
+    unpin(env, internalX, ix);
+    if (throw_on_err(env, rc, "taproot_output_key")) return NULL;
+
+    jbyteArray outArr = mk(env, outx, 32);
+    jclass cls = (*env)->FindClass(env, "com/ultrafast/ufsecp/TaprootOutputKeyResult");
+    jmethodID ctor = (*env)->GetMethodID(env, cls, "<init>", "([BI)V");
+    return (*env)->NewObject(env, cls, ctor, outArr, (jint)parity);
+}
+
+JNIEXPORT jbyteArray JNICALL Java_com_ultrafast_ufsecp_Ufsecp_nativeTaprootTweakSeckey(
+    JNIEnv *env, jclass clz, jlong ctx, jbyteArray privkey, jbyteArray merkleRoot) {
+    (void)clz;
+    jbyte *pk = pin(env, privkey);
+    jbyte *mr = merkleRoot ? pin(env, merkleRoot) : NULL;
+    uint8_t out[32];
+    int rc = ufsecp_taproot_tweak_seckey((ufsecp_ctx*)(uintptr_t)ctx,
+        (const uint8_t*)pk, mr ? (const uint8_t*)mr : NULL, out);
+    if (mr) unpin(env, merkleRoot, mr);
+    unpin(env, privkey, pk);
+    if (throw_on_err(env, rc, "taproot_tweak_seckey")) return NULL;
+    return mk(env, out, 32);
+}
+
+JNIEXPORT jboolean JNICALL Java_com_ultrafast_ufsecp_Ufsecp_nativeTaprootVerify(
+    JNIEnv *env, jclass clz, jlong ctx, jbyteArray outputX, jint parity,
+    jbyteArray internalX, jbyteArray merkleRoot) {
+    (void)clz;
+    jbyte *ox = pin(env, outputX);
+    jbyte *ix = pin(env, internalX);
+    jbyte *mr = merkleRoot ? pin(env, merkleRoot) : NULL;
+    size_t mrLen = merkleRoot ? (size_t)(*env)->GetArrayLength(env, merkleRoot) : 0;
+    int rc = ufsecp_taproot_verify((ufsecp_ctx*)(uintptr_t)ctx,
+        (const uint8_t*)ox, (int)parity, (const uint8_t*)ix,
+        mr ? (const uint8_t*)mr : NULL, mrLen);
+    if (mr) unpin(env, merkleRoot, mr);
+    unpin(env, internalX, ix);
+    unpin(env, outputX, ox);
+    return rc == 0 ? JNI_TRUE : JNI_FALSE;
 }

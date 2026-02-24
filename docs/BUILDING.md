@@ -450,7 +450,7 @@ cmake -S . -B build-android -G Ninja \
 cmake --build build-android -j
 ```
 
-The library produces `libsecp256k1-fast-cpu.a` for linking into Android apps via JNI.
+The library produces `libfastsecp256k1.a` for linking into Android apps via JNI.
 
 ---
 
@@ -575,7 +575,7 @@ cmake -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ ...
 
 ```cmake
 add_subdirectory(path/to/UltrafastSecp256k1)
-target_link_libraries(your_target PRIVATE secp256k1-fast-cpu)
+target_link_libraries(your_target PRIVATE secp256k1::fast)
 ```
 
 ### After Installation
@@ -591,7 +591,7 @@ cmake --install build --prefix /opt/secp256k1
 ```cmake
 # In your CMakeLists.txt
 find_package(secp256k1-fast REQUIRED)
-target_link_libraries(your_target PRIVATE secp256k1::fast-cpu)
+target_link_libraries(your_target PRIVATE secp256k1::fastsecp256k1)
 ```
 
 ### pkg-config
@@ -632,7 +632,7 @@ echo "deb [signed-by=/etc/apt/keyrings/ultrafastsecp256k1.gpg] \
   | sudo tee /etc/apt/sources.list.d/ultrafastsecp256k1.list
 
 sudo apt update
-sudo apt install libsecp256k1-fast-dev   # headers + static + shared
+sudo apt install libufsecp-dev   # headers + static + shared
 ```
 
 ### Fedora / RHEL (RPM)
@@ -647,7 +647,7 @@ sudo dnf install ./UltrafastSecp256k1-*.rpm
 ### Arch Linux (AUR)
 
 ```bash
-yay -S libsecp256k1-fast
+yay -S libufsecp
 ```
 
 ### Docker (build from source)

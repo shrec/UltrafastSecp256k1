@@ -122,7 +122,7 @@ Get a working selftest in under a minute:
 
 **Option A — Linux (apt)**
 ```bash
-sudo apt install libsecp256k1-fast3
+sudo apt install libufsecp3
 ufsecp_selftest          # Expected: "OK (version 3.x, backend CPU)"
 ```
 
@@ -151,7 +151,7 @@ cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build build -
 
 | Target | Backend | Install / Entry Point | Status |
 |--------|---------|----------------------|--------|
-| **Linux x64** | CPU | `apt install libsecp256k1-fast3` | ✅ Stable |
+| **Linux x64** | CPU | `apt install libufsecp3` | ✅ Stable |
 | **Windows x64** | CPU | NuGet `UltrafastSecp256k1` / [Release .zip](https://github.com/shrec/UltrafastSecp256k1/releases) | ✅ Stable |
 | **macOS (x64/ARM64)** | CPU + Metal | `brew install ufsecp` / build from source | ✅ Stable |
 | **Android ARM64** | CPU | `implementation 'io.github.shrec:ufsecp'` (Maven) | ✅ Stable |
@@ -179,10 +179,10 @@ echo "deb [signed-by=/etc/apt/keyrings/ultrafastsecp256k1.gpg] https://shrec.git
 sudo apt update
 
 # Install (runtime only)
-sudo apt install libsecp256k1-fast3
+sudo apt install libufsecp3
 
 # Install (development — headers, static lib, cmake/pkgconfig)
-sudo apt install libsecp256k1-fast-dev
+sudo apt install libufsecp-dev
 ```
 
 ### Linux (RPM — Fedora / RHEL)
@@ -197,11 +197,11 @@ sudo dnf install ./UltrafastSecp256k1-*.rpm
 
 ```bash
 # Using yay
-yay -S libsecp256k1-fast
+yay -S libufsecp
 
 # Or manually
-git clone https://aur.archlinux.org/libsecp256k1-fast.git
-cd libsecp256k1-fast && makepkg -si
+git clone https://aur.archlinux.org/libufsecp.git
+cd libufsecp && makepkg -si
 ```
 
 ### From source (any platform)
@@ -221,14 +221,14 @@ sudo ldconfig
 ### Use in your CMake project
 
 ```cmake
-find_package(secp256k1-fast 3 REQUIRED COMPONENTS CPU)
-target_link_libraries(myapp PRIVATE secp256k1::fastsecp256k1)
+find_package(ufsecp 3 REQUIRED)
+target_link_libraries(myapp PRIVATE ufsecp::ufsecp)
 ```
 
 ### Use with pkg-config
 
 ```bash
-g++ myapp.cpp $(pkg-config --cflags --libs secp256k1-fast) -o myapp
+g++ myapp.cpp $(pkg-config --cflags --libs ufsecp) -o myapp
 ```
 
 ---
@@ -348,7 +348,7 @@ See [THREAT_MODEL.md](THREAT_MODEL.md) for a full layer-by-layer risk assessment
 | **No secret-dependent branches** | All `ct::` functions | ✅ Enforced by design, verified via Clang-Tidy checks |
 | **No secret-dependent memory access** | All `ct::` table lookups use constant-index cmov | ✅ |
 | **ASan + UBSan CI** | Every push — catches undefined behavior in CT paths | ✅ CI |
-| **Timing tests (dudect)** | CPU field/scalar ops | 🔜 Planned (see [roadmap](INDUSTRIAL_ROADMAP_WORKING.md)) |
+| **Timing tests (dudect)** | CPU field/scalar ops | 🔜 Planned (see [roadmap](ROADMAP.md)) |
 | **Formal CT verification** | Fiat-Crypto style | 🔜 Planned |
 
 **Assumptions:** CT guarantees depend on compiler not introducing secret-dependent branches during optimization. Builds use `-O2` with Clang; MSVC may require additional flags. Micro-architectural side channels (Spectre, power analysis) are outside current scope — see [THREAT_MODEL.md](THREAT_MODEL.md).
@@ -654,7 +654,7 @@ int main() {
 ```
 
 ```bash
-g++ -std=c++20 example.cpp -lsecp256k1-fast-cpu -o example && ./example
+g++ -std=c++20 example.cpp -lufsecp -o example && ./example
 ```
 
 ### GPU Batch Multiplication

@@ -8,5 +8,5 @@ Description: High-performance secp256k1 elliptic curve cryptography library
 URL: @PROJECT_HOMEPAGE_URL@
 Version: @PROJECT_VERSION@
 Cflags: -I${includedir}
-Libs: -L${libdir} -lsecp256k1-fast-cpu
+Libs: -L${libdir} -lfastsecp256k1
 Libs.private: -lpthread

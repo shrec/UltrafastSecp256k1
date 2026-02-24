@@ -14,7 +14,6 @@ Uses native C/C++ through JSI (Android NDK + iOS) for maximum performance — no
 - **Addresses** — P2PKH, P2WPKH, P2TR
 - **WIF** — encode/decode
 - **Hashing** — SHA-256, HASH160, tagged hash
-- **Constant-time** — all secret-key operations use CT layer automatically
 
 ## Install
 
@@ -84,6 +83,10 @@ const childPriv = secp.bip32GetPrivkey(child);
 | Android | NDK, minSdkVersion 21+ |
 | iOS | iOS 13+, CocoaPods |
 | React Native | >= 0.71.0 |
+
+## Architecture Note
+
+The C ABI layer uses the **fast** (variable-time) implementation for maximum throughput. A constant-time (CT) layer with identical mathematical operations is available via the C++ headers for applications requiring timing-attack resistance.
 
 ## License
 

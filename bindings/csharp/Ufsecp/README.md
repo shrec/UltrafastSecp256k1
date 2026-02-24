@@ -117,9 +117,9 @@ byte[] tagged = Ufsecp.TaggedHash("BIP0340/aux", data); // BIP-340 tagged hash
 
 Keys, ECDSA (sign/verify/recover/DER), Schnorr BIP-340, ECDH (compressed/xonly/raw), SHA-256, HASH160, Tagged Hash, BIP-32 HD, Taproot (BIP-341), Bitcoin Addresses (P2PKH/P2WPKH/P2TR), WIF, Key Tweaking.
 
-## Constant-Time Architecture
+## Architecture Note
 
-All secret-key operations (signing, ECDH, key derivation) automatically use the constant-time layer — no flags or opt-in required.
+The C ABI layer uses the **fast** (variable-time) implementation for maximum throughput. A constant-time (CT) layer with identical mathematical operations is available via the C++ headers for applications requiring timing-attack resistance.
 
 ## Supported Platforms
 

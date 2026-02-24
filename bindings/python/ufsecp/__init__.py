@@ -182,6 +182,25 @@ class Ufsecp:
         self._lib.ufsecp_version_string.restype = c_char_p
         return self._lib.ufsecp_version_string().decode()
 
+    # -- Context extras ---------------------------------------------------
+
+    def clone(self) -> 'Ufsecp':
+        """Clone this context (deep copy)."""
+        clone_ptr = c_void_p()
+        self._throw(self._lib.ufsecp_ctx_clone(self._ctx, byref(clone_ptr)), "ctx_clone")
+        obj = object.__new__(Ufsecp)
+        obj._lib = self._lib
+        obj._ctx = clone_ptr
+        return obj
+
+    def last_error(self) -> int:
+        """Return last error code."""
+        return self._lib.ufsecp_last_error(self._ctx)
+
+    def last_error_msg(self) -> str:
+        """Return last error message."""
+        return self._lib.ufsecp_last_error_msg(self._ctx).decode()
+
     # -- Key operations ---------------------------------------------------
 
     def pubkey_create(self, privkey: bytes) -> bytes:
@@ -436,6 +455,14 @@ class Ufsecp:
         L.ufsecp_ctx_create.restype = c_int
         L.ufsecp_ctx_destroy.argtypes = [vp]
         L.ufsecp_ctx_destroy.restype = None
+
+        L.ufsecp_ctx_clone.argtypes = [vp, pvp]
+        L.ufsecp_ctx_clone.restype = c_int
+
+        L.ufsecp_last_error.argtypes = [vp]
+        L.ufsecp_last_error.restype = c_int
+        L.ufsecp_last_error_msg.argtypes = [vp]
+        L.ufsecp_last_error_msg.restype = c_char_p
 
         L.ufsecp_version.restype = c_uint32
         L.ufsecp_abi_version.restype = c_uint32

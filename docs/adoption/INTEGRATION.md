@@ -40,7 +40,7 @@ set(SECP256K1_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(secp256k1_fast)
 
 add_executable(my_app main.cpp)
-target_link_libraries(my_app PRIVATE secp256k1_fast)
+target_link_libraries(my_app PRIVATE secp256k1::fast)
 ```
 
 ---
@@ -60,7 +60,7 @@ set(SECP256K1_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 
 add_subdirectory(third_party/secp256k1_fast)
 
-target_link_libraries(my_app PRIVATE secp256k1_fast)
+target_link_libraries(my_app PRIVATE secp256k1::fast)
 ```
 
 ---
@@ -80,7 +80,7 @@ To use from a vcpkg overlay port or after it's published:
 
 ```cmake
 find_package(secp256k1-fast CONFIG REQUIRED)
-target_link_libraries(my_app PRIVATE secp256k1-fast::secp256k1-fast)
+target_link_libraries(my_app PRIVATE secp256k1::fastsecp256k1)
 ```
 
 ---
@@ -97,7 +97,7 @@ Then in your project:
 
 ```cmake
 find_package(secp256k1-fast 3.3 CONFIG REQUIRED)
-target_link_libraries(my_app PRIVATE secp256k1-fast::secp256k1-fast)
+target_link_libraries(my_app PRIVATE secp256k1::fastsecp256k1)
 ```
 
 Or via pkg-config:

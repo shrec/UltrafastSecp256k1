@@ -87,7 +87,7 @@ int main() {
 Compile and run:
 
 ```bash
-g++ -std=c++20 -O3 example.cpp -I build/cpu/include -L build/cpu -lsecp256k1-fast-cpu -o example
+g++ -std=c++20 -O3 example.cpp -I build/cpu/include -L build/cpu -lfastsecp256k1 -o example
 ./example
 ```
 
@@ -97,14 +97,14 @@ g++ -std=c++20 -O3 example.cpp -I build/cpu/include -L build/cpu -lsecp256k1-fas
 
 ```cmake
 add_subdirectory(UltrafastSecp256k1)
-target_link_libraries(your_target PRIVATE secp256k1-fast-cpu)
+target_link_libraries(your_target PRIVATE secp256k1::fast)
 ```
 
 ### As Installed Package
 
 ```cmake
 find_package(secp256k1-fast REQUIRED)
-target_link_libraries(your_target PRIVATE secp256k1::fast-cpu)
+target_link_libraries(your_target PRIVATE secp256k1::fastsecp256k1)
 ```
 
 ### pkg-config

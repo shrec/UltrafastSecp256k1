@@ -14,7 +14,7 @@ using SC = secp256k1::fast::Scalar;
 using PT = secp256k1::fast::Point;
 namespace ct = secp256k1::ct;
 
-static void print_scalar(const char* label, const SC& s) {
+[[maybe_unused]] static void print_scalar(const char* label, const SC& s) {
     auto b = s.to_bytes();
     printf("%s", label);
     for (auto x : b) printf("%02x", x);
@@ -28,7 +28,7 @@ static void print_limbs(const char* label, const SC& s) {
            (unsigned long)l[1], (unsigned long)l[0]);
 }
 
-static void print_point_xy(const char* label, const PT& p) {
+[[maybe_unused]] static void print_point_xy(const char* label, const PT& p) {
     if (p.is_infinity()) { printf("%sINFINITY\n", label); return; }
     auto xb = p.x().to_bytes();
     printf("%s", label);

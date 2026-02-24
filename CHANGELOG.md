@@ -5,6 +5,21 @@ All notable changes to UltrafastSecp256k1 are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.13.1] - 2026-02-24
+
+### Fixed
+- **Critical: GLV decomposition overflow in `ct::scalar_mul()`** — `ct_mul_256x_lo128_mod` used single-phase reduction (256×128-bit), which overflowed when GLV's `c1`/`c2` rounded to exactly 2^128. Additionally, `lambda*k2` computation only read 2 lower limbs of `k2_abs`, silently dropping `limb[2]=1`. This caused wrong results for ~5/64 random scalar inputs. Replaced with full `ct_scalar_mul_mod_n()`: 4×4 schoolbook → 8-limb product → 3-phase `reduce_512` (512→385→258→256 bits), matching libsecp256k1's algorithm. Both `5×52` (`__int128`) and `4×64` (portable `U128`/`mul64`) paths fixed.
+- **GLV constant `minus_b2`** — changed from 128-bit `b2_pos` to full 256-bit `Scalar(n - b2)`, and decomposition formula from `scalar_sub(p1, p2)` to `scalar_add(p1, p2)` since both constants are already negated
+- **`-Werror=unused-function`** — added `[[maybe_unused]]` to diagnostic helpers `print_scalar()` and `print_point_xy()` in `diag_scalar_mul.cpp`
+
+### Removed
+- Dead code: `ct_mul_lo128_mod()` and `ct_mul_256x_lo128_mod()` (replaced by `ct_scalar_mul_mod_n`)
+
+### Performance
+- CT scalar_mul overhead vs fast path: **1.05×** (25.3μs vs 24.0μs) — no regression
+
+---
+
 ## [3.13.0] - 2026-02-24
 
 ### Added

@@ -57,6 +57,7 @@ class UfsecpContext {
   // ── Version ──────────────────────────────────────────────────────
 
   static version()       { return NativeUfsecp.version(); }
+  static abiVersion()    { return NativeUfsecp.abiVersion(); }
   static versionString() { return NativeUfsecp.versionString(); }
 
   // ── Key ops ──────────────────────────────────────────────────────
@@ -75,6 +76,31 @@ class UfsecpContext {
   async seckeyVerify(privkeyHex) {
     this._alive();
     return NativeUfsecp.seckeyVerify(this._h, privkeyHex);
+  }
+
+  async seckeyNegate(privkeyHex) {
+    this._alive();
+    return NativeUfsecp.seckeyNegate(this._h, privkeyHex);
+  }
+
+  async seckeyTweakAdd(privkeyHex, tweakHex) {
+    this._alive();
+    return NativeUfsecp.seckeyTweakAdd(this._h, privkeyHex, tweakHex);
+  }
+
+  async seckeyTweakMul(privkeyHex, tweakHex) {
+    this._alive();
+    return NativeUfsecp.seckeyTweakMul(this._h, privkeyHex, tweakHex);
+  }
+
+  async pubkeyParse(pubkeyHex) {
+    this._alive();
+    return NativeUfsecp.pubkeyParse(this._h, pubkeyHex);
+  }
+
+  async pubkeyXonly(privkeyHex) {
+    this._alive();
+    return NativeUfsecp.pubkeyXonly(this._h, privkeyHex);
   }
 
   // ── ECDSA ────────────────────────────────────────────────────────
@@ -99,6 +125,16 @@ class UfsecpContext {
     return NativeUfsecp.ecdsaRecover(this._h, msgHashHex, sigHex, recid);
   }
 
+  async ecdsaSigToDer(sigHex) {
+    this._alive();
+    return NativeUfsecp.ecdsaSigToDer(this._h, sigHex);
+  }
+
+  async ecdsaSigFromDer(derHex) {
+    this._alive();
+    return NativeUfsecp.ecdsaSigFromDer(this._h, derHex);
+  }
+
   // ── Schnorr ──────────────────────────────────────────────────────
 
   async schnorrSign(msgHex, privkeyHex, auxRandHex) {
@@ -118,10 +154,21 @@ class UfsecpContext {
     return NativeUfsecp.ecdh(this._h, privkeyHex, pubkeyHex);
   }
 
+  async ecdhXonly(privkeyHex, pubkeyHex) {
+    this._alive();
+    return NativeUfsecp.ecdhXonly(this._h, privkeyHex, pubkeyHex);
+  }
+
+  async ecdhRaw(privkeyHex, pubkeyHex) {
+    this._alive();
+    return NativeUfsecp.ecdhRaw(this._h, privkeyHex, pubkeyHex);
+  }
+
   // ── Hashing ──────────────────────────────────────────────────────
 
   static sha256(dataHex)  { return NativeUfsecp.sha256(dataHex); }
   static hash160(dataHex) { return NativeUfsecp.hash160(dataHex); }
+  static taggedHash(tag, dataHex) { return NativeUfsecp.taggedHash(tag, dataHex); }
 
   // ── Addresses ────────────────────────────────────────────────────
 
@@ -134,6 +181,11 @@ class UfsecpContext {
   async wifEncode(privkeyHex, compressed = true, network = 0) {
     this._alive();
     return NativeUfsecp.wifEncode(this._h, privkeyHex, compressed, network);
+  }
+
+  async wifDecode(wifStr) {
+    this._alive();
+    return NativeUfsecp.wifDecode(this._h, wifStr);
   }
 
   // ── BIP-32 ───────────────────────────────────────────────────────
@@ -153,6 +205,16 @@ class UfsecpContext {
     return NativeUfsecp.bip32DerivePath(this._h, masterHex, path);
   }
 
+  async bip32Privkey(keyHex) {
+    this._alive();
+    return NativeUfsecp.bip32Privkey(this._h, keyHex);
+  }
+
+  async bip32Pubkey(keyHex) {
+    this._alive();
+    return NativeUfsecp.bip32Pubkey(this._h, keyHex);
+  }
+
   // ── Taproot ──────────────────────────────────────────────────────
 
   async taprootOutputKey(internalXHex, merkleRootHex = null) {
@@ -163,6 +225,11 @@ class UfsecpContext {
   async taprootTweakSeckey(privkeyHex, merkleRootHex = null) {
     this._alive();
     return NativeUfsecp.taprootTweakSeckey(this._h, privkeyHex, merkleRootHex);
+  }
+
+  async taprootVerify(outputXHex, parity, internalXHex, merkleRootHex = null) {
+    this._alive();
+    return NativeUfsecp.taprootVerify(this._h, outputXHex, parity, internalXHex, merkleRootHex);
   }
 
   // ── Internal ─────────────────────────────────────────────────────

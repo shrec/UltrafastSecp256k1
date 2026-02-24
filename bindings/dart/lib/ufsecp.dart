@@ -81,6 +81,8 @@ typedef _CtxCreateC = ffi.Int32 Function(ffi.Pointer<ffi.Pointer<ffi.Void>>);
 typedef _CtxCreateDart = int Function(ffi.Pointer<ffi.Pointer<ffi.Void>>);
 typedef _CtxDestroyC = ffi.Void Function(ffi.Pointer<ffi.Void>);
 typedef _CtxDestroyDart = void Function(ffi.Pointer<ffi.Void>);
+typedef _CtxCloneC = ffi.Int32 Function(ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Pointer<ffi.Void>>);
+typedef _CtxCloneDart = int Function(ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Pointer<ffi.Void>>);
 
 // Version
 typedef _VersionC = ffi.Uint32 Function();
@@ -183,6 +185,7 @@ class UfsecpContext {
 
   // ── cached lookups ──
   late final _CtxDestroyDart _ctxDestroy;
+  late final _CtxCloneDart _ctxClone;
   late final _LastErrorDart _lastError;
   late final _LastErrorMsgDart _lastErrorMsg;
   late final _VersionDart _version;
@@ -255,6 +258,23 @@ class UfsecpContext {
       _ctxDestroy(_ctx);
       _ctx = ffi.nullptr;
       _destroyed = true;
+    }
+  }
+
+  /// Deep-copy this context into a new independent context.
+  UfsecpContext._fromPointer(this._lib, this._ctx) {
+    _bindAll();
+  }
+
+  UfsecpContext cloneCtx() {
+    _ensureAlive();
+    final pp = calloc<ffi.Pointer<ffi.Void>>();
+    try {
+      final rc = _ctxClone(_ctx, pp);
+      if (rc != 0) throw UfsecpException('ctx_clone', UfsecpError.fromCode(rc));
+      return UfsecpContext._fromPointer(_lib, pp.value);
+    } finally {
+      calloc.free(pp);
     }
   }
 
@@ -854,6 +874,7 @@ class UfsecpContext {
 
   void _bindAll() {
     _ctxDestroy = _lib.lookupFunction<_CtxDestroyC, _CtxDestroyDart>('ufsecp_ctx_destroy');
+    _ctxClone = _lib.lookupFunction<_CtxCloneC, _CtxCloneDart>('ufsecp_ctx_clone');
     _lastError = _lib.lookupFunction<_LastErrorC, _LastErrorDart>('ufsecp_last_error');
     _lastErrorMsg = _lib.lookupFunction<_LastErrorMsgC, _LastErrorMsgDart>('ufsecp_last_error_msg');
     _version = _lib.lookupFunction<_VersionC, _VersionDart>('ufsecp_version');

@@ -1,6 +1,6 @@
 %global soversion 3
 
-Name:           libsecp256k1-fast
+Name:           libufsecp
 Version:        3.12.1
 Release:        1%{?dist}
 Summary:        High-performance secp256k1 elliptic curve cryptography library

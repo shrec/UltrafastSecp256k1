@@ -127,6 +127,20 @@ impl Context {
         Ok(Context { ptr })
     }
 
+    /// Return the last error code stored in this context.
+    pub fn last_error(&self) -> i32 {
+        unsafe { ufsecp_sys::ufsecp_last_error(self.ptr) }
+    }
+
+    /// Return the last error message stored in this context.
+    pub fn last_error_msg(&self) -> &str {
+        unsafe {
+            let p = ufsecp_sys::ufsecp_last_error_msg(self.ptr);
+            if p.is_null() { return ""; }
+            CStr::from_ptr(p).to_str().unwrap_or("")
+        }
+    }
+
     // ── Version ────────────────────────────────────────────────────────
 
     pub fn version() -> u32 { unsafe { ufsecp_sys::ufsecp_version() } }

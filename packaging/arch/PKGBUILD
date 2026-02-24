@@ -1,5 +1,5 @@
 # Maintainer: shrec <shrec@users.noreply.github.com>
-pkgname=libsecp256k1-fast
+pkgname=libufsecp
 pkgver=3.12.1
 pkgrel=1
 pkgdesc="High-performance secp256k1 elliptic curve cryptography library"
@@ -8,7 +8,7 @@ url="https://github.com/shrec/UltrafastSecp256k1"
 license=('AGPL-3.0-or-later')
 depends=('gcc-libs')
 makedepends=('cmake' 'ninja' 'gcc')
-provides=('libsecp256k1-fast')
+provides=('libufsecp')
 source=("$url/archive/v$pkgver/UltrafastSecp256k1-$pkgver.tar.gz")
 sha256sums=('SKIP')
 

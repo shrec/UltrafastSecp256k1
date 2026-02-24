@@ -12,7 +12,6 @@ High-performance Node.js native addon for secp256k1 elliptic curve cryptography,
 - **Addresses** — P2PKH, P2WPKH, P2TR
 - **WIF** — encode/decode
 - **Hashing** — SHA-256 (hardware-accelerated), HASH160, tagged hash
-- **Constant-time** — all secret-key operations use CT layer automatically
 
 ## Install
 
@@ -111,9 +110,9 @@ const { outputKeyX, parity } = secp.taprootOutputKey(xOnlyPub);
 const tweakedPriv = secp.taprootTweakPrivkey(privkey);
 ```
 
-## Performance
+## Architecture Note
 
-Built on hand-optimized C/C++ with platform-specific acceleration (AVX2, SHA-NI, BMI2 on x86; NEON on ARM). All secret-key operations use the constant-time layer — no opt-in required.
+Built on hand-optimized C/C++ with platform-specific acceleration (AVX2, SHA-NI, BMI2 on x86; NEON on ARM). The C ABI layer uses the **fast** (variable-time) implementation for maximum throughput. A constant-time (CT) layer with identical mathematical operations is available via the C++ headers for applications requiring timing-attack resistance.
 
 | Operation | x86-64 | ARM64 | RISC-V |
 |-----------|--------|-------|--------|

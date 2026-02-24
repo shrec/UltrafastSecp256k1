@@ -7,7 +7,7 @@
 #
 #   curl -fsSL https://shrec.github.io/UltrafastSecp256k1/KEY.gpg | sudo gpg --dearmor -o /etc/apt/keyrings/ultrafastsecp256k1.gpg
 #   echo "deb [signed-by=/etc/apt/keyrings/ultrafastsecp256k1.gpg] https://shrec.github.io/UltrafastSecp256k1/apt stable main" | sudo tee /etc/apt/sources.list.d/ultrafastsecp256k1.list
-#   sudo apt update && sudo apt install libsecp256k1-fast-dev
+#   sudo apt update && sudo apt install libufsecp-dev
 #
 # ============================================================================
 
