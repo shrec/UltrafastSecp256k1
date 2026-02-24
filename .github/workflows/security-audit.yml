@@ -116,13 +116,14 @@ jobs:
             --overwrite "MemoryCheckCommandOptions=--leak-check=full --error-exitcode=1 --show-leak-kinds=definite,indirect,possible --errors-for-leak-kinds=definite,indirect,possible --suppressions=${{ github.workspace }}/valgrind.supp" \
             -T MemCheck || true
           # Check for real errors in memcheck output (ignore "still reachable")
-          if grep -rl 'ERROR SUMMARY: [1-9]' build/Testing/Temporary/MemoryChecker.*.log 2>/dev/null | head -1; then
+          # NB: use -q (quiet) instead of -l | head -1 to preserve exit status
+          if grep -q 'ERROR SUMMARY: [1-9]' build/Testing/Temporary/MemoryChecker.*.log 2>/dev/null; then
             echo "::error::Valgrind found memory errors"
             cat build/Testing/Temporary/MemoryChecker.*.log
             exit 1
           fi
           # Also check for definite leaks
-          if grep -rl 'definitely lost: [1-9]' build/Testing/Temporary/MemoryChecker.*.log 2>/dev/null | head -1; then
+          if grep -q 'definitely lost: [1-9]' build/Testing/Temporary/MemoryChecker.*.log 2>/dev/null; then
             echo "::error::Valgrind found definite memory leaks"
             cat build/Testing/Temporary/MemoryChecker.*.log
             exit 1

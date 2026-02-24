@@ -257,6 +257,14 @@ set(CPACK_DEBIAN_PACKAGE_DEPENDS "libc6 (>= 2.17)")
 set(CPACK_DEBIAN_FILE_NAME DEB-DEFAULT)
 set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
 
+# Map target arch → DEB architecture (critical for cross-compilation where
+# dpkg --print-architecture returns the HOST arch, not the TARGET arch).
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|ARM64")
+    set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE "arm64")
+elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64")
+    set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE "amd64")
+endif()
+
 # RPM-specific
 set(CPACK_RPM_PACKAGE_LICENSE "AGPL-3.0-or-later")
 set(CPACK_RPM_PACKAGE_GROUP "System Environment/Libraries")
