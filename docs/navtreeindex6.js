@@ -1,5 +1,12 @@
 var NAVTREEINDEX6 =
 {
+"namespacesecp256k1_1_1test.html#a67d5ad2842e24c72d6e79f845fb96335a41db319fc50b53548e50c330568909d7":[2,0,1,6,1,29],
+"namespacesecp256k1_1_1test.html#a67d5ad2842e24c72d6e79f845fb96335a53a69c9c4cc08ca68d981ba8fb432f01":[2,0,1,6,1,8],
+"namespacesecp256k1_1_1test.html#a67d5ad2842e24c72d6e79f845fb96335a5ad63cb59d56d146dbe7c5a619ed8411":[2,0,1,6,1,0],
+"namespacesecp256k1_1_1test.html#a67d5ad2842e24c72d6e79f845fb96335a62f7d36102de216c257a561c9a131624":[2,0,1,6,1,31],
+"namespacesecp256k1_1_1test.html#a67d5ad2842e24c72d6e79f845fb96335a6761cc4e439aa2c5fc1258f9773efa8d":[2,0,1,6,1,12],
+"namespacesecp256k1_1_1test.html#a67d5ad2842e24c72d6e79f845fb96335a68ebe1e866a60ffff4e968b12e9d29dc":[2,0,1,6,1,3],
+"namespacesecp256k1_1_1test.html#a67d5ad2842e24c72d6e79f845fb96335a6bf4de4831dbc05754e319ed3609447b":[2,0,1,6,1,11],
 "namespacesecp256k1_1_1test.html#a67d5ad2842e24c72d6e79f845fb96335a741d3888654a9aa1d75a3356f00651cf":[2,0,1,6,1,20],
 "namespacesecp256k1_1_1test.html#a67d5ad2842e24c72d6e79f845fb96335a7a421afa7e8c91fc5613976fd1ae9deb":[2,0,1,6,1,23],
 "namespacesecp256k1_1_1test.html#a67d5ad2842e24c72d6e79f845fb96335a7ca37fc5b876df6348feabfb9435f254":[2,0,1,6,1,4],
@@ -242,12 +249,5 @@ var NAVTREEINDEX6 =
 "structsecp256k1_1_1ExtendedKey.html#a196e6cfe0ad5d64b3fbdb8887fe35fdd":[3,0,1,10,5],
 "structsecp256k1_1_1ExtendedKey.html#a196e6cfe0ad5d64b3fbdb8887fe35fdd":[2,0,1,13,5],
 "structsecp256k1_1_1ExtendedKey.html#a1a48ef7c9d06825fef649d88ba5623b0":[2,0,1,13,6],
-"structsecp256k1_1_1ExtendedKey.html#a1a48ef7c9d06825fef649d88ba5623b0":[3,0,1,10,6],
-"structsecp256k1_1_1ExtendedKey.html#a1e50f558b078621bddf6e06f4de3caa0":[3,0,1,10,10],
-"structsecp256k1_1_1ExtendedKey.html#a1e50f558b078621bddf6e06f4de3caa0":[2,0,1,13,10],
-"structsecp256k1_1_1ExtendedKey.html#a380ec5519c570fcceafc96de21f77dd0":[3,0,1,10,12],
-"structsecp256k1_1_1ExtendedKey.html#a380ec5519c570fcceafc96de21f77dd0":[2,0,1,13,12],
-"structsecp256k1_1_1ExtendedKey.html#a455e9b4ece669b3cddcfe2f1392941ba":[3,0,1,10,7],
-"structsecp256k1_1_1ExtendedKey.html#a455e9b4ece669b3cddcfe2f1392941ba":[2,0,1,13,7],
-"structsecp256k1_1_1ExtendedKey.html#a87c326438c4099c4ee249ae41cb76efa":[2,0,1,13,3]
+"structsecp256k1_1_1ExtendedKey.html#a1a48ef7c9d06825fef649d88ba5623b0":[3,0,1,10,6]
 };

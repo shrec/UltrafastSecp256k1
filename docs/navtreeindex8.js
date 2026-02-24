@@ -1,5 +1,12 @@
 var NAVTREEINDEX8 =
 {
+"structsecp256k1_1_1coins_1_1CoinParams.html#a80f4a41a970b433a6fe9193237c7aa22":[3,0,1,0,2,1],
+"structsecp256k1_1_1coins_1_1CoinParams.html#a80f4a41a970b433a6fe9193237c7aa22":[2,0,1,0,2,1],
+"structsecp256k1_1_1coins_1_1CoinParams.html#aa1bc7b038b0f9034e257f2ae5b7d797e":[3,0,1,0,2,8],
+"structsecp256k1_1_1coins_1_1CoinParams.html#aa1bc7b038b0f9034e257f2ae5b7d797e":[2,0,1,0,2,8],
+"structsecp256k1_1_1coins_1_1CoinParams.html#ac8a6a6a4c27fe5170367299ec6536837":[3,0,1,0,2,0],
+"structsecp256k1_1_1coins_1_1CoinParams.html#ac8a6a6a4c27fe5170367299ec6536837":[2,0,1,0,2,0],
+"structsecp256k1_1_1coins_1_1CoinParams.html#acb7b668cab1258e51f8147a8286f3dbe":[3,0,1,0,2,5],
 "structsecp256k1_1_1coins_1_1CoinParams.html#acb7b668cab1258e51f8147a8286f3dbe":[2,0,1,0,2,5],
 "structsecp256k1_1_1coins_1_1CoinParams.html#acd233aee18077852d716d9cfea9ac882":[3,0,1,0,2,13],
 "structsecp256k1_1_1coins_1_1CoinParams.html#acd233aee18077852d716d9cfea9ac882":[2,0,1,0,2,13],
@@ -242,12 +249,5 @@ var NAVTREEINDEX8 =
 "structsecp256k1_1_1fast_1_1MidFieldElement.html":[3,0,1,2,9],
 "structsecp256k1_1_1fast_1_1MidFieldElement.html":[2,0,1,3,14],
 "structsecp256k1_1_1fast_1_1MidFieldElement.html#a061c7e98d82bbf24d78739637bb92676":[3,0,1,2,9,0],
-"structsecp256k1_1_1fast_1_1MidFieldElement.html#a061c7e98d82bbf24d78739637bb92676":[2,0,1,3,14,0],
-"structsecp256k1_1_1fast_1_1MidFieldElement.html#a27a94fb7665555bcd6ab03974004bf8d":[2,0,1,3,14,2],
-"structsecp256k1_1_1fast_1_1MidFieldElement.html#a27a94fb7665555bcd6ab03974004bf8d":[3,0,1,2,9,2],
-"structsecp256k1_1_1fast_1_1MidFieldElement.html#a32b3a46af2b2f8bdc2e582854bad6b7e":[3,0,1,2,9,3],
-"structsecp256k1_1_1fast_1_1MidFieldElement.html#a32b3a46af2b2f8bdc2e582854bad6b7e":[2,0,1,3,14,3],
-"structsecp256k1_1_1fast_1_1MidFieldElement.html#a386c1cfa7c1dc5f1ae050ce101e4def5":[2,0,1,3,14,1],
-"structsecp256k1_1_1fast_1_1MidFieldElement.html#a386c1cfa7c1dc5f1ae050ce101e4def5":[3,0,1,2,9,1],
-"structsecp256k1_1_1fast_1_1MidFieldElement.html#a404da8c0dccabe650316a90db209edf3":[2,0,1,3,14,4]
+"structsecp256k1_1_1fast_1_1MidFieldElement.html#a061c7e98d82bbf24d78739637bb92676":[2,0,1,3,14,0]
 };

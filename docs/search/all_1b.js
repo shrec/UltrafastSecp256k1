@@ -1,7 +1,7 @@
 var searchData=
 [
-  ['ubuntu_0',['Linux (APT — Debian / Ubuntu)',['../index.html#autotoc_md26',1,'']]],
-  ['ufsecp_20tt_20—_20ffi_20bindings_1',['secp256k1 Stable C ABI (&lt;tt&gt;ufsecp&lt;/tt&gt;) — FFI Bindings',['../index.html#autotoc_md59',1,'']]],
+  ['ubuntu_0',['Linux (APT — Debian / Ubuntu)',['../index.html#autotoc_md30',1,'']]],
+  ['ufsecp_20tt_20—_20ffi_20bindings_1',['secp256k1 Stable C ABI (&lt;tt&gt;ufsecp&lt;/tt&gt;) — FFI Bindings',['../index.html#autotoc_md64',1,'']]],
   ['ufsecp_20tt_20c_20abi_2',['Supported Guarantees — &lt;tt&gt;ufsecp&lt;/tt&gt; C ABI',['../md_include_2ufsecp_2SUPPORTED__GUARANTEES.html',1,'']]],
   ['ufsecp_2eh_3',['ufsecp.h',['../ufsecp_8h.html',1,'']]],
   ['ufsecp_5fabi_5fversion_4',['ufsecp_abi_version',['../ufsecp__version_8h.html#ab2da3f29bf4348b5e781f4e9bbefc26a',1,'UFSECP_ABI_VERSION:&#160;ufsecp_version.h'],['../ufsecp__version_8h.html#ad27d2519d10da3a7e8e22d62be35facc',1,'ufsecp_abi_version(void):&#160;ufsecp_impl.cpp'],['../ufsecp__impl_8cpp.html#ada009081ae04d5e549373c33a2b3f6f5',1,'ufsecp_abi_version(void):&#160;ufsecp_impl.cpp']]],
@@ -88,9 +88,9 @@ var searchData=
   ['ultrafastsecp256k1_20—_20fastest_20open_20source_20secp256k1_20library_85',['UltrafastSecp256k1 — Fastest Open-Source secp256k1 Library',['../index.html',1,'']]],
   ['ultrafastsecp256k1_2ehpp_86',['UltrafastSecp256k1.hpp',['../UltrafastSecp256k1_8hpp.html',1,'']]],
   ['update_87',['update',['../classsecp256k1_1_1SHA512.html#ad4f7ccc0d4d406c3036927e19aaddbd2',1,'secp256k1::SHA512::update()'],['../classsecp256k1_1_1SHA256.html#af6810cfc0f70a3b1e7800712c76d2ea2',1,'secp256k1::SHA256::update()'],['../structsecp256k1_1_1coins_1_1Keccak256State.html#afad88379d6ee32e366173b3b3ec1fe16',1,'secp256k1::coins::Keccak256State::update()']]],
-  ['use_20cases_88',['secp256k1 Use Cases',['../index.html#autotoc_md63',1,'']]],
-  ['use_20in_20your_20cmake_20project_89',['Use in your CMake project',['../index.html#autotoc_md30',1,'']]],
-  ['use_20with_20pkg_20config_90',['Use with pkg-config',['../index.html#autotoc_md31',1,'']]],
+  ['use_20cases_88',['secp256k1 Use Cases',['../index.html#autotoc_md68',1,'']]],
+  ['use_20in_20your_20cmake_20project_89',['Use in your CMake project',['../index.html#autotoc_md34',1,'']]],
+  ['use_20with_20pkg_20config_90',['Use with pkg-config',['../index.html#autotoc_md35',1,'']]],
   ['use_5fcache_91',['use_cache',['../structsecp256k1_1_1fast_1_1FixedBaseConfig.html#a73eed9dd707ca3b92dfd9ca88b8895bb',1,'secp256k1::fast::FixedBaseConfig']]],
   ['use_5fcomb_92',['use_comb',['../structsecp256k1_1_1fast_1_1FixedBaseConfig.html#ae77dbdbb7586dfea049fe3c0d9a5b687',1,'secp256k1::fast::FixedBaseConfig']]],
   ['use_5fjsf_93',['use_jsf',['../structsecp256k1_1_1fast_1_1FixedBaseConfig.html#a6b509bb7aefcf93b39db386f9e0c4d67',1,'secp256k1::fast::FixedBaseConfig']]],

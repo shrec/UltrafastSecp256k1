@@ -1,5 +1,12 @@
 var NAVTREEINDEX9 =
 {
+"structsecp256k1_1_1fast_1_1MidFieldElement.html#a27a94fb7665555bcd6ab03974004bf8d":[2,0,1,3,14,2],
+"structsecp256k1_1_1fast_1_1MidFieldElement.html#a27a94fb7665555bcd6ab03974004bf8d":[3,0,1,2,9,2],
+"structsecp256k1_1_1fast_1_1MidFieldElement.html#a32b3a46af2b2f8bdc2e582854bad6b7e":[3,0,1,2,9,3],
+"structsecp256k1_1_1fast_1_1MidFieldElement.html#a32b3a46af2b2f8bdc2e582854bad6b7e":[2,0,1,3,14,3],
+"structsecp256k1_1_1fast_1_1MidFieldElement.html#a386c1cfa7c1dc5f1ae050ce101e4def5":[2,0,1,3,14,1],
+"structsecp256k1_1_1fast_1_1MidFieldElement.html#a386c1cfa7c1dc5f1ae050ce101e4def5":[3,0,1,2,9,1],
+"structsecp256k1_1_1fast_1_1MidFieldElement.html#a404da8c0dccabe650316a90db209edf3":[2,0,1,3,14,4],
 "structsecp256k1_1_1fast_1_1MidFieldElement.html#a404da8c0dccabe650316a90db209edf3":[3,0,1,2,9,4],
 "structsecp256k1_1_1fast_1_1PrecomputedScalar.html":[2,0,1,3,16],
 "structsecp256k1_1_1fast_1_1PrecomputedScalar.html":[3,0,1,2,11],
@@ -242,12 +249,5 @@ var NAVTREEINDEX9 =
 "ufsecp__impl_8cpp.html#a64f997070366932857ac86c6f6d0aaed":[4,0,1,1,2,16],
 "ufsecp__impl_8cpp.html#a69514415307365a298594c4cd37d5f42":[4,0,1,1,2,32],
 "ufsecp__impl_8cpp.html#a69c0f86b2ca9db1acf624e1448caf37b":[4,0,1,1,2,56],
-"ufsecp__impl_8cpp.html#a6b6c3355b4110fca964a6d272c527bf0":[4,0,1,1,2,4],
-"ufsecp__impl_8cpp.html#a6d6c6a4d8592387bf1d84ca641062b34":[4,0,1,1,2,50],
-"ufsecp__impl_8cpp.html#a71e3050cd9d1d7ffabe6dcdba626bf57":[4,0,1,1,2,18],
-"ufsecp__impl_8cpp.html#a74e66acf0dd638885b1c66dc2176e827":[4,0,1,1,2,19],
-"ufsecp__impl_8cpp.html#a7b11ca6aee2b3b82962282f067099048":[4,0,1,1,2,41],
-"ufsecp__impl_8cpp.html#a7d6ddee51b60373c9dcc4f3802956ac0":[4,0,1,1,2,12],
-"ufsecp__impl_8cpp.html#a80fc5b7148af36b3908b817f49a696a3":[4,0,1,1,2,55],
-"ufsecp__impl_8cpp.html#a82b710c6abf7a44eeebdd58ab158a520":[4,0,1,1,2,49]
+"ufsecp__impl_8cpp.html#a6b6c3355b4110fca964a6d272c527bf0":[4,0,1,1,2,4]
 };

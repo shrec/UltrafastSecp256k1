@@ -78,13 +78,13 @@ var NAVTREEINDEX =
 "classsecp256k1_1_1fast_1_1Point.html#a799ad7adc180235caaf11e47c98e2086",
 "ct__utils_8hpp_source.html",
 "functions_q.html",
-"namespacesecp256k1.html#a0508ad0ead12c8b68e3e5ceb647e65eb",
-"namespacesecp256k1_1_1fast.html",
-"namespacesecp256k1_1_1test.html#a67d5ad2842e24c72d6e79f845fb96335a741d3888654a9aa1d75a3356f00651cf",
-"structsecp256k1_1_1ExtendedKey.html#a87c326438c4099c4ee249ae41cb76efa",
-"structsecp256k1_1_1coins_1_1CoinParams.html#acb7b668cab1258e51f8147a8286f3dbe",
-"structsecp256k1_1_1fast_1_1MidFieldElement.html#a404da8c0dccabe650316a90db209edf3",
-"ufsecp__impl_8cpp.html#a8542808906dd739b22096924118aa527"
+"namespacemembers_w.html",
+"namespacesecp256k1_1_1detail.html",
+"namespacesecp256k1_1_1test.html#a67d5ad2842e24c72d6e79f845fb96335a41db319fc50b53548e50c330568909d7",
+"structsecp256k1_1_1ExtendedKey.html#a1e50f558b078621bddf6e06f4de3caa0",
+"structsecp256k1_1_1coins_1_1CoinParams.html#a80f4a41a970b433a6fe9193237c7aa22",
+"structsecp256k1_1_1fast_1_1MidFieldElement.html#a27a94fb7665555bcd6ab03974004bf8d",
+"ufsecp__impl_8cpp.html#a6d6c6a4d8592387bf1d84ca641062b34"
 ];
 
 var SYNCONMSG = 'click to disable panel synchronisation';

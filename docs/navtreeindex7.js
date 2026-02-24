@@ -1,5 +1,12 @@
 var NAVTREEINDEX7 =
 {
+"structsecp256k1_1_1ExtendedKey.html#a1e50f558b078621bddf6e06f4de3caa0":[3,0,1,10,10],
+"structsecp256k1_1_1ExtendedKey.html#a1e50f558b078621bddf6e06f4de3caa0":[2,0,1,13,10],
+"structsecp256k1_1_1ExtendedKey.html#a380ec5519c570fcceafc96de21f77dd0":[3,0,1,10,12],
+"structsecp256k1_1_1ExtendedKey.html#a380ec5519c570fcceafc96de21f77dd0":[2,0,1,13,12],
+"structsecp256k1_1_1ExtendedKey.html#a455e9b4ece669b3cddcfe2f1392941ba":[3,0,1,10,7],
+"structsecp256k1_1_1ExtendedKey.html#a455e9b4ece669b3cddcfe2f1392941ba":[2,0,1,13,7],
+"structsecp256k1_1_1ExtendedKey.html#a87c326438c4099c4ee249ae41cb76efa":[2,0,1,13,3],
 "structsecp256k1_1_1ExtendedKey.html#a87c326438c4099c4ee249ae41cb76efa":[3,0,1,10,3],
 "structsecp256k1_1_1ExtendedKey.html#a902c84a548f6559cc8acf3b6e30aef3e":[3,0,1,10,11],
 "structsecp256k1_1_1ExtendedKey.html#a902c84a548f6559cc8acf3b6e30aef3e":[2,0,1,13,11],
@@ -242,12 +249,5 @@ var NAVTREEINDEX7 =
 "structsecp256k1_1_1coins_1_1CoinParams.html#a5ca681122946a8c669d12a004929a781":[2,0,1,0,2,14],
 "structsecp256k1_1_1coins_1_1CoinParams.html#a5ca681122946a8c669d12a004929a781":[3,0,1,0,2,14],
 "structsecp256k1_1_1coins_1_1CoinParams.html#a7f53ab8e1bb63eb3627fcac25603b879":[2,0,1,0,2,10],
-"structsecp256k1_1_1coins_1_1CoinParams.html#a7f53ab8e1bb63eb3627fcac25603b879":[3,0,1,0,2,10],
-"structsecp256k1_1_1coins_1_1CoinParams.html#a80f4a41a970b433a6fe9193237c7aa22":[3,0,1,0,2,1],
-"structsecp256k1_1_1coins_1_1CoinParams.html#a80f4a41a970b433a6fe9193237c7aa22":[2,0,1,0,2,1],
-"structsecp256k1_1_1coins_1_1CoinParams.html#aa1bc7b038b0f9034e257f2ae5b7d797e":[3,0,1,0,2,8],
-"structsecp256k1_1_1coins_1_1CoinParams.html#aa1bc7b038b0f9034e257f2ae5b7d797e":[2,0,1,0,2,8],
-"structsecp256k1_1_1coins_1_1CoinParams.html#ac8a6a6a4c27fe5170367299ec6536837":[3,0,1,0,2,0],
-"structsecp256k1_1_1coins_1_1CoinParams.html#ac8a6a6a4c27fe5170367299ec6536837":[2,0,1,0,2,0],
-"structsecp256k1_1_1coins_1_1CoinParams.html#acb7b668cab1258e51f8147a8286f3dbe":[3,0,1,0,2,5]
+"structsecp256k1_1_1coins_1_1CoinParams.html#a7f53ab8e1bb63eb3627fcac25603b879":[3,0,1,0,2,10]
 };
