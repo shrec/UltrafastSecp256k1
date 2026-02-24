@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771965804205,
+  "lastUpdate": 1771966915834,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -15245,6 +15245,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Batch Inverse (n=1000)",
             "value": 134,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "b38b1b0fbb19fc07699dae3e4acb25356f14fbbb",
+          "message": "feat(test): cross-library differential test vs bitcoin-core/libsecp256k1 (Phase I 1.1.4)\n\nIn-process test linking both UltrafastSecp256k1 AND bitcoin-core/libsecp256k1\nv0.6.0 (via FetchContent). 7 test suites, 7860 checks:\n\n  [1] Public key derivation (500 rounds)\n  [2] ECDSA Sign(UF) -> Verify(Ref) (500 rounds)\n  [3] ECDSA Sign(Ref) -> Verify(UF) (500 rounds)\n  [4] Schnorr BIP-340 cross-verification (500 rounds)\n  [5] RFC 6979 byte-exact signature match (200 rounds)\n  [6] Edge cases (k=1, k=2, k=n-1, powers of 2)\n  [7] Point addition cross-check (200 rounds)\n\nBuild: cmake -DSECP256K1_BUILD_CROSS_TESTS=ON\nVerify: ctest -R cross_libsecp256k1 --output-on-failure\n\nCompletes Phase I roadmap task 1.1.4.",
+          "timestamp": "2026-02-25T00:56:13+04:00",
+          "tree_id": "d9da82d07aeabec1dbc4a5365aebcd58f87a8741",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/b38b1b0fbb19fc07699dae3e4acb25356f14fbbb"
+        },
+        "date": 1771966914425,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 27,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 22,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 278,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 150,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 38000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 12000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 14000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 47000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 26000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 53000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 139,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 130,
             "unit": "ns"
           }
         ]
