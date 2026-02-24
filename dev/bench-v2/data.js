@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771972465161,
+  "lastUpdate": 1771974750753,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -16037,6 +16037,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Batch Inverse (n=1000)",
             "value": 131,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "90ebe12e0797789d263590848b740c59ef3bc3d6",
+          "message": "feat(bindings): industrial polish — smoke tests, error/memory/ABI/packaging docs, examples\n\n 7-point bindings polish checklist complete:\n\n 1. docs/BINDINGS.md — 42-function parity matrix across 11 languages\n 2. Smoke tests for all 11 bindings (golden vectors, 12-14 tests each):\n    - Python, Node.js, C#, Java, Swift, Go, Rust, Dart, PHP, Ruby, React Native\n    - Each tests: ctx/ABI, pubkey golden, ECDSA sign/verify, Schnorr,\n      recovery, SHA-256, address, WIF, ECDH, error path, determinism\n 3. docs/BINDINGS_ERROR_MODEL.md — error code→exception mapping per language,\n    recoverable vs fatal classification, cross-language invariants\n 4. docs/BINDINGS_MEMORY_MODEL.md — secret handling guarantees at FFI boundary,\n    per-language honest assessment (what CAN and CANNOT be zeroized)\n 5. docs/BINDINGS_ABI_COMPAT.md — ABI version gate contract, per-language\n    implementation, compatibility matrix, release checklist\n 6. docs/BINDINGS_PACKAGING.md — per-ecosystem distribution guide,\n    install commands, platform artifacts, CI validation matrix\n 7. docs/BINDINGS_EXAMPLES.md — 3 copy-paste examples per language\n    (sign/verify, address derive, error handling)\n\n Also includes: CT empirical report, differential testing methodology doc,\n batch verify cross-check tests (test_cross_libsecp256k1.cpp)",
+          "timestamp": "2026-02-25T03:08:40+04:00",
+          "tree_id": "af78954de9cf74bc8c51af82bffced6fdda5e7b1",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/90ebe12e0797789d263590848b740c59ef3bc3d6"
+        },
+        "date": 1771974749269,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 27,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 22,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 278,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 151,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 38000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 9000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 14000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 47000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 23000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 53000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 139,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 130,
             "unit": "ns"
           }
         ]
