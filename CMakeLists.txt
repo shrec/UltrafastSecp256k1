@@ -99,7 +99,7 @@ if(SECP256K1_BUILD_CPU)
     # Enable testing so cpu/CMakeLists.txt BUILD_TESTING guard works
     if(SECP256K1_BUILD_TESTS OR SECP256K1_BUILD_BENCH)
         set(BUILD_TESTING ON CACHE BOOL "Enable testing" FORCE)
-        enable_testing()
+        include(CTest)   # generates DartConfiguration.tcl for -T MemCheck
     endif()
     add_subdirectory(cpu)
 endif()

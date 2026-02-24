@@ -1,0 +1,26 @@
+# Valgrind Suppression File — UltrafastSecp256k1
+#
+# Purpose: suppress "still reachable" memory from program-lifetime allocations.
+#
+# The library maintains a ~2.5 MiB precomputed wNAF/comb table for the
+# secp256k1 generator G.  This table is allocated once (first use) and
+# intentionally never freed — it lives for the entire process lifetime.
+# Valgrind correctly classifies it as "still reachable" (a pointer to
+# the block exists at program exit), NOT as a real leak.
+#
+# What IS still checked (will fail CI if found):
+#   • definitely lost   (real leaks)
+#   • indirectly lost    (real leaks)
+#   • possibly lost      (potential leaks)
+#   • invalid read/write (memory errors)
+#   • use of uninitialised values
+#
+# CTest's  -T MemCheck  parser counts "still reachable" as a defect,
+# so we suppress it here rather than weakening the error checks.
+
+{
+   secp256k1_precomputed_tables_still_reachable
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   ...
+}

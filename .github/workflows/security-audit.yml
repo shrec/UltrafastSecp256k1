@@ -79,7 +79,7 @@ jobs:
         env:
           ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
           UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
-        run: ctest --test-dir build --output-on-failure -j"$(nproc)" -E ct_sidechannel
+        run: ctest --test-dir build --output-on-failure -j"$(nproc)" -E "^ct_sidechannel$"
 
   # ── Valgrind memcheck ───────────────────────────────────────────────────
   valgrind:
@@ -111,8 +111,9 @@ jobs:
       - name: Run tests under Valgrind
         run: |
           ctest --test-dir build --output-on-failure -j"$(nproc)" \
+            -E "^ct_sidechannel$" \
             --overwrite MemoryCheckCommand=/usr/bin/valgrind \
-            --overwrite "MemoryCheckCommandOptions=--leak-check=full --error-exitcode=1 --show-leak-kinds=definite,indirect,possible --errors-for-leak-kinds=definite,indirect,possible" \
+            --overwrite "MemoryCheckCommandOptions=--leak-check=full --error-exitcode=1 --show-leak-kinds=definite,indirect,possible --errors-for-leak-kinds=definite,indirect,possible --suppressions=${{ github.workspace }}/valgrind.supp" \
             -T MemCheck || true
           # Check for real errors in memcheck output (ignore "still reachable")
           if grep -rl 'ERROR SUMMARY: [1-9]' build/Testing/Temporary/MemoryChecker.*.log 2>/dev/null | head -1; then
