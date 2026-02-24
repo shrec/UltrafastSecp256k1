@@ -1229,8 +1229,8 @@ static inline void tally(int& total, int& passed,
     }
 }
 
-// Platform string (compile-time)
-static const char* get_platform_string() {
+// Platform string (compile-time) — used by selftest_report (upcoming)
+[[maybe_unused]] static const char* get_platform_string() {
 #if defined(_WIN64)
     return "Windows x64";
 #elif defined(_WIN32)
