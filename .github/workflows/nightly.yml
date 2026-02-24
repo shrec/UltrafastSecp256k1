@@ -91,7 +91,7 @@ jobs:
           TIMEOUT="${{ github.event.inputs.dudect_timeout || '1800' }}"
           echo "Running dudect for up to ${TIMEOUT}s..."
           EXIT=0
-          timeout "${TIMEOUT}" ./build/cpu/test_ct_sidechannel_standalone || EXIT=$?
+          timeout "${TIMEOUT}" ./build/cpu/test_ct_sidechannel_standalone 2>&1 | tee dudect_full.log || EXIT=$?
           if [ "${EXIT}" -eq 124 ]; then
             echo "::notice::dudect reached time limit (${TIMEOUT}s) — expected for nightly run"
           elif [ "${EXIT}" -ne 0 ]; then
@@ -100,3 +100,11 @@ jobs:
           else
             echo "::notice::dudect completed within time limit — all operations CT"
           fi
+
+      - name: Upload dudect results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: dudect-full-results
+          path: dudect_full.log
+          retention-days: 90

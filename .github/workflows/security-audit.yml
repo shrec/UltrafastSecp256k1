@@ -158,10 +158,18 @@ jobs:
 
       - name: Run dudect timing analysis (5 min timeout)
         run: |
-          timeout 300 ./build/cpu/test_ct_sidechannel_standalone || EXIT=$?
+          timeout 300 ./build/cpu/test_ct_sidechannel_standalone 2>&1 | tee dudect_smoke.log || EXIT=$?
           if [ "${EXIT:-0}" -eq 124 ]; then
             echo "::warning::dudect timed out (expected for CI smoke run)"
           elif [ "${EXIT:-0}" -ne 0 ]; then
             echo "::warning::dudect reported timing variance (common on shared CI runners, verify locally)"
           fi
           exit 0
+
+      - name: Upload dudect results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: dudect-smoke-results
+          path: dudect_smoke.log
+          retention-days: 90
