@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771970859732,
+  "lastUpdate": 1771972007608,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -15834,6 +15834,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
             "value": 139,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 130,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "14ec02da85d4362ee34b25d1eae2e8314e53ad68",
+          "message": "Phase II 2.5 + Phase III completion: reproducible builds, signed releases, SBOM, performance docs, sample apps, disclosure policy\n\nPhase II 2.5 (Reproducible Builds & Signed Releases):\n- Dockerfile.reproducible: two-stage build comparison\n- scripts/verify_reproducible_build.sh: local verification script\n- scripts/generate_sbom.sh: CycloneDX 1.6 SBOM generator\n- docs/REPRODUCIBLE_BUILDS.md: full documentation\n- release.yml: cosign keyless signing + SBOM step\n\nPhase III Documentation & Operational Hardening:\n- docs/PERFORMANCE_GUIDE.md (3.5.3): compiler, ASM, batch, GPU, CT tuning\n- docs/BENCHMARK_METHODOLOGY.md (3.5.9): framework, statistical method, CI\n- docs/SAFE_DEFAULTS.md (3.6.3): build/runtime/CT/GPU/protocol defaults\n- docs/PERFORMANCE_REGRESSION.md (3.6.4): automated tracking, alert thresholds\n- examples/signing_demo/: ECDSA + Schnorr sign/verify demo\n- examples/threshold_demo/: FROST 2-of-3 DKG + signing ceremony demo\n- examples/CMakeLists.txt: updated for new targets\n- SECURITY.md: disclosure policy, CVSS severity, bug bounty reference (3.3.3)\n\nRoadmap: Phase I 100%, Phase II ~93%, Phase III ~87% (overall ~93%)",
+          "timestamp": "2026-02-25T02:19:36+04:00",
+          "tree_id": "1d529c277af5162fee131a1e74d5ff425e62ff11",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/14ec02da85d4362ee34b25d1eae2e8314e53ad68"
+        },
+        "date": 1771972005316,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 27,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 22,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 278,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 150,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 38000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 9000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 14000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 47000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 23000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 53000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 140,
             "unit": "ns"
           },
           {
