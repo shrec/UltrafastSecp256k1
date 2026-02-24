@@ -39,6 +39,7 @@ var dir_3015dd157bf50376ab3b1f9a873c3f74 =
     [ "selftest.hpp", "selftest_8hpp.html", "selftest_8hpp" ],
     [ "sha256.hpp", "sha256_8hpp.html", "sha256_8hpp" ],
     [ "sha512.hpp", "sha512_8hpp.html", "sha512_8hpp" ],
+    [ "tagged_hash.hpp", "tagged__hash_8hpp.html", "tagged__hash_8hpp" ],
     [ "taproot.hpp", "taproot_8hpp.html", "taproot_8hpp" ],
     [ "test_framework.hpp", "test__framework_8hpp.html", "test__framework_8hpp" ],
     [ "types.hpp", "cpu_2include_2secp256k1_2types_8hpp.html", null ]

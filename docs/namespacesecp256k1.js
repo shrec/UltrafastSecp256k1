@@ -3,7 +3,12 @@ var namespacesecp256k1 =
     [ "coins", "namespacesecp256k1_1_1coins.html", "namespacesecp256k1_1_1coins" ],
     [ "ct", "namespacesecp256k1_1_1ct.html", "namespacesecp256k1_1_1ct" ],
     [ "detail", "namespacesecp256k1_1_1detail.html", [
-      [ "sha256_compress_dispatch", "namespacesecp256k1_1_1detail.html#aeb7ac005ebf31bbcf37bc8c253bbad40", null ]
+      [ "cached_tagged_hash", "namespacesecp256k1_1_1detail.html#a54d7fd6888249cc08d4440b12f3db547", null ],
+      [ "make_tag_midstate", "namespacesecp256k1_1_1detail.html#aec98baa39922e3a212c7660cf36700e2", null ],
+      [ "sha256_compress_dispatch", "namespacesecp256k1_1_1detail.html#aeb7ac005ebf31bbcf37bc8c253bbad40", null ],
+      [ "g_aux_midstate", "namespacesecp256k1_1_1detail.html#ab7071a90c9e0eab7262b72b8bc477ea4", null ],
+      [ "g_challenge_midstate", "namespacesecp256k1_1_1detail.html#aea57e467ccf2cbfd04509985b1678bb9", null ],
+      [ "g_nonce_midstate", "namespacesecp256k1_1_1detail.html#a01efba3801b589b999da5720d445106e", null ]
     ] ],
     [ "fast", "namespacesecp256k1_1_1fast.html", "namespacesecp256k1_1_1fast" ],
     [ "hash", "namespacesecp256k1_1_1hash.html", "namespacesecp256k1_1_1hash" ],
