@@ -10,7 +10,7 @@ var searchData=
   ['ecdsa_5fbatch_5fidentify_5finvalid_7',['ecdsa_batch_identify_invalid',['../namespacesecp256k1.html#ab71d81a28b742b2ab97647f10dc2b711',1,'secp256k1']]],
   ['ecdsa_5fbatch_5fverify_8',['ecdsa_batch_verify',['../namespacesecp256k1.html#a83665b7ab6a1fcd0d85b49c2e92908d9',1,'secp256k1::ecdsa_batch_verify(const ECDSABatchEntry *entries, std::size_t n)'],['../namespacesecp256k1.html#a65f5ee6d40750514964ba9aac6ff518c',1,'secp256k1::ecdsa_batch_verify(const std::vector&lt; ECDSABatchEntry &gt; &amp;entries)']]],
   ['ecdsa_5frecover_9',['ecdsa_recover',['../namespacesecp256k1.html#acbcfaa342e3f423b75cf5a3b3a9981a8',1,'secp256k1']]],
-  ['ecdsa_5fsign_10',['ecdsa_sign',['../namespacesecp256k1.html#ae91d47690356ed60430b67d44ca4896f',1,'secp256k1']]],
+  ['ecdsa_5fsign_10',['ecdsa_sign',['../namespacesecp256k1_1_1ct.html#ab7ed5b91beefbed1f8af079f197d0776',1,'secp256k1::ct::ecdsa_sign()'],['../namespacesecp256k1.html#ae91d47690356ed60430b67d44ca4896f',1,'secp256k1::ecdsa_sign(const std::array&lt; std::uint8_t, 32 &gt; &amp;msg_hash, const fast::Scalar &amp;private_key)']]],
   ['ecdsa_5fsign_5frecoverable_11',['ecdsa_sign_recoverable',['../namespacesecp256k1.html#a225e86fbf960bfcb2ff28b56a803b7ab',1,'secp256k1']]],
   ['ecdsa_5fverify_12',['ecdsa_verify',['../namespacesecp256k1.html#ada3591351002959d2488acfea0de84c8',1,'secp256k1']]],
   ['effective_5fgenerator_13',['effective_generator',['../namespacesecp256k1.html#a95488158a1e555261e297868c47db41d',1,'secp256k1']]],

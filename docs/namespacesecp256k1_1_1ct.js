@@ -30,6 +30,7 @@ var namespacesecp256k1_1_1ct =
     [ "ct_memzero", "namespacesecp256k1_1_1ct.html#a727006dd081888d5926c986caa15ff5a", null ],
     [ "ct_select", "namespacesecp256k1_1_1ct.html#a3b1d35bc1609e2758499386c0d1ed59e", null ],
     [ "ct_select_byte", "namespacesecp256k1_1_1ct.html#aadafebf2edcfb6e9c633b7947a46343b", null ],
+    [ "ecdsa_sign", "namespacesecp256k1_1_1ct.html#ab7ed5b91beefbed1f8af079f197d0776", null ],
     [ "eq_mask", "namespacesecp256k1_1_1ct.html#acbdbc65cfa2b7d46a7132edafd449be8", null ],
     [ "field_add", "namespacesecp256k1_1_1ct.html#ae32e76426b6e8265be13d36ab142c2d1", null ],
     [ "field_cmov", "namespacesecp256k1_1_1ct.html#a74395d3b5459de6b516ab362db9694d4", null ],
@@ -77,6 +78,9 @@ var namespacesecp256k1_1_1ct =
     [ "scalar_select", "namespacesecp256k1_1_1ct.html#a7be9e740d4cbfbc1fda725c8e6b75b50", null ],
     [ "scalar_sub", "namespacesecp256k1_1_1ct.html#a70c358a2e9653ff6d677c8087f278f24", null ],
     [ "scalar_window", "namespacesecp256k1_1_1ct.html#a60c4c0b6778a957305f9f06122a4e454", null ],
+    [ "schnorr_keypair_create", "namespacesecp256k1_1_1ct.html#afaf842945d7a9d75206d9d1b858f13fa", null ],
+    [ "schnorr_pubkey", "namespacesecp256k1_1_1ct.html#a9966346fbf68a4b0ec19d991caf1b306", null ],
+    [ "schnorr_sign", "namespacesecp256k1_1_1ct.html#ad253f17b576c8232a0b92f990543b58e", null ],
     [ "value_barrier", "namespacesecp256k1_1_1ct.html#afd63109c8236d3322af884fe4ada2645", null ],
     [ "value_barrier", "namespacesecp256k1_1_1ct.html#a85a7d82aa4c208dbbd1f5de6b6f7d8ac", null ]
 ];
