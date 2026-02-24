@@ -52,5 +52,5 @@ All secret-key operations (signing, ECDH, key derivation) automatically use the 
 ## Links
 
 - [GitHub](https://github.com/shrec/UltrafastSecp256k1)
-- [CHANGELOG](https://github.com/shrec/UltrafastSecp256k1/blob/main/libs/UltrafastSecp256k1/CHANGELOG.md)
-- [Stability Guarantees](https://github.com/shrec/UltrafastSecp256k1/blob/main/libs/UltrafastSecp256k1/include/ufsecp/SUPPORTED_GUARANTEES.md)
+- [CHANGELOG](https://github.com/shrec/UltrafastSecp256k1/blob/main/CHANGELOG.md)
+- [Stability Guarantees](https://github.com/shrec/UltrafastSecp256k1/blob/main/include/ufsecp/SUPPORTED_GUARANTEES.md)

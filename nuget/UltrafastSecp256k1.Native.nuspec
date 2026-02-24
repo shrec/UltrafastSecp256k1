@@ -16,7 +16,7 @@ BIP-32 HD derivation, Bitcoin addresses (P2PKH/P2WPKH/P2TR), WIF, DER serializat
 Dual-layer constant-time architecture: secret operations always use CT layer.
     </description>
     <summary>Native ufsecp C ABI runtime for secp256k1 elliptic curve cryptography</summary>
-    <releaseNotes>https://github.com/shrec/UltrafastSecp256k1/blob/main/libs/UltrafastSecp256k1/CHANGELOG.md</releaseNotes>
+    <releaseNotes>https://github.com/shrec/UltrafastSecp256k1/blob/main/CHANGELOG.md</releaseNotes>
     <copyright>Copyright (c) 2025-2026 shrec</copyright>
     <tags>secp256k1 ecdsa schnorr bitcoin cryptography elliptic-curve native ufsecp ecdh bip32 taproot</tags>
     <repository type="git" url="https://github.com/shrec/UltrafastSecp256k1.git" />

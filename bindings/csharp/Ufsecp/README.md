@@ -137,5 +137,5 @@ AGPL-3.0
 ## Links
 
 - [GitHub](https://github.com/shrec/UltrafastSecp256k1)
-- [Benchmarks](https://github.com/shrec/UltrafastSecp256k1/blob/main/libs/UltrafastSecp256k1/docs/BENCHMARKS.md)
-- [Changelog](https://github.com/shrec/UltrafastSecp256k1/blob/main/libs/UltrafastSecp256k1/CHANGELOG.md)
+- [Benchmarks](https://github.com/shrec/UltrafastSecp256k1/blob/main/docs/BENCHMARKS.md)
+- [Changelog](https://github.com/shrec/UltrafastSecp256k1/blob/main/CHANGELOG.md)
