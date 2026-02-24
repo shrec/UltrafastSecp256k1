@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771967740065,
+  "lastUpdate": 1771968196289,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -15443,6 +15443,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Batch Inverse (n=1000)",
             "value": 144,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "50a37203a41c672a93dd6135d63bca02a4049519",
+          "message": "feat(test): MuSig2 + FROST protocol tests (Phase II 2.1.1-2.2.2)\n\n11 test suites, 975 checks, 0 failures:\n  MuSig2:\n    [1] Key aggregation determinism (50 rounds, 2-5 signers)\n    [2] Ordering-dependent aggregation (20 rounds)\n    [3] Duplicate-key aggregation\n    [4] Full round-trip: 2, 3, 5 signers (20 rounds each)\n    [5] Wrong signer partial verify fails (10 rounds)\n    [6] Bit-flip invalidates signature (20 rounds)\n  FROST:\n    [7] DKG: 2-of-3, 3-of-5 (share verification, group key agreement)\n    [8] Signing round-trip: 2-of-3, 3-of-5 (partial verify + schnorr_verify)\n    [9] Different 2-of-3 subsets all produce valid sigs\n    [10] Bit-flip invalidates FROST signature\n    [11] Wrong partial sig fails verification\n\nNote: MuSig2 uses x-only (32-byte) pubkeys for hash inputs rather than\nBIP-327's plain (33-byte) keys. Protocol structure identical; end-to-end\ncorrectness verified via schnorr_verify().\n\nCMake: SECP256K1_BUILD_PROTOCOL_TESTS option.",
+          "timestamp": "2026-02-25T01:19:36+04:00",
+          "tree_id": "306474ea772576b2cc5399a2298c6c63e9a99111",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/50a37203a41c672a93dd6135d63bca02a4049519"
+        },
+        "date": 1771968194694,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 27,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 22,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 279,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 150,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 38000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 9000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 14000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 47000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 23000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 53000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 140,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 130,
             "unit": "ns"
           }
         ]
