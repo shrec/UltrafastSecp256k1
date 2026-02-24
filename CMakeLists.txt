@@ -113,7 +113,7 @@ if(SECP256K1_BUILD_CUDA)
         enable_language(CUDA)
         add_subdirectory(cuda)
     else()
-        message(WARNING "SECP256K1_BUILD_CUDA=ON მაგრამ CUDA toolchain ვერ მოიძებნა/არ იკონფიგურება (მაგ: nvcc ვერ პოულობს cl.exe). CPU-only ბილდზე გადავდივართ.")
+        message(WARNING "SECP256K1_BUILD_CUDA=ON but CUDA toolchain was not found or failed to configure (e.g. nvcc cannot find cl.exe). Falling back to CPU-only build.")
     endif()
 endif()
 

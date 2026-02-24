@@ -180,7 +180,26 @@ static void test_random_scalar_mul() {
 
         PT ct_r = ct::scalar_mul(P, k);
         PT fast_r = P.scalar_mul(k);
-        CHECK(pt_eq(ct_r, fast_r), "random scalar_mul equivalence #" + std::to_string(i));
+        bool eq = pt_eq(ct_r, fast_r);
+        if (!eq) {
+            // Gold-standard: (base_k * k) * G should equal k * P
+            SC combined = base_k * k;
+            PT gold = G.scalar_mul(combined);
+            auto ct_xb = ct_r.x().to_bytes();
+            auto fast_xb = fast_r.x().to_bytes();
+            auto gold_xb = gold.x().to_bytes();
+            std::cout << "  [DIAG #" << i << "] ct_x   =";
+            for (auto b : ct_xb) std::cout << std::hex << std::setfill('0') << std::setw(2) << (int)b;
+            std::cout << "\n  [DIAG #" << i << "] fast_x =";
+            for (auto b : fast_xb) std::cout << std::hex << std::setfill('0') << std::setw(2) << (int)b;
+            std::cout << "\n  [DIAG #" << i << "] gold_x =";
+            for (auto b : gold_xb) std::cout << std::hex << std::setfill('0') << std::setw(2) << (int)b;
+            std::cout << std::dec << "\n";
+            std::cout << "  [DIAG #" << i << "] ct==gold? " << pt_eq(ct_r, gold)
+                      << " fast==gold? " << pt_eq(fast_r, gold) << "\n";
+            std::cout.flush();
+        }
+        CHECK(eq, "random scalar_mul equivalence #" + std::to_string(i));
     }
 }
 

@@ -1,19 +1,19 @@
 # ESP32 Setup Guide for UltrafastSecp256k1
 
-გაიდი ESP32-ზე ბიბლიოთეკის ტესტირებისთვის CLion IDE-ში.
+Guide for testing the library on ESP32 using CLion IDE.
 
 ---
 
-## 1. ESP-IDF დაყენება (Windows)
+## 1. ESP-IDF Installation (Windows)
 
-### ვარიანტი A: ESP-IDF Installer (რეკომენდებული)
+### Option A: ESP-IDF Installer (Recommended)
 
-1. გადმოწერე: https://dl.espressif.com/dl/esp-idf/
-2. გაუშვი `esp-idf-tools-setup-x.x.exe`
-3. აირჩიე ESP-IDF ვერსია (v5.2+ რეკომენდებული)
-4. დაელოდე ინსტალაციას (~5-10 წუთი)
+1. Download: https://dl.espressif.com/dl/esp-idf/
+2. Run `esp-idf-tools-setup-x.x.exe`
+3. Choose ESP-IDF version (v5.2+ recommended)
+4. Wait for installation (~5-10 minutes)
 
-### ვარიანტი B: Manual Installation
+### Option B: Manual Installation
 
 ```powershell
 # 1. Clone ESP-IDF
@@ -30,16 +30,16 @@ git checkout v5.2
 
 ---
 
-## 2. CLion Plugin დაყენება
+## 2. CLion Plugin Installation
 
 1. **File → Settings → Plugins**
-2. ძებნა: "ESP-IDF"
-3. დააინსტალირე: **"ESP-IDF" by JetBrains**
+2. Search: "ESP-IDF"
+3. Install: **"ESP-IDF" by JetBrains**
 4. Restart CLion
 
 ---
 
-## 3. CLion ESP-IDF კონფიგურაცია
+## 3. CLion ESP-IDF Configuration
 
 ### Settings → Build → ESP-IDF
 
@@ -51,9 +51,9 @@ git checkout v5.2
 
 ---
 
-## 4. პროექტის შექმნა ESP32-სთვის
+## 4. Creating a Project for ESP32
 
-შევქმნათ ESP32 ტესტ პროექტი:
+Let's create an ESP32 test project:
 
 ### CMakeLists.txt
 
@@ -158,19 +158,19 @@ extern "C" void app_main() {
 
 ## 5. Build & Flash
 
-### CLion-დან:
+### From CLion:
 
 1. **Run → Edit Configurations**
-2. დაამატე: **ESP-IDF → Build**
-3. დაამატე: **ESP-IDF → Flash**
-4. აირჩიე COM port (მაგ. `COM3`)
+2. Add: **ESP-IDF → Build**
+3. Add: **ESP-IDF → Flash**
+4. Select COM port (e.g. `COM3`)
 
 ### Command Line:
 
 ```bash
 # ESP-IDF environment
 . $HOME/esp/esp-idf/export.sh  # Linux/Mac
-# ან Windows: C:\Espressif\frameworks\esp-idf-v5.2\export.bat
+# or Windows: C:\Espressif\frameworks\esp-idf-v5.2\export.bat
 
 # Build
 idf.py build
@@ -184,21 +184,21 @@ idf.py -p COM3 monitor
 
 ---
 
-## 6. ESP32 შეზღუდვები
+## 6. ESP32 Limitations
 
-### რა მუშაობს:
+### What works:
 - ✅ Portable C++ field arithmetic
 - ✅ Scalar operations
-- ✅ Point operations (느린)
+- ✅ Point operations (slow)
 - ✅ Basic tests
 
-### რა არ მუშაობს:
+### What does not work:
 - ❌ x86 assembly (BMI2/ADX)
-- ❌ RISC-V assembly (ESP32 არის Xtensa, არა RISC-V!)
+- ❌ RISC-V assembly (ESP32 is Xtensa, not RISC-V!)
 - ❌ AVX2/SIMD
-- ❌ 64-bit native (ESP32 არის 32-bit)
+- ❌ 64-bit native (ESP32 is 32-bit)
 
-### ESP32 ვარიანტები:
+### ESP32 Variants:
 
 | Chip | Architecture | Bits | Notes |
 |------|--------------|------|-------|
@@ -209,25 +209,25 @@ idf.py -p COM3 monitor
 | **ESP32-C6** | **RISC-V** | **32-bit** | ✅ RISC-V + WiFi 6 |
 | **ESP32-H2** | **RISC-V** | **32-bit** | ✅ RISC-V + Zigbee |
 
-### რეკომენდაცია:
-**ESP32-C3/C6** გამოიყენე - ეს RISC-V არის და შეიძლება ჩვენი RISC-V ოპტიმიზაციების ნაწილი იმუშაოს (32-bit ვერსია).
+### Recommendation:
+Use **ESP32-C3/C6** — these are RISC-V and some of our RISC-V optimizations may work (32-bit version).
 
 ---
 
-## 7. ESP32-C3 (RISC-V) სპეციფიკური Setup
+## 7. ESP32-C3 (RISC-V) Specific Setup
 
-თუ ESP32-C3 გაქვს:
+If you have an ESP32-C3:
 
 ```cmake
 # CMakeLists.txt
 set(IDF_TARGET "esp32c3")
 ```
 
-ან CLion-ში: **Settings → ESP-IDF → Target: esp32c3**
+Or in CLion: **Settings → ESP-IDF → Target: esp32c3**
 
 ---
 
-## 8. მოსალოდნელი Performance
+## 8. Expected Performance
 
 | Chip | Field Mul | Notes |
 |------|-----------|-------|
@@ -235,16 +235,16 @@ set(IDF_TARGET "esp32c3")
 | ESP32-C3 (RISC-V) | ~2-5 μs | 32-bit RISC-V |
 | ESP32-S3 | ~3-8 μs | Dual-core Xtensa |
 
-შედარებისთვის:
+For comparison:
 - x86-64: 33 ns
 - RISC-V 64: 198 ns
 - ESP32: ~5000 ns (150× slower)
 
-ESP32 ძირითადად IoT/Embedded-სთვისაა, არა high-performance crypto-სთვის.
+ESP32 is primarily for IoT/Embedded, not high-performance crypto.
 
 ---
 
-## რესურსები
+## Resources
 
 - [ESP-IDF Documentation](https://docs.espressif.com/projects/esp-idf/)
 - [CLion ESP-IDF Plugin](https://plugins.jetbrains.com/plugin/18499-esp-idf)

@@ -1033,73 +1033,103 @@ static constexpr std::uint64_t NC0 = 0x402DA1732FC9BEBFULL; // ~ORDER[0]+1
 static constexpr std::uint64_t NC1 = 0x4551231950B75FC4ULL; // ~ORDER[1]
 // NC2 = 1, NC3 = 0
 
-// --- Specialized 128x128 multiply mod n (for GLV lattice) -------------------
-// Both operands at most 128-bit (2 limbs). Product <= 256 bits -> conditional
-// subtract of n only (no multi-phase reduction).
-static Scalar ct_mul_lo128_mod(const std::uint64_t a[2],
-                                const std::uint64_t b[2]) noexcept {
-    unsigned __int128 c = (unsigned __int128)a[0] * b[0];
-    std::uint64_t r0 = (std::uint64_t)c; c >>= 64;
-
-    c += (unsigned __int128)a[0] * b[1] + (unsigned __int128)a[1] * b[0];
-    std::uint64_t r1 = (std::uint64_t)c; c >>= 64;
-
-    c += (unsigned __int128)a[1] * b[1];
-    std::uint64_t r2 = (std::uint64_t)c;
-    std::uint64_t r3 = (std::uint64_t)(c >> 64);
-
-    std::uint64_t r_arr[4] = {r0, r1, r2, r3};
-    std::uint64_t sub[4];
-    std::uint64_t borrow = local_sub256(sub, r_arr, ORDER);
-    cmov256(r_arr, sub, is_zero_mask(borrow));
-
-    return Scalar::from_limbs({r_arr[0], r_arr[1], r_arr[2], r_arr[3]});
-}
-
-// --- Specialized 256x128 multiply mod n (for lambda x k2_abs) ---------------
-// a is full 256-bit, b at most 128-bit. Product <= 384 bits -> single-phase
-// secp256k1-specific reduction (skip phase 1 since upper 128 bits of product
-// are zero).
-static Scalar ct_mul_256x_lo128_mod(const Scalar& a,
-                                     const std::uint64_t b[2]) noexcept {
+// --- Full 256x256 -> mod n multiply (CT, 5x52 path) -------------------------
+// 4x4 schoolbook -> 8 limbs -> 3-phase secp256k1-specific reduce_512.
+// Adapted from bitcoin-core/secp256k1 scalar_4x64_impl.h (MIT license).
+// Uses __int128 for the carry chain (available on gcc/clang).
+static Scalar ct_scalar_mul_mod_n(const Scalar& a, const Scalar& b) noexcept {
     const auto& al = a.limbs();
+    const auto& bl = b.limbs();
 
-    // 4x2 schoolbook -> 6 limbs (column-accumulation, unrolled)
-    unsigned __int128 c = (unsigned __int128)al[0] * b[0];
-    std::uint64_t d0 = (std::uint64_t)c; c >>= 64;
+    // --- 4x4 schoolbook multiply -> 8-limb product l[0..7] ---
+    std::uint64_t l[8] = {};
+    for (int i = 0; i < 4; ++i) {
+        unsigned __int128 carry = 0;
+        for (int j = 0; j < 4; ++j) {
+            unsigned __int128 t = (unsigned __int128)al[i] * bl[j] + l[i + j] + carry;
+            l[i + j] = (std::uint64_t)t;
+            carry = t >> 64;
+        }
+        l[i + 4] = (std::uint64_t)carry;
+    }
 
-    c += (unsigned __int128)al[0] * b[1] + (unsigned __int128)al[1] * b[0];
-    std::uint64_t d1 = (std::uint64_t)c; c >>= 64;
+    // --- Phase 1: reduce 512 -> 385 bits ---
+    // m[0..6] = l[0..3] + l[4..7] * NC  (NC = {NC0, NC1, 1, 0})
+    std::uint64_t n0 = l[4], n1 = l[5], n2 = l[6], n3 = l[7];
+    unsigned __int128 c;
 
-    c += (unsigned __int128)al[1] * b[1] + (unsigned __int128)al[2] * b[0];
-    std::uint64_t d2 = (std::uint64_t)c; c >>= 64;
+    c = (unsigned __int128)n0 * NC0 + l[0];
+    std::uint64_t m0 = (std::uint64_t)c; c >>= 64;
 
-    c += (unsigned __int128)al[2] * b[1] + (unsigned __int128)al[3] * b[0];
-    std::uint64_t d3 = (std::uint64_t)c; c >>= 64;
+    c += (unsigned __int128)n1 * NC0 + (unsigned __int128)n0 * NC1 + l[1];
+    std::uint64_t m1 = (std::uint64_t)c; c >>= 64;
 
-    c += (unsigned __int128)al[3] * b[1];
-    std::uint64_t d4 = (std::uint64_t)c;
-    std::uint64_t d5 = (std::uint64_t)(c >> 64);
+    c += (unsigned __int128)n2 * NC0 + (unsigned __int128)n1 * NC1 + n0 + l[2];
+    std::uint64_t m2 = (std::uint64_t)c; c >>= 64;
 
-    // Single-phase reduction: r = d[0..3] + d[4..5] * NC
-    c = (unsigned __int128)d4 * NC0 + d0;
+    c += (unsigned __int128)n3 * NC0 + (unsigned __int128)n2 * NC1 + n1 + l[3];
+    std::uint64_t m3 = (std::uint64_t)c; c >>= 64;
+
+    c += (unsigned __int128)n3 * NC1 + n2;
+    std::uint64_t m4 = (std::uint64_t)c; c >>= 64;
+
+    c += n3;
+    std::uint64_t m5 = (std::uint64_t)c;
+    std::uint32_t m6 = (std::uint32_t)(c >> 64);  // <= 1
+
+    // --- Phase 2: reduce 385 -> 258 bits ---
+    // p[0..4] = m[0..3] + m[4..6] * NC
+    c = (unsigned __int128)m4 * NC0 + m0;
+    std::uint64_t p0 = (std::uint64_t)c; c >>= 64;
+
+    c += (unsigned __int128)m5 * NC0 + (unsigned __int128)m4 * NC1 + m1;
+    std::uint64_t p1 = (std::uint64_t)c; c >>= 64;
+
+    c += (unsigned __int128)m6 * NC0 + (unsigned __int128)m5 * NC1 + m4 + m2;
+    std::uint64_t p2 = (std::uint64_t)c; c >>= 64;
+
+    c += (unsigned __int128)m6 * NC1 + m5 + m3;
+    std::uint64_t p3 = (std::uint64_t)c; c >>= 64;
+
+    std::uint32_t p4 = (std::uint32_t)c + m6;  // <= 2
+
+    // --- Phase 3: reduce 258 -> 256 bits ---
+    // r[0..3] = p[0..3] + p4 * NC
+    c = (unsigned __int128)p4 * NC0 + p0;
     std::uint64_t r0 = (std::uint64_t)c; c >>= 64;
 
-    c += (unsigned __int128)d5 * NC0 + (unsigned __int128)d4 * NC1 + d1;
+    c += (unsigned __int128)p4 * NC1 + p1;
     std::uint64_t r1 = (std::uint64_t)c; c >>= 64;
 
-    c += (unsigned __int128)d5 * NC1 + d4 + d2;  // d4 * NC2=1
+    c += (std::uint64_t)p4 + p2;
     std::uint64_t r2 = (std::uint64_t)c; c >>= 64;
 
-    c += d5 + d3;  // d5 * NC2=1
+    c += p3;
     std::uint64_t r3 = (std::uint64_t)c;
-    unsigned overflow = (unsigned)(c >> 64);
+    unsigned final_c = (unsigned)(c >> 64);
 
+    // --- Final reduction: subtract n if r >= n ---
     std::uint64_t r_arr[4] = {r0, r1, r2, r3};
-    std::uint64_t sub[4];
-    std::uint64_t borrow = local_sub256(sub, r_arr, ORDER);
-    cmov256(r_arr, sub, is_nonzero_mask(static_cast<std::uint64_t>(overflow))
-                      | is_zero_mask(borrow));
+
+    // check_overflow: r >= n?
+    int yes = 0, no = 0;
+    no |= (r3 < ORDER[3]);
+    no |= (r2 < ORDER[2]);
+    yes |= (r2 > ORDER[2]) & ~no;
+    no |= (r1 < ORDER[1]);
+    yes |= (r1 > ORDER[1]) & ~no;
+    yes |= (r0 >= ORDER[0]) & ~no;
+    unsigned overflow = final_c + static_cast<unsigned>(yes);
+
+    // reduce: r -= overflow * n  (overflow is 0 or 1)
+    c = (unsigned __int128)r_arr[0] + (unsigned __int128)overflow * NC0;
+    r_arr[0] = (std::uint64_t)c; c >>= 64;
+    c += (unsigned __int128)r_arr[1] + (unsigned __int128)overflow * NC1;
+    r_arr[1] = (std::uint64_t)c; c >>= 64;
+    c += r_arr[2] + (std::uint64_t)overflow;  // NC2 = 1
+    r_arr[2] = (std::uint64_t)c; c >>= 64;
+    c += r_arr[3];
+    r_arr[3] = (std::uint64_t)c;
 
     return Scalar::from_limbs({r_arr[0], r_arr[1], r_arr[2], r_arr[3]});
 }
@@ -1157,38 +1187,41 @@ CTAffinePoint affine_neg(const CTAffinePoint& p) noexcept {
     return r;
 }
 
-// --- CT GLV Decomposition (optimized: 128x128 + 256x128 paths) --------------
+// --- CT GLV Decomposition (full scalar_mul mod n, matches libsecp256k1) ------
 
 CTGLVDecomposition ct_glv_decompose(const Scalar& k) noexcept {
     static const Scalar lambda = Scalar::from_bytes(kLambdaBytes);
 
-    // GLV lattice basis magnitudes (128-bit, positive).
-    // minus_b1 = -b1 mod n ~= b1 (small, < 2^128)
-    // b2_pos   = b2 (small, < 2^128), used as -(c2*b2) instead of c2*(-b2 mod n)
-    static constexpr std::uint64_t minus_b1_lo[2] = {
-        0x6F547FA90ABFE4C3ULL, 0xE4437ED6010E8828ULL
-    };
-    static constexpr std::uint64_t b2_pos_lo[2] = {
-        0xE86C90E49284EB15ULL, 0x3086D221A7D46BCDULL
-    };
+    // GLV lattice basis constants as FULL Scalars (256-bit mod n).
+    // minus_b1 = -b1 mod n  (128-bit, upper limbs zero)
+    // minus_b2 = -b2 mod n  (full 256-bit!)
+    // These match libsecp256k1's constants exactly.
+    static const Scalar minus_b1 = Scalar::from_limbs({
+        0x6F547FA90ABFE4C3ULL, 0xE4437ED6010E8828ULL, 0ULL, 0ULL
+    });
+    static const Scalar minus_b2 = Scalar::from_limbs({
+        0xD765CDA83DB1562CULL, 0x8A280AC50774346DULL,
+        0xFFFFFFFFFFFFFFFEULL, 0xFFFFFFFFFFFFFFFFULL
+    });
 
     auto k_limbs = k.limbs();
     auto c1_limbs = ct_mul_shift_384({k_limbs[0], k_limbs[1], k_limbs[2], k_limbs[3]}, kG1);
     auto c2_limbs = ct_mul_shift_384({k_limbs[0], k_limbs[1], k_limbs[2], k_limbs[3]}, kG2);
 
-    // c1, c2 have at most 128 bits (upper limbs zero from mul_shift_384).
-    // k2 = c1*(-b1) + c2*(-b2) mod n = c1*(-b1) - c2*b2 mod n
-    Scalar p1     = ct_mul_lo128_mod(c1_limbs.data(), minus_b1_lo);
-    Scalar p2     = ct_mul_lo128_mod(c2_limbs.data(), b2_pos_lo);
-    Scalar k2_mod = scalar_sub(p1, p2);
+    // Full 256x256 scalar multiply mod n for both terms.
+    // k2 = c1*(-b1) + c2*(-b2) mod n  (libsecp256k1 formula)
+    Scalar c1_sc = Scalar::from_limbs({c1_limbs[0], c1_limbs[1], c1_limbs[2], c1_limbs[3]});
+    Scalar c2_sc = Scalar::from_limbs({c2_limbs[0], c2_limbs[1], c2_limbs[2], c2_limbs[3]});
+    Scalar p1     = ct_scalar_mul_mod_n(c1_sc, minus_b1);
+    Scalar p2     = ct_scalar_mul_mod_n(c2_sc, minus_b2);
+    Scalar k2_mod = scalar_add(p1, p2);
 
     std::uint64_t k2_high = ct_scalar_is_high(k2_mod);
     Scalar k2_abs = scalar_cneg(k2_mod, k2_high);
 
-    // lambda x |k2| (256x128), then conditionally negate.
-    // |k2| < 2^128 (GLV lattice guarantee), so upper 2 limbs are zero.
+    // k1 = k - k2*lambda mod n (full scalar multiply)
     Scalar lambda_k2 = scalar_cneg(
-        ct_mul_256x_lo128_mod(lambda, k2_abs.limbs().data()), k2_high);
+        ct_scalar_mul_mod_n(lambda, k2_abs), k2_high);
     Scalar k1_mod = scalar_sub(k, lambda_k2);
 
     std::uint64_t k1_high = ct_scalar_is_high(k1_mod);
@@ -1230,23 +1263,45 @@ Point scalar_mul(const Point& p, const Scalar& k) noexcept {
         0xc2bdd6bf7c118d6bULL, 0xa4e88a7dcb13034eULL
     });
 
-    // Offset to make s1, s2 non-negative: 2^128
-    static const Scalar S_OFFSET = Scalar::from_limbs({0, 0, 1, 0});
-
     // -- 1. Compute v1, v2 via Hamburg transform + GLV split --------------
     Scalar s = scalar_add(k, K_CONST);
     s = scalar_half(s);
 
-    // GLV split: s = s1 + s2*lambda  (|s1|, |s2| < 2^128)
+    // GLV split: s = s1 + s2*lambda  (|s1|, |s2| ~ 2^128)
     auto [k1_abs, k2_abs, k1_neg, k2_neg] = ct_glv_decompose(s);
 
-    // We need the SIGNED values for the Hamburg transform
-    Scalar s1 = scalar_cneg(k1_abs, k1_neg);
-    Scalar s2 = scalar_cneg(k2_abs, k2_neg);
+    // Compute v = k_abs + 2^128 (if positive) or 2^128 - k_abs (if negative)
+    // using NON-MODULAR integer arithmetic on raw limbs.
+    // This keeps v in [0, ~2^129], fitting the 130-bit Hamburg window.
+    // (Modular scalar_cneg + scalar_add would wrap around n when |ki|
+    //  marginally exceeds 2^128, producing 256-bit garbage.)
+    auto make_v = [](const Scalar& k_abs, std::uint64_t k_neg) noexcept -> Scalar {
+        auto L = k_abs.limbs(); // copy: 4 x uint64_t, little-endian
+        if (k_neg) {
+            // v = 2^128 - k_abs  (integer subtraction, result >= 0)
+            std::uint64_t borrow = 0;
+            std::uint64_t diff;
+            // limb 0: 0 - L[0]
+            diff = 0 - L[0]; borrow = (L[0] != 0) ? 1 : 0; L[0] = diff;
+            // limb 1: 0 - L[1] - borrow
+            diff = 0 - L[1] - borrow; borrow = (L[1] | borrow) ? 1 : 0; L[1] = diff;
+            // limb 2: 1 - L[2] - borrow  (the 2^128 bit)
+            diff = 1 - L[2] - borrow; borrow = (L[2] + borrow > 1) ? 1 : 0; L[2] = diff;
+            // limb 3: 0 - borrow
+            L[3] = 0 - borrow;
+        } else {
+            // v = k_abs + 2^128  (integer addition)
+            std::uint64_t carry = 0;
+            std::uint64_t sum = L[2] + 1;
+            carry = static_cast<std::uint64_t>(sum < L[2]);
+            L[2] = sum;
+            L[3] += carry;
+        }
+        return Scalar::from_limbs(L);
+    };
 
-    // v1 = s1 + 2^128,  v2 = s2 + 2^128
-    Scalar v1 = scalar_add(s1, S_OFFSET);
-    Scalar v2 = scalar_add(s2, S_OFFSET);
+    Scalar v1 = make_v(k1_abs, k1_neg);
+    Scalar v2 = make_v(k2_abs, k2_neg);
 
     // -- 2. Build odd-multiples table via isomorphic curve + batch inversion --
     // Adapted from bitcoin-core/secp256k1 effective-affine technique:
@@ -2221,102 +2276,238 @@ static std::array<std::uint64_t, 4> ct_mul_shift_384(
     return result;
 }
 
-// --- CT 128x128 -> mod n (portable) ------------------------------------------
-
-static Scalar ct_mul_lo128_mod(const std::uint64_t a[2],
-                                const std::uint64_t b[2]) noexcept {
-    U128 p00 = mul64(a[0], b[0]);
-    U128 p01 = mul64(a[0], b[1]);
-    U128 p10 = mul64(a[1], b[0]);
-    U128 p11 = mul64(a[1], b[1]);
-
-    std::uint64_t r0 = p00.lo;
-    std::uint64_t c = 0;
-    std::uint64_t r1 = p00.hi + p01.lo;
-    c = static_cast<std::uint64_t>(r1 < p00.hi);
-    std::uint64_t t = r1 + p10.lo;
-    c += static_cast<std::uint64_t>(t < r1);
-    r1 = t;
-
-    std::uint64_t r2 = p01.hi + p10.hi;
-    std::uint64_t c2 = static_cast<std::uint64_t>(r2 < p01.hi);
-    t = r2 + p11.lo;  c2 += static_cast<std::uint64_t>(t < r2);
-    t += c;            c2 += static_cast<std::uint64_t>(t < c);
-    r2 = t;
-
-    std::uint64_t r3 = p11.hi + c2;
-
-    std::uint64_t r_arr[4] = {r0, r1, r2, r3};
-    std::uint64_t sub[4];
-    std::uint64_t borrow = local_sub256(sub, r_arr, ORDER);
-    cmov256(r_arr, sub, is_zero_mask(borrow));
-
-    return Scalar::from_limbs({r_arr[0], r_arr[1], r_arr[2], r_arr[3]});
-}
-
-// --- CT 256x128 -> mod n (portable, secp256k1-specific reduction) ------------
-
-static Scalar ct_mul_256x_lo128_mod(const Scalar& a,
-                                     const std::uint64_t b[2]) noexcept {
+// --- Full 256x256 -> mod n multiply (CT, 4x64 path, portable) ----------------
+// 4x4 schoolbook -> 8 limbs -> 3-phase secp256k1-specific reduce_512.
+// Adapted from bitcoin-core/secp256k1 scalar_4x64_impl.h (MIT license).
+// Uses U128/mul64 helpers (no __int128 required).
+static Scalar ct_scalar_mul_mod_n(const Scalar& a, const Scalar& b) noexcept {
     const auto& al = a.limbs();
+    const auto& bl = b.limbs();
 
-    // 4x2 schoolbook -> 6 limbs
-    std::uint64_t d[6] = {};
-    for (int i = 0; i < 4; ++i) {
-        std::uint64_t carry = 0;
-        for (int j = 0; j < 2; ++j) {
-            U128 m = mul64(al[i], b[j]);
-            std::uint64_t sum = d[i + j] + m.lo;
-            std::uint64_t c1 = static_cast<std::uint64_t>(sum < d[i + j]);
-            sum += carry;
-            std::uint64_t c2 = static_cast<std::uint64_t>(sum < carry);
-            d[i + j] = sum;
-            carry = m.hi + c1 + c2;
-        }
-        for (int k = i + 2; k < 6; ++k) {
-            std::uint64_t old = d[k];
-            d[k] += carry;
-            carry = static_cast<std::uint64_t>(d[k] < old);
-        }
+    // --- 4x4 schoolbook multiply -> 8-limb product l[0..7] ---
+    std::uint64_t l[8];
+    mul_4x4(l, al.data(), bl.data());
+
+    // Helper lambda: accumulate a*b into (lo, carry_hi), return new lo
+    // This emulates the __int128 carry chain using U128/mul64.
+    // We implement the 3-phase reduction using explicit carry tracking.
+
+    // --- Phase 1: reduce 512 -> 385 bits ---
+    // m[0..6] = l[0..3] + l[4..7] * NC  (NC = {NC0, NC1, 1, 0})
+    std::uint64_t n0 = l[4], n1 = l[5], n2 = l[6], n3 = l[7];
+    std::uint64_t m0, m1, m2, m3, m4, m5;
+    std::uint32_t m6;
+    {
+        // Accumulator: (acc_lo, acc_hi) represents up to 128+32 bits of carry chain
+        std::uint64_t acc_lo = 0, acc_hi = 0;
+
+        // Column 0: l[0] + n0*NC0
+        U128 t = mul64(n0, NC0);
+        acc_lo = l[0] + t.lo;
+        acc_hi = t.hi + static_cast<std::uint64_t>(acc_lo < l[0]);
+        m0 = acc_lo;
+        acc_lo = acc_hi; acc_hi = 0;
+
+        // Column 1: l[1] + n1*NC0 + n0*NC1
+        acc_lo += l[1]; acc_hi += static_cast<std::uint64_t>(acc_lo < l[1]);
+        t = mul64(n1, NC0);
+        std::uint64_t s = acc_lo + t.lo;
+        acc_hi += t.hi + static_cast<std::uint64_t>(s < acc_lo);
+        acc_lo = s;
+        t = mul64(n0, NC1);
+        s = acc_lo + t.lo;
+        acc_hi += t.hi + static_cast<std::uint64_t>(s < acc_lo);
+        acc_lo = s;
+        m1 = acc_lo;
+        acc_lo = acc_hi; acc_hi = 0;
+
+        // Column 2: l[2] + n2*NC0 + n1*NC1 + n0 (n0*NC2, NC2=1)
+        acc_lo += l[2]; acc_hi += static_cast<std::uint64_t>(acc_lo < l[2]);
+        t = mul64(n2, NC0);
+        s = acc_lo + t.lo;
+        acc_hi += t.hi + static_cast<std::uint64_t>(s < acc_lo);
+        acc_lo = s;
+        t = mul64(n1, NC1);
+        s = acc_lo + t.lo;
+        acc_hi += t.hi + static_cast<std::uint64_t>(s < acc_lo);
+        acc_lo = s;
+        s = acc_lo + n0;
+        acc_hi += static_cast<std::uint64_t>(s < acc_lo);
+        acc_lo = s;
+        m2 = acc_lo;
+        acc_lo = acc_hi; acc_hi = 0;
+
+        // Column 3: l[3] + n3*NC0 + n2*NC1 + n1
+        acc_lo += l[3]; acc_hi += static_cast<std::uint64_t>(acc_lo < l[3]);
+        t = mul64(n3, NC0);
+        s = acc_lo + t.lo;
+        acc_hi += t.hi + static_cast<std::uint64_t>(s < acc_lo);
+        acc_lo = s;
+        t = mul64(n2, NC1);
+        s = acc_lo + t.lo;
+        acc_hi += t.hi + static_cast<std::uint64_t>(s < acc_lo);
+        acc_lo = s;
+        s = acc_lo + n1;
+        acc_hi += static_cast<std::uint64_t>(s < acc_lo);
+        acc_lo = s;
+        m3 = acc_lo;
+        acc_lo = acc_hi; acc_hi = 0;
+
+        // Column 4: n3*NC1 + n2
+        t = mul64(n3, NC1);
+        s = acc_lo + t.lo;
+        acc_hi += t.hi + static_cast<std::uint64_t>(s < acc_lo);
+        acc_lo = s;
+        s = acc_lo + n2;
+        acc_hi += static_cast<std::uint64_t>(s < acc_lo);
+        acc_lo = s;
+        m4 = acc_lo;
+        acc_lo = acc_hi; acc_hi = 0;
+
+        // Column 5: n3
+        s = acc_lo + n3;
+        acc_hi += static_cast<std::uint64_t>(s < acc_lo);
+        acc_lo = s;
+        m5 = acc_lo;
+        m6 = static_cast<std::uint32_t>(acc_hi);  // <= 1
     }
 
-    // Single-phase reduction: r = d[0..3] + d[4..5] * NC
-    U128 m;
-    std::uint64_t sum, s_hi, c_hi;
+    // --- Phase 2: reduce 385 -> 258 bits ---
+    // p[0..4] = m[0..3] + m[4..6] * NC
+    std::uint64_t p0, p1, p2, p3;
+    std::uint32_t p4;
+    {
+        std::uint64_t acc_lo = 0, acc_hi = 0;
+        U128 t;
+        std::uint64_t s;
 
-    m = mul64(d[4], NC0);
-    sum = m.lo + d[0];
-    c_hi = m.hi + static_cast<std::uint64_t>(sum < m.lo);
-    std::uint64_t r0 = sum;
+        // Column 0: m0 + m4*NC0
+        t = mul64(m4, NC0);
+        acc_lo = m0 + t.lo;
+        acc_hi = t.hi + static_cast<std::uint64_t>(acc_lo < m0);
+        p0 = acc_lo;
+        acc_lo = acc_hi; acc_hi = 0;
 
-    U128 m1 = mul64(d[5], NC0);
-    U128 m2 = mul64(d[4], NC1);
-    sum = m1.lo + m2.lo;
-    s_hi = m1.hi + m2.hi + static_cast<std::uint64_t>(sum < m1.lo);
-    sum += d[1]; s_hi += static_cast<std::uint64_t>(sum < d[1]);
-    sum += c_hi; s_hi += static_cast<std::uint64_t>(sum < c_hi);
-    std::uint64_t r1 = sum;
-    c_hi = s_hi;
+        // Column 1: m1 + m5*NC0 + m4*NC1
+        acc_lo += m1; acc_hi += static_cast<std::uint64_t>(acc_lo < m1);
+        t = mul64(m5, NC0);
+        s = acc_lo + t.lo;
+        acc_hi += t.hi + static_cast<std::uint64_t>(s < acc_lo);
+        acc_lo = s;
+        t = mul64(m4, NC1);
+        s = acc_lo + t.lo;
+        acc_hi += t.hi + static_cast<std::uint64_t>(s < acc_lo);
+        acc_lo = s;
+        p1 = acc_lo;
+        acc_lo = acc_hi; acc_hi = 0;
 
-    m = mul64(d[5], NC1);
-    sum = m.lo + d[4];
-    s_hi = m.hi + static_cast<std::uint64_t>(sum < m.lo);
-    sum += d[2]; s_hi += static_cast<std::uint64_t>(sum < d[2]);
-    sum += c_hi; s_hi += static_cast<std::uint64_t>(sum < c_hi);
-    std::uint64_t r2 = sum;
-    c_hi = s_hi;
+        // Column 2: m2 + m6*NC0 + m5*NC1 + m4
+        acc_lo += m2; acc_hi += static_cast<std::uint64_t>(acc_lo < m2);
+        t = mul64(static_cast<std::uint64_t>(m6), NC0);
+        s = acc_lo + t.lo;
+        acc_hi += t.hi + static_cast<std::uint64_t>(s < acc_lo);
+        acc_lo = s;
+        t = mul64(m5, NC1);
+        s = acc_lo + t.lo;
+        acc_hi += t.hi + static_cast<std::uint64_t>(s < acc_lo);
+        acc_lo = s;
+        s = acc_lo + m4;
+        acc_hi += static_cast<std::uint64_t>(s < acc_lo);
+        acc_lo = s;
+        p2 = acc_lo;
+        acc_lo = acc_hi; acc_hi = 0;
 
-    sum = d[5] + d[3];
-    s_hi = static_cast<std::uint64_t>(sum < d[5]);
-    sum += c_hi; s_hi += static_cast<std::uint64_t>(sum < c_hi);
-    std::uint64_t r3 = sum;
-    unsigned overflow = static_cast<unsigned>(s_hi);
+        // Column 3: m3 + m6*NC1 + m5
+        acc_lo += m3; acc_hi += static_cast<std::uint64_t>(acc_lo < m3);
+        t = mul64(static_cast<std::uint64_t>(m6), NC1);
+        s = acc_lo + t.lo;
+        acc_hi += t.hi + static_cast<std::uint64_t>(s < acc_lo);
+        acc_lo = s;
+        s = acc_lo + m5;
+        acc_hi += static_cast<std::uint64_t>(s < acc_lo);
+        acc_lo = s;
+        p3 = acc_lo;
+        acc_lo = acc_hi;
 
+        p4 = static_cast<std::uint32_t>(acc_lo) + m6;  // <= 2
+    }
+
+    // --- Phase 3: reduce 258 -> 256 bits ---
+    // r[0..3] = p[0..3] + p4 * NC
+    std::uint64_t r0, r1, r2, r3;
+    unsigned final_c;
+    {
+        std::uint64_t acc_lo = 0, acc_hi = 0;
+        U128 t;
+        std::uint64_t s;
+
+        t = mul64(static_cast<std::uint64_t>(p4), NC0);
+        acc_lo = p0 + t.lo;
+        acc_hi = t.hi + static_cast<std::uint64_t>(acc_lo < p0);
+        r0 = acc_lo;
+        acc_lo = acc_hi; acc_hi = 0;
+
+        acc_lo += p1; acc_hi += static_cast<std::uint64_t>(acc_lo < p1);
+        t = mul64(static_cast<std::uint64_t>(p4), NC1);
+        s = acc_lo + t.lo;
+        acc_hi += t.hi + static_cast<std::uint64_t>(s < acc_lo);
+        acc_lo = s;
+        r1 = acc_lo;
+        acc_lo = acc_hi; acc_hi = 0;
+
+        acc_lo += p2; acc_hi += static_cast<std::uint64_t>(acc_lo < p2);
+        s = acc_lo + static_cast<std::uint64_t>(p4);  // p4 * NC2=1
+        acc_hi += static_cast<std::uint64_t>(s < acc_lo);
+        acc_lo = s;
+        r2 = acc_lo;
+        acc_lo = acc_hi; acc_hi = 0;
+
+        acc_lo += p3; acc_hi += static_cast<std::uint64_t>(acc_lo < p3);
+        r3 = acc_lo;
+        final_c = static_cast<unsigned>(acc_hi);
+    }
+
+    // --- Final reduction: subtract n if r >= n ---
     std::uint64_t r_arr[4] = {r0, r1, r2, r3};
-    std::uint64_t sub[4];
-    std::uint64_t borrow = local_sub256(sub, r_arr, ORDER);
-    cmov256(r_arr, sub, is_nonzero_mask(static_cast<std::uint64_t>(overflow))
-                      | is_zero_mask(borrow));
+
+    int yes = 0, no = 0;
+    no |= (r3 < ORDER[3]);
+    no |= (r2 < ORDER[2]);
+    yes |= (r2 > ORDER[2]) & ~no;
+    no |= (r1 < ORDER[1]);
+    yes |= (r1 > ORDER[1]) & ~no;
+    yes |= (r0 >= ORDER[0]) & ~no;
+    unsigned overflow = final_c + static_cast<unsigned>(yes);
+
+    // reduce: r += overflow * NC  (which is equivalent to r -= overflow * n)
+    {
+        std::uint64_t acc_lo, acc_hi;
+        U128 t;
+        std::uint64_t s;
+
+        t = mul64(static_cast<std::uint64_t>(overflow), NC0);
+        acc_lo = r_arr[0] + t.lo;
+        acc_hi = t.hi + static_cast<std::uint64_t>(acc_lo < r_arr[0]);
+        r_arr[0] = acc_lo;
+        acc_lo = acc_hi;
+
+        acc_lo += r_arr[1];
+        acc_hi = static_cast<std::uint64_t>(acc_lo < r_arr[1]);
+        t = mul64(static_cast<std::uint64_t>(overflow), NC1);
+        s = acc_lo + t.lo;
+        acc_hi += t.hi + static_cast<std::uint64_t>(s < acc_lo);
+        r_arr[1] = s;
+        acc_lo = acc_hi;
+
+        acc_lo += r_arr[2];
+        acc_hi = static_cast<std::uint64_t>(acc_lo < r_arr[2]);
+        s = acc_lo + static_cast<std::uint64_t>(overflow);  // NC2=1
+        acc_hi += static_cast<std::uint64_t>(s < acc_lo);
+        r_arr[2] = s;
+        acc_lo = acc_hi;
+
+        r_arr[3] += acc_lo;
+    }
 
     return Scalar::from_limbs({r_arr[0], r_arr[1], r_arr[2], r_arr[3]});
 }
@@ -2380,12 +2571,15 @@ CTAffinePoint affine_neg(const CTAffinePoint& p) noexcept {
 CTGLVDecomposition ct_glv_decompose(const Scalar& k) noexcept {
     static const Scalar lambda = Scalar::from_bytes(kLambdaBytes);
 
-    static constexpr std::uint64_t minus_b1_lo[2] = {
-        0x6F547FA90ABFE4C3ULL, 0xE4437ED6010E8828ULL
-    };
-    static constexpr std::uint64_t b2_pos_lo[2] = {
-        0xE86C90E49284EB15ULL, 0x3086D221A7D46BCDULL
-    };
+    // GLV lattice basis constants as FULL Scalars (256-bit mod n).
+    // Matches libsecp256k1's constants exactly.
+    static const Scalar minus_b1 = Scalar::from_limbs({
+        0x6F547FA90ABFE4C3ULL, 0xE4437ED6010E8828ULL, 0ULL, 0ULL
+    });
+    static const Scalar minus_b2 = Scalar::from_limbs({
+        0xD765CDA83DB1562CULL, 0x8A280AC50774346DULL,
+        0xFFFFFFFFFFFFFFFEULL, 0xFFFFFFFFFFFFFFFFULL
+    });
 
     auto k_limbs = k.limbs();
     auto c1_limbs = ct_mul_shift_384(
@@ -2393,15 +2587,20 @@ CTGLVDecomposition ct_glv_decompose(const Scalar& k) noexcept {
     auto c2_limbs = ct_mul_shift_384(
         {k_limbs[0], k_limbs[1], k_limbs[2], k_limbs[3]}, kG2);
 
-    Scalar p1     = ct_mul_lo128_mod(c1_limbs.data(), minus_b1_lo);
-    Scalar p2     = ct_mul_lo128_mod(c2_limbs.data(), b2_pos_lo);
-    Scalar k2_mod = scalar_sub(p1, p2);
+    // Full 256x256 scalar multiply mod n for both terms.
+    // k2 = c1*(-b1) + c2*(-b2) mod n  (libsecp256k1 formula)
+    Scalar c1_sc = Scalar::from_limbs({c1_limbs[0], c1_limbs[1], c1_limbs[2], c1_limbs[3]});
+    Scalar c2_sc = Scalar::from_limbs({c2_limbs[0], c2_limbs[1], c2_limbs[2], c2_limbs[3]});
+    Scalar p1     = ct_scalar_mul_mod_n(c1_sc, minus_b1);
+    Scalar p2     = ct_scalar_mul_mod_n(c2_sc, minus_b2);
+    Scalar k2_mod = scalar_add(p1, p2);
 
     std::uint64_t k2_high = ct_scalar_is_high(k2_mod);
     Scalar k2_abs = scalar_cneg(k2_mod, k2_high);
 
+    // k1 = k - k2*lambda mod n (full scalar multiply)
     Scalar lambda_k2 = scalar_cneg(
-        ct_mul_256x_lo128_mod(lambda, k2_abs.limbs().data()), k2_high);
+        ct_scalar_mul_mod_n(lambda, k2_abs), k2_high);
     Scalar k1_mod = scalar_sub(k, lambda_k2);
 
     std::uint64_t k1_high = ct_scalar_is_high(k1_mod);
@@ -2428,17 +2627,33 @@ Point scalar_mul(const Point& p, const Scalar& k) noexcept {
         0xb5c2c1dcde9798d9ULL, 0x589ae84826ba29e4ULL,
         0xc2bdd6bf7c118d6bULL, 0xa4e88a7dcb13034eULL
     });
-    static const Scalar S_OFFSET = Scalar::from_limbs({0, 0, 1, 0});
-
     // 1. Hamburg transform + GLV split
     Scalar s = scalar_add(k, K_CONST);
     s = scalar_half(s);
 
     auto [k1_abs, k2_abs, k1_neg, k2_neg] = ct_glv_decompose(s);
-    Scalar s1 = scalar_cneg(k1_abs, k1_neg);
-    Scalar s2 = scalar_cneg(k2_abs, k2_neg);
-    Scalar v1 = scalar_add(s1, S_OFFSET);
-    Scalar v2 = scalar_add(s2, S_OFFSET);
+
+    // Compute v = k_abs + 2^128 (positive) or 2^128 - k_abs (negative)
+    // using NON-MODULAR integer ops. Modular scalar_cneg+scalar_add wraps
+    // around n when |ki| marginally exceeds 2^128.
+    auto make_v = [](const Scalar& k_abs, std::uint64_t k_neg) noexcept -> Scalar {
+        auto L = k_abs.limbs();
+        if (k_neg) {
+            std::uint64_t borrow = 0, diff;
+            diff = 0 - L[0]; borrow = (L[0] != 0) ? 1 : 0; L[0] = diff;
+            diff = 0 - L[1] - borrow; borrow = (L[1] | borrow) ? 1 : 0; L[1] = diff;
+            diff = 1 - L[2] - borrow; borrow = (L[2] + borrow > 1) ? 1 : 0; L[2] = diff;
+            L[3] = 0 - borrow;
+        } else {
+            std::uint64_t carry = 0, sum = L[2] + 1;
+            carry = static_cast<std::uint64_t>(sum < L[2]);
+            L[2] = sum; L[3] += carry;
+        }
+        return Scalar::from_limbs(L);
+    };
+
+    Scalar v1 = make_v(k1_abs, k1_neg);
+    Scalar v2 = make_v(k2_abs, k2_neg);
 
     // 2. Build odd-multiples table via effective-affine + Z-ratio normalization
     CTAffinePoint pre_a[TABLE_SIZE];

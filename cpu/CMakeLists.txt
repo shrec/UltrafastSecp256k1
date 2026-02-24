@@ -798,4 +798,10 @@ if(BUILD_TESTING)
         target_link_options(test_ct_equivalence_standalone PRIVATE "LINKER:/STACK:8388608")
     endif()
     add_test(NAME ct_equivalence COMMAND test_ct_equivalence_standalone)
+
+    # Diagnostic: ct::scalar_mul step-by-step comparison
+    add_executable(diag_scalar_mul tests/diag_scalar_mul.cpp)
+    target_link_libraries(diag_scalar_mul PRIVATE ${SECP256K1_LIB_NAME})
+    target_compile_definitions(diag_scalar_mul PRIVATE STANDALONE_TEST)
+    add_test(NAME diag_scalar_mul COMMAND diag_scalar_mul)
 endif()

@@ -6,10 +6,12 @@
 
 ### Why UltrafastSecp256k1?
 
-- **Fastest open-source GPU signatures** — no other library provides secp256k1 ECDSA + Schnorr sign/verify on CUDA, OpenCL, and Metal
+- **Fastest open-source GPU signatures** — no other library provides secp256k1 ECDSA + Schnorr sign/verify on CUDA, OpenCL, and Metal ([reproducible benchmark suite and raw logs](docs/BENCHMARKS.md))
 - **Zero dependencies** — pure C++20, no Boost, no OpenSSL, compiles anywhere with a conforming compiler
 - **Dual-layer security** — variable-time FAST path for throughput, constant-time CT path for secret-key operations
 - **12+ platforms** — x86-64, ARM64, RISC-V, WASM, iOS, Android, ESP32, STM32, CUDA, Metal, OpenCL, ROCm
+
+> **Benchmark reproducibility:** All numbers come from pinned compiler/driver/toolkit versions with exact commands and raw logs. See [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md) (methodology) and the [live dashboard](https://shrec.github.io/UltrafastSecp256k1/dev/bench/).
 
 **Quick links:** [Discord](https://discord.gg/sUmW7cc5) · [Benchmarks](docs/BENCHMARKS.md) · [Build Guide](docs/BUILDING.md) · [API Reference](docs/API_REFERENCE.md) · [Security Policy](SECURITY.md) · [Threat Model](THREAT_MODEL.md) · [Porting Guide](PORTING.md)
 
@@ -84,29 +86,84 @@ For production cryptographic systems, prefer audited libraries like [libsecp256k
 
 ## secp256k1 Feature Overview
 
-| Category | Component | Status |
-|----------|-----------|--------|
-| **Core** | Field, Scalar, Point, GLV, Precompute | ✅ |
-| **Assembly** | x64 MASM/GAS, BMI2/ADX, ARM64 MUL/UMULH, RISC-V RV64GC | ✅ |
-| **SIMD** | AVX2/AVX-512 batch ops, Montgomery batch inverse | ✅ |
-| **Constant-Time** | CT field/scalar/point — no secret-dependent branches | ✅ |
-| **ECDSA** | Sign/Verify, RFC 6979, DER/Compact, low-S, Recovery | ✅ |
-| **Schnorr** | BIP-340 sign/verify, tagged hashing, x-only pubkeys | ✅ |
-| **ECDH** | Key exchange (raw, xonly, SHA-256) | ✅ |
-| **Multi-scalar** | Strauss/Shamir dual-scalar multiplication | ✅ |
-| **Batch verify** | ECDSA + Schnorr batch verification | ✅ |
-| **BIP-32/44** | HD derivation, path parsing, xprv/xpub, coin-type | ✅ |
-| **MuSig2** | BIP-327, key aggregation, 2-round signing | ✅ |
-| **Taproot** | BIP-341/342, tweak, Merkle tree | ✅ |
-| **Pedersen** | Commitments, homomorphic, switch commitments | ✅ |
-| **FROST** | Threshold signatures, t-of-n | ✅ |
-| **Adaptor** | Schnorr + ECDSA adaptor signatures | ✅ |
-| **Address** | P2PKH, P2WPKH, P2TR, Base58, Bech32/m, EIP-55 | ✅ |
-| **Coins** | 27 blockchains, auto-dispatch | ✅ |
-| **Hashing** | SHA-256 (SHA-NI), SHA-512, HMAC, Keccak-256 | ✅ |
-| **C ABI** | `ufsecp` stable FFI (45 exports, C/C#/Python/Go/Rust/…) | ✅ |
-| **GPU** | CUDA, Metal, OpenCL, ROCm kernels | ✅ |
-| **Platforms** | x64, ARM64, RISC-V, ESP32, STM32, WASM, iOS, Android | ✅ |
+Features are organized into **maturity tiers** (see [SUPPORTED_GUARANTEES.md](include/ufsecp/SUPPORTED_GUARANTEES.md) for detailed guarantees):
+
+| Tier | Category | Component | Status |
+|------|----------|-----------|--------|
+| **1 — Core** | Field / Scalar / Point | GLV, Precompute, Batch Inverse | ✅ |
+| **1 — Core** | Assembly | x64 MASM/GAS, BMI2/ADX, ARM64, RISC-V RV64GC | ✅ |
+| **1 — Core** | SIMD | AVX2/AVX-512 batch ops, Montgomery batch inverse | ✅ |
+| **1 — Core** | Constant-Time | CT field/scalar/point — no secret-dependent branches | ✅ |
+| **1 — Core** | ECDSA | Sign/Verify, RFC 6979, DER/Compact, low-S, Recovery | ✅ |
+| **1 — Core** | Schnorr | BIP-340 sign/verify, tagged hashing, x-only pubkeys | ✅ |
+| **1 — Core** | ECDH | Key exchange (raw, xonly, SHA-256) | ✅ |
+| **1 — Core** | Multi-scalar | Strauss/Shamir dual-scalar multiplication | ✅ |
+| **1 — Core** | Batch verify | ECDSA + Schnorr batch verification | ✅ |
+| **1 — Core** | Hashing | SHA-256 (SHA-NI), SHA-512, HMAC, Keccak-256 | ✅ |
+| **1 — Core** | C ABI | `ufsecp` stable FFI (45 exports) | ✅ |
+| **2 — Protocol** | BIP-32/44 | HD derivation, path parsing, xprv/xpub, coin-type | ✅ |
+| **2 — Protocol** | Taproot | BIP-341/342, tweak, Merkle tree | ✅ |
+| **2 — Protocol** | MuSig2 | BIP-327, key aggregation, 2-round signing | ✅ |
+| **2 — Protocol** | FROST | Threshold signatures, t-of-n | ✅ |
+| **2 — Protocol** | Adaptor | Schnorr + ECDSA adaptor signatures | ✅ |
+| **2 — Protocol** | Pedersen | Commitments, homomorphic, switch commitments | ✅ |
+| **3 — Convenience** | Address | P2PKH, P2WPKH, P2TR, Base58, Bech32/m, EIP-55 | ✅ |
+| **3 — Convenience** | Coins | 27 blockchains, auto-dispatch | ✅ |
+| — | GPU | CUDA, Metal, OpenCL, ROCm kernels | ✅ |
+| — | Platforms | x64, ARM64, RISC-V, ESP32, STM32, WASM, iOS, Android | ✅ |
+
+> **Tier 1** = battle-tested core crypto with stable API. **Tier 2** = protocol-level features, API may evolve. **Tier 3** = convenience utilities.
+
+---
+
+## 60-Second Quickstart
+
+Get a working selftest in under a minute:
+
+**Option A — Linux (apt)**
+```bash
+sudo apt install libsecp256k1-fast3
+ufsecp_selftest          # Expected: "OK (version 3.x, backend CPU)"
+```
+
+**Option B — npm (any OS)**
+```bash
+npm i ufsecp
+node -e "require('ufsecp').selftest()"   # Expected: "OK"
+```
+
+**Option C — Python (any OS)**
+```bash
+pip install ufsecp
+python -c "import ufsecp; ufsecp.selftest()"  # Expected: "OK"
+```
+
+**Option D — Build from source**
+```bash
+git clone https://github.com/shrec/UltrafastSecp256k1.git && cd UltrafastSecp256k1
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build build -j
+./build/selftest          # Expected: "ALL TESTS PASSED"
+```
+
+---
+
+## Platform Support Matrix
+
+| Target | Backend | Install / Entry Point | Status |
+|--------|---------|----------------------|--------|
+| **Linux x64** | CPU | `apt install libsecp256k1-fast3` | ✅ Stable |
+| **Windows x64** | CPU | NuGet `UltrafastSecp256k1` / [Release .zip](https://github.com/shrec/UltrafastSecp256k1/releases) | ✅ Stable |
+| **macOS (x64/ARM64)** | CPU + Metal | `brew install ufsecp` / build from source | ✅ Stable |
+| **Android ARM64** | CPU | `implementation 'io.github.shrec:ufsecp'` (Maven) | ✅ Stable |
+| **iOS ARM64** | CPU | Swift Package / CocoaPods / XCFramework | ✅ Stable |
+| **Browser / Node.js** | WASM | `npm i ufsecp` | ✅ Stable |
+| **ESP32-S3 / ESP32** | CPU | PlatformIO / IDF component | ✅ Tested |
+| **STM32 (Cortex-M)** | CPU | CMake cross-compile | ✅ Tested |
+| **NVIDIA GPU** | CUDA 12+ | Build with `-DSECP256K1_BUILD_CUDA=ON` | ✅ Stable |
+| **AMD GPU** | ROCm/HIP | Build with `-DSECP256K1_BUILD_ROCM=ON` | ⚠️ Beta |
+| **Apple GPU** | Metal | Build with Metal backend | ✅ Stable |
+| **Any GPU** | OpenCL | Build with `-DSECP256K1_BUILD_OPENCL=ON` | ⚠️ Beta |
+| **RISC-V (RV64GC)** | CPU | Cross-compile | ✅ Tested |
 
 ---
 
@@ -178,7 +235,7 @@ g++ myapp.cpp $(pkg-config --cflags --libs secp256k1-fast) -o myapp
 
 ## secp256k1 GPU Acceleration (CUDA / OpenCL / Metal / ROCm)
 
-UltrafastSecp256k1 is the **only open-source library** that provides full secp256k1 ECDSA + Schnorr sign/verify on GPU across four backends:
+UltrafastSecp256k1 is the **only open-source library** that provides full secp256k1 ECDSA + Schnorr sign/verify on GPU across four backends (as of February 2026; if you know of another, [please let us know](https://github.com/shrec/UltrafastSecp256k1/issues)):
 
 | Backend | Hardware | kG/s | ECDSA Sign | ECDSA Verify | Schnorr Sign | Schnorr Verify |
 |---------|----------|------|------------|--------------|--------------|----------------|
@@ -283,6 +340,18 @@ The `ct::` namespace provides constant-time operations for secret-key material �
 **Use the FAST layer for**: verification, public key derivation, batch processing, benchmarks.
 
 See [THREAT_MODEL.md](THREAT_MODEL.md) for a full layer-by-layer risk assessment.
+
+### CT Evidence & Methodology
+
+| Evidence | Scope | Status |
+|----------|-------|--------|
+| **No secret-dependent branches** | All `ct::` functions | ✅ Enforced by design, verified via Clang-Tidy checks |
+| **No secret-dependent memory access** | All `ct::` table lookups use constant-index cmov | ✅ |
+| **ASan + UBSan CI** | Every push — catches undefined behavior in CT paths | ✅ CI |
+| **Timing tests (dudect)** | CPU field/scalar ops | 🔜 Planned (see [roadmap](INDUSTRIAL_ROADMAP_WORKING.md)) |
+| **Formal CT verification** | Fiat-Crypto style | 🔜 Planned |
+
+**Assumptions:** CT guarantees depend on compiler not introducing secret-dependent branches during optimization. Builds use `-O2` with Clang; MSVC may require additional flags. Micro-architectural side channels (Spectre, power analysis) are outside current scope — see [THREAT_MODEL.md](THREAT_MODEL.md).
 
 ---
 
@@ -433,7 +502,9 @@ Starting with **v3.4.0**, UltrafastSecp256k1 ships a stable C ABI — `ufsecp` �
 └──────────────────────────────────────────────────┘
 ```
 
-Both layers are **always active** — public operations use FAST; secret-key operations (sign, derive, ECDH) use CT internally.
+**Default behavior:**
+- **C ABI (`ufsecp`)**: Defaults to safe behavior — all secret-key operations (sign, derive, ECDH) use CT internally. No configuration needed.
+- **C++ API**: Exposes both `fast::` and `ct::` namespaces — the developer chooses explicitly per call site.
 
 ### Quick Start (C)
 
@@ -772,6 +843,46 @@ This library explores the **performance ceiling of secp256k1** across CPU archit
 **C++ API**: Not yet stable. Breaking changes may occur before **v4.0**. Core layers (field, scalar, point, ECDSA, Schnorr) are mature. Experimental layers (MuSig2, FROST, Adaptor, Pedersen, Taproot, HD, Coins) may change.
 
 **C ABI (`ufsecp`)**: Stable from v3.4.0. ABI version tracked separately. See [SUPPORTED_GUARANTEES.md](include/ufsecp/SUPPORTED_GUARANTEES.md).
+
+---
+
+## Release Verification
+
+All release artifacts ship with integrity checksums:
+
+```bash
+# Download release + checksums
+curl -LO https://github.com/shrec/UltrafastSecp256k1/releases/latest/download/SHA256SUMS.txt
+
+# Verify
+sha256sum -c SHA256SUMS.txt
+```
+
+| Supply Chain | Status |
+|-------------|--------|
+| SHA256SUMS for all artifacts | ✅ Every release |
+| SLSA Build Provenance (GitHub Attestation) | ✅ Every release |
+| Reproducible builds documentation | 🔜 Planned |
+| Cosign / Sigstore signing | 🔜 Planned |
+
+---
+
+## FAQ
+
+**Is UltrafastSecp256k1 a drop-in replacement for libsecp256k1?**
+> No. It is an independent implementation with a different API. The C ABI (`ufsecp`) provides a stable FFI surface, but function signatures differ from libsecp256k1. Migration requires code changes.
+
+**Is the API stable?**
+> The C ABI (`ufsecp`) is stable from v3.4.0. The C++ API (namespaces `fast::`, `ct::`) is mature for Tier 1 features but may change before v4.0.
+
+**What is the constant-time scope?**
+> All functions in `ct::` namespace are constant-time: field arithmetic, scalar arithmetic, point multiplication, complete addition, signing, and ECDH. The C ABI uses CT internally for all secret-key operations. See [CT Evidence](#ct-evidence--methodology) above.
+
+**Which parts are production-safe today?**
+> This library has **not been independently audited**. Tier 1 features (core ECC, ECDSA, Schnorr, ECDH) are extensively tested (12,000+ test cases, ASan/UBSan/TSan CI, fuzz testing). For production systems handling real funds, prefer audited libraries until an independent audit is completed.
+
+**How do I reproduce the benchmarks?**
+> See [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md) for exact commands, pinned compiler/driver versions, and raw logs. The [live dashboard](https://shrec.github.io/UltrafastSecp256k1/dev/bench/) tracks performance across commits.
 
 ---
 

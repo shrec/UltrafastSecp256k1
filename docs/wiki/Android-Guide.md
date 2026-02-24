@@ -1,47 +1,47 @@
 # Android Guide — UltrafastSecp256k1
 
-Android-ზე სრული CPU ბიბლიოთეკის პორტი — ARM64 (arm64-v8a), ARMv7 (armeabi-v7a), x86_64/x86 (ემულატორი).
+Full CPU library port for Android — ARM64 (arm64-v8a), ARMv7 (armeabi-v7a), x86_64/x86 (emulator).
 
-## არქიტექტურა
+## Architecture
 
 ```
 android/
-├── CMakeLists.txt           # Android-სპეციფიკური CMake build
+├── CMakeLists.txt           # Android-specific CMake build
 ├── build_android.sh         # Linux/macOS build script
 ├── build_android.ps1        # Windows PowerShell build script
 ├── jni/
-│   └── secp256k1_jni.cpp    # JNI ხიდი (C++ → Java/Kotlin)
+│   └── secp256k1_jni.cpp    # JNI bridge (C++ → Java/Kotlin)
 ├── kotlin/
 │   └── com/secp256k1/native/
-│       └── Secp256k1.kt     # Kotlin wrapper კლასი
-├── example/                 # სრული Android აპლიკაციის მაგალითი
+│       └── Secp256k1.kt     # Kotlin wrapper class
+├── example/                 # Full Android application example
 │   ├── build.gradle.kts
 │   └── src/main/
 │       ├── cpp/CMakeLists.txt
 │       └── kotlin/.../MainActivity.kt
-└── output/                  # build-ის შედეგი (jniLibs/)
+└── output/                  # Build output (jniLibs/)
 ```
 
-## ABI მხარდაჭერა
+## ABI Support
 
-| ABI | არქიტექტურა | `__int128` | Assembly | შენიშვნა |
+| ABI | Architecture | `__int128` | Assembly | Notes |
 |-----|-------------|-----------|----------|---------|
-| `arm64-v8a` | ARMv8-A + crypto + NEON | ✅ | ✅ ARM64 ASM (MUL/UMULH) | პირველადი target |
+| `arm64-v8a` | ARMv8-A + crypto + NEON | ✅ | ✅ ARM64 ASM (MUL/UMULH) | Primary target |
 | `armeabi-v7a` | ARMv7-A + NEON | ❌ (32-bit) | ❌ | `SECP256K1_NO_INT128` fallback |
-| `x86_64` | x86-64 + SSE4.2 | ✅ | ❌ (cross-compile) | ემულატორისთვის |
-| `x86` | i686 + SSE3 | ❌ (32-bit) | ❌ | ემულატორისთვის |
+| `x86_64` | x86-64 + SSE4.2 | ✅ | ❌ (cross-compile) | For emulator |
+| `x86` | i686 + SSE3 | ❌ (32-bit) | ❌ | For emulator |
 
-> **შენიშვნა**: ARM64-ზე ახლა inline assembly ოპტიმიზაცია ჩართულია — `MUL`/`UMULH` ინსტრუქციები field arithmetic-ისთვის (mul, sqr, add, sub, neg). ეს უზრუნველყოფს **~5x დაჩქარებას** generic C++ კოდთან შედარებით scalar_mul ოპერაციებზე.
+> **Note**: ARM64 inline assembly optimization is now enabled — `MUL`/`UMULH` instructions for field arithmetic (mul, sqr, add, sub, neg). This provides **~5x speedup** compared to generic C++ code for scalar_mul operations.
 
-## სწრაფი დაწყება
+## Quick Start
 
-### წინაპირობები
+### Prerequisites
 
-- Android NDK r25+ (რეკომენდებულია r26c)
+- Android NDK r25+ (r26c recommended)
 - CMake 3.18+
 - Ninja
 
-### Build (ბრძანების ხაზი)
+### Build (Command Line)
 
 ```bash
 # Linux/macOS
@@ -55,7 +55,7 @@ cd libs\UltrafastSecp256k1\android\
 .\build_android.ps1 -ABIs arm64-v8a
 ```
 
-### Build (ხელით CMake)
+### Build (Manual CMake)
 
 ```bash
 cmake -S android -B android/build-android-arm64 \
@@ -69,7 +69,7 @@ cmake -S android -B android/build-android-arm64 \
 cmake --build android/build-android-arm64 -j
 ```
 
-### შედეგი
+### Output
 
 ```
 android/output/jniLibs/
@@ -83,31 +83,31 @@ android/output/jniLibs/
     └── libsecp256k1_jni.so
 ```
 
-## Android პროექტში ინტეგრაცია
+## Integration in an Android Project
 
-### ვარიანტი 1: Pre-built JNI (უმარტივესი)
+### Option 1: Pre-built JNI (simplest)
 
-1. დააკოპირეთ `output/jniLibs/` თქვენს Android პროექტში:
+1. Copy `output/jniLibs/` to your Android project:
 ```
 app/src/main/jniLibs/
 ├── arm64-v8a/libsecp256k1_jni.so
 └── x86_64/libsecp256k1_jni.so
 ```
 
-2. დააკოპირეთ `Secp256k1.kt` თქვენს Kotlin source-ში:
+2. Copy `Secp256k1.kt` to your Kotlin source:
 ```
 app/src/main/kotlin/com/secp256k1/native/Secp256k1.kt
 ```
 
-3. გამოიყენეთ:
+3. Use it:
 ```kotlin
 Secp256k1.init()
 val pubkey = Secp256k1.ctScalarMulGenerator(privkey)
 ```
 
-### ვარიანტი 2: Gradle CMake ინტეგრაცია
+### Option 2: Gradle CMake Integration
 
-`app/build.gradle.kts`-ში:
+In `app/build.gradle.kts`:
 ```kotlin
 android {
     externalNativeBuild {
@@ -135,32 +135,32 @@ add_subdirectory(/path/to/UltrafastSecp256k1/android ${CMAKE_BINARY_DIR}/secp256
 
 ## API
 
-### Fast API (მაქსიმალური სიჩქარე)
+### Fast API (Maximum Speed)
 
 ```kotlin
-// ინიციალიზაცია
+// Initialization
 Secp256k1.init()
 
-// Point ოპერაციები
+// Point operations
 val g = Secp256k1.getGenerator()             // G (65 bytes)
 val g2 = Secp256k1.pointDouble(g)            // 2G
 val g3 = Secp256k1.pointAdd(g2, g)           // 3G
 val neg = Secp256k1.pointNegate(g)           // -G
 val compressed = Secp256k1.pointCompress(g)  // 33 bytes
 
-// Scalar × Point (არ არის side-channel safe!)
+// Scalar × Point (NOT side-channel safe!)
 val result = Secp256k1.scalarMulGenerator(k)      // k*G
 val result2 = Secp256k1.scalarMulPoint(k, point)  // k*P
 
-// Scalar არითმეტიკა
+// Scalar arithmetic
 val sum = Secp256k1.scalarAdd(a, b)
 val product = Secp256k1.scalarMul(a, b)
 val diff = Secp256k1.scalarSub(a, b)
 ```
 
-### CT API (side-channel რეზისტენტული)
+### CT API (side-channel resistant)
 
-გამოიყენეთ **ყველა** პრივატული გასაღებით ოპერაციისთვის:
+Use for **all** private key operations:
 
 ```kotlin
 // Key generation (CT)
@@ -173,37 +173,37 @@ val result = Secp256k1.ctScalarMulPoint(k, point)
 val secret = Secp256k1.ctEcdh(myPrivkey, theirPubkey)
 ```
 
-### როდის გამოვიყენოთ CT vs Fast
+### When to Use CT vs Fast
 
-| ოპერაცია | API | მიზეზი |
+| Operation | API | Reason |
 |---------|-----|--------|
-| Private key → Public key | **CT** | გასაღები საიდუმლოა |
-| ECDH | **CT** | პრივატული გასაღები მონაწილეობს |
-| ხელმოწერა (signing) | **CT** | nonce/key leak = კატასტროფა |
-| ხელმოწერის ვერიფიკაცია | Fast | მხოლოდ საჯარო მონაცემები |
-| Point-ების ბმა (aggregate) | Fast | მხოლოდ საჯარო მონაცემები |
-| Batch ვერიფიკაცია | Fast | მაქსიმალური სიჩქარე |
+| Private key → Public key | **CT** | Key is secret |
+| ECDH | **CT** | Private key is involved |
+| Signing | **CT** | nonce/key leak = catastrophe |
+| Signature verification | Fast | Public data only |
+| Point aggregation | Fast | Public data only |
+| Batch verification | Fast | Maximum speed |
 
-## პლატფორმის დეტალები
+## Platform Details
 
-### ARM64 ოპტიმიზაციები
+### ARM64 Optimizations
 
 **Inline Assembly** (`cpu/src/field_asm_arm64.cpp`):
 - **`field_mul_arm64`** — 4×4 schoolbook MUL/UMULH + secp256k1 fast reduction (85 ns/op)
-- **`field_sqr_arm64`** — ოპტიმიზებული squaring (10 mul vs 16) (66 ns/op)
+- **`field_sqr_arm64`** — Optimized squaring (10 mul vs 16) (66 ns/op)
 - **`field_add_arm64`** — ADDS/ADCS + branchless normalization (18 ns/op)
 - **`field_sub_arm64`** — SUBS/SBCS + conditional add p (16 ns/op)
 - **`field_neg_arm64`** — Branchless p - a with CSEL
 
-NDK Clang დამატებით იყენებს:
-- **NEON**: 128-bit SIMD (იმპლიციტურია ARMv8-A-ში)
+NDK Clang additionally uses:
+- **NEON**: 128-bit SIMD (implicit in ARMv8-A)
 - **Crypto extensions**: AES/SHA hardware acceleration
-- **`__int128`**: 64×64→128 გამრავლება (scalar/field ოპერაციებში)
+- **`__int128`**: 64×64→128 multiplication (in scalar/field operations)
 - **Auto-vectorization**: `-ftree-vectorize -funroll-loops`
 
-### Benchmark შედეგები (RK3588, Cortex-A55/A76)
+### Benchmark Results (RK3588, Cortex-A55/A76)
 
-| ოპერაცია | ARM64 ASM | Generic C++ | დაჩქარება |
+| Operation | ARM64 ASM | Generic C++ | Speedup |
 |---------|-----------|-------------|-----------|
 | field_mul (a*b mod p) | **85 ns** | ~350 ns | ~4x |
 | field_sqr (a² mod p) | **66 ns** | ~280 ns | ~4x |
@@ -215,37 +215,37 @@ NDK Clang დამატებით იყენებს:
 | CT scalar_mul (k*G) | 545 μs | ~400 μs | 0.7x* |
 | ECDH (full CT) | 545 μs | — | — |
 
-\* CT რეჟიმი generic C++ იყენებს (constant-time გარანტიისთვის)
+\* CT mode uses generic C++ (for constant-time guarantees)
 
-### ARMv7 (32-bit) შეზღუდვები
+### ARMv7 (32-bit) Limitations
 
-- `__int128` არ არის → `SECP256K1_NO_INT128` fallback (portable 64×64→128)
-- NEON VFPv4 ხელმისაწვდომია
-- ~2-3x ნელია ARM64-ზე ვიდრე
+- No `__int128` → `SECP256K1_NO_INT128` fallback (portable 64×64→128)
+- NEON VFPv4 available
+- ~2-3x slower than ARM64
 
-### Android-სპეციფიკური ცვლილებები CMake-ში
+### Android-Specific CMake Changes
 
-CPU `CMakeLists.txt`-ში ავტომატურად:
+Automatically in CPU `CMakeLists.txt`:
 - `-march=native` → `-march=armv8-a+crypto` (cross-compile)
-- `-mbmi2 -madx` გამოირიცხება ARM-ზე
-- 32-bit target-ებზე `SECP256K1_NO_INT128=1`
-- x86 assembly გამოირიცხება (ARM-ზე ვერ იკომპილირდება)
+- `-mbmi2 -madx` excluded on ARM
+- `SECP256K1_NO_INT128=1` on 32-bit targets
+- x86 assembly excluded (cannot compile on ARM)
 
 ## Troubleshooting
 
-### NDK ვერ მოიძებნა
+### NDK Not Found
 ```
 export ANDROID_NDK_HOME=/full/path/to/ndk
 ```
 
 ### `c++_static` linkage error
-build.gradle.kts-ში:
+In build.gradle.kts:
 ```kotlin
 cmake { arguments += "-DANDROID_STL=c++_static" }
 ```
 
-### UnsatisfiedLinkError runtime-ზე
-შეამოწმეთ რომ `libsecp256k1_jni.so` სწორ ABI ფოლდერშია (`jniLibs/arm64-v8a/`).
+### UnsatisfiedLinkError at Runtime
+Check that `libsecp256k1_jni.so` is in the correct ABI folder (`jniLibs/arm64-v8a/`).
 
 ### 32-bit build warnings
-ARMv7/x86 ბილდებზე ნორმალურია — `SECP256K1_NO_INT128` ავტომატურად ჩაირთვება.
+Normal on ARMv7/x86 builds — `SECP256K1_NO_INT128` is automatically enabled.

@@ -1,7 +1,6 @@
 # GPU Testing & Benchmark Guide
 ## UltrafastSecp256k1 — OpenCL / CUDA / Metal
 
-> ეს დოკუმენტი მეხმარება ლინუქს მანქანაზე და Apple-ზე გადასვლისას ყველაფრის ტესტირებაში.
 > This document guides testing of ALL GPU backends when switching to Linux/Apple.
 
 ---
@@ -160,7 +159,7 @@ All 40 existing field/point tests: PASS
 
 ---
 
-## 5. Apple Metal Testing (მეგობრის Apple-ზე)
+## 5. Apple Metal Testing
 
 ### Prerequisites
 - macOS 12+ with Apple Silicon (M1/M2/M3) or Intel Mac with Metal support
@@ -347,5 +346,4 @@ pubkey (33 or 65 bytes)
 
 ---
 
-> **რემინდერი**: ბლუმ ფილტრები არაა ამ პროექტის ნაწილი — გარეთ გასატანია.
 > **Reminder**: Bloom filters are NOT part of this project — they should be external.

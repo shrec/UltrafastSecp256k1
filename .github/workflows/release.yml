@@ -1594,33 +1594,21 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Notify Discord (release)
-        if: ${{ always() && secrets.DISCORD_WEBHOOK_RELEASES != '' }}
+        if: always()
         env:
           WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_RELEASES }}
           TAG: ${{ github.ref_name }}
           REPO: ${{ github.repository }}
           STATUS: ${{ job.status }}
         run: |
-          if [ "$STATUS" = "success" ]; then
-            EMOJI="✅"
-            COLOR=3066993
-          else
-            EMOJI="❌"
-            COLOR=15158332
-          fi
-
-          BODY=$(cat <<ENDJSON
-          {
-            "embeds": [{
-              "title": "${EMOJI} UltrafastSecp256k1 ${TAG} Released",
-              "url": "https://github.com/${REPO}/releases/tag/${TAG}",
-              "color": ${COLOR},
-              "description": "A new release has been published.\\n\\n**Tag:** \`${TAG}\`\\n**Status:** ${STATUS}\\n\\n[View Release](https://github.com/${REPO}/releases/tag/${TAG}) • [Download Assets](https://github.com/${REPO}/releases/tag/${TAG}#assets)",
-              "footer": { "text": "UltrafastSecp256k1 CI" },
-              "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-            }]
-          }
-          ENDJSON
-          )
-
-          curl -sS -H "Content-Type: application/json" -d "$BODY" "$WEBHOOK"
+          if [ -z "$WEBHOOK" ]; then echo "No webhook configured, skipping"; exit 0; fi
+          if [ "$STATUS" = "success" ]; then COLOR=3066993; else COLOR=15158332; fi
+          NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          JSON=$(jq -n \
+            --arg title "UltrafastSecp256k1 ${TAG} Released" \
+            --arg url "https://github.com/${REPO}/releases/tag/${TAG}" \
+            --argjson color "$COLOR" \
+            --arg desc "**Tag:** \`${TAG}\`\n**Status:** ${STATUS}\n\n[View Release](https://github.com/${REPO}/releases/tag/${TAG})" \
+            --arg ts "$NOW" \
+            '{embeds:[{title:$title,url:$url,color:$color,description:$desc,footer:{text:"UltrafastSecp256k1 CI"},timestamp:$ts}]}')
+          curl -sS -H "Content-Type: application/json" -d "$JSON" "$WEBHOOK"
