@@ -1,0 +1,18 @@
+Origin: UltrafastSecp256k1
+Label: UltrafastSecp256k1
+Suite: stable
+Codename: stable
+Architectures: amd64 arm64
+Components: main
+Description: UltrafastSecp256k1 APT Repository
+Date: Tue, 24 Feb 2026 10:26:49 +0000
+MD5Sum:
+ 18ed6c193e479bbf92bb7ff80cb71f82 558 main/binary-amd64/Packages
+ 0b5e7423948ead1b3ce9b3aae6c90c91 413 main/binary-amd64/Packages.gz
+ cce67dfdeb50e902391c6a9dca85a7ed 558 main/binary-arm64/Packages
+ 33f5867018b67c3cf09b62f57794c338 418 main/binary-arm64/Packages.gz
+SHA256:
+ 9149df574c97e1ecd2d08886e576c3762ef82d4864af6817792ba5b10cadc461 558 main/binary-amd64/Packages
+ 81ca6a2bd31519c49c63883c6dfb74afb8ce373618252d79661174a39df03b96 413 main/binary-amd64/Packages.gz
+ 6993ecead7bfa81d0faacffddf9ad934f72ba9c95ce3d9974d7f824a9212ca3c 558 main/binary-arm64/Packages
+ e8dd470074dd53f981dda35878680db70f526db24285fbe21cbbf6efe84933d0 418 main/binary-arm64/Packages.gz
