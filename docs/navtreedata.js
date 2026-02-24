@@ -81,10 +81,10 @@ var NAVTREEINDEX =
 "namespacesecp256k1.html#a0508ad0ead12c8b68e3e5ceb647e65eb",
 "namespacesecp256k1_1_1fast.html#a1af2b5f26a2f1eafd5c29948db4ae158",
 "namespacesecp256k1_1_1test.html#a67d5ad2842e24c72d6e79f845fb96335ab1870fa8801941a8b0faddfd614d3493",
-"structsecp256k1_1_1FieldElementData.html",
-"structsecp256k1_1_1coins_1_1Keccak256State.html#ab4b13479b11af716069bb9e4a8ab3418",
-"structsecp256k1_1_1fast_1_1PrecomputedScalar.html#ae83be6d9b05c9b0feae26a062e4d8474",
-"ufsecp__version_8h.html#a00aefa3a9a204565f192db4e1eb0a585"
+"structsecp256k1_1_1ExtendedKey.html#aff761f7bc981243505d1a340480d6af6",
+"structsecp256k1_1_1coins_1_1Keccak256State.html#a95fb0fbe8cbb37c76896fd1a4fc7a96c",
+"structsecp256k1_1_1fast_1_1PrecomputedScalar.html#ad58b708c971b3f63b8590fa7b10a94bb",
+"ufsecp__impl_8cpp_source.html"
 ];
 
 var SYNCONMSG = 'click to disable panel synchronisation';

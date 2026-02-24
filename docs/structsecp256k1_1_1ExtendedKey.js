@@ -13,5 +13,6 @@ var structsecp256k1_1_1ExtendedKey =
     [ "depth", "structsecp256k1_1_1ExtendedKey.html#a1e50f558b078621bddf6e06f4de3caa0", null ],
     [ "is_private", "structsecp256k1_1_1ExtendedKey.html#a902c84a548f6559cc8acf3b6e30aef3e", null ],
     [ "key", "structsecp256k1_1_1ExtendedKey.html#a380ec5519c570fcceafc96de21f77dd0", null ],
-    [ "parent_fingerprint", "structsecp256k1_1_1ExtendedKey.html#abc023f96773788fad06de5108bb49e6a", null ]
+    [ "parent_fingerprint", "structsecp256k1_1_1ExtendedKey.html#abc023f96773788fad06de5108bb49e6a", null ],
+    [ "pub_prefix", "structsecp256k1_1_1ExtendedKey.html#aff761f7bc981243505d1a340480d6af6", null ]
 ];

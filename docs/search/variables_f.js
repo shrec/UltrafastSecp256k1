@@ -21,7 +21,8 @@ var searchData=
   ['polygon_18',['Polygon',['../namespacesecp256k1_1_1coins.html#af39cdac6b34b6dc59104bf2d5cf68029',1,'secp256k1::coins']]],
   ['private_5fkey_19',['private_key',['../structsecp256k1_1_1coins_1_1CoinKeyPair.html#ab07af41a852cb1b5e14e0213b9044688',1,'secp256k1::coins::CoinKeyPair']]],
   ['progress_5fcallback_20',['progress_callback',['../structsecp256k1_1_1fast_1_1FixedBaseConfig.html#aa1f806b046e9491e03a6063c556891e3',1,'secp256k1::fast::FixedBaseConfig']]],
-  ['pubkey_5fx_21',['pubkey_x',['../structsecp256k1_1_1SchnorrBatchEntry.html#acd36cca81dba3bdbe3005828be899b7e',1,'secp256k1::SchnorrBatchEntry']]],
-  ['public_5fkey_22',['public_key',['../structsecp256k1_1_1coins_1_1CoinKeyPair.html#af85e18af8963ed680ebec91c211731a9',1,'secp256k1::coins::CoinKeyPair::public_key'],['../structsecp256k1_1_1ECDSABatchEntry.html#a77503c972c1c25b7396110c47cf810ad',1,'secp256k1::ECDSABatchEntry::public_key']]],
-  ['px_23',['px',['../structsecp256k1_1_1SchnorrKeypair.html#a7eefdd9e21715b60f6fffa47ea99df81',1,'secp256k1::SchnorrKeypair']]]
+  ['pub_5fprefix_21',['pub_prefix',['../structsecp256k1_1_1ExtendedKey.html#aff761f7bc981243505d1a340480d6af6',1,'secp256k1::ExtendedKey']]],
+  ['pubkey_5fx_22',['pubkey_x',['../structsecp256k1_1_1SchnorrBatchEntry.html#acd36cca81dba3bdbe3005828be899b7e',1,'secp256k1::SchnorrBatchEntry']]],
+  ['public_5fkey_23',['public_key',['../structsecp256k1_1_1coins_1_1CoinKeyPair.html#af85e18af8963ed680ebec91c211731a9',1,'secp256k1::coins::CoinKeyPair::public_key'],['../structsecp256k1_1_1ECDSABatchEntry.html#a77503c972c1c25b7396110c47cf810ad',1,'secp256k1::ECDSABatchEntry::public_key']]],
+  ['px_24',['px',['../structsecp256k1_1_1SchnorrKeypair.html#a7eefdd9e21715b60f6fffa47ea99df81',1,'secp256k1::SchnorrKeypair']]]
 ];

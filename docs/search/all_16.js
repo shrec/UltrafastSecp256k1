@@ -6,7 +6,7 @@ var searchData=
   ['p2pkh_5fversion_3',['p2pkh_version',['../structsecp256k1_1_1coins_1_1CoinParams.html#a0a1b7a27aeb6e2b82e1fdd1443596782',1,'secp256k1::coins::CoinParams']]],
   ['p2pkh_5fversion_5ftest_4',['p2pkh_version_test',['../structsecp256k1_1_1coins_1_1CoinParams.html#aa1bc7b038b0f9034e257f2ae5b7d797e',1,'secp256k1::coins::CoinParams']]],
   ['p2sh_5fversion_5',['p2sh_version',['../structsecp256k1_1_1coins_1_1CoinParams.html#ad40cd72203bcb96a7cb86738e58bfb90',1,'secp256k1::coins::CoinParams']]],
-  ['p3_6',['p3',['../namespacesecp256k1_1_1fast_1_1fe26__constants.html#ab6a10014e14dc08ae370c5399813a160',1,'secp256k1::fast::fe26_constants::P3'],['../namespacesecp256k1_1_1fast_1_1fe52__constants.html#a9eac05a57e600d3c0a09bd2d63d0813f',1,'secp256k1::fast::fe52_constants::P3']]],
+  ['p3_6',['p3',['../namespacesecp256k1_1_1fast_1_1fe52__constants.html#a9eac05a57e600d3c0a09bd2d63d0813f',1,'secp256k1::fast::fe52_constants::P3'],['../namespacesecp256k1_1_1fast_1_1fe26__constants.html#ab6a10014e14dc08ae370c5399813a160',1,'secp256k1::fast::fe26_constants::P3']]],
   ['p4_7',['p4',['../namespacesecp256k1_1_1fast_1_1fe26__constants.html#a2bff671448bdd22c99e9e3a06eda21de',1,'secp256k1::fast::fe26_constants::P4'],['../namespacesecp256k1_1_1fast_1_1fe52__constants.html#a7aa11f62b64299616aa4b785bfc6ae26',1,'secp256k1::fast::fe52_constants::P4']]],
   ['p5_8',['P5',['../namespacesecp256k1_1_1fast_1_1fe26__constants.html#a3e83d9684551dbf7c3d989d794f322f6',1,'secp256k1::fast::fe26_constants']]],
   ['p6_9',['P6',['../namespacesecp256k1_1_1fast_1_1fe26__constants.html#ad7c7373e7ecaadd19fbeee8735ac6c73',1,'secp256k1::fast::fe26_constants']]],
@@ -37,7 +37,7 @@ var searchData=
   ['platform_20ci_20coverage_34',['Platform CI Coverage',['../index.html#autotoc_md89',1,'']]],
   ['platform_20comparison_35',['secp256k1 Benchmarks — Cross-Platform Comparison',['../index.html#autotoc_md44',1,'']]],
   ['platforms_36',['Porting to New Platforms',['../index.html#autotoc_md51',1,'']]],
-  ['point_37',['point',['../classsecp256k1_1_1fast_1_1Point.html',1,'secp256k1::fast::Point'],['../namespacesecp256k1_1_1ct.html#a8e1ae79cac2082af82e69fc1f66a6f0a',1,'secp256k1::ct::Point'],['../ufsecp__impl_8cpp.html#a60051d6ae89015e67ae01b3c4417ceab',1,'Point:&#160;ufsecp_impl.cpp'],['../structsecp256k1_1_1SchnorrXonlyPubkey.html#a70a3b6e258dc7b2af6f7267e42d5e06c',1,'secp256k1::SchnorrXonlyPubkey::point'],['../structsecp256k1_1_1PedersenCommitment.html#aea692ceb3cb7317917b103d5ede41577',1,'secp256k1::PedersenCommitment::point'],['../classsecp256k1_1_1fast_1_1Point.html#ab19e0f8f8713ccf500103a167315896e',1,'secp256k1::fast::Point::Point()']]],
+  ['point_37',['point',['../ufsecp__impl_8cpp.html#a60051d6ae89015e67ae01b3c4417ceab',1,'Point:&#160;ufsecp_impl.cpp'],['../namespacesecp256k1_1_1ct.html#a8e1ae79cac2082af82e69fc1f66a6f0a',1,'secp256k1::ct::Point'],['../classsecp256k1_1_1fast_1_1Point.html#ab19e0f8f8713ccf500103a167315896e',1,'secp256k1::fast::Point::Point()'],['../structsecp256k1_1_1SchnorrXonlyPubkey.html#a70a3b6e258dc7b2af6f7267e42d5e06c',1,'secp256k1::SchnorrXonlyPubkey::point'],['../structsecp256k1_1_1PedersenCommitment.html#aea692ceb3cb7317917b103d5ede41577',1,'secp256k1::PedersenCommitment::point'],['../classsecp256k1_1_1fast_1_1Point.html',1,'secp256k1::fast::Point']]],
   ['point_20operations_38',['Basic Point Operations',['../index.html#autotoc_md74',1,'']]],
   ['point_2ehpp_39',['point.hpp',['../point_8hpp.html',1,'(Global Namespace)'],['../ct_2point_8hpp.html',1,'(Global Namespace)']]],
   ['point_5fadd_5fcomplete_40',['point_add_complete',['../namespacesecp256k1_1_1ct.html#a7cc6bee5345ed46977ce46f0f0dc4d51',1,'secp256k1::ct']]],
@@ -114,7 +114,8 @@ var searchData=
   ['progresscallback_111',['ProgressCallback',['../namespacesecp256k1_1_1fast.html#a37c1f085bc37d25789620da90ed4988a',1,'secp256k1::fast']]],
   ['project_112',['project',['../index.html#autotoc_md107',1,'⚡ Support the Project'],['../index.html#autotoc_md30',1,'Use in your CMake project']]],
   ['promise_113',['Tier 2 — Experimental (no ABI promise)',['../md_include_2ufsecp_2SUPPORTED__GUARANTEES.html#autotoc_md6',1,'']]],
-  ['pubkey_5fx_114',['pubkey_x',['../structsecp256k1_1_1SchnorrBatchEntry.html#acd36cca81dba3bdbe3005828be899b7e',1,'secp256k1::SchnorrBatchEntry']]],
-  ['public_5fkey_115',['public_key',['../structsecp256k1_1_1ECDSABatchEntry.html#a77503c972c1c25b7396110c47cf810ad',1,'secp256k1::ECDSABatchEntry::public_key'],['../structsecp256k1_1_1coins_1_1CoinKeyPair.html#af85e18af8963ed680ebec91c211731a9',1,'secp256k1::coins::CoinKeyPair::public_key'],['../structsecp256k1_1_1ExtendedKey.html#a196e6cfe0ad5d64b3fbdb8887fe35fdd',1,'secp256k1::ExtendedKey::public_key()']]],
-  ['px_116',['px',['../structsecp256k1_1_1SchnorrKeypair.html#a7eefdd9e21715b60f6fffa47ea99df81',1,'secp256k1::SchnorrKeypair']]]
+  ['pub_5fprefix_114',['pub_prefix',['../structsecp256k1_1_1ExtendedKey.html#aff761f7bc981243505d1a340480d6af6',1,'secp256k1::ExtendedKey']]],
+  ['pubkey_5fx_115',['pubkey_x',['../structsecp256k1_1_1SchnorrBatchEntry.html#acd36cca81dba3bdbe3005828be899b7e',1,'secp256k1::SchnorrBatchEntry']]],
+  ['public_5fkey_116',['public_key',['../structsecp256k1_1_1ECDSABatchEntry.html#a77503c972c1c25b7396110c47cf810ad',1,'secp256k1::ECDSABatchEntry::public_key'],['../structsecp256k1_1_1coins_1_1CoinKeyPair.html#af85e18af8963ed680ebec91c211731a9',1,'secp256k1::coins::CoinKeyPair::public_key'],['../structsecp256k1_1_1ExtendedKey.html#a196e6cfe0ad5d64b3fbdb8887fe35fdd',1,'secp256k1::ExtendedKey::public_key()']]],
+  ['px_117',['px',['../structsecp256k1_1_1SchnorrKeypair.html#a7eefdd9e21715b60f6fffa47ea99df81',1,'secp256k1::SchnorrKeypair']]]
 ];
