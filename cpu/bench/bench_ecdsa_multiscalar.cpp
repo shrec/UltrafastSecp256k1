@@ -31,7 +31,7 @@ static std::vector<Scalar> gen_scalars(size_t count, uint64_t seed) {
 static void build_odd_table(const Point& P, int window_bits, std::vector<Point>& table_out) {
     const int max_digit = (1 << window_bits) - 1;  // e.g., 31 for w=5
     const int table_size = (max_digit + 1) / 2;    // number of odd entries
-    table_out.resize(table_size);
+    table_out.resize(static_cast<std::size_t>(table_size));
     if (P.is_infinity()) {
         for (int i = 0; i < table_size; ++i) table_out[static_cast<size_t>(i)] = Point::infinity();
         return;
@@ -87,7 +87,7 @@ static double bench_separate_prod_like(const std::vector<Scalar>& k1s, const std
     }
     auto t1 = std::chrono::high_resolution_clock::now();
     volatile auto guard = acc.x_raw().limbs()[0]; (void)guard;
-    return std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count() / static_cast<double>(iters);
+    return static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count()) / static_cast<double>(iters);
 }
 
 static double bench_separate_variable(const std::vector<Scalar>& k1s, const std::vector<Scalar>& k2s,
@@ -102,7 +102,7 @@ static double bench_separate_variable(const std::vector<Scalar>& k1s, const std:
     }
     auto t1 = std::chrono::high_resolution_clock::now();
     volatile auto guard = acc.x_raw().limbs()[0]; (void)guard;
-    return std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count() / static_cast<double>(iters);
+    return static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count()) / static_cast<double>(iters);
 }
 
 static double bench_shamir_variable(const std::vector<Scalar>& k1s, const std::vector<Scalar>& k2s,
@@ -129,7 +129,7 @@ static double bench_shamir_variable(const std::vector<Scalar>& k1s, const std::v
     }
     auto t1 = std::chrono::high_resolution_clock::now();
     volatile auto guard = acc.x_raw().limbs()[0]; (void)guard;
-    return std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count() / static_cast<double>(iters);
+    return static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count()) / static_cast<double>(iters);
 }
 
 static void print_row(const std::string& name, double ns) {

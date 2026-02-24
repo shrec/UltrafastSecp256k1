@@ -27,7 +27,10 @@ static int tests_passed = 0;
 static void hex_to_bytes(const char* hex, uint8_t* out, size_t len) {
     for (size_t i = 0; i < len; ++i) {
         unsigned int byte = 0;
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
         if (sscanf(hex + i * 2, "%02x", &byte) != 1) byte = 0;
+#pragma clang diagnostic pop
         out[i] = static_cast<uint8_t>(byte);
     }
 }
@@ -94,7 +97,7 @@ static void test_nonce_gen() {
 
     // Use pk as agg_pub_key for simplicity (single signer)
     std::array<uint8_t, 32> msg{};
-    for (int i = 0; i < 32; ++i) msg[i] = static_cast<uint8_t>(i);
+    for (std::size_t i = 0; i < 32; ++i) msg[i] = static_cast<uint8_t>(i);
 
     std::array<uint8_t, 32> extra{};
     extra[0] = 0x42;
@@ -197,7 +200,7 @@ static void test_3of3_signing() {
     std::array<uint8_t, 32> pk[3];
     std::vector<std::array<uint8_t, 32>> pubkeys;
 
-    for (int i = 0; i < 3; ++i) {
+    for (std::size_t i = 0; i < 3; ++i) {
         sk[i] = Scalar::from_bytes(sk_bytes[i]);
         pk[i] = get_xonly_pubkey(sk[i]);
         pubkeys.push_back(pk[i]);
@@ -214,7 +217,7 @@ static void test_3of3_signing() {
     MuSig2SecNonce sec_nonces[3];
     std::vector<MuSig2PubNonce> pub_nonces;
 
-    for (int i = 0; i < 3; ++i) {
+    for (std::size_t i = 0; i < 3; ++i) {
         std::array<uint8_t, 32> extra{};
         extra[0] = static_cast<uint8_t>(i + 1);
         auto [sn, pn] = musig2_nonce_gen(sk[i], pk[i], key_ctx.Q_x, msg, extra.data());
@@ -227,7 +230,7 @@ static void test_3of3_signing() {
 
     // Partial signs
     std::vector<Scalar> psigs;
-    for (int i = 0; i < 3; ++i) {
+    for (std::size_t i = 0; i < 3; ++i) {
         auto ps = musig2_partial_sign(sec_nonces[i], sk[i], key_ctx, session, i);
         psigs.push_back(ps);
 

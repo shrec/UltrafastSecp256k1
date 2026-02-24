@@ -244,7 +244,7 @@ static void test_field_conversions() {
     auto ob = o.to_bytes();
     CHECK(ob[31] == 1, "one to_bytes last byte is 1");
     bool rest_zero = true;
-    for (int i = 0; i < 31; ++i) if (ob[i] != 0) rest_zero = false;
+    for (std::size_t i = 0; i < 31; ++i) if (ob[i] != 0) rest_zero = false;
     CHECK(rest_zero, "one to_bytes prefix is zeros");
     
     // 2.7: Hex case insensitivity
@@ -1017,7 +1017,7 @@ static void test_point_basic() {
     CHECK(neg_p.y() != py, "negate changes y");
     
     // 12.16: Add(P, P) == dbl(P)
-    for (int i = 1; i <= 16; ++i) {
+    for (unsigned i = 1; i <= 16; ++i) {
         PT pi = G.scalar_mul(SC::from_uint64(i));
         CHECK(pt_eq(pi.add(pi), pi.dbl()), "add(P,P)==dbl(P) for " + std::to_string(i) + "G");
     }
@@ -1282,14 +1282,14 @@ static void test_point_serialization() {
     
     // 16.3: Compressed x matches uncompressed x
     bool x_match = true;
-    for (int i = 0; i < 32; ++i) {
+    for (std::size_t i = 0; i < 32; ++i) {
         if (comp[1 + i] != uncomp[1 + i]) x_match = false;
     }
     CHECK(x_match, "compressed x == uncompressed x");
     
     // 16.4: Multiple points serialization
     PT P = G;
-    for (int i = 0; i < 32; ++i) {
+    for (std::size_t i = 0; i < 32; ++i) {
         auto c = P.to_compressed();
         auto u = P.to_uncompressed();
         CHECK(c[0] == 0x02 || c[0] == 0x03, "prefix #" + std::to_string(i));
@@ -1302,7 +1302,7 @@ static void test_point_serialization() {
     auto second = G.x_second_half();
     auto full_bytes = G.x().to_bytes();
     bool first_match = true, second_match = true;
-    for (int i = 0; i < 16; ++i) {
+    for (std::size_t i = 0; i < 16; ++i) {
         if (first[i] != full_bytes[i]) first_match = false;
         if (second[i] != full_bytes[16 + i]) second_match = false;
     }
@@ -1313,7 +1313,7 @@ static void test_point_serialization() {
     PT neg = G.negate();
     auto comp_neg = neg.to_compressed();
     bool same_x = true;
-    for (int i = 1; i < 33; ++i) {
+    for (std::size_t i = 1; i < 33; ++i) {
         if (comp[i] != comp_neg[i]) same_x = false;
     }
     CHECK(same_x, "negation: same x in compressed");
@@ -1379,19 +1379,19 @@ static void test_point_edge_cases() {
     
     // 17.8: Commutativity exhaustive small range
     std::vector<PT> pts(8);
-    for (int i = 0; i < 8; ++i) pts[i] = G.scalar_mul(SC::from_uint64(i + 1));
+    for (std::size_t i = 0; i < 8; ++i) pts[i] = G.scalar_mul(SC::from_uint64(i + 1));
     
-    for (int i = 0; i < 8; ++i) {
-        for (int j = i; j < 8; ++j) {
+    for (std::size_t i = 0; i < 8; ++i) {
+        for (std::size_t j = i; j < 8; ++j) {
             CHECK(pt_eq(pts[i].add(pts[j]), pts[j].add(pts[i])),
                   "commutative (" + std::to_string(i+1) + "G," + std::to_string(j+1) + "G)");
         }
     }
     
     // 17.9: Associativity
-    for (int i = 0; i < 4; ++i) {
-        for (int j = i+1; j < 6; ++j) {
-            for (int k = j+1; k < 8; ++k) {
+    for (std::size_t i = 0; i < 4; ++i) {
+        for (std::size_t j = i+1; j < 6; ++j) {
+            for (std::size_t k = j+1; k < 8; ++k) {
                 PT lhs = pts[i].add(pts[j]).add(pts[k]);
                 PT rhs = pts[i].add(pts[j].add(pts[k]));
                 CHECK(pt_eq(lhs, rhs),
@@ -1592,7 +1592,7 @@ static void test_ct_scalar() {
     SC a = SC::from_uint64(42);
     SC b = SC::from_uint64(99);
     SC zero = SC::zero();
-    SC one = SC::one();
+    [[maybe_unused]] SC one = SC::one();
     
     // 20.1-20.3: Arithmetic
     CHECK(cts::scalar_add(a, b) == a + b, "ct scalar_add");
@@ -1651,7 +1651,7 @@ static void test_ct_point() {
     
     namespace ctp = secp256k1::ct;
     PT G = PT::generator();
-    PT O = PT::infinity();
+    [[maybe_unused]] PT O = PT::infinity();
     
     // 21.1: CT scalar_mul matches fast
     for (unsigned k = 1; k <= 64; ++k) {
@@ -1830,18 +1830,18 @@ static void test_msm() {
     CHECK(pt_eq(msm2, naive2), "MSM(n=2)");
     
     // 23.4: Pippenger for medium n
-    const int n = 64;
+    const std::size_t n = 64;
     std::vector<SC> scalars(n);
     std::vector<PT> points(n);
     PT P = G;
-    for (int i = 0; i < n; ++i) {
+    for (std::size_t i = 0; i < n; ++i) {
         scalars[i] = SC::from_uint64(static_cast<uint64_t>(i * 31 + 17));
         points[i] = P;
         P = P.add(G);
     }
     
     PT naive = PT::infinity();
-    for (int i = 0; i < n; ++i) {
+    for (std::size_t i = 0; i < n; ++i) {
         naive = naive.add(points[i].scalar_mul(scalars[i]));
     }
     
@@ -1856,18 +1856,18 @@ static void test_msm() {
     CHECK(pt_eq(shamir, naive2), "shamir_trick(2)");
     
     // 23.6: Pippenger with larger n
-    const int n2 = 256;
+    const std::size_t n2 = 256;
     std::vector<SC> scalars2(n2);
     std::vector<PT> points2(n2);
     P = G;
-    for (int i = 0; i < n2; ++i) {
+    for (std::size_t i = 0; i < n2; ++i) {
         scalars2[i] = SC::from_uint64(static_cast<uint64_t>(i * 13 + 5));
         points2[i] = P;
         P = P.add(G);
     }
     
     PT naive2_big = PT::infinity();
-    for (int i = 0; i < n2; ++i) {
+    for (std::size_t i = 0; i < n2; ++i) {
         naive2_big = naive2_big.add(points2[i].scalar_mul(scalars2[i]));
     }
     
@@ -1991,24 +1991,24 @@ static void test_batch_inverse() {
     const int N = 16;
     FE batch16[N];
     FE expected16[N];
-    for (int i = 0; i < N; ++i) {
-        batch16[i] = FE::from_uint64(i + 2);
+    for (unsigned i = 0; i < static_cast<unsigned>(N); ++i) {
+        batch16[i] = FE::from_uint64(static_cast<uint64_t>(i) + 2);
         expected16[i] = batch16[i].inverse();
     }
     secp256k1::fast::fe_batch_inverse(batch16, N);
     bool all_match = true;
-    for (int i = 0; i < N; ++i) {
+    for (unsigned i = 0; i < static_cast<unsigned>(N); ++i) {
         if (batch16[i] != expected16[i]) all_match = false;
     }
     CHECK(all_match, "batch_inv(n=16) all match");
     
     // 25.4: Verify a*a^-^1 = 1 for batch results
     FE vals[8];
-    for (int i = 0; i < 8; ++i) vals[i] = FE::from_uint64(i * 7 + 3);
+    for (unsigned i = 0; i < 8; ++i) vals[i] = FE::from_uint64(static_cast<uint64_t>(i) * 7 + 3);
     FE originals[8];
     std::memcpy(originals, vals, sizeof(vals));
     secp256k1::fast::fe_batch_inverse(vals, 8);
-    for (int i = 0; i < 8; ++i) {
+    for (unsigned i = 0; i < 8; ++i) {
         CHECK(originals[i] * vals[i] == one, "batch a*a^-^1==1 #" + std::to_string(i));
     }
     
@@ -2016,13 +2016,13 @@ static void test_batch_inverse() {
     const int LN = 64;
     FE large_batch[LN];
     FE large_orig[LN];
-    for (int i = 0; i < LN; ++i) {
-        large_batch[i] = FE::from_uint64(i + 2);
+    for (unsigned i = 0; i < static_cast<unsigned>(LN); ++i) {
+        large_batch[i] = FE::from_uint64(static_cast<uint64_t>(i) + 2);
         large_orig[i] = large_batch[i];
     }
     secp256k1::fast::fe_batch_inverse(large_batch, LN);
     bool large_ok = true;
-    for (int i = 0; i < LN; ++i) {
+    for (unsigned i = 0; i < static_cast<unsigned>(LN); ++i) {
         if (large_orig[i] * large_batch[i] != one) large_ok = false;
     }
     CHECK(large_ok, "batch_inv(n=64) all correct");
@@ -2106,7 +2106,7 @@ static void test_ecdsa() {
 static void test_schnorr() {
     std::cout << "  [Schnorr] Schnorr sign/verify tests..." << std::endl;
     
-    PT G = PT::generator();
+    [[maybe_unused]] PT G = PT::generator();
     
     // 27.1: Sign and verify
     SC privkey = SC::from_uint64(42);
@@ -2337,8 +2337,8 @@ static void test_batch_add_affine_comprehensive() {
     
     using namespace secp256k1::fast;
     PT G = PT::generator();
-    FE gx = G.x();
-    FE gy = G.y();
+    [[maybe_unused]] FE gx = G.x();
+    [[maybe_unused]] FE gy = G.y();
     
     // 31.1: precompute_g_multiples
     auto g_multiples = precompute_g_multiples(64);

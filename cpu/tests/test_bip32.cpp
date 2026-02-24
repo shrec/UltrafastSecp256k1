@@ -25,7 +25,10 @@ static int tests_passed = 0;
 static void hex_to_bytes(const char* hex, uint8_t* out, size_t len) {
     for (size_t i = 0; i < len; ++i) {
         unsigned int byte = 0;
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
         if (sscanf(hex + i * 2, "%02x", &byte) != 1) byte = 0;
+#pragma clang diagnostic pop
         out[i] = static_cast<uint8_t>(byte);
     }
 }

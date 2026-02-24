@@ -116,11 +116,11 @@ static void test_schnorr_batch_verify() {
     printf("\n--- Schnorr Batch Verification ---\n");
 
     // Create 5 valid Schnorr signatures
-    const int N = 5;
+    constexpr std::size_t N = 5;
     std::vector<SchnorrBatchEntry> entries(N);
     std::vector<Scalar> keys(N);
 
-    for (int i = 0; i < N; ++i) {
+    for (std::size_t i = 0; i < N; ++i) {
         keys[i] = Scalar::from_uint64(100 + i);
         entries[i].pubkey_x = schnorr_pubkey(keys[i]);
 
@@ -143,7 +143,7 @@ static void test_schnorr_batch_verify() {
 
     // Individual verify should also pass
     bool individual_ok = true;
-    for (int i = 0; i < N; ++i) {
+    for (std::size_t i = 0; i < N; ++i) {
         if (!schnorr_verify(entries[i].pubkey_x, entries[i].message,
                             entries[i].signature)) {
             individual_ok = false;
@@ -175,13 +175,13 @@ static void test_schnorr_batch_verify() {
 static void test_ecdsa_batch_verify() {
     printf("\n--- ECDSA Batch Verification ---\n");
 
-    const int N = 4;
+    constexpr std::size_t N = 4;
     std::vector<ECDSABatchEntry> entries(N);
     std::vector<Scalar> keys(N);
 
     auto G = Point::generator();
 
-    for (int i = 0; i < N; ++i) {
+    for (std::size_t i = 0; i < N; ++i) {
         keys[i] = Scalar::from_uint64(200 + i);
         entries[i].public_key = G.scalar_mul(keys[i]);
 

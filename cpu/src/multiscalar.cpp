@@ -59,11 +59,11 @@ Point multi_scalar_mul(const Scalar* scalars,
 
     // Step 1: Compute wNAF for each scalar
     std::vector<std::vector<int8_t>> wnafs(n);
-    int max_len = 0;
+    std::size_t max_len = 0;
     for (std::size_t i = 0; i < n; ++i) {
         wnafs[i] = scalars[i].to_wnaf(w);
-        if (static_cast<int>(wnafs[i].size()) > max_len) {
-            max_len = static_cast<int>(wnafs[i].size());
+        if (wnafs[i].size() > max_len) {
+            max_len = wnafs[i].size();
         }
     }
 
@@ -84,11 +84,11 @@ Point multi_scalar_mul(const Scalar* scalars,
     // Step 3: Interleaved scan from MSB to LSB
     Point R = Point::infinity();
 
-    for (int bit = max_len - 1; bit >= 0; --bit) {
+    for (std::size_t bit = max_len; bit-- > 0; ) {
         R.dbl_inplace();
 
         for (std::size_t i = 0; i < n; ++i) {
-            if (bit >= static_cast<int>(wnafs[i].size())) continue;
+            if (bit >= wnafs[i].size()) continue;
             int8_t digit = wnafs[i][bit];
             if (digit == 0) continue;
 

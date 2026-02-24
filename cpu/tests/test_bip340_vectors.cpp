@@ -32,9 +32,15 @@ static int tests_passed = 0;
 
 static void hex_to_bytes(const char* hex, uint8_t* out, size_t len) {
     for (size_t i = 0; i < len; ++i) {
-        unsigned v = 0;
-        std::sscanf(hex + i * 2, "%02x", &v);
-        out[i] = static_cast<uint8_t>(v);
+        unsigned hi = 0, lo = 0;
+        char c0 = hex[i * 2], c1 = hex[i * 2 + 1];
+        if (c0 >= '0' && c0 <= '9') hi = static_cast<unsigned>(c0 - '0');
+        else if (c0 >= 'a' && c0 <= 'f') hi = static_cast<unsigned>(c0 - 'a' + 10);
+        else if (c0 >= 'A' && c0 <= 'F') hi = static_cast<unsigned>(c0 - 'A' + 10);
+        if (c1 >= '0' && c1 <= '9') lo = static_cast<unsigned>(c1 - '0');
+        else if (c1 >= 'a' && c1 <= 'f') lo = static_cast<unsigned>(c1 - 'a' + 10);
+        else if (c1 >= 'A' && c1 <= 'F') lo = static_cast<unsigned>(c1 - 'A' + 10);
+        out[i] = static_cast<uint8_t>((hi << 4) | lo);
     }
 }
 

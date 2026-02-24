@@ -997,9 +997,9 @@ static std::array<std::uint64_t, 4> ct_mul_shift_384(
     const std::array<std::uint64_t, 4>& b) noexcept
 {
     std::uint64_t prod[8] = {};
-    for (int i = 0; i < 4; ++i) {
+    for (std::size_t i = 0; i < 4; ++i) {
         unsigned __int128 carry = 0;
-        for (int j = 0; j < 4; ++j) {
+        for (std::size_t j = 0; j < 4; ++j) {
             unsigned __int128 t = static_cast<unsigned __int128>(a[i]) * b[j]
                                 + prod[i + j] + carry;
             prod[i + j] = static_cast<std::uint64_t>(t);

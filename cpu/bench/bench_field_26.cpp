@@ -46,7 +46,7 @@ double bench_ns(Func&& f, int iterations) {
     for (int i = 0; i < WARMUP; ++i) f();
 
     std::array<double, PASSES> runs;
-    for (int p = 0; p < PASSES; ++p) {
+    for (std::size_t p = 0; p < PASSES; ++p) {
         auto t0 = Clock::now();
         for (int i = 0; i < iterations; ++i) {
             f();

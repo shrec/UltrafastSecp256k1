@@ -76,17 +76,17 @@ static std::array<std::uint64_t, 4> mul_shift_384(
 // Bit-length of a Scalar (for sign selection: pick shorter representation)
 static unsigned scalar_bitlen(const Scalar& s) {
     auto& limbs = s.limbs();
-    for (int i = 3; i >= 0; --i) {
+    for (std::size_t i = 4; i-- > 0; ) {
         if (limbs[i] != 0) {
 #if defined(_MSC_VER) && !defined(__clang__)
             unsigned long index;
             _BitScanReverse64(&index, limbs[i]);
-            return (unsigned)(i * 64 + index + 1);
+            return static_cast<unsigned>(i * 64 + index + 1);
 #else
             // 32-bit CLZ for portability (ESP32 Xtensa has NSAU for 32-bit)
-            std::uint32_t hi32 = (std::uint32_t)(limbs[i] >> 32);
-            if (hi32) return (unsigned)(i * 64 + 64 - __builtin_clz(hi32));
-            return (unsigned)(i * 64 + 32 - __builtin_clz((std::uint32_t)limbs[i]));
+            std::uint32_t hi32 = static_cast<std::uint32_t>(limbs[i] >> 32);
+            if (hi32) return static_cast<unsigned>(i * 64 + 64 - static_cast<unsigned>(__builtin_clz(hi32)));
+            return static_cast<unsigned>(i * 64 + 32 - static_cast<unsigned>(__builtin_clz(static_cast<std::uint32_t>(limbs[i]))));
 #endif
         }
     }

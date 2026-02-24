@@ -13,6 +13,11 @@
 #include <cstring>
 #include <vector>
 #include <array>
+
+// Suppress MSVC deprecation of std::getenv (safe: read-only use)
+#if defined(_MSC_VER)
+#pragma warning(disable: 4996)
+#endif
 #include <cstdlib>
 #include <cstdio>
 
@@ -192,14 +197,14 @@ static bool test_addition(bool verbose) {
         SELFTEST_PRINT("  Testing: 2*G + 3*G = 5*G\n");
     }
     
-    Point P1 = scalar_mul_generator(Scalar::from_hex(
+    Point pt1 = scalar_mul_generator(Scalar::from_hex(
         "0000000000000000000000000000000000000000000000000000000000000002"));
-    Point P2 = scalar_mul_generator(Scalar::from_hex(
+    Point pt2 = scalar_mul_generator(Scalar::from_hex(
         "0000000000000000000000000000000000000000000000000000000000000003"));
     Point expected = scalar_mul_generator(Scalar::from_hex(
         "0000000000000000000000000000000000000000000000000000000000000005"));
     
-    Point result = P1.add(P2);
+    Point result = pt1.add(pt2);
     
     std::string result_x = result.x().to_hex();
     std::string result_y = result.y().to_hex();
@@ -229,15 +234,15 @@ static bool test_subtraction(bool verbose) {
         SELFTEST_PRINT("  Testing: 5*G - 2*G = 3*G\n");
     }
     
-    Point P1 = scalar_mul_generator(Scalar::from_hex(
+    Point pt1 = scalar_mul_generator(Scalar::from_hex(
         "0000000000000000000000000000000000000000000000000000000000000005"));
-    Point P2 = scalar_mul_generator(Scalar::from_hex(
+    Point pt2 = scalar_mul_generator(Scalar::from_hex(
         "0000000000000000000000000000000000000000000000000000000000000002"));
     Point expected = scalar_mul_generator(Scalar::from_hex(
         "0000000000000000000000000000000000000000000000000000000000000003"));
     
     // P1 - P2 = P1 + (-P2)
-    Point result = P1.add(P2.negate());
+    Point result = pt1.add(pt2.negate());
     
     std::string result_x = result.x().to_hex();
     std::string result_y = result.y().to_hex();
@@ -673,9 +678,9 @@ static bool run_external_vectors(bool verbose) {
                 fail_line();
                 continue;
             }
-            Point P1 = Point::from_affine(FieldElement::from_bytes(x1b), FieldElement::from_bytes(y1b));
-            Point P2 = Point::from_affine(FieldElement::from_bytes(x2b), FieldElement::from_bytes(y2b));
-            Point R = (kind == "ADD") ? P1.add(P2) : P1.add(P2.negate());
+            Point pt1 = Point::from_affine(FieldElement::from_bytes(x1b), FieldElement::from_bytes(y1b));
+            Point pt2 = Point::from_affine(FieldElement::from_bytes(x2b), FieldElement::from_bytes(y2b));
+            Point R = (kind == "ADD") ? pt1.add(pt2) : pt1.add(pt2.negate());
             std::string rx = R.x().to_hex();
             std::string ry = R.y().to_hex();
             if (!hex_equal(rx, parts[5].c_str()) || !hex_equal(ry, parts[6].c_str())) {

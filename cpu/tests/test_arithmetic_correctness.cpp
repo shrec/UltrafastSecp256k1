@@ -22,9 +22,9 @@ static std::array<uint8_t, 32> hex_to_bytes(const char* hex) {
     for (size_t i = 0; i < len; i++) {
         char c = hex[i];
         uint8_t val = 0;
-        if (c >= '0' && c <= '9') val = c - '0';
-        else if (c >= 'a' && c <= 'f') val = c - 'a' + 10;
-        else if (c >= 'A' && c <= 'F') val = c - 'A' + 10;
+        if (c >= '0' && c <= '9') val = static_cast<uint8_t>(c - '0');
+        else if (c >= 'a' && c <= 'f') val = static_cast<uint8_t>(c - 'a' + 10);
+        else if (c >= 'A' && c <= 'F') val = static_cast<uint8_t>(c - 'A' + 10);
         
         size_t byte_idx = (len - 1 - i) / 2;
         if ((len - 1 - i) % 2 == 0) {
@@ -192,7 +192,7 @@ static bool test_kg_doubling() {
         
         // Method 1: scalar_mul
         std::array<uint8_t, 32> k_bytes{};
-        k_bytes[31] = k;
+        k_bytes[31] = static_cast<uint8_t>(k);
         Scalar k_scalar = Scalar::from_bytes(k_bytes);
         Point result_mul = G.scalar_mul(k_scalar);
         
@@ -247,17 +247,17 @@ static bool test_point_addition() {
         total++;
         
         std::array<uint8_t, 32> k1_bytes{}, k2_bytes{}, ksum_bytes{};
-        k1_bytes[31] = test.k1;
-        k2_bytes[31] = test.k2;
-        ksum_bytes[31] = test.k_sum;
+        k1_bytes[31] = static_cast<uint8_t>(test.k1);
+        k2_bytes[31] = static_cast<uint8_t>(test.k2);
+        ksum_bytes[31] = static_cast<uint8_t>(test.k_sum);
         
         Scalar k1 = Scalar::from_bytes(k1_bytes);
         Scalar k2 = Scalar::from_bytes(k2_bytes);
         Scalar k_sum = Scalar::from_bytes(ksum_bytes);
         
-        Point P1 = G.scalar_mul(k1);
-        Point P2 = G.scalar_mul(k2);
-        Point result_add = P1.add(P2);
+        Point pt1 = G.scalar_mul(k1);
+        Point pt2 = G.scalar_mul(k2);
+        Point result_add = pt1.add(pt2);
         Point expected = G.scalar_mul(k_sum);
         
         bool match = points_equal(result_add, expected);
@@ -308,8 +308,8 @@ static bool test_kq_arbitrary() {
         total++;
         
         std::array<uint8_t, 32> k_bytes{}, expected_bytes{};
-        k_bytes[31] = test.k;
-        expected_bytes[31] = test.expected;
+        k_bytes[31] = static_cast<uint8_t>(test.k);
+        expected_bytes[31] = static_cast<uint8_t>(test.expected);
         
         Scalar k = Scalar::from_bytes(k_bytes);
         Scalar expected_scalar = Scalar::from_bytes(expected_bytes);
@@ -344,9 +344,9 @@ static bool test_kq_random() {
     for (int i = 0; i < total; i++) {
         // Random k1 and k2
         std::array<uint8_t, 32> k1_bytes{}, k2_bytes{};
-        for (int j = 0; j < 32; j++) {
-            k1_bytes[j] = rng() & 0xFF;
-            k2_bytes[j] = rng() & 0xFF;
+        for (std::size_t j = 0; j < 32; j++) {
+            k1_bytes[j] = static_cast<uint8_t>(rng() & 0xFF);
+            k2_bytes[j] = static_cast<uint8_t>(rng() & 0xFF);
         }
         
         Scalar k1 = Scalar::from_bytes(k1_bytes);
@@ -388,7 +388,7 @@ static bool test_distributive() {
     
     for (int test_num = 0; test_num < total; test_num++) {
         std::array<uint8_t, 32> k_bytes{}, k1_bytes{}, k2_bytes{};
-        k_bytes[31] = 3 + test_num;
+        k_bytes[31] = static_cast<uint8_t>(3 + test_num);
         k1_bytes[31] = 2;
         k2_bytes[31] = 5;
         
@@ -396,17 +396,17 @@ static bool test_distributive() {
         Scalar k1 = Scalar::from_bytes(k1_bytes);
         Scalar k2 = Scalar::from_bytes(k2_bytes);
         
-        Point P1 = G.scalar_mul(k1);
-        Point P2 = G.scalar_mul(k2);
+        Point pt1 = G.scalar_mul(k1);
+        Point pt2 = G.scalar_mul(k2);
         
-        // Left side: k*(P1+P2)
-        Point P1_plus_P2 = P1.add(P2);
-        Point left = P1_plus_P2.scalar_mul(k);
+        // Left side: k*(pt1+pt2)
+        Point pt1_plus_pt2 = pt1.add(pt2);
+        Point left = pt1_plus_pt2.scalar_mul(k);
         
-        // Right side: k*P1 + k*P2
-        Point kP1 = P1.scalar_mul(k);
-        Point kP2 = P2.scalar_mul(k);
-        Point right = kP1.add(kP2);
+        // Right side: k*pt1 + k*pt2
+        Point k_pt1 = pt1.scalar_mul(k);
+        Point k_pt2 = pt2.scalar_mul(k);
+        Point right = k_pt1.add(k_pt2);
         
         bool match = points_equal(left, right);
         

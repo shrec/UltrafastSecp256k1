@@ -26,7 +26,7 @@ double benchmark_ns(Func&& f, int iterations = 10000) {
     }
     auto end = high_resolution_clock::now();
     
-    double total_ns = duration_cast<nanoseconds>(end - start).count();
+    double total_ns = static_cast<double>(duration_cast<nanoseconds>(end - start).count());
     return total_ns / iterations;
 }
 
@@ -56,6 +56,7 @@ int main() {
 
     // Prepare test data -- full 256-bit values for representative results
     Point G = Point::generator();
+    (void)G;
     Point P = scalar_mul_generator(Scalar::from_hex(
         "e8f32e723decf4051aefac8e2c93c9c5b214313817cdb01a1494b917c8436b35"));
     Point Q = scalar_mul_generator(Scalar::from_hex(
@@ -67,12 +68,14 @@ int main() {
         "483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8");
     FieldElement c = FieldElement::from_hex(
         "9c47d08ffb10d4b8483ada7726a3c46555a06295ce870b0779be667ef9dcbbac");
+    (void)c;
 
     std::cout << "=== POINT OPERATIONS (Jacobian Coordinates) ===\n\n";
     
     // Point Addition: Jacobian + Jacobian (immutable - with allocation)
     double point_add_immutable = benchmark_ns([&]() {
         volatile auto R = P.add(Q);
+        (void)R;
     });
     std::cout << "Point Add (immutable):       " << std::fixed << std::setprecision(2) 
               << point_add_immutable << " ns/op  [12M+4S + allocation]\n";
@@ -94,6 +97,7 @@ int main() {
     // Point Doubling: Immutable
     double point_double_immutable = benchmark_ns([&]() {
         volatile auto R = P.dbl();
+        (void)R;
     });
     std::cout << "Point Double (immutable):    " << std::fixed << std::setprecision(2) 
               << point_double_immutable << " ns/op  [4M+4S + allocation]\n";
@@ -114,6 +118,7 @@ int main() {
     // Next (G+1): Immutable vs In-place
     double next_immutable = benchmark_ns([&]() {
         volatile auto R = P.next();
+        (void)R;
     });
     std::cout << "Next G+1 (immutable):        " << std::fixed << std::setprecision(2) 
               << next_immutable << " ns/op  [mixed 7M+4S + allocation]\n";
@@ -130,6 +135,7 @@ int main() {
     // Point Negation (trivial - just flips Y coordinate)
     double point_negate_time = benchmark_ns([&]() {
         volatile auto R = P.negate();
+        (void)R;
     });
     std::cout << "Point Negation (-P):         " << std::fixed << std::setprecision(2) 
               << point_negate_time << " ns/op  [trivial: Y := -Y]\n";
@@ -139,6 +145,7 @@ int main() {
     // Field Multiplication
     double field_mul_time = benchmark_ns([&]() {
         volatile auto r = a * b;
+        (void)r;
     });
     std::cout << "Field Multiplication (a*b):  " << std::fixed << std::setprecision(2) 
               << field_mul_time << " ns/op\n";
@@ -146,6 +153,7 @@ int main() {
     // Field Squaring
     double field_sqr_time = benchmark_ns([&]() {
         volatile auto r = a.square();
+        (void)r;
     });
     std::cout << "Field Squaring (a^2):        " << std::fixed << std::setprecision(2) 
               << field_sqr_time << " ns/op\n";
@@ -153,6 +161,7 @@ int main() {
     // Field Addition
     double field_add_time = benchmark_ns([&]() {
         volatile auto r = a + b;
+        (void)r;
     });
     std::cout << "Field Addition (a+b):        " << std::fixed << std::setprecision(2) 
               << field_add_time << " ns/op\n";
@@ -160,6 +169,7 @@ int main() {
     // Field Subtraction
     double field_sub_time = benchmark_ns([&]() {
         volatile auto r = a - b;
+        (void)r;
     });
     std::cout << "Field Subtraction (a-b):     " << std::fixed << std::setprecision(2) 
               << field_sub_time << " ns/op\n";
@@ -167,6 +177,7 @@ int main() {
     // Field Inverse (expensive!)
     double field_inv_time = benchmark_ns([&]() {
         volatile auto r = a.inverse();
+        (void)r;
     }, 1000);  // Only 1000 iterations - inverse is slow!
     std::cout << "Field Inverse (1/a):         " << std::fixed << std::setprecision(2) 
               << field_inv_time << " ns/op  [Fermat's little theorem: a^(p-2)]\n";
@@ -176,6 +187,7 @@ int main() {
     // Triple (3*P = P + P + P)
     double point_triple_time = benchmark_ns([&]() {
         volatile auto R = P.dbl().add(P);
+        (void)R;
     });
     std::cout << "Point Triple (3*P):          " << std::fixed << std::setprecision(2) 
               << point_triple_time << " ns/op  [= 2*P + P]\n";
@@ -187,6 +199,7 @@ int main() {
     double to_affine_time = benchmark_ns([&]() {
         volatile auto x = P_jac.x();
         volatile auto y = P_jac.y();
+        (void)x; (void)y;
     }, 1000);
     std::cout << "To Affine Conversion:        " << std::fixed << std::setprecision(2) 
               << to_affine_time << " ns/op  [1 inverse + 2-3 mul]\n";

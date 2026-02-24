@@ -116,7 +116,7 @@ struct JacobianPoint {
 // Optimized dbl-2007-a formula for a=0 curves (secp256k1)
 // Operations: 4 squarings + 4 multiplications (vs previous 5 sqr + 3+ mul)
 // Uses additions instead of multiplications for small constants (2, 3, 8)
-#ifdef _MSC_VER
+#if defined(_MSC_VER) && !defined(__clang__)
 #pragma inline_recursion(on)
 #pragma inline_depth(255)
 #endif
@@ -172,7 +172,7 @@ JacobianPoint jacobian_double(const JacobianPoint& p) {
 }
 
 // Hot path: Mixed addition - optimize heavily
-#ifdef _MSC_VER
+#if defined(_MSC_VER) && !defined(__clang__)
 #pragma inline_recursion(on)
 #pragma inline_depth(255)
 #endif
@@ -877,32 +877,32 @@ static Point scalar_mul_glv52(const Point& base, const Scalar& scalar) {
         iso[0] = {P52.x * C2, P52.y * C3, P52.z, false};
 
         // Build rest using mixed adds on iso curve (7M+4S each, not 12M+5S)
-        for (int i = 1; i < glv_table_size; i++) {
+        for (std::size_t i = 1; i < glv_table_size; i++) {
             iso[i] = iso[i - 1];
             jac52_add_mixed_inplace(iso[i], d_aff);
         }
 
         // Batch-invert effective Z: true Z on secp256k1 = Z_iso * C
         std::array<FieldElement52, glv_table_size> eff_z;
-        for (int i = 0; i < glv_table_size; i++) {
+        for (std::size_t i = 0; i < glv_table_size; i++) {
             eff_z[i] = iso[i].z * C;
         }
 
         std::array<FieldElement52, glv_table_size> prods;
         prods[0] = eff_z[0];
-        for (int i = 1; i < glv_table_size; i++) {
+        for (std::size_t i = 1; i < glv_table_size; i++) {
             prods[i] = prods[i - 1] * eff_z[i];
         }
         FieldElement52 inv = prods[glv_table_size - 1].inverse_safegcd();
         std::array<FieldElement52, glv_table_size> zs;
-        for (int i = glv_table_size - 1; i > 0; --i) {
+        for (std::size_t i = glv_table_size - 1; i > 0; --i) {
             zs[i] = prods[i - 1] * inv;
             inv = inv * eff_z[i];
         }
         zs[0] = inv;
 
         // Convert from iso to secp256k1 affine
-        for (int i = 0; i < glv_table_size; i++) {
+        for (std::size_t i = 0; i < glv_table_size; i++) {
             FieldElement52 zinv2 = zs[i].square();
             FieldElement52 zinv3 = zinv2 * zs[i];
             tbl_P[i].x = iso[i].x * zinv2;
@@ -915,7 +915,7 @@ static Point scalar_mul_glv52(const Point& base, const Scalar& scalar) {
         FieldElement::from_bytes(glv_constants::BETA));
 
     const bool flip_phi = (decomp.k1_neg != decomp.k2_neg);
-    for (int i = 0; i < glv_table_size; i++) {
+    for (std::size_t i = 0; i < glv_table_size; i++) {
         tbl_phiP[i].x = tbl_P[i].x * beta52;
         if (flip_phi) {
             tbl_phiP[i].y = tbl_P[i].y.negate(1);
@@ -928,7 +928,7 @@ static Point scalar_mul_glv52(const Point& base, const Scalar& scalar) {
     // -- Pre-compute negated tables (avoid negate+normalize_weak in hot loop)
     std::array<AffinePoint52, glv_table_size> neg_tbl_P;
     std::array<AffinePoint52, glv_table_size> neg_tbl_phiP;
-    for (int i = 0; i < glv_table_size; i++) {
+    for (std::size_t i = 0; i < glv_table_size; i++) {
         neg_tbl_P[i].x = tbl_P[i].x;
         neg_tbl_P[i].y = tbl_P[i].y.negate(1);
         neg_tbl_P[i].y.normalize_weak();
@@ -952,9 +952,9 @@ static Point scalar_mul_glv52(const Point& base, const Scalar& scalar) {
         {
             int32_t d = wnaf1_buf[static_cast<std::size_t>(i)];
             if (d > 0) {
-                jac52_add_mixed_inplace(result52, tbl_P[(d - 1) >> 1]);
+                jac52_add_mixed_inplace(result52, tbl_P[static_cast<std::size_t>((d - 1) >> 1)]);
             } else if (d < 0) {
-                jac52_add_mixed_inplace(result52, neg_tbl_P[(-d - 1) >> 1]);
+                jac52_add_mixed_inplace(result52, neg_tbl_P[static_cast<std::size_t>((-d - 1) >> 1)]);
             }
         }
 
@@ -962,9 +962,9 @@ static Point scalar_mul_glv52(const Point& base, const Scalar& scalar) {
         {
             int32_t d = wnaf2_buf[static_cast<std::size_t>(i)];
             if (d > 0) {
-                jac52_add_mixed_inplace(result52, tbl_phiP[(d - 1) >> 1]);
+                jac52_add_mixed_inplace(result52, tbl_phiP[static_cast<std::size_t>((d - 1) >> 1)]);
             } else if (d < 0) {
-                jac52_add_mixed_inplace(result52, neg_tbl_phiP[(-d - 1) >> 1]);
+                jac52_add_mixed_inplace(result52, neg_tbl_phiP[static_cast<std::size_t>((-d - 1) >> 1)]);
             }
         }
     }
@@ -981,7 +981,7 @@ static Point scalar_mul_glv52(const Point& base, const Scalar& scalar) {
         precomp[0] = base;
         Point double_p = base;
         double_p.dbl_inplace();
-        for (int i = 1; i < table_size; i++) {
+        for (std::size_t i = 1; i < static_cast<std::size_t>(table_size); i++) {
             precomp[i] = precomp[i-1];
             precomp[i].add_inplace(double_p);
         }
@@ -990,9 +990,9 @@ static Point scalar_mul_glv52(const Point& base, const Scalar& scalar) {
             result.dbl_inplace();
             int32_t digit = wnaf_buf[static_cast<std::size_t>(i)];
             if (digit > 0) {
-                result.add_inplace(precomp[(digit - 1) / 2]);
+                result.add_inplace(precomp[static_cast<std::size_t>((digit - 1) / 2)]);
             } else if (digit < 0) {
-                Point neg_point = precomp[(-digit - 1) / 2];
+                Point neg_point = precomp[static_cast<std::size_t>((-digit - 1) / 2)];
                 neg_point.negate_inplace();
                 result.add_inplace(neg_point);
             }
@@ -1045,7 +1045,7 @@ static Point scalar_mul_glv52(const Point& base, const Scalar& scalar) {
     // Step 3: Compute individual inverses using prefix products
     std::vector<FieldElement> z_invs(n);
     z_invs[n-1] = inv_product * prefix[n-2];
-    for (int i = static_cast<int>(n) - 2; i > 0; --i) {
+    for (std::size_t i = n - 2; i > 0; --i) {
         z_invs[i] = inv_product * prefix[i-1];
         inv_product = inv_product * jacobian_points[i+1].z;
     }
@@ -1928,13 +1928,13 @@ Point Point::scalar_mul(const Scalar& scalar) const {
     tbl_P[0] = P_base;
     Point dbl_P = P_base;
     dbl_P.dbl_inplace();
-    for (int i = 1; i < glv_table_size; i++) {
+    for (std::size_t i = 1; i < glv_table_size; i++) {
         tbl_P[i] = tbl_P[i - 1];
         tbl_P[i].add_inplace(dbl_P);
     }
 
     // Pre-negate P table (eliminates copy+negate in hot loop)
-    for (int i = 0; i < glv_table_size; i++) {
+    for (std::size_t i = 0; i < glv_table_size; i++) {
         neg_tbl_P[i] = tbl_P[i];
         neg_tbl_P[i].negate_inplace();
     }
@@ -1943,13 +1943,13 @@ Point Point::scalar_mul(const Scalar& scalar) const {
     // This costs only 8 field muls vs 7 additions + 1 doubling (~10x cheaper)
     // Sign adjustment: tbl_P has k1 sign baked in; flip to k2 sign if different
     bool flip_phi = (decomp.k1_neg != decomp.k2_neg);
-    for (int i = 0; i < glv_table_size; i++) {
+    for (std::size_t i = 0; i < glv_table_size; i++) {
         tbl_phiP[i] = apply_endomorphism(tbl_P[i]);
         if (flip_phi) tbl_phiP[i].negate_inplace();
     }
 
     // Pre-negate phi(P) table
-    for (int i = 0; i < glv_table_size; i++) {
+    for (std::size_t i = 0; i < glv_table_size; i++) {
         neg_tbl_phiP[i] = tbl_phiP[i];
         neg_tbl_phiP[i].negate_inplace();
     }
@@ -2171,7 +2171,7 @@ Point Point::scalar_mul_precomputed_wnaf(const std::vector<int32_t>& wnaf1,
         
         // Add phi(Q) * k2 contribution (no copy: pre-negated tables)
         if (i < static_cast<int>(wnaf2.size())) {
-            int32_t digit2 = wnaf2[i];
+            int32_t digit2 = wnaf2[static_cast<std::size_t>(i)];
             if (digit2 > 0) {
                 int idx = (digit2 - 1) / 2;
                 jacobian_add_inplace(result, table_phi_Q_jac[static_cast<std::size_t>(idx)]);
@@ -2183,7 +2183,7 @@ Point Point::scalar_mul_precomputed_wnaf(const std::vector<int32_t>& wnaf1,
 
         // Add Q * k1 contribution (no copy: pre-negated tables)
         if (i < static_cast<int>(wnaf1.size())) {
-            int32_t digit1 = wnaf1[i];
+            int32_t digit1 = wnaf1[static_cast<std::size_t>(i)];
             if (digit1 > 0) {
                 int idx = (digit1 - 1) / 2;
                 jacobian_add_inplace(result, table_Q_jac[static_cast<std::size_t>(idx)]);
@@ -2354,32 +2354,32 @@ Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const P
             AffinePoint52 d_aff = {d.x, d.y};
 
             // iso[0] = phi(B) = (B.x*C^2, B.y*C^3, B.z) on iso curve
-            auto* iso = new JacobianPoint52[count];
+            auto* iso = new JacobianPoint52[static_cast<std::size_t>(count)];
             iso[0] = {B.x * C2, B.y * C3, B.z, false};
-            for (int i = 1; i < count; i++) {
+            for (std::size_t i = 1; i < static_cast<std::size_t>(count); i++) {
                 iso[i] = iso[i - 1];
                 jac52_add_mixed_inplace(iso[i], d_aff);
             }
 
             // Batch-invert effective Z = Z_iso * C
-            auto* eff_z = new FieldElement52[count];
-            for (int i = 0; i < count; i++) {
+            auto* eff_z = new FieldElement52[static_cast<std::size_t>(count)];
+            for (std::size_t i = 0; i < static_cast<std::size_t>(count); i++) {
                 eff_z[i] = iso[i].z * C;
             }
-            auto* prods = new FieldElement52[count];
+            auto* prods = new FieldElement52[static_cast<std::size_t>(count)];
             prods[0] = eff_z[0];
-            for (int i = 1; i < count; i++) {
+            for (std::size_t i = 1; i < static_cast<std::size_t>(count); i++) {
                 prods[i] = prods[i - 1] * eff_z[i];
             }
             FieldElement52 inv = prods[count - 1].inverse_safegcd();
-            auto* zs = new FieldElement52[count];
-            for (int i = count - 1; i > 0; --i) {
+            auto* zs = new FieldElement52[static_cast<std::size_t>(count)];
+            for (std::size_t i = static_cast<std::size_t>(count) - 1; i > 0; --i) {
                 zs[i] = prods[i - 1] * inv;
                 inv = inv * eff_z[i];
             }
             zs[0] = inv;
 
-            for (int i = 0; i < count; i++) {
+            for (std::size_t i = 0; i < static_cast<std::size_t>(count); i++) {
                 FieldElement52 zinv2 = zs[i].square();
                 FieldElement52 zinv3 = zinv2 * zs[i];
                 out[i].x = iso[i].x * zinv2;
@@ -2399,13 +2399,13 @@ Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const P
 
         // Build tbl_H: odd multiples of H = 2^128*G
         JacobianPoint52 H52 = G52;
-        for (int i = 0; i < 128; i++) {
+        for (std::size_t i = 0; i < 128; i++) {
             jac52_double_inplace(H52);
         }
         build_table(H52, t->tbl_H, G_TABLE_SIZE);
 
         // Pre-negate G/H tables: avoid per-digit negate+normalize_weak in hot loop
-        for (int i = 0; i < G_TABLE_SIZE; i++) {
+        for (std::size_t i = 0; i < static_cast<std::size_t>(G_TABLE_SIZE); i++) {
             t->neg_tbl_G[i].x = t->tbl_G[i].x;
             t->neg_tbl_G[i].y = t->tbl_G[i].y.negate(1);
             t->neg_tbl_G[i].y.normalize_weak();
@@ -2449,32 +2449,32 @@ Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const P
         iso[0] = {P52.x * C2, P52.y * C3, P52.z, false};
 
         // Build rest using mixed adds on iso curve (7M+4S each, not 12M+5S)
-        for (int i = 1; i < P_TABLE_SIZE; i++) {
+        for (std::size_t i = 1; i < static_cast<std::size_t>(P_TABLE_SIZE); i++) {
             iso[i] = iso[i - 1];
             jac52_add_mixed_inplace(iso[i], d_aff);
         }
 
         // Batch-invert effective Z: true Z on secp256k1 = Z_iso * C
         std::array<FieldElement52, P_TABLE_SIZE> eff_z;
-        for (int i = 0; i < P_TABLE_SIZE; i++) {
+        for (std::size_t i = 0; i < static_cast<std::size_t>(P_TABLE_SIZE); i++) {
             eff_z[i] = iso[i].z * C;
         }
 
         std::array<FieldElement52, P_TABLE_SIZE> prods;
         prods[0] = eff_z[0];
-        for (int i = 1; i < P_TABLE_SIZE; i++) {
+        for (std::size_t i = 1; i < static_cast<std::size_t>(P_TABLE_SIZE); i++) {
             prods[i] = prods[i - 1] * eff_z[i];
         }
         FieldElement52 inv = prods[P_TABLE_SIZE - 1].inverse_safegcd();
         std::array<FieldElement52, P_TABLE_SIZE> zs;
-        for (int i = P_TABLE_SIZE - 1; i > 0; --i) {
+        for (std::size_t i = static_cast<std::size_t>(P_TABLE_SIZE) - 1; i > 0; --i) {
             zs[i] = prods[i - 1] * inv;
             inv = inv * eff_z[i];
         }
         zs[0] = inv;
 
         // Convert from iso to secp256k1 affine: x = X*(Z*C)^-^2, y = Y*(Z*C)^-^3
-        for (int i = 0; i < P_TABLE_SIZE; i++) {
+        for (std::size_t i = 0; i < static_cast<std::size_t>(P_TABLE_SIZE); i++) {
             FieldElement52 zinv2 = zs[i].square();
             FieldElement52 zinv3 = zinv2 * zs[i];
             tbl_P[i].x = iso[i].x * zinv2;
@@ -2487,7 +2487,7 @@ Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const P
         FieldElement::from_bytes(glv_constants::BETA));
 
     const bool flip_phi_b = (decomp_b.k1_neg != decomp_b.k2_neg);
-    for (int i = 0; i < P_TABLE_SIZE; i++) {
+    for (std::size_t i = 0; i < static_cast<std::size_t>(P_TABLE_SIZE); i++) {
         tbl_phiP[i].x = tbl_P[i].x * beta52;
         if (flip_phi_b) {
             tbl_phiP[i].y = tbl_P[i].y.negate(1);
@@ -2498,7 +2498,7 @@ Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const P
     }
 
     // Pre-negate P tables
-    for (int i = 0; i < P_TABLE_SIZE; i++) {
+    for (std::size_t i = 0; i < static_cast<std::size_t>(P_TABLE_SIZE); i++) {
         neg_tbl_P[i].x = tbl_P[i].x;
         neg_tbl_P[i].y = tbl_P[i].y.negate(1);
         neg_tbl_P[i].y.normalize_weak();
@@ -2540,9 +2540,9 @@ Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const P
         {
             int32_t d = wnaf_a_lo[static_cast<std::size_t>(i)];
             if (d > 0) {
-                jac52_add_mixed_inplace(result52, gen_tables->tbl_G[(d - 1) >> 1]);
+                jac52_add_mixed_inplace(result52, gen_tables->tbl_G[static_cast<std::size_t>((d - 1) >> 1)]);
             } else if (d < 0) {
-                jac52_add_mixed_inplace(result52, gen_tables->neg_tbl_G[(-d - 1) >> 1]);
+                jac52_add_mixed_inplace(result52, gen_tables->neg_tbl_G[static_cast<std::size_t>((-d - 1) >> 1)]);
             }
         }
 
@@ -2550,9 +2550,9 @@ Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const P
         {
             int32_t d = wnaf_a_hi[static_cast<std::size_t>(i)];
             if (d > 0) {
-                jac52_add_mixed_inplace(result52, gen_tables->tbl_H[(d - 1) >> 1]);
+                jac52_add_mixed_inplace(result52, gen_tables->tbl_H[static_cast<std::size_t>((d - 1) >> 1)]);
             } else if (d < 0) {
-                jac52_add_mixed_inplace(result52, gen_tables->neg_tbl_H[(-d - 1) >> 1]);
+                jac52_add_mixed_inplace(result52, gen_tables->neg_tbl_H[static_cast<std::size_t>((-d - 1) >> 1)]);
             }
         }
 
@@ -2560,9 +2560,9 @@ Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const P
         {
             int32_t d = wnaf_b1[static_cast<std::size_t>(i)];
             if (d > 0) {
-                jac52_add_mixed_inplace(result52, tbl_P[(d - 1) >> 1]);
+                jac52_add_mixed_inplace(result52, tbl_P[static_cast<std::size_t>((d - 1) >> 1)]);
             } else if (d < 0) {
-                jac52_add_mixed_inplace(result52, neg_tbl_P[(-d - 1) >> 1]);
+                jac52_add_mixed_inplace(result52, neg_tbl_P[static_cast<std::size_t>((-d - 1) >> 1)]);
             }
         }
 
@@ -2570,9 +2570,9 @@ Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const P
         {
             int32_t d = wnaf_b2[static_cast<std::size_t>(i)];
             if (d > 0) {
-                jac52_add_mixed_inplace(result52, tbl_phiP[(d - 1) >> 1]);
+                jac52_add_mixed_inplace(result52, tbl_phiP[static_cast<std::size_t>((d - 1) >> 1)]);
             } else if (d < 0) {
-                jac52_add_mixed_inplace(result52, neg_tbl_phiP[(-d - 1) >> 1]);
+                jac52_add_mixed_inplace(result52, neg_tbl_phiP[static_cast<std::size_t>((-d - 1) >> 1)]);
             }
         }
     }

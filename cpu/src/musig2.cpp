@@ -117,10 +117,10 @@ MuSig2KeyAggCtx musig2_key_agg(const std::vector<std::array<uint8_t, 32>>& pubke
         auto y = FieldElement::one();
         auto base = y2;
         auto exp_bytes = exp.to_bytes();
-        for (int b = 0; b < 256; ++b) {
+        for (std::size_t b = 0; b < 256; ++b) {
             y = y.square();
-            int byte_idx = b / 8;
-            int bit_idx = 7 - (b % 8);
+            std::size_t byte_idx = b / 8;
+            unsigned bit_idx = static_cast<unsigned>(7 - (b % 8));
             if ((exp_bytes[byte_idx] >> bit_idx) & 1) {
                 y = y * base;
             }
@@ -167,7 +167,7 @@ std::pair<MuSig2SecNonce, MuSig2PubNonce> musig2_nonce_gen(
     auto aux_hash = tagged_hash("MuSig/aux", aux.data(), 32);
 
     uint8_t t[32];
-    for (int i = 0; i < 32; ++i) t[i] = sk_bytes[i] ^ aux_hash[i];
+    for (std::size_t i = 0; i < 32; ++i) t[i] = sk_bytes[i] ^ aux_hash[i];
 
     // k1 = tagged_hash("MuSig/nonce", t || pub_key || agg_pub_key || msg || 0x01)
     {
@@ -346,10 +346,10 @@ bool musig2_partial_verify(
     auto y = FieldElement::one();
     auto base = y2;
     auto exp_bytes = exp.to_bytes();
-    for (int b_idx = 0; b_idx < 256; ++b_idx) {
+    for (std::size_t b_idx = 0; b_idx < 256; ++b_idx) {
         y = y.square();
-        int byte_idx = b_idx / 8;
-        int bit_idx = 7 - (b_idx % 8);
+        std::size_t byte_idx = b_idx / 8;
+        unsigned bit_idx = static_cast<unsigned>(7 - (b_idx % 8));
         if ((exp_bytes[byte_idx] >> bit_idx) & 1) {
             y = y * base;
         }

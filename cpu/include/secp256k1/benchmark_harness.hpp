@@ -208,7 +208,7 @@ inline Stats compute_stats(std::vector<double>& data) {
 
     std::sort(data.begin(), data.end());
 
-    const int n = static_cast<int>(data.size());
+    const std::size_t n = data.size();
 
     if (n < 4) {
         // Too few samples for IQR -- use all
@@ -217,8 +217,8 @@ inline Stats compute_stats(std::vector<double>& data) {
         s.median_ns = data[n / 2];
         double sum = 0.0;
         for (auto v : data) sum += v;
-        s.mean_ns = sum / n;
-        s.samples = n;
+        s.mean_ns = sum / static_cast<double>(n);
+        s.samples = static_cast<int>(n);
         s.outliers = 0;
         return s;
     }
@@ -243,23 +243,23 @@ inline Stats compute_stats(std::vector<double>& data) {
         filtered = data;
     }
 
-    const int fn = static_cast<int>(filtered.size());
-    s.outliers = n - fn;
-    s.samples = fn;
+    const std::size_t fn = filtered.size();
+    s.outliers = static_cast<int>(n - fn);
+    s.samples = static_cast<int>(fn);
     s.min_ns = filtered.front();
     s.max_ns = filtered.back();
     s.median_ns = filtered[fn / 2];
 
     double sum = 0.0;
     for (auto v : filtered) sum += v;
-    s.mean_ns = sum / fn;
+    s.mean_ns = sum / static_cast<double>(fn);
 
     double var = 0.0;
     for (auto v : filtered) {
         double d = v - s.mean_ns;
         var += d * d;
     }
-    s.stddev_ns = std::sqrt(var / fn);
+    s.stddev_ns = std::sqrt(var / static_cast<double>(fn));
 
     return s;
 }
@@ -284,11 +284,11 @@ inline void pin_thread_and_elevate() {
 
 class Harness {
 public:
-    int warmup_iters = 500;   // warmup iterations per function call
-    int passes       = 11;    // measurement passes (odd number for clean median)
+    int warmup_iters = 500;          // warmup iterations per function call
+    std::size_t passes = 11;          // measurement passes (odd number for clean median)
 
     Harness() = default;
-    Harness(int warmup, int p) : warmup_iters(warmup), passes(p) {}
+    Harness(int warmup, std::size_t p) : warmup_iters(warmup), passes(p) {}
 
     // Run benchmark: returns median ns/iter after IQR outlier removal.
     // Func is called `iters` times per pass.
@@ -304,7 +304,7 @@ public:
         std::vector<double> ns_per_iter;
         ns_per_iter.reserve(passes);
 
-        for (int p = 0; p < passes; ++p) {
+        for (std::size_t p = 0; p < passes; ++p) {
             uint64_t t0 = Timer::now();
             for (int i = 0; i < iters; ++i) {
                 func();
@@ -333,7 +333,7 @@ public:
         std::vector<double> ns_per_iter;
         ns_per_iter.reserve(passes);
 
-        for (int p = 0; p < passes; ++p) {
+        for (std::size_t p = 0; p < passes; ++p) {
             uint64_t t0 = Timer::now();
             for (int i = 0; i < iters; ++i) {
                 func();
@@ -362,13 +362,13 @@ public:
     void print_config() const {
         std::printf("  Timer:    %s\n", Timer::timer_name());
         std::printf("  Warmup:   %d iterations\n", warmup_iters);
-        std::printf("  Passes:   %d (IQR outlier removal + median)\n", passes);
+        std::printf("  Passes:   %zu (IQR outlier removal + median)\n", passes);
     }
 };
 
 // -- Formatting helpers -------------------------------------------------------
 
-inline const char* format_ns(double ns, char* buf, int buflen) {
+inline const char* format_ns(double ns, char* buf, std::size_t buflen) {
     if (ns < 1000.0) {
         std::snprintf(buf, buflen, "%.2f ns", ns);
     } else if (ns < 1000000.0) {

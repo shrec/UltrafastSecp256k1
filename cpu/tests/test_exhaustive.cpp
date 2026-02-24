@@ -47,7 +47,7 @@ static int g_fail = 0;
     auto b = f.to_bytes();
     std::stringstream ss;
     ss << std::hex << std::setfill('0');
-    for (int i = 0; i < 8; ++i) ss << std::setw(2) << static_cast<int>(b[i]);
+    for (std::size_t i = 0; i < 8; ++i) ss << std::setw(2) << static_cast<int>(b[i]);
     ss << "...";
     return ss.str();
 }
@@ -204,8 +204,8 @@ static void test_point_addition_axioms() {
     }
     
     // Commutativity: A + B = B + A
-    for (int i = 0; i < 16; ++i) {
-        for (int j = i + 1; j < 16; j += 3) {
+    for (std::size_t i = 0; i < 16; ++i) {
+        for (std::size_t j = i + 1; j < 16; j += 3) {
             PT ab = pts[i].add(pts[j]);
             PT ba = pts[j].add(pts[i]);
             CHECK(pt_eq(ab, ba), "commutativity failed i=" + std::to_string(i) +
@@ -214,9 +214,9 @@ static void test_point_addition_axioms() {
     }
     
     // Associativity: (A + B) + C = A + (B + C)
-    for (int i = 0; i < 8; ++i) {
-        for (int j = i + 1; j < 16; j += 3) {
-            for (int k = j + 1; k < 24; k += 5) {
+    for (std::size_t i = 0; i < 8; ++i) {
+        for (std::size_t j = i + 1; j < 16; j += 3) {
+            for (std::size_t k = j + 1; k < 24; k += 5) {
                 PT ab_c = pts[i].add(pts[j]).add(pts[k]);
                 PT a_bc = pts[i].add(pts[j].add(pts[k]));
                 CHECK(pt_eq(ab_c, a_bc),
@@ -227,13 +227,13 @@ static void test_point_addition_axioms() {
     }
     
     // Identity: P + O = P, O + P = P
-    for (int i = 0; i < 8; ++i) {
+    for (std::size_t i = 0; i < 8; ++i) {
         CHECK(pt_eq(pts[i].add(O), pts[i]), "P + O != P");
         CHECK(pt_eq(O.add(pts[i]), pts[i]), "O + P != P");
     }
     
     // Inverse: P + (-P) = O
-    for (int i = 0; i < 8; ++i) {
+    for (std::size_t i = 0; i < 8; ++i) {
         PT neg = pts[i].negate();
         PT sum = pts[i].add(neg);
         CHECK(sum.is_infinity(), "P + (-P) != O for i=" + std::to_string(i));
@@ -415,7 +415,7 @@ static void test_pippenger() {
     std::vector<PT> points(n);
     
     PT P = G;
-    for (int i = 0; i < n; ++i) {
+    for (std::size_t i = 0; i < static_cast<std::size_t>(n); ++i) {
         scalars[i] = SC::from_uint64(static_cast<uint64_t>(i * 31 + 17));
         points[i] = P;
         P = P.add(G);  // points[i] = (i+1)*G
@@ -423,7 +423,7 @@ static void test_pippenger() {
     
     // Naive computation
     PT naive = PT::infinity();
-    for (int i = 0; i < n; ++i) {
+    for (std::size_t i = 0; i < static_cast<std::size_t>(n); ++i) {
         naive = naive.add(points[i].scalar_mul(scalars[i]));
     }
     
@@ -440,7 +440,7 @@ static void test_pippenger() {
     std::vector<PT> small_p(points.begin(), points.begin() + 8);
     
     PT naive_small = PT::infinity();
-    for (int i = 0; i < 8; ++i) {
+    for (std::size_t i = 0; i < 8; ++i) {
         naive_small = naive_small.add(small_p[i].scalar_mul(small_s[i]));
     }
     PT msm_small = secp256k1::msm(small_s, small_p);

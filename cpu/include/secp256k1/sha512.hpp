@@ -77,13 +77,13 @@ public:
 
         // Append 128-bit length (we only use lower 64 bits)
         std::uint8_t len_buf[16]{};
-        for (int i = 0; i < 8; ++i) {
+        for (std::size_t i = 0; i < 8; ++i) {
             len_buf[8 + 7 - i] = static_cast<std::uint8_t>(bit_len >> (i * 8));
         }
         update(len_buf, 16);
 
         digest_type d{};
-        for (int i = 0; i < 8; ++i) {
+        for (std::size_t i = 0; i < 8; ++i) {
             d[i * 8 + 0] = static_cast<std::uint8_t>(state_[i] >> 56);
             d[i * 8 + 1] = static_cast<std::uint8_t>(state_[i] >> 48);
             d[i * 8 + 2] = static_cast<std::uint8_t>(state_[i] >> 40);

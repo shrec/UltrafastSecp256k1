@@ -120,7 +120,7 @@ SchnorrSignature schnorr_sign(const SchnorrKeypair& kp,
     auto t_hash = cached_tagged_hash(g_aux_midstate, aux_rand.data(), 32);
     auto d_bytes = kp.d.to_bytes();
     uint8_t t[32];
-    for (int i = 0; i < 32; ++i) t[i] = d_bytes[i] ^ t_hash[i];
+    for (std::size_t i = 0; i < 32; ++i) t[i] = d_bytes[i] ^ t_hash[i];
 
     // Step 2: k' = tagged_hash("BIP0340/nonce", t || pubkey_x || msg)
     uint8_t nonce_input[96];

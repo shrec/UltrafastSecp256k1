@@ -241,6 +241,7 @@ static void test_ethereum_address_format() {
     TEST("Ethereum: address format 0x + 40 hex");
     
     auto privkey = secp256k1::fast::Scalar::from_uint64(1);
+    (void)privkey;
     auto pubkey = secp256k1::fast::Point::generator(); // 1 * G = G
     
     auto addr = secp256k1::coins::ethereum_address(pubkey);
@@ -291,6 +292,7 @@ static void test_bitcoin_p2pkh_address() {
     TEST("Bitcoin: P2PKH address starts with 1");
     
     auto privkey = secp256k1::fast::Scalar::from_uint64(1);
+    (void)privkey;
     auto pubkey = secp256k1::fast::Point::generator();
     
     auto addr = secp256k1::coins::coin_address_p2pkh(pubkey, secp256k1::coins::Bitcoin);

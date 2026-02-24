@@ -1,5 +1,10 @@
 #include <cmath>  // For std::isfinite
 
+// Suppress MSVC deprecation of std::getenv (safe: read-only use)
+#if defined(_MSC_VER)
+#pragma warning(disable: 4996)
+#endif
+
 #define SECP256K1_DEBUG_SPLIT 0
 #define SECP256K1_DEBUG_GLV 0
 #define SECP256K1_PROFILE_DECOMP 0  // Disable profiling for embedded
@@ -514,7 +519,7 @@ constexpr std::array<std::uint8_t, 32> kA2Bytes{
     // Invert
     for (std::size_t i=0;i<32;++i) out[i] = static_cast<std::uint8_t>(~neg_be[i]);
     // Add 1
-    for (int i=31;i>=0;--i) {
+    for (std::size_t i = 32; i-- > 0; ) {
         unsigned int sum = static_cast<unsigned int>(out[i]) + 1U;
         out[i] = static_cast<std::uint8_t>(sum & 0xFFu);
         if ((sum & 0x100u) == 0) break; // no further carry
@@ -804,8 +809,8 @@ template <std::size_t N>
     // Iterate j = 2..0 (since n=6, m=4 => m-n = 2)
     for (int j=2; j>=0; --j) {
         // Approximate qhat from top 128 bits
-        std::uint64_t u_hi = u[j+4];
-        std::uint64_t u_lo = u[j+3];
+        std::uint64_t u_hi = u[static_cast<std::size_t>(j)+4];
+        std::uint64_t u_lo = u[static_cast<std::size_t>(j)+3];
         std::uint64_t v_hi = v[3];
         std::uint64_t rhat;
 #if defined(_MSC_VER) && !defined(__clang__)
@@ -853,7 +858,7 @@ template <std::size_t N>
             std::uint64_t lhs_lo, lhs_hi; mul64x64(qhat, v[2], lhs_lo, lhs_hi);
             // rhs_hi = rhat, rhs_lo = u[j+2]
             bool greater = false;
-            if (lhs_hi > rhat) greater = true; else if (lhs_hi == rhat && lhs_lo > u[j+2]) greater = true;
+            if (lhs_hi > rhat) greater = true; else if (lhs_hi == rhat && lhs_lo > u[static_cast<std::size_t>(j)+2]) greater = true;
             if (!greater) break;
             // Decrement qhat and adjust rhat
             --qhat;
@@ -865,21 +870,21 @@ template <std::size_t N>
         }
         // Subtract qhat * v from u segment (u[j..j+4]) using overlapping subtracts
         unsigned char b = 0;
-        for (int i=0;i<4;++i) {
+        for (std::size_t i=0;i<4;++i) {
             std::uint64_t p_lo, p_hi; mul64x64(qhat, v[i], p_lo, p_hi);
-            b = COMPAT_SUBBORROW_U64(b, u[j+i], p_lo, &u[j+i]);
-            b = COMPAT_SUBBORROW_U64(b, u[j+i+1], p_hi, &u[j+i+1]);
+            b = COMPAT_SUBBORROW_U64(b, u[static_cast<std::size_t>(j)+i], p_lo, &u[static_cast<std::size_t>(j)+i]);
+            b = COMPAT_SUBBORROW_U64(b, u[static_cast<std::size_t>(j)+i+1], p_hi, &u[static_cast<std::size_t>(j)+i+1]);
         }
         if (b) {
             // qhat too large: add back v and decrement qhat
             --qhat;
             unsigned char c = 0;
-            for (int i=0;i<4;++i) {
-                c = COMPAT_ADDCARRY_U64(c, u[j+i], v[i], &u[j+i]);
-                c = COMPAT_ADDCARRY_U64(c, u[j+i+1], 0ULL, &u[j+i+1]);
+            for (std::size_t i=0;i<4;++i) {
+                c = COMPAT_ADDCARRY_U64(c, u[static_cast<std::size_t>(j)+i], v[i], &u[static_cast<std::size_t>(j)+i]);
+                c = COMPAT_ADDCARRY_U64(c, u[static_cast<std::size_t>(j)+i+1], 0ULL, &u[static_cast<std::size_t>(j)+i+1]);
             }
         }
-        q[j] = qhat;
+        q[static_cast<std::size_t>(j)] = qhat;
     }
     return q;
 }
@@ -1591,7 +1596,7 @@ static std::array<std::uint64_t, 8> mul_scalar_raw(const Scalar& a, const Scalar
 
 [[maybe_unused]] static bool ge_512(const std::array<std::uint64_t, 8>& a,
                    const std::array<std::uint64_t, 8>& b) {
-    for (int i = 7; i >= 0; --i) {
+    for (std::size_t i = 8; i-- > 0; ) {
         if (a[i] > b[i]) return true;
         if (a[i] < b[i]) return false;
     }
@@ -1661,7 +1666,7 @@ static Scalar reduce_512_mod_n(const std::array<std::uint64_t, 8>& wide) {
     Scalar rem = Scalar::zero();
     // B = 2^64 mod n
     Scalar B = Scalar::from_limbs({0ULL, 1ULL, 0ULL, 0ULL});
-    for (int i = 7; i >= 0; --i) {
+    for (std::size_t i = 8; i-- > 0; ) {
         if (!rem.is_zero()) {
             rem = rem * B; // rem *= 2^64 mod n
         }
@@ -1674,7 +1679,7 @@ static Scalar reduce_512_mod_n(const std::array<std::uint64_t, 8>& wide) {
 
 // Barrett reduction constant: u = floor(2^512 / n) where n is secp256k1 group order
 // This allows fast modular reduction: x mod n ~= x - floor(x*u / 2^512) * n
-constexpr std::array<std::uint64_t, 8> kBarrettMu = {
+[[maybe_unused]] constexpr std::array<std::uint64_t, 8> kBarrettMu = {
     0x402DA1732FC9BEC0ULL,
     0x4551231950B75FC4ULL,
     0x0000000000000001ULL,
@@ -1774,11 +1779,11 @@ static Scalar barrett_reduce_512(const std::array<std::uint64_t, 8>& wide) {
 // Fast bitlength calculation using intrinsic (inlined)
 static inline unsigned fast_bitlen(const Scalar& s) {
     auto limbs = scalar_to_limbs(s);
-    for (int i = 3; i >= 0; --i) {
+    for (std::size_t i = 4; i-- > 0; ) {
         if (limbs[i] != 0) {
             unsigned long index;
             _BitScanReverse64(&index, limbs[i]);
-            return (unsigned)(i * 64 + index + 1);
+            return static_cast<unsigned>(i * 64) + static_cast<unsigned>(index) + 1U;
         }
     }
     return 0;
@@ -2883,7 +2888,7 @@ std::vector<int32_t> compute_wnaf(const Scalar& scalar, unsigned window_bits) {
     k[4] = 0;
     
     const int32_t window_size = 1 << window_bits;        // 2^w
-    const int32_t window_mask = window_size - 1;         // 2^w - 1
+    const std::uint64_t window_mask = static_cast<std::uint64_t>(window_size) - 1U; // 2^w - 1
     const int32_t half_window = window_size >> 1;        // 2^(w-1)
     
     std::size_t bit_pos = 0;
@@ -2967,7 +2972,7 @@ void compute_wnaf_into(const Scalar& scalar,
     k[4] = 0;
 
     const int32_t window_size = 1 << window_bits;        // 2^w
-    const int32_t window_mask = window_size - 1;         // 2^w - 1
+    const std::uint64_t window_mask = static_cast<std::uint64_t>(window_size) - 1U; // 2^w - 1
     const int32_t half_window = window_size >> 1;        // 2^(w-1)
 
     out_len = 0;
@@ -3288,8 +3293,8 @@ JacobianPoint shamir_jsf_glv(
             result = jacobian_double(result);
         }
         
-        int8_t u1 = jsf.jsf1[i];
-        int8_t u2 = jsf.jsf2[i];
+        int8_t u1 = jsf.jsf1[static_cast<std::size_t>(i)];
+        int8_t u2 = jsf.jsf2[static_cast<std::size_t>(i)];
         if (neg1) u1 = static_cast<int8_t>(-u1);
         if (neg2) u2 = static_cast<int8_t>(-u2);
         
@@ -3498,7 +3503,7 @@ Point scalar_mul_arbitrary(const Point& base, const Scalar& scalar, unsigned win
     Point temp = base;
     std::array<uint8_t, 32> bits = scalar.to_bytes(); // Big-endian bytes
 
-    for (int i = 0; i < 256; ++i) {
+    for (std::size_t i = 0; i < 256; ++i) {
         // Bit i of the scalar: byte (31 - i/8) contains the group, bit (i%8) within that byte
         bool bit = (bits[31 - i / 8] >> (i % 8)) & 1;
         if (bit) {

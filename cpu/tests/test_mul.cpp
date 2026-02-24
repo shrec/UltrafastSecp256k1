@@ -183,7 +183,7 @@ static void test_field_normalize() {
     // 2p normalizes to 0
     // 2p = 0x1FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFDFFFFF85E
     // In limbs (after mod): still 0
-    std::array<uint64_t, 4> twop = {
+    [[maybe_unused]] std::array<uint64_t, 4> twop = {
         0xFFFFFFFDFFFFF85EULL, 0xFFFFFFFFFFFFFFFFULL,
         0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL
     };
@@ -242,7 +242,7 @@ static void test_scalar_arithmetic() {
     std::mt19937_64 rng(404);
     for (int i = 0; i < 1000; i++) {
         std::array<uint8_t, 32> ba{}, bb{}, bc{};
-        for (int j = 0; j < 32; j++) {
+        for (std::size_t j = 0; j < 32; j++) {
             ba[j] = static_cast<uint8_t>(rng());
             bb[j] = static_cast<uint8_t>(rng());
             bc[j] = static_cast<uint8_t>(rng());
@@ -256,7 +256,7 @@ static void test_scalar_arithmetic() {
     // Associativity: (a*b)*c = a*(b*c)
     for (int i = 0; i < 200; i++) {
         std::array<uint8_t, 32> ba{}, bb{}, bc{};
-        for (int j = 0; j < 32; j++) {
+        for (std::size_t j = 0; j < 32; j++) {
             ba[j] = static_cast<uint8_t>(rng());
             bb[j] = static_cast<uint8_t>(rng());
             bc[j] = static_cast<uint8_t>(rng());
@@ -271,7 +271,7 @@ static void test_scalar_arithmetic() {
     // Actually: a - a = 0
     for (int i = 0; i < 200; i++) {
         std::array<uint8_t, 32> ba{};
-        for (int j = 0; j < 32; j++) ba[j] = static_cast<uint8_t>(rng());
+        for (std::size_t j = 0; j < 32; j++) ba[j] = static_cast<uint8_t>(rng());
         Scalar a = Scalar::from_bytes(ba);
         CHECK((a - a) == zero, "a - a = 0 random");
         CHECK((a + zero) == a, "a + 0 = a random");
@@ -299,7 +299,7 @@ static void test_scalar_encoding() {
     std::mt19937_64 rng(505);
     for (int i = 0; i < 200; i++) {
         std::array<uint8_t, 32> ba{};
-        for (int j = 0; j < 32; j++) ba[j] = static_cast<uint8_t>(rng());
+        for (std::size_t j = 0; j < 32; j++) ba[j] = static_cast<uint8_t>(rng());
         Scalar s = Scalar::from_bytes(ba);
         auto naf = s.to_naf();
         bool adjacent_ok = true;
@@ -313,7 +313,7 @@ static void test_scalar_encoding() {
     for (unsigned w = 3; w <= 6; w++) {
         for (int i = 0; i < 50; i++) {
             std::array<uint8_t, 32> ba{};
-            for (int j = 0; j < 32; j++) ba[j] = static_cast<uint8_t>(rng());
+            for (std::size_t j = 0; j < 32; j++) ba[j] = static_cast<uint8_t>(rng());
             Scalar s = Scalar::from_bytes(ba);
             auto wnaf = s.to_wnaf(w);
             bool vals_ok = true;

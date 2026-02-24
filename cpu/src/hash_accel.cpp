@@ -429,10 +429,10 @@ void sha256_compress(const std::uint8_t block[64], std::uint32_t state[8]) noexc
 
     // SHA-NI expects state in specific lane order
     // Rearrange from [A B C D] [E F G H] to [A B E F] [C D G H]
-    __m128i tmp = _mm_shuffle_epi32(abef, 0xB1);  // [B A D C]
+    __m128i shuf = _mm_shuffle_epi32(abef, 0xB1);  // [B A D C]
     cdgh = _mm_shuffle_epi32(cdgh, 0x1B);          // [H G F E]
-    __m128i state0 = _mm_alignr_epi8(tmp, cdgh, 8);  // [A B E F]
-    __m128i state1 = _mm_blend_epi16(cdgh, tmp, 0xF0); // [C D G H]
+    __m128i state0 = _mm_alignr_epi8(shuf, cdgh, 8);  // [A B E F]
+    __m128i state1 = _mm_blend_epi16(cdgh, shuf, 0xF0); // [C D G H]
 
     // Save original state for final addition
     __m128i state0_save = state0;
@@ -531,10 +531,10 @@ void sha256_compress(const std::uint8_t block[64], std::uint32_t state[8]) noexc
     state1 = _mm_add_epi32(state1, state1_save);
 
     // Rearrange back from [F,E,B,A]/[H,G,D,C] to [A,B,C,D]/[E,F,G,H]
-    tmp = _mm_shuffle_epi32(state0, 0x1B);                // [A,B,E,F]
+    shuf = _mm_shuffle_epi32(state0, 0x1B);                // [A,B,E,F]
     state1 = _mm_shuffle_epi32(state1, 0xB1);             // [G,H,C,D]
-    __m128i abcd = _mm_blend_epi16(tmp, state1, 0xF0);    // [A,B,C,D]
-    __m128i efgh = _mm_alignr_epi8(state1, tmp, 8);       // [E,F,G,H]
+    __m128i abcd = _mm_blend_epi16(shuf, state1, 0xF0);    // [A,B,C,D]
+    __m128i efgh = _mm_alignr_epi8(state1, shuf, 8);       // [E,F,G,H]
 
     _mm_storeu_si128(reinterpret_cast<__m128i*>(state), abcd);
     _mm_storeu_si128(reinterpret_cast<__m128i*>(state + 4), efgh);
@@ -679,7 +679,7 @@ std::array<std::uint8_t, 20> ripemd160(const void* data, std::size_t len) noexce
     std::memset(block + remaining + 1, 0, pad_len - remaining - 1 - 8);
 
     std::uint64_t bits = len * 8;
-    for (int i = 0; i < 8; ++i)
+    for (std::size_t i = 0; i < 8; ++i)
         block[pad_len - 8 + i] = std::uint8_t(bits >> (i * 8));
 
     scalar::ripemd160_compress(block, state);
@@ -688,7 +688,7 @@ std::array<std::uint8_t, 20> ripemd160(const void* data, std::size_t len) noexce
     }
 
     std::array<std::uint8_t, 20> out;
-    for (int i = 0; i < 5; ++i) store_le32(out.data() + i * 4, state[i]);
+    for (std::size_t i = 0; i < 5; ++i) store_le32(out.data() + i * 4, state[i]);
     return out;
 }
 

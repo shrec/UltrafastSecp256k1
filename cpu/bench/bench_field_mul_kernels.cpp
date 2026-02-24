@@ -35,6 +35,13 @@ int main() {
 
 #if defined(_WIN32)
     // Optional: pin to CPU 0 and elevate priority for more stable timings
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#elif defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable: 4996)
+#endif
     if (const char* v = std::getenv("BENCH_PIN_AFFINITY")) {
         if (v[0] == '1' || v[0] == 'T' || v[0] == 't' || v[0] == 'Y' || v[0] == 'y') {
             SetThreadAffinityMask(GetCurrentThread(), 1ULL);
@@ -42,6 +49,11 @@ int main() {
             SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
         }
     }
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#elif defined(_MSC_VER)
+#pragma warning(pop)
+#endif
 #endif
 
     // Prepare random inputs
@@ -60,7 +72,7 @@ int main() {
               << ", ASM=" << (HAS_ASM_KERNEL ? "yes" : "no") << "\n\n";
 
     // Warmup
-    for (int i = 0; i < 1000; ++i) {
+    for (std::size_t i = 0; i < 1000; ++i) {
         const Pair& p = vec[i % elements];
         detail::mul_4x4_bmi2(p.a, p.b, wide);
         detail::montgomery_reduce_bmi2(wide);

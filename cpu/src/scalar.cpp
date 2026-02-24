@@ -245,7 +245,7 @@ Scalar Scalar::from_hex(const std::string& hex) {
             #endif
         };
         
-        bytes[i] = (hex_to_nibble(c1) << 4) | hex_to_nibble(c2);
+        bytes[i] = static_cast<std::uint8_t>((hex_to_nibble(c1) << 4) | hex_to_nibble(c2));
     }
     
     return from_bytes(bytes);
@@ -1121,7 +1121,7 @@ std::vector<int8_t> Scalar::to_naf() const {
         
         // Divide k by 2 (right shift)
         std::uint64_t carry = 0;
-        for (int i = 3; i >= 0; --i) {
+        for (std::size_t i = 4; i-- > 0; ) {
             std::uint64_t limb = k.limbs_[i];
             k.limbs_[i] = (limb >> 1) | (carry << 63);
             carry = limb & 1;
@@ -1151,9 +1151,9 @@ std::vector<int8_t> Scalar::to_wnaf(unsigned width) const {
     wnaf.reserve(257);  // Maximum length
     
     Scalar k = *this;
-    const int window_size = 1 << width;          // 2^w
-    const int window_mask = window_size - 1;      // 2^w - 1
-    const int window_half = window_size >> 1;     // 2^(w-1)
+    const unsigned window_size = 1U << width;          // 2^w
+    const std::uint64_t window_mask = static_cast<std::uint64_t>(window_size - 1U);      // 2^w - 1
+    const int window_half = static_cast<int>(window_size >> 1);     // 2^(w-1)
     
     while (!k.is_zero()) {
         if (k.bit(0) == 1) {  // k is odd
@@ -1176,7 +1176,7 @@ std::vector<int8_t> Scalar::to_wnaf(unsigned width) const {
         
         // Divide k by 2 (right shift)
         std::uint64_t carry = 0;
-        for (int i = 3; i >= 0; --i) {
+        for (std::size_t i = 4; i-- > 0; ) {
             std::uint64_t limb = k.limbs_[i];
             k.limbs_[i] = (limb >> 1) | (carry << 63);
             carry = limb & 1;

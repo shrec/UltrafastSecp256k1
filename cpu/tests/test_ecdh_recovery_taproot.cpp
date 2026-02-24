@@ -40,9 +40,12 @@ static void check(bool cond, const char* name) {
 // Helper: hex to bytes
 static std::array<uint8_t, 32> hex32(const char* hex) {
     std::array<uint8_t, 32> out{};
-    for (int i = 0; i < 32; ++i) {
+    for (std::size_t i = 0; i < 32; ++i) {
         unsigned val = 0;
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
         std::sscanf(hex + i * 2, "%02x", &val);
+#pragma clang diagnostic pop
         out[i] = static_cast<uint8_t>(val);
     }
     return out;

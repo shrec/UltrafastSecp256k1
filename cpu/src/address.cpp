@@ -55,10 +55,10 @@ public:
         pad = 0;
         while (buf_len_ != 56) update(&pad, 1);
         std::uint8_t len_le[8];
-        for (int i = 0; i < 8; ++i) len_le[i] = std::uint8_t(bits >> (i * 8));
+        for (std::size_t i = 0; i < 8; ++i) len_le[i] = std::uint8_t(bits >> (i * 8));
         update(len_le, 8);
         std::array<std::uint8_t, 20> out;
-        for (int i = 0; i < 5; ++i) {
+        for (std::size_t i = 0; i < 5; ++i) {
             out[i*4+0] = std::uint8_t(h_[i]); out[i*4+1] = std::uint8_t(h_[i]>>8);
             out[i*4+2] = std::uint8_t(h_[i]>>16); out[i*4+3] = std::uint8_t(h_[i]>>24);
         }
@@ -250,7 +250,7 @@ base58check_decode(const std::string& encoded) {
     auto h1 = SHA256::hash(payload.data(), payload_len);
     auto h2 = SHA256::hash(h1.data(), 32);
 
-    for (int i = 0; i < 4; ++i) {
+    for (std::size_t i = 0; i < 4; ++i) {
         if (digits[payload_len + i] != static_cast<int>(h2[i])) return {{}, false};
     }
 

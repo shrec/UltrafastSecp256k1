@@ -107,12 +107,12 @@ private:
             update(&z, 1);
         }
         uint8_t len_buf[8];
-        for (int i = 0; i < 8; ++i)
+        for (std::size_t i = 0; i < 8; ++i)
             len_buf[i] = static_cast<uint8_t>(bit_len >> (i * 8));
         update(len_buf, 8);
 
         std::array<uint8_t, 20> d{};
-        for (int i = 0; i < 5; ++i) {
+        for (std::size_t i = 0; i < 5; ++i) {
             d[i * 4 + 0] = static_cast<uint8_t>(h_[i]);
             d[i * 4 + 1] = static_cast<uint8_t>(h_[i] >> 8);
             d[i * 4 + 2] = static_cast<uint8_t>(h_[i] >> 16);

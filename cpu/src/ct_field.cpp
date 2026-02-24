@@ -44,7 +44,7 @@ static constexpr std::uint64_t P[4] = {
 };
 
 // 2^256 mod p = 2^32 + 977 = 0x1000003D1
-static constexpr std::uint64_t MOD_K = 0x1000003D1ULL;
+[[maybe_unused]] static constexpr std::uint64_t MOD_K = 0x1000003D1ULL;
 
 // --- Internal helpers --------------------------------------------------------
 
@@ -185,7 +185,7 @@ FieldElement field_half(const FieldElement& a) noexcept {
     // Conditionally add p (only if odd)
     std::uint64_t t[4];
     std::uint64_t carry = 0;
-    for (int i = 0; i < 4; ++i) {
+    for (std::size_t i = 0; i < 4; ++i) {
         std::uint64_t addend = P[i] & odd;
         std::uint64_t sum_lo = al[i] + addend;
         std::uint64_t c1 = static_cast<std::uint64_t>(sum_lo < al[i]);

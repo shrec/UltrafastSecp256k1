@@ -1,0 +1,54 @@
+# Codecov configuration — https://docs.codecov.io/docs/codecov-yaml
+# Placed in repo root; auto-detected by Codecov on upload.
+
+codecov:
+  require_ci_to_pass: true
+  notify:
+    wait_for_ci: true
+
+coverage:
+  precision: 2
+  round: down
+  range: "40...90"
+
+  status:
+    project:
+      default:
+        target: auto        # compare against base commit
+        threshold: 1%       # allow 1% drop without failing
+        if_ci_failed: error
+    patch:
+      default:
+        target: 80%         # new code should have ≥80% coverage
+        threshold: 5%
+
+  # Only measure coverage on production source code
+  # (exclude tests, benchmarks, examples, third-party, build artifacts)
+
+ignore:
+  - "cpu/tests/**"
+  - "cpu/bench/**"
+  - "cpu/examples/**"
+  - "tests/**"
+  - "bench/**"
+  - "examples/**"
+  - "wasm/**"
+  - "android/**"
+  - "bindings/**"
+  - "scripts/**"
+  - "cmake/**"
+  - "docs/**"
+
+comment:
+  layout: "reach,diff,flags,files"
+  behavior: default
+  require_changes: false
+  require_base: false
+  require_head: true
+
+flags:
+  cpu:
+    paths:
+      - cpu/src/
+      - cpu/include/
+    carryforward: true

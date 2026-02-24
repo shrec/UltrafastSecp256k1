@@ -75,7 +75,7 @@ RecoverableSignature ecdsa_sign_recoverable(
     // Compare r_bytes (big-endian x-coordinate) with order
     // If x >= n then r = x - n, and we need recid bit 1
     bool overflow = false;
-    for (int i = 0; i < 32; ++i) {
+    for (std::size_t i = 0; i < 32; ++i) {
         if (r_bytes[i] < SECP256K1_ORDER_BYTES[i]) break;
         if (r_bytes[i] > SECP256K1_ORDER_BYTES[i]) { overflow = true; break; }
     }

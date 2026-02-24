@@ -96,7 +96,7 @@ public:
         detail::sha256_compress_dispatch(buf_, state_);
 
         digest_type out{};
-        for (int i = 0; i < 8; ++i) {
+        for (std::size_t i = 0; i < 8; ++i) {
             out[i * 4 + 0] = static_cast<std::uint8_t>(state_[i] >> 24);
             out[i * 4 + 1] = static_cast<std::uint8_t>(state_[i] >> 16);
             out[i * 4 + 2] = static_cast<std::uint8_t>(state_[i] >> 8);

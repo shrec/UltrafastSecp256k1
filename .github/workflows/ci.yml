@@ -402,7 +402,7 @@ jobs:
           echo "Static lib: $(du -h build/android/cpu/libfastsecp256k1.a | cut -f1)"
           echo "JNI shared: $(du -h build/android/libsecp256k1_jni.so | cut -f1)"
 
-  # -- Code Coverage (lcov + Codecov) -----------------------------------------
+  # -- Code Coverage (LLVM source-based + Codecov) ----------------------------
   coverage:
     runs-on: ubuntu-24.04
     if: github.event_name == 'push'
@@ -418,7 +418,7 @@ jobs:
       - name: Install tools
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y clang-17 lld-17 lcov ninja-build
+          sudo apt-get install -y clang-17 llvm-17 lld-17 ninja-build
 
       - name: Configure (coverage)
         run: |
@@ -428,31 +428,51 @@ jobs:
             -DSECP256K1_BUILD_TESTS=ON \
             -DSECP256K1_BUILD_BENCH=OFF \
             -DSECP256K1_USE_ASM=OFF \
-            -DCMAKE_C_FLAGS="--coverage -fprofile-instr-generate -fcoverage-mapping" \
-            -DCMAKE_CXX_FLAGS="--coverage -fprofile-instr-generate -fcoverage-mapping"
+            -DCMAKE_C_FLAGS="-fprofile-instr-generate -fcoverage-mapping" \
+            -DCMAKE_CXX_FLAGS="-fprofile-instr-generate -fcoverage-mapping" \
+            -DCMAKE_EXE_LINKER_FLAGS="-fprofile-instr-generate"
 
       - name: Build
-        run: cmake --build build/cov -j$(nproc)
+        run: cmake --build build/cov -j"$(nproc)"
 
       - name: Test
-        run: ctest --test-dir build/cov --output-on-failure -j$(nproc) -E ct_sidechannel
+        run: ctest --test-dir build/cov --output-on-failure -j"$(nproc)" -E ct_sidechannel
         env:
-          LLVM_PROFILE_FILE: "%p.profraw"
+          LLVM_PROFILE_FILE: "build/cov/%p-%m.profraw"
 
-      - name: Collect coverage
+      - name: Collect coverage (LLVM → lcov format)
         run: |
-          llvm-profdata-17 merge -sparse build/cov/**/*.profraw -o coverage.profdata 2>/dev/null || true
-          # Fallback to lcov for gcc-style .gcda
-          lcov --capture --directory build/cov --output-file coverage.info \
-            --gcov-tool llvm-cov-17 --ignore-errors inconsistent,inconsistent 2>/dev/null || true
-          lcov --remove coverage.info '*/tests/*' '*/bench/*' '*/examples/*' '/usr/*' \
-            --output-file coverage.info --ignore-errors unused 2>/dev/null || true
-          lcov --list coverage.info 2>/dev/null || echo "Coverage data collected"
+          # Merge raw profiles
+          find build/cov -name '*.profraw' -print0 | xargs -0 llvm-profdata-17 merge -sparse -o coverage.profdata
+
+          # Find all instrumented objects (library + test binaries)
+          OBJECTS=""
+          for bin in $(find build/cov -type f -executable); do
+            if llvm-cov-17 show --instr-profile=coverage.profdata "$bin" >/dev/null 2>&1; then
+              OBJECTS="$OBJECTS -object=$bin"
+            fi
+          done
+
+          # Export to lcov format (Codecov-compatible)
+          # shellcheck disable=SC2086
+          llvm-cov-17 export \
+            --format=lcov \
+            --instr-profile=coverage.profdata \
+            $OBJECTS \
+            --ignore-filename-regex='(tests/|bench/|examples/|/usr/)' \
+            > coverage.lcov
+
+          echo "=== Coverage summary ==="
+          llvm-cov-17 report \
+            --instr-profile=coverage.profdata \
+            $OBJECTS \
+            --ignore-filename-regex='(tests/|bench/|examples/|/usr/)' \
+            | tail -5
 
       - name: Upload to Codecov
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5
         with:
-          files: coverage.info
+          files: coverage.lcov
           flags: cpu
           fail_ci_if_error: false
         env:

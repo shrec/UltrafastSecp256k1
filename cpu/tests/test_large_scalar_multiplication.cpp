@@ -219,7 +219,7 @@ static void test_point_addition() {
 
     Point G = Point::generator();
 
-    struct AddTest { int k1, k2, ksum; const char* desc; };
+    struct AddTest { uint64_t k1, k2, ksum; const char* desc; };
     AddTest tests[] = {
         {1,1,2,"G+G=2G"}, {1,2,3,"G+2G=3G"}, {2,2,4,"2G+2G=4G"},
         {2,3,5,"2G+3G=5G"}, {3,3,6,"3G+3G=6G"}, {3,4,7,"3G+4G=7G"},
@@ -263,7 +263,7 @@ static void test_kq_arbitrary() {
     Point G = Point::generator();
     Point Q = G.scalar_mul(Scalar::from_uint64(7)); // Q = 7*G
 
-    struct KQTest { int k, expected; const char* desc; };
+    struct KQTest { uint64_t k, expected; const char* desc; };
     KQTest tests[] = {
         {1,7,"1*(7G)=7G"}, {2,14,"2*(7G)=14G"}, {3,21,"3*(7G)=21G"},
         {4,28,"4*(7G)=28G"}, {5,35,"5*(7G)=35G"}, {10,70,"10*(7G)=70G"},
@@ -287,7 +287,7 @@ static void test_kq_random() {
 
     for (int i = 0; i < 50; i++) {
         std::array<uint8_t, 32> b1{}, b2{};
-        for (int j = 0; j < 32; j++) {
+        for (std::size_t j = 0; j < 32; j++) {
             b1[j] = static_cast<uint8_t>(rng());
             b2[j] = static_cast<uint8_t>(rng());
         }
@@ -309,14 +309,14 @@ static void test_distributive() {
     std::cout << "-- Distributive k*(P+Q) = kP + kQ --\n";
 
     Point G = Point::generator();
-    Point P1 = G.scalar_mul(Scalar::from_uint64(2));
-    Point P2 = G.scalar_mul(Scalar::from_uint64(5));
+    Point pt1 = G.scalar_mul(Scalar::from_uint64(2));
+    Point pt2 = G.scalar_mul(Scalar::from_uint64(5));
 
     for (uint64_t k = 2; k <= 20; k++) {
         Scalar sk = Scalar::from_uint64(k);
 
-        Point lhs = P1.add(P2).scalar_mul(sk);
-        Point rhs = P1.scalar_mul(sk).add(P2.scalar_mul(sk));
+        Point lhs = pt1.add(pt2).scalar_mul(sk);
+        Point rhs = pt1.scalar_mul(sk).add(pt2.scalar_mul(sk));
         CHECK(points_equal(lhs, rhs), "k=" + std::to_string(k) + " dist");
     }
 
@@ -324,11 +324,11 @@ static void test_distributive() {
     std::mt19937_64 rng(333);
     for (int i = 0; i < 20; i++) {
         std::array<uint8_t, 32> bk{};
-        for (int j = 0; j < 32; j++) bk[j] = static_cast<uint8_t>(rng());
+        for (std::size_t j = 0; j < 32; j++) bk[j] = static_cast<uint8_t>(rng());
         Scalar sk = Scalar::from_bytes(bk);
 
-        Point lhs = P1.add(P2).scalar_mul(sk);
-        Point rhs = P1.scalar_mul(sk).add(P2.scalar_mul(sk));
+        Point lhs = pt1.add(pt2).scalar_mul(sk);
+        Point rhs = pt1.scalar_mul(sk).add(pt2.scalar_mul(sk));
         CHECK(points_equal(lhs, rhs), "random k distributive");
     }
 }

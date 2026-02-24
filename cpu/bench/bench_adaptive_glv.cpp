@@ -43,7 +43,7 @@ static double run_bench(unsigned window_bits, bool glv, unsigned iters) {
         (void)p;
     }
     auto end = std::chrono::high_resolution_clock::now();
-    double ns = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+    double ns = static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
     return ns / static_cast<double>(iters);
 }
 

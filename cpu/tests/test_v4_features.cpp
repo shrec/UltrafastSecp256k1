@@ -250,6 +250,7 @@ static void test_frost_2of3_signing() {
 
     // Verify with standard schnorr_verify
     auto gpk_x = schnorr_pubkey(Scalar::zero()); // we need x-only of group key
+    (void)gpk_x;
     // Actually just get x-only from group key:
     auto group_x = pkg1.group_public_key.x().to_bytes();
     bool valid = schnorr_verify(group_x, msg, sig);
@@ -357,7 +358,7 @@ static void test_base58check() {
     CHECK(valid, "base58_decode_valid");
     CHECK(decoded.size() == 21, "base58_decode_size");
     bool match = true;
-    for (int i = 0; i < 21; ++i) { if (decoded[i] != payload[i]) match = false; }
+    for (std::size_t i = 0; i < 21; ++i) { if (decoded[i] != payload[i]) match = false; }
     CHECK(match, "base58_roundtrip");
 }
 

@@ -109,7 +109,7 @@ inline void mul64(std::uint64_t a, std::uint64_t b, std::uint64_t& lo, std::uint
 
 #endif // _MSC_VER
 
-constexpr std::uint64_t MOD_ADJUST = 0x1000003D1ULL;
+[[maybe_unused]] constexpr std::uint64_t MOD_ADJUST = 0x1000003D1ULL;
 
 constexpr limbs4 PRIME{
     0xFFFFFFFEFFFFFC2FULL,
@@ -1656,7 +1656,7 @@ FieldElement pow_p_minus_2_binary(FieldElement base) {
     while (bit_pos + w <= kPrimeMinusTwoBitLength) {
         std::uint8_t bits = 0;
         for (std::size_t i = 0; i < w; ++i) {
-            bits = (bits << 1) | exponent_bit(bit_pos + i);
+            bits = static_cast<std::uint8_t>((bits << 1) | exponent_bit(bit_pos + i));
         }
 
         if (!started && bits != 0) {
@@ -1675,7 +1675,7 @@ FieldElement pow_p_minus_2_binary(FieldElement base) {
         std::size_t remaining = kPrimeMinusTwoBitLength - bit_pos;
         std::uint8_t bits = 0;
         for (std::size_t i = 0; i < remaining; ++i) {
-            bits = (bits << 1) | exponent_bit(bit_pos + i);
+            bits = static_cast<std::uint8_t>((bits << 1) | exponent_bit(bit_pos + i));
         }
         if (started) {
             for (std::size_t i = 0; i < remaining; ++i) {
@@ -1695,7 +1695,7 @@ FieldElement pow_p_minus_2_binary(FieldElement base) {
     FieldElement result = FieldElement::one();
     FieldElement power = base;
     
-    for (int i = 31; i >= 0; --i) {
+    for (std::size_t i = 32; i-- > 0; ) {
         std::uint8_t byte = kPrimeMinusTwo[i];
         for (int bit = 0; bit < 8; ++bit) {
             if ((byte >> bit) & 0x1) {
@@ -1916,7 +1916,7 @@ FieldElement pow_p_minus_2_binary(FieldElement base) {
         for (int bit = 7; bit >= 0; --bit) {
             result = result.square();
             // Branchless: use mask instead of if
-            std::uint8_t mask = -((byte >> bit) & 0x1);
+            std::uint8_t mask = static_cast<std::uint8_t>(-((byte >> bit) & 0x1));
             if (mask) result = result * base;
         }
     }
@@ -2135,7 +2135,7 @@ FieldElement pow_p_minus_2_binary(FieldElement base) {
     std::array<FieldElement, 256> table{};
     table[0] = FieldElement::one();
     table[1] = base;
-    for (int i = 2; i < 256; ++i) {
+    for (std::size_t i = 2; i < 256; ++i) {
         table[i] = table[i-1] * base;
     }
     
@@ -2176,7 +2176,7 @@ FieldElement pow_p_minus_2_binary(FieldElement base) {
     while (bit_pos + w <= kPrimeMinusTwoBitLength) {
         std::uint8_t bits = 0;
         for (std::size_t i = 0; i < w; ++i) {
-            bits = (bits << 1) | exponent_bit(bit_pos + i);
+            bits = static_cast<std::uint8_t>((bits << 1) | exponent_bit(bit_pos + i));
         }
         
         if (!started && bits != 0) {
@@ -2376,7 +2376,7 @@ FieldElement FieldElement::from_hex(const std::string& hex) {
             #endif
         };
         
-        bytes[i] = (hex_to_nibble(c1) << 4) | hex_to_nibble(c2);
+        bytes[i] = static_cast<std::uint8_t>((hex_to_nibble(c1) << 4) | hex_to_nibble(c2));
     }
     
     return from_bytes(bytes);

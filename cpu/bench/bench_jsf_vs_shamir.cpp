@@ -33,7 +33,7 @@ static double time_scalar_mul_generator(const std::vector<Scalar>& scalars, size
     }
     auto end = std::chrono::high_resolution_clock::now();
     volatile auto guard = sink.x_raw().limbs()[0]; (void)guard;
-    return std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count() / static_cast<double>(iters);
+    return static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count()) / static_cast<double>(iters);
 }
 
 static void print_row(const char* name, double ns) {
