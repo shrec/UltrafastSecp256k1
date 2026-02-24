@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771894460781,
+  "lastUpdate": 1771895433248,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -9998,6 +9998,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Batch Inverse (n=1000)",
             "value": 130,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "bdb3f13a92338ab818fcc6e160732a35b63d3f17",
+          "message": "perf: add const to FieldElement52 intermediates in hot-path point arithmetic\n\nMark write-once local variables as const in jac52_double, jac52_add_mixed,\nand jac52_add (return-by-value variants).  Resolves clang-tidy\nmisc-const-correctness warnings and gives the optimizer explicit immutability\nguarantees on ~60 intermediates in the critical ECC path.\n\nVerified: 12/12 tests pass, zero warnings under -Werror.",
+          "timestamp": "2026-02-24T05:09:11+04:00",
+          "tree_id": "8b41a4d42952aeb5099b1ae7e27f704422861192",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/bdb3f13a92338ab818fcc6e160732a35b63d3f17"
+        },
+        "date": 1771895432285,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 27,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 22,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 279,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 150,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 38000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 9000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 13000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 47000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 23000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 53000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 141,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 132,
             "unit": "ns"
           }
         ]
