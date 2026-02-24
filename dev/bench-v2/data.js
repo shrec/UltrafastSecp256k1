@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771930603790,
+  "lastUpdate": 1771930918589,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -13859,6 +13859,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Batch Inverse (n=1000)",
             "value": 133,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "0668bbe87a34d84d2347f9932cb0b18aefb0c619",
+          "message": "docs: normalization spec (BIP-62/66/146) + dudect CI artifact publishing\n\n- Add docs/NORMALIZATION_SPEC.md: low-S rule, DER strictness, RFC 6979,\n  Schnorr non-malleability, verification strictness, cross-backend consistency\n- security-audit.yml: upload dudect smoke results as artifact (90-day retention)\n- nightly.yml: upload dudect full results as artifact (90-day retention)\n\nPhase I roadmap: 1.1.5 (normalization spec) + 1.2.7 (results publishing) complete.\nPhase I now at ~95% (1 remaining: in-process libsecp256k1 harness).",
+          "timestamp": "2026-02-24T15:00:35+04:00",
+          "tree_id": "48d82f4b29f6f2f60d8ce887108726ad5ec84d21",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/0668bbe87a34d84d2347f9932cb0b18aefb0c619"
+        },
+        "date": 1771930916947,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 26,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 19,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 258,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 129,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 34000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 8000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 12000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 42000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 20000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 48000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 116,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 107,
             "unit": "ns"
           }
         ]
