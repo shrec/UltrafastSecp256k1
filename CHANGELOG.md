@@ -5,6 +5,33 @@ All notable changes to UltrafastSecp256k1 are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.14.0] - 2026-02-25
+
+### Added — Language Bindings (12 languages, 41-function C API parity)
+- **Java** — 22 new JNI functions + 3 helper classes (`RecoverableSignature`, `WifDecoded`, `TaprootOutputKeyResult`): full coverage of ECDSA sign/verify, DER encoding, recovery, ECDH, Schnorr, BIP-32, BIP-39, taproot, WIF, address encoding, tagged hash
+- **Swift** — 20 new functions: DER encode/decode, recovery sign/recover, ECDH, tagged hash, BIP-32/39, taproot, WIF, address encoding
+- **React Native** — 15 new functions: DER, recovery, ECDH, Schnorr, BIP-32/39, taproot, WIF, address, tagged hash
+- **Python** — 3 new functions: `ctx_clone()`, `last_error()`, `last_error_msg()`
+- **Rust** — 2 new functions: `last_error()`, `last_error_msg()`
+- **Dart** — 1 new function: `ctx_clone()`
+- **Go, Node.js, C#, Ruby, PHP** — already complete (verified, no changes needed)
+- **9 new binding READMEs** — `c_api`, `dart`, `go`, `java`, `php`, `python`, `ruby`, `rust`, `swift`
+- **Selftest report API** — `SelftestReport` and `SelftestCase` structs in `selftest.hpp`; `tally()` refactored for programmatic reporting
+
+### Fixed — Documentation & Packaging
+- **Package naming corrected across all documentation** — `libsecp256k1-fast*` → `libufsecp*` (apt, rpm, arch); CMake target `secp256k1-fast-cpu` → `secp256k1::fast`; linker flag `-lsecp256k1-fast-cpu` → `-lfastsecp256k1`; pkg-config Libs `-lsecp256k1-fast-cpu` → `-lfastsecp256k1`
+- **RPM spec renamed** — `libsecp256k1-fast.spec` → `libufsecp.spec`
+- **Debian control** — source `libufsecp`, binary packages `libufsecp3`/`libufsecp-dev`
+- **Arch PKGBUILD** — `pkgname=libufsecp`, `provides=('libufsecp')`
+- **3 existing binding READMEs fixed** — Node.js, C#, React Native: removed inaccurate CT-layer claims (C API uses fast:: path only)
+- **README dead link** — `INDUSTRIAL_ROADMAP_WORKING.md` → `ROADMAP.md`
+
+### Fixed — CI / Build
+- **`-Werror=unused-function`** — added `[[maybe_unused]]` to `get_platform_string()` in `selftest.cpp`
+- **Scorecard CI** — pinned `ubuntu:24.04` by SHA digest in `Dockerfile.local-ci`
+
+---
+
 ## [3.13.1] - 2026-02-24
 
 ### Fixed
