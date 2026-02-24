@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771928694927,
+  "lastUpdate": 1771930566216,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -13661,6 +13661,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Batch Inverse (n=1000)",
             "value": 130,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "3a5227de99a56b27c178ca8f17a62802cb8b32b4",
+          "message": "feat: FAST≡CT equivalence tests (320 property-based + boundary vectors)\n\n- Add test_ct_equivalence.cpp: 8 test functions covering generator_mul,\n  scalar_mul, ECDSA sign, Schnorr sign/pubkey, and group law invariants\n- Boundary scalars: 0, 1, 2, n-1, n-2, (n+1)/2\n- 64 random generator_mul + 64 scalar_mul + 32 ECDSA + 32 Schnorr\n- Deterministic PRNG (seeded SHA256 counter) for reproducibility\n- Register in unified runner (run_selftest) + standalone CTest target\n- Update CT_VERIFICATION.md version to v3.13.0\n\nVerified: 320/320 equivalence checks passed, 14/14 CTest targets green\n(ct_sidechannel: known MSVC false-positive, passes on Linux GCC/Clang)",
+          "timestamp": "2026-02-24T14:54:42+04:00",
+          "tree_id": "abdeaa75527395f76c375b917a4e48e904d83cf7",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/3a5227de99a56b27c178ca8f17a62802cb8b32b4"
+        },
+        "date": 1771930564898,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 27,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 22,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 277,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 149,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 38000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 10000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 13000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 47000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 28000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 53000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 140,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 136,
             "unit": "ns"
           }
         ]
