@@ -167,6 +167,9 @@ static int base58_char_value(char c) {
 }
 
 std::string base58check_encode(const std::uint8_t* data, std::size_t len) {
+    // Guard against size_t overflow in (len + 4) — silences GCC -Wstringop-overflow
+    if (len == 0 || len > 0x7FFFFFFFUL) return {};
+
     // Append 4-byte checksum
     auto checksum_hash1 = SHA256::hash(data, len);
     auto checksum_hash2 = SHA256::hash(checksum_hash1.data(), 32);

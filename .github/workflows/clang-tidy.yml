@@ -58,12 +58,15 @@ jobs:
 
       - name: Run clang-tidy
         run: |
-          # Gather all C++ source files under cpu/ and include/
-          find cpu/ include/ -type f \( -name '*.cpp' -o -name '*.hpp' -o -name '*.h' \) \
-            | sort \
-            | xargs clang-tidy-17 -p build --warnings-as-errors='' 2>&1 \
+          # Only analyse C++ source files that CMake actually compiles
+          # Filter out .S assembly files (clang-tidy cannot process them)
+          jq -r '.[].file' build/compile_commands.json \
+            | grep -E '\.(cpp|cc|cxx)$' \
+            | sort -u \
+            | xargs -P "$(nproc)" -n 4 \
+              clang-tidy-17 -p build --warnings-as-errors='' --quiet 2>&1 \
             | tee clang-tidy-output.txt
-          # Fail if clang-tidy found any warnings (exit code from clang-tidy)
+          # Fail if clang-tidy found any diagnostics
           if grep -qE '^.+:[0-9]+:[0-9]+: (warning|error):' clang-tidy-output.txt; then
             echo "::warning::clang-tidy found issues (non-blocking for now)"
             # To make blocking later, uncomment: exit 1
