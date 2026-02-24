@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771893721436,
+  "lastUpdate": 1771894460781,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -9899,6 +9899,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Batch Inverse (n=1000)",
             "value": 131,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "76b59817b4e3471cd62a03f51ce23a4982c24f28",
+          "message": "fix(ci): filter .S assembly from clang-tidy, add --quiet and parallel xargs\n\n- grep only .cpp/.cc/.cxx files (skip .S assembly that clang-tidy cannot parse)\n- --quiet suppresses the 'N warnings generated' noise lines\n- xargs -P nproc -n 4 parallelises analysis across cores",
+          "timestamp": "2026-02-24T04:53:02+04:00",
+          "tree_id": "54d8ab0c300b93317600025d728025a74e55cb64",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/76b59817b4e3471cd62a03f51ce23a4982c24f28"
+        },
+        "date": 1771894460072,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 27,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 22,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 281,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 149,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 38000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 9000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 14000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 47000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 23000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 53000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 140,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 130,
             "unit": "ns"
           }
         ]
