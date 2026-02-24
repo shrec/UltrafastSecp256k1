@@ -1,0 +1,38 @@
+name: Discord Commit Notifications
+
+on:
+  push:
+    branches: [main, dev, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    env:
+      WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_COMMITS }}
+    steps:
+      - name: Notify Discord (push)
+        if: env.WEBHOOK != ''
+        env:
+          REPO: ${{ github.repository }}
+          BRANCH: ${{ github.ref_name }}
+          AUTHOR: ${{ github.event.head_commit.author.name || 'manual' }}
+          MESSAGE: ${{ github.event.head_commit.message || 'workflow_dispatch' }}
+          SHA: ${{ github.sha }}
+        run: |
+          SHORT_SHA="${SHA:0:7}"
+          SAFE_MSG=$(echo "$MESSAGE" | head -1 | sed 's/\\/\\\\/g; s/"/\\"/g; s/\t/\\t/g' | head -c 200)
+          COMMIT_URL="https://github.com/${REPO}/commit/${SHA}"
+          NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          JSON=$(jq -n \
+            --arg title "New commit on ${BRANCH}" \
+            --arg url "$COMMIT_URL" \
+            --arg desc "[\`${SHORT_SHA}\`](${COMMIT_URL}) ${SAFE_MSG}" \
+            --arg branch "$BRANCH" \
+            --arg author "$AUTHOR" \
+            --arg ts "$NOW" \
+            '{embeds:[{title:$title,url:$url,color:7506394,description:$desc,fields:[{name:"Branch",value:$branch,inline:true},{name:"Author",value:$author,inline:true}],footer:{text:"UltrafastSecp256k1"},timestamp:$ts}]}')
+          curl -sS -H "Content-Type: application/json" -d "$JSON" "$WEBHOOK"

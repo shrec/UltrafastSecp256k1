@@ -4,7 +4,7 @@
   All inputs pre-generated — no RNG in measurement loops
 ═══════════════════════════════════════════════════════════════
 
-[1] CT პრიმიტივები — timing ტესტი
+[1] CT Primitives — Timing Test
     is_zero_mask:    |t| =   1.26  (49892/50108)  ✅ CT
     bool_to_mask:    |t| =   1.07  (50273/49727)  ✅ CT
     cmov256:         |t| =   0.01  (49897/50103)  ✅ CT
@@ -12,7 +12,7 @@
     ct_lookup_256:   |t| =   1.12  (50200/49800)  ✅ CT
     ct_equal:        |t| =   0.52  (50080/49920)  ✅ CT
 
-[2] CT Field ოპერაციები — timing ტესტი
+[2] CT Field Operations — Timing Test
     field_add:       |t| =   8.50  ⚠️  LEAK
     ✗ FAIL: ct::field_add timing leak
     field_mul:       |t| =  20.94  ⚠️  LEAK
@@ -24,7 +24,7 @@
     field_cmov:      |t| =   0.01  ✅ CT
     field_is_zero:   |t| =   0.86  ✅ CT
 
-[3] CT Scalar ოპერაციები — timing ტესტი
+[3] CT Scalar Operations — Timing Test
     scalar_add:      |t| =   9.50  ⚠️  LEAK
     ✗ FAIL: ct::scalar_add timing leak
     scalar_sub:      |t| =   0.11  ✅ CT
@@ -35,7 +35,7 @@
     scalar_window:   |t| =  52.00  ⚠️  LEAK
     ✗ FAIL: ct::scalar_window timing leak
 
-[4] CT Point ოპერაციები — timing ტესტი (ყველაზე კრიტიკული)
+[4] CT Point Operations — Timing Test (most critical)
     complete_add (P+O vs P+Q):   |t| =  22.69  ⚠️  LEAK
     ✗ FAIL: complete_add P+O vs P+Q timing leak
     complete_add (P+P vs P+Q):   |t| =  10.93  ⚠️  LEAK
@@ -47,20 +47,20 @@
     ✗ FAIL: ct::generator_mul low vs high HW timing leak
     point_tbl_lookup (0 vs 15):  |t| =   4.22  ✅ CT
 
-[5] CT Byte Utilities — timing ტესტი
+[5] CT Byte Utilities — Timing Test
     ct_memcpy_if:    |t| =   1.03  ✅ CT
     ct_memswap_if:   |t| =   0.89  ✅ CT
     ct_memzero:      |t| =   0.35  ✅ CT
     ct_compare:      |t| =   0.28  ✅ CT
 
-[6] fast:: path control test (მოსალოდნელია NOT CT)
-    (ადასტურებს რომ fast:: და ct:: რეალურად განსხვავდება)
-    fast::scalar_mul: |t| = 1314.79  ⏱️  NOT CT (მოსალოდნელი)
+[6] fast:: path control test (expected NOT CT)
+    (confirms that fast:: and ct:: actually differ)
+    fast::scalar_mul: |t| = 1314.79  ⏱️  NOT CT (expected)
 
-[7] Valgrind CLASSIFY/DECLASSIFY ტესტი
+[7] Valgrind CLASSIFY/DECLASSIFY Test
     ℹ️  Valgrind CT mode DISABLED
-    ℹ️  ჩართვა: cmake -DSECP256K1_CT_VALGRIND=1
-    ℹ️  გაშვება: valgrind ./test_ct_sidechannel
+    ℹ️  Enable: cmake -DSECP256K1_CT_VALGRIND=1
+    ℹ️  Run: valgrind ./test_ct_sidechannel
     ct::scalar_mul classified: ✅
     ct::field_{add,mul,sqr} classified: ✅
     ct::scalar_{add,neg} classified: ✅
@@ -68,24 +68,24 @@
     ct::ct_lookup_256 classified index: ✅
     ct::generator_mul classified: ✅
 
-[8] ასემბლის ინსპექცია — ინსტრუქცია
-    CT ფუნქციების ასემბლის შემოწმება:
+[8] Assembly Inspection — Instructions
+    Checking assembly of CT functions:
     objdump -d build_rel/tests/test_ct_sidechannel | less
 
-    ეძებეთ ct:: ფუნქციებში:
-    ✅ კარგი: cmov, cmovne, cmove (branchless conditional)
-    ❌ ცუდი:  jz/jnz/je/jne (secret-dependent branch)
+    Look for in ct:: functions:
+    ✅ Good: cmov, cmovne, cmove (branchless conditional)
+    ❌ Bad:   jz/jnz/je/jne (secret-dependent branch)
 
-    სწრაფი ავტომატური შემოწმება:
+    Quick automated check:
     objdump -d build_rel/tests/test_ct_sidechannel | \
       awk '/ct.*:$/,/^$/' | grep -cE 'j[a-z]{1,3}\s'
 
 ═══════════════════════════════════════════════════════════════
   SIDE-CHANNEL AUDIT: 23 passed, 11 failed
-  ⚠️  TIMING LEAK-ები აღმოჩენილია
+  ⚠️  TIMING LEAKS DETECTED
 ═══════════════════════════════════════════════════════════════
 
-  სრული სერთიფიკაციის ნაბიჯები:
+  Full certification steps:
   1. Valgrind: -DSECP256K1_CT_VALGRIND=1 && valgrind ./test
   2. asm:      objdump -d <binary> | grep branches
   3. hw:       Intel Pin / Flush+Reload (hardware level)

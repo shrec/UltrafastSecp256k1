@@ -1,22 +1,22 @@
 ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
-  CT ბენჩმარკი: UltrafastSecp256k1 vs libsecp256k1 (Bitcoin Core)
+  CT Benchmark: UltrafastSecp256k1 vs libsecp256k1 (Bitcoin Core)
 ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
 
-  იტერაციები: keygen=5000, sign=2000, verify=2000, ecdh=2000, scalar_mul=1000, primitives=100000
+  Iterations: keygen=5000, sign=2000, verify=2000, ecdh=2000, scalar_mul=1000, primitives=100000
 
 ┌────────────────────────────┬──────────────────────────────────────┬──────────────────────────────────────┬──────────┐
-│ ოპერაცია   │ UltrafastSecp256k1 (CT)              │ libsecp256k1                         │ თანაფარდობა │
+│ Operation              │ UltrafastSecp256k1 (CT)              │ libsecp256k1                         │ Ratio    │
 ├────────────────────────────┼──────────────────────────────────────┼──────────────────────────────────────┼──────────┤
 │ Key generation (CT)        │ 325532.2 ns/op        3072 op/s   │  12384.1 ns/op       80749 op/s   │ 26.29x   │  ⚠️  libsecp
 │ Key generation (fast)      │   8475.7 ns/op      117985 op/s   │ (N/A)                                │ —      │
 ├────────────────────────────┼──────────────────────────────────────┼──────────────────────────────────────┼──────────┤
-│ ECDSA sign                 │  11335.2 ns/op       88221 op/s   │  17916.0 ns/op       55816 op/s   │  0.63x   │  ✅ ჩვენი
+│ ECDSA sign                 │  11335.2 ns/op       88221 op/s   │  17916.0 ns/op       55816 op/s   │  0.63x   │  ✅ Ours
 │ ECDSA verify               │  28406.1 ns/op       35204 op/s   │  21635.0 ns/op       46221 op/s   │  1.31x   │  ⚠️  libsecp
 ├────────────────────────────┼──────────────────────────────────────┼──────────────────────────────────────┼──────────┤
 │ Schnorr sign               │  20058.3 ns/op       49855 op/s   │  12698.5 ns/op       78749 op/s   │  1.58x   │  ⚠️  libsecp
 │ Schnorr verify             │  36450.9 ns/op       27434 op/s   │  20255.7 ns/op       49369 op/s   │  1.80x   │  ⚠️  libsecp
 ├────────────────────────────┼──────────────────────────────────────┼──────────────────────────────────────┼──────────┤
-│ ECDH                       │  18951.1 ns/op       52767 op/s   │  22792.6 ns/op       43874 op/s   │  0.83x   │  ✅ ჩვენი
+│ ECDH                       │  18951.1 ns/op       52767 op/s   │  22792.6 ns/op       43874 op/s   │  0.83x   │  ✅ Ours
 ├────────────────────────────┼──────────────────────────────────────┼──────────────────────────────────────┼──────────┤
 │ CT scalar_mul              │ 304756.8 ns/op        3281 op/s   │  18239.6 ns/op       54826 op/s   │ 16.71x   │  ⚠️  libsecp
 │ CT generator_mul           │ 310891.2 ns/op        3217 op/s   │  12384.1 ns/op       80749 op/s   │ 25.10x   │  ⚠️  libsecp
@@ -35,19 +35,19 @@
 └────────────────────────────┴──────────────────────────────────────┴──────────────────────────────────────┴──────────┘
 
 ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
-  შეჯამება
+  Summary
 ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
 
-  ლეგენდა:
-    თანაფარდობა = ჩვენი_ns / libsecp_ns  (< 1.0 = ჩვენი უფრო სწრაფია)
-    ✅ ჩვენი   — ჩვენი ბიბლიოთეკა მნიშვნელოვნად სწრაფია (< 0.85x)
-    ≈  თანაბარი — შესადარებელი სიჩქარე (0.85x – 1.15x)
-    ⚠️  libsecp — libsecp256k1 უფრო სწრაფია (> 1.15x)
+  Legend:
+    Ratio = our_ns / libsecp_ns  (< 1.0 = ours is faster)
+    ✅ Ours    — Our library is significantly faster (< 0.85x)
+    ≈  Equal   — Comparable speed (0.85x – 1.15x)
+    ⚠️  libsecp — libsecp256k1 is faster (> 1.15x)
 
-  შენიშვნა:
-    - libsecp256k1-ის ყველა ოპერაცია CT-ია (constant-time by design)
-    - ჩვენი ბიბლიოთეკის 'fast' path არ არის CT, მაგრამ უფრო სწრაფია
-    - ჩვენი 'ct::' namespace იძლევა CT გარანტიებს fast:: ტიპებზე
-    - CT primitives (cmov, cswap, lookup) მხოლოდ ჩვენს ბიბლიოთეკაშია
-      ექსპოზირებული — libsecp256k1 არ ავლენს ამ შიდა ინტერფეისებს
+  Note:
+    - All libsecp256k1 operations are CT (constant-time by design)
+    - Our library's 'fast' path is NOT CT, but is faster
+    - Our 'ct::' namespace provides CT guarantees on fast:: types
+    - CT primitives (cmov, cswap, lookup) are only exposed in our library
+      — libsecp256k1 does not expose these internal interfaces
 

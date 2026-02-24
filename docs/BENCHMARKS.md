@@ -241,9 +241,9 @@ Benchmark results for UltrafastSecp256k1 across all supported platforms.
 | Schnorr Sign | 273.4 ns | — | — |
 | Schnorr Verify | 354.6 ns | — | — |
 
-> **შენიშვნა:** CUDA/OpenCL — RTX 5060 Ti (36 SMs, 2602 MHz, GDDR7 256 GB/s).  
+> **Note:** CUDA/OpenCL — RTX 5060 Ti (36 SMs, 2602 MHz, GDDR7 256 GB/s).  
 > Metal — M3 Pro (18 GPU cores, ~150 GB/s unified memory bandwidth).  
-> RTX 5060 Ti-ს აქვს ~8× მეტი compute throughput; Metal-ის უპირატესობა unified memory zero-copy I/O-ში.
+> RTX 5060 Ti has ~8× more compute throughput; Metal's advantage is in unified memory zero-copy I/O.
 
 ---
 

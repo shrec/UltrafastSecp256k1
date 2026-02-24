@@ -1,45 +1,45 @@
-# CLion + ESP-IDF სრული Development გარემო
+# CLion + ESP-IDF Full Development Environment
 
-## წინაპირობები
+## Prerequisites
 
-1. **ESP-IDF 5.5.1** დაინსტალირებული (`C:\Espressif\`)
-2. **CLion 2024.x** ან უფრო ახალი
+1. **ESP-IDF 5.5.1** installed (`C:\Espressif\`)
+2. **CLion 2024.x** or newer
 
 ---
 
-## ნაბიჯი 1: CLion ESP-IDF პლაგინის დაყენება
+## Step 1: Install CLion ESP-IDF Plugin
 
 1. **File → Settings → Plugins**
-2. Marketplace-ში მოძებნე: **"ESP-IDF"**
-3. დააინსტალირე და გადატვირთე CLion
+2. Search in Marketplace: **"ESP-IDF"**
+3. Install and restart CLion
 
 ---
 
-## ნაბიჯი 2: ESP-IDF კონფიგურაცია CLion-ში
+## Step 2: Configure ESP-IDF in CLion
 
 1. **File → Settings → Languages & Frameworks → ESP-IDF**
-2. შეავსე:
+2. Fill in:
    - **ESP-IDF Path:** `C:\Espressif\frameworks\esp-idf-v5.5.1`
    - **Python:** `C:\Espressif\python_env\idf5.5_py3.11_env\Scripts\python.exe`
    - **Tools Path:** `C:\Espressif`
 
-3. **Apply** და **OK**
+3. **Apply** and **OK**
 
 ---
 
-## ნაბიჯი 3: პროექტის გახსნა
+## Step 3: Open Project
 
 1. **File → Open**
-2. აირჩიე: `D:\Dev\Secp256K1\libs\UltrafastSecp256k1\examples\esp32_test`
-3. CLion იპოვის CMakeLists.txt და დაიწყებს კონფიგურაციას
+2. Select: `D:\Dev\Secp256K1\libs\UltrafastSecp256k1\examples\esp32_test`
+3. CLion will find CMakeLists.txt and start configuration
 
 ---
 
-## ნაბიჯი 4: Target Device კონფიგურაცია
+## Step 4: Target Device Configuration
 
 1. **Run → Edit Configurations**
-2. დააჭირე **+** → **ESP-IDF**
-3. შეავსე:
+2. Click **+** → **ESP-IDF**
+3. Fill in:
    - **Name:** `ESP32-S3 Flash & Monitor`
    - **Target:** `esp32s3`
    - **Serial Port:** `COM3`
@@ -49,18 +49,18 @@
 
 ---
 
-## გამოყენება
+## Usage
 
-| მოქმედება | როგორ |
+| Action | How |
 |-----------|-------|
-| **Build** | `Ctrl+F9` ან 🔨 ღილაკი |
-| **Flash** | აირჩიე configuration → `Shift+F10` |
-| **Monitor** | ავტომატურად იხსნება flash-ის შემდეგ |
-| **Debug** | `Shift+F9` (JTAG საჭიროა) |
+| **Build** | `Ctrl+F9` or 🔨 button |
+| **Flash** | Select configuration → `Shift+F10` |
+| **Monitor** | Opens automatically after flash |
+| **Debug** | `Shift+F9` (JTAG required) |
 
 ---
 
-## Serial Monitor CLion-ში
+## Serial Monitor in CLion
 
 1. **View → Tool Windows → Serial Monitor**
 2. Port: `COM3`
@@ -72,27 +72,27 @@
 ## Troubleshooting
 
 ### "IDF_PATH not found"
-- Settings → Languages & Frameworks → ESP-IDF → შეამოწმე paths
+- Settings → Languages & Frameworks → ESP-IDF → Check paths
 
 ### "Cannot open COM port"
-- დახურე სხვა პროგრამები (Arduino IDE, PuTTY)
-- შეამოწმე Device Manager-ში COM პორტი
+- Close other programs (Arduino IDE, PuTTY)
+- Check COM port in Device Manager
 
 ### Build errors
-- Terminal-ში გაუშვი: `idf.py fullclean`
-- თავიდან დაბილდე
+- Run in terminal: `idf.py fullclean`
+- Rebuild
 
 ---
 
-## ალტერნატივა: ESP-IDF CMD + CLion
+## Alternative: ESP-IDF CMD + CLion
 
-თუ პლაგინი არ მუშაობს:
+If the plugin doesn't work:
 
-1. გახსენი **ESP-IDF 5.5.1 PowerShell** (Start მენიუდან)
-2. გაუშვი:
+1. Open **ESP-IDF 5.5.1 PowerShell** (from Start menu)
+2. Run:
    ```cmd
    cd D:\Dev\Secp256K1\libs\UltrafastSecp256k1\examples\esp32_test
    clion .
    ```
 
-ეს გახსნის CLion-ს სწორი ESP-IDF გარემოთი.
+This will open CLion with the correct ESP-IDF environment.

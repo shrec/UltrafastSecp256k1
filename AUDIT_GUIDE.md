@@ -2,8 +2,8 @@
 
 **UltrafastSecp256k1 v3.12.1** — Independent Auditor Navigation
 
-> ეს დოკუმენტი აუდიტორებისთვის არის. აქ ნახავთ ყველაფერს რაც საჭიროა
-> ბიბლიოთეკის უსაფრთხოების, კორექტულობის და ხარისხის შესაფასებლად.
+> This document is for auditors. Here you will find everything needed
+> to evaluate the library's security, correctness, and quality.
 
 ---
 

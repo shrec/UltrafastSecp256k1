@@ -1,0 +1,63 @@
+# syntax=docker/dockerfile:1
+# =============================================================================
+# Dockerfile.local-ci — Local reproduction of full CI environment
+# =============================================================================
+# Mirrors GitHub Actions CI jobs (Ubuntu 24.04):
+#   1. Build with -Werror (GCC-13)
+#   2. ASan + UBSan (Clang-17)
+#   3. Valgrind Memcheck (GCC-13)
+#   4. dudect timing analysis (GCC-13)
+#   5. Code Coverage (Clang-17 + llvm-cov → HTML report)
+#   6. clang-tidy static analysis (Clang-17)
+#   7. CI matrix (GCC-13 + Clang-17, Debug + Release)
+#
+# Usage (see scripts/run-local-ci.ps1 for the one-liner wrapper):
+#   DOCKER_BUILDKIT=1 docker build -f Dockerfile.local-ci -t uf-local-ci .
+#   docker run --rm -v ${PWD}:/src -v uf-ccache:/ccache uf-local-ci
+#   docker run --rm -v ${PWD}:/src -v uf-ccache:/ccache uf-local-ci \
+#       bash /src/scripts/local-ci.sh --job coverage
+#   docker run --rm -v ${PWD}:/src -v uf-ccache:/ccache uf-local-ci \
+#       bash /src/scripts/local-ci.sh --full
+#
+# ccache: A named Docker volume (uf-ccache) persists the compiler cache across
+#   runs. Second build of unchanged code takes ~seconds instead of minutes.
+#
+# Coverage HTML report is written to /src/build-local-ci-coverage/html/
+# =============================================================================
+
+FROM ubuntu:24.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# ── Install all toolchains needed by all CI jobs ─────────────────────────────
+RUN apt-get update -qq && \
+    apt-get install -y --no-install-recommends \
+        g++-13 gcc-13 \
+        clang-17 clang-tidy-17 lld-17 llvm-17 \
+        libclang-rt-17-dev \
+        ninja-build cmake \
+        ccache \
+        valgrind \
+        jq \
+        ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# ── ccache configuration ─────────────────────────────────────────────────────
+# Volume mount point: docker run -v uf-ccache:/ccache ...
+ENV CCACHE_DIR=/ccache \
+    CCACHE_MAXSIZE=5G \
+    CCACHE_COMPRESS=1 \
+    CCACHE_COMPRESSLEVEL=6
+
+# ── Create ccache symlinks so cmake picks them up transparently ──────────────
+RUN mkdir -p /usr/lib/ccache && \
+    ln -sf /usr/bin/ccache /usr/lib/ccache/g++-13 && \
+    ln -sf /usr/bin/ccache /usr/lib/ccache/gcc-13 && \
+    ln -sf /usr/bin/ccache /usr/lib/ccache/clang-17 && \
+    ln -sf /usr/bin/ccache /usr/lib/ccache/clang++-17
+ENV PATH="/usr/lib/ccache:${PATH}"
+
+WORKDIR /src
+
+# Default: run all security-audit jobs
+CMD ["bash", "/src/scripts/local-ci.sh", "--all"]
