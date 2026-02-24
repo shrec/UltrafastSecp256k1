@@ -58,9 +58,10 @@ jobs:
 
       - name: Run clang-tidy
         run: |
-          # Gather all C++ source files under cpu/ and include/
-          find cpu/ include/ -type f \( -name '*.cpp' -o -name '*.hpp' -o -name '*.h' \) \
-            | sort \
+          # Only analyse source files that CMake actually compiles
+          # (avoids standalone headers, fuzz targets, unregistered benches)
+          jq -r '.[].file' build/compile_commands.json \
+            | sort -u \
             | xargs clang-tidy-17 -p build --warnings-as-errors='' 2>&1 \
             | tee clang-tidy-output.txt
           # Fail if clang-tidy found any warnings (exit code from clang-tidy)
