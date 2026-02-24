@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771904984505,
+  "lastUpdate": 1771905006630,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -12176,6 +12176,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Batch Inverse (n=1000)",
             "value": 131,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "ddc9dcf1e1e5e4c7631e42e01aeacd4b4a262ac2",
+          "message": "Merge dev: BIP-32 TV1-TV5 vectors, nightly workflows, public key decompression fix",
+          "timestamp": "2026-02-24T07:48:30+04:00",
+          "tree_id": "f34382d237b7a6d969ce851b1a111a5f92a325db",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/ddc9dcf1e1e5e4c7631e42e01aeacd4b4a262ac2"
+        },
+        "date": 1771905005143,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 26,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 19,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 258,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 129,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 34000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 8000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 12000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 42000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 20000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 48000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 116,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 107,
             "unit": "ns"
           }
         ]
