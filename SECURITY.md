@@ -195,10 +195,42 @@ Layers marked "Stable" in the Production Readiness table above have mature inter
 
 ---
 
+## Vulnerability Disclosure Policy
+
+We follow a **coordinated disclosure** process:
+
+| Phase | Timeline | Action |
+|-------|----------|--------|
+| Acknowledgment | ≤ 72 hours | Confirm receipt, assign tracking ID |
+| Assessment | ≤ 7 days | Severity classification (CVSS 3.1) |
+| Fix development | ≤ 30 days | Patch + test for confirmed issues |
+| Advisory | ≤ 90 days | GitHub Security Advisory published |
+| Credit | At advisory | Reporter credited (unless anonymous) |
+
+### Severity Guidelines
+
+| CVSS | Example |
+|------|---------|
+| Critical (9.0+) | Private key recovery, signature forgery |
+| High (7.0–8.9) | CT violation in `ct::` namespace, nonce bias |
+| Medium (4.0–6.9) | Denial of service, unexpected panic/abort |
+| Low (0.1–3.9) | Non-security correctness issues, edge-case handling |
+
+### Bug Bounty
+
+For detailed eligibility criteria, scope, and reward guidelines, see
+[docs/BUG_BOUNTY.md](docs/BUG_BOUNTY.md).
+
+Summary of scope:
+- **In scope**: Field/scalar/point arithmetic, ECDSA/Schnorr/MuSig2/FROST correctness, constant-time violations, memory safety, GPU kernel correctness
+- **Out of scope**: Performance issues, documentation errors, features not yet marked "Stable"
+
+---
+
 ## Acknowledgments
 
 We appreciate responsible disclosure. Contributors who report valid security issues will be credited in the changelog (unless they prefer anonymity).
 
 ---
 
-*UltrafastSecp256k1 v3.12.2 — Security Policy*
+*UltrafastSecp256k1 v3.14.0 — Security Policy*

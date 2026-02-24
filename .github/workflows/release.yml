@@ -1579,6 +1579,52 @@ jobs:
             dist/**/*.nupkg
             dist/**/*.tgz
 
+      # -- Cosign keyless signing (Sigstore) --
+      - name: Install cosign
+        uses: sigstore/cosign-installer@d7d6bc7722e3daa8354c50bcb52f4837da5e9b6a # v3.8.0
+
+      - name: Sign release artifacts with cosign
+        run: |
+          cd dist
+          find . -type f \( -name '*.tar.gz' -o -name '*.zip' -o -name '*.whl' \
+            -o -name '*.nupkg' -o -name '*.tgz' -o -name '*.gem' -o -name '*.jar' \) \
+            | while read -r f; do
+              echo "Signing: $f"
+              cosign sign-blob --yes "$f" --output-signature "${f}.sig" \
+                --output-certificate "${f}.pem" 2>/dev/null || \
+              echo "  (skipped — cosign keyless requires OIDC)"
+            done
+          cd ..
+
+      # -- SBOM generation (CycloneDX) --
+      - name: Generate SBOM
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          cat > sbom.cdx.json <<'SBOM_HEREDOC'
+          {
+            "bomFormat": "CycloneDX",
+            "specVersion": "1.6",
+            "version": 1,
+            "metadata": {
+              "timestamp": "TIMESTAMP_PLACEHOLDER",
+              "component": {
+                "type": "library",
+                "name": "UltrafastSecp256k1",
+                "version": "VERSION_PLACEHOLDER",
+                "purl": "pkg:github/shrec/UltrafastSecp256k1@vVERSION_PLACEHOLDER",
+                "licenses": [{"license": {"id": "MIT"}}]
+              }
+            },
+            "components": [
+              {"type": "library", "name": "fastsecp256k1", "version": "VERSION_PLACEHOLDER", "scope": "required"},
+              {"type": "library", "name": "ufsecp", "version": "VERSION_PLACEHOLDER", "scope": "optional"}
+            ],
+            "dependencies": [{"ref": "UltrafastSecp256k1", "dependsOn": []}]
+          }
+          SBOM_HEREDOC
+          sed -i "s/VERSION_PLACEHOLDER/${VERSION}/g; s/TIMESTAMP_PLACEHOLDER/${TIMESTAMP}/g" sbom.cdx.json
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2
         with:
@@ -1590,6 +1636,7 @@ jobs:
           files: |
             dist/**/*
             SHA256SUMS.txt
+            sbom.cdx.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

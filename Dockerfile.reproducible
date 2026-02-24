@@ -1,0 +1,100 @@
+# ===========================================================================
+# UltrafastSecp256k1 — Reproducible Build Verification
+# ===========================================================================
+# Purpose: Build the library twice and compare outputs byte-for-byte.
+# A reproducible build proves that the same source yields identical
+# binaries, regardless of builder identity.
+#
+# Usage:
+#   docker build -f Dockerfile.reproducible -t uf-repro-check .
+#   docker run --rm uf-repro-check
+#
+# Exit code 0 = builds match (reproducible).
+# Exit code 1 = builds differ (non-reproducible — investigate).
+# ===========================================================================
+
+FROM ubuntu:24.04@sha256:d1e2e92c075e5ca139d51a140fff46f84315c0fdce203eab2807c7e495eff4f9 AS base
+
+# Pin ALL tool versions for reproducibility
+RUN apt-get update -qq && \
+    apt-get install -y --no-install-recommends \
+        cmake=3.28.3-1build7 \
+        ninja-build=1.11.1-2 \
+        g++=4:13.2.0-7ubuntu1 \
+        g++-13=13.2.0-23ubuntu4 \
+        diffutils \
+        ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
+
+# Force deterministic build environment
+ENV SOURCE_DATE_EPOCH=1700000000
+ENV TZ=UTC
+ENV LC_ALL=C
+ENV LANG=C
+
+WORKDIR /src
+COPY . .
+
+# --------------------------------------------------------------------------
+# Build A
+# --------------------------------------------------------------------------
+FROM base AS build-a
+
+RUN cmake -S . -B /build-a -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_C_COMPILER=gcc-13 \
+        -DCMAKE_CXX_COMPILER=g++-13 \
+        -DSECP256K1_BUILD_TESTS=OFF \
+        -DSECP256K1_BUILD_BENCH=OFF \
+        -DSECP256K1_BUILD_EXAMPLES=OFF \
+        -DSECP256K1_BUILD_SHARED=ON \
+        -DSECP256K1_USE_ASM=ON && \
+    cmake --build /build-a -j"$(nproc)" && \
+    find /build-a -maxdepth 3 \( -name '*.a' -o -name '*.so' -o -name '*.so.*' \) \
+        ! -path '*/CMakeFiles/*' -exec sha256sum {} \; | sort > /checksums-a.txt
+
+# --------------------------------------------------------------------------
+# Build B (clean rebuild from same source)
+# --------------------------------------------------------------------------
+FROM base AS build-b
+
+RUN cmake -S . -B /build-b -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_C_COMPILER=gcc-13 \
+        -DCMAKE_CXX_COMPILER=g++-13 \
+        -DSECP256K1_BUILD_TESTS=OFF \
+        -DSECP256K1_BUILD_BENCH=OFF \
+        -DSECP256K1_BUILD_EXAMPLES=OFF \
+        -DSECP256K1_BUILD_SHARED=ON \
+        -DSECP256K1_USE_ASM=ON && \
+    cmake --build /build-b -j"$(nproc)" && \
+    find /build-b -maxdepth 3 \( -name '*.a' -o -name '*.so' -o -name '*.so.*' \) \
+        ! -path '*/CMakeFiles/*' -exec sha256sum {} \; | sort > /checksums-b.txt
+
+# --------------------------------------------------------------------------
+# Compare
+# --------------------------------------------------------------------------
+FROM ubuntu:24.04@sha256:d1e2e92c075e5ca139d51a140fff46f84315c0fdce203eab2807c7e495eff4f9 AS verify
+
+COPY --from=build-a /checksums-a.txt /checksums-a.txt
+COPY --from=build-b /checksums-b.txt /checksums-b.txt
+
+# Normalize paths so only hashes are compared
+RUN sed -i 's|/build-a/|/build/|g' /checksums-a.txt && \
+    sed -i 's|/build-b/|/build/|g' /checksums-b.txt
+
+ENTRYPOINT ["/bin/bash", "-c", "\
+    echo '=== Reproducible Build Verification ===' && \
+    echo '' && \
+    echo 'Build A checksums:' && cat /checksums-a.txt && \
+    echo '' && \
+    echo 'Build B checksums:' && cat /checksums-b.txt && \
+    echo '' && \
+    if diff -q /checksums-a.txt /checksums-b.txt >/dev/null 2>&1; then \
+        echo '✅ PASS: Builds are byte-identical (reproducible)'; \
+        exit 0; \
+    else \
+        echo '❌ FAIL: Builds differ'; \
+        diff /checksums-a.txt /checksums-b.txt; \
+        exit 1; \
+    fi"]
