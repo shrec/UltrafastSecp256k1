@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771966915834,
+  "lastUpdate": 1771967740065,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -15344,6 +15344,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Batch Inverse (n=1000)",
             "value": 130,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "41699dfcf2089b6e839d72585674e70d69235136",
+          "message": "feat(test): parser fuzz tests — DER + Schnorr + Pubkey (Phase II 2.3.1-2.3.3)\n\n9 test suites, 580K+ checks, 0 failures:\n  [1] DER random bytes (100K rounds)\n  [2] DER adversarial inputs (null, zero-len, bad tags, overflow)\n  [3] DER round-trip compact→DER→compact (50K rounds)\n  [4] Schnorr verify random inputs (100K rounds)\n  [5] Schnorr round-trip sign→verify (10K rounds)\n  [6] Pubkey parse random bytes (100K rounds)\n  [7] Pubkey round-trip create→parse (10K rounds)\n  [8] Pubkey adversarial (null, bad prefix, infinity, non-canonical x)\n  [9] ECDSA verify random garbage (50K rounds)\n\nCMake: SECP256K1_BUILD_FUZZ_TESTS option, links ufsecp_static.",
+          "timestamp": "2026-02-25T01:11:39+04:00",
+          "tree_id": "fd34b206fe4e72337001ca4bb421642fb15a7b92",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/41699dfcf2089b6e839d72585674e70d69235136"
+        },
+        "date": 1771967738619,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 31,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 24,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 4,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 300,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 165,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 40000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 11000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 15000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 50000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 25000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 56000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 153,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 144,
             "unit": "ns"
           }
         ]
