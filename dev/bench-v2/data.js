@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771898379844,
+  "lastUpdate": 1771899219578,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -10988,6 +10988,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Batch Inverse (n=1000)",
             "value": 132,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "194b27cc87651d4e8ef5b0210a65949148ae8f34",
+          "message": "fix(coverage): eliminate dead code in precompute.cpp for accurate coverage\n\n- RDTSC(): wrap in #if SECP256K1_PROFILE_DECOMP — only compiled when\n  profiling is enabled (was always compiled on x64 but never called)\n- multiply_u64(): use _umul128() instead of duplicating __int128 inline\n- mul64x64(): use _umul128() instead of duplicating __int128 inline\n- mul_256 lambda: use _umul128() instead of duplicating __int128 inline\n\nRoot cause: on x64 Linux (CI), _umul128() was defined but all callers\n(multiply_u64, mul64x64, mul_256) had their own #else branches using\n__int128 directly, bypassing _umul128(). This made _umul128() dead code.\nNow all three use _umul128() (which IS the __int128 wrapper), giving\ncoverage through existing scalar multiplication tests.\n\nVerify: cmake --build build-win-check && run_selftest → 19/19 passed",
+          "timestamp": "2026-02-24T06:12:18+04:00",
+          "tree_id": "16cb8f186be2dc49d12ea9d173884199b376dd2e",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/194b27cc87651d4e8ef5b0210a65949148ae8f34"
+        },
+        "date": 1771899218597,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 26,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 20,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 259,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 149,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 38000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 9000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 14000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 47000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 22000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 49000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 129,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 122,
             "unit": "ns"
           }
         ]
