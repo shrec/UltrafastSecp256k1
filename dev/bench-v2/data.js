@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771956554597,
+  "lastUpdate": 1771956994746,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -14354,6 +14354,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Batch Inverse (n=1000)",
             "value": 132,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "a911dd7bf82c6f6c7e43406138335d42e8257208",
+          "message": "fix(ct): full scalar_mul mod n in GLV decomposition — 16/16 tests pass\n\nRoot cause: ct_glv_decompose used ct_mul_256x_lo128_mod (single-phase\nreduction, 256×128-bit multiply) which overflowed when ct_mul_shift_384\nrounded c1/c2 up to exactly 2^128. Additionally, lambda*k2 computation\nonly read 2 lower limbs of k2_abs, silently dropping limb[2]=1.\n\nFix: Replace all truncated multiply paths with ct_scalar_mul_mod_n —\nfull 4×4 schoolbook → 8-limb product → 3-phase reduce_512\n(512→385→258→256 bits), matching libsecp256k1's secp256k1_scalar_mul.\n\nKey changes:\n- Added ct_scalar_mul_mod_n() in both 5x52 (__int128) and 4x64\n  (portable U128/mul64) paths\n- minus_b2 now full 256-bit Scalar (n - b2), not 128-bit b2_pos\n- Formula: k2 = c1*minus_b1 + c2*minus_b2 (scalar_add, not sub)\n- lambda*k2 uses full scalar multiply (not 256×128 truncated)\n- Removed unused ct_mul_lo128_mod, ct_mul_256x_lo128_mod\n\nVerified: Docker clang-17 Release, 16/16 CTest pass (0 failures).\nPreviously: 3/64 ct_equivalence failures at indices 31, 48, 56.",
+          "timestamp": "2026-02-24T22:07:32+04:00",
+          "tree_id": "8041a0c6dc539d6116d35a6726b84461df0d28c8",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/a911dd7bf82c6f6c7e43406138335d42e8257208"
+        },
+        "date": 1771956992597,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 27,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 22,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 278,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 148,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 38000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 10000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 13000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 47000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 24000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 53000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 141,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 131,
             "unit": "ns"
           }
         ]
