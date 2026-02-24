@@ -25,6 +25,7 @@ set(SECP256K1_SOURCES
     src/ct_field.cpp   # CT field arithmetic (side-channel resistant)
     src/ct_scalar.cpp  # CT scalar arithmetic
     src/ct_point.cpp   # CT point ops (complete addition, CT scalar_mul)
+    src/ct_sign.cpp    # CT signing (ECDSA + Schnorr) using ct::generator_mul
     src/ecdsa.cpp      # ECDSA sign/verify + RFC 6979
     src/schnorr.cpp    # Schnorr BIP-340 sign/verify
     src/multiscalar.cpp  # Multi-scalar multiplication (Strauss/Shamir)
