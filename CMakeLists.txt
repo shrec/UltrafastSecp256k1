@@ -232,6 +232,29 @@ if(SECP256K1_BUILD_CROSS_TESTS AND SECP256K1_BUILD_CPU AND BUILD_TESTING)
     message(STATUS "  Cross-test vs libsecp256k1: ON (ref: v0.6.0)")
 endif()
 
+# ── Parser fuzz tests (Phase II, Tasks 2.3.1–2.3.3) ──────────────────────
+# Deterministic pseudo-fuzz: random + adversarial inputs to DER, Schnorr, Pubkey parsers.
+option(SECP256K1_BUILD_FUZZ_TESTS
+       "Build deterministic fuzz tests for parsers (DER, Schnorr, Pubkey)" OFF)
+
+if(SECP256K1_BUILD_FUZZ_TESTS AND SECP256K1_BUILD_CPU AND SECP256K1_BUILD_CABI AND BUILD_TESTING)
+    add_executable(test_fuzz_parsers tests/test_fuzz_parsers.cpp)
+    target_link_libraries(test_fuzz_parsers PRIVATE ufsecp_static fastsecp256k1)
+    target_include_directories(test_fuzz_parsers PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+        ${CMAKE_CURRENT_BINARY_DIR}/include/ufsecp   # generated ufsecp_version.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/cpu/include
+    )
+    # Static linking: suppress __declspec(dllimport) on ufsecp symbols
+    target_compile_definitions(test_fuzz_parsers PRIVATE "UFSECP_API=")
+    if(MSVC OR (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND WIN32))
+        target_link_options(test_fuzz_parsers PRIVATE "LINKER:/STACK:8388608")
+    endif()
+    add_test(NAME fuzz_parsers COMMAND test_fuzz_parsers)
+    set_tests_properties(fuzz_parsers PROPERTIES TIMEOUT 300)
+    message(STATUS "  Parser fuzz tests: ON")
+endif()
+
 # Export targets
 if(SECP256K1_INSTALL)
     include(GNUInstallDirs)
