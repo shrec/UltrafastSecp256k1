@@ -3,6 +3,7 @@ name: Discord Commit Notifications
 on:
   push:
     branches: [main, dev, master]
+  workflow_dispatch:
 
 permissions:
   contents: read
