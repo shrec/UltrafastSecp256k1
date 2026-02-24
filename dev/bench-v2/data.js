@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771969680884,
+  "lastUpdate": 1771970859732,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -15740,6 +15740,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Batch Inverse (n=1000)",
             "value": 133,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "74bdec5a5ee7f8774eff919ccba6b9b351ee0a31",
+          "message": "feat: FROST KAT tests + 7 Phase III docs (audit, invariants, bug bounty, thread safety, checklist, LTS, FAQ)\n\nPhase II:\n- tests/test_frost_kat.cpp: 9 suites, 76 checks — Lagrange properties,\n  DKG determinism, Feldman VSS, 2-of-3 signing (all subsets), 3-of-5\n  signing (non-contiguous), Lagrange consistency (all C(5,3)=10 subsets),\n  pinned KAT group key, pinned signing roundtrip, secret reconstruction\n\nPhase III documentation:\n- docs/AUDIT_SCOPE.md: external audit engagement scope (P0 task 3.2.1)\n- docs/INVARIANTS.md: 108 invariants across 14 categories (P1 task 3.1.3)\n- docs/BUG_BOUNTY.md: scope + reward tiers (P1 tasks 3.3.1, 3.3.2)\n- docs/THREAD_SAFETY.md: concurrency model per-component (P1 task 3.6.1)\n- docs/PRE_RELEASE_CHECKLIST.md: mandatory pre-release steps (P1 task 3.6.6)\n- docs/LTS_POLICY.md: version lifecycle + support (P2 task 3.4.3)\n- docs/FAQ.md: 10 common pitfalls + troubleshooting (P2 task 3.5.5)",
+          "timestamp": "2026-02-25T02:06:14+04:00",
+          "tree_id": "40dd92743c77979f4054309f681594cd5aa2f940",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/74bdec5a5ee7f8774eff919ccba6b9b351ee0a31"
+        },
+        "date": 1771970857913,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 27,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 22,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 279,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 150,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 38000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 9000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 14000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 47000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 23000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 53000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 139,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 130,
             "unit": "ns"
           }
         ]
