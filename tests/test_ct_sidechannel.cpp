@@ -500,7 +500,7 @@ static void test_ct_field() {
 
     // -- 2d: field_inv ---------------------------------------------------
     {
-        constexpr int NSLOW = 5000;
+        constexpr int NSLOW = (N < 5000) ? N : 5000;
         // Re-generate for fewer samples
         for (int i = 0; i < NSLOW; ++i) {
             fe_cls0[i] = fe_one;
