@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771968196289,
+  "lastUpdate": 1771968321539,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -15542,6 +15542,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Batch Inverse (n=1000)",
             "value": 130,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "4824fbc01ccf4eaef57886126bcaedbaed1ceef9",
+          "message": "feat(test): MuSig2 + FROST advanced tests (Phase II 2.1.3-2.2.4)\n\n9 suites, 316 checks, 0 failures:\n  [1] Rogue-key resistance (coefficient non-triviality)\n  [2] Key coefficient binding (same key, different groups)\n  [3] Message binding (cross-verify fails)\n  [4] Nonce binding (fresh nonces → different R)\n  [5] Fault injection (wrong secret key in partial sign)\n  [6] FROST malicious DKG (tampered share detected by VSS)\n  [7] FROST bad partial sig (detected + aggregation fails)\n  [8] FROST message binding (cross-verify fails)\n  [9] FROST signer set binding (all subsets valid, all different)",
+          "timestamp": "2026-02-25T01:23:52+04:00",
+          "tree_id": "af5eb40d57f65d1323622a08b43e7230a4787b44",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/4824fbc01ccf4eaef57886126bcaedbaed1ceef9"
+        },
+        "date": 1771968319998,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 27,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 22,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 278,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 149,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 38000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 10000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 13000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 47000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 24000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 53000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 143,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 134,
             "unit": "ns"
           }
         ]
