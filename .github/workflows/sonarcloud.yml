@@ -88,4 +88,5 @@ jobs:
         with:
           args: >
             -Dsonar.cfamily.compile-commands=${{ env.BUILD_WRAPPER_OUT_DIR }}/compile_commands.json
+            -Dsonar.cfamily.llvm-cov.reportPath=build/sonar/llvm-cov-report.txt
             -Dsonar.host.url=https://sonarcloud.io
