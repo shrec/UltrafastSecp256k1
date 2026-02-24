@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771924926677,
+  "lastUpdate": 1771926210048,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -13042,6 +13042,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "ECDSA Sign",
             "value": 13000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 47000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 23000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 53000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 140,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 131,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "5d84bb022dcd548d262a312cb6fd38d84d1a0016",
+          "message": "fix: ct_memzero Windows false positive + ct_sign tests + packaging concurrency\n\n1. ct_memzero: use symmetric memcpy pre-conditioning instead of\n   memset(0) vs random_bytes — avoids MSVC store-buffer asymmetry\n   that caused |t|=27 false positive on Windows CI.\n\n2. test_ct.cpp: add ct::ecdsa_sign, ct::schnorr_sign, ct::schnorr_pubkey\n   tests (all verify CT==fast equivalence + signature validity).\n   Improves SonarCloud new-code coverage for ct_sign.cpp.\n\n3. packaging.yml: add concurrency group to prevent race condition\n   when tag is force-updated and two publish jobs compete.",
+          "timestamp": "2026-02-24T13:42:03+04:00",
+          "tree_id": "ebe02759ec1d6150085d6d8329d50eca681fcc52",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/5d84bb022dcd548d262a312cb6fd38d84d1a0016"
+        },
+        "date": 1771926208437,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 27,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 22,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 280,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 149,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 38000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 9000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 14000,
             "unit": "ns"
           },
           {
