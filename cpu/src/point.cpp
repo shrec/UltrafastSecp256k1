@@ -460,30 +460,30 @@ static JacobianPoint52 jac52_double(const JacobianPoint52& p) {
     //
     // Output magnitudes (no normalization): x<=23, y<=10, z<=2
 
-    FieldElement52 A = p.x.square();                          // mag 1
-    FieldElement52 B = p.y.square();                          // mag 1
-    FieldElement52 C = B.square();                            // mag 1
+    const FieldElement52 A = p.x.square();                    // mag 1
+    const FieldElement52 B = p.y.square();                    // mag 1
+    const FieldElement52 C = B.square();                      // mag 1
 
-    FieldElement52 xpb = p.x + B;                            // mag <=24
-    FieldElement52 xpb_sq = xpb.square();                    // mag 1  (24^2*5 = 2880 < 3.3M [ok])
-    FieldElement52 negA = A.negate(1);                        // mag 2
-    FieldElement52 negC = C.negate(1);                        // mag 2
-    FieldElement52 D_half = xpb_sq + negA + negC;             // mag 5
-    FieldElement52 D = D_half + D_half;                       // mag 10
+    const FieldElement52 xpb = p.x + B;                      // mag <=24
+    const FieldElement52 xpb_sq = xpb.square();              // mag 1  (24^2*5 = 2880 < 3.3M [ok])
+    const FieldElement52 negA = A.negate(1);                  // mag 2
+    const FieldElement52 negC = C.negate(1);                  // mag 2
+    const FieldElement52 D_half = xpb_sq + negA + negC;       // mag 5
+    const FieldElement52 D = D_half + D_half;                 // mag 10
 
-    FieldElement52 E = A + A + A;                             // mag 3
-    FieldElement52 F = E.square();                            // mag 1  (3^2*5 = 45 < 3.3M [ok])
+    const FieldElement52 E = A + A + A;                       // mag 3
+    const FieldElement52 F = E.square();                      // mag 1  (3^2*5 = 45 < 3.3M [ok])
 
-    FieldElement52 negD2 = D.negate(10);                      // mag 11
-    FieldElement52 x3 = F + negD2 + negD2;                    // mag 23  (23*2^52 < 2^57 < 2^64 [ok])
+    const FieldElement52 negD2 = D.negate(10);                // mag 11
+    const FieldElement52 x3 = F + negD2 + negD2;              // mag 23  (23*2^52 < 2^57 < 2^64 [ok])
 
-    FieldElement52 negX3 = x3.negate(23);                     // mag 24
-    FieldElement52 dx = D + negX3;                            // mag 34  (34*2^52 < 2^58 < 2^64 [ok])
+    const FieldElement52 negX3 = x3.negate(23);               // mag 24
+    const FieldElement52 dx = D + negX3;                      // mag 34  (34*2^52 < 2^58 < 2^64 [ok])
     FieldElement52 y3 = E * dx;                               // mag 1  (3*34 = 102 < 3.3M [ok])
-    FieldElement52 C2 = C + C;                                // mag 2
-    FieldElement52 C4 = C2 + C2;                              // mag 4
-    FieldElement52 C8 = C4 + C4;                              // mag 8
-    FieldElement52 negC8 = C8.negate(8);                      // mag 9
+    const FieldElement52 C2 = C + C;                          // mag 2
+    const FieldElement52 C4 = C2 + C2;                        // mag 4
+    const FieldElement52 C8 = C4 + C4;                        // mag 8
+    const FieldElement52 negC8 = C8.negate(8);                // mag 9
     y3 = y3 + negC8;                                          // mag 10
 
     FieldElement52 z3 = p.y * p.z;                            // mag 1  (10*5 = 50 < 3.3M [ok])
@@ -554,24 +554,24 @@ static JacobianPoint52 jac52_add_mixed(const JacobianPoint52& p, const AffinePoi
     }
 
     // Z1Z1 = Z1^2 [1S]
-    FieldElement52 z1z1 = p.z.square();
+    const FieldElement52 z1z1 = p.z.square();
 
     // U2 = X2 * Z1Z1 [1M]
-    FieldElement52 u2 = q.x * z1z1;
+    const FieldElement52 u2 = q.x * z1z1;
 
     // S2 = Y2 * Z1 * Z1Z1 [2M]
-    FieldElement52 z1_z1z1 = p.z * z1z1;
-    FieldElement52 s2 = q.y * z1_z1z1;
+    const FieldElement52 z1_z1z1 = p.z * z1z1;
+    const FieldElement52 s2 = q.y * z1_z1z1;
 
     // H = U2 - X1 [sub via negate]
     // p.x magnitude: <=23 (from jac52_double) or <=7 (from add_mixed). Use 23.
-    FieldElement52 negX1 = p.x.negate(23);     // mag 24
-    FieldElement52 h = u2 + negX1;             // mag 25
+    const FieldElement52 negX1 = p.x.negate(23);     // mag 24
+    const FieldElement52 h = u2 + negX1;             // mag 25
 
     // Check for point equality/inverse (rare -- fast normalizes_to_zero)
     if (SECP256K1_UNLIKELY(h.normalizes_to_zero())) {
-        FieldElement52 negY1 = p.y.negate(10);
-        FieldElement52 diff = s2 + negY1;
+        const FieldElement52 negY1 = p.y.negate(10);
+        const FieldElement52 diff = s2 + negY1;
         if (diff.normalizes_to_zero()) {
             return jac52_double(p);
         }
@@ -579,46 +579,46 @@ static JacobianPoint52 jac52_add_mixed(const JacobianPoint52& p, const AffinePoi
     }
 
     // HH = H^2 [1S]
-    FieldElement52 hh = h.square();            // mag 1  (25^2*5 = 3125 < 3.3M [ok])
+    const FieldElement52 hh = h.square();            // mag 1  (25^2*5 = 3125 < 3.3M [ok])
 
     // I = 4*HH [3A]
     FieldElement52 I = hh + hh;                // mag 2
     I = I + I;                                  // mag 4
 
     // J = H*I [1M]
-    FieldElement52 j = h * I;                  // mag 1  (25*4 = 100 < 3.3M [ok])
+    const FieldElement52 j = h * I;                  // mag 1  (25*4 = 100 < 3.3M [ok])
 
     // r = 2*(S2 - Y1) [sub + double]
     // p.y magnitude: <=10 (from dbl) or <=4 (from add_mixed). Use 10.
-    FieldElement52 negY1 = p.y.negate(10);     // mag 11
+    const FieldElement52 negY1 = p.y.negate(10);     // mag 11
     FieldElement52 r = s2 + negY1;             // mag 12
     r = r + r;                                 // mag 24
 
     // V = X1*I [1M]
-    FieldElement52 v = p.x * I;                // mag 1  (23*4 = 92 < 3.3M [ok])
+    const FieldElement52 v = p.x * I;                // mag 1  (23*4 = 92 < 3.3M [ok])
 
     // X3 = r^2 - J - 2*V [1S + sub]
-    FieldElement52 r_sq = r.square();          // mag 1  (24^2*5 = 2880 < 3.3M [ok])
-    FieldElement52 negJ = j.negate(1);         // mag 2
-    FieldElement52 negV = v.negate(1);         // mag 2
-    FieldElement52 x3 = r_sq + negJ + negV + negV;  // mag 7
+    const FieldElement52 r_sq = r.square();          // mag 1  (24^2*5 = 2880 < 3.3M [ok])
+    const FieldElement52 negJ = j.negate(1);         // mag 2
+    const FieldElement52 negV = v.negate(1);         // mag 2
+    const FieldElement52 x3 = r_sq + negJ + negV + negV;  // mag 7
 
     // Y3 = r*(V - X3) - 2*Y1*J [1M + sub]
-    FieldElement52 negX3 = x3.negate(7);       // mag 8
-    FieldElement52 vx3 = v + negX3;            // mag 9
+    const FieldElement52 negX3 = x3.negate(7);       // mag 8
+    const FieldElement52 vx3 = v + negX3;            // mag 9
     FieldElement52 y3 = r * vx3;               // mag 1  (24*9 = 216 < 3.3M [ok])
-    FieldElement52 y1j = p.y * j;              // mag 1  (10*1 = 10 < 3.3M [ok])
-    FieldElement52 y1j2 = y1j + y1j;           // mag 2
-    FieldElement52 negY1J2 = y1j2.negate(2);   // mag 3
+    const FieldElement52 y1j = p.y * j;              // mag 1  (10*1 = 10 < 3.3M [ok])
+    const FieldElement52 y1j2 = y1j + y1j;           // mag 2
+    const FieldElement52 negY1J2 = y1j2.negate(2);   // mag 3
     y3 = y3 + negY1J2;                         // mag 4
 
     // Z3 = (Z1+H)^2 - Z1Z1 - HH [1S + sub]
     // p.z magnitude: <=2 (from dbl) or <=5 (from add_mixed). Use 5.
-    FieldElement52 zh = p.z + h;               // mag 30  (5+25)
-    FieldElement52 zh_sq = zh.square();        // mag 1  (30^2*5 = 4500 < 3.3M [ok])
-    FieldElement52 negZ1Z1 = z1z1.negate(1);   // mag 2
-    FieldElement52 negHH = hh.negate(1);       // mag 2
-    FieldElement52 z3 = zh_sq + negZ1Z1 + negHH;  // mag 5
+    const FieldElement52 zh = p.z + h;               // mag 30  (5+25)
+    const FieldElement52 zh_sq = zh.square();        // mag 1  (30^2*5 = 4500 < 3.3M [ok])
+    const FieldElement52 negZ1Z1 = z1z1.negate(1);   // mag 2
+    const FieldElement52 negHH = hh.negate(1);       // mag 2
+    const FieldElement52 z3 = zh_sq + negZ1Z1 + negHH;  // mag 5
 
     return {x3, y3, z3, false};
 }
@@ -757,50 +757,50 @@ static JacobianPoint52 jac52_add(const JacobianPoint52& p, const JacobianPoint52
     if (SECP256K1_UNLIKELY(p.infinity)) return q;
     if (SECP256K1_UNLIKELY(q.infinity)) return p;
 
-    FieldElement52 z1z1 = p.z.square();
-    FieldElement52 z2z2 = q.z.square();
-    FieldElement52 u1 = p.x * z2z2;
-    FieldElement52 u2 = q.x * z1z1;
-    FieldElement52 s1 = p.y * q.z * z2z2;
-    FieldElement52 s2 = q.y * p.z * z1z1;
+    const FieldElement52 z1z1 = p.z.square();
+    const FieldElement52 z2z2 = q.z.square();
+    const FieldElement52 u1 = p.x * z2z2;
+    const FieldElement52 u2 = q.x * z1z1;
+    const FieldElement52 s1 = p.y * q.z * z2z2;
+    const FieldElement52 s2 = q.y * p.z * z1z1;
 
-    FieldElement52 negU1 = u1.negate(1);                    // mag 2
-    FieldElement52 h = u2 + negU1;                          // mag 3
+    const FieldElement52 negU1 = u1.negate(1);              // mag 2
+    const FieldElement52 h = u2 + negU1;                    // mag 3
 
     if (SECP256K1_UNLIKELY(h.normalizes_to_zero())) {
-        FieldElement52 negS1 = s1.negate(1);
-        FieldElement52 diff = s2 + negS1;
+        const FieldElement52 negS1 = s1.negate(1);
+        const FieldElement52 diff = s2 + negS1;
         if (diff.normalizes_to_zero()) return jac52_double(p);
         return {FieldElement52::zero(), FieldElement52::one(), FieldElement52::zero(), true};
     }
 
-    FieldElement52 h2 = h + h;                              // mag 6
-    FieldElement52 i = h2.square();                         // mag 1 (6^2*5=180 < 3.3M [ok])
-    FieldElement52 j_val = h * i;                           // mag 1 (3*1=3 < 3.3M [ok])
+    const FieldElement52 h2 = h + h;                        // mag 6
+    const FieldElement52 i = h2.square();                   // mag 1 (6^2*5=180 < 3.3M [ok])
+    const FieldElement52 j_val = h * i;                     // mag 1 (3*1=3 < 3.3M [ok])
 
-    FieldElement52 negS1 = s1.negate(1);                    // mag 2
+    const FieldElement52 negS1 = s1.negate(1);              // mag 2
     FieldElement52 r = s2 + negS1;                          // mag 3
     r = r + r;                                              // mag 6
 
-    FieldElement52 v = u1 * i;                              // mag 1
+    const FieldElement52 v = u1 * i;                        // mag 1
 
-    FieldElement52 r_sq = r.square();                       // mag 1 (6^2*5=180 < 3.3M [ok])
-    FieldElement52 negJ = j_val.negate(1);                  // mag 2
-    FieldElement52 negV = v.negate(1);                      // mag 2
-    FieldElement52 x3 = r_sq + negJ + negV + negV;          // mag 7
+    const FieldElement52 r_sq = r.square();                 // mag 1 (6^2*5=180 < 3.3M [ok])
+    const FieldElement52 negJ = j_val.negate(1);            // mag 2
+    const FieldElement52 negV = v.negate(1);                // mag 2
+    const FieldElement52 x3 = r_sq + negJ + negV + negV;    // mag 7
 
-    FieldElement52 negX3 = x3.negate(7);                    // mag 8
-    FieldElement52 vx3 = v + negX3;                         // mag 9
+    const FieldElement52 negX3 = x3.negate(7);              // mag 8
+    const FieldElement52 vx3 = v + negX3;                   // mag 9
     FieldElement52 y3 = r * vx3;                            // mag 1 (6*9=54 < 3.3M [ok])
-    FieldElement52 s1j = s1 * j_val;                        // mag 1
-    FieldElement52 s1j2 = s1j + s1j;                        // mag 2
-    FieldElement52 negS1J2 = s1j2.negate(2);                // mag 3
+    const FieldElement52 s1j = s1 * j_val;                  // mag 1
+    const FieldElement52 s1j2 = s1j + s1j;                  // mag 2
+    const FieldElement52 negS1J2 = s1j2.negate(2);          // mag 3
     y3 = y3 + negS1J2;                                      // mag 4
 
-    FieldElement52 zpz = p.z + q.z;                         // mag <=3
-    FieldElement52 zpz_sq = zpz.square();                   // mag 1 (3^2*5=45 < 3.3M [ok])
-    FieldElement52 negZ1Z1 = z1z1.negate(1);                // mag 2
-    FieldElement52 negZ2Z2 = z2z2.negate(1);                // mag 2
+    const FieldElement52 zpz = p.z + q.z;                   // mag <=3
+    const FieldElement52 zpz_sq = zpz.square();             // mag 1 (3^2*5=45 < 3.3M [ok])
+    const FieldElement52 negZ1Z1 = z1z1.negate(1);          // mag 2
+    const FieldElement52 negZ2Z2 = z2z2.negate(1);          // mag 2
     FieldElement52 z3 = (zpz_sq + negZ1Z1 + negZ2Z2);       // mag 5
     z3 = z3 * h;                                            // mag 1 (5*3=15 < 3.3M [ok])
 
