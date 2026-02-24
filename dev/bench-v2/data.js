@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771927042624,
+  "lastUpdate": 1771928680025,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -13428,6 +13428,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Point Scalar Mul",
             "value": 37000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 9000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 14000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 47000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 23000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 53000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 139,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 130,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "ff43cd061908a13457c5911468600e7a68cb6540",
+          "message": "fix(ci): Valgrind false-positive + publish duplicate-deb crash\n\n- security-audit.yml: replace 'grep -rl ... | head -1' with 'grep -q ...'\n  The pipeline masked grep's exit status — head -1 with empty stdin exits 0,\n  making the if-condition always TRUE even when Valgrind reports 0 errors.\n\n- CMakeLists.txt: set CPACK_DEBIAN_PACKAGE_ARCHITECTURE from\n  CMAKE_SYSTEM_PROCESSOR for cross-compilation.  Without this,\n  DEB-DEFAULT uses dpkg --print-architecture (= host amd64) even when\n  the target is aarch64, producing two .debs with the same filename.\n  softprops/action-gh-release then double-deletes the existing asset → 404.",
+          "timestamp": "2026-02-24T14:23:15+04:00",
+          "tree_id": "582d03a0b072695d7e27bfbd024226b570a9cb3f",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/ff43cd061908a13457c5911468600e7a68cb6540"
+        },
+        "date": 1771928679247,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 27,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 22,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 278,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 150,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 38000,
             "unit": "ns"
           },
           {
