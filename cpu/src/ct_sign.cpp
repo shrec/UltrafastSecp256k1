@@ -9,6 +9,7 @@
 #include "secp256k1/ct/sign.hpp"
 #include "secp256k1/ct/point.hpp"
 #include "secp256k1/sha256.hpp"
+#include "secp256k1/tagged_hash.hpp"
 #include "secp256k1/config.hpp"
 #include <cstring>
 
@@ -55,32 +56,11 @@ ECDSASignature ecdsa_sign(const std::array<uint8_t, 32>& msg_hash,
 // CT Schnorr helpers
 // ============================================================================
 
-// Cached BIP-340 tagged-hash midstates (identical to schnorr.cpp)
-static SHA256 make_tag_midstate(const char* tag) {
-    auto tag_hash = SHA256::hash(tag, std::strlen(tag));
-    SHA256 ctx;
-    ctx.update(tag_hash.data(), 32);
-    ctx.update(tag_hash.data(), 32);
-    return ctx;
-}
-
-static const SHA256 g_aux_midstate       = make_tag_midstate("BIP0340/aux");
-static const SHA256 g_nonce_midstate     = make_tag_midstate("BIP0340/nonce");
-static const SHA256 g_challenge_midstate = make_tag_midstate("BIP0340/challenge");
-
-#if defined(__GNUC__) && !defined(__clang__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Warray-bounds"
-#endif
-static std::array<uint8_t, 32> cached_tagged_hash(const SHA256& midstate,
-                                                    const void* data, std::size_t len) {
-    SHA256 ctx = midstate;
-    ctx.update(data, len);
-    return ctx.finalize();
-}
-#if defined(__GNUC__) && !defined(__clang__)
-#pragma GCC diagnostic pop
-#endif
+// -- Shared BIP-340 tagged-hash midstates (from tagged_hash.hpp) ---------------
+using detail::g_aux_midstate;
+using detail::g_nonce_midstate;
+using detail::g_challenge_midstate;
+using detail::cached_tagged_hash;
 
 // ============================================================================
 // CT Schnorr Pubkey

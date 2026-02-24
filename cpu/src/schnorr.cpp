@@ -1,9 +1,11 @@
 #include "secp256k1/schnorr.hpp"
 #include "secp256k1/sha256.hpp"
+#include "secp256k1/tagged_hash.hpp"
 #include "secp256k1/multiscalar.hpp"
 #include "secp256k1/config.hpp"    // SECP256K1_FAST_52BIT
 #include "secp256k1/field_52.hpp"
 #include <cstring>
+#include <string_view>
 
 namespace secp256k1 {
 
@@ -19,45 +21,19 @@ using FE52 = fast::FieldElement52;
 // inverse() uses FE52 Fermat (~4us) -- but SafeGCD (~2-3us) is faster for
 // variable-time paths (point.cpp batch inverse, verify Y-parity).
 
-// -- Cached Tagged Hash Midstates (BIP-340) -----------------------------------
-// Pre-compute SHA256 midstate after processing (SHA256(tag) || SHA256(tag)).
-// This is exactly 64 bytes = 1 SHA256 block, so after processing the midstate
-// has buf_len_==0 and state_ captures all tag-dependent work.
-// Saves 2 SHA256 block compressions per tagged_hash call.
-
-[[maybe_unused]] static SHA256 make_tag_midstate(const char* tag) {
-    auto tag_hash = SHA256::hash(tag, std::strlen(tag));
-    SHA256 ctx;
-    ctx.update(tag_hash.data(), 32);
-    ctx.update(tag_hash.data(), 32);
-    return ctx;
-}
-
-// BIP-340 tags used in Schnorr sign/verify
-static const SHA256 g_aux_midstate       = make_tag_midstate("BIP0340/aux");
-static const SHA256 g_nonce_midstate     = make_tag_midstate("BIP0340/nonce");
-static const SHA256 g_challenge_midstate = make_tag_midstate("BIP0340/challenge");
-
-// Fast tagged hash using cached midstate (avoids re-computing tag prefix)
-#if defined(__GNUC__) && !defined(__clang__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Warray-bounds"
-#endif
-static std::array<uint8_t, 32> cached_tagged_hash(const SHA256& midstate,
-                                                    const void* data, std::size_t len) {
-    SHA256 ctx = midstate;  // copy pre-computed state (trivial, ~112 bytes)
-    ctx.update(data, len);
-    return ctx.finalize();
-}
-#if defined(__GNUC__) && !defined(__clang__)
-#pragma GCC diagnostic pop
-#endif
+// -- Shared BIP-340 tagged-hash midstates (from tagged_hash.hpp) ---------------
+using detail::make_tag_midstate;
+using detail::g_aux_midstate;
+using detail::g_nonce_midstate;
+using detail::g_challenge_midstate;
+using detail::cached_tagged_hash;
 
 // -- Tagged Hash (BIP-340) -- generic fallback ---------------------------------
 
 std::array<uint8_t, 32> tagged_hash(const char* tag,
                                      const void* data, std::size_t len) {
-    auto tag_hash = SHA256::hash(tag, std::strlen(tag));
+    std::string_view sv(tag);
+    auto tag_hash = SHA256::hash(sv.data(), sv.size());
     SHA256 ctx;
     ctx.update(tag_hash.data(), 32);
     ctx.update(tag_hash.data(), 32);
