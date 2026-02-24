@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771892715006,
+  "lastUpdate": 1771892784546,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -9602,6 +9602,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Batch Inverse (n=1000)",
             "value": 132,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "57cf96ba6a4af831ada6e310c49a668459eb0c16",
+          "message": "fix: resolve all -Werror warnings across library, tests, and benchmarks\n\n- Sign-conversion: int→size_t for all array/vector indexing loops\n- Shadow: rename local P1/P2 → pt1/pt2 where shadowing fe52_constants\n- Unused variables: [[maybe_unused]] or (void) for intentionally unused\n- Unused functions: remove dead h32() after sscanf→manual hex migration\n- Deprecated: sscanf→manual hex parsing (MSVC CRT portability)\n- Int→uint64_t: explicit static_cast in from_uint64() call sites\n- Add codecov.yml configuration\n- Rewrite CI coverage job to use LLVM source-based coverage\n\nBuild: cmake --build build-werror -j 8 (zero warnings with -Werror -Wall -Wextra -Wpedantic -Wconversion -Wshadow)\nTests: 12/12 passed (ctest --test-dir build-werror)",
+          "timestamp": "2026-02-24T04:23:47+04:00",
+          "tree_id": "184855cb80530812832cc4e22f750383f313441c",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/57cf96ba6a4af831ada6e310c49a668459eb0c16"
+        },
+        "date": 1771892782712,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 27,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 22,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 280,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 149,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 38000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 9000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 14000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 47000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 24000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 53000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 139,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 131,
             "unit": "ns"
           }
         ]
