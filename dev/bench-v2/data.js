@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771904854424,
+  "lastUpdate": 1771904984505,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -12062,6 +12062,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Schnorr Sign",
             "value": 23000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 53000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 140,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 131,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "a09e6b6ebebe76799f373702cb9e3efc3bd623ca",
+          "message": "feat(ci): add nightly workflow for extended dudect + differential tests\n\n- Create .github/workflows/nightly.yml:\n  - Differential correctness: multiplier=100 (~1.3M checks) with env/CLI control\n  - dudect full mode: 30 min statistical run (strict 4.5 t-threshold)\n  - Manual dispatch with configurable multiplier and timeout\n  - Runs daily at 03:00 UTC\n- Update tests/differential_test.cpp:\n  - Accept multiplier via argv[1] or DIFFERENTIAL_MULTIPLIER env var\n  - Default multiplier=1 preserves existing CI behavior\n  - All loop counts scale: 1000*N for crypto ops, 100*N for arithmetic\n- Fix sonarcloud.yml: -E ct_sidechannel → -E '^ct_sidechannel$' (exact match)",
+          "timestamp": "2026-02-24T07:48:17+04:00",
+          "tree_id": "f34382d237b7a6d969ce851b1a111a5f92a325db",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/a09e6b6ebebe76799f373702cb9e3efc3bd623ca"
+        },
+        "date": 1771904983322,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 27,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 22,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 280,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 149,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 38000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 9000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 14000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 47000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 24000,
             "unit": "ns"
           },
           {
