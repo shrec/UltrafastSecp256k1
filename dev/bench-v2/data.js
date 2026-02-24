@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771896968188,
+  "lastUpdate": 1771898377229,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -10790,6 +10790,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Batch Inverse (n=1000)",
             "value": 131,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "59b721f7b1913ea2786cd68f27c92f5f067aec46",
+          "message": "fix(ci): fix llvm-cov binary selection for accurate coverage\n\n- Use run_selftest as primary binary (links full library)\n- Add standalone test binaries as -object args\n- Remove 2>/dev/null error suppression for visibility\n- Add diagnostic output (profraw files, binary paths, report size)\n- Exclude benchmark files from coverage in sonar-project.properties\n- Add CPD minimum token threshold\n\nRoot cause: find ... | head -20 could pick random executables as\nthe primary binary, missing library source coverage mapping.\nThe run_selftest binary links the entire fastsecp256k1 static\nlibrary, ensuring all source files appear in the llvm-cov report.\n\nVerify: SonarCloud Quality Gate should pass (new_coverage >= 80%)\nsince existing tests already exercise address.cpp, bip32.cpp,\nmusig2.cpp, and precompute.cpp changed lines.",
+          "timestamp": "2026-02-24T05:58:04+04:00",
+          "tree_id": "8a451c2c30ca5f155cf7a0f9cb392b08a87c7390",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/59b721f7b1913ea2786cd68f27c92f5f067aec46"
+        },
+        "date": 1771898376120,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 27,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 22,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 280,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 147,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 38000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 9000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 13000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 47000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 23000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 55000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 141,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 163,
             "unit": "ns"
           }
         ]
