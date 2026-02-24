@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771901717155,
+  "lastUpdate": 1771903283893,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -11775,6 +11775,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
             "value": 140,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 131,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "e80a1b54ef280cd5c0e34ff7e2da3057c79b2954",
+          "message": "fix(ci): suppress Valgrind still-reachable from precomputed tables\n\nCTest -T MemCheck considers 'still reachable: 2,621,440 bytes'\n(the program-lifetime precomputed wNAF/comb table for G) as a\ndefect, causing the security-audit Valgrind job to fail even\nthough all ERROR SUMMARYs are 0 and definitely lost is 0.\n\nChanges:\n- valgrind.supp: suppress Leak_StillReachable (match-leak-kinds:\n  reachable) so CTest's MemCheck parser sees 0 defects\n- security-audit.yml: pass --suppressions to Valgrind, add\n  -E '^ct_sidechannel$' (strict dudect excluded, smoke still runs),\n  fix sanitizers step -E to exact match\n- CMakeLists.txt: include(CTest) instead of enable_testing() to\n  generate DartConfiguration.tcl (eliminates 'Cannot find file' warning)\n\nDefinite/indirect/possible leaks + all memory errors still fully checked.",
+          "timestamp": "2026-02-24T07:19:56+04:00",
+          "tree_id": "3b6dfac7aa439347b91def06bb503c92a3ab9403",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/e80a1b54ef280cd5c0e34ff7e2da3057c79b2954"
+        },
+        "date": 1771903282936,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 27,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 22,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 280,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 150,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 38000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 9000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 14000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 47000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 23000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 53000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 139,
             "unit": "ns"
           },
           {
