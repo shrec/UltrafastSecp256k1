@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771903396652,
+  "lastUpdate": 1771904854424,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -11978,6 +11978,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Batch Inverse (n=1000)",
             "value": 133,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "f5efab269217e947bf140d920e790a382df2c6d8",
+          "message": "feat(test): add BIP-32 official test vectors TV1-TV5 (90 checks)\n\n- Add test_bip32_vectors.cpp with all 4 BIP-32 spec test vectors:\n  TV1 (128-bit seed, 5 derivation levels)\n  TV2 (512-bit seed, 5 levels with large-index hardened children)\n  TV3 (leading zeros retention in private keys)\n  TV4 (leading zeros in hardened children, 3 levels)\n- TV5 serialization: verify 78-byte xprv/xpub format, version bytes,\n  depth, parent fingerprint, child number, chain code, key payload\n- Public derivation consistency: xpub normal child == xprv normal child pubkey\n- Fix ExtendedKey::public_key() for public keys: decompress from prefix + x\n  (was incorrectly treating x-coordinate as a scalar)\n- Add pub_prefix field to ExtendedKey for y-parity tracking\n- Register standalone CTest target (bip32_vectors) + selftest runner module\n- All hex values verified against bip_utils reference implementation",
+          "timestamp": "2026-02-24T07:43:11+04:00",
+          "tree_id": "9c8a4121967e828eac1b8e4a1a98b446a69abc2f",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/f5efab269217e947bf140d920e790a382df2c6d8"
+        },
+        "date": 1771904853502,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 27,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 22,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 281,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 149,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 38000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 9000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 14000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 47000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 23000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 53000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 140,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 131,
             "unit": "ns"
           }
         ]
