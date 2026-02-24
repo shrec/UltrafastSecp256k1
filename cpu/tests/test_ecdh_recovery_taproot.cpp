@@ -42,10 +42,14 @@ static std::array<uint8_t, 32> hex32(const char* hex) {
     std::array<uint8_t, 32> out{};
     for (std::size_t i = 0; i < 32; ++i) {
         unsigned val = 0;
+#ifdef __clang__
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#endif
         std::sscanf(hex + i * 2, "%02x", &val);
+#ifdef __clang__
 #pragma clang diagnostic pop
+#endif
         out[i] = static_cast<uint8_t>(val);
     }
     return out;
