@@ -201,4 +201,4 @@ We appreciate responsible disclosure. Contributors who report valid security iss
 
 ---
 
-*UltrafastSecp256k1 v3.12.1 — Security Policy*
+*UltrafastSecp256k1 v3.12.2 — Security Policy*

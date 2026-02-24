@@ -5,6 +5,34 @@ All notable changes to UltrafastSecp256k1 are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.12.2] - 2026-02-24
+
+### Security
+- **Branchless `ct_compare`** — rewritten with bitwise arithmetic and `asm volatile` value barriers; dudect |t| dropped from 22.29 → 2.17, eliminating a timing side-channel leak
+
+### Fixed
+- **SonarCloud coverage collection** — use `run_selftest` as primary llvm-cov binary (links full library); coverage report now reflects actual test execution
+- **Dead code elimination in `precompute.cpp`** — `RDTSC()` gated behind `SECP256K1_PROFILE_DECOMP`; `multiply_u64`/`mul64x64`/`mul_256` unified to call `_umul128()` instead of duplicating `__int128` inline
+- **GCC `#pragma clang diagnostic` warnings** — wrapped in `#ifdef __clang__` guards in 3 test files
+- **GCC `-Wstringop-overflow`** — bounds check in `base58check_encode` (address.cpp)
+- **All `-Werror` warnings resolved** — 41 files across library, tests, and benchmarks
+- **Clang-tidy CI** — filter `.S` assembly from analysis, add `--quiet` and parallel `xargs`
+- **Unused variable** — removed `compressed` in `bip32.cpp` `to_public()`
+
+### Changed
+- **`const` on hot-path intermediates** — ~60 `FieldElement52` write-once variables in `point.cpp` marked `const`
+- **Benchmark exclusion** — `sonar-project.properties` excludes benchmark files from coverage calculation
+- **CPD minimum tokens** — set to 100 in `sonar-project.properties`
+
+### Added
+- **GOVERNANCE.md** — BDFL governance model with continuity plan (bus factor)
+- **ROADMAP.md** — 12-month project roadmap (Mar 2026 – Feb 2027)
+- **CONTRIBUTING.md** — Developer Certificate of Origin (DCO) requirement
+- **OpenSSF Best Practices badge** — added to README
+- **Code scanning fixes** — resolved alerts #281, #282
+
+---
+
 ## [3.12.1] - 2026-02-23
 
 ### Security

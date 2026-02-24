@@ -9,8 +9,8 @@ authors:
 repository-code: "https://github.com/shrec/UltrafastSecp256k1"
 url: "https://shrec.github.io/UltrafastSecp256k1/docs/"
 license: AGPL-3.0-or-later
-version: "3.12.1"
-date-released: "2025-06-15"
+version: "3.12.2"
+date-released: "2026-02-24"
 keywords:
   - secp256k1
   - elliptic-curve-cryptography
