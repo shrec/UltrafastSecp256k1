@@ -22,5 +22,6 @@
    secp256k1_precomputed_tables_still_reachable
    Memcheck:Leak
    match-leak-kinds: reachable
+   obj:*
    ...
 }

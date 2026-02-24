@@ -1137,21 +1137,26 @@ static void test_ct_utils() {
 
     // -- 5c: ct_memzero --------------------------------------------------
     {
-        // Both classes: zero 32-byte buffer. Test: already-zero vs random content.
-        struct Buf { uint8_t data[32]; };
-        auto* bufs0 = new Buf[N];
-        auto* bufs1 = new Buf[N];
+        // Both classes: zero 32-byte buffer on the SAME memory.
+        // Class 0: buffer is already zero → memzero it → same time
+        // Class 1: buffer has random content → memzero it → same time
+        // Using one buffer avoids cache-line effects from different addresses.
+        alignas(64) uint8_t buf[32];
         int classes[N];
         for (int i = 0; i < N; ++i) {
             classes[i] = rng() & 1;
-            std::memset(bufs0[i].data, 0, 32);
-            random_bytes(bufs1[i].data, 32);
         }
 
         WelchState ws;
         for (int i = 0; i < N; ++i) {
             int cls = classes[i];
-            uint8_t* buf = (cls == 0) ? bufs0[i].data : bufs1[i].data;
+            // Prepare buffer content based on class
+            if (cls == 0) {
+                std::memset(buf, 0, 32);
+            } else {
+                random_bytes(buf, 32);
+            }
+            BARRIER_FENCE();
 
             BARRIER_FENCE();
             uint64_t t0 = rdtsc();
@@ -1163,8 +1168,6 @@ static void test_ct_utils() {
 
             ws.push(cls, static_cast<double>(t1 - t0));
         }
-        delete[] bufs0;
-        delete[] bufs1;
         double t = std::abs(ws.t_value());
         printf("    ct_memzero:      |t| = %6.2f  %s\n",
                t, t < T_THRESHOLD ? "[OK] CT" : "[!]  LEAK");
