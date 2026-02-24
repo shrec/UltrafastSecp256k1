@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771959462608,
+  "lastUpdate": 1771963566760,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -14651,6 +14651,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Batch Inverse (n=1000)",
             "value": 131,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "03c1263cdb3a5b86aaa277de936afb55d98df5c2",
+          "message": "feat: complete all 12 binding APIs + 9 READMEs + fix package naming\n\nBindings:\n- Java: +22 JNI functions + 3 helper classes (RecoverableSignature, WifDecoded, TaprootOutputKeyResult)\n- Swift: +20 functions (DER, recovery, ECDH, tagged_hash, BIP-32, taproot)\n- React Native: +15 functions\n- Python: +3 functions (ctx_clone, last_error, last_error_msg)\n- Rust: +2 functions (last_error, last_error_msg)\n- Dart: +1 function (ctx_clone)\n\nDocumentation:\n- 9 new binding READMEs: c_api, dart, go, java, php, python, ruby, rust, swift\n- 3 existing READMEs fixed: nodejs, csharp, react-native (CT/fast architecture note)\n- Fix incorrect package names across all docs:\n  libsecp256k1-fast* -> libufsecp* (apt, rpm, arch, pkg-config, CMake)\n  secp256k1-fast-cpu -> fastsecp256k1 (linker flags, CMake targets)\n- Fix INDUSTRIAL_ROADMAP_WORKING.md link -> ROADMAP.md in README\n- Rename RPM spec: libsecp256k1-fast.spec -> libufsecp.spec\n- Fix debian/control, debian/changelog, arch/PKGBUILD package names\n- Fix secp256k1-fast.pc.in linker flag\n- Fix .github/workflows/packaging.yml comment\n\nSelftest:\n- Add selftest report structs (selftest.hpp)\n- Refactor tally() in selftest.cpp",
+          "timestamp": "2026-02-25T00:04:31+04:00",
+          "tree_id": "0a8c52c4cabbd28eaf1b228abc6b0a77be558488",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/03c1263cdb3a5b86aaa277de936afb55d98df5c2"
+        },
+        "date": 1771963565516,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 27,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 22,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 286,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 150,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 38000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 9000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 14000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 47000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 23000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 53000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 140,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 130,
             "unit": "ns"
           }
         ]
