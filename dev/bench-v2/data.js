@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771965439902,
+  "lastUpdate": 1771965804205,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -15146,6 +15146,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Batch Inverse (n=1000)",
             "value": 107,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "d776ae3b245d47f33bdb9b2934d0be6d01a224d0",
+          "message": "release: v3.14.0 — full 12-language binding coverage + packaging fixes\n\nBindings:\n- Java: +22 JNI functions + 3 helper classes\n- Swift: +20 functions\n- React Native: +15 functions\n- Python: +3, Rust: +2, Dart: +1\n- Go, Node.js, C#, Ruby, PHP: already complete\n- 9 new binding READMEs (c_api, dart, go, java, php, python, ruby, rust, swift)\n- Selftest report API structs (selftest.hpp) + tally() refactor\n\nPackaging:\n- Fix package naming: libsecp256k1-fast* -> libufsecp* across all docs\n- RPM spec renamed, Debian control fixed, Arch PKGBUILD fixed\n- pkg-config and CMake target names corrected\n\nCI:\n- [[maybe_unused]] on get_platform_string() (-Werror fix)\n- Dockerfile.local-ci ubuntu:24.04 pinned by SHA (Scorecard)",
+          "timestamp": "2026-02-25T00:35:46+04:00",
+          "tree_id": "f6fb70de85a1309b8185c0c7f96ec5e9e1cce20f",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/d776ae3b245d47f33bdb9b2934d0be6d01a224d0"
+        },
+        "date": 1771965802276,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 27,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 22,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 277,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 148,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 38000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 10000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 13000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 47000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 24000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 53000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 141,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 134,
             "unit": "ns"
           }
         ]
