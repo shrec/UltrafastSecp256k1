@@ -255,6 +255,24 @@ if(SECP256K1_BUILD_FUZZ_TESTS AND SECP256K1_BUILD_CPU AND SECP256K1_BUILD_CABI A
     message(STATUS "  Parser fuzz tests: ON")
 endif()
 
+# ── MuSig2 + FROST protocol tests (Phase II, Tasks 2.1.1–2.2.2) ──────────
+option(SECP256K1_BUILD_PROTOCOL_TESTS
+       "Build MuSig2 + FROST protocol tests" OFF)
+
+if(SECP256K1_BUILD_PROTOCOL_TESTS AND SECP256K1_BUILD_CPU AND BUILD_TESTING)
+    add_executable(test_musig2_frost tests/test_musig2_frost.cpp)
+    target_link_libraries(test_musig2_frost PRIVATE fastsecp256k1)
+    target_include_directories(test_musig2_frost PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/cpu/include
+    )
+    if(MSVC OR (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND WIN32))
+        target_link_options(test_musig2_frost PRIVATE "LINKER:/STACK:8388608")
+    endif()
+    add_test(NAME musig2_frost COMMAND test_musig2_frost)
+    set_tests_properties(musig2_frost PROPERTIES TIMEOUT 600)
+    message(STATUS "  MuSig2 + FROST protocol tests: ON")
+endif()
+
 # Export targets
 if(SECP256K1_INSTALL)
     include(GNUInstallDirs)
