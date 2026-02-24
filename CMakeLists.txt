@@ -180,6 +180,58 @@ if(SECP256K1_BUILD_CABI AND SECP256K1_BUILD_CPU)
     message(STATUS "  C ABI (ufsecp):   ON")
 endif()
 
+# ── Cross-library differential test (Phase I, Task 1.1.4) ─────────────────
+# Links both UltrafastSecp256k1 AND bitcoin-core/libsecp256k1 in one process
+# and compares outputs (pubkey derivation, ECDSA, Schnorr, point arithmetic).
+# OFF by default — requires internet for FetchContent download.
+option(SECP256K1_BUILD_CROSS_TESTS
+       "Build in-process differential tests against bitcoin-core/libsecp256k1" OFF)
+
+if(SECP256K1_BUILD_CROSS_TESTS AND SECP256K1_BUILD_CPU AND BUILD_TESTING)
+    include(FetchContent)
+    FetchContent_Declare(
+        libsecp256k1_ref
+        GIT_REPOSITORY https://github.com/bitcoin-core/secp256k1.git
+        GIT_TAG        v0.6.0
+        GIT_SHALLOW    TRUE
+    )
+    FetchContent_GetProperties(libsecp256k1_ref)
+    if(NOT libsecp256k1_ref_POPULATED)
+        FetchContent_Populate(libsecp256k1_ref)
+        # Configure reference lib: static only, disable its tests/bench, enable modules we test
+        set(BUILD_SHARED_LIBS                  OFF CACHE BOOL "" FORCE)
+        set(SECP256K1_BUILD_SHARED             OFF CACHE BOOL "" FORCE)
+        set(SECP256K1_ENABLE_MODULE_SCHNORRSIG ON  CACHE BOOL "" FORCE)
+        set(SECP256K1_ENABLE_MODULE_EXTRAKEYS  ON  CACHE BOOL "" FORCE)
+        set(SECP256K1_ENABLE_MODULE_RECOVERY   ON  CACHE BOOL "" FORCE)
+        set(SECP256K1_ENABLE_MODULE_ECDH       ON  CACHE BOOL "" FORCE)
+        set(SECP256K1_BUILD_BENCHMARK          OFF CACHE BOOL "" FORCE)
+        set(SECP256K1_BUILD_TESTS              OFF CACHE BOOL "" FORCE)
+        set(SECP256K1_BUILD_EXHAUSTIVE_TESTS   OFF CACHE BOOL "" FORCE)
+        add_subdirectory(
+            ${libsecp256k1_ref_SOURCE_DIR}
+            ${libsecp256k1_ref_BINARY_DIR}
+            EXCLUDE_FROM_ALL
+        )
+    endif()
+
+    add_executable(test_cross_libsecp256k1
+        tests/test_cross_libsecp256k1.cpp
+    )
+    target_link_libraries(test_cross_libsecp256k1
+        PRIVATE fastsecp256k1 secp256k1
+    )
+    target_include_directories(test_cross_libsecp256k1
+        PRIVATE ${libsecp256k1_ref_SOURCE_DIR}/include
+    )
+    if(MSVC OR (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND WIN32))
+        target_link_options(test_cross_libsecp256k1 PRIVATE "LINKER:/STACK:8388608")
+    endif()
+    add_test(NAME cross_libsecp256k1 COMMAND test_cross_libsecp256k1)
+    set_tests_properties(cross_libsecp256k1 PROPERTIES TIMEOUT 300)
+    message(STATUS "  Cross-test vs libsecp256k1: ON (ref: v0.6.0)")
+endif()
+
 # Export targets
 if(SECP256K1_INSTALL)
     include(GNUInstallDirs)
