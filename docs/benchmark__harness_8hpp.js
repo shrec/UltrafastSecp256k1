@@ -9,6 +9,6 @@ var benchmark__harness_8hpp =
     [ "DoNotOptimize", "benchmark__harness_8hpp.html#a91fdf78584b5ac7cb09cd02b536ee818", null ],
     [ "DoNotOptimize", "benchmark__harness_8hpp.html#a30176299d4be413891cfb20229bdeca7", null ],
     [ "format_ns", "benchmark__harness_8hpp.html#a0d3d9002000efcf12088850e37e06f0b", null ],
-    [ "format_ns", "benchmark__harness_8hpp.html#a951f17635b82199827ddb2ef7218853e", null ],
+    [ "format_ns", "benchmark__harness_8hpp.html#a915d5c8b45bcd098f6eff6957d64cf26", null ],
     [ "pin_thread_and_elevate", "benchmark__harness_8hpp.html#a56f986b338c0faf411236d3277207eb9", null ]
 ];

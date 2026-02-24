@@ -3,7 +3,7 @@ var searchData=
   ['h_20product_20serial_20inversion_0',['GPU Pattern: H-Product Serial Inversion',['../index.html#autotoc_md57',1,'']]],
   ['half_1',['half',['../structsecp256k1_1_1fast_1_1FieldElement26.html#a6d42bcbf1c71e5a8e85186218851cef5',1,'secp256k1::fast::FieldElement26::half()'],['../structsecp256k1_1_1fast_1_1FieldElement52.html#aa23fbd8f65ff50426f0cd240733f18c5',1,'secp256k1::fast::FieldElement52::half()']]],
   ['hardened_20profile_20tt_20ct_3a_3a_20tt_20namespace_2',['CT / Hardened Profile (&lt;tt&gt;ct::&lt;/tt&gt; namespace)',['../index.html#autotoc_md79',1,'']]],
-  ['harness_3',['harness',['../classbench_1_1Harness.html#a155ee068739e416d4cd3e3810ce6a276',1,'bench::Harness::Harness()=default'],['../classbench_1_1Harness.html#ad4df2dea019d0477a0b870b17711235e',1,'bench::Harness::Harness(int warmup, int p)'],['../classbench_1_1Harness.html',1,'bench::Harness']]],
+  ['harness_3',['harness',['../classbench_1_1Harness.html#a155ee068739e416d4cd3e3810ce6a276',1,'bench::Harness::Harness()=default'],['../classbench_1_1Harness.html#a5770fda8d615155c93311e76e54c8aa8',1,'bench::Harness::Harness(int warmup, std::size_t p)'],['../classbench_1_1Harness.html',1,'bench::Harness']]],
   ['has_5fadx_5fsupport_4',['has_adx_support',['../namespacesecp256k1_1_1fast.html#ade123a28fb68bbc8b622687d7d44c770',1,'secp256k1::fast']]],
   ['has_5fbmi2_5fsupport_5',['has_bmi2_support',['../namespacesecp256k1_1_1fast.html#a2bd3922bd58f8a6d328d28d52003c3a1',1,'secp256k1::fast']]],
   ['has_5feven_5fy_6',['has_even_y',['../classsecp256k1_1_1fast_1_1Point.html#ab2cdb1e9b7502a542045da52b92fbdcb',1,'secp256k1::fast::Point']]],

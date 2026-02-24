@@ -106,7 +106,7 @@ var searchData=
   ['fixed_5fbase_5fready_103',['fixed_base_ready',['../namespacesecp256k1_1_1fast.html#a4e14e3dabefd70e6b0c5ec91f5926756',1,'secp256k1::fast']]],
   ['fixedbaseconfig_104',['FixedBaseConfig',['../structsecp256k1_1_1fast_1_1FixedBaseConfig.html',1,'secp256k1::fast']]],
   ['flux_105',['Flux',['../namespacesecp256k1_1_1coins.html#a9a573eecbcb84bef02367ba24a94442f',1,'secp256k1::coins']]],
-  ['format_5fns_106',['format_ns',['../namespacebench.html#a0d3d9002000efcf12088850e37e06f0b',1,'bench::format_ns(double ns)'],['../namespacebench.html#a951f17635b82199827ddb2ef7218853e',1,'bench::format_ns(double ns, char *buf, int buflen)']]],
+  ['format_5fns_106',['format_ns',['../namespacebench.html#a0d3d9002000efcf12088850e37e06f0b',1,'bench::format_ns(double ns)'],['../namespacebench.html#a915d5c8b45bcd098f6eff6957d64cf26',1,'bench::format_ns(double ns, char *buf, std::size_t buflen)']]],
   ['from_107',['from',['../structsecp256k1_1_1FrostCommitment.html#a2c8f7a7ce6f8950bc9d73e0a487e7780',1,'secp256k1::FrostCommitment::from'],['../structsecp256k1_1_1FrostShare.html#a7614c7135cc2b42041b2f2d11ebb103c',1,'secp256k1::FrostShare::from']]],
   ['from_20source_20any_20platform_108',['From source (any platform)',['../index.html#autotoc_md29',1,'']]],
   ['from_20source_20cmake_109',['Building secp256k1 from Source (CMake)',['../index.html#autotoc_md65',1,'']]],

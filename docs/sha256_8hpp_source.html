@@ -204,7 +204,7 @@ $(document).ready(function(){initNavTree('sha256_8hpp_source.html',''); initResi
 <div class="line"><a id="l00096" name="l00096"></a><span class="lineno">   96</span>        <a class="code hl_function" href="namespacesecp256k1_1_1detail.html#aeb7ac005ebf31bbcf37bc8c253bbad40">detail::sha256_compress_dispatch</a>(buf_, state_);</div>
 <div class="line"><a id="l00097" name="l00097"></a><span class="lineno">   97</span> </div>
 <div class="line"><a id="l00098" name="l00098"></a><span class="lineno">   98</span>        <a class="code hl_typedef" href="classsecp256k1_1_1SHA256.html#afe548d04a90858ec7601e304fdaadbb5">digest_type</a> out{};</div>
-<div class="line"><a id="l00099" name="l00099"></a><span class="lineno">   99</span>        <span class="keywordflow">for</span> (<span class="keywordtype">int</span> i = 0; i &lt; 8; ++i) {</div>
+<div class="line"><a id="l00099" name="l00099"></a><span class="lineno">   99</span>        <span class="keywordflow">for</span> (std::size_t i = 0; i &lt; 8; ++i) {</div>
 <div class="line"><a id="l00100" name="l00100"></a><span class="lineno">  100</span>            out[i * 4 + 0] = <span class="keyword">static_cast&lt;</span>std::uint8_t<span class="keyword">&gt;</span>(state_[i] &gt;&gt; 24);</div>
 <div class="line"><a id="l00101" name="l00101"></a><span class="lineno">  101</span>            out[i * 4 + 1] = <span class="keyword">static_cast&lt;</span>std::uint8_t<span class="keyword">&gt;</span>(state_[i] &gt;&gt; 16);</div>
 <div class="line"><a id="l00102" name="l00102"></a><span class="lineno">  102</span>            out[i * 4 + 2] = <span class="keyword">static_cast&lt;</span>std::uint8_t<span class="keyword">&gt;</span>(state_[i] &gt;&gt; 8);</div>

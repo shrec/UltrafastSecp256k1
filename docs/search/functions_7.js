@@ -1,7 +1,7 @@
 var searchData=
 [
   ['half_0',['half',['../structsecp256k1_1_1fast_1_1FieldElement52.html#aa23fbd8f65ff50426f0cd240733f18c5',1,'secp256k1::fast::FieldElement52::half()'],['../structsecp256k1_1_1fast_1_1FieldElement26.html#a6d42bcbf1c71e5a8e85186218851cef5',1,'secp256k1::fast::FieldElement26::half()']]],
-  ['harness_1',['harness',['../classbench_1_1Harness.html#a155ee068739e416d4cd3e3810ce6a276',1,'bench::Harness::Harness()=default'],['../classbench_1_1Harness.html#ad4df2dea019d0477a0b870b17711235e',1,'bench::Harness::Harness(int warmup, int p)']]],
+  ['harness_1',['harness',['../classbench_1_1Harness.html#a155ee068739e416d4cd3e3810ce6a276',1,'bench::Harness::Harness()=default'],['../classbench_1_1Harness.html#a5770fda8d615155c93311e76e54c8aa8',1,'bench::Harness::Harness(int warmup, std::size_t p)']]],
   ['has_5fadx_5fsupport_2',['has_adx_support',['../namespacesecp256k1_1_1fast.html#ade123a28fb68bbc8b622687d7d44c770',1,'secp256k1::fast']]],
   ['has_5fbmi2_5fsupport_3',['has_bmi2_support',['../namespacesecp256k1_1_1fast.html#a2bd3922bd58f8a6d328d28d52003c3a1',1,'secp256k1::fast']]],
   ['has_5feven_5fy_4',['has_even_y',['../classsecp256k1_1_1fast_1_1Point.html#ab2cdb1e9b7502a542045da52b92fbdcb',1,'secp256k1::fast::Point']]],

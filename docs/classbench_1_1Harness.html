@@ -104,8 +104,8 @@ $(document).ready(function(){initNavTree('classbench_1_1Harness.html',''); initR
 Public Member Functions</h2></td></tr>
 <tr class="memitem:a155ee068739e416d4cd3e3810ce6a276" id="r_a155ee068739e416d4cd3e3810ce6a276"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbench_1_1Harness.html#a155ee068739e416d4cd3e3810ce6a276">Harness</a> ()=default</td></tr>
 <tr class="separator:a155ee068739e416d4cd3e3810ce6a276"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ad4df2dea019d0477a0b870b17711235e" id="r_ad4df2dea019d0477a0b870b17711235e"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbench_1_1Harness.html#ad4df2dea019d0477a0b870b17711235e">Harness</a> (int warmup, int p)</td></tr>
-<tr class="separator:ad4df2dea019d0477a0b870b17711235e"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a5770fda8d615155c93311e76e54c8aa8" id="r_a5770fda8d615155c93311e76e54c8aa8"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbench_1_1Harness.html#a5770fda8d615155c93311e76e54c8aa8">Harness</a> (int warmup, std::size_t p)</td></tr>
+<tr class="separator:a5770fda8d615155c93311e76e54c8aa8"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a225f81e5b5389154b07a1aba05233353" id="r_a225f81e5b5389154b07a1aba05233353"><td class="memTemplParams" colspan="2">template&lt;typename Func &gt; </td></tr>
 <tr class="memitem:a225f81e5b5389154b07a1aba05233353"><td class="memTemplItemLeft" align="right" valign="top">double&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classbench_1_1Harness.html#a225f81e5b5389154b07a1aba05233353">run</a> (int iters, Func &amp;&amp;func) const</td></tr>
 <tr class="separator:a225f81e5b5389154b07a1aba05233353"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -122,8 +122,8 @@ Public Member Functions</h2></td></tr>
 Public Attributes</h2></td></tr>
 <tr class="memitem:a8f106c0bd77d6921e2008bc6f0f2895e" id="r_a8f106c0bd77d6921e2008bc6f0f2895e"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbench_1_1Harness.html#a8f106c0bd77d6921e2008bc6f0f2895e">warmup_iters</a> = 500</td></tr>
 <tr class="separator:a8f106c0bd77d6921e2008bc6f0f2895e"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a1b6bbc26bd1d210642c3294918a823ab" id="r_a1b6bbc26bd1d210642c3294918a823ab"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbench_1_1Harness.html#a1b6bbc26bd1d210642c3294918a823ab">passes</a> = 11</td></tr>
-<tr class="separator:a1b6bbc26bd1d210642c3294918a823ab"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a21c596d4b48b194ff7e9c93a0c4ac263" id="r_a21c596d4b48b194ff7e9c93a0c4ac263"><td class="memItemLeft" align="right" valign="top">std::size_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbench_1_1Harness.html#a21c596d4b48b194ff7e9c93a0c4ac263">passes</a> = 11</td></tr>
+<tr class="separator:a21c596d4b48b194ff7e9c93a0c4ac263"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock">
@@ -154,8 +154,8 @@ Public Attributes</h2></td></tr>
 
 </div>
 </div>
-<a id="ad4df2dea019d0477a0b870b17711235e" name="ad4df2dea019d0477a0b870b17711235e"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ad4df2dea019d0477a0b870b17711235e">&#9670;&#160;</a></span>Harness() <span class="overload">[2/2]</span></h2>
+<a id="a5770fda8d615155c93311e76e54c8aa8" name="a5770fda8d615155c93311e76e54c8aa8"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a5770fda8d615155c93311e76e54c8aa8">&#9670;&#160;</a></span>Harness() <span class="overload">[2/2]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -172,7 +172,7 @@ Public Attributes</h2></td></tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">int&#160;</td>
+          <td class="paramtype">std::size_t&#160;</td>
           <td class="paramname"><em>p</em>&#160;</td>
         </tr>
         <tr>
@@ -357,14 +357,14 @@ template&lt;typename Func &gt; </div>
 </div>
 </div>
 <h2 class="groupheader">Member Data Documentation</h2>
-<a id="a1b6bbc26bd1d210642c3294918a823ab" name="a1b6bbc26bd1d210642c3294918a823ab"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a1b6bbc26bd1d210642c3294918a823ab">&#9670;&#160;</a></span>passes</h2>
+<a id="a21c596d4b48b194ff7e9c93a0c4ac263" name="a21c596d4b48b194ff7e9c93a0c4ac263"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a21c596d4b48b194ff7e9c93a0c4ac263">&#9670;&#160;</a></span>passes</h2>
 
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">int bench::Harness::passes = 11</td>
+          <td class="memname">std::size_t bench::Harness::passes = 11</td>
         </tr>
       </table>
 </div><div class="memdoc">

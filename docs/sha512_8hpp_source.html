@@ -183,13 +183,13 @@ $(document).ready(function(){initNavTree('sha512_8hpp_source.html',''); initResi
 <div class="line"><a id="l00077" name="l00077"></a><span class="lineno">   77</span> </div>
 <div class="line"><a id="l00078" name="l00078"></a><span class="lineno">   78</span>        <span class="comment">// Append 128-bit length (we only use lower 64 bits)</span></div>
 <div class="line"><a id="l00079" name="l00079"></a><span class="lineno">   79</span>        std::uint8_t len_buf[16]{};</div>
-<div class="line"><a id="l00080" name="l00080"></a><span class="lineno">   80</span>        <span class="keywordflow">for</span> (<span class="keywordtype">int</span> i = 0; i &lt; 8; ++i) {</div>
+<div class="line"><a id="l00080" name="l00080"></a><span class="lineno">   80</span>        <span class="keywordflow">for</span> (std::size_t i = 0; i &lt; 8; ++i) {</div>
 <div class="line"><a id="l00081" name="l00081"></a><span class="lineno">   81</span>            len_buf[8 + 7 - i] = <span class="keyword">static_cast&lt;</span>std::uint8_t<span class="keyword">&gt;</span>(bit_len &gt;&gt; (i * 8));</div>
 <div class="line"><a id="l00082" name="l00082"></a><span class="lineno">   82</span>        }</div>
 <div class="line"><a id="l00083" name="l00083"></a><span class="lineno">   83</span>        <a class="code hl_function" href="classsecp256k1_1_1SHA512.html#ad4f7ccc0d4d406c3036927e19aaddbd2">update</a>(len_buf, 16);</div>
 <div class="line"><a id="l00084" name="l00084"></a><span class="lineno">   84</span> </div>
 <div class="line"><a id="l00085" name="l00085"></a><span class="lineno">   85</span>        <a class="code hl_typedef" href="classsecp256k1_1_1SHA512.html#aeff28df05751f2335296f033eb70af8f">digest_type</a> d{};</div>
-<div class="line"><a id="l00086" name="l00086"></a><span class="lineno">   86</span>        <span class="keywordflow">for</span> (<span class="keywordtype">int</span> i = 0; i &lt; 8; ++i) {</div>
+<div class="line"><a id="l00086" name="l00086"></a><span class="lineno">   86</span>        <span class="keywordflow">for</span> (std::size_t i = 0; i &lt; 8; ++i) {</div>
 <div class="line"><a id="l00087" name="l00087"></a><span class="lineno">   87</span>            d[i * 8 + 0] = <span class="keyword">static_cast&lt;</span>std::uint8_t<span class="keyword">&gt;</span>(state_[i] &gt;&gt; 56);</div>
 <div class="line"><a id="l00088" name="l00088"></a><span class="lineno">   88</span>            d[i * 8 + 1] = <span class="keyword">static_cast&lt;</span>std::uint8_t<span class="keyword">&gt;</span>(state_[i] &gt;&gt; 48);</div>
 <div class="line"><a id="l00089" name="l00089"></a><span class="lineno">   89</span>            d[i * 8 + 2] = <span class="keyword">static_cast&lt;</span>std::uint8_t<span class="keyword">&gt;</span>(state_[i] &gt;&gt; 40);</div>
