@@ -452,6 +452,257 @@ static void test_point_add_cross(const secp256k1_context* ctx) {
     std::printf("    %d checks OK\n\n", g_pass);
 }
 
+// ── Test 8: Schnorr Batch Verify Cross-Check ────────────────────────────────
+
+#include "secp256k1/batch_verify.hpp"
+
+static void test_schnorr_batch_cross(const secp256k1_context* ctx) {
+    const int N = 50 * g_multiplier;
+    const int BATCH_SIZE = 16;
+    std::printf("[8] Schnorr Batch Verify Cross-Check (%d batches × %d)\n",
+                N, BATCH_SIZE);
+
+    for (int batch = 0; batch < N; ++batch) {
+        std::vector<secp256k1::SchnorrBatchEntry> uf_entries;
+        uf_entries.reserve(BATCH_SIZE);
+
+        // Generate BATCH_SIZE valid Schnorr signatures
+        for (int j = 0; j < BATCH_SIZE; ++j) {
+            auto sk_bytes = random_seckey(ctx);
+            auto msg = random_bytes();
+            auto aux = random_bytes();
+
+            auto uf_sk = scalar_from_bytes32(sk_bytes.data());
+            auto uf_sig = secp256k1::schnorr_sign(uf_sk, msg, aux);
+            auto uf_pk_x = secp256k1::schnorr_pubkey(uf_sk);
+
+            // Verify individually with libsecp256k1 first
+            auto uf_sig_bytes = uf_sig.to_bytes();
+            secp256k1_xonly_pubkey ref_xpk;
+            secp256k1_xonly_pubkey_parse(ctx, &ref_xpk, uf_pk_x.data());
+            int ref_valid = secp256k1_schnorrsig_verify(
+                ctx, uf_sig_bytes.data(), msg.data(), msg.size(), &ref_xpk);
+            CHECK(ref_valid == 1, "ref: individual Schnorr verify");
+
+            secp256k1::SchnorrBatchEntry entry{};
+            entry.pubkey_x = uf_pk_x;
+            entry.message = msg;
+            entry.signature = uf_sig;
+            uf_entries.push_back(entry);
+        }
+
+        // Batch verify with UF
+        bool batch_ok = secp256k1::schnorr_batch_verify(uf_entries);
+        CHECK(batch_ok, "uf: Schnorr batch verify all valid");
+
+        // Corrupt one signature and verify batch fails
+        if (BATCH_SIZE > 1) {
+            auto corrupted = uf_entries;
+            corrupted[BATCH_SIZE / 2].message[0] ^= 0xFF;
+            bool batch_bad = secp256k1::schnorr_batch_verify(corrupted);
+            CHECK(!batch_bad, "uf: Schnorr batch reject corrupted");
+        }
+    }
+    std::printf("    %d checks OK\n\n", g_pass);
+}
+
+// ── Test 9: ECDSA Batch Verify Cross-Check ──────────────────────────────────
+
+static void test_ecdsa_batch_cross(const secp256k1_context* ctx) {
+    const int N = 50 * g_multiplier;
+    const int BATCH_SIZE = 16;
+    std::printf("[9] ECDSA Batch Verify Cross-Check (%d batches × %d)\n",
+                N, BATCH_SIZE);
+
+    for (int batch = 0; batch < N; ++batch) {
+        std::vector<secp256k1::ECDSABatchEntry> uf_entries;
+        uf_entries.reserve(BATCH_SIZE);
+
+        for (int j = 0; j < BATCH_SIZE; ++j) {
+            auto sk_bytes = random_seckey(ctx);
+            auto msg = random_bytes();
+
+            // Sign with UF
+            auto uf_sk = scalar_from_bytes32(sk_bytes.data());
+            auto uf_sig = secp256k1::ecdsa_sign(msg, uf_sk);
+            auto uf_pk = uf::Point::generator().scalar_mul(uf_sk);
+
+            // Verify individually with libsecp256k1
+            auto compact = uf_sig.to_compact();
+            secp256k1_ecdsa_signature ref_sig;
+            secp256k1_ecdsa_signature_parse_compact(ctx, &ref_sig, compact.data());
+            secp256k1_pubkey ref_pk;
+            secp256k1_ec_pubkey_create(ctx, &ref_pk, sk_bytes.data());
+            int ref_valid = secp256k1_ecdsa_verify(ctx, &ref_sig, msg.data(), &ref_pk);
+            CHECK(ref_valid == 1, "ref: individual ECDSA verify");
+
+            secp256k1::ECDSABatchEntry entry{};
+            entry.msg_hash = msg;
+            entry.public_key = uf_pk;
+            entry.signature = uf_sig;
+            uf_entries.push_back(entry);
+        }
+
+        // Batch verify with UF
+        bool batch_ok = secp256k1::ecdsa_batch_verify(uf_entries);
+        CHECK(batch_ok, "uf: ECDSA batch verify all valid");
+
+        // Corrupt one message and verify batch fails
+        if (BATCH_SIZE > 1) {
+            auto corrupted = uf_entries;
+            corrupted[BATCH_SIZE / 2].msg_hash[0] ^= 0xFF;
+            bool batch_bad = secp256k1::ecdsa_batch_verify(corrupted);
+            CHECK(!batch_bad, "uf: ECDSA batch reject corrupted");
+        }
+    }
+    std::printf("    %d checks OK\n\n", g_pass);
+}
+
+// ── Test 10: Extended Edge Cases ────────────────────────────────────────────
+
+static void test_extended_edge_cases(const secp256k1_context* ctx) {
+    std::printf("[10] Extended Edge Cases: overflow, doubling, mutation\n");
+
+    // 10a: Scalar just below n (n-2) — different from test 6's n-1
+    {
+        uint8_t sk[32] = {
+            0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+            0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFE,
+            0xBA, 0xAE, 0xDC, 0xE6, 0xAF, 0x48, 0xA0, 0x3B,
+            0xBF, 0xD2, 0x5E, 0x8C, 0xD0, 0x36, 0x41, 0x3F  // n-2
+        };
+        secp256k1_pubkey ref_pk;
+        int ok = secp256k1_ec_pubkey_create(ctx, &ref_pk, sk);
+        CHECK(ok == 1, "ref: n-2 is valid seckey");
+        uint8_t ref_comp[33]; size_t len = 33;
+        secp256k1_ec_pubkey_serialize(ctx, ref_comp, &len, &ref_pk, SECP256K1_EC_COMPRESSED);
+
+        std::array<uint8_t, 32> sk_arr{};
+        std::memcpy(sk_arr.data(), sk, 32);
+        auto uf_sk = uf::Scalar::from_bytes(sk_arr);
+        auto uf_pk = uf::Point::generator().scalar_mul(uf_sk);
+        auto uf_comp = uf_compress_pubkey(uf_pk);
+        CHECK(std::memcmp(ref_comp, uf_comp.data(), 33) == 0, "k=n-2: pubkey match");
+    }
+
+    // 10b: Point doubling — P+P vs 2*P cross-check
+    {
+        const int N = 100 * g_multiplier;
+        for (int i = 0; i < N; ++i) {
+            auto sk_bytes = random_seckey(ctx);
+            auto uf_sk = scalar_from_bytes32(sk_bytes.data());
+            auto uf_P = uf::Point::generator().scalar_mul(uf_sk);
+
+            // P + P
+            auto sum = uf_P.add(uf_P);
+
+            // 2 * P
+            auto double_sk = uf_sk + uf_sk;  // scalar addition
+            auto double_P = uf::Point::generator().scalar_mul(double_sk);
+
+            auto comp_sum = uf_compress_pubkey(sum);
+            auto comp_dbl = uf_compress_pubkey(double_P);
+            CHECK(std::memcmp(comp_sum.data(), comp_dbl.data(), 33) == 0,
+                  "P+P == 2*P");
+        }
+    }
+
+    // 10c: Signature mutation rejection
+    {
+        const int N = 100 * g_multiplier;
+        for (int i = 0; i < N; ++i) {
+            auto sk_bytes = random_seckey(ctx);
+            auto msg = random_bytes();
+
+            // Sign with UF
+            auto uf_sk = scalar_from_bytes32(sk_bytes.data());
+            auto uf_pk = uf::Point::generator().scalar_mul(uf_sk);
+            auto uf_sig = secp256k1::ecdsa_sign(msg, uf_sk);
+
+            // Verify original is valid
+            CHECK(secp256k1::ecdsa_verify(msg, uf_pk, uf_sig), "original sig valid");
+
+            // Mutate r[0] → must be rejected
+            auto compact = uf_sig.to_compact();
+            compact[0] ^= 0x01;
+            auto mutated = secp256k1::ECDSASignature::from_compact(compact);
+            bool rejected = !secp256k1::ecdsa_verify(msg, uf_pk, mutated);
+            CHECK(rejected, "mutated ECDSA sig rejected");
+
+            // Same for Schnorr
+            auto aux = random_bytes();
+            auto uf_schnorr_sig = secp256k1::schnorr_sign(uf_sk, msg, aux);
+            auto pk_x = secp256k1::schnorr_pubkey(uf_sk);
+
+            auto sig_bytes = uf_schnorr_sig.to_bytes();
+            sig_bytes[0] ^= 0x01;
+            auto mut_schnorr = secp256k1::SchnorrSignature::from_bytes(sig_bytes);
+            bool schnorr_rejected = !secp256k1::schnorr_verify(pk_x, msg, mut_schnorr);
+            CHECK(schnorr_rejected, "mutated Schnorr sig rejected");
+        }
+    }
+
+    // 10d: Consecutive scalars: k, k+1, k+2 — verify (k+1)*G == k*G + G
+    {
+        const int N = 100 * g_multiplier;
+        auto G = uf::Point::generator();
+        for (int i = 0; i < N; ++i) {
+            auto sk_bytes = random_seckey(ctx);
+            auto uf_k = scalar_from_bytes32(sk_bytes.data());
+            auto uf_k1 = uf_k + uf::Scalar::from_uint64(1);
+
+            auto kG = G.scalar_mul(uf_k);
+            auto k1G_direct = G.scalar_mul(uf_k1);
+            auto k1G_add = kG.add(G);
+
+            auto comp_direct = uf_compress_pubkey(k1G_direct);
+            auto comp_add = uf_compress_pubkey(k1G_add);
+            CHECK(std::memcmp(comp_direct.data(), comp_add.data(), 33) == 0,
+                  "(k+1)*G == k*G + G");
+        }
+    }
+
+    // 10e: Half-order scalar: (n-1)/2
+    {
+        // (n-1)/2 = 7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0
+        uint8_t half[32] = {
+            0x7F, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+            0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+            0x5D, 0x57, 0x6E, 0x73, 0x57, 0xA4, 0x50, 0x1D,
+            0xDF, 0xE9, 0x2F, 0x46, 0x68, 0x1B, 0x20, 0xA0
+        };
+        secp256k1_pubkey ref_pk;
+        secp256k1_ec_pubkey_create(ctx, &ref_pk, half);
+        uint8_t ref_comp[33]; size_t len = 33;
+        secp256k1_ec_pubkey_serialize(ctx, ref_comp, &len, &ref_pk, SECP256K1_EC_COMPRESSED);
+
+        std::array<uint8_t, 32> sk_arr{};
+        std::memcpy(sk_arr.data(), half, 32);
+        auto uf_sk = uf::Scalar::from_bytes(sk_arr);
+        auto uf_pk = uf::Point::generator().scalar_mul(uf_sk);
+        auto uf_comp = uf_compress_pubkey(uf_pk);
+        CHECK(std::memcmp(ref_comp, uf_comp.data(), 33) == 0,
+              "k=(n-1)/2: pubkey match");
+    }
+
+    // 10f: Scalar negation: k*G + (-k)*G should give identity
+    {
+        const int N = 50 * g_multiplier;
+        for (int i = 0; i < N; ++i) {
+            auto sk_bytes = random_seckey(ctx);
+            auto uf_k = scalar_from_bytes32(sk_bytes.data());
+            auto neg_k = uf_k.negate();
+
+            auto kG = uf::Point::generator().scalar_mul(uf_k);
+            auto neg_kG = uf::Point::generator().scalar_mul(neg_k);
+            auto sum = kG.add(neg_kG);
+            CHECK(sum.is_infinity(), "k*G + (-k)*G == O (infinity)");
+        }
+    }
+
+    std::printf("    %d checks OK\n\n", g_pass);
+}
+
 // ── Main ────────────────────────────────────────────────────────────────────
 
 int main(int argc, char* argv[]) {
@@ -475,13 +726,16 @@ int main(int argc, char* argv[]) {
     secp256k1_context* ctx = secp256k1_context_create(
         SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
 
-    test_pubkey_cross(ctx);
-    test_ecdsa_uf_sign_ref_verify(ctx);
-    test_ecdsa_ref_sign_uf_verify(ctx);
-    test_schnorr_cross(ctx);
-    test_ecdsa_sig_match(ctx);
-    test_edge_cases(ctx);
-    test_point_add_cross(ctx);
+    test_pubkey_cross(ctx);               // [1] pubkey derivation
+    test_ecdsa_uf_sign_ref_verify(ctx);   // [2] UF sign → ref verify
+    test_ecdsa_ref_sign_uf_verify(ctx);   // [3] ref sign → UF verify
+    test_schnorr_cross(ctx);              // [4] Schnorr bidirectional
+    test_ecdsa_sig_match(ctx);            // [5] RFC 6979 byte-exact
+    test_edge_cases(ctx);                 // [6] known scalars
+    test_point_add_cross(ctx);            // [7] point addition
+    test_schnorr_batch_cross(ctx);        // [8] Schnorr batch verify
+    test_ecdsa_batch_cross(ctx);          // [9] ECDSA batch verify
+    test_extended_edge_cases(ctx);        // [10] overflow/doubling/mutation
 
     secp256k1_context_destroy(ctx);
 
