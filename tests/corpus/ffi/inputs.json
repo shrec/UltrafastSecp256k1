@@ -1,0 +1,51 @@
+[
+  {
+    "id": "zero_privkey_sign_ecdsa",
+    "function": "ufsecp_ecdsa_sign",
+    "input": {"privkey_hex": "0000000000000000000000000000000000000000000000000000000000000000", "msg_hex": "0000000000000000000000000000000000000000000000000000000000000001"},
+    "expected": "error"
+  },
+  {
+    "id": "zero_privkey_sign_schnorr",
+    "function": "ufsecp_schnorr_sign",
+    "input": {"privkey_hex": "0000000000000000000000000000000000000000000000000000000000000000", "msg_hex": "0000000000000000000000000000000000000000000000000000000000000001"},
+    "expected": "error"
+  },
+  {
+    "id": "order_minus_one_privkey",
+    "function": "ufsecp_ecdsa_sign",
+    "input": {"privkey_hex": "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364140", "msg_hex": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"},
+    "expected": "success"
+  },
+  {
+    "id": "order_privkey_invalid",
+    "function": "ufsecp_seckey_verify",
+    "input": {"privkey_hex": "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141"},
+    "expected": "error"
+  },
+  {
+    "id": "null_ctx_create",
+    "function": "ufsecp_ctx_create",
+    "input": {"ctx_out": null},
+    "expected": "error_or_no_crash"
+  },
+  {
+    "id": "null_all_ecdsa_sign",
+    "function": "ufsecp_ecdsa_sign",
+    "input": {"msg": null, "privkey": null, "sig_out": null},
+    "expected": "error_or_no_crash"
+  },
+  {
+    "id": "null_all_ecdsa_verify",
+    "function": "ufsecp_ecdsa_verify",
+    "input": {"msg": null, "sig": null, "pubkey": null},
+    "expected": "error_or_no_crash"
+  },
+  {
+    "id": "ecdh_mismatched_keys",
+    "function": "ufsecp_ecdh",
+    "description": "ECDH with garbage pubkey should fail gracefully",
+    "input": {"privkey_hex": "0000000000000000000000000000000000000000000000000000000000000001", "pubkey_hex": "02FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"},
+    "expected": "error_or_no_crash"
+  }
+]

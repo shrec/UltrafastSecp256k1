@@ -1,0 +1,38 @@
+# Fuzz Regression Corpus Manifest
+# Format: category/filename | description | found-in-version | test-coverage
+#
+# This file tracks all pinned regression inputs.
+# Keep sorted by category, then filename.
+
+# === DER Signatures ===
+der/empty.bin | Empty input (0 bytes) | v3.14.0 | test_fuzz_parsers suite[1]
+der/minimal_valid.bin | Minimal valid DER: 30 06 02 01 01 02 01 01 | v3.14.0 | test_fuzz_parsers suite[3]
+der/oversized_integer.bin | R or S integer > 32 bytes | v3.14.0 | test_fuzz_parsers suite[2]
+der/negative_leading.bin | High-bit set without padding byte | v3.14.0 | test_fuzz_parsers suite[2]
+
+# === Schnorr Signatures ===
+schnorr/all_zeros_64.bin | 64 zero bytes as signature | v3.14.0 | test_fuzz_parsers suite[4]
+schnorr/all_ones_64.bin | 64 0xFF bytes as signature | v3.14.0 | test_fuzz_parsers suite[4]
+
+# === Public Keys ===
+pubkey/prefix_02_zeros.bin | 02 + 32 zero bytes (x=0 after reduction) | v3.14.0 | test_fuzz_parsers suite[7]
+pubkey/prefix_04_zeros.bin | 04 + 64 zero bytes | v3.14.0 | test_fuzz_parsers suite[7]
+pubkey/x_equals_p.bin | x = field prime p | v3.14.0 | test_fuzz_parsers suite[8]
+pubkey/x_greater_p.bin | x > p (wraps via field reduction) | v3.14.0 | test_fuzz_parsers suite[8]
+
+# === Address Encoders ===
+address/null_pubkey.json | NULL pubkey argument | v3.14.0 | test_fuzz_address suite[1-3]
+address/all_zeros_33.json | 33 zero bytes as pubkey | v3.14.0 | test_fuzz_address suite[1-3]
+address/invalid_network_255.json | Network ID 255 | v3.14.0 | test_fuzz_address suite[1]
+
+# === BIP-32 Paths ===
+bip32/empty_string.txt | "" (empty) | v3.14.0 | test_fuzz_address suite[6]
+bip32/double_slash.txt | "m//0" | v3.14.0 | test_fuzz_address suite[6]
+bip32/overflow_index.txt | "m/99999999999999999999" | v3.14.0 | test_fuzz_address suite[6]
+bip32/missing_m_prefix.txt | "/0/1" (no m) | v3.14.0 | test_fuzz_address suite[6]
+bip32/garbage_utf8.txt | Random UTF-8 bytes | v3.14.0 | test_fuzz_address suite[6]
+
+# === FFI Boundary ===
+ffi/zero_privkey_sign.json | Sign with all-zero private key | v3.14.0 | test_fuzz_address suite[9]
+ffi/null_all_args.json | NULL for every pointer argument | v3.14.0 | test_fuzz_address suite[8-13]
+ffi/destroyed_ctx.json | Operations after ctx_destroy | v3.14.0 | test_fuzz_address suite[8]

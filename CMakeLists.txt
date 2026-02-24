@@ -253,6 +253,22 @@ if(SECP256K1_BUILD_FUZZ_TESTS AND SECP256K1_BUILD_CPU AND SECP256K1_BUILD_CABI A
     add_test(NAME fuzz_parsers COMMAND test_fuzz_parsers)
     set_tests_properties(fuzz_parsers PROPERTIES TIMEOUT 300)
     message(STATUS "  Parser fuzz tests: ON")
+
+    # Address + BIP32 + FFI boundary fuzz (Tasks 2.3.4, 2.3.5, 2.3.6)
+    add_executable(test_fuzz_address_bip32_ffi tests/test_fuzz_address_bip32_ffi.cpp)
+    target_link_libraries(test_fuzz_address_bip32_ffi PRIVATE ufsecp_static fastsecp256k1)
+    target_include_directories(test_fuzz_address_bip32_ffi PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+        ${CMAKE_CURRENT_BINARY_DIR}/include/ufsecp
+        ${CMAKE_CURRENT_SOURCE_DIR}/cpu/include
+    )
+    target_compile_definitions(test_fuzz_address_bip32_ffi PRIVATE "UFSECP_API=")
+    if(MSVC OR (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND WIN32))
+        target_link_options(test_fuzz_address_bip32_ffi PRIVATE "LINKER:/STACK:8388608")
+    endif()
+    add_test(NAME fuzz_address_bip32_ffi COMMAND test_fuzz_address_bip32_ffi)
+    set_tests_properties(fuzz_address_bip32_ffi PROPERTIES TIMEOUT 300)
+    message(STATUS "  Address + BIP32 + FFI fuzz tests: ON")
 endif()
 
 # ── MuSig2 + FROST protocol tests (Phase II, Tasks 2.1.1–2.2.2) ──────────

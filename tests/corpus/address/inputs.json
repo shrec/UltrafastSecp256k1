@@ -1,0 +1,50 @@
+[
+  {
+    "id": "null_pubkey",
+    "description": "NULL pointer for pubkey argument",
+    "input": {"pubkey": null, "network": 0},
+    "expected": "error_or_no_crash"
+  },
+  {
+    "id": "all_zeros_33",
+    "description": "33 zero bytes as compressed pubkey",
+    "input": {"pubkey_hex": "000000000000000000000000000000000000000000000000000000000000000000", "network": 0},
+    "expected": "error_or_no_crash"
+  },
+  {
+    "id": "invalid_prefix_00",
+    "description": "Invalid prefix byte 0x00",
+    "input": {"pubkey_hex": "000102030405060708091011121314151617181920212223242526272829303132", "network": 0},
+    "expected": "error_or_no_crash"
+  },
+  {
+    "id": "invalid_prefix_05",
+    "description": "Invalid prefix byte 0x05",
+    "input": {"pubkey_hex": "050102030405060708091011121314151617181920212223242526272829303132", "network": 0},
+    "expected": "error_or_no_crash"
+  },
+  {
+    "id": "network_negative",
+    "description": "Negative network ID",
+    "input": {"pubkey_hex": "0279BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798", "network": -1},
+    "expected": "error_or_no_crash"
+  },
+  {
+    "id": "network_255",
+    "description": "Network ID 255 (undefined)",
+    "input": {"pubkey_hex": "0279BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798", "network": 255},
+    "expected": "error_or_no_crash"
+  },
+  {
+    "id": "valid_generator_mainnet",
+    "description": "Generator point G, mainnet",
+    "input": {"pubkey_hex": "0279BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798", "network": 0},
+    "expected": "success"
+  },
+  {
+    "id": "valid_generator_testnet",
+    "description": "Generator point G, testnet",
+    "input": {"pubkey_hex": "0279BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798", "network": 1},
+    "expected": "success"
+  }
+]
