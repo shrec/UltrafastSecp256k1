@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771968321539,
+  "lastUpdate": 1771969680884,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -15641,6 +15641,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Batch Inverse (n=1000)",
             "value": 134,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "acdcbd9ee410385b6d73091c37a5ca08660b69a9",
+          "message": "feat: address/BIP32/FFI fuzz tests + release/deprecation docs + user guide\n\nTasks completed:\n  2.3.4 Address encoders fuzz (P2PKH/P2WPKH/P2TR/WIF) - 73,959 checks\n  2.3.5 BIP32 path parser fuzz (master/derive/path parsing)\n  2.3.6 FFI boundary fuzz (ctx lifecycle, ECDSA, Schnorr, ECDH, Taproot)\n  2.3.7 Regression corpus management (tests/corpus/ + MANIFEST.txt)\n  3.4.1 Release process document (docs/RELEASE_PROCESS.md)\n  3.4.2 Deprecation policy document (docs/DEPRECATION_POLICY.md)\n  3.5.1 Dedicated user guide (docs/USER_GUIDE.md)\n\nTest: cmake --build build -DSECP256K1_BUILD_FUZZ_TESTS=ON && ./test_fuzz_address_bip32_ffi\nResult: 73,959 passed, 0 failed, 0 crashes",
+          "timestamp": "2026-02-25T01:40:55+04:00",
+          "tree_id": "ee0f126b263d2762f0a1845a95549ee2fc598c0f",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/acdcbd9ee410385b6d73091c37a5ca08660b69a9"
+        },
+        "date": 1771969678818,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 27,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 22,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 278,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 149,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 38000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 10000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 13000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 47000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 24000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 53000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 140,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 133,
             "unit": "ns"
           }
         ]
