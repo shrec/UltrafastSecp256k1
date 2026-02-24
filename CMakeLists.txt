@@ -271,6 +271,19 @@ if(SECP256K1_BUILD_PROTOCOL_TESTS AND SECP256K1_BUILD_CPU AND BUILD_TESTING)
     add_test(NAME musig2_frost COMMAND test_musig2_frost)
     set_tests_properties(musig2_frost PROPERTIES TIMEOUT 600)
     message(STATUS "  MuSig2 + FROST protocol tests: ON")
+
+    # Advanced protocol tests: rogue-key, transcript binding, malicious participant
+    add_executable(test_musig2_frost_advanced tests/test_musig2_frost_advanced.cpp)
+    target_link_libraries(test_musig2_frost_advanced PRIVATE fastsecp256k1)
+    target_include_directories(test_musig2_frost_advanced PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/cpu/include
+    )
+    if(MSVC OR (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND WIN32))
+        target_link_options(test_musig2_frost_advanced PRIVATE "LINKER:/STACK:8388608")
+    endif()
+    add_test(NAME musig2_frost_advanced COMMAND test_musig2_frost_advanced)
+    set_tests_properties(musig2_frost_advanced PROPERTIES TIMEOUT 600)
+    message(STATUS "  MuSig2 + FROST advanced tests: ON")
 endif()
 
 # Export targets
