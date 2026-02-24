@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771900110230,
+  "lastUpdate": 1771901125599,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -11344,6 +11344,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Point Double",
             "value": 149,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 38000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 9000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 13000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 47000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 23000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 53000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 141,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 132,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "465041bac43aa4b14bc4a42437519a1215fe90d9",
+          "message": "fix(ci): add missing aarch64 cross-compilation toolchain file\n\npackaging.yml arm64 job references cmake/toolchain-aarch64-linux-gnu.cmake\nbut the file was never committed. Creates the standard CMake toolchain\nfile for aarch64-linux-gnu cross-compilation (matches Ubuntu package\ng++-aarch64-linux-gnu).\n\nFixes: 'Could not find toolchain file' CMake error in packaging CI.",
+          "timestamp": "2026-02-24T06:43:58+04:00",
+          "tree_id": "0c48e3285a31e9f63bf97091279192b7a1f5f94c",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/465041bac43aa4b14bc4a42437519a1215fe90d9"
+        },
+        "date": 1771901124489,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 27,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 22,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 280,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 150,
             "unit": "ns"
           },
           {
