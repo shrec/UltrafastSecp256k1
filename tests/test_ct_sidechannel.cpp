@@ -1138,10 +1138,16 @@ static void test_ct_utils() {
     // -- 5c: ct_memzero --------------------------------------------------
     {
         // Both classes: zero 32-byte buffer on the SAME memory.
-        // Class 0: buffer is already zero → memzero it → same time
-        // Class 1: buffer has random content → memzero it → same time
-        // Using one buffer avoids cache-line effects from different addresses.
+        // Class 0: pre-filled with pattern A →  ct_memzero  → same time
+        // Class 1: pre-filled with pattern B →  ct_memzero  → same time
+        // Both classes use memcpy (symmetric write) to avoid store-buffer
+        // asymmetry from memset-zero vs random_bytes on MSVC/Windows.
         alignas(64) uint8_t buf[32];
+        alignas(64) uint8_t src0[32];  // all-zero source
+        alignas(64) uint8_t src1[32];  // random source
+        std::memset(src0, 0, 32);
+        random_bytes(src1, 32);
+
         int classes[N];
         for (int i = 0; i < N; ++i) {
             classes[i] = rng() & 1;
@@ -1150,15 +1156,10 @@ static void test_ct_utils() {
         WelchState ws;
         for (int i = 0; i < N; ++i) {
             int cls = classes[i];
-            // Prepare buffer content based on class
-            if (cls == 0) {
-                std::memset(buf, 0, 32);
-            } else {
-                random_bytes(buf, 32);
-            }
+            // Symmetric pre-conditioning: both classes do a 32-byte memcpy
+            std::memcpy(buf, cls == 0 ? src0 : src1, 32);
             BARRIER_FENCE();
 
-            BARRIER_FENCE();
             uint64_t t0 = rdtsc();
             BARRIER_FENCE();
             secp256k1::ct::ct_memzero(buf, 32);

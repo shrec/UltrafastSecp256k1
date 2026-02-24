@@ -20,6 +20,9 @@
 #include "secp256k1/ct/scalar.hpp"
 #include "secp256k1/ct/point.hpp"
 #include "secp256k1/ct/ops.hpp"
+#include "secp256k1/ct/sign.hpp"
+#include "secp256k1/ecdsa.hpp"
+#include "secp256k1/schnorr.hpp"
 #include <iostream>
 #include <iomanip>
 #include <cstring>
@@ -460,6 +463,80 @@ static void test_mixing() {
     CHECK(pt_eq_affine(ct_result, expected), "mixing: fast(100*G) -> CT(7*P) == 700*G");
 }
 
+// --- CT Signing Tests --------------------------------------------------------
+
+static void test_ct_ecdsa_sign() {
+    // Use BIP-340 test vector #0 private key
+    auto privkey = SC::from_hex(
+        "0000000000000000000000000000000000000000000000000000000000000001");
+
+    // Hash of "test message"
+    std::array<uint8_t, 32> msg_hash{};
+    msg_hash[0] = 0x42; msg_hash[1] = 0xAB; msg_hash[31] = 0x01;
+
+    // CT and fast should produce identical signatures (same RFC 6979 nonce)
+    auto ct_sig   = secp256k1::ct::ecdsa_sign(msg_hash, privkey);
+    auto fast_sig = secp256k1::ecdsa_sign(msg_hash, privkey);
+
+    CHECK(ct_sig.r.to_bytes() == fast_sig.r.to_bytes(),
+          "ct::ecdsa_sign.r matches fast::ecdsa_sign.r");
+    CHECK(ct_sig.s.to_bytes() == fast_sig.s.to_bytes(),
+          "ct::ecdsa_sign.s matches fast::ecdsa_sign.s");
+
+    // Verify the CT signature with the standard verifier
+    auto G = PT::generator();
+    auto pubkey = G.scalar_mul(privkey);
+    CHECK(secp256k1::ecdsa_verify(msg_hash, pubkey, ct_sig),
+          "ct::ecdsa_sign signature verifies");
+
+    // Edge: zero key returns zero signature
+    auto zero_sig = secp256k1::ct::ecdsa_sign(msg_hash, SC::zero());
+    CHECK(zero_sig.r.is_zero() && zero_sig.s.is_zero(),
+          "ct::ecdsa_sign(zero key) returns zero sig");
+}
+
+static void test_ct_schnorr_sign() {
+    auto privkey = SC::from_hex(
+        "0000000000000000000000000000000000000000000000000000000000000003");
+
+    std::array<uint8_t, 32> msg{};
+    msg[0] = 0xDE; msg[1] = 0xAD; msg[2] = 0xBE; msg[3] = 0xEF;
+
+    std::array<uint8_t, 32> aux{};
+    aux[0] = 0x01;
+
+    // CT keypair + sign
+    auto ct_kp  = secp256k1::ct::schnorr_keypair_create(privkey);
+    auto ct_sig = secp256k1::ct::schnorr_sign(ct_kp, msg, aux);
+
+    // Fast keypair + sign
+    auto fast_kp  = secp256k1::schnorr_keypair_create(privkey);
+    auto fast_sig = secp256k1::schnorr_sign(fast_kp, msg, aux);
+
+    CHECK(ct_kp.px == fast_kp.px,
+          "ct::schnorr_keypair_create.px matches fast");
+    CHECK(ct_sig.r == fast_sig.r,
+          "ct::schnorr_sign.r matches fast::schnorr_sign.r");
+    CHECK(ct_sig.s.to_bytes() == fast_sig.s.to_bytes(),
+          "ct::schnorr_sign.s matches fast::schnorr_sign.s");
+
+    // Verify with standard verifier
+    CHECK(secp256k1::schnorr_verify(ct_kp.px, msg, ct_sig),
+          "ct::schnorr_sign signature verifies");
+}
+
+static void test_ct_schnorr_pubkey() {
+    auto privkey = SC::from_hex(
+        "0000000000000000000000000000000000000000000000000000000000000001");
+    auto ct_px = secp256k1::ct::schnorr_pubkey(privkey);
+
+    // Generator x-coordinate (well known)
+    auto G = PT::generator();
+    auto [gx, gy_odd] = G.x_bytes_and_parity();
+    (void)gy_odd;
+    CHECK(ct_px == gx, "ct::schnorr_pubkey(1) == G.x");
+}
+
 // --- Main --------------------------------------------------------------------
 
 int test_ct_run() {
@@ -526,6 +603,12 @@ int test_ct_run() {
     // Mixing
     std::cout << "--- CT + Fast Mixing ---\n";
     test_mixing();
+
+    // CT Signing
+    std::cout << "--- CT Signing (ecdsa + schnorr) ---\n";
+    test_ct_ecdsa_sign();
+    test_ct_schnorr_sign();
+    test_ct_schnorr_pubkey();
 
     // Summary
     std::cout << "\n=== Results: " << g_pass << " passed, " << g_fail << " failed ===\n";
