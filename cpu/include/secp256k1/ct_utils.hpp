@@ -141,14 +141,16 @@ inline std::uint8_t ct_select_byte(std::uint8_t a, std::uint8_t b,
 namespace ct_compare_detail {
 
 // Branchless unsigned compare: returns {gt, lt} where each is 0 or 1.
+// value_barrier on BOTH inputs prevents Clang from inserting beq/bne
+// branches before the sltu instructions (observed on RISC-V Clang 21).
 inline void ct_cmp_pair(std::uint64_t wa, std::uint64_t wb,
                         std::uint64_t& gt, std::uint64_t& lt) noexcept {
+    ct::value_barrier(wa);
+    ct::value_barrier(wb);
 #if defined(__riscv) && (__riscv_xlen == 64)
     asm volatile("sltu %0, %2, %1" : "=r"(gt) : "r"(wa), "r"(wb));
     asm volatile("sltu %0, %2, %1" : "=r"(lt) : "r"(wb), "r"(wa));
 #else
-    ct::value_barrier(wa);
-    ct::value_barrier(wb);
     gt = static_cast<std::uint64_t>(wa > wb);
     lt = static_cast<std::uint64_t>(wa < wb);
 #endif
@@ -178,56 +180,65 @@ inline int ct_compare(const void* a, const void* b, std::size_t len) noexcept {
     const auto* pb = static_cast<const std::uint8_t*>(b);
 
     // ---- Fast path: 32 bytes (fully unrolled, zero branches) ----
+    // Algorithm: reverse-scan accumulation.
+    //   Process words 3→2→1→0 (least significant first).
+    //   Each differing word OVERRIDES the running result.
+    //   Final result reflects the FIRST (most significant) differing word.
+    //   value_barrier after every step prevents Clang from injecting
+    //   beq/bne branches (observed with Clang 21 RISC-V).
     if (len == 32) {
         using namespace ct_compare_detail;
 
-        // Load all 4 word pairs in big-endian
+        // Load all 4 word pairs in big-endian (lexicographic order)
         std::uint64_t w0a = ct_load_be(pa +  0), w0b = ct_load_be(pb +  0);
         std::uint64_t w1a = ct_load_be(pa +  8), w1b = ct_load_be(pb +  8);
         std::uint64_t w2a = ct_load_be(pa + 16), w2b = ct_load_be(pb + 16);
         std::uint64_t w3a = ct_load_be(pa + 24), w3b = ct_load_be(pb + 24);
 
-        // Detect which pairs differ (1 = different, 0 = equal)
-        auto nz = [](std::uint64_t x) -> std::uint64_t {
-            return ((x | (0ULL - x)) >> 63) & 1ULL;
-        };
-        std::uint64_t d0 = nz(w0a ^ w0b);
-        std::uint64_t d1 = nz(w1a ^ w1b);
-        std::uint64_t d2 = nz(w2a ^ w2b);
-        std::uint64_t d3 = nz(w3a ^ w3b);
+        std::uint64_t result = 0;
 
-        // Priority selection: take_i = 1 iff pair i is the FIRST differing pair
-        // any_before_i tracks whether any earlier pair had a difference
-        std::uint64_t any0 = d0;
-        std::uint64_t any1 = d0 | d1;
-        std::uint64_t any2 = any1 | d2;
+        // Word 3 (bytes 24-31, least significant)
+        {
+            std::uint64_t gt, lt;
+            ct_cmp_pair(w3a, w3b, gt, lt);
+            std::uint64_t differs = gt | lt;  // 0 or 1
+            ct::value_barrier(differs);
+            std::uint64_t mask = 0ULL - differs;
+            result = (gt - lt) & mask;  // result was 0
+        }
+        ct::value_barrier(result);
 
-        std::uint64_t take0 = d0;
-        std::uint64_t take1 = d1 & (1ULL - any0);
-        std::uint64_t take2 = d2 & (1ULL - any1);
-        std::uint64_t take3 = d3 & (1ULL - any2);
+        // Word 2 (bytes 16-23)
+        {
+            std::uint64_t gt, lt;
+            ct_cmp_pair(w2a, w2b, gt, lt);
+            std::uint64_t differs = gt | lt;
+            ct::value_barrier(differs);
+            std::uint64_t mask = 0ULL - differs;
+            result = ((gt - lt) & mask) | (result & ~mask);
+        }
+        ct::value_barrier(result);
 
-        // Branchless unsigned comparisons for each pair
-        std::uint64_t gt0, lt0, gt1, lt1, gt2, lt2, gt3, lt3;
-        ct_cmp_pair(w0a, w0b, gt0, lt0);
-        ct_cmp_pair(w1a, w1b, gt1, lt1);
-        ct_cmp_pair(w2a, w2b, gt2, lt2);
-        ct_cmp_pair(w3a, w3b, gt3, lt3);
+        // Word 1 (bytes 8-15)
+        {
+            std::uint64_t gt, lt;
+            ct_cmp_pair(w1a, w1b, gt, lt);
+            std::uint64_t differs = gt | lt;
+            ct::value_barrier(differs);
+            std::uint64_t mask = 0ULL - differs;
+            result = ((gt - lt) & mask) | (result & ~mask);
+        }
+        ct::value_barrier(result);
 
-        // diff_sign: 1 = a>b, 0 = equal, -1 = a<b
-        std::uint64_t ds0 = gt0 - lt0;
-        std::uint64_t ds1 = gt1 - lt1;
-        std::uint64_t ds2 = gt2 - lt2;
-        std::uint64_t ds3 = gt3 - lt3;
-
-        // Mux: select the diff_sign of the first differing pair
-        // mask_i = all-ones when take_i == 1, else all-zeros
-        std::uint64_t m0 = 0ULL - take0;
-        std::uint64_t m1 = 0ULL - take1;
-        std::uint64_t m2 = 0ULL - take2;
-        std::uint64_t m3 = 0ULL - take3;
-
-        std::uint64_t result = (ds0 & m0) | (ds1 & m1) | (ds2 & m2) | (ds3 & m3);
+        // Word 0 (bytes 0-7, most significant — overrides all)
+        {
+            std::uint64_t gt, lt;
+            ct_cmp_pair(w0a, w0b, gt, lt);
+            std::uint64_t differs = gt | lt;
+            ct::value_barrier(differs);
+            std::uint64_t mask = 0ULL - differs;
+            result = ((gt - lt) & mask) | (result & ~mask);
+        }
 
 #if defined(__GNUC__) || defined(__clang__)
         asm volatile("" : "+r"(result));
@@ -253,7 +264,10 @@ inline int ct_compare(const void* a, const void* b, std::size_t len) noexcept {
         wa = _byteswap_uint64(wa);
         wb = _byteswap_uint64(wb);
 #endif
-
+        // Barrier inputs: prevent compiler from comparing wa/wb directly
+        // (Clang 21 RISC-V inserts beq before sltu without these)
+        ct::value_barrier(wa);
+        ct::value_barrier(wb);
         std::uint64_t xor_val = wa ^ wb;
         // nz = 1 if words differ, 0 otherwise
         std::uint64_t nz = ((xor_val | (0ULL - xor_val)) >> 63) & 1ULL;
@@ -267,15 +281,14 @@ inline int ct_compare(const void* a, const void* b, std::size_t len) noexcept {
         // mask = all-ones when take==1, zero when take==0
         std::uint64_t mask = 0ULL - take;
 
-        // Branchless unsigned compare: force sltu instructions on RISC-V
-        // to prevent Clang from generating branches for (wa > wb)
+        // Branchless unsigned compare: ct_cmp_pair-style barriers on inputs
         std::uint64_t gt, lt;
+        ct::value_barrier(wa);
+        ct::value_barrier(wb);
 #if defined(__riscv) && (__riscv_xlen == 64)
         asm volatile("sltu %0, %2, %1" : "=r"(gt) : "r"(wa), "r"(wb));
         asm volatile("sltu %0, %2, %1" : "=r"(lt) : "r"(wb), "r"(wa));
 #else
-        ct::value_barrier(wa);
-        ct::value_barrier(wb);
         gt = static_cast<std::uint64_t>(wa > wb);
         lt = static_cast<std::uint64_t>(wa < wb);
 #endif
@@ -302,12 +315,12 @@ inline int ct_compare(const void* a, const void* b, std::size_t len) noexcept {
         std::uint64_t mask = 0ULL - take;
 
         std::uint64_t gt_b, lt_b;
+        ct::value_barrier(ai);
+        ct::value_barrier(bi);
 #if defined(__riscv) && (__riscv_xlen == 64)
         asm volatile("sltu %0, %2, %1" : "=r"(gt_b) : "r"(ai), "r"(bi));
         asm volatile("sltu %0, %2, %1" : "=r"(lt_b) : "r"(bi), "r"(ai));
 #else
-        ct::value_barrier(ai);
-        ct::value_barrier(bi);
         gt_b = static_cast<std::uint64_t>(ai > bi);
         lt_b = static_cast<std::uint64_t>(ai < bi);
 #endif
