@@ -10,7 +10,7 @@
 
 import 'dart:typed_data';
 import 'package:test/test.dart';
-import 'package:ufsecp/ufsecp.dart';
+import 'package:ultrafast_secp256k1/ufsecp.dart';
 
 // ── Golden Vectors ──────────────────────────────────────────────────────
 
@@ -90,17 +90,17 @@ void main() {
   });
 
   test('sha256_golden', () {
-    final digest = UfsecpContext.sha256(Uint8List(0));
+    final digest = ctx.sha256(Uint8List(0));
     expect(digest, equals(sha256Empty));
   });
 
   test('addr_p2wpkh', () {
-    final addr = ctx.addrP2wpkh(knownPubkey, Network.mainnet);
+    final addr = ctx.addrP2WPKH(knownPubkey, network: Network.mainnet);
     expect(addr, startsWith('bc1q'));
   });
 
   test('wif_roundtrip', () {
-    final wif = ctx.wifEncode(knownPrivkey, true, Network.mainnet);
+    final wif = ctx.wifEncode(knownPrivkey, compressed: true, network: Network.mainnet);
     final decoded = ctx.wifDecode(wif);
     expect(decoded.privkey, equals(knownPrivkey));
     expect(decoded.compressed, isTrue);
