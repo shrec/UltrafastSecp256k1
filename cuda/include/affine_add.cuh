@@ -4,14 +4,14 @@
 // Pure affine-coordinate arithmetic: no Z coordinate, no projective overhead.
 //
 // When both points are in affine form (Z=1), the addition formula is:
-//   λ  = (Q.y - P.y) / (Q.x - P.x)     [= rr * H^{-1}]
-//   X3 = λ² - P.x - Q.x                 [1S + 2 subs]
-//   Y3 = λ·(P.x - X3) - P.y             [1M + 1 sub]
+//   lambda  = (Q.y - P.y) / (Q.x - P.x)     [= rr * H^{-1}]
+//   X3 = lambda^2 - P.x - Q.x                 [1S + 2 subs]
+//   Y3 = lambda*(P.x - X3) - P.y             [1M + 1 sub]
 //
-// Cost per addition: 1M (λ=rr*h_inv) + 1S (λ²) + 1M (λ*(Px-X3)) = 2M + 1S
+// Cost per addition: 1M (lambda=rr*h_inv) + 1S (lambda^2) + 1M (lambda*(Px-X3)) = 2M + 1S
 // With batch inversion: 1M + 1S per slot (the inversion is amortized).
 //
-// Comparison vs Jacobian mixed add (8M + 3S): ~3.5× fewer operations per add.
+// Comparison vs Jacobian mixed add (8M + 3S): ~3.5x fewer operations per add.
 // =============================================================================
 
 #pragma once
@@ -21,8 +21,8 @@ namespace secp256k1{
 namespace cuda {
 
 // ---------------------------------------------------------------------------
-// affine_add: P + Q → R, all affine (2M + 1S total)
-// Caller must ensure P.x ≠ Q.x (no doubling, no identity).
+// affine_add: P + Q -> R, all affine (2M + 1S total)
+// Caller must ensure P.x != Q.x (no doubling, no identity).
 // For batch pipelines where all points are distinct by construction.
 // ---------------------------------------------------------------------------
 __device__ __forceinline__ void affine_add(
@@ -34,21 +34,21 @@ __device__ __forceinline__ void affine_add(
 
     field_sub(qx, px, &h);       // H = Q.x - P.x
     field_sub(qy, py, &rr);      // rr = Q.y - P.y
-    field_inv(&h, &t);           // t = H^{-1} (expensive — use batch version below)
-    field_mul(&rr, &t, &lambda); // λ = rr / H                          [1M]
+    field_inv(&h, &t);           // t = H^{-1} (expensive -- use batch version below)
+    field_mul(&rr, &t, &lambda); // lambda = rr / H                          [1M]
 
-    field_sqr(&lambda, rx);      // X3 = λ²                             [1S]
+    field_sqr(&lambda, rx);      // X3 = lambda^2                             [1S]
     field_sub(rx, px, rx);       // X3 -= P.x
     field_sub(rx, qx, rx);      // X3 -= Q.x
 
     field_sub(px, rx, ry);      // t = P.x - X3
-    field_mul(&lambda, ry, ry);  // Y3 = λ·(P.x - X3)                  [1M]
+    field_mul(&lambda, ry, ry);  // Y3 = lambda*(P.x - X3)                  [1M]
     field_sub(ry, py, ry);      // Y3 -= P.y
 }
 
 // ---------------------------------------------------------------------------
-// affine_add_x_only: P + Q → X3 only (1M + 1S with pre-inverted H)
-// Returns only the X coordinate — for search pipelines where Y is not needed.
+// affine_add_x_only: P + Q -> X3 only (1M + 1S with pre-inverted H)
+// Returns only the X coordinate -- for search pipelines where Y is not needed.
 //   h_inv: precomputed (Q.x - P.x)^{-1} from batch inversion
 // ---------------------------------------------------------------------------
 __device__ __forceinline__ void affine_add_x_only(
@@ -60,15 +60,15 @@ __device__ __forceinline__ void affine_add_x_only(
     FieldElement rr, lambda;
 
     field_sub(qy, py, &rr);          // rr = Q.y - P.y
-    field_mul(&rr, h_inv, &lambda);   // λ = rr * H^{-1}                [1M]
+    field_mul(&rr, h_inv, &lambda);   // lambda = rr * H^{-1}                [1M]
 
-    field_sqr(&lambda, rx);          // X3 = λ²                         [1S]
+    field_sqr(&lambda, rx);          // X3 = lambda^2                         [1S]
     field_sub(rx, px, rx);           // X3 -= P.x
     field_sub(rx, qx, rx);          // X3 -= Q.x
 }
 
 // ---------------------------------------------------------------------------
-// affine_add_lambda: P + Q → (X3, Y3) with pre-inverted H (2M + 1S)
+// affine_add_lambda: P + Q -> (X3, Y3) with pre-inverted H (2M + 1S)
 // Full addition with precomputed H^{-1} from batch inversion.
 // ---------------------------------------------------------------------------
 __device__ __forceinline__ void affine_add_lambda(
@@ -80,20 +80,20 @@ __device__ __forceinline__ void affine_add_lambda(
     FieldElement rr, lambda;
 
     field_sub(qy, py, &rr);          // rr = Q.y - P.y
-    field_mul(&rr, h_inv, &lambda);   // λ = rr * H^{-1}                [1M]
+    field_mul(&rr, h_inv, &lambda);   // lambda = rr * H^{-1}                [1M]
 
-    field_sqr(&lambda, rx);          // X3 = λ²                         [1S]
+    field_sqr(&lambda, rx);          // X3 = lambda^2                         [1S]
     field_sub(rx, px, rx);           // X3 -= P.x
     field_sub(rx, qx, rx);          // X3 -= Q.x
 
     field_sub(px, rx, ry);          // t = P.x - X3
-    field_mul(&lambda, ry, ry);      // Y3 = λ·(P.x - X3)              [1M]
+    field_mul(&lambda, ry, ry);      // Y3 = lambda*(P.x - X3)              [1M]
     field_sub(ry, py, ry);          // Y3 -= P.y
 }
 
 // ---------------------------------------------------------------------------
 // affine_compute_h: compute H = Q.x - P.x for batch inversion
-// Just a subtraction — essentially free.
+// Just a subtraction -- essentially free.
 // ---------------------------------------------------------------------------
 __device__ __forceinline__ void affine_compute_h(
     const FieldElement* __restrict__ px,
@@ -104,13 +104,13 @@ __device__ __forceinline__ void affine_compute_h(
 }
 
 // ---------------------------------------------------------------------------
-// Batch Inversion (Montgomery's trick) — in-place
+// Batch Inversion (Montgomery's trick) -- in-place
 // ---------------------------------------------------------------------------
 // Input:  h[0..n-1] = H values
 // Output: h[0..n-1] = H^{-1} values
 // Temp:   prefix[0..n-1] = scratch buffer (same size as h)
 //
-// Cost: 3(n-1) multiplications + 1 field_inv ≈ 3n + 300 M-eq
+// Cost: 3(n-1) multiplications + 1 field_inv ~= 3n + 300 M-eq
 //
 // This is a device function for use WITHIN a single thread.
 // For a kernel version, build prefix products per-thread over strided data.
@@ -143,7 +143,7 @@ __device__ __forceinline__ void affine_batch_inv_serial(
 }
 
 // ---------------------------------------------------------------------------
-// Jacobian → Affine conversion (single point, in-place on x/y)
+// Jacobian -> Affine conversion (single point, in-place on x/y)
 // ---------------------------------------------------------------------------
 __device__ __forceinline__ void jacobian_to_affine(
     FieldElement* __restrict__ x,
@@ -163,13 +163,13 @@ __device__ __forceinline__ void jacobian_to_affine(
 }
 
 // ---------------------------------------------------------------------------
-// Batch Jacobian → Affine (batch of Z values → Z^{-2}, Z^{-3})
+// Batch Jacobian -> Affine (batch of Z values -> Z^{-2}, Z^{-3})
 // Uses Montgomery's trick on the Z values themselves
 // ---------------------------------------------------------------------------
 __device__ __forceinline__ void batch_jacobian_to_affine_serial(
-    FieldElement* __restrict__ x,    // [n] Jacobian X → affine x
-    FieldElement* __restrict__ y,    // [n] Jacobian Y → affine y
-    FieldElement* __restrict__ z,    // [n] Jacobian Z → scratch (destroyed)
+    FieldElement* __restrict__ x,    // [n] Jacobian X -> affine x
+    FieldElement* __restrict__ y,    // [n] Jacobian Y -> affine y
+    FieldElement* __restrict__ z,    // [n] Jacobian Z -> scratch (destroyed)
     FieldElement* __restrict__ prefix, // [n] scratch
     int n
 ) {

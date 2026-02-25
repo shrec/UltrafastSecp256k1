@@ -1,10 +1,10 @@
 #pragma once
 // ============================================================================
-// ECDSA Sign / Verify for secp256k1 — CUDA device implementation
+// ECDSA Sign / Verify for secp256k1 -- CUDA device implementation
 // ============================================================================
 // Provides GPU-side ECDSA operations:
-//   - ecdsa_sign(msg_hash, private_key) → ECDSASignatureGPU
-//   - ecdsa_verify(msg_hash, public_key, sig) → bool
+//   - ecdsa_sign(msg_hash, private_key) -> ECDSASignatureGPU
+//   - ecdsa_verify(msg_hash, public_key, sig) -> bool
 //   - RFC 6979 deterministic nonce (HMAC-SHA256 based)
 //   - Low-S normalization (BIP-62)
 //
@@ -18,11 +18,11 @@
 namespace secp256k1 {
 namespace cuda {
 
-// ── Byte ↔ Scalar conversion (big-endian bytes ↔ LE uint64_t limbs) ─────────
+// -- Byte <-> Scalar conversion (big-endian bytes <-> LE uint64_t limbs) ---------
 
 // Convert 32 big-endian bytes to a Scalar (reduced mod n).
 __device__ inline void scalar_from_bytes(const uint8_t bytes[32], Scalar* r) {
-    // BE bytes → LE uint64_t limbs
+    // BE bytes -> LE uint64_t limbs
     for (int i = 0; i < 4; i++) {
         uint64_t limb = 0;
         int base = (3 - i) * 8;
@@ -40,9 +40,9 @@ __device__ inline void scalar_from_bytes(const uint8_t bytes[32], Scalar* r) {
         borrow = (uint64_t)(-(int64_t)(diff >> 64));  // 1 if borrow, 0 otherwise
     }
     // mask = all-ones if r >= n (no borrow), all-zeros otherwise
-    uint64_t mask = ~borrow + 1;   // borrow==0 → ~0+1=0 → wrong
-    // Actually: borrow=0 means no underflow → r >= n → use tmp
-    //           borrow=1 means underflow → r < n → keep r
+    uint64_t mask = ~borrow + 1;   // borrow==0 -> ~0+1=0 -> wrong
+    // Actually: borrow=0 means no underflow -> r >= n -> use tmp
+    //           borrow=1 means underflow -> r < n -> keep r
     mask = -(uint64_t)(borrow == 0);
     for (int i = 0; i < 4; i++) {
         r->limbs[i] = (tmp[i] & mask) | (r->limbs[i] & ~mask);
@@ -76,7 +76,7 @@ __device__ inline void field_to_bytes(const FieldElement* fe, uint8_t bytes[32])
         tmp[i] = (uint64_t)diff;
         borrow = (uint64_t)(-(int64_t)(diff >> 64));  // 1 if borrow, 0 otherwise
     }
-    // If borrow==0: fe >= p → use tmp (reduced). If borrow==1: fe < p → use fe.
+    // If borrow==0: fe >= p -> use tmp (reduced). If borrow==1: fe < p -> use fe.
     uint64_t mask = -(uint64_t)(borrow == 0);  // all-1s if no borrow, all-0s if borrow
     uint64_t norm[4];
     for (int i = 0; i < 4; i++)
@@ -90,7 +90,7 @@ __device__ inline void field_to_bytes(const FieldElement* fe, uint8_t bytes[32])
     }
 }
 
-// ── SHA-256 Streaming Context ────────────────────────────────────────────────
+// -- SHA-256 Streaming Context ------------------------------------------------
 
 __device__ __constant__ static const uint32_t SHA256_K[64] = {
     0x428a2f98U, 0x71374491U, 0xb5c0fbcfU, 0xe9b5dba5U,
@@ -223,7 +223,7 @@ __device__ inline void sha256_final(SHA256Ctx* ctx, uint8_t out[32]) {
     }
 }
 
-// ── HMAC-SHA256 ──────────────────────────────────────────────────────────────
+// -- HMAC-SHA256 --------------------------------------------------------------
 
 __device__ inline void hmac_sha256(
     const uint8_t* key, size_t key_len,
@@ -261,8 +261,8 @@ __device__ inline void hmac_sha256(
     sha256_final(&outer, out);
 }
 
-// ── RFC 6979 Deterministic Nonce ─────────────────────────────────────────────
-// Generates deterministic k for ECDSA signing per RFC 6979 §3.2
+// -- RFC 6979 Deterministic Nonce ---------------------------------------------
+// Generates deterministic k for ECDSA signing per RFC 6979 S3.2
 // using HMAC-SHA256. Inputs: private key scalar + 32-byte message hash.
 
 __device__ inline void rfc6979_nonce(
@@ -323,7 +323,7 @@ __device__ inline void rfc6979_nonce(
     for (int i = 0; i < 4; i++) k_out->limbs[i] = 0;
 }
 
-// ── ECDSA Types ──────────────────────────────────────────────────────────────
+// -- ECDSA Types --------------------------------------------------------------
 
 struct ECDSASignatureGPU {
     Scalar r;
@@ -342,10 +342,10 @@ __device__ __forceinline__ bool scalar_is_low_s(const Scalar* s) {
         if (s->limbs[i] < HALF_ORDER.limbs[i]) return true;
         if (s->limbs[i] > HALF_ORDER.limbs[i]) return false;
     }
-    return true; // equal → low-S
+    return true; // equal -> low-S
 }
 
-// ── ECDSA Sign ───────────────────────────────────────────────────────────────
+// -- ECDSA Sign ---------------------------------------------------------------
 // Signs a 32-byte message hash with a private key.
 // Uses RFC 6979 deterministic nonce.
 // Returns low-S normalized signature.
@@ -436,7 +436,7 @@ __device__ inline bool ecdsa_sign(
     return true;
 }
 
-// ── ECDSA Verify ─────────────────────────────────────────────────────────────
+// -- ECDSA Verify -------------------------------------------------------------
 // Verifies an ECDSA signature against a public key and message hash.
 // Accepts both low-S and high-S signatures.
 // public_key must be a valid Jacobian point (not infinity).
@@ -465,7 +465,7 @@ __device__ inline bool ecdsa_verify(
     Scalar u2;
     scalar_mul_mod_n(&sig->r, &w, &u2);
 
-    // R' = u1 * G + u2 * Q  (Shamir's trick with GLV: ~128 doublings instead of 2×256)
+    // R' = u1 * G + u2 * Q  (Shamir's trick with GLV: ~128 doublings instead of 2x256)
     JacobianPoint R_prime;
     shamir_double_mul_glv(&GENERATOR_JACOBIAN, &u1, public_key, &u2, &R_prime);
 

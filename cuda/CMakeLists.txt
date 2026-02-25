@@ -26,7 +26,7 @@ set(CMAKE_CXX_STANDARD 17)
 
 include_directories(include ${CMAKE_CURRENT_SOURCE_DIR}/../include)
 
-# Source files — .cu extension works with both nvcc and hipcc
+# Source files -- .cu extension works with both nvcc and hipcc
 set(_GPU_SOURCES src/secp256k1.cu)
 
 # Library target

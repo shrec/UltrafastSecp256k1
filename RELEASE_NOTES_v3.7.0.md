@@ -3,7 +3,7 @@
 ### ufsecp Stable C ABI
 - **45 exported C functions** with opaque `ufsecp_ctx` context
 - Dual-layer constant-time protection (always-on)
-- Single header: `ufsecp.h` — covers ECDSA, Schnorr, ECDH, BIP-32, addresses, WIF, taproot
+- Single header: `ufsecp.h` -- covers ECDSA, Schnorr, ECDH, BIP-32, addresses, WIF, taproot
 - Error codes 0-10 (`ufsecp_error_t`)
 
 ### 12 Language Bindings

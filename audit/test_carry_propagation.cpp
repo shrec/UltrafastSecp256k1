@@ -8,7 +8,7 @@
 //   3. Cascading carry across all limbs
 //   4. Values near p that trigger final reduction
 //   5. Products that produce maximum intermediate values
-//   6. Cross-limb boundary patterns (bit 63→64, 127→128, 191→192)
+//   6. Cross-limb boundary patterns (bit 63->64, 127->128, 191->192)
 // ============================================================================
 
 #include <cstdio>
@@ -145,13 +145,13 @@ static void test_cross_limb_carry() {
     };
 
     Pattern patterns[] = {
-        // Bit 63 set: carry from limb0 → limb1
+        // Bit 63 set: carry from limb0 -> limb1
         {0x8000000000000000ULL, 0, 0, 0},
-        // Bit 127 set: carry from limb1 → limb2
+        // Bit 127 set: carry from limb1 -> limb2
         {0, 0x8000000000000000ULL, 0, 0},
-        // Bit 191 set: carry from limb2 → limb3
+        // Bit 191 set: carry from limb2 -> limb3
         {0, 0, 0x8000000000000000ULL, 0},
-        // Bit 255 set: carry from limb3 → reduction
+        // Bit 255 set: carry from limb3 -> reduction
         {0, 0, 0, 0x8000000000000000ULL},
         // All high-bits set
         {0x8000000000000000ULL, 0x8000000000000000ULL,
@@ -208,14 +208,14 @@ static void test_near_prime() {
     CHECK(p_val.to_bytes() == zero.to_bytes(), "p reduces to 0");
 
     // p + 1 should reduce to 1
-    // (but from_bytes reduces on load, so p → 0, then 0 + 1 = 1)
+    // (but from_bytes reduces on load, so p -> 0, then 0 + 1 = 1)
     auto p_plus_1 = p_val + one;
     CHECK(p_plus_1.to_bytes() == one.to_bytes(), "p + 1 reduces to 1");
 
     // (p-1) + 1 = 0
     CHECK((p_m1 + one).to_bytes() == zero.to_bytes(), "(p-1)+1 == 0");
 
-    // (p-1)^2 == 1 (since p-1 ≡ -1 mod p)
+    // (p-1)^2 == 1 (since p-1 == -1 mod p)
     CHECK(p_m1.square().to_bytes() == one.to_bytes(), "(p-1)^2 == 1");
 
     // (p-1) * (p-1) == 1
@@ -226,7 +226,7 @@ static void test_near_prime() {
         auto d = FieldElement::from_uint64(delta);
         auto val = p_m1 - d + one; // = p - delta
 
-        // val + delta should == 0 (since val = p - delta ≡ -delta)
+        // val + delta should == 0 (since val = p - delta == -delta)
         auto sum = val + d;
         CHECK(sum.to_bytes() == zero.to_bytes(), "p-delta + delta == 0");
 
@@ -389,10 +389,10 @@ int test_carry_propagation_run() {
 // ============================================================================
 #ifndef UNIFIED_AUDIT_RUNNER
 int main() {
-    printf("════════════════════════════════════════════════════════════\n");
+    printf("============================================================\n");
     printf("  Carry Propagation Stress Test\n");
     printf("  Arithmetic boundary & limb carry-chain verification\n");
-    printf("════════════════════════════════════════════════════════════\n\n");
+    printf("============================================================\n\n");
 
     test_all_ones();          printf("\n");
     test_single_limb_max();   printf("\n");
@@ -402,9 +402,9 @@ int main() {
     test_scalar_carry();      printf("\n");
     test_point_carry();
 
-    printf("\n════════════════════════════════════════════════════════════\n");
+    printf("\n============================================================\n");
     printf("  Summary: %d passed, %d failed\n", g_pass, g_fail);
-    printf("════════════════════════════════════════════════════════════\n");
+    printf("============================================================\n");
 
     return g_fail > 0 ? 1 : 0;
 }

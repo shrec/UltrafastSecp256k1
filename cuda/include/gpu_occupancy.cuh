@@ -1,6 +1,6 @@
 #pragma once
 // ============================================================================
-// gpu_occupancy.cuh — CUDA Occupancy Auto-Tuning Utilities
+// gpu_occupancy.cuh -- CUDA Occupancy Auto-Tuning Utilities
 // ============================================================================
 // Provides optimal launch configuration helpers that use the CUDA occupancy
 // API to maximize SM utilization. Eliminates manual block-size guessing.
@@ -20,7 +20,7 @@
 namespace secp256k1 {
 namespace cuda {
 
-// ── Optimal 1D launch configuration ──────────────────────────────────────
+// -- Optimal 1D launch configuration --------------------------------------
 
 /// Compute optimal (grid, block) for a 1D kernel launch.
 /// Uses cudaOccupancyMaxPotentialBlockSize to find the block size that
@@ -53,7 +53,7 @@ __host__ inline std::pair<dim3, dim3> optimal_launch_1d(
     return {dim3(grid_size), dim3(block_size)};
 }
 
-// ── Query achievable occupancy ───────────────────────────────────────────
+// -- Query achievable occupancy -------------------------------------------
 
 /// Query how many blocks of a given kernel can run concurrently per SM.
 /// Useful for diagnostic/observability prints at startup.
@@ -78,7 +78,7 @@ __host__ inline int query_occupancy(
     return active_blocks;
 }
 
-// ── Startup diagnostics ──────────────────────────────────────────────────
+// -- Startup diagnostics --------------------------------------------------
 
 /// Print GPU device info and kernel occupancy for a set of key kernels.
 /// Call once at application startup for observability.
@@ -111,7 +111,7 @@ __host__ inline void print_device_info(int device_id = 0) {
 #endif
 }
 
-// ── Warp-level reduction primitives ──────────────────────────────────────
+// -- Warp-level reduction primitives --------------------------------------
 
 /// Warp-wide sum reduction using shuffle-down.
 /// All lanes in the warp participate; result is valid in lane 0.

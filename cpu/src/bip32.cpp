@@ -222,7 +222,7 @@ fast::Point ExtendedKey::public_key() const {
         return Point::generator().scalar_mul(sk);
     }
     // Public key: decompress from pub_prefix + key (x-coordinate)
-    // y² = x³ + 7, then pick y matching parity
+    // y^2 = x^3 + 7, then pick y matching parity
     auto x = fast::FieldElement::from_bytes(key);
     auto x2 = x * x;
     auto x3 = x2 * x;

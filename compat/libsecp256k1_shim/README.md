@@ -10,14 +10,14 @@ Drop-in replacement for projects written against the libsecp256k1 C API. Link th
 
 | Category | Functions | Status |
 |---|---|---|
-| Context | `create`, `destroy`, `randomize` | ✅ Stub (context is no-op) |
-| Public Keys | `pubkey_create`, `pubkey_parse`, `pubkey_serialize`, `pubkey_negate`, `pubkey_tweak_add`, `pubkey_tweak_mul`, `pubkey_combine` | ✅ |
-| ECDSA | `ecdsa_sign`, `ecdsa_verify`, `signature_parse_compact`, `signature_serialize_compact`, `signature_normalize` | ✅ |
-| Schnorr (BIP-340) | `schnorrsig_sign32`, `schnorrsig_verify` | ✅ |
-| Extra Keys | `xonly_pubkey_parse`, `xonly_pubkey_serialize`, `keypair_create` | ✅ |
-| Secret Keys | `seckey_verify`, `seckey_negate`, `seckey_tweak_add`, `seckey_tweak_mul` | ✅ |
-| DER Signatures | `signature_parse_der`, `signature_serialize_der` | ✅ |
-| Tagged Hash | `tagged_sha256` | ✅ |
+| Context | `create`, `destroy`, `randomize` | [OK] Stub (context is no-op) |
+| Public Keys | `pubkey_create`, `pubkey_parse`, `pubkey_serialize`, `pubkey_negate`, `pubkey_tweak_add`, `pubkey_tweak_mul`, `pubkey_combine` | [OK] |
+| ECDSA | `ecdsa_sign`, `ecdsa_verify`, `signature_parse_compact`, `signature_serialize_compact`, `signature_normalize` | [OK] |
+| Schnorr (BIP-340) | `schnorrsig_sign32`, `schnorrsig_verify` | [OK] |
+| Extra Keys | `xonly_pubkey_parse`, `xonly_pubkey_serialize`, `keypair_create` | [OK] |
+| Secret Keys | `seckey_verify`, `seckey_negate`, `seckey_tweak_add`, `seckey_tweak_mul` | [OK] |
+| DER Signatures | `signature_parse_der`, `signature_serialize_der` | [OK] |
+| Tagged Hash | `tagged_sha256` | [OK] |
 
 ## Usage
 
@@ -27,7 +27,7 @@ add_subdirectory(path/to/UltrafastSecp256k1/compat/libsecp256k1_shim)
 target_link_libraries(my_app PRIVATE secp256k1_shim)
 ```
 
-Then in your code — no changes needed:
+Then in your code -- no changes needed:
 
 ```c
 #include <secp256k1.h>
@@ -40,7 +40,7 @@ secp256k1_context_destroy(ctx);
 
 ## Limitations
 
-- Context randomization (`secp256k1_context_randomize`) is accepted but has no effect — UltrafastSecp256k1 does not use blinding.
+- Context randomization (`secp256k1_context_randomize`) is accepted but has no effect -- UltrafastSecp256k1 does not use blinding.
 - `secp256k1_context_static` is provided but points to a dummy.
 - `secp256k1_ecdh` and `secp256k1_ellswift` modules are not yet shimmed.
 - Performance characteristics differ (typically faster).

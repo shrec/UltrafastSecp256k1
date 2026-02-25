@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# local-ci.sh — Run full CI jobs locally (inside Docker container)
+# local-ci.sh -- Run full CI jobs locally (inside Docker container)
 # =============================================================================
 # Reproduces GitHub Actions workflows locally:
 #   security-audit.yml + ci.yml coverage + clang-tidy.yml
@@ -14,7 +14,7 @@
 #   bash scripts/local-ci.sh --job dudect       # Only dudect smoke
 #   bash scripts/local-ci.sh --job coverage     # Only code coverage (HTML report)
 #   bash scripts/local-ci.sh --job clang-tidy   # Only clang-tidy static analysis
-#   bash scripts/local-ci.sh --job ci           # CI matrix (GCC+Clang × Debug+Release)
+#   bash scripts/local-ci.sh --job ci           # CI matrix (GCC+Clang x Debug+Release)
 #
 # Exit codes: 0 = all passed, 1 = at least one job failed
 # =============================================================================
@@ -33,7 +33,7 @@ NPROC=$(nproc)
 RESULTS=()
 FAILED=0
 
-# ── ccache stats (if available) ──────────────────────────────────────────────
+# -- ccache stats (if available) ----------------------------------------------
 if command -v ccache &>/dev/null && [ -d "${CCACHE_DIR:-/ccache}" ]; then
     echo -e "${BOLD}ccache:${NC} ${CCACHE_DIR:-/ccache} ($(ccache -s 2>/dev/null | grep 'cache size' || echo 'empty'))"
     ccache --zero-stats &>/dev/null || true
@@ -44,26 +44,26 @@ fi
 
 banner() {
     echo ""
-    echo -e "${CYAN}╔══════════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${CYAN}║${NC} ${BOLD}$1${NC}"
-    echo -e "${CYAN}╚══════════════════════════════════════════════════════════════╝${NC}"
+    echo -e "${CYAN}+==============================================================+${NC}"
+    echo -e "${CYAN}|${NC} ${BOLD}$1${NC}"
+    echo -e "${CYAN}+==============================================================+${NC}"
     echo ""
 }
 
 pass() {
-    RESULTS+=("${GREEN}✓ PASS${NC}: $1")
-    echo -e "\n${GREEN}✓ PASS${NC}: $1\n"
+    RESULTS+=("${GREEN}OK PASS${NC}: $1")
+    echo -e "\n${GREEN}OK PASS${NC}: $1\n"
 }
 
 fail() {
-    RESULTS+=("${RED}✗ FAIL${NC}: $1")
+    RESULTS+=("${RED}X FAIL${NC}: $1")
     FAILED=1
-    echo -e "\n${RED}✗ FAIL${NC}: $1\n"
+    echo -e "\n${RED}X FAIL${NC}: $1\n"
 }
 
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 # Job 1: Build with -Werror (GCC-13, Release)
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 job_werror() {
     banner "Job 1/4: Build with -Werror (GCC-13, Release)"
     local build_dir="$SRC/build-local-ci-werror"
@@ -82,9 +82,9 @@ job_werror() {
     fi
 }
 
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 # Job 2: ASan + UBSan (Clang-17, Debug)
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 job_asan() {
     banner "Job 2/4: ASan + UBSan (Clang-17, Debug)"
     local build_dir="$SRC/build-local-ci-asan"
@@ -110,9 +110,9 @@ job_asan() {
     fi
 }
 
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 # Job 3: Valgrind Memcheck (GCC-13, Debug)
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 job_valgrind() {
     banner "Job 3/4: Valgrind Memcheck (GCC-13, Debug)"
     local build_dir="$SRC/build-local-ci-valgrind"
@@ -152,9 +152,9 @@ job_valgrind() {
     fi
 }
 
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 # Job 4: dudect Timing Analysis (GCC-13, Release, 60s timeout)
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 job_dudect() {
     banner "Job 4/4: dudect Timing Analysis (GCC-13, Release)"
     local build_dir="$SRC/build-local-ci-dudect"
@@ -173,18 +173,18 @@ job_dudect() {
 
     if [ "$exit_code" -eq 124 ]; then
         echo -e "${YELLOW}dudect timed out (expected for smoke run)${NC}"
-        pass "dudect Timing Analysis (timeout — OK)"
+        pass "dudect Timing Analysis (timeout -- OK)"
     elif [ "$exit_code" -ne 0 ]; then
         echo -e "${YELLOW}dudect reported timing variance (common on shared systems)${NC}"
-        pass "dudect Timing Analysis (variance — acceptable)"
+        pass "dudect Timing Analysis (variance -- acceptable)"
     else
         pass "dudect Timing Analysis"
     fi
 }
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Job 5: Code Coverage (Clang-17, Debug, llvm-cov → HTML)
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
+# Job 5: Code Coverage (Clang-17, Debug, llvm-cov -> HTML)
+# -----------------------------------------------------------------------------
 job_coverage() {
     banner "Job 5/7: Code Coverage (Clang-17 + llvm-cov)"
     local build_dir="$SRC/build-local-ci-coverage"
@@ -255,15 +255,15 @@ job_coverage() {
     if [ -f "$html_index" ]; then
         echo -e "\n${GREEN}HTML report:${NC} $html_index"
         echo -e "${YELLOW}Open in browser to view detailed coverage.${NC}"
-        pass "Code Coverage (HTML → $build_dir/html/)"
+        pass "Code Coverage (HTML -> $build_dir/html/)"
     else
         fail "Code Coverage (HTML report not generated)"
     fi
 }
 
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 # Job 6: clang-tidy Static Analysis (Clang-17)
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 job_clang_tidy() {
     banner "Job 6/7: clang-tidy Static Analysis (Clang-17)"
     local build_dir="$SRC/build-local-ci-tidy"
@@ -300,9 +300,9 @@ job_clang_tidy() {
     fi
 }
 
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 # Job 7: CI matrix (GCC-13 + Clang-17, Debug + Release)
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 job_ci() {
     local all_pass=1
 
@@ -327,9 +327,9 @@ job_ci() {
             cmake --build "$build_dir" -j"$NPROC"
 
             if ctest --test-dir "$build_dir" --output-on-failure -j"$NPROC" -E "^ct_sidechannel$"; then
-                echo -e "${GREEN}✓${NC} $compiler / $build_type"
+                echo -e "${GREEN}OK${NC} $compiler / $build_type"
             else
-                echo -e "${RED}✗${NC} $compiler / $build_type"
+                echo -e "${RED}X${NC} $compiler / $build_type"
                 all_pass=0
             fi
         done
@@ -342,18 +342,18 @@ job_ci() {
     fi
 }
 
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 # Summary
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 print_summary() {
     echo ""
-    echo -e "${BOLD}═══════════════════════════════════════════════════════════════${NC}"
+    echo -e "${BOLD}===============================================================${NC}"
     echo -e "${BOLD}  LOCAL CI SUMMARY${NC}"
-    echo -e "${BOLD}═══════════════════════════════════════════════════════════════${NC}"
+    echo -e "${BOLD}===============================================================${NC}"
     for r in "${RESULTS[@]}"; do
         echo -e "  $r"
     done
-    echo -e "${BOLD}═══════════════════════════════════════════════════════════════${NC}"
+    echo -e "${BOLD}===============================================================${NC}"
     if [ "$FAILED" -eq 0 ]; then
         echo -e "  ${GREEN}${BOLD}ALL PASSED${NC}"
     else
@@ -362,9 +362,9 @@ print_summary() {
     echo ""
 }
 
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 # Main
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 main() {
     local run_all=0
     local run_full=0
@@ -394,7 +394,7 @@ main() {
         jobs=(werror asan valgrind dudect)
     fi
 
-    echo -e "${BOLD}Local CI — running jobs: ${jobs[*]}${NC}"
+    echo -e "${BOLD}Local CI -- running jobs: ${jobs[*]}${NC}"
     echo -e "${BOLD}CPUs: $NPROC${NC}"
     echo ""
 
@@ -411,7 +411,7 @@ main() {
         esac
     done
 
-    # ── ccache summary ──────────────────────────────────────────────────
+    # -- ccache summary --------------------------------------------------
     if [ "$CCACHE_ENABLED" -eq 1 ]; then
         echo ""
         echo -e "${BOLD}ccache hit rate:${NC}"

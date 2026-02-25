@@ -1,5 +1,5 @@
 # ============================================================================
-# UltrafastSecp256k1 — C API Shared Library
+# UltrafastSecp256k1 -- C API Shared Library
 # ============================================================================
 # Builds libultrafast_secp256k1.so / .dll / .dylib
 # Usage:
@@ -17,7 +17,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-# ── Find the CPU library ───────────────────────────────────────────────────
+# -- Find the CPU library ---------------------------------------------------
 # The CPU library is built by the parent CMake project.
 # We locate its include dirs and link against it.
 
@@ -31,7 +31,7 @@ if(NOT EXISTS "${CPU_INCLUDE_DIR}/UltrafastSecp256k1.hpp")
     message(FATAL_ERROR "Cannot find UltrafastSecp256k1.hpp at ${CPU_INCLUDE_DIR}")
 endif()
 
-# ── Shared library target ─────────────────────────────────────────────────
+# -- Shared library target -------------------------------------------------
 
 add_library(ultrafast_secp256k1 SHARED
     ultrafast_secp256k1.cpp
@@ -68,7 +68,7 @@ else()
     target_sources(ultrafast_secp256k1 PRIVATE ${CPU_SOURCES})
 endif()
 
-# ── Platform-specific flags ───────────────────────────────────────────────
+# -- Platform-specific flags -----------------------------------------------
 
 if(WIN32)
     # Windows: export all symbols through the SECP256K1_API macro
@@ -95,7 +95,7 @@ set_target_properties(ultrafast_secp256k1 PROPERTIES
     PUBLIC_HEADER ultrafast_secp256k1.h
 )
 
-# ── Install ───────────────────────────────────────────────────────────────
+# -- Install ---------------------------------------------------------------
 
 include(GNUInstallDirs)
 install(TARGETS ultrafast_secp256k1

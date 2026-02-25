@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ============================================================================
 # dudect Status Badge Generator
-# Phase IV, Task 4.6.4 — Parse nightly dudect results, generate badge JSON
+# Phase IV, Task 4.6.4 -- Parse nightly dudect results, generate badge JSON
 # ============================================================================
 # Reads dudect output (from nightly.yml artifact or local run) and generates
 # a shields.io-compatible badge JSON endpoint.
@@ -36,7 +36,7 @@ fi
 
 mkdir -p "$OUTPUT_DIR"
 
-# ── Parse dudect results ─────────────────────────────────────────────────
+# -- Parse dudect results -------------------------------------------------
 
 # Count PASS/FAIL lines
 TOTAL=$(grep -cE '\[(PASS|FAIL)\]' "$DUDECT_LOG" 2>/dev/null || echo "0")
@@ -66,7 +66,7 @@ else
     LABEL="dudect CT"
 fi
 
-# ── Generate shields.io endpoint JSON ────────────────────────────────────
+# -- Generate shields.io endpoint JSON ------------------------------------
 
 BADGE_FILE="$OUTPUT_DIR/dudect-badge.json"
 cat > "$BADGE_FILE" <<EOF
@@ -87,7 +87,7 @@ echo ""
 echo "Usage in README.md:"
 echo "  ![dudect](https://img.shields.io/endpoint?url=<raw_url_to_${BADGE_FILE}>)"
 
-# ── Also generate a detailed JSON report ─────────────────────────────────
+# -- Also generate a detailed JSON report ---------------------------------
 
 DETAIL_FILE="$OUTPUT_DIR/dudect-status.json"
 cat > "$DETAIL_FILE" <<EOF

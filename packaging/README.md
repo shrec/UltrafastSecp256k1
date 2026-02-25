@@ -11,7 +11,7 @@ sudo apt install debhelper cmake ninja-build g++ pkg-config
 
 # Build package from source tarball
 dpkg-buildpackage -us -uc -b
-# — or use CPack —
+# -- or use CPack --
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
     -DSECP256K1_BUILD_SHARED=ON -DSECP256K1_INSTALL=ON
 cmake --build build
@@ -19,8 +19,8 @@ cd build && cpack -G DEB
 ```
 
 Produces:
-- `libufsecp3_<ver>_<arch>.deb` — shared library
-- `libufsecp-dev_<ver>_<arch>.deb` — headers + static lib + cmake/pkgconfig
+- `libufsecp3_<ver>_<arch>.deb` -- shared library
+- `libufsecp-dev_<ver>_<arch>.deb` -- headers + static lib + cmake/pkgconfig
 
 ## Fedora / RHEL / CentOS (.rpm)
 
@@ -30,7 +30,7 @@ sudo dnf install cmake ninja-build gcc-c++ rpm-build
 
 # Build RPM from spec
 rpmbuild -ba packaging/rpm/libufsecp.spec
-# — or use CPack —
+# -- or use CPack --
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
     -DSECP256K1_BUILD_SHARED=ON -DSECP256K1_INSTALL=ON
 cmake --build build

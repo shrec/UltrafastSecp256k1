@@ -1038,7 +1038,7 @@ static bool test_squared_scalars(bool verbose) {
 }
 
 static bool test_bilinearity_K_times_Q(bool verbose) {
-    if (verbose) std::cout << "\nBilinearity: K*(Q±G) vs K*Q ± K*G\n";
+    if (verbose) std::cout << "\nBilinearity: K*(Q+-G) vs K*Q +- K*G\n";
     bool ok = true;
     const char* KHEX[] = {
         "0000000000000000000000000000000000000000000000000000000000000005",
@@ -1908,7 +1908,7 @@ static bool test_generator_mul_windowed_op(bool verbose) {
     return ok;
 }
 
-// ── ECDSA Sign + Verify Test ─────────────────────────────────────────────────
+// -- ECDSA Sign + Verify Test -------------------------------------------------
 
 __global__ void kernel_ecdsa_sign_verify(
     const uint8_t* msg_hash, const Scalar* priv_key,
@@ -2045,7 +2045,7 @@ static bool test_ecdsa_sign_verify_op(bool verbose) {
         cudaFree(d_sign_ok); cudaFree(d_verify_ok);
     }
 
-    // Test 4: low-S normalization — verify signature r,s are both non-zero and s is low
+    // Test 4: low-S normalization -- verify signature r,s are both non-zero and s is low
     {
         HostScalar priv = HostScalar::from_uint64(7);
         Scalar h_priv = priv.to_device();
@@ -2147,7 +2147,7 @@ __global__ void kernel_schnorr_verify_bad_msg(
     uint8_t pk_bytes[32];
     field_to_bytes(&px, pk_bytes);
 
-    // Verify with wrong message — should fail
+    // Verify with wrong message -- should fail
     uint8_t bad_msg[32];
     for (int i = 0; i < 32; i++) bad_msg[i] = d_msg[i] ^ 0xFF;
     *d_result = !schnorr_verify(pk_bytes, bad_msg, &sig);  // expect rejection
@@ -2294,7 +2294,7 @@ static bool test_ecdh_op(bool verbose) {
     if (verbose) std::cout << "\nECDH Shared Secret:\n";
     bool ok = true;
 
-    // Test 1: ECDH x-only — both parties compute same shared secret
+    // Test 1: ECDH x-only -- both parties compute same shared secret
     {
         Scalar privA = {}, privB = {};
         privA.limbs[0] = 42;
@@ -2335,7 +2335,7 @@ static bool test_ecdh_op(bool verbose) {
         cudaFree(d_okA); cudaFree(d_okB);
     }
 
-    // Test 2: ECDH raw — same property
+    // Test 2: ECDH raw -- same property
     {
         Scalar privA = {}, privB = {};
         privA.limbs[0] = 0xCAFEBABEULL;

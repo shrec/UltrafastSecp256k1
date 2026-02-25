@@ -4,7 +4,7 @@
 //
 // Deterministic pseudo-fuzz: generates random & adversarial byte sequences and
 // feeds them to the C API parsers.  Contract: parsers must either succeed with
-// valid output or return an error code — never crash, hang, or corrupt memory.
+// valid output or return an error code -- never crash, hang, or corrupt memory.
 //
 // Covers roadmap tasks:
 //   2.3.1  DER signature parsing fuzz
@@ -32,7 +32,7 @@
 #include "secp256k1/ecdsa.hpp"
 #include "secp256k1/scalar.hpp"
 
-// ── Infrastructure ──────────────────────────────────────────────────────────
+// -- Infrastructure ----------------------------------------------------------
 
 static int g_pass  = 0;
 static int g_fail  = 0;
@@ -71,7 +71,7 @@ static std::array<uint8_t, 32> random32() {
     return out;
 }
 
-// ── Test 1: DER Parsing — Random Bytes ──────────────────────────────────────
+// -- Test 1: DER Parsing -- Random Bytes --------------------------------------
 
 static void test_der_random(ufsecp_ctx* ctx) {
     const int N = 100000;
@@ -91,7 +91,7 @@ static void test_der_random(ufsecp_ctx* ctx) {
                 N, accepted, N - accepted);
 }
 
-// ── Test 2: DER Parsing — Adversarial Inputs ────────────────────────────────
+// -- Test 2: DER Parsing -- Adversarial Inputs --------------------------------
 
 static void test_der_adversarial(ufsecp_ctx* ctx) {
     std::printf("[2] DER Parsing: Adversarial Inputs\n");
@@ -152,7 +152,7 @@ static void test_der_adversarial(ufsecp_ctx* ctx) {
         uint8_t zeros[] = {0x30, 0x06, 0x02, 0x01, 0x00, 0x02, 0x01, 0x00};
         // Parser should accept (structural parse OK); verification would fail later
         ufsecp_error_t err = ufsecp_ecdsa_sig_from_der(ctx, zeros, 8, sig64);
-        // Either accepted or rejected is fine — no crash
+        // Either accepted or rejected is fine -- no crash
         ++g_pass;
     }
 
@@ -175,11 +175,11 @@ static void test_der_adversarial(ufsecp_ctx* ctx) {
     std::printf("    %d checks OK\n\n", g_pass);
 }
 
-// ── Test 3: DER Round-Trip ──────────────────────────────────────────────────
+// -- Test 3: DER Round-Trip --------------------------------------------------
 
 static void test_der_roundtrip(ufsecp_ctx* ctx) {
     const int N = 50000;
-    std::printf("[3] DER Round-Trip: Compact → DER → Compact (%d rounds)\n", N);
+    std::printf("[3] DER Round-Trip: Compact -> DER -> Compact (%d rounds)\n", N);
 
     for (int i = 0; i < N; ++i) {
         // Generate valid signature via actual signing
@@ -190,13 +190,13 @@ static void test_der_roundtrip(ufsecp_ctx* ctx) {
         ufsecp_error_t err = ufsecp_ecdsa_sign(ctx, msg.data(), sk.data(), sig64);
         if (err != UFSECP_OK) continue; // invalid key, skip
 
-        // Compact → DER
+        // Compact -> DER
         uint8_t der[72] = {};
         size_t der_len = 72;
         err = ufsecp_ecdsa_sig_to_der(ctx, sig64, der, &der_len);
         CHECK(err == UFSECP_OK, "to_der OK");
 
-        // DER → Compact
+        // DER -> Compact
         uint8_t sig64_back[64] = {};
         err = ufsecp_ecdsa_sig_from_der(ctx, der, der_len, sig64_back);
         CHECK(err == UFSECP_OK, "from_der OK");
@@ -207,7 +207,7 @@ static void test_der_roundtrip(ufsecp_ctx* ctx) {
     std::printf("    %d checks OK\n\n", g_pass);
 }
 
-// ── Test 4: Schnorr Signature — Random Bytes ────────────────────────────────
+// -- Test 4: Schnorr Signature -- Random Bytes --------------------------------
 
 static void test_schnorr_random(ufsecp_ctx* ctx) {
     const int N = 100000;
@@ -216,7 +216,7 @@ static void test_schnorr_random(ufsecp_ctx* ctx) {
 
     for (int i = 0; i < N; ++i) {
         auto msg = random32();
-        auto sig = random32();  // only 32 bytes — incomplete, but still shouldn't crash
+        auto sig = random32();  // only 32 bytes -- incomplete, but still shouldn't crash
         auto pk  = random32();
 
         // Feed random 64-byte sig (two random32 concatenated)
@@ -234,11 +234,11 @@ static void test_schnorr_random(ufsecp_ctx* ctx) {
                 N, accepted, N - accepted);
 }
 
-// ── Test 5: Schnorr Round-Trip ──────────────────────────────────────────────
+// -- Test 5: Schnorr Round-Trip ----------------------------------------------
 
 static void test_schnorr_roundtrip(ufsecp_ctx* ctx) {
     const int N = 10000;
-    std::printf("[5] Schnorr Round-Trip: Sign → Verify (%d rounds)\n", N);
+    std::printf("[5] Schnorr Round-Trip: Sign -> Verify (%d rounds)\n", N);
 
     for (int i = 0; i < N; ++i) {
         auto sk  = random32();
@@ -259,7 +259,7 @@ static void test_schnorr_roundtrip(ufsecp_ctx* ctx) {
         err = ufsecp_schnorr_verify(ctx, msg.data(), sig64, xonly);
         CHECK(err == UFSECP_OK, "schnorr verify own sig");
 
-        // Flip one bit in signature → must fail
+        // Flip one bit in signature -> must fail
         sig64[rng() % 64] ^= static_cast<uint8_t>(1u << (rng() % 8));
         err = ufsecp_schnorr_verify(ctx, msg.data(), sig64, xonly);
         CHECK(err != UFSECP_OK, "schnorr verify bit-flip rejected");
@@ -267,7 +267,7 @@ static void test_schnorr_roundtrip(ufsecp_ctx* ctx) {
     std::printf("    %d checks OK\n\n", g_pass);
 }
 
-// ── Test 6: Pubkey Parse — Random Bytes ─────────────────────────────────────
+// -- Test 6: Pubkey Parse -- Random Bytes -------------------------------------
 
 static void test_pubkey_parse_random(ufsecp_ctx* ctx) {
     const int N = 100000;
@@ -300,11 +300,11 @@ static void test_pubkey_parse_random(ufsecp_ctx* ctx) {
                 N, accepted, N - accepted);
 }
 
-// ── Test 7: Pubkey Round-Trip ───────────────────────────────────────────────
+// -- Test 7: Pubkey Round-Trip -----------------------------------------------
 
 static void test_pubkey_roundtrip(ufsecp_ctx* ctx) {
     const int N = 10000;
-    std::printf("[7] Pubkey Round-Trip: Create → Parse (%d rounds)\n", N);
+    std::printf("[7] Pubkey Round-Trip: Create -> Parse (%d rounds)\n", N);
 
     for (int i = 0; i < N; ++i) {
         auto sk = random32();
@@ -328,12 +328,12 @@ static void test_pubkey_roundtrip(ufsecp_ctx* ctx) {
         err = ufsecp_pubkey_parse(ctx, pk65, 65, pk33_from65);
         CHECK(err == UFSECP_OK, "parse uncompressed OK");
         CHECK(std::memcmp(pk33, pk33_from65, 33) == 0,
-              "uncompressed → compressed matches");
+              "uncompressed -> compressed matches");
     }
     std::printf("    %d checks OK\n\n", g_pass);
 }
 
-// ── Test 8: Pubkey Adversarial ──────────────────────────────────────────────
+// -- Test 8: Pubkey Adversarial ----------------------------------------------
 
 static void test_pubkey_adversarial(ufsecp_ctx* ctx) {
     std::printf("[8] Pubkey Parse: Adversarial Inputs\n");
@@ -399,7 +399,7 @@ static void test_pubkey_adversarial(ufsecp_ctx* ctx) {
     std::printf("    %d checks OK\n\n", g_pass);
 }
 
-// ── Test 9: ECDSA Verify — Random Garbage ───────────────────────────────────
+// -- Test 9: ECDSA Verify -- Random Garbage -----------------------------------
 
 static void test_ecdsa_verify_random(ufsecp_ctx* ctx) {
     const int N = 50000;
@@ -431,7 +431,7 @@ static void test_ecdsa_verify_random(ufsecp_ctx* ctx) {
                 N, accepted);
 }
 
-// ── _run() entry point for unified audit runner ─────────────────────────────
+// -- _run() entry point for unified audit runner -----------------------------
 
 int test_fuzz_parsers_run() {
     g_pass = 0; g_fail = 0;
@@ -457,15 +457,15 @@ int test_fuzz_parsers_run() {
     return g_fail > 0 ? 1 : 0;
 }
 
-// ── Main (standalone) ───────────────────────────────────────────────────────
+// -- Main (standalone) -------------------------------------------------------
 
 #ifndef UNIFIED_AUDIT_RUNNER
 int main(int argc, char* argv[]) {
     std::printf(
-        "════════════════════════════════════════════════════════════\n"
+        "============================================================\n"
         "  Parser Fuzz Tests (DER + Schnorr + Pubkey)\n"
         "  Seed: 0xDEADBEEF (deterministic)\n"
-        "════════════════════════════════════════════════════════════\n\n");
+        "============================================================\n\n");
 
     ufsecp_ctx* ctx = nullptr;
     ufsecp_error_t err = ufsecp_ctx_create(&ctx);
@@ -488,9 +488,9 @@ int main(int argc, char* argv[]) {
     ufsecp_ctx_destroy(ctx);
 
     std::printf(
-        "\n════════════════════════════════════════════════════════════\n"
+        "\n============================================================\n"
         "  TOTAL: %d passed, %d failed\n"
-        "════════════════════════════════════════════════════════════\n",
+        "============================================================\n",
         g_pass, g_fail);
 
     return g_fail > 0 ? 1 : 0;

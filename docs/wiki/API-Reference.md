@@ -374,7 +374,7 @@ Hardware-accelerated when SHA-NI is available.
 #include <secp256k1/ct/point.hpp>  // CT point operations
 ```
 
-All CT functions operate on the **same types** as `fast::` (`FieldElement`, `Scalar`, `Point`). Both namespaces are always compiled — no flags or `#ifdef` needed.
+All CT functions operate on the **same types** as `fast::` (`FieldElement`, `Scalar`, `Point`). Both namespaces are always compiled -- no flags or `#ifdef` needed.
 
 ---
 

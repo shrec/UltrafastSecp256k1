@@ -2,22 +2,22 @@
 
 Thank you for your interest in contributing to UltrafastSecp256k1! This document provides guidelines for contributing to the project.
 
-## ⚠️ Requirements for Acceptable Contributions
+## [!] Requirements for Acceptable Contributions
 
 All contributions **MUST** comply with the following before they can be accepted:
 
-1. **Coding Standards** — read and follow the [Coding Standards](https://github.com/shrec/UltrafastSecp256k1/blob/main/docs/CODING_STANDARDS.md) document in full
-2. **All tests pass** — `ctest --test-dir build-dev --output-on-failure`
-3. **Code formatted** — `clang-format -i <files>` (`.clang-format` config in repo root)
-4. **No compiler warnings** — clean build with `-Wall -Wextra`
-5. **License** — all contributions are licensed under [AGPL-3.0-or-later](https://github.com/shrec/UltrafastSecp256k1/blob/main/LICENSE)
-6. **Security** — follow the [Security Policy](https://github.com/shrec/UltrafastSecp256k1/blob/main/SECURITY.md); never open public issues for vulnerabilities
+1. **Coding Standards** -- read and follow the [Coding Standards](https://github.com/shrec/UltrafastSecp256k1/blob/main/docs/CODING_STANDARDS.md) document in full
+2. **All tests pass** -- `ctest --test-dir build-dev --output-on-failure`
+3. **Code formatted** -- `clang-format -i <files>` (`.clang-format` config in repo root)
+4. **No compiler warnings** -- clean build with `-Wall -Wextra`
+5. **License** -- all contributions are licensed under [AGPL-3.0-or-later](https://github.com/shrec/UltrafastSecp256k1/blob/main/LICENSE)
+6. **Security** -- follow the [Security Policy](https://github.com/shrec/UltrafastSecp256k1/blob/main/SECURITY.md); never open public issues for vulnerabilities
 
 Pull requests that do not meet these requirements will be rejected.
 
 ## 📋 Table of Contents
 
-- [Requirements for Acceptable Contributions](#️-requirements-for-acceptable-contributions)
+- [Requirements for Acceptable Contributions](#-requirements-for-acceptable-contributions)
 - [Developer Certificate of Origin (DCO)](#developer-certificate-of-origin-dco)
 - [Code of Conduct](#code-of-conduct)
 - [Getting Started](#getting-started)
@@ -203,7 +203,7 @@ TEST(FieldElement, MultiplicationIsCommutative) {
 5. **Update documentation** if needed
 6. **Add tests** for new features
 
-A PR checklist template is automatically applied — see [.github/PULL_REQUEST_TEMPLATE.md](https://github.com/shrec/UltrafastSecp256k1/blob/main/.github/PULL_REQUEST_TEMPLATE.md).
+A PR checklist template is automatically applied -- see [.github/PULL_REQUEST_TEMPLATE.md](https://github.com/shrec/UltrafastSecp256k1/blob/main/.github/PULL_REQUEST_TEMPLATE.md).
 
 ### Review Process
 
@@ -238,24 +238,24 @@ A PR checklist template is automatically applied — see [.github/PULL_REQUEST_T
 - **Zero-knowledge proof** integration
 - **Threshold signatures** (FROST, GG20)
 
-### Already Implemented ✅
+### Already Implemented [OK]
 
 The following were previously listed as desired contributions and are now part of v3.12:
 
-- ✅ ARM64/AArch64 assembly optimizations (MUL/UMULH)
-- ✅ OpenCL implementation (3.39M kG/s)
-- ✅ WebAssembly port (Emscripten, npm package)
-- ✅ Constant-time layer (ct:: namespace)
-- ✅ ECDSA signatures (RFC 6979)
-- ✅ Schnorr signatures (BIP-340)
-- ✅ iOS support (XCFramework, SPM, CocoaPods)
-- ✅ Android NDK support
-- ✅ ROCm/HIP GPU support
-- ✅ ESP32/STM32 embedded support
-- ✅ Linux distribution packaging (DEB, RPM, Arch/AUR)
-- ✅ Docker multi-stage build
-- ✅ Clang-tidy CI integration
-- ✅ GitHub Scorecard + OpenSSF Best Practices badge
+- [OK] ARM64/AArch64 assembly optimizations (MUL/UMULH)
+- [OK] OpenCL implementation (3.39M kG/s)
+- [OK] WebAssembly port (Emscripten, npm package)
+- [OK] Constant-time layer (ct:: namespace)
+- [OK] ECDSA signatures (RFC 6979)
+- [OK] Schnorr signatures (BIP-340)
+- [OK] iOS support (XCFramework, SPM, CocoaPods)
+- [OK] Android NDK support
+- [OK] ROCm/HIP GPU support
+- [OK] ESP32/STM32 embedded support
+- [OK] Linux distribution packaging (DEB, RPM, Arch/AUR)
+- [OK] Docker multi-stage build
+- [OK] Clang-tidy CI integration
+- [OK] GitHub Scorecard + OpenSSF Best Practices badge
 
 ## 🐛 Reporting Issues
 

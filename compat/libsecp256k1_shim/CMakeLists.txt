@@ -4,7 +4,7 @@ project(secp256k1_shim LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# ── Shim library ──────────────────────────────────────────────────────────────
+# -- Shim library --------------------------------------------------------------
 
 add_library(secp256k1_shim STATIC
     src/shim_context.cpp
@@ -16,7 +16,7 @@ add_library(secp256k1_shim STATIC
     src/shim_tagged_hash.cpp
 )
 
-# Public includes — exposes libsecp256k1-compatible headers
+# Public includes -- exposes libsecp256k1-compatible headers
 target_include_directories(secp256k1_shim PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
@@ -28,10 +28,10 @@ if(TARGET secp256k1_fast)
     target_link_libraries(secp256k1_shim PRIVATE secp256k1_fast)
 else()
     # Fallback: expect the main library's include path
-    message(WARNING "secp256k1_fast target not found — add UltrafastSecp256k1 via add_subdirectory first")
+    message(WARNING "secp256k1_fast target not found -- add UltrafastSecp256k1 via add_subdirectory first")
 endif()
 
-# ── Optional: test that the shim compiles ─────────────────────────────────────
+# -- Optional: test that the shim compiles -------------------------------------
 
 option(SECP256K1_SHIM_BUILD_TESTS "Build shim tests" OFF)
 

@@ -26,11 +26,11 @@ cd examples/stm32_test
 ```
 
 **Flash procedure:**
-1. Set BOOT0 jumper → HIGH (3.3V)
+1. Set BOOT0 jumper -> HIGH (3.3V)
 2. Press RESET on board
 3. Run `flash_stm32.ps1`
-4. After flashing, set BOOT0 → LOW (GND)
-5. Press RESET — output appears on COM4
+4. After flashing, set BOOT0 -> LOW (GND)
+5. Press RESET -- output appears on COM4
 
 ### Manual Build
 ```powershell
@@ -59,8 +59,8 @@ due to 64KB SRAM constraint. Uses GLV+Shamir instead.
 
 | Operation | Estimated |
 |-----------|-----------|
-| Field Mul | ~18 μs |
-| Field Square | ~14 μs |
+| Field Mul | ~18 us |
+| Field Square | ~14 us |
 | Field Inversion | ~5 ms |
 | Scalar*G (GLV+Shamir) | ~35 ms |
 
@@ -73,7 +73,7 @@ Uses the same optimized code paths as ESP32:
 - GLV decomposition + Shamir's trick for scalar multiplication
 - No exceptions, no RTTI (bare-metal friendly)
 
-The Cortex-M3 UMULL instruction (32×32→64) runs in 3-5 cycles,
+The Cortex-M3 UMULL instruction (32x32->64) runs in 3-5 cycles,
 comparable to ESP32's Xtensa MULL.
 
 ## Platform Macro

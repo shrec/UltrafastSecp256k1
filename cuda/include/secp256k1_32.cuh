@@ -374,9 +374,9 @@ __device__ __forceinline__ void mont_reduce_512(uint32_t* r) {
 }
 
 __device__ __forceinline__ void field_reduce_std(uint32_t* wide, FieldElement* r) {
-    // Reduction formula: 2^256 ≡ 2^32 + 977 (mod P)
+    // Reduction formula: 2^256 == 2^32 + 977 (mod P)
     // For high limb h at position 8+i:
-    //   h * 2^(256+32i) ≡ h * (2^32 + 977) * 2^(32i)
+    //   h * 2^(256+32i) == h * (2^32 + 977) * 2^(32i)
     //                   = h*977 at position i + h at position i+1
     
     // Multi-pass reduction: Keep reducing until high limbs are zero

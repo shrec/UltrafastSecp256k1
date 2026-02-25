@@ -1,7 +1,7 @@
 # ============================================================================
-# PGO (Profile-Guided Optimization) Build Script — Windows (MSVC / Clang-CL)
+# PGO (Profile-Guided Optimization) Build Script -- Windows (MSVC / Clang-CL)
 # ============================================================================
-# Three-phase build: Instrument → Profile → Optimize
+# Three-phase build: Instrument -> Profile -> Optimize
 # Expected improvement: 10-25% on scalar multiplication hot paths.
 #
 # Usage: .\build_pgo.ps1 [-Compiler msvc|clang] [-Jobs 4]
@@ -18,10 +18,10 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $BuildDir  = Join-Path $ScriptDir "build/pgo"
 $PGODir    = Join-Path $BuildDir "pgo_profiles"
 
-# ── Phase 1: Instrumentation ──────────────────────────────────────────────
+# -- Phase 1: Instrumentation ----------------------------------------------
 
 Write-Host "`n=============================================="
-Write-Host "  PGO Build — Phase 1: Instrumentation"
+Write-Host "  PGO Build -- Phase 1: Instrumentation"
 Write-Host "  Compiler: $Compiler"
 Write-Host "==============================================`n"
 
@@ -48,10 +48,10 @@ if ($LASTEXITCODE -ne 0) { throw "CMake configure failed" }
 cmake --build $BuildDir --config Release -j $Jobs
 if ($LASTEXITCODE -ne 0) { throw "Build (instrumented) failed" }
 
-# ── Phase 2: Profiling ────────────────────────────────────────────────────
+# -- Phase 2: Profiling ----------------------------------------------------
 
 Write-Host "`n=============================================="
-Write-Host "  PGO Build — Phase 2: Profiling"
+Write-Host "  PGO Build -- Phase 2: Profiling"
 Write-Host "==============================================`n"
 
 # Run CTest to exercise hot paths
@@ -66,10 +66,10 @@ Get-ChildItem -Path $BuildDir -Recurse -Filter "*bench*" |
         & $_.FullName 2>$null
     }
 
-# ── Phase 3: Merge & Optimize ────────────────────────────────────────────
+# -- Phase 3: Merge & Optimize --------------------------------------------
 
 Write-Host "`n=============================================="
-Write-Host "  PGO Build — Phase 3: Optimize"
+Write-Host "  PGO Build -- Phase 3: Optimize"
 Write-Host "==============================================`n"
 
 if ($Compiler -eq "clang") {
@@ -103,10 +103,10 @@ if ($LASTEXITCODE -ne 0) { throw "CMake configure (PGO-USE) failed" }
 cmake --build $BuildDir --config Release -j $Jobs
 if ($LASTEXITCODE -ne 0) { throw "Build (PGO-optimized) failed" }
 
-# ── Verification ──────────────────────────────────────────────────────────
+# -- Verification ----------------------------------------------------------
 
 Write-Host "`n=============================================="
-Write-Host "  PGO Build — Verification"
+Write-Host "  PGO Build -- Verification"
 Write-Host "==============================================`n"
 
 ctest --test-dir $BuildDir -C Release --output-on-failure
@@ -117,7 +117,7 @@ if ($LASTEXITCODE -eq 0) {
 }
 
 Write-Host "`n=============================================="
-Write-Host "  PGO Build — Complete!"
+Write-Host "  PGO Build -- Complete!"
 Write-Host "=============================================="
 Write-Host ""
 Write-Host "  Library: $BuildDir\libs\UltrafastSecp256k1\cpu\Release\fastsecp256k1.lib"

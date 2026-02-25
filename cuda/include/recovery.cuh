@@ -1,6 +1,6 @@
 #pragma once
 // ============================================================================
-// ECDSA Key Recovery — CUDA device implementation
+// ECDSA Key Recovery -- CUDA device implementation
 // ============================================================================
 // - ecdsa_sign_recoverable: ECDSA sign with recovery ID (recid 0-3)
 // - ecdsa_recover: recover public key from signature + recid
@@ -19,14 +19,14 @@
 namespace secp256k1 {
 namespace cuda {
 
-// ── Recoverable Signature ────────────────────────────────────────────────────
+// -- Recoverable Signature ----------------------------------------------------
 
 struct RecoverableSignatureGPU {
     ECDSASignatureGPU sig;
     int recid;  // 0-3
 };
 
-// ── Lift x-coordinate to curve point ─────────────────────────────────────────
+// -- Lift x-coordinate to curve point -----------------------------------------
 // Given x as FieldElement, compute point with y parity matching `parity`.
 // Returns false if x is not on the curve.
 
@@ -35,7 +35,7 @@ __device__ inline bool lift_x_field(
     int parity,
     JacobianPoint* p)
 {
-    // y² = x³ + 7
+    // y^2 = x^3 + 7
     FieldElement x2, x3, y2, seven, y;
     field_sqr(x_fe, &x2);
     field_mul(&x2, x_fe, &x3);
@@ -45,10 +45,10 @@ __device__ inline bool lift_x_field(
 
     field_add(&x3, &seven, &y2);
 
-    // y = sqrt(y²) = y2^((p+1)/4)
+    // y = sqrt(y^2) = y2^((p+1)/4)
     field_sqrt(&y2, &y);
 
-    // Verify: y² == y2 (compare via normalized bytes to handle unreduced limbs)
+    // Verify: y^2 == y2 (compare via normalized bytes to handle unreduced limbs)
     FieldElement y_check;
     field_sqr(&y, &y_check);
     uint8_t y_check_bytes[32], y2_bytes_cmp[32];
@@ -77,7 +77,7 @@ __device__ inline bool lift_x_field(
     return true;
 }
 
-// ── ECDSA Sign with Recovery ID ──────────────────────────────────────────────
+// -- ECDSA Sign with Recovery ID ----------------------------------------------
 
 __device__ inline bool ecdsa_sign_recoverable(
     const uint8_t msg_hash[32],
@@ -138,7 +138,7 @@ __device__ inline bool ecdsa_sign_recoverable(
     }
     if (overflow) recid |= 2;
 
-    // s = k⁻¹ * (z + r*d) mod n
+    // s = k^-^1 * (z + r*d) mod n
     Scalar k_inv;
     scalar_inverse(&k, &k_inv);
 
@@ -184,8 +184,8 @@ __device__ inline bool ecdsa_sign_recoverable(
     return true;
 }
 
-// ── ECDSA Public Key Recovery ────────────────────────────────────────────────
-// Q = r⁻¹ * (s*R - z*G)
+// -- ECDSA Public Key Recovery ------------------------------------------------
+// Q = r^-^1 * (s*R - z*G)
 
 __device__ inline bool ecdsa_recover(
     const uint8_t msg_hash[32],
@@ -212,7 +212,7 @@ __device__ inline bool ecdsa_recover(
         }
 
         if (recid & 2) {
-            // Add n to rx_fe (field addition — n as field element)
+            // Add n to rx_fe (field addition -- n as field element)
             FieldElement n_fe;
             n_fe.limbs[0] = ORDER[0];
             n_fe.limbs[1] = ORDER[1];
@@ -227,7 +227,7 @@ __device__ inline bool ecdsa_recover(
     JacobianPoint R;
     if (!lift_x_field(&rx_fe, y_parity, &R)) return false;
 
-    // Step 3: Recover public key Q = r⁻¹ * (s*R - z*G)
+    // Step 3: Recover public key Q = r^-^1 * (s*R - z*G)
     Scalar z;
     scalar_from_bytes(msg_hash, &z);
 

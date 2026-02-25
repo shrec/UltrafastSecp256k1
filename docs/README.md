@@ -1,6 +1,6 @@
 # UltrafastSecp256k1 Documentation
 
-> **Version 3.12.1** — Cross-platform secp256k1 ECC library
+> **Version 3.12.1** -- Cross-platform secp256k1 ECC library
 
 ---
 
@@ -19,10 +19,10 @@
 
 | Document | Description |
 |----------|-------------|
-| [Audit Guide](../AUDIT_GUIDE.md) | **Start here** — Auditor navigation, checklist, reproduction commands |
+| [Audit Guide](../AUDIT_GUIDE.md) | **Start here** -- Auditor navigation, checklist, reproduction commands |
 | [Architecture](ARCHITECTURE.md) | Technical architecture deep-dive for auditors |
 | [CT Verification](CT_VERIFICATION.md) | Constant-time methodology, dudect, known limitations |
-| [Test Matrix](TEST_MATRIX.md) | Function → test coverage map with gap analysis |
+| [Test Matrix](TEST_MATRIX.md) | Function -> test coverage map with gap analysis |
 | [Security Policy](../SECURITY.md) | Vulnerability reporting, audit status, production readiness |
 | [Threat Model](../THREAT_MODEL.md) | Layer-by-layer risk + attack surface analysis |
 | [Audit Report](../AUDIT_REPORT.md) | Internal audit: 641,194 checks, 8 suites, 0 failures |
@@ -97,98 +97,98 @@ int main() {
 
 ```
 UltrafastSecp256k1/
-├── cpu/                         # CPU library (C++20, header-only + compiled)
-│   ├── include/secp256k1/       # Public headers
-│   │   ├── field.hpp            #   Field element (mod p)
-│   │   ├── scalar.hpp           #   Scalar (mod n)
-│   │   ├── point.hpp            #   EC point operations
-│   │   ├── ecdsa.hpp            #   ECDSA sign/verify (RFC 6979)
-│   │   ├── schnorr.hpp          #   Schnorr BIP-340 sign/verify
-│   │   ├── sha256.hpp           #   SHA-256 hash
-│   │   ├── glv.hpp              #   GLV endomorphism
-│   │   ├── precompute.hpp       #   Generator table
-│   │   ├── ct/                  #   Constant-time variants
-│   │   └── types.hpp            #   Cross-backend POD types
-│   ├── src/                     # Implementation + platform ASM
-│   │   ├── field.cpp
-│   │   ├── field_asm_x64.asm    #   x86-64 BMI2/ADX
-│   │   ├── field_asm_riscv64.S  #   RISC-V RV64GC + RVV
-│   │   ├── field_asm_arm64.cpp  #   ARM64 MUL/UMULH
-│   │   ├── ecdsa.cpp
-│   │   ├── schnorr.cpp
-│   │   └── ...
-│   ├── tests/                   # CTest unit tests
-│   ├── bench/                   # Benchmarks
-│   └── fuzz/                    # libFuzzer harnesses
-│
-├── cuda/                        # CUDA + ROCm/HIP GPU library
-│   ├── include/
-│   │   ├── secp256k1.cuh        #   All device functions (field/point/scalar)
-│   │   ├── ptx_math.cuh         #   PTX inline asm (with __int128 fallback)
-│   │   ├── gpu_compat.h         #   CUDA ↔ HIP API mapping
-│   │   ├── batch_inversion.cuh  #   Montgomery trick batch inverse
-│   │   ├── bloom.cuh            #   Device-side Bloom filter
-│   │   └── hash160.cuh          #   SHA-256 + RIPEMD-160
-│   ├── app/                     #   Experimental search kernels
-│   └── src/                     #   Kernel wrappers, tests, benchmarks
-│
-├── opencl/                      # OpenCL GPU library
-│   ├── kernels/                 #   .cl kernel sources
-│   └── ...
-│
-├── wasm/                        # WebAssembly (Emscripten)
-│   ├── secp256k1_wasm.h         #   C API (11 functions)
-│   ├── secp256k1_wasm.cpp       #   Implementation
-│   ├── secp256k1.mjs            #   JS wrapper
-│   ├── secp256k1.d.ts           #   TypeScript declarations
-│   └── package.json             #   npm: @ultrafastsecp256k1/wasm
-│
-├── examples/
-│   ├── basic_usage/             #   Desktop C++ example
-│   ├── esp32_test/              #   ESP32-S3 / ESP32-PICO-D4
-│   └── stm32_test/              #   STM32F103ZET6 ARM Cortex-M3
-│
-├── cmake/
-│   ├── version.hpp.in           #   Auto-generated version header
-│   └── ios.toolchain.cmake      #   iOS cross-compilation toolchain
-│
-├── scripts/
-│   ├── build_wasm.sh            #   Emscripten WASM build
-│   └── build_xcframework.sh     #   iOS XCFramework build
-│
-├── .github/workflows/
-│   ├── ci.yml                   #   CI: Linux/Win/macOS/iOS/WASM/Android/ROCm
-│   └── docs.yml                 #   Doxygen → GitHub Pages
-│
-├── Package.swift                # Swift Package Manager
-├── UltrafastSecp256k1.podspec   # CocoaPods
-├── Doxyfile                     # Doxygen config
-└── CMakeLists.txt               # Top-level CMake (v3.0.0)
++-- cpu/                         # CPU library (C++20, header-only + compiled)
+|   +-- include/secp256k1/       # Public headers
+|   |   +-- field.hpp            #   Field element (mod p)
+|   |   +-- scalar.hpp           #   Scalar (mod n)
+|   |   +-- point.hpp            #   EC point operations
+|   |   +-- ecdsa.hpp            #   ECDSA sign/verify (RFC 6979)
+|   |   +-- schnorr.hpp          #   Schnorr BIP-340 sign/verify
+|   |   +-- sha256.hpp           #   SHA-256 hash
+|   |   +-- glv.hpp              #   GLV endomorphism
+|   |   +-- precompute.hpp       #   Generator table
+|   |   +-- ct/                  #   Constant-time variants
+|   |   +-- types.hpp            #   Cross-backend POD types
+|   +-- src/                     # Implementation + platform ASM
+|   |   +-- field.cpp
+|   |   +-- field_asm_x64.asm    #   x86-64 BMI2/ADX
+|   |   +-- field_asm_riscv64.S  #   RISC-V RV64GC + RVV
+|   |   +-- field_asm_arm64.cpp  #   ARM64 MUL/UMULH
+|   |   +-- ecdsa.cpp
+|   |   +-- schnorr.cpp
+|   |   +-- ...
+|   +-- tests/                   # CTest unit tests
+|   +-- bench/                   # Benchmarks
+|   +-- fuzz/                    # libFuzzer harnesses
+|
++-- cuda/                        # CUDA + ROCm/HIP GPU library
+|   +-- include/
+|   |   +-- secp256k1.cuh        #   All device functions (field/point/scalar)
+|   |   +-- ptx_math.cuh         #   PTX inline asm (with __int128 fallback)
+|   |   +-- gpu_compat.h         #   CUDA <-> HIP API mapping
+|   |   +-- batch_inversion.cuh  #   Montgomery trick batch inverse
+|   |   +-- bloom.cuh            #   Device-side Bloom filter
+|   |   +-- hash160.cuh          #   SHA-256 + RIPEMD-160
+|   +-- app/                     #   Experimental search kernels
+|   +-- src/                     #   Kernel wrappers, tests, benchmarks
+|
++-- opencl/                      # OpenCL GPU library
+|   +-- kernels/                 #   .cl kernel sources
+|   +-- ...
+|
++-- wasm/                        # WebAssembly (Emscripten)
+|   +-- secp256k1_wasm.h         #   C API (11 functions)
+|   +-- secp256k1_wasm.cpp       #   Implementation
+|   +-- secp256k1.mjs            #   JS wrapper
+|   +-- secp256k1.d.ts           #   TypeScript declarations
+|   +-- package.json             #   npm: @ultrafastsecp256k1/wasm
+|
++-- examples/
+|   +-- basic_usage/             #   Desktop C++ example
+|   +-- esp32_test/              #   ESP32-S3 / ESP32-PICO-D4
+|   +-- stm32_test/              #   STM32F103ZET6 ARM Cortex-M3
+|
++-- cmake/
+|   +-- version.hpp.in           #   Auto-generated version header
+|   +-- ios.toolchain.cmake      #   iOS cross-compilation toolchain
+|
++-- scripts/
+|   +-- build_wasm.sh            #   Emscripten WASM build
+|   +-- build_xcframework.sh     #   iOS XCFramework build
+|
++-- .github/workflows/
+|   +-- ci.yml                   #   CI: Linux/Win/macOS/iOS/WASM/Android/ROCm
+|   +-- docs.yml                 #   Doxygen -> GitHub Pages
+|
++-- Package.swift                # Swift Package Manager
++-- UltrafastSecp256k1.podspec   # CocoaPods
++-- Doxyfile                     # Doxygen config
++-- CMakeLists.txt               # Top-level CMake (v3.0.0)
 ```
 
 ## Supported Platforms
 
 | Platform | Architecture | Assembly | Status |
 |----------|-------------|----------|--------|
-| Linux x86-64 | BMI2/ADX | x86-64 ASM | ✅ Production |
-| Windows x86-64 | BMI2/ADX | x86-64 ASM | ✅ Production |
-| macOS x86-64 / ARM64 | Native | ARM64 ASM | ✅ Production |
-| RISC-V 64 | RV64GC + RVV | RISC-V ASM | ✅ Production |
-| Android ARM64 | Cortex-A55/A76 | ARM64 ASM | ✅ Production |
-| iOS 17+ | Apple Silicon | ARM64 ASM | ✅ CI (testers wanted) |
-| CUDA (sm_75+) | PTX | PTX inline | ✅ Production |
-| ROCm / HIP | GCN / RDNA | Portable | ✅ CI (testers wanted) |
-| OpenCL 3.0 | PTX | PTX inline | ✅ Production |
-| WebAssembly | Emscripten | Portable C++ | ✅ Production |
-| ESP32-S3 | Xtensa LX7 | Portable C++ | ✅ Tested |
-| ESP32-PICO-D4 | Xtensa LX6 | Portable C++ | ✅ Tested |
-| STM32F103 | Cortex-M3 | ARM Thumb ASM | ✅ Tested |
+| Linux x86-64 | BMI2/ADX | x86-64 ASM | [OK] Production |
+| Windows x86-64 | BMI2/ADX | x86-64 ASM | [OK] Production |
+| macOS x86-64 / ARM64 | Native | ARM64 ASM | [OK] Production |
+| RISC-V 64 | RV64GC + RVV | RISC-V ASM | [OK] Production |
+| Android ARM64 | Cortex-A55/A76 | ARM64 ASM | [OK] Production |
+| iOS 17+ | Apple Silicon | ARM64 ASM | [OK] CI (testers wanted) |
+| CUDA (sm_75+) | PTX | PTX inline | [OK] Production |
+| ROCm / HIP | GCN / RDNA | Portable | [OK] CI (testers wanted) |
+| OpenCL 3.0 | PTX | PTX inline | [OK] Production |
+| WebAssembly | Emscripten | Portable C++ | [OK] Production |
+| ESP32-S3 | Xtensa LX7 | Portable C++ | [OK] Tested |
+| ESP32-PICO-D4 | Xtensa LX6 | Portable C++ | [OK] Tested |
+| STM32F103 | Cortex-M3 | ARM Thumb ASM | [OK] Tested |
 
 ---
 
 ## License
 
-AGPL-3.0 — See [LICENSE](../LICENSE)
+AGPL-3.0 -- See [LICENSE](../LICENSE)
 
-Commercial licensing available — contact [payysoon@gmail.com](mailto:payysoon@gmail.com)
+Commercial licensing available -- contact [payysoon@gmail.com](mailto:payysoon@gmail.com)
 

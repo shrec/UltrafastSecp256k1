@@ -1147,8 +1147,8 @@ static void test_ct_utils() {
     // -- 5c: ct_memzero --------------------------------------------------
     {
         // Both classes: zero 32-byte buffer on the SAME memory.
-        // Class 0: pre-filled with pattern A →  ct_memzero  → same time
-        // Class 1: pre-filled with pattern B →  ct_memzero  → same time
+        // Class 0: pre-filled with pattern A ->  ct_memzero  -> same time
+        // Class 1: pre-filled with pattern B ->  ct_memzero  -> same time
         // Both classes use memcpy (symmetric write) to avoid store-buffer
         // asymmetry from memset-zero vs random_bytes on MSVC/Windows.
         alignas(64) uint8_t buf[32];
@@ -1378,7 +1378,7 @@ static void test_assembly_info() {
     printf("      awk '/ct.*:$/,/^$/' | grep -cE 'j[a-z]{1,3}\\s'\n");
 }
 
-// Exportable run function (for unified audit runner — smoke mode)
+// Exportable run function (for unified audit runner -- smoke mode)
 int test_ct_sidechannel_smoke_run() {
     g_pass = g_fail = 0;
     test_ct_primitives();

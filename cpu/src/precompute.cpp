@@ -89,7 +89,7 @@
 #include <iomanip>
 #endif
 
-// RDTSC benchmark helper — only compiled when profiling is enabled
+// RDTSC benchmark helper -- only compiled when profiling is enabled
 #if SECP256K1_PROFILE_DECOMP
   #if (defined(__x86_64__) || defined(_M_X64)) && (defined(__GNUC__) || defined(__clang__))
     static inline uint64_t RDTSC() {
@@ -417,7 +417,7 @@ static void mul64x64(std::uint64_t a, std::uint64_t b, std::uint64_t& lo, std::u
 }
 
 [[nodiscard]] UInt128 multiply_u64(std::uint64_t a, std::uint64_t b) {
-    // _umul128 dispatches to platform-optimal 64×64→128 multiply
+    // _umul128 dispatches to platform-optimal 64x64->128 multiply
     // (MSVC intrinsic, __int128, or portable 32-bit fallback)
     uint64_t hi = 0;
     const uint64_t lo = _umul128(a, b, &hi);
@@ -1412,7 +1412,7 @@ constexpr std::array<std::uint8_t, 32> kB2MagBytes{
 
 // Multiply two 64-bit numbers to get 128-bit result
 static void mul64x64(std::uint64_t a, std::uint64_t b, std::uint64_t& lo, std::uint64_t& hi) {
-    // _umul128 dispatches to platform-optimal 64×64→128 multiply
+    // _umul128 dispatches to platform-optimal 64x64->128 multiply
     lo = _umul128(a, b, &hi);
 }
 

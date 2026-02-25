@@ -1,19 +1,19 @@
-# ultrafast_secp256k1 — C API
+# ultrafast_secp256k1 -- C API
 
-Standalone C header-only API for [UltrafastSecp256k1](https://github.com/shrec/UltrafastSecp256k1) — high-performance secp256k1 elliptic curve cryptography.
+Standalone C header-only API for [UltrafastSecp256k1](https://github.com/shrec/UltrafastSecp256k1) -- high-performance secp256k1 elliptic curve cryptography.
 
 This is a **stateless** API with `secp256k1_*` naming (no context object). It differs from the main `ufsecp_*` context-based API.
 
 ## Features
 
-- **ECDSA** — sign, verify, DER serialization (RFC 6979)
-- **Schnorr** — BIP-340 sign/verify
-- **ECDH** — shared secret
-- **BIP-32** — HD key derivation
-- **Taproot** — output key tweaking, commitment verification (BIP-341)
-- **Addresses** — P2PKH, P2WPKH, P2TR
-- **WIF** — encode/decode
-- **Hashing** — SHA-256, HASH160
+- **ECDSA** -- sign, verify, DER serialization (RFC 6979)
+- **Schnorr** -- BIP-340 sign/verify
+- **ECDH** -- shared secret
+- **BIP-32** -- HD key derivation
+- **Taproot** -- output key tweaking, commitment verification (BIP-341)
+- **Addresses** -- P2PKH, P2WPKH, P2TR
+- **WIF** -- encode/decode
+- **Hashing** -- SHA-256, HASH160
 
 ## Quick Start
 

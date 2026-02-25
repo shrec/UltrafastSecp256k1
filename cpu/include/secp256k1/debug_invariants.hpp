@@ -1,6 +1,6 @@
 // ============================================================================
 // Debug Invariant Assertions for Hot Paths
-// Phase V, Task 5.3.3 — Compile-time gated, zero overhead in release
+// Phase V, Task 5.3.3 -- Compile-time gated, zero overhead in release
 // ============================================================================
 // Include this header in source files that need debug-mode invariant checking.
 //
@@ -32,7 +32,7 @@
 #include <cstdlib>
 #include <cstdint>
 
-// ── Release builds: zero overhead ────────────────────────────────────────
+// -- Release builds: zero overhead ----------------------------------------
 
 #if defined(NDEBUG) && !defined(SECP256K1_FORCE_INVARIANTS)
 
@@ -47,7 +47,7 @@
 #define SECP_DEBUG_COUNTER_INC(name)     ((void)0)
 #define SECP_DEBUG_COUNTER_REPORT()      ((void)0)
 
-// ── Debug builds: full checking ──────────────────────────────────────────
+// -- Debug builds: full checking ------------------------------------------
 
 #else
 
@@ -76,7 +76,7 @@ inline bool is_normalized_field_element(const FieldElement& fe) noexcept {
         if (l[i] < P[i]) return true;
         if (l[i] > P[i]) return false;
     }
-    // Equal to p — not canonical (should be reduced to 0)
+    // Equal to p -- not canonical (should be reduced to 0)
     return false;
 }
 
@@ -141,7 +141,7 @@ inline DebugCounters& counters() noexcept {
 
 } // namespace secp256k1::fast::debug
 
-// ── Assertion macros ────────────────────────────────────────────────────
+// -- Assertion macros ----------------------------------------------------
 
 #define SECP_ASSERT(expr) do { \
     if (!(expr)) { \

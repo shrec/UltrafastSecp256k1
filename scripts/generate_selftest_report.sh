@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ============================================================================
 # Selftest JSON Reporter
-# Phase IV, Tasks 4.1.4–4.1.5 — Machine-readable test results for releases
+# Phase IV, Tasks 4.1.4-4.1.5 -- Machine-readable test results for releases
 # ============================================================================
 # Builds and runs the complete test suite, capturing structured output in JSON.
 # This script is designed to be integrated into CI release pipelines.
@@ -20,14 +20,14 @@ SRC_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 BUILD_DIR="${1:-$SRC_DIR/build/selftest-report}"
 REPORT="$BUILD_DIR/selftest_report.json"
 
-echo "═══════════════════════════════════════════════════════════"
+echo "==========================================================="
 echo "  Selftest JSON Reporter"
-echo "═══════════════════════════════════════════════════════════"
+echo "==========================================================="
 echo "  Source: $SRC_DIR"
 echo "  Build:  $BUILD_DIR"
 echo ""
 
-# ── Build ─────────────────────────────────────────────────────────────────
+# -- Build -----------------------------------------------------------------
 
 echo "[1/3] Building..."
 cmake -S "$SRC_DIR" -B "$BUILD_DIR" -G Ninja \
@@ -38,7 +38,7 @@ cmake -S "$SRC_DIR" -B "$BUILD_DIR" -G Ninja \
 
 cmake --build "$BUILD_DIR" -j"$(nproc)" 2>&1 | tail -3
 
-# ── Run CTest and capture ────────────────────────────────────────────────
+# -- Run CTest and capture ------------------------------------------------
 
 echo "[2/3] Running CTest..."
 CTEST_LOG="$BUILD_DIR/ctest_output.log"
@@ -53,7 +53,7 @@ ctest --test-dir "$BUILD_DIR" \
 CTEST_EXIT=$?
 set -e
 
-# ── Parse CTest output ──────────────────────────────────────────────────
+# -- Parse CTest output --------------------------------------------------
 
 echo "[3/3] Generating JSON report..."
 
@@ -84,14 +84,14 @@ while IFS= read -r line; do
     fi
 done < "$CTEST_LOG"
 
-# ── Get version ──────────────────────────────────────────────────────────
+# -- Get version ----------------------------------------------------------
 
 VERSION="unknown"
 if [[ -f "$SRC_DIR/VERSION.txt" ]]; then
     VERSION=$(cat "$SRC_DIR/VERSION.txt" | tr -d '[:space:]')
 fi
 
-# ── Get git info ─────────────────────────────────────────────────────────
+# -- Get git info ---------------------------------------------------------
 
 GIT_COMMIT="unknown"
 GIT_BRANCH="unknown"
@@ -100,7 +100,7 @@ if command -v git &>/dev/null && [[ -d "$SRC_DIR/.git" ]]; then
     GIT_BRANCH=$(cd "$SRC_DIR" && git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
 fi
 
-# ── Generate JSON ────────────────────────────────────────────────────────
+# -- Generate JSON --------------------------------------------------------
 
 cat > "$REPORT" <<EOF
 {
@@ -129,10 +129,10 @@ cat > "$REPORT" <<EOF
 EOF
 
 echo ""
-echo "═══════════════════════════════════════════════════════════"
+echo "==========================================================="
 echo "  Report: $REPORT"
 echo "  Tests:  $PASSED_TESTS/$TOTAL_TESTS passed"
 echo "  Status: $([ "$CTEST_EXIT" -eq 0 ] && echo "ALL PASS" || echo "FAILURES DETECTED")"
-echo "═══════════════════════════════════════════════════════════"
+echo "==========================================================="
 
 exit $CTEST_EXIT

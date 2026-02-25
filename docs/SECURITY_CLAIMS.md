@@ -1,6 +1,6 @@
 # Security Claims & API Contract
 
-**UltrafastSecp256k1 v3.13.0** — FAST / CT Dual-Layer Architecture
+**UltrafastSecp256k1 v3.13.0** -- FAST / CT Dual-Layer Architecture
 
 ---
 
@@ -13,7 +13,7 @@ mathematical semantics. They differ **only** in execution profile:
 
 | Property | FAST (`secp256k1::fast::`, `secp256k1::`) | CT (`secp256k1::ct::`) |
 |----------|-------------------------------------------|------------------------|
-| **Throughput** | Maximum | ~2–3× slower |
+| **Throughput** | Maximum | ~2-3x slower |
 | **Timing** | Data-dependent (variable-time) | Data-independent (constant-time) |
 | **Branching** | May short-circuit on identity/zero | Never branches on secret data |
 | **Table Lookup** | Direct index | Scans all entries via cmov |
@@ -25,14 +25,14 @@ Both layers are tested for bit-exact equivalence. Possible divergences:
 
 - **Error handling**: Both return zero/infinity for invalid inputs, but CT may
   take longer to return on error (it completes the full execution trace).
-- **Timing**: By design — FAST is faster, CT is constant-time.
+- **Timing**: By design -- FAST is faster, CT is constant-time.
 - **Input validation**: Identical. Both reject zero scalars, out-of-range values.
 
 ### Verified by CI
 
-FAST ≡ CT equivalence is verified in every CI run:
-- `test_ct` — arithmetic, scalar mul, generator mul, ECDSA sign, Schnorr sign
-- `test_ct_equivalence` — property-based (random + edge vectors) 
+FAST == CT equivalence is verified in every CI run:
+- `test_ct` -- arithmetic, scalar mul, generator mul, ECDSA sign, Schnorr sign
+- `test_ct_equivalence` -- property-based (random + edge vectors) 
 
 ---
 
@@ -44,9 +44,9 @@ FAST ≡ CT equivalence is verified in every CI run:
 |-----------|-----|----------|
 | **ECDSA signing** | Private key enters scalar multiplication | `ct::ecdsa_sign()` |
 | **Schnorr signing** | Private key + nonce in scalar mul | `ct::schnorr_sign()` |
-| **Key generation / derivation** | Secret scalar × G | `ct::generator_mul()` |
+| **Key generation / derivation** | Secret scalar x G | `ct::generator_mul()` |
 | **Keypair creation** | Private key enters point mul | `ct::schnorr_keypair_create()` |
-| **X-only pubkey from privkey** | Secret scalar × G | `ct::schnorr_pubkey()` |
+| **X-only pubkey from privkey** | Secret scalar x G | `ct::schnorr_pubkey()` |
 | **Any scalar mul with secret scalar** | Timing leaks scalar bits | `ct::scalar_mul()` |
 | **Nonce generation** | k must remain secret | RFC 6979 (used internally) |
 | **Secret-dependent selection** | Branch on secret data | `ct::scalar_cmov/cswap/select` |
@@ -66,18 +66,18 @@ FAST ≡ CT equivalence is verified in every CI run:
 ### If You Are Unsure: Use CT
 
 When in doubt about whether an input is secret, **always use the CT variant**.
-The performance cost is bounded (2–3×) and eliminates timing side-channel risk.
+The performance cost is bounded (2-3x) and eliminates timing side-channel risk.
 
 ```cpp
-// ✅ CORRECT: CT for signing (private key is secret)
+// [OK] CORRECT: CT for signing (private key is secret)
 #include <secp256k1/ct/sign.hpp>
 auto sig = secp256k1::ct::ecdsa_sign(msg_hash, private_key);
 
-// ✅ CORRECT: FAST for verification (all inputs public)
+// [OK] CORRECT: FAST for verification (all inputs public)
 #include <secp256k1/ecdsa.hpp>
 bool ok = secp256k1::ecdsa_verify(msg_hash, pubkey, sig);
 
-// ❌ WRONG: FAST for signing (leaks private key timing)
+// [FAIL] WRONG: FAST for signing (leaks private key timing)
 auto sig = secp256k1::ecdsa_sign(msg_hash, private_key);
 ```
 
@@ -92,12 +92,12 @@ cmake -DCMAKE_CXX_FLAGS="-DSECP256K1_REQUIRE_CT=1" ...
 
 ---
 
-## 3. API Mapping: FAST ↔ CT
+## 3. API Mapping: FAST <-> CT
 
 | Operation | FAST (public data) | CT (secret data) |
 |-----------|--------------------|-------------------|
-| Scalar × G | `Point::generator().scalar_mul(k)` | `ct::generator_mul(k)` |
-| Scalar × P | `P.scalar_mul(k)` | `ct::scalar_mul(P, k)` |
+| Scalar x G | `Point::generator().scalar_mul(k)` | `ct::generator_mul(k)` |
+| Scalar x P | `P.scalar_mul(k)` | `ct::scalar_mul(P, k)` |
 | Point add | `Point::add(P, Q)` | `ct::point_add_complete(P, Q)` |
 | Point double | `Point::double_point(P)` | `ct::point_dbl(P)` |
 | ECDSA sign | `secp256k1::ecdsa_sign(...)` | `ct::ecdsa_sign(...)` |
@@ -117,7 +117,7 @@ CT claims are verified empirically using the **dudect** methodology
 
 - **Per-PR**: 5-minute smoke test in `security-audit.yml` (every push to main)
 - **Nightly**: 30-minute full statistical analysis in `nightly.yml`
-- **Threshold**: Welch's t-test, |t| < 4.5 → PASS
+- **Threshold**: Welch's t-test, |t| < 4.5 -> PASS
 
 ### Functions Under dudect Coverage
 
@@ -133,8 +133,8 @@ See [docs/CT_VERIFICATION.md](CT_VERIFICATION.md) for full methodology.
 > **ARM64** architectures.
 
 **Explicitly NOT covered:**
-- GPU backends (CUDA, ROCm, OpenCL, Metal) — SIMT model leaks by design
-- Experimental protocols (FROST, MuSig2) — not CT-audited
+- GPU backends (CUDA, ROCm, OpenCL, Metal) -- SIMT model leaks by design
+- Experimental protocols (FROST, MuSig2) -- not CT-audited
 - Compilers or optimization levels not tested in CI
 - Microarchitectures not in the CI matrix
 
@@ -164,11 +164,11 @@ Future releases will include this in the CHANGELOG:
 
 | Category | Tests | Edge Vectors |
 |----------|-------|--------------|
-| Field arithmetic | add, sub, mul, sqr, neg, inv, normalize | 0, 1, p−1 |
-| Scalar arithmetic | add, sub, neg, half | 0, 1, n−1 |
+| Field arithmetic | add, sub, mul, sqr, neg, inv, normalize | 0, 1, p-1 |
+| Scalar arithmetic | add, sub, neg, half | 0, 1, n-1 |
 | Conditional ops | cmov, cswap, select, cneg, is_zero, eq | all-zero, all-ones |
-| Point addition | general, doubling, identity, inverse | O+O, P+O, O+P, P+(−P) |
-| Scalar mul | k=0,1,2, known vectors, large k, random | 0, 1, 2, n−1, n−2, random |
+| Point addition | general, doubling, identity, inverse | O+O, P+O, O+P, P+(-P) |
+| Scalar mul | k=0,1,2, known vectors, large k, random | 0, 1, 2, n-1, n-2, random |
 | Generator mul | fast vs CT equivalence | 1, 2, random 256-bit |
 | ECDSA sign | CT vs FAST identical output | Key=1, key=3, random keys |
 | Schnorr sign | CT vs FAST identical output | Key=1, key=3, random keys |
@@ -176,22 +176,22 @@ Future releases will include this in the CHANGELOG:
 
 ### Property-Based (`test_ct_equivalence`)
 
-- 64 random 256-bit scalars → `ct::generator_mul(k) == fast::scalar_mul(G, k)`
-- 64 random scalars → `ct::scalar_mul(P, k) == fast::scalar_mul(P, k)`
-- 32 random key+msg pairs → `ct::ecdsa_sign == fast::ecdsa_sign` + verify
-- 32 random key+msg pairs → `ct::schnorr_sign == fast::schnorr_sign` + verify
-- Boundary scalars: 0, 1, 2, n−1, n−2, (n+1)/2
+- 64 random 256-bit scalars -> `ct::generator_mul(k) == fast::scalar_mul(G, k)`
+- 64 random scalars -> `ct::scalar_mul(P, k) == fast::scalar_mul(P, k)`
+- 32 random key+msg pairs -> `ct::ecdsa_sign == fast::ecdsa_sign` + verify
+- 32 random key+msg pairs -> `ct::schnorr_sign == fast::schnorr_sign` + verify
+- Boundary scalars: 0, 1, 2, n-1, n-2, (n+1)/2
 
 ---
 
 ## References
 
-- [SECURITY.md](../SECURITY.md) — Vulnerability reporting
-- [THREAT_MODEL.md](../THREAT_MODEL.md) — Attack surface analysis
-- [docs/CT_VERIFICATION.md](CT_VERIFICATION.md) — Technical CT methodology, dudect details
-- [AUDIT_GUIDE.md](../AUDIT_GUIDE.md) — Auditor navigation
-- [dudect paper](https://eprint.iacr.org/2016/1123) — Reparaz et al., 2017
+- [SECURITY.md](../SECURITY.md) -- Vulnerability reporting
+- [THREAT_MODEL.md](../THREAT_MODEL.md) -- Attack surface analysis
+- [docs/CT_VERIFICATION.md](CT_VERIFICATION.md) -- Technical CT methodology, dudect details
+- [AUDIT_GUIDE.md](../AUDIT_GUIDE.md) -- Auditor navigation
+- [dudect paper](https://eprint.iacr.org/2016/1123) -- Reparaz et al., 2017
 
 ---
 
-*UltrafastSecp256k1 v3.13.0 — Security Claims*
+*UltrafastSecp256k1 v3.13.0 -- Security Claims*

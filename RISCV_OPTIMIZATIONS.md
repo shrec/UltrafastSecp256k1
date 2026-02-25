@@ -11,12 +11,12 @@
 
 | Phase | Scalar Mul | Field Mul | Key Change |
 |-------|-----------|-----------|------------|
-| Baseline (C++ only) | ~900 μs | ~300 ns | Portable C++ |
-| + Assembly mul/square | 694 μs | 197 ns | Comba multiply + fast reduction |
-| + Dedicated square asm | 672 μs | 197 ns | 10 mul vs 16 (symmetry exploit) |
-| + Branchless field ops | 624 μs | 174 ns | ge/add/sub/normalize branchless |
-| + Direct asm calls | 624 μs | 174 ns | Bypass FieldElement wrapper |
-| + Branchless asm reduce | **621 μs** | **173 ns** | Remove beqz/j loop from reduce |
+| Baseline (C++ only) | ~900 us | ~300 ns | Portable C++ |
+| + Assembly mul/square | 694 us | 197 ns | Comba multiply + fast reduction |
+| + Dedicated square asm | 672 us | 197 ns | 10 mul vs 16 (symmetry exploit) |
+| + Branchless field ops | 624 us | 174 ns | ge/add/sub/normalize branchless |
+| + Direct asm calls | 624 us | 174 ns | Bypass FieldElement wrapper |
+| + Branchless asm reduce | **621 us** | **173 ns** | Remove beqz/j loop from reduce |
 
 **Total improvement: ~31% scalar mul, ~42% field mul from baseline.**
 
@@ -24,9 +24,9 @@
 
 ## 1. Assembly Multiply & Square (field_asm_riscv64.S)
 
-### Comba Multiplication (16 → 16 mul)
+### Comba Multiplication (16 -> 16 mul)
 
-Standard 4-limb × 4-limb Comba multiplication producing 8-limb (512-bit) intermediate.
+Standard 4-limb x 4-limb Comba multiplication producing 8-limb (512-bit) intermediate.
 
 **Columns:**
 ```
@@ -44,15 +44,15 @@ Uses `mul` / `mulhu` pairs with `sltu`-based carry propagation throughout.
 ### Dedicated Square (10 mul)
 
 Exploits $a^2 = \sum a_i^2 + 2\sum_{i<j} a_i \cdot a_j$ symmetry:
-- **4 diagonal:** `a0², a1², a2², a3²`
+- **4 diagonal:** `a0^2, a1^2, a2^2, a3^2`
 - **6 off-diagonal:** `a0*a1, a0*a2, a0*a3, a1*a2, a1*a3, a2*a3`
 - Doubling via add-twice (no 128-bit shift carry complexity)
 
-**Result:** Square 186 → 177 ns (**5% improvement**)
+**Result:** Square 186 -> 177 ns (**5% improvement**)
 
-### Fast Reduction (mod p = 2²⁵⁶ - 2³² - 977)
+### Fast Reduction (mod p = 2^2⁵⁶ - 2^3^2 - 977)
 
-Reduces [c0..c7] → [r0..r3] using $p = 2^{256} - C$ where $C = 2^{32} + 977$:
+Reduces [c0..c7] -> [r0..r3] using $p = 2^{256} - C$ where $C = 2^{32} + 977$:
 
 For each high limb $c_i$ ($i = 4..7$):
 ```
@@ -68,12 +68,12 @@ After first-pass reduction, overflow `s9 < 2^34`. **Previous code** had a branch
 ```asm
 # OLD (branchy):
 .Lreduce_loop:
-    beqz    s9, .Lfinal_check   # ← branch
+    beqz    s9, .Lfinal_check   # <- branch
     ...reduce body...
-    j       .Lreduce_loop       # ← back-branch
+    j       .Lreduce_loop       # <- back-branch
 ```
 
-**New code** executes reduce body unconditionally once (s9 → {0,1}), then merges residual into final check:
+**New code** executes reduce body unconditionally once (s9 -> {0,1}), then merges residual into final check:
 ```asm
 # NEW (branchless):
     mv      t4, s9              # always execute
@@ -81,20 +81,20 @@ After first-pass reduction, overflow `s9 < 2^34`. **Previous code** had a branch
     ...reduce body...           # s9 now 0 or 1
 
     # Final: select reduced if overflow OR residual
-    or      a7, a7, s9          # ← key line
+    or      a7, a7, s9          # <- key line
     neg     a7, a7
     # branchless XOR/AND/XOR select follows
 ```
 
 **Mathematical proof:** After first-pass, $s9 < 2^{34}$. One pass of $s9 \times C$ where $C \approx 2^{32}$ produces at most $\sim 2^{66}$ which distributed across 4 limbs yields $s9' \in \{0, 1\}$. The final conditional subtract handles $s9' = 1$ via `or a7, a7, s9`.
 
-**Result:** Mul 174 → 173 ns, Square 162 → 160 ns (deterministic timing, no branch variance)
+**Result:** Mul 174 -> 173 ns, Square 162 -> 160 ns (deterministic timing, no branch variance)
 
 ---
 
 ## 2. Branchless C++ Field Operations (field.cpp)
 
-### ge() — Greater-or-Equal Comparison
+### ge() -- Greater-or-Equal Comparison
 
 **Before:** Branchy for-loop with early return:
 ```cpp
@@ -114,7 +114,7 @@ for (int i = 0; i < 4; ++i) {
 return borrow == 0;  // no borrow = a >= b
 ```
 
-### add_impl — Field Addition
+### add_impl -- Field Addition
 
 **Before:** While-loop carry propagation + while-loop conditional reduction.
 
@@ -138,7 +138,7 @@ for (int i = 0; i < 4; ++i)
     out[i] ^= (out[i] ^ reduced[i]) & mask;
 ```
 
-### sub_impl — Field Subtraction
+### sub_impl -- Field Subtraction
 
 **Before:** if-branch calling `ge()` then subtract or reverse-subtract.
 
@@ -182,20 +182,20 @@ void mul_impl(const uint64_t* a, const uint64_t* b, uint64_t* out) {
 }
 ```
 
-Eliminates 2× `normalize()` + 2× `memcpy` per mul/square call.
+Eliminates 2x `normalize()` + 2x `memcpy` per mul/square call.
 
 ---
 
-## 4. wNAF Window Width (w=4 → w=5)
+## 4. wNAF Window Width (w=4 -> w=5)
 
 **File:** `cpu/src/point.cpp`
 
 On RISC-V (not ESP32/STM32), scalar_mul uses wNAF with w=5:
 - 16 precomputed points: [1P, 3P, 5P, ..., 31P]
-- Fewer non-zero digits → fewer point additions in main loop
+- Fewer non-zero digits -> fewer point additions in main loop
 - Trade-off: 8 extra precomputed points (8 doublings + 8 additions) vs ~10% fewer additions in 256-bit scan
 
-**Result:** Scalar Mul 678 → 672 μs (**~1% improvement**)
+**Result:** Scalar Mul 678 -> 672 us (**~1% improvement**)
 
 ---
 
@@ -205,7 +205,7 @@ On RISC-V (not ESP32/STM32), scalar_mul uses wNAF with w=5:
 
 Wrote `field_add_asm_riscv64` and `field_sub_asm_riscv64` in assembly, wired via `#elif defined(SECP256K1_HAS_RISCV_ASM)` in field.cpp.
 
-**Result:** **Regression.** Field Add: 34 → 43 ns (+26%), Field Sub: 31 → 51 ns (+64%).
+**Result:** **Regression.** Field Add: 34 -> 43 ns (+26%), Field Sub: 31 -> 51 ns (+64%).
 
 **Root Cause:** Clang 21 generates better code for simple 256-bit add/sub on U74's in-order pipeline. The compiler:
 - Optimally schedules instructions to fill pipeline bubbles
@@ -218,15 +218,15 @@ Wrote `field_add_asm_riscv64` and `field_sub_asm_riscv64` in assembly, wired via
 
 ## Key Learnings
 
-1. **Assembly wrapper overhead matters:** For ~30ns operations, converting between `limbs4` ↔ `FieldElement` costs more than the operation itself.
+1. **Assembly wrapper overhead matters:** For ~30ns operations, converting between `limbs4` <-> `FieldElement` costs more than the operation itself.
 
-2. **Branchless > branchy on in-order cores:** U74 has no speculative execution — branch misprediction flushes the entire pipeline. Even well-predicted branches add 1-2 cycles of overhead.
+2. **Branchless > branchy on in-order cores:** U74 has no speculative execution -- branch misprediction flushes the entire pipeline. Even well-predicted branches add 1-2 cycles of overhead.
 
 3. **Compiler wins for simple ops:** Clang 21 with `-Ofast` generates near-optimal code for add/sub. Only complex mul/square with carry chains benefit from hand-tuned assembly.
 
 4. **Single-pass reduction is sufficient:** After first-pass, overflow is bounded by $2^{34}$. One unconditional pass always reduces to {0,1}. No loop needed.
 
-5. **Binary GCD beats Fermat:** `hybrid_eea` inverse (18 μs) is 3× faster than addition chain methods (~60 μs) on RISC-V.
+5. **Binary GCD beats Fermat:** `hybrid_eea` inverse (18 us) is 3x faster than addition chain methods (~60 us) on RISC-V.
 
 ---
 
@@ -238,15 +238,15 @@ Wrote `field_add_asm_riscv64` and `field_sub_asm_riscv64` in assembly, wired via
 | Field Square | 160 ns | RISC-V asm (10 mul + branchless reduce) |
 | Field Add | 38 ns | C++ branchless (compiler-optimized) |
 | Field Sub | 34 ns | C++ branchless (compiler-optimized) |
-| Field Inverse | 17 μs | Binary GCD (hybrid_eea) |
-| Point Add | 3 μs | Jacobian mixed addition (7M + 4S) |
-| Point Double | 1 μs | Jacobian doubling (4S + 4M, a=0) |
-| **Scalar Mul** | **621 μs** | **GLV + Shamir + wNAF(w=5)** |
-| **Generator Mul** | **37 μs** | **Precomputed fixed-base table** |
+| Field Inverse | 17 us | Binary GCD (hybrid_eea) |
+| Point Add | 3 us | Jacobian mixed addition (7M + 4S) |
+| Point Double | 1 us | Jacobian doubling (4S + 4M, a=0) |
+| **Scalar Mul** | **621 us** | **GLV + Shamir + wNAF(w=5)** |
+| **Generator Mul** | **37 us** | **Precomputed fixed-base table** |
 | Batch Inv (n=100) | 695 ns | Montgomery's trick |
 | Batch Inv (n=1000) | 547 ns | Montgomery's trick |
 
-All 29+ tests pass ✅
+All 29+ tests pass [OK]
 
 ---
 

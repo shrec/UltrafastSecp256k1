@@ -1,89 +1,89 @@
-═══════════════════════════════════════════════════════════════
+===============================================================
   Side-Channel Attack Test Suite (dudect methodology)
-  Welch t-test: |t| > 4.5 → timing leak (p < 0.00001)
-  All inputs pre-generated — no RNG in measurement loops
-═══════════════════════════════════════════════════════════════
+  Welch t-test: |t| > 4.5 -> timing leak (p < 0.00001)
+  All inputs pre-generated -- no RNG in measurement loops
+===============================================================
 
-[1] CT Primitives — Timing Test
-    is_zero_mask:    |t| =   1.26  (49892/50108)  ✅ CT
-    bool_to_mask:    |t| =   1.07  (50273/49727)  ✅ CT
-    cmov256:         |t| =   0.01  (49897/50103)  ✅ CT
-    cswap256:        |t| =   0.06  (50246/49754)  ✅ CT
-    ct_lookup_256:   |t| =   1.12  (50200/49800)  ✅ CT
-    ct_equal:        |t| =   0.52  (50080/49920)  ✅ CT
+[1] CT Primitives -- Timing Test
+    is_zero_mask:    |t| =   1.26  (49892/50108)  [OK] CT
+    bool_to_mask:    |t| =   1.07  (50273/49727)  [OK] CT
+    cmov256:         |t| =   0.01  (49897/50103)  [OK] CT
+    cswap256:        |t| =   0.06  (50246/49754)  [OK] CT
+    ct_lookup_256:   |t| =   1.12  (50200/49800)  [OK] CT
+    ct_equal:        |t| =   0.52  (50080/49920)  [OK] CT
 
-[2] CT Field Operations — Timing Test
-    field_add:       |t| =   8.50  ⚠️  LEAK
-    ✗ FAIL: ct::field_add timing leak
-    field_mul:       |t| =  20.94  ⚠️  LEAK
-    ✗ FAIL: ct::field_mul timing leak
-    field_sqr:       |t| =  17.08  ⚠️  LEAK
-    ✗ FAIL: ct::field_sqr timing leak
-    field_inv:       |t| =  80.95  ⚠️  LEAK
-    ✗ FAIL: ct::field_inv timing leak
-    field_cmov:      |t| =   0.01  ✅ CT
-    field_is_zero:   |t| =   0.86  ✅ CT
+[2] CT Field Operations -- Timing Test
+    field_add:       |t| =   8.50  [!]  LEAK
+    X FAIL: ct::field_add timing leak
+    field_mul:       |t| =  20.94  [!]  LEAK
+    X FAIL: ct::field_mul timing leak
+    field_sqr:       |t| =  17.08  [!]  LEAK
+    X FAIL: ct::field_sqr timing leak
+    field_inv:       |t| =  80.95  [!]  LEAK
+    X FAIL: ct::field_inv timing leak
+    field_cmov:      |t| =   0.01  [OK] CT
+    field_is_zero:   |t| =   0.86  [OK] CT
 
-[3] CT Scalar Operations — Timing Test
-    scalar_add:      |t| =   9.50  ⚠️  LEAK
-    ✗ FAIL: ct::scalar_add timing leak
-    scalar_sub:      |t| =   0.11  ✅ CT
-    scalar_cmov:     |t| =   0.98  ✅ CT
-    scalar_is_zero:  |t| =   0.10  ✅ CT
-    scalar_bit:      |t| = 192.60  ⚠️  LEAK
-    ✗ FAIL: ct::scalar_bit timing leak
-    scalar_window:   |t| =  52.00  ⚠️  LEAK
-    ✗ FAIL: ct::scalar_window timing leak
+[3] CT Scalar Operations -- Timing Test
+    scalar_add:      |t| =   9.50  [!]  LEAK
+    X FAIL: ct::scalar_add timing leak
+    scalar_sub:      |t| =   0.11  [OK] CT
+    scalar_cmov:     |t| =   0.98  [OK] CT
+    scalar_is_zero:  |t| =   0.10  [OK] CT
+    scalar_bit:      |t| = 192.60  [!]  LEAK
+    X FAIL: ct::scalar_bit timing leak
+    scalar_window:   |t| =  52.00  [!]  LEAK
+    X FAIL: ct::scalar_window timing leak
 
-[4] CT Point Operations — Timing Test (most critical)
-    complete_add (P+O vs P+Q):   |t| =  22.69  ⚠️  LEAK
-    ✗ FAIL: complete_add P+O vs P+Q timing leak
-    complete_add (P+P vs P+Q):   |t| =  10.93  ⚠️  LEAK
-    ✗ FAIL: complete_add P+P vs P+Q timing leak
-    scalar_mul (k=1 vs random):  |t| =  16.09  (978/1022)  ⚠️  LEAK
-    ✗ FAIL: ct::scalar_mul k=1 vs random timing leak
-    scalar_mul (k=n-1 vs random):|t| =   1.15  (992/1008)  ✅ CT
-    generator_mul (low vs high HW):|t| =  10.14  (1020/980)  ⚠️  LEAK
-    ✗ FAIL: ct::generator_mul low vs high HW timing leak
-    point_tbl_lookup (0 vs 15):  |t| =   4.22  ✅ CT
+[4] CT Point Operations -- Timing Test (most critical)
+    complete_add (P+O vs P+Q):   |t| =  22.69  [!]  LEAK
+    X FAIL: complete_add P+O vs P+Q timing leak
+    complete_add (P+P vs P+Q):   |t| =  10.93  [!]  LEAK
+    X FAIL: complete_add P+P vs P+Q timing leak
+    scalar_mul (k=1 vs random):  |t| =  16.09  (978/1022)  [!]  LEAK
+    X FAIL: ct::scalar_mul k=1 vs random timing leak
+    scalar_mul (k=n-1 vs random):|t| =   1.15  (992/1008)  [OK] CT
+    generator_mul (low vs high HW):|t| =  10.14  (1020/980)  [!]  LEAK
+    X FAIL: ct::generator_mul low vs high HW timing leak
+    point_tbl_lookup (0 vs 15):  |t| =   4.22  [OK] CT
 
-[5] CT Byte Utilities — Timing Test
-    ct_memcpy_if:    |t| =   1.03  ✅ CT
-    ct_memswap_if:   |t| =   0.89  ✅ CT
-    ct_memzero:      |t| =   0.35  ✅ CT
-    ct_compare:      |t| =   0.28  ✅ CT
+[5] CT Byte Utilities -- Timing Test
+    ct_memcpy_if:    |t| =   1.03  [OK] CT
+    ct_memswap_if:   |t| =   0.89  [OK] CT
+    ct_memzero:      |t| =   0.35  [OK] CT
+    ct_compare:      |t| =   0.28  [OK] CT
 
 [6] fast:: path control test (expected NOT CT)
     (confirms that fast:: and ct:: actually differ)
-    fast::scalar_mul: |t| = 1314.79  ⏱️  NOT CT (expected)
+    fast::scalar_mul: |t| = 1314.79  [TIME]  NOT CT (expected)
 
 [7] Valgrind CLASSIFY/DECLASSIFY Test
-    ℹ️  Valgrind CT mode DISABLED
-    ℹ️  Enable: cmake -DSECP256K1_CT_VALGRIND=1
-    ℹ️  Run: valgrind ./test_ct_sidechannel
-    ct::scalar_mul classified: ✅
-    ct::field_{add,mul,sqr} classified: ✅
-    ct::scalar_{add,neg} classified: ✅
-    ct::field_cmov classified mask: ✅
-    ct::ct_lookup_256 classified index: ✅
-    ct::generator_mul classified: ✅
+    [i]  Valgrind CT mode DISABLED
+    [i]  Enable: cmake -DSECP256K1_CT_VALGRIND=1
+    [i]  Run: valgrind ./test_ct_sidechannel
+    ct::scalar_mul classified: [OK]
+    ct::field_{add,mul,sqr} classified: [OK]
+    ct::scalar_{add,neg} classified: [OK]
+    ct::field_cmov classified mask: [OK]
+    ct::ct_lookup_256 classified index: [OK]
+    ct::generator_mul classified: [OK]
 
-[8] Assembly Inspection — Instructions
+[8] Assembly Inspection -- Instructions
     Checking assembly of CT functions:
     objdump -d build_rel/tests/test_ct_sidechannel | less
 
     Look for in ct:: functions:
-    ✅ Good: cmov, cmovne, cmove (branchless conditional)
-    ❌ Bad:   jz/jnz/je/jne (secret-dependent branch)
+    [OK] Good: cmov, cmovne, cmove (branchless conditional)
+    [FAIL] Bad:   jz/jnz/je/jne (secret-dependent branch)
 
     Quick automated check:
     objdump -d build_rel/tests/test_ct_sidechannel | \
       awk '/ct.*:$/,/^$/' | grep -cE 'j[a-z]{1,3}\s'
 
-═══════════════════════════════════════════════════════════════
+===============================================================
   SIDE-CHANNEL AUDIT: 23 passed, 11 failed
-  ⚠️  TIMING LEAKS DETECTED
-═══════════════════════════════════════════════════════════════
+  [!]  TIMING LEAKS DETECTED
+===============================================================
 
   Full certification steps:
   1. Valgrind: -DSECP256K1_CT_VALGRIND=1 && valgrind ./test

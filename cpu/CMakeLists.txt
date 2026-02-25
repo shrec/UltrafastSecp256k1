@@ -13,15 +13,15 @@ set(SECP256K1_LIB_NAME fastsecp256k1)
 # Core sources (always available - Tier 1: Portable C++)
 set(SECP256K1_SOURCES
     src/field.cpp
-    src/field_52.cpp   # 5×52 lazy-reduction field (hybrid scheme)
-    src/field_26.cpp   # 10×26 lazy-reduction field (32-bit platforms)
+    src/field_52.cpp   # 5x52 lazy-reduction field (hybrid scheme)
+    src/field_26.cpp   # 10x26 lazy-reduction field (32-bit platforms)
     src/scalar.cpp
     src/point.cpp
     src/precompute.cpp
     src/field_asm.cpp  # Tier 2: BMI2 intrinsics (runtime detection)
     src/glv.cpp        # GLV endomorphism optimization
     src/selftest.cpp   # Self-test with known arithmetic vectors
-    # Constant-Time (CT) layer — always compiled, no flags
+    # Constant-Time (CT) layer -- always compiled, no flags
     src/ct_field.cpp   # CT field arithmetic (side-channel resistant)
     src/ct_scalar.cpp  # CT scalar arithmetic
     src/ct_point.cpp   # CT point ops (complete addition, CT scalar_mul)
@@ -42,12 +42,12 @@ set(SECP256K1_SOURCES
     src/frost.cpp         # FROST threshold signatures (t-of-n)
     src/adaptor.cpp       # Adaptor signatures (Schnorr + ECDSA)
     src/address.cpp       # Address generation + BIP-352 Silent Payments
-    # Coins layer — multi-coin infrastructure
+    # Coins layer -- multi-coin infrastructure
     src/keccak256.cpp     # Keccak-256 hash (Ethereum address derivation)
     src/coin_address.cpp  # Unified per-coin address generation
     src/ethereum.cpp      # Ethereum EIP-55 checksummed addresses
     src/coin_hd.cpp       # BIP-44 coin-type HD derivation
-    # Advanced algorithms — Pippenger MSM + Comb generator multiplication
+    # Advanced algorithms -- Pippenger MSM + Comb generator multiplication
     src/pippenger.cpp        # Pippenger bucket method MSM (n > 128)
     src/ecmult_gen_comb.cpp  # Lim-Lee comb method for fast k*G
 )
@@ -252,16 +252,16 @@ if(NOT TARGET ${SECP256K1_LIB_NAME})
             # INTERFACE: propagate LTO + arch flags to ALL consumers automatically
             #   (any exe that links against this lib gets -flto=thin -fuse-ld=lld)
             # CRITICAL: ARCH_FLAGS (e.g. -mcpu=sifive-u74) must be in link options
-            #   because ThinLTO does final code generation at link time — without it
+            #   because ThinLTO does final code generation at link time -- without it
             #   the linker uses generic scheduling, losing pipeline-specific gains.
             #   ARCH_FLAGS is added to link options later (after it's set).
             target_compile_options(${SECP256K1_LIB_NAME} PRIVATE -flto=thin)
             target_link_options(${SECP256K1_LIB_NAME} INTERFACE -flto=thin -fuse-ld=lld)
-            message(STATUS "Secp256k1: ✓ LTO ENABLED (ThinLTO with Clang + lld, INTERFACE propagated)")
+            message(STATUS "Secp256k1: OK LTO ENABLED (ThinLTO with Clang + lld, INTERFACE propagated)")
         elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
             target_compile_options(${SECP256K1_LIB_NAME} PRIVATE -flto)
             target_link_options(${SECP256K1_LIB_NAME} INTERFACE -flto)
-            message(STATUS "Secp256k1: ✓ LTO ENABLED (GCC LTO, INTERFACE propagated)")
+            message(STATUS "Secp256k1: OK LTO ENABLED (GCC LTO, INTERFACE propagated)")
         else()
             message(STATUS "Secp256k1: LTO not available for compiler ${CMAKE_CXX_COMPILER_ID}")
         endif()
@@ -380,7 +380,7 @@ if(SECP256K1_HAS_ASM)
     )
     message(STATUS "  -> field_mul: ~8ns (vs 27ns intrinsics, 40ns portable)")
     message(STATUS "  -> field_square: ~7ns (vs 21ns intrinsics, 35ns portable)")
-    message(STATUS "  -> Expected K*Q: ~18-24 μs (vs 66 μs current)")
+    message(STATUS "  -> Expected K*Q: ~18-24 us (vs 66 us current)")
 endif()
 
 # Enable fast modular reduction on x86_64 (even without ASM, uses BMI2 intrinsics)
@@ -457,13 +457,13 @@ elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|ARM64|arm64")
         set(ARCH_FLAGS "-march=armv8-a+crypto")
     endif()
 elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "armv7|armeabi")
-    # Android ARMv7 (32-bit) — no __int128, uses NO_INT128 fallback
+    # Android ARMv7 (32-bit) -- no __int128, uses NO_INT128 fallback
     set(ARCH_FLAGS "-march=armv7-a -mfpu=neon-vfpv4 -mfloat-abi=softfp")
     add_compile_definitions(SECP256K1_NO_INT128=1)
     message(STATUS "Secp256k1: Android ARMv7 target (32-bit, no __int128)")
 elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|X64")
     if(ANDROID)
-        # Android x86_64 emulator — no -march=native for cross-compile
+        # Android x86_64 emulator -- no -march=native for cross-compile
         set(ARCH_FLAGS "-march=x86-64 -msse4.2")
         message(STATUS "Secp256k1: Android x86_64 target (emulator)")
     else()
@@ -481,7 +481,7 @@ else()
     set(ARCH_FLAGS "")
 endif()
 
-# GCC/Clang optimization flags (skip on MSVC — it uses /O2 /GL from top-level)
+# GCC/Clang optimization flags (skip on MSVC -- it uses /O2 /GL from top-level)
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
 target_compile_options(${SECP256K1_LIB_NAME} PRIVATE 
     -O3                      # Maximum optimization
@@ -496,7 +496,7 @@ target_compile_options(${SECP256K1_LIB_NAME} PRIVATE
     $<$<PLATFORM_ID:Linux>:-fno-plt>  # No PLT (ELF/Linux only; skipped on macOS/Windows)
     -ftree-vectorize         # Auto-vectorization (AVX2/SSE/NEON)
     # Note: LTO is controlled separately by SECP256K1_USE_LTO option
-    # Do NOT add -fno-lto here — it would override the LTO setting
+    # Do NOT add -fno-lto here -- it would override the LTO setting
 )
 # Propagate ARCH_FLAGS to consumers so their TU's also compile with -mcpu
 # (important for header-only / inline code and for ThinLTO codegen at link time)
@@ -595,17 +595,17 @@ if(BUILD_TESTING)
     add_executable(bench_atomic_operations bench/bench_atomic_operations.cpp)
     target_link_libraries(bench_atomic_operations PRIVATE ${SECP256K1_LIB_NAME})
 
-    # CT (Constant-Time) layer benchmark — fast:: vs ct:: overhead comparison
+    # CT (Constant-Time) layer benchmark -- fast:: vs ct:: overhead comparison
     add_executable(bench_ct bench/bench_ct.cpp)
     target_link_libraries(bench_ct PRIVATE ${SECP256K1_LIB_NAME})
 
-    # Field 5×52 vs 4×64 comparison benchmark (requires __uint128_t; skip on MSVC)
+    # Field 5x52 vs 4x64 comparison benchmark (requires __uint128_t; skip on MSVC)
     if(NOT (MSVC AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
         add_executable(bench_field_52 bench/bench_field_52.cpp)
         target_link_libraries(bench_field_52 PRIVATE ${SECP256K1_LIB_NAME})
     endif()
 
-    # Field 10×26 vs 4×64 comparison benchmark (32-bit platform target)
+    # Field 10x26 vs 4x64 comparison benchmark (32-bit platform target)
     add_executable(bench_field_26 bench/bench_field_26.cpp)
     target_link_libraries(bench_field_26 PRIVATE ${SECP256K1_LIB_NAME})
 
@@ -628,7 +628,7 @@ if(BUILD_TESTING)
     # Over-optimizing benchmark code can distort measurements (aggressive inlining, etc.)
 endif()
 
-# Tests — unified test runner
+# Tests -- unified test runner
 # Single binary runs library selftest + all test modules.
 # Usage: run_selftest [smoke|ci|stress] [seed_hex]
 if(BUILD_TESTING)
@@ -681,7 +681,7 @@ if(BUILD_TESTING)
     target_compile_definitions(test_hash_accel_standalone PRIVATE STANDALONE_TEST)
     add_test(NAME hash_accel COMMAND test_hash_accel_standalone)
 
-    # Standalone 5×52 field test (requires __uint128_t; skip on MSVC)
+    # Standalone 5x52 field test (requires __uint128_t; skip on MSVC)
     if(NOT (MSVC AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
         add_executable(test_field_52_standalone
             tests/test_field_52.cpp
@@ -691,7 +691,7 @@ if(BUILD_TESTING)
         add_test(NAME field_52 COMMAND test_field_52_standalone)
     endif()
 
-    # Standalone 10×26 field test
+    # Standalone 10x26 field test
     add_executable(test_field_26_standalone
         tests/test_field_26.cpp
     )
@@ -756,7 +756,7 @@ if(BUILD_TESTING)
     endif()
     add_test(NAME ecc_properties COMMAND test_ecc_properties_standalone)
 
-    # ── Audit infrastructure lives in audit/ ──────────────────────────────
+    # -- Audit infrastructure lives in audit/ ------------------------------
     # All audit-specific targets (unified_audit_runner, standalone CT/fuzz/
     # differential/protocol tests) are defined in ../audit/CMakeLists.txt
     # to keep the library source tree clean.

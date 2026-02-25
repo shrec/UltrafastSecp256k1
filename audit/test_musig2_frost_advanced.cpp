@@ -26,7 +26,7 @@ using secp256k1::fast::Scalar;
 using secp256k1::fast::Point;
 using secp256k1::fast::FieldElement;
 
-// ── Minimal test harness ─────────────────────────────────────────────────────
+// -- Minimal test harness -----------------------------------------------------
 
 static int g_pass = 0;
 static int g_fail = 0;
@@ -38,7 +38,7 @@ static int g_fail = 0;
     } \
 } while(0)
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+// -- Helpers ------------------------------------------------------------------
 
 static std::array<uint8_t, 32> random32(std::mt19937_64& rng) {
     std::array<uint8_t, 32> out{};
@@ -96,9 +96,9 @@ static bool musig2_full_sign_verify(
     return secp256k1::schnorr_verify(key_agg.Q_x, msg, ssig);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ===============================================================================
 // Task 2.1.3: Rogue-Key Resistance Tests
-// ═══════════════════════════════════════════════════════════════════════════════
+// ===============================================================================
 // In naive multi-sig, an attacker could choose rogue_pk = target - honest_pk
 // so that agg_pk = honest_pk + rogue_pk = target. MuSig2's key coefficient
 // mechanism (a_i) prevents this by weighting each key differently.
@@ -194,14 +194,14 @@ static void test_musig2_key_coefficient_binding() {
     std::printf("    %d checks OK\n\n", g_pass);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ===============================================================================
 // Task 2.1.4: Transcript Binding Tests
-// ═══════════════════════════════════════════════════════════════════════════════
+// ===============================================================================
 
-// Different messages → different signatures
+// Different messages -> different signatures
 
 static void test_musig2_message_binding() {
-    std::printf("[3] MuSig2: Different Messages → Different Signatures\n");
+    std::printf("[3] MuSig2: Different Messages -> Different Signatures\n");
 
     std::mt19937_64 rng(0xF5650001);
     const int N = 20;
@@ -246,7 +246,7 @@ static void test_musig2_message_binding() {
 
         // Challenges must differ
         CHECK(sess1.e.to_bytes() != sess2.e.to_bytes(),
-              "different messages → different challenges");
+              "different messages -> different challenges");
 
         // Each signature verifies against its own message
         std::vector<Scalar> ps1, ps2;
@@ -270,10 +270,10 @@ static void test_musig2_message_binding() {
     std::printf("    %d checks OK\n\n", g_pass);
 }
 
-// Nonce binding: same keys+message but different nonces → different R, same challenge structure
+// Nonce binding: same keys+message but different nonces -> different R, same challenge structure
 
 static void test_musig2_nonce_binding() {
-    std::printf("[4] MuSig2: Nonce Binding (fresh nonces → different R)\n");
+    std::printf("[4] MuSig2: Nonce Binding (fresh nonces -> different R)\n");
 
     std::mt19937_64 rng(0xA0CEFACE);
     const int N = 20;
@@ -314,7 +314,7 @@ static void test_musig2_nonce_binding() {
         // R should differ (different nonces)
         auto R_a = sess_a.R.x().to_bytes();
         auto R_b = sess_b.R.x().to_bytes();
-        CHECK(R_a != R_b, "different nonces → different R");
+        CHECK(R_a != R_b, "different nonces -> different R");
 
         // Both signatures should be valid
         auto s_a = secp256k1::SchnorrSignature::from_bytes(sig_a);
@@ -326,9 +326,9 @@ static void test_musig2_nonce_binding() {
     std::printf("    %d checks OK\n\n", g_pass);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ===============================================================================
 // Task 2.1.5: Fault Injection
-// ═══════════════════════════════════════════════════════════════════════════════
+// ===============================================================================
 
 static void test_musig2_fault_injection() {
     std::printf("[5] MuSig2: Fault Injection (wrong key in partial sign)\n");
@@ -380,14 +380,14 @@ static void test_musig2_fault_injection() {
     std::printf("    %d checks OK\n\n", g_pass);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ===============================================================================
 // Task 2.2.3: Malicious FROST Participant Simulation
-// ═══════════════════════════════════════════════════════════════════════════════
+// ===============================================================================
 
 // Scenario A: Participant sends tampered share during DKG
 
 static void test_frost_bad_share_dkg() {
-    std::printf("[6] FROST: Malicious Participant — Bad DKG Share\n");
+    std::printf("[6] FROST: Malicious Participant -- Bad DKG Share\n");
 
     std::mt19937_64 rng(0xBAD50A8E);
     const int N = 10;
@@ -426,7 +426,7 @@ static void test_frost_bad_share_dkg() {
 // Scenario B: Participant sends bad partial signature during signing
 
 static void test_frost_bad_partial_sig() {
-    std::printf("[7] FROST: Malicious Participant — Bad Partial Sig\n");
+    std::printf("[7] FROST: Malicious Participant -- Bad Partial Sig\n");
 
     std::mt19937_64 rng(0xBAD51600);
     const int N = 10;
@@ -489,14 +489,14 @@ static void test_frost_bad_partial_sig() {
     std::printf("    %d checks OK\n\n", g_pass);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ===============================================================================
 // Task 2.2.4: FROST Transcript Binding
-// ═══════════════════════════════════════════════════════════════════════════════
+// ===============================================================================
 
 // Different messages produce different FROST signatures
 
 static void test_frost_message_binding() {
-    std::printf("[8] FROST: Message Binding (different messages → different sigs)\n");
+    std::printf("[8] FROST: Message Binding (different messages -> different sigs)\n");
 
     std::mt19937_64 rng(0xF5B1D000);
     const int N = 10;
@@ -603,16 +603,16 @@ static void test_frost_signer_set_binding() {
         for (int j = i + 1; j < 3; ++j) {
             bool r_same = sigs[i].r == sigs[j].r;
             bool s_same = sigs[i].s.to_bytes() == sigs[j].s.to_bytes();
-            CHECK(!r_same || !s_same, "different subsets → different sigs");
+            CHECK(!r_same || !s_same, "different subsets -> different sigs");
         }
     }
 
     std::printf("    %d checks OK\n\n", g_pass);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ===============================================================================
 // _run() entry point for unified audit runner
-// ═══════════════════════════════════════════════════════════════════════════════
+// ===============================================================================
 
 int test_musig2_frost_advanced_run() {
     g_pass = 0; g_fail = 0;
@@ -630,15 +630,15 @@ int test_musig2_frost_advanced_run() {
     return g_fail > 0 ? 1 : 0;
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ===============================================================================
 // Main (standalone only)
-// ═══════════════════════════════════════════════════════════════════════════════
+// ===============================================================================
 
 #ifndef UNIFIED_AUDIT_RUNNER
 int main() {
-    std::printf("═══════════════════════════════════════════════════\n");
+    std::printf("===================================================\n");
     std::printf("  MuSig2 + FROST Advanced Protocol Tests\n");
-    std::printf("═══════════════════════════════════════════════════\n\n");
+    std::printf("===================================================\n\n");
 
     // 2.1.3: Rogue-key resistance
     test_musig2_rogue_key_resistance();       // [1]
@@ -660,9 +660,9 @@ int main() {
     test_frost_signer_set_binding();           // [9]
 
     // Summary
-    std::printf("══════════════════════════════════════════════════════════════════════\n");
+    std::printf("======================================================================\n");
     std::printf("TOTAL: %d passed, %d failed\n", g_pass, g_fail);
-    std::printf("══════════════════════════════════════════════════════════════════════\n");
+    std::printf("======================================================================\n");
 
     return g_fail > 0 ? 1 : 0;
 }

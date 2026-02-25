@@ -1,5 +1,5 @@
 # Bindings Quick-Start Examples
-## UltrafastSecp256k1 — Copy-Paste Recipes per Language
+## UltrafastSecp256k1 -- Copy-Paste Recipes per Language
 
 > **3 examples per binding**: Sign/Verify, Address Derive, Error Handling  
 > All examples use the **stable `ufsecp` ABI** (context-based API).
@@ -37,7 +37,7 @@ with Ufsecp() as ctx:
     print(f"Schnorr OK  sig={schnorr_sig.hex()[:32]}...")
 ```
 
-### Example 2: Address Derivation (BIP-32 → P2WPKH)
+### Example 2: Address Derivation (BIP-32 -> P2WPKH)
 
 ```python
 from ufsecp import Ufsecp
@@ -59,13 +59,13 @@ with Ufsecp() as ctx:
 from ufsecp import Ufsecp, UfsecpError
 
 with Ufsecp() as ctx:
-    # Invalid key → UfsecpError
+    # Invalid key -> UfsecpError
     try:
         ctx.pubkey_create(b"\x00" * 32)
     except UfsecpError as e:
-        print(f"Error: {e.operation} → code {e.code}: {e.message}")
+        print(f"Error: {e.operation} -> code {e.code}: {e.message}")
 
-    # Bad signature → returns False (no exception!)
+    # Bad signature -> returns False (no exception!)
     msg = b"\x00" * 32
     sig = b"\xff" * 64
     pub = b"\x02" + b"\x00" * 32
@@ -130,11 +130,11 @@ try {
     ctx.pubkeyCreate(Buffer.alloc(32));  // zero key
 } catch (e) {
     if (e instanceof UfsecpError) {
-        console.log(`Error: ${e.operation} → code ${e.code}: ${e.message}`);
+        console.log(`Error: ${e.operation} -> code ${e.code}: ${e.message}`);
     }
 }
 
-// Verify failure → false, not exception
+// Verify failure -> false, not exception
 const ok = ctx.ecdsaVerify(Buffer.alloc(32), Buffer.alloc(64), Buffer.alloc(33));
 console.log('Invalid verify:', ok);  // false
 
@@ -194,10 +194,10 @@ using var ctx = new Ufsecp.Ufsecp();
 try {
     ctx.PubkeyCreate(new byte[32]);  // zero key
 } catch (UfsecpException ex) {
-    Console.WriteLine($"Error: {ex.Operation} → code {ex.Code}: {ex.Message}");
+    Console.WriteLine($"Error: {ex.Operation} -> code {ex.Code}: {ex.Message}");
 }
 
-// Verify failure → false
+// Verify failure -> false
 bool ok = ctx.EcdsaVerify(new byte[32], new byte[64], new byte[33]);
 Console.WriteLine($"Invalid verify: {ok}");  // False
 ```
@@ -260,10 +260,10 @@ try (Ufsecp ctx = new Ufsecp()) {
     if (pub == null) {
         int code = ctx.lastError();
         String msg = ctx.lastErrorMsg();
-        System.out.println("Error: code " + code + " → " + msg);
+        System.out.println("Error: code " + code + " -> " + msg);
     }
 
-    // Verify failure → false
+    // Verify failure -> false
     boolean ok = ctx.ecdsaVerify(new byte[32], new byte[64], new byte[33]);
     System.out.println("Invalid verify: " + ok);  // false
 }
@@ -323,10 +323,10 @@ let ctx = try UfsecpContext()
 do {
     _ = try ctx.pubkeyCreate(privkey: Data(count: 32))
 } catch let error as UfsecpError {
-    print("Error: \(error.operation) → \(error.code)")
+    print("Error: \(error.operation) -> \(error.code)")
 }
 
-// Verify failure → false (never throws)
+// Verify failure -> false (never throws)
 let ok = try ctx.ecdsaVerify(msgHash: Data(count: 32), sig: Data(count: 64), pubkey: Data(count: 33))
 print("Invalid verify:", ok)  // false
 ```
@@ -413,14 +413,14 @@ func main() {
     ctx, _ := ufsecp.NewContext()
     defer ctx.Destroy()
 
-    // Zero key → error
+    // Zero key -> error
     var zero [32]byte
     _, err := ctx.PubkeyCreate(zero)
     if errors.Is(err, ufsecp.ErrBadKey) {
         fmt.Println("Error:", err)
     }
 
-    // Verify failure → non-nil error
+    // Verify failure -> non-nil error
     var sig [64]byte
     var pub [33]byte
     err = ctx.EcdsaVerify(zero, sig, pub)
@@ -487,14 +487,14 @@ use ufsecp::{Context, Error, ErrorCode};
 fn main() {
     let ctx = Context::new().unwrap();
 
-    // Zero key → Err
+    // Zero key -> Err
     match ctx.pubkey_create(&[0u8; 32]) {
         Err(e) if e.code == ErrorCode::BadKey => println!("Error: {:?}", e),
         Err(e) => println!("Unexpected: {:?}", e),
         Ok(_) => unreachable!(),
     }
 
-    // Verify failure → false (not Err)
+    // Verify failure -> false (not Err)
     let ok = ctx.ecdsa_verify(&[0u8; 32], &[0u8; 64], &[0u8; 33]);
     println!("Invalid verify: {}", ok);  // false
 }
@@ -575,10 +575,10 @@ void main() {
   try {
     ctx.pubkeyCreate(Uint8List(32));  // zero key
   } on UfsecpException catch (e) {
-    print('Error: ${e.operation} → ${e.error}');
+    print('Error: ${e.operation} -> ${e.error}');
   }
 
-  // Verify failure → false
+  // Verify failure -> false
   final ok = ctx.ecdsaVerify(Uint8List(32), Uint8List(64), Uint8List(33));
   print('Invalid verify: $ok');  // false
 
@@ -643,7 +643,7 @@ try {
     echo "Error: {$e->getMessage()}\n";
 }
 
-// Verify failure → false
+// Verify failure -> false
 $ok = $ctx->ecdsaVerify(str_repeat("\x00", 32), str_repeat("\x00", 64), str_repeat("\x00", 33));
 echo "Invalid verify: " . ($ok ? "true" : "false") . "\n";  // false
 ```
@@ -703,10 +703,10 @@ ctx = Ufsecp::Context.new
 begin
   ctx.pubkey_create("\x00" * 32)
 rescue Ufsecp::Error => e
-  puts "Error: #{e.operation} → code #{e.code}"
+  puts "Error: #{e.operation} -> code #{e.code}"
 end
 
-# Verify failure → false
+# Verify failure -> false
 ok = ctx.ecdsa_verify("\x00" * 32, "\x00" * 64, "\x00" * 33)
 puts "Invalid verify: #{ok}"  # false
 
@@ -770,11 +770,11 @@ try {
     await ctx.pubkeyCreate('00'.repeat(32));  // zero key
 } catch (e) {
     if (e instanceof UfsecpError) {
-        console.log(`Error: ${e.operation} → code ${e.code}`);
+        console.log(`Error: ${e.operation} -> code ${e.code}`);
     }
 }
 
-// Verify failure → false (no exception)
+// Verify failure -> false (no exception)
 const ok = await ctx.ecdsaVerify('00'.repeat(32), '00'.repeat(64), '00'.repeat(33));
 console.log('Invalid verify:', ok);  // false
 

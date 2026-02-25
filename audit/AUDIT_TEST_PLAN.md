@@ -1,4 +1,4 @@
-# Audit Test Plan — UltrafastSecp256k1 v3.14.0
+# Audit Test Plan -- UltrafastSecp256k1 v3.14.0
 
 > **Single source of truth** for what the audit tests, how it tests, and where evidence lives.
 
@@ -22,7 +22,7 @@ Output: `audit-output-<timestamp>/audit_report.md` + `artifacts/`
 
 ---
 
-## Category → Test → Evidence Map
+## Category -> Test -> Evidence Map
 
 ### A. Environment & Build Integrity
 
@@ -50,7 +50,7 @@ Output: `audit-output-<timestamp>/audit_report.md` + `artifacts/`
 | C.2 | cppcheck | `run_full_audit` (secondary signal) | `artifacts/static_analysis/cppcheck.log` |
 | C.3 | CodeQL | GitHub Actions CI (`codeql-analysis.yml`) | GitHub Security tab |
 | C.4 | SonarCloud | `sonar-project.properties` + CI | SonarCloud dashboard |
-| C.5 | Include-what-you-use | Optional, manual | — |
+| C.5 | Include-what-you-use | Optional, manual | -- |
 | C.6 | Dangerous patterns scan | grep-based scan for hot-path violations | `artifacts/static_analysis/dangerous_patterns.log` |
 
 ### D. Sanitizers (Memory/UB/Threads)
@@ -63,16 +63,16 @@ Output: `audit-output-<timestamp>/audit_report.md` + `artifacts/`
 | D.4 | LeakSanitizer | Included with ASan (`detect_leaks=1`) | `artifacts/sanitizers/asan_ubsan.log` |
 | D.5 | Valgrind memcheck | `scripts/valgrind_ct_check.sh` / `run_full_audit.sh` | `artifacts/sanitizers/valgrind.log` |
 
-### E. Unit Tests (KAT — Known Answer Tests)
+### E. Unit Tests (KAT -- Known Answer Tests)
 
 | # | Test | Implementation (unified runner module) | CTest target |
 |---|------|----------------------------------------|-------------|
 | E.1a | Field/scalar/point KAT | `audit_field`, `audit_scalar`, `audit_point`, `mul`, `arith_correct` | `debug_invariants`, `carry_propagation` |
 | E.1b | ECDSA RFC6979 vectors | `rfc6979_vectors` | `fiat_crypto_vectors` |
 | E.1c | Schnorr BIP-340 vectors | `bip340_vectors` | `cross_platform_kat` |
-| E.1d | BIP-32 vectors TV1–TV5 | `bip32_vectors` | `cross_platform_kat` |
-| E.1e | Address encoding vectors | `coins` | — |
-| E.2 | Serialization roundtrips | `comprehensive`, `ecdsa_schnorr` | — |
+| E.1d | BIP-32 vectors TV1-TV5 | `bip32_vectors` | `cross_platform_kat` |
+| E.1e | Address encoding vectors | `coins` | -- |
+| E.2 | Serialization roundtrips | `comprehensive`, `ecdsa_schnorr` | -- |
 | E.3 | Error-path tests | `audit_fuzz`, `fault_injection`, `fuzz_parsers` | `audit_fuzz`, `fault_injection` |
 | E.4 | Boundary tests (0, 1, n-1, p, etc.) | `exhaustive`, `ecc_properties`, `audit_field`, `audit_scalar` | `carry_propagation` |
 
@@ -84,8 +84,8 @@ Output: `audit-output-<timestamp>/audit_report.md` + `artifacts/`
 | F.2 | Scalar/field ring: distributive, inverse | `audit_field`, `audit_scalar`, `arith_correct` |
 | F.3 | GLV decomposition correctness | `audit_scalar` (GLV edge cases) |
 | F.4 | Batch inversion correctness | `audit_field` (batch inverse sweep) |
-| F.5 | Jacobian↔Affine roundtrip | `audit_point`, `batch_add` |
-| F.6 | FAST≡CT equivalence | `ct_equivalence`, `diag_scalar_mul` |
+| F.5 | Jacobian<->Affine roundtrip | `audit_point`, `batch_add` |
+| F.6 | FAST==CT equivalence | `ct_equivalence`, `diag_scalar_mul` |
 
 > **Seed**: All property tests use deterministic seed. Seed is printed in unified runner output and recorded in `audit_report.json`.
 
@@ -93,7 +93,7 @@ Output: `audit-output-<timestamp>/audit_report.md` + `artifacts/`
 
 | # | Test | Implementation | CTest target |
 |---|------|---------------|-------------|
-| G.1 | Internal differential (5×52 vs 10×26 vs 4×64) | `field_52`, `field_26`, `differential` | `differential` |
+| G.1 | Internal differential (5x52 vs 10x26 vs 4x64) | `field_52`, `field_26`, `differential` | `differential` |
 | G.2 | Cross-library vs bitcoin-core/libsecp256k1 | `test_cross_libsecp256k1.cpp` | `cross_libsecp256k1` (requires `-DSECP256K1_BUILD_CROSS_TESTS=ON`) |
 | G.3 | Fiat-Crypto reference vectors | `fiat_crypto` | `fiat_crypto_vectors` |
 | G.4 | Cross-platform KAT | `cross_platform_kat` | `cross_platform_kat` |
@@ -108,7 +108,7 @@ Output: `audit-output-<timestamp>/audit_report.md` + `artifacts/`
 | H.1d | ufsecp ABI boundary | `fuzz_addr_bip32` | `fuzz_address_bip32_ffi` |
 | H.2 | Adversarial fuzz (malform/edge) | `audit_fuzz` | `audit_fuzz` |
 | H.3 | Fault injection simulation | `fault_injection` | `fault_injection` |
-| H.4 | Corpus: `audit/corpus/` | seed corpus for deterministic fuzz | — |
+| H.4 | Corpus: `audit/corpus/` | seed corpus for deterministic fuzz | -- |
 
 ### I. Constant-Time & Side-Channel
 
@@ -116,31 +116,31 @@ Output: `audit-output-<timestamp>/audit_report.md` + `artifacts/`
 |---|------|---------------|-------------------|
 | I.1 | CT branch scan (disassembly) | `scripts/verify_ct_disasm.sh` | `artifacts/disasm/disasm_branch_scan.json` |
 | I.2a | dudect: scalar_mul | `ct_sidechannel` (smoke: `|t| < 4.5`) | `artifacts/ctest/audit_report.json` |
-| I.2b | dudect: field_inv, scalar_inv | `ct_sidechannel` | — |
-| I.2c | dudect: ECDSA sign | `ct_sidechannel` | — |
-| I.2d | dudect: Schnorr sign | `ct_sidechannel` | — |
-| I.2e | dudect: cswap/cmov primitives | `audit_ct` | — |
+| I.2b | dudect: field_inv, scalar_inv | `ct_sidechannel` | -- |
+| I.2c | dudect: ECDSA sign | `ct_sidechannel` | -- |
+| I.2d | dudect: Schnorr sign | `ct_sidechannel` | -- |
+| I.2e | dudect: cswap/cmov primitives | `audit_ct` | -- |
 | I.3 | Valgrind CT (uninit-as-secret) | `scripts/valgrind_ct_check.sh` | `artifacts/sanitizers/valgrind.log` |
 | I.4 | CT contract: `audit_ct` (masks/cmov deep) | `audit_ct`, `ct`, `ct_equivalence` | `audit_report.json` |
-| I.5 | FAST≡CT equivalence proof | `ct_equivalence`, `diag_scalar_mul` | `audit_report.json` |
+| I.5 | FAST==CT equivalence proof | `ct_equivalence`, `diag_scalar_mul` | `audit_report.json` |
 
 ### J. ABI / API Stability & Safety
 
 | # | Test | Implementation | CTest target |
 |---|------|---------------|-------------|
-| J.1 | ABI symbol check | `run_full_audit` (nm/dumpbin scan) | — |
+| J.1 | ABI symbol check | `run_full_audit` (nm/dumpbin scan) | -- |
 | J.2 | ABI version gate | `test_abi_gate.cpp` | `abi_gate` |
-| J.3 | Calling convention (null/misaligned) | `audit_security` (null/bitflip/nonce) | — |
-| J.4 | Error model compliance | `audit_fuzz`, `fault_injection` | — |
+| J.3 | Calling convention (null/misaligned) | `audit_security` (null/bitflip/nonce) | -- |
+| J.4 | Error model compliance | `audit_fuzz`, `fault_injection` | -- |
 
 ### K. Bindings & FFI Parity
 
 | # | Test | Implementation | Evidence Artifact |
 |---|------|---------------|-------------------|
 | K.1 | Parity matrix (all ufsecp.h functions per binding) | `run_full_audit` scans `bindings/` | `artifacts/bindings/parity_matrix.json` |
-| K.2 | Binding smoke tests | Per-language test suites in `bindings/<lang>/` | — |
-| K.3 | Memory ownership tests | Binding-specific tests | — |
-| K.4 | Package install tests | `pip`/`npm`/`nuget`/... install → run sample | manual / CI |
+| K.2 | Binding smoke tests | Per-language test suites in `bindings/<lang>/` | -- |
+| K.3 | Memory ownership tests | Binding-specific tests | -- |
+| K.4 | Package install tests | `pip`/`npm`/`nuget`/... install -> run sample | manual / CI |
 
 ### L. Performance Regression
 
@@ -161,7 +161,7 @@ Output: `audit-output-<timestamp>/audit_report.md` + `artifacts/`
 
 ---
 
-## Unified Audit Runner — 8-Section Internal Mapping
+## Unified Audit Runner -- 8-Section Internal Mapping
 
 The C++ `unified_audit_runner` binary covers **E, F, G(internal), H(deterministic), I(dudect+CT), J(ABI gate), L(smoke)** in a single executable.
 
@@ -178,16 +178,16 @@ The C++ `unified_audit_runner` binary covers **E, F, G(internal), H(deterministi
 
 ---
 
-## Threat Model → Test Traceability
+## Threat Model -> Test Traceability
 
 | THREAT_MODEL.md Attack | Risk | Tests Covering It | Evidence Location |
 |------------------------|------|-------------------|-------------------|
-| A1: Timing Side Channels | HIGH | I.1 (disasm), I.2 (dudect), I.4 (audit_ct), I.5 (CT≡FAST), F.6 | `artifacts/disasm/`, `audit_report.json` (ct_analysis) |
+| A1: Timing Side Channels | HIGH | I.1 (disasm), I.2 (dudect), I.4 (audit_ct), I.5 (CT==FAST), F.6 | `artifacts/disasm/`, `audit_report.json` (ct_analysis) |
 | A2: Nonce Attacks | CRITICAL | E.1b (RFC6979), E.1c (BIP-340), F.6 (CT equivalence) | `audit_report.json` (standard_vectors) |
-| A3: Arithmetic Errors | CRITICAL | E.1a, E.4, F.1–F.5, G.1–G.4 | `audit_report.json` (math_invariants, differential) |
-| A4: Memory Safety | CRITICAL | D.1–D.5, H.1–H.4, J.3 | `artifacts/sanitizers/`, `audit_report.json` (fuzzing) |
-| A5: Supply Chain | HIGH | A.3, B.1–B.3, A.4 | `artifacts/sbom.cdx.json`, `artifacts/SHA256SUMS.txt` |
-| A6: GPU-Specific | HIGH | Separate GPU audit | — |
+| A3: Arithmetic Errors | CRITICAL | E.1a, E.4, F.1-F.5, G.1-G.4 | `audit_report.json` (math_invariants, differential) |
+| A4: Memory Safety | CRITICAL | D.1-D.5, H.1-H.4, J.3 | `artifacts/sanitizers/`, `audit_report.json` (fuzzing) |
+| A5: Supply Chain | HIGH | A.3, B.1-B.3, A.4 | `artifacts/sbom.cdx.json`, `artifacts/SHA256SUMS.txt` |
+| A6: GPU-Specific | HIGH | Separate GPU audit | -- |
 
 ### Not Covered by Automated Tests
 
@@ -204,36 +204,36 @@ The C++ `unified_audit_runner` binary covers **E, F, G(internal), H(deterministi
 
 ```
 audit-output-YYYYMMDD-HHMMSS/
-├── audit_report.md                          # სრული აუდიტის რეპორტი
-├── artifacts/
-│   ├── SHA256SUMS.txt                       # ყველა ბინარის ჰეშები
-│   ├── toolchain_fingerprint.json           # კომპილატორი/CMake/OS ინფო
-│   ├── provenance.json                      # SLSA-style build provenance
-│   ├── dependency_scan.txt                  # ldd/dumpbin output
-│   ├── sbom.cdx.json                        # CycloneDX SBOM
-│   ├── static_analysis/
-│   │   ├── clang_tidy.log
-│   │   ├── cppcheck.log
-│   │   └── dangerous_patterns.log
-│   ├── sanitizers/
-│   │   ├── asan_ubsan.log
-│   │   ├── valgrind.log
-│   │   └── tsan.log
-│   ├── ctest/
-│   │   ├── unified_runner_output.txt        # Console output
-│   │   ├── audit_report.json                # Structured JSON (8 sections)
-│   │   ├── audit_report.txt                 # Human-readable text
-│   │   ├── results.json                     # CTest summary
-│   │   └── ctest_output.txt
-│   ├── disasm/
-│   │   ├── disasm_branch_scan.json          # CT function branch scan
-│   │   └── disasm_branch_scan.txt
-│   ├── bindings/
-│   │   └── parity_matrix.json
-│   ├── benchmark/
-│   │   └── benchmark_output.txt
-│   └── fuzz/
-│       └── summary.json
++-- audit_report.md                          # სრული აუდიტის რეპორტი
++-- artifacts/
+|   +-- SHA256SUMS.txt                       # ყველა ბინარის ჰეშები
+|   +-- toolchain_fingerprint.json           # კომპილატორი/CMake/OS ინფო
+|   +-- provenance.json                      # SLSA-style build provenance
+|   +-- dependency_scan.txt                  # ldd/dumpbin output
+|   +-- sbom.cdx.json                        # CycloneDX SBOM
+|   +-- static_analysis/
+|   |   +-- clang_tidy.log
+|   |   +-- cppcheck.log
+|   |   +-- dangerous_patterns.log
+|   +-- sanitizers/
+|   |   +-- asan_ubsan.log
+|   |   +-- valgrind.log
+|   |   +-- tsan.log
+|   +-- ctest/
+|   |   +-- unified_runner_output.txt        # Console output
+|   |   +-- audit_report.json                # Structured JSON (8 sections)
+|   |   +-- audit_report.txt                 # Human-readable text
+|   |   +-- results.json                     # CTest summary
+|   |   +-- ctest_output.txt
+|   +-- disasm/
+|   |   +-- disasm_branch_scan.json          # CT function branch scan
+|   |   +-- disasm_branch_scan.txt
+|   +-- bindings/
+|   |   +-- parity_matrix.json
+|   +-- benchmark/
+|   |   +-- benchmark_output.txt
+|   +-- fuzz/
+|       +-- summary.json
 ```
 
 ---
@@ -249,4 +249,4 @@ audit-output-YYYYMMDD-HHMMSS/
 
 ---
 
-*UltrafastSecp256k1 v3.14.0 — Audit Test Plan*
+*UltrafastSecp256k1 v3.14.0 -- Audit Test Plan*

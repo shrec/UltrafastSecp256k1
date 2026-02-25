@@ -18,7 +18,7 @@
 //  12. Sub consistency:   P - Q == P + (-Q)
 //
 // Uses deterministic pseudo-random scalars derived from a simple hash of
-// the iteration index — fully reproducible, no external PRNG dependency.
+// the iteration index -- fully reproducible, no external PRNG dependency.
 // ============================================================================
 
 #include "secp256k1/point.hpp"
@@ -31,7 +31,7 @@
 
 using namespace secp256k1::fast;
 
-// ── helpers ─────────────────────────────────────────────────────────────────
+// -- helpers -----------------------------------------------------------------
 
 static int tests_run = 0;
 static int tests_passed = 0;
@@ -48,7 +48,7 @@ static bool points_equal(const Point& a, const Point& b) {
 }
 
 // Deterministic scalar from index: SHA256-like mixing of 'seed' bits.
-// Not cryptographically random — that's intentional: reproducibility > entropy.
+// Not cryptographically random -- that's intentional: reproducibility > entropy.
 static Scalar deterministic_scalar(uint64_t idx) {
     // Knuth multiplicative hash + bit mixing
     uint64_t h = idx * 0x9E3779B97F4A7C15ULL;
@@ -86,7 +86,7 @@ static Point deterministic_point(uint64_t idx) {
     return Point::generator().scalar_mul(k);
 }
 
-// ── property tests ──────────────────────────────────────────────────────────
+// -- property tests ----------------------------------------------------------
 
 static void test_identity_element() {
     printf("\n--- Identity element: P + O == P ---\n");
@@ -414,7 +414,7 @@ static void test_dual_scalar_mul() {
     }
 }
 
-// ── entry points ────────────────────────────────────────────────────────────
+// -- entry points ------------------------------------------------------------
 
 int test_ecc_properties_run() {
     printf("\n================================================================\n");

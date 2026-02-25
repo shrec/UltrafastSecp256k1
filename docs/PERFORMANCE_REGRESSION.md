@@ -6,8 +6,8 @@ How UltrafastSecp256k1 detects, manages, and prevents performance regressions.
 
 ## Overview
 
-Performance regressions in a cryptographic library directly impact users. A 2×
-slowdown in `scalar_mul` makes every ECDSA sign/verify operation 2× slower.
+Performance regressions in a cryptographic library directly impact users. A 2x
+slowdown in `scalar_mul` makes every ECDSA sign/verify operation 2x slower.
 
 We use automated CI benchmarks + manual verification to maintain performance
 baselines across commits.
@@ -32,8 +32,8 @@ The `.github/workflows/benchmark.yml` workflow:
 | Threshold | Action |
 |-----------|--------|
 | **150%** (50% slower) | Comment on commit / PR |
-| **200%** (2× slower) | Manual investigation required |
-| **300%** (3× slower) | Likely a bug — revert candidate |
+| **200%** (2x slower) | Manual investigation required |
+| **300%** (3x slower) | Likely a bug -- revert candidate |
 
 Alert notifications appear as:
 - GitHub commit comments
@@ -67,7 +67,7 @@ Baselines are from x86-64, Clang 21, AVX2, Ubuntu 24.04 GH Actions runner.
 Regression detected by CI or manual report:
 
 ```
-⚠️ Performance Alert: scalar_mul is 165% of baseline (41 μs vs 25 μs baseline)
+[!] Performance Alert: scalar_mul is 165% of baseline (41 us vs 25 us baseline)
 ```
 
 ### Step 2: Reproduce Locally
@@ -105,7 +105,7 @@ Common causes:
 ```bash
 # After fix, verify regression is resolved
 ./build/cpu/bench_comprehensive | grep scalar_mul
-# Expected: back to baseline ±5%
+# Expected: back to baseline +-5%
 ```
 
 ### Step 5: Document
@@ -115,8 +115,8 @@ Every performance-affecting change must include in the commit message:
 ```
 perf: <description>
 
-Before: scalar_mul 41 μs
-After:  scalar_mul 25 μs
+Before: scalar_mul 41 us
+After:  scalar_mul 25 us
 Cause:  <root cause>
 ```
 
@@ -126,11 +126,11 @@ Cause:  <root cause>
 
 For major releases, manual verification is performed:
 
-1. **Dedicated hardware** — isolated machine, no background processes
-2. **CPU pinning** — `taskset -c 0` on Linux
-3. **Turbo disabled** — fixed CPU frequency
-4. **Multiple runs** — 5× with median
-5. **Cross-architecture** — x86-64 + ARM64 minimum
+1. **Dedicated hardware** -- isolated machine, no background processes
+2. **CPU pinning** -- `taskset -c 0` on Linux
+3. **Turbo disabled** -- fixed CPU frequency
+4. **Multiple runs** -- 5x with median
+5. **Cross-architecture** -- x86-64 + ARM64 minimum
 
 Results are published in `docs/BENCHMARKS.md` with hardware details.
 
@@ -143,9 +143,9 @@ Results are published in `docs/BENCHMARKS.md` with hardware details.
 The benchmark dashboard stores results in the `gh-pages` branch under
 `dev/bench-v2/`. A baseline reset is needed when:
 
-1. **New harness** — `DoNotOptimize` added (v2 reset)
-2. **Algorithm change** — intentional performance change
-3. **New CI runner hardware** — different GH Actions machine type
+1. **New harness** -- `DoNotOptimize` added (v2 reset)
+2. **Algorithm change** -- intentional performance change
+3. **New CI runner hardware** -- different GH Actions machine type
 
 Reset process:
 
@@ -189,6 +189,6 @@ Before merging performance-sensitive code:
 
 ## See Also
 
-- [docs/BENCHMARK_METHODOLOGY.md](BENCHMARK_METHODOLOGY.md) — How benchmarks are run
-- [docs/BENCHMARKS.md](BENCHMARKS.md) — Full benchmark results
-- [docs/PERFORMANCE_GUIDE.md](PERFORMANCE_GUIDE.md) — Tuning for speed
+- [docs/BENCHMARK_METHODOLOGY.md](BENCHMARK_METHODOLOGY.md) -- How benchmarks are run
+- [docs/BENCHMARKS.md](BENCHMARKS.md) -- Full benchmark results
+- [docs/PERFORMANCE_GUIDE.md](PERFORMANCE_GUIDE.md) -- Tuning for speed

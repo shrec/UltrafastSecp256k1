@@ -1,5 +1,5 @@
 # ============================================================================
-# UltrafastSecp256k1 — Release Build Script (Windows)
+# UltrafastSecp256k1 -- Release Build Script (Windows)
 # ============================================================================
 # Builds release binaries + creates distribution archive + NuGet layout.
 #
@@ -26,7 +26,7 @@ $RootDir   = Split-Path -Parent $ScriptDir
 $BuildDir  = Join-Path $RootDir "build-release-pkg"
 $ReleaseDir = Join-Path $RootDir "release"
 
-# ── Read version from CMakeLists.txt ──
+# -- Read version from CMakeLists.txt --
 $CMakeContent = Get-Content (Join-Path $RootDir "CMakeLists.txt") -Raw
 if ($CMakeContent -match 'VERSION\s+(\d+\.\d+\.\d+)') {
     $Version = $Matches[1]
@@ -38,15 +38,15 @@ if ($CMakeContent -match 'VERSION\s+(\d+\.\d+\.\d+)') {
 $Arch = if ([Environment]::Is64BitOperatingSystem) { "x64" } else { "x86" }
 $PkgName = "UltrafastSecp256k1-v${Version}-win-${Arch}"
 
-Write-Host "═══════════════════════════════════════════════════════════════" -ForegroundColor Cyan
+Write-Host "===============================================================" -ForegroundColor Cyan
 Write-Host "  UltrafastSecp256k1 Release Build" -ForegroundColor Cyan
 Write-Host "  Version:    $Version"
 Write-Host "  Platform:   win-${Arch}"
 Write-Host "  Build Type: $BuildType"
 Write-Host "  Output:     $ReleaseDir\$PkgName"
-Write-Host "═══════════════════════════════════════════════════════════════" -ForegroundColor Cyan
+Write-Host "===============================================================" -ForegroundColor Cyan
 
-# ── Configure ──
+# -- Configure --
 Write-Host "`n>>> Configuring..." -ForegroundColor Yellow
 cmake -S $RootDir -B $BuildDir `
     -G Ninja `
@@ -56,24 +56,24 @@ cmake -S $RootDir -B $BuildDir `
     -DSECP256K1_BUILD_EXAMPLES=OFF
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-# ── Build ──
+# -- Build --
 Write-Host "`n>>> Building..." -ForegroundColor Yellow
 cmake --build $BuildDir -j
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-# ── Test ──
+# -- Test --
 if (-not $SkipTests) {
     Write-Host "`n>>> Running tests..." -ForegroundColor Yellow
     ctest --test-dir $BuildDir --output-on-failure -j4
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 }
 
-# ── Install to staging ──
+# -- Install to staging --
 Write-Host "`n>>> Installing to staging..." -ForegroundColor Yellow
 $Staging = Join-Path $BuildDir "staging"
 cmake --install $BuildDir --prefix $Staging
 
-# ── Collect release artifacts ──
+# -- Collect release artifacts --
 Write-Host "`n>>> Packaging $PkgName..." -ForegroundColor Yellow
 $PkgDir = Join-Path $ReleaseDir $PkgName
 if (Test-Path $PkgDir) { Remove-Item -Recurse -Force $PkgDir }
@@ -122,14 +122,14 @@ if (Test-Path "$Staging\lib\cmake") {
 $guarantees = Join-Path $RootDir "include\ufsecp\SUPPORTED_GUARANTEES.md"
 if (Test-Path $guarantees) { Copy-Item $guarantees "$PkgDir\" }
 
-# ── Create ZIP archive ──
+# -- Create ZIP archive --
 Write-Host "`n>>> Creating archive..." -ForegroundColor Yellow
 $ZipPath = "$ReleaseDir\$PkgName.zip"
 if (Test-Path $ZipPath) { Remove-Item $ZipPath }
 Compress-Archive -Path $PkgDir -DestinationPath $ZipPath
 Write-Host "  Archive: $ZipPath"
 
-# ── Populate NuGet runtime layout ──
+# -- Populate NuGet runtime layout --
 Write-Host "`n>>> Setting up NuGet layout..." -ForegroundColor Yellow
 $NugetRoot = Join-Path $ReleaseDir "nuget"
 $NugetRuntime = Join-Path $NugetRoot "runtimes\win-${Arch}\native"
@@ -149,9 +149,9 @@ Copy-Item "$RootDir\include\ufsecp\ufsecp_error.h"    $NugetInclude
 
 Write-Host "  NuGet runtimes: $NugetRuntime"
 
-# ── Summary ──
+# -- Summary --
 Write-Host ""
-Write-Host "═══════════════════════════════════════════════════════════════" -ForegroundColor Green
+Write-Host "===============================================================" -ForegroundColor Green
 Write-Host "  Release build complete!" -ForegroundColor Green
 Write-Host ""
 Write-Host "  Package: $PkgDir\"
@@ -164,4 +164,4 @@ Write-Host ""
 Write-Host "  To create NuGet package:" -ForegroundColor Yellow
 Write-Host "    Copy-Item 'nuget\*' '$NugetRoot\' -Recurse"
 Write-Host "    cd $NugetRoot; nuget pack UltrafastSecp256k1.Native.nuspec"
-Write-Host "═══════════════════════════════════════════════════════════════" -ForegroundColor Green
+Write-Host "===============================================================" -ForegroundColor Green

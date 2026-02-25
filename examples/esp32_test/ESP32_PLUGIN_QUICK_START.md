@@ -1,13 +1,13 @@
 # CLion ESP-IDF Plugin - Quick Setup
 
-## ✅ Configuration Complete
+## [OK] Configuration Complete
 
 All files are configured for ESP-IDF Plugin:
 
-- ✅ `.clion-esp-idf.json` - Python 3.12, ESP-IDF 5.5.1, COM3
-- ✅ `CMakePresets.json` - Correct toolchain paths
-- ✅ `sdkconfig` - ESP32-S3 configuration
-- ✅ `CMakeLists.txt` - Project structure
+- [OK] `.clion-esp-idf.json` - Python 3.12, ESP-IDF 5.5.1, COM3
+- [OK] `CMakePresets.json` - Correct toolchain paths
+- [OK] `sdkconfig` - ESP32-S3 configuration
+- [OK] `CMakeLists.txt` - Project structure
 
 ---
 
@@ -16,7 +16,7 @@ All files are configured for ESP-IDF Plugin:
 ### 1. Open Project
 
 ```
-File → Open → D:\Dev\Secp256K1\libs\UltrafastSecp256k1\examples\esp32_test
+File -> Open -> D:\Dev\Secp256K1\libs\UltrafastSecp256k1\examples\esp32_test
 ```
 
 ### 2. Wait for ESP-IDF Plugin
@@ -34,7 +34,7 @@ Click toolbar button:
 - 📡 **Monitor** - View serial output
 
 Or use Run Configuration dropdown:
-- `flash & monitor` ← **Recommended** (one-click)
+- `flash & monitor` <- **Recommended** (one-click)
 
 ---
 
@@ -53,14 +53,14 @@ Platform Information:
   Free Heap:    393736 bytes
 
 ==============================================
-  Results: 29/29 tests passed ✅
+  Results: 29/29 tests passed [OK]
   [SUCCESS] ALL TESTS PASSED
 ==============================================
 ```
 
 ---
 
-## ⚙️ Configuration Details
+## ⚙ Configuration Details
 
 **Python Environment:**
 - Version: 3.12.4
@@ -82,13 +82,13 @@ Platform Information:
 
 ---
 
-## 🔧 Troubleshooting
+## [TOOL] Troubleshooting
 
 ### Plugin toolbar not showing?
 
 1. Close project
 2. Delete `.idea` folder (if exists)
-3. Reopen: `File → Open → esp32_test`
+3. Reopen: `File -> Open -> esp32_test`
 4. Wait for indexing (bottom progress bar)
 
 ### Build error: "Python 3.8"?
@@ -96,8 +96,8 @@ Platform Information:
 Fixed! `.clion-esp-idf.json` already uses Python 3.12.
 If error persists:
 ```
-Settings → ESP-IDF → Python Path
-→ Set to: C:\Espressif\python_env\idf5.5_py3.12_env\Scripts\python.exe
+Settings -> ESP-IDF -> Python Path
+-> Set to: C:\Espressif\python_env\idf5.5_py3.12_env\Scripts\python.exe
 ```
 
 ### COM3 busy?
@@ -118,7 +118,7 @@ Press **Reset button** on ESP32 board after flashing.
 
 ---
 
-**Status:** ✅ ESP-IDF Plugin configured and ready!  
+**Status:** [OK] ESP-IDF Plugin configured and ready!  
 **Updated:** 2026-02-12  
 **Device:** ESP32-S3 on COM3
 

@@ -18,7 +18,7 @@ Drop-in integration for **UltrafastSecp256k1** into any C++20 project.
 
 ## CMake FetchContent (Recommended)
 
-The simplest integration path — no manual cloning required.
+The simplest integration path -- no manual cloning required.
 
 ```cmake
 cmake_minimum_required(VERSION 3.18)
@@ -232,7 +232,7 @@ int main() {
     auto alice_pub = Point::generator().scalar_mul(alice_priv);
     auto bob_pub = Point::generator().scalar_mul(bob_priv);
 
-    // Shared secret: Alice's priv × Bob's pub == Bob's priv × Alice's pub
+    // Shared secret: Alice's priv x Bob's pub == Bob's priv x Alice's pub
     auto shared_a = ecdh(alice_priv, bob_pub);
     auto shared_b = ecdh(bob_priv, alice_pub);
 
@@ -249,7 +249,7 @@ int main() {
 
 | libsecp256k1 (C) | UltrafastSecp256k1 (C++) |
 |---|---|
-| `secp256k1_context_create(SECP256K1_CONTEXT_NONE)` | No context needed — stateless API |
+| `secp256k1_context_create(SECP256K1_CONTEXT_NONE)` | No context needed -- stateless API |
 | `secp256k1_ec_pubkey_create(ctx, &pub, seckey)` | `Point::generator().scalar_mul(Scalar::from_bytes(seckey))` |
 | `secp256k1_ecdsa_sign(ctx, &sig, msg, seckey, ...)` | `auto [r,s] = ecdsa_sign(privkey, msg_hash)` |
 | `secp256k1_ecdsa_verify(ctx, &sig, msg, &pub)` | `ecdsa_verify(pubkey, msg_hash, r, s)` |
@@ -263,12 +263,12 @@ int main() {
 1. **No context objects**: UltrafastSecp256k1 is entirely stateless. No `create`/`destroy` boilerplate.
 2. **C++20 value types**: `FieldElement`, `Scalar`, `Point` are regular value types with copy/move semantics.
 3. **Structured bindings**: Sign functions return `auto [r, s]` or `auto [sig, ok]` via `std::pair`/`std::tuple`.
-4. **Hex I/O built-in**: `from_hex()` / `to_hex()` on all types — no manual byte array wrangling.
+4. **Hex I/O built-in**: `from_hex()` / `to_hex()` on all types -- no manual byte array wrangling.
 5. **No flags**: Compression is chosen by the serialization function, not a flag parameter.
 
 ### Drop-in Compatibility Shim
 
-For projects that need a C API compatible with libsecp256k1, see [`compat/libsecp256k1_shim/`](../../compat/libsecp256k1_shim/) — a thin C wrapper that maps the libsecp256k1 API to UltrafastSecp256k1 internals.
+For projects that need a C API compatible with libsecp256k1, see [`compat/libsecp256k1_shim/`](../../compat/libsecp256k1_shim/) -- a thin C wrapper that maps the libsecp256k1 API to UltrafastSecp256k1 internals.
 
 ---
 

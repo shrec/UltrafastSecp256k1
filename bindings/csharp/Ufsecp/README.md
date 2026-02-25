@@ -1,8 +1,8 @@
 # Ufsecp
 
-C# P/Invoke bindings for [UltrafastSecp256k1](https://github.com/shrec/UltrafastSecp256k1) — high-performance secp256k1 elliptic curve cryptography.
+C# P/Invoke bindings for [UltrafastSecp256k1](https://github.com/shrec/UltrafastSecp256k1) -- high-performance secp256k1 elliptic curve cryptography.
 
-Bundles native runtimes for Windows x64, Linux x64, Linux ARM64, and macOS ARM64. The native library is auto-copied to your build output — no manual setup required.
+Bundles native runtimes for Windows x64, Linux x64, Linux ARM64, and macOS ARM64. The native library is auto-copied to your build output -- no manual setup required.
 
 ## Install
 

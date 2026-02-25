@@ -53,11 +53,11 @@ security    =  17.17 sec*proc (1 test)
 Total Test time (real) =  17.17 sec
 
 === audit_field ===
-═══════════════════════════════════════════════════════════════
-  AUDIT I.1 — Field Arithmetic Correctness
-═══════════════════════════════════════════════════════════════
+===============================================================
+  AUDIT I.1 -- Field Arithmetic Correctness
+===============================================================
 
-[1] Addition mod p — overflow paths
+[1] Addition mod p -- overflow paths
     3101 checks
 
 [2] Subtraction borrow-chain
@@ -91,14 +91,14 @@ Total Test time (real) =  17.17 sec
 [11] Random cross-check (100K operations)
     264622 checks
 
-═══════════════════════════════════════════════════════════════
+===============================================================
   FIELD AUDIT: 264622 passed, 0 failed
-═══════════════════════════════════════════════════════════════
+===============================================================
 
 === audit_scalar ===
-═══════════════════════════════════════════════════════════════
-  AUDIT I.2 — Scalar Arithmetic Correctness
-═══════════════════════════════════════════════════════════════
+===============================================================
+  AUDIT I.2 -- Scalar Arithmetic Correctness
+===============================================================
 
 [1] Scalar mod n reduction
     10003 checks
@@ -124,14 +124,14 @@ Total Test time (real) =  17.17 sec
 [8] Negate self-consistency
     93215 checks
 
-═══════════════════════════════════════════════════════════════
+===============================================================
   SCALAR AUDIT: 93215 passed, 0 failed
-═══════════════════════════════════════════════════════════════
+===============================================================
 
 === audit_point ===
-═══════════════════════════════════════════════════════════════
-  AUDIT I.3 — Point Operations & Signature Correctness
-═══════════════════════════════════════════════════════════════
+===============================================================
+  AUDIT I.3 -- Point Operations & Signature Correctness
+===============================================================
 
 [1] Point at infinity correctness
     7 checks
@@ -167,14 +167,14 @@ Total Test time (real) =  17.17 sec
     infinity hits (should be 0): 0
     116124 checks
 
-═══════════════════════════════════════════════════════════════
+===============================================================
   POINT AUDIT: 116124 passed, 0 failed
-═══════════════════════════════════════════════════════════════
+===============================================================
 
 === audit_ct ===
-═══════════════════════════════════════════════════════════════
-  AUDIT II — Constant-Time & Side-Channel
-═══════════════════════════════════════════════════════════════
+===============================================================
+  AUDIT II -- Constant-Time & Side-Channel
+===============================================================
 
 [1] CT mask generation
     12 checks
@@ -213,20 +213,20 @@ Total Test time (real) =  17.17 sec
     120651 checks
 
 [13] Rudimentary timing variance (CT scalar_mul)
-    NOTE: Not a formal side-channel test — just sanity check.
+    NOTE: Not a formal side-channel test -- just sanity check.
     k=1 avg: 363380 ns
     k=n-1 avg: 351039 ns
-    ratio: 1.035 (ideal ≈ 1.0, concern > 1.2)
+    ratio: 1.035 (ideal ~= 1.0, concern > 1.2)
     120652 checks
 
-═══════════════════════════════════════════════════════════════
+===============================================================
   CT AUDIT: 120652 passed, 0 failed
-═══════════════════════════════════════════════════════════════
+===============================================================
 
 === audit_fuzz ===
-═══════════════════════════════════════════════════════════════
-  AUDIT III — Fuzzing & Adversarial Testing
-═══════════════════════════════════════════════════════════════
+===============================================================
+  AUDIT III -- Fuzzing & Adversarial Testing
+===============================================================
 
 [1] Malformed public key rejection
     3 checks
@@ -258,56 +258,56 @@ Total Test time (real) =  17.17 sec
 [10] Signature normalization / low-S (1K)
     15461 checks
 
-═══════════════════════════════════════════════════════════════
+===============================================================
   FUZZ AUDIT: 15461 passed, 0 failed
-═══════════════════════════════════════════════════════════════
+===============================================================
 
 === audit_perf ===
-═══════════════════════════════════════════════════════════════
-  AUDIT IV — Performance Validation
-═══════════════════════════════════════════════════════════════
+===============================================================
+  AUDIT IV -- Performance Validation
+===============================================================
 
 [Field Arithmetic]
-  field_add                        100000 iters      1038.9 µs      10.4 ns/op    96253895 op/s
-  field_sub                        100000 iters      1349.3 µs      13.5 ns/op    74111349 op/s
-  field_mul                        100000 iters      4343.2 µs      43.4 ns/op    23024445 op/s
-  field_sqr                        100000 iters      3486.9 µs      34.9 ns/op    28678383 op/s
-  field_inv                         10000 iters      7363.1 µs     736.3 ns/op     1358115 op/s
+  field_add                        100000 iters      1038.9 us      10.4 ns/op    96253895 op/s
+  field_sub                        100000 iters      1349.3 us      13.5 ns/op    74111349 op/s
+  field_mul                        100000 iters      4343.2 us      43.4 ns/op    23024445 op/s
+  field_sqr                        100000 iters      3486.9 us      34.9 ns/op    28678383 op/s
+  field_inv                         10000 iters      7363.1 us     736.3 ns/op     1358115 op/s
 
 [Scalar Arithmetic]
-  scalar_add                       100000 iters      1174.9 µs      11.7 ns/op    85115655 op/s
-  scalar_sub                       100000 iters      1093.6 µs      10.9 ns/op    91440527 op/s
-  scalar_mul                       100000 iters      3212.1 µs      32.1 ns/op    31132611 op/s
-  scalar_inv                        10000 iters      8019.5 µs     801.9 ns/op     1246964 op/s
+  scalar_add                       100000 iters      1174.9 us      11.7 ns/op    85115655 op/s
+  scalar_sub                       100000 iters      1093.6 us      10.9 ns/op    91440527 op/s
+  scalar_mul                       100000 iters      3212.1 us      32.1 ns/op    31132611 op/s
+  scalar_inv                        10000 iters      8019.5 us     801.9 ns/op     1246964 op/s
 
 [Point Operations]
-  point_add                         10000 iters      2006.9 µs     200.7 ns/op     4982829 op/s
-  point_dbl                         10000 iters       882.7 µs      88.3 ns/op    11328954 op/s
-  point_scalar_mul                  10000 iters     70965.3 µs    7096.5 ns/op      140914 op/s
-  point_to_compressed               10000 iters      9562.4 µs     956.2 ns/op     1045768 op/s
+  point_add                         10000 iters      2006.9 us     200.7 ns/op     4982829 op/s
+  point_dbl                         10000 iters       882.7 us      88.3 ns/op    11328954 op/s
+  point_scalar_mul                  10000 iters     70965.3 us    7096.5 ns/op      140914 op/s
+  point_to_compressed               10000 iters      9562.4 us     956.2 ns/op     1045768 op/s
 
 [ECDSA]
-  ecdsa_sign                         1000 iters     10157.3 µs   10157.3 ns/op       98451 op/s
-  ecdsa_verify                       1000 iters     29493.4 µs   29493.4 ns/op       33906 op/s
+  ecdsa_sign                         1000 iters     10157.3 us   10157.3 ns/op       98451 op/s
+  ecdsa_verify                       1000 iters     29493.4 us   29493.4 ns/op       33906 op/s
 
 [Schnorr BIP-340]
-  schnorr_sign                       1000 iters     19709.9 µs   19709.9 ns/op       50736 op/s
-  schnorr_verify                     1000 iters     41495.0 µs   41495.0 ns/op       24099 op/s
+  schnorr_sign                       1000 iters     19709.9 us   19709.9 ns/op       50736 op/s
+  schnorr_verify                     1000 iters     41495.0 us   41495.0 ns/op       24099 op/s
 
 [Constant-Time (comparison)]
-  ct_scalar_mul                      1000 iters    313350.1 µs  313350.1 ns/op        3191 op/s
-  ct_generator_mul                   1000 iters    316248.5 µs  316248.5 ns/op        3162 op/s
+  ct_scalar_mul                      1000 iters    313350.1 us  313350.1 ns/op        3191 op/s
+  ct_generator_mul                   1000 iters    316248.5 us  316248.5 ns/op        3162 op/s
 
-═══════════════════════════════════════════════════════════════
+===============================================================
   Performance validation complete.
   NOTE: This is a profiling benchmark, not a pass/fail test.
   Compare results against known baselines for regression.
-═══════════════════════════════════════════════════════════════
+===============================================================
 
 === audit_security ===
-═══════════════════════════════════════════════════════════════
-  AUDIT V — Security Hardening
-═══════════════════════════════════════════════════════════════
+===============================================================
+  AUDIT V -- Security Hardening
+===============================================================
 
 [1] Zero / identity key handling
     5 checks
@@ -339,14 +339,14 @@ Total Test time (real) =  17.17 sec
 [10] High-S detection
     17309 checks
 
-═══════════════════════════════════════════════════════════════
+===============================================================
   SECURITY AUDIT: 17309 passed, 0 failed
-═══════════════════════════════════════════════════════════════
+===============================================================
 
 === audit_integration ===
-═══════════════════════════════════════════════════════════════
-  AUDIT VI — Integration Testing
-═══════════════════════════════════════════════════════════════
+===============================================================
+  AUDIT VI -- Integration Testing
+===============================================================
 
 [1] ECDH key exchange symmetry (1K)
     4001 checks
@@ -357,7 +357,7 @@ Total Test time (real) =  17.17 sec
 [3] ECDSA batch verification
     4009 checks
 
-[4] ECDSA sign → recover → verify (1K)
+[4] ECDSA sign -> recover -> verify (1K)
     10009 checks
 
 [5] Schnorr cross-path: individual vs batch (500)
@@ -379,6 +379,6 @@ Total Test time (real) =  17.17 sec
     success: 5000/5000
     13811 checks
 
-═══════════════════════════════════════════════════════════════
+===============================================================
   INTEGRATION AUDIT: 13811 passed, 0 failed
-═══════════════════════════════════════════════════════════════
+===============================================================

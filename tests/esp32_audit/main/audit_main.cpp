@@ -33,7 +33,7 @@ static int g_fail = 0;
     else { g_fail++; LOG("  FAIL: %s", name); } \
 } while(0)
 
-// ── Test 1: Field element basics ──────────────────────────────────
+// -- Test 1: Field element basics ----------------------------------
 static void test_field_basics() {
     LOG("=== Field Element Basics ===");
 
@@ -66,7 +66,7 @@ static void test_field_basics() {
     CHECK(sum == zero, "1 + (-1) == 0");
 }
 
-// ── Test 2: Field multiplication properties ───────────────────────
+// -- Test 2: Field multiplication properties -----------------------
 static void test_field_mul_properties() {
     LOG("=== Field Multiplication Properties ===");
 
@@ -89,7 +89,7 @@ static void test_field_mul_properties() {
     CHECK(aa == sq, "a*a == square(a)");
 }
 
-// ── Test 3: Scalar basics ────────────────────────────────────────
+// -- Test 3: Scalar basics ----------------------------------------
 static void test_scalar_basics() {
     LOG("=== Scalar Basics ===");
 
@@ -112,7 +112,7 @@ static void test_scalar_basics() {
     CHECK(prod == one, "scalar 1 * 1 == 1");
 }
 
-// ── Test 4: Point on curve ───────────────────────────────────────
+// -- Test 4: Point on curve ---------------------------------------
 static void test_point_basics() {
     LOG("=== Point Basics ===");
 
@@ -132,7 +132,7 @@ static void test_point_basics() {
     CHECK(diff.is_infinity(), "G + (-G) == infinity");
 }
 
-// ── Test 5: Scalar multiplication KAT ────────────────────────────
+// -- Test 5: Scalar multiplication KAT ----------------------------
 static void test_scalar_mul_kat() {
     LOG("=== Scalar Multiplication KAT ===");
 
@@ -164,7 +164,7 @@ static void test_scalar_mul_kat() {
     CHECK(P2_bytes[3] == 0x7f, "2*G x[2] == 0x7f");
 }
 
-// ── Test 6: ECDSA sign/verify ────────────────────────────────────
+// -- Test 6: ECDSA sign/verify ------------------------------------
 static void test_ecdsa() {
     LOG("=== ECDSA Sign/Verify ===");
 
@@ -201,7 +201,7 @@ static void test_ecdsa() {
         bool valid = secp256k1::fast::ecdsa_verify(msg, sig.value(), pk);
         CHECK(valid, "ECDSA verify succeeded");
 
-        // Tamper with message → verify should fail
+        // Tamper with message -> verify should fail
         std::array<uint8_t, 32> bad_msg = msg;
         bad_msg[0] ^= 0xFF;
         bool invalid = secp256k1::fast::ecdsa_verify(bad_msg, sig.value(), pk);
@@ -215,17 +215,17 @@ extern "C" void app_main(void)
 int main()
 #endif
 {
-    LOG("╔══════════════════════════════════════════════════╗");
-    LOG("║  UltrafastSecp256k1 ESP32 Audit Test v3.14.0    ║");
-    LOG("╠══════════════════════════════════════════════════╣");
+    LOG("+==================================================+");
+    LOG("|  UltrafastSecp256k1 ESP32 Audit Test v3.14.0    |");
+    LOG("+==================================================+");
 #ifdef CONFIG_IDF_TARGET_ESP32S3
-    LOG("║  Target: ESP32-S3 (Xtensa LX7)                 ║");
+    LOG("|  Target: ESP32-S3 (Xtensa LX7)                 |");
 #elif defined(CONFIG_IDF_TARGET_ESP32)
-    LOG("║  Target: ESP32 (Xtensa LX6 / PICO-D4)          ║");
+    LOG("|  Target: ESP32 (Xtensa LX6 / PICO-D4)          |");
 #else
-    LOG("║  Target: Generic                                ║");
+    LOG("|  Target: Generic                                |");
 #endif
-    LOG("╚══════════════════════════════════════════════════╝");
+    LOG("+==================================================+");
     LOG("");
 
     test_field_basics();
@@ -236,10 +236,10 @@ int main()
     test_ecdsa();
 
     LOG("");
-    LOG("═══════════════════════════════════════════════════");
+    LOG("===================================================");
     LOG("  Results: %d PASSED, %d FAILED", g_pass, g_fail);
-    LOG("  Status:  %s", g_fail == 0 ? "ALL PASS ✓" : "FAILURES DETECTED ✗");
-    LOG("═══════════════════════════════════════════════════");
+    LOG("  Status:  %s", g_fail == 0 ? "ALL PASS OK" : "FAILURES DETECTED X");
+    LOG("===================================================");
 
 #ifndef ESP_PLATFORM
     return g_fail > 0 ? 1 : 0;

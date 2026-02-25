@@ -1,5 +1,5 @@
 # ============================================================================
-# UltrafastSecp256k1 — WebAssembly (Emscripten) Build
+# UltrafastSecp256k1 -- WebAssembly (Emscripten) Build
 # ============================================================================
 # Usage (standalone):
 #   emcmake cmake -S wasm -B build-wasm -DCMAKE_BUILD_TYPE=Release
@@ -37,14 +37,14 @@ message(STATUS "  Emscripten:  ${EMSCRIPTEN_VERSION}")
 message(STATUS "  Build Type:  ${CMAKE_BUILD_TYPE}")
 message(STATUS "======================================")
 
-# ── CPU library (portable mode, no ASM) ──────────────────────────────────────
+# -- CPU library (portable mode, no ASM) --------------------------------------
 set(SECP256K1_USE_ASM OFF CACHE BOOL "" FORCE)
 set(SECP256K1_USE_FAST_REDUCTION OFF CACHE BOOL "" FORCE)
 set(SECP256K1_INSTALL OFF CACHE BOOL "" FORCE)
 set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../cpu ${CMAKE_CURRENT_BINARY_DIR}/cpu)
 
-# ── WASM module ──────────────────────────────────────────────────────────────
+# -- WASM module --------------------------------------------------------------
 
 # Exported C functions for JS interop
 set(WASM_EXPORTED_FUNCTIONS
@@ -98,7 +98,7 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
     target_link_options(secp256k1_wasm PRIVATE
         -O3 -flto
         "SHELL:-s ASSERTIONS=0"
-        # NOTE: --closure 1 removed — it breaks atexit/exception runtime
+        # NOTE: --closure 1 removed -- it breaks atexit/exception runtime
     )
 else()
     target_link_options(secp256k1_wasm PRIVATE
@@ -130,8 +130,8 @@ add_custom_command(TARGET secp256k1_wasm POST_BUILD
 
 message(STATUS "")
 message(STATUS "WASM build configured. Output will be in build-wasm/dist/")
-message(STATUS "  secp256k1_wasm.js    — Emscripten loader (ES6 module)")
-message(STATUS "  secp256k1_wasm.wasm  — WebAssembly binary")
-message(STATUS "  secp256k1.mjs        — High-level JS wrapper")
-message(STATUS "  secp256k1.d.ts       — TypeScript declarations")
+message(STATUS "  secp256k1_wasm.js    -- Emscripten loader (ES6 module)")
+message(STATUS "  secp256k1_wasm.wasm  -- WebAssembly binary")
+message(STATUS "  secp256k1.mjs        -- High-level JS wrapper")
+message(STATUS "  secp256k1.d.ts       -- TypeScript declarations")
 message(STATUS "")

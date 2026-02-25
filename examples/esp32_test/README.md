@@ -2,7 +2,7 @@
 
 This example demonstrates the UltrafastSecp256k1 library running on ESP32-S3.
 
-## ✅ Test Status
+## [OK] Test Status
 
 **All 35 tests pass on real hardware!**
 
@@ -18,7 +18,7 @@ Results: 35/35 tests passed
 | Field Mul | 7,458 ns |
 | Field Square | 7,592 ns |
 | Field Add | 636 ns |
-| Scalar × G | 2,483 μs |
+| Scalar x G | 2,483 us |
 
 See [benchmarks/cpu/esp32/embedded/](../../benchmarks/cpu/esp32/embedded/) for detailed comparison.
 
@@ -31,11 +31,11 @@ See [benchmarks/cpu/esp32/embedded/](../../benchmarks/cpu/esp32/embedded/) for d
 
 | Chip | Architecture | Clock | Cores | Status |
 |------|--------------|-------|-------|--------|
-| **ESP32-S3** | Xtensa LX7 | 240 MHz | 2 | ✅ Tested & Working |
-| ESP32 | Xtensa LX6 | 240 MHz | 2 | ⚠️ Should work |
-| ESP32-S2 | Xtensa LX7 | 240 MHz | 1 | ⚠️ Should work |
-| ESP32-C3 | RISC-V | 160 MHz | 1 | ⚠️ Should work |
-| ESP32-C6 | RISC-V | 160 MHz | 1 | ⚠️ Should work |
+| **ESP32-S3** | Xtensa LX7 | 240 MHz | 2 | [OK] Tested & Working |
+| ESP32 | Xtensa LX6 | 240 MHz | 2 | [!] Should work |
+| ESP32-S2 | Xtensa LX7 | 240 MHz | 1 | [!] Should work |
+| ESP32-C3 | RISC-V | 160 MHz | 1 | [!] Should work |
+| ESP32-C6 | RISC-V | 160 MHz | 1 | [!] Should work |
 
 ## Build & Flash
 

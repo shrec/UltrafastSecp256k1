@@ -13,9 +13,9 @@ Every `ufsecp_*` function returns `ufsecp_error_t` (`int`, 0 = success).
 
 | Code | Name | Meaning | Recoverable? |
 |---:|------|---------|:---:|
-| 0 | `UFSECP_OK` | Success | — |
+| 0 | `UFSECP_OK` | Success | -- |
 | 1 | `UFSECP_ERR_NULL_ARG` | Required pointer was NULL | Yes |
-| 2 | `UFSECP_ERR_BAD_KEY` | Invalid private key (zero, ≥ order) | Yes |
+| 2 | `UFSECP_ERR_BAD_KEY` | Invalid private key (zero, >= order) | Yes |
 | 3 | `UFSECP_ERR_BAD_PUBKEY` | Unparseable / invalid public key | Yes |
 | 4 | `UFSECP_ERR_BAD_SIG` | Malformed signature | Yes |
 | 5 | `UFSECP_ERR_BAD_INPUT` | Wrong length, bad format | Yes |
@@ -49,7 +49,7 @@ Each `ufsecp_ctx` owns its own last-error slot. Thread safety: one context per t
 | Error Pattern | Mechanism |
 |---|---|
 | Recoverable (1-7, 10) | Raises `UfsecpError(op, code, msg)` |
-| Fatal (8-9) | Raises `UfsecpError` — context should not be reused |
+| Fatal (8-9) | Raises `UfsecpError` -- context should not be reused |
 | Verify failure (code 6) | Returns `False` (does **not** throw) |
 | Input validation | `ValueError` / `TypeError` before FFI call |
 
@@ -231,7 +231,7 @@ These MUST hold across ALL bindings:
 | **E-3** | NULL/nil context access MUST produce immediate error (not segfault) |
 | **E-4** | Error messages are English-only, short, deterministic |
 | **E-5** | Context remains valid after any recoverable error (codes 1-7, 10) |
-| **E-6** | Fatal errors (8-9) MUST be propagated immediately — no silent fallback |
+| **E-6** | Fatal errors (8-9) MUST be propagated immediately -- no silent fallback |
 | **E-7** | All errors include the operation name for diagnostics |
 
 ---
@@ -261,9 +261,9 @@ These MUST hold across ALL bindings:
 
 Each binding's smoke test MUST verify:
 
-1. **Golden path**: valid inputs → success
-2. **Error path**: zero key → error code 2 or equivalent exception
-3. **Verify rejection**: mutated sig → returns `false` (not exception)
-4. **Determinism**: same inputs → same error code
+1. **Golden path**: valid inputs -> success
+2. **Error path**: zero key -> error code 2 or equivalent exception
+3. **Verify rejection**: mutated sig -> returns `false` (not exception)
+4. **Determinism**: same inputs -> same error code
 
 See `bindings/<lang>/tests/smoke_test.*` for implementations.

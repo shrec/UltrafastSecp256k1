@@ -1,6 +1,6 @@
 # Audit Guide
 
-**UltrafastSecp256k1 v3.12.1** — Independent Auditor Navigation
+**UltrafastSecp256k1 v3.12.1** -- Independent Auditor Navigation
 
 > This document is for auditors. Here you will find everything needed
 > to evaluate the library's security, correctness, and quality.
@@ -54,59 +54,59 @@ ctest --test-dir build -T memcheck
 
 ```
 UltrafastSecp256k1/
-│
-├── cpu/                         ★ PRIMARY AUDIT TARGET
-│   ├── include/secp256k1/       — Public API headers
-│   │   ├── field.hpp            — FieldElement (𝔽ₚ, 4×64-bit limbs)
-│   │   ├── scalar.hpp           — Scalar (ℤₙ, 4×64-bit limbs)
-│   │   ├── point.hpp            — EC Point (Jacobian + Affine)
-│   │   ├── ecdsa.hpp            — ECDSA (RFC 6979)
-│   │   ├── schnorr.hpp          — Schnorr (BIP-340)
-│   │   ├── sha256.hpp           — SHA-256
-│   │   ├── glv.hpp              — GLV endomorphism
-│   │   ├── ct/                  — Constant-time layer
-│   │   │   ├── ops.hpp          — CT arithmetic primitives
-│   │   │   ├── field.hpp        — CT field operations
-│   │   │   ├── scalar.hpp       — CT scalar operations
-│   │   │   └── point.hpp        — CT point multiplication
-│   │   └── field_branchless.hpp — Branchless field select/cmov
-│   ├── src/                     — Implementations
-│   │   ├── field.cpp            — Field arithmetic (mul, sqr, inv)
-│   │   ├── field_asm_x64.asm    — x86-64 BMI2/ADX assembly
-│   │   ├── field_asm_arm64.cpp  — ARM64 MUL/UMULH intrinsics
-│   │   ├── field_asm_riscv64.S  — RISC-V RV64GC assembly
-│   │   ├── precompute.cpp       — GLV decomposition, generator table
-│   │   ├── ecdsa.cpp            — ECDSA implementation
-│   │   └── schnorr.cpp          — Schnorr implementation
-│   ├── tests/                   — Unit tests
-│   │   ├── test_comprehensive.cpp   — 25+ test categories
-│   │   ├── test_ct.cpp              — CT-layer correctness
-│   │   └── ...
-│   └── fuzz/                    — libFuzzer harnesses
-│       ├── fuzz_field.cpp       — Field arithmetic fuzzing
-│       ├── fuzz_scalar.cpp      — Scalar arithmetic fuzzing
-│       └── fuzz_point.cpp       — Point operation fuzzing
-│
-├── tests/                       ★ AUDIT-SPECIFIC TEST SUITES
-│   ├── audit_field.cpp          — 264,000+ field arithmetic checks
-│   ├── audit_scalar.cpp         — 93,000+ scalar arithmetic checks
-│   ├── audit_point.cpp          — 116,000+ point operation checks
-│   ├── audit_ct.cpp             — 120,000+ constant-time checks
-│   ├── audit_fuzz.cpp           — 15,000+ fuzz-generated checks
-│   ├── audit_perf.cpp           — Performance benchmarks
-│   ├── audit_security.cpp       — 17,000+ security-focused checks
-│   ├── audit_integration.cpp    — 13,000+ integration checks
-│   └── test_ct_sidechannel.cpp  — dudect-style timing analysis (1300+ lines)
-│
-├── cuda/ / opencl/ / metal/     — GPU backends (NOT constant-time)
-├── wasm/                        — WebAssembly (Emscripten)
-├── compat/libsecp256k1_shim/    — libsecp256k1 API compatibility
-│
-├── THREAT_MODEL.md              — Layer-by-layer risk assessment
-├── AUDIT_REPORT.md              — Internal audit: 641,194 checks
-├── SECURITY.md                  — Security policy + status
-├── CHANGELOG.md                 — Version history
-└── CITATION.cff                 — Academic citation
+|
++-- cpu/                         ★ PRIMARY AUDIT TARGET
+|   +-- include/secp256k1/       -- Public API headers
+|   |   +-- field.hpp            -- FieldElement (𝔽ₚ, 4x64-bit limbs)
+|   |   +-- scalar.hpp           -- Scalar (ℤ_n, 4x64-bit limbs)
+|   |   +-- point.hpp            -- EC Point (Jacobian + Affine)
+|   |   +-- ecdsa.hpp            -- ECDSA (RFC 6979)
+|   |   +-- schnorr.hpp          -- Schnorr (BIP-340)
+|   |   +-- sha256.hpp           -- SHA-256
+|   |   +-- glv.hpp              -- GLV endomorphism
+|   |   +-- ct/                  -- Constant-time layer
+|   |   |   +-- ops.hpp          -- CT arithmetic primitives
+|   |   |   +-- field.hpp        -- CT field operations
+|   |   |   +-- scalar.hpp       -- CT scalar operations
+|   |   |   +-- point.hpp        -- CT point multiplication
+|   |   +-- field_branchless.hpp -- Branchless field select/cmov
+|   +-- src/                     -- Implementations
+|   |   +-- field.cpp            -- Field arithmetic (mul, sqr, inv)
+|   |   +-- field_asm_x64.asm    -- x86-64 BMI2/ADX assembly
+|   |   +-- field_asm_arm64.cpp  -- ARM64 MUL/UMULH intrinsics
+|   |   +-- field_asm_riscv64.S  -- RISC-V RV64GC assembly
+|   |   +-- precompute.cpp       -- GLV decomposition, generator table
+|   |   +-- ecdsa.cpp            -- ECDSA implementation
+|   |   +-- schnorr.cpp          -- Schnorr implementation
+|   +-- tests/                   -- Unit tests
+|   |   +-- test_comprehensive.cpp   -- 25+ test categories
+|   |   +-- test_ct.cpp              -- CT-layer correctness
+|   |   +-- ...
+|   +-- fuzz/                    -- libFuzzer harnesses
+|       +-- fuzz_field.cpp       -- Field arithmetic fuzzing
+|       +-- fuzz_scalar.cpp      -- Scalar arithmetic fuzzing
+|       +-- fuzz_point.cpp       -- Point operation fuzzing
+|
++-- tests/                       ★ AUDIT-SPECIFIC TEST SUITES
+|   +-- audit_field.cpp          -- 264,000+ field arithmetic checks
+|   +-- audit_scalar.cpp         -- 93,000+ scalar arithmetic checks
+|   +-- audit_point.cpp          -- 116,000+ point operation checks
+|   +-- audit_ct.cpp             -- 120,000+ constant-time checks
+|   +-- audit_fuzz.cpp           -- 15,000+ fuzz-generated checks
+|   +-- audit_perf.cpp           -- Performance benchmarks
+|   +-- audit_security.cpp       -- 17,000+ security-focused checks
+|   +-- audit_integration.cpp    -- 13,000+ integration checks
+|   +-- test_ct_sidechannel.cpp  -- dudect-style timing analysis (1300+ lines)
+|
++-- cuda/ / opencl/ / metal/     -- GPU backends (NOT constant-time)
++-- wasm/                        -- WebAssembly (Emscripten)
++-- compat/libsecp256k1_shim/    -- libsecp256k1 API compatibility
+|
++-- THREAT_MODEL.md              -- Layer-by-layer risk assessment
++-- AUDIT_REPORT.md              -- Internal audit: 641,194 checks
++-- SECURITY.md                  -- Security policy + status
++-- CHANGELOG.md                 -- Version history
++-- CITATION.cff                 -- Academic citation
 ```
 
 ---
@@ -115,11 +115,11 @@ UltrafastSecp256k1/
 
 ### Path A: Field Arithmetic Correctness
 
-**Goal**: Verify all field operations mod p = 2²⁵⁶ − 2³² − 977
+**Goal**: Verify all field operations mod p = 2^2⁵⁶ - 2^3^2 - 977
 
 | Step | File | What to Check |
 |------|------|---------------|
-| 1 | `cpu/include/secp256k1/field.hpp` | FieldElement class, 4×64 limb layout |
+| 1 | `cpu/include/secp256k1/field.hpp` | FieldElement class, 4x64 limb layout |
 | 2 | `cpu/src/field.cpp` | `add_impl`, `sub_impl`, `mul_impl`, `square_impl`, `normalize` |
 | 3 | `cpu/src/field.cpp` | `from_bytes` (big-endian), `from_limbs` (little-endian) |
 | 4 | `cpu/src/field.cpp` | Inversion: SafeGCD (Bernstein-Yang divsteps) |
@@ -134,7 +134,7 @@ UltrafastSecp256k1/
 
 | Step | File | What to Check |
 |------|------|---------------|
-| 1 | `cpu/include/secp256k1/scalar.hpp` | Scalar class, 4×64 limb layout |
+| 1 | `cpu/include/secp256k1/scalar.hpp` | Scalar class, 4x64 limb layout |
 | 2 | `cpu/src/scalar.cpp` | add, sub, mul, inverse, negate |
 | 3 | `tests/audit_scalar.cpp` | 93K checks: ring properties, boundary values |
 | 4 | `cpu/fuzz/fuzz_scalar.cpp` | Fuzz: add/sub, mul identity, distributive |
@@ -195,7 +195,7 @@ UltrafastSecp256k1/
 
 ## 4. What Exists vs What's Planned
 
-### ✅ Implemented Security Measures
+### [OK] Implemented Security Measures
 
 | Measure | Status | Details |
 |---------|--------|---------|
@@ -216,7 +216,7 @@ UltrafastSecp256k1/
 | dudect timing analysis | Active | Welch t-test for CT layer |
 | Internal audit suite | Active | 641,194 checks, 8 suites |
 
-### ⚠️ Known Gaps (Transparency)
+### [!] Known Gaps (Transparency)
 
 | Gap | Priority | Notes |
 |-----|----------|-------|
@@ -225,7 +225,7 @@ UltrafastSecp256k1/
 | FROST protocol-level tests | Medium | Multi-party simulation needed |
 | MuSig2 extended test vectors | Medium | Reference impl vectors needed |
 | Cross-ABI / FFI tests | Low | Different calling conventions |
-| Hardware timing analysis | Low | Multiple µarch planned |
+| Hardware timing analysis | Low | Multiple uarch planned |
 | GPU constant-time | N/A | By design: GPU is for public data |
 
 ---
@@ -240,7 +240,7 @@ UltrafastSecp256k1/
 | Clang-Tidy | `clang-tidy.yml` | push/PR | 30+ static analysis checks |
 | CodeQL | `codeql.yml` | push/PR/cron | Security + quality queries |
 | Dependency Review | `dependency-review.yml` | PR | Vulnerable dependency scanning |
-| Docs | `docs.yml` | push | Doxygen → GitHub Pages |
+| Docs | `docs.yml` | push | Doxygen -> GitHub Pages |
 | Packaging | `packaging.yml` | push/PR | Debian/RPM/Arch packaging |
 | Release | `release.yml` | tag | Build + sign release artifacts |
 | Scorecard | `scorecard.yml` | cron | OpenSSF supply-chain assessment |
@@ -260,9 +260,9 @@ From [AUDIT_REPORT.md](AUDIT_REPORT.md) (v3.9.0):
 | `audit_point` | 116,312 | Point ops: on-curve, group law, scalar mul, compress/decompress |
 | `audit_ct` | 120,128 | CT layer: timing-safe ops, no secret-dependent branches |
 | `audit_fuzz` | 15,423 | Fuzz-generated: random input correctness |
-| `audit_perf` | — | Performance benchmarks (not a correctness check) |
+| `audit_perf` | -- | Performance benchmarks (not a correctness check) |
 | `audit_security` | 17,856 | Security: nonce, validation, edge cases |
-| `audit_integration` | 13,144 | End-to-end: sign → verify, derive → use |
+| `audit_integration` | 13,144 | End-to-end: sign -> verify, derive -> use |
 | **Total** | **641,194** | |
 
 ---
@@ -303,7 +303,7 @@ clang++ -fsanitize=fuzzer,address -O2 -std=c++20 \
 - [ ] **Field arithmetic**: verify reduction mod p is correct in `normalize()`
 - [ ] **Scalar arithmetic**: verify reduction mod n is correct
 - [ ] **Point addition**: verify complete addition formula handles all edge cases
-- [ ] **GLV decomposition**: verify k1 + k2·λ ≡ k (mod n) for random scalars
+- [ ] **GLV decomposition**: verify k1 + k2*lambda == k (mod n) for random scalars
 - [ ] **ECDSA nonce**: verify RFC 6979 determinism
 - [ ] **Schnorr**: verify BIP-340 tagged hashing
 - [ ] **CT layer**: no secret-dependent branches (manual code review)
@@ -323,4 +323,4 @@ clang++ -fsanitize=fuzzer,address -O2 -std=c++20 \
 
 ---
 
-*UltrafastSecp256k1 v3.12.1 — Audit Guide*
+*UltrafastSecp256k1 v3.12.1 -- Audit Guide*

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ============================================================================
 # Valgrind Memcheck CT Analysis
-# Phase IV, Task 4.3.3 — Detect secret-dependent branches via uninit tracking
+# Phase IV, Task 4.3.3 -- Detect secret-dependent branches via uninit tracking
 # ============================================================================
 # Uses Valgrind's --track-origins=yes to detect control flow that depends on
 # uninitialized / "secret-tainted" memory. We mark secret key material as
@@ -34,15 +34,15 @@ REPORT_DIR="$BUILD_DIR/valgrind_reports"
 VALGRIND_LOG="$REPORT_DIR/valgrind_ct.log"
 VALGRIND_XML="$REPORT_DIR/valgrind_ct.xml"
 
-echo "═══════════════════════════════════════════════════════════"
+echo "==========================================================="
 echo "  Valgrind CT Analysis"
-echo "═══════════════════════════════════════════════════════════"
+echo "==========================================================="
 echo "  Source:  $SRC_DIR"
 echo "  Build:   $BUILD_DIR"
 echo "  Reports: $REPORT_DIR"
 echo ""
 
-# ── Check prerequisites ───────────────────────────────────────────────────
+# -- Check prerequisites ---------------------------------------------------
 
 if ! command -v valgrind &>/dev/null; then
     echo "ERROR: valgrind not found. Install with: apt-get install valgrind"
@@ -53,7 +53,7 @@ VALGRIND_VERSION=$(valgrind --version 2>/dev/null || echo "unknown")
 echo "  Valgrind: $VALGRIND_VERSION"
 echo ""
 
-# ── Build test binary with Valgrind CT checks ────────────────────────────
+# -- Build test binary with Valgrind CT checks ----------------------------
 
 echo "[1/4] Configuring (Debug + Valgrind CT markers)..."
 cmake -S "$SRC_DIR" -B "$BUILD_DIR" -G Ninja \
@@ -72,7 +72,7 @@ if [[ ! -x "$TEST_BIN" ]]; then
     exit 2
 fi
 
-# ── Run under Valgrind ────────────────────────────────────────────────────
+# -- Run under Valgrind ----------------------------------------------------
 
 mkdir -p "$REPORT_DIR"
 
@@ -97,7 +97,7 @@ valgrind \
 VG_EXIT=$?
 set -e
 
-# ── Analyze results ──────────────────────────────────────────────────────
+# -- Analyze results ------------------------------------------------------
 
 echo ""
 echo "[4/4] Analyzing Valgrind output..."
@@ -113,18 +113,18 @@ UNINIT_ERRORS=$(grep -c "Use of uninitialised value" "$VALGRIND_LOG" 2>/dev/null
 TOTAL_ERRORS=$(grep -c "ERROR SUMMARY:" "$VALGRIND_LOG" 2>/dev/null || echo "0")
 ERROR_SUMMARY=$(grep "ERROR SUMMARY:" "$VALGRIND_LOG" 2>/dev/null | tail -1 || echo "N/A")
 
-echo "───────────────────────────────────────────────────────────"
+echo "-----------------------------------------------------------"
 echo "  Valgrind CT Analysis Results"
-echo "───────────────────────────────────────────────────────────"
+echo "-----------------------------------------------------------"
 echo "  Conditional branch on uninit:  $CT_ERRORS"
 echo "  Use of uninit value:           $UNINIT_ERRORS"
 echo "  $ERROR_SUMMARY"
 echo ""
 echo "  Full log:   $VALGRIND_LOG"
 echo "  XML report: $VALGRIND_XML"
-echo "───────────────────────────────────────────────────────────"
+echo "-----------------------------------------------------------"
 
-# ── Generate JSON report ─────────────────────────────────────────────────
+# -- Generate JSON report -------------------------------------------------
 
 cat > "$REPORT_DIR/valgrind_ct_report.json" <<EOF
 {
@@ -142,13 +142,13 @@ EOF
 echo "  JSON report: $REPORT_DIR/valgrind_ct_report.json"
 echo ""
 
-# ── Verdict ──────────────────────────────────────────────────────────────
+# -- Verdict --------------------------------------------------------------
 
 if [[ "$CT_ERRORS" -eq 0 ]]; then
-    echo "  ✓ No secret-dependent branches detected by Valgrind"
+    echo "  OK No secret-dependent branches detected by Valgrind"
     exit 0
 else
-    echo "  ✗ POTENTIAL CT VIOLATION: $CT_ERRORS conditional branches on uninit data"
+    echo "  X POTENTIAL CT VIOLATION: $CT_ERRORS conditional branches on uninit data"
     echo ""
     echo "  Offending locations:"
     grep -A5 "Conditional jump or move depends on uninitialised" "$VALGRIND_LOG" | head -30

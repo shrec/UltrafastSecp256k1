@@ -1,6 +1,6 @@
 #pragma once
 // ============================================================================
-// ECDH — Elliptic Curve Diffie-Hellman (CUDA device)
+// ECDH -- Elliptic Curve Diffie-Hellman (CUDA device)
 // ============================================================================
 // Computes shared secret from private key + peer public key.
 // Three variants:
@@ -18,7 +18,7 @@
 namespace secp256k1 {
 namespace cuda {
 
-// ── ECDH: compute raw x-coordinate ──────────────────────────────────────────
+// -- ECDH: compute raw x-coordinate ------------------------------------------
 // shared_secret = x-coordinate of sk * PK (32 bytes, big-endian)
 // Returns false if result is point at infinity.
 
@@ -41,7 +41,7 @@ __device__ inline bool ecdh_compute_raw(
     return true;
 }
 
-// ── ECDH: compute x-only hash ───────────────────────────────────────────────
+// -- ECDH: compute x-only hash -----------------------------------------------
 // shared_secret = SHA-256(x) where x = x-coordinate of sk * PK.
 
 __device__ inline bool ecdh_compute_xonly(
@@ -60,7 +60,7 @@ __device__ inline bool ecdh_compute_xonly(
     return true;
 }
 
-// ── ECDH: compute standard compressed hash ──────────────────────────────────
+// -- ECDH: compute standard compressed hash ----------------------------------
 // shared_secret = SHA-256(0x02 || x) standard BIP-340 / libsecp256k1 style.
 
 __device__ inline bool ecdh_compute(

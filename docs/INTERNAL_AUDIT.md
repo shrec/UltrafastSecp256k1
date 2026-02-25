@@ -1,10 +1,10 @@
-# Internal Security Audit — Full Results
+# Internal Security Audit -- Full Results
 
 **UltrafastSecp256k1 v3.14.0**  
 **Audit Date**: 2026-02-25  
 **Branch**: `dev` (HEAD)  
 **Methodology**: Automated + manual, deterministic seeds, zero external dependencies  
-**Verdict**: **ALL PASSED — 0 critical / 0 high / 0 medium findings**
+**Verdict**: **ALL PASSED -- 0 critical / 0 high / 0 medium findings**
 
 ---
 
@@ -13,16 +13,16 @@
 1. [Executive Summary](#1-executive-summary)
 2. [Audit Scope](#2-audit-scope)
 3. [Test Infrastructure Overview](#3-test-infrastructure-overview)
-4. [Section I — Core Arithmetic (641K checks)](#4-section-i--core-arithmetic)
-5. [Section II — Constant-Time & Side-Channel](#5-section-ii--constant-time--side-channel)
-6. [Section III — Signature Schemes](#6-section-iii--signature-schemes)
-7. [Section IV — Multi-Party Protocols (MuSig2 + FROST)](#7-section-iv--multi-party-protocols)
-8. [Section V — Cross-Library Differential (vs libsecp256k1)](#8-section-v--cross-library-differential)
-9. [Section VI — Fuzzing & Adversarial](#9-section-vi--fuzzing--adversarial)
-10. [Section VII — Security Hardening](#10-section-vii--security-hardening)
-11. [Section VIII — Integration & Protocol Flows](#11-section-viii--integration--protocol-flows)
-12. [Section IX — Key Derivation & Address Generation](#12-section-ix--key-derivation--address-generation)
-13. [Section X — Performance Baseline](#13-section-x--performance-baseline)
+4. [Section I -- Core Arithmetic (641K checks)](#4-section-i--core-arithmetic)
+5. [Section II -- Constant-Time & Side-Channel](#5-section-ii--constant-time--side-channel)
+6. [Section III -- Signature Schemes](#6-section-iii--signature-schemes)
+7. [Section IV -- Multi-Party Protocols (MuSig2 + FROST)](#7-section-iv--multi-party-protocols)
+8. [Section V -- Cross-Library Differential (vs libsecp256k1)](#8-section-v--cross-library-differential)
+9. [Section VI -- Fuzzing & Adversarial](#9-section-vi--fuzzing--adversarial)
+10. [Section VII -- Security Hardening](#10-section-vii--security-hardening)
+11. [Section VIII -- Integration & Protocol Flows](#11-section-viii--integration--protocol-flows)
+12. [Section IX -- Key Derivation & Address Generation](#12-section-ix--key-derivation--address-generation)
+13. [Section X -- Performance Baseline](#13-section-x--performance-baseline)
 14. [Invariant Catalog Summary](#14-invariant-catalog-summary)
 15. [CI/CD Security Measures](#15-cicd-security-measures)
 16. [Coverage Gaps & Known Limitations](#16-coverage-gaps--known-limitations)
@@ -54,17 +54,17 @@ team and automated CI infrastructure.
 
 | Component | Maturity | Confidence |
 |-----------|----------|------------|
-| Field Arithmetic (𝔽ₚ) | Production | **Very High** — 264K audit checks + fuzz + differential |
-| Scalar Arithmetic (ℤₙ) | Production | **Very High** — 93K audit checks + fuzz + differential |
-| Point Operations | Production | **Very High** — 116K audit checks + fuzz + differential |
-| ECDSA (RFC 6979) | Production | **Very High** — BIP-340 vectors + RFC 6979 vectors + differential vs libsecp256k1 |
-| Schnorr (BIP-340) | Production | **Very High** — All 15 official vectors + differential |
-| CT Layer | Production | **High** — 120K equivalence checks + dudect timing + code review (no formal verification) |
-| MuSig2 | Experimental | **High** — 975 checks + rogue-key + transcript binding + fault injection |
-| FROST | Experimental | **High** — 1,367 checks (DKG + signing + KAT + malicious participant) |
-| BIP-32 HD | Experimental | **High** — TV1-TV5 (90 checks) + fuzz |
-| C ABI (ufsecp) | Experimental | **Medium** — Fuzz + NULL handling (73K checks), no multi-ABI cross-test |
-| GPU Backends | Beta | **Medium** — Functional, NOT constant-time, limited differential vs CPU |
+| Field Arithmetic (𝔽ₚ) | Production | **Very High** -- 264K audit checks + fuzz + differential |
+| Scalar Arithmetic (ℤ_n) | Production | **Very High** -- 93K audit checks + fuzz + differential |
+| Point Operations | Production | **Very High** -- 116K audit checks + fuzz + differential |
+| ECDSA (RFC 6979) | Production | **Very High** -- BIP-340 vectors + RFC 6979 vectors + differential vs libsecp256k1 |
+| Schnorr (BIP-340) | Production | **Very High** -- All 15 official vectors + differential |
+| CT Layer | Production | **High** -- 120K equivalence checks + dudect timing + code review (no formal verification) |
+| MuSig2 | Experimental | **High** -- 975 checks + rogue-key + transcript binding + fault injection |
+| FROST | Experimental | **High** -- 1,367 checks (DKG + signing + KAT + malicious participant) |
+| BIP-32 HD | Experimental | **High** -- TV1-TV5 (90 checks) + fuzz |
+| C ABI (ufsecp) | Experimental | **Medium** -- Fuzz + NULL handling (73K checks), no multi-ABI cross-test |
+| GPU Backends | Beta | **Medium** -- Functional, NOT constant-time, limited differential vs CPU |
 
 ---
 
@@ -107,11 +107,11 @@ team and automated CI infrastructure.
 | Suite | File | Checks | Time | Focus |
 |-------|------|-------:|-----:|-------|
 | audit_field | `tests/audit_field.cpp` | 264,622 | 0.29s | Field ₚ: add/sub/mul/sqr/inv/sqrt/batch |
-| audit_scalar | `tests/audit_scalar.cpp` | 93,215 | 0.32s | Scalar ₙ: arithmetic, GLV, negate, boundary |
+| audit_scalar | `tests/audit_scalar.cpp` | 93,215 | 0.32s | Scalar _n: arithmetic, GLV, negate, boundary |
 | audit_point | `tests/audit_point.cpp` | 116,124 | 1.71s | Point: add/dbl/mul, ECDSA/Schnorr round-trip |
-| audit_ct | `tests/audit_ct.cpp` | 120,652 | 0.93s | CT: FAST≡CT equivalence, cmov/cswap, timing |
+| audit_ct | `tests/audit_ct.cpp` | 120,652 | 0.93s | CT: FAST==CT equivalence, cmov/cswap, timing |
 | audit_fuzz | `tests/audit_fuzz.cpp` | 15,461 | 0.53s | Adversarial: malformed keys, invalid sigs |
-| audit_perf | `tests/audit_perf.cpp` | — | 1.19s | Performance baseline (benchmark) |
+| audit_perf | `tests/audit_perf.cpp` | -- | 1.19s | Performance baseline (benchmark) |
 | audit_security | `tests/audit_security.cpp` | 17,309 | 17.26s | Bit-flip, RFC 6979, low-S, zeroing |
 | audit_integration | `tests/audit_integration.cpp` | 13,811 | 1.62s | ECDH, batch verify, cross-path, mixed ops |
 | **Total** | | **641,194** | **~24s** | |
@@ -128,11 +128,11 @@ team and automated CI infrastructure.
 | test_fuzz_address_bip32_ffi | `tests/test_fuzz_address_bip32_ffi.cpp` | 73,959 | Address/BIP32/FFI boundary fuzz |
 | test_bip340_vectors | `cpu/tests/test_bip340_vectors.cpp` | 15 | All 15 official BIP-340 test vectors |
 | test_rfc6979_vectors | `cpu/tests/test_rfc6979_vectors.cpp` | 6 | RFC 6979 nonce + sign/verify |
-| test_bip32_vectors | `cpu/tests/test_bip32_vectors.cpp` | 90 | BIP-32 TV1–TV5 official vectors |
+| test_bip32_vectors | `cpu/tests/test_bip32_vectors.cpp` | 90 | BIP-32 TV1-TV5 official vectors |
 | test_ecc_properties | `cpu/tests/test_ecc_properties.cpp` | ~10,000 | Group law: associativity, distributivity |
-| test_ct_sidechannel | `tests/test_ct_sidechannel.cpp` | — | dudect timing analysis (1300+ lines) |
+| test_ct_sidechannel | `tests/test_ct_sidechannel.cpp` | -- | dudect timing analysis (1300+ lines) |
 | test_comprehensive | `cpu/tests/test_comprehensive.cpp` | ~25,000 | 25+ test categories |
-| test_ct_equivalence | `cpu/tests/test_ct_equivalence.cpp` | ~5,000 | FAST ≡ CT property-based |
+| test_ct_equivalence | `cpu/tests/test_ct_equivalence.cpp` | ~5,000 | FAST == CT property-based |
 
 ### Fuzz Harnesses (libFuzzer)
 
@@ -163,7 +163,7 @@ team and automated CI infrastructure.
 
 ---
 
-## 4. Section I — Core Arithmetic
+## 4. Section I -- Core Arithmetic
 
 ### 4.1 Field Arithmetic (𝔽ₚ)
 
@@ -174,29 +174,29 @@ team and automated CI infrastructure.
 | 1 | Addition overflow | 3,101 | `p-1 + 1`, `p-1 + p-1`, `x + 0`, random pairs |
 | 2 | Subtraction borrow | 6,102 | `0 - x`, `x - x == 0`, add/sub consistency |
 | 3 | Multiplication carry | 11,102 | Mul-by-1, mul-by-0, commutativity, large operands |
-| 4 | Square ≡ Mul (10K) | 21,104 | `sqr(x) == mul(x,x)` for 10,000 random elements |
+| 4 | Square == Mul (10K) | 21,104 | `sqr(x) == mul(x,x)` for 10,000 random elements |
 | 5 | Reduction | 22,106 | Above-p values reduce correctly; idempotent |
 | 6 | Canonical form (10K) | 42,106 | `from_bytes(to_bytes(x))` round-trip |
 | 7 | Limb boundary | 43,109 | Single-limb: 0, 1, UINT64_MAX |
 | 8 | Inverse (10K) | 54,110 | `x * inv(x) == 1` for 10,000 non-zero elements |
-| 9 | Square root | 64,110 | `sqrt(x²) == ±x`; 50.72% QR rate (expected ~50%) |
+| 9 | Square root | 64,110 | `sqrt(x^2) == +-x`; 50.72% QR rate (expected ~50%) |
 | 10 | Batch inverse | 64,622 | `batch_inv` matches per-element `inv` |
 | 11 | Random cross (100K) | 264,622 | 100K mixed ops: add, sub, mul, sqr consistency |
 
-**Key Finding**: Square root QR existence rate was 50.72% — confirming correct quadratic residue behavior.
+**Key Finding**: Square root QR existence rate was 50.72% -- confirming correct quadratic residue behavior.
 
-### 4.2 Scalar Arithmetic (ℤₙ)
+### 4.2 Scalar Arithmetic (ℤ_n)
 
 **Checks: 93,215** | **File: audit_scalar.cpp** | **PRNG Seed: 0xA0D17'5CA1A**
 
 | # | Test | Checks | What Was Verified |
 |---|------|-------:|-------------------|
 | 1 | Mod n reduction | 10,003 | Values above order n reduce correctly |
-| 2 | Overflow normalization (10K) | 10,003 | `from_bytes → to_bytes` canonical |
+| 2 | Overflow normalization (10K) | 10,003 | `from_bytes -> to_bytes` canonical |
 | 3 | Edge scalars | 10,210 | 0, 1, n-1, n, n+1 |
 | 4 | Arithmetic laws (10K) | 60,210 | Commutativity, associativity, distributivity |
 | 5 | Scalar inverse (10K) | 71,210 | `s * inv(s) == 1` |
-| 6 | GLV split (1K) | 73,210 | `k*G == k1*G + k2*(λ*G)` algebraic verification |
+| 6 | GLV split (1K) | 73,210 | `k*G == k1*G + k2*(lambda*G)` algebraic verification |
 | 7 | High-bit boundary | 73,214 | Scalars near 2^255 |
 | 8 | Negate (10K) | 93,215 | `s + neg(s) == 0` |
 
@@ -213,18 +213,18 @@ team and automated CI infrastructure.
 | 3 | Jacobian double | 1,512 | 2P via dbl matches add(P,P) |
 | 4 | P+P via add (H=0 case) | 1,612 | Add function handles doubling case |
 | 5 | P+(-P) == O (1K) | 3,614 | Additive inverse |
-| 6 | Affine conversion (1K) | 7,614 | Jac→Aff round-trip + on-curve check (y²=x³+7) |
+| 6 | Affine conversion (1K) | 7,614 | Jac->Aff round-trip + on-curve check (y^2=x^3+7) |
 | 7 | Scalar mul identities (1.5K) | 9,114 | 1*P==P, 0*P==O, (a+b)*P==aP+bP |
 | 8 | Known k*G vectors | 9,124 | Test vectors for generator multiplication |
-| 9 | ECDSA round-trip (1K) | 14,124 | Sign → verify for 1,000 random pairs |
-| 10 | Schnorr round-trip (1K) | 16,124 | BIP-340 sign → verify for 1,000 pairs |
+| 9 | ECDSA round-trip (1K) | 14,124 | Sign -> verify for 1,000 random pairs |
+| 10 | Schnorr round-trip (1K) | 16,124 | BIP-340 sign -> verify for 1,000 pairs |
 | 11 | 100K stress | 116,124 | Mixed add/dbl/mul; zero infinity hits |
 
 **Key Findings**: Zero infinity hits across 100K random operations. 100% sign/verify success rate.
 
 ---
 
-## 5. Section II — Constant-Time & Side-Channel
+## 5. Section II -- Constant-Time & Side-Channel
 
 ### 5.1 CT Equivalence (120K checks)
 
@@ -234,7 +234,7 @@ team and automated CI infrastructure.
 |---|------|-------:|-------------------|
 | 1 | CT mask generation | 12 | `ct_mask_if`, `ct_select` for edge values |
 | 2 | CT cmov/cswap (10K) | 30,012 | Conditional move/swap correctness |
-| 3 | CT table lookup | 30,028 | Full-scan vs direct access — identical |
+| 3 | CT table lookup | 30,028 | Full-scan vs direct access -- identical |
 | 4 | CT field differential (10K) | 81,028 | `ct::field_* == fast::field_*` for all ops |
 | 5 | CT scalar differential (10K) | 111,028 | `ct::scalar_* == fast::scalar_*` for all ops |
 | 6 | CT scalar cmov/cswap (1K) | 113,028 | Scalar conditional correctness |
@@ -246,7 +246,7 @@ team and automated CI infrastructure.
 | 12 | CT generator_mul (500) | 120,651 | `ct::generator_mul == fast::generator_mul` |
 | 13 | Timing variance | 120,652 | k=1 vs k=n-1 ratio check |
 
-**FAST ≡ CT Equivalence**: Bit-exact match confirmed for all field, scalar, and point operations across 120K random + edge-case inputs.
+**FAST == CT Equivalence**: Bit-exact match confirmed for all field, scalar, and point operations across 120K random + edge-case inputs.
 
 ### 5.2 dudect Timing Analysis
 
@@ -260,7 +260,7 @@ team and automated CI infrastructure.
 | `ct::field_inv` (value=1 vs value=p-1) | Welch t-test (10K samples) | **PASS** | < 4.5 |
 | `ct::generator_mul` (k=1 vs k=random) | Welch t-test (10K samples) | **PASS** | < 4.5 |
 
-**Methodology**: Binary comparison — "class A" and "class B" have different secret inputs; execution times are measured and compared via Welch's t-test. A t-statistic below 4.5 (99.999% confidence threshold) means no detectable timing difference.
+**Methodology**: Binary comparison -- "class A" and "class B" have different secret inputs; execution times are measured and compared via Welch's t-test. A t-statistic below 4.5 (99.999% confidence threshold) means no detectable timing difference.
 
 **CI Integration**:
 - **Smoke mode**: Every push/PR (DUDECT_SMOKE, threshold t=25.0)
@@ -280,13 +280,13 @@ Ideal ratio = 1.0. Concern threshold = 1.2. Result is well within acceptable bou
 
 ---
 
-## 6. Section III — Signature Schemes
+## 6. Section III -- Signature Schemes
 
 ### 6.1 ECDSA (RFC 6979)
 
 | Test Source | Checks | What Was Verified |
 |-------------|-------:|-------------------|
-| audit_point.cpp (#9) | 1,000 | Random sign → verify round-trip |
+| audit_point.cpp (#9) | 1,000 | Random sign -> verify round-trip |
 | audit_security.cpp (#3-4) | 3,000 | Bit-flip resilience (sig + msg) |
 | audit_security.cpp (#5) | 101 | RFC 6979 determinism |
 | audit_security.cpp (#10) | 1,000 | Low-S enforcement (BIP-62) |
@@ -305,7 +305,7 @@ Ideal ratio = 1.0. Concern threshold = 1.2. Result is well within acceptable bou
 
 | Test Source | Checks | What Was Verified |
 |-------------|-------:|-------------------|
-| audit_point.cpp (#10) | 1,000 | Random sign → verify round-trip |
+| audit_point.cpp (#10) | 1,000 | Random sign -> verify round-trip |
 | test_bip340_vectors.cpp | 15 | All 15 official vectors (v0-v3 sign + v4-v14 verify) |
 | test_cross_libsecp256k1.cpp | ~2,000 | Differential vs libsecp256k1 schnorrsig |
 | test_fuzz_parsers.cpp | ~200K | 64-byte signature fuzz |
@@ -318,7 +318,7 @@ Ideal ratio = 1.0. Concern threshold = 1.2. Result is well within acceptable bou
 
 ---
 
-## 7. Section IV — Multi-Party Protocols
+## 7. Section IV -- Multi-Party Protocols
 
 ### 7.1 MuSig2
 
@@ -348,14 +348,14 @@ Ideal ratio = 1.0. Concern threshold = 1.2. Result is well within acceptable bou
 
 | Suite | What Was Verified |
 |-------|-------------------|
-| Lagrange coefficients | Known mathematical values for λ₁, λ₂ |
+| Lagrange coefficients | Known mathematical values for lambda_1, lambda_2 |
 | DKG share consistency | Shamir secret reconstruction (sum of shares recovers secret) |
-| Signing round determinism | Same seeds → same nonce commitments and partial sigs |
+| Signing round determinism | Same seeds -> same nonce commitments and partial sigs |
 | Aggregate signature validity | BIP-340 schnorr_verify on FROST output |
 | Cross-threshold consistency | 2-of-3 vs 3-of-5 group key comparison for same secrets |
 | Partial signature verification | frost_verify_partial correctness |
 | Multiple signer subsets | Any valid t-subset produces valid signature |
-| Nonce commitment binding | Commitment ↔ nonce relationship |
+| Nonce commitment binding | Commitment <-> nonce relationship |
 | Regression anchors | Pinned hex values for all intermediate outputs |
 
 **Findings**:
@@ -369,7 +369,7 @@ Ideal ratio = 1.0. Concern threshold = 1.2. Result is well within acceptable bou
 
 ---
 
-## 8. Section V — Cross-Library Differential
+## 8. Section V -- Cross-Library Differential
 
 **File: test_cross_libsecp256k1.cpp** | **Checks: 7,860** | **Reference: bitcoin-core/libsecp256k1 v0.6.0**
 
@@ -377,7 +377,7 @@ Ideal ratio = 1.0. Concern threshold = 1.2. Result is well within acceptable bou
 |-------|-------:|-------------------|
 | Generator multiplication (1K) | 1,000 | `UF(k*G).compressed == libsecp(k*G).compressed` |
 | Arbitrary point multiplication (1K) | 1,000 | `UF(k*P) == libsecp(k*P)` |
-| ECDSA sign determinism (1K) | 2,000 | Same (key, msg) → same (r, s) in both libs |
+| ECDSA sign determinism (1K) | 2,000 | Same (key, msg) -> same (r, s) in both libs |
 | ECDSA verify cross (1K) | 1,000 | libsecp verifies UF-signed; UF verifies libsecp-signed |
 | Schnorr sign cross (1K) | 1,860 | BIP-340 sign + verify cross-checked |
 | Scalar arithmetic (500) | 500 | add, mul, inv, negate match |
@@ -389,7 +389,7 @@ Ideal ratio = 1.0. Concern threshold = 1.2. Result is well within acceptable bou
 
 ---
 
-## 9. Section VI — Fuzzing & Adversarial
+## 9. Section VI -- Fuzzing & Adversarial
 
 ### 9.1 Audit Fuzz Suite (15K checks)
 
@@ -404,8 +404,8 @@ Ideal ratio = 1.0. Concern threshold = 1.2. Result is well within acceptable bou
 | Boundary field elements (0, p, p-1, p+1) | 19 | Correctly handled |
 | ECDSA recovery edge (1K) | 4,769 | Wrong-ID rejected |
 | Random state fuzz (10K) | 6,461 | 0 crashes, 0 UB |
-| DER round-trip (1K) | 9,461 | Encode→decode identical |
-| Schnorr bytes round-trip (1K) | 11,461 | Serialize→deserialize identical |
+| DER round-trip (1K) | 9,461 | Encode->decode identical |
+| Schnorr bytes round-trip (1K) | 11,461 | Serialize->deserialize identical |
 | Low-S normalization (1K) | 15,461 | All s in lower half |
 
 ### 9.2 Parser Fuzz Suite (~580K checks)
@@ -416,12 +416,12 @@ Ideal ratio = 1.0. Concern threshold = 1.2. Result is well within acceptable bou
 |-------|-------|-------:|
 | DER signature: random blobs | No crash on arbitrary input | ~200K |
 | DER signature: valid mutations | Bit-flip/truncation detection | ~100K |
-| DER round-trip: valid sigs | Encode→decode identity | ~80K |
+| DER round-trip: valid sigs | Encode->decode identity | ~80K |
 | Schnorr sig: random blobs | No crash on arbitrary input | ~100K |
-| Schnorr round-trip | Serialize→deserialize identity | ~50K |
+| Schnorr round-trip | Serialize->deserialize identity | ~50K |
 | Pubkey parse: random blobs | Invalid prefix/point rejection | ~30K |
-| Pubkey compressed round-trip | 33-byte encode→decode | ~10K |
-| Pubkey uncompressed round-trip | 65-byte encode→decode | ~10K |
+| Pubkey compressed round-trip | 33-byte encode->decode | ~10K |
+| Pubkey uncompressed round-trip | 65-byte encode->decode | ~10K |
 
 ### 9.3 Address/BIP32/FFI Fuzz (~74K checks)
 
@@ -442,16 +442,16 @@ Ideal ratio = 1.0. Concern threshold = 1.2. Result is well within acceptable bou
 Three libFuzzer harnesses run continuously in CI and nightly:
 
 ```bash
-# Field: 32-byte input → add/sub/mul/sqr/inv operations
-# Scalar: 32-byte input → add/sub/mul/inv operations  
-# Point: 32-byte seed → on-curve, compress, add, dbl operations
+# Field: 32-byte input -> add/sub/mul/sqr/inv operations
+# Scalar: 32-byte input -> add/sub/mul/inv operations  
+# Point: 32-byte seed -> on-curve, compress, add, dbl operations
 ```
 
 **No crashes or sanitizer violations detected** in any fuzz campaign.
 
 ---
 
-## 10. Section VII — Security Hardening
+## 10. Section VII -- Security Hardening
 
 **File: audit_security.cpp** | **Checks: 17,309** | **PRNG Seed: 0xA0D17'5EC01**
 
@@ -459,24 +459,24 @@ Three libFuzzer harnesses run continuously in CI and nightly:
 |---|------|-------:|--------|
 | 1 | Zero/identity key handling | 5 | `inv(0)` throws; `0*G==O`; zero-key sign fails |
 | 2 | Secret zeroization (`ct_memzero`) | 8 | Memory confirmed zero after call |
-| 3 | Bit-flip resilience (1K sigs) | 2,008 | 1-bit flip → verify fails (100% detection) |
-| 4 | Message bit-flip (1K) | 3,008 | 1-bit flip → verify fails (100% detection) |
-| 5 | RFC 6979 determinism | 3,109 | Same inputs → same sig; different msg → different sig |
+| 3 | Bit-flip resilience (1K sigs) | 2,008 | 1-bit flip -> verify fails (100% detection) |
+| 4 | Message bit-flip (1K) | 3,008 | 1-bit flip -> verify fails (100% detection) |
+| 5 | RFC 6979 determinism | 3,109 | Same inputs -> same sig; different msg -> different sig |
 | 6 | Serialization round-trip (3K) | 10,109 | Compressed, uncompressed, x-only |
-| 7 | Compact recovery (1K) | 12,109 | Compact sig → recover pubkey → matches |
+| 7 | Compact recovery (1K) | 12,109 | Compact sig -> recover pubkey -> matches |
 | 8 | Double-ops idempotency (2K) | 14,209 | sign-twice==same; verify-twice==same |
 | 9 | Cross-algorithm consistency | 14,309 | Same key valid for ECDSA + Schnorr |
 | 10 | High-S detection (1K) | 17,309 | Low-S enforced per BIP-62 |
 
 **Key Findings**:
-- `inverse(0)` correctly throws — no silent zero return
+- `inverse(0)` correctly throws -- no silent zero return
 - 100% bit-flip detection rate on both signatures and messages
 - RFC 6979 determinism confirmed
 - Low-S enforcement verified across 1,000 random signatures
 
 ---
 
-## 11. Section VIII — Integration & Protocol Flows
+## 11. Section VIII -- Integration & Protocol Flows
 
 **File: audit_integration.cpp** | **Checks: 13,811** | **PRNG Seed: 0xA0D17'16780**
 
@@ -485,7 +485,7 @@ Three libFuzzer harnesses run continuously in CI and nightly:
 | 1 | ECDH symmetry (1K) | 4,001 | `ECDH(a, bG) == ECDH(b, aG)` for all 3 variants |
 | 2 | Schnorr batch verify | 4,006 | 100 valid sigs; corrupt detection + identify_invalid |
 | 3 | ECDSA batch verify | 4,009 | 100 valid sigs; corrupt detection + identify_invalid |
-| 4 | ECDSA full round-trip (1K) | 10,009 | sign → recover → verify → DER encode/decode |
+| 4 | ECDSA full round-trip (1K) | 10,009 | sign -> recover -> verify -> DER encode/decode |
 | 5 | Schnorr cross-path (500) | 11,010 | Individual verify == batch verify |
 | 6 | FAST vs CT integration (500) | 12,510 | `fast::scalar_mul == ct::scalar_mul`; cross-verify |
 | 7 | ECDH + ECDSA protocol (100) | 13,010 | Full key-exchange + signing flow |
@@ -501,13 +501,13 @@ Three libFuzzer harnesses run continuously in CI and nightly:
 
 ---
 
-## 12. Section IX — Key Derivation & Address Generation
+## 12. Section IX -- Key Derivation & Address Generation
 
 ### BIP-32 HD Derivation
 
 | Test Source | Checks | What Was Verified |
 |-------------|-------:|-------------------|
-| test_bip32_vectors.cpp | 90 | TV1–TV5 official vectors (public key decompression fix confirmed) |
+| test_bip32_vectors.cpp | 90 | TV1-TV5 official vectors (public key decompression fix confirmed) |
 | test_fuzz_address_bip32_ffi.cpp | ~10K | Random seed derivation, deep path parsing, edge cases |
 | **Total** | **~10,090** | |
 
@@ -524,7 +524,7 @@ Verified via test_fuzz_address_bip32_ffi.cpp + test_coins.cpp:
 
 ---
 
-## 13. Section X — Performance Baseline
+## 13. Section X -- Performance Baseline
 
 **File: audit_perf.cpp** | **Platform: Linux x86-64, Clang 19, -O3**
 
@@ -556,7 +556,7 @@ Verified via test_fuzz_address_bip32_ffi.cpp + test_coins.cpp:
 | ct_scalar_mul | 1,000 | 313,350 | 3.19K op/s |
 | ct_generator_mul | 1,000 | 316,249 | 3.16K op/s |
 
-**CT overhead**: ~44× for scalar_mul (expected — fixed iteration count + full table scan).
+**CT overhead**: ~44x for scalar_mul (expected -- fixed iteration count + full table scan).
 **Performance regression tracking**: Automated via `benchmark.yml` with 150% alert threshold.
 
 ---
@@ -567,20 +567,20 @@ Full invariant catalog: [docs/INVARIANTS.md](INVARIANTS.md)
 
 | Category | Invariants | All Verified |
 |----------|----------:|:------------:|
-| Field Arithmetic (F1–F17) | 17 | ✅ |
-| Scalar Arithmetic (S1–S9) | 9 | ✅ |
-| Point / Group (P1–P14) | 14 | ✅ |
-| GLV Endomorphism (G1–G4) | 4 | ✅ |
-| ECDSA (E1–E8) | 8 | ✅ |
-| Schnorr / BIP-340 (B1–B6) | 6 | ✅ |
-| MuSig2 (M1–M7) | 7 | ✅ |
-| FROST (FR1–FR9) | 9 | ✅ |
-| BIP-32 (H1–H7) | 7 | ✅ |
-| Address (A1–A6) | 6 | ✅ |
-| C ABI (C1–C7) | 7 | ✅ (C7 ⚠️ TSan) |
-| Constant-Time (CT1–CT6) | 6 | ✅ (CT5-6 ⚠️ no formal) |
-| Batch / Perf (BP1–BP3) | 3 | ✅ |
-| Serialization (SP1–SP5) | 5 | ✅ |
+| Field Arithmetic (F1-F17) | 17 | [OK] |
+| Scalar Arithmetic (S1-S9) | 9 | [OK] |
+| Point / Group (P1-P14) | 14 | [OK] |
+| GLV Endomorphism (G1-G4) | 4 | [OK] |
+| ECDSA (E1-E8) | 8 | [OK] |
+| Schnorr / BIP-340 (B1-B6) | 6 | [OK] |
+| MuSig2 (M1-M7) | 7 | [OK] |
+| FROST (FR1-FR9) | 9 | [OK] |
+| BIP-32 (H1-H7) | 7 | [OK] |
+| Address (A1-A6) | 6 | [OK] |
+| C ABI (C1-C7) | 7 | [OK] (C7 [!] TSan) |
+| Constant-Time (CT1-CT6) | 6 | [OK] (CT5-6 [!] no formal) |
+| Batch / Perf (BP1-BP3) | 3 | [OK] |
+| Serialization (SP1-SP5) | 5 | [OK] |
 | **Total** | **108** | **106 verified, 2 partial** |
 
 **Partial invariants**:
@@ -593,26 +593,26 @@ Full invariant catalog: [docs/INVARIANTS.md](INVARIANTS.md)
 
 | Measure | Status | Details |
 |---------|--------|---------|
-| ASan (AddressSanitizer) | ✅ Active | Every push via security-audit.yml |
-| UBSan (UndefinedBehaviorSanitizer) | ✅ Active | Every push via security-audit.yml |
-| TSan (ThreadSanitizer) | ✅ Active | Every push via security-audit.yml |
-| Valgrind Memcheck | ✅ Active | Weekly via security-audit.yml |
-| CodeQL (SAST) | ✅ Active | Every push/PR (C/C++ security-and-quality) |
-| Clang-Tidy | ✅ Active | Every push/PR (30+ checks) |
-| SonarCloud | ✅ Active | Continuous quality + security hotspots |
-| OpenSSF Scorecard | ✅ Active | Weekly supply-chain assessment |
-| Dependabot | ✅ Active | Automated dependency updates |
-| Dependency Review | ✅ Active | PR-level vulnerable dependency scan |
-| SLSA Provenance | ✅ Active | Attestation for all release artifacts |
-| SHA-256 Checksums | ✅ Active | `SHA256SUMS.txt` in every release |
-| Cosign Signing | ✅ Active | Sigstore keyless signing for release binaries |
-| SBOM | ✅ Active | CycloneDX 1.6 in every release |
-| Reproducible Builds | ✅ Available | `Dockerfile.reproducible` + verification script |
-| Docker SHA-pinned | ✅ Active | Digest-pinned base images |
-| dudect (smoke) | ✅ Active | Every push/PR (t=25.0 threshold) |
-| dudect (full) | ✅ Active | Nightly (30 min, t=4.5 threshold) |
-| Nightly differential | ✅ Active | 1.3M+ cross-library checks |
-| libFuzzer harnesses | ✅ Available | 3 harnesses for core arithmetic |
+| ASan (AddressSanitizer) | [OK] Active | Every push via security-audit.yml |
+| UBSan (UndefinedBehaviorSanitizer) | [OK] Active | Every push via security-audit.yml |
+| TSan (ThreadSanitizer) | [OK] Active | Every push via security-audit.yml |
+| Valgrind Memcheck | [OK] Active | Weekly via security-audit.yml |
+| CodeQL (SAST) | [OK] Active | Every push/PR (C/C++ security-and-quality) |
+| Clang-Tidy | [OK] Active | Every push/PR (30+ checks) |
+| SonarCloud | [OK] Active | Continuous quality + security hotspots |
+| OpenSSF Scorecard | [OK] Active | Weekly supply-chain assessment |
+| Dependabot | [OK] Active | Automated dependency updates |
+| Dependency Review | [OK] Active | PR-level vulnerable dependency scan |
+| SLSA Provenance | [OK] Active | Attestation for all release artifacts |
+| SHA-256 Checksums | [OK] Active | `SHA256SUMS.txt` in every release |
+| Cosign Signing | [OK] Active | Sigstore keyless signing for release binaries |
+| SBOM | [OK] Active | CycloneDX 1.6 in every release |
+| Reproducible Builds | [OK] Available | `Dockerfile.reproducible` + verification script |
+| Docker SHA-pinned | [OK] Active | Digest-pinned base images |
+| dudect (smoke) | [OK] Active | Every push/PR (t=25.0 threshold) |
+| dudect (full) | [OK] Active | Nightly (30 min, t=4.5 threshold) |
+| Nightly differential | [OK] Active | 1.3M+ cross-library checks |
+| libFuzzer harnesses | [OK] Available | 3 harnesses for core arithmetic |
 
 ---
 
@@ -623,7 +623,7 @@ Full invariant catalog: [docs/INVARIANTS.md](INVARIANTS.md)
 | Gap | Impact | Status |
 |-----|--------|--------|
 | No formal verification of CT layer | CT properties rely on code review + dudect, not ct-verif/Vale | Planned (long-term) |
-| No multi-µarch timing tests | CT may break on specific CPU microarchitectures | Need hardware test farm |
+| No multi-uarch timing tests | CT may break on specific CPU microarchitectures | Need hardware test farm |
 | GPU vs CPU differential | Limited equivalence coverage | PARTIAL (2.6.1-2) |
 | CPU vs WASM equivalence | WASM arithmetic may diverge | Not yet tested |
 | CPU vs Embedded KAT | ESP32/STM32 runtime tests | Requires physical devices |
@@ -633,11 +633,11 @@ Full invariant catalog: [docs/INVARIANTS.md](INVARIANTS.md)
 
 ### What We Do NOT Claim
 
-1. **No formal verification** — CT guarantees are empirical (dudect) and review-based
-2. **No hardware side-channel** — No power analysis, EM emanation, or fault injection testing
-3. **No GPU CT** — All GPU backends are explicitly variable-time
-4. **No external audit** — This is an internal audit only
-5. **MuSig2/FROST are experimental** — Protocol APIs may change
+1. **No formal verification** -- CT guarantees are empirical (dudect) and review-based
+2. **No hardware side-channel** -- No power analysis, EM emanation, or fault injection testing
+3. **No GPU CT** -- All GPU backends are explicitly variable-time
+4. **No external audit** -- This is an internal audit only
+5. **MuSig2/FROST are experimental** -- Protocol APIs may change
 
 ---
 
@@ -703,7 +703,7 @@ SECP256K1_DIFFERENTIAL_MULTIPLIER=100 ./build/tests/test_cross_libsecp256k1
 | [AUDIT_GUIDE.md](../AUDIT_GUIDE.md) | Auditor navigation guide |
 | [AUDIT_REPORT.md](../AUDIT_REPORT.md) | Original v3.9.0 audit report (641K checks) |
 | [INVARIANTS.md](INVARIANTS.md) | Complete invariant catalog (108 entries) |
-| [TEST_MATRIX.md](TEST_MATRIX.md) | Function → test coverage map |
+| [TEST_MATRIX.md](TEST_MATRIX.md) | Function -> test coverage map |
 | [CT_VERIFICATION.md](CT_VERIFICATION.md) | Constant-time methodology |
 | [SECURITY_CLAIMS.md](SECURITY_CLAIMS.md) | FAST vs CT API contract |
 | [THREAT_MODEL.md](../THREAT_MODEL.md) | Layer-by-layer risk assessment |
@@ -713,5 +713,5 @@ SECP256K1_DIFFERENTIAL_MULTIPLIER=100 ./build/tests/test_cross_libsecp256k1
 
 ---
 
-*UltrafastSecp256k1 v3.14.0 — Internal Security Audit Report*  
+*UltrafastSecp256k1 v3.14.0 -- Internal Security Audit Report*  
 *Generated: 2026-02-25*

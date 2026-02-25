@@ -16,12 +16,12 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 BUILD_TYPE="${1:-Release}"
 BUILD_DIR="$PROJECT_ROOT/build/wasm"
 
-echo "╔══════════════════════════════════════════════════════╗"
-echo "║  UltrafastSecp256k1 — WebAssembly Build             ║"
-echo "╠══════════════════════════════════════════════════════╣"
-echo "║  Build type: ${BUILD_TYPE}"
-echo "║  Output:     ${BUILD_DIR}/dist/"
-echo "╚══════════════════════════════════════════════════════╝"
+echo "+======================================================+"
+echo "|  UltrafastSecp256k1 -- WebAssembly Build             |"
+echo "+======================================================+"
+echo "|  Build type: ${BUILD_TYPE}"
+echo "|  Output:     ${BUILD_DIR}/dist/"
+echo "+======================================================+"
 echo ""
 
 # Verify emcc is available
@@ -44,7 +44,7 @@ emcmake cmake -S "$PROJECT_ROOT/wasm" -B "$BUILD_DIR" \
 cmake --build "$BUILD_DIR" -j"$(nproc 2>/dev/null || sysctl -n hw.logicalcpu 2>/dev/null || echo 4)"
 
 echo ""
-echo "✅ Build complete!"
+echo "[OK] Build complete!"
 echo ""
 echo "Output files:"
 ls -lh "$BUILD_DIR/dist/"

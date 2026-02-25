@@ -14,7 +14,7 @@ Complete ESP32-S3 example demonstrating:
 - Point multiplication performance
 - ESP-IDF integration
 
-**Status:** ✅ Working (28/28 tests pass)
+**Status:** [OK] Working (28/28 tests pass)
 
 **Quick Start:**
 ```bash

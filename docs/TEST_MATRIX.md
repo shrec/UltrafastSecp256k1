@@ -1,6 +1,6 @@
 # Test Coverage Matrix
 
-**UltrafastSecp256k1 v3.12.1** — Comprehensive Test Map for Auditors
+**UltrafastSecp256k1 v3.12.1** -- Comprehensive Test Map for Auditors
 
 ---
 
@@ -8,12 +8,12 @@
 
 | Category | Tests | Status |
 |----------|-------|--------|
-| **CTest targets** | 20+ | ✅ All passing |
-| **Audit suite checks** | 641,194 | ✅ 0 failures |
-| **Fuzz harnesses** | 3 | ✅ Active |
-| **Side-channel (dudect)** | 1 | ✅ Active |
-| **Benchmark suites** | 4+ | ✅ Active |
-| **Platform-specific** | 5+ | ✅ Per-platform |
+| **CTest targets** | 20+ | [OK] All passing |
+| **Audit suite checks** | 641,194 | [OK] 0 failures |
+| **Fuzz harnesses** | 3 | [OK] Active |
+| **Side-channel (dudect)** | 1 | [OK] Active |
+| **Benchmark suites** | 4+ | [OK] Active |
+| **Platform-specific** | 5+ | [OK] Per-platform |
 
 ---
 
@@ -28,37 +28,37 @@
 | `audit_point.cpp` | 116,312 | Point operations: on-curve, group law, add, dbl, scalar_mul, compress/decompress, infinity |
 | `audit_ct.cpp` | 120,128 | CT layer: FAST-vs-CT equivalence, complete formulas, no-branch verification |
 | `audit_fuzz.cpp` | 15,423 | Fuzz-derived: random inputs through all operation paths |
-| `audit_perf.cpp` | — | Performance benchmarks (throughput, latency) |
+| `audit_perf.cpp` | -- | Performance benchmarks (throughput, latency) |
 | `audit_security.cpp` | 17,856 | Security: nonce uniqueness, invalid input rejection, edge-case handling |
-| `audit_integration.cpp` | 13,144 | End-to-end: sign→verify, derive→use, full protocol flows |
-| `test_ct_sidechannel.cpp` | — | dudect timing: Welch t-test for side-channel leakage |
-| `differential_test.cpp` | — | Cross-implementation comparison |
-| `bench_ct_vs_libsecp.cpp` | — | Performance comparison with libsecp256k1 |
-| `bench_field_ops.cpp` | — | Field operation microbenchmarks |
+| `audit_integration.cpp` | 13,144 | End-to-end: sign->verify, derive->use, full protocol flows |
+| `test_ct_sidechannel.cpp` | -- | dudect timing: Welch t-test for side-channel leakage |
+| `differential_test.cpp` | -- | Cross-implementation comparison |
+| `bench_ct_vs_libsecp.cpp` | -- | Performance comparison with libsecp256k1 |
+| `bench_field_ops.cpp` | -- | Field operation microbenchmarks |
 
 ### CPU Unit Tests (`cpu/tests/`)
 
 | File | Focus Area | Status |
 |------|------------|--------|
-| `test_comprehensive.cpp` | 25+ categories: field, scalar, point, ECDSA, Schnorr, GLV, SHA, batch, etc. | ✅ |
-| `test_arithmetic_correctness.cpp` | Arithmetic correctness: field/scalar edge cases | ✅ |
-| `test_ct.cpp` | CT layer correctness (FAST vs CT equivalence) | ✅ |
-| `test_ecdsa_schnorr.cpp` | ECDSA (RFC 6979) + Schnorr (BIP-340) vectors | ✅ |
-| `test_ecdh_recovery_taproot.cpp` | ECDH, key recovery, Taproot | ✅ |
-| `test_bip32.cpp` | BIP-32 HD key derivation | ✅ |
-| `test_coins.cpp` | 27-coin address dispatch | ✅ |
-| `test_musig2.cpp` | MuSig2 protocol tests | ✅ |
-| `test_batch_add_affine.cpp` | Batch affine addition | ✅ |
-| `test_multiscalar_batch.cpp` | Multi-scalar multiplication | ✅ |
-| `test_simd_batch.cpp` | SIMD batch operations | ✅ |
-| `test_mul.cpp` | Multiplication correctness | ✅ |
-| `test_large_scalar_multiplication.cpp` | Large scalar multiplication | ✅ |
-| `test_field_52.cpp` | 52-bit limb representation | ✅ |
-| `test_field_26.cpp` | 26-bit limb representation | ✅ |
-| `test_hash_accel.cpp` | SHA-256 acceleration tests | ✅ |
-| `test_exhaustive.cpp` | Exhaustive tests (small curves) | ✅ |
-| `test_v4_features.cpp` | v4 feature tests | ✅ |
-| `run_selftest.cpp` | Selftest runner (smoke/ci/stress) | ✅ |
+| `test_comprehensive.cpp` | 25+ categories: field, scalar, point, ECDSA, Schnorr, GLV, SHA, batch, etc. | [OK] |
+| `test_arithmetic_correctness.cpp` | Arithmetic correctness: field/scalar edge cases | [OK] |
+| `test_ct.cpp` | CT layer correctness (FAST vs CT equivalence) | [OK] |
+| `test_ecdsa_schnorr.cpp` | ECDSA (RFC 6979) + Schnorr (BIP-340) vectors | [OK] |
+| `test_ecdh_recovery_taproot.cpp` | ECDH, key recovery, Taproot | [OK] |
+| `test_bip32.cpp` | BIP-32 HD key derivation | [OK] |
+| `test_coins.cpp` | 27-coin address dispatch | [OK] |
+| `test_musig2.cpp` | MuSig2 protocol tests | [OK] |
+| `test_batch_add_affine.cpp` | Batch affine addition | [OK] |
+| `test_multiscalar_batch.cpp` | Multi-scalar multiplication | [OK] |
+| `test_simd_batch.cpp` | SIMD batch operations | [OK] |
+| `test_mul.cpp` | Multiplication correctness | [OK] |
+| `test_large_scalar_multiplication.cpp` | Large scalar multiplication | [OK] |
+| `test_field_52.cpp` | 52-bit limb representation | [OK] |
+| `test_field_26.cpp` | 26-bit limb representation | [OK] |
+| `test_hash_accel.cpp` | SHA-256 acceleration tests | [OK] |
+| `test_exhaustive.cpp` | Exhaustive tests (small curves) | [OK] |
+| `test_v4_features.cpp` | v4 feature tests | [OK] |
+| `run_selftest.cpp` | Selftest runner (smoke/ci/stress) | [OK] |
 
 ### Fuzz Harnesses (`cpu/fuzz/`)
 
@@ -78,99 +78,99 @@
 
 ---
 
-## API Function → Test Coverage Map
+## API Function -> Test Coverage Map
 
 ### Field Arithmetic (`FieldElement`)
 
 | Function | audit_field | test_comprehensive | fuzz_field | CT check |
 |----------|:-----------:|:-----------------:|:----------:|:--------:|
-| `add` / `operator+` | ✅ | ✅ | ✅ | ✅ |
-| `sub` / `operator-` | ✅ | ✅ | ✅ | ✅ |
-| `mul` / `operator*` | ✅ | ✅ | ✅ | ✅ |
-| `square()` | ✅ | ✅ | ✅ | ✅ |
-| `inverse()` | ✅ | ✅ | ✅ | ✅ |
-| `negate()` | ✅ | ✅ | — | ✅ |
-| `from_limbs()` | ✅ | ✅ | — | — |
-| `from_bytes()` | ✅ | ✅ | — | — |
-| `to_bytes()` | ✅ | ✅ | — | — |
-| `from_hex()` / `to_hex()` | ✅ | ✅ | — | — |
-| `normalize()` | ✅ | ✅ | ✅ | — |
-| `field_select()` | — | — | — | ✅ |
-| `square_inplace()` | ✅ | — | — | — |
-| `inverse_inplace()` | ✅ | — | — | — |
-| `fe_batch_inverse()` | ✅ | ✅ | — | — |
+| `add` / `operator+` | [OK] | [OK] | [OK] | [OK] |
+| `sub` / `operator-` | [OK] | [OK] | [OK] | [OK] |
+| `mul` / `operator*` | [OK] | [OK] | [OK] | [OK] |
+| `square()` | [OK] | [OK] | [OK] | [OK] |
+| `inverse()` | [OK] | [OK] | [OK] | [OK] |
+| `negate()` | [OK] | [OK] | -- | [OK] |
+| `from_limbs()` | [OK] | [OK] | -- | -- |
+| `from_bytes()` | [OK] | [OK] | -- | -- |
+| `to_bytes()` | [OK] | [OK] | -- | -- |
+| `from_hex()` / `to_hex()` | [OK] | [OK] | -- | -- |
+| `normalize()` | [OK] | [OK] | [OK] | -- |
+| `field_select()` | -- | -- | -- | [OK] |
+| `square_inplace()` | [OK] | -- | -- | -- |
+| `inverse_inplace()` | [OK] | -- | -- | -- |
+| `fe_batch_inverse()` | [OK] | [OK] | -- | -- |
 
 ### Scalar Arithmetic (`Scalar`)
 
 | Function | audit_scalar | test_comprehensive | fuzz_scalar | CT check |
 |----------|:------------:|:-----------------:|:-----------:|:--------:|
-| `add` / `operator+` | ✅ | ✅ | ✅ | ✅ |
-| `sub` / `operator-` | ✅ | ✅ | ✅ | ✅ |
-| `mul` / `operator*` | ✅ | ✅ | ✅ | ✅ |
-| `inverse()` | ✅ | ✅ | — | ✅ |
-| `negate()` | ✅ | ✅ | — | ✅ |
-| `from_uint64()` | ✅ | ✅ | — | — |
-| `from_bytes()` | ✅ | ✅ | — | — |
-| `from_hex()` | ✅ | ✅ | — | — |
-| `is_zero()` | ✅ | ✅ | — | — |
+| `add` / `operator+` | [OK] | [OK] | [OK] | [OK] |
+| `sub` / `operator-` | [OK] | [OK] | [OK] | [OK] |
+| `mul` / `operator*` | [OK] | [OK] | [OK] | [OK] |
+| `inverse()` | [OK] | [OK] | -- | [OK] |
+| `negate()` | [OK] | [OK] | -- | [OK] |
+| `from_uint64()` | [OK] | [OK] | -- | -- |
+| `from_bytes()` | [OK] | [OK] | -- | -- |
+| `from_hex()` | [OK] | [OK] | -- | -- |
+| `is_zero()` | [OK] | [OK] | -- | -- |
 
 ### Point Operations (`Point`)
 
 | Function | audit_point | test_comprehensive | fuzz_point | CT check |
 |----------|:-----------:|:-----------------:|:----------:|:--------:|
-| `add()` | ✅ | ✅ | ✅ | ✅ |
-| `dbl()` / `double_point()` | ✅ | ✅ | ✅ | ✅ |
-| `scalar_mul()` | ✅ | ✅ | — | ✅ |
-| `is_on_curve()` | ✅ | ✅ | ✅ | — |
-| `is_infinity()` | ✅ | ✅ | — | — |
-| `compress()` / `decompress()` | ✅ | ✅ | ✅ | — |
-| `to_affine()` | ✅ | ✅ | — | — |
-| `generator()` | ✅ | ✅ | — | — |
-| `negate()` | ✅ | ✅ | ✅ | — |
+| `add()` | [OK] | [OK] | [OK] | [OK] |
+| `dbl()` / `double_point()` | [OK] | [OK] | [OK] | [OK] |
+| `scalar_mul()` | [OK] | [OK] | -- | [OK] |
+| `is_on_curve()` | [OK] | [OK] | [OK] | -- |
+| `is_infinity()` | [OK] | [OK] | -- | -- |
+| `compress()` / `decompress()` | [OK] | [OK] | [OK] | -- |
+| `to_affine()` | [OK] | [OK] | -- | -- |
+| `generator()` | [OK] | [OK] | -- | -- |
+| `negate()` | [OK] | [OK] | [OK] | -- |
 
 ### GLV Endomorphism
 
 | Function | audit_point | test_comprehensive | CT check |
 |----------|:-----------:|:-----------------:|:--------:|
-| `apply_endomorphism()` | ✅ | ✅ | ✅ |
-| `verify_endomorphism()` | — | ✅ | — |
-| `glv_decompose()` | ✅ | ✅ | ✅ |
-| `ct::point_endomorphism()` | — | — | ✅ |
+| `apply_endomorphism()` | [OK] | [OK] | [OK] |
+| `verify_endomorphism()` | -- | [OK] | -- |
+| `glv_decompose()` | [OK] | [OK] | [OK] |
+| `ct::point_endomorphism()` | -- | -- | [OK] |
 
 ### Signatures
 
 | Function | audit_security | audit_integration | test_ecdsa_schnorr | dudect |
 |----------|:-------------:|:-----------------:|:------------------:|:------:|
-| `ecdsa::sign()` | ✅ | ✅ | ✅ | ✅ |
-| `ecdsa::verify()` | ✅ | ✅ | ✅ | — |
-| `schnorr::sign()` | ✅ | ✅ | ✅ | ✅ |
-| `schnorr::verify()` | ✅ | ✅ | ✅ | — |
+| `ecdsa::sign()` | [OK] | [OK] | [OK] | [OK] |
+| `ecdsa::verify()` | [OK] | [OK] | [OK] | -- |
+| `schnorr::sign()` | [OK] | [OK] | [OK] | [OK] |
+| `schnorr::verify()` | [OK] | [OK] | [OK] | -- |
 
 ### CT Layer
 
 | Function | audit_ct | test_ct | dudect | Formal |
 |----------|:--------:|:-------:|:------:|:------:|
-| `ct::field_mul` | ✅ | ✅ | ✅ | ❌ |
-| `ct::field_inv` | ✅ | ✅ | ✅ | ❌ |
-| `ct::scalar_mul` | ✅ | ✅ | ✅ | ❌ |
-| `ct::generator_mul` | ✅ | ✅ | ✅ | ❌ |
-| `ct::point_add_complete` | ✅ | ✅ | ✅ | ❌ |
-| `ct::point_dbl` | ✅ | ✅ | — | ❌ |
+| `ct::field_mul` | [OK] | [OK] | [OK] | [FAIL] |
+| `ct::field_inv` | [OK] | [OK] | [OK] | [FAIL] |
+| `ct::scalar_mul` | [OK] | [OK] | [OK] | [FAIL] |
+| `ct::generator_mul` | [OK] | [OK] | [OK] | [FAIL] |
+| `ct::point_add_complete` | [OK] | [OK] | [OK] | [FAIL] |
+| `ct::point_dbl` | [OK] | [OK] | -- | [FAIL] |
 
 ### Protocols (Experimental)
 
 | Function | Test File | Coverage | Notes |
 |----------|-----------|----------|-------|
-| MuSig2 key aggregation | `test_musig2.cpp` | ✅ Basic | No extended vectors |
-| MuSig2 2-round sign | `test_musig2.cpp` | ✅ Basic | Limited edge cases |
-| FROST t-of-n | — | ⚠️ **Not tested** | Multi-party simulation needed |
-| Adaptor signatures | `test_v4_features.cpp` | ✅ Basic | Limited vectors |
-| Pedersen commitments | `test_v4_features.cpp` | ✅ Basic | Limited vectors |
-| Taproot (BIP-341) | `test_ecdh_recovery_taproot.cpp` | ✅ Basic | — |
-| BIP-32 HD derivation | `test_bip32.cpp` | ✅ | Standard vectors |
-| 27-coin dispatch | `test_coins.cpp` | ✅ | Per-coin address format |
-| ECDH | `test_ecdh_recovery_taproot.cpp` | ✅ | — |
-| Key recovery | `test_ecdh_recovery_taproot.cpp` | ✅ | — |
+| MuSig2 key aggregation | `test_musig2.cpp` | [OK] Basic | No extended vectors |
+| MuSig2 2-round sign | `test_musig2.cpp` | [OK] Basic | Limited edge cases |
+| FROST t-of-n | -- | [!] **Not tested** | Multi-party simulation needed |
+| Adaptor signatures | `test_v4_features.cpp` | [OK] Basic | Limited vectors |
+| Pedersen commitments | `test_v4_features.cpp` | [OK] Basic | Limited vectors |
+| Taproot (BIP-341) | `test_ecdh_recovery_taproot.cpp` | [OK] Basic | -- |
+| BIP-32 HD derivation | `test_bip32.cpp` | [OK] | Standard vectors |
+| 27-coin dispatch | `test_coins.cpp` | [OK] | Per-coin address format |
+| ECDH | `test_ecdh_recovery_taproot.cpp` | [OK] | -- |
+| Key recovery | `test_ecdh_recovery_taproot.cpp` | [OK] | -- |
 
 ---
 
@@ -189,7 +189,7 @@
 | Gap | Impact | Status |
 |-----|--------|--------|
 | MuSig2 extended test vectors | Limited edge-case coverage | Reference impl vectors needed |
-| Multi-µarch timing tests | CT may break on specific CPUs | Need hardware test farm |
+| Multi-uarch timing tests | CT may break on specific CPUs | Need hardware test farm |
 | FROST nonce CT audit | Nonce handling may leak timing | Requires protocol-level CT analysis |
 | GPU vs CPU differential | GPU arithmetic may diverge | Partial coverage via OpenCL tests |
 
@@ -209,13 +209,13 @@
 |----------|----------|------------|-------|
 | Linux x86-64 | GCC 12+ | ASan, UBSan, TSan | Full suite |
 | Linux x86-64 | Clang 15+ | ASan, UBSan | Full suite |
-| Windows x86-64 | MSVC 2022 | — | Full suite |
-| macOS ARM64 | AppleClang | — | Full suite |
-| macOS x86-64 | AppleClang | — | Full suite |
-| iOS ARM64 | Xcode toolchain | — | Build only |
-| Android ARM64 | NDK | — | Build only |
-| WASM | Emscripten | — | Build + smoke |
-| CUDA | nvcc + host compiler | — | GPU-specific |
+| Windows x86-64 | MSVC 2022 | -- | Full suite |
+| macOS ARM64 | AppleClang | -- | Full suite |
+| macOS x86-64 | AppleClang | -- | Full suite |
+| iOS ARM64 | Xcode toolchain | -- | Build only |
+| Android ARM64 | NDK | -- | Build only |
+| WASM | Emscripten | -- | Build + smoke |
+| CUDA | nvcc + host compiler | -- | GPU-specific |
 | Valgrind | GCC/Clang | Memcheck | Weekly |
 
 ---
@@ -251,11 +251,11 @@ clang++ -fsanitize=fuzzer,address -O2 -std=c++20 \
 
 | Symbol | Meaning |
 |--------|---------|
-| ✅ | Tested with passing checks |
-| ⚠️ | Partial or no coverage |
-| ❌ | Not implemented |
-| — | Not applicable |
+| [OK] | Tested with passing checks |
+| [!] | Partial or no coverage |
+| [FAIL] | Not implemented |
+| -- | Not applicable |
 
 ---
 
-*UltrafastSecp256k1 v3.12.1 — Test Coverage Matrix*
+*UltrafastSecp256k1 v3.12.1 -- Test Coverage Matrix*

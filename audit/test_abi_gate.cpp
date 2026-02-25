@@ -64,9 +64,9 @@ int test_abi_gate_run() {
 
 #ifndef UNIFIED_AUDIT_RUNNER
 int main() {
-    printf("════════════════════════════════════════════════════════════\n");
+    printf("============================================================\n");
     printf("  ABI Version Gate Test (compile-time)\n");
-    printf("════════════════════════════════════════════════════════════\n\n");
+    printf("============================================================\n\n");
 
     // 1. ABI version macro must be defined and positive
     printf("  UFSECP_ABI_VERSION:       %u\n", (unsigned)UFSECP_ABI_VERSION);
@@ -127,9 +127,9 @@ int main() {
     unsigned int min_required = (0 << 16) | (0 << 8) | 0;  // 0.0.0
     CHECK(packed >= min_required, "Packed version >= minimum required (0.0.0)");
 
-    printf("\n════════════════════════════════════════════════════════════\n");
+    printf("\n============================================================\n");
     printf("  Summary: %d passed, %d failed\n", g_pass, g_fail);
-    printf("════════════════════════════════════════════════════════════\n");
+    printf("============================================================\n");
 
     return g_fail > 0 ? 1 : 0;
 }

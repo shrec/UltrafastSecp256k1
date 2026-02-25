@@ -1,6 +1,6 @@
 // ============================================================================
 // Fiat-Crypto Reference Vector Comparison Test
-// Phase V, Task 5.3.1 — Compare field arithmetic against formally-verified
+// Phase V, Task 5.3.1 -- Compare field arithmetic against formally-verified
 //                        reference implementations (Fiat-Cryptography project)
 // ============================================================================
 //
@@ -99,7 +99,7 @@ static const MulVector MUL_VECTORS[] = {
         "0000000000000000000000000000000000000000000000000000000000000000",
         "0000000000000000000000000000000000000000000000000000000000000000"
     },
-    // vec3: (p-1) * (p-1) mod p = 1 (since (p-1) ≡ -1 mod p, (-1)*(-1) = 1)
+    // vec3: (p-1) * (p-1) mod p = 1 (since (p-1) == -1 mod p, (-1)*(-1) = 1)
     {
         "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2E",
         "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2E",
@@ -120,7 +120,7 @@ static const MulVector MUL_VECTORS[] = {
         "FD3DC529C6EB60FB9D166034CF3C1A5A72324AA9DFD3428A56D7E1CE0179FD9B"
     },
     // vec6: large values near the prime
-    // a = p - 3, b = p - 5 → a*b = 15 mod p
+    // a = p - 3, b = p - 5 -> a*b = 15 mod p
     {
         "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2C",
         "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2A",
@@ -195,7 +195,7 @@ static const InvVector INV_VECTORS[] = {
         "0000000000000000000000000000000000000000000000000000000000000002",
         "7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF7FFFFE18"
     },
-    // (p-1)^(-1) = (p-1) since (p-1) ≡ -1 and (-1)^(-1) = -1
+    // (p-1)^(-1) = (p-1) since (p-1) == -1 and (-1)^(-1) = -1
     {
         "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2E",
         "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2E"
@@ -203,7 +203,7 @@ static const InvVector INV_VECTORS[] = {
     // 3^(-1) mod p
     // sage: GF(p)(3)^(-1) = 0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFD97B1
     // Actually: GF(p)(3)^(-1) * 3 = 1
-    // p = 2^256 - 2^32 - 977, (p+1)/3 if p ≡ 2 mod 3
+    // p = 2^256 - 2^32 - 977, (p+1)/3 if p == 2 mod 3
     // sage: pow(3, -1, 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F)
     //     = 0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA5555529A
     {
@@ -337,7 +337,7 @@ static void test_point_vectors() {
 
     // nG = O (infinity)  -- scalar_mul with n should give identity
     auto n = scalar_from_hex("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141");
-    // n reduces to 0, so nG = O — but the scalar is 0 after reduction, so:
+    // n reduces to 0, so nG = O -- but the scalar is 0 after reduction, so:
     // Just test that scalar_mul with order produces identity
     CHECK(n.is_zero(), "n reduces to 0 (used as sanity)");
 
@@ -457,10 +457,10 @@ int test_fiat_crypto_vectors_run() {
 // ============================================================================
 #ifndef UNIFIED_AUDIT_RUNNER
 int main() {
-    printf("════════════════════════════════════════════════════════════\n");
+    printf("============================================================\n");
     printf("  Fiat-Crypto Reference Vector Comparison Test\n");
     printf("  Phase V, Task 5.3.1\n");
-    printf("════════════════════════════════════════════════════════════\n\n");
+    printf("============================================================\n\n");
 
     test_mul_vectors();      printf("\n");
     test_sqr_vectors();      printf("\n");
@@ -471,9 +471,9 @@ int main() {
     test_algebraic_identities(); printf("\n");
     test_serialization_roundtrip();
 
-    printf("\n════════════════════════════════════════════════════════════\n");
+    printf("\n============================================================\n");
     printf("  Summary: %d passed, %d failed\n", g_pass, g_fail);
-    printf("════════════════════════════════════════════════════════════\n");
+    printf("============================================================\n");
 
     return g_fail > 0 ? 1 : 0;
 }

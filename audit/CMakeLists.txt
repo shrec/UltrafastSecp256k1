@@ -1,25 +1,25 @@
 # ============================================================================
-# audit/CMakeLists.txt — აუდიტის ინფრასტრუქტურა
+# audit/CMakeLists.txt -- Audit Infrastructure
 # ============================================================================
 #
-# ეს დირექტორია შეიცავს ყველაფერს, რაც ბიბლიოთეკის აუდიტისთვისაა საჭირო:
-#   - Unified Audit Runner (ერთიანი შესრულება + JSON/TXT რეპორტი)
+# This directory contains everything needed for the library audit:
+#   - Unified Audit Runner (unified execution + JSON/TXT report)
 #   - Standalone CTest targets (CT, differential, fault injection, ...)
 #   - Protocol tests (MuSig2, FROST, KAT)
 #   - Fuzz / adversarial tests
 #   - Cross-library differential tests (vs bitcoin-core/libsecp256k1)
 #
-# ბიბლიოთეკის core ტესტები (run_selftest) რჩება cpu/tests/-ში.
+# Core library tests (run_selftest) remain in cpu/tests/.
 # ============================================================================
 
 if(NOT BUILD_TESTING)
     return()
 endif()
 
-# Shorthand for cpu/tests/ — core library test sources reused by unified runner
+# Shorthand for cpu/tests/ -- core library test sources reused by unified runner
 set(CPU_TESTS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/tests)
 
-# ── Helper: common link + stack options ────────────────────────────────────
+# -- Helper: common link + stack options ------------------------------------
 macro(audit_target_defaults target_name)
     target_link_libraries(${target_name} PRIVATE fastsecp256k1)
     if(MSVC OR (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND WIN32))
@@ -27,71 +27,71 @@ macro(audit_target_defaults target_name)
     endif()
 endmacro()
 
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 # Standalone CTest targets
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 
-# ── dudect side-channel timing test ───────────────────────────────────────
+# -- dudect side-channel timing test ---------------------------------------
 add_executable(test_ct_sidechannel_standalone test_ct_sidechannel.cpp)
 audit_target_defaults(test_ct_sidechannel_standalone)
 target_compile_definitions(test_ct_sidechannel_standalone PRIVATE STANDALONE_TEST)
 add_test(NAME ct_sidechannel COMMAND test_ct_sidechannel_standalone)
 set_tests_properties(ct_sidechannel PROPERTIES TIMEOUT 300)
 
-# Smoke version of dudect (short run, relaxed threshold — safe for CI)
+# Smoke version of dudect (short run, relaxed threshold -- safe for CI)
 add_executable(test_ct_sidechannel_smoke test_ct_sidechannel.cpp)
 audit_target_defaults(test_ct_sidechannel_smoke)
 target_compile_definitions(test_ct_sidechannel_smoke PRIVATE STANDALONE_TEST DUDECT_SMOKE)
 add_test(NAME ct_sidechannel_smoke COMMAND test_ct_sidechannel_smoke)
 set_tests_properties(ct_sidechannel_smoke PROPERTIES TIMEOUT 120)
 
-# ── Differential/self-consistency test ────────────────────────────────────
+# -- Differential/self-consistency test ------------------------------------
 add_executable(test_differential_standalone differential_test.cpp)
 audit_target_defaults(test_differential_standalone)
 add_test(NAME differential COMMAND test_differential_standalone)
 set_tests_properties(differential PROPERTIES TIMEOUT 120)
 
-# ── FAST≡CT equivalence test ─────────────────────────────────────────────
+# -- FAST==CT equivalence test ---------------------------------------------
 add_executable(test_ct_equivalence_standalone ${CPU_TESTS_DIR}/test_ct_equivalence.cpp)
 audit_target_defaults(test_ct_equivalence_standalone)
 target_compile_definitions(test_ct_equivalence_standalone PRIVATE STANDALONE_TEST)
 add_test(NAME ct_equivalence COMMAND test_ct_equivalence_standalone)
 
-# ── Fault injection simulation ────────────────────────────────────────────
+# -- Fault injection simulation --------------------------------------------
 add_executable(test_fault_injection test_fault_injection.cpp)
 audit_target_defaults(test_fault_injection)
 target_compile_definitions(test_fault_injection PRIVATE STANDALONE_TEST)
 add_test(NAME fault_injection COMMAND test_fault_injection)
 set_tests_properties(fault_injection PROPERTIES TIMEOUT 300)
 
-# ── Debug invariant assertions ────────────────────────────────────────────
+# -- Debug invariant assertions --------------------------------------------
 add_executable(test_debug_invariants test_debug_invariants.cpp)
 audit_target_defaults(test_debug_invariants)
 add_test(NAME debug_invariants COMMAND test_debug_invariants)
 set_tests_properties(debug_invariants PROPERTIES TIMEOUT 120)
 
-# ── Fiat-Crypto comparison vectors ────────────────────────────────────────
+# -- Fiat-Crypto comparison vectors ----------------------------------------
 add_executable(test_fiat_crypto_vectors test_fiat_crypto_vectors.cpp)
 audit_target_defaults(test_fiat_crypto_vectors)
 target_compile_definitions(test_fiat_crypto_vectors PRIVATE STANDALONE_TEST)
 add_test(NAME fiat_crypto_vectors COMMAND test_fiat_crypto_vectors)
 set_tests_properties(fiat_crypto_vectors PROPERTIES TIMEOUT 300)
 
-# ── Carry propagation stress test ─────────────────────────────────────────
+# -- Carry propagation stress test -----------------------------------------
 add_executable(test_carry_propagation test_carry_propagation.cpp)
 audit_target_defaults(test_carry_propagation)
 target_compile_definitions(test_carry_propagation PRIVATE STANDALONE_TEST)
 add_test(NAME carry_propagation COMMAND test_carry_propagation)
 set_tests_properties(carry_propagation PROPERTIES TIMEOUT 300)
 
-# ── Cross-platform KAT equivalence ───────────────────────────────────────
+# -- Cross-platform KAT equivalence ---------------------------------------
 add_executable(test_cross_platform_kat test_cross_platform_kat.cpp)
 audit_target_defaults(test_cross_platform_kat)
 target_compile_definitions(test_cross_platform_kat PRIVATE STANDALONE_TEST)
 add_test(NAME cross_platform_kat COMMAND test_cross_platform_kat)
 set_tests_properties(cross_platform_kat PROPERTIES TIMEOUT 300)
 
-# ── ABI version gate (compile-time check) ─────────────────────────────────
+# -- ABI version gate (compile-time check) ---------------------------------
 add_executable(test_abi_gate test_abi_gate.cpp)
 target_include_directories(test_abi_gate PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
@@ -100,21 +100,21 @@ target_compile_definitions(test_abi_gate PRIVATE STANDALONE_TEST)
 add_test(NAME abi_gate COMMAND test_abi_gate)
 set_tests_properties(abi_gate PROPERTIES TIMEOUT 30)
 
-# ── Standalone audit_fuzz test ────────────────────────────────────────────
+# -- Standalone audit_fuzz test --------------------------------------------
 add_executable(test_audit_fuzz_standalone audit_fuzz.cpp)
 audit_target_defaults(test_audit_fuzz_standalone)
 add_test(NAME audit_fuzz COMMAND test_audit_fuzz_standalone)
 set_tests_properties(audit_fuzz PROPERTIES TIMEOUT 120)
 
-# ── Diagnostic: ct::scalar_mul step-by-step comparison ────────────────────
+# -- Diagnostic: ct::scalar_mul step-by-step comparison --------------------
 add_executable(diag_scalar_mul ${CPU_TESTS_DIR}/diag_scalar_mul.cpp)
 audit_target_defaults(diag_scalar_mul)
 target_compile_definitions(diag_scalar_mul PRIVATE STANDALONE_TEST)
 add_test(NAME diag_scalar_mul COMMAND diag_scalar_mul)
 
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 # Cross-library differential test (vs bitcoin-core/libsecp256k1)
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 option(SECP256K1_BUILD_CROSS_TESTS
        "Build in-process differential tests against bitcoin-core/libsecp256k1" OFF)
 
@@ -158,9 +158,9 @@ if(SECP256K1_BUILD_CROSS_TESTS)
     message(STATUS "  Cross-test vs libsecp256k1: ON (ref: v0.6.0)")
 endif()
 
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 # Parser fuzz tests (deterministic pseudo-fuzz)
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 option(SECP256K1_BUILD_FUZZ_TESTS
        "Build deterministic fuzz tests for parsers (DER, Schnorr, Pubkey)" OFF)
 
@@ -197,9 +197,9 @@ if(SECP256K1_BUILD_FUZZ_TESTS AND TARGET ufsecp_static)
     message(STATUS "  Address + BIP32 + FFI fuzz tests: ON")
 endif()
 
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 # MuSig2 + FROST protocol tests
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 option(SECP256K1_BUILD_PROTOCOL_TESTS
        "Build MuSig2 + FROST protocol tests" OFF)
 
@@ -243,14 +243,14 @@ if(SECP256K1_BUILD_PROTOCOL_TESTS)
     message(STATUS "  FROST reference KAT vectors: ON")
 endif()
 
-# ═══════════════════════════════════════════════════════════════════════════
-# Unified Audit Runner — ერთიანი აუდიტის ბინარი
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
+# Unified Audit Runner -- Unified Audit Binary
+# ===========================================================================
 # Single binary that runs ALL test modules + generates JSON/TXT reports.
 # Build once, run on any platform. Self-audit artifact.
 add_executable(unified_audit_runner
     unified_audit_runner.cpp
-    # ── selftest modules (from cpu/tests/) ──
+    # -- selftest modules (from cpu/tests/) --
     ${CPU_TESTS_DIR}/test_large_scalar_multiplication.cpp
     ${CPU_TESTS_DIR}/test_mul.cpp
     ${CPU_TESTS_DIR}/test_arithmetic_correctness.cpp
@@ -272,7 +272,7 @@ add_executable(unified_audit_runner
     ${CPU_TESTS_DIR}/test_bip340_vectors.cpp
     ${CPU_TESTS_DIR}/test_rfc6979_vectors.cpp
     ${CPU_TESTS_DIR}/test_ecc_properties.cpp
-    # ── standalone audit modules (in this directory) ──
+    # -- standalone audit modules (in this directory) --
     test_carry_propagation.cpp
     test_fault_injection.cpp
     test_fiat_crypto_vectors.cpp
@@ -281,14 +281,14 @@ add_executable(unified_audit_runner
     test_abi_gate.cpp
     test_ct_sidechannel.cpp
     differential_test.cpp
-    # ── MuSig2 / FROST / adversarial / fuzz ──
+    # -- MuSig2 / FROST / adversarial / fuzz --
     test_musig2_frost.cpp
     test_musig2_frost_advanced.cpp
     test_frost_kat.cpp
     audit_fuzz.cpp
     test_fuzz_parsers.cpp
     test_fuzz_address_bip32_ffi.cpp
-    # ── Deep audit modules ──
+    # -- Deep audit modules --
     audit_field.cpp
     audit_scalar.cpp
     audit_point.cpp
@@ -296,14 +296,14 @@ add_executable(unified_audit_runner
     audit_integration.cpp
     audit_security.cpp
     audit_perf.cpp
-    # ── ufsecp FFI implementation (needed by fuzz_parsers + fuzz_address) ──
+    # -- ufsecp FFI implementation (needed by fuzz_parsers + fuzz_address) --
     ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp
-    # ── field representation tests ──
+    # -- field representation tests --
     ${CPU_TESTS_DIR}/test_field_26.cpp
-    # ── diagnostics ──
+    # -- diagnostics --
     ${CPU_TESTS_DIR}/diag_scalar_mul.cpp
 )
-# Conditionally add 5×52 field test (requires __uint128_t; skip on MSVC)
+# Conditionally add 5x52 field test (requires __uint128_t; skip on MSVC)
 if(NOT (MSVC AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
     target_sources(unified_audit_runner PRIVATE ${CPU_TESTS_DIR}/test_field_52.cpp)
 endif()
@@ -322,9 +322,9 @@ endif()
 add_test(NAME unified_audit COMMAND unified_audit_runner)
 set_tests_properties(unified_audit PROPERTIES TIMEOUT 600)
 
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 # Full Audit Orchestrator (custom target)
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 # "cmake --build <dir> --target run_full_audit" runs the orchestrator script.
 # On Windows, runs the PowerShell version; on Linux/macOS, runs the bash version.
 if(WIN32)
@@ -336,7 +336,7 @@ if(WIN32)
             -SkipBuild
         DEPENDS unified_audit_runner
         WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/.."
-        COMMENT "Full audit orchestrator (categories A–M)"
+        COMMENT "Full audit orchestrator (categories A-M)"
         VERBATIM
     )
 else()
@@ -345,7 +345,7 @@ else()
         COMMAND bash "${CMAKE_CURRENT_SOURCE_DIR}/run_full_audit.sh"
         DEPENDS unified_audit_runner
         WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/.."
-        COMMENT "Full audit orchestrator (categories A–M)"
+        COMMENT "Full audit orchestrator (categories A-M)"
         VERBATIM
     )
     # Pass build dir via environment
@@ -354,7 +354,7 @@ else()
     )
 endif()
 
-# ── CTest labels for grouping ─────────────────────────────────────────────
+# -- CTest labels for grouping ---------------------------------------------
 # Label all audit tests so they can be run as a group:
 #   ctest --test-dir <build> -L audit
 set_tests_properties(

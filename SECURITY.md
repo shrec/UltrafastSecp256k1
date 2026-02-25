@@ -4,10 +4,10 @@
 
 | Version | Supported |
 |---------|-----------|
-| 3.12.x  | ✅ Active  |
-| 3.11.x  | ⚠️ Critical fixes only |
-| 3.9.x–3.10.x | ⚠️ Critical fixes only |
-| < 3.9   | ❌ Unsupported |
+| 3.12.x  | [OK] Active  |
+| 3.11.x  | [!] Critical fixes only |
+| 3.9.x-3.10.x | [!] Critical fixes only |
+| < 3.9   | [FAIL] Unsupported |
 
 Security fixes apply to the latest release on the `main` branch.
 
@@ -53,33 +53,33 @@ For auditors and security researchers, the following documents are available:
 
 | Document | Purpose |
 |----------|---------|
-| [AUDIT_GUIDE.md](AUDIT_GUIDE.md) | **Start here** — Auditor navigation, checklist, reproduction commands |
+| [AUDIT_GUIDE.md](AUDIT_GUIDE.md) | **Start here** -- Auditor navigation, checklist, reproduction commands |
 | [AUDIT_REPORT.md](AUDIT_REPORT.md) | Internal audit: 641,194 checks, 8 suites, 0 failures |
 | [THREAT_MODEL.md](THREAT_MODEL.md) | Layer-by-layer risk + attack surface analysis |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Technical architecture for auditors |
 | [docs/CT_VERIFICATION.md](docs/CT_VERIFICATION.md) | Constant-time methodology, dudect, known limitations |
-| [docs/TEST_MATRIX.md](docs/TEST_MATRIX.md) | Function → test coverage map with gap analysis |
+| [docs/TEST_MATRIX.md](docs/TEST_MATRIX.md) | Function -> test coverage map with gap analysis |
 
 ### Automated Security Measures
 
 The following automated security measures are in place:
 
-- **CodeQL** — static analysis on every push/PR (C/C++ security-and-quality queries)
-- **OpenSSF Scorecard** — weekly supply-chain security assessment
-- **Security Audit CI** — `-Werror -Wall -Wextra -Wpedantic -Wconversion -Wshadow` build, ASan+UBSan test suite, Valgrind memcheck (weekly + on push)
-- **Clang-Tidy** — 30+ static analysis checks (bugprone, cert, performance, readability, clang-analyzer) on every push/PR
-- **SonarCloud** — continuous code quality and security hotspot analysis
-- **ASan + UBSan** — address/undefined-behavior sanitizers in CI
-- **TSan** — thread sanitizer in CI
-- **Valgrind Memcheck** — memory error detection in Security Audit workflow
-- **Artifact Attestation** — SLSA provenance for all release artifacts
-- **SHA-256 Checksums** — `SHA256SUMS.txt` ships with every release
-- **Dependabot** — automated dependency updates for all ecosystems
-- **Dependency Review** — PR-level vulnerable dependency scanning
-- **libFuzzer harnesses** — continuous fuzz testing of field/scalar/point layers
-- **Docker SHA-pinned images** — reproducible builds with digest-pinned base images
-- **dudect timing analysis** — Welch t-test side-channel detection (1300+ line test suite)
-- **Internal audit suite** — 641,194 checks across 8 dedicated audit test suites
+- **CodeQL** -- static analysis on every push/PR (C/C++ security-and-quality queries)
+- **OpenSSF Scorecard** -- weekly supply-chain security assessment
+- **Security Audit CI** -- `-Werror -Wall -Wextra -Wpedantic -Wconversion -Wshadow` build, ASan+UBSan test suite, Valgrind memcheck (weekly + on push)
+- **Clang-Tidy** -- 30+ static analysis checks (bugprone, cert, performance, readability, clang-analyzer) on every push/PR
+- **SonarCloud** -- continuous code quality and security hotspot analysis
+- **ASan + UBSan** -- address/undefined-behavior sanitizers in CI
+- **TSan** -- thread sanitizer in CI
+- **Valgrind Memcheck** -- memory error detection in Security Audit workflow
+- **Artifact Attestation** -- SLSA provenance for all release artifacts
+- **SHA-256 Checksums** -- `SHA256SUMS.txt` ships with every release
+- **Dependabot** -- automated dependency updates for all ecosystems
+- **Dependency Review** -- PR-level vulnerable dependency scanning
+- **libFuzzer harnesses** -- continuous fuzz testing of field/scalar/point layers
+- **Docker SHA-pinned images** -- reproducible builds with digest-pinned base images
+- **dudect timing analysis** -- Welch t-test side-channel detection (1300+ line test suite)
+- **Internal audit suite** -- 641,194 checks across 8 dedicated audit test suites
 
 ### Planned Security Improvements
 
@@ -87,7 +87,7 @@ The following automated security measures are in place:
 - [ ] Formal verification of field/scalar arithmetic (Fiat-Crypto / Cryptol)
 - [ ] ct-verif LLVM pass integration for compile-time CT verification
 - [ ] Hardware timing analysis on multiple CPU microarchitectures
-- [ ] Multi-µarch dudect campaign (Intel, AMD, ARM, Apple Silicon)
+- [ ] Multi-uarch dudect campaign (Intel, AMD, ARM, Apple Silicon)
 - [ ] FROST / MuSig2 protocol-level test vectors from reference implementations
 - [ ] Cross-ABI / FFI correctness tests across calling conventions
 
@@ -106,7 +106,7 @@ See [THREAT_MODEL.md](THREAT_MODEL.md) for a layer-by-layer risk assessment.
 | Point operations (add, dbl, mul) | Stable | Deterministic selftest (smoke/ci/stress) |
 | ECDSA (RFC 6979) | Stable | Deterministic nonces, input validation |
 | Schnorr (BIP-340) | Stable | Tagged hashing, input validation |
-| Constant-time layer (`ct::`) | Stable | No secret-dependent branches; ~5–7× penalty |
+| Constant-time layer (`ct::`) | Stable | No secret-dependent branches; ~5-7x penalty |
 | Batch inverse / multi-scalar | Stable | Sweep-tested up to 8192 elements |
 | GPU backends (CUDA, ROCm, OpenCL, Metal) | Beta | Functional, not constant-time |
 | MuSig2 / FROST / Adaptor | Experimental | API may change |
@@ -123,11 +123,11 @@ See [THREAT_MODEL.md](THREAT_MODEL.md) for a layer-by-layer risk assessment.
 
 The constant-time layer (`ct::` namespace) provides:
 
-- `ct::field_mul`, `ct::field_inv` — timing-safe field arithmetic
-- `ct::scalar_mul` — timing-safe scalar multiplication
-- `ct::point_add_complete`, `ct::point_dbl` — complete addition formulas
+- `ct::field_mul`, `ct::field_inv` -- timing-safe field arithmetic
+- `ct::scalar_mul` -- timing-safe scalar multiplication
+- `ct::point_add_complete`, `ct::point_dbl` -- complete addition formulas
 
-The CT layer uses no secret-dependent branches or memory access patterns. It carries a ~5–7× performance penalty relative to the optimized (variable-time) path.
+The CT layer uses no secret-dependent branches or memory access patterns. It carries a ~5-7x performance penalty relative to the optimized (variable-time) path.
 
 **Important**: The default (non-CT) operations prioritize performance and are NOT constant-time. Use the `ct::` variants when processing secret keys or nonces.
 
@@ -201,10 +201,10 @@ We follow a **coordinated disclosure** process:
 
 | Phase | Timeline | Action |
 |-------|----------|--------|
-| Acknowledgment | ≤ 72 hours | Confirm receipt, assign tracking ID |
-| Assessment | ≤ 7 days | Severity classification (CVSS 3.1) |
-| Fix development | ≤ 30 days | Patch + test for confirmed issues |
-| Advisory | ≤ 90 days | GitHub Security Advisory published |
+| Acknowledgment | <= 72 hours | Confirm receipt, assign tracking ID |
+| Assessment | <= 7 days | Severity classification (CVSS 3.1) |
+| Fix development | <= 30 days | Patch + test for confirmed issues |
+| Advisory | <= 90 days | GitHub Security Advisory published |
 | Credit | At advisory | Reporter credited (unless anonymous) |
 
 ### Severity Guidelines
@@ -212,9 +212,9 @@ We follow a **coordinated disclosure** process:
 | CVSS | Example |
 |------|---------|
 | Critical (9.0+) | Private key recovery, signature forgery |
-| High (7.0–8.9) | CT violation in `ct::` namespace, nonce bias |
-| Medium (4.0–6.9) | Denial of service, unexpected panic/abort |
-| Low (0.1–3.9) | Non-security correctness issues, edge-case handling |
+| High (7.0-8.9) | CT violation in `ct::` namespace, nonce bias |
+| Medium (4.0-6.9) | Denial of service, unexpected panic/abort |
+| Low (0.1-3.9) | Non-security correctness issues, edge-case handling |
 
 ### Bug Bounty
 
@@ -233,4 +233,4 @@ We appreciate responsible disclosure. Contributors who report valid security iss
 
 ---
 
-*UltrafastSecp256k1 v3.14.0 — Security Policy*
+*UltrafastSecp256k1 v3.14.0 -- Security Policy*

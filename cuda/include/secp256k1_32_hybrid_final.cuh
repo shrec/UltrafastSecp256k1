@@ -6,11 +6,11 @@
 
 // ============================================================================
 // 32-bit multiplication using proven Comba's method
-// Input: 64-bit FieldElement (4×64) viewed as 32-bit (8×32)
+// Input: 64-bit FieldElement (4x64) viewed as 32-bit (8x32)
 // Output: 512-bit result for reduce_512_to_256
 // ============================================================================
 
-// Core 32-bit Comba multiplication → raw uint32_t[16] output (no packing)
+// Core 32-bit Comba multiplication -> raw uint32_t[16] output (no packing)
 // Separated from wrapper to allow direct use with 32-bit reduction
 __device__ __forceinline__ void mul_256_comba32(
     const secp256k1::cuda::FieldElement* a,
@@ -122,7 +122,7 @@ __device__ __forceinline__ void mul_256_512_hybrid(
 // ~40% fewer multiplications than generic multiplication
 // ============================================================================
 
-// Core 32-bit Comba squaring → raw uint32_t[16] output
+// Core 32-bit Comba squaring -> raw uint32_t[16] output
 __device__ __forceinline__ void sqr_256_comba32(
     const secp256k1::cuda::FieldElement* a,
     uint32_t t32[16]
@@ -270,10 +270,10 @@ __device__ __forceinline__ void sqr_256_512_hybrid(
 // ============================================================================
 // 32-bit secp256k1 reduction (consumer GPU optimized)
 // On consumer NVIDIA GPUs (Turing/Ampere/Ada/Blackwell), INT64 multiply
-// throughput is 1/32 of INT32. By doing the main T_hi × K_MOD multiplication
+// throughput is 1/32 of INT32. By doing the main T_hi x K_MOD multiplication
 // in 32-bit, we avoid the INT64 multiply bottleneck.
-// Phase 1+2: fully 32-bit (T_hi × K_MOD + add to T_lo)
-// Phase 3+4: 64-bit (overflow handling + conditional subtraction — proven code)
+// Phase 1+2: fully 32-bit (T_hi x K_MOD + add to T_lo)
+// Phase 3+4: 64-bit (overflow handling + conditional subtraction -- proven code)
 // ============================================================================
 __device__ __forceinline__ void reduce_512_to_256_32(
     uint32_t t32[16],
@@ -284,7 +284,7 @@ __device__ __forceinline__ void reduce_512_to_256_32(
     const uint32_t t8  = t32[8],  t9  = t32[9],  t10 = t32[10], t11 = t32[11];
     const uint32_t t12 = t32[12], t13 = t32[13], t14 = t32[14], t15 = t32[15];
 
-    // ---- Phase 1: A = T_hi × 977 (32-bit scalar MAD chain → 9 limbs) ----
+    // ---- Phase 1: A = T_hi x 977 (32-bit scalar MAD chain -> 9 limbs) ----
     uint32_t a0, a1, a2, a3, a4, a5, a6, a7, a8;
     asm volatile(
         "mul.lo.u32 %0, %9, 977;\n\t"
@@ -309,7 +309,7 @@ __device__ __forceinline__ void reduce_512_to_256_32(
           "r"(t12), "r"(t13), "r"(t14), "r"(t15)
     );
 
-    // ---- Phase 1b: Add T_hi << 32 (shift by 1 limb = ×2^32 component of K_MOD) ----
+    // ---- Phase 1b: Add T_hi << 32 (shift by 1 limb = x2^32 component of K_MOD) ----
     uint32_t a9;
     asm volatile(
         "add.cc.u32 %0, %0, %9;\n\t"
@@ -406,7 +406,7 @@ __device__ __forceinline__ void reduce_512_to_256_32(
 
 // ============================================================================
 // Hybrid field operations: 32-bit mul/sqr + 32-bit reduce (optimized)
-// Consumer GPUs have INT32 multiply throughput 32× higher than INT64.
+// Consumer GPUs have INT32 multiply throughput 32x higher than INT64.
 // By keeping the main reduction in 32-bit, we avoid the INT64 bottleneck.
 // ============================================================================
 

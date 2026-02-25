@@ -8,8 +8,8 @@
 #   ./scripts/perf_regression_check.sh [--baseline baseline.json] [--threshold 10]
 #
 # Outputs:
-#   build/perf_report.json    — current benchmark results
-#   build/perf_comparison.txt — human-readable comparison
+#   build/perf_report.json    -- current benchmark results
+#   build/perf_comparison.txt -- human-readable comparison
 #
 # In CI, the baseline is stored as an artifact from the previous release.
 # A regression > threshold% triggers a warning (non-blocking by default).
@@ -25,7 +25,7 @@ BASELINE=""
 REPORT_JSON="${BUILD_DIR}/perf_report.json"
 COMPARISON="${BUILD_DIR}/perf_comparison.txt"
 
-# ── Parse Args ────────────────────────────────────────────────────────────────
+# -- Parse Args ----------------------------------------------------------------
 while [[ $# -gt 0 ]]; do
     case $1 in
         --baseline)  BASELINE="$2"; shift 2;;
@@ -43,7 +43,7 @@ info()  { echo -e "${GREEN}[PERF]${NC} $*"; }
 warn()  { echo -e "${YELLOW}[PERF]${NC} $*"; }
 fail()  { echo -e "${RED}[PERF]${NC} $*"; }
 
-# ── Build ─────────────────────────────────────────────────────────────────────
+# -- Build ---------------------------------------------------------------------
 info "Building benchmarks..."
 cmake -S "${ROOT_DIR}" -B "${BUILD_DIR}" \
     -G Ninja \
@@ -53,7 +53,7 @@ cmake -S "${ROOT_DIR}" -B "${BUILD_DIR}" \
 
 cmake --build "${BUILD_DIR}" -j "$(nproc)" 2>/dev/null
 
-# ── Run Benchmarks ────────────────────────────────────────────────────────────
+# -- Run Benchmarks ------------------------------------------------------------
 mkdir -p "${BUILD_DIR}"
 
 RESULTS=()
@@ -89,7 +89,7 @@ run_bench "scalar_mul" "${BUILD_DIR}/cpu/bench_scalar_mul" "scalar_mul"
 run_bench "field_mul" "${BUILD_DIR}/cpu/bench_field_mul_kernels" "field_mul"
 run_bench "ct_ops" "${BUILD_DIR}/cpu/bench_ct" "ct"
 
-# ── Generate JSON Report ──────────────────────────────────────────────────────
+# -- Generate JSON Report ------------------------------------------------------
 {
     echo "{"
     echo "  \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\","
@@ -112,7 +112,7 @@ run_bench "ct_ops" "${BUILD_DIR}/cpu/bench_ct" "ct"
 
 info "Report written to: ${REPORT_JSON}"
 
-# ── Compare Against Baseline ─────────────────────────────────────────────────
+# -- Compare Against Baseline -------------------------------------------------
 if [[ -n "${BASELINE}" && -f "${BASELINE}" ]]; then
     info "Comparing against baseline: ${BASELINE}"
     echo "Performance Comparison" > "${COMPARISON}"
@@ -125,16 +125,16 @@ if [[ -n "${BASELINE}" && -f "${BASELINE}" ]]; then
     echo "In CI, use the GitHub Actions benchmark action for precise tracking." >> "${COMPARISON}"
     cat "${COMPARISON}"
 else
-    info "No baseline provided — storing current results as new baseline."
+    info "No baseline provided -- storing current results as new baseline."
     cp "${REPORT_JSON}" "${BUILD_DIR}/perf_baseline.json"
 fi
 
-# ── Summary ───────────────────────────────────────────────────────────────────
+# -- Summary -------------------------------------------------------------------
 echo ""
-echo "════════════════════════════════════════════════════════════"
+echo "============================================================"
 echo "  Performance Regression Check"
-echo "════════════════════════════════════════════════════════════"
+echo "============================================================"
 echo "  Benchmarks run:  ${#RESULTS[@]}"
 echo "  Threshold:       ${THRESHOLD}%"
 echo "  Report:          ${REPORT_JSON}"
-echo "════════════════════════════════════════════════════════════"
+echo "============================================================"

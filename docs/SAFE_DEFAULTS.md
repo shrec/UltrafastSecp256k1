@@ -18,14 +18,14 @@ override it.
 
 | Setting | Default | Safe? | Override |
 |---------|---------|-------|----------|
-| `CMAKE_BUILD_TYPE` | None (Debug) | ✅ | Set `Release` for production |
-| `SECP256K1_USE_ASM` | `ON` | ✅ | `OFF` for portable builds |
-| `SECP256K1_BUILD_SHARED` | `OFF` | ✅ | `ON` for shared libraries |
-| `SECP256K1_BUILD_TESTS` | `ON` | ✅ | `OFF` for production |
-| `SECP256K1_BUILD_BENCH` | `ON` | ✅ | `OFF` for production |
-| `SECP256K1_SPEED_FIRST` | `OFF` | ✅ | `ON` enables unsafe fast-math; **never for crypto** |
-| `SECP256K1_REQUIRE_CT` | `0` | ⚠️ | Set `1` to compile-error on non-CT signing |
-| `SECP256K1_VERBOSE_DEBUG` | `OFF` | ✅ | Only for development |
+| `CMAKE_BUILD_TYPE` | None (Debug) | [OK] | Set `Release` for production |
+| `SECP256K1_USE_ASM` | `ON` | [OK] | `OFF` for portable builds |
+| `SECP256K1_BUILD_SHARED` | `OFF` | [OK] | `ON` for shared libraries |
+| `SECP256K1_BUILD_TESTS` | `ON` | [OK] | `OFF` for production |
+| `SECP256K1_BUILD_BENCH` | `ON` | [OK] | `OFF` for production |
+| `SECP256K1_SPEED_FIRST` | `OFF` | [OK] | `ON` enables unsafe fast-math; **never for crypto** |
+| `SECP256K1_REQUIRE_CT` | `0` | [!] | Set `1` to compile-error on non-CT signing |
+| `SECP256K1_VERBOSE_DEBUG` | `OFF` | [OK] | Only for development |
 
 ### Recommended Production Build
 
@@ -56,7 +56,7 @@ cmake -S . -B build -G Ninja \
 
 | Behavior | Default | Notes |
 |----------|---------|-------|
-| Private key range check | Always | Rejects 0 and ≥ n |
+| Private key range check | Always | Rejects 0 and >= n |
 | Public key on-curve check | Always | Rejects invalid points |
 | Point-at-infinity check | Always | Rejects infinity pubkeys |
 | BIP-32 key validation | Always | Checks chain code + key bytes |
@@ -71,7 +71,7 @@ cmake -S . -B build -G Ninja \
 | FROST | Seed-based CSPRNG | Caller provides seed |
 
 **No operation generates random numbers internally.** All randomness must come
-from the caller. This is a security design choice — the library never silently
+from the caller. This is a security design choice -- the library never silently
 uses a potentially weak system RNG.
 
 ---
@@ -168,13 +168,13 @@ batch verification, etc.).
 | Disable tests/bench | Smaller binary, faster build | Build flags |
 | Zero secrets after use | Prevent memory disclosure | `memset_s` or platform API |
 | Pin compiler version | Reproducible builds | Lock in CI |
-| Use batch operations | 10–50× faster for bulk work | API choice |
+| Use batch operations | 10-50x faster for bulk work | API choice |
 
 ---
 
 ## See Also
 
-- [docs/CT_VERIFICATION.md](CT_VERIFICATION.md) — Constant-time verification details
-- [docs/THREAD_SAFETY.md](THREAD_SAFETY.md) — Concurrency guarantees
-- [docs/PERFORMANCE_GUIDE.md](PERFORMANCE_GUIDE.md) — Tuning for speed
-- [SECURITY.md](../SECURITY.md) — Security policy
+- [docs/CT_VERIFICATION.md](CT_VERIFICATION.md) -- Constant-time verification details
+- [docs/THREAD_SAFETY.md](THREAD_SAFETY.md) -- Concurrency guarantees
+- [docs/PERFORMANCE_GUIDE.md](PERFORMANCE_GUIDE.md) -- Tuning for speed
+- [SECURITY.md](../SECURITY.md) -- Security policy

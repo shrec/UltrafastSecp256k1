@@ -9,19 +9,19 @@ and protocol code. Every CI run replays these inputs to prevent regressions.
 
 ```
 tests/corpus/
-├── README.md           (this file)
-├── der/                DER signature edge-cases
-│   └── *.bin           raw byte inputs
-├── schnorr/            Schnorr signature edge-cases
-│   └── *.bin
-├── pubkey/             Public key parser edge-cases
-│   └── *.bin
-├── address/            Address generation edge-cases
-│   └── inputs.json     JSON test vectors
-├── bip32/              BIP-32 path parser edge-cases
-│   └── paths.txt       one path per line
-└── ffi/                FFI boundary edge-cases
-    └── inputs.json     structured test vectors
++-- README.md           (this file)
++-- der/                DER signature edge-cases
+|   +-- *.bin           raw byte inputs
++-- schnorr/            Schnorr signature edge-cases
+|   +-- *.bin
++-- pubkey/             Public key parser edge-cases
+|   +-- *.bin
++-- address/            Address generation edge-cases
+|   +-- inputs.json     JSON test vectors
++-- bip32/              BIP-32 path parser edge-cases
+|   +-- paths.txt       one path per line
++-- ffi/                FFI boundary edge-cases
+    +-- inputs.json     structured test vectors
 ```
 
 ## Adding a New Corpus Entry

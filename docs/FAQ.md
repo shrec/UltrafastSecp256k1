@@ -1,6 +1,6 @@
 # FAQ & Common Pitfalls
 
-**UltrafastSecp256k1** — Frequently Asked Questions
+**UltrafastSecp256k1** -- Frequently Asked Questions
 
 ---
 
@@ -55,8 +55,8 @@ Install Ninja via `pip install ninja` or download from https://ninja-build.org/.
 ### Q: Build fails with CUDA errors
 
 - Set `CMAKE_CUDA_ARCHITECTURES` to your GPU's compute capability (e.g., `-DCMAKE_CUDA_ARCHITECTURES=86`)
-- Do not add global `-flto` flags — CUDA device-link breaks with host LTO
-- CUDA ≥ 11.0 required
+- Do not add global `-flto` flags -- CUDA device-link breaks with host LTO
+- CUDA >= 11.0 required
 
 ### Q: How do I build without GPU support?
 
@@ -69,7 +69,7 @@ cmake -S . -B build -DSECP256K1_BUILD_CUDA=OFF -DSECP256K1_BUILD_OPENCL=OFF
 
 ## API Usage
 
-### Q: FAST vs CT — which should I use?
+### Q: FAST vs CT -- which should I use?
 
 | Operation | Namespace | When to Use |
 |-----------|-----------|-------------|
@@ -120,12 +120,12 @@ See [USER_GUIDE.md](USER_GUIDE.md) for complete examples.
 ### Pitfall 1: Sharing ufsecp_context across threads
 
 ```c
-// ❌ WRONG — context is not thread-safe
+// [FAIL] WRONG -- context is not thread-safe
 ufsecp_context* ctx = ufsecp_context_create();
 // Thread A: ufsecp_ecdsa_sign(ctx, ...);
 // Thread B: ufsecp_ecdsa_verify(ctx, ...);  // DATA RACE
 
-// ✅ CORRECT — one context per thread
+// [OK] CORRECT -- one context per thread
 void worker(void) {
     ufsecp_context* ctx = ufsecp_context_create();
     ufsecp_ecdsa_sign(ctx, ...);
@@ -136,10 +136,10 @@ void worker(void) {
 ### Pitfall 2: Using from_bytes for binary database I/O
 
 ```cpp
-// ❌ WRONG — from_bytes is big-endian (for hex/test vectors)
+// [FAIL] WRONG -- from_bytes is big-endian (for hex/test vectors)
 auto fe = FieldElement::from_bytes(db_record);
 
-// ✅ CORRECT — from_limbs is little-endian (native x86/64)
+// [OK] CORRECT -- from_limbs is little-endian (native x86/64)
 auto fe = FieldElement::from_limbs(reinterpret_cast<const uint64_t*>(db_record));
 ```
 
@@ -147,15 +147,15 @@ auto fe = FieldElement::from_limbs(reinterpret_cast<const uint64_t*>(db_record))
 
 ### Pitfall 3: Forgetting low-S normalization
 
-ECDSA signatures must have `s ≤ n/2` (BIP-62 / BIP-66). UltrafastSecp256k1 enforces this automatically in `ecdsa_sign()`, but if you construct signatures manually, you must check and normalize.
+ECDSA signatures must have `s <= n/2` (BIP-62 / BIP-66). UltrafastSecp256k1 enforces this automatically in `ecdsa_sign()`, but if you construct signatures manually, you must check and normalize.
 
 ### Pitfall 4: Using GPU for secret key operations
 
 ```cpp
-// ❌ WRONG — GPU is variable-time, leaks timing information
+// [FAIL] WRONG -- GPU is variable-time, leaks timing information
 cuda_scalar_mul(secret_key, G);
 
-// ✅ CORRECT — use CT layer on CPU for secret operations
+// [OK] CORRECT -- use CT layer on CPU for secret operations
 auto pubkey = ct::scalar_mul(secret_key, G);
 ```
 
@@ -166,7 +166,7 @@ GPU backends are for **public-data operations only** (verification, public key b
 The library does not manage key lifetimes. After use, explicitly zero secret material:
 
 ```cpp
-// ✅ Zero sensitive buffers
+// [OK] Zero sensitive buffers
 std::memset(privkey, 0, 32);
 std::memset(&signing_share, 0, sizeof(signing_share));
 ```
@@ -185,12 +185,12 @@ Schnorr (BIP-340) uses **x-only** (32 bytes). ECDSA uses **compressed** (33 byte
 ### Pitfall 7: FROST nonce reuse
 
 ```cpp
-// ❌ WRONG — reusing nonce for different messages
+// [FAIL] WRONG -- reusing nonce for different messages
 auto [nonce, commit] = frost_sign_nonce_gen(my_id, seed);
 auto sig1 = frost_sign(key_pkg, nonce, msg1, commits);
 auto sig2 = frost_sign(key_pkg, nonce, msg2, commits);  // KEY LEAK!
 
-// ✅ CORRECT — fresh nonce for each signing session
+// [OK] CORRECT -- fresh nonce for each signing session
 auto [nonce1, commit1] = frost_sign_nonce_gen(my_id, seed1);
 auto sig1 = frost_sign(key_pkg, nonce1, msg1, commits1);
 auto [nonce2, commit2] = frost_sign_nonce_gen(my_id, seed2);
@@ -200,10 +200,10 @@ auto sig2 = frost_sign(key_pkg, nonce2, msg2, commits2);
 ### Pitfall 8: Assuming BIP-32 paths are always valid
 
 ```cpp
-// ❌ WRONG — no error checking
+// [FAIL] WRONG -- no error checking
 auto keys = bip32_derive_path(master, user_input);
 
-// ✅ CORRECT — validate path first
+// [OK] CORRECT -- validate path first
 auto parsed = bip32_parse_path(user_input);
 if (!parsed.has_value()) {
     // Handle invalid path
@@ -223,13 +223,13 @@ target_link_libraries(my_app PRIVATE ufsecp_static fastsecp256k1)
 
 ### Pitfall 10: MuSig2 with attacker-controlled public keys
 
-Always use the MuSig2 key aggregation function which includes key-prefixed hashing (KeyAgg coefficient). Never manually sum public keys — this enables rogue-key attacks.
+Always use the MuSig2 key aggregation function which includes key-prefixed hashing (KeyAgg coefficient). Never manually sum public keys -- this enables rogue-key attacks.
 
 ```cpp
-// ❌ WRONG — naive key aggregation
+// [FAIL] WRONG -- naive key aggregation
 auto agg_pk = pk1 + pk2;  // Rogue-key attack!
 
-// ✅ CORRECT — use MuSig2 key aggregation
+// [OK] CORRECT -- use MuSig2 key aggregation
 auto agg = musig2_key_agg({pk1, pk2});
 ```
 
@@ -240,9 +240,9 @@ auto agg = musig2_key_agg({pk1, pk2});
 ### Q: What's the throughput for ECDSA verification?
 
 Platform-dependent. Typical on modern x86-64 (single-core):
-- ECDSA verify: ~15,000–25,000 ops/sec
-- Schnorr verify: ~20,000–30,000 ops/sec
-- Key generation: ~30,000–50,000 ops/sec
+- ECDSA verify: ~15,000-25,000 ops/sec
+- Schnorr verify: ~20,000-30,000 ops/sec
+- Key generation: ~30,000-50,000 ops/sec
 
 See `docs/BENCHMARKS.md` for detailed numbers.
 
@@ -272,7 +272,7 @@ FROST produces standard BIP-340 Schnorr signatures, so the final signature is in
 
 ### Q: What threshold configurations does FROST support?
 
-Any `t-of-n` where `2 ≤ t ≤ n`. Tested with:
+Any `t-of-n` where `2 <= t <= n`. Tested with:
 - 2-of-3
 - 3-of-5
 - Arbitrary `t` and `n` via API
@@ -295,7 +295,7 @@ target_link_libraries(my_app PRIVATE ufsecp_static fastsecp256k1)
 
 ### Q: dudect test fails intermittently
 
-dudect is statistical. A single borderline pass/fail is normal. The CI uses conservative thresholds (t=25 for smoke, t=4.5 for nightly). If it fails consistently, there may be a real timing leak — investigate with the full nightly run.
+dudect is statistical. A single borderline pass/fail is normal. The CI uses conservative thresholds (t=25 for smoke, t=4.5 for nightly). If it fails consistently, there may be a real timing leak -- investigate with the full nightly run.
 
 ### Q: How do I report a bug?
 

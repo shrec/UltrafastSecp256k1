@@ -15,11 +15,11 @@
 | Operation | Time |
 |-----------|------|
 | Field Multiplication | 200 ns |
-| Point Scalar Multiply | 665 μs |
-| Generator Multiply | 44 μs |
+| Point Scalar Multiply | 665 us |
+| Generator Multiply | 44 us |
 | Batch Inverse (1000) | 611 ns/element |
 
-✓ All 29/29 self-tests passed
+OK All 29/29 self-tests passed
 
 ---
 

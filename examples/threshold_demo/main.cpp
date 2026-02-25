@@ -33,7 +33,7 @@ static void print_hex(const char* label, const uint8_t* data, size_t len) {
     printf("\n");
 }
 
-// Deterministic seed per participant (DEMO ONLY — use CSPRNG in production!)
+// Deterministic seed per participant (DEMO ONLY -- use CSPRNG in production!)
 static std::array<uint8_t, 32> make_seed(uint8_t id, uint8_t round) {
     std::array<uint8_t, 32> seed{};
     seed[0] = id;
@@ -52,7 +52,7 @@ int main() {
     constexpr uint32_t T = 2;   // threshold
     constexpr uint32_t N = 3;   // total participants
 
-    // ── Phase 1: Distributed Key Generation (DKG) ────────────────────────────
+    // -- Phase 1: Distributed Key Generation (DKG) ----------------------------
 
     printf("[Phase 1] Distributed Key Generation (DKG)\n");
     printf("  Threshold: %u-of-%u\n\n", T, N);
@@ -123,7 +123,7 @@ int main() {
     for (int b = 0; b < 8; ++b) printf("%02x", gpk_bytes[b]);
     printf("...\n\n");
 
-    // ── Phase 2: Signing Ceremony ────────────────────────────────────────────
+    // -- Phase 2: Signing Ceremony --------------------------------------------
     //
     // Participants 1 and 2 sign (any 2-of-3 subset works)
 
@@ -171,7 +171,7 @@ int main() {
     }
     printf("\n");
 
-    // ── Phase 3: Aggregation ─────────────────────────────────────────────────
+    // -- Phase 3: Aggregation -------------------------------------------------
 
     printf("[Phase 3] Signature Aggregation\n");
 
@@ -182,7 +182,7 @@ int main() {
     print_hex("Final signature", sig_bytes.data(), sig_bytes.size());
     printf("  Format: Standard BIP-340 Schnorr (64 bytes)\n\n");
 
-    // ── Phase 4: Verification ────────────────────────────────────────────────
+    // -- Phase 4: Verification ------------------------------------------------
 
     printf("[Phase 4] Verification\n");
 
@@ -200,7 +200,7 @@ int main() {
            bad_valid ? "PASS" : "FAIL");
     printf("\n");
 
-    // ── Summary ──────────────────────────────────────────────────────────────
+    // -- Summary --------------------------------------------------------------
 
     bool all_pass = valid && !bad_valid;
     printf("=== %s ===\n", all_pass

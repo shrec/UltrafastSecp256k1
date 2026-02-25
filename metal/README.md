@@ -1,4 +1,4 @@
-# UltrafastSecp256k1 — Apple Metal Backend
+# UltrafastSecp256k1 -- Apple Metal Backend
 
 **The first secp256k1 library with Apple Metal GPU support.**
 
@@ -45,7 +45,7 @@ ctest --test-dir build_metal --output-on-failure
 ### Run GPU tests/benchmarks only
 
 ```bash
-# GPU tests (G×1, G×2, G×3 verification + field_mul check)
+# GPU tests (Gx1, Gx2, Gx3 verification + field_mul check)
 ./build_metal/metal/metal_secp256k1_test
 
 # GPU benchmark (field_mul 1M ops, scalar_mul 4K ops)
@@ -63,13 +63,13 @@ ctest --test-dir build_metal --output-on-failure
 
 ## Architecture
 
-### 8×32-bit Limb Model (in Shaders)
+### 8x32-bit Limb Model (in Shaders)
 
 Metal Shading Language does not support 64-bit integers (`uint64_t`) in shader functions.
-The CUDA backend uses 4×64-bit limbs with PTX inline assembly, while **Metal shaders use
-8×32-bit limbs** with explicit carry propagation using `ulong` (64-bit) temporary variables.
+The CUDA backend uses 4x64-bit limbs with PTX inline assembly, while **Metal shaders use
+8x32-bit limbs** with explicit carry propagation using `ulong` (64-bit) temporary variables.
 
-**Host-side types** (`host_helpers.h`) use `uint64_t limbs[4]` — exactly the same as
+**Host-side types** (`host_helpers.h`) use `uint64_t limbs[4]` -- exactly the same as
 CUDA's `HostFieldElement` and shared `FieldElementData` (`types.hpp`). This ensures cross-backend
 compatibility. Buffer I/O is zero-cost since `FieldElementData{uint64_t[4]}` and
 `MidFieldElementData{uint32_t[8]}` are the same 32 bytes on little-endian.
@@ -83,7 +83,7 @@ compatibility. Buffer I/O is zero-cost since `FieldElementData{uint64_t[4]}` and
 ### Apple Silicon Unified Memory
 
 Apple Silicon's unified memory architecture enables zero-copy buffer
-usage (`MTLResourceStorageModeShared`), eliminating explicit host↔device
+usage (`MTLResourceStorageModeShared`), eliminating explicit host<->device
 data copies.
 
 ---
@@ -92,20 +92,20 @@ data copies.
 
 ```
 metal/
-├── CMakeLists.txt              # Build configuration
-├── README.md                   # This file
-├── shaders/
-│   ├── secp256k1_field.h       # Field arithmetic (add, sub, mul, sqr, inv)
-│   ├── secp256k1_point.h       # Point operations (double, add_mixed, scalar_mul)
-│   └── secp256k1_kernels.metal # Compute kernels (search, batch_inverse, benchmarks)
-├── include/
-│   ├── gpu_compat_metal.h      # Platform macros (CUDA gpu_compat.h pattern)
-│   ├── metal_runtime.h         # C++ interface (PIMPL, Obj-C types hidden)
-│   └── host_helpers.h          # Host-side types (uint64_t[4]), types.hpp integration
-├── src/
-│   └── metal_runtime.mm        # Objective-C++ runtime (ARC, pipeline caching)
-└── app/
-    └── metal_test.mm           # Tests + benchmarks
++-- CMakeLists.txt              # Build configuration
++-- README.md                   # This file
++-- shaders/
+|   +-- secp256k1_field.h       # Field arithmetic (add, sub, mul, sqr, inv)
+|   +-- secp256k1_point.h       # Point operations (double, add_mixed, scalar_mul)
+|   +-- secp256k1_kernels.metal # Compute kernels (search, batch_inverse, benchmarks)
++-- include/
+|   +-- gpu_compat_metal.h      # Platform macros (CUDA gpu_compat.h pattern)
+|   +-- metal_runtime.h         # C++ interface (PIMPL, Obj-C types hidden)
+|   +-- host_helpers.h          # Host-side types (uint64_t[4]), types.hpp integration
++-- src/
+|   +-- metal_runtime.mm        # Objective-C++ runtime (ARC, pipeline caching)
++-- app/
+    +-- metal_test.mm           # Tests + benchmarks
 ```
 
 ---
@@ -113,47 +113,47 @@ metal/
 ## Implemented Operations
 
 ### Field Arithmetic (`secp256k1_field.h`)
-- `field_add` — Modular addition, branchless (mod p)
-- `field_sub` — Modular subtraction, branchless (mod p)
-- `field_negate` — Modular negation
-- `field_mul` — **Comba product scanning** (CUDA PTX MAD_ACC equivalent, column-by-column accumulation)
-- `field_sqr` — **Comba + symmetry optimization** (36 multiplies instead of 64)
-- `field_reduce_512` — 512→256 bit reduction K = 0x1000003D1, branchless final subtract
-- `field_inv` — Fermat inversion (a^(p-2) mod p, 255 sqr + 14 mul chain)
-- `field_sqr_n` — Multi-squaring (sqr ×N)
-- `field_mul_small` — Multiplication by scalar (< 2^32), branchless reduction
-- `METAL_MAD_ACC` — PTX `mad.lo.cc.u64/madc.hi.cc.u64/addc.u64` macro equivalent
+- `field_add` -- Modular addition, branchless (mod p)
+- `field_sub` -- Modular subtraction, branchless (mod p)
+- `field_negate` -- Modular negation
+- `field_mul` -- **Comba product scanning** (CUDA PTX MAD_ACC equivalent, column-by-column accumulation)
+- `field_sqr` -- **Comba + symmetry optimization** (36 multiplies instead of 64)
+- `field_reduce_512` -- 512->256 bit reduction K = 0x1000003D1, branchless final subtract
+- `field_inv` -- Fermat inversion (a^(p-2) mod p, 255 sqr + 14 mul chain)
+- `field_sqr_n` -- Multi-squaring (sqr xN)
+- `field_mul_small` -- Multiplication by scalar (< 2^32), branchless reduction
+- `METAL_MAD_ACC` -- PTX `mad.lo.cc.u64/madc.hi.cc.u64/addc.u64` macro equivalent
 
 ### Point Operations (`secp256k1_point.h`)
-- `jacobian_double` — dbl-2001-b (3M + 4S)
-- `jacobian_add_mixed` — madd-2007-bl (7M + 4S)
-- `jacobian_add` — Full Jacobian addition (11M + 5S)
-- `scalar_mul` — **4-bit fixed window** (64 double + 64 add, ~35% faster than naive)
-- `affine_select` — **branchless** table read (no GPU divergence)
-- `jacobian_to_affine` — Jacobian → Affine conversion
-- `apply_endomorphism` — GLV endomorphism (β·x mod p)
+- `jacobian_double` -- dbl-2001-b (3M + 4S)
+- `jacobian_add_mixed` -- madd-2007-bl (7M + 4S)
+- `jacobian_add` -- Full Jacobian addition (11M + 5S)
+- `scalar_mul` -- **4-bit fixed window** (64 double + 64 add, ~35% faster than naive)
+- `affine_select` -- **branchless** table read (no GPU divergence)
+- `jacobian_to_affine` -- Jacobian -> Affine conversion
+- `apply_endomorphism` -- GLV endomorphism (beta*x mod p)
 
 ### Compute Kernels (`secp256k1_kernels.metal`)
-- `search_kernel` — Main search kernel (**O(1) per-thread** offset, scalar_mul)
-- `scalar_mul_batch` — Scalar multiplication batch (4-bit windowed)
-- `generator_mul_batch` — Generator point multiplication (4-bit windowed)
-- `field_mul_bench` — Field multiplication benchmark (Comba)
-- `field_sqr_bench` — Field squaring benchmark (Comba + symmetry)
-- `batch_inverse` — **Chunked** Montgomery batch inversion (parallel threadgroups)
-- `point_add_kernel` — Point addition
-- `point_double_kernel` — Point doubling
+- `search_kernel` -- Main search kernel (**O(1) per-thread** offset, scalar_mul)
+- `scalar_mul_batch` -- Scalar multiplication batch (4-bit windowed)
+- `generator_mul_batch` -- Generator point multiplication (4-bit windowed)
+- `field_mul_bench` -- Field multiplication benchmark (Comba)
+- `field_sqr_bench` -- Field squaring benchmark (Comba + symmetry)
+- `batch_inverse` -- **Chunked** Montgomery batch inversion (parallel threadgroups)
+- `point_add_kernel` -- Point addition
+- `point_double_kernel` -- Point doubling
 
 ---
 
-## Build — Detailed
+## Build -- Detailed
 
 For quick build instructions see the "Quick Start" section above.
 
 ### Shader Compilation
 
 CMake automatically compiles shaders:
-1. `.metal` → `.air` (xcrun metal -O2 -std=metal2.4)
-2. `.air` → `.metallib` (xcrun metallib)
+1. `.metal` -> `.air` (xcrun metal -O2 -std=metal2.4)
+2. `.air` -> `.metallib` (xcrun metallib)
 
 Runtime fallback: if the `.metallib` file is not found, the runtime automatically
 compiles the `.metal` source file.
@@ -212,33 +212,33 @@ runtime.synchronize();
 
 | Device | GPU Family | Support |
 |--------|------------|---------|
-| M1 / M1 Pro / M1 Max / M1 Ultra | Apple7 | ✅ |
-| M2 / M2 Pro / M2 Max / M2 Ultra | Apple8 | ✅ |
-| M3 / M3 Pro / M3 Max | Apple9 | ✅ |
-| M4 / M4 Pro / M4 Max | Apple9+ | ✅ |
-| A14+ (iPhone/iPad) | Apple7+ | ✅ |
-| Apple Vision Pro | Apple9 | ✅ |
+| M1 / M1 Pro / M1 Max / M1 Ultra | Apple7 | [OK] |
+| M2 / M2 Pro / M2 Max / M2 Ultra | Apple8 | [OK] |
+| M3 / M3 Pro / M3 Max | Apple9 | [OK] |
+| M4 / M4 Pro / M4 Max | Apple9+ | [OK] |
+| A14+ (iPhone/iPad) | Apple7+ | [OK] |
+| Apple Vision Pro | Apple9 | [OK] |
 
 ---
 
 ## CUDA Compatibility
 
 The Metal backend uses algorithms identical to the CUDA backend:
-- Same Fermat inversion chain (x2→x3→x6→x9→x11→x22→x44→x88→x176→x220→x223→tail)
+- Same Fermat inversion chain (x2->x3->x6->x9->x11->x22->x44->x88->x176->x220->x223->tail)
 - Same Jacobian formulas (dbl-2001-b, madd-2007-bl)
 - Same bloom filter hash functions (FNV-1a + SplitMix64)
 - Same Montgomery batch inversion
-- **Comba product scanning** — `METAL_MAD_ACC` macro equivalent to PTX `mad.lo.cc.u64 / madc.hi.cc.u64 / addc.u64`
-- **4-bit windowed scalar_mul** — Matching CUDA's wNAF/fixed-window approach
+- **Comba product scanning** -- `METAL_MAD_ACC` macro equivalent to PTX `mad.lo.cc.u64 / madc.hi.cc.u64 / addc.u64`
+- **4-bit windowed scalar_mul** -- Matching CUDA's wNAF/fixed-window approach
 
-Limb size: 4×64 → 8×32 (in shaders), mathematical correctness is identical.
+Limb size: 4x64 -> 8x32 (in shaders), mathematical correctness is identical.
 
 ---
 
 ## Acceleration Strategy (Instead of Assembly)
 
 CUDA uses PTX inline assembly for hardware carry-chains. Metal **does not have** inline
-assembly — Apple GPU ISA is closed. Instead:
+assembly -- Apple GPU ISA is closed. Instead:
 
 | CUDA PTX | Metal Equivalent | Purpose |
 |----------|-------------------|-------------|

@@ -1,6 +1,6 @@
 # Pre-Release Checklist
 
-**UltrafastSecp256k1** — Mandatory Steps Before Any Release
+**UltrafastSecp256k1** -- Mandatory Steps Before Any Release
 
 ---
 
@@ -32,24 +32,24 @@ Copy this checklist into the release PR description. All items must be checked b
 
 ### 3. Test Suite
 
-- [ ] `ctest --output-on-failure` — ALL tests pass
-- [ ] `test_field_audit` — 641K+ checks, 0 failures
-- [ ] `test_bip340_vectors` — all 15 vectors pass
-- [ ] `test_rfc6979_vectors` — all 6 nonce/sign vectors pass
-- [ ] `test_bip32_vectors` — 90 checks, 0 failures
-- [ ] `test_cross_libsecp256k1` — 7860 differential checks pass
-- [ ] `test_ecc_properties` — group law properties pass
-- [ ] `test_musig2_frost` — 975 checks pass
-- [ ] `test_musig2_frost_advanced` — 316 checks pass
-- [ ] `test_fuzz_parsers` — 580K+ checks, 0 failures
-- [ ] `test_fuzz_address_bip32_ffi` — 73K+ checks, 0 failures, 0 crashes
-- [ ] `ct_sidechannel_smoke` — dudect pass (t < threshold)
+- [ ] `ctest --output-on-failure` -- ALL tests pass
+- [ ] `test_field_audit` -- 641K+ checks, 0 failures
+- [ ] `test_bip340_vectors` -- all 15 vectors pass
+- [ ] `test_rfc6979_vectors` -- all 6 nonce/sign vectors pass
+- [ ] `test_bip32_vectors` -- 90 checks, 0 failures
+- [ ] `test_cross_libsecp256k1` -- 7860 differential checks pass
+- [ ] `test_ecc_properties` -- group law properties pass
+- [ ] `test_musig2_frost` -- 975 checks pass
+- [ ] `test_musig2_frost_advanced` -- 316 checks pass
+- [ ] `test_fuzz_parsers` -- 580K+ checks, 0 failures
+- [ ] `test_fuzz_address_bip32_ffi` -- 73K+ checks, 0 failures, 0 crashes
+- [ ] `ct_sidechannel_smoke` -- dudect pass (t < threshold)
 
 ### 4. Security Checks
 
-- [ ] CodeQL — no new critical/high findings
-- [ ] SonarCloud — no new bugs, vulnerabilities, or code smells
-- [ ] Dependency review — no known vulnerable dependencies
+- [ ] CodeQL -- no new critical/high findings
+- [ ] SonarCloud -- no new bugs, vulnerabilities, or code smells
+- [ ] Dependency review -- no known vulnerable dependencies
 - [ ] ASan build + test: no memory errors
 - [ ] UBSan build + test: no undefined behavior
 - [ ] TSan build + test: no data races
@@ -83,7 +83,7 @@ Copy this checklist into the release PR description. All items must be checked b
 - [ ] `dev` branch rebased on `main`
 - [ ] Next `VERSION.txt` set to development version
 - [ ] Release announced (if applicable)
-- [ ] Package registries updated (npm, PyPI, crates.io, NuGet — if applicable)
+- [ ] Package registries updated (npm, PyPI, crates.io, NuGet -- if applicable)
 - [ ] Verify published packages install and pass smoke test
 
 ---

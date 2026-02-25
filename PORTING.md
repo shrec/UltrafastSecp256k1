@@ -1,4 +1,4 @@
-# Porting Guide — UltrafastSecp256k1
+# Porting Guide -- UltrafastSecp256k1
 
 How to add a new CPU architecture, embedded target, or GPU backend to UltrafastSecp256k1.
 
@@ -6,7 +6,7 @@ How to add a new CPU architecture, embedded target, or GPU backend to UltrafastS
 
 ## Overview
 
-UltrafastSecp256k1 is designed for portability. The core library is pure C++20 with **zero external dependencies**. Platform-specific acceleration is layered on top via optional assembly and GPU backends. The portable C++ path compiles on any conforming compiler — all optimizations are additive.
+UltrafastSecp256k1 is designed for portability. The core library is pure C++20 with **zero external dependencies**. Platform-specific acceleration is layered on top via optional assembly and GPU backends. The portable C++ path compiles on any conforming compiler -- all optimizations are additive.
 
 ---
 
@@ -42,10 +42,10 @@ UltrafastSecp256k1 is designed for portability. The core library is pure C++20 w
    - Add to `cpu/CMakeLists.txt` with architecture detection
 
 4. **Optional: `__int128` support**
-   - If compiler supports `__int128`, the 5×52 field representation is used automatically
-   - If not (e.g., MSVC), the 4×64 portable path is used
+   - If compiler supports `__int128`, the 5x52 field representation is used automatically
+   - If not (e.g., MSVC), the 4x64 portable path is used
 
-5. **Run benchmarks** — compare against portable C++ baseline:
+5. **Run benchmarks** -- compare against portable C++ baseline:
    ```bash
    ./bench_comprehensive
    ```
@@ -69,7 +69,7 @@ UltrafastSecp256k1 is designed for portability. The core library is pure C++20 w
 ### Minimum Requirements
 
 - 32-bit or 64-bit CPU
-- ~8 KB stack (for Jacobian→Affine batch operations)
+- ~8 KB stack (for Jacobian->Affine batch operations)
 - ~2 KB flash for minimal field/scalar code
 - C++20 compiler (or C++17 with minor adjustments)
 
@@ -93,7 +93,7 @@ UltrafastSecp256k1 is designed for portability. The core library is pure C++20 w
    - Small batch sizes (reduce stack usage)
    - No `std::vector`, no heap (embedded hot-path contract)
 
-5. **Benchmark key operations**: At minimum, measure `Field Mul`, `Field Inv`, `Scalar × G`.
+5. **Benchmark key operations**: At minimum, measure `Field Mul`, `Field Inv`, `Scalar x G`.
 
 6. **Document in README**: Add to embedded comparison table.
 
@@ -121,7 +121,7 @@ UltrafastSecp256k1 is designed for portability. The core library is pure C++20 w
 
 2. **Port field arithmetic first**:
    - `field_mul`, `field_sqr`, `field_add`, `field_sub`, `field_inv` (Fermat)
-   - 8×32-bit limb representation (like Metal) or 4×64-bit if hardware supports 64-bit int
+   - 8x32-bit limb representation (like Metal) or 4x64-bit if hardware supports 64-bit int
 
 3. **Port point operations**:
    - `point_add` (Jacobian), `point_dbl` (Jacobian)
@@ -133,8 +133,8 @@ UltrafastSecp256k1 is designed for portability. The core library is pure C++20 w
    - Backward pass: extract individual inverses
 
 5. **Port scalar multiplication**:
-   - wNAF or fixed-window for k×G
-   - GLV endomorphism (optional, for 2× speedup)
+   - wNAF or fixed-window for kxG
+   - GLV endomorphism (optional, for 2x speedup)
 
 6. **Add kernel benchmarks**: Field/Point/ScalarMul microbenchmarks.
 
@@ -146,10 +146,10 @@ UltrafastSecp256k1 is designed for portability. The core library is pure C++20 w
 
 | Backend | Directory | Limb Repr | Notes |
 |---------|-----------|-----------|-------|
-| CUDA | `cuda/` | 4×64-bit | `__int128`-like via PTX `mul.hi.u64` |
-| OpenCL | `opencl/` | 4×64-bit | PTX inline asm on NVIDIA |
-| Metal | `metal/` | 8×32-bit Comba | Apple GPU, no 64-bit int |
-| ROCm/HIP | via `cuda/` | 4×64-bit | `__int128` fallback |
+| CUDA | `cuda/` | 4x64-bit | `__int128`-like via PTX `mul.hi.u64` |
+| OpenCL | `opencl/` | 4x64-bit | PTX inline asm on NVIDIA |
+| Metal | `metal/` | 8x32-bit Comba | Apple GPU, no 64-bit int |
+| ROCm/HIP | via `cuda/` | 4x64-bit | `__int128` fallback |
 
 ### Key Kernel Files to Study
 
@@ -216,9 +216,9 @@ The selftest includes deterministic KAT vectors for:
 5. Ensure CI passes (or explain cross-compilation setup)
 6. Submit PR with:
    - What platform/architecture
-   - Benchmark results (at least Field Mul, Field Inv, Scalar × G)
+   - Benchmark results (at least Field Mul, Field Inv, Scalar x G)
    - Test results (selftest pass/fail count)
 
 ---
 
-*UltrafastSecp256k1 v3.6.0 — Porting Guide*
+*UltrafastSecp256k1 v3.6.0 -- Porting Guide*

@@ -1,7 +1,7 @@
 # Release COM3 Port - PowerShell Helper Script
 # Use this if you get "Port is busy" errors
 
-Write-Host "`n🔧 COM3 Port Release Utility" -ForegroundColor Cyan
+Write-Host "`n[TOOL] COM3 Port Release Utility" -ForegroundColor Cyan
 Write-Host "================================`n" -ForegroundColor Cyan
 
 # Kill all background PowerShell processes (except current)
@@ -15,9 +15,9 @@ Get-Process powershell -ErrorAction SilentlyContinue | Where-Object {$_.Id -ne $
 }
 
 if ($killed -gt 0) {
-    Write-Host "`n✅ Stopped $killed background PowerShell process(es)" -ForegroundColor Green
+    Write-Host "`n[OK] Stopped $killed background PowerShell process(es)" -ForegroundColor Green
 } else {
-    Write-Host "`n✅ No background processes found" -ForegroundColor Green
+    Write-Host "`n[OK] No background processes found" -ForegroundColor Green
 }
 
 # Try to open and close COM3 to verify it's free
@@ -34,7 +34,7 @@ try {
     Write-Host "`nYou can now run: Build -> ESP32_Flash`n" -ForegroundColor Yellow
 }
 catch {
-    Write-Host "⚠️ COM3 may still be in use: $_" -ForegroundColor Red
+    Write-Host "[!] COM3 may still be in use: $_" -ForegroundColor Red
     Write-Host "`nTry:" -ForegroundColor Yellow
     Write-Host "1. Unplug/replug USB cable" -ForegroundColor Yellow
     Write-Host "2. Close Arduino IDE, PuTTY, or other serial programs" -ForegroundColor Yellow

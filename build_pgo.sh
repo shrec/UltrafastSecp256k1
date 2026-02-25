@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================================
-# PGO (Profile-Guided Optimization) Build Script — x86_64 / AArch64
+# PGO (Profile-Guided Optimization) Build Script -- x86_64 / AArch64
 # ============================================================================
 # Three-phase build:
 #   1. Instrument: compile with profiling hooks
@@ -55,7 +55,7 @@ case "${COMPILER}" in
 esac
 
 echo "=============================================="
-echo "  PGO Build — Phase 1: Instrumentation"
+echo "  PGO Build -- Phase 1: Instrumentation"
 echo "  Compiler: ${CXX}"
 echo "=============================================="
 
@@ -75,7 +75,7 @@ cmake --build "${BUILD_DIR}" -j"${JOBS}"
 
 echo ""
 echo "=============================================="
-echo "  PGO Build — Phase 2: Profiling"
+echo "  PGO Build -- Phase 2: Profiling"
 echo "=============================================="
 
 # Run all available tests and benchmarks to exercise hot paths
@@ -100,7 +100,7 @@ fi
 
 echo ""
 echo "=============================================="
-echo "  PGO Build — Phase 3: Merge & Optimize"
+echo "  PGO Build -- Phase 3: Merge & Optimize"
 echo "=============================================="
 
 if [[ "${COMPILER}" == "clang" ]]; then
@@ -130,20 +130,20 @@ cmake --build "${BUILD_DIR}" -j"${JOBS}"
 
 echo ""
 echo "=============================================="
-echo "  PGO Build — Verification"
+echo "  PGO Build -- Verification"
 echo "=============================================="
 
 FAILURES=0
 if ctest --test-dir "${BUILD_DIR}" --output-on-failure 2>/dev/null; then
     echo "  [OK] All tests pass with PGO build"
 else
-    echo "  [WARN] Some tests failed — check output above"
+    echo "  [WARN] Some tests failed -- check output above"
     FAILURES=1
 fi
 
 echo ""
 echo "=============================================="
-echo "  PGO Build — Complete!"
+echo "  PGO Build -- Complete!"
 echo "=============================================="
 echo ""
 echo "  Library: ${BUILD_DIR}/libs/UltrafastSecp256k1/cpu/libfastsecp256k1.a"

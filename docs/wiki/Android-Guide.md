@@ -1,37 +1,37 @@
-# Android Guide — UltrafastSecp256k1
+# Android Guide -- UltrafastSecp256k1
 
-Full CPU library port for Android — ARM64 (arm64-v8a), ARMv7 (armeabi-v7a), x86_64/x86 (emulator).
+Full CPU library port for Android -- ARM64 (arm64-v8a), ARMv7 (armeabi-v7a), x86_64/x86 (emulator).
 
 ## Architecture
 
 ```
 android/
-├── CMakeLists.txt           # Android-specific CMake build
-├── build_android.sh         # Linux/macOS build script
-├── build_android.ps1        # Windows PowerShell build script
-├── jni/
-│   └── secp256k1_jni.cpp    # JNI bridge (C++ → Java/Kotlin)
-├── kotlin/
-│   └── com/secp256k1/native/
-│       └── Secp256k1.kt     # Kotlin wrapper class
-├── example/                 # Full Android application example
-│   ├── build.gradle.kts
-│   └── src/main/
-│       ├── cpp/CMakeLists.txt
-│       └── kotlin/.../MainActivity.kt
-└── output/                  # Build output (jniLibs/)
++-- CMakeLists.txt           # Android-specific CMake build
++-- build_android.sh         # Linux/macOS build script
++-- build_android.ps1        # Windows PowerShell build script
++-- jni/
+|   +-- secp256k1_jni.cpp    # JNI bridge (C++ -> Java/Kotlin)
++-- kotlin/
+|   +-- com/secp256k1/native/
+|       +-- Secp256k1.kt     # Kotlin wrapper class
++-- example/                 # Full Android application example
+|   +-- build.gradle.kts
+|   +-- src/main/
+|       +-- cpp/CMakeLists.txt
+|       +-- kotlin/.../MainActivity.kt
++-- output/                  # Build output (jniLibs/)
 ```
 
 ## ABI Support
 
 | ABI | Architecture | `__int128` | Assembly | Notes |
 |-----|-------------|-----------|----------|---------|
-| `arm64-v8a` | ARMv8-A + crypto + NEON | ✅ | ✅ ARM64 ASM (MUL/UMULH) | Primary target |
-| `armeabi-v7a` | ARMv7-A + NEON | ❌ (32-bit) | ❌ | `SECP256K1_NO_INT128` fallback |
-| `x86_64` | x86-64 + SSE4.2 | ✅ | ❌ (cross-compile) | For emulator |
-| `x86` | i686 + SSE3 | ❌ (32-bit) | ❌ | For emulator |
+| `arm64-v8a` | ARMv8-A + crypto + NEON | [OK] | [OK] ARM64 ASM (MUL/UMULH) | Primary target |
+| `armeabi-v7a` | ARMv7-A + NEON | [FAIL] (32-bit) | [FAIL] | `SECP256K1_NO_INT128` fallback |
+| `x86_64` | x86-64 + SSE4.2 | [OK] | [FAIL] (cross-compile) | For emulator |
+| `x86` | i686 + SSE3 | [FAIL] (32-bit) | [FAIL] | For emulator |
 
-> **Note**: ARM64 inline assembly optimization is now enabled — `MUL`/`UMULH` instructions for field arithmetic (mul, sqr, add, sub, neg). This provides **~5x speedup** compared to generic C++ code for scalar_mul operations.
+> **Note**: ARM64 inline assembly optimization is now enabled -- `MUL`/`UMULH` instructions for field arithmetic (mul, sqr, add, sub, neg). This provides **~5x speedup** compared to generic C++ code for scalar_mul operations.
 
 ## Quick Start
 
@@ -73,14 +73,14 @@ cmake --build android/build-android-arm64 -j
 
 ```
 android/output/jniLibs/
-├── arm64-v8a/
-│   └── libsecp256k1_jni.so      # ~200-400 KB
-├── armeabi-v7a/
-│   └── libsecp256k1_jni.so
-├── x86_64/
-│   └── libsecp256k1_jni.so
-└── x86/
-    └── libsecp256k1_jni.so
++-- arm64-v8a/
+|   +-- libsecp256k1_jni.so      # ~200-400 KB
++-- armeabi-v7a/
+|   +-- libsecp256k1_jni.so
++-- x86_64/
+|   +-- libsecp256k1_jni.so
++-- x86/
+    +-- libsecp256k1_jni.so
 ```
 
 ## Integration in an Android Project
@@ -90,8 +90,8 @@ android/output/jniLibs/
 1. Copy `output/jniLibs/` to your Android project:
 ```
 app/src/main/jniLibs/
-├── arm64-v8a/libsecp256k1_jni.so
-└── x86_64/libsecp256k1_jni.so
++-- arm64-v8a/libsecp256k1_jni.so
++-- x86_64/libsecp256k1_jni.so
 ```
 
 2. Copy `Secp256k1.kt` to your Kotlin source:
@@ -148,7 +148,7 @@ val g3 = Secp256k1.pointAdd(g2, g)           // 3G
 val neg = Secp256k1.pointNegate(g)           // -G
 val compressed = Secp256k1.pointCompress(g)  // 33 bytes
 
-// Scalar × Point (NOT side-channel safe!)
+// Scalar x Point (NOT side-channel safe!)
 val result = Secp256k1.scalarMulGenerator(k)      // k*G
 val result2 = Secp256k1.scalarMulPoint(k, point)  // k*P
 
@@ -177,7 +177,7 @@ val secret = Secp256k1.ctEcdh(myPrivkey, theirPubkey)
 
 | Operation | API | Reason |
 |---------|-----|--------|
-| Private key → Public key | **CT** | Key is secret |
+| Private key -> Public key | **CT** | Key is secret |
 | ECDH | **CT** | Private key is involved |
 | Signing | **CT** | nonce/key leak = catastrophe |
 | Signature verification | Fast | Public data only |
@@ -189,16 +189,16 @@ val secret = Secp256k1.ctEcdh(myPrivkey, theirPubkey)
 ### ARM64 Optimizations
 
 **Inline Assembly** (`cpu/src/field_asm_arm64.cpp`):
-- **`field_mul_arm64`** — 4×4 schoolbook MUL/UMULH + secp256k1 fast reduction (85 ns/op)
-- **`field_sqr_arm64`** — Optimized squaring (10 mul vs 16) (66 ns/op)
-- **`field_add_arm64`** — ADDS/ADCS + branchless normalization (18 ns/op)
-- **`field_sub_arm64`** — SUBS/SBCS + conditional add p (16 ns/op)
-- **`field_neg_arm64`** — Branchless p - a with CSEL
+- **`field_mul_arm64`** -- 4x4 schoolbook MUL/UMULH + secp256k1 fast reduction (85 ns/op)
+- **`field_sqr_arm64`** -- Optimized squaring (10 mul vs 16) (66 ns/op)
+- **`field_add_arm64`** -- ADDS/ADCS + branchless normalization (18 ns/op)
+- **`field_sub_arm64`** -- SUBS/SBCS + conditional add p (16 ns/op)
+- **`field_neg_arm64`** -- Branchless p - a with CSEL
 
 NDK Clang additionally uses:
 - **NEON**: 128-bit SIMD (implicit in ARMv8-A)
 - **Crypto extensions**: AES/SHA hardware acceleration
-- **`__int128`**: 64×64→128 multiplication (in scalar/field operations)
+- **`__int128`**: 64x64->128 multiplication (in scalar/field operations)
 - **Auto-vectorization**: `-ftree-vectorize -funroll-loops`
 
 ### Benchmark Results (RK3588, Cortex-A55/A76)
@@ -206,27 +206,27 @@ NDK Clang additionally uses:
 | Operation | ARM64 ASM | Generic C++ | Speedup |
 |---------|-----------|-------------|-----------|
 | field_mul (a*b mod p) | **85 ns** | ~350 ns | ~4x |
-| field_sqr (a² mod p) | **66 ns** | ~280 ns | ~4x |
+| field_sqr (a^2 mod p) | **66 ns** | ~280 ns | ~4x |
 | field_add (a+b mod p) | **18 ns** | ~30 ns | ~1.7x |
 | field_sub (a-b mod p) | **16 ns** | ~28 ns | ~1.8x |
 | field_inverse | **2,621 ns** | ~11,000 ns | ~4x |
-| **fast scalar_mul (k*G)** | **7.6 μs** | ~40 μs | **~5.3x** |
-| fast scalar_mul (k*P) | **77.6 μs** | ~400 μs | **~5.1x** |
-| CT scalar_mul (k*G) | 545 μs | ~400 μs | 0.7x* |
-| ECDH (full CT) | 545 μs | — | — |
+| **fast scalar_mul (k*G)** | **7.6 us** | ~40 us | **~5.3x** |
+| fast scalar_mul (k*P) | **77.6 us** | ~400 us | **~5.1x** |
+| CT scalar_mul (k*G) | 545 us | ~400 us | 0.7x* |
+| ECDH (full CT) | 545 us | -- | -- |
 
 \* CT mode uses generic C++ (for constant-time guarantees)
 
 ### ARMv7 (32-bit) Limitations
 
-- No `__int128` → `SECP256K1_NO_INT128` fallback (portable 64×64→128)
+- No `__int128` -> `SECP256K1_NO_INT128` fallback (portable 64x64->128)
 - NEON VFPv4 available
 - ~2-3x slower than ARM64
 
 ### Android-Specific CMake Changes
 
 Automatically in CPU `CMakeLists.txt`:
-- `-march=native` → `-march=armv8-a+crypto` (cross-compile)
+- `-march=native` -> `-march=armv8-a+crypto` (cross-compile)
 - `-mbmi2 -madx` excluded on ARM
 - `SECP256K1_NO_INT128=1` on 32-bit targets
 - x86 assembly excluded (cannot compile on ARM)
@@ -248,4 +248,4 @@ cmake { arguments += "-DANDROID_STL=c++_static" }
 Check that `libsecp256k1_jni.so` is in the correct ABI folder (`jniLibs/arm64-v8a/`).
 
 ### 32-bit build warnings
-Normal on ARMv7/x86 builds — `SECP256K1_NO_INT128` is automatically enabled.
+Normal on ARMv7/x86 builds -- `SECP256K1_NO_INT128` is automatically enabled.

@@ -14,7 +14,7 @@ RVV (Vector Extension): ENABLED
 Fast Modular Reduction: ENABLED
 Date: 2026-02-08
 
-Test Suite: 29/29 tests passed ✓
+Test Suite: 29/29 tests passed OK
 
 ==============================================
   FIELD ARITHMETIC OPERATIONS
@@ -23,15 +23,15 @@ Field Multiplication:     200 ns/op
 Field Square:             185 ns/op
 Field Addition:            36 ns/op
 Field Subtraction:         33 ns/op
-Field Inversion:           18 μs/op
+Field Inversion:           18 us/op
 
 ==============================================
   POINT OPERATIONS
 ==============================================
-Point Addition:             3 μs/op
-Point Doubling:             1 μs/op
-Point Scalar Multiply:    665 μs/op
-Generator Multiply:        44 μs/op
+Point Addition:             3 us/op
+Point Doubling:             1 us/op
+Point Scalar Multiply:    665 us/op
+Generator Multiply:        44 us/op
 
 ==============================================
   BATCH OPERATIONS

@@ -1,5 +1,5 @@
 # ============================================================================
-# UltrafastSecp256k1 — Android Native Library Build
+# UltrafastSecp256k1 -- Android Native Library Build
 # ============================================================================
 # Usage (from this directory):
 #   cmake -S . -B build-android-arm64 \

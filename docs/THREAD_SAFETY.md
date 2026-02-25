@@ -1,6 +1,6 @@
 # Thread-Safety Guarantees
 
-**UltrafastSecp256k1** — Concurrency Model & Thread-Safety Documentation
+**UltrafastSecp256k1** -- Concurrency Model & Thread-Safety Documentation
 
 ---
 
@@ -28,12 +28,12 @@ All pure computation functions in `secp256k1::fast::` and `secp256k1::ct::` name
 
 | Function Category | Thread Safety | Notes |
 |-------------------|--------------|-------|
-| `FieldElement` arithmetic (add, sub, mul, square, inv, sqrt) | ✅ Thread-safe | Pure functions, no global state |
-| `Scalar` arithmetic (add, sub, mul, inv, negate) | ✅ Thread-safe | Pure functions, no global state |
-| `Point` operations (add, double, scalar_mul, to_affine) | ✅ Thread-safe | Pure functions, no global state |
-| GLV decomposition | ✅ Thread-safe | Uses only stack-local computation |
-| Hamburg comb (generator mul) | ✅ Thread-safe | Reads precomputed table (const after init) |
-| Batch inversion | ✅ Thread-safe | Caller provides scratch buffer |
+| `FieldElement` arithmetic (add, sub, mul, square, inv, sqrt) | [OK] Thread-safe | Pure functions, no global state |
+| `Scalar` arithmetic (add, sub, mul, inv, negate) | [OK] Thread-safe | Pure functions, no global state |
+| `Point` operations (add, double, scalar_mul, to_affine) | [OK] Thread-safe | Pure functions, no global state |
+| GLV decomposition | [OK] Thread-safe | Uses only stack-local computation |
+| Hamburg comb (generator mul) | [OK] Thread-safe | Reads precomputed table (const after init) |
+| Batch inversion | [OK] Thread-safe | Caller provides scratch buffer |
 
 **Guarantee**: Any function that takes `const&` inputs and returns by value or writes to caller-provided output buffers is thread-safe. No global mutable state is accessed.
 
@@ -41,11 +41,11 @@ All pure computation functions in `secp256k1::fast::` and `secp256k1::ct::` name
 
 | Global | Access Pattern | Thread Safety |
 |--------|---------------|---------------|
-| Generator point `G` | Read-only after static init | ✅ Thread-safe |
-| Precomputed comb table | Read-only after static init | ✅ Thread-safe |
-| Field prime `p` | Compile-time constant | ✅ Thread-safe |
-| Group order `n` | Compile-time constant | ✅ Thread-safe |
-| Endomorphism constants `lambda`, `beta` | Compile-time constant | ✅ Thread-safe |
+| Generator point `G` | Read-only after static init | [OK] Thread-safe |
+| Precomputed comb table | Read-only after static init | [OK] Thread-safe |
+| Field prime `p` | Compile-time constant | [OK] Thread-safe |
+| Group order `n` | Compile-time constant | [OK] Thread-safe |
+| Endomorphism constants `lambda`, `beta` | Compile-time constant | [OK] Thread-safe |
 
 ---
 
@@ -53,12 +53,12 @@ All pure computation functions in `secp256k1::fast::` and `secp256k1::ct::` name
 
 | Function | Thread Safety | Notes |
 |----------|--------------|-------|
-| `ecdsa_sign(msg, sk)` | ✅ Thread-safe | RFC 6979: deterministic, pure function |
-| `ecdsa_verify(msg, sig, pk)` | ✅ Thread-safe | Pure computation |
-| `schnorr_sign(msg, sk, aux)` | ✅ Thread-safe | BIP-340: deterministic with aux randomness |
-| `schnorr_verify(msg, sig, pk)` | ✅ Thread-safe | Pure computation |
-| `ct::ecdsa_sign(msg, sk)` | ✅ Thread-safe | CT variant, same guarantees |
-| `ct::schnorr_sign(msg, sk, aux)` | ✅ Thread-safe | CT variant, same guarantees |
+| `ecdsa_sign(msg, sk)` | [OK] Thread-safe | RFC 6979: deterministic, pure function |
+| `ecdsa_verify(msg, sig, pk)` | [OK] Thread-safe | Pure computation |
+| `schnorr_sign(msg, sk, aux)` | [OK] Thread-safe | BIP-340: deterministic with aux randomness |
+| `schnorr_verify(msg, sig, pk)` | [OK] Thread-safe | Pure computation |
+| `ct::ecdsa_sign(msg, sk)` | [OK] Thread-safe | CT variant, same guarantees |
+| `ct::schnorr_sign(msg, sk, aux)` | [OK] Thread-safe | CT variant, same guarantees |
 
 **Note**: RFC 6979 nonce generation uses only message + key inputs (no RNG state), ensuring determinism and thread safety.
 
@@ -70,23 +70,23 @@ All pure computation functions in `secp256k1::fast::` and `secp256k1::ct::` name
 
 | Function | Thread Safety | Notes |
 |----------|--------------|-------|
-| `musig2_key_agg(pubkeys)` | ✅ Thread-safe | Pure computation |
-| `musig2_nonce_gen(sk, pk, msg)` | ⚠️ Thread-compatible | Reads from system RNG if aux randomness not provided; use separate RNG per thread |
-| `musig2_partial_sign(...)` | ✅ Thread-safe | Given pre-generated nonces |
-| `musig2_partial_verify(...)` | ✅ Thread-safe | Pure computation |
-| `musig2_aggregate(...)` | ✅ Thread-safe | Pure computation |
+| `musig2_key_agg(pubkeys)` | [OK] Thread-safe | Pure computation |
+| `musig2_nonce_gen(sk, pk, msg)` | [!] Thread-compatible | Reads from system RNG if aux randomness not provided; use separate RNG per thread |
+| `musig2_partial_sign(...)` | [OK] Thread-safe | Given pre-generated nonces |
+| `musig2_partial_verify(...)` | [OK] Thread-safe | Pure computation |
+| `musig2_aggregate(...)` | [OK] Thread-safe | Pure computation |
 
 ### 5.2 FROST
 
 | Function | Thread Safety | Notes |
 |----------|--------------|-------|
-| `frost_keygen_begin(id, t, n, seed)` | ✅ Thread-safe | Deterministic from seed |
-| `frost_keygen_finalize(...)` | ✅ Thread-safe | Pure verification + computation |
-| `frost_sign_nonce_gen(id, seed)` | ✅ Thread-safe | Deterministic from seed |
-| `frost_sign(key_pkg, nonce, msg, ...)` | ✅ Thread-safe | Pure computation |
-| `frost_verify_partial(...)` | ✅ Thread-safe | Pure computation |
-| `frost_aggregate(...)` | ✅ Thread-safe | Pure computation |
-| `frost_lagrange_coefficient(i, ids)` | ✅ Thread-safe | Pure computation |
+| `frost_keygen_begin(id, t, n, seed)` | [OK] Thread-safe | Deterministic from seed |
+| `frost_keygen_finalize(...)` | [OK] Thread-safe | Pure verification + computation |
+| `frost_sign_nonce_gen(id, seed)` | [OK] Thread-safe | Deterministic from seed |
+| `frost_sign(key_pkg, nonce, msg, ...)` | [OK] Thread-safe | Pure computation |
+| `frost_verify_partial(...)` | [OK] Thread-safe | Pure computation |
+| `frost_aggregate(...)` | [OK] Thread-safe | Pure computation |
+| `frost_lagrange_coefficient(i, ids)` | [OK] Thread-safe | Pure computation |
 
 **Protocol note**: FROST DKG requires coordinated communication between participants. The library functions themselves are thread-safe, but the protocol coordination (message passing) must be handled by the caller.
 
@@ -96,10 +96,10 @@ All pure computation functions in `secp256k1::fast::` and `secp256k1::ct::` name
 
 | Function | Thread Safety | Notes |
 |----------|--------------|-------|
-| `bip32_master_from_seed(seed)` | ✅ Thread-safe | Pure HMAC-SHA512 computation |
-| `bip32_derive_child(parent, index)` | ✅ Thread-safe | Pure computation |
-| `bip32_derive_path(master, path)` | ✅ Thread-safe | Sequential derivation, no shared state |
-| `bip32_parse_path(path_string)` | ✅ Thread-safe | Pure string parsing |
+| `bip32_master_from_seed(seed)` | [OK] Thread-safe | Pure HMAC-SHA512 computation |
+| `bip32_derive_child(parent, index)` | [OK] Thread-safe | Pure computation |
+| `bip32_derive_path(master, path)` | [OK] Thread-safe | Sequential derivation, no shared state |
+| `bip32_parse_path(path_string)` | [OK] Thread-safe | Pure string parsing |
 
 ---
 
@@ -107,11 +107,11 @@ All pure computation functions in `secp256k1::fast::` and `secp256k1::ct::` name
 
 | Function | Thread Safety | Notes |
 |----------|--------------|-------|
-| `address_p2pkh(pubkey, network)` | ✅ Thread-safe | Pure computation (SHA-256 + RIPEMD-160 + Base58Check) |
-| `address_p2wpkh(pubkey, network)` | ✅ Thread-safe | Pure computation (SHA-256 + RIPEMD-160 + Bech32) |
-| `address_p2tr(pubkey, network)` | ✅ Thread-safe | Pure computation (Bech32m) |
-| `wif_encode(privkey)` | ✅ Thread-safe | Pure computation |
-| `wif_decode(wif_string)` | ✅ Thread-safe | Pure computation |
+| `address_p2pkh(pubkey, network)` | [OK] Thread-safe | Pure computation (SHA-256 + RIPEMD-160 + Base58Check) |
+| `address_p2wpkh(pubkey, network)` | [OK] Thread-safe | Pure computation (SHA-256 + RIPEMD-160 + Bech32) |
+| `address_p2tr(pubkey, network)` | [OK] Thread-safe | Pure computation (Bech32m) |
+| `wif_encode(privkey)` | [OK] Thread-safe | Pure computation |
+| `wif_decode(wif_string)` | [OK] Thread-safe | Pure computation |
 
 ---
 
@@ -121,23 +121,23 @@ All pure computation functions in `secp256k1::fast::` and `secp256k1::ct::` name
 
 | Function | Thread Safety | Notes |
 |----------|--------------|-------|
-| `ufsecp_context_create()` | ✅ Thread-safe | Returns new independent context |
-| `ufsecp_context_destroy(ctx)` | ⚠️ Thread-compatible | Do not destroy from two threads simultaneously |
-| `ufsecp_context_clone(ctx)` | ⚠️ Thread-compatible | Source must not be modified during clone |
+| `ufsecp_context_create()` | [OK] Thread-safe | Returns new independent context |
+| `ufsecp_context_destroy(ctx)` | [!] Thread-compatible | Do not destroy from two threads simultaneously |
+| `ufsecp_context_clone(ctx)` | [!] Thread-compatible | Source must not be modified during clone |
 
 ### 8.2 Context Usage Rules
 
 **The `ufsecp_context` object is NOT thread-safe.** Each thread must use its own context:
 
 ```c
-// ✅ CORRECT: One context per thread
+// [OK] CORRECT: One context per thread
 void worker_thread(void) {
     ufsecp_context* ctx = ufsecp_context_create();
     // ... use ctx ...
     ufsecp_context_destroy(ctx);
 }
 
-// ❌ WRONG: Sharing context across threads
+// [FAIL] WRONG: Sharing context across threads
 ufsecp_context* shared_ctx;  // NOT safe!
 void thread_a(void) { ufsecp_ecdsa_sign(shared_ctx, ...); }
 void thread_b(void) { ufsecp_ecdsa_verify(shared_ctx, ...); }
@@ -149,15 +149,15 @@ When called with separate contexts, all C ABI functions are thread-safe:
 
 | Function | Thread Safety (separate contexts) |
 |----------|-----------------------------------|
-| `ufsecp_pubkey_create` | ✅ Thread-safe |
-| `ufsecp_ecdsa_sign` | ✅ Thread-safe |
-| `ufsecp_ecdsa_verify` | ✅ Thread-safe |
-| `ufsecp_schnorr_sign` | ✅ Thread-safe |
-| `ufsecp_schnorr_verify` | ✅ Thread-safe |
-| `ufsecp_ecdh` | ✅ Thread-safe |
-| `ufsecp_seckey_tweak_add/mul` | ✅ Thread-safe |
-| All address functions | ✅ Thread-safe |
-| All BIP-32 functions | ✅ Thread-safe |
+| `ufsecp_pubkey_create` | [OK] Thread-safe |
+| `ufsecp_ecdsa_sign` | [OK] Thread-safe |
+| `ufsecp_ecdsa_verify` | [OK] Thread-safe |
+| `ufsecp_schnorr_sign` | [OK] Thread-safe |
+| `ufsecp_schnorr_verify` | [OK] Thread-safe |
+| `ufsecp_ecdh` | [OK] Thread-safe |
+| `ufsecp_seckey_tweak_add/mul` | [OK] Thread-safe |
+| All address functions | [OK] Thread-safe |
+| All BIP-32 functions | [OK] Thread-safe |
 
 ### 8.4 Error State
 
@@ -169,10 +169,10 @@ When called with separate contexts, all C ABI functions are thread-safe:
 
 | Backend | Thread Safety | Notes |
 |---------|--------------|-------|
-| CUDA | ⚠️ Thread-compatible | One CUDA context per host thread (CUDA runtime default) |
-| OpenCL | ⚠️ Thread-compatible | Command queues are per-thread; shared `cl_context` requires synchronization |
-| Metal | ⚠️ Thread-compatible | Metal command buffers can be created from any thread |
-| ROCm/HIP | ⚠️ Thread-compatible | Similar model to CUDA |
+| CUDA | [!] Thread-compatible | One CUDA context per host thread (CUDA runtime default) |
+| OpenCL | [!] Thread-compatible | Command queues are per-thread; shared `cl_context` requires synchronization |
+| Metal | [!] Thread-compatible | Metal command buffers can be created from any thread |
+| ROCm/HIP | [!] Thread-compatible | Similar model to CUDA |
 
 **Rule**: Each host thread should manage its own GPU resources. Do not share GPU buffers across threads without explicit synchronization.
 
@@ -182,10 +182,10 @@ When called with separate contexts, all C ABI functions are thread-safe:
 
 | Function | Thread Safety | Notes |
 |----------|--------------|-------|
-| `sha256(data, len)` | ✅ Thread-safe | Pure function |
-| `sha256_tagged(tag, data)` | ✅ Thread-safe | Pure function |
-| `ripemd160(data, len)` | ✅ Thread-safe | Pure function |
-| `hmac_sha512(key, data)` | ✅ Thread-safe | Pure function; used by BIP-32 |
+| `sha256(data, len)` | [OK] Thread-safe | Pure function |
+| `sha256_tagged(tag, data)` | [OK] Thread-safe | Pure function |
+| `ripemd160(data, len)` | [OK] Thread-safe | Pure function |
+| `hmac_sha512(key, data)` | [OK] Thread-safe | Pure function; used by BIP-32 |
 
 ---
 

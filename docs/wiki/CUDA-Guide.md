@@ -66,12 +66,12 @@ using namespace secp256k1::cuda;
 ### Data Structures
 
 ```cpp
-// Field element (4 × 64-bit limbs)
+// Field element (4 x 64-bit limbs)
 struct FieldElement {
     uint64_t limbs[4];
 };
 
-// Scalar (4 × 64-bit limbs)
+// Scalar (4 x 64-bit limbs)
 struct Scalar {
     uint64_t limbs[4];
 };
@@ -235,7 +235,7 @@ void generate_keys(
 |-------|---------|-------------|
 | `SECP256K1_CUDA_USE_HYBRID_MUL` | 1 | 32-bit hybrid multiplication (~10% faster) |
 | `SECP256K1_CUDA_USE_MONTGOMERY` | 0 | Montgomery domain arithmetic |
-| `SECP256K1_CUDA_LIMBS_32` | 0 | Use 8×32-bit limbs (experimental) |
+| `SECP256K1_CUDA_LIMBS_32` | 0 | Use 8x32-bit limbs (experimental) |
 
 ### Setting Options
 

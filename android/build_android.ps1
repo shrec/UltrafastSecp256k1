@@ -1,5 +1,5 @@
 # ============================================================================
-# UltrafastSecp256k1 — Android Build Script (PowerShell)
+# UltrafastSecp256k1 -- Android Build Script (PowerShell)
 # ============================================================================
 # Windows variant for building Android native libraries.
 #

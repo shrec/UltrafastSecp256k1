@@ -136,10 +136,10 @@ void generate_random_affine_points(FieldElement* h_x, FieldElement* h_y, int cou
 }
 
 // ============================================================================
-// Affine benchmark wrapper kernels (__device__ → __global__)
+// Affine benchmark wrapper kernels (__device__ -> __global__)
 // ============================================================================
 
-// Full affine add (includes per-element inversion — 2M + 1S + inv)
+// Full affine add (includes per-element inversion -- 2M + 1S + inv)
 __global__ void bench_affine_add_kernel(
     const FieldElement* __restrict__ px, const FieldElement* __restrict__ py,
     const FieldElement* __restrict__ qx, const FieldElement* __restrict__ qy,
@@ -153,7 +153,7 @@ __global__ void bench_affine_add_kernel(
     }
 }
 
-// Affine add with pre-inverted H — full X,Y output (2M + 1S)
+// Affine add with pre-inverted H -- full X,Y output (2M + 1S)
 __global__ void bench_affine_add_lambda_kernel(
     const FieldElement* __restrict__ px, const FieldElement* __restrict__ py,
     const FieldElement* __restrict__ qx, const FieldElement* __restrict__ qy,
@@ -196,7 +196,7 @@ __global__ void bench_affine_compute_h_kernel(
     }
 }
 
-// Batch inversion kernel — one thread processes a serial batch of CHAIN_LEN elements
+// Batch inversion kernel -- one thread processes a serial batch of CHAIN_LEN elements
 static constexpr int BATCH_INV_CHAIN_LEN = 64;
 
 __global__ void bench_batch_inv_kernel(
@@ -212,7 +212,7 @@ __global__ void bench_batch_inv_kernel(
     }
 }
 
-// Jacobian → Affine conversion kernel
+// Jacobian -> Affine conversion kernel
 __global__ void bench_jac_to_affine_kernel(
     FieldElement* __restrict__ x,
     FieldElement* __restrict__ y,
@@ -803,11 +803,11 @@ BenchResult bench_jacobian_to_affine(const BenchConfig& cfg) {
     CUDA_CHECK(cudaFree(d_y));
     CUDA_CHECK(cudaFree(d_z));
 
-    return {"Jac→Affine (per-pt)", avg_ms, batch, throughput, ns_per_op};
+    return {"Jac->Affine (per-pt)", avg_ms, batch, throughput, ns_per_op};
 }
 
 // ============================================================================
-// Signature benchmarks (ECDSA + Schnorr) — 64-bit limb mode only
+// Signature benchmarks (ECDSA + Schnorr) -- 64-bit limb mode only
 // ============================================================================
 
 // Forward-declare batch kernels (defined in secp256k1.cu, namespace secp256k1::cuda)
@@ -1133,11 +1133,11 @@ BenchResult bench_schnorr_verify(const BenchConfig& cfg) {
         // and extract x-only manually. For benchmark purposes this prep time doesn't matter.
     };
 
-    // Simple host-side x extraction (only for test data prep — not benchmarked)
+    // Simple host-side x extraction (only for test data prep -- not benchmarked)
     // This is a rough approximation: the actual Jacobian->affine involves field_inv
     // which we can't call from host. So let's use a different approach:
     // Sign a known message with privkey, the sign function internally computes P.
-    // The schnorr_verify takes pubkey_x as bytes — we need the x-only pubkey.
+    // The schnorr_verify takes pubkey_x as bytes -- we need the x-only pubkey.
     // Let's compute it by running scalar_mul on GPU and converting to affine.
 
     // Actually, let's just allocate and generate x-only pubkeys on GPU with a custom approach.
@@ -1328,7 +1328,7 @@ void print_result(const BenchResult& r) {
                   << r.time_per_op_ns / 1000000 << " ms";
     } else if (r.time_per_op_ns >= 1000) {
         std::cout << std::right << std::setw(8) << std::fixed << std::setprecision(2)
-                  << r.time_per_op_ns / 1000 << " μs";
+                  << r.time_per_op_ns / 1000 << " us";
     } else {
         std::cout << std::right << std::setw(8) << std::fixed << std::setprecision(1)
                   << r.time_per_op_ns << " ns";
@@ -1359,7 +1359,7 @@ void print_summary_table(const std::vector<BenchResult>& results) {
                       << r.time_per_op_ns / 1000000 << " ms";
         } else if (r.time_per_op_ns >= 1000) {
             std::cout << std::right << std::setw(8) << std::fixed << std::setprecision(2)
-                      << r.time_per_op_ns / 1000 << " μs";
+                      << r.time_per_op_ns / 1000 << " us";
         } else {
             std::cout << std::right << std::setw(8) << std::fixed << std::setprecision(1)
                       << r.time_per_op_ns << " ns";

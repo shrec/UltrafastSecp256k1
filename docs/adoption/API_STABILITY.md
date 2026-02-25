@@ -11,7 +11,7 @@ Classification of every public header by stability tier.
 | **Stable** | Battle-tested, will not break in minor versions | Breaking changes require major version bump |
 | **Provisional** | API may change in minor versions with deprecation warnings | At least 1 minor version deprecation cycle |
 | **Experimental** | Can change or be removed at any time | No backward compatibility guarantee |
-| **Internal** | Implementation detail — do not depend on | May change without notice |
+| **Internal** | Implementation detail -- do not depend on | May change without notice |
 
 ---
 
@@ -21,8 +21,8 @@ Classification of every public header by stability tier.
 
 | Header | Description | Since |
 |---|---|---|
-| `field.hpp` | 256-bit field element (mod p) — 5×52 limb representation | v1.0 |
-| `scalar.hpp` | 256-bit scalar (mod n) — arithmetic, inverse, serialization | v1.0 |
+| `field.hpp` | 256-bit field element (mod p) -- 5x52 limb representation | v1.0 |
+| `scalar.hpp` | 256-bit scalar (mod n) -- arithmetic, inverse, serialization | v1.0 |
 | `point.hpp` | Affine/Jacobian point arithmetic on secp256k1 | v1.0 |
 | `ecdsa.hpp` | ECDSA sign/verify (RFC 6979 deterministic nonce) | v1.0 |
 | `schnorr.hpp` | Schnorr sign/verify (BIP-340) | v2.0 |
@@ -54,7 +54,7 @@ Classification of every public header by stability tier.
 | `musig2.hpp` | MuSig2 (BIP-327) multi-signature | Protocol still being refined |
 | `frost.hpp` | FROST threshold signatures | Early implementation |
 | `adaptor.hpp` | Adaptor signatures (atomic swaps) | Research-grade |
-| `pippenger.hpp` | Pippenger multi-scalar multiplication | Optimization layer — API unstable |
+| `pippenger.hpp` | Pippenger multi-scalar multiplication | Optimization layer -- API unstable |
 | `ecmult_gen_comb.hpp` | Precomputed generator comb tables | Internal optimization detail |
 | `precompute.hpp` | Wbits/comb precomputation tables | May become internal |
 | `hash_accel.hpp` | SHA-256 hardware acceleration (SHA-NI, ARM CE) | Platform-specific |
@@ -65,10 +65,10 @@ Classification of every public header by stability tier.
 
 | Header | Description |
 |---|---|
-| `fast.hpp` | Umbrella includes — for convenience only |
-| `field_26.hpp` | 10×26 field representation (32-bit fallback) |
-| `field_52.hpp` | 5×52 field representation (primary) |
-| `field_52_impl.hpp` | 5×52 implementation details |
+| `fast.hpp` | Umbrella includes -- for convenience only |
+| `field_26.hpp` | 10x26 field representation (32-bit fallback) |
+| `field_52.hpp` | 5x52 field representation (primary) |
+| `field_52_impl.hpp` | 5x52 implementation details |
 | `field_asm.hpp` | Platform-specific ASM for field operations |
 | `field_branchless.hpp` | Branchless field primitives |
 | `field_h_based.hpp` | H-based field operations |
@@ -92,7 +92,7 @@ Classification of every public header by stability tier.
 
 | Symbol | Deprecated In | Removal Target | Replacement |
 |---|---|---|---|
-| — | — | — | No active deprecations in v3.3 |
+| -- | -- | -- | No active deprecations in v3.3 |
 
 ---
 
@@ -125,15 +125,15 @@ const char* v = secp256k1::fast::version_string();
 For maximum forward compatibility, include only what you need:
 
 ```cpp
-// Good — stable, minimal
+// Good -- stable, minimal
 #include <secp256k1/scalar.hpp>
 #include <secp256k1/point.hpp>
 #include <secp256k1/ecdsa.hpp>
 
-// Acceptable — stable umbrella
+// Acceptable -- stable umbrella
 #include <secp256k1/fast.hpp>
 
-// Risky — experimental, may break
+// Risky -- experimental, may break
 #include <secp256k1/frost.hpp>
 #include <secp256k1/musig2.hpp>
 ```

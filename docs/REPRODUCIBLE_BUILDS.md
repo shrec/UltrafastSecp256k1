@@ -1,7 +1,7 @@
 # Reproducible Builds
 
 This document describes how to verify that UltrafastSecp256k1 release binaries are
-reproducible — i.e., the same source code produces byte-identical outputs regardless
+reproducible -- i.e., the same source code produces byte-identical outputs regardless
 of who builds it.
 
 ---
@@ -10,9 +10,9 @@ of who builds it.
 
 For a cryptographic library, reproducible builds provide:
 
-1. **Supply-chain integrity** — users can verify that published binaries match the source
-2. **Tamper detection** — any modification to source or toolchain changes the output hash
-3. **Trust minimization** — no need to trust the build server; anyone can reproduce
+1. **Supply-chain integrity** -- users can verify that published binaries match the source
+2. **Tamper detection** -- any modification to source or toolchain changes the output hash
+3. **Trust minimization** -- no need to trust the build server; anyone can reproduce
 
 ---
 
@@ -45,7 +45,7 @@ chmod +x scripts/verify_reproducible_build.sh
 1. **Pin ALL inputs**: compiler version, base image digest, timestamps
 2. **Build twice** from the same source tree with identical flags
 3. **Hash all output artifacts** (`.a`, `.so`, `.so.*`)
-4. **Compare hashes** — any difference indicates non-reproducibility
+4. **Compare hashes** -- any difference indicates non-reproducibility
 
 ### Key Environment Variables
 
@@ -116,9 +116,9 @@ Generate a CycloneDX 1.6 SBOM:
 ```
 
 The SBOM lists:
-- **fastsecp256k1** — core C++ library (zero runtime dependencies)
-- **ufsecp** — C ABI shim (optional)
-- **libsecp256k1 v0.6.0** — test-time dependency only (excluded from runtime)
+- **fastsecp256k1** -- core C++ library (zero runtime dependencies)
+- **ufsecp** -- C ABI shim (optional)
+- **libsecp256k1 v0.6.0** -- test-time dependency only (excluded from runtime)
 
 UltrafastSecp256k1 has **zero runtime dependencies** beyond the C++ standard library.
 

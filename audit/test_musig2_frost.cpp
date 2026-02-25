@@ -1,5 +1,5 @@
 // ============================================================================
-// MuSig2 + FROST Protocol Tests (Phase II Tasks 2.1.1–2.2.2)
+// MuSig2 + FROST Protocol Tests (Phase II Tasks 2.1.1-2.2.2)
 // ============================================================================
 // - MuSig2 (BIP-327 style): key aggregation, nonce flow, partial signing,
 //   partial verification, signature aggregation, Schnorr verify.
@@ -33,7 +33,7 @@ using secp256k1::fast::Scalar;
 using secp256k1::fast::Point;
 using secp256k1::fast::FieldElement;
 
-// ── Minimal test harness ─────────────────────────────────────────────────────
+// -- Minimal test harness -----------------------------------------------------
 
 static int g_pass = 0;
 static int g_fail = 0;
@@ -45,7 +45,7 @@ static int g_fail = 0;
     } \
 } while(0)
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+// -- Helpers ------------------------------------------------------------------
 
 static std::array<uint8_t, 32> random32(std::mt19937_64& rng) {
     std::array<uint8_t, 32> out{};
@@ -71,11 +71,11 @@ static std::array<uint8_t, 32> xonly_pubkey(const Scalar& sk) {
     return P.x().to_bytes();
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ===============================================================================
 // MuSig2 Tests
-// ═══════════════════════════════════════════════════════════════════════════════
+// ===============================================================================
 
-// ── Test 1: Key Aggregation — Determinism ────────────────────────────────────
+// -- Test 1: Key Aggregation -- Determinism ------------------------------------
 
 static void test_musig2_key_agg_determinism() {
     std::printf("[1] MuSig2 Key Aggregation: Determinism\n");
@@ -108,7 +108,7 @@ static void test_musig2_key_agg_determinism() {
     std::printf("    %d checks OK\n\n", g_pass);
 }
 
-// ── Test 2: Key Aggregation — Ordering Matters ──────────────────────────────
+// -- Test 2: Key Aggregation -- Ordering Matters ------------------------------
 
 static void test_musig2_key_agg_ordering() {
     std::printf("[2] MuSig2 Key Aggregation: Ordering Matters\n");
@@ -139,7 +139,7 @@ static void test_musig2_key_agg_ordering() {
     std::printf("    %d checks OK\n\n", g_pass);
 }
 
-// ── Test 3: Key Aggregation — Duplicate Keys ────────────────────────────────
+// -- Test 3: Key Aggregation -- Duplicate Keys --------------------------------
 
 static void test_musig2_key_agg_duplicates() {
     std::printf("[3] MuSig2 Key Aggregation: Duplicate Keys\n");
@@ -166,7 +166,7 @@ static void test_musig2_key_agg_duplicates() {
     std::printf("    %d checks OK\n\n", g_pass);
 }
 
-// ── Test 4: MuSig2 Full Round-Trip (parametric N signers) ───────────────────
+// -- Test 4: MuSig2 Full Round-Trip (parametric N signers) -------------------
 
 static void test_musig2_round_trip(int n_signers, const char* label) {
     std::printf("[4.%s] MuSig2 Full Round-Trip: %d signers\n", label, n_signers);
@@ -233,7 +233,7 @@ static void test_musig2_round_trip(int n_signers, const char* label) {
     std::printf("    %d checks OK\n\n", g_pass);
 }
 
-// ── Test 5: MuSig2 Wrong Signer — Expect Failure ───────────────────────────
+// -- Test 5: MuSig2 Wrong Signer -- Expect Failure ---------------------------
 
 static void test_musig2_wrong_signer() {
     std::printf("[5] MuSig2: Wrong Partial Sig Fails Verify\n");
@@ -268,7 +268,7 @@ static void test_musig2_wrong_signer() {
         auto s_0 = secp256k1::musig2_partial_sign(
             sec_nonces[0], sks[0], key_agg, session, 0);
 
-        // Verify s_0 against signer 1's nonce/pubkey — should fail
+        // Verify s_0 against signer 1's nonce/pubkey -- should fail
         bool bad_pv = secp256k1::musig2_partial_verify(
             s_0, pub_nonces[1], pks[1], key_agg, session, 1);
         CHECK(!bad_pv, "wrong signer partial verify fails");
@@ -277,7 +277,7 @@ static void test_musig2_wrong_signer() {
     std::printf("    %d checks OK\n\n", g_pass);
 }
 
-// ── Test 6: MuSig2 Bit-Flip Invalidates Signature ──────────────────────────
+// -- Test 6: MuSig2 Bit-Flip Invalidates Signature --------------------------
 
 static void test_musig2_bitflip() {
     std::printf("[6] MuSig2: Bit-Flip Invalidates Final Signature\n");
@@ -334,11 +334,11 @@ static void test_musig2_bitflip() {
     std::printf("    %d checks OK\n\n", g_pass);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ===============================================================================
 // FROST Tests
-// ═══════════════════════════════════════════════════════════════════════════════
+// ===============================================================================
 
-// ── Test 7: FROST DKG — 2-of-3 ─────────────────────────────────────────────
+// -- Test 7: FROST DKG -- 2-of-3 ---------------------------------------------
 
 static void test_frost_dkg(uint32_t threshold, uint32_t n_participants,
                            const char* label) {
@@ -399,7 +399,7 @@ static void test_frost_dkg(uint32_t threshold, uint32_t n_participants,
     std::printf("    %d checks OK\n\n", g_pass);
 }
 
-// ── Test 8: FROST Full Signing Round-Trip ───────────────────────────────────
+// -- Test 8: FROST Full Signing Round-Trip -----------------------------------
 
 static void test_frost_signing(uint32_t threshold, uint32_t n_participants,
                                const char* label) {
@@ -409,7 +409,7 @@ static void test_frost_signing(uint32_t threshold, uint32_t n_participants,
     const int ROUNDS = 10;
 
     for (int round = 0; round < ROUNDS; ++round) {
-        // ── DKG ──────────────────────────────────────────────────────────
+        // -- DKG ----------------------------------------------------------
         std::vector<secp256k1::FrostCommitment> all_commitments;
         std::vector<std::vector<secp256k1::FrostShare>> share_matrix;
 
@@ -433,7 +433,7 @@ static void test_frost_signing(uint32_t threshold, uint32_t n_participants,
             key_packages.push_back(pkg);
         }
 
-        // ── Select t signers (first t participants) ─────────────────────
+        // -- Select t signers (first t participants) ---------------------
         std::vector<uint32_t> signer_indices;
         for (uint32_t i = 0; i < threshold; ++i) {
             signer_indices.push_back(i);
@@ -441,7 +441,7 @@ static void test_frost_signing(uint32_t threshold, uint32_t n_participants,
 
         auto msg = random32(rng);
 
-        // ── Nonce generation ────────────────────────────────────────────
+        // -- Nonce generation --------------------------------------------
         std::vector<secp256k1::FrostNonce> nonces;
         std::vector<secp256k1::FrostNonceCommitment> nonce_commitments;
 
@@ -453,7 +453,7 @@ static void test_frost_signing(uint32_t threshold, uint32_t n_participants,
             nonce_commitments.push_back(commitment);
         }
 
-        // ── Partial signing ─────────────────────────────────────────────
+        // -- Partial signing ---------------------------------------------
         std::vector<secp256k1::FrostPartialSig> partial_sigs;
         for (std::size_t si = 0; si < signer_indices.size(); ++si) {
             uint32_t idx = signer_indices[si];
@@ -462,7 +462,7 @@ static void test_frost_signing(uint32_t threshold, uint32_t n_participants,
             partial_sigs.push_back(psig);
         }
 
-        // ── Partial verification ────────────────────────────────────────
+        // -- Partial verification ----------------------------------------
         for (std::size_t si = 0; si < signer_indices.size(); ++si) {
             uint32_t idx = signer_indices[si];
             bool pv = secp256k1::frost_verify_partial(
@@ -474,17 +474,17 @@ static void test_frost_signing(uint32_t threshold, uint32_t n_participants,
             CHECK(pv, "FROST partial sig verifies");
         }
 
-        // ── Aggregation ─────────────────────────────────────────────────
+        // -- Aggregation -------------------------------------------------
         auto final_sig = secp256k1::frost_aggregate(
             partial_sigs, nonce_commitments,
             key_packages[0].group_public_key, msg);
 
-        // ── Schnorr verify against group public key ─────────────────────
+        // -- Schnorr verify against group public key ---------------------
         auto gpk_x = key_packages[0].group_public_key.x().to_bytes();
         // Ensure we're using even-Y version for BIP-340
         auto gpk_y = key_packages[0].group_public_key.y().to_bytes();
         if (gpk_y[31] & 1) {
-            // Negate — but x stays the same for x-only
+            // Negate -- but x stays the same for x-only
         }
         bool ok = secp256k1::schnorr_verify(gpk_x, msg, final_sig);
         CHECK(ok, "FROST aggregated sig passes schnorr_verify");
@@ -493,7 +493,7 @@ static void test_frost_signing(uint32_t threshold, uint32_t n_participants,
     std::printf("    %d checks OK\n\n", g_pass);
 }
 
-// ── Test 9: FROST — Different Signer Subsets ────────────────────────────────
+// -- Test 9: FROST -- Different Signer Subsets --------------------------------
 
 static void test_frost_different_subsets() {
     std::printf("[9] FROST: Different 2-of-3 Subsets All Valid\n");
@@ -562,7 +562,7 @@ static void test_frost_different_subsets() {
     std::printf("    %d checks OK\n\n", g_pass);
 }
 
-// ── Test 10: FROST — Bit-Flip Invalidates Signature ─────────────────────────
+// -- Test 10: FROST -- Bit-Flip Invalidates Signature -------------------------
 
 static void test_frost_bitflip() {
     std::printf("[10] FROST: Bit-Flip Invalidates Signature\n");
@@ -615,7 +615,7 @@ static void test_frost_bitflip() {
     std::printf("    %d checks OK\n\n", g_pass);
 }
 
-// ── Test 11: FROST — Wrong Partial Sig Fails ────────────────────────────────
+// -- Test 11: FROST -- Wrong Partial Sig Fails --------------------------------
 
 static void test_frost_wrong_partial() {
     std::printf("[11] FROST: Wrong Partial Sig Fails Verify\n");
@@ -650,7 +650,7 @@ static void test_frost_wrong_partial() {
 
         auto ps1 = secp256k1::frost_sign(pkgs[0], n1, msg, ncs);
 
-        // Verify ps1 against signer 2's verification share — should fail
+        // Verify ps1 against signer 2's verification share -- should fail
         bool bad = secp256k1::frost_verify_partial(
             ps1, nc1, pkgs[1].verification_share, msg, ncs, gpk);
         CHECK(!bad, "wrong verification share -> partial verify fails");
@@ -659,9 +659,9 @@ static void test_frost_wrong_partial() {
     std::printf("    %d checks OK\n\n", g_pass);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ===============================================================================
 // _run() entry point for unified audit runner
-// ═══════════════════════════════════════════════════════════════════════════════
+// ===============================================================================
 
 int test_musig2_frost_protocol_run() {
     g_pass = 0; g_fail = 0;
@@ -686,15 +686,15 @@ int test_musig2_frost_protocol_run() {
     return g_fail > 0 ? 1 : 0;
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ===============================================================================
 // Main (standalone only)
-// ═══════════════════════════════════════════════════════════════════════════════
+// ===============================================================================
 
 #ifndef UNIFIED_AUDIT_RUNNER
 int main() {
-    std::printf("═══════════════════════════════════════════════════\n");
+    std::printf("===================================================\n");
     std::printf("  MuSig2 + FROST Protocol Tests\n");
-    std::printf("═══════════════════════════════════════════════════\n\n");
+    std::printf("===================================================\n\n");
 
     // MuSig2
     test_musig2_key_agg_determinism();     // [1]
@@ -716,9 +716,9 @@ int main() {
     test_frost_wrong_partial();             // [11]
 
     // Summary
-    std::printf("══════════════════════════════════════════════════════════════════════\n");
+    std::printf("======================================================================\n");
     std::printf("TOTAL: %d passed, %d failed\n", g_pass, g_fail);
-    std::printf("══════════════════════════════════════════════════════════════════════\n");
+    std::printf("======================================================================\n");
 
     return g_fail > 0 ? 1 : 0;
 }

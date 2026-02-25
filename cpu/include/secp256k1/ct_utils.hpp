@@ -181,7 +181,7 @@ inline int ct_compare(const void* a, const void* b, std::size_t len) noexcept {
 
     // ---- Fast path: 32 bytes (fully unrolled, zero branches) ----
     // Algorithm: reverse-scan accumulation.
-    //   Process words 3→2→1→0 (least significant first).
+    //   Process words 3->2->1->0 (least significant first).
     //   Each differing word OVERRIDES the running result.
     //   Final result reflects the FIRST (most significant) differing word.
     //   value_barrier after every step prevents Clang from injecting
@@ -230,7 +230,7 @@ inline int ct_compare(const void* a, const void* b, std::size_t len) noexcept {
         }
         ct::value_barrier(result);
 
-        // Word 0 (bytes 0-7, most significant — overrides all)
+        // Word 0 (bytes 0-7, most significant -- overrides all)
         {
             std::uint64_t gt, lt;
             ct_cmp_pair(w0a, w0b, gt, lt);

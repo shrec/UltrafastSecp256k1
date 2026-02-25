@@ -6,7 +6,7 @@
 namespace secp256k1 {
 namespace cuda {
 
-// Field operation kernels — lightweight, high-occupancy targets.
+// Field operation kernels -- lightweight, high-occupancy targets.
 // 256 threads/block, min 4 blocks/SM for register pressure balance.
 
 __global__ __launch_bounds__(256, 4)
@@ -41,7 +41,7 @@ void field_inv_kernel(const FieldElement* a, FieldElement* r, int count) {
     }
 }
 
-// Scalar multiplication kernels — register-heavy, lower occupancy acceptable.
+// Scalar multiplication kernels -- register-heavy, lower occupancy acceptable.
 // 128 threads/block, min 2 blocks/SM to balance register pressure vs. latency hiding.
 
 __global__ __launch_bounds__(128, 2)
@@ -113,10 +113,10 @@ void hash160_pubkey_kernel(const uint8_t* pubkeys, int pubkey_len, uint8_t* out_
 // ============================================================================
 #if !SECP256K1_CUDA_LIMBS_32
 
-// ECDSA Sign batch — each thread signs one message
+// ECDSA Sign batch -- each thread signs one message
 __global__ __launch_bounds__(128, 2)
 void ecdsa_sign_batch_kernel(
-    const uint8_t* __restrict__ msg_hashes,   // count × 32 bytes
+    const uint8_t* __restrict__ msg_hashes,   // count x 32 bytes
     const Scalar*  __restrict__ private_keys,
     ECDSASignatureGPU* __restrict__ sigs,
     bool*          __restrict__ results,
@@ -129,7 +129,7 @@ void ecdsa_sign_batch_kernel(
     }
 }
 
-// ECDSA Verify batch — each thread verifies one signature
+// ECDSA Verify batch -- each thread verifies one signature
 __global__ __launch_bounds__(128, 2)
 void ecdsa_verify_batch_kernel(
     const uint8_t* __restrict__ msg_hashes,
@@ -145,12 +145,12 @@ void ecdsa_verify_batch_kernel(
     }
 }
 
-// Schnorr Sign batch — each thread signs one message
+// Schnorr Sign batch -- each thread signs one message
 __global__ __launch_bounds__(128, 2)
 void schnorr_sign_batch_kernel(
     const Scalar*  __restrict__ private_keys,
-    const uint8_t* __restrict__ msgs,         // count × 32 bytes
-    const uint8_t* __restrict__ aux_rands,    // count × 32 bytes
+    const uint8_t* __restrict__ msgs,         // count x 32 bytes
+    const uint8_t* __restrict__ aux_rands,    // count x 32 bytes
     SchnorrSignatureGPU* __restrict__ sigs,
     bool*          __restrict__ results,
     int count)
@@ -163,10 +163,10 @@ void schnorr_sign_batch_kernel(
     }
 }
 
-// Schnorr Verify batch — each thread verifies one signature
+// Schnorr Verify batch -- each thread verifies one signature
 __global__ __launch_bounds__(128, 2)
 void schnorr_verify_batch_kernel(
-    const uint8_t* __restrict__ pubkeys_x,    // count × 32 bytes (x-only)
+    const uint8_t* __restrict__ pubkeys_x,    // count x 32 bytes (x-only)
     const uint8_t* __restrict__ msgs,
     const SchnorrSignatureGPU* __restrict__ sigs,
     bool*          __restrict__ results,

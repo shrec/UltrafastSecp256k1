@@ -1,7 +1,7 @@
 # Bindings Packaging Guide
 ## UltrafastSecp256k1 Per-Ecosystem Distribution
 
-> **Goal**: Each binding must be installable via the ecosystem's standard package manager in ≤3 commands.
+> **Goal**: Each binding must be installable via the ecosystem's standard package manager in <=3 commands.
 
 ---
 
@@ -9,18 +9,18 @@
 
 | Language | Package Manager | Package Name | Registry | Status |
 |---|---|---|---|:---:|
-| C/C++ | CMake / pkg-config | `ufsecp` | System install / vcpkg | ✅ |
-| Python | pip | `ufsecp` | PyPI | ✅ |
-| Node.js | npm | `@ultrafast/ufsecp` | npmjs.com | ✅ |
-| C# | NuGet | `UltrafastSecp256k1` | nuget.org | ✅ |
-| Java | Maven/Gradle | `com.ultrafast:ufsecp` | Maven Central | ✅ |
-| Swift | SPM / CocoaPods | `Ufsecp` | GitHub releases | ✅ |
-| Go | go modules | `github.com/nicenemo/ufsecp` | proxy.golang.org | ✅ |
-| Rust | cargo | `ufsecp` | crates.io | ✅ |
-| Dart | pub | `ufsecp` | pub.dev | ✅ |
-| PHP | Composer | `ultrafast/ufsecp` | Packagist | ✅ |
-| Ruby | gem | `ufsecp` | RubyGems | ✅ |
-| React Native | npm | `react-native-ufsecp` | npmjs.com | ✅ |
+| C/C++ | CMake / pkg-config | `ufsecp` | System install / vcpkg | [OK] |
+| Python | pip | `ufsecp` | PyPI | [OK] |
+| Node.js | npm | `@ultrafast/ufsecp` | npmjs.com | [OK] |
+| C# | NuGet | `UltrafastSecp256k1` | nuget.org | [OK] |
+| Java | Maven/Gradle | `com.ultrafast:ufsecp` | Maven Central | [OK] |
+| Swift | SPM / CocoaPods | `Ufsecp` | GitHub releases | [OK] |
+| Go | go modules | `github.com/nicenemo/ufsecp` | proxy.golang.org | [OK] |
+| Rust | cargo | `ufsecp` | crates.io | [OK] |
+| Dart | pub | `ufsecp` | pub.dev | [OK] |
+| PHP | Composer | `ultrafast/ufsecp` | Packagist | [OK] |
+| Ruby | gem | `ufsecp` | RubyGems | [OK] |
+| React Native | npm | `react-native-ufsecp` | npmjs.com | [OK] |
 
 ---
 
@@ -74,9 +74,9 @@ npm install @ultrafast/ufsecp
 
 | Platform | Prebuilt |
 |---|---|
-| Linux x64 | ✅ |
-| macOS x64/arm64 | ✅ |
-| Windows x64 | ✅ |
+| Linux x64 | [OK] |
+| macOS x64/arm64 | [OK] |
+| Windows x64 | [OK] |
 
 **Fallback**: `node-gyp` rebuild from source if prebuild unavailable.  
 **N-API version**: 8 (Node.js 12.22+).
@@ -190,8 +190,8 @@ ufsecp = "3.14.0"
 ```
 
 **Crate structure**:
-- `ufsecp-sys` — raw FFI bindings (build.rs links native lib)
-- `ufsecp` — safe Rust wrapper
+- `ufsecp-sys` -- raw FFI bindings (build.rs links native lib)
+- `ufsecp` -- safe Rust wrapper
 
 **Linking strategy**:
 - Default: dynamic linking (`-lufsecp`)
@@ -270,8 +270,8 @@ cd ios && pod install
 **Platform support**:
 | Platform | Native Module |
 |---|---|
-| iOS | ObjC bridge → C library (XCFramework) |
-| Android | Java JNI → C library (AAR with `jniLibs/`) |
+| iOS | ObjC bridge -> C library (XCFramework) |
+| Android | Java JNI -> C library (AAR with `jniLibs/`) |
 
 **Android ABIs**: `arm64-v8a`, `armeabi-v7a`, `x86_64`.  
 **iOS architectures**: `arm64` (device), `arm64` + `x86_64` (simulator).
@@ -302,8 +302,8 @@ The `bindings.yml` workflow validates packaging for all ecosystems:
 ## 4. Release Workflow
 
 ```
-1. Bump VERSION.txt → e.g., "3.15.0"
-2. CMake configure → generates ufsecp_version.h from .in
+1. Bump VERSION.txt -> e.g., "3.15.0"
+2. CMake configure -> generates ufsecp_version.h from .in
 3. Build + test on all CI platforms
 4. Package each ecosystem:
    - pip sdist + wheel

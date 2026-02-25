@@ -38,16 +38,16 @@ $RepoRoot = Split-Path -Parent $PSScriptRoot  # one level up from scripts/
 
 Push-Location $RepoRoot
 try {
-    # ── Verify Docker is available ──────────────────────────────────────
+    # -- Verify Docker is available --------------------------------------
     if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
         Write-Error "Docker not found. Install Docker Desktop first: https://docs.docker.com/desktop/install/windows-install/"
         return
     }
 
-    # ── Ensure BuildKit for layer caching ────────────────────────────
+    # -- Ensure BuildKit for layer caching ----------------------------
     $env:DOCKER_BUILDKIT = '1'
 
-    # ── Build image ─────────────────────────────────────────────────────
+    # -- Build image -----------------------------------------------------
     if (-not $NoBuild) {
         Write-Host "`n=== Building Docker image: $ImageName (BuildKit) ===" -ForegroundColor Cyan
         docker build -f Dockerfile.local-ci -t $ImageName .
@@ -57,7 +57,7 @@ try {
         }
     }
 
-    # ── Compose run arguments ───────────────────────────────────────────
+    # -- Compose run arguments -------------------------------------------
     $ciArgs = @()
     if ($Full) {
         $ciArgs = @('bash', '/src/scripts/local-ci.sh', '--full')
@@ -71,7 +71,7 @@ try {
     }
     # else: default CMD from Dockerfile (--all)
 
-    # ── Run container (with ccache volume for fast rebuilds) ──────────
+    # -- Run container (with ccache volume for fast rebuilds) ----------
     Write-Host "`n=== Running local CI (ccache volume: $CcacheVolume) ===" -ForegroundColor Cyan
     $runArgs = @(
         'run', '--rm',
@@ -86,7 +86,7 @@ try {
     & docker @runArgs
     $exitCode = $LASTEXITCODE
 
-    # ── Report ──────────────────────────────────────────────────────────
+    # -- Report ----------------------------------------------------------
     if ($exitCode -eq 0) {
         Write-Host "`nAll local CI jobs passed!" -ForegroundColor Green
     }

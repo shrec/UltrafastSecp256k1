@@ -1,6 +1,6 @@
 # Constant-Time Verification
 
-**UltrafastSecp256k1 v3.13.0** — CT Layer Methodology & Audit Status
+**UltrafastSecp256k1 v3.13.0** -- CT Layer Methodology & Audit Status
 
 ---
 
@@ -16,15 +16,15 @@ The constant-time (CT) layer lives in the `secp256k1::ct` namespace and provides
 
 ```
 secp256k1::ct::
-├── ops.hpp          — Low-level CT primitives (cmov, select, cswap)
-├── field.hpp        — CT field multiplication, inversion, square
-├── scalar.hpp       — CT scalar multiplication, addition
-├── point.hpp        — CT point operations (scalar_mul, generator_mul)
-└── ct_utils.hpp     — Utility: timing barriers, constant-time comparison
++-- ops.hpp          -- Low-level CT primitives (cmov, select, cswap)
++-- field.hpp        -- CT field multiplication, inversion, square
++-- scalar.hpp       -- CT scalar multiplication, addition
++-- point.hpp        -- CT point operations (scalar_mul, generator_mul)
++-- ct_utils.hpp     -- Utility: timing barriers, constant-time comparison
 
 secp256k1::fast::
-├── field_branchless.hpp  — Branchless field_select (bitwise cmov)
-└── ...                   — Variable-time (NOT for secrets)
++-- field_branchless.hpp  -- Branchless field_select (bitwise cmov)
++-- ...                   -- Variable-time (NOT for secrets)
 ```
 
 ---
@@ -82,7 +82,7 @@ inline FieldElement field_select(const FieldElement& a,
 ```
 
 **Audit points**:
-1. `bool → uint64_t mask` must not be compiled to a branch
+1. `bool -> uint64_t mask` must not be compiled to a branch
 2. Both paths of `from_limbs` must execute (no short-circuit)
 3. Compiler must not optimize away the unused path
 
@@ -90,19 +90,19 @@ inline FieldElement field_select(const FieldElement& a,
 
 ## CT Scalar Multiplication Details
 
-### `ct::scalar_mul(P, k)` — Arbitrary Point
+### `ct::scalar_mul(P, k)` -- Arbitrary Point
 
 ```
 Algorithm: GLV + 5-bit signed encoding
 
 1. Transform: s = (k + K) / 2  (K = group order bias)
-2. GLV split: s → v1, v2 (each ~129 bits)
+2. GLV split: s -> v1, v2 (each ~129 bits)
 3. Recode v1, v2 into 26 groups of 5-bit signed odd digits
-   → every digit is guaranteed non-zero and odd
-4. Precompute table: 16 odd multiples of P and λP
-   T = [1P, 3P, 5P, ..., 31P, 1λP, 3λP, ..., 31λP]
+   -> every digit is guaranteed non-zero and odd
+4. Precompute table: 16 odd multiples of P and lambdaP
+   T = [1P, 3P, 5P, ..., 31P, 1lambdaP, 3lambdaP, ..., 31lambdaP]
 5. Fixed iteration: for i = 25 downto 0:
-   a. 5 × point_double (CT)
+   a. 5 x point_double (CT)
    b. lookup T[|v1[i]|] with CT table scan (touch all entries)
    c. conditional negate based on sign bit (CT)
    d. unified_add (CT complete formula)
@@ -112,7 +112,7 @@ Cost: 125 dbl + 52 unified_add + 52 signed_lookups(16)
 All iterations execute regardless of scalar value.
 ```
 
-### `ct::generator_mul(k)` — Generator Point
+### `ct::generator_mul(k)` -- Generator Point
 
 ```
 Algorithm: Hamburg signed-digit comb
@@ -121,13 +121,13 @@ Algorithm: Hamburg signed-digit comb
 2. Every 4-bit window yields guaranteed odd digit
 3. Precomputed table: 8 entries per window (generated at init)
 4. 64 iterations:
-   a. CT table lookup(8) — scan all entries
+   a. CT table lookup(8) -- scan all entries
    b. conditional negate based on sign bit (CT)
    c. unified_add (CT)
 5. No doublings needed (comb structure)
 
 Cost: 64 unified_add + 64 signed_lookups(8)
-~3× faster than ct::scalar_mul(G, k)
+~3x faster than ct::scalar_mul(G, k)
 ```
 
 ---
@@ -153,8 +153,8 @@ Uses the dudect approach (Reparaz, Balasch, Verbauwhede, 2017):
    e. Collect timing distributions
 
 3. Statistical test: Welch's t-test
-   - |t| < 4.5 → no detectable timing difference (PASS)
-   - |t| ≥ 4.5 → timing leak detected (FAIL, 99.999% confidence)
+   - |t| < 4.5 -> no detectable timing difference (PASS)
+   - |t| >= 4.5 -> timing leak detected (FAIL, 99.999% confidence)
 
 4. Timing barriers: asm volatile prevents reordering
 ```
@@ -183,7 +183,7 @@ Uses the dudect approach (Reparaz, Balasch, Verbauwhede, 2017):
 valgrind ./build/tests/test_ct_sidechannel_vg
 
 # Interpretation:
-# |t| < 4.5 for all operations → PASS
+# |t| < 4.5 for all operations -> PASS
 # Current result: timing variance ratio 1.035 (well below 1.2 concern threshold)
 ```
 
@@ -219,10 +219,10 @@ Compilers may break CT properties by:
 
 CT properties verified on one CPU may not hold on another:
 - Intel vs AMD vs ARM have different timing behaviors
-- Variable-latency multipliers on some µarch
+- Variable-latency multipliers on some uarch
 - Cache hierarchy differences
 
-**Status**: Tested on x86-64 (Intel/AMD) and ARM64. No multi-µarch timing campaign has been conducted yet.
+**Status**: Tested on x86-64 (Intel/AMD) and ARM64. No multi-uarch timing campaign has been conducted yet.
 
 ### 4. GPU Is Explicitly Non-CT
 
@@ -245,7 +245,7 @@ FROST and MuSig2 have NOT been CT-audited:
 
 - [ ] **field_select**: Verify `-static_cast<uint64_t>(flag)` produces all-1s/all-0s
 - [ ] **field_select**: Confirm compiler emits no branch (inspect assembly)
-- [ ] **ct::scalar_mul**: Fixed iteration count (26 groups × 5 doublings + 52 adds)
+- [ ] **ct::scalar_mul**: Fixed iteration count (26 groups x 5 doublings + 52 adds)
 - [ ] **ct::scalar_mul**: Table lookup scans ALL entries (no early-exit)
 - [ ] **ct::generator_mul**: Fixed 64 iterations, no conditional skip
 - [ ] **ct::point_add_complete**: Handles P+P, P+O, O+P, P+(-P) without branching
@@ -263,7 +263,7 @@ FROST and MuSig2 have NOT been CT-audited:
 
 - [ ] **Formal verification** with Fiat-Crypto for field arithmetic
 - [ ] **ct-verif** LLVM pass integration for CT verification
-- [ ] **Multi-µarch timing campaign** (Intel Skylake, AMD Zen3+, Apple M-series, Cortex-A76)
+- [ ] **Multi-uarch timing campaign** (Intel Skylake, AMD Zen3+, Apple M-series, Cortex-A76)
 - [ ] **dudect expansion** to cover FROST nonce generation
 - [ ] **Hardware timing analysis** with oscilloscope-level measurements
 - [ ] **Compiler output audit** for every release at `-O2` and `-O3`
@@ -272,12 +272,12 @@ FROST and MuSig2 have NOT been CT-audited:
 
 ## References
 
-- [dudect: dude, is my code constant time?](https://eprint.iacr.org/2016/1123) — Reparaz et al., 2017
-- [Timing-safe code: A guide for the rest of us](https://www.chosenplaintext.ca/open-source/dudect/) — Aumasson
-- [ct-verif: A Tool for Constant-Time Verification](https://github.com/imdea-software/verifying-constant-time) — IMDEA
-- [Fiat-Crypto: Proofs of Correctness of ECC](https://github.com/mit-plv/fiat-crypto) — MIT
-- [bitcoin-core/secp256k1](https://github.com/bitcoin-core/secp256k1) — Reference CT implementation
+- [dudect: dude, is my code constant time?](https://eprint.iacr.org/2016/1123) -- Reparaz et al., 2017
+- [Timing-safe code: A guide for the rest of us](https://www.chosenplaintext.ca/open-source/dudect/) -- Aumasson
+- [ct-verif: A Tool for Constant-Time Verification](https://github.com/imdea-software/verifying-constant-time) -- IMDEA
+- [Fiat-Crypto: Proofs of Correctness of ECC](https://github.com/mit-plv/fiat-crypto) -- MIT
+- [bitcoin-core/secp256k1](https://github.com/bitcoin-core/secp256k1) -- Reference CT implementation
 
 ---
 
-*UltrafastSecp256k1 v3.13.0 — CT Verification*
+*UltrafastSecp256k1 v3.13.0 -- CT Verification*

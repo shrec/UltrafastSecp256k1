@@ -1,4 +1,4 @@
-# UltrafastSecp256k1 v3.6.0 — GPU Signature Operations
+# UltrafastSecp256k1 v3.6.0 -- GPU Signature Operations
 
 ## 🎯 Highlights
 
@@ -19,19 +19,19 @@
 | Operation | Time/Op | Throughput |
 |-----------|---------|------------|
 | Field Mul | 0.2 ns | 4,142 M/s |
-| Scalar Mul (P×k) | 225.8 ns | 4.43 M/s |
-| Generator Mul (G×k) | 217.7 ns | 4.59 M/s |
+| Scalar Mul (Pxk) | 225.8 ns | 4.43 M/s |
+| Generator Mul (Gxk) | 217.7 ns | 4.59 M/s |
 
 ## What's New
 
 ### GPU Signature Operations
 - 6 new CUDA batch kernel wrappers (`__launch_bounds__(128, 2)`):
-  - `ecdsa_sign_batch_kernel` — RFC 6979 deterministic nonces, low-S normalization
-  - `ecdsa_verify_batch_kernel` — Shamir's trick + GLV endomorphism
-  - `ecdsa_sign_recoverable_batch_kernel` — with recovery ID
-  - `ecdsa_recover_batch_kernel` — public key recovery
-  - `schnorr_sign_batch_kernel` — BIP-340 with tagged hash midstates
-  - `schnorr_verify_batch_kernel` — x-only pubkey verification
+  - `ecdsa_sign_batch_kernel` -- RFC 6979 deterministic nonces, low-S normalization
+  - `ecdsa_verify_batch_kernel` -- Shamir's trick + GLV endomorphism
+  - `ecdsa_sign_recoverable_batch_kernel` -- with recovery ID
+  - `ecdsa_recover_batch_kernel` -- public key recovery
+  - `schnorr_sign_batch_kernel` -- BIP-340 with tagged hash midstates
+  - `schnorr_verify_batch_kernel` -- x-only pubkey verification
 
 ### Benchmarks
 - 5 new GPU signature benchmarks in `bench_cuda.cu`
@@ -53,11 +53,11 @@ Bitcoin, Ethereum, Litecoin, Dogecoin, Bitcoin Cash, Bitcoin SV, Zcash, Dash, Di
 
 | Backend | Status |
 |---------|--------|
-| CUDA (NVIDIA) | ✅ Full signatures |
-| OpenCL (NVIDIA/AMD) | ✅ Core ECC |
-| Metal (Apple Silicon) | ✅ Core ECC |
-| CPU (x86-64/ARM64/RISC-V) | ✅ Full signatures |
-| WASM | ✅ Full signatures |
+| CUDA (NVIDIA) | [OK] Full signatures |
+| OpenCL (NVIDIA/AMD) | [OK] Core ECC |
+| Metal (Apple Silicon) | [OK] Core ECC |
+| CPU (x86-64/ARM64/RISC-V) | [OK] Full signatures |
+| WASM | [OK] Full signatures |
 
 ## Build
 

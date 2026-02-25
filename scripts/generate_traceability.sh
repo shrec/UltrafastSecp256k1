@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# generate_traceability.sh — Auto-update Audit Traceability Matrix
+# generate_traceability.sh -- Auto-update Audit Traceability Matrix
 # =============================================================================
 # Scans audit_*.cpp and test_*.cpp files, extracts test function names and
 # CHECK() counts, produces a machine-readable JSON report + summary.
@@ -31,7 +31,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m'
 
 echo "============================================================"
-echo "  Audit Traceability Matrix — Auto-Generation"
+echo "  Audit Traceability Matrix -- Auto-Generation"
 echo "============================================================"
 echo ""
 echo "  Repo root:  $REPO_ROOT"
@@ -39,7 +39,7 @@ echo "  Tests dir:  $TESTS_DIR"
 echo "  Build dir:  $BUILD_DIR"
 echo ""
 
-# ── Phase 1: Static Source Scan ──────────────────────────────────
+# -- Phase 1: Static Source Scan ----------------------------------
 
 echo "[Phase 1] Static source scan..."
 echo ""
@@ -72,14 +72,14 @@ scan_file() {
 }
 
 # Scan audit files
-echo "── Audit Files ──"
+echo "-- Audit Files --"
 for f in "$TESTS_DIR"/audit_*.cpp; do
     [ -f "$f" ] && scan_file "$f"
 done
 echo ""
 
 # Scan test files in tests/
-echo "── Test Files (tests/) ──"
+echo "-- Test Files (tests/) --"
 for f in "$TESTS_DIR"/test_*.cpp; do
     [ -f "$f" ] && scan_file "$f"
 done
@@ -87,14 +87,14 @@ echo ""
 
 # Scan test files in cpu/tests/
 if [ -d "$CPU_TESTS_DIR" ]; then
-    echo "── Test Files (cpu/tests/) ──"
+    echo "-- Test Files (cpu/tests/) --"
     for f in "$CPU_TESTS_DIR"/test_*.cpp; do
         [ -f "$f" ] && scan_file "$f"
     done
     echo ""
 fi
 
-# ── Phase 2: Live Execution (if build dir exists) ───────────────
+# -- Phase 2: Live Execution (if build dir exists) ---------------
 
 declare -A LIVE_PASS
 declare -A LIVE_FAIL
@@ -125,9 +125,9 @@ if [ -d "$BUILD_DIR" ]; then
         LIVE_FAIL[$name]=${fail:-0}
 
         if [ "$fail" = "0" ]; then
-            printf "    ${GREEN}✅ %s: %s passed, %s failed${NC}\n" "$name" "$pass" "$fail"
+            printf "    ${GREEN}[OK] %s: %s passed, %s failed${NC}\n" "$name" "$pass" "$fail"
         else
-            printf "    ${RED}❌ %s: %s passed, %s failed${NC}\n" "$name" "$pass" "$fail"
+            printf "    ${RED}[FAIL] %s: %s passed, %s failed${NC}\n" "$name" "$pass" "$fail"
         fi
     }
 
@@ -145,7 +145,7 @@ else
     echo ""
 fi
 
-# ── Phase 3: Generate JSON Report ───────────────────────────────
+# -- Phase 3: Generate JSON Report -------------------------------
 
 echo "[Phase 3] Generating JSON report..."
 
@@ -196,9 +196,9 @@ echo "" >> "$OUTPUT_JSON"
 echo "  }" >> "$OUTPUT_JSON"
 echo "}" >> "$OUTPUT_JSON"
 
-echo "  → $OUTPUT_JSON"
+echo "  -> $OUTPUT_JSON"
 
-# ── Phase 4: Generate Summary ───────────────────────────────────
+# -- Phase 4: Generate Summary -----------------------------------
 
 echo "[Phase 4] Generating summary..."
 
@@ -211,7 +211,7 @@ echo "[Phase 4] Generating summary..."
     echo "INVARIANT CATALOG: 108 invariants (docs/INVARIANTS.md)"
     echo ""
     echo "STATIC SOURCE SCAN:"
-    echo "─────────────────────────────────────────────────────────────"
+    echo "-------------------------------------------------------------"
 
     total_checks=0
     for key in $(echo "${!FILE_CHECKS[@]}" | tr ' ' '\n' | sort); do
@@ -219,61 +219,61 @@ echo "[Phase 4] Generating summary..."
         total_checks=$((total_checks + ${FILE_CHECKS[$key]}))
     done
 
-    echo "─────────────────────────────────────────────────────────────"
+    echo "-------------------------------------------------------------"
     printf "  %-35s  %6d total\n" "TOTAL" "$total_checks"
     echo ""
 
     if [ ${#LIVE_PASS[@]} -gt 0 ]; then
         echo "LIVE EXECUTION RESULTS:"
-        echo "─────────────────────────────────────────────────────────────"
+        echo "-------------------------------------------------------------"
         total_pass=0
         total_fail=0
         for key in $(echo "${!LIVE_PASS[@]}" | tr ' ' '\n' | sort); do
-            status="✅"
-            [ "${LIVE_FAIL[$key]}" != "0" ] && status="❌"
+            status="[OK]"
+            [ "${LIVE_FAIL[$key]}" != "0" ] && status="[FAIL]"
             printf "  %s %-30s  %s passed, %s failed\n" \
                 "$status" "$key" "${LIVE_PASS[$key]}" "${LIVE_FAIL[$key]}"
             total_pass=$((total_pass + ${LIVE_PASS[$key]:-0}))
             total_fail=$((total_fail + ${LIVE_FAIL[$key]:-0}))
         done
-        echo "─────────────────────────────────────────────────────────────"
+        echo "-------------------------------------------------------------"
         printf "  TOTAL: %d passed, %d failed\n" "$total_pass" "$total_fail"
         echo ""
     fi
 
     echo "VERIFICATION METHODS EMPLOYED:"
-    echo "  ✅ Deterministic algebraic checks (100K+ random per category)"
-    echo "  ✅ Official test vectors (BIP-340, RFC 6979, BIP-32 TV1-5)"
-    echo "  ✅ Differential testing (vs libsecp256k1 v0.6.0, 1.3M nightly)"
-    echo "  ✅ dudect statistical side-channel (Welch t-test, |t| < 4.5)"
-    echo "  ✅ Fuzzing (libFuzzer harnesses for field/scalar/point/DER/address)"
-    echo "  ✅ Adversarial inputs (zero keys, infinity, off-curve, bit-flips)"
-    echo "  ✅ Boundary values (0, 1, p-1, p, p+1, n-1, n, n+1, 2^255)"
-    echo "  ✅ Sanitizers (ASan, UBSan, TSan in CI)"
+    echo "  [OK] Deterministic algebraic checks (100K+ random per category)"
+    echo "  [OK] Official test vectors (BIP-340, RFC 6979, BIP-32 TV1-5)"
+    echo "  [OK] Differential testing (vs libsecp256k1 v0.6.0, 1.3M nightly)"
+    echo "  [OK] dudect statistical side-channel (Welch t-test, |t| < 4.5)"
+    echo "  [OK] Fuzzing (libFuzzer harnesses for field/scalar/point/DER/address)"
+    echo "  [OK] Adversarial inputs (zero keys, infinity, off-curve, bit-flips)"
+    echo "  [OK] Boundary values (0, 1, p-1, p, p+1, n-1, n, n+1, 2^255)"
+    echo "  [OK] Sanitizers (ASan, UBSan, TSan in CI)"
     echo ""
     echo "PLATFORMS VERIFIED:"
-    echo "  ✅ x86-64 (Linux, Windows, macOS)"
-    echo "  ✅ ARM64 (macOS, Linux, iOS, Android)"
-    echo "  ✅ RISC-V 64 (StarFive VisionFive 2, QEMU)"
-    echo "  ✅ ESP32-S3 (Xtensa LX7)"
-    echo "  ✅ WASM (Emscripten)"
+    echo "  [OK] x86-64 (Linux, Windows, macOS)"
+    echo "  [OK] ARM64 (macOS, Linux, iOS, Android)"
+    echo "  [OK] RISC-V 64 (StarFive VisionFive 2, QEMU)"
+    echo "  [OK] ESP32-S3 (Xtensa LX7)"
+    echo "  [OK] WASM (Emscripten)"
     echo ""
     echo "REMAINING GAPS (3/108):"
-    echo "  ⚠️ C7  — Thread-safety: TSan in CI, no dedicated stress harness"
-    echo "  ⚠️ CT5 — No secret-dependent branches: code review only"
-    echo "  ⚠️ CT6 — No secret-dependent memory access: code review only"
+    echo "  [!] C7  -- Thread-safety: TSan in CI, no dedicated stress harness"
+    echo "  [!] CT5 -- No secret-dependent branches: code review only"
+    echo "  [!] CT6 -- No secret-dependent memory access: code review only"
     echo ""
     echo "ARTIFACTS:"
-    echo "  docs/INVARIANTS.md             — Full 108-invariant catalog"
-    echo "  docs/AUDIT_TRACEABILITY.md     — Invariant→test mapping"
-    echo "  docs/INTERNAL_AUDIT.md         — Full internal audit results"
-    echo "  docs/CT_VERIFICATION.md        — CT layer methodology"
-    echo "  docs/SECURITY_CLAIMS.md        — FAST/CT security contract"
-    echo "  docs/DIFFERENTIAL_TESTING.md   — Cross-library protocol"
+    echo "  docs/INVARIANTS.md             -- Full 108-invariant catalog"
+    echo "  docs/AUDIT_TRACEABILITY.md     -- Invariant->test mapping"
+    echo "  docs/INTERNAL_AUDIT.md         -- Full internal audit results"
+    echo "  docs/CT_VERIFICATION.md        -- CT layer methodology"
+    echo "  docs/SECURITY_CLAIMS.md        -- FAST/CT security contract"
+    echo "  docs/DIFFERENTIAL_TESTING.md   -- Cross-library protocol"
 
 } > "$OUTPUT_SUMMARY"
 
-echo "  → $OUTPUT_SUMMARY"
+echo "  -> $OUTPUT_SUMMARY"
 echo ""
 echo "============================================================"
 echo "  Done. Review:"

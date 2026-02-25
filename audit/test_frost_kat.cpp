@@ -4,7 +4,7 @@
 // Pinned deterministic FROST test vectors for regression:
 //   - Lagrange coefficient correctness (known math values)
 //   - DKG share consistency (Shamir secret reconstruction)
-//   - Signing round determinism (same seeds → same outputs)
+//   - Signing round determinism (same seeds -> same outputs)
 //   - Aggregate signature BIP-340 verification
 //   - Cross-threshold consistency (2-of-3 vs 3-of-5 group key for same secrets)
 //
@@ -35,7 +35,7 @@ using secp256k1::fast::Scalar;
 using secp256k1::fast::Point;
 using secp256k1::fast::FieldElement;
 
-// ── Minimal test harness ─────────────────────────────────────────────────────
+// -- Minimal test harness -----------------------------------------------------
 
 static int g_pass = 0;
 static int g_fail = 0;
@@ -47,7 +47,7 @@ static int g_fail = 0;
     } \
 } while(0)
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+// -- Helpers ------------------------------------------------------------------
 
 static std::array<uint8_t, 32> make_seed(uint64_t val) {
     std::array<uint8_t, 32> seed{};
@@ -60,9 +60,9 @@ static bool points_equal(const Point& a, const Point& b) {
     return a.to_compressed() == b.to_compressed();
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ===============================================================================
 // Test 1: Lagrange Coefficient Mathematical Properties
-// ═══════════════════════════════════════════════════════════════════════════════
+// ===============================================================================
 
 static void test_lagrange_properties() {
     std::printf("[1] Lagrange Coefficient: Mathematical Properties\n");
@@ -160,9 +160,9 @@ static void test_lagrange_properties() {
     }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// Test 2: DKG Determinism — Same Seeds Produce Same Key Packages
-// ═══════════════════════════════════════════════════════════════════════════════
+// ===============================================================================
+// Test 2: DKG Determinism -- Same Seeds Produce Same Key Packages
+// ===============================================================================
 
 static void test_dkg_determinism() {
     std::printf("[2] FROST DKG: Determinism with Fixed Seeds\n");
@@ -172,7 +172,7 @@ static void test_dkg_determinism() {
     auto seed2 = make_seed(0xF205E002);
     auto seed3 = make_seed(0xF205E003);
 
-    // Run DKG twice with identical seeds — must produce identical results
+    // Run DKG twice with identical seeds -- must produce identical results
     std::array<uint8_t, 33> first_group_key{};
 
     for (int trial = 0; trial < 2; ++trial) {
@@ -208,9 +208,9 @@ static void test_dkg_determinism() {
     }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// Test 3: DKG Share Verification — Feldman VSS Commitment Check
-// ═══════════════════════════════════════════════════════════════════════════════
+// ===============================================================================
+// Test 3: DKG Share Verification -- Feldman VSS Commitment Check
+// ===============================================================================
 
 static void test_dkg_feldman_vss() {
     std::printf("[3] FROST DKG: Feldman VSS Commitment Verification\n");
@@ -257,9 +257,9 @@ static void test_dkg_feldman_vss() {
     }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// Test 4: Full 2-of-3 Signing — End-to-End with BIP-340 Verify
-// ═══════════════════════════════════════════════════════════════════════════════
+// ===============================================================================
+// Test 4: Full 2-of-3 Signing -- End-to-End with BIP-340 Verify
+// ===============================================================================
 
 static void test_2of3_full_signing() {
     std::printf("[4] FROST 2-of-3: Full Signing -> BIP-340 Verify\n");
@@ -335,9 +335,9 @@ static void test_2of3_full_signing() {
     }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// Test 5: Full 3-of-5 Signing — Larger Threshold
-// ═══════════════════════════════════════════════════════════════════════════════
+// ===============================================================================
+// Test 5: Full 3-of-5 Signing -- Larger Threshold
+// ===============================================================================
 
 static void test_3of5_full_signing() {
     std::printf("[5] FROST 3-of-5: Full Signing -> BIP-340 Verify\n");
@@ -441,9 +441,9 @@ static void test_3of5_full_signing() {
           "different subsets produce different signatures");
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ===============================================================================
 // Test 6: Lagrange Coefficient Consistency Across Subsets
-// ═══════════════════════════════════════════════════════════════════════════════
+// ===============================================================================
 
 static void test_lagrange_consistency() {
     std::printf("[6] Lagrange Coefficients: Consistency Across 10 Subsets\n");
@@ -483,9 +483,9 @@ static void test_lagrange_consistency() {
     }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// Test 7: Pinned KAT — DKG Group Key from Known Seeds
-// ═══════════════════════════════════════════════════════════════════════════════
+// ===============================================================================
+// Test 7: Pinned KAT -- DKG Group Key from Known Seeds
+// ===============================================================================
 
 static void test_pinned_dkg_group_key() {
     std::printf("[7] Pinned KAT: DKG Group Key Determinism\n");
@@ -525,9 +525,9 @@ static void test_pinned_dkg_group_key() {
     CHECK(gpk_run1 == gpk_run2, "KAT group key identical across runs");
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// Test 8: Pinned KAT — Full Signing Round-Trip
-// ═══════════════════════════════════════════════════════════════════════════════
+// ===============================================================================
+// Test 8: Pinned KAT -- Full Signing Round-Trip
+// ===============================================================================
 
 static void test_pinned_signing_roundtrip() {
     std::printf("[8] Pinned KAT: Full Signing Round-Trip Determinism\n");
@@ -583,9 +583,9 @@ static void test_pinned_signing_roundtrip() {
     CHECK(sig1.s == sig2.s, "KAT sig s identical");
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ===============================================================================
 // Test 9: Secret Reconstruction from DKG Shares
-// ═══════════════════════════════════════════════════════════════════════════════
+// ===============================================================================
 
 static void test_secret_reconstruction() {
     std::printf("[9] FROST DKG: Secret Reconstruction via Lagrange\n");
@@ -634,9 +634,9 @@ static void test_secret_reconstruction() {
           "reconstructed_secret * G == group_public_key (x-coord)");
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ===============================================================================
 // _run() entry point for unified audit runner
-// ═══════════════════════════════════════════════════════════════════════════════
+// ===============================================================================
 
 int test_frost_kat_run() {
     g_pass = 0; g_fail = 0;
@@ -654,9 +654,9 @@ int test_frost_kat_run() {
     return g_fail > 0 ? 1 : 0;
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ===============================================================================
 // Main (standalone only)
-// ═══════════════════════════════════════════════════════════════════════════════
+// ===============================================================================
 
 #ifndef UNIFIED_AUDIT_RUNNER
 int main() {

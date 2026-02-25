@@ -1,21 +1,21 @@
-# UltrafastSecp256k1 — Project Roadmap
+# UltrafastSecp256k1 -- Project Roadmap
 
 > Last updated: 2026-02-24
-> Covers: March 2026 – February 2027
+> Covers: March 2026 - February 2027
 
-This roadmap describes what the project intends to do — and explicitly not do — over the next 12 months. It is organized into three phases.
+This roadmap describes what the project intends to do -- and explicitly not do -- over the next 12 months. It is organized into three phases.
 
 ---
 
-## Phase I: Core Assurance (Q1–Q2 2026)
+## Phase I: Core Assurance (Q1-Q2 2026)
 
 **Goal**: Strengthen correctness guarantees and testing infrastructure.
 
 ### Will Do
 
-- **Differential testing**: In-process harness comparing UltrafastSecp256k1 against libsecp256k1 (FetchContent linking, CI PR runs with ≥10k random cases)
+- **Differential testing**: In-process harness comparing UltrafastSecp256k1 against libsecp256k1 (FetchContent linking, CI PR runs with >=10k random cases)
 - **Standard test vectors**: Complete BIP-340 (27/27 done), RFC 6979 (35/35 done), BIP-32 vector coverage verification
-- **Property-based testing**: Formalized algebraic invariants — associativity, distributivity, identity, inverse, double-and-add, GLV reconstruction (89/89 done)
+- **Property-based testing**: Formalized algebraic invariants -- associativity, distributivity, identity, inverse, double-and-add, GLV reconstruction (89/89 done)
 - **CT leakage testing**: dudect integrated into CI (smoke mode per PR, nightly full statistical runs)
 - **Normalization spec**: Document low-S normalization and DER strictness guarantees
 - **FAST-mode guardrails**: Compile-time or runtime assert preventing use of non-CT paths for signing
@@ -28,7 +28,7 @@ This roadmap describes what the project intends to do — and explicitly not do 
 
 ---
 
-## Phase II: Protocol & Production Hardening (Q3–Q4 2026)
+## Phase II: Protocol & Production Hardening (Q3-Q4 2026)
 
 **Goal**: Harden advanced protocols, expand fuzzing, prepare for production deployments.
 
@@ -66,20 +66,20 @@ This roadmap describes what the project intends to do — and explicitly not do 
 ### Won't Do (Phase III)
 
 - Formal verification (out of scope for this cycle; may be explored in future)
-- Custom hardware acceleration (FPGA/ASIC — out of scope)
+- Custom hardware acceleration (FPGA/ASIC -- out of scope)
 - Non-secp256k1 curves (project scope is secp256k1 only)
 
 ---
 
 ## Explicit Non-Goals (Next 12 Months)
 
-These items are **intentionally out of scope** for the 2026–2027 roadmap:
+These items are **intentionally out of scope** for the 2026-2027 roadmap:
 
-- **Formal verification** (e.g., Coq/Lean proofs) — prohibitive effort for current team size
-- **Non-secp256k1 curves** (ed25519, P-256, etc.) — outside project scope
-- **FIPS 140-3 certification** — requires organizational infrastructure beyond current capacity
-- **Custom FPGA/ASIC implementations** — hardware projects are out of scope
-- **GUI applications** — the project is a library, not an end-user application
+- **Formal verification** (e.g., Coq/Lean proofs) -- prohibitive effort for current team size
+- **Non-secp256k1 curves** (ed25519, P-256, etc.) -- outside project scope
+- **FIPS 140-3 certification** -- requires organizational infrastructure beyond current capacity
+- **Custom FPGA/ASIC implementations** -- hardware projects are out of scope
+- **GUI applications** -- the project is a library, not an end-user application
 
 ---
 

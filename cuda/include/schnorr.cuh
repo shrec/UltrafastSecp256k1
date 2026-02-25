@@ -1,6 +1,6 @@
 #pragma once
 // ============================================================================
-// Schnorr Signatures (BIP-340) — CUDA device implementation
+// Schnorr Signatures (BIP-340) -- CUDA device implementation
 // ============================================================================
 // - Tagged hash: H_tag(msg) = SHA256(SHA256(tag) || SHA256(tag) || msg)
 // - Schnorr sign (BIP-340): X-only pubkeys, deterministic nonce
@@ -17,7 +17,7 @@
 namespace secp256k1 {
 namespace cuda {
 
-// ── Tagged Hash (BIP-340) ────────────────────────────────────────────────────
+// -- Tagged Hash (BIP-340) ----------------------------------------------------
 // H_tag(msg) = SHA256(SHA256(tag) || SHA256(tag) || msg)
 
 __device__ inline void tagged_hash(
@@ -41,7 +41,7 @@ __device__ inline void tagged_hash(
     sha256_final(&ctx, out);
 }
 
-// ── Precomputed Tagged Hash Midstates (BIP-340) ─────────────────────────────
+// -- Precomputed Tagged Hash Midstates (BIP-340) -----------------------------
 // SHA256 state after processing SHA256(tag)||SHA256(tag) (one 64-byte block).
 // Saves 2 SHA-256 block compressions per tagged_hash call (6 total per sign/verify).
 // Each midstate: h[8] = SHA256 state, total = 64 bytes processed, buf_len = 0.
@@ -87,7 +87,7 @@ __device__ inline size_t dev_strlen(const char* s) {
     return n;
 }
 
-// ── Lift X (BIP-340): recover Y from X-only pubkey ──────────────────────────
+// -- Lift X (BIP-340): recover Y from X-only pubkey --------------------------
 // Given 32-byte x coordinate, compute the point with even Y.
 // Returns false if x is not on the curve.
 
@@ -104,7 +104,7 @@ __device__ inline bool lift_x(
         x.limbs[i] = limb;
     }
 
-    // y² = x³ + 7
+    // y^2 = x^3 + 7
     FieldElement x2, x3, y2, seven, y;
     field_sqr(&x, &x2);
     field_mul(&x2, &x, &x3);
@@ -115,10 +115,10 @@ __device__ inline bool lift_x(
 
     field_add(&x3, &seven, &y2);
 
-    // y = sqrt(y²) = y2^((p+1)/4)
+    // y = sqrt(y^2) = y2^((p+1)/4)
     field_sqrt(&y2, &y);
 
-    // Verify: y² == y2 (compare via normalized bytes to handle unreduced limbs)
+    // Verify: y^2 == y2 (compare via normalized bytes to handle unreduced limbs)
     FieldElement y_check;
     field_sqr(&y, &y_check);
     uint8_t y_check_bytes[32], y2_bytes[32];
@@ -147,14 +147,14 @@ __device__ inline bool lift_x(
     return true;
 }
 
-// ── Schnorr Signature Struct ─────────────────────────────────────────────────
+// -- Schnorr Signature Struct -------------------------------------------------
 
 struct SchnorrSignatureGPU {
     uint8_t r[32];   // R.x (x-coordinate of nonce point)
     Scalar s;         // scalar s
 };
 
-// ── BIP-340 Schnorr Sign ─────────────────────────────────────────────────────
+// -- BIP-340 Schnorr Sign -----------------------------------------------------
 // Signs a 32-byte message with a private key using BIP-340.
 // aux_rand: 32 bytes of auxiliary randomness (can be zeros for deterministic).
 // Returns false on failure.
@@ -281,7 +281,7 @@ __device__ inline bool schnorr_sign(
     return true;
 }
 
-// ── BIP-340 Schnorr Verify ───────────────────────────────────────────────────
+// -- BIP-340 Schnorr Verify ---------------------------------------------------
 // Verifies a BIP-340 Schnorr signature.
 
 __device__ inline bool schnorr_verify(

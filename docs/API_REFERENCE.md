@@ -86,8 +86,8 @@ FieldElement inv = a.inverse();
 a += b;
 a -= b;
 a *= b;
-a.square_inplace();    // a = a²
-a.inverse_inplace();   // a = a⁻¹
+a.square_inplace();    // a = a^2
+a.inverse_inplace();   // a = a^-¹
 ```
 
 #### Serialization
@@ -230,7 +230,7 @@ Point neg = p.negate();  // -p
 #### Optimized Scalar Multiplication
 
 ```cpp
-// For fixed K × variable Q pattern (same K, different Q points):
+// For fixed K x variable Q pattern (same K, different Q points):
 Scalar K = Scalar::from_hex("...");
 KPlan plan = KPlan::from_scalar(K);  // Precompute once
 
@@ -561,7 +561,7 @@ void point_dbl(const Point& p, Point& out);
 } // namespace secp256k1::fast::ct
 ```
 
-> ⚠️ CT operations are ~5-7× slower than the fast variants. Use only for private key operations (signing, ECDH).
+> [!] CT operations are ~5-7x slower than the fast variants. Use only for private key operations (signing, ECDH).
 
 ---
 
@@ -579,12 +579,12 @@ void point_dbl(const Point& p, Point& out);
 ### CUDA Data Structures
 
 ```cpp
-// Field element (4 × 64-bit limbs, little-endian)
+// Field element (4 x 64-bit limbs, little-endian)
 struct FieldElement {
     uint64_t limbs[4];
 };
 
-// Scalar (4 × 64-bit limbs)
+// Scalar (4 x 64-bit limbs)
 struct Scalar {
     uint64_t limbs[4];
 };
@@ -772,7 +772,7 @@ Host-callable kernel wrappers for batch processing:
 ```cpp
 // Launch batch ECDSA sign (128 threads/block, 2 blocks/SM)
 void ecdsa_sign_batch_kernel<<<blocks, 128>>>(
-    const uint8_t* msg_hashes,     // N × 32 bytes
+    const uint8_t* msg_hashes,     // N x 32 bytes
     const Scalar* privkeys,         // N scalars
     ECDSASignatureGPU* sigs,        // N output signatures
     int count
@@ -834,15 +834,15 @@ const lib = await Secp256k1.create();
 
 | Function | Parameters | Returns | Description |
 |----------|-----------|---------|-------------|
-| `selftest()` | — | `boolean` | Run built-in self-test |
-| `version()` | — | `string` | Library version (`"3.0.0"`) |
+| `selftest()` | -- | `boolean` | Run built-in self-test |
+| `version()` | -- | `string` | Library version (`"3.0.0"`) |
 | `pubkeyCreate(seckey)` | `Uint8Array(32)` | `{x, y}` | Public key from private key |
-| `pointMul(px, py, scalar)` | `Uint8Array(32)` × 3 | `{x, y}` | Scalar × Point |
-| `pointAdd(px, py, qx, qy)` | `Uint8Array(32)` × 4 | `{x, y}` | Point addition |
-| `ecdsaSign(msgHash, seckey)` | `Uint8Array(32)` × 2 | `Uint8Array(64)` | ECDSA sign (r‖s) |
-| `ecdsaVerify(msgHash, pubX, pubY, sig)` | `Uint8Array(32)` × 3 + `Uint8Array(64)` | `boolean` | ECDSA verify |
-| `schnorrSign(seckey, msg, aux?)` | `Uint8Array(32)` × 2-3 | `Uint8Array(64)` | Schnorr BIP-340 sign |
-| `schnorrVerify(pubkeyX, msg, sig)` | `Uint8Array(32)` × 2 + `Uint8Array(64)` | `boolean` | Schnorr verify |
+| `pointMul(px, py, scalar)` | `Uint8Array(32)` x 3 | `{x, y}` | Scalar x Point |
+| `pointAdd(px, py, qx, qy)` | `Uint8Array(32)` x 4 | `{x, y}` | Point addition |
+| `ecdsaSign(msgHash, seckey)` | `Uint8Array(32)` x 2 | `Uint8Array(64)` | ECDSA sign (r‖s) |
+| `ecdsaVerify(msgHash, pubX, pubY, sig)` | `Uint8Array(32)` x 3 + `Uint8Array(64)` | `boolean` | ECDSA verify |
+| `schnorrSign(seckey, msg, aux?)` | `Uint8Array(32)` x 2-3 | `Uint8Array(64)` | Schnorr BIP-340 sign |
+| `schnorrVerify(pubkeyX, msg, sig)` | `Uint8Array(32)` x 2 + `Uint8Array(64)` | `boolean` | Schnorr verify |
 | `schnorrPubkey(seckey)` | `Uint8Array(32)` | `Uint8Array(32)` | X-only public key |
 | `sha256(data)` | `Uint8Array` | `Uint8Array(32)` | SHA-256 hash |
 
@@ -854,7 +854,7 @@ For direct C/C++ or custom WASM bindings, see [secp256k1_wasm.h](../wasm/secp256
 
 ```javascript
 const lib = await Secp256k1.create();
-console.log('v' + lib.version(), lib.selftest() ? '✓' : '✗');
+console.log('v' + lib.version(), lib.selftest() ? 'OK' : 'X');
 
 // ECDSA workflow
 const privkey = new Uint8Array(32);
@@ -925,7 +925,7 @@ int main() {
         "E9873D79C6D87DC0FB6A5778633389F4453213303DA61F20BD67FC233AA33262"
     );
     
-    // Public key = private_key × G
+    // Public key = private_key x G
     Point G = Point::generator();
     Point public_key = G.scalar_mul(private_key);
     
@@ -1011,7 +1011,7 @@ int main() {
 |-------|---------|-------------|
 | `SECP256K1_CUDA_USE_HYBRID_MUL` | 1 | 32-bit hybrid multiplication (~10% faster) |
 | `SECP256K1_CUDA_USE_MONTGOMERY` | 0 | Montgomery domain arithmetic |
-| `SECP256K1_CUDA_LIMBS_32` | 0 | Use 8×32-bit limbs (experimental) |
+| `SECP256K1_CUDA_LIMBS_32` | 0 | Use 8x32-bit limbs (experimental) |
 
 ---
 
@@ -1019,15 +1019,15 @@ int main() {
 
 | Platform | Assembly | SIMD | Status |
 |----------|----------|------|--------|
-| x86-64 Linux/Windows/macOS | BMI2/ADX | AVX2 | ✅ Production |
-| RISC-V 64 | RV64GC | RVV 1.0 | ✅ Production |
-| ARM64 (Android/iOS/macOS) | MUL/UMULH | NEON | ✅ Production |
-| CUDA (sm_75+) | PTX | — | ✅ Production |
-| ROCm/HIP (AMD) | Portable | — | ✅ CI |
-| OpenCL 3.0 | PTX | — | ✅ Production |
-| WebAssembly | Portable | — | ✅ Production |
-| ESP32-S3 / ESP32 | Portable | — | ✅ Tested |
-| STM32F103 (Cortex-M3) | UMULL | — | ✅ Tested |
+| x86-64 Linux/Windows/macOS | BMI2/ADX | AVX2 | [OK] Production |
+| RISC-V 64 | RV64GC | RVV 1.0 | [OK] Production |
+| ARM64 (Android/iOS/macOS) | MUL/UMULH | NEON | [OK] Production |
+| CUDA (sm_75+) | PTX | -- | [OK] Production |
+| ROCm/HIP (AMD) | Portable | -- | [OK] CI |
+| OpenCL 3.0 | PTX | -- | [OK] Production |
+| WebAssembly | Portable | -- | [OK] Production |
+| ESP32-S3 / ESP32 | Portable | -- | [OK] Tested |
+| STM32F103 (Cortex-M3) | UMULL | -- | [OK] Tested |
 
 ---
 

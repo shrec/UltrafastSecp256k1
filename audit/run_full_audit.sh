@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # ============================================================================
-# run_full_audit.sh — სრული აუდიტის ორქესტრატორი (Linux / macOS)
+# run_full_audit.sh -- Full Audit Orchestrator (Linux / macOS)
 # ============================================================================
 #
-# ერთი ბრძანებით გაშვება:
+# Run with a single command:
 #   bash audit/run_full_audit.sh
 #
-# ეს სკრიპტი ახორციელებს სრულ აუდიტ ციკლს (A–M კატეგორიები):
+# This script performs a full audit cycle (A-M categories):
 #   A. Environment & Build Integrity
 #   B. Packaging & Supply Chain
 #   C. Static Analysis
@@ -21,7 +21,7 @@
 #   L. Performance Regression
 #   M. Documentation Consistency
 #
-# გამომავალი არტეფაქტები:
+# Output artifacts:
 #   <output_dir>/audit_report.md
 #   <output_dir>/artifacts/...
 # ============================================================================
@@ -34,7 +34,7 @@ VERSION=$(cat "${ROOT_DIR}/VERSION.txt" 2>/dev/null || echo "0.0.0-dev")
 TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 DATE_TAG=$(date +%Y%m%d-%H%M%S)
 
-# ── Arguments ──────────────────────────────────────────────────────────────
+# -- Arguments --------------------------------------------------------------
 BUILD_DIR="${BUILD_DIR:-${ROOT_DIR}/build-audit}"
 OUTPUT_DIR="${OUTPUT_DIR:-${ROOT_DIR}/audit-output-${DATE_TAG}}"
 SKIP_BUILD="${SKIP_BUILD:-0}"
@@ -47,7 +47,7 @@ NPROC="${NPROC:-$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)}
 
 ARTIFACTS_DIR="${OUTPUT_DIR}/artifacts"
 
-# ── Colors ─────────────────────────────────────────────────────────────────
+# -- Colors -----------------------------------------------------------------
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
@@ -62,10 +62,10 @@ warn()     { substep "$1" "WARN" "$YELLOW"; }
 skip()     { substep "$1" "SKIP" "$YELLOW"; }
 info()     { substep "$1" "..." "$NC"; }
 
-# ── Create directories ─────────────────────────────────────────────────────
+# -- Create directories -----------------------------------------------------
 mkdir -p "${ARTIFACTS_DIR}"/{static_analysis,sanitizers,ctest,bindings,benchmark,disasm,fuzz}
 
-# ── Result tracking ────────────────────────────────────────────────────────
+# -- Result tracking --------------------------------------------------------
 declare -A CATEGORY_STATUS
 declare -A CATEGORY_SUMMARY
 declare -A CATEGORY_TIME
@@ -337,7 +337,7 @@ run_category_d() {
 
     # D.2 TSan (if applicable)
     # NOTE: TSan conflicts with ASan, separate build needed
-    # Skipping for now — library is mostly single-threaded
+    # Skipping for now -- library is mostly single-threaded
     skip "TSan: skipped (library is primarily single-threaded)"
 
     # D.3 Valgrind
@@ -368,7 +368,7 @@ run_category_d() {
 # E-I. Unified Audit Runner + CTest
 # ========================================================================
 run_categories_ei() {
-    section "E–I. Unified Audit Runner (Correctness + CT + Fuzz)"
+    section "E-I. Unified Audit Runner (Correctness + CT + Fuzz)"
     local start_time=$SECONDS
     local all_pass=1
 
@@ -415,10 +415,10 @@ EOF
 }
 
 # ========================================================================
-# I.extra — CT Disassembly Scan
+# I.extra -- CT Disassembly Scan
 # ========================================================================
 run_ct_disasm() {
-    section "I.extra — CT Disassembly Branch Scan"
+    section "I.extra -- CT Disassembly Branch Scan"
     local start_time=$SECONDS
 
     local ct_script="${ROOT_DIR}/scripts/verify_ct_disasm.sh"
@@ -569,7 +569,7 @@ run_category_m() {
 }
 
 # ========================================================================
-# Report Generation — audit_report.md
+# Report Generation -- audit_report.md
 # ========================================================================
 generate_report() {
     section "Generating Final Audit Report"
@@ -578,7 +578,7 @@ generate_report() {
     local fp_file="${ARTIFACTS_DIR}/toolchain_fingerprint.json"
 
     cat > "${report}" <<'HEADER'
-# UltrafastSecp256k1 — Comprehensive Audit Report
+# UltrafastSecp256k1 -- Comprehensive Audit Report
 
 HEADER
 
@@ -605,9 +605,9 @@ EOF
         local tm="${CATEGORY_TIME[$cat_key]:-0}"
         local icon="?"
         case "${st}" in
-            PASS) icon="✅" ;;
-            FAIL) icon="❌" ;;
-            SKIP) icon="⏭" ;;
+            PASS) icon="[OK]" ;;
+            FAIL) icon="[FAIL]" ;;
+            SKIP) icon="[SKIP]" ;;
         esac
         echo "| **${cat_key}. ${sm}** | ${icon} ${st} | ${tm}s |" >> "${report}"
     done
@@ -619,10 +619,10 @@ EOF
 
     if [[ ${fail_count} -eq 0 ]]; then
         echo "" >> "${report}"
-        echo "> **AUDIT VERDICT: AUDIT-READY** — ყველა კატეგორია გავლილია." >> "${report}"
+        echo "> **AUDIT VERDICT: AUDIT-READY** -- All categories passed." >> "${report}"
     else
         echo "" >> "${report}"
-        echo "> **AUDIT VERDICT: AUDIT-BLOCKED** — ${fail_count} კატეგორია ვერ გავიდა." >> "${report}"
+        echo "> **AUDIT VERDICT: AUDIT-BLOCKED** -- ${fail_count} category(ies) failed." >> "${report}"
     fi
 
     cat >> "${report}" <<'EOF'
@@ -716,7 +716,7 @@ EOF
     echo "---" >> "${report}"
     echo "" >> "${report}"
     echo "*Generated by \`audit/run_full_audit.sh\` at ${TIMESTAMP}*" >> "${report}"
-    echo "*UltrafastSecp256k1 v${VERSION} — Comprehensive Audit Report*" >> "${report}"
+    echo "*UltrafastSecp256k1 v${VERSION} -- Comprehensive Audit Report*" >> "${report}"
 
     pass "audit_report.md written to ${report}"
 }
@@ -727,7 +727,7 @@ EOF
 
 echo ""
 echo -e "${YELLOW}$(printf '=%.0s' {1..70})${NC}"
-echo -e "${YELLOW}  UltrafastSecp256k1 — Full Audit Orchestrator (A–M)${NC}"
+echo -e "${YELLOW}  UltrafastSecp256k1 -- Full Audit Orchestrator (A-M)${NC}"
 echo -e "${YELLOW}  Version: ${VERSION} | ${TIMESTAMP}${NC}"
 echo -e "${YELLOW}  Build:   ${BUILD_DIR}${NC}"
 echo -e "${YELLOW}  Output:  ${OUTPUT_DIR}${NC}"
@@ -750,7 +750,7 @@ generate_report
 
 TOTAL_ELAPSED=$(( SECONDS - TOTAL_START ))
 
-# ── Final Summary ──
+# -- Final Summary --
 echo ""
 echo -e "${CYAN}$(printf '=%.0s' {1..70})${NC}"
 echo -e "${CYAN}  AUDIT COMPLETE${NC}"

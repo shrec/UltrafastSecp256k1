@@ -8,25 +8,25 @@ Performance benchmarks across different platforms and configurations.
 
 ```
 benchmarks/
-├── cpu/
-│   ├── x86-64/
-│   │   ├── windows/     # Windows x64 results
-│   │   └── linux/       # Linux x64 results
-│   ├── riscv64/
-│   │   └── linux/       # RISC-V RV64GC (Milk-V Mars, etc.)
-│   ├── arm64/
-│   │   ├── linux/       # ARM64 Linux (RPi, etc.)
-│   │   └── macos/       # Apple Silicon (M1/M2/M3)
-│   └── esp32/
-│       └── embedded/    # ESP32 (limited, core only)
-├── gpu/
-│   ├── cuda/
-│   │   ├── rtx-40xx/    # RTX 4090, 4080, etc.
-│   │   ├── rtx-30xx/    # RTX 3090, 3080, etc.
-│   │   ├── rtx-20xx/    # RTX 2080 Ti, etc.
-│   │   └── datacenter/  # A100, H100, V100
-│   └── opencl/          # NVIDIA, AMD, Intel, etc.
-└── comparison/          # Cross-platform comparisons
++-- cpu/
+|   +-- x86-64/
+|   |   +-- windows/     # Windows x64 results
+|   |   +-- linux/       # Linux x64 results
+|   +-- riscv64/
+|   |   +-- linux/       # RISC-V RV64GC (Milk-V Mars, etc.)
+|   +-- arm64/
+|   |   +-- linux/       # ARM64 Linux (RPi, etc.)
+|   |   +-- macos/       # Apple Silicon (M1/M2/M3)
+|   +-- esp32/
+|       +-- embedded/    # ESP32 (limited, core only)
++-- gpu/
+|   +-- cuda/
+|   |   +-- rtx-40xx/    # RTX 4090, 4080, etc.
+|   |   +-- rtx-30xx/    # RTX 3090, 3080, etc.
+|   |   +-- rtx-20xx/    # RTX 2080 Ti, etc.
+|   |   +-- datacenter/  # A100, H100, V100
+|   +-- opencl/          # NVIDIA, AMD, Intel, etc.
++-- comparison/          # Cross-platform comparisons
 ```
 
 ## 🚀 Running Benchmarks
@@ -83,9 +83,9 @@ Squaring:        X ns/op
 Inversion:       X ns/op
 
 === Point Operations ===
-Point Addition:      X µs/op
-Point Doubling:      X µs/op
-Point Multiply:      X µs/op
+Point Addition:      X us/op
+Point Doubling:      X us/op
+Point Multiply:      X us/op
 Batch Multiply (n):  X ms for n ops
 
 === Throughput ===
@@ -117,8 +117,8 @@ gcc --version  # or clang --version
 See individual platform directories for detailed results:
 - [x86-64 Windows](cpu/x86-64/windows/)
 - [x86-64 Linux](cpu/x86-64/linux/)
-- [**RISC-V Linux (Milk-V Mars)** ✓](cpu/riscv64/linux/) - **Updated 2026-02-11**
-- [**ESP32-S3 Embedded** ✓](cpu/esp32/embedded/) - **Updated 2026-02-13**
+- [**RISC-V Linux (Milk-V Mars)** OK](cpu/riscv64/linux/) - **Updated 2026-02-11**
+- [**ESP32-S3 Embedded** OK](cpu/esp32/embedded/) - **Updated 2026-02-13**
 - [ARM64 Linux](cpu/arm64/linux/)
 - [CUDA RTX 4090](gpu/cuda/rtx-40xx/)
 
@@ -126,39 +126,39 @@ See individual platform directories for detailed results:
 
 ### ESP32-S3 (Xtensa LX7 @ 240 MHz)
 **Configuration:** Portable C++ (no assembly, no __int128)  
-**Date:** 2026-02-13 | **Tests:** 28/28 ✓
+**Date:** 2026-02-13 | **Tests:** 28/28 OK
 
 | Operation | Performance |
 |-----------|-------------|
 | Field Multiply | 7,458 ns |
 | Field Square | 7,592 ns |
 | Field Add | 636 ns |
-| Scalar × G | 2,483 μs |
+| Scalar x G | 2,483 us |
 
 ### RISC-V (Milk-V Mars - StarFive JH7110 @ 1.5 GHz)
 **Configuration:** Assembly + RVV + Fast Modular Reduction  
-**Date:** 2026-02-11 | **Tests:** 29/29 ✓
+**Date:** 2026-02-11 | **Tests:** 29/29 OK
 
 | Operation | Performance |
 |-----------|-------------|
 | Field Multiply | 200 ns |
 | Field Square | 185 ns |
-| Point Scalar Mul | 665 μs |
-| Generator Mul | 44 μs |
+| Point Scalar Mul | 665 us |
+| Generator Mul | 44 us |
 | Batch Inverse (1000) | 611 ns/element |
 
 ### x86-64 (Typical Desktop/Server)
 | Operation | Performance (est.) |
 |-----------|-------------|
 | Field Multiply | 8-12 ns |
-| Point Scalar Mul | 60-80 μs |
-| Generator Mul | 4-6 μs |
+| Point Scalar Mul | 60-80 us |
+| Generator Mul | 4-6 us |
 
 *Note: x86-64 performance varies by CPU model (Intel/AMD), clock speed (3-5 GHz typical), and assembly optimizations.*
 
 ### Performance Insights
 
-- **ESP32-S3 vs x86-64:** ~230× difference in field multiply, primarily due to:
+- **ESP32-S3 vs x86-64:** ~230x difference in field multiply, primarily due to:
   - Clock speed (240 MHz vs 3.5+ GHz)
   - 32-bit portable arithmetic vs 64-bit with BMI2/ADX
   - No assembly optimizations on Xtensa (yet)
@@ -168,14 +168,14 @@ See individual platform directories for detailed results:
   - Suitable for IoT authentication, hardware wallets
   - ~2.5ms per signature verification
 
-- **RISC-V vs x86-64:** ~8-10× difference, primarily due to:
+- **RISC-V vs x86-64:** ~8-10x difference, primarily due to:
   - Clock speed (1.5 GHz vs 3.5+ GHz)
   - ISA maturity and compiler optimizations
   - Memory subsystem performance
   
 - **RISC-V Achievement:** Production-ready performance for embedded/IoT cryptographic applications
 
-- **Assembly Impact:** 2-3× speedup vs portable C++ on x86-64 and RISC-V platforms
+- **Assembly Impact:** 2-3x speedup vs portable C++ on x86-64 and RISC-V platforms
 
 **Contribute your results to expand this comparison!**
 

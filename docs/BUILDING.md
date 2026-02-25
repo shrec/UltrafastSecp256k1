@@ -111,7 +111,7 @@ cmake --build build -j
 | Option | Default | Description |
 |--------|---------|-------------|
 | `SECP256K1_CUDA_USE_MONTGOMERY` | OFF | Montgomery domain arithmetic |
-| `SECP256K1_CUDA_LIMBS_32` | OFF | 8×32-bit limbs (experimental) |
+| `SECP256K1_CUDA_LIMBS_32` | OFF | 8x32-bit limbs (experimental) |
 | `CMAKE_CUDA_ARCHITECTURES` | 89 | Target GPU architectures |
 
 ---
@@ -184,7 +184,7 @@ cmake -S . -B build -G "Visual Studio 17 2022" `
 cmake --build build --config Release
 ```
 
-> ⚠️ **Warning**: MSVC produces slower code compared to Clang/GCC.
+> [!] **Warning**: MSVC produces slower code compared to Clang/GCC.
 
 ---
 
@@ -246,8 +246,8 @@ cmake --build build-riscv -j$(nproc)
 | Field Mul | ~198 ns |
 | Field Square | ~177 ns |
 | Field Add | ~34 ns |
-| Point Scalar Mul | ~672 μs |
-| Generator Mul | ~40 μs |
+| Point Scalar Mul | ~672 us |
+| Generator Mul | ~40 us |
 
 ---
 

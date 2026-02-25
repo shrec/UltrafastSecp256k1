@@ -49,8 +49,8 @@ const char*  ufsecp_version_string(void);  // Human-readable, e.g. "3.14.0"
 On context creation:
   1. Call ufsecp_abi_version()
   2. Compare against EXPECTED_ABI (compiled-in constant)
-  3. If mismatch → fail with clear error message
-  4. If match → proceed normally
+  3. If mismatch -> fail with clear error message
+  4. If match -> proceed normally
 ```
 
 ### Mismatch Error Format
@@ -205,13 +205,13 @@ class UfsecpContext {
 
 | Scenario | Behavior |
 |---|---|
-| Wrapper ABI == Library ABI | ✅ Full compatibility |
-| Wrapper ABI < Library ABI | ❌ Wrapper too old — must upgrade wrapper |
-| Wrapper ABI > Library ABI | ❌ Library too old — must upgrade library |
+| Wrapper ABI == Library ABI | [OK] Full compatibility |
+| Wrapper ABI < Library ABI | [FAIL] Wrapper too old -- must upgrade wrapper |
+| Wrapper ABI > Library ABI | [FAIL] Library too old -- must upgrade library |
 
 ---
 
-## 5. Wrapper Version ↔ Library Version Mapping
+## 5. Wrapper Version <-> Library Version Mapping
 
 Each wrapper release pins to a specific minimum library version:
 
@@ -236,7 +236,7 @@ When an ABI-breaking change is required:
 - [ ] Bump `UFSECP_VERSION_MAJOR`
 - [ ] Update `EXPECTED_ABI` in ALL 11 binding wrappers
 - [ ] Update this document's compatibility matrix
-- [ ] Release note: "⚠️ ABI BREAK — all wrapper packages must be updated"
+- [ ] Release note: "[!] ABI BREAK -- all wrapper packages must be updated"
 - [ ] Tag release with `abi-N` label
 
 ---
@@ -248,7 +248,7 @@ Each binding's smoke test verifies ABI compatibility:
 ```
 Test: ctx_create_abi
   - Creates context successfully
-  - Reads abi_version() ≥ 1
+  - Reads abi_version() >= 1
   - Confirms no ABI mismatch exception
 ```
 

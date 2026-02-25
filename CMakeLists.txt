@@ -136,7 +136,7 @@ if(SECP256K1_BUILD_OPENCL)
     endif()
 endif()
 
-# ROCm/HIP build — reuses cuda/ sources with portable math fallbacks
+# ROCm/HIP build -- reuses cuda/ sources with portable math fallbacks
 if(SECP256K1_BUILD_ROCM)
     # CMake 3.21+ has native HIP language support
     cmake_minimum_required(VERSION 3.21)
@@ -150,21 +150,21 @@ if(SECP256K1_BUILD_ROCM)
     endif()
 endif()
 
-# Apple Metal backend — macOS / iOS / visionOS
+# Apple Metal backend -- macOS / iOS / visionOS
 # Host-side type tests always build; GPU runtime only on Apple
 if(SECP256K1_BUILD_METAL)
     if(APPLE)
         find_library(_METAL_FW Metal)
         find_library(_FOUNDATION_FW Foundation)
         if(_METAL_FW AND _FOUNDATION_FW)
-            message(STATUS "Metal framework found — building Metal backend (GPU + host tests)")
+            message(STATUS "Metal framework found -- building Metal backend (GPU + host tests)")
             add_subdirectory(metal)
         else()
             message(WARNING "SECP256K1_BUILD_METAL=ON but Metal.framework not found. Building host tests only.")
             add_subdirectory(metal)
         endif()
     else()
-        message(STATUS "SECP256K1_BUILD_METAL=ON on non-Apple platform — building host tests only")
+        message(STATUS "SECP256K1_BUILD_METAL=ON on non-Apple platform -- building host tests only")
         add_subdirectory(metal)
     endif()
 endif()
@@ -173,27 +173,27 @@ if(SECP256K1_BUILD_EXAMPLES)
     add_subdirectory(examples)
 endif()
 
-# ── Audit infrastructure (standalone CTest targets + unified runner) ───────
+# -- Audit infrastructure (standalone CTest targets + unified runner) -------
 # All audit-specific targets live in audit/ to keep the library source clean.
 if(SECP256K1_BUILD_CPU AND BUILD_TESTING)
     add_subdirectory(audit)
 endif()
 
-# ── Stable C ABI layer (ufsecp_*) ─────────────────────────────────────────
+# -- Stable C ABI layer (ufsecp_*) -----------------------------------------
 option(SECP256K1_BUILD_CABI "Build the stable ufsecp_* C ABI library" ON)
 if(SECP256K1_BUILD_CABI AND SECP256K1_BUILD_CPU)
     add_subdirectory(include/ufsecp)
     message(STATUS "  C ABI (ufsecp):   ON")
 endif()
 
-# ── Cross-library differential test ─────────────────────────────────────────
-# Moved to audit/CMakeLists.txt — enable with -DSECP256K1_BUILD_CROSS_TESTS=ON
+# -- Cross-library differential test -----------------------------------------
+# Moved to audit/CMakeLists.txt -- enable with -DSECP256K1_BUILD_CROSS_TESTS=ON
 
-# ── Parser fuzz tests ──────────────────────────────────────────────────────
-# Moved to audit/CMakeLists.txt — enable with -DSECP256K1_BUILD_FUZZ_TESTS=ON
+# -- Parser fuzz tests ------------------------------------------------------
+# Moved to audit/CMakeLists.txt -- enable with -DSECP256K1_BUILD_FUZZ_TESTS=ON
 
-# ── MuSig2 + FROST protocol tests ─────────────────────────────────────────
-# Moved to audit/CMakeLists.txt — enable with -DSECP256K1_BUILD_PROTOCOL_TESTS=ON
+# -- MuSig2 + FROST protocol tests -----------------------------------------
+# Moved to audit/CMakeLists.txt -- enable with -DSECP256K1_BUILD_PROTOCOL_TESTS=ON
 
 # Export targets
 if(SECP256K1_INSTALL)
@@ -246,7 +246,7 @@ if(SECP256K1_INSTALL)
     endif()
 endif()
 
-# ── CPack packaging ─────────────────────────────────────────────────────────
+# -- CPack packaging ---------------------------------------------------------
 set(CPACK_PACKAGE_NAME "UltrafastSecp256k1")
 set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
 set(CPACK_PACKAGE_VENDOR "shrec")
@@ -272,7 +272,7 @@ set(CPACK_DEBIAN_PACKAGE_DEPENDS "libc6 (>= 2.17)")
 set(CPACK_DEBIAN_FILE_NAME DEB-DEFAULT)
 set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
 
-# Map target arch → DEB architecture (critical for cross-compilation where
+# Map target arch -> DEB architecture (critical for cross-compilation where
 # dpkg --print-architecture returns the HOST arch, not the TARGET arch).
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|ARM64")
     set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE "arm64")
@@ -295,9 +295,9 @@ include(CPack)
 
 # Summary
 message(STATUS "")
-message(STATUS "╔═══════════════════════════════════════════════════════════╗")
-message(STATUS "║   UltrafastSecp256k1 Configuration                        ║")
-message(STATUS "╚═══════════════════════════════════════════════════════════╝")
+message(STATUS "+===========================================================+")
+message(STATUS "|   UltrafastSecp256k1 Configuration                        |")
+message(STATUS "+===========================================================+")
 message(STATUS "  Version:          ${PROJECT_VERSION}")
 message(STATUS "  Platform:         ${SECP256K1_PLATFORM}")
 message(STATUS "  C++ Standard:     ${CMAKE_CXX_STANDARD}")
@@ -317,5 +317,5 @@ message(STATUS "  Optimizations:")
 message(STATUS "    Assembly:       ${SECP256K1_USE_ASM}")
 message(STATUS "    Speed First:    ${SECP256K1_SPEED_FIRST}")
 message(STATUS "")
-message(STATUS "═══════════════════════════════════════════════════════════")
+message(STATUS "===========================================================")
 message(STATUS "")

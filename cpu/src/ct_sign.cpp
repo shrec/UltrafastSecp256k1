@@ -1,5 +1,5 @@
 // ============================================================================
-// ct_sign.cpp — Constant-Time Signing Functions
+// ct_sign.cpp -- Constant-Time Signing Functions
 // ============================================================================
 // Drop-in CT replacements for ecdsa_sign() and schnorr_sign().
 // Uses ct::generator_mul() (data-independent execution trace) for all
@@ -33,7 +33,7 @@ ECDSASignature ecdsa_sign(const std::array<uint8_t, 32>& msg_hash,
     auto k = rfc6979_nonce(private_key, msg_hash);
     if (k.is_zero()) return {Scalar::zero(), Scalar::zero()};
 
-    // R = k * G  — CT path
+    // R = k * G  -- CT path
     auto R = ct::generator_mul(k);
     if (R.is_infinity()) return {Scalar::zero(), Scalar::zero()};
 
@@ -114,7 +114,7 @@ SchnorrSignature schnorr_sign(const SchnorrKeypair& kp,
     auto k_prime = Scalar::from_bytes(rand_hash);
     if (k_prime.is_zero()) return SchnorrSignature{};
 
-    // Step 3: R = k' * G — CT path
+    // Step 3: R = k' * G -- CT path
     auto R = ct::generator_mul(k_prime);
     auto [rx, r_y_odd] = R.x_bytes_and_parity();
 

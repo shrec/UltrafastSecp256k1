@@ -34,8 +34,8 @@ echo ""
 rm -rf "$BUILD_DIR"
 mkdir -p "$BUILD_DIR"
 
-# ── 1. Build for iOS Device (arm64) ─────────────────────────────────────────
-echo "── [1/3] iOS Device (arm64) ──"
+# -- 1. Build for iOS Device (arm64) -----------------------------------------
+echo "-- [1/3] iOS Device (arm64) --"
 cmake -S "$ROOT_DIR" -B "$BUILD_DIR/ios-device" \
     -G Xcode \
     -DCMAKE_TOOLCHAIN_FILE="$ROOT_DIR/cmake/ios.toolchain.cmake" \
@@ -49,9 +49,9 @@ cmake --build "$BUILD_DIR/ios-device" \
     -- -quiet
 echo "  [OK] Device library built"
 
-# ── 2. Build for iOS Simulator (arm64 — Apple Silicon) ──────────────────────
+# -- 2. Build for iOS Simulator (arm64 -- Apple Silicon) ----------------------
 echo ""
-echo "── [2/3] iOS Simulator (arm64) ──"
+echo "-- [2/3] iOS Simulator (arm64) --"
 cmake -S "$ROOT_DIR" -B "$BUILD_DIR/ios-simulator" \
     -G Xcode \
     -DCMAKE_TOOLCHAIN_FILE="$ROOT_DIR/cmake/ios.toolchain.cmake" \
@@ -65,9 +65,9 @@ cmake --build "$BUILD_DIR/ios-simulator" \
     -- -quiet
 echo "  [OK] Simulator library built"
 
-# ── 3. Create XCFramework ───────────────────────────────────────────────────
+# -- 3. Create XCFramework ---------------------------------------------------
 echo ""
-echo "── [3/3] Creating XCFramework ──"
+echo "-- [3/3] Creating XCFramework --"
 mkdir -p "$OUTPUT_DIR"
 
 # Locate built static libraries

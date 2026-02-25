@@ -32,7 +32,7 @@ git checkout v5.2
 
 ## 2. CLion Plugin Installation
 
-1. **File → Settings → Plugins**
+1. **File -> Settings -> Plugins**
 2. Search: "ESP-IDF"
 3. Install: **"ESP-IDF" by JetBrains**
 4. Restart CLion
@@ -41,7 +41,7 @@ git checkout v5.2
 
 ## 3. CLion ESP-IDF Configuration
 
-### Settings → Build → ESP-IDF
+### Settings -> Build -> ESP-IDF
 
 | Setting | Value |
 |---------|-------|
@@ -160,9 +160,9 @@ extern "C" void app_main() {
 
 ### From CLion:
 
-1. **Run → Edit Configurations**
-2. Add: **ESP-IDF → Build**
-3. Add: **ESP-IDF → Flash**
+1. **Run -> Edit Configurations**
+2. Add: **ESP-IDF -> Build**
+3. Add: **ESP-IDF -> Flash**
 4. Select COM port (e.g. `COM3`)
 
 ### Command Line:
@@ -187,16 +187,16 @@ idf.py -p COM3 monitor
 ## 6. ESP32 Limitations
 
 ### What works:
-- ✅ Portable C++ field arithmetic
-- ✅ Scalar operations
-- ✅ Point operations (slow)
-- ✅ Basic tests
+- [OK] Portable C++ field arithmetic
+- [OK] Scalar operations
+- [OK] Point operations (slow)
+- [OK] Basic tests
 
 ### What does not work:
-- ❌ x86 assembly (BMI2/ADX)
-- ❌ RISC-V assembly (ESP32 is Xtensa, not RISC-V!)
-- ❌ AVX2/SIMD
-- ❌ 64-bit native (ESP32 is 32-bit)
+- [FAIL] x86 assembly (BMI2/ADX)
+- [FAIL] RISC-V assembly (ESP32 is Xtensa, not RISC-V!)
+- [FAIL] AVX2/SIMD
+- [FAIL] 64-bit native (ESP32 is 32-bit)
 
 ### ESP32 Variants:
 
@@ -205,12 +205,12 @@ idf.py -p COM3 monitor
 | ESP32 | Xtensa LX6 | 32-bit | Original, dual-core |
 | ESP32-S2 | Xtensa LX7 | 32-bit | Single-core, USB |
 | ESP32-S3 | Xtensa LX7 | 32-bit | AI acceleration |
-| **ESP32-C3** | **RISC-V** | **32-bit** | ✅ RISC-V! |
-| **ESP32-C6** | **RISC-V** | **32-bit** | ✅ RISC-V + WiFi 6 |
-| **ESP32-H2** | **RISC-V** | **32-bit** | ✅ RISC-V + Zigbee |
+| **ESP32-C3** | **RISC-V** | **32-bit** | [OK] RISC-V! |
+| **ESP32-C6** | **RISC-V** | **32-bit** | [OK] RISC-V + WiFi 6 |
+| **ESP32-H2** | **RISC-V** | **32-bit** | [OK] RISC-V + Zigbee |
 
 ### Recommendation:
-Use **ESP32-C3/C6** — these are RISC-V and some of our RISC-V optimizations may work (32-bit version).
+Use **ESP32-C3/C6** -- these are RISC-V and some of our RISC-V optimizations may work (32-bit version).
 
 ---
 
@@ -223,7 +223,7 @@ If you have an ESP32-C3:
 set(IDF_TARGET "esp32c3")
 ```
 
-Or in CLion: **Settings → ESP-IDF → Target: esp32c3**
+Or in CLion: **Settings -> ESP-IDF -> Target: esp32c3**
 
 ---
 
@@ -231,14 +231,14 @@ Or in CLion: **Settings → ESP-IDF → Target: esp32c3**
 
 | Chip | Field Mul | Notes |
 |------|-----------|-------|
-| ESP32 (Xtensa) | ~5-10 μs | 32-bit, no optimization |
-| ESP32-C3 (RISC-V) | ~2-5 μs | 32-bit RISC-V |
-| ESP32-S3 | ~3-8 μs | Dual-core Xtensa |
+| ESP32 (Xtensa) | ~5-10 us | 32-bit, no optimization |
+| ESP32-C3 (RISC-V) | ~2-5 us | 32-bit RISC-V |
+| ESP32-S3 | ~3-8 us | Dual-core Xtensa |
 
 For comparison:
 - x86-64: 33 ns
 - RISC-V 64: 198 ns
-- ESP32: ~5000 ns (150× slower)
+- ESP32: ~5000 ns (150x slower)
 
 ESP32 is primarily for IoT/Embedded, not high-performance crypto.
 

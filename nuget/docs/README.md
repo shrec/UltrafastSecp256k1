@@ -1,6 +1,6 @@
 # UltrafastSecp256k1.Native
 
-Native runtime package for [UltrafastSecp256k1](https://github.com/shrec/UltrafastSecp256k1) — providing the `ufsecp` stable C ABI for secp256k1 elliptic curve cryptography.
+Native runtime package for [UltrafastSecp256k1](https://github.com/shrec/UltrafastSecp256k1) -- providing the `ufsecp` stable C ABI for secp256k1 elliptic curve cryptography.
 
 ## What's included
 
@@ -16,7 +16,7 @@ Native runtime package for [UltrafastSecp256k1](https://github.com/shrec/Ultrafa
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 
-// P/Invoke — the native library is auto-copied to output
+// P/Invoke -- the native library is auto-copied to output
 [DllImport("ufsecp")] static extern int ufsecp_ctx_create(out IntPtr ctx);
 [DllImport("ufsecp")] static extern void ufsecp_ctx_destroy(IntPtr ctx);
 [DllImport("ufsecp")] static extern int ufsecp_selftest(IntPtr ctx);
@@ -47,7 +47,7 @@ Context, Key generation, ECDSA (sign/verify/recover/DER), Schnorr BIP-340, SHA-2
 
 ## Constant-Time Architecture
 
-All secret-key operations (signing, ECDH, key derivation) automatically use the constant-time layer — no flags, no opt-in. Both FAST and CT layers are always active simultaneously.
+All secret-key operations (signing, ECDH, key derivation) automatically use the constant-time layer -- no flags, no opt-in. Both FAST and CT layers are always active simultaneously.
 
 ## Links
 

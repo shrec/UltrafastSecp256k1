@@ -1,12 +1,12 @@
 #!/usr/bin/env pwsh
 # ============================================================================
-# run_full_audit.ps1 — სრული აუდიტის ორქესტრატორი (Windows / Cross-Platform)
+# run_full_audit.ps1 -- Full Audit Orchestrator (Windows / Cross-Platform)
 # ============================================================================
 #
-# ერთი ბრძანებით გაშვება:
+# Run with a single command:
 #   pwsh -NoProfile -File audit/run_full_audit.ps1
 #
-# ეს სკრიპტი ახორციელებს სრულ აუდიტ ციკლს (A–M კატეგორიები):
+# This script performs a full audit cycle (A-M categories):
 #   A. Environment & Build Integrity
 #   B. Packaging & Supply Chain
 #   C. Static Analysis
@@ -21,7 +21,7 @@
 #   L. Performance Regression
 #   M. Documentation Consistency
 #
-# გამომავალი არტეფაქტები (artifacts/ დირექტორიაში):
+# Output artifacts (in artifacts/ directory):
 #   audit_report.md
 #   artifacts/SHA256SUMS.txt
 #   artifacts/sbom.cdx.json
@@ -52,7 +52,7 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Continue"  # Don't stop on individual test failures
 
-# ── Resolve paths ──────────────────────────────────────────────────────────
+# -- Resolve paths ----------------------------------------------------------
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RootDir = (Resolve-Path "$ScriptDir/..").Path
 $Version = (Get-Content "$RootDir/VERSION.txt" -Raw).Trim()
@@ -78,7 +78,7 @@ foreach ($d in @(
     New-Item -ItemType Directory -Path $d -Force | Out-Null
 }
 
-# ── Globals for tracking ──────────────────────────────────────────────────
+# -- Globals for tracking --------------------------------------------------
 
 $Script:CategoryResults = [ordered]@{}
 $Script:Findings = @()
@@ -134,7 +134,7 @@ function Write-SubStep {
     Write-Host "  [$Status] $Text" -ForegroundColor $color
 }
 
-# ── Toolchain detection ───────────────────────────────────────────────────
+# -- Toolchain detection ---------------------------------------------------
 
 function Get-ToolchainFingerprint {
     $fp = [ordered]@{
@@ -541,10 +541,10 @@ function Run-CategoryD {
 }
 
 # ========================================================================
-# E–I. Unified Audit Runner (Unit/KAT/Property/Differential/Fuzz/CT)
+# E-I. Unified Audit Runner (Unit/KAT/Property/Differential/Fuzz/CT)
 # ========================================================================
 function Run-CategoriesEI {
-    Write-Section "E–I. Unified Audit Runner (Correctness + CT + Fuzz)"
+    Write-Section "E-I. Unified Audit Runner (Correctness + CT + Fuzz)"
     $sw = [System.Diagnostics.Stopwatch]::StartNew()
     $allPass = $true
 
@@ -807,7 +807,7 @@ function Run-CategoryM {
 }
 
 # ========================================================================
-# Report Generation — audit_report.md
+# Report Generation -- audit_report.md
 # ========================================================================
 function Generate-AuditReportMd {
     Write-Section "Generating Final Audit Report"
@@ -819,8 +819,8 @@ function Generate-AuditReportMd {
 
     $sb = [System.Text.StringBuilder]::new()
 
-    # ── Header ──
-    [void]$sb.AppendLine("# UltrafastSecp256k1 — Comprehensive Audit Report")
+    # -- Header --
+    [void]$sb.AppendLine("# UltrafastSecp256k1 -- Comprehensive Audit Report")
     [void]$sb.AppendLine("")
     [void]$sb.AppendLine("| Field | Value |")
     [void]$sb.AppendLine("|-------|-------|")
@@ -836,7 +836,7 @@ function Generate-AuditReportMd {
     [void]$sb.AppendLine("| **CMake** | $($fp['cmake']) |")
     [void]$sb.AppendLine("")
 
-    # ── 1. Executive Summary ──
+    # -- 1. Executive Summary --
     [void]$sb.AppendLine("## 1. Executive Summary")
     [void]$sb.AppendLine("")
     [void]$sb.AppendLine("| Category | Status | Time |")
@@ -850,9 +850,9 @@ function Generate-AuditReportMd {
 
     $totalFail = ($Script:CategoryResults.Values | Where-Object { $_.Status -eq "FAIL" }).Count
     if ($totalFail -eq 0) {
-        [void]$sb.AppendLine("> **AUDIT VERDICT: AUDIT-READY** — ყველა კატეგორია გავლილია.")
+        [void]$sb.AppendLine("> **AUDIT VERDICT: AUDIT-READY** -- All categories passed.")
     } else {
-        [void]$sb.AppendLine("> **AUDIT VERDICT: AUDIT-BLOCKED** — $totalFail კატეგორია ვერ გავიდა.")
+        [void]$sb.AppendLine("> **AUDIT VERDICT: AUDIT-BLOCKED** -- $totalFail category(ies) failed.")
     }
     [void]$sb.AppendLine("")
 
@@ -875,7 +875,7 @@ function Generate-AuditReportMd {
     [void]$sb.AppendLine("- Physical fault injection not tested")
     [void]$sb.AppendLine("")
 
-    # ── 2. Reproducibility & Integrity ──
+    # -- 2. Reproducibility & Integrity --
     [void]$sb.AppendLine("## 2. Reproducibility & Integrity")
     [void]$sb.AppendLine("")
     [void]$sb.AppendLine("- **Toolchain fingerprint**: ``artifacts/toolchain_fingerprint.json``")
@@ -885,7 +885,7 @@ function Generate-AuditReportMd {
     [void]$sb.AppendLine("- **Dependency scan**: ``artifacts/dependency_scan.txt``")
     [void]$sb.AppendLine("")
 
-    # ── 3. Test Results Tables ──
+    # -- 3. Test Results Tables --
     [void]$sb.AppendLine("## 3. Test Results Tables")
     [void]$sb.AppendLine("")
 
@@ -943,7 +943,7 @@ function Generate-AuditReportMd {
     [void]$sb.AppendLine("- **Parity matrix**: ``artifacts/bindings/parity_matrix.json``")
     [void]$sb.AppendLine("")
 
-    # ── 4. Findings ──
+    # -- 4. Findings --
     [void]$sb.AppendLine("## 4. Findings")
     [void]$sb.AppendLine("")
     if ($Script:Findings.Count -eq 0) {
@@ -959,7 +959,7 @@ function Generate-AuditReportMd {
         [void]$sb.AppendLine("### Finding Details")
         [void]$sb.AppendLine("")
         foreach ($f in $Script:Findings) {
-            [void]$sb.AppendLine("#### $($f.ID) — $($f.Description)")
+            [void]$sb.AppendLine("#### $($f.ID) -- $($f.Description)")
             [void]$sb.AppendLine("")
             [void]$sb.AppendLine("- **Severity**: $($f.Severity)")
             [void]$sb.AppendLine("- **Component**: $($f.Component)")
@@ -975,14 +975,14 @@ function Generate-AuditReportMd {
     }
     [void]$sb.AppendLine("")
 
-    # ── 5. Coverage & Unreachable ──
+    # -- 5. Coverage & Unreachable --
     [void]$sb.AppendLine("## 5. Coverage & Unreachable Justifications")
     [void]$sb.AppendLine("")
     [void]$sb.AppendLine("- Code coverage report: run ``scripts/generate_coverage.sh`` separately")
     [void]$sb.AppendLine("- Excluded lines policy: GPU paths, platform-specific assembly, unreachable error handlers")
     [void]$sb.AppendLine("")
 
-    # ── 6. Risk Acceptance / Threat Model Mapping ──
+    # -- 6. Risk Acceptance / Threat Model Mapping --
     [void]$sb.AppendLine("## 6. Risk Acceptance / Threat Model Mapping")
     [void]$sb.AppendLine("")
     [void]$sb.AppendLine("| Threat (from THREAT_MODEL.md) | Test Coverage | Evidence |")
@@ -1002,7 +1002,7 @@ function Generate-AuditReportMd {
     [void]$sb.AppendLine("- OS-level memory disclosure (cold boot, swap file)")
     [void]$sb.AppendLine("")
 
-    # ── 7. Appendices ──
+    # -- 7. Appendices --
     [void]$sb.AppendLine("## 7. Appendices")
     [void]$sb.AppendLine("")
     [void]$sb.AppendLine("| Artifact | Path |")
@@ -1029,7 +1029,7 @@ function Generate-AuditReportMd {
     [void]$sb.AppendLine("---")
     [void]$sb.AppendLine("")
     [void]$sb.AppendLine("*Generated by ``audit/run_full_audit.ps1`` at $Timestamp*")
-    [void]$sb.AppendLine("*UltrafastSecp256k1 v$Version — Comprehensive Audit Report*")
+    [void]$sb.AppendLine("*UltrafastSecp256k1 v$Version -- Comprehensive Audit Report*")
 
     # Write report
     $sb.ToString() | Out-File $reportPath -Encoding utf8
@@ -1037,14 +1037,14 @@ function Generate-AuditReportMd {
 }
 
 # ========================================================================
-# MAIN — ორქესტრაცია
+# MAIN -- Orchestration
 # ========================================================================
 
 $mainSw = [System.Diagnostics.Stopwatch]::StartNew()
 
 Write-Host ""
 Write-Host ("=" * 70) -ForegroundColor Yellow
-Write-Host "  UltrafastSecp256k1 — Full Audit Orchestrator (A–M)" -ForegroundColor Yellow
+Write-Host "  UltrafastSecp256k1 -- Full Audit Orchestrator (A-M)" -ForegroundColor Yellow
 Write-Host "  Version: $Version | $Timestamp" -ForegroundColor Yellow
 Write-Host "  Build:   $BuildDir" -ForegroundColor Yellow
 Write-Host "  Output:  $OutputDir" -ForegroundColor Yellow
@@ -1067,7 +1067,7 @@ Generate-AuditReportMd
 
 $mainSw.Stop()
 
-# ── Final Summary ──────────────────────────────────────────────────────
+# -- Final Summary ------------------------------------------------------
 
 Write-Host ""
 Write-Host ("=" * 70) -ForegroundColor Cyan

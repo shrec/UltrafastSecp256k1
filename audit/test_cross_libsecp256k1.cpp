@@ -21,7 +21,7 @@
 #include <array>
 #include <random>
 
-// ── UltrafastSecp256k1 (C++ namespace: secp256k1::fast) ────────────────────
+// -- UltrafastSecp256k1 (C++ namespace: secp256k1::fast) --------------------
 #include "secp256k1/field.hpp"
 #include "secp256k1/scalar.hpp"
 #include "secp256k1/point.hpp"
@@ -29,7 +29,7 @@
 #include "secp256k1/schnorr.hpp"
 #include "secp256k1/sha256.hpp"
 
-// ── Reference: bitcoin-core/libsecp256k1 (C API, secp256k1_* prefix) ───────
+// -- Reference: bitcoin-core/libsecp256k1 (C API, secp256k1_* prefix) -------
 #include <secp256k1.h>
 #include <secp256k1_schnorrsig.h>
 #include <secp256k1_extrakeys.h>
@@ -38,7 +38,7 @@
 // Alias to avoid confusion
 namespace uf = secp256k1::fast;
 
-// ── Test infrastructure ─────────────────────────────────────────────────────
+// -- Test infrastructure -----------------------------------------------------
 
 static int g_pass = 0;
 static int g_fail = 0;
@@ -72,7 +72,7 @@ static std::array<uint8_t, 32> random_seckey(const secp256k1_context* ctx) {
     }
 }
 
-// ── Helpers: convert between UF types and raw bytes ─────────────────────────
+// -- Helpers: convert between UF types and raw bytes -------------------------
 
 static uf::Scalar scalar_from_bytes32(const uint8_t* b) {
     std::array<uint8_t, 32> arr{};
@@ -94,7 +94,7 @@ static std::array<uint8_t, 65> uf_uncompress_pubkey(const uf::Point& pt) {
     return out;
 }
 
-// ── Test 1: Public Key Derivation ───────────────────────────────────────────
+// -- Test 1: Public Key Derivation -------------------------------------------
 
 static void test_pubkey_cross(const secp256k1_context* ctx) {
     const int N = 500 * g_multiplier;
@@ -133,11 +133,11 @@ static void test_pubkey_cross(const secp256k1_context* ctx) {
     std::printf("    %d checks OK\n\n", g_pass);
 }
 
-// ── Test 2: ECDSA Sign(UF) → Verify(Ref) ───────────────────────────────────
+// -- Test 2: ECDSA Sign(UF) -> Verify(Ref) -----------------------------------
 
 static void test_ecdsa_uf_sign_ref_verify(const secp256k1_context* ctx) {
     const int N = 500 * g_multiplier;
-    std::printf("[2] ECDSA: Sign with UF → Verify with libsecp256k1 (%d rounds)\n", N);
+    std::printf("[2] ECDSA: Sign with UF -> Verify with libsecp256k1 (%d rounds)\n", N);
 
     for (int i = 0; i < N; ++i) {
         auto sk_bytes = random_seckey(ctx);
@@ -170,18 +170,18 @@ static void test_ecdsa_uf_sign_ref_verify(const secp256k1_context* ctx) {
     std::printf("    %d checks OK\n\n", g_pass);
 }
 
-// ── Test 3: ECDSA Sign(Ref) → Verify(UF) ───────────────────────────────────
+// -- Test 3: ECDSA Sign(Ref) -> Verify(UF) -----------------------------------
 
 static void test_ecdsa_ref_sign_uf_verify(const secp256k1_context* ctx) {
     const int N = 500 * g_multiplier;
-    std::printf("[3] ECDSA: Sign with libsecp256k1 → Verify with UF (%d rounds)\n", N);
+    std::printf("[3] ECDSA: Sign with libsecp256k1 -> Verify with UF (%d rounds)\n", N);
 
     for (int i = 0; i < N; ++i) {
         auto sk_bytes = random_seckey(ctx);
         auto msg = random_bytes();
 
         // --- Sign with reference libsecp256k1 ---
-        // Both libs expect a pre-hashed 32-byte digest — use msg directly.
+        // Both libs expect a pre-hashed 32-byte digest -- use msg directly.
         secp256k1_ecdsa_signature ref_sig;
         int sign_ok = secp256k1_ecdsa_sign(ctx, &ref_sig, msg.data(),
                                             sk_bytes.data(), nullptr, nullptr);
@@ -208,7 +208,7 @@ static void test_ecdsa_ref_sign_uf_verify(const secp256k1_context* ctx) {
     std::printf("    %d checks OK\n\n", g_pass);
 }
 
-// ── Test 4: Schnorr (BIP-340) Cross-Verification ───────────────────────────
+// -- Test 4: Schnorr (BIP-340) Cross-Verification ---------------------------
 
 static void test_schnorr_cross(const secp256k1_context* ctx) {
     const int N = 500 * g_multiplier;
@@ -219,7 +219,7 @@ static void test_schnorr_cross(const secp256k1_context* ctx) {
         auto msg = random_bytes();
         auto aux = random_bytes();
 
-        // ── Sign with UF, verify with Ref ──
+        // -- Sign with UF, verify with Ref --
 
         auto uf_sk = scalar_from_bytes32(sk_bytes.data());
         auto uf_sig = secp256k1::schnorr_sign(uf_sk, msg, aux);
@@ -235,7 +235,7 @@ static void test_schnorr_cross(const secp256k1_context* ctx) {
             ctx, uf_sig_bytes.data(), msg.data(), msg.size(), &ref_xpk);
         CHECK(ref_verify == 1, "ref: verify UF Schnorr sig");
 
-        // ── Sign with Ref, verify with UF ──
+        // -- Sign with Ref, verify with UF --
 
         secp256k1_keypair ref_kp;
         secp256k1_keypair_create(ctx, &ref_kp, sk_bytes.data());
@@ -262,14 +262,14 @@ static void test_schnorr_cross(const secp256k1_context* ctx) {
         bool uf_verify = secp256k1::schnorr_verify(ref_xpk_arr, msg, uf_ref_sig);
         CHECK(uf_verify, "uf: verify ref Schnorr sig");
 
-        // ── x-only pubkeys must match ──
+        // -- x-only pubkeys must match --
         CHECK(std::memcmp(uf_pk_x.data(), ref_xpk_bytes, 32) == 0,
               "x-only pubkey match");
     }
     std::printf("    %d checks OK\n\n", g_pass);
 }
 
-// ── Test 5: ECDSA Compact Signature Byte-Exact Match ────────────────────────
+// -- Test 5: ECDSA Compact Signature Byte-Exact Match ------------------------
 
 static void test_ecdsa_sig_match(const secp256k1_context* ctx) {
     const int N = 200 * g_multiplier;
@@ -306,7 +306,7 @@ static void test_ecdsa_sig_match(const secp256k1_context* ctx) {
         if (std::memcmp(ref_compact, uf_compact.data(), 64) == 0) {
             ++g_pass;
         } else {
-            // Not necessarily a bug — might be different hash preprocessing.
+            // Not necessarily a bug -- might be different hash preprocessing.
             // But log it for investigation.
             static int warn_count = 0;
             if (warn_count < 3) {
@@ -319,12 +319,12 @@ static void test_ecdsa_sig_match(const secp256k1_context* ctx) {
     std::printf("    %d checks OK\n\n", g_pass);
 }
 
-// ── Test 6: Edge Cases & Known Scalars ──────────────────────────────────────
+// -- Test 6: Edge Cases & Known Scalars --------------------------------------
 
 static void test_edge_cases(const secp256k1_context* ctx) {
     std::printf("[6] Edge Cases: Known Scalar Pubkeys\n");
 
-    // k=1 → G
+    // k=1 -> G
     {
         uint8_t sk1[32] = {};
         sk1[31] = 1;
@@ -413,7 +413,7 @@ static void test_edge_cases(const secp256k1_context* ctx) {
     std::printf("    %d checks OK\n\n", g_pass);
 }
 
-// ── Test 7: Point Addition Cross-Check ──────────────────────────────────────
+// -- Test 7: Point Addition Cross-Check --------------------------------------
 
 static void test_point_add_cross(const secp256k1_context* ctx) {
     const int N = 200 * g_multiplier;
@@ -452,14 +452,14 @@ static void test_point_add_cross(const secp256k1_context* ctx) {
     std::printf("    %d checks OK\n\n", g_pass);
 }
 
-// ── Test 8: Schnorr Batch Verify Cross-Check ────────────────────────────────
+// -- Test 8: Schnorr Batch Verify Cross-Check --------------------------------
 
 #include "secp256k1/batch_verify.hpp"
 
 static void test_schnorr_batch_cross(const secp256k1_context* ctx) {
     const int N = 50 * g_multiplier;
     const int BATCH_SIZE = 16;
-    std::printf("[8] Schnorr Batch Verify Cross-Check (%d batches × %d)\n",
+    std::printf("[8] Schnorr Batch Verify Cross-Check (%d batches x %d)\n",
                 N, BATCH_SIZE);
 
     for (int batch = 0; batch < N; ++batch) {
@@ -506,12 +506,12 @@ static void test_schnorr_batch_cross(const secp256k1_context* ctx) {
     std::printf("    %d checks OK\n\n", g_pass);
 }
 
-// ── Test 9: ECDSA Batch Verify Cross-Check ──────────────────────────────────
+// -- Test 9: ECDSA Batch Verify Cross-Check ----------------------------------
 
 static void test_ecdsa_batch_cross(const secp256k1_context* ctx) {
     const int N = 50 * g_multiplier;
     const int BATCH_SIZE = 16;
-    std::printf("[9] ECDSA Batch Verify Cross-Check (%d batches × %d)\n",
+    std::printf("[9] ECDSA Batch Verify Cross-Check (%d batches x %d)\n",
                 N, BATCH_SIZE);
 
     for (int batch = 0; batch < N; ++batch) {
@@ -558,12 +558,12 @@ static void test_ecdsa_batch_cross(const secp256k1_context* ctx) {
     std::printf("    %d checks OK\n\n", g_pass);
 }
 
-// ── Test 10: Extended Edge Cases ────────────────────────────────────────────
+// -- Test 10: Extended Edge Cases --------------------------------------------
 
 static void test_extended_edge_cases(const secp256k1_context* ctx) {
     std::printf("[10] Extended Edge Cases: overflow, doubling, mutation\n");
 
-    // 10a: Scalar just below n (n-2) — different from test 6's n-1
+    // 10a: Scalar just below n (n-2) -- different from test 6's n-1
     {
         uint8_t sk[32] = {
             0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
@@ -585,7 +585,7 @@ static void test_extended_edge_cases(const secp256k1_context* ctx) {
         CHECK(std::memcmp(ref_comp, uf_comp.data(), 33) == 0, "k=n-2: pubkey match");
     }
 
-    // 10b: Point doubling — P+P vs 2*P cross-check
+    // 10b: Point doubling -- P+P vs 2*P cross-check
     {
         const int N = 100 * g_multiplier;
         for (int i = 0; i < N; ++i) {
@@ -622,7 +622,7 @@ static void test_extended_edge_cases(const secp256k1_context* ctx) {
             // Verify original is valid
             CHECK(secp256k1::ecdsa_verify(msg, uf_pk, uf_sig), "original sig valid");
 
-            // Mutate r[0] → must be rejected
+            // Mutate r[0] -> must be rejected
             auto compact = uf_sig.to_compact();
             compact[0] ^= 0x01;
             auto mutated = secp256k1::ECDSASignature::from_compact(compact);
@@ -642,7 +642,7 @@ static void test_extended_edge_cases(const secp256k1_context* ctx) {
         }
     }
 
-    // 10d: Consecutive scalars: k, k+1, k+2 — verify (k+1)*G == k*G + G
+    // 10d: Consecutive scalars: k, k+1, k+2 -- verify (k+1)*G == k*G + G
     {
         const int N = 100 * g_multiplier;
         auto G = uf::Point::generator();
@@ -703,7 +703,7 @@ static void test_extended_edge_cases(const secp256k1_context* ctx) {
     std::printf("    %d checks OK\n\n", g_pass);
 }
 
-// ── Main ────────────────────────────────────────────────────────────────────
+// -- Main --------------------------------------------------------------------
 
 int main(int argc, char* argv[]) {
     if (argc > 1) {
@@ -717,18 +717,18 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    std::printf("═══════════════════════════════════════════════════════════════\n");
-    std::printf("  UltrafastSecp256k1 vs libsecp256k1 — Cross-Library Test\n");
+    std::printf("===============================================================\n");
+    std::printf("  UltrafastSecp256k1 vs libsecp256k1 -- Cross-Library Test\n");
     std::printf("  Seed: 42 (deterministic)  Multiplier: %d\n", g_multiplier);
-    std::printf("═══════════════════════════════════════════════════════════════\n\n");
+    std::printf("===============================================================\n\n");
 
     // Create reference context (SIGN + VERIFY)
     secp256k1_context* ctx = secp256k1_context_create(
         SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
 
     test_pubkey_cross(ctx);               // [1] pubkey derivation
-    test_ecdsa_uf_sign_ref_verify(ctx);   // [2] UF sign → ref verify
-    test_ecdsa_ref_sign_uf_verify(ctx);   // [3] ref sign → UF verify
+    test_ecdsa_uf_sign_ref_verify(ctx);   // [2] UF sign -> ref verify
+    test_ecdsa_ref_sign_uf_verify(ctx);   // [3] ref sign -> UF verify
     test_schnorr_cross(ctx);              // [4] Schnorr bidirectional
     test_ecdsa_sig_match(ctx);            // [5] RFC 6979 byte-exact
     test_edge_cases(ctx);                 // [6] known scalars
@@ -739,9 +739,9 @@ int main(int argc, char* argv[]) {
 
     secp256k1_context_destroy(ctx);
 
-    std::printf("═══════════════════════════════════════════════════════════════\n");
+    std::printf("===============================================================\n");
     std::printf("  TOTAL: %d passed, %d failed\n", g_pass, g_fail);
-    std::printf("═══════════════════════════════════════════════════════════════\n");
+    std::printf("===============================================================\n");
 
     return g_fail > 0 ? 1 : 0;
 }

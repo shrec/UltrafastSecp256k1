@@ -22,7 +22,7 @@ CMake reads it at configure time and propagates it to headers, `pkg-config`, and
 
 ## 2. Bump Rules
 
-### MAJOR (e.g. 3 → 4)
+### MAJOR (e.g. 3 -> 4)
 A **MAJOR** bump indicates an ABI-incompatible change. Consumers **must** recompile.
 
 Triggers:
@@ -34,10 +34,10 @@ Triggers:
 Actions on MAJOR bump:
 - Increment `UFSECP_ABI_VERSION` in `ufsecp_version.h.in`
 - Increment `SOVERSION` in CMake (`PROJECT_VERSION_MAJOR` tracks this automatically)
-- Document the breaking changes in `CHANGELOG.md` under **⚠ Breaking**
+- Document the breaking changes in `CHANGELOG.md` under **[!] Breaking**
 - Add a migration note in `CHANGELOG.md`
 
-### MINOR (e.g. 3.14 → 3.15)
+### MINOR (e.g. 3.14 -> 3.15)
 A **MINOR** bump adds functionality in a backwards-compatible manner. Existing consumers
 continue to work **without** recompilation if they only use previously existing symbols.
 
@@ -51,12 +51,12 @@ Actions on MINOR bump:
 - Do **not** change `SOVERSION`
 - Document new API in `CHANGELOG.md` under **Added**
 
-### PATCH (e.g. 3.14.0 → 3.14.1)
+### PATCH (e.g. 3.14.0 -> 3.14.1)
 A **PATCH** bump is a backwards-compatible bug fix. No API surface changes.
 
 Triggers:
 - Correctness fix in existing functions
-- Performance improvements (same inputs → same outputs)
+- Performance improvements (same inputs -> same outputs)
 - Documentation / CI fixes
 
 Actions on PATCH bump:
@@ -113,9 +113,9 @@ if (ufsecp_version() < 0x030E00) {
 ## 4. Shared Library Naming (ELF / Linux)
 
 ```
-libfastsecp256k1.so               → symlink to current
-libfastsecp256k1.so.3             → SOVERSION (= MAJOR)
-libfastsecp256k1.so.3.14.0        → full version
+libfastsecp256k1.so               -> symlink to current
+libfastsecp256k1.so.3             -> SOVERSION (= MAJOR)
+libfastsecp256k1.so.3.14.0        -> full version
 ```
 
 CMake sets this via:
@@ -137,9 +137,9 @@ ABI version: `fastsecp256k1-3.dll`. Import library: `fastsecp256k1.lib`.
 ### macOS
 
 ```
-libfastsecp256k1.dylib              → symlink
-libfastsecp256k1.3.dylib            → compatibility version
-libfastsecp256k1.3.14.0.dylib       → current version
+libfastsecp256k1.dylib              -> symlink
+libfastsecp256k1.3.dylib            -> compatibility version
+libfastsecp256k1.3.14.0.dylib       -> current version
 ```
 
 ---
@@ -209,8 +209,8 @@ Cflags: -I${includedir}
 
 Consumers should use:
 ```bash
-pkg-config --modversion ufsecp   # → 3.14.0
-pkg-config --libs ufsecp         # → -L/usr/local/lib -lfastsecp256k1
+pkg-config --modversion ufsecp   # -> 3.14.0
+pkg-config --libs ufsecp         # -> -L/usr/local/lib -lfastsecp256k1
 ```
 
 ---

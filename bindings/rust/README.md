@@ -1,20 +1,20 @@
-# ufsecp — Rust
+# ufsecp -- Rust
 
-Safe Rust wrapper for [UltrafastSecp256k1](https://github.com/shrec/UltrafastSecp256k1) — high-performance secp256k1 elliptic curve cryptography.
+Safe Rust wrapper for [UltrafastSecp256k1](https://github.com/shrec/UltrafastSecp256k1) -- high-performance secp256k1 elliptic curve cryptography.
 
 Wraps the `ufsecp-sys` FFI crate with a safe, ergonomic API.
 
 ## Features
 
-- **ECDSA** — sign, verify, recover, DER serialization (RFC 6979)
-- **Schnorr** — BIP-340 sign/verify
-- **ECDH** — compressed, x-only, raw shared secret
-- **BIP-32** — HD key derivation (master/derive/path/privkey/pubkey)
-- **Taproot** — output key tweaking, verification (BIP-341)
-- **Addresses** — P2PKH, P2WPKH, P2TR
-- **WIF** — encode/decode
-- **Hashing** — SHA-256 (hardware-accelerated), HASH160, tagged hash
-- **Key tweaking** — negate, add, multiply
+- **ECDSA** -- sign, verify, recover, DER serialization (RFC 6979)
+- **Schnorr** -- BIP-340 sign/verify
+- **ECDH** -- compressed, x-only, raw shared secret
+- **BIP-32** -- HD key derivation (master/derive/path/privkey/pubkey)
+- **Taproot** -- output key tweaking, verification (BIP-341)
+- **Addresses** -- P2PKH, P2WPKH, P2TR
+- **WIF** -- encode/decode
+- **Hashing** -- SHA-256 (hardware-accelerated), HASH160, tagged hash
+- **Key tweaking** -- negate, add, multiply
 
 ## Quick Start
 

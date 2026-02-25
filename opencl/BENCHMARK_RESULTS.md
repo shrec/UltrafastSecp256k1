@@ -61,8 +61,8 @@
 
 | Batch Size | Time/Op | Throughput |
 |------------|---------|------------|
-| 256 | 9.5 μs | 105 K/s |
-| 1,024 | 2.4 μs | 422 K/s |
+| 256 | 9.5 us | 105 K/s |
+| 1,024 | 2.4 us | 422 K/s |
 | 4,096 | 610.6 ns | 1.64 M/s |
 | 16,384 | 311.6 ns | 3.21 M/s |
 | 65,536 | 307.7 ns | 3.25 M/s |
@@ -83,12 +83,12 @@
 | Operation | CUDA | OpenCL | Winner |
 |-----------|------|--------|--------|
 | Field Mul | 0.2 ns | 0.2 ns | Tie |
-| Field Inv | 10.2 ns | 14.3 ns | **CUDA 1.40×** |
-| Point Double | 0.7 ns | 0.9 ns | **CUDA 1.29×** |
-| Point Add | 0.9 ns | 1.6 ns | **CUDA 1.78×** |
-| kG | 221.7 ns | 295.1 ns | **CUDA 1.33×** |
+| Field Inv | 10.2 ns | 14.3 ns | **CUDA 1.40x** |
+| Point Double | 0.7 ns | 0.9 ns | **CUDA 1.29x** |
+| Point Add | 0.9 ns | 1.6 ns | **CUDA 1.78x** |
+| kG | 221.7 ns | 295.1 ns | **CUDA 1.33x** |
 
 **CUDA wins** across all operations after the 32-bit hybrid Comba optimization
 (PTX `mad.lo.cc.u32` / `madc.hi.u32` with hardware carry flags).
 OpenCL uses portable `mul_hi(ulong)` which NVIDIA's compiler already decomposes
-into optimal 32-bit PTX — manual 32-bit Comba adds no benefit on OpenCL.
+into optimal 32-bit PTX -- manual 32-bit Comba adds no benefit on OpenCL.

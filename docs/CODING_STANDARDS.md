@@ -58,24 +58,24 @@ All performance-critical code paths MUST follow these rules:
 
 ## 5. Memory Model
 
-- **Single allocation → full reuse** (arena/scratchpad pattern)
+- **Single allocation -> full reuse** (arena/scratchpad pattern)
 - Thread-local scratch buffers on CPU
 - Pointer-based reset (no `memset` in loops)
-- Caller owns all buffers — clear ownership semantics
+- Caller owns all buffers -- clear ownership semantics
 
 ## 6. Cryptographic Correctness
 
 - **No math changes** without explicit maintainer approval
-- **No candidate dropping** — every candidate must be evaluated
-- **No probabilistic correctness** — deterministic results required
+- **No candidate dropping** -- every candidate must be evaluated
+- **No probabilistic correctness** -- deterministic results required
 - **No weakening of search coverage**
 - Correctness **always** wins over performance
 
 ## 7. Endianness
 
 - **Project standard**: Little-Endian (native x86/64)
-- `FieldElement::from_limbs()` — primary function for binary I/O (little-endian `uint64_t[4]`)
-- `FieldElement::from_bytes()` — **only** for standard crypto test vectors or hex strings (big-endian)
+- `FieldElement::from_limbs()` -- primary function for binary I/O (little-endian `uint64_t[4]`)
+- `FieldElement::from_bytes()` -- **only** for standard crypto test vectors or hex strings (big-endian)
 
 ## 8. Documentation
 
@@ -103,7 +103,7 @@ FieldElement field_mul(const FieldElement& a, const FieldElement& b);
 - No dynamic allocation in device hot loops
 - No per-iteration host/device sync
 - Launch parameters derived from config, printed once at startup
-- Use `CMAKE_CUDA_ARCHITECTURES` — never hardcode `-arch=sm_XX`
+- Use `CMAKE_CUDA_ARCHITECTURES` -- never hardcode `-arch=sm_XX`
 
 ## 10. Testing Requirements
 
@@ -115,7 +115,7 @@ FieldElement field_mul(const FieldElement& a, const FieldElement& b);
 
 ## 11. Build Rules
 
-- **Out-of-source builds only** — never edit generated files
+- **Out-of-source builds only** -- never edit generated files
 - Never commit build artifacts or anything under `build-*`
 - All GitHub Actions pinned by SHA (no mutable tags)
 
@@ -127,13 +127,13 @@ Commits MUST include:
 - **How to verify** (test command or repro steps)
 
 Follow [Conventional Commits](https://www.conventionalcommits.org/):
-- `feat:` — new features
-- `fix:` — bug fixes
-- `perf:` — performance improvements
-- `docs:` — documentation
-- `ci:` — CI/CD changes
-- `refactor:` — code restructuring
-- `test:` — test additions/changes
+- `feat:` -- new features
+- `fix:` -- bug fixes
+- `perf:` -- performance improvements
+- `docs:` -- documentation
+- `ci:` -- CI/CD changes
+- `refactor:` -- code restructuring
+- `test:` -- test additions/changes
 
 ## 13. Self-Check Checklist
 
@@ -152,10 +152,10 @@ Before submitting, verify:
 
 ## References
 
-- [CONTRIBUTING.md](../CONTRIBUTING.md) — full contribution workflow
-- [API Reference](API_REFERENCE.md) — public API documentation
-- [Building Guide](BUILDING.md) — build instructions
-- [Security Policy](../SECURITY.md) — vulnerability reporting
+- [CONTRIBUTING.md](../CONTRIBUTING.md) -- full contribution workflow
+- [API Reference](API_REFERENCE.md) -- public API documentation
+- [Building Guide](BUILDING.md) -- build instructions
+- [Security Policy](../SECURITY.md) -- vulnerability reporting
 
 ---
 

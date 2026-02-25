@@ -1,6 +1,6 @@
 # UltrafastSecp256k1 Wiki
 
-Welcome to the **UltrafastSecp256k1** wiki — an ultra high-performance secp256k1 elliptic curve cryptography library.
+Welcome to the **UltrafastSecp256k1** wiki -- an ultra high-performance secp256k1 elliptic curve cryptography library.
 
 ## Quick Navigation
 
@@ -27,7 +27,7 @@ Welcome to the **UltrafastSecp256k1** wiki — an ultra high-performance secp256
 
 ## Dual API: Fast + Constant-Time
 
-The library provides **two namespaces** — always compiled, no flags needed:
+The library provides **two namespaces** -- always compiled, no flags needed:
 
 | Namespace | Purpose | Use When |
 |-----------|---------|----------|
@@ -58,8 +58,8 @@ See [[API Reference]] for the full CT API and [[Examples]] for usage patterns.
 | Backend | Scalar Mul (k*G) | ECDSA Sign | ECDSA Verify | Schnorr Sign | Schnorr Verify |
 |---------|:----------------:|:----------:|:------------:|:------------:|:--------------:|
 | CUDA (RTX 5060 Ti) | 4.59 M/s | 4.88 M/s | 2.44 M/s | 3.66 M/s | 2.82 M/s |
-| OpenCL (RTX 5060 Ti) | 3.39 M/s | — | — | — | — |
-| Metal (M3 Pro) | 0.33 M/s | — | — | — | — |
+| OpenCL (RTX 5060 Ti) | 3.39 M/s | -- | -- | -- | -- |
+| Metal (M3 Pro) | 0.33 M/s | -- | -- | -- | -- |
 
 ### Embedded
 
@@ -78,7 +78,7 @@ See [[API Reference]] for the full CT API and [[Examples]] for usage patterns.
 
 ## License
 
-AGPL v3 — See [LICENSE](https://github.com/shrec/UltrafastSecp256k1/blob/main/LICENSE)
+AGPL v3 -- See [LICENSE](https://github.com/shrec/UltrafastSecp256k1/blob/main/LICENSE)
 
 **Commercial License**: Contact [payysoon@gmail.com](mailto:payysoon@gmail.com) for proprietary use.
 

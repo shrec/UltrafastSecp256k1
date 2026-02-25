@@ -1,14 +1,14 @@
 # ============================================================================
-# UltrafastSecp256k1 — ufsecp stable C ABI library
+# UltrafastSecp256k1 -- ufsecp stable C ABI library
 # ============================================================================
 # Builds libufsecp.so / ufsecp.dll / libufsecp.dylib
 #
 # Two modes:
 #
-#   1) Sub-project (preferred) — add_subdirectory() from the top-level CMake.
+#   1) Sub-project (preferred) -- add_subdirectory() from the top-level CMake.
 #      This links against the already-compiled `fastsecp256k1` CPU target.
 #
-#   2) Standalone — configure directly:
+#   2) Standalone -- configure directly:
 #        cmake -S include/ufsecp -B build-ufsecp -DCMAKE_BUILD_TYPE=Release
 #      Gathers CPU sources automatically.
 # ============================================================================
@@ -21,7 +21,7 @@ string(STRIP "${_version_raw}" UFSECP_VERSION)
 
 project(ufsecp
     VERSION ${UFSECP_VERSION}
-    DESCRIPTION "UltrafastSecp256k1 — Stable C ABI"
+    DESCRIPTION "UltrafastSecp256k1 -- Stable C ABI"
     LANGUAGES CXX
 )
 
@@ -30,19 +30,19 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-# ── Generate ufsecp_version.h from template ────────────────────────────────
+# -- Generate ufsecp_version.h from template --------------------------------
 configure_file(
     "${CMAKE_CURRENT_SOURCE_DIR}/ufsecp_version.h.in"
     "${CMAKE_CURRENT_BINARY_DIR}/ufsecp_version.h"
     @ONLY
 )
 
-# ── Paths ──────────────────────────────────────────────────────────────────
+# -- Paths ------------------------------------------------------------------
 set(ULTRAFAST_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../..")  # UltrafastSecp256k1/
 set(CPU_INCLUDE_DIR "${ULTRAFAST_ROOT}/cpu/include")
 set(SHARED_INCLUDE_DIR "${ULTRAFAST_ROOT}/include")
 
-# ── Library target ─────────────────────────────────────────────────────────
+# -- Library target ---------------------------------------------------------
 
 option(UFSECP_BUILD_SHARED "Build shared library" ON)
 option(UFSECP_BUILD_STATIC "Build static library" ON)
@@ -121,7 +121,7 @@ elseif(TARGET ufsecp_shared)
     add_library(ufsecp::ufsecp ALIAS ufsecp_shared)
 endif()
 
-# ── Install (standalone only — skip when used as sub-project) ──────────────
+# -- Install (standalone only -- skip when used as sub-project) --------------
 
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     include(GNUInstallDirs)
@@ -157,7 +157,7 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/ufsecp
     )
 
-    # ── pkg-config ─────────────────────────────────────────────────────────
+    # -- pkg-config ---------------------------------------------------------
     configure_file(
         "${CMAKE_CURRENT_SOURCE_DIR}/ufsecp.pc.in"
         "${CMAKE_CURRENT_BINARY_DIR}/ufsecp.pc"

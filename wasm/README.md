@@ -96,7 +96,7 @@ Library version (e.g. "3.0.0").
 Derive public key from 32-byte private key.
 
 ### `pointMul(pointX, pointY, scalar): { x, y }`
-Scalar × Point multiplication.
+Scalar x Point multiplication.
 
 ### `pointAdd(px, py, qx, qy): { x, y }`
 Point addition.

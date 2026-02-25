@@ -1,12 +1,12 @@
 // ============================================================================
 // Fault Injection Simulation Test
-// Phase IV, Task 4.4.6 — Inject bit-flips into intermediate computation states
+// Phase IV, Task 4.4.6 -- Inject bit-flips into intermediate computation states
 // ============================================================================
 // Validates that:
-//   1. Single bit-flip in scalar during mul → wrong result (detected)
-//   2. Single bit-flip in point coord → wrong result / off-curve (detected)
-//   3. Multiple random faults → never silently produce correct-looking output
-//   4. Signature + message bit-flip → verification fails
+//   1. Single bit-flip in scalar during mul -> wrong result (detected)
+//   2. Single bit-flip in point coord -> wrong result / off-curve (detected)
+//   3. Multiple random faults -> never silently produce correct-looking output
+//   4. Signature + message bit-flip -> verification fails
 //   5. CT operations fail-safe under corrupted inputs
 //
 // This is NOT a performance test. It proves the library won't silently
@@ -77,7 +77,7 @@ static void flip_random_bit(uint8_t* data, size_t len) {
 // ============================================================================
 static void test_scalar_fault_injection() {
     g_section = "scalar_fault";
-    printf("[1] Scalar fault injection (bit-flip in k → wrong kG)\n");
+    printf("[1] Scalar fault injection (bit-flip in k -> wrong kG)\n");
 
     const int TRIALS = 500;
     int detected = 0;
@@ -106,7 +106,7 @@ static void test_scalar_fault_injection() {
     }
 
     CHECK(detected == TRIALS, "All scalar bit-flips must produce different results");
-    printf("    → %d/%d faults detected (expected: 100%%)\n", detected, TRIALS);
+    printf("    -> %d/%d faults detected (expected: 100%%)\n", detected, TRIALS);
 }
 
 // ============================================================================
@@ -142,11 +142,11 @@ static void test_point_coord_fault() {
     }
 
     CHECK(detected == TRIALS, "All point faults must be detectable");
-    printf("    → %d/%d faults injected\n", detected, TRIALS);
+    printf("    -> %d/%d faults injected\n", detected, TRIALS);
 }
 
 // ============================================================================
-// 3. ECDSA signature bit-flip → verification must fail
+// 3. ECDSA signature bit-flip -> verification must fail
 // ============================================================================
 static void test_ecdsa_signature_fault() {
     g_section = "ecdsa_sig_fault";
@@ -200,7 +200,7 @@ static void test_ecdsa_signature_fault() {
     CHECK(sig_faults_detected == TRIALS, "All r bit-flips must fail verify");
     CHECK(msg_faults_detected == TRIALS, "All msg bit-flips must fail verify");
     CHECK(key_faults_detected == TRIALS, "All s bit-flips must fail verify");
-    printf("    → r-fault: %d/%d, msg-fault: %d/%d, s-fault: %d/%d\n",
+    printf("    -> r-fault: %d/%d, msg-fault: %d/%d, s-fault: %d/%d\n",
            sig_faults_detected, TRIALS,
            msg_faults_detected, TRIALS,
            key_faults_detected, TRIALS);
@@ -243,7 +243,7 @@ static void test_schnorr_signature_fault() {
     }
 
     CHECK(detected == TRIALS, "All Schnorr sig faults must fail verify");
-    printf("    → %d/%d faults detected\n", detected, TRIALS);
+    printf("    -> %d/%d faults detected\n", detected, TRIALS);
 }
 
 // ============================================================================
@@ -278,7 +278,7 @@ static void test_ct_fault_resilience() {
     }
 
     CHECK(detected == TRIALS, "ct_compare must detect all single-bit faults");
-    printf("    → %d/%d single-bit differences detected\n", detected, TRIALS);
+    printf("    -> %d/%d single-bit differences detected\n", detected, TRIALS);
 
     // Test: ct_compare on identical data must return 0
     for (int i = 0; i < 100; ++i) {
@@ -333,7 +333,7 @@ static void test_cascading_fault() {
     }
 
     CHECK(detected == TRIALS, "All cascading faults must produce different results");
-    printf("    → %d/%d cascading faults detected\n", detected, TRIALS);
+    printf("    -> %d/%d cascading faults detected\n", detected, TRIALS);
 }
 
 // ============================================================================
@@ -371,7 +371,7 @@ static void test_addition_fault() {
     }
 
     CHECK(detected == TRIALS, "All addition faults must produce different results");
-    printf("    → %d/%d addition faults detected\n", detected, TRIALS);
+    printf("    -> %d/%d addition faults detected\n", detected, TRIALS);
 }
 
 // ============================================================================
@@ -391,7 +391,7 @@ static void test_glv_fault() {
         // Standard scalar_mul (uses GLV internally)
         Point R1 = G.scalar_mul(k);
 
-        // Faulted scalar — should give different result
+        // Faulted scalar -- should give different result
         auto k_bytes = k.to_bytes();
         flip_random_bit(k_bytes.data(), 32);
         Scalar k_faulted = Scalar::from_bytes(k_bytes);
@@ -405,7 +405,7 @@ static void test_glv_fault() {
     }
 
     CHECK(consistent == TRIALS, "GLV must be sensitive to all input faults");
-    printf("    → %d/%d GLV fault sensitivity confirmed\n", consistent, TRIALS);
+    printf("    -> %d/%d GLV fault sensitivity confirmed\n", consistent, TRIALS);
 }
 
 // ============================================================================
@@ -430,10 +430,10 @@ int test_fault_injection_run() {
 // ============================================================================
 #ifndef UNIFIED_AUDIT_RUNNER
 int main() {
-    printf("════════════════════════════════════════════════════════════\n");
+    printf("============================================================\n");
     printf("  Fault Injection Simulation Test\n");
     printf("  Phase IV, Task 4.4.6\n");
-    printf("════════════════════════════════════════════════════════════\n\n");
+    printf("============================================================\n\n");
 
     test_scalar_fault_injection();
     printf("\n");
@@ -451,9 +451,9 @@ int main() {
     printf("\n");
     test_glv_fault();
 
-    printf("\n════════════════════════════════════════════════════════════\n");
+    printf("\n============================================================\n");
     printf("  Summary: %d passed, %d failed\n", g_pass, g_fail);
-    printf("════════════════════════════════════════════════════════════\n");
+    printf("============================================================\n");
 
     return g_fail > 0 ? 1 : 0;
 }

@@ -1,4 +1,4 @@
-# OpenCL Benchmark — NVIDIA RTX 5060 Ti
+# OpenCL Benchmark -- NVIDIA RTX 5060 Ti
 
 **Date:** 2026-02-14 (updated: optimized kernels)  
 **OS:** Linux x86_64 (Ubuntu)  
@@ -21,7 +21,7 @@
 
 ## Optimizations Applied
 
-1. **field_mul**: Fully unrolled 4×4 schoolbook (no loops, 16 explicit mul64_full)
+1. **field_mul**: Fully unrolled 4x4 schoolbook (no loops, 16 explicit mul64_full)
 2. **field_sqr**: Fully unrolled off-diagonal + diagonal computation
 3. **field_inv**: Fermat addition chain (~260 ops instead of ~448 naive)
 4. **scalar_mul**: wNAF window-5 with 8-entry precomputed table
@@ -44,12 +44,12 @@
 | Point Double | 49.7 ns | 20.12 M/s |
 | Point Add | 70.8 ns | 14.13 M/s |
 
-## Scalar Multiplication (G×k) Scaling
+## Scalar Multiplication (Gxk) Scaling
 
 | Batch Size | Time/Op | Throughput |
 |------------|---------|------------|
-| 256 | 13.0 μs | 77 K/s |
-| 1,024 | 3.3 μs | 306 K/s |
+| 256 | 13.0 us | 77 K/s |
+| 1,024 | 3.3 us | 306 K/s |
 | 4,096 | 838 ns | 1.19 M/s |
 | 16,384 | 425 ns | 2.35 M/s |
 | 65,536 | 419 ns | 2.39 M/s |
@@ -58,7 +58,7 @@
 
 | Batch Size | Time/Op | Throughput |
 |------------|---------|------------|
-| 256 | 1.5 μs | 651 K/s |
+| 256 | 1.5 us | 651 K/s |
 | 1,024 | 370 ns | 2.70 M/s |
 | 4,096 | 97.9 ns | 10.21 M/s |
 | 16,384 | 49.9 ns | 20.04 M/s |
@@ -67,5 +67,5 @@
 
 - All times are amortized per-element from batch dispatch (same methodology as CUDA benchmark)
 - Scalar multiplication at batch=65K achieves 2.39 M/s (CUDA now achieves 4.51 M/s after 32-bit hybrid optimization)
-- Field arithmetic ~50× slower than CUDA due to OpenCL buffer transfer overhead vs in-register CUDA kernel
+- Field arithmetic ~50x slower than CUDA due to OpenCL buffer transfer overhead vs in-register CUDA kernel
 - 32/32 correctness tests pass

@@ -1,13 +1,13 @@
 #pragma once
 // ============================================================================
-// Multi-Scalar Multiplication (MSM) — CUDA device implementation
+// Multi-Scalar Multiplication (MSM) -- CUDA device implementation
 // ============================================================================
 // Device-callable MSM using Pippenger bucket method:
-//   R = s₁·P₁ + s₂·P₂ + ... + sₙ·Pₙ
+//   R = s_1*P_1 + s_2*P_2 + ... + s_n*P_n
 //
 // Two variants:
-//   1. msm_naive:     O(256n) — simple sequential scalar_mul + add
-//   2. msm_pippenger: O(n/c + 2^c) per window — bucket method
+//   1. msm_naive:     O(256n) -- simple sequential scalar_mul + add
+//   2. msm_pippenger: O(n/c + 2^c) per window -- bucket method
 //
 // For GPU-parallel MSM across many threads, use the batch kernel.
 //
@@ -21,7 +21,7 @@
 namespace secp256k1 {
 namespace cuda {
 
-// ── Naive MSM (small n) ──────────────────────────────────────────────────────
+// -- Naive MSM (small n) ------------------------------------------------------
 // Simple sum of individual scalar multiplications.
 // Best for n <= ~4.
 
@@ -50,7 +50,7 @@ __device__ inline void msm_naive(
     }
 }
 
-// ── Scalar digit extraction ─────────────────────────────────────────────────
+// -- Scalar digit extraction -------------------------------------------------
 // Extract c-bit window from scalar at position `window_idx` (from LSB).
 
 __device__ inline unsigned scalar_get_window(
@@ -76,7 +76,7 @@ __device__ inline unsigned scalar_get_window(
     return val;
 }
 
-// ── Pippenger MSM ────────────────────────────────────────────────────────────
+// -- Pippenger MSM ------------------------------------------------------------
 // Bucket method: optimal for n > ~8.
 //
 // Parameters:
@@ -138,7 +138,7 @@ __device__ inline void msm_pippenger_with_buckets(
             }
         }
 
-        // Aggregate buckets: Σ = Σ_{b=1}^{num_buckets-1} b · bucket[b]
+        // Aggregate buckets: sum = sum_{b=1}^{num_buckets-1} b * bucket[b]
         // Efficient bottom-up: running_sum accumulates, partial_sum sums running
         JacobianPoint running_sum, partial_sum;
         running_sum.infinity = true;
@@ -184,8 +184,8 @@ __device__ inline void msm_pippenger_with_buckets(
     }
 }
 
-// ── Optimal window width ─────────────────────────────────────────────────────
-// Returns best c for n points. Minimizes total ops ≈ ceil(256/c)*(n + 2^c).
+// -- Optimal window width -----------------------------------------------------
+// Returns best c for n points. Minimizes total ops ~= ceil(256/c)*(n + 2^c).
 
 __device__ inline int msm_optimal_window(int n) {
     if (n <= 1) return 1;
@@ -198,7 +198,7 @@ __device__ inline int msm_optimal_window(int n) {
     return 8;
 }
 
-// ── Convenience MSM with stack-allocated buckets ─────────────────────────────
+// -- Convenience MSM with stack-allocated buckets -----------------------------
 // For small n, uses stack buckets with c=4 (16 buckets = ~2KB).
 // For larger n, caller should provide external bucket storage.
 
@@ -225,7 +225,7 @@ __device__ inline void msm_small(
     msm_pippenger_with_buckets(scalars, points, n, result, buckets, 4);
 }
 
-// ── Batch MSM kernel ─────────────────────────────────────────────────────────
+// -- Batch MSM kernel ---------------------------------------------------------
 // Each thread computes one scalar*point pair; results are then summed.
 // This kernel just does the embarrassingly parallel part.
 

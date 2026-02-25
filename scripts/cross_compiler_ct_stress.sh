@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ============================================================================
 # Cross-Compiler CT Stress Test
-# Phase V, Task 5.2.4 — Verify CT under GCC, Clang, MSVC (via CI matrix)
+# Phase V, Task 5.2.4 -- Verify CT under GCC, Clang, MSVC (via CI matrix)
 # ============================================================================
 # Builds and tests CT code under multiple compilers and optimization levels
 # to detect compiler-specific CT violations (e.g. branch injection at -O3).
@@ -35,14 +35,14 @@ if [[ "${1:-}" == "--full" ]]; then
     FULL_MODE=true
 fi
 
-echo "═══════════════════════════════════════════════════════════"
+echo "==========================================================="
 echo "  Cross-Compiler CT Stress Test"
-echo "═══════════════════════════════════════════════════════════"
+echo "==========================================================="
 echo "  Source: $SRC_DIR"
 echo "  Full mode: $FULL_MODE"
 echo ""
 
-# ── Discover available compilers ──────────────────────────────────────────
+# -- Discover available compilers ------------------------------------------
 
 COMPILERS=()
 
@@ -69,7 +69,7 @@ fi
 
 echo "  Compilers: ${COMPILERS[*]}"
 
-# ── Define optimization levels ────────────────────────────────────────────
+# -- Define optimization levels --------------------------------------------
 
 get_opt_levels() {
     local compiler="$1"
@@ -80,7 +80,7 @@ get_opt_levels() {
     fi
 }
 
-# ── Test matrix ──────────────────────────────────────────────────────────
+# -- Test matrix ----------------------------------------------------------
 
 TOTAL=0
 PASSED=0
@@ -95,9 +95,9 @@ for COMPILER in "${COMPILERS[@]}"; do
         BUILD_DIR="$SRC_DIR/build/ct-stress/$TAG"
         
         echo ""
-        echo "────────────────────────────────────────────────"
+        echo "------------------------------------------------"
         echo "  [$TAG] Building..."
-        echo "────────────────────────────────────────────────"
+        echo "------------------------------------------------"
         
         # Build
         BUILD_OK=true
@@ -110,16 +110,16 @@ for COMPILER in "${COMPILERS[@]}"; do
             2>&1 | tail -3 || BUILD_OK=false
             
         if ! $BUILD_OK; then
-            echo "  [$TAG] BUILD FAILED — skipping"
+            echo "  [$TAG] BUILD FAILED -- skipping"
             SKIPPED=$((SKIPPED + 1))
-            RESULTS="$RESULTS\n  [SKIP] $TAG — build failed"
+            RESULTS="$RESULTS\n  [SKIP] $TAG -- build failed"
             continue
         fi
         
         cmake --build "$BUILD_DIR" -j"$(nproc)" 2>&1 | tail -3 || {
-            echo "  [$TAG] BUILD FAILED — skipping"
+            echo "  [$TAG] BUILD FAILED -- skipping"
             SKIPPED=$((SKIPPED + 1))
-            RESULTS="$RESULTS\n  [SKIP] $TAG — build failed"
+            RESULTS="$RESULTS\n  [SKIP] $TAG -- build failed"
             continue
         }
         
@@ -131,7 +131,7 @@ for COMPILER in "${COMPILERS[@]}"; do
                 echo "  [$TAG] Selftest: PASS"
             else
                 echo "  [$TAG] Selftest: FAIL"
-                RESULTS="$RESULTS\n  [FAIL] $TAG — selftest failed"
+                RESULTS="$RESULTS\n  [FAIL] $TAG -- selftest failed"
                 FAILED=$((FAILED + 1))
                 continue
             fi
@@ -145,7 +145,7 @@ for COMPILER in "${COMPILERS[@]}"; do
                 echo "  [$TAG] Disasm: PASS"
             else
                 echo "  [$TAG] Disasm: WARNING (branches found in CT code)"
-                RESULTS="$RESULTS\n  [WARN] $TAG — branches in CT disasm"
+                RESULTS="$RESULTS\n  [WARN] $TAG -- branches in CT disasm"
                 # Don't count as failure, just warning (some opt levels may optimize differently)
             fi
         fi
@@ -158,7 +158,7 @@ for COMPILER in "${COMPILERS[@]}"; do
                 echo "  [$TAG] dudect: PASS"
             else
                 echo "  [$TAG] dudect: FAIL (timing leakage)"
-                RESULTS="$RESULTS\n  [FAIL] $TAG — dudect detected leakage"
+                RESULTS="$RESULTS\n  [FAIL] $TAG -- dudect detected leakage"
                 FAILED=$((FAILED + 1))
                 continue
             fi
@@ -169,18 +169,18 @@ for COMPILER in "${COMPILERS[@]}"; do
     done
 done
 
-# ── Summary ──────────────────────────────────────────────────────────────
+# -- Summary --------------------------------------------------------------
 
 echo ""
-echo "═══════════════════════════════════════════════════════════"
+echo "==========================================================="
 echo "  Cross-Compiler CT Stress: Summary"
-echo "═══════════════════════════════════════════════════════════"
+echo "==========================================================="
 echo -e "$RESULTS"
 echo ""
 echo "  Total: $TOTAL  Pass: $PASSED  Fail: $FAILED  Skip: $SKIPPED"
-echo "═══════════════════════════════════════════════════════════"
+echo "==========================================================="
 
-# ── JSON report ──────────────────────────────────────────────────────────
+# -- JSON report ----------------------------------------------------------
 
 REPORT="$SRC_DIR/build/ct-stress/report.json"
 mkdir -p "$(dirname "$REPORT")"
@@ -204,6 +204,6 @@ echo ""
 if [[ $FAILED -gt 0 ]]; then
     exit 1
 else
-    echo "  ✓ All compiler/optimization combos passed CT verification"
+    echo "  OK All compiler/optimization combos passed CT verification"
     exit 0
 fi

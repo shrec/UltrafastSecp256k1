@@ -1,6 +1,6 @@
 # Long-Term Support (LTS) Policy
 
-**UltrafastSecp256k1** — Version Lifecycle & Support Guarantees
+**UltrafastSecp256k1** -- Version Lifecycle & Support Guarantees
 
 ---
 
@@ -20,7 +20,7 @@ UltrafastSecp256k1 uses **Semantic Versioning 2.0.0** (`MAJOR.MINOR.PATCH`):
 
 | Release Type | Frequency | Notes |
 |-------------|-----------|-------|
-| **Minor** | Every 2–4 months | New features, performance improvements |
+| **Minor** | Every 2-4 months | New features, performance improvements |
 | **Patch** | As needed | Bug fixes, security patches |
 | **Security** | Within 30 days of disclosure | Critical vulnerability fixes |
 | **Major** | Rare (12+ months apart) | Only for breaking changes |
@@ -45,7 +45,7 @@ UltrafastSecp256k1 uses **Semantic Versioning 2.0.0** (`MAJOR.MINOR.PATCH`):
 ### 3.3 Critical-Only Support
 
 - Penultimate stable release (one `MINOR` behind current)
-- Receives: **critical security patches only** (CVSS ≥ 9.0)
+- Receives: **critical security patches only** (CVSS >= 9.0)
 - Duration: Until superseded by two `MINOR` releases
 
 ### 3.4 End of Life (EOL)
@@ -68,7 +68,7 @@ Not all releases are LTS. A release is designated LTS when:
 ### 4.1 LTS Versioning
 
 LTS patches follow `MAJOR.MINOR.PATCH` where only `PATCH` increments:
-- `v4.0.0 [LTS]` → `v4.0.1` → `v4.0.2` → ... (security/critical fixes)
+- `v4.0.0 [LTS]` -> `v4.0.1` -> `v4.0.2` -> ... (security/critical fixes)
 
 ### 4.2 Current LTS Schedule
 
@@ -84,7 +84,7 @@ LTS patches follow `MAJOR.MINOR.PATCH` where only `PATCH` increments:
 | Version | Status | Receives |
 |---------|--------|----------|
 | Latest minor (e.g., v3.15.x) | Active | All fixes |
-| Previous minor (e.g., v3.14.x) | Critical-only | CVSS ≥ 9.0 only |
+| Previous minor (e.g., v3.14.x) | Critical-only | CVSS >= 9.0 only |
 | Designated LTS (e.g., v4.0.x) | LTS | Security + critical fixes for 12 months |
 | Older versions | EOL | No updates |
 
@@ -94,9 +94,9 @@ LTS patches follow `MAJOR.MINOR.PATCH` where only `PATCH` increments:
 
 ### 6.1 Guarantees
 
-- **Within a MINOR series** (e.g., v3.14.0 → v3.14.5): Full ABI compatibility. No function signatures change. `UFSECP_ABI_VERSION` does not change.
-- **Between MINOR versions** (e.g., v3.14 → v3.15): ABI-compatible additions only. New functions may be added. Existing signatures preserved.
-- **Between MAJOR versions** (e.g., v3.x → v4.0): ABI may break. Migration guide provided.
+- **Within a MINOR series** (e.g., v3.14.0 -> v3.14.5): Full ABI compatibility. No function signatures change. `UFSECP_ABI_VERSION` does not change.
+- **Between MINOR versions** (e.g., v3.14 -> v3.15): ABI-compatible additions only. New functions may be added. Existing signatures preserved.
+- **Between MAJOR versions** (e.g., v3.x -> v4.0): ABI may break. Migration guide provided.
 
 ### 6.2 LTS ABI Lock
 
@@ -113,7 +113,7 @@ LTS versions have a **frozen ABI**:
 ### 7.1 Minor Version Migration
 
 ```
-v3.14.x → v3.15.x
+v3.14.x -> v3.15.x
 - Relink with new library (ABI compatible)
 - Check CHANGELOG for deprecated APIs
 - Test suite should pass unchanged
@@ -122,7 +122,7 @@ v3.14.x → v3.15.x
 ### 7.2 Major Version Migration
 
 ```
-v3.x → v4.0
+v3.x -> v4.0
 - Read MIGRATION_GUIDE.md
 - Update deprecated function calls (removed in MAJOR)
 - Recompile all code linking UltrafastSecp256k1

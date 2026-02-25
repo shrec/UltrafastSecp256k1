@@ -29,7 +29,7 @@ The default and most mature backend. Pure C++20 with optional platform-specific 
 | **x86-64** | Yes | Tier 1 | BMI2/ADX acceleration, `-march=native` recommended |
 | **ARM64/AArch64** | Yes | Tier 1 | NEON intrinsics, Apple M-series optimized |
 | **RISC-V 64** | Yes | Tier 2 | Zba/Zbb extensions, branchless carry chains |
-| **ESP32-S3** | No | Tier 3 | 32-bit fallback (10×26 limbs), no `__int128` |
+| **ESP32-S3** | No | Tier 3 | 32-bit fallback (10x26 limbs), no `__int128` |
 | **STM32 (Cortex-M)** | No | Tier 3 | Bare-metal, 32-bit fallback |
 | **Generic** | No | Tier 3 | Any C++20 platform with 64-bit integers |
 
@@ -43,14 +43,14 @@ cmake -S . -B build -DSECP256K1_BUILD_CPU=ON   # default
 
 | Operation | Time |
 |---|---|
-| Generator Mul (k×G) | **7 μs** |
-| Scalar Mul (k×P) | **25 μs** |
-| ECDSA Sign | **16 μs** |
-| ECDSA Verify | **32 μs** |
-| Schnorr Sign | **19 μs** |
-| Schnorr Verify | **42 μs** |
+| Generator Mul (kxG) | **7 us** |
+| Scalar Mul (kxP) | **25 us** |
+| ECDSA Sign | **16 us** |
+| ECDSA Verify | **32 us** |
+| Schnorr Sign | **19 us** |
+| Schnorr Verify | **42 us** |
 | Point Add | **163 ns** |
-| Field Inverse | **1 μs** |
+| Field Inverse | **1 us** |
 
 ---
 
@@ -124,7 +124,7 @@ cmake -S . -B build -DSECP256K1_BUILD_ROCM=ON
 
 ## OpenCL Backend (Beta)
 
-Platform-agnostic GPU compute — works with NVIDIA, AMD, and Intel GPUs.
+Platform-agnostic GPU compute -- works with NVIDIA, AMD, and Intel GPUs.
 
 ### Requirements
 
@@ -165,7 +165,7 @@ cmake -S . -B build -DSECP256K1_BUILD_METAL=ON
 
 - Builds on non-Apple platforms in **host-test mode** only (type tests, no GPU execution)
 - Metal Shading Language kernels in `.metal` files
-- Leverages Apple's unified memory architecture (no explicit host↔device copies)
+- Leverages Apple's unified memory architecture (no explicit host<->device copies)
 
 ---
 
@@ -188,7 +188,7 @@ cmake --build build-wasm
 ### Notes
 
 - No assembly optimizations (pure C++ fallback)
-- 32-bit arithmetic path (10×26 limb representation)
+- 32-bit arithmetic path (10x26 limb representation)
 - Suitable for client-side transaction signing in web wallets
 
 ---

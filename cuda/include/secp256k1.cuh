@@ -18,7 +18,7 @@ namespace cuda {
 #define SECP256K1_CUDA_USE_HYBRID_MUL 1
 #endif
 
-// Force hybrid off for HIP/ROCm — 32-bit Comba uses PTX inline asm
+// Force hybrid off for HIP/ROCm -- 32-bit Comba uses PTX inline asm
 #if !SECP256K1_USE_PTX
 #undef SECP256K1_CUDA_USE_HYBRID_MUL
 #define SECP256K1_CUDA_USE_HYBRID_MUL 0
@@ -367,7 +367,7 @@ __device__ __forceinline__ void mont_reduce_512(const uint64_t t_in[8], FieldEle
     }
 }
 #else
-// Portable mont_reduce_512 — __int128 fallback for HIP/ROCm
+// Portable mont_reduce_512 -- __int128 fallback for HIP/ROCm
 __device__ __forceinline__ void mont_reduce_512(const uint64_t t_in[8], FieldElement* r) {
     uint64_t t0 = t_in[0], t1 = t_in[1], t2 = t_in[2], t3 = t_in[3];
     uint64_t t4 = t_in[4], t5 = t_in[5], t6 = t_in[6], t7 = t_in[7];
@@ -1045,8 +1045,8 @@ __device__ inline void field_mul_small(const FieldElement* a, uint32_t small, Fi
     
     // Now we have a 320-bit number: tmp[0..3] + carry * 2^256
     // Reduce carry * 2^256 mod P
-    // Since P = 2^256 - 0x1000003d1, we have 2^256 ≡ 0x1000003d1 (mod P)
-    // So carry * 2^256 ≡ carry * 0x1000003d1
+    // Since P = 2^256 - 0x1000003d1, we have 2^256 == 0x1000003d1 (mod P)
+    // So carry * 2^256 == carry * 0x1000003d1
     
     uint64_t c = (uint64_t)carry;
     if (c > 0) {
@@ -1090,11 +1090,11 @@ __device__ __forceinline__ void sqr_256_512(const FieldElement* a, uint64_t r[8]
     sqr_256_512_ptx(a->limbs, r);
 }
 
-// 512→256 reduction: T mod P where P = 2^256 - K_MOD
+// 512->256 reduction: T mod P where P = 2^256 - K_MOD
 #if SECP256K1_USE_PTX
 __device__ __forceinline__ void reduce_512_to_256(uint64_t t[8], FieldElement* r) {
     // P = 2^256 - K_MOD, where K_MOD = 2^32 + 977 = 0x1000003D1
-    // T = T_hi * 2^256 + T_lo ≡ T_hi * K_MOD + T_lo (mod P)
+    // T = T_hi * 2^256 + T_lo == T_hi * K_MOD + T_lo (mod P)
     //
     // OPTIMIZATION: Multiply T_hi by K_MOD directly in one MAD chain,
     // instead of splitting into T_hi*977 + T_hi<<32 (two separate passes).
@@ -1104,7 +1104,7 @@ __device__ __forceinline__ void reduce_512_to_256(uint64_t t[8], FieldElement* r
     uint64_t t4 = t[4], t5 = t[5], t6 = t[6], t7 = t[7];
     
     // 1. Compute A = T_hi * K_MOD (5 limbs: a0..a4)
-    //    Single MAD chain — replaces separate *977 + <<32 two-pass approach
+    //    Single MAD chain -- replaces separate *977 + <<32 two-pass approach
     uint64_t a0, a1, a2, a3, a4;
     
     asm volatile(
@@ -1136,8 +1136,8 @@ __device__ __forceinline__ void reduce_512_to_256(uint64_t t[8], FieldElement* r
         : "l"(a0), "l"(a1), "l"(a2), "l"(a3)
     );
     
-    // 3. Reduce overflow: extra = a4 + carry (≤ 2^33 + 1)
-    //    extra * K_MOD fits in 2 limbs (≤ 2^66)
+    // 3. Reduce overflow: extra = a4 + carry (<= 2^33 + 1)
+    //    extra * K_MOD fits in 2 limbs (<= 2^66)
     uint64_t extra = a4 + carry;
     uint64_t ek_lo, ek_hi;
     asm volatile(
@@ -1158,7 +1158,7 @@ __device__ __forceinline__ void reduce_512_to_256(uint64_t t[8], FieldElement* r
         : "l"(ek_lo), "l"(ek_hi)
     );
     
-    // 4. Rare carry overflow (probability ≈ 2^{-190})
+    // 4. Rare carry overflow (probability ~= 2^{-190})
     if (c) {
         asm volatile(
             "add.cc.u64 %0, %0, %4; \n\t"
@@ -1190,7 +1190,7 @@ __device__ __forceinline__ void reduce_512_to_256(uint64_t t[8], FieldElement* r
     }
 }
 #else
-// Portable reduce_512_to_256 for HIP/ROCm — uses __int128 instead of PTX
+// Portable reduce_512_to_256 for HIP/ROCm -- uses __int128 instead of PTX
 __device__ __forceinline__ void reduce_512_to_256(uint64_t t[8], FieldElement* r) {
     uint64_t t0 = t[0], t1 = t[1], t2 = t[2], t3 = t[3];
     uint64_t t4 = t[4], t5 = t[5], t6 = t[6], t7 = t[7];
@@ -1425,13 +1425,13 @@ __device__ inline void jacobian_add_mixed(const JacobianPoint* p, const AffinePo
     FieldElement z1z1, u2, s2, h, hh, i, j, rr, v;
     FieldElement X3, Y3, Z3, t1, t2;
 
-    // Z1² [1S]
+    // Z1^2 [1S]
     field_sqr(&p->z, &z1z1);
     
-    // U2 = X2*Z1² [1M]
+    // U2 = X2*Z1^2 [1M]
     field_mul(&q->x, &z1z1, &u2);
     
-    // S2 = Y2*Z1³ [2M, 3M]
+    // S2 = Y2*Z1^3 [2M, 3M]
     field_mul(&p->z, &z1z1, &t1);
     field_mul(&q->y, &t1, &s2);
     
@@ -1450,7 +1450,7 @@ __device__ inline void jacobian_add_mixed(const JacobianPoint* p, const AffinePo
         return;
     }
     
-    // HH = H² [2S]
+    // HH = H^2 [2S]
     field_sqr(&h, &hh);
     
     // I = 4*HH
@@ -1467,7 +1467,7 @@ __device__ inline void jacobian_add_mixed(const JacobianPoint* p, const AffinePo
     // V = X1*I [5M]
     field_mul(&p->x, &i, &v);
     
-    // X3 = rr² - J - 2*V [3S]
+    // X3 = rr^2 - J - 2*V [3S]
     field_sqr(&rr, &X3);
     field_sub(&X3, &j, &X3);
     field_add(&v, &v, &t1);
@@ -1480,7 +1480,7 @@ __device__ inline void jacobian_add_mixed(const JacobianPoint* p, const AffinePo
     field_add(&t2, &t2, &t2);
     field_sub(&Y3, &t2, &Y3);
     
-    // Z3 = (Z1+H)² - Z1² - HH [4S]
+    // Z3 = (Z1+H)^2 - Z1^2 - HH [4S]
     field_add(&p->z, &h, &t1);
     field_sqr(&t1, &Z3);
     field_sub(&Z3, &z1z1, &Z3);
@@ -1504,17 +1504,17 @@ __device__ inline void jacobian_add_mixed_h(const JacobianPoint* p, const Affine
         return;
     }
 
-    // Z1² [1S]
+    // Z1^2 [1S]
     FieldElement z1z1;
     field_sqr(&p->z, &z1z1);
 
-    // U2 = X2*Z1² [1M]
+    // U2 = X2*Z1^2 [1M]
     FieldElement u2;
     field_mul(&q->x, &z1z1, &u2);
 
-    // S2 = Y2*Z1³ [2M]
+    // S2 = Y2*Z1^3 [2M]
     FieldElement s2, temp;
-    field_mul(&p->z, &z1z1, &temp);  // Z1³
+    field_mul(&p->z, &z1z1, &temp);  // Z1^3
     field_mul(&q->y, &temp, &s2);
 
     // Check if same point
@@ -1538,11 +1538,11 @@ __device__ inline void jacobian_add_mixed_h(const JacobianPoint* p, const Affine
 
     h_out = h; // Return H directly (Z_{n+1} = Z_n * H)
 
-    // HH = H² [1S]
+    // HH = H^2 [1S]
     FieldElement hh;
     field_sqr(&h, &hh);
 
-    // HHH = H³ [1M]
+    // HHH = H^3 [1M]
     FieldElement hhh;
     field_mul(&h, &hh, &hhh);
 
@@ -1550,18 +1550,18 @@ __device__ inline void jacobian_add_mixed_h(const JacobianPoint* p, const Affine
     FieldElement rr;
     field_sub(&s2, &p->y, &rr);
 
-    // V = X1 * H² [1M]
+    // V = X1 * H^2 [1M]
     FieldElement v;
     field_mul(&p->x, &hh, &v);
 
-    // X3 = r² - H³ - 2*V [1S]
+    // X3 = r^2 - H^3 - 2*V [1S]
     FieldElement X3, Y3, Z3, t1;
     field_add(&v, &v, &t1);
     field_sqr(&rr, &X3);
     field_sub(&X3, &hhh, &X3);
     field_sub(&X3, &t1, &X3);
 
-    // Y3 = r*(V - X3) - Y1*H³ [2M]
+    // Y3 = r*(V - X3) - Y1*H^3 [2M]
     field_mul(&p->y, &hhh, &t1);
     field_sub(&v, &X3, &v);       // reuse v
     field_mul(&rr, &v, &Y3);
@@ -1589,7 +1589,7 @@ __device__ inline void jacobian_add_mixed_h2(const JacobianPoint* p, const Affin
         return;
     }
 
-    // Z1Z1 = Z1² [1S]
+    // Z1Z1 = Z1^2 [1S]
     FieldElement z1z1;
     field_sqr(&p->z, &z1z1);
 
@@ -1621,7 +1621,7 @@ __device__ inline void jacobian_add_mixed_h2(const JacobianPoint* p, const Affin
     FieldElement h;
     field_sub(&u2, &p->x, &h);
 
-    // HH = H² [1S]
+    // HH = H^2 [1S]
     FieldElement hh;
     field_sqr(&h, &hh);
 
@@ -1643,7 +1643,7 @@ __device__ inline void jacobian_add_mixed_h2(const JacobianPoint* p, const Affin
     FieldElement v;
     field_mul(&p->x, &i_val, &v);
 
-    // X3 = r²-J-2*V [1S]
+    // X3 = r^2-J-2*V [1S]
     FieldElement X3, Y3, Z3;
     field_add(&v, &v, &temp);
     field_sqr(&rr, &X3);
@@ -1658,13 +1658,13 @@ __device__ inline void jacobian_add_mixed_h2(const JacobianPoint* p, const Affin
     field_mul(&rr, &temp, &Y3);
     field_sub(&Y3, &y1j, &Y3);
 
-    // Z3 = (Z1+H)²-Z1Z1-HH = 2*Z1*H [1S instead of 1M!]
+    // Z3 = (Z1+H)^2-Z1Z1-HH = 2*Z1*H [1S instead of 1M!]
     field_add(&p->z, &h, &temp);
     field_sqr(&temp, &Z3);
     field_sub(&Z3, &z1z1, &Z3);
     field_sub(&Z3, &hh, &Z3);
 
-    // Return 2*H for serial inversion: Z_n = Z_0 * ∏(2*H_i) = Z_0 * 2^N * ∏H_i
+    // Return 2*H for serial inversion: Z_n = Z_0 * prod(2*H_i) = Z_0 * 2^N * prodH_i
     field_add(&h, &h, &h_out);
 
     // Write output once
@@ -1679,7 +1679,7 @@ __device__ inline void jacobian_add_mixed_h2(const JacobianPoint* p, const Affin
 // Assumes: p->z == 1 (caller must ensure this)
 __device__ inline void jacobian_add_mixed_h_z1(const JacobianPoint* p, const AffinePoint* q, JacobianPoint* r, FieldElement& h_out) {
     // When Z1 = 1:
-    // Z1² = 1, Z1³ = 1
+    // Z1^2 = 1, Z1^3 = 1
     // U2 = X2 * 1 = X2  (0 mul saved!)
     // S2 = Y2 * 1 = Y2  (2 mul saved!)
     
@@ -1705,11 +1705,11 @@ __device__ inline void jacobian_add_mixed_h_z1(const JacobianPoint* p, const Aff
 
     h_out = h;  // Return H directly
 
-    // HH = H² [1S]
+    // HH = H^2 [1S]
     FieldElement hh;
     field_sqr(&h, &hh);
 
-    // HHH = H³ [1M]
+    // HHH = H^3 [1M]
     FieldElement hhh;
     field_mul(&h, &hh, &hhh);
 
@@ -1717,18 +1717,18 @@ __device__ inline void jacobian_add_mixed_h_z1(const JacobianPoint* p, const Aff
     FieldElement rr;
     field_sub(&q->y, &p->y, &rr);
 
-    // V = X1 * H² [1M]
+    // V = X1 * H^2 [1M]
     FieldElement v;
     field_mul(&p->x, &hh, &v);
 
-    // X3 = r² - H³ - 2*V [1S]
+    // X3 = r^2 - H^3 - 2*V [1S]
     FieldElement X3, Y3, t1;
     field_add(&v, &v, &t1);
     field_sqr(&rr, &X3);
     field_sub(&X3, &hhh, &X3);
     field_sub(&X3, &t1, &X3);
 
-    // Y3 = r*(V - X3) - Y1*H³ [2M]
+    // Y3 = r*(V - X3) - Y1*H^3 [2M]
     field_mul(&p->y, &hhh, &t1);
     field_sub(&v, &X3, &v);       // reuse v
     field_mul(&rr, &v, &Y3);
@@ -1754,17 +1754,17 @@ __device__ inline void jacobian_add_mixed_const(
     JacobianPoint* r,
     FieldElement& h_out
 ) {
-    // Z1² [1S]
+    // Z1^2 [1S]
     FieldElement z1z1;
     field_sqr(&p->z, &z1z1);
 
-    // U2 = X2*Z1² [1M]
+    // U2 = X2*Z1^2 [1M]
     FieldElement u2;
     field_mul(&qx, &z1z1, &u2);
 
-    // S2 = Y2*Z1³ [2M]
+    // S2 = Y2*Z1^3 [2M]
     FieldElement s2, z1_cubed;
-    field_mul(&p->z, &z1z1, &z1_cubed);  // Z1³
+    field_mul(&p->z, &z1z1, &z1_cubed);  // Z1^3
     field_mul(&qy, &z1_cubed, &s2);
 
     // H = U2 - X1
@@ -1773,11 +1773,11 @@ __device__ inline void jacobian_add_mixed_const(
 
     h_out = h;
 
-    // HH = H² [1S]
+    // HH = H^2 [1S]
     FieldElement hh;
     field_sqr(&h, &hh);
 
-    // HHH = H³ [1M]
+    // HHH = H^3 [1M]
     FieldElement hhh;
     field_mul(&h, &hh, &hhh);
 
@@ -1785,18 +1785,18 @@ __device__ inline void jacobian_add_mixed_const(
     FieldElement rr;
     field_sub(&s2, &p->y, &rr);
 
-    // V = X1 * H² [1M]
+    // V = X1 * H^2 [1M]
     FieldElement v;
     field_mul(&p->x, &hh, &v);
 
-    // X3 = r² - H³ - 2*V [1S]
+    // X3 = r^2 - H^3 - 2*V [1S]
     FieldElement X3, Y3, Z3, t1;
     field_add(&v, &v, &t1);
     field_sqr(&rr, &X3);
     field_sub(&X3, &hhh, &X3);
     field_sub(&X3, &t1, &X3);
 
-    // Y3 = r*(V - X3) - Y1*H³ [2M]
+    // Y3 = r*(V - X3) - Y1*H^3 [2M]
     field_mul(&p->y, &hhh, &t1);
     field_sub(&v, &X3, &v);       // reuse v
     field_mul(&rr, &v, &Y3);
@@ -1822,7 +1822,7 @@ __device__ inline void jacobian_add_mixed_const_7m4s(
     JacobianPoint* r,
     FieldElement& h_out
 ) {
-    // Z1Z1 = Z1² [1S]
+    // Z1Z1 = Z1^2 [1S]
     FieldElement z1z1;
     field_sqr(&p->z, &z1z1);
 
@@ -1839,7 +1839,7 @@ __device__ inline void jacobian_add_mixed_const_7m4s(
     FieldElement h;
     field_sub(&u2, &p->x, &h);
 
-    // HH = H² [1S]
+    // HH = H^2 [1S]
     FieldElement hh;
     field_sqr(&h, &hh);
 
@@ -1861,7 +1861,7 @@ __device__ inline void jacobian_add_mixed_const_7m4s(
     FieldElement v;
     field_mul(&p->x, &i_val, &v);
 
-    // X3 = r²-J-2*V [1S]
+    // X3 = r^2-J-2*V [1S]
     FieldElement X3, Y3, Z3;
     field_add(&v, &v, &temp);
     field_sqr(&rr, &X3);
@@ -1876,7 +1876,7 @@ __device__ inline void jacobian_add_mixed_const_7m4s(
     field_mul(&rr, &temp, &Y3);
     field_sub(&Y3, &y1j, &Y3);
 
-    // Z3 = (Z1+H)²-Z1Z1-HH = 2*Z1*H [1S instead of 1M! KEY OPTIMIZATION]
+    // Z3 = (Z1+H)^2-Z1Z1-HH = 2*Z1*H [1S instead of 1M! KEY OPTIMIZATION]
     field_add(&p->z, &h, &temp);
     field_sqr(&temp, &Z3);
     field_sub(&Z3, &z1z1, &Z3);
@@ -1904,23 +1904,23 @@ __device__ inline void point_add_mixed(const FieldElement* p_x, const FieldEleme
         
         if (same_y) {
             // Point doubling in affine, convert to Jacobian
-            // λ = (3*x²) / (2*y)
+            // lambda = (3*x^2) / (2*y)
             FieldElement lambda, temp, x_sq;
             field_sqr(p_x, &x_sq);
-            field_add(&x_sq, &x_sq, &temp);      // 2*x²
-            field_add(&temp, &x_sq, &temp);      // 3*x²
+            field_add(&x_sq, &x_sq, &temp);      // 2*x^2
+            field_add(&temp, &x_sq, &temp);      // 3*x^2
             
             FieldElement two_y;
             field_add(p_y, p_y, &two_y);         // 2*y
             field_inv(&two_y, &two_y);           // 1/(2*y)
-            field_mul(&temp, &two_y, &lambda);   // λ
+            field_mul(&temp, &two_y, &lambda);   // lambda
             
-            // x' = λ² - 2*x
+            // x' = lambda^2 - 2*x
             field_sqr(&lambda, r_x);
             field_sub(r_x, p_x, r_x);
             field_sub(r_x, p_x, r_x);
             
-            // y' = λ*(x - x') - y
+            // y' = lambda*(x - x') - y
             field_sub(p_x, r_x, &temp);
             field_mul(&lambda, &temp, r_y);
             field_sub(r_y, p_y, r_y);
@@ -1931,19 +1931,19 @@ __device__ inline void point_add_mixed(const FieldElement* p_x, const FieldEleme
         }
     }
     
-    // Different points: λ = (y2 - y1) / (x2 - x1)
+    // Different points: lambda = (y2 - y1) / (x2 - x1)
     FieldElement lambda, dx, dy;
     field_sub(q_y, p_y, &dy);       // y2 - y1
     field_sub(q_x, p_x, &dx);       // x2 - x1
     field_inv(&dx, &dx);            // 1/(x2 - x1)
-    field_mul(&dy, &dx, &lambda);   // λ
+    field_mul(&dy, &dx, &lambda);   // lambda
     
-    // x' = λ² - x1 - x2
+    // x' = lambda^2 - x1 - x2
     field_sqr(&lambda, r_x);
     field_sub(r_x, p_x, r_x);
     field_sub(r_x, q_x, r_x);
     
-    // y' = λ*(x1 - x') - y1
+    // y' = lambda*(x1 - x') - y1
     FieldElement temp;
     field_sub(p_x, r_x, &temp);
     field_mul(&lambda, &temp, r_y);
@@ -2004,7 +2004,7 @@ __device__ inline void point_scalar_mul_simple(uint64_t k,
     field_mul(&acc.y, &z_inv_cube, result_y);
 }
 
-// Apply GLV endomorphism: φ(x,y) = (β·x, y)
+// Apply GLV endomorphism: phi(x,y) = (beta*x, y)
 __device__ inline void apply_endomorphism(const JacobianPoint* p, JacobianPoint* r) {
     if (p->infinity) {
         *r = *p;
@@ -2406,10 +2406,10 @@ __device__ inline void field_inv(const FieldElement* a, FieldElement* r) {
     field_inv_fermat_chain_impl(a, r);
 }
 
-// ── Field Square Root ────────────────────────────────────────────────────────
-// Computes r = sqrt(a) = a^((p+1)/4) for secp256k1 where p ≡ 3 (mod 4).
+// -- Field Square Root --------------------------------------------------------
+// Computes r = sqrt(a) = a^((p+1)/4) for secp256k1 where p == 3 (mod 4).
 // (p+1)/4 = 0x3FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFBFFFFF0C
-// Returns a valid sqrt if a is a quadratic residue; caller must verify r²==a.
+// Returns a valid sqrt if a is a quadratic residue; caller must verify r^2==a.
 // Optimized addition chain: 255 squarings + 14 multiplications = 269 ops.
 __device__ inline void field_sqrt(const FieldElement* a, FieldElement* r) {
     FieldElement x2, x3, x6, x22, x44, t;
@@ -2460,7 +2460,7 @@ __device__ inline void field_sqrt(const FieldElement* a, FieldElement* r) {
     field_sqr_n(&t, 2);
     field_mul(&t, &x2, &t);
 
-    // Tail: extend 1^222 → 1^223 0 1^22 0000 11 00
+    // Tail: extend 1^222 -> 1^223 0 1^22 0000 11 00
     // x223: t = t^2 * a
     field_sqr(&t, &t);
     field_mul(&t, a, &t);
@@ -2502,7 +2502,7 @@ __global__ void scalar_mul_batch_kernel(const JacobianPoint* points, const Scala
 __global__ void generator_mul_batch_kernel(const Scalar* scalars, JacobianPoint* results, int count);
 
 // Windowed generator multiplication kernel (w=4, shared-memory precomputed table)
-// ~30-40% faster than plain double-and-add: 252 doublings + ≤64 adds vs 256 + ~128.
+// ~30-40% faster than plain double-and-add: 252 doublings + <=64 adds vs 256 + ~128.
 __global__ void generator_mul_windowed_batch_kernel(const Scalar* scalars, JacobianPoint* results, int count);
 
 // Generator constant (inline definition for proper linkage across translation units)
@@ -2529,7 +2529,7 @@ __device__ __constant__ static const JacobianPoint GENERATOR_JACOBIAN = {
     false
 };
 
-// ── Precomputed Generator Table Builder ──────────────────────────────────────
+// -- Precomputed Generator Table Builder --------------------------------------
 // Builds table[i] = i*G for i=0..15 using Jacobian coordinates.
 // Called by a single thread (threadIdx.x == 0).
 // Caller MUST issue __syncthreads() after this returns.
@@ -2556,10 +2556,10 @@ __device__ inline void build_generator_table(JacobianPoint* table) {
     }
 }
 
-// ── Fixed-Window (w=4) Generator Scalar Multiplication ──────────────────────
+// -- Fixed-Window (w=4) Generator Scalar Multiplication ----------------------
 // Uses precomputed table[0..15] = i*G from build_generator_table.
 // Processes scalar 4 bits at a time (MSB to LSB): 64 windows.
-// Cost: 252 doublings + ≤64 jacobian_adds.
+// Cost: 252 doublings + <=64 jacobian_adds.
 // Compared to plain double-and-add: saves ~50% of point additions.
 __device__ inline void scalar_mul_generator_windowed(
     const JacobianPoint* table, const Scalar* k, JacobianPoint* r)
@@ -2600,7 +2600,7 @@ __device__ inline void scalar_mul_generator_windowed(
 }
 
 // ============================================================================
-// Optimized Scalar Multiplication — wNAF w=4
+// Optimized Scalar Multiplication -- wNAF w=4
 // ============================================================================
 // Windowed Non-Adjacent Form with pre-negated affine table.
 // 8 precomputed odd multiples: [P, 3P, 5P, 7P, 9P, 11P, 13P, 15P]
@@ -2752,7 +2752,7 @@ __device__ inline void scalar_mul_wnaf(const JacobianPoint* p, const Scalar* k, 
         }
         int8_t d = wnaf[i];
         if (d > 0) {
-            int idx = (d - 1) / 2; // d=1→0, d=3→1, ..., d=15→7
+            int idx = (d - 1) / 2; // d=1->0, d=3->1, ..., d=15->7
             if (r->infinity) {
                 r->x = tbl[idx].x;
                 r->y = tbl[idx].y;
@@ -2838,7 +2838,7 @@ __device__ inline void scalar_mul_glv_wnaf(const JacobianPoint* p, const Scalar*
         j1.x = p1.x; j1.y = p1.y; field_set_one(&j1.z); j1.infinity = false;
         jacobian_add_mixed(&j1, &p2, &jp);
         if (jp.infinity) {
-            p1_plus_p2.x = p1.x; // degenerate — won't happen in practice
+            p1_plus_p2.x = p1.x; // degenerate -- won't happen in practice
             p1_plus_p2.y = p1.y;
         } else {
             FieldElement zi, zi2, zi3;
@@ -3075,7 +3075,7 @@ __device__ inline void shamir_double_mul_glv(
         field_mul(&Q->y, &zi3, &aff_Q.y);
     }
 
-    // Build 4 base points: P, endo(P), Q, endo(Q) — with sign adjustments
+    // Build 4 base points: P, endo(P), Q, endo(Q) -- with sign adjustments
     AffinePoint pts[4]; // pts[0]=P1, pts[1]=P2(endo), pts[2]=Q1, pts[3]=Q2(endo)
     FieldElement zero_fe;
     field_set_zero(&zero_fe);
@@ -3161,7 +3161,7 @@ __device__ inline void shamir_double_mul_glv(
 // These are the standard secp256k1 generator multiples.
 
 __device__ __constant__ static const AffinePoint GENERATOR_TABLE_AFFINE[16] = {
-    // [0] = O (identity, unused — handled by branch)
+    // [0] = O (identity, unused -- handled by branch)
     {{{0, 0, 0, 0}}, {{0, 0, 0, 0}}},
     // [1] = G
     {{{0x59F2815B16F81798ULL, 0x029BFCDB2DCE28D9ULL, 0x55A06295CE870B07ULL, 0x79BE667EF9DCBBACULL}},
@@ -3210,9 +3210,9 @@ __device__ __constant__ static const AffinePoint GENERATOR_TABLE_AFFINE[16] = {
      {{0xC504DC9FF6A26B58ULL, 0xEA40AF2BD896D3A5ULL, 0x83842EC228CC6DEFULL, 0x581E2872A86C72A6ULL}}},
 };
 
-// ── Optimized Generator Scalar Multiplication with constant table ────────────
+// -- Optimized Generator Scalar Multiplication with constant table ------------
 // Uses GENERATOR_TABLE_AFFINE in __constant__ memory (no build_generator_table needed).
-// Fixed-window w=4: 252 doublings + ≤64 mixed additions.
+// Fixed-window w=4: 252 doublings + <=64 mixed additions.
 // Saves shared-memory allocation and __syncthreads() compared to runtime table.
 __device__ inline void scalar_mul_generator_const(const Scalar* k, JacobianPoint* r) {
     r->infinity = true;

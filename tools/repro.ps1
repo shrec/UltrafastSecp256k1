@@ -1,6 +1,6 @@
 #!/usr/bin/env pwsh
 # ============================================================================
-# repro.ps1 — Reproducible Environment Report Generator
+# repro.ps1 -- Reproducible Environment Report Generator
 # ============================================================================
 # Collects system/compiler/build info for bug reports and benchmarks.
 # Usage: pwsh tools/repro.ps1 [-OutputFile repro.txt]
@@ -12,7 +12,7 @@ param(
 )
 
 function Write-Section($title) {
-    $sep = "─" * 60
+    $sep = "-" * 60
     Write-Output ""
     Write-Output $sep
     Write-Output "  $title"
@@ -27,19 +27,19 @@ function Add-Line($text) {
 
 function Add-Section($title) {
     $script:report += ""
-    $script:report += ("─" * 60)
+    $script:report += ("-" * 60)
     $script:report += "  $title"
-    $script:report += ("─" * 60)
+    $script:report += ("-" * 60)
 }
 
-# ── Header ────────────────────────────────────────────────────────────────────
+# -- Header --------------------------------------------------------------------
 
 $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss K"
-Add-Line "UltrafastSecp256k1 — Environment Report"
+Add-Line "UltrafastSecp256k1 -- Environment Report"
 Add-Line "Generated: $timestamp"
 Add-Line ""
 
-# ── Git Info ──────────────────────────────────────────────────────────────────
+# -- Git Info ------------------------------------------------------------------
 
 Add-Section "Git"
 
@@ -58,7 +58,7 @@ try {
     Add-Line "  (git not available)"
 }
 
-# ── OS Info ───────────────────────────────────────────────────────────────────
+# -- OS Info -------------------------------------------------------------------
 
 Add-Section "Operating System"
 
@@ -81,7 +81,7 @@ if ($IsWindows -or $env:OS -eq "Windows_NT") {
     Add-Line "  Arch:    $arch"
 }
 
-# ── CPU Info ──────────────────────────────────────────────────────────────────
+# -- CPU Info ------------------------------------------------------------------
 
 Add-Section "CPU"
 
@@ -98,7 +98,7 @@ if ($IsWindows -or $env:OS -eq "Windows_NT") {
     Add-Line "  Cores:   $cores"
 }
 
-# ── Memory ────────────────────────────────────────────────────────────────────
+# -- Memory --------------------------------------------------------------------
 
 Add-Section "Memory"
 
@@ -115,7 +115,7 @@ if ($IsWindows -or $env:OS -eq "Windows_NT") {
     }
 }
 
-# ── Compilers ─────────────────────────────────────────────────────────────────
+# -- Compilers -----------------------------------------------------------------
 
 Add-Section "Compilers"
 
@@ -132,7 +132,7 @@ foreach ($cc in $compilers) {
     }
 }
 
-# ── CMake ─────────────────────────────────────────────────────────────────────
+# -- CMake ---------------------------------------------------------------------
 
 Add-Section "CMake"
 
@@ -150,7 +150,7 @@ if ($ninja) {
     Add-Line "  Ninja: $ninjaVer"
 }
 
-# ── Build Config (if build dir exists) ────────────────────────────────────────
+# -- Build Config (if build dir exists) ----------------------------------------
 
 if ($BuildDir -and (Test-Path "$BuildDir/CMakeCache.txt")) {
     Add-Section "Build Configuration ($BuildDir)"
@@ -177,7 +177,7 @@ if ($BuildDir -and (Test-Path "$BuildDir/CMakeCache.txt")) {
     }
 }
 
-# ── GPU (if available) ────────────────────────────────────────────────────────
+# -- GPU (if available) --------------------------------------------------------
 
 Add-Section "GPU"
 
@@ -197,12 +197,12 @@ if ($nvidiaSmi) {
     Add-Line "  (no NVIDIA GPU detected)"
 }
 
-# ── Output ────────────────────────────────────────────────────────────────────
+# -- Output --------------------------------------------------------------------
 
 Add-Line ""
-Add-Line ("─" * 60)
+Add-Line ("-" * 60)
 Add-Line "  End of Report"
-Add-Line ("─" * 60)
+Add-Line ("-" * 60)
 
 $output = $report -join "`n"
 

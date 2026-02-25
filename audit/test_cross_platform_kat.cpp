@@ -4,7 +4,7 @@
 // ============================================================================
 // Generates deterministic golden outputs for ALL major operations.
 // Every platform (x86, ARM64, RISC-V, WASM, ESP32, STM32) must produce
-// identical byte-exact results — any divergence is a platform-specific bug.
+// identical byte-exact results -- any divergence is a platform-specific bug.
 //
 // Mode 1 (default): Verify against embedded golden vectors
 // Mode 2 (--generate): Print golden vectors to stdout (run once on reference)
@@ -67,8 +67,8 @@ static void verify_hex(const char* label, const uint8_t* data, size_t len, const
     CHECK(got == expected, msg);
 }
 
-// ── Deterministic test inputs ────────────────────────────────────────────────
-// These are fixed across all platforms. NEVER change them — they define the KAT.
+// -- Deterministic test inputs ------------------------------------------------
+// These are fixed across all platforms. NEVER change them -- they define the KAT.
 
 // Private key (arbitrary but deterministic)
 static const std::array<uint8_t, 32> PRIVKEY_BYTES = {
@@ -101,7 +101,7 @@ static const std::array<uint8_t, 32> AUX_RAND = {0};
 // 1. Field arithmetic KAT
 // ============================================================================
 
-// Golden vectors — generated from reference platform
+// Golden vectors -- generated from reference platform
 struct KV { const char* label; const char* hex; };
 
 // Pre-computed expected results for privkey=1 operations
@@ -269,7 +269,7 @@ static void test_ecdsa_kat() {
     bool ok = secp256k1::ecdsa_verify(MSG_HASH, pubkey, sig);
     CHECK(ok, "ECDSA verify passes");
 
-    // Verify determinism: sign again → same r,s
+    // Verify determinism: sign again -> same r,s
     auto sig2 = secp256k1::ecdsa_sign(MSG_HASH, privkey);
     CHECK(sig2.r.to_bytes() == r_bytes, "ECDSA sign is deterministic (r)");
     CHECK(sig2.s.to_bytes() == s_bytes, "ECDSA sign is deterministic (s)");
@@ -304,7 +304,7 @@ static void test_schnorr_kat() {
     bool ok = secp256k1::schnorr_verify(pubkey_x, MSG_HASH, sig);
     CHECK(ok, "Schnorr verify passes");
 
-    // Determinism: sign again → same result
+    // Determinism: sign again -> same result
     auto sig2 = secp256k1::schnorr_sign(privkey, MSG_HASH, AUX_RAND);
     CHECK(sig2.r == sig.r, "Schnorr sign is deterministic (r)");
     CHECK(sig2.s.to_bytes() == sig.s.to_bytes(), "Schnorr sign is deterministic (s)");
@@ -325,7 +325,7 @@ static void test_serialization_kat() {
     auto privkey = Scalar::from_bytes(PRIVKEY2_BYTES);
     auto pubkey = Point::generator().scalar_mul(privkey);
 
-    // Compressed → Uncompressed round-trip
+    // Compressed -> Uncompressed round-trip
     auto comp = pubkey.to_compressed();
     auto uncomp = pubkey.to_uncompressed();
 
@@ -372,16 +372,16 @@ int main(int argc, char** argv) {
     for (int i = 1; i < argc; ++i) {
         if (std::string(argv[i]) == "--generate") {
             g_generate = true;
-            printf("// KAT Generator Mode — copy these vectors into golden arrays\n");
+            printf("// KAT Generator Mode -- copy these vectors into golden arrays\n");
             printf("static const KV GOLDEN[] = {\n");
         }
     }
 
     if (!g_generate) {
-        printf("════════════════════════════════════════════════════════════\n");
+        printf("============================================================\n");
         printf("  Cross-Platform KAT Equivalence Test\n");
         printf("  Phase II, Tasks 2.6.3 / 2.6.4\n");
-        printf("════════════════════════════════════════════════════════════\n\n");
+        printf("============================================================\n\n");
     }
 
     test_field_kat();          if(!g_generate) printf("\n");
@@ -394,9 +394,9 @@ int main(int argc, char** argv) {
     if (g_generate) {
         printf("};\n");
     } else {
-        printf("\n════════════════════════════════════════════════════════════\n");
+        printf("\n============================================================\n");
         printf("  Summary: %d passed, %d failed\n", g_pass, g_fail);
-        printf("════════════════════════════════════════════════════════════\n");
+        printf("============================================================\n");
     }
 
     return g_fail > 0 ? 1 : 0;

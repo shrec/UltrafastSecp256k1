@@ -1,8 +1,8 @@
-# Secp256k1 CUDA — GPU ECC Library
+# Secp256k1 CUDA -- GPU ECC Library
 
-> **English summary**: Full secp256k1 ECC library for NVIDIA GPUs — header-only core with PTX inline assembly. Supports CUDA and ROCm/HIP (via `gpu_compat.h` abstraction layer). Priority: maximum throughput for batch operations. Not side-channel resistant (research/development use). See [docs/API_REFERENCE.md](../docs/API_REFERENCE.md) for the full API and [docs/BUILDING.md](../docs/BUILDING.md) for build instructions.
+> **English summary**: Full secp256k1 ECC library for NVIDIA GPUs -- header-only core with PTX inline assembly. Supports CUDA and ROCm/HIP (via `gpu_compat.h` abstraction layer). Priority: maximum throughput for batch operations. Not side-channel resistant (research/development use). See [docs/API_REFERENCE.md](../docs/API_REFERENCE.md) for the full API and [docs/BUILDING.md](../docs/BUILDING.md) for build instructions.
 
-Full secp256k1 ECC library for NVIDIA GPUs — header-only core with PTX inline assembly.
+Full secp256k1 ECC library for NVIDIA GPUs -- header-only core with PTX inline assembly.
 
 **Priority**: Maximum throughput for batch operations. Not side-channel resistant (research/dev use).
 
@@ -10,17 +10,17 @@ Full secp256k1 ECC library for NVIDIA GPUs — header-only core with PTX inline 
 
 ## Architecture
 
-All code resides in the `secp256k1::cuda` namespace. The core is **header-only** — `secp256k1.cuh` contains all device functions. Data types are interoperable with the CPU library (`secp256k1/types.hpp` POD structs).
+All code resides in the `secp256k1::cuda` namespace. The core is **header-only** -- `secp256k1.cuh` contains all device functions. Data types are interoperable with the CPU library (`secp256k1/types.hpp` POD structs).
 
 ### Compile-Time Configuration (3 backends)
 
 | Macro | Default | Description |
 |-------|---------|--------|
-| `SECP256K1_CUDA_USE_HYBRID_MUL` | **ON** | 32-bit Comba mul + 64-bit reduction (1.10× faster) |
+| `SECP256K1_CUDA_USE_HYBRID_MUL` | **ON** | 32-bit Comba mul + 64-bit reduction (1.10x faster) |
 | `SECP256K1_CUDA_USE_MONTGOMERY` | OFF | Montgomery residue domain (mont_reduce_512) |
-| `SECP256K1_CUDA_LIMBS_32` | OFF | Full 8×32-bit limbs (separate backend) |
+| `SECP256K1_CUDA_LIMBS_32` | OFF | Full 8x32-bit limbs (separate backend) |
 
-**Default path** (64-bit hybrid): `field_mul` → `field_mul_hybrid` → 32-bit Comba PTX → `reduce_512_to_256`
+**Default path** (64-bit hybrid): `field_mul` -> `field_mul_hybrid` -> 32-bit Comba PTX -> `reduce_512_to_256`
 
 ---
 
@@ -28,7 +28,7 @@ All code resides in the `secp256k1::cuda` namespace. The core is **header-only**
 
 ### Field Arithmetic (Fp)
 - **add/sub**: PTX inline asm with carry chains (ADDC.CC/SUBC.CC)
-- **mul**: 32-bit Comba hybrid → 64-bit secp256k1 fast reduction (P = 2²⁵⁶ − 2³² − 977)
+- **mul**: 32-bit Comba hybrid -> 64-bit secp256k1 fast reduction (P = 2^2⁵⁶ - 2^3^2 - 977)
 - **sqr**: Optimized squaring (cross-product doubling)
 - **inverse**: Fermat chain `a^{p-2}` (255 sqr + 16 mul)
 - **mul_small**: Multiplication by uint32 (for reduction constants)
@@ -41,13 +41,13 @@ All code resides in the `secp256k1::cuda` namespace. The core is **header-only**
 ### Point Operations (Jacobian coordinates)
 - **doubling**: `dbl-2001-b` (3M+4S, a=0 curves)
 - **mixed addition**: 6 variants optimized for different scenarios:
-  - `jacobian_add_mixed` — madd-2007-bl (7M+4S) general
-  - `jacobian_add_mixed_h` — madd-2004-hmv (8M+3S), H output for batch inversion
-  - `jacobian_add_mixed_h_z1` — Z=1 specialized (5M+2S), first step
-  - `jacobian_add_mixed_const` — branchless (8M+3S), constant-point
-  - `jacobian_add_mixed_const_7m4s` — branchless 7M+4S + 2H output
+  - `jacobian_add_mixed` -- madd-2007-bl (7M+4S) general
+  - `jacobian_add_mixed_h` -- madd-2004-hmv (8M+3S), H output for batch inversion
+  - `jacobian_add_mixed_h_z1` -- Z=1 specialized (5M+2S), first step
+  - `jacobian_add_mixed_const` -- branchless (8M+3S), constant-point
+  - `jacobian_add_mixed_const_7m4s` -- branchless 7M+4S + 2H output
 - **general add**: `jacobian_add` (11M+5S, Jacobian + Jacobian)
-- **GLV endomorphism**: `apply_endomorphism` φ(x,y) = (β·x, y)
+- **GLV endomorphism**: `apply_endomorphism` phi(x,y) = (beta*x, y)
 
 ### Scalar Multiplication
 - **double-and-add**: Simple, register-efficient (wNAF is expensive on GPU due to register pressure)
@@ -59,10 +59,10 @@ All code resides in the `secp256k1::cuda` namespace. The core is **header-only**
 - **naive**: Direct GCD (debug/reference)
 
 ### Hash160 (SHA-256 + RIPEMD-160)
-- `hash160_pubkey_kernel` — pubkey → Hash160 device-side
+- `hash160_pubkey_kernel` -- pubkey -> Hash160 device-side
 
 ### Bloom Filter
-- `DeviceBloom` — FNV-1a + SplitMix hashing
+- `DeviceBloom` -- FNV-1a + SplitMix hashing
 - `test` / `add` device functions + batch kernels
 
 ---
@@ -71,22 +71,22 @@ All code resides in the `secp256k1::cuda` namespace. The core is **header-only**
 
 ```
 cuda/
-├── CMakeLists.txt                              # Build: lib + test + bench
-├── README.md
-├── include/
-│   ├── secp256k1.cuh                           # Core — field/point/scalar device functions (1800+ lines)
-│   ├── ptx_math.cuh                            # PTX inline asm (256×256→512 Comba multiply)
-│   ├── secp256k1_32.cuh                        # Alternative: 8×32-bit limbs + Montgomery backend
-│   ├── secp256k1_32_hybrid_final.cuh           # 32-bit Comba mul → 64-bit reduction (default mul path)
-│   ├── batch_inversion.cuh                     # Montgomery trick / Fermat / naive batch inverse
-│   ├── bloom.cuh                               # Device-side Bloom filter (FNV-1a + SplitMix)
-│   ├── hash160.cuh                             # SHA-256 + RIPEMD-160 → Hash160
-│   ├── host_helpers.cuh                        # Host-side wrappers (1-thread kernels, test-only)
-│   └── gpu_compat.h                            # CUDA ↔ HIP (ROCm) compatibility layer
-├── src/
-│   ├── secp256k1.cu                            # Kernel definitions (thin wrappers)
-│   ├── test_suite.cu                           # 30 vector tests
-│   └── bench_cuda.cu                           # Benchmark harness
++-- CMakeLists.txt                              # Build: lib + test + bench
++-- README.md
++-- include/
+|   +-- secp256k1.cuh                           # Core -- field/point/scalar device functions (1800+ lines)
+|   +-- ptx_math.cuh                            # PTX inline asm (256x256->512 Comba multiply)
+|   +-- secp256k1_32.cuh                        # Alternative: 8x32-bit limbs + Montgomery backend
+|   +-- secp256k1_32_hybrid_final.cuh           # 32-bit Comba mul -> 64-bit reduction (default mul path)
+|   +-- batch_inversion.cuh                     # Montgomery trick / Fermat / naive batch inverse
+|   +-- bloom.cuh                               # Device-side Bloom filter (FNV-1a + SplitMix)
+|   +-- hash160.cuh                             # SHA-256 + RIPEMD-160 -> Hash160
+|   +-- host_helpers.cuh                        # Host-side wrappers (1-thread kernels, test-only)
+|   +-- gpu_compat.h                            # CUDA <-> HIP (ROCm) compatibility layer
++-- src/
+|   +-- secp256k1.cu                            # Kernel definitions (thin wrappers)
+|   +-- test_suite.cu                           # 30 vector tests
+|   +-- bench_cuda.cu                           # Benchmark harness
 ```
 
 ---
@@ -111,9 +111,9 @@ cmake --build cuda/build -j
 |--------|---------|-------------|
 | `CMAKE_CUDA_ARCHITECTURES` | 89 (Ada) | NVIDIA GPU architecture (75/80/86/89/90) |
 | `SECP256K1_CUDA_USE_MONTGOMERY` | OFF | Montgomery domain |
-| `SECP256K1_CUDA_LIMBS_32` | OFF | 8×32-bit limb backend |
+| `SECP256K1_CUDA_LIMBS_32` | OFF | 8x32-bit limb backend |
 | `SECP256K1_BUILD_ROCM` | OFF | AMD ROCm/HIP build (portable math) |
-| `CMAKE_HIP_ARCHITECTURES` | — | AMD GPU architectures (gfx906/gfx1030/gfx1100/...) |
+| `CMAKE_HIP_ARCHITECTURES` | -- | AMD GPU architectures (gfx906/gfx1030/gfx1100/...) |
 
 ### Requirements
 - **NVIDIA**: CUDA Toolkit 12.0+, GPU Compute Capability 7.0+ (Volta+), CMake 3.18+
@@ -133,7 +133,7 @@ cmake --build build-rocm -j
 ```
 
 > **Note**: In ROCm builds, PTX inline asm is automatically replaced with portable
-> `__int128` fallbacks (`gpu_compat.h` → `SECP256K1_USE_PTX=0`).
+> `__int128` fallbacks (`gpu_compat.h` -> `SECP256K1_USE_PTX=0`).
 > The 32-bit hybrid mul backend (PTX-dependent) is automatically disabled on HIP.
 
 ---
@@ -151,7 +151,7 @@ __global__ void my_kernel(const Scalar* scalars, JacobianPoint* results, int n) 
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx >= n) return;
     
-    // G * k — GENERATOR_JACOBIAN is embedded at compile time
+    // G * k -- GENERATOR_JACOBIAN is embedded at compile time
     JacobianPoint G = GENERATOR_JACOBIAN;
     scalar_mul(&G, &scalars[idx], &results[idx]);
 }
@@ -185,13 +185,13 @@ cudaDeviceSynchronize();
 - Scalar arithmetic: add, sub, boundary
 - Point operations: doubling, mixed addition, identity
 - Scalar multiplication: known vectors, generator mul
-- GLV endomorphism: φ(φ(P)) + P = -φ(P)
+- GLV endomorphism: phi(phi(P)) + P = -phi(P)
 - Batch inversion: Montgomery trick correctness
-- Cross-backend: CPU ↔ CUDA result comparison
+- Cross-backend: CPU <-> CUDA result comparison
 
 ---
 
-## CPU ↔ CUDA Compatibility
+## CPU <-> CUDA Compatibility
 
 Data types share layout via `secp256k1/types.hpp`:
 
@@ -208,19 +208,19 @@ CPU-computed data transfers directly to GPU via `cudaMemcpy` (little-endian, sam
 
 ## Cross-Platform Benchmarks
 
-### Android ARM64 — RK3588 (Cortex-A55/A76), ARM64 inline ASM (MUL/UMULH)
+### Android ARM64 -- RK3588 (Cortex-A55/A76), ARM64 inline ASM (MUL/UMULH)
 
 | Operation | Time |
 |-----------|------|
 | field_mul (a*b mod p) | 85 ns |
-| field_sqr (a² mod p) | 66 ns |
+| field_sqr (a^2 mod p) | 66 ns |
 | field_add (a+b mod p) | 18 ns |
 | field_sub (a-b mod p) | 16 ns |
 | field_inverse | 2,621 ns |
-| **fast scalar_mul (k*G)** | **7.6 μs** |
-| fast scalar_mul (k*P) | 77.6 μs |
-| CT scalar_mul (k*G) | 545 μs |
-| ECDH (full CT) | 545 μs |
+| **fast scalar_mul (k*G)** | **7.6 us** |
+| fast scalar_mul (k*P) | 77.6 us |
+| CT scalar_mul (k*G) | 545 us |
+| ECDH (full CT) | 545 us |
 
 > Backend: ARM64 inline assembly (MUL/UMULH). ~5x faster than generic C++.
 
@@ -228,7 +228,7 @@ CPU-computed data transfers directly to GPU via `cudaMemcpy` (little-endian, sam
 
 ## License
 
-AGPL-3.0 — see [LICENSE](../LICENSE)
+AGPL-3.0 -- see [LICENSE](../LICENSE)
 
 ---
 
@@ -240,4 +240,4 @@ AGPL-3.0 — see [LICENSE](../LICENSE)
 
 ---
 
-*UltrafastSecp256k1 v3.0.0 — CUDA/ROCm GPU Library*
+*UltrafastSecp256k1 v3.0.0 -- CUDA/ROCm GPU Library*

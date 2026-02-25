@@ -7,11 +7,11 @@ regression detection.
 
 ## Principles
 
-1. **Reproducibility** — same code on same hardware produces same results (±2%)
-2. **Isolation** — benchmarks run with minimal background load
-3. **Statistical rigor** — multiple iterations with median reporting
-4. **Cross-platform** — results collected on multiple architectures
-5. **Automated tracking** — CI catches regressions before merge
+1. **Reproducibility** -- same code on same hardware produces same results (+-2%)
+2. **Isolation** -- benchmarks run with minimal background load
+3. **Statistical rigor** -- multiple iterations with median reporting
+4. **Cross-platform** -- results collected on multiple architectures
+5. **Automated tracking** -- CI catches regressions before merge
 
 ---
 
@@ -63,8 +63,8 @@ auto ns = duration_cast<nanoseconds>(t1 - t0).count() / 1000;
 ```
 [field_mul]          17 ns
 [field_square]       16 ns
-[scalar_mul]         25 μs
-[ecdsa_sign]         30 μs
+[scalar_mul]         25 us
+[ecdsa_sign]         30 us
 ```
 
 Parsed by `.github/scripts/parse_benchmark.py` into JSON for dashboard:
@@ -85,7 +85,7 @@ Parsed by `.github/scripts/parse_benchmark.py` into JSON for dashboard:
 For reliable results:
 
 - **CPU frequency**: Fixed (disable turbo boost / dynamic scaling)
-- **Thermal throttling**: Monitor — abort if throttled
+- **Thermal throttling**: Monitor -- abort if throttled
 - **Background load**: Minimal (no browser, no IDE profiling)
 - **Memory**: Sufficient to avoid swapping
 
@@ -140,7 +140,7 @@ The CI benchmark workflow (`benchmark.yml`) uses
 |----------|-----------|--------|
 | Warning | >20% slower | Comment on PR |
 | Alert | >50% slower | Block merge (investigate) |
-| Critical | >100% slower (2×) | Revert immediately |
+| Critical | >100% slower (2x) | Revert immediately |
 
 ---
 
@@ -150,13 +150,13 @@ Benchmarks are collected on:
 
 | Platform | Hardware | CI |
 |----------|----------|-----|
-| x86-64 Linux | Ubuntu 24.04, GH Actions runner | ✅ Every push (dev/main) |
-| x86-64 Windows | Windows Latest, GH Actions runner | ✅ Every push (dev/main) |
-| ARM64 Linux | Cross-compile + QEMU (estimated) | ⚠️ Nightly |
-| RISC-V 64 | SiFive HiFive Unmatched (manual) | ❌ Manual |
-| ESP32-S3 | 240 MHz LX7 (manual) | ❌ Manual |
-| Apple Silicon | M3 Pro (manual) | ❌ Manual |
-| CUDA | RTX 5060 Ti (manual) | ❌ Manual |
+| x86-64 Linux | Ubuntu 24.04, GH Actions runner | [OK] Every push (dev/main) |
+| x86-64 Windows | Windows Latest, GH Actions runner | [OK] Every push (dev/main) |
+| ARM64 Linux | Cross-compile + QEMU (estimated) | [!] Nightly |
+| RISC-V 64 | SiFive HiFive Unmatched (manual) | [FAIL] Manual |
+| ESP32-S3 | 240 MHz LX7 (manual) | [FAIL] Manual |
+| Apple Silicon | M3 Pro (manual) | [FAIL] Manual |
+| CUDA | RTX 5060 Ti (manual) | [FAIL] Manual |
 
 ---
 
@@ -168,15 +168,15 @@ Current baseline (x86-64, Clang 21, AVX2, Release):
 |-----------|------|-------|
 | Field mul | 17 ns | ASM (mulx/adcx/adox) |
 | Field square | 16 ns | ASM |
-| Field inverse | 5 μs | Fermat (ASM) |
-| Scalar mul | 25 μs | GLV + wNAF |
-| Generator mul | 5 μs | Precomputed table |
+| Field inverse | 5 us | Fermat (ASM) |
+| Scalar mul | 25 us | GLV + wNAF |
+| Generator mul | 5 us | Precomputed table |
 | Point add (Jac) | 200 ns | |
 | Point double | 150 ns | |
-| ECDSA sign | 30 μs | CT path: 180 μs |
-| ECDSA verify | 55 μs | |
-| Schnorr sign | 28 μs | CT path: 170 μs |
-| Schnorr verify | 50 μs | |
+| ECDSA sign | 30 us | CT path: 180 us |
+| ECDSA verify | 55 us | |
+| Schnorr sign | 28 us | CT path: 170 us |
+| Schnorr verify | 50 us | |
 | Batch inv (N=1000) | 92 ns/elem | Montgomery trick |
 
 These serve as the alert baseline. Any commit causing >50% regression on a tracked
@@ -196,6 +196,6 @@ metric is flagged.
 
 ## See Also
 
-- [docs/BENCHMARKS.md](BENCHMARKS.md) — Full results across all platforms
-- [docs/PERFORMANCE_GUIDE.md](PERFORMANCE_GUIDE.md) — Tuning recommendations
-- [docs/PERFORMANCE_REGRESSION.md](PERFORMANCE_REGRESSION.md) — Regression tracking policy
+- [docs/BENCHMARKS.md](BENCHMARKS.md) -- Full results across all platforms
+- [docs/PERFORMANCE_GUIDE.md](PERFORMANCE_GUIDE.md) -- Tuning recommendations
+- [docs/PERFORMANCE_REGRESSION.md](PERFORMANCE_REGRESSION.md) -- Regression tracking policy

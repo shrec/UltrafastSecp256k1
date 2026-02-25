@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================================
-# UltrafastSecp256k1 — Release Build Script
+# UltrafastSecp256k1 -- Release Build Script
 # ============================================================================
 # Builds release binaries + creates distribution archive + NuGet layout.
 #
@@ -20,13 +20,13 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
-# ── Defaults ──
+# -- Defaults --
 BUILD_TYPE="Release"
 SKIP_TESTS=false
 BUILD_DIR="${ROOT_DIR}/build/release-pkg"
 RELEASE_DIR="${ROOT_DIR}/release"
 
-# ── Parse args ──
+# -- Parse args --
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --build-type) BUILD_TYPE="$2"; shift 2 ;;
@@ -35,7 +35,7 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# ── Detect platform ──
+# -- Detect platform --
 OS="$(uname -s)"
 ARCH="$(uname -m)"
 case "$OS" in
@@ -51,19 +51,19 @@ case "$ARCH" in
     *) ARCH_TAG="$ARCH" ;;
 esac
 
-# ── Read version from CMakeLists.txt ──
+# -- Read version from CMakeLists.txt --
 VERSION=$(grep -oP 'VERSION\s+\K[0-9]+\.[0-9]+\.[0-9]+' "${ROOT_DIR}/CMakeLists.txt" | head -1)
 PKG_NAME="UltrafastSecp256k1-v${VERSION}-${PLATFORM}-${ARCH_TAG}"
 
-echo "════════════════════════════════════════════════════════════"
+echo "============================================================"
 echo "  UltrafastSecp256k1 Release Build"
 echo "  Version:    ${VERSION}"
 echo "  Platform:   ${PLATFORM}-${ARCH_TAG}"
 echo "  Build Type: ${BUILD_TYPE}"
 echo "  Output:     ${RELEASE_DIR}/${PKG_NAME}"
-echo "════════════════════════════════════════════════════════════"
+echo "============================================================"
 
-# ── Configure ──
+# -- Configure --
 echo ""
 echo ">>> Configuring..."
 cmake -S "${ROOT_DIR}" -B "${BUILD_DIR}" \
@@ -73,25 +73,25 @@ cmake -S "${ROOT_DIR}" -B "${BUILD_DIR}" \
     -DSECP256K1_BUILD_BENCH=OFF \
     -DSECP256K1_BUILD_EXAMPLES=OFF
 
-# ── Build ──
+# -- Build --
 echo ""
 echo ">>> Building..."
 cmake --build "${BUILD_DIR}" -j"$(nproc 2>/dev/null || sysctl -n hw.logicalcpu 2>/dev/null || echo 4)"
 
-# ── Test ──
+# -- Test --
 if [ "$SKIP_TESTS" = false ]; then
     echo ""
     echo ">>> Running tests..."
     ctest --test-dir "${BUILD_DIR}" --output-on-failure -j4
 fi
 
-# ── Install to staging ──
+# -- Install to staging --
 echo ""
 echo ">>> Installing to staging..."
 STAGING="${BUILD_DIR}/staging"
 cmake --install "${BUILD_DIR}" --prefix "${STAGING}"
 
-# ── Collect release artifacts ──
+# -- Collect release artifacts --
 echo ""
 echo ">>> Packaging ${PKG_NAME}..."
 rm -rf "${RELEASE_DIR}/${PKG_NAME}"
@@ -132,7 +132,7 @@ cp "${ROOT_DIR}/README.md"    "${RELEASE_DIR}/${PKG_NAME}/" 2>/dev/null || true
 cp "${ROOT_DIR}/CHANGELOG.md" "${RELEASE_DIR}/${PKG_NAME}/" 2>/dev/null || true
 cp "${ROOT_DIR}/include/ufsecp/SUPPORTED_GUARANTEES.md" "${RELEASE_DIR}/${PKG_NAME}/" 2>/dev/null || true
 
-# ── Create archive ──
+# -- Create archive --
 echo ""
 echo ">>> Creating archive..."
 cd "${RELEASE_DIR}"
@@ -148,7 +148,7 @@ else
     echo "  Archive: ${RELEASE_DIR}/${PKG_NAME}.zip"
 fi
 
-# ── Populate NuGet runtime layout ──
+# -- Populate NuGet runtime layout --
 echo ""
 echo ">>> Setting up NuGet layout..."
 NUGET_ROOT="${RELEASE_DIR}/nuget"
@@ -168,9 +168,9 @@ cp "${ROOT_DIR}/include/ufsecp/ufsecp_error.h"    "${NUGET_ROOT}/include/ufsecp/
 
 echo "  NuGet runtimes: ${NUGET_ROOT}/runtimes/${PLATFORM}-${ARCH_TAG}/native/"
 
-# ── Summary ──
+# -- Summary --
 echo ""
-echo "════════════════════════════════════════════════════════════"
+echo "============================================================"
 echo "  Release build complete!"
 echo ""
 echo "  Package: ${RELEASE_DIR}/${PKG_NAME}/"
@@ -183,4 +183,4 @@ echo ""
 echo "  To create NuGet package:"
 echo "    cp -r nuget/* ${NUGET_ROOT}/"
 echo "    cd ${NUGET_ROOT} && nuget pack UltrafastSecp256k1.Native.nuspec"
-echo "════════════════════════════════════════════════════════════"
+echo "============================================================"

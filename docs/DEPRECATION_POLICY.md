@@ -25,15 +25,15 @@ It does **not** cover:
 ## 2. Deprecation Lifecycle
 
 ```
-┌──────────┐     ┌──────────────┐     ┌───────────┐     ┌─────────┐
-│  Active   │────▶│  Deprecated  │────▶│  Removed  │────▶│  Gone   │
-│ (current) │     │ (warnings)   │     │ (next ABI │     │         │
-│           │     │ + migration  │     │  major)   │     │         │
-└──────────┘     └──────────────┘     └───────────┘     └─────────┘
-     ▲                  │
-     │    minimum 2     │
-     │  minor releases  │
-     └──────────────────┘
++----------+     +--------------+     +-----------+     +---------+
+|  Active   |----▶|  Deprecated  |----▶|  Removed  |----▶|  Gone   |
+| (current) |     | (warnings)   |     | (next ABI |     |         |
+|           |     | + migration  |     |  major)   |     |         |
++----------+     +--------------+     +-----------+     +---------+
+     ▲                  |
+     |    minimum 2     |
+     |  minor releases  |
+     +------------------+
 ```
 
 ### Timeline Guarantee
@@ -57,7 +57,7 @@ It does **not** cover:
 Use compiler attributes to emit deprecation warnings:
 
 ```c
-/* Deprecated in v3.14.0 — use ufsecp_new_function() instead.
+/* Deprecated in v3.14.0 -- use ufsecp_new_function() instead.
  * Will be removed in v4.0.0. */
 UFSECP_API UFSECP_DEPRECATED("use ufsecp_new_function()")
 ufsecp_error_t ufsecp_old_function(ufsecp_ctx* ctx, ...);
@@ -80,7 +80,7 @@ Where `UFSECP_DEPRECATED` is defined as:
 Use the C++14 `[[deprecated]]` attribute:
 
 ```cpp
-// Deprecated in v3.14.0 — use new_method() instead.
+// Deprecated in v3.14.0 -- use new_method() instead.
 // Will be removed in v4.0.0.
 [[deprecated("use new_method() instead")]]
 Scalar old_method() const;
@@ -104,9 +104,9 @@ if (json.contains("new_key")) {
 
 Every deprecation must be documented in:
 
-1. **CHANGELOG.md** — under a "Deprecated" section for the release
-2. **API reference** — inline doc comment on the deprecated item
-3. **Migration guide** — in `docs/MIGRATION.md` with before/after examples
+1. **CHANGELOG.md** -- under a "Deprecated" section for the release
+2. **API reference** -- inline doc comment on the deprecated item
+3. **Migration guide** -- in `docs/MIGRATION.md` with before/after examples
 
 ---
 
@@ -161,10 +161,10 @@ When the deprecation period expires and a MAJOR version bump is planned:
 Deprecations interact with versioning as follows:
 
 ```
-v3.14.0  — Function A marked deprecated (warning emitted)
-v3.15.0  — Function A still works, warning continues
-v3.16.0  — Function A still works (minimum 2 minor releases)
-v4.0.0   — Function A removed (MAJOR bump, ABI_VERSION bumped)
+v3.14.0  -- Function A marked deprecated (warning emitted)
+v3.15.0  -- Function A still works, warning continues
+v3.16.0  -- Function A still works (minimum 2 minor releases)
+v4.0.0   -- Function A removed (MAJOR bump, ABI_VERSION bumped)
 ```
 
 ### The "Two Minor Releases" Rule
@@ -189,9 +189,9 @@ A deprecated symbol must survive for at least **two** minor releases after the r
 
 The following may bypass the standard deprecation period:
 
-1. **Security vulnerabilities** — immediate removal if continued availability poses a risk.
-2. **Legal requirements** — compliance-driven changes.
-3. **Experimental features** — marked `[EXPERIMENTAL]` have no stability guarantee.
+1. **Security vulnerabilities** -- immediate removal if continued availability poses a risk.
+2. **Legal requirements** -- compliance-driven changes.
+3. **Experimental features** -- marked `[EXPERIMENTAL]` have no stability guarantee.
 
 Any exception must be documented in the CHANGELOG with justification.
 

@@ -1,6 +1,6 @@
 # Bug Bounty Program
 
-**UltrafastSecp256k1** — Vulnerability Disclosure & Rewards
+**UltrafastSecp256k1** -- Vulnerability Disclosure & Rewards
 
 ---
 
@@ -10,22 +10,22 @@
 
 | Component | Priority | Description |
 |-----------|----------|-------------|
-| Core arithmetic (field/scalar/point) | Critical | Incorrect computation → key recovery, forgery |
+| Core arithmetic (field/scalar/point) | Critical | Incorrect computation -> key recovery, forgery |
 | ECDSA signing/verification | Critical | RFC 6979 nonce, signature correctness |
 | Schnorr signing/verification | Critical | BIP-340 compliance |
 | Constant-time layer (`ct::`) | Critical | Timing side-channel leaks |
 | MuSig2 protocol | High | Key aggregation, rogue-key, nonce handling |
 | FROST protocol | High | DKG, threshold signing, malicious participants |
 | BIP-32 HD derivation | High | Child key derivation correctness |
-| Address generation (27-coin) | High | Wrong addresses → fund loss |
+| Address generation (27-coin) | High | Wrong addresses -> fund loss |
 | C ABI (`ufsecp`) | Medium | NULL crashes, buffer overflows, UB |
 | SHA-256 / RIPEMD-160 | Medium | Hash correctness |
 | Serialization (DER, pubkey) | Medium | Parse confusion, malformed input crashes |
 
 ### 1.2 Out-of-Scope
 
-- GPU backends (CUDA/OpenCL/Metal/ROCm) — separate program planned
-- Language bindings (Python/Rust/Go/C#) — report upstream to binding repos
+- GPU backends (CUDA/OpenCL/Metal/ROCm) -- separate program planned
+- Language bindings (Python/Rust/Go/C#) -- report upstream to binding repos
 - Documentation errors (report as regular issues)
 - Denial-of-service via large input (not a security library concern at this layer)
 - Issues in dependencies (report to upstream maintainers)
@@ -38,20 +38,20 @@
 
 | Severity | Description | Reward Range |
 |----------|-------------|-------------|
-| **Critical** | Private key recovery, signature forgery, nonce leak, CT bypass enabling key extraction | $2,000 – $10,000 |
-| **High** | Incorrect arithmetic producing wrong but non-exploitable results, FROST/MuSig2 protocol break, BIP-32 derivation error | $500 – $2,000 |
-| **Medium** | Crash from crafted input, memory safety issue (OOB read/write), UB in production code path | $100 – $500 |
-| **Low** | Non-security correctness bug (e.g., address checksum), minor API contract violation | $50 – $100 |
+| **Critical** | Private key recovery, signature forgery, nonce leak, CT bypass enabling key extraction | $2,000 - $10,000 |
+| **High** | Incorrect arithmetic producing wrong but non-exploitable results, FROST/MuSig2 protocol break, BIP-32 derivation error | $500 - $2,000 |
+| **Medium** | Crash from crafted input, memory safety issue (OOB read/write), UB in production code path | $100 - $500 |
+| **Low** | Non-security correctness bug (e.g., address checksum), minor API contract violation | $50 - $100 |
 | **Informational** | Documentation gaps, hardening suggestions, code quality improvements | Public acknowledgment |
 
 ### 2.1 Bonus Multipliers
 
 | Condition | Multiplier |
 |-----------|-----------|
-| Includes working exploit / proof-of-concept | 2× |
-| Includes regression test case | 1.5× |
-| Affects CT layer with demonstrated timing measurement | 2× |
-| Found via formal methods / proof | 1.5× |
+| Includes working exploit / proof-of-concept | 2x |
+| Includes regression test case | 1.5x |
+| Affects CT layer with demonstrated timing measurement | 2x |
+| Found via formal methods / proof | 1.5x |
 
 ### 2.2 Reward Conditions
 
@@ -90,11 +90,11 @@ A valid report must include:
 
 | Event | SLA |
 |-------|-----|
-| Acknowledgment | ≤ 72 hours |
-| Severity triage | ≤ 7 days |
-| Fix timeline communicated | ≤ 14 days |
-| Critical fix released | ≤ 30 days |
-| High fix released | ≤ 60 days |
+| Acknowledgment | <= 72 hours |
+| Severity triage | <= 7 days |
+| Fix timeline communicated | <= 14 days |
+| Critical fix released | <= 30 days |
+| High fix released | <= 60 days |
 | Medium/Low fix released | Next minor release |
 | Public disclosure | 90 days after fix, or coordinated with reporter |
 

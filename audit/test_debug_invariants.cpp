@@ -1,6 +1,6 @@
 // ============================================================================
 // Debug Invariant Assertions Test
-// Phase V, Task 5.3.3 — Verify invariant checking works in debug builds
+// Phase V, Task 5.3.3 -- Verify invariant checking works in debug builds
 // ============================================================================
 // Tests that:
 //   1. is_normalized_field_element correctly identifies canonical FE
@@ -83,7 +83,7 @@ static void test_fe_normalization() {
     CHECK(debug::is_normalized_field_element(a.square()), "sqr result normalized");
     CHECK(debug::is_normalized_field_element(a.inverse()), "inv result normalized");
 
-    printf("    → all FE normalization checks passed\n");
+    printf("    -> all FE normalization checks passed\n");
 }
 
 // ============================================================================
@@ -127,7 +127,7 @@ static void test_on_curve() {
     Point P5 = P1.negate();
     CHECK(debug::is_on_curve(P5), "-P must be on curve");
 
-    printf("    → all on-curve checks passed\n");
+    printf("    -> all on-curve checks passed\n");
 }
 
 // ============================================================================
@@ -164,7 +164,7 @@ static void test_scalar_valid() {
     CHECK(debug::is_valid_scalar(a.inverse()), "a^-1 must be valid");
     CHECK(debug::is_valid_scalar(a.negate()), "-a must be valid");
 
-    printf("    → all scalar validity checks passed\n");
+    printf("    -> all scalar validity checks passed\n");
 }
 
 // ============================================================================
@@ -195,7 +195,7 @@ static void test_macro_integration() {
     SECP_ASSERT(1 + 1 == 2);
     SECP_ASSERT_MSG(true, "this should not fail");
 
-    printf("    → all macros work correctly\n");
+    printf("    -> all macros work correctly\n");
 }
 
 // ============================================================================
@@ -238,7 +238,7 @@ static void test_full_chain() {
     auto x3 = (x.square() * x) + FieldElement::from_uint64(7);
     CHECK(y2 == x3, "curve equation must hold");
 
-    printf("    → full chain invariants passed\n");
+    printf("    -> full chain invariants passed\n");
 }
 
 // ============================================================================
@@ -250,7 +250,7 @@ static void test_debug_counters() {
 
     auto& c = debug::counters();
     CHECK(c.invariant_check_count > 0, "invariant counter must have accumulated");
-    printf("    → %llu invariant checks performed so far\n",
+    printf("    -> %llu invariant checks performed so far\n",
            (unsigned long long)c.invariant_check_count);
 }
 
@@ -274,10 +274,10 @@ int test_debug_invariants_run() {
 // ============================================================================
 #ifndef UNIFIED_AUDIT_RUNNER
 int main() {
-    printf("════════════════════════════════════════════════════════════\n");
+    printf("============================================================\n");
     printf("  Debug Invariant Assertions Test\n");
     printf("  Phase V, Task 5.3.3\n");
-    printf("════════════════════════════════════════════════════════════\n\n");
+    printf("============================================================\n\n");
 
     test_fe_normalization();
     printf("\n");
@@ -291,9 +291,9 @@ int main() {
     printf("\n");
     test_debug_counters();
 
-    printf("\n════════════════════════════════════════════════════════════\n");
+    printf("\n============================================================\n");
     printf("  Summary: %d passed, %d failed\n", g_pass, g_fail);
-    printf("════════════════════════════════════════════════════════════\n");
+    printf("============================================================\n");
 
     // Print counter report
     SECP_DEBUG_COUNTER_REPORT();

@@ -28,7 +28,7 @@ ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 BUILD_DIR="${1:-${ROOT_DIR}/build-ctgrind}"
 REPORT_DIR="${BUILD_DIR}/ctgrind_reports"
 
-# ── Colors ────────────────────────────────────────────────────────────────────
+# -- Colors --------------------------------------------------------------------
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -38,7 +38,7 @@ info()  { echo -e "${GREEN}[CTGRIND]${NC} $*"; }
 warn()  { echo -e "${YELLOW}[CTGRIND]${NC} $*"; }
 fail()  { echo -e "${RED}[CTGRIND]${NC} $*"; }
 
-# ── Check Prerequisites ──────────────────────────────────────────────────────
+# -- Check Prerequisites ------------------------------------------------------
 if ! command -v valgrind &>/dev/null; then
     fail "Valgrind not found. Install: sudo apt install valgrind"
     exit 1
@@ -47,7 +47,7 @@ fi
 VG_VER=$(valgrind --version | grep -oP '\d+\.\d+')
 info "Valgrind version: ${VG_VER}"
 
-# ── Build with CT-Valgrind Instrumentation ────────────────────────────────────
+# -- Build with CT-Valgrind Instrumentation ------------------------------------
 info "Building with CTGRIND instrumentation..."
 cmake -S "${ROOT_DIR}" -B "${BUILD_DIR}" \
     -G Ninja \
@@ -61,10 +61,10 @@ cmake -S "${ROOT_DIR}" -B "${BUILD_DIR}" \
 cmake --build "${BUILD_DIR}" -j "$(nproc)" 2>/dev/null
 info "Build complete."
 
-# ── Prepare Report Directory ──────────────────────────────────────────────────
+# -- Prepare Report Directory --------------------------------------------------
 mkdir -p "${REPORT_DIR}"
 
-# ── CT Test Targets ───────────────────────────────────────────────────────────
+# -- CT Test Targets -----------------------------------------------------------
 # These are the test binaries that exercise constant-time code paths
 CT_TARGETS=(
     "test_ct_sidechannel_smoke"
@@ -79,7 +79,7 @@ PASSED=0
 FAILED=0
 ERRORS=0
 
-# ── Run Each Target Under Valgrind ────────────────────────────────────────────
+# -- Run Each Target Under Valgrind --------------------------------------------
 for target in "${CT_TARGETS[@]}"; do
     BINARY="${BUILD_DIR}/cpu/${target}"
     if [[ ! -x "${BINARY}" ]]; then
@@ -118,19 +118,19 @@ for target in "${CT_TARGETS[@]}"; do
     fi
 
     if [[ ${EXIT_CODE} -eq 0 ]]; then
-        info "  ✅ ${target}: PASS (0 CT violations)"
+        info "  [OK] ${target}: PASS (0 CT violations)"
         PASSED=$((PASSED + 1))
     elif [[ ${EXIT_CODE} -eq 42 ]]; then
-        fail "  ❌ ${target}: FAIL (${ERR_COUNT} CT violations)"
+        fail "  [FAIL] ${target}: FAIL (${ERR_COUNT} CT violations)"
         FAILED=$((FAILED + 1))
         ERRORS=$((ERRORS + ERR_COUNT))
     else
-        warn "  ⚠️  ${target}: CRASH (exit code ${EXIT_CODE})"
+        warn "  [!]  ${target}: CRASH (exit code ${EXIT_CODE})"
         FAILED=$((FAILED + 1))
     fi
 done
 
-# ── Generate JSON Summary ─────────────────────────────────────────────────────
+# -- Generate JSON Summary -----------------------------------------------------
 JSON_FILE="${REPORT_DIR}/ctgrind_summary.json"
 cat > "${JSON_FILE}" << EOF
 {
@@ -145,22 +145,22 @@ cat > "${JSON_FILE}" << EOF
 }
 EOF
 
-# ── Print Summary ─────────────────────────────────────────────────────────────
+# -- Print Summary -------------------------------------------------------------
 echo ""
-echo "════════════════════════════════════════════════════════════"
+echo "============================================================"
 echo "  CTGRIND Validation Summary"
-echo "════════════════════════════════════════════════════════════"
+echo "============================================================"
 echo "  Total targets:     ${TOTAL}"
 echo "  Passed:            ${PASSED}"
 echo "  Failed:            ${FAILED}"
 echo "  CT violations:     ${ERRORS}"
 echo "  Reports:           ${REPORT_DIR}/"
-echo "════════════════════════════════════════════════════════════"
+echo "============================================================"
 
 if [[ ${FAILED} -gt 0 ]]; then
     fail "CTGRIND VALIDATION FAILED"
     exit 1
 else
-    info "CTGRIND VALIDATION PASSED — all CT properties verified"
+    info "CTGRIND VALIDATION PASSED -- all CT properties verified"
     exit 0
 fi

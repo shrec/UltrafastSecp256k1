@@ -108,7 +108,7 @@ int main() {
         "E9873D79C6D87DC0FB6A5778633389F4453213303DA61F20BD67FC233AA33262"
     );
     
-    // Public key = private_key × G
+    // Public key = private_key x G
     Point G = Point::generator();
     Point public_key = G.scalar_mul(private_key);
     
@@ -470,13 +470,13 @@ int main() {
         "E9873D79C6D87DC0FB6A5778633389F4453213303DA61F20BD67FC233AA33262"
     );
     
-    // Bob's public key (received over the network — public data)
+    // Bob's public key (received over the network -- public data)
     Point bob_public = Point::from_hex(
         "D2E670A19C6D753D1A6D8B5F5D0C0E4C1A7E4F0B3E3D2A1C0B9A8E7D6C5B4A39",
         "4E7A1D5C3B2A0F9E8D7C6B5A4F3E2D1C0B9A8E7D6C5B4A3F2E1D0C9B8A7E6D5"
     );
     
-    // ECDH: shared_secret = alice_secret × bob_public
+    // ECDH: shared_secret = alice_secret x bob_public
     // Use CT to protect the secret scalar!
     Point shared_point = ct::scalar_mul(bob_public, alice_secret);
     
@@ -504,7 +504,7 @@ int main() {
         "4727DAF2986A9804B1117F8261ABA645C34537E4474E19BE58700792D501A591"
     );
     
-    // CT generator multiplication: public_key = secret_key × G
+    // CT generator multiplication: public_key = secret_key x G
     Point public_key = ct::generator_mul(secret_key);
     
     // Verify the key is on the curve (also CT)
@@ -532,19 +532,19 @@ using namespace secp256k1::fast;
 namespace ct = secp256k1::ct;
 
 int main() {
-    // ── Public computation (fast::) ──
-    // Base point is public — use fast:: for maximum speed
+    // -- Public computation (fast::) --
+    // Base point is public -- use fast:: for maximum speed
     Scalar pub_k = Scalar::from_uint64(100);
     Point base_point = Point::generator().scalar_mul(pub_k);  // fast::
     
-    // ── Secret computation (ct::) ──
-    // The scalar is secret — switch to CT
+    // -- Secret computation (ct::) --
+    // The scalar is secret -- switch to CT
     Scalar secret_k = Scalar::from_hex(
         "E9873D79C6D87DC0FB6A5778633389F4453213303DA61F20BD67FC233AA33262"
     );
     Point result = ct::scalar_mul(base_point, secret_k);  // ct::
     
-    // ── Verification (ct::) ──
+    // -- Verification (ct::) --
     // Compare points without leaking which one matched
     Point expected = Point::generator().scalar_mul(
         Scalar::from_uint64(100) * secret_k

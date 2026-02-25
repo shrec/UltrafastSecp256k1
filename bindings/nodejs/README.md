@@ -4,14 +4,14 @@ High-performance Node.js native addon for secp256k1 elliptic curve cryptography,
 
 ## Features
 
-- **ECDSA** — sign, verify, recover, DER serialization (RFC 6979)
-- **Schnorr** — BIP-340 sign/verify
-- **ECDH** — compressed, x-only, raw shared secret
-- **BIP-32** — HD key derivation
-- **Taproot** — output key tweaking (BIP-341)
-- **Addresses** — P2PKH, P2WPKH, P2TR
-- **WIF** — encode/decode
-- **Hashing** — SHA-256 (hardware-accelerated), HASH160, tagged hash
+- **ECDSA** -- sign, verify, recover, DER serialization (RFC 6979)
+- **Schnorr** -- BIP-340 sign/verify
+- **ECDH** -- compressed, x-only, raw shared secret
+- **BIP-32** -- HD key derivation
+- **Taproot** -- output key tweaking (BIP-341)
+- **Addresses** -- P2PKH, P2WPKH, P2TR
+- **WIF** -- encode/decode
+- **Hashing** -- SHA-256 (hardware-accelerated), HASH160, tagged hash
 
 ## Install
 
@@ -116,9 +116,9 @@ Built on hand-optimized C/C++ with platform-specific acceleration (AVX2, SHA-NI,
 
 | Operation | x86-64 | ARM64 | RISC-V |
 |-----------|--------|-------|--------|
-| ECDSA Sign | 8 μs | 30 μs | — |
-| kG (generator mul) | 5 μs | 14 μs | 33 μs |
-| kP (arbitrary mul) | 25 μs | 131 μs | 154 μs |
+| ECDSA Sign | 8 us | 30 us | -- |
+| kG (generator mul) | 5 us | 14 us | 33 us |
+| kP (arbitrary mul) | 25 us | 131 us | 154 us |
 
 ## License
 

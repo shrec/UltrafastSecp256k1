@@ -1,4 +1,4 @@
-# UltrafastSecp256k1 — User Guide
+# UltrafastSecp256k1 -- User Guide
 
 > Getting started with the fastest open-source secp256k1 library.
 
@@ -147,10 +147,10 @@ The C API is the **recommended** interface for all applications and language bin
 
 ### Design Principles
 
-1. **Opaque context** — all state in `ufsecp_ctx*`
+1. **Opaque context** -- all state in `ufsecp_ctx*`
 2. **Every function returns `ufsecp_error_t`** (0 = success)
-3. **No leaking internal types** — all I/O is `uint8_t[]` with fixed sizes
-4. **Caller owns all buffers** — library never allocates on behalf of caller
+3. **No leaking internal types** -- all I/O is `uint8_t[]` with fixed sizes
+4. **Caller owns all buffers** -- library never allocates on behalf of caller
 
 ### Context Lifecycle
 
@@ -232,7 +232,7 @@ ufsecp_pubkey_xonly(ctx, privkey, xonly);
 // Add tweak: privkey = (privkey + tweak) mod n
 ufsecp_seckey_tweak_add(ctx, privkey, tweak32);
 
-// Multiply tweak: privkey = (privkey × tweak) mod n
+// Multiply tweak: privkey = (privkey x tweak) mod n
 ufsecp_seckey_tweak_mul(ctx, privkey, tweak32);
 
 // Negate: privkey = -privkey mod n
@@ -462,7 +462,7 @@ bool partial_ok = frost_verify_partial(psig_1, nonce_commit_1,
     key_pkg_1.verification_share, msg, all_nonce_commitments,
     key_pkg_1.group_public_key);
 
-// 6. Aggregate: any t partial sigs → BIP-340 signature
+// 6. Aggregate: any t partial sigs -> BIP-340 signature
 auto final_sig = frost_aggregate(partial_sigs, nonce_commitments,
                                   key_pkg_1.group_public_key, msg);
 
@@ -518,9 +518,9 @@ pthread_mutex_unlock(&ctx_mutex);
 ```
 
 **Thread-safe operations** (no context needed):
-- `ufsecp_error_str()` — pure function, always safe
-- `ufsecp_sha256()` / `ufsecp_hash160()` — stateless hash functions
-- `ufsecp_abi_version()` — returns a constant
+- `ufsecp_error_str()` -- pure function, always safe
+- `ufsecp_sha256()` / `ufsecp_hash160()` -- stateless hash functions
+- `ufsecp_abi_version()` -- returns a constant
 
 ---
 

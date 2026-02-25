@@ -1,4 +1,4 @@
-# Verification Transparency Report — v3.14.0
+# Verification Transparency Report -- v3.14.0
 
 **Status: NOT externally audited.**  
 **Verification artifacts published for independent review.**
@@ -81,7 +81,7 @@ Nightly extended run: **~1.3M checks** (multiplier=100). Zero mismatches.
 |----------|--------:|:----:|
 | BIP-340 (Schnorr sign + verify) | 15 | 15/15 |
 | RFC 6979 (ECDSA deterministic nonce) | 6 | 6/6 |
-| BIP-32 (HD derivation TV1–TV5) | 90 | 90/90 |
+| BIP-32 (HD derivation TV1-TV5) | 90 | 90/90 |
 | FROST KAT (pinned intermediate values) | 76 | 76/76 |
 
 ### Property Tests
@@ -90,24 +90,24 @@ Nightly extended run: **~1.3M checks** (multiplier=100). Zero mismatches.
 |----------|-------:|
 | Group associativity: (P+Q)+R == P+(Q+R) | 10,000 |
 | Distributive: k(P+Q) == kP + kQ | 10,000 |
-| Jacobian↔Affine round-trip | 10,000 |
-| Square ≡ Mul: sqr(x) == mul(x,x) | 10,000 |
+| Jacobian<->Affine round-trip | 10,000 |
+| Square == Mul: sqr(x) == mul(x,x) | 10,000 |
 | Inverse: x * inv(x) == 1 (field + scalar) | 20,000 |
-| GLV: k1*G + k2*(λ*G) == k*G | 1,000 |
-| FAST ≡ CT equivalence (all ops) | 120,652 |
+| GLV: k1*G + k2*(lambda*G) == k*G | 1,000 |
+| FAST == CT equivalence (all ops) | 120,652 |
 
 ### Roundtrip Serialization
 
 | Format | Verified |
 |--------|:--------:|
-| DER encode → decode | ✔ |
-| Compact 64-byte encode → decode | ✔ |
-| Schnorr 64-byte encode → decode | ✔ |
-| Compressed pubkey serialize → parse | ✔ |
-| Uncompressed pubkey serialize → parse | ✔ |
-| WIF encode → decode | ✔ |
-| Bech32/Bech32m encode → decode | ✔ |
-| BIP-32 xpub/xprv serialize → parse | ✔ |
+| DER encode -> decode | OK |
+| Compact 64-byte encode -> decode | OK |
+| Schnorr 64-byte encode -> decode | OK |
+| Compressed pubkey serialize -> parse | OK |
+| Uncompressed pubkey serialize -> parse | OK |
+| WIF encode -> decode | OK |
+| Bech32/Bech32m encode -> decode | OK |
+| BIP-32 xpub/xprv serialize -> parse | OK |
 
 ---
 
@@ -138,7 +138,7 @@ Ideal: 1.0. Concern threshold: 1.2. Result is within acceptable bounds.
 
 ### Limitations
 
-- Architecture tested: x86-64 (CI runner). Other µarch may differ.
+- Architecture tested: x86-64 (CI runner). Other uarch may differ.
 - No formal verification (ct-verif, Vale) applied.
 - Compiler may introduce secret-dependent branches at optimization levels.
 - GPU backends are **NOT constant-time** by design.
@@ -208,14 +208,14 @@ Tracked in `tests/corpus/MANIFEST.txt`. Replayed on every CI run.
 
 | Measure | Status |
 |---------|--------|
-| SLSA Provenance attestation | ✔ Every release |
-| SHA-256 checksums (`SHA256SUMS.txt`) | ✔ Every release |
-| Cosign keyless signature (.sig + .pem) | ✔ Every release |
-| SBOM (CycloneDX 1.6) | ✔ Every release |
-| Reproducible build (Dockerfile) | ✔ Available |
-| Dependabot | ✔ Active |
-| Dependency review | ✔ Every PR |
-| Docker SHA-pinned images | ✔ CI + reproducible build |
+| SLSA Provenance attestation | OK Every release |
+| SHA-256 checksums (`SHA256SUMS.txt`) | OK Every release |
+| Cosign keyless signature (.sig + .pem) | OK Every release |
+| SBOM (CycloneDX 1.6) | OK Every release |
+| Reproducible build (Dockerfile) | OK Available |
+| Dependabot | OK Active |
+| Dependency review | OK Every PR |
+| Docker SHA-pinned images | OK CI + reproducible build |
 
 ---
 
@@ -247,7 +247,7 @@ Every GitHub Release includes:
 }
 ```
 
-Produced by `selftest_report(SelftestMode::ci).to_json()` — available in C++ API
+Produced by `selftest_report(SelftestMode::ci).to_json()` -- available in C++ API
 and all language bindings (Python, Rust, Go, C#, Node.js, etc.).
 
 ---
@@ -280,8 +280,8 @@ and all language bindings (Python, Rust, Go, C#, Node.js, etc.).
 | Gap | Impact | Mitigation |
 |-----|--------|-----------|
 | No formal CT verification | Compiler may break CT at -O2 | dudect + code review |
-| Single µarch timing test | Other CPUs may behave differently | Planned multi-µarch campaign |
-| GPU↔CPU limited differential | GPU correctness partially verified | Planned full equivalence |
+| Single uarch timing test | Other CPUs may behave differently | Planned multi-uarch campaign |
+| GPU<->CPU limited differential | GPU correctness partially verified | Planned full equivalence |
 | FROST no IETF ciphersuite | No external reference vectors for secp256k1 | Self-generated KATs |
 | MuSig2/FROST experimental | API may change | Documented, version-gated |
 
@@ -333,7 +333,7 @@ ctest --test-dir build-san --output-on-failure
 |----------|---------|
 | [INTERNAL_AUDIT.md](INTERNAL_AUDIT.md) | Full audit results (718 lines, per-check detail) |
 | [INVARIANTS.md](INVARIANTS.md) | 108 mathematical invariants catalog |
-| [TEST_MATRIX.md](TEST_MATRIX.md) | Function → test coverage map |
+| [TEST_MATRIX.md](TEST_MATRIX.md) | Function -> test coverage map |
 | [CT_VERIFICATION.md](CT_VERIFICATION.md) | Constant-time methodology |
 | [THREAT_MODEL.md](../THREAT_MODEL.md) | Layer-by-layer risk assessment |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Technical architecture |
@@ -343,5 +343,5 @@ ctest --test-dir build-san --output-on-failure
 
 ---
 
-*UltrafastSecp256k1 v3.14.0 — Verification Transparency Report*  
+*UltrafastSecp256k1 v3.14.0 -- Verification Transparency Report*  
 *Not audited. Verification artifacts published for independent review.*

@@ -85,11 +85,11 @@ cmake --build build -j
 
 The ARM64 implementation includes hand-optimized inline assembly (`cpu/src/field_asm_arm64.cpp`):
 
-- **`field_mul_arm64`** — 4x4 schoolbook MUL/UMULH + secp256k1 fast reduction
-- **`field_sqr_arm64`** — Optimized squaring (10 mul vs 16)
-- **`field_add_arm64`** — ADDS/ADCS + branchless normalization
-- **`field_sub_arm64`** — SUBS/SBCS + conditional add p
-- **`field_neg_arm64`** — Branchless `p - a` with CSEL
+- **`field_mul_arm64`** -- 4x4 schoolbook MUL/UMULH + secp256k1 fast reduction
+- **`field_sqr_arm64`** -- Optimized squaring (10 mul vs 16)
+- **`field_add_arm64`** -- ADDS/ADCS + branchless normalization
+- **`field_sub_arm64`** -- SUBS/SBCS + conditional add p
+- **`field_neg_arm64`** -- Branchless `p - a` with CSEL
 
 Additional hardware features:
 - **NEON**: 128-bit SIMD (implicit in ARMv8-A)
@@ -145,10 +145,10 @@ cmake --build build-android-arm64 -j
 
 Since v3.11.0, RISC-V benefits from:
 
-1. **Auto-detect CPU** — CMake reads `/proc/cpuinfo` uarch field to set `-mcpu=sifive-u74` automatically
-2. **ThinLTO propagation** — ARCH_FLAGS propagated via INTERFACE compile+link options
-3. **Zba/Zbb extensions** — Explicit `-march=rv64gc_zba_zbb` alongside `-mcpu`
-4. **Effective-affine GLV** — Batch-normalize P-multiples to affine in scalar_mul_glv52
+1. **Auto-detect CPU** -- CMake reads `/proc/cpuinfo` uarch field to set `-mcpu=sifive-u74` automatically
+2. **ThinLTO propagation** -- ARCH_FLAGS propagated via INTERFACE compile+link options
+3. **Zba/Zbb extensions** -- Explicit `-march=rv64gc_zba_zbb` alongside `-mcpu`
+4. **Effective-affine GLV** -- Batch-normalize P-multiples to affine in scalar_mul_glv52
 
 These changes combine for a **28-34% speedup** on Milk-V Mars (Scalar Mul 235->154 us).
 
@@ -156,10 +156,10 @@ These changes combine for a **28-34% speedup** on Milk-V Mars (Scalar Mul 235->1
 
 The RISC-V implementation includes hand-optimized assembly for:
 
-1. **Field Multiplication** — Optimized carry chain
-2. **Field Squaring** — Dedicated routine (25% fewer muls)
-3. **Field Add/Sub** — Branchless implementation
-4. **Modular Reduction** — Fast reduction for secp256k1
+1. **Field Multiplication** -- Optimized carry chain
+2. **Field Squaring** -- Dedicated routine (25% fewer muls)
+3. **Field Add/Sub** -- Branchless implementation
+4. **Modular Reduction** -- Fast reduction for secp256k1
 
 > **Note:** Since v3.11.0, C++ `__int128` inline code is 26-33% faster than hand-written FE52 assembly on RISC-V, so FE52 asm is disabled by default.
 
@@ -310,7 +310,7 @@ FieldElement::from_bytes(bytes);
 
 ## Constant-Time (CT) Layer
 
-The CT layer provides **side-channel resistant** operations for use with secret data. It lives in `secp256k1::ct::` and is always compiled alongside `fast::` — no build flags needed.
+The CT layer provides **side-channel resistant** operations for use with secret data. It lives in `secp256k1::ct::` and is always compiled alongside `fast::` -- no build flags needed.
 
 ### Architecture
 
@@ -340,9 +340,9 @@ secp256k1::ct::    <-- Side-channel resistant (constant-time)
 Unlike `fast::Point::add()` which has separate codepaths for P+Q vs P+P, the CT `point_add_complete()` handles **all cases** in a single branchless codepath:
 
 - **P + Q** (general addition)
-- **P + P** (doubling — detected via H==0 && R==0)
-- **P + O** or **O + Q** (identity — selected via cmov)
-- **P + (-P) = O** (inverse — detected via H==0 && R!=0)
+- **P + P** (doubling -- detected via H==0 && R==0)
+- **P + O** or **O + Q** (identity -- selected via cmov)
+- **P + (-P) = O** (inverse -- detected via H==0 && R!=0)
 
 Cost: ~16M + 6S (fixed, no branches on point values)
 

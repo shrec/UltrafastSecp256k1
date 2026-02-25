@@ -25,7 +25,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from ufsecp import Ufsecp, UfsecpError, NET_MAINNET
 
-# ── Golden Vectors ───────────────────────────────────────────────────────────
+# -- Golden Vectors -----------------------------------------------------------
 
 # Private key: 32 bytes (k=1 for simplicity in some tests, known key for BIP-340)
 KNOWN_PRIVKEY = bytes.fromhex(
@@ -51,11 +51,11 @@ SHA256_EMPTY = bytes.fromhex(
 RFC6979_MSG = bytes(32)  # all-zero 32-byte hash
 
 # BIP-340 test vector 0:
-# privkey: 3 (adjusted for BIP-340 — we use k=1 which is simpler)
-# We verify sign→verify round-trip with deterministic aux=zeros
+# privkey: 3 (adjusted for BIP-340 -- we use k=1 which is simpler)
+# We verify sign->verify round-trip with deterministic aux=zeros
 BIP340_AUX = bytes(32)
 
-# ── Tests ────────────────────────────────────────────────────────────────────
+# -- Tests --------------------------------------------------------------------
 
 def test_ctx_create_destroy():
     """Context lifecycle: create, ABI check, destroy."""
@@ -83,7 +83,7 @@ def test_seckey_verify():
 
 
 def test_pubkey_create():
-    """Pubkey derivation — golden vector k=1 → G."""
+    """Pubkey derivation -- golden vector k=1 -> G."""
     with Ufsecp() as ctx:
         pub = ctx.pubkey_create(KNOWN_PRIVKEY)
         assert pub == KNOWN_PUBKEY_COMPRESSED, (
@@ -92,7 +92,7 @@ def test_pubkey_create():
 
 
 def test_pubkey_xonly():
-    """X-only pubkey — golden vector k=1."""
+    """X-only pubkey -- golden vector k=1."""
     with Ufsecp() as ctx:
         xonly = ctx.pubkey_xonly(KNOWN_PRIVKEY)
         assert xonly == KNOWN_PUBKEY_XONLY
@@ -115,7 +115,7 @@ def test_ecdsa_sign_verify():
 
 
 def test_ecdsa_der_roundtrip():
-    """ECDSA compact ↔ DER conversion."""
+    """ECDSA compact <-> DER conversion."""
     with Ufsecp() as ctx:
         sig = ctx.ecdsa_sign(RFC6979_MSG, KNOWN_PRIVKEY)
         der = ctx.ecdsa_sig_to_der(sig)
@@ -213,12 +213,12 @@ def test_ecdh():
 def test_error_path():
     """Intentional error: verify methods return False for bad inputs."""
     with Ufsecp() as ctx:
-        # all-zero key → invalid → returns False
+        # all-zero key -> invalid -> returns False
         assert not ctx.seckey_verify(bytes(32)), "zero key must return False"
 
 
 def test_golden_ecdsa_deterministic():
-    """RFC 6979: same key + same message → same signature every time."""
+    """RFC 6979: same key + same message -> same signature every time."""
     with Ufsecp() as ctx:
         sig1 = ctx.ecdsa_sign(RFC6979_MSG, KNOWN_PRIVKEY)
         sig2 = ctx.ecdsa_sign(RFC6979_MSG, KNOWN_PRIVKEY)
@@ -226,14 +226,14 @@ def test_golden_ecdsa_deterministic():
 
 
 def test_golden_schnorr_deterministic():
-    """BIP-340: same key + same message + same aux → same signature."""
+    """BIP-340: same key + same message + same aux -> same signature."""
     with Ufsecp() as ctx:
         sig1 = ctx.schnorr_sign(RFC6979_MSG, KNOWN_PRIVKEY, BIP340_AUX)
         sig2 = ctx.schnorr_sign(RFC6979_MSG, KNOWN_PRIVKEY, BIP340_AUX)
         assert sig1 == sig2, "Schnorr signatures must be deterministic"
 
 
-# ── Runner ───────────────────────────────────────────────────────────────────
+# -- Runner -------------------------------------------------------------------
 
 def main():
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]

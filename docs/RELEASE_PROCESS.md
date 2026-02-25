@@ -1,6 +1,6 @@
 # Release Process
 
-> **Applies to:** UltrafastSecp256k1 (`libufsecp`) — all platforms and binding packages.
+> **Applies to:** UltrafastSecp256k1 (`libufsecp`) -- all platforms and binding packages.
 
 ---
 
@@ -9,8 +9,8 @@
 | Release Type | Frequency | Branch | Trigger |
 |-------------|-----------|--------|---------|
 | **Patch** (3.14.*x*) | As needed | `main` | Bug/security fix |
-| **Minor** (3.*x*.0) | ~4–8 weeks | `main` ← `dev` | New features, non-breaking changes |
-| **Major** (*x*.0.0) | When required | `main` ← `dev` | ABI-breaking changes |
+| **Minor** (3.*x*.0) | ~4-8 weeks | `main` <- `dev` | New features, non-breaking changes |
+| **Major** (*x*.0.0) | When required | `main` <- `dev` | ABI-breaking changes |
 
 > **Unscheduled security releases** bypass the cadence and ship ASAP.
 
@@ -20,7 +20,7 @@
 
 ### 2.1 Code Freeze
 
-1. **All CI green** on `dev` — every platform (Linux/macOS/Windows/WASM).
+1. **All CI green** on `dev` -- every platform (Linux/macOS/Windows/WASM).
 2. **No open P0 issues** tagged for this milestone.
 3. Cross-library differential test passes (`test_cross_libsecp256k1`).
 4. Parser fuzz tests pass (`test_fuzz_parsers`, `test_fuzz_address_bip32_ffi`).
@@ -137,9 +137,9 @@ Build platform binaries:
 For critical security fixes on a released version:
 
 ```
-main  ────○─── vX.Y.Z ───○── vX.Y.(Z+1)
+main  ----○--- vX.Y.Z ---○-- vX.Y.(Z+1)
            \                /
-            hotfix/issue-N ─
+            hotfix/issue-N -
 ```
 
 1. Branch `hotfix/issue-N` from `main` at the release tag.
@@ -181,4 +181,4 @@ If a release has a critical defect:
 1. Immediately publish a hotfix (preferred) or yank the release.
 2. For package registries, use the yank mechanism (`cargo yank`, `npm deprecate`).
 3. Notify users via GitHub Advisory and project channels.
-4. Do **not** force-push tags — create a new patch version instead.
+4. Do **not** force-push tags -- create a new patch version instead.

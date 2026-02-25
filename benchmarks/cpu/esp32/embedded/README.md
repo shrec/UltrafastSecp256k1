@@ -7,7 +7,7 @@ Performance benchmarks on ESP32-S3 embedded platform.
 | Property | Value |
 |----------|-------|
 | **Chip** | ESP32-S3 |
-| **Cores** | 2 × Xtensa LX7 |
+| **Cores** | 2 x Xtensa LX7 |
 | **Frequency** | 240 MHz |
 | **RAM** | 512 KB SRAM |
 | **Build Mode** | Portable C++ (no assembly, no __int128) |
@@ -21,12 +21,12 @@ Performance benchmarks on ESP32-S3 embedded platform.
 **All 28 library tests passed successfully!**
 
 Verified operations:
-- ✅ Field arithmetic (add, sub, mul, sqr, inverse)
-- ✅ Scalar arithmetic
-- ✅ Point operations (add, double, multiply)
-- ✅ Generator point multiplications
-- ✅ Point group identities
-- ✅ Test vectors (NIST-style verification)
+- [OK] Field arithmetic (add, sub, mul, sqr, inverse)
+- [OK] Scalar arithmetic
+- [OK] Point operations (add, double, multiply)
+- [OK] Generator point multiplications
+- [OK] Point group identities
+- [OK] Test vectors (NIST-style verification)
 
 ## 📈 Benchmark Results
 
@@ -42,23 +42,23 @@ Verified operations:
 
 | Operation | Time |
 |-----------|-----:|
-| Scalar × G (Generator Mul) | 2,483 μs |
+| Scalar x G (Generator Mul) | 2,483 us |
 
 ## 📊 Comparison with Other Platforms
 
-| Platform | Clock | Field Mul | Scalar×G |
+| Platform | Clock | Field Mul | ScalarxG |
 |----------|------:|----------:|---------:|
-| **ESP32-S3** | 240 MHz | 7,458 ns | 2,483 μs |
-| Milk-V Mars (RISC-V) | 1.5 GHz | 197 ns | 40 μs |
-| x86-64 (i5) | 3.5 GHz | 33 ns | 5 μs |
+| **ESP32-S3** | 240 MHz | 7,458 ns | 2,483 us |
+| Milk-V Mars (RISC-V) | 1.5 GHz | 197 ns | 40 us |
+| x86-64 (i5) | 3.5 GHz | 33 ns | 5 us |
 
 **Notes:**
 - ESP32-S3 uses portable 32-bit arithmetic (no `__int128`)
 - No assembly optimizations (yet)
-- Performance is ~38× slower than x86-64, reasonable for a 240 MHz MCU
+- Performance is ~38x slower than x86-64, reasonable for a 240 MHz MCU
 - Future: Xtensa assembly optimizations planned
 
-## 🔧 Build Configuration
+## [TOOL] Build Configuration
 
 ```cmake
 # ESP32 build flags

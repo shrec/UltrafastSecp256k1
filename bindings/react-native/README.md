@@ -2,18 +2,18 @@
 
 High-performance secp256k1 elliptic curve cryptography for React Native, powered by [UltrafastSecp256k1](https://github.com/shrec/UltrafastSecp256k1).
 
-Uses native C/C++ through JSI (Android NDK + iOS) for maximum performance — no bridge overhead.
+Uses native C/C++ through JSI (Android NDK + iOS) for maximum performance -- no bridge overhead.
 
 ## Features
 
-- **ECDSA** — sign, verify, recover (RFC 6979, low-S)
-- **Schnorr** — BIP-340 sign/verify
-- **ECDH** — shared secret derivation
-- **BIP-32** — HD key derivation
-- **Taproot** — BIP-341 output key tweaking
-- **Addresses** — P2PKH, P2WPKH, P2TR
-- **WIF** — encode/decode
-- **Hashing** — SHA-256, HASH160, tagged hash
+- **ECDSA** -- sign, verify, recover (RFC 6979, low-S)
+- **Schnorr** -- BIP-340 sign/verify
+- **ECDH** -- shared secret derivation
+- **BIP-32** -- HD key derivation
+- **Taproot** -- BIP-341 output key tweaking
+- **Addresses** -- P2PKH, P2WPKH, P2TR
+- **WIF** -- encode/decode
+- **Hashing** -- SHA-256, HASH160, tagged hash
 
 ## Install
 

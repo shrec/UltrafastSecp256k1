@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================================
-# UltrafastSecp256k1 — Android Build Script
+# UltrafastSecp256k1 -- Android Build Script
 # ============================================================================
 # Builds native libraries for all Android ABIs using the Android NDK.
 #
@@ -99,7 +99,7 @@ for ABI in "${ABIS[@]}"; do
         cp "$JNI_SO" "$ABI_OUT/"
         echo "  $ABI: $(du -h "$ABI_OUT/libsecp256k1_jni.so" | cut -f1)"
     else
-        echo "  $ABI: WARNING — libsecp256k1_jni.so not found"
+        echo "  $ABI: WARNING -- libsecp256k1_jni.so not found"
     fi
 done
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ===========================================================================
-# verify_reproducible_build.sh — Local reproducible build check
+# verify_reproducible_build.sh -- Local reproducible build check
 # ===========================================================================
 # Runs two clean Release builds and compares library checksums.
 # Usage: ./scripts/verify_reproducible_build.sh
@@ -66,11 +66,11 @@ echo "${HASH_B}"
 echo ""
 
 if [ "${HASH_A}" = "${HASH_B}" ]; then
-    echo "✅ PASS: Builds are byte-identical (reproducible)"
+    echo "[OK] PASS: Builds are byte-identical (reproducible)"
     rm -rf "${ROOT_DIR}/build-repro-A" "${ROOT_DIR}/build-repro-B"
     exit 0
 else
-    echo "❌ FAIL: Builds differ"
+    echo "[FAIL] FAIL: Builds differ"
     diff <(echo "${HASH_A}") <(echo "${HASH_B}") || true
     rm -rf "${ROOT_DIR}/build-repro-A" "${ROOT_DIR}/build-repro-B"
     exit 1

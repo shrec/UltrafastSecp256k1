@@ -66,7 +66,7 @@ int main() {
         "E9873D79C6D87DC0FB6A5778633389F4453213303DA61F20BD67FC233AA33262"
     );
     
-    // Generate public key: public_key = private_key × G
+    // Generate public key: public_key = private_key x G
     Point G = Point::generator();
     Point public_key = G.scalar_mul(private_key);
     

@@ -1,4 +1,4 @@
-# UltrafastSecp256k1 — Cryptographic Audit Report
+# UltrafastSecp256k1 -- Cryptographic Audit Report
 
 **Library Version:** 3.9.0  
 **Audit Date:** 2026-02-11  
@@ -13,15 +13,15 @@
 
 1. [Executive Summary](#1-executive-summary)
 2. [Audit Architecture](#2-audit-architecture)
-3. [Section I — Mathematical Correctness](#3-section-i--mathematical-correctness)
+3. [Section I -- Mathematical Correctness](#3-section-i--mathematical-correctness)
    - [I.1 Field Arithmetic](#31-field-arithmetic)
    - [I.2 Scalar Arithmetic](#32-scalar-arithmetic)
    - [I.3 Point Operations & Signatures](#33-point-operations--signatures)
-4. [Section II — Constant-Time & Side-Channel](#4-section-ii--constant-time--side-channel)
-5. [Section III — Fuzzing & Adversarial Testing](#5-section-iii--fuzzing--adversarial-testing)
-6. [Section IV — Performance Validation](#6-section-iv--performance-validation)
-7. [Section V — Security Hardening](#7-section-v--security-hardening)
-8. [Section VI — Integration Testing](#8-section-vi--integration-testing)
+4. [Section II -- Constant-Time & Side-Channel](#4-section-ii--constant-time--side-channel)
+5. [Section III -- Fuzzing & Adversarial Testing](#5-section-iii--fuzzing--adversarial-testing)
+6. [Section IV -- Performance Validation](#6-section-iv--performance-validation)
+7. [Section V -- Security Hardening](#7-section-v--security-hardening)
+8. [Section VI -- Integration Testing](#8-section-vi--integration-testing)
 9. [Coverage Matrix](#9-coverage-matrix)
 10. [How to Run](#10-how-to-run)
 11. [Full CTest Summary](#11-full-ctest-summary)
@@ -54,7 +54,7 @@ performance characteristics, security hardening, and cross-module integration.
 | audit_point | 116,124 | 0 | 1.71s |
 | audit_ct | 120,652 | 0 | 0.93s |
 | audit_fuzz | 15,461 | 0 | 0.53s |
-| audit_perf | (benchmark) | — | 1.19s |
+| audit_perf | (benchmark) | -- | 1.19s |
 | audit_security | 17,309 | 0 | 17.26s |
 | audit_integration | 13,811 | 0 | 1.62s |
 | **Total** | **641,194** | **0** | **~24s** |
@@ -80,7 +80,7 @@ All test sources reside in `libs/UltrafastSecp256k1/tests/`:
 
 ### Design Principles
 
-- **Deterministic**: Fixed PRNG seeds (`0xA0D17'xxxxx` family) — same results every run
+- **Deterministic**: Fixed PRNG seeds (`0xA0D17'xxxxx` family) -- same results every run
 - **Self-contained**: Each test is a standalone binary, no external data dependencies
 - **Zero heap in hot checks**: Test harness itself may allocate; checked code does not
 - **Layered coverage**: Random + boundary + adversarial + known-vector + cross-module
@@ -101,7 +101,7 @@ Each suite uses a distinct deterministic seed for reproducibility:
 
 ---
 
-## 3. Section I — Mathematical Correctness
+## 3. Section I -- Mathematical Correctness
 
 ### 3.1 Field Arithmetic
 
@@ -111,7 +111,7 @@ Each suite uses a distinct deterministic seed for reproducibility:
 
 | # | Test | Checks | What it validates |
 |---|---|---:|---|
-| 1 | Addition mod p — overflow paths | 3,101 | `p-1 + 1`, `p-1 + p-1`, `x + 0`, random pairs |
+| 1 | Addition mod p -- overflow paths | 3,101 | `p-1 + 1`, `p-1 + p-1`, `x + 0`, random pairs |
 | 2 | Subtraction borrow-chain | 6,102 | `0 - x`, `x - x == 0`, cross-subtraction-addition consistency |
 | 3 | Multiplication carry propagation | 11,102 | Mul-by-1, mul-by-0, commutativity, large operands |
 | 4 | Square vs Mul equivalence (10K) | 21,104 | `sqr(x) == mul(x,x)` for 10,000 random elements |
@@ -119,7 +119,7 @@ Each suite uses a distinct deterministic seed for reproducibility:
 | 6 | Canonical representation (10K) | 42,106 | `to_bytes(from_bytes(x))` round-trip canonical check |
 | 7 | Limb boundary stress | 43,109 | Single-limb set values (0, 1, UINT64_MAX) |
 | 8 | Inverse correctness (10K) | 54,110 | `x * inv(x) == 1` for 10,000 random non-zero elements |
-| 9 | Square root | 64,110 | `sqrt(x²) == ±x`, ~50% existence rate on random inputs |
+| 9 | Square root | 64,110 | `sqrt(x^2) == +-x`, ~50% existence rate on random inputs |
 | 10 | Batch inverse | 64,622 | `batch_inv` matches per-element `inv` |
 | 11 | Random cross-check (100K) | 264,622 | 100K mixed operations: add, sub, mul, sqr consistency |
 
@@ -136,8 +136,8 @@ Each suite uses a distinct deterministic seed for reproducibility:
 | # | Test | Checks | What it validates |
 |---|---|---:|---|
 | 1 | Scalar mod n reduction | 10,003 | Values above group order n reduce correctly |
-| 2 | Overflow normalization (10K) | 10,003 | `from_bytes → to_bytes` round-trip preserves canonical form |
-| 3 | Edge scalar handling | 10,210 | Scalars: 0, 1, n-1, n, n+1 — correct reduction |
+| 2 | Overflow normalization (10K) | 10,003 | `from_bytes -> to_bytes` round-trip preserves canonical form |
+| 3 | Edge scalar handling | 10,210 | Scalars: 0, 1, n-1, n, n+1 -- correct reduction |
 | 4 | Arithmetic laws (10K) | 60,210 | Commutativity, associativity, distributivity (add, mul) |
 | 5 | Scalar inverse (10K) | 71,210 | `s * inv(s) == 1` for random non-zero scalars |
 | 6 | GLV split via point arithmetic (1K) | 73,210 | `k*G == k1*G + k2*(lambda*G)` algebraic split correctness |
@@ -145,7 +145,7 @@ Each suite uses a distinct deterministic seed for reproducibility:
 | 8 | Negate self-consistency (10K) | 93,215 | `s + neg(s) == 0`, `neg(neg(s)) == s` |
 
 **Key Finding:** GLV decomposition verified algebraically through actual point arithmetic,
-not just scalar-level checks — confirming endomorphism correctness.
+not just scalar-level checks -- confirming endomorphism correctness.
 
 ---
 
@@ -161,12 +161,12 @@ not just scalar-level checks — confirming endomorphism correctness.
 | 2 | Jacobian add (1K+500) | 1,508 | P+Q correctness, associativity sampling |
 | 3 | Jacobian double | 1,512 | 2P via `dbl` matches `add(P,P)` |
 | 4 | P+P via add (H=0) | 1,612 | Special case: add function handles doubling case |
-| 5 | P+(-P) == O (1K) | 3,614 | Point negation → additive inverse |
-| 6 | Affine conversion (1K) | 7,614 | Jacobian→Affine round-trip + on-curve check (y²=x³+7) |
+| 5 | P+(-P) == O (1K) | 3,614 | Point negation -> additive inverse |
+| 6 | Affine conversion (1K) | 7,614 | Jacobian->Affine round-trip + on-curve check (y^2=x^3+7) |
 | 7 | Scalar mul identities (1K+500) | 9,114 | `1*P==P`, `0*P==O`, `(a+b)*P==a*P+b*P` |
 | 8 | Known K*G vectors | 9,124 | NIST/known test vectors for generator multiplication |
-| 9 | ECDSA round-trip (1K) | 14,124 | sign → verify for 1,000 random (key, message) pairs |
-| 10 | Schnorr BIP-340 round-trip (1K) | 16,124 | BIP-340 sign → verify for 1,000 random pairs |
+| 9 | ECDSA round-trip (1K) | 14,124 | sign -> verify for 1,000 random (key, message) pairs |
+| 10 | Schnorr BIP-340 round-trip (1K) | 16,124 | BIP-340 sign -> verify for 1,000 random pairs |
 | 11 | 100K point operation stress | 116,124 | Mixed add/dbl/scalar-mul, zero infinity-hit rate |
 
 **Key Findings:**
@@ -175,7 +175,7 @@ not just scalar-level checks — confirming endomorphism correctness.
 
 ---
 
-## 4. Section II — Constant-Time & Side-Channel
+## 4. Section II -- Constant-Time & Side-Channel
 
 **File:** `audit_ct.cpp`  
 **Checks:** 120,652  
@@ -185,7 +185,7 @@ not just scalar-level checks — confirming endomorphism correctness.
 |---|---|---:|---|
 | 1 | CT mask generation | 12 | `ct_mask_if`, `ct_select` for 0/1/edge values |
 | 2 | CT cmov/cswap (10K) | 30,012 | Conditional move/swap produce correct results |
-| 3 | CT table lookup (256-bit) | 30,028 | Table scan vs direct access — identical results |
+| 3 | CT table lookup (256-bit) | 30,028 | Table scan vs direct access -- identical results |
 | 4 | CT field ops differential (10K) | 81,028 | `ct::field_add/sub/mul/sqr/inv == fast::` equivalents |
 | 5 | CT scalar ops differential (10K) | 111,028 | `ct::scalar_add/sub/mul/inv == fast::` equivalents |
 | 6 | CT scalar cmov/cswap (1K) | 113,028 | Scalar conditional operations correctness |
@@ -200,14 +200,14 @@ not just scalar-level checks — confirming endomorphism correctness.
 **Timing Measurement:**
 - `k=1` average: 363,380 ns
 - `k=n-1` average: 351,039 ns
-- **Ratio: 1.035** (ideal ≈ 1.0, concern threshold > 1.2)
+- **Ratio: 1.035** (ideal ~= 1.0, concern threshold > 1.2)
 
 **Note:** This is a statistical sanity check, not a formal side-channel evaluation.
 Proper constant-time verification requires tools like `dudect` or hardware timing analysis.
 
 ---
 
-## 5. Section III — Fuzzing & Adversarial Testing
+## 5. Section III -- Fuzzing & Adversarial Testing
 
 **File:** `audit_fuzz.cpp`  
 **Checks:** 15,461  
@@ -216,14 +216,14 @@ Proper constant-time verification requires tools like `dudect` or hardware timin
 | # | Test | Checks | What it validates |
 |---|---|---:|---|
 | 1 | Malformed public key rejection | 3 | Off-curve points, wrong prefix bytes |
-| 2 | Invalid ECDSA signatures | 7 | r=0, s=0, r=n, s=n — all rejected |
+| 2 | Invalid ECDSA signatures | 7 | r=0, s=0, r=n, s=n -- all rejected |
 | 3 | Invalid Schnorr signatures | 11 | Corrupted nonce, wrong tag, zero R |
 | 4 | Oversized scalars | 15 | Values > n are reduced, not accepted raw |
 | 5 | Boundary field elements | 19 | 0, p, p-1, p+1, all-ones |
 | 6 | ECDSA recovery edge cases (1K) | 4,769 | Recovery ID sweep, wrong-ID rejection |
-| 7 | Random state fuzzing (10K) | 6,461 | 10K random (key, msg) → sign, verify, no crash |
-| 8 | DER round-trip (1K) | 9,461 | ECDSA signatures: DER encode → decode → same |
-| 9 | Schnorr bytes round-trip (1K) | 11,461 | 64-byte serialization → deserialization == original |
+| 7 | Random state fuzzing (10K) | 6,461 | 10K random (key, msg) -> sign, verify, no crash |
+| 8 | DER round-trip (1K) | 9,461 | ECDSA signatures: DER encode -> decode -> same |
+| 9 | Schnorr bytes round-trip (1K) | 11,461 | 64-byte serialization -> deserialization == original |
 | 10 | Signature normalization / low-S (1K) | 15,461 | Verify `s` is in lower half after signing |
 
 **Key Finding:** All malformed/adversarial inputs were correctly rejected.
@@ -231,7 +231,7 @@ No crashes or undefined behavior observed across 10K random operations.
 
 ---
 
-## 6. Section IV — Performance Validation
+## 6. Section IV -- Performance Validation
 
 **File:** `audit_perf.cpp`  
 **Type:** Benchmark (no pass/fail assertions)
@@ -270,12 +270,12 @@ No crashes or undefined behavior observed across 10K random operations.
 - Field operations: ~23-96M op/s (well-optimized 64-bit limbs)
 - ECDSA signing: ~98K op/s; verification: ~34K op/s
 - Schnorr (BIP-340): ~51K sign, ~24K verify
-- CT scalar_mul is ~44x slower than fast path — expected for constant-time guarantees
+- CT scalar_mul is ~44x slower than fast path -- expected for constant-time guarantees
 - Point doubling is ~2.3x faster than point addition (expected: fewer field muls)
 
 ---
 
-## 7. Section V — Security Hardening
+## 7. Section V -- Security Hardening
 
 **File:** `audit_security.cpp`  
 **Checks:** 17,309  
@@ -285,24 +285,24 @@ No crashes or undefined behavior observed across 10K random operations.
 |---|---|---:|---|
 | 1 | Zero/identity key handling | 5 | `inverse(0)` throws; `0*G == O`; zero-key signing fails |
 | 2 | Secret zeroization (ct_memzero) | 8 | Memory is zeroed after `ct_memzero` call |
-| 3 | Bit-flip resilience (1K) | 2,008 | Single-bit flip in signature → verify fails |
-| 4 | Message bit-flip detection (1K) | 3,008 | Single-bit flip in message → verify fails |
-| 5 | Nonce determinism (RFC 6979) | 3,109 | Same (key, msg) → same signature; different msg → different sig |
+| 3 | Bit-flip resilience (1K) | 2,008 | Single-bit flip in signature -> verify fails |
+| 4 | Message bit-flip detection (1K) | 3,008 | Single-bit flip in message -> verify fails |
+| 5 | Nonce determinism (RFC 6979) | 3,109 | Same (key, msg) -> same signature; different msg -> different sig |
 | 6 | Serialization round-trip (3K) | 10,109 | Compressed, uncompressed, x-only point serialization |
-| 7 | Compact recovery serialization (1K) | 12,109 | Compact ECDSA sig → recover → matches original pubkey |
+| 7 | Compact recovery serialization (1K) | 12,109 | Compact ECDSA sig -> recover -> matches original pubkey |
 | 8 | Double-ops idempotency (2K) | 14,209 | sign-twice == same; verify-twice == same |
 | 9 | Cross-algorithm consistency | 14,309 | Same key works for both ECDSA and Schnorr |
 | 10 | High-S detection (1K) | 17,309 | Library enforces low-S normalization per BIP-62 |
 
 **Key Findings:**
-- Library correctly throws on `inverse(0)` — no silent zero return
+- Library correctly throws on `inverse(0)` -- no silent zero return
 - 100% bit-flip detection rate on both signatures and messages
 - RFC 6979 deterministic nonce generation confirmed
 - Low-S enforcement verified across 1,000 random signatures
 
 ---
 
-## 8. Section VI — Integration Testing
+## 8. Section VI -- Integration Testing
 
 **File:** `audit_integration.cpp`  
 **Checks:** 13,811  
@@ -313,7 +313,7 @@ No crashes or undefined behavior observed across 10K random operations.
 | 1 | ECDH key exchange symmetry (1K) | 4,001 | `ECDH(a, b*G) == ECDH(b, a*G)` for hashed, x-only, and raw |
 | 2 | Schnorr batch verification | 4,006 | 100 valid sigs batch-verify; corrupt detection + identify_invalid |
 | 3 | ECDSA batch verification | 4,009 | 100 valid sigs batch-verify; corrupt detection + identify_invalid |
-| 4 | ECDSA full round-trip (1K) | 10,009 | sign → recover pubkey → verify → DER encode/decode |
+| 4 | ECDSA full round-trip (1K) | 10,009 | sign -> recover pubkey -> verify -> DER encode/decode |
 | 5 | Schnorr cross-path (500) | 11,010 | Individual verify == batch verify results |
 | 6 | Fast vs CT integration (500) | 12,510 | `fast::scalar_mul == ct::scalar_mul`, ECDSA verify on fast-signed |
 | 7 | Combined ECDH + ECDSA protocol (100) | 13,010 | Full key-exchange + signing protocol flow |
@@ -353,16 +353,16 @@ This matrix maps the audit checklist categories to specific test functions and c
 
 | API Module | Covered? | Notes |
 |---|---|---|
-| `FieldElement` | ✅ Full | add, sub, mul, sqr, inv, sqrt, batch_inv, from_bytes, to_bytes, from_limbs |
-| `Scalar` | ✅ Full | add, sub, mul, inv, negate, from_hex, to_bytes, glv_split |
-| `Point` | ✅ Full | jac_add, jac_dbl, scalar_mul, to_affine, generator, infinity |
-| `ECDSA` | ✅ Full | sign, verify, recover, DER encode/decode, compact format |
-| `Schnorr` | ✅ Full | sign, verify, 64-byte serialization |
-| `ECDH` | ✅ Full | hashed, x-only, raw variants |
-| `BatchVerify` | ✅ Full | schnorr_batch_verify, ecdsa_batch_verify, identify_invalid |
-| `CT layer` | ✅ Full | ct_ops, ct_field, ct_scalar, ct_point, ct_utils |
-| `Recovery` | ✅ Full | All recovery IDs, wrong-ID rejection |
-| `FROST` | ⚠️ Not tested | Threshold signature module — requires multi-party protocol simulation |
+| `FieldElement` | [OK] Full | add, sub, mul, sqr, inv, sqrt, batch_inv, from_bytes, to_bytes, from_limbs |
+| `Scalar` | [OK] Full | add, sub, mul, inv, negate, from_hex, to_bytes, glv_split |
+| `Point` | [OK] Full | jac_add, jac_dbl, scalar_mul, to_affine, generator, infinity |
+| `ECDSA` | [OK] Full | sign, verify, recover, DER encode/decode, compact format |
+| `Schnorr` | [OK] Full | sign, verify, 64-byte serialization |
+| `ECDH` | [OK] Full | hashed, x-only, raw variants |
+| `BatchVerify` | [OK] Full | schnorr_batch_verify, ecdsa_batch_verify, identify_invalid |
+| `CT layer` | [OK] Full | ct_ops, ct_field, ct_scalar, ct_point, ct_utils |
+| `Recovery` | [OK] Full | All recovery IDs, wrong-ID rejection |
+| `FROST` | [!] Not tested | Threshold signature module -- requires multi-party protocol simulation |
 
 ---
 

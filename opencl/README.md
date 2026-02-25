@@ -82,10 +82,10 @@ AffinePoint affine = jacobian_to_affine(P);
 
 ```
 opencl/
-├── include/secp256k1_opencl.hpp   # Main API
-├── kernels/                        # OpenCL kernel sources
-├── src/                           # Implementation
-└── tests/                         # Test suite (32+ tests)
++-- include/secp256k1_opencl.hpp   # Main API
++-- kernels/                        # OpenCL kernel sources
++-- src/                           # Implementation
++-- tests/                         # Test suite (32+ tests)
 ```
 
 ## Test Vectors

@@ -33,14 +33,14 @@ GREEN='\033[0;32m'
 NC='\033[0m'
 info() { echo -e "${GREEN}[AUDIT]${NC} $*"; }
 
-# ── 1. Build Environment ─────────────────────────────────────────────────────
+# -- 1. Build Environment -----------------------------------------------------
 info "Collecting build environment..."
 PLATFORM=$(uname -m 2>/dev/null || echo "unknown")
 OS_NAME=$(uname -s 2>/dev/null || echo "unknown")
 COMPILER=$(cc --version 2>/dev/null | head -1 || echo "unknown")
 CMAKE_VER=$(cmake --version 2>/dev/null | head -1 || echo "unknown")
 
-# ── 2. Test Results ──────────────────────────────────────────────────────────
+# -- 2. Test Results ----------------------------------------------------------
 info "Running CTest..."
 TEST_RESULTS="[]"
 if [[ -d "${BUILD_DIR}" ]]; then
@@ -83,7 +83,7 @@ else
     TESTS_JSON="[]"
 fi
 
-# ── 3. Resolved Issues (from regression corpus) ──────────────────────────────
+# -- 3. Resolved Issues (from regression corpus) ------------------------------
 info "Scanning regression corpus..."
 CORPUS_MANIFEST="${ROOT_DIR}/tests/corpus/MANIFEST.txt"
 RESOLVED_COUNT=0
@@ -93,7 +93,7 @@ if [[ -f "${CORPUS_MANIFEST}" ]]; then
     CORPUS_CATEGORIES=$(grep -oP '^(\w+)/' "${CORPUS_MANIFEST}" 2>/dev/null | sort -u | tr '\n' ',' | sed 's/,$//' || echo "none")
 fi
 
-# ── 4. CT Verification Status ────────────────────────────────────────────────
+# -- 4. CT Verification Status ------------------------------------------------
 info "Checking CT verification..."
 CT_STATUS="unknown"
 CT_SUBTESTS=0
@@ -105,31 +105,31 @@ if [[ -f "${ROOT_DIR}/tests/test_ct_sidechannel.cpp" ]]; then
     CT_SUBTESTS=$(grep -c "CHECK\|REQUIRE\|ASSERT" "${ROOT_DIR}/tests/test_ct_sidechannel.cpp" 2>/dev/null || echo "0")
 fi
 
-# ── 5. Coverage (if lcov/llvm-cov report exists) ─────────────────────────────
+# -- 5. Coverage (if lcov/llvm-cov report exists) -----------------------------
 info "Checking coverage data..."
 COVERAGE_PCT="N/A"
 if [[ -f "${BUILD_DIR}/coverage/coverage_summary.json" ]]; then
     COVERAGE_PCT=$(grep -oP '"line_percent":\s*\K[\d.]+' "${BUILD_DIR}/coverage/coverage_summary.json" 2>/dev/null || echo "N/A")
 fi
 
-# ── 6. Fuzz Corpus Stats ─────────────────────────────────────────────────────
+# -- 6. Fuzz Corpus Stats -----------------------------------------------------
 info "Counting fuzz corpus entries..."
 FUZZ_FILES=0
 if [[ -d "${ROOT_DIR}/tests/corpus" ]]; then
     FUZZ_FILES=$(find "${ROOT_DIR}/tests/corpus" -type f \( -name '*.bin' -o -name '*.json' -o -name '*.txt' \) | wc -l)
 fi
 
-# ── 7. Test File Inventory ───────────────────────────────────────────────────
+# -- 7. Test File Inventory ---------------------------------------------------
 info "Inventorying test files..."
 TEST_FILE_COUNT=$(find "${ROOT_DIR}/tests" -name '*.cpp' -type f 2>/dev/null | wc -l || echo "0")
 
-# ── 8. Version ────────────────────────────────────────────────────────────────
+# -- 8. Version ----------------------------------------------------------------
 VERSION="unknown"
 if [[ -f "${ROOT_DIR}/VERSION" ]]; then
     VERSION=$(cat "${ROOT_DIR}/VERSION" | head -1)
 fi
 
-# ── Generate JSON Report ─────────────────────────────────────────────────────
+# -- Generate JSON Report -----------------------------------------------------
 info "Writing report to ${REPORT}..."
 
 cat > "${REPORT}" << ENDJSON
@@ -188,11 +188,11 @@ ENDJSON
 
 info "Self-Audit Report complete."
 
-# ── Print Summary ─────────────────────────────────────────────────────────────
+# -- Print Summary -------------------------------------------------------------
 echo ""
-echo "════════════════════════════════════════════════════════════"
+echo "============================================================"
 echo "  Self-Audit Report Summary"
-echo "════════════════════════════════════════════════════════════"
+echo "============================================================"
 echo "  Version:             ${VERSION}"
 echo "  Tests Passed:        ${TOTAL}/${TOTAL_RUN}"
 echo "  Tests Failed:        ${FAILED}"
@@ -202,6 +202,6 @@ echo "  CT Verification:     ${CT_STATUS}"
 echo "  Coverage:            ${COVERAGE_PCT}%"
 echo "  Test Source Files:   ${TEST_FILE_COUNT}"
 echo "  Report:              ${REPORT}"
-echo "════════════════════════════════════════════════════════════"
+echo "============================================================"
 
 exit "${FAILED}"

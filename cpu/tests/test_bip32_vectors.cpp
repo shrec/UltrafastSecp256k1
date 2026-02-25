@@ -1,12 +1,12 @@
 // ============================================================================
-// Test: BIP-32 Official Test Vectors (TV1–TV5)
+// Test: BIP-32 Official Test Vectors (TV1-TV5)
 // ============================================================================
 // Source: https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
 //
-// TV1: 128-bit seed → 5 derivation levels
-// TV2: 512-bit seed → 5 derivation levels
-// TV3: 128-bit seed → 2 levels (tests zero-padding of private key)
-// TV4: 128-bit seed → 2 levels (same as TV3 but public derivation)
+// TV1: 128-bit seed -> 5 derivation levels
+// TV2: 512-bit seed -> 5 derivation levels
+// TV3: 128-bit seed -> 2 levels (tests zero-padding of private key)
+// TV4: 128-bit seed -> 2 levels (same as TV3 but public derivation)
 // TV5: zero leading bytes in serialized key test
 //
 // Each vector verifies the full derivation chain:
@@ -58,8 +58,8 @@ static void hex_to_bytes(const char* hex, std::uint8_t* out, std::size_t len) {
 struct ChainVector {
     const char* path;           // e.g. "m", "m/0'", "m/0'/1", ...
     const char* chain_code;     // 64 hex chars (32 bytes)
-    const char* priv_key;       // 64 hex chars (32 bytes) — private key bytes
-    const char* pub_key;        // 66 hex chars (33 bytes) — compressed pubkey
+    const char* priv_key;       // 64 hex chars (32 bytes) -- private key bytes
+    const char* pub_key;        // 66 hex chars (33 bytes) -- compressed pubkey
 };
 
 static void verify_chain(const ExtendedKey& master,

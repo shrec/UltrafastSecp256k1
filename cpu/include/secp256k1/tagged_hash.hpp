@@ -2,7 +2,7 @@
 #define SECP256K1_TAGGED_HASH_HPP
 
 // ============================================================================
-// BIP-340 Tagged Hash — Shared Utilities
+// BIP-340 Tagged Hash -- Shared Utilities
 // ============================================================================
 // Provides cached tagged-hash midstates for BIP-340 (Schnorr) operations.
 // Used by both schnorr.cpp (fast path) and ct_sign.cpp (CT path).

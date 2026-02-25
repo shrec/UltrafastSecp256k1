@@ -1,29 +1,29 @@
 # Threat Model
 
-UltrafastSecp256k1 v3.12.1 — Layer-by-Layer Risk Assessment
+UltrafastSecp256k1 v3.12.1 -- Layer-by-Layer Risk Assessment
 
 ---
 
 ## Architecture Overview
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                     Application Layer                           │
-│  (Wallet, Signer, Verifier, Key Manager, Address Generator)     │
-├──────────────┬───────────────┬───────────────────┬──────────────┤
-│  Coins (27)  │  HD (BIP-32)  │  Taproot/MuSig2   │ FROST/Adaptor│
-├──────────────┴───────────────┴───────────────────┴──────────────┤
-│      ECDSA (RFC 6979)  │  Schnorr (BIP-340)  │  Pedersen       │
-├─────────────────────────────────────────────────────────────────┤
-│  FAST (variable-time)  │  CT (constant-time)                    │
-│  secp256k1::fast::     │  secp256k1::ct::                       │
-├─────────────────────────────────────────────────────────────────┤
-│         Field / Scalar / Point core (4×64 limbs)                │
-├─────────────────────────────────────────────────────────────────┤
-│  CPU (x64 BMI2/ADX, ARM64, RISC-V, Xtensa, Cortex-M3)         │
-│  GPU (CUDA PTX, ROCm/HIP, OpenCL 3.0, Metal)                   │
-│  WASM (Emscripten)                                              │
-└─────────────────────────────────────────────────────────────────┘
++-----------------------------------------------------------------+
+|                     Application Layer                           |
+|  (Wallet, Signer, Verifier, Key Manager, Address Generator)     |
++--------------+---------------+-------------------+--------------+
+|  Coins (27)  |  HD (BIP-32)  |  Taproot/MuSig2   | FROST/Adaptor|
++--------------+---------------+-------------------+--------------+
+|      ECDSA (RFC 6979)  |  Schnorr (BIP-340)  |  Pedersen       |
++-----------------------------------------------------------------+
+|  FAST (variable-time)  |  CT (constant-time)                    |
+|  secp256k1::fast::     |  secp256k1::ct::                       |
++-----------------------------------------------------------------+
+|         Field / Scalar / Point core (4x64 limbs)                |
++-----------------------------------------------------------------+
+|  CPU (x64 BMI2/ADX, ARM64, RISC-V, Xtensa, Cortex-M3)         |
+|  GPU (CUDA PTX, ROCm/HIP, OpenCL 3.0, Metal)                   |
+|  WASM (Emscripten)                                              |
++-----------------------------------------------------------------+
 ```
 
 > See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed technical architecture.
@@ -55,11 +55,11 @@ Variable-time algorithms may leak information about operands through timing, cac
 |----------|-------|
 | Constant-time | Yes (no secret-dependent branches or memory access) |
 | Secret key handling | Designed for this |
-| Performance penalty | ~5–7× vs FAST |
+| Performance penalty | ~5-7x vs FAST |
 | Threat | Compiler optimization may break CT guarantees |
 | Mitigation | Sanitizer builds (ASan, TSan), manual inspection, `-O2` only |
 
-The CT layer provides complete addition formulas, constant-time field inversion, and timing-safe scalar multiplication. Callers must still zero sensitive buffers after use — the library does not manage key lifetimes.
+The CT layer provides complete addition formulas, constant-time field inversion, and timing-safe scalar multiplication. Callers must still zero sensitive buffers after use -- the library does not manage key lifetimes.
 
 **Known limitation**: No formal verification (e.g., ct-verif, Vale) has been applied. CT guarantees rely on code review and compiler discipline.
 
@@ -85,7 +85,7 @@ GPU kernels are variable-time by design. Device memory is not zeroed. Do not pas
 |----------|-------|
 | Nonce generation | Deterministic (RFC 6979 for ECDSA) |
 | Input validation | Point-on-curve, scalar range checks |
-| Threat | Nonce reuse → private key recovery |
+| Threat | Nonce reuse -> private key recovery |
 | Mitigation | RFC 6979 eliminates random nonce dependency |
 
 MuSig2, FROST, and Adaptor Signatures are **experimental**. Their APIs may change and they have not been independently reviewed.
@@ -99,7 +99,7 @@ MuSig2, FROST, and Adaptor Signatures are **experimental**. Their APIs may chang
 | Key derivation | BIP-32 (hardened + normal) |
 | Address generation | Coin-specific encoding (Base58, Bech32, etc.) |
 | Secret handling | Derived keys are secret; use CT layer for signing |
-| Threat | Incorrect derivation path → wrong keys |
+| Threat | Incorrect derivation path -> wrong keys |
 | Mitigation | Test vectors from BIP-32/44 specifications |
 
 The coin dispatch layer generates addresses only. It does **not** store keys, manage UTXOs, or broadcast transactions.
@@ -111,7 +111,7 @@ The coin dispatch layer generates addresses only. It does **not** store keys, ma
 | Property | Value |
 |----------|-------|
 | Allocation | Zero heap allocation (scratchpad model) |
-| Threat | Incorrect batch inverse → silent wrong results |
+| Threat | Incorrect batch inverse -> silent wrong results |
 | Mitigation | Sweep-tested up to 8192; boundary KAT vectors; fuzz harness |
 
 ---
@@ -120,17 +120,17 @@ The coin dispatch layer generates addresses only. It does **not** store keys, ma
 
 ```
 TRUSTED (this library controls):
-  ├─ Arithmetic correctness (field, scalar, point)
-  ├─ CT layer timing properties
-  ├─ Deterministic nonce generation
-  └─ Input validation (on-curve, range)
+  +- Arithmetic correctness (field, scalar, point)
+  +- CT layer timing properties
+  +- Deterministic nonce generation
+  +- Input validation (on-curve, range)
 
 NOT TRUSTED (caller responsibility):
-  ├─ Key storage and lifecycle
-  ├─ Buffer zeroing after use
-  ├─ Choosing FAST vs CT appropriately
-  ├─ Network security / transport
-  └─ Entropy source (if any randomness needed)
+  +- Key storage and lifecycle
+  +- Buffer zeroing after use
+  +- Choosing FAST vs CT appropriately
+  +- Network security / transport
+  +- Entropy source (if any randomness needed)
 ```
 
 ---
@@ -157,16 +157,16 @@ NOT TRUSTED (caller responsibility):
 | Compiler-introduced branches | MEDIUM | `asm volatile` barriers, `-O2` recommended |
 | Microarchitecture-specific timing | LOW | dudect testing on x86-64, ARM64 |
 
-**Testing**: `tests/test_ct_sidechannel.cpp` — dudect Welch t-test, |t| < 4.5
+**Testing**: `tests/test_ct_sidechannel.cpp` -- dudect Welch t-test, |t| < 4.5
 
 ### A2: Nonce Attacks
 
 | Vector | Risk | Mitigation |
 |--------|------|------------|
-| ECDSA random nonce reuse → key recovery | CRITICAL | RFC 6979 deterministic nonces (no randomness needed) |
-| Biased nonces → lattice attack | HIGH | RFC 6979 provides uniform distribution |
+| ECDSA random nonce reuse -> key recovery | CRITICAL | RFC 6979 deterministic nonces (no randomness needed) |
+| Biased nonces -> lattice attack | HIGH | RFC 6979 provides uniform distribution |
 | Schnorr nonce bias | HIGH | BIP-340 tagged hash nonce derivation |
-| FROST nonce mishandling | MEDIUM | Experimental — under review |
+| FROST nonce mishandling | MEDIUM | Experimental -- under review |
 
 ### A3: Arithmetic Errors
 
@@ -174,7 +174,7 @@ NOT TRUSTED (caller responsibility):
 |--------|------|------------|
 | Incorrect field reduction | CRITICAL | 641,194 audit checks, fuzz testing |
 | Point addition edge cases (P+P, P+O, P+(-P)) | CRITICAL | Complete addition formulas in CT, sweep tests |
-| GLV decomposition error | HIGH | Reconstruction test: k1+k2·λ ≡ k for random k |
+| GLV decomposition error | HIGH | Reconstruction test: k1+k2*lambda == k for random k |
 | SafeGCD inverse error | HIGH | Cross-checked against Fermat chain |
 | Batch inverse corrupting elements | MEDIUM | Sweep-tested up to 8192 elements |
 
@@ -214,9 +214,9 @@ NOT TRUSTED (caller responsibility):
 3. **Build with sanitizers** regularly (`cpu-asan`, `cpu-tsan` presets)
 4. **Run selftest on startup** (`Selftest(false, SelftestMode::smoke)`)
 5. **Do not expose GPU memory** to untrusted contexts
-6. **Pin your dependency version** — API may change before v4.0
+6. **Pin your dependency version** -- API may change before v4.0
 7. **Review CT_VERIFICATION.md** for known constant-time limitations
-8. **Use `-O2` for production CT builds** — higher levels may break CT properties
+8. **Use `-O2` for production CT builds** -- higher levels may break CT properties
 9. **Run dudect test** on your target hardware before deployment
 
 ---
@@ -253,4 +253,4 @@ NOT TRUSTED (caller responsibility):
 
 ---
 
-*UltrafastSecp256k1 v3.12.1 — Threat Model*
+*UltrafastSecp256k1 v3.12.1 -- Threat Model*

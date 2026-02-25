@@ -35,7 +35,7 @@ target_compile_definitions(${COMPONENT_LIB} PUBLIC
 )
 
 # libsecp256k1 (bitcoin-core) precomputed tables need these defines
-# Scope to ONLY the libsecp C files — do NOT leak into our C++ code
+# Scope to ONLY the libsecp C files -- do NOT leak into our C++ code
 set(LIBSECP_PRECOMP_GEN "${CMAKE_CURRENT_SOURCE_DIR}/../../../../../_research_repos/secp256k1/src/precomputed_ecmult_gen.c")
 set(LIBSECP_PRECOMP     "${CMAKE_CURRENT_SOURCE_DIR}/../../../../../_research_repos/secp256k1/src/precomputed_ecmult.c")
 set_source_files_properties(
@@ -43,7 +43,7 @@ set_source_files_properties(
     PROPERTIES COMPILE_DEFINITIONS "ECMULT_WINDOW_SIZE=2;COMB_BLOCKS=11;COMB_TEETH=6"
 )
 
-# ESP32-specific compiler flags — RELEASE ONLY, no debug overhead
+# ESP32-specific compiler flags -- RELEASE ONLY, no debug overhead
 target_compile_options(${COMPONENT_LIB} PRIVATE
     -O3
     -fno-exceptions

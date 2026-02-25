@@ -1,6 +1,6 @@
 # Constant-Time Empirical Proof Report
 
-**UltrafastSecp256k1 v3.14.0** — Statistical Timing Analysis
+**UltrafastSecp256k1 v3.14.0** -- Statistical Timing Analysis
 
 ---
 
@@ -37,18 +37,18 @@ tested CT operations.
 
 | Platform | Timer | Status |
 |----------|-------|--------|
-| x86-64 (Intel/AMD) | `rdtscp` | **Primary** — tested in CI |
-| ARM64 (aarch64) | `cntvct_el0` | **Supported** — cross-compile target |
-| Other | `high_resolution_clock` | Fallback — reduced precision |
+| x86-64 (Intel/AMD) | `rdtscp` | **Primary** -- tested in CI |
+| ARM64 (aarch64) | `cntvct_el0` | **Supported** -- cross-compile target |
+| Other | `high_resolution_clock` | Fallback -- reduced precision |
 
 ### Compiler
 
 | Compiler | Flags | CT-Safety Notes |
 |----------|-------|-----------------|
-| Clang 21 | `-O2` | **Recommended** — no observed CT violations |
-| GCC 13 | `-O2` | **Tested** — no observed CT violations |
-| Clang/GCC | `-O3` | **CAUTION** — may break CT; validate with dudect |
-| MSVC | `/O2` | **Supported** — uses `_ReadWriteBarrier` + `__rdtscp` |
+| Clang 21 | `-O2` | **Recommended** -- no observed CT violations |
+| GCC 13 | `-O2` | **Tested** -- no observed CT violations |
+| Clang/GCC | `-O3` | **CAUTION** -- may break CT; validate with dudect |
+| MSVC | `/O2` | **Supported** -- uses `_ReadWriteBarrier` + `__rdtscp` |
 
 > **Critical**: Higher optimization levels (e.g., `-O3`, `-Ofast`) may introduce
 > data-dependent branches in bitwise cmov operations. Always validate with
@@ -74,9 +74,9 @@ tested CT operations.
 | Function | Class 0 (edge) | Class 1 (control) | Samples | Verdict |
 |----------|----------------|-------------------|---------|---------|
 | `ct::field_add` | zero + base | random + base | 50,000 | CT |
-| `ct::field_mul` | zero × base | random × base | 50,000 | CT |
-| `ct::field_sqr` | one² | random² | 50,000 | CT |
-| `ct::field_inv` | one⁻¹ | random⁻¹ | 5,000 | CT |
+| `ct::field_mul` | zero x base | random x base | 50,000 | CT |
+| `ct::field_sqr` | one^2 | random^2 | 50,000 | CT |
+| `ct::field_inv` | one^-¹ | random^-¹ | 5,000 | CT |
 | `ct::field_cmov` | mask=0 | mask=~0 | 50,000 | CT |
 | `ct::field_is_zero` | zero | random | 50,000 | CT |
 
@@ -85,7 +85,7 @@ tested CT operations.
 | Function | Class 0 (edge) | Class 1 (control) | Samples | Verdict |
 |----------|----------------|-------------------|---------|---------|
 | `ct::scalar_add` | one + base | random + base | 50,000 | CT |
-| `ct::scalar_sub` | one − base | random − base | 50,000 | CT |
+| `ct::scalar_sub` | one - base | random - base | 50,000 | CT |
 | `ct::scalar_cmov` | mask=0 | mask=~0 | 50,000 | CT |
 | `ct::scalar_is_zero` | zero | random | 50,000 | CT |
 | `ct::scalar_bit` | bit=0 at pos 128 | bit=1 at pos 128 | 50,000 | CT |
@@ -110,7 +110,7 @@ tested CT operations.
 | `ct_is_nonzero` | all-zero buf | random buf | 100,000 | CT |
 | `ct_select_byte` | flag=0 | flag=1 | 100,000 | CT |
 
-### Section 6: FAST Layer (Negative Control — Expected Non-CT)
+### Section 6: FAST Layer (Negative Control -- Expected Non-CT)
 
 | Function | Expected | Notes |
 |----------|----------|-------|
@@ -118,7 +118,7 @@ tested CT operations.
 | `fast::field_inverse` | TIMING LEAK | Variable-time SafeGCD |
 | `fast::point_add(P+O)` | TIMING LEAK | Short-circuits on identity |
 
-> These negative controls confirm the test harness works correctly — it
+> These negative controls confirm the test harness works correctly -- it
 > successfully detects real timing differences in non-CT code.
 
 ### Section 7: Valgrind Memory Classification
@@ -147,9 +147,9 @@ For each function under test:
 
 $$t = \frac{\bar{x}_0 - \bar{x}_1}{\sqrt{\frac{s_0^2}{n_0} + \frac{s_1^2}{n_1}}}$$
 
-**Decision rule**: |t| < 4.5 → no detectable timing difference (pass).
+**Decision rule**: |t| < 4.5 -> no detectable timing difference (pass).
 
-At 4.5, the two-tailed p-value is approximately 6.8 × 10⁻⁶, meaning
+At 4.5, the two-tailed p-value is approximately 6.8 x 10^-⁶, meaning
 there is a < 0.00068% chance of a false positive.
 
 ### Sample Sizes
@@ -205,15 +205,15 @@ timeout 1800 ./build/cpu/test_ct_sidechannel_standalone
 
 ### x86-64 (Intel / AMD)
 
-- Timer: `rdtscp` — serializing, cycle-accurate
+- Timer: `rdtscp` -- serializing, cycle-accurate
 - Tested CPUs: Intel Skylake+, AMD Zen2+
-- BMI2/ADX extensions available — no CT impact (same instruction count)
-- **Cache timing**: L1D 32KB, 64B lines — our CT table lookups scan all entries
+- BMI2/ADX extensions available -- no CT impact (same instruction count)
+- **Cache timing**: L1D 32KB, 64B lines -- our CT table lookups scan all entries
   linearly, touching every cache line regardless of target index
 
 ### ARM64 (aarch64)
 
-- Timer: `cntvct_el0` — generic counter, lower resolution than rdtsc
+- Timer: `cntvct_el0` -- generic counter, lower resolution than rdtsc
 - Cross-compiled target in CI
 - **Variable-latency multiplier**: Some Cortex-Ax cores have data-dependent
   MUL latency; our CT field_mul uses the same multiply instruction path
@@ -292,4 +292,4 @@ timeout 1800 ./build/cpu/test_ct_sidechannel_standalone
 
 ---
 
-*UltrafastSecp256k1 v3.14.0 — CT Empirical Proof Report*
+*UltrafastSecp256k1 v3.14.0 -- CT Empirical Proof Report*

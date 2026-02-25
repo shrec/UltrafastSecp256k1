@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ============================================================================
 # Code Coverage Report Generator
-# Phase IV, Task 4.6.3 — LLVM source-based coverage + lcov export
+# Phase IV, Task 4.6.3 -- LLVM source-based coverage + lcov export
 # ============================================================================
 # Builds with instrumentation, runs all tests, generates:
 #   - HTML coverage report (viewable in browser)
@@ -30,7 +30,7 @@ COVERAGE_TARGET=0
 GEN_HTML=false
 GEN_JSON=false
 
-# ── Parse args ────────────────────────────────────────────────────────────
+# -- Parse args ------------------------------------------------------------
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -41,7 +41,7 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# ── Detect LLVM tools ────────────────────────────────────────────────────
+# -- Detect LLVM tools ----------------------------------------------------
 
 LLVM_VER=""
 for v in 21 19 18 17 16 15; do
@@ -67,16 +67,16 @@ else
     LLVM_COV="llvm-cov-$LLVM_VER"
 fi
 
-echo "═══════════════════════════════════════════════════════════"
+echo "==========================================================="
 echo "  Code Coverage Report"
-echo "═══════════════════════════════════════════════════════════"
+echo "==========================================================="
 echo "  Compiler:  $CXX"
 echo "  Profdata:  $PROFDATA"
 echo "  llvm-cov:  $LLVM_COV"
 echo "  Target:    ${COVERAGE_TARGET}%"
 echo ""
 
-# ── Build with coverage instrumentation ───────────────────────────────────
+# -- Build with coverage instrumentation -----------------------------------
 
 echo "[1/5] Configuring with coverage instrumentation..."
 cmake -S "$SRC_DIR" -B "$BUILD_DIR" -G Ninja \
@@ -93,13 +93,13 @@ cmake -S "$SRC_DIR" -B "$BUILD_DIR" -G Ninja \
 echo "[2/5] Building..."
 cmake --build "$BUILD_DIR" -j"$(nproc)" 2>&1 | tail -5
 
-# ── Run tests ─────────────────────────────────────────────────────────────
+# -- Run tests -------------------------------------------------------------
 
 echo "[3/5] Running all tests (collecting profiles)..."
 export LLVM_PROFILE_FILE="$BUILD_DIR/%p-%m.profraw"
 ctest --test-dir "$BUILD_DIR" --output-on-failure -j"$(nproc)" -E "^ct_sidechannel$" || true
 
-# ── Merge profiles ────────────────────────────────────────────────────────
+# -- Merge profiles --------------------------------------------------------
 
 echo "[4/5] Merging coverage profiles..."
 find "$BUILD_DIR" -name '*.profraw' -print0 | xargs -0 "$PROFDATA" merge -sparse -o "$BUILD_DIR/coverage.profdata"
@@ -117,7 +117,7 @@ if [[ -z "$OBJECTS" ]]; then
     exit 2
 fi
 
-# ── Generate reports ─────────────────────────────────────────────────────
+# -- Generate reports -----------------------------------------------------
 
 echo "[5/5] Generating reports..."
 mkdir -p "$REPORT_DIR"
@@ -185,20 +185,20 @@ if $GEN_JSON; then
     echo "  JSON: $REPORT_DIR/coverage_summary.json"
 fi
 
-# ── Threshold check ──────────────────────────────────────────────────────
+# -- Threshold check ------------------------------------------------------
 
 echo ""
 if [[ "$COVERAGE_TARGET" -gt 0 ]]; then
     # Compare floating point
     PASS=$(awk "BEGIN { print ($LINE_COV >= $COVERAGE_TARGET) ? 1 : 0 }")
     if [[ "$PASS" -eq 1 ]]; then
-        echo "  ✓ Coverage ${LINE_COV}% >= ${COVERAGE_TARGET}% target"
+        echo "  OK Coverage ${LINE_COV}% >= ${COVERAGE_TARGET}% target"
         exit 0
     else
-        echo "  ✗ Coverage ${LINE_COV}% < ${COVERAGE_TARGET}% target"
+        echo "  X Coverage ${LINE_COV}% < ${COVERAGE_TARGET}% target"
         exit 1
     fi
 else
-    echo "  ✓ Coverage report generated (no threshold check)"
+    echo "  OK Coverage report generated (no threshold check)"
     exit 0
 fi

@@ -85,8 +85,8 @@ namespace secp256k1::ct {
 inline std::uint64_t is_zero_mask(std::uint64_t v) noexcept {
 #if defined(__riscv) && (__riscv_xlen == 64)
     // RISC-V: seqz + neg produces fully branchless is-zero mask.
-    //   seqz tmp, v   →  tmp = (v == 0) ? 1 : 0
-    //   neg  tmp, tmp →  tmp = 0 - tmp  (all-ones if was 1, zero if was 0)
+    //   seqz tmp, v   ->  tmp = (v == 0) ? 1 : 0
+    //   neg  tmp, tmp ->  tmp = 0 - tmp  (all-ones if was 1, zero if was 0)
     // asm volatile prevents the compiler from reasoning about the output,
     // so downstream code stays branchless.
     std::uint64_t mask;

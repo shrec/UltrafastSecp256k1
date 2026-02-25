@@ -23,11 +23,11 @@ Practical tuning recommendations for UltrafastSecp256k1 across platforms.
 
 | Tuning | Impact | Effort |
 |--------|--------|--------|
-| Use Clang 17+ (LTO) | 10–20% speedup | Low |
-| Enable ASM (`SECP256K1_USE_ASM=ON`) | 2–5× on field ops | Low |
-| Use batch inverse for bulk ops | 10–50× for N>100 | Medium |
-| GPU batch for >10K operations | 100–1000× throughput | High |
-| Precomputed tables (gen_mul) | 20× vs generic mul | Zero (default) |
+| Use Clang 17+ (LTO) | 10-20% speedup | Low |
+| Enable ASM (`SECP256K1_USE_ASM=ON`) | 2-5x on field ops | Low |
+| Use batch inverse for bulk ops | 10-50x for N>100 | Medium |
+| GPU batch for >10K operations | 100-1000x throughput | High |
+| Precomputed tables (gen_mul) | 20x vs generic mul | Zero (default) |
 
 ---
 
@@ -50,7 +50,7 @@ cmake -S . -B build -G Ninja \
   -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON
 ```
 
-LTO gives 10–20% speedup through cross-module inlining. The library's hot path
+LTO gives 10-20% speedup through cross-module inlining. The library's hot path
 functions (`field_mul`, `scalar_mul`, `point_add`) benefit significantly.
 
 **Warning**: Do NOT use LTO with CUDA targets. The release build explicitly
@@ -72,9 +72,9 @@ multiplication and squaring. This is the default on x86-64.
 
 | Operation | C++ Generic | x86-64 ASM | Speedup |
 |-----------|------------|------------|---------|
-| Field Mul | 85 ns | 17 ns | 5.0× |
-| Field Square | 80 ns | 16 ns | 5.0× |
-| Field Inverse | 12 μs | 5 μs | 2.4× |
+| Field Mul | 85 ns | 17 ns | 5.0x |
+| Field Square | 80 ns | 16 ns | 5.0x |
+| Field Inverse | 12 us | 5 us | 2.4x |
 
 ### ARM64 (NEON)
 
@@ -110,7 +110,7 @@ cmake -S . -B build -G Ninja \
 ```
 
 This enables aggressive optimizations including `-ffast-math` for non-crypto code
-paths. **Never use for cryptographic operations** — only for search/batch workloads
+paths. **Never use for cryptographic operations** -- only for search/batch workloads
 where IEEE 754 compliance is not required.
 
 ---
@@ -124,11 +124,11 @@ full inversion + `3(N-1)` multiplications:
 
 | N | Per-Element Cost | vs Individual |
 |---|-----------------|---------------|
-| 1 | 5,000 ns | 1.0× |
-| 10 | 500 ns | 10× |
-| 100 | 140 ns | 36× |
-| 1000 | 92 ns | 54× |
-| 8192 | 85 ns | 59× |
+| 1 | 5,000 ns | 1.0x |
+| 10 | 500 ns | 10x |
+| 100 | 140 ns | 36x |
+| 1000 | 92 ns | 54x |
+| 8192 | 85 ns | 59x |
 
 **Usage**: All multi-point operations (batch verify, multi-scalar mul) use batch
 inverse automatically.
@@ -139,9 +139,9 @@ For computing `sum(k_i * P_i)`:
 
 | Method | Time (10 points) | Time (100 points) |
 |--------|-----------------|-------------------|
-| Individual | 1,100 μs | 11,000 μs |
-| Multi-scalar (Straus) | 250 μs | 1,800 μs |
-| Multi-scalar (Pippenger) | — | 900 μs |
+| Individual | 1,100 us | 11,000 us |
+| Multi-scalar (Straus) | 250 us | 1,800 us |
+| Multi-scalar (Pippenger) | -- | 900 us |
 
 Pippenger is automatically selected when N > 64.
 
@@ -155,9 +155,9 @@ GPU is beneficial for **embarrassingly parallel** workloads:
 
 | Workload | CPU (1 core) | GPU (RTX 5060 Ti) | Speedup |
 |----------|-------------|-------------------|---------|
-| 1 scalar mul | 25 μs | 225 ns + launch overhead | Slower |
-| 1K scalar muls | 25 ms | 0.3 ms | 83× |
-| 1M scalar muls | 25 s | 0.25 s | 100× |
+| 1 scalar mul | 25 us | 225 ns + launch overhead | Slower |
+| 1K scalar muls | 25 ms | 0.3 ms | 83x |
+| 1M scalar muls | 25 s | 0.25 s | 100x |
 
 **Rule of thumb**: GPU wins when batch size > 1,000 operations.
 
@@ -174,9 +174,9 @@ GPU is beneficial for **embarrassingly parallel** workloads:
 
 | Parameter | Recommended | Notes |
 |-----------|-------------|-------|
-| `threads_per_batch` | SM_count × 1024 | Fill all SMs |
-| `batch_interval` | 32–128 | Higher = more work per kernel |
-| `max_matches` | ≥ expected_matches × 2 | Pre-allocated result buffer |
+| `threads_per_batch` | SM_count x 1024 | Fill all SMs |
+| `batch_interval` | 32-128 | Higher = more work per kernel |
+| `max_matches` | >= expected_matches x 2 | Pre-allocated result buffer |
 
 ### GPU Backend Selection
 
@@ -267,7 +267,7 @@ emcmake cmake -S . -B build-wasm \
 emmake cmake --build build-wasm
 ```
 
-WASM performance is typically 3–5× slower than native due to 64-bit integer
+WASM performance is typically 3-5x slower than native due to 64-bit integer
 emulation, but still competitive for client-side applications.
 
 ---
@@ -278,10 +278,10 @@ The `ct::` namespace provides timing-safe operations at a performance cost:
 
 | Operation | FAST path | CT path | Overhead |
 |-----------|-----------|---------|----------|
-| Scalar mul | 25 μs | 150 μs | 6.0× |
-| ECDSA sign | 30 μs | 180 μs | 6.0× |
-| Schnorr sign | 28 μs | 170 μs | 6.1× |
-| Field inverse | 5 μs | 35 μs | 7.0× |
+| Scalar mul | 25 us | 150 us | 6.0x |
+| ECDSA sign | 30 us | 180 us | 6.0x |
+| Schnorr sign | 28 us | 170 us | 6.1x |
+| Field inverse | 5 us | 35 us | 7.0x |
 
 **When to use CT**: Always use `ct::` variants when processing private keys, nonces,
 or any secret-dependent data. The FAST path is only safe for public inputs.
@@ -321,9 +321,9 @@ cmake -S . -B build-profile -DCMAKE_BUILD_TYPE=RelWithDebInfo
 | Metric | Target | Red Flag |
 |--------|--------|----------|
 | Field mul | < 20 ns (x86-64 ASM) | > 50 ns |
-| Generator mul | < 6 μs | > 15 μs |
-| Scalar mul | < 30 μs | > 80 μs |
-| ECDSA sign | < 35 μs | > 100 μs |
+| Generator mul | < 6 us | > 15 us |
+| Scalar mul | < 30 us | > 80 us |
+| ECDSA sign | < 35 us | > 100 us |
 | Cache miss rate | < 2% | > 10% |
 | Branch misprediction | < 1% | > 5% |
 
@@ -331,7 +331,7 @@ cmake -S . -B build-profile -DCMAKE_BUILD_TYPE=RelWithDebInfo
 
 ## See Also
 
-- [docs/BENCHMARKS.md](BENCHMARKS.md) — Full benchmark results
-- [docs/BENCHMARK_METHODOLOGY.md](BENCHMARK_METHODOLOGY.md) — How benchmarks are collected
-- [docs/CT_VERIFICATION.md](CT_VERIFICATION.md) — Constant-time verification details
-- [PORTING.md](../PORTING.md) — Platform porting guide
+- [docs/BENCHMARKS.md](BENCHMARKS.md) -- Full benchmark results
+- [docs/BENCHMARK_METHODOLOGY.md](BENCHMARK_METHODOLOGY.md) -- How benchmarks are collected
+- [docs/CT_VERIFICATION.md](CT_VERIFICATION.md) -- Constant-time verification details
+- [PORTING.md](../PORTING.md) -- Platform porting guide

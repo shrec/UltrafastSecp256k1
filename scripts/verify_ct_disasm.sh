@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ============================================================================
 # CT Disassembly Verification Script
-# Phase V, Task 5.1.5 — Compiler disassembly verification
+# Phase V, Task 5.1.5 -- Compiler disassembly verification
 # ============================================================================
 # Scans compiled binaries for secret-dependent branches in CT functions.
 # Reports PASS/FAIL per function + total summary.
@@ -19,7 +19,7 @@
 
 set -euo pipefail
 
-# ── Configuration ──────────────────────────────────────────────────────────
+# -- Configuration ----------------------------------------------------------
 
 # CT functions that MUST be branch-free (namespace::function patterns)
 CT_FUNCTIONS=(
@@ -34,7 +34,7 @@ CT_FUNCTIONS=(
     "ct_less_than"
 )
 
-# ── Argument parsing ──────────────────────────────────────────────────────
+# -- Argument parsing ------------------------------------------------------
 
 BINARY=""
 ARCH=""
@@ -74,7 +74,7 @@ if [[ ! -f "$BINARY" ]]; then
     exit 2
 fi
 
-# ── Auto-detect architecture ──────────────────────────────────────────────
+# -- Auto-detect architecture ----------------------------------------------
 
 if [[ -z "$ARCH" ]]; then
     FILE_INFO=$(file "$BINARY" 2>/dev/null || echo "")
@@ -91,16 +91,16 @@ if [[ -z "$ARCH" ]]; then
     fi
 fi
 
-echo "═══════════════════════════════════════════════════════════"
+echo "==========================================================="
 echo "  CT Disassembly Verification"
-echo "═══════════════════════════════════════════════════════════"
+echo "==========================================================="
 echo "  Binary:   $BINARY"
 echo "  Arch:     $ARCH"
 echo "  Objdump:  $OBJDUMP"
-echo "═══════════════════════════════════════════════════════════"
+echo "==========================================================="
 echo ""
 
-# ── Architecture-specific branch patterns ─────────────────────────────────
+# -- Architecture-specific branch patterns ---------------------------------
 # These are CONDITIONAL branch instructions that indicate secret-dependent control flow.
 # Unconditional jumps (jmp/j/b) and calls are excluded.
 
@@ -123,7 +123,7 @@ case "$ARCH" in
         ;;
 esac
 
-# ── Disassemble and analyze ───────────────────────────────────────────────
+# -- Disassemble and analyze -----------------------------------------------
 
 DISASM=$("$OBJDUMP" -d -C "$BINARY" 2>/dev/null) || {
     echo "ERROR: objdump failed on $BINARY"
@@ -147,7 +147,7 @@ for FUNC in "${CT_FUNCTIONS[@]}"; do
     ')
 
     if [[ -z "$FUNC_BODY" ]]; then
-        echo "  [SKIP] $FUNC — not found in binary"
+        echo "  [SKIP] $FUNC -- not found in binary"
         continue
     fi
 
@@ -173,11 +173,11 @@ for FUNC in "${CT_FUNCTIONS[@]}"; do
     esac
 
     if [[ "$BRANCHES" -eq 0 ]]; then
-        echo "  [PASS] $FUNC — 0 branches, $SAFE_CT CT-safe ops ($TOTAL_INSNS insns)"
+        echo "  [PASS] $FUNC -- 0 branches, $SAFE_CT CT-safe ops ($TOTAL_INSNS insns)"
         PASS_FUNCTIONS=$((PASS_FUNCTIONS + 1))
         STATUS="pass"
     else
-        echo "  [FAIL] $FUNC — $BRANCHES conditional branch(es) found!"
+        echo "  [FAIL] $FUNC -- $BRANCHES conditional branch(es) found!"
         # Show the offending lines
         echo "$FUNC_BODY" | grep -Ei "$BRANCH_PATTERN" | head -10 | sed 's/^/         /'
         FAIL_FUNCTIONS=$((FAIL_FUNCTIONS + 1))
@@ -194,14 +194,14 @@ for FUNC in "${CT_FUNCTIONS[@]}"; do
 done
 
 echo ""
-echo "───────────────────────────────────────────────────────────"
+echo "-----------------------------------------------------------"
 echo "  Summary: $PASS_FUNCTIONS/$TOTAL_FUNCTIONS PASS"
 if [[ $FAIL_FUNCTIONS -gt 0 ]]; then
     echo "  FAILED:$FAIL_LIST"
 fi
-echo "───────────────────────────────────────────────────────────"
+echo "-----------------------------------------------------------"
 
-# ── JSON output ───────────────────────────────────────────────────────────
+# -- JSON output -----------------------------------------------------------
 
 if [[ -n "$JSON_OUTPUT" ]]; then
     cat > "$JSON_OUTPUT" <<EOF
@@ -220,12 +220,12 @@ EOF
     echo "  JSON report: $JSON_OUTPUT"
 fi
 
-# ── Exit code ─────────────────────────────────────────────────────────────
+# -- Exit code -------------------------------------------------------------
 
 if [[ $FAIL_FUNCTIONS -gt 0 ]]; then
     exit 1
 else
     echo ""
-    echo "  ✓ All CT functions are branch-free on $ARCH"
+    echo "  OK All CT functions are branch-free on $ARCH"
     exit 0
 fi

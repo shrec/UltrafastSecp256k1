@@ -1,8 +1,8 @@
 // ============================================================================
-// test_ct_equivalence.cpp — FAST ≡ CT Property-Based Equivalence Tests
+// test_ct_equivalence.cpp -- FAST == CT Property-Based Equivalence Tests
 // ============================================================================
 // Verifies that CT and FAST functions return bit-identical results on:
-//   1. Boundary scalars (0, 1, 2, n−1, n−2, (n+1)/2)
+//   1. Boundary scalars (0, 1, 2, n-1, n-2, (n+1)/2)
 //   2. Random 256-bit scalars (property-based)
 //   3. ECDSA sign equivalence (random keys + messages)
 //   4. Schnorr sign equivalence (random keys + messages)
@@ -10,7 +10,7 @@
 //   6. Group law invariants via CT (add/double/inverse)
 //
 // This test is the formal proof that the dual-layer FAST/CT architecture
-// maintains semantic equivalence — the cornerstone of SECURITY_CLAIMS.md.
+// maintains semantic equivalence -- the cornerstone of SECURITY_CLAIMS.md.
 // ============================================================================
 
 #include "secp256k1/fast.hpp"
@@ -145,7 +145,7 @@ static void test_boundary_generator_mul() {
 }
 
 // ============================================================================
-// 2. Property-based: random scalars × G
+// 2. Property-based: random scalars x G
 // ============================================================================
 static void test_random_generator_mul() {
     std::cout << "--- Property: 64 random ct::generator_mul vs fast ---\n";
@@ -162,7 +162,7 @@ static void test_random_generator_mul() {
 }
 
 // ============================================================================
-// 3. Property-based: random scalars × arbitrary P (ct::scalar_mul)
+// 3. Property-based: random scalars x arbitrary P (ct::scalar_mul)
 // ============================================================================
 static void test_random_scalar_mul() {
     std::cout << "--- Property: 64 random ct::scalar_mul(P, k) vs fast ---\n";
@@ -204,7 +204,7 @@ static void test_random_scalar_mul() {
 }
 
 // ============================================================================
-// 4. Boundary scalar × arbitrary P
+// 4. Boundary scalar x arbitrary P
 // ============================================================================
 static void test_boundary_scalar_mul() {
     std::cout << "--- Boundary: ct::scalar_mul edge scalars ---\n";
@@ -248,7 +248,7 @@ static void test_boundary_scalar_mul() {
 // 5. ECDSA sign equivalence: 32 random key+msg pairs
 // ============================================================================
 static void test_ecdsa_sign_equivalence() {
-    std::cout << "--- Property: 32 random ECDSA sign CT≡FAST ---\n";
+    std::cout << "--- Property: 32 random ECDSA sign CT==FAST ---\n";
 
     TestRng rng(0xEC05Au);
     PT G = PT::generator();
@@ -276,7 +276,7 @@ static void test_ecdsa_sign_equivalence() {
 // 6. Schnorr sign equivalence: 32 random key+msg pairs
 // ============================================================================
 static void test_schnorr_sign_equivalence() {
-    std::cout << "--- Property: 32 random Schnorr sign CT≡FAST ---\n";
+    std::cout << "--- Property: 32 random Schnorr sign CT==FAST ---\n";
 
     TestRng rng(0x5CA00Bu);
 
@@ -310,7 +310,7 @@ static void test_schnorr_sign_equivalence() {
 // 7. Schnorr pubkey equivalence: boundary + random
 // ============================================================================
 static void test_schnorr_pubkey_equivalence() {
-    std::cout << "--- Schnorr pubkey CT≡FAST (boundary + random) ---\n";
+    std::cout << "--- Schnorr pubkey CT==FAST (boundary + random) ---\n";
 
     // k=1
     {
@@ -395,7 +395,7 @@ static void test_ct_group_law() {
 // ============================================================================
 
 int test_ct_equivalence_run() {
-    std::cout << "=== FAST ≡ CT Equivalence Tests ===\n\n";
+    std::cout << "=== FAST == CT Equivalence Tests ===\n\n";
 
     test_boundary_generator_mul();
     test_random_generator_mul();

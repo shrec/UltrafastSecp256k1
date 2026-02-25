@@ -1,6 +1,6 @@
 # Audit Scope Document
 
-**UltrafastSecp256k1** — External Security Audit Engagement Scope
+**UltrafastSecp256k1** -- External Security Audit Engagement Scope
 
 Version: 1.0  
 Date: 2026-02-24  
@@ -106,7 +106,7 @@ An independent security audit is requested to verify correctness, identify vulne
 |-----------|--------|
 | GPU kernels (CUDA/OpenCL/Metal/ROCm) | Public-data only, no secret handling; separate audit recommended |
 | Language bindings (Python/Rust/Go/C#/etc.) | Thin FFI wrappers over C ABI; lower risk |
-| Build scripts, CI configuration | Infrastructure — separate DevSecOps review |
+| Build scripts, CI configuration | Infrastructure -- separate DevSecOps review |
 | `apps/` directory (GPU search tools) | Application-layer, not library |
 | `compat/` (libsecp256k1 shim) | Compatibility wrapper, not primary API |
 | Benchmark and example code | Non-production |
@@ -188,7 +188,7 @@ ctest --test-dir build_audit -R ct_sidechannel_smoke -V
 | API/boundary review | 1 week | C ABI, error handling, thread safety |
 | Report drafting | 1 week | Findings compilation, severity assignment |
 | Fix verification | 1 week | Re-test after remediation (optional) |
-| **Total** | **8–9 weeks** | |
+| **Total** | **8-9 weeks** | |
 
 ---
 

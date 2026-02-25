@@ -47,7 +47,7 @@ static std::array<uint8_t, 32> fake_sha256(const char* msg) {
 int main() {
     printf("=== UltrafastSecp256k1 -- Signing Demo ===\n\n");
 
-    // ── Setup ────────────────────────────────────────────────────────────────
+    // -- Setup ----------------------------------------------------------------
 
     // Private key (deterministic for demo)
     auto priv = Scalar::from_hex(
@@ -65,7 +65,7 @@ int main() {
     print_hex("Message hash", msg_hash.data(), msg_hash.size());
     printf("\n");
 
-    // ── 1. ECDSA Sign ───────────────────────────────────────────────────────
+    // -- 1. ECDSA Sign -------------------------------------------------------
 
     printf("[1] ECDSA Signing (RFC 6979)\n");
     auto ecdsa_sig = ecdsa_sign(msg_hash, priv);
@@ -82,7 +82,7 @@ int main() {
     printf("  Low-S: %s\n", ecdsa_sig.is_low_s() ? "yes" : "no");
     printf("\n");
 
-    // ── 2. ECDSA Verify ─────────────────────────────────────────────────────
+    // -- 2. ECDSA Verify -----------------------------------------------------
 
     printf("[2] ECDSA Verification\n");
     bool ecdsa_ok = ecdsa_verify(msg_hash, pub, ecdsa_sig);
@@ -96,7 +96,7 @@ int main() {
            ecdsa_bad ? "PASS" : "FAIL");
     printf("\n");
 
-    // ── 3. Schnorr BIP-340 Sign ─────────────────────────────────────────────
+    // -- 3. Schnorr BIP-340 Sign ---------------------------------------------
 
     printf("[3] Schnorr BIP-340 Signing\n");
 
@@ -111,7 +111,7 @@ int main() {
     print_hex("Signature (BIP-340)", sig_bytes.data(), sig_bytes.size());
     printf("  Length: 64 bytes (R.x 32 + s 32)\n\n");
 
-    // ── 4. Schnorr Verify ───────────────────────────────────────────────────
+    // -- 4. Schnorr Verify ---------------------------------------------------
 
     printf("[4] Schnorr BIP-340 Verification\n");
     bool schnorr_ok = schnorr_verify(kp.px, msg_hash, schnorr_sig);
@@ -122,7 +122,7 @@ int main() {
            schnorr_bad ? "PASS" : "FAIL");
     printf("\n");
 
-    // ── 5. Round-Trip Serialization ─────────────────────────────────────────
+    // -- 5. Round-Trip Serialization -----------------------------------------
 
     printf("[5] Serialization Round-Trip\n");
 
@@ -139,7 +139,7 @@ int main() {
            schnorr_rt ? "PASS" : "FAIL");
     printf("\n");
 
-    // ── Summary ──────────────────────────────────────────────────────────────
+    // -- Summary --------------------------------------------------------------
 
     bool all_pass = ecdsa_ok && !ecdsa_bad && schnorr_ok && !schnorr_bad
                     && ecdsa_rt && schnorr_rt;

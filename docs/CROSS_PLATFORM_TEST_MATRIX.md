@@ -13,8 +13,8 @@
 | 1  | selftest               | Core Selftest       | ~200   | Built-in self-test: field, scalar, point, generator consistency  |
 | 2  | batch_add_affine       | Point Arithmetic    | ~50    | Batch affine addition correctness for sequential ECC search      |
 | 3  | hash_accel             | Hashing             | ~80    | SHA-256, RIPEMD-160, Hash160 (SHA-NI accelerated where available)|
-| 4  | field_52               | Field Arithmetic    | ~100   | 5×52-bit lazy reduction field implementation tests               |
-| 5  | field_26               | Field Arithmetic    | ~100   | 10×26-bit field (32-bit platform path) implementation tests      |
+| 4  | field_52               | Field Arithmetic    | ~100   | 5x52-bit lazy reduction field implementation tests               |
+| 5  | field_26               | Field Arithmetic    | ~100   | 10x26-bit field (32-bit platform path) implementation tests      |
 | 6  | exhaustive             | Full Coverage       | ~500+  | Exhaustive small-order subgroup + enumeration tests              |
 | 7  | comprehensive          | Full Coverage       | ~800+  | All arithmetic operations combined stress                        |
 | 8  | bip340_vectors         | Standards Vectors   | ~30    | BIP-340 Schnorr signature official test vectors                  |
@@ -24,7 +24,7 @@
 | 12 | ct_sidechannel         | Constant-Time       | ~300   | Full CT layer: compare, select, cswap, scalar_mul CT paths      |
 | 13 | ct_sidechannel_smoke   | Constant-Time       | ~100   | Smoke test: CT operations basic correctness                      |
 | 14 | differential           | Differential Test   | ~200   | Differential testing: fast vs CT layer output equivalence        |
-| 15 | ct_equivalence         | Constant-Time       | ~150   | CT scalar_mul ≡ fast scalar_mul bitwise equivalence              |
+| 15 | ct_equivalence         | Constant-Time       | ~150   | CT scalar_mul == fast scalar_mul bitwise equivalence              |
 | 16 | diag_scalar_mul        | Diagnostics         | ~50    | Scalar multiplication step-by-step diagnostic comparison         |
 | 17 | fault_injection        | Security Audit      | 610    | Fault injection simulation: bit-flips, coord corruption, GLV     |
 | 18 | debug_invariants       | Security Audit      | 372    | Debug assertion verification: normalize, on_curve, scalar_valid  |
@@ -38,38 +38,38 @@
 ## Platform Matrix
 
 ### Legend
-- ✅ = All checks PASS
-- ❌ = One or more checks FAIL
-- ⚠️ = Partial (some tests skipped or known limitation)
+- [OK] = All checks PASS
+- [FAIL] = One or more checks FAIL
+- [!] = Partial (some tests skipped or known limitation)
 - N/A = Not applicable / not targetable for this platform
 - 🔲 = Not yet tested
 
-### Test × Platform Status
+### Test x Platform Status
 
 | #  | Test Name             | x86-64 Win (Clang) | x86-64 Linux (Clang/GCC) | x86-64 macOS | ARM64 Linux | ARM64 macOS (Apple Si) | RISC-V 64 | WASM (Emscripten) | ESP32 (Xtensa) | STM32 (Cortex-M4) |
 |----|----------------------|:-------------------:|:------------------------:|:------------:|:-----------:|:---------------------:|:---------:|:-----------------:|:--------------:|:-----------------:|
-| 1  | selftest             | ✅                  | ✅                        | 🔲           | 🔲          | 🔲                    | ✅        | 🔲                | 🔲             | 🔲                |
-| 2  | batch_add_affine     | ✅                  | ✅                        | 🔲           | 🔲          | 🔲                    | ✅        | 🔲                | 🔲             | 🔲                |
-| 3  | hash_accel           | ✅                  | ✅                        | 🔲           | 🔲          | 🔲                    | ✅        | 🔲                | 🔲             | 🔲                |
-| 4  | field_52             | ✅                  | ✅                        | 🔲           | 🔲          | 🔲                    | ✅        | 🔲                | N/A            | N/A               |
-| 5  | field_26             | ✅                  | ✅                        | 🔲           | 🔲          | 🔲                    | ✅        | 🔲                | ✅ ¹           | ✅ ¹              |
-| 6  | exhaustive           | ✅                  | ✅                        | 🔲           | 🔲          | 🔲                    | ✅        | 🔲                | 🔲             | 🔲                |
-| 7  | comprehensive        | ✅                  | ✅                        | 🔲           | 🔲          | 🔲                    | ✅        | 🔲                | 🔲             | 🔲                |
-| 8  | bip340_vectors       | ✅                  | ✅                        | 🔲           | 🔲          | 🔲                    | ✅        | 🔲                | 🔲             | 🔲                |
-| 9  | bip32_vectors        | ✅                  | ✅                        | 🔲           | 🔲          | 🔲                    | ✅        | 🔲                | 🔲             | 🔲                |
-| 10 | rfc6979_vectors      | ✅                  | ✅                        | 🔲           | 🔲          | 🔲                    | ✅        | 🔲                | 🔲             | 🔲                |
-| 11 | ecc_properties       | ✅                  | ✅                        | 🔲           | 🔲          | 🔲                    | ✅        | 🔲                | 🔲             | 🔲                |
-| 12 | ct_sidechannel       | ✅                  | ✅                        | 🔲           | 🔲          | 🔲                    | ✅        | 🔲                | 🔲             | 🔲                |
-| 13 | ct_sidechannel_smoke | ✅                  | ✅                        | 🔲           | 🔲          | 🔲                    | ✅        | 🔲                | 🔲             | 🔲                |
-| 14 | differential         | ✅                  | ✅                        | 🔲           | 🔲          | 🔲                    | ✅        | 🔲                | 🔲             | 🔲                |
-| 15 | ct_equivalence       | ✅                  | ✅                        | 🔲           | 🔲          | 🔲                    | ✅        | 🔲                | 🔲             | 🔲                |
-| 16 | diag_scalar_mul      | ✅                  | ✅                        | 🔲           | 🔲          | 🔲                    | ✅        | 🔲                | 🔲             | 🔲                |
-| 17 | fault_injection      | ✅                  | ✅                        | 🔲           | 🔲          | 🔲                    | 🔲        | 🔲                | 🔲             | 🔲                |
-| 18 | debug_invariants     | ✅                  | ✅                        | 🔲           | 🔲          | 🔲                    | 🔲        | 🔲                | 🔲             | 🔲                |
-| 19 | fiat_crypto_vectors  | ✅                  | ✅                        | 🔲           | 🔲          | 🔲                    | 🔲        | 🔲                | 🔲             | 🔲                |
-| 20 | carry_propagation    | ✅                  | ✅                        | 🔲           | 🔲          | 🔲                    | 🔲        | 🔲                | 🔲             | 🔲                |
-| 21 | cross_platform_kat   | ✅                  | ✅                        | 🔲           | 🔲          | 🔲                    | 🔲        | 🔲                | 🔲             | 🔲                |
-| 22 | abi_gate             | ✅                  | ✅                        | 🔲           | 🔲          | 🔲                    | 🔲        | 🔲                | 🔲             | 🔲                |
+| 1  | selftest             | [OK]                  | [OK]                        | 🔲           | 🔲          | 🔲                    | [OK]        | 🔲                | 🔲             | 🔲                |
+| 2  | batch_add_affine     | [OK]                  | [OK]                        | 🔲           | 🔲          | 🔲                    | [OK]        | 🔲                | 🔲             | 🔲                |
+| 3  | hash_accel           | [OK]                  | [OK]                        | 🔲           | 🔲          | 🔲                    | [OK]        | 🔲                | 🔲             | 🔲                |
+| 4  | field_52             | [OK]                  | [OK]                        | 🔲           | 🔲          | 🔲                    | [OK]        | 🔲                | N/A            | N/A               |
+| 5  | field_26             | [OK]                  | [OK]                        | 🔲           | 🔲          | 🔲                    | [OK]        | 🔲                | [OK] ¹           | [OK] ¹              |
+| 6  | exhaustive           | [OK]                  | [OK]                        | 🔲           | 🔲          | 🔲                    | [OK]        | 🔲                | 🔲             | 🔲                |
+| 7  | comprehensive        | [OK]                  | [OK]                        | 🔲           | 🔲          | 🔲                    | [OK]        | 🔲                | 🔲             | 🔲                |
+| 8  | bip340_vectors       | [OK]                  | [OK]                        | 🔲           | 🔲          | 🔲                    | [OK]        | 🔲                | 🔲             | 🔲                |
+| 9  | bip32_vectors        | [OK]                  | [OK]                        | 🔲           | 🔲          | 🔲                    | [OK]        | 🔲                | 🔲             | 🔲                |
+| 10 | rfc6979_vectors      | [OK]                  | [OK]                        | 🔲           | 🔲          | 🔲                    | [OK]        | 🔲                | 🔲             | 🔲                |
+| 11 | ecc_properties       | [OK]                  | [OK]                        | 🔲           | 🔲          | 🔲                    | [OK]        | 🔲                | 🔲             | 🔲                |
+| 12 | ct_sidechannel       | [OK]                  | [OK]                        | 🔲           | 🔲          | 🔲                    | [OK]        | 🔲                | 🔲             | 🔲                |
+| 13 | ct_sidechannel_smoke | [OK]                  | [OK]                        | 🔲           | 🔲          | 🔲                    | [OK]        | 🔲                | 🔲             | 🔲                |
+| 14 | differential         | [OK]                  | [OK]                        | 🔲           | 🔲          | 🔲                    | [OK]        | 🔲                | 🔲             | 🔲                |
+| 15 | ct_equivalence       | [OK]                  | [OK]                        | 🔲           | 🔲          | 🔲                    | [OK]        | 🔲                | 🔲             | 🔲                |
+| 16 | diag_scalar_mul      | [OK]                  | [OK]                        | 🔲           | 🔲          | 🔲                    | [OK]        | 🔲                | 🔲             | 🔲                |
+| 17 | fault_injection      | [OK]                  | [OK]                        | 🔲           | 🔲          | 🔲                    | 🔲        | 🔲                | 🔲             | 🔲                |
+| 18 | debug_invariants     | [OK]                  | [OK]                        | 🔲           | 🔲          | 🔲                    | 🔲        | 🔲                | 🔲             | 🔲                |
+| 19 | fiat_crypto_vectors  | [OK]                  | [OK]                        | 🔲           | 🔲          | 🔲                    | 🔲        | 🔲                | 🔲             | 🔲                |
+| 20 | carry_propagation    | [OK]                  | [OK]                        | 🔲           | 🔲          | 🔲                    | 🔲        | 🔲                | 🔲             | 🔲                |
+| 21 | cross_platform_kat   | [OK]                  | [OK]                        | 🔲           | 🔲          | 🔲                    | 🔲        | 🔲                | 🔲             | 🔲                |
+| 22 | abi_gate             | [OK]                  | [OK]                        | 🔲           | 🔲          | 🔲                    | 🔲        | 🔲                | 🔲             | 🔲                |
 
 > ¹ 32-bit platforms (ESP32, STM32) use field_26 only; field_52 requires 64-bit limbs.
 
@@ -79,20 +79,20 @@
 
 | Platform             | CI Workflow       | Trigger        | Status    |
 |---------------------|-------------------|----------------|-----------|
-| x86-64 Linux (GCC)  | ci.yml            | push/PR        | ✅ Active |
-| x86-64 Linux (Clang) | ci.yml           | push/PR        | ✅ Active |
-| x86-64 Windows (MSVC)| ci.yml           | push/PR        | ✅ Active |
-| x86-64 Windows (Clang)| ci.yml          | push/PR        | ✅ Active |
-| x86-64 macOS        | ci.yml            | push/PR        | ✅ Active |
-| ARM64 Linux          | ci.yml (qemu)    | push/PR        | ✅ Active |
-| RISC-V 64            | Manual / Cross   | manual         | ⚠️ Manual |
-| WASM                 | —                 | —              | 🔲 Planned |
-| ESP32                | —                 | —              | 🔲 Planned |
-| STM32                | —                 | —              | 🔲 Planned |
+| x86-64 Linux (GCC)  | ci.yml            | push/PR        | [OK] Active |
+| x86-64 Linux (Clang) | ci.yml           | push/PR        | [OK] Active |
+| x86-64 Windows (MSVC)| ci.yml           | push/PR        | [OK] Active |
+| x86-64 Windows (Clang)| ci.yml          | push/PR        | [OK] Active |
+| x86-64 macOS        | ci.yml            | push/PR        | [OK] Active |
+| ARM64 Linux          | ci.yml (qemu)    | push/PR        | [OK] Active |
+| RISC-V 64            | Manual / Cross   | manual         | [!] Manual |
+| WASM                 | --                 | --              | 🔲 Planned |
+| ESP32                | --                 | --              | 🔲 Planned |
+| STM32                | --                 | --              | 🔲 Planned |
 
 ---
 
-## Verification Summary (Current Session — x86-64 Windows, Clang)
+## Verification Summary (Current Session -- x86-64 Windows, Clang)
 
 ```
 CTest Results: 22/22 passed, 0 failed
@@ -114,13 +114,13 @@ Individual check counts:
   differential .............. ~200 checks
   ct_equivalence ............ ~150 checks
   diag_scalar_mul ........... ~50  checks
-  fault_injection ........... 610  checks ✓
-  debug_invariants .......... 372  checks ✓
-  fiat_crypto_vectors ....... 647  checks ✓
-  carry_propagation ......... 247  checks ✓
-  cross_platform_kat ........ 24   checks ✓
-  abi_gate .................. 12   checks ✓
-  ─────────────────────────────────────────
+  fault_injection ........... 610  checks OK
+  debug_invariants .......... 372  checks OK
+  fiat_crypto_vectors ....... 647  checks OK
+  carry_propagation ......... 247  checks OK
+  cross_platform_kat ........ 24   checks OK
+  abi_gate .................. 12   checks OK
+  -----------------------------------------
   TOTAL (estimated):         ~4700+ individual assertions
 ```
 
@@ -178,12 +178,12 @@ Individual check counts:
 - Manual cross-compilation + QEMU testing
 - RVV (Vector Extension) support optional
 
-### WASM (Emscripten) — Planned
-- 32-bit path: field_26 (10×26-bit limbs)
+### WASM (Emscripten) -- Planned
+- 32-bit path: field_26 (10x26-bit limbs)
 - No inline assembly, pure C++ only
 - KAT test should produce identical output
 
-### ESP32 / STM32 — Planned
+### ESP32 / STM32 -- Planned
 - 32-bit path: field_26
 - No OS, bare-metal test harness needed
 - KAT golden vectors are the acceptance criterion

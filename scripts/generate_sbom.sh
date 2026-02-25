@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ===========================================================================
-# generate_sbom.sh — Software Bill of Materials generator
+# generate_sbom.sh -- Software Bill of Materials generator
 # ===========================================================================
 # Outputs a CycloneDX 1.6 SBOM for UltrafastSecp256k1.
 # The library has zero runtime dependencies (header-only std::), so the SBOM

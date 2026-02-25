@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ============================================================================
 # Memory Access Pattern Analysis (Cache-Line Leak Detection)
-# Phase IV, Task 4.3.5 — Cachegrind-based analysis for CT functions
+# Phase IV, Task 4.3.5 -- Cachegrind-based analysis for CT functions
 # ============================================================================
 # Uses Valgrind's cachegrind tool to detect data-dependent cache access patterns
 # in constant-time cryptographic functions. Cache-line leaks are a real
@@ -31,14 +31,14 @@ BUILD_DIR="${1:-build/cachegrind-ct}"
 SRC_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 REPORT_DIR="$BUILD_DIR/cachegrind_reports"
 
-echo "═══════════════════════════════════════════════════════════"
+echo "==========================================================="
 echo "  Cache-Line Leak Analysis (Cachegrind)"
-echo "═══════════════════════════════════════════════════════════"
+echo "==========================================================="
 echo "  Source:  $SRC_DIR"
 echo "  Build:   $BUILD_DIR"
 echo ""
 
-# ── Check prerequisites ───────────────────────────────────────────────────
+# -- Check prerequisites ---------------------------------------------------
 
 if ! command -v valgrind &>/dev/null; then
     echo "ERROR: valgrind not found. Install with: apt-get install valgrind"
@@ -52,7 +52,7 @@ fi
 echo "  Valgrind: $(valgrind --version 2>/dev/null || echo "unknown")"
 echo ""
 
-# ── Build test binary ────────────────────────────────────────────────────
+# -- Build test binary ----------------------------------------------------
 
 echo "[1/4] Building (Debug, no ASM for pure cache analysis)..."
 cmake -S "$SRC_DIR" -B "$BUILD_DIR" -G Ninja \
@@ -72,7 +72,7 @@ fi
 
 mkdir -p "$REPORT_DIR"
 
-# ── Run 1: Cachegrind on selftest (baseline) ────────────────────────────
+# -- Run 1: Cachegrind on selftest (baseline) ----------------------------
 
 echo "[2/4] Running Cachegrind (this takes several minutes)..."
 
@@ -86,7 +86,7 @@ valgrind --tool=cachegrind \
 
 echo "  Run 1 complete: $CACHE_FILE_1"
 
-# ── Run 2: Second run (for comparison) ────────────────────────────────────
+# -- Run 2: Second run (for comparison) ------------------------------------
 
 echo "[3/4] Running Cachegrind (second pass for comparison)..."
 
@@ -100,7 +100,7 @@ valgrind --tool=cachegrind \
 
 echo "  Run 2 complete: $CACHE_FILE_2"
 
-# ── Analyze results ──────────────────────────────────────────────────────
+# -- Analyze results ------------------------------------------------------
 
 echo "[4/4] Analyzing cache patterns..."
 echo ""
@@ -110,7 +110,7 @@ parse_cachegrind() {
     local log="$1"
     local label="$2"
     
-    echo "  ── $label ──"
+    echo "  -- $label --"
     grep -E "I +refs|D +refs|LL refs|I1 +miss|D1 +miss|LL miss|Branches|Mispred" "$log" | head -10
     echo ""
 }
@@ -125,21 +125,21 @@ D1_MISS_2=$(grep "D1  miss rate:" "$REPORT_DIR/run2_stderr.log" 2>/dev/null | he
 BR_MISPRED_1=$(grep "Mispred rate:" "$REPORT_DIR/run1_stderr.log" 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+%' || echo "N/A")
 BR_MISPRED_2=$(grep "Mispred rate:" "$REPORT_DIR/run2_stderr.log" 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+%' || echo "N/A")
 
-echo "───────────────────────────────────────────────────────────"
+echo "-----------------------------------------------------------"
 echo "  Cache Pattern Comparison"
-echo "───────────────────────────────────────────────────────────"
+echo "-----------------------------------------------------------"
 echo "  D1 miss rate:      Run1=$D1_MISS_1  Run2=$D1_MISS_2"
 echo "  Branch mispred:    Run1=$BR_MISPRED_1  Run2=$BR_MISPRED_2"
 echo ""
 
-# ── Generate annotated report ─────────────────────────────────────────────
+# -- Generate annotated report ---------------------------------------------
 
 if command -v cg_annotate &>/dev/null; then
     cg_annotate "$CACHE_FILE_1" > "$REPORT_DIR/annotated_report.txt" 2>/dev/null || true
     echo "  Annotated report: $REPORT_DIR/annotated_report.txt"
 fi
 
-# ── JSON report ──────────────────────────────────────────────────────────
+# -- JSON report ----------------------------------------------------------
 
 cat > "$REPORT_DIR/cachegrind_report.json" <<EOF
 {
@@ -157,5 +157,5 @@ EOF
 
 echo "  JSON report: $REPORT_DIR/cachegrind_report.json"
 echo ""
-echo "  ✓ Cache analysis complete. Review annotated report for hotspots."
+echo "  OK Cache analysis complete. Review annotated report for hotspots."
 echo "    Key check: D1 miss rates should be consistent regardless of secret values."

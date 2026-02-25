@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================================
-# repro.sh — Reproducible Environment Report Generator (Linux/macOS)
+# repro.sh -- Reproducible Environment Report Generator (Linux/macOS)
 # ============================================================================
 # Usage: bash tools/repro.sh [output_file]
 # ============================================================================
@@ -8,10 +8,10 @@ set -euo pipefail
 
 OUTPUT="${1:-}"
 
-section() { echo -e "\n$(printf '─%.0s' {1..60})\n  $1\n$(printf '─%.0s' {1..60})"; }
+section() { echo -e "\n$(printf '-%.0s' {1..60})\n  $1\n$(printf '-%.0s' {1..60})"; }
 
 {
-echo "UltrafastSecp256k1 — Environment Report"
+echo "UltrafastSecp256k1 -- Environment Report"
 echo "Generated: $(date '+%Y-%m-%d %H:%M:%S %z')"
 
 section "Git"
@@ -67,8 +67,8 @@ else
 fi
 
 echo ""
-echo "$(printf '─%.0s' {1..60})"
+echo "$(printf '-%.0s' {1..60})"
 echo "  End of Report"
-echo "$(printf '─%.0s' {1..60})"
+echo "$(printf '-%.0s' {1..60})"
 
 } | if [[ -n "$OUTPUT" ]]; then tee "$OUTPUT"; else cat; fi
