@@ -1,0 +1,130 @@
+name: ClusterFuzzLite
+
+on:
+  push:
+    branches: [main, dev]
+    paths:
+      - 'cpu/**'
+      - 'include/**'
+      - '.clusterfuzzlite/**'
+      - '.github/workflows/cflite.yml'
+  pull_request:
+    branches: [main, dev]
+    paths:
+      - 'cpu/**'
+      - 'include/**'
+      - '.clusterfuzzlite/**'
+      - '.github/workflows/cflite.yml'
+  schedule:
+    # Nightly batch fuzzing -- 04:00 UTC (after nightly.yml at 03:00)
+    - cron: '0 4 * * *'
+  workflow_dispatch:
+    inputs:
+      fuzz_seconds:
+        description: 'Fuzz duration per target in seconds'
+        required: false
+        default: '600'
+
+permissions:
+  contents: read
+  security-events: write  # for SARIF upload if crashes found
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ── PR fuzzing (short run, catch regressions) ────────────────────────────
+  pr-fuzzing:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        sanitizer: [address, undefined]
+    name: "CFL PR (${{ matrix.sanitizer }})"
+    steps:
+      - name: Harden the runner
+        uses: step-security/harden-runner@5ef0c079ce82195b2a36a210272d6b661572d83e # v2.14.2
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Build fuzzers
+        id: build
+        uses: google/clusterfuzzlite/actions/build_fuzzers@884713a2518c28d97e97313e7b88f51a511fe997 # v1
+        with:
+          language: c++
+          sanitizer: ${{ matrix.sanitizer }}
+
+      - name: Run fuzzers (120s per target)
+        id: run
+        uses: google/clusterfuzzlite/actions/run_fuzzers@884713a2518c28d97e97313e7b88f51a511fe997 # v1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          fuzz-seconds: 120
+          mode: code-change
+          sanitizer: ${{ matrix.sanitizer }}
+
+  # ── Batch fuzzing (nightly, extended corpus exploration) ──────────────────
+  batch-fuzzing:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        sanitizer: [address, undefined]
+    name: "CFL Batch (${{ matrix.sanitizer }})"
+    steps:
+      - name: Harden the runner
+        uses: step-security/harden-runner@5ef0c079ce82195b2a36a210272d6b661572d83e # v2.14.2
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Build fuzzers
+        id: build
+        uses: google/clusterfuzzlite/actions/build_fuzzers@884713a2518c28d97e97313e7b88f51a511fe997 # v1
+        with:
+          language: c++
+          sanitizer: ${{ matrix.sanitizer }}
+
+      - name: Run fuzzers (extended)
+        id: run
+        uses: google/clusterfuzzlite/actions/run_fuzzers@884713a2518c28d97e97313e7b88f51a511fe997 # v1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          fuzz-seconds: ${{ github.event.inputs.fuzz_seconds || '600' }}
+          mode: batch
+          sanitizer: ${{ matrix.sanitizer }}
+
+  # ── Corpus pruning (weekly, keep corpus lean) ────────────────────────────
+  prune-corpus:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-24.04
+    needs: batch-fuzzing
+    steps:
+      - name: Harden the runner
+        uses: step-security/harden-runner@5ef0c079ce82195b2a36a210272d6b661572d83e # v2.14.2
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Build fuzzers
+        id: build
+        uses: google/clusterfuzzlite/actions/build_fuzzers@884713a2518c28d97e97313e7b88f51a511fe997 # v1
+        with:
+          language: c++
+          sanitizer: address
+
+      - name: Prune corpus
+        id: prune
+        uses: google/clusterfuzzlite/actions/run_fuzzers@884713a2518c28d97e97313e7b88f51a511fe997 # v1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          fuzz-seconds: 60
+          mode: prune
+          sanitizer: address

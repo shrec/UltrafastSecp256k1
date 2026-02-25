@@ -18,6 +18,7 @@ on:
 
 permissions:
   contents: read
+  security-events: write  # upload SARIF to Security tab
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -72,10 +73,60 @@ jobs:
             # To make blocking later, uncomment: exit 1
           fi
 
+      - name: Convert clang-tidy output to SARIF
+        if: always()
+        run: |
+          python3 -c "
+          import json, re, sys
+
+          results = []
+          with open('clang-tidy-output.txt') as f:
+              for line in f:
+                  m = re.match(r'^(.+):(\d+):(\d+): (warning|error): (.+) \[(.+)\]$', line.strip())
+                  if m:
+                      filepath, lineno, col, level, msg, rule = m.groups()
+                      results.append({
+                          'ruleId': rule,
+                          'level': level,
+                          'message': {'text': msg},
+                          'locations': [{
+                              'physicalLocation': {
+                                  'artifactLocation': {'uri': filepath},
+                                  'region': {
+                                      'startLine': int(lineno),
+                                      'startColumn': int(col)
+                                  }
+                              }
+                          }]
+                      })
+
+          sarif = {
+              '\$schema': 'https://raw.githubusercontent.com/oasis-tcs/sarif-spec/main/sarif-2.1/schema/sarif-schema-2.1.0.json',
+              'version': '2.1.0',
+              'runs': [{
+                  'tool': {'driver': {'name': 'clang-tidy', 'version': '17'}},
+                  'results': results
+              }]
+          }
+          with open('clang-tidy-results.sarif', 'w') as f:
+              json.dump(sarif, f, indent=2)
+          print(f'Converted {len(results)} clang-tidy findings to SARIF')
+          "
+
+      - name: Upload SARIF to GitHub Security
+        if: always()
+        uses: github/codeql-action/upload-sarif@ff0a06e83cb2de871e5a09832bc6a81e7276941f # v3.28.18
+        with:
+          sarif_file: clang-tidy-results.sarif
+          category: clang-tidy
+        continue-on-error: true
+
       - name: Upload clang-tidy report
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: clang-tidy-report
-          path: clang-tidy-output.txt
+          path: |
+            clang-tidy-output.txt
+            clang-tidy-results.sarif
           retention-days: 30

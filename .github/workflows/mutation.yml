@@ -1,0 +1,279 @@
+name: Mutation Testing
+
+on:
+  schedule:
+    # Weekly: Sunday 05:00 UTC (after nightly + fuzzing)
+    - cron: '0 5 * * 0'
+  workflow_dispatch:
+    inputs:
+      targets:
+        description: 'Comma-separated source files to mutate (default: core crypto)'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  mutation:
+    name: Mutation Testing (Mull)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+
+    steps:
+      - name: Harden the runner
+        uses: step-security/harden-runner@5ef0c079ce82195b2a36a210272d6b661572d83e # v2.14.2
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Install toolchain
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            clang-17 lld-17 ninja-build wget
+
+      - name: Install Mull
+        run: |
+          # Mull mutator -- LLVM-based mutation testing for C/C++
+          # https://github.com/mull-project/mull
+          wget -qO- https://github.com/mull-project/mull/releases/latest/download/Mull-17-Ubuntu-22.04.deb \
+            -O /tmp/mull.deb 2>/dev/null || {
+            # Fallback: try building a minimal mutation runner
+            echo "::warning::Mull .deb not available, trying pip package"
+            pip3 install --user mutmut 2>/dev/null || true
+          }
+          if [ -f /tmp/mull.deb ]; then
+            sudo dpkg -i /tmp/mull.deb 2>/dev/null || sudo apt-get install -f -y
+          fi
+
+      - name: Configure (instrumented build for mutation)
+        run: |
+          export CC=clang-17 CXX=clang++-17
+          cmake -S . -B build-mut -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_CXX_COMPILER=clang++-17 \
+            -DCMAKE_C_COMPILER=clang-17 \
+            -DSECP256K1_BUILD_TESTS=ON \
+            -DSECP256K1_BUILD_BENCH=OFF \
+            -DSECP256K1_BUILD_EXAMPLES=OFF \
+            -DSECP256K1_BUILD_METAL=OFF \
+            -DSECP256K1_USE_ASM=OFF
+
+      - name: Build test suite
+        run: cmake --build build-mut -j"$(nproc)"
+
+      - name: Run mutation testing
+        id: mutate
+        run: |
+          # Mutation scope: core cryptographic sources
+          # These are the files where a missed mutation = potential vulnerability
+          CORE_SOURCES=(
+            "cpu/src/field.cpp"
+            "cpu/src/scalar.cpp"
+            "cpu/src/point.cpp"
+            "cpu/src/ecdsa.cpp"
+            "cpu/src/schnorr.cpp"
+            "cpu/src/ct_field.cpp"
+            "cpu/src/ct_scalar.cpp"
+            "cpu/src/ct_point.cpp"
+            "cpu/src/ct_sign.cpp"
+          )
+
+          echo "=== Mutation Testing: UltrafastSecp256k1 ==="
+          echo "Scope: ${#CORE_SOURCES[@]} core source files"
+          echo ""
+
+          # Strategy: compile-time mutation via Mull LLVM plugin
+          if command -v mull-runner-17 &>/dev/null; then
+            echo "Using Mull LLVM mutation engine"
+
+            # Generate mull config
+            cat > mull.yml <<'EOF'
+          mutators:
+            - cxx_add_to_sub        # + -> -
+            - cxx_sub_to_add        # - -> +
+            - cxx_mul_to_div        # * -> /
+            - cxx_div_to_mul        # / -> *
+            - cxx_eq_to_ne          # == -> !=
+            - cxx_ne_to_eq          # != -> ==
+            - cxx_gt_to_lt          # > -> <
+            - cxx_lt_to_gt          # < -> >
+            - cxx_ge_to_lt          # >= -> <
+            - cxx_le_to_gt          # <= -> >
+            - cxx_and_to_or         # && -> ||
+            - cxx_or_to_and         # || -> &&
+            - cxx_assign_const      # x = expr -> x = 0
+            - cxx_init_const        # int x = expr -> int x = 0
+            - cxx_remove_void_call  # remove void function calls
+          timeout: 30
+          reporters:
+            - Elements
+            - SQLite
+          EOF
+
+            # Re-build with Mull plugin
+            cmake -S . -B build-mull -G Ninja \
+              -DCMAKE_BUILD_TYPE=Debug \
+              -DCMAKE_CXX_COMPILER=clang++-17 \
+              -DCMAKE_CXX_FLAGS="-fpass-plugin=/usr/lib/mull-ir-frontend-17 -g -O0" \
+              -DSECP256K1_BUILD_TESTS=ON \
+              -DSECP256K1_BUILD_BENCH=OFF \
+              -DSECP256K1_BUILD_METAL=OFF \
+              -DSECP256K1_USE_ASM=OFF
+
+            cmake --build build-mull -j"$(nproc)" --target selftest 2>&1 || true
+
+            # Run Mull against selftest
+            mull-runner-17 \
+              --reporters=Elements \
+              --report-dir=mutation-report \
+              build-mull/cpu/selftest 2>&1 | tee mutation-log.txt || true
+
+          else
+            echo "::warning::Mull not available, running manual mutation testing"
+            echo ""
+
+            # Fallback: manual compile-time mutation testing
+            # For each core source, inject mutations and check if tests catch them
+            TOTAL=0
+            KILLED=0
+            SURVIVED=0
+            ERRORS=0
+
+            for src in "${CORE_SOURCES[@]}"; do
+              if [ ! -f "$src" ]; then
+                echo "[SKIP] $src (not found)"
+                continue
+              fi
+
+              echo "--- Mutating: $src ---"
+
+              # Backup
+              cp "$src" "$src.bak"
+
+              # Mutation 1: flip + to - in arithmetic
+              if grep -q ' + ' "$src"; then
+                # Apply first arithmetic mutation
+                sed -i '0,/ + /{s/ + / - /}' "$src"
+                TOTAL=$((TOTAL + 1))
+
+                if cmake --build build-mut -j"$(nproc)" 2>/dev/null; then
+                  # Build succeeded, run tests
+                  if ctest --test-dir build-mut --output-on-failure -j"$(nproc)" \
+                       -E "^(ct_sidechannel|benchmark)" --timeout 30 2>/dev/null; then
+                    SURVIVED=$((SURVIVED + 1))
+                    echo "  [!] SURVIVED: +->- mutation in $src"
+                  else
+                    KILLED=$((KILLED + 1))
+                    echo "  [OK] KILLED: +->- mutation in $src"
+                  fi
+                else
+                  KILLED=$((KILLED + 1))
+                  echo "  [OK] KILLED (compile error): +->- mutation in $src"
+                fi
+
+                # Restore
+                cp "$src.bak" "$src"
+              fi
+
+              # Mutation 2: flip == to !=
+              if grep -q ' == ' "$src"; then
+                sed -i '0,/ == /{s/ == / != /}' "$src"
+                TOTAL=$((TOTAL + 1))
+
+                if cmake --build build-mut -j"$(nproc)" 2>/dev/null; then
+                  if ctest --test-dir build-mut --output-on-failure -j"$(nproc)" \
+                       -E "^(ct_sidechannel|benchmark)" --timeout 30 2>/dev/null; then
+                    SURVIVED=$((SURVIVED + 1))
+                    echo "  [!] SURVIVED: ==->!= mutation in $src"
+                  else
+                    KILLED=$((KILLED + 1))
+                    echo "  [OK] KILLED: ==->!= mutation in $src"
+                  fi
+                else
+                  KILLED=$((KILLED + 1))
+                  echo "  [OK] KILLED (compile error): ==->!= mutation in $src"
+                fi
+
+                cp "$src.bak" "$src"
+              fi
+
+              # Mutation 3: replace return value with 0
+              if grep -qE 'return [^;]+;' "$src"; then
+                sed -i '0,/return [^;]\+;/{s/return [^;]\+;/return {};/}' "$src"
+                TOTAL=$((TOTAL + 1))
+
+                if cmake --build build-mut -j"$(nproc)" 2>/dev/null; then
+                  if ctest --test-dir build-mut --output-on-failure -j"$(nproc)" \
+                       -E "^(ct_sidechannel|benchmark)" --timeout 30 2>/dev/null; then
+                    SURVIVED=$((SURVIVED + 1))
+                    echo "  [!] SURVIVED: return->return{} mutation in $src"
+                  else
+                    KILLED=$((KILLED + 1))
+                    echo "  [OK] KILLED: return->return{} mutation in $src"
+                  fi
+                else
+                  KILLED=$((KILLED + 1))
+                  echo "  [OK] KILLED (compile error): return->return{} mutation in $src"
+                fi
+
+                cp "$src.bak" "$src"
+              fi
+
+              # Cleanup
+              rm -f "$src.bak"
+              echo ""
+            done
+
+            # Summary
+            SCORE=0
+            if [ "$TOTAL" -gt 0 ]; then
+              SCORE=$((KILLED * 100 / TOTAL))
+            fi
+
+            echo "=============================================="
+            echo "  MUTATION TESTING SUMMARY"
+            echo "=============================================="
+            echo "  Total mutations:  $TOTAL"
+            echo "  Killed:           $KILLED"
+            echo "  Survived:         $SURVIVED"
+            echo "  Mutation score:   ${SCORE}%"
+            echo "=============================================="
+
+            # Write JSON report
+            cat > mutation-report.json <<ENDJSON
+          {
+            "tool": "manual-mutation",
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "scope": "${CORE_SOURCES[*]}",
+            "total_mutations": $TOTAL,
+            "killed": $KILLED,
+            "survived": $SURVIVED,
+            "score_percent": $SCORE
+          }
+          ENDJSON
+
+            # Fail if mutation score drops below 70%
+            if [ "$SCORE" -lt 70 ] && [ "$TOTAL" -gt 0 ]; then
+              echo "::error::Mutation score ${SCORE}% is below 70% threshold"
+              exit 1
+            fi
+          fi
+
+      - name: Upload mutation report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: mutation-report
+          path: |
+            mutation-report.json
+            mutation-report/
+            mutation-log.txt
+          retention-days: 90
+          if-no-files-found: ignore

@@ -1,0 +1,133 @@
+name: Cppcheck
+
+on:
+  push:
+    branches: [main, dev]
+    paths:
+      - 'cpu/**'
+      - 'include/**'
+      - '.github/workflows/cppcheck.yml'
+  pull_request:
+    branches: [main, dev]
+    paths:
+      - 'cpu/**'
+      - 'include/**'
+      - '.github/workflows/cppcheck.yml'
+
+permissions:
+  contents: read
+  security-events: write  # upload SARIF to Security tab
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  cppcheck:
+    name: Static Analysis (Cppcheck)
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@5ef0c079ce82195b2a36a210272d6b661572d83e # v2.14.2
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Install tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends cppcheck ninja-build python3-pip
+          pip3 install --user cppcheck-codequality 2>/dev/null || true
+
+      - name: Configure (generate compile_commands.json)
+        run: |
+          cmake -S . -B build \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+            -DSECP256K1_BUILD_TESTS=ON \
+            -DSECP256K1_BUILD_BENCH=ON
+
+      - name: Run Cppcheck (XML output)
+        run: |
+          cppcheck \
+            --project=build/compile_commands.json \
+            --enable=warning,performance,portability \
+            --suppress=missingIncludeSystem \
+            --suppress=unmatchedSuppression \
+            --suppress=unusedFunction \
+            --inline-suppr \
+            --error-exitcode=0 \
+            --std=c++20 \
+            --xml \
+            2> cppcheck-results.xml
+
+      - name: Convert to SARIF
+        run: |
+          # Use cppcheck built-in SARIF output (cppcheck >= 2.13)
+          cppcheck \
+            --project=build/compile_commands.json \
+            --enable=warning,performance,portability \
+            --suppress=missingIncludeSystem \
+            --suppress=unmatchedSuppression \
+            --suppress=unusedFunction \
+            --inline-suppr \
+            --error-exitcode=0 \
+            --std=c++20 \
+            --output-file=cppcheck-results.sarif \
+            --output-format=sarif 2>/dev/null || {
+            # Fallback: convert XML -> SARIF with Python
+            python3 -c "
+import xml.etree.ElementTree as ET
+import json, sys
+
+tree = ET.parse('cppcheck-results.xml')
+root = tree.getroot()
+results = []
+for error in root.iter('error'):
+    for loc in error.findall('location'):
+        results.append({
+            'ruleId': error.get('id', 'unknown'),
+            'level': 'warning' if error.get('severity') != 'error' else 'error',
+            'message': {'text': error.get('msg', '')},
+            'locations': [{
+                'physicalLocation': {
+                    'artifactLocation': {'uri': loc.get('file', '')},
+                    'region': {'startLine': int(loc.get('line', 1))}
+                }
+            }]
+        })
+
+sarif = {
+    '\$schema': 'https://raw.githubusercontent.com/oasis-tcs/sarif-spec/main/sarif-2.1/schema/sarif-schema-2.1.0.json',
+    'version': '2.1.0',
+    'runs': [{
+        'tool': {'driver': {'name': 'Cppcheck', 'version': '2.x'}},
+        'results': results
+    }]
+}
+with open('cppcheck-results.sarif', 'w') as f:
+    json.dump(sarif, f, indent=2)
+print(f'Converted {len(results)} findings to SARIF')
+"
+          }
+
+      - name: Upload SARIF to GitHub Security
+        if: always()
+        uses: github/codeql-action/upload-sarif@ff0a06e83cb2de871e5a09832bc6a81e7276941f # v3.28.18
+        with:
+          sarif_file: cppcheck-results.sarif
+          category: cppcheck
+        continue-on-error: true
+
+      - name: Upload Cppcheck XML report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: cppcheck-report
+          path: |
+            cppcheck-results.xml
+            cppcheck-results.sarif
+          retention-days: 30
