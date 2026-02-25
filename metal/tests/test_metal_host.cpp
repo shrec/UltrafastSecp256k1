@@ -9,7 +9,7 @@
 
 #include "host_helpers.h"
 #include "secp256k1/types.hpp"
-#include "../../tests/test_vectors.hpp"
+#include "../../audit/test_vectors.hpp"
 
 #include <iostream>
 #include <cstring>

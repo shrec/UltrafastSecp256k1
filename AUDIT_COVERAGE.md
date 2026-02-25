@@ -3,7 +3,7 @@
 **Version**: v3.14.0  
 **Audit Runner**: `unified_audit_runner`  
 **Verdict**: **AUDIT-READY** -- 46/46 modules passed  
-**Total Checks**: ~1,000,000+  
+**Total Checks**: ~1,000,000+ (audit) + 1.3M+ (nightly differential)  
 **Runtime**: ~35.6 seconds (X64, Clang 21.1.0, Release)
 
 ---
@@ -12,11 +12,19 @@
 
 | Metric               | Value                                       |
 |----------------------|---------------------------------------------|
-| Sections             | 8                                           |
-| Modules              | 46 (45 + Phase 1 selftest)                  |
-| Total assertions     | ~1,000,000+ (parser fuzz 530K, CT deep 120K, field Fp 264K, ...) |
+| Audit Sections       | 8                                           |
+| Audit Modules        | 46 (45 + Phase 1 selftest)                  |
+| Audit assertions     | ~1,000,000+ (parser fuzz 530K, CT deep 120K, field Fp 264K, ...) |
+| Nightly differential | ~1,300,000+ additional random checks (daily) |
+| CI Workflows         | 14 GitHub Actions workflows                 |
+| CI Build Matrix      | 17 configurations, 7 architectures, 5 OSes  |
+| Sanitizers           | ASan+UBSan, TSan, Valgrind memcheck         |
+| Fuzzing              | 3 libFuzzer harnesses + 530K deterministic   |
+| Static Analysis      | CodeQL, SonarCloud, clang-tidy, -Werror      |
+| Language Bindings    | 12 (Python, C#, Rust, Node, PHP, Go, Java, Swift, RN, Ruby, Dart, C API) |
+| Supply Chain         | OpenSSF Scorecard, harden-runner, pinned actions, Dependency Review |
 | Real failures        | 0                                           |
-| Platforms tested     | X64 (Clang 21), ARM64 (QEMU), RISC-V (QEMU + Mars HW) |
+| Platforms tested     | X64, ARM64, RISC-V, macOS, Windows, iOS, Android, WASM, ROCm |
 
 ---
 
@@ -684,7 +692,7 @@ These tests run as separate CTest executables and are included in the 24/24 CTes
 
 ---
 
-## Platform Results
+## Unified Audit Platform Results
 
 | Platform | Compiler | Tests | Result |
 |----------|----------|-------|--------|
@@ -692,6 +700,8 @@ These tests run as separate CTest executables and are included in the 24/24 CTes
 | ARM64 (QEMU) | Cross-compiled | 24/24 CTest | **ALL PASS** |
 | RISC-V (QEMU) | Cross-compiled | 24/24 CTest | **ALL PASS** |
 | RISC-V (Mars HW, JH7110 U74) | Clang 21.1.8 | 46/46 unified audit | **ALL PASS** |
+
+See **Full Platform Matrix** below for all 16 CI configurations.
 
 ---
 
@@ -713,4 +723,305 @@ ctest --test-dir build_rel --output-on-failure
 
 ---
 
-*Generated from unified_audit_runner v3.14.0 output on 2026-02-25.*
+## CI/CD Pipeline -- Full Infrastructure
+
+### 14 GitHub Actions Workflows
+
+| # | Workflow | Trigger | What it does |
+|---|---------|---------|--------------|
+| 1 | **CI** | push/PR dev,main | Core build+test matrix (see below) |
+| 2 | **Security Audit** | push main, weekly | ASan+UBSan, Valgrind, dudect smoke, -Werror build |
+| 3 | **Nightly** | daily 03:00 UTC | Extended differential (1.3M+ checks), dudect full (30 min) |
+| 4 | **Bindings** | push dev/main (bindings/) | 12 language bindings compile-check |
+| 5 | **Benchmark Dashboard** | push dev/main | Performance tracking (Linux + Windows), regression alerts |
+| 6 | **CodeQL** | push dev/main, weekly | GitHub SAST (security-and-quality queries) |
+| 7 | **SonarCloud** | push dev/main | Static analysis + coverage upload |
+| 8 | **Clang-Tidy** | push dev/main (cpu/) | Static analysis (clang-tidy-17) |
+| 9 | **OpenSSF Scorecard** | push main, weekly | Supply-chain security score |
+| 10 | **Dependency Review** | PRs | Known-vulnerable dependency scanning |
+| 11 | **Linux Packages** | release tags | .deb (amd64+arm64) + .rpm (x86_64) packaging |
+| 12 | **Release** | release tags | Multi-platform binaries + all binding packages |
+| 13 | **Docs** | push main (cpu/include/) | Doxygen API docs to GitHub Pages |
+| 14 | **Discord Commits** | push | Commit notifications |
+
+---
+
+### CI Build Matrix (ci.yml)
+
+| Platform | Compiler | Configs | Tests |
+|----------|----------|---------|-------|
+| Linux x64 | gcc-13 | Debug, Release | CTest (all except ct_sidechannel) |
+| Linux x64 | clang-17 | Debug, Release | CTest (all except ct_sidechannel) |
+| Linux ARM64 | aarch64-linux-gnu-g++-13 | Release (cross) | Binary verification |
+| Windows x64 | MSVC 2022 | Release | CTest |
+| macOS ARM64 | Apple Clang | Release | CTest + Metal GPU benchmarks |
+| iOS | Xcode | OS, SIMULATOR | Static library build |
+| iOS XCFramework | Xcode | Universal | XCFramework artifact |
+| ROCm/HIP | hipcc (gfx906-gfx1100) | Release | CPU tests (compile-check GPU) |
+| WASM | Emscripten 3.1.51 | Release | Node.js benchmark |
+| Android | NDK r27c | arm64-v8a, armeabi-v7a, x86_64 | Binary verification + JNI |
+| Sanitizers | clang-17 | ASan+UBSan | CTest under sanitizers |
+| Sanitizers | clang-17 | TSan | CTest under thread sanitizer |
+| Coverage | clang-17 | Debug + profiling | LLVM source-based coverage -> Codecov |
+
+**Total CI matrix**: 17 configurations across 7 operating systems / architectures.
+
+---
+
+### Sanitizer Testing (CRITICAL)
+
+#### ASan + UBSan (ci.yml + security-audit.yml)
+
+- **Compiler**: clang-17 with `-fsanitize=address,undefined -fno-sanitize-recover=all`
+- **Options**: `ASAN_OPTIONS=detect_leaks=1:halt_on_error=1`, `UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1`
+- **Scope**: All CTest targets (excluding ct_sidechannel timing test)
+- **Runs on**: Every push to dev/main + every PR
+
+#### TSan -- Thread Sanitizer (ci.yml)
+
+- **Compiler**: clang-17 with `-fsanitize=thread`
+- **Scope**: All CTest targets
+- **Purpose**: Detect data races in potential multi-threaded usage
+
+#### Valgrind Memcheck (security-audit.yml)
+
+- **Tool**: Valgrind with `--leak-check=full --error-exitcode=1`
+- **Leak detection**: definite, indirect, possible (all three)
+- **Suppressions**: Custom `valgrind.supp` file
+- **Post-check**: Grep for `ERROR SUMMARY: [1-9]` and `definitely lost: [1-9]`
+- **Runs on**: Every push to main + weekly
+
+#### -Werror Build (security-audit.yml)
+
+- **Compiler**: gcc-13 with `-Werror -Wall -Wextra -Wpedantic -Wconversion -Wshadow`
+- **Purpose**: Zero compiler warnings enforced
+
+---
+
+### Coverage-Guided Fuzzing (libFuzzer)
+
+3 libFuzzer harnesses in `cpu/fuzz/`:
+
+| Harness | Target | Input Size | Invariants Checked |
+|---------|--------|------------|-------------------|
+| `fuzz_field` | FieldElement arithmetic | 64 bytes (2 x 32B) | add/sub roundtrip, mul-by-1 identity, a*a==square, a*inv(a)==1 |
+| `fuzz_scalar` | Scalar arithmetic | 64 bytes (2 x 32B) | add/sub roundtrip, mul-by-1, a-a==0, a+0==a, distributive law |
+| `fuzz_point` | Point operations | 32 bytes (1 scalar) | on-curve, compressed/uncompressed roundtrip, P+(-P)==O, dbl==add(P,P) |
+
+**Build**: `clang++ -fsanitize=fuzzer,address -O2 -std=c++20`
+**Run**: `./fuzz_field -max_len=64 -runs=10000000`
+
+All harnesses use `__builtin_trap()` on invariant violation (instant crash -> corpus saved).
+
+**Plus** deterministic pseudo-fuzz tests in audit/ (built with `-DSECP256K1_BUILD_FUZZ_TESTS=ON`):
+- `test_fuzz_parsers`: DER parser, Schnorr verify, pubkey parse -- 530K+ random inputs
+- `test_fuzz_address_bip32_ffi`: Address/BIP32/FFI boundary fuzz -- 13 sub-tests
+
+---
+
+### Nightly Extended Testing (nightly.yml)
+
+Runs daily at 03:00 UTC with configurable parameters:
+
+| Test | Default | Duration |
+|------|---------|----------|
+| Extended Differential | 100x multiplier (~1.3M random checks) | up to 60 min |
+| dudect Full Statistical | 1800s timeout (30 min) | up to 45 min |
+
+**Extended Differential**: Same as audit module [19/45] but with 100x more random cases.
+**dudect Full**: No `DUDECT_SMOKE` define -- runs full statistical analysis with larger sample sizes.
+
+---
+
+### Static Analysis
+
+| Tool | Scope | Frequency |
+|------|-------|-----------|
+| **CodeQL** | C/C++ SAST (security-and-quality) | Every push + weekly |
+| **SonarCloud** | Static analysis + coverage metrics | Every push/PR |
+| **clang-tidy-17** | Lint + modernize checks | Every push to dev/main (cpu/) |
+| **-Werror build** | gcc-13 with Wpedantic, Wconversion, Wshadow | Every push to main |
+
+---
+
+### Bindings CI (12 Languages)
+
+C API builds as shared library on Linux/macOS/Windows, then each binding is compile-checked:
+
+| Binding | Tool | Check Type |
+|---------|------|------------|
+| Python | py_compile + pyflakes | Syntax + lint |
+| C# (.NET 8) | dotnet build | Full compile |
+| Rust | cargo check + clippy | Type-check + lint |
+| Node.js | node --check + tsc | Syntax + TypeScript types |
+| PHP 8.3 | php -l | Syntax check |
+| Go 1.22 | go vet + go build | Vet + syntax |
+| Java 21 (JNI) | javac + gcc -fsyntax-only | Class compile + JNI bridge syntax |
+| Swift | swift build + swiftc -typecheck | Compile + type check |
+| React Native | node --check + javac | JS syntax + Android Java |
+| Ruby 3.3 | ruby -c + gem build | Syntax + gemspec |
+| Dart | dart pub get + dart analyze | Dependencies + analysis |
+
+---
+
+### Supply Chain Security
+
+| Mechanism | Tool |
+|-----------|------|
+| Runner hardening | step-security/harden-runner (egress audit) on ALL CI jobs |
+| Pinned actions | Every `uses:` action has SHA-pinned commit hash |
+| Dependency review | actions/dependency-review-action on all PRs |
+| OpenSSF Scorecard | Weekly analysis + SARIF upload to GitHub Security |
+| SBOM generation | Part of release pipeline |
+
+---
+
+### Performance Benchmarks (benchmark.yml)
+
+| Platform | Config | Tool |
+|----------|--------|------|
+| Linux (ubuntu-latest) | Release, ASM=ON | bench_comprehensive -> JSON -> github-action-benchmark |
+| Windows (windows-latest) | Release, MSVC | bench_comprehensive -> summary |
+
+- **Dashboard**: GitHub Pages (gh-pages branch)
+- **Alert threshold**: 150% (warns if >50% slower than baseline)
+- **Tracking**: Continuous on every push to dev/main
+
+---
+
+### Release Pipeline (release.yml)
+
+Multi-platform release on tag push:
+
+| Artifact | Platform | Format |
+|----------|----------|--------|
+| Desktop binaries | Linux x64, macOS ARM64, Windows x64 | .tar.gz / .zip |
+| Static library | All 3 platforms | libfastsecp256k1.a / .lib |
+| Shared library (C API) | All 3 platforms | .so / .dylib / .dll |
+| iOS XCFramework | iOS + Simulator | .xcframework |
+| Android AAR | arm64-v8a, armeabi-v7a, x86_64 | .aar |
+| WASM | Browser/Node.js | .wasm + .js + .mjs |
+| Python wheel | Linux/macOS/Windows | .whl |
+| .NET NuGet | Cross-platform | .nupkg |
+| Rust crate | Cross-platform | crates.io publish |
+| npm package | Cross-platform | npm publish |
+| Ruby gem | Cross-platform | .gem |
+| Dart package | Cross-platform | pub.dev publish |
+| Linux packages | amd64, arm64 | .deb + .rpm |
+
+---
+
+### Packaging (packaging.yml)
+
+| Format | Architectures | Repo |
+|--------|--------------|------|
+| .deb | amd64, arm64 | GitHub Pages APT repository |
+| .rpm | x86_64 | Attached to GitHub Release |
+
+APT install: `sudo apt install libufsecp-dev`
+
+---
+
+## Audit Gap Analysis
+
+### What IS Covered
+
+| Category | Status | Evidence |
+|----------|--------|----------|
+| Mathematical correctness (Fp, Zn, Group) | COVERED | 46/46 audit modules, 1M+ checks |
+| Constant-time layer + equivalence | COVERED | dudect smoke + full, CT deep, ASM inspection, Valgrind CLASSIFY/DECLASSIFY |
+| Standard test vectors (BIP-340/32, RFC 6979, FROST) | COVERED | Official vectors verified |
+| Randomized differential testing | COVERED | 13K+ checks (CI) + 1.3M (nightly) |
+| Fiat-Crypto reference vectors | COVERED | Golden vectors from computer algebra |
+| Cross-platform KAT | COVERED | X64, ARM64, RISC-V all identical |
+| Parser/adversarial fuzzing (deterministic) | COVERED | 530K+ random inputs, 0 crashes |
+| Coverage-guided fuzzing | COVERED | 3 libFuzzer harnesses (field, scalar, point) + ASan |
+| Fault injection simulation | COVERED | 610+ single-bit fault checks |
+| Protocol security (ECDSA, Schnorr, MuSig2, FROST) | COVERED | Full protocol suites + adversarial |
+| ASan + UBSan | COVERED | CI on every push (clang-17) |
+| TSan | COVERED | CI on every push (clang-17) |
+| Valgrind memcheck | COVERED | security-audit.yml weekly + on push |
+| Static analysis (CodeQL, SonarCloud, clang-tidy) | COVERED | 3 tools on every push |
+| Code coverage (Codecov) | COVERED | LLVM source-based profiling |
+| Misuse/abuse tests (null ctx, invalid lengths, FFI) | COVERED | Module [28/45] + [39/45] |
+| Multi-platform build (17 configurations) | COVERED | CI matrix |
+| Supply-chain hardening | COVERED | Pinned actions, harden-runner, Scorecard, Dependency Review |
+| Performance regression tracking | COVERED | Benchmark dashboard with alerts |
+| Language bindings (12 languages) | COVERED | Bindings CI on every push |
+
+### What Is NOT Yet Covered (Future Work)
+
+| Category | Status | Notes |
+|----------|--------|-------|
+| Cross-library differential (vs bitcoin-core/libsecp256k1) | NOT YET | Would be strongest "credibility" signal for external auditors |
+| GPU correctness audit | DEFERRED | Separate report when GPU side is complete |
+| GPU memory safety (compute-sanitizer) | DEFERRED | Separate report |
+| MSAN (Memory Sanitizer) | NOT YET | Catches use-of-uninitialized; complementary to ASan |
+| Reproducible build proof | NOT YET | Two independent machines -> identical binary hash |
+| SBOM (CycloneDX/SPDX) | PARTIAL | Generated in release pipeline |
+| Deep dudect (perf counters, cache probes) | PARTIAL | dudect full runs nightly; perf stat / cache analysis not automated |
+
+---
+
+## Full Platform Matrix
+
+| Platform | Architecture | Compiler | Build | Test | Sanitizers | Fuzz |
+|----------|-------------|----------|-------|------|------------|------|
+| Linux | x86_64 | gcc-13 | Debug+Release | CTest 24/24 | - | - |
+| Linux | x86_64 | clang-17 | Debug+Release | CTest 24/24 | ASan+UBSan, TSan | libFuzzer |
+| Linux | aarch64 | aarch64-g++-13 | Release (cross) | Binary verify | - | - |
+| Windows | x86_64 | MSVC 2022 | Release | CTest 24/24 | - | - |
+| macOS | ARM64 | Apple Clang | Release | CTest + Metal | - | - |
+| iOS | ARM64 | Xcode | Release | Static lib | - | - |
+| iOS Simulator | x86_64/ARM64 | Xcode | Release | Static lib | - | - |
+| Android | arm64-v8a | NDK r27c | Release | Binary verify | - | - |
+| Android | armeabi-v7a | NDK r27c | Release | Binary verify | - | - |
+| Android | x86_64 | NDK r27c | Release | Binary verify | - | - |
+| ROCm/HIP | gfx906-gfx1100 | hipcc | Release | CPU tests | - | - |
+| WASM | wasm32 | Emscripten 3.1.51 | Release | Node.js bench | - | - |
+| X64 Local | x86_64 | Clang 21.1.0 | Release | 46/46 audit | - | - |
+| ARM64 Local | aarch64 | Cross (QEMU) | Release | 24/24 CTest | - | - |
+| RISC-V Local | rv64gc | Cross (QEMU) | Release | 24/24 CTest | - | - |
+| RISC-V HW | JH7110 U74 | Clang 21.1.8 | Release | 46/46 audit | - | - |
+
+**Total**: 16 platform/compiler combinations, 7 architectures, 5 operating systems.
+
+---
+
+## How to Run
+
+```bash
+# Configure
+cmake -S Secp256K1fast -B build_rel -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+# Build
+cmake --build build_rel -j
+
+# Run all CTest targets
+ctest --test-dir build_rel --output-on-failure
+
+# Run unified audit only
+./build_rel/audit/unified_audit_runner
+
+# Run libFuzzer harnesses (requires clang)
+cd cpu/fuzz
+clang++ -fsanitize=fuzzer,address -O2 -std=c++20 \
+  -I ../include fuzz_field.cpp ../src/field.cpp -o fuzz_field
+./fuzz_field -max_len=64 -runs=10000000
+
+# Run with sanitizers
+cmake -S . -B build/asan -DCMAKE_BUILD_TYPE=Debug \
+  -DCMAKE_CXX_COMPILER=clang++-17 \
+  -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer" \
+  -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined" \
+  -DSECP256K1_BUILD_TESTS=ON
+cmake --build build/asan -j
+ctest --test-dir build/asan --output-on-failure
+
+# Run Valgrind
+valgrind --leak-check=full --error-exitcode=1 ./build_rel/audit/unified_audit_runner
+```
+
+---
+
+*Generated from unified_audit_runner v3.14.0 output + CI workflow analysis on 2026-02-25.*
