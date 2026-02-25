@@ -846,24 +846,66 @@ This library explores the **performance ceiling of secp256k1** across CPU archit
 
 ---
 
-## Release Verification
+## Release Signing & Verification
 
-All release artifacts ship with integrity checksums:
+All releases starting from **v3.15.0** are cryptographically signed using
+[Sigstore cosign](https://docs.sigstore.dev/) (keyless, GitHub OIDC identity).
+Older historical releases remain unsigned but are preserved unchanged.
+
+Every release includes:
+
+| Artifact | Purpose |
+|----------|---------|
+| `SHA256SUMS` | Checksums for all release archives |
+| `SHA256SUMS.sig` | Cosign signature of the manifest |
+| `SHA256SUMS.pem` | Signing certificate (Sigstore OIDC) |
+| `sbom.cdx.json` | CycloneDX Software Bill of Materials |
+| Per-archive `.sig` + `.pem` | Individual artifact signatures |
+
+### Verify checksums
+
+**Linux:**
 
 ```bash
-# Download release + checksums
-curl -LO https://github.com/shrec/UltrafastSecp256k1/releases/latest/download/SHA256SUMS.txt
+curl -LO https://github.com/shrec/UltrafastSecp256k1/releases/latest/download/SHA256SUMS
+sha256sum -c SHA256SUMS
+```
 
-# Verify
-sha256sum -c SHA256SUMS.txt
+**macOS:**
+
+```bash
+shasum -a 256 -c SHA256SUMS
+```
+
+**Windows (PowerShell):**
+
+```powershell
+Get-Content SHA256SUMS | ForEach-Object {
+  $parts = $_ -split '  '
+  $expected = $parts[0]; $file = $parts[1]
+  $actual = (Get-FileHash $file -Algorithm SHA256).Hash.ToLower()
+  if ($actual -eq $expected) { "[OK] $file" } else { "[FAIL] $file" }
+}
+```
+
+### Verify signature (cosign)
+
+```bash
+cosign verify-blob SHA256SUMS \
+  --signature SHA256SUMS.sig \
+  --certificate SHA256SUMS.pem \
+  --certificate-identity-regexp "github.com/shrec/UltrafastSecp256k1" \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
 
 | Supply Chain | Status |
 |-------------|--------|
 | SHA256SUMS for all artifacts | [OK] Every release |
+| Cosign / Sigstore manifest signing | [OK] v3.15.0+ |
+| Per-artifact Cosign signatures | [OK] v3.15.0+ |
 | SLSA Build Provenance (GitHub Attestation) | [OK] Every release |
-| Reproducible builds documentation | 🔜 Planned |
-| Cosign / Sigstore signing | 🔜 Planned |
+| CycloneDX SBOM | [OK] Every release |
+| Reproducible builds documentation | [OK] Dockerfile.reproducible |
 
 ---
 

@@ -1563,11 +1563,11 @@ jobs:
           find . -type f \( -name '*.tar.gz' -o -name '*.zip' -o -name '*.whl' \
             -o -name '*.nupkg' -o -name '*.tgz' -o -name '*.gem' -o -name '*.jar' \) \
             | sort | while read -r f; do
-              sha256sum "$f"
-            done > ../SHA256SUMS.txt
+              sha256sum "$f" | sed 's|  \./[^/]*/|  |; s|  \./|  |'
+            done > ../SHA256SUMS
           cd ..
-          echo "=== SHA256SUMS.txt ==="
-          cat SHA256SUMS.txt
+          echo "=== SHA256SUMS ==="
+          cat SHA256SUMS
 
       - name: Attest build provenance
         uses: actions/attest-build-provenance@96278af6caaf10aea03fd8d33a09a777ca52d62f # v3.2.0
@@ -1585,6 +1585,14 @@ jobs:
 
       - name: Sign release artifacts with cosign
         run: |
+          # Sign the SHA256SUMS manifest itself (most important)
+          echo "Signing: SHA256SUMS"
+          cosign sign-blob --yes SHA256SUMS \
+            --output-signature SHA256SUMS.sig \
+            --output-certificate SHA256SUMS.pem 2>/dev/null || \
+            echo "  (skipped -- cosign keyless requires OIDC)"
+
+          # Sign individual release archives
           cd dist
           find . -type f \( -name '*.tar.gz' -o -name '*.zip' -o -name '*.whl' \
             -o -name '*.nupkg' -o -name '*.tgz' -o -name '*.gem' -o -name '*.jar' \) \
@@ -1592,7 +1600,7 @@ jobs:
               echo "Signing: $f"
               cosign sign-blob --yes "$f" --output-signature "${f}.sig" \
                 --output-certificate "${f}.pem" 2>/dev/null || \
-              echo "  (skipped — cosign keyless requires OIDC)"
+              echo "  (skipped -- cosign keyless requires OIDC)"
             done
           cd ..
 
@@ -1677,7 +1685,9 @@ jobs:
           prerelease: ${{ contains(github.ref_name, '-rc') || contains(github.ref_name, '-beta') || contains(github.ref_name, '-alpha') }}
           files: |
             dist/**/*
-            SHA256SUMS.txt
+            SHA256SUMS
+            SHA256SUMS.sig
+            SHA256SUMS.pem
             sbom.cdx.json
             selftest_report.json
             traceability_report.json
