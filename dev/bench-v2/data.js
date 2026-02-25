@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771975408003,
+  "lastUpdate": 1772032624471,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -16235,6 +16235,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Batch Inverse (n=1000)",
             "value": 132,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "be528aef66e530c965b96c9ee266077cbaf55663",
+          "message": "audit: add AUDIT_COVERAGE.md + ASCII cleanup + CT fixes\n\n- Add comprehensive AUDIT_COVERAGE.md documenting all 46 audit modules\n  across 8 sections with ~1M+ total assertions\n- Pure ASCII cleanup: remove all Unicode from source/cmake/script files\n  (box-drawing, arrows, Greek, emoji, BOM, Georgian in comments)\n- CT fix: RISC-V is_zero_mask (seqz+neg inline asm)\n- CT fix: ct_compare general path (snez)\n- All 188 files updated for ASCII-only compliance (Section 17 rule)\n- Verified: 46/46 audit PASS on X64, ARM64, RISC-V (QEMU + Mars HW)\n- Verified: 24/24 CTest PASS on X64",
+          "timestamp": "2026-02-25T19:14:21+04:00",
+          "tree_id": "9332cfe00a99eb894c9ef2f31a332ec9faeb49d4",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/be528aef66e530c965b96c9ee266077cbaf55663"
+        },
+        "date": 1772032621865,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 27,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 22,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 278,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 149,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 38000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 10000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 13000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 47000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 24000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 53000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 141,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 133,
             "unit": "ns"
           }
         ]
