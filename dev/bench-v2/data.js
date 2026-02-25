@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772032624471,
+  "lastUpdate": 1772034394744,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -16334,6 +16334,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Batch Inverse (n=1000)",
             "value": 133,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "3c7dac618f6b5ad1809a6b272d73564c753abc20",
+          "message": "fix: metal test include path + expand AUDIT_COVERAGE.md with full CI infrastructure\n\n- Fix metal/tests/test_metal_host.cpp: include path was ../../tests/test_vectors.hpp\n  but file only exists at audit/test_vectors.hpp (pre-existing bug)\n- Expand AUDIT_COVERAGE.md: add CI/CD pipeline docs (14 workflows, 17 build configs),\n  sanitizer testing, coverage-guided fuzzing, nightly extended, static analysis,\n  bindings CI (12 langs), supply chain security, benchmark CI, release pipeline,\n  packaging, audit gap analysis, full platform matrix\n\nVerify: cmake --build <build> --target metal_host_test (should compile + pass 76/76)",
+          "timestamp": "2026-02-25T19:44:44+04:00",
+          "tree_id": "6f857601017420291aec48d6f935e56bc7dd6e8c",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/3c7dac618f6b5ad1809a6b272d73564c753abc20"
+        },
+        "date": 1772034393214,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 27,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 22,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 278,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 148,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 38000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 10000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 14000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 47000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 24000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 53000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 141,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 136,
             "unit": "ns"
           }
         ]
