@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772035344419,
+  "lastUpdate": 1772053322864,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -16532,6 +16532,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Batch Inverse (n=1000)",
             "value": 130,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "7966cb211c53ea57ccb86f608ab22a1b2ba732d7",
+          "message": "release: signed SHA256SUMS manifest + verify instructions + Scorecard governance\n\n- release.yml: rename SHA256SUMS.txt -> SHA256SUMS (standard name)\n- release.yml: strip ./subdir/ prefixes from checksums (bare filenames)\n- release.yml: cosign sign-blob on SHA256SUMS manifest itself (.sig + .pem)\n- release.yml: upload SHA256SUMS.sig + SHA256SUMS.pem to GitHub Release\n- README.md: full Release Signing & Verification section (Linux/macOS/Windows)\n- README.md: cosign verify-blob command for manifest signature verification\n- README.md: updated supply chain table (cosign + SBOM + reproducible builds)\n- CODEOWNERS: fix em-dash -> ASCII double-dash (Section 17 compliance)",
+          "timestamp": "2026-02-26T01:00:09+04:00",
+          "tree_id": "3700d21aaea78af54c4d39467c932f0087984d28",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/7966cb211c53ea57ccb86f608ab22a1b2ba732d7"
+        },
+        "date": 1772053321127,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 27,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 22,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 278,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 149,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 38000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 10000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 13000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 47000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 24000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 53000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 141,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 132,
             "unit": "ns"
           }
         ]
