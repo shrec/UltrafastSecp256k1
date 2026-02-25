@@ -83,6 +83,19 @@ namespace secp256k1::ct {
 
 // Returns 0xFFFFFFFFFFFFFFFF if v == 0, else 0x0000000000000000
 inline std::uint64_t is_zero_mask(std::uint64_t v) noexcept {
+#if defined(__riscv) && (__riscv_xlen == 64)
+    // RISC-V: seqz + neg produces fully branchless is-zero mask.
+    //   seqz tmp, v   →  tmp = (v == 0) ? 1 : 0
+    //   neg  tmp, tmp →  tmp = 0 - tmp  (all-ones if was 1, zero if was 0)
+    // asm volatile prevents the compiler from reasoning about the output,
+    // so downstream code stays branchless.
+    std::uint64_t mask;
+    asm volatile(
+        "seqz %0, %1\n\t"
+        "neg   %0, %0"
+        : "=r"(mask) : "r"(v));
+    return mask;
+#else
     // ~(v | -v) has MSB set iff v == 0
     value_barrier(v);   // prevent compiler from recognising v's value range
     std::uint64_t nv = -v;
@@ -91,6 +104,7 @@ inline std::uint64_t is_zero_mask(std::uint64_t v) noexcept {
         -static_cast<std::int64_t>((~(v | nv)) >> 63));
     value_barrier(mask); // prevent compiler from converting result into branch
     return mask;
+#endif
 }
 
 // Returns 0xFFFFFFFFFFFFFFFF if v != 0, else 0x0000000000000000

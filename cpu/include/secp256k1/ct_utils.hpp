@@ -270,7 +270,12 @@ inline int ct_compare(const void* a, const void* b, std::size_t len) noexcept {
         ct::value_barrier(wb);
         std::uint64_t xor_val = wa ^ wb;
         // nz = 1 if words differ, 0 otherwise
+#if defined(__riscv) && (__riscv_xlen == 64)
+        std::uint64_t nz;
+        asm volatile("snez %0, %1" : "=r"(nz) : "r"(xor_val));
+#else
         std::uint64_t nz = ((xor_val | (0ULL - xor_val)) >> 63) & 1ULL;
+#endif
 
         // Barrier on decided only: prevent compiler from short-circuiting
         ct::value_barrier(decided);
@@ -309,7 +314,12 @@ inline int ct_compare(const void* a, const void* b, std::size_t len) noexcept {
         std::uint64_t bi = pb[i];
         std::uint64_t diff = ai ^ bi;
 
+#if defined(__riscv) && (__riscv_xlen == 64)
+        std::uint64_t nz;
+        asm volatile("snez %0, %1" : "=r"(nz) : "r"(diff));
+#else
         std::uint64_t nz = ((diff | (0ULL - diff)) >> 63) & 1ULL;
+#endif
         ct::value_barrier(decided);
         std::uint64_t take = nz & (1ULL - decided);
         std::uint64_t mask = 0ULL - take;
