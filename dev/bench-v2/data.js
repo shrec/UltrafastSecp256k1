@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772058637115,
+  "lastUpdate": 1772060011966,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -16725,6 +16725,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
             "value": 140,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 131,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "8deed91978120e32167a0b403f43c3bc9416e67f",
+          "message": "audit: enhance unified runner + CI workflow + evidence scripts\n\n- unified_audit_runner.cpp: add library version, git hash,\n  audit framework version (v2.0.0) to JSON+TXT reports;\n  implement --section filter, --json-only, --list-sections,\n  --help flags; skip empty sections in summary table\n- audit/CMakeLists.txt: inject GIT_HASH at compile time via\n  execute_process; add version.hpp include paths\n- .github/workflows/audit-report.yml: new CI workflow that\n  builds + runs unified_audit_runner on Linux (GCC-13,\n  Clang-17) + Windows (MSVC); uploads JSON+TXT as artifacts;\n  posts text report to GitHub Step Summary; weekly + manual +\n  release tag triggers; cross-platform verdict aggregation\n- scripts/generate_audit_package.ps1: PowerShell script that\n  builds runner, runs it, collects compiler/cmake/git evidence\n  into a dated audit-evidence-* directory with README\n- scripts/generate_audit_package.sh: bash equivalent\n\nVerified: builds + runs on Windows MSVC 1944 (Release).\nAll 8 sections, 47 modules + selftest = 48 checks.",
+          "timestamp": "2026-02-26T02:51:50+04:00",
+          "tree_id": "254d56d29cc1b7dbbbcb83c65ae5adff5fce212f",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/8deed91978120e32167a0b403f43c3bc9416e67f"
+        },
+        "date": 1772060009938,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 27,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 22,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 283,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 150,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 38000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 10000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 13000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 47000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 24000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 53000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 141,
             "unit": "ns"
           },
           {
