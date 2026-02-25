@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772053322864,
+  "lastUpdate": 1772058637115,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -16631,6 +16631,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Batch Inverse (n=1000)",
             "value": 132,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "a417c6b2d6e54828e971322d726a7e8759b3e8d6",
+          "message": "ci: add ClusterFuzzLite, Cppcheck, mutation testing, SARIF integration\n\n- ClusterFuzzLite: Dockerfile + build.sh + cflite.yml workflow\n  - PR fuzzing (120s, ASan + UBSan) on every PR\n  - Nightly batch fuzzing (600s) + weekly corpus pruning\n  - 3 targets: fuzz_field, fuzz_scalar, fuzz_point\n\n- Cppcheck: new cppcheck.yml workflow with SARIF upload\n  - Static analysis with XML + SARIF output\n  - Results visible in GitHub Security tab\n\n- Clang-Tidy: upgrade to SARIF output\n  - Convert text diagnostics to SARIF format\n  - Upload to GitHub Security tab (security-events: write)\n\n- Mutation Testing: new mutation.yml (weekly schedule)\n  - Mull LLVM mutation engine (primary)\n  - Manual fallback: +/-, ==/ !=, return mutations\n  - 9 core crypto sources in scope\n  - 70% kill threshold\n\n- Seed corpora: 12 boundary-value seeds for fuzz targets\n  - fuzz_field: zero, one, p-1, generator coords (64B each)\n  - fuzz_scalar: zero, one, n-1, scalar_one (64B each)\n  - fuzz_point: 1, 2, n-1, midpoint (32B each)",
+          "timestamp": "2026-02-26T02:28:47+04:00",
+          "tree_id": "83505dd0b8d3d61a2f470c5a56579cb8733157ea",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/a417c6b2d6e54828e971322d726a7e8759b3e8d6"
+        },
+        "date": 1772058634342,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 27,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 22,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 286,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 151,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 38000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 9000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 14000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 47000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 23000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 53000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 140,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 131,
             "unit": "ns"
           }
         ]
