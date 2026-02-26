@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772097442417,
+  "lastUpdate": 1772101380006,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -17720,6 +17720,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Batch Inverse (n=1000)",
             "value": 130,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "6ab1bef709c3f57b5dab6f124ade3f78218c9b0c",
+          "message": "fix: resolve SonarCloud bugs and code smells across 19 files\n\nBug fixes (MISRA 5-3-2 unary minus on unsigned):\n- ct/ops.hpp: is_zero_mask, bool_to_mask, lt_mask (3 fixes)\n- field_52_impl.hpp: half(), normalize_inline() (2 fixes)\n- field_branchless.hpp: cmov, cmovznz, select, is_zero, eq (5 fixes)\n- field_26.cpp: half() (1 fix)\n- ct_field.cpp: field_half() (1 fix)\n- ct_point.cpp: table_lookup_core() x3 instances (6 fixes)\n- ct_scalar.cpp: scalar_half() (1 fix)\n- field.cpp: sub_impl, add_impl, normalize (3 fixes)\nPattern: -val -> 0ULL - val (identical codegen, MISRA-compliant)\n\nRemove redundant operator!= (C++20 auto-generates from ==):\n- field.hpp, scalar.hpp, field_52.hpp, field_26.hpp (declarations)\n- field_52.cpp, field_26.cpp (definitions)\n\nReword false-positive commented-out code (11 comments):\n- address.hpp, coin_hd.hpp, ct/field.hpp, ct/scalar.hpp\n- ct/ops.hpp, field_52.hpp, glv.hpp, schnorr.hpp\n\nModernize coin_params.hpp:\n- sizeof()/sizeof() -> std::size()\n- Raw for-loops -> range-based for\n- Fix ALL_COINS[i] -> coin in range-for context\n\nVerify: cmake --build build-win-ci --config Release -j (0 errors, 0 C4146)\nCTest: 28/29 pass (ct_sidechannel flaky dudect pre-existing)",
+          "timestamp": "2026-02-26T14:21:21+04:00",
+          "tree_id": "1a0b0f1663d8c83f8cc423ac1a9c165ebc604104",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/6ab1bef709c3f57b5dab6f124ade3f78218c9b0c"
+        },
+        "date": 1772101378033,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 26,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 19,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 257,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 132,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 34000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 8000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 12000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 42000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 21000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 48000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 115,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 107,
             "unit": "ns"
           }
         ]
