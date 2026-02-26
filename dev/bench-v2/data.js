@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772137091798,
+  "lastUpdate": 1772146726092,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -19007,6 +19007,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Batch Inverse (n=1000)",
             "value": 107,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "ee779d7a614161b9213313703cfa80c26885271a",
+          "message": "fix(wasm): define SECP256K1_NO_INT128 + add s2*G golden vector\n\nRoot cause: on wasm32 Emscripten defines __SIZEOF_INT128__ so the\n__int128 code paths in mul64/add64/sub64/Barrett are active, but\nthe compiler emulates 128-bit arithmetic via builtins (__multi3 etc.)\nwhich produce incorrect results for non-trivial schoolbook/Barrett\nmultiplications.\n\nFix: define SECP256K1_NO_INT128 for the WASM build, forcing the\nportable 32-bit-safe helpers that use only native wasm i64 operations.\nSafeGCD continues to use __int128 (guarded by __SIZEOF_INT128__),\nwhich is correct (field/scalar inv KAT pass).\n\nAlso:\n- Add golden vector check for s2*G (generator path, was only on-curve)\n- Add diagnostic hex output for Q*s2 vs G*(s2^2) cross-check\n\nVerify: 29/29 pass on desktop (x86-64).",
+          "timestamp": "2026-02-27T02:57:08+04:00",
+          "tree_id": "fd5cfc837147263df86c284d2f519e76d236288e",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/ee779d7a614161b9213313703cfa80c26885271a"
+        },
+        "date": 1772146724360,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 27,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 22,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 278,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 149,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 37000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 11000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 14000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 47000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 26000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 53000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 140,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 138,
             "unit": "ns"
           }
         ]
