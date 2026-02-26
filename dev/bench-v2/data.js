@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772122412035,
+  "lastUpdate": 1772126457926,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -18215,6 +18215,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Batch Inverse (n=1000)",
             "value": 107,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "ebdfba8f33349d5fd09d1e9c164e7d9837319963",
+          "message": "fix(ci): WASM KAT test -- output to kat/ dir to avoid ESM conflict\n\nThe dist/package.json has \"type\": \"module\" (for the secp256k1.mjs wrapper),\nwhich makes Node.js treat ALL .js files in dist/ as ES modules. Emscripten\ngenerates wasm_kat_test.js with CommonJS require(), causing:\n\n  ReferenceError: require is not defined in ES module scope\n\nFix: output wasm_kat_test.js to build/wasm/kat/ instead of build/wasm/dist/\nso it runs in a directory without the ESM-mode package.json.\n\nVerified: CI #366 only failure was WASM KAT (all other jobs passed).",
+          "timestamp": "2026-02-26T21:18:58+04:00",
+          "tree_id": "3d45f85e7ec2667d24a4d220b37ed76952208752",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/ebdfba8f33349d5fd09d1e9c164e7d9837319963"
+        },
+        "date": 1772126455061,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 27,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 22,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 285,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 150,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 37000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 10000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 14000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 47000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 24000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 53000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 140,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 131,
             "unit": "ns"
           }
         ]
