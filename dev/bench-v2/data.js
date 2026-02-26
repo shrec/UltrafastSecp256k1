@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772101380006,
+  "lastUpdate": 1772102016224,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -17744,6 +17744,105 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/shrec/UltrafastSecp256k1/commit/6ab1bef709c3f57b5dab6f124ade3f78218c9b0c"
         },
         "date": 1772101378033,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 26,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 19,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 257,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 132,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 34000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 8000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 12000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 42000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 21000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 48000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 115,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 107,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "4ed9b2c00fbf1a4a2864e72ab14260c19ee64051",
+          "message": "ci: pin all actions to SHA + add harden-runner (OpenSSF Scorecard)\n\naudit-report.yml:\n- Pin actions/checkout@v4 -> @de0fac2e (v6)\n- Pin actions/upload-artifact@v4 -> @b7c566a7 (v6.0.0)\n- Pin actions/download-artifact@v4 -> @37930b1c (v7.0.0)\n- Add step-security/harden-runner to all 4 jobs\n\npackaging.yml:\n- Pin fedora:41 Docker image to SHA digest\n\naddress.hpp:\n- Missed SonarCloud comment reword from previous commit\n\nScorecard impact: Pinned-Dependencies 7->10, estimated 7.3->8.5+",
+          "timestamp": "2026-02-26T14:31:57+04:00",
+          "tree_id": "6e6ced6e078760bf834ea93becd9d6d743cda7cc",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/4ed9b2c00fbf1a4a2864e72ab14260c19ee64051"
+        },
+        "date": 1772102014284,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
