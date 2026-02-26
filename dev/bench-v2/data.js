@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772146726092,
+  "lastUpdate": 1772149254128,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -19106,6 +19106,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Batch Inverse (n=1000)",
             "value": 138,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "a966445cd7887041c6427b90da7c22dbf774df12",
+          "message": "fix(wasm): bypass precompute generator path on Emscripten\n\nRoot cause: scalar_mul_generator() windowed accumulation produces\nincorrect results under WASM (Emscripten 3.1.51).  Diagnosed locally\nvia Docker -- double-and-add gives correct s2*G while precompute path\ndiverges for certain scalar values.\n\nFix: skip is_generator_ shortcut on __EMSCRIPTEN__ so all scalar_mul\ncalls use the proven double-and-add fallback.  Performance cost is\nnegligible for WASM use cases.\n\nVerified locally:\n  - Docker emscripten/emsdk:3.1.51: 29/29 PASS (was 25/29)\n  - Desktop x86-64: 29/29 PASS (no regression)\n\nAlso cleaned up diagnostic printf from test_cross_platform_kat.cpp.",
+          "timestamp": "2026-02-27T03:39:22+04:00",
+          "tree_id": "113fedca02ac565d16849d35495d54b2392db29a",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/a966445cd7887041c6427b90da7c22dbf774df12"
+        },
+        "date": 1772149252195,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 26,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 19,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 257,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 132,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 34000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 8000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 12000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 42000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 21000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 48000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 115,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 107,
             "unit": "ns"
           }
         ]
