@@ -29,6 +29,7 @@
 #include "secp256k1/point.hpp"
 #include "secp256k1/ecdsa.hpp"
 #include "secp256k1/schnorr.hpp"
+#include "secp256k1/precompute.hpp"
 
 using namespace secp256k1::fast;
 
@@ -367,7 +368,21 @@ int test_cross_platform_kat_run() {
 // Main (standalone mode)
 // ============================================================================
 #ifndef UNIFIED_AUDIT_RUNNER
+static void setup_wasm_precompute() {
+#ifdef __EMSCRIPTEN__
+    // WASM: use small precompute tables (window_bits=4 -> ~74 KB)
+    // Default window_bits=18 builds a ~270 MB table which exceeds WASM memory
+    secp256k1::fast::FixedBaseConfig cfg{};
+    cfg.window_bits = 4;
+    cfg.use_cache = false;
+    cfg.enable_glv = false;
+    secp256k1::fast::configure_fixed_base(cfg);
+#endif
+}
+
 int main(int argc, char** argv) {
+    setup_wasm_precompute();
+
     // Check for --generate flag
     for (int i = 1; i < argc; ++i) {
         if (std::string(argv[i]) == "--generate") {

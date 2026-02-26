@@ -150,15 +150,15 @@ target_include_directories(wasm_kat_test PRIVATE
 target_link_options(wasm_kat_test PRIVATE
     "SHELL:-s ENVIRONMENT=node"
     "SHELL:-s ALLOW_MEMORY_GROWTH=1"
-    "SHELL:-s INITIAL_MEMORY=4194304"
-    "SHELL:-s STACK_SIZE=524288"
+    "SHELL:-s INITIAL_MEMORY=16777216"
+    "SHELL:-s STACK_SIZE=2097152"
     "SHELL:-s EXIT_RUNTIME=1"
     "SHELL:-s FILESYSTEM=0"
     "SHELL:-s SINGLE_FILE=1"
 )
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
-    target_compile_options(wasm_kat_test PRIVATE -O3 -fno-exceptions)
-    target_link_options(wasm_kat_test PRIVATE -O3 "SHELL:-s ASSERTIONS=1")
+    target_compile_options(wasm_kat_test PRIVATE -O3 -flto -fno-exceptions)
+    target_link_options(wasm_kat_test PRIVATE -O3 -flto "SHELL:-s ASSERTIONS=0")
 endif()
 set_target_properties(wasm_kat_test PROPERTIES
     SUFFIX ".js"
