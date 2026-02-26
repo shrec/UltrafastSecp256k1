@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772071356620,
+  "lastUpdate": 1772072869579,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -17423,6 +17423,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Batch Inverse (n=1000)",
             "value": 130,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "54b6d1d5c4de311ca84d5c577a2b94ec27afd612",
+          "message": "fix(sonar): resolve 19 SonarCloud reliability bugs for Quality Gate\n\n- Suppress cpp:S876 (unary minus on unsigned) project-wide via\n  sonar-project.properties. This is a false positive for constant-time\n  crypto code: unsigned negation is the fundamental branchless mask idiom\n  (-1ULL = 0xFFFF...FFFF). Well-defined per C++ standard. (15 bugs)\n\n- sha256.hpp: add defensive guard before finalize() padding to satisfy\n  S3519 buffer-overflow symbolic execution (buf_len_ is [0,63] after\n  update(), but static analyzer cannot prove it). (1 BLOCKER)\n\n- bip32.cpp: remove dead ternary 'hardened ? 37 : 37' -> '37'.\n  Both BIP32 derivation paths produce 37-byte HMAC input. (S3923)\n\n- selftest.cpp: avoid S1764 identical-subexpression false positive\n  in 'a - a == 0' test by using distinct variable copy. (S1764)\n\n- ufsecp_impl.cpp: move (void)ctx before return to fix S1763 dead\n  code warning. (S1763)\n\n24/24 CTest PASS, 12023 selftest checks, 0 failures.",
+          "timestamp": "2026-02-26T06:26:02+04:00",
+          "tree_id": "17a92e16aad00cd721243189d75865ee3c3814e9",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/54b6d1d5c4de311ca84d5c577a2b94ec27afd612"
+        },
+        "date": 1772072867149,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 27,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 22,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 278,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 150,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 38000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 10000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 14000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 47000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 24000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 53000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 141,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 137,
             "unit": "ns"
           }
         ]
