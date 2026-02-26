@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772131462888,
+  "lastUpdate": 1772132248267,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -18611,6 +18611,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Batch Inverse (n=1000)",
             "value": 130,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "991241d9337ae78eb77bb6acd15b93718ad67cd7",
+          "message": "fix(wasm): disable SECP256K1_FAST_52BIT on Emscripten\n\nRoot cause: ECDSA verify and Schnorr verify both fail on WASM because\ndual_scalar_mul_gen_point (52-bit path) builds 8192-entry static\ntables using FE52 arithmetic with emulated __int128 on wasm32. The\nemulated 128-bit operations produce incorrect results in the complex\ntable building + wNAF evaluation code path.\n\nFix: Exclude __EMSCRIPTEN__ from the SECP256K1_FAST_52BIT gate.\nThis forces WASM to use:\n- 4x64 FieldElement for Point internals (standard, well-tested)\n- Simple fallback dual_scalar_mul: G.scalar_mul(a) + P.scalar_mul(b)\n- Standard ECDSA/Schnorr verify paths (no FE52 Z^2 check)\n\nNo speed regression: wasm32 has no native 64-bit ops, so __int128\nemulation gives no benefit over 4x64 FieldElement anyway.",
+          "timestamp": "2026-02-26T22:55:43+04:00",
+          "tree_id": "7cd5f96a7874aa8257d530955fae6738d2b9a5af",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/991241d9337ae78eb77bb6acd15b93718ad67cd7"
+        },
+        "date": 1772132245822,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 27,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 22,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 278,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 149,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 37000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 10000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 14000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 47000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 24000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 53000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 141,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 131,
             "unit": "ns"
           }
         ]
