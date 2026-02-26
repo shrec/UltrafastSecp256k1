@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772063749607,
+  "lastUpdate": 1772064272231,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -16888,6 +16888,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Point Double",
             "value": 150,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 38000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 9000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 14000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 47000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 23000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 53000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 139,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 130,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "189f2d659d4ef37ec32b1433ec435871b23b47ae",
+          "message": "ci: enable fuzz + protocol tests in all CI jobs\n\n- CMakeLists.txt: reorder add_subdirectory so include/ufsecp (ufsecp_static)\n  is built BEFORE audit/ -- fixes TARGET ufsecp_static check failing for\n  test_fuzz_parsers and test_fuzz_address_bip32_ffi\n- ci.yml: add -DSECP256K1_BUILD_FUZZ_TESTS=ON -DSECP256K1_BUILD_PROTOCOL_TESTS=ON\n  to linux (4 matrix combos), sanitizers (ASan+UBSan, TSan), windows (MSVC),\n  macOS (AppleClang), and coverage (llvm-cov) jobs\n- Locally verified: fuzz_parsers (580k checks), fuzz_address_bip32_ffi (74k),\n  musig2_frost (975), musig2_frost_advanced (316), frost_kat (76) -- all PASS",
+          "timestamp": "2026-02-26T04:02:49+04:00",
+          "tree_id": "4f6a43df02cc0061c688bcffb52ffd57b5e20b53",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/189f2d659d4ef37ec32b1433ec435871b23b47ae"
+        },
+        "date": 1772064269444,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 27,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 22,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 278,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 148,
             "unit": "ns"
           },
           {
