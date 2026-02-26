@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772133021949,
+  "lastUpdate": 1772135846506,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -18809,6 +18809,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Batch Inverse (n=1000)",
             "value": 136,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "665b97157f23982775f7cf7c401502643cad9890",
+          "message": "fix(wasm): replace dead wNAF w=5 fallback with GLV+Shamir in scalar_mul\n\nThe non-FE52 fallback for non-generator scalar_mul was plain wNAF w=5 --\ndead code on all tested platforms (x86 uses FE52+GLV, ESP32/STM32 have\ntheir own GLV path). With FE52 disabled for WASM (841b6b5), this was the\nfirst platform to hit it, and it produced incorrect results causing\nECDSA verify and Schnorr verify KAT failures.\n\nReplace with the exact GLV+Shamir algorithm already proven on ESP32/STM32:\n- glv_decompose into two ~128-bit half-scalars\n- Shamir's trick with apply_endomorphism (single doubling chain)\n- Same compute_wnaf_into, add_inplace, dbl_inplace primitives\n\nAlso add 6 new diagnostic tests to cross_platform_kat:\n- Q.scalar_mul(1) == Q (identity on non-generator)\n- Q.scalar_mul(s2) on-curve check\n- Q*s2 == G*(s2^2) algebraic cross-check\n- dual_scalar_mul_gen_point consistency\n\nDesktop (x86-64 Clang): 28/28 passed, 0 failed.",
+          "timestamp": "2026-02-26T23:55:20+04:00",
+          "tree_id": "d648ce96e610f117e721355d8becb212d0857ac3",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/665b97157f23982775f7cf7c401502643cad9890"
+        },
+        "date": 1772135843847,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 27,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 22,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 279,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 149,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 38000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 9000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 14000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 47000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 24000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 53000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 140,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 130,
             "unit": "ns"
           }
         ]
