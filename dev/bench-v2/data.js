@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772128433911,
+  "lastUpdate": 1772129673153,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -18413,6 +18413,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Batch Inverse (n=1000)",
             "value": 130,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "24460ae25efa91c29e761ce60477cdaf4d0de1f4",
+          "message": "fix(ci): WASM KAT SINGLE_FILE=1 + sanitizer timeout\n\nWASM KAT test:\n- Add SINGLE_FILE=1: embeds .wasm binary inline in .js file,\n  eliminates .wasm sidecar file relocation issue where CMake\n  RUNTIME_OUTPUT_DIRECTORY only moves .js but .wasm stays in\n  original build location\n- Change ASSERTIONS=0 -> ASSERTIONS=1: enables Emscripten error\n  messages in CI logs instead of silent exit code 7\n- Add ls -lh kat/ to Verify step for debugging\n- Add node --stack-size=4096\n\nSanitizer jobs:\n- Exclude unified_audit (too heavy for ASan Debug, causes timeout)\n- Add --timeout 300 per-test cap",
+          "timestamp": "2026-02-26T22:12:51+04:00",
+          "tree_id": "72c3cf36b4d36a2f44023b1f6a981a5a01515c7a",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/24460ae25efa91c29e761ce60477cdaf4d0de1f4"
+        },
+        "date": 1772129671047,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 31,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 24,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 4,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 4,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 300,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 167,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 40000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 11000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 15000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 50000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 26000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 56000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 157,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 148,
             "unit": "ns"
           }
         ]
