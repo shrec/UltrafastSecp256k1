@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772135846506,
+  "lastUpdate": 1772137091798,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -18908,6 +18908,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Batch Inverse (n=1000)",
             "value": 130,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "422d6d964f065a4a18c93e4e89dce54cf84b328a",
+          "message": "fix(wasm): replace GLV+Shamir fallback with simple double-and-add\n\nThe GLV+Shamir non-FE52 fallback (commit 665b971) still produced wrong\nresults on WASM. Rather than debugging the complex GLV+endomorphism+wNAF\ninteraction on wasm32, replace with the simplest possible algorithm:\nright-to-left binary double-and-add over 256 scalar bits.\n\nThis uses ONLY dbl_inplace + add_inplace (both already verified by\nField/Scalar/Point KAT on WASM). No GLV, no wNAF, no precomputed tables.\n\nPerformance: ~256 doublings + ~128 additions. Slower than GLV+Shamir but\nacceptable for WASM verification workloads. Desktop (FE52) and embedded\n(ESP32/STM32 GLV+Shamir) paths are unchanged.\n\nDesktop: 28/28 KAT passed.",
+          "timestamp": "2026-02-27T00:16:32+04:00",
+          "tree_id": "7675693fef1cccb4d433d812fd1fb2c9571ab024",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/422d6d964f065a4a18c93e4e89dce54cf84b328a"
+        },
+        "date": 1772137089613,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 26,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 19,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 257,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 132,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 34000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 8000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 12000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 42000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 21000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 48000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 116,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 107,
             "unit": "ns"
           }
         ]
