@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772064272231,
+  "lastUpdate": 1772066233859,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -17027,6 +17027,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Batch Inverse (n=1000)",
             "value": 130,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "4c9a2bcc4f61f281cccc0ff9d4102276af54482a",
+          "message": "fix: normalize field elements in is_on_curve debug checker\n\nSome optimized multiplication paths (montgomery_reduce_bmi2) can\nproduce field element results in [p, 2^256) -- correct mod p but\nnot canonical. The is_on_curve debug invariant checker compared\ny^2 and x^3+7 via raw limb operator== which requires canonical\nform. Fix: add FieldElement::zero() to both sides before comparing,\nwhich forces add_impl's conditional p-subtraction to normalize.\n\nFixes: debug_invariants test failure on CI (Windows + Linux).",
+          "timestamp": "2026-02-26T04:35:35+04:00",
+          "tree_id": "0e2fa15b99ddc063e339804c6a25ddd9d91c8f81",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/4c9a2bcc4f61f281cccc0ff9d4102276af54482a"
+        },
+        "date": 1772066232117,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 31,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 24,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 4,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 300,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 167,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 40000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 11000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 15000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 49000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 25000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 56000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 156,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 148,
             "unit": "ns"
           }
         ]
