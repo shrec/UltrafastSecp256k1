@@ -357,6 +357,9 @@ jobs:
           cd build/wasm/dist
           node ../../../wasm/bench_wasm.mjs
 
+      - name: Run WASM KAT equivalence test
+        run: node build/wasm/dist/wasm_kat_test.js
+
       - name: Upload WASM artifact
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:

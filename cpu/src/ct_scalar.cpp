@@ -193,14 +193,15 @@ std::uint64_t scalar_bit(const Scalar& a, std::size_t index) noexcept {
 
 std::uint64_t scalar_window(const Scalar& a, std::size_t pos,
                             unsigned width) noexcept {
-    // Branchless window extraction.
-    // pos and width are public (from loop counter), scalar VALUE is secret.
-    // Despite pos being public, we avoid branches for dudect-clean CT proof.
     const auto& limbs = a.limbs();
     std::size_t limb_idx = pos >> 6;
     std::size_t bit_idx  = pos & 63;
     std::uint64_t mask   = (1ULL << width) - 1;
 
+#if defined(__riscv)
+    // Branchless window extraction for RISC-V in-order cores.
+    // Branches on pos/width are public but create timing jitter on U74
+    // that fails dudect. Fully branchless via is_nonzero_mask.
     std::uint64_t lo = limbs[limb_idx] >> bit_idx;
 
     // Load next limb; wrap index and zero when out-of-bounds (limb_idx == 3)
@@ -216,6 +217,17 @@ std::uint64_t scalar_window(const Scalar& a, std::size_t pos,
     hi &= hi_active;
 
     return (lo | (hi << shift)) & mask;
+#else
+    // Branched path: safe on x86/ARM OOO cores (branch predictor handles
+    // the public pos/width pattern perfectly). Avoids MSVC/Clang LTCG
+    // miscompilation of the branchless is_nonzero_mask pattern.
+    if (bit_idx + width <= 64) {
+        return (limbs[limb_idx] >> bit_idx) & mask;
+    }
+    std::uint64_t lo = limbs[limb_idx] >> bit_idx;
+    std::uint64_t hi = (limb_idx + 1 < 4) ? limbs[limb_idx + 1] : 0;
+    return (lo | (hi << (64 - bit_idx))) & mask;
+#endif
 }
 
 } // namespace secp256k1::ct
