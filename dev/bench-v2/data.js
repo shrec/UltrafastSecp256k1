@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772129673153,
+  "lastUpdate": 1772131462888,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -18512,6 +18512,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Batch Inverse (n=1000)",
             "value": 148,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "2f62d8b33e1f74c4467b5b702016917cf14efd7d",
+          "message": "fix(wasm): KAT test crash -- small precompute tables + memory tuning\n\nRoot cause: G.scalar_mul() triggers scalar_mul_generator() which\nlazy-builds a 270 MB precompute table (window_bits=18, 15 windows x\n262K entries x 72 bytes). This exceeds WASM memory limits and causes\nstack overflow under Emscripten (exit code 7).\n\nKAT test (test_cross_platform_kat.cpp):\n- Add setup_wasm_precompute(): configures window_bits=4 (~74 KB)\n  with use_cache=false for WASM/Emscripten\n- Include precompute.hpp for FixedBaseConfig\n- Guarded by #ifdef __EMSCRIPTEN__ -- no effect on other platforms\n\nwasm/CMakeLists.txt:\n- INITIAL_MEMORY: 4 MB -> 16 MB (headroom for precompute + ops)\n- STACK_SIZE: 512 KB -> 2 MB (deep call stack in point arithmetic)\n- Add -flto (compile + link) for better cross-TU inlining\n- ASSERTIONS=0 in Release (matches benchmark; no stack checks)\n\nci.yml:\n- Remove --stack-size=4096 from node command (not needed)",
+          "timestamp": "2026-02-26T22:42:42+04:00",
+          "tree_id": "4e27a34bbd2de815e303a012af34db166a436203",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/2f62d8b33e1f74c4467b5b702016917cf14efd7d"
+        },
+        "date": 1772131460518,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 27,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 22,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 279,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 149,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 37000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 9000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 14000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 47000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 24000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 55000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 139,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 130,
             "unit": "ns"
           }
         ]
