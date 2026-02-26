@@ -83,28 +83,54 @@ inline bool is_normalized_field_element(const FieldElement& fe) noexcept {
 // Check if point (x, y) satisfies y^2 = x^3 + 7 (mod p)
 inline bool is_on_curve(const Point& pt) noexcept {
     if (pt.is_infinity()) return true;
-    
-    // Convert to affine and check curve equation
+
+#if defined(SECP256K1_FAST_52BIT)
+    // Direct Jacobian check in native FE52 arithmetic.
+    // Avoids the FE52->FE64 conversion + FE64 inverse/mul chain
+    // that can produce wrong results on some compiler/platform combos.
+    //
+    // For Jacobian (X, Y, Z):  y_aff = Y/Z^3,  x_aff = X/Z^2
+    // Curve equation y^2 = x^3 + 7  becomes  Y^2 = X^3 + 7*Z^6
+    const FieldElement52& X = pt.X52();
+    const FieldElement52& Y = pt.Y52();
+    const FieldElement52& Z = pt.Z52();
+
+    FieldElement52 Y2 = Y.square();
+    FieldElement52 Z2 = Z.square();
+    FieldElement52 Z4 = Z2.square();
+    FieldElement52 Z6 = Z4 * Z2;
+    FieldElement52 X2 = X.square();
+    FieldElement52 X3 = X2 * X;
+
+    // Construct literal 7 in 5x52 representation
+    FieldElement52 seven{};
+    seven.n[0] = 7;
+
+    // rhs = X^3 + 7*Z^6   (lazy add; magnitude = 2, well within headroom)
+    FieldElement52 rhs = X3 + seven * Z6;
+
+    // FE52 operator== normalizes both sides internally
+    return Y2 == rhs;
+#else
+    // FE64 path for platforms without 5x52 support.
     FieldElement x = pt.x();
     FieldElement y = pt.y();
-    
-    // lhs = y^2
+
     FieldElement lhs = y.square();
-    
-    // rhs = x^3 + 7
+
     FieldElement x2 = x.square();
     FieldElement x3 = x2 * x;
     FieldElement rhs = x3 + FieldElement::from_uint64(7);
-    
+
     // Normalize both sides before comparing:
-    // Some optimized *_impl paths (e.g. montgomery_reduce_bmi2) may produce
-    // results in [p, 2^256) that are correct mod p but not canonical.
-    // Adding zero forces add_impl's conditional p-subtraction, ensuring
-    // both values are in [0, p) for correct limb-wise operator==.
+    // Some optimized *_impl paths may produce results in [p, 2^256)
+    // that are correct mod p but not canonical.
+    // Adding zero forces add_impl's conditional p-subtraction.
     lhs = lhs + FieldElement::zero();
     rhs = rhs + FieldElement::zero();
-    
+
     return lhs == rhs;
+#endif
 }
 
 // Check scalar is in range [1, n-1]
