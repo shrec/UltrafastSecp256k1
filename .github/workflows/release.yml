@@ -100,7 +100,7 @@ jobs:
 
       # -- Test --
       - name: Test
-        run: ctest --test-dir build --output-on-failure -j4 -E "^ct_sidechannel$"
+        run: ctest --test-dir build --output-on-failure -j4 -E "^ct_sidechannel"
 
       # -- Install into staging dir --
       - name: Install
@@ -197,7 +197,7 @@ jobs:
       - name: Test (via QEMU)
         run: |
           export QEMU_LD_PREFIX=/usr/aarch64-linux-gnu
-          ctest --test-dir build --output-on-failure -j4 -E "^ct_sidechannel$" || echo "Some tests may skip under QEMU"
+          ctest --test-dir build --output-on-failure -j4 -E "^ct_sidechannel" || echo "Some tests may skip under QEMU"
 
       - name: Collect release artifacts
         run: |

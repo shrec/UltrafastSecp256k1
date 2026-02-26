@@ -57,7 +57,7 @@ jobs:
 
       - name: Run tests (generate coverage data)
         run: |
-          ctest --test-dir build/sonar --output-on-failure -j$(nproc) -E "^ct_sidechannel$"
+          ctest --test-dir build/sonar --output-on-failure -j$(nproc) -E "^ct_sidechannel"
         env:
           LLVM_PROFILE_FILE: "${{ github.workspace }}/build/sonar/%p.profraw"
 

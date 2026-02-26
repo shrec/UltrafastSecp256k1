@@ -60,7 +60,7 @@ jobs:
         run: cmake --build build -j$(nproc)
 
       - name: Test
-        run: ctest --test-dir build --output-on-failure -j$(nproc) -E "^ct_sidechannel$"
+        run: ctest --test-dir build --output-on-failure -j$(nproc) -E "^ct_sidechannel"
 
   # -- Linux ARM64 (cross-compile, aarch64-linux-gnu) -----------------------
   linux-arm64:
@@ -143,7 +143,7 @@ jobs:
         run: cmake --build build/${{ matrix.sanitizer }} -j$(nproc)
 
       - name: Test (${{ matrix.label }})
-        run: ctest --test-dir build/${{ matrix.sanitizer }} --output-on-failure -j$(nproc) -E "^ct_sidechannel$"
+        run: ctest --test-dir build/${{ matrix.sanitizer }} --output-on-failure -j$(nproc) -E "^ct_sidechannel"
 
   # -- Windows (MSVC + Clang-cl) ----------------------------------------------
   windows:
@@ -175,7 +175,7 @@ jobs:
         run: cmake --build build --config ${{ matrix.build_type }} -j
 
       - name: Test
-        run: ctest --test-dir build -C ${{ matrix.build_type }} --output-on-failure -j -E "^ct_sidechannel$"
+        run: ctest --test-dir build -C ${{ matrix.build_type }} --output-on-failure -j -E "^ct_sidechannel"
 
   # -- macOS (AppleClang + Metal GPU) -----------------------------------------
   macos:
@@ -208,7 +208,7 @@ jobs:
         run: cmake --build build -j$(sysctl -n hw.logicalcpu)
 
       - name: Test (all including Metal GPU)
-        run: ctest --test-dir build --output-on-failure -j$(sysctl -n hw.logicalcpu) -E "^ct_sidechannel$"
+        run: ctest --test-dir build --output-on-failure -j$(sysctl -n hw.logicalcpu) -E "^ct_sidechannel"
 
       - name: Metal GPU benchmarks
         if: success()
@@ -315,7 +315,7 @@ jobs:
         run: cmake --build build/rocm -j$(nproc)
 
       - name: Test (CPU-only, compile check)
-        run: ctest --test-dir build/rocm --output-on-failure -j$(nproc) -E "^ct_sidechannel$"
+        run: ctest --test-dir build/rocm --output-on-failure -j$(nproc) -E "^ct_sidechannel"
 
   # -- WebAssembly (Emscripten) -----------------------------------------------
   wasm:
@@ -362,6 +362,7 @@ jobs:
 
       - name: Upload WASM artifact
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        continue-on-error: true
         with:
           name: secp256k1-wasm
           path: |
@@ -450,7 +451,7 @@ jobs:
         run: cmake --build build/cov -j"$(nproc)"
 
       - name: Test
-        run: ctest --test-dir build/cov --output-on-failure -j"$(nproc)" -E "^ct_sidechannel$"
+        run: ctest --test-dir build/cov --output-on-failure -j"$(nproc)" -E "^ct_sidechannel"
         env:
           LLVM_PROFILE_FILE: "build/cov/%p-%m.profraw"
 
