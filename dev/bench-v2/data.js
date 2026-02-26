@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772067918948,
+  "lastUpdate": 1772069587016,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -17225,6 +17225,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Batch Inverse (n=1000)",
             "value": 204,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "1b9b2cf4ca001d5554c37d35d39ba27e0525c96c",
+          "message": "fix(is_on_curve): use FE52 Jacobian check on FAST_52BIT platforms\n\nOn Linux (Clang/GCC x86-64), SECP256K1_FAST_52BIT=1 is defined.\nPoint stores FE52 internally; is_on_curve() was converting FE52->FE64\nthen doing FE64 arithmetic (inverse, mul, square). This conversion +\nFE64 chain produced wrong results for ~20% of random kG tests on CI.\n\nFix: when SECP256K1_FAST_52BIT is defined, check the curve equation\ndirectly in Jacobian coordinates using native FE52 arithmetic:\n  Y^2 == X^3 + 7*Z^6\nThis avoids three error-prone steps:\n  - FE52->FE64 conversion via to_fe()\n  - FE64 SafeGCD inverse (z_inv)\n  - FE64 assembly mul/square chain\n\nThe FE64 path is preserved for non-52bit platforms (MSVC, ESP32, etc).\n\nVerified: 372/372 pass locally (MSVC Release), all CTest targets pass.",
+          "timestamp": "2026-02-26T05:31:26+04:00",
+          "tree_id": "217ac912b58220c94d688660d38c05e34cc10b16",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/1b9b2cf4ca001d5554c37d35d39ba27e0525c96c"
+        },
+        "date": 1772069584229,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 27,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 22,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 278,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 148,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 38000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 10000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 14000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 47000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 25000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 53000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 141,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 133,
             "unit": "ns"
           }
         ]
