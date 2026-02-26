@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772102016224,
+  "lastUpdate": 1772109903120,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -17918,6 +17918,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Batch Inverse (n=1000)",
             "value": 107,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "88f1433797f0ecf5cbbc9682c6a858c3fb5c0510",
+          "message": "fix(ct): add value_barrier after mask derivation in ct_compare + WASM KAT target\n\nct_utils.hpp (RISC-V dudect fix, task 5.2.3):\n- Add ct::value_barrier(mask) after 'mask = 0ULL - differs/take' in all 6\n  ct_compare code paths (bulk-8, bulk-4, bulk-1, tail, fallback-main, fallback-tail)\n- Without barrier, RISC-V compilers (GCC/Clang) may convert the mask-based\n  select into a conditional branch, leaking comparison order via timing\n- Expected: RISC-V dudect ct_compare |t| drops from ~17-34 to <4.5\n\nwasm/CMakeLists.txt (WASM KAT equivalence, task 2.6.3):\n- Add wasm_kat_test executable target (compiles test_cross_platform_kat.cpp)\n- Compiled with ENVIRONMENT=node, EXIT_RUNTIME=1, no filesystem\n- CI step already wired in ci.yml: 'node build/wasm/dist/wasm_kat_test.js'\n\nVerify: CTest 4/4 pass (selftest, ct_equivalence, cross_platform_kat, ct_sidechannel_smoke)",
+          "timestamp": "2026-02-26T16:43:13+04:00",
+          "tree_id": "e63ce6910719f98e26bac5019c4f8cc0b77b1be8",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/88f1433797f0ecf5cbbc9682c6a858c3fb5c0510"
+        },
+        "date": 1772109901131,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 27,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 22,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 277,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 149,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 38000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 10000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 14000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 47000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 24000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 53000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 142,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 132,
             "unit": "ns"
           }
         ]
