@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772072869579,
+  "lastUpdate": 1772096634328,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -17522,6 +17522,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Batch Inverse (n=1000)",
             "value": 137,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "b33d2fc4527967cb932cdb9e84f2b144f0b45406",
+          "message": "fix(msvc): SECP256K1_NOINLINE macro + s_gen4 race + smoke threshold\n\n- Add SECP256K1_NOINLINE macro to config.hpp: __declspec(noinline)\n  for MSVC, __attribute__((noinline)) for GCC/Clang. MSVC silently\n  ignores __attribute__; without noinline, scalar_mul_glv52 (~5KB\n  locals) gets inlined causing GS-cookie (stack canary) corruption\n  under parallel CTest execution.\n\n- Replace all 6 __attribute__((noinline)) in point.cpp with\n  SECP256K1_NOINLINE: jac52_double, jac52_add_mixed,\n  jac52_add_mixed_inplace, jac52_add, scalar_mul_glv52,\n  dual_scalar_mul_gen_point.\n\n- Fix s_gen4 data race: bare check-then-allocate pattern replaced\n  with C++11 magic static (thread-safe one-time initialization).\n\n- Raise DUDECT_SMOKE T_THRESHOLD to 50.0 on MSVC: volatile-based\n  value_barrier (no inline asm on x64 MSVC) adds 15-30 t-stat\n  noise on is_zero_mask tests; 50.0 still catches gross leaks\n  (real leak |t| > 100) while eliminating false flakes.\n\nVerified: 28/28 CTest PASS (MSVC Release, parallel -j) x2 runs.",
+          "timestamp": "2026-02-26T13:02:04+04:00",
+          "tree_id": "c4d23dab54b9c45db2ce2ac8059edf88ea819259",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/b33d2fc4527967cb932cdb9e84f2b144f0b45406"
+        },
+        "date": 1772096632319,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 27,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 22,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 278,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 149,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 38000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 10000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 14000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 47000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 24000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 53000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 141,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 132,
             "unit": "ns"
           }
         ]
