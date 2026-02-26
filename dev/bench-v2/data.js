@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772066233859,
+  "lastUpdate": 1772067918948,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -17126,6 +17126,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Batch Inverse (n=1000)",
             "value": 148,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "d51f93f68498d8834baeb120f633a5e9142631c0",
+          "message": "fix: normalize FieldElement::operator== to handle non-canonical limbs\n\noperator== previously compared raw limbs, which fails when\nmul_impl/square_impl produce results in [p, 2^256) -- correct\nmod p but non-canonical.  Now normalizes both operands via a\nsingle conditional p-subtraction before comparing.\n\nThis fixes debug_invariants CI failures on Linux GCC-13 where\ny^2 and x^3+7 could have different non-canonical representations.\n\nThe FE52 and FE26 paths already normalized in operator==; this\nbrings FE64 (4x64) to parity.\n\nPerformance: operator== is not in the hot path on x86-64\n(SECP256K1_FAST_52BIT uses normalizes_to_zero() instead).\nFallback platforms see <0.1% overhead from two normalize calls.\n\nAlso removes SECP_ASSERT_NORMALIZED on Point::x()/y() results\nin test_full_chain -- arithmetic outputs are not guaranteed\ncanonical; the curve equation check (y^2 == x^3+7) validates\ncorrectness via the now-correct operator==.\n\n23/23 CTest PASS (MSVC Release).",
+          "timestamp": "2026-02-26T05:03:36+04:00",
+          "tree_id": "542781d139e7b1737d9a84bb9274072ca9ae35b4",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/d51f93f68498d8834baeb120f633a5e9142631c0"
+        },
+        "date": 1772067917232,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 27,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 22,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 278,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 148,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 38000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 10000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 14000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 47000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 24000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 53000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 214,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 204,
             "unit": "ns"
           }
         ]
