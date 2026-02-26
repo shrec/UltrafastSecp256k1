@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772116332798,
+  "lastUpdate": 1772122412035,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -18116,6 +18116,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Batch Inverse (n=1000)",
             "value": 132,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "42282dfdeced4ced8f024085bc98ae252708a2d3",
+          "message": "fix(ct): platform-specific scalar_window -- branchless RISC-V, branched x86/ARM\n\nMSVC /O2 + LTCG and Clang-17 miscompile the branchless scalar_window when\ninlined into scalar_mul via link-time code generation. The is_nonzero_mask\npattern, while logically correct, is optimized through the value_barrier\nproducing wrong results in FROST protocol tests (musig2_frost_advanced).\n\nFix: use #if defined(__riscv) to select the implementation:\n  - RISC-V: fully branchless (seqz+neg+andn) -- required for dudect-clean CT\n    on in-order U74 cores\n  - x86/ARM/MSVC: branched path (safe on OOO cores, well-tested)\n\nAlso adds WASM KAT equivalence test step to CI.\n\nVerified: 28/28 Windows (MSVC), 23/24 Mars RISC-V (only ct_sidechannel\nexcluded), RISC-V assembly confirmed zero conditional branches.",
+          "timestamp": "2026-02-26T20:11:40+04:00",
+          "tree_id": "c47909e2b8fbb9df89b4f2dc2001a5c5174c90f2",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/42282dfdeced4ced8f024085bc98ae252708a2d3"
+        },
+        "date": 1772122409263,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 26,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 19,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 257,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 132,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 34000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 8000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 13000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 42000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 23000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 48000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 115,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 107,
             "unit": "ns"
           }
         ]
