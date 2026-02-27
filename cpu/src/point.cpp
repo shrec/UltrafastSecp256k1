@@ -1204,7 +1204,12 @@ Point Point::from_jacobian_coords(const FieldElement& x, const FieldElement& y, 
 
 #if defined(SECP256K1_FAST_52BIT)
 Point Point::from_jacobian52(const FieldElement52& x, const FieldElement52& y, const FieldElement52& z, bool infinity) {
-    if (infinity || z.normalizes_to_zero()) return Point::infinity();
+    // normalizes_to_zero() uses only ONE overflow-reduction pass and can
+    // produce false negatives on high-magnitude limbs (e.g. result of
+    // Shamir's trick where Z accumulated many additions).  is_zero() does
+    // a full fe52_normalize_inline (TWO reduction passes + conditional
+    // subtraction of p) so it is reliable at any magnitude.
+    if (infinity || z.is_zero()) return Point::infinity();
     return Point(x, y, z, false, false);
 }
 
@@ -1262,7 +1267,11 @@ FieldElement Point::x() const {
         return FieldElement::zero();
     }
 #if defined(SECP256K1_FAST_52BIT)
-    FieldElement z_fe = z_.to_fe();
+    FieldElement z_fe = z_.to_fe();  // fully normalizes
+    { const auto& zL = z_fe.limbs();
+      if (SECP256K1_UNLIKELY((zL[0] | zL[1] | zL[2] | zL[3]) == 0))
+          return FieldElement::zero();
+    }
     FieldElement z_inv = z_fe.inverse();
     FieldElement z_inv2 = z_inv;
     z_inv2.square_inplace();
@@ -1280,7 +1289,11 @@ FieldElement Point::y() const {
         return FieldElement::zero();
     }
 #if defined(SECP256K1_FAST_52BIT)
-    FieldElement z_fe = z_.to_fe();
+    FieldElement z_fe = z_.to_fe();  // fully normalizes
+    { const auto& zL = z_fe.limbs();
+      if (SECP256K1_UNLIKELY((zL[0] | zL[1] | zL[2] | zL[3]) == 0))
+          return FieldElement::zero();
+    }
     FieldElement z_inv = z_fe.inverse();
     FieldElement z_inv3 = z_inv;
     z_inv3.square_inplace();
@@ -2213,7 +2226,13 @@ std::array<std::uint8_t, 33> Point::to_compressed() const {
     }
     // Compute affine coordinates with a single inversion
 #if defined(SECP256K1_FAST_52BIT)
-    FieldElement z_fe = z_.to_fe();
+    FieldElement z_fe = z_.to_fe();  // fully normalizes
+    // Defensive: if Z reduces to zero treat as infinity
+    { const auto& zL = z_fe.limbs();
+      if (SECP256K1_UNLIKELY((zL[0] | zL[1] | zL[2] | zL[3]) == 0)) {
+          out.fill(0); return out;
+      }
+    }
     FieldElement z_inv = z_fe.inverse();
     FieldElement z_inv2 = z_inv;
     z_inv2.square_inplace();
@@ -2241,7 +2260,13 @@ std::array<std::uint8_t, 65> Point::to_uncompressed() const {
     }
     // Compute affine coordinates with a single inversion
 #if defined(SECP256K1_FAST_52BIT)
-    FieldElement z_fe = z_.to_fe();
+    FieldElement z_fe = z_.to_fe();  // fully normalizes
+    // Defensive: if Z reduces to zero treat as infinity
+    { const auto& zL = z_fe.limbs();
+      if (SECP256K1_UNLIKELY((zL[0] | zL[1] | zL[2] | zL[3]) == 0)) {
+          out.fill(0); return out;
+      }
+    }
     FieldElement z_inv = z_fe.inverse();
     FieldElement z_inv2 = z_inv;
     z_inv2.square_inplace();
@@ -2266,7 +2291,10 @@ std::array<std::uint8_t, 65> Point::to_uncompressed() const {
 bool Point::has_even_y() const {
     if (infinity_) return false;
 #if defined(SECP256K1_FAST_52BIT)
-    FieldElement z_fe = z_.to_fe();
+    FieldElement z_fe = z_.to_fe();  // fully normalizes
+    { const auto& zL = z_fe.limbs();
+      if (SECP256K1_UNLIKELY((zL[0] | zL[1] | zL[2] | zL[3]) == 0)) return false;
+    }
     FieldElement z_inv = z_fe.inverse();
     FieldElement z_inv2 = z_inv;
     z_inv2.square_inplace();
@@ -2285,7 +2313,11 @@ bool Point::has_even_y() const {
 std::pair<std::array<uint8_t, 32>, bool> Point::x_bytes_and_parity() const {
     if (infinity_) return {std::array<uint8_t,32>{}, false};
 #if defined(SECP256K1_FAST_52BIT)
-    FieldElement z_fe = z_.to_fe();
+    FieldElement z_fe = z_.to_fe();  // fully normalizes
+    { const auto& zL = z_fe.limbs();
+      if (SECP256K1_UNLIKELY((zL[0] | zL[1] | zL[2] | zL[3]) == 0))
+          return {std::array<uint8_t,32>{}, false};
+    }
     FieldElement z_inv = z_fe.inverse();
     FieldElement z_inv2 = z_inv;
     z_inv2.square_inplace();
