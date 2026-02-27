@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772152153294,
+  "lastUpdate": 1772154295718,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -19403,6 +19403,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Batch Inverse (n=1000)",
             "value": 130,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "81efd39ad0eccfa9617cfffd4f25da036d7f6b44",
+          "message": "fix(audit): resolve all -Werror warnings for GCC-13\n\nFixes:\n- unused-but-set-variable: p_val, bytes_out, G, r, err, coeff bytes\n- Wconversion: static_cast<int> for rng()%%N and static_cast<double> for .count()\n- Wunused-function: [[maybe_unused]] on print_result, diagnose_scalar\n- Wunused-variable: [[maybe_unused]] on g_crash\n- macro redefinition: #ifndef guard for UNIFIED_AUDIT_RUNNER\n\nFiles: audit_fuzz, audit_ct, audit_integration, audit_perf,\n       audit_security, unified_audit_runner, test_fuzz_parsers,\n       test_musig2_frost_advanced, diag_scalar_mul",
+          "timestamp": "2026-02-27T05:03:09+04:00",
+          "tree_id": "ac71a592f58ee0b104ee10e6540db59157be8c8a",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/81efd39ad0eccfa9617cfffd4f25da036d7f6b44"
+        },
+        "date": 1772154294262,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 27,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 22,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 278,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 149,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 38000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 10000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 14000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 47000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 24000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 53000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 142,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 137,
             "unit": "ns"
           }
         ]
