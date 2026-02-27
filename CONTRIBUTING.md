@@ -10,7 +10,7 @@ All contributions **MUST** comply with the following before they can be accepted
 2. **All tests pass** -- `ctest --test-dir build-dev --output-on-failure`
 3. **Code formatted** -- `clang-format -i <files>` (`.clang-format` config in repo root)
 4. **No compiler warnings** -- clean build with `-Wall -Wextra`
-5. **License** -- all contributions are licensed under [AGPL-3.0-or-later](https://github.com/shrec/UltrafastSecp256k1/blob/main/LICENSE)
+5. **License** -- all contributions are licensed under the [MIT License](https://github.com/shrec/UltrafastSecp256k1/blob/main/LICENSE)
 6. **Security** -- follow the [Security Policy](https://github.com/shrec/UltrafastSecp256k1/blob/main/SECURITY.md); never open public issues for vulnerabilities
 
 Pull requests that do not meet these requirements will be rejected.
@@ -34,7 +34,7 @@ All contributors **MUST** sign off their commits to certify they have the legal 
 
 By adding a `Signed-off-by` line to your commit messages, you certify that:
 
-1. The contribution was created in whole or in part by you, and you have the right to submit it under the AGPL-3.0-or-later license; or
+1. The contribution was created in whole or in part by you, and you have the right to submit it under the MIT license; or
 2. The contribution is based on previous work that, to the best of your knowledge, is covered under an appropriate open-source license; or
 3. The contribution was provided to you by someone who certified (1) or (2), and you have not modified it.
 

@@ -136,7 +136,7 @@ cmake --build build/wasm -j
 
 ## License
 
-AGPL-3.0
+MIT
 
 ## Links
 

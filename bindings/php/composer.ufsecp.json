@@ -3,7 +3,7 @@
     "description": "PHP FFI bindings for UltrafastSecp256k1 — high-performance secp256k1 ECC (ufsecp C ABI v1)",
     "version": "0.0.0-dev",
     "type": "library",
-    "license": "AGPL-3.0-only",
+    "license": "MIT",
     "require": {
         "php": ">=8.1",
         "ext-ffi": "*"

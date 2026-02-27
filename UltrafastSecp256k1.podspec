@@ -9,7 +9,7 @@ Pod::Spec.new do |s|
   DESC
 
   s.homepage     = "https://github.com/shrec/UltrafastSecp256k1"
-  s.license      = { :type => "AGPL-3.0", :file => "LICENSE" }
+  s.license      = { :type => "MIT", :file => "LICENSE" }
   s.author       = { "shrec" => "https://github.com/shrec" }
 
   s.ios.deployment_target     = "17.0"

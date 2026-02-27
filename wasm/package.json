@@ -30,7 +30,7 @@
     "cryptography",
     "bitcoin"
   ],
-  "license": "AGPL-3.0",
+  "license": "MIT",
   "homepage": "https://github.com/shrec/UltrafastSecp256k1",
   "repository": {
     "type": "git",

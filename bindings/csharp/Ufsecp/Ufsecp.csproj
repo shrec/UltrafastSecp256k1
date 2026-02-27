@@ -8,7 +8,7 @@
     <Description>C# P/Invoke bindings for UltrafastSecp256k1 — high-performance secp256k1 ECC (ufsecp C ABI v1)</Description>
     <PackageId>Ufsecp</PackageId>
     <PackageTags>secp256k1;ecdsa;schnorr;bitcoin;cryptography;ufsecp;taproot;bip32</PackageTags>
-    <PackageLicenseExpression>AGPL-3.0-only</PackageLicenseExpression>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/shrec/UltrafastSecp256k1</PackageProjectUrl>
     <RepositoryUrl>https://github.com/shrec/UltrafastSecp256k1</RepositoryUrl>
     <PackageReadmeFile>README.md</PackageReadmeFile>

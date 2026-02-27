@@ -7,7 +7,7 @@ name = "ufsecp"
 version = "0.0.0.dev0"
 description = "Python ctypes bindings for UltrafastSecp256k1 — high-performance secp256k1 ECC (ufsecp C ABI v1)"
 readme = "README.md"
-license = {text = "AGPL-3.0-only"}
+license = {text = "MIT"}
 requires-python = ">=3.8"
 authors = [
     {name = "UltrafastSecp256k1 Contributors"}

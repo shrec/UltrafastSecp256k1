@@ -22,7 +22,7 @@
 [![CI](https://img.shields.io/github/actions/workflow/status/shrec/UltrafastSecp256k1/ci.yml?branch=main&label=CI)](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/ci.yml)
 [![Benchmark](https://img.shields.io/github/actions/workflow/status/shrec/UltrafastSecp256k1/benchmark.yml?branch=main&label=Bench)](https://shrec.github.io/UltrafastSecp256k1/dev/bench/)
 [![Release](https://img.shields.io/github/v/release/shrec/UltrafastSecp256k1?label=Release)](https://github.com/shrec/UltrafastSecp256k1/releases/latest)
-[![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![C++20](https://img.shields.io/badge/C%2B%2B-20-blue.svg)](https://en.cppreference.com/w/cpp/20)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/shrec/UltrafastSecp256k1/badge)](https://scorecard.dev/viewer/?uri=github.com/shrec/UltrafastSecp256k1)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/12011/badge)](https://www.bestpractices.dev/projects/12011)
@@ -961,13 +961,12 @@ ctest --test-dir build/dev --output-on-failure
 
 ## License
 
-**GNU Affero General Public License v3.0 (AGPL-3.0)**
+**MIT License**
 
-- [OK] Use, modify, and distribute under AGPL-3.0
-- [OK] Must disclose source code
-- [OK] Must provide network access to source if run as a service
-
-**Commercial License**: For proprietary use without AGPL obligations, contact [payysoon@gmail.com](mailto:payysoon@gmail.com).
+This project is licensed under the MIT License.
+Previously released versions (up to v3.14.x) were under AGPL-3.0.
+As of v3.15.0 the license is MIT -- to align with the broader Bitcoin ecosystem
+and remove adoption friction.
 
 See [LICENSE](LICENSE) for full details.
 
@@ -1020,4 +1019,4 @@ If you find **UltrafastSecp256k1** useful, consider supporting its development!
 **UltrafastSecp256k1** -- The fastest open-source secp256k1 library. GPU-accelerated ECDSA & Schnorr signatures for Bitcoin, Ethereum, and 25+ blockchains. Zero dependencies. Constant-time layer. 12+ platforms.
 
 <!-- SEO keywords (not rendered by GitHub) -->
-<!-- secp256k1 library fastest GPU CUDA OpenCL Metal ROCm ECDSA sign verify Schnorr BIP-340 Bitcoin Ethereum signature acceleration elliptic curve cryptography C++ C++20 high performance zero dependency batch verification constant time side channel resistance embedded ESP32 STM32 ARM Cortex-M RISC-V ARM64 WebAssembly WASM cross-platform multi-coin address generation BIP-32 BIP-44 HD wallet derivation key recovery EIP-155 RFC-6979 transaction signing blockchain cryptocurrency libsecp256k1 alternative NVIDIA AMD Apple Silicon MuSig2 FROST threshold signatures Taproot BIP-341 BIP-342 Pedersen commitments adaptor signatures ECDH key exchange secp256k1 GPU acceleration secp256k1 on embedded secp256k1 benchmarks secp256k1 constant time secp256k1 WASM secp256k1 C ABI FFI bindings Python Go Rust Java Node.js fastest secp256k1 implementation constant-time ECC library for RISC-V bitcoin cryptography optimization high-throughput elliptic curve signing secp256k1 RISC-V constant-time branchless cryptography GLV endomorphism Hamburg signed-digit comb Renes-Costello-Bathalter complete addition formulas dudect side-channel testing ASan UBSan TSan fuzzing libFuzzer valgrind memcheck security audit vulnerability scanning SLSA provenance supply chain security OpenSSF Scorecard CodeQL SonarCloud clang-tidy static analysis Docker container reproducible build Debian APT RPM Arch AUR Linux packaging AGPL-3.0 open source cryptographic library secp256k1 formal verification Fiat-Crypto Montgomery multiplication Barrett reduction BIP-327 multi-party computation MPC digital signatures public key cryptography PKI key agreement protocol -->
+<!-- secp256k1 library fastest GPU CUDA OpenCL Metal ROCm ECDSA sign verify Schnorr BIP-340 Bitcoin Ethereum signature acceleration elliptic curve cryptography C++ C++20 high performance zero dependency batch verification constant time side channel resistance embedded ESP32 STM32 ARM Cortex-M RISC-V ARM64 WebAssembly WASM cross-platform multi-coin address generation BIP-32 BIP-44 HD wallet derivation key recovery EIP-155 RFC-6979 transaction signing blockchain cryptocurrency libsecp256k1 alternative NVIDIA AMD Apple Silicon MuSig2 FROST threshold signatures Taproot BIP-341 BIP-342 Pedersen commitments adaptor signatures ECDH key exchange secp256k1 GPU acceleration secp256k1 on embedded secp256k1 benchmarks secp256k1 constant time secp256k1 WASM secp256k1 C ABI FFI bindings Python Go Rust Java Node.js fastest secp256k1 implementation constant-time ECC library for RISC-V bitcoin cryptography optimization high-throughput elliptic curve signing secp256k1 RISC-V constant-time branchless cryptography GLV endomorphism Hamburg signed-digit comb Renes-Costello-Bathalter complete addition formulas dudect side-channel testing ASan UBSan TSan fuzzing libFuzzer valgrind memcheck security audit vulnerability scanning SLSA provenance supply chain security OpenSSF Scorecard CodeQL SonarCloud clang-tidy static analysis Docker container reproducible build Debian APT RPM Arch AUR Linux packaging MIT open source cryptographic library secp256k1 formal verification Fiat-Crypto Montgomery multiplication Barrett reduction BIP-327 multi-party computation MPC digital signatures public key cryptography PKI key agreement protocol -->

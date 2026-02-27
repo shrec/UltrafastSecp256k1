@@ -4,7 +4,7 @@ Name:           libufsecp
 Version:        3.12.1
 Release:        1%{?dist}
 Summary:        High-performance secp256k1 elliptic curve cryptography library
-License:        AGPL-3.0-or-later
+License:        MIT
 URL:            https://github.com/shrec/UltrafastSecp256k1
 Source0:        %{url}/archive/v%{version}/UltrafastSecp256k1-%{version}.tar.gz
 

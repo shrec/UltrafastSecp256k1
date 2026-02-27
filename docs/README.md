@@ -188,7 +188,7 @@ UltrafastSecp256k1/
 
 ## License
 
-AGPL-3.0 -- See [LICENSE](../LICENSE)
+MIT -- See [LICENSE](../LICENSE)
 
-Commercial licensing available -- contact [payysoon@gmail.com](mailto:payysoon@gmail.com)
+Integration consulting available -- contact [payysoon@gmail.com](mailto:payysoon@gmail.com)
 

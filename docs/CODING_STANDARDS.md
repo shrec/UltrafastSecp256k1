@@ -1,6 +1,6 @@
 # Coding Standards
 
-> SPDX-License-Identifier: AGPL-3.0-or-later
+> SPDX-License-Identifier: MIT
 
 This document defines the **required coding standards** for all contributions to UltrafastSecp256k1.
 Every pull request MUST comply with these rules. Reviewers WILL reject PRs that violate them.

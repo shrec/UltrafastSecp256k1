@@ -327,7 +327,7 @@ function Run-CategoryB {
                         name = "UltrafastSecp256k1"
                         version = $Version
                         description = "High-performance secp256k1 ECC library"
-                        licenses = @(@{ license = @{ id = "AGPL-3.0-or-later" } })
+                        licenses = @(@{ license = @{ id = "MIT" } })
                     }
                 }
                 components = @()

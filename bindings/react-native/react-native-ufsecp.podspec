@@ -3,7 +3,7 @@ Pod::Spec.new do |s|
   s.version      = "3.4.0"
   s.summary      = "React Native bindings for UltrafastSecp256k1 (ufsecp C ABI v1)"
   s.homepage     = "https://github.com/shrec/UltrafastSecp256k1"
-  s.license      = "AGPL-3.0-only"
+  s.license      = "MIT"
   s.author       = "UltrafastSecp256k1"
   s.source       = { :git => "https://github.com/shrec/UltrafastSecp256k1.git", :tag => s.version }
   s.platforms    = { :ios => "15.0" }

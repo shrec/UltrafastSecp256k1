@@ -78,9 +78,9 @@ See [[API Reference]] for the full CT API and [[Examples]] for usage patterns.
 
 ## License
 
-AGPL v3 -- See [LICENSE](https://github.com/shrec/UltrafastSecp256k1/blob/main/LICENSE)
+MIT -- See [LICENSE](https://github.com/shrec/UltrafastSecp256k1/blob/main/LICENSE)
 
-**Commercial License**: Contact [payysoon@gmail.com](mailto:payysoon@gmail.com) for proprietary use.
+**Commercial support**: Contact [payysoon@gmail.com](mailto:payysoon@gmail.com) for integration consulting.
 
 ## Support the Project
 

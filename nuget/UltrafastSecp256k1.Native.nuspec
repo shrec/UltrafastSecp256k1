@@ -6,7 +6,7 @@
     <title>UltrafastSecp256k1 Native (ufsecp C ABI)</title>
     <authors>shrec</authors>
     <owners>shrec</owners>
-    <license type="expression">AGPL-3.0-only</license>
+    <license type="expression">MIT</license>
     <projectUrl>https://github.com/shrec/UltrafastSecp256k1</projectUrl>
     <description>
 Native runtime package for UltrafastSecp256k1 — high-performance secp256k1 elliptic curve cryptography.

@@ -228,7 +228,7 @@ CPU-computed data transfers directly to GPU via `cudaMemcpy` (little-endian, sam
 
 ## License
 
-AGPL-3.0 -- see [LICENSE](../LICENSE)
+MIT -- see [LICENSE](../LICENSE)
 
 ---
 

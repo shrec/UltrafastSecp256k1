@@ -3,7 +3,7 @@
   "version": "0.0.0-dev",
   "description": "High-performance secp256k1 elliptic curve library — ECDSA, Schnorr (BIP-340), ECDH, Taproot (BIP-341), MuSig2 (BIP-327), BIP-32 HD, stable C ABI (ufsecp)",
   "homepage": "https://github.com/shrec/UltrafastSecp256k1",
-  "license": "AGPL-3.0",
+  "license": "MIT",
   "supports": "x64 | arm64",
   "features": {
     "asm": {

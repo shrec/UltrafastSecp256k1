@@ -132,7 +132,7 @@ The C ABI layer uses the **fast** (variable-time) implementation for maximum thr
 
 ## License
 
-AGPL-3.0
+MIT
 
 ## Links
 

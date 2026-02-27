@@ -14,7 +14,7 @@ project(UltrafastSecp256k1
 
 # Project metadata
 set(PROJECT_HOMEPAGE_URL "https://github.com/shrec/UltrafastSecp256k1")
-set(PROJECT_LICENSE "AGPL-3.0")
+set(PROJECT_LICENSE "MIT")
 
 # C++20 required
 set(CMAKE_CXX_STANDARD 20)
@@ -282,7 +282,7 @@ elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64")
 endif()
 
 # RPM-specific
-set(CPACK_RPM_PACKAGE_LICENSE "AGPL-3.0-or-later")
+set(CPACK_RPM_PACKAGE_LICENSE "MIT")
 set(CPACK_RPM_PACKAGE_GROUP "System Environment/Libraries")
 set(CPACK_RPM_FILE_NAME RPM-DEFAULT)
 set(CPACK_RPM_PACKAGE_REQUIRES "glibc >= 2.17")

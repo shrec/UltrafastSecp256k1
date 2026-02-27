@@ -2,7 +2,7 @@
 name = "ufsecp-sys"
 version = "0.0.0-dev"
 edition = "2021"
-license = "AGPL-3.0"
+license = "MIT"
 description = "Raw FFI bindings for UltrafastSecp256k1 (ufsecp C ABI)"
 repository = "https://github.com/shrec/UltrafastSecp256k1"
 links = "ufsecp"
