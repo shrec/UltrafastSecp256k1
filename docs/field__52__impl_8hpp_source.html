@@ -217,8 +217,8 @@ $(document).ready(function(){initNavTree('field__52__impl_8hpp_source.html','');
 <div class="line"><a id="l00117" name="l00117"></a><span class="lineno">  117</span>    fe52_mul_inner_riscv64(r, a, b);</div>
 <div class="line"><a id="l00118" name="l00118"></a><span class="lineno">  118</span><span class="preprocessor">#else</span></div>
 <div class="line"><a id="l00119" name="l00119"></a><span class="lineno">  119</span>    <span class="keyword">using </span>u128 = <span class="keywordtype">unsigned</span> __int128;</div>
-<div class="line"><a id="l00120" name="l00120"></a><span class="lineno">  120</span>    u128 c, d;</div>
-<div class="line"><a id="l00121" name="l00121"></a><span class="lineno">  121</span>    std::uint64_t t3, t4, tx, u0;</div>
+<div class="line"><a id="l00120" name="l00120"></a><span class="lineno">  120</span>    u128 c = 0, d = 0;</div>
+<div class="line"><a id="l00121" name="l00121"></a><span class="lineno">  121</span>    std::uint64_t t3 = 0, t4 = 0, tx = 0, u0 = 0;</div>
 <div class="line"><a id="l00122" name="l00122"></a><span class="lineno">  122</span>    <span class="keyword">const</span> std::uint64_t a0 = a[0], a1 = a[1], a2 = a[2], a3 = a[3], a4 = a[4];</div>
 <div class="line"><a id="l00123" name="l00123"></a><span class="lineno">  123</span> </div>
 <div class="line"><a id="l00124" name="l00124"></a><span class="lineno">  124</span>    <span class="comment">// -- Column 3 + reduced column 8 ---------------------------------</span></div>
@@ -306,8 +306,8 @@ $(document).ready(function(){initNavTree('field__52__impl_8hpp_source.html','');
 <div class="line"><a id="l00206" name="l00206"></a><span class="lineno">  206</span>    fe52_sqr_inner_riscv64(r, a);</div>
 <div class="line"><a id="l00207" name="l00207"></a><span class="lineno">  207</span><span class="preprocessor">#else</span></div>
 <div class="line"><a id="l00208" name="l00208"></a><span class="lineno">  208</span>    <span class="keyword">using </span>u128 = <span class="keywordtype">unsigned</span> __int128;</div>
-<div class="line"><a id="l00209" name="l00209"></a><span class="lineno">  209</span>    u128 c, d;</div>
-<div class="line"><a id="l00210" name="l00210"></a><span class="lineno">  210</span>    std::uint64_t t3, t4, tx, u0;</div>
+<div class="line"><a id="l00209" name="l00209"></a><span class="lineno">  209</span>    u128 c = 0, d = 0;</div>
+<div class="line"><a id="l00210" name="l00210"></a><span class="lineno">  210</span>    std::uint64_t t3 = 0, t4 = 0, tx = 0, u0 = 0;</div>
 <div class="line"><a id="l00211" name="l00211"></a><span class="lineno">  211</span>    <span class="keyword">const</span> std::uint64_t a0 = a[0], a1 = a[1], a2 = a[2], a3 = a[3], a4 = a[4];</div>
 <div class="line"><a id="l00212" name="l00212"></a><span class="lineno">  212</span> </div>
 <div class="line"><a id="l00213" name="l00213"></a><span class="lineno">  213</span>    <span class="comment">// -- Column 3 + reduced column 8 ---------------------------------</span></div>
@@ -378,7 +378,7 @@ $(document).ready(function(){initNavTree('field__52__impl_8hpp_source.html','');
 <div class="line"><a id="l00278" name="l00278"></a><span class="lineno">  278</span>    t2 += (t1 &gt;&gt; 52); t1 &amp;= <a class="code hl_variable" href="namespacesecp256k1_1_1fast_1_1fe52__constants.html#a93eea5d396c98be6f7d85cbf37e429ed">M52</a>;</div>
 <div class="line"><a id="l00279" name="l00279"></a><span class="lineno">  279</span>    t3 += (t2 &gt;&gt; 52); t2 &amp;= <a class="code hl_variable" href="namespacesecp256k1_1_1fast_1_1fe52__constants.html#a93eea5d396c98be6f7d85cbf37e429ed">M52</a>;</div>
 <div class="line"><a id="l00280" name="l00280"></a><span class="lineno">  280</span>    t4 += (t3 &gt;&gt; 52); t3 &amp;= <a class="code hl_variable" href="namespacesecp256k1_1_1fast_1_1fe52__constants.html#a93eea5d396c98be6f7d85cbf37e429ed">M52</a>;</div>
-<div class="line"><a id="l00281" name="l00281"></a><span class="lineno">  281</span>    std::uint64_t x = t4 &gt;&gt; 48;</div>
+<div class="line"><a id="l00281" name="l00281"></a><span class="lineno">  281</span>    std::uint64_t <span class="keyword">const</span> x = t4 &gt;&gt; 48;</div>
 <div class="line"><a id="l00282" name="l00282"></a><span class="lineno">  282</span>    t4 &amp;= <a class="code hl_variable" href="namespacesecp256k1_1_1fast_1_1fe52__constants.html#a87b119bba7d2e01e7a6cb2361d523c62">M48</a>;</div>
 <div class="line"><a id="l00283" name="l00283"></a><span class="lineno">  283</span>    t0 += x * 0x1000003D1ULL;</div>
 <div class="line"><a id="l00284" name="l00284"></a><span class="lineno">  284</span>    t1 += (t0 &gt;&gt; 52); t0 &amp;= <a class="code hl_variable" href="namespacesecp256k1_1_1fast_1_1fe52__constants.html#a93eea5d396c98be6f7d85cbf37e429ed">M52</a>;</div>

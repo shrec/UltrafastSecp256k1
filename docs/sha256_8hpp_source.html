@@ -148,7 +148,7 @@ $(document).ready(function(){initNavTree('sha256_8hpp_source.html',''); initResi
 <div class="line"><a id="l00042" name="l00042"></a><span class="lineno">   42</span>        total_ += len;</div>
 <div class="line"><a id="l00043" name="l00043"></a><span class="lineno">   43</span> </div>
 <div class="line"><a id="l00044" name="l00044"></a><span class="lineno">   44</span>        <span class="keywordflow">if</span> (buf_len_ &gt; 0) {</div>
-<div class="line"><a id="l00045" name="l00045"></a><span class="lineno">   45</span>            std::size_t fill = 64 - buf_len_;</div>
+<div class="line"><a id="l00045" name="l00045"></a><span class="lineno">   45</span>            std::size_t <span class="keyword">const</span> fill = 64 - buf_len_;</div>
 <div class="line"><a id="l00046" name="l00046"></a><span class="lineno">   46</span>            <span class="keywordflow">if</span> (len &lt; fill) {</div>
 <div class="line"><a id="l00047" name="l00047"></a><span class="lineno">   47</span>                std::memcpy(buf_ + buf_len_, ptr, len);</div>
 <div class="line"><a id="l00048" name="l00048"></a><span class="lineno">   48</span>                buf_len_ += len;</div>
@@ -176,7 +176,7 @@ $(document).ready(function(){initNavTree('sha256_8hpp_source.html',''); initResi
 <div class="line"><a id="l00069" name="l00069"></a><span class="lineno">   69</span> </div>
 <div class="foldopen" id="foldopen00070" data-start="{" data-end="}">
 <div class="line"><a id="l00070" name="l00070"></a><span class="lineno"><a class="line" href="classsecp256k1_1_1SHA256.html#ac8945cf3483fa5439d2a67096829f57a">   70</a></span>    <a class="code hl_typedef" href="classsecp256k1_1_1SHA256.html#afe548d04a90858ec7601e304fdaadbb5">digest_type</a> <a class="code hl_function" href="classsecp256k1_1_1SHA256.html#ac8945cf3483fa5439d2a67096829f57a">finalize</a>() noexcept {</div>
-<div class="line"><a id="l00071" name="l00071"></a><span class="lineno">   71</span>        std::uint64_t bits = total_ * 8;</div>
+<div class="line"><a id="l00071" name="l00071"></a><span class="lineno">   71</span>        std::uint64_t <span class="keyword">const</span> bits = total_ * 8;</div>
 <div class="line"><a id="l00072" name="l00072"></a><span class="lineno">   72</span> </div>
 <div class="line"><a id="l00073" name="l00073"></a><span class="lineno">   73</span>        <span class="comment">// -- Direct in-place padding (no per-byte update() calls) ---------</span></div>
 <div class="line"><a id="l00074" name="l00074"></a><span class="lineno">   74</span>        <span class="comment">// buf_len_ is invariantly [0,63] after update() processes full blocks.</span></div>

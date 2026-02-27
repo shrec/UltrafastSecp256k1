@@ -143,7 +143,7 @@ $(document).ready(function(){initNavTree('ct__utils_8hpp_source.html',''); initR
 <div class="line"><a id="l00042" name="l00042"></a><span class="lineno">   42</span>    <span class="comment">// Process 8 bytes at a time</span></div>
 <div class="line"><a id="l00043" name="l00043"></a><span class="lineno">   43</span>    std::size_t i = 0;</div>
 <div class="line"><a id="l00044" name="l00044"></a><span class="lineno">   44</span>    <span class="keywordflow">for</span> (; i + 8 &lt;= len; i += 8) {</div>
-<div class="line"><a id="l00045" name="l00045"></a><span class="lineno">   45</span>        std::uint64_t va, vb;</div>
+<div class="line"><a id="l00045" name="l00045"></a><span class="lineno">   45</span>        std::uint64_t va = 0, vb = 0;</div>
 <div class="line"><a id="l00046" name="l00046"></a><span class="lineno">   46</span>        std::memcpy(&amp;va, pa + i, 8);</div>
 <div class="line"><a id="l00047" name="l00047"></a><span class="lineno">   47</span>        std::memcpy(&amp;vb, pb + i, 8);</div>
 <div class="line"><a id="l00048" name="l00048"></a><span class="lineno">   48</span>        diff |= va ^ vb;</div>
@@ -195,7 +195,7 @@ $(document).ready(function(){initNavTree('ct__utils_8hpp_source.html',''); initR
 <div class="line"><a id="l00088" name="l00088"></a><span class="lineno">   88</span>    <span class="keyword">auto</span>* pb = <span class="keyword">static_cast&lt;</span>std::uint8_t*<span class="keyword">&gt;</span>(b);</div>
 <div class="line"><a id="l00089" name="l00089"></a><span class="lineno">   89</span> </div>
 <div class="line"><a id="l00090" name="l00090"></a><span class="lineno">   90</span>    <span class="keywordflow">for</span> (std::size_t i = 0; i &lt; len; ++i) {</div>
-<div class="line"><a id="l00091" name="l00091"></a><span class="lineno">   91</span>        std::uint8_t diff = (pa[i] ^ pb[i]) &amp; mask8;</div>
+<div class="line"><a id="l00091" name="l00091"></a><span class="lineno">   91</span>        std::uint8_t <span class="keyword">const</span> diff = (pa[i] ^ pb[i]) &amp; mask8;</div>
 <div class="line"><a id="l00092" name="l00092"></a><span class="lineno">   92</span>        pa[i] ^= diff;</div>
 <div class="line"><a id="l00093" name="l00093"></a><span class="lineno">   93</span>        pb[i] ^= diff;</div>
 <div class="line"><a id="l00094" name="l00094"></a><span class="lineno">   94</span>    }</div>
@@ -286,7 +286,7 @@ $(document).ready(function(){initNavTree('ct__utils_8hpp_source.html',''); initR
 <div class="line"><a id="l00166" name="l00166"></a><span class="lineno">  166</span>    std::uint64_t v = *<span class="keyword">reinterpret_cast&lt;</span><span class="keyword">const </span>u64_alias*<span class="keyword">&gt;</span>(p);</div>
 <div class="line"><a id="l00167" name="l00167"></a><span class="lineno">  167</span>    <span class="keywordflow">return</span> __builtin_bswap64(v);</div>
 <div class="line"><a id="l00168" name="l00168"></a><span class="lineno">  168</span><span class="preprocessor">#else</span></div>
-<div class="line"><a id="l00169" name="l00169"></a><span class="lineno">  169</span>    std::uint64_t v;</div>
+<div class="line"><a id="l00169" name="l00169"></a><span class="lineno">  169</span>    std::uint64_t v = 0;</div>
 <div class="line"><a id="l00170" name="l00170"></a><span class="lineno">  170</span>    std::memcpy(&amp;v, p, 8);</div>
 <div class="line"><a id="l00171" name="l00171"></a><span class="lineno">  171</span><span class="preprocessor">#if defined(__GNUC__) || defined(__clang__)</span></div>
 <div class="line"><a id="l00172" name="l00172"></a><span class="lineno">  172</span>    <span class="keywordflow">return</span> __builtin_bswap64(v);</div>
@@ -322,16 +322,16 @@ $(document).ready(function(){initNavTree('ct__utils_8hpp_source.html',''); initR
 <div class="line"><a id="l00199" name="l00199"></a><span class="lineno">  199</span>        <span class="keyword">using namespace </span>ct_compare_detail;</div>
 <div class="line"><a id="l00200" name="l00200"></a><span class="lineno">  200</span> </div>
 <div class="line"><a id="l00201" name="l00201"></a><span class="lineno">  201</span>        <span class="comment">// Load all 4 word pairs in big-endian (lexicographic order)</span></div>
-<div class="line"><a id="l00202" name="l00202"></a><span class="lineno">  202</span>        std::uint64_t w0a = ct_load_be(pa +  0), w0b = ct_load_be(pb +  0);</div>
-<div class="line"><a id="l00203" name="l00203"></a><span class="lineno">  203</span>        std::uint64_t w1a = ct_load_be(pa +  8), w1b = ct_load_be(pb +  8);</div>
-<div class="line"><a id="l00204" name="l00204"></a><span class="lineno">  204</span>        std::uint64_t w2a = ct_load_be(pa + 16), w2b = ct_load_be(pb + 16);</div>
-<div class="line"><a id="l00205" name="l00205"></a><span class="lineno">  205</span>        std::uint64_t w3a = ct_load_be(pa + 24), w3b = ct_load_be(pb + 24);</div>
+<div class="line"><a id="l00202" name="l00202"></a><span class="lineno">  202</span>        <span class="keyword">const</span> std::uint64_t w0a = ct_load_be(pa +  0), w0b = ct_load_be(pb +  0);</div>
+<div class="line"><a id="l00203" name="l00203"></a><span class="lineno">  203</span>        <span class="keyword">const</span> std::uint64_t w1a = ct_load_be(pa +  8), w1b = ct_load_be(pb +  8);</div>
+<div class="line"><a id="l00204" name="l00204"></a><span class="lineno">  204</span>        <span class="keyword">const</span> std::uint64_t w2a = ct_load_be(pa + 16), w2b = ct_load_be(pb + 16);</div>
+<div class="line"><a id="l00205" name="l00205"></a><span class="lineno">  205</span>        <span class="keyword">const</span> std::uint64_t w3a = ct_load_be(pa + 24), w3b = ct_load_be(pb + 24);</div>
 <div class="line"><a id="l00206" name="l00206"></a><span class="lineno">  206</span> </div>
 <div class="line"><a id="l00207" name="l00207"></a><span class="lineno">  207</span>        std::uint64_t result = 0;</div>
 <div class="line"><a id="l00208" name="l00208"></a><span class="lineno">  208</span> </div>
 <div class="line"><a id="l00209" name="l00209"></a><span class="lineno">  209</span>        <span class="comment">// Word 3 (bytes 24-31, least significant)</span></div>
 <div class="line"><a id="l00210" name="l00210"></a><span class="lineno">  210</span>        {</div>
-<div class="line"><a id="l00211" name="l00211"></a><span class="lineno">  211</span>            std::uint64_t gt, lt;</div>
+<div class="line"><a id="l00211" name="l00211"></a><span class="lineno">  211</span>            std::uint64_t gt = 0, lt = 0;</div>
 <div class="line"><a id="l00212" name="l00212"></a><span class="lineno">  212</span>            ct_cmp_pair(w3a, w3b, gt, lt);</div>
 <div class="line"><a id="l00213" name="l00213"></a><span class="lineno">  213</span>            std::uint64_t differs = gt | lt;  <span class="comment">// 0 or 1</span></div>
 <div class="line"><a id="l00214" name="l00214"></a><span class="lineno">  214</span>            <a class="code hl_function" href="namespacesecp256k1_1_1ct.html#a85a7d82aa4c208dbbd1f5de6b6f7d8ac">ct::value_barrier</a>(differs);</div>
@@ -343,7 +343,7 @@ $(document).ready(function(){initNavTree('ct__utils_8hpp_source.html',''); initR
 <div class="line"><a id="l00220" name="l00220"></a><span class="lineno">  220</span> </div>
 <div class="line"><a id="l00221" name="l00221"></a><span class="lineno">  221</span>        <span class="comment">// Word 2 (bytes 16-23)</span></div>
 <div class="line"><a id="l00222" name="l00222"></a><span class="lineno">  222</span>        {</div>
-<div class="line"><a id="l00223" name="l00223"></a><span class="lineno">  223</span>            std::uint64_t gt, lt;</div>
+<div class="line"><a id="l00223" name="l00223"></a><span class="lineno">  223</span>            std::uint64_t gt = 0, lt = 0;</div>
 <div class="line"><a id="l00224" name="l00224"></a><span class="lineno">  224</span>            ct_cmp_pair(w2a, w2b, gt, lt);</div>
 <div class="line"><a id="l00225" name="l00225"></a><span class="lineno">  225</span>            std::uint64_t differs = gt | lt;</div>
 <div class="line"><a id="l00226" name="l00226"></a><span class="lineno">  226</span>            <a class="code hl_function" href="namespacesecp256k1_1_1ct.html#a85a7d82aa4c208dbbd1f5de6b6f7d8ac">ct::value_barrier</a>(differs);</div>
@@ -355,7 +355,7 @@ $(document).ready(function(){initNavTree('ct__utils_8hpp_source.html',''); initR
 <div class="line"><a id="l00232" name="l00232"></a><span class="lineno">  232</span> </div>
 <div class="line"><a id="l00233" name="l00233"></a><span class="lineno">  233</span>        <span class="comment">// Word 1 (bytes 8-15)</span></div>
 <div class="line"><a id="l00234" name="l00234"></a><span class="lineno">  234</span>        {</div>
-<div class="line"><a id="l00235" name="l00235"></a><span class="lineno">  235</span>            std::uint64_t gt, lt;</div>
+<div class="line"><a id="l00235" name="l00235"></a><span class="lineno">  235</span>            std::uint64_t gt = 0, lt = 0;</div>
 <div class="line"><a id="l00236" name="l00236"></a><span class="lineno">  236</span>            ct_cmp_pair(w1a, w1b, gt, lt);</div>
 <div class="line"><a id="l00237" name="l00237"></a><span class="lineno">  237</span>            std::uint64_t differs = gt | lt;</div>
 <div class="line"><a id="l00238" name="l00238"></a><span class="lineno">  238</span>            <a class="code hl_function" href="namespacesecp256k1_1_1ct.html#a85a7d82aa4c208dbbd1f5de6b6f7d8ac">ct::value_barrier</a>(differs);</div>
@@ -367,7 +367,7 @@ $(document).ready(function(){initNavTree('ct__utils_8hpp_source.html',''); initR
 <div class="line"><a id="l00244" name="l00244"></a><span class="lineno">  244</span> </div>
 <div class="line"><a id="l00245" name="l00245"></a><span class="lineno">  245</span>        <span class="comment">// Word 0 (bytes 0-7, most significant -- overrides all)</span></div>
 <div class="line"><a id="l00246" name="l00246"></a><span class="lineno">  246</span>        {</div>
-<div class="line"><a id="l00247" name="l00247"></a><span class="lineno">  247</span>            std::uint64_t gt, lt;</div>
+<div class="line"><a id="l00247" name="l00247"></a><span class="lineno">  247</span>            std::uint64_t gt = 0, lt = 0;</div>
 <div class="line"><a id="l00248" name="l00248"></a><span class="lineno">  248</span>            ct_cmp_pair(w0a, w0b, gt, lt);</div>
 <div class="line"><a id="l00249" name="l00249"></a><span class="lineno">  249</span>            std::uint64_t differs = gt | lt;</div>
 <div class="line"><a id="l00250" name="l00250"></a><span class="lineno">  250</span>            <a class="code hl_function" href="namespacesecp256k1_1_1ct.html#a85a7d82aa4c208dbbd1f5de6b6f7d8ac">ct::value_barrier</a>(differs);</div>
@@ -394,27 +394,27 @@ $(document).ready(function(){initNavTree('ct__utils_8hpp_source.html',''); initR
 <div class="line"><a id="l00271" name="l00271"></a><span class="lineno">  271</span>        <span class="comment">// (Clang 21 RISC-V inserts beq before sltu without these)</span></div>
 <div class="line"><a id="l00272" name="l00272"></a><span class="lineno">  272</span>        <a class="code hl_function" href="namespacesecp256k1_1_1ct.html#a85a7d82aa4c208dbbd1f5de6b6f7d8ac">ct::value_barrier</a>(wa);</div>
 <div class="line"><a id="l00273" name="l00273"></a><span class="lineno">  273</span>        <a class="code hl_function" href="namespacesecp256k1_1_1ct.html#a85a7d82aa4c208dbbd1f5de6b6f7d8ac">ct::value_barrier</a>(wb);</div>
-<div class="line"><a id="l00274" name="l00274"></a><span class="lineno">  274</span>        std::uint64_t xor_val = wa ^ wb;</div>
+<div class="line"><a id="l00274" name="l00274"></a><span class="lineno">  274</span>        std::uint64_t <span class="keyword">const</span> xor_val = wa ^ wb;</div>
 <div class="line"><a id="l00275" name="l00275"></a><span class="lineno">  275</span>        <span class="comment">// nz = 1 if words differ, 0 otherwise</span></div>
 <div class="line"><a id="l00276" name="l00276"></a><span class="lineno">  276</span><span class="preprocessor">#if defined(__riscv) &amp;&amp; (__riscv_xlen == 64)</span></div>
 <div class="line"><a id="l00277" name="l00277"></a><span class="lineno">  277</span>        std::uint64_t nz;</div>
 <div class="line"><a id="l00278" name="l00278"></a><span class="lineno">  278</span>        <span class="keyword">asm</span> <span class="keyword">volatile</span>(<span class="stringliteral">&quot;snez %0, %1&quot;</span> : <span class="stringliteral">&quot;=r&quot;</span>(nz) : <span class="stringliteral">&quot;r&quot;</span>(xor_val));</div>
 <div class="line"><a id="l00279" name="l00279"></a><span class="lineno">  279</span><span class="preprocessor">#else</span></div>
-<div class="line"><a id="l00280" name="l00280"></a><span class="lineno">  280</span>        std::uint64_t nz = ((xor_val | (0ULL - xor_val)) &gt;&gt; 63) &amp; 1ULL;</div>
+<div class="line"><a id="l00280" name="l00280"></a><span class="lineno">  280</span>        std::uint64_t <span class="keyword">const</span> nz = ((xor_val | (0ULL - xor_val)) &gt;&gt; 63) &amp; 1ULL;</div>
 <div class="line"><a id="l00281" name="l00281"></a><span class="lineno">  281</span><span class="preprocessor">#endif</span></div>
 <div class="line"><a id="l00282" name="l00282"></a><span class="lineno">  282</span> </div>
 <div class="line"><a id="l00283" name="l00283"></a><span class="lineno">  283</span>        <span class="comment">// Barrier on decided only: prevent compiler from short-circuiting</span></div>
 <div class="line"><a id="l00284" name="l00284"></a><span class="lineno">  284</span>        <a class="code hl_function" href="namespacesecp256k1_1_1ct.html#a85a7d82aa4c208dbbd1f5de6b6f7d8ac">ct::value_barrier</a>(decided);</div>
 <div class="line"><a id="l00285" name="l00285"></a><span class="lineno">  285</span> </div>
 <div class="line"><a id="l00286" name="l00286"></a><span class="lineno">  286</span>        <span class="comment">// take = 1 only for the very first differing word</span></div>
-<div class="line"><a id="l00287" name="l00287"></a><span class="lineno">  287</span>        std::uint64_t take = nz &amp; (1ULL - decided);</div>
+<div class="line"><a id="l00287" name="l00287"></a><span class="lineno">  287</span>        std::uint64_t <span class="keyword">const</span> take = nz &amp; (1ULL - decided);</div>
 <div class="line"><a id="l00288" name="l00288"></a><span class="lineno">  288</span> </div>
 <div class="line"><a id="l00289" name="l00289"></a><span class="lineno">  289</span>        <span class="comment">// mask = all-ones when take==1, zero when take==0</span></div>
 <div class="line"><a id="l00290" name="l00290"></a><span class="lineno">  290</span>        std::uint64_t mask = 0ULL - take;</div>
 <div class="line"><a id="l00291" name="l00291"></a><span class="lineno">  291</span>        <a class="code hl_function" href="namespacesecp256k1_1_1ct.html#a85a7d82aa4c208dbbd1f5de6b6f7d8ac">ct::value_barrier</a>(mask);</div>
 <div class="line"><a id="l00292" name="l00292"></a><span class="lineno">  292</span> </div>
 <div class="line"><a id="l00293" name="l00293"></a><span class="lineno">  293</span>        <span class="comment">// Branchless unsigned compare: ct_cmp_pair-style barriers on inputs</span></div>
-<div class="line"><a id="l00294" name="l00294"></a><span class="lineno">  294</span>        std::uint64_t gt, lt;</div>
+<div class="line"><a id="l00294" name="l00294"></a><span class="lineno">  294</span>        std::uint64_t gt = 0, lt = 0;</div>
 <div class="line"><a id="l00295" name="l00295"></a><span class="lineno">  295</span>        <a class="code hl_function" href="namespacesecp256k1_1_1ct.html#a85a7d82aa4c208dbbd1f5de6b6f7d8ac">ct::value_barrier</a>(wa);</div>
 <div class="line"><a id="l00296" name="l00296"></a><span class="lineno">  296</span>        <a class="code hl_function" href="namespacesecp256k1_1_1ct.html#a85a7d82aa4c208dbbd1f5de6b6f7d8ac">ct::value_barrier</a>(wb);</div>
 <div class="line"><a id="l00297" name="l00297"></a><span class="lineno">  297</span><span class="preprocessor">#if defined(__riscv) &amp;&amp; (__riscv_xlen == 64)</span></div>
@@ -425,7 +425,7 @@ $(document).ready(function(){initNavTree('ct__utils_8hpp_source.html',''); initR
 <div class="line"><a id="l00302" name="l00302"></a><span class="lineno">  302</span>        lt = <span class="keyword">static_cast&lt;</span>std::uint64_t<span class="keyword">&gt;</span>(wa &lt; wb);</div>
 <div class="line"><a id="l00303" name="l00303"></a><span class="lineno">  303</span><span class="preprocessor">#endif</span></div>
 <div class="line"><a id="l00304" name="l00304"></a><span class="lineno">  304</span>        <span class="comment">// diff_sign encodes: 1 = a&gt;b, 0 = equal, -1 (0xFFFF...) = a&lt;b</span></div>
-<div class="line"><a id="l00305" name="l00305"></a><span class="lineno">  305</span>        std::uint64_t diff_sign = gt - lt;</div>
+<div class="line"><a id="l00305" name="l00305"></a><span class="lineno">  305</span>        std::uint64_t <span class="keyword">const</span> diff_sign = gt - lt;</div>
 <div class="line"><a id="l00306" name="l00306"></a><span class="lineno">  306</span> </div>
 <div class="line"><a id="l00307" name="l00307"></a><span class="lineno">  307</span>        result  = (diff_sign &amp; mask) | (result &amp; ~mask);</div>
 <div class="line"><a id="l00308" name="l00308"></a><span class="lineno">  308</span>        decided |= nz;</div>
@@ -439,20 +439,20 @@ $(document).ready(function(){initNavTree('ct__utils_8hpp_source.html',''); initR
 <div class="line"><a id="l00316" name="l00316"></a><span class="lineno">  316</span>    <span class="keywordflow">for</span> (; i &lt; len; ++i) {</div>
 <div class="line"><a id="l00317" name="l00317"></a><span class="lineno">  317</span>        std::uint64_t ai = pa[i];</div>
 <div class="line"><a id="l00318" name="l00318"></a><span class="lineno">  318</span>        std::uint64_t bi = pb[i];</div>
-<div class="line"><a id="l00319" name="l00319"></a><span class="lineno">  319</span>        std::uint64_t diff = ai ^ bi;</div>
+<div class="line"><a id="l00319" name="l00319"></a><span class="lineno">  319</span>        std::uint64_t <span class="keyword">const</span> diff = ai ^ bi;</div>
 <div class="line"><a id="l00320" name="l00320"></a><span class="lineno">  320</span> </div>
 <div class="line"><a id="l00321" name="l00321"></a><span class="lineno">  321</span><span class="preprocessor">#if defined(__riscv) &amp;&amp; (__riscv_xlen == 64)</span></div>
 <div class="line"><a id="l00322" name="l00322"></a><span class="lineno">  322</span>        std::uint64_t nz;</div>
 <div class="line"><a id="l00323" name="l00323"></a><span class="lineno">  323</span>        <span class="keyword">asm</span> <span class="keyword">volatile</span>(<span class="stringliteral">&quot;snez %0, %1&quot;</span> : <span class="stringliteral">&quot;=r&quot;</span>(nz) : <span class="stringliteral">&quot;r&quot;</span>(diff));</div>
 <div class="line"><a id="l00324" name="l00324"></a><span class="lineno">  324</span><span class="preprocessor">#else</span></div>
-<div class="line"><a id="l00325" name="l00325"></a><span class="lineno">  325</span>        std::uint64_t nz = ((diff | (0ULL - diff)) &gt;&gt; 63) &amp; 1ULL;</div>
+<div class="line"><a id="l00325" name="l00325"></a><span class="lineno">  325</span>        std::uint64_t <span class="keyword">const</span> nz = ((diff | (0ULL - diff)) &gt;&gt; 63) &amp; 1ULL;</div>
 <div class="line"><a id="l00326" name="l00326"></a><span class="lineno">  326</span><span class="preprocessor">#endif</span></div>
 <div class="line"><a id="l00327" name="l00327"></a><span class="lineno">  327</span>        <a class="code hl_function" href="namespacesecp256k1_1_1ct.html#a85a7d82aa4c208dbbd1f5de6b6f7d8ac">ct::value_barrier</a>(decided);</div>
-<div class="line"><a id="l00328" name="l00328"></a><span class="lineno">  328</span>        std::uint64_t take = nz &amp; (1ULL - decided);</div>
+<div class="line"><a id="l00328" name="l00328"></a><span class="lineno">  328</span>        std::uint64_t <span class="keyword">const</span> take = nz &amp; (1ULL - decided);</div>
 <div class="line"><a id="l00329" name="l00329"></a><span class="lineno">  329</span>        std::uint64_t mask = 0ULL - take;</div>
 <div class="line"><a id="l00330" name="l00330"></a><span class="lineno">  330</span>        <a class="code hl_function" href="namespacesecp256k1_1_1ct.html#a85a7d82aa4c208dbbd1f5de6b6f7d8ac">ct::value_barrier</a>(mask);</div>
 <div class="line"><a id="l00331" name="l00331"></a><span class="lineno">  331</span> </div>
-<div class="line"><a id="l00332" name="l00332"></a><span class="lineno">  332</span>        std::uint64_t gt_b, lt_b;</div>
+<div class="line"><a id="l00332" name="l00332"></a><span class="lineno">  332</span>        std::uint64_t gt_b = 0, lt_b = 0;</div>
 <div class="line"><a id="l00333" name="l00333"></a><span class="lineno">  333</span>        <a class="code hl_function" href="namespacesecp256k1_1_1ct.html#a85a7d82aa4c208dbbd1f5de6b6f7d8ac">ct::value_barrier</a>(ai);</div>
 <div class="line"><a id="l00334" name="l00334"></a><span class="lineno">  334</span>        <a class="code hl_function" href="namespacesecp256k1_1_1ct.html#a85a7d82aa4c208dbbd1f5de6b6f7d8ac">ct::value_barrier</a>(bi);</div>
 <div class="line"><a id="l00335" name="l00335"></a><span class="lineno">  335</span><span class="preprocessor">#if defined(__riscv) &amp;&amp; (__riscv_xlen == 64)</span></div>
@@ -462,7 +462,7 @@ $(document).ready(function(){initNavTree('ct__utils_8hpp_source.html',''); initR
 <div class="line"><a id="l00339" name="l00339"></a><span class="lineno">  339</span>        gt_b = <span class="keyword">static_cast&lt;</span>std::uint64_t<span class="keyword">&gt;</span>(ai &gt; bi);</div>
 <div class="line"><a id="l00340" name="l00340"></a><span class="lineno">  340</span>        lt_b = <span class="keyword">static_cast&lt;</span>std::uint64_t<span class="keyword">&gt;</span>(ai &lt; bi);</div>
 <div class="line"><a id="l00341" name="l00341"></a><span class="lineno">  341</span><span class="preprocessor">#endif</span></div>
-<div class="line"><a id="l00342" name="l00342"></a><span class="lineno">  342</span>        std::uint64_t diff_sign = gt_b - lt_b;</div>
+<div class="line"><a id="l00342" name="l00342"></a><span class="lineno">  342</span>        std::uint64_t <span class="keyword">const</span> diff_sign = gt_b - lt_b;</div>
 <div class="line"><a id="l00343" name="l00343"></a><span class="lineno">  343</span> </div>
 <div class="line"><a id="l00344" name="l00344"></a><span class="lineno">  344</span>        result  = (diff_sign &amp; mask) | (result &amp; ~mask);</div>
 <div class="line"><a id="l00345" name="l00345"></a><span class="lineno">  345</span>        decided |= nz;</div>

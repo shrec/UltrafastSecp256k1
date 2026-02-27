@@ -63,10 +63,10 @@ var namespacesecp256k1_1_1fast =
     [ "SelftestReport", "structsecp256k1_1_1fast_1_1SelftestReport.html", "structsecp256k1_1_1fast_1_1SelftestReport" ],
     [ "OptimalFieldElement", "namespacesecp256k1_1_1fast.html#ad889772ac557be09629ddc6f15b093f8", null ],
     [ "ProgressCallback", "namespacesecp256k1_1_1fast.html#a37c1f085bc37d25789620da90ed4988a", null ],
-    [ "FieldTier", "namespacesecp256k1_1_1fast.html#acde831e11e1dcaddfc8b9c9c70e777d4", [
-      [ "FE64", "namespacesecp256k1_1_1fast.html#acde831e11e1dcaddfc8b9c9c70e777d4a6e1d26616f2e87e0a0b534bc6357cb84", null ],
-      [ "FE52", "namespacesecp256k1_1_1fast.html#acde831e11e1dcaddfc8b9c9c70e777d4a95990f4b1bea2398e23ca5c8eb746d6a", null ],
-      [ "FE26", "namespacesecp256k1_1_1fast.html#acde831e11e1dcaddfc8b9c9c70e777d4a0220c35e8e7b548084256c53654d0a59", null ]
+    [ "FieldTier", "namespacesecp256k1_1_1fast.html#a0eaa920ca64c359d03cc376492e70cab", [
+      [ "FE64", "namespacesecp256k1_1_1fast.html#a0eaa920ca64c359d03cc376492e70caba6e1d26616f2e87e0a0b534bc6357cb84", null ],
+      [ "FE52", "namespacesecp256k1_1_1fast.html#a0eaa920ca64c359d03cc376492e70caba95990f4b1bea2398e23ca5c8eb746d6a", null ],
+      [ "FE26", "namespacesecp256k1_1_1fast.html#a0eaa920ca64c359d03cc376492e70caba0220c35e8e7b548084256c53654d0a59", null ]
     ] ],
     [ "SelftestMode", "namespacesecp256k1_1_1fast.html#aa79919388fa732a5045d756e9fe2830a", [
       [ "smoke", "namespacesecp256k1_1_1fast.html#aa79919388fa732a5045d756e9fe2830aafdfa02ecf86feac3801254da57c1c9ba", null ],
