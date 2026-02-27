@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772230808178,
+  "lastUpdate": 1772232484331,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -21185,6 +21185,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Batch Inverse (n=1000)",
             "value": 137,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "Vano Chkheidze",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d2ff415287a29095a4d8b11e94b68a9f75794b1e",
+          "message": "fix: raise remaining audit test TIMEOUT 300 -> 900 for sanitizer CI (#63)\n\nfault_injection and fuzz_parsers still timed out at 300s under ASan+UBSan.\nThe ctest --timeout 900 flag only sets a default for tests WITHOUT an\nexplicit TIMEOUT property. Tests with set_tests_properties(TIMEOUT 300)\nkeep their CMake-level limit.\n\nRaise all remaining 300s audit test timeouts to 900s:\n- fault_injection, fiat_crypto_vectors, carry_propagation\n- cross_platform_kat, fuzz_parsers, fuzz_address_bip32_ffi\n- cross_libsecp256k1\n\nVerify: CI Sanitizers (ASan+UBSan) should pass with 0 timeouts.",
+          "timestamp": "2026-02-28T02:46:29+04:00",
+          "tree_id": "6cb90873626171ca7a8dd349aac02f1e36a5c55c",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/d2ff415287a29095a4d8b11e94b68a9f75794b1e"
+        },
+        "date": 1772232482750,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 27,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 22,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 283,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 148,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 38000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 10000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 14000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 47000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 24000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 53000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 141,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 140,
             "unit": "ns"
           }
         ]
