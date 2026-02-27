@@ -18,6 +18,7 @@
 #include "secp256k1/ecdsa.hpp"
 #include "secp256k1/schnorr.hpp"
 #include "secp256k1/ct/point.hpp"
+#include "secp256k1/sanitizer_scale.hpp"
 
 using namespace secp256k1::fast;
 
@@ -78,11 +79,11 @@ int main() {
     printf("===============================================================\n\n");
 
     // Pre-allocate test data
-    constexpr int N_FIELD = 100000;
-    constexpr int N_SCALAR = 100000;
-    constexpr int N_POINT = 10000;
-    constexpr int N_SIG = 1000;
-    constexpr int N_CT = 1000;
+    const int N_FIELD = SCALED(100000, 1000);
+    const int N_SCALAR = SCALED(100000, 1000);
+    const int N_POINT = SCALED(10000, 200);
+    const int N_SIG = SCALED(1000, 50);
+    const int N_CT = SCALED(1000, 50);
 
     auto G = Point::generator();
 
@@ -104,7 +105,7 @@ int main() {
     print_result(BENCH("field_sqr", N_FIELD, {}, {
         fe_a = fe_a.square();
     }));
-    print_result(BENCH("field_inv", 10000, {}, {
+    print_result(BENCH("field_inv", SCALED(10000, 200), {}, {
         fe_a = fe_a.inverse();
     }));
     printf("\n");
@@ -124,7 +125,7 @@ int main() {
     print_result(BENCH("scalar_mul", N_SCALAR, {}, {
         sc_a = sc_a * sc_b;
     }));
-    print_result(BENCH("scalar_inv", 10000, {}, {
+    print_result(BENCH("scalar_inv", SCALED(10000, 200), {}, {
         sc_a = sc_a.inverse();
     }));
     printf("\n");

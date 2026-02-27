@@ -21,6 +21,9 @@
 #include "secp256k1/ct/ops.hpp"
 #include "secp256k1/ct_utils.hpp"
 
+// Sanitizer-aware iteration scaling
+#include "secp256k1/sanitizer_scale.hpp"
+
 using namespace secp256k1::fast;
 
 static int g_pass = 0, g_fail = 0;
@@ -256,7 +259,7 @@ static void test_recovery_edges() {
 
     auto G = Point::generator();
 
-    for (int i = 0; i < 1000; ++i) {
+    for (int i = 0; i < SCALED(1000, 50); ++i) {
         auto sk = random_scalar();
         auto pk = G.scalar_mul(sk);
         std::array<uint8_t, 32> msg{};
@@ -310,7 +313,7 @@ static void test_random_op_sequence() {
     auto G = Point::generator();
     auto acc = Point::infinity();
 
-    for (int i = 0; i < 10000; ++i) {
+    for (int i = 0; i < SCALED(10000, 200); ++i) {
         int const op = static_cast<int>(rng() % 6);
         auto k = random_scalar();
 
@@ -365,7 +368,7 @@ static void test_der_roundtrip() {
     auto G = Point::generator();
     (void)G;
 
-    for (int i = 0; i < 1000; ++i) {
+    for (int i = 0; i < SCALED(1000, 50); ++i) {
         auto sk = random_scalar();
         std::array<uint8_t, 32> msg{};
         uint64_t v = rng();
@@ -394,7 +397,7 @@ static void test_schnorr_bytes_roundtrip() {
     g_section = "schn_rt";
     printf("[9] Schnorr signature byte round-trip (1K)\n");
 
-    for (int i = 0; i < 1000; ++i) {
+    for (int i = 0; i < SCALED(1000, 50); ++i) {
         auto sk = random_scalar();
         std::array<uint8_t, 32> msg{};
         uint64_t v = rng();
@@ -421,7 +424,7 @@ static void test_sig_normalization() {
 
     auto G = Point::generator();
 
-    for (int i = 0; i < 1000; ++i) {
+    for (int i = 0; i < SCALED(1000, 50); ++i) {
         auto sk = random_scalar();
         auto pk = G.scalar_mul(sk);
         std::array<uint8_t, 32> msg{};

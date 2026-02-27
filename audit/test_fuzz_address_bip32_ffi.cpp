@@ -30,6 +30,9 @@
 // C ABI
 #include "ufsecp/ufsecp.h"
 
+// Sanitizer-aware iteration scaling
+#include "secp256k1/sanitizer_scale.hpp"
+
 // -- Infrastructure ----------------------------------------------------------
 
 static int g_pass = 0;
@@ -87,7 +90,7 @@ static void suite_1_p2pkh_fuzz(ufsecp_ctx* ctx) {
     std::printf("\n[1] P2PKH Address Fuzz (Base58Check)\n");
 
     // 1a: Random compressed-pubkey-like blobs -> should not crash
-    for (int i = 0; i < 10000; ++i) {
+    for (int i = 0; i < SCALED(10000, 200); ++i) {
         uint8_t pubkey[33];
         fill_random(pubkey, 33);
         // Set valid prefix (02 or 03)
@@ -170,7 +173,7 @@ static void suite_2_p2wpkh_fuzz(ufsecp_ctx* ctx) {
     std::printf("\n[2] P2WPKH Address Fuzz (Bech32)\n");
 
     // 2a: Random blobs as pubkey
-    for (int i = 0; i < 10000; ++i) {
+    for (int i = 0; i < SCALED(10000, 200); ++i) {
         uint8_t pubkey[33];
         fill_random(pubkey, 33);
         pubkey[0] = (rng() & 1) ? 0x02 : 0x03;
@@ -234,7 +237,7 @@ static void suite_3_p2tr_fuzz(ufsecp_ctx* ctx) {
     std::printf("\n[3] P2TR Address Fuzz (Bech32m)\n");
 
     // 3a: Random 32-byte x-only keys
-    for (int i = 0; i < 10000; ++i) {
+    for (int i = 0; i < SCALED(10000, 200); ++i) {
         uint8_t xkey[32];
         fill_random(xkey, 32);
         char addr[128] = {};
@@ -305,7 +308,7 @@ static void suite_4_wif_fuzz(ufsecp_ctx* ctx) {
 
     // 4a: Random 32-byte privkeys -> encode -> decode -> must match
     int roundtrip_ok = 0;
-    for (int i = 0; i < 5000; ++i) {
+    for (int i = 0; i < SCALED(5000, 100); ++i) {
         uint8_t privkey[32];
         fill_random(privkey, 32);
 
@@ -328,10 +331,10 @@ static void suite_4_wif_fuzz(ufsecp_ctx* ctx) {
         // Keys >= order or zero are expected to fail
         MUST_NOT_CRASH((void)0, "wif_random_no_crash");
     }
-    CHECK(roundtrip_ok > 4500, "wif_roundtrip_majority");  // >90% should be valid keys
+    CHECK(roundtrip_ok > SCALED(4500, 90), "wif_roundtrip_majority");  // >90% should be valid keys
 
     // 4b: Decode garbage strings
-    for (int i = 0; i < 5000; ++i) {
+    for (int i = 0; i < SCALED(5000, 100); ++i) {
         char garbage[128];
         size_t const glen = rng() % 120 + 1;
         fill_random_str(garbage, glen);
@@ -404,7 +407,7 @@ static void suite_5_bip32_master_fuzz(ufsecp_ctx* ctx) {
     }
 
     // 5c: Random seed bytes at all valid lengths
-    for (int i = 0; i < 5000; ++i) {
+    for (int i = 0; i < SCALED(5000, 100); ++i) {
         size_t const slen = 16 + (rng() % 49);  // 16..64
         uint8_t seed[64];
         fill_random(seed, slen);
@@ -490,7 +493,7 @@ static void suite_6_bip32_path_fuzz(ufsecp_ctx* ctx) {
     }
 
     // 6c: Random string paths
-    for (int i = 0; i < 10000; ++i) {
+    for (int i = 0; i < SCALED(10000, 200); ++i) {
         char path[128];
         size_t const plen = rng() % 100 + 1;
         fill_random_str(path, plen);
@@ -553,7 +556,7 @@ static void suite_7_bip32_derive_fuzz(ufsecp_ctx* ctx) {
     }
 
     // 7a: Normal derivation (indices 0..999)
-    for (uint32_t idx = 0; idx < 1000; ++idx) {
+    for (uint32_t idx = 0; idx < SCALED(1000, 50); ++idx) {
         ufsecp_bip32_key child;
         err = ufsecp_bip32_derive(ctx, &master, idx, &child);
         CHECK(err == UFSECP_OK, "bip32_derive_normal");
@@ -651,7 +654,7 @@ static void suite_9_ffi_ecdsa_boundary(ufsecp_ctx* ctx) {
 
     // 9a: Sign with random key + hash, verify result
     int sign_verify_ok = 0;
-    for (int i = 0; i < 5000; ++i) {
+    for (int i = 0; i < SCALED(5000, 100); ++i) {
         uint8_t pk[32], hash[32], sig[64];
         fill_random(pk, 32);
         fill_random(hash, 32);
@@ -665,10 +668,10 @@ static void suite_9_ffi_ecdsa_boundary(ufsecp_ctx* ctx) {
             }
         }
     }
-    CHECK(sign_verify_ok > 4500, "ffi_ecdsa_sign_verify_majority");
+    CHECK(sign_verify_ok > SCALED(4500, 90), "ffi_ecdsa_sign_verify_majority");
 
     // 9b: Verify with garbage
-    for (int i = 0; i < 5000; ++i) {
+    for (int i = 0; i < SCALED(5000, 100); ++i) {
         uint8_t pub33[33], hash[32], sig[64];
         fill_random(pub33, 33);
         pub33[0] = (rng() & 1) ? 0x02 : 0x03;
@@ -709,7 +712,7 @@ static void suite_10_ffi_schnorr_boundary(ufsecp_ctx* ctx) {
 
     // 10a: Sign with random key + message, verify result
     int sign_verify_ok = 0;
-    for (int i = 0; i < 5000; ++i) {
+    for (int i = 0; i < SCALED(5000, 100); ++i) {
         uint8_t pk[32], msg[32], sig[64], aux[32];
         fill_random(pk, 32);
         fill_random(msg, 32);
@@ -723,10 +726,10 @@ static void suite_10_ffi_schnorr_boundary(ufsecp_ctx* ctx) {
             }
         }
     }
-    CHECK(sign_verify_ok > 4500, "ffi_schnorr_sign_verify_majority");
+    CHECK(sign_verify_ok > SCALED(4500, 90), "ffi_schnorr_sign_verify_majority");
 
     // 10b: Verify garbage sigs
-    for (int i = 0; i < 5000; ++i) {
+    for (int i = 0; i < SCALED(5000, 100); ++i) {
         uint8_t xpub[32], msg[32], sig[64];
         fill_random(xpub, 32);
         fill_random(msg, 32);
@@ -758,7 +761,7 @@ static void suite_11_ffi_ecdh_tweak(ufsecp_ctx* ctx) {
 
     // 11a: ECDH with random keypairs
     int ecdh_ok = 0;
-    for (int i = 0; i < 2000; ++i) {
+    for (int i = 0; i < SCALED(2000, 50); ++i) {
         uint8_t sk_a[32], sk_b[32], pub_a[33], pub_b[33];
         fill_random(sk_a, 32);
         fill_random(sk_b, 32);
@@ -773,10 +776,10 @@ static void suite_11_ffi_ecdh_tweak(ufsecp_ctx* ctx) {
             }
         }
     }
-    CHECK(ecdh_ok > 1800, "ffi_ecdh_shared_secret_majority");
+    CHECK(ecdh_ok > SCALED(1800, 45), "ffi_ecdh_shared_secret_majority");
 
     // 11b: ECDH with garbage pubkey
-    for (int i = 0; i < 2000; ++i) {
+    for (int i = 0; i < SCALED(2000, 50); ++i) {
         uint8_t sk[32], garbage_pub[33], secret[32];
         fill_random(sk, 32);
         fill_random(garbage_pub, 33);
@@ -843,7 +846,7 @@ static void suite_12_ffi_taproot_boundary(ufsecp_ctx* ctx) {
     }
 
     // 12c: Random x-only keys
-    for (int i = 0; i < 5000; ++i) {
+    for (int i = 0; i < SCALED(5000, 100); ++i) {
         uint8_t xkey[32], merkle[32], output[32];
         fill_random(xkey, 32);
         fill_random(merkle, 32);

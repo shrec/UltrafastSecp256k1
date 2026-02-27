@@ -13,6 +13,7 @@
 
 #include "secp256k1/scalar.hpp"
 #include "secp256k1/point.hpp"
+#include "secp256k1/sanitizer_scale.hpp"
 
 using namespace secp256k1::fast;
 
@@ -73,7 +74,7 @@ static void test_mod_n_reduction() {
     CHECK(sum.is_zero(), "(n-1) + 1 == 0");
 
     // to_bytes -> from_bytes roundtrip
-    for (int i = 0; i < 10000; ++i) {
+    for (int i = 0; i < SCALED(10000, 200); ++i) {
         auto s = random_scalar();
         auto bytes = s.to_bytes();
         auto s2 = Scalar::from_bytes(bytes);
@@ -99,7 +100,7 @@ static void test_overflow_normalization() {
         0xBF,0xD2,0x5E,0x8C,0xD0,0x36,0x41,0x41
     };
 
-    for (int i = 0; i < 10000; ++i) {
+    for (int i = 0; i < SCALED(10000, 200); ++i) {
         auto bytes = random_bytes();
         auto s = Scalar::from_bytes(bytes);
         // Verify serialized form is < n
@@ -179,7 +180,7 @@ static void test_scalar_laws() {
     g_section = "laws";
     printf("[4] Scalar arithmetic laws (10K random)\n");
 
-    for (int i = 0; i < 10000; ++i) {
+    for (int i = 0; i < SCALED(10000, 200); ++i) {
         auto a = random_scalar();
         auto b = random_scalar();
         auto c = random_scalar();
@@ -208,14 +209,14 @@ static void test_scalar_inverse() {
 
     auto one = Scalar::one();
 
-    for (int i = 0; i < 10000; ++i) {
+    for (int i = 0; i < SCALED(10000, 200); ++i) {
         auto a = random_scalar();
         auto inv = a.inverse();
         CHECK((a * inv) == one, "a * a^-1 == 1");
     }
 
     // Double inverse
-    for (int i = 0; i < 1000; ++i) {
+    for (int i = 0; i < SCALED(1000, 50); ++i) {
         auto a = random_scalar();
         CHECK(a.inverse().inverse() == a, "(a^-1)^-1 == a");
     }
@@ -234,7 +235,7 @@ static void test_glv_split() {
 
     // For random k, verify k*G computed via GLV matches direct scalar_mul
     // (scalar_mul internally uses GLV, but we verify algebraic identity)
-    for (int i = 0; i < 1000; ++i) {
+    for (int i = 0; i < SCALED(1000, 50); ++i) {
         auto k = random_scalar();
 
         // Compute k*G
@@ -290,7 +291,7 @@ static void test_negate() {
     g_section = "negate";
     printf("[8] Negate self-consistency\n");
 
-    for (int i = 0; i < 10000; ++i) {
+    for (int i = 0; i < SCALED(10000, 200); ++i) {
         auto a = random_scalar();
         auto neg = a.negate();
         CHECK((a + neg).is_zero(), "a + (-a) == 0");

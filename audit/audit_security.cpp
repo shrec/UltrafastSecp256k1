@@ -21,6 +21,7 @@
 #include "secp256k1/recovery.hpp"
 #include "secp256k1/ct/ops.hpp"
 #include "secp256k1/ct_utils.hpp"
+#include "secp256k1/sanitizer_scale.hpp"
 
 using namespace secp256k1::fast;
 
@@ -146,7 +147,7 @@ static void test_bitflip_resilience() {
 
     auto G = Point::generator();
 
-    for (int i = 0; i < 1000; ++i) {
+    for (int i = 0; i < SCALED(1000, 50); ++i) {
         auto sk = random_scalar();
         auto pk = G.scalar_mul(sk);
         std::array<uint8_t, 32> msg{};
@@ -185,7 +186,7 @@ static void test_message_bitflip() {
 
     auto G = Point::generator();
 
-    for (int i = 0; i < 1000; ++i) {
+    for (int i = 0; i < SCALED(1000, 50); ++i) {
         auto sk = random_scalar();
         auto pk = G.scalar_mul(sk);
         std::array<uint8_t, 32> msg{};
@@ -255,7 +256,7 @@ static void test_serialization_integrity() {
     auto G = Point::generator();
 
     // Point serialization
-    for (int i = 0; i < 1000; ++i) {
+    for (int i = 0; i < SCALED(1000, 50); ++i) {
         auto P = G.scalar_mul(random_scalar());
 
         auto comp = P.to_compressed();
@@ -275,7 +276,7 @@ static void test_serialization_integrity() {
     }
 
     // Scalar byte round-trip
-    for (int i = 0; i < 1000; ++i) {
+    for (int i = 0; i < SCALED(1000, 50); ++i) {
         auto s = random_scalar();
         auto bytes = s.to_bytes();
         auto restored = Scalar::from_bytes(bytes);
@@ -283,7 +284,7 @@ static void test_serialization_integrity() {
     }
 
     // FieldElement byte round-trip
-    for (int i = 0; i < 1000; ++i) {
+    for (int i = 0; i < SCALED(1000, 50); ++i) {
         std::array<uint8_t, 32> bytes{};
         for (int j = 0; j < 4; ++j) {
             uint64_t v = rng();
@@ -310,7 +311,7 @@ static void test_compact_recovery_serial() {
     auto G = Point::generator();
     (void)G;
 
-    for (int i = 0; i < 1000; ++i) {
+    for (int i = 0; i < SCALED(1000, 50); ++i) {
         auto sk = random_scalar();
         std::array<uint8_t, 32> msg{};
         uint64_t v = rng();
@@ -338,7 +339,7 @@ static void test_double_ops() {
     auto G = Point::generator();
 
     // Double inverse: inv(inv(a)) == a
-    for (int i = 0; i < 1000; ++i) {
+    for (int i = 0; i < SCALED(1000, 50); ++i) {
         auto a = random_scalar();
         auto inv1 = a.inverse();
         auto inv2 = inv1.inverse();
@@ -346,7 +347,7 @@ static void test_double_ops() {
     }
 
     // Double negate: neg(neg(P)) == P
-    for (int i = 0; i < 1000; ++i) {
+    for (int i = 0; i < SCALED(1000, 50); ++i) {
         auto P = G.scalar_mul(random_scalar());
         auto nn = P.negate().negate();
         auto P_bytes = P.to_compressed();
@@ -409,7 +410,7 @@ static void test_high_s_rejection() {
     auto G = Point::generator();
     (void)G;
 
-    for (int i = 0; i < 1000; ++i) {
+    for (int i = 0; i < SCALED(1000, 50); ++i) {
         auto sk = random_scalar();
         std::array<uint8_t, 32> msg{};
         uint64_t v = rng();
