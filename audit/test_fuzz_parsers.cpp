@@ -28,6 +28,9 @@
 // C ABI
 #include "ufsecp/ufsecp.h"
 
+// Sanitizer-aware iteration scaling
+#include "secp256k1/sanitizer_scale.hpp"
+
 // C++ internals for to_der/from_compact round-trip
 #include "secp256k1/ecdsa.hpp"
 #include "secp256k1/scalar.hpp"
@@ -73,7 +76,7 @@ static std::array<uint8_t, 32> random32() {
 // -- Test 1: DER Parsing -- Random Bytes --------------------------------------
 
 static void test_der_random(ufsecp_ctx* ctx) {
-    const int N = 100000;
+    const int N = SCALED(100000, 1000);
     std::printf("[1] DER Parsing: Random Bytes (%d rounds)\n", N);
     int accepted = 0;
 
@@ -178,7 +181,7 @@ static void test_der_adversarial(ufsecp_ctx* ctx) {
 // -- Test 3: DER Round-Trip --------------------------------------------------
 
 static void test_der_roundtrip(ufsecp_ctx* ctx) {
-    const int N = 50000;
+    const int N = SCALED(50000, 500);
     std::printf("[3] DER Round-Trip: Compact -> DER -> Compact (%d rounds)\n", N);
 
     for (int i = 0; i < N; ++i) {
@@ -210,7 +213,7 @@ static void test_der_roundtrip(ufsecp_ctx* ctx) {
 // -- Test 4: Schnorr Signature -- Random Bytes --------------------------------
 
 static void test_schnorr_random(ufsecp_ctx* ctx) {
-    const int N = 100000;
+    const int N = SCALED(100000, 1000);
     std::printf("[4] Schnorr Verify: Random Inputs (%d rounds)\n", N);
     int accepted = 0;
 
@@ -237,7 +240,7 @@ static void test_schnorr_random(ufsecp_ctx* ctx) {
 // -- Test 5: Schnorr Round-Trip ----------------------------------------------
 
 static void test_schnorr_roundtrip(ufsecp_ctx* ctx) {
-    const int N = 10000;
+    const int N = SCALED(10000, 200);
     std::printf("[5] Schnorr Round-Trip: Sign -> Verify (%d rounds)\n", N);
 
     for (int i = 0; i < N; ++i) {
@@ -270,7 +273,7 @@ static void test_schnorr_roundtrip(ufsecp_ctx* ctx) {
 // -- Test 6: Pubkey Parse -- Random Bytes -------------------------------------
 
 static void test_pubkey_parse_random(ufsecp_ctx* ctx) {
-    const int N = 100000;
+    const int N = SCALED(100000, 1000);
     std::printf("[6] Pubkey Parse: Random Bytes (%d rounds)\n", N);
     int accepted = 0;
 
@@ -303,7 +306,7 @@ static void test_pubkey_parse_random(ufsecp_ctx* ctx) {
 // -- Test 7: Pubkey Round-Trip -----------------------------------------------
 
 static void test_pubkey_roundtrip(ufsecp_ctx* ctx) {
-    const int N = 10000;
+    const int N = SCALED(10000, 200);
     std::printf("[7] Pubkey Round-Trip: Create -> Parse (%d rounds)\n", N);
 
     for (int i = 0; i < N; ++i) {
@@ -402,7 +405,7 @@ static void test_pubkey_adversarial(ufsecp_ctx* ctx) {
 // -- Test 9: ECDSA Verify -- Random Garbage -----------------------------------
 
 static void test_ecdsa_verify_random(ufsecp_ctx* ctx) {
-    const int N = 50000;
+    const int N = SCALED(50000, 500);
     std::printf("[9] ECDSA Verify: Random Garbage (%d rounds)\n", N);
     int accepted = 0;
 

@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "secp256k1/field.hpp"
+#include "secp256k1/sanitizer_scale.hpp"
 
 using namespace secp256k1::fast;
 
@@ -64,21 +65,21 @@ static void test_addition_overflow() {
     auto one  = FieldElement::one();
 
     // a + 0 == a
-    for (int i = 0; i < 1000; ++i) {
+    for (int i = 0; i < SCALED(1000, 50); ++i) {
         auto a = random_fe();
         auto r = a + zero;
         CHECK(r == a, "a + 0 == a");
     }
 
     // a + b == b + a (commutativity)
-    for (int i = 0; i < 1000; ++i) {
+    for (int i = 0; i < SCALED(1000, 50); ++i) {
         auto a = random_fe();
         auto b = random_fe();
         CHECK((a + b) == (b + a), "a+b == b+a");
     }
 
     // (a + b) + c == a + (b + c) (associativity)
-    for (int i = 0; i < 1000; ++i) {
+    for (int i = 0; i < SCALED(1000, 50); ++i) {
         auto a = random_fe();
         auto b = random_fe();
         auto c = random_fe();
@@ -116,19 +117,19 @@ static void test_subtraction_borrow() {
     auto zero = FieldElement::from_uint64(0);
 
     // a - a == 0
-    for (int i = 0; i < 1000; ++i) {
+    for (int i = 0; i < SCALED(1000, 50); ++i) {
         auto a = random_fe();
         CHECK((a - a) == zero, "a - a == 0");
     }
 
     // a - 0 == a
-    for (int i = 0; i < 1000; ++i) {
+    for (int i = 0; i < SCALED(1000, 50); ++i) {
         auto a = random_fe();
         CHECK((a - zero) == a, "a - 0 == a");
     }
 
     // 0 - a == -a
-    for (int i = 0; i < 1000; ++i) {
+    for (int i = 0; i < SCALED(1000, 50); ++i) {
         auto a = random_fe();
         auto neg = a.negate();
         CHECK((zero - a) == neg, "0 - a == -a");
@@ -157,26 +158,26 @@ static void test_mul_carry() {
     auto zero = FieldElement::from_uint64(0);
 
     // a * 1 == a
-    for (int i = 0; i < 1000; ++i) {
+    for (int i = 0; i < SCALED(1000, 50); ++i) {
         auto a = random_fe();
         CHECK((a * one) == a, "a * 1 == a");
     }
 
     // a * 0 == 0
-    for (int i = 0; i < 1000; ++i) {
+    for (int i = 0; i < SCALED(1000, 50); ++i) {
         auto a = random_fe();
         CHECK((a * zero) == zero, "a * 0 == 0");
     }
 
     // a * b == b * a (commutativity)
-    for (int i = 0; i < 1000; ++i) {
+    for (int i = 0; i < SCALED(1000, 50); ++i) {
         auto a = random_fe();
         auto b = random_fe();
         CHECK((a * b) == (b * a), "a*b == b*a");
     }
 
     // (a * b) * c == a * (b * c) (associativity)
-    for (int i = 0; i < 1000; ++i) {
+    for (int i = 0; i < SCALED(1000, 50); ++i) {
         auto a = random_fe();
         auto b = random_fe();
         auto c = random_fe();
@@ -184,7 +185,7 @@ static void test_mul_carry() {
     }
 
     // a * (b + c) == a*b + a*c (distributivity)
-    for (int i = 0; i < 1000; ++i) {
+    for (int i = 0; i < SCALED(1000, 50); ++i) {
         auto a = random_fe();
         auto b = random_fe();
         auto c = random_fe();
@@ -201,7 +202,7 @@ static void test_square_vs_mul() {
     g_section = "sqr_vs_mul";
     printf("[4] Square vs Mul equivalence\n");
 
-    for (int i = 0; i < 10000; ++i) {
+    for (int i = 0; i < SCALED(10000, 200); ++i) {
         auto a = random_fe();
         auto sq = a.square();
         auto mul = a * a;
@@ -251,7 +252,7 @@ static void test_reduction() {
     }
 
     // to_bytes -> from_bytes roundtrip
-    for (int i = 0; i < 1000; ++i) {
+    for (int i = 0; i < SCALED(1000, 50); ++i) {
         auto a = random_fe();
         auto bytes = a.to_bytes();
         auto b = FieldElement::from_bytes(bytes);
@@ -269,7 +270,7 @@ static void test_canonical() {
     printf("[6] Canonical representation\n");
 
     // After to_bytes, all values should be < p
-    for (int i = 0; i < 10000; ++i) {
+    for (int i = 0; i < SCALED(10000, 200); ++i) {
         auto a = random_fe();
         auto bytes = a.to_bytes();
 
@@ -312,7 +313,7 @@ static void test_limb_boundary() {
     CHECK(inv == p_minus_1, "(p-1)^(-1) == p-1");
 
     // Stress: multiply near-max values
-    for (int i = 0; i < 1000; ++i) {
+    for (int i = 0; i < SCALED(1000, 50); ++i) {
         // Generate value with high limbs
         auto bytes = random_bytes();
         bytes[0] = 0xFF; bytes[1] = 0xFF; bytes[2] = 0xFF; bytes[3] = 0xFF;
@@ -335,7 +336,7 @@ static void test_inverse() {
 
     auto one = FieldElement::one();
 
-    for (int i = 0; i < 10000; ++i) {
+    for (int i = 0; i < SCALED(10000, 200); ++i) {
         auto a = random_fe();
         if (a == FieldElement::from_uint64(0)) continue;
         auto inv = a.inverse();
@@ -344,7 +345,7 @@ static void test_inverse() {
     }
 
     // Double inverse: (a^-1)^-1 == a
-    for (int i = 0; i < 1000; ++i) {
+    for (int i = 0; i < SCALED(1000, 50); ++i) {
         auto a = random_fe();
         if (a == FieldElement::from_uint64(0)) continue;
         auto inv_inv = a.inverse().inverse();
@@ -366,7 +367,7 @@ static void test_sqrt() {
 
     // sqrt(x^2) should give x or -x
     int qr_count = 0;
-    for (int i = 0; i < 10000; ++i) {
+    for (int i = 0; i < SCALED(10000, 200); ++i) {
         auto x = random_fe();
         auto x2 = x.square();
         auto s = x2.sqrt();
@@ -421,7 +422,7 @@ static void test_random_cross_check() {
     g_section = "random_cross";
     printf("[11] Random cross-check (100K operations)\n");
 
-    for (int i = 0; i < 100000; ++i) {
+    for (int i = 0; i < SCALED(100000, 1000); ++i) {
         auto a = random_fe();
         auto b = random_fe();
 

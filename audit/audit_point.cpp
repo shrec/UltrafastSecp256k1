@@ -17,6 +17,7 @@
 #include "secp256k1/point.hpp"
 #include "secp256k1/ecdsa.hpp"
 #include "secp256k1/schnorr.hpp"
+#include "secp256k1/sanitizer_scale.hpp"
 #include "test_vectors.hpp"
 
 using namespace secp256k1::fast;
@@ -104,7 +105,7 @@ static void test_jacobian_add() {
     CHECK(points_equal(G2_add, G2_dbl), "G+G == 2G");
 
     // P + Q where P != Q, P != -Q
-    for (int i = 0; i < 1000; ++i) {
+    for (int i = 0; i < SCALED(1000, 50); ++i) {
         auto k1 = random_scalar();
         auto k2 = random_scalar();
         auto P = G.scalar_mul(k1);
@@ -115,7 +116,7 @@ static void test_jacobian_add() {
     }
 
     // Associativity: (P + Q) + R == P + (Q + R)
-    for (int i = 0; i < 500; ++i) {
+    for (int i = 0; i < SCALED(500, 30); ++i) {
         auto P = G.scalar_mul(random_scalar());
         auto Q = G.scalar_mul(random_scalar());
         auto R = G.scalar_mul(random_scalar());
@@ -187,7 +188,7 @@ static void test_point_negation() {
 
     auto G = Point::generator();
 
-    for (int i = 0; i < 1000; ++i) {
+    for (int i = 0; i < SCALED(1000, 50); ++i) {
         auto P = G.scalar_mul(random_scalar());
         auto neg_P = P.negate();
 
@@ -222,7 +223,7 @@ static void test_affine_conversion() {
 
     auto G = Point::generator();
 
-    for (int i = 0; i < 1000; ++i) {
+    for (int i = 0; i < SCALED(1000, 50); ++i) {
         auto P = G.scalar_mul(random_scalar());
 
         // compressed -> uncompressed should represent same point
@@ -261,7 +262,7 @@ static void test_scalar_mul_identities() {
     auto G = Point::generator();
 
     // (a + b) * G == a*G + b*G
-    for (int i = 0; i < 1000; ++i) {
+    for (int i = 0; i < SCALED(1000, 50); ++i) {
         auto a = random_scalar();
         auto b = random_scalar();
         auto lhs = G.scalar_mul(a + b);
@@ -270,7 +271,7 @@ static void test_scalar_mul_identities() {
     }
 
     // (a * b) * G == a * (b * G)
-    for (int i = 0; i < 500; ++i) {
+    for (int i = 0; i < SCALED(500, 30); ++i) {
         auto a = random_scalar();
         auto b = random_scalar();
         auto lhs = G.scalar_mul(a * b);
@@ -317,7 +318,7 @@ static void test_ecdsa_roundtrip() {
 
     auto G = Point::generator();
 
-    for (int i = 0; i < 1000; ++i) {
+    for (int i = 0; i < SCALED(1000, 50); ++i) {
         auto sk = random_scalar();
         auto pk = G.scalar_mul(sk);
         std::array<uint8_t, 32> msg{};
@@ -351,7 +352,7 @@ static void test_schnorr_roundtrip() {
     g_section = "schnorr";
     printf("[10] Schnorr BIP-340 sign+verify round-trip (1000 random)\n");
 
-    for (int i = 0; i < 1000; ++i) {
+    for (int i = 0; i < SCALED(1000, 50); ++i) {
         auto sk = random_scalar();
         std::array<uint8_t, 32> msg{};
         uint64_t v = rng();
@@ -382,7 +383,7 @@ static void test_stress_random() {
     auto G = Point::generator();
     int failures = 0;
 
-    for (int i = 0; i < 100000; ++i) {
+    for (int i = 0; i < SCALED(100000, 1000); ++i) {
         auto k = random_scalar();
         auto P = G.scalar_mul(k);
 

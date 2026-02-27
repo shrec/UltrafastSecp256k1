@@ -28,6 +28,7 @@
 #include "secp256k1/ecdsa.hpp"
 #include "secp256k1/schnorr.hpp"
 #include "secp256k1/sha256.hpp"
+#include "secp256k1/sanitizer_scale.hpp"
 
 // -- Reference: bitcoin-core/libsecp256k1 (C API, secp256k1_* prefix) -------
 #include <secp256k1.h>
@@ -97,7 +98,7 @@ static std::array<uint8_t, 65> uf_uncompress_pubkey(const uf::Point& pt) {
 // -- Test 1: Public Key Derivation -------------------------------------------
 
 static void test_pubkey_cross(const secp256k1_context* ctx) {
-    const int N = 500 * g_multiplier;
+    const int N = SCALED(500, 30) * g_multiplier;
     std::printf("[1] Cross-Library Public Key Derivation (%d rounds)\n", N);
 
     for (int i = 0; i < N; ++i) {
@@ -136,7 +137,7 @@ static void test_pubkey_cross(const secp256k1_context* ctx) {
 // -- Test 2: ECDSA Sign(UF) -> Verify(Ref) -----------------------------------
 
 static void test_ecdsa_uf_sign_ref_verify(const secp256k1_context* ctx) {
-    const int N = 500 * g_multiplier;
+    const int N = SCALED(500, 30) * g_multiplier;
     std::printf("[2] ECDSA: Sign with UF -> Verify with libsecp256k1 (%d rounds)\n", N);
 
     for (int i = 0; i < N; ++i) {
@@ -173,7 +174,7 @@ static void test_ecdsa_uf_sign_ref_verify(const secp256k1_context* ctx) {
 // -- Test 3: ECDSA Sign(Ref) -> Verify(UF) -----------------------------------
 
 static void test_ecdsa_ref_sign_uf_verify(const secp256k1_context* ctx) {
-    const int N = 500 * g_multiplier;
+    const int N = SCALED(500, 30) * g_multiplier;
     std::printf("[3] ECDSA: Sign with libsecp256k1 -> Verify with UF (%d rounds)\n", N);
 
     for (int i = 0; i < N; ++i) {
@@ -211,7 +212,7 @@ static void test_ecdsa_ref_sign_uf_verify(const secp256k1_context* ctx) {
 // -- Test 4: Schnorr (BIP-340) Cross-Verification ---------------------------
 
 static void test_schnorr_cross(const secp256k1_context* ctx) {
-    const int N = 500 * g_multiplier;
+    const int N = SCALED(500, 30) * g_multiplier;
     std::printf("[4] Schnorr (BIP-340): Cross-Verification (%d rounds)\n", N);
 
     for (int i = 0; i < N; ++i) {
@@ -272,7 +273,7 @@ static void test_schnorr_cross(const secp256k1_context* ctx) {
 // -- Test 5: ECDSA Compact Signature Byte-Exact Match ------------------------
 
 static void test_ecdsa_sig_match(const secp256k1_context* ctx) {
-    const int N = 200 * g_multiplier;
+    const int N = SCALED(200, 20) * g_multiplier;
     std::printf("[5] ECDSA: Signature Byte-Exact Match (RFC 6979) (%d rounds)\n", N);
 
     // Both libraries implement RFC 6979 deterministic nonce generation.
@@ -416,7 +417,7 @@ static void test_edge_cases(const secp256k1_context* ctx) {
 // -- Test 7: Point Addition Cross-Check --------------------------------------
 
 static void test_point_add_cross(const secp256k1_context* ctx) {
-    const int N = 200 * g_multiplier;
+    const int N = SCALED(200, 20) * g_multiplier;
     std::printf("[7] Point Addition: (a+b)*G cross-check (%d rounds)\n", N);
 
     for (int i = 0; i < N; ++i) {
@@ -587,7 +588,7 @@ static void test_extended_edge_cases(const secp256k1_context* ctx) {
 
     // 10b: Point doubling -- P+P vs 2*P cross-check
     {
-        const int N = 100 * g_multiplier;
+        const int N = SCALED(100, 10) * g_multiplier;
         for (int i = 0; i < N; ++i) {
             auto sk_bytes = random_seckey(ctx);
             auto uf_sk = scalar_from_bytes32(sk_bytes.data());
@@ -609,7 +610,7 @@ static void test_extended_edge_cases(const secp256k1_context* ctx) {
 
     // 10c: Signature mutation rejection
     {
-        const int N = 100 * g_multiplier;
+        const int N = SCALED(100, 10) * g_multiplier;
         for (int i = 0; i < N; ++i) {
             auto sk_bytes = random_seckey(ctx);
             auto msg = random_bytes();
@@ -644,7 +645,7 @@ static void test_extended_edge_cases(const secp256k1_context* ctx) {
 
     // 10d: Consecutive scalars: k, k+1, k+2 -- verify (k+1)*G == k*G + G
     {
-        const int N = 100 * g_multiplier;
+        const int N = SCALED(100, 10) * g_multiplier;
         auto G = uf::Point::generator();
         for (int i = 0; i < N; ++i) {
             auto sk_bytes = random_seckey(ctx);

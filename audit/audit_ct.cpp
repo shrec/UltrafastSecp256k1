@@ -21,6 +21,7 @@
 #include "secp256k1/ct/scalar.hpp"
 #include "secp256k1/ct/point.hpp"
 #include "secp256k1/ct_utils.hpp"
+#include "secp256k1/sanitizer_scale.hpp"
 
 using namespace secp256k1::fast;
 
@@ -105,7 +106,7 @@ static void test_ct_cmov_cswap() {
     g_section = "ct_cmov";
     printf("[2] CT cmov / cswap (10K)\n");
 
-    for (int i = 0; i < 10000; ++i) {
+    for (int i = 0; i < SCALED(10000, 200); ++i) {
         uint64_t a[4], b[4], a_orig[4], b_orig[4];
         for (int j = 0; j < 4; ++j) {
             a[j] = a_orig[j] = rng();
@@ -173,7 +174,7 @@ static void test_ct_field_differential() {
     g_section = "ct_field";
     printf("[4] CT field ops vs fast:: differential (10K)\n");
 
-    for (int i = 0; i < 10000; ++i) {
+    for (int i = 0; i < SCALED(10000, 200); ++i) {
         auto a = random_fe();
         auto b = random_fe();
 
@@ -204,7 +205,7 @@ static void test_ct_field_differential() {
     }
 
     // inv (1K -- slower)
-    for (int i = 0; i < 1000; ++i) {
+    for (int i = 0; i < SCALED(1000, 50); ++i) {
         auto a = random_fe();
         auto fast_inv = a.inverse();
         auto ct_inv = secp256k1::ct::field_inv(a);
@@ -221,7 +222,7 @@ static void test_ct_scalar_differential() {
     g_section = "ct_scalar";
     printf("[5] CT scalar ops vs fast:: differential (10K)\n");
 
-    for (int i = 0; i < 10000; ++i) {
+    for (int i = 0; i < SCALED(10000, 200); ++i) {
         auto a = random_scalar();
         auto b = random_scalar();
 
@@ -251,7 +252,7 @@ static void test_ct_scalar_cmov() {
     g_section = "ct_s_cmov";
     printf("[6] CT scalar cmov/cswap (1K)\n");
 
-    for (int i = 0; i < 1000; ++i) {
+    for (int i = 0; i < SCALED(1000, 50); ++i) {
         auto a = random_scalar();
         auto b = random_scalar();
         auto a_orig = a;
@@ -288,7 +289,7 @@ static void test_ct_field_cmov() {
     g_section = "ct_f_cmov";
     printf("[7] CT field cmov/cswap/select (1K)\n");
 
-    for (int i = 0; i < 1000; ++i) {
+    for (int i = 0; i < SCALED(1000, 50); ++i) {
         auto a = random_fe();
         auto b = random_fe();
         auto a_orig = a;
@@ -362,7 +363,7 @@ static void test_ct_comparisons() {
     CHECK(secp256k1::ct::scalar_eq(zero_sc, one_sc) == 0, "sc 0 != 1");
 
     // Random (1K)
-    for (int i = 0; i < 1000; ++i) {
+    for (int i = 0; i < SCALED(1000, 50); ++i) {
         auto a = random_fe();
         auto b = random_fe();
         bool const fast_eq = (a == b);
@@ -382,7 +383,7 @@ static void test_ct_point_scalar_mul() {
 
     auto G = Point::generator();
 
-    for (int i = 0; i < 1000; ++i) {
+    for (int i = 0; i < SCALED(1000, 50); ++i) {
         auto k = random_scalar();
 
         auto fast_r = G.scalar_mul(k);
@@ -417,7 +418,7 @@ static void test_ct_complete_addition() {
 
     auto G = Point::generator();
 
-    for (int i = 0; i < 1000; ++i) {
+    for (int i = 0; i < SCALED(1000, 50); ++i) {
         auto P = G.scalar_mul(random_scalar());
         auto Q = G.scalar_mul(random_scalar());
 
@@ -532,7 +533,7 @@ static void test_ct_generator_mul() {
 
     auto G = Point::generator();
 
-    for (int i = 0; i < 500; ++i) {
+    for (int i = 0; i < SCALED(500, 30); ++i) {
         auto k = random_scalar();
         auto fast_r = G.scalar_mul(k);
         auto ct_r = secp256k1::ct::generator_mul(k);

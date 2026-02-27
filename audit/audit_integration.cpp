@@ -22,6 +22,7 @@
 #include "secp256k1/batch_verify.hpp"
 #include "secp256k1/ct/point.hpp"
 #include "secp256k1/ct_utils.hpp"
+#include "secp256k1/sanitizer_scale.hpp"
 
 using namespace secp256k1::fast;
 
@@ -67,7 +68,7 @@ static void test_ecdh() {
 
     auto G = Point::generator();
 
-    for (int i = 0; i < 1000; ++i) {
+    for (int i = 0; i < SCALED(1000, 50); ++i) {
         auto sk_a = random_scalar();
         auto sk_b = random_scalar();
         auto pk_a = G.scalar_mul(sk_a);
@@ -219,7 +220,7 @@ static void test_ecdsa_full_roundtrip() {
 
     auto G = Point::generator();
 
-    for (int i = 0; i < 1000; ++i) {
+    for (int i = 0; i < SCALED(1000, 50); ++i) {
         auto sk = random_scalar();
         auto pk = G.scalar_mul(sk);
         std::array<uint8_t, 32> msg{};
@@ -260,7 +261,7 @@ static void test_schnorr_cross_path() {
     std::vector<secp256k1::SchnorrBatchEntry> batch;
     batch.reserve(500);
 
-    for (int i = 0; i < 500; ++i) {
+    for (int i = 0; i < SCALED(500, 30); ++i) {
         auto sk = random_scalar();
         auto pkx = secp256k1::schnorr_pubkey(sk);
         std::array<uint8_t, 32> msg{};
@@ -296,7 +297,7 @@ static void test_fast_vs_ct_integration() {
 
     auto G = Point::generator();
 
-    for (int i = 0; i < 500; ++i) {
+    for (int i = 0; i < SCALED(500, 30); ++i) {
         auto sk = random_scalar();
 
         // Generate pubkey via fast path
@@ -438,7 +439,7 @@ static void test_stress_mixed() {
     auto G = Point::generator();
     int ok_count = 0;
 
-    for (int i = 0; i < 5000; ++i) {
+    for (int i = 0; i < SCALED(5000, 100); ++i) {
         auto sk = random_scalar();
         auto pk = G.scalar_mul(sk);
         std::array<uint8_t, 32> msg{};

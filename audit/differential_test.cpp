@@ -25,6 +25,7 @@
 #include "secp256k1/ecdsa.hpp"
 #include "secp256k1/schnorr.hpp"
 #include "secp256k1/sha256.hpp"
+#include "secp256k1/sanitizer_scale.hpp"
 
 using namespace secp256k1::fast;
 
@@ -69,7 +70,7 @@ static Scalar random_scalar() {
 // -- Test: Public Key Derivation ---------------------------------------------
 
 static void test_pubkey_derivation() {
-    const int N = 1000 * g_multiplier;
+    const int N = SCALED(1000, 50) * g_multiplier;
     printf("[1] Public Key Derivation (%d random keys)\n", N);
 
     // Known test vector: k=1 -> G
@@ -104,7 +105,7 @@ static void test_pubkey_derivation() {
 // -- Test: ECDSA Sign+Verify Cross-Check -------------------------------------
 
 static void test_ecdsa_cross() {
-    const int N = 1000 * g_multiplier;
+    const int N = SCALED(1000, 50) * g_multiplier;
     printf("[2] ECDSA Sign+Verify Internal Consistency (%d rounds)\n", N);
 
     for (int i = 0; i < N; ++i) {
@@ -142,7 +143,7 @@ static void test_ecdsa_cross() {
 // -- Test: Schnorr Sign+Verify Cross-Check -----------------------------------
 
 static void test_schnorr_cross() {
-    const int N = 1000 * g_multiplier;
+    const int N = SCALED(1000, 50) * g_multiplier;
     printf("[3] Schnorr (BIP-340) Sign+Verify Internal Consistency (%d rounds)\n", N);
 
     for (int i = 0; i < N; ++i) {
@@ -172,7 +173,7 @@ static void test_schnorr_cross() {
 
 static void test_point_arithmetic() {
     printf("[4] Point Arithmetic Identities\n");
-    const int N = 100 * g_multiplier;
+    const int N = SCALED(100, 10) * g_multiplier;
 
     auto G = Point::generator();
 
@@ -234,7 +235,7 @@ static void test_point_arithmetic() {
 
 static void test_scalar_arithmetic() {
     printf("[5] Scalar Arithmetic\n");
-    const int N = 100 * g_multiplier;
+    const int N = SCALED(100, 10) * g_multiplier;
 
     // a + b == b + a (commutativity)
     for (int i = 0; i < N; ++i) {
@@ -277,7 +278,7 @@ static void test_scalar_arithmetic() {
 
 static void test_field_arithmetic() {
     printf("[6] Field Arithmetic\n");
-    const int N = 100 * g_multiplier;
+    const int N = SCALED(100, 10) * g_multiplier;
 
     // x * x_inv == 1
     for (int i = 0; i < N; ++i) {
@@ -306,7 +307,7 @@ static void test_field_arithmetic() {
 
 static void test_ecdsa_roundtrip() {
     printf("[7] ECDSA Signature Serialization Roundtrip\n");
-    const int N = 100 * g_multiplier;
+    const int N = SCALED(100, 10) * g_multiplier;
 
     for (int i = 0; i < N; ++i) {
         auto sk = random_scalar();

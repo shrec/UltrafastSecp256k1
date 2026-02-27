@@ -27,6 +27,9 @@
 #include "secp256k1/ct/ops.hpp"
 #include "secp256k1/ct_utils.hpp"
 
+// Sanitizer-aware iteration scaling
+#include "secp256k1/sanitizer_scale.hpp"
+
 using namespace secp256k1::fast;
 
 static int g_pass = 0, g_fail = 0;
@@ -79,7 +82,7 @@ static void test_scalar_fault_injection() {
     g_section = "scalar_fault";
     printf("[1] Scalar fault injection (bit-flip in k -> wrong kG)\n");
 
-    const int TRIALS = 500;
+    const int TRIALS = SCALED(500, 30);
     int detected = 0;
 
     for (int i = 0; i < TRIALS; ++i) {
@@ -116,7 +119,7 @@ static void test_point_coord_fault() {
     g_section = "point_coord_fault";
     printf("[2] Point coordinate fault injection\n");
 
-    const int TRIALS = 500;
+    const int TRIALS = SCALED(500, 30);
     int detected = 0;
 
     for (int i = 0; i < TRIALS; ++i) {
@@ -153,7 +156,7 @@ static void test_ecdsa_signature_fault() {
     g_section = "ecdsa_sig_fault";
     printf("[3] ECDSA signature fault injection\n");
 
-    const int TRIALS = 200;
+    const int TRIALS = SCALED(200, 20);
     int sig_faults_detected = 0;
     int msg_faults_detected = 0;
     int key_faults_detected = 0;
@@ -214,7 +217,7 @@ static void test_schnorr_signature_fault() {
     g_section = "schnorr_sig_fault";
     printf("[4] Schnorr signature fault injection\n");
 
-    const int TRIALS = 200;
+    const int TRIALS = SCALED(200, 20);
     int detected = 0;
 
     for (int i = 0; i < TRIALS; ++i) {
@@ -255,7 +258,7 @@ static void test_ct_fault_resilience() {
     printf("[5] CT operations fault resilience\n");
 
     // Test: ct_compare must detect single-bit differences
-    const int TRIALS = 1000;
+    const int TRIALS = SCALED(1000, 50);
     int detected = 0;
 
     for (int i = 0; i < TRIALS; ++i) {
@@ -300,7 +303,7 @@ static void test_cascading_fault() {
     g_section = "cascading_fault";
     printf("[6] Cascading fault simulation (multi-step scalar_mul)\n");
 
-    const int TRIALS = 100;
+    const int TRIALS = SCALED(100, 10);
     int detected = 0;
 
     for (int i = 0; i < TRIALS; ++i) {
@@ -344,7 +347,7 @@ static void test_addition_fault() {
     g_section = "addition_fault";
     printf("[7] Point addition fault injection\n");
 
-    const int TRIALS = 300;
+    const int TRIALS = SCALED(300, 20);
     int detected = 0;
 
     for (int i = 0; i < TRIALS; ++i) {
@@ -382,7 +385,7 @@ static void test_glv_fault() {
     g_section = "glv_fault";
     printf("[8] GLV decomposition fault resilience\n");
 
-    const int TRIALS = 200;
+    const int TRIALS = SCALED(200, 20);
     int consistent = 0;
 
     for (int i = 0; i < TRIALS; ++i) {
