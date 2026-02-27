@@ -53,14 +53,14 @@ jobs:
 
       - name: Build fuzzers
         id: build
-        uses: google/clusterfuzzlite/actions/build_fuzzers@884713a2518c28d97e97313e7b88f51a511fe997 # v1
+        uses: google/clusterfuzzlite/actions/build_fuzzers@52ecc61cb587ee99c26825a112a21abf19c7448c # v1
         with:
           language: c++
           sanitizer: ${{ matrix.sanitizer }}
 
       - name: Run fuzzers (120s per target)
         id: run
-        uses: google/clusterfuzzlite/actions/run_fuzzers@884713a2518c28d97e97313e7b88f51a511fe997 # v1
+        uses: google/clusterfuzzlite/actions/run_fuzzers@52ecc61cb587ee99c26825a112a21abf19c7448c # v1
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           fuzz-seconds: 120
@@ -86,14 +86,14 @@ jobs:
 
       - name: Build fuzzers
         id: build
-        uses: google/clusterfuzzlite/actions/build_fuzzers@884713a2518c28d97e97313e7b88f51a511fe997 # v1
+        uses: google/clusterfuzzlite/actions/build_fuzzers@52ecc61cb587ee99c26825a112a21abf19c7448c # v1
         with:
           language: c++
           sanitizer: ${{ matrix.sanitizer }}
 
       - name: Run fuzzers (extended)
         id: run
-        uses: google/clusterfuzzlite/actions/run_fuzzers@884713a2518c28d97e97313e7b88f51a511fe997 # v1
+        uses: google/clusterfuzzlite/actions/run_fuzzers@52ecc61cb587ee99c26825a112a21abf19c7448c # v1
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           fuzz-seconds: ${{ github.event.inputs.fuzz_seconds || '600' }}
@@ -115,14 +115,14 @@ jobs:
 
       - name: Build fuzzers
         id: build
-        uses: google/clusterfuzzlite/actions/build_fuzzers@884713a2518c28d97e97313e7b88f51a511fe997 # v1
+        uses: google/clusterfuzzlite/actions/build_fuzzers@52ecc61cb587ee99c26825a112a21abf19c7448c # v1
         with:
           language: c++
           sanitizer: address
 
       - name: Prune corpus
         id: prune
-        uses: google/clusterfuzzlite/actions/run_fuzzers@884713a2518c28d97e97313e7b88f51a511fe997 # v1
+        uses: google/clusterfuzzlite/actions/run_fuzzers@52ecc61cb587ee99c26825a112a21abf19c7448c # v1
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           fuzz-seconds: 60
