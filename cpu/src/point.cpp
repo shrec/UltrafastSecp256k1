@@ -566,7 +566,10 @@ static JacobianPoint52 jac52_add_mixed(const JacobianPoint52& p, const AffinePoi
     // H = U2 - X1 [sub via negate]
     // p.x magnitude: <=23 (from jac52_double) or <=7 (from add_mixed). Use 23.
     const FieldElement52 negX1 = p.x.negate(23);     // mag 24
-    const FieldElement52 h = u2 + negX1;             // mag 25
+    FieldElement52 h = u2 + negX1;                   // mag 25
+    // normalize_weak before zero-check: h is at magnitude 25 (= 1 + 24).
+    // Reduce limbs to canonical range so normalizes_to_zero() is reliable.
+    h.normalize_weak();
 
     // Check for point equality/inverse (rare -- fast normalizes_to_zero)
     if (SECP256K1_UNLIKELY(h.normalizes_to_zero())) {
@@ -642,6 +645,9 @@ static void jac52_add_mixed_inplace(JacobianPoint52& p, const AffinePoint52& q) 
     FieldElement52 negX1 = p.x.negate(23);
     FieldElement52 h = u2 + negX1;                            // u2, negX1 dead
 
+    // normalize_weak before zero-check: h is at magnitude 25 (= 1 + 24).
+    // Reduce limbs to canonical range so normalizes_to_zero() is reliable.
+    h.normalize_weak();
     if (SECP256K1_UNLIKELY(h.normalizes_to_zero())) {
         FieldElement52 negY1 = p.y.negate(10);
         FieldElement52 diff = s2 + negY1;
