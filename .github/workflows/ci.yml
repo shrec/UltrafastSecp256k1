@@ -143,7 +143,10 @@ jobs:
         run: cmake --build build/${{ matrix.sanitizer }} -j$(nproc)
 
       - name: Test (${{ matrix.label }})
-        run: ctest --test-dir build/${{ matrix.sanitizer }} --output-on-failure -j$(nproc) -E "^(ct_sidechannel|unified_audit)" --timeout 300
+        # Sanitizers add 3-15x overhead; raise per-test timeout from 300s to 900s.
+        # Exclude selftest (unified runner) -- standalone tests cover the same
+        # modules individually and finish faster under instrumentation.
+        run: ctest --test-dir build/${{ matrix.sanitizer }} --output-on-failure -j$(nproc) -E "^(ct_sidechannel|unified_audit|selftest)" --timeout 900
 
   # -- Windows (MSVC + Clang-cl) ----------------------------------------------
   windows:
