@@ -583,9 +583,12 @@ FieldElement52 FieldElement52::from_bytes(const std::array<std::uint8_t, 32>& by
 
 // -- Inverse via safegcd (4x64 round-trip, single wrapper) ---------------
 // Replaces the common pattern: FieldElement52::from_fe(x.to_fe().inverse())
+// Returns zero for zero input (consistent with noexcept contract + embedded).
 
 SECP256K1_FE52_FORCE_INLINE
 FieldElement52 FieldElement52::inverse_safegcd() const noexcept {
+    if (SECP256K1_UNLIKELY(normalizes_to_zero()))
+        return FieldElement52::zero();
     return from_fe(to_fe().inverse());
 }
 

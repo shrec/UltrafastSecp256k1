@@ -893,6 +893,10 @@ static Point scalar_mul_glv52(const Point& base, const Scalar& scalar) {
         for (std::size_t i = 1; i < glv_table_size; i++) {
             prods[i] = prods[i - 1] * eff_z[i];
         }
+        // Guard: if any eff_z is zero the cumulative product is zero
+        // and batch inversion is undefined. Fall through to 4x64 path.
+        if (SECP256K1_UNLIKELY(prods[glv_table_size - 1].normalizes_to_zero()))
+            throw 0;  // caught by catch(...) below -> 4x64 fallback
         FieldElement52 inv = prods[glv_table_size - 1].inverse_safegcd();
         std::array<FieldElement52, glv_table_size> zs;
         for (std::size_t i = glv_table_size - 1; i > 0; --i) {
