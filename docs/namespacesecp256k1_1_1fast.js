@@ -166,7 +166,7 @@ var namespacesecp256k1_1_1fast =
     [ "pow_p_minus_2_bos_coster", "namespacesecp256k1_1_1fast.html#ab9598b1d02d3fb8bade3095f709d4485", null ],
     [ "pow_p_minus_2_branchless", "namespacesecp256k1_1_1fast.html#af691b8ae075490bdc7a334c65ec094ee", null ],
     [ "pow_p_minus_2_compact_table", "namespacesecp256k1_1_1fast.html#a614b3a4c5c4438f7b6af648985f10608", null ],
-    [ "pow_p_minus_2_double_base", "namespacesecp256k1_1_1fast.html#a530d1a93905ae03f24bdb1f11eda9838", null ],
+    [ "pow_p_minus_2_double_base", "namespacesecp256k1_1_1fast.html#a2f78be3f271012542db24ae54e1b5a8e", null ],
     [ "pow_p_minus_2_eea", "namespacesecp256k1_1_1fast.html#a94282283a47b6cbc497d0bad997193dc", null ],
     [ "pow_p_minus_2_fermat_gpu", "namespacesecp256k1_1_1fast.html#ab237a01755439311897a03306549f78e", null ],
     [ "pow_p_minus_2_fixed_window5", "namespacesecp256k1_1_1fast.html#aedd2ad06e0ba3ce8e3be6ab7a51a3c0e", null ],

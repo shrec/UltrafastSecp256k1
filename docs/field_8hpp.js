@@ -44,7 +44,7 @@ var field_8hpp =
     [ "pow_p_minus_2_bos_coster", "field_8hpp.html#ab9598b1d02d3fb8bade3095f709d4485", null ],
     [ "pow_p_minus_2_branchless", "field_8hpp.html#af691b8ae075490bdc7a334c65ec094ee", null ],
     [ "pow_p_minus_2_compact_table", "field_8hpp.html#a614b3a4c5c4438f7b6af648985f10608", null ],
-    [ "pow_p_minus_2_double_base", "field_8hpp.html#a530d1a93905ae03f24bdb1f11eda9838", null ],
+    [ "pow_p_minus_2_double_base", "field_8hpp.html#a2f78be3f271012542db24ae54e1b5a8e", null ],
     [ "pow_p_minus_2_eea", "field_8hpp.html#a94282283a47b6cbc497d0bad997193dc", null ],
     [ "pow_p_minus_2_fermat_gpu", "field_8hpp.html#ab237a01755439311897a03306549f78e", null ],
     [ "pow_p_minus_2_fixed_window5", "field_8hpp.html#aedd2ad06e0ba3ce8e3be6ab7a51a3c0e", null ],

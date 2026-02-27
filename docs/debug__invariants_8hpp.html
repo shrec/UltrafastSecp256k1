@@ -173,7 +173,7 @@ Functions</h2></td></tr>
 </div><div class="memdoc">
 <b>Value:</b><div class="fragment"><div class="line">    <span class="keywordflow">do</span> { \</div>
 <div class="line">    if (!(expr)) { \</div>
-<div class="line">        std::fprintf(stderr, \</div>
+<div class="line">        (void)std::fprintf(stderr, \</div>
 <div class="line">            <span class="stringliteral">&quot;SECP_ASSERT FAILED: %s\n  at %s:%d (%s)\n&quot;</span>, \</div>
 <div class="line">            #expr, __FILE__, __LINE__, __func__); \</div>
 <div class="line">        std::abort(); \</div>
@@ -231,7 +231,7 @@ Functions</h2></td></tr>
 </div><div class="memdoc">
 <b>Value:</b><div class="fragment"><div class="line">    <span class="keywordflow">do</span> { \</div>
 <div class="line">    if (!(expr)) { \</div>
-<div class="line">        std::fprintf(stderr, \</div>
+<div class="line">        (void)std::fprintf(stderr, \</div>
 <div class="line">            <span class="stringliteral">&quot;SECP_ASSERT FAILED: %s\n  %s\n  at %s:%d (%s)\n&quot;</span>, \</div>
 <div class="line">            #expr, msg, __FILE__, __LINE__, __func__); \</div>
 <div class="line">        std::abort(); \</div>
@@ -260,13 +260,13 @@ Functions</h2></td></tr>
 <b>Value:</b><div class="fragment"><div class="line">    <span class="keywordflow">do</span> { \</div>
 <div class="line">    ++<a class="code hl_function" href="namespacesecp256k1_1_1fast_1_1debug.html#aacea7553cc7e802360611ef9f86c5d82">secp256k1::fast::debug::counters</a>().<a class="code hl_variable" href="structsecp256k1_1_1fast_1_1debug_1_1DebugCounters.html#a6d576e5f1147a010b3e8cb3e2b49362e">invariant_check_count</a>; \</div>
 <div class="line">    if (!<a class="code hl_function" href="namespacesecp256k1_1_1fast_1_1debug.html#a2e4639472047fbd4564248382b82d512">secp256k1::fast::debug::is_normalized_field_element</a>(fe)) { \</div>
-<div class="line">        std::fprintf(stderr, \</div>
+<div class="line">        (void)std::fprintf(stderr, \</div>
 <div class="line">            <span class="stringliteral">&quot;SECP_ASSERT_NORMALIZED FAILED: field element not canonical\n&quot;</span> \</div>
 <div class="line">            <span class="stringliteral">&quot;  at %s:%d (%s)\n&quot;</span>, __FILE__, __LINE__, __func__); \</div>
 <div class="line">        <span class="keyword">const</span> <span class="keyword">auto</span>&amp; _l = (fe).limbs(); \</div>
-<div class="line">        std::fprintf(stderr, <span class="stringliteral">&quot;  limbs: [%016llx, %016llx, %016llx, %016llx]\n&quot;</span>, \</div>
-<div class="line">            (<span class="keywordtype">unsigned</span> <span class="keywordtype">long</span> <span class="keywordtype">long</span>)_l[0], (<span class="keywordtype">unsigned</span> <span class="keywordtype">long</span> <span class="keywordtype">long</span>)_l[1], \</div>
-<div class="line">            (<span class="keywordtype">unsigned</span> <span class="keywordtype">long</span> <span class="keywordtype">long</span>)_l[2], (<span class="keywordtype">unsigned</span> <span class="keywordtype">long</span> <span class="keywordtype">long</span>)_l[3]); \</div>
+<div class="line">        (void)std::fprintf(stderr, <span class="stringliteral">&quot;  limbs: [%016llx, %016llx, %016llx, %016llx]\n&quot;</span>, \</div>
+<div class="line">            (<span class="keywordtype">unsigned</span> <span class="keywordtype">long</span> <span class="keywordtype">long</span>)_l[0], (<span class="keywordtype">unsigned</span> <span class="keywordtype">long</span> long)_l[1], \</div>
+<div class="line">            (<span class="keywordtype">unsigned</span> <span class="keywordtype">long</span> <span class="keywordtype">long</span>)_l[2], (<span class="keywordtype">unsigned</span> <span class="keywordtype">long</span> long)_l[3]); \</div>
 <div class="line">        std::abort(); \</div>
 <div class="line">    } \</div>
 <div class="line">} <span class="keywordflow">while</span>(0)</div>
@@ -295,7 +295,7 @@ Functions</h2></td></tr>
 </div><div class="memdoc">
 <b>Value:</b><div class="fragment"><div class="line">    <span class="keywordflow">do</span> { \</div>
 <div class="line">    if ((pt).is_infinity()) { \</div>
-<div class="line">        std::fprintf(stderr, \</div>
+<div class="line">        (void)std::fprintf(stderr, \</div>
 <div class="line">            <span class="stringliteral">&quot;SECP_ASSERT_NOT_INFINITY FAILED\n&quot;</span> \</div>
 <div class="line">            <span class="stringliteral">&quot;  at %s:%d (%s)\n&quot;</span>, __FILE__, __LINE__, __func__); \</div>
 <div class="line">        std::abort(); \</div>
@@ -324,7 +324,7 @@ Functions</h2></td></tr>
 <b>Value:</b><div class="fragment"><div class="line">    <span class="keywordflow">do</span> { \</div>
 <div class="line">    ++<a class="code hl_function" href="namespacesecp256k1_1_1fast_1_1debug.html#aacea7553cc7e802360611ef9f86c5d82">secp256k1::fast::debug::counters</a>().<a class="code hl_variable" href="structsecp256k1_1_1fast_1_1debug_1_1DebugCounters.html#a6d576e5f1147a010b3e8cb3e2b49362e">invariant_check_count</a>; \</div>
 <div class="line">    if (!<a class="code hl_function" href="namespacesecp256k1_1_1fast_1_1debug.html#aeb25773049fe8de3103cd2732aa755c0">secp256k1::fast::debug::is_on_curve</a>(pt)) { \</div>
-<div class="line">        std::fprintf(stderr, \</div>
+<div class="line">        (void)std::fprintf(stderr, \</div>
 <div class="line">            <span class="stringliteral">&quot;SECP_ASSERT_ON_CURVE FAILED: point not on secp256k1\n&quot;</span> \</div>
 <div class="line">            <span class="stringliteral">&quot;  at %s:%d (%s)\n&quot;</span>, __FILE__, __LINE__, __func__); \</div>
 <div class="line">        std::abort(); \</div>
@@ -374,7 +374,7 @@ Functions</h2></td></tr>
 <b>Value:</b><div class="fragment"><div class="line">    <span class="keywordflow">do</span> { \</div>
 <div class="line">    ++<a class="code hl_function" href="namespacesecp256k1_1_1fast_1_1debug.html#aacea7553cc7e802360611ef9f86c5d82">secp256k1::fast::debug::counters</a>().<a class="code hl_variable" href="structsecp256k1_1_1fast_1_1debug_1_1DebugCounters.html#a6d576e5f1147a010b3e8cb3e2b49362e">invariant_check_count</a>; \</div>
 <div class="line">    if (!<a class="code hl_function" href="namespacesecp256k1_1_1fast_1_1debug.html#a4fe2004032f720e4bf23c7bf6c358b55">secp256k1::fast::debug::is_valid_scalar</a>(s)) { \</div>
-<div class="line">        std::fprintf(stderr, \</div>
+<div class="line">        (void)std::fprintf(stderr, \</div>
 <div class="line">            <span class="stringliteral">&quot;SECP_ASSERT_SCALAR_VALID FAILED: scalar is zero\n&quot;</span> \</div>
 <div class="line">            <span class="stringliteral">&quot;  at %s:%d (%s)\n&quot;</span>, __FILE__, __LINE__, __func__); \</div>
 <div class="line">        std::abort(); \</div>
