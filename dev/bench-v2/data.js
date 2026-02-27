@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772228263930,
+  "lastUpdate": 1772228949872,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -20987,6 +20987,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Batch Inverse (n=1000)",
             "value": 130,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "Vano Chkheidze",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "189c38fd4a6bb152bf810cb0f12a94a584fb8b30",
+          "message": "fix: suppress S3519 false positive and exclude CT variants from CPD (#61)\n\nReliability E (cpp:S3519):\n  SonarCloud's cross-function symbolic execution flags sha256.hpp L79\n  (buf_[pos] = 0x80) as potential buffer overflow. This is a false positive:\n  buf_len_ is invariantly [0,63] after update() processes all full blocks.\n  The analyzer cannot track this class invariant through the call chain\n  (schnorr -> tagged_hash -> SHA256::finalize). Suppress via multicriteria.\n\nDuplication 3.3% > 3.0%:\n  CT (constant-time) source files (ct_sign.cpp, ct_field.cpp, ct_scalar.cpp,\n  ct_point.cpp) intentionally mirror their variable-time counterparts\n  line-for-line to guarantee identical control flow for side-channel\n  resistance. Exclude **/ct_*.cpp from copy-paste detection.\n\nVerify: SonarCloud Quality Gate should now pass all conditions.",
+          "timestamp": "2026-02-28T01:47:18+04:00",
+          "tree_id": "3a47379c6494206270fc99fd9c5a1cf9c0a68c92",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/189c38fd4a6bb152bf810cb0f12a94a584fb8b30"
+        },
+        "date": 1772228947695,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 26,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 19,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 267,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 133,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 35000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 11000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 12000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 43000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 23000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 49000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 115,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 107,
             "unit": "ns"
           }
         ]
