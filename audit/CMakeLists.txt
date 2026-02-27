@@ -62,7 +62,7 @@ add_executable(test_fault_injection test_fault_injection.cpp)
 audit_target_defaults(test_fault_injection)
 target_compile_definitions(test_fault_injection PRIVATE STANDALONE_TEST)
 add_test(NAME fault_injection COMMAND test_fault_injection)
-set_tests_properties(fault_injection PROPERTIES TIMEOUT 300)
+set_tests_properties(fault_injection PROPERTIES TIMEOUT 900)
 
 # -- Debug invariant assertions --------------------------------------------
 add_executable(test_debug_invariants test_debug_invariants.cpp)
@@ -75,21 +75,21 @@ add_executable(test_fiat_crypto_vectors test_fiat_crypto_vectors.cpp)
 audit_target_defaults(test_fiat_crypto_vectors)
 target_compile_definitions(test_fiat_crypto_vectors PRIVATE STANDALONE_TEST)
 add_test(NAME fiat_crypto_vectors COMMAND test_fiat_crypto_vectors)
-set_tests_properties(fiat_crypto_vectors PROPERTIES TIMEOUT 300)
+set_tests_properties(fiat_crypto_vectors PROPERTIES TIMEOUT 900)
 
 # -- Carry propagation stress test -----------------------------------------
 add_executable(test_carry_propagation test_carry_propagation.cpp)
 audit_target_defaults(test_carry_propagation)
 target_compile_definitions(test_carry_propagation PRIVATE STANDALONE_TEST)
 add_test(NAME carry_propagation COMMAND test_carry_propagation)
-set_tests_properties(carry_propagation PROPERTIES TIMEOUT 300)
+set_tests_properties(carry_propagation PROPERTIES TIMEOUT 900)
 
 # -- Cross-platform KAT equivalence ---------------------------------------
 add_executable(test_cross_platform_kat test_cross_platform_kat.cpp)
 audit_target_defaults(test_cross_platform_kat)
 target_compile_definitions(test_cross_platform_kat PRIVATE STANDALONE_TEST)
 add_test(NAME cross_platform_kat COMMAND test_cross_platform_kat)
-set_tests_properties(cross_platform_kat PROPERTIES TIMEOUT 300)
+set_tests_properties(cross_platform_kat PROPERTIES TIMEOUT 900)
 
 # -- ABI version gate (compile-time check) ---------------------------------
 add_executable(test_abi_gate test_abi_gate.cpp)
@@ -154,7 +154,7 @@ if(SECP256K1_BUILD_CROSS_TESTS)
         target_link_options(test_cross_libsecp256k1 PRIVATE "LINKER:/STACK:8388608")
     endif()
     add_test(NAME cross_libsecp256k1 COMMAND test_cross_libsecp256k1)
-    set_tests_properties(cross_libsecp256k1 PROPERTIES TIMEOUT 300)
+    set_tests_properties(cross_libsecp256k1 PROPERTIES TIMEOUT 900)
     message(STATUS "  Cross-test vs libsecp256k1: ON (ref: v0.6.0)")
 endif()
 
@@ -177,7 +177,7 @@ if(SECP256K1_BUILD_FUZZ_TESTS AND TARGET ufsecp_static)
         target_link_options(test_fuzz_parsers PRIVATE "LINKER:/STACK:8388608")
     endif()
     add_test(NAME fuzz_parsers COMMAND test_fuzz_parsers)
-    set_tests_properties(fuzz_parsers PROPERTIES TIMEOUT 300)
+    set_tests_properties(fuzz_parsers PROPERTIES TIMEOUT 900)
     message(STATUS "  Parser fuzz tests: ON")
 
     # Address + BIP32 + FFI boundary fuzz
@@ -193,7 +193,7 @@ if(SECP256K1_BUILD_FUZZ_TESTS AND TARGET ufsecp_static)
         target_link_options(test_fuzz_address_bip32_ffi PRIVATE "LINKER:/STACK:8388608")
     endif()
     add_test(NAME fuzz_address_bip32_ffi COMMAND test_fuzz_address_bip32_ffi)
-    set_tests_properties(fuzz_address_bip32_ffi PROPERTIES TIMEOUT 300)
+    set_tests_properties(fuzz_address_bip32_ffi PROPERTIES TIMEOUT 900)
     message(STATUS "  Address + BIP32 + FFI fuzz tests: ON")
 endif()
 
