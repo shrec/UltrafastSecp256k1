@@ -12,13 +12,19 @@
 
 cd "$SRC/ultrafast"
 
-# -- Step 1: Build the static library (no sanitizers in lib, engine handles it)
+# -- Step 1: Build the static library WITH sanitizer flags --------------------
+# CMAKE_CXX_FLAGS_RELEASE is set to "-DNDEBUG" only (no -O3) so that
+# the sanitizer optimization level from $CXXFLAGS is not overridden.
+# The cpu/CMakeLists.txt detects -fsanitize in CMAKE_CXX_FLAGS and skips
+# its own -O3/-fomit-frame-pointer overrides automatically.
 cmake -S . -B build-fuzz -G Ninja \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_C_COMPILER="$CC" \
     -DCMAKE_CXX_COMPILER="$CXX" \
     -DCMAKE_C_FLAGS="$CFLAGS" \
     -DCMAKE_CXX_FLAGS="$CXXFLAGS" \
+    -DCMAKE_C_FLAGS_RELEASE="-DNDEBUG" \
+    -DCMAKE_CXX_FLAGS_RELEASE="-DNDEBUG" \
     -DSECP256K1_BUILD_TESTS=OFF \
     -DSECP256K1_BUILD_BENCH=OFF \
     -DSECP256K1_BUILD_EXAMPLES=OFF \

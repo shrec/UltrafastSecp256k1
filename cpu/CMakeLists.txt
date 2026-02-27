@@ -481,23 +481,45 @@ else()
     set(ARCH_FLAGS "")
 endif()
 
+# Detect sanitizer builds: when CMAKE_CXX_FLAGS contains -fsanitize=..., the
+# sanitizer infrastructure sets specific optimization levels (-O1) and frame
+# pointer flags (-fno-omit-frame-pointer) that MUST NOT be overridden.
+# Overriding them causes incorrect sanitizer behavior (ClusterFuzzLite, OSS-Fuzz).
+set(SECP256K1_SANITIZER_BUILD FALSE)
+if(CMAKE_CXX_FLAGS MATCHES "fsanitize=" OR CMAKE_C_FLAGS MATCHES "fsanitize=")
+    set(SECP256K1_SANITIZER_BUILD TRUE)
+    message(STATUS "Secp256k1: Sanitizer flags detected -- skipping aggressive optimization overrides")
+endif()
+
 # GCC/Clang optimization flags (skip on MSVC -- it uses /O2 /GL from top-level)
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-target_compile_options(${SECP256K1_LIB_NAME} PRIVATE 
-    -O3                      # Maximum optimization
-    "SHELL:${ARCH_FLAGS}"    # Platform-specific architecture (SHELL: splits by whitespace)
-    # REMOVED: -ffast-math, -ffinite-math-only, -fno-signed-zeros (break point arithmetic!)
-    -fno-math-errno          # Don't set errno for math functions
-    -fno-trapping-math       # No FP exceptions
-    -funroll-loops           # Aggressive loop unrolling
-    -finline-functions       # Inline everything possible
-    -fomit-frame-pointer     # Remove frame pointers for speed
-    -fno-stack-protector     # Disable stack canaries (no security)
-    $<$<PLATFORM_ID:Linux>:-fno-plt>  # No PLT (ELF/Linux only; skipped on macOS/Windows)
-    -ftree-vectorize         # Auto-vectorization (AVX2/SSE/NEON)
-    # Note: LTO is controlled separately by SECP256K1_USE_LTO option
-    # Do NOT add -fno-lto here -- it would override the LTO setting
-)
+if(SECP256K1_SANITIZER_BUILD)
+    # Sanitizer build: only add safe flags that don't conflict with sanitizer requirements.
+    # Optimization level and frame pointer policy are controlled by CMAKE_CXX_FLAGS.
+    target_compile_options(${SECP256K1_LIB_NAME} PRIVATE
+        "SHELL:${ARCH_FLAGS}"    # Platform-specific architecture
+        -fno-math-errno          # Don't set errno for math functions
+        -fno-trapping-math       # No FP exceptions
+        -ftree-vectorize         # Auto-vectorization
+    )
+else()
+    # Production build: maximum performance
+    target_compile_options(${SECP256K1_LIB_NAME} PRIVATE
+        -O3                      # Maximum optimization
+        "SHELL:${ARCH_FLAGS}"    # Platform-specific architecture (SHELL: splits by whitespace)
+        # REMOVED: -ffast-math, -ffinite-math-only, -fno-signed-zeros (break point arithmetic!)
+        -fno-math-errno          # Don't set errno for math functions
+        -fno-trapping-math       # No FP exceptions
+        -funroll-loops           # Aggressive loop unrolling
+        -finline-functions       # Inline everything possible
+        -fomit-frame-pointer     # Remove frame pointers for speed
+        -fno-stack-protector     # Disable stack canaries (no security)
+        $<$<PLATFORM_ID:Linux>:-fno-plt>  # No PLT (ELF/Linux only; skipped on macOS/Windows)
+        -ftree-vectorize         # Auto-vectorization (AVX2/SSE/NEON)
+        # Note: LTO is controlled separately by SECP256K1_USE_LTO option
+        # Do NOT add -fno-lto here -- it would override the LTO setting
+    )
+endif()
 # Propagate ARCH_FLAGS to consumers so their TU's also compile with -mcpu
 # (important for header-only / inline code and for ThinLTO codegen at link time)
 if(ARCH_FLAGS)
@@ -509,7 +531,8 @@ endif()
 endif()
 
 # GCC-specific aggressive optimizations (not supported by Clang)
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+# Skip under sanitizer builds -- these interact poorly with instrumentation.
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND NOT SECP256K1_SANITIZER_BUILD)
     target_compile_options(${SECP256K1_LIB_NAME} PRIVATE
         -fipa-pta                # Aggressive inter-procedural pointer analysis
         -fgcse-sm                # Store motion after GCSE
@@ -531,34 +554,51 @@ set(_FIELD_ASM_NORTTI "-fno-rtti")
 if(CMAKE_CXX_FLAGS MATCHES "fsanitize=.*vptr" OR CMAKE_CXX_FLAGS MATCHES "fsanitize=undefined")
     set(_FIELD_ASM_NORTTI "")
 endif()
-if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|X64")
-    set_source_files_properties(src/field_asm.cpp PROPERTIES 
-        COMPILE_FLAGS "-O3 ${ARCH_FLAGS} -mbmi2 -madx -mpopcnt -funroll-loops -ftree-vectorize -fno-exceptions ${_FIELD_ASM_NORTTI}"
-    )
+# Sanitizer builds: skip -O3 override, keep arch + safe flags.
+# -fno-exceptions is safe (field_asm has no exception code paths).
+if(SECP256K1_SANITIZER_BUILD)
+    if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|X64")
+        set_source_files_properties(src/field_asm.cpp PROPERTIES
+            COMPILE_FLAGS "${ARCH_FLAGS} -mbmi2 -madx -mpopcnt -fno-exceptions ${_FIELD_ASM_NORTTI}"
+        )
+    else()
+        set_source_files_properties(src/field_asm.cpp PROPERTIES
+            COMPILE_FLAGS "${ARCH_FLAGS} -fno-exceptions ${_FIELD_ASM_NORTTI}"
+        )
+    endif()
 else()
-    # ARM64/other: no BMI2/ADX, just standard optimization
-    set_source_files_properties(src/field_asm.cpp PROPERTIES 
-        COMPILE_FLAGS "-O3 ${ARCH_FLAGS} -funroll-loops -ftree-vectorize -fno-exceptions ${_FIELD_ASM_NORTTI}"
-    )
+    if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|X64")
+        set_source_files_properties(src/field_asm.cpp PROPERTIES 
+            COMPILE_FLAGS "-O3 ${ARCH_FLAGS} -mbmi2 -madx -mpopcnt -funroll-loops -ftree-vectorize -fno-exceptions ${_FIELD_ASM_NORTTI}"
+        )
+    else()
+        # ARM64/other: no BMI2/ADX, just standard optimization
+        set_source_files_properties(src/field_asm.cpp PROPERTIES 
+            COMPILE_FLAGS "-O3 ${ARCH_FLAGS} -funroll-loops -ftree-vectorize -fno-exceptions ${_FIELD_ASM_NORTTI}"
+        )
+    endif()
 endif()
 endif()
 
 # Aggressive optimization for critical hotspot files (GCC/Clang only)
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    set_source_files_properties(src/field.cpp PROPERTIES 
-        COMPILE_FLAGS "-O3 ${ARCH_FLAGS} -funroll-loops -ftree-vectorize -fipa-pta -fpredictive-commoning"
-    )
-    set_source_files_properties(src/point.cpp PROPERTIES 
-        COMPILE_FLAGS "-O3 ${ARCH_FLAGS} -funroll-loops -ftree-vectorize -fipa-pta -fpredictive-commoning"
-    )
-elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    # Clang: no GCC-specific flags
-    set_source_files_properties(src/field.cpp PROPERTIES 
-        COMPILE_FLAGS "-O3 ${ARCH_FLAGS} -funroll-loops -ftree-vectorize"
-    )
-    set_source_files_properties(src/point.cpp PROPERTIES 
-        COMPILE_FLAGS "-O3 ${ARCH_FLAGS} -funroll-loops -ftree-vectorize"
-    )
+# Skip per-file -O3 under sanitizer builds to preserve sanitizer optimization level.
+if(NOT SECP256K1_SANITIZER_BUILD)
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        set_source_files_properties(src/field.cpp PROPERTIES 
+            COMPILE_FLAGS "-O3 ${ARCH_FLAGS} -funroll-loops -ftree-vectorize -fipa-pta -fpredictive-commoning"
+        )
+        set_source_files_properties(src/point.cpp PROPERTIES 
+            COMPILE_FLAGS "-O3 ${ARCH_FLAGS} -funroll-loops -ftree-vectorize -fipa-pta -fpredictive-commoning"
+        )
+    elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        # Clang: no GCC-specific flags
+        set_source_files_properties(src/field.cpp PROPERTIES 
+            COMPILE_FLAGS "-O3 ${ARCH_FLAGS} -funroll-loops -ftree-vectorize"
+        )
+        set_source_files_properties(src/point.cpp PROPERTIES 
+            COMPILE_FLAGS "-O3 ${ARCH_FLAGS} -funroll-loops -ftree-vectorize"
+        )
+    endif()
 endif()
 # MSVC: uses /O2 /GL from top-level, no per-file overrides needed
 

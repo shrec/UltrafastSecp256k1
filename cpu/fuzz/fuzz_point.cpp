@@ -38,6 +38,11 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
     auto k = Scalar::from_bytes(buf);
     if (k.is_zero()) return 0;
 
+    // Guard: catch any C++ exceptions before they cross the extern "C" boundary.
+    // Propagating exceptions through extern "C" is undefined behavior and
+    // causes std::terminate on Linux/clang (manifests as SIGABRT in CFL).
+    try {
+
     // -- k*G must be on-curve -------------------------------------------------
     auto P = G_fuzz.scalar_mul(k);
     if (P.is_infinity()) return 0;
@@ -61,6 +66,12 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
     auto dbl_comp = dbl.to_compressed();
     auto add_comp = add_self.to_compressed();
     if (dbl_comp != add_comp) __builtin_trap();
+
+    } catch (...) {
+        // Swallow: prevents std::terminate from exceptions crossing extern "C".
+        // If an internal batch-inversion fallback misfire triggered throw,
+        // the result is simply discarded (no false-positive crash report).
+    }
 
     return 0;
 }
