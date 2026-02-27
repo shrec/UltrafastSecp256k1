@@ -35,6 +35,7 @@ var dir_3015dd157bf50376ab3b1f9a873c3f74 =
     [ "point.hpp", "point_8hpp.html", "point_8hpp" ],
     [ "precompute.hpp", "precompute_8hpp.html", "precompute_8hpp" ],
     [ "recovery.hpp", "recovery_8hpp.html", "recovery_8hpp" ],
+    [ "sanitizer_scale.hpp", "sanitizer__scale_8hpp.html", "sanitizer__scale_8hpp" ],
     [ "scalar.hpp", "scalar_8hpp.html", "scalar_8hpp" ],
     [ "schnorr.hpp", "schnorr_8hpp.html", "schnorr_8hpp" ],
     [ "selftest.hpp", "selftest_8hpp.html", "selftest_8hpp" ],
