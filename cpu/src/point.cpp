@@ -1204,7 +1204,7 @@ Point Point::from_jacobian_coords(const FieldElement& x, const FieldElement& y, 
 
 #if defined(SECP256K1_FAST_52BIT)
 Point Point::from_jacobian52(const FieldElement52& x, const FieldElement52& y, const FieldElement52& z, bool infinity) {
-    if (infinity) return Point::infinity();
+    if (infinity || z.normalizes_to_zero()) return Point::infinity();
     return Point(x, y, z, false, false);
 }
 
