@@ -9,6 +9,7 @@ namespace secp256k1 {
 
 using fast::Scalar;
 using fast::Point;
+using fast::FieldElement; // NOLINT(misc-unused-using-decls) -- used in #else path
 
 // -- Half-order for low-S check -----------------------------------------------
 // n/2 = 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0
