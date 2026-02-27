@@ -419,7 +419,7 @@ static void test_field_inverse() {
     FE batch[BATCH];
     FE expected_inv[BATCH];
     for (int i = 0; i < BATCH; ++i) {
-        batch[i] = FE::from_uint64(static_cast<uint64_t>(i + 2));
+        batch[i] = FE::from_uint64(static_cast<uint64_t>(i) + 2);
         expected_inv[i] = batch[i].inverse();
     }
     FE batch_copy[BATCH];

@@ -199,10 +199,10 @@ inline int ct_compare(const void* a, const void* b, std::size_t len) noexcept {
         using namespace ct_compare_detail;
 
         // Load all 4 word pairs in big-endian (lexicographic order)
-        std::uint64_t w0a = ct_load_be(pa +  0), w0b = ct_load_be(pb +  0);
-        std::uint64_t w1a = ct_load_be(pa +  8), w1b = ct_load_be(pb +  8);
-        std::uint64_t w2a = ct_load_be(pa + 16), w2b = ct_load_be(pb + 16);
-        std::uint64_t w3a = ct_load_be(pa + 24), w3b = ct_load_be(pb + 24);
+        const std::uint64_t w0a = ct_load_be(pa +  0), w0b = ct_load_be(pb +  0);
+        const std::uint64_t w1a = ct_load_be(pa +  8), w1b = ct_load_be(pb +  8);
+        const std::uint64_t w2a = ct_load_be(pa + 16), w2b = ct_load_be(pb + 16);
+        const std::uint64_t w3a = ct_load_be(pa + 24), w3b = ct_load_be(pb + 24);
 
         std::uint64_t result = 0;
 
