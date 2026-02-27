@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772211091108,
+  "lastUpdate": 1772213053732,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -20190,6 +20190,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
             "value": 141,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 132,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "Vano Chkheidze",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "54699f3dc7edebc97939d6a3a14c30ba6376776c",
+          "message": "fix: resolve code scanning alerts (const, braces, uninit, Scorecard) (#51)\n\n- field_52_impl.hpp: add braces to inverse_safegcd if-body (fixes 26\n  readability-braces-around-statements); const-qualify mask/overflow in\n  half() and fe52_normalize_inline (fixes ~78 misc-const-correctness)\n- point.cpp: const-qualify negX1 (L645); add braces to throw-0 guard (L904)\n- test_point_edge_cases.cpp: const-qualify 26 never-mutated locals\n- sha512.hpp: value-initialize members in declaration (uninitMemberVar)\n- precompute.cpp: init index=0 (UndefinedBinaryOperatorResult L1756);\n  add (void)0 to empty catch (bugprone-empty-catch L2546);\n  remove redundant inner ec check (oppositeInnerCondition L2634)\n- Dockerfile: pin base-builder image by sha256 digest (PinnedDependenciesID)\n- cppcheck.yml: pin pip version; move security-events:write to job level\n- clang-tidy.yml: move security-events:write to job level\n- cflite.yml: move security-events:write to job level (all 3 jobs)\n- mutation.yml: pin pip version (PinnedDependenciesID)\n\nAll 25 tests pass. No behavior changes.",
+          "timestamp": "2026-02-27T21:22:31+04:00",
+          "tree_id": "75ad60fdc9735a12e18549c0a3f4127849e5364f",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/54699f3dc7edebc97939d6a3a14c30ba6376776c"
+        },
+        "date": 1772213051457,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 27,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 22,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 290,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 149,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 38000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 9000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 14000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 47000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 24000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 53000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 140,
             "unit": "ns"
           },
           {
