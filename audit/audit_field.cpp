@@ -274,9 +274,9 @@ static void test_canonical() {
         auto bytes = a.to_bytes();
 
         // Check bytes < P_BYTES (big-endian comparison)
-        bool less = false, greater = false;
+        bool greater = false;
         for (int j = 0; j < 32; ++j) {
-            if (bytes[j] < P_BYTES[j]) { less = true; break; }
+            if (bytes[j] < P_BYTES[j]) { break; }
             if (bytes[j] > P_BYTES[j]) { greater = true; break; }
         }
         CHECK(!greater, "serialized value < p or == 0");
