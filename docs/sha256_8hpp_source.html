@@ -180,76 +180,80 @@ $(document).ready(function(){initNavTree('sha256_8hpp_source.html',''); initResi
 <div class="line"><a id="l00072" name="l00072"></a><span class="lineno">   72</span> </div>
 <div class="line"><a id="l00073" name="l00073"></a><span class="lineno">   73</span>        <span class="comment">// -- Direct in-place padding (no per-byte update() calls) ---------</span></div>
 <div class="line"><a id="l00074" name="l00074"></a><span class="lineno">   74</span>        <span class="comment">// buf_len_ is invariantly [0,63] after update() processes full blocks.</span></div>
-<div class="line"><a id="l00075" name="l00075"></a><span class="lineno">   75</span>        <span class="comment">// Explicit check satisfies static analysis (Sonar overflow warning)</span></div>
-<div class="line"><a id="l00076" name="l00076"></a><span class="lineno">   76</span>        <span class="comment">// without changing behavior -- the branch is never taken.</span></div>
-<div class="line"><a id="l00077" name="l00077"></a><span class="lineno">   77</span>        <span class="keywordflow">if</span> (buf_len_ &gt;= 64) buf_len_ = 0;</div>
-<div class="line"><a id="l00078" name="l00078"></a><span class="lineno">   78</span>        buf_[buf_len_++] = 0x80;</div>
-<div class="line"><a id="l00079" name="l00079"></a><span class="lineno">   79</span> </div>
-<div class="line"><a id="l00080" name="l00080"></a><span class="lineno">   80</span>        <span class="keywordflow">if</span> (buf_len_ &gt; 56) {</div>
-<div class="line"><a id="l00081" name="l00081"></a><span class="lineno">   81</span>            <span class="comment">// No room for 8-byte length -- pad, compress, start fresh block</span></div>
-<div class="line"><a id="l00082" name="l00082"></a><span class="lineno">   82</span>            std::memset(buf_ + buf_len_, 0, 64 - buf_len_);</div>
-<div class="line"><a id="l00083" name="l00083"></a><span class="lineno">   83</span>            <a class="code hl_function" href="namespacesecp256k1_1_1detail.html#aeb7ac005ebf31bbcf37bc8c253bbad40">detail::sha256_compress_dispatch</a>(buf_, state_);</div>
-<div class="line"><a id="l00084" name="l00084"></a><span class="lineno">   84</span>            buf_len_ = 0;</div>
-<div class="line"><a id="l00085" name="l00085"></a><span class="lineno">   85</span>        }</div>
-<div class="line"><a id="l00086" name="l00086"></a><span class="lineno">   86</span> </div>
-<div class="line"><a id="l00087" name="l00087"></a><span class="lineno">   87</span>        <span class="comment">// Zero-pad to byte 56</span></div>
-<div class="line"><a id="l00088" name="l00088"></a><span class="lineno">   88</span>        std::memset(buf_ + buf_len_, 0, 56 - buf_len_);</div>
-<div class="line"><a id="l00089" name="l00089"></a><span class="lineno">   89</span> </div>
-<div class="line"><a id="l00090" name="l00090"></a><span class="lineno">   90</span>        <span class="comment">// Append bit-length big-endian at bytes 56..63</span></div>
-<div class="line"><a id="l00091" name="l00091"></a><span class="lineno">   91</span>        buf_[56] = <span class="keyword">static_cast&lt;</span>std::uint8_t<span class="keyword">&gt;</span>(bits &gt;&gt; 56);</div>
-<div class="line"><a id="l00092" name="l00092"></a><span class="lineno">   92</span>        buf_[57] = <span class="keyword">static_cast&lt;</span>std::uint8_t<span class="keyword">&gt;</span>(bits &gt;&gt; 48);</div>
-<div class="line"><a id="l00093" name="l00093"></a><span class="lineno">   93</span>        buf_[58] = <span class="keyword">static_cast&lt;</span>std::uint8_t<span class="keyword">&gt;</span>(bits &gt;&gt; 40);</div>
-<div class="line"><a id="l00094" name="l00094"></a><span class="lineno">   94</span>        buf_[59] = <span class="keyword">static_cast&lt;</span>std::uint8_t<span class="keyword">&gt;</span>(bits &gt;&gt; 32);</div>
-<div class="line"><a id="l00095" name="l00095"></a><span class="lineno">   95</span>        buf_[60] = <span class="keyword">static_cast&lt;</span>std::uint8_t<span class="keyword">&gt;</span>(bits &gt;&gt; 24);</div>
-<div class="line"><a id="l00096" name="l00096"></a><span class="lineno">   96</span>        buf_[61] = <span class="keyword">static_cast&lt;</span>std::uint8_t<span class="keyword">&gt;</span>(bits &gt;&gt; 16);</div>
-<div class="line"><a id="l00097" name="l00097"></a><span class="lineno">   97</span>        buf_[62] = <span class="keyword">static_cast&lt;</span>std::uint8_t<span class="keyword">&gt;</span>(bits &gt;&gt; 8);</div>
-<div class="line"><a id="l00098" name="l00098"></a><span class="lineno">   98</span>        buf_[63] = <span class="keyword">static_cast&lt;</span>std::uint8_t<span class="keyword">&gt;</span>(bits);</div>
-<div class="line"><a id="l00099" name="l00099"></a><span class="lineno">   99</span> </div>
-<div class="line"><a id="l00100" name="l00100"></a><span class="lineno">  100</span>        <a class="code hl_function" href="namespacesecp256k1_1_1detail.html#aeb7ac005ebf31bbcf37bc8c253bbad40">detail::sha256_compress_dispatch</a>(buf_, state_);</div>
-<div class="line"><a id="l00101" name="l00101"></a><span class="lineno">  101</span> </div>
-<div class="line"><a id="l00102" name="l00102"></a><span class="lineno">  102</span>        <a class="code hl_typedef" href="classsecp256k1_1_1SHA256.html#afe548d04a90858ec7601e304fdaadbb5">digest_type</a> out{};</div>
-<div class="line"><a id="l00103" name="l00103"></a><span class="lineno">  103</span>        <span class="keywordflow">for</span> (std::size_t i = 0; i &lt; 8; ++i) {</div>
-<div class="line"><a id="l00104" name="l00104"></a><span class="lineno">  104</span>            out[i * 4 + 0] = <span class="keyword">static_cast&lt;</span>std::uint8_t<span class="keyword">&gt;</span>(state_[i] &gt;&gt; 24);</div>
-<div class="line"><a id="l00105" name="l00105"></a><span class="lineno">  105</span>            out[i * 4 + 1] = <span class="keyword">static_cast&lt;</span>std::uint8_t<span class="keyword">&gt;</span>(state_[i] &gt;&gt; 16);</div>
-<div class="line"><a id="l00106" name="l00106"></a><span class="lineno">  106</span>            out[i * 4 + 2] = <span class="keyword">static_cast&lt;</span>std::uint8_t<span class="keyword">&gt;</span>(state_[i] &gt;&gt; 8);</div>
-<div class="line"><a id="l00107" name="l00107"></a><span class="lineno">  107</span>            out[i * 4 + 3] = <span class="keyword">static_cast&lt;</span>std::uint8_t<span class="keyword">&gt;</span>(state_[i]);</div>
-<div class="line"><a id="l00108" name="l00108"></a><span class="lineno">  108</span>        }</div>
-<div class="line"><a id="l00109" name="l00109"></a><span class="lineno">  109</span>        <span class="keywordflow">return</span> out;</div>
-<div class="line"><a id="l00110" name="l00110"></a><span class="lineno">  110</span>    }</div>
+<div class="line"><a id="l00075" name="l00075"></a><span class="lineno">   75</span>        <span class="comment">// Explicit bounds check satisfies static analysis (Sonar cpp:S3519).</span></div>
+<div class="line"><a id="l00076" name="l00076"></a><span class="lineno">   76</span>        <span class="keywordflow">if</span> (buf_len_ &gt;= 64) buf_len_ = 0;</div>
+<div class="line"><a id="l00077" name="l00077"></a><span class="lineno">   77</span>        std::size_t pos = buf_len_;   <span class="comment">// capture index before increment</span></div>
+<div class="line"><a id="l00078" name="l00078"></a><span class="lineno">   78</span>        buf_len_ = pos + 1;           <span class="comment">// new length [1, 64]</span></div>
+<div class="line"><a id="l00079" name="l00079"></a><span class="lineno">   79</span>        buf_[pos] = 0x80;             <span class="comment">// write at [0, 63] -- always in bounds</span></div>
+<div class="line"><a id="l00080" name="l00080"></a><span class="lineno">   80</span> </div>
+<div class="line"><a id="l00081" name="l00081"></a><span class="lineno">   81</span>        <span class="keywordflow">if</span> (buf_len_ &gt; 56) {</div>
+<div class="line"><a id="l00082" name="l00082"></a><span class="lineno">   82</span>            <span class="comment">// No room for 8-byte length -- pad, compress, start fresh block</span></div>
+<div class="line"><a id="l00083" name="l00083"></a><span class="lineno">   83</span>            <span class="comment">// buf_len_ is [57, 64]; (64 - buf_len_) is [0, 7]</span></div>
+<div class="line"><a id="l00084" name="l00084"></a><span class="lineno">   84</span>            <span class="keywordflow">if</span> (buf_len_ &lt; 64) {</div>
+<div class="line"><a id="l00085" name="l00085"></a><span class="lineno">   85</span>                std::memset(buf_ + buf_len_, 0, 64 - buf_len_);</div>
+<div class="line"><a id="l00086" name="l00086"></a><span class="lineno">   86</span>            }</div>
+<div class="line"><a id="l00087" name="l00087"></a><span class="lineno">   87</span>            <a class="code hl_function" href="namespacesecp256k1_1_1detail.html#aeb7ac005ebf31bbcf37bc8c253bbad40">detail::sha256_compress_dispatch</a>(buf_, state_);</div>
+<div class="line"><a id="l00088" name="l00088"></a><span class="lineno">   88</span>            buf_len_ = 0;</div>
+<div class="line"><a id="l00089" name="l00089"></a><span class="lineno">   89</span>        }</div>
+<div class="line"><a id="l00090" name="l00090"></a><span class="lineno">   90</span> </div>
+<div class="line"><a id="l00091" name="l00091"></a><span class="lineno">   91</span>        <span class="comment">// Zero-pad to byte 56</span></div>
+<div class="line"><a id="l00092" name="l00092"></a><span class="lineno">   92</span>        std::memset(buf_ + buf_len_, 0, 56 - buf_len_);</div>
+<div class="line"><a id="l00093" name="l00093"></a><span class="lineno">   93</span> </div>
+<div class="line"><a id="l00094" name="l00094"></a><span class="lineno">   94</span>        <span class="comment">// Append bit-length big-endian at bytes 56..63</span></div>
+<div class="line"><a id="l00095" name="l00095"></a><span class="lineno">   95</span>        buf_[56] = <span class="keyword">static_cast&lt;</span>std::uint8_t<span class="keyword">&gt;</span>(bits &gt;&gt; 56);</div>
+<div class="line"><a id="l00096" name="l00096"></a><span class="lineno">   96</span>        buf_[57] = <span class="keyword">static_cast&lt;</span>std::uint8_t<span class="keyword">&gt;</span>(bits &gt;&gt; 48);</div>
+<div class="line"><a id="l00097" name="l00097"></a><span class="lineno">   97</span>        buf_[58] = <span class="keyword">static_cast&lt;</span>std::uint8_t<span class="keyword">&gt;</span>(bits &gt;&gt; 40);</div>
+<div class="line"><a id="l00098" name="l00098"></a><span class="lineno">   98</span>        buf_[59] = <span class="keyword">static_cast&lt;</span>std::uint8_t<span class="keyword">&gt;</span>(bits &gt;&gt; 32);</div>
+<div class="line"><a id="l00099" name="l00099"></a><span class="lineno">   99</span>        buf_[60] = <span class="keyword">static_cast&lt;</span>std::uint8_t<span class="keyword">&gt;</span>(bits &gt;&gt; 24);</div>
+<div class="line"><a id="l00100" name="l00100"></a><span class="lineno">  100</span>        buf_[61] = <span class="keyword">static_cast&lt;</span>std::uint8_t<span class="keyword">&gt;</span>(bits &gt;&gt; 16);</div>
+<div class="line"><a id="l00101" name="l00101"></a><span class="lineno">  101</span>        buf_[62] = <span class="keyword">static_cast&lt;</span>std::uint8_t<span class="keyword">&gt;</span>(bits &gt;&gt; 8);</div>
+<div class="line"><a id="l00102" name="l00102"></a><span class="lineno">  102</span>        buf_[63] = <span class="keyword">static_cast&lt;</span>std::uint8_t<span class="keyword">&gt;</span>(bits);</div>
+<div class="line"><a id="l00103" name="l00103"></a><span class="lineno">  103</span> </div>
+<div class="line"><a id="l00104" name="l00104"></a><span class="lineno">  104</span>        <a class="code hl_function" href="namespacesecp256k1_1_1detail.html#aeb7ac005ebf31bbcf37bc8c253bbad40">detail::sha256_compress_dispatch</a>(buf_, state_);</div>
+<div class="line"><a id="l00105" name="l00105"></a><span class="lineno">  105</span> </div>
+<div class="line"><a id="l00106" name="l00106"></a><span class="lineno">  106</span>        <a class="code hl_typedef" href="classsecp256k1_1_1SHA256.html#afe548d04a90858ec7601e304fdaadbb5">digest_type</a> out{};</div>
+<div class="line"><a id="l00107" name="l00107"></a><span class="lineno">  107</span>        <span class="keywordflow">for</span> (std::size_t i = 0; i &lt; 8; ++i) {</div>
+<div class="line"><a id="l00108" name="l00108"></a><span class="lineno">  108</span>            out[i * 4 + 0] = <span class="keyword">static_cast&lt;</span>std::uint8_t<span class="keyword">&gt;</span>(state_[i] &gt;&gt; 24);</div>
+<div class="line"><a id="l00109" name="l00109"></a><span class="lineno">  109</span>            out[i * 4 + 1] = <span class="keyword">static_cast&lt;</span>std::uint8_t<span class="keyword">&gt;</span>(state_[i] &gt;&gt; 16);</div>
+<div class="line"><a id="l00110" name="l00110"></a><span class="lineno">  110</span>            out[i * 4 + 2] = <span class="keyword">static_cast&lt;</span>std::uint8_t<span class="keyword">&gt;</span>(state_[i] &gt;&gt; 8);</div>
+<div class="line"><a id="l00111" name="l00111"></a><span class="lineno">  111</span>            out[i * 4 + 3] = <span class="keyword">static_cast&lt;</span>std::uint8_t<span class="keyword">&gt;</span>(state_[i]);</div>
+<div class="line"><a id="l00112" name="l00112"></a><span class="lineno">  112</span>        }</div>
+<div class="line"><a id="l00113" name="l00113"></a><span class="lineno">  113</span>        <span class="keywordflow">return</span> out;</div>
+<div class="line"><a id="l00114" name="l00114"></a><span class="lineno">  114</span>    }</div>
 </div>
-<div class="line"><a id="l00111" name="l00111"></a><span class="lineno">  111</span> </div>
-<div class="line"><a id="l00112" name="l00112"></a><span class="lineno">  112</span>    <span class="comment">// One-shot convenience</span></div>
-<div class="foldopen" id="foldopen00113" data-start="{" data-end="}">
-<div class="line"><a id="l00113" name="l00113"></a><span class="lineno"><a class="line" href="classsecp256k1_1_1SHA256.html#a14ec5666f09165534032d9f027384fd2">  113</a></span>    <span class="keyword">static</span> <a class="code hl_typedef" href="classsecp256k1_1_1SHA256.html#afe548d04a90858ec7601e304fdaadbb5">digest_type</a> <a class="code hl_function" href="classsecp256k1_1_1SHA256.html#a14ec5666f09165534032d9f027384fd2">hash</a>(<span class="keyword">const</span> <span class="keywordtype">void</span>* data, std::size_t len) <span class="keyword">noexcept</span> {</div>
-<div class="line"><a id="l00114" name="l00114"></a><span class="lineno">  114</span>        <a class="code hl_class" href="classsecp256k1_1_1SHA256.html">SHA256</a> ctx;</div>
-<div class="line"><a id="l00115" name="l00115"></a><span class="lineno">  115</span>        ctx.<a class="code hl_function" href="classsecp256k1_1_1SHA256.html#af6810cfc0f70a3b1e7800712c76d2ea2">update</a>(data, len);</div>
-<div class="line"><a id="l00116" name="l00116"></a><span class="lineno">  116</span>        <span class="keywordflow">return</span> ctx.<a class="code hl_function" href="classsecp256k1_1_1SHA256.html#ac8945cf3483fa5439d2a67096829f57a">finalize</a>();</div>
-<div class="line"><a id="l00117" name="l00117"></a><span class="lineno">  117</span>    }</div>
+<div class="line"><a id="l00115" name="l00115"></a><span class="lineno">  115</span> </div>
+<div class="line"><a id="l00116" name="l00116"></a><span class="lineno">  116</span>    <span class="comment">// One-shot convenience</span></div>
+<div class="foldopen" id="foldopen00117" data-start="{" data-end="}">
+<div class="line"><a id="l00117" name="l00117"></a><span class="lineno"><a class="line" href="classsecp256k1_1_1SHA256.html#a14ec5666f09165534032d9f027384fd2">  117</a></span>    <span class="keyword">static</span> <a class="code hl_typedef" href="classsecp256k1_1_1SHA256.html#afe548d04a90858ec7601e304fdaadbb5">digest_type</a> <a class="code hl_function" href="classsecp256k1_1_1SHA256.html#a14ec5666f09165534032d9f027384fd2">hash</a>(<span class="keyword">const</span> <span class="keywordtype">void</span>* data, std::size_t len) <span class="keyword">noexcept</span> {</div>
+<div class="line"><a id="l00118" name="l00118"></a><span class="lineno">  118</span>        <a class="code hl_class" href="classsecp256k1_1_1SHA256.html">SHA256</a> ctx;</div>
+<div class="line"><a id="l00119" name="l00119"></a><span class="lineno">  119</span>        ctx.<a class="code hl_function" href="classsecp256k1_1_1SHA256.html#af6810cfc0f70a3b1e7800712c76d2ea2">update</a>(data, len);</div>
+<div class="line"><a id="l00120" name="l00120"></a><span class="lineno">  120</span>        <span class="keywordflow">return</span> ctx.<a class="code hl_function" href="classsecp256k1_1_1SHA256.html#ac8945cf3483fa5439d2a67096829f57a">finalize</a>();</div>
+<div class="line"><a id="l00121" name="l00121"></a><span class="lineno">  121</span>    }</div>
 </div>
-<div class="line"><a id="l00118" name="l00118"></a><span class="lineno">  118</span> </div>
-<div class="line"><a id="l00119" name="l00119"></a><span class="lineno">  119</span>    <span class="comment">// Double-SHA256: SHA256(SHA256(data))</span></div>
-<div class="foldopen" id="foldopen00120" data-start="{" data-end="}">
-<div class="line"><a id="l00120" name="l00120"></a><span class="lineno"><a class="line" href="classsecp256k1_1_1SHA256.html#a45a3d0e70f49d9c94aec7100c95435a2">  120</a></span>    <span class="keyword">static</span> <a class="code hl_typedef" href="classsecp256k1_1_1SHA256.html#afe548d04a90858ec7601e304fdaadbb5">digest_type</a> <a class="code hl_function" href="classsecp256k1_1_1SHA256.html#a45a3d0e70f49d9c94aec7100c95435a2">hash256</a>(<span class="keyword">const</span> <span class="keywordtype">void</span>* data, std::size_t len) <span class="keyword">noexcept</span> {</div>
-<div class="line"><a id="l00121" name="l00121"></a><span class="lineno">  121</span>        <span class="keyword">auto</span> h1 = <a class="code hl_function" href="classsecp256k1_1_1SHA256.html#a14ec5666f09165534032d9f027384fd2">hash</a>(data, len);</div>
-<div class="line"><a id="l00122" name="l00122"></a><span class="lineno">  122</span>        <span class="keywordflow">return</span> <a class="code hl_function" href="classsecp256k1_1_1SHA256.html#a14ec5666f09165534032d9f027384fd2">hash</a>(h1.data(), h1.size());</div>
-<div class="line"><a id="l00123" name="l00123"></a><span class="lineno">  123</span>    }</div>
+<div class="line"><a id="l00122" name="l00122"></a><span class="lineno">  122</span> </div>
+<div class="line"><a id="l00123" name="l00123"></a><span class="lineno">  123</span>    <span class="comment">// Double-SHA256: SHA256(SHA256(data))</span></div>
+<div class="foldopen" id="foldopen00124" data-start="{" data-end="}">
+<div class="line"><a id="l00124" name="l00124"></a><span class="lineno"><a class="line" href="classsecp256k1_1_1SHA256.html#a45a3d0e70f49d9c94aec7100c95435a2">  124</a></span>    <span class="keyword">static</span> <a class="code hl_typedef" href="classsecp256k1_1_1SHA256.html#afe548d04a90858ec7601e304fdaadbb5">digest_type</a> <a class="code hl_function" href="classsecp256k1_1_1SHA256.html#a45a3d0e70f49d9c94aec7100c95435a2">hash256</a>(<span class="keyword">const</span> <span class="keywordtype">void</span>* data, std::size_t len) <span class="keyword">noexcept</span> {</div>
+<div class="line"><a id="l00125" name="l00125"></a><span class="lineno">  125</span>        <span class="keyword">auto</span> h1 = <a class="code hl_function" href="classsecp256k1_1_1SHA256.html#a14ec5666f09165534032d9f027384fd2">hash</a>(data, len);</div>
+<div class="line"><a id="l00126" name="l00126"></a><span class="lineno">  126</span>        <span class="keywordflow">return</span> <a class="code hl_function" href="classsecp256k1_1_1SHA256.html#a14ec5666f09165534032d9f027384fd2">hash</a>(h1.data(), h1.size());</div>
+<div class="line"><a id="l00127" name="l00127"></a><span class="lineno">  127</span>    }</div>
 </div>
-<div class="line"><a id="l00124" name="l00124"></a><span class="lineno">  124</span> </div>
-<div class="line"><a id="l00125" name="l00125"></a><span class="lineno">  125</span><span class="keyword">private</span>:</div>
-<div class="line"><a id="l00126" name="l00126"></a><span class="lineno">  126</span>    std::uint32_t state_[8]{};</div>
-<div class="line"><a id="l00127" name="l00127"></a><span class="lineno">  127</span>    std::uint8_t buf_[64]{};</div>
-<div class="line"><a id="l00128" name="l00128"></a><span class="lineno">  128</span>    std::size_t buf_len_ = 0;</div>
-<div class="line"><a id="l00129" name="l00129"></a><span class="lineno">  129</span>    std::uint64_t total_ = 0;</div>
-<div class="line"><a id="l00130" name="l00130"></a><span class="lineno">  130</span>};</div>
+<div class="line"><a id="l00128" name="l00128"></a><span class="lineno">  128</span> </div>
+<div class="line"><a id="l00129" name="l00129"></a><span class="lineno">  129</span><span class="keyword">private</span>:</div>
+<div class="line"><a id="l00130" name="l00130"></a><span class="lineno">  130</span>    std::uint32_t state_[8]{};</div>
+<div class="line"><a id="l00131" name="l00131"></a><span class="lineno">  131</span>    std::uint8_t buf_[64]{};</div>
+<div class="line"><a id="l00132" name="l00132"></a><span class="lineno">  132</span>    std::size_t buf_len_ = 0;</div>
+<div class="line"><a id="l00133" name="l00133"></a><span class="lineno">  133</span>    std::uint64_t total_ = 0;</div>
+<div class="line"><a id="l00134" name="l00134"></a><span class="lineno">  134</span>};</div>
 </div>
-<div class="line"><a id="l00131" name="l00131"></a><span class="lineno">  131</span> </div>
-<div class="line"><a id="l00132" name="l00132"></a><span class="lineno">  132</span>} <span class="comment">// namespace secp256k1</span></div>
-<div class="line"><a id="l00133" name="l00133"></a><span class="lineno">  133</span> </div>
-<div class="line"><a id="l00134" name="l00134"></a><span class="lineno">  134</span><span class="preprocessor">#endif </span><span class="comment">// SECP256K1_SHA256_HPP</span></div>
+<div class="line"><a id="l00135" name="l00135"></a><span class="lineno">  135</span> </div>
+<div class="line"><a id="l00136" name="l00136"></a><span class="lineno">  136</span>} <span class="comment">// namespace secp256k1</span></div>
+<div class="line"><a id="l00137" name="l00137"></a><span class="lineno">  137</span> </div>
+<div class="line"><a id="l00138" name="l00138"></a><span class="lineno">  138</span><span class="preprocessor">#endif </span><span class="comment">// SECP256K1_SHA256_HPP</span></div>
 <div class="ttc" id="aclasssecp256k1_1_1SHA256_html"><div class="ttname"><a href="classsecp256k1_1_1SHA256.html">secp256k1::SHA256</a></div><div class="ttdef"><b>Definition</b> <a href="sha256_8hpp_source.html#l00025">sha256.hpp:25</a></div></div>
-<div class="ttc" id="aclasssecp256k1_1_1SHA256_html_a14ec5666f09165534032d9f027384fd2"><div class="ttname"><a href="classsecp256k1_1_1SHA256.html#a14ec5666f09165534032d9f027384fd2">secp256k1::SHA256::hash</a></div><div class="ttdeci">static digest_type hash(const void *data, std::size_t len) noexcept</div><div class="ttdef"><b>Definition</b> <a href="sha256_8hpp_source.html#l00113">sha256.hpp:113</a></div></div>
+<div class="ttc" id="aclasssecp256k1_1_1SHA256_html_a14ec5666f09165534032d9f027384fd2"><div class="ttname"><a href="classsecp256k1_1_1SHA256.html#a14ec5666f09165534032d9f027384fd2">secp256k1::SHA256::hash</a></div><div class="ttdeci">static digest_type hash(const void *data, std::size_t len) noexcept</div><div class="ttdef"><b>Definition</b> <a href="sha256_8hpp_source.html#l00117">sha256.hpp:117</a></div></div>
 <div class="ttc" id="aclasssecp256k1_1_1SHA256_html_a33bcfb1a14a778a43a6b2cd4bbd085f8"><div class="ttname"><a href="classsecp256k1_1_1SHA256.html#a33bcfb1a14a778a43a6b2cd4bbd085f8">secp256k1::SHA256::reset</a></div><div class="ttdeci">void reset() noexcept</div><div class="ttdef"><b>Definition</b> <a href="sha256_8hpp_source.html#l00031">sha256.hpp:31</a></div></div>
-<div class="ttc" id="aclasssecp256k1_1_1SHA256_html_a45a3d0e70f49d9c94aec7100c95435a2"><div class="ttname"><a href="classsecp256k1_1_1SHA256.html#a45a3d0e70f49d9c94aec7100c95435a2">secp256k1::SHA256::hash256</a></div><div class="ttdeci">static digest_type hash256(const void *data, std::size_t len) noexcept</div><div class="ttdef"><b>Definition</b> <a href="sha256_8hpp_source.html#l00120">sha256.hpp:120</a></div></div>
+<div class="ttc" id="aclasssecp256k1_1_1SHA256_html_a45a3d0e70f49d9c94aec7100c95435a2"><div class="ttname"><a href="classsecp256k1_1_1SHA256.html#a45a3d0e70f49d9c94aec7100c95435a2">secp256k1::SHA256::hash256</a></div><div class="ttdeci">static digest_type hash256(const void *data, std::size_t len) noexcept</div><div class="ttdef"><b>Definition</b> <a href="sha256_8hpp_source.html#l00124">sha256.hpp:124</a></div></div>
 <div class="ttc" id="aclasssecp256k1_1_1SHA256_html_ac7f97efe2dd08059095a39c57aac4815"><div class="ttname"><a href="classsecp256k1_1_1SHA256.html#ac7f97efe2dd08059095a39c57aac4815">secp256k1::SHA256::SHA256</a></div><div class="ttdeci">SHA256() noexcept</div><div class="ttdef"><b>Definition</b> <a href="sha256_8hpp_source.html#l00029">sha256.hpp:29</a></div></div>
 <div class="ttc" id="aclasssecp256k1_1_1SHA256_html_ac8945cf3483fa5439d2a67096829f57a"><div class="ttname"><a href="classsecp256k1_1_1SHA256.html#ac8945cf3483fa5439d2a67096829f57a">secp256k1::SHA256::finalize</a></div><div class="ttdeci">digest_type finalize() noexcept</div><div class="ttdef"><b>Definition</b> <a href="sha256_8hpp_source.html#l00070">sha256.hpp:70</a></div></div>
 <div class="ttc" id="aclasssecp256k1_1_1SHA256_html_af6810cfc0f70a3b1e7800712c76d2ea2"><div class="ttname"><a href="classsecp256k1_1_1SHA256.html#af6810cfc0f70a3b1e7800712c76d2ea2">secp256k1::SHA256::update</a></div><div class="ttdeci">void update(const void *data, std::size_t len) noexcept</div><div class="ttdef"><b>Definition</b> <a href="sha256_8hpp_source.html#l00040">sha256.hpp:40</a></div></div>
