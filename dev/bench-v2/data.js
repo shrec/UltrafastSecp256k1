@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772213053732,
+  "lastUpdate": 1772213657121,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -20294,6 +20294,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Batch Inverse (n=1000)",
             "value": 132,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "Vano Chkheidze",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ce0e9109e80d6c4493bca529170c60907aa7754d",
+          "message": "ci: pin pip deps by hash + fix cosign signing visibility (#52)\n\nScorecard Pinned-Dependencies (9->10):\n- Create .github/requirements/cppcheck.txt (cppcheck-codequality==1.4.2 +hash)\n- Create .github/requirements/mutation.txt (mutmut==3.5.0 +hash)\n- cppcheck.yml: use --require-hashes --no-deps -r requirements file\n- mutation.yml: use --require-hashes --no-deps -r requirements file\n\nScorecard Signed-Releases (diagnostic):\n- release.yml: remove 2>/dev/null from cosign sign-blob commands\n- Print cosign version at start of signing step\n- Replace silent fallback with ::warning annotations\n- Add summary listing of generated .sig/.pem files\n- This exposes the actual failure reason in CI logs\n\nVerify: next release tag will show cosign errors (if any) in logs\nand Scorecard rescan should see 4/4 pip deps hash-pinned.",
+          "timestamp": "2026-02-27T21:32:20+04:00",
+          "tree_id": "99808e2355d20ced4ec72006d62c8e426da8a924",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/ce0e9109e80d6c4493bca529170c60907aa7754d"
+        },
+        "date": 1772213654414,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 27,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 22,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 290,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 150,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 38000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 9000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 14000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 47000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 24000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 53000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 138,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 131,
             "unit": "ns"
           }
         ]
