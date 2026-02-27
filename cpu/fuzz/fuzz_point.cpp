@@ -5,6 +5,13 @@
 //        -I cpu/include fuzz_point.cpp cpu/src/*.cpp -o fuzz_point
 // Run:   ./fuzz_point -max_len=32 -runs=1000000
 // ============================================================================
+//
+// NOTE: We construct G via from_affine() instead of generator() so that
+// scalar_mul() takes the GLV double-and-add path rather than the
+// precomputed-table path (scalar_mul_generator -> build_context).
+// Under sanitizer instrumentation build_context() takes >25 s,
+// which exceeds the libFuzzer per-unit timeout.
+// ============================================================================
 
 #include "secp256k1/field.hpp"
 #include "secp256k1/scalar.hpp"
@@ -15,6 +22,13 @@
 
 using namespace secp256k1::fast;
 
+// Generator point constructed once without the is_generator_ flag,
+// avoiding the heavy precomputed-table path in scalar_mul().
+static const Point G_fuzz = []() {
+    auto gen = Point::generator();
+    return Point::from_affine(gen.x(), gen.y());
+}();
+
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
     if (size < 32) return 0; // need one 32-byte scalar
 
@@ -24,10 +38,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
     auto k = Scalar::from_bytes(buf);
     if (k.is_zero()) return 0;
 
-    auto G = Point::generator();
-
     // -- k*G must be on-curve -------------------------------------------------
-    auto P = G.scalar_mul(k);
+    auto P = G_fuzz.scalar_mul(k);
     if (P.is_infinity()) return 0;
 
     // Verify compressed -> uncompressed round-trip consistency
