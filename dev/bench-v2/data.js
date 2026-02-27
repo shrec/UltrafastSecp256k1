@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772225495250,
+  "lastUpdate": 1772226216574,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -20591,6 +20591,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Batch Inverse (n=1000)",
             "value": 132,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "Vano Chkheidze",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b7d30d42aa68c38606603fb34d1b541cfbf9ac22",
+          "message": "fix: restore using declarations removed by clang-tidy (#57)\n\necdsa.cpp: restore 'using fast::FieldElement' -- used in #else path\n(non-__int128 / ESP32 / MSVC) invisible to clang-tidy preprocessor.\n\nct_sign.cpp: restore 'using fast::Scalar' -- used unqualified throughout\nbut in secp256k1::ct namespace (sibling of secp256k1::fast).\n\nFixes CI: windows, wasm, android, benchmark-windows, Security Audit.",
+          "timestamp": "2026-02-28T01:01:27+04:00",
+          "tree_id": "0d78d22fed71007a487dbd9cd81e1b242f120d1e",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/b7d30d42aa68c38606603fb34d1b541cfbf9ac22"
+        },
+        "date": 1772226214400,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 26,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 19,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 268,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 133,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 35000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 8000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 12000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 43000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 20000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 49000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 115,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 107,
             "unit": "ns"
           }
         ]
