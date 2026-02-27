@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772232484331,
+  "lastUpdate": 1772234272878,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -21284,6 +21284,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Batch Inverse (n=1000)",
             "value": 140,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "Vano Chkheidze",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b3ee1e5ff4989ede5008bd44714151bcd4d10e7b",
+          "message": "test: reduce iteration counts under sanitizers (SCALED macro) (#64)\n\nAdd cpu/include/secp256k1/sanitizer_scale.hpp header that detects\nASan/TSan/MSan/UBSan at compile time and provides SCALED(normal, reduced)\nmacro. Apply SCALED() to all 13 audit/test source files with high\niteration counts (100K+ -> 1K, 10K -> 200, 5K -> 100, 1K -> 50, etc).\n\nRoot cause: sanitizers add 3-15x runtime overhead; tests with 100K+\ncrypto ops (scalar_mul, sign, verify) were timing out at 300-900s in CI.\nThis reduces sanitizer-build iteration counts by 20-100x while keeping\nnormal-build counts unchanged.\n\nFiles changed:\n- NEW: cpu/include/secp256k1/sanitizer_scale.hpp\n- audit/test_fuzz_parsers.cpp (7 N values)\n- audit/test_fuzz_address_bip32_ffi.cpp (15 loops + 4 threshold checks)\n- audit/audit_fuzz.cpp (6 loops)\n- audit/test_fault_injection.cpp (8 TRIALS)\n- audit/audit_field.cpp (21 loops)\n- audit/audit_scalar.cpp (7 loops)\n- audit/audit_point.cpp (9 loops)\n- audit/audit_ct.cpp (10 loops)\n- audit/audit_security.cpp (9 loops)\n- audit/audit_integration.cpp (5 loops)\n- audit/audit_perf.cpp (7 values)\n- audit/differential_test.cpp (7 N values)\n- audit/test_cross_libsecp256k1.cpp (9 N values)\n\nVerify: cmake --build build-linux -j && ctest --test-dir build-linux",
+          "timestamp": "2026-02-28T03:16:06+04:00",
+          "tree_id": "fcadc610fc9010362c80b8369b57fd4dafa0ec95",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/b3ee1e5ff4989ede5008bd44714151bcd4d10e7b"
+        },
+        "date": 1772234271455,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 27,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 22,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 282,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 149,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 38000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 10000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 14000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 47000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 24000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 53000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 141,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 137,
             "unit": "ns"
           }
         ]
