@@ -187,8 +187,9 @@ using OFE = secp256k1::fast::OptimalFieldElement;
 std::vector<OFE> to_optimal_fields(const std::vector<FieldElement>& fields) {
     std::vector<OFE> result;
     result.reserve(fields.size());
-    for (const auto& f : fields)
+    for (const auto& f : fields) {
         result.push_back(secp256k1::fast::to_optimal(f));
+}
     return result;
 }
 
@@ -212,9 +213,9 @@ static void warmup_benchmark(const std::vector<FieldElement>& fields,
         (void)inv;
     }
 
-    Point G = Point::generator();
+    Point const G = Point::generator();
     Point P = G.scalar_mul(Scalar::from_uint64(7));
-    Point Q = G.scalar_mul(Scalar::from_uint64(11));
+    Point const Q = G.scalar_mul(Scalar::from_uint64(11));
     for (size_t i = 0; i < kPointWarmIters; ++i) {
         P = P.add(Q);
         P = P.dbl();
@@ -283,9 +284,9 @@ double bench_field_inverse(const std::vector<FieldElement>& elements, size_t ite
 // ============================================================
 
 double bench_point_add(size_t iterations) {
-    Point G = Point::generator();
-    Point P = G.scalar_mul(Scalar::from_uint64(7));
-    Point Q_jac = G.scalar_mul(Scalar::from_uint64(11));
+    Point const G = Point::generator();
+    Point const P = G.scalar_mul(Scalar::from_uint64(7));
+    Point const Q_jac = G.scalar_mul(Scalar::from_uint64(11));
     Point Q = Point::from_affine(Q_jac.x(), Q_jac.y());
     Point result = P;
 
@@ -296,8 +297,8 @@ double bench_point_add(size_t iterations) {
 }
 
 double bench_point_double(size_t iterations) {
-    Point G = Point::generator();
-    Point P = G.scalar_mul(Scalar::from_uint64(7));
+    Point const G = Point::generator();
+    Point const P = G.scalar_mul(Scalar::from_uint64(7));
     Point result = P;
 
     return H.run(static_cast<int>(iterations), [&]() {
@@ -307,7 +308,7 @@ double bench_point_double(size_t iterations) {
 }
 
 double bench_point_scalar_mul(const std::vector<Scalar>& scalars, size_t iterations) {
-    Point G = Point::generator();
+    Point const G = Point::generator();
     Point Q = G.scalar_mul(Scalar::from_uint64(12345));
     Point result = Q;
     size_t idx = 0;
@@ -469,35 +470,35 @@ int main()
 
     {
         const size_t iterations = 100000;
-        double time = bench_field_mul(opt_fields, iterations);
+        double const time = bench_field_mul(opt_fields, iterations);
         results.push_back({"Field Mul", time});
         std::cout << "Field Mul:       " << std::setw(10) << format_time(time) << "\n";
     }
 
     {
         const size_t iterations = 100000;
-        double time = bench_field_square(opt_fields, iterations);
+        double const time = bench_field_square(opt_fields, iterations);
         results.push_back({"Field Square", time});
         std::cout << "Field Square:    " << std::setw(10) << format_time(time) << "\n";
     }
 
     {
         const size_t iterations = 100000;
-        double time = bench_field_add(opt_fields, iterations);
+        double const time = bench_field_add(opt_fields, iterations);
         results.push_back({"Field Add", time});
         std::cout << "Field Add:       " << std::setw(10) << format_time(time) << "\n";
     }
 
     {
         const size_t iterations = 100000;
-        double time = bench_field_negate(opt_fields, iterations);
+        double const time = bench_field_negate(opt_fields, iterations);
         results.push_back({"Field Negate", time});
         std::cout << "Field Negate:    " << std::setw(10) << format_time(time) << "\n";
     }
 
     {
         const size_t iterations = 1000;
-        double time = bench_field_inverse(fields, iterations);
+        double const time = bench_field_inverse(fields, iterations);
         results.push_back({"Field Inverse", time});
         std::cout << "Field Inverse:   " << std::setw(10) << format_time(time) << "\n";
     }
@@ -511,28 +512,28 @@ int main()
 
     {
         const size_t iterations = 10000;
-        double time = bench_point_add(iterations);
+        double const time = bench_point_add(iterations);
         results.push_back({"Point Add", time});
         std::cout << "Point Add:       " << std::setw(10) << format_time(time) << "\n";
     }
 
     {
         const size_t iterations = 10000;
-        double time = bench_point_double(iterations);
+        double const time = bench_point_double(iterations);
         results.push_back({"Point Double", time});
         std::cout << "Point Double:    " << std::setw(10) << format_time(time) << "\n";
     }
 
     {
         const size_t iterations = 100;
-        double time = bench_point_scalar_mul(scalars, iterations);
+        double const time = bench_point_scalar_mul(scalars, iterations);
         results.push_back({"Point Scalar Mul", time});
         std::cout << "Point Scalar Mul:" << std::setw(10) << format_time(time) << "\n";
     }
 
     {
         const size_t iterations = 100;
-        double time = bench_generator_mul(scalars, iterations);
+        double const time = bench_generator_mul(scalars, iterations);
         results.push_back({"Generator Mul", time});
         std::cout << "Generator Mul:   " << std::setw(10) << format_time(time) << "\n";
     }
@@ -557,8 +558,8 @@ int main()
         std::random_device rd;
         std::mt19937_64 gen(rd());
         std::uniform_int_distribution<uint64_t> dist;
-        Point G = Point::generator();
-        std::array<uint8_t,32> aux{};
+        Point const G = Point::generator();
+        std::array<uint8_t,32> const aux{};
 
         for (size_t i = 0; i < sig_count; ++i) {
             // random message hash
@@ -583,28 +584,28 @@ int main()
 
     {
         const size_t iterations = 100;
-        double time = bench_ecdsa_sign(sign_keys, msg_hashes, iterations);
+        double const time = bench_ecdsa_sign(sign_keys, msg_hashes, iterations);
         results.push_back({"ECDSA Sign", time});
         std::cout << "ECDSA Sign:      " << std::setw(10) << format_time(time) << "\n";
     }
 
     {
         const size_t iterations = 100;
-        double time = bench_ecdsa_verify(ecdsa_sigs, msg_hashes, sign_pubkeys, iterations);
+        double const time = bench_ecdsa_verify(ecdsa_sigs, msg_hashes, sign_pubkeys, iterations);
         results.push_back({"ECDSA Verify", time});
         std::cout << "ECDSA Verify:    " << std::setw(10) << format_time(time) << "\n";
     }
 
     {
         const size_t iterations = 100;
-        double time = bench_schnorr_sign(sign_keys, msg_hashes, iterations);
+        double const time = bench_schnorr_sign(sign_keys, msg_hashes, iterations);
         results.push_back({"Schnorr Sign", time});
         std::cout << "Schnorr Sign:    " << std::setw(10) << format_time(time) << "\n";
     }
 
     {
         const size_t iterations = 100;
-        double time = bench_schnorr_verify(schnorr_sigs, msg_hashes, xonly_pks, iterations);
+        double const time = bench_schnorr_verify(schnorr_sigs, msg_hashes, xonly_pks, iterations);
         results.push_back({"Schnorr Verify", time});
         std::cout << "Schnorr Verify:  " << std::setw(10) << format_time(time) << "\n";
     }
@@ -618,14 +619,14 @@ int main()
 
     {
         const size_t batch_size = 100;
-        double time = bench_batch_inversion(batch_size);
+        double const time = bench_batch_inversion(batch_size);
         results.push_back({"Batch Inverse (n=100)", time});
         std::cout << "Batch Inverse (n=100): " << std::setw(10) << format_time(time) << " per element\n";
     }
 
     {
         const size_t batch_size = 1000;
-        double time = bench_batch_inversion(batch_size);
+        double const time = bench_batch_inversion(batch_size);
         results.push_back({"Batch Inverse (n=1000)", time});
         std::cout << "Batch Inverse (n=1000):" << std::setw(10) << format_time(time) << " per element\n";
     }

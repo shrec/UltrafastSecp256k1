@@ -72,7 +72,7 @@ using namespace secp256k1::fast;
 
 #if defined(_MSC_VER) && defined(_M_X64)
 static inline uint64_t rdtsc() {
-    unsigned int aux;
+    unsigned int aux = 0;
     return __rdtscp(&aux);
 }
 #elif defined(__x86_64__)
@@ -112,17 +112,17 @@ struct WelchState {
 
     void push(int cls, double x) {
         n[cls] += 1.0;
-        double delta = x - mean[cls];
+        double const delta = x - mean[cls];
         mean[cls] += delta / n[cls];
-        double delta2 = x - mean[cls];
+        double const delta2 = x - mean[cls];
         m2[cls] += delta * delta2;
     }
 
     double t_value() const {
         if (n[0] < 2 || n[1] < 2) return 0.0;
-        double var0 = m2[0] / (n[0] - 1.0);
-        double var1 = m2[1] / (n[1] - 1.0);
-        double se = std::sqrt(var0 / n[0] + var1 / n[1]);
+        double const var0 = m2[0] / (n[0] - 1.0);
+        double const var1 = m2[1] / (n[1] - 1.0);
+        double const se = std::sqrt(var0 / n[0] + var1 / n[1]);
         if (se < 1e-15) return 0.0;
         return (mean[0] - mean[1]) / se;
     }
@@ -137,7 +137,7 @@ static std::mt19937_64 rng(0xA0D17'51DE0);
 static void random_bytes(uint8_t* out, size_t len) {
     for (size_t i = 0; i < len; i += 8) {
         uint64_t v = rng();
-        size_t chunk = (len - i < 8) ? (len - i) : 8;
+        size_t const chunk = (len - i < 8) ? (len - i) : 8;
         std::memcpy(out + i, &v, chunk);
     }
 }
@@ -210,21 +210,21 @@ static void test_ct_primitives() {
 
         WelchState ws;
         for (int i = 0; i < N; ++i) {
-            int cls = classes[i];
+            int const cls = classes[i];
             uint64_t val = inputs[cls][i];
 
             BARRIER_OPAQUE(val);
-            uint64_t t0 = rdtsc();
+            uint64_t const t0 = rdtsc();
             BARRIER_FENCE();
-            volatile uint64_t r = secp256k1::ct::is_zero_mask(val);
+            volatile uint64_t const r = secp256k1::ct::is_zero_mask(val);
             (void)r;
             BARRIER_FENCE();
-            uint64_t t1 = rdtsc();
+            uint64_t const t1 = rdtsc();
             BARRIER_FENCE();
 
             ws.push(cls, static_cast<double>(t1 - t0));
         }
-        double t = std::abs(ws.t_value());
+        double const t = std::abs(ws.t_value());
         printf("    is_zero_mask:    |t| = %6.2f  (%d/%d)  %s\n",
                t, (int)ws.n[0], (int)ws.n[1],
                t < T_THRESHOLD ? "[OK] CT" : "[!]  LEAK");
@@ -243,21 +243,21 @@ static void test_ct_primitives() {
 
         WelchState ws;
         for (int i = 0; i < N; ++i) {
-            int cls = classes[i];
+            int const cls = classes[i];
             bool flag = inputs[cls][i];
 
             BARRIER_OPAQUE(flag);
-            uint64_t t0 = rdtsc();
+            uint64_t const t0 = rdtsc();
             BARRIER_FENCE();
-            volatile uint64_t m = secp256k1::ct::bool_to_mask(flag);
+            volatile uint64_t const m = secp256k1::ct::bool_to_mask(flag);
             (void)m;
             BARRIER_FENCE();
-            uint64_t t1 = rdtsc();
+            uint64_t const t1 = rdtsc();
             BARRIER_FENCE();
 
             ws.push(cls, static_cast<double>(t1 - t0));
         }
-        double t = std::abs(ws.t_value());
+        double const t = std::abs(ws.t_value());
         printf("    bool_to_mask:    |t| = %6.2f  (%d/%d)  %s\n",
                t, (int)ws.n[0], (int)ws.n[1],
                t < T_THRESHOLD ? "[OK] CT" : "[!]  LEAK");
@@ -278,20 +278,20 @@ static void test_ct_primitives() {
 
         WelchState ws;
         for (int i = 0; i < N; ++i) {
-            int cls = classes[i];
+            int const cls = classes[i];
             uint64_t mask = masks[cls][i];
 
             BARRIER_OPAQUE(mask);
-            uint64_t t0 = rdtsc();
+            uint64_t const t0 = rdtsc();
             BARRIER_FENCE();
             secp256k1::ct::cmov256(dst, src, mask);
             BARRIER_FENCE();
-            uint64_t t1 = rdtsc();
+            uint64_t const t1 = rdtsc();
             BARRIER_FENCE();
 
             ws.push(cls, static_cast<double>(t1 - t0));
         }
-        double t = std::abs(ws.t_value());
+        double const t = std::abs(ws.t_value());
         printf("    cmov256:         |t| = %6.2f  (%d/%d)  %s\n",
                t, (int)ws.n[0], (int)ws.n[1],
                t < T_THRESHOLD ? "[OK] CT" : "[!]  LEAK");
@@ -311,20 +311,20 @@ static void test_ct_primitives() {
 
         WelchState ws;
         for (int i = 0; i < N; ++i) {
-            int cls = classes[i];
+            int const cls = classes[i];
             uint64_t mask = masks[cls][i];
 
             BARRIER_OPAQUE(mask);
-            uint64_t t0 = rdtsc();
+            uint64_t const t0 = rdtsc();
             BARRIER_FENCE();
             secp256k1::ct::cswap256(a, b, mask);
             BARRIER_FENCE();
-            uint64_t t1 = rdtsc();
+            uint64_t const t1 = rdtsc();
             BARRIER_FENCE();
 
             ws.push(cls, static_cast<double>(t1 - t0));
         }
-        double t = std::abs(ws.t_value());
+        double const t = std::abs(ws.t_value());
         printf("    cswap256:        |t| = %6.2f  (%d/%d)  %s\n",
                t, (int)ws.n[0], (int)ws.n[1],
                t < T_THRESHOLD ? "[OK] CT" : "[!]  LEAK");
@@ -341,26 +341,27 @@ static void test_ct_primitives() {
             indices[1][i] = rng() % 16;   // random
         }
         uint64_t table[16][4];
-        for (int i = 0; i < 16; ++i)
+        for (int i = 0; i < 16; ++i) {
             for (int j = 0; j < 4; ++j) table[i][j] = rng();
+}
         uint64_t out[4];
 
         WelchState ws;
         for (int i = 0; i < N; ++i) {
-            int cls = classes[i];
+            int const cls = classes[i];
             size_t idx = indices[cls][i];
 
             BARRIER_OPAQUE(idx);
-            uint64_t t0 = rdtsc();
+            uint64_t const t0 = rdtsc();
             BARRIER_FENCE();
             secp256k1::ct::ct_lookup_256(table, 16, idx, out);
             BARRIER_FENCE();
-            uint64_t t1 = rdtsc();
+            uint64_t const t1 = rdtsc();
             BARRIER_FENCE();
 
             ws.push(cls, static_cast<double>(t1 - t0));
         }
-        double t = std::abs(ws.t_value());
+        double const t = std::abs(ws.t_value());
         printf("    ct_lookup_256:   |t| = %6.2f  (%d/%d)  %s\n",
                t, (int)ws.n[0], (int)ws.n[1],
                t < T_THRESHOLD ? "[OK] CT" : "[!]  LEAK");
@@ -384,24 +385,24 @@ static void test_ct_primitives() {
 
         WelchState ws;
         for (int i = 0; i < N; ++i) {
-            int cls = classes[i];
+            int const cls = classes[i];
             const uint8_t* a = (cls == 0) ? pairs0[i].a : pairs1[i].a;
             const uint8_t* b = (cls == 0) ? pairs0[i].b : pairs1[i].b;
 
             BARRIER_FENCE();
-            uint64_t t0 = rdtsc();
+            uint64_t const t0 = rdtsc();
             BARRIER_FENCE();
-            volatile bool eq = secp256k1::ct::ct_equal(a, b, 32);
+            volatile bool const eq = secp256k1::ct::ct_equal(a, b, 32);
             (void)eq;
             BARRIER_FENCE();
-            uint64_t t1 = rdtsc();
+            uint64_t const t1 = rdtsc();
             BARRIER_FENCE();
 
             ws.push(cls, static_cast<double>(t1 - t0));
         }
         delete[] pairs0;
         delete[] pairs1;
-        double t = std::abs(ws.t_value());
+        double const t = std::abs(ws.t_value());
         printf("    ct_equal:        |t| = %6.2f  (%d/%d)  %s\n",
                t, (int)ws.n[0], (int)ws.n[1],
                t < T_THRESHOLD ? "[OK] CT" : "[!]  LEAK");
@@ -444,21 +445,21 @@ static void test_ct_field() {
     {
         WelchState ws;
         for (int i = 0; i < N; ++i) {
-            int cls = classes[i];
+            int const cls = classes[i];
             auto& op = fe_input[i].v[cls];
 
             BARRIER_FENCE();
-            uint64_t t0 = rdtsc();
+            uint64_t const t0 = rdtsc();
             BARRIER_FENCE();
             volatile auto r = secp256k1::ct::field_add(fe_base[i], op);
             (void)r;
             BARRIER_FENCE();
-            uint64_t t1 = rdtsc();
+            uint64_t const t1 = rdtsc();
             BARRIER_FENCE();
 
             ws.push(cls, static_cast<double>(t1 - t0));
         }
-        double t = std::abs(ws.t_value());
+        double const t = std::abs(ws.t_value());
         printf("    field_add:       |t| = %6.2f  %s\n",
                t, t < T_THRESHOLD ? "[OK] CT" : "[!]  LEAK");
         check(t < T_THRESHOLD, "ct::field_add timing leak");
@@ -468,21 +469,21 @@ static void test_ct_field() {
     {
         WelchState ws;
         for (int i = 0; i < N; ++i) {
-            int cls = classes[i];
+            int const cls = classes[i];
             auto& op = fe_input[i].v[cls];
 
             BARRIER_FENCE();
-            uint64_t t0 = rdtsc();
+            uint64_t const t0 = rdtsc();
             BARRIER_FENCE();
             volatile auto r = secp256k1::ct::field_mul(fe_base[i], op);
             (void)r;
             BARRIER_FENCE();
-            uint64_t t1 = rdtsc();
+            uint64_t const t1 = rdtsc();
             BARRIER_FENCE();
 
             ws.push(cls, static_cast<double>(t1 - t0));
         }
-        double t = std::abs(ws.t_value());
+        double const t = std::abs(ws.t_value());
         printf("    field_mul:       |t| = %6.2f  %s\n",
                t, t < T_THRESHOLD ? "[OK] CT" : "[!]  LEAK");
         check(t < T_THRESHOLD, "ct::field_mul timing leak");
@@ -495,21 +496,21 @@ static void test_ct_field() {
 
         WelchState ws;
         for (int i = 0; i < N; ++i) {
-            int cls = classes[i];
+            int const cls = classes[i];
             auto& op = fe_input[i].v[cls];
 
             BARRIER_FENCE();
-            uint64_t t0 = rdtsc();
+            uint64_t const t0 = rdtsc();
             BARRIER_FENCE();
             volatile auto r = secp256k1::ct::field_sqr(op);
             (void)r;
             BARRIER_FENCE();
-            uint64_t t1 = rdtsc();
+            uint64_t const t1 = rdtsc();
             BARRIER_FENCE();
 
             ws.push(cls, static_cast<double>(t1 - t0));
         }
-        double t = std::abs(ws.t_value());
+        double const t = std::abs(ws.t_value());
         printf("    field_sqr:       |t| = %6.2f  %s\n",
                t, t < T_THRESHOLD ? "[OK] CT" : "[!]  LEAK");
         check(t < T_THRESHOLD, "ct::field_sqr timing leak");
@@ -527,21 +528,21 @@ static void test_ct_field() {
 
         WelchState ws;
         for (int i = 0; i < NSLOW; ++i) {
-            int cls = classes[i];
+            int const cls = classes[i];
             auto& op = fe_input[i].v[cls];
 
             BARRIER_FENCE();
-            uint64_t t0 = rdtsc();
+            uint64_t const t0 = rdtsc();
             BARRIER_FENCE();
             volatile auto r = secp256k1::ct::field_inv(op);
             (void)r;
             BARRIER_FENCE();
-            uint64_t t1 = rdtsc();
+            uint64_t const t1 = rdtsc();
             BARRIER_FENCE();
 
             ws.push(cls, static_cast<double>(t1 - t0));
         }
-        double t = std::abs(ws.t_value());
+        double const t = std::abs(ws.t_value());
         printf("    field_inv:       |t| = %6.2f  %s\n",
                t, t < T_THRESHOLD ? "[OK] CT" : "[!]  LEAK");
         check(t < T_THRESHOLD, "ct::field_inv timing leak");
@@ -555,22 +556,22 @@ static void test_ct_field() {
 
         WelchState ws;
         for (int i = 0; i < N; ++i) {
-            int cls = classes[i];
+            int const cls = classes[i];
             uint64_t mask = masks[cls];
             auto dst = fe_base[i];
             auto src = fe_input[i].v[1];
 
             BARRIER_OPAQUE(mask);
-            uint64_t t0 = rdtsc();
+            uint64_t const t0 = rdtsc();
             BARRIER_FENCE();
             secp256k1::ct::field_cmov(&dst, src, mask);
             BARRIER_FENCE();
-            uint64_t t1 = rdtsc();
+            uint64_t const t1 = rdtsc();
             BARRIER_FENCE();
 
             ws.push(cls, static_cast<double>(t1 - t0));
         }
-        double t = std::abs(ws.t_value());
+        double const t = std::abs(ws.t_value());
         printf("    field_cmov:      |t| = %6.2f  %s\n",
                t, t < T_THRESHOLD ? "[OK] CT" : "[!]  LEAK");
         check(t < T_THRESHOLD, "ct::field_cmov timing leak");
@@ -582,21 +583,21 @@ static void test_ct_field() {
 
         WelchState ws;
         for (int i = 0; i < N; ++i) {
-            int cls = classes[i];
+            int const cls = classes[i];
             auto& op = fe_input[i].v[cls];
 
             BARRIER_FENCE();
-            uint64_t t0 = rdtsc();
+            uint64_t const t0 = rdtsc();
             BARRIER_FENCE();
             volatile auto m = secp256k1::ct::field_is_zero(op);
             (void)m;
             BARRIER_FENCE();
-            uint64_t t1 = rdtsc();
+            uint64_t const t1 = rdtsc();
             BARRIER_FENCE();
 
             ws.push(cls, static_cast<double>(t1 - t0));
         }
-        double t = std::abs(ws.t_value());
+        double const t = std::abs(ws.t_value());
         printf("    field_is_zero:   |t| = %6.2f  %s\n",
                t, t < T_THRESHOLD ? "[OK] CT" : "[!]  LEAK");
         check(t < T_THRESHOLD, "ct::field_is_zero timing leak");
@@ -642,21 +643,21 @@ static void test_ct_scalar() {
     {
         WelchState ws;
         for (int i = 0; i < N; ++i) {
-            int cls = classes[i];
+            int const cls = classes[i];
             auto& op = sc_input[i].v[cls];
 
             BARRIER_FENCE();
-            uint64_t t0 = rdtsc();
+            uint64_t const t0 = rdtsc();
             BARRIER_FENCE();
             volatile auto r = secp256k1::ct::scalar_add(sc_base[i], op);
             (void)r;
             BARRIER_FENCE();
-            uint64_t t1 = rdtsc();
+            uint64_t const t1 = rdtsc();
             BARRIER_FENCE();
 
             ws.push(cls, static_cast<double>(t1 - t0));
         }
-        double t = std::abs(ws.t_value());
+        double const t = std::abs(ws.t_value());
         printf("    scalar_add:      |t| = %6.2f  %s\n",
                t, t < T_THRESHOLD ? "[OK] CT" : "[!]  LEAK");
         check(t < T_THRESHOLD, "ct::scalar_add timing leak");
@@ -666,21 +667,21 @@ static void test_ct_scalar() {
     {
         WelchState ws;
         for (int i = 0; i < N; ++i) {
-            int cls = classes[i];
+            int const cls = classes[i];
             auto& op = sc_input[i].v[cls];
 
             BARRIER_FENCE();
-            uint64_t t0 = rdtsc();
+            uint64_t const t0 = rdtsc();
             BARRIER_FENCE();
             volatile auto r = secp256k1::ct::scalar_sub(sc_base[i], op);
             (void)r;
             BARRIER_FENCE();
-            uint64_t t1 = rdtsc();
+            uint64_t const t1 = rdtsc();
             BARRIER_FENCE();
 
             ws.push(cls, static_cast<double>(t1 - t0));
         }
-        double t = std::abs(ws.t_value());
+        double const t = std::abs(ws.t_value());
         printf("    scalar_sub:      |t| = %6.2f  %s\n",
                t, t < T_THRESHOLD ? "[OK] CT" : "[!]  LEAK");
         check(t < T_THRESHOLD, "ct::scalar_sub timing leak");
@@ -688,25 +689,25 @@ static void test_ct_scalar() {
 
     // -- 3c: scalar_cmov -------------------------------------------------
     {
-        uint64_t masks[2] = {0, ~0ULL};
+        uint64_t const masks[2] = {0, ~0ULL};
         WelchState ws;
         for (int i = 0; i < N; ++i) {
-            int cls = classes[i];
+            int const cls = classes[i];
             uint64_t mask = masks[cls];
             auto dst = sc_base[i];
             auto src = sc_input[i].v[1];
 
             BARRIER_OPAQUE(mask);
-            uint64_t t0 = rdtsc();
+            uint64_t const t0 = rdtsc();
             BARRIER_FENCE();
             secp256k1::ct::scalar_cmov(&dst, src, mask);
             BARRIER_FENCE();
-            uint64_t t1 = rdtsc();
+            uint64_t const t1 = rdtsc();
             BARRIER_FENCE();
 
             ws.push(cls, static_cast<double>(t1 - t0));
         }
-        double t = std::abs(ws.t_value());
+        double const t = std::abs(ws.t_value());
         printf("    scalar_cmov:     |t| = %6.2f  %s\n",
                t, t < T_THRESHOLD ? "[OK] CT" : "[!]  LEAK");
         check(t < T_THRESHOLD, "ct::scalar_cmov timing leak");
@@ -718,21 +719,21 @@ static void test_ct_scalar() {
 
         WelchState ws;
         for (int i = 0; i < N; ++i) {
-            int cls = classes[i];
+            int const cls = classes[i];
             auto& op = sc_input[i].v[cls];
 
             BARRIER_FENCE();
-            uint64_t t0 = rdtsc();
+            uint64_t const t0 = rdtsc();
             BARRIER_FENCE();
             volatile auto m = secp256k1::ct::scalar_is_zero(op);
             (void)m;
             BARRIER_FENCE();
-            uint64_t t1 = rdtsc();
+            uint64_t const t1 = rdtsc();
             BARRIER_FENCE();
 
             ws.push(cls, static_cast<double>(t1 - t0));
         }
-        double t = std::abs(ws.t_value());
+        double const t = std::abs(ws.t_value());
         printf("    scalar_is_zero:  |t| = %6.2f  %s\n",
                t, t < T_THRESHOLD ? "[OK] CT" : "[!]  LEAK");
         check(t < T_THRESHOLD, "ct::scalar_is_zero timing leak");
@@ -760,21 +761,21 @@ static void test_ct_scalar() {
 
         WelchState ws;
         for (int i = 0; i < N; ++i) {
-            int cls = classes[i];
+            int const cls = classes[i];
             const auto& sc = sc_cls[cls][i];
 
             BARRIER_FENCE();
-            uint64_t t0 = rdtsc();
+            uint64_t const t0 = rdtsc();
             BARRIER_FENCE();
             volatile auto bit = secp256k1::ct::scalar_bit(sc, TEST_POS);
             (void)bit;
             BARRIER_FENCE();
-            uint64_t t1 = rdtsc();
+            uint64_t const t1 = rdtsc();
             BARRIER_FENCE();
 
             ws.push(cls, static_cast<double>(t1 - t0));
         }
-        double t = std::abs(ws.t_value());
+        double const t = std::abs(ws.t_value());
         printf("    scalar_bit:      |t| = %6.2f  %s\n",
                t, t < T_THRESHOLD ? "[OK] CT" : "[!]  LEAK");
         check(t < T_THRESHOLD, "ct::scalar_bit timing leak");
@@ -790,21 +791,21 @@ static void test_ct_scalar() {
 
         WelchState ws;
         for (int i = 0; i < N; ++i) {
-            int cls = classes[i];
+            int const cls = classes[i];
             size_t pos = positions[cls][i];
 
             BARRIER_OPAQUE(pos);
-            uint64_t t0 = rdtsc();
+            uint64_t const t0 = rdtsc();
             BARRIER_FENCE();
             volatile auto w = secp256k1::ct::scalar_window(sc_base[i], pos, 4);
             (void)w;
             BARRIER_FENCE();
-            uint64_t t1 = rdtsc();
+            uint64_t const t1 = rdtsc();
             BARRIER_FENCE();
 
             ws.push(cls, static_cast<double>(t1 - t0));
         }
-        double t = std::abs(ws.t_value());
+        double const t = std::abs(ws.t_value());
         printf("    scalar_window:   |t| = %6.2f  %s\n",
                t, t < T_THRESHOLD ? "[OK] CT" : "[!]  LEAK");
         check(t < T_THRESHOLD, "ct::scalar_window timing leak");
@@ -845,21 +846,21 @@ static void test_ct_point() {
 
         WelchState ws;
         for (int i = 0; i < N; ++i) {
-            int cls = classes[i];
+            int const cls = classes[i];
             auto& rhs = rhs_arr[cls];
 
             BARRIER_FENCE();
-            uint64_t t0 = rdtsc();
+            uint64_t const t0 = rdtsc();
             BARRIER_FENCE();
             volatile auto r = secp256k1::ct::point_add_complete(ct_G, rhs);
             (void)r;
             BARRIER_FENCE();
-            uint64_t t1 = rdtsc();
+            uint64_t const t1 = rdtsc();
             BARRIER_FENCE();
 
             ws.push(cls, static_cast<double>(t1 - t0));
         }
-        double t = std::abs(ws.t_value());
+        double const t = std::abs(ws.t_value());
         printf("    complete_add (P+O vs P+Q):   |t| = %6.2f  %s\n",
                t, t < T_THRESHOLD ? "[OK] CT" : "[!]  LEAK");
         check(t < T_THRESHOLD, "complete_add P+O vs P+Q timing leak");
@@ -884,21 +885,21 @@ static void test_ct_point() {
 
         WelchState ws;
         for (int i = 0; i < N; ++i) {
-            int cls = classes[i];
+            int const cls = classes[i];
             auto& rhs = rhs_arr[cls];
 
             BARRIER_FENCE();
-            uint64_t t0 = rdtsc();
+            uint64_t const t0 = rdtsc();
             BARRIER_FENCE();
             volatile auto r = secp256k1::ct::point_add_complete(ct_G, rhs);
             (void)r;
             BARRIER_FENCE();
-            uint64_t t1 = rdtsc();
+            uint64_t const t1 = rdtsc();
             BARRIER_FENCE();
 
             ws.push(cls, static_cast<double>(t1 - t0));
         }
-        double t = std::abs(ws.t_value());
+        double const t = std::abs(ws.t_value());
         printf("    complete_add (P+P vs P+Q):   |t| = %6.2f  %s\n",
                t, t < T_THRESHOLD ? "[OK] CT" : "[!]  LEAK");
         check(t < T_THRESHOLD, "complete_add P+P vs P+Q timing leak");
@@ -925,21 +926,21 @@ static void test_ct_point() {
 
         WelchState ws;
         for (int i = 0; i < N; ++i) {
-            int cls = classes[i];
+            int const cls = classes[i];
             auto& k = scalars[cls][i];
 
             BARRIER_FENCE();
-            uint64_t t0 = rdtsc();
+            uint64_t const t0 = rdtsc();
             BARRIER_FENCE();
             volatile auto R = secp256k1::ct::scalar_mul(G, k);
             (void)R;
             BARRIER_FENCE();
-            uint64_t t1 = rdtsc();
+            uint64_t const t1 = rdtsc();
             BARRIER_FENCE();
 
             ws.push(cls, static_cast<double>(t1 - t0));
         }
-        double t = std::abs(ws.t_value());
+        double const t = std::abs(ws.t_value());
         printf("    scalar_mul (k=1 vs random):  |t| = %6.2f  (%d/%d)  %s\n",
                t, (int)ws.n[0], (int)ws.n[1],
                t < T_THRESHOLD ? "[OK] CT" : "[!]  LEAK");
@@ -966,21 +967,21 @@ static void test_ct_point() {
 
         WelchState ws;
         for (int i = 0; i < N; ++i) {
-            int cls = classes[i];
+            int const cls = classes[i];
             auto& k = scalars[cls][i];
 
             BARRIER_FENCE();
-            uint64_t t0 = rdtsc();
+            uint64_t const t0 = rdtsc();
             BARRIER_FENCE();
             volatile auto R = secp256k1::ct::scalar_mul(G, k);
             (void)R;
             BARRIER_FENCE();
-            uint64_t t1 = rdtsc();
+            uint64_t const t1 = rdtsc();
             BARRIER_FENCE();
 
             ws.push(cls, static_cast<double>(t1 - t0));
         }
-        double t = std::abs(ws.t_value());
+        double const t = std::abs(ws.t_value());
         printf("    scalar_mul (k=n-1 vs random):|t| = %6.2f  (%d/%d)  %s\n",
                t, (int)ws.n[0], (int)ws.n[1],
                t < T_THRESHOLD ? "[OK] CT" : "[!]  LEAK");
@@ -1009,21 +1010,21 @@ static void test_ct_point() {
 
         WelchState ws;
         for (int i = 0; i < N; ++i) {
-            int cls = classes[i];
+            int const cls = classes[i];
             auto& k = scalars[cls][i];
 
             BARRIER_FENCE();
-            uint64_t t0 = rdtsc();
+            uint64_t const t0 = rdtsc();
             BARRIER_FENCE();
             volatile auto R = secp256k1::ct::generator_mul(k);
             (void)R;
             BARRIER_FENCE();
-            uint64_t t1 = rdtsc();
+            uint64_t const t1 = rdtsc();
             BARRIER_FENCE();
 
             ws.push(cls, static_cast<double>(t1 - t0));
         }
-        double t = std::abs(ws.t_value());
+        double const t = std::abs(ws.t_value());
         printf("    generator_mul (low vs high HW):|t| = %6.2f  (%d/%d)  %s\n",
                t, (int)ws.n[0], (int)ws.n[1],
                t < T_THRESHOLD ? "[OK] CT" : "[!]  LEAK");
@@ -1055,21 +1056,21 @@ static void test_ct_point() {
 
         WelchState ws;
         for (int i = 0; i < N; ++i) {
-            int cls = classes[i];
+            int const cls = classes[i];
             size_t idx = indices[cls][i];
 
             BARRIER_OPAQUE(idx);
-            uint64_t t0 = rdtsc();
+            uint64_t const t0 = rdtsc();
             BARRIER_FENCE();
             volatile auto p = secp256k1::ct::point_table_lookup(table, 16, idx);
             (void)p;
             BARRIER_FENCE();
-            uint64_t t1 = rdtsc();
+            uint64_t const t1 = rdtsc();
             BARRIER_FENCE();
 
             ws.push(cls, static_cast<double>(t1 - t0));
         }
-        double t = std::abs(ws.t_value());
+        double const t = std::abs(ws.t_value());
         printf("    point_tbl_lookup (0 vs 15):  |t| = %6.2f  %s\n",
                t, t < T_THRESHOLD ? "[OK] CT" : "[!]  LEAK");
         check(t < T_THRESHOLD, "point_table_lookup timing leak");
@@ -1095,26 +1096,26 @@ static void test_ct_utils() {
         random_bytes(src, 32);
         random_bytes(dst, 32);
 
-        bool flags[2] = {false, true};
+        bool const flags[2] = {false, true};
         int classes[N];
         for (int i = 0; i < N; ++i) classes[i] = rng() & 1;
 
         WelchState ws;
         for (int i = 0; i < N; ++i) {
-            int cls = classes[i];
+            int const cls = classes[i];
             bool flag = flags[cls];
 
             BARRIER_OPAQUE(flag);
-            uint64_t t0 = rdtsc();
+            uint64_t const t0 = rdtsc();
             BARRIER_FENCE();
             secp256k1::ct::ct_memcpy_if(dst, src, 32, flag);
             BARRIER_FENCE();
-            uint64_t t1 = rdtsc();
+            uint64_t const t1 = rdtsc();
             BARRIER_FENCE();
 
             ws.push(cls, static_cast<double>(t1 - t0));
         }
-        double t = std::abs(ws.t_value());
+        double const t = std::abs(ws.t_value());
         printf("    ct_memcpy_if:    |t| = %6.2f  %s\n",
                t, t < T_THRESHOLD ? "[OK] CT" : "[!]  LEAK");
         check(t < T_THRESHOLD, "ct_memcpy_if timing leak");
@@ -1126,26 +1127,26 @@ static void test_ct_utils() {
         random_bytes(a, 32);
         random_bytes(b, 32);
 
-        bool flags[2] = {false, true};
+        bool const flags[2] = {false, true};
         int classes[N];
         for (int i = 0; i < N; ++i) classes[i] = rng() & 1;
 
         WelchState ws;
         for (int i = 0; i < N; ++i) {
-            int cls = classes[i];
+            int const cls = classes[i];
             bool flag = flags[cls];
 
             BARRIER_OPAQUE(flag);
-            uint64_t t0 = rdtsc();
+            uint64_t const t0 = rdtsc();
             BARRIER_FENCE();
             secp256k1::ct::ct_memswap_if(a, b, 32, flag);
             BARRIER_FENCE();
-            uint64_t t1 = rdtsc();
+            uint64_t const t1 = rdtsc();
             BARRIER_FENCE();
 
             ws.push(cls, static_cast<double>(t1 - t0));
         }
-        double t = std::abs(ws.t_value());
+        double const t = std::abs(ws.t_value());
         printf("    ct_memswap_if:   |t| = %6.2f  %s\n",
                t, t < T_THRESHOLD ? "[OK] CT" : "[!]  LEAK");
         check(t < T_THRESHOLD, "ct_memswap_if timing leak");
@@ -1171,21 +1172,21 @@ static void test_ct_utils() {
 
         WelchState ws;
         for (int i = 0; i < N; ++i) {
-            int cls = classes[i];
+            int const cls = classes[i];
             // Symmetric pre-conditioning: both classes do a 32-byte memcpy
             std::memcpy(buf, cls == 0 ? src0 : src1, 32);
             BARRIER_FENCE();
 
-            uint64_t t0 = rdtsc();
+            uint64_t const t0 = rdtsc();
             BARRIER_FENCE();
             secp256k1::ct::ct_memzero(buf, 32);
             BARRIER_FENCE();
-            uint64_t t1 = rdtsc();
+            uint64_t const t1 = rdtsc();
             BARRIER_FENCE();
 
             ws.push(cls, static_cast<double>(t1 - t0));
         }
-        double t = std::abs(ws.t_value());
+        double const t = std::abs(ws.t_value());
         printf("    ct_memzero:      |t| = %6.2f  %s\n",
                t, t < T_THRESHOLD ? "[OK] CT" : "[!]  LEAK");
         check(t < T_THRESHOLD, "ct_memzero timing leak");
@@ -1212,23 +1213,23 @@ static void test_ct_utils() {
 
         WelchState ws;
         for (int i = 0; i < N; ++i) {
-            int cls = classes[i];
+            int const cls = classes[i];
             const uint8_t* a = cmp_data[i].a[cls];
             const uint8_t* b = cmp_data[i].b[cls];
 
             BARRIER_FENCE();
-            uint64_t t0 = rdtsc();
+            uint64_t const t0 = rdtsc();
             BARRIER_FENCE();
-            volatile int cmp = secp256k1::ct::ct_compare(a, b, 32);
+            volatile int const cmp = secp256k1::ct::ct_compare(a, b, 32);
             (void)cmp;
             BARRIER_FENCE();
-            uint64_t t1 = rdtsc();
+            uint64_t const t1 = rdtsc();
             BARRIER_FENCE();
 
             ws.push(cls, static_cast<double>(t1 - t0));
         }
         delete[] cmp_data;
-        double t = std::abs(ws.t_value());
+        double const t = std::abs(ws.t_value());
         printf("    ct_compare:      |t| = %6.2f  %s\n",
                t, t < T_THRESHOLD ? "[OK] CT" : "[!]  LEAK");
         check(t < T_THRESHOLD, "ct_compare timing leak");
@@ -1263,21 +1264,21 @@ static void test_fast_not_ct() {
 
     WelchState ws;
     for (int i = 0; i < N; ++i) {
-        int cls = classes[i];
+        int const cls = classes[i];
         auto& k = scalars[cls][i];
 
         BARRIER_FENCE();
-        uint64_t t0 = rdtsc();
+        uint64_t const t0 = rdtsc();
         BARRIER_FENCE();
         volatile auto R = G.scalar_mul(k);
         (void)R;
         BARRIER_FENCE();
-        uint64_t t1 = rdtsc();
+        uint64_t const t1 = rdtsc();
         BARRIER_FENCE();
 
         ws.push(cls, static_cast<double>(t1 - t0));
     }
-    double t = std::abs(ws.t_value());
+    double const t = std::abs(ws.t_value());
     printf("    fast::scalar_mul: |t| = %6.2f  %s\n",
            t, t >= T_THRESHOLD ? "[time]  NOT CT ()" : "~= CT-like");
 }
@@ -1347,8 +1348,9 @@ static void test_valgrind_markers() {
     // 7e: table lookup with classified index
     {
         uint64_t table[16][4];
-        for (int i = 0; i < 16; ++i)
+        for (int i = 0; i < 16; ++i) {
             for (int j = 0; j < 4; ++j) table[i][j] = rng();
+}
         size_t idx = 7;
         SECP256K1_CLASSIFY(&idx, sizeof(idx));
         uint64_t out[4];

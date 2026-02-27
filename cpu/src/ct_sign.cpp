@@ -48,7 +48,7 @@ ECDSASignature ecdsa_sign(const std::array<uint8_t, 32>& msg_hash,
     auto s = k_inv * (z + r * private_key);
     if (s.is_zero()) return {Scalar::zero(), Scalar::zero()};
 
-    ECDSASignature sig{r, s};
+    ECDSASignature const sig{r, s};
     return sig.normalize();
 }
 

@@ -32,7 +32,7 @@ using detail::cached_tagged_hash;
 
 std::array<uint8_t, 32> tagged_hash(const char* tag,
                                      const void* data, std::size_t len) {
-    std::string_view sv(tag);
+    std::string_view const sv(tag);
     auto tag_hash = SHA256::hash(sv.data(), sv.size());
     SHA256 ctx;
     ctx.update(tag_hash.data(), 32);
@@ -157,12 +157,12 @@ bool schnorr_verify(const std::array<uint8_t, 32>& pubkey_x,
     // Step 3: Lift x-only pubkey to point (all in FE52 -- ~3x faster sqrt)
 #if defined(SECP256K1_FAST_52BIT)
     // Direct bytes->FE52: avoids FieldElement construction overhead
-    FE52 px52 = FE52::from_bytes(pubkey_x);
+    FE52 const px52 = FE52::from_bytes(pubkey_x);
 
     // y^2 = x^3 + 7
-    FE52 x3 = px52.square() * px52;
+    FE52 const x3 = px52.square() * px52;
     static const FE52 seven52 = FE52::from_fe(FieldElement::from_uint64(7));
-    FE52 y2 = x3 + seven52;
+    FE52 const y2 = x3 + seven52;
 
     // sqrt via FE52 addition chain: a^((p+1)/4), ~253 sqr + 13 mul
     FE52 y52 = y2.sqrt();
@@ -207,8 +207,8 @@ bool schnorr_verify(const std::array<uint8_t, 32>& pubkey_x,
     // Steps 5+6: Combined X-check + Y-parity via single Z inverse (all FE52)
     // One SafeGCD inverse (~3us) shared between both checks.
 #if defined(SECP256K1_FAST_52BIT)
-    FE52 z_inv52 = R.Z52().inverse_safegcd();
-    FE52 z_inv2 = z_inv52.square();         // Z^-^2
+    FE52 const z_inv52 = R.Z52().inverse_safegcd();
+    FE52 const z_inv2 = z_inv52.square();         // Z^-^2
 
     // X-check: X * Z^-^2 == sig.r  (affine x)
     FE52 x_aff = R.X52() * z_inv2;
@@ -243,11 +243,11 @@ bool schnorr_xonly_pubkey_parse(SchnorrXonlyPubkey& out,
                                 const std::array<uint8_t, 32>& pubkey_x) {
 #if defined(SECP256K1_FAST_52BIT)
     // Direct bytes->FE52: avoids FieldElement construction overhead
-    FE52 px52 = FE52::from_bytes(pubkey_x);
+    FE52 const px52 = FE52::from_bytes(pubkey_x);
 
-    FE52 x3 = px52.square() * px52;
+    FE52 const x3 = px52.square() * px52;
     static const FE52 seven52 = FE52::from_fe(FieldElement::from_uint64(7));
-    FE52 y2 = x3 + seven52;
+    FE52 const y2 = x3 + seven52;
 
     FE52 y52 = y2.sqrt();
 
@@ -325,8 +325,8 @@ bool schnorr_verify(const SchnorrXonlyPubkey& pubkey,
 
     // Combined X-check + Y-parity via single Z inverse (all FE52)
 #if defined(SECP256K1_FAST_52BIT)
-    FE52 z_inv52 = R.Z52().inverse_safegcd();
-    FE52 z_inv2 = z_inv52.square();         // Z^-^2
+    FE52 const z_inv52 = R.Z52().inverse_safegcd();
+    FE52 const z_inv2 = z_inv52.square();         // Z^-^2
 
     // X-check: X * Z^-^2 == sig.r
     FE52 x_aff = R.X52() * z_inv2;

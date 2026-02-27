@@ -138,8 +138,8 @@ static bool hex_to_bytes32(const std::string& hex, std::array<std::uint8_t, 32>&
         return -1;
     };
     for (size_t i = 0; i < 32; ++i) {
-        int hi = nybble(hex[2*i]);
-        int lo = nybble(hex[2*i + 1]);
+        int const hi = nybble(hex[2*i]);
+        int const lo = nybble(hex[2*i + 1]);
         if (hi < 0 || lo < 0) return false;
         out[i] = static_cast<std::uint8_t>((hi << 4) | lo);
     }
@@ -153,8 +153,8 @@ static bool test_scalar_mul(const TestVector& vec, bool verbose) {
     }
     
     // Parse and compute k * G
-    Scalar k = Scalar::from_hex(vec.scalar_hex);
-    Point result = scalar_mul_generator(k);
+    Scalar const k = Scalar::from_hex(vec.scalar_hex);
+    Point const result = scalar_mul_generator(k);
     
     if (result.is_infinity()) {
         if (verbose) {
@@ -164,11 +164,11 @@ static bool test_scalar_mul(const TestVector& vec, bool verbose) {
     }
     
     // Compare coordinates
-    std::string result_x = result.x().to_hex();
-    std::string result_y = result.y().to_hex();
+    std::string const result_x = result.x().to_hex();
+    std::string const result_y = result.y().to_hex();
     
-    bool x_match = hex_equal(result_x, vec.expected_x);
-    bool y_match = hex_equal(result_y, vec.expected_y);
+    bool const x_match = hex_equal(result_x, vec.expected_x);
+    bool const y_match = hex_equal(result_y, vec.expected_y);
     
     if (x_match && y_match) {
         if (verbose) {
@@ -197,21 +197,21 @@ static bool test_addition(bool verbose) {
         SELFTEST_PRINT("  Testing: 2*G + 3*G = 5*G\n");
     }
     
-    Point pt1 = scalar_mul_generator(Scalar::from_hex(
+    Point const pt1 = scalar_mul_generator(Scalar::from_hex(
         "0000000000000000000000000000000000000000000000000000000000000002"));
-    Point pt2 = scalar_mul_generator(Scalar::from_hex(
+    Point const pt2 = scalar_mul_generator(Scalar::from_hex(
         "0000000000000000000000000000000000000000000000000000000000000003"));
-    Point expected = scalar_mul_generator(Scalar::from_hex(
+    Point const expected = scalar_mul_generator(Scalar::from_hex(
         "0000000000000000000000000000000000000000000000000000000000000005"));
     
-    Point result = pt1.add(pt2);
+    Point const result = pt1.add(pt2);
     
-    std::string result_x = result.x().to_hex();
-    std::string result_y = result.y().to_hex();
-    std::string expected_x = expected.x().to_hex();
-    std::string expected_y = expected.y().to_hex();
+    std::string const result_x = result.x().to_hex();
+    std::string const result_y = result.y().to_hex();
+    std::string const expected_x = expected.x().to_hex();
+    std::string const expected_y = expected.y().to_hex();
     
-    bool match = (result_x == expected_x) && (result_y == expected_y);
+    bool const match = (result_x == expected_x) && (result_y == expected_y);
     
     if (verbose) {
         if (match) {
@@ -234,22 +234,22 @@ static bool test_subtraction(bool verbose) {
         SELFTEST_PRINT("  Testing: 5*G - 2*G = 3*G\n");
     }
     
-    Point pt1 = scalar_mul_generator(Scalar::from_hex(
+    Point const pt1 = scalar_mul_generator(Scalar::from_hex(
         "0000000000000000000000000000000000000000000000000000000000000005"));
-    Point pt2 = scalar_mul_generator(Scalar::from_hex(
+    Point const pt2 = scalar_mul_generator(Scalar::from_hex(
         "0000000000000000000000000000000000000000000000000000000000000002"));
-    Point expected = scalar_mul_generator(Scalar::from_hex(
+    Point const expected = scalar_mul_generator(Scalar::from_hex(
         "0000000000000000000000000000000000000000000000000000000000000003"));
     
     // P1 - P2 = P1 + (-P2)
-    Point result = pt1.add(pt2.negate());
+    Point const result = pt1.add(pt2.negate());
     
-    std::string result_x = result.x().to_hex();
-    std::string result_y = result.y().to_hex();
-    std::string expected_x = expected.x().to_hex();
-    std::string expected_y = expected.y().to_hex();
+    std::string const result_x = result.x().to_hex();
+    std::string const result_y = result.y().to_hex();
+    std::string const expected_x = expected.x().to_hex();
+    std::string const expected_y = expected.y().to_hex();
     
-    bool match = (result_x == expected_x) && (result_y == expected_y);
+    bool const match = (result_x == expected_x) && (result_y == expected_y);
     
     if (verbose) {
         if (match) {
@@ -273,16 +273,16 @@ static bool test_field_arithmetic(bool verbose) {
     }
 
     bool ok = true;
-    FieldElement zero = FieldElement::zero();
-    FieldElement one  = FieldElement::one();
+    FieldElement const zero = FieldElement::zero();
+    FieldElement const one  = FieldElement::one();
     if (!((zero + zero) == zero)) ok = false;
     if (!((one + zero) == one)) ok = false;
     if (!((one * one) == one)) ok = false;
     if (!((zero * one) == zero)) ok = false;
 
-    FieldElement a = FieldElement::from_uint64(7);
-    FieldElement b = FieldElement::from_uint64(5);
-    FieldElement neg_a = FieldElement::zero() - a;
+    FieldElement const a = FieldElement::from_uint64(7);
+    FieldElement const b = FieldElement::from_uint64(5);
+    FieldElement const neg_a = FieldElement::zero() - a;
     if (!((neg_a + a) == FieldElement::zero())) ok = false;
     if (!(((a + b) - b) == a)) ok = false;
     if (!(b == FieldElement::zero() || (b.inverse() * b) == FieldElement::one())) ok = false;
@@ -299,8 +299,8 @@ static bool test_scalar_arithmetic(bool verbose) {
         SELFTEST_PRINT("\nScalar Arithmetic Test:\n");
     }
     bool ok = true;
-    Scalar z = Scalar::zero();
-    Scalar o = Scalar::one();
+    Scalar const z = Scalar::zero();
+    Scalar const o = Scalar::one();
     if (!((z + z) == z)) ok = false;
     if (!((o + z) == o)) ok = false;
     if (!(((o + o) - o) == o)) ok = false;
@@ -316,10 +316,10 @@ static bool test_point_identities(bool verbose) {
         SELFTEST_PRINT("\nPoint Group Identities:\n");
     }
     bool ok = true;
-    Point O = Point::infinity();
-    Point G = Point::generator();
+    Point const O = Point::infinity();
+    Point const G = Point::generator();
     if (!(G.add(O).x() == G.x() && G.add(O).y() == G.y())) ok = false;
-    Point negG = G.negate();
+    Point const negG = G.negate();
     if (!G.add(negG).is_infinity()) ok = false;
     if (verbose) {
         SELFTEST_PRINT(ok ? "    PASS\n" : "    FAIL\n");
@@ -339,13 +339,13 @@ static bool test_addition_constants(bool verbose) {
     if (verbose) {
         SELFTEST_PRINT("\nPoint Addition (constants): G + 2G = 3G\n");
     }
-    Point G = Point::generator();
-    Point twoG = scalar_mul_generator(Scalar::from_uint64(2));
-    Point sum = G.add(twoG);
+    Point const G = Point::generator();
+    Point const twoG = scalar_mul_generator(Scalar::from_uint64(2));
+    Point const sum = G.add(twoG);
 
     // TEST_VECTORS[7] is 3*G
     const auto& exp = TEST_VECTORS[7];
-    bool ok = hex_equal(sum.x().to_hex(), exp.expected_x) && hex_equal(sum.y().to_hex(), exp.expected_y);
+    bool const ok = hex_equal(sum.x().to_hex(), exp.expected_x) && hex_equal(sum.y().to_hex(), exp.expected_y);
     if (verbose) SELFTEST_PRINT(ok ? "    PASS\n" : "    FAIL\n");
     return ok;
 }
@@ -355,13 +355,13 @@ static bool test_subtraction_constants(bool verbose) {
     if (verbose) {
         SELFTEST_PRINT("\nPoint Subtraction (constants): 3G - 2G = 1G\n");
     }
-    Point threeG = scalar_mul_generator(Scalar::from_uint64(3));
-    Point twoG = scalar_mul_generator(Scalar::from_uint64(2));
-    Point diff = threeG.add(twoG.negate());
+    Point const threeG = scalar_mul_generator(Scalar::from_uint64(3));
+    Point const twoG = scalar_mul_generator(Scalar::from_uint64(2));
+    Point const diff = threeG.add(twoG.negate());
 
     // TEST_VECTORS[5] is 1*G
     const auto& exp = TEST_VECTORS[5];
-    bool ok = hex_equal(diff.x().to_hex(), exp.expected_x) && hex_equal(diff.y().to_hex(), exp.expected_y);
+    bool const ok = hex_equal(diff.x().to_hex(), exp.expected_x) && hex_equal(diff.y().to_hex(), exp.expected_y);
     if (verbose) SELFTEST_PRINT(ok ? "    PASS\n" : "    FAIL\n");
     return ok;
 }
@@ -371,12 +371,12 @@ static bool test_doubling_constants(bool verbose) {
     if (verbose) {
         SELFTEST_PRINT("\nPoint Doubling (constants): 2*(5G) = 10G\n");
     }
-    Point fiveG = scalar_mul_generator(Scalar::from_uint64(5));
-    Point tenG = fiveG.dbl();
+    Point const fiveG = scalar_mul_generator(Scalar::from_uint64(5));
+    Point const tenG = fiveG.dbl();
 
     // TEST_VECTORS[8] is 10*G
     const auto& exp = TEST_VECTORS[8];
-    bool ok = hex_equal(tenG.x().to_hex(), exp.expected_x) && hex_equal(tenG.y().to_hex(), exp.expected_y);
+    bool const ok = hex_equal(tenG.x().to_hex(), exp.expected_x) && hex_equal(tenG.y().to_hex(), exp.expected_y);
     if (verbose) SELFTEST_PRINT(ok ? "    PASS\n" : "    FAIL\n");
     return ok;
 }
@@ -386,10 +386,10 @@ static bool test_negation_constants(bool verbose) {
     if (verbose) {
         SELFTEST_PRINT("\nPoint Negation (constants): -G = (n-1)*G\n");
     }
-    Point negG = Point::generator().negate();
+    Point const negG = Point::generator().negate();
     // TEST_VECTORS[9] is (n-1)*G = -G
     const auto& exp = TEST_VECTORS[9];
-    bool ok = hex_equal(negG.x().to_hex(), exp.expected_x) && hex_equal(negG.y().to_hex(), exp.expected_y);
+    bool const ok = hex_equal(negG.x().to_hex(), exp.expected_x) && hex_equal(negG.y().to_hex(), exp.expected_y);
     if (verbose) SELFTEST_PRINT(ok ? "    PASS\n" : "    FAIL\n");
     return ok;
 }
@@ -400,12 +400,12 @@ static bool test_point_serialization(bool verbose) {
         SELFTEST_PRINT("\nPoint Serialization:\n");
     }
     auto check_point = [&](const Scalar& k) -> bool {
-        Point P = scalar_mul_generator(k);
+        Point const P = scalar_mul_generator(k);
         auto cx = P.x().to_bytes();
         auto cy = P.y().to_bytes();
         auto comp = P.to_compressed();
         auto uncmp = P.to_uncompressed();
-        std::uint8_t expected_prefix = (cy[31] & 1) ? 0x03 : 0x02;
+        std::uint8_t const expected_prefix = (cy[31] & 1) ? 0x03 : 0x02;
         bool ok = true;
         if (comp[0] != expected_prefix) ok = false;
         for (size_t i = 0; i < 32; ++i) {
@@ -442,11 +442,11 @@ static bool test_batch_inverse(bool verbose) {
         FieldElement::from_uint64(11),
         FieldElement::from_uint64(19)
     };
-    FieldElement copy[4] = { elems[0], elems[1], elems[2], elems[3] };
+    FieldElement const copy[4] = { elems[0], elems[1], elems[2], elems[3] };
     fe_batch_inverse(elems, 4);
     bool ok = true;
     for (int i = 0; i < 4; ++i) {
-        FieldElement inv = copy[i].inverse();
+        FieldElement const inv = copy[i].inverse();
         if (!(inv == elems[i])) { ok = false; break; }
     }
     if (verbose) {
@@ -465,14 +465,14 @@ static bool test_batch_inverse_expanded(bool verbose) {
     FieldElement copy[N];
     // Deterministic non-zero elements: 3,5,7,...
     for (size_t i = 0; i < N; ++i) {
-        std::uint64_t v = 3ULL + 2ULL * static_cast<std::uint64_t>(i);
+        std::uint64_t const v = 3ULL + 2ULL * static_cast<std::uint64_t>(i);
         elems[i] = FieldElement::from_uint64(v);
         copy[i] = elems[i];
     }
     fe_batch_inverse(elems, N);
     bool ok = true;
     for (size_t i = 0; i < N; ++i) {
-        FieldElement inv = copy[i].inverse();
+        FieldElement const inv = copy[i].inverse();
         if (!(inv == elems[i])) { ok = false; break; }
     }
     if (verbose) {
@@ -488,30 +488,30 @@ static bool test_bilinearity_K_times_Q(bool verbose) {
         SELFTEST_PRINT("\nBilinearity: K*(Q+/-G) vs K*Q +/- K*G\n");
     }
     bool ok = true;
-    const char* KHEX[] = {
+    const char const* KHEX[] = {
         "0000000000000000000000000000000000000000000000000000000000000005",
         "4727daf2986a9804b1117f8261aba645c34537e4474e19be58700792d501a591",
         "c77835cf72699d217c2bbe6c59811b7a599bb640f0a16b3a332ebe64f20b1afa"
     };
-    const char* QHEX[] = {
+    const char const* QHEX[] = {
         "0000000000000000000000000000000000000000000000000000000000000011",
         "0000000000000000000000000000000000000000000000000000000000000067",
         "c401899c059f1c624292fece1933c890ae4970abf56dd4d2c986a5b9d7c9aeb5"
     };
-    Point G = Point::generator();
+    Point const G = Point::generator();
     for (auto kh : KHEX) {
-        Scalar K = Scalar::from_hex(kh);
-        Point KG = scalar_mul_generator(K);
+        Scalar const K = Scalar::from_hex(kh);
+        Point const KG = scalar_mul_generator(K);
         for (auto qh : QHEX) {
-            Scalar qk = Scalar::from_hex(qh);
-            Point Q = scalar_mul_generator(qk); // Q = qk*G (valid arbitrary point)
+            Scalar const qk = Scalar::from_hex(qh);
+            Point const Q = scalar_mul_generator(qk); // Q = qk*G (valid arbitrary point)
 
-            Point Lp = Q.add(G).scalar_mul(K);           // (Q+G)*K
-            Point Rp = Q.scalar_mul(K).add(KG);          // Q*K + G*K
+            Point const Lp = Q.add(G).scalar_mul(K);           // (Q+G)*K
+            Point const Rp = Q.scalar_mul(K).add(KG);          // Q*K + G*K
             if (!points_equal(Lp, Rp)) { ok = false; break; }
 
-            Point Lm = Q.add(G.negate()).scalar_mul(K);  // (Q-G)*K
-            Point Rm = Q.scalar_mul(K).add(KG.negate()); // Q*K - G*K
+            Point const Lm = Q.add(G.negate()).scalar_mul(K);  // (Q-G)*K
+            Point const Rm = Q.scalar_mul(K).add(KG.negate()); // Q*K - G*K
             if (!points_equal(Lm, Rm)) { ok = false; break; }
         }
         if (!ok) break;
@@ -526,24 +526,24 @@ static bool test_fixedK_plan(bool verbose) {
         SELFTEST_PRINT("\nFixed-K plan: with_plan vs direct scalar_mul\n");
     }
     bool ok = true;
-    const char* KHEX[] = {
+    const char const* KHEX[] = {
         TEST_VECTORS[0].scalar_hex,
         TEST_VECTORS[1].scalar_hex,
         "00000000000000000000000000000000000000000000000000000000000000a7"
     };
-    const char* QHEX[] = {
+    const char const* QHEX[] = {
         "000000000000000000000000000000000000000000000000000000000000000d",
         "0000000000000000000000000000000000000000000000000000000000000123",
         "700a25ca2ae4eb40dfa74c9eda069be7e2fc9bfceabb13953ddedd33e1f03f2c"
     };
     for (auto kh : KHEX) {
-        Scalar K = Scalar::from_hex(kh);
-        KPlan plan = KPlan::from_scalar(K, 4);
+        Scalar const K = Scalar::from_hex(kh);
+        KPlan const plan = KPlan::from_scalar(K, 4);
         for (auto qh : QHEX) {
-            Scalar qk = Scalar::from_hex(qh);
-            Point Q = scalar_mul_generator(qk);
-            Point A = Q.scalar_mul(K);
-            Point B = Q.scalar_mul_with_plan(plan);
+            Scalar const qk = Scalar::from_hex(qh);
+            Point const Q = scalar_mul_generator(qk);
+            Point const A = Q.scalar_mul(K);
+            Point const B = Q.scalar_mul_with_plan(plan);
             if (!points_equal(A, B)) {
                 if (verbose) {
                     auto aC = A.to_compressed();
@@ -560,12 +560,12 @@ static bool test_fixedK_plan(bool verbose) {
                     for (auto b : bC) SELFTEST_PRINT("%02x", (int)b);
                     SELFTEST_PRINT("\n");
                     // Also compute explicit slow GLV sum for debugging
-                    Point phiQ = apply_endomorphism(Q);
+                    Point const phiQ = apply_endomorphism(Q);
                     Point t1 = Q.scalar_mul(plan.k1);
                     Point t2 = phiQ.scalar_mul(plan.k2);
                     if (plan.neg1) t1 = t1.negate();
                     if (plan.neg2) t2 = t2.negate();
-                    Point C = t1.add(t2);
+                    Point const C = t1.add(t2);
                     auto cC = C.to_compressed();
                     SELFTEST_PRINT("      C(slow): ");
                     for (auto b : cC) SELFTEST_PRINT("%02x", (int)b);
@@ -587,10 +587,10 @@ static bool test_sequential_increment_property(bool verbose) {
     }
     bool ok = true;
     // Choose a fixed K and base Q
-    Scalar K = Scalar::from_hex("489206bbfff1b2370619ba0e6a51b74251267e06d3abafb055464bb623d5057a");
-    Scalar qk = Scalar::from_hex("0000000000000000000000000000000000000000000000000000000000000101");
+    Scalar const K = Scalar::from_hex("489206bbfff1b2370619ba0e6a51b74251267e06d3abafb055464bb623d5057a");
+    Scalar const qk = Scalar::from_hex("0000000000000000000000000000000000000000000000000000000000000101");
     Point Q = scalar_mul_generator(qk);
-    Point KG = scalar_mul_generator(K);
+    Point const KG = scalar_mul_generator(K);
     // Left side incrementally via next_inplace; Right side via repeated add of KG
     Point left = Q.scalar_mul(K);
     Point right = left; // i=0
@@ -663,10 +663,10 @@ static bool run_external_vectors(bool verbose) {
         };
         if (kind == "SCALARMUL") {
             if (parts.size() < 5) { fail_line(); continue; }
-            Scalar k = Scalar::from_hex(parts[1]);
-            Point r = scalar_mul_generator(k);
-            std::string rx = r.x().to_hex();
-            std::string ry = r.y().to_hex();
+            Scalar const k = Scalar::from_hex(parts[1]);
+            Point const r = scalar_mul_generator(k);
+            std::string const rx = r.x().to_hex();
+            std::string const ry = r.y().to_hex();
             if (!hex_equal(rx, parts[2].c_str()) || !hex_equal(ry, parts[3].c_str())) {
                 fail_line();
             }
@@ -678,11 +678,11 @@ static bool run_external_vectors(bool verbose) {
                 fail_line();
                 continue;
             }
-            Point pt1 = Point::from_affine(FieldElement::from_bytes(x1b), FieldElement::from_bytes(y1b));
-            Point pt2 = Point::from_affine(FieldElement::from_bytes(x2b), FieldElement::from_bytes(y2b));
-            Point R = (kind == "ADD") ? pt1.add(pt2) : pt1.add(pt2.negate());
-            std::string rx = R.x().to_hex();
-            std::string ry = R.y().to_hex();
+            Point const pt1 = Point::from_affine(FieldElement::from_bytes(x1b), FieldElement::from_bytes(y1b));
+            Point const pt2 = Point::from_affine(FieldElement::from_bytes(x2b), FieldElement::from_bytes(y2b));
+            Point const R = (kind == "ADD") ? pt1.add(pt2) : pt1.add(pt2.negate());
+            std::string const rx = R.x().to_hex();
+            std::string const ry = R.y().to_hex();
             if (!hex_equal(rx, parts[5].c_str()) || !hex_equal(ry, parts[6].c_str())) {
                 fail_line();
             }
@@ -768,8 +768,8 @@ static bool test_boundary_scalar_vectors(bool verbose) {
     };
     bool ok = true;
     for (const auto& v : VECS) {
-        Scalar k = Scalar::from_hex(v.k);
-        Point r = scalar_mul_generator(k);
+        Scalar const k = Scalar::from_hex(v.k);
+        Point const r = scalar_mul_generator(k);
         if (r.is_infinity() || !hex_equal(r.x().to_hex(), v.x) || !hex_equal(r.y().to_hex(), v.y)) {
             ok = false;
             if (verbose) {
@@ -813,12 +813,12 @@ static bool test_field_limb_boundaries(bool verbose) {
         {{0, 0, 1, 0}, "limb2 = 1"},
         {{0, 0, 0, 1}, "limb3 = 1"},
     };
-    FieldElement c = FieldElement::from_uint64(0x1234567890ABCDEFULL);
+    FieldElement const c = FieldElement::from_uint64(0x1234567890ABCDEFULL);
     for (const auto& t : CASES) {
-        FieldElement a = FieldElement::from_limbs(t.limbs);
+        FieldElement const a = FieldElement::from_limbs(t.limbs);
         // a * a^(-1) = 1 (unless a normalizes to 0)
         if (!(a == FieldElement::zero())) {
-            FieldElement inv = a.inverse();
+            FieldElement const inv = a.inverse();
             if (!(a * inv == FieldElement::one())) {
                 ok = false;
                 if (verbose) SELFTEST_PRINT("    FAIL: %s -- a * a^(-1) != 1\n", t.desc);
@@ -858,11 +858,11 @@ static bool test_batch_inverse_sweep(bool verbose) {
         63, 64, 65, 127, 128, 129, 255, 256, 257, 512, 1024
     };
     bool ok = true;
-    for (size_t sz : SIZES) {
+    for (size_t const sz : SIZES) {
         std::vector<FieldElement> elems(sz);
         std::vector<FieldElement> copy(sz);
         for (size_t i = 0; i < sz; ++i) {
-            uint64_t v = 3ULL + 2ULL * static_cast<uint64_t>(i);
+            uint64_t const v = 3ULL + 2ULL * static_cast<uint64_t>(i);
             elems[i] = FieldElement::from_uint64(v);
             copy[i] = elems[i];
         }
@@ -889,8 +889,9 @@ static bool test_batch_inverse_sweep(bool verbose) {
 // -- Repro bundle: prints environment info for reproducibility --
 static void print_repro_bundle(SelftestMode mode, uint64_t seed) {
     const char* mode_str = "smoke";
-    if (mode == SelftestMode::ci) mode_str = "ci";
-    else if (mode == SelftestMode::stress) mode_str = "stress";
+    if (mode == SelftestMode::ci) { mode_str = "ci";
+    } else if (mode == SelftestMode::stress) { mode_str = "stress";
+}
 
     SELFTEST_PRINT("  Mode:     %s\n", mode_str);
     SELFTEST_PRINT("  Seed:     0x%016llx\n", (unsigned long long)seed);
@@ -1008,8 +1009,8 @@ static bool test_extended_kg_vectors(bool verbose) {
     };
     bool ok = true;
     for (const auto& v : VECS) {
-        Scalar k = Scalar::from_hex(v.k);
-        Point r = scalar_mul_generator(k);
+        Scalar const k = Scalar::from_hex(v.k);
+        Point const r = scalar_mul_generator(k);
         if (r.is_infinity() || !hex_equal(r.x().to_hex(), v.x) || !hex_equal(r.y().to_hex(), v.y)) {
             ok = false;
             if (verbose) SELFTEST_PRINT("    FAIL: %s\n", v.desc);
@@ -1024,22 +1025,22 @@ static bool test_extended_kg_vectors(bool verbose) {
 static bool test_fast_vs_generic_kG(bool verbose) {
     if (verbose) SELFTEST_PRINT("\nFast kG vs Generic kG (small 1-20 + 20 random):\n");
     bool ok = true;
-    Point G = Point::generator();
-    Point G_aff = Point::from_affine(G.x(), G.y());
+    Point const G = Point::generator();
+    Point const G_aff = Point::from_affine(G.x(), G.y());
     // Small multiples
     for (uint64_t k = 1; k <= 20 && ok; ++k) {
-        Scalar sk = Scalar::from_uint64(k);
-        Point fast = scalar_mul_generator(sk);
-        Point slow = G_aff.scalar_mul(sk);
+        Scalar const sk = Scalar::from_uint64(k);
+        Point const fast = scalar_mul_generator(sk);
+        Point const slow = G_aff.scalar_mul(sk);
         if (!points_equal(fast, slow)) ok = false;
     }
     // Deterministic pseudo-random large scalars
     SelftestRng rng(7001);
     for (int i = 0; i < 20 && ok; ++i) {
-        std::array<uint64_t, 4> ls{rng.next(), rng.next(), rng.next(), rng.next()};
-        Scalar k = Scalar::from_limbs(ls);
-        Point fast = scalar_mul_generator(k);
-        Point slow = G_aff.scalar_mul(k);
+        std::array<uint64_t, 4> const ls{rng.next(), rng.next(), rng.next(), rng.next()};
+        Scalar const k = Scalar::from_limbs(ls);
+        Point const fast = scalar_mul_generator(k);
+        Point const slow = G_aff.scalar_mul(k);
         if (!points_equal(fast, slow)) ok = false;
     }
     if (verbose) SELFTEST_PRINT(ok ? "    PASS\n" : "    FAIL\n");
@@ -1050,10 +1051,10 @@ static bool test_fast_vs_generic_kG(bool verbose) {
 static bool test_repeated_addition_consistency(bool verbose) {
     if (verbose) SELFTEST_PRINT("\nRepeated Addition Consistency (k=2..10):\n");
     bool ok = true;
-    Point G = Point::generator();
+    Point const G = Point::generator();
     for (int k = 2; k <= 10 && ok; ++k) {
-        Scalar sk = Scalar::from_uint64(static_cast<uint64_t>(k));
-        Point by_mul = scalar_mul_generator(sk);
+        Scalar const sk = Scalar::from_uint64(static_cast<uint64_t>(k));
+        Point const by_mul = scalar_mul_generator(sk);
         Point by_add = G;
         for (int i = 1; i < k; ++i) by_add = by_add.add(G);
         if (!points_equal(by_mul, by_add)) ok = false;
@@ -1067,35 +1068,35 @@ static bool test_field_stress(bool verbose) {
     if (verbose) SELFTEST_PRINT("\nField Stress (normalization + random algebraic laws):\n");
     bool ok = true;
     // p normalizes to 0
-    std::array<uint64_t, 4> p_limbs = {
+    std::array<uint64_t, 4> const p_limbs = {
         0xFFFFFFFEFFFFFC2FULL, 0xFFFFFFFFFFFFFFFFULL,
         0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL
     };
     if (!(FieldElement::from_limbs(p_limbs) == FieldElement::zero())) ok = false;
     // p+1 normalizes to 1
-    std::array<uint64_t, 4> pp1 = {
+    std::array<uint64_t, 4> const pp1 = {
         0xFFFFFFFEFFFFFC30ULL, 0xFFFFFFFFFFFFFFFFULL,
         0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL
     };
     if (!(FieldElement::from_limbs(pp1) == FieldElement::one())) ok = false;
     // (p-1)^2 = 1
-    std::array<uint64_t, 4> pm1_limbs = {
+    std::array<uint64_t, 4> const pm1_limbs = {
         0xFFFFFFFEFFFFFC2EULL, 0xFFFFFFFFFFFFFFFFULL,
         0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL
     };
-    FieldElement pm1 = FieldElement::from_limbs(pm1_limbs);
+    FieldElement const pm1 = FieldElement::from_limbs(pm1_limbs);
     if (!(pm1 * pm1 == FieldElement::one())) ok = false;
     // (p-1)+1 = 0
     if (!(pm1 + FieldElement::one() == FieldElement::zero())) ok = false;
     // Random stress: commutativity, associativity, distributive, inverse, square
     SelftestRng rng(8001);
     for (int i = 0; i < 20 && ok; ++i) {
-        std::array<uint64_t, 4> la{rng.next(), rng.next(), rng.next(), rng.next()};
-        std::array<uint64_t, 4> lb{rng.next(), rng.next(), rng.next(), rng.next()};
-        std::array<uint64_t, 4> lc{rng.next(), rng.next(), rng.next(), rng.next()};
-        FieldElement a = FieldElement::from_limbs(la);
-        FieldElement b = FieldElement::from_limbs(lb);
-        FieldElement c = FieldElement::from_limbs(lc);
+        std::array<uint64_t, 4> const la{rng.next(), rng.next(), rng.next(), rng.next()};
+        std::array<uint64_t, 4> const lb{rng.next(), rng.next(), rng.next(), rng.next()};
+        std::array<uint64_t, 4> const lc{rng.next(), rng.next(), rng.next(), rng.next()};
+        FieldElement const a = FieldElement::from_limbs(la);
+        FieldElement const b = FieldElement::from_limbs(lb);
+        FieldElement const c = FieldElement::from_limbs(lc);
         if (!(a * b == b * a)) ok = false;                       // commutativity
         if (!((a * b) * c == a * (b * c))) ok = false;            // associativity
         if (!(a * (b + c) == a * b + a * c)) ok = false;         // distributive
@@ -1111,25 +1112,25 @@ static bool test_field_stress(bool verbose) {
 static bool test_scalar_stress(bool verbose) {
     if (verbose) SELFTEST_PRINT("\nScalar Stress ((n-1)^2=1 + random algebraic laws):\n");
     bool ok = true;
-    Scalar one_s = Scalar::one();
-    Scalar zero_s = Scalar::zero();
+    Scalar const one_s = Scalar::one();
+    Scalar const zero_s = Scalar::zero();
     // (n-1)^2 = 1
-    Scalar nm1 = Scalar::from_hex("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364140");
+    Scalar const nm1 = Scalar::from_hex("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364140");
     if (!(nm1 * nm1 == one_s)) ok = false;
     // (n-1)+1 = 0
     if (!(nm1 + one_s == zero_s)) ok = false;
     // Random stress: distributive, associativity, identity, inverse
     SelftestRng rng(9001);
     for (int i = 0; i < 20 && ok; ++i) {
-        std::array<uint64_t, 4> la{rng.next(), rng.next(), rng.next(), rng.next()};
-        std::array<uint64_t, 4> lb{rng.next(), rng.next(), rng.next(), rng.next()};
-        std::array<uint64_t, 4> lc{rng.next(), rng.next(), rng.next(), rng.next()};
-        Scalar a = Scalar::from_limbs(la);
-        Scalar b = Scalar::from_limbs(lb);
-        Scalar c = Scalar::from_limbs(lc);
+        std::array<uint64_t, 4> const la{rng.next(), rng.next(), rng.next(), rng.next()};
+        std::array<uint64_t, 4> const lb{rng.next(), rng.next(), rng.next(), rng.next()};
+        std::array<uint64_t, 4> const lc{rng.next(), rng.next(), rng.next(), rng.next()};
+        Scalar const a = Scalar::from_limbs(la);
+        Scalar const b = Scalar::from_limbs(lb);
+        Scalar const c = Scalar::from_limbs(lc);
         if (!(a * (b + c) == a * b + a * c)) ok = false;         // distributive
         if (!((a * b) * c == a * (b * c))) ok = false;            // associativity
-        { Scalar a2 = a; if (!((a - a2) == zero_s)) ok = false; } // a-a=0
+        { Scalar const a2 = a; if (!((a - a2) == zero_s)) ok = false; } // a-a=0
         if (!((a * one_s) == a)) ok = false;                      // a*1=a
     }
     if (verbose) SELFTEST_PRINT(ok ? "    PASS\n" : "    FAIL\n");
@@ -1148,8 +1149,8 @@ static bool test_naf_wnaf(bool verbose) {
     // NAF adjacency: no two consecutive non-zero digits
     SelftestRng rng(10001);
     for (int i = 0; i < 20 && ok; ++i) {
-        std::array<uint64_t, 4> ls{rng.next(), rng.next(), rng.next(), rng.next()};
-        Scalar s = Scalar::from_limbs(ls);
+        std::array<uint64_t, 4> const ls{rng.next(), rng.next(), rng.next(), rng.next()};
+        Scalar const s = Scalar::from_limbs(ls);
         auto naf = s.to_naf();
         for (size_t j = 1; j < naf.size(); ++j) {
             if (naf[j] != 0 && naf[j-1] != 0) { ok = false; break; }
@@ -1157,8 +1158,8 @@ static bool test_naf_wnaf(bool verbose) {
     }
     // wNAF (w=4): all non-zero digits must be odd and |d| < 2^(w-1) = 8
     for (int i = 0; i < 20 && ok; ++i) {
-        std::array<uint64_t, 4> ls{rng.next(), rng.next(), rng.next(), rng.next()};
-        Scalar s = Scalar::from_limbs(ls);
+        std::array<uint64_t, 4> const ls{rng.next(), rng.next(), rng.next(), rng.next()};
+        Scalar const s = Scalar::from_limbs(ls);
         auto wnaf = s.to_wnaf(4);
         for (auto d : wnaf) {
             if (d != 0) {
@@ -1175,28 +1176,28 @@ static bool test_naf_wnaf(bool verbose) {
 static bool test_point_advanced(bool verbose) {
     if (verbose) SELFTEST_PRINT("\nPoint Advanced (comm/assoc/mixed/dist/edge):\n");
     bool ok = true;
-    Point G = Point::generator();
-    Point p3 = scalar_mul_generator(Scalar::from_uint64(3));
-    Point p5 = scalar_mul_generator(Scalar::from_uint64(5));
-    Point p7 = scalar_mul_generator(Scalar::from_uint64(7));
+    Point const G = Point::generator();
+    Point const p3 = scalar_mul_generator(Scalar::from_uint64(3));
+    Point const p5 = scalar_mul_generator(Scalar::from_uint64(5));
+    Point const p7 = scalar_mul_generator(Scalar::from_uint64(7));
     // Commutativity: 3G+7G = 7G+3G
     if (!points_equal(p3.add(p7), p7.add(p3))) ok = false;
     // Associativity: (3G+5G)+7G = 3G+(5G+7G) = 15G
-    Point p15 = scalar_mul_generator(Scalar::from_uint64(15));
+    Point const p15 = scalar_mul_generator(Scalar::from_uint64(15));
     if (!points_equal(p3.add(p5).add(p7), p15)) ok = false;
     if (!points_equal(p3.add(p5.add(p7)), p15)) ok = false;
     // Mixed add: 3G +_mixed G = 4G
-    Point p4 = scalar_mul_generator(Scalar::from_uint64(4));
+    Point const p4 = scalar_mul_generator(Scalar::from_uint64(4));
     Point p3m = p3;
     p3m.add_mixed_inplace(G.x(), G.y());
     if (!points_equal(p3m, p4)) ok = false;
     // Distributive: k*(P+Q) = kP + kQ  for k=2..6, P=2G, Q=5G
-    Point P = scalar_mul_generator(Scalar::from_uint64(2));
-    Point Q = scalar_mul_generator(Scalar::from_uint64(5));
+    Point const P = scalar_mul_generator(Scalar::from_uint64(2));
+    Point const Q = scalar_mul_generator(Scalar::from_uint64(5));
     for (uint64_t k = 2; k <= 6 && ok; ++k) {
-        Scalar sk = Scalar::from_uint64(k);
-        Point lhs = P.add(Q).scalar_mul(sk);
-        Point rhs = P.scalar_mul(sk).add(Q.scalar_mul(sk));
+        Scalar const sk = Scalar::from_uint64(k);
+        Point const lhs = P.add(Q).scalar_mul(sk);
+        Point const rhs = P.scalar_mul(sk).add(Q.scalar_mul(sk));
         if (!points_equal(lhs, rhs)) ok = false;
     }
     // K*Q: 2*(7G) = 14G, 3*(7G) = 21G
@@ -1207,7 +1208,7 @@ static bool test_point_advanced(bool verbose) {
     // Edge: 0*G = infinity
     if (!G.scalar_mul(Scalar::zero()).is_infinity()) ok = false;
     // Edge: n*G = infinity (n mod n = 0)
-    Scalar n = Scalar::from_hex("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141");
+    Scalar const n = Scalar::from_hex("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141");
     if (!(n == Scalar::zero())) ok = false;
     if (!G.scalar_mul(n).is_infinity()) ok = false;
     if (verbose) SELFTEST_PRINT(ok ? "    PASS\n" : "    FAIL\n");
@@ -1278,7 +1279,7 @@ bool Selftest(bool verbose, SelftestMode mode, uint64_t seed) {
     FixedBaseConfig cfg{};
     // Environment variable overrides only on desktop platforms
     if (const char* w = std::getenv("SECP256K1_WINDOW_BITS")) {
-        unsigned v = static_cast<unsigned>(std::strtoul(w, nullptr, 10));
+        auto const v = static_cast<unsigned>(std::strtoul(w, nullptr, 10));
         if (v >= 2U && v <= 30U) cfg.window_bits = v;
     }
     if (const char* g = std::getenv("SECP256K1_ENABLE_GLV")) {
@@ -1397,8 +1398,8 @@ bool Selftest(bool verbose, SelftestMode mode, uint64_t seed) {
         Point cur = Point::generator(); // 1*G
         for (int i = 1; i <= 20; ++i) {
             cur.dbl_inplace(); // now 2^i * G
-            Scalar k = Scalar::from_uint64(1ULL << i);
-            Point exp = scalar_mul_generator(k);
+            Scalar const k = Scalar::from_uint64(1ULL << i);
+            Point const exp = scalar_mul_generator(k);
             if (!points_equal(cur, exp)) { ok = false; break; }
         }
         if (verbose) SELFTEST_PRINT(ok ? "    PASS\n" : "    FAIL\n");
@@ -1409,18 +1410,18 @@ bool Selftest(bool verbose, SelftestMode mode, uint64_t seed) {
     {
         if (verbose) SELFTEST_PRINT("\nLarge scalar cross-checks (fast vs affine):\n");
         bool ok = true;
-        const char* L[] = {
+        const char const* L[] = {
             "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
             "8000000000000000000000000000000000000000000000000000000000000000",
             "7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
             "deadbeefcafebabef00dfeedfacefeed1234567890abcdef1122334455667788"
         };
-        Point G = Point::generator();
-        Point G_aff = Point::from_affine(G.x(), G.y());
+        Point const G = Point::generator();
+        Point const G_aff = Point::from_affine(G.x(), G.y());
         for (const char* hx : L) {
-            Scalar k = Scalar::from_hex(hx);
-            Point fast = scalar_mul_generator(k);
-            Point ref  = G_aff.scalar_mul(k);
+            Scalar const k = Scalar::from_hex(hx);
+            Point const fast = scalar_mul_generator(k);
+            Point const ref  = G_aff.scalar_mul(k);
             if (!points_equal(fast, ref)) { ok = false; break; }
         }
         if (verbose) SELFTEST_PRINT(ok ? "    PASS\n" : "    FAIL\n");
@@ -1431,7 +1432,7 @@ bool Selftest(bool verbose, SelftestMode mode, uint64_t seed) {
     {
         if (verbose) SELFTEST_PRINT("\nSquared scalars k^2 * G (fast vs affine):\n");
         bool ok = true;
-        const char* K[] = {
+        const char const* K[] = {
             TEST_VECTORS[0].scalar_hex,
             TEST_VECTORS[1].scalar_hex,
             TEST_VECTORS[2].scalar_hex,
@@ -1440,13 +1441,13 @@ bool Selftest(bool verbose, SelftestMode mode, uint64_t seed) {
             "0000000000000000000000000000000000000000000000000000000000000061",
             "2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f8091a"
         };
-        Point G = Point::generator();
-        Point G_aff = Point::from_affine(G.x(), G.y());
+        Point const G = Point::generator();
+        Point const G_aff = Point::from_affine(G.x(), G.y());
         for (const char* hx : K) {
-            Scalar k = Scalar::from_hex(hx);
-            Scalar k2 = k * k; // mod n
-            Point fast = scalar_mul_generator(k2);
-            Point ref  = G_aff.scalar_mul(k2);
+            Scalar const k = Scalar::from_hex(hx);
+            Scalar const k2 = k * k; // mod n
+            Point const fast = scalar_mul_generator(k2);
+            Point const ref  = G_aff.scalar_mul(k2);
             if (!points_equal(fast, ref)) { ok = false; break; }
         }
         if (verbose) SELFTEST_PRINT(ok ? "    PASS\n" : "    FAIL\n");
@@ -1497,14 +1498,14 @@ bool Selftest(bool verbose, SelftestMode mode, uint64_t seed) {
         {
             if (verbose) SELFTEST_PRINT("\n[STRESS] Extended fast vs generic kG (1000 random scalars):\n");
             bool ok = true;
-            Point G = Point::generator();
-            Point G_aff = Point::from_affine(G.x(), G.y());
+            Point const G = Point::generator();
+            Point const G_aff = Point::from_affine(G.x(), G.y());
             SelftestRng rng(seed);
             for (int i = 0; i < 1000 && ok; ++i) {
-                std::array<uint64_t, 4> ls{rng.next(), rng.next(), rng.next(), rng.next()};
-                Scalar k = Scalar::from_limbs(ls);
-                Point fast = scalar_mul_generator(k);
-                Point slow = G_aff.scalar_mul(k);
+                std::array<uint64_t, 4> const ls{rng.next(), rng.next(), rng.next(), rng.next()};
+                Scalar const k = Scalar::from_limbs(ls);
+                Point const fast = scalar_mul_generator(k);
+                Point const slow = G_aff.scalar_mul(k);
                 if (!points_equal(fast, slow)) {
                     ok = false;
                     if (verbose) SELFTEST_PRINT("    FAIL at i=%d\n", i);
@@ -1520,12 +1521,12 @@ bool Selftest(bool verbose, SelftestMode mode, uint64_t seed) {
             bool ok = true;
             SelftestRng rng(seed ^ 0xF1E1DULL);
             for (int i = 0; i < 500 && ok; ++i) {
-                std::array<uint64_t, 4> la{rng.next(), rng.next(), rng.next(), rng.next()};
-                std::array<uint64_t, 4> lb{rng.next(), rng.next(), rng.next(), rng.next()};
-                std::array<uint64_t, 4> lc{rng.next(), rng.next(), rng.next(), rng.next()};
-                FieldElement a = FieldElement::from_limbs(la);
-                FieldElement b = FieldElement::from_limbs(lb);
-                FieldElement c = FieldElement::from_limbs(lc);
+                std::array<uint64_t, 4> const la{rng.next(), rng.next(), rng.next(), rng.next()};
+                std::array<uint64_t, 4> const lb{rng.next(), rng.next(), rng.next(), rng.next()};
+                std::array<uint64_t, 4> const lc{rng.next(), rng.next(), rng.next(), rng.next()};
+                FieldElement const a = FieldElement::from_limbs(la);
+                FieldElement const b = FieldElement::from_limbs(lb);
+                FieldElement const c = FieldElement::from_limbs(lc);
                 if (!(a * b == b * a)) ok = false;
                 if (!((a * b) * c == a * (b * c))) ok = false;
                 if (!(a * (b + c) == a * b + a * c)) ok = false;
@@ -1542,21 +1543,21 @@ bool Selftest(bool verbose, SelftestMode mode, uint64_t seed) {
             if (verbose) SELFTEST_PRINT("\n[STRESS] Extended bilinearity K*(Q+/-G) (100 pairs):\n");
             bool ok = true;
             SelftestRng rng(seed ^ 0xB11FULL);
-            Point G = Point::generator();
+            Point const G = Point::generator();
             for (int i = 0; i < 100 && ok; ++i) {
-                std::array<uint64_t, 4> lk{rng.next(), rng.next(), rng.next(), rng.next()};
-                std::array<uint64_t, 4> lq{rng.next(), rng.next(), rng.next(), rng.next()};
-                Scalar K = Scalar::from_limbs(lk);
-                Scalar qk = Scalar::from_limbs(lq);
-                Point Q = scalar_mul_generator(qk);
-                Point KG = scalar_mul_generator(K);
+                std::array<uint64_t, 4> const lk{rng.next(), rng.next(), rng.next(), rng.next()};
+                std::array<uint64_t, 4> const lq{rng.next(), rng.next(), rng.next(), rng.next()};
+                Scalar const K = Scalar::from_limbs(lk);
+                Scalar const qk = Scalar::from_limbs(lq);
+                Point const Q = scalar_mul_generator(qk);
+                Point const KG = scalar_mul_generator(K);
 
-                Point Lp = Q.add(G).scalar_mul(K);
-                Point Rp = Q.scalar_mul(K).add(KG);
+                Point const Lp = Q.add(G).scalar_mul(K);
+                Point const Rp = Q.scalar_mul(K).add(KG);
                 if (!points_equal(Lp, Rp)) { ok = false; break; }
 
-                Point Lm = Q.add(G.negate()).scalar_mul(K);
-                Point Rm = Q.scalar_mul(K).add(KG.negate());
+                Point const Lm = Q.add(G.negate()).scalar_mul(K);
+                Point const Rm = Q.scalar_mul(K).add(KG.negate());
                 if (!points_equal(Lm, Rm)) { ok = false; break; }
             }
             if (verbose) SELFTEST_PRINT(ok ? "    PASS\n" : "    FAIL\n");
@@ -1570,17 +1571,17 @@ bool Selftest(bool verbose, SelftestMode mode, uint64_t seed) {
             static const size_t SIZES[] = { 2048, 3072, 4096, 6144, 8192 };
             bool ok = true;
             SelftestRng rng(seed ^ 0xBA7C4ULL);
-            for (size_t sz : SIZES) {
+            for (size_t const sz : SIZES) {
                 std::vector<FieldElement> elems(sz);
                 std::vector<FieldElement> copy(sz);
                 for (size_t j = 0; j < sz; ++j) {
-                    uint64_t v = rng.next() | 1ULL; // ensure nonzero
+                    uint64_t const v = rng.next() | 1ULL; // ensure nonzero
                     elems[j] = FieldElement::from_uint64(v);
                     copy[j] = elems[j];
                 }
                 fe_batch_inverse(elems.data(), sz);
                 // Spot-check first/last/middle
-                for (size_t idx : {(size_t)0, sz/2, sz-1}) {
+                for (size_t const idx : {(size_t)0, sz/2, sz-1}) {
                     if (!(copy[idx].inverse() == elems[idx])) {
                         ok = false;
                         if (verbose) SELFTEST_PRINT("    FAIL at size=%zu, idx=%zu\n", sz, idx);

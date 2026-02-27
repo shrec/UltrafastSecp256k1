@@ -109,22 +109,22 @@ static void test_on_curve() {
         }
         auto s = Scalar::from_bytes(bytes);
         if (s.is_zero()) continue;
-        Point P = Point::generator().scalar_mul(s);
+        Point const P = Point::generator().scalar_mul(s);
         CHECK(debug::is_on_curve(P), "kG must be on curve");
     }
 
     // Point addition results must be on curve
     auto s1 = Scalar::from_uint64(12345);
     auto s2 = Scalar::from_uint64(67890);
-    Point P1 = Point::generator().scalar_mul(s1);
-    Point P2 = Point::generator().scalar_mul(s2);
-    Point P3 = P1.add(P2);
+    Point const P1 = Point::generator().scalar_mul(s1);
+    Point const P2 = Point::generator().scalar_mul(s2);
+    Point const P3 = P1.add(P2);
     CHECK(debug::is_on_curve(P3), "P1+P2 must be on curve");
 
-    Point P4 = P1.dbl();
+    Point const P4 = P1.dbl();
     CHECK(debug::is_on_curve(P4), "2*P must be on curve");
 
-    Point P5 = P1.negate();
+    Point const P5 = P1.negate();
     CHECK(debug::is_on_curve(P5), "-P must be on curve");
 
     printf("    -> all on-curve checks passed\n");
@@ -176,7 +176,7 @@ static void test_macro_integration() {
 
     // Reset counter
     auto& c = debug::counters();
-    uint64_t prev = c.invariant_check_count;
+    uint64_t const prev = c.invariant_check_count;
 
     // These should all succeed (not abort)
     auto fe = FieldElement::from_uint64(42);
@@ -208,27 +208,27 @@ static void test_full_chain() {
     auto k = Scalar::from_uint64(0xABCDEF);
     SECP_ASSERT_SCALAR_VALID(k);
 
-    Point G = Point::generator();
+    Point const G = Point::generator();
     SECP_ASSERT_ON_CURVE(G);
 
-    Point P = G.scalar_mul(k);
+    Point const P = G.scalar_mul(k);
     SECP_ASSERT_ON_CURVE(P);
 
-    Point P2 = P.dbl();
+    Point const P2 = P.dbl();
     SECP_ASSERT_ON_CURVE(P2);
 
-    Point P3 = P.add(P2);
+    Point const P3 = P.add(P2);
     SECP_ASSERT_ON_CURVE(P3);
 
-    Point neg = P3.negate();
+    Point const neg = P3.negate();
     SECP_ASSERT_ON_CURVE(neg);
 
-    Point should_be_inf = P3.add(neg);
+    Point const should_be_inf = P3.add(neg);
     // P + (-P) = O
     CHECK(should_be_inf.is_infinity(), "P + (-P) must be infinity");
 
-    FieldElement x = P.x();
-    FieldElement y = P.y();
+    FieldElement const x = P.x();
+    FieldElement const y = P.y();
 
     // y^2 should equal x^3 + 7
     // operator== now normalizes both sides, so non-canonical intermediates

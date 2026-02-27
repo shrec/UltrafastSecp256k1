@@ -43,7 +43,7 @@ unsigned pippenger_optimal_window(std::size_t n) {
 static inline uint32_t extract_digit(const Scalar& s, unsigned bit_offset, unsigned width) {
     uint32_t digit = 0;
     for (unsigned b = 0; b < width; ++b) {
-        unsigned pos = bit_offset + b;
+        unsigned const pos = bit_offset + b;
         if (pos < 256) {
             digit |= static_cast<uint32_t>(s.bit(pos)) << b;
         }
@@ -64,9 +64,9 @@ Point pippenger_msm(const Scalar* scalars,
         return multi_scalar_mul(scalars, points, n);
     }
 
-    unsigned c = pippenger_optimal_window(n);
-    std::size_t num_buckets = static_cast<std::size_t>(1) << c; // 2^c
-    unsigned num_windows = (256 + c - 1) / c;                   // ceil(256/c)
+    unsigned const c = pippenger_optimal_window(n);
+    std::size_t const num_buckets = static_cast<std::size_t>(1) << c; // 2^c
+    unsigned const num_windows = (256 + c - 1) / c;                   // ceil(256/c)
 
     // Pre-allocate bucket array (reused per window)
     std::vector<Point> buckets(num_buckets);
@@ -76,7 +76,7 @@ Point pippenger_msm(const Scalar* scalars,
 
     // Process windows from MSB to LSB
     for (int w = static_cast<int>(num_windows) - 1; w >= 0; --w) {
-        unsigned bit_offset = static_cast<unsigned>(w) * c;
+        unsigned const bit_offset = static_cast<unsigned>(w) * c;
 
         // If not the first window, shift result left by c bits
         if (w < static_cast<int>(num_windows) - 1) {
@@ -92,7 +92,7 @@ Point pippenger_msm(const Scalar* scalars,
 
         // -- Scatter: distribute points into buckets --
         for (std::size_t i = 0; i < n; ++i) {
-            uint32_t digit = extract_digit(scalars[i], bit_offset, c);
+            uint32_t const digit = extract_digit(scalars[i], bit_offset, c);
             if (digit == 0) continue;  // bucket[0] is unused (identity)
             buckets[digit] = buckets[digit].add(points[i]);
         }
@@ -128,7 +128,7 @@ Point pippenger_msm(const Scalar* scalars,
 // -- Vector convenience -------------------------------------------------------
 Point pippenger_msm(const std::vector<Scalar>& scalars,
                     const std::vector<Point>& points) {
-    std::size_t n = std::min(scalars.size(), points.size());
+    std::size_t const n = std::min(scalars.size(), points.size());
     if (n == 0) return Point::infinity();
     return pippenger_msm(scalars.data(), points.data(), n);
 }
@@ -146,7 +146,7 @@ Point msm(const Scalar* scalars,
 
 Point msm(const std::vector<Scalar>& scalars,
           const std::vector<Point>& points) {
-    std::size_t n = std::min(scalars.size(), points.size());
+    std::size_t const n = std::min(scalars.size(), points.size());
     if (n == 0) return Point::infinity();
     return msm(scalars.data(), points.data(), n);
 }

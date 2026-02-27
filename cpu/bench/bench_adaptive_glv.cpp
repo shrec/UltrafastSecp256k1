@@ -33,17 +33,17 @@ static double run_bench(unsigned window_bits, bool glv, unsigned iters) {
 
     // Warmup (avoid first-call penalties)
     for (unsigned i = 0; i < std::min(50u, iters); ++i) {
-        volatile Point p = scalar_mul_generator(scalars[i]);
+        volatile Point const p = scalar_mul_generator(scalars[i]);
         (void)p;
     }
 
     auto start = std::chrono::high_resolution_clock::now();
     for (unsigned i = 0; i < iters; ++i) {
-        volatile Point p = scalar_mul_generator(scalars[i]);
+        volatile Point const p = scalar_mul_generator(scalars[i]);
         (void)p;
     }
     auto end = std::chrono::high_resolution_clock::now();
-    double ns = static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
+    double const ns = static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
     return ns / static_cast<double>(iters);
 }
 
@@ -58,16 +58,16 @@ int main(int argc, char** argv) {
     if (argc > 2) max_w = static_cast<unsigned>(std::stoi(argv[2]));
     if (argc > 3) iters = static_cast<unsigned>(std::stoi(argv[3]));
 
-    std::cout << "window_bits,ns_no_glv,ns_glv(jsf),glv_gain_percent" << std::endl;
+    std::cout << "window_bits,ns_no_glv,ns_glv(jsf),glv_gain_percent" << '\n';
     for (unsigned w = min_w; w <= max_w; ++w) {
         try {
-            double no_glv = run_bench(w, false, iters);
-            double glv_jsf = run_bench(w, true, iters);
-            double gain = (no_glv - glv_jsf) / no_glv * 100.0; // negative if slower
+            double const no_glv = run_bench(w, false, iters);
+            double const glv_jsf = run_bench(w, true, iters);
+            double const gain = (no_glv - glv_jsf) / no_glv * 100.0; // negative if slower
             std::cout << w << ',' << std::fixed << std::setprecision(2)
-                      << no_glv << ',' << glv_jsf << ',' << gain << std::endl;
+                      << no_glv << ',' << glv_jsf << ',' << gain << '\n';
         } catch (const std::exception& ex) {
-            std::cout << w << ",error," << ex.what() << "," << 0.0 << std::endl;
+            std::cout << w << ",error," << ex.what() << "," << 0.0 << '\n';
         }
     }
     return 0;

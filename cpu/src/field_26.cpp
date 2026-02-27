@@ -73,17 +73,17 @@ FieldElement FieldElement26::to_fe() const noexcept {
     FieldElement26 tmp = *this;
     tmp.normalize();
 
-    std::uint64_t L0 = (std::uint64_t)tmp.n[0]
+    std::uint64_t const L0 = (std::uint64_t)tmp.n[0]
                      | ((std::uint64_t)tmp.n[1] << 26)
                      | ((std::uint64_t)tmp.n[2] << 52);
-    std::uint64_t L1 = ((std::uint64_t)tmp.n[2] >> 12)
+    std::uint64_t const L1 = ((std::uint64_t)tmp.n[2] >> 12)
                      | ((std::uint64_t)tmp.n[3] << 14)
                      | ((std::uint64_t)tmp.n[4] << 40);
-    std::uint64_t L2 = ((std::uint64_t)tmp.n[4] >> 24)
+    std::uint64_t const L2 = ((std::uint64_t)tmp.n[4] >> 24)
                      | ((std::uint64_t)tmp.n[5] << 2)
                      | ((std::uint64_t)tmp.n[6] << 28)
                      | ((std::uint64_t)tmp.n[7] << 54);
-    std::uint64_t L3 = ((std::uint64_t)tmp.n[7] >> 10)
+    std::uint64_t const L3 = ((std::uint64_t)tmp.n[7] >> 10)
                      | ((std::uint64_t)tmp.n[8] << 16)
                      | ((std::uint64_t)tmp.n[9] << 42);
 
@@ -185,7 +185,7 @@ void fe26_normalize(std::uint32_t* r) noexcept {
 
     // Trial subtraction of p
     // Carry-based: compute t - p using signed differences
-    std::int64_t d;
+    std::int64_t d = 0;
     d = (std::int64_t)z0 - P0; z0 = (std::uint32_t)d & M26; bool borrow = (d < 0);
     d = (std::int64_t)z1 - P1 - (borrow ? 1 : 0); z1 = (std::uint32_t)d & M26; borrow = (d < 0);
     d = (std::int64_t)z2 - P2 - (borrow ? 1 : 0); z2 = (std::uint32_t)d & M26; borrow = (d < 0);
@@ -198,7 +198,7 @@ void fe26_normalize(std::uint32_t* r) noexcept {
     d = (std::int64_t)z9 - P9 - (borrow ? 1 : 0); z9 = (std::uint32_t)d & M22; borrow = (d < 0);
 
     // If no borrow, t >= p -> use subtracted result; else keep original
-    std::uint32_t mask = borrow ? 0xFFFFFFFFU : 0U;
+    std::uint32_t const mask = borrow ? 0xFFFFFFFFU : 0U;
     r[0] = (t0 & mask) | (z0 & ~mask);
     r[1] = (t1 & mask) | (z1 & ~mask);
     r[2] = (t2 & mask) | (z2 & ~mask);
@@ -257,17 +257,17 @@ FieldElement26 FieldElement26::negate(unsigned magnitude) const noexcept {
 }
 
 void FieldElement26::negate_assign(unsigned magnitude) noexcept {
-    std::uint32_t m = magnitude + 1;
-    std::uint32_t mp0 = m * P0;
-    std::uint32_t mp1 = m * P1;
-    std::uint32_t mp2 = m * P2;
-    std::uint32_t mp3 = m * P3;
-    std::uint32_t mp4 = m * P4;
-    std::uint32_t mp5 = m * P5;
-    std::uint32_t mp6 = m * P6;
-    std::uint32_t mp7 = m * P7;
-    std::uint32_t mp8 = m * P8;
-    std::uint32_t mp9 = m * P9;
+    std::uint32_t const m = magnitude + 1;
+    std::uint32_t const mp0 = m * P0;
+    std::uint32_t const mp1 = m * P1;
+    std::uint32_t const mp2 = m * P2;
+    std::uint32_t const mp3 = m * P3;
+    std::uint32_t const mp4 = m * P4;
+    std::uint32_t const mp5 = m * P5;
+    std::uint32_t const mp6 = m * P6;
+    std::uint32_t const mp7 = m * P7;
+    std::uint32_t const mp8 = m * P8;
+    std::uint32_t const mp9 = m * P9;
     n[0] = mp0 - n[0];
     n[1] = mp1 - n[1];
     n[2] = mp2 - n[2];
@@ -301,9 +301,9 @@ void FieldElement26::negate_assign(unsigned magnitude) noexcept {
 
 void fe26_mul_inner(std::uint32_t* r, const std::uint32_t* a,
                     const std::uint32_t* b) noexcept {
-    std::uint64_t c, d;
-    std::uint64_t u0, u1, u2, u3, u4, u5, u6, u7, u8;
-    std::uint32_t t9, t0, t1, t2, t3, t4, t5, t6, t7;
+    std::uint64_t c = 0, d = 0;
+    std::uint64_t u0 = 0, u1 = 0, u2 = 0, u3 = 0, u4 = 0, u5 = 0, u6 = 0, u7 = 0, u8 = 0;
+    std::uint32_t t9 = 0, t0 = 0, t1 = 0, t2 = 0, t3 = 0, t4 = 0, t5 = 0, t6 = 0, t7 = 0;
     const std::uint32_t M = 0x3FFFFFFU, R0 = 0x3D10U, R1 = 0x400U;
 
     // -- Column 9 (direct products) into d ---------------------------
@@ -477,9 +477,9 @@ void fe26_mul_inner(std::uint32_t* r, const std::uint32_t* a,
 // symmetry: 2*a[i]*a[j] for i!=j, a[i]^2 for i=j.
 
 void fe26_sqr_inner(std::uint32_t* r, const std::uint32_t* a) noexcept {
-    std::uint64_t c, d;
-    std::uint64_t u0, u1, u2, u3, u4, u5, u6, u7, u8;
-    std::uint32_t t9, t0, t1, t2, t3, t4, t5, t6, t7;
+    std::uint64_t c = 0, d = 0;
+    std::uint64_t u0 = 0, u1 = 0, u2 = 0, u3 = 0, u4 = 0, u5 = 0, u6 = 0, u7 = 0, u8 = 0;
+    std::uint32_t t9 = 0, t0 = 0, t1 = 0, t2 = 0, t3 = 0, t4 = 0, t5 = 0, t6 = 0, t7 = 0;
     const std::uint32_t M = 0x3FFFFFFU, R0 = 0x3D10U, R1 = 0x400U;
 
     // -- Column 9 (direct) -------------------------------------------
@@ -653,7 +653,7 @@ FieldElement26 FieldElement26::half() const noexcept {
     tmp.normalize_weak();
 
     // mask = 0 if even, all-ones if odd
-    std::uint32_t mask = 0U - (tmp.n[0] & 1U);
+    std::uint32_t const mask = 0U - (tmp.n[0] & 1U);
 
     // Conditionally add p
     std::uint32_t t0 = tmp.n[0] + (P0 & mask);

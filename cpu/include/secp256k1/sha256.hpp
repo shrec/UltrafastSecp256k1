@@ -42,7 +42,7 @@ public:
         total_ += len;
 
         if (buf_len_ > 0) {
-            std::size_t fill = 64 - buf_len_;
+            std::size_t const fill = 64 - buf_len_;
             if (len < fill) {
                 std::memcpy(buf_ + buf_len_, ptr, len);
                 buf_len_ += len;
@@ -68,7 +68,7 @@ public:
     }
 
     digest_type finalize() noexcept {
-        std::uint64_t bits = total_ * 8;
+        std::uint64_t const bits = total_ * 8;
 
         // -- Direct in-place padding (no per-byte update() calls) ---------
         // buf_len_ is invariantly [0,63] after update() processes full blocks.

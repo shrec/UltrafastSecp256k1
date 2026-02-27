@@ -46,7 +46,7 @@ static const std::array<uint8_t, 32> P_BYTES = {
 static FieldElement fe_from_hex(const char* hex64) {
     std::array<uint8_t, 32> bytes{};
     for (int i = 0; i < 32; ++i) {
-        unsigned hi, lo;
+        unsigned hi = 0, lo = 0;
         sscanf(hex64 + i * 2, "%1x", &hi);
         sscanf(hex64 + i * 2 + 1, "%1x", &lo);
         bytes[i] = static_cast<uint8_t>((hi << 4) | lo);
@@ -146,7 +146,7 @@ static void test_cross_limb_carry() {
         uint64_t l0, l1, l2, l3;
     };
 
-    Pattern patterns[] = {
+    Pattern const patterns[] = {
         // Bit 63 set: carry from limb0 -> limb1
         {0x8000000000000000ULL, 0, 0, 0},
         // Bit 127 set: carry from limb1 -> limb2

@@ -39,7 +39,7 @@ public:
         total_ += len;
 
         if (buf_len_ > 0) {
-            std::size_t fill = 128 - buf_len_;
+            std::size_t const fill = 128 - buf_len_;
             if (len < fill) {
                 std::memcpy(buf_ + buf_len_, ptr, len);
                 buf_len_ += len;
@@ -65,8 +65,8 @@ public:
     }
 
     digest_type finalize() noexcept {
-        std::uint64_t bit_len = total_ * 8;
-        std::uint8_t pad = static_cast<std::uint8_t>(0x80);
+        std::uint64_t const bit_len = total_ * 8;
+        auto pad = static_cast<std::uint8_t>(0x80);
         update(&pad, 1);
 
         // Pad to 112 mod 128
@@ -189,8 +189,8 @@ private:
         std::uint64_t e = state_[4], f = state_[5], g = state_[6], h = state_[7];
 
         for (int i = 0; i < 80; ++i) {
-            std::uint64_t t1 = h + Sigma1(e) + ch64(e, f, g) + K[i] + W[i];
-            std::uint64_t t2 = Sigma0(a) + maj64(a, b, c);
+            std::uint64_t const t1 = h + Sigma1(e) + ch64(e, f, g) + K[i] + W[i];
+            std::uint64_t const t2 = Sigma0(a) + maj64(a, b, c);
             h = g; g = f; f = e; e = d + t1;
             d = c; c = b; b = a; a = t1 + t2;
         }

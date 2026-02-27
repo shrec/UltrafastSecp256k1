@@ -37,7 +37,7 @@ static void build_odd_table(const Point& P, int window_bits, std::vector<Point>&
         return;
     }
     table_out[0] = P; // 1*P
-    Point twoP = P.dbl();
+    Point const twoP = P.dbl();
     for (int i = 1; i < table_size; ++i) {
         table_out[static_cast<size_t>(i)] = table_out[static_cast<size_t>(i-1)].add(twoP);
     }
@@ -47,26 +47,26 @@ static void build_odd_table(const Point& P, int window_bits, std::vector<Point>&
 static Point shamir_interleaved_wnaf(const std::vector<int32_t>& wnaf1, const std::vector<int32_t>& wnaf2,
                                      const std::vector<Point>& tableP,
                                      const std::vector<Point>& tableQ) {
-    size_t max_len = std::max(wnaf1.size(), wnaf2.size());
+    size_t const max_len = std::max(wnaf1.size(), wnaf2.size());
     Point R = Point::infinity();
 
     for (int i = static_cast<int>(max_len) - 1; i >= 0; --i) {
         R = R.dbl();
         if (i < static_cast<int>(wnaf1.size())) {
-            int32_t d1 = wnaf1[static_cast<size_t>(i)];
+            int32_t const d1 = wnaf1[static_cast<size_t>(i)];
             if (d1 != 0) {
-                bool neg = (d1 < 0);
-                int idx = ((neg ? -d1 : d1) - 1) / 2;
+                bool const neg = (d1 < 0);
+                int const idx = ((neg ? -d1 : d1) - 1) / 2;
                 Point add = tableP[static_cast<size_t>(idx)];
                 if (neg) add.negate_inplace();
                 R = R.add(add);
             }
         }
         if (i < static_cast<int>(wnaf2.size())) {
-            int32_t d2 = wnaf2[static_cast<size_t>(i)];
+            int32_t const d2 = wnaf2[static_cast<size_t>(i)];
             if (d2 != 0) {
-                bool neg = (d2 < 0);
-                int idx = ((neg ? -d2 : d2) - 1) / 2;
+                bool const neg = (d2 < 0);
+                int const idx = ((neg ? -d2 : d2) - 1) / 2;
                 Point add = tableQ[static_cast<size_t>(idx)];
                 if (neg) add.negate_inplace();
                 R = R.add(add);
@@ -81,8 +81,8 @@ static double bench_separate_prod_like(const std::vector<Scalar>& k1s, const std
     Point acc = Point::generator();
     auto t0 = std::chrono::high_resolution_clock::now();
     for (size_t i = 0; i < iters; ++i) {
-        Point a = scalar_mul_generator(k1s[i % k1s.size()]); // fast G path
-        Point b = Q.scalar_mul(k2s[i % k2s.size()]);         // variable-base
+        Point const a = scalar_mul_generator(k1s[i % k1s.size()]); // fast G path
+        Point const b = Q.scalar_mul(k2s[i % k2s.size()]);         // variable-base
         acc = a.add(b);
     }
     auto t1 = std::chrono::high_resolution_clock::now();
@@ -92,12 +92,12 @@ static double bench_separate_prod_like(const std::vector<Scalar>& k1s, const std
 
 static double bench_separate_variable(const std::vector<Scalar>& k1s, const std::vector<Scalar>& k2s,
                                       const Point& Q, size_t iters, unsigned wbits) {
-    Point P = Point::generator();
+    Point const P = Point::generator();
     Point acc = P;
     auto t0 = std::chrono::high_resolution_clock::now();
     for (size_t i = 0; i < iters; ++i) {
-        Point a = scalar_mul_arbitrary(P, k1s[i % k1s.size()], wbits);
-        Point b = scalar_mul_arbitrary(Q, k2s[i % k2s.size()], wbits);
+        Point const a = scalar_mul_arbitrary(P, k1s[i % k1s.size()], wbits);
+        Point const b = scalar_mul_arbitrary(Q, k2s[i % k2s.size()], wbits);
         acc = a.add(b);
     }
     auto t1 = std::chrono::high_resolution_clock::now();
@@ -107,7 +107,7 @@ static double bench_separate_variable(const std::vector<Scalar>& k1s, const std:
 
 static double bench_shamir_variable(const std::vector<Scalar>& k1s, const std::vector<Scalar>& k2s,
                                     const Point& Q, size_t iters, unsigned wbits) {
-    Point P = Point::generator();
+    Point const P = Point::generator();
 
     // Precompute tables once for P and Q (variable-base tables are cheap)
     std::vector<Point> tableP; build_odd_table(P, static_cast<int>(wbits), tableP);
@@ -124,7 +124,7 @@ static double bench_shamir_variable(const std::vector<Scalar>& k1s, const std::v
     for (size_t i = 0; i < iters; ++i) {
         const auto& wa = w1[i % w1.size()];
         const auto& wb = w2[i % w2.size()];
-        Point r = shamir_interleaved_wnaf(wa, wb, tableP, tableQ);
+        Point const r = shamir_interleaved_wnaf(wa, wb, tableP, tableQ);
         acc = acc.add(r);
     }
     auto t1 = std::chrono::high_resolution_clock::now();
@@ -149,8 +149,8 @@ int main() {
     constexpr unsigned WBITS = 5;
 
     // Random Q
-    Scalar sQ = gen_scalars(1, 0xBADC0FFEEULL)[0];
-    Point Q = Point::generator().scalar_mul(sQ);
+    Scalar const sQ = gen_scalars(1, 0xBADC0FFEEULL)[0];
+    Point const Q = Point::generator().scalar_mul(sQ);
 
     // Random scalars for batches
     auto k1s = gen_scalars(N, 0xA5A5A5A5ULL);
@@ -162,13 +162,13 @@ int main() {
     // Warmup
     (void)bench_separate_prod_like(k1s, k2s, Q, 256);
 
-    double t_prod = bench_separate_prod_like(k1s, k2s, Q, ITERS);
+    double const t_prod = bench_separate_prod_like(k1s, k2s, Q, ITERS);
     print_row("Separate (prod-like)", t_prod);
 
-    double t_var = bench_separate_variable(k1s, k2s, Q, ITERS, WBITS);
+    double const t_var = bench_separate_variable(k1s, k2s, Q, ITERS, WBITS);
     print_row("Separate (variable)", t_var);
 
-    double t_shamir = bench_shamir_variable(k1s, k2s, Q, ITERS, WBITS);
+    double const t_shamir = bench_shamir_variable(k1s, k2s, Q, ITERS, WBITS);
     print_row("Shamir interleaved", t_shamir);
 
     std::cout << "\nNotes:\n";

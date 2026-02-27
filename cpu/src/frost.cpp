@@ -86,8 +86,8 @@ static Point compute_group_commitment(
 
     Point R = Point::infinity();
     for (std::size_t i = 0; i < nonce_commitments.size(); ++i) {
-        Point rho_E = nonce_commitments[i].binding_point.scalar_mul(binding_factors[i]);
-        Point contribution = nonce_commitments[i].hiding_point.add(rho_E);
+        Point const rho_E = nonce_commitments[i].binding_point.scalar_mul(binding_factors[i]);
+        Point const contribution = nonce_commitments[i].hiding_point.add(rho_E);
         R = R.add(contribution);
     }
     return R;
@@ -114,11 +114,11 @@ Scalar frost_lagrange_coefficient(ParticipantId i,
     Scalar num = Scalar::one();
     Scalar den = Scalar::one();
 
-    Scalar x_i = Scalar::from_uint64(i);
+    Scalar const x_i = Scalar::from_uint64(i);
 
-    for (ParticipantId j : signer_ids) {
+    for (ParticipantId const j : signer_ids) {
         if (j == i) continue;
-        Scalar x_j = Scalar::from_uint64(j);
+        Scalar const x_j = Scalar::from_uint64(j);
         num = num * x_j;                  // num *= j
         den = den * (x_j - x_i);          // den *= (j - i)
     }
@@ -152,8 +152,8 @@ frost_keygen_begin(ParticipantId participant_id,
     // Shares: f_i(j) for j = 1..n
     std::vector<FrostShare> shares(num_participants);
     for (std::uint32_t j = 0; j < num_participants; ++j) {
-        ParticipantId target = j + 1;
-        Scalar x = Scalar::from_uint64(target);
+        ParticipantId const target = j + 1;
+        Scalar const x = Scalar::from_uint64(target);
         shares[j].from = participant_id;
         shares[j].id = target;
         shares[j].value = poly_eval(coeffs, x);
@@ -174,7 +174,7 @@ frost_keygen_finalize(ParticipantId participant_id,
     pkg.num_participants = num_participants;
 
     // Verify each received share against its sender's commitment
-    Scalar x_i = Scalar::from_uint64(participant_id);
+    Scalar const x_i = Scalar::from_uint64(participant_id);
     for (const auto& share : received_shares) {
         // Find commitment from the sender of this share
         const FrostCommitment* comm = nullptr;
@@ -187,7 +187,7 @@ frost_keygen_finalize(ParticipantId participant_id,
         if (!comm) return {pkg, false};
 
         // Verify: share.value * G == Sum(A_{sender,j} * x_i^j)
-        Point lhs = Point::generator().scalar_mul(share.value);
+        Point const lhs = Point::generator().scalar_mul(share.value);
         Point rhs = Point::infinity();
         Scalar x_pow = Scalar::one();
         for (std::size_t j = 0; j < comm->coeffs.size(); ++j) {
@@ -270,24 +270,24 @@ frost_sign(const FrostKeyPackage& key_pkg,
     }
 
     // Group commitment R
-    Point R = compute_group_commitment(nonce_commitments, binding_factors);
+    Point const R = compute_group_commitment(nonce_commitments, binding_factors);
 
     // BIP-340 compatibility: negate nonces if R has odd y
     auto R_y = R.y().to_bytes();
-    bool negate_R = (R_y[31] & 1) != 0;
+    bool const negate_R = (R_y[31] & 1) != 0;
 
     // Challenge e
     // For BIP-340 compat: use x-only group key
     auto gpk_y = key_pkg.group_public_key.y().to_bytes();
-    bool negate_key = (gpk_y[31] & 1) != 0;
+    bool const negate_key = (gpk_y[31] & 1) != 0;
 
-    Scalar e = compute_challenge(
+    Scalar const e = compute_challenge(
         negate_R ? R.negate() : R,
         negate_key ? key_pkg.group_public_key.negate() : key_pkg.group_public_key,
         msg);
 
     // Lagrange coefficient
-    Scalar lambda_i = frost_lagrange_coefficient(key_pkg.id, signer_ids);
+    Scalar const lambda_i = frost_lagrange_coefficient(key_pkg.id, signer_ids);
 
     // Partial signature: z_i = d_i + rho_i * e_i + lambda_i * s_i * e
     Scalar d = nonce.hiding_nonce;
@@ -302,7 +302,7 @@ frost_sign(const FrostKeyPackage& key_pkg,
         s_i = s_i.negate();
     }
 
-    Scalar z_i = d + (my_binding * ei) + (lambda_i * s_i * e);
+    Scalar const z_i = d + (my_binding * ei) + (lambda_i * s_i * e);
 
     return FrostPartialSig{key_pkg.id, z_i};
 }
@@ -315,13 +315,15 @@ bool frost_verify_partial(const FrostPartialSig& partial_sig,
                           const Point& group_public_key) {
     // Collect signer IDs
     std::vector<ParticipantId> signer_ids;
-    for (const auto& nc : nonce_commitments) {
+    signer_ids.reserve(nonce_commitments.size());
+for (const auto& nc : nonce_commitments) {
         signer_ids.push_back(nc.id);
     }
 
     // Compute binding factors
     std::vector<Scalar> binding_factors;
-    for (const auto& nc : nonce_commitments) {
+    binding_factors.reserve(nonce_commitments.size());
+for (const auto& nc : nonce_commitments) {
         binding_factors.push_back(
             compute_binding_factor(group_public_key, nc.id, nonce_commitments, msg));
     }
@@ -336,19 +338,19 @@ bool frost_verify_partial(const FrostPartialSig& partial_sig,
     }
 
     // Group commitment
-    Point R = compute_group_commitment(nonce_commitments, binding_factors);
+    Point const R = compute_group_commitment(nonce_commitments, binding_factors);
     auto R_y = R.y().to_bytes();
-    bool negate_R = (R_y[31] & 1) != 0;
+    bool const negate_R = (R_y[31] & 1) != 0;
 
     auto gpk_y = group_public_key.y().to_bytes();
-    bool negate_key = (gpk_y[31] & 1) != 0;
+    bool const negate_key = (gpk_y[31] & 1) != 0;
 
-    Scalar e = compute_challenge(
+    Scalar const e = compute_challenge(
         negate_R ? R.negate() : R,
         negate_key ? group_public_key.negate() : group_public_key,
         msg);
 
-    Scalar lambda_i = frost_lagrange_coefficient(partial_sig.id, signer_ids);
+    Scalar const lambda_i = frost_lagrange_coefficient(partial_sig.id, signer_ids);
 
     // Verify: z_i * G == R_i + lambda_i * e * Y_i
     // where R_i = D_i + rho_i * E_i
@@ -356,10 +358,10 @@ bool frost_verify_partial(const FrostPartialSig& partial_sig,
         signer_commitment.binding_point.scalar_mul(rho));
     if (negate_R) R_i = R_i.negate();
 
-    Point lhs = Point::generator().scalar_mul(partial_sig.z_i);
+    Point const lhs = Point::generator().scalar_mul(partial_sig.z_i);
 
-    Point Y_i_eff = negate_key ? verification_share.negate() : verification_share;
-    Point rhs = R_i.add(Y_i_eff.scalar_mul(lambda_i * e));
+    Point const Y_i_eff = negate_key ? verification_share.negate() : verification_share;
+    Point const rhs = R_i.add(Y_i_eff.scalar_mul(lambda_i * e));
 
     auto lhs_c = lhs.to_compressed();
     auto rhs_c = rhs.to_compressed();
@@ -373,7 +375,8 @@ frost_aggregate(const std::vector<FrostPartialSig>& partial_sigs,
                 const std::array<std::uint8_t, 32>& msg) {
     // Compute binding factors
     std::vector<Scalar> binding_factors;
-    for (const auto& nc : nonce_commitments) {
+    binding_factors.reserve(nonce_commitments.size());
+for (const auto& nc : nonce_commitments) {
         binding_factors.push_back(
             compute_binding_factor(group_public_key, nc.id, nonce_commitments, msg));
     }

@@ -229,15 +229,15 @@ FieldElement negate_fe(const FieldElement& v);
     temp.square_inplace();          // (x + y^2)^2 in-place!
     FieldElement s = temp - xx - yyyy;
     s += s;                         // s = 2*((x+y^2)^2 - x^2 - y^4) via add
-    FieldElement m = xx * three;
+    FieldElement const m = xx * three;
     FieldElement x3 = m;            // Copy for in-place
     x3.square_inplace();            // m^2 in-place!
-    FieldElement s2 = s + s;        // 2*s via add
+    FieldElement const s2 = s + s;        // 2*s via add
     x3 -= s2;
-    FieldElement yyyy2 = yyyy + yyyy;   // 2*yyyy
-    FieldElement yyyy4 = yyyy2 + yyyy2; // 4*yyyy
-    FieldElement yyyy8 = yyyy4 + yyyy4; // 8*yyyy via additions
-    FieldElement y3 = m * (s - x3) - yyyy8;
+    FieldElement const yyyy2 = yyyy + yyyy;   // 2*yyyy
+    FieldElement const yyyy4 = yyyy2 + yyyy2; // 4*yyyy
+    FieldElement const yyyy8 = yyyy4 + yyyy4; // 8*yyyy via additions
+    FieldElement const y3 = m * (s - x3) - yyyy8;
     FieldElement z3 = p.y * p.z;
     z3 += z3;                       // 2*(y*z) via add
     return {x3, y3, z3, false};
@@ -252,10 +252,10 @@ FieldElement negate_fe(const FieldElement& v);
     z1z1.square_inplace();          // z1^2 in-place!
     FieldElement z2z2 = q.z;        // Copy for in-place
     z2z2.square_inplace();          // z2^2 in-place!
-    FieldElement u1 = p.x * z2z2;
-    FieldElement u2 = q.x * z1z1;
-    FieldElement s1 = p.y * q.z * z2z2;
-    FieldElement s2 = q.y * p.z * z1z1;
+    FieldElement const u1 = p.x * z2z2;
+    FieldElement const u2 = q.x * z1z1;
+    FieldElement const s1 = p.y * q.z * z2z2;
+    FieldElement const s2 = q.y * p.z * z1z1;
     
     if (SECP256K1_UNLIKELY(u1 == u2)) {
         if (s1 == s2) {
@@ -264,21 +264,21 @@ FieldElement negate_fe(const FieldElement& v);
         return {FieldElement::zero(), FieldElement::one(), FieldElement::zero(), true}; // Infinity
     }
     
-    FieldElement h = u2 - u1;
+    FieldElement const h = u2 - u1;
     FieldElement i = h + h;         // 2*h via add
     i.square_inplace();             // i = (2*h)^2 in-place!
-    FieldElement j = h * i;
+    FieldElement const j = h * i;
     FieldElement r = s2 - s1;
     r += r;                         // 2*(s2-s1) via add
-    FieldElement v = u1 * i;
+    FieldElement const v = u1 * i;
     FieldElement x3 = r;            // Copy for in-place
     x3.square_inplace();            // r^2 in-place!
     x3 -= j + v + v;               // x3 = r^2 - j - 2*v via add
-    FieldElement s1j = s1 * j;
-    FieldElement y3 = r * (v - x3) - (s1j + s1j); // 2*s1*j via add
+    FieldElement const s1j = s1 * j;
+    FieldElement const y3 = r * (v - x3) - (s1j + s1j); // 2*s1*j via add
     FieldElement temp_z = p.z + q.z; // z1 + z2
     temp_z.square_inplace();        // (z1 + z2)^2 in-place!
-    FieldElement z3 = (temp_z - z1z1 - z2z2) * h;
+    FieldElement const z3 = (temp_z - z1z1 - z2z2) * h;
     
     return {x3, y3, z3, false};
 }
@@ -321,7 +321,7 @@ SECP256K1_INLINE void batch_inverse(std::vector<FieldElement>& inputs) {
     // Step 3: Back-substitute to get individual inverses
     // CRITICAL: Must use ORIGINAL value before overwriting!
     for (size_t i = n - 1; i > 0; --i) {
-        FieldElement original = inputs[i];           // Save original BEFORE overwriting
+        FieldElement const original = inputs[i];           // Save original BEFORE overwriting
         inputs[i] = inv * products[i - 1];           // inputs[i]^-^1 = inv x prod[i-1]
         inv = inv * original;                        // Update inv using ORIGINAL value
     }
@@ -340,8 +340,8 @@ SECP256K1_INLINE void batch_inverse(std::vector<FieldElement>& inputs) {
 
     FieldElement z1z1 = p.z;        // Copy for in-place
     z1z1.square_inplace();          // z1^2 in-place!
-    FieldElement u2 = q.x * z1z1;
-    FieldElement s2 = q.y * p.z * z1z1;
+    FieldElement const u2 = q.x * z1z1;
+    FieldElement const s2 = q.y * p.z * z1z1;
 
     if (SECP256K1_UNLIKELY(p.x == u2)) {
         if (p.y == s2) {
@@ -357,31 +357,31 @@ SECP256K1_INLINE void batch_inverse(std::vector<FieldElement>& inputs) {
             xx.square_inplace();            // x^2 in-place!
             FieldElement temp = p.x + yy;   // x + y^2
             temp.square_inplace();          // (x + y^2)^2 in-place!
-            FieldElement s = (temp - xx - yyyy) * two;
-            FieldElement m = xx * three;
+            FieldElement const s = (temp - xx - yyyy) * two;
+            FieldElement const m = xx * three;
             FieldElement x3 = m;            // Copy for in-place
             x3.square_inplace();            // m^2 in-place!
             x3 -= s * two;
-            FieldElement y3 = m * (s - x3) - yyyy * eight;
-            FieldElement z3 = (p.y * p.z) * two;
+            FieldElement const y3 = m * (s - x3) - yyyy * eight;
+            FieldElement const z3 = (p.y * p.z) * two;
             return {x3, y3, z3, false};
         }
         return {FieldElement::zero(), FieldElement::one(), FieldElement::zero(), true};
     }
 
-    FieldElement h = u2 - p.x;
+    FieldElement const h = u2 - p.x;
     FieldElement hh = h;            // Copy for in-place
     hh.square_inplace();            // h^2 in-place!
-    FieldElement i = hh + hh + hh + hh; // 4 * hh
-    FieldElement j = h * i;
-    FieldElement r = (s2 - p.y) + (s2 - p.y);
-    FieldElement v = p.x * i;
+    FieldElement const i = hh + hh + hh + hh; // 4 * hh
+    FieldElement const j = h * i;
+    FieldElement const r = (s2 - p.y) + (s2 - p.y);
+    FieldElement const v = p.x * i;
     const FieldElement& two = FE_TWO;
 
     FieldElement x3 = r;            // Copy for in-place
     x3.square_inplace();            // r^2 in-place!
     x3 -= j + v + v;                // x3 = r^2 - j - 2*v
-    FieldElement y3 = r * (v - x3) - (p.y * j * two);
+    FieldElement const y3 = r * (v - x3) - (p.y * j * two);
     FieldElement z3 = p.z + h;      // p.z + h
     z3.square_inplace();            // (p.z + h)^2 in-place!
     z3 -= z1z1 + hh;               // z3 = (p.z + h)^2 - z1z1 - hh
@@ -504,7 +504,7 @@ constexpr std::array<std::uint8_t, 32> kA2Bytes{
     for (std::size_t i=0;i<32;++i) out[i] = static_cast<std::uint8_t>(~neg_be[i]);
     // Add 1
     for (std::size_t i = 32; i-- > 0; ) {
-        unsigned int sum = static_cast<unsigned int>(out[i]) + 1U;
+        unsigned int const sum = static_cast<unsigned int>(out[i]) + 1U;
         out[i] = static_cast<std::uint8_t>(sum & 0xFFu);
         if ((sum & 0x100u) == 0) break; // no further carry
     }
@@ -706,11 +706,11 @@ Limbs4 mul_shift(const Limbs4& value, const std::array<std::uint64_t, N>& consta
             #endif
             if (rounding_bit) {
                 // Add 1 to out (LSB) with carry propagation.
-                std::uint64_t prev = out[0];
+                std::uint64_t const prev = out[0];
                 out[0] += 1ULL;
                 bool carry = (out[0] < prev);
                 for (std::size_t i = 1; carry && i < out.size(); ++i) {
-                    std::uint64_t p = out[i];
+                    std::uint64_t const p = out[i];
                     out[i] += 1ULL;
                     carry = (out[i] < p);
                 }
@@ -726,9 +726,9 @@ Limbs4 mul_shift_round(const Limbs4& value, const std::array<std::uint64_t, N>& 
     auto wide = multiply_limbs(value, constant); // little-endian
     // Add 2^(shift-1) for rounding (if shift>0)
     if (shift > 0) {
-        unsigned add_bit = shift - 1;
+        unsigned const add_bit = shift - 1;
         std::size_t limb_index = add_bit / 64U;
-        unsigned bit_index = add_bit % 64U;
+        unsigned const bit_index = add_bit % 64U;
         if (limb_index < wide.size()) {
             std::uint64_t mask = 1ULL << bit_index;
             std::uint64_t prev = wide[limb_index];
@@ -781,7 +781,7 @@ template <std::size_t N>
 // 384/256 division returning 192-bit quotient (3 limbs) using portable 64-bit math and MSVC intrinsics
 [[maybe_unused]] static Limbs3 div_384_by_256(const Limbs6& num, const Limbs4& den) {
     // Normalize denominator
-    unsigned s = clz64_local(den[3]);
+    unsigned const s = clz64_local(den[3]);
     Limbs4 v = shl_limbs(den, s);
     // Shift numerator left by s (extend to 7 limbs for Knuth algorithm)
     auto shifted = shl_limbs(num, s);
@@ -793,10 +793,10 @@ template <std::size_t N>
     // Iterate j = 2..0 (since n=6, m=4 => m-n = 2)
     for (int j=2; j>=0; --j) {
         // Approximate qhat from top 128 bits
-        std::uint64_t u_hi = u[static_cast<std::size_t>(j)+4];
-        std::uint64_t u_lo = u[static_cast<std::size_t>(j)+3];
-        std::uint64_t v_hi = v[3];
-        std::uint64_t rhat;
+        std::uint64_t const u_hi = u[static_cast<std::size_t>(j)+4];
+        std::uint64_t const u_lo = u[static_cast<std::size_t>(j)+3];
+        std::uint64_t const v_hi = v[3];
+        std::uint64_t rhat = 0;
 #if defined(_MSC_VER) && !defined(__clang__)
         std::uint64_t qhat = _udiv128(u_hi, u_lo, v_hi, &rhat);
 #elif defined(SECP256K1_NO_INT128) || defined(SECP256K1_PLATFORM_ESP32)
@@ -829,8 +829,8 @@ template <std::size_t N>
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpedantic"
 #endif
-        unsigned __int128 dividend = (static_cast<unsigned __int128>(u_hi) << 64) | u_lo;
-        std::uint64_t qhat = static_cast<std::uint64_t>(dividend / v_hi);
+        unsigned __int128 const dividend = (static_cast<unsigned __int128>(u_hi) << 64) | u_lo;
+        auto qhat = static_cast<std::uint64_t>(dividend / v_hi);
         rhat = static_cast<std::uint64_t>(dividend % v_hi);
 #if defined(__GNUC__)
 #pragma GCC diagnostic pop
@@ -839,14 +839,14 @@ template <std::size_t N>
         // Adjust qhat if qhat*v[2] > rhat*B + u[j+2]
         while (true) {
             // Compute lhs = qhat * v[2], rhs = rhat*B + u[j+2]
-            std::uint64_t lhs_lo, lhs_hi; mul64x64(qhat, v[2], lhs_lo, lhs_hi);
+            std::uint64_t lhs_lo = 0, lhs_hi = 0; mul64x64(qhat, v[2], lhs_lo, lhs_hi);
             // rhs_hi = rhat, rhs_lo = u[j+2]
             bool greater = false;
             if (lhs_hi > rhat) greater = true; else if (lhs_hi == rhat && lhs_lo > u[static_cast<std::size_t>(j)+2]) greater = true;
             if (!greater) break;
             // Decrement qhat and adjust rhat
             --qhat;
-            std::uint64_t new_rhat = rhat + v_hi;
+            std::uint64_t const new_rhat = rhat + v_hi;
             if (new_rhat < rhat) { // overflow => break
                 rhat = new_rhat; break;
             }
@@ -855,7 +855,7 @@ template <std::size_t N>
         // Subtract qhat * v from u segment (u[j..j+4]) using overlapping subtracts
         unsigned char b = 0;
         for (std::size_t i=0;i<4;++i) {
-            std::uint64_t p_lo, p_hi; mul64x64(qhat, v[i], p_lo, p_hi);
+            std::uint64_t p_lo = 0, p_hi = 0; mul64x64(qhat, v[i], p_lo, p_hi);
             b = COMPAT_SUBBORROW_U64(b, u[static_cast<std::size_t>(j)+i], p_lo, &u[static_cast<std::size_t>(j)+i]);
             b = COMPAT_SUBBORROW_U64(b, u[static_cast<std::size_t>(j)+i+1], p_hi, &u[static_cast<std::size_t>(j)+i+1]);
         }
@@ -949,8 +949,8 @@ std::vector<int32_t> compute_window_digits(const Scalar& scalar, unsigned window
     }
     std::vector<int32_t> digits(window_count, 0);
     for (std::size_t idx = 0; idx < window_count; ++idx) {
-        std::uint32_t chunk = static_cast<std::uint32_t>(working[0] & mask);
-        int32_t digit = static_cast<int32_t>(chunk);
+        auto const chunk = static_cast<std::uint32_t>(working[0] & mask);
+        auto digit = static_cast<int32_t>(chunk);
         right_shift(working, window_bits);
         const int32_t threshold = 1 << (window_bits - 1);
         if (digit >= threshold) {
@@ -996,7 +996,7 @@ void fill_tables_for_window(const Point& base_point,
                 (*psi_table)[digit] = base_table[digit];
                 continue;
             }
-            FieldElement x_beta = base_table[digit].x * beta;
+            FieldElement const x_beta = base_table[digit].x * beta;
             (*psi_table)[digit] = {x_beta, base_table[digit].y, false};
         }
     }
@@ -1436,16 +1436,16 @@ static std::array<std::uint64_t, 8> mul_scalar_raw(const Scalar& a, const Scalar
     for (std::size_t i = 0; i < 4; ++i) {
         std::uint64_t carry = 0;
         for (std::size_t j = 0; j < 4; ++j) {
-            std::uint64_t lo, hi;
+            std::uint64_t lo = 0, hi = 0;
             mul64x64(a_limbs[i], b_limbs[j], lo, hi);
             
             // Add to result[i+j]
             std::uint64_t sum_lo = result[i + j] + lo;
-            std::uint64_t carry1 = (sum_lo < result[i + j]) ? 1 : 0;
+            std::uint64_t const carry1 = (sum_lo < result[i + j]) ? 1 : 0;
             
             // Add carry from previous
             sum_lo += carry;
-            std::uint64_t carry2 = (sum_lo < carry) ? 1 : 0;
+            std::uint64_t const carry2 = (sum_lo < carry) ? 1 : 0;
             
             result[i + j] = sum_lo;
             carry = hi + carry1 + carry2;
@@ -1487,16 +1487,16 @@ static std::array<std::uint64_t, 8> mul_scalar_raw(const Scalar& a, const Scalar
     {
         std::uint64_t carry = 0;
         for (std::size_t j = 0; j < 4; ++j) {
-            std::uint64_t lo, hi;
+            std::uint64_t lo = 0, hi = 0;
             lo = _umul128(a_limbs[0], b_limbs[j], &hi);
             
             // Add to result[i+j]
             std::uint64_t sum_lo = result[j] + lo;
-            std::uint64_t carry1 = (sum_lo < result[j]) ? 1 : 0;
+            std::uint64_t const carry1 = (sum_lo < result[j]) ? 1 : 0;
 
             // Add carry from previous
             sum_lo += carry;
-            std::uint64_t carry2 = (sum_lo < carry) ? 1 : 0;
+            std::uint64_t const carry2 = (sum_lo < carry) ? 1 : 0;
 
             result[j] = sum_lo;
             carry = hi + carry1 + carry2;
@@ -1507,16 +1507,16 @@ static std::array<std::uint64_t, 8> mul_scalar_raw(const Scalar& a, const Scalar
     {
         std::uint64_t carry = 0;
         for (std::size_t j = 0; j < 4; ++j) {
-            std::uint64_t lo, hi;
+            std::uint64_t lo = 0, hi = 0;
             lo = _umul128(a_limbs[1], b_limbs[j], &hi);
             
             // Add to result[i+j]
             std::uint64_t sum_lo = result[1 + j] + lo;
-            std::uint64_t carry1 = (sum_lo < result[1 + j]) ? 1 : 0;
+            std::uint64_t const carry1 = (sum_lo < result[1 + j]) ? 1 : 0;
 
             // Add carry from previous
             sum_lo += carry;
-            std::uint64_t carry2 = (sum_lo < carry) ? 1 : 0;
+            std::uint64_t const carry2 = (sum_lo < carry) ? 1 : 0;
 
             result[1 + j] = sum_lo;
             carry = hi + carry1 + carry2;
@@ -1538,9 +1538,9 @@ static std::array<std::uint64_t, 8> mul_scalar_raw(const Scalar& a, const Scalar
     
     for (std::size_t i = 0; i < 8; ++i) {
         std::uint64_t sum = a[i] + carry;
-        std::uint64_t carry1 = (sum < carry) ? 1 : 0;
+        std::uint64_t const carry1 = (sum < carry) ? 1 : 0;
         sum += b[i];
-        std::uint64_t carry2 = (sum < b[i]) ? 1 : 0;
+        std::uint64_t const carry2 = (sum < b[i]) ? 1 : 0;
         result[i] = sum;
         carry = carry1 + carry2;
     }
@@ -1594,7 +1594,7 @@ static Scalar reduce_512_mod_n(const std::array<std::uint64_t, 8>& wide);
     // Add 1
     std::uint64_t carry = 1;
     for (std::size_t i = 0; i < 8; ++i) {
-        std::uint64_t sum = result[i] + carry;
+        std::uint64_t const sum = result[i] + carry;
         carry = (sum < result[i]) ? 1 : 0;
         result[i] = sum;
     }
@@ -1606,7 +1606,7 @@ static Scalar reduce_512_mod_n(const std::array<std::uint64_t, 8>& wide);
 // If the 512-bit value is negative (bit 511 set), we need to add n back
 [[maybe_unused]] static Scalar scalar_from_512(const std::array<std::uint64_t, 8>& wide) {
     // Check if negative (bit 511 set = MSB of wide[7])
-    bool is_negative = (wide[7] & 0x8000000000000000ULL) != 0;
+    bool const is_negative = (wide[7] & 0x8000000000000000ULL) != 0;
     
     if (is_negative) {
         // Value is negative in two's complement
@@ -1618,14 +1618,14 @@ static Scalar reduce_512_mod_n(const std::array<std::uint64_t, 8>& wide);
         auto pos_wide = negate_512(wide);
         
         // Take lower 256 bits
-        Limbs4 lower{{pos_wide[0], pos_wide[1], pos_wide[2], pos_wide[3]}};
-        Scalar pos_scalar = scalar_from_limbs(lower);
+        Limbs4 const lower{{pos_wide[0], pos_wide[1], pos_wide[2], pos_wide[3]}};
+        Scalar const pos_scalar = scalar_from_limbs(lower);
         
         // Return n - pos_scalar
         return Scalar::zero() - pos_scalar;
     } else {
         // Positive value, just take lower 256 bits
-        Limbs4 lower{{wide[0], wide[1], wide[2], wide[3]}};
+        Limbs4 const lower{{wide[0], wide[1], wide[2], wide[3]}};
         return scalar_from_limbs(lower);
     }
 }
@@ -1635,7 +1635,7 @@ static Scalar reduce_512_mod_n(const std::array<std::uint64_t, 8>& wide);
 static Scalar reduce_512_mod_n(const std::array<std::uint64_t, 8>& wide) {
     Scalar rem = Scalar::zero();
     // B = 2^64 mod n
-    Scalar B = Scalar::from_limbs({0ULL, 1ULL, 0ULL, 0ULL});
+    Scalar const B = Scalar::from_limbs({0ULL, 1ULL, 0ULL, 0ULL});
     for (std::size_t i = 8; i-- > 0; ) {
         if (!rem.is_zero()) {
             rem = rem * B; // rem *= 2^64 mod n
@@ -1669,7 +1669,7 @@ static Scalar barrett_reduce_512(const std::array<std::uint64_t, 8>& wide) {
 
     // For values < 2*n, we can use simple subtraction
     // Check if high 256 bits are zero
-    bool high_zero = (wide[4] == 0 && wide[5] == 0 && wide[6] == 0 && wide[7] == 0);
+    bool const high_zero = (wide[4] == 0 && wide[5] == 0 && wide[6] == 0 && wide[7] == 0);
     
 #if SECP256K1_PROFILE_DECOMP
     unsigned long long t1 = RDTSC();
@@ -1690,7 +1690,7 @@ static Scalar barrett_reduce_512(const std::array<std::uint64_t, 8>& wide) {
         
         // Check if result >= n (simple comparison)
         Limbs4 low_limbs = {wide[0], wide[1], wide[2], wide[3]};
-        bool ge_n = (low_limbs[3] > N[3]) ||
+        bool const ge_n = (low_limbs[3] > N[3]) ||
                     (low_limbs[3] == N[3] && low_limbs[2] > N[2]) ||
                     (low_limbs[3] == N[3] && low_limbs[2] == N[2] && low_limbs[1] > N[1]) ||
                     (low_limbs[3] == N[3] && low_limbs[2] == N[2] && low_limbs[1] == N[1] && low_limbs[0] >= N[0]);
@@ -1828,7 +1828,7 @@ static JSF_Result compute_jsf(const Scalar& k1, const Scalar& k2) {
         // Update a := (a - u1) >> 1
         if (u1 != 0) {
             unsigned char borrow = 0;
-            std::uint64_t tmp;
+            std::uint64_t tmp = 0;
             borrow = COMPAT_SUBBORROW_U64(borrow, a[0], static_cast<std::uint64_t>(static_cast<int64_t>(u1)), &tmp); a[0] = tmp;
             borrow = COMPAT_SUBBORROW_U64(borrow, a[1], 0ULL, &tmp); a[1] = tmp;
             borrow = COMPAT_SUBBORROW_U64(borrow, a[2], 0ULL, &tmp); a[2] = tmp;
@@ -1844,7 +1844,7 @@ static JSF_Result compute_jsf(const Scalar& k1, const Scalar& k2) {
         // Update b := (b - u2) >> 1
         if (u2 != 0) {
             unsigned char borrow = 0;
-            std::uint64_t tmp;
+            std::uint64_t tmp = 0;
             borrow = COMPAT_SUBBORROW_U64(borrow, b[0], static_cast<std::uint64_t>(static_cast<int64_t>(u2)), &tmp); b[0] = tmp;
             borrow = COMPAT_SUBBORROW_U64(borrow, b[1], 0ULL, &tmp); b[1] = tmp;
             borrow = COMPAT_SUBBORROW_U64(borrow, b[2], 0ULL, &tmp); b[2] = tmp;
@@ -1878,7 +1878,7 @@ static JSF_Result compute_jsf(const Scalar& k1, const Scalar& k2) {
     Limbs4 result = {0, 0, 0, 0};
     
     // a0 * b0
-    uint64_t hi, lo = _umul128(a[0], b[0], &hi);
+    uint64_t hi = 0, lo = _umul128(a[0], b[0], &hi);
     result[0] = lo;
     result[1] = hi;
     
@@ -1919,7 +1919,7 @@ static JSF_Result compute_jsf(const Scalar& k1, const Scalar& k2) {
     carry = COMPAT_ADDCARRY_U64(carry, a[3], b[3], &result[3]);
     
     // Check if result >= n
-    bool ge_n = (result[3] > N[3]) ||
+    bool const ge_n = (result[3] > N[3]) ||
                 (result[3] == N[3] && result[2] > N[2]) ||
                 (result[3] == N[3] && result[2] == N[2] && result[1] > N[1]) ||
                 (result[3] == N[3] && result[2] == N[2] && result[1] == N[1] && result[0] >= N[0]);
@@ -1948,8 +1948,8 @@ ScalarDecomposition split_scalar_internal(const Scalar& scalar) {
 #endif
     
     // Compute c1,c2 using libsecp256k1-style g1/g2 constants and 384-bit shift rounding
-    Limbs4 c1_limbs = mul_shift(value_limbs, kG1MulShift, 384U);
-    Limbs4 c2_limbs = mul_shift(value_limbs, kG2MulShift, 384U);
+    Limbs4 const c1_limbs = mul_shift(value_limbs, kG1MulShift, 384U);
+    Limbs4 const c2_limbs = mul_shift(value_limbs, kG2MulShift, 384U);
     
 #if SECP256K1_PROFILE_DECOMP
     uint64_t t2 = RDTSC();
@@ -2011,24 +2011,24 @@ ScalarDecomposition split_scalar_internal(const Scalar& scalar) {
 #else
     // Legacy Scalar-based path
     static const Scalar lambda = const_lambda();
-    Scalar c1 = scalar_from_limbs(c1_limbs);
-    Scalar c2 = scalar_from_limbs(c2_limbs);
+    Scalar const c1 = scalar_from_limbs(c1_limbs);
+    Scalar const c2 = scalar_from_limbs(c2_limbs);
     static const Scalar minus_b1 = const_minus_b1();
     static const Scalar minus_b2 = const_minus_b2();
-    Scalar k2_mod = (c1 * minus_b1) + (c2 * minus_b2);
+    Scalar const k2_mod = (c1 * minus_b1) + (c2 * minus_b2);
 #endif
     
 #if SECP256K1_PROFILE_DECOMP
     uint64_t t3 = RDTSC();
 #else
-    uint64_t t3 = 0;
+    uint64_t const t3 = 0;
     (void)t3; // Silence unused variable warning for CodeQL
     (void)t3;
 #endif
-    Scalar k2_neg_val = Scalar::zero() - k2_mod;
-    bool k2_is_neg = (fast_bitlen(k2_neg_val) < fast_bitlen(k2_mod));
-    Scalar k2_abs = k2_is_neg ? k2_neg_val : k2_mod;
-    Scalar k2_signed = k2_is_neg ? (Scalar::zero() - k2_abs) : k2_abs;
+    Scalar const k2_neg_val = Scalar::zero() - k2_mod;
+    bool const k2_is_neg = (fast_bitlen(k2_neg_val) < fast_bitlen(k2_mod));
+    Scalar const k2_abs = k2_is_neg ? k2_neg_val : k2_mod;
+    Scalar const k2_signed = k2_is_neg ? (Scalar::zero() - k2_abs) : k2_abs;
 
 #if SECP256K1_PROFILE_DECOMP
     uint64_t t4 = RDTSC();
@@ -2040,17 +2040,17 @@ ScalarDecomposition split_scalar_internal(const Scalar& scalar) {
     Scalar lambda_k2 = barrett_reduce_512(lambda_k2_512);
 #else
     // reuse previously defined static const Scalar lambda from legacy path above
-    Scalar lambda_k2 = barrett_reduce_512(mul_scalar_raw(lambda, k2_signed));
+    Scalar const lambda_k2 = barrett_reduce_512(mul_scalar_raw(lambda, k2_signed));
 #endif
     
 #if SECP256K1_PROFILE_DECOMP
     uint64_t t5 = RDTSC();
 #endif
     
-    Scalar k1_mod = scalar - lambda_k2;
-    Scalar k1_neg_val = Scalar::zero() - k1_mod;
-    bool k1_is_neg = (fast_bitlen(k1_neg_val) < fast_bitlen(k1_mod));
-    Scalar k1_abs = k1_is_neg ? k1_neg_val : k1_mod;
+    Scalar const k1_mod = scalar - lambda_k2;
+    Scalar const k1_neg_val = Scalar::zero() - k1_mod;
+    bool const k1_is_neg = (fast_bitlen(k1_neg_val) < fast_bitlen(k1_mod));
+    Scalar const k1_abs = k1_is_neg ? k1_neg_val : k1_mod;
 
 #if SECP256K1_PROFILE_DECOMP
     uint64_t t6 = RDTSC();
@@ -2155,7 +2155,7 @@ bool write_affine_point(std::ofstream& file, const AffinePointPacked& point) {
 }
 
 bool read_affine_point(std::ifstream& file, AffinePointPacked& point) {
-    std::uint8_t infinity_byte;
+    std::uint8_t infinity_byte = 0;
     file.read(reinterpret_cast<char*>(&infinity_byte), 1);
     if (!file.good()) return false;
     
@@ -2173,7 +2173,7 @@ bool save_precompute_cache_locked(const std::string& path) {
         return false;  // Nothing to save
     }
     
-    PrecomputeContext& ctx = *g_context;
+    PrecomputeContext const& ctx = *g_context;
     
     std::ofstream file(path, std::ios::binary);
     if (!file.is_open()) {
@@ -2236,11 +2236,11 @@ bool load_precompute_cache_locked(const std::string& path, unsigned max_windows)
     }
     
 #if SECP256K1_DEBUG_GLV
-    std::cout << "[CACHE] Loading cache: " << path << std::endl;
+    std::cout << "[CACHE] Loading cache: " << path << '\n';
     std::cout << "[CACHE] Header: window_bits=" << header.window_bits 
               << " window_count=" << header.window_count 
               << " digit_count=" << header.digit_count
-              << " has_glv=" << header.has_glv << std::endl;
+              << " has_glv=" << header.has_glv << '\n';
 #endif
     
     // Create new context from cache
@@ -2253,7 +2253,7 @@ bool load_precompute_cache_locked(const std::string& path, unsigned max_windows)
     ctx->beta = FieldElement::from_bytes(kBetaBytes);
     
 #if SECP256K1_DEBUG_GLV
-    std::cout << "[CACHE] Context GLV enabled: " << ctx->config.enable_glv << std::endl;
+    std::cout << "[CACHE] Context GLV enabled: " << ctx->config.enable_glv << '\n';
 #endif
     
     // Determine how many windows to load
@@ -2263,7 +2263,7 @@ bool load_precompute_cache_locked(const std::string& path, unsigned max_windows)
     }
     
 #if SECP256K1_DEBUG_GLV
-    std::cout << "[CACHE] Loading " << windows_to_load << " of " << ctx->window_count << " windows..." << std::endl;
+    std::cout << "[CACHE] Loading " << windows_to_load << " of " << ctx->window_count << " windows..." << '\n';
 #endif
     
     // Allocate tables
@@ -2274,7 +2274,7 @@ bool load_precompute_cache_locked(const std::string& path, unsigned max_windows)
     
     // Read base tables
     for (std::size_t w = 0; w < ctx->window_count; ++w) {
-        bool should_load = (w < windows_to_load);
+        bool const should_load = (w < windows_to_load);
         
         if (should_load) {
             ctx->base_tables[w].resize(ctx->digit_count);
@@ -2287,7 +2287,7 @@ bool load_precompute_cache_locked(const std::string& path, unsigned max_windows)
                 }
             } else {
                 // Skip this point
-                std::uint8_t infinity_byte;
+                std::uint8_t infinity_byte = 0;
                 file.read(reinterpret_cast<char*>(&infinity_byte), 1);
                 if (!file.good()) return false;
                 
@@ -2303,7 +2303,7 @@ bool load_precompute_cache_locked(const std::string& path, unsigned max_windows)
     // Read psi tables if GLV enabled
     if (header.has_glv) {
         for (std::size_t w = 0; w < ctx->window_count; ++w) {
-            bool should_load = (w < windows_to_load);
+            bool const should_load = (w < windows_to_load);
             
             if (should_load) {
                 ctx->psi_tables[w].resize(ctx->digit_count);
@@ -2316,7 +2316,7 @@ bool load_precompute_cache_locked(const std::string& path, unsigned max_windows)
                     }
                 } else {
                     // Skip this point
-                    std::uint8_t infinity_byte;
+                    std::uint8_t infinity_byte = 0;
                     file.read(reinterpret_cast<char*>(&infinity_byte), 1);
                     if (!file.good()) return false;
                     
@@ -2337,7 +2337,7 @@ bool load_precompute_cache_locked(const std::string& path, unsigned max_windows)
 #if SECP256K1_DEBUG_GLV
     auto load_end = std::chrono::steady_clock::now();
     auto load_ms = std::chrono::duration_cast<std::chrono::milliseconds>(load_end - load_start).count();
-    std::cout << "[CACHE] Cache loaded in " << load_ms << " ms" << std::endl;
+    std::cout << "[CACHE] Cache loaded in " << load_ms << " ms" << '\n';
 #endif
     
     return true;
@@ -2392,7 +2392,7 @@ static inline bool parse_bool(const std::string& v, bool& out) {
 
 static inline bool parse_uint(const std::string& v, unsigned& out) {
     char* end = nullptr;
-    unsigned long val = std::strtoul(v.c_str(), &end, 10);
+    unsigned long const val = std::strtoul(v.c_str(), &end, 10);
     if (end == v.c_str() || *end != '\0') return false;
     out = static_cast<unsigned>(val);
     return true;
@@ -2412,7 +2412,7 @@ bool load_fixed_base_config_file(const std::string& path, FixedBaseConfig& out) 
         auto pos = s.find('=');
         if (pos == std::string::npos) continue;
         std::string key = trim_copy(s.substr(0, pos));
-        std::string val = trim_copy(s.substr(pos + 1));
+        std::string const val = trim_copy(s.substr(pos + 1));
         std::transform(key.begin(), key.end(), key.begin(), ::tolower);
 
         if (key == "cache_dir") {
@@ -2420,33 +2420,33 @@ bool load_fixed_base_config_file(const std::string& path, FixedBaseConfig& out) 
         } else if (key == "cache_path") {
             cfg.cache_path = val;
         } else if (key == "window_bits") {
-            unsigned u; if (parse_uint(val, u)) cfg.window_bits = u;
+            unsigned u = 0; if (parse_uint(val, u)) cfg.window_bits = u;
         } else if (key == "enable_glv") {
-            bool b; if (parse_bool(val, b)) cfg.enable_glv = b;
+            bool b = false; if (parse_bool(val, b)) cfg.enable_glv = b;
         } else if (key == "adaptive_glv") {
-            bool b; if (parse_bool(val, b)) cfg.adaptive_glv = b;
+            bool b = false; if (parse_bool(val, b)) cfg.adaptive_glv = b;
         } else if (key == "glv_min_window_bits") {
-            unsigned u; if (parse_uint(val, u)) cfg.glv_min_window_bits = u;
+            unsigned u = 0; if (parse_uint(val, u)) cfg.glv_min_window_bits = u;
         } else if (key == "use_jsf") {
-            bool b; if (parse_bool(val, b)) cfg.use_jsf = b;
+            bool b = false; if (parse_bool(val, b)) cfg.use_jsf = b;
         } else if (key == "use_cache") {
-            bool b; if (parse_bool(val, b)) cfg.use_cache = b;
+            bool b = false; if (parse_bool(val, b)) cfg.use_cache = b;
         } else if (key == "max_windows") {
-            unsigned u; if (parse_uint(val, u)) cfg.max_windows_to_load = u;
+            unsigned u = 0; if (parse_uint(val, u)) cfg.max_windows_to_load = u;
         } else if (key == "thread_count") {
-            unsigned u; if (parse_uint(val, u)) cfg.thread_count = u;
+            unsigned u = 0; if (parse_uint(val, u)) cfg.thread_count = u;
         } else if (key == "use_comb") {
-            bool b; if (parse_bool(val, b)) cfg.use_comb = b;
+            bool b = false; if (parse_bool(val, b)) cfg.use_comb = b;
         } else if (key == "comb_width") {
-            unsigned u; if (parse_uint(val, u)) cfg.comb_width = u;
+            unsigned u = 0; if (parse_uint(val, u)) cfg.comb_width = u;
         } else if (key == "autotune") {
-            bool b; if (parse_bool(val, b)) cfg.autotune = b;
+            bool b = false; if (parse_bool(val, b)) cfg.autotune = b;
         } else if (key == "autotune_iters") {
-            unsigned u; if (parse_uint(val, u)) cfg.autotune_iters = u;
+            unsigned u = 0; if (parse_uint(val, u)) cfg.autotune_iters = u;
         } else if (key == "autotune_min_w") {
-            unsigned u; if (parse_uint(val, u)) cfg.autotune_min_w = u;
+            unsigned u = 0; if (parse_uint(val, u)) cfg.autotune_min_w = u;
         } else if (key == "autotune_max_w") {
-            unsigned u; if (parse_uint(val, u)) cfg.autotune_max_w = u;
+            unsigned u = 0; if (parse_uint(val, u)) cfg.autotune_max_w = u;
         } else if (key == "autotune_log") {
             cfg.autotune_log_path = val;
         }
@@ -2471,7 +2471,7 @@ bool configure_fixed_base_from_env() {
 bool write_default_fixed_base_config(const std::string& path) {
     // Do not overwrite if exists
     {
-        std::ifstream in(path);
+        std::ifstream const in(path);
         if (in.is_open()) return false;
     }
     std::ofstream out(path, std::ios::binary | std::ios::trunc);
@@ -2507,7 +2507,7 @@ bool write_default_fixed_base_config(const std::string& path) {
 
 bool ensure_fixed_base_config_file(const std::string& path) {
     {
-        std::ifstream in(path);
+        std::ifstream const in(path);
         if (in.is_open()) return true;
     }
     return write_default_fixed_base_config(path);
@@ -2529,7 +2529,7 @@ bool configure_fixed_base_auto() {
                     std::ofstream log(cfg.autotune_log_path, std::ios::app);
                     if (log.is_open()) {
                         auto now = std::chrono::system_clock::now();
-                        std::time_t tt = std::chrono::system_clock::to_time_t(now);
+                        std::time_t const tt = std::chrono::system_clock::to_time_t(now);
                         std::tm tm_buf{};
 #if defined(_WIN32)
                         localtime_s(&tm_buf, &tt);
@@ -2573,7 +2573,7 @@ static inline std::string bool_str(bool v) { return v ? "true" : "false"; }
 // Console progress callback for table generation
 static void autotune_progress_cb(size_t current_points, size_t total_points,
                                  unsigned window_index, unsigned total_windows) {
-    double pct = total_points ? (100.0 * static_cast<double>(current_points) / static_cast<double>(total_points)) : 0.0;
+    double const pct = total_points ? (100.0 * static_cast<double>(current_points) / static_cast<double>(total_points)) : 0.0;
     std::cout << "  [gen] window " << window_index << "/" << total_windows
               << ", points " << current_points << "/" << total_points
               << " (" << std::fixed << std::setprecision(1) << pct << "%)\r";
@@ -2622,7 +2622,7 @@ static std::vector<TuneCandidate> discover_candidates(const FixedBaseConfig& bas
     std::vector<TuneCandidate> out;
     namespace fs = std::filesystem;
 
-    std::string dir = base_cfg.cache_dir.empty() ? std::string("F:\\EccTables") : base_cfg.cache_dir;
+    std::string const dir = base_cfg.cache_dir.empty() ? std::string("F:\\EccTables") : base_cfg.cache_dir;
     std::error_code ec;
     if (!fs::exists(dir, ec) || !fs::is_directory(dir, ec)) {
         return out;
@@ -2639,12 +2639,12 @@ static std::vector<TuneCandidate> discover_candidates(const FixedBaseConfig& bas
         // Expected: cache_w{bits}.bin or cache_w{bits}_glv.bin
         if (fname.rfind("cache_w", 0) == 0 && p.extension() == ".bin") {
             // Extract digits after 'cache_w'
-            size_t pos = std::string("cache_w").size();
+            size_t const pos = std::string("cache_w").size();
             size_t num_end = pos;
             while (num_end < fname.size() && isdigit(static_cast<unsigned char>(fname[num_end]))) ++num_end;
             if (num_end == pos) continue;
-            unsigned wb = static_cast<unsigned>(std::strtoul(fname.substr(pos, num_end - pos).c_str(), nullptr, 10));
-            bool is_glv = (fname.find("_glv", num_end) != std::string::npos);
+            unsigned const wb = static_cast<unsigned>(std::strtoul(fname.substr(pos, num_end - pos).c_str(), nullptr, 10));
+            bool const is_glv = (fname.find("_glv", num_end) != std::string::npos);
             auto& f = windows[wb];
             if (is_glv) f.glv = true; else f.non_glv = true;
         }
@@ -2694,7 +2694,7 @@ bool auto_tune_fixed_base(FixedBaseConfig& best_out,
 
     std::string report;
     report += "Auto-tune candidates (iterations=" + std::to_string(iterations) + ")\n";
-    std::cout << "Discovered " << candidates.size() << " candidates in '" << base.cache_dir << "'." << std::endl;
+    std::cout << "Discovered " << candidates.size() << " candidates in '" << base.cache_dir << "'." << '\n';
 
     // Evaluate each candidate
     for (size_t i = 0; i < candidates.size(); ++i) {
@@ -2709,16 +2709,16 @@ bool auto_tune_fixed_base(FixedBaseConfig& best_out,
         std::string filename = "cache_w" + std::to_string(cfg.window_bits);
         if (cfg.enable_glv) filename += "_glv";
         filename += ".bin";
-        std::string cache_path = cfg.cache_dir.empty() ? filename : (cfg.cache_dir + "\\" + filename);
-        bool cache_exists = std::filesystem::exists(cache_path);
+        std::string const cache_path = cfg.cache_dir.empty() ? filename : (cfg.cache_dir + "\\" + filename);
+        bool const cache_exists = std::filesystem::exists(cache_path);
         std::cout << "[" << (i+1) << "/" << candidates.size() << "]"
                   << " w=" << cfg.window_bits
                   << ", glv=" << (cfg.enable_glv?"true":"false")
                   << ", jsf=" << (cfg.use_jsf?"true":"false")
                   << ": " << (cache_exists?"loading cache":"generating tables (first run)")
-                  << " -> " << cache_path << std::endl;
+                  << " -> " << cache_path << '\n';
         if (!cache_exists) {
-            std::cout << "  skipped (cache file not found; autotune does not generate tables)." << std::endl;
+            std::cout << "  skipped (cache file not found; autotune does not generate tables)." << '\n';
             continue;
         }
         // Pin exact cache path to avoid accidental fallback
@@ -2729,7 +2729,7 @@ bool auto_tune_fixed_base(FixedBaseConfig& best_out,
             ns = measure_ns_per_mul(cfg, iterations);
         } catch (...) {
             // If something fails (e.g., missing cache), skip
-            std::cout << "  skipped due to error while preparing candidate." << std::endl;
+            std::cout << "  skipped due to error while preparing candidate." << '\n';
             continue;
         }
 
@@ -2737,7 +2737,7 @@ bool auto_tune_fixed_base(FixedBaseConfig& best_out,
                +  ", glv=" + bool_str(cfg.enable_glv)
                +  ", jsf=" + bool_str(cfg.use_jsf)
                +  ": " + std::to_string(ns) + " ns\n";
-        std::cout << "  result: " << std::fixed << std::setprecision(2) << ns << " ns/op" << std::endl;
+        std::cout << "  result: " << std::fixed << std::setprecision(2) << ns << " ns/op" << '\n';
 
         if (ns < best_ns) {
             best_ns = ns;
@@ -2855,7 +2855,7 @@ std::vector<int32_t> compute_wnaf(const Scalar& scalar, unsigned window_bits) {
         // If k is odd, extract w bits and make adjustment
         if (k[0] & 1ULL) {
             // Extract w least significant bits
-            const int32_t chunk = static_cast<int32_t>(k[0] & window_mask);
+            const auto chunk = static_cast<int32_t>(k[0] & window_mask);
             
             // If chunk >= 2^(w-1), use negative representation
             if (chunk >= half_window) {
@@ -2863,9 +2863,9 @@ std::vector<int32_t> compute_wnaf(const Scalar& scalar, unsigned window_bits) {
                 
                 // Subtract digit from k (add |digit| since digit is negative)
                 // This creates the non-adjacent property
-                const std::uint64_t add_val = static_cast<std::uint64_t>(-digit);
+                const auto add_val = static_cast<std::uint64_t>(-digit);
                 unsigned char carry = 0;
-                std::uint64_t tmp;
+                std::uint64_t tmp = 0;
                 carry = COMPAT_ADDCARRY_U64(carry, k[0], add_val, &tmp); k[0] = tmp;
                 carry = COMPAT_ADDCARRY_U64(carry, k[1], 0ULL, &tmp); k[1] = tmp;
                 carry = COMPAT_ADDCARRY_U64(carry, k[2], 0ULL, &tmp); k[2] = tmp;
@@ -2876,7 +2876,7 @@ std::vector<int32_t> compute_wnaf(const Scalar& scalar, unsigned window_bits) {
                 
                 // Subtract digit from k
                 unsigned char borrow = 0;
-                std::uint64_t tmp;
+                std::uint64_t tmp = 0;
                 borrow = COMPAT_SUBBORROW_U64(borrow, k[0], static_cast<std::uint64_t>(digit), &tmp); k[0] = tmp;
                 borrow = COMPAT_SUBBORROW_U64(borrow, k[1], 0ULL, &tmp); k[1] = tmp;
                 borrow = COMPAT_SUBBORROW_U64(borrow, k[2], 0ULL, &tmp); k[2] = tmp;
@@ -2938,12 +2938,12 @@ void compute_wnaf_into(const Scalar& scalar,
         int32_t digit = 0;
 
         if (k[0] & 1ULL) {
-            const int32_t chunk = static_cast<int32_t>(k[0] & window_mask);
+            const auto chunk = static_cast<int32_t>(k[0] & window_mask);
             if (chunk >= half_window) {
                 digit = chunk - window_size;
-                const std::uint64_t add_val = static_cast<std::uint64_t>(-digit);
+                const auto add_val = static_cast<std::uint64_t>(-digit);
                 unsigned char carry = 0;
-                std::uint64_t tmp;
+                std::uint64_t tmp = 0;
                 carry = COMPAT_ADDCARRY_U64(carry, k[0], add_val, &tmp); k[0] = tmp;
                 carry = COMPAT_ADDCARRY_U64(carry, k[1], 0ULL, &tmp); k[1] = tmp;
                 carry = COMPAT_ADDCARRY_U64(carry, k[2], 0ULL, &tmp); k[2] = tmp;
@@ -2952,7 +2952,7 @@ void compute_wnaf_into(const Scalar& scalar,
             } else {
                 digit = chunk;
                 unsigned char borrow = 0;
-                std::uint64_t tmp;
+                std::uint64_t tmp = 0;
                 borrow = COMPAT_SUBBORROW_U64(borrow, k[0], static_cast<std::uint64_t>(digit), &tmp); k[0] = tmp;
                 borrow = COMPAT_SUBBORROW_U64(borrow, k[1], 0ULL, &tmp); k[1] = tmp;
                 borrow = COMPAT_SUBBORROW_U64(borrow, k[2], 0ULL, &tmp); k[2] = tmp;
@@ -3007,7 +3007,7 @@ bool fixed_base_ready() {
 #else
 // Desktop version with full features
 void configure_fixed_base(const FixedBaseConfig& config) {
-    std::lock_guard<std::mutex> lock(g_mutex);
+    std::lock_guard<std::mutex> const lock(g_mutex);
     g_config = config;
 
     // Adaptive GLV override: if enabled and window_bits below threshold, disable GLV.
@@ -3030,7 +3030,7 @@ void configure_fixed_base(const FixedBaseConfig& config) {
         }
     }
     if (const char* env_maxw = std::getenv("SECP256K1_MAX_WINDOWS")) {
-        unsigned v = static_cast<unsigned>(std::strtoul(env_maxw, nullptr, 10));
+        auto const v = static_cast<unsigned>(std::strtoul(env_maxw, nullptr, 10));
         if (v > 0U) {
             g_config.max_windows_to_load = v;
         }
@@ -3039,12 +3039,12 @@ void configure_fixed_base(const FixedBaseConfig& config) {
 }
 
 void ensure_fixed_base_ready() {
-    std::lock_guard<std::mutex> lock(g_mutex);
+    std::lock_guard<std::mutex> const lock(g_mutex);
     ensure_built_locked();
 }
 
 bool fixed_base_ready() {
-    std::lock_guard<std::mutex> lock(g_mutex);
+    std::lock_guard<std::mutex> const lock(g_mutex);
     return static_cast<bool>(g_context);
 }
 #endif // !SECP256K1_ESP32_BUILD
@@ -3088,8 +3088,8 @@ JacobianPoint shamir_windowed_glv(
         uint64_t t0 = RDTSC();
 #endif
         
-        int32_t d1 = digits1[window];
-        int32_t d2 = digits2[window];
+        int32_t const d1 = digits1[window];
+        int32_t const d2 = digits2[window];
         
         // Skip if both are zero (common case optimization)
         if (d1 == 0 && d2 == 0) {
@@ -3103,13 +3103,13 @@ JacobianPoint shamir_windowed_glv(
         
         // Prefetch both tables for this window if any digit is non-zero
         // This reduces cache misses when both d1 and d2 are non-zero
-        bool d1_nonzero = (d1 != 0);
-        bool d2_nonzero = (d2 != 0);
+        bool const d1_nonzero = (d1 != 0);
+        bool const d2_nonzero = (d2 != 0);
         
         if (d1_nonzero && d2_nonzero) {
             // Both non-zero: prefetch both lookups
-            std::size_t idx1 = static_cast<std::size_t>(d1 < 0 ? -d1 : d1);
-            std::size_t idx2 = static_cast<std::size_t>(d2 < 0 ? -d2 : d2);
+            auto const idx1 = static_cast<std::size_t>(d1 < 0 ? -d1 : d1);
+            auto const idx2 = static_cast<std::size_t>(d2 < 0 ? -d2 : d2);
             if (idx1 < P_tables[window].size()) {
                 SECP256K1_PREFETCH_READ(&P_tables[window][idx1]);
             }
@@ -3124,8 +3124,8 @@ JacobianPoint shamir_windowed_glv(
         
         // Add contribution from P (base point G)
         if (d1_nonzero) {
-            bool negative = d1 < 0;
-            std::size_t index = static_cast<std::size_t>(negative ? -d1 : d1);
+            bool const negative = d1 < 0;
+            auto const index = static_cast<std::size_t>(negative ? -d1 : d1);
             if (index < P_tables[window].size()) {
                 const auto& entry = P_tables[window][index];
                 if (!entry.infinity) {
@@ -3150,8 +3150,8 @@ JacobianPoint shamir_windowed_glv(
         
         // Add contribution from Q (endomorphism point psi(G))
         if (d2_nonzero) {
-            bool negative = d2 < 0;
-            std::size_t index = static_cast<std::size_t>(negative ? -d2 : d2);
+            bool const negative = d2 < 0;
+            auto const index = static_cast<std::size_t>(negative ? -d2 : d2);
             if (index < Q_tables[window].size()) {
                 const auto& entry = Q_tables[window][index];
                 if (!entry.infinity) {
@@ -3220,8 +3220,8 @@ JacobianPoint shamir_jsf_glv(
     JacobianPoint lookup[3][3];
     
     // Convert affine to Jacobian for base points
-    JacobianPoint jac_G = affine_to_jacobian(G);
-    JacobianPoint jac_psi_G = affine_to_jacobian(psi_G);
+    JacobianPoint const jac_G = affine_to_jacobian(G);
+    JacobianPoint const jac_psi_G = affine_to_jacobian(psi_G);
     
     // [0][0] = infinity (not used, but fill anyway)
     lookup[1][1] = JacobianPoint{FieldElement::zero(), FieldElement::one(), FieldElement::zero(), true};
@@ -3231,7 +3231,7 @@ JacobianPoint shamir_jsf_glv(
     lookup[1][2] = jac_G;                          // +G
     
     // [u2=-1] row: -psi(G) combinations
-    JacobianPoint neg_psi_G = negate_jacobian(jac_psi_G);
+    JacobianPoint const neg_psi_G = negate_jacobian(jac_psi_G);
     lookup[0][0] = jacobian_add(neg_psi_G, lookup[1][0]); // -psi(G) - G
     lookup[0][2] = jacobian_add(neg_psi_G, jac_G);         // -psi(G) + G
     
@@ -3259,7 +3259,7 @@ JacobianPoint shamir_jsf_glv(
         }
         
         // Lookup precomputed point
-        JacobianPoint add_pt = lookup[u2 + 1][u1 + 1];
+        JacobianPoint const add_pt = lookup[u2 + 1][u1 + 1];
         
         if (result.infinity) {
             result = add_pt;
@@ -3276,7 +3276,7 @@ JacobianPoint shamir_jsf_glv(
 Point scalar_mul_generator(const Scalar& scalar) {
     std::unique_lock<std::mutex> lock(g_mutex);
     ensure_built_locked();
-    PrecomputeContext& ctx = *g_context;
+    PrecomputeContext const& ctx = *g_context;
     lock.unlock();
 
     // PHASE 3 OPTIMIZED (Mixed Jacobian-Affine addition - 8 muls instead of 12)
@@ -3286,14 +3286,14 @@ Point scalar_mul_generator(const Scalar& scalar) {
 
     auto accumulate = [&](const std::vector<int32_t>& digits, const std::vector<std::vector<AffinePointPacked>>& tables) {
         for (std::size_t window = 0; window < window_count; ++window) {
-            int32_t digit = digits[window];
+            int32_t const digit = digits[window];
             
             // Phase 4: Prefetch next iteration's data (if not last iteration)
             if (window + 1 < window_count) {
-                int32_t next_digit = digits[window + 1];
+                int32_t const next_digit = digits[window + 1];
                 if (next_digit != 0) {
-                    bool next_negative = next_digit < 0;
-                    std::size_t next_index = static_cast<std::size_t>(next_negative ? -next_digit : next_digit);
+                    bool const next_negative = next_digit < 0;
+                    auto const next_index = static_cast<std::size_t>(next_negative ? -next_digit : next_digit);
                     if (next_index < tables[window + 1].size()) {
                         // Prefetch next entry into cache
                         SECP256K1_PREFETCH_READ(&tables[window + 1][next_index]);
@@ -3304,8 +3304,8 @@ Point scalar_mul_generator(const Scalar& scalar) {
             if (digit == 0) {
                 continue;
             }
-            bool negative = digit < 0;
-            std::size_t index = static_cast<std::size_t>(negative ? -digit : digit);
+            bool const negative = digit < 0;
+            auto const index = static_cast<std::size_t>(negative ? -digit : digit);
             if (index >= tables[window].size()) {
                 throw std::runtime_error("Digit index out of range during accumulation");
             }
@@ -3325,19 +3325,19 @@ Point scalar_mul_generator(const Scalar& scalar) {
 
     if (ctx.config.enable_glv) {
 #if SECP256K1_DEBUG_GLV
-        std::cout << "[GLV] Splitting scalar for GLV path..." << std::endl;
+        std::cout << "[GLV] Splitting scalar for GLV path..." << '\n';
 #endif
-        ScalarDecomposition decomposition = split_scalar_internal(scalar);
+        ScalarDecomposition const decomposition = split_scalar_internal(scalar);
         
 #if SECP256K1_DEBUG_GLV
         auto k1_bytes = decomposition.k1.to_bytes();
         auto k2_bytes = decomposition.k2.to_bytes();
         std::cout << "[GLV] k1 (mag): ";
         for (auto b : k1_bytes) std::cout << std::hex << std::setw(2) << std::setfill('0') << (int)b;
-        std::cout << " neg=" << decomposition.neg1 << std::endl;
+        std::cout << " neg=" << decomposition.neg1 << '\n';
         std::cout << "[GLV] k2 (mag): ";
         for (auto b : k2_bytes) std::cout << std::hex << std::setw(2) << std::setfill('0') << (int)b;
-        std::cout << std::dec << " neg=" << decomposition.neg2 << std::endl;
+        std::cout << std::dec << " neg=" << decomposition.neg2 << '\n';
 #endif
         
         // Build signed scalars from absolute magnitudes + flags
@@ -3381,15 +3381,15 @@ Point scalar_mul_generator(const Scalar& scalar) {
         }
         
 #if SECP256K1_DEBUG_GLV
-        std::cout << "[GLV] Using Shamir's trick for simultaneous k1*G + k2*psi(G)..." << std::endl;
+        std::cout << "[GLV] Using Shamir's trick for simultaneous k1*G + k2*psi(G)..." << '\n';
 #endif
         
         // *** SHAMIR'S TRICK: Simultaneous 2D multiplication ***
         // Choose between windowed interleaving (uses precomputed tables) or JSF-based variant
         if (ctx.config.use_jsf) {
             // JSF path: small fixed lookup using G and psi(G)
-            AffinePointPacked aG = to_affine(Point::generator());
-            AffinePointPacked aPsiG = to_affine(apply_endomorphism(Point::generator()));
+            AffinePointPacked const aG = to_affine(Point::generator());
+            AffinePointPacked const aPsiG = to_affine(apply_endomorphism(Point::generator()));
             result = shamir_jsf_glv(decomposition.k1, decomposition.k2, aG, aPsiG, decomposition.neg1, decomposition.neg2);
         } else {
             // Windowed interleaving path with precomputed tables
@@ -3398,11 +3398,11 @@ Point scalar_mul_generator(const Scalar& scalar) {
         }
         
 #if SECP256K1_DEBUG_GLV
-        std::cout << "[GLV] Shamir GLV multiplication complete." << std::endl;
+        std::cout << "[GLV] Shamir GLV multiplication complete." << '\n';
 #endif
     } else {
 #if SECP256K1_DEBUG_GLV
-        std::cout << "[GLV] GLV disabled, using standard path." << std::endl;
+        std::cout << "[GLV] GLV disabled, using standard path." << '\n';
 #endif
         auto digits = compute_window_digits(scalar, ctx.window_bits, window_count);
         accumulate(digits, ctx.base_tables);
@@ -3417,9 +3417,9 @@ Point scalar_mul_generator(const Scalar& scalar) {
 // ============================================================================
 
 Point scalar_mul_generator_glv_predecomposed(const Scalar& k1, const Scalar& k2, bool neg1, bool neg2) {
-    std::unique_lock<std::mutex> lock(g_mutex);
+    std::unique_lock<std::mutex> const lock(g_mutex);
     ensure_built_locked();
-    PrecomputeContext& ctx = *g_context;
+    PrecomputeContext const& ctx = *g_context;
 
     // Direct GLV combination using pre-split scalars
     const std::size_t window_count = ctx.window_count;
@@ -3432,8 +3432,8 @@ Point scalar_mul_generator_glv_predecomposed(const Scalar& k1, const Scalar& k2,
 
     JacobianPoint result;
     if (ctx.config.use_jsf) {
-        AffinePointPacked aG = to_affine(Point::generator());
-        AffinePointPacked aPsiG = to_affine(apply_endomorphism(Point::generator()));
+        AffinePointPacked const aG = to_affine(Point::generator());
+        AffinePointPacked const aPsiG = to_affine(apply_endomorphism(Point::generator()));
         result = shamir_jsf_glv(k1, k2, aG, aPsiG, neg1, neg2);
     } else {
         result = shamir_windowed_glv(digits1, digits2, ctx.base_tables, ctx.psi_tables, window_count);
@@ -3460,7 +3460,7 @@ Point scalar_mul_arbitrary(const Point& base, const Scalar& scalar, unsigned win
 
     for (std::size_t i = 0; i < 256; ++i) {
         // Bit i of the scalar: byte (31 - i/8) contains the group, bit (i%8) within that byte
-        bool bit = (bits[31 - i / 8] >> (i % 8)) & 1;
+        bool const bit = (bits[31 - i / 8] >> (i % 8)) & 1;
         if (bit) {
             res.add_inplace(temp);
         }
@@ -3487,8 +3487,8 @@ void build_odd_multiples_table(const Point& Q,
     if (table_size == 1) return;
 
     // 2Q in Jacobian (reused for computing 3Q, 5Q, 7Q, ...)
-    JacobianPoint jQ = affine_to_jacobian(table[0]);
-    JacobianPoint j2Q = jacobian_double(jQ);
+    JacobianPoint const jQ = affine_to_jacobian(table[0]);
+    JacobianPoint const j2Q = jacobian_double(jQ);
 
     // table[i] = (2i+1)*Q = table[i-1] + 2Q
     JacobianPoint acc = jQ; // starts at Q
@@ -3516,10 +3516,10 @@ void build_odd_multiples_table(const Point& Q,
             table[i] = {FieldElement::zero(), FieldElement::one(), true};
             continue;
         }
-        FieldElement z_inv = z_vals[i];
+        FieldElement const z_inv = z_vals[i];
         FieldElement z_inv2 = z_inv;
         z_inv2.square_inplace();
-        FieldElement z_inv3 = z_inv2 * z_inv;
+        FieldElement const z_inv3 = z_inv2 * z_inv;
         table[i].x = jac_points[i].x * z_inv2;
         table[i].y = jac_points[i].y * z_inv3;
         table[i].infinity = false;
@@ -3532,7 +3532,7 @@ PrecomputedScalar precompute_scalar_for_arbitrary(const Scalar& K, unsigned wind
     result.window_bits = window_bits;
 
     // GLV decomposition: K -> (k_1, k_2) where K = k_1 + lambda*k_2 (mod n)
-    ScalarDecomposition decomp = split_scalar_glv(K);
+    ScalarDecomposition const decomp = split_scalar_glv(K);
     result.k1 = decomp.k1;
     result.k2 = decomp.k2;
     result.neg1 = decomp.neg1;
@@ -3550,7 +3550,7 @@ PrecomputedScalarOptimized precompute_scalar_optimized(const Scalar& K, unsigned
     result.window_bits = window_bits;
 
     // GLV decomposition
-    ScalarDecomposition decomp = split_scalar_glv(K);
+    ScalarDecomposition const decomp = split_scalar_glv(K);
     result.k1 = decomp.k1;
     result.k2 = decomp.k2;
     result.neg1 = decomp.neg1;
@@ -3561,7 +3561,7 @@ PrecomputedScalarOptimized precompute_scalar_optimized(const Scalar& K, unsigned
     auto wnaf2 = compute_wnaf(decomp.k2, window_bits);
 
     // Pad to equal length
-    std::size_t max_len = std::max(wnaf1.size(), wnaf2.size());
+    std::size_t const max_len = std::max(wnaf1.size(), wnaf2.size());
     wnaf1.resize(max_len, 0);
     wnaf2.resize(max_len, 0);
 
@@ -3579,8 +3579,8 @@ PrecomputedScalarOptimized precompute_scalar_optimized(const Scalar& K, unsigned
     uint16_t pending_doubles = 0;
 
     for (int i = static_cast<int>(max_len) - 1; i >= 0; --i) {
-        int32_t d1 = wnaf1[static_cast<std::size_t>(i)];
-        int32_t d2 = wnaf2[static_cast<std::size_t>(i)];
+        int32_t const d1 = wnaf1[static_cast<std::size_t>(i)];
+        int32_t const d2 = wnaf2[static_cast<std::size_t>(i)];
 
         pending_doubles++; // each position = one doubling
 
@@ -3590,12 +3590,12 @@ PrecomputedScalarOptimized precompute_scalar_optimized(const Scalar& K, unsigned
 
             if (d1 != 0) {
                 step.neg1 = (d1 < 0);
-                int32_t abs_d = d1 < 0 ? -d1 : d1;
+                int32_t const abs_d = d1 < 0 ? -d1 : d1;
                 step.idx1 = static_cast<uint8_t>((abs_d - 1) / 2);
             }
             if (d2 != 0) {
                 step.neg2 = (d2 < 0);
-                int32_t abs_d = d2 < 0 ? -d2 : d2;
+                int32_t const abs_d = d2 < 0 ? -d2 : d2;
                 step.idx2 = static_cast<uint8_t>((abs_d - 1) / 2);
             }
 
@@ -3624,13 +3624,13 @@ Point scalar_mul_arbitrary_precomputed(const Point& Q, const PrecomputedScalar& 
 
     build_odd_multiples_table(Q, q_table.data(), table_size);
 
-    Point psiQ = apply_endomorphism(Q);
+    Point const psiQ = apply_endomorphism(Q);
     build_odd_multiples_table(psiQ, psi_table.data(), table_size);
 
     // Get wNAF digits (LSB-first); pad to equal length
     const auto& wnaf1 = precomp.wnaf1;
     const auto& wnaf2 = precomp.wnaf2;
-    std::size_t max_len = std::max(wnaf1.size(), wnaf2.size());
+    std::size_t const max_len = std::max(wnaf1.size(), wnaf2.size());
 
     // Process MSB -> LSB (reverse through the LSB-first arrays)
     JacobianPoint result{FieldElement::zero(), FieldElement::one(), FieldElement::zero(), true};
@@ -3647,9 +3647,9 @@ Point scalar_mul_arbitrary_precomputed(const Point& Q, const PrecomputedScalar& 
         int32_t d1 = (idx < wnaf1.size()) ? wnaf1[idx] : 0;
         if (precomp.neg1 && d1 != 0) d1 = -d1;
         if (d1 != 0) {
-            bool neg = (d1 < 0);
-            int32_t abs_d = neg ? -d1 : d1;
-            std::size_t ti = static_cast<std::size_t>((abs_d - 1) / 2);
+            bool const neg = (d1 < 0);
+            int32_t const abs_d = neg ? -d1 : d1;
+            auto const ti = static_cast<std::size_t>((abs_d - 1) / 2);
             AffinePointPacked pt = q_table[ti];
             if (neg) pt.y = negate_fe(pt.y);
             result = jacobian_add_mixed_local(result, pt);
@@ -3659,9 +3659,9 @@ Point scalar_mul_arbitrary_precomputed(const Point& Q, const PrecomputedScalar& 
         int32_t d2 = (idx < wnaf2.size()) ? wnaf2[idx] : 0;
         if (precomp.neg2 && d2 != 0) d2 = -d2;
         if (d2 != 0) {
-            bool neg = (d2 < 0);
-            int32_t abs_d = neg ? -d2 : d2;
-            std::size_t ti = static_cast<std::size_t>((abs_d - 1) / 2);
+            bool const neg = (d2 < 0);
+            int32_t const abs_d = neg ? -d2 : d2;
+            auto const ti = static_cast<std::size_t>((abs_d - 1) / 2);
             AffinePointPacked pt = psi_table[ti];
             if (neg) pt.y = negate_fe(pt.y);
             result = jacobian_add_mixed_local(result, pt);
@@ -3682,7 +3682,7 @@ Point scalar_mul_arbitrary_precomputed_optimized(const Point& Q,
 
     build_odd_multiples_table(Q, q_table.data(), table_size);
 
-    Point psiQ = apply_endomorphism(Q);
+    Point const psiQ = apply_endomorphism(Q);
     build_odd_multiples_table(psiQ, psi_table.data(), table_size);
 
     // RLE-driven loop: iterate over precomputed steps instead of all 256 bits
@@ -3735,7 +3735,7 @@ Point scalar_mul_arbitrary_precomputed_notable(const Point& Q,
 
     build_odd_multiples_table(Q, q_table.data(), table_size);
 
-    Point psiQ = apply_endomorphism(Q);
+    Point const psiQ = apply_endomorphism(Q);
     build_odd_multiples_table(psiQ, psi_table.data(), table_size);
 
     // RLE-driven loop (same as optimized but with tables built inline)

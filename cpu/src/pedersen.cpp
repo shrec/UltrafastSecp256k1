@@ -27,9 +27,9 @@ static Point lift_x_even(const FieldElement& x_in) {
     FieldElement x = x_in;
     for (int attempt = 0; attempt < 256; ++attempt) {
         // y^2 = x^3 + 7
-        FieldElement x2 = x * x;
-        FieldElement x3 = x2 * x;
-        FieldElement rhs = x3 + FieldElement::from_uint64(7);
+        FieldElement const x2 = x * x;
+        FieldElement const x3 = x2 * x;
+        FieldElement const rhs = x3 + FieldElement::from_uint64(7);
 
         FieldElement y = field_sqrt(rhs);
 
@@ -57,7 +57,7 @@ const Point& pedersen_generator_H() {
         const char* tag = "Pedersen_generator_H";
         hasher.update(tag, std::strlen(tag));
         auto hash = hasher.finalize();
-        FieldElement x = FieldElement::from_bytes(hash);
+        FieldElement const x = FieldElement::from_bytes(hash);
         return lift_x_even(x);
     }();
     return H;
@@ -70,7 +70,7 @@ const Point& pedersen_generator_J() {
         const char* tag = "Pedersen_switch_J";
         hasher.update(tag, std::strlen(tag));
         auto hash = hasher.finalize();
-        FieldElement x = FieldElement::from_bytes(hash);
+        FieldElement const x = FieldElement::from_bytes(hash);
         return lift_x_even(x);
     }();
     return J;
@@ -95,15 +95,15 @@ bool PedersenCommitment::verify(const Scalar& value, const Scalar& blinding) con
 PedersenCommitment pedersen_commit(const Scalar& value, const Scalar& blinding) {
     // C = v*H + r*G
     const Point& H = pedersen_generator_H();
-    Point vH = H.scalar_mul(value);
-    Point rG = Point::generator().scalar_mul(blinding);
+    Point const vH = H.scalar_mul(value);
+    Point const rG = Point::generator().scalar_mul(blinding);
     return PedersenCommitment{vH.add(rG)};
 }
 
 bool pedersen_verify(const PedersenCommitment& commitment,
                      const Scalar& value,
                      const Scalar& blinding) {
-    PedersenCommitment expected = pedersen_commit(value, blinding);
+    PedersenCommitment const expected = pedersen_commit(value, blinding);
     auto c1 = commitment.to_compressed();
     auto c2 = expected.to_compressed();
     return c1 == c2;
@@ -149,9 +149,9 @@ PedersenCommitment pedersen_switch_commit(const Scalar& value,
     // C = v*H + r*G + s*J
     const Point& H = pedersen_generator_H();
     const Point& J = pedersen_generator_J();
-    Point vH = H.scalar_mul(value);
-    Point rG = Point::generator().scalar_mul(blinding);
-    Point sJ = J.scalar_mul(switch_blind);
+    Point const vH = H.scalar_mul(value);
+    Point const rG = Point::generator().scalar_mul(blinding);
+    Point const sJ = J.scalar_mul(switch_blind);
     return PedersenCommitment{vH.add(rG).add(sJ)};
 }
 

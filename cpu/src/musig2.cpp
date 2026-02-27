@@ -39,8 +39,8 @@ Point decompress_point(const std::array<uint8_t, 33>& compressed) {
 
     // Select parity
     auto y_bytes = y.to_bytes();
-    bool y_odd = (y_bytes[31] & 1) != 0;
-    bool want_odd = (compressed[0] == 0x03);
+    bool const y_odd = (y_bytes[31] & 1) != 0;
+    bool const want_odd = (compressed[0] == 0x03);
     if (y_odd != want_odd) {
         y = FieldElement::zero() - y;
     }
@@ -63,7 +63,7 @@ bool has_even_y(const Point& P) {
 
 MuSig2KeyAggCtx musig2_key_agg(const std::vector<std::array<uint8_t, 32>>& pubkeys) {
     MuSig2KeyAggCtx ctx{};
-    std::size_t n = pubkeys.size();
+    std::size_t const n = pubkeys.size();
     if (n == 0) return ctx;
 
     // L = tagged_hash("KeyAgg list", pk_1 || pk_2 || ... || pk_n)
@@ -119,8 +119,8 @@ MuSig2KeyAggCtx musig2_key_agg(const std::vector<std::array<uint8_t, 32>>& pubke
         auto exp_bytes = exp.to_bytes();
         for (std::size_t b = 0; b < 256; ++b) {
             y = y.square();
-            std::size_t byte_idx = b / 8;
-            unsigned bit_idx = static_cast<unsigned>(7 - (b % 8));
+            std::size_t const byte_idx = b / 8;
+            auto const bit_idx = static_cast<unsigned>(7 - (b % 8));
             if ((exp_bytes[byte_idx] >> bit_idx) & 1) {
                 y = y * base;
             }
@@ -348,8 +348,8 @@ bool musig2_partial_verify(
     auto exp_bytes = exp.to_bytes();
     for (std::size_t b_idx = 0; b_idx < 256; ++b_idx) {
         y = y.square();
-        std::size_t byte_idx = b_idx / 8;
-        unsigned bit_idx = static_cast<unsigned>(7 - (b_idx % 8));
+        std::size_t const byte_idx = b_idx / 8;
+        auto const bit_idx = static_cast<unsigned>(7 - (b_idx % 8));
         if ((exp_bytes[byte_idx] >> bit_idx) & 1) {
             y = y * base;
         }

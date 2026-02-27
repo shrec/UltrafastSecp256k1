@@ -115,7 +115,7 @@ static void test_ecdsa_cross() {
         auto sig = secp256k1::ecdsa_sign(msg, sk);
         CHECK(!sig.r.is_zero() && !sig.s.is_zero(), "non-zero sig");
 
-        bool valid = secp256k1::ecdsa_verify(msg, pk, sig);
+        bool const valid = secp256k1::ecdsa_verify(msg, pk, sig);
         CHECK(valid, "own sig verifies");
 
         // Verify low-S
@@ -124,7 +124,7 @@ static void test_ecdsa_cross() {
         // Wrong message should fail
         auto bad_msg = random_bytes();
         if (bad_msg != msg) {
-            bool bad = secp256k1::ecdsa_verify(bad_msg, pk, sig);
+            bool const bad = secp256k1::ecdsa_verify(bad_msg, pk, sig);
             CHECK(!bad, "wrong msg fails");
         }
 
@@ -132,7 +132,7 @@ static void test_ecdsa_cross() {
         auto sk2 = random_scalar();
         auto pk2 = Point::generator().scalar_mul(sk2);
         if (!(sk == sk2)) {
-            bool bad = secp256k1::ecdsa_verify(msg, pk2, sig);
+            bool const bad = secp256k1::ecdsa_verify(msg, pk2, sig);
             CHECK(!bad, "wrong key fails");
         }
     }
@@ -155,13 +155,13 @@ static void test_schnorr_cross() {
         // Derive x-only pubkey
         auto pk_x = secp256k1::schnorr_pubkey(sk);
 
-        bool valid = secp256k1::schnorr_verify(pk_x, msg, sig);
+        bool const valid = secp256k1::schnorr_verify(pk_x, msg, sig);
         CHECK(valid, "own schnorr sig verifies");
 
         // Wrong message should fail
         auto bad_msg = random_bytes();
         if (bad_msg != msg) {
-            bool bad = secp256k1::schnorr_verify(pk_x, bad_msg, sig);
+            bool const bad = secp256k1::schnorr_verify(pk_x, bad_msg, sig);
             CHECK(!bad, "wrong msg fails schnorr");
         }
     }

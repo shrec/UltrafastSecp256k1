@@ -95,19 +95,21 @@ static const SC S_OFFSET = SC::from_limbs({0, 0, 1, 0});
     printf("  k2_abs upper: [%016lx %016lx] (expect 0)\n",
            (unsigned long)k2l[3], (unsigned long)k2l[2]);
     
-    if (k1l[2] != 0 || k1l[3] != 0)
+    if (k1l[2] != 0 || k1l[3] != 0) {
         printf("  *** WARNING: k1_abs > 2^128! Upper limbs non-zero!\n");
-    if (k2l[2] != 0 || k2l[3] != 0)
+}
+    if (k2l[2] != 0 || k2l[3] != 0) {
         printf("  *** WARNING: k2_abs > 2^128! Upper limbs non-zero!\n");
+}
     
     // Step 3: signed values and v1, v2
-    SC s1 = ct::scalar_cneg(k1_abs, k1_neg);
-    SC s2 = ct::scalar_cneg(k2_abs, k2_neg);
+    SC const s1 = ct::scalar_cneg(k1_abs, k1_neg);
+    SC const s2 = ct::scalar_cneg(k2_abs, k2_neg);
     print_limbs("  s1(signed)= ", s1);
     print_limbs("  s2(signed)= ", s2);
     
-    SC v1 = ct::scalar_add(s1, S_OFFSET);
-    SC v2 = ct::scalar_add(s2, S_OFFSET);
+    SC const v1 = ct::scalar_add(s1, S_OFFSET);
+    SC const v2 = ct::scalar_add(s2, S_OFFSET);
     print_limbs("  v1=s1+2^128= ", v1);
     print_limbs("  v2=s2+2^128= ", v2);
     
@@ -120,13 +122,13 @@ static const SC S_OFFSET = SC::from_limbs({0, 0, 1, 0});
     // Print window digits for v1 and v2
     printf("  v1 digits (group 25..0): ");
     for (int g = 25; g >= 0; --g) {
-        std::uint64_t w = ct::scalar_window(v1, g*5, 5);
+        std::uint64_t const w = ct::scalar_window(v1, g*5, 5);
         printf("%02lu ", (unsigned long)w);
     }
     printf("\n");
     printf("  v2 digits (group 25..0): ");
     for (int g = 25; g >= 0; --g) {
-        std::uint64_t w = ct::scalar_window(v2, g*5, 5);
+        std::uint64_t const w = ct::scalar_window(v2, g*5, 5);
         printf("%02lu ", (unsigned long)w);
     }
     printf("\n");
@@ -140,7 +142,7 @@ static const SC S_OFFSET = SC::from_limbs({0, 0, 1, 0});
     }});
     SC s2_lambda = k2_abs * lambda_sc;
     if (k2_neg) s2_lambda = ct::scalar_cneg(s2_lambda, 1);
-    SC recombined = ct::scalar_add(s1, s2_lambda); // s1 + s2*lambda should == s
+    SC const recombined = ct::scalar_add(s1, s2_lambda); // s1 + s2*lambda should == s
     print_limbs("  s1+s2*lam= ", recombined);
     print_limbs("  s(expect)= ", s);
     
@@ -155,21 +157,21 @@ static const SC S_OFFSET = SC::from_limbs({0, 0, 1, 0});
 int main() {
     printf("=== ct::scalar_mul detailed diagnostic ===\n\n");
     
-    PT G = PT::generator();
+    PT const G = PT::generator();
     int fails = 0;
     
     // Run through first 64 random scalars with seed 0xCAFEBABE, report pass/fail
     TestRng rng(0xCAFEBABEu);
     printf("--- Random scalar_mul tests (seed 0xCAFEBABE) ---\n");
     for (int i = 0; i < 64; i++) {
-        SC base_k = rng.random_scalar();
-        PT P = G.scalar_mul(base_k);
-        SC k = rng.random_scalar();
+        SC const base_k = rng.random_scalar();
+        PT const P = G.scalar_mul(base_k);
+        SC const k = rng.random_scalar();
         
-        PT ct_r = ct::scalar_mul(P, k);
-        PT fast_r = P.scalar_mul(k);
+        PT const ct_r = ct::scalar_mul(P, k);
+        PT const fast_r = P.scalar_mul(k);
         
-        bool eq = (ct_r.is_infinity() && fast_r.is_infinity()) ||
+        bool const eq = (ct_r.is_infinity() && fast_r.is_infinity()) ||
                   (!ct_r.is_infinity() && !fast_r.is_infinity() &&
                    ct_r.x().to_bytes() == fast_r.x().to_bytes() &&
                    ct_r.y().to_bytes() == fast_r.y().to_bytes());
@@ -184,20 +186,20 @@ int main() {
     
     // Also diagnose a known-good scalar
     printf("\n--- Known good scalar (k=7) ---\n");
-    SC k_good = SC::from_uint64(7);
+    SC const k_good = SC::from_uint64(7);
     diagnose_scalar("k=7", k_good);
     
     // And diagnose the first failing scalar directly
     printf("\n--- First failing scalar (re-check ct::scalar_mul(G,k)) ---\n");
     TestRng rng2(0xCAFEBABEu);
     rng2.random_scalar(); // skip base_k
-    SC k_fail = rng2.random_scalar();
+    SC const k_fail = rng2.random_scalar();
     diagnose_scalar("first_fail_k", k_fail);
     
     // Test ct::scalar_mul(G, k_fail) specifically
-    PT ct_gk = ct::scalar_mul(G, k_fail);
-    PT fast_gk = G.scalar_mul(k_fail);
-    bool gk_eq = (!ct_gk.is_infinity() && !fast_gk.is_infinity() &&
+    PT const ct_gk = ct::scalar_mul(G, k_fail);
+    PT const fast_gk = G.scalar_mul(k_fail);
+    bool const gk_eq = (!ct_gk.is_infinity() && !fast_gk.is_infinity() &&
                   ct_gk.x().to_bytes() == fast_gk.x().to_bytes());
     printf("ct::scalar_mul(G, k_fail): %s\n", gk_eq ? "OK" : "MISMATCH");
     
@@ -213,19 +215,19 @@ int diag_scalar_mul_run() {
     using PT_local = secp256k1::fast::Point;
     using SC_local = secp256k1::fast::Scalar;
 
-    PT_local G = PT_local::generator();
+    PT_local const G = PT_local::generator();
     int fails = 0;
 
     TestRng rng(0xCAFEBABEu);
     for (int i = 0; i < 64; i++) {
-        SC_local base_k = rng.random_scalar();
-        PT_local P = G.scalar_mul(base_k);
-        SC_local k = rng.random_scalar();
+        SC_local const base_k = rng.random_scalar();
+        PT_local const P = G.scalar_mul(base_k);
+        SC_local const k = rng.random_scalar();
 
-        PT_local ct_r = ct::scalar_mul(P, k);
-        PT_local fast_r = P.scalar_mul(k);
+        PT_local const ct_r = ct::scalar_mul(P, k);
+        PT_local const fast_r = P.scalar_mul(k);
 
-        bool eq = (ct_r.is_infinity() && fast_r.is_infinity()) ||
+        bool const eq = (ct_r.is_infinity() && fast_r.is_infinity()) ||
                   (!ct_r.is_infinity() && !fast_r.is_infinity() &&
                    ct_r.x().to_bytes() == fast_r.x().to_bytes() &&
                    ct_r.y().to_bytes() == fast_r.y().to_bytes());

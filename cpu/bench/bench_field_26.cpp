@@ -104,7 +104,7 @@ static void print_header() {
 }
 
 static void print_result(const BenchResult& r) {
-    double ratio = r.ns_4x64 / r.ns_10x26;
+    double const ratio = r.ns_4x64 / r.ns_10x26;
     const char* indicator = (ratio > 1.05) ? " <-- 10x26 wins" :
                             (ratio < 0.95) ? " <-- 4x64 wins" : "";
     std::printf("%-36s %9.2f  %9.2f  %8.3fx%s\n",
@@ -172,13 +172,13 @@ int main() {
         constexpr int ITERS = 500000;
 
         FieldElement r4;
-        double ns4 = bench_ns([&]() {
+        double const ns4 = bench_ns([&]() {
             r4 = fe_a + fe_b;
             escape(&r4);
         }, ITERS);
 
         FieldElement26 r26;
-        double ns26 = bench_ns([&]() {
+        double const ns26 = bench_ns([&]() {
             r26 = fe26_a + fe26_b;
             escape(&r26);
         }, ITERS);
@@ -191,13 +191,13 @@ int main() {
         constexpr int ITERS = 200000;
 
         FieldElement r4;
-        double ns4 = bench_ns([&]() {
+        double const ns4 = bench_ns([&]() {
             r4 = fe_a * fe_b;
             escape(&r4);
         }, ITERS);
 
         FieldElement26 r26;
-        double ns26 = bench_ns([&]() {
+        double const ns26 = bench_ns([&]() {
             r26 = fe26_a * fe26_b;
             escape(&r26);
         }, ITERS);
@@ -210,13 +210,13 @@ int main() {
         constexpr int ITERS = 200000;
 
         FieldElement r4;
-        double ns4 = bench_ns([&]() {
+        double const ns4 = bench_ns([&]() {
             r4 = fe_a.square();
             escape(&r4);
         }, ITERS);
 
         FieldElement26 r26;
-        double ns26 = bench_ns([&]() {
+        double const ns26 = bench_ns([&]() {
             r26 = fe26_a.square();
             escape(&r26);
         }, ITERS);
@@ -231,13 +231,13 @@ int main() {
         // Create slightly un-normalized element for 10x26
         FieldElement26 acc26 = fe26_a + fe26_b;
 
-        double ns26_weak = bench_ns([&]() {
+        double const ns26_weak = bench_ns([&]() {
             FieldElement26 tmp = acc26;
             tmp.normalize_weak();
             escape(&tmp);
         }, ITERS);
 
-        double ns26_full = bench_ns([&]() {
+        double const ns26_full = bench_ns([&]() {
             FieldElement26 tmp = acc26;
             tmp.normalize();
             escape(&tmp);
@@ -252,13 +252,13 @@ int main() {
         constexpr int ITERS = 500000;
 
         FieldElement r4;
-        double ns4 = bench_ns([&]() {
+        double const ns4 = bench_ns([&]() {
             r4 = FieldElement{} - fe_a;
             escape(&r4);
         }, ITERS);
 
         FieldElement26 r26;
-        double ns26 = bench_ns([&]() {
+        double const ns26 = bench_ns([&]() {
             r26 = fe26_a.negate(1);
             escape(&r26);
         }, ITERS);
@@ -271,7 +271,7 @@ int main() {
         constexpr int ITERS = 500000;
 
         FieldElement26 r26;
-        double ns26 = bench_ns([&]() {
+        double const ns26 = bench_ns([&]() {
             r26 = fe26_a.half();
             escape(&r26);
         }, ITERS);
@@ -284,13 +284,13 @@ int main() {
         constexpr int ITERS = 500000;
 
         FieldElement26 r26;
-        double ns_to26 = bench_ns([&]() {
+        double const ns_to26 = bench_ns([&]() {
             r26 = FieldElement26::from_fe(fe_a);
             escape(&r26);
         }, ITERS);
 
         FieldElement r4;
-        double ns_to4 = bench_ns([&]() {
+        double const ns_to4 = bench_ns([&]() {
             r4 = fe26_a.to_fe();
             escape(&r4);
         }, ITERS);
@@ -308,7 +308,7 @@ int main() {
         constexpr int ITERS = 50000;
 
         // 4x64: each add does carry + conditional reduction
-        double ns4 = bench_ns([&]() {
+        double const ns4 = bench_ns([&]() {
             FieldElement acc = fe_a;
             for (int i = 0; i < chain_len; ++i) {
                 acc = acc + fe_b;
@@ -317,7 +317,7 @@ int main() {
         }, ITERS);
 
         // 10x26: N plain adds, ONE normalize at end
-        double ns26 = bench_ns([&]() {
+        double const ns26 = bench_ns([&]() {
             FieldElement26 acc = fe26_a;
             for (int i = 0; i < chain_len; ++i) {
                 acc.add_assign(fe26_b);
@@ -341,37 +341,37 @@ int main() {
         constexpr int ITERS = 50000;
 
         // 4x64 version
-        double ns4 = bench_ns([&]() {
+        double const ns4 = bench_ns([&]() {
             FieldElement t0 = fe_a, t1 = fe_b;
-            FieldElement u1 = t0 * t1;
-            FieldElement u2 = t1.square();
-            FieldElement s1 = u1 + u2;
-            FieldElement s2 = t0.square();
-            FieldElement h  = s1 + s2 + u1;
-            FieldElement r  = h * s1;
-            FieldElement rx = r.square() + (FieldElement{} - h);
-            FieldElement ry = rx * h + (FieldElement{} - r);
-            FieldElement rz = ry.square();
-            FieldElement w  = (rz + rx) * ry;
-            FieldElement v  = (w + (FieldElement{} - rz)).square();
+            FieldElement const u1 = t0 * t1;
+            FieldElement const u2 = t1.square();
+            FieldElement const s1 = u1 + u2;
+            FieldElement const s2 = t0.square();
+            FieldElement const h  = s1 + s2 + u1;
+            FieldElement const r  = h * s1;
+            FieldElement const rx = r.square() + (FieldElement{} - h);
+            FieldElement const ry = rx * h + (FieldElement{} - r);
+            FieldElement const rz = ry.square();
+            FieldElement const w  = (rz + rx) * ry;
+            FieldElement const v  = (w + (FieldElement{} - rz)).square();
             FieldElement out = v * w;
             escape(&out);
         }, ITERS);
 
         // 10x26 version
-        double ns26 = bench_ns([&]() {
+        double const ns26 = bench_ns([&]() {
             FieldElement26 t0 = fe26_a, t1 = fe26_b;
-            FieldElement26 u1 = t0 * t1;
-            FieldElement26 u2 = t1.square();
-            FieldElement26 s1 = u1 + u2;          // lazy add
-            FieldElement26 s2 = t0.square();
-            FieldElement26 h  = s1 + s2 + u1;     // lazy chain (2 adds, no carry)
-            FieldElement26 r  = h * s1;            // mul normalizes
-            FieldElement26 rx = r.square() + h.negate(1);       // lazy
-            FieldElement26 ry = rx * h + r.negate(1);           // lazy + mul
-            FieldElement26 rz = ry.square();
-            FieldElement26 w  = (rz + rx) * ry;                 // lazy + mul
-            FieldElement26 v  = (w + rz.negate(1)).square();
+            FieldElement26 const u1 = t0 * t1;
+            FieldElement26 const u2 = t1.square();
+            FieldElement26 const s1 = u1 + u2;          // lazy add
+            FieldElement26 const s2 = t0.square();
+            FieldElement26 const h  = s1 + s2 + u1;     // lazy chain (2 adds, no carry)
+            FieldElement26 const r  = h * s1;            // mul normalizes
+            FieldElement26 const rx = r.square() + h.negate(1);       // lazy
+            FieldElement26 const ry = rx * h + r.negate(1);           // lazy + mul
+            FieldElement26 const rz = ry.square();
+            FieldElement26 const w  = (rz + rx) * ry;                 // lazy + mul
+            FieldElement26 const v  = (w + rz.negate(1)).square();
             FieldElement26 out = v * w;
             escape(&out);
         }, ITERS);
@@ -384,7 +384,7 @@ int main() {
         constexpr int ITERS = 10000;
         constexpr int CHAIN = 256;   // ~256 squarings like in Fermat inverse
 
-        double ns4 = bench_ns([&]() {
+        double const ns4 = bench_ns([&]() {
             FieldElement acc = fe_a;
             for (int i = 0; i < CHAIN; ++i) {
                 acc.square_inplace();
@@ -392,7 +392,7 @@ int main() {
             escape(&acc);
         }, ITERS);
 
-        double ns26 = bench_ns([&]() {
+        double const ns26 = bench_ns([&]() {
             FieldElement26 acc = fe26_a;
             for (int i = 0; i < CHAIN; ++i) {
                 acc.square_inplace();
@@ -408,7 +408,7 @@ int main() {
         constexpr int ITERS = 20000;
         constexpr int CHAIN = 32;
 
-        double ns4 = bench_ns([&]() {
+        double const ns4 = bench_ns([&]() {
             FieldElement acc = fe_a;
             for (int i = 0; i < CHAIN; ++i) {
                 acc = acc * fe_b;
@@ -417,7 +417,7 @@ int main() {
             escape(&acc);
         }, ITERS);
 
-        double ns26 = bench_ns([&]() {
+        double const ns26 = bench_ns([&]() {
             FieldElement26 acc = fe26_a;
             for (int i = 0; i < CHAIN; ++i) {
                 acc.mul_assign(fe26_b);
@@ -435,7 +435,7 @@ int main() {
         constexpr int ITERS = 20000;
         constexpr int CHAIN = 32;
 
-        double ns4 = bench_ns([&]() {
+        double const ns4 = bench_ns([&]() {
             FieldElement acc = fe_a;
             for (int i = 0; i < CHAIN; ++i) {
                 acc *= fe_b;
@@ -443,7 +443,7 @@ int main() {
             escape(&acc);
         }, ITERS);
 
-        double ns26 = bench_ns([&]() {
+        double const ns26 = bench_ns([&]() {
             FieldElement26 acc = fe26_a;
             for (int i = 0; i < CHAIN; ++i) {
                 acc.mul_assign(fe26_b);
@@ -462,54 +462,54 @@ int main() {
         constexpr int ITERS = 500000;
 
         // Mul throughput
-        double mul4_ns = bench_ns([&]() {
+        double const mul4_ns = bench_ns([&]() {
             FieldElement r = fe_a * fe_b;
             escape(&r);
         }, ITERS);
 
-        double mul26_ns = bench_ns([&]() {
+        double const mul26_ns = bench_ns([&]() {
             FieldElement26 r = fe26_a * fe26_b;
             escape(&r);
         }, ITERS);
 
-        double mul4_mops  = 1000.0 / mul4_ns;
-        double mul26_mops = 1000.0 / mul26_ns;
+        double const mul4_mops  = 1000.0 / mul4_ns;
+        double const mul26_mops = 1000.0 / mul26_ns;
 
         std::printf("%-36s %7.2f M/s  %7.2f M/s  %6.3fx\n",
                     "Multiplication throughput",
                     mul4_mops, mul26_mops, mul26_mops / mul4_mops);
 
         // Add throughput
-        double add4_ns = bench_ns([&]() {
+        double const add4_ns = bench_ns([&]() {
             FieldElement r = fe_a + fe_b;
             escape(&r);
         }, ITERS);
 
-        double add26_ns = bench_ns([&]() {
+        double const add26_ns = bench_ns([&]() {
             FieldElement26 r = fe26_a + fe26_b;
             escape(&r);
         }, ITERS);
 
-        double add4_mops  = 1000.0 / add4_ns;
-        double add26_mops = 1000.0 / add26_ns;
+        double const add4_mops  = 1000.0 / add4_ns;
+        double const add26_mops = 1000.0 / add26_ns;
 
         std::printf("%-36s %7.2f M/s  %7.2f M/s  %6.3fx\n",
                     "Addition throughput",
                     add4_mops, add26_mops, add26_mops / add4_mops);
 
         // Sqr throughput
-        double sqr4_ns = bench_ns([&]() {
+        double const sqr4_ns = bench_ns([&]() {
             FieldElement r = fe_a.square();
             escape(&r);
         }, ITERS);
 
-        double sqr26_ns = bench_ns([&]() {
+        double const sqr26_ns = bench_ns([&]() {
             FieldElement26 r = fe26_a.square();
             escape(&r);
         }, ITERS);
 
-        double sqr4_mops  = 1000.0 / sqr4_ns;
-        double sqr26_mops = 1000.0 / sqr26_ns;
+        double const sqr4_mops  = 1000.0 / sqr4_ns;
+        double const sqr26_mops = 1000.0 / sqr26_ns;
 
         std::printf("%-36s %7.2f M/s  %7.2f M/s  %6.3fx\n",
                     "Squaring throughput",

@@ -138,7 +138,7 @@ static void test_invalid_schnorr_sigs() {
     auto pk_x = secp256k1::schnorr_pubkey(sk);
     std::array<uint8_t, 32> msg{};
     msg[0] = 0xAA;
-    std::array<uint8_t, 32> aux{};
+    std::array<uint8_t, 32> const aux{};
     auto sig = secp256k1::schnorr_sign(sk, msg, aux);
 
     CHECK(secp256k1::schnorr_verify(pk_x, msg, sig), "valid schnorr");
@@ -152,7 +152,7 @@ static void test_invalid_schnorr_sigs() {
 
     // All-zero pubkey
     {
-        std::array<uint8_t, 32> zero_pk{};
+        std::array<uint8_t, 32> const zero_pk{};
         CHECK(!secp256k1::schnorr_verify(zero_pk, msg, sig), "zero pk rejected");
     }
 
@@ -279,7 +279,7 @@ static void test_recovery_edges() {
         }
 
         // Wrong recid should give different key or fail
-        int wrong_recid = (rsig.recid + 1) % 4;
+        int const wrong_recid = (rsig.recid + 1) % 4;
         auto [wrong_pk, wrong_ok] = secp256k1::ecdsa_recover(msg, rsig.sig, wrong_recid);
         if (wrong_ok) {
             auto rec_bytes = wrong_pk.to_compressed();
@@ -290,7 +290,7 @@ static void test_recovery_edges() {
     // Invalid recid
     {
         auto sk = random_scalar();
-        std::array<uint8_t, 32> msg{};
+        std::array<uint8_t, 32> const msg{};
         auto rsig = secp256k1::ecdsa_sign_recoverable(msg, sk);
         // recid 4 should fail
         auto [_, fail] = secp256k1::ecdsa_recover(msg, rsig.sig, 4);
@@ -311,7 +311,7 @@ static void test_random_op_sequence() {
     auto acc = Point::infinity();
 
     for (int i = 0; i < 10000; ++i) {
-        int op = static_cast<int>(rng() % 6);
+        int const op = static_cast<int>(rng() % 6);
         auto k = random_scalar();
 
         switch (op) {
@@ -399,7 +399,7 @@ static void test_schnorr_bytes_roundtrip() {
         std::array<uint8_t, 32> msg{};
         uint64_t v = rng();
         std::memcpy(msg.data(), &v, 8);
-        std::array<uint8_t, 32> aux{};
+        std::array<uint8_t, 32> const aux{};
 
         auto sig = secp256k1::schnorr_sign(sk, msg, aux);
         auto bytes = sig.to_bytes();

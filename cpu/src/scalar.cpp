@@ -72,7 +72,7 @@ inline std::uint64_t add64(std::uint64_t a, std::uint64_t b, unsigned char& carr
 #pragma GCC diagnostic ignored "-Wpedantic"
 #endif
 inline std::uint64_t add64(std::uint64_t a, std::uint64_t b, unsigned char& carry) {
-    unsigned __int128 sum = static_cast<unsigned __int128>(a) + b + carry;
+    unsigned __int128 const sum = static_cast<unsigned __int128>(a) + b + carry;
     carry = static_cast<unsigned char>(sum >> 64);
     return static_cast<std::uint64_t>(sum);
 }
@@ -83,10 +83,10 @@ inline std::uint64_t add64(std::uint64_t a, std::uint64_t b, unsigned char& carr
 #endif // SECP256K1_NO_INT128
 
 inline std::uint64_t sub64(std::uint64_t a, std::uint64_t b, unsigned char& borrow) {
-    uint64_t temp = a - borrow;
-    unsigned char borrow1 = (a < borrow);
-    uint64_t result = temp - b;
-    unsigned char borrow2 = (temp < b);
+    uint64_t const temp = a - borrow;
+    unsigned char const borrow1 = (a < borrow);
+    uint64_t const result = temp - b;
+    unsigned char const borrow2 = (temp < b);
     borrow = borrow1 | borrow2;
     return result;
 }
@@ -200,7 +200,7 @@ Scalar Scalar::from_bytes(const std::array<std::uint8_t, 32>& bytes) {
 std::array<std::uint8_t, 32> Scalar::to_bytes() const {
     std::array<std::uint8_t, 32> out{};
     for (std::size_t i = 0; i < 4; ++i) {
-        std::uint64_t limb = limbs_[3 - i];
+        std::uint64_t const limb = limbs_[3 - i];
         for (std::size_t j = 0; j < 8; ++j) {
             out[i * 8 + j] = static_cast<std::uint8_t>(limb >> (56 - 8 * j));
         }
@@ -231,8 +231,8 @@ Scalar Scalar::from_hex(const std::string& hex) {
     
     std::array<std::uint8_t, 32> bytes{};
     for (size_t i = 0; i < 32; i++) {
-        char c1 = hex[i * 2];
-        char c2 = hex[i * 2 + 1];
+        char const c1 = hex[i * 2];
+        char const c2 = hex[i * 2 + 1];
         
         auto hex_to_nibble = [](char c) -> uint8_t {
             if (c >= '0' && c <= '9') return static_cast<uint8_t>(c - '0');
@@ -310,7 +310,7 @@ Scalar Scalar::operator*(const Scalar& rhs) const {
     for (std::size_t i = 0; i < 4; ++i) {
         unsigned __int128 carry = 0;
         for (std::size_t j = 0; j < 4; ++j) {
-            unsigned __int128 t = static_cast<unsigned __int128>(limbs_[i]) * rhs.limbs_[j]
+            unsigned __int128 const t = static_cast<unsigned __int128>(limbs_[i]) * rhs.limbs_[j]
                                   + prod[i + j] + carry;
             prod[i + j] = static_cast<std::uint64_t>(t);
             carry = t >> 64;
@@ -380,7 +380,7 @@ Scalar Scalar::operator*(const Scalar& rhs) const {
     for (std::size_t i = 0; i < 4; ++i) {
         unsigned __int128 carry = 0;
         for (std::size_t j = 0; j < 5; ++j) {
-            unsigned __int128 t = static_cast<unsigned __int128>(q[4 + i]) * BARRETT_MU[j]
+            unsigned __int128 const t = static_cast<unsigned __int128>(q[4 + i]) * BARRETT_MU[j]
                                   + qmu[i + j] + carry;
             qmu[i + j] = static_cast<std::uint64_t>(t);
             carry = t >> 64;
@@ -444,7 +444,7 @@ Scalar Scalar::operator*(const Scalar& rhs) const {
         unsigned __int128 carry = 0;
         for (std::size_t j = 0; j < 4; ++j) {
             if (i + j >= 5) break;
-            unsigned __int128 t = static_cast<unsigned __int128>(q_approx[i]) * ORDER[j]
+            unsigned __int128 const t = static_cast<unsigned __int128>(q_approx[i]) * ORDER[j]
                                   + qn[i + j] + carry;
             qn[i + j] = static_cast<std::uint64_t>(t);
             carry = t >> 64;
@@ -557,9 +557,9 @@ static inline int ctz64_var(uint64_t x) {
 // Exactly matches secp256k1_modinv64_divsteps_62_var
 static int64_t divsteps_62_var(int64_t eta, uint64_t f0, uint64_t g0, T2x2& t) {
     uint64_t u = 1, v = 0, q = 0, r = 1;
-    uint64_t f = f0, g = g0, m;
-    uint32_t w;
-    int i = 62, limit, zeros;
+    uint64_t f = f0, g = g0, m = 0;
+    uint32_t w = 0;
+    int i = 62, limit = 0, zeros = 0;
 
     for (;;) {
         zeros = ctz64_var(g | (UINT64_MAX << i));
@@ -571,7 +571,7 @@ static int64_t divsteps_62_var(int64_t eta, uint64_t f0, uint64_t g0, T2x2& t) {
         if (i == 0) break;
 
         if (eta < 0) {
-            uint64_t tmp;
+            uint64_t tmp = 0;
             eta = -eta;
             tmp = f; f = g; g = (uint64_t)(-(int64_t)tmp);
             tmp = u; u = q; q = (uint64_t)(-(int64_t)tmp);
@@ -601,8 +601,8 @@ static void update_de_62(S62& d, S62& e, const T2x2& t, const ModInfo& mod) {
     const int64_t d0 = d.v[0], d1 = d.v[1], d2 = d.v[2], d3 = d.v[3], d4 = d.v[4];
     const int64_t e0 = e.v[0], e1 = e.v[1], e2 = e.v[2], e3 = e.v[3], e4 = e.v[4];
     const int64_t u = t.u, v = t.v, q = t.q, r = t.r;
-    int64_t md, me, sd, se;
-    i128 cd, ce;
+    int64_t md = 0, me = 0, sd = 0, se = 0;
+    i128 cd = 0, ce = 0;
 
     sd = d4 >> 63;
     se = e4 >> 63;
@@ -652,8 +652,8 @@ static void update_de_62(S62& d, S62& e, const T2x2& t, const ModInfo& mod) {
 static void update_fg_62_var(int len, S62& f, S62& g, const T2x2& t) {
     const uint64_t M62 = UINT64_MAX >> 2;
     const int64_t u = t.u, v = t.v, q = t.q, r = t.r;
-    int64_t fi, gi;
-    i128 cf, cg;
+    int64_t fi = 0, gi = 0;
+    i128 cf = 0, cg = 0;
 
     fi = f.v[0]; gi = g.v[0];
     cf = (i128)u * fi + (i128)v * gi;
@@ -674,9 +674,9 @@ static void update_fg_62_var(int len, S62& f, S62& g, const T2x2& t) {
 
 // Exactly matches secp256k1_modinv64_normalize_62
 static void normalize_62(S62& r, int64_t sign, const ModInfo& mod) {
-    const int64_t M62 = (int64_t)(UINT64_MAX >> 2);
+    const auto M62 = (int64_t)(UINT64_MAX >> 2);
     int64_t r0 = r.v[0], r1 = r.v[1], r2 = r.v[2], r3 = r.v[3], r4 = r.v[4];
-    int64_t cond_add, cond_negate;
+    int64_t cond_add = 0, cond_negate = 0;
 
     cond_add = r4 >> 63;
     r0 += mod.modulus.v[0] & cond_add;
@@ -1081,8 +1081,8 @@ std::uint8_t Scalar::bit(std::size_t index) const {
     if (index >= 256) {
         return 0;
     }
-    std::size_t limb_idx = index / 64;
-    std::size_t bit_idx = index % 64;
+    std::size_t const limb_idx = index / 64;
+    std::size_t const bit_idx = index % 64;
     return static_cast<std::uint8_t>((limbs_[limb_idx] >> bit_idx) & 0x1u);
 }
 
@@ -1101,8 +1101,8 @@ std::vector<int8_t> Scalar::to_naf() const {
     while (!k.is_zero()) {
         if (k.bit(0) == 1) {  // k is odd
             // Get lowest 2 bits to determine sign
-            std::uint8_t low_bits = static_cast<std::uint8_t>(k.limbs_[0] & 0x3);
-            int8_t digit;
+            auto const low_bits = static_cast<std::uint8_t>(k.limbs_[0] & 0x3);
+            int8_t digit = 0;
             
             if (low_bits == 1 || low_bits == 2) {
                 // k == 1 or 2 (mod 4) -> use +1
@@ -1122,7 +1122,7 @@ std::vector<int8_t> Scalar::to_naf() const {
         // Divide k by 2 (right shift)
         std::uint64_t carry = 0;
         for (std::size_t i = 4; i-- > 0; ) {
-            std::uint64_t limb = k.limbs_[i];
+            std::uint64_t const limb = k.limbs_[i];
             k.limbs_[i] = (limb >> 1) | (carry << 63);
             carry = limb & 1;
         }
@@ -1152,7 +1152,7 @@ std::vector<int8_t> Scalar::to_wnaf(unsigned width) const {
     
     Scalar k = *this;
     const unsigned window_size = 1U << width;          // 2^w
-    const std::uint64_t window_mask = static_cast<std::uint64_t>(window_size - 1U);      // 2^w - 1
+    const auto window_mask = static_cast<std::uint64_t>(window_size - 1U);      // 2^w - 1
     const int window_half = static_cast<int>(window_size >> 1);     // 2^(w-1)
     
     while (!k.is_zero()) {
@@ -1177,7 +1177,7 @@ std::vector<int8_t> Scalar::to_wnaf(unsigned width) const {
         // Divide k by 2 (right shift)
         std::uint64_t carry = 0;
         for (std::size_t i = 4; i-- > 0; ) {
-            std::uint64_t limb = k.limbs_[i];
+            std::uint64_t const limb = k.limbs_[i];
             k.limbs_[i] = (limb >> 1) | (carry << 63);
             carry = limb & 1;
         }

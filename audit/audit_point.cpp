@@ -328,7 +328,7 @@ static void test_ecdsa_roundtrip() {
         CHECK(!sig.r.is_zero() && !sig.s.is_zero(), "non-zero sig");
         CHECK(sig.is_low_s(), "low-S enforced");
 
-        bool valid = secp256k1::ecdsa_verify(msg, pk, sig);
+        bool const valid = secp256k1::ecdsa_verify(msg, pk, sig);
         CHECK(valid, "valid sig verifies");
 
         // Wrong message
@@ -356,12 +356,12 @@ static void test_schnorr_roundtrip() {
         std::array<uint8_t, 32> msg{};
         uint64_t v = rng();
         std::memcpy(msg.data(), &v, 8);
-        std::array<uint8_t, 32> aux{};
+        std::array<uint8_t, 32> const aux{};
 
         auto sig = secp256k1::schnorr_sign(sk, msg, aux);
         auto pk_x = secp256k1::schnorr_pubkey(sk);
 
-        bool valid = secp256k1::schnorr_verify(pk_x, msg, sig);
+        bool const valid = secp256k1::schnorr_verify(pk_x, msg, sig);
         CHECK(valid, "valid schnorr sig verifies");
 
         // Wrong message

@@ -54,8 +54,8 @@ Point multi_scalar_mul(const Scalar* scalars,
     if (n == 1) return points[0].scalar_mul(scalars[0]);
     if (n == 2) return shamir_trick(scalars[0], points[0], scalars[1], points[1]);
 
-    unsigned w = strauss_optimal_window(n);
-    std::size_t table_size = static_cast<std::size_t>(1) << (w - 1); // 2^(w-1) entries per point
+    unsigned const w = strauss_optimal_window(n);
+    std::size_t const table_size = static_cast<std::size_t>(1) << (w - 1); // 2^(w-1) entries per point
 
     // Step 1: Compute wNAF for each scalar
     std::vector<std::vector<int8_t>> wnafs(n);
@@ -74,7 +74,7 @@ Point multi_scalar_mul(const Scalar* scalars,
         tables[i].resize(table_size);
         tables[i][0] = points[i];
         if (table_size > 1) {
-            Point P2 = points[i].dbl();
+            Point const P2 = points[i].dbl();
             for (std::size_t j = 1; j < table_size; ++j) {
                 tables[i][j] = tables[i][j - 1].add(P2);
             }
@@ -89,10 +89,10 @@ Point multi_scalar_mul(const Scalar* scalars,
 
         for (std::size_t i = 0; i < n; ++i) {
             if (bit >= wnafs[i].size()) continue;
-            int8_t digit = wnafs[i][bit];
+            int8_t const digit = wnafs[i][bit];
             if (digit == 0) continue;
 
-            std::size_t idx;
+            std::size_t idx = 0;
             if (digit > 0) {
                 idx = static_cast<std::size_t>((digit - 1) / 2);
                 R.add_inplace(tables[i][idx]);
@@ -111,7 +111,7 @@ Point multi_scalar_mul(const Scalar* scalars,
 // Convenience: vector version
 Point multi_scalar_mul(const std::vector<Scalar>& scalars,
                        const std::vector<Point>& points) {
-    std::size_t n = std::min(scalars.size(), points.size());
+    std::size_t const n = std::min(scalars.size(), points.size());
     if (n == 0) return Point::infinity();
     return multi_scalar_mul(scalars.data(), points.data(), n);
 }

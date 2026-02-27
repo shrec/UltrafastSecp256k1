@@ -22,9 +22,9 @@ static void glv_mul_comba(const std::uint32_t a[8], const std::uint32_t b[8],
         const int lo = (k < 8) ? 0 : (k - 7);
         const int hi = (k < 8) ? k : 7;
         for (int i = lo; i <= hi; i++) {
-            std::uint64_t p = (std::uint64_t)a[i] * b[k - i];
-            std::uint32_t plo = (std::uint32_t)p;
-            std::uint32_t phi = (std::uint32_t)(p >> 32);
+            std::uint64_t const p = (std::uint64_t)a[i] * b[k - i];
+            auto const plo = (std::uint32_t)p;
+            auto const phi = (std::uint32_t)(p >> 32);
             std::uint64_t s = (std::uint64_t)c0 + plo;
             c0 = (std::uint32_t)s;
             s = (std::uint64_t)c1 + phi + (s >> 32);
@@ -84,7 +84,7 @@ static unsigned scalar_bitlen(const Scalar& s) {
             return static_cast<unsigned>(i * 64 + index + 1);
 #else
             // 32-bit CLZ for portability (ESP32 Xtensa has NSAU for 32-bit)
-            std::uint32_t hi32 = static_cast<std::uint32_t>(limbs[i] >> 32);
+            auto const hi32 = static_cast<std::uint32_t>(limbs[i] >> 32);
             if (hi32) return static_cast<unsigned>(i * 64 + 64 - static_cast<unsigned>(__builtin_clz(hi32)));
             return static_cast<unsigned>(i * 64 + 32 - static_cast<unsigned>(__builtin_clz(static_cast<std::uint32_t>(limbs[i]))));
 #endif
@@ -142,8 +142,8 @@ GLVDecomposition glv_decompose(const Scalar& k) {
     auto c1_limbs = mul_shift_384({k_limbs[0], k_limbs[1], k_limbs[2], k_limbs[3]}, kG1);
     auto c2_limbs = mul_shift_384({k_limbs[0], k_limbs[1], k_limbs[2], k_limbs[3]}, kG2);
 
-    Scalar c1 = Scalar::from_limbs(c1_limbs);
-    Scalar c2 = Scalar::from_limbs(c2_limbs);
+    Scalar const c1 = Scalar::from_limbs(c1_limbs);
+    Scalar const c2 = Scalar::from_limbs(c2_limbs);
 
     // Step 2: k2 = c1*(-b1) + c2*(-b2)  (mod n)
     // Lazy-init constants (thread-safe in C++11+)
@@ -151,21 +151,21 @@ GLVDecomposition glv_decompose(const Scalar& k) {
     static const Scalar minus_b2 = Scalar::from_bytes(kMinusB2Bytes);
     static const Scalar lambda   = Scalar::from_bytes(kGlvLambdaBytes);
 
-    Scalar k2_mod = (c1 * minus_b1) + (c2 * minus_b2);
+    Scalar const k2_mod = (c1 * minus_b1) + (c2 * minus_b2);
 
     // Step 3: pick shorter representation for k2
-    Scalar k2_neg = Scalar::zero() - k2_mod;
-    bool k2_is_neg = (scalar_bitlen(k2_neg) < scalar_bitlen(k2_mod));
-    Scalar k2_abs    = k2_is_neg ? k2_neg : k2_mod;
-    Scalar k2_signed = k2_is_neg ? (Scalar::zero() - k2_abs) : k2_abs;
+    Scalar const k2_neg = Scalar::zero() - k2_mod;
+    bool const k2_is_neg = (scalar_bitlen(k2_neg) < scalar_bitlen(k2_mod));
+    Scalar const k2_abs    = k2_is_neg ? k2_neg : k2_mod;
+    Scalar const k2_signed = k2_is_neg ? (Scalar::zero() - k2_abs) : k2_abs;
 
     // Step 4: k1 = k - lambda*k2  (mod n)
-    Scalar k1_mod = k - lambda * k2_signed;
+    Scalar const k1_mod = k - lambda * k2_signed;
 
     // Step 5: pick shorter representation for k1
-    Scalar k1_neg = Scalar::zero() - k1_mod;
-    bool k1_is_neg = (scalar_bitlen(k1_neg) < scalar_bitlen(k1_mod));
-    Scalar k1_abs = k1_is_neg ? k1_neg : k1_mod;
+    Scalar const k1_neg = Scalar::zero() - k1_mod;
+    bool const k1_is_neg = (scalar_bitlen(k1_neg) < scalar_bitlen(k1_mod));
+    Scalar const k1_abs = k1_is_neg ? k1_neg : k1_mod;
 
     result.k1     = k1_abs;
     result.k2     = k2_abs;
@@ -196,12 +196,12 @@ bool verify_endomorphism(const Point& P) {
     // Because phi^3 = identity, so phi^2 + phi + 1 = 0
     // Therefore: phi^2(P) = -P - phi(P)
     
-    Point phi_P = apply_endomorphism(P);
-    Point phi_phi_P = apply_endomorphism(phi_P);
+    Point const phi_P = apply_endomorphism(P);
+    Point const phi_phi_P = apply_endomorphism(phi_P);
     
     // phi^2(P) + P should equal -phi(P)
-    Point sum = phi_phi_P.add(P);
-    Point neg_phi_P = phi_P.negate();
+    Point const sum = phi_phi_P.add(P);
+    Point const neg_phi_P = phi_P.negate();
     
     // Compare coordinates (normalize to affine first)
     auto sum_x = sum.x().to_bytes();

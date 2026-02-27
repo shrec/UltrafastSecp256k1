@@ -42,10 +42,10 @@ void batch_add_affine_x(
     //          Replace any zeros with ONE to avoid corrupting batch inverse chain.
     //          Zero dx means P == +/-T[i] (astronomically rare in search; ~2^{-128}).
     for (std::size_t i = 0; i < count; ++i) {
-        FieldElement dx = offsets[i].x - base_x;
+        FieldElement const dx = offsets[i].x - base_x;
         // Branchless: if dx==0, substitute ONE so batch inverse stays valid.
         // We detect and sentinel the output in Phase 3.
-        bool is_zero = (dx == zero);
+        bool const is_zero = (dx == zero);
         scratch[i] = is_zero ? FieldElement::one() : dx;
     }
 
@@ -58,14 +58,14 @@ void batch_add_affine_x(
     // x3[i] = lambda^2 - x_base - x_T[i]
     for (std::size_t i = 0; i < count; ++i) {
         // Handle degenerate case: original dx was zero (P == T[i] or P == -T[i])
-        FieldElement dx_original = offsets[i].x - base_x;
+        FieldElement const dx_original = offsets[i].x - base_x;
         if (dx_original == zero) {
             out_x[i] = zero;  // Sentinel: never a valid curve X
             continue;
         }
 
-        FieldElement dy = offsets[i].y - base_y;      // dy = y_T - y_base
-        FieldElement lambda = dy * scratch[i];         // lambda = dy / dx  [1M]
+        FieldElement const dy = offsets[i].y - base_y;      // dy = y_T - y_base
+        FieldElement const lambda = dy * scratch[i];         // lambda = dy / dx  [1M]
         FieldElement lambda_sq = lambda;
         lambda_sq.square_inplace();                    // lambda^2            [1S]
         out_x[i] = lambda_sq - base_x - offsets[i].x; // x3 = lambda^2 - x_P - x_T
@@ -95,8 +95,8 @@ void batch_add_affine_xy(
 
     // Phase 1: dx[i] = x_T[i] - x_base (zero-safe: replace 0 -> 1)
     for (std::size_t i = 0; i < count; ++i) {
-        FieldElement dx = offsets[i].x - base_x;
-        bool is_zero = (dx == zero);
+        FieldElement const dx = offsets[i].x - base_x;
+        bool const is_zero = (dx == zero);
         scratch[i] = is_zero ? FieldElement::one() : dx;
     }
 
@@ -105,19 +105,19 @@ void batch_add_affine_xy(
 
     // Phase 3: Full affine addition
     for (std::size_t i = 0; i < count; ++i) {
-        FieldElement dx_original = offsets[i].x - base_x;
+        FieldElement const dx_original = offsets[i].x - base_x;
         if (dx_original == zero) {
             out_x[i] = zero;
             out_y[i] = zero;
             continue;
         }
 
-        FieldElement dy = offsets[i].y - base_y;
-        FieldElement lambda = dy * scratch[i];         // lambda = dy/dx     [1M]
+        FieldElement const dy = offsets[i].y - base_y;
+        FieldElement const lambda = dy * scratch[i];         // lambda = dy/dx     [1M]
         FieldElement lambda_sq = lambda;
         lambda_sq.square_inplace();                    // lambda^2            [1S]
-        FieldElement x3 = lambda_sq - base_x - offsets[i].x;
-        FieldElement y3 = lambda * (base_x - x3) - base_y;  // [2M]
+        FieldElement const x3 = lambda_sq - base_x - offsets[i].x;
+        FieldElement const y3 = lambda * (base_x - x3) - base_y;  // [2M]
 
         out_x[i] = x3;
         out_y[i] = y3;
@@ -162,8 +162,8 @@ void batch_add_affine_x_with_parity(
 
     // Phase 1: dx (zero-safe: replace 0 -> 1)
     for (std::size_t i = 0; i < count; ++i) {
-        FieldElement dx = offsets[i].x - base_x;
-        bool is_zero = (dx == zero);
+        FieldElement const dx = offsets[i].x - base_x;
+        bool const is_zero = (dx == zero);
         scratch[i] = is_zero ? FieldElement::one() : dx;
     }
 
@@ -172,19 +172,19 @@ void batch_add_affine_x_with_parity(
 
     // Phase 3: Addition + Y parity
     for (std::size_t i = 0; i < count; ++i) {
-        FieldElement dx_original = offsets[i].x - base_x;
+        FieldElement const dx_original = offsets[i].x - base_x;
         if (dx_original == zero) {
             out_x[i] = zero;
             out_parity[i] = 0;
             continue;
         }
 
-        FieldElement dy = offsets[i].y - base_y;
-        FieldElement lambda = dy * scratch[i];
+        FieldElement const dy = offsets[i].y - base_y;
+        FieldElement const lambda = dy * scratch[i];
         FieldElement lambda_sq = lambda;
         lambda_sq.square_inplace();
-        FieldElement x3 = lambda_sq - base_x - offsets[i].x;
-        FieldElement y3 = lambda * (base_x - x3) - base_y;
+        FieldElement const x3 = lambda_sq - base_x - offsets[i].x;
+        FieldElement const y3 = lambda * (base_x - x3) - base_y;
 
         out_x[i] = x3;
 
@@ -220,8 +220,8 @@ void batch_add_affine_x_bidirectional(
 
     // Phase 1: dx for both directions (zero-safe: replace 0 -> 1)
     for (std::size_t i = 0; i < count; ++i) {
-        FieldElement dx_fwd = offsets_fwd[i].x - base_x;
-        FieldElement dx_bwd = offsets_bwd[i].x - base_x;
+        FieldElement const dx_fwd = offsets_fwd[i].x - base_x;
+        FieldElement const dx_bwd = offsets_bwd[i].x - base_x;
         scratch[i]         = (dx_fwd == zero) ? FieldElement::one() : dx_fwd;
         scratch[count + i] = (dx_bwd == zero) ? FieldElement::one() : dx_bwd;
     }
@@ -231,13 +231,13 @@ void batch_add_affine_x_bidirectional(
 
     // Phase 3: Forward results
     for (std::size_t i = 0; i < count; ++i) {
-        FieldElement dx_original = offsets_fwd[i].x - base_x;
+        FieldElement const dx_original = offsets_fwd[i].x - base_x;
         if (dx_original == zero) {
             out_x_fwd[i] = zero;
             continue;
         }
-        FieldElement dy = offsets_fwd[i].y - base_y;
-        FieldElement lambda = dy * scratch[i];
+        FieldElement const dy = offsets_fwd[i].y - base_y;
+        FieldElement const lambda = dy * scratch[i];
         FieldElement lambda_sq = lambda;
         lambda_sq.square_inplace();
         out_x_fwd[i] = lambda_sq - base_x - offsets_fwd[i].x;
@@ -245,13 +245,13 @@ void batch_add_affine_x_bidirectional(
 
     // Phase 4: Backward results
     for (std::size_t i = 0; i < count; ++i) {
-        FieldElement dx_original = offsets_bwd[i].x - base_x;
+        FieldElement const dx_original = offsets_bwd[i].x - base_x;
         if (dx_original == zero) {
             out_x_bwd[i] = zero;
             continue;
         }
-        FieldElement dy = offsets_bwd[i].y - base_y;
-        FieldElement lambda = dy * scratch[count + i];
+        FieldElement const dy = offsets_bwd[i].y - base_y;
+        FieldElement const lambda = dy * scratch[count + i];
         FieldElement lambda_sq = lambda;
         lambda_sq.square_inplace();
         out_x_bwd[i] = lambda_sq - base_x - offsets_bwd[i].x;
@@ -292,10 +292,10 @@ std::vector<AffinePointCompact> precompute_g_multiples(std::size_t count) {
 
     // Convert Jacobian -> Affine: x_aff = X * Z^{-2}, y_aff = Y * Z^{-3}
     for (std::size_t i = 0; i < count; ++i) {
-        FieldElement z_inv = jac_z[i];
+        FieldElement const z_inv = jac_z[i];
         FieldElement z_inv2 = z_inv;
         z_inv2.square_inplace();        // Z^{-2}
-        FieldElement z_inv3 = z_inv2 * z_inv;  // Z^{-3}
+        FieldElement const z_inv3 = z_inv2 * z_inv;  // Z^{-3}
 
         table[i].x = jac_x[i] * z_inv2;
         table[i].y = jac_y[i] * z_inv3;
@@ -335,10 +335,10 @@ std::vector<AffinePointCompact> precompute_point_multiples(
 
     // Convert to affine
     for (std::size_t i = 0; i < count; ++i) {
-        FieldElement z_inv = jac_z[i];
+        FieldElement const z_inv = jac_z[i];
         FieldElement z_inv2 = z_inv;
         z_inv2.square_inplace();
-        FieldElement z_inv3 = z_inv2 * z_inv;
+        FieldElement const z_inv3 = z_inv2 * z_inv;
 
         table[i].x = jac_x[i] * z_inv2;
         table[i].y = jac_y[i] * z_inv3;

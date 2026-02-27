@@ -61,7 +61,7 @@ namespace secp256k1::fast {
 // Helper to parse boolean-like environment variables
 [[maybe_unused]] static inline bool env_truthy(const char* v) {
     if (!v) return false;
-    char c = v[0];
+    char const c = v[0];
     return (c == '1' || c == 'T' || c == 't' || c == 'Y' || c == 'y');
 }
 
@@ -145,8 +145,8 @@ inline void add_to_wide(uint64_t result[8], size_t i, uint64_t lo, uint64_t hi) 
 // ===================================================================
 
 void mul_4x4_bmi2(const uint64_t a[4], const uint64_t b[4], uint64_t result[8]) {
-    uint64_t lo, hi;
-    uint8_t carry;
+    uint64_t lo = 0, hi = 0;
+    uint8_t carry = 0;
     
     // Initialize result to zero
     result[0] = result[1] = result[2] = result[3] = 0;
@@ -276,8 +276,8 @@ void square_4_karatsuba(const uint64_t a[4], uint64_t result[8]) {
     // a^2 = (a_high*2^128 + a_low)^2
     //    = a_high^2*2^256 + 2*a_high*a_low*2^128 + a_low^2
     
-    uint64_t lo, hi;
-    uint8_t carry;
+    uint64_t lo = 0, hi = 0;
+    uint8_t carry = 0;
     
     // Low half: a_low = a[0..1]
     // High half: a_high = a[2..3]
@@ -289,7 +289,7 @@ void square_4_karatsuba(const uint64_t a[4], uint64_t result[8]) {
     mulx64(a[0], a[0], low_sq[0], low_sq[1]);
     
     // a[1]^2
-    uint64_t t0, t1;
+    uint64_t t0 = 0, t1 = 0;
     mulx64(a[1], a[1], t0, t1);
     carry = 0;
     carry = adcx64(low_sq[2], t0, carry, low_sq[2]);
@@ -439,8 +439,8 @@ void square_4_toomcook(const uint64_t a[4], uint64_t result[8]) {
 // ===================================================================
 
 void square_4_bmi2(const uint64_t a[4], uint64_t result[8]) {
-    uint64_t lo, hi;
-    uint8_t carry;
+    uint64_t lo = 0, hi = 0;
+    uint8_t carry = 0;
     
     // Initialize result
     result[0] = result[1] = result[2] = result[3] = 0;
@@ -563,11 +563,11 @@ void montgomery_reduce_bmi2(uint64_t result[8]) {
     
     // Process each high limb: add t[4+i] * (2^32 + 977)
     for (size_t i = 0; i < 4; ++i) {
-        uint64_t hi_limb = result[4 + i];
+        uint64_t const hi_limb = result[4 + i];
         if (hi_limb == 0) continue;
         
         // Add hi_limb * 977
-        uint64_t lo, hi;
+        uint64_t lo = 0, hi = 0;
         mulx64(hi_limb, 977, lo, hi);
         
         uint8_t carry = 0;
@@ -586,8 +586,8 @@ void montgomery_reduce_bmi2(uint64_t result[8]) {
         // Add hi_limb * 2^32 (shift left by 32 bits)
         // This means: add (hi_limb << 32) at position i
         // Split into two 32-bit halves
-        uint64_t lo_half = (hi_limb << 32) & 0xFFFFFFFFFFFFFFFFULL;
-        uint64_t hi_half = hi_limb >> 32;
+        uint64_t const lo_half = (hi_limb << 32) & 0xFFFFFFFFFFFFFFFFULL;
+        uint64_t const hi_half = hi_limb >> 32;
         
         carry = 0;
         carry = adcx64(reduced[i], lo_half, carry, reduced[i]);
@@ -605,11 +605,11 @@ void montgomery_reduce_bmi2(uint64_t result[8]) {
     
     // If extra limb is non-zero, do one more reduction step
     while (reduced[4] != 0) {
-        uint64_t hi_limb = reduced[4];
+        uint64_t const hi_limb = reduced[4];
         reduced[4] = 0;
         
         // Add hi_limb * 977
-        uint64_t lo, hi;
+        uint64_t lo = 0, hi = 0;
         mulx64(hi_limb, 977, lo, hi);
         
         uint8_t carry = 0;
@@ -620,8 +620,8 @@ void montgomery_reduce_bmi2(uint64_t result[8]) {
         carry = adcx64(reduced[4], 0, carry, reduced[4]);
         
         // Add hi_limb * 2^32
-        uint64_t lo_half = (hi_limb << 32);
-        uint64_t hi_half = hi_limb >> 32;
+        uint64_t const lo_half = (hi_limb << 32);
+        uint64_t const hi_half = hi_limb >> 32;
         
         carry = 0;
         carry = adcx64(reduced[0], lo_half, carry, reduced[0]);
@@ -653,7 +653,7 @@ void montgomery_reduce_bmi2(uint64_t result[8]) {
     if (need_sub) {
         uint8_t borrow = 0;
         for (size_t i = 0; i < 4; ++i) {
-            uint64_t diff = reduced[i] - p[i] - borrow;
+            uint64_t const diff = reduced[i] - p[i] - borrow;
             borrow = (reduced[i] < p[i] + borrow) ? 1 : 0;
             reduced[i] = diff;
         }
@@ -841,7 +841,7 @@ FieldElement field_negate_bmi2(const FieldElement& a) {
     // Compute p - a
     uint8_t borrow = 0;
     for (int i = 0; i < 4; ++i) {
-        uint64_t diff = p[i] - a_limbs[i] - borrow;
+        uint64_t const diff = p[i] - a_limbs[i] - borrow;
         borrow = (p[i] < a_limbs[i] + borrow) ? 1 : 0;
         result[i] = diff;
     }

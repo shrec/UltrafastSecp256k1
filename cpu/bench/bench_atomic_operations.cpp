@@ -26,7 +26,7 @@ double benchmark_ns(Func&& f, int iterations = 10000) {
     }
     auto end = high_resolution_clock::now();
     
-    double total_ns = static_cast<double>(duration_cast<nanoseconds>(end - start).count());
+    double const total_ns = static_cast<double>(duration_cast<nanoseconds>(end - start).count());
     return total_ns / iterations;
 }
 
@@ -55,7 +55,7 @@ int main() {
     std::cout << "================================================================\n\n";
 
     // Prepare test data -- full 256-bit values for representative results
-    Point G = Point::generator();
+    Point const G = Point::generator();
     (void)G;
     Point P = scalar_mul_generator(Scalar::from_hex(
         "e8f32e723decf4051aefac8e2c93c9c5b214313817cdb01a1494b917c8436b35"));
@@ -66,14 +66,14 @@ int main() {
         "79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798");
     FieldElement b = FieldElement::from_hex(
         "483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8");
-    FieldElement c = FieldElement::from_hex(
+    FieldElement const c = FieldElement::from_hex(
         "9c47d08ffb10d4b8483ada7726a3c46555a06295ce870b0779be667ef9dcbbac");
     (void)c;
 
     std::cout << "=== POINT OPERATIONS (Jacobian Coordinates) ===\n\n";
     
     // Point Addition: Jacobian + Jacobian (immutable - with allocation)
-    double point_add_immutable = benchmark_ns([&]() {
+    double const point_add_immutable = benchmark_ns([&]() {
         volatile auto R = P.add(Q);
         (void)R;
     });
@@ -82,7 +82,7 @@ int main() {
     
     // Point Addition: In-place (mutable - no allocation!)
     Point P_copy = P;
-    double point_add_inplace = benchmark_ns([&]() {
+    double const point_add_inplace = benchmark_ns([&]() {
         P_copy = P;  // Reset for each iteration
         P_copy.add_inplace(Q);
     }, 1000);  // Fewer iterations since we modify
@@ -92,10 +92,10 @@ int main() {
               << (point_add_immutable / point_add_inplace) << "x\n\n";
 
     // Use the in-place timing as the representative Jac+Jac add cost
-    double point_add_jac_jac = point_add_inplace;
+    double const point_add_jac_jac = point_add_inplace;
     
     // Point Doubling: Immutable
-    double point_double_immutable = benchmark_ns([&]() {
+    double const point_double_immutable = benchmark_ns([&]() {
         volatile auto R = P.dbl();
         (void)R;
     });
@@ -103,7 +103,7 @@ int main() {
               << point_double_immutable << " ns/op  [4M+4S + allocation]\n";
     
     // Point Doubling: In-place
-    double point_dbl_inplace = benchmark_ns([&]() {
+    double const point_dbl_inplace = benchmark_ns([&]() {
         P_copy = P;  // Reset
         P_copy.dbl_inplace();
     }, 1000);
@@ -113,17 +113,17 @@ int main() {
               << (point_double_immutable / point_dbl_inplace) << "x\n\n";
 
     // Use the in-place timing as the representative double cost
-    double point_double_time = point_dbl_inplace;
+    double const point_double_time = point_dbl_inplace;
     
     // Next (G+1): Immutable vs In-place
-    double next_immutable = benchmark_ns([&]() {
+    double const next_immutable = benchmark_ns([&]() {
         volatile auto R = P.next();
         (void)R;
     });
     std::cout << "Next G+1 (immutable):        " << std::fixed << std::setprecision(2) 
               << next_immutable << " ns/op  [mixed 7M+4S + allocation]\n";
     
-    double next_inplace = benchmark_ns([&]() {
+    double const next_inplace = benchmark_ns([&]() {
         P_copy = P;  // Reset
         P_copy.next_inplace();
     }, 1000);
@@ -133,7 +133,7 @@ int main() {
               << (next_immutable / next_inplace) << "x\n";
     
     // Point Negation (trivial - just flips Y coordinate)
-    double point_negate_time = benchmark_ns([&]() {
+    double const point_negate_time = benchmark_ns([&]() {
         volatile auto R = P.negate();
         (void)R;
     });
@@ -143,7 +143,7 @@ int main() {
     std::cout << "\n=== FIELD OPERATIONS (256-bit modular arithmetic) ===\n\n";
     
     // Field Multiplication
-    double field_mul_time = benchmark_ns([&]() {
+    double const field_mul_time = benchmark_ns([&]() {
         volatile auto r = a * b;
         (void)r;
     });
@@ -151,7 +151,7 @@ int main() {
               << field_mul_time << " ns/op\n";
     
     // Field Squaring
-    double field_sqr_time = benchmark_ns([&]() {
+    double const field_sqr_time = benchmark_ns([&]() {
         volatile auto r = a.square();
         (void)r;
     });
@@ -159,7 +159,7 @@ int main() {
               << field_sqr_time << " ns/op\n";
     
     // Field Addition
-    double field_add_time = benchmark_ns([&]() {
+    double const field_add_time = benchmark_ns([&]() {
         volatile auto r = a + b;
         (void)r;
     });
@@ -167,7 +167,7 @@ int main() {
               << field_add_time << " ns/op\n";
     
     // Field Subtraction
-    double field_sub_time = benchmark_ns([&]() {
+    double const field_sub_time = benchmark_ns([&]() {
         volatile auto r = a - b;
         (void)r;
     });
@@ -175,7 +175,7 @@ int main() {
               << field_sub_time << " ns/op\n";
 
     // Field Inverse (expensive!)
-    double field_inv_time = benchmark_ns([&]() {
+    double const field_inv_time = benchmark_ns([&]() {
         volatile auto r = a.inverse();
         (void)r;
     }, 1000);  // Only 1000 iterations - inverse is slow!
@@ -185,7 +185,7 @@ int main() {
     std::cout << "\n=== COMPOSITE OPERATIONS ===\n\n";
     
     // Triple (3*P = P + P + P)
-    double point_triple_time = benchmark_ns([&]() {
+    double const point_triple_time = benchmark_ns([&]() {
         volatile auto R = P.dbl().add(P);
         (void)R;
     });
@@ -196,7 +196,7 @@ int main() {
     // NOTE: benchmark the conversion itself, NOT scalar_mul (pre-compute the point)
     Point P_jac = scalar_mul_generator(Scalar::from_hex(
         "b5037ebecae0da656179c623f6cb73641db2aa0fabe888ffb78466fa18470379"));
-    double to_affine_time = benchmark_ns([&]() {
+    double const to_affine_time = benchmark_ns([&]() {
         volatile auto x = P_jac.x();
         volatile auto y = P_jac.y();
         (void)x; (void)y;
@@ -207,7 +207,7 @@ int main() {
     std::cout << "\n=== PERFORMANCE ANALYSIS ===\n\n";
     
     // Cost breakdown of Point Addition (Jacobian+Jacobian)
-    double point_add_jac_theory = 12 * field_mul_time + 4 * field_sqr_time + 8 * field_add_time;
+    double const point_add_jac_theory = 12 * field_mul_time + 4 * field_sqr_time + 8 * field_add_time;
     std::cout << "Point Add Jac+Jac theoretical cost (12M+4S+8A):\n";
     std::cout << "  Estimated: " << std::fixed << std::setprecision(2) 
               << point_add_jac_theory << " ns\n";
@@ -230,7 +230,7 @@ int main() {
     //           << (point_add_jac_jac / point_add_mixed) << "x\n\n";
     
     // Cost breakdown of Point Doubling
-    double point_dbl_theory = 4 * field_mul_time + 4 * field_sqr_time + 4 * field_add_time;
+    double const point_dbl_theory = 4 * field_mul_time + 4 * field_sqr_time + 4 * field_add_time;
     std::cout << "Point Doubling theoretical cost (4M + 4S + 4A):\n";
     std::cout << "  Estimated: " << std::fixed << std::setprecision(2) 
               << point_dbl_theory << " ns\n";

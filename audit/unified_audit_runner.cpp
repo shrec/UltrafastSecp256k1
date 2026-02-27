@@ -353,7 +353,7 @@ static PlatformInfo detect_platform() {
 static std::string json_escape(const std::string& s) {
     std::string out;
     out.reserve(s.size() + 8);
-    for (char c : s) {
+    for (char const c : s) {
         switch (c) {
             case '"':  out += "\\\""; break;
             case '\\': out += "\\\\"; break;
@@ -579,7 +579,7 @@ static std::string get_exe_dir() {
 #ifdef _WIN32
     char buf[MAX_PATH] = {};
     GetModuleFileNameA(nullptr, buf, MAX_PATH);
-    std::string path(buf);
+    std::string const path(buf);
     auto pos = path.find_last_of("\\/");
     return (pos != std::string::npos) ? path.substr(0, pos) : ".";
 #else
@@ -663,17 +663,18 @@ int main(int argc, char* argv[]) {
                     plat.os.c_str(), plat.arch.c_str(),
                     plat.compiler.c_str(), plat.build_type.c_str());
         std::printf("  %s\n", plat.timestamp.c_str());
-        if (!section_filter.empty())
+        if (!section_filter.empty()) {
             std::printf("  Filter: section=%s\n", section_filter.c_str());
+}
         std::printf("================================================================\n\n");
     }
 
     // -- Phase 1: Library selftest ----------------------------------------
     if (!json_only) std::printf("[Phase 1/3] Library selftest (ci mode)...\n");
     auto st_start = std::chrono::steady_clock::now();
-    bool selftest_passed = Selftest(false, SelftestMode::ci, 0);
+    bool const selftest_passed = Selftest(false, SelftestMode::ci, 0);
     auto st_end = std::chrono::steady_clock::now();
-    double selftest_ms = std::chrono::duration<double, std::milli>(st_end - st_start).count();
+    double const selftest_ms = std::chrono::duration<double, std::milli>(st_end - st_start).count();
 
     if (!json_only) {
         if (selftest_passed) {
@@ -687,8 +688,9 @@ int main(int argc, char* argv[]) {
     // Count modules to run (with filter)
     int modules_to_run = 0;
     for (int i = 0; i < NUM_MODULES; ++i) {
-        if (section_filter.empty() || section_filter == ALL_MODULES[i].section)
+        if (section_filter.empty() || section_filter == ALL_MODULES[i].section) {
             ++modules_to_run;
+}
     }
 
     if (!json_only) {
@@ -711,8 +713,9 @@ int main(int argc, char* argv[]) {
         auto& m = ALL_MODULES[i];
 
         // Apply section filter
-        if (!section_filter.empty() && section_filter != m.section)
+        if (!section_filter.empty() && section_filter != m.section) {
             continue;
+}
 
         // Print section header on transition
         if (!json_only && std::strcmp(m.section, current_section) != 0) {
@@ -736,11 +739,11 @@ int main(int argc, char* argv[]) {
         }
 
         auto t0 = std::chrono::steady_clock::now();
-        int rc = m.run();
+        int const rc = m.run();
         auto t1 = std::chrono::steady_clock::now();
-        double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
+        double const ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
 
-        bool ok = (rc == 0);
+        bool const ok = (rc == 0);
         if (ok) {
             ++modules_passed;
             if (!json_only) std::printf("PASS  (%.0f ms)\n", ms);
@@ -753,13 +756,13 @@ int main(int argc, char* argv[]) {
     }
 
     auto total_end = std::chrono::steady_clock::now();
-    double total_ms = std::chrono::duration<double, std::milli>(total_end - total_start).count();
+    double const total_ms = std::chrono::duration<double, std::milli>(total_end - total_start).count();
 
     // -- Phase 3: Generate reports ---------------------------------------
     if (!json_only) std::printf("\n[Phase 3/3] Generating audit reports...\n");
 
-    std::string json_path = report_dir + "/audit_report.json";
-    std::string text_path = report_dir + "/audit_report.txt";
+    std::string const json_path = report_dir + "/audit_report.json";
+    std::string const text_path = report_dir + "/audit_report.txt";
 
     write_json_report(json_path.c_str(), plat, results, selftest_passed, selftest_ms, total_ms);
     if (!json_only) {
@@ -788,9 +791,9 @@ int main(int argc, char* argv[]) {
     }
 
     // -- Final Summary ---------------------------------------------------
-    int total_pass = modules_passed + (selftest_passed ? 1 : 0);
-    int total_fail = modules_failed + (selftest_passed ? 0 : 1);
-    int total_count = total_pass + total_fail;
+    int const total_pass = modules_passed + (selftest_passed ? 1 : 0);
+    int const total_fail = modules_failed + (selftest_passed ? 0 : 1);
+    int const total_count = total_pass + total_fail;
 
     if (!json_only) {
         std::printf("\n================================================================\n");

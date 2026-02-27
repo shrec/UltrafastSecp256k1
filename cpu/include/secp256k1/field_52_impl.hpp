@@ -117,8 +117,8 @@ void fe52_mul_inner(std::uint64_t* __restrict__ r,
     fe52_mul_inner_riscv64(r, a, b);
 #else
     using u128 = unsigned __int128;
-    u128 c, d;
-    std::uint64_t t3, t4, tx, u0;
+    u128 c = 0, d = 0;
+    std::uint64_t t3 = 0, t4 = 0, tx = 0, u0 = 0;
     const std::uint64_t a0 = a[0], a1 = a[1], a2 = a[2], a3 = a[3], a4 = a[4];
 
     // -- Column 3 + reduced column 8 ---------------------------------
@@ -206,8 +206,8 @@ void fe52_sqr_inner(std::uint64_t* __restrict__ r,
     fe52_sqr_inner_riscv64(r, a);
 #else
     using u128 = unsigned __int128;
-    u128 c, d;
-    std::uint64_t t3, t4, tx, u0;
+    u128 c = 0, d = 0;
+    std::uint64_t t3 = 0, t4 = 0, tx = 0, u0 = 0;
     const std::uint64_t a0 = a[0], a1 = a[1], a2 = a[2], a3 = a[3], a4 = a[4];
 
     // -- Column 3 + reduced column 8 ---------------------------------
@@ -278,7 +278,7 @@ void fe52_normalize_weak(std::uint64_t* r) noexcept {
     t2 += (t1 >> 52); t1 &= M52;
     t3 += (t2 >> 52); t2 &= M52;
     t4 += (t3 >> 52); t3 &= M52;
-    std::uint64_t x = t4 >> 48;
+    std::uint64_t const x = t4 >> 48;
     t4 &= M48;
     t0 += x * 0x1000003D1ULL;
     t1 += (t0 >> 52); t0 &= M52;

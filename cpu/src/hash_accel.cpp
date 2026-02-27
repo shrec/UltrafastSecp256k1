@@ -198,15 +198,15 @@ namespace scalar {
 #define SHA256_ROUND(a, b, c, d, e, f, g, h, ki, wi)          \
     do {                                                        \
         std::uint32_t S1 = rotr32(e, 6) ^ rotr32(e, 11) ^ rotr32(e, 25); \
-        std::uint32_t ch = (e & f) ^ (~e & g);                 \
-        std::uint32_t temp1 = h + S1 + ch + ki + wi;           \
+        std::uint32_t ch = ((e) & (f)) ^ (~(e) & (g));                 \
+        std::uint32_t temp1 = (h) + S1 + ch + (ki) + (wi);           \
         std::uint32_t S0 = rotr32(a, 2) ^ rotr32(a, 13) ^ rotr32(a, 22); \
-        std::uint32_t maj = (a & b) ^ (a & c) ^ (b & c);       \
+        std::uint32_t maj = ((a) & (b)) ^ ((a) & (c)) ^ ((b) & (c));       \
         std::uint32_t temp2 = S0 + maj;                         \
-        h = g; g = f; f = e;                                    \
-        e = d + temp1;                                          \
-        d = c; c = b; b = a;                                    \
-        a = temp1 + temp2;                                      \
+        (h) = g; (g) = f; (f) = e;                                    \
+        (e) = (d) + temp1;                                          \
+        (d) = c; (c) = b; (b) = a;                                    \
+        (a) = temp1 + temp2;                                      \
     } while(0)
 
 void sha256_compress(const std::uint8_t block[64], std::uint32_t state[8]) noexcept {
@@ -219,8 +219,8 @@ void sha256_compress(const std::uint8_t block[64], std::uint32_t state[8]) noexc
 
     // Message schedule expansion
     for (int i = 16; i < 64; ++i) {
-        std::uint32_t s0 = rotr32(w[i-15], 7) ^ rotr32(w[i-15], 18) ^ (w[i-15] >> 3);
-        std::uint32_t s1 = rotr32(w[i-2], 17) ^ rotr32(w[i-2], 19) ^ (w[i-2] >> 10);
+        std::uint32_t const s0 = rotr32(w[i-15], 7) ^ rotr32(w[i-15], 18) ^ (w[i-15] >> 3);
+        std::uint32_t const s1 = rotr32(w[i-2], 17) ^ rotr32(w[i-2], 19) ^ (w[i-2] >> 10);
         w[i] = w[i-16] + s0 + w[i-7] + s1;
     }
 
@@ -229,12 +229,12 @@ void sha256_compress(const std::uint8_t block[64], std::uint32_t state[8]) noexc
 
     // 64 rounds -- let the compiler unroll
     for (int i = 0; i < 64; ++i) {
-        std::uint32_t S1 = rotr32(e, 6) ^ rotr32(e, 11) ^ rotr32(e, 25);
-        std::uint32_t ch = (e & f) ^ (~e & g);
-        std::uint32_t temp1 = h + S1 + ch + SHA256_K[i] + w[i];
-        std::uint32_t S0 = rotr32(a, 2) ^ rotr32(a, 13) ^ rotr32(a, 22);
-        std::uint32_t maj = (a & b) ^ (a & c) ^ (b & c);
-        std::uint32_t temp2 = S0 + maj;
+        std::uint32_t const S1 = rotr32(e, 6) ^ rotr32(e, 11) ^ rotr32(e, 25);
+        std::uint32_t const ch = (e & f) ^ (~e & g);
+        std::uint32_t const temp1 = h + S1 + ch + SHA256_K[i] + w[i];
+        std::uint32_t const S0 = rotr32(a, 2) ^ rotr32(a, 13) ^ rotr32(a, 22);
+        std::uint32_t const maj = (a & b) ^ (a & c) ^ (b & c);
+        std::uint32_t const temp2 = S0 + maj;
         h = g; g = f; f = e; e = d + temp1;
         d = c; c = b; b = a; a = temp1 + temp2;
     }
@@ -299,8 +299,9 @@ static inline std::uint32_t rmd_f(int j, std::uint32_t x, std::uint32_t y, std::
 
 void ripemd160_compress(const std::uint8_t block[64], std::uint32_t state[5]) noexcept {
     std::uint32_t X[16];
-    for (int i = 0; i < 16; ++i)
+    for (int i = 0; i < 16; ++i) {
         X[i] = load_le32(block + i * 4);
+}
 
     static constexpr int rl[80] = {
         0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,
@@ -346,7 +347,7 @@ void ripemd160_compress(const std::uint8_t block[64], std::uint32_t state[5]) no
         ar = er; er = dr; dr = rotl32(cr, 10); cr = br; br = tr;
     }
 
-    std::uint32_t t = state[1] + cl + dr;
+    std::uint32_t const t = state[1] + cl + dr;
     state[1] = state[2] + dl + er;
     state[2] = state[3] + el + ar;
     state[3] = state[4] + al + br;
@@ -402,10 +403,10 @@ namespace shani {
 #define SHA256_SHANI_4ROUNDS(state0, state1, msg, k_offset)               \
     do {                                                                    \
         __m128i tmp = _mm_add_epi32(msg, _mm_loadu_si128(                  \
-            reinterpret_cast<const __m128i*>(SHA256_K + k_offset)));        \
-        state1 = _mm_sha256rnds2_epu32(state1, state0, tmp);              \
+            reinterpret_cast<const __m128i*>(SHA256_K + (k_offset))));        \
+        (state1) = _mm_sha256rnds2_epu32(state1, state0, tmp);              \
         tmp = _mm_shuffle_epi32(tmp, 0x0E);                                \
-        state0 = _mm_sha256rnds2_epu32(state0, state1, tmp);              \
+        (state0) = _mm_sha256rnds2_epu32(state0, state1, tmp);              \
     } while(0)
 
 #ifdef _MSC_VER
@@ -424,7 +425,7 @@ SHANI_FUNC_ATTR
 void sha256_compress(const std::uint8_t block[64], std::uint32_t state[8]) noexcept {
     // Load state into two 128-bit registers
     // state0 = [A B E F], state1 = [C D G H]  (SHA-NI layout)
-    __m128i abef = _mm_loadu_si128(reinterpret_cast<const __m128i*>(state));
+    __m128i const abef = _mm_loadu_si128(reinterpret_cast<const __m128i*>(state));
     __m128i cdgh = _mm_loadu_si128(reinterpret_cast<const __m128i*>(state + 4));
 
     // SHA-NI expects state in specific lane order
@@ -435,8 +436,8 @@ void sha256_compress(const std::uint8_t block[64], std::uint32_t state[8]) noexc
     __m128i state1 = _mm_blend_epi16(cdgh, shuf, 0xF0); // [C D G H]
 
     // Save original state for final addition
-    __m128i state0_save = state0;
-    __m128i state1_save = state1;
+    __m128i const state0_save = state0;
+    __m128i const state1_save = state1;
 
     // Load and byte-swap message words
     const __m128i MASK = _mm_set_epi64x(0x0C0D0E0F08090A0BULL, 0x0405060700010203ULL);
@@ -533,8 +534,8 @@ void sha256_compress(const std::uint8_t block[64], std::uint32_t state[8]) noexc
     // Rearrange back from [F,E,B,A]/[H,G,D,C] to [A,B,C,D]/[E,F,G,H]
     shuf = _mm_shuffle_epi32(state0, 0x1B);                // [A,B,E,F]
     state1 = _mm_shuffle_epi32(state1, 0xB1);             // [G,H,C,D]
-    __m128i abcd = _mm_blend_epi16(shuf, state1, 0xF0);    // [A,B,C,D]
-    __m128i efgh = _mm_alignr_epi8(state1, shuf, 8);       // [E,F,G,H]
+    __m128i const abcd = _mm_blend_epi16(shuf, state1, 0xF0);    // [A,B,C,D]
+    __m128i const efgh = _mm_alignr_epi8(state1, shuf, 8);       // [E,F,G,H]
 
     _mm_storeu_si128(reinterpret_cast<__m128i*>(state), abcd);
     _mm_storeu_si128(reinterpret_cast<__m128i*>(state + 4), efgh);
@@ -644,9 +645,10 @@ std::array<std::uint8_t, 20> ripemd160(const void* data, std::size_t len) noexce
         std::memcpy(block, data, len);
         block[len] = 0x80;
         std::memset(block + len + 1, 0, 55 - len);
-        std::uint64_t bits = len * 8;
-        for (int i = 0; i < 8; ++i)
+        std::uint64_t const bits = len * 8;
+        for (int i = 0; i < 8; ++i) {
             block[56 + i] = std::uint8_t(bits >> (i * 8));
+}
 
         std::uint32_t state[5];
         std::memcpy(state, RIPEMD160_IV, sizeof(state));
@@ -675,12 +677,13 @@ std::array<std::uint8_t, 20> ripemd160(const void* data, std::size_t len) noexce
     std::memcpy(block, ptr, remaining);
     block[remaining] = 0x80;
 
-    std::size_t pad_len = (remaining < 56) ? 64 : 128;
+    std::size_t const pad_len = (remaining < 56) ? 64 : 128;
     std::memset(block + remaining + 1, 0, pad_len - remaining - 1 - 8);
 
-    std::uint64_t bits = len * 8;
-    for (std::size_t i = 0; i < 8; ++i)
+    std::uint64_t const bits = len * 8;
+    for (std::size_t i = 0; i < 8; ++i) {
         block[pad_len - 8 + i] = std::uint8_t(bits >> (i * 8));
+}
 
     scalar::ripemd160_compress(block, state);
     if (pad_len == 128) {

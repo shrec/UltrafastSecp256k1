@@ -157,7 +157,7 @@ int main() {
     std::vector<FrostPartialSig> partial_sigs;
 
     for (size_t i = 0; i < signers.size(); ++i) {
-        uint32_t idx = signers[i] - 1;  // 0-based index into key_packages
+        uint32_t const idx = signers[i] - 1;  // 0-based index into key_packages
 
         auto partial = frost_sign(
             key_packages[idx], nonces[i], msg, nonce_commitments);
@@ -188,21 +188,21 @@ int main() {
 
     // Extract x-only key (32 bytes) for BIP-340 verification
     auto gpk_x = gpk.x().to_bytes();
-    bool valid = schnorr_verify(gpk_x, msg, final_sig);
+    bool const valid = schnorr_verify(gpk_x, msg, final_sig);
     printf("  schnorr_verify(group_pubkey, msg, sig) = %s\n",
            valid ? "PASS" : "FAIL");
 
     // Tampered message
     auto bad_msg = msg;
     bad_msg[0] ^= 0x01;
-    bool bad_valid = schnorr_verify(gpk_x, bad_msg, final_sig);
+    bool const bad_valid = schnorr_verify(gpk_x, bad_msg, final_sig);
     printf("  Tampered message verify = %s (expected FAIL)\n",
            bad_valid ? "PASS" : "FAIL");
     printf("\n");
 
     // -- Summary --------------------------------------------------------------
 
-    bool all_pass = valid && !bad_valid;
+    bool const all_pass = valid && !bad_valid;
     printf("=== %s ===\n", all_pass
            ? "FROST 2-of-3 demo completed successfully"
            : "FROST demo FAILED");

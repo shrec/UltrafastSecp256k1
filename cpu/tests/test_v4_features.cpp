@@ -48,18 +48,18 @@ static void test_pedersen_basic() {
     CHECK(G_comp != H_comp, "H_differs_from_G");
 
     // Basic commit and verify
-    Scalar value = Scalar::from_uint64(42);
-    Scalar blinding = Scalar::from_uint64(12345);
+    Scalar const value = Scalar::from_uint64(42);
+    Scalar const blinding = Scalar::from_uint64(12345);
     auto commitment = pedersen_commit(value, blinding);
     CHECK(!commitment.point.is_infinity(), "commitment_not_infinity");
     CHECK(commitment.verify(value, blinding), "commit_verify_roundtrip");
 
     // Wrong value should fail
-    Scalar wrong_value = Scalar::from_uint64(43);
+    Scalar const wrong_value = Scalar::from_uint64(43);
     CHECK(!commitment.verify(wrong_value, blinding), "wrong_value_fails");
 
     // Wrong blinding should fail
-    Scalar wrong_blind = Scalar::from_uint64(99999);
+    Scalar const wrong_blind = Scalar::from_uint64(99999);
     CHECK(!commitment.verify(value, wrong_blind), "wrong_blinding_fails");
 }
 
@@ -67,10 +67,10 @@ static void test_pedersen_homomorphic() {
     std::printf("\n=== Pedersen Homomorphic ===\n");
 
     // C(v1,r1) + C(v2,r2) == C(v1+v2, r1+r2)
-    Scalar v1 = Scalar::from_uint64(100);
-    Scalar r1 = Scalar::from_uint64(11111);
-    Scalar v2 = Scalar::from_uint64(200);
-    Scalar r2 = Scalar::from_uint64(22222);
+    Scalar const v1 = Scalar::from_uint64(100);
+    Scalar const r1 = Scalar::from_uint64(11111);
+    Scalar const v2 = Scalar::from_uint64(200);
+    Scalar const r2 = Scalar::from_uint64(22222);
 
     auto c1 = pedersen_commit(v1, r1);
     auto c2 = pedersen_commit(v2, r2);
@@ -86,19 +86,19 @@ static void test_pedersen_balance() {
     std::printf("\n=== Pedersen Balance ===\n");
 
     // Simulate: 2 inputs (100, 200) -> 2 outputs (150, 150)
-    Scalar v_in1 = Scalar::from_uint64(100);
-    Scalar r_in1 = Scalar::from_uint64(111);
-    Scalar v_in2 = Scalar::from_uint64(200);
-    Scalar r_in2 = Scalar::from_uint64(222);
+    Scalar const v_in1 = Scalar::from_uint64(100);
+    Scalar const r_in1 = Scalar::from_uint64(111);
+    Scalar const v_in2 = Scalar::from_uint64(200);
+    Scalar const r_in2 = Scalar::from_uint64(222);
 
-    Scalar v_out1 = Scalar::from_uint64(150);
-    Scalar r_out1 = Scalar::from_uint64(333);
-    Scalar v_out2 = Scalar::from_uint64(150);
+    Scalar const v_out1 = Scalar::from_uint64(150);
+    Scalar const r_out1 = Scalar::from_uint64(333);
+    Scalar const v_out2 = Scalar::from_uint64(150);
 
     // Compute balancing blinding factor
     Scalar blinds_in[] = {r_in1, r_in2};
     Scalar blinds_out[] = {r_out1};
-    Scalar r_out2 = pedersen_blind_sum(blinds_in, 2, blinds_out, 1);
+    Scalar const r_out2 = pedersen_blind_sum(blinds_in, 2, blinds_out, 1);
 
     auto c_in1 = pedersen_commit(v_in1, r_in1);
     auto c_in2 = pedersen_commit(v_in2, r_in2);
@@ -116,9 +116,9 @@ static void test_pedersen_switch() {
     const auto& J = pedersen_generator_J();
     CHECK(!J.is_infinity(), "generator_J_not_infinity");
 
-    Scalar value = Scalar::from_uint64(777);
-    Scalar blind = Scalar::from_uint64(888);
-    Scalar switch_blind = Scalar::from_uint64(999);
+    Scalar const value = Scalar::from_uint64(777);
+    Scalar const blind = Scalar::from_uint64(888);
+    Scalar const switch_blind = Scalar::from_uint64(999);
     auto commitment = pedersen_switch_commit(value, blind, switch_blind);
     CHECK(!commitment.point.is_infinity(), "switch_commit_not_infinity");
 }
@@ -126,8 +126,8 @@ static void test_pedersen_switch() {
 static void test_pedersen_serialization() {
     std::printf("\n=== Pedersen Serialization ===\n");
 
-    Scalar v = Scalar::from_uint64(12345);
-    Scalar r = Scalar::from_uint64(67890);
+    Scalar const v = Scalar::from_uint64(12345);
+    Scalar const r = Scalar::from_uint64(67890);
     auto c = pedersen_commit(v, r);
     auto compressed = c.to_compressed();
     CHECK(compressed[0] == 0x02 || compressed[0] == 0x03, "compressed_prefix_valid");
@@ -142,16 +142,16 @@ static void test_frost_lagrange() {
     std::printf("\n=== FROST Lagrange ===\n");
 
     // For 2-of-3, signers {1, 2}: lambda_1 = 2/(2-1) = 2, lambda_2 = 1/(1-2) = -1
-    std::vector<ParticipantId> signers = {1, 2};
-    Scalar l1 = frost_lagrange_coefficient(1, signers);
-    Scalar l2 = frost_lagrange_coefficient(2, signers);
+    std::vector<ParticipantId> const signers = {1, 2};
+    Scalar const l1 = frost_lagrange_coefficient(1, signers);
+    Scalar const l2 = frost_lagrange_coefficient(2, signers);
 
     // lambda_1 should be 2
-    Scalar expected_l1 = Scalar::from_uint64(2);
+    Scalar const expected_l1 = Scalar::from_uint64(2);
     CHECK(l1 == expected_l1, "lagrange_l1_equals_2");
 
     // lambda_2 should be -1 (= n-1)
-    Scalar expected_l2 = Scalar::from_uint64(1).negate();
+    Scalar const expected_l2 = Scalar::from_uint64(1).negate();
     CHECK(l2 == expected_l2, "lagrange_l2_equals_neg1");
 
     // lambda_1 * 1 + lambda_2 * 2 should equal the secret (Lagrange property)
@@ -159,10 +159,10 @@ static void test_frost_lagrange() {
     // Let's verify with concrete values: f(x) = 5 + 3x
     // f(1) = 8, f(2) = 11
     // lambda_1*f(1) + lambda_2*f(2) = 2*8 + (-1)*11 = 16 - 11 = 5 = f(0) [ok]
-    Scalar f1 = Scalar::from_uint64(8);
-    Scalar f2 = Scalar::from_uint64(11);
-    Scalar recovered = l1 * f1 + l2 * f2;
-    Scalar expected = Scalar::from_uint64(5);
+    Scalar const f1 = Scalar::from_uint64(8);
+    Scalar const f2 = Scalar::from_uint64(11);
+    Scalar const recovered = l1 * f1 + l2 * f2;
+    Scalar const expected = Scalar::from_uint64(5);
     CHECK(recovered == expected, "lagrange_interpolation");
 }
 
@@ -186,18 +186,18 @@ static void test_frost_keygen() {
 
     // Each participant gets shares from others
     // Participant 1 gets: shares1[0] (own), shares2[0], shares3[0]
-    std::vector<FrostCommitment> all_comms = {comm1, comm2, comm3};
+    std::vector<FrostCommitment> const all_comms = {comm1, comm2, comm3};
 
     // Build received shares for participant 1: from each participant, get their share for id=1
-    std::vector<FrostShare> recv1 = {shares1[0], shares2[0], shares3[0]};
+    std::vector<FrostShare> const recv1 = {shares1[0], shares2[0], shares3[0]};
     auto [pkg1, ok1] = frost_keygen_finalize(1, all_comms, recv1, T, N);
     CHECK(ok1, "participant1_keygen_ok");
 
-    std::vector<FrostShare> recv2 = {shares1[1], shares2[1], shares3[1]};
+    std::vector<FrostShare> const recv2 = {shares1[1], shares2[1], shares3[1]};
     auto [pkg2, ok2] = frost_keygen_finalize(2, all_comms, recv2, T, N);
     CHECK(ok2, "participant2_keygen_ok");
 
-    std::vector<FrostShare> recv3 = {shares1[2], shares2[2], shares3[2]};
+    std::vector<FrostShare> const recv3 = {shares1[2], shares2[2], shares3[2]};
     auto [pkg3, ok3] = frost_keygen_finalize(3, all_comms, recv3, T, N);
     CHECK(ok3, "participant3_keygen_ok");
 
@@ -223,7 +223,7 @@ static void test_frost_2of3_signing() {
     auto [comm2, shares2] = frost_keygen_begin(2, T, N, seed2);
     auto [comm3, shares3] = frost_keygen_begin(3, T, N, seed3);
 
-    std::vector<FrostCommitment> all_comms = {comm1, comm2, comm3};
+    std::vector<FrostCommitment> const all_comms = {comm1, comm2, comm3};
 
     auto [pkg1, ok1] = frost_keygen_finalize(1, all_comms, {shares1[0], shares2[0], shares3[0]}, T, N);
     auto [pkg2, ok2] = frost_keygen_finalize(2, all_comms, {shares1[1], shares2[1], shares3[1]}, T, N);
@@ -239,13 +239,13 @@ static void test_frost_2of3_signing() {
     auto [nonce1, ncomm1] = frost_sign_nonce_gen(1, nonce_seed1);
     auto [nonce2, ncomm2] = frost_sign_nonce_gen(2, nonce_seed2);
 
-    std::vector<FrostNonceCommitment> nonce_comms = {ncomm1, ncomm2};
+    std::vector<FrostNonceCommitment> const nonce_comms = {ncomm1, ncomm2};
 
     auto partial1 = frost_sign(pkg1, nonce1, msg, nonce_comms);
     auto partial2 = frost_sign(pkg2, nonce2, msg, nonce_comms);
 
     // Aggregate
-    std::vector<FrostPartialSig> partials = {partial1, partial2};
+    std::vector<FrostPartialSig> const partials = {partial1, partial2};
     auto sig = frost_aggregate(partials, nonce_comms, pkg1.group_public_key, msg);
 
     // Verify with standard schnorr_verify
@@ -253,7 +253,7 @@ static void test_frost_2of3_signing() {
     (void)gpk_x;
     // Actually just get x-only from group key:
     auto group_x = pkg1.group_public_key.x().to_bytes();
-    bool valid = schnorr_verify(group_x, msg, sig);
+    bool const valid = schnorr_verify(group_x, msg, sig);
     CHECK(valid, "frost_2of3_signature_valid");
 }
 
@@ -277,45 +277,45 @@ static void test_schnorr_adaptor_basic() {
     }
 
     // Adaptor secret
-    Scalar t = Scalar::from_uint64(87654321);
-    Point T = Point::generator().scalar_mul(t);
+    Scalar const t = Scalar::from_uint64(87654321);
+    Point const T = Point::generator().scalar_mul(t);
 
     std::array<std::uint8_t, 32> msg = {};
     msg[0] = 0xDE; msg[1] = 0xAD;
 
-    std::array<std::uint8_t, 32> aux = {};
+    std::array<std::uint8_t, 32> const aux = {};
 
     // Create adaptor pre-signature
     auto pre_sig = schnorr_adaptor_sign(sk, msg, T, aux);
     CHECK(!pre_sig.R_hat.is_infinity(), "adaptor_R_hat_not_infinity");
 
     // Verify pre-signature
-    bool pre_valid = schnorr_adaptor_verify(pre_sig, pk_x, msg, T);
+    bool const pre_valid = schnorr_adaptor_verify(pre_sig, pk_x, msg, T);
     CHECK(pre_valid, "adaptor_pre_sig_valid");
 
     // Adapt with secret t
     auto sig = schnorr_adaptor_adapt(pre_sig, t);
 
     // The adapted signature should be a valid Schnorr signature
-    bool sig_valid = schnorr_verify(pk_x, msg, sig);
+    bool const sig_valid = schnorr_verify(pk_x, msg, sig);
     CHECK(sig_valid, "adapted_sig_valid_schnorr");
 
     // Extract adaptor secret
     auto [extracted_t, extract_ok] = schnorr_adaptor_extract(pre_sig, sig);
     CHECK(extract_ok, "adaptor_extract_ok");
     // t or -t should match
-    bool t_matches = (extracted_t == t) || (extracted_t == t.negate());
+    bool const t_matches = (extracted_t == t) || (extracted_t == t.negate());
     CHECK(t_matches, "extracted_secret_matches");
 }
 
 static void test_ecdsa_adaptor_basic() {
     std::printf("\n=== ECDSA Adaptor Basic ===\n");
 
-    Scalar sk = Scalar::from_uint64(999999);
-    Point pk = Point::generator().scalar_mul(sk);
+    Scalar const sk = Scalar::from_uint64(999999);
+    Point const pk = Point::generator().scalar_mul(sk);
 
-    Scalar t = Scalar::from_uint64(777777);
-    Point T = Point::generator().scalar_mul(t);
+    Scalar const t = Scalar::from_uint64(777777);
+    Point const T = Point::generator().scalar_mul(t);
 
     std::array<std::uint8_t, 32> msg = {};
     msg[0] = 0xCA; msg[1] = 0xFE;
@@ -326,7 +326,7 @@ static void test_ecdsa_adaptor_basic() {
     CHECK(!pre_sig.r.is_zero(), "ecdsa_adaptor_r_nonzero");
 
     // Verify adaptor
-    bool pre_valid = ecdsa_adaptor_verify(pre_sig, pk, msg, T);
+    bool const pre_valid = ecdsa_adaptor_verify(pre_sig, pk, msg, T);
     CHECK(pre_valid, "ecdsa_adaptor_verify_ok");
 
     // Adapt  
@@ -336,7 +336,7 @@ static void test_ecdsa_adaptor_basic() {
     // Extract secret
     auto [extracted_t, ok] = ecdsa_adaptor_extract(pre_sig, sig);
     CHECK(ok, "ecdsa_extract_ok");
-    bool t_match = (extracted_t == t) || (extracted_t == t.negate());
+    bool const t_match = (extracted_t == t) || (extracted_t == t.negate());
     CHECK(t_match, "ecdsa_extracted_secret_matches");
 }
 
@@ -408,8 +408,8 @@ static void test_hash160() {
 static void test_address_p2pkh() {
     std::printf("\n=== P2PKH Address ===\n");
 
-    Scalar sk = Scalar::from_uint64(1);
-    Point pk = Point::generator().scalar_mul(sk);
+    Scalar const sk = Scalar::from_uint64(1);
+    Point const pk = Point::generator().scalar_mul(sk);
 
     auto addr = address_p2pkh(pk, Network::Mainnet);
     CHECK(addr[0] == '1', "p2pkh_starts_with_1");
@@ -422,8 +422,8 @@ static void test_address_p2pkh() {
 static void test_address_p2wpkh() {
     std::printf("\n=== P2WPKH Address ===\n");
 
-    Scalar sk = Scalar::from_uint64(1);
-    Point pk = Point::generator().scalar_mul(sk);
+    Scalar const sk = Scalar::from_uint64(1);
+    Point const pk = Point::generator().scalar_mul(sk);
 
     auto addr = address_p2wpkh(pk, Network::Mainnet);
     CHECK(addr.substr(0, 4) == "bc1q", "p2wpkh_bc1q_prefix");
@@ -441,8 +441,8 @@ static void test_address_p2wpkh() {
 static void test_address_p2tr() {
     std::printf("\n=== P2TR Address ===\n");
 
-    Scalar sk = Scalar::from_uint64(1);
-    Point pk = Point::generator().scalar_mul(sk);
+    Scalar const sk = Scalar::from_uint64(1);
+    Point const pk = Point::generator().scalar_mul(sk);
 
     auto addr = address_p2tr(pk, Network::Mainnet);
     CHECK(addr.substr(0, 4) == "bc1p", "p2tr_bc1p_prefix");
@@ -456,7 +456,7 @@ static void test_address_p2tr() {
 static void test_wif() {
     std::printf("\n=== WIF Encode/Decode ===\n");
 
-    Scalar sk = Scalar::from_uint64(12345);
+    Scalar const sk = Scalar::from_uint64(12345);
 
     // Compressed mainnet
     auto wif = wif_encode(sk, true, Network::Mainnet);
@@ -490,8 +490,8 @@ static void test_silent_payment_basic() {
     std::printf("\n=== Silent Payments ===\n");
 
     // Receiver generates address
-    Scalar b_scan = Scalar::from_uint64(111);
-    Scalar b_spend = Scalar::from_uint64(222);
+    Scalar const b_scan = Scalar::from_uint64(111);
+    Scalar const b_spend = Scalar::from_uint64(222);
     auto sp_addr = silent_payment_address(b_scan, b_spend);
     CHECK(!sp_addr.scan_pubkey.is_infinity(), "sp_scan_key_valid");
     CHECK(!sp_addr.spend_pubkey.is_infinity(), "sp_spend_key_valid");
@@ -506,13 +506,13 @@ static void test_silent_payment_flow() {
     std::printf("\n=== Silent Payment Flow ===\n");
 
     // Receiver keys
-    Scalar b_scan = Scalar::from_uint64(0xBEEF);
-    Scalar b_spend = Scalar::from_uint64(0xCAFE);
+    Scalar const b_scan = Scalar::from_uint64(0xBEEF);
+    Scalar const b_spend = Scalar::from_uint64(0xCAFE);
     auto sp_addr = silent_payment_address(b_scan, b_spend);
 
     // Sender creates output
-    Scalar a1 = Scalar::from_uint64(0xDEAD);  // sender's input key
-    std::vector<Scalar> input_keys = {a1};
+    Scalar const a1 = Scalar::from_uint64(0xDEAD);  // sender's input key
+    std::vector<Scalar> const input_keys = {a1};
 
     auto [output_pk, tweak] = silent_payment_create_output(input_keys, sp_addr, 0);
     CHECK(!output_pk.is_infinity(), "sp_output_key_valid");
@@ -520,9 +520,9 @@ static void test_silent_payment_flow() {
 
     // Receiver scans and detects
     auto A1 = Point::generator().scalar_mul(a1);
-    std::vector<Point> input_pks = {A1};
+    std::vector<Point> const input_pks = {A1};
     auto output_x = output_pk.x().to_bytes();
-    std::vector<std::array<std::uint8_t, 32>> outputs = {output_x};
+    std::vector<std::array<std::uint8_t, 32>> const outputs = {output_x};
 
     auto detected = silent_payment_scan(b_scan, b_spend, input_pks, outputs);
     CHECK(detected.size() == 1, "sp_detected_one_output");
@@ -530,8 +530,8 @@ static void test_silent_payment_flow() {
     if (!detected.empty()) {
         CHECK(detected[0].first == 0, "sp_detected_index_0");
         // Verify the spending key works
-        Scalar d = detected[0].second;
-        Point derived_pk = Point::generator().scalar_mul(d);
+        Scalar const d = detected[0].second;
+        Point const derived_pk = Point::generator().scalar_mul(d);
         auto derived_x = derived_pk.x().to_bytes();
         CHECK(derived_x == output_x, "sp_derived_key_matches_output");
     }
@@ -540,12 +540,12 @@ static void test_silent_payment_flow() {
 static void test_silent_payment_multiple_outputs() {
     std::printf("\n=== Silent Payment Multiple Outputs ===\n");
 
-    Scalar b_scan = Scalar::from_uint64(0x1111);
-    Scalar b_spend = Scalar::from_uint64(0x2222);
+    Scalar const b_scan = Scalar::from_uint64(0x1111);
+    Scalar const b_spend = Scalar::from_uint64(0x2222);
     auto sp_addr = silent_payment_address(b_scan, b_spend);
 
-    Scalar a1 = Scalar::from_uint64(0x3333);
-    std::vector<Scalar> input_keys = {a1};
+    Scalar const a1 = Scalar::from_uint64(0x3333);
+    std::vector<Scalar> const input_keys = {a1};
 
     // Create 3 outputs to same recipient
     std::vector<std::array<std::uint8_t, 32>> outputs;
@@ -568,12 +568,12 @@ static void test_silent_payment_multiple_outputs() {
 static void test_pedersen_zero_value() {
     std::printf("\n=== Edge: Zero Value Commitment ===\n");
 
-    Scalar zero = Scalar::zero();
-    Scalar blind = Scalar::from_uint64(42);
+    Scalar const zero = Scalar::zero();
+    Scalar const blind = Scalar::from_uint64(42);
     auto c = pedersen_commit(zero, blind);
 
     // Should equal blind*G (since v=0, v*H = O)
-    Point expected = Point::generator().scalar_mul(blind);
+    Point const expected = Point::generator().scalar_mul(blind);
     auto c_comp = c.to_compressed();
     auto e_comp = expected.to_compressed();
     CHECK(c_comp == e_comp, "zero_value_equals_blind_times_G");
@@ -582,12 +582,12 @@ static void test_pedersen_zero_value() {
 static void test_adaptor_zero_adaptor() {
     std::printf("\n=== Edge: Identity Adaptor ===\n");
     
-    Scalar sk = Scalar::from_uint64(55555);
-    Scalar t = Scalar::from_uint64(1);  // minimal adaptor
-    Point T = Point::generator().scalar_mul(t);
+    Scalar const sk = Scalar::from_uint64(55555);
+    Scalar const t = Scalar::from_uint64(1);  // minimal adaptor
+    Point const T = Point::generator().scalar_mul(t);
     
     std::array<std::uint8_t, 32> msg = {}; msg[0] = 0xFF;
-    std::array<std::uint8_t, 32> aux = {};
+    std::array<std::uint8_t, 32> const aux = {};
     
     auto pre = schnorr_adaptor_sign(sk, msg, T, aux);
     CHECK(!pre.R_hat.is_infinity(), "identity_adaptor_valid");
@@ -597,8 +597,8 @@ static void test_address_consistency() {
     std::printf("\n=== Address Consistency ===\n");
 
     // Same key should always produce same addresses
-    Scalar sk = Scalar::from_uint64(7);
-    Point pk = Point::generator().scalar_mul(sk);
+    Scalar const sk = Scalar::from_uint64(7);
+    Point const pk = Point::generator().scalar_mul(sk);
 
     auto a1 = address_p2pkh(pk);
     auto a2 = address_p2pkh(pk);
@@ -613,8 +613,8 @@ static void test_address_consistency() {
     CHECK(t1 == t2, "p2tr_deterministic");
 
     // Different keys -> different addresses
-    Scalar sk2 = Scalar::from_uint64(8);
-    Point pk2 = Point::generator().scalar_mul(sk2);
+    Scalar const sk2 = Scalar::from_uint64(8);
+    Point const pk2 = Point::generator().scalar_mul(sk2);
     CHECK(address_p2pkh(pk) != address_p2pkh(pk2), "different_keys_different_p2pkh");
     CHECK(address_p2wpkh(pk) != address_p2wpkh(pk2), "different_keys_different_p2wpkh");
 }

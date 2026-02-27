@@ -321,7 +321,7 @@ static void test_compact_recovery_serial() {
 
         CHECK(compact.size() == 65, "compact size 65");
         // First byte encodes recid: 27 + recid + 4(compressed)
-        int expected_first = 27 + rsig.recid + 4;
+        int const expected_first = 27 + rsig.recid + 4;
         CHECK(compact[0] == static_cast<uint8_t>(expected_first), "header byte correct");
     }
 

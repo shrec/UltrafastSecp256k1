@@ -55,7 +55,7 @@ static std::mt19937_64 rng(0xDEADBEEF);
 
 static std::vector<uint8_t> random_blob(size_t max_len) {
     std::uniform_int_distribution<size_t> len_dist(0, max_len);
-    size_t len = len_dist(rng);
+    size_t const len = len_dist(rng);
     std::vector<uint8_t> out(len);
     for (auto& b : out) b = static_cast<uint8_t>(rng());
     return out;
@@ -80,7 +80,7 @@ static void test_der_random(ufsecp_ctx* ctx) {
     for (int i = 0; i < N; ++i) {
         auto blob = random_blob(256);
         uint8_t sig64[64] = {};
-        ufsecp_error_t err = ufsecp_ecdsa_sig_from_der(ctx,
+        ufsecp_error_t const err = ufsecp_ecdsa_sig_from_der(ctx,
             blob.data(), blob.size(), sig64);
         // Must not crash. Either OK or error.
         if (err == UFSECP_OK) ++accepted;
@@ -102,7 +102,7 @@ static void test_der_adversarial(ufsecp_ctx* ctx) {
           "null der rejected");
 
     // Zero length
-    uint8_t z = 0;
+    uint8_t const z = 0;
     CHECK(ufsecp_ecdsa_sig_from_der(ctx, &z, 0, sig64) != UFSECP_OK,
           "zero-length rejected");
 
@@ -150,7 +150,7 @@ static void test_der_adversarial(ufsecp_ctx* ctx) {
     {
         uint8_t zeros[] = {0x30, 0x06, 0x02, 0x01, 0x00, 0x02, 0x01, 0x00};
         // Parser should accept (structural parse OK); verification would fail later
-        ufsecp_error_t err = ufsecp_ecdsa_sig_from_der(ctx, zeros, 8, sig64);
+        ufsecp_error_t const err = ufsecp_ecdsa_sig_from_der(ctx, zeros, 8, sig64);
         (void)err;
         // Either accepted or rejected is fine -- no crash
         ++g_pass;
@@ -168,7 +168,7 @@ static void test_der_adversarial(ufsecp_ctx* ctx) {
         max_valid[37] = 0x02; max_valid[38] = 33;
         max_valid[39] = 0x00; // padding byte
         for (int i = 0; i < 32; ++i) max_valid[40 + i] = 0x80; // S bytes
-        ufsecp_error_t err = ufsecp_ecdsa_sig_from_der(ctx, max_valid, 72, sig64);
+        ufsecp_error_t const err = ufsecp_ecdsa_sig_from_der(ctx, max_valid, 72, sig64);
         CHECK(err == UFSECP_OK, "max-length valid DER accepted");
     }
 
@@ -225,7 +225,7 @@ static void test_schnorr_random(ufsecp_ctx* ctx) {
         auto sig2 = random32();
         std::memcpy(sig64 + 32, sig2.data(), 32);
 
-        ufsecp_error_t err = ufsecp_schnorr_verify(ctx,
+        ufsecp_error_t const err = ufsecp_schnorr_verify(ctx,
             msg.data(), sig64, pk.data());
         if (err == UFSECP_OK) ++accepted;
         ++g_pass;
@@ -291,7 +291,7 @@ static void test_pubkey_parse_random(ufsecp_ctx* ctx) {
         if (len == 65 && i % 3 == 0) blob[0] = 0x04;
 
         uint8_t out33[33] = {};
-        ufsecp_error_t err = ufsecp_pubkey_parse(ctx,
+        ufsecp_error_t const err = ufsecp_pubkey_parse(ctx,
             blob.data(), blob.size(), out33);
         if (err == UFSECP_OK) ++accepted;
         ++g_pass;
@@ -363,7 +363,7 @@ static void test_pubkey_adversarial(ufsecp_ctx* ctx) {
     // so the parser correctly accepts it after decompression. Verify no crash.
     uint8_t x_zero[33] = {0x02};
     {
-        ufsecp_error_t rc = ufsecp_pubkey_parse(ctx, x_zero, 33, out33);
+        ufsecp_error_t const rc = ufsecp_pubkey_parse(ctx, x_zero, 33, out33);
         // x=0 is a valid curve point, parser may accept; just verify no crash
         (void)rc;
         CHECK(true, "x=0 no crash");
@@ -381,7 +381,7 @@ static void test_pubkey_adversarial(ufsecp_ctx* ctx) {
     };
     std::memcpy(x_eq_p + 1, p_bytes, 32);
     {
-        ufsecp_error_t rc = ufsecp_pubkey_parse(ctx, x_eq_p, 33, out33);
+        ufsecp_error_t const rc = ufsecp_pubkey_parse(ctx, x_eq_p, 33, out33);
         (void)rc;
         CHECK(true, "x=p no crash");
     }
@@ -391,7 +391,7 @@ static void test_pubkey_adversarial(ufsecp_ctx* ctx) {
     uint8_t x_gt_p[33] = {0x02};
     std::memset(x_gt_p + 1, 0xFF, 32);
     {
-        ufsecp_error_t rc = ufsecp_pubkey_parse(ctx, x_gt_p, 33, out33);
+        ufsecp_error_t const rc = ufsecp_pubkey_parse(ctx, x_gt_p, 33, out33);
         (void)rc;
         CHECK(true, "x>p no crash");
     }
@@ -421,7 +421,7 @@ static void test_ecdsa_verify_random(ufsecp_ctx* ctx) {
         pk33[0] = (rng() & 1) ? 0x02 : 0x03;
         std::memcpy(pk33 + 1, pkr.data(), 32);
 
-        ufsecp_error_t err = ufsecp_ecdsa_verify(ctx, msg.data(), sig64, pk33);
+        ufsecp_error_t const err = ufsecp_ecdsa_verify(ctx, msg.data(), sig64, pk33);
         if (err == UFSECP_OK) ++accepted;
         ++g_pass;
     }
@@ -437,7 +437,7 @@ int test_fuzz_parsers_run() {
     g_pass = 0; g_fail = 0;
 
     ufsecp_ctx* ctx = nullptr;
-    ufsecp_error_t err = ufsecp_ctx_create(&ctx);
+    ufsecp_error_t const err = ufsecp_ctx_create(&ctx);
     if (err != UFSECP_OK || !ctx) {
         std::printf("  FATAL: ufsecp_ctx_create failed\n");
         return 1;

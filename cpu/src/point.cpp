@@ -143,7 +143,7 @@ JacobianPoint jacobian_double(const JacobianPoint& p) {
     temp.square_inplace();          // (X + B)^2 in-place!
     temp = temp - A;
     temp = temp - C;
-    FieldElement D = temp + temp;  // *2 via addition (faster than mul)
+    FieldElement const D = temp + temp;  // *2 via addition (faster than mul)
     
     // E = 3*A
     FieldElement E = A + A;
@@ -154,8 +154,8 @@ JacobianPoint jacobian_double(const JacobianPoint& p) {
     F.square_inplace();             // E^2 in-place!
     
     // X' = F - 2*D
-    FieldElement two_D = D + D;
-    FieldElement x3 = F - two_D;
+    FieldElement const two_D = D + D;
+    FieldElement const x3 = F - two_D;
     
     // Y' = E*(D - X') - 8*C
     FieldElement y3 = E * (D - x3);
@@ -187,8 +187,8 @@ JacobianPoint jacobian_double(const JacobianPoint& p) {
     // Core formula optimized for a=0 curve
     FieldElement z1z1 = p.z;                    // Copy for in-place
     z1z1.square_inplace();                      // Z1^2 in-place! [1S]
-    FieldElement u2 = q.x * z1z1;               // U2 = X2*Z1^2 [1M]
-    FieldElement s2 = q.y * p.z * z1z1;         // S2 = Y2*Z1^3 [2M]
+    FieldElement const u2 = q.x * z1z1;               // U2 = X2*Z1^2 [1M]
+    FieldElement const s2 = q.y * p.z * z1z1;         // S2 = Y2*Z1^3 [2M]
     
     if (SECP256K1_UNLIKELY(p.x == u2)) {
         if (p.y == s2) {
@@ -197,21 +197,21 @@ JacobianPoint jacobian_double(const JacobianPoint& p) {
         return {FieldElement::zero(), FieldElement::one(), FieldElement::zero(), true};
     }
 
-    FieldElement h = u2 - p.x;                  // H = U2 - X1
+    FieldElement const h = u2 - p.x;                  // H = U2 - X1
     FieldElement hh = h;                        // Copy for in-place
     hh.square_inplace();                        // HH = H^2 in-place! [1S]
-    FieldElement i = hh + hh + hh + hh;         // I = 4*HH (3 additions)
-    FieldElement j = h * i;                     // J = H*I [1M]
-    FieldElement r = (s2 - p.y) + (s2 - p.y);   // r = 2*(S2 - Y1)
-    FieldElement v = p.x * i;                   // V = X1*I [1M]
+    FieldElement const i = hh + hh + hh + hh;         // I = 4*HH (3 additions)
+    FieldElement const j = h * i;                     // J = H*I [1M]
+    FieldElement const r = (s2 - p.y) + (s2 - p.y);   // r = 2*(S2 - Y1)
+    FieldElement const v = p.x * i;                   // V = X1*I [1M]
     
     FieldElement x3 = r;                        // Copy for in-place
     x3.square_inplace();                        // r^2 in-place!
     x3 -= j + v + v;                            // X3 = r^2 - J - 2*V [1S]
     
     // Y3 = r*(V - X3) - 2*Y1*J -- optimized: *2 via addition
-    FieldElement y1j = p.y * j;                 // [1M]
-    FieldElement y3 = r * (v - x3) - (y1j + y1j); // [1M]
+    FieldElement const y1j = p.y * j;                 // [1M]
+    FieldElement const y3 = r * (v - x3) - (y1j + y1j); // [1M]
     
     // Z3 = (Z1+H)^2 - Z1^2 - HH -- in-place for performance
     FieldElement z3 = p.z + h;                  // Z1 + H
@@ -246,13 +246,13 @@ static inline void jacobian_double_inplace(JacobianPoint& p) {
     FieldElement temp = p.x + B;
     temp.square_inplace();
     temp = temp - A - C;
-    FieldElement D = temp + temp;
+    FieldElement const D = temp + temp;
 
     FieldElement E = A + A; E = E + A;
     FieldElement F = E; F.square_inplace();
 
-    FieldElement two_D = D + D;
-    FieldElement x3 = F - two_D;
+    FieldElement const two_D = D + D;
+    FieldElement const x3 = F - two_D;
 
     FieldElement y3 = E * (D - x3);
     FieldElement eight_C = C + C; eight_C = eight_C + eight_C; eight_C = eight_C + eight_C;
@@ -275,8 +275,8 @@ static inline void jacobian_add_mixed_inplace(JacobianPoint& p, const AffinePoin
     }
 
     FieldElement z1z1 = p.z; z1z1.square_inplace();
-    FieldElement u2 = q.x * z1z1;
-    FieldElement s2 = q.y * p.z * z1z1;
+    FieldElement const u2 = q.x * z1z1;
+    FieldElement const s2 = q.y * p.z * z1z1;
 
     if (SECP256K1_UNLIKELY(p.x == u2)) {
         if (p.y == s2) {
@@ -287,18 +287,18 @@ static inline void jacobian_add_mixed_inplace(JacobianPoint& p, const AffinePoin
         return;
     }
 
-    FieldElement h = u2 - p.x;
+    FieldElement const h = u2 - p.x;
     FieldElement hh = h; hh.square_inplace();
-    FieldElement i = hh + hh + hh + hh;
-    FieldElement j = h * i;
-    FieldElement r = (s2 - p.y) + (s2 - p.y);
-    FieldElement v = p.x * i;
+    FieldElement const i = hh + hh + hh + hh;
+    FieldElement const j = h * i;
+    FieldElement const r = (s2 - p.y) + (s2 - p.y);
+    FieldElement const v = p.x * i;
 
     FieldElement x3 = r; x3.square_inplace();
     x3 -= j + v + v;
 
-    FieldElement y1j = p.y * j;
-    FieldElement y3 = r * (v - x3) - (y1j + y1j);
+    FieldElement const y1j = p.y * j;
+    FieldElement const y3 = r * (v - x3) - (y1j + y1j);
 
     FieldElement z3 = p.z + h; z3.square_inplace(); z3 -= z1z1 + hh;
 
@@ -315,10 +315,10 @@ static inline void jacobian_add_inplace(JacobianPoint& p, const JacobianPoint& q
 
     FieldElement z1z1 = p.z; z1z1.square_inplace();
     FieldElement z2z2 = q.z; z2z2.square_inplace();
-    FieldElement u1 = p.x * z2z2;
-    FieldElement u2 = q.x * z1z1;
-    FieldElement s1 = p.y * q.z * z2z2;
-    FieldElement s2 = q.y * p.z * z1z1;
+    FieldElement const u1 = p.x * z2z2;
+    FieldElement const u2 = q.x * z1z1;
+    FieldElement const s1 = p.y * q.z * z2z2;
+    FieldElement const s2 = q.y * p.z * z1z1;
 
     if (u1 == u2) {
         if (s1 == s2) { jacobian_double_inplace(p); return; }
@@ -326,18 +326,18 @@ static inline void jacobian_add_inplace(JacobianPoint& p, const JacobianPoint& q
         return;
     }
 
-    FieldElement h = u2 - u1;
+    FieldElement const h = u2 - u1;
     FieldElement i = h + h; i.square_inplace();
-    FieldElement j = h * i;
-    FieldElement r = (s2 - s1) + (s2 - s1);
-    FieldElement v = u1 * i;
+    FieldElement const j = h * i;
+    FieldElement const r = (s2 - s1) + (s2 - s1);
+    FieldElement const v = u1 * i;
 
     FieldElement x3 = r; x3.square_inplace();
     x3 -= j + v + v;
-    FieldElement s1j = s1 * j;
-    FieldElement y3 = r * (v - x3) - (s1j + s1j);
+    FieldElement const s1j = s1 * j;
+    FieldElement const y3 = r * (v - x3) - (s1j + s1j);
     FieldElement temp_z = p.z + q.z; temp_z.square_inplace();
-    FieldElement z3 = (temp_z - z1z1 - z2z2) * h;
+    FieldElement const z3 = (temp_z - z1z1 - z2z2) * h;
 
     p.x = x3; p.y = y3; p.z = z3;
     p.infinity = false;
@@ -355,10 +355,10 @@ static inline void jacobian_add_inplace(JacobianPoint& p, const JacobianPoint& q
     z1z1.square_inplace();                      // z1^2 in-place!
     FieldElement z2z2 = q.z;                    // Copy for in-place
     z2z2.square_inplace();                      // z2^2 in-place!
-    FieldElement u1 = p.x * z2z2;
-    FieldElement u2 = q.x * z1z1;
-    FieldElement s1 = p.y * q.z * z2z2;
-    FieldElement s2 = q.y * p.z * z1z1;
+    FieldElement const u1 = p.x * z2z2;
+    FieldElement const u2 = q.x * z1z1;
+    FieldElement const s1 = p.y * q.z * z2z2;
+    FieldElement const s2 = q.y * p.z * z1z1;
 
     if (u1 == u2) {
         if (s1 == s2) {
@@ -367,21 +367,21 @@ static inline void jacobian_add_inplace(JacobianPoint& p, const JacobianPoint& q
         return {FieldElement::zero(), FieldElement::one(), FieldElement::zero(), true};
     }
 
-    FieldElement h = u2 - u1;
+    FieldElement const h = u2 - u1;
     FieldElement i = h + h;                     // 2*h
     i.square_inplace();                         // (2*h)^2 in-place!
-    FieldElement j = h * i;
-    FieldElement r = (s2 - s1) + (s2 - s1);
-    FieldElement v = u1 * i;
+    FieldElement const j = h * i;
+    FieldElement const r = (s2 - s1) + (s2 - s1);
+    FieldElement const v = u1 * i;
 
     FieldElement x3 = r;                        // Copy for in-place
     x3.square_inplace();                        // r^2 in-place!
     x3 -= j + v + v;                           // x3 = r^2 - j - 2*v
-    FieldElement s1j = s1 * j;
-    FieldElement y3 = r * (v - x3) - (s1j + s1j);
+    FieldElement const s1j = s1 * j;
+    FieldElement const y3 = r * (v - x3) - (s1j + s1j);
     FieldElement temp_z = p.z + q.z;           // z1 + z2
     temp_z.square_inplace();                   // (z1 + z2)^2 in-place!
-    FieldElement z3 = (temp_z - z1z1 - z2z2) * h;
+    FieldElement const z3 = (temp_z - z1z1 - z2z2) * h;
 
     return {x3, y3, z3, false};
 }
@@ -638,9 +638,9 @@ static void jac52_add_mixed_inplace(JacobianPoint52& p, const AffinePoint52& q) 
     }
 
     FieldElement52 z1z1 = p.z.square();
-    FieldElement52 u2 = q.x * z1z1;
-    FieldElement52 z1_z1z1 = p.z * z1z1;
-    FieldElement52 s2 = q.y * z1_z1z1;                       // z1_z1z1 dead
+    FieldElement52 const u2 = q.x * z1z1;
+    FieldElement52 const z1_z1z1 = p.z * z1z1;
+    FieldElement52 const s2 = q.y * z1_z1z1;                       // z1_z1z1 dead
 
     const FieldElement52 negX1 = p.x.negate(23);
     FieldElement52 h = u2 + negX1;                            // u2, negX1 dead
@@ -649,8 +649,8 @@ static void jac52_add_mixed_inplace(JacobianPoint52& p, const AffinePoint52& q) 
     // Reduce limbs to canonical range so normalizes_to_zero() is reliable.
     h.normalize_weak();
     if (SECP256K1_UNLIKELY(h.normalizes_to_zero())) {
-        FieldElement52 negY1 = p.y.negate(10);
-        FieldElement52 diff = s2 + negY1;
+        FieldElement52 const negY1 = p.y.negate(10);
+        FieldElement52 const diff = s2 + negY1;
         if (diff.normalizes_to_zero()) {
             jac52_double_inplace(p);
             return;
@@ -668,15 +668,15 @@ static void jac52_add_mixed_inplace(JacobianPoint52& p, const AffinePoint52& q) 
     FieldElement52 y1j = p.y * j;                             // mag 1
     j.negate_assign(1);                                       // j = -J (reuse slot)
 
-    FieldElement52 negY1 = p.y.negate(10);
+    FieldElement52 const negY1 = p.y.negate(10);
     FieldElement52 r = s2 + negY1;                            // s2, negY1 dead
     r.add_assign(r);                                          // r = 2*(S2-Y1), mag 24 (in-place)
-    FieldElement52 v = p.x * I;                               // I dead
-    FieldElement52 r_sq = r.square();
-    FieldElement52 negV = v.negate(1);
-    FieldElement52 x3 = r_sq + j + negV + negV;               // j is -J, mag 7
-    FieldElement52 negX3 = x3.negate(7);
-    FieldElement52 vx3 = v + negX3;                           // v, negX3 dead
+    FieldElement52 const v = p.x * I;                               // I dead
+    FieldElement52 const r_sq = r.square();
+    FieldElement52 const negV = v.negate(1);
+    FieldElement52 const x3 = r_sq + j + negV + negV;               // j is -J, mag 7
+    FieldElement52 const negX3 = x3.negate(7);
+    FieldElement52 const vx3 = v + negX3;                           // v, negX3 dead
     r.mul_assign(vx3);                                        // r = r*(V-X3), mag 1 (in-place)
     y1j.add_assign(y1j);                                      // 2*Y1*J (in-place)
     y1j.negate_assign(2);                                     // -2*Y1*J (in-place)
@@ -705,39 +705,39 @@ static inline void jac52_add_inplace(JacobianPoint52& p, const JacobianPoint52& 
 
     FieldElement52 z1z1 = p.z.square();
     FieldElement52 z2z2 = q.z.square();
-    FieldElement52 u1 = p.x * z2z2;
-    FieldElement52 u2 = q.x * z1z1;
-    FieldElement52 s1 = p.y * q.z * z2z2;
-    FieldElement52 s2 = q.y * p.z * z1z1;
+    FieldElement52 const u1 = p.x * z2z2;
+    FieldElement52 const u2 = q.x * z1z1;
+    FieldElement52 const s1 = p.y * q.z * z2z2;
+    FieldElement52 const s2 = q.y * p.z * z1z1;
 
-    FieldElement52 negU1 = u1.negate(1);
-    FieldElement52 h = u2 + negU1;
+    FieldElement52 const negU1 = u1.negate(1);
+    FieldElement52 const h = u2 + negU1;
 
     if (SECP256K1_UNLIKELY(h.normalizes_to_zero())) {
-        FieldElement52 negS1 = s1.negate(1);
-        FieldElement52 diff = s2 + negS1;
+        FieldElement52 const negS1 = s1.negate(1);
+        FieldElement52 const diff = s2 + negS1;
         if (diff.normalizes_to_zero()) { jac52_double_inplace(p); return; }
         p = {FieldElement52::zero(), FieldElement52::one(), FieldElement52::zero(), true};
         return;
     }
 
-    FieldElement52 h2 = h + h;
-    FieldElement52 i = h2.square();
+    FieldElement52 const h2 = h + h;
+    FieldElement52 const i = h2.square();
     FieldElement52 j_val = h * i;
 
     // Compute S1*J before negating j_val (reads s1, j_val intact)
     FieldElement52 s1j = s1 * j_val;                          // mag 1
     j_val.negate_assign(1);                                   // j_val = -J (reuse slot)
 
-    FieldElement52 negS1 = s1.negate(1);
+    FieldElement52 const negS1 = s1.negate(1);
     FieldElement52 r = s2 + negS1;
     r.add_assign(r);                                          // r = 2*(S2-S1) (in-place)
-    FieldElement52 v = u1 * i;
-    FieldElement52 r_sq = r.square();
-    FieldElement52 negV = v.negate(1);
-    FieldElement52 x3 = r_sq + j_val + negV + negV;           // j_val is -J, mag 7
-    FieldElement52 negX3 = x3.negate(7);
-    FieldElement52 vx3 = v + negX3;
+    FieldElement52 const v = u1 * i;
+    FieldElement52 const r_sq = r.square();
+    FieldElement52 const negV = v.negate(1);
+    FieldElement52 const x3 = r_sq + j_val + negV + negV;           // j_val is -J, mag 7
+    FieldElement52 const negX3 = x3.negate(7);
+    FieldElement52 const vx3 = v + negX3;
     r.mul_assign(vx3);                                        // r = r*(V-X3) (in-place)
     s1j.add_assign(s1j);                                      // 2*S1*J (in-place)
     s1j.negate_assign(2);                                     // -2*S1*J (in-place)
@@ -838,10 +838,10 @@ static Point scalar_mul_glv52(const Point& base, const Scalar& scalar) {
 
     try {
     // -- GLV decomposition --------------------------------------------
-    GLVDecomposition decomp = glv_decompose(scalar);
+    GLVDecomposition const decomp = glv_decompose(scalar);
 
     // -- Convert base point to 5x52 domain ----------------------------
-    JacobianPoint52 P52 = decomp.k1_neg
+    JacobianPoint52 const P52 = decomp.k1_neg
         ? to_jac52(base.negate())
         : to_jac52(base);
 
@@ -870,13 +870,13 @@ static Point scalar_mul_glv52(const Point& base, const Scalar& scalar) {
 
     {
         // d = 2*P (Jacobian)
-        JacobianPoint52 d = jac52_double(P52);
-        FieldElement52 C  = d.z;              // C = d.Z
-        FieldElement52 C2 = C.square();       // C^2
-        FieldElement52 C3 = C2 * C;           // C^3
+        JacobianPoint52 const d = jac52_double(P52);
+        FieldElement52 const C  = d.z;              // C = d.Z
+        FieldElement52 const C2 = C.square();       // C^2
+        FieldElement52 const C3 = C2 * C;           // C^3
 
         // d as affine on iso curve (Z cancels in isomorphism)
-        AffinePoint52 d_aff = {d.x, d.y};
+        AffinePoint52 const d_aff = {d.x, d.y};
 
         // Transform P onto iso curve: phi(P) = (P.X*C^2, P.Y*C^3, P.Z)
         std::array<JacobianPoint52, glv_table_size> iso;
@@ -914,8 +914,8 @@ static Point scalar_mul_glv52(const Point& base, const Scalar& scalar) {
 
         // Convert from iso to secp256k1 affine
         for (std::size_t i = 0; i < glv_table_size; i++) {
-            FieldElement52 zinv2 = zs[i].square();
-            FieldElement52 zinv3 = zinv2 * zs[i];
+            FieldElement52 const zinv2 = zs[i].square();
+            FieldElement52 const zinv3 = zinv2 * zs[i];
             tbl_P[i].x = iso[i].x * zinv2;
             tbl_P[i].y = iso[i].y * zinv3;
         }
@@ -961,7 +961,7 @@ static Point scalar_mul_glv52(const Point& base, const Scalar& scalar) {
 
         // k1 contribution (wnaf bufs are zero-init; d==0 is a no-op)
         {
-            int32_t d = wnaf1_buf[static_cast<std::size_t>(i)];
+            int32_t const d = wnaf1_buf[static_cast<std::size_t>(i)];
             if (d > 0) {
                 jac52_add_mixed_inplace(result52, tbl_P[static_cast<std::size_t>((d - 1) >> 1)]);
             } else if (d < 0) {
@@ -971,7 +971,7 @@ static Point scalar_mul_glv52(const Point& base, const Scalar& scalar) {
 
         // k2 contribution
         {
-            int32_t d = wnaf2_buf[static_cast<std::size_t>(i)];
+            int32_t const d = wnaf2_buf[static_cast<std::size_t>(i)];
             if (d > 0) {
                 jac52_add_mixed_inplace(result52, tbl_phiP[static_cast<std::size_t>((d - 1) >> 1)]);
             } else if (d < 0) {
@@ -999,7 +999,7 @@ static Point scalar_mul_glv52(const Point& base, const Scalar& scalar) {
         Point result = Point::infinity();
         for (int i = static_cast<int>(wnaf_len) - 1; i >= 0; --i) {
             result.dbl_inplace();
-            int32_t digit = wnaf_buf[static_cast<std::size_t>(i)];
+            int32_t const digit = wnaf_buf[static_cast<std::size_t>(i)];
             if (digit > 0) {
                 result.add_inplace(precomp[static_cast<std::size_t>((digit - 1) / 2)]);
             } else if (digit < 0) {
@@ -1018,7 +1018,7 @@ static Point scalar_mul_glv52(const Point& base, const Scalar& scalar) {
 // Cost: 1 inversion + (3*n - 1) multiplications for n points
 // vs n inversions for individual conversion
 [[maybe_unused]] std::vector<AffinePoint> batch_to_affine(const std::vector<JacobianPoint>& jacobian_points) {
-    size_t n = jacobian_points.size();
+    size_t const n = jacobian_points.size();
     if (n == 0) return {};
     
     std::vector<AffinePoint> affine_points;
@@ -1031,7 +1031,7 @@ static Point scalar_mul_glv52(const Point& base, const Scalar& scalar) {
             // Infinity point - use (0, 0) as representation
             affine_points.push_back({FieldElement::zero(), FieldElement::zero()});
         } else {
-            FieldElement z_inv = p.z.inverse();
+            FieldElement const z_inv = p.z.inverse();
             FieldElement z_inv_sq = z_inv;       // Copy for in-place
             z_inv_sq.square_inplace();           // z_inv^2 in-place!
             affine_points.push_back({
@@ -1091,7 +1091,7 @@ static void batch_to_affine_into(const JacobianPoint* jacobian_points,
     constexpr std::size_t kMaxN = 128;
     if (n > kMaxN) {
         // Fallback to allocating version for unusually large inputs
-        std::vector<JacobianPoint> tmp(jacobian_points, jacobian_points + n);
+        std::vector<JacobianPoint> const tmp(jacobian_points, jacobian_points + n);
         auto v = batch_to_affine(tmp);
         for (std::size_t i = 0; i < n; ++i) out[i] = v[i];
         return;
@@ -1103,7 +1103,7 @@ static void batch_to_affine_into(const JacobianPoint* jacobian_points,
         if (p.infinity) {
             out[0] = {FieldElement::zero(), FieldElement::zero()};
         } else {
-            FieldElement z_inv = p.z.inverse();
+            FieldElement const z_inv = p.z.inverse();
             FieldElement z_inv_sq = z_inv; z_inv_sq.square_inplace();
             out[0] = { p.x * z_inv_sq, p.y * z_inv_sq * z_inv };
         }
@@ -1270,8 +1270,8 @@ Point Point::from_affine(const FieldElement& x, const FieldElement& y) {
 }
 
 Point Point::from_hex(const std::string& x_hex, const std::string& y_hex) {
-    FieldElement x = FieldElement::from_hex(x_hex);
-    FieldElement y = FieldElement::from_hex(y_hex);
+    FieldElement const x = FieldElement::from_hex(x_hex);
+    FieldElement const y = FieldElement::from_hex(y_hex);
     return from_affine(x, y);
 }
 
@@ -1282,7 +1282,7 @@ FieldElement Point::x() const {
 #if defined(SECP256K1_FAST_52BIT)
     FieldElement z_fe;
     if (!z_fe_nonzero(z_fe)) return FieldElement::zero(); // LCOV_EXCL_LINE
-    FieldElement z_inv = z_fe.inverse();
+    FieldElement const z_inv = z_fe.inverse();
     FieldElement z_inv2 = z_inv;
     z_inv2.square_inplace();
     return x_.to_fe() * z_inv2;
@@ -1301,7 +1301,7 @@ FieldElement Point::y() const {
 #if defined(SECP256K1_FAST_52BIT)
     FieldElement z_fe;
     if (!z_fe_nonzero(z_fe)) return FieldElement::zero(); // LCOV_EXCL_LINE
-    FieldElement z_inv = z_fe.inverse();
+    FieldElement const z_inv = z_fe.inverse();
     FieldElement z_inv3 = z_inv;
     z_inv3.square_inplace();
     z_inv3 *= z_inv;
@@ -1346,9 +1346,9 @@ std::array<uint8_t, 16> Point::x_second_half() const {
 
 Point Point::add(const Point& other) const {
 #if defined(SECP256K1_FAST_52BIT)
-    JacobianPoint52 p52{x_, y_, z_, infinity_};
-    JacobianPoint52 q52{other.x_, other.y_, other.z_, other.infinity_};
-    JacobianPoint52 r52 = jac52_add(p52, q52);
+    JacobianPoint52 const p52{x_, y_, z_, infinity_};
+    JacobianPoint52 const q52{other.x_, other.y_, other.z_, other.infinity_};
+    JacobianPoint52 const r52 = jac52_add(p52, q52);
     Point result;
     result.x_ = r52.x; result.y_ = r52.y; result.z_ = r52.z;
     result.infinity_ = r52.infinity;
@@ -1366,8 +1366,8 @@ Point Point::add(const Point& other) const {
 
 Point Point::dbl() const {
 #if defined(SECP256K1_FAST_52BIT)
-    JacobianPoint52 p52{x_, y_, z_, infinity_};
-    JacobianPoint52 r52 = jac52_double(p52);
+    JacobianPoint52 const p52{x_, y_, z_, infinity_};
+    JacobianPoint52 const r52 = jac52_double(p52);
     Point result;
     result.x_ = r52.x; result.y_ = r52.y; result.z_ = r52.z;
     result.infinity_ = r52.infinity;
@@ -1410,7 +1410,7 @@ Point Point::next() const {
     static const FieldElement52 kGenX52 = FieldElement52::from_fe(kGeneratorX);
     static const FieldElement52 kGenY52 = FieldElement52::from_fe(kGeneratorY);
     JacobianPoint52 p52{x_, y_, z_, infinity_};
-    AffinePoint52 g52{kGenX52, kGenY52};
+    AffinePoint52 const g52{kGenX52, kGenY52};
     jac52_add_mixed_inplace(p52, g52);
     Point result;
     result.x_ = p52.x; result.y_ = p52.y; result.z_ = p52.z;
@@ -1432,7 +1432,7 @@ Point Point::prev() const {
     static const FieldElement52 kGenX52 = FieldElement52::from_fe(kGeneratorX);
     static const FieldElement52 kNegGenY52 = FieldElement52::from_fe(kNegGeneratorY);
     JacobianPoint52 p52{x_, y_, z_, infinity_};
-    AffinePoint52 ng52{kGenX52, kNegGenY52};
+    AffinePoint52 const ng52{kGenX52, kNegGenY52};
     jac52_add_mixed_inplace(p52, ng52);
     Point result;
     result.x_ = p52.x; result.y_ = p52.y; result.z_ = p52.z;
@@ -1459,7 +1459,7 @@ void Point::next_inplace() {
     static const FieldElement52 kGenX52 = FieldElement52::from_fe(kGeneratorX);
     static const FieldElement52 kGenY52 = FieldElement52::from_fe(kGeneratorY);
     JacobianPoint52 p52{x_, y_, z_, infinity_};
-    AffinePoint52 g52{kGenX52, kGenY52};
+    AffinePoint52 const g52{kGenX52, kGenY52};
     jac52_add_mixed_inplace(p52, g52);
     x_ = p52.x; y_ = p52.y; z_ = p52.z;
     infinity_ = p52.infinity;
@@ -1485,7 +1485,7 @@ void Point::prev_inplace() {
     static const FieldElement52 kGenX52 = FieldElement52::from_fe(kGeneratorX);
     static const FieldElement52 kNegGenY52 = FieldElement52::from_fe(kNegGeneratorY);
     JacobianPoint52 p52{x_, y_, z_, infinity_};
-    AffinePoint52 ng52{kGenX52, kNegGenY52};
+    AffinePoint52 const ng52{kGenX52, kNegGenY52};
     jac52_add_mixed_inplace(p52, ng52);
     x_ = p52.x; y_ = p52.y; z_ = p52.z;
     infinity_ = p52.infinity;
@@ -1510,7 +1510,7 @@ void Point::add_inplace(const Point& other) {
     if (!other.infinity_ && fe52_is_one_raw(other.z_)) {
         // Direct: members are already FE52
         JacobianPoint52 p52{x_, y_, z_, infinity_};
-        AffinePoint52 q52{other.x_, other.y_};
+        AffinePoint52 const q52{other.x_, other.y_};
         jac52_add_mixed_inplace(p52, q52);
         x_ = p52.x; y_ = p52.y; z_ = p52.z;
         infinity_ = p52.infinity;
@@ -1520,7 +1520,7 @@ void Point::add_inplace(const Point& other) {
 
     // General case: full Jacobian-Jacobian addition via 5x52 (in-place, zero copy)
     JacobianPoint52 p52{x_, y_, z_, infinity_};
-    JacobianPoint52 q52{other.x_, other.y_, other.z_, other.infinity_};
+    JacobianPoint52 const q52{other.x_, other.y_, other.z_, other.infinity_};
     jac52_add_inplace(p52, q52);
     x_ = p52.x; y_ = p52.y; z_ = p52.z;
     infinity_ = p52.infinity;
@@ -1651,7 +1651,7 @@ void Point::add_mixed_inplace(const FieldElement& ax, const FieldElement& ay) {
         return;
     }
     JacobianPoint52 p52{x_, y_, z_, infinity_};
-    AffinePoint52 q52{FieldElement52::from_fe(ax), FieldElement52::from_fe(ay)};
+    AffinePoint52 const q52{FieldElement52::from_fe(ax), FieldElement52::from_fe(ay)};
     jac52_add_mixed_inplace(p52, q52);
     x_ = p52.x; y_ = p52.y; z_ = p52.z;
     infinity_ = p52.infinity;
@@ -1721,7 +1721,7 @@ void Point::add_mixed_inplace(const FieldElement& ax, const FieldElement& ay) {
 // OPTIMIZED: Inline implementation to avoid 6 FieldElement struct copies per call
 void Point::sub_mixed_inplace(const FieldElement& ax, const FieldElement& ay) {
     // Negate Y coordinate: subtract is add with negated Y
-    FieldElement neg_ay = FieldElement::zero() - ay;
+    FieldElement const neg_ay = FieldElement::zero() - ay;
     add_mixed_inplace(ax, neg_ay);
 }
 
@@ -2085,7 +2085,7 @@ Point Point::scalar_mul_predecomposed(const Scalar& k1, const Scalar& k2,
 #endif
 
     // Restore original variant: compute both, negate individually, then add
-    Point phi_Q = apply_endomorphism(*this);
+    Point const phi_Q = apply_endomorphism(*this);
     Point term1 = this->scalar_mul(k1);
     Point term2 = phi_Q.scalar_mul(k2);
     if (neg1) term1.negate_inplace();
@@ -2102,15 +2102,15 @@ Point Point::scalar_mul_precomputed_wnaf(const std::vector<int32_t>& wnaf1,
                                           bool neg1, bool neg2) const {
     // Convert this point to Jacobian for internal operations
 #if defined(SECP256K1_FAST_52BIT)
-    JacobianPoint p = {x_.to_fe(), y_.to_fe(), z_.to_fe(), infinity_};
+    JacobianPoint const p = {x_.to_fe(), y_.to_fe(), z_.to_fe(), infinity_};
 #else
     JacobianPoint p = {x_, y_, z_, infinity_};
 #endif
     
     // Compute phi(Q) - endomorphism (1 field multiplication)
-    Point phi_Q = apply_endomorphism(*this);
+    Point const phi_Q = apply_endomorphism(*this);
 #if defined(SECP256K1_FAST_52BIT)
-    JacobianPoint phi_p = {phi_Q.X(), phi_Q.Y(), phi_Q.z(), phi_Q.infinity_};
+    JacobianPoint const phi_p = {phi_Q.X(), phi_Q.Y(), phi_Q.z(), phi_Q.infinity_};
 #else
     JacobianPoint phi_p = {phi_Q.x_, phi_Q.y_, phi_Q.z_, phi_Q.infinity_};
 #endif
@@ -2121,11 +2121,11 @@ Point Point::scalar_mul_precomputed_wnaf(const std::vector<int32_t>& wnaf1,
     // Table size = 2^(w-1)
     int max_digit = 0;
     for (auto d : wnaf1) {
-        int abs_d = (d < 0) ? -d : d;
+        int const abs_d = (d < 0) ? -d : d;
         if (abs_d > max_digit) max_digit = abs_d;
     }
     for (auto d : wnaf2) {
-        int abs_d = (d < 0) ? -d : d;
+        int const abs_d = (d < 0) ? -d : d;
         if (abs_d > max_digit) max_digit = abs_d;
     }
     
@@ -2153,8 +2153,8 @@ Point Point::scalar_mul_precomputed_wnaf(const std::vector<int32_t>& wnaf1,
     table_Q_jac[0] = p;            // 1*Q
     table_phi_Q_jac[0] = phi_p;    // 1*phi(Q)
 
-    JacobianPoint double_Q = jacobian_double(p);        // 2*Q
-    JacobianPoint double_phi_Q = jacobian_double(phi_p); // 2*phi(Q)
+    JacobianPoint const double_Q = jacobian_double(p);        // 2*Q
+    JacobianPoint const double_phi_Q = jacobian_double(phi_p); // 2*phi(Q)
 
     for (int i = 1; i < table_size; i++) {
         table_Q_jac[static_cast<std::size_t>(i)] = jacobian_add(table_Q_jac[static_cast<std::size_t>(i-1)], double_Q);
@@ -2179,31 +2179,31 @@ Point Point::scalar_mul_precomputed_wnaf(const std::vector<int32_t>& wnaf1,
     // Shamir's trick: process both wNAF streams simultaneously (inplace ops)
     JacobianPoint result = {FieldElement::zero(), FieldElement::one(), FieldElement::zero(), true};
     
-    size_t max_len = std::max(wnaf1.size(), wnaf2.size());
+    size_t const max_len = std::max(wnaf1.size(), wnaf2.size());
     
     for (int i = static_cast<int>(max_len) - 1; i >= 0; --i) {
         jacobian_double_inplace(result);
         
         // Add phi(Q) * k2 contribution (no copy: pre-negated tables)
         if (i < static_cast<int>(wnaf2.size())) {
-            int32_t digit2 = wnaf2[static_cast<std::size_t>(i)];
+            int32_t const digit2 = wnaf2[static_cast<std::size_t>(i)];
             if (digit2 > 0) {
-                int idx = (digit2 - 1) / 2;
+                int const idx = (digit2 - 1) / 2;
                 jacobian_add_inplace(result, table_phi_Q_jac[static_cast<std::size_t>(idx)]);
             } else if (digit2 < 0) {
-                int idx = (-digit2 - 1) / 2;
+                int const idx = (-digit2 - 1) / 2;
                 jacobian_add_inplace(result, neg_table_phi_Q_jac[static_cast<std::size_t>(idx)]);
             }
         }
 
         // Add Q * k1 contribution (no copy: pre-negated tables)
         if (i < static_cast<int>(wnaf1.size())) {
-            int32_t digit1 = wnaf1[static_cast<std::size_t>(i)];
+            int32_t const digit1 = wnaf1[static_cast<std::size_t>(i)];
             if (digit1 > 0) {
-                int idx = (digit1 - 1) / 2;
+                int const idx = (digit1 - 1) / 2;
                 jacobian_add_inplace(result, table_Q_jac[static_cast<std::size_t>(idx)]);
             } else if (digit1 < 0) {
-                int idx = (-digit1 - 1) / 2;
+                int const idx = (-digit1 - 1) / 2;
                 jacobian_add_inplace(result, neg_table_Q_jac[static_cast<std::size_t>(idx)]);
             }
         }
@@ -2235,11 +2235,11 @@ std::array<std::uint8_t, 33> Point::to_compressed() const {
 #if defined(SECP256K1_FAST_52BIT)
     FieldElement z_fe;
     if (!z_fe_nonzero(z_fe)) { out.fill(0); return out; } // LCOV_EXCL_LINE
-    FieldElement z_inv = z_fe.inverse();
+    FieldElement const z_inv = z_fe.inverse();
     FieldElement z_inv2 = z_inv;
     z_inv2.square_inplace();
-    FieldElement x_aff = x_.to_fe() * z_inv2;
-    FieldElement y_aff = y_.to_fe() * z_inv2 * z_inv;
+    FieldElement const x_aff = x_.to_fe() * z_inv2;
+    FieldElement const y_aff = y_.to_fe() * z_inv2 * z_inv;
 #else
     FieldElement z_inv = z_.inverse();
     FieldElement z_inv2 = z_inv;
@@ -2264,11 +2264,11 @@ std::array<std::uint8_t, 65> Point::to_uncompressed() const {
 #if defined(SECP256K1_FAST_52BIT)
     FieldElement z_fe;
     if (!z_fe_nonzero(z_fe)) { out.fill(0); return out; } // LCOV_EXCL_LINE
-    FieldElement z_inv = z_fe.inverse();
+    FieldElement const z_inv = z_fe.inverse();
     FieldElement z_inv2 = z_inv;
     z_inv2.square_inplace();
-    FieldElement x_aff = x_.to_fe() * z_inv2;
-    FieldElement y_aff = y_.to_fe() * z_inv2 * z_inv;
+    FieldElement const x_aff = x_.to_fe() * z_inv2;
+    FieldElement const y_aff = y_.to_fe() * z_inv2 * z_inv;
 #else
     FieldElement z_inv = z_.inverse();
     FieldElement z_inv2 = z_inv;
@@ -2290,10 +2290,10 @@ bool Point::has_even_y() const {
 #if defined(SECP256K1_FAST_52BIT)
     FieldElement z_fe;
     if (!z_fe_nonzero(z_fe)) return false; // LCOV_EXCL_LINE
-    FieldElement z_inv = z_fe.inverse();
+    FieldElement const z_inv = z_fe.inverse();
     FieldElement z_inv2 = z_inv;
     z_inv2.square_inplace();
-    FieldElement y_aff = y_.to_fe() * z_inv2 * z_inv;
+    FieldElement const y_aff = y_.to_fe() * z_inv2 * z_inv;
 #else
     FieldElement z_inv = z_.inverse();
     FieldElement z_inv2 = z_inv;
@@ -2310,11 +2310,11 @@ std::pair<std::array<uint8_t, 32>, bool> Point::x_bytes_and_parity() const {
 #if defined(SECP256K1_FAST_52BIT)
     FieldElement z_fe;
     if (!z_fe_nonzero(z_fe)) return {std::array<uint8_t,32>{}, false}; // LCOV_EXCL_LINE
-    FieldElement z_inv = z_fe.inverse();
+    FieldElement const z_inv = z_fe.inverse();
     FieldElement z_inv2 = z_inv;
     z_inv2.square_inplace();
-    FieldElement x_aff = x_.to_fe() * z_inv2;
-    FieldElement y_aff = y_.to_fe() * z_inv2 * z_inv;
+    FieldElement const x_aff = x_.to_fe() * z_inv2;
+    FieldElement const y_aff = y_.to_fe() * z_inv2 * z_inv;
 #else
     FieldElement z_inv = z_.inverse();
     FieldElement z_inv2 = z_inv;
@@ -2337,11 +2337,11 @@ SECP256K1_NOINLINE
 Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const Point& P) {
     // -- 128-bit arithmetic split of a --------------------------------
     const auto& a_limbs = a.limbs();
-    Scalar a_lo = Scalar::from_limbs({a_limbs[0], a_limbs[1], 0, 0});
-    Scalar a_hi = Scalar::from_limbs({a_limbs[2], a_limbs[3], 0, 0});
+    Scalar const a_lo = Scalar::from_limbs({a_limbs[0], a_limbs[1], 0, 0});
+    Scalar const a_hi = Scalar::from_limbs({a_limbs[2], a_limbs[3], 0, 0});
 
     // -- GLV decompose b only -----------------------------------------
-    GLVDecomposition decomp_b = glv_decompose(b);
+    GLVDecomposition const decomp_b = glv_decompose(b);
 
     // -- Window widths: w=15 for G (precomputed), w=5 for P (per-call) ---
     constexpr unsigned WINDOW_G = 15;    // -> 2^13 = 8192 entries per G/H table
@@ -2366,11 +2366,11 @@ Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const P
         auto build_table = [](const JacobianPoint52& B,
                               AffinePoint52* out, int count) {
             // d = 2*B, work on isomorphic curve where d is affine
-            JacobianPoint52 d = jac52_double(B);
-            FieldElement52 C  = d.z;
-            FieldElement52 C2 = C.square();
-            FieldElement52 C3 = C2 * C;
-            AffinePoint52 d_aff = {d.x, d.y};
+            JacobianPoint52 const d = jac52_double(B);
+            FieldElement52 const C  = d.z;
+            FieldElement52 const C2 = C.square();
+            FieldElement52 const C3 = C2 * C;
+            AffinePoint52 const d_aff = {d.x, d.y};
 
             // iso[0] = phi(B) = (B.x*C^2, B.y*C^3, B.z) on iso curve
             auto* iso = new JacobianPoint52[static_cast<std::size_t>(count)];
@@ -2399,8 +2399,8 @@ Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const P
             zs[0] = inv;
 
             for (std::size_t i = 0; i < static_cast<std::size_t>(count); i++) {
-                FieldElement52 zinv2 = zs[i].square();
-                FieldElement52 zinv3 = zinv2 * zs[i];
+                FieldElement52 const zinv2 = zs[i].square();
+                FieldElement52 const zinv3 = zinv2 * zs[i];
                 out[i].x = iso[i].x * zinv2;
                 out[i].y = iso[i].y * zinv3;
             }
@@ -2412,8 +2412,8 @@ Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const P
         };
 
         // Build tbl_G: odd multiples of G
-        Point G = Point::generator();
-        JacobianPoint52 G52 = to_jac52(G);
+        Point const G = Point::generator();
+        JacobianPoint52 const G52 = to_jac52(G);
         build_table(G52, t->tbl_G, G_TABLE_SIZE);
 
         // Build tbl_H: odd multiples of H = 2^128*G
@@ -2442,7 +2442,7 @@ Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const P
     //   On iso curve, d is affine: (d.X, d.Y), so table adds are
     //   mixed Jac+Affine (7M+4S) instead of full Jac+Jac (12M+5S).
     //   Saves ~33M + 6S = ~1.4us per verify.
-    JacobianPoint52 P52 = decomp_b.k1_neg
+    JacobianPoint52 const P52 = decomp_b.k1_neg
         ? to_jac52(P.negate())
         : to_jac52(P);
 
@@ -2454,14 +2454,14 @@ Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const P
     // Build table via effective-affine on isomorphic curve
     {
         // d = 2*P (Jacobian)
-        JacobianPoint52 d = jac52_double(P52);
-        FieldElement52 C  = d.z;              // C = d.Z
-        FieldElement52 C2 = C.square();       // C^2
-        FieldElement52 C3 = C2 * C;           // C^3
+        JacobianPoint52 const d = jac52_double(P52);
+        FieldElement52 const C  = d.z;              // C = d.Z
+        FieldElement52 const C2 = C.square();       // C^2
+        FieldElement52 const C3 = C2 * C;           // C^3
 
         // d as affine on iso curve: phi(d) = (d.X, d.Y)
         // (Z = C on iso curve cancels in the isomorphism)
-        AffinePoint52 d_aff = {d.x, d.y};
+        AffinePoint52 const d_aff = {d.x, d.y};
 
         // Transform P onto iso curve: phi(P) = (P.X*C^2, P.Y*C^3, P.Z)
         std::array<JacobianPoint52, P_TABLE_SIZE> iso;
@@ -2494,8 +2494,8 @@ Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const P
 
         // Convert from iso to secp256k1 affine: x = X*(Z*C)^-^2, y = Y*(Z*C)^-^3
         for (std::size_t i = 0; i < static_cast<std::size_t>(P_TABLE_SIZE); i++) {
-            FieldElement52 zinv2 = zs[i].square();
-            FieldElement52 zinv3 = zinv2 * zs[i];
+            FieldElement52 const zinv2 = zs[i].square();
+            FieldElement52 const zinv3 = zinv2 * zs[i];
             tbl_P[i].x = iso[i].x * zinv2;
             tbl_P[i].y = iso[i].y * zinv3;
         }
@@ -2557,7 +2557,7 @@ Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const P
 
         // Stream 1: a_lo * G (pre-negated table for negative digits)
         {
-            int32_t d = wnaf_a_lo[static_cast<std::size_t>(i)];
+            int32_t const d = wnaf_a_lo[static_cast<std::size_t>(i)];
             if (d > 0) {
                 jac52_add_mixed_inplace(result52, gen_tables->tbl_G[static_cast<std::size_t>((d - 1) >> 1)]);
             } else if (d < 0) {
@@ -2567,7 +2567,7 @@ Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const P
 
         // Stream 2: a_hi * H (pre-negated table for negative digits)
         {
-            int32_t d = wnaf_a_hi[static_cast<std::size_t>(i)];
+            int32_t const d = wnaf_a_hi[static_cast<std::size_t>(i)];
             if (d > 0) {
                 jac52_add_mixed_inplace(result52, gen_tables->tbl_H[static_cast<std::size_t>((d - 1) >> 1)]);
             } else if (d < 0) {
@@ -2577,7 +2577,7 @@ Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const P
 
         // Stream 3: b1 * P
         {
-            int32_t d = wnaf_b1[static_cast<std::size_t>(i)];
+            int32_t const d = wnaf_b1[static_cast<std::size_t>(i)];
             if (d > 0) {
                 jac52_add_mixed_inplace(result52, tbl_P[static_cast<std::size_t>((d - 1) >> 1)]);
             } else if (d < 0) {
@@ -2587,7 +2587,7 @@ Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const P
 
         // Stream 4: b2 * psi(P)
         {
-            int32_t d = wnaf_b2[static_cast<std::size_t>(i)];
+            int32_t const d = wnaf_b2[static_cast<std::size_t>(i)];
             if (d > 0) {
                 jac52_add_mixed_inplace(result52, tbl_phiP[static_cast<std::size_t>((d - 1) >> 1)]);
             } else if (d < 0) {

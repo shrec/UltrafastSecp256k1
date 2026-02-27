@@ -27,8 +27,8 @@ std::pair<std::array<std::uint8_t, 72>, std::size_t> ECDSASignature::to_der() co
                          uint8_t* out) -> size_t {
         size_t start = 0;
         while (start < 31 && val[start] == 0) ++start;
-        bool need_pad = (val[start] & 0x80) != 0;
-        size_t len = 32 - start + (need_pad ? 1 : 0);
+        bool const need_pad = (val[start] & 0x80) != 0;
+        size_t const len = 32 - start + (need_pad ? 1 : 0);
 
         out[0] = 0x02; // INTEGER tag
         out[1] = static_cast<uint8_t>(len);
@@ -40,8 +40,8 @@ std::pair<std::array<std::uint8_t, 72>, std::size_t> ECDSASignature::to_der() co
 
     std::array<uint8_t, 72> buf{};
     uint8_t r_enc[35]{}, s_enc[35]{};
-    size_t r_len = encode_int(r_bytes, r_enc);
-    size_t s_len = encode_int(s_bytes, s_enc);
+    size_t const r_len = encode_int(r_bytes, r_enc);
+    size_t const s_len = encode_int(s_bytes, s_enc);
 
     buf[0] = 0x30; // SEQUENCE tag
     buf[1] = static_cast<uint8_t>(r_len + s_len);
@@ -184,7 +184,7 @@ struct HMAC_Ctx {
         detail::sha256_compress_dispatch(msg, st);
 
         // Inner block 2: msg[64..] + padding
-        std::size_t rem = msg_len - 64;
+        std::size_t const rem = msg_len - 64;
         std::memcpy(block, msg + 64, rem);
         block[rem] = 0x80;
         std::memset(block + rem + 1, 0, 55 - rem);
@@ -303,7 +303,7 @@ ECDSASignature ecdsa_sign(const std::array<uint8_t, 32>& msg_hash,
     if (s.is_zero()) return {Scalar::zero(), Scalar::zero()};
 
     // Normalize to low-S (BIP-62)
-    ECDSASignature sig{r, s};
+    ECDSASignature const sig{r, s};
     return sig.normalize();
 }
 
@@ -346,8 +346,8 @@ bool ecdsa_verify(const std::array<uint8_t, 32>& msg_hash,
 
     // Direct Scalar->FE52: sig.r limbs are 4x64 LE, same layout as FieldElement.
     // Since sig.r < n < p, the raw limbs are a valid field element -- no reduction needed.
-    FE52 r52 = FE52::from_4x64_limbs(sig.r.limbs().data());
-    FE52 z2 = R_prime.Z52().square();    // Z^2  [1S] mag=1
+    FE52 const r52 = FE52::from_4x64_limbs(sig.r.limbs().data());
+    FE52 const z2 = R_prime.Z52().square();    // Z^2  [1S] mag=1
     FE52 lhs = r52 * z2;                 // r*Z^2 [1M] mag=1
     lhs.normalize();
 
@@ -369,7 +369,7 @@ bool ecdsa_verify(const std::array<uint8_t, 32>& msg_hash,
     // Quick check: r[3]==0 && r[2]==0 -> r < 2^128, definitely < p-n.
     // Otherwise compare lexicographically.
     const auto& rl = sig.r.limbs();
-    bool r_less_than_pmn;
+    bool r_less_than_pmn = false;
     if (rl[3] != 0 || rl[2] != 0) {
         r_less_than_pmn = false;  // r >= 2^128 > p-n
     } else if (rl[1] != PMN_1) {
@@ -394,7 +394,7 @@ bool ecdsa_verify(const std::array<uint8_t, 32>& msg_hash,
         rn[2] = static_cast<std::uint64_t>(acc);
         rn[3] = rl[3] + N_LIMBS[3] + static_cast<std::uint64_t>(acc >> 64);
 
-        FE52 r2_52 = FE52::from_4x64_limbs(rn);
+        FE52 const r2_52 = FE52::from_4x64_limbs(rn);
         FE52 lhs2 = r2_52 * z2;
         lhs2.normalize();
         if (lhs2 == rx) return true;

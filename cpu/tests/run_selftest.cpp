@@ -81,9 +81,10 @@ int main(int argc, char* argv[]) {
     uint64_t seed = 0;
 
     if (argc >= 2) {
-        if (std::strcmp(argv[1], "smoke") == 0) mode = SelftestMode::smoke;
-        else if (std::strcmp(argv[1], "stress") == 0) mode = SelftestMode::stress;
-        else if (std::strcmp(argv[1], "ci") == 0) mode = SelftestMode::ci;
+        if (std::strcmp(argv[1], "smoke") == 0) { mode = SelftestMode::smoke;
+        } else if (std::strcmp(argv[1], "stress") == 0) { mode = SelftestMode::stress;
+        } else if (std::strcmp(argv[1], "ci") == 0) { mode = SelftestMode::ci;
+}
     }
     if (argc >= 3) {
         seed = std::strtoull(argv[2], nullptr, 16);
@@ -113,7 +114,7 @@ int main(int argc, char* argv[]) {
 
     for (int i = 0; i < NUM_MODULES; ++i) {
         std::printf("-- Module %d/%d: %s --\n", i + 1, NUM_MODULES, MODULES[i].name);
-        int rc = MODULES[i].run();
+        int const rc = MODULES[i].run();
         if (rc == 0) {
             ++modules_passed;
             std::printf("-- PASSED --\n\n");

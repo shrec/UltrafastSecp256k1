@@ -40,7 +40,7 @@ static int g_fail = 0;
             ++g_pass;                                           \
         } else {                                                \
             ++g_fail;                                           \
-            std::cout << "  FAIL: " << msg << "\n";             \
+            std::cout << "  FAIL: " << (msg) << "\n";             \
             std::cout.flush();                                  \
         }                                                       \
     } while (0)
@@ -102,44 +102,44 @@ static bool pt_eq(const PT& a, const PT& b) {
 static void test_boundary_generator_mul() {
     std::cout << "--- Boundary: ct::generator_mul vs fast generator mul ---\n";
 
-    PT G = PT::generator();
+    PT const G = PT::generator();
 
     // k = 1: both should return G
     {
-        SC k = SC::from_uint64(1);
-        PT ct_r = ct::generator_mul(k);
-        PT fast_r = G.scalar_mul(k);
+        SC const k = SC::from_uint64(1);
+        PT const ct_r = ct::generator_mul(k);
+        PT const fast_r = G.scalar_mul(k);
         CHECK(pt_eq(ct_r, fast_r), "generator_mul(1) equivalence");
     }
     // k = 2
     {
-        SC k = SC::from_uint64(2);
-        PT ct_r = ct::generator_mul(k);
-        PT fast_r = G.scalar_mul(k);
+        SC const k = SC::from_uint64(2);
+        PT const ct_r = ct::generator_mul(k);
+        PT const fast_r = G.scalar_mul(k);
         CHECK(pt_eq(ct_r, fast_r), "generator_mul(2) equivalence");
     }
     // k = n-1 (secp256k1 order minus 1)
     {
-        SC n_minus_1 = SC::from_hex(
+        SC const n_minus_1 = SC::from_hex(
             "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364140");
-        PT ct_r = ct::generator_mul(n_minus_1);
-        PT fast_r = G.scalar_mul(n_minus_1);
+        PT const ct_r = ct::generator_mul(n_minus_1);
+        PT const fast_r = G.scalar_mul(n_minus_1);
         CHECK(pt_eq(ct_r, fast_r), "generator_mul(n-1) equivalence");
     }
     // k = n-2
     {
-        SC n_minus_2 = SC::from_hex(
+        SC const n_minus_2 = SC::from_hex(
             "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD036413F");
-        PT ct_r = ct::generator_mul(n_minus_2);
-        PT fast_r = G.scalar_mul(n_minus_2);
+        PT const ct_r = ct::generator_mul(n_minus_2);
+        PT const fast_r = G.scalar_mul(n_minus_2);
         CHECK(pt_eq(ct_r, fast_r), "generator_mul(n-2) equivalence");
     }
     // k = (n+1)/2  (midpoint of the group)
     {
-        SC half_n = SC::from_hex(
+        SC const half_n = SC::from_hex(
             "7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A1");
-        PT ct_r = ct::generator_mul(half_n);
-        PT fast_r = G.scalar_mul(half_n);
+        PT const ct_r = ct::generator_mul(half_n);
+        PT const fast_r = G.scalar_mul(half_n);
         CHECK(pt_eq(ct_r, fast_r), "generator_mul((n+1)/2) equivalence");
     }
 }
@@ -151,12 +151,12 @@ static void test_random_generator_mul() {
     std::cout << "--- Property: 64 random ct::generator_mul vs fast ---\n";
 
     TestRng rng(0xDEADBEEFu);
-    PT G = PT::generator();
+    PT const G = PT::generator();
 
     for (int i = 0; i < 64; ++i) {
-        SC k = rng.random_scalar();
-        PT ct_r = ct::generator_mul(k);
-        PT fast_r = G.scalar_mul(k);
+        SC const k = rng.random_scalar();
+        PT const ct_r = ct::generator_mul(k);
+        PT const fast_r = G.scalar_mul(k);
         CHECK(pt_eq(ct_r, fast_r), "random generator_mul equivalence #" + std::to_string(i));
     }
 }
@@ -168,23 +168,23 @@ static void test_random_scalar_mul() {
     std::cout << "--- Property: 64 random ct::scalar_mul(P, k) vs fast ---\n";
 
     TestRng rng(0xCAFEBABEu);
-    PT G = PT::generator();
+    PT const G = PT::generator();
 
     for (int i = 0; i < 64; ++i) {
         // Random base point
-        SC base_k = rng.random_scalar();
-        PT P = G.scalar_mul(base_k);
+        SC const base_k = rng.random_scalar();
+        PT const P = G.scalar_mul(base_k);
 
         // Random scalar
-        SC k = rng.random_scalar();
+        SC const k = rng.random_scalar();
 
-        PT ct_r = ct::scalar_mul(P, k);
-        PT fast_r = P.scalar_mul(k);
-        bool eq = pt_eq(ct_r, fast_r);
+        PT const ct_r = ct::scalar_mul(P, k);
+        PT const fast_r = P.scalar_mul(k);
+        bool const eq = pt_eq(ct_r, fast_r);
         if (!eq) {
             // Gold-standard: (base_k * k) * G should equal k * P
-            SC combined = base_k * k;
-            PT gold = G.scalar_mul(combined);
+            SC const combined = base_k * k;
+            PT const gold = G.scalar_mul(combined);
             auto ct_xb = ct_r.x().to_bytes();
             auto fast_xb = fast_r.x().to_bytes();
             auto gold_xb = gold.x().to_bytes();
@@ -209,37 +209,37 @@ static void test_random_scalar_mul() {
 static void test_boundary_scalar_mul() {
     std::cout << "--- Boundary: ct::scalar_mul edge scalars ---\n";
 
-    PT G = PT::generator();
-    SC k7 = SC::from_uint64(7);
-    PT P = G.scalar_mul(k7); // use 7*G as a non-trivial base point
+    PT const G = PT::generator();
+    SC const k7 = SC::from_uint64(7);
+    PT const P = G.scalar_mul(k7); // use 7*G as a non-trivial base point
 
     // k = 0: result should be infinity
     {
-        SC k = SC::from_uint64(0);
-        PT ct_r = ct::scalar_mul(P, k);
-        PT fast_r = P.scalar_mul(k);
+        SC const k = SC::from_uint64(0);
+        PT const ct_r = ct::scalar_mul(P, k);
+        PT const fast_r = P.scalar_mul(k);
         CHECK(ct_r.is_infinity() && fast_r.is_infinity(),
               "scalar_mul(P, 0) == O");
     }
     // k = 1
     {
-        SC k = SC::from_uint64(1);
-        PT ct_r = ct::scalar_mul(P, k);
+        SC const k = SC::from_uint64(1);
+        PT const ct_r = ct::scalar_mul(P, k);
         CHECK(pt_eq(ct_r, P), "scalar_mul(P, 1) == P");
     }
     // k = 2
     {
-        SC k = SC::from_uint64(2);
-        PT ct_r = ct::scalar_mul(P, k);
-        PT fast_r = P.scalar_mul(k);
+        SC const k = SC::from_uint64(2);
+        PT const ct_r = ct::scalar_mul(P, k);
+        PT const fast_r = P.scalar_mul(k);
         CHECK(pt_eq(ct_r, fast_r), "scalar_mul(P, 2) equivalence");
     }
     // k = n-1: P*(n-1) = -P
     {
-        SC n_minus_1 = SC::from_hex(
+        SC const n_minus_1 = SC::from_hex(
             "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364140");
-        PT ct_r = ct::scalar_mul(P, n_minus_1);
-        PT fast_r = P.scalar_mul(n_minus_1);
+        PT const ct_r = ct::scalar_mul(P, n_minus_1);
+        PT const fast_r = P.scalar_mul(n_minus_1);
         CHECK(pt_eq(ct_r, fast_r), "scalar_mul(P, n-1) equivalence (= -P)");
     }
 }
@@ -251,22 +251,22 @@ static void test_ecdsa_sign_equivalence() {
     std::cout << "--- Property: 32 random ECDSA sign CT==FAST ---\n";
 
     TestRng rng(0xEC05Au);
-    PT G = PT::generator();
+    PT const G = PT::generator();
 
     for (int i = 0; i < 32; ++i) {
-        SC privkey = rng.random_scalar();
+        SC const privkey = rng.random_scalar();
         auto msg_hash = rng.random_bytes();
 
         auto ct_sig = secp256k1::ct::ecdsa_sign(msg_hash, privkey);
         auto fast_sig = secp256k1::ecdsa_sign(msg_hash, privkey);
 
-        bool r_eq = (ct_sig.r.to_bytes() == fast_sig.r.to_bytes());
-        bool s_eq = (ct_sig.s.to_bytes() == fast_sig.s.to_bytes());
+        bool const r_eq = (ct_sig.r.to_bytes() == fast_sig.r.to_bytes());
+        bool const s_eq = (ct_sig.s.to_bytes() == fast_sig.s.to_bytes());
         CHECK(r_eq && s_eq,
               "ECDSA sign equivalence #" + std::to_string(i));
 
         // Also verify the CT signature
-        PT pubkey = G.scalar_mul(privkey);
+        PT const pubkey = G.scalar_mul(privkey);
         CHECK(secp256k1::ecdsa_verify(msg_hash, pubkey, ct_sig),
               "ECDSA CT sig verifies #" + std::to_string(i));
     }
@@ -281,7 +281,7 @@ static void test_schnorr_sign_equivalence() {
     TestRng rng(0x5CA00Bu);
 
     for (int i = 0; i < 32; ++i) {
-        SC privkey = rng.random_scalar();
+        SC const privkey = rng.random_scalar();
         auto msg = rng.random_bytes();
         auto aux = rng.random_bytes();
 
@@ -295,8 +295,8 @@ static void test_schnorr_sign_equivalence() {
         auto ct_sig  = secp256k1::ct::schnorr_sign(ct_kp, msg, aux);
         auto fast_sig = secp256k1::schnorr_sign(fast_kp, msg, aux);
 
-        bool r_eq = (ct_sig.r == fast_sig.r);
-        bool s_eq = (ct_sig.s.to_bytes() == fast_sig.s.to_bytes());
+        bool const r_eq = (ct_sig.r == fast_sig.r);
+        bool const s_eq = (ct_sig.s.to_bytes() == fast_sig.s.to_bytes());
         CHECK(r_eq && s_eq,
               "Schnorr sign equivalence #" + std::to_string(i));
 
@@ -314,14 +314,14 @@ static void test_schnorr_pubkey_equivalence() {
 
     // k=1
     {
-        SC k = SC::from_uint64(1);
+        SC const k = SC::from_uint64(1);
         auto ct_px = secp256k1::ct::schnorr_pubkey(k);
         auto fast_px = secp256k1::schnorr_pubkey(k);
         CHECK(ct_px == fast_px, "schnorr_pubkey(1) equivalence");
     }
     // k=2
     {
-        SC k = SC::from_uint64(2);
+        SC const k = SC::from_uint64(2);
         auto ct_px = secp256k1::ct::schnorr_pubkey(k);
         auto fast_px = secp256k1::schnorr_pubkey(k);
         CHECK(ct_px == fast_px, "schnorr_pubkey(2) equivalence");
@@ -329,7 +329,7 @@ static void test_schnorr_pubkey_equivalence() {
     // Random
     TestRng rng(0xA1B2C3u);
     for (int i = 0; i < 16; ++i) {
-        SC k = rng.random_scalar();
+        SC const k = rng.random_scalar();
         auto ct_px = secp256k1::ct::schnorr_pubkey(k);
         auto fast_px = secp256k1::schnorr_pubkey(k);
         CHECK(ct_px == fast_px,
@@ -343,14 +343,14 @@ static void test_schnorr_pubkey_equivalence() {
 static void test_ct_group_law() {
     std::cout << "--- CT group law invariants ---\n";
 
-    PT G = PT::generator();
-    SC k3 = SC::from_uint64(3);
-    SC k5 = SC::from_uint64(5);
-    SC k7 = SC::from_uint64(7);
+    PT const G = PT::generator();
+    SC const k3 = SC::from_uint64(3);
+    SC const k5 = SC::from_uint64(5);
+    SC const k7 = SC::from_uint64(7);
 
-    PT P = G.scalar_mul(k3);
-    PT Q = G.scalar_mul(k5);
-    PT R = G.scalar_mul(k7);
+    PT const P = G.scalar_mul(k3);
+    PT const Q = G.scalar_mul(k5);
+    PT const R = G.scalar_mul(k7);
 
     auto J_P = ct::CTJacobianPoint::from_point(P);
     auto J_Q = ct::CTJacobianPoint::from_point(Q);

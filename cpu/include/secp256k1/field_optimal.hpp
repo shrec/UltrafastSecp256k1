@@ -118,7 +118,7 @@ namespace secp256k1::fast {
 #endif
 
 // -- Compile-time tag --------------------------------------------------------
-enum class FieldTier { FE64, FE52, FE26 };
+enum class FieldTier : std::uint8_t { FE64, FE52, FE26 };
 
 #if defined(SECP256K1_OPTIMAL_TIER_52)
     inline constexpr FieldTier kOptimalTier = FieldTier::FE52;

@@ -25,7 +25,7 @@ static std::pair<Point, bool> lift_x(const FieldElement& x_fe, int parity) {
 
     // Adjust parity
     auto y_bytes = y.to_bytes();
-    bool y_is_odd = (y_bytes[31] & 1) != 0;
+    bool const y_is_odd = (y_bytes[31] & 1) != 0;
     if ((parity != 0) != y_is_odd) {
         y = FieldElement::zero() - y;
     }
@@ -122,7 +122,7 @@ std::pair<Point, bool> ecdsa_recover(
     }
 
     // Step 2: Lift x to curve point R with correct y parity
-    int y_parity = recid & 1;
+    int const y_parity = recid & 1;
     auto [R, valid] = lift_x(rx_fe, y_parity);
     if (!valid) return {Point::infinity(), false};
 
@@ -163,10 +163,10 @@ std::array<uint8_t, 65> recoverable_to_compact(
 std::pair<RecoverableSignature, bool> recoverable_from_compact(
     const std::array<uint8_t, 65>& data) {
 
-    uint8_t header = data[0];
+    uint8_t const header = data[0];
     if (header < 27 || header > 34) return {{}, false};
 
-    int recid = (header - 27) & 3;
+    int const recid = (header - 27) & 3;
 
     std::array<uint8_t, 32> r_bytes{}, s_bytes{};
     std::memcpy(r_bytes.data(), data.data() + 1, 32);

@@ -64,13 +64,13 @@ static void test_key_aggregation() {
     hex_to_bytes("0000000000000000000000000000000000000000000000000000000000000002",
                  sk2_bytes.data(), 32);
 
-    Scalar s1 = Scalar::from_bytes(sk1_bytes);
-    Scalar s2 = Scalar::from_bytes(sk2_bytes);
+    Scalar const s1 = Scalar::from_bytes(sk1_bytes);
+    Scalar const s2 = Scalar::from_bytes(sk2_bytes);
 
     auto pk1 = get_xonly_pubkey(s1);
     auto pk2 = get_xonly_pubkey(s2);
 
-    std::vector<std::array<uint8_t, 32>> pubkeys = {pk1, pk2};
+    std::vector<std::array<uint8_t, 32>> const pubkeys = {pk1, pk2};
     auto ctx = musig2_key_agg(pubkeys);
 
     // Aggregated key should not be infinity
@@ -95,7 +95,7 @@ static void test_nonce_gen() {
     std::array<uint8_t, 32> sk_bytes{};
     hex_to_bytes("0000000000000000000000000000000000000000000000000000000000000001",
                  sk_bytes.data(), 32);
-    Scalar sk = Scalar::from_bytes(sk_bytes);
+    Scalar const sk = Scalar::from_bytes(sk_bytes);
 
     auto pk = get_xonly_pubkey(sk);
 
@@ -138,14 +138,14 @@ static void test_2of2_signing() {
     hex_to_bytes("c4a3d38f3f59fe511b1f17b71f6d6f0f6fed1b2f8f3e5b8f9f0b1c2d3e4f5061",
                  sk2_bytes.data(), 32);
 
-    Scalar s1 = Scalar::from_bytes(sk1_bytes);
-    Scalar s2 = Scalar::from_bytes(sk2_bytes);
+    Scalar const s1 = Scalar::from_bytes(sk1_bytes);
+    Scalar const s2 = Scalar::from_bytes(sk2_bytes);
 
     auto pk1 = get_xonly_pubkey(s1);
     auto pk2 = get_xonly_pubkey(s2);
 
     // Step 1: Key aggregation
-    std::vector<std::array<uint8_t, 32>> pubkeys = {pk1, pk2};
+    std::vector<std::array<uint8_t, 32>> const pubkeys = {pk1, pk2};
     auto key_ctx = musig2_key_agg(pubkeys);
 
     // Step 2: Message
@@ -161,7 +161,7 @@ static void test_2of2_signing() {
     auto [sec2, pub2] = musig2_nonce_gen(s2, pk2, key_ctx.Q_x, msg, extra2.data());
 
     // Step 4: Nonce aggregation
-    std::vector<MuSig2PubNonce> pub_nonces = {pub1, pub2};
+    std::vector<MuSig2PubNonce> const pub_nonces = {pub1, pub2};
     auto agg_nonce = musig2_nonce_agg(pub_nonces);
 
     // Step 5: Start signing session
@@ -172,18 +172,18 @@ static void test_2of2_signing() {
     auto psig2 = musig2_partial_sign(sec2, s2, key_ctx, session, 1);
 
     // Step 7: Verify partial signatures
-    bool v1 = musig2_partial_verify(psig1, pub1, pk1, key_ctx, session, 0);
-    bool v2 = musig2_partial_verify(psig2, pub2, pk2, key_ctx, session, 1);
+    bool const v1 = musig2_partial_verify(psig1, pub1, pk1, key_ctx, session, 0);
+    bool const v2 = musig2_partial_verify(psig2, pub2, pk2, key_ctx, session, 1);
     CHECK(v1, "Partial sig 1 verifies");
     CHECK(v2, "Partial sig 2 verifies");
 
     // Step 8: Aggregate into final signature
-    std::vector<Scalar> psigs = {psig1, psig2};
+    std::vector<Scalar> const psigs = {psig1, psig2};
     auto sig = musig2_partial_sig_agg(psigs, session);
 
     // Step 9: Verify the aggregate signature with BIP-340 Schnorr
     auto schnorr_sig = SchnorrSignature::from_bytes(sig);
-    bool schnorr_ok = schnorr_verify(key_ctx.Q_x, msg, schnorr_sig);
+    bool const schnorr_ok = schnorr_verify(key_ctx.Q_x, msg, schnorr_sig);
     CHECK(schnorr_ok, "Final MuSig2 sig verifies as standard Schnorr");
 }
 
@@ -238,14 +238,14 @@ static void test_3of3_signing() {
         auto ps = musig2_partial_sign(sec_nonces[i], sk[i], key_ctx, session, i);
         psigs.push_back(ps);
 
-        bool pv = musig2_partial_verify(ps, pub_nonces[i], pk[i], key_ctx, session, i);
+        bool const pv = musig2_partial_verify(ps, pub_nonces[i], pk[i], key_ctx, session, i);
         CHECK(pv, (std::string("3-of-3 partial sig ") + std::to_string(i) + " verifies").c_str());
     }
 
     auto sig = musig2_partial_sig_agg(psigs, session);
 
     auto schnorr_sig = SchnorrSignature::from_bytes(sig);
-    bool final_ok = schnorr_verify(key_ctx.Q_x, msg, schnorr_sig);
+    bool const final_ok = schnorr_verify(key_ctx.Q_x, msg, schnorr_sig);
     CHECK(final_ok, "3-of-3 MuSig2 sig verifies as Schnorr");
 }
 
@@ -258,10 +258,10 @@ static void test_edge_cases() {
     std::array<uint8_t, 32> sk_bytes{};
     hex_to_bytes("0000000000000000000000000000000000000000000000000000000000000007",
                  sk_bytes.data(), 32);
-    Scalar s = Scalar::from_bytes(sk_bytes);
+    Scalar const s = Scalar::from_bytes(sk_bytes);
     auto pk = get_xonly_pubkey(s);
 
-    std::vector<std::array<uint8_t, 32>> pubkeys = {pk};
+    std::vector<std::array<uint8_t, 32>> const pubkeys = {pk};
     auto key_ctx = musig2_key_agg(pubkeys);
     CHECK(!key_ctx.Q.is_infinity(), "Single-signer agg key valid");
 
@@ -272,19 +272,19 @@ static void test_edge_cases() {
     extra[0] = 0xBB;
     auto [sec, pub] = musig2_nonce_gen(s, pk, key_ctx.Q_x, msg, extra.data());
 
-    std::vector<MuSig2PubNonce> pub_nonces = {pub};
+    std::vector<MuSig2PubNonce> const pub_nonces = {pub};
     auto agg = musig2_nonce_agg(pub_nonces);
     auto session = musig2_start_sign_session(agg, key_ctx, msg);
 
     auto psig = musig2_partial_sign(sec, s, key_ctx, session, 0);
-    bool pv = musig2_partial_verify(psig, pub, pk, key_ctx, session, 0);
+    bool const pv = musig2_partial_verify(psig, pub, pk, key_ctx, session, 0);
     CHECK(pv, "Single-signer partial verify OK");
 
-    std::vector<Scalar> psigs_vec = {psig};
+    std::vector<Scalar> const psigs_vec = {psig};
     auto sig = musig2_partial_sig_agg(psigs_vec, session);
 
     auto schnorr_sig = SchnorrSignature::from_bytes(sig);
-    bool schnorr_ok = schnorr_verify(key_ctx.Q_x, msg, schnorr_sig);
+    bool const schnorr_ok = schnorr_verify(key_ctx.Q_x, msg, schnorr_sig);
     CHECK(schnorr_ok, "Single-signer MuSig2 = valid Schnorr sig");
 }
 

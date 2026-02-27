@@ -28,8 +28,9 @@ static void check(bool cond, const char* name) {
 }
 
 [[maybe_unused]] static void print_hex(const std::uint8_t* data, std::size_t len) {
-    for (std::size_t i = 0; i < len; ++i)
+    for (std::size_t i = 0; i < len; ++i) {
         std::printf("%02x", data[i]);
+}
 }
 
 // -- Test 1: Feature detection ------------------------------------------------
@@ -326,7 +327,7 @@ static void test_benchmark() {
             hash::scalar::sha256_33(comp.data(), out32);
         }
         auto t1 = std::chrono::high_resolution_clock::now();
-        double ns = static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count());
+        double const ns = static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count());
         std::printf("  Scalar SHA256_33:  %.1f ns/call\n", ns / ITERS);
     }
 
@@ -337,7 +338,7 @@ static void test_benchmark() {
             hash::sha256_33(comp.data(), out32);
         }
         auto t1 = std::chrono::high_resolution_clock::now();
-        double ns = static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count());
+        double const ns = static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count());
         std::printf("  Auto   SHA256_33:  %.1f ns/call (%s)\n", ns / ITERS, hash::hash_tier_name(hash::detect_hash_tier()));
     }
 
@@ -348,7 +349,7 @@ static void test_benchmark() {
             hash::scalar::ripemd160_32(out32, out20);
         }
         auto t1 = std::chrono::high_resolution_clock::now();
-        double ns = static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count());
+        double const ns = static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count());
         std::printf("  Scalar RIPEMD160_32: %.1f ns/call\n", ns / ITERS);
     }
 
@@ -359,7 +360,7 @@ static void test_benchmark() {
             hash::hash160_33(comp.data(), out20);
         }
         auto t1 = std::chrono::high_resolution_clock::now();
-        double ns = static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count());
+        double const ns = static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count());
         std::printf("  Auto   Hash160_33: %.1f ns/call\n", ns / ITERS);
     }
 
@@ -371,7 +372,7 @@ static void test_benchmark() {
             (void)h;
         }
         auto t1 = std::chrono::high_resolution_clock::now();
-        double ns = static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count());
+        double const ns = static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count());
         std::printf("  Old    SHA256::hash: %.1f ns/call (reference)\n", ns / ITERS);
     }
 
@@ -396,8 +397,8 @@ static void test_benchmark() {
             hash::hash160_33_batch(keys.data(), hashes.data(), BATCH);
         }
         auto t1 = std::chrono::high_resolution_clock::now();
-        double total_ns = static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count());
-        double per_key = total_ns / BATCH_ITERS / BATCH;
+        double const total_ns = static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count());
+        double const per_key = total_ns / BATCH_ITERS / BATCH;
         std::printf("  Batch  Hash160_33 (%zu): %.1f ns/key, %.2f Mkeys/s\n",
                     BATCH, per_key, 1e9 / per_key / 1e6);
     }

@@ -54,7 +54,7 @@ double bench_k_times_generator(const std::vector<Scalar>& scalars, size_t iterat
 
 // Benchmark K*Q (arbitrary point multiplication)
 double bench_k_times_point(const std::vector<Scalar>& scalars, size_t iterations) {
-    Point G = Point::generator();
+    Point const G = Point::generator();
     Point Q = G.scalar_mul(Scalar::from_uint64(12345)); // Arbitrary point
     Point result = Q;
     size_t idx = 0;
@@ -68,8 +68,8 @@ double bench_k_times_point(const std::vector<Scalar>& scalars, size_t iterations
 
 // Benchmark point addition (used in wNAF loop)
 double bench_point_add(size_t iterations) {
-    Point G = Point::generator();
-    Point P = G.scalar_mul(Scalar::from_uint64(7));
+    Point const G = Point::generator();
+    Point const P = G.scalar_mul(Scalar::from_uint64(7));
     Point Q = G.scalar_mul(Scalar::from_uint64(11));
     Point result = P;
     
@@ -81,8 +81,8 @@ double bench_point_add(size_t iterations) {
 
 // Benchmark point doubling
 double bench_point_double(size_t iterations) {
-    Point G = Point::generator();
-    Point P = G.scalar_mul(Scalar::from_uint64(7));
+    Point const G = Point::generator();
+    Point const P = G.scalar_mul(Scalar::from_uint64(7));
     Point result = P;
     
     return H.run(static_cast<int>(iterations), [&]() {
@@ -135,19 +135,19 @@ int main() {
     std::cout << "=======================================================\n";
     
     // Point operations (building blocks)
-    double add_time = bench_point_add(POINT_OP_ITERATIONS);
+    double const add_time = bench_point_add(POINT_OP_ITERATIONS);
     print_result("Point Addition", add_time);
     
-    double dbl_time = bench_point_double(POINT_OP_ITERATIONS);
+    double const dbl_time = bench_point_double(POINT_OP_ITERATIONS);
     print_result("Point Doubling", dbl_time);
     
     std::cout << "\n";
     
     // Scalar multiplication (main operations)
-    double kg_time = bench_k_times_generator(scalars, SCALAR_MUL_ITERATIONS);
+    double const kg_time = bench_k_times_generator(scalars, SCALAR_MUL_ITERATIONS);
     print_result("K*G (Generator)", kg_time);
     
-    double kq_time = bench_k_times_point(scalars, SCALAR_MUL_ITERATIONS);
+    double const kq_time = bench_k_times_point(scalars, SCALAR_MUL_ITERATIONS);
     print_result("K*Q (Arbitrary Point)", kq_time);
     
     std::cout << "=======================================================\n\n";
@@ -157,14 +157,14 @@ int main() {
     
     // Estimate operations per K*Q
     // wNAF w=4: ~64 point operations (43 additions + 21 doublings on average)
-    double estimated_ops = (43.0 * add_time + 21.0 * dbl_time);
+    double const estimated_ops = (43.0 * add_time + 21.0 * dbl_time);
     std::cout << "  * Estimated from point ops: " << std::fixed << std::setprecision(2);
     std::cout << (estimated_ops / 1000.0) << " us\n";
     
     std::cout << "  * Actual K*Q: " << std::fixed << std::setprecision(2);
     std::cout << (kq_time / 1000.0) << " us\n";
     
-    double overhead = ((kq_time - estimated_ops) / kq_time) * 100.0;
+    double const overhead = ((kq_time - estimated_ops) / kq_time) * 100.0;
     std::cout << "  * Overhead (wNAF, precompute): " << std::fixed << std::setprecision(1);
     std::cout << overhead << "%\n";
     

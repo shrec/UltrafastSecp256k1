@@ -46,7 +46,7 @@ coin_derive_key(const ExtendedKey& master,
                 std::uint32_t account,
                 bool change,
                 std::uint32_t address_index) {
-    DerivationPurpose purpose = best_purpose(coin);
+    DerivationPurpose const purpose = best_purpose(coin);
     return coin_derive_key_with_purpose(master, coin, purpose,
                                          account, change, address_index);
 }
@@ -58,7 +58,7 @@ coin_derive_key_with_purpose(const ExtendedKey& master,
                              std::uint32_t account,
                              bool change,
                              std::uint32_t address_index) {
-    std::string path = coin_derive_path(coin, account, change,
+    std::string const path = coin_derive_path(coin, account, change,
                                          address_index, purpose);
     return bip32_derive_path(master, path);
 }
@@ -80,7 +80,7 @@ coin_address_from_seed(const std::uint8_t* seed, std::size_t seed_len,
     
     // Step 3: Generate address
     auto pubkey = child.public_key();
-    std::string addr = coin_address(pubkey, coin);
+    std::string const addr = coin_address(pubkey, coin);
     
     return {addr, true};
 }

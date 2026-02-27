@@ -63,11 +63,11 @@ static bool pt_eq_affine(const PT& a, const PT& b) {
     do {                                                        \
         if (cond) {                                             \
             ++g_pass;                                           \
-            std::cout << "  PASS: " << msg << "\n";             \
+            std::cout << "  PASS: " << (msg) << "\n";             \
             std::cout.flush();                                  \
         } else {                                                \
             ++g_fail;                                           \
-            std::cout << "  FAIL: " << msg << "\n";             \
+            std::cout << "  FAIL: " << (msg) << "\n";             \
             std::cout.flush();                                  \
         }                                                       \
     } while (0)
@@ -79,80 +79,80 @@ static bool pt_eq_affine(const PT& a, const PT& b) {
 // --- 1. CT Field Arithmetic -------------------------------------------------
 
 static void test_field_add() {
-    FE a = FE::from_hex("79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798");
-    FE b = FE::from_hex("483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8");
+    FE const a = FE::from_hex("79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798");
+    FE const b = FE::from_hex("483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8");
 
-    FE fast_r = a + b;
-    FE ct_r = ct::field_add(a, b);
+    FE const fast_r = a + b;
+    FE const ct_r = ct::field_add(a, b);
 
     CHECK(fe_eq(fast_r, ct_r), "field_add basic");
 }
 
 static void test_field_sub() {
-    FE a = FE::from_hex("79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798");
-    FE b = FE::from_hex("483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8");
+    FE const a = FE::from_hex("79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798");
+    FE const b = FE::from_hex("483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8");
 
-    FE fast_r = a - b;
-    FE ct_r = ct::field_sub(a, b);
+    FE const fast_r = a - b;
+    FE const ct_r = ct::field_sub(a, b);
 
     CHECK(fe_eq(fast_r, ct_r), "field_sub basic");
 }
 
 static void test_field_mul() {
-    FE a = FE::from_hex("79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798");
-    FE b = FE::from_hex("483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8");
+    FE const a = FE::from_hex("79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798");
+    FE const b = FE::from_hex("483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8");
 
-    FE fast_r = a * b;
-    FE ct_r = ct::field_mul(a, b);
+    FE const fast_r = a * b;
+    FE const ct_r = ct::field_mul(a, b);
 
     CHECK(fe_eq(fast_r, ct_r), "field_mul basic");
 }
 
 static void test_field_sqr() {
-    FE a = FE::from_hex("79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798");
+    FE const a = FE::from_hex("79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798");
 
-    FE fast_r = a.square();
-    FE ct_r = ct::field_sqr(a);
+    FE const fast_r = a.square();
+    FE const ct_r = ct::field_sqr(a);
 
     CHECK(fe_eq(fast_r, ct_r), "field_sqr basic");
 }
 
 static void test_field_neg() {
-    FE a = FE::from_hex("79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798");
-    FE zero = FE::from_uint64(0);
+    FE const a = FE::from_hex("79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798");
+    FE const zero = FE::from_uint64(0);
 
-    FE ct_neg_a = ct::field_neg(a);
-    FE sum = ct::field_add(a, ct_neg_a);
+    FE const ct_neg_a = ct::field_neg(a);
+    FE const sum = ct::field_add(a, ct_neg_a);
 
     CHECK(ct::field_is_zero(sum) != 0, "field_neg: a + (-a) == 0");
 
-    FE ct_neg_zero = ct::field_neg(zero);
+    FE const ct_neg_zero = ct::field_neg(zero);
     CHECK(ct::field_is_zero(ct_neg_zero) != 0, "field_neg(0) == 0");
 }
 
 static void test_field_inv() {
-    FE a = FE::from_hex("79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798");
+    FE const a = FE::from_hex("79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798");
 
-    FE ct_inv = ct::field_inv(a);
-    FE product = ct::field_mul(a, ct_inv);
+    FE const ct_inv = ct::field_inv(a);
+    FE const product = ct::field_mul(a, ct_inv);
 
     // product should be 1
-    FE one = FE::from_uint64(1);
+    FE const one = FE::from_uint64(1);
     CHECK(fe_eq(product, one), "field_inv: a * a^-1 == 1");
 }
 
 static void test_field_normalize() {
     // Create a value >= p by using raw limbs
-    FE a = FE::from_uint64(42);
-    FE norm = ct::field_normalize(a);
+    FE const a = FE::from_uint64(42);
+    FE const norm = ct::field_normalize(a);
     CHECK(fe_eq(a, norm), "field_normalize: small value unchanged");
 }
 
 // --- 2. CT Field Conditional Ops ---------------------------------------------
 
 static void test_field_cmov() {
-    FE a = FE::from_uint64(42);
-    FE b = FE::from_uint64(99);
+    FE const a = FE::from_uint64(42);
+    FE const b = FE::from_uint64(99);
     FE r = a;
 
     ct::field_cmov(&r, b, 0);  // no move
@@ -163,8 +163,8 @@ static void test_field_cmov() {
 }
 
 static void test_field_cswap() {
-    FE a = FE::from_uint64(42);
-    FE b = FE::from_uint64(99);
+    FE const a = FE::from_uint64(42);
+    FE const b = FE::from_uint64(99);
     FE a2 = a, b2 = b;
 
     ct::field_cswap(&a2, &b2, 0);  // no swap
@@ -175,39 +175,39 @@ static void test_field_cswap() {
 }
 
 static void test_field_select() {
-    FE a = FE::from_uint64(42);
-    FE b = FE::from_uint64(99);
+    FE const a = FE::from_uint64(42);
+    FE const b = FE::from_uint64(99);
 
-    FE r0 = ct::field_select(a, b, 0);
+    FE const r0 = ct::field_select(a, b, 0);
     CHECK(fe_eq(r0, b), "field_select: mask=0 -> b");
 
-    FE r1 = ct::field_select(a, b, ~uint64_t(0));
+    FE const r1 = ct::field_select(a, b, ~uint64_t(0));
     CHECK(fe_eq(r1, a), "field_select: mask=all-ones -> a");
 }
 
 static void test_field_cneg() {
-    FE a = FE::from_uint64(42);
+    FE const a = FE::from_uint64(42);
 
-    FE r0 = ct::field_cneg(a, 0);
+    FE const r0 = ct::field_cneg(a, 0);
     CHECK(fe_eq(r0, a), "field_cneg: mask=0 -> unchanged");
 
-    FE r1 = ct::field_cneg(a, ~uint64_t(0));
-    FE neg_a = ct::field_neg(a);
+    FE const r1 = ct::field_cneg(a, ~uint64_t(0));
+    FE const neg_a = ct::field_neg(a);
     CHECK(fe_eq(r1, neg_a), "field_cneg: mask=all-ones -> negated");
 }
 
 static void test_field_is_zero() {
-    FE zero = FE::from_uint64(0);
-    FE nonzero = FE::from_uint64(1);
+    FE const zero = FE::from_uint64(0);
+    FE const nonzero = FE::from_uint64(1);
 
     CHECK(ct::field_is_zero(zero) != 0, "field_is_zero(0) -> true");
     CHECK(ct::field_is_zero(nonzero) == 0, "field_is_zero(1) -> false");
 }
 
 static void test_field_eq() {
-    FE a = FE::from_uint64(42);
-    FE b = FE::from_uint64(42);
-    FE c = FE::from_uint64(99);
+    FE const a = FE::from_uint64(42);
+    FE const b = FE::from_uint64(42);
+    FE const c = FE::from_uint64(99);
 
     CHECK(ct::field_eq(a, b) != 0, "field_eq: equal -> true");
     CHECK(ct::field_eq(a, c) == 0, "field_eq: not equal -> false");
@@ -216,42 +216,42 @@ static void test_field_eq() {
 // --- 3. CT Scalar Arithmetic -------------------------------------------------
 
 static void test_scalar_add() {
-    SC a = SC::from_uint64(100);
-    SC b = SC::from_uint64(200);
+    SC const a = SC::from_uint64(100);
+    SC const b = SC::from_uint64(200);
 
-    SC ct_r = ct::scalar_add(a, b);
-    SC expected = SC::from_uint64(300);
+    SC const ct_r = ct::scalar_add(a, b);
+    SC const expected = SC::from_uint64(300);
 
     CHECK(ct::scalar_eq(ct_r, expected) != 0, "scalar_add basic");
 }
 
 static void test_scalar_sub() {
-    SC a = SC::from_uint64(300);
-    SC b = SC::from_uint64(100);
+    SC const a = SC::from_uint64(300);
+    SC const b = SC::from_uint64(100);
 
-    SC ct_r = ct::scalar_sub(a, b);
-    SC expected = SC::from_uint64(200);
+    SC const ct_r = ct::scalar_sub(a, b);
+    SC const expected = SC::from_uint64(200);
 
     CHECK(ct::scalar_eq(ct_r, expected) != 0, "scalar_sub basic");
 }
 
 static void test_scalar_neg() {
-    SC a = SC::from_uint64(42);
-    SC neg_a = ct::scalar_neg(a);
-    SC sum = ct::scalar_add(a, neg_a);
+    SC const a = SC::from_uint64(42);
+    SC const neg_a = ct::scalar_neg(a);
+    SC const sum = ct::scalar_add(a, neg_a);
 
     CHECK(ct::scalar_is_zero(sum) != 0, "scalar_neg: a + (-a) == 0");
 
-    SC zero = SC::from_uint64(0);
-    SC neg_zero = ct::scalar_neg(zero);
+    SC const zero = SC::from_uint64(0);
+    SC const neg_zero = ct::scalar_neg(zero);
     CHECK(ct::scalar_is_zero(neg_zero) != 0, "scalar_neg(0) == 0");
 }
 
 // --- 4. CT Scalar Conditional Ops + Bit Access -------------------------------
 
 static void test_scalar_cmov() {
-    SC a = SC::from_uint64(42);
-    SC b = SC::from_uint64(99);
+    SC const a = SC::from_uint64(42);
+    SC const b = SC::from_uint64(99);
     SC r = a;
 
     ct::scalar_cmov(&r, b, 0);
@@ -263,7 +263,7 @@ static void test_scalar_cmov() {
 
 static void test_scalar_bit() {
     // k = 5 = 0b101
-    SC k = SC::from_uint64(5);
+    SC const k = SC::from_uint64(5);
 
     CHECK(ct::scalar_bit(k, 0) == 1, "scalar_bit(5, 0) == 1");
     CHECK(ct::scalar_bit(k, 1) == 0, "scalar_bit(5, 1) == 0");
@@ -273,10 +273,10 @@ static void test_scalar_bit() {
 
 static void test_scalar_window() {
     // k = 0xAB = 0b10101011 -> window(0,4) = 0xB = 11, window(4,4) = 0xA = 10
-    SC k = SC::from_uint64(0xAB);
+    SC const k = SC::from_uint64(0xAB);
 
-    uint64_t w0 = ct::scalar_window(k, 0, 4);
-    uint64_t w1 = ct::scalar_window(k, 4, 4);
+    uint64_t const w0 = ct::scalar_window(k, 0, 4);
+    uint64_t const w1 = ct::scalar_window(k, 4, 4);
 
     CHECK(w0 == 0xB, "scalar_window(0xAB, 0, 4) == 0xB");
     CHECK(w1 == 0xA, "scalar_window(0xAB, 4, 4) == 0xA");
@@ -286,68 +286,68 @@ static void test_scalar_window() {
 
 static void test_complete_add_general() {
     // P + Q where P != Q
-    PT G = PT::generator();
-    SC k2 = SC::from_uint64(2);
-    PT G2 = G.scalar_mul(k2);
+    PT const G = PT::generator();
+    SC const k2 = SC::from_uint64(2);
+    PT const G2 = G.scalar_mul(k2);
 
     // CT: G + G2 should equal 3G
-    ct::CTJacobianPoint jp = ct::CTJacobianPoint::from_point(G);
-    ct::CTJacobianPoint jq = ct::CTJacobianPoint::from_point(G2);
-    ct::CTJacobianPoint jr = ct::point_add_complete(jp, jq);
-    PT ct_result = jr.to_point();
+    ct::CTJacobianPoint const jp = ct::CTJacobianPoint::from_point(G);
+    ct::CTJacobianPoint const jq = ct::CTJacobianPoint::from_point(G2);
+    ct::CTJacobianPoint const jr = ct::point_add_complete(jp, jq);
+    PT const ct_result = jr.to_point();
 
-    SC k3 = SC::from_uint64(3);
-    PT expected = G.scalar_mul(k3);
+    SC const k3 = SC::from_uint64(3);
+    PT const expected = G.scalar_mul(k3);
 
     CHECK(pt_eq_affine(ct_result, expected), "complete_add: G + 2G == 3G");
 }
 
 static void test_complete_add_doubling() {
     // P + P should give 2P
-    PT G = PT::generator();
+    PT const G = PT::generator();
 
-    ct::CTJacobianPoint jp = ct::CTJacobianPoint::from_point(G);
-    ct::CTJacobianPoint jr = ct::point_add_complete(jp, jp);
-    PT ct_result = jr.to_point();
+    ct::CTJacobianPoint const jp = ct::CTJacobianPoint::from_point(G);
+    ct::CTJacobianPoint const jr = ct::point_add_complete(jp, jp);
+    PT const ct_result = jr.to_point();
 
-    SC k2 = SC::from_uint64(2);
-    PT expected = G.scalar_mul(k2);
+    SC const k2 = SC::from_uint64(2);
+    PT const expected = G.scalar_mul(k2);
 
     CHECK(pt_eq_affine(ct_result, expected), "complete_add: G + G == 2G");
 }
 
 static void test_complete_add_identity() {
     // P + O = P  and  O + P = P
-    PT G = PT::generator();
+    PT const G = PT::generator();
 
-    ct::CTJacobianPoint jp = ct::CTJacobianPoint::from_point(G);
-    ct::CTJacobianPoint inf = ct::CTJacobianPoint::make_infinity();
+    ct::CTJacobianPoint const jp = ct::CTJacobianPoint::from_point(G);
+    ct::CTJacobianPoint const inf = ct::CTJacobianPoint::make_infinity();
 
     // P + O = P
-    ct::CTJacobianPoint r1 = ct::point_add_complete(jp, inf);
-    PT result1 = r1.to_point();
+    ct::CTJacobianPoint const r1 = ct::point_add_complete(jp, inf);
+    PT const result1 = r1.to_point();
     CHECK(pt_eq_affine(result1, G), "complete_add: G + O == G");
 
     // O + P = P
-    ct::CTJacobianPoint r2 = ct::point_add_complete(inf, jp);
-    PT result2 = r2.to_point();
+    ct::CTJacobianPoint const r2 = ct::point_add_complete(inf, jp);
+    PT const result2 = r2.to_point();
     CHECK(pt_eq_affine(result2, G), "complete_add: O + G == G");
 
     // O + O = O
-    ct::CTJacobianPoint r3 = ct::point_add_complete(inf, inf);
-    PT result3 = r3.to_point();
+    ct::CTJacobianPoint const r3 = ct::point_add_complete(inf, inf);
+    PT const result3 = r3.to_point();
     CHECK(result3.is_infinity(), "complete_add: O + O == O");
 }
 
 static void test_complete_add_inverse() {
     // P + (-P) = O
-    PT G = PT::generator();
+    PT const G = PT::generator();
 
-    ct::CTJacobianPoint jp = ct::CTJacobianPoint::from_point(G);
-    ct::CTJacobianPoint jneg = ct::point_neg(jp);
+    ct::CTJacobianPoint const jp = ct::CTJacobianPoint::from_point(G);
+    ct::CTJacobianPoint const jneg = ct::point_neg(jp);
 
-    ct::CTJacobianPoint r = ct::point_add_complete(jp, jneg);
-    PT result = r.to_point();
+    ct::CTJacobianPoint const r = ct::point_add_complete(jp, jneg);
+    PT const result = r.to_point();
     CHECK(result.is_infinity(), "complete_add: G + (-G) == O");
 }
 
@@ -355,20 +355,20 @@ static void test_complete_add_inverse() {
 
 static void test_scalar_mul_k1() {
     // 1*G = G
-    PT G = PT::generator();
-    SC k = SC::from_uint64(1);
+    PT const G = PT::generator();
+    SC const k = SC::from_uint64(1);
 
-    PT ct_r = ct::scalar_mul(G, k);
+    PT const ct_r = ct::scalar_mul(G, k);
     CHECK(pt_eq_affine(ct_r, G), "CT scalar_mul: 1*G == G");
 }
 
 static void test_scalar_mul_k2() {
     // 2*G
-    PT G = PT::generator();
-    SC k = SC::from_uint64(2);
+    PT const G = PT::generator();
+    SC const k = SC::from_uint64(2);
 
-    PT ct_r = ct::scalar_mul(G, k);
-    PT fast_r = G.scalar_mul(k);
+    PT const ct_r = ct::scalar_mul(G, k);
+    PT const fast_r = G.scalar_mul(k);
 
     CHECK(pt_eq_affine(ct_r, fast_r), "CT scalar_mul: 2*G == fast 2*G");
 }
@@ -376,42 +376,42 @@ static void test_scalar_mul_k2() {
 static void test_scalar_mul_known_vector() {
     // Known test vector: k*G where k = 7
     // 7*G should have known coordinates
-    PT G = PT::generator();
-    SC k = SC::from_uint64(7);
+    PT const G = PT::generator();
+    SC const k = SC::from_uint64(7);
 
-    PT ct_r = ct::scalar_mul(G, k);
-    PT fast_r = G.scalar_mul(k);
+    PT const ct_r = ct::scalar_mul(G, k);
+    PT const fast_r = G.scalar_mul(k);
 
     CHECK(pt_eq_affine(ct_r, fast_r), "CT scalar_mul: 7*G == fast 7*G");
 }
 
 static void test_scalar_mul_large_k() {
     // Larger scalar (0xDEADBEEF exercises many non-zero 4-bit windows)
-    PT G = PT::generator();
-    SC k = SC::from_uint64(0xDEADBEEF);
+    PT const G = PT::generator();
+    SC const k = SC::from_uint64(0xDEADBEEF);
 
-    PT ct_r = ct::scalar_mul(G, k);
-    PT fast_r = G.scalar_mul(k);
+    PT const ct_r = ct::scalar_mul(G, k);
+    PT const fast_r = G.scalar_mul(k);
 
     CHECK(pt_eq_affine(ct_r, fast_r), "CT scalar_mul: 0xDEADBEEF*G == fast");
 }
 
 static void test_scalar_mul_k0() {
     // 0*G = O (infinity)
-    PT G = PT::generator();
-    SC k = SC::from_uint64(0);
+    PT const G = PT::generator();
+    SC const k = SC::from_uint64(0);
 
-    PT ct_r = ct::scalar_mul(G, k);
+    PT const ct_r = ct::scalar_mul(G, k);
     CHECK(ct_r.is_infinity(), "CT scalar_mul: 0*G == O");
 }
 
 // --- 7. CT Generator Multiplication -----------------------------------------
 
 static void test_generator_mul() {
-    SC k = SC::from_uint64(42);
+    SC const k = SC::from_uint64(42);
 
-    PT ct_r = ct::generator_mul(k);
-    PT fast_r = PT::generator().scalar_mul(k);
+    PT const ct_r = ct::generator_mul(k);
+    PT const fast_r = PT::generator().scalar_mul(k);
 
     CHECK(pt_eq_affine(ct_r, fast_r), "CT generator_mul(42) == fast 42*G");
 }
@@ -419,25 +419,25 @@ static void test_generator_mul() {
 // --- 8. CT On-Curve Check ----------------------------------------------------
 
 static void test_point_is_on_curve() {
-    PT G = PT::generator();
+    PT const G = PT::generator();
     CHECK(ct::point_is_on_curve(G) != 0, "generator is on curve");
 
-    SC k = SC::from_uint64(12345);
-    PT P = G.scalar_mul(k);
+    SC const k = SC::from_uint64(12345);
+    PT const P = G.scalar_mul(k);
     CHECK(ct::point_is_on_curve(P) != 0, "12345*G is on curve");
 }
 
 // --- 9. CT Point Equality ----------------------------------------------------
 
 static void test_point_eq() {
-    PT G = PT::generator();
-    SC k = SC::from_uint64(42);
-    PT P = G.scalar_mul(k);
+    PT const G = PT::generator();
+    SC const k = SC::from_uint64(42);
+    PT const P = G.scalar_mul(k);
 
     CHECK(ct::point_eq(G, G) != 0, "point_eq(G, G) -> true");
     CHECK(ct::point_eq(G, P) == 0, "point_eq(G, 42*G) -> false");
 
-    PT inf = PT::infinity();
+    PT const inf = PT::infinity();
     CHECK(ct::point_eq(inf, inf) != 0, "point_eq(O, O) -> true");
     CHECK(ct::point_eq(G, inf) == 0, "point_eq(G, O) -> false");
 }
@@ -446,19 +446,19 @@ static void test_point_eq() {
 
 static void test_mixing() {
     // Use fast:: for public data, ct:: for secret-dependent operations
-    PT G = PT::generator();
+    PT const G = PT::generator();
 
     // "Public" computation
-    SC pub_k = SC::from_uint64(100);
-    PT pub_point = G.scalar_mul(pub_k);  // fast::
+    SC const pub_k = SC::from_uint64(100);
+    PT const pub_point = G.scalar_mul(pub_k);  // fast::
 
     // "Secret" scalar multiplication using CT
-    SC secret_k = SC::from_uint64(7);
-    PT ct_result = ct::scalar_mul(pub_point, secret_k);  // CT
+    SC const secret_k = SC::from_uint64(7);
+    PT const ct_result = ct::scalar_mul(pub_point, secret_k);  // CT
 
     // Verify: should equal 700*G
-    SC k700 = SC::from_uint64(700);
-    PT expected = G.scalar_mul(k700);
+    SC const k700 = SC::from_uint64(700);
+    PT const expected = G.scalar_mul(k700);
 
     CHECK(pt_eq_affine(ct_result, expected), "mixing: fast(100*G) -> CT(7*P) == 700*G");
 }

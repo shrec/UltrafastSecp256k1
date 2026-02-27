@@ -67,8 +67,8 @@ static std::array<uint8_t, 32> random_message() {
 
 // Flip a single random bit in a byte array
 static void flip_random_bit(uint8_t* data, size_t len) {
-    size_t byte_idx = rng() % len;
-    uint8_t bit_idx = rng() % 8;
+    size_t const byte_idx = rng() % len;
+    uint8_t const bit_idx = rng() % 8;
     data[byte_idx] ^= (1u << bit_idx);
 }
 
@@ -83,19 +83,19 @@ static void test_scalar_fault_injection() {
     int detected = 0;
 
     for (int i = 0; i < TRIALS; ++i) {
-        Scalar k = random_scalar();
-        Point G = Point::generator();
+        Scalar const k = random_scalar();
+        Point const G = Point::generator();
 
         // Correct: P = kG
-        Point P_correct = G.scalar_mul(k);
+        Point const P_correct = G.scalar_mul(k);
 
         // Fault: flip one random bit in k
         auto k_bytes = k.to_bytes();
         flip_random_bit(k_bytes.data(), 32);
-        Scalar k_faulted = Scalar::from_bytes(k_bytes);
+        Scalar const k_faulted = Scalar::from_bytes(k_bytes);
 
         // Faulted: P' = k'G
-        Point P_faulted = G.scalar_mul(k_faulted);
+        Point const P_faulted = G.scalar_mul(k_faulted);
 
         // The results MUST differ (unless extremely unlikely collision)
         auto c1 = P_correct.to_compressed();
@@ -120,11 +120,11 @@ static void test_point_coord_fault() {
     int detected = 0;
 
     for (int i = 0; i < TRIALS; ++i) {
-        Scalar k = random_scalar();
-        Point P = Point::generator().scalar_mul(k);
+        Scalar const k = random_scalar();
+        Point const P = Point::generator().scalar_mul(k);
 
         // Get correct result
-        Point P2_correct = P.dbl();
+        Point const P2_correct = P.dbl();
         auto correct_bytes = P2_correct.to_compressed();
         CHECK(correct_bytes[0] == 0x02 || correct_bytes[0] == 0x03, "double result serializes");
 
@@ -132,8 +132,8 @@ static void test_point_coord_fault() {
         auto p_uncomp = P.to_uncompressed();
         
         // Flip a bit in X coordinate (bytes 1-32) or Y coordinate (bytes 33-64)
-        size_t offset = 1 + (rng() % 64);
-        uint8_t bit_idx = rng() % 8;
+        size_t const offset = 1 + (rng() % 64);
+        uint8_t const bit_idx = rng() % 8;
         p_uncomp[offset] ^= (1u << bit_idx);
 
         // The corrupted point will likely fail curve equation check
@@ -159,8 +159,8 @@ static void test_ecdsa_signature_fault() {
     int key_faults_detected = 0;
 
     for (int i = 0; i < TRIALS; ++i) {
-        Scalar privkey = random_scalar();
-        Point pubkey = Point::generator().scalar_mul(privkey);
+        Scalar const privkey = random_scalar();
+        Point const pubkey = Point::generator().scalar_mul(privkey);
         auto msg = random_message();
 
         // Sign
@@ -169,14 +169,14 @@ static void test_ecdsa_signature_fault() {
         auto s_bytes = sig.s.to_bytes();
 
         // Verify original should pass
-        bool orig_ok = secp256k1::ecdsa_verify(msg, pubkey, sig);
+        bool const orig_ok = secp256k1::ecdsa_verify(msg, pubkey, sig);
         CHECK(orig_ok, "Original signature must verify");
 
         // Fault 1: flip bit in r
         auto r_faulted_bytes = r_bytes;
         flip_random_bit(r_faulted_bytes.data(), 32);
-        Scalar r_faulted = Scalar::from_bytes(r_faulted_bytes);
-        secp256k1::ECDSASignature sig_r_fault{r_faulted, sig.s};
+        Scalar const r_faulted = Scalar::from_bytes(r_faulted_bytes);
+        secp256k1::ECDSASignature const sig_r_fault{r_faulted, sig.s};
         if (!secp256k1::ecdsa_verify(msg, pubkey, sig_r_fault)) {
             ++sig_faults_detected;
         }
@@ -191,8 +191,8 @@ static void test_ecdsa_signature_fault() {
         // Fault 3: flip bit in s  
         auto s_faulted_bytes = s_bytes;
         flip_random_bit(s_faulted_bytes.data(), 32);
-        Scalar s_faulted = Scalar::from_bytes(s_faulted_bytes);
-        secp256k1::ECDSASignature sig_s_fault{sig.r, s_faulted};
+        Scalar const s_faulted = Scalar::from_bytes(s_faulted_bytes);
+        secp256k1::ECDSASignature const sig_s_fault{sig.r, s_faulted};
         if (!secp256k1::ecdsa_verify(msg, pubkey, sig_s_fault)) {
             ++key_faults_detected;
         }
@@ -218,7 +218,7 @@ static void test_schnorr_signature_fault() {
     int detected = 0;
 
     for (int i = 0; i < TRIALS; ++i) {
-        Scalar privkey = random_scalar();
+        Scalar const privkey = random_scalar();
         auto msg = random_message();
         std::array<uint8_t, 32> aux_rand{};
         for (int j = 0; j < 4; ++j) {
@@ -230,7 +230,7 @@ static void test_schnorr_signature_fault() {
         
         // Get x-only pubkey bytes for verification
         auto pubkey_x = secp256k1::schnorr_pubkey(privkey);
-        bool orig_ok = secp256k1::schnorr_verify(pubkey_x, msg, sig);
+        bool const orig_ok = secp256k1::schnorr_verify(pubkey_x, msg, sig);
         CHECK(orig_ok, "Original Schnorr sig must verify");
 
         // Fault: flip random bit in signature r or s
@@ -267,12 +267,12 @@ static void test_ct_fault_resilience() {
         b = a;
 
         // Flip exactly one bit
-        size_t byte_idx = rng() % 32;
-        uint8_t bit_idx = rng() % 8;
+        size_t const byte_idx = rng() % 32;
+        uint8_t const bit_idx = rng() % 8;
         b[byte_idx] ^= (1u << bit_idx);
 
         // ct_compare must detect the difference
-        int cmp = secp256k1::ct::ct_compare(a.data(), b.data(), 32);
+        int const cmp = secp256k1::ct::ct_compare(a.data(), b.data(), 32);
         if (cmp != 0) {
             ++detected;
         }
@@ -288,7 +288,7 @@ static void test_ct_fault_resilience() {
             uint64_t v = rng();
             std::memcpy(a.data() + j * 8, &v, 8);
         }
-        int cmp = secp256k1::ct::ct_compare(a.data(), a.data(), 32);
+        int const cmp = secp256k1::ct::ct_compare(a.data(), a.data(), 32);
         CHECK(cmp == 0, "ct_compare(x,x) must be 0");
     }
 }
@@ -304,17 +304,17 @@ static void test_cascading_fault() {
     int detected = 0;
 
     for (int i = 0; i < TRIALS; ++i) {
-        Scalar k1 = random_scalar();
-        Scalar k2 = random_scalar();
-        Point G = Point::generator();
+        Scalar const k1 = random_scalar();
+        Scalar const k2 = random_scalar();
+        Point const G = Point::generator();
 
         // Correct: P = k2 * (k1 * G)
-        Point P1 = G.scalar_mul(k1);
-        Point P_correct = P1.scalar_mul(k2);
+        Point const P1 = G.scalar_mul(k1);
+        Point const P_correct = P1.scalar_mul(k2);
 
         // Expected: P = (k1 * k2) * G (should be same)
-        Scalar k_combined = k1 * k2;
-        Point P_combined = G.scalar_mul(k_combined);
+        Scalar const k_combined = k1 * k2;
+        Point const P_combined = G.scalar_mul(k_combined);
 
         auto c1 = P_correct.to_compressed();
         auto c2 = P_combined.to_compressed();
@@ -323,9 +323,9 @@ static void test_cascading_fault() {
         // Now fault k1: flip a bit
         auto k1_bytes = k1.to_bytes();
         flip_random_bit(k1_bytes.data(), 32);
-        Scalar k1_faulted = Scalar::from_bytes(k1_bytes);
-        Point P1_faulted = G.scalar_mul(k1_faulted);
-        Point P_faulted = P1_faulted.scalar_mul(k2);
+        Scalar const k1_faulted = Scalar::from_bytes(k1_bytes);
+        Point const P1_faulted = G.scalar_mul(k1_faulted);
+        Point const P_faulted = P1_faulted.scalar_mul(k2);
 
         auto c3 = P_faulted.to_compressed();
         if (c1 != c3) {
@@ -348,22 +348,22 @@ static void test_addition_fault() {
     int detected = 0;
 
     for (int i = 0; i < TRIALS; ++i) {
-        Scalar k1 = random_scalar();
-        Scalar k2 = random_scalar();
-        Point P = Point::generator().scalar_mul(k1);
-        Point Q = Point::generator().scalar_mul(k2);
+        Scalar const k1 = random_scalar();
+        Scalar const k2 = random_scalar();
+        Point const P = Point::generator().scalar_mul(k1);
+        Point const Q = Point::generator().scalar_mul(k2);
 
         // Correct: R = P + Q
-        Point R_correct = P.add(Q);
+        Point const R_correct = P.add(Q);
         auto correct_bytes = R_correct.to_compressed();
 
         // Fault: use k2 with a flipped bit to create Q'
         auto k2_bytes = k2.to_bytes();
         flip_random_bit(k2_bytes.data(), 32);
-        Scalar k2_faulted = Scalar::from_bytes(k2_bytes);
-        Point Q_faulted = Point::generator().scalar_mul(k2_faulted);
+        Scalar const k2_faulted = Scalar::from_bytes(k2_bytes);
+        Point const Q_faulted = Point::generator().scalar_mul(k2_faulted);
 
-        Point R_faulted = P.add(Q_faulted);
+        Point const R_faulted = P.add(Q_faulted);
         auto faulted_bytes = R_faulted.to_compressed();
 
         if (correct_bytes != faulted_bytes) {
@@ -386,17 +386,17 @@ static void test_glv_fault() {
     int consistent = 0;
 
     for (int i = 0; i < TRIALS; ++i) {
-        Scalar k = random_scalar();
-        Point G = Point::generator();
+        Scalar const k = random_scalar();
+        Point const G = Point::generator();
 
         // Standard scalar_mul (uses GLV internally)
-        Point R1 = G.scalar_mul(k);
+        Point const R1 = G.scalar_mul(k);
 
         // Faulted scalar -- should give different result
         auto k_bytes = k.to_bytes();
         flip_random_bit(k_bytes.data(), 32);
-        Scalar k_faulted = Scalar::from_bytes(k_bytes);
-        Point R2 = G.scalar_mul(k_faulted);
+        Scalar const k_faulted = Scalar::from_bytes(k_bytes);
+        Point const R2 = G.scalar_mul(k_faulted);
 
         auto c1 = R1.to_compressed();
         auto c2 = R2.to_compressed();
