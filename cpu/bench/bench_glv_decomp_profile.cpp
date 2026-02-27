@@ -91,7 +91,7 @@ int main(int argc, char** argv) {
     std::cout << "  barrett_reduce:        " << (double)g_decomp_barrett_reduce_cycles/iters << "\n";
     std::cout << "  normalize:             " << (double)g_decomp_normalize_cycles/iters << "\n";
 
-    std::cout << "Done." << std::endl;
+    std::cout << "Done." << '\n';
     return int(sink_cycles & 0xFF);
 }
 

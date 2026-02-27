@@ -58,7 +58,7 @@ static TestCounters g_counters;
         if (cond) { ++g_counters.passed; }                      \
         else {                                                  \
             ++g_counters.failed;                                \
-            std::cerr << "  FAIL: " << msg << std::endl;        \
+            std::cerr << "  FAIL: " << msg << '\n';        \
         }                                                       \
     } while (0)
 
@@ -88,7 +88,7 @@ static SC secp256k1_n() {
 //  CATEGORY 1: Field Arithmetic (TestCategory::FieldArith)
 // ============================================================================
 static void test_field_arith() {
-    std::cout << "  [FieldArith] Field arithmetic tests..." << std::endl;
+    std::cout << "  [FieldArith] Field arithmetic tests..." << '\n';
     
     FE zero = FE::zero();
     FE one  = FE::one();
@@ -205,7 +205,7 @@ static void test_field_arith() {
 //  CATEGORY 2: Field Conversions (TestCategory::FieldConversions)
 // ============================================================================
 static void test_field_conversions() {
-    std::cout << "  [FieldConversions] Field conversion tests..." << std::endl;
+    std::cout << "  [FieldConversions] Field conversion tests..." << '\n';
     
     // 2.1: from_uint64 -> to_hex -> from_hex roundtrip
     for (uint64_t v : {0ULL, 1ULL, 42ULL, 0xFFFFULL, 0xFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL}) {
@@ -274,7 +274,7 @@ static void test_field_conversions() {
 //  CATEGORY 3: Field Edge Cases (TestCategory::FieldEdgeCases)
 // ============================================================================
 static void test_field_edge_cases() {
-    std::cout << "  [FieldEdgeCases] Field edge case tests..." << std::endl;
+    std::cout << "  [FieldEdgeCases] Field edge case tests..." << '\n';
     
     FE zero = FE::zero();
     FE one  = FE::one();
@@ -364,7 +364,7 @@ static void test_field_edge_cases() {
 //  CATEGORY 4: Field Inverse (TestCategory::FieldInverse) 
 // ============================================================================
 static void test_field_inverse() {
-    std::cout << "  [FieldInverse] Field inverse algorithm tests..." << std::endl;
+    std::cout << "  [FieldInverse] Field inverse algorithm tests..." << '\n';
     
     FE one = FE::one();
     
@@ -450,7 +450,7 @@ static void test_field_inverse() {
 //  CATEGORY 5: Field Branchless (TestCategory::FieldBranchless)
 // ============================================================================
 static void test_field_branchless() {
-    std::cout << "  [FieldBranchless] Branchless operation tests..." << std::endl;
+    std::cout << "  [FieldBranchless] Branchless operation tests..." << '\n';
     
     using namespace secp256k1::fast;
     FE a = FE::from_uint64(42);
@@ -545,7 +545,7 @@ static void test_field_branchless() {
 //  CATEGORY 6: Field Optimal Dispatch (TestCategory::FieldOptimal)
 // ============================================================================
 static void test_field_optimal() {
-    std::cout << "  [FieldOptimal] Optimal representation dispatch..." << std::endl;
+    std::cout << "  [FieldOptimal] Optimal representation dispatch..." << '\n';
     
     using namespace secp256k1::fast;
     
@@ -587,7 +587,7 @@ static void test_field_optimal() {
 //  CATEGORY 7: Field ASM (TestCategory::FieldRepresentations)
 // ============================================================================
 static void test_field_representations() {
-    std::cout << "  [FieldRepresentations] ASM/platform field ops..." << std::endl;
+    std::cout << "  [FieldRepresentations] ASM/platform field ops..." << '\n';
     
     using namespace secp256k1::fast;
     FE a = FE::from_uint64(0xDEADBEEF);
@@ -662,7 +662,7 @@ static void test_field_representations() {
 //  CATEGORY 8: Scalar Arithmetic (TestCategory::ScalarArith)
 // ============================================================================
 static void test_scalar_arith() {
-    std::cout << "  [ScalarArith] Scalar arithmetic tests..." << std::endl;
+    std::cout << "  [ScalarArith] Scalar arithmetic tests..." << '\n';
     
     SC zero = SC::zero();
     SC one  = SC::one();
@@ -753,14 +753,14 @@ static void test_scalar_arith() {
             ++checks;
         }
     }
-    std::cout << "    " << checks << " small-range pairs verified" << std::endl;
+    std::cout << "    " << checks << " small-range pairs verified" << '\n';
 }
 
 // ============================================================================
 //  CATEGORY 9: Scalar Conversions (TestCategory::ScalarConversions)
 // ============================================================================
 static void test_scalar_conversions() {
-    std::cout << "  [ScalarConversions] Scalar conversion tests..." << std::endl;
+    std::cout << "  [ScalarConversions] Scalar conversion tests..." << '\n';
     
     // 9.1: from_uint64 -> to_hex -> from_hex roundtrip
     for (uint64_t v : {0ULL, 1ULL, 42ULL, 0xFFFFULL, 0xFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL}) {
@@ -809,7 +809,7 @@ static void test_scalar_conversions() {
 //  CATEGORY 10: Scalar Edge Cases (TestCategory::ScalarEdgeCases)
 // ============================================================================
 static void test_scalar_edge_cases() {
-    std::cout << "  [ScalarEdgeCases] Scalar edge case tests..." << std::endl;
+    std::cout << "  [ScalarEdgeCases] Scalar edge case tests..." << '\n';
     
     SC zero = SC::zero();
     SC one  = SC::one();
@@ -856,7 +856,7 @@ static void test_scalar_edge_cases() {
 //  CATEGORY 11: Scalar NAF/wNAF (TestCategory::ScalarEncoding)
 // ============================================================================
 static void test_scalar_encoding() {
-    std::cout << "  [ScalarEncoding] NAF/wNAF encoding tests..." << std::endl;
+    std::cout << "  [ScalarEncoding] NAF/wNAF encoding tests..." << '\n';
     
     // 11.1: NAF of small values
     SC s7 = SC::from_uint64(7);    // 111 -> NAF: 100(-1)
@@ -952,7 +952,7 @@ static void test_scalar_encoding() {
 //  CATEGORY 12: Point Basic (TestCategory::PointBasic)
 // ============================================================================
 static void test_point_basic() {
-    std::cout << "  [PointBasic] Point basic operations..." << std::endl;
+    std::cout << "  [PointBasic] Point basic operations..." << '\n';
     
     PT G = PT::generator();
     PT O = PT::infinity();
@@ -1049,7 +1049,7 @@ static void test_point_basic() {
 //  CATEGORY 13: Point Scalar Mul (TestCategory::PointScalarMul)
 // ============================================================================
 static void test_point_scalar_mul() {
-    std::cout << "  [PointScalarMul] Scalar multiplication tests..." << std::endl;
+    std::cout << "  [PointScalarMul] Scalar multiplication tests..." << '\n';
     
     PT G = PT::generator();
     
@@ -1125,7 +1125,7 @@ static void test_point_scalar_mul() {
 //  CATEGORY 14: Point In-Place (TestCategory::PointInplace)
 // ============================================================================
 static void test_point_inplace() {
-    std::cout << "  [PointInplace] In-place operations..." << std::endl;
+    std::cout << "  [PointInplace] In-place operations..." << '\n';
     
     PT G = PT::generator();
     
@@ -1205,7 +1205,7 @@ static void test_point_inplace() {
 //  CATEGORY 15: Point Precomputed (TestCategory::PointPrecomputed)
 // ============================================================================
 static void test_point_precomputed() {
-    std::cout << "  [PointPrecomputed] Precomputed scalar mul..." << std::endl;
+    std::cout << "  [PointPrecomputed] Precomputed scalar mul..." << '\n';
     
     PT G = PT::generator();
     
@@ -1266,7 +1266,7 @@ static void test_point_precomputed() {
 //  CATEGORY 16: Point Serialization (TestCategory::PointSerialization)
 // ============================================================================
 static void test_point_serialization() {
-    std::cout << "  [PointSerialization] Point serialization tests..." << std::endl;
+    std::cout << "  [PointSerialization] Point serialization tests..." << '\n';
     
     PT G = PT::generator();
     
@@ -1331,7 +1331,7 @@ static void test_point_serialization() {
 //  CATEGORY 17: Point Edge Cases (TestCategory::PointEdgeCases)
 // ============================================================================
 static void test_point_edge_cases() {
-    std::cout << "  [PointEdgeCases] Point edge cases..." << std::endl;
+    std::cout << "  [PointEdgeCases] Point edge cases..." << '\n';
     
     PT G = PT::generator();
     PT O = PT::infinity();
@@ -1406,7 +1406,7 @@ static void test_point_edge_cases() {
 //  CATEGORY 18: CT Primitives (TestCategory::CTOps)
 // ============================================================================
 static void test_ct_ops() {
-    std::cout << "  [CTOps] Constant-time primitive tests..." << std::endl;
+    std::cout << "  [CTOps] Constant-time primitive tests..." << '\n';
     
     using namespace secp256k1::ct;
     
@@ -1515,7 +1515,7 @@ static void test_ct_ops() {
 //  CATEGORY 19: CT Field (TestCategory::CTField)
 // ============================================================================
 static void test_ct_field() {
-    std::cout << "  [CTField] CT field operations..." << std::endl;
+    std::cout << "  [CTField] CT field operations..." << '\n';
     
     namespace ctf = secp256k1::ct;
     FE a = FE::from_uint64(42);
@@ -1586,7 +1586,7 @@ static void test_ct_field() {
 //  CATEGORY 20: CT Scalar (TestCategory::CTScalar)
 // ============================================================================
 static void test_ct_scalar() {
-    std::cout << "  [CTScalar] CT scalar operations..." << std::endl;
+    std::cout << "  [CTScalar] CT scalar operations..." << '\n';
     
     namespace cts = secp256k1::ct;
     SC a = SC::from_uint64(42);
@@ -1647,7 +1647,7 @@ static void test_ct_scalar() {
 //  CATEGORY 21: CT Point (TestCategory::CTPoint)
 // ============================================================================
 static void test_ct_point() {
-    std::cout << "  [CTPoint] CT point operations..." << std::endl;
+    std::cout << "  [CTPoint] CT point operations..." << '\n';
     
     namespace ctp = secp256k1::ct;
     PT G = PT::generator();
@@ -1736,7 +1736,7 @@ static void test_ct_point() {
 //  CATEGORY 22: GLV Endomorphism (TestCategory::GLV)
 // ============================================================================
 static void test_glv() {
-    std::cout << "  [GLV] GLV endomorphism tests..." << std::endl;
+    std::cout << "  [GLV] GLV endomorphism tests..." << '\n';
     
     using namespace secp256k1::fast;
     PT G = PT::generator();
@@ -1807,7 +1807,7 @@ static void test_glv() {
 //  CATEGORY 23: MSM (TestCategory::MSM)
 // ============================================================================
 static void test_msm() {
-    std::cout << "  [MSM] Multi-scalar multiplication tests..." << std::endl;
+    std::cout << "  [MSM] Multi-scalar multiplication tests..." << '\n';
     
     PT G = PT::generator();
     
@@ -1897,7 +1897,7 @@ static void test_msm() {
 //  CATEGORY 24: Comb Generator (TestCategory::CombGen)
 // ============================================================================
 static void test_comb_gen() {
-    std::cout << "  [CombGen] Comb generator tests..." << std::endl;
+    std::cout << "  [CombGen] Comb generator tests..." << '\n';
     
     PT G = PT::generator();
     
@@ -1971,7 +1971,7 @@ static void test_comb_gen() {
 //  CATEGORY 25: Batch Inverse (TestCategory::BatchInverse)
 // ============================================================================
 static void test_batch_inverse() {
-    std::cout << "  [BatchInverse] Batch inverse tests..." << std::endl;
+    std::cout << "  [BatchInverse] Batch inverse tests..." << '\n';
     
     FE one = FE::one();
     
@@ -2032,7 +2032,7 @@ static void test_batch_inverse() {
 //  CATEGORY 26: ECDSA (TestCategory::ECDSA)
 // ============================================================================
 static void test_ecdsa() {
-    std::cout << "  [ECDSA] ECDSA sign/verify tests..." << std::endl;
+    std::cout << "  [ECDSA] ECDSA sign/verify tests..." << '\n';
     
     PT G = PT::generator();
     
@@ -2104,7 +2104,7 @@ static void test_ecdsa() {
 //  CATEGORY 27: Schnorr (TestCategory::Schnorr)
 // ============================================================================
 static void test_schnorr() {
-    std::cout << "  [Schnorr] Schnorr sign/verify tests..." << std::endl;
+    std::cout << "  [Schnorr] Schnorr sign/verify tests..." << '\n';
     
     [[maybe_unused]] PT G = PT::generator();
     
@@ -2165,7 +2165,7 @@ static void test_schnorr() {
 //  CATEGORY 28: ECDH (TestCategory::ECDH)
 // ============================================================================
 static void test_ecdh() {
-    std::cout << "  [ECDH] ECDH shared secret tests..." << std::endl;
+    std::cout << "  [ECDH] ECDH shared secret tests..." << '\n';
     
     PT G = PT::generator();
     using secp256k1::Scalar;
@@ -2215,7 +2215,7 @@ static void test_ecdh() {
 //  CATEGORY 29: Key Recovery (TestCategory::Recovery)
 // ============================================================================
 static void test_recovery() {
-    std::cout << "  [Recovery] Key recovery tests..." << std::endl;
+    std::cout << "  [Recovery] Key recovery tests..." << '\n';
     
     PT G = PT::generator();
     
@@ -2264,7 +2264,7 @@ static void test_recovery() {
 //  BONUS: SHA-256 / SHA-512 tests (integrated into protocol categories)
 // ============================================================================
 static void test_hashing() {
-    std::cout << "  [Hashing] SHA-256/SHA-512 tests..." << std::endl;
+    std::cout << "  [Hashing] SHA-256/SHA-512 tests..." << '\n';
     
     // SHA-256 NIST vectors
     // 30.1: SHA-256("") = e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
@@ -2333,7 +2333,7 @@ static void test_hashing() {
 //  BONUS: Batch Add Affine tests
 // ============================================================================
 static void test_batch_add_affine_comprehensive() {
-    std::cout << "  [BatchAddAffine] Batch affine addition tests..." << std::endl;
+    std::cout << "  [BatchAddAffine] Batch affine addition tests..." << '\n';
     
     using namespace secp256k1::fast;
     PT G = PT::generator();
@@ -2376,7 +2376,7 @@ static void test_batch_add_affine_comprehensive() {
 //  BONUS: Batch Verify tests
 // ============================================================================
 static void test_batch_verify() {
-    std::cout << "  [BatchVerify] Batch verification tests..." << std::endl;
+    std::cout << "  [BatchVerify] Batch verification tests..." << '\n';
     
     PT G = PT::generator();
     
@@ -2437,7 +2437,7 @@ static void test_batch_verify() {
 //  BONUS: Homomorphism & Order tests (expanded)
 // ============================================================================
 static void test_homomorphism_expanded() {
-    std::cout << "  [Homomorphism] Expanded homomorphism tests..." << std::endl;
+    std::cout << "  [Homomorphism] Expanded homomorphism tests..." << '\n';
     
     PT G = PT::generator();
     
@@ -2484,7 +2484,7 @@ static void test_homomorphism_expanded() {
 //  BONUS: Precompute module tests
 // ============================================================================
 static void test_precompute() {
-    std::cout << "  [Precompute] Precomputation module tests..." << std::endl;
+    std::cout << "  [Precompute] Precomputation module tests..." << '\n';
     
     using namespace secp256k1::fast;
     PT G = PT::generator();
@@ -2585,19 +2585,19 @@ int main() {
 int test_comprehensive_run() {
 #endif
     std::cout << "\n=== Comprehensive Test Suite (" << secp256k1::test::NUM_CATEGORIES 
-              << " categories) ===" << std::endl;
+              << " categories) ===" << '\n';
     auto t0 = std::chrono::high_resolution_clock::now();
     
     g_counters = {};
     
     // Run all categorized tests
     for (auto& entry : CATEGORY_TABLE) {
-        std::cout << "\n-- " << secp256k1::test::category_name(entry.cat) << " --" << std::endl;
+        std::cout << "\n-- " << secp256k1::test::category_name(entry.cat) << " --" << '\n';
         entry.fn();
     }
     
     // Run extra tests
-    std::cout << "\n-- Extra/Cross-cutting Tests --" << std::endl;
+    std::cout << "\n-- Extra/Cross-cutting Tests --" << '\n';
     for (auto fn : EXTRA_TESTS) {
         fn();
     }
@@ -2609,12 +2609,12 @@ int test_comprehensive_run() {
               << g_counters.passed << " passed, "
               << g_counters.failed << " failed, "
               << g_counters.skipped << " skipped"
-              << " (" << ms << " ms)" << std::endl;
+              << " (" << ms << " ms)" << '\n';
     
     if (g_counters.failed > 0) {
-        std::cerr << "\n  *** COMPREHENSIVE TESTS FAILED ***" << std::endl;
+        std::cerr << "\n  *** COMPREHENSIVE TESTS FAILED ***" << '\n';
     } else {
-        std::cout << "  All comprehensive tests PASSED" << std::endl;
+        std::cout << "  All comprehensive tests PASSED" << '\n';
     }
     
 #ifdef STANDALONE_TEST

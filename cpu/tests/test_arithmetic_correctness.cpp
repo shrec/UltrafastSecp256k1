@@ -100,9 +100,9 @@ const KnownKG KNOWN_KG[] = {
 // TEST 1: K*G Correctness with scalar_mul method
 // ============================================================
 static bool test_kg_scalar_mul() {
-    std::cout << "\n+==========================================================+" << std::endl;
-    std::cout << "| TEST 1: K*G using scalar_mul() method                   |" << std::endl;
-    std::cout << "+==========================================================+" << std::endl;
+    std::cout << "\n+==========================================================+" << '\n';
+    std::cout << "| TEST 1: K*G using scalar_mul() method                   |" << '\n';
+    std::cout << "+==========================================================+" << '\n';
     
     Point G = Point::generator();
     int passed = 0;
@@ -125,12 +125,12 @@ static bool test_kg_scalar_mul() {
             std::cout << "\n  Expected X: " << test.x_hex;
             std::cout << "\n  Got      X: " << x_hex;
         }
-        std::cout << std::endl;
+        std::cout << '\n';
         
         if (match) passed++;
     }
     
-    std::cout << "\nResult: " << passed << "/" << total << " tests passed" << std::endl;
+    std::cout << "\nResult: " << passed << "/" << total << " tests passed" << '\n';
     return passed == total;
 }
 
@@ -138,9 +138,9 @@ static bool test_kg_scalar_mul() {
 // TEST 2: K*G using repeated addition (K*G = G+G+...+G)
 // ============================================================
 static bool test_kg_repeated_addition() {
-    std::cout << "\n+==========================================================+" << std::endl;
-    std::cout << "| TEST 2: K*G using repeated addition (G+G+...+G)         |" << std::endl;
-    std::cout << "+==========================================================+" << std::endl;
+    std::cout << "\n+==========================================================+" << '\n';
+    std::cout << "| TEST 2: K*G using repeated addition (G+G+...+G)         |" << '\n';
+    std::cout << "+==========================================================+" << '\n';
     
     Point G = Point::generator();
     int passed = 0;
@@ -164,12 +164,12 @@ static bool test_kg_repeated_addition() {
         bool match = points_equal(result_mul, result_add);
         
         std::cout << k << "*G: scalar_mul vs repeated_add: " 
-                  << (match ? "[OK] EQUAL" : "[FAIL] DIFFERENT") << std::endl;
+                  << (match ? "[OK] EQUAL" : "[FAIL] DIFFERENT") << '\n';
         
         if (match) passed++;
     }
     
-    std::cout << "\nResult: " << passed << "/" << total << " tests passed" << std::endl;
+    std::cout << "\nResult: " << passed << "/" << total << " tests passed" << '\n';
     return passed == total;
 }
 
@@ -177,9 +177,9 @@ static bool test_kg_repeated_addition() {
 // TEST 3: K*G using doubling (for powers of 2)
 // ============================================================
 static bool test_kg_doubling() {
-    std::cout << "\n+==========================================================+" << std::endl;
-    std::cout << "| TEST 3: K*G using doubling (2*G, 4*G, 8*G, etc.)        |" << std::endl;
-    std::cout << "+==========================================================+" << std::endl;
+    std::cout << "\n+==========================================================+" << '\n';
+    std::cout << "| TEST 3: K*G using doubling (2*G, 4*G, 8*G, etc.)        |" << '\n';
+    std::cout << "+==========================================================+" << '\n';
     
     Point G = Point::generator();
     int passed = 0;
@@ -205,12 +205,12 @@ static bool test_kg_doubling() {
         bool match = points_equal(result_mul, result_dbl);
         
         std::cout << k << "*G (2^" << power << "): scalar_mul vs doubling: " 
-                  << (match ? "[OK] EQUAL" : "[FAIL] DIFFERENT") << std::endl;
+                  << (match ? "[OK] EQUAL" : "[FAIL] DIFFERENT") << '\n';
         
         if (match) passed++;
     }
     
-    std::cout << "\nResult: " << passed << "/" << total << " tests passed" << std::endl;
+    std::cout << "\nResult: " << passed << "/" << total << " tests passed" << '\n';
     return passed == total;
 }
 
@@ -218,9 +218,9 @@ static bool test_kg_doubling() {
 // TEST 4: Point Addition Correctness (P1 + P2)
 // ============================================================
 static bool test_point_addition() {
-    std::cout << "\n+==========================================================+" << std::endl;
-    std::cout << "| TEST 4: Point Addition P1 + P2 Correctness              |" << std::endl;
-    std::cout << "+==========================================================+" << std::endl;
+    std::cout << "\n+==========================================================+" << '\n';
+    std::cout << "| TEST 4: Point Addition P1 + P2 Correctness              |" << '\n';
+    std::cout << "+==========================================================+" << '\n';
     
     Point G = Point::generator();
     int passed = 0;
@@ -262,12 +262,12 @@ static bool test_point_addition() {
         
         bool match = points_equal(result_add, expected);
         
-        std::cout << test.desc << ": " << (match ? "[OK] PASS" : "[FAIL] FAIL") << std::endl;
+        std::cout << test.desc << ": " << (match ? "[OK] PASS" : "[FAIL] FAIL") << '\n';
         
         if (match) passed++;
     }
     
-    std::cout << "\nResult: " << passed << "/" << total << " tests passed" << std::endl;
+    std::cout << "\nResult: " << passed << "/" << total << " tests passed" << '\n';
     return passed == total;
 }
 
@@ -275,9 +275,9 @@ static bool test_point_addition() {
 // TEST 5: K*Q for arbitrary point Q (not generator)
 // ============================================================
 static bool test_kq_arbitrary() {
-    std::cout << "\n+==========================================================+" << std::endl;
-    std::cout << "| TEST 5: K*Q for arbitrary point Q (K*Q correctness)     |" << std::endl;
-    std::cout << "+==========================================================+" << std::endl;
+    std::cout << "\n+==========================================================+" << '\n';
+    std::cout << "| TEST 5: K*Q for arbitrary point Q (K*Q correctness)     |" << '\n';
+    std::cout << "+==========================================================+" << '\n';
     
     Point G = Point::generator();
     int passed = 0;
@@ -319,12 +319,12 @@ static bool test_kq_arbitrary() {
         
         bool match = points_equal(result_kq, expected);
         
-        std::cout << test.desc << ": " << (match ? "[OK] PASS" : "[FAIL] FAIL") << std::endl;
+        std::cout << test.desc << ": " << (match ? "[OK] PASS" : "[FAIL] FAIL") << '\n';
         
         if (match) passed++;
     }
     
-    std::cout << "\nResult: " << passed << "/" << total << " tests passed" << std::endl;
+    std::cout << "\nResult: " << passed << "/" << total << " tests passed" << '\n';
     return passed == total;
 }
 
@@ -332,9 +332,9 @@ static bool test_kq_arbitrary() {
 // TEST 6: K*Q with random scalars
 // ============================================================
 static bool test_kq_random() {
-    std::cout << "\n+==========================================================+" << std::endl;
-    std::cout << "| TEST 6: K*Q with random large scalars                   |" << std::endl;
-    std::cout << "+==========================================================+" << std::endl;
+    std::cout << "\n+==========================================================+" << '\n';
+    std::cout << "| TEST 6: K*Q with random large scalars                   |" << '\n';
+    std::cout << "+==========================================================+" << '\n';
     
     Point G = Point::generator();
     std::mt19937_64 rng(12345);
@@ -365,12 +365,12 @@ static bool test_kq_random() {
         bool match = points_equal(result_kq, expected);
         
         std::cout << "Test " << (i+1) << "/10: k2*(k1*G) = (k1*k2)*G: " 
-                  << (match ? "[OK] PASS" : "[FAIL] FAIL") << std::endl;
+                  << (match ? "[OK] PASS" : "[FAIL] FAIL") << '\n';
         
         if (match) passed++;
     }
     
-    std::cout << "\nResult: " << passed << "/" << total << " tests passed" << std::endl;
+    std::cout << "\nResult: " << passed << "/" << total << " tests passed" << '\n';
     return passed == total;
 }
 
@@ -378,9 +378,9 @@ static bool test_kq_random() {
 // TEST 7: Distributive property: k*(P1+P2) = k*P1 + k*P2
 // ============================================================
 static bool test_distributive() {
-    std::cout << "\n+==========================================================+" << std::endl;
-    std::cout << "| TEST 7: Distributive: k*(P1+P2) = k*P1 + k*P2           |" << std::endl;
-    std::cout << "+==========================================================+" << std::endl;
+    std::cout << "\n+==========================================================+" << '\n';
+    std::cout << "| TEST 7: Distributive: k*(P1+P2) = k*P1 + k*P2           |" << '\n';
+    std::cout << "+==========================================================+" << '\n';
     
     Point G = Point::generator();
     int passed = 0;
@@ -411,12 +411,12 @@ static bool test_distributive() {
         bool match = points_equal(left, right);
         
         std::cout << "k=" << (3+test_num) << ": k*(P1+P2) = k*P1 + k*P2: " 
-                  << (match ? "[OK] PASS" : "[FAIL] FAIL") << std::endl;
+                  << (match ? "[OK] PASS" : "[FAIL] FAIL") << '\n';
         
         if (match) passed++;
     }
     
-    std::cout << "\nResult: " << passed << "/" << total << " tests passed" << std::endl;
+    std::cout << "\nResult: " << passed << "/" << total << " tests passed" << '\n';
     return passed == total;
 }
 
@@ -424,9 +424,9 @@ static bool test_distributive() {
 // MAIN
 // ============================================================
 int test_arithmetic_correctness_run() {
-    std::cout << "\n+==========================================================+" << std::endl;
-    std::cout << "|  COMPREHENSIVE ARITHMETIC CORRECTNESS TESTS              |" << std::endl;
-    std::cout << "+==========================================================+" << std::endl;
+    std::cout << "\n+==========================================================+" << '\n';
+    std::cout << "|  COMPREHENSIVE ARITHMETIC CORRECTNESS TESTS              |" << '\n';
+    std::cout << "+==========================================================+" << '\n';
     
     bool all_passed = true;
     int total_tests = 7;
@@ -442,21 +442,21 @@ int test_arithmetic_correctness_run() {
     
     all_passed = (passed_tests == total_tests);
     
-    std::cout << "\n+==========================================================+" << std::endl;
-    std::cout << "|                    FINAL RESULT                          |" << std::endl;
-    std::cout << "+==========================================================+" << std::endl;
-    std::cout << "|  Test Suites Passed: " << passed_tests << "/" << total_tests << "                                   |" << std::endl;
-    std::cout << "+==========================================================+" << std::endl;
+    std::cout << "\n+==========================================================+" << '\n';
+    std::cout << "|                    FINAL RESULT                          |" << '\n';
+    std::cout << "+==========================================================+" << '\n';
+    std::cout << "|  Test Suites Passed: " << passed_tests << "/" << total_tests << "                                   |" << '\n';
+    std::cout << "+==========================================================+" << '\n';
     if (all_passed) {
-        std::cout << "|  [OK] ALL ARITHMETIC OPERATIONS ARE CORRECT!               |" << std::endl;
-        std::cout << "|                                                          |" << std::endl;
-        std::cout << "|  * K*G works correctly with all methods                 |" << std::endl;
-        std::cout << "|  * P1 + P2 always produces correct results              |" << std::endl;
-        std::cout << "|  * K*Q works for arbitrary points and scalars           |" << std::endl;
+        std::cout << "|  [OK] ALL ARITHMETIC OPERATIONS ARE CORRECT!               |" << '\n';
+        std::cout << "|                                                          |" << '\n';
+        std::cout << "|  * K*G works correctly with all methods                 |" << '\n';
+        std::cout << "|  * P1 + P2 always produces correct results              |" << '\n';
+        std::cout << "|  * K*Q works for arbitrary points and scalars           |" << '\n';
     } else {
-        std::cout << "|  [FAIL] SOME TESTS FAILED - Review results above             |" << std::endl;
+        std::cout << "|  [FAIL] SOME TESTS FAILED - Review results above             |" << '\n';
     }
-    std::cout << "+==========================================================+" << std::endl;
+    std::cout << "+==========================================================+" << '\n';
     
     return all_passed ? 0 : 1;
 }

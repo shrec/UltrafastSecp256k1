@@ -64,7 +64,7 @@ static bool pt_eq(const PT& a, const PT& b) {
         if (cond) { ++g_pass; }                                 \
         else {                                                  \
             ++g_fail;                                           \
-            std::cerr << "  FAIL: " << msg << std::endl;        \
+            std::cerr << "  FAIL: " << msg << '\n';        \
         }                                                       \
     } while (0)
 
@@ -72,7 +72,7 @@ static bool pt_eq(const PT& a, const PT& b) {
 // Test 1: Closure -- every k*G is on the curve
 // ----------------------------------------------------------------------------
 static void test_closure(unsigned N) {
-    std::cout << "  [1] Closure: k*G on curve for k=1.." << N << std::endl;
+    std::cout << "  [1] Closure: k*G on curve for k=1.." << N << '\n';
     PT G = PT::generator();
     PT P = G;
     for (unsigned k = 1; k <= N; ++k) {
@@ -91,7 +91,7 @@ static void test_closure(unsigned N) {
 // Test 2: Additive consistency -- k*G + G = (k+1)*G
 // ----------------------------------------------------------------------------
 static void test_additive_consistency(unsigned N) {
-    std::cout << "  [2] Additive consistency: k*G + G = (k+1)*G, k=1.." << N << std::endl;
+    std::cout << "  [2] Additive consistency: k*G + G = (k+1)*G, k=1.." << N << '\n';
     PT G = PT::generator();
     
     // Build reference table: ref[k] = k*G via repeated addition
@@ -114,7 +114,7 @@ static void test_additive_consistency(unsigned N) {
 // Test 3: Homomorphism -- a*G + b*G = (a+b)*G
 // ----------------------------------------------------------------------------
 static void test_homomorphism(unsigned N) {
-    std::cout << "  [3] Homomorphism: a*G + b*G = (a+b)*G, a,b=1.." << N << std::endl;
+    std::cout << "  [3] Homomorphism: a*G + b*G = (a+b)*G, a,b=1.." << N << '\n';
     PT G = PT::generator();
     
     // Build reference table
@@ -139,14 +139,14 @@ static void test_homomorphism(unsigned N) {
             ++checks;
         }
     }
-    std::cout << "    " << checks << " pairs verified" << std::endl;
+    std::cout << "    " << checks << " pairs verified" << '\n';
 }
 
 // ----------------------------------------------------------------------------
 // Test 4: Scalar mul consistency -- scalar_mul(k) matches iterated addition
 // ----------------------------------------------------------------------------
 static void test_scalar_mul_consistency(unsigned N) {
-    std::cout << "  [4] Scalar mul: scalar_mul(k) vs iterated add, k=1.." << N << std::endl;
+    std::cout << "  [4] Scalar mul: scalar_mul(k) vs iterated add, k=1.." << N << '\n';
     PT G = PT::generator();
     PT iterP = G;
     
@@ -163,7 +163,7 @@ static void test_scalar_mul_consistency(unsigned N) {
 // Test 5: Scalar associativity -- k*(l*G) = (k*l)*G
 // ----------------------------------------------------------------------------
 static void test_scalar_associativity() {
-    std::cout << "  [5] Scalar associativity: k*(l*G) = (k*l)*G" << std::endl;
+    std::cout << "  [5] Scalar associativity: k*(l*G) = (k*l)*G" << '\n';
     PT G = PT::generator();
     
     // Test with selected (k, l) pairs
@@ -191,7 +191,7 @@ static void test_scalar_associativity() {
 // Test 6: Point addition -- associativity, commutativity, identity, inverse
 // ----------------------------------------------------------------------------
 static void test_point_addition_axioms() {
-    std::cout << "  [6] Addition axioms: assoc, commut, identity, inverse" << std::endl;
+    std::cout << "  [6] Addition axioms: assoc, commut, identity, inverse" << '\n';
     PT G = PT::generator();
     PT O = PT::infinity();
     
@@ -244,7 +244,7 @@ static void test_point_addition_axioms() {
 // Test 7: Doubling consistency -- 2*P = P + P
 // ----------------------------------------------------------------------------
 static void test_doubling() {
-    std::cout << "  [7] Doubling: 2*P = P + P" << std::endl;
+    std::cout << "  [7] Doubling: 2*P = P + P" << '\n';
     PT G = PT::generator();
     PT P = G;
     
@@ -260,7 +260,7 @@ static void test_doubling() {
 // Test 8: Order of the curve -- n*G = O, (n-1)*G = -G
 // ----------------------------------------------------------------------------
 static void test_order() {
-    std::cout << "  [8] Curve order: n*G = O, (n-1)*G = -G" << std::endl;
+    std::cout << "  [8] Curve order: n*G = O, (n-1)*G = -G" << '\n';
     PT G = PT::generator();
     
     // n = group order of secp256k1
@@ -288,7 +288,7 @@ static void test_order() {
 // Test 9: Scalar arithmetic exhaustive -- a + b, a * b, a - b for small values
 // ----------------------------------------------------------------------------
 static void test_scalar_arithmetic(unsigned N) {
-    std::cout << "  [9] Scalar arithmetic exhaustive, N=" << N << std::endl;
+    std::cout << "  [9] Scalar arithmetic exhaustive, N=" << N << '\n';
     
     unsigned step = (N > 64) ? N / 32 : 1;
     unsigned checks = 0;
@@ -321,14 +321,14 @@ static void test_scalar_arithmetic(unsigned N) {
             ++checks;
         }
     }
-    std::cout << "    " << checks << " pairs verified" << std::endl;
+    std::cout << "    " << checks << " pairs verified" << '\n';
 }
 
 // ----------------------------------------------------------------------------
 // Test 10: CT scalar_mul matches fast scalar_mul
 // ----------------------------------------------------------------------------
 static void test_ct_consistency(unsigned N) {
-    std::cout << "  [10] CT consistency: ct::scalar_mul vs fast::scalar_mul, k=1.." << N << std::endl;
+    std::cout << "  [10] CT consistency: ct::scalar_mul vs fast::scalar_mul, k=1.." << N << '\n';
     PT G = PT::generator();
     
     for (unsigned k = 1; k <= N; ++k) {
@@ -344,7 +344,7 @@ static void test_ct_consistency(unsigned N) {
 // Test 11: Negation properties
 // ----------------------------------------------------------------------------
 static void test_negation() {
-    std::cout << "  [11] Negation properties" << std::endl;
+    std::cout << "  [11] Negation properties" << '\n';
     PT G = PT::generator();
     
     // -(-P) = P
@@ -375,7 +375,7 @@ static void test_negation() {
 // Test 12: In-place operations consistency
 // ----------------------------------------------------------------------------
 static void test_inplace() {
-    std::cout << "  [12] In-place ops: next/prev/dbl_inplace vs immutable" << std::endl;
+    std::cout << "  [12] In-place ops: next/prev/dbl_inplace vs immutable" << '\n';
     PT G = PT::generator();
     
     // next_inplace vs add(G)
@@ -406,7 +406,7 @@ static void test_inplace() {
 // Test 13: Pippenger MSM correctness
 // ----------------------------------------------------------------------------
 static void test_pippenger() {
-    std::cout << "  [13] Pippenger MSM correctness" << std::endl;
+    std::cout << "  [13] Pippenger MSM correctness" << '\n';
     PT G = PT::generator();
     
     // Build n random-ish points and scalars
@@ -462,7 +462,7 @@ static void test_pippenger() {
 // Test 14: Comb generator multiplication
 // ----------------------------------------------------------------------------
 static void test_comb_gen() {
-    std::cout << "  [14] Comb generator: comb_mul(k) vs k*G" << std::endl;
+    std::cout << "  [14] Comb generator: comb_mul(k) vs k*G" << '\n';
     PT G = PT::generator();
     
     // Init with small teeth for fast test
@@ -514,7 +514,7 @@ int main() {
 #else
 int run_exhaustive_tests() {
 #endif
-    std::cout << "\n=== Exhaustive Algebraic Verification ===" << std::endl;
+    std::cout << "\n=== Exhaustive Algebraic Verification ===" << '\n';
     auto t0 = std::chrono::high_resolution_clock::now();
     
     g_pass = 0;
@@ -544,12 +544,12 @@ int run_exhaustive_tests() {
     auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count();
     
     std::cout << "\n  -- Results: " << g_pass << " passed, " << g_fail << " failed"
-              << " (" << ms << " ms)" << std::endl;
+              << " (" << ms << " ms)" << '\n';
     
     if (g_fail > 0) {
-        std::cerr << "\n  *** EXHAUSTIVE TESTS FAILED ***" << std::endl;
+        std::cerr << "\n  *** EXHAUSTIVE TESTS FAILED ***" << '\n';
     } else {
-        std::cout << "  All exhaustive tests PASSED [ok]" << std::endl;
+        std::cout << "  All exhaustive tests PASSED [ok]" << '\n';
     }
     
 #ifdef STANDALONE_TEST

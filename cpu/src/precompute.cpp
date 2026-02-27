@@ -2236,11 +2236,11 @@ bool load_precompute_cache_locked(const std::string& path, unsigned max_windows)
     }
     
 #if SECP256K1_DEBUG_GLV
-    std::cout << "[CACHE] Loading cache: " << path << std::endl;
+    std::cout << "[CACHE] Loading cache: " << path << '\n';
     std::cout << "[CACHE] Header: window_bits=" << header.window_bits 
               << " window_count=" << header.window_count 
               << " digit_count=" << header.digit_count
-              << " has_glv=" << header.has_glv << std::endl;
+              << " has_glv=" << header.has_glv << '\n';
 #endif
     
     // Create new context from cache
@@ -2253,7 +2253,7 @@ bool load_precompute_cache_locked(const std::string& path, unsigned max_windows)
     ctx->beta = FieldElement::from_bytes(kBetaBytes);
     
 #if SECP256K1_DEBUG_GLV
-    std::cout << "[CACHE] Context GLV enabled: " << ctx->config.enable_glv << std::endl;
+    std::cout << "[CACHE] Context GLV enabled: " << ctx->config.enable_glv << '\n';
 #endif
     
     // Determine how many windows to load
@@ -2263,7 +2263,7 @@ bool load_precompute_cache_locked(const std::string& path, unsigned max_windows)
     }
     
 #if SECP256K1_DEBUG_GLV
-    std::cout << "[CACHE] Loading " << windows_to_load << " of " << ctx->window_count << " windows..." << std::endl;
+    std::cout << "[CACHE] Loading " << windows_to_load << " of " << ctx->window_count << " windows..." << '\n';
 #endif
     
     // Allocate tables
@@ -2337,7 +2337,7 @@ bool load_precompute_cache_locked(const std::string& path, unsigned max_windows)
 #if SECP256K1_DEBUG_GLV
     auto load_end = std::chrono::steady_clock::now();
     auto load_ms = std::chrono::duration_cast<std::chrono::milliseconds>(load_end - load_start).count();
-    std::cout << "[CACHE] Cache loaded in " << load_ms << " ms" << std::endl;
+    std::cout << "[CACHE] Cache loaded in " << load_ms << " ms" << '\n';
 #endif
     
     return true;
@@ -2694,7 +2694,7 @@ bool auto_tune_fixed_base(FixedBaseConfig& best_out,
 
     std::string report;
     report += "Auto-tune candidates (iterations=" + std::to_string(iterations) + ")\n";
-    std::cout << "Discovered " << candidates.size() << " candidates in '" << base.cache_dir << "'." << std::endl;
+    std::cout << "Discovered " << candidates.size() << " candidates in '" << base.cache_dir << "'." << '\n';
 
     // Evaluate each candidate
     for (size_t i = 0; i < candidates.size(); ++i) {
@@ -2716,9 +2716,9 @@ bool auto_tune_fixed_base(FixedBaseConfig& best_out,
                   << ", glv=" << (cfg.enable_glv?"true":"false")
                   << ", jsf=" << (cfg.use_jsf?"true":"false")
                   << ": " << (cache_exists?"loading cache":"generating tables (first run)")
-                  << " -> " << cache_path << std::endl;
+                  << " -> " << cache_path << '\n';
         if (!cache_exists) {
-            std::cout << "  skipped (cache file not found; autotune does not generate tables)." << std::endl;
+            std::cout << "  skipped (cache file not found; autotune does not generate tables)." << '\n';
             continue;
         }
         // Pin exact cache path to avoid accidental fallback
@@ -2729,7 +2729,7 @@ bool auto_tune_fixed_base(FixedBaseConfig& best_out,
             ns = measure_ns_per_mul(cfg, iterations);
         } catch (...) {
             // If something fails (e.g., missing cache), skip
-            std::cout << "  skipped due to error while preparing candidate." << std::endl;
+            std::cout << "  skipped due to error while preparing candidate." << '\n';
             continue;
         }
 
@@ -2737,7 +2737,7 @@ bool auto_tune_fixed_base(FixedBaseConfig& best_out,
                +  ", glv=" + bool_str(cfg.enable_glv)
                +  ", jsf=" + bool_str(cfg.use_jsf)
                +  ": " + std::to_string(ns) + " ns\n";
-        std::cout << "  result: " << std::fixed << std::setprecision(2) << ns << " ns/op" << std::endl;
+        std::cout << "  result: " << std::fixed << std::setprecision(2) << ns << " ns/op" << '\n';
 
         if (ns < best_ns) {
             best_ns = ns;
@@ -3325,7 +3325,7 @@ Point scalar_mul_generator(const Scalar& scalar) {
 
     if (ctx.config.enable_glv) {
 #if SECP256K1_DEBUG_GLV
-        std::cout << "[GLV] Splitting scalar for GLV path..." << std::endl;
+        std::cout << "[GLV] Splitting scalar for GLV path..." << '\n';
 #endif
         ScalarDecomposition decomposition = split_scalar_internal(scalar);
         
@@ -3334,10 +3334,10 @@ Point scalar_mul_generator(const Scalar& scalar) {
         auto k2_bytes = decomposition.k2.to_bytes();
         std::cout << "[GLV] k1 (mag): ";
         for (auto b : k1_bytes) std::cout << std::hex << std::setw(2) << std::setfill('0') << (int)b;
-        std::cout << " neg=" << decomposition.neg1 << std::endl;
+        std::cout << " neg=" << decomposition.neg1 << '\n';
         std::cout << "[GLV] k2 (mag): ";
         for (auto b : k2_bytes) std::cout << std::hex << std::setw(2) << std::setfill('0') << (int)b;
-        std::cout << std::dec << " neg=" << decomposition.neg2 << std::endl;
+        std::cout << std::dec << " neg=" << decomposition.neg2 << '\n';
 #endif
         
         // Build signed scalars from absolute magnitudes + flags
@@ -3381,7 +3381,7 @@ Point scalar_mul_generator(const Scalar& scalar) {
         }
         
 #if SECP256K1_DEBUG_GLV
-        std::cout << "[GLV] Using Shamir's trick for simultaneous k1*G + k2*psi(G)..." << std::endl;
+        std::cout << "[GLV] Using Shamir's trick for simultaneous k1*G + k2*psi(G)..." << '\n';
 #endif
         
         // *** SHAMIR'S TRICK: Simultaneous 2D multiplication ***
@@ -3398,11 +3398,11 @@ Point scalar_mul_generator(const Scalar& scalar) {
         }
         
 #if SECP256K1_DEBUG_GLV
-        std::cout << "[GLV] Shamir GLV multiplication complete." << std::endl;
+        std::cout << "[GLV] Shamir GLV multiplication complete." << '\n';
 #endif
     } else {
 #if SECP256K1_DEBUG_GLV
-        std::cout << "[GLV] GLV disabled, using standard path." << std::endl;
+        std::cout << "[GLV] GLV disabled, using standard path." << '\n';
 #endif
         auto digits = compute_window_digits(scalar, ctx.window_bits, window_count);
         accumulate(digits, ctx.base_tables);
