@@ -525,14 +525,20 @@ endif()
 
 # Special flags for field_asm.cpp (maximize BMI2/MULX utilization on x86)
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+# -fno-rtti conflicts with -fsanitize=vptr (used by UBSan/ClusterFuzzLite).
+# Detect sanitizer presence and skip -fno-rtti when needed.
+set(_FIELD_ASM_NORTTI "-fno-rtti")
+if(CMAKE_CXX_FLAGS MATCHES "fsanitize=.*vptr" OR CMAKE_CXX_FLAGS MATCHES "fsanitize=undefined")
+    set(_FIELD_ASM_NORTTI "")
+endif()
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|X64")
     set_source_files_properties(src/field_asm.cpp PROPERTIES 
-        COMPILE_FLAGS "-O3 ${ARCH_FLAGS} -mbmi2 -madx -mpopcnt -funroll-loops -ftree-vectorize -fno-exceptions -fno-rtti"
+        COMPILE_FLAGS "-O3 ${ARCH_FLAGS} -mbmi2 -madx -mpopcnt -funroll-loops -ftree-vectorize -fno-exceptions ${_FIELD_ASM_NORTTI}"
     )
 else()
     # ARM64/other: no BMI2/ADX, just standard optimization
     set_source_files_properties(src/field_asm.cpp PROPERTIES 
-        COMPILE_FLAGS "-O3 ${ARCH_FLAGS} -funroll-loops -ftree-vectorize -fno-exceptions -fno-rtti"
+        COMPILE_FLAGS "-O3 ${ARCH_FLAGS} -funroll-loops -ftree-vectorize -fno-exceptions ${_FIELD_ASM_NORTTI}"
     )
 endif()
 endif()
