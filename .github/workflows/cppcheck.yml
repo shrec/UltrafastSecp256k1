@@ -40,7 +40,7 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends cppcheck ninja-build python3-pip
-          pip3 install --user 'cppcheck-codequality==1.4.0' 2>/dev/null || true
+          pip3 install --require-hashes --no-deps -r .github/requirements/cppcheck.txt 2>/dev/null || true
 
       - name: Configure (generate compile_commands.json)
         run: |

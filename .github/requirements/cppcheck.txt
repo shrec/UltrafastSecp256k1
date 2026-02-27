@@ -1,0 +1,4 @@
+# Pinned dependency for cppcheck workflow (hash-verified)
+# Regenerate: pip download 'cppcheck-codequality==1.4.2' && pip hash <file>
+cppcheck-codequality==1.4.2 \
+    --hash=sha256:5b73e80efe173eb8b9deb8f3d60461eddd92540e19cf6f15d4aa96e7e3d3f319

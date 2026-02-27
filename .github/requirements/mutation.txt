@@ -1,0 +1,4 @@
+# Pinned dependency for mutation workflow (hash-verified)
+# Regenerate: pip download 'mutmut==3.5.0' && pip hash <file>
+mutmut==3.5.0 \
+    --hash=sha256:f19f2dd2e977eb9dc17255d8cb11e24fbfc3191620fba3108cac25779c9d78c9
