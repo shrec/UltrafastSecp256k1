@@ -444,7 +444,7 @@ static void suite_6_bip32_path_fuzz(ufsecp_ctx* ctx) {
     }
 
     // 6a: Valid BIP32 paths
-    const char const* valid_paths[] = {
+    const char* const valid_paths[] = {
         "m",
         "m/0",
         "m/0/1",
@@ -463,7 +463,7 @@ static void suite_6_bip32_path_fuzz(ufsecp_ctx* ctx) {
     }
 
     // 6b: Invalid BIP32 paths -- must not crash
-    const char const* invalid_paths[] = {
+    const char* const invalid_paths[] = {
         "",
         "m/",
         "/0/1",

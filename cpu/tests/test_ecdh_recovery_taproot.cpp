@@ -168,7 +168,7 @@ static void test_recovery_basic() {
 static void test_recovery_multiple_keys() {
     std::printf("[Recovery] Multiple different private keys...\n");
 
-    const char const* test_keys[] = {
+    const char* const test_keys[] = {
         "0000000000000000000000000000000000000000000000000000000000000002",
         "0000000000000000000000000000000000000000000000000000000000000003",
         "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364140",  // n-1
@@ -643,7 +643,7 @@ static void test_wycheproof_recovery_edge_cases() {
     std::printf("[Wycheproof] Recovery edge cases...\n");
 
     // 1. Recovery round-trip with various message hashes
-    const char const* messages[] = {
+    const char* const messages[] = {
         "0000000000000000000000000000000000000000000000000000000000000000",  // zero
         "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF",  // max
         "0000000000000000000000000000000000000000000000000000000000000001",  // one

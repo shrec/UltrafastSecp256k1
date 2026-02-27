@@ -488,12 +488,12 @@ static bool test_bilinearity_K_times_Q(bool verbose) {
         SELFTEST_PRINT("\nBilinearity: K*(Q+/-G) vs K*Q +/- K*G\n");
     }
     bool ok = true;
-    const char const* KHEX[] = {
+    const char* const KHEX[] = {
         "0000000000000000000000000000000000000000000000000000000000000005",
         "4727daf2986a9804b1117f8261aba645c34537e4474e19be58700792d501a591",
         "c77835cf72699d217c2bbe6c59811b7a599bb640f0a16b3a332ebe64f20b1afa"
     };
-    const char const* QHEX[] = {
+    const char* const QHEX[] = {
         "0000000000000000000000000000000000000000000000000000000000000011",
         "0000000000000000000000000000000000000000000000000000000000000067",
         "c401899c059f1c624292fece1933c890ae4970abf56dd4d2c986a5b9d7c9aeb5"
@@ -526,12 +526,12 @@ static bool test_fixedK_plan(bool verbose) {
         SELFTEST_PRINT("\nFixed-K plan: with_plan vs direct scalar_mul\n");
     }
     bool ok = true;
-    const char const* KHEX[] = {
+    const char* const KHEX[] = {
         TEST_VECTORS[0].scalar_hex,
         TEST_VECTORS[1].scalar_hex,
         "00000000000000000000000000000000000000000000000000000000000000a7"
     };
-    const char const* QHEX[] = {
+    const char* const QHEX[] = {
         "000000000000000000000000000000000000000000000000000000000000000d",
         "0000000000000000000000000000000000000000000000000000000000000123",
         "700a25ca2ae4eb40dfa74c9eda069be7e2fc9bfceabb13953ddedd33e1f03f2c"
@@ -1410,7 +1410,7 @@ bool Selftest(bool verbose, SelftestMode mode, uint64_t seed) {
     {
         if (verbose) SELFTEST_PRINT("\nLarge scalar cross-checks (fast vs affine):\n");
         bool ok = true;
-        const char const* L[] = {
+        const char* const L[] = {
             "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
             "8000000000000000000000000000000000000000000000000000000000000000",
             "7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
@@ -1432,7 +1432,7 @@ bool Selftest(bool verbose, SelftestMode mode, uint64_t seed) {
     {
         if (verbose) SELFTEST_PRINT("\nSquared scalars k^2 * G (fast vs affine):\n");
         bool ok = true;
-        const char const* K[] = {
+        const char* const K[] = {
             TEST_VECTORS[0].scalar_hex,
             TEST_VECTORS[1].scalar_hex,
             TEST_VECTORS[2].scalar_hex,
