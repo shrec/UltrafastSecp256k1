@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772228949872,
+  "lastUpdate": 1772230808178,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -21086,6 +21086,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Batch Inverse (n=1000)",
             "value": 107,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "Vano Chkheidze",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9676b14ec205205fb951ba5d8b148356999b81fe",
+          "message": "fix: raise sanitizer test timeouts to prevent false CI failures (#62)\n\nAll sanitizer CI failures were timeouts, not bugs. Sanitizers add\n3-15x runtime overhead making 300s per-test limits insufficient.\n\nChanges:\n- ci.yml: raise ctest --timeout from 300 to 900 for sanitizer jobs\n- ci.yml: exclude selftest from sanitizer runs (standalone tests\n  cover the same modules individually, faster under instrumentation)\n- security-audit.yml: add --timeout 900, exclude selftest + unified_audit\n- audit/CMakeLists.txt: raise per-test TIMEOUT for slow audit tests:\n  - differential: 120 -> 600\n  - debug_invariants: 120 -> 600\n  - audit_fuzz: 120 -> 600\n  - unified_audit: 600 -> 1200\n\nVerify: re-run CI Sanitizers (ASan+UBSan) and Sanitizers (TSan) jobs.",
+          "timestamp": "2026-02-28T02:18:31+04:00",
+          "tree_id": "d1be5a8c4fa91606e0814de8e3a1c52a85c87523",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/9676b14ec205205fb951ba5d8b148356999b81fe"
+        },
+        "date": 1772230805677,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 27,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 22,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 282,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 149,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 38000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 10000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 14000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 47000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 24000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 53000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 141,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 137,
             "unit": "ns"
           }
         ]
