@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772226523889,
+  "lastUpdate": 1772227645126,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -20789,6 +20789,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Batch Inverse (n=1000)",
             "value": 160,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "Vano Chkheidze",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f6eb756857ae4786f3c20bb6419d01df8fbbbf31",
+          "message": "fix: SonarCloud Quality Gate -- 3 failing conditions (#59)\n\n1. Reliability E -> A: sha256.hpp buf_ overflow false positive.\n   Replace bitwise clamp (&= 63u) with explicit if-check that\n   SonarCloud's analyzer can track as a range constraint.\n\n2. Duplication 3.3% -> under 3.0%: raise cpd.minimumTokens from\n   100 to 120. CT variants (ct_sign.cpp, schnorr.cpp) intentionally\n   mirror non-CT code for constant-time guarantees.\n\n3. Coverage 61.8% -> ~86%: exclude FFI binding layer\n   (include/ufsecp/**) and audit/** from coverage metrics.\n   These are glue/test-harness code, not library core.",
+          "timestamp": "2026-02-28T01:25:36+04:00",
+          "tree_id": "5ddbfa79cf73716a836de6b8387241b782742223",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/f6eb756857ae4786f3c20bb6419d01df8fbbbf31"
+        },
+        "date": 1772227643326,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 27,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 22,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 282,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 149,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 38000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 10000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 14000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 47000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 24000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 53000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 140,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 131,
             "unit": "ns"
           }
         ]
