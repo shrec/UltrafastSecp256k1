@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772213657121,
+  "lastUpdate": 1772220233623,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -20393,6 +20393,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Batch Inverse (n=1000)",
             "value": 131,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "Vano Chkheidze",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "91afe2047965c86d206bff6f66646f5fa6ba930d",
+          "message": "fix: last duplicate const in test_frost_kat.cpp (GCC-13 error) (#55)\n\nconst secp256k1::FrostKeyPackage const* -> const ...* const\nMissed in PR #54 (only searched 'const char const*' pattern).\n\nVerify: cmake --build build -j && ctest --test-dir build (25/25 pass)",
+          "timestamp": "2026-02-27T23:22:15+04:00",
+          "tree_id": "5ed0641047e43b1d3af790aa784a3561956c6f90",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/91afe2047965c86d206bff6f66646f5fa6ba930d"
+        },
+        "date": 1772220231336,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 26,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 19,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 268,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 133,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 35000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 8000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 12000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 43000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 20000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 49000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 116,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 107,
             "unit": "ns"
           }
         ]
