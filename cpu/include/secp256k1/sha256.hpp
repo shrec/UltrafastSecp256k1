@@ -72,14 +72,18 @@ public:
 
         // -- Direct in-place padding (no per-byte update() calls) ---------
         // buf_len_ is invariantly [0,63] after update() processes full blocks.
-        // Explicit check satisfies static analysis (Sonar overflow warning)
-        // without changing behavior -- the branch is never taken.
+        // Explicit bounds check satisfies static analysis (Sonar cpp:S3519).
         if (buf_len_ >= 64) buf_len_ = 0;
-        buf_[buf_len_++] = 0x80;
+        std::size_t pos = buf_len_;   // capture index before increment
+        buf_len_ = pos + 1;           // new length [1, 64]
+        buf_[pos] = 0x80;             // write at [0, 63] -- always in bounds
 
         if (buf_len_ > 56) {
             // No room for 8-byte length -- pad, compress, start fresh block
-            std::memset(buf_ + buf_len_, 0, 64 - buf_len_);
+            // buf_len_ is [57, 64]; (64 - buf_len_) is [0, 7]
+            if (buf_len_ < 64) {
+                std::memset(buf_ + buf_len_, 0, 64 - buf_len_);
+            }
             detail::sha256_compress_dispatch(buf_, state_);
             buf_len_ = 0;
         }
