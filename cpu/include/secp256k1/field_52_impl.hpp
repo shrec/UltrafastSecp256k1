@@ -370,38 +370,6 @@ void FieldElement52::normalize_weak() noexcept {
     fe52_normalize_weak(n);
 }
 
-// -- Fast Variable-time Zero Check ----------------------------------------
-// Checks if value reduces to zero mod p WITHOUT full normalization.
-// Variable-time: safe for non-secret values (point coordinates in ECC).
-
-SECP256K1_FE52_FORCE_INLINE
-bool FieldElement52::normalizes_to_zero() const noexcept {
-    std::uint64_t t0 = n[0], t1 = n[1], t2 = n[2], t3 = n[3], t4 = n[4];
-
-    // Carry propagation
-    t1 += (t0 >> 52); t0 &= M52;
-    t2 += (t1 >> 52); t1 &= M52;
-    t3 += (t2 >> 52); t2 &= M52;
-    t4 += (t3 >> 52); t3 &= M52;
-
-    // Overflow reduction
-    std::uint64_t x = t4 >> 48;
-    t4 &= M48;
-    t0 += x * 0x1000003D1ULL;
-
-    // Second carry propagation
-    t1 += (t0 >> 52); t0 &= M52;
-    t2 += (t1 >> 52); t1 &= M52;
-    t3 += (t2 >> 52); t2 &= M52;
-    t4 += (t3 >> 52); t3 &= M52;
-
-    // Check zero or equal to p
-    std::uint64_t z0 = t0 | t1 | t2 | t3 | t4;
-    std::uint64_t zp = (t0 ^ P0) | (t1 ^ P1) | (t2 ^ P2) | (t3 ^ P3) | (t4 ^ P4);
-
-    return (z0 == 0) | (zp == 0);
-}
-
 // -- Half (a/2 mod p) -- branchless ---------------------------------------
 
 SECP256K1_FE52_FORCE_INLINE
@@ -491,6 +459,22 @@ static void fe52_normalize_inline(std::uint64_t* r) noexcept {
 SECP256K1_FE52_FORCE_INLINE
 void FieldElement52::normalize() noexcept {
     fe52_normalize_inline(n);
+}
+
+// -- Variable-time Zero Check (full normalize) ----------------------------
+// Uses fe52_normalize_inline (TWO overflow-reduction passes + conditional
+// p-subtraction) then checks canonical zero.  The previous single-pass
+// implementation could produce false negatives at magnitude >= 25
+// (e.g. h = u2 + negate(23) in mixed-add) because one pass can leave
+// the value in [p, 2p) -- neither raw-0 nor raw-p.
+//
+// Variable-time: safe for non-secret values (point coordinates in ECC).
+
+SECP256K1_FE52_FORCE_INLINE
+bool FieldElement52::normalizes_to_zero() const noexcept {
+    std::uint64_t t[5] = {n[0], n[1], n[2], n[3], n[4]};
+    fe52_normalize_inline(t);
+    return (t[0] | t[1] | t[2] | t[3] | t[4]) == 0;
 }
 
 // -- Conversion: 4x64 -> 5x52 (inline) -----------------------------------
