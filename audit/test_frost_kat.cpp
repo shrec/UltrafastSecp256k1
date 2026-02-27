@@ -291,7 +291,7 @@ static void test_2of3_full_signing() {
     for (int i = 0; i < 32; ++i) msg[i] = static_cast<uint8_t>(0xCA + i);
 
     // Try ALL 3 signer subsets: {1,2}, {1,3}, {2,3}
-    const secp256k1::FrostKeyPackage const* all_kps[] = {&kp1, &kp2, &kp3};
+    const secp256k1::FrostKeyPackage* const all_kps[] = {&kp1, &kp2, &kp3};
     uint32_t const subset_ids[][2] = {{1, 2}, {1, 3}, {2, 3}};
 
     for (int s = 0; s < 3; ++s) {
