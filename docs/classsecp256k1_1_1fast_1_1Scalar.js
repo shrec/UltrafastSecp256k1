@@ -16,7 +16,6 @@ var classsecp256k1_1_1fast_1_1Scalar =
     [ "limbs", "classsecp256k1_1_1fast_1_1Scalar.html#a52988cdd890977cdd51f7bfdac076deb", null ],
     [ "negate", "classsecp256k1_1_1fast_1_1Scalar.html#acc52e92477f518388b7e0827e3a3ce86", null ],
     [ "one", "classsecp256k1_1_1fast_1_1Scalar.html#a4f73ed4ef89bb0d541ce330d38674cce", null ],
-    [ "operator!=", "classsecp256k1_1_1fast_1_1Scalar.html#aaeeb41bb6d76f5face39ef4a2dec0eca", null ],
     [ "operator*", "classsecp256k1_1_1fast_1_1Scalar.html#ad13485e9057842577c63e7bef9ef3742", null ],
     [ "operator*=", "classsecp256k1_1_1fast_1_1Scalar.html#a8f6b80a4a6a232a86598bab6e10c3e9d", null ],
     [ "operator+", "classsecp256k1_1_1fast_1_1Scalar.html#a849dcd337c631c72b882565581cd76d1", null ],

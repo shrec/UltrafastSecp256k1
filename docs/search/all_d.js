@@ -18,5 +18,5 @@ var searchData=
   ['gpu_3a_20cuda_20vs_20opencl_20vs_20metal_15',['GPU: CUDA vs OpenCL vs Metal',['../index.html#autotoc_md51',1,'']]],
   ['groestlcoin_16',['Groestlcoin',['../namespacesecp256k1_1_1coins.html#ad4a6bedd62cdee8e37ca99ab6dd8a1b4',1,'secp256k1::coins']]],
   ['group_5fpublic_5fkey_17',['group_public_key',['../structsecp256k1_1_1FrostKeyPackage.html#afc77ac1bfdef6a9ce44cdd9a27314783',1,'secp256k1::FrostKeyPackage']]],
-  ['guarantees_20—_20tt_20ufsecp_20tt_20c_20abi_18',['Supported Guarantees — &lt;tt&gt;ufsecp&lt;/tt&gt; C ABI',['../md_include_2ufsecp_2SUPPORTED__GUARANTEES.html',1,'']]]
+  ['guarantees_20ndash_20tt_20ufsecp_20tt_20c_20abi_18',['Supported Guarantees &amp;ndash; &lt;tt&gt;ufsecp&lt;/tt&gt; C ABI',['../md_include_2ufsecp_2SUPPORTED__GUARANTEES.html',1,'']]]
 ];

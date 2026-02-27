@@ -1,7 +1,11 @@
 var searchData=
 [
-  ['tagged_5fhash_2ehpp_0',['tagged_hash.hpp',['../tagged__hash_8hpp.html',1,'']]],
-  ['taproot_2ehpp_1',['taproot.hpp',['../taproot_8hpp.html',1,'']]],
-  ['test_5fframework_2ehpp_2',['test_framework.hpp',['../test__framework_8hpp.html',1,'']]],
-  ['types_2ehpp_3',['types.hpp',['../cpu_2include_2secp256k1_2types_8hpp.html',1,'(Global Namespace)'],['../include_2secp256k1_2types_8hpp.html',1,'(Global Namespace)']]]
+  ['scalar_2ehpp_0',['scalar.hpp',['../ct_2scalar_8hpp.html',1,'(Global Namespace)'],['../scalar_8hpp.html',1,'(Global Namespace)']]],
+  ['schnorr_2ehpp_1',['schnorr.hpp',['../schnorr_8hpp.html',1,'']]],
+  ['secp256k1_5fwasm_2eh_2',['secp256k1_wasm.h',['../secp256k1__wasm_8h.html',1,'']]],
+  ['selftest_2ehpp_3',['selftest.hpp',['../selftest_8hpp.html',1,'']]],
+  ['sha256_2ehpp_4',['sha256.hpp',['../sha256_8hpp.html',1,'']]],
+  ['sha512_2ehpp_5',['sha512.hpp',['../sha512_8hpp.html',1,'']]],
+  ['sign_2ehpp_6',['sign.hpp',['../sign_8hpp.html',1,'']]],
+  ['supported_5fguarantees_2emd_7',['SUPPORTED_GUARANTEES.md',['../SUPPORTED__GUARANTEES_8md.html',1,'']]]
 ];

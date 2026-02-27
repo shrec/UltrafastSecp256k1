@@ -25,7 +25,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.13.0</span>
+   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.14.0</span>
    </div>
    <div id="projectbrief">Ultra high-performance secp256k1 elliptic curve cryptography library</div>
   </td>
@@ -375,9 +375,9 @@ $(document).ready(function(){initNavTree('ufsecp__impl_8cpp_source.html',''); in
 <div class="line"><a id="l00238" name="l00238"></a><span class="lineno"><a class="line" href="ufsecp_8h.html#ae3ee6534242945630fc64e93482a19f0">  238</a></span><a class="code hl_typedef" href="ufsecp__error_8h.html#ace9807a2d7e727c5d4dc3f8473118c9b">ufsecp_error_t</a> <a class="code hl_function" href="ufsecp__impl_8cpp.html#a82b710c6abf7a44eeebdd58ab158a520">ufsecp_seckey_verify</a>(<span class="keyword">const</span> <a class="code hl_struct" href="structufsecp__ctx.html">ufsecp_ctx</a>* ctx,</div>
 <div class="line"><a id="l00239" name="l00239"></a><span class="lineno">  239</span>                                    <span class="keyword">const</span> uint8_t privkey[32]) {</div>
 <div class="line"><a id="l00240" name="l00240"></a><span class="lineno">  240</span>    <span class="keywordflow">if</span> (!privkey) <span class="keywordflow">return</span> <a class="code hl_define" href="ufsecp__error_8h.html#a203ff77a4225787602826f5b175c00f3">UFSECP_ERR_NULL_ARG</a>;</div>
-<div class="line"><a id="l00241" name="l00241"></a><span class="lineno">  241</span>    <span class="keyword">auto</span> sk = <a class="code hl_function" href="ufsecp__impl_8cpp.html#a23ff42aa3aa42678db255455c865ff05">scalar_from_bytes</a>(privkey);</div>
-<div class="line"><a id="l00242" name="l00242"></a><span class="lineno">  242</span>    <span class="keywordflow">return</span> sk.is_zero() ? <a class="code hl_define" href="ufsecp__error_8h.html#ad41f8c3c3d95e44fb99fb509f703f1ed">UFSECP_ERR_BAD_KEY</a> : <a class="code hl_define" href="ufsecp__error_8h.html#abffdddf294c435058759beaf5b02dbcf">UFSECP_OK</a>;</div>
-<div class="line"><a id="l00243" name="l00243"></a><span class="lineno">  243</span>    (void)ctx;</div>
+<div class="line"><a id="l00241" name="l00241"></a><span class="lineno">  241</span>    (void)ctx;</div>
+<div class="line"><a id="l00242" name="l00242"></a><span class="lineno">  242</span>    <span class="keyword">auto</span> sk = <a class="code hl_function" href="ufsecp__impl_8cpp.html#a23ff42aa3aa42678db255455c865ff05">scalar_from_bytes</a>(privkey);</div>
+<div class="line"><a id="l00243" name="l00243"></a><span class="lineno">  243</span>    <span class="keywordflow">return</span> sk.is_zero() ? <a class="code hl_define" href="ufsecp__error_8h.html#ad41f8c3c3d95e44fb99fb509f703f1ed">UFSECP_ERR_BAD_KEY</a> : <a class="code hl_define" href="ufsecp__error_8h.html#abffdddf294c435058759beaf5b02dbcf">UFSECP_OK</a>;</div>
 <div class="line"><a id="l00244" name="l00244"></a><span class="lineno">  244</span>}</div>
 </div>
 <div class="line"><a id="l00245" name="l00245"></a><span class="lineno">  245</span> </div>
@@ -1124,7 +1124,7 @@ $(document).ready(function(){initNavTree('ufsecp__impl_8cpp_source.html',''); in
 <div class="ttc" id="aclasssecp256k1_1_1fast_1_1FieldElement_html"><div class="ttname"><a href="classsecp256k1_1_1fast_1_1FieldElement.html">secp256k1::fast::FieldElement</a></div><div class="ttdef"><b>Definition</b> <a href="field_8hpp_source.html#l00042">field.hpp:42</a></div></div>
 <div class="ttc" id="aclasssecp256k1_1_1fast_1_1FieldElement_html_ad5ab8576a5c0f3e743e8505c04743881"><div class="ttname"><a href="classsecp256k1_1_1fast_1_1FieldElement.html#ad5ab8576a5c0f3e743e8505c04743881">secp256k1::fast::FieldElement::from_uint64</a></div><div class="ttdeci">static FieldElement from_uint64(std::uint64_t value)</div></div>
 <div class="ttc" id="aclasssecp256k1_1_1fast_1_1FieldElement_html_aeb3e0a1b309238f5d2152d6a529f942a"><div class="ttname"><a href="classsecp256k1_1_1fast_1_1FieldElement.html#aeb3e0a1b309238f5d2152d6a529f942a">secp256k1::fast::FieldElement::from_bytes</a></div><div class="ttdeci">static FieldElement from_bytes(const std::array&lt; std::uint8_t, 32 &gt; &amp;bytes)</div></div>
-<div class="ttc" id="aclasssecp256k1_1_1fast_1_1Point_html"><div class="ttname"><a href="classsecp256k1_1_1fast_1_1Point.html">secp256k1::fast::Point</a></div><div class="ttdef"><b>Definition</b> <a href="point_8hpp_source.html#l00037">point.hpp:37</a></div></div>
+<div class="ttc" id="aclasssecp256k1_1_1fast_1_1Point_html"><div class="ttname"><a href="classsecp256k1_1_1fast_1_1Point.html">secp256k1::fast::Point</a></div><div class="ttdef"><b>Definition</b> <a href="point_8hpp_source.html#l00041">point.hpp:41</a></div></div>
 <div class="ttc" id="aclasssecp256k1_1_1fast_1_1Point_html_a079977183e498ec8d09b7550cc7c11c2"><div class="ttname"><a href="classsecp256k1_1_1fast_1_1Point.html#a079977183e498ec8d09b7550cc7c11c2">secp256k1::fast::Point::from_affine</a></div><div class="ttdeci">static Point from_affine(const FieldElement &amp;x, const FieldElement &amp;y)</div></div>
 <div class="ttc" id="aclasssecp256k1_1_1fast_1_1Point_html_a6c12bec323e2a81d31ba1e1534bef502"><div class="ttname"><a href="classsecp256k1_1_1fast_1_1Point.html#a6c12bec323e2a81d31ba1e1534bef502">secp256k1::fast::Point::scalar_mul</a></div><div class="ttdeci">Point scalar_mul(const Scalar &amp;scalar) const</div></div>
 <div class="ttc" id="aclasssecp256k1_1_1fast_1_1Point_html_ab8925efdda5643d2e239b5000d5a0144"><div class="ttname"><a href="classsecp256k1_1_1fast_1_1Point.html#ab8925efdda5643d2e239b5000d5a0144">secp256k1::fast::Point::generator</a></div><div class="ttdeci">static Point generator()</div></div>

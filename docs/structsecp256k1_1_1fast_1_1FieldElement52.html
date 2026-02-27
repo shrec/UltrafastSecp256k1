@@ -25,7 +25,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.13.0</span>
+   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.14.0</span>
    </div>
    <div id="projectbrief">Ultra high-performance secp256k1 elliptic curve cryptography library</div>
   </td>
@@ -131,8 +131,6 @@ Public Member Functions</h2></td></tr>
 <tr class="separator:a384081dc831059847e38ea1732b0815c"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a2b67481d515dfabef3bc79b32e048af1" id="r_a2b67481d515dfabef3bc79b32e048af1"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structsecp256k1_1_1fast_1_1FieldElement52.html#a2b67481d515dfabef3bc79b32e048af1">operator==</a> (const <a class="el" href="structsecp256k1_1_1fast_1_1FieldElement52.html">FieldElement52</a> &amp;rhs) const noexcept</td></tr>
 <tr class="separator:a2b67481d515dfabef3bc79b32e048af1"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ac8d15cbfee10b6920dd03d639d287c3e" id="r_ac8d15cbfee10b6920dd03d639d287c3e"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structsecp256k1_1_1fast_1_1FieldElement52.html#ac8d15cbfee10b6920dd03d639d287c3e">operator!=</a> (const <a class="el" href="structsecp256k1_1_1fast_1_1FieldElement52.html">FieldElement52</a> &amp;rhs) const noexcept</td></tr>
-<tr class="separator:ac8d15cbfee10b6920dd03d639d287c3e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a8e82255645dce898c2f864a81c2d3d0a" id="r_a8e82255645dce898c2f864a81c2d3d0a"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structsecp256k1_1_1fast_1_1FieldElement52.html#a8e82255645dce898c2f864a81c2d3d0a">normalizes_to_zero</a> () const noexcept</td></tr>
 <tr class="separator:a8e82255645dce898c2f864a81c2d3d0a"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aa23fbd8f65ff50426f0cd240733f18c5" id="r_aa23fbd8f65ff50426f0cd240733f18c5"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structsecp256k1_1_1fast_1_1FieldElement52.html">FieldElement52</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structsecp256k1_1_1fast_1_1FieldElement52.html#aa23fbd8f65ff50426f0cd240733f18c5">half</a> () const noexcept</td></tr>
@@ -396,6 +394,8 @@ Public Attributes</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
+<p class="reference">Referenced by <a class="el" href="debug__invariants_8hpp_source.html#l00137">secp256k1::fast::debug::is_valid_scalar()</a>.</p>
+
 </div>
 </div>
 <a id="a373d49872942dd13cd78c1fe7b333dfd" name="a373d49872942dd13cd78c1fe7b333dfd"></a>
@@ -576,32 +576,6 @@ Public Attributes</h2></td></tr>
 
 </div>
 </div>
-<a id="ac8d15cbfee10b6920dd03d639d287c3e" name="ac8d15cbfee10b6920dd03d639d287c3e"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ac8d15cbfee10b6920dd03d639d287c3e">&#9670;&#160;</a></span>operator!=()</h2>
-
-<div class="memitem">
-<div class="memproto">
-<table class="mlabels">
-  <tr>
-  <td class="mlabels-left">
-      <table class="memname">
-        <tr>
-          <td class="memname">bool secp256k1::fast::FieldElement52::operator!= </td>
-          <td>(</td>
-          <td class="paramtype">const <a class="el" href="structsecp256k1_1_1fast_1_1FieldElement52.html">FieldElement52</a> &amp;&#160;</td>
-          <td class="paramname"><em>rhs</em></td><td>)</td>
-          <td> const</td>
-        </tr>
-      </table>
-  </td>
-  <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">noexcept</span></span>  </td>
-  </tr>
-</table>
-</div><div class="memdoc">
-
-</div>
-</div>
 <a id="aa1efce8652c878e9a72a582ed7444cea" name="aa1efce8652c878e9a72a582ed7444cea"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#aa1efce8652c878e9a72a582ed7444cea">&#9670;&#160;</a></span>operator*()</h2>
 
@@ -728,6 +702,8 @@ Public Attributes</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
+<p class="reference">Referenced by <a class="el" href="debug__invariants_8hpp_source.html#l00084">secp256k1::fast::debug::is_on_curve()</a>.</p>
+
 </div>
 </div>
 <a id="aae6837846080665b58e57ab9e80bfc5a" name="aae6837846080665b58e57ab9e80bfc5a"></a>
@@ -819,6 +795,8 @@ Public Attributes</h2></td></tr>
 </div><div class="memdoc">
 
 <p class="definition">Definition at line <a class="el" href="field__52_8hpp_source.html#l00056">56</a> of file <a class="el" href="field__52_8hpp_source.html">field_52.hpp</a>.</p>
+
+<p class="reference">Referenced by <a class="el" href="debug__invariants_8hpp_source.html#l00084">secp256k1::fast::debug::is_on_curve()</a>.</p>
 
 </div>
 </div>

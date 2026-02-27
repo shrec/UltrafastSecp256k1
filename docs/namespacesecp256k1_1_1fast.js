@@ -1,5 +1,6 @@
 var namespacesecp256k1_1_1fast =
 [
+    [ "debug", "namespacesecp256k1_1_1fast_1_1debug.html", "namespacesecp256k1_1_1fast_1_1debug" ],
     [ "detail", "namespacesecp256k1_1_1fast_1_1detail.html", [
       [ "adcx64", "namespacesecp256k1_1_1fast_1_1detail.html#a9bd260c01b29fc57c371cedfb786a558", null ],
       [ "adox64", "namespacesecp256k1_1_1fast_1_1detail.html#aa1db22e8bece98f43b019f7cc922fe0b", null ],

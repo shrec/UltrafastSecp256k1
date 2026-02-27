@@ -10,6 +10,7 @@ var dir_3015dd157bf50376ab3b1f9a873c3f74 =
     [ "bip32.hpp", "bip32_8hpp.html", "bip32_8hpp" ],
     [ "context.hpp", "context_8hpp.html", "context_8hpp" ],
     [ "ct_utils.hpp", "ct__utils_8hpp.html", "ct__utils_8hpp" ],
+    [ "debug_invariants.hpp", "debug__invariants_8hpp.html", "debug__invariants_8hpp" ],
     [ "ecdh.hpp", "ecdh_8hpp.html", "ecdh_8hpp" ],
     [ "ecdsa.hpp", "ecdsa_8hpp.html", "ecdsa_8hpp" ],
     [ "ecmult_gen_comb.hpp", "ecmult__gen__comb_8hpp.html", "ecmult__gen__comb_8hpp" ],

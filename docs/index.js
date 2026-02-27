@@ -1,14 +1,14 @@
 var index =
 [
-    [ "⚠️ Security Notice", "index.html#autotoc_md21", null ],
+    [ "[!] Security Notice", "index.html#autotoc_md21", null ],
     [ "secp256k1 Feature Overview", "index.html#autotoc_md23", null ],
     [ "</blockquote>", "index.html#autotoc_md24", null ],
     [ "60-Second Quickstart", "index.html#autotoc_md25", null ],
     [ "Platform Support Matrix", "index.html#autotoc_md27", null ],
     [ "Installation", "index.html#autotoc_md29", [
       [ "Why UltrafastSecp256k1?", "index.html#autotoc_md18", null ],
-      [ "Linux (APT — Debian / Ubuntu)", "index.html#autotoc_md30", null ],
-      [ "Linux (RPM — Fedora / RHEL)", "index.html#autotoc_md31", null ],
+      [ "Linux (APT – Debian / Ubuntu)", "index.html#autotoc_md30", null ],
+      [ "Linux (RPM – Fedora / RHEL)", "index.html#autotoc_md31", null ],
       [ "Arch Linux (AUR)", "index.html#autotoc_md32", null ],
       [ "From source (any platform)", "index.html#autotoc_md33", null ],
       [ "Use in your CMake project", "index.html#autotoc_md34", null ],
@@ -18,7 +18,7 @@ var index =
       [ "CUDA Core ECC Operations (Kernel-Only Throughput)", "index.html#autotoc_md38", null ],
       [ "GPU Signature Operations (ECDSA + Schnorr)", "index.html#autotoc_md39", null ],
       [ "CUDA vs OpenCL Comparison (RTX 5060 Ti)", "index.html#autotoc_md40", null ],
-      [ "Apple Metal (M3 Pro) — Kernel-Only", "index.html#autotoc_md41", null ]
+      [ "Apple Metal (M3 Pro) – Kernel-Only", "index.html#autotoc_md41", null ]
     ] ],
     [ "secp256k1 ECDSA & Schnorr Signatures (BIP-340, RFC 6979)", "index.html#autotoc_md43", [
       [ "CPU Signature Benchmarks (x86-64, Clang 19, AVX2, Release)", "index.html#autotoc_md44", null ]
@@ -26,11 +26,11 @@ var index =
     [ "Constant-Time secp256k1 (Side-Channel Resistance)", "index.html#autotoc_md46", [
       [ "CT Evidence & Methodology", "index.html#autotoc_md47", null ]
     ] ],
-    [ "secp256k1 Benchmarks — Cross-Platform Comparison", "index.html#autotoc_md49", [
+    [ "secp256k1 Benchmarks – Cross-Platform Comparison", "index.html#autotoc_md49", [
       [ "CPU: x86-64 vs ARM64 vs RISC-V", "index.html#autotoc_md50", null ],
       [ "GPU: CUDA vs OpenCL vs Metal", "index.html#autotoc_md51", null ],
       [ "Embedded: ESP32-S3 vs ESP32 vs STM32", "index.html#autotoc_md52", null ],
-      [ "Field Representation: 5×52 vs 4×64", "index.html#autotoc_md53", null ]
+      [ "Field Representation: 5x52 vs 4x64", "index.html#autotoc_md53", null ]
     ] ],
     [ "secp256k1 on Embedded (ESP32 / STM32 / ARM Cortex-M)", "index.html#autotoc_md55", [
       [ "Porting to New Platforms", "index.html#autotoc_md56", null ]
@@ -41,7 +41,7 @@ var index =
       [ "GPU Pattern: H-Product Serial Inversion", "index.html#autotoc_md62", null ]
     ] ],
     [ "</blockquote>", "index.html#autotoc_md63", null ],
-    [ "secp256k1 Stable C ABI (<tt>ufsecp</tt>) — FFI Bindings", "index.html#autotoc_md64", [
+    [ "secp256k1 Stable C ABI (<tt>ufsecp</tt>) – FFI Bindings", "index.html#autotoc_md64", [
       [ "Quick Start (C)", "index.html#autotoc_md65", null ],
       [ "API Coverage", "index.html#autotoc_md66", null ]
     ] ],
@@ -74,13 +74,16 @@ var index =
     [ "secp256k1 Benchmark Targets", "index.html#autotoc_md96", null ],
     [ "Research Statement", "index.html#autotoc_md98", null ],
     [ "API Stability", "index.html#autotoc_md100", null ],
-    [ "Release Verification", "index.html#autotoc_md102", null ],
-    [ "FAQ", "index.html#autotoc_md104", null ],
-    [ "</blockquote>", "index.html#autotoc_md105", null ],
-    [ "Documentation", "index.html#autotoc_md106", null ],
-    [ "Contributing", "index.html#autotoc_md108", null ],
-    [ "License", "index.html#autotoc_md110", null ],
-    [ "Contact & Community", "index.html#autotoc_md112", null ],
-    [ "Acknowledgements", "index.html#autotoc_md114", null ],
-    [ "⚡ Support the Project", "index.html#autotoc_md116", null ]
+    [ "Release Signing & Verification", "index.html#autotoc_md102", [
+      [ "Verify checksums", "index.html#autotoc_md103", null ],
+      [ "Verify signature (cosign)", "index.html#autotoc_md104", null ]
+    ] ],
+    [ "FAQ", "index.html#autotoc_md106", null ],
+    [ "</blockquote>", "index.html#autotoc_md107", null ],
+    [ "Documentation", "index.html#autotoc_md108", null ],
+    [ "Contributing", "index.html#autotoc_md110", null ],
+    [ "License", "index.html#autotoc_md112", null ],
+    [ "Contact & Community", "index.html#autotoc_md114", null ],
+    [ "Acknowledgements", "index.html#autotoc_md116", null ],
+    [ "⚡ Support the Project", "index.html#autotoc_md118", null ]
 ];

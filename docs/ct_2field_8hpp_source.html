@@ -25,7 +25,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.13.0</span>
+   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.14.0</span>
    </div>
    <div id="projectbrief">Ultra high-performance secp256k1 elliptic curve cryptography library</div>
   </td>
@@ -169,7 +169,7 @@ $(document).ready(function(){initNavTree('ct_2field_8hpp_source.html',''); initR
 <div class="line"><a id="l00068" name="l00068"></a><span class="lineno"><a class="line" href="namespacesecp256k1_1_1ct.html#a74395d3b5459de6b516ab362db9694d4">   68</a></span><span class="keywordtype">void</span> <a class="code hl_function" href="namespacesecp256k1_1_1ct.html#a74395d3b5459de6b516ab362db9694d4">field_cmov</a>(<a class="code hl_class" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a>* r, <span class="keyword">const</span> <a class="code hl_class" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a>&amp; a,</div>
 <div class="line"><a id="l00069" name="l00069"></a><span class="lineno">   69</span>                std::uint64_t mask) <span class="keyword">noexcept</span>;</div>
 <div class="line"><a id="l00070" name="l00070"></a><span class="lineno">   70</span> </div>
-<div class="line"><a id="l00071" name="l00071"></a><span class="lineno">   71</span><span class="comment">// CT conditional swap: if (mask == all-ones) swap(a, b); else unchanged</span></div>
+<div class="line"><a id="l00071" name="l00071"></a><span class="lineno">   71</span><span class="comment">// CT conditional swap: when mask is all-ones, swaps a and b; otherwise unchanged</span></div>
 <div class="line"><a id="l00072" name="l00072"></a><span class="lineno"><a class="line" href="namespacesecp256k1_1_1ct.html#ae729b44672ebcd37629410a6611c6406">   72</a></span><span class="keywordtype">void</span> <a class="code hl_function" href="namespacesecp256k1_1_1ct.html#ae729b44672ebcd37629410a6611c6406">field_cswap</a>(<a class="code hl_class" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a>* a, <a class="code hl_class" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a>* b,</div>
 <div class="line"><a id="l00073" name="l00073"></a><span class="lineno">   73</span>                 std::uint64_t mask) <span class="keyword">noexcept</span>;</div>
 <div class="line"><a id="l00074" name="l00074"></a><span class="lineno">   74</span> </div>

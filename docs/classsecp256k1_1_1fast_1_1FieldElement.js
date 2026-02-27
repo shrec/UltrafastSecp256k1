@@ -17,7 +17,6 @@ var classsecp256k1_1_1fast_1_1FieldElement =
     [ "negate", "classsecp256k1_1_1fast_1_1FieldElement.html#add85f7e245c3b34df168eb54b604f1fe", null ],
     [ "negate_assign", "classsecp256k1_1_1fast_1_1FieldElement.html#a42d21e14a25a5fa2b60f31bf2e44fed5", null ],
     [ "one", "classsecp256k1_1_1fast_1_1FieldElement.html#acba3f6493ff465149640c1591aab170f", null ],
-    [ "operator!=", "classsecp256k1_1_1fast_1_1FieldElement.html#a8224960553bd25c3fb6e8b948b3dcadf", null ],
     [ "operator*", "classsecp256k1_1_1fast_1_1FieldElement.html#ac317d794e2d4c542619d119058ef0d63", null ],
     [ "operator*=", "classsecp256k1_1_1fast_1_1FieldElement.html#a4271580143bb03d70b2ec54967cedcf4", null ],
     [ "operator+", "classsecp256k1_1_1fast_1_1FieldElement.html#a317ab57a8e469184c6cb02c57fc9af9e", null ],

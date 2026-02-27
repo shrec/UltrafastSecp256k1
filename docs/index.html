@@ -5,7 +5,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=11"/>
 <meta name="generator" content="Doxygen 1.9.8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>UltrafastSecp256k1: UltrafastSecp256k1 — Fastest Open-Source secp256k1 Library</title>
+<title>UltrafastSecp256k1: UltrafastSecp256k1 &ndash; Fastest Open-Source secp256k1 Library</title>
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
 <script type="text/javascript" src="dynsections.js"></script>
@@ -25,7 +25,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.13.0</span>
+   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.14.0</span>
    </div>
    <div id="projectbrief">Ultra high-performance secp256k1 elliptic curve cryptography library</div>
   </td>
@@ -90,25 +90,25 @@ $(document).ready(function(){initNavTree('index.html',''); initResizable(); });
 </div>
 
 <div><div class="header">
-  <div class="headertitle"><div class="title">UltrafastSecp256k1 — Fastest Open-Source <a class="el" href="namespacesecp256k1.html">secp256k1</a> Library </div></div>
+  <div class="headertitle"><div class="title">UltrafastSecp256k1 &ndash; Fastest Open-Source <a class="el" href="namespacesecp256k1.html">secp256k1</a> Library </div></div>
 </div><!--header-->
 <div class="contents">
-<div class="textblock"><p><a class="anchor" id="md_README"></a> <b>Zero-dependency, multi-backend <a class="el" href="namespacesecp256k1.html">secp256k1</a> elliptic curve cryptography library</b> — GPU-accelerated ECDSA &amp; Schnorr signatures, constant-time side-channel protection, 12+ platform targets inc. CUDA, Metal, OpenCL, ROCm, WebAssembly, RISC-V, ESP32, and STM32.</p>
+<div class="textblock"><p><a class="anchor" id="md_README"></a> <b>Zero-dependency, multi-backend <a class="el" href="namespacesecp256k1.html">secp256k1</a> elliptic curve cryptography library</b> &ndash; GPU-accelerated ECDSA &amp; Schnorr signatures, constant-time side-channel protection, 12+ platform targets inc. CUDA, Metal, OpenCL, ROCm, WebAssembly, RISC-V, ESP32, and STM32.</p>
 <blockquote class="doxtable">
-<p>&zwj;<b>4.88 M ECDSA signs/s</b> · <b>2.44 M ECDSA verifies/s</b> · <b>3.66 M Schnorr signs/s</b> · <b>2.82 M Schnorr verifies/s</b> — single GPU (RTX 5060 Ti) </p>
+<p>&zwj;<b>4.88 M ECDSA signs/s</b> * <b>2.44 M ECDSA verifies/s</b> * <b>3.66 M Schnorr signs/s</b> * <b>2.82 M Schnorr verifies/s</b> &ndash; single GPU (RTX 5060 Ti) </p>
 </blockquote>
 <h2><a class="anchor" id="autotoc_md18"></a>
 Why UltrafastSecp256k1?</h2>
 <ul>
-<li><b>Fastest open-source GPU signatures</b> — no other library provides <a class="el" href="namespacesecp256k1.html">secp256k1</a> ECDSA + Schnorr sign/verify on CUDA, OpenCL, and Metal (reproducible benchmark suite and raw logs)</li>
-<li><b>Zero dependencies</b> — pure C++20, no Boost, no OpenSSL, compiles anywhere with a conforming compiler</li>
-<li><b>Dual-layer security</b> — variable-time FAST path for throughput, constant-time CT path for secret-key operations</li>
-<li><b>12+ platforms</b> — x86-64, ARM64, RISC-V, WASM, iOS, Android, ESP32, STM32, CUDA, Metal, OpenCL, ROCm</li>
+<li><b>Fastest open-source GPU signatures</b> &ndash; no other library provides <a class="el" href="namespacesecp256k1.html">secp256k1</a> ECDSA + Schnorr sign/verify on CUDA, OpenCL, and Metal (reproducible benchmark suite and raw logs)</li>
+<li><b>Zero dependencies</b> &ndash; pure C++20, no Boost, no OpenSSL, compiles anywhere with a conforming compiler</li>
+<li><b>Dual-layer security</b> &ndash; variable-time FAST path for throughput, constant-time CT path for secret-key operations</li>
+<li><b>12+ platforms</b> &ndash; x86-64, ARM64, RISC-V, WASM, iOS, Android, ESP32, STM32, CUDA, Metal, OpenCL, ROCm</li>
 </ul>
 <blockquote class="doxtable">
 <p>&zwj;<b>Benchmark reproducibility:</b> All numbers come from pinned compiler/driver/toolkit versions with exact commands and raw logs. See `docs/BENCHMARKS.md` (methodology) and the <a href="https://shrec.github.io/UltrafastSecp256k1/dev/bench/">live dashboard</a>. </p>
 </blockquote>
-<p><b>Quick links:</b> <a href="https://discord.gg/sUmW7cc5">Discord</a> · Benchmarks · Build Guide · API Reference · Security Policy · Threat Model · Porting Guide</p>
+<p><b>Quick links:</b> <a href="https://discord.gg/sUmW7cc5">Discord</a> * Benchmarks * Build Guide * API Reference * Security Policy * Threat Model * Porting Guide</p>
 <hr  />
 <p><a href="https://github.com/shrec/UltrafastSecp256k1/stargazers"><img src="https://img.shields.io/github/stars/shrec/UltrafastSecp256k1?style=flat-square&amp;logo=github&amp;label=Stars" alt="GitHub stars" class="inline"/></a> <a href="https://github.com/shrec/UltrafastSecp256k1/network/members"><img src="https://img.shields.io/github/forks/shrec/UltrafastSecp256k1?style=flat-square&amp;logo=github&amp;label=Forks" alt="GitHub forks" class="inline"/></a> <a href="https://github.com/shrec/UltrafastSecp256k1/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/shrec/UltrafastSecp256k1/ci.yml?branch=main&amp;label=CI" alt="CI" class="inline"/></a> <a href="https://shrec.github.io/UltrafastSecp256k1/dev/bench/"><img src="https://img.shields.io/github/actions/workflow/status/shrec/UltrafastSecp256k1/benchmark.yml?branch=main&amp;label=Bench" alt="Benchmark" class="inline"/></a> <a href="https://github.com/shrec/UltrafastSecp256k1/releases/latest"><img src="https://img.shields.io/github/v/release/shrec/UltrafastSecp256k1?label=Release" alt="Release" class="inline"/></a> <a href="https://www.gnu.org/licenses/agpl-3.0"><img src="https://img.shields.io/badge/License-AGPL%20v3-blue.svg" alt="License: AGPL v3" style="pointer-events: none;" class="inline"/></a> <a href="https://en.cppreference.com/w/cpp/20"><img src="https://img.shields.io/badge/C%2B%2B-20-blue.svg" alt="C++20" style="pointer-events: none;" class="inline"/></a> <a href="https://scorecard.dev/viewer/?uri=github.com/shrec/UltrafastSecp256k1"><img src="https://api.scorecard.dev/projects/github.com/shrec/UltrafastSecp256k1/badge" alt="OpenSSF Scorecard" class="inline"/></a> <a href="https://www.bestpractices.dev/projects/12011"><img src="https://www.bestpractices.dev/projects/12011/badge" alt="OpenSSF Best Practices" class="inline"/></a> <a href="https://github.com/shrec/UltrafastSecp256k1/actions/workflows/codeql.yml"><img src="https://github.com/shrec/UltrafastSecp256k1/actions/workflows/codeql.yml/badge.svg" alt="CodeQL" style="pointer-events: none;" class="inline"/></a> <a href="https://github.com/shrec/UltrafastSecp256k1/actions/workflows/security-audit.yml"><img src="https://github.com/shrec/UltrafastSecp256k1/actions/workflows/security-audit.yml/badge.svg" alt="Security Audit" style="pointer-events: none;" class="inline"/></a> <a href="https://github.com/shrec/UltrafastSecp256k1/actions/workflows/clang-tidy.yml"><img src="https://github.com/shrec/UltrafastSecp256k1/actions/workflows/clang-tidy.yml/badge.svg" alt="Clang-Tidy" style="pointer-events: none;" class="inline"/></a> <a href="https://sonarcloud.io/summary/overall?id=shrec_UltrafastSecp256k1"><img src="https://sonarcloud.io/api/project_badges/measure?project=shrec_UltrafastSecp256k1&amp;metric=security_rating" alt="SonarCloud" class="inline"/></a> <a href="https://codecov.io/gh/shrec/UltrafastSecp256k1"><img src="https://codecov.io/gh/shrec/UltrafastSecp256k1/graph/badge.svg" alt="codecov" style="pointer-events: none;" class="inline"/></a> <a href="https://discord.gg/sUmW7cc5"><img src="https://img.shields.io/badge/Discord-Join%20Us-5865F2?logo=discord&amp;logoColor=white" alt="Discord" class="inline"/></a></p>
 <p><b>Supported Blockchains (secp256k1-based):</b></p>
@@ -117,15 +117,15 @@ Why UltrafastSecp256k1?</h2>
 <p><a href="https://developer.nvidia.com/cuda-toolkit"><img src="https://img.shields.io/badge/CUDA-12.0+-green.svg" alt="CUDA" style="pointer-events: none;" class="inline"/></a> <a href="https://www.khronos.org/opencl/"><img src="https://img.shields.io/badge/OpenCL-3.0-green.svg" alt="OpenCL" style="pointer-events: none;" class="inline"/></a> <a href="metal/"><img src="https://img.shields.io/badge/Apple%20Silicon-M1%2FM2%2FM3%2FM4-black.svg?logo=apple" alt="Apple Silicon" style="pointer-events: none;" class="inline"/></a> <a href="metal/"><img src="https://img.shields.io/badge/Metal-GPU%20Compute-silver.svg?logo=apple" alt="Metal" style="pointer-events: none;" class="inline"/></a> ![ROCm](https://img.shields.io/badge/ROCm-6.3%20HIP-red.svg) <a href="wasm/"><img src="https://img.shields.io/badge/WebAssembly-Emscripten-purple.svg" alt="WebAssembly" style="pointer-events: none;" class="inline"/></a> <a href="https://developer.android.com/ndk"><img src="https://img.shields.io/badge/ARM64-Cortex--A55%2FA76-orange.svg" alt="ARM64" style="pointer-events: none;" class="inline"/></a> <a href="https://riscv.org/"><img src="https://img.shields.io/badge/RISC--V-RV64GC-orange.svg" alt="RISC-V" style="pointer-events: none;" class="inline"/></a> <a href="android/"><img src="https://img.shields.io/badge/Android-NDK%20r27-brightgreen.svg" alt="Android" style="pointer-events: none;" class="inline"/></a> <a href="cmake/ios.toolchain.cmake"><img src="https://img.shields.io/badge/iOS-17%2B%20XCFramework-lightgrey.svg" alt="iOS" style="pointer-events: none;" class="inline"/></a> <a href="https://www.espressif.com/en/products/socs/esp32-s3"><img src="https://img.shields.io/badge/ESP32--S3-Xtensa%20LX7-orange.svg" alt="ESP32-S3" style="pointer-events: none;" class="inline"/></a> <a href="https://www.espressif.com/en/products/socs/esp32"><img src="https://img.shields.io/badge/ESP32-Xtensa%20LX6-orange.svg" alt="ESP32" style="pointer-events: none;" class="inline"/></a> <a href="https://www.st.com/en/microcontrollers-microprocessors/stm32f103ze.html"><img src="https://img.shields.io/badge/STM32-Cortex--M3-orange.svg" alt="STM32" style="pointer-events: none;" class="inline"/></a></p>
 <hr  />
 <h1><a class="anchor" id="autotoc_md21"></a>
-⚠️ Security Notice</h1>
-<p><b>Research &amp; Development Project — Not Audited</b></p>
+[!] Security Notice</h1>
+<p><b>Research &amp; Development Project &ndash; Not Audited</b></p>
 <p>This library has <b>not undergone independent security audits</b>. It is provided for research, educational, and experimental purposes.</p>
 <ul>
-<li>❌ Not recommended for production without independent cryptographic audit</li>
-<li>✅ All self-tests pass (76/76 including all backends)</li>
-<li>✅ Dual-layer constant-time architecture (FAST + CT always active)</li>
-<li>✅ Stable C ABI (<code>ufsecp</code>) with 45 exported functions</li>
-<li>✅ Fuzz-tested core arithmetic (libFuzzer + ASan)</li>
+<li>[FAIL] Not recommended for production without independent cryptographic audit</li>
+<li>[OK] All self-tests pass (76/76 including all backends)</li>
+<li>[OK] Dual-layer constant-time architecture (FAST + CT always active)</li>
+<li>[OK] Stable C ABI (<code>ufsecp</code>) with 45 exported functions</li>
+<li>[OK] Fuzz-tested core arithmetic (libFuzzer + ASan)</li>
 </ul>
 <p><b>Report vulnerabilities</b> via <a href="https://github.com/shrec/UltrafastSecp256k1/security/advisories/new">GitHub Security Advisories</a> or email <a href="#" onclick="location.href='mai'+'lto:'+'pay'+'ys'+'oon'+'@g'+'mai'+'l.'+'com'; return false;">payysoon@gmail.com</a>. For production cryptographic systems, prefer audited libraries like <a href="https://github.com/bitcoin-core/secp256k1">libsecp256k1</a>.</p>
 <hr  />
@@ -136,47 +136,47 @@ secp256k1 Feature Overview</h1>
 <tr class="markdownTableHead">
 <th class="markdownTableHeadNone">Tier   </th><th class="markdownTableHeadNone">Category   </th><th class="markdownTableHeadNone">Component   </th><th class="markdownTableHeadNone">Status    </th></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone"><b>1 — Core</b>   </td><td class="markdownTableBodyNone">Field / Scalar / Point   </td><td class="markdownTableBodyNone">GLV, Precompute, Batch Inverse   </td><td class="markdownTableBodyNone">✅    </td></tr>
+<td class="markdownTableBodyNone"><b>1 &ndash; Core</b>   </td><td class="markdownTableBodyNone">Field / Scalar / Point   </td><td class="markdownTableBodyNone">GLV, Precompute, Batch Inverse   </td><td class="markdownTableBodyNone">[OK]    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone"><b>1 — Core</b>   </td><td class="markdownTableBodyNone">Assembly   </td><td class="markdownTableBodyNone">x64 MASM/GAS, BMI2/ADX, ARM64, RISC-V RV64GC   </td><td class="markdownTableBodyNone">✅    </td></tr>
+<td class="markdownTableBodyNone"><b>1 &ndash; Core</b>   </td><td class="markdownTableBodyNone">Assembly   </td><td class="markdownTableBodyNone">x64 MASM/GAS, BMI2/ADX, ARM64, RISC-V RV64GC   </td><td class="markdownTableBodyNone">[OK]    </td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone"><b>1 — Core</b>   </td><td class="markdownTableBodyNone">SIMD   </td><td class="markdownTableBodyNone">AVX2/AVX-512 batch ops, Montgomery batch inverse   </td><td class="markdownTableBodyNone">✅    </td></tr>
+<td class="markdownTableBodyNone"><b>1 &ndash; Core</b>   </td><td class="markdownTableBodyNone">SIMD   </td><td class="markdownTableBodyNone">AVX2/AVX-512 batch ops, Montgomery batch inverse   </td><td class="markdownTableBodyNone">[OK]    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone"><b>1 — Core</b>   </td><td class="markdownTableBodyNone">Constant-Time   </td><td class="markdownTableBodyNone">CT field/scalar/point — no secret-dependent branches   </td><td class="markdownTableBodyNone">✅    </td></tr>
+<td class="markdownTableBodyNone"><b>1 &ndash; Core</b>   </td><td class="markdownTableBodyNone">Constant-Time   </td><td class="markdownTableBodyNone">CT field/scalar/point &ndash; no secret-dependent branches   </td><td class="markdownTableBodyNone">[OK]    </td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone"><b>1 — Core</b>   </td><td class="markdownTableBodyNone">ECDSA   </td><td class="markdownTableBodyNone">Sign/Verify, RFC 6979, DER/Compact, low-S, Recovery   </td><td class="markdownTableBodyNone">✅    </td></tr>
+<td class="markdownTableBodyNone"><b>1 &ndash; Core</b>   </td><td class="markdownTableBodyNone">ECDSA   </td><td class="markdownTableBodyNone">Sign/Verify, RFC 6979, DER/Compact, low-S, Recovery   </td><td class="markdownTableBodyNone">[OK]    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone"><b>1 — Core</b>   </td><td class="markdownTableBodyNone">Schnorr   </td><td class="markdownTableBodyNone">BIP-340 sign/verify, tagged hashing, x-only pubkeys   </td><td class="markdownTableBodyNone">✅    </td></tr>
+<td class="markdownTableBodyNone"><b>1 &ndash; Core</b>   </td><td class="markdownTableBodyNone">Schnorr   </td><td class="markdownTableBodyNone">BIP-340 sign/verify, tagged hashing, x-only pubkeys   </td><td class="markdownTableBodyNone">[OK]    </td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone"><b>1 — Core</b>   </td><td class="markdownTableBodyNone">ECDH   </td><td class="markdownTableBodyNone">Key exchange (raw, xonly, SHA-256)   </td><td class="markdownTableBodyNone">✅    </td></tr>
+<td class="markdownTableBodyNone"><b>1 &ndash; Core</b>   </td><td class="markdownTableBodyNone">ECDH   </td><td class="markdownTableBodyNone">Key exchange (raw, xonly, SHA-256)   </td><td class="markdownTableBodyNone">[OK]    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone"><b>1 — Core</b>   </td><td class="markdownTableBodyNone">Multi-scalar   </td><td class="markdownTableBodyNone">Strauss/Shamir dual-scalar multiplication   </td><td class="markdownTableBodyNone">✅    </td></tr>
+<td class="markdownTableBodyNone"><b>1 &ndash; Core</b>   </td><td class="markdownTableBodyNone">Multi-scalar   </td><td class="markdownTableBodyNone">Strauss/Shamir dual-scalar multiplication   </td><td class="markdownTableBodyNone">[OK]    </td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone"><b>1 — Core</b>   </td><td class="markdownTableBodyNone">Batch verify   </td><td class="markdownTableBodyNone">ECDSA + Schnorr batch verification   </td><td class="markdownTableBodyNone">✅    </td></tr>
+<td class="markdownTableBodyNone"><b>1 &ndash; Core</b>   </td><td class="markdownTableBodyNone">Batch verify   </td><td class="markdownTableBodyNone">ECDSA + Schnorr batch verification   </td><td class="markdownTableBodyNone">[OK]    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone"><b>1 — Core</b>   </td><td class="markdownTableBodyNone">Hashing   </td><td class="markdownTableBodyNone">SHA-256 (SHA-NI), SHA-512, HMAC, Keccak-256   </td><td class="markdownTableBodyNone">✅    </td></tr>
+<td class="markdownTableBodyNone"><b>1 &ndash; Core</b>   </td><td class="markdownTableBodyNone">Hashing   </td><td class="markdownTableBodyNone">SHA-256 (SHA-NI), SHA-512, HMAC, Keccak-256   </td><td class="markdownTableBodyNone">[OK]    </td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone"><b>1 — Core</b>   </td><td class="markdownTableBodyNone">C ABI   </td><td class="markdownTableBodyNone"><code>ufsecp</code> stable FFI (45 exports)   </td><td class="markdownTableBodyNone">✅    </td></tr>
+<td class="markdownTableBodyNone"><b>1 &ndash; Core</b>   </td><td class="markdownTableBodyNone">C ABI   </td><td class="markdownTableBodyNone"><code>ufsecp</code> stable FFI (45 exports)   </td><td class="markdownTableBodyNone">[OK]    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone"><b>2 — Protocol</b>   </td><td class="markdownTableBodyNone">BIP-32/44   </td><td class="markdownTableBodyNone">HD derivation, path parsing, xprv/xpub, coin-type   </td><td class="markdownTableBodyNone">✅    </td></tr>
+<td class="markdownTableBodyNone"><b>2 &ndash; Protocol</b>   </td><td class="markdownTableBodyNone">BIP-32/44   </td><td class="markdownTableBodyNone">HD derivation, path parsing, xprv/xpub, coin-type   </td><td class="markdownTableBodyNone">[OK]    </td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone"><b>2 — Protocol</b>   </td><td class="markdownTableBodyNone">Taproot   </td><td class="markdownTableBodyNone">BIP-341/342, tweak, Merkle tree   </td><td class="markdownTableBodyNone">✅    </td></tr>
+<td class="markdownTableBodyNone"><b>2 &ndash; Protocol</b>   </td><td class="markdownTableBodyNone">Taproot   </td><td class="markdownTableBodyNone">BIP-341/342, tweak, Merkle tree   </td><td class="markdownTableBodyNone">[OK]    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone"><b>2 — Protocol</b>   </td><td class="markdownTableBodyNone">MuSig2   </td><td class="markdownTableBodyNone">BIP-327, key aggregation, 2-round signing   </td><td class="markdownTableBodyNone">✅    </td></tr>
+<td class="markdownTableBodyNone"><b>2 &ndash; Protocol</b>   </td><td class="markdownTableBodyNone">MuSig2   </td><td class="markdownTableBodyNone">BIP-327, key aggregation, 2-round signing   </td><td class="markdownTableBodyNone">[OK]    </td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone"><b>2 — Protocol</b>   </td><td class="markdownTableBodyNone">FROST   </td><td class="markdownTableBodyNone">Threshold signatures, t-of-n   </td><td class="markdownTableBodyNone">✅    </td></tr>
+<td class="markdownTableBodyNone"><b>2 &ndash; Protocol</b>   </td><td class="markdownTableBodyNone">FROST   </td><td class="markdownTableBodyNone">Threshold signatures, t-of-n   </td><td class="markdownTableBodyNone">[OK]    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone"><b>2 — Protocol</b>   </td><td class="markdownTableBodyNone">Adaptor   </td><td class="markdownTableBodyNone">Schnorr + ECDSA adaptor signatures   </td><td class="markdownTableBodyNone">✅    </td></tr>
+<td class="markdownTableBodyNone"><b>2 &ndash; Protocol</b>   </td><td class="markdownTableBodyNone">Adaptor   </td><td class="markdownTableBodyNone">Schnorr + ECDSA adaptor signatures   </td><td class="markdownTableBodyNone">[OK]    </td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone"><b>2 — Protocol</b>   </td><td class="markdownTableBodyNone">Pedersen   </td><td class="markdownTableBodyNone">Commitments, homomorphic, switch commitments   </td><td class="markdownTableBodyNone">✅    </td></tr>
+<td class="markdownTableBodyNone"><b>2 &ndash; Protocol</b>   </td><td class="markdownTableBodyNone">Pedersen   </td><td class="markdownTableBodyNone">Commitments, homomorphic, switch commitments   </td><td class="markdownTableBodyNone">[OK]    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone"><b>3 — Convenience</b>   </td><td class="markdownTableBodyNone">Address   </td><td class="markdownTableBodyNone">P2PKH, P2WPKH, P2TR, Base58, Bech32/m, EIP-55   </td><td class="markdownTableBodyNone">✅    </td></tr>
+<td class="markdownTableBodyNone"><b>3 &ndash; Convenience</b>   </td><td class="markdownTableBodyNone">Address   </td><td class="markdownTableBodyNone">P2PKH, P2WPKH, P2TR, Base58, Bech32/m, EIP-55   </td><td class="markdownTableBodyNone">[OK]    </td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone"><b>3 — Convenience</b>   </td><td class="markdownTableBodyNone">Coins   </td><td class="markdownTableBodyNone">27 blockchains, auto-dispatch   </td><td class="markdownTableBodyNone">✅    </td></tr>
+<td class="markdownTableBodyNone"><b>3 &ndash; Convenience</b>   </td><td class="markdownTableBodyNone">Coins   </td><td class="markdownTableBodyNone">27 blockchains, auto-dispatch   </td><td class="markdownTableBodyNone">[OK]    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone">—   </td><td class="markdownTableBodyNone">GPU   </td><td class="markdownTableBodyNone">CUDA, Metal, OpenCL, ROCm kernels   </td><td class="markdownTableBodyNone">✅    </td></tr>
+<td class="markdownTableBodyNone">&ndash;   </td><td class="markdownTableBodyNone">GPU   </td><td class="markdownTableBodyNone">CUDA, Metal, OpenCL, ROCm kernels   </td><td class="markdownTableBodyNone">[OK]    </td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone">—   </td><td class="markdownTableBodyNone">Platforms   </td><td class="markdownTableBodyNone">x64, ARM64, RISC-V, ESP32, STM32, WASM, iOS, Android   </td><td class="markdownTableBodyNone">✅   </td></tr>
+<td class="markdownTableBodyNone">&ndash;   </td><td class="markdownTableBodyNone">Platforms   </td><td class="markdownTableBodyNone">x64, ARM64, RISC-V, ESP32, STM32, WASM, iOS, Android   </td><td class="markdownTableBodyNone">[OK]   </td></tr>
 </table>
 <blockquote class="doxtable">
 <p>&zwj;<b>Tier 1</b> = battle-tested core crypto with stable API. <b>Tier 2</b> = protocol-level features, API may evolve. <b>Tier 3</b> = convenience utilities. </p>
@@ -186,13 +186,13 @@ secp256k1 Feature Overview</h1>
 <h1><a class="anchor" id="autotoc_md25"></a>
 60-Second Quickstart</h1>
 <p>Get a working selftest in under a minute:</p>
-<p><b>Option A — Linux (apt)</b> </p><div class="fragment"><div class="line">sudo apt install libufsecp3</div>
+<p><b>Option A &ndash; Linux (apt)</b> </p><div class="fragment"><div class="line">sudo apt install libufsecp3</div>
 <div class="line">ufsecp_selftest          # Expected: &quot;OK (version 3.x, backend CPU)&quot;</div>
-</div><!-- fragment --><p><b>Option B — npm (any OS)</b> </p><div class="fragment"><div class="line">npm i ufsecp</div>
+</div><!-- fragment --><p><b>Option B &ndash; npm (any OS)</b> </p><div class="fragment"><div class="line">npm i ufsecp</div>
 <div class="line">node -e &quot;require(&#39;ufsecp&#39;).selftest()&quot;   # Expected: &quot;OK&quot;</div>
-</div><!-- fragment --><p><b>Option C — Python (any OS)</b> </p><div class="fragment"><div class="line">pip install ufsecp</div>
+</div><!-- fragment --><p><b>Option C &ndash; Python (any OS)</b> </p><div class="fragment"><div class="line">pip install ufsecp</div>
 <div class="line">python -c &quot;import ufsecp; ufsecp.selftest()&quot;  # Expected: &quot;OK&quot;</div>
-</div><!-- fragment --><p><b>Option D — Build from source</b> </p><div class="fragment"><div class="line">git clone https://github.com/shrec/UltrafastSecp256k1.git &amp;&amp; cd UltrafastSecp256k1</div>
+</div><!-- fragment --><p><b>Option D &ndash; Build from source</b> </p><div class="fragment"><div class="line">git clone https://github.com/shrec/UltrafastSecp256k1.git &amp;&amp; cd UltrafastSecp256k1</div>
 <div class="line">cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release &amp;&amp; cmake --build build -j</div>
 <div class="line">./build/selftest          # Expected: &quot;ALL TESTS PASSED&quot;</div>
 </div><!-- fragment --><hr  />
@@ -202,21 +202,21 @@ Platform Support Matrix</h1>
 <tr class="markdownTableHead">
 <th class="markdownTableHeadNone">Target   </th><th class="markdownTableHeadNone">Backend   </th><th class="markdownTableHeadNone">Install / Entry Point   </th><th class="markdownTableHeadNone">Status    </th></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone"><b>Linux x64</b>   </td><td class="markdownTableBodyNone">CPU   </td><td class="markdownTableBodyNone"><code>apt install libufsecp3</code>   </td><td class="markdownTableBodyNone">✅ Stable    </td></tr>
+<td class="markdownTableBodyNone"><b>Linux x64</b>   </td><td class="markdownTableBodyNone">CPU   </td><td class="markdownTableBodyNone"><code>apt install libufsecp3</code>   </td><td class="markdownTableBodyNone">[OK] Stable    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone"><b>Windows x64</b>   </td><td class="markdownTableBodyNone">CPU   </td><td class="markdownTableBodyNone">NuGet <code>UltrafastSecp256k1</code> / <a href="https://github.com/shrec/UltrafastSecp256k1/releases">Release .zip</a>   </td><td class="markdownTableBodyNone">✅ Stable    </td></tr>
+<td class="markdownTableBodyNone"><b>Windows x64</b>   </td><td class="markdownTableBodyNone">CPU   </td><td class="markdownTableBodyNone">NuGet <code>UltrafastSecp256k1</code> / <a href="https://github.com/shrec/UltrafastSecp256k1/releases">Release .zip</a>   </td><td class="markdownTableBodyNone">[OK] Stable    </td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone"><b>macOS (x64/ARM64)</b>   </td><td class="markdownTableBodyNone">CPU + Metal   </td><td class="markdownTableBodyNone"><code>brew install ufsecp</code> / build from source   </td><td class="markdownTableBodyNone">✅ Stable    </td></tr>
+<td class="markdownTableBodyNone"><b>macOS (x64/ARM64)</b>   </td><td class="markdownTableBodyNone">CPU + Metal   </td><td class="markdownTableBodyNone"><code>brew install ufsecp</code> / build from source   </td><td class="markdownTableBodyNone">[OK] Stable    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone"><b>Android ARM64</b>   </td><td class="markdownTableBodyNone">CPU   </td><td class="markdownTableBodyNone">&lsquo;implementation 'io.github.shrec:ufsecp&rsquo;<code>(Maven) \ilinebr &lt;/td&gt; &lt;td class="markdownTableBodyNone"&gt; ✅ Stable \ilinebr &lt;/td&gt; &lt;/tr&gt; &lt;tr class="markdownTableRowOdd"&gt; &lt;td class="markdownTableBodyNone"&gt; **iOS ARM64** \ilinebr &lt;/td&gt; &lt;td class="markdownTableBodyNone"&gt; CPU \ilinebr &lt;/td&gt; &lt;td class="markdownTableBodyNone"&gt; Swift Package / CocoaPods / XCFramework \ilinebr &lt;/td&gt; &lt;td class="markdownTableBodyNone"&gt; ✅ Stable \ilinebr &lt;/td&gt; &lt;/tr&gt; &lt;tr class="markdownTableRowEven"&gt; &lt;td class="markdownTableBodyNone"&gt; **Browser / Node.js** \ilinebr &lt;/td&gt; &lt;td class="markdownTableBodyNone"&gt; WASM \ilinebr &lt;/td&gt; &lt;td class="markdownTableBodyNone"&gt;</code>npm i ufsecp<code>\ilinebr &lt;/td&gt; &lt;td class="markdownTableBodyNone"&gt; ✅ Stable \ilinebr &lt;/td&gt; &lt;/tr&gt; &lt;tr class="markdownTableRowOdd"&gt; &lt;td class="markdownTableBodyNone"&gt; **ESP32-S3 / ESP32** \ilinebr &lt;/td&gt; &lt;td class="markdownTableBodyNone"&gt; CPU \ilinebr &lt;/td&gt; &lt;td class="markdownTableBodyNone"&gt; PlatformIO / IDF component \ilinebr &lt;/td&gt; &lt;td class="markdownTableBodyNone"&gt; ✅ Tested \ilinebr &lt;/td&gt; &lt;/tr&gt; &lt;tr class="markdownTableRowEven"&gt; &lt;td class="markdownTableBodyNone"&gt; **STM32 (Cortex-M)** \ilinebr &lt;/td&gt; &lt;td class="markdownTableBodyNone"&gt; CPU \ilinebr &lt;/td&gt; &lt;td class="markdownTableBodyNone"&gt; CMake cross-compile \ilinebr &lt;/td&gt; &lt;td class="markdownTableBodyNone"&gt; ✅ Tested \ilinebr &lt;/td&gt; &lt;/tr&gt; &lt;tr class="markdownTableRowOdd"&gt; &lt;td class="markdownTableBodyNone"&gt; **NVIDIA GPU** \ilinebr &lt;/td&gt; &lt;td class="markdownTableBodyNone"&gt; CUDA 12+ \ilinebr &lt;/td&gt; &lt;td class="markdownTableBodyNone"&gt; Build with</code>-DSECP256K1_BUILD_CUDA=ON<code>\ilinebr &lt;/td&gt; &lt;td class="markdownTableBodyNone"&gt; ✅ Stable \ilinebr &lt;/td&gt; &lt;/tr&gt; &lt;tr class="markdownTableRowEven"&gt; &lt;td class="markdownTableBodyNone"&gt; **AMD GPU** \ilinebr &lt;/td&gt; &lt;td class="markdownTableBodyNone"&gt; ROCm/HIP \ilinebr &lt;/td&gt; &lt;td class="markdownTableBodyNone"&gt; Build with</code>-DSECP256K1_BUILD_ROCM=ON<code>\ilinebr &lt;/td&gt; &lt;td class="markdownTableBodyNone"&gt; ⚠️ Beta \ilinebr &lt;/td&gt; &lt;/tr&gt; &lt;tr class="markdownTableRowOdd"&gt; &lt;td class="markdownTableBodyNone"&gt; **Apple GPU** \ilinebr &lt;/td&gt; &lt;td class="markdownTableBodyNone"&gt; Metal \ilinebr &lt;/td&gt; &lt;td class="markdownTableBodyNone"&gt; Build with Metal backend \ilinebr &lt;/td&gt; &lt;td class="markdownTableBodyNone"&gt; ✅ Stable \ilinebr &lt;/td&gt; &lt;/tr&gt; &lt;tr class="markdownTableRowEven"&gt; &lt;td class="markdownTableBodyNone"&gt; **Any GPU** \ilinebr &lt;/td&gt; &lt;td class="markdownTableBodyNone"&gt; OpenCL \ilinebr &lt;/td&gt; &lt;td class="markdownTableBodyNone"&gt; Build with</code>-DSECP256K1_BUILD_OPENCL=ON`   </td><td class="markdownTableBodyNone">⚠️ Beta    </td></tr>
+<td class="markdownTableBodyNone"><b>Android ARM64</b>   </td><td class="markdownTableBodyNone">CPU   </td><td class="markdownTableBodyNone">&lsquo;implementation 'io.github.shrec:ufsecp&rsquo;<code>(Maven) \ilinebr &lt;/td&gt; &lt;td class="markdownTableBodyNone"&gt; [OK] Stable \ilinebr &lt;/td&gt; &lt;/tr&gt; &lt;tr class="markdownTableRowOdd"&gt; &lt;td class="markdownTableBodyNone"&gt; **iOS ARM64** \ilinebr &lt;/td&gt; &lt;td class="markdownTableBodyNone"&gt; CPU \ilinebr &lt;/td&gt; &lt;td class="markdownTableBodyNone"&gt; Swift Package / CocoaPods / XCFramework \ilinebr &lt;/td&gt; &lt;td class="markdownTableBodyNone"&gt; [OK] Stable \ilinebr &lt;/td&gt; &lt;/tr&gt; &lt;tr class="markdownTableRowEven"&gt; &lt;td class="markdownTableBodyNone"&gt; **Browser / Node.js** \ilinebr &lt;/td&gt; &lt;td class="markdownTableBodyNone"&gt; WASM \ilinebr &lt;/td&gt; &lt;td class="markdownTableBodyNone"&gt;</code>npm i ufsecp<code>\ilinebr &lt;/td&gt; &lt;td class="markdownTableBodyNone"&gt; [OK] Stable \ilinebr &lt;/td&gt; &lt;/tr&gt; &lt;tr class="markdownTableRowOdd"&gt; &lt;td class="markdownTableBodyNone"&gt; **ESP32-S3 / ESP32** \ilinebr &lt;/td&gt; &lt;td class="markdownTableBodyNone"&gt; CPU \ilinebr &lt;/td&gt; &lt;td class="markdownTableBodyNone"&gt; PlatformIO / IDF component \ilinebr &lt;/td&gt; &lt;td class="markdownTableBodyNone"&gt; [OK] Tested \ilinebr &lt;/td&gt; &lt;/tr&gt; &lt;tr class="markdownTableRowEven"&gt; &lt;td class="markdownTableBodyNone"&gt; **STM32 (Cortex-M)** \ilinebr &lt;/td&gt; &lt;td class="markdownTableBodyNone"&gt; CPU \ilinebr &lt;/td&gt; &lt;td class="markdownTableBodyNone"&gt; CMake cross-compile \ilinebr &lt;/td&gt; &lt;td class="markdownTableBodyNone"&gt; [OK] Tested \ilinebr &lt;/td&gt; &lt;/tr&gt; &lt;tr class="markdownTableRowOdd"&gt; &lt;td class="markdownTableBodyNone"&gt; **NVIDIA GPU** \ilinebr &lt;/td&gt; &lt;td class="markdownTableBodyNone"&gt; CUDA 12+ \ilinebr &lt;/td&gt; &lt;td class="markdownTableBodyNone"&gt; Build with</code>-DSECP256K1_BUILD_CUDA=ON<code>\ilinebr &lt;/td&gt; &lt;td class="markdownTableBodyNone"&gt; [OK] Stable \ilinebr &lt;/td&gt; &lt;/tr&gt; &lt;tr class="markdownTableRowEven"&gt; &lt;td class="markdownTableBodyNone"&gt; **AMD GPU** \ilinebr &lt;/td&gt; &lt;td class="markdownTableBodyNone"&gt; ROCm/HIP \ilinebr &lt;/td&gt; &lt;td class="markdownTableBodyNone"&gt; Build with</code>-DSECP256K1_BUILD_ROCM=ON<code>\ilinebr &lt;/td&gt; &lt;td class="markdownTableBodyNone"&gt; [!] Beta \ilinebr &lt;/td&gt; &lt;/tr&gt; &lt;tr class="markdownTableRowOdd"&gt; &lt;td class="markdownTableBodyNone"&gt; **Apple GPU** \ilinebr &lt;/td&gt; &lt;td class="markdownTableBodyNone"&gt; Metal \ilinebr &lt;/td&gt; &lt;td class="markdownTableBodyNone"&gt; Build with Metal backend \ilinebr &lt;/td&gt; &lt;td class="markdownTableBodyNone"&gt; [OK] Stable \ilinebr &lt;/td&gt; &lt;/tr&gt; &lt;tr class="markdownTableRowEven"&gt; &lt;td class="markdownTableBodyNone"&gt; **Any GPU** \ilinebr &lt;/td&gt; &lt;td class="markdownTableBodyNone"&gt; OpenCL \ilinebr &lt;/td&gt; &lt;td class="markdownTableBodyNone"&gt; Build with</code>-DSECP256K1_BUILD_OPENCL=ON`   </td><td class="markdownTableBodyNone">[!] Beta    </td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone"><b>RISC-V (RV64GC)</b>   </td><td class="markdownTableBodyNone">CPU   </td><td class="markdownTableBodyNone">Cross-compile   </td><td class="markdownTableBodyNone">✅ Tested   </td></tr>
+<td class="markdownTableBodyNone"><b>RISC-V (RV64GC)</b>   </td><td class="markdownTableBodyNone">CPU   </td><td class="markdownTableBodyNone">Cross-compile   </td><td class="markdownTableBodyNone">[OK] Tested   </td></tr>
 </table>
 <hr  />
 <h1><a class="anchor" id="autotoc_md29"></a>
 Installation</h1>
 <h2><a class="anchor" id="autotoc_md30"></a>
-Linux (APT — Debian / Ubuntu)</h2>
+Linux (APT – Debian / Ubuntu)</h2>
 <div class="fragment"><div class="line"># Add repository</div>
 <div class="line">curl -fsSL https://shrec.github.io/UltrafastSecp256k1/apt/KEY.gpg | sudo gpg --dearmor -o /etc/apt/keyrings/ultrafastsecp256k1.gpg</div>
 <div class="line">echo &quot;deb [signed-by=/etc/apt/keyrings/ultrafastsecp256k1.gpg] https://shrec.github.io/UltrafastSecp256k1/apt stable main&quot; \</div>
@@ -226,10 +226,10 @@ Linux (APT — Debian / Ubuntu)</h2>
 <div class="line"># Install (runtime only)</div>
 <div class="line">sudo apt install libufsecp3</div>
 <div class="line"> </div>
-<div class="line"># Install (development — headers, static lib, cmake/pkgconfig)</div>
+<div class="line"># Install (development -- headers, static lib, cmake/pkgconfig)</div>
 <div class="line">sudo apt install libufsecp-dev</div>
 </div><!-- fragment --><h2><a class="anchor" id="autotoc_md31"></a>
-Linux (RPM — Fedora / RHEL)</h2>
+Linux (RPM – Fedora / RHEL)</h2>
 <div class="fragment"><div class="line"># Download from GitHub Releases</div>
 <div class="line">curl -LO https://github.com/shrec/UltrafastSecp256k1/releases/latest/download/UltrafastSecp256k1-*.rpm</div>
 <div class="line">sudo dnf install ./UltrafastSecp256k1-*.rpm</div>
@@ -269,13 +269,13 @@ secp256k1 GPU Acceleration (CUDA / OpenCL / Metal / ROCm)</h1>
 <tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone"><b>CUDA</b>   </td><td class="markdownTableBodyNone">RTX 5060 Ti   </td><td class="markdownTableBodyNone">4.59 M/s   </td><td class="markdownTableBodyNone">4.88 M/s   </td><td class="markdownTableBodyNone">2.44 M/s   </td><td class="markdownTableBodyNone">3.66 M/s   </td><td class="markdownTableBodyNone">2.82 M/s    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone"><b>OpenCL</b>   </td><td class="markdownTableBodyNone">RTX 5060 Ti   </td><td class="markdownTableBodyNone">3.39 M/s   </td><td class="markdownTableBodyNone">—   </td><td class="markdownTableBodyNone">—   </td><td class="markdownTableBodyNone">—   </td><td class="markdownTableBodyNone">—    </td></tr>
+<td class="markdownTableBodyNone"><b>OpenCL</b>   </td><td class="markdownTableBodyNone">RTX 5060 Ti   </td><td class="markdownTableBodyNone">3.39 M/s   </td><td class="markdownTableBodyNone">&ndash;   </td><td class="markdownTableBodyNone">&ndash;   </td><td class="markdownTableBodyNone">&ndash;   </td><td class="markdownTableBodyNone">&ndash;    </td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone"><b>Metal</b>   </td><td class="markdownTableBodyNone">Apple M3 Pro   </td><td class="markdownTableBodyNone">0.33 M/s   </td><td class="markdownTableBodyNone">—   </td><td class="markdownTableBodyNone">—   </td><td class="markdownTableBodyNone">—   </td><td class="markdownTableBodyNone">—    </td></tr>
+<td class="markdownTableBodyNone"><b>Metal</b>   </td><td class="markdownTableBodyNone">Apple M3 Pro   </td><td class="markdownTableBodyNone">0.33 M/s   </td><td class="markdownTableBodyNone">&ndash;   </td><td class="markdownTableBodyNone">&ndash;   </td><td class="markdownTableBodyNone">&ndash;   </td><td class="markdownTableBodyNone">&ndash;    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone"><b>ROCm (HIP)</b>   </td><td class="markdownTableBodyNone">AMD GPUs   </td><td class="markdownTableBodyNone">Portable   </td><td class="markdownTableBodyNone">—   </td><td class="markdownTableBodyNone">—   </td><td class="markdownTableBodyNone">—   </td><td class="markdownTableBodyNone">—   </td></tr>
+<td class="markdownTableBodyNone"><b>ROCm (HIP)</b>   </td><td class="markdownTableBodyNone">AMD GPUs   </td><td class="markdownTableBodyNone">Portable   </td><td class="markdownTableBodyNone">&ndash;   </td><td class="markdownTableBodyNone">&ndash;   </td><td class="markdownTableBodyNone">&ndash;   </td><td class="markdownTableBodyNone">&ndash;   </td></tr>
 </table>
-<p><em>CUDA 12.0, sm_86;sm_89, batch=16K signatures. Metal 2.4, 8×32-bit Comba limbs, 18 GPU cores.</em></p>
+<p><em>CUDA 12.0, sm_86;sm_89, batch=16K signatures. Metal 2.4, 8x32-bit Comba limbs, 18 GPU cores.</em></p>
 <h2><a class="anchor" id="autotoc_md38"></a>
 CUDA Core ECC Operations (Kernel-Only Throughput)</h2>
 <table class="markdownTable">
@@ -292,13 +292,13 @@ CUDA Core ECC Operations (Kernel-Only Throughput)</h2>
 <tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone">Point Double   </td><td class="markdownTableBodyNone">0.8 ns   </td><td class="markdownTableBodyNone">1,282 M/s    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone">Scalar Mul (P×k)   </td><td class="markdownTableBodyNone">225.8 ns   </td><td class="markdownTableBodyNone">4.43 M/s    </td></tr>
+<td class="markdownTableBodyNone">Scalar Mul (Pxk)   </td><td class="markdownTableBodyNone">225.8 ns   </td><td class="markdownTableBodyNone">4.43 M/s    </td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone">Generator Mul (G×k)   </td><td class="markdownTableBodyNone">217.7 ns   </td><td class="markdownTableBodyNone">4.59 M/s    </td></tr>
+<td class="markdownTableBodyNone">Generator Mul (Gxk)   </td><td class="markdownTableBodyNone">217.7 ns   </td><td class="markdownTableBodyNone">4.59 M/s    </td></tr>
 <tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone">Batch Inv (Montgomery)   </td><td class="markdownTableBodyNone">2.9 ns   </td><td class="markdownTableBodyNone">340 M/s    </td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone">Jac→Affine (per-pt)   </td><td class="markdownTableBodyNone">14.9 ns   </td><td class="markdownTableBodyNone">66.9 M/s   </td></tr>
+<td class="markdownTableBodyNone">Jac-&gt;Affine (per-pt)   </td><td class="markdownTableBodyNone">14.9 ns   </td><td class="markdownTableBodyNone">66.9 M/s   </td></tr>
 </table>
 <h2><a class="anchor" id="autotoc_md39"></a>
 GPU Signature Operations (ECDSA + Schnorr)</h2>
@@ -324,17 +324,17 @@ CUDA vs OpenCL Comparison (RTX 5060 Ti)</h2>
 <tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone">Field Mul   </td><td class="markdownTableBodyNone">0.2 ns   </td><td class="markdownTableBodyNone">0.2 ns   </td><td class="markdownTableBodyNone">Tie    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone">Field Inv   </td><td class="markdownTableBodyNone">10.2 ns   </td><td class="markdownTableBodyNone">14.3 ns   </td><td class="markdownTableBodyNone"><b>CUDA 1.40×</b>    </td></tr>
+<td class="markdownTableBodyNone">Field Inv   </td><td class="markdownTableBodyNone">10.2 ns   </td><td class="markdownTableBodyNone">14.3 ns   </td><td class="markdownTableBodyNone"><b>CUDA 1.40x</b>    </td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone">Point Double   </td><td class="markdownTableBodyNone">0.8 ns   </td><td class="markdownTableBodyNone">0.9 ns   </td><td class="markdownTableBodyNone"><b>CUDA 1.13×</b>    </td></tr>
+<td class="markdownTableBodyNone">Point Double   </td><td class="markdownTableBodyNone">0.8 ns   </td><td class="markdownTableBodyNone">0.9 ns   </td><td class="markdownTableBodyNone"><b>CUDA 1.13x</b>    </td></tr>
 <tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone">Point Add   </td><td class="markdownTableBodyNone">1.6 ns   </td><td class="markdownTableBodyNone">1.6 ns   </td><td class="markdownTableBodyNone">Tie    </td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone">kG (Generator Mul)   </td><td class="markdownTableBodyNone">217.7 ns   </td><td class="markdownTableBodyNone">295.1 ns   </td><td class="markdownTableBodyNone"><b>CUDA 1.36×</b>   </td></tr>
+<td class="markdownTableBodyNone">kG (Generator Mul)   </td><td class="markdownTableBodyNone">217.7 ns   </td><td class="markdownTableBodyNone">295.1 ns   </td><td class="markdownTableBodyNone"><b>CUDA 1.36x</b>   </td></tr>
 </table>
 <p><em>Benchmarks: 2026-02-14, Linux x86_64, NVIDIA Driver 580.126.09. Both kernel-only (no buffer allocation/copy overhead).</em></p>
 <h2><a class="anchor" id="autotoc_md41"></a>
-Apple Metal (M3 Pro) — Kernel-Only</h2>
+Apple Metal (M3 Pro) – Kernel-Only</h2>
 <table class="markdownTable">
 <tr class="markdownTableHead">
 <th class="markdownTableHeadNone">Operation   </th><th class="markdownTableHeadNone">Time/Op   </th><th class="markdownTableHeadNone">Throughput    </th></tr>
@@ -347,20 +347,20 @@ Apple Metal (M3 Pro) — Kernel-Only</h2>
 <tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone">Point Double   </td><td class="markdownTableBodyNone">5.1 ns   </td><td class="markdownTableBodyNone">196 M/s    </td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone">Scalar Mul (P×k)   </td><td class="markdownTableBodyNone">2.94 μs   </td><td class="markdownTableBodyNone">0.34 M/s    </td></tr>
+<td class="markdownTableBodyNone">Scalar Mul (Pxk)   </td><td class="markdownTableBodyNone">2.94 us   </td><td class="markdownTableBodyNone">0.34 M/s    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone">Generator Mul (G×k)   </td><td class="markdownTableBodyNone">3.00 μs   </td><td class="markdownTableBodyNone">0.33 M/s   </td></tr>
+<td class="markdownTableBodyNone">Generator Mul (Gxk)   </td><td class="markdownTableBodyNone">3.00 us   </td><td class="markdownTableBodyNone">0.33 M/s   </td></tr>
 </table>
-<p><em>Metal 2.4, 8×32-bit Comba limbs, Apple M3 Pro (18 GPU cores, Unified Memory 18 GB)</em></p>
+<p><em>Metal 2.4, 8x32-bit Comba limbs, Apple M3 Pro (18 GPU cores, Unified Memory 18 GB)</em></p>
 <hr  />
 <h1><a class="anchor" id="autotoc_md43"></a>
 secp256k1 ECDSA &amp; Schnorr Signatures (BIP-340, RFC 6979)</h1>
 <p>Full signature support across CPU and GPU:</p>
 <ul>
 <li><b>ECDSA</b>: RFC 6979 deterministic nonces, low-S normalization, DER/Compact encoding, public key recovery (recid)</li>
-<li><b>Schnorr</b>: BIP-340 compliant — tagged hashing, x-only public keys</li>
+<li><b>Schnorr</b>: BIP-340 compliant &ndash; tagged hashing, x-only public keys</li>
 <li><b>Batch verification</b>: ECDSA and Schnorr batch verify</li>
-<li><b>Multi-scalar</b>: Shamir's trick (k₁×G + k₂×Q) for fast verification</li>
+<li><b>Multi-scalar</b>: Shamir's trick (k_1xG + k_2xQ) for fast verification</li>
 </ul>
 <h2><a class="anchor" id="autotoc_md44"></a>
 CPU Signature Benchmarks (x86-64, Clang 19, AVX2, Release)</h2>
@@ -368,38 +368,38 @@ CPU Signature Benchmarks (x86-64, Clang 19, AVX2, Release)</h2>
 <tr class="markdownTableHead">
 <th class="markdownTableHeadNone">Operation   </th><th class="markdownTableHeadRight">Time   </th><th class="markdownTableHeadRight">Throughput    </th></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone">ECDSA Sign (RFC 6979)   </td><td class="markdownTableBodyRight">8.5 μs   </td><td class="markdownTableBodyRight">118,000 op/s    </td></tr>
+<td class="markdownTableBodyNone">ECDSA Sign (RFC 6979)   </td><td class="markdownTableBodyRight">8.5 us   </td><td class="markdownTableBodyRight">118,000 op/s    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone">ECDSA Verify   </td><td class="markdownTableBodyRight">23.6 μs   </td><td class="markdownTableBodyRight">42,400 op/s    </td></tr>
+<td class="markdownTableBodyNone">ECDSA Verify   </td><td class="markdownTableBodyRight">23.6 us   </td><td class="markdownTableBodyRight">42,400 op/s    </td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone">Schnorr Sign (BIP-340)   </td><td class="markdownTableBodyRight">6.8 μs   </td><td class="markdownTableBodyRight">146,000 op/s    </td></tr>
+<td class="markdownTableBodyNone">Schnorr Sign (BIP-340)   </td><td class="markdownTableBodyRight">6.8 us   </td><td class="markdownTableBodyRight">146,000 op/s    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone">Schnorr Verify (BIP-340)   </td><td class="markdownTableBodyRight">24.0 μs   </td><td class="markdownTableBodyRight">41,600 op/s    </td></tr>
+<td class="markdownTableBodyNone">Schnorr Verify (BIP-340)   </td><td class="markdownTableBodyRight">24.0 us   </td><td class="markdownTableBodyRight">41,600 op/s    </td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone">Key Generation (CT)   </td><td class="markdownTableBodyRight">9.5 μs   </td><td class="markdownTableBodyRight">105,500 op/s    </td></tr>
+<td class="markdownTableBodyNone">Key Generation (CT)   </td><td class="markdownTableBodyRight">9.5 us   </td><td class="markdownTableBodyRight">105,500 op/s    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone">Key Generation (fast)   </td><td class="markdownTableBodyRight">5.5 μs   </td><td class="markdownTableBodyRight">182,000 op/s    </td></tr>
+<td class="markdownTableBodyNone">Key Generation (fast)   </td><td class="markdownTableBodyRight">5.5 us   </td><td class="markdownTableBodyRight">182,000 op/s    </td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone">ECDH   </td><td class="markdownTableBodyRight">23.9 μs   </td><td class="markdownTableBodyRight">41,800 op/s   </td></tr>
+<td class="markdownTableBodyNone">ECDH   </td><td class="markdownTableBodyRight">23.9 us   </td><td class="markdownTableBodyRight">41,800 op/s   </td></tr>
 </table>
 <p><em>Schnorr sign is ~25% faster than ECDSA sign due to simpler nonce derivation (no modular inverse). Measured single-core, pinned, 2026-02-21.</em></p>
 <hr  />
 <h1><a class="anchor" id="autotoc_md46"></a>
 Constant-Time secp256k1 (Side-Channel Resistance)</h1>
-<p>The <code>ct::</code> namespace provides constant-time operations for secret-key material — no secret-dependent branches or memory access patterns:</p>
+<p>The <code>ct::</code> namespace provides constant-time operations for secret-key material &ndash; no secret-dependent branches or memory access patterns:</p>
 <table class="markdownTable">
 <tr class="markdownTableHead">
 <th class="markdownTableHeadNone">Operation   </th><th class="markdownTableHeadRight">Fast   </th><th class="markdownTableHeadRight">CT   </th><th class="markdownTableHeadRight">Overhead    </th></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone">Field Mul   </td><td class="markdownTableBodyRight">17 ns   </td><td class="markdownTableBodyRight">23 ns   </td><td class="markdownTableBodyRight">1.08×    </td></tr>
+<td class="markdownTableBodyNone">Field Mul   </td><td class="markdownTableBodyRight">17 ns   </td><td class="markdownTableBodyRight">23 ns   </td><td class="markdownTableBodyRight">1.08x    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone">Field Inverse   </td><td class="markdownTableBodyRight">0.8 μs   </td><td class="markdownTableBodyRight">1.7 μs   </td><td class="markdownTableBodyRight">2.05×    </td></tr>
+<td class="markdownTableBodyNone">Field Inverse   </td><td class="markdownTableBodyRight">0.8 us   </td><td class="markdownTableBodyRight">1.7 us   </td><td class="markdownTableBodyRight">2.05x    </td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone">Complete Addition   </td><td class="markdownTableBodyRight">—   </td><td class="markdownTableBodyRight">276 ns   </td><td class="markdownTableBodyRight">—    </td></tr>
+<td class="markdownTableBodyNone">Complete Addition   </td><td class="markdownTableBodyRight">&ndash;   </td><td class="markdownTableBodyRight">276 ns   </td><td class="markdownTableBodyRight">&ndash;    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone">Scalar Mul (k×P)   </td><td class="markdownTableBodyRight">23.6 μs   </td><td class="markdownTableBodyRight">26.6 μs   </td><td class="markdownTableBodyRight">1.13×    </td></tr>
+<td class="markdownTableBodyNone">Scalar Mul (kxP)   </td><td class="markdownTableBodyRight">23.6 us   </td><td class="markdownTableBodyRight">26.6 us   </td><td class="markdownTableBodyRight">1.13x    </td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone">Generator Mul (k×G)   </td><td class="markdownTableBodyRight">5.3 μs   </td><td class="markdownTableBodyRight">9.9 μs   </td><td class="markdownTableBodyRight">1.86×   </td></tr>
+<td class="markdownTableBodyNone">Generator Mul (kxG)   </td><td class="markdownTableBodyRight">5.3 us   </td><td class="markdownTableBodyRight">9.9 us   </td><td class="markdownTableBodyRight">1.86x   </td></tr>
 </table>
 <p><b>CT layer provides:</b> <code>ct::field_mul</code>, <code>ct::field_inv</code>, <code>ct::scalar_mul</code>, <code>ct::point_add_complete</code>, <code>ct::point_dbl</code></p>
 <p><b>Use the CT layer for</b>: private key operations, signing, nonce generation, ECDH. <b>Use the FAST layer for</b>: verification, public key derivation, batch processing, benchmarks.</p>
@@ -410,20 +410,20 @@ CT Evidence &amp; Methodology</h2>
 <tr class="markdownTableHead">
 <th class="markdownTableHeadNone">Evidence   </th><th class="markdownTableHeadNone">Scope   </th><th class="markdownTableHeadNone">Status    </th></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone"><b>No secret-dependent branches</b>   </td><td class="markdownTableBodyNone">All <code>ct::</code> functions   </td><td class="markdownTableBodyNone">✅ Enforced by design, verified via Clang-Tidy checks    </td></tr>
+<td class="markdownTableBodyNone"><b>No secret-dependent branches</b>   </td><td class="markdownTableBodyNone">All <code>ct::</code> functions   </td><td class="markdownTableBodyNone">[OK] Enforced by design, verified via Clang-Tidy checks    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone"><b>No secret-dependent memory access</b>   </td><td class="markdownTableBodyNone">All <code>ct::</code> table lookups use constant-index cmov   </td><td class="markdownTableBodyNone">✅    </td></tr>
+<td class="markdownTableBodyNone"><b>No secret-dependent memory access</b>   </td><td class="markdownTableBodyNone">All <code>ct::</code> table lookups use constant-index cmov   </td><td class="markdownTableBodyNone">[OK]    </td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone"><b>ASan + UBSan CI</b>   </td><td class="markdownTableBodyNone">Every push — catches undefined behavior in CT paths   </td><td class="markdownTableBodyNone">✅ CI    </td></tr>
+<td class="markdownTableBodyNone"><b>ASan + UBSan CI</b>   </td><td class="markdownTableBodyNone">Every push &ndash; catches undefined behavior in CT paths   </td><td class="markdownTableBodyNone">[OK] CI    </td></tr>
 <tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone"><b>Timing tests (dudect)</b>   </td><td class="markdownTableBodyNone">CPU field/scalar ops   </td><td class="markdownTableBodyNone">🔜 Planned (see roadmap)    </td></tr>
 <tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone"><b>Formal CT verification</b>   </td><td class="markdownTableBodyNone">Fiat-Crypto style   </td><td class="markdownTableBodyNone">🔜 Planned   </td></tr>
 </table>
-<p><b>Assumptions:</b> CT guarantees depend on compiler not introducing secret-dependent branches during optimization. Builds use <code>-O2</code> with Clang; MSVC may require additional flags. Micro-architectural side channels (Spectre, power analysis) are outside current scope — see THREAT_MODEL.md.</p>
+<p><b>Assumptions:</b> CT guarantees depend on compiler not introducing secret-dependent branches during optimization. Builds use <code>-O2</code> with Clang; MSVC may require additional flags. Micro-architectural side channels (Spectre, power analysis) are outside current scope &ndash; see THREAT_MODEL.md.</p>
 <hr  />
 <h1><a class="anchor" id="autotoc_md49"></a>
-secp256k1 Benchmarks — Cross-Platform Comparison</h1>
+secp256k1 Benchmarks – Cross-Platform Comparison</h1>
 <h2><a class="anchor" id="autotoc_md50"></a>
 CPU: x86-64 vs ARM64 vs RISC-V</h2>
 <table class="markdownTable">
@@ -436,13 +436,13 @@ CPU: x86-64 vs ARM64 vs RISC-V</h2>
 <tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone">Field Add   </td><td class="markdownTableBodyRight">1 ns   </td><td class="markdownTableBodyRight">8 ns   </td><td class="markdownTableBodyRight">11 ns    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone">Field Inverse   </td><td class="markdownTableBodyRight">1 μs   </td><td class="markdownTableBodyRight">2 μs   </td><td class="markdownTableBodyRight">4 μs    </td></tr>
+<td class="markdownTableBodyNone">Field Inverse   </td><td class="markdownTableBodyRight">1 us   </td><td class="markdownTableBodyRight">2 us   </td><td class="markdownTableBodyRight">4 us    </td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone">Point Add   </td><td class="markdownTableBodyRight">159 ns   </td><td class="markdownTableBodyRight">992 ns   </td><td class="markdownTableBodyRight">1 μs    </td></tr>
+<td class="markdownTableBodyNone">Point Add   </td><td class="markdownTableBodyRight">159 ns   </td><td class="markdownTableBodyRight">992 ns   </td><td class="markdownTableBodyRight">1 us    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone">Generator Mul (k×G)   </td><td class="markdownTableBodyRight">5 μs   </td><td class="markdownTableBodyRight">14 μs   </td><td class="markdownTableBodyRight">33 μs    </td></tr>
+<td class="markdownTableBodyNone">Generator Mul (kxG)   </td><td class="markdownTableBodyRight">5 us   </td><td class="markdownTableBodyRight">14 us   </td><td class="markdownTableBodyRight">33 us    </td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone">Scalar Mul (k×P)   </td><td class="markdownTableBodyRight">25 μs   </td><td class="markdownTableBodyRight">131 μs   </td><td class="markdownTableBodyRight">154 μs   </td></tr>
+<td class="markdownTableBodyNone">Scalar Mul (kxP)   </td><td class="markdownTableBodyRight">25 us   </td><td class="markdownTableBodyRight">131 us   </td><td class="markdownTableBodyRight">154 us   </td></tr>
 </table>
 <h2><a class="anchor" id="autotoc_md51"></a>
 GPU: CUDA vs OpenCL vs Metal</h2>
@@ -456,7 +456,7 @@ GPU: CUDA vs OpenCL vs Metal</h2>
 <tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone">Point Add   </td><td class="markdownTableBodyRight">1.6 ns   </td><td class="markdownTableBodyRight">1.6 ns   </td><td class="markdownTableBodyRight">10.1 ns    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone">Generator Mul (G×k)   </td><td class="markdownTableBodyRight">217.7 ns   </td><td class="markdownTableBodyRight">295.1 ns   </td><td class="markdownTableBodyRight">3.00 μs   </td></tr>
+<td class="markdownTableBodyNone">Generator Mul (Gxk)   </td><td class="markdownTableBodyRight">217.7 ns   </td><td class="markdownTableBodyRight">295.1 ns   </td><td class="markdownTableBodyRight">3.00 us   </td></tr>
 </table>
 <h2><a class="anchor" id="autotoc_md52"></a>
 Embedded: ESP32-S3 vs ESP32 vs STM32</h2>
@@ -470,39 +470,39 @@ Embedded: ESP32-S3 vs ESP32 vs STM32</h2>
 <tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone">Field Add   </td><td class="markdownTableBodyRight">850 ns   </td><td class="markdownTableBodyRight">985 ns   </td><td class="markdownTableBodyRight">4,139 ns    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone">Field Inv   </td><td class="markdownTableBodyRight">2,524 μs   </td><td class="markdownTableBodyRight">609 μs   </td><td class="markdownTableBodyRight">1,645 μs    </td></tr>
+<td class="markdownTableBodyNone">Field Inv   </td><td class="markdownTableBodyRight">2,524 us   </td><td class="markdownTableBodyRight">609 us   </td><td class="markdownTableBodyRight">1,645 us    </td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone"><b>Fast</b> Scalar × G   </td><td class="markdownTableBodyRight">5,226 μs   </td><td class="markdownTableBodyRight">6,203 μs   </td><td class="markdownTableBodyRight">37,982 μs    </td></tr>
+<td class="markdownTableBodyNone"><b>Fast</b> Scalar x G   </td><td class="markdownTableBodyRight">5,226 us   </td><td class="markdownTableBodyRight">6,203 us   </td><td class="markdownTableBodyRight">37,982 us    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone"><b>CT</b> Scalar × G   </td><td class="markdownTableBodyRight">15,527 μs   </td><td class="markdownTableBodyRight">—   </td><td class="markdownTableBodyRight">—    </td></tr>
+<td class="markdownTableBodyNone"><b>CT</b> Scalar x G   </td><td class="markdownTableBodyRight">15,527 us   </td><td class="markdownTableBodyRight">&ndash;   </td><td class="markdownTableBodyRight">&ndash;    </td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone"><b>CT</b> Generator × k   </td><td class="markdownTableBodyRight">4,951 μs   </td><td class="markdownTableBodyRight">—   </td><td class="markdownTableBodyRight">—   </td></tr>
+<td class="markdownTableBodyNone"><b>CT</b> Generator x k   </td><td class="markdownTableBodyRight">4,951 us   </td><td class="markdownTableBodyRight">&ndash;   </td><td class="markdownTableBodyRight">&ndash;   </td></tr>
 </table>
 <h2><a class="anchor" id="autotoc_md53"></a>
-Field Representation: 5×52 vs 4×64</h2>
+Field Representation: 5x52 vs 4x64</h2>
 <table class="markdownTable">
 <tr class="markdownTableHead">
-<th class="markdownTableHeadNone">Operation   </th><th class="markdownTableHeadRight">4×64   </th><th class="markdownTableHeadRight">5×52   </th><th class="markdownTableHeadRight">Speedup    </th></tr>
+<th class="markdownTableHeadNone">Operation   </th><th class="markdownTableHeadRight">4x64   </th><th class="markdownTableHeadRight">5x52   </th><th class="markdownTableHeadRight">Speedup    </th></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone">Multiplication   </td><td class="markdownTableBodyRight">42 ns   </td><td class="markdownTableBodyRight">15 ns   </td><td class="markdownTableBodyRight"><b>2.76×</b>    </td></tr>
+<td class="markdownTableBodyNone">Multiplication   </td><td class="markdownTableBodyRight">42 ns   </td><td class="markdownTableBodyRight">15 ns   </td><td class="markdownTableBodyRight"><b>2.76x</b>    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone">Squaring   </td><td class="markdownTableBodyRight">31 ns   </td><td class="markdownTableBodyRight">13 ns   </td><td class="markdownTableBodyRight"><b>2.44×</b>    </td></tr>
+<td class="markdownTableBodyNone">Squaring   </td><td class="markdownTableBodyRight">31 ns   </td><td class="markdownTableBodyRight">13 ns   </td><td class="markdownTableBodyRight"><b>2.44x</b>    </td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone">Addition   </td><td class="markdownTableBodyRight">4.3 ns   </td><td class="markdownTableBodyRight">1.6 ns   </td><td class="markdownTableBodyRight"><b>2.69×</b>    </td></tr>
+<td class="markdownTableBodyNone">Addition   </td><td class="markdownTableBodyRight">4.3 ns   </td><td class="markdownTableBodyRight">1.6 ns   </td><td class="markdownTableBodyRight"><b>2.69x</b>    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone">Add chain (32 ops)   </td><td class="markdownTableBodyRight">286 ns   </td><td class="markdownTableBodyRight">57 ns   </td><td class="markdownTableBodyRight"><b>5.01×</b>   </td></tr>
+<td class="markdownTableBodyNone">Add chain (32 ops)   </td><td class="markdownTableBodyRight">286 ns   </td><td class="markdownTableBodyRight">57 ns   </td><td class="markdownTableBodyRight"><b>5.01x</b>   </td></tr>
 </table>
-<p><em>5×52 uses <code>__int128</code> lazy reduction — ideal for 64-bit platforms.</em></p>
+<p><em>5x52 uses <code>__int128</code> lazy reduction &ndash; ideal for 64-bit platforms.</em></p>
 <p>For full benchmark results, see docs/BENCHMARKS.md.</p>
 <hr  />
 <h1><a class="anchor" id="autotoc_md55"></a>
 secp256k1 on Embedded (ESP32 / STM32 / ARM Cortex-M)</h1>
 <p>UltrafastSecp256k1 runs on resource-constrained microcontrollers with <b>portable C++ (no <code>__int128</code>, no assembly required)</b>:</p>
 <ul>
-<li><b>ESP32-S3</b> (Xtensa LX7 @ 240 MHz): Fast scalar × G in 5.2 ms, <b>CT generator × k in 4.9 ms</b></li>
-<li><b>ESP32-PICO-D4</b> (Xtensa LX6 @ 240 MHz): Scalar × G in 6.2 ms, CT layer available (44.8 ms CT)</li>
-<li><b>STM32F103</b> (ARM Cortex-M3 @ 72 MHz): Scalar × G in 38 ms with ARM inline assembly (UMULL/ADDS/ADCS)</li>
-<li><b>Android ARM64</b> (RK3588, Cortex-A76 @ 2.256 GHz): Scalar × G in 14 μs, Scalar × P in 131 μs, ECDSA Sign 30 μs</li>
+<li><b>ESP32-S3</b> (Xtensa LX7 @ 240 MHz): Fast scalar x G in 5.2 ms, <b>CT generator x k in 4.9 ms</b></li>
+<li><b>ESP32-PICO-D4</b> (Xtensa LX6 @ 240 MHz): Scalar x G in 6.2 ms, CT layer available (44.8 ms CT)</li>
+<li><b>STM32F103</b> (ARM Cortex-M3 @ 72 MHz): Scalar x G in 38 ms with ARM inline assembly (UMULL/ADDS/ADCS)</li>
+<li><b>Android ARM64</b> (RK3588, Cortex-A76 @ 2.256 GHz): Scalar x G in 14 us, Scalar x P in 131 us, ECDSA Sign 30 us</li>
 </ul>
 <p>All 37 library tests pass on every embedded target. See <a href="examples/esp32_test/">examples/esp32_test/</a> and <a href="examples/stm32_test/">examples/stm32_test/</a>.</p>
 <h2><a class="anchor" id="autotoc_md56"></a>
@@ -511,13 +511,13 @@ Porting to New Platforms</h2>
 <hr  />
 <h1><a class="anchor" id="autotoc_md58"></a>
 WASM secp256k1 (Browser &amp; Node.js)</h1>
-<p>WebAssembly build via Emscripten — runs <a class="el" href="namespacesecp256k1.html">secp256k1</a> in any modern browser or Node.js:</p>
-<div class="fragment"><div class="line">./scripts/build_wasm.sh        # → build/wasm/dist/</div>
+<p>WebAssembly build via Emscripten &ndash; runs <a class="el" href="namespacesecp256k1.html">secp256k1</a> in any modern browser or Node.js:</p>
+<div class="fragment"><div class="line">./scripts/build_wasm.sh        # -&gt; build/wasm/dist/</div>
 </div><!-- fragment --><p>Output: <code>secp256k1_wasm.wasm</code> + <code>secp256k1.mjs</code> (ES6 module with TypeScript declarations). See wasm/README.md for JavaScript/TypeScript integration.</p>
 <hr  />
 <h1><a class="anchor" id="autotoc_md60"></a>
 secp256k1 Batch Modular Inverse (Montgomery Trick)</h1>
-<p>All backends include <b>batch modular inversion</b> — a critical building block for Jacobian→Affine conversion:</p>
+<p>All backends include <b>batch modular inversion</b> &ndash; a critical building block for Jacobian-&gt;Affine conversion:</p>
 <table class="markdownTable">
 <tr class="markdownTableHead">
 <th class="markdownTableHeadNone">Backend   </th><th class="markdownTableHeadNone">Function   </th><th class="markdownTableHeadNone">Notes    </th></tr>
@@ -530,8 +530,8 @@ secp256k1 Batch Modular Inverse (Montgomery Trick)</h1>
 <tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone"><b>OpenCL</b>   </td><td class="markdownTableBodyNone">Inline PTX inverse   </td><td class="markdownTableBodyNone">Batch via host orchestration   </td></tr>
 </table>
-<p><b>Algorithm</b>: Montgomery batch inverse computes N field inversions using only <b>1 modular inversion + 3(N−1) multiplications</b>, amortizing the expensive inversion across the entire batch.</p>
-<p>For N=1024: ~500× cheaper than individual inversions. A single field inversion costs ~3.5 μs (Fermat), while batch amortizes to ~7 ns per element.</p>
+<p><b>Algorithm</b>: Montgomery batch inverse computes N field inversions using only <b>1 modular inversion + 3(N-1) multiplications</b>, amortizing the expensive inversion across the entire batch.</p>
+<p>For N=1024: ~500x cheaper than individual inversions. A single field inversion costs ~3.5 us (Fermat), while batch amortizes to ~7 ns per element.</p>
 <h2><a class="anchor" id="autotoc_md61"></a>
 Mixed Addition (Jacobian + Affine)</h2>
 <p>Branchless mixed addition (<code>add_mixed_inplace</code>) uses the <b>madd-2007-bl</b> formula: <b>7M + 4S</b> (vs 11M + 5S for full Jacobian add).</p>
@@ -551,7 +551,7 @@ Mixed Addition (Jacobian + Affine)</h2>
 <div class="line">    walker.<a class="code hl_function" href="classsecp256k1_1_1fast_1_1Point.html#ab1c2e6e7b9d44952844ec3915dae9301">add_mixed_inplace</a>(gx, gy);  <span class="comment">// walker += G each step</span></div>
 <div class="line">}</div>
 <div class="ttc" id="aclasssecp256k1_1_1fast_1_1FieldElement_html"><div class="ttname"><a href="classsecp256k1_1_1fast_1_1FieldElement.html">secp256k1::fast::FieldElement</a></div><div class="ttdef"><b>Definition</b> <a href="field_8hpp_source.html#l00042">field.hpp:42</a></div></div>
-<div class="ttc" id="aclasssecp256k1_1_1fast_1_1Point_html"><div class="ttname"><a href="classsecp256k1_1_1fast_1_1Point.html">secp256k1::fast::Point</a></div><div class="ttdef"><b>Definition</b> <a href="point_8hpp_source.html#l00037">point.hpp:37</a></div></div>
+<div class="ttc" id="aclasssecp256k1_1_1fast_1_1Point_html"><div class="ttname"><a href="classsecp256k1_1_1fast_1_1Point.html">secp256k1::fast::Point</a></div><div class="ttdef"><b>Definition</b> <a href="point_8hpp_source.html#l00041">point.hpp:41</a></div></div>
 <div class="ttc" id="aclasssecp256k1_1_1fast_1_1Point_html_a9fac69f2a5fe229eb3bd933577eda9a4"><div class="ttname"><a href="classsecp256k1_1_1fast_1_1Point.html#a9fac69f2a5fe229eb3bd933577eda9a4">secp256k1::fast::Point::x</a></div><div class="ttdeci">FieldElement x() const</div></div>
 <div class="ttc" id="aclasssecp256k1_1_1fast_1_1Point_html_aa1c473d6c48e571884b379ca1859c23c"><div class="ttname"><a href="classsecp256k1_1_1fast_1_1Point.html#aa1c473d6c48e571884b379ca1859c23c">secp256k1::fast::Point::y</a></div><div class="ttdeci">FieldElement y() const</div></div>
 <div class="ttc" id="aclasssecp256k1_1_1fast_1_1Point_html_ab1c2e6e7b9d44952844ec3915dae9301"><div class="ttname"><a href="classsecp256k1_1_1fast_1_1Point.html#ab1c2e6e7b9d44952844ec3915dae9301">secp256k1::fast::Point::add_mixed_inplace</a></div><div class="ttdeci">void add_mixed_inplace(const FieldElement &amp;ax, const FieldElement &amp;ay)</div></div>
@@ -560,7 +560,7 @@ Mixed Addition (Jacobian + Affine)</h2>
 <div class="ttc" id="apoint_8hpp_html"><div class="ttname"><a href="point_8hpp.html">point.hpp</a></div></div>
 </div><!-- fragment --><h2><a class="anchor" id="autotoc_md62"></a>
 GPU Pattern: H-Product Serial Inversion</h2>
-<p>Production GPU apps use a memory-efficient variant: instead of storing full Z coordinates, <code>jacobian_add_mixed_h</code> returns <b>H = U2 − X1</b> separately. Since Z_k = Z_0 · H_0 · H_1 · … · H_{k-1}, the entire Z chain is invertible from H values + initial Z_0.</p>
+<p>Production GPU apps use a memory-efficient variant: instead of storing full Z coordinates, <code>jacobian_add_mixed_h</code> returns <b>H = U2 - X1</b> separately. Since Z_k = Z_0 * H_0 * H_1 * … * H_{k-1}, the entire Z chain is invertible from H values + initial Z_0.</p>
 <p><b>Cost</b>: 1 Fermat inversion + 2N multiplications per thread (vs N Fermat inversions naively).</p>
 <blockquote class="doxtable">
 <p>&zwj;See <code>apps/secp256k1_search_gpu_only/gpu_only.cu</code> (step kernel) + <code>unified_split.cuh</code> (batch inversion kernel) </p>
@@ -568,24 +568,24 @@ GPU Pattern: H-Product Serial Inversion</h2>
 <h1><a class="anchor" id="autotoc_md63"></a>
 &lt;/blockquote&gt;</h1>
 <h1><a class="anchor" id="autotoc_md64"></a>
-secp256k1 Stable C ABI (&lt;tt&gt;ufsecp&lt;/tt&gt;) — FFI Bindings</h1>
-<p>Starting with <b>v3.4.0</b>, UltrafastSecp256k1 ships a stable C ABI — <code>ufsecp</code> — designed for FFI bindings (C#, Python, Rust, Go, Java, Node.js, etc.):</p>
-<div class="fragment"><div class="line">┌──────────────────────────────────────────────────┐</div>
-<div class="line">│                  Your Application                │</div>
-<div class="line">│          (C, C#, Python, Go, Rust, …)            │</div>
-<div class="line">└──────────────────┬───────────────────────────────┘</div>
-<div class="line">                   │  ufsecp C ABI (45 functions)</div>
-<div class="line">┌──────────────────▼───────────────────────────────┐</div>
-<div class="line">│           ufsecp.dll / libufsecp.so              │</div>
-<div class="line">│  Opaque ctx  │  Error model  │  ABI versioning   │</div>
-<div class="line">├──────────────┴───────────────┴───────────────────┤</div>
-<div class="line">│   FAST layer (variable-time public ops)          │</div>
-<div class="line">├──────────────────────────────────────────────────┤</div>
-<div class="line">│   CT layer (constant-time secret-key ops)        │</div>
-<div class="line">└──────────────────────────────────────────────────┘</div>
+secp256k1 Stable C ABI (&lt;tt&gt;ufsecp&lt;/tt&gt;) – FFI Bindings</h1>
+<p>Starting with <b>v3.4.0</b>, UltrafastSecp256k1 ships a stable C ABI &ndash; <code>ufsecp</code> &ndash; designed for FFI bindings (C#, Python, Rust, Go, Java, Node.js, etc.):</p>
+<div class="fragment"><div class="line">+--------------------------------------------------+</div>
+<div class="line">|                  Your Application                |</div>
+<div class="line">|          (C, C#, Python, Go, Rust, …)            |</div>
+<div class="line">+------------------+-------------------------------+</div>
+<div class="line">                   |  ufsecp C ABI (45 functions)</div>
+<div class="line">+------------------▼-------------------------------+</div>
+<div class="line">|           ufsecp.dll / libufsecp.so              |</div>
+<div class="line">|  Opaque ctx  |  Error model  |  ABI versioning   |</div>
+<div class="line">+--------------+---------------+-------------------+</div>
+<div class="line">|   FAST layer (variable-time public ops)          |</div>
+<div class="line">+--------------------------------------------------+</div>
+<div class="line">|   CT layer (constant-time secret-key ops)        |</div>
+<div class="line">+--------------------------------------------------+</div>
 </div><!-- fragment --><p><b>Default behavior:</b></p><ul>
-<li>**C ABI (<code>ufsecp</code>)**: Defaults to safe behavior — all secret-key operations (sign, derive, ECDH) use CT internally. No configuration needed.</li>
-<li><b>C++ API</b>: Exposes both <code>fast::</code> and <code>ct::</code> namespaces — the developer chooses explicitly per call site.</li>
+<li>**C ABI (<code>ufsecp</code>)**: Defaults to safe behavior &ndash; all secret-key operations (sign, derive, ECDH) use CT internally. No configuration needed.</li>
+<li><b>C++ API</b>: Exposes both <code>fast::</code> and <code>ct::</code> namespaces &ndash; the developer chooses explicitly per call site.</li>
 </ul>
 <h2><a class="anchor" id="autotoc_md65"></a>
 Quick Start (C)</h2>
@@ -647,20 +647,20 @@ API Coverage</h2>
 <h1><a class="anchor" id="autotoc_md68"></a>
 secp256k1 Use Cases</h1>
 <ul>
-<li><b>Transaction Signing &amp; Verification</b> — Bitcoin, Ethereum, and 25+ blockchain transaction signing at CPU or GPU scale</li>
-<li><b>Batch Signature Verification</b> — verify thousands of ECDSA/Schnorr signatures per second for block validation</li>
-<li><b>HD Wallet Key Derivation</b> — BIP-32/44 hierarchical deterministic derivation with 27-coin address generation</li>
-<li><b>Embedded IoT Signing</b> — ESP32 and STM32 on-device key generation and transaction signing</li>
-<li><b>High-Throughput Indexing</b> — GPU-accelerated public key derivation for address indexing services</li>
-<li><b>Zero-Knowledge Proof Systems</b> — Pedersen commitments, adaptor signatures for ZK protocols</li>
-<li><b>Multi-Party Computation</b> — MuSig2 (BIP-327) and FROST threshold signing</li>
-<li><b>Cross-Platform Cryptographic Services</b> — single codebase across server (CUDA), desktop (OpenCL/Metal), mobile (ARM64), browser (WASM), and embedded (ESP32/STM32)</li>
-<li><b>Cryptographic Research &amp; Benchmarking</b> — field/group operation microbenchmarks, algorithm variant comparison</li>
+<li><b>Transaction Signing &amp; Verification</b> &ndash; Bitcoin, Ethereum, and 25+ blockchain transaction signing at CPU or GPU scale</li>
+<li><b>Batch Signature Verification</b> &ndash; verify thousands of ECDSA/Schnorr signatures per second for block validation</li>
+<li><b>HD Wallet Key Derivation</b> &ndash; BIP-32/44 hierarchical deterministic derivation with 27-coin address generation</li>
+<li><b>Embedded IoT Signing</b> &ndash; ESP32 and STM32 on-device key generation and transaction signing</li>
+<li><b>High-Throughput Indexing</b> &ndash; GPU-accelerated public key derivation for address indexing services</li>
+<li><b>Zero-Knowledge Proof Systems</b> &ndash; Pedersen commitments, adaptor signatures for ZK protocols</li>
+<li><b>Multi-Party Computation</b> &ndash; MuSig2 (BIP-327) and FROST threshold signing</li>
+<li><b>Cross-Platform Cryptographic Services</b> &ndash; single codebase across server (CUDA), desktop (OpenCL/Metal), mobile (ARM64), browser (WASM), and embedded (ESP32/STM32)</li>
+<li><b>Cryptographic Research &amp; Benchmarking</b> &ndash; field/group operation microbenchmarks, algorithm variant comparison</li>
 </ul>
 <blockquote class="doxtable">
 <p>&zwj;### Testers Wanted We need community testers for platforms we cannot fully validate in CI:</p><ul>
-<li><b>iOS</b> — Build &amp; run on real iPhone/iPad hardware with Xcode</li>
-<li><b>AMD GPU (ROCm/HIP)</b> — Test on AMD Radeon RX / Instinct GPUs</li>
+<li><b>iOS</b> &ndash; Build &amp; run on real iPhone/iPad hardware with Xcode</li>
+<li><b>AMD GPU (ROCm/HIP)</b> &ndash; Test on AMD Radeon RX / Instinct GPUs</li>
 </ul>
 <p><a href="https://github.com/shrec/UltrafastSecp256k1/issues">Open an issue</a> with your results! </p>
 </blockquote>
@@ -688,10 +688,10 @@ With CUDA GPU Support</h2>
 <div class="line">cmake --build build -j</div>
 </div><!-- fragment --><h2><a class="anchor" id="autotoc_md74"></a>
 WebAssembly (Emscripten)</h2>
-<div class="fragment"><div class="line">./scripts/build_wasm.sh        # → build/wasm/dist/</div>
+<div class="fragment"><div class="line">./scripts/build_wasm.sh        # -&gt; build/wasm/dist/</div>
 </div><!-- fragment --><h2><a class="anchor" id="autotoc_md75"></a>
 iOS (XCFramework)</h2>
-<div class="fragment"><div class="line">./scripts/build_xcframework.sh  # → build/xcframework/output/</div>
+<div class="fragment"><div class="line">./scripts/build_xcframework.sh  # -&gt; build/xcframework/output/</div>
 </div><!-- fragment --><p>Universal XCFramework (arm64 device + arm64 simulator). Also available via <b>Swift Package Manager</b> and <b>CocoaPods</b>.</p>
 <h2><a class="anchor" id="autotoc_md76"></a>
 Build Options</h2>
@@ -729,7 +729,7 @@ Basic Point Operations</h2>
 <div class="line"><span class="keyword">using namespace </span><a class="code hl_namespace" href="namespacesecp256k1_1_1fast.html">secp256k1::fast</a>;</div>
 <div class="line"> </div>
 <div class="line"><span class="keywordtype">int</span> main() {</div>
-<div class="line">    <span class="comment">// Public key derivation: private_key × G = public_key</span></div>
+<div class="line">    <span class="comment">// Public key derivation: private_key x G = public_key</span></div>
 <div class="line">    <span class="keyword">auto</span> generator = <a class="code hl_function" href="classsecp256k1_1_1fast_1_1Point.html#ab8925efdda5643d2e239b5000d5a0144">Point::generator</a>();</div>
 <div class="line">    <span class="keyword">auto</span> private_key = <a class="code hl_function" href="classsecp256k1_1_1fast_1_1Scalar.html#a405303c64f84eeb9d9f8eafe2474342f">Scalar::from_hex</a>(</div>
 <div class="line">        <span class="stringliteral">&quot;E9873D79C6D87DC0FB6A5778633389F4453213303DA61F20BD67FC233AA33262&quot;</span></div>
@@ -767,19 +767,19 @@ GPU Batch Multiplication</h2>
 </div><!-- fragment --><hr  />
 <h1><a class="anchor" id="autotoc_md82"></a>
 secp256k1 Security Model (FAST vs CT)</h1>
-<p>Two security profiles are <b>always active</b> — no flag-based selection:</p>
+<p>Two security profiles are <b>always active</b> &ndash; no flag-based selection:</p>
 <h2><a class="anchor" id="autotoc_md83"></a>
 FAST Profile (Default)</h2>
 <ul>
 <li>Maximum throughput, variable-time algorithms</li>
 <li>Use for: verification, batch processing, public key derivation, benchmarking</li>
-<li>⚠️ <b>Not safe for secret key operations</b> — timing side-channels possible</li>
+<li>[!] <b>Not safe for secret key operations</b> &ndash; timing side-channels possible</li>
 </ul>
 <h2><a class="anchor" id="autotoc_md84"></a>
 CT / Hardened Profile (&lt;tt&gt;ct::&lt;/tt&gt; namespace)</h2>
 <ul>
-<li>Constant-time arithmetic — no secret-dependent branches or memory access</li>
-<li>~5–7× performance penalty vs FAST</li>
+<li>Constant-time arithmetic &ndash; no secret-dependent branches or memory access</li>
+<li>~5-7x performance penalty vs FAST</li>
 <li>Use for: signing, private key handling, nonce generation, ECDH</li>
 </ul>
 <p><b>Choose the appropriate profile for your use case.</b> Using FAST with secret data is a security vulnerability. See THREAT_MODEL.md for full details.</p>
@@ -849,21 +849,21 @@ secp256k1 Supported Coins (27 Blockchains)</h1>
 <h1><a class="anchor" id="autotoc_md88"></a>
 secp256k1 Architecture</h1>
 <div class="fragment"><div class="line">UltrafastSecp256k1/</div>
-<div class="line">├── cpu/                 # CPU-optimized implementation</div>
-<div class="line">│   ├── include/         # Public headers (field.hpp, scalar.hpp, point.hpp, ecdsa.hpp, schnorr.hpp)</div>
-<div class="line">│   ├── src/             # Implementation (field_asm_x64.asm, field_asm_riscv64.S, ...)</div>
-<div class="line">│   ├── fuzz/            # libFuzzer harnesses</div>
-<div class="line">│   └── tests/           # Unit tests</div>
-<div class="line">├── cuda/                # CUDA GPU acceleration</div>
-<div class="line">├── opencl/              # OpenCL GPU acceleration</div>
-<div class="line">├── metal/               # Apple Metal GPU acceleration</div>
-<div class="line">├── wasm/                # WebAssembly (Emscripten)</div>
-<div class="line">├── android/             # Android NDK (ARM64)</div>
-<div class="line">├── include/ufsecp/      # Stable C ABI</div>
-<div class="line">├── examples/</div>
-<div class="line">│   ├── esp32_test/      # ESP32-S3 Xtensa LX7 port</div>
-<div class="line">│   └── stm32_test/      # STM32F103 ARM Cortex-M3 port</div>
-<div class="line">└── docs/                # Documentation</div>
+<div class="line">+-- cpu/                 # CPU-optimized implementation</div>
+<div class="line">|   +-- include/         # Public headers (field.hpp, scalar.hpp, point.hpp, ecdsa.hpp, schnorr.hpp)</div>
+<div class="line">|   +-- src/             # Implementation (field_asm_x64.asm, field_asm_riscv64.S, ...)</div>
+<div class="line">|   +-- fuzz/            # libFuzzer harnesses</div>
+<div class="line">|   +-- tests/           # Unit tests</div>
+<div class="line">+-- cuda/                # CUDA GPU acceleration</div>
+<div class="line">+-- opencl/              # OpenCL GPU acceleration</div>
+<div class="line">+-- metal/               # Apple Metal GPU acceleration</div>
+<div class="line">+-- wasm/                # WebAssembly (Emscripten)</div>
+<div class="line">+-- android/             # Android NDK (ARM64)</div>
+<div class="line">+-- include/ufsecp/      # Stable C ABI</div>
+<div class="line">+-- examples/</div>
+<div class="line">|   +-- esp32_test/      # ESP32-S3 Xtensa LX7 port</div>
+<div class="line">|   +-- stm32_test/      # STM32F103 ARM Cortex-M3 port</div>
+<div class="line">+-- docs/                # Documentation</div>
 </div><!-- fragment --><hr  />
 <h1><a class="anchor" id="autotoc_md90"></a>
 secp256k1 Testing &amp; Verification</h1>
@@ -911,23 +911,23 @@ Platform CI Coverage</h2>
 <tr class="markdownTableHead">
 <th class="markdownTableHeadNone">Platform   </th><th class="markdownTableHeadNone">Backend   </th><th class="markdownTableHeadNone">Compiler   </th><th class="markdownTableHeadNone">Status    </th></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone">Linux x64   </td><td class="markdownTableBodyNone">CPU   </td><td class="markdownTableBodyNone">GCC 13 / Clang 17   </td><td class="markdownTableBodyNone">✅ CI    </td></tr>
+<td class="markdownTableBodyNone">Linux x64   </td><td class="markdownTableBodyNone">CPU   </td><td class="markdownTableBodyNone">GCC 13 / Clang 17   </td><td class="markdownTableBodyNone">[OK] CI    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone">Linux x64   </td><td class="markdownTableBodyNone">CPU   </td><td class="markdownTableBodyNone">Clang 17 (ASan+UBSan)   </td><td class="markdownTableBodyNone">✅ CI    </td></tr>
+<td class="markdownTableBodyNone">Linux x64   </td><td class="markdownTableBodyNone">CPU   </td><td class="markdownTableBodyNone">Clang 17 (ASan+UBSan)   </td><td class="markdownTableBodyNone">[OK] CI    </td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone">Linux x64   </td><td class="markdownTableBodyNone">CPU   </td><td class="markdownTableBodyNone">Clang 17 (TSan)   </td><td class="markdownTableBodyNone">✅ CI    </td></tr>
+<td class="markdownTableBodyNone">Linux x64   </td><td class="markdownTableBodyNone">CPU   </td><td class="markdownTableBodyNone">Clang 17 (TSan)   </td><td class="markdownTableBodyNone">[OK] CI    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone">Windows x64   </td><td class="markdownTableBodyNone">CPU   </td><td class="markdownTableBodyNone">MSVC 2022   </td><td class="markdownTableBodyNone">✅ CI    </td></tr>
+<td class="markdownTableBodyNone">Windows x64   </td><td class="markdownTableBodyNone">CPU   </td><td class="markdownTableBodyNone">MSVC 2022   </td><td class="markdownTableBodyNone">[OK] CI    </td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone">macOS ARM64   </td><td class="markdownTableBodyNone">CPU + Metal   </td><td class="markdownTableBodyNone">AppleClang   </td><td class="markdownTableBodyNone">✅ CI    </td></tr>
+<td class="markdownTableBodyNone">macOS ARM64   </td><td class="markdownTableBodyNone">CPU + Metal   </td><td class="markdownTableBodyNone">AppleClang   </td><td class="markdownTableBodyNone">[OK] CI    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone">iOS ARM64   </td><td class="markdownTableBodyNone">CPU   </td><td class="markdownTableBodyNone">Xcode   </td><td class="markdownTableBodyNone">✅ CI    </td></tr>
+<td class="markdownTableBodyNone">iOS ARM64   </td><td class="markdownTableBodyNone">CPU   </td><td class="markdownTableBodyNone">Xcode   </td><td class="markdownTableBodyNone">[OK] CI    </td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone">Android ARM64   </td><td class="markdownTableBodyNone">CPU   </td><td class="markdownTableBodyNone">NDK r27c   </td><td class="markdownTableBodyNone">✅ CI    </td></tr>
+<td class="markdownTableBodyNone">Android ARM64   </td><td class="markdownTableBodyNone">CPU   </td><td class="markdownTableBodyNone">NDK r27c   </td><td class="markdownTableBodyNone">[OK] CI    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone">WebAssembly   </td><td class="markdownTableBodyNone">CPU   </td><td class="markdownTableBodyNone">Emscripten   </td><td class="markdownTableBodyNone">✅ CI    </td></tr>
+<td class="markdownTableBodyNone">WebAssembly   </td><td class="markdownTableBodyNone">CPU   </td><td class="markdownTableBodyNone">Emscripten   </td><td class="markdownTableBodyNone">[OK] CI    </td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone">ROCm/HIP   </td><td class="markdownTableBodyNone">CPU + GPU   </td><td class="markdownTableBodyNone">ROCm 6.3   </td><td class="markdownTableBodyNone">✅ CI   </td></tr>
+<td class="markdownTableBodyNone">ROCm/HIP   </td><td class="markdownTableBodyNone">CPU + GPU   </td><td class="markdownTableBodyNone">ROCm 6.3   </td><td class="markdownTableBodyNone">[OK] CI   </td></tr>
 </table>
 <hr  />
 <h1><a class="anchor" id="autotoc_md96"></a>
@@ -938,19 +938,19 @@ secp256k1 Benchmark Targets</h1>
 <tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone"><code>bench_comprehensive</code>   </td><td class="markdownTableBodyNone">Full field/point/batch/signature suite    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone"><code>bench_scalar_mul</code>   </td><td class="markdownTableBodyNone">k×G and k×P with wNAF analysis    </td></tr>
+<td class="markdownTableBodyNone"><code>bench_scalar_mul</code>   </td><td class="markdownTableBodyNone">kxG and kxP with wNAF analysis    </td></tr>
 <tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone"><code>bench_ct</code>   </td><td class="markdownTableBodyNone">Fast-vs-CT overhead comparison    </td></tr>
 <tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone"><code>bench_atomic_operations</code>   </td><td class="markdownTableBodyNone">Individual ECC building block latencies    </td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone"><code>bench_field_52</code>   </td><td class="markdownTableBodyNone">4×64 vs 5×52 field representation    </td></tr>
+<td class="markdownTableBodyNone"><code>bench_field_52</code>   </td><td class="markdownTableBodyNone">4x64 vs 5x52 field representation    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone"><code>bench_ecdsa_multiscalar</code>   </td><td class="markdownTableBodyNone">k₁×G + k₂×Q (Shamir vs separate)    </td></tr>
+<td class="markdownTableBodyNone"><code>bench_ecdsa_multiscalar</code>   </td><td class="markdownTableBodyNone">k_1xG + k_2xQ (Shamir vs separate)    </td></tr>
 <tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone"><code>bench_jsf_vs_shamir</code>   </td><td class="markdownTableBodyNone">JSF vs Windowed Shamir comparison    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone"><code>bench_adaptive_glv</code>   </td><td class="markdownTableBodyNone">GLV window size sweep (8–20)    </td></tr>
+<td class="markdownTableBodyNone"><code>bench_adaptive_glv</code>   </td><td class="markdownTableBodyNone">GLV window size sweep (8-20)    </td></tr>
 <tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone"><code>bench_comprehensive_riscv</code>   </td><td class="markdownTableBodyNone">RISC-V optimized benchmark suite   </td></tr>
 </table>
@@ -965,27 +965,62 @@ API Stability</h1>
 <p>**C ABI (<code>ufsecp</code>)**: Stable from v3.4.0. ABI version tracked separately. See <a class="el" href="md_include_2ufsecp_2SUPPORTED__GUARANTEES.html">SUPPORTED_GUARANTEES.md</a>.</p>
 <hr  />
 <h1><a class="anchor" id="autotoc_md102"></a>
-Release Verification</h1>
-<p>All release artifacts ship with integrity checksums:</p>
-<div class="fragment"><div class="line"># Download release + checksums</div>
-<div class="line">curl -LO https://github.com/shrec/UltrafastSecp256k1/releases/latest/download/SHA256SUMS.txt</div>
-<div class="line"> </div>
-<div class="line"># Verify</div>
-<div class="line">sha256sum -c SHA256SUMS.txt</div>
+Release Signing &amp; Verification</h1>
+<p>All releases starting from <b>v3.15.0</b> are cryptographically signed using <a href="https://docs.sigstore.dev/">Sigstore cosign</a> (keyless, GitHub OIDC identity). Older historical releases remain unsigned but are preserved unchanged.</p>
+<p>Every release includes:</p>
+<table class="markdownTable">
+<tr class="markdownTableHead">
+<th class="markdownTableHeadNone">Artifact   </th><th class="markdownTableHeadNone">Purpose    </th></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone"><code>SHA256SUMS</code>   </td><td class="markdownTableBodyNone">Checksums for all release archives    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone"><code>SHA256SUMS.sig</code>   </td><td class="markdownTableBodyNone">Cosign signature of the manifest    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone"><code>SHA256SUMS.pem</code>   </td><td class="markdownTableBodyNone">Signing certificate (Sigstore OIDC)    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone"><code>sbom.cdx.json</code>   </td><td class="markdownTableBodyNone">CycloneDX Software Bill of Materials    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone">Per-archive <code>.sig</code> + <code>.pem</code>   </td><td class="markdownTableBodyNone">Individual artifact signatures   </td></tr>
+</table>
+<h2><a class="anchor" id="autotoc_md103"></a>
+Verify checksums</h2>
+<p><b>Linux:</b></p>
+<div class="fragment"><div class="line">curl -LO https://github.com/shrec/UltrafastSecp256k1/releases/latest/download/SHA256SUMS</div>
+<div class="line">sha256sum -c SHA256SUMS</div>
+</div><!-- fragment --><p><b>macOS:</b></p>
+<div class="fragment"><div class="line">shasum -a 256 -c SHA256SUMS</div>
+</div><!-- fragment --><p><b>Windows (PowerShell):</b></p>
+<div class="fragment"><div class="line">Get-Content SHA256SUMS | ForEach-Object {</div>
+<div class="line">  $parts = $_ -split &#39;  &#39;</div>
+<div class="line">  $expected = $parts[0]; $file = $parts[1]</div>
+<div class="line">  $actual = (Get-FileHash $file -Algorithm SHA256).Hash.ToLower()</div>
+<div class="line">  if ($actual -eq $expected) { &quot;[OK] $file&quot; } else { &quot;[FAIL] $file&quot; }</div>
+<div class="line">}</div>
+</div><!-- fragment --><h2><a class="anchor" id="autotoc_md104"></a>
+Verify signature (cosign)</h2>
+<div class="fragment"><div class="line">cosign verify-blob SHA256SUMS \</div>
+<div class="line">  --signature SHA256SUMS.sig \</div>
+<div class="line">  --certificate SHA256SUMS.pem \</div>
+<div class="line">  --certificate-identity-regexp &quot;github.com/shrec/UltrafastSecp256k1&quot; \</div>
+<div class="line">  --certificate-oidc-issuer https://token.actions.githubusercontent.com</div>
 </div><!-- fragment --><table class="markdownTable">
 <tr class="markdownTableHead">
 <th class="markdownTableHeadNone">Supply Chain   </th><th class="markdownTableHeadNone">Status    </th></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone">SHA256SUMS for all artifacts   </td><td class="markdownTableBodyNone">✅ Every release    </td></tr>
+<td class="markdownTableBodyNone">SHA256SUMS for all artifacts   </td><td class="markdownTableBodyNone">[OK] Every release    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone">SLSA Build Provenance (GitHub Attestation)   </td><td class="markdownTableBodyNone">✅ Every release    </td></tr>
+<td class="markdownTableBodyNone">Cosign / Sigstore manifest signing   </td><td class="markdownTableBodyNone">[OK] v3.15.0+    </td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone">Reproducible builds documentation   </td><td class="markdownTableBodyNone">🔜 Planned    </td></tr>
+<td class="markdownTableBodyNone">Per-artifact Cosign signatures   </td><td class="markdownTableBodyNone">[OK] v3.15.0+    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone">Cosign / Sigstore signing   </td><td class="markdownTableBodyNone">🔜 Planned   </td></tr>
+<td class="markdownTableBodyNone">SLSA Build Provenance (GitHub Attestation)   </td><td class="markdownTableBodyNone">[OK] Every release    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone">CycloneDX SBOM   </td><td class="markdownTableBodyNone">[OK] Every release    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone">Reproducible builds documentation   </td><td class="markdownTableBodyNone">[OK] Dockerfile.reproducible   </td></tr>
 </table>
 <hr  />
-<h1><a class="anchor" id="autotoc_md104"></a>
+<h1><a class="anchor" id="autotoc_md106"></a>
 FAQ</h1>
 <p><b>Is UltrafastSecp256k1 a drop-in replacement for libsecp256k1?</b> </p><blockquote class="doxtable">
 <p>&zwj;No. It is an independent implementation with a different API. The C ABI (<code>ufsecp</code>) provides a stable FFI surface, but function signatures differ from libsecp256k1. Migration requires code changes. </p>
@@ -1002,9 +1037,9 @@ FAQ</h1>
 <p><b>How do I reproduce the benchmarks?</b> </p><blockquote class="doxtable">
 <p>&zwj;See `docs/BENCHMARKS.md` for exact commands, pinned compiler/driver versions, and raw logs. The <a href="https://shrec.github.io/UltrafastSecp256k1/dev/bench/">live dashboard</a> tracks performance across commits. </p>
 </blockquote>
-<h1><a class="anchor" id="autotoc_md105"></a>
+<h1><a class="anchor" id="autotoc_md107"></a>
 &lt;/blockquote&gt;</h1>
-<h1><a class="anchor" id="autotoc_md106"></a>
+<h1><a class="anchor" id="autotoc_md108"></a>
 Documentation</h1>
 <table class="markdownTable">
 <tr class="markdownTableHead">
@@ -1031,7 +1066,7 @@ Documentation</h1>
 <td class="markdownTableBodyNone">Changelog   </td><td class="markdownTableBodyNone">Version history   </td></tr>
 </table>
 <hr  />
-<h1><a class="anchor" id="autotoc_md108"></a>
+<h1><a class="anchor" id="autotoc_md110"></a>
 Contributing</h1>
 <p>Contributions are welcome! Please read CONTRIBUTING.md.</p>
 <div class="fragment"><div class="line">git clone https://github.com/shrec/UltrafastSecp256k1.git</div>
@@ -1040,18 +1075,18 @@ Contributing</h1>
 <div class="line">cmake --build build/dev -j</div>
 <div class="line">ctest --test-dir build/dev --output-on-failure</div>
 </div><!-- fragment --><hr  />
-<h1><a class="anchor" id="autotoc_md110"></a>
+<h1><a class="anchor" id="autotoc_md112"></a>
 License</h1>
 <p><b>GNU Affero General Public License v3.0 (AGPL-3.0)</b></p>
 <ul>
-<li>✅ Use, modify, and distribute under AGPL-3.0</li>
-<li>✅ Must disclose source code</li>
-<li>✅ Must provide network access to source if run as a service</li>
+<li>[OK] Use, modify, and distribute under AGPL-3.0</li>
+<li>[OK] Must disclose source code</li>
+<li>[OK] Must provide network access to source if run as a service</li>
 </ul>
 <p><b>Commercial License</b>: For proprietary use without AGPL obligations, contact <a href="#" onclick="location.href='mai'+'lto:'+'pay'+'ys'+'oon'+'@g'+'mai'+'l.'+'com'; return false;">payysoon@gmail.com</a>.</p>
 <p>See [LICENSE](LICENSE) for full details.</p>
 <hr  />
-<h1><a class="anchor" id="autotoc_md112"></a>
+<h1><a class="anchor" id="autotoc_md114"></a>
 Contact &amp; Community</h1>
 <table class="markdownTable">
 <tr class="markdownTableHead">
@@ -1070,27 +1105,27 @@ Contact &amp; Community</h1>
 <td class="markdownTableBodyNone">Commercial   </td><td class="markdownTableBodyNone"><a href="#" onclick="location.href='mai'+'lto:'+'pay'+'ys'+'oon'+'@g'+'mai'+'l.'+'com'; return false;">payysoon@gmail.com</a>   </td></tr>
 </table>
 <hr  />
-<h1><a class="anchor" id="autotoc_md114"></a>
+<h1><a class="anchor" id="autotoc_md116"></a>
 Acknowledgements</h1>
-<p>UltrafastSecp256k1 is an independent implementation — written from scratch with our own architecture, GPU pipeline, embedded ports, and optimization techniques. At the same time, no project exists in a vacuum. The published research, specifications, and open discussions from the wider cryptographic community helped us refine our own ideas and validate our results.</p>
+<p>UltrafastSecp256k1 is an independent implementation &ndash; written from scratch with our own architecture, GPU pipeline, embedded ports, and optimization techniques. At the same time, no project exists in a vacuum. The published research, specifications, and open discussions from the wider cryptographic community helped us refine our own ideas and validate our results.</p>
 <p>We want to acknowledge the teams whose public work informed parts of our journey:</p>
 <ul>
-<li><b><a href="https://github.com/bitcoin-core/secp256k1">bitcoin-core/secp256k1</a></b> — The reference C library whose published research on constant-time field arithmetic and endomorphism-based scalar multiplication (GLV, Strauss, Pippenger) helped us benchmark and verify our own independent implementations on GPU and embedded targets.</li>
-<li><b><a href="https://github.com/bitcoin/bitcoin">Bitcoin Core</a></b> contributors — For open specifications (BIP-340 Schnorr, BIP-341 Taproot, RFC 6979) and a correctness-first engineering culture that benefits everyone building in this space.</li>
-<li><b>Pieter Wuille, Jonas Nick, Tim Ruffing</b> and the libsecp256k1 maintainers — For publicly sharing their research on side-channel resistance, exhaustive testing, and field representation trade-offs. Their published findings helped us make better decisions when designing our own architecture.</li>
+<li><b><a href="https://github.com/bitcoin-core/secp256k1">bitcoin-core/secp256k1</a></b> &ndash; The reference C library whose published research on constant-time field arithmetic and endomorphism-based scalar multiplication (GLV, Strauss, Pippenger) helped us benchmark and verify our own independent implementations on GPU and embedded targets.</li>
+<li><b><a href="https://github.com/bitcoin/bitcoin">Bitcoin Core</a></b> contributors &ndash; For open specifications (BIP-340 Schnorr, BIP-341 Taproot, RFC 6979) and a correctness-first engineering culture that benefits everyone building in this space.</li>
+<li><b>Pieter Wuille, Jonas Nick, Tim Ruffing</b> and the libsecp256k1 maintainers &ndash; For publicly sharing their research on side-channel resistance, exhaustive testing, and field representation trade-offs. Their published findings helped us make better decisions when designing our own architecture.</li>
 </ul>
-<p>We share our optimizations, GPU kernels, embedded ports, and cross-platform techniques freely — because open-source cryptography grows stronger when knowledge flows in every direction.</p>
+<p>We share our optimizations, GPU kernels, embedded ports, and cross-platform techniques freely &ndash; because open-source cryptography grows stronger when knowledge flows in every direction.</p>
 <p>Special thanks to the <a href="https://stacker.news">Stacker News</a> and <a href="https://delvingbitcoin.org">Delving Bitcoin</a> communities for their early support and technical feedback.</p>
 <p>Extra gratitude to <a href="https://stacker.news/0xbitcoiner">@0xbitcoiner</a> for the initial outreach and for helping bridge the project with the wider Bitcoin developer ecosystem.</p>
 <hr  />
-<h1><a class="anchor" id="autotoc_md116"></a>
+<h1><a class="anchor" id="autotoc_md118"></a>
 ⚡ Support the Project</h1>
 <p>If you find <b>UltrafastSecp256k1</b> useful, consider supporting its development!</p>
 <p><a href="https://stacker.news/shrec"><img src="https://img.shields.io/badge/Donate%20with-Lightning%20%E2%9A%A1-yellow?style=for-the-badge&amp;logo=bitcoin" alt="Donate with Bitcoin Lightning" class="inline"/></a></p>
-<p><b>Lightning Address:</b> <code>shrec@stacker.news</code> — send sats via any Lightning wallet or <a href="https://stacker.news/shrec">stacker.news/shrec</a></p>
+<p><b>Lightning Address:</b> <code>shrec@stacker.news</code> &ndash; send sats via any Lightning wallet or <a href="https://stacker.news/shrec">stacker.news/shrec</a></p>
 <p><a href="https://github.com/sponsors/shrec"><img src="https://img.shields.io/badge/Sponsor-GitHub%20Sponsors-ea4aaa.svg?logo=github" alt="Sponsor" style="pointer-events: none;" class="inline"/></a> <a href="https://paypal.me/IChkheidze"><img src="https://img.shields.io/badge/PayPal-Donate-blue.svg?logo=paypal" alt="PayPal" style="pointer-events: none;" class="inline"/></a></p>
 <hr  />
-<p><b>UltrafastSecp256k1</b> — The fastest open-source <a class="el" href="namespacesecp256k1.html">secp256k1</a> library. GPU-accelerated ECDSA &amp; Schnorr signatures for Bitcoin, Ethereum, and 25+ blockchains. Zero dependencies. Constant-time layer. 12+ platforms. </p>
+<p><b>UltrafastSecp256k1</b> &ndash; The fastest open-source <a class="el" href="namespacesecp256k1.html">secp256k1</a> library. GPU-accelerated ECDSA &amp; Schnorr signatures for Bitcoin, Ethereum, and 25+ blockchains. Zero dependencies. Constant-time layer. 12+ platforms. </p>
 </div></div><!-- PageDoc -->
 </div><!-- contents -->
 </div><!-- doc-content -->

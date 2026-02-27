@@ -1,5 +1,9 @@
 var namespacesecp256k1_1_1ct =
 [
+    [ "ct_compare_detail", "namespacesecp256k1_1_1ct_1_1ct__compare__detail.html", [
+      [ "ct_cmp_pair", "namespacesecp256k1_1_1ct_1_1ct__compare__detail.html#a8176d9e380cf8bf9f0114464efba2f16", null ],
+      [ "ct_load_be", "namespacesecp256k1_1_1ct_1_1ct__compare__detail.html#a3e5f3faf23e8a203aa4dadcf233e297b", null ]
+    ] ],
     [ "CTAffinePoint", "structsecp256k1_1_1ct_1_1CTAffinePoint.html", "structsecp256k1_1_1ct_1_1CTAffinePoint" ],
     [ "CTGLVDecomposition", "structsecp256k1_1_1ct_1_1CTGLVDecomposition.html", "structsecp256k1_1_1ct_1_1CTGLVDecomposition" ],
     [ "CTJacobianPoint", "structsecp256k1_1_1ct_1_1CTJacobianPoint.html", "structsecp256k1_1_1ct_1_1CTJacobianPoint" ],

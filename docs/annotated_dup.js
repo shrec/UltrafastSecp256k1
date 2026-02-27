@@ -18,6 +18,9 @@ var annotated_dup =
         [ "CTJacobianPoint", "structsecp256k1_1_1ct_1_1CTJacobianPoint.html", "structsecp256k1_1_1ct_1_1CTJacobianPoint" ]
       ] ],
       [ "fast", "namespacesecp256k1_1_1fast.html", [
+        [ "debug", "namespacesecp256k1_1_1fast_1_1debug.html", [
+          [ "DebugCounters", "structsecp256k1_1_1fast_1_1debug_1_1DebugCounters.html", "structsecp256k1_1_1fast_1_1debug_1_1DebugCounters" ]
+        ] ],
         [ "AffinePointCompact", "structsecp256k1_1_1fast_1_1AffinePointCompact.html", "structsecp256k1_1_1fast_1_1AffinePointCompact" ],
         [ "CombAffinePoint", "structsecp256k1_1_1fast_1_1CombAffinePoint.html", "structsecp256k1_1_1fast_1_1CombAffinePoint" ],
         [ "CombGenContext", "classsecp256k1_1_1fast_1_1CombGenContext.html", "classsecp256k1_1_1fast_1_1CombGenContext" ],

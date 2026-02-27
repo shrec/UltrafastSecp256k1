@@ -1,8 +1,7 @@
 var searchData=
 [
-  ['ufsecp_2eh_0',['ufsecp.h',['../ufsecp_8h.html',1,'']]],
-  ['ufsecp_5ferror_2eh_1',['ufsecp_error.h',['../ufsecp__error_8h.html',1,'']]],
-  ['ufsecp_5fimpl_2ecpp_2',['ufsecp_impl.cpp',['../ufsecp__impl_8cpp.html',1,'']]],
-  ['ufsecp_5fversion_2eh_3',['ufsecp_version.h',['../ufsecp__version_8h.html',1,'']]],
-  ['ultrafastsecp256k1_2ehpp_4',['UltrafastSecp256k1.hpp',['../UltrafastSecp256k1_8hpp.html',1,'']]]
+  ['tagged_5fhash_2ehpp_0',['tagged_hash.hpp',['../tagged__hash_8hpp.html',1,'']]],
+  ['taproot_2ehpp_1',['taproot.hpp',['../taproot_8hpp.html',1,'']]],
+  ['test_5fframework_2ehpp_2',['test_framework.hpp',['../test__framework_8hpp.html',1,'']]],
+  ['types_2ehpp_3',['types.hpp',['../cpu_2include_2secp256k1_2types_8hpp.html',1,'(Global Namespace)'],['../include_2secp256k1_2types_8hpp.html',1,'(Global Namespace)']]]
 ];

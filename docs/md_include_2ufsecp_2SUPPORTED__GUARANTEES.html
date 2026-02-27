@@ -5,7 +5,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=11"/>
 <meta name="generator" content="Doxygen 1.9.8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>UltrafastSecp256k1: Supported Guarantees — &lt;tt&gt;ufsecp&lt;/tt&gt; C ABI</title>
+<title>UltrafastSecp256k1: Supported Guarantees &ndash; &lt;tt&gt;ufsecp&lt;/tt&gt; C ABI</title>
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
 <script type="text/javascript" src="dynsections.js"></script>
@@ -25,7 +25,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.13.0</span>
+   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.14.0</span>
    </div>
    <div id="projectbrief">Ultra high-performance secp256k1 elliptic curve cryptography library</div>
   </td>
@@ -90,7 +90,7 @@ $(document).ready(function(){initNavTree('md_include_2ufsecp_2SUPPORTED__GUARANT
 </div>
 
 <div><div class="header">
-  <div class="headertitle"><div class="title">Supported Guarantees — &lt;tt&gt;ufsecp&lt;/tt&gt; C ABI</div></div>
+  <div class="headertitle"><div class="title">Supported Guarantees &ndash; &lt;tt&gt;ufsecp&lt;/tt&gt; C ABI</div></div>
 </div><!--header-->
 <div class="contents">
 <div class="textblock"><p><a class="anchor" id="autotoc_md0"></a> </p><blockquote class="doxtable">
@@ -99,7 +99,7 @@ $(document).ready(function(){initNavTree('md_include_2ufsecp_2SUPPORTED__GUARANT
 <p>This document defines what the <code>ufsecp_*</code> C ABI promises and where the boundary lies.</p>
 <hr  />
 <h1><a class="anchor" id="autotoc_md2"></a>
-Tier 1 — Stable (ABI ≥ 1)</h1>
+Tier 1 – Stable (ABI &gt;= 1)</h1>
 <p>These are covered by the ABI version contract. Breaking changes require a new <code>UFSECP_ABI_VERSION</code>.</p>
 <table class="markdownTable">
 <tr class="markdownTableHead">
@@ -111,7 +111,7 @@ Tier 1 — Stable (ABI ≥ 1)</h1>
 <tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone"><b>Key sizes</b>   </td><td class="markdownTableBodyNone">Private: 32 bytes, Compressed pubkey: 33 bytes, Uncompressed: 65 bytes, x-only: 32 bytes.    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone"><b>Signature sizes</b>   </td><td class="markdownTableBodyNone">Compact ECDSA/Schnorr: 64 bytes, DER ECDSA: ≤72 bytes.    </td></tr>
+<td class="markdownTableBodyNone"><b>Signature sizes</b>   </td><td class="markdownTableBodyNone">Compact ECDSA/Schnorr: 64 bytes, DER ECDSA: &lt;=72 bytes.    </td></tr>
 <tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone"><b>Deterministic nonce</b>   </td><td class="markdownTableBodyNone">ECDSA uses RFC 6979 (HMAC-DRBG / SHA-256).    </td></tr>
 <tr class="markdownTableRowEven">
@@ -139,7 +139,7 @@ Memory</h2>
 <p>All output buffers are caller-owned. The library never allocates on behalf of the caller except during <code>ufsecp_ctx_create</code> / <code>ufsecp_ctx_clone</code>.</p>
 <hr  />
 <h1><a class="anchor" id="autotoc_md6"></a>
-Tier 2 — Experimental (no ABI promise)</h1>
+Tier 2 – Experimental (no ABI promise)</h1>
 <table class="markdownTable">
 <tr class="markdownTableHead">
 <th class="markdownTableHeadNone">Feature   </th><th class="markdownTableHeadNone">Status    </th></tr>
@@ -159,7 +159,7 @@ Tier 2 — Experimental (no ABI promise)</h1>
 <p>These will graduate to Tier 1 once their API surface is frozen and a test harness covers all edge cases.</p>
 <hr  />
 <h1><a class="anchor" id="autotoc_md8"></a>
-Tier 3 — Internal (never exposed)</h1>
+Tier 3 – Internal (never exposed)</h1>
 <ul>
 <li>Field element / scalar / point internals</li>
 <li>Precompution table format</li>
@@ -169,29 +169,29 @@ Tier 3 — Internal (never exposed)</h1>
 <hr  />
 <h1><a class="anchor" id="autotoc_md10"></a>
 Constant-Time Architecture (Dual-Layer Model)</h1>
-<p>Unlike libraries that expose a flag or mode switch for constant-time safety, UltrafastSecp256k1 uses a <b>dual-layer architecture</b> where both layers are <b>always active simultaneously</b>. There is no opt-in, no opt-out, no flag — the human factor is eliminated by design.</p>
-<div class="fragment"><div class="line">┌───────────────────────────────────────────────────────────────┐</div>
-<div class="line">│  Layer 1 — FAST:  public operations (verify, point arith)     │</div>
-<div class="line">│  Layer 2 — CT  :  secret operations (sign, nonce, tweak)      │</div>
-<div class="line">│  Both layers are ALWAYS ACTIVE.  No flag.  No user choice.    │</div>
-<div class="line">└───────────────────────────────────────────────────────────────┘</div>
+<p>Unlike libraries that expose a flag or mode switch for constant-time safety, UltrafastSecp256k1 uses a <b>dual-layer architecture</b> where both layers are <b>always active simultaneously</b>. There is no opt-in, no opt-out, no flag &ndash; the human factor is eliminated by design.</p>
+<div class="fragment"><div class="line">+---------------------------------------------------------------+</div>
+<div class="line">|  Layer 1 -- FAST:  public operations (verify, point arith)     |</div>
+<div class="line">|  Layer 2 -- CT  :  secret operations (sign, nonce, tweak)      |</div>
+<div class="line">|  Both layers are ALWAYS ACTIVE.  No flag.  No user choice.    |</div>
+<div class="line">+---------------------------------------------------------------+</div>
 </div><!-- fragment --><table class="markdownTable">
 <tr class="markdownTableHead">
 <th class="markdownTableHeadNone">Layer   </th><th class="markdownTableHeadNone">Namespace   </th><th class="markdownTableHeadNone">What runs here   </th><th class="markdownTableHeadNone">Guarantee    </th></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone"><b>Fast</b>   </td><td class="markdownTableBodyNone"><code><a class="el" href="namespacesecp256k1_1_1fast.html">secp256k1::fast</a></code>   </td><td class="markdownTableBodyNone">Verification, public key serialisation, point arithmetic for non-secret operands   </td><td class="markdownTableBodyNone">Maximum speed. No timing guarantee needed — operands are public.    </td></tr>
+<td class="markdownTableBodyNone"><b>Fast</b>   </td><td class="markdownTableBodyNone"><code><a class="el" href="namespacesecp256k1_1_1fast.html">secp256k1::fast</a></code>   </td><td class="markdownTableBodyNone">Verification, public key serialisation, point arithmetic for non-secret operands   </td><td class="markdownTableBodyNone">Maximum speed. No timing guarantee needed &ndash; operands are public.    </td></tr>
 <tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone"><b>CT</b>   </td><td class="markdownTableBodyNone"><code><a class="el" href="namespacesecp256k1_1_1ct.html">secp256k1::ct</a></code>   </td><td class="markdownTableBodyNone">Signing, nonce generation, key tweak, scalar multiplication with secret keys, ECDH   </td><td class="markdownTableBodyNone">Side-channel resistant. No secret-dependent branches or memory accesses. Complete addition formula (branchless, 12M+2S). Fixed-trace scalar multiplication. CT table lookup (scans all entries).   </td></tr>
 </table>
 <h2><a class="anchor" id="autotoc_md11"></a>
 Verification tools</h2>
 <p>The CT layer supports Valgrind/MSAN verification via compile-time markers:</p><ul>
-<li><code><a class="el" href="ops_8hpp.html#a8b0fab70453a2cf85b3d7f3f7e55ba78">SECP256K1_CLASSIFY(ptr, len)</a></code> — mark memory as secret (undefined)</li>
-<li><code><a class="el" href="ops_8hpp.html#a10028caa63adfa2c6c2ff075a0de6377">SECP256K1_DECLASSIFY(ptr, len)</a></code> — mark memory as public (defined)</li>
+<li><code><a class="el" href="ops_8hpp.html#a8b0fab70453a2cf85b3d7f3f7e55ba78">SECP256K1_CLASSIFY(ptr, len)</a></code> &ndash; mark memory as secret (undefined)</li>
+<li><code><a class="el" href="ops_8hpp.html#a10028caa63adfa2c6c2ff075a0de6377">SECP256K1_DECLASSIFY(ptr, len)</a></code> &ndash; mark memory as public (defined)</li>
 </ul>
 <p>Build with <code>-DSECP256K1_CT_VALGRIND=1</code> to activate. Any "conditional jump depends on uninitialised value" between classify and declassify indicates a CT violation.</p>
 <blockquote class="doxtable">
-<p>&zwj;<b>Why not a flag?</b> A flag-based model (<code>FLAG_CT</code> / <code>FLAG_FAST</code>) requires the developer to make the right choice for every call site. A single mistake (forgetting CT for a signing operation) silently opens a side-channel. In UltrafastSecp256k1, secret-dependent operations <b>always</b> take the CT path — correctness is architectural, not optional. </p>
+<p>&zwj;<b>Why not a flag?</b> A flag-based model (<code>FLAG_CT</code> / <code>FLAG_FAST</code>) requires the developer to make the right choice for every call site. A single mistake (forgetting CT for a signing operation) silently opens a side-channel. In UltrafastSecp256k1, secret-dependent operations <b>always</b> take the CT path &ndash; correctness is architectural, not optional. </p>
 </blockquote>
 <h1><a class="anchor" id="autotoc_md12"></a>
 &lt;/blockquote&gt;</h1>

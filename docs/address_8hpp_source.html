@@ -25,7 +25,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.13.0</span>
+   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.14.0</span>
    </div>
    <div id="projectbrief">Ultra high-performance secp256k1 elliptic curve cryptography library</div>
   </td>
@@ -145,7 +145,7 @@ $(document).ready(function(){initNavTree('address_8hpp_source.html',''); initRes
 <div class="line"><a id="l00043" name="l00043"></a><span class="lineno">   43</span><span class="comment">// Encode data with 4-byte SHA256d checksum in Base58</span></div>
 <div class="line"><a id="l00044" name="l00044"></a><span class="lineno"><a class="line" href="namespacesecp256k1.html#a072a3d26d90e0b01cf9b8e09568ad3cf">   44</a></span>std::string <a class="code hl_function" href="namespacesecp256k1.html#a072a3d26d90e0b01cf9b8e09568ad3cf">base58check_encode</a>(<span class="keyword">const</span> std::uint8_t* data, std::size_t len);</div>
 <div class="line"><a id="l00045" name="l00045"></a><span class="lineno">   45</span> </div>
-<div class="line"><a id="l00046" name="l00046"></a><span class="lineno">   46</span><span class="comment">// Decode Base58Check, returns {data, valid}</span></div>
+<div class="line"><a id="l00046" name="l00046"></a><span class="lineno">   46</span><span class="comment">// Decode Base58Check, returns pair of (data, valid)</span></div>
 <div class="line"><a id="l00047" name="l00047"></a><span class="lineno">   47</span>std::pair&lt;std::vector&lt;std::uint8_t&gt;, <span class="keywordtype">bool</span>&gt;</div>
 <div class="line"><a id="l00048" name="l00048"></a><span class="lineno"><a class="line" href="namespacesecp256k1.html#a5621916f74675f9d511a4c0b5f33a455">   48</a></span><a class="code hl_function" href="namespacesecp256k1.html#a5621916f74675f9d511a4c0b5f33a455">base58check_decode</a>(<span class="keyword">const</span> std::string&amp; encoded);</div>
 <div class="line"><a id="l00049" name="l00049"></a><span class="lineno">   49</span> </div>
@@ -181,7 +181,7 @@ $(document).ready(function(){initNavTree('address_8hpp_source.html',''); initRes
 <div class="line"><a id="l00075" name="l00075"></a><span class="lineno">   75</span> </div>
 <div class="line"><a id="l00076" name="l00076"></a><span class="lineno">   76</span><span class="comment">// -- HASH160 ------------------------------------------------------------------</span></div>
 <div class="line"><a id="l00077" name="l00077"></a><span class="lineno">   77</span> </div>
-<div class="line"><a id="l00078" name="l00078"></a><span class="lineno">   78</span><span class="comment">// HASH160(data) = RIPEMD160(SHA256(data))</span></div>
+<div class="line"><a id="l00078" name="l00078"></a><span class="lineno">   78</span><span class="comment">// HASH160: RIPEMD160 applied to SHA256 digest</span></div>
 <div class="line"><a id="l00079" name="l00079"></a><span class="lineno"><a class="line" href="namespacesecp256k1.html#a60845c5582c3d501cc42d8f3ec7c4b9f">   79</a></span>std::array&lt;std::uint8_t, 20&gt; <a class="code hl_function" href="namespacesecp256k1.html#a60845c5582c3d501cc42d8f3ec7c4b9f">hash160</a>(<span class="keyword">const</span> std::uint8_t* data, std::size_t len);</div>
 <div class="line"><a id="l00080" name="l00080"></a><span class="lineno">   80</span> </div>
 <div class="line"><a id="l00081" name="l00081"></a><span class="lineno">   81</span><span class="comment">// -- Address Derivation -------------------------------------------------------</span></div>
@@ -269,7 +269,7 @@ $(document).ready(function(){initNavTree('address_8hpp_source.html',''); initRes
 <div class="line"><a id="l00159" name="l00159"></a><span class="lineno">  159</span>} <span class="comment">// namespace secp256k1</span></div>
 <div class="line"><a id="l00160" name="l00160"></a><span class="lineno">  160</span> </div>
 <div class="line"><a id="l00161" name="l00161"></a><span class="lineno">  161</span><span class="preprocessor">#endif </span><span class="comment">// SECP256K1_ADDRESS_HPP</span></div>
-<div class="ttc" id="aclasssecp256k1_1_1fast_1_1Point_html"><div class="ttname"><a href="classsecp256k1_1_1fast_1_1Point.html">secp256k1::fast::Point</a></div><div class="ttdef"><b>Definition</b> <a href="point_8hpp_source.html#l00037">point.hpp:37</a></div></div>
+<div class="ttc" id="aclasssecp256k1_1_1fast_1_1Point_html"><div class="ttname"><a href="classsecp256k1_1_1fast_1_1Point.html">secp256k1::fast::Point</a></div><div class="ttdef"><b>Definition</b> <a href="point_8hpp_source.html#l00041">point.hpp:41</a></div></div>
 <div class="ttc" id="aclasssecp256k1_1_1fast_1_1Scalar_html"><div class="ttname"><a href="classsecp256k1_1_1fast_1_1Scalar.html">secp256k1::fast::Scalar</a></div><div class="ttdef"><b>Definition</b> <a href="scalar_8hpp_source.html#l00013">scalar.hpp:13</a></div></div>
 <div class="ttc" id="anamespacesecp256k1_html"><div class="ttname"><a href="namespacesecp256k1.html">secp256k1</a></div><div class="ttdef"><b>Definition</b> <a href="adaptor_8hpp_source.html#l00030">adaptor.hpp:30</a></div></div>
 <div class="ttc" id="anamespacesecp256k1_html_a0397bf33518eeb41c5ca2a4faaa349c3"><div class="ttname"><a href="namespacesecp256k1.html#a0397bf33518eeb41c5ca2a4faaa349c3">secp256k1::bech32_decode</a></div><div class="ttdeci">Bech32DecodeResult bech32_decode(const std::string &amp;addr)</div></div>

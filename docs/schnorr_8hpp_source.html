@@ -25,7 +25,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.13.0</span>
+   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.14.0</span>
    </div>
    <div id="projectbrief">Ultra high-performance secp256k1 elliptic curve cryptography library</div>
   </td>
@@ -127,7 +127,7 @@ $(document).ready(function(){initNavTree('schnorr_8hpp_source.html',''); initRes
 <div class="line"><a id="l00026" name="l00026"></a><span class="lineno"><a class="line" href="structsecp256k1_1_1SchnorrSignature.html#a0722820db8b0278eee0bde4a2e372339">   26</a></span>    std::array&lt;std::uint8_t, 32&gt; <a class="code hl_variable" href="structsecp256k1_1_1SchnorrSignature.html#a0722820db8b0278eee0bde4a2e372339">r</a>;  <span class="comment">// R.x (x-coordinate of nonce point)</span></div>
 <div class="line"><a id="l00027" name="l00027"></a><span class="lineno"><a class="line" href="structsecp256k1_1_1SchnorrSignature.html#a1b66daf761e42d30b14c239f5ec5772f">   27</a></span>    <a class="code hl_class" href="classsecp256k1_1_1fast_1_1Scalar.html">fast::Scalar</a> <a class="code hl_variable" href="structsecp256k1_1_1SchnorrSignature.html#a1b66daf761e42d30b14c239f5ec5772f">s</a>;                   <span class="comment">// scalar s</span></div>
 <div class="line"><a id="l00028" name="l00028"></a><span class="lineno">   28</span> </div>
-<div class="line"><a id="l00029" name="l00029"></a><span class="lineno">   29</span>    <span class="comment">// 64-byte compact encoding: r (32) || s (32)</span></div>
+<div class="line"><a id="l00029" name="l00029"></a><span class="lineno">   29</span>    <span class="comment">// 64-byte compact encoding: r [32 bytes] concatenated with s [32 bytes]</span></div>
 <div class="line"><a id="l00030" name="l00030"></a><span class="lineno"><a class="line" href="structsecp256k1_1_1SchnorrSignature.html#a29432a65cf66c41dfb59c718afda1a38">   30</a></span>    std::array&lt;std::uint8_t, 64&gt; <a class="code hl_function" href="structsecp256k1_1_1SchnorrSignature.html#a29432a65cf66c41dfb59c718afda1a38">to_bytes</a>() <span class="keyword">const</span>;</div>
 <div class="line"><a id="l00031" name="l00031"></a><span class="lineno"><a class="line" href="structsecp256k1_1_1SchnorrSignature.html#ad766c96936debbb20f527f72cf073fef">   31</a></span>    <span class="keyword">static</span> <a class="code hl_struct" href="structsecp256k1_1_1SchnorrSignature.html">SchnorrSignature</a> <a class="code hl_function" href="structsecp256k1_1_1SchnorrSignature.html#ad766c96936debbb20f527f72cf073fef">from_bytes</a>(<span class="keyword">const</span> std::array&lt;std::uint8_t, 64&gt;&amp; data);</div>
 <div class="line"><a id="l00032" name="l00032"></a><span class="lineno">   32</span>};</div>
@@ -193,7 +193,7 @@ $(document).ready(function(){initNavTree('schnorr_8hpp_source.html',''); initRes
 <div class="line"><a id="l00087" name="l00087"></a><span class="lineno">   87</span> </div>
 <div class="line"><a id="l00088" name="l00088"></a><span class="lineno">   88</span><span class="comment">// -- Tagged Hashing (BIP-340) -------------------------------------------------</span></div>
 <div class="line"><a id="l00089" name="l00089"></a><span class="lineno">   89</span> </div>
-<div class="line"><a id="l00090" name="l00090"></a><span class="lineno">   90</span><span class="comment">// H_tag(msg) = SHA256(SHA256(tag) || SHA256(tag) || msg)</span></div>
+<div class="line"><a id="l00090" name="l00090"></a><span class="lineno">   90</span><span class="comment">// H_tag: SHA256 of (SHA256(tag) concatenated twice with msg)</span></div>
 <div class="line"><a id="l00091" name="l00091"></a><span class="lineno"><a class="line" href="namespacesecp256k1.html#a4f309954a0216a8c8d7ee538405be62c">   91</a></span>std::array&lt;std::uint8_t, 32&gt; <a class="code hl_function" href="namespacesecp256k1.html#a4f309954a0216a8c8d7ee538405be62c">tagged_hash</a>(<span class="keyword">const</span> <span class="keywordtype">char</span>* tag,</div>
 <div class="line"><a id="l00092" name="l00092"></a><span class="lineno">   92</span>                                          <span class="keyword">const</span> <span class="keywordtype">void</span>* data, std::size_t len);</div>
 <div class="line"><a id="l00093" name="l00093"></a><span class="lineno">   93</span> </div>
@@ -203,7 +203,7 @@ $(document).ready(function(){initNavTree('schnorr_8hpp_source.html',''); initRes
 <div class="line"><a id="l00097" name="l00097"></a><span class="lineno">   97</span>} <span class="comment">// namespace secp256k1</span></div>
 <div class="line"><a id="l00098" name="l00098"></a><span class="lineno">   98</span> </div>
 <div class="line"><a id="l00099" name="l00099"></a><span class="lineno">   99</span><span class="preprocessor">#endif </span><span class="comment">// SECP256K1_SCHNORR_HPP</span></div>
-<div class="ttc" id="aclasssecp256k1_1_1fast_1_1Point_html"><div class="ttname"><a href="classsecp256k1_1_1fast_1_1Point.html">secp256k1::fast::Point</a></div><div class="ttdef"><b>Definition</b> <a href="point_8hpp_source.html#l00037">point.hpp:37</a></div></div>
+<div class="ttc" id="aclasssecp256k1_1_1fast_1_1Point_html"><div class="ttname"><a href="classsecp256k1_1_1fast_1_1Point.html">secp256k1::fast::Point</a></div><div class="ttdef"><b>Definition</b> <a href="point_8hpp_source.html#l00041">point.hpp:41</a></div></div>
 <div class="ttc" id="aclasssecp256k1_1_1fast_1_1Scalar_html"><div class="ttname"><a href="classsecp256k1_1_1fast_1_1Scalar.html">secp256k1::fast::Scalar</a></div><div class="ttdef"><b>Definition</b> <a href="scalar_8hpp_source.html#l00013">scalar.hpp:13</a></div></div>
 <div class="ttc" id="anamespacesecp256k1_html"><div class="ttname"><a href="namespacesecp256k1.html">secp256k1</a></div><div class="ttdef"><b>Definition</b> <a href="adaptor_8hpp_source.html#l00030">adaptor.hpp:30</a></div></div>
 <div class="ttc" id="anamespacesecp256k1_html_a26bc72f1db971e5854681c65e4b6c1ae"><div class="ttname"><a href="namespacesecp256k1.html#a26bc72f1db971e5854681c65e4b6c1ae">secp256k1::schnorr_verify</a></div><div class="ttdeci">bool schnorr_verify(const std::array&lt; std::uint8_t, 32 &gt; &amp;pubkey_x, const std::array&lt; std::uint8_t, 32 &gt; &amp;msg, const SchnorrSignature &amp;sig)</div></div>

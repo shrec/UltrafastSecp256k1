@@ -47,8 +47,8 @@ var searchData=
   ['ethereum_5faddress_5fraw_44',['ethereum_address_raw',['../namespacesecp256k1_1_1coins.html#a8d4a39519388b7d1d84a5232f7c8b3ee',1,'secp256k1::coins']]],
   ['evidence_20methodology_45',['CT Evidence &amp; Methodology',['../index.html#autotoc_md47',1,'']]],
   ['examples_46',['secp256k1 Quick Start (C++ Examples)',['../index.html#autotoc_md78',1,'']]],
-  ['experimental_20no_20abi_20promise_47',['Tier 2 — Experimental (no ABI promise)',['../md_include_2ufsecp_2SUPPORTED__GUARANTEES.html#autotoc_md6',1,'']]],
-  ['exposed_48',['Tier 3 — Internal (never exposed)',['../md_include_2ufsecp_2SUPPORTED__GUARANTEES.html#autotoc_md8',1,'']]],
+  ['experimental_20no_20abi_20promise_47',['Tier 2 &amp;ndash; Experimental (no ABI promise)',['../md_include_2ufsecp_2SUPPORTED__GUARANTEES.html#autotoc_md6',1,'']]],
+  ['exposed_48',['Tier 3 &amp;ndash; Internal (never exposed)',['../md_include_2ufsecp_2SUPPORTED__GUARANTEES.html#autotoc_md8',1,'']]],
   ['extendedkey_49',['ExtendedKey',['../structsecp256k1_1_1ExtendedKey.html',1,'secp256k1']]],
   ['extkey_5ffrom_5fuf_50',['extkey_from_uf',['../ufsecp__impl_8cpp.html#adebc614f6e1b4b881d62a3ed518c8403',1,'ufsecp_impl.cpp']]],
   ['extkey_5fto_5fuf_51',['extkey_to_uf',['../ufsecp__impl_8cpp.html#a32328e07be5a1b296eba8709a11f7fc4',1,'ufsecp_impl.cpp']]]
