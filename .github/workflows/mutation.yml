@@ -46,7 +46,7 @@ jobs:
             -O /tmp/mull.deb 2>/dev/null || {
             # Fallback: try building a minimal mutation runner
             echo "::warning::Mull .deb not available, trying pip package"
-            pip3 install --user mutmut 2>/dev/null || true
+            pip3 install --user 'mutmut==2.4.4' 2>/dev/null || true
           }
           if [ -f /tmp/mull.deb ]; then
             sudo dpkg -i /tmp/mull.deb 2>/dev/null || sudo apt-get install -f -y

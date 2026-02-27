@@ -27,7 +27,6 @@ on:
 
 permissions:
   contents: read
-  security-events: write  # for SARIF upload if crashes found
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -38,6 +37,8 @@ jobs:
   pr-fuzzing:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-24.04
+    permissions:
+      security-events: write  # for SARIF upload if crashes found
     strategy:
       fail-fast: false
       matrix:
@@ -71,6 +72,8 @@ jobs:
   batch-fuzzing:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-24.04
+    permissions:
+      security-events: write  # for SARIF upload if crashes found
     strategy:
       fail-fast: false
       matrix:
@@ -104,6 +107,8 @@ jobs:
   prune-corpus:
     if: github.event_name == 'schedule'
     runs-on: ubuntu-24.04
+    permissions:
+      security-events: write  # for SARIF upload if crashes found
     needs: batch-fuzzing
     steps:
       - name: Harden the runner

@@ -642,7 +642,7 @@ static void jac52_add_mixed_inplace(JacobianPoint52& p, const AffinePoint52& q) 
     FieldElement52 z1_z1z1 = p.z * z1z1;
     FieldElement52 s2 = q.y * z1_z1z1;                       // z1_z1z1 dead
 
-    FieldElement52 negX1 = p.x.negate(23);
+    const FieldElement52 negX1 = p.x.negate(23);
     FieldElement52 h = u2 + negX1;                            // u2, negX1 dead
 
     // normalize_weak before zero-check: h is at magnitude 25 (= 1 + 24).
@@ -901,8 +901,9 @@ static Point scalar_mul_glv52(const Point& base, const Scalar& scalar) {
         }
         // Guard: if any eff_z is zero the cumulative product is zero
         // and batch inversion is undefined. Fall through to 4x64 path.
-        if (SECP256K1_UNLIKELY(prods[glv_table_size - 1].normalizes_to_zero()))
+        if (SECP256K1_UNLIKELY(prods[glv_table_size - 1].normalizes_to_zero())) {
             throw 0;  // caught by catch(...) below -> 4x64 fallback
+        }
         FieldElement52 inv = prods[glv_table_size - 1].inverse_safegcd();
         std::array<FieldElement52, glv_table_size> zs;
         for (std::size_t i = glv_table_size - 1; i > 0; --i) {

@@ -380,7 +380,7 @@ FieldElement52 FieldElement52::half() const noexcept {
     const std::uint64_t* src = n;
 
     // mask = 0 if even, all-ones if odd
-    std::uint64_t mask = 0ULL - (src[0] & 1ULL);
+    const std::uint64_t mask = 0ULL - (src[0] & 1ULL);
 
     // Conditionally add p
     std::uint64_t t0 = src[0] + (P0 & mask);
@@ -443,10 +443,10 @@ static void fe52_normalize_inline(std::uint64_t* r) noexcept {
     std::uint64_t u3 = t3 + (u2 >> 52); u2 &= M52;
     std::uint64_t u4 = t4 + (u3 >> 52); u3 &= M52;
 
-    std::uint64_t overflow = u4 >> 48;
+    const std::uint64_t overflow = u4 >> 48;
     u4 &= M48;
 
-    std::uint64_t mask = 0ULL - overflow;
+    const std::uint64_t mask = 0ULL - overflow;
     r[0] = (u0 & mask) | (t0 & ~mask);
     r[1] = (u1 & mask) | (t1 & ~mask);
     r[2] = (u2 & mask) | (t2 & ~mask);
@@ -571,8 +571,9 @@ FieldElement52 FieldElement52::from_bytes(const std::array<std::uint8_t, 32>& by
 
 SECP256K1_FE52_FORCE_INLINE
 FieldElement52 FieldElement52::inverse_safegcd() const noexcept {
-    if (SECP256K1_UNLIKELY(normalizes_to_zero()))
+    if (SECP256K1_UNLIKELY(normalizes_to_zero())) {
         return FieldElement52::zero();
+    }
     return from_fe(to_fe().inverse());
 }
 

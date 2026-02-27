@@ -199,10 +199,10 @@ private:
         state_[4] += e; state_[5] += f; state_[6] += g; state_[7] += h;
     }
 
-    std::uint64_t state_[8];
-    std::uint64_t total_;
-    std::uint8_t buf_[128];
-    std::size_t buf_len_;
+    std::uint64_t state_[8]{};
+    std::uint64_t total_{};
+    std::uint8_t buf_[128]{};
+    std::size_t buf_len_{};
 };
 
 } // namespace secp256k1

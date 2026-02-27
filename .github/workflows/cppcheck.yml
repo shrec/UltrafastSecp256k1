@@ -16,7 +16,6 @@ on:
 
 permissions:
   contents: read
-  security-events: write  # upload SARIF to Security tab
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -26,6 +25,8 @@ jobs:
   cppcheck:
     name: Static Analysis (Cppcheck)
     runs-on: ubuntu-24.04
+    permissions:
+      security-events: write  # upload SARIF to Security tab
 
     steps:
       - name: Harden the runner (Audit all outbound calls)
@@ -39,7 +40,7 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends cppcheck ninja-build python3-pip
-          pip3 install --user cppcheck-codequality 2>/dev/null || true
+          pip3 install --user 'cppcheck-codequality==1.4.0' 2>/dev/null || true
 
       - name: Configure (generate compile_commands.json)
         run: |

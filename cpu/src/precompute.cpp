@@ -1751,7 +1751,7 @@ static inline unsigned fast_bitlen(const Scalar& s) {
     auto limbs = scalar_to_limbs(s);
     for (std::size_t i = 4; i-- > 0; ) {
         if (limbs[i] != 0) {
-            unsigned long index;
+            unsigned long index = 0;
             _BitScanReverse64(&index, limbs[i]);
             return static_cast<unsigned>(i * 64) + static_cast<unsigned>(index) + 1U;
         }
@@ -2544,7 +2544,8 @@ bool configure_fixed_base_auto() {
                         log << "---------------------------------------------\n";
                     }
                 } catch (...) {
-                    // Ignore logging errors
+                    // Intentionally ignore logging I/O errors -- non-critical.
+                    (void)0;
                 }
             }
             cfg.autotune = false; // disable after first run
@@ -2632,7 +2633,6 @@ static std::vector<TuneCandidate> discover_candidates(const FixedBaseConfig& bas
     std::unordered_map<unsigned, Flags> windows;
 
     for (fs::directory_iterator it(dir, ec), end; !ec && it != end; it.increment(ec)) {
-        if (ec) break;
         if (!it->is_regular_file()) continue;
         const auto p = it->path();
         const auto fname = p.filename().string();
