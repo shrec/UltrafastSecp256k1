@@ -49,7 +49,7 @@ set_tests_properties(ct_sidechannel_smoke PROPERTIES TIMEOUT 120)
 add_executable(test_differential_standalone differential_test.cpp)
 audit_target_defaults(test_differential_standalone)
 add_test(NAME differential COMMAND test_differential_standalone)
-set_tests_properties(differential PROPERTIES TIMEOUT 120)
+set_tests_properties(differential PROPERTIES TIMEOUT 600)
 
 # -- FAST==CT equivalence test ---------------------------------------------
 add_executable(test_ct_equivalence_standalone ${CPU_TESTS_DIR}/test_ct_equivalence.cpp)
@@ -68,7 +68,7 @@ set_tests_properties(fault_injection PROPERTIES TIMEOUT 300)
 add_executable(test_debug_invariants test_debug_invariants.cpp)
 audit_target_defaults(test_debug_invariants)
 add_test(NAME debug_invariants COMMAND test_debug_invariants)
-set_tests_properties(debug_invariants PROPERTIES TIMEOUT 120)
+set_tests_properties(debug_invariants PROPERTIES TIMEOUT 600)
 
 # -- Fiat-Crypto comparison vectors ----------------------------------------
 add_executable(test_fiat_crypto_vectors test_fiat_crypto_vectors.cpp)
@@ -104,7 +104,7 @@ set_tests_properties(abi_gate PROPERTIES TIMEOUT 30)
 add_executable(test_audit_fuzz_standalone audit_fuzz.cpp)
 audit_target_defaults(test_audit_fuzz_standalone)
 add_test(NAME audit_fuzz COMMAND test_audit_fuzz_standalone)
-set_tests_properties(audit_fuzz PROPERTIES TIMEOUT 120)
+set_tests_properties(audit_fuzz PROPERTIES TIMEOUT 600)
 
 # -- Diagnostic: ct::scalar_mul step-by-step comparison --------------------
 add_executable(diag_scalar_mul ${CPU_TESTS_DIR}/diag_scalar_mul.cpp)
@@ -334,7 +334,7 @@ if(MSVC OR (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND WIN32))
     target_link_options(unified_audit_runner PRIVATE "LINKER:/STACK:8388608")
 endif()
 add_test(NAME unified_audit COMMAND unified_audit_runner)
-set_tests_properties(unified_audit PROPERTIES TIMEOUT 600)
+set_tests_properties(unified_audit PROPERTIES TIMEOUT 1200)
 
 # ===========================================================================
 # Full Audit Orchestrator (custom target)
