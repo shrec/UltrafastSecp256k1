@@ -51,7 +51,7 @@ static int g_fail  = 0;
     ++g_pass; \
 } while(0)
 
-static std::mt19937_64 rng(0xDEADBEEF);
+static std::mt19937_64 rng(0xDEADBEEF);  // NOLINT(cert-msc32-c,cert-msc51-cpp)
 
 static std::vector<uint8_t> random_blob(size_t max_len) {
     std::uniform_int_distribution<size_t> len_dist(0, max_len);
@@ -65,7 +65,7 @@ static std::array<uint8_t, 32> random32() {
     std::array<uint8_t, 32> out{};
     for (int i = 0; i < 4; ++i) {
         uint64_t v = rng();
-        std::memcpy(out.data() + i * 8, &v, 8);
+        std::memcpy(out.data() + static_cast<std::size_t>(i) * 8, &v, 8);
     }
     return out;
 }

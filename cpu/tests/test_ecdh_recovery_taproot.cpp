@@ -24,7 +24,6 @@
 using namespace secp256k1;
 using fast::Scalar;
 using fast::Point;
-using fast::FieldElement;
 
 static int g_pass = 0, g_fail = 0;
 
@@ -33,7 +32,7 @@ static void check(bool cond, const char* name) {
         ++g_pass;
     } else {
         ++g_fail;
-        std::printf("  FAIL: %s\n", name);
+        (void)std::printf("  FAIL: %s\n", name);
     }
 }
 
@@ -46,7 +45,7 @@ static std::array<uint8_t, 32> hex32(const char* hex) {
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
 #endif
-        std::sscanf(hex + i * 2, "%02x", &val);
+        (void)std::sscanf(hex + i * 2, "%02x", &val);
 #ifdef __clang__
 #pragma clang diagnostic pop
 #endif
@@ -60,7 +59,7 @@ static std::array<uint8_t, 32> hex32(const char* hex) {
 // ===============================================================================
 
 static void test_ecdh_basic() {
-    std::printf("[ECDH] Basic key exchange...\n");
+    (void)std::printf("[ECDH] Basic key exchange...\n");
 
     // Alice and Bob: generate keypairs
     auto sk_a = Scalar::from_hex(
@@ -81,7 +80,7 @@ static void test_ecdh_basic() {
 }
 
 static void test_ecdh_xonly() {
-    std::printf("[ECDH] X-only variant...\n");
+    (void)std::printf("[ECDH] X-only variant...\n");
 
     auto sk_a = Scalar::from_hex(
         "79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798");
@@ -98,7 +97,7 @@ static void test_ecdh_xonly() {
 }
 
 static void test_ecdh_raw() {
-    std::printf("[ECDH] Raw x-coordinate...\n");
+    (void)std::printf("[ECDH] Raw x-coordinate...\n");
 
     auto sk_a = Scalar::from_hex(
         "0000000000000000000000000000000000000000000000000000000000000003");
@@ -120,7 +119,7 @@ static void test_ecdh_raw() {
 }
 
 static void test_ecdh_zero_key() {
-    std::printf("[ECDH] Edge: zero private key...\n");
+    (void)std::printf("[ECDH] Edge: zero private key...\n");
 
     auto sk_zero = Scalar::zero();
     auto pk = Point::generator();
@@ -130,7 +129,7 @@ static void test_ecdh_zero_key() {
 }
 
 static void test_ecdh_infinity() {
-    std::printf("[ECDH] Edge: infinity public key...\n");
+    (void)std::printf("[ECDH] Edge: infinity public key...\n");
 
     auto sk = Scalar::from_hex(
         "0000000000000000000000000000000000000000000000000000000000000001");
@@ -145,7 +144,7 @@ static void test_ecdh_infinity() {
 // ===============================================================================
 
 static void test_recovery_basic() {
-    std::printf("[Recovery] Basic sign + recover...\n");
+    (void)std::printf("[Recovery] Basic sign + recover...\n");
 
     auto sk = Scalar::from_hex(
         "0000000000000000000000000000000000000000000000000000000000000001");
@@ -166,7 +165,7 @@ static void test_recovery_basic() {
 }
 
 static void test_recovery_multiple_keys() {
-    std::printf("[Recovery] Multiple different private keys...\n");
+    (void)std::printf("[Recovery] Multiple different private keys...\n");
 
     const char* const test_keys[] = {
         "0000000000000000000000000000000000000000000000000000000000000002",
@@ -188,7 +187,7 @@ static void test_recovery_multiple_keys() {
 }
 
 static void test_recovery_compact_serialization() {
-    std::printf("[Recovery] Compact 65-byte serialization...\n");
+    (void)std::printf("[Recovery] Compact 65-byte serialization...\n");
 
     auto sk = Scalar::from_hex(
         "0000000000000000000000000000000000000000000000000000000000000005");
@@ -209,7 +208,7 @@ static void test_recovery_compact_serialization() {
 }
 
 static void test_recovery_wrong_recid() {
-    std::printf("[Recovery] Wrong recovery ID...\n");
+    (void)std::printf("[Recovery] Wrong recovery ID...\n");
 
     auto sk = Scalar::from_hex(
         "0000000000000000000000000000000000000000000000000000000000000001");
@@ -231,7 +230,7 @@ static void test_recovery_wrong_recid() {
 }
 
 static void test_recovery_invalid_sig() {
-    std::printf("[Recovery] Invalid signature (zero r/s)...\n");
+    (void)std::printf("[Recovery] Invalid signature (zero r/s)...\n");
 
     auto msg = hex32("0000000000000000000000000000000000000000000000000000000000000001");
 
@@ -263,7 +262,7 @@ static void test_recovery_invalid_sig() {
 // ===============================================================================
 
 static void test_taproot_tweak_hash() {
-    std::printf("[Taproot] TapTweak hash...\n");
+    (void)std::printf("[Taproot] TapTweak hash...\n");
 
     auto internal_key_x = hex32(
         "79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798");
@@ -279,7 +278,7 @@ static void test_taproot_tweak_hash() {
 }
 
 static void test_taproot_output_key() {
-    std::printf("[Taproot] Output key derivation...\n");
+    (void)std::printf("[Taproot] Output key derivation...\n");
 
     auto sk = Scalar::from_hex(
         "0000000000000000000000000000000000000000000000000000000000000001");
@@ -293,7 +292,7 @@ static void test_taproot_output_key() {
 }
 
 static void test_taproot_privkey_tweak() {
-    std::printf("[Taproot] Private key tweaking...\n");
+    (void)std::printf("[Taproot] Private key tweaking...\n");
 
     auto sk = Scalar::from_hex(
         "0000000000000000000000000000000000000000000000000000000000000001");
@@ -313,7 +312,7 @@ static void test_taproot_privkey_tweak() {
 }
 
 static void test_taproot_commitment_verify() {
-    std::printf("[Taproot] Commitment verification...\n");
+    (void)std::printf("[Taproot] Commitment verification...\n");
 
     auto sk = Scalar::from_hex(
         "0000000000000000000000000000000000000000000000000000000000000002");
@@ -332,7 +331,7 @@ static void test_taproot_commitment_verify() {
 }
 
 static void test_taproot_leaf_and_branch() {
-    std::printf("[Taproot] Leaf and branch hashes...\n");
+    (void)std::printf("[Taproot] Leaf and branch hashes...\n");
 
     // Simple script
     uint8_t script[] = {0xAC}; // OP_CHECKSIG
@@ -357,7 +356,7 @@ static void test_taproot_leaf_and_branch() {
 }
 
 static void test_taproot_merkle_tree() {
-    std::printf("[Taproot] Merkle tree construction...\n");
+    (void)std::printf("[Taproot] Merkle tree construction...\n");
 
     uint8_t s1[] = {0xAC};
     uint8_t s2[] = {0xAD};
@@ -382,7 +381,7 @@ static void test_taproot_merkle_tree() {
 }
 
 static void test_taproot_merkle_proof() {
-    std::printf("[Taproot] Merkle proof verification...\n");
+    (void)std::printf("[Taproot] Merkle proof verification...\n");
 
     uint8_t s1[] = {0xAC};
     uint8_t s2[] = {0xAD};
@@ -397,7 +396,7 @@ static void test_taproot_merkle_proof() {
 }
 
 static void test_taproot_full_flow() {
-    std::printf("[Taproot] Full flow: key-path + script-path...\n");
+    (void)std::printf("[Taproot] Full flow: key-path + script-path...\n");
 
     // Internal key
     auto sk = Scalar::from_hex(
@@ -436,7 +435,7 @@ static void test_taproot_full_flow() {
 // ===============================================================================
 
 static void test_ct_equal() {
-    std::printf("[CT Utils] Constant-time equality...\n");
+    (void)std::printf("[CT Utils] Constant-time equality...\n");
 
     auto a = hex32("0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF");
     auto b = a;
@@ -447,7 +446,7 @@ static void test_ct_equal() {
 }
 
 static void test_ct_is_zero() {
-    std::printf("[CT Utils] Constant-time zero check...\n");
+    (void)std::printf("[CT Utils] Constant-time zero check...\n");
 
     std::array<uint8_t, 32> const zeros{};
     auto nonzero = hex32("0000000000000000000000000000000000000000000000000000000000000001");
@@ -457,7 +456,7 @@ static void test_ct_is_zero() {
 }
 
 static void test_ct_compare() {
-    std::printf("[CT Utils] Constant-time compare...\n");
+    (void)std::printf("[CT Utils] Constant-time compare...\n");
 
     auto a = hex32("0000000000000000000000000000000000000000000000000000000000000001");
     auto b = hex32("0000000000000000000000000000000000000000000000000000000000000002");
@@ -469,7 +468,7 @@ static void test_ct_compare() {
 }
 
 static void test_ct_memzero() {
-    std::printf("[CT Utils] Secure memory zeroing...\n");
+    (void)std::printf("[CT Utils] Secure memory zeroing...\n");
 
     std::array<uint8_t, 32> data;
     std::memset(data.data(), 0xFF, 32);
@@ -479,7 +478,7 @@ static void test_ct_memzero() {
 }
 
 static void test_ct_conditional_ops() {
-    std::printf("[CT Utils] Conditional copy and swap...\n");
+    (void)std::printf("[CT Utils] Conditional copy and swap...\n");
 
     auto a = hex32("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
     auto b = hex32("BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB");
@@ -510,7 +509,7 @@ static void test_ct_conditional_ops() {
 // ===============================================================================
 
 static void test_wycheproof_ecdsa_edge_cases() {
-    std::printf("[Wycheproof] ECDSA edge cases...\n");
+    (void)std::printf("[Wycheproof] ECDSA edge cases...\n");
 
     // 1. Signature with s = 1 (minimal s)
     {
@@ -597,7 +596,7 @@ static void test_wycheproof_ecdsa_edge_cases() {
 }
 
 static void test_wycheproof_schnorr_edge_cases() {
-    std::printf("[Wycheproof] Schnorr (BIP-340) edge cases...\n");
+    (void)std::printf("[Wycheproof] Schnorr (BIP-340) edge cases...\n");
 
     // 1. Normal sign/verify
     {
@@ -640,7 +639,7 @@ static void test_wycheproof_schnorr_edge_cases() {
 }
 
 static void test_wycheproof_recovery_edge_cases() {
-    std::printf("[Wycheproof] Recovery edge cases...\n");
+    (void)std::printf("[Wycheproof] Recovery edge cases...\n");
 
     // 1. Recovery round-trip with various message hashes
     const char* const messages[] = {
@@ -678,9 +677,9 @@ static void test_wycheproof_recovery_edge_cases() {
 // ===============================================================================
 
 int test_ecdh_recovery_taproot_run() {
-    std::printf("===============================================================\n");
-    std::printf("  UltrafastSecp256k1 -- v3.2.0 Feature Tests\n");
-    std::printf("===============================================================\n\n");
+    (void)std::printf("===============================================================\n");
+    (void)std::printf("  UltrafastSecp256k1 -- v3.2.0 Feature Tests\n");
+    (void)std::printf("===============================================================\n\n");
 
     // ECDH
     test_ecdh_basic();
@@ -689,7 +688,7 @@ int test_ecdh_recovery_taproot_run() {
     test_ecdh_zero_key();
     test_ecdh_infinity();
 
-    std::printf("\n");
+    (void)std::printf("\n");
 
     // Recovery
     test_recovery_basic();
@@ -698,7 +697,7 @@ int test_ecdh_recovery_taproot_run() {
     test_recovery_wrong_recid();
     test_recovery_invalid_sig();
 
-    std::printf("\n");
+    (void)std::printf("\n");
 
     // Taproot
     test_taproot_tweak_hash();
@@ -710,7 +709,7 @@ int test_ecdh_recovery_taproot_run() {
     test_taproot_merkle_proof();
     test_taproot_full_flow();
 
-    std::printf("\n");
+    (void)std::printf("\n");
 
     // CT Utils
     test_ct_equal();
@@ -719,17 +718,17 @@ int test_ecdh_recovery_taproot_run() {
     test_ct_memzero();
     test_ct_conditional_ops();
 
-    std::printf("\n");
+    (void)std::printf("\n");
 
     // Wycheproof Edge Cases
     test_wycheproof_ecdsa_edge_cases();
     test_wycheproof_schnorr_edge_cases();
     test_wycheproof_recovery_edge_cases();
 
-    std::printf("\n===============================================================\n");
-    std::printf("  Results: %d passed, %d failed (total %d)\n",
+    (void)std::printf("\n===============================================================\n");
+    (void)std::printf("  Results: %d passed, %d failed (total %d)\n",
                 g_pass, g_fail, g_pass + g_fail);
-    std::printf("===============================================================\n");
+    (void)std::printf("===============================================================\n");
 
     return g_fail > 0 ? 1 : 0;
 }

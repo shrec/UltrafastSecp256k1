@@ -352,7 +352,7 @@ public:
     template <typename Func>
     double run_and_print(const char* name, int iters, Func&& func) const {
         Stats st = run_stats(iters, func);
-        std::printf("  %-28s %9.2f ns  (min=%6.2f  median=%6.2f  stddev=%5.2f  n=%d-%d)\n",
+        (void)std::printf("  %-28s %9.2f ns  (min=%6.2f  median=%6.2f  stddev=%5.2f  n=%d-%d)\n",
                     name, st.median_ns, st.min_ns, st.median_ns, st.stddev_ns,
                     st.samples, st.outliers);
         return st.median_ns;
@@ -360,9 +360,9 @@ public:
 
     // Print harness configuration info
     void print_config() const {
-        std::printf("  Timer:    %s\n", Timer::timer_name());
-        std::printf("  Warmup:   %d iterations\n", warmup_iters);
-        std::printf("  Passes:   %zu (IQR outlier removal + median)\n", passes);
+        (void)std::printf("  Timer:    %s\n", Timer::timer_name());
+        (void)std::printf("  Warmup:   %d iterations\n", warmup_iters);
+        (void)std::printf("  Passes:   %zu (IQR outlier removal + median)\n", passes);
     }
 };
 
@@ -370,11 +370,11 @@ public:
 
 inline const char* format_ns(double ns, char* buf, std::size_t buflen) {
     if (ns < 1000.0) {
-        std::snprintf(buf, buflen, "%.2f ns", ns);
+        (void)std::snprintf(buf, buflen, "%.2f ns", ns);
     } else if (ns < 1000000.0) {
-        std::snprintf(buf, buflen, "%.2f us", ns / 1000.0);
+        (void)std::snprintf(buf, buflen, "%.2f us", ns / 1000.0);
     } else {
-        std::snprintf(buf, buflen, "%.2f ms", ns / 1000000.0);
+        (void)std::snprintf(buf, buflen, "%.2f ms", ns / 1000000.0);
     }
     return buf;
 }

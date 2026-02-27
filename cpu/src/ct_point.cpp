@@ -1055,7 +1055,7 @@ static Scalar ct_scalar_mul_mod_n(const Scalar& a, const Scalar& b) noexcept {
 
     // --- Phase 1: reduce 512 -> 385 bits ---
     // m[0..6] = l[0..3] + l[4..7] * NC  (NC = {NC0, NC1, 1, 0})
-    std::uint64_t n0 = l[4], n1 = l[5], n2 = l[6], n3 = l[7];
+    std::uint64_t const n0 = l[4], n1 = l[5], n2 = l[6], n3 = l[7];
     unsigned __int128 c = 0;
 
     c = (unsigned __int128)n0 * NC0 + l[0];
@@ -2294,7 +2294,7 @@ static Scalar ct_scalar_mul_mod_n(const Scalar& a, const Scalar& b) noexcept {
 
     // --- Phase 1: reduce 512 -> 385 bits ---
     // m[0..6] = l[0..3] + l[4..7] * NC  (NC = {NC0, NC1, 1, 0})
-    std::uint64_t n0 = l[4], n1 = l[5], n2 = l[6], n3 = l[7];
+    std::uint64_t const n0 = l[4], n1 = l[5], n2 = l[6], n3 = l[7];
     std::uint64_t m0, m1, m2, m3, m4, m5;
     std::uint32_t m6;
     {

@@ -31,7 +31,6 @@
 
 using secp256k1::fast::Scalar;
 using secp256k1::fast::Point;
-using secp256k1::fast::FieldElement;
 
 // -- Minimal test harness -----------------------------------------------------
 
@@ -51,7 +50,7 @@ static std::array<uint8_t, 32> random32(std::mt19937_64& rng) {
     std::array<uint8_t, 32> out{};
     for (int i = 0; i < 4; ++i) {
         uint64_t v = rng();
-        std::memcpy(out.data() + i * 8, &v, 8);
+        std::memcpy(out.data() + static_cast<std::size_t>(i) * 8, &v, 8);
     }
     return out;
 }
@@ -80,7 +79,7 @@ static std::array<uint8_t, 32> xonly_pubkey(const Scalar& sk) {
 static void test_musig2_key_agg_determinism() {
     std::printf("[1] MuSig2 Key Aggregation: Determinism\n");
 
-    std::mt19937_64 rng(0xDEADBEEF);
+    std::mt19937_64 rng(0xDEADBEEF);  // NOLINT(cert-msc32-c,cert-msc51-cpp)
     const int N = 50;
 
     for (int round = 0; round < N; ++round) {
@@ -113,7 +112,7 @@ static void test_musig2_key_agg_determinism() {
 static void test_musig2_key_agg_ordering() {
     std::printf("[2] MuSig2 Key Aggregation: Ordering Matters\n");
 
-    std::mt19937_64 rng(0xCAFEBABE);
+    std::mt19937_64 rng(0xCAFEBABE);  // NOLINT(cert-msc32-c,cert-msc51-cpp)
     const int N = 20;
 
     for (int round = 0; round < N; ++round) {
@@ -145,7 +144,7 @@ for (int i = 0; i < 3; ++i) {
 static void test_musig2_key_agg_duplicates() {
     std::printf("[3] MuSig2 Key Aggregation: Duplicate Keys\n");
 
-    std::mt19937_64 rng(0x12345678);
+    std::mt19937_64 rng(0x12345678);  // NOLINT(cert-msc32-c,cert-msc51-cpp)
     auto sk = random_privkey(rng);
     auto pk = xonly_pubkey(sk);
 
@@ -172,7 +171,7 @@ static void test_musig2_key_agg_duplicates() {
 static void test_musig2_round_trip(int n_signers, const char* label) {
     std::printf("[4.%s] MuSig2 Full Round-Trip: %d signers\n", label, n_signers);
 
-    std::mt19937_64 rng(0xBEEF0000 + static_cast<uint32_t>(n_signers));
+    std::mt19937_64 rng(0xBEEF0000 + static_cast<uint32_t>(n_signers));  // NOLINT(cert-msc32-c,cert-msc51-cpp)
 
     const int ROUNDS = 20;
     for (int round = 0; round < ROUNDS; ++round) {
@@ -239,7 +238,7 @@ static void test_musig2_round_trip(int n_signers, const char* label) {
 static void test_musig2_wrong_signer() {
     std::printf("[5] MuSig2: Wrong Partial Sig Fails Verify\n");
 
-    std::mt19937_64 rng(0xBAADF00D);
+    std::mt19937_64 rng(0xBAADF00D);  // NOLINT(cert-msc32-c,cert-msc51-cpp)
     const int N = 10;
 
     for (int round = 0; round < N; ++round) {
@@ -283,7 +282,7 @@ static void test_musig2_wrong_signer() {
 static void test_musig2_bitflip() {
     std::printf("[6] MuSig2: Bit-Flip Invalidates Final Signature\n");
 
-    std::mt19937_64 rng(0xFACEFEED);
+    std::mt19937_64 rng(0xFACEFEED);  // NOLINT(cert-msc32-c,cert-msc51-cpp)
     const int N = 20;
 
     for (int round = 0; round < N; ++round) {
@@ -346,7 +345,7 @@ static void test_frost_dkg(uint32_t threshold, uint32_t n_participants,
                            const char* label) {
     std::printf("[7.%s] FROST DKG: %u-of-%u\n", label, threshold, n_participants);
 
-    std::mt19937_64 rng(0xF0057000 + threshold * 100 + n_participants);
+    std::mt19937_64 rng(0xF0057000 + threshold * 100 + n_participants);  // NOLINT(cert-msc32-c,cert-msc51-cpp)
     const int ROUNDS = 10;
 
     for (int round = 0; round < ROUNDS; ++round) {
@@ -408,7 +407,7 @@ static void test_frost_signing(uint32_t threshold, uint32_t n_participants,
                                const char* label) {
     std::printf("[8.%s] FROST Signing: %u-of-%u\n", label, threshold, n_participants);
 
-    std::mt19937_64 rng(0xF5160000 + threshold * 100 + n_participants);
+    std::mt19937_64 rng(0xF5160000 + threshold * 100 + n_participants);  // NOLINT(cert-msc32-c,cert-msc51-cpp)
     const int ROUNDS = 10;
 
     for (int round = 0; round < ROUNDS; ++round) {
@@ -503,7 +502,7 @@ for (uint32_t i = 0; i < threshold; ++i) {
 static void test_frost_different_subsets() {
     std::printf("[9] FROST: Different 2-of-3 Subsets All Valid\n");
 
-    std::mt19937_64 rng(0xF5AB5E70);
+    std::mt19937_64 rng(0xF5AB5E70);  // NOLINT(cert-msc32-c,cert-msc51-cpp)
     const int ROUNDS = 5;
 
     for (int round = 0; round < ROUNDS; ++round) {
@@ -573,7 +572,7 @@ for (uint32_t j = 0; j < n_parts; ++j) {
 static void test_frost_bitflip() {
     std::printf("[10] FROST: Bit-Flip Invalidates Signature\n");
 
-    std::mt19937_64 rng(0xF5B17F11);
+    std::mt19937_64 rng(0xF5B17F11);  // NOLINT(cert-msc32-c,cert-msc51-cpp)
     const int N = 10;
 
     for (int round = 0; round < N; ++round) {
@@ -627,7 +626,7 @@ for (uint32_t j = 0; j < n; ++j) ms.push_back(smatrix[j][i]);
 static void test_frost_wrong_partial() {
     std::printf("[11] FROST: Wrong Partial Sig Fails Verify\n");
 
-    std::mt19937_64 rng(0xF5BAD510);
+    std::mt19937_64 rng(0xF5BAD510);  // NOLINT(cert-msc32-c,cert-msc51-cpp)
     const int N = 10;
 
     for (int round = 0; round < N; ++round) {

@@ -22,7 +22,6 @@ using FE52 = fast::FieldElement52;
 // variable-time paths (point.cpp batch inverse, verify Y-parity).
 
 // -- Shared BIP-340 tagged-hash midstates (from tagged_hash.hpp) ---------------
-using detail::make_tag_midstate;
 using detail::g_aux_midstate;
 using detail::g_nonce_midstate;
 using detail::g_challenge_midstate;

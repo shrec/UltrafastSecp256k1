@@ -214,7 +214,7 @@ void sha256_compress(const std::uint8_t block[64], std::uint32_t state[8]) noexc
 
     // Load message words (big-endian)
     for (int i = 0; i < 16; ++i) {
-        w[i] = load_be32(block + i * 4);
+        w[i] = load_be32(block + static_cast<std::size_t>(i) * 4);
     }
 
     // Message schedule expansion
@@ -263,7 +263,7 @@ void sha256_33(const std::uint8_t* pubkey33, std::uint8_t* out32) noexcept {
 
     // Store big-endian
     for (int i = 0; i < 8; ++i) {
-        store_be32(out32 + i * 4, state[i]);
+        store_be32(out32 + static_cast<std::size_t>(i) * 4, state[i]);
     }
 }
 
@@ -282,7 +282,7 @@ void sha256_32(const std::uint8_t* in32, std::uint8_t* out32) noexcept {
     sha256_compress(block, state);
 
     for (int i = 0; i < 8; ++i) {
-        store_be32(out32 + i * 4, state[i]);
+        store_be32(out32 + static_cast<std::size_t>(i) * 4, state[i]);
     }
 }
 
@@ -300,7 +300,7 @@ static inline std::uint32_t rmd_f(int j, std::uint32_t x, std::uint32_t y, std::
 void ripemd160_compress(const std::uint8_t block[64], std::uint32_t state[5]) noexcept {
     std::uint32_t X[16];
     for (int i = 0; i < 16; ++i) {
-        X[i] = load_le32(block + i * 4);
+        X[i] = load_le32(block + static_cast<std::size_t>(i) * 4);
 }
 
     static constexpr int rl[80] = {
@@ -373,7 +373,7 @@ void ripemd160_32(const std::uint8_t* in32, std::uint8_t* out20) noexcept {
 
     // Store little-endian
     for (int i = 0; i < 5; ++i) {
-        store_le32(out20 + i * 4, state[i]);
+        store_le32(out20 + static_cast<std::size_t>(i) * 4, state[i]);
     }
 }
 
@@ -557,7 +557,7 @@ void sha256_33(const std::uint8_t* pubkey33, std::uint8_t* out32) noexcept {
     sha256_compress(block, state);
 
     for (int i = 0; i < 8; ++i) {
-        store_be32(out32 + i * 4, state[i]);
+        store_be32(out32 + static_cast<std::size_t>(i) * 4, state[i]);
     }
 }
 
@@ -574,7 +574,7 @@ void sha256_32(const std::uint8_t* in32, std::uint8_t* out32) noexcept {
     sha256_compress(block, state);
 
     for (int i = 0; i < 8; ++i) {
-        store_be32(out32 + i * 4, state[i]);
+        store_be32(out32 + static_cast<std::size_t>(i) * 4, state[i]);
     }
 }
 
@@ -655,7 +655,7 @@ std::array<std::uint8_t, 20> ripemd160(const void* data, std::size_t len) noexce
         scalar::ripemd160_compress(block, state);
 
         std::array<std::uint8_t, 20> out;
-        for (int i = 0; i < 5; ++i) store_le32(out.data() + i * 4, state[i]);
+        for (int i = 0; i < 5; ++i) store_le32(out.data() + static_cast<std::size_t>(i) * 4, state[i]);
         return out;
     }
 

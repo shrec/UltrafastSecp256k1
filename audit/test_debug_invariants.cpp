@@ -32,7 +32,7 @@ static const char* g_section = "";
 
 #define CHECK(cond, msg) do { \
     if (!(cond)) { \
-        printf("  FAIL [%s]: %s (line %d)\n", g_section, msg, __LINE__); \
+        (void)printf("  FAIL [%s]: %s (line %d)\n", g_section, msg, __LINE__); \
         ++g_fail; \
     } else { \
         ++g_pass; \
@@ -44,7 +44,7 @@ static const char* g_section = "";
 // ============================================================================
 static void test_fe_normalization() {
     g_section = "fe_norm";
-    printf("[1] Field element normalization invariant\n");
+    (void)printf("[1] Field element normalization invariant\n");
 
     // Zero is normalized
     CHECK(debug::is_normalized_field_element(FieldElement::zero()),
@@ -62,12 +62,12 @@ static void test_fe_normalization() {
     }
 
     // random FE from proper constructors should always be normalized
-    std::mt19937_64 rng(42);
+    std::mt19937_64 rng(42);  // NOLINT(cert-msc32-c,cert-msc51-cpp)
     for (int i = 0; i < 100; ++i) {
         std::array<uint8_t, 32> bytes{};
         for (int j = 0; j < 4; ++j) {
             uint64_t v = rng();
-            std::memcpy(bytes.data() + j * 8, &v, 8);
+            std::memcpy(bytes.data() + static_cast<std::size_t>(j) * 8, &v, 8);
         }
         auto fe = FieldElement::from_bytes(bytes);
         CHECK(debug::is_normalized_field_element(fe),
@@ -83,7 +83,7 @@ static void test_fe_normalization() {
     CHECK(debug::is_normalized_field_element(a.square()), "sqr result normalized");
     CHECK(debug::is_normalized_field_element(a.inverse()), "inv result normalized");
 
-    printf("    -> all FE normalization checks passed\n");
+    (void)printf("    -> all FE normalization checks passed\n");
 }
 
 // ============================================================================
@@ -91,7 +91,7 @@ static void test_fe_normalization() {
 // ============================================================================
 static void test_on_curve() {
     g_section = "on_curve";
-    printf("[2] Point on-curve invariant\n");
+    (void)printf("[2] Point on-curve invariant\n");
 
     // Generator must be on curve
     CHECK(debug::is_on_curve(Point::generator()), "G must be on curve");
@@ -100,12 +100,12 @@ static void test_on_curve() {
     CHECK(debug::is_on_curve(Point::infinity()), "O must be on curve");
 
     // Random scalar multiples of G must be on curve
-    std::mt19937_64 rng(123);
+    std::mt19937_64 rng(123);  // NOLINT(cert-msc32-c,cert-msc51-cpp)
     for (int i = 0; i < 50; ++i) {
         std::array<uint8_t, 32> bytes{};
         for (int j = 0; j < 4; ++j) {
             uint64_t v = rng();
-            std::memcpy(bytes.data() + j * 8, &v, 8);
+            std::memcpy(bytes.data() + static_cast<std::size_t>(j) * 8, &v, 8);
         }
         auto s = Scalar::from_bytes(bytes);
         if (s.is_zero()) continue;
@@ -127,7 +127,7 @@ static void test_on_curve() {
     Point const P5 = P1.negate();
     CHECK(debug::is_on_curve(P5), "-P must be on curve");
 
-    printf("    -> all on-curve checks passed\n");
+    (void)printf("    -> all on-curve checks passed\n");
 }
 
 // ============================================================================
@@ -135,7 +135,7 @@ static void test_on_curve() {
 // ============================================================================
 static void test_scalar_valid() {
     g_section = "scalar_valid";
-    printf("[3] Scalar validity invariant\n");
+    (void)printf("[3] Scalar validity invariant\n");
 
     // Zero is NOT valid (for signing/mul purposes)
     CHECK(!debug::is_valid_scalar(Scalar::zero()), "zero must not be 'valid'");
@@ -144,12 +144,12 @@ static void test_scalar_valid() {
     CHECK(debug::is_valid_scalar(Scalar::one()), "one must be valid");
 
     // Random scalars from proper constructors
-    std::mt19937_64 rng(456);
+    std::mt19937_64 rng(456);  // NOLINT(cert-msc32-c,cert-msc51-cpp)
     for (int i = 0; i < 100; ++i) {
         std::array<uint8_t, 32> bytes{};
         for (int j = 0; j < 4; ++j) {
             uint64_t v = rng();
-            std::memcpy(bytes.data() + j * 8, &v, 8);
+            std::memcpy(bytes.data() + static_cast<std::size_t>(j) * 8, &v, 8);
         }
         auto s = Scalar::from_bytes(bytes);
         if (s.is_zero()) continue;
@@ -164,7 +164,7 @@ static void test_scalar_valid() {
     CHECK(debug::is_valid_scalar(a.inverse()), "a^-1 must be valid");
     CHECK(debug::is_valid_scalar(a.negate()), "-a must be valid");
 
-    printf("    -> all scalar validity checks passed\n");
+    (void)printf("    -> all scalar validity checks passed\n");
 }
 
 // ============================================================================
@@ -172,7 +172,7 @@ static void test_scalar_valid() {
 // ============================================================================
 static void test_macro_integration() {
     g_section = "macros";
-    printf("[4] Debug assertion macro integration\n");
+    (void)printf("[4] Debug assertion macro integration\n");
 
     // Reset counter
     auto& c = debug::counters();
@@ -195,7 +195,7 @@ static void test_macro_integration() {
     SECP_ASSERT(1 + 1 == 2);
     SECP_ASSERT_MSG(true, "this should not fail");
 
-    printf("    -> all macros work correctly\n");
+    (void)printf("    -> all macros work correctly\n");
 }
 
 // ============================================================================
@@ -203,7 +203,7 @@ static void test_macro_integration() {
 // ============================================================================
 static void test_full_chain() {
     g_section = "full_chain";
-    printf("[5] Full computation chain with invariant checks\n");
+    (void)printf("[5] Full computation chain with invariant checks\n");
 
     auto k = Scalar::from_uint64(0xABCDEF);
     SECP_ASSERT_SCALAR_VALID(k);
@@ -237,7 +237,7 @@ static void test_full_chain() {
     auto x3 = (x.square() * x) + FieldElement::from_uint64(7);
     CHECK(y2 == x3, "curve equation must hold");
 
-    printf("    -> full chain invariants passed\n");
+    (void)printf("    -> full chain invariants passed\n");
 }
 
 // ============================================================================
@@ -245,11 +245,11 @@ static void test_full_chain() {
 // ============================================================================
 static void test_debug_counters() {
     g_section = "counters";
-    printf("[6] Debug counter accumulation\n");
+    (void)printf("[6] Debug counter accumulation\n");
 
     auto& c = debug::counters();
     CHECK(c.invariant_check_count > 0, "invariant counter must have accumulated");
-    printf("    -> %llu invariant checks performed so far\n",
+    (void)printf("    -> %llu invariant checks performed so far\n",
            (unsigned long long)c.invariant_check_count);
 }
 
@@ -264,7 +264,7 @@ int test_debug_invariants_run() {
     test_macro_integration();
     test_full_chain();
     test_debug_counters();
-    printf("  [debug_invariants] %d passed, %d failed\n", g_pass, g_fail);
+    (void)printf("  [debug_invariants] %d passed, %d failed\n", g_pass, g_fail);
     return g_fail > 0 ? 1 : 0;
 }
 
@@ -273,26 +273,26 @@ int test_debug_invariants_run() {
 // ============================================================================
 #ifndef UNIFIED_AUDIT_RUNNER
 int main() {
-    printf("============================================================\n");
-    printf("  Debug Invariant Assertions Test\n");
-    printf("  Phase V, Task 5.3.3\n");
-    printf("============================================================\n\n");
+    (void)printf("============================================================\n");
+    (void)printf("  Debug Invariant Assertions Test\n");
+    (void)printf("  Phase V, Task 5.3.3\n");
+    (void)printf("============================================================\n\n");
 
     test_fe_normalization();
-    printf("\n");
+    (void)printf("\n");
     test_on_curve();
-    printf("\n");
+    (void)printf("\n");
     test_scalar_valid();
-    printf("\n");
+    (void)printf("\n");
     test_macro_integration();
-    printf("\n");
+    (void)printf("\n");
     test_full_chain();
-    printf("\n");
+    (void)printf("\n");
     test_debug_counters();
 
-    printf("\n============================================================\n");
-    printf("  Summary: %d passed, %d failed\n", g_pass, g_fail);
-    printf("============================================================\n");
+    (void)printf("\n============================================================\n");
+    (void)printf("  Summary: %d passed, %d failed\n", g_pass, g_fail);
+    (void)printf("============================================================\n");
 
     // Print counter report
     SECP_DEBUG_COUNTER_REPORT();

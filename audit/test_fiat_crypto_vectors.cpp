@@ -31,7 +31,7 @@ static const char* g_section = "";
 
 #define CHECK(cond, msg) do { \
     if (!(cond)) { \
-        printf("  FAIL [%s]: %s (line %d)\n", g_section, msg, __LINE__); \
+        (void)printf("  FAIL [%s]: %s (line %d)\n", g_section, msg, __LINE__); \
         ++g_fail; \
     } else { \
         ++g_pass; \
@@ -43,8 +43,8 @@ static FieldElement fe_from_hex(const char* hex64) {
     std::array<uint8_t, 32> bytes{};
     for (int i = 0; i < 32; ++i) {
         unsigned hi, lo;
-        sscanf(hex64 + i * 2, "%1x", &hi);
-        sscanf(hex64 + i * 2 + 1, "%1x", &lo);
+        (void)sscanf(hex64 + static_cast<std::size_t>(i) * 2, "%1x", &hi);
+        (void)sscanf(hex64 + static_cast<std::size_t>(i) * 2 + 1, "%1x", &lo);
         bytes[i] = static_cast<uint8_t>((hi << 4) | lo);
     }
     return FieldElement::from_bytes(bytes);
@@ -54,8 +54,8 @@ static Scalar scalar_from_hex(const char* hex64) {
     std::array<uint8_t, 32> bytes{};
     for (int i = 0; i < 32; ++i) {
         unsigned hi, lo;
-        sscanf(hex64 + i * 2, "%1x", &hi);
-        sscanf(hex64 + i * 2 + 1, "%1x", &lo);
+        (void)sscanf(hex64 + static_cast<std::size_t>(i) * 2, "%1x", &hi);
+        (void)sscanf(hex64 + static_cast<std::size_t>(i) * 2 + 1, "%1x", &lo);
         bytes[i] = static_cast<uint8_t>((hi << 4) | lo);
     }
     return Scalar::from_bytes(bytes);
@@ -130,14 +130,14 @@ static const MulVector MUL_VECTORS[] = {
 
 static void test_mul_vectors() {
     g_section = "fiat_mul";
-    printf("[1] Field multiplication golden vectors (Fiat-Crypto/Sage)\n");
+    (void)printf("[1] Field multiplication golden vectors (Fiat-Crypto/Sage)\n");
 
     for (int i = 0; i < (int)(sizeof(MUL_VECTORS) / sizeof(MUL_VECTORS[0])); ++i) {
         auto a = fe_from_hex(MUL_VECTORS[i].a);
         auto b = fe_from_hex(MUL_VECTORS[i].b);
         auto result = a * b;
         char msg[64];
-        snprintf(msg, sizeof(msg), "mul_vec[%d]", i);
+        (void)snprintf(msg, sizeof(msg), "mul_vec[%d]", i);
         CHECK(fe_equals_hex(result, MUL_VECTORS[i].expected), msg);
     }
 }
@@ -170,13 +170,13 @@ static const SqrVector SQR_VECTORS[] = {
 
 static void test_sqr_vectors() {
     g_section = "fiat_sqr";
-    printf("[2] Field squaring golden vectors\n");
+    (void)printf("[2] Field squaring golden vectors\n");
 
     for (int i = 0; i < (int)(sizeof(SQR_VECTORS) / sizeof(SQR_VECTORS[0])); ++i) {
         auto a = fe_from_hex(SQR_VECTORS[i].a);
         auto result = a.square();
         char msg[64];
-        snprintf(msg, sizeof(msg), "sqr_vec[%d]", i);
+        (void)snprintf(msg, sizeof(msg), "sqr_vec[%d]", i);
         CHECK(fe_equals_hex(result, SQR_VECTORS[i].expected), msg);
     }
 }
@@ -214,7 +214,7 @@ static const InvVector INV_VECTORS[] = {
 
 static void test_inv_vectors() {
     g_section = "fiat_inv";
-    printf("[3] Field inversion golden vectors\n");
+    (void)printf("[3] Field inversion golden vectors\n");
 
     for (int i = 0; i < (int)(sizeof(INV_VECTORS) / sizeof(INV_VECTORS[0])); ++i) {
         auto a = fe_from_hex(INV_VECTORS[i].a);
@@ -223,7 +223,7 @@ static void test_inv_vectors() {
         // Cross-check: a * a^(-1) == 1
         auto check = a * result;
         char msg[64];
-        snprintf(msg, sizeof(msg), "inv_roundtrip[%d]", i);
+        (void)snprintf(msg, sizeof(msg), "inv_roundtrip[%d]", i);
         CHECK(fe_equals_hex(check, "0000000000000000000000000000000000000000000000000000000000000001"), msg);
     }
 }
@@ -233,7 +233,7 @@ static void test_inv_vectors() {
 // ============================================================================
 static void test_add_sub_vectors() {
     g_section = "fiat_add_sub";
-    printf("[4] Field add/sub boundary vectors\n");
+    (void)printf("[4] Field add/sub boundary vectors\n");
 
     auto zero = FieldElement::zero();
     auto one = FieldElement::one();
@@ -271,7 +271,7 @@ static void test_add_sub_vectors() {
 // ============================================================================
 static void test_scalar_vectors() {
     g_section = "fiat_scalar";
-    printf("[5] Scalar arithmetic golden vectors (group order n)\n");
+    (void)printf("[5] Scalar arithmetic golden vectors (group order n)\n");
 
     auto one = Scalar::from_bytes({0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1});
     auto zero = Scalar::from_bytes({0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0});
@@ -308,7 +308,7 @@ static void test_scalar_vectors() {
 // ============================================================================
 static void test_point_vectors() {
     g_section = "fiat_point";
-    printf("[6] Point arithmetic golden vectors\n");
+    (void)printf("[6] Point arithmetic golden vectors\n");
 
     auto G = Point::generator();
 
@@ -357,7 +357,7 @@ static void test_point_vectors() {
 // ============================================================================
 static void test_algebraic_identities() {
     g_section = "fiat_algebraic";
-    printf("[7] Algebraic identity verification (100 rounds)\n");
+    (void)printf("[7] Algebraic identity verification (100 rounds)\n");
 
     // Deterministic PRNG
     std::array<uint8_t, 32> seed{};
@@ -410,7 +410,7 @@ static void test_algebraic_identities() {
 // ============================================================================
 static void test_serialization_roundtrip() {
     g_section = "fiat_serial";
-    printf("[8] Serialization round-trip consistency\n");
+    (void)printf("[8] Serialization round-trip consistency\n");
 
     // Known values
     const char* test_values[] = {
@@ -450,7 +450,7 @@ int test_fiat_crypto_vectors_run() {
     test_point_vectors();
     test_algebraic_identities();
     test_serialization_roundtrip();
-    printf("  [fiat_crypto_vectors] %d passed, %d failed\n", g_pass, g_fail);
+    (void)printf("  [fiat_crypto_vectors] %d passed, %d failed\n", g_pass, g_fail);
     return g_fail > 0 ? 1 : 0;
 }
 
@@ -458,10 +458,10 @@ int test_fiat_crypto_vectors_run() {
 // ============================================================================
 #ifndef UNIFIED_AUDIT_RUNNER
 int main() {
-    printf("============================================================\n");
-    printf("  Fiat-Crypto Reference Vector Comparison Test\n");
-    printf("  Phase V, Task 5.3.1\n");
-    printf("============================================================\n\n");
+    (void)printf("============================================================\n");
+    (void)printf("  Fiat-Crypto Reference Vector Comparison Test\n");
+    (void)printf("  Phase V, Task 5.3.1\n");
+    (void)printf("============================================================\n\n");
 
     test_mul_vectors();      printf("\n");
     test_sqr_vectors();      printf("\n");
@@ -472,9 +472,9 @@ int main() {
     test_algebraic_identities(); printf("\n");
     test_serialization_roundtrip();
 
-    printf("\n============================================================\n");
-    printf("  Summary: %d passed, %d failed\n", g_pass, g_fail);
-    printf("============================================================\n");
+    (void)printf("\n============================================================\n");
+    (void)printf("  Summary: %d passed, %d failed\n", g_pass, g_fail);
+    (void)printf("============================================================\n");
 
     return g_fail > 0 ? 1 : 0;
 }

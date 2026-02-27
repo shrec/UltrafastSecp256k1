@@ -38,8 +38,8 @@ static int tests_passed = 0;
 
 #define CHECK(cond, msg) do { \
     ++tests_run; \
-    if (cond) { ++tests_passed; printf("  [PASS] %s\n", msg); } \
-    else { printf("  [FAIL] %s\n", msg); } \
+    if (cond) { ++tests_passed; (void)printf("  [PASS] %s\n", msg); } \
+    else { (void)printf("  [FAIL] %s\n", msg); } \
 } while(0)
 
 // Compare two points by compressed encoding (33 bytes)
@@ -89,7 +89,7 @@ static Point deterministic_point(uint64_t idx) {
 // -- property tests ----------------------------------------------------------
 
 static void test_identity_element() {
-    printf("\n--- Identity element: P + O == P ---\n");
+    (void)printf("\n--- Identity element: P + O == P ---\n");
 
     Point const G = Point::generator();
     Point const O = Point::infinity();
@@ -106,7 +106,7 @@ static void test_identity_element() {
 }
 
 static void test_inverse_element() {
-    printf("\n--- Inverse element: P + (-P) == O ---\n");
+    (void)printf("\n--- Inverse element: P + (-P) == O ---\n");
 
     Point const G = Point::generator();
     Point const neg_G = G.negate();
@@ -116,7 +116,7 @@ static void test_inverse_element() {
         Point const P = deterministic_point(i);
         Point const neg_P = P.negate();
         char buf[64];
-        std::snprintf(buf, sizeof(buf), "P_%llu + (-P_%llu) == O",
+        (void)std::snprintf(buf, sizeof(buf), "P_%llu + (-P_%llu) == O",
                       static_cast<unsigned long long>(i),
                       static_cast<unsigned long long>(i));
         CHECK(P.add(neg_P).is_infinity(), buf);
@@ -124,7 +124,7 @@ static void test_inverse_element() {
 }
 
 static void test_negate_involution() {
-    printf("\n--- Negate involution: -(-P) == P ---\n");
+    (void)printf("\n--- Negate involution: -(-P) == P ---\n");
 
     Point const G = Point::generator();
     CHECK(points_equal(G.negate().negate(), G), "-(-G) == G");
@@ -132,7 +132,7 @@ static void test_negate_involution() {
     for (uint64_t i = 1; i <= 5; ++i) {
         Point const P = deterministic_point(i);
         char buf[64];
-        std::snprintf(buf, sizeof(buf), "-(-P_%llu) == P_%llu",
+        (void)std::snprintf(buf, sizeof(buf), "-(-P_%llu) == P_%llu",
                       static_cast<unsigned long long>(i),
                       static_cast<unsigned long long>(i));
         CHECK(points_equal(P.negate().negate(), P), buf);
@@ -140,7 +140,7 @@ static void test_negate_involution() {
 }
 
 static void test_commutativity() {
-    printf("\n--- Commutativity: P + Q == Q + P ---\n");
+    (void)printf("\n--- Commutativity: P + Q == Q + P ---\n");
 
     for (uint64_t i = 0; i < 8; ++i) {
         Point const P = deterministic_point(i * 2);
@@ -148,7 +148,7 @@ static void test_commutativity() {
         Point const PQ = P.add(Q);
         Point const QP = Q.add(P);
         char buf[64];
-        std::snprintf(buf, sizeof(buf), "P_%llu + Q_%llu == Q_%llu + P_%llu",
+        (void)std::snprintf(buf, sizeof(buf), "P_%llu + Q_%llu == Q_%llu + P_%llu",
                       static_cast<unsigned long long>(i * 2),
                       static_cast<unsigned long long>(i * 2 + 1),
                       static_cast<unsigned long long>(i * 2 + 1),
@@ -158,7 +158,7 @@ static void test_commutativity() {
 }
 
 static void test_associativity() {
-    printf("\n--- Associativity: (P + Q) + R == P + (Q + R) ---\n");
+    (void)printf("\n--- Associativity: (P + Q) + R == P + (Q + R) ---\n");
 
     for (uint64_t i = 0; i < 5; ++i) {
         Point const P = deterministic_point(i * 3);
@@ -169,7 +169,7 @@ static void test_associativity() {
         Point const rhs = P.add(Q.add(R));
 
         char buf[80];
-        std::snprintf(buf, sizeof(buf), "(P_%llu + Q_%llu) + R_%llu == P_%llu + (Q_%llu + R_%llu)",
+        (void)std::snprintf(buf, sizeof(buf), "(P_%llu + Q_%llu) + R_%llu == P_%llu + (Q_%llu + R_%llu)",
                       static_cast<unsigned long long>(i * 3),
                       static_cast<unsigned long long>(i * 3 + 1),
                       static_cast<unsigned long long>(i * 3 + 2),
@@ -181,7 +181,7 @@ static void test_associativity() {
 }
 
 static void test_double_equals_add() {
-    printf("\n--- Double consistency: 2*P == P + P ---\n");
+    (void)printf("\n--- Double consistency: 2*P == P + P ---\n");
 
     Point const G = Point::generator();
     CHECK(points_equal(G.dbl(), G.add(G)), "2*G == G + G");
@@ -189,7 +189,7 @@ static void test_double_equals_add() {
     for (uint64_t i = 1; i <= 5; ++i) {
         Point const P = deterministic_point(i);
         char buf[64];
-        std::snprintf(buf, sizeof(buf), "2*P_%llu == P_%llu + P_%llu",
+        (void)std::snprintf(buf, sizeof(buf), "2*P_%llu == P_%llu + P_%llu",
                       static_cast<unsigned long long>(i),
                       static_cast<unsigned long long>(i),
                       static_cast<unsigned long long>(i));
@@ -198,7 +198,7 @@ static void test_double_equals_add() {
 }
 
 static void test_scalar_ring_distributivity() {
-    printf("\n--- Scalar ring: (a + b)*G == a*G + b*G ---\n");
+    (void)printf("\n--- Scalar ring: (a + b)*G == a*G + b*G ---\n");
 
     Point const G = Point::generator();
 
@@ -211,7 +211,7 @@ static void test_scalar_ring_distributivity() {
         Point const rhs = G.scalar_mul(a).add(G.scalar_mul(b));
 
         char buf[64];
-        std::snprintf(buf, sizeof(buf), "(a_%llu + b_%llu)*G == a_%llu*G + b_%llu*G",
+        (void)std::snprintf(buf, sizeof(buf), "(a_%llu + b_%llu)*G == a_%llu*G + b_%llu*G",
                       static_cast<unsigned long long>(i * 2),
                       static_cast<unsigned long long>(i * 2 + 1),
                       static_cast<unsigned long long>(i * 2),
@@ -221,7 +221,7 @@ static void test_scalar_ring_distributivity() {
 }
 
 static void test_scalar_mul_associativity() {
-    printf("\n--- Scalar associativity: (a*b)*G == a*(b*G) ---\n");
+    (void)printf("\n--- Scalar associativity: (a*b)*G == a*(b*G) ---\n");
 
     Point const G = Point::generator();
 
@@ -234,7 +234,7 @@ static void test_scalar_mul_associativity() {
         Point const rhs = G.scalar_mul(b).scalar_mul(a);
 
         char buf[64];
-        std::snprintf(buf, sizeof(buf), "(a_%llu * b_%llu)*G == a_%llu * (b_%llu * G)",
+        (void)std::snprintf(buf, sizeof(buf), "(a_%llu * b_%llu)*G == a_%llu * (b_%llu * G)",
                       static_cast<unsigned long long>(i * 2),
                       static_cast<unsigned long long>(i * 2 + 1),
                       static_cast<unsigned long long>(i * 2),
@@ -244,7 +244,7 @@ static void test_scalar_mul_associativity() {
 }
 
 static void test_distributivity() {
-    printf("\n--- Distributivity: k*(P + Q) == k*P + k*Q ---\n");
+    (void)printf("\n--- Distributivity: k*(P + Q) == k*P + k*Q ---\n");
 
     for (uint64_t i = 0; i < 8; ++i) {
         Scalar const k = deterministic_scalar(i + 300);
@@ -255,7 +255,7 @@ static void test_distributivity() {
         Point const rhs = P.scalar_mul(k).add(Q.scalar_mul(k));
 
         char buf[64];
-        std::snprintf(buf, sizeof(buf), "k_%llu * (P_%llu + Q_%llu) == k_%llu*P_%llu + k_%llu*Q_%llu",
+        (void)std::snprintf(buf, sizeof(buf), "k_%llu * (P_%llu + Q_%llu) == k_%llu*P_%llu + k_%llu*Q_%llu",
                       static_cast<unsigned long long>(i),
                       static_cast<unsigned long long>(i * 2),
                       static_cast<unsigned long long>(i * 2 + 1),
@@ -268,7 +268,7 @@ static void test_distributivity() {
 }
 
 static void test_generator_order() {
-    printf("\n--- Generator order: n*G == O ---\n");
+    (void)printf("\n--- Generator order: n*G == O ---\n");
 
     // secp256k1 order n
     Scalar const n = Scalar::from_hex(
@@ -295,7 +295,7 @@ static void test_generator_order() {
 }
 
 static void test_sub_consistency() {
-    printf("\n--- Subtraction: P - Q == P + (-Q) ---\n");
+    (void)printf("\n--- Subtraction: P - Q == P + (-Q) ---\n");
 
     for (uint64_t i = 0; i < 5; ++i) {
         Point const P = deterministic_point(i * 2 + 400);
@@ -307,7 +307,7 @@ static void test_sub_consistency() {
         // P - Q via scalar: P + (n-1)*Q (equivalent to P + (-Q))
         // We just verify the negate path is consistent
         char buf[64];
-        std::snprintf(buf, sizeof(buf), "P_%llu - Q_%llu == P_%llu + (-Q_%llu)",
+        (void)std::snprintf(buf, sizeof(buf), "P_%llu - Q_%llu == P_%llu + (-Q_%llu)",
                       static_cast<unsigned long long>(i * 2),
                       static_cast<unsigned long long>(i * 2 + 1),
                       static_cast<unsigned long long>(i * 2),
@@ -320,7 +320,7 @@ static void test_sub_consistency() {
 }
 
 static void test_scalar_mul_small_values() {
-    printf("\n--- Scalar mul small values: k*G consistency ---\n");
+    (void)printf("\n--- Scalar mul small values: k*G consistency ---\n");
 
     Point const G = Point::generator();
     Point acc = Point::infinity();
@@ -330,7 +330,7 @@ static void test_scalar_mul_small_values() {
         acc = acc.add(G);
         Point const via_mul = G.scalar_mul(Scalar::from_uint64(k));
         char buf[64];
-        std::snprintf(buf, sizeof(buf), "%llu*G == G+G+...+G (%llu times)",
+        (void)std::snprintf(buf, sizeof(buf), "%llu*G == G+G+...+G (%llu times)",
                       static_cast<unsigned long long>(k),
                       static_cast<unsigned long long>(k));
         CHECK(points_equal(via_mul, acc), buf);
@@ -338,7 +338,7 @@ static void test_scalar_mul_small_values() {
 }
 
 static void test_inplace_consistency() {
-    printf("\n--- In-place ops consistency ---\n");
+    (void)printf("\n--- In-place ops consistency ---\n");
 
     Point const G = Point::generator();
     Scalar const k = deterministic_scalar(500);
@@ -395,7 +395,7 @@ static void test_inplace_consistency() {
 }
 
 static void test_dual_scalar_mul() {
-    printf("\n--- Dual scalar mul: a*G + b*P ---\n");
+    (void)printf("\n--- Dual scalar mul: a*G + b*P ---\n");
 
     Point const G = Point::generator();
 
@@ -408,7 +408,7 @@ static void test_dual_scalar_mul() {
         Point const dual = Point::dual_scalar_mul_gen_point(a, b, P);
 
         char buf[64];
-        std::snprintf(buf, sizeof(buf), "dual_mul(%llu) == a*G + b*P",
+        (void)std::snprintf(buf, sizeof(buf), "dual_mul(%llu) == a*G + b*P",
                       static_cast<unsigned long long>(i));
         CHECK(points_equal(dual, expected), buf);
     }
@@ -417,9 +417,9 @@ static void test_dual_scalar_mul() {
 // -- entry points ------------------------------------------------------------
 
 int test_ecc_properties_run() {
-    printf("\n================================================================\n");
-    printf("  ECC Property-Based Tests (secp256k1 group-law invariants)\n");
-    printf("================================================================\n");
+    (void)printf("\n================================================================\n");
+    (void)printf("  ECC Property-Based Tests (secp256k1 group-law invariants)\n");
+    (void)printf("================================================================\n");
 
     tests_run = 0;
     tests_passed = 0;
@@ -439,9 +439,9 @@ int test_ecc_properties_run() {
     test_inplace_consistency();
     test_dual_scalar_mul();
 
-    printf("\n================================================================\n");
-    printf("  ECC Property Results: %d / %d passed\n", tests_passed, tests_run);
-    printf("================================================================\n");
+    (void)printf("\n================================================================\n");
+    (void)printf("  ECC Property Results: %d / %d passed\n", tests_passed, tests_run);
+    (void)printf("================================================================\n");
 
     return (tests_passed == tests_run) ? 0 : 1;
 }

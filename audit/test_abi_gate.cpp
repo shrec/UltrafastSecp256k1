@@ -47,9 +47,12 @@ int test_abi_gate_run() {
     CHECK(((packed >> 8) & 0xFF) == minor, "Packed minor matches");
     CHECK((packed & 0xFF) == patch, "Packed patch matches");
     const char* ver_str = UFSECP_VERSION_STRING;
+    // cppcheck-suppress nullPointerRedundantCheck
     CHECK(ver_str != nullptr, "Version string is non-null");
+    // cppcheck-suppress nullPointerRedundantCheck
     CHECK(strlen(ver_str) > 0, "Version string is non-empty");
     bool has_dot = false, has_digit = false;
+    // cppcheck-suppress nullPointerRedundantCheck
     for (const char* p = ver_str; *p; ++p) {
         if (*p == '.') has_dot = true;
         if (*p >= '0' && *p <= '9') has_digit = true;
@@ -94,13 +97,16 @@ int main() {
     // 5. Version string
     const char* ver_str = UFSECP_VERSION_STRING;
     printf("  UFSECP_VERSION_STRING:    \"%s\"\n", ver_str);
+    // cppcheck-suppress nullPointerRedundantCheck
     CHECK(ver_str != nullptr, "Version string is non-null");
+    // cppcheck-suppress nullPointerRedundantCheck
     CHECK(strlen(ver_str) > 0, "Version string is non-empty");
 
     // 6. Validate that version string contains digits and dots
     {
         bool has_dot = false;
         bool has_digit = false;
+        // cppcheck-suppress nullPointerRedundantCheck
         for (const char* p = ver_str; *p; ++p) {
             if (*p == '.') has_dot = true;
             if (*p >= '0' && *p <= '9') has_digit = true;

@@ -37,11 +37,11 @@ static int g_fail = 0;
 static int g_crash = 0;  // should stay 0
 
 #define CHECK(cond, msg) do { \
-    if (!(cond)) { \
+    if (cond) { \
+        ++g_pass; \
+    } else { \
         std::printf("  FAIL: %s (line %d)\n", (msg), __LINE__); \
         ++g_fail; \
-    } else { \
-        ++g_pass; \
     } \
 } while(0)
 
@@ -50,7 +50,7 @@ static int g_crash = 0;  // should stay 0
     ++g_pass; \
 } while(0)
 
-static std::mt19937_64 rng(0xADD12E55);
+static std::mt19937_64 rng(0xADD12E55);  // NOLINT(cert-msc32-c,cert-msc51-cpp)
 
 static void fill_random(uint8_t* buf, size_t len) {
     for (size_t i = 0; i < len; ++i) {
@@ -877,7 +877,9 @@ static void suite_13_ffi_error_inspection(ufsecp_ctx* ctx) {
     // 13a: All defined error codes have a string
     for (int code = 0; code <= 10; ++code) {
         const char* str = ufsecp_error_str(static_cast<ufsecp_error_t>(code));
+        // cppcheck-suppress nullPointerRedundantCheck
         CHECK(str != nullptr, "error_str_not_null");
+        // cppcheck-suppress nullPointerRedundantCheck
         CHECK(std::strlen(str) > 0, "error_str_not_empty");
     }
 

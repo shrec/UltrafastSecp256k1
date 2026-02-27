@@ -360,17 +360,21 @@ void square_4_karatsuba(const uint64_t a[4], uint64_t result[8]) {
     
     // Subtract low_sq
     borrow = 0;
+    (void)borrow;
     borrow = subborrow64(borrow, sum_sq[0], low_sq[0], middle[0]);
     borrow = subborrow64(borrow, sum_sq[1], low_sq[1], middle[1]);
     borrow = subborrow64(borrow, sum_sq[2], low_sq[2], middle[2]);
     borrow = subborrow64(borrow, sum_sq[3], low_sq[3], middle[3]);
+    (void)borrow;
     
     // Subtract high_sq
     borrow = 0;
+    (void)borrow;
     borrow = subborrow64(borrow, middle[0], high_sq[0], middle[0]);
     borrow = subborrow64(borrow, middle[1], high_sq[1], middle[1]);
     borrow = subborrow64(borrow, middle[2], high_sq[2], middle[2]);
     borrow = subborrow64(borrow, middle[3], high_sq[3], middle[3]);
+    (void)borrow;
     
     // Step 5: Combine: result = low_sq + middle*2^128 + high_sq*2^256
     // Initialize result array
@@ -573,6 +577,7 @@ void montgomery_reduce_bmi2(uint64_t result[8]) {
         uint8_t carry = 0;
         carry = adcx64(reduced[i], lo, carry, reduced[i]);
         carry = adcx64(reduced[i + 1], hi, carry, reduced[i + 1]);
+        (void)carry;
         if (i + 2 < 5) {
             carry = adcx64(reduced[i + 2], 0, carry, reduced[i + 2]);
             if (i + 3 < 5) {
@@ -582,6 +587,7 @@ void montgomery_reduce_bmi2(uint64_t result[8]) {
                 }
             }
         }
+        (void)carry;
         
         // Add hi_limb * 2^32 (shift left by 32 bits)
         // This means: add (hi_limb << 32) at position i
@@ -591,6 +597,7 @@ void montgomery_reduce_bmi2(uint64_t result[8]) {
         
         carry = 0;
         carry = adcx64(reduced[i], lo_half, carry, reduced[i]);
+        (void)carry;
         carry = adcx64(reduced[i + 1], hi_half, carry, reduced[i + 1]);
         if (i + 2 < 5) {
             carry = adcx64(reduced[i + 2], 0, carry, reduced[i + 2]);
@@ -601,6 +608,7 @@ void montgomery_reduce_bmi2(uint64_t result[8]) {
                 }
             }
         }
+        (void)carry;
     }
     
     // If extra limb is non-zero, do one more reduction step
@@ -613,22 +621,26 @@ void montgomery_reduce_bmi2(uint64_t result[8]) {
         mulx64(hi_limb, 977, lo, hi);
         
         uint8_t carry = 0;
+        (void)carry;
         carry = adcx64(reduced[0], lo, carry, reduced[0]);
         carry = adcx64(reduced[1], hi, carry, reduced[1]);
         carry = adcx64(reduced[2], 0, carry, reduced[2]);
         carry = adcx64(reduced[3], 0, carry, reduced[3]);
         carry = adcx64(reduced[4], 0, carry, reduced[4]);
+        (void)carry;
         
         // Add hi_limb * 2^32
         uint64_t const lo_half = (hi_limb << 32);
         uint64_t const hi_half = hi_limb >> 32;
         
         carry = 0;
+        (void)carry;
         carry = adcx64(reduced[0], lo_half, carry, reduced[0]);
         carry = adcx64(reduced[1], hi_half, carry, reduced[1]);
         carry = adcx64(reduced[2], 0, carry, reduced[2]);
         carry = adcx64(reduced[3], 0, carry, reduced[3]);
         carry = adcx64(reduced[4], 0, carry, reduced[4]);
+        (void)carry;
     }
     
     // Final reduction: subtract p if result >= p

@@ -10,8 +10,6 @@
 #include <array>
 
 using namespace secp256k1;
-using fast::Scalar;
-using fast::Point;
 
 static int tests_run = 0;
 static int tests_passed = 0;

@@ -33,21 +33,21 @@ static int g_pass = 0, g_fail = 0;
 static const char* g_section = "";
 
 #define CHECK(cond, msg) do { \
-    if (!(cond)) { \
+    if (cond) { \
+        ++g_pass; \
+    } else { \
         printf("  FAIL [%s]: %s (line %d)\n", g_section, msg, __LINE__); \
         ++g_fail; \
-    } else { \
-        ++g_pass; \
     } \
 } while(0)
 
-static std::mt19937_64 rng(0xFA017'10EC7ULL);
+static std::mt19937_64 rng(0xFA017'10EC7ULL);  // NOLINT(cert-msc32-c,cert-msc51-cpp)
 
 static Scalar random_scalar() {
     std::array<uint8_t, 32> out{};
     for (int i = 0; i < 4; ++i) {
         uint64_t v = rng();
-        std::memcpy(out.data() + i * 8, &v, 8);
+        std::memcpy(out.data() + static_cast<std::size_t>(i) * 8, &v, 8);
     }
     for (;;) {
         auto s = Scalar::from_bytes(out);
@@ -60,7 +60,7 @@ static std::array<uint8_t, 32> random_message() {
     std::array<uint8_t, 32> msg{};
     for (int i = 0; i < 4; ++i) {
         uint64_t v = rng();
-        std::memcpy(msg.data() + i * 8, &v, 8);
+        std::memcpy(msg.data() + static_cast<std::size_t>(i) * 8, &v, 8);
     }
     return msg;
 }
@@ -223,7 +223,7 @@ static void test_schnorr_signature_fault() {
         std::array<uint8_t, 32> aux_rand{};
         for (int j = 0; j < 4; ++j) {
             uint64_t v = rng();
-            std::memcpy(aux_rand.data() + j * 8, &v, 8);
+            std::memcpy(aux_rand.data() + static_cast<std::size_t>(j) * 8, &v, 8);
         }
 
         auto sig = secp256k1::schnorr_sign(privkey, msg, aux_rand);
@@ -262,7 +262,7 @@ static void test_ct_fault_resilience() {
         std::array<uint8_t, 32> a{}, b{};
         for (int j = 0; j < 4; ++j) {
             uint64_t v = rng();
-            std::memcpy(a.data() + j * 8, &v, 8);
+            std::memcpy(a.data() + static_cast<std::size_t>(j) * 8, &v, 8);
         }
         b = a;
 
@@ -286,7 +286,7 @@ static void test_ct_fault_resilience() {
         std::array<uint8_t, 32> a{};
         for (int j = 0; j < 4; ++j) {
             uint64_t v = rng();
-            std::memcpy(a.data() + j * 8, &v, 8);
+            std::memcpy(a.data() + static_cast<std::size_t>(j) * 8, &v, 8);
         }
         int const cmp = secp256k1::ct::ct_compare(a.data(), a.data(), 32);
         CHECK(cmp == 0, "ct_compare(x,x) must be 0");

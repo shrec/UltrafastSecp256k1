@@ -10,7 +10,6 @@ namespace secp256k1 {
 
 using fast::Scalar;
 using fast::Point;
-using fast::FieldElement;
 
 // -- Window Width Selection ---------------------------------------------------
 

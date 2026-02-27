@@ -33,16 +33,16 @@ using namespace secp256k1::fast;
 static int g_pass = 0, g_fail = 0;
 
 #define CHECK(cond, msg) do { \
-    if (!(cond)) { \
+    if (cond) { \
+        ++g_pass; \
+    } else { \
         printf("  FAIL: %s (line %d)\n", msg, __LINE__); \
         ++g_fail; \
-    } else { \
-        ++g_pass; \
     } \
 } while(0)
 
 // Deterministic PRNG for reproducibility (seed can be changed for different runs)
-static std::mt19937_64 rng(42);
+static std::mt19937_64 rng(42);  // NOLINT(cert-msc32-c,cert-msc51-cpp)
 
 // Iteration multiplier: 1 = default (CI), larger = nightly/stress.
 // Set via argv[1] or DIFFERENTIAL_MULTIPLIER env var.
@@ -52,7 +52,7 @@ static std::array<uint8_t, 32> random_bytes() {
     std::array<uint8_t, 32> out{};
     for (int i = 0; i < 4; ++i) {
         uint64_t v = rng();
-        std::memcpy(out.data() + i * 8, &v, 8);
+        std::memcpy(out.data() + static_cast<std::size_t>(i) * 8, &v, 8);
     }
     return out;
 }

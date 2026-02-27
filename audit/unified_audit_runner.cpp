@@ -311,15 +311,15 @@ static PlatformInfo detect_platform() {
     // -- Compiler --
 #if defined(__clang__)
     char buf[128];
-    std::snprintf(buf, sizeof(buf), "Clang %d.%d.%d", __clang_major__, __clang_minor__, __clang_patchlevel__);
+    (void)std::snprintf(buf, sizeof(buf), "Clang %d.%d.%d", __clang_major__, __clang_minor__, __clang_patchlevel__);
     info.compiler = buf;
 #elif defined(__GNUC__)
     char buf[128];
-    std::snprintf(buf, sizeof(buf), "GCC %d.%d.%d", __GNUC__, __GNUC_MINOR__, __GNUC_PATCHLEVEL__);
+    (void)std::snprintf(buf, sizeof(buf), "GCC %d.%d.%d", __GNUC__, __GNUC_MINOR__, __GNUC_PATCHLEVEL__);
     info.compiler = buf;
 #elif defined(_MSC_VER)
     char buf[128];
-    std::snprintf(buf, sizeof(buf), "MSVC %d", _MSC_VER);
+    (void)std::snprintf(buf, sizeof(buf), "MSVC %d", _MSC_VER);
     info.compiler = buf;
 #else
     info.compiler = "Unknown";
@@ -336,7 +336,7 @@ static PlatformInfo detect_platform() {
     auto now = std::chrono::system_clock::now();
     auto t = std::chrono::system_clock::to_time_t(now);
     char timebuf[64];
-    std::strftime(timebuf, sizeof(timebuf), "%Y-%m-%dT%H:%M:%S", std::localtime(&t));
+    (void)std::strftime(timebuf, sizeof(timebuf), "%Y-%m-%dT%H:%M:%S", std::localtime(&t));
     info.timestamp = timebuf;
 
     // -- Version / git / framework --
@@ -422,7 +422,7 @@ static void write_json_report(const char* path,
                                double total_ms) {
     FILE* f = std::fopen(path, "w");
     if (!f) {
-        std::fprintf(stderr, "WARNING: Cannot open %s for writing\n", path);
+        (void)std::fprintf(stderr, "WARNING: Cannot open %s for writing\n", path);
         return;
     }
 
@@ -434,66 +434,66 @@ static void write_json_report(const char* path,
 
     auto sections = compute_section_summaries(results);
 
-    std::fprintf(f, "{\n");
-    std::fprintf(f, "  \"report_type\": \"industrial_self_audit\",\n");
-    std::fprintf(f, "  \"library\": \"UltrafastSecp256k1\",\n");
-    std::fprintf(f, "  \"library_version\": \"%s\",\n", json_escape(plat.library_version).c_str());
-    std::fprintf(f, "  \"git_hash\": \"%s\",\n", json_escape(plat.git_hash).c_str());
-    std::fprintf(f, "  \"audit_framework_version\": \"%s\",\n", json_escape(plat.framework_version).c_str());
-    std::fprintf(f, "  \"timestamp\": \"%s\",\n", json_escape(plat.timestamp).c_str());
-    std::fprintf(f, "  \"platform\": {\n");
-    std::fprintf(f, "    \"os\": \"%s\",\n", json_escape(plat.os).c_str());
-    std::fprintf(f, "    \"arch\": \"%s\",\n", json_escape(plat.arch).c_str());
-    std::fprintf(f, "    \"compiler\": \"%s\",\n", json_escape(plat.compiler).c_str());
-    std::fprintf(f, "    \"build_type\": \"%s\"\n", json_escape(plat.build_type).c_str());
-    std::fprintf(f, "  },\n");
-    std::fprintf(f, "  \"summary\": {\n");
-    std::fprintf(f, "    \"total_modules\": %d,\n", (int)results.size() + 1);
-    std::fprintf(f, "    \"passed\": %d,\n", total_pass);
-    std::fprintf(f, "    \"failed\": %d,\n", total_fail);
-    std::fprintf(f, "    \"all_passed\": %s,\n", (total_fail == 0) ? "true" : "false");
-    std::fprintf(f, "    \"total_time_ms\": %.1f,\n", total_ms);
-    std::fprintf(f, "    \"audit_verdict\": \"%s\"\n",
+    (void)std::fprintf(f, "{\n");
+    (void)std::fprintf(f, "  \"report_type\": \"industrial_self_audit\",\n");
+    (void)std::fprintf(f, "  \"library\": \"UltrafastSecp256k1\",\n");
+    (void)std::fprintf(f, "  \"library_version\": \"%s\",\n", json_escape(plat.library_version).c_str());
+    (void)std::fprintf(f, "  \"git_hash\": \"%s\",\n", json_escape(plat.git_hash).c_str());
+    (void)std::fprintf(f, "  \"audit_framework_version\": \"%s\",\n", json_escape(plat.framework_version).c_str());
+    (void)std::fprintf(f, "  \"timestamp\": \"%s\",\n", json_escape(plat.timestamp).c_str());
+    (void)std::fprintf(f, "  \"platform\": {\n");
+    (void)std::fprintf(f, "    \"os\": \"%s\",\n", json_escape(plat.os).c_str());
+    (void)std::fprintf(f, "    \"arch\": \"%s\",\n", json_escape(plat.arch).c_str());
+    (void)std::fprintf(f, "    \"compiler\": \"%s\",\n", json_escape(plat.compiler).c_str());
+    (void)std::fprintf(f, "    \"build_type\": \"%s\"\n", json_escape(plat.build_type).c_str());
+    (void)std::fprintf(f, "  },\n");
+    (void)std::fprintf(f, "  \"summary\": {\n");
+    (void)std::fprintf(f, "    \"total_modules\": %d,\n", (int)results.size() + 1);
+    (void)std::fprintf(f, "    \"passed\": %d,\n", total_pass);
+    (void)std::fprintf(f, "    \"failed\": %d,\n", total_fail);
+    (void)std::fprintf(f, "    \"all_passed\": %s,\n", (total_fail == 0) ? "true" : "false");
+    (void)std::fprintf(f, "    \"total_time_ms\": %.1f,\n", total_ms);
+    (void)std::fprintf(f, "    \"audit_verdict\": \"%s\"\n",
                  (total_fail == 0) ? "AUDIT-READY" : "AUDIT-BLOCKED");
-    std::fprintf(f, "  },\n");
+    (void)std::fprintf(f, "  },\n");
 
     // Selftest
-    std::fprintf(f, "  \"selftest\": {\n");
-    std::fprintf(f, "    \"passed\": %s,\n", selftest_passed ? "true" : "false");
-    std::fprintf(f, "    \"time_ms\": %.1f\n", selftest_ms);
-    std::fprintf(f, "  },\n");
+    (void)std::fprintf(f, "  \"selftest\": {\n");
+    (void)std::fprintf(f, "    \"passed\": %s,\n", selftest_passed ? "true" : "false");
+    (void)std::fprintf(f, "    \"time_ms\": %.1f\n", selftest_ms);
+    (void)std::fprintf(f, "  },\n");
 
     // Sections summary
-    std::fprintf(f, "  \"sections\": [\n");
+    (void)std::fprintf(f, "  \"sections\": [\n");
     for (int s = 0; s < (int)sections.size(); ++s) {
         auto& sec = sections[s];
-        std::fprintf(f, "    {\n");
-        std::fprintf(f, "      \"id\": \"%s\",\n", sec.section_id);
-        std::fprintf(f, "      \"title\": \"%s\",\n", json_escape(sec.title_en).c_str());
-        std::fprintf(f, "      \"total\": %d,\n", sec.total);
-        std::fprintf(f, "      \"passed\": %d,\n", sec.passed);
-        std::fprintf(f, "      \"failed\": %d,\n", sec.failed);
-        std::fprintf(f, "      \"time_ms\": %.1f,\n", sec.time_ms);
-        std::fprintf(f, "      \"status\": \"%s\",\n", (sec.failed == 0) ? "PASS" : "FAIL");
+        (void)std::fprintf(f, "    {\n");
+        (void)std::fprintf(f, "      \"id\": \"%s\",\n", sec.section_id);
+        (void)std::fprintf(f, "      \"title\": \"%s\",\n", json_escape(sec.title_en).c_str());
+        (void)std::fprintf(f, "      \"total\": %d,\n", sec.total);
+        (void)std::fprintf(f, "      \"passed\": %d,\n", sec.passed);
+        (void)std::fprintf(f, "      \"failed\": %d,\n", sec.failed);
+        (void)std::fprintf(f, "      \"time_ms\": %.1f,\n", sec.time_ms);
+        (void)std::fprintf(f, "      \"status\": \"%s\",\n", (sec.failed == 0) ? "PASS" : "FAIL");
 
         // Nested modules for this section
-        std::fprintf(f, "      \"modules\": [\n");
+        (void)std::fprintf(f, "      \"modules\": [\n");
         bool first = true;
         for (auto& r : results) {
             if (std::strcmp(r.section, sec.section_id) != 0) continue;
-            if (!first) std::fprintf(f, ",\n");
+            if (!first) (void)std::fprintf(f, ",\n");
             first = false;
-            std::fprintf(f, "        { \"id\": \"%s\", \"name\": \"%s\", \"passed\": %s, \"time_ms\": %.1f }",
+            (void)std::fprintf(f, "        { \"id\": \"%s\", \"name\": \"%s\", \"passed\": %s, \"time_ms\": %.1f }",
                          r.id, json_escape(r.name).c_str(),
                          r.passed ? "true" : "false", r.elapsed_ms);
         }
-        std::fprintf(f, "\n      ]\n");
-        std::fprintf(f, "    }%s\n", (s + 1 < (int)sections.size()) ? "," : "");
+        (void)std::fprintf(f, "\n      ]\n");
+        (void)std::fprintf(f, "    }%s\n", (s + 1 < (int)sections.size()) ? "," : "");
     }
-    std::fprintf(f, "  ]\n");
-    std::fprintf(f, "}\n");
+    (void)std::fprintf(f, "  ]\n");
+    (void)std::fprintf(f, "}\n");
 
-    std::fclose(f);
+    (void)std::fclose(f);
 }
 
 // ============================================================================
@@ -507,7 +507,7 @@ static void write_text_report(const char* path,
                                double total_ms) {
     FILE* f = std::fopen(path, "w");
     if (!f) {
-        std::fprintf(stderr, "WARNING: Cannot open %s for writing\n", path);
+        (void)std::fprintf(stderr, "WARNING: Cannot open %s for writing\n", path);
         return;
     }
 
@@ -519,43 +519,43 @@ static void write_text_report(const char* path,
 
     auto sections = compute_section_summaries(results);
 
-    std::fprintf(f, "================================================================\n");
-    std::fprintf(f, "  UltrafastSecp256k1 -- Industrial Self-Audit Report\n");
-    std::fprintf(f, "================================================================\n\n");
-    std::fprintf(f, "Library:    UltrafastSecp256k1 v%s\n", plat.library_version.c_str());
-    std::fprintf(f, "Git Hash:   %s\n", plat.git_hash.c_str());
-    std::fprintf(f, "Framework:  Audit Framework v%s\n", plat.framework_version.c_str());
-    std::fprintf(f, "Timestamp:  %s\n", plat.timestamp.c_str());
-    std::fprintf(f, "OS:         %s\n", plat.os.c_str());
-    std::fprintf(f, "Arch:       %s\n", plat.arch.c_str());
-    std::fprintf(f, "Compiler:   %s\n", plat.compiler.c_str());
-    std::fprintf(f, "Build:      %s\n", plat.build_type.c_str());
-    std::fprintf(f, "\n");
+    (void)std::fprintf(f, "================================================================\n");
+    (void)std::fprintf(f, "  UltrafastSecp256k1 -- Industrial Self-Audit Report\n");
+    (void)std::fprintf(f, "================================================================\n\n");
+    (void)std::fprintf(f, "Library:    UltrafastSecp256k1 v%s\n", plat.library_version.c_str());
+    (void)std::fprintf(f, "Git Hash:   %s\n", plat.git_hash.c_str());
+    (void)std::fprintf(f, "Framework:  Audit Framework v%s\n", plat.framework_version.c_str());
+    (void)std::fprintf(f, "Timestamp:  %s\n", plat.timestamp.c_str());
+    (void)std::fprintf(f, "OS:         %s\n", plat.os.c_str());
+    (void)std::fprintf(f, "Arch:       %s\n", plat.arch.c_str());
+    (void)std::fprintf(f, "Compiler:   %s\n", plat.compiler.c_str());
+    (void)std::fprintf(f, "Build:      %s\n", plat.build_type.c_str());
+    (void)std::fprintf(f, "\n");
 
     // -- Library selftest ---
-    std::fprintf(f, "----------------------------------------------------------------\n");
-    std::fprintf(f, "  [0] Library Selftest (core KAT)          %s  (%.0f ms)\n",
+    (void)std::fprintf(f, "----------------------------------------------------------------\n");
+    (void)std::fprintf(f, "  [0] Library Selftest (core KAT)          %s  (%.0f ms)\n",
                  selftest_passed ? "PASS" : "FAIL", selftest_ms);
-    std::fprintf(f, "----------------------------------------------------------------\n\n");
+    (void)std::fprintf(f, "----------------------------------------------------------------\n\n");
 
     // -- 8 Sections ---
     int module_idx = 1;
     for (int s = 0; s < (int)sections.size(); ++s) {
         auto& sec = sections[s];
-        std::fprintf(f, "================================================================\n");
-        std::fprintf(f, "  Section %d/8: %s\n", s + 1, sec.title_en);
-        std::fprintf(f, "================================================================\n");
+        (void)std::fprintf(f, "================================================================\n");
+        (void)std::fprintf(f, "  Section %d/8: %s\n", s + 1, sec.title_en);
+        (void)std::fprintf(f, "================================================================\n");
 
         for (auto& r : results) {
             if (std::strcmp(r.section, sec.section_id) != 0) continue;
-            std::fprintf(f, "  [%2d] %-45s %s  (%.0f ms)\n",
+            (void)std::fprintf(f, "  [%2d] %-45s %s  (%.0f ms)\n",
                          module_idx++, r.name,
                          r.passed ? "PASS" : "FAIL", r.elapsed_ms);
         }
 
-        std::fprintf(f, "  -------- Section Result: %d/%d passed", sec.passed, sec.total);
-        if (sec.failed > 0) std::fprintf(f, " (%d FAILED)", sec.failed);
-        std::fprintf(f, " (%.0f ms)\n\n", sec.time_ms);
+        (void)std::fprintf(f, "  -------- Section Result: %d/%d passed", sec.passed, sec.total);
+        if (sec.failed > 0) (void)std::fprintf(f, " (%d FAILED)", sec.failed);
+        (void)std::fprintf(f, " (%.0f ms)\n\n", sec.time_ms);
     }
 
     // -- Grand total ---
@@ -643,7 +643,7 @@ int main(int argc, char* argv[]) {
             if (section_filter == SECTIONS[s].id) { found = true; break; }
         }
         if (!found) {
-            std::fprintf(stderr, "ERROR: unknown section '%s'\n", section_filter.c_str());
+            (void)std::fprintf(stderr, "ERROR: unknown section '%s'\n", section_filter.c_str());
             print_usage();
             return 1;
         }
@@ -735,7 +735,7 @@ int main(int argc, char* argv[]) {
         ++run_idx;
         if (!json_only) {
             std::printf("  [%2d/%d] %-45s ", run_idx, modules_to_run, m.name);
-            std::fflush(stdout);
+            (void)std::fflush(stdout);
         }
 
         auto t0 = std::chrono::steady_clock::now();

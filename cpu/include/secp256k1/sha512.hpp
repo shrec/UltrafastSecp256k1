@@ -67,11 +67,13 @@ public:
     digest_type finalize() noexcept {
         std::uint64_t const bit_len = total_ * 8;
         auto pad = static_cast<std::uint8_t>(0x80);
+        // cppcheck-suppress objectIndex
         update(&pad, 1);
 
         // Pad to 112 mod 128
         while (buf_len_ != 112) {
             std::uint8_t zero = 0;
+            // cppcheck-suppress objectIndex
             update(&zero, 1);
         }
 

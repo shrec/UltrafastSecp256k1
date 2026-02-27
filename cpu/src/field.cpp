@@ -2205,7 +2205,7 @@ FieldElement pow_p_minus_2_binary(FieldElement base) {
 }
 
 // Double-base chain (uses base and base^2 simultaneously)
-[[nodiscard]] FieldElement pow_p_minus_2_double_base(FieldElement base) {
+[[nodiscard]] FieldElement pow_p_minus_2_double_base(const FieldElement& base) {
     FieldElement const base2 = base.square();
     FieldElement result = FieldElement::one();
     
@@ -2768,7 +2768,9 @@ static const uint8_t inv256[128] = {
     int32_t di = 0, ei = 0, md = 0, me = 0, sd = 0, se = 0;
     int64_t cd = 0, ce = 0;
 
+    // cppcheck-suppress shiftTooManyBitsSigned
     sd = d.v[8] >> 31;
+    // cppcheck-suppress shiftTooManyBitsSigned
     se = e.v[8] >> 31;
     md = (u & sd) + (v & se);
     me = (q & sd) + (r & se);
@@ -2828,6 +2830,7 @@ static const uint8_t inv256[128] = {
             r5=r.v[5], r6=r.v[6], r7=r.v[7], r8=r.v[8];
     int32_t cond_add = 0, cond_negate = 0;
 
+    // cppcheck-suppress shiftTooManyBitsSigned
     cond_add = r8 >> 31;
     r0 += mod.modulus.v[0] & cond_add;
     r1 += mod.modulus.v[1] & cond_add;
@@ -2838,6 +2841,7 @@ static const uint8_t inv256[128] = {
     r6 += mod.modulus.v[6] & cond_add;
     r7 += mod.modulus.v[7] & cond_add;
     r8 += mod.modulus.v[8] & cond_add;
+    // cppcheck-suppress shiftTooManyBitsSigned
     cond_negate = sign >> 31;
     r0 = (r0 ^ cond_negate) - cond_negate;
     r1 = (r1 ^ cond_negate) - cond_negate;
@@ -2857,6 +2861,7 @@ static const uint8_t inv256[128] = {
     r7 += r6 >> 30; r6 &= M30;
     r8 += r7 >> 30; r7 &= M30;
 
+    // cppcheck-suppress shiftTooManyBitsSigned
     cond_add = r8 >> 31;
     r0 += mod.modulus.v[0] & cond_add;
     r1 += mod.modulus.v[1] & cond_add;
@@ -2937,8 +2942,11 @@ static const uint8_t inv256[128] = {
         }
 
         int32_t fn = f.v[len - 1], gn = g.v[len - 1];
+        // cppcheck-suppress shiftTooManyBitsSigned
         int32_t cond = ((int32_t)len - 2) >> 31;
+        // cppcheck-suppress shiftTooManyBitsSigned
         cond |= fn ^ (fn >> 31);
+        // cppcheck-suppress shiftTooManyBitsSigned
         cond |= gn ^ (gn >> 31);
         if (cond == 0) {
             f.v[len - 2] |= (uint32_t)fn << 30;

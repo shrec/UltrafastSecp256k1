@@ -24,7 +24,6 @@
 
 using secp256k1::fast::Scalar;
 using secp256k1::fast::Point;
-using secp256k1::fast::FieldElement;
 
 // -- Minimal test harness -----------------------------------------------------
 
@@ -44,7 +43,7 @@ static std::array<uint8_t, 32> random32(std::mt19937_64& rng) {
     std::array<uint8_t, 32> out{};
     for (int i = 0; i < 4; ++i) {
         uint64_t v = rng();
-        std::memcpy(out.data() + i * 8, &v, 8);
+        std::memcpy(out.data() + static_cast<std::size_t>(i) * 8, &v, 8);
     }
     return out;
 }
@@ -107,7 +106,7 @@ for (int i = 0; i < n; ++i) {
 static void test_musig2_rogue_key_resistance() {
     std::printf("[1] MuSig2: Rogue-Key Resistance\n");
 
-    std::mt19937_64 rng(0xD0AEFACE);
+    std::mt19937_64 rng(0xD0AEFACE);  // NOLINT(cert-msc32-c,cert-msc51-cpp)
     const int N = 10;
 
     for (int round = 0; round < N; ++round) {
@@ -166,7 +165,7 @@ static void test_musig2_rogue_key_resistance() {
 static void test_musig2_key_coefficient_binding() {
     std::printf("[2] MuSig2: Key Coefficient Depends on Full Group\n");
 
-    std::mt19937_64 rng(0xC0EFF1C1);
+    std::mt19937_64 rng(0xC0EFF1C1);  // NOLINT(cert-msc32-c,cert-msc51-cpp)
     const int N = 10;
 
     for (int round = 0; round < N; ++round) {
@@ -202,7 +201,7 @@ static void test_musig2_key_coefficient_binding() {
 static void test_musig2_message_binding() {
     std::printf("[3] MuSig2: Different Messages -> Different Signatures\n");
 
-    std::mt19937_64 rng(0xF5650001);
+    std::mt19937_64 rng(0xF5650001);  // NOLINT(cert-msc32-c,cert-msc51-cpp)
     const int N = 20;
 
     for (int round = 0; round < N; ++round) {
@@ -274,7 +273,7 @@ static void test_musig2_message_binding() {
 static void test_musig2_nonce_binding() {
     std::printf("[4] MuSig2: Nonce Binding (fresh nonces -> different R)\n");
 
-    std::mt19937_64 rng(0xA0CEFACE);
+    std::mt19937_64 rng(0xA0CEFACE);  // NOLINT(cert-msc32-c,cert-msc51-cpp)
     const int N = 20;
 
     for (int round = 0; round < N; ++round) {
@@ -334,7 +333,7 @@ for (int i = 0; i < 2; ++i) {
 static void test_musig2_fault_injection() {
     std::printf("[5] MuSig2: Fault Injection (wrong key in partial sign)\n");
 
-    std::mt19937_64 rng(0xFA017000);
+    std::mt19937_64 rng(0xFA017000);  // NOLINT(cert-msc32-c,cert-msc51-cpp)
     const int N = 10;
 
     for (int round = 0; round < N; ++round) {
@@ -390,7 +389,7 @@ static void test_musig2_fault_injection() {
 static void test_frost_bad_share_dkg() {
     std::printf("[6] FROST: Malicious Participant -- Bad DKG Share\n");
 
-    std::mt19937_64 rng(0xBAD50A8E);
+    std::mt19937_64 rng(0xBAD50A8E);  // NOLINT(cert-msc32-c,cert-msc51-cpp)
     const int N = 10;
 
     for (int round = 0; round < N; ++round) {
@@ -430,7 +429,7 @@ for (uint32_t j = 0; j < n; ++j) {
 static void test_frost_bad_partial_sig() {
     std::printf("[7] FROST: Malicious Participant -- Bad Partial Sig\n");
 
-    std::mt19937_64 rng(0xBAD51600);
+    std::mt19937_64 rng(0xBAD51600);  // NOLINT(cert-msc32-c,cert-msc51-cpp)
     const int N = 10;
 
     for (int round = 0; round < N; ++round) {
@@ -501,7 +500,7 @@ for (uint32_t j = 0; j < n; ++j) ms.push_back(smatrix[j][i]);
 static void test_frost_message_binding() {
     std::printf("[8] FROST: Message Binding (different messages -> different sigs)\n");
 
-    std::mt19937_64 rng(0xF5B1D000);
+    std::mt19937_64 rng(0xF5B1D000);  // NOLINT(cert-msc32-c,cert-msc51-cpp)
     const int N = 10;
 
     for (int round = 0; round < N; ++round) {
@@ -562,7 +561,7 @@ for (uint32_t j = 0; j < n; ++j) ms.push_back(smatrix[j][i]);
 static void test_frost_signer_set_binding() {
     std::printf("[9] FROST: Signer Set Binding (same key, different subsets)\n");
 
-    std::mt19937_64 rng(0xF5557000);
+    std::mt19937_64 rng(0xF5557000);  // NOLINT(cert-msc32-c,cert-msc51-cpp)
 
     // 2-of-3 DKG
     uint32_t t = 2, n = 3;
