@@ -180,9 +180,9 @@ $(document).ready(function(){initNavTree('sha256_8hpp_source.html',''); initResi
 <div class="line"><a id="l00072" name="l00072"></a><span class="lineno">   72</span> </div>
 <div class="line"><a id="l00073" name="l00073"></a><span class="lineno">   73</span>        <span class="comment">// -- Direct in-place padding (no per-byte update() calls) ---------</span></div>
 <div class="line"><a id="l00074" name="l00074"></a><span class="lineno">   74</span>        <span class="comment">// buf_len_ is invariantly [0,63] after update() processes full blocks.</span></div>
-<div class="line"><a id="l00075" name="l00075"></a><span class="lineno">   75</span>        <span class="comment">// Branchless clamp satisfies static analysis (Sonar S3519) without</span></div>
-<div class="line"><a id="l00076" name="l00076"></a><span class="lineno">   76</span>        <span class="comment">// changing behavior -- the mask is a no-op when the invariant holds.</span></div>
-<div class="line"><a id="l00077" name="l00077"></a><span class="lineno">   77</span>        buf_len_ &amp;= 63u;</div>
+<div class="line"><a id="l00075" name="l00075"></a><span class="lineno">   75</span>        <span class="comment">// Explicit check satisfies static analysis (Sonar overflow warning)</span></div>
+<div class="line"><a id="l00076" name="l00076"></a><span class="lineno">   76</span>        <span class="comment">// without changing behavior -- the branch is never taken.</span></div>
+<div class="line"><a id="l00077" name="l00077"></a><span class="lineno">   77</span>        <span class="keywordflow">if</span> (buf_len_ &gt;= 64) buf_len_ = 0;</div>
 <div class="line"><a id="l00078" name="l00078"></a><span class="lineno">   78</span>        buf_[buf_len_++] = 0x80;</div>
 <div class="line"><a id="l00079" name="l00079"></a><span class="lineno">   79</span> </div>
 <div class="line"><a id="l00080" name="l00080"></a><span class="lineno">   80</span>        <span class="keywordflow">if</span> (buf_len_ &gt; 56) {</div>
