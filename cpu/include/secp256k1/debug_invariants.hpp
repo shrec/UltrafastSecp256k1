@@ -95,19 +95,19 @@ inline bool is_on_curve(const Point& pt) noexcept {
     const FieldElement52& Y = pt.Y52();
     const FieldElement52& Z = pt.Z52();
 
-    FieldElement52 Y2 = Y.square();
-    FieldElement52 Z2 = Z.square();
-    FieldElement52 Z4 = Z2.square();
-    FieldElement52 Z6 = Z4 * Z2;
-    FieldElement52 X2 = X.square();
-    FieldElement52 X3 = X2 * X;
+    FieldElement52 const Y2 = Y.square();
+    FieldElement52 const Z2 = Z.square();
+    FieldElement52 const Z4 = Z2.square();
+    FieldElement52 const Z6 = Z4 * Z2;
+    FieldElement52 const X2 = X.square();
+    FieldElement52 const X3 = X2 * X;
 
     // Construct literal 7 in 5x52 representation
     FieldElement52 seven{};
     seven.n[0] = 7;
 
     // rhs = X^3 + 7*Z^6   (lazy add; magnitude = 2, well within headroom)
-    FieldElement52 rhs = X3 + seven * Z6;
+    FieldElement52 const rhs = X3 + seven * Z6;
 
     // FE52 operator== normalizes both sides internally
     return Y2 == rhs;

@@ -32,7 +32,7 @@ int g_tests_failed = 0;
 
 // Compare FieldElement52 against FieldElement by converting to bytes
 bool fe52_equals_fe64(const FieldElement52& a52, const FieldElement& a64) {
-    FieldElement converted = a52.to_fe();
+    FieldElement const converted = a52.to_fe();
     return converted == a64;
 }
 
@@ -72,17 +72,17 @@ constexpr int NUM_VECTORS = sizeof(VECTORS) / sizeof(VECTORS[0]);
 void test_conversion_roundtrip() {
     std::printf("-- Conversion Roundtrip (4x64 -> 5x52 -> 4x64) --\n");
     for (int i = 0; i < NUM_VECTORS; ++i) {
-        FieldElement fe = FieldElement::from_limbs(VECTORS[i].limbs);
-        FieldElement52 fe52 = FieldElement52::from_fe(fe);
-        FieldElement back = fe52.to_fe();
+        FieldElement const fe = FieldElement::from_limbs(VECTORS[i].limbs);
+        FieldElement52 const fe52 = FieldElement52::from_fe(fe);
+        FieldElement const back = fe52.to_fe();
         CHECK(fe == back, VECTORS[i].name);
     }
 }
 
 void test_zero_one() {
     std::printf("-- Zero / One --\n");
-    FieldElement52 z = FieldElement52::zero();
-    FieldElement52 o = FieldElement52::one();
+    FieldElement52 const z = FieldElement52::zero();
+    FieldElement52 const o = FieldElement52::one();
     CHECK(fe52_equals_fe64(z, FieldElement::zero()), "zero matches");
     CHECK(fe52_equals_fe64(o, FieldElement::one()),  "one matches");
     CHECK(z.is_zero(), "zero is_zero");
@@ -93,16 +93,16 @@ void test_addition() {
     std::printf("-- Addition --\n");
     for (int i = 0; i < NUM_VECTORS; ++i) {
         for (int j = 0; j < NUM_VECTORS; ++j) {
-            FieldElement a = FieldElement::from_limbs(VECTORS[i].limbs);
-            FieldElement b = FieldElement::from_limbs(VECTORS[j].limbs);
-            FieldElement sum64 = a + b;
+            FieldElement const a = FieldElement::from_limbs(VECTORS[i].limbs);
+            FieldElement const b = FieldElement::from_limbs(VECTORS[j].limbs);
+            FieldElement const sum64 = a + b;
 
-            FieldElement52 a52 = FieldElement52::from_fe(a);
-            FieldElement52 b52 = FieldElement52::from_fe(b);
-            FieldElement52 sum52 = a52 + b52;
+            FieldElement52 const a52 = FieldElement52::from_fe(a);
+            FieldElement52 const b52 = FieldElement52::from_fe(b);
+            FieldElement52 const sum52 = a52 + b52;
 
             // Must normalize before comparing (addition is lazy!)
-            bool ok = fe52_equals_fe64(sum52, sum64);
+            bool const ok = fe52_equals_fe64(sum52, sum64);
             if (!ok) {
                 char buf[128];
                 std::snprintf(buf, sizeof(buf), "add(%s, %s)",
@@ -119,10 +119,10 @@ void test_addition() {
 void test_lazy_chain() {
     std::printf("-- Lazy Addition Chain (accumulate without normalize) --\n");
 
-    FieldElement a = FieldElement::from_limbs(VECTORS[7].limbs);  // Gx
-    FieldElement b = FieldElement::from_limbs(VECTORS[8].limbs);  // Gy
-    FieldElement52 a52 = FieldElement52::from_fe(a);
-    FieldElement52 b52 = FieldElement52::from_fe(b);
+    FieldElement const a = FieldElement::from_limbs(VECTORS[7].limbs);  // Gx
+    FieldElement const b = FieldElement::from_limbs(VECTORS[8].limbs);  // Gy
+    FieldElement52 const a52 = FieldElement52::from_fe(a);
+    FieldElement52 const b52 = FieldElement52::from_fe(b);
 
     // Accumulate 100 additions without normalizing
     FieldElement52 chain52 = a52;
@@ -146,13 +146,13 @@ void test_lazy_chain() {
 void test_negate() {
     std::printf("-- Negate --\n");
     for (int i = 0; i < NUM_VECTORS; ++i) {
-        FieldElement fe = FieldElement::from_limbs(VECTORS[i].limbs);
-        FieldElement neg64 = FieldElement::zero() - fe;
+        FieldElement const fe = FieldElement::from_limbs(VECTORS[i].limbs);
+        FieldElement const neg64 = FieldElement::zero() - fe;
 
-        FieldElement52 fe52 = FieldElement52::from_fe(fe);
-        FieldElement52 neg52 = fe52.negate(1);
+        FieldElement52 const fe52 = FieldElement52::from_fe(fe);
+        FieldElement52 const neg52 = fe52.negate(1);
 
-        bool ok = fe52_equals_fe64(neg52, neg64);
+        bool const ok = fe52_equals_fe64(neg52, neg64);
         if (!ok) {
             char buf[128];
             std::snprintf(buf, sizeof(buf), "negate(%s)", VECTORS[i].name);
@@ -167,15 +167,15 @@ void test_multiplication() {
     std::printf("-- Multiplication --\n");
     for (int i = 0; i < NUM_VECTORS; ++i) {
         for (int j = 0; j < NUM_VECTORS; ++j) {
-            FieldElement a = FieldElement::from_limbs(VECTORS[i].limbs);
-            FieldElement b = FieldElement::from_limbs(VECTORS[j].limbs);
-            FieldElement prod64 = a * b;
+            FieldElement const a = FieldElement::from_limbs(VECTORS[i].limbs);
+            FieldElement const b = FieldElement::from_limbs(VECTORS[j].limbs);
+            FieldElement const prod64 = a * b;
 
-            FieldElement52 a52 = FieldElement52::from_fe(a);
-            FieldElement52 b52 = FieldElement52::from_fe(b);
-            FieldElement52 prod52 = a52 * b52;
+            FieldElement52 const a52 = FieldElement52::from_fe(a);
+            FieldElement52 const b52 = FieldElement52::from_fe(b);
+            FieldElement52 const prod52 = a52 * b52;
 
-            bool ok = fe52_equals_fe64(prod52, prod64);
+            bool const ok = fe52_equals_fe64(prod52, prod64);
             if (!ok) {
                 char buf[128];
                 std::snprintf(buf, sizeof(buf), "mul(%s, %s)",
@@ -192,13 +192,13 @@ void test_multiplication() {
 void test_squaring() {
     std::printf("-- Squaring --\n");
     for (int i = 0; i < NUM_VECTORS; ++i) {
-        FieldElement a = FieldElement::from_limbs(VECTORS[i].limbs);
-        FieldElement sq64 = a.square();
+        FieldElement const a = FieldElement::from_limbs(VECTORS[i].limbs);
+        FieldElement const sq64 = a.square();
 
-        FieldElement52 a52 = FieldElement52::from_fe(a);
-        FieldElement52 sq52 = a52.square();
+        FieldElement52 const a52 = FieldElement52::from_fe(a);
+        FieldElement52 const sq52 = a52.square();
 
-        bool ok = fe52_equals_fe64(sq52, sq64);
+        bool const ok = fe52_equals_fe64(sq52, sq64);
         if (!ok) {
             char buf[128];
             std::snprintf(buf, sizeof(buf), "square(%s)", VECTORS[i].name);
@@ -208,7 +208,7 @@ void test_squaring() {
         }
 
         // Also verify square == mul(a, a)
-        FieldElement52 prod52 = a52 * a52;
+        FieldElement52 const prod52 = a52 * a52;
         CHECK(sq52 == prod52, "square == mul(a,a)");
     }
 }
@@ -235,17 +235,17 @@ void test_mul_chain() {
 
 void test_mixed_operations() {
     std::printf("-- Mixed Operations (add + mul + square chains) --\n");
-    FieldElement a = FieldElement::from_limbs(VECTORS[7].limbs);  // Gx
-    FieldElement b = FieldElement::from_limbs(VECTORS[8].limbs);  // Gy
-    FieldElement52 a52 = FieldElement52::from_fe(a);
-    FieldElement52 b52 = FieldElement52::from_fe(b);
+    FieldElement const a = FieldElement::from_limbs(VECTORS[7].limbs);  // Gx
+    FieldElement const b = FieldElement::from_limbs(VECTORS[8].limbs);  // Gy
+    FieldElement52 const a52 = FieldElement52::from_fe(a);
+    FieldElement52 const b52 = FieldElement52::from_fe(b);
 
     // Compute: ((a + b) * a) + (b * b) - simulate ECC-like operation
-    FieldElement r64 = (a + b) * a + b.square();
+    FieldElement const r64 = (a + b) * a + b.square();
     FieldElement52 sum52 = a52 + b52;
     sum52.normalize_weak();  // normalize before mul to keep within range
     FieldElement52 r52 = sum52 * a52;
-    FieldElement52 bsq52 = b52.square();
+    FieldElement52 const bsq52 = b52.square();
     r52 = r52 + bsq52;
     CHECK(fe52_equals_fe64(r52, r64), "((a+b)*a + b^2) matches");
 
@@ -254,11 +254,11 @@ void test_mixed_operations() {
     FieldElement52 t52 = a52;
     for (int i = 0; i < 50; ++i) {
         // t = t^2 + Gy * t + Gx
-        FieldElement tsq64 = t64.square();
-        FieldElement52 tsq52 = t52.square();
+        FieldElement const tsq64 = t64.square();
+        FieldElement52 const tsq52 = t52.square();
 
-        FieldElement bt64 = b * t64;
-        FieldElement52 bt52 = b52 * t52;
+        FieldElement const bt64 = b * t64;
+        FieldElement52 const bt52 = b52 * t52;
 
         t64 = tsq64 + bt64 + a;
         t52 = tsq52 + bt52 + a52;
@@ -269,13 +269,13 @@ void test_mixed_operations() {
 void test_half() {
     std::printf("-- Half --\n");
     for (int i = 0; i < NUM_VECTORS; ++i) {
-        FieldElement a = FieldElement::from_limbs(VECTORS[i].limbs);
-        FieldElement52 a52 = FieldElement52::from_fe(a);
+        FieldElement const a = FieldElement::from_limbs(VECTORS[i].limbs);
+        FieldElement52 const a52 = FieldElement52::from_fe(a);
 
-        FieldElement52 h = a52.half();
+        FieldElement52 const h = a52.half();
 
         // Verify: h + h == a (or h * 2 == a)
-        FieldElement52 dbl = h + h;
+        FieldElement52 const dbl = h + h;
         CHECK(dbl == a52, VECTORS[i].name);
     }
 }
@@ -311,36 +311,36 @@ void test_normalize_edge() {
     pm1.n[3] = fe52_constants::P3;
     pm1.n[4] = fe52_constants::P4;
     pm1.normalize();
-    FieldElement pm1_64 = FieldElement::from_limbs(VECTORS[6].limbs);  // p-1 vector
+    FieldElement const pm1_64 = FieldElement::from_limbs(VECTORS[6].limbs);  // p-1 vector
     CHECK(fe52_equals_fe64(pm1, pm1_64), "p-1 normalizes correctly");
 }
 
 void test_commutativity_associativity() {
     std::printf("-- Commutativity & Associativity --\n");
-    FieldElement52 a = FieldElement52::from_fe(FieldElement::from_limbs(VECTORS[7].limbs));
-    FieldElement52 b = FieldElement52::from_fe(FieldElement::from_limbs(VECTORS[8].limbs));
-    FieldElement52 c = FieldElement52::from_fe(FieldElement::from_limbs(VECTORS[9].limbs));
+    FieldElement52 const a = FieldElement52::from_fe(FieldElement::from_limbs(VECTORS[7].limbs));
+    FieldElement52 const b = FieldElement52::from_fe(FieldElement::from_limbs(VECTORS[8].limbs));
+    FieldElement52 const c = FieldElement52::from_fe(FieldElement::from_limbs(VECTORS[9].limbs));
 
     // Commutative addition
-    FieldElement52 ab = a + b;
-    FieldElement52 ba = b + a;
+    FieldElement52 const ab = a + b;
+    FieldElement52 const ba = b + a;
     CHECK(ab == ba, "a+b == b+a");
 
     // Commutative multiplication
-    FieldElement52 a_times_b = a * b;
-    FieldElement52 b_times_a = b * a;
+    FieldElement52 const a_times_b = a * b;
+    FieldElement52 const b_times_a = b * a;
     CHECK(a_times_b == b_times_a, "a*b == b*a");
 
     // Associative multiplication
-    FieldElement52 ab_c = (a * b) * c;
-    FieldElement52 a_bc = a * (b * c);
+    FieldElement52 const ab_c = (a * b) * c;
+    FieldElement52 const a_bc = a * (b * c);
     CHECK(ab_c == a_bc, "(a*b)*c == a*(b*c)");
 
     // Distributive: a * (b + c) == a*b + a*c
     FieldElement52 bc_sum = b + c;
     bc_sum.normalize_weak();
-    FieldElement52 dist_left = a * bc_sum;
-    FieldElement52 dist_right = (a * b) + (a * c);
+    FieldElement52 const dist_left = a * bc_sum;
+    FieldElement52 const dist_right = (a * b) + (a * c);
     CHECK(dist_left == dist_right, "a*(b+c) == a*b + a*c");
 }
 

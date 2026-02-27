@@ -82,22 +82,22 @@ inline void mul64(std::uint64_t a, std::uint64_t b, std::uint64_t& lo, std::uint
 #pragma GCC diagnostic ignored "-Wpedantic"
 #endif
 inline std::uint64_t add64(std::uint64_t a, std::uint64_t b, unsigned char& carry) {
-    unsigned __int128 sum = static_cast<unsigned __int128>(a) + b + carry;
+    unsigned __int128 const sum = static_cast<unsigned __int128>(a) + b + carry;
     carry = static_cast<unsigned char>(sum >> 64);
     return static_cast<std::uint64_t>(sum);
 }
 
 inline std::uint64_t sub64(std::uint64_t a, std::uint64_t b, unsigned char& borrow) {
-    uint64_t temp = a - borrow;
-    unsigned char borrow1 = (a < borrow);
-    uint64_t result = temp - b;
-    unsigned char borrow2 = (temp < b);
+    uint64_t const temp = a - borrow;
+    unsigned char const borrow1 = (a < borrow);
+    uint64_t const result = temp - b;
+    unsigned char const borrow2 = (temp < b);
     borrow = borrow1 | borrow2;
     return result;
 }
 
 inline void mul64(std::uint64_t a, std::uint64_t b, std::uint64_t& lo, std::uint64_t& hi) {
-    unsigned __int128 product = static_cast<unsigned __int128>(a) * b;
+    unsigned __int128 const product = static_cast<unsigned __int128>(a) * b;
     lo = static_cast<std::uint64_t>(product);
     hi = static_cast<std::uint64_t>(product >> 64);
 }
@@ -182,7 +182,7 @@ inline void uint320_sub_assign(Uint320& target, const Uint320& subtrahend) {
 inline void uint320_rshift1(Uint320& value) {
     std::uint64_t carry = 0ULL;
     for (std::size_t idx = value.limbs.size(); idx-- > 0;) {
-        std::uint64_t next_carry = value.limbs[idx] & 1ULL;
+        std::uint64_t const next_carry = value.limbs[idx] & 1ULL;
         value.limbs[idx] = (value.limbs[idx] >> 1) | (carry << 63);
         carry = next_carry;
     }
@@ -501,7 +501,7 @@ limbs4 reduce(const wide8& t) {
     //   - t[4+i] * 2^32 to position i  (shift: low32 at i, high32 at i+1)
     // Use add_into() for proper carry propagation through the full array.
     for (std::size_t i = 0; i < 4; ++i) {
-        std::uint64_t hi_limb = t[4 + i];
+        std::uint64_t const hi_limb = t[4 + i];
         if (hi_limb == 0) continue;
 
         // Add hi_limb * 977 starting at position i
@@ -517,7 +517,7 @@ limbs4 reduce(const wide8& t) {
 
     // Step 3: Handle overflow in result[4] if present
     while (result[4] != 0) {
-        std::uint64_t overflow = result[4];
+        std::uint64_t const overflow = result[4];
         result[4] = 0;
 
         // Add overflow * (2^32 + 977)
@@ -1010,9 +1010,9 @@ limbs4 mul_impl(const limbs4& a, const limbs4& b) {
     return result;
 #else
     // x86/x64: Use BMI2 if available for better performance
-    static bool bmi2_available = has_bmi2_support();
+    static bool const bmi2_available = has_bmi2_support();
     if (bmi2_available) {
-        FieldElement result = field_mul_bmi2(
+        FieldElement const result = field_mul_bmi2(
             FieldElement::from_limbs_raw(a), 
             FieldElement::from_limbs_raw(b)
         );
@@ -1043,9 +1043,9 @@ limbs4 square_impl(const limbs4& a) {
     return reduce(mul_wide(a, a));
 #else
     // x86/x64: Use BMI2 if available for better performance
-    static bool bmi2_available = has_bmi2_support();
+    static bool const bmi2_available = has_bmi2_support();
     if (bmi2_available) {
-        FieldElement result = field_square_bmi2(
+        FieldElement const result = field_square_bmi2(
             FieldElement::from_limbs_raw(a)
         );
         return result.limbs();
@@ -1189,7 +1189,7 @@ FieldElement pow_p_minus_2_binary(FieldElement base) {
             continue;
         }
 
-        std::size_t remaining = kPrimeMinusTwoBitLength - bit;
+        std::size_t const remaining = kPrimeMinusTwoBitLength - bit;
         std::size_t window_size = window < remaining ? window : remaining;
 
         unsigned int value = 0U;
@@ -1245,9 +1245,9 @@ FieldElement pow_p_minus_2_binary(FieldElement base) {
         }
     };
 
-    for (std::uint8_t byte : kPrimeMinusTwo) {
-        std::uint8_t high = static_cast<std::uint8_t>((byte >> 4) & 0xFU);
-        std::uint8_t low = static_cast<std::uint8_t>(byte & 0xFU);
+    for (std::uint8_t const byte : kPrimeMinusTwo) {
+        auto const high = static_cast<std::uint8_t>((byte >> 4) & 0xFU);
+        auto const low = static_cast<std::uint8_t>(byte & 0xFU);
         handle_nibble(high);
         handle_nibble(low);
     }
@@ -1310,7 +1310,7 @@ FieldElement pow_p_minus_2_binary(FieldElement base) {
     // Precompute odd powers
     std::array<FieldElement, table_size> table{};
     table[0] = base;
-    FieldElement base_sq = base.square();
+    FieldElement const base_sq = base.square();
     for (std::size_t i = 1; i < table_size; ++i) {
         table[i] = table[i - 1] * base_sq;
     }
@@ -1318,7 +1318,7 @@ FieldElement pow_p_minus_2_binary(FieldElement base) {
     FieldElement result = FieldElement::one();
     
     // Process exponent directly without vector allocation
-    for (std::uint8_t byte : kPrimeMinusTwo) {
+    for (std::uint8_t const byte : kPrimeMinusTwo) {
         for (int bit = 7; bit >= 0; --bit) {
             result = result.square();
             if ((byte >> bit) & 0x1) {
@@ -1386,12 +1386,12 @@ FieldElement pow_p_minus_2_binary(FieldElement base) {
     // Hand-optimized addition chain for p-2
     // Uses precomputed chain with minimal operations
     
-    FieldElement x = base;
-    FieldElement x2 = x.square();
-    FieldElement x3 = x2 * x;
-    FieldElement x6 = x3.square() * x3;
-    FieldElement x12 = x6.square() * x6;
-    FieldElement x15 = x12 * x3;
+    FieldElement const x = base;
+    FieldElement const x2 = x.square();
+    FieldElement const x3 = x2 * x;
+    FieldElement const x6 = x3.square() * x3;
+    FieldElement const x12 = x6.square() * x6;
+    FieldElement const x15 = x12 * x3;
     
     // Build up using doubling and addition
     FieldElement t = x15;
@@ -1431,18 +1431,18 @@ FieldElement pow_p_minus_2_binary(FieldElement base) {
     const unsigned char* exp = kPrimeMinusTwo.data();
     
     for (size_t i = 0; i < 32; ++i) {
-        unsigned char byte = exp[i];
+        unsigned char const byte = exp[i];
         
         // Process byte using 2-bit windows
         for (int j = 6; j >= 0; j -= 2) {
             result = result.square();
             result = result.square();
             
-            unsigned char bits = (byte >> j) & 0x3;
-            if (bits == 1) result = result * base;
-            else if (bits == 2) result = result * base * base;
-            else if (bits == 3) {
-                FieldElement b3 = base.square() * base;
+            unsigned char const bits = (byte >> j) & 0x3;
+            if (bits == 1) { result = result * base;
+            } else if (bits == 2) { result = result * base * base;
+            } else if (bits == 3) {
+                FieldElement const b3 = base.square() * base;
                 result = result * b3;
             }
         }
@@ -1512,13 +1512,13 @@ FieldElement pow_p_minus_2_binary(FieldElement base) {
 // Karatsuba-inspired squaring chain
 [[nodiscard]] FieldElement pow_p_minus_2_karatsuba(FieldElement base) {
     // Use repeated squaring with Karatsuba optimization hints
-    FieldElement result = base;
+    FieldElement const result = base;
     
     // Build power tower
-    FieldElement p2 = result.square();
-    FieldElement p4 = p2.square();
-    FieldElement p8 = p4.square();
-    FieldElement p16 = p8.square();
+    FieldElement const p2 = result.square();
+    FieldElement const p4 = p2.square();
+    FieldElement const p8 = p4.square();
+    FieldElement const p16 = p8.square();
     
     // Combine with multiplications
     FieldElement acc = p16 * p8 * p4 * p2 * result; // p31
@@ -1536,7 +1536,7 @@ FieldElement pow_p_minus_2_binary(FieldElement base) {
 // Booth encoding (signed digit representation)
 [[nodiscard]] FieldElement pow_p_minus_2_booth(FieldElement base) {
     // Precompute base and base^-1 (for negative digits)
-    FieldElement base_inv = pow_p_minus_2_eea(base); // Bootstrap with EEA
+    FieldElement const base_inv = pow_p_minus_2_eea(base); // Bootstrap with EEA
     
     std::array<FieldElement, 8> table{};
     table[0] = FieldElement::one();
@@ -1609,8 +1609,8 @@ FieldElement pow_p_minus_2_binary(FieldElement base) {
     FieldElement result = FieldElement::one();
     bool started = false;
 
-    for (std::uint8_t byte : kPrimeMinusTwo) {
-        std::uint8_t high = (byte >> 4) & 0xF;
+    for (std::uint8_t const byte : kPrimeMinusTwo) {
+        std::uint8_t const high = (byte >> 4) & 0xF;
         if (!started && high != 0) {
             result = table[high];
             started = true;
@@ -1622,7 +1622,7 @@ FieldElement pow_p_minus_2_binary(FieldElement base) {
             if (high != 0) result = result * table[high];
         }
         
-        std::uint8_t low = byte & 0xF;
+        std::uint8_t const low = byte & 0xF;
         if (!started && low != 0) {
             result = table[low];
             started = true;
@@ -1672,7 +1672,7 @@ FieldElement pow_p_minus_2_binary(FieldElement base) {
     }
 
     if (bit_pos < kPrimeMinusTwoBitLength) {
-        std::size_t remaining = kPrimeMinusTwoBitLength - bit_pos;
+        std::size_t const remaining = kPrimeMinusTwoBitLength - bit_pos;
         std::uint8_t bits = 0;
         for (std::size_t i = 0; i < remaining; ++i) {
             bits = static_cast<std::uint8_t>((bits << 1) | exponent_bit(bit_pos + i));
@@ -1696,7 +1696,7 @@ FieldElement pow_p_minus_2_binary(FieldElement base) {
     FieldElement power = base;
     
     for (std::size_t i = 32; i-- > 0; ) {
-        std::uint8_t byte = kPrimeMinusTwo[i];
+        std::uint8_t const byte = kPrimeMinusTwo[i];
         for (int bit = 0; bit < 8; ++bit) {
             if ((byte >> bit) & 0x1) {
                 result = result * power;
@@ -1728,7 +1728,7 @@ FieldElement pow_p_minus_2_binary(FieldElement base) {
             continue;
         }
 
-        std::size_t remaining = kPrimeMinusTwoBitLength - bit;
+        std::size_t const remaining = kPrimeMinusTwoBitLength - bit;
         std::size_t window_size = (window < remaining) ? window : remaining;
 
         unsigned int value = 0U;
@@ -1775,7 +1775,7 @@ FieldElement pow_p_minus_2_binary(FieldElement base) {
     FieldElement result = FieldElement::one();
     
     // Process in reverse for better cache behavior
-    for (std::uint8_t byte : kPrimeMinusTwo) {
+    for (std::uint8_t const byte : kPrimeMinusTwo) {
         for (int bit = 7; bit >= 0; --bit) {
             result = result.square();
             if ((byte >> bit) & 0x1U) {
@@ -1792,7 +1792,7 @@ FieldElement pow_p_minus_2_binary(FieldElement base) {
     std::array<FieldElement, 1 << (max_window - 1)> odd_powers{};
     
     odd_powers[0] = base;
-    FieldElement base_squared = base.square();
+    FieldElement const base_squared = base.square();
     for (std::size_t i = 1; i < odd_powers.size(); ++i) {
         odd_powers[i] = odd_powers[i - 1] * base_squared;
     }
@@ -1844,11 +1844,11 @@ FieldElement pow_p_minus_2_binary(FieldElement base) {
     // For p = 2^256 - 2^32 - 977, compute a^(p-2)
     // Chain: build a^(2^k - 1) efficiently
     
-    FieldElement x2 = base.square();
-    FieldElement x3 = x2 * base;
-    FieldElement x6 = x3.square().square() * x3;
-    FieldElement x12 = x6.square().square().square().square() * x6;
-    FieldElement x15 = x12 * x3;
+    FieldElement const x2 = base.square();
+    FieldElement const x3 = x2 * base;
+    FieldElement const x6 = x3.square().square() * x3;
+    FieldElement const x12 = x6.square().square().square().square() * x6;
+    FieldElement const x15 = x12 * x3;
     
     // x^(2^16 - 1)
     FieldElement t = x15;
@@ -1897,7 +1897,7 @@ FieldElement pow_p_minus_2_binary(FieldElement base) {
     x979 = x979.square() * base; // bit 9
     
     // Final: a^(2^256-1) / (a^(2^32) * a^979)
-    FieldElement divisor = x2p32 * x979;
+    FieldElement const divisor = x2p32 * x979;
     return result * pow_p_minus_2_hybrid_eea(divisor);
 }
 
@@ -1912,11 +1912,11 @@ FieldElement pow_p_minus_2_binary(FieldElement base) {
 [[nodiscard]] FieldElement pow_p_minus_2_branchless(FieldElement base) {
     FieldElement result = FieldElement::one();
     
-    for (std::uint8_t byte : kPrimeMinusTwo) {
+    for (std::uint8_t const byte : kPrimeMinusTwo) {
         for (int bit = 7; bit >= 0; --bit) {
             result = result.square();
             // Branchless: use mask instead of if
-            std::uint8_t mask = static_cast<std::uint8_t>(-((byte >> bit) & 0x1));
+            auto const mask = static_cast<std::uint8_t>(-((byte >> bit) & 0x1));
             if (mask) result = result * base;
         }
     }
@@ -1937,8 +1937,8 @@ FieldElement pow_p_minus_2_binary(FieldElement base) {
     FieldElement result = FieldElement::one();
     bool started = false;
     
-    for (std::uint8_t byte : kPrimeMinusTwo) {
-        std::uint8_t high = (byte >> 4) & 0xF;
+    for (std::uint8_t const byte : kPrimeMinusTwo) {
+        std::uint8_t const high = (byte >> 4) & 0xF;
         if (!started && high != 0) {
             result = table[high];
             started = true;
@@ -1947,7 +1947,7 @@ FieldElement pow_p_minus_2_binary(FieldElement base) {
             if (high != 0) result = result * table[high];
         }
         
-        std::uint8_t low = byte & 0xF;
+        std::uint8_t const low = byte & 0xF;
         if (!started && low != 0) {
             result = table[low];
             started = true;
@@ -2008,8 +2008,8 @@ FieldElement pow_p_minus_2_binary(FieldElement base) {
     
     while (!uint320_is_one(u) && !uint320_is_one(v)) {
         // Extract high bits for Lehmer's reduction
-        std::uint64_t u_high = u.limbs[4] ? u.limbs[4] : u.limbs[3];
-        std::uint64_t v_high = v.limbs[4] ? v.limbs[4] : v.limbs[3];
+        std::uint64_t const u_high = u.limbs[4] ? u.limbs[4] : u.limbs[3];
+        std::uint64_t const v_high = v.limbs[4] ? v.limbs[4] : v.limbs[3];
         
         if (u_high == 0 || v_high == 0) {
             // Fall back to standard step
@@ -2113,9 +2113,9 @@ FieldElement pow_p_minus_2_binary(FieldElement base) {
     // p = 2^256 - 2^32 - 977 = FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F
     
     // Use Itoh-Tsujii style chain optimized for this prime
-    FieldElement x = base;
-    FieldElement x2 = x.square();
-    FieldElement x3 = x2 * x;
+    FieldElement const x = base;
+    FieldElement const x2 = x.square();
+    FieldElement const x3 = x2 * x;
     
     // Build x^15
     FieldElement x15 = x3;
@@ -2206,15 +2206,15 @@ FieldElement pow_p_minus_2_binary(FieldElement base) {
 
 // Double-base chain (uses base and base^2 simultaneously)
 [[nodiscard]] FieldElement pow_p_minus_2_double_base(FieldElement base) {
-    FieldElement base2 = base.square();
+    FieldElement const base2 = base.square();
     FieldElement result = FieldElement::one();
     
     // Process two bits at a time
-    for (std::uint8_t byte : kPrimeMinusTwo) {
+    for (std::uint8_t const byte : kPrimeMinusTwo) {
         for (int i = 6; i >= 0; i -= 2) {
             result = result.square().square();
             
-            std::uint8_t bits = (byte >> i) & 0x3;
+            std::uint8_t const bits = (byte >> i) & 0x3;
             if (bits == 1) {
                 result = result * base;
             } else if (bits == 2) {
@@ -2240,9 +2240,9 @@ FieldElement pow_p_minus_2_binary(FieldElement base) {
     FieldElement result = FieldElement::one();
     
     // Process 3 bits at a time
-    for (std::uint8_t byte : kPrimeMinusTwo) {
+    for (std::uint8_t const byte : kPrimeMinusTwo) {
         for (int shift = 5; shift >= 0; shift -= 3) {
-            std::uint8_t bits = (byte >> shift) & 0x7;
+            std::uint8_t const bits = (byte >> shift) & 0x7;
             result = result.square().square().square();
             if (bits != 0) result = result * table[bits];
         }
@@ -2320,7 +2320,7 @@ FieldElement FieldElement::from_mont(const FieldElement& a) {
 std::array<std::uint8_t, 32> FieldElement::to_bytes() const {
     std::array<std::uint8_t, 32> out{};
     for (std::size_t i = 0; i < 4; ++i) {
-        std::uint64_t limb = limbs_[3 - i];
+        std::uint64_t const limb = limbs_[3 - i];
         for (std::size_t j = 0; j < 8; ++j) {
             out[i * 8 + j] = static_cast<std::uint8_t>(limb >> (56 - 8 * j));
         }
@@ -2332,7 +2332,7 @@ void FieldElement::to_bytes_into(std::uint8_t* out) const noexcept {
     // Write big-endian 32-byte representation directly into caller-provided buffer
     // Matches layout of to_bytes() without creating a temporary array
     for (std::size_t i = 0; i < 4; ++i) {
-        std::uint64_t limb = limbs_[3 - i];
+        std::uint64_t const limb = limbs_[3 - i];
         for (std::size_t j = 0; j < 8; ++j) {
             out[i * 8 + j] = static_cast<std::uint8_t>(limb >> (56 - 8 * j));
         }
@@ -2362,8 +2362,8 @@ FieldElement FieldElement::from_hex(const std::string& hex) {
     
     std::array<std::uint8_t, 32> bytes{};
     for (size_t i = 0; i < 32; i++) {
-        char c1 = hex[i * 2];
-        char c2 = hex[i * 2 + 1];
+        char const c1 = hex[i * 2];
+        char const c2 = hex[i * 2 + 1];
         
         auto hex_to_nibble = [](char c) -> uint8_t {
             if (c >= '0' && c <= '9') return static_cast<uint8_t>(c - '0');
@@ -2459,7 +2459,7 @@ static int64_t safegcd_divsteps_62_var(int64_t delta, uint64_t f0, uint64_t g0,
 
     for (;;) {
         // Skip zero-bits of g in bulk (each = one "g is even" divstep)
-        int zeros = safegcd_ctz64(g | ((uint64_t)1 << i));
+        int const zeros = safegcd_ctz64(g | ((uint64_t)1 << i));
         g >>= zeros;
         u <<= zeros;
         v <<= zeros;
@@ -2471,7 +2471,7 @@ static int64_t safegcd_divsteps_62_var(int64_t delta, uint64_t f0, uint64_t g0,
         if (delta > 0) {
             // Swap-case:  delta -> 1-delta  (set to -delta now, +1 after the shift below)
             delta = -delta;
-            uint64_t tmp;
+            uint64_t tmp = 0;
             tmp = f; f = g; g = (uint64_t)(-(int64_t)tmp);
             tmp = u; u = q; q = (uint64_t)(-(int64_t)tmp);
             tmp = v; v = r; r = (uint64_t)(-(int64_t)tmp);
@@ -2493,8 +2493,8 @@ static int64_t safegcd_divsteps_62_var(int64_t delta, uint64_t f0, uint64_t g0,
 // f' = (u*f + v*g) / 2^62,  g' = (q*f + r*g) / 2^62   (exact)
 static void safegcd_update_fg(SafeGCD_Int& f, SafeGCD_Int& g,
                                const SafeGCD_Trans& t, int len) {
-    const int64_t M62 = (int64_t)((uint64_t)(-1) >> 2);
-    __int128 cf, cg;
+    const auto M62 = (int64_t)((uint64_t)(-1) >> 2);
+    __int128 cf = 0, cg = 0;
 
     cf = (__int128)t.u * f.v[0] + (__int128)t.v * g.v[0];
     cg = (__int128)t.q * f.v[0] + (__int128)t.r * g.v[0];
@@ -2525,8 +2525,8 @@ static void safegcd_update_de(SafeGCD_Int& d, SafeGCD_Int& e,
     const int64_t d0 = d.v[0], d1 = d.v[1], d2 = d.v[2], d3 = d.v[3], d4 = d.v[4];
     const int64_t e0 = e.v[0], e1 = e.v[1], e2 = e.v[2], e3 = e.v[3], e4 = e.v[4];
     const int64_t u = t.u, v = t.v, q = t.q, r = t.r;
-    int64_t md, me, sd, se;
-    __int128 cd, ce;
+    int64_t md = 0, me = 0, sd = 0, se = 0;
+    __int128 cd = 0, ce = 0;
 
     // Sign-extension correction: if d (or e) is negative, the implicit bits
     // above limb 4 are all-ones.  Account for this by initializing md/me.
@@ -2581,8 +2581,8 @@ static void safegcd_update_de(SafeGCD_Int& d, SafeGCD_Int& e,
 // Ref: inline len reduction in secp256k1_modinv64_var.
 // Reduces len when top limbs of both f and g are 0 or -1.
 static void safegcd_reduce_len(int& len, SafeGCD_Int& f, SafeGCD_Int& g) {
-    int64_t fn = f.v[len - 1];
-    int64_t gn = g.v[len - 1];
+    int64_t const fn = f.v[len - 1];
+    int64_t const gn = g.v[len - 1];
     // cond == 0 iff len >= 2 AND fn in {0,-1} AND gn in {0,-1}
     int64_t cond = ((int64_t)len - 2) >> 63;
     cond |= fn ^ (fn >> 63);
@@ -2599,7 +2599,7 @@ static void safegcd_reduce_len(int& len, SafeGCD_Int& f, SafeGCD_Int& g) {
 // Input:  r in range (-2p, p),  sign = top limb of f (negative if f = -1).
 // Ref: secp256k1_modinv64_normalize_62 in bitcoin-core/secp256k1.
 static void safegcd_normalize(SafeGCD_Int& r, int64_t f_sign) {
-    const int64_t M62 = (int64_t)(UINT64_MAX >> 2);
+    const auto M62 = (int64_t)(UINT64_MAX >> 2);
     int64_t r0 = r.v[0], r1 = r.v[1], r2 = r.v[2], r3 = r.v[3], r4 = r.v[4];
 
     // Step 1:  If r < 0, add p to bring from (-2p, p) into (-p, p).
@@ -2608,7 +2608,7 @@ static void safegcd_normalize(SafeGCD_Int& r, int64_t f_sign) {
     r4 += SAFEGCD_P.v[4] & cond_add;               // p.v[4] = 256  (p.v[1..3] = 0)
 
     // Negate if f is negative (f_sign < 0)
-    int64_t cond_negate = f_sign >> 63;
+    int64_t const cond_negate = f_sign >> 63;
     r0 = (r0 ^ cond_negate) - cond_negate;
     r1 = (r1 ^ cond_negate) - cond_negate;
     r2 = (r2 ^ cond_negate) - cond_negate;
@@ -2728,9 +2728,9 @@ static const uint8_t inv256[128] = {
 // Variable-time 30 divsteps (matches secp256k1_modinv32_divsteps_30_var)
 [[maybe_unused]] static int32_t divsteps_30_var(int32_t eta, uint32_t f0, uint32_t g0, T2x2& t) {
     uint32_t u = 1, v = 0, q = 0, r = 1;
-    uint32_t f = f0, g = g0, m;
-    uint16_t w;
-    int i = 30, limit, zeros;
+    uint32_t f = f0, g = g0, m = 0;
+    uint16_t w = 0;
+    int i = 30, limit = 0, zeros = 0;
 
     for (;;) {
         zeros = ctz32_var(g | (UINT32_MAX << i));
@@ -2742,7 +2742,7 @@ static const uint8_t inv256[128] = {
         if (i == 0) break;
 
         if (eta < 0) {
-            uint32_t tmp;
+            uint32_t tmp = 0;
             eta = -eta;
             tmp = f; f = g; g = (uint32_t)(-(int32_t)tmp);
             tmp = u; u = q; q = (uint32_t)(-(int32_t)tmp);
@@ -2763,10 +2763,10 @@ static const uint8_t inv256[128] = {
 
 // (t/2^30) * [d, e] mod p (matches secp256k1_modinv32_update_de_30)
 [[maybe_unused]] static void update_de_30(S30& d, S30& e, const T2x2& t, const ModInfo& mod) {
-    const int32_t M30 = (int32_t)(UINT32_MAX >> 2);
+    const auto M30 = (int32_t)(UINT32_MAX >> 2);
     const int32_t u = t.u, v = t.v, q = t.q, r = t.r;
-    int32_t di, ei, md, me, sd, se;
-    int64_t cd, ce;
+    int32_t di = 0, ei = 0, md = 0, me = 0, sd = 0, se = 0;
+    int64_t cd = 0, ce = 0;
 
     sd = d.v[8] >> 31;
     se = e.v[8] >> 31;
@@ -2799,10 +2799,10 @@ static const uint8_t inv256[128] = {
 
 // (t/2^30) * [f, g] variable-length
 [[maybe_unused]] static void update_fg_30_var(int len, S30& f, S30& g, const T2x2& t) {
-    const int32_t M30 = (int32_t)(UINT32_MAX >> 2);
+    const auto M30 = (int32_t)(UINT32_MAX >> 2);
     const int32_t u = t.u, v = t.v, q = t.q, r = t.r;
-    int32_t fi, gi;
-    int64_t cf, cg;
+    int32_t fi = 0, gi = 0;
+    int64_t cf = 0, cg = 0;
 
     fi = f.v[0]; gi = g.v[0];
     cf = (int64_t)u * fi + (int64_t)v * gi;
@@ -2823,10 +2823,10 @@ static const uint8_t inv256[128] = {
 
 // Normalize to [0, p)
 [[maybe_unused]] static void normalize_30(S30& r, int32_t sign, const ModInfo& mod) {
-    const int32_t M30 = (int32_t)(UINT32_MAX >> 2);
+    const auto M30 = (int32_t)(UINT32_MAX >> 2);
     int32_t r0=r.v[0], r1=r.v[1], r2=r.v[2], r3=r.v[3], r4=r.v[4],
             r5=r.v[5], r6=r.v[6], r7=r.v[7], r8=r.v[8];
-    int32_t cond_add, cond_negate;
+    int32_t cond_add = 0, cond_negate = 0;
 
     cond_add = r8 >> 31;
     r0 += mod.modulus.v[0] & cond_add;
@@ -3277,7 +3277,7 @@ void fe_batch_inverse(FieldElement* elements, size_t count, std::vector<FieldEle
     // Step 3: Work backwards to compute individual inverses
     for (size_t i = count - 1; i > 0; i--) {
         // Save original value before overwriting
-        FieldElement original = elements[i];
+        FieldElement const original = elements[i];
         // elements[i]^-1 = inv * products[i-1]
         elements[i] = inv * scratch[i - 1];
         // Update inv for next iteration using ORIGINAL value

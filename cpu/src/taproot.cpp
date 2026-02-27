@@ -18,7 +18,7 @@ std::array<uint8_t, 32> taproot_tweak_hash(
     std::size_t merkle_root_len) {
 
     // Concatenate: internal_key_x [|| merkle_root]
-    std::size_t total = 32 + merkle_root_len;
+    std::size_t const total = 32 + merkle_root_len;
     uint8_t buf[64]; // max 32 + 32
     std::memcpy(buf, internal_key_x.data(), 32);
     if (merkle_root != nullptr && merkle_root_len > 0) {
@@ -48,7 +48,7 @@ std::array<uint8_t, 32> taproot_leaf_hash(
 
     // CompactSize encoding
     if (script_len < 253) {
-        uint8_t len_byte = static_cast<uint8_t>(script_len);
+        auto len_byte = static_cast<uint8_t>(script_len);
         ctx.update(&len_byte, 1);
     } else if (script_len <= 0xFFFF) {
         uint8_t prefix = 0xFD;
@@ -144,7 +144,7 @@ std::pair<std::array<uint8_t, 32>, int> taproot_output_key(
 
     // Parity: check if Q.y is odd
     auto Q_uncomp = Q.to_uncompressed();
-    int parity = (Q_uncomp[64] & 1) != 0 ? 1 : 0;
+    int const parity = (Q_uncomp[64] & 1) != 0 ? 1 : 0;
 
     return {q_x, parity};
 }
@@ -161,7 +161,7 @@ Scalar taproot_tweak_privkey(
     // P = d * G
     auto P = Point::generator().scalar_mul(private_key);
     auto P_uncomp = P.to_uncompressed();
-    bool p_y_odd = (P_uncomp[64] & 1) != 0;
+    bool const p_y_odd = (P_uncomp[64] & 1) != 0;
 
     // If P has odd y, negate d
     auto d = p_y_odd ? private_key.negate() : private_key;

@@ -42,7 +42,7 @@ inline bool ct_equal(const void* a, const void* b, std::size_t len) noexcept {
     // Process 8 bytes at a time
     std::size_t i = 0;
     for (; i + 8 <= len; i += 8) {
-        std::uint64_t va, vb;
+        std::uint64_t va = 0, vb = 0;
         std::memcpy(&va, pa + i, 8);
         std::memcpy(&vb, pb + i, 8);
         diff |= va ^ vb;
@@ -88,7 +88,7 @@ inline void ct_memswap_if(void* a, void* b, std::size_t len,
     auto* pb = static_cast<std::uint8_t*>(b);
 
     for (std::size_t i = 0; i < len; ++i) {
-        std::uint8_t diff = (pa[i] ^ pb[i]) & mask8;
+        std::uint8_t const diff = (pa[i] ^ pb[i]) & mask8;
         pa[i] ^= diff;
         pb[i] ^= diff;
     }
@@ -166,7 +166,7 @@ inline std::uint64_t ct_load_be(const std::uint8_t* p) noexcept {
     std::uint64_t v = *reinterpret_cast<const u64_alias*>(p);
     return __builtin_bswap64(v);
 #else
-    std::uint64_t v;
+    std::uint64_t v = 0;
     std::memcpy(&v, p, 8);
 #if defined(__GNUC__) || defined(__clang__)
     return __builtin_bswap64(v);
@@ -208,7 +208,7 @@ inline int ct_compare(const void* a, const void* b, std::size_t len) noexcept {
 
         // Word 3 (bytes 24-31, least significant)
         {
-            std::uint64_t gt, lt;
+            std::uint64_t gt = 0, lt = 0;
             ct_cmp_pair(w3a, w3b, gt, lt);
             std::uint64_t differs = gt | lt;  // 0 or 1
             ct::value_barrier(differs);
@@ -220,7 +220,7 @@ inline int ct_compare(const void* a, const void* b, std::size_t len) noexcept {
 
         // Word 2 (bytes 16-23)
         {
-            std::uint64_t gt, lt;
+            std::uint64_t gt = 0, lt = 0;
             ct_cmp_pair(w2a, w2b, gt, lt);
             std::uint64_t differs = gt | lt;
             ct::value_barrier(differs);
@@ -232,7 +232,7 @@ inline int ct_compare(const void* a, const void* b, std::size_t len) noexcept {
 
         // Word 1 (bytes 8-15)
         {
-            std::uint64_t gt, lt;
+            std::uint64_t gt = 0, lt = 0;
             ct_cmp_pair(w1a, w1b, gt, lt);
             std::uint64_t differs = gt | lt;
             ct::value_barrier(differs);
@@ -244,7 +244,7 @@ inline int ct_compare(const void* a, const void* b, std::size_t len) noexcept {
 
         // Word 0 (bytes 0-7, most significant -- overrides all)
         {
-            std::uint64_t gt, lt;
+            std::uint64_t gt = 0, lt = 0;
             ct_cmp_pair(w0a, w0b, gt, lt);
             std::uint64_t differs = gt | lt;
             ct::value_barrier(differs);
@@ -271,27 +271,27 @@ inline int ct_compare(const void* a, const void* b, std::size_t len) noexcept {
         // (Clang 21 RISC-V inserts beq before sltu without these)
         ct::value_barrier(wa);
         ct::value_barrier(wb);
-        std::uint64_t xor_val = wa ^ wb;
+        std::uint64_t const xor_val = wa ^ wb;
         // nz = 1 if words differ, 0 otherwise
 #if defined(__riscv) && (__riscv_xlen == 64)
         std::uint64_t nz;
         asm volatile("snez %0, %1" : "=r"(nz) : "r"(xor_val));
 #else
-        std::uint64_t nz = ((xor_val | (0ULL - xor_val)) >> 63) & 1ULL;
+        std::uint64_t const nz = ((xor_val | (0ULL - xor_val)) >> 63) & 1ULL;
 #endif
 
         // Barrier on decided only: prevent compiler from short-circuiting
         ct::value_barrier(decided);
 
         // take = 1 only for the very first differing word
-        std::uint64_t take = nz & (1ULL - decided);
+        std::uint64_t const take = nz & (1ULL - decided);
 
         // mask = all-ones when take==1, zero when take==0
         std::uint64_t mask = 0ULL - take;
         ct::value_barrier(mask);
 
         // Branchless unsigned compare: ct_cmp_pair-style barriers on inputs
-        std::uint64_t gt, lt;
+        std::uint64_t gt = 0, lt = 0;
         ct::value_barrier(wa);
         ct::value_barrier(wb);
 #if defined(__riscv) && (__riscv_xlen == 64)
@@ -302,7 +302,7 @@ inline int ct_compare(const void* a, const void* b, std::size_t len) noexcept {
         lt = static_cast<std::uint64_t>(wa < wb);
 #endif
         // diff_sign encodes: 1 = a>b, 0 = equal, -1 (0xFFFF...) = a<b
-        std::uint64_t diff_sign = gt - lt;
+        std::uint64_t const diff_sign = gt - lt;
 
         result  = (diff_sign & mask) | (result & ~mask);
         decided |= nz;
@@ -316,20 +316,20 @@ inline int ct_compare(const void* a, const void* b, std::size_t len) noexcept {
     for (; i < len; ++i) {
         std::uint64_t ai = pa[i];
         std::uint64_t bi = pb[i];
-        std::uint64_t diff = ai ^ bi;
+        std::uint64_t const diff = ai ^ bi;
 
 #if defined(__riscv) && (__riscv_xlen == 64)
         std::uint64_t nz;
         asm volatile("snez %0, %1" : "=r"(nz) : "r"(diff));
 #else
-        std::uint64_t nz = ((diff | (0ULL - diff)) >> 63) & 1ULL;
+        std::uint64_t const nz = ((diff | (0ULL - diff)) >> 63) & 1ULL;
 #endif
         ct::value_barrier(decided);
-        std::uint64_t take = nz & (1ULL - decided);
+        std::uint64_t const take = nz & (1ULL - decided);
         std::uint64_t mask = 0ULL - take;
         ct::value_barrier(mask);
 
-        std::uint64_t gt_b, lt_b;
+        std::uint64_t gt_b = 0, lt_b = 0;
         ct::value_barrier(ai);
         ct::value_barrier(bi);
 #if defined(__riscv) && (__riscv_xlen == 64)
@@ -339,7 +339,7 @@ inline int ct_compare(const void* a, const void* b, std::size_t len) noexcept {
         gt_b = static_cast<std::uint64_t>(ai > bi);
         lt_b = static_cast<std::uint64_t>(ai < bi);
 #endif
-        std::uint64_t diff_sign = gt_b - lt_b;
+        std::uint64_t const diff_sign = gt_b - lt_b;
 
         result  = (diff_sign & mask) | (result & ~mask);
         decided |= nz;

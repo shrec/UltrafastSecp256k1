@@ -71,7 +71,7 @@ static void test_lagrange_properties() {
     //   lambda_1 = 2/(2-1) = 2
     //   lambda_2 = 1/(1-2) = -1 mod n = n-1
     {
-        std::vector<secp256k1::ParticipantId> ids = {1, 2};
+        std::vector<secp256k1::ParticipantId> const ids = {1, 2};
         auto l1 = secp256k1::frost_lagrange_coefficient(1, ids);
         auto l2 = secp256k1::frost_lagrange_coefficient(2, ids);
 
@@ -89,7 +89,7 @@ static void test_lagrange_properties() {
     //   lambda_2 = (1*3)/((1-2)*(3-2)) = 3/((-1)*1) = -3 mod n
     //   lambda_3 = (1*2)/((1-3)*(2-3)) = 2/((-2)*(-1)) = 2/2 = 1
     {
-        std::vector<secp256k1::ParticipantId> ids = {1, 2, 3};
+        std::vector<secp256k1::ParticipantId> const ids = {1, 2, 3};
         auto l1 = secp256k1::frost_lagrange_coefficient(1, ids);
         auto l2 = secp256k1::frost_lagrange_coefficient(2, ids);
         auto l3 = secp256k1::frost_lagrange_coefficient(3, ids);
@@ -115,7 +115,7 @@ static void test_lagrange_properties() {
         auto f3 = Scalar::from_uint64(63);
 
         // 2-of-3: use participants {1,2}
-        std::vector<secp256k1::ParticipantId> ids12 = {1, 2};
+        std::vector<secp256k1::ParticipantId> const ids12 = {1, 2};
         auto l1 = secp256k1::frost_lagrange_coefficient(1, ids12);
         auto l2 = secp256k1::frost_lagrange_coefficient(2, ids12);
 
@@ -123,7 +123,7 @@ static void test_lagrange_properties() {
         CHECK(reconstructed == secret, "Shamir reconstruct {1,2} == 42");
 
         // 2-of-3: use participants {1,3}
-        std::vector<secp256k1::ParticipantId> ids13 = {1, 3};
+        std::vector<secp256k1::ParticipantId> const ids13 = {1, 3};
         l1 = secp256k1::frost_lagrange_coefficient(1, ids13);
         auto l3 = secp256k1::frost_lagrange_coefficient(3, ids13);
 
@@ -131,7 +131,7 @@ static void test_lagrange_properties() {
         CHECK(reconstructed == secret, "Shamir reconstruct {1,3} == 42");
 
         // 2-of-3: use participants {2,3}
-        std::vector<secp256k1::ParticipantId> ids23 = {2, 3};
+        std::vector<secp256k1::ParticipantId> const ids23 = {2, 3};
         l2 = secp256k1::frost_lagrange_coefficient(2, ids23);
         l3 = secp256k1::frost_lagrange_coefficient(3, ids23);
 
@@ -141,7 +141,7 @@ static void test_lagrange_properties() {
 
     // Property 4: Lagrange for non-contiguous IDs {2,5,9}
     {
-        std::vector<secp256k1::ParticipantId> ids = {2, 5, 9};
+        std::vector<secp256k1::ParticipantId> const ids = {2, 5, 9};
         auto l2 = secp256k1::frost_lagrange_coefficient(2, ids);
         auto l5 = secp256k1::frost_lagrange_coefficient(5, ids);
         auto l9 = secp256k1::frost_lagrange_coefficient(9, ids);
@@ -180,10 +180,10 @@ static void test_dkg_determinism() {
         auto [c2, shares2] = secp256k1::frost_keygen_begin(2, t, n, seed2);
         auto [c3, shares3] = secp256k1::frost_keygen_begin(3, t, n, seed3);
 
-        std::vector<secp256k1::FrostCommitment> commitments = {c1, c2, c3};
-        std::vector<secp256k1::FrostShare> p1_shares = {shares1[0], shares2[0], shares3[0]};
-        std::vector<secp256k1::FrostShare> p2_shares = {shares1[1], shares2[1], shares3[1]};
-        std::vector<secp256k1::FrostShare> p3_shares = {shares1[2], shares2[2], shares3[2]};
+        std::vector<secp256k1::FrostCommitment> const commitments = {c1, c2, c3};
+        std::vector<secp256k1::FrostShare> const p1_shares = {shares1[0], shares2[0], shares3[0]};
+        std::vector<secp256k1::FrostShare> const p2_shares = {shares1[1], shares2[1], shares3[1]};
+        std::vector<secp256k1::FrostShare> const p3_shares = {shares1[2], shares2[2], shares3[2]};
 
         auto [kp1, ok1] = secp256k1::frost_keygen_finalize(1, commitments, p1_shares, t, n);
         auto [kp2, ok2] = secp256k1::frost_keygen_finalize(2, commitments, p2_shares, t, n);
@@ -232,7 +232,7 @@ static void test_dkg_feldman_vss() {
         const secp256k1::FrostCommitment* commit;
         const std::vector<secp256k1::FrostShare>* shares;
     };
-    CommitSharePair pairs[] = {
+    CommitSharePair const pairs[] = {
         {&c1, &shares1}, {&c2, &shares2}, {&c3, &shares3}
     };
 
@@ -275,10 +275,10 @@ static void test_2of3_full_signing() {
     auto [c2, shares2] = secp256k1::frost_keygen_begin(2, t, n, seed2);
     auto [c3, shares3] = secp256k1::frost_keygen_begin(3, t, n, seed3);
 
-    std::vector<secp256k1::FrostCommitment> commitments = {c1, c2, c3};
-    std::vector<secp256k1::FrostShare> p1_shares = {shares1[0], shares2[0], shares3[0]};
-    std::vector<secp256k1::FrostShare> p2_shares = {shares1[1], shares2[1], shares3[1]};
-    std::vector<secp256k1::FrostShare> p3_shares = {shares1[2], shares2[2], shares3[2]};
+    std::vector<secp256k1::FrostCommitment> const commitments = {c1, c2, c3};
+    std::vector<secp256k1::FrostShare> const p1_shares = {shares1[0], shares2[0], shares3[0]};
+    std::vector<secp256k1::FrostShare> const p2_shares = {shares1[1], shares2[1], shares3[1]};
+    std::vector<secp256k1::FrostShare> const p3_shares = {shares1[2], shares2[2], shares3[2]};
 
     auto [kp1, ok1] = secp256k1::frost_keygen_finalize(1, commitments, p1_shares, t, n);
     auto [kp2, ok2] = secp256k1::frost_keygen_finalize(2, commitments, p2_shares, t, n);
@@ -291,12 +291,12 @@ static void test_2of3_full_signing() {
     for (int i = 0; i < 32; ++i) msg[i] = static_cast<uint8_t>(0xCA + i);
 
     // Try ALL 3 signer subsets: {1,2}, {1,3}, {2,3}
-    const secp256k1::FrostKeyPackage* all_kps[] = {&kp1, &kp2, &kp3};
-    uint32_t subset_ids[][2] = {{1, 2}, {1, 3}, {2, 3}};
+    const secp256k1::FrostKeyPackage const* all_kps[] = {&kp1, &kp2, &kp3};
+    uint32_t const subset_ids[][2] = {{1, 2}, {1, 3}, {2, 3}};
 
     for (int s = 0; s < 3; ++s) {
-        uint32_t id_a = subset_ids[s][0];
-        uint32_t id_b = subset_ids[s][1];
+        uint32_t const id_a = subset_ids[s][0];
+        uint32_t const id_b = subset_ids[s][1];
 
         auto nonce_seed_a = make_seed(0xA0000000 + static_cast<uint64_t>(s) * 0x10 + id_a);
         auto nonce_seed_b = make_seed(0xB0000000 + static_cast<uint64_t>(s) * 0x10 + id_b);
@@ -304,16 +304,16 @@ static void test_2of3_full_signing() {
         auto [nonce_a, commit_a] = secp256k1::frost_sign_nonce_gen(id_a, nonce_seed_a);
         auto [nonce_b, commit_b] = secp256k1::frost_sign_nonce_gen(id_b, nonce_seed_b);
 
-        std::vector<secp256k1::FrostNonceCommitment> nonce_commits = {commit_a, commit_b};
+        std::vector<secp256k1::FrostNonceCommitment> const nonce_commits = {commit_a, commit_b};
 
         auto psig_a = secp256k1::frost_sign(*all_kps[id_a - 1], nonce_a, msg, nonce_commits);
         auto psig_b = secp256k1::frost_sign(*all_kps[id_b - 1], nonce_b, msg, nonce_commits);
 
         // Verify partial signatures
-        bool v_a = secp256k1::frost_verify_partial(
+        bool const v_a = secp256k1::frost_verify_partial(
             psig_a, commit_a, all_kps[id_a - 1]->verification_share,
             msg, nonce_commits, kp1.group_public_key);
-        bool v_b = secp256k1::frost_verify_partial(
+        bool const v_b = secp256k1::frost_verify_partial(
             psig_b, commit_b, all_kps[id_b - 1]->verification_share,
             msg, nonce_commits, kp1.group_public_key);
 
@@ -321,13 +321,13 @@ static void test_2of3_full_signing() {
         CHECK(v_b, "partial sig B verified");
 
         // Aggregate
-        std::vector<secp256k1::FrostPartialSig> partials = {psig_a, psig_b};
+        std::vector<secp256k1::FrostPartialSig> const partials = {psig_a, psig_b};
         auto final_sig = secp256k1::frost_aggregate(
             partials, nonce_commits, kp1.group_public_key, msg);
 
         // BIP-340 Schnorr verify
         auto pk_bytes = kp1.group_public_key.x().to_bytes();
-        bool valid = secp256k1::schnorr_verify(pk_bytes, msg, final_sig);
+        bool const valid = secp256k1::schnorr_verify(pk_bytes, msg, final_sig);
 
         char label[64];
         std::snprintf(label, sizeof(label), "2-of-3 subset {%u,%u} BIP-340 valid", id_a, id_b);
@@ -361,7 +361,8 @@ static void test_3of5_full_signing() {
     std::vector<secp256k1::FrostKeyPackage> key_pkgs;
     for (uint32_t i = 1; i <= n; ++i) {
         std::vector<secp256k1::FrostShare> received;
-        for (uint32_t from = 0; from < n; ++from) {
+        received.reserve(n);
+for (uint32_t from = 0; from < n; ++from) {
             received.push_back(all_shares[from][i - 1]);
         }
         auto [kp, ok] = secp256k1::frost_keygen_finalize(i, commitments, received, t, n);
@@ -453,12 +454,12 @@ static void test_lagrange_consistency() {
     auto secret = Scalar::from_uint64(17);
 
     // f(1)=25, f(2)=43, f(3)=71, f(4)=109, f(5)=157
-    uint64_t share_vals[] = {25, 43, 71, 109, 157};
+    uint64_t const share_vals[] = {25, 43, 71, 109, 157};
     Scalar shares[5];
     for (int i = 0; i < 5; ++i) shares[i] = Scalar::from_uint64(share_vals[i]);
 
     // All 10 3-element subsets of {1,2,3,4,5}
-    uint32_t subsets[][3] = {
+    uint32_t const subsets[][3] = {
         {1,2,3}, {1,2,4}, {1,2,5}, {1,3,4}, {1,3,5},
         {1,4,5}, {2,3,4}, {2,3,5}, {2,4,5}, {3,4,5}
     };
@@ -501,10 +502,10 @@ static void test_pinned_dkg_group_key() {
         auto [c2, shares2] = secp256k1::frost_keygen_begin(2, t, n, seed2);
         auto [c3, shares3] = secp256k1::frost_keygen_begin(3, t, n, seed3);
 
-        std::vector<secp256k1::FrostCommitment> commitments = {c1, c2, c3};
-        std::vector<secp256k1::FrostShare> p1_shares = {shares1[0], shares2[0], shares3[0]};
-        std::vector<secp256k1::FrostShare> p2_shares = {shares1[1], shares2[1], shares3[1]};
-        std::vector<secp256k1::FrostShare> p3_shares = {shares1[2], shares2[2], shares3[2]};
+        std::vector<secp256k1::FrostCommitment> const commitments = {c1, c2, c3};
+        std::vector<secp256k1::FrostShare> const p1_shares = {shares1[0], shares2[0], shares3[0]};
+        std::vector<secp256k1::FrostShare> const p2_shares = {shares1[1], shares2[1], shares3[1]};
+        std::vector<secp256k1::FrostShare> const p3_shares = {shares1[2], shares2[2], shares3[2]};
 
         auto [kp1, ok1] = secp256k1::frost_keygen_finalize(1, commitments, p1_shares, t, n);
         auto [kp2, ok2] = secp256k1::frost_keygen_finalize(2, commitments, p2_shares, t, n);
@@ -543,9 +544,9 @@ static void test_pinned_signing_roundtrip() {
         auto [c2, shares2] = secp256k1::frost_keygen_begin(2, t, n, seed2);
         auto [c3, shares3] = secp256k1::frost_keygen_begin(3, t, n, seed3);
 
-        std::vector<secp256k1::FrostCommitment> commitments = {c1, c2, c3};
-        std::vector<secp256k1::FrostShare> p1_shares = {shares1[0], shares2[0], shares3[0]};
-        std::vector<secp256k1::FrostShare> p2_shares = {shares1[1], shares2[1], shares3[1]};
+        std::vector<secp256k1::FrostCommitment> const commitments = {c1, c2, c3};
+        std::vector<secp256k1::FrostShare> const p1_shares = {shares1[0], shares2[0], shares3[0]};
+        std::vector<secp256k1::FrostShare> const p2_shares = {shares1[1], shares2[1], shares3[1]};
 
         auto [kp1, ok1] = secp256k1::frost_keygen_finalize(1, commitments, p1_shares, t, n);
         auto [kp2, ok2] = secp256k1::frost_keygen_finalize(2, commitments, p2_shares, t, n);
@@ -561,7 +562,7 @@ static void test_pinned_signing_roundtrip() {
         auto [nonce1, commit1] = secp256k1::frost_sign_nonce_gen(1, nonce_seed1);
         auto [nonce2, commit2] = secp256k1::frost_sign_nonce_gen(2, nonce_seed2);
 
-        std::vector<secp256k1::FrostNonceCommitment> nonce_commits = {commit1, commit2};
+        std::vector<secp256k1::FrostNonceCommitment> const nonce_commits = {commit1, commit2};
 
         auto psig1 = secp256k1::frost_sign(kp1, nonce1, msg, nonce_commits);
         auto psig2 = secp256k1::frost_sign(kp2, nonce2, msg, nonce_commits);
@@ -570,7 +571,7 @@ static void test_pinned_signing_roundtrip() {
             {psig1, psig2}, nonce_commits, kp1.group_public_key, msg);
 
         auto pk_bytes = kp1.group_public_key.x().to_bytes();
-        bool valid = secp256k1::schnorr_verify(pk_bytes, msg, final_sig);
+        bool const valid = secp256k1::schnorr_verify(pk_bytes, msg, final_sig);
         CHECK(valid, "KAT signing BIP-340 valid");
 
         return final_sig;
@@ -599,11 +600,11 @@ static void test_secret_reconstruction() {
     auto [c2, shares2] = secp256k1::frost_keygen_begin(2, t, n, seed2);
     auto [c3, shares3] = secp256k1::frost_keygen_begin(3, t, n, seed3);
 
-    std::vector<secp256k1::FrostCommitment> commitments = {c1, c2, c3};
+    std::vector<secp256k1::FrostCommitment> const commitments = {c1, c2, c3};
 
-    std::vector<secp256k1::FrostShare> p1_shares = {shares1[0], shares2[0], shares3[0]};
-    std::vector<secp256k1::FrostShare> p2_shares = {shares1[1], shares2[1], shares3[1]};
-    std::vector<secp256k1::FrostShare> p3_shares = {shares1[2], shares2[2], shares3[2]};
+    std::vector<secp256k1::FrostShare> const p1_shares = {shares1[0], shares2[0], shares3[0]};
+    std::vector<secp256k1::FrostShare> const p2_shares = {shares1[1], shares2[1], shares3[1]};
+    std::vector<secp256k1::FrostShare> const p3_shares = {shares1[2], shares2[2], shares3[2]};
 
     auto [kp1, ok1] = secp256k1::frost_keygen_finalize(1, commitments, p1_shares, t, n);
     auto [kp2, ok2] = secp256k1::frost_keygen_finalize(2, commitments, p2_shares, t, n);
@@ -614,7 +615,7 @@ static void test_secret_reconstruction() {
     // Reconstruct group secret from any 2 signing shares using Lagrange
     auto reconstruct = [](const secp256k1::FrostKeyPackage& a,
                           const secp256k1::FrostKeyPackage& b) -> Scalar {
-        std::vector<secp256k1::ParticipantId> ids = {a.id, b.id};
+        std::vector<secp256k1::ParticipantId> const ids = {a.id, b.id};
         auto la = secp256k1::frost_lagrange_coefficient(a.id, ids);
         auto lb = secp256k1::frost_lagrange_coefficient(b.id, ids);
         return (la * a.signing_share) + (lb * b.signing_share);

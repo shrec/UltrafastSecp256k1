@@ -37,7 +37,7 @@ int main() {
 
     // 1) Self-test
     printf("[1] Running self-test...\n");
-    bool ok = Selftest(false);
+    bool const ok = Selftest(false);
     printf("    Result: %s\n\n", ok ? "PASS" : "FAIL");
     if (!ok) return 1;
 
@@ -92,12 +92,12 @@ int main() {
 
     volatile uint8_t sink = 0;
 
-    double t0 = now_us();
+    double const t0 = now_us();
     for (int i = 0; i < ITERS; ++i) {
         auto P = G.scalar_mul(scalars[i]);
         sink ^= P.to_compressed()[0];
     }
-    double elapsed = now_us() - t0;
+    double const elapsed = now_us() - t0;
     printf("  Total : %.1f ms\n", elapsed / 1000.0);
     printf("  Per op: %.1f us\n", elapsed / ITERS);
     printf("  (sink = 0x%02x)\n\n", (unsigned)sink);

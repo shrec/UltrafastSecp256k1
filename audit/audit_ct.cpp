@@ -112,8 +112,8 @@ static void test_ct_cmov_cswap() {
             b[j] = b_orig[j] = rng();
         }
 
-        bool do_it = (i % 2 == 0);
-        uint64_t mask = secp256k1::ct::bool_to_mask(do_it);
+        bool const do_it = (i % 2 == 0);
+        uint64_t const mask = secp256k1::ct::bool_to_mask(do_it);
 
         // cmov
         uint64_t dst[4];
@@ -150,9 +150,11 @@ static void test_ct_table_lookup() {
 
     constexpr int N = 16;
     uint64_t table[N][4];
-    for (int i = 0; i < N; ++i)
-        for (int j = 0; j < 4; ++j)
+    for (int i = 0; i < N; ++i) {
+        for (int j = 0; j < 4; ++j) {
             table[i][j] = rng();
+}
+}
 
     // Every index should return the correct entry
     for (int idx = 0; idx < N; ++idx) {
@@ -255,7 +257,7 @@ static void test_ct_scalar_cmov() {
         auto a_orig = a;
         auto b_orig = b;
 
-        uint64_t mask = secp256k1::ct::bool_to_mask(i % 2 == 0);
+        uint64_t const mask = secp256k1::ct::bool_to_mask(i % 2 == 0);
 
         // cmov
         auto r = a;
@@ -292,7 +294,7 @@ static void test_ct_field_cmov() {
         auto a_orig = a;
         auto b_orig = b;
 
-        uint64_t mask = secp256k1::ct::bool_to_mask(i % 2 == 0);
+        uint64_t const mask = secp256k1::ct::bool_to_mask(i % 2 == 0);
 
         // cmov
         auto r = a;
@@ -363,8 +365,8 @@ static void test_ct_comparisons() {
     for (int i = 0; i < 1000; ++i) {
         auto a = random_fe();
         auto b = random_fe();
-        bool fast_eq = (a == b);
-        bool ct_eq = (secp256k1::ct::field_eq(a, b) == UINT64_MAX);
+        bool const fast_eq = (a == b);
+        bool const ct_eq = (secp256k1::ct::field_eq(a, b) == UINT64_MAX);
         CHECK(fast_eq == ct_eq, "fe eq matches fast");
     }
 
@@ -576,7 +578,7 @@ static void test_timing_variance() {
     }
     avg_high /= TRIALS;
 
-    double ratio = (avg_high > avg_low)
+    double const ratio = (avg_high > avg_low)
         ? avg_high / avg_low
         : avg_low / avg_high;
 

@@ -53,14 +53,16 @@ static int g_crash = 0;  // should stay 0
 static std::mt19937_64 rng(0xADD12E55);
 
 static void fill_random(uint8_t* buf, size_t len) {
-    for (size_t i = 0; i < len; ++i)
+    for (size_t i = 0; i < len; ++i) {
         buf[i] = static_cast<uint8_t>(rng() & 0xFF);
+}
 }
 
 static void fill_random_str(char* buf, size_t len) {
     // Random printable + non-printable chars
-    for (size_t i = 0; i < len; ++i)
+    for (size_t i = 0; i < len; ++i) {
         buf[i] = static_cast<char>(rng() & 0xFF);
+}
 }
 
 // Generate a valid compressed pubkey via ufsecp
@@ -69,9 +71,10 @@ static bool make_valid_pubkey(ufsecp_ctx* ctx, uint8_t pubkey33[33]) {
     // Use a well-known valid private key (secp256k1 order is ~2^256)
     std::memset(privkey, 0, 32);
     // Set last 8 bytes to a random nonzero value
-    uint64_t val = (rng() % 0xFFFFFFFFFFFFFFFEULL) + 1;
-    for (int i = 0; i < 8; ++i)
+    uint64_t const val = (rng() % 0xFFFFFFFFFFFFFFFEULL) + 1;
+    for (int i = 0; i < 8; ++i) {
         privkey[31 - i] = static_cast<uint8_t>((val >> (i * 8)) & 0xFF);
+}
 
     return ufsecp_pubkey_create(ctx, privkey, pubkey33) == UFSECP_OK;
 }
@@ -92,7 +95,7 @@ static void suite_1_p2pkh_fuzz(ufsecp_ctx* ctx) {
 
         char addr[128] = {};
         size_t addr_len = sizeof(addr);
-        ufsecp_error_t err = ufsecp_addr_p2pkh(ctx, pubkey, UFSECP_NET_MAINNET,
+        ufsecp_error_t const err = ufsecp_addr_p2pkh(ctx, pubkey, UFSECP_NET_MAINNET,
                                                 addr, &addr_len);
         // Either succeeds or returns error, no crash
         MUST_NOT_CRASH((void)err, "p2pkh_random_blob");
@@ -139,7 +142,7 @@ static void suite_1_p2pkh_fuzz(ufsecp_ctx* ctx) {
         if (make_valid_pubkey(ctx, pub33)) {
             char tiny[5];
             size_t tlen = sizeof(tiny);
-            ufsecp_error_t err = ufsecp_addr_p2pkh(ctx, pub33, UFSECP_NET_MAINNET,
+            ufsecp_error_t const err = ufsecp_addr_p2pkh(ctx, pub33, UFSECP_NET_MAINNET,
                                                     tiny, &tlen);
             // Should return buffer-too-small or fail gracefully
             MUST_NOT_CRASH((void)err, "p2pkh_tiny_buffer");
@@ -282,7 +285,7 @@ static void suite_3_p2tr_fuzz(ufsecp_ctx* ctx) {
         uint8_t ones[32];
         std::memset(ones, 0xFF, 32);
         char addr[128];
-        size_t alen;
+        size_t alen = 0;
 
         alen = sizeof(addr);
         MUST_NOT_CRASH(ufsecp_addr_p2tr(ctx, zeros, 0, addr, &alen),
@@ -308,12 +311,12 @@ static void suite_4_wif_fuzz(ufsecp_ctx* ctx) {
 
         char wif[128];
         size_t wlen = sizeof(wif);
-        ufsecp_error_t err = ufsecp_wif_encode(ctx, privkey, 1 /*compressed*/,
+        ufsecp_error_t const err = ufsecp_wif_encode(ctx, privkey, 1 /*compressed*/,
                                                 UFSECP_NET_MAINNET, wif, &wlen);
         if (err == UFSECP_OK) {
             uint8_t decoded[32];
             int comp_out = 0, net_out = 0;
-            ufsecp_error_t err2 = ufsecp_wif_decode(ctx, wif, decoded,
+            ufsecp_error_t const err2 = ufsecp_wif_decode(ctx, wif, decoded,
                                                      &comp_out, &net_out);
             if (err2 == UFSECP_OK &&
                 std::memcmp(privkey, decoded, 32) == 0 &&
@@ -330,12 +333,12 @@ static void suite_4_wif_fuzz(ufsecp_ctx* ctx) {
     // 4b: Decode garbage strings
     for (int i = 0; i < 5000; ++i) {
         char garbage[128];
-        size_t glen = rng() % 120 + 1;
+        size_t const glen = rng() % 120 + 1;
         fill_random_str(garbage, glen);
         garbage[glen] = '\0';
 
         uint8_t decoded[32];
-        int comp, net;
+        int comp = 0, net = 0;
         MUST_NOT_CRASH(ufsecp_wif_decode(ctx, garbage, decoded, &comp, &net),
                        "wif_decode_garbage");
     }
@@ -350,7 +353,7 @@ static void suite_4_wif_fuzz(ufsecp_ctx* ctx) {
         MUST_NOT_CRASH(ufsecp_wif_encode(ctx, pk, 1, 0, nullptr, &wlen),
                        "wif_encode_null_buf");
         uint8_t dec[32];
-        int c, n;
+        int c = 0, n = 0;
         MUST_NOT_CRASH(ufsecp_wif_decode(ctx, nullptr, dec, &c, &n),
                        "wif_decode_null_str");
         MUST_NOT_CRASH(ufsecp_wif_decode(ctx, "5K...", nullptr, &c, &n),
@@ -363,10 +366,10 @@ static void suite_4_wif_fuzz(ufsecp_ctx* ctx) {
         std::memset(pk, 0, 32); pk[31] = 1;  // key = 1
         char wif[128];
         size_t wlen = sizeof(wif);
-        ufsecp_error_t err = ufsecp_wif_encode(ctx, pk, 0 /*uncomp*/, 0, wif, &wlen);
+        ufsecp_error_t const err = ufsecp_wif_encode(ctx, pk, 0 /*uncomp*/, 0, wif, &wlen);
         if (err == UFSECP_OK) {
-            uint8_t dec[32]; int c, n;
-            ufsecp_error_t err2 = ufsecp_wif_decode(ctx, wif, dec, &c, &n);
+            uint8_t dec[32]; int c = 0, n = 0;
+            ufsecp_error_t const err2 = ufsecp_wif_decode(ctx, wif, dec, &c, &n);
             CHECK(err2 == UFSECP_OK, "wif_uncomp_decode_ok");
             CHECK(c == 0, "wif_uncomp_flag_0");
             CHECK(std::memcmp(pk, dec, 32) == 0, "wif_uncomp_roundtrip");
@@ -382,17 +385,17 @@ static void suite_5_bip32_master_fuzz(ufsecp_ctx* ctx) {
     std::printf("\n[5] BIP32 Master Key from Seed Fuzz\n");
 
     // 5a: Valid seed lengths (16, 32, 64)
-    for (int slen : {16, 32, 64}) {
+    for (int const slen : {16, 32, 64}) {
         uint8_t seed[64];
         fill_random(seed, slen);
         ufsecp_bip32_key key;
-        ufsecp_error_t err = ufsecp_bip32_master(ctx, seed, slen, &key);
+        ufsecp_error_t const err = ufsecp_bip32_master(ctx, seed, slen, &key);
         CHECK(err == UFSECP_OK, "bip32_master_valid_seed");
         CHECK(key.is_private == 1, "bip32_master_is_private");
     }
 
     // 5b: Invalid seed lengths
-    for (size_t slen : {0, 1, 5, 15, 65, 100, 255}) {
+    for (size_t const slen : {0, 1, 5, 15, 65, 100, 255}) {
         uint8_t seed[256];
         fill_random(seed, slen > 0 ? slen : 1);
         ufsecp_bip32_key key;
@@ -402,7 +405,7 @@ static void suite_5_bip32_master_fuzz(ufsecp_ctx* ctx) {
 
     // 5c: Random seed bytes at all valid lengths
     for (int i = 0; i < 5000; ++i) {
-        size_t slen = 16 + (rng() % 49);  // 16..64
+        size_t const slen = 16 + (rng() % 49);  // 16..64
         uint8_t seed[64];
         fill_random(seed, slen);
         ufsecp_bip32_key key;
@@ -441,7 +444,7 @@ static void suite_6_bip32_path_fuzz(ufsecp_ctx* ctx) {
     }
 
     // 6a: Valid BIP32 paths
-    const char* valid_paths[] = {
+    const char const* valid_paths[] = {
         "m",
         "m/0",
         "m/0/1",
@@ -460,7 +463,7 @@ static void suite_6_bip32_path_fuzz(ufsecp_ctx* ctx) {
     }
 
     // 6b: Invalid BIP32 paths -- must not crash
-    const char* invalid_paths[] = {
+    const char const* invalid_paths[] = {
         "",
         "m/",
         "/0/1",
@@ -489,7 +492,7 @@ static void suite_6_bip32_path_fuzz(ufsecp_ctx* ctx) {
     // 6c: Random string paths
     for (int i = 0; i < 10000; ++i) {
         char path[128];
-        size_t plen = rng() % 100 + 1;
+        size_t const plen = rng() % 100 + 1;
         fill_random_str(path, plen);
         path[plen] = '\0';
         ufsecp_bip32_key child;
@@ -501,7 +504,7 @@ static void suite_6_bip32_path_fuzz(ufsecp_ctx* ctx) {
     {
         ufsecp_bip32_key k1, k2;
         err = ufsecp_bip32_derive_path(ctx, &master, "m/44'/0'/0'/0/0", &k1);
-        ufsecp_error_t err2 = ufsecp_bip32_derive_path(ctx, &master, "m/44'/0'/0'/0/0", &k2);
+        ufsecp_error_t const err2 = ufsecp_bip32_derive_path(ctx, &master, "m/44'/0'/0'/0/0", &k2);
         if (err == UFSECP_OK && err2 == UFSECP_OK) {
             CHECK(std::memcmp(&k1.data, &k2.data, UFSECP_BIP32_SERIALIZED_LEN) == 0,
                   "bip32_path_deterministic");
@@ -512,7 +515,7 @@ static void suite_6_bip32_path_fuzz(ufsecp_ctx* ctx) {
     {
         ufsecp_bip32_key k1, k2;
         err = ufsecp_bip32_derive_path(ctx, &master, "m/44'/0'/0'/0/0", &k1);
-        ufsecp_error_t err2 = ufsecp_bip32_derive_path(ctx, &master, "m/44'/0'/0'/0/1", &k2);
+        ufsecp_error_t const err2 = ufsecp_bip32_derive_path(ctx, &master, "m/44'/0'/0'/0/1", &k2);
         if (err == UFSECP_OK && err2 == UFSECP_OK) {
             CHECK(std::memcmp(&k1.data, &k2.data, UFSECP_BIP32_SERIALIZED_LEN) != 0,
                   "bip32_path_different");
@@ -564,7 +567,7 @@ static void suite_7_bip32_derive_fuzz(ufsecp_ctx* ctx) {
     }
 
     // 7c: Edge indices
-    for (uint32_t idx : {0u, 0x7FFFFFFFu, 0x80000000u, 0xFFFFFFFFu}) {
+    for (uint32_t const idx : {0u, 0x7FFFFFFFu, 0x80000000u, 0xFFFFFFFFu}) {
         ufsecp_bip32_key child;
         MUST_NOT_CRASH(ufsecp_bip32_derive(ctx, &master, idx, &child),
                        "bip32_derive_edge_idx");
@@ -576,11 +579,11 @@ static void suite_7_bip32_derive_fuzz(ufsecp_ctx* ctx) {
         err = ufsecp_bip32_derive(ctx, &master, 0, &child);
         if (err == UFSECP_OK) {
             uint8_t privkey[32];
-            ufsecp_error_t perr = ufsecp_bip32_privkey(ctx, &child, privkey);
+            ufsecp_error_t const perr = ufsecp_bip32_privkey(ctx, &child, privkey);
             CHECK(perr == UFSECP_OK, "bip32_extract_privkey");
 
             uint8_t pubkey[33];
-            ufsecp_error_t puerr = ufsecp_bip32_pubkey(ctx, &child, pubkey);
+            ufsecp_error_t const puerr = ufsecp_bip32_pubkey(ctx, &child, pubkey);
             CHECK(puerr == UFSECP_OK, "bip32_extract_pubkey");
             CHECK(pubkey[0] == 0x02 || pubkey[0] == 0x03, "bip32_pubkey_compressed");
         }
@@ -597,7 +600,7 @@ static void suite_8_ffi_context_stress() {
     // 8a: Rapid create/destroy cycles
     for (int i = 0; i < 100; ++i) {
         ufsecp_ctx* c = nullptr;
-        ufsecp_error_t err = ufsecp_ctx_create(&c);
+        ufsecp_error_t const err = ufsecp_ctx_create(&c);
         CHECK(err == UFSECP_OK, "ffi_ctx_create");
         CHECK(c != nullptr, "ffi_ctx_not_null");
         ufsecp_ctx_destroy(c);
@@ -610,7 +613,7 @@ static void suite_8_ffi_context_stress() {
         ufsecp_ctx_create(&c1);
         if (c1) {
             ufsecp_ctx* c2 = nullptr;
-            ufsecp_error_t err = ufsecp_ctx_clone(c1, &c2);
+            ufsecp_error_t const err = ufsecp_ctx_clone(c1, &c2);
             CHECK(err == UFSECP_OK, "ffi_ctx_clone");
             CHECK(c2 != nullptr, "ffi_ctx_clone_not_null");
 
@@ -652,12 +655,12 @@ static void suite_9_ffi_ecdsa_boundary(ufsecp_ctx* ctx) {
         uint8_t pk[32], hash[32], sig[64];
         fill_random(pk, 32);
         fill_random(hash, 32);
-        ufsecp_error_t serr = ufsecp_ecdsa_sign(ctx, hash, pk, sig);
+        ufsecp_error_t const serr = ufsecp_ecdsa_sign(ctx, hash, pk, sig);
         if (serr == UFSECP_OK) {
             // Get pubkey
             uint8_t pub33[33];
             if (ufsecp_pubkey_create(ctx, pk, pub33) == UFSECP_OK) {
-                ufsecp_error_t verr = ufsecp_ecdsa_verify(ctx, hash, sig, pub33);
+                ufsecp_error_t const verr = ufsecp_ecdsa_verify(ctx, hash, sig, pub33);
                 if (verr == UFSECP_OK) ++sign_verify_ok;
             }
         }
@@ -679,7 +682,7 @@ static void suite_9_ffi_ecdsa_boundary(ufsecp_ctx* ctx) {
     {
         uint8_t zero_key[32] = {}, hash[32], sig[64];
         fill_random(hash, 32);
-        ufsecp_error_t err = ufsecp_ecdsa_sign(ctx, hash, zero_key, sig);
+        ufsecp_error_t const err = ufsecp_ecdsa_sign(ctx, hash, zero_key, sig);
         CHECK(err != UFSECP_OK, "ffi_ecdsa_sign_zero_key_fails");
     }
 
@@ -711,11 +714,11 @@ static void suite_10_ffi_schnorr_boundary(ufsecp_ctx* ctx) {
         fill_random(pk, 32);
         fill_random(msg, 32);
         std::memset(aux, 0, 32);  // deterministic aux
-        ufsecp_error_t serr = ufsecp_schnorr_sign(ctx, msg, pk, aux, sig);
+        ufsecp_error_t const serr = ufsecp_schnorr_sign(ctx, msg, pk, aux, sig);
         if (serr == UFSECP_OK) {
             uint8_t xpub[32];
             if (ufsecp_pubkey_xonly(ctx, pk, xpub) == UFSECP_OK) {
-                ufsecp_error_t verr = ufsecp_schnorr_verify(ctx, msg, sig, xpub);
+                ufsecp_error_t const verr = ufsecp_schnorr_verify(ctx, msg, sig, xpub);
                 if (verr == UFSECP_OK) ++sign_verify_ok;
             }
         }
@@ -763,8 +766,8 @@ static void suite_11_ffi_ecdh_tweak(ufsecp_ctx* ctx) {
         if (ufsecp_pubkey_create(ctx, sk_a, pub_a) == UFSECP_OK &&
             ufsecp_pubkey_create(ctx, sk_b, pub_b) == UFSECP_OK) {
             uint8_t secret_ab[32], secret_ba[32];
-            ufsecp_error_t e1 = ufsecp_ecdh(ctx, sk_a, pub_b, secret_ab);
-            ufsecp_error_t e2 = ufsecp_ecdh(ctx, sk_b, pub_a, secret_ba);
+            ufsecp_error_t const e1 = ufsecp_ecdh(ctx, sk_a, pub_b, secret_ab);
+            ufsecp_error_t const e2 = ufsecp_ecdh(ctx, sk_b, pub_a, secret_ba);
             if (e1 == UFSECP_OK && e2 == UFSECP_OK) {
                 if (std::memcmp(secret_ab, secret_ba, 32) == 0) ++ecdh_ok;
             }
@@ -818,7 +821,7 @@ static void suite_12_ffi_taproot_boundary(ufsecp_ctx* ctx) {
         if (make_valid_pubkey(ctx, pub33)) {
             uint8_t output_x[32];
             int parity = -1;
-            ufsecp_error_t err = ufsecp_taproot_output_key(ctx, pub33 + 1,
+            ufsecp_error_t const err = ufsecp_taproot_output_key(ctx, pub33 + 1,
                                                             nullptr, output_x, &parity);
             CHECK(err == UFSECP_OK, "taproot_output_key_ok");
             CHECK(parity == 0 || parity == 1, "taproot_parity_valid");
@@ -832,8 +835,8 @@ static void suite_12_ffi_taproot_boundary(ufsecp_ctx* ctx) {
             uint8_t merkle[32];
             fill_random(merkle, 32);
             uint8_t output_x[32];
-            int parity;
-            ufsecp_error_t err = ufsecp_taproot_output_key(ctx, pub33 + 1,
+            int parity = 0;
+            ufsecp_error_t const err = ufsecp_taproot_output_key(ctx, pub33 + 1,
                                                             merkle, output_x, &parity);
             CHECK(err == UFSECP_OK, "taproot_with_merkle_ok");
         }
@@ -844,7 +847,7 @@ static void suite_12_ffi_taproot_boundary(ufsecp_ctx* ctx) {
         uint8_t xkey[32], merkle[32], output[32];
         fill_random(xkey, 32);
         fill_random(merkle, 32);
-        int parity;
+        int parity = 0;
         MUST_NOT_CRASH(ufsecp_taproot_output_key(ctx, xkey,
                                                   (rng() & 1) ? merkle : nullptr,
                                                   output, &parity),
@@ -854,7 +857,7 @@ static void suite_12_ffi_taproot_boundary(ufsecp_ctx* ctx) {
     // 12d: NULL args
     {
         uint8_t xkey[32] = {}, output[32];
-        int parity;
+        int parity = 0;
         MUST_NOT_CRASH(ufsecp_taproot_output_key(ctx, nullptr, nullptr, output, &parity),
                        "taproot_null_key");
         MUST_NOT_CRASH(ufsecp_taproot_output_key(ctx, xkey, nullptr, nullptr, &parity),
@@ -888,9 +891,9 @@ static void suite_13_ffi_error_inspection(ufsecp_ctx* ctx) {
     {
         uint8_t zero_key[32] = {};
         uint8_t pub33[33];
-        ufsecp_error_t err = ufsecp_pubkey_create(ctx, zero_key, pub33);
+        ufsecp_error_t const err = ufsecp_pubkey_create(ctx, zero_key, pub33);
         if (err != UFSECP_OK) {
-            ufsecp_error_t last = ufsecp_last_error(ctx);
+            ufsecp_error_t const last = ufsecp_last_error(ctx);
             CHECK(last != UFSECP_OK, "last_error_after_fail");
             const char* msg = ufsecp_last_error_msg(ctx);
             CHECK(msg != nullptr, "last_error_msg_not_null");
@@ -899,7 +902,7 @@ static void suite_13_ffi_error_inspection(ufsecp_ctx* ctx) {
 
     // 13d: ABI version
     {
-        uint32_t ver = ufsecp_abi_version();
+        uint32_t const ver = ufsecp_abi_version();
         CHECK(ver > 0, "abi_version_positive");
     }
 }
@@ -912,7 +915,7 @@ int test_fuzz_address_bip32_ffi_run() {
     g_pass = 0; g_fail = 0; g_crash = 0;
 
     ufsecp_ctx* ctx = nullptr;
-    ufsecp_error_t err = ufsecp_ctx_create(&ctx);
+    ufsecp_error_t const err = ufsecp_ctx_create(&ctx);
     if (err != UFSECP_OK || !ctx) {
         std::printf("  FATAL: ufsecp_ctx_create failed\n");
         return 1;

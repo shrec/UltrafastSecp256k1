@@ -114,7 +114,7 @@ inline std::uint64_t is_zero_mask(std::uint64_t v) noexcept {
     value_barrier(v);   // prevent compiler from recognising v's value range
     std::uint64_t nv = 0ULL - v;
     value_barrier(nv);  // prevent compiler from knowing nv == (0-v)
-    std::uint64_t mask = static_cast<std::uint64_t>(
+    auto mask = static_cast<std::uint64_t>(
         -static_cast<std::int64_t>((~(v | nv)) >> 63));
     value_barrier(mask); // prevent compiler from converting result into branch
     return mask;
@@ -133,7 +133,7 @@ inline std::uint64_t eq_mask(std::uint64_t a, std::uint64_t b) noexcept {
 
 // Returns 0xFFFFFFFFFFFFFFFF if flag is true (nonzero), else 0
 inline std::uint64_t bool_to_mask(bool flag) noexcept {
-    std::uint64_t v = static_cast<std::uint64_t>(flag);
+    auto v = static_cast<std::uint64_t>(flag);
     value_barrier(v);
     std::uint64_t mask = 0ULL - v;
     value_barrier(mask); // prevent converting to branch
@@ -145,7 +145,7 @@ inline std::uint64_t bool_to_mask(bool flag) noexcept {
 inline std::uint64_t lt_mask(std::uint64_t a, std::uint64_t b) noexcept {
     // If a < b, then (a - b) borrows, so bit 64 of the extended result is 1
     // Subtraction borrows when a < b; detects wrap via XOR-OR-shift pattern
-    std::uint64_t diff = a - b;
+    std::uint64_t const diff = a - b;
     // Borrow occurred iff a < b. The borrow is in the "carry out" position.
     // For unsigned: a < b iff the subtract wraps, iff (a ^ ((a ^ b) | (diff ^ a))) has MSB set
     std::uint64_t borrow = (a ^ ((a ^ b) | (diff ^ a))) >> 63;
@@ -177,7 +177,7 @@ inline void cmov256(std::uint64_t dst[4], const std::uint64_t src[4],
 inline void cswap256(std::uint64_t a[4], std::uint64_t b[4],
                      std::uint64_t mask) noexcept {
     for (int i = 0; i < 4; ++i) {
-        std::uint64_t diff = (a[i] ^ b[i]) & mask;
+        std::uint64_t const diff = (a[i] ^ b[i]) & mask;
         a[i] ^= diff;
         b[i] ^= diff;
     }
@@ -206,7 +206,7 @@ inline void ct_lookup(const void* table, std::size_t count,
 
     const auto* src = static_cast<const std::uint8_t*>(table);
     for (std::size_t i = 0; i < count; ++i) {
-        std::uint64_t mask = eq_mask(static_cast<std::uint64_t>(i),
+        std::uint64_t const mask = eq_mask(static_cast<std::uint64_t>(i),
                                      static_cast<std::uint64_t>(index));
         auto mask8 = static_cast<std::uint8_t>(mask & 0xFF);
         for (std::size_t b = 0; b < stride; ++b) {
@@ -220,7 +220,7 @@ inline void ct_lookup_256(const std::uint64_t table[][4], std::size_t count,
                           std::size_t index, std::uint64_t out[4]) noexcept {
     out[0] = out[1] = out[2] = out[3] = 0;
     for (std::size_t i = 0; i < count; ++i) {
-        std::uint64_t mask = eq_mask(static_cast<std::uint64_t>(i),
+        std::uint64_t const mask = eq_mask(static_cast<std::uint64_t>(i),
                                      static_cast<std::uint64_t>(index));
         out[0] |= table[i][0] & mask;
         out[1] |= table[i][1] & mask;

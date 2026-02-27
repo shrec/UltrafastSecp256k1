@@ -168,7 +168,7 @@ static void test_recovery_basic() {
 static void test_recovery_multiple_keys() {
     std::printf("[Recovery] Multiple different private keys...\n");
 
-    const char* test_keys[] = {
+    const char const* test_keys[] = {
         "0000000000000000000000000000000000000000000000000000000000000002",
         "0000000000000000000000000000000000000000000000000000000000000003",
         "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364140",  // n-1
@@ -219,7 +219,7 @@ static void test_recovery_wrong_recid() {
     auto rsig = ecdsa_sign_recoverable(msg, sk);
 
     // Try wrong recid -- should either fail or give wrong key
-    int wrong_recid = (rsig.recid + 1) % 4;
+    int const wrong_recid = (rsig.recid + 1) % 4;
     auto [wrong_pk, ok] = ecdsa_recover(msg, rsig.sig, wrong_recid);
     // It might succeed but give a different key, or it might fail
     if (ok) {
@@ -236,19 +236,19 @@ static void test_recovery_invalid_sig() {
     auto msg = hex32("0000000000000000000000000000000000000000000000000000000000000001");
 
     // Zero r
-    ECDSASignature zero_r{Scalar::zero(), Scalar::one()};
+    ECDSASignature const zero_r{Scalar::zero(), Scalar::one()};
     auto [pk1, ok1] = ecdsa_recover(msg, zero_r, 0);
     (void)pk1;
     check(!ok1, "Recovery: zero r fails");
 
     // Zero s
-    ECDSASignature zero_s{Scalar::one(), Scalar::zero()};
+    ECDSASignature const zero_s{Scalar::one(), Scalar::zero()};
     auto [pk2, ok2] = ecdsa_recover(msg, zero_s, 0);
     (void)pk2;
     check(!ok2, "Recovery: zero s fails");
 
     // Invalid recid
-    ECDSASignature valid_sig{Scalar::one(), Scalar::one()};
+    ECDSASignature const valid_sig{Scalar::one(), Scalar::one()};
     auto [pk3, ok3] = ecdsa_recover(msg, valid_sig, -1);
     (void)pk3;
     check(!ok3, "Recovery: negative recid fails");
@@ -449,7 +449,7 @@ static void test_ct_equal() {
 static void test_ct_is_zero() {
     std::printf("[CT Utils] Constant-time zero check...\n");
 
-    std::array<uint8_t, 32> zeros{};
+    std::array<uint8_t, 32> const zeros{};
     auto nonzero = hex32("0000000000000000000000000000000000000000000000000000000000000001");
 
     check(secp256k1::ct::ct_is_zero(zeros), "CT is_zero: all zeros");
@@ -591,7 +591,7 @@ static void test_wycheproof_ecdsa_edge_cases() {
     {
         auto pk = Point::generator();
         auto msg = hex32("0000000000000000000000000000000000000000000000000000000000000001");
-        ECDSASignature zero_sig{Scalar::zero(), Scalar::zero()};
+        ECDSASignature const zero_sig{Scalar::zero(), Scalar::zero()};
         check(!ecdsa_verify(msg, pk, zero_sig), "Wycheproof: zero sig rejects");
     }
 }
@@ -643,7 +643,7 @@ static void test_wycheproof_recovery_edge_cases() {
     std::printf("[Wycheproof] Recovery edge cases...\n");
 
     // 1. Recovery round-trip with various message hashes
-    const char* messages[] = {
+    const char const* messages[] = {
         "0000000000000000000000000000000000000000000000000000000000000000",  // zero
         "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF",  // max
         "0000000000000000000000000000000000000000000000000000000000000001",  // one

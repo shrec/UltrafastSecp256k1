@@ -55,10 +55,10 @@ std::string eip55_checksum(const std::string& hex_addr) {
     
     std::string result(40, '\0');
     for (std::size_t i = 0; i < 40; ++i) {
-        char c = hex_addr[i];
+        char const c = hex_addr[i];
         if (c >= 'a' && c <= 'f') {
             // Get the corresponding nibble from the hash
-            std::uint8_t hash_nibble = (hash[i / 2] >> ((1 - (i % 2)) * 4)) & 0x0F;
+            std::uint8_t const hash_nibble = (hash[i / 2] >> ((1 - (i % 2)) * 4)) & 0x0F;
             result[i] = (hash_nibble >= 8) ? static_cast<char>(c - 32) : c; // uppercase if hash nibble >= 8
         } else {
             result[i] = c; // digits 0-9 stay as-is
@@ -79,12 +79,12 @@ bool eip55_verify(const std::string& addr) {
     // Get lowercase version
     char lower[40];
     for (int i = 0; i < 40; ++i) {
-        char c = hex[i];
+        char const c = hex[i];
         lower[i] = (c >= 'A' && c <= 'F') ? static_cast<char>(c + 32) : c;
     }
     
     // Re-apply checksum and compare
-    std::string lower_str(lower, 40);
+    std::string const lower_str(lower, 40);
     std::string checksummed = eip55_checksum(lower_str);
     
     return std::memcmp(hex, checksummed.data(), 40) == 0;
@@ -93,8 +93,8 @@ bool eip55_verify(const std::string& addr) {
 // -- EIP-55 Address -----------------------------------------------------------
 
 std::string ethereum_address(const fast::Point& pubkey) {
-    std::string raw = ethereum_address_raw(pubkey);
-    std::string checksummed = eip55_checksum(raw);
+    std::string const raw = ethereum_address_raw(pubkey);
+    std::string const checksummed = eip55_checksum(raw);
     return "0x" + checksummed;
 }
 

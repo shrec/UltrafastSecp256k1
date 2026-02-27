@@ -101,7 +101,7 @@ static void test_ecdh() {
         auto sk = random_scalar();
         auto inf = Point::infinity();
         auto result = secp256k1::ecdh_compute(sk, inf);
-        std::array<uint8_t, 32> zeros{};
+        std::array<uint8_t, 32> const zeros{};
         CHECK(result == zeros, "ECDH with infinity -> all-zeros");
     }
 
@@ -126,20 +126,20 @@ static void test_schnorr_batch_verify() {
         std::array<uint8_t, 32> msg{};
         uint64_t v = rng();
         std::memcpy(msg.data(), &v, 8);
-        std::array<uint8_t, 32> aux{};
+        std::array<uint8_t, 32> const aux{};
 
         auto sig = secp256k1::schnorr_sign(sk, msg, aux);
         entries.push_back({pkx, msg, sig});
     }
 
-    bool all_valid = secp256k1::schnorr_batch_verify(entries);
+    bool const all_valid = secp256k1::schnorr_batch_verify(entries);
     CHECK(all_valid, "batch(100 valid) -> true");
 
     // Corrupt one signature
     {
         auto bad = entries;
         bad[50].signature.r[0] ^= 0x01;
-        bool bad_result = secp256k1::schnorr_batch_verify(bad);
+        bool const bad_result = secp256k1::schnorr_batch_verify(bad);
         CHECK(!bad_result, "batch with 1 bad -> false");
 
         // Identify the bad one
@@ -151,13 +151,13 @@ static void test_schnorr_batch_verify() {
 
     // Empty batch
     {
-        std::vector<secp256k1::SchnorrBatchEntry> empty;
+        std::vector<secp256k1::SchnorrBatchEntry> const empty;
         CHECK(secp256k1::schnorr_batch_verify(empty), "empty batch -> true");
     }
 
     // Single entry
     {
-        std::vector<secp256k1::SchnorrBatchEntry> single = {entries[0]};
+        std::vector<secp256k1::SchnorrBatchEntry> const single = {entries[0]};
         CHECK(secp256k1::schnorr_batch_verify(single), "single entry -> true");
     }
 
@@ -187,7 +187,7 @@ static void test_ecdsa_batch_verify() {
         entries.push_back({msg, pk, sig});
     }
 
-    bool all_valid = secp256k1::ecdsa_batch_verify(entries);
+    bool const all_valid = secp256k1::ecdsa_batch_verify(entries);
     CHECK(all_valid, "ECDSA batch(100 valid) -> true");
 
     // Corrupt one
@@ -197,7 +197,7 @@ static void test_ecdsa_batch_verify() {
         compact[0] ^= 0x01;
         bad[25].signature = secp256k1::ECDSASignature::from_compact(compact);
 
-        bool bad_result = secp256k1::ecdsa_batch_verify(bad);
+        bool const bad_result = secp256k1::ecdsa_batch_verify(bad);
         CHECK(!bad_result, "ECDSA batch with 1 bad -> false");
 
         auto invalids = secp256k1::ecdsa_batch_identify_invalid(
@@ -266,7 +266,7 @@ static void test_schnorr_cross_path() {
         std::array<uint8_t, 32> msg{};
         uint64_t v = rng();
         std::memcpy(msg.data(), &v, 8);
-        std::array<uint8_t, 32> aux{};
+        std::array<uint8_t, 32> const aux{};
 
         auto sig = secp256k1::schnorr_sign(sk, msg, aux);
 
@@ -420,7 +420,7 @@ static void test_schnorr_ecdsa_key_consistency() {
         auto ecdsa_sig = secp256k1::ecdsa_sign(msg, sk);
         CHECK(secp256k1::ecdsa_verify(msg, pk, ecdsa_sig), "ECDSA verifies");
 
-        std::array<uint8_t, 32> aux{};
+        std::array<uint8_t, 32> const aux{};
         auto schnorr_sig = secp256k1::schnorr_sign(sk, msg, aux);
         CHECK(secp256k1::schnorr_verify(schnorr_x, msg, schnorr_sig), "Schnorr verifies");
     }
@@ -445,7 +445,7 @@ static void test_stress_mixed() {
         uint64_t v = rng();
         std::memcpy(msg.data(), &v, 8);
 
-        int op = static_cast<int>(rng() % 5);
+        int const op = static_cast<int>(rng() % 5);
         switch (op) {
         case 0: { // ECDSA round-trip
             auto sig = secp256k1::ecdsa_sign(msg, sk);
@@ -453,7 +453,7 @@ static void test_stress_mixed() {
             break;
         }
         case 1: { // Schnorr round-trip
-            std::array<uint8_t, 32> aux{};
+            std::array<uint8_t, 32> const aux{};
             auto pkx = secp256k1::schnorr_pubkey(sk);
             auto sig = secp256k1::schnorr_sign(sk, msg, aux);
             if (secp256k1::schnorr_verify(pkx, msg, sig)) ++ok_count;

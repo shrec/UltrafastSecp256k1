@@ -30,7 +30,7 @@ namespace secp256k1::fast {
 inline void field_cmov(FieldElement* r, const FieldElement* a, 
                        const FieldElement* b, bool flag) noexcept {
     // Convert flag to mask: 0 -> 0x0000000000000000, 1 -> 0xFFFFFFFFFFFFFFFF
-    std::uint64_t mask = 0ULL - static_cast<std::uint64_t>(flag);
+    std::uint64_t const mask = 0ULL - static_cast<std::uint64_t>(flag);
     
     auto& r_limbs = const_cast<std::array<std::uint64_t, 4>&>(r->limbs());
     const auto& a_limbs = a->limbs();
@@ -66,7 +66,7 @@ inline void field_cmovznz(FieldElement* r, const FieldElement* a,
 // Returns NEW FieldElement (no in-place mutation)
 inline FieldElement field_select(const FieldElement& a, const FieldElement& b, 
                                    bool flag) noexcept {
-    std::uint64_t mask = 0ULL - static_cast<std::uint64_t>(flag);
+    std::uint64_t const mask = 0ULL - static_cast<std::uint64_t>(flag);
     
     const auto& a_limbs = a.limbs();
     const auto& b_limbs = b.limbs();
@@ -83,7 +83,7 @@ inline FieldElement field_select(const FieldElement& a, const FieldElement& b,
 // Returns 1 if zero, 0 if nonzero
 inline std::uint64_t field_is_zero(const FieldElement& a) noexcept {
     const auto& limbs = a.limbs();
-    std::uint64_t z = limbs[0] | limbs[1] | limbs[2] | limbs[3];
+    std::uint64_t const z = limbs[0] | limbs[1] | limbs[2] | limbs[3];
     // Branchless zero check: z==0 ? 1 : 0
     return (z | (0ULL - z)) >> 63 ^ 1;
 }
@@ -94,7 +94,7 @@ inline std::uint64_t field_eq(const FieldElement& a, const FieldElement& b) noex
     const auto& a_limbs = a.limbs();
     const auto& b_limbs = b.limbs();
     
-    std::uint64_t diff = (a_limbs[0] ^ b_limbs[0]) | 
+    std::uint64_t const diff = (a_limbs[0] ^ b_limbs[0]) | 
                          (a_limbs[1] ^ b_limbs[1]) |
                          (a_limbs[2] ^ b_limbs[2]) | 
                          (a_limbs[3] ^ b_limbs[3]);
@@ -106,7 +106,7 @@ inline std::uint64_t field_eq(const FieldElement& a, const FieldElement& b) noex
 // Conditional negate: if (flag) *r = -a; else *r = a;
 // Used in GLV scalar decomposition and point operations
 inline void field_cneg(FieldElement* r, const FieldElement& a, bool flag) noexcept {
-    FieldElement negated = FieldElement::zero() - a;
+    FieldElement const negated = FieldElement::zero() - a;
     field_cmov(r, &negated, &a, flag);
 }
 
@@ -114,14 +114,14 @@ inline void field_cneg(FieldElement* r, const FieldElement& a, bool flag) noexce
 // Avoids branch in tight loops
 inline void field_cadd(FieldElement* r, const FieldElement& a, 
                        const FieldElement& b, bool flag) noexcept {
-    FieldElement sum = a + b;
+    FieldElement const sum = a + b;
     field_cmov(r, &sum, &a, flag);
 }
 
 // Conditional subtraction: sets *r to (a - b) when flag is true, otherwise keeps a
 inline void field_csub(FieldElement* r, const FieldElement& a, 
                        const FieldElement& b, bool flag) noexcept {
-    FieldElement diff = a - b;
+    FieldElement const diff = a - b;
     field_cmov(r, &diff, &a, flag);
 }
 

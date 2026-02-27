@@ -65,8 +65,8 @@ static void test_multi_scalar_mul() {
 
     // Test with 1 point
     {
-        Scalar s = Scalar::from_uint64(42);
-        Point p = G;
+        Scalar const s = Scalar::from_uint64(42);
+        Point const p = G;
         auto result = multi_scalar_mul(&s, &p, 1);
         auto expected = G.scalar_mul(Scalar::from_uint64(42));
         CHECK(result.x().to_bytes() == expected.x().to_bytes(),
@@ -75,12 +75,12 @@ static void test_multi_scalar_mul() {
 
     // Test with 3 points: 2*G + 3*2G + 5*3G = 2G + 6G + 15G = 23G
     {
-        std::vector<Scalar> scalars = {
+        std::vector<Scalar> const scalars = {
             Scalar::from_uint64(2),
             Scalar::from_uint64(3),
             Scalar::from_uint64(5)
         };
-        std::vector<Point> points = {
+        std::vector<Point> const points = {
             G,
             G.scalar_mul(Scalar::from_uint64(2)),
             G.scalar_mul(Scalar::from_uint64(3))
@@ -99,12 +99,12 @@ static void test_multi_scalar_mul() {
 
     // Test: sum cancels to infinity (P + (-P) = O)
     {
-        Scalar s1 = Scalar::from_uint64(1);
-        Scalar s2 = Scalar::from_uint64(1);
-        Point P1 = G;
-        Point P2 = G.negate();
-        std::vector<Scalar> scalars = {s1, s2};
-        std::vector<Point> pts = {P1, P2};
+        Scalar const s1 = Scalar::from_uint64(1);
+        Scalar const s2 = Scalar::from_uint64(1);
+        Point const P1 = G;
+        Point const P2 = G.negate();
+        std::vector<Scalar> const scalars = {s1, s2};
+        std::vector<Point> const pts = {P1, P2};
         auto result = multi_scalar_mul(scalars, pts);
         CHECK(result.is_infinity(), "multi_scalar_mul: G + (-G) = infinity");
     }
@@ -133,12 +133,12 @@ static void test_schnorr_batch_verify() {
         entries[i].message = msg_h;
 
         // Sign
-        std::array<uint8_t, 32> aux{};
+        std::array<uint8_t, 32> const aux{};
         entries[i].signature = schnorr_sign(keys[i], msg_h, aux);
     }
 
     // All valid
-    bool all_valid = schnorr_batch_verify(entries);
+    bool const all_valid = schnorr_batch_verify(entries);
     CHECK(all_valid, "Schnorr batch: 5 valid signatures pass");
 
     // Individual verify should also pass
@@ -154,7 +154,7 @@ static void test_schnorr_batch_verify() {
     // Corrupt one signature -- batch should fail
     auto corrupted = entries;
     corrupted[2].signature.s = corrupted[2].signature.s + Scalar::one();
-    bool should_fail = schnorr_batch_verify(corrupted);
+    bool const should_fail = schnorr_batch_verify(corrupted);
     CHECK(!should_fail, "Schnorr batch: corrupted sig #2 detected");
 
     // Identify invalid
@@ -166,7 +166,7 @@ static void test_schnorr_batch_verify() {
     CHECK(schnorr_batch_verify(nullptr, 0), "Schnorr batch: empty = true");
 
     // Single entry
-    std::vector<SchnorrBatchEntry> single = {entries[0]};
+    std::vector<SchnorrBatchEntry> const single = {entries[0]};
     CHECK(schnorr_batch_verify(single), "Schnorr batch: single entry pass");
 }
 

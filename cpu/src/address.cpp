@@ -39,7 +39,7 @@ public:
     void update(const std::uint8_t* data, std::size_t len) {
         total_ += len;
         if (buf_len_ > 0) {
-            std::size_t fill = 64 - buf_len_;
+            std::size_t const fill = 64 - buf_len_;
             if (len < fill) { std::memcpy(buf_ + buf_len_, data, len); buf_len_ += len; return; }
             std::memcpy(buf_ + buf_len_, data, fill);
             compress(buf_); data += fill; len -= fill; buf_len_ = 0;
@@ -49,7 +49,7 @@ public:
     }
 
     std::array<std::uint8_t, 20> finalize() {
-        std::uint64_t bits = total_ * 8;
+        std::uint64_t const bits = total_ * 8;
         std::uint8_t pad = 0x80;
         update(&pad, 1);
         pad = 0;
@@ -77,9 +77,10 @@ private:
 
     void compress(const std::uint8_t* block) {
         std::uint32_t X[16];
-        for (int i = 0; i < 16; ++i)
+        for (int i = 0; i < 16; ++i) {
             X[i] = std::uint32_t(block[i*4]) | (std::uint32_t(block[i*4+1])<<8) |
                    (std::uint32_t(block[i*4+2])<<16) | (std::uint32_t(block[i*4+3])<<24);
+}
 
         static constexpr int rl[80] = {
             0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,
@@ -125,7 +126,7 @@ private:
             ar = er; er = dr; dr = rotl(cr, 10); cr = br; br = tr;
         }
 
-        std::uint32_t t = h_[1] + cl + dr;
+        std::uint32_t const t = h_[1] + cl + dr;
         h_[1] = h_[2] + dl + er;
         h_[2] = h_[3] + el + ar;
         h_[3] = h_[4] + al + br;
@@ -192,7 +193,7 @@ std::string base58check_encode(const std::uint8_t* data, std::size_t len) {
         int remainder = 0;
         std::vector<std::uint8_t> quotient;
         for (std::size_t i = 0; i < num.size(); ++i) {
-            int acc = remainder * 256 + num[i];
+            int const acc = remainder * 256 + num[i];
             int digit = acc / 58;
             remainder = acc % 58;
             if (!quotient.empty() || digit > 0) {
@@ -224,13 +225,13 @@ base58check_decode(const std::string& encoded) {
 
     // Convert from base58 to base256
     std::vector<int> digits;
-    for (char c : encoded) {
-        int val = base58_char_value(c);
+    for (char const c : encoded) {
+        int const val = base58_char_value(c);
         if (val < 0) return {{}, false};
 
         int carry = val;
         for (auto it = digits.rbegin(); it != digits.rend(); ++it) {
-            int acc = *it * 58 + carry;
+            int const acc = *it * 58 + carry;
             *it = acc % 256;
             carry = acc / 256;
         }
@@ -248,7 +249,7 @@ base58check_decode(const std::string& encoded) {
     if (digits.size() < 4) return {{}, false};
 
     // Verify checksum
-    std::size_t payload_len = digits.size() - 4;
+    std::size_t const payload_len = digits.size() - 4;
     std::vector<std::uint8_t> payload(digits.begin(), digits.begin() + static_cast<std::ptrdiff_t>(payload_len));
     auto h1 = SHA256::hash(payload.data(), payload_len);
     auto h2 = SHA256::hash(h1.data(), 32);
@@ -278,7 +279,7 @@ static std::uint32_t bech32_polymod(const std::vector<std::uint8_t>& values) {
     };
     std::uint32_t chk = 1;
     for (auto v : values) {
-        std::uint32_t top = chk >> 25;
+        std::uint32_t const top = chk >> 25;
         chk = ((chk & 0x1ffffffu) << 5) ^ v;
         for (int i = 0; i < 5; ++i) {
             if ((top >> i) & 1) chk ^= GEN[i];
@@ -290,9 +291,9 @@ static std::uint32_t bech32_polymod(const std::vector<std::uint8_t>& values) {
 static std::vector<std::uint8_t> bech32_hrp_expand(const std::string& hrp) {
     std::vector<std::uint8_t> ret;
     ret.reserve(hrp.size() * 2 + 1);
-    for (char c : hrp) ret.push_back(static_cast<std::uint8_t>(c >> 5));
+    for (char const c : hrp) ret.push_back(static_cast<std::uint8_t>(c >> 5));
     ret.push_back(0);
-    for (char c : hrp) ret.push_back(static_cast<std::uint8_t>(c & 31));
+    for (char const c : hrp) ret.push_back(static_cast<std::uint8_t>(c & 31));
     return ret;
 }
 
@@ -301,9 +302,9 @@ static bool convert_bits(std::vector<std::uint8_t>& out,
                           int frombits, int tobits, bool pad) {
     int acc = 0;
     int bits = 0;
-    int maxv = (1 << tobits) - 1;
+    int const maxv = (1 << tobits) - 1;
     for (std::size_t i = 0; i < len; ++i) {
-        int value = data[i];
+        int const value = data[i];
         if (value >> frombits) return false;
         acc = (acc << frombits) | value;
         bits += frombits;
@@ -327,7 +328,7 @@ std::string bech32_encode(const std::string& hrp,
                           const std::uint8_t* witness_program,
                           std::size_t prog_len) {
     // Determine encoding: v0 = BECH32, v1+ = BECH32M
-    std::uint32_t encoding_const = (witness_version == 0) ? 1u : 0x2bc830a3u;
+    std::uint32_t const encoding_const = (witness_version == 0) ? 1u : 0x2bc830a3u;
 
     // Convert 8-bit data to 5-bit groups
     std::vector<std::uint8_t> data5;
@@ -339,7 +340,7 @@ std::string bech32_encode(const std::string& hrp,
     std::vector<std::uint8_t> values(hrp_exp);
     values.insert(values.end(), data5.begin(), data5.end());
     values.resize(values.size() + 6, 0);
-    std::uint32_t polymod = bech32_polymod(values) ^ encoding_const;
+    std::uint32_t const polymod = bech32_polymod(values) ^ encoding_const;
 
     // Build result
     std::string result = hrp + "1";
@@ -362,7 +363,7 @@ Bech32DecodeResult bech32_decode(const std::string& addr) {
 
     std::string hrp_str;
     for (std::size_t i = 0; i < sep; ++i) {
-        char c = addr[i];
+        char const c = addr[i];
         if (c < 33 || c > 126) return result;
         hrp_str.push_back(static_cast<char>(c >= 'A' && c <= 'Z' ? c + 32 : c));
     }
@@ -383,15 +384,16 @@ Bech32DecodeResult bech32_decode(const std::string& addr) {
     auto hrp_exp = bech32_hrp_expand(hrp_str);
     std::vector<std::uint8_t> values(hrp_exp);
     values.insert(values.end(), data5.begin(), data5.end());
-    std::uint32_t polymod = bech32_polymod(values);
+    std::uint32_t const polymod = bech32_polymod(values);
 
     Bech32Encoding enc;
-    if (polymod == 1) enc = Bech32Encoding::BECH32;
-    else if (polymod == 0x2bc830a3u) enc = Bech32Encoding::BECH32M;
-    else return result;
+    if (polymod == 1) { enc = Bech32Encoding::BECH32;
+    } else if (polymod == 0x2bc830a3u) { enc = Bech32Encoding::BECH32M;
+    } else { return result;
+}
 
     // Extract witness version and program
-    std::uint8_t wit_ver = data5[0];
+    std::uint8_t const wit_ver = data5[0];
     if (wit_ver > 16) return result;
     if (wit_ver == 0 && enc != Bech32Encoding::BECH32) return result;
     if (wit_ver != 0 && enc != Bech32Encoding::BECH32M) return result;
@@ -429,7 +431,7 @@ std::string address_p2wpkh(const Point& pubkey, Network net) {
     auto compressed = pubkey.to_compressed();
     auto h160 = hash160(compressed.data(), 33);
 
-    std::string hrp = (net == Network::Mainnet) ? "bc" : "tb";
+    std::string const hrp = (net == Network::Mainnet) ? "bc" : "tb";
     return bech32_encode(hrp, 0, h160.data(), 20);
 }
 
@@ -443,7 +445,7 @@ std::string address_p2tr(const Point& internal_key, Network net) {
 
 std::string address_p2tr_raw(const std::array<std::uint8_t, 32>& output_key_x,
                              Network net) {
-    std::string hrp = (net == Network::Mainnet) ? "bc" : "tb";
+    std::string const hrp = (net == Network::Mainnet) ? "bc" : "tb";
     return bech32_encode(hrp, 1, output_key_x.data(), 32);
 }
 
@@ -453,7 +455,7 @@ std::string address_p2tr_raw(const std::array<std::uint8_t, 32>& output_key_x,
 
 std::string wif_encode(const Scalar& private_key, bool compressed, Network net) {
     auto key_bytes = private_key.to_bytes();
-    std::size_t payload_len = compressed ? 34 : 33;
+    std::size_t const payload_len = compressed ? 34 : 33;
     std::vector<std::uint8_t> payload(payload_len);
 
     payload[0] = (net == Network::Mainnet) ? 0x80 : 0xEF;
@@ -470,7 +472,7 @@ WIFDecodeResult wif_decode(const std::string& wif) {
 
     if (!valid || data.empty()) return result;
 
-    std::uint8_t version = data[0];
+    std::uint8_t const version = data[0];
     if (version != 0x80 && version != 0xEF) return result;
 
     result.network = (version == 0x80) ? Network::Mainnet : Network::Testnet;
@@ -498,9 +500,9 @@ WIFDecodeResult wif_decode(const std::string& wif) {
 [[maybe_unused]] static Point lift_x_even(const FieldElement& x_in) {
     FieldElement x = x_in;
     for (int attempt = 0; attempt < 256; ++attempt) {
-        FieldElement x2 = x * x;
-        FieldElement x3 = x2 * x;
-        FieldElement rhs = x3 + FieldElement::from_uint64(7);
+        FieldElement const x2 = x * x;
+        FieldElement const x3 = x2 * x;
+        FieldElement const rhs = x3 + FieldElement::from_uint64(7);
         // Optimized sqrt via addition chain
         auto y = rhs.sqrt();
         if (y.square() == rhs) {
@@ -533,7 +535,7 @@ std::string SilentPaymentAddress::encode(Network net) const {
     std::memcpy(data, scan_x.data(), 32);
     std::memcpy(data + 32, spend_x.data(), 32);
 
-    std::string hrp = (net == Network::Mainnet) ? "sp" : "tsp";
+    std::string const hrp = (net == Network::Mainnet) ? "sp" : "tsp";
     // Use witness version 1 (Bech32m) for silent payments 
     // Note: BIP-352 uses a custom HRP, not standard witness program
     // For simplicity, we encode as bech32m with witness version 0
@@ -552,7 +554,7 @@ silent_payment_create_output(const std::vector<Scalar>& input_privkeys,
     }
 
     // Shared secret: S = a_sum * B_scan
-    Point S = recipient.scan_pubkey.scalar_mul(a_sum);
+    Point const S = recipient.scan_pubkey.scalar_mul(a_sum);
 
     // t_k = SHA256(tagged_hash("BIP0352/SharedSecret", ser(S)) || ser32(k))
     auto S_comp = S.to_compressed();
@@ -569,10 +571,10 @@ silent_payment_create_output(const std::vector<Scalar>& input_privkeys,
     };
     h.update(k_be, 4);
     auto t_hash = h.finalize();
-    Scalar t_k = Scalar::from_bytes(t_hash);
+    Scalar const t_k = Scalar::from_bytes(t_hash);
 
     // Output key: P_output = B_spend + t_k * G
-    Point P_output = recipient.spend_pubkey.add(Point::generator().scalar_mul(t_k));
+    Point const P_output = recipient.spend_pubkey.add(Point::generator().scalar_mul(t_k));
 
     return {P_output, t_k};
 }
@@ -591,7 +593,7 @@ silent_payment_scan(const Scalar& scan_privkey,
     }
 
     // Shared secret: S = b_scan * A_sum
-    Point S = A_sum.scalar_mul(scan_privkey);
+    Point const S = A_sum.scalar_mul(scan_privkey);
 
     // Check each output
     for (std::uint32_t k = 0; k < static_cast<std::uint32_t>(output_pubkeys.size()); ++k) {
@@ -609,17 +611,17 @@ silent_payment_scan(const Scalar& scan_privkey,
         };
         h.update(k_be, 4);
         auto t_hash = h.finalize();
-        Scalar t_k = Scalar::from_bytes(t_hash);
+        Scalar const t_k = Scalar::from_bytes(t_hash);
 
         // Expected output: P = B_spend + t_k * G
-        Point B_spend = Point::generator().scalar_mul(spend_privkey);
-        Point expected = B_spend.add(Point::generator().scalar_mul(t_k));
+        Point const B_spend = Point::generator().scalar_mul(spend_privkey);
+        Point const expected = B_spend.add(Point::generator().scalar_mul(t_k));
         auto expected_x = expected.x().to_bytes();
 
         // Compare x-coordinate
         if (expected_x == output_pubkeys[k]) {
             // Compute spending private key: d = b_spend + t_k
-            Scalar d = spend_privkey + t_k;
+            Scalar const d = spend_privkey + t_k;
             results.push_back({k, d});
         }
     }

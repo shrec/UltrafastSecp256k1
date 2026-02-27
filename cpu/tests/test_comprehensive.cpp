@@ -58,7 +58,7 @@ static TestCounters g_counters;
         if (cond) { ++g_counters.passed; }                      \
         else {                                                  \
             ++g_counters.failed;                                \
-            std::cerr << "  FAIL: " << msg << '\n';        \
+            std::cerr << "  FAIL: " << (msg) << '\n';        \
         }                                                       \
     } while (0)
 
@@ -90,8 +90,8 @@ static SC secp256k1_n() {
 static void test_field_arith() {
     std::cout << "  [FieldArith] Field arithmetic tests..." << '\n';
     
-    FE zero = FE::zero();
-    FE one  = FE::one();
+    FE const zero = FE::zero();
+    FE const one  = FE::one();
     
     // 1.1: Zero + Zero = Zero
     CHECK(FE::zero() + FE::zero() == FE::zero(), "0+0==0");
@@ -103,14 +103,14 @@ static void test_field_arith() {
     CHECK(zero + one == one, "0+1==1");
     
     // 1.4: One + One = Two
-    FE two = FE::from_uint64(2);
+    FE const two = FE::from_uint64(2);
     CHECK(one + one == two, "1+1==2");
     
     // 1.5: Subtraction identity
     CHECK(one - one == zero, "1-1==0");
     
     // 1.6: Subtraction self
-    FE val = FE::from_uint64(42);
+    FE const val = FE::from_uint64(42);
     CHECK(val - val == zero, "a-a==0");
     
     // 1.7: Multiplication by zero
@@ -120,12 +120,12 @@ static void test_field_arith() {
     CHECK(val * one == val, "a*1==a");
     
     // 1.9: Multiplication commutativity
-    FE a = FE::from_uint64(7);
-    FE b = FE::from_uint64(11);
+    FE const a = FE::from_uint64(7);
+    FE const b = FE::from_uint64(11);
     CHECK(a * b == b * a, "a*b==b*a");
     
     // 1.10: Multiplication associativity
-    FE c = FE::from_uint64(13);
+    FE const c = FE::from_uint64(13);
     CHECK((a * b) * c == a * (b * c), "(a*b)*c==a*(b*c)");
     
     // 1.11: Distributive law
@@ -141,20 +141,20 @@ static void test_field_arith() {
     CHECK(zero.square() == zero, "0^2==0");
     
     // 1.15: Repeated squaring chain
-    FE x = FE::from_uint64(3);
-    FE x2 = x.square();      // 9
-    FE x4 = x2.square();     // 81
-    FE expected = FE::from_uint64(81);
+    FE const x = FE::from_uint64(3);
+    FE const x2 = x.square();      // 9
+    FE const x4 = x2.square();     // 81
+    FE const expected = FE::from_uint64(81);
     CHECK(x4 == expected, "3^4==81");
     
     // 1.16: In-place square
     FE y = FE::from_uint64(5);
-    FE y_sq = y.square();
+    FE const y_sq = y.square();
     y.square_inplace();
     CHECK(y == y_sq, "square_inplace consistency");
     
     // 1.17: Additive inverse via subtraction
-    FE neg_a = zero - a;
+    FE const neg_a = zero - a;
     CHECK(a + neg_a == zero, "a+(-a)==0");
     
     // 1.18: Double subtraction identity
@@ -179,25 +179,25 @@ static void test_field_arith() {
     CHECK(acc == orig * FE::from_uint64(8), "operator*=");
     
     // 1.22: Large value arithmetic
-    FE large = FE::from_hex("DEADBEEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF01234567");
+    FE const large = FE::from_hex("DEADBEEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF01234567");
     CHECK(large + zero == large, "large+0==large");
     CHECK(large * one == large, "large*1==large");
     CHECK(large - large == zero, "large-large==0");
     
     // 1.23: Iterated addition equals multiplication by small scalar
-    FE v = FE::from_uint64(17);
-    FE sum3 = v + v + v;
-    FE mul3 = v * FE::from_uint64(3);
+    FE const v = FE::from_uint64(17);
+    FE const sum3 = v + v + v;
+    FE const mul3 = v * FE::from_uint64(3);
     CHECK(sum3 == mul3, "v+v+v == 3*v");
     
     // 1.24: (a+b)^2 = a^2 + 2ab + b^2
-    FE lhs = (a + b).square();
-    FE rhs = a.square() + FE::from_uint64(2) * a * b + b.square();
+    FE const lhs = (a + b).square();
+    FE const rhs = a.square() + FE::from_uint64(2) * a * b + b.square();
     CHECK(lhs == rhs, "(a+b)^2 == a^2 + 2ab + b^2");
     
     // 1.25: (a-b)*(a+b) = a^2 - b^2
-    FE diff_prod = (a - b) * (a + b);
-    FE sq_diff = a.square() - b.square();
+    FE const diff_prod = (a - b) * (a + b);
+    FE const sq_diff = a.square() - b.square();
     CHECK(diff_prod == sq_diff, "(a-b)(a+b) == a^2-b^2");
 }
 
@@ -208,17 +208,17 @@ static void test_field_conversions() {
     std::cout << "  [FieldConversions] Field conversion tests..." << '\n';
     
     // 2.1: from_uint64 -> to_hex -> from_hex roundtrip
-    for (uint64_t v : {0ULL, 1ULL, 42ULL, 0xFFFFULL, 0xFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL}) {
-        FE fe = FE::from_uint64(v);
-        std::string hex = fe.to_hex();
-        FE back = FE::from_hex(hex);
+    for (uint64_t const v : {0ULL, 1ULL, 42ULL, 0xFFFFULL, 0xFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL}) {
+        FE const fe = FE::from_uint64(v);
+        std::string const hex = fe.to_hex();
+        FE const back = FE::from_hex(hex);
         CHECK(fe == back, "uint64->hex->FE roundtrip for " + std::to_string(v));
     }
     
     // 2.2: from_bytes <-> to_bytes roundtrip
     FE val = FE::from_hex("09AF57F4F5C1D64C6BEA6D4193C5D9130421F4F078868E5EC00A56E68001136C");
     auto bytes = val.to_bytes();
-    FE recovered = FE::from_bytes(bytes);
+    FE const recovered = FE::from_bytes(bytes);
     CHECK(val == recovered, "bytes roundtrip");
     
     // 2.3: to_bytes_into matches to_bytes
@@ -228,11 +228,11 @@ static void test_field_conversions() {
     
     // 2.4: from_limbs roundtrip
     auto limbs = val.limbs();
-    FE from_l = FE::from_limbs(limbs);
+    FE const from_l = FE::from_limbs(limbs);
     CHECK(val == from_l, "limbs roundtrip");
     
     // 2.5: Zero conversions
-    FE z = FE::zero();
+    FE const z = FE::zero();
     CHECK(z.to_hex().find_first_not_of('0') == std::string::npos, "zero to_hex is all zeros");
     auto zb = z.to_bytes();
     bool all_zero = true;
@@ -240,7 +240,7 @@ static void test_field_conversions() {
     CHECK(all_zero, "zero to_bytes is all zeros");
     
     // 2.6: One conversions
-    FE o = FE::one();
+    FE const o = FE::one();
     auto ob = o.to_bytes();
     CHECK(ob[31] == 1, "one to_bytes last byte is 1");
     bool rest_zero = true;
@@ -248,25 +248,25 @@ static void test_field_conversions() {
     CHECK(rest_zero, "one to_bytes prefix is zeros");
     
     // 2.7: Hex case insensitivity
-    FE lower = FE::from_hex("deadbeef0000000000000000000000000000000000000000000000000000abcd");
-    FE upper = FE::from_hex("DEADBEEF0000000000000000000000000000000000000000000000000000ABCD");
+    FE const lower = FE::from_hex("deadbeef0000000000000000000000000000000000000000000000000000abcd");
+    FE const upper = FE::from_hex("DEADBEEF0000000000000000000000000000000000000000000000000000ABCD");
     CHECK(lower == upper, "hex case insensitive");
     
     // 2.8: data() <-> from_data roundtrip
     auto& data = val.data();
-    FE from_d = FE::from_data(data);
+    FE const from_d = FE::from_data(data);
     CHECK(val == from_d, "data() roundtrip");
     
     // 2.9: MidFieldElement zero-cost cast
     FE fe4 = FE::from_uint64(0x12345678);
     auto* mid = secp256k1::fast::toMid(&fe4);
-    FE* back_fe = mid->ToFieldElement();
+    FE const* back_fe = mid->ToFieldElement();
     CHECK(*back_fe == fe4, "MidFieldElement cast roundtrip");
     
     // 2.10: Large hex value
-    FE max_fe = FE::from_hex("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2E");
-    std::string hex_back = max_fe.to_hex();
-    FE max_back = FE::from_hex(hex_back);
+    FE const max_fe = FE::from_hex("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2E");
+    std::string const hex_back = max_fe.to_hex();
+    FE const max_back = FE::from_hex(hex_back);
     CHECK(max_fe == max_back, "p-1 hex roundtrip");
 }
 
@@ -276,18 +276,18 @@ static void test_field_conversions() {
 static void test_field_edge_cases() {
     std::cout << "  [FieldEdgeCases] Field edge case tests..." << '\n';
     
-    FE zero = FE::zero();
-    FE one  = FE::one();
+    FE const zero = FE::zero();
+    FE const one  = FE::one();
     
     // 3.1: p-1 is the largest valid field element  
-    FE p_minus_1 = secp256k1_p_minus_1();
+    FE const p_minus_1 = secp256k1_p_minus_1();
     
     // 3.2: (p-1) + 1 = 0 (mod p)
-    FE wrap = p_minus_1 + one;
+    FE const wrap = p_minus_1 + one;
     CHECK(wrap == zero, "(p-1)+1 == 0 mod p");
     
     // 3.3: (p-1)^2 mod p
-    FE sq = p_minus_1.square();
+    FE const sq = p_minus_1.square();
     // (-1)^2 = 1
     CHECK(sq == one, "(p-1)^2 == 1 mod p (since p-1 == -1)");
     
@@ -301,30 +301,30 @@ static void test_field_edge_cases() {
     CHECK(p_minus_1.inverse() == p_minus_1, "(p-1)^-^1 == p-1");
     
     // 3.7: a * a^-^1 = 1 for random-ish values
-    uint64_t test_vals[] = {2, 3, 7, 42, 0xDEADBEEF, 0xFFFFFFFFFFFFULL};
+    uint64_t const test_vals[] = {2, 3, 7, 42, 0xDEADBEEF, 0xFFFFFFFFFFFFULL};
     for (auto v : test_vals) {
-        FE fe = FE::from_uint64(v);
-        FE inv = fe.inverse();
+        FE const fe = FE::from_uint64(v);
+        FE const inv = fe.inverse();
         CHECK(fe * inv == one, "a*a^-^1==1 for v=" + std::to_string(v));
     }
     
     // 3.8: Double inverse = identity
-    FE val = FE::from_uint64(1337);
+    FE const val = FE::from_uint64(1337);
     CHECK(val.inverse().inverse() == val, "(a^-^1)^-^1 == a");
     
     // 3.9: Repeated addition wraps at p
     // 2*(p-1) = p-2 = -(2) -> 2*(p-1) + 2 = 0
-    FE two = FE::from_uint64(2);
-    FE double_pm1 = p_minus_1 + p_minus_1;
+    FE const two = FE::from_uint64(2);
+    FE const double_pm1 = p_minus_1 + p_minus_1;
     CHECK(double_pm1 + two == zero, "2*(p-1)+2 == 0");
     
     // 3.10: Equality reflexivity
-    FE q = FE::from_uint64(99);
+    FE const q = FE::from_uint64(99);
     CHECK(q == q, "FE equality reflexive");
     CHECK(!(q != q), "FE inequality reflexive");
     
     // 3.11: Inequality
-    FE r = FE::from_uint64(100);
+    FE const r = FE::from_uint64(100);
     CHECK(q != r, "FE inequality for different values");
     
     // 3.12: from_uint64 edge values
@@ -332,21 +332,21 @@ static void test_field_edge_cases() {
     CHECK(FE::from_uint64(1) == one, "from_uint64(1)==one()");
     
     // 3.13: Inverse-inplace consistency
-    FE a = FE::from_uint64(12345);
-    FE a_inv = a.inverse();
+    FE const a = FE::from_uint64(12345);
+    FE const a_inv = a.inverse();
     FE a_copy = a;
     a_copy.inverse_inplace();
     CHECK(a_inv == a_copy, "inverse_inplace matches inverse");
     
     // 3.14: Large limb values (LE: limb[0] = least significant)
-    FE big = FE::from_limbs({0xFFFFFFFEFFFFFC2EULL, 0xFFFFFFFFFFFFFFFFULL,
+    FE const big = FE::from_limbs({0xFFFFFFFEFFFFFC2EULL, 0xFFFFFFFFFFFFFFFFULL,
                              0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL});
     // This should be p-1 itself (verify via addition wrap)
     CHECK(big + FE::one() == FE::zero(), "max limbs + 1 == 0 (i.e., it's p-1)");
     
     // 3.15: Subtraction wrapping
-    FE small1 = FE::from_uint64(1);
-    FE sub_wrap = zero - small1;  // should be p-1
+    FE const small1 = FE::from_uint64(1);
+    FE const sub_wrap = zero - small1;  // should be p-1
     CHECK(sub_wrap == p_minus_1, "0-1 == p-1");
     
     // 3.16: Montgomery R constant roundtrip
@@ -354,9 +354,9 @@ static void test_field_edge_cases() {
     CHECK(R * R.inverse() == one, "R * R^-^1 == 1");
     
     // 3.17: Montgomery from_mont consistency
-    FE v2 = FE::from_uint64(42);
-    FE mont = v2 * secp256k1::fast::montgomery::R();
-    FE back = FE::from_mont(mont);
+    FE const v2 = FE::from_uint64(42);
+    FE const mont = v2 * secp256k1::fast::montgomery::R();
+    FE const back = FE::from_mont(mont);
     CHECK(back == v2, "from_mont(a*R) == a");
 }
 
@@ -366,10 +366,10 @@ static void test_field_edge_cases() {
 static void test_field_inverse() {
     std::cout << "  [FieldInverse] Field inverse algorithm tests..." << '\n';
     
-    FE one = FE::one();
+    FE const one = FE::one();
     
     // Test values
-    FE test_values[] = {
+    FE const test_values[] = {
         FE::from_uint64(2),
         FE::from_uint64(3),
         FE::from_uint64(7),
@@ -381,15 +381,15 @@ static void test_field_inverse() {
     
     // 4.1-4.7: Standard inverse correctness for each value
     for (size_t i = 0; i < sizeof(test_values)/sizeof(test_values[0]); ++i) {
-        FE inv = test_values[i].inverse();
+        FE const inv = test_values[i].inverse();
         CHECK(test_values[i] * inv == one, 
               "inverse correctness #" + std::to_string(i+1));
     }
     
     // 4.8-4.21: Each inverse algorithm matches default
     // Only run on x86_64 where all algorithms are available
-    FE base = FE::from_uint64(12345);
-    FE ref_inv = base.inverse();
+    FE const base = FE::from_uint64(12345);
+    FE const ref_inv = base.inverse();
 
     using InvFn = FE(*)(const FE&);
     struct InvAlgo { const char* name; InvFn fn; };
@@ -409,7 +409,7 @@ static void test_field_inverse() {
     };
     
     for (auto& algo : algos) {
-        FE result = algo.fn(base);
+        FE const result = algo.fn(base);
         CHECK(result == ref_inv, 
               std::string("inverse algo '") + algo.name + "' matches default");
     }
@@ -441,7 +441,7 @@ static void test_field_inverse() {
     
     // 4.24: Batch inverse of 1 element
     FE single_batch[1] = {FE::from_uint64(7)};
-    FE single_expected = single_batch[0].inverse();
+    FE const single_expected = single_batch[0].inverse();
     secp256k1::fast::fe_batch_inverse(single_batch, 1);
     CHECK(single_batch[0] == single_expected, "batch_inverse(n=1)");
 }
@@ -453,9 +453,9 @@ static void test_field_branchless() {
     std::cout << "  [FieldBranchless] Branchless operation tests..." << '\n';
     
     using namespace secp256k1::fast;
-    FE a = FE::from_uint64(42);
-    FE b = FE::from_uint64(99);
-    FE zero = FE::zero();
+    FE const a = FE::from_uint64(42);
+    FE const b = FE::from_uint64(99);
+    FE const zero = FE::zero();
     
     // 5.1: field_cmov flag=true selects a
     FE result;
@@ -535,9 +535,9 @@ static void test_field_branchless() {
     CHECK(field_is_zero(FE::one()) == 0, "is_zero(one)==0");
     
     // 5.20: Chained select
-    FE c = FE::from_uint64(77);
-    FE r1 = field_select(a, b, true);
-    FE r2 = field_select(r1, c, false);
+    FE const c = FE::from_uint64(77);
+    FE const r1 = field_select(a, b, true);
+    FE const r2 = field_select(r1, c, false);
     CHECK(r2 == c, "chained select");
 }
 
@@ -550,25 +550,25 @@ static void test_field_optimal() {
     using namespace secp256k1::fast;
     
     // 6.1: to_optimal -> from_optimal roundtrip
-    FE val = FE::from_uint64(42);
+    FE const val = FE::from_uint64(42);
     auto opt = to_optimal(val);
-    FE back = from_optimal(opt);
+    FE const back = from_optimal(opt);
     CHECK(val == back, "to_optimal->from_optimal roundtrip");
     
     // 6.2: Zero roundtrip
-    FE z = FE::zero();
+    FE const z = FE::zero();
     CHECK(from_optimal(to_optimal(z)) == z, "zero optimal roundtrip");
     
     // 6.3: One roundtrip
-    FE o = FE::one();
+    FE const o = FE::one();
     CHECK(from_optimal(to_optimal(o)) == o, "one optimal roundtrip");
     
     // 6.4: Large value roundtrip
-    FE large = FE::from_hex("DEADBEEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF01234567");
+    FE const large = FE::from_hex("DEADBEEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF01234567");
     CHECK(from_optimal(to_optimal(large)) == large, "large optimal roundtrip");
     
     // 6.5: p-1 roundtrip
-    FE pm1 = secp256k1_p_minus_1();
+    FE const pm1 = secp256k1_p_minus_1();
     CHECK(from_optimal(to_optimal(pm1)) == pm1, "p-1 optimal roundtrip");
     
     // 6.6: Tier name is non-null
@@ -577,7 +577,7 @@ static void test_field_optimal() {
     
     // 6.7: Multiple distinct values
     for (uint64_t v = 1; v <= 64; ++v) {
-        FE fe = FE::from_uint64(v);
+        FE const fe = FE::from_uint64(v);
         CHECK(from_optimal(to_optimal(fe)) == fe, 
               "optimal roundtrip #" + std::to_string(v));
     }
@@ -590,27 +590,27 @@ static void test_field_representations() {
     std::cout << "  [FieldRepresentations] ASM/platform field ops..." << '\n';
     
     using namespace secp256k1::fast;
-    FE a = FE::from_uint64(0xDEADBEEF);
-    FE b = FE::from_uint64(0xCAFEBABE);
-    FE ref_mul = a * b;
-    FE ref_sq  = a.square();
-    FE ref_add = a + b;
+    FE const a = FE::from_uint64(0xDEADBEEF);
+    FE const b = FE::from_uint64(0xCAFEBABE);
+    FE const ref_mul = a * b;
+    FE const ref_sq  = a.square();
+    FE const ref_add = a + b;
     
     // 7.1-7.5: BMI2 implementations (x86_64)
 #if defined(__x86_64__) || defined(_M_X64)
-    FE bmi2_mul = field_mul_bmi2(a, b);
+    FE const bmi2_mul = field_mul_bmi2(a, b);
     CHECK(bmi2_mul == ref_mul, "BMI2 mul matches");
     
-    FE bmi2_sq = field_square_bmi2(a);
+    FE const bmi2_sq = field_square_bmi2(a);
     CHECK(bmi2_sq == ref_sq, "BMI2 square matches");
     
-    FE kara_sq = field_square_karatsuba(a);
+    FE const kara_sq = field_square_karatsuba(a);
     CHECK(kara_sq == ref_sq, "Karatsuba square matches");
     
-    FE bmi2_add = field_add_bmi2(a, b);
+    FE const bmi2_add = field_add_bmi2(a, b);
     CHECK(bmi2_add == ref_add, "BMI2 add matches");
     
-    FE bmi2_neg = field_negate_bmi2(a);
+    FE const bmi2_neg = field_negate_bmi2(a);
     CHECK(bmi2_neg == FE::zero() - a, "BMI2 negate matches");
 #else
     // Skip on non-x86
@@ -664,8 +664,8 @@ static void test_field_representations() {
 static void test_scalar_arith() {
     std::cout << "  [ScalarArith] Scalar arithmetic tests..." << '\n';
     
-    SC zero = SC::zero();
-    SC one  = SC::one();
+    SC const zero = SC::zero();
+    SC const one  = SC::one();
     
     // 8.1: Zero + Zero = Zero
     CHECK(zero + zero == zero, "s: 0+0==0");
@@ -680,13 +680,13 @@ static void test_scalar_arith() {
     CHECK(one * one == one, "s: 1*1==1");
     
     // 8.5: Commutativity
-    SC a = SC::from_uint64(7);
-    SC b = SC::from_uint64(13);
+    SC const a = SC::from_uint64(7);
+    SC const b = SC::from_uint64(13);
     CHECK(a + b == b + a, "s: a+b==b+a");
     CHECK(a * b == b * a, "s: a*b==b*a");
     
     // 8.6: Associativity
-    SC c = SC::from_uint64(19);
+    SC const c = SC::from_uint64(19);
     CHECK((a + b) + c == a + (b + c), "s: (a+b)+c==a+(b+c)");
     CHECK((a * b) * c == a * (b * c), "s: (a*b)*c==a*(b*c)");
     
@@ -697,7 +697,7 @@ static void test_scalar_arith() {
     CHECK(a * zero == zero, "s: a*0==0");
     
     // 8.9: Negate
-    SC neg_a = a.negate();
+    SC const neg_a = a.negate();
     CHECK(a + neg_a == zero, "s: a+(-a)==0");
     
     // 8.10: Double negate
@@ -712,7 +712,7 @@ static void test_scalar_arith() {
     CHECK(!a.is_zero(), "s: !7.is_zero()");
     
     // 8.13: Inverse
-    SC inv_a = a.inverse();
+    SC const inv_a = a.inverse();
     CHECK(a * inv_a == one, "s: a*a^-^1==1");
     
     // 8.14: Double inverse
@@ -744,8 +744,8 @@ static void test_scalar_arith() {
     unsigned checks = 0;
     for (unsigned i = 0; i <= 64; ++i) {
         for (unsigned j = 0; j <= 64; ++j) {
-            SC si = SC::from_uint64(i);
-            SC sj = SC::from_uint64(j);
+            SC const si = SC::from_uint64(i);
+            SC const sj = SC::from_uint64(j);
             CHECK(si + sj == SC::from_uint64(i + j), 
                   "s: " + std::to_string(i) + "+" + std::to_string(j));
             CHECK(si * sj == SC::from_uint64(static_cast<uint64_t>(i) * j),
@@ -763,45 +763,45 @@ static void test_scalar_conversions() {
     std::cout << "  [ScalarConversions] Scalar conversion tests..." << '\n';
     
     // 9.1: from_uint64 -> to_hex -> from_hex roundtrip
-    for (uint64_t v : {0ULL, 1ULL, 42ULL, 0xFFFFULL, 0xFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL}) {
-        SC s = SC::from_uint64(v);
-        std::string hex = s.to_hex();
-        SC back = SC::from_hex(hex);
+    for (uint64_t const v : {0ULL, 1ULL, 42ULL, 0xFFFFULL, 0xFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL}) {
+        SC const s = SC::from_uint64(v);
+        std::string const hex = s.to_hex();
+        SC const back = SC::from_hex(hex);
         CHECK(s == back, "s: uint64->hex->SC for " + std::to_string(v));
     }
     
     // 9.2: from_bytes <-> to_bytes
     SC val = SC::from_hex("DEADBEEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF01234567");
     auto bytes = val.to_bytes();
-    SC recovered = SC::from_bytes(bytes);
+    SC const recovered = SC::from_bytes(bytes);
     CHECK(val == recovered, "s: bytes roundtrip");
     
     // 9.3: from_limbs roundtrip
     auto limbs = val.limbs();
-    SC from_l = SC::from_limbs(limbs);
+    SC const from_l = SC::from_limbs(limbs);
     CHECK(val == from_l, "s: limbs roundtrip");
     
     // 9.4: Zero conversions
-    SC z = SC::zero();
+    SC const z = SC::zero();
     auto zb = z.to_bytes();
     bool all_zero = true;
     for (auto b : zb) if (b != 0) all_zero = false;
     CHECK(all_zero, "s: zero bytes all zeros");
     
     // 9.5: bit() extraction
-    SC s3 = SC::from_uint64(3);  // binary: ...011
+    SC const s3 = SC::from_uint64(3);  // binary: ...011
     CHECK(s3.bit(0) == 1, "s: bit(0) of 3");
     CHECK(s3.bit(1) == 1, "s: bit(1) of 3");
     CHECK(s3.bit(2) == 0, "s: bit(2) of 3");
     
-    SC s5 = SC::from_uint64(5);  // binary: ...101
+    SC const s5 = SC::from_uint64(5);  // binary: ...101
     CHECK(s5.bit(0) == 1, "s: bit(0) of 5");
     CHECK(s5.bit(1) == 0, "s: bit(1) of 5");
     CHECK(s5.bit(2) == 1, "s: bit(2) of 5");
     
     // 9.6: data() <-> from_data
     auto& data = val.data();
-    SC from_d = SC::from_data(data);
+    SC const from_d = SC::from_data(data);
     CHECK(val == from_d, "s: data() roundtrip");
 }
 
@@ -811,17 +811,17 @@ static void test_scalar_conversions() {
 static void test_scalar_edge_cases() {
     std::cout << "  [ScalarEdgeCases] Scalar edge case tests..." << '\n';
     
-    SC zero = SC::zero();
-    SC one  = SC::one();
-    SC n = secp256k1_n();
+    SC const zero = SC::zero();
+    SC const one  = SC::one();
+    SC const n = secp256k1_n();
     
     // 10.1: n == 0 (mod n)
     // Scalar should wrap: n becomes 0
     // Note: from_hex for n may return zero if reduction is applied
-    SC n_minus_1 = n - one;
+    SC const n_minus_1 = n - one;
     
     // 10.2: (n-1) + 1 = 0
-    SC wrap = n_minus_1 + one;
+    SC const wrap = n_minus_1 + one;
     CHECK(wrap == zero, "s: (n-1)+1 == 0");
     
     // 10.3: (n-1) * (n-1) = 1  (since n-1 == -1, (-1)^2 = 1)
@@ -837,8 +837,8 @@ static void test_scalar_edge_cases() {
     CHECK(one.negate() == n_minus_1, "s: -1==(n-1)");
     
     // 10.7: 2 * (n-1) + 2 = 0
-    SC two = SC::from_uint64(2);
-    SC double_nm1 = n_minus_1 + n_minus_1;
+    SC const two = SC::from_uint64(2);
+    SC const double_nm1 = n_minus_1 + n_minus_1;
     CHECK(double_nm1 + two == zero, "s: 2*(n-1)+2==0");
     
     // 10.8: n-1 is even (n = ...41 is odd, so n-1 = ...40 is even)
@@ -846,9 +846,10 @@ static void test_scalar_edge_cases() {
     
     // 10.9: Various bit positions
     for (unsigned bit = 0; bit < 256; ++bit) {
-        uint8_t b = one.bit(bit);
-        if (bit == 0) CHECK(b == 1, "s: bit(0) of 1");
-        else CHECK(b == 0, "s: bit(" + std::to_string(bit) + ") of 1 is 0");
+        uint8_t const b = one.bit(bit);
+        if (bit == 0) { CHECK(b == 1, "s: bit(0) of 1");
+        } else { CHECK(b == 0, "s: bit(" + std::to_string(bit) + ") of 1 is 0");
+}
     }
 }
 
@@ -859,14 +860,15 @@ static void test_scalar_encoding() {
     std::cout << "  [ScalarEncoding] NAF/wNAF encoding tests..." << '\n';
     
     // 11.1: NAF of small values
-    SC s7 = SC::from_uint64(7);    // 111 -> NAF: 100(-1)
+    SC const s7 = SC::from_uint64(7);    // 111 -> NAF: 100(-1)
     auto naf = s7.to_naf();
     // Reconstruct from NAF and verify it equals original
     SC reconstructed = SC::zero();
     SC power = SC::one();
     for (size_t i = 0; i < naf.size(); ++i) {
-        if (naf[i] == 1) reconstructed = reconstructed + power;
-        else if (naf[i] == -1) reconstructed = reconstructed - power;
+        if (naf[i] == 1) { reconstructed = reconstructed + power;
+        } else if (naf[i] == -1) { reconstructed = reconstructed - power;
+}
         power = power + power;  // power *= 2
     }
     CHECK(reconstructed == s7, "NAF(7) reconstructs to 7");
@@ -880,17 +882,17 @@ static void test_scalar_encoding() {
     
     // 11.3: wNAF reconstruction for various widths
     for (unsigned w = 2; w <= 6; ++w) {
-        SC s42 = SC::from_uint64(42);
+        SC const s42 = SC::from_uint64(42);
         auto wnaf = s42.to_wnaf(w);
         
         SC rec = SC::zero();
         SC pw = SC::one();
         for (size_t i = 0; i < wnaf.size(); ++i) {
             if (wnaf[i] > 0) {
-                SC digit = SC::from_uint64(static_cast<uint64_t>(wnaf[i]));
+                SC const digit = SC::from_uint64(static_cast<uint64_t>(wnaf[i]));
                 rec = rec + digit * pw;
             } else if (wnaf[i] < 0) {
-                SC digit = SC::from_uint64(static_cast<uint64_t>(-wnaf[i]));
+                SC const digit = SC::from_uint64(static_cast<uint64_t>(-wnaf[i]));
                 rec = rec - digit * pw;
             }
             pw = pw + pw;
@@ -909,13 +911,14 @@ static void test_scalar_encoding() {
     CHECK(naf_one.size() > 0 && naf_one[0] == 1, "NAF(1)[0] == 1");
     
     // 11.6: Large scalar NAF
-    SC large = SC::from_hex("DEADBEEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF01234567");
+    SC const large = SC::from_hex("DEADBEEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF01234567");
     auto naf_large = large.to_naf();
     SC rec_large = SC::zero();
     SC pw_large = SC::one();
     for (size_t i = 0; i < naf_large.size(); ++i) {
-        if (naf_large[i] == 1) rec_large = rec_large + pw_large;
-        else if (naf_large[i] == -1) rec_large = rec_large - pw_large;
+        if (naf_large[i] == 1) { rec_large = rec_large + pw_large;
+        } else if (naf_large[i] == -1) { rec_large = rec_large - pw_large;
+}
         pw_large = pw_large + pw_large;
     }
     CHECK(rec_large == large, "NAF(large) reconstructs");
@@ -929,7 +932,7 @@ static void test_scalar_encoding() {
     CHECK(all_odd_or_zero, "wNAF digits are odd or zero");
     
     // 11.8: compute_wnaf_into test
-    SC s100 = SC::from_uint64(100);
+    SC const s100 = SC::from_uint64(100);
     int32_t wnaf_buf[257] = {};
     std::size_t wnaf_len = 0;
     secp256k1::fast::compute_wnaf_into(s100, 4, wnaf_buf, 257, wnaf_len);
@@ -954,12 +957,12 @@ static void test_scalar_encoding() {
 static void test_point_basic() {
     std::cout << "  [PointBasic] Point basic operations..." << '\n';
     
-    PT G = PT::generator();
-    PT O = PT::infinity();
+    PT const G = PT::generator();
+    PT const O = PT::infinity();
     
     // 12.1: Generator is on curve
-    FE gx = G.x();
-    FE gy = G.y();
+    FE const gx = G.x();
+    FE const gy = G.y();
     CHECK(gy.square() == gx.square() * gx + FE::from_uint64(7), "G on curve");
     
     // 12.2: Generator is not infinity
@@ -978,18 +981,18 @@ static void test_point_basic() {
     CHECK(O.add(O).is_infinity(), "O+O==O");
     
     // 12.7: P + (-P) = O
-    PT negG = G.negate();
+    PT const negG = G.negate();
     CHECK(G.add(negG).is_infinity(), "G+(-G)==O");
     
     // 12.8: Commutativity
-    PT twoG = G.add(G);
-    PT threeG = twoG.add(G);
-    PT threeG_alt = G.add(twoG);
+    PT const twoG = G.add(G);
+    PT const threeG = twoG.add(G);
+    PT const threeG_alt = G.add(twoG);
     CHECK(pt_eq(threeG, threeG_alt), "2G+G == G+2G");
     
     // 12.9: Associativity
-    PT fourG = threeG.add(G);
-    PT fourG_alt = twoG.add(twoG);
+    PT const fourG = threeG.add(G);
+    PT const fourG_alt = twoG.add(twoG);
     CHECK(pt_eq(fourG, fourG_alt), "(3G+G) == (2G+2G)");
     
     // 12.10: Doubling = addition
@@ -1002,7 +1005,7 @@ static void test_point_basic() {
     CHECK(O.negate().is_infinity(), "-O==O");
     
     // 12.13: Double negation
-    PT P = G.add(G).add(G);  // 3G
+    PT const P = G.add(G).add(G);  // 3G
     CHECK(pt_eq(P.negate().negate(), P), "-(-P)==P");
     
     // 12.14: Generator known x-coordinate first 4 bytes
@@ -1010,35 +1013,35 @@ static void test_point_basic() {
     CHECK(comp[0] == 0x02 || comp[0] == 0x03, "G compressed prefix");
     
     // 12.15: Negate changes y, keeps x
-    FE px = P.x();
-    FE py = P.y();
-    PT neg_p = P.negate();
+    FE const px = P.x();
+    FE const py = P.y();
+    PT const neg_p = P.negate();
     CHECK(neg_p.x() == px, "negate preserves x");
     CHECK(neg_p.y() != py, "negate changes y");
     
     // 12.16: Add(P, P) == dbl(P)
     for (unsigned i = 1; i <= 16; ++i) {
-        PT pi = G.scalar_mul(SC::from_uint64(i));
+        PT const pi = G.scalar_mul(SC::from_uint64(i));
         CHECK(pt_eq(pi.add(pi), pi.dbl()), "add(P,P)==dbl(P) for " + std::to_string(i) + "G");
     }
     
     // 12.17: from_affine <-> x(),y()
-    FE ax = G.x();
-    FE ay = G.y();
-    PT from_aff = PT::from_affine(ax, ay);
+    FE const ax = G.x();
+    FE const ay = G.y();
+    PT const from_aff = PT::from_affine(ax, ay);
     CHECK(pt_eq(from_aff, G), "from_affine(G.x, G.y)==G");
     
     // 12.18: from_hex <-> to_hex
-    std::string xh = ax.to_hex();
-    std::string yh = ay.to_hex();
-    PT from_h = PT::from_hex(xh, yh);
+    std::string const xh = ax.to_hex();
+    std::string const yh = ay.to_hex();
+    PT const from_h = PT::from_hex(xh, yh);
     CHECK(pt_eq(from_h, G), "from_hex roundtrip");
     
     // 12.19: Closure -- iterated addition stays on curve
     PT acc = G;
     for (int i = 0; i < 100; ++i) {
-        FE xi = acc.x();
-        FE yi = acc.y();
+        FE const xi = acc.x();
+        FE const yi = acc.y();
         CHECK(yi.square() == xi.square() * xi + FE::from_uint64(7),
               "on-curve at iteration " + std::to_string(i));
         acc = acc.add(G);
@@ -1051,7 +1054,7 @@ static void test_point_basic() {
 static void test_point_scalar_mul() {
     std::cout << "  [PointScalarMul] Scalar multiplication tests..." << '\n';
     
-    PT G = PT::generator();
+    PT const G = PT::generator();
     
     // 13.1: 0*G = O
     CHECK(G.scalar_mul(SC::zero()).is_infinity(), "0*G==O");
@@ -1063,17 +1066,17 @@ static void test_point_scalar_mul() {
     CHECK(pt_eq(G.scalar_mul(SC::from_uint64(2)), G.add(G)), "2*G==G+G");
     
     // 13.4: n*G = O  
-    SC n = secp256k1_n();
+    SC const n = secp256k1_n();
     CHECK(G.scalar_mul(n).is_infinity(), "n*G==O");
     
     // 13.5: (n-1)*G = -G
-    SC n_minus_1 = n - SC::one();
+    SC const n_minus_1 = n - SC::one();
     CHECK(pt_eq(G.scalar_mul(n_minus_1), G.negate()), "(n-1)*G==-G");
     
     // 13.6: Consistency with iterated addition for k=1..256
     PT iter = G;
     for (unsigned k = 1; k <= 256; ++k) {
-        PT mul_result = G.scalar_mul(SC::from_uint64(k));
+        PT const mul_result = G.scalar_mul(SC::from_uint64(k));
         CHECK(pt_eq(mul_result, iter),
               "scalar_mul(" + std::to_string(k) + ") == iterated");
         iter = iter.add(G);
@@ -1085,36 +1088,36 @@ static void test_point_scalar_mul() {
         {255, 255}, {1000, 999}, {12345, 6789}
     };
     for (auto& [k, l] : pairs) {
-        SC sk = SC::from_uint64(k);
-        SC sl = SC::from_uint64(l);
-        PT lG = G.scalar_mul(sl);
-        PT klG = lG.scalar_mul(sk);
-        PT klG_direct = G.scalar_mul(sk * sl);
+        SC const sk = SC::from_uint64(k);
+        SC const sl = SC::from_uint64(l);
+        PT const lG = G.scalar_mul(sl);
+        PT const klG = lG.scalar_mul(sk);
+        PT const klG_direct = G.scalar_mul(sk * sl);
         CHECK(pt_eq(klG, klG_direct),
               "k*(l*G)==(k*l)*G for k=" + std::to_string(k) + ",l=" + std::to_string(l));
     }
     
     // 13.8: k*G + (-k)*G = O
     for (unsigned k = 1; k <= 64; ++k) {
-        SC s = SC::from_uint64(k);
-        PT kG = G.scalar_mul(s);
-        PT nkG = G.scalar_mul(s.negate());
+        SC const s = SC::from_uint64(k);
+        PT const kG = G.scalar_mul(s);
+        PT const nkG = G.scalar_mul(s.negate());
         CHECK(kG.add(nkG).is_infinity(),
               "k*G+(-k)*G==O for k=" + std::to_string(k));
     }
     
     // 13.9: Large scalar
-    SC large = SC::from_hex("DEADBEEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF01234567");
-    PT large_mul = G.scalar_mul(large);
+    SC const large = SC::from_hex("DEADBEEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF01234567");
+    PT const large_mul = G.scalar_mul(large);
     CHECK(!large_mul.is_infinity(), "large*G is not O");
-    FE lx = large_mul.x();
-    FE ly = large_mul.y();
+    FE const lx = large_mul.x();
+    FE const ly = large_mul.y();
     CHECK(ly.square() == lx.square() * lx + FE::from_uint64(7), "large*G on curve");
     
     // 13.10: Scalar mul of non-generator points
-    PT twoG = G.add(G);
-    PT result = twoG.scalar_mul(SC::from_uint64(3));
-    PT expected = G.scalar_mul(SC::from_uint64(6));
+    PT const twoG = G.add(G);
+    PT const result = twoG.scalar_mul(SC::from_uint64(3));
+    PT const expected = G.scalar_mul(SC::from_uint64(6));
     CHECK(pt_eq(result, expected), "3*(2G)==6G");
     
     // 13.11: Scalar mul of infinity
@@ -1127,19 +1130,19 @@ static void test_point_scalar_mul() {
 static void test_point_inplace() {
     std::cout << "  [PointInplace] In-place operations..." << '\n';
     
-    PT G = PT::generator();
+    PT const G = PT::generator();
     
     // 14.1: next_inplace vs add(G)
     PT p1 = G, p2 = G;
     for (int i = 0; i < 64; ++i) {
-        PT immutable_next = p1.add(G);
+        PT const immutable_next = p1.add(G);
         p2.next_inplace();
         CHECK(pt_eq(immutable_next, p2), "next_inplace #" + std::to_string(i));
         p1 = immutable_next;
     }
     
     // 14.2: prev_inplace (reverse of next)  
-    PT p3 = G.scalar_mul(SC::from_uint64(100));
+    PT const p3 = G.scalar_mul(SC::from_uint64(100));
     PT p4 = p3;
     p4.next_inplace();
     p4.prev_inplace();
@@ -1149,7 +1152,7 @@ static void test_point_inplace() {
     PT p5 = G;
     PT p6 = G;
     for (int i = 0; i < 32; ++i) {
-        PT expected_dbl = p5.dbl();
+        PT const expected_dbl = p5.dbl();
         p6 = p5;
         p6.dbl_inplace();
         CHECK(pt_eq(expected_dbl, p6), "dbl_inplace #" + std::to_string(i));
@@ -1157,47 +1160,47 @@ static void test_point_inplace() {
     }
     
     // 14.4: negate_inplace
-    PT p7 = G.scalar_mul(SC::from_uint64(42));
-    PT neg_immutable = p7.negate();
+    PT const p7 = G.scalar_mul(SC::from_uint64(42));
+    PT const neg_immutable = p7.negate();
     PT p8 = p7;
     p8.negate_inplace();
     CHECK(pt_eq(neg_immutable, p8), "negate_inplace");
     
     // 14.5: add_inplace
     PT p9 = G;
-    PT p10 = G.add(G);
-    PT expected_add = p9.add(p10);
+    PT const p10 = G.add(G);
+    PT const expected_add = p9.add(p10);
     p9.add_inplace(p10);
     CHECK(pt_eq(expected_add, p9), "add_inplace");
     
     // 14.6: sub_inplace
-    PT p11 = G.scalar_mul(SC::from_uint64(50));
-    PT p12 = G.scalar_mul(SC::from_uint64(20));
-    PT expected_sub = p11.add(p12.negate());
+    PT const p11 = G.scalar_mul(SC::from_uint64(50));
+    PT const p12 = G.scalar_mul(SC::from_uint64(20));
+    PT const expected_sub = p11.add(p12.negate());
     PT p13 = p11;
     p13.sub_inplace(p12);
     CHECK(pt_eq(expected_sub, p13), "sub_inplace");
     
     // 14.7: Double negate_inplace
-    PT p14 = G.scalar_mul(SC::from_uint64(7));
+    PT const p14 = G.scalar_mul(SC::from_uint64(7));
     PT p15 = p14;
     p15.negate_inplace();
     p15.negate_inplace();
     CHECK(pt_eq(p14, p15), "double negate_inplace");
 
     // 14.8: add_mixed_inplace (affine RHS where z=1)
-    FE ax = G.x();
-    FE ay = G.y();
-    PT p16 = G.scalar_mul(SC::from_uint64(5));  // 5G
+    FE const ax = G.x();
+    FE const ay = G.y();
+    PT const p16 = G.scalar_mul(SC::from_uint64(5));  // 5G
     PT p17 = p16;
     p17.add_mixed_inplace(ax, ay);  // 5G + G = 6G
-    PT expected_6g = G.scalar_mul(SC::from_uint64(6));
+    PT const expected_6g = G.scalar_mul(SC::from_uint64(6));
     CHECK(pt_eq(p17, expected_6g), "add_mixed_inplace == 5G+G=6G");
     
     // 14.9: sub_mixed_inplace
     PT p18 = G.scalar_mul(SC::from_uint64(10));
     p18.sub_mixed_inplace(ax, ay);  // 10G - G = 9G
-    PT expected_9g = G.scalar_mul(SC::from_uint64(9));
+    PT const expected_9g = G.scalar_mul(SC::from_uint64(9));
     CHECK(pt_eq(p18, expected_9g), "sub_mixed_inplace == 10G-G=9G");
 }
 
@@ -1207,57 +1210,57 @@ static void test_point_inplace() {
 static void test_point_precomputed() {
     std::cout << "  [PointPrecomputed] Precomputed scalar mul..." << '\n';
     
-    PT G = PT::generator();
+    PT const G = PT::generator();
     
     // 15.1: scalar_mul_precomputed_k matches scalar_mul
     for (unsigned k = 1; k <= 32; ++k) {
-        SC s = SC::from_uint64(k);
-        PT fast_result = G.scalar_mul_precomputed_k(s);
-        PT ref_result = G.scalar_mul(s);
+        SC const s = SC::from_uint64(k);
+        PT const fast_result = G.scalar_mul_precomputed_k(s);
+        PT const ref_result = G.scalar_mul(s);
         CHECK(pt_eq(fast_result, ref_result),
               "precomputed_k(" + std::to_string(k) + ")");
     }
     
     // 15.2: KPlan
-    SC k = SC::from_uint64(42);
+    SC const k = SC::from_uint64(42);
     auto plan = secp256k1::fast::KPlan::from_scalar(k);
-    PT plan_result = G.scalar_mul_with_plan(plan);
-    PT ref = G.scalar_mul(k);
+    PT const plan_result = G.scalar_mul_with_plan(plan);
+    PT const ref = G.scalar_mul(k);
     CHECK(pt_eq(plan_result, ref), "KPlan(42) matches");
     
     // 15.3: KPlan with small-medium scalar
-    SC med_k = SC::from_uint64(99999);
+    SC const med_k = SC::from_uint64(99999);
     auto med_plan = secp256k1::fast::KPlan::from_scalar(med_k);
-    PT med_plan_result = G.scalar_mul_with_plan(med_plan);
-    PT med_ref = G.scalar_mul(med_k);
+    PT const med_plan_result = G.scalar_mul_with_plan(med_plan);
+    PT const med_ref = G.scalar_mul(med_k);
     CHECK(pt_eq(med_plan_result, med_ref), "KPlan(99999) matches");
     
     // 15.4: scalar_mul_predecomposed
     auto decomp = secp256k1::fast::split_scalar_glv(k);
-    PT predecomp_result = G.scalar_mul_predecomposed(
+    PT const predecomp_result = G.scalar_mul_predecomposed(
         decomp.k1, decomp.k2, decomp.neg1, decomp.neg2);
     CHECK(pt_eq(predecomp_result, ref), "predecomposed(42) matches");
     
     // 15.5: scalar_mul_precomputed_wnaf
-    PT wnaf_result = G.scalar_mul_precomputed_wnaf(
+    PT const wnaf_result = G.scalar_mul_precomputed_wnaf(
         plan.wnaf1, plan.wnaf2, plan.neg1, plan.neg2);
     CHECK(pt_eq(wnaf_result, ref), "precomputed_wnaf(42) matches");
     
     // 15.6: Multiple KPlan values
     for (uint64_t kv = 1; kv <= 1024; kv += 100) {
-        SC sv = SC::from_uint64(kv);
+        SC const sv = SC::from_uint64(kv);
         auto pl = secp256k1::fast::KPlan::from_scalar(sv);
-        PT res = G.scalar_mul_with_plan(pl);
-        PT exp = G.scalar_mul(sv);
+        PT const res = G.scalar_mul_with_plan(pl);
+        PT const exp = G.scalar_mul(sv);
         CHECK(pt_eq(res, exp), "KPlan(" + std::to_string(kv) + ") matches");
     }
     
     // 15.7: Multiple different plans
     for (unsigned v = 1; v <= 8; ++v) {
-        SC sv = SC::from_uint64(v * 1000 + 7);
+        SC const sv = SC::from_uint64(v * 1000 + 7);
         auto pl = secp256k1::fast::KPlan::from_scalar(sv);
-        PT res = G.scalar_mul_with_plan(pl);
-        PT exp = G.scalar_mul(sv);
+        PT const res = G.scalar_mul_with_plan(pl);
+        PT const exp = G.scalar_mul(sv);
         CHECK(pt_eq(res, exp), "KPlan #" + std::to_string(v));
     }
 }
@@ -1268,7 +1271,7 @@ static void test_point_precomputed() {
 static void test_point_serialization() {
     std::cout << "  [PointSerialization] Point serialization tests..." << '\n';
     
-    PT G = PT::generator();
+    PT const G = PT::generator();
     
     // 16.1: to_compressed returns 33 bytes with 02/03 prefix
     auto comp = G.to_compressed();
@@ -1310,7 +1313,7 @@ static void test_point_serialization() {
     CHECK(second_match, "x_second_half matches");
     
     // 16.6: Serialization of negated point -- same x
-    PT neg = G.negate();
+    PT const neg = G.negate();
     auto comp_neg = neg.to_compressed();
     bool same_x = true;
     for (std::size_t i = 1; i < 33; ++i) {
@@ -1320,10 +1323,10 @@ static void test_point_serialization() {
     CHECK(comp[0] != comp_neg[0], "negation: different parity prefix");
     
     // 16.7: from_jacobian_coords
-    FE jx = G.X();
-    FE jy = G.Y();
-    FE jz = G.z();
-    PT from_j = PT::from_jacobian_coords(jx, jy, jz, false);
+    FE const jx = G.X();
+    FE const jy = G.Y();
+    FE const jz = G.z();
+    PT const from_j = PT::from_jacobian_coords(jx, jy, jz, false);
     CHECK(pt_eq(from_j, G), "from_jacobian_coords roundtrip");
 }
 
@@ -1333,11 +1336,11 @@ static void test_point_serialization() {
 static void test_point_edge_cases() {
     std::cout << "  [PointEdgeCases] Point edge cases..." << '\n';
     
-    PT G = PT::generator();
-    PT O = PT::infinity();
+    PT const G = PT::generator();
+    PT const O = PT::infinity();
     
     // 17.1: n*G = O
-    SC n = secp256k1_n();
+    SC const n = secp256k1_n();
     CHECK(G.scalar_mul(n).is_infinity(), "n*G==O");
     
     // 17.2: 2*O = O
@@ -1350,20 +1353,20 @@ static void test_point_edge_cases() {
     
     // 17.4: P + O = P for various P
     for (unsigned k = 1; k <= 16; ++k) {
-        PT P = G.scalar_mul(SC::from_uint64(k));
+        PT const P = G.scalar_mul(SC::from_uint64(k));
         CHECK(pt_eq(P.add(O), P), "P+O==P for " + std::to_string(k) + "G");
         CHECK(pt_eq(O.add(P), P), "O+P==P for " + std::to_string(k) + "G");
     }
     
     // 17.5: P + (-P) = O for various P
     for (unsigned k = 1; k <= 16; ++k) {
-        PT P = G.scalar_mul(SC::from_uint64(k));
+        PT const P = G.scalar_mul(SC::from_uint64(k));
         CHECK(P.add(P.negate()).is_infinity(),
               "P+(-P)==O for " + std::to_string(k) + "G");
     }
     
     // 17.6: Order of 2G
-    PT twoG = G.scalar_mul(SC::from_uint64(2));
+    PT const twoG = G.scalar_mul(SC::from_uint64(2));
     // n * (2G) should be O since order of group divides n
     CHECK(twoG.scalar_mul(n).is_infinity(), "n*(2G)==O");
     
@@ -1371,8 +1374,8 @@ static void test_point_edge_cases() {
     PT P = G;
     for (int pow2 = 1; pow2 <= 16; ++pow2) {
         P = P.dbl();
-        uint64_t expected_k = 1ULL << pow2;
-        PT mul_result = G.scalar_mul(SC::from_uint64(expected_k));
+        uint64_t const expected_k = 1ULL << pow2;
+        PT const mul_result = G.scalar_mul(SC::from_uint64(expected_k));
         CHECK(pt_eq(P, mul_result),
               "2^" + std::to_string(pow2) + "*G via doubling");
     }
@@ -1392,8 +1395,8 @@ static void test_point_edge_cases() {
     for (std::size_t i = 0; i < 4; ++i) {
         for (std::size_t j = i+1; j < 6; ++j) {
             for (std::size_t k = j+1; k < 8; ++k) {
-                PT lhs = pts[i].add(pts[j]).add(pts[k]);
-                PT rhs = pts[i].add(pts[j].add(pts[k]));
+                PT const lhs = pts[i].add(pts[j]).add(pts[k]);
+                PT const rhs = pts[i].add(pts[j].add(pts[k]));
                 CHECK(pt_eq(lhs, rhs),
                       "associative (" + std::to_string(i+1) + "," + 
                       std::to_string(j+1) + "," + std::to_string(k+1) + ")");
@@ -1412,7 +1415,7 @@ static void test_ct_ops() {
     
     // 18.1: value_barrier (should not change value)
     uint64_t v = 0xDEADBEEFCAFEBABEULL;
-    uint64_t v_orig = v;
+    uint64_t const v_orig = v;
     value_barrier(v);
     CHECK(v == v_orig, "value_barrier preserves value");
     
@@ -1440,7 +1443,7 @@ static void test_ct_ops() {
     
     // 18.7: cmov64
     uint64_t dst = 100;
-    uint64_t src = 200;
+    uint64_t const src = 200;
     cmov64(&dst, &src, 0xFFFFFFFFFFFFFFFFULL);
     CHECK(dst == 200, "cmov64 mask=all-ones copies");
     
@@ -1518,10 +1521,10 @@ static void test_ct_field() {
     std::cout << "  [CTField] CT field operations..." << '\n';
     
     namespace ctf = secp256k1::ct;
-    FE a = FE::from_uint64(42);
-    FE b = FE::from_uint64(99);
-    FE zero = FE::zero();
-    FE one = FE::one();
+    FE const a = FE::from_uint64(42);
+    FE const b = FE::from_uint64(99);
+    FE const zero = FE::zero();
+    FE const one = FE::one();
     
     // 19.1-19.5: CT arithmetic matches fast arithmetic
     CHECK(ctf::field_add(a, b) == a + b, "ct field_add");
@@ -1531,7 +1534,7 @@ static void test_ct_field() {
     CHECK(ctf::field_neg(a) == zero - a, "ct field_neg");
     
     // 19.6: CT inverse
-    FE ct_inv = ctf::field_inv(a);
+    FE const ct_inv = ctf::field_inv(a);
     CHECK(a * ct_inv == one, "ct field_inv correct");
     
     // 19.7: CT cmov
@@ -1569,14 +1572,14 @@ static void test_ct_field() {
     CHECK(ctf::field_eq(a, b) == 0, "ct field_eq diff");
     
     // 19.13: CT normalize is idempotent
-    FE norm = ctf::field_normalize(a);
-    FE norm2 = ctf::field_normalize(norm);
+    FE const norm = ctf::field_normalize(a);
+    FE const norm2 = ctf::field_normalize(norm);
     CHECK(norm == norm2, "ct field_normalize idempotent");
     
     // 19.14: CT arithmetic consistency for many values
     for (uint64_t v = 1; v <= 64; ++v) {
-        FE fv = FE::from_uint64(v);
-        FE fv2 = FE::from_uint64(v + 1);
+        FE const fv = FE::from_uint64(v);
+        FE const fv2 = FE::from_uint64(v + 1);
         CHECK(ctf::field_add(fv, fv2) == fv + fv2, "ct add #" + std::to_string(v));
         CHECK(ctf::field_mul(fv, fv2) == fv * fv2, "ct mul #" + std::to_string(v));
     }
@@ -1589,10 +1592,10 @@ static void test_ct_scalar() {
     std::cout << "  [CTScalar] CT scalar operations..." << '\n';
     
     namespace cts = secp256k1::ct;
-    SC a = SC::from_uint64(42);
-    SC b = SC::from_uint64(99);
-    SC zero = SC::zero();
-    [[maybe_unused]] SC one = SC::one();
+    SC const a = SC::from_uint64(42);
+    SC const b = SC::from_uint64(99);
+    SC const zero = SC::zero();
+    [[maybe_unused]] SC const one = SC::one();
     
     // 20.1-20.3: Arithmetic
     CHECK(cts::scalar_add(a, b) == a + b, "ct scalar_add");
@@ -1630,13 +1633,13 @@ static void test_ct_scalar() {
     CHECK(cts::scalar_eq(a, b) == 0, "ct scalar_eq diff");
     
     // 20.9: bit
-    SC s5 = SC::from_uint64(5);  // 101
+    SC const s5 = SC::from_uint64(5);  // 101
     CHECK(cts::scalar_bit(s5, 0) == 1, "ct scalar_bit(5,0)");
     CHECK(cts::scalar_bit(s5, 1) == 0, "ct scalar_bit(5,1)");
     CHECK(cts::scalar_bit(s5, 2) == 1, "ct scalar_bit(5,2)");
     
     // 20.10: window
-    SC s0xFF = SC::from_uint64(0xFF);  // 11111111
+    SC const s0xFF = SC::from_uint64(0xFF);  // 11111111
     uint64_t w = cts::scalar_window(s0xFF, 0, 4);
     CHECK(w == 0x0F, "ct scalar_window(0xFF,0,4)==0x0F");
     w = cts::scalar_window(s0xFF, 4, 4);
@@ -1650,23 +1653,23 @@ static void test_ct_point() {
     std::cout << "  [CTPoint] CT point operations..." << '\n';
     
     namespace ctp = secp256k1::ct;
-    PT G = PT::generator();
-    [[maybe_unused]] PT O = PT::infinity();
+    PT const G = PT::generator();
+    [[maybe_unused]] PT const O = PT::infinity();
     
     // 21.1: CT scalar_mul matches fast
     for (unsigned k = 1; k <= 64; ++k) {
-        SC s = SC::from_uint64(k);
-        PT ct_result = ctp::scalar_mul(G, s);
-        PT fast_result = G.scalar_mul(s);
+        SC const s = SC::from_uint64(k);
+        PT const ct_result = ctp::scalar_mul(G, s);
+        PT const fast_result = G.scalar_mul(s);
         CHECK(pt_eq(ct_result, fast_result),
               "ct scalar_mul(" + std::to_string(k) + ") matches");
     }
     
     // 21.2: CT generator_mul
     for (unsigned k = 1; k <= 32; ++k) {
-        SC s = SC::from_uint64(k);
-        PT ct_gen = ctp::generator_mul(s);
-        PT fast_result = G.scalar_mul(s);
+        SC const s = SC::from_uint64(k);
+        PT const ct_gen = ctp::generator_mul(s);
+        PT const fast_result = G.scalar_mul(s);
         CHECK(pt_eq(ct_gen, fast_result),
               "ct generator_mul(" + std::to_string(k) + ") matches");
     }
@@ -1674,14 +1677,14 @@ static void test_ct_point() {
     // 21.3: CT on-curve check
     CHECK(ctp::point_is_on_curve(G) != 0, "ct G is on curve");
     for (unsigned k = 2; k <= 16; ++k) {
-        PT P = G.scalar_mul(SC::from_uint64(k));
+        PT const P = G.scalar_mul(SC::from_uint64(k));
         CHECK(ctp::point_is_on_curve(P) != 0,
               "ct " + std::to_string(k) + "G on curve");
     }
     
     // 21.4: CT point equality
     CHECK(ctp::point_eq(G, G) != 0, "ct G==G");
-    PT twoG = G.scalar_mul(SC::from_uint64(2));
+    PT const twoG = G.scalar_mul(SC::from_uint64(2));
     CHECK(ctp::point_eq(G, twoG) == 0, "ct G!=2G");
     
     // 21.5: Complete addition -- handles all cases
@@ -1718,17 +1721,17 @@ static void test_ct_point() {
     CHECK(pt_eq(sel.to_point(), twoG), "ct point_select(zero)==2G");
     
     // 21.8: CT scalar_mul with large scalar
-    SC large = SC::from_hex("DEADBEEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF01234567");
-    PT ct_large = ctp::scalar_mul(G, large);
-    PT fast_large = G.scalar_mul(large);
+    SC const large = SC::from_hex("DEADBEEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF01234567");
+    PT const ct_large = ctp::scalar_mul(G, large);
+    PT const fast_large = G.scalar_mul(large);
     CHECK(pt_eq(ct_large, fast_large), "ct scalar_mul(large)");
     
     // 21.9: CT scalar_mul identity (0*G = O)
-    PT ct_zero = ctp::scalar_mul(G, SC::zero());
+    PT const ct_zero = ctp::scalar_mul(G, SC::zero());
     CHECK(ct_zero.is_infinity(), "ct 0*G==O");
     
     // 21.10: CT scalar_mul (n*G = O)
-    PT ct_order = ctp::scalar_mul(G, secp256k1_n());
+    PT const ct_order = ctp::scalar_mul(G, secp256k1_n());
     CHECK(ct_order.is_infinity(), "ct n*G==O");
 }
 
@@ -1739,12 +1742,12 @@ static void test_glv() {
     std::cout << "  [GLV] GLV endomorphism tests..." << '\n';
     
     using namespace secp256k1::fast;
-    PT G = PT::generator();
+    PT const G = PT::generator();
     
     // 22.1: Endomorphism beta*G.x produces valid point
-    PT endo = apply_endomorphism(G);
-    FE ex = endo.x();
-    FE ey = endo.y();
+    PT const endo = apply_endomorphism(G);
+    FE const ex = endo.x();
+    FE const ey = endo.y();
     CHECK(ey.square() == ex.square() * ex + FE::from_uint64(7), "phi(G) on curve");
     
     // 22.2: phi(G).y == G.y (endomorphism preserves y)
@@ -1758,48 +1761,48 @@ static void test_glv() {
     
     // 22.5: verify_endomorphism for multiple points
     for (unsigned k = 2; k <= 16; ++k) {
-        PT P = G.scalar_mul(SC::from_uint64(k));
+        PT const P = G.scalar_mul(SC::from_uint64(k));
         CHECK(verify_endomorphism(P), "verify_endomorphism(" + std::to_string(k) + "G)");
     }
     
     // 22.6: GLV decomposition -- k = k1 + k2*lambda (mod n)
     for (unsigned k = 1; k <= 64; ++k) {
-        SC sk = SC::from_uint64(k);
+        SC const sk = SC::from_uint64(k);
         auto decomp = glv_decompose(sk);
         
         // Verify: k1 + k2*lambda == k (mod n)
-        SC lambda = SC::from_bytes(secp256k1::fast::glv_constants::LAMBDA);
-        SC k1 = decomp.k1_neg ? decomp.k1.negate() : decomp.k1;
-        SC k2 = decomp.k2_neg ? decomp.k2.negate() : decomp.k2;
-        SC reconstructed = k1 + k2 * lambda;
+        SC const lambda = SC::from_bytes(secp256k1::fast::glv_constants::LAMBDA);
+        SC const k1 = decomp.k1_neg ? decomp.k1.negate() : decomp.k1;
+        SC const k2 = decomp.k2_neg ? decomp.k2.negate() : decomp.k2;
+        SC const reconstructed = k1 + k2 * lambda;
         CHECK(reconstructed == sk, "GLV decompose/reconstruct k=" + std::to_string(k));
     }
     
     // 22.7: GLV decomposition for large scalar
-    SC large = SC::from_hex("DEADBEEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF01234567");
+    SC const large = SC::from_hex("DEADBEEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF01234567");
     auto decomp = glv_decompose(large);
-    SC lambda = SC::from_bytes(secp256k1::fast::glv_constants::LAMBDA);
-    SC lk1 = decomp.k1_neg ? decomp.k1.negate() : decomp.k1;
-    SC lk2 = decomp.k2_neg ? decomp.k2.negate() : decomp.k2;
+    SC const lambda = SC::from_bytes(secp256k1::fast::glv_constants::LAMBDA);
+    SC const lk1 = decomp.k1_neg ? decomp.k1.negate() : decomp.k1;
+    SC const lk2 = decomp.k2_neg ? decomp.k2.negate() : decomp.k2;
     CHECK(lk1 + lk2 * lambda == large, "GLV decompose large");
     
     // 22.8: lambda*G = phi(G) (eigenvalue property)
-    SC lambda_sc = SC::from_bytes(secp256k1::fast::glv_constants::LAMBDA);
-    PT lambdaG = G.scalar_mul(lambda_sc);
+    SC const lambda_sc = SC::from_bytes(secp256k1::fast::glv_constants::LAMBDA);
+    PT const lambdaG = G.scalar_mul(lambda_sc);
     CHECK(pt_eq(lambdaG, endo), "lambda*G == phi(G)");
     
     // 22.9: Endomorphism of infinity
-    PT endo_inf = apply_endomorphism(PT::infinity());
+    PT const endo_inf = apply_endomorphism(PT::infinity());
     CHECK(endo_inf.is_infinity(), "phi(O)==O");
     
     // 22.10: lambda^2 + lambda + 1 == 0 (mod n)
-    SC lambda2 = lambda_sc * lambda_sc;
-    SC sum = lambda2 + lambda_sc + SC::one();
+    SC const lambda2 = lambda_sc * lambda_sc;
+    SC const sum = lambda2 + lambda_sc + SC::one();
     CHECK(sum == SC::zero(), "lambda^2+lambda+1 == 0 (mod n)");
     
     // 22.11: beta^3 == 1 (mod p) 
-    FE beta = FE::from_bytes(secp256k1::fast::glv_constants::BETA);
-    FE beta3 = beta * beta * beta;
+    FE const beta = FE::from_bytes(secp256k1::fast::glv_constants::BETA);
+    FE const beta3 = beta * beta * beta;
     CHECK(beta3 == FE::one(), "beta^3 == 1 (mod p)");
 }
 
@@ -1809,24 +1812,24 @@ static void test_glv() {
 static void test_msm() {
     std::cout << "  [MSM] Multi-scalar multiplication tests..." << '\n';
     
-    PT G = PT::generator();
+    PT const G = PT::generator();
     
     // 23.1: Empty MSM = O
     CHECK(secp256k1::msm(std::vector<SC>{}, std::vector<PT>{}).is_infinity(),
           "MSM(empty)==O");
     
     // 23.2: Single element MSM = scalar_mul
-    SC s42 = SC::from_uint64(42);
-    PT single = secp256k1::msm(std::vector<SC>{s42}, std::vector<PT>{G});
+    SC const s42 = SC::from_uint64(42);
+    PT const single = secp256k1::msm(std::vector<SC>{s42}, std::vector<PT>{G});
     CHECK(pt_eq(single, G.scalar_mul(s42)), "MSM(n=1)==scalar_mul");
     
     // 23.3: Two-element MSM
-    SC s_a = SC::from_uint64(7);
-    SC s_b = SC::from_uint64(11);
-    PT P_a = G;
-    PT P_b = G.scalar_mul(SC::from_uint64(3));
-    PT msm2 = secp256k1::msm(std::vector<SC>{s_a, s_b}, std::vector<PT>{P_a, P_b});
-    PT naive2 = P_a.scalar_mul(s_a).add(P_b.scalar_mul(s_b));
+    SC const s_a = SC::from_uint64(7);
+    SC const s_b = SC::from_uint64(11);
+    PT const P_a = G;
+    PT const P_b = G.scalar_mul(SC::from_uint64(3));
+    PT const msm2 = secp256k1::msm(std::vector<SC>{s_a, s_b}, std::vector<PT>{P_a, P_b});
+    PT const naive2 = P_a.scalar_mul(s_a).add(P_b.scalar_mul(s_b));
     CHECK(pt_eq(msm2, naive2), "MSM(n=2)");
     
     // 23.4: Pippenger for medium n
@@ -1845,14 +1848,14 @@ static void test_msm() {
         naive = naive.add(points[i].scalar_mul(scalars[i]));
     }
     
-    PT pip = secp256k1::pippenger_msm(scalars, points);
+    PT const pip = secp256k1::pippenger_msm(scalars, points);
     CHECK(pt_eq(pip, naive), "Pippenger(n=64)");
     
-    PT unified = secp256k1::msm(scalars, points);
+    PT const unified = secp256k1::msm(scalars, points);
     CHECK(pt_eq(unified, naive), "MSM(n=64)");
     
     // 23.5: Shamir trick (2-point MSM)
-    PT shamir = secp256k1::shamir_trick(s_a, P_a, s_b, P_b);
+    PT const shamir = secp256k1::shamir_trick(s_a, P_a, s_b, P_b);
     CHECK(pt_eq(shamir, naive2), "shamir_trick(2)");
     
     // 23.6: Pippenger with larger n
@@ -1871,7 +1874,7 @@ static void test_msm() {
         naive2_big = naive2_big.add(points2[i].scalar_mul(scalars2[i]));
     }
     
-    PT pip2 = secp256k1::pippenger_msm(scalars2, points2);
+    PT const pip2 = secp256k1::pippenger_msm(scalars2, points2);
     CHECK(pt_eq(pip2, naive2_big), "Pippenger(n=256)");
     
     // 23.7: Optimal window function
@@ -1879,16 +1882,16 @@ static void test_msm() {
     CHECK(secp256k1::pippenger_optimal_window(256) >= 1, "optimal_window(256)>=1");
     
     // 23.8: MSM with zero scalars
-    std::vector<SC> zeros_s = {SC::zero(), SC::zero()};
-    std::vector<PT> pts = {G, G.dbl()};
-    PT zero_msm = secp256k1::msm(zeros_s, pts);
+    std::vector<SC> const zeros_s = {SC::zero(), SC::zero()};
+    std::vector<PT> const pts = {G, G.dbl()};
+    PT const zero_msm = secp256k1::msm(zeros_s, pts);
     CHECK(zero_msm.is_infinity(), "MSM with zero scalars == O");
     
     // 23.9: Strauss optimal window
     CHECK(secp256k1::strauss_optimal_window(1) >= 1, "strauss_window(1)>=1");
     
     // 23.10: multi_scalar_mul (from multiscalar.hpp)
-    PT multi_result = secp256k1::multi_scalar_mul(
+    PT const multi_result = secp256k1::multi_scalar_mul(
         std::vector<SC>{s_a, s_b}, std::vector<PT>{P_a, P_b});
     CHECK(pt_eq(multi_result, naive2), "multi_scalar_mul(n=2)");
 }
@@ -1899,7 +1902,7 @@ static void test_msm() {
 static void test_comb_gen() {
     std::cout << "  [CombGen] Comb generator tests..." << '\n';
     
-    PT G = PT::generator();
+    PT const G = PT::generator();
     
     // 24.1: Init and ready
     secp256k1::fast::CombGenContext ctx;
@@ -1913,57 +1916,57 @@ static void test_comb_gen() {
     
     // 24.3: mul matches scalar_mul for small range
     for (unsigned k = 1; k <= 128; ++k) {
-        SC s = SC::from_uint64(k);
-        PT comb_result = ctx.mul(s);
-        PT expected = G.scalar_mul(s);
+        SC const s = SC::from_uint64(k);
+        PT const comb_result = ctx.mul(s);
+        PT const expected = G.scalar_mul(s);
         CHECK(pt_eq(comb_result, expected),
               "comb_mul(" + std::to_string(k) + ")");
     }
     
     // 24.4: CT mul matches
     for (unsigned k = 1; k <= 16; ++k) {
-        SC s = SC::from_uint64(k);
-        PT ct_result = ctx.mul_ct(s);
-        PT expected = G.scalar_mul(s);
+        SC const s = SC::from_uint64(k);
+        PT const ct_result = ctx.mul_ct(s);
+        PT const expected = G.scalar_mul(s);
         CHECK(pt_eq(ct_result, expected),
               "comb_mul_ct(" + std::to_string(k) + ")");
     }
     
     // 24.5: Large scalar
-    SC large = SC::from_hex("DEADBEEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF01234567");
+    SC const large = SC::from_hex("DEADBEEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF01234567");
     CHECK(pt_eq(ctx.mul(large), G.scalar_mul(large)), "comb_mul(large)");
     
     // 24.6: Global singleton
     secp256k1::fast::init_comb_gen(6);
     CHECK(secp256k1::fast::comb_gen_ready(), "global comb ready");
     
-    SC s42 = SC::from_uint64(42);
+    SC const s42 = SC::from_uint64(42);
     CHECK(pt_eq(secp256k1::fast::comb_gen_mul(s42), G.scalar_mul(s42)), "global comb_gen_mul(42)");
     
     // 24.7: CT global
     CHECK(pt_eq(secp256k1::fast::comb_gen_mul_ct(s42), G.scalar_mul(s42)), "global comb_gen_mul_ct(42)");
     
     // 24.8: Different teeth values
-    for (unsigned teeth : {4u, 5u, 7u, 8u}) {
+    for (unsigned const teeth : {4u, 5u, 7u, 8u}) {
         secp256k1::fast::CombGenContext ctx2;
         ctx2.init(teeth);
         CHECK(ctx2.ready(), "CombGen teeth=" + std::to_string(teeth) + " ready");
         
-        SC test_s = SC::from_uint64(42);
-        PT result = ctx2.mul(test_s);
-        PT expected = G.scalar_mul(test_s);
+        SC const test_s = SC::from_uint64(42);
+        PT const result = ctx2.mul(test_s);
+        PT const expected = G.scalar_mul(test_s);
         CHECK(pt_eq(result, expected),
               "CombGen teeth=" + std::to_string(teeth) + " correct");
     }
     
     // 24.9: Zero scalar
-    SC s_zero = SC::zero();
+    SC const s_zero = SC::zero();
     // Comb mul of zero should produce infinity
-    PT zero_result = ctx.mul(s_zero);
+    PT const zero_result = ctx.mul(s_zero);
     CHECK(zero_result.is_infinity(), "comb_mul(0)==O");
     
     // 24.10: One scalar
-    SC s_one = SC::one();
+    SC const s_one = SC::one();
     CHECK(pt_eq(ctx.mul(s_one), G), "comb_mul(1)==G");
 }
 
@@ -1973,17 +1976,17 @@ static void test_comb_gen() {
 static void test_batch_inverse() {
     std::cout << "  [BatchInverse] Batch inverse tests..." << '\n';
     
-    FE one = FE::one();
+    FE const one = FE::one();
     
     // 25.1: Batch of 1
     FE batch1[1] = {FE::from_uint64(7)};
-    FE exp1 = batch1[0].inverse();
+    FE const exp1 = batch1[0].inverse();
     secp256k1::fast::fe_batch_inverse(batch1, 1);
     CHECK(batch1[0] == exp1, "batch_inv(n=1)");
     
     // 25.2: Batch of 2
     FE batch2[2] = {FE::from_uint64(3), FE::from_uint64(5)};
-    FE exp2[2] = {batch2[0].inverse(), batch2[1].inverse()};
+    FE const exp2[2] = {batch2[0].inverse(), batch2[1].inverse()};
     secp256k1::fast::fe_batch_inverse(batch2, 2);
     CHECK(batch2[0] == exp2[0] && batch2[1] == exp2[1], "batch_inv(n=2)");
     
@@ -2034,11 +2037,11 @@ static void test_batch_inverse() {
 static void test_ecdsa() {
     std::cout << "  [ECDSA] ECDSA sign/verify tests..." << '\n';
     
-    PT G = PT::generator();
+    PT const G = PT::generator();
     
     // 26.1: Sign and verify basic
-    SC privkey = SC::from_uint64(42);
-    PT pubkey = G.scalar_mul(privkey);
+    SC const privkey = SC::from_uint64(42);
+    PT const pubkey = G.scalar_mul(privkey);
     std::array<uint8_t, 32> msg{};
     msg[0] = 0x01;
     
@@ -2051,19 +2054,19 @@ static void test_ecdsa() {
     CHECK(!secp256k1::ecdsa_verify(wrong_msg, pubkey, sig), "ECDSA wrong msg fails");
     
     // 26.3: Wrong pubkey fails
-    PT wrong_pub = G.scalar_mul(SC::from_uint64(43));
+    PT const wrong_pub = G.scalar_mul(SC::from_uint64(43));
     CHECK(!secp256k1::ecdsa_verify(msg, wrong_pub, sig), "ECDSA wrong pubkey fails");
     
     // 26.4: Deterministic nonce (RFC 6979)
-    SC nonce = secp256k1::rfc6979_nonce(privkey, msg);
+    SC const nonce = secp256k1::rfc6979_nonce(privkey, msg);
     CHECK(!nonce.is_zero(), "RFC6979 nonce nonzero");
     
     // Same inputs -> same nonce (deterministic)
-    SC nonce2 = secp256k1::rfc6979_nonce(privkey, msg);
+    SC const nonce2 = secp256k1::rfc6979_nonce(privkey, msg);
     CHECK(nonce == nonce2, "RFC6979 deterministic");
     
     // Different key -> different nonce
-    SC nonce3 = secp256k1::rfc6979_nonce(SC::from_uint64(43), msg);
+    SC const nonce3 = secp256k1::rfc6979_nonce(SC::from_uint64(43), msg);
     CHECK(nonce != nonce3, "RFC6979 different key -> different nonce");
     
     // 26.5: Signature normalization (low-S)
@@ -2083,8 +2086,8 @@ static void test_ecdsa() {
     
     // 26.8: Multiple keys
     for (uint64_t k = 1; k <= 16; ++k) {
-        SC key = SC::from_uint64(k * 1000 + 7);
-        PT pub = G.scalar_mul(key);
+        SC const key = SC::from_uint64(k * 1000 + 7);
+        PT const pub = G.scalar_mul(key);
         auto s = secp256k1::ecdsa_sign(msg, key);
         CHECK(secp256k1::ecdsa_verify(msg, pub, s),
               "ECDSA key #" + std::to_string(k));
@@ -2106,10 +2109,10 @@ static void test_ecdsa() {
 static void test_schnorr() {
     std::cout << "  [Schnorr] Schnorr sign/verify tests..." << '\n';
     
-    [[maybe_unused]] PT G = PT::generator();
+    [[maybe_unused]] PT const G = PT::generator();
     
     // 27.1: Sign and verify
-    SC privkey = SC::from_uint64(42);
+    SC const privkey = SC::from_uint64(42);
     std::array<uint8_t, 32> msg{};
     msg[0] = 0x01;
     std::array<uint8_t, 32> aux{};
@@ -2132,7 +2135,7 @@ static void test_schnorr() {
     
     // 27.4: Multiple keys
     for (uint64_t k = 1; k <= 16; ++k) {
-        SC key = SC::from_uint64(k * 1000 + 7);
+        SC const key = SC::from_uint64(k * 1000 + 7);
         auto pub_x = secp256k1::schnorr_pubkey(key);
         auto s = secp256k1::schnorr_sign(key, msg, aux);
         CHECK(secp256k1::schnorr_verify(pub_x, msg, s),
@@ -2167,23 +2170,23 @@ static void test_schnorr() {
 static void test_ecdh() {
     std::cout << "  [ECDH] ECDH shared secret tests..." << '\n';
     
-    PT G = PT::generator();
+    PT const G = PT::generator();
     using secp256k1::Scalar;
     using secp256k1::Point;
     
     // 28.1: Basic ECDH -- Alice and Bob derive same secret
-    SC alice_priv = SC::from_uint64(42);
-    SC bob_priv = SC::from_uint64(99);
-    PT alice_pub = G.scalar_mul(alice_priv);
-    PT bob_pub = G.scalar_mul(bob_priv);
+    SC const alice_priv = SC::from_uint64(42);
+    SC const bob_priv = SC::from_uint64(99);
+    PT const alice_pub = G.scalar_mul(alice_priv);
+    PT const bob_pub = G.scalar_mul(bob_priv);
     
     auto secret_alice = secp256k1::ecdh_compute(alice_priv, bob_pub);
     auto secret_bob = secp256k1::ecdh_compute(bob_priv, alice_pub);
     CHECK(secret_alice == secret_bob, "ECDH shared secret matches");
     
     // 28.2: Different keys -> different secrets
-    SC carol_priv = SC::from_uint64(200);
-    PT carol_pub = G.scalar_mul(carol_priv);
+    SC const carol_priv = SC::from_uint64(200);
+    PT const carol_pub = G.scalar_mul(carol_priv);
     auto secret_ac = secp256k1::ecdh_compute(alice_priv, carol_pub);
     CHECK(secret_alice != secret_ac, "different keys -> different secrets");
     
@@ -2200,10 +2203,10 @@ static void test_ecdh() {
     // 28.5: Multiple key pairs
     for (uint64_t ka = 1; ka <= 8; ++ka) {
         for (uint64_t kb = ka + 1; kb <= 9; ++kb) {
-            SC a = SC::from_uint64(ka * 1000 + 7);
-            SC b = SC::from_uint64(kb * 1000 + 13);
-            PT pa = G.scalar_mul(a);
-            PT pb = G.scalar_mul(b);
+            SC const a = SC::from_uint64(ka * 1000 + 7);
+            SC const b = SC::from_uint64(kb * 1000 + 13);
+            PT const pa = G.scalar_mul(a);
+            PT const pb = G.scalar_mul(b);
             auto sa = secp256k1::ecdh_compute(a, pb);
             auto sb = secp256k1::ecdh_compute(b, pa);
             CHECK(sa == sb, "ECDH pair (" + std::to_string(ka) + "," + std::to_string(kb) + ")");
@@ -2217,11 +2220,11 @@ static void test_ecdh() {
 static void test_recovery() {
     std::cout << "  [Recovery] Key recovery tests..." << '\n';
     
-    PT G = PT::generator();
+    PT const G = PT::generator();
     
     // 29.1: Sign recoverable and recover pubkey
-    SC privkey = SC::from_uint64(42);
-    PT pubkey = G.scalar_mul(privkey);
+    SC const privkey = SC::from_uint64(42);
+    PT const pubkey = G.scalar_mul(privkey);
     std::array<uint8_t, 32> msg{};
     msg[0] = 0x01;
     
@@ -2234,7 +2237,7 @@ static void test_recovery() {
     CHECK(pt_eq(recovered, pubkey), "recovered pubkey matches");
     
     // 29.3: Wrong recid fails or gives wrong key
-    int wrong_recid = (rsig.recid + 1) % 4;
+    int const wrong_recid = (rsig.recid + 1) % 4;
     auto [recovered2, success2] = secp256k1::ecdsa_recover(msg, rsig.sig, wrong_recid);
     if (success2) {
         CHECK(!pt_eq(recovered2, pubkey), "wrong recid -> wrong key");
@@ -2251,8 +2254,8 @@ static void test_recovery() {
     
     // 29.5: Multiple keys
     for (uint64_t k = 1; k <= 8; ++k) {
-        SC key = SC::from_uint64(k * 1000 + 7);
-        PT pub = G.scalar_mul(key);
+        SC const key = SC::from_uint64(k * 1000 + 7);
+        PT const pub = G.scalar_mul(key);
         auto rs = secp256k1::ecdsa_sign_recoverable(msg, key);
         auto [rec, ok] = secp256k1::ecdsa_recover(msg, rs.sig, rs.recid);
         CHECK(ok, "recovery key #" + std::to_string(k));
@@ -2336,9 +2339,9 @@ static void test_batch_add_affine_comprehensive() {
     std::cout << "  [BatchAddAffine] Batch affine addition tests..." << '\n';
     
     using namespace secp256k1::fast;
-    PT G = PT::generator();
-    [[maybe_unused]] FE gx = G.x();
-    [[maybe_unused]] FE gy = G.y();
+    PT const G = PT::generator();
+    [[maybe_unused]] FE const gx = G.x();
+    [[maybe_unused]] FE const gy = G.y();
     
     // 31.1: precompute_g_multiples
     auto g_multiples = precompute_g_multiples(64);
@@ -2346,17 +2349,17 @@ static void test_batch_add_affine_comprehensive() {
     
     // 31.2: Verify precomputed multiples are on curve
     for (std::size_t i = 0; i < 16 && i < g_multiples.size(); ++i) {
-        FE cx = g_multiples[i].x;
-        FE cy = g_multiples[i].y;
-        FE lhs = cy.square();
-        FE rhs = cx.square() * cx + FE::from_uint64(7);
+        FE const cx = g_multiples[i].x;
+        FE const cy = g_multiples[i].y;
+        FE const lhs = cy.square();
+        FE const rhs = cx.square() * cx + FE::from_uint64(7);
         CHECK(lhs == rhs, "g_multiple[" + std::to_string(i) + "] on curve");
     }
     
     // 31.3: precompute_point_multiples with custom base
-    PT p7 = G.scalar_mul(SC::from_uint64(7));
-    FE p7x = p7.x();
-    FE p7y = p7.y();
+    PT const p7 = G.scalar_mul(SC::from_uint64(7));
+    FE const p7x = p7.x();
+    FE const p7y = p7.y();
     auto p7_multiples = precompute_point_multiples(p7x, p7y, 16);
     CHECK(p7_multiples.size() == 16, "precomputed 16 7G multiples");
     
@@ -2368,7 +2371,7 @@ static void test_batch_add_affine_comprehensive() {
     CHECK(negated[0].x == g_multiples[0].x, "negated x same");
     
     // 31.6: Negate + original y should sum to zero on curve (y + (-y) = 0 mod p)
-    FE y_sum = g_multiples[0].y + negated[0].y;
+    FE const y_sum = g_multiples[0].y + negated[0].y;
     CHECK(y_sum == FE::zero(), "y + neg_y == 0 (additive inverse)");
 }
 
@@ -2378,13 +2381,13 @@ static void test_batch_add_affine_comprehensive() {
 static void test_batch_verify() {
     std::cout << "  [BatchVerify] Batch verification tests..." << '\n';
     
-    PT G = PT::generator();
+    PT const G = PT::generator();
     
     // 32.1: ECDSA batch verify (all valid)
     std::vector<secp256k1::ECDSABatchEntry> ecdsa_entries;
     for (uint64_t k = 1; k <= 4; ++k) {
-        SC key = SC::from_uint64(k * 1000 + 7);
-        PT pub = G.scalar_mul(key);
+        SC const key = SC::from_uint64(k * 1000 + 7);
+        PT const pub = G.scalar_mul(key);
         std::array<uint8_t, 32> msg{};
         msg[0] = static_cast<uint8_t>(k);
         auto sig = secp256k1::ecdsa_sign(msg, key);
@@ -2410,7 +2413,7 @@ static void test_batch_verify() {
     // 32.4: Schnorr batch verify
     std::vector<secp256k1::SchnorrBatchEntry> schnorr_entries;
     for (uint64_t k = 1; k <= 4; ++k) {
-        SC key = SC::from_uint64(k * 1000 + 7);
+        SC const key = SC::from_uint64(k * 1000 + 7);
         auto pub_x = secp256k1::schnorr_pubkey(key);
         std::array<uint8_t, 32> msg{};
         msg[0] = static_cast<uint8_t>(k);
@@ -2439,21 +2442,21 @@ static void test_batch_verify() {
 static void test_homomorphism_expanded() {
     std::cout << "  [Homomorphism] Expanded homomorphism tests..." << '\n';
     
-    PT G = PT::generator();
+    PT const G = PT::generator();
     
     // 33.1: a*G + b*G = (a+b)*G for larger range
     const unsigned N = 128;
-    unsigned M = 2 * N + 1;
+    unsigned const M = 2 * N + 1;
     std::vector<PT> ref(M + 1);
     ref[0] = PT::infinity();
     ref[1] = G;
     for (unsigned k = 2; k <= M; ++k) ref[k] = ref[k-1].add(G);
     
-    unsigned step = N / 32;
+    unsigned const step = N / 32;
     for (unsigned a = 1; a <= N; a += step) {
         for (unsigned b = 1; b <= N; b += step) {
-            PT lhs = ref[a].add(ref[b]);
-            PT rhs = ref[a + b];
+            PT const lhs = ref[a].add(ref[b]);
+            PT const rhs = ref[a + b];
             CHECK(pt_eq(lhs, rhs),
                   "homo a=" + std::to_string(a) + ",b=" + std::to_string(b));
         }
@@ -2462,8 +2465,8 @@ static void test_homomorphism_expanded() {
     // 33.2: Doubling chain -- 2^k * G via repeated doubling
     PT dbl_chain = G;
     for (int k = 1; k <= 20; ++k) {
-        PT dbl_result = dbl_chain.dbl();
-        PT add_result = dbl_chain.add(dbl_chain);
+        PT const dbl_result = dbl_chain.dbl();
+        PT const add_result = dbl_chain.add(dbl_chain);
         CHECK(pt_eq(dbl_result, add_result), "2^" + std::to_string(k) + " dbl==add");
         dbl_chain = dbl_result;
     }
@@ -2471,9 +2474,9 @@ static void test_homomorphism_expanded() {
     // 33.3: Subtraction property: (a+b)*G - b*G = a*G
     for (unsigned a = 1; a <= 32; ++a) {
         for (unsigned b = 1; b <= 32; b += 3) {
-            PT abG = ref[a + b];
-            PT bG_neg = ref[b].negate();
-            PT diff = abG.add(bG_neg);
+            PT const abG = ref[a + b];
+            PT const bG_neg = ref[b].negate();
+            PT const diff = abG.add(bG_neg);
             CHECK(pt_eq(diff, ref[a]),
                   "(a+b)G - bG = aG, a=" + std::to_string(a) + ",b=" + std::to_string(b));
         }
@@ -2487,41 +2490,41 @@ static void test_precompute() {
     std::cout << "  [Precompute] Precomputation module tests..." << '\n';
     
     using namespace secp256k1::fast;
-    PT G = PT::generator();
+    PT const G = PT::generator();
     
     // 34.1: split_scalar_glv correctness
     for (unsigned k = 1; k <= 32; ++k) {
-        SC s = SC::from_uint64(k);
+        SC const s = SC::from_uint64(k);
         auto decomp = split_scalar_glv(s);
         
         // Reconstructed via endomorphism
-        SC lambda = SC::from_bytes(glv_constants::LAMBDA);
-        SC k1 = decomp.neg1 ? decomp.k1.negate() : decomp.k1;
-        SC k2 = decomp.neg2 ? decomp.k2.negate() : decomp.k2;
+        SC const lambda = SC::from_bytes(glv_constants::LAMBDA);
+        SC const k1 = decomp.neg1 ? decomp.k1.negate() : decomp.k1;
+        SC const k2 = decomp.neg2 ? decomp.k2.negate() : decomp.k2;
         CHECK(k1 + k2 * lambda == s,
               "split_scalar_glv(" + std::to_string(k) + ")");
     }
     
     // 34.2: precompute_scalar_for_arbitrary
-    SC key = SC::from_uint64(42);
+    SC const key = SC::from_uint64(42);
     auto precomp = precompute_scalar_for_arbitrary(key, 4);
     CHECK(precomp.is_valid(), "precomputed scalar valid");
     
     // Use it on a point
-    PT P = G.scalar_mul(SC::from_uint64(7));
-    PT result = scalar_mul_arbitrary_precomputed(P, precomp);
-    PT expected = P.scalar_mul(key);
+    PT const P = G.scalar_mul(SC::from_uint64(7));
+    PT const result = scalar_mul_arbitrary_precomputed(P, precomp);
+    PT const expected = P.scalar_mul(key);
     CHECK(pt_eq(result, expected), "precomputed_arbitrary matches");
     
     // 34.3: precompute_scalar_optimized
     auto precomp_opt = precompute_scalar_optimized(key, 4);
     CHECK(precomp_opt.is_valid(), "optimized precomp valid");
     
-    PT result_opt = scalar_mul_arbitrary_precomputed_optimized(P, precomp_opt);
+    PT const result_opt = scalar_mul_arbitrary_precomputed_optimized(P, precomp_opt);
     CHECK(pt_eq(result_opt, expected), "optimized precomputed matches");
     
     // 34.4: scalar_mul_arbitrary (via standard scalar_mul as fallback reference)
-    PT arb_result = P.scalar_mul(key);
+    PT const arb_result = P.scalar_mul(key);
     CHECK(pt_eq(arb_result, expected), "scalar_mul on arbitrary point matches");
     
     // 34.5: compute_wnaf

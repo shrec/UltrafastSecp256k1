@@ -39,20 +39,20 @@ static void test_field_mul() {
           "x * 0 = 0");
 
     // Identity: a * 1 = a
-    FieldElement a = FieldElement::from_uint64(0xCAFEBABECAFEBABEULL);
+    FieldElement const a = FieldElement::from_uint64(0xCAFEBABECAFEBABEULL);
     CHECK(a * FieldElement::one() == a, "a * 1 = a");
     CHECK(FieldElement::one() * a == a, "1 * a = a");
 
     // Commutativity: a * b = b * a
-    FieldElement b = FieldElement::from_uint64(0x12345678ABCDEF01ULL);
+    FieldElement const b = FieldElement::from_uint64(0x12345678ABCDEF01ULL);
     CHECK(a * b == b * a, "a*b = b*a");
 
     // (p-1)^2 mod p = 1 (since p-1 == -1 mod p)
-    std::array<uint64_t, 4> pm1_limbs = {
+    std::array<uint64_t, 4> const pm1_limbs = {
         0xFFFFFFFEFFFFFC2EULL, 0xFFFFFFFFFFFFFFFFULL,
         0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL
     };
-    FieldElement pm1 = FieldElement::from_limbs(pm1_limbs);
+    FieldElement const pm1 = FieldElement::from_limbs(pm1_limbs);
     CHECK(pm1 * pm1 == FieldElement::one(), "(p-1)^2 = 1");
 
     // square_inplace consistency
@@ -61,18 +61,18 @@ static void test_field_mul() {
     CHECK(a2 == a * a, "square_inplace == a*a");
 
     // Associativity: (a*b)*c = a*(b*c)
-    FieldElement c = FieldElement::from_uint64(0xAAAABBBBCCCCDDDDULL);
+    FieldElement const c = FieldElement::from_uint64(0xAAAABBBBCCCCDDDDULL);
     CHECK((a * b) * c == a * (b * c), "(a*b)*c = a*(b*c)");
 
     // Distributivity random stress: a*(b+c) = a*b + a*c
     std::mt19937_64 rng(101);
     for (int i = 0; i < 500; i++) {
-        std::array<uint64_t, 4> la{rng(), rng(), rng(), rng()};
-        std::array<uint64_t, 4> lb{rng(), rng(), rng(), rng()};
-        std::array<uint64_t, 4> lc{rng(), rng(), rng(), rng()};
-        FieldElement fa = FieldElement::from_limbs(la);
-        FieldElement fb = FieldElement::from_limbs(lb);
-        FieldElement fc = FieldElement::from_limbs(lc);
+        std::array<uint64_t, 4> const la{rng(), rng(), rng(), rng()};
+        std::array<uint64_t, 4> const lb{rng(), rng(), rng(), rng()};
+        std::array<uint64_t, 4> const lc{rng(), rng(), rng(), rng()};
+        FieldElement const fa = FieldElement::from_limbs(la);
+        FieldElement const fb = FieldElement::from_limbs(lb);
+        FieldElement const fc = FieldElement::from_limbs(lc);
         CHECK(fa * (fb + fc) == fa * fb + fa * fc, "distributive random");
     }
 }
@@ -84,13 +84,13 @@ static void test_field_square() {
     std::cout << "-- Field Square --\n";
 
     // 0^2 = 0
-    FieldElement z = FieldElement::zero();
+    FieldElement const z = FieldElement::zero();
     FieldElement z2 = z;
     z2.square_inplace();
     CHECK(z2 == z, "0^2 = 0");
 
     // 1^2 = 1
-    FieldElement o = FieldElement::one();
+    FieldElement const o = FieldElement::one();
     FieldElement o2 = o;
     o2.square_inplace();
     CHECK(o2 == o, "1^2 = 1");
@@ -98,8 +98,8 @@ static void test_field_square() {
     // Random: sq(a) == a*a
     std::mt19937_64 rng(202);
     for (int i = 0; i < 500; i++) {
-        std::array<uint64_t, 4> la{rng(), rng(), rng(), rng()};
-        FieldElement fa = FieldElement::from_limbs(la);
+        std::array<uint64_t, 4> const la{rng(), rng(), rng(), rng()};
+        FieldElement const fa = FieldElement::from_limbs(la);
         FieldElement sq = fa;
         sq.square_inplace();
         CHECK(sq == fa * fa, "random sq(a) == a*a");
@@ -112,8 +112,8 @@ static void test_field_square() {
 static void test_field_add_sub() {
     std::cout << "-- Field Add / Sub --\n";
 
-    FieldElement z = FieldElement::zero();
-    FieldElement a = FieldElement::from_uint64(0xDEADBEEFCAFE1234ULL);
+    FieldElement const z = FieldElement::zero();
+    FieldElement const a = FieldElement::from_uint64(0xDEADBEEFCAFE1234ULL);
 
     // Identity
     CHECK(a + z == a, "a + 0 = a");
@@ -122,38 +122,38 @@ static void test_field_add_sub() {
     CHECK(a - a == z, "a - a = 0");
 
     // Commutativity: a + b = b + a
-    FieldElement b = FieldElement::from_uint64(0x12345678ABCDEF01ULL);
+    FieldElement const b = FieldElement::from_uint64(0x12345678ABCDEF01ULL);
     CHECK(a + b == b + a, "a + b = b + a");
 
     // Inverse: (a - b) + b = a
     CHECK(a - b + b == a, "(a-b)+b = a");
 
     // Associativity: (a + b) + c = a + (b + c)
-    FieldElement c = FieldElement::from_uint64(0xFFFFFFFFFFFFFFFFULL);
+    FieldElement const c = FieldElement::from_uint64(0xFFFFFFFFFFFFFFFFULL);
     CHECK((a + b) + c == a + (b + c), "(a+b)+c = a+(b+c)");
 
     // Modular wrap: big + big (tests normalization)
-    FieldElement big = FieldElement::from_uint64(0xFFFFFFFFFFFFFFFFULL);
-    FieldElement sum = big + big;
-    FieldElement mul2 = big * FieldElement::from_uint64(2);
+    FieldElement const big = FieldElement::from_uint64(0xFFFFFFFFFFFFFFFFULL);
+    FieldElement const sum = big + big;
+    FieldElement const mul2 = big * FieldElement::from_uint64(2);
     CHECK(sum == mul2, "big+big == big*2 (modular wrap)");
 
     // Random stress: (a-b)+b = a
     std::mt19937_64 rng(303);
     for (int i = 0; i < 500; i++) {
-        std::array<uint64_t, 4> la{rng(), rng(), rng(), rng()};
-        std::array<uint64_t, 4> lb{rng(), rng(), rng(), rng()};
-        FieldElement fa = FieldElement::from_limbs(la);
-        FieldElement fb = FieldElement::from_limbs(lb);
+        std::array<uint64_t, 4> const la{rng(), rng(), rng(), rng()};
+        std::array<uint64_t, 4> const lb{rng(), rng(), rng(), rng()};
+        FieldElement const fa = FieldElement::from_limbs(la);
+        FieldElement const fb = FieldElement::from_limbs(lb);
         CHECK((fa - fb) + fb == fa, "random (a-b)+b = a");
     }
 
     // Random stress commutativity
     for (int i = 0; i < 500; i++) {
-        std::array<uint64_t, 4> la{rng(), rng(), rng(), rng()};
-        std::array<uint64_t, 4> lb{rng(), rng(), rng(), rng()};
-        FieldElement fa = FieldElement::from_limbs(la);
-        FieldElement fb = FieldElement::from_limbs(lb);
+        std::array<uint64_t, 4> const la{rng(), rng(), rng(), rng()};
+        std::array<uint64_t, 4> const lb{rng(), rng(), rng(), rng()};
+        FieldElement const fa = FieldElement::from_limbs(la);
+        FieldElement const fb = FieldElement::from_limbs(lb);
         CHECK(fa + fb == fb + fa, "random a+b = b+a");
     }
 }
@@ -164,17 +164,17 @@ static void test_field_add_sub() {
 static void test_field_normalize() {
     std::cout << "-- Field Normalization --\n";
 
-    FieldElement z = FieldElement::zero();
+    FieldElement const z = FieldElement::zero();
 
     // p normalizes to 0
-    std::array<uint64_t, 4> p_limbs = {
+    std::array<uint64_t, 4> const p_limbs = {
         0xFFFFFFFEFFFFFC2FULL, 0xFFFFFFFFFFFFFFFFULL,
         0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL
     };
     CHECK(FieldElement::from_limbs(p_limbs) == z, "p normalizes to 0");
 
     // p+1 normalizes to 1
-    std::array<uint64_t, 4> pp1 = {
+    std::array<uint64_t, 4> const pp1 = {
         0xFFFFFFFEFFFFFC30ULL, 0xFFFFFFFFFFFFFFFFULL,
         0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL
     };
@@ -183,13 +183,13 @@ static void test_field_normalize() {
     // 2p normalizes to 0
     // 2p = 0x1FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFDFFFFF85E
     // In limbs (after mod): still 0
-    [[maybe_unused]] std::array<uint64_t, 4> twop = {
+    [[maybe_unused]] std::array<uint64_t, 4> const twop = {
         0xFFFFFFFDFFFFF85EULL, 0xFFFFFFFFFFFFFFFFULL,
         0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL
     };
     // 2p mod p = p, which is 0; the above is 2p truncated to 256 bits = 2p - 2^256,
     // which equals p - (2^256 - p) = p - 0x1000003D1 ... actually just check via arithmetic
-    FieldElement pm1 = FieldElement::from_limbs({
+    FieldElement const pm1 = FieldElement::from_limbs({
         0xFFFFFFFEFFFFFC2EULL, 0xFFFFFFFFFFFFFFFFULL,
         0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL
     });
@@ -197,7 +197,7 @@ static void test_field_normalize() {
     CHECK(pm1 + FieldElement::one() == z, "(p-1) + 1 = 0");
 
     // p-1 + p-1 = 2(p-1) mod p = p-2
-    FieldElement pm2 = FieldElement::from_limbs({
+    FieldElement const pm2 = FieldElement::from_limbs({
         0xFFFFFFFEFFFFFC2DULL, 0xFFFFFFFFFFFFFFFFULL,
         0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL
     });
@@ -210,8 +210,8 @@ static void test_field_normalize() {
 static void test_scalar_arithmetic() {
     std::cout << "-- Scalar Arithmetic --\n";
 
-    Scalar zero = Scalar::zero();
-    Scalar one  = Scalar::one();
+    Scalar const zero = Scalar::zero();
+    Scalar const one  = Scalar::one();
 
     // Identities
     CHECK(zero + zero == zero, "0+0 = 0");
@@ -223,8 +223,8 @@ static void test_scalar_arithmetic() {
     CHECK(zero * one == zero,  "0*1 = 0");
 
     // Small mul
-    Scalar s7 = Scalar::from_uint64(7);
-    Scalar s3 = Scalar::from_uint64(3);
+    Scalar const s7 = Scalar::from_uint64(7);
+    Scalar const s3 = Scalar::from_uint64(3);
     CHECK(s7 * s3 == Scalar::from_uint64(21), "7*3 = 21");
 
     // Commutativity
@@ -232,7 +232,7 @@ static void test_scalar_arithmetic() {
 
     // (n-1) == -1 mod n, so (n-1)^2 = 1
     // n = FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
-    Scalar nm1 = Scalar::from_hex("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364140");
+    Scalar const nm1 = Scalar::from_hex("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364140");
     CHECK(nm1 * nm1 == one, "(n-1)^2 = 1");
 
     // (n-1) + 1 = 0 mod n
@@ -247,9 +247,9 @@ static void test_scalar_arithmetic() {
             bb[j] = static_cast<uint8_t>(rng());
             bc[j] = static_cast<uint8_t>(rng());
         }
-        Scalar a = Scalar::from_bytes(ba);
-        Scalar b = Scalar::from_bytes(bb);
-        Scalar c = Scalar::from_bytes(bc);
+        Scalar const a = Scalar::from_bytes(ba);
+        Scalar const b = Scalar::from_bytes(bb);
+        Scalar const c = Scalar::from_bytes(bc);
         CHECK(a * (b + c) == a * b + a * c, "distributive random");
     }
 
@@ -261,9 +261,9 @@ static void test_scalar_arithmetic() {
             bb[j] = static_cast<uint8_t>(rng());
             bc[j] = static_cast<uint8_t>(rng());
         }
-        Scalar a = Scalar::from_bytes(ba);
-        Scalar b = Scalar::from_bytes(bb);
-        Scalar c = Scalar::from_bytes(bc);
+        Scalar const a = Scalar::from_bytes(ba);
+        Scalar const b = Scalar::from_bytes(bb);
+        Scalar const c = Scalar::from_bytes(bc);
         CHECK((a * b) * c == a * (b * c), "associative random");
     }
 
@@ -272,7 +272,7 @@ static void test_scalar_arithmetic() {
     for (int i = 0; i < 200; i++) {
         std::array<uint8_t, 32> ba{};
         for (std::size_t j = 0; j < 32; j++) ba[j] = static_cast<uint8_t>(rng());
-        Scalar a = Scalar::from_bytes(ba);
+        Scalar const a = Scalar::from_bytes(ba);
         CHECK((a - a) == zero, "a - a = 0 random");
         CHECK((a + zero) == a, "a + 0 = a random");
         CHECK((a * one) == a,  "a * 1 = a random");
@@ -286,12 +286,12 @@ static void test_scalar_encoding() {
     std::cout << "-- Scalar Encoding (NAF / wNAF) --\n";
 
     // NAF of 0 should be empty
-    Scalar zero = Scalar::zero();
+    Scalar const zero = Scalar::zero();
     auto naf0 = zero.to_naf();
     CHECK(naf0.empty(), "NAF(0) is empty");
 
     // NAF of 1 should be {1}
-    Scalar one = Scalar::one();
+    Scalar const one = Scalar::one();
     auto naf1 = one.to_naf();
     CHECK(naf1.size() == 1 && naf1[0] == 1, "NAF(1) = {1}");
 
@@ -300,7 +300,7 @@ static void test_scalar_encoding() {
     for (int i = 0; i < 200; i++) {
         std::array<uint8_t, 32> ba{};
         for (std::size_t j = 0; j < 32; j++) ba[j] = static_cast<uint8_t>(rng());
-        Scalar s = Scalar::from_bytes(ba);
+        Scalar const s = Scalar::from_bytes(ba);
         auto naf = s.to_naf();
         bool adjacent_ok = true;
         for (size_t k = 1; k < naf.size(); k++) {
@@ -314,10 +314,10 @@ static void test_scalar_encoding() {
         for (int i = 0; i < 50; i++) {
             std::array<uint8_t, 32> ba{};
             for (std::size_t j = 0; j < 32; j++) ba[j] = static_cast<uint8_t>(rng());
-            Scalar s = Scalar::from_bytes(ba);
+            Scalar const s = Scalar::from_bytes(ba);
             auto wnaf = s.to_wnaf(w);
             bool vals_ok = true;
-            int limit = 1 << (w - 1);
+            int const limit = 1 << (w - 1);
             for (auto d : wnaf) {
                 if (d != 0) {
                     if ((d & 1) == 0) vals_ok = false;        // must be odd

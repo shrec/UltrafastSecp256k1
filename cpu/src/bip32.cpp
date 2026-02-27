@@ -76,7 +76,7 @@ private:
     void update(const uint8_t* data, size_t len) {
         total_ += len;
         if (buf_len_ > 0) {
-            size_t fill = 64 - buf_len_;
+            size_t const fill = 64 - buf_len_;
             if (len < fill) {
                 std::memcpy(buf_ + buf_len_, data, len);
                 buf_len_ += len;
@@ -100,16 +100,17 @@ private:
     }
 
     std::array<uint8_t, 20> finalize() {
-        uint64_t bit_len = total_ * 8;
-        uint8_t pad = 0x80;
+        uint64_t const bit_len = total_ * 8;
+        uint8_t const pad = 0x80;
         update(&pad, 1);
         while (buf_len_ != 56) {
-            uint8_t z = 0;
+            uint8_t const z = 0;
             update(&z, 1);
         }
         uint8_t len_buf[8];
-        for (std::size_t i = 0; i < 8; ++i)
+        for (std::size_t i = 0; i < 8; ++i) {
             len_buf[i] = static_cast<uint8_t>(bit_len >> (i * 8));
+}
         update(len_buf, 8);
 
         std::array<uint8_t, 20> d{};
@@ -125,27 +126,30 @@ private:
     static uint32_t rotl(uint32_t x, unsigned n) { return (x << n) | (x >> (32 - n)); }
 
     static uint32_t f(unsigned j, uint32_t x, uint32_t y, uint32_t z) {
-        if (j < 16)      return x ^ y ^ z;
-        else if (j < 32) return (x & y) | (~x & z);
-        else if (j < 48) return (x | ~y) ^ z;
-        else if (j < 64) return (x & z) | (y & ~z);
-        else              return x ^ (y | ~z);
+        if (j < 16) {      return x ^ y ^ z;
+        } else if (j < 32) { return (x & y) | (~x & z);
+        } else if (j < 48) { return (x | ~y) ^ z;
+        } else if (j < 64) { return (x & z) | (y & ~z);
+        } else {              return x ^ (y | ~z);
+}
     }
 
     static uint32_t K_left(unsigned j) {
-        if (j < 16)      return 0x00000000u;
-        else if (j < 32) return 0x5A827999u;
-        else if (j < 48) return 0x6ED9EBA1u;
-        else if (j < 64) return 0x8F1BBCDCu;
-        else              return 0xA953FD4Eu;
+        if (j < 16) {      return 0x00000000u;
+        } else if (j < 32) { return 0x5A827999u;
+        } else if (j < 48) { return 0x6ED9EBA1u;
+        } else if (j < 64) { return 0x8F1BBCDCu;
+        } else {              return 0xA953FD4Eu;
+}
     }
 
     static uint32_t K_right(unsigned j) {
-        if (j < 16)      return 0x50A28BE6u;
-        else if (j < 32) return 0x5C4DD124u;
-        else if (j < 48) return 0x6D703EF3u;
-        else if (j < 64) return 0x7A6D76E9u;
-        else              return 0x00000000u;
+        if (j < 16) {      return 0x50A28BE6u;
+        } else if (j < 32) { return 0x5C4DD124u;
+        } else if (j < 48) { return 0x6D703EF3u;
+        } else if (j < 64) { return 0x7A6D76E9u;
+        } else {              return 0x00000000u;
+}
     }
 
     void compress(const uint8_t* block) {
@@ -190,14 +194,14 @@ private:
         uint32_t ar = h_[0], br = h_[1], cr = h_[2], dr = h_[3], er = h_[4];
 
         for (unsigned j = 0; j < 80; ++j) {
-            uint32_t tl = rotl(al + f(j, bl, cl, dl) + X[RL[j]] + K_left(j), SL[j]) + el;
+            uint32_t const tl = rotl(al + f(j, bl, cl, dl) + X[RL[j]] + K_left(j), SL[j]) + el;
             al = el; el = dl; dl = rotl(cl, 10); cl = bl; bl = tl;
 
-            uint32_t tr = rotl(ar + f(79 - j, br, cr, dr) + X[RR[j]] + K_right(j), SR[j]) + er;
+            uint32_t const tr = rotl(ar + f(79 - j, br, cr, dr) + X[RR[j]] + K_right(j), SR[j]) + er;
             ar = er; er = dr; dr = rotl(cr, 10); cr = br; br = tr;
         }
 
-        uint32_t t = h_[1] + cl + dr;
+        uint32_t const t = h_[1] + cl + dr;
         h_[1] = h_[2] + dl + er;
         h_[2] = h_[3] + el + ar;
         h_[3] = h_[4] + al + br;
@@ -231,8 +235,8 @@ fast::Point ExtendedKey::public_key() const {
     auto y = y2.sqrt();
     // Check parity: prefix 0x02 = even y, 0x03 = odd y
     auto y_bytes = y.to_bytes();
-    bool y_is_odd = (y_bytes[31] & 1) != 0;
-    bool need_odd = (pub_prefix == 0x03);
+    bool const y_is_odd = (y_bytes[31] & 1) != 0;
+    bool const need_odd = (pub_prefix == 0x03);
     if (y_is_odd != need_odd) {
         y = y.negate();
     }
@@ -273,7 +277,7 @@ std::array<uint8_t, 4> ExtendedKey::fingerprint() const {
 std::array<uint8_t, 78> ExtendedKey::serialize() const {
     std::array<uint8_t, 78> out{};
     // Version bytes
-    uint32_t version = is_private ? 0x0488ADE4u : 0x0488B21Eu;  // xprv / xpub
+    uint32_t const version = is_private ? 0x0488ADE4u : 0x0488B21Eu;  // xprv / xpub
     out[0] = static_cast<uint8_t>(version >> 24);
     out[1] = static_cast<uint8_t>(version >> 16);
     out[2] = static_cast<uint8_t>(version >> 8);
@@ -298,7 +302,7 @@ std::array<uint8_t, 78> ExtendedKey::serialize() const {
 }
 
 std::pair<ExtendedKey, bool> ExtendedKey::derive_child(uint32_t index) const {
-    bool hardened = (index & 0x80000000u) != 0;
+    bool const hardened = (index & 0x80000000u) != 0;
 
     // Hardened derivation requires private key
     if (hardened && !is_private) {
@@ -424,7 +428,7 @@ std::pair<ExtendedKey, bool> bip32_derive_path(const ExtendedKey& master,
             ++pos;
         }
 
-        uint32_t child_index = hardened ? (index | 0x80000000u) : index;
+        uint32_t const child_index = hardened ? (index | 0x80000000u) : index;
         auto [child, ok] = current.derive_child(child_index);
         if (!ok) return {ExtendedKey{}, false};
         current = child;

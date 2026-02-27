@@ -42,8 +42,8 @@ static void test_precompute_g_multiples() {
     Point current = Point::generator();
     for (std::size_t i = 0; i < N; ++i) {
         // Convert Point to affine X, Y for comparison
-        FieldElement expected_x = current.x();
-        FieldElement expected_y = current.y();
+        FieldElement const expected_x = current.x();
+        FieldElement const expected_y = current.y();
 
         char label_x[64], label_y[64];
         std::snprintf(label_x, sizeof(label_x), "table[%zu].x == %zuG.x", i, i + 1);
@@ -67,10 +67,10 @@ static void test_batch_add_x_correctness() {
     auto g_table = precompute_g_multiples(BATCH);
 
     // Base point: P = 42*G
-    Scalar s42 = Scalar::from_uint64(42);
-    Point P = scalar_mul_generator(s42);
-    FieldElement base_x = P.x();
-    FieldElement base_y = P.y();
+    Scalar const s42 = Scalar::from_uint64(42);
+    Point const P = scalar_mul_generator(s42);
+    FieldElement const base_x = P.x();
+    FieldElement const base_y = P.y();
 
     // Compute batch: result[i] = P + (i+1)*G = (42 + i + 1)*G
     std::vector<FieldElement> out_x(BATCH);
@@ -78,7 +78,7 @@ static void test_batch_add_x_correctness() {
     batch_add_affine_x(base_x, base_y, g_table.data(), out_x.data(), BATCH, scratch);
 
     // Verify against scalar multiplication
-    FieldElement fe_zero = FieldElement::zero();
+    FieldElement const fe_zero = FieldElement::zero();
     for (std::size_t i = 0; i < BATCH; ++i) {
         // When base == table[i] (i.e. i+1 == 42), dx=0 -> sentinel zero output.
         // This is the degenerate doubling case, handled correctly by sentinel.
@@ -89,9 +89,9 @@ static void test_batch_add_x_correctness() {
             continue;
         }
 
-        Scalar s = Scalar::from_uint64(42 + i + 1);
-        Point expected = scalar_mul_generator(s);
-        FieldElement expected_x = expected.x();
+        Scalar const s = Scalar::from_uint64(42 + i + 1);
+        Point const expected = scalar_mul_generator(s);
+        FieldElement const expected_x = expected.x();
 
         char label[64];
         std::snprintf(label, sizeof(label), "P + %zuG == %zuG (x-coord)", i + 1, 42 + i + 1);
@@ -110,10 +110,10 @@ static void test_batch_add_xy_correctness() {
     auto g_table = precompute_g_multiples(BATCH);
 
     // Base: P = 1000*G
-    Scalar s1000 = Scalar::from_uint64(1000);
-    Point P = scalar_mul_generator(s1000);
-    FieldElement base_x = P.x();
-    FieldElement base_y = P.y();
+    Scalar const s1000 = Scalar::from_uint64(1000);
+    Point const P = scalar_mul_generator(s1000);
+    FieldElement const base_x = P.x();
+    FieldElement const base_y = P.y();
 
     std::vector<FieldElement> out_x(BATCH), out_y(BATCH);
     std::vector<FieldElement> scratch;
@@ -121,8 +121,8 @@ static void test_batch_add_xy_correctness() {
                         out_x.data(), out_y.data(), BATCH, scratch);
 
     for (std::size_t i = 0; i < BATCH; ++i) {
-        Scalar s = Scalar::from_uint64(1000 + i + 1);
-        Point expected = scalar_mul_generator(s);
+        Scalar const s = Scalar::from_uint64(1000 + i + 1);
+        Point const expected = scalar_mul_generator(s);
 
         char label_x[64], label_y[64];
         std::snprintf(label_x, sizeof(label_x), "xy[%zu].x correct", i);
@@ -144,10 +144,10 @@ static void test_bidirectional() {
     auto g_table_neg = negate_affine_table(g_table.data(), BATCH);
 
     // Base: P = 500*G
-    Scalar s500 = Scalar::from_uint64(500);
-    Point P = scalar_mul_generator(s500);
-    FieldElement base_x = P.x();
-    FieldElement base_y = P.y();
+    Scalar const s500 = Scalar::from_uint64(500);
+    Point const P = scalar_mul_generator(s500);
+    FieldElement const base_x = P.x();
+    FieldElement const base_y = P.y();
 
     std::vector<FieldElement> out_fwd(BATCH), out_bwd(BATCH);
     std::vector<FieldElement> scratch;
@@ -158,12 +158,12 @@ static void test_bidirectional() {
 
     for (std::size_t i = 0; i < BATCH; ++i) {
         // Forward: P + (i+1)*G = (500 + i + 1)*G
-        Scalar s_fwd = Scalar::from_uint64(500 + i + 1);
-        Point exp_fwd = scalar_mul_generator(s_fwd);
+        Scalar const s_fwd = Scalar::from_uint64(500 + i + 1);
+        Point const exp_fwd = scalar_mul_generator(s_fwd);
 
         // Backward: P - (i+1)*G = (500 - i - 1)*G
-        Scalar s_bwd = Scalar::from_uint64(500 - i - 1);
-        Point exp_bwd = scalar_mul_generator(s_bwd);
+        Scalar const s_bwd = Scalar::from_uint64(500 - i - 1);
+        Point const exp_bwd = scalar_mul_generator(s_bwd);
 
         char label_f[64], label_b[64];
         std::snprintf(label_f, sizeof(label_f), "fwd[%zu] == %zuG", i, 500 + i + 1);
@@ -183,10 +183,10 @@ static void test_parity() {
     constexpr std::size_t BATCH = 32;
     auto g_table = precompute_g_multiples(BATCH);
 
-    Scalar s100 = Scalar::from_uint64(100);
-    Point P = scalar_mul_generator(s100);
-    FieldElement base_x = P.x();
-    FieldElement base_y = P.y();
+    Scalar const s100 = Scalar::from_uint64(100);
+    Point const P = scalar_mul_generator(s100);
+    FieldElement const base_x = P.x();
+    FieldElement const base_y = P.y();
 
     std::vector<FieldElement> out_x(BATCH);
     std::vector<uint8_t> out_parity(BATCH);
@@ -196,10 +196,10 @@ static void test_parity() {
         out_x.data(), out_parity.data(), BATCH, scratch);
 
     for (std::size_t i = 0; i < BATCH; ++i) {
-        Scalar s = Scalar::from_uint64(100 + i + 1);
-        Point expected = scalar_mul_generator(s);
+        Scalar const s = Scalar::from_uint64(100 + i + 1);
+        Point const expected = scalar_mul_generator(s);
         auto y_bytes = expected.y().to_bytes();
-        uint8_t expected_parity = y_bytes[31] & 1;
+        uint8_t const expected_parity = y_bytes[31] & 1;
 
         char label[64];
         std::snprintf(label, sizeof(label), "parity[%zu] correct", i);
@@ -215,18 +215,18 @@ static void test_arbitrary_point_table() {
     std::printf("[BatchAffine] Arbitrary point multiples table...\n");
 
     // Use 7*G as base
-    Scalar s7 = Scalar::from_uint64(7);
-    Point Q = scalar_mul_generator(s7);
-    FieldElement qx = Q.x();
-    FieldElement qy = Q.y();
+    Scalar const s7 = Scalar::from_uint64(7);
+    Point const Q = scalar_mul_generator(s7);
+    FieldElement const qx = Q.x();
+    FieldElement const qy = Q.y();
 
     constexpr std::size_t N = 16;
     auto table = precompute_point_multiples(qx, qy, N);
 
     // table[i] = (i+1) * Q = (i+1) * 7G = ((i+1)*7)*G
     for (std::size_t i = 0; i < N; ++i) {
-        Scalar s = Scalar::from_uint64((i + 1) * 7);
-        Point expected = scalar_mul_generator(s);
+        Scalar const s = Scalar::from_uint64((i + 1) * 7);
+        Point const expected = scalar_mul_generator(s);
 
         char label[64];
         std::snprintf(label, sizeof(label), "arb_table[%zu] == %zuQ", i, i + 1);
@@ -247,14 +247,14 @@ static void test_large_batch() {
     auto t0 = std::chrono::high_resolution_clock::now();
     auto g_table = precompute_g_multiples(BATCH);
     auto t1 = std::chrono::high_resolution_clock::now();
-    double precomp_us = static_cast<double>(std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0).count());
+    double const precomp_us = static_cast<double>(std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0).count());
     std::printf("  Precompute %zu G-multiples: %.1f us\n", BATCH, precomp_us);
 
     // Base: P = 999999*G
-    Scalar sbase = Scalar::from_uint64(999999);
-    Point P = scalar_mul_generator(sbase);
-    FieldElement base_x = P.x();
-    FieldElement base_y = P.y();
+    Scalar const sbase = Scalar::from_uint64(999999);
+    Point const P = scalar_mul_generator(sbase);
+    FieldElement const base_x = P.x();
+    FieldElement const base_y = P.y();
 
     std::vector<FieldElement> out_x(BATCH);
     std::vector<FieldElement> scratch;
@@ -269,22 +269,22 @@ static void test_large_batch() {
         batch_add_affine_x(base_x, base_y, g_table.data(), out_x.data(), BATCH, scratch);
     }
     t1 = std::chrono::high_resolution_clock::now();
-    double total_ns = static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count());
-    double per_batch_us = total_ns / ITERS / 1000.0;
-    double per_point_ns = total_ns / ITERS / BATCH;
+    double const total_ns = static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count());
+    double const per_batch_us = total_ns / ITERS / 1000.0;
+    double const per_point_ns = total_ns / ITERS / BATCH;
 
     std::printf("  Batch %zu: %.1f us total, %.1f ns/point\n", BATCH, per_batch_us, per_point_ns);
     std::printf("  Throughput: %.2f Mpoints/s (single thread)\n", 1e9 / per_point_ns / 1e6);
 
     // Spot-check first and last
     {
-        Scalar s = Scalar::from_uint64(999999 + 1);
-        Point expected = scalar_mul_generator(s);
+        Scalar const s = Scalar::from_uint64(999999 + 1);
+        Point const expected = scalar_mul_generator(s);
         check(out_x[0] == expected.x(), "large_batch[0] correct");
     }
     {
-        Scalar s = Scalar::from_uint64(999999 + BATCH);
-        Point expected = scalar_mul_generator(s);
+        Scalar const s = Scalar::from_uint64(999999 + BATCH);
+        Point const expected = scalar_mul_generator(s);
         check(out_x[BATCH - 1] == expected.x(), "large_batch[last] correct");
     }
 }
@@ -294,8 +294,8 @@ static void test_large_batch() {
 static void test_empty() {
     std::printf("[BatchAffine] Empty batch...\n");
     std::vector<FieldElement> scratch;
-    FieldElement base_x = FieldElement::from_uint64(1);
-    FieldElement base_y = FieldElement::from_uint64(2);
+    FieldElement const base_x = FieldElement::from_uint64(1);
+    FieldElement const base_y = FieldElement::from_uint64(2);
     batch_add_affine_x(base_x, base_y, nullptr, nullptr, 0, scratch);
     check(true, "empty batch: no crash");
 }
@@ -311,8 +311,8 @@ static void test_negate_table() {
 
     for (std::size_t i = 0; i < N; ++i) {
         // neg[i] = -(i+1)*G -> x same, y = -y
-        Scalar s = Scalar::from_uint64(i + 1);
-        Point expected = scalar_mul_generator(s).negate();
+        Scalar const s = Scalar::from_uint64(i + 1);
+        Point const expected = scalar_mul_generator(s).negate();
 
         char label[64];
         std::snprintf(label, sizeof(label), "neg_table[%zu] == -%zuG", i, i + 1);

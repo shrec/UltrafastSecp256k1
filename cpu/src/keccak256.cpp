@@ -52,27 +52,35 @@ static void keccak_f1600(std::uint64_t state[25]) {
     for (int round = 0; round < 24; ++round) {
         // theta (theta)
         std::uint64_t C[5];
-        for (int x = 0; x < 5; ++x)
+        for (int x = 0; x < 5; ++x) {
             C[x] = state[x] ^ state[x + 5] ^ state[x + 10] ^ state[x + 15] ^ state[x + 20];
+}
 
         std::uint64_t D[5];
-        for (int x = 0; x < 5; ++x)
+        for (int x = 0; x < 5; ++x) {
             D[x] = C[(x + 4) % 5] ^ rotl64(C[(x + 1) % 5], 1);
+}
 
-        for (int x = 0; x < 5; ++x)
-            for (int y = 0; y < 5; ++y)
+        for (int x = 0; x < 5; ++x) {
+            for (int y = 0; y < 5; ++y) {
                 state[x + 5 * y] ^= D[x];
+}
+}
 
         // rho (rho) + pi (pi)
         std::uint64_t B[25];
-        for (int x = 0; x < 5; ++x)
-            for (int y = 0; y < 5; ++y)
+        for (int x = 0; x < 5; ++x) {
+            for (int y = 0; y < 5; ++y) {
                 B[y + 5 * ((2 * x + 3 * y) % 5)] = rotl64(state[x + 5 * y], KECCAK_ROT[x + 5 * y]);
+}
+}
 
         //  (chi)
-        for (int x = 0; x < 5; ++x)
-            for (int y = 0; y < 5; ++y)
+        for (int x = 0; x < 5; ++x) {
+            for (int y = 0; y < 5; ++y) {
                 state[x + 5 * y] = B[x + 5 * y] ^ ((~B[((x + 1) % 5) + 5 * y]) & B[((x + 2) % 5) + 5 * y]);
+}
+}
 
         //  (iota)
         state[0] ^= KECCAK_RC[round];
@@ -90,8 +98,8 @@ void Keccak256State::update(const std::uint8_t* data, std::size_t len) {
     constexpr std::size_t RATE = 136; // 1088 bits / 8
     
     while (len > 0) {
-        std::size_t space = RATE - buf_pos;
-        std::size_t to_copy = (len < space) ? len : space;
+        std::size_t const space = RATE - buf_pos;
+        std::size_t const to_copy = (len < space) ? len : space;
         
         std::memcpy(buf + buf_pos, data, to_copy);
         buf_pos += to_copy;

@@ -70,7 +70,7 @@ schnorr_adaptor_sign(const Scalar& private_key,
 
     // BIP-340: if R.y is odd, negate k (and R^ and R flip accordingly)
     auto R_y = R.y().to_bytes();
-    bool needs_neg = (R_y[31] & 1) != 0;
+    bool const needs_neg = (R_y[31] & 1) != 0;
     if (needs_neg) {
         k = k.negate();
         R_hat = R_hat.negate();
@@ -87,10 +87,10 @@ schnorr_adaptor_sign(const Scalar& private_key,
     std::memcpy(challenge_data + 32, P_x.data(), 32);
     std::memcpy(challenge_data + 64, msg.data(), 32);
     auto e_hash = tagged_hash("BIP0340/challenge", challenge_data, 96);
-    Scalar e = Scalar::from_bytes(e_hash);
+    Scalar const e = Scalar::from_bytes(e_hash);
 
     // s = k + e * sk (BIP-340: s = k + e*d, but partial -- missing adaptor secret t)
-    Scalar s_hat = k + (e * sk);
+    Scalar const s_hat = k + (e * sk);
 
     return SchnorrAdaptorSig{R_hat, s_hat, needs_neg};
 }
@@ -100,21 +100,21 @@ bool schnorr_adaptor_verify(const SchnorrAdaptorSig& pre_sig,
                             const std::array<std::uint8_t, 32>& msg,
                             const Point& adaptor_point) {
     // Reconstruct P from x-only pubkey (even y)
-    FieldElement px = FieldElement::from_bytes(pubkey_x);
-    FieldElement x2 = px * px;
-    FieldElement x3 = x2 * px;
-    FieldElement rhs = x3 + FieldElement::from_uint64(7);
+    FieldElement const px = FieldElement::from_bytes(pubkey_x);
+    FieldElement const x2 = px * px;
+    FieldElement const x3 = x2 * px;
+    FieldElement const rhs = x3 + FieldElement::from_uint64(7);
     // Optimized sqrt via addition chain
     auto py = rhs.sqrt();
     auto py_bytes = py.to_bytes();
     if (py_bytes[31] & 1) py = FieldElement::zero() - py;
-    Point P = Point::from_affine(px, py);
+    Point const P = Point::from_affine(px, py);
 
     // Adjust T based on whether nonce was negated during signing
-    Point T_adj = pre_sig.needs_negation ? adaptor_point.negate() : adaptor_point;
+    Point const T_adj = pre_sig.needs_negation ? adaptor_point.negate() : adaptor_point;
 
     // Reconstruct R = R^ + T_adj (should have even y)
-    Point R = pre_sig.R_hat.add(T_adj);
+    Point const R = pre_sig.R_hat.add(T_adj);
 
     // Challenge: e = H("BIP0340/challenge", R.x || P.x || m)
     auto R_x = R.x().to_bytes();
@@ -123,12 +123,12 @@ bool schnorr_adaptor_verify(const SchnorrAdaptorSig& pre_sig,
     std::memcpy(challenge_data + 32, pubkey_x.data(), 32);
     std::memcpy(challenge_data + 64, msg.data(), 32);
     auto e_hash = tagged_hash("BIP0340/challenge", challenge_data, 96);
-    Scalar e = Scalar::from_bytes(e_hash);
+    Scalar const e = Scalar::from_bytes(e_hash);
 
     // Verify: s*G == R^ + e*P  (since s = k + e*d)
-    Point lhs = Point::generator().scalar_mul(pre_sig.s_hat);
-    Point eP = P.scalar_mul(e);
-    Point rhs_point = pre_sig.R_hat.add(eP);
+    Point const lhs = Point::generator().scalar_mul(pre_sig.s_hat);
+    Point const eP = P.scalar_mul(e);
+    Point const rhs_point = pre_sig.R_hat.add(eP);
 
     auto lhs_c = lhs.to_compressed();
     auto rhs_c = rhs_point.to_compressed();
@@ -139,13 +139,13 @@ SchnorrSignature
 schnorr_adaptor_adapt(const SchnorrAdaptorSig& pre_sig,
                       const Scalar& adaptor_secret) {
     // Adjust t based on nonce negation during signing
-    Scalar t = pre_sig.needs_negation ? adaptor_secret.negate() : adaptor_secret;
+    Scalar const t = pre_sig.needs_negation ? adaptor_secret.negate() : adaptor_secret;
 
     // R = R^ + t_adj*G (should have even y since we ensured it during signing)
-    Point R = pre_sig.R_hat.add(Point::generator().scalar_mul(t));
+    Point const R = pre_sig.R_hat.add(Point::generator().scalar_mul(t));
 
     // s = s + t
-    Scalar s = pre_sig.s_hat + t;
+    Scalar const s = pre_sig.s_hat + t;
 
     SchnorrSignature sig;
     sig.r = R.x().to_bytes();
@@ -157,7 +157,7 @@ std::pair<Scalar, bool>
 schnorr_adaptor_extract(const SchnorrAdaptorSig& pre_sig,
                         const SchnorrSignature& sig) {
     // t = s - s (or negation)
-    Scalar t = sig.s - pre_sig.s_hat;
+    Scalar const t = sig.s - pre_sig.s_hat;
 
     // Verify: t*G == T (adaptor point)
     // We can't fully verify without the adaptor point, but we can return t
@@ -175,26 +175,26 @@ ecdsa_adaptor_sign(const Scalar& private_key,
                    const std::array<std::uint8_t, 32>& msg_hash,
                    const Point& adaptor_point) {
     // Generate nonce
-    Scalar k = adaptor_nonce(private_key, msg_hash.data(), 32, adaptor_point, nullptr, 0);
+    Scalar const k = adaptor_nonce(private_key, msg_hash.data(), 32, adaptor_point, nullptr, 0);
 
     // R^ = k * G
-    Point R_hat = Point::generator().scalar_mul(k);
+    Point const R_hat = Point::generator().scalar_mul(k);
 
     // R = R^ + T
-    Point R = R_hat.add(adaptor_point);
+    Point const R = R_hat.add(adaptor_point);
 
     // r = R.x mod n
     auto R_x_bytes = R.x().to_bytes();
-    Scalar r = Scalar::from_bytes(R_x_bytes);
+    Scalar const r = Scalar::from_bytes(R_x_bytes);
     if (r.is_zero()) {
         // Degenerate case
         return ECDSAAdaptorSig{R_hat, Scalar::zero(), r};
     }
 
     // s = k^-^1 * (z + r*x)  where z = msg_hash
-    Scalar z = Scalar::from_bytes(msg_hash);
-    Scalar k_inv = k.inverse();
-    Scalar s_hat = k_inv * (z + r * private_key);
+    Scalar const z = Scalar::from_bytes(msg_hash);
+    Scalar const k_inv = k.inverse();
+    Scalar const s_hat = k_inv * (z + r * private_key);
 
     // Low-S normalization
     // Check: s_hat vs n - s_hat 
@@ -210,20 +210,20 @@ bool ecdsa_adaptor_verify(const ECDSAAdaptorSig& pre_sig,
     if (pre_sig.r.is_zero() || pre_sig.s_hat.is_zero()) return false;
 
     // R = R^ + T
-    Point R = pre_sig.R_hat.add(adaptor_point);
+    Point const R = pre_sig.R_hat.add(adaptor_point);
 
     // Verify r == R.x mod n
     auto R_x_bytes = R.x().to_bytes();
-    Scalar r_check = Scalar::from_bytes(R_x_bytes);
+    Scalar const r_check = Scalar::from_bytes(R_x_bytes);
     if (r_check != pre_sig.r) return false;
 
     // Verify: s*R^ == z*G + r*P (rearranged ECDSA equation)
-    Scalar z = Scalar::from_bytes(msg_hash);
-    Scalar s_inv = pre_sig.s_hat.inverse();
+    Scalar const z = Scalar::from_bytes(msg_hash);
+    Scalar const s_inv = pre_sig.s_hat.inverse();
 
-    Point u1G = Point::generator().scalar_mul(z * s_inv);
-    Point u2P = public_key.scalar_mul(pre_sig.r * s_inv);
-    Point R_check = u1G.add(u2P);
+    Point const u1G = Point::generator().scalar_mul(z * s_inv);
+    Point const u2P = public_key.scalar_mul(pre_sig.r * s_inv);
+    Point const R_check = u1G.add(u2P);
 
     // R_check should equal R^ (not R^+T, since we used the adapted r)
     // Actually for ECDSA adaptor: we check that k*G = R^
@@ -248,8 +248,8 @@ ecdsa_adaptor_adapt(const ECDSAAdaptorSig& pre_sig,
     // Alternative (simpler) ECDSA adaptor:
     // s_hat is the "encrypted" signature value
     // s = s_hat * t^-^1  (multiplicative adaptor for ECDSA)
-    Scalar t_inv = adaptor_secret.inverse();
-    Scalar s = pre_sig.s_hat * t_inv;
+    Scalar const t_inv = adaptor_secret.inverse();
+    Scalar const s = pre_sig.s_hat * t_inv;
 
     ECDSASignature sig;
     sig.r = pre_sig.r;
@@ -263,8 +263,8 @@ ecdsa_adaptor_extract(const ECDSAAdaptorSig& pre_sig,
     if (sig.s.is_zero() || pre_sig.s_hat.is_zero()) return {Scalar::zero(), false};
 
     // t = s * s^-^1 (multiplicative adaptor)
-    Scalar s_inv = sig.s.inverse();
-    Scalar t = pre_sig.s_hat * s_inv;
+    Scalar const s_inv = sig.s.inverse();
+    Scalar const t = pre_sig.s_hat * s_inv;
 
     if (t.is_zero()) return {t, false};
     return {t, true};

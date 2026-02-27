@@ -89,11 +89,11 @@ int main() {
             detail::montgomery_reduce_bmi2(wide);
         }
         auto t1 = std::chrono::high_resolution_clock::now();
-        double ns = std::chrono::duration<double, std::nano>(t1 - t0).count() / iters;
+        double const ns = std::chrono::duration<double, std::nano>(t1 - t0).count() / iters;
         bmi2_runs.push_back(ns);
     }
     std::sort(bmi2_runs.begin(), bmi2_runs.end());
-    double ns_bmi2 = bmi2_runs[passes / 2];
+    double const ns_bmi2 = bmi2_runs[passes / 2];
     std::cout << std::fixed << std::setprecision(2);
     std::cout << "BMI2 kernel:        " << ns_bmi2 << " ns/op (min/med/max: "
               << bmi2_runs.front() << "/" << ns_bmi2 << "/" << bmi2_runs.back() << ")\n";

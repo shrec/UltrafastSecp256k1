@@ -273,7 +273,7 @@ static void test_ethereum_eip55_case_sensitivity() {
     auto raw = secp256k1::coins::ethereum_address_raw(pubkey);
     
     // Make it all lowercase with 0x prefix
-    std::string lower = "0x" + raw;
+    std::string const lower = "0x" + raw;
     
     // A random lowercase address may or may not pass EIP-55
     // (it passes only if checksum happens to produce all lowercase)

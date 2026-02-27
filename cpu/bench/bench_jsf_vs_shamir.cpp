@@ -71,15 +71,15 @@ int main() {
 
     // Windowed Shamir
     auto cfg1 = base; cfg1.use_jsf = false; configure_fixed_base(cfg1); ensure_fixed_base_ready();
-    double shamir_ns = time_scalar_mul_generator(scalars, ITERS);
+    double const shamir_ns = time_scalar_mul_generator(scalars, ITERS);
     print_row("Windowed Shamir", shamir_ns);
 
     // JSF
     auto cfg2 = base; cfg2.use_jsf = true; configure_fixed_base(cfg2); ensure_fixed_base_ready();
-    double jsf_ns = time_scalar_mul_generator(scalars, ITERS);
+    double const jsf_ns = time_scalar_mul_generator(scalars, ITERS);
     print_row("JSF", jsf_ns);
 
-    double delta = (shamir_ns - jsf_ns) / shamir_ns * 100.0;
+    double const delta = (shamir_ns - jsf_ns) / shamir_ns * 100.0;
     std::cout << "\nDelta: " << std::fixed << std::setprecision(2) << delta << "% (positive = JSF faster)\n";
 
     return 0;

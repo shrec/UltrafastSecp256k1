@@ -37,11 +37,11 @@ int test_abi_gate_run() {
     // Just run the checks inline:
     CHECK(UFSECP_ABI_VERSION > 0, "ABI version is positive");
     CHECK(UFSECP_ABI_VERSION == 1, "ABI version is 1 (current)");
-    unsigned int packed = UFSECP_VERSION_PACKED;
-    unsigned int major = UFSECP_VERSION_MAJOR;
-    unsigned int minor = UFSECP_VERSION_MINOR;
-    unsigned int patch = UFSECP_VERSION_PATCH;
-    unsigned int expected_packed = (major << 16) | (minor << 8) | patch;
+    unsigned int const packed = UFSECP_VERSION_PACKED;
+    unsigned int const major = UFSECP_VERSION_MAJOR;
+    unsigned int const minor = UFSECP_VERSION_MINOR;
+    unsigned int const patch = UFSECP_VERSION_PATCH;
+    unsigned int const expected_packed = (major << 16) | (minor << 8) | patch;
     CHECK(packed == expected_packed, "Packed version matches components");
     CHECK(((packed >> 16) & 0xFF) == major, "Packed major matches");
     CHECK(((packed >> 8) & 0xFF) == minor, "Packed minor matches");
@@ -74,16 +74,16 @@ int main() {
     CHECK(UFSECP_ABI_VERSION == 1, "ABI version is 1 (current)");
 
     // 2. Packed version
-    unsigned int packed = UFSECP_VERSION_PACKED;
+    unsigned int const packed = UFSECP_VERSION_PACKED;
     printf("  UFSECP_VERSION_PACKED:    0x%06X\n", packed);
 
-    unsigned int major = UFSECP_VERSION_MAJOR;
-    unsigned int minor = UFSECP_VERSION_MINOR;
-    unsigned int patch = UFSECP_VERSION_PATCH;
+    unsigned int const major = UFSECP_VERSION_MAJOR;
+    unsigned int const minor = UFSECP_VERSION_MINOR;
+    unsigned int const patch = UFSECP_VERSION_PATCH;
     printf("  Version: %u.%u.%u\n", major, minor, patch);
 
     // 3. Packed encoding consistency
-    unsigned int expected_packed = (major << 16) | (minor << 8) | patch;
+    unsigned int const expected_packed = (major << 16) | (minor << 8) | patch;
     CHECK(packed == expected_packed, "Packed version matches components");
 
     // 4. Components extracted from packed match originals
@@ -111,7 +111,7 @@ int main() {
 
     // 7. ABI gate simulation: what a binding SHOULD check
     printf("\n  [Binding Gate Simulation]\n");
-    unsigned int binding_expected_abi = 1;  // hardcoded in binding
+    unsigned int const binding_expected_abi = 1;  // hardcoded in binding
     if (UFSECP_ABI_VERSION != binding_expected_abi) {
         printf("  *** ABI MISMATCH: library=%u, binding expects=%u ***\n",
                (unsigned)UFSECP_ABI_VERSION, binding_expected_abi);
@@ -124,7 +124,7 @@ int main() {
     }
 
     // 8. Backward compatibility: packed >= should be safe for minor bumps
-    unsigned int min_required = (0 << 16) | (0 << 8) | 0;  // 0.0.0
+    unsigned int const min_required = (0 << 16) | (0 << 8) | 0;  // 0.0.0
     CHECK(packed >= min_required, "Packed version >= minimum required (0.0.0)");
 
     printf("\n============================================================\n");

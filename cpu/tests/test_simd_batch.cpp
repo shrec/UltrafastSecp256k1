@@ -31,8 +31,8 @@ static void test_simd_detection() {
     std::printf("  Detected: %s\n", simd::simd_tier_name(tier));
 
     // These should not crash regardless of platform
-    bool avx2 = simd::avx2_available();
-    bool avx512 = simd::avx512_available();
+    bool const avx2 = simd::avx2_available();
+    bool const avx512 = simd::avx512_available();
     std::printf("  AVX2: %s, AVX-512: %s\n",
         avx2 ? "yes" : "no", avx512 ? "yes" : "no");
 
@@ -163,7 +163,7 @@ static void test_batch_inv() {
 static void test_batch_inv_single() {
     std::printf("[SIMD] Batch inverse: single element...\n");
 
-    FieldElement a = FieldElement::from_uint64(42);
+    FieldElement const a = FieldElement::from_uint64(42);
     FieldElement out;
 
     simd::batch_field_inv(&out, &a, 1);

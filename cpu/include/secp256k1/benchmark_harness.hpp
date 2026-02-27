@@ -119,7 +119,7 @@ struct Timer {
     static inline uint64_t now() noexcept {
 #if BENCH_HAS_RDTSC
 #  if defined(_MSC_VER)
-        unsigned int aux;
+        unsigned int aux = 0;
         return __rdtscp(&aux);
 #  else
         uint32_t lo, hi;
@@ -165,11 +165,11 @@ private:
         constexpr int CALIBRATE_MS = 10;
 
         // Warm up
-        volatile uint64_t warm = now();
+        volatile uint64_t const warm = now();
         (void)warm;
 
         auto chrono_start = Clock::now();
-        uint64_t tsc_start = now();
+        uint64_t const tsc_start = now();
 
         // Spin for ~10ms
         auto target = chrono_start + std::chrono::milliseconds(CALIBRATE_MS);
@@ -177,12 +177,12 @@ private:
             // busy-wait
         }
 
-        uint64_t tsc_end = now();
+        uint64_t const tsc_end = now();
         auto chrono_end = Clock::now();
 
-        double ns_elapsed = static_cast<double>(
+        double const ns_elapsed = static_cast<double>(
             std::chrono::duration_cast<std::chrono::nanoseconds>(chrono_end - chrono_start).count());
-        double tsc_elapsed = static_cast<double>(tsc_end - tsc_start);
+        auto const tsc_elapsed = static_cast<double>(tsc_end - tsc_start);
 
         return (tsc_elapsed > 0.0) ? (ns_elapsed / tsc_elapsed) : 1.0;
     }
@@ -224,11 +224,11 @@ inline Stats compute_stats(std::vector<double>& data) {
     }
 
     // IQR-based outlier removal
-    double q1 = data[n / 4];
-    double q3 = data[(3 * n) / 4];
-    double iqr = q3 - q1;
-    double lower = q1 - 1.5 * iqr;
-    double upper = q3 + 1.5 * iqr;
+    double const q1 = data[n / 4];
+    double const q3 = data[(3 * n) / 4];
+    double const iqr = q3 - q1;
+    double const lower = q1 - 1.5 * iqr;
+    double const upper = q3 + 1.5 * iqr;
 
     std::vector<double> filtered;
     filtered.reserve(n);
@@ -256,7 +256,7 @@ inline Stats compute_stats(std::vector<double>& data) {
 
     double var = 0.0;
     for (auto v : filtered) {
-        double d = v - s.mean_ns;
+        double const d = v - s.mean_ns;
         var += d * d;
     }
     s.stddev_ns = std::sqrt(var / static_cast<double>(fn));
@@ -305,18 +305,18 @@ public:
         ns_per_iter.reserve(passes);
 
         for (std::size_t p = 0; p < passes; ++p) {
-            uint64_t t0 = Timer::now();
+            uint64_t const t0 = Timer::now();
             for (int i = 0; i < iters; ++i) {
                 func();
             }
             ClobberMemory();
-            uint64_t t1 = Timer::now();
+            uint64_t const t1 = Timer::now();
 
-            double total_ns = Timer::ticks_to_ns(t1 - t0);
+            double const total_ns = Timer::ticks_to_ns(t1 - t0);
             ns_per_iter.push_back(total_ns / iters);
         }
 
-        Stats st = compute_stats(ns_per_iter);
+        Stats const st = compute_stats(ns_per_iter);
         return st.median_ns;
     }
 
@@ -334,14 +334,14 @@ public:
         ns_per_iter.reserve(passes);
 
         for (std::size_t p = 0; p < passes; ++p) {
-            uint64_t t0 = Timer::now();
+            uint64_t const t0 = Timer::now();
             for (int i = 0; i < iters; ++i) {
                 func();
             }
             ClobberMemory();
-            uint64_t t1 = Timer::now();
+            uint64_t const t1 = Timer::now();
 
-            double total_ns = Timer::ticks_to_ns(t1 - t0);
+            double const total_ns = Timer::ticks_to_ns(t1 - t0);
             ns_per_iter.push_back(total_ns / iters);
         }
 

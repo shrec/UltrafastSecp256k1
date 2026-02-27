@@ -55,10 +55,10 @@ static inline std::uint64_t add256(std::uint64_t r[4],
     std::uint64_t carry = 0;
     for (int i = 0; i < 4; ++i) {
         // r[i] = a[i] + b[i] + carry
-        std::uint64_t sum_lo = a[i] + b[i];
-        std::uint64_t c1 = static_cast<std::uint64_t>(sum_lo < a[i]);
-        std::uint64_t sum = sum_lo + carry;
-        std::uint64_t c2 = static_cast<std::uint64_t>(sum < sum_lo);
+        std::uint64_t const sum_lo = a[i] + b[i];
+        auto const c1 = static_cast<std::uint64_t>(sum_lo < a[i]);
+        std::uint64_t const sum = sum_lo + carry;
+        auto const c2 = static_cast<std::uint64_t>(sum < sum_lo);
         r[i] = sum;
         carry = c1 + c2;
     }
@@ -71,10 +71,10 @@ static inline std::uint64_t sub256(std::uint64_t r[4],
                                     const std::uint64_t b[4]) noexcept {
     std::uint64_t borrow = 0;
     for (int i = 0; i < 4; ++i) {
-        std::uint64_t diff = a[i] - b[i];
-        std::uint64_t b1 = static_cast<std::uint64_t>(a[i] < b[i]);
-        std::uint64_t result = diff - borrow;
-        std::uint64_t b2 = static_cast<std::uint64_t>(diff < borrow);
+        std::uint64_t const diff = a[i] - b[i];
+        auto const b1 = static_cast<std::uint64_t>(a[i] < b[i]);
+        std::uint64_t const result = diff - borrow;
+        auto const b2 = static_cast<std::uint64_t>(diff < borrow);
         r[i] = result;
         borrow = b1 + b2;
     }
@@ -85,10 +85,10 @@ static inline std::uint64_t sub256(std::uint64_t r[4],
 // If value >= p, subtract p. Uses cmov.
 static inline void ct_reduce_once(std::uint64_t r[4]) noexcept {
     std::uint64_t tmp[4];
-    std::uint64_t borrow = sub256(tmp, r, P);
+    std::uint64_t const borrow = sub256(tmp, r, P);
     // If borrow == 0, r >= p -> use tmp (reduced). Else keep r.
     // mask = 0xFFF...F if no borrow (r >= p), else 0
-    std::uint64_t mask = is_zero_mask(borrow);
+    std::uint64_t const mask = is_zero_mask(borrow);
     cmov256(r, tmp, mask);
 }
 
@@ -103,21 +103,21 @@ FieldElement field_normalize(const FieldElement& a) noexcept {
 
 FieldElement field_add(const FieldElement& a, const FieldElement& b) noexcept {
     std::uint64_t r[4];
-    std::uint64_t carry = add256(r, a.limbs().data(), b.limbs().data());
+    std::uint64_t const carry = add256(r, a.limbs().data(), b.limbs().data());
 
     // If carry OR r >= p, subtract p
     // First subtract p unconditionally
     std::uint64_t tmp[4];
-    std::uint64_t borrow = sub256(tmp, r, P);
+    std::uint64_t const borrow = sub256(tmp, r, P);
 
     // If carry, we definitely need to subtract p (result overflowed 256 bits)
     // If no carry and no borrow, we still use tmp (r was >= p)
     // If no carry and borrow, keep r (r was < p)
     // Combined: use_tmp if (carry OR (borrow == 0))
     // mask = all-ones if we should use tmp
-    std::uint64_t no_borrow = is_zero_mask(borrow);
-    std::uint64_t has_carry = is_nonzero_mask(carry);
-    std::uint64_t mask = no_borrow | has_carry;
+    std::uint64_t const no_borrow = is_zero_mask(borrow);
+    std::uint64_t const has_carry = is_nonzero_mask(carry);
+    std::uint64_t const mask = no_borrow | has_carry;
     cmov256(r, tmp, mask);
 
     return FieldElement::from_limbs_raw({r[0], r[1], r[2], r[3]});
@@ -125,14 +125,14 @@ FieldElement field_add(const FieldElement& a, const FieldElement& b) noexcept {
 
 FieldElement field_sub(const FieldElement& a, const FieldElement& b) noexcept {
     std::uint64_t r[4];
-    std::uint64_t borrow = sub256(r, a.limbs().data(), b.limbs().data());
+    std::uint64_t const borrow = sub256(r, a.limbs().data(), b.limbs().data());
 
     // If borrow, add p back: r += p
     std::uint64_t tmp[4];
     add256(tmp, r, P);
 
     // mask = all-ones if borrow occurred
-    std::uint64_t mask = is_nonzero_mask(borrow);
+    std::uint64_t const mask = is_nonzero_mask(borrow);
     cmov256(r, tmp, mask);
 
     return FieldElement::from_limbs_raw({r[0], r[1], r[2], r[3]});
@@ -168,7 +168,7 @@ FieldElement field_neg(const FieldElement& a) noexcept {
     std::uint64_t r[4];
     sub256(r, P, a.limbs().data());
 
-    std::uint64_t zero_mask = field_is_zero(a);
+    std::uint64_t const zero_mask = field_is_zero(a);
     // If a == 0, set r to 0
     std::uint64_t z[4] = {0, 0, 0, 0};
     cmov256(r, z, zero_mask);
@@ -180,26 +180,26 @@ FieldElement field_half(const FieldElement& a) noexcept {
     // r = a/2 mod p. Branchless.
     // If a is odd: r = (a + p) / 2; if even: r = a / 2.
     const auto& al = a.limbs();
-    std::uint64_t odd = 0ULL - (al[0] & 1);  // all-ones if odd, 0 if even
+    std::uint64_t const odd = 0ULL - (al[0] & 1);  // all-ones if odd, 0 if even
 
     // Conditionally add p (only if odd)
     std::uint64_t t[4];
     std::uint64_t carry = 0;
     for (std::size_t i = 0; i < 4; ++i) {
-        std::uint64_t addend = P[i] & odd;
-        std::uint64_t sum_lo = al[i] + addend;
-        std::uint64_t c1 = static_cast<std::uint64_t>(sum_lo < al[i]);
-        std::uint64_t sum = sum_lo + carry;
-        std::uint64_t c2 = static_cast<std::uint64_t>(sum < sum_lo);
+        std::uint64_t const addend = P[i] & odd;
+        std::uint64_t const sum_lo = al[i] + addend;
+        auto const c1 = static_cast<std::uint64_t>(sum_lo < al[i]);
+        std::uint64_t const sum = sum_lo + carry;
+        auto const c2 = static_cast<std::uint64_t>(sum < sum_lo);
         t[i] = sum;
         carry = c1 + c2;
     }
 
     // Right shift 257-bit value (t[0..3] + carry*2^256) by 1
-    std::uint64_t r0 = (t[0] >> 1) | (t[1] << 63);
-    std::uint64_t r1 = (t[1] >> 1) | (t[2] << 63);
-    std::uint64_t r2 = (t[2] >> 1) | (t[3] << 63);
-    std::uint64_t r3 = (t[3] >> 1) | (carry << 63);
+    std::uint64_t const r0 = (t[0] >> 1) | (t[1] << 63);
+    std::uint64_t const r1 = (t[1] >> 1) | (t[2] << 63);
+    std::uint64_t const r2 = (t[2] >> 1) | (t[3] << 63);
+    std::uint64_t const r3 = (t[3] >> 1) | (carry << 63);
 
     return FieldElement::from_limbs_raw({r0, r1, r2, r3});
 }
@@ -233,13 +233,13 @@ static int64_t ct_divsteps_59(int64_t zeta, uint64_t f0, uint64_t g0,
     uint64_t f = f0, g = g0;
 
     for (int i = 3; i < 62; ++i) {
-        uint64_t c1 = (uint64_t)(zeta >> 63);    // all-ones if zeta < 0
-        uint64_t c2 = -(g & 1);                   // all-ones if g odd
+        auto c1 = (uint64_t)(zeta >> 63);    // all-ones if zeta < 0
+        uint64_t const c2 = -(g & 1);                   // all-ones if g odd
 
         // Conditionally negate (f,u,v) based on zeta sign
-        uint64_t x = (f ^ c1) - c1;
-        uint64_t y = (u ^ c1) - c1;
-        uint64_t z = (v ^ c1) - c1;
+        uint64_t const x = (f ^ c1) - c1;
+        uint64_t const y = (u ^ c1) - c1;
+        uint64_t const z = (v ^ c1) - c1;
 
         // Conditionally add to (g,q,r) if g is odd
         g += x & c2;
@@ -273,8 +273,8 @@ static void ct_update_de(SG62& d, SG62& e, const SGTrans& t) noexcept {
     const uint64_t M62 = UINT64_MAX >> 2;
     const int64_t d0=d.v[0], d1=d.v[1], d2=d.v[2], d3=d.v[3], d4=d.v[4];
     const int64_t e0=e.v[0], e1=e.v[1], e2=e.v[2], e3=e.v[3], e4=e.v[4];
-    int64_t md, me;
-    __int128 cd, ce;
+    int64_t md = 0, me = 0;
+    __int128 cd = 0, ce = 0;
 
     md = (t.u & (d4 >> 63)) + (t.v & (e4 >> 63));
     me = (t.q & (d4 >> 63)) + (t.r & (e4 >> 63));
@@ -316,8 +316,8 @@ static void ct_update_de(SG62& d, SG62& e, const SGTrans& t) noexcept {
 
 // Apply transition matrix to full-precision (f,g).  Always 5 limbs.
 static void ct_update_fg(SG62& f, SG62& g, const SGTrans& t) noexcept {
-    const int64_t M62 = (int64_t)((uint64_t)(-1) >> 2);
-    __int128 cf, cg;
+    const auto M62 = (int64_t)((uint64_t)(-1) >> 2);
+    __int128 cf = 0, cg = 0;
 
     cf = (__int128)t.u * f.v[0] + (__int128)t.v * g.v[0];
     cg = (__int128)t.q * f.v[0] + (__int128)t.r * g.v[0];
@@ -350,14 +350,14 @@ static void ct_update_fg(SG62& f, SG62& g, const SGTrans& t) noexcept {
 
 // Normalize result to [0, p): conditional add/negate/carry propagation.
 static void ct_sg_normalize(SG62& r, int64_t f_sign) noexcept {
-    const int64_t M62 = (int64_t)(UINT64_MAX >> 2);
+    const auto M62 = (int64_t)(UINT64_MAX >> 2);
     int64_t r0=r.v[0], r1=r.v[1], r2=r.v[2], r3=r.v[3], r4=r.v[4];
 
     int64_t ca = r4 >> 63;
     r0 += SGP.v[0] & ca;
     r4 += SGP.v[4] & ca;
 
-    int64_t cn = f_sign >> 63;
+    int64_t const cn = f_sign >> 63;
     r0 = (r0 ^ cn) - cn;
     r1 = (r1 ^ cn) - cn;
     r2 = (r2 ^ cn) - cn;
@@ -559,7 +559,7 @@ void field_cswap(FieldElement* a, FieldElement* b,
     auto& ad = a->data().limbs;
     auto& bd = b->data().limbs;
     for (int i = 0; i < 4; ++i) {
-        std::uint64_t diff = (ad[i] ^ bd[i]) & mask;
+        std::uint64_t const diff = (ad[i] ^ bd[i]) & mask;
         ad[i] ^= diff;
         bd[i] ^= diff;
     }
@@ -578,7 +578,7 @@ FieldElement field_select(const FieldElement& a, const FieldElement& b,
 }
 
 FieldElement field_cneg(const FieldElement& a, std::uint64_t mask) noexcept {
-    FieldElement neg = field_neg(a);
+    FieldElement const neg = field_neg(a);
     return field_select(neg, a, mask);
 }
 
@@ -586,14 +586,14 @@ FieldElement field_cneg(const FieldElement& a, std::uint64_t mask) noexcept {
 
 std::uint64_t field_is_zero(const FieldElement& a) noexcept {
     const auto& l = a.limbs();
-    std::uint64_t z = l[0] | l[1] | l[2] | l[3];
+    std::uint64_t const z = l[0] | l[1] | l[2] | l[3];
     return is_zero_mask(z);
 }
 
 std::uint64_t field_eq(const FieldElement& a, const FieldElement& b) noexcept {
     const auto& al = a.limbs();
     const auto& bl = b.limbs();
-    std::uint64_t diff = (al[0] ^ bl[0]) | (al[1] ^ bl[1]) |
+    std::uint64_t const diff = (al[0] ^ bl[0]) | (al[1] ^ bl[1]) |
                          (al[2] ^ bl[2]) | (al[3] ^ bl[3]);
     return is_zero_mask(diff);
 }

@@ -68,7 +68,7 @@ static bool musig2_full_sign_verify(
     const std::array<uint8_t, 32>& msg,
     std::mt19937_64& rng)
 {
-    int n = static_cast<int>(sks.size());
+    int const n = static_cast<int>(sks.size());
     auto key_agg = secp256k1::musig2_key_agg(pks);
 
     std::vector<secp256k1::MuSig2SecNonce> sec_nonces;
@@ -85,7 +85,8 @@ static bool musig2_full_sign_verify(
     auto session = secp256k1::musig2_start_sign_session(agg_nonce, key_agg, msg);
 
     std::vector<Scalar> partial_sigs;
-    for (int i = 0; i < n; ++i) {
+    partial_sigs.reserve(n);
+for (int i = 0; i < n; ++i) {
         partial_sigs.push_back(secp256k1::musig2_partial_sign(
             sec_nonces[i], sks[i], key_agg, session,
             static_cast<std::size_t>(i)));
@@ -131,7 +132,7 @@ static void test_musig2_rogue_key_resistance() {
         auto sk_attacker = random_privkey(rng);
         auto pk_attacker = xonly_pubkey(sk_attacker);
 
-        std::vector<std::array<uint8_t, 32>> pks = {pk_honest, pk_attacker};
+        std::vector<std::array<uint8_t, 32>> const pks = {pk_honest, pk_attacker};
         auto key_agg = secp256k1::musig2_key_agg(pks);
 
         // Agg key should NOT equal the attacker's target
@@ -143,8 +144,8 @@ static void test_musig2_rogue_key_resistance() {
 
         // At least one coefficient should not be the trivial "1"
         // (second unique key gets a_i=1 in BIP-327 optimization)
-        bool coeff0_is_one = coeff0_bytes == Scalar::one().to_bytes();
-        bool coeff1_is_one = coeff1_bytes == Scalar::one().to_bytes();
+        bool const coeff0_is_one = coeff0_bytes == Scalar::one().to_bytes();
+        bool const coeff1_is_one = coeff1_bytes == Scalar::one().to_bytes();
         // With 2 distinct keys, exactly one gets coefficient 1 (the optimization)
         // The other gets a hash-derived coefficient
         CHECK(!(coeff0_is_one && coeff1_is_one),
@@ -152,8 +153,8 @@ static void test_musig2_rogue_key_resistance() {
 
         // Signing still works correctly with both cooperating
         auto msg = random32(rng);
-        std::vector<Scalar> sks = {sk_honest, sk_attacker};
-        bool ok = musig2_full_sign_verify(sks, pks, msg, rng);
+        std::vector<Scalar> const sks = {sk_honest, sk_attacker};
+        bool const ok = musig2_full_sign_verify(sks, pks, msg, rng);
         CHECK(ok, "cooperative sign still valid");
     }
 
@@ -301,8 +302,10 @@ static void test_musig2_nonce_binding() {
             auto an = secp256k1::musig2_nonce_agg(pns);
             auto sess = secp256k1::musig2_start_sign_session(an, key_agg, msg);
             std::vector<Scalar> ps;
-            for (int i = 0; i < 2; ++i)
+            ps.reserve(2);
+for (int i = 0; i < 2; ++i) {
                 ps.push_back(secp256k1::musig2_partial_sign(sns[i], sks[i], key_agg, sess, i));
+}
             return {sess, secp256k1::musig2_partial_sig_agg(ps, sess)};
         };
 
@@ -362,7 +365,7 @@ static void test_musig2_fault_injection() {
             sns[0], sks[2], key_agg, sess, 0);
 
         // Partial verify should catch this
-        bool pv0 = secp256k1::musig2_partial_verify(
+        bool const pv0 = secp256k1::musig2_partial_verify(
             bad_s0, pns[0], pks[0], key_agg, sess, 0);
         CHECK(!pv0, "partial verify catches wrong secret key");
 
@@ -409,7 +412,8 @@ static void test_frost_bad_share_dkg() {
 
         // Participant 1 should detect the bad share during finalize
         std::vector<secp256k1::FrostShare> p1_shares;
-        for (uint32_t j = 0; j < n; ++j) {
+        p1_shares.reserve(n);
+for (uint32_t j = 0; j < n; ++j) {
             p1_shares.push_back(smatrix[j][0]);
         }
 
@@ -443,7 +447,8 @@ static void test_frost_bad_partial_sig() {
         std::vector<secp256k1::FrostKeyPackage> pkgs;
         for (uint32_t i = 0; i < n; ++i) {
             std::vector<secp256k1::FrostShare> ms;
-            for (uint32_t j = 0; j < n; ++j) ms.push_back(smatrix[j][i]);
+            ms.reserve(n);
+for (uint32_t j = 0; j < n; ++j) ms.push_back(smatrix[j][i]);
             auto [pkg, ok] = secp256k1::frost_keygen_finalize(i+1, comms, ms, t, n);
             pkgs.push_back(pkg);
         }
@@ -455,7 +460,7 @@ static void test_frost_bad_partial_sig() {
         // Signer 1 and 2 generate nonces
         auto [n1, nc1] = secp256k1::frost_sign_nonce_gen(1, random32(rng));
         auto [n2, nc2] = secp256k1::frost_sign_nonce_gen(2, random32(rng));
-        std::vector<secp256k1::FrostNonceCommitment> ncs = {nc1, nc2};
+        std::vector<secp256k1::FrostNonceCommitment> const ncs = {nc1, nc2};
 
         // Signer 1 signs correctly
         auto ps1 = secp256k1::frost_sign(pkgs[0], n1, msg, ncs);
@@ -466,9 +471,9 @@ static void test_frost_bad_partial_sig() {
         ps2_bad.z_i = ps2_bad.z_i + Scalar::one();
 
         // Partial verification should catch the bad sig
-        bool pv_good = secp256k1::frost_verify_partial(
+        bool const pv_good = secp256k1::frost_verify_partial(
             ps2_good, nc2, pkgs[1].verification_share, msg, ncs, gpk);
-        bool pv_bad = secp256k1::frost_verify_partial(
+        bool const pv_bad = secp256k1::frost_verify_partial(
             ps2_bad, nc2, pkgs[1].verification_share, msg, ncs, gpk);
         CHECK(pv_good, "good partial sig verifies");
         CHECK(!pv_bad, "bad partial sig detected");
@@ -513,7 +518,8 @@ static void test_frost_message_binding() {
         std::vector<secp256k1::FrostKeyPackage> pkgs;
         for (uint32_t i = 0; i < n; ++i) {
             std::vector<secp256k1::FrostShare> ms;
-            for (uint32_t j = 0; j < n; ++j) ms.push_back(smatrix[j][i]);
+            ms.reserve(n);
+for (uint32_t j = 0; j < n; ++j) ms.push_back(smatrix[j][i]);
             auto [pkg, ok] = secp256k1::frost_keygen_finalize(i+1, comms, ms, t, n);
             pkgs.push_back(pkg);
         }
@@ -526,7 +532,7 @@ static void test_frost_message_binding() {
         // Sign msg1
         auto [n1a, nc1a] = secp256k1::frost_sign_nonce_gen(1, random32(rng));
         auto [n2a, nc2a] = secp256k1::frost_sign_nonce_gen(2, random32(rng));
-        std::vector<secp256k1::FrostNonceCommitment> ncs_a = {nc1a, nc2a};
+        std::vector<secp256k1::FrostNonceCommitment> const ncs_a = {nc1a, nc2a};
         auto ps1a = secp256k1::frost_sign(pkgs[0], n1a, msg1, ncs_a);
         auto ps2a = secp256k1::frost_sign(pkgs[1], n2a, msg1, ncs_a);
         auto sig1 = secp256k1::frost_aggregate({ps1a, ps2a}, ncs_a, gpk, msg1);
@@ -534,7 +540,7 @@ static void test_frost_message_binding() {
         // Sign msg2 with fresh nonces
         auto [n1b, nc1b] = secp256k1::frost_sign_nonce_gen(1, random32(rng));
         auto [n2b, nc2b] = secp256k1::frost_sign_nonce_gen(2, random32(rng));
-        std::vector<secp256k1::FrostNonceCommitment> ncs_b = {nc1b, nc2b};
+        std::vector<secp256k1::FrostNonceCommitment> const ncs_b = {nc1b, nc2b};
         auto ps1b = secp256k1::frost_sign(pkgs[0], n1b, msg2, ncs_b);
         auto ps2b = secp256k1::frost_sign(pkgs[1], n2b, msg2, ncs_b);
         auto sig2 = secp256k1::frost_aggregate({ps1b, ps2b}, ncs_b, gpk, msg2);
@@ -571,7 +577,8 @@ static void test_frost_signer_set_binding() {
     std::vector<secp256k1::FrostKeyPackage> pkgs;
     for (uint32_t i = 0; i < n; ++i) {
         std::vector<secp256k1::FrostShare> ms;
-        for (uint32_t j = 0; j < n; ++j) ms.push_back(smatrix[j][i]);
+        ms.reserve(n);
+for (uint32_t j = 0; j < n; ++j) ms.push_back(smatrix[j][i]);
         auto [pkg, ok] = secp256k1::frost_keygen_finalize(i+1, comms, ms, t, n);
         pkgs.push_back(pkg);
     }
@@ -581,14 +588,14 @@ static void test_frost_signer_set_binding() {
     auto msg = random32(rng);
 
     // 3 different subsets sign the same message
-    uint32_t subsets[][2] = {{0,1}, {0,2}, {1,2}};
+    uint32_t const subsets[][2] = {{0,1}, {0,2}, {1,2}};
     std::vector<secp256k1::SchnorrSignature> sigs;
 
     for (int s = 0; s < 3; ++s) {
         uint32_t a = subsets[s][0], b = subsets[s][1];
         auto [na, nca] = secp256k1::frost_sign_nonce_gen(pkgs[a].id, random32(rng));
         auto [nb, ncb] = secp256k1::frost_sign_nonce_gen(pkgs[b].id, random32(rng));
-        std::vector<secp256k1::FrostNonceCommitment> ncs = {nca, ncb};
+        std::vector<secp256k1::FrostNonceCommitment> const ncs = {nca, ncb};
         auto psa = secp256k1::frost_sign(pkgs[a], na, msg, ncs);
         auto psb = secp256k1::frost_sign(pkgs[b], nb, msg, ncs);
         auto sig = secp256k1::frost_aggregate({psa, psb}, ncs, gpk, msg);
@@ -599,8 +606,8 @@ static void test_frost_signer_set_binding() {
     // All 3 sigs should be different (different nonces, different Lagrange coefficients)
     for (int i = 0; i < 3; ++i) {
         for (int j = i + 1; j < 3; ++j) {
-            bool r_same = sigs[i].r == sigs[j].r;
-            bool s_same = sigs[i].s.to_bytes() == sigs[j].s.to_bytes();
+            bool const r_same = sigs[i].r == sigs[j].r;
+            bool const s_same = sigs[i].s.to_bytes() == sigs[j].s.to_bytes();
             CHECK(!r_same || !s_same, "different subsets -> different sigs");
         }
     }

@@ -103,17 +103,17 @@ static void test_ecdsa_sign_verify() {
     CHECK(sig.is_low_s(), "signature has low-S (BIP-62)");
 
     // Verify
-    bool valid = ecdsa_verify(msg_hash, pub, sig);
+    bool const valid = ecdsa_verify(msg_hash, pub, sig);
     CHECK(valid, "verify(sign(msg, priv), pub) = true");
 
     // Wrong message
     auto wrong_hash = SHA256::hash("Wrong message", 13);
-    bool invalid_msg = ecdsa_verify(wrong_hash, pub, sig);
+    bool const invalid_msg = ecdsa_verify(wrong_hash, pub, sig);
     CHECK(!invalid_msg, "verify with wrong message = false");
 
     // Wrong key
     auto wrong_pub = Point::generator().scalar_mul(Scalar::from_uint64(999));
-    bool invalid_key = ecdsa_verify(msg_hash, wrong_pub, sig);
+    bool const invalid_key = ecdsa_verify(msg_hash, wrong_pub, sig);
     CHECK(!invalid_key, "verify with wrong pubkey = false");
 
     // Compact round-trip
@@ -157,7 +157,7 @@ static void test_schnorr_sign_verify() {
     // BIP-340 x-only pubkey
     auto pubkey_x = schnorr_pubkey(priv);
     {
-        std::array<uint8_t, 32> zero_arr{};
+        std::array<uint8_t, 32> const zero_arr{};
         CHECK(pubkey_x != zero_arr, "x-only pubkey is non-zero");
     }
 
@@ -167,19 +167,19 @@ static void test_schnorr_sign_verify() {
     std::memcpy(msg.data(), h.data(), 32);
 
     // Aux randomness (zeros for determinism)
-    std::array<uint8_t, 32> aux{};
+    std::array<uint8_t, 32> const aux{};
 
     // Sign
     auto sig = schnorr_sign(priv, msg, aux);
 
     // Verify
-    bool valid = schnorr_verify(pubkey_x, msg, sig);
+    bool const valid = schnorr_verify(pubkey_x, msg, sig);
     CHECK(valid, "schnorr_verify(sign(msg, priv), pubkey) = true");
 
     // Wrong message
     std::array<uint8_t, 32> wrong_msg{};
     wrong_msg[0] = 0xFF;
-    bool invalid = schnorr_verify(pubkey_x, wrong_msg, sig);
+    bool const invalid = schnorr_verify(pubkey_x, wrong_msg, sig);
     CHECK(!invalid, "schnorr_verify with wrong message = false");
 
     // Round-trip

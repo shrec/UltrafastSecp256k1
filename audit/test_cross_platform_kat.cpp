@@ -314,7 +314,7 @@ static void test_ecdsa_kat() {
     }
 
     // Verify
-    bool ok = secp256k1::ecdsa_verify(MSG_HASH, pubkey, sig);
+    bool const ok = secp256k1::ecdsa_verify(MSG_HASH, pubkey, sig);
     CHECK(ok, "ECDSA verify passes");
 
     // Verify determinism: sign again -> same r,s
@@ -349,7 +349,7 @@ static void test_schnorr_kat() {
     }
 
     // Verify
-    bool ok = secp256k1::schnorr_verify(pubkey_x, MSG_HASH, sig);
+    bool const ok = secp256k1::schnorr_verify(pubkey_x, MSG_HASH, sig);
     CHECK(ok, "Schnorr verify passes");
 
     // Determinism: sign again -> same result

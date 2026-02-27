@@ -20,13 +20,14 @@ static std::array<uint8_t, 32> hex_to_bytes(const char* hex) {
     if (len > 64) len = 64;
     
     for (size_t i = 0; i < len; i++) {
-        char c = hex[i];
+        char const c = hex[i];
         uint8_t val = 0;
-        if (c >= '0' && c <= '9') val = static_cast<uint8_t>(c - '0');
-        else if (c >= 'a' && c <= 'f') val = static_cast<uint8_t>(c - 'a' + 10);
-        else if (c >= 'A' && c <= 'F') val = static_cast<uint8_t>(c - 'A' + 10);
+        if (c >= '0' && c <= '9') { val = static_cast<uint8_t>(c - '0');
+        } else if (c >= 'a' && c <= 'f') { val = static_cast<uint8_t>(c - 'a' + 10);
+        } else if (c >= 'A' && c <= 'F') { val = static_cast<uint8_t>(c - 'A' + 10);
+}
         
-        size_t byte_idx = (len - 1 - i) / 2;
+        size_t const byte_idx = (len - 1 - i) / 2;
         if ((len - 1 - i) % 2 == 0) {
             bytes[31 - byte_idx] |= val;
         } else {
@@ -38,10 +39,10 @@ static std::array<uint8_t, 32> hex_to_bytes(const char* hex) {
 
 // Helper: Field element to hex
 static std::string field_to_hex(const FieldElement& f) {
-    std::array<uint8_t, 32> bytes = f.to_bytes();
+    std::array<uint8_t, 32> const bytes = f.to_bytes();
     std::stringstream ss;
     ss << std::hex << std::setfill('0');
-    for (uint8_t b : bytes) {
+    for (uint8_t const b : bytes) {
         ss << std::setw(2) << static_cast<int>(b);
     }
     return ss.str();
@@ -104,21 +105,21 @@ static bool test_kg_scalar_mul() {
     std::cout << "| TEST 1: K*G using scalar_mul() method                   |" << '\n';
     std::cout << "+==========================================================+" << '\n';
     
-    Point G = Point::generator();
+    Point const G = Point::generator();
     int passed = 0;
-    int total = sizeof(KNOWN_KG) / sizeof(KNOWN_KG[0]);
+    int const total = sizeof(KNOWN_KG) / sizeof(KNOWN_KG[0]);
     
     for (int i = 0; i < total; i++) {
         const auto& test = KNOWN_KG[i];
         auto k_bytes = hex_to_bytes(test.k_hex);
-        Scalar k = Scalar::from_bytes(k_bytes);
+        Scalar const k = Scalar::from_bytes(k_bytes);
         
-        Point result = G.scalar_mul(k);
+        Point const result = G.scalar_mul(k);
         
-        std::string x_hex = field_to_hex(result.x());
-        std::string y_hex = field_to_hex(result.y());
+        std::string const x_hex = field_to_hex(result.x());
+        std::string const y_hex = field_to_hex(result.y());
         
-        bool match = (x_hex == test.x_hex) && (y_hex == test.y_hex);
+        bool const match = (x_hex == test.x_hex) && (y_hex == test.y_hex);
         
         std::cout << test.desc << ": " << (match ? "[OK] PASS" : "[FAIL] FAIL");
         if (!match) {
@@ -142,7 +143,7 @@ static bool test_kg_repeated_addition() {
     std::cout << "| TEST 2: K*G using repeated addition (G+G+...+G)         |" << '\n';
     std::cout << "+==========================================================+" << '\n';
     
-    Point G = Point::generator();
+    Point const G = Point::generator();
     int passed = 0;
     int total = 0;
     
@@ -152,8 +153,8 @@ static bool test_kg_repeated_addition() {
         
         // Method 1: scalar_mul
         auto k_bytes = hex_to_bytes(KNOWN_KG[k-1].k_hex);
-        Scalar k_scalar = Scalar::from_bytes(k_bytes);
-        Point result_mul = G.scalar_mul(k_scalar);
+        Scalar const k_scalar = Scalar::from_bytes(k_bytes);
+        Point const result_mul = G.scalar_mul(k_scalar);
         
         // Method 2: repeated addition
         Point result_add = G;
@@ -161,7 +162,7 @@ static bool test_kg_repeated_addition() {
             result_add = result_add.add(G);
         }
         
-        bool match = points_equal(result_mul, result_add);
+        bool const match = points_equal(result_mul, result_add);
         
         std::cout << k << "*G: scalar_mul vs repeated_add: " 
                   << (match ? "[OK] EQUAL" : "[FAIL] DIFFERENT") << '\n';
@@ -181,20 +182,20 @@ static bool test_kg_doubling() {
     std::cout << "| TEST 3: K*G using doubling (2*G, 4*G, 8*G, etc.)        |" << '\n';
     std::cout << "+==========================================================+" << '\n';
     
-    Point G = Point::generator();
+    Point const G = Point::generator();
     int passed = 0;
     int total = 0;
     
     // Test powers of 2: 2^0, 2^1, 2^2, 2^3, 2^4, 2^5
     for (int power = 0; power <= 5; power++) {
         total++;
-        int k = 1 << power;  // 2^power
+        int const k = 1 << power;  // 2^power
         
         // Method 1: scalar_mul
         std::array<uint8_t, 32> k_bytes{};
         k_bytes[31] = static_cast<uint8_t>(k);
-        Scalar k_scalar = Scalar::from_bytes(k_bytes);
-        Point result_mul = G.scalar_mul(k_scalar);
+        Scalar const k_scalar = Scalar::from_bytes(k_bytes);
+        Point const result_mul = G.scalar_mul(k_scalar);
         
         // Method 2: repeated doubling
         Point result_dbl = G;
@@ -202,7 +203,7 @@ static bool test_kg_doubling() {
             result_dbl = result_dbl.dbl();
         }
         
-        bool match = points_equal(result_mul, result_dbl);
+        bool const match = points_equal(result_mul, result_dbl);
         
         std::cout << k << "*G (2^" << power << "): scalar_mul vs doubling: " 
                   << (match ? "[OK] EQUAL" : "[FAIL] DIFFERENT") << '\n';
@@ -222,7 +223,7 @@ static bool test_point_addition() {
     std::cout << "| TEST 4: Point Addition P1 + P2 Correctness              |" << '\n';
     std::cout << "+==========================================================+" << '\n';
     
-    Point G = Point::generator();
+    Point const G = Point::generator();
     int passed = 0;
     int total = 0;
     
@@ -232,7 +233,7 @@ static bool test_point_addition() {
         const char* desc;
     };
     
-    AddTest tests[] = {
+    AddTest const tests[] = {
         {1, 1, 2, "G + G = 2*G"},
         {1, 2, 3, "G + 2*G = 3*G"},
         {2, 2, 4, "2*G + 2*G = 4*G"},
@@ -251,16 +252,16 @@ static bool test_point_addition() {
         k2_bytes[31] = static_cast<uint8_t>(test.k2);
         ksum_bytes[31] = static_cast<uint8_t>(test.k_sum);
         
-        Scalar k1 = Scalar::from_bytes(k1_bytes);
-        Scalar k2 = Scalar::from_bytes(k2_bytes);
-        Scalar k_sum = Scalar::from_bytes(ksum_bytes);
+        Scalar const k1 = Scalar::from_bytes(k1_bytes);
+        Scalar const k2 = Scalar::from_bytes(k2_bytes);
+        Scalar const k_sum = Scalar::from_bytes(ksum_bytes);
         
-        Point pt1 = G.scalar_mul(k1);
-        Point pt2 = G.scalar_mul(k2);
-        Point result_add = pt1.add(pt2);
-        Point expected = G.scalar_mul(k_sum);
+        Point const pt1 = G.scalar_mul(k1);
+        Point const pt2 = G.scalar_mul(k2);
+        Point const result_add = pt1.add(pt2);
+        Point const expected = G.scalar_mul(k_sum);
         
-        bool match = points_equal(result_add, expected);
+        bool const match = points_equal(result_add, expected);
         
         std::cout << test.desc << ": " << (match ? "[OK] PASS" : "[FAIL] FAIL") << '\n';
         
@@ -279,15 +280,15 @@ static bool test_kq_arbitrary() {
     std::cout << "| TEST 5: K*Q for arbitrary point Q (K*Q correctness)     |" << '\n';
     std::cout << "+==========================================================+" << '\n';
     
-    Point G = Point::generator();
+    Point const G = Point::generator();
     int passed = 0;
     int total = 0;
     
     // Create Q = 7*G
     std::array<uint8_t, 32> seven_bytes{};
     seven_bytes[31] = 7;
-    Scalar seven = Scalar::from_bytes(seven_bytes);
-    Point Q = G.scalar_mul(seven);
+    Scalar const seven = Scalar::from_bytes(seven_bytes);
+    Point const Q = G.scalar_mul(seven);
     
     struct KQTest {
         int k;
@@ -295,7 +296,7 @@ static bool test_kq_arbitrary() {
         const char* desc;
     };
     
-    KQTest tests[] = {
+    KQTest const tests[] = {
         {1, 7, "1*(7*G) = 7*G"},
         {2, 14, "2*(7*G) = 14*G"},
         {3, 21, "3*(7*G) = 21*G"},
@@ -311,13 +312,13 @@ static bool test_kq_arbitrary() {
         k_bytes[31] = static_cast<uint8_t>(test.k);
         expected_bytes[31] = static_cast<uint8_t>(test.expected);
         
-        Scalar k = Scalar::from_bytes(k_bytes);
-        Scalar expected_scalar = Scalar::from_bytes(expected_bytes);
+        Scalar const k = Scalar::from_bytes(k_bytes);
+        Scalar const expected_scalar = Scalar::from_bytes(expected_bytes);
         
-        Point result_kq = Q.scalar_mul(k);
-        Point expected = G.scalar_mul(expected_scalar);
+        Point const result_kq = Q.scalar_mul(k);
+        Point const expected = G.scalar_mul(expected_scalar);
         
-        bool match = points_equal(result_kq, expected);
+        bool const match = points_equal(result_kq, expected);
         
         std::cout << test.desc << ": " << (match ? "[OK] PASS" : "[FAIL] FAIL") << '\n';
         
@@ -336,10 +337,10 @@ static bool test_kq_random() {
     std::cout << "| TEST 6: K*Q with random large scalars                   |" << '\n';
     std::cout << "+==========================================================+" << '\n';
     
-    Point G = Point::generator();
+    Point const G = Point::generator();
     std::mt19937_64 rng(12345);
     int passed = 0;
-    int total = 10;
+    int const total = 10;
     
     for (int i = 0; i < total; i++) {
         // Random k1 and k2
@@ -349,20 +350,20 @@ static bool test_kq_random() {
             k2_bytes[j] = static_cast<uint8_t>(rng() & 0xFF);
         }
         
-        Scalar k1 = Scalar::from_bytes(k1_bytes);
-        Scalar k2 = Scalar::from_bytes(k2_bytes);
+        Scalar const k1 = Scalar::from_bytes(k1_bytes);
+        Scalar const k2 = Scalar::from_bytes(k2_bytes);
         
         // Q = k1*G
-        Point Q = G.scalar_mul(k1);
+        Point const Q = G.scalar_mul(k1);
         
         // k2*Q should equal (k1*k2)*G
-        Point result_kq = Q.scalar_mul(k2);
+        Point const result_kq = Q.scalar_mul(k2);
         
         // Calculate k1*k2
-        Scalar k1k2 = k1 * k2;
-        Point expected = G.scalar_mul(k1k2);
+        Scalar const k1k2 = k1 * k2;
+        Point const expected = G.scalar_mul(k1k2);
         
-        bool match = points_equal(result_kq, expected);
+        bool const match = points_equal(result_kq, expected);
         
         std::cout << "Test " << (i+1) << "/10: k2*(k1*G) = (k1*k2)*G: " 
                   << (match ? "[OK] PASS" : "[FAIL] FAIL") << '\n';
@@ -382,9 +383,9 @@ static bool test_distributive() {
     std::cout << "| TEST 7: Distributive: k*(P1+P2) = k*P1 + k*P2           |" << '\n';
     std::cout << "+==========================================================+" << '\n';
     
-    Point G = Point::generator();
+    Point const G = Point::generator();
     int passed = 0;
-    int total = 5;
+    int const total = 5;
     
     for (int test_num = 0; test_num < total; test_num++) {
         std::array<uint8_t, 32> k_bytes{}, k1_bytes{}, k2_bytes{};
@@ -392,23 +393,23 @@ static bool test_distributive() {
         k1_bytes[31] = 2;
         k2_bytes[31] = 5;
         
-        Scalar k = Scalar::from_bytes(k_bytes);
-        Scalar k1 = Scalar::from_bytes(k1_bytes);
-        Scalar k2 = Scalar::from_bytes(k2_bytes);
+        Scalar const k = Scalar::from_bytes(k_bytes);
+        Scalar const k1 = Scalar::from_bytes(k1_bytes);
+        Scalar const k2 = Scalar::from_bytes(k2_bytes);
         
-        Point pt1 = G.scalar_mul(k1);
-        Point pt2 = G.scalar_mul(k2);
+        Point const pt1 = G.scalar_mul(k1);
+        Point const pt2 = G.scalar_mul(k2);
         
         // Left side: k*(pt1+pt2)
-        Point pt1_plus_pt2 = pt1.add(pt2);
-        Point left = pt1_plus_pt2.scalar_mul(k);
+        Point const pt1_plus_pt2 = pt1.add(pt2);
+        Point const left = pt1_plus_pt2.scalar_mul(k);
         
         // Right side: k*pt1 + k*pt2
-        Point k_pt1 = pt1.scalar_mul(k);
-        Point k_pt2 = pt2.scalar_mul(k);
-        Point right = k_pt1.add(k_pt2);
+        Point const k_pt1 = pt1.scalar_mul(k);
+        Point const k_pt2 = pt2.scalar_mul(k);
+        Point const right = k_pt1.add(k_pt2);
         
-        bool match = points_equal(left, right);
+        bool const match = points_equal(left, right);
         
         std::cout << "k=" << (3+test_num) << ": k*(P1+P2) = k*P1 + k*P2: " 
                   << (match ? "[OK] PASS" : "[FAIL] FAIL") << '\n';
@@ -429,7 +430,7 @@ int test_arithmetic_correctness_run() {
     std::cout << "+==========================================================+" << '\n';
     
     bool all_passed = true;
-    int total_tests = 7;
+    int const total_tests = 7;
     int passed_tests = 0;
     
     if (test_kg_scalar_mul()) passed_tests++;

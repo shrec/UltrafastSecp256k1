@@ -35,7 +35,7 @@ static void print_hex(const char* label, const uint8_t* data, size_t len) {
 // Deterministic 32-byte hash (for demo purposes only!)
 static std::array<uint8_t, 32> fake_sha256(const char* msg) {
     std::array<uint8_t, 32> out{};
-    size_t len = strlen(msg);
+    size_t const len = strlen(msg);
     for (size_t i = 0; i < 32; ++i) {
         out[i] = static_cast<uint8_t>(msg[i % len] ^ (i * 0x9e + 0x37));
     }
@@ -85,13 +85,13 @@ int main() {
     // -- 2. ECDSA Verify -----------------------------------------------------
 
     printf("[2] ECDSA Verification\n");
-    bool ecdsa_ok = ecdsa_verify(msg_hash, pub, ecdsa_sig);
+    bool const ecdsa_ok = ecdsa_verify(msg_hash, pub, ecdsa_sig);
     printf("  Verify: %s\n", ecdsa_ok ? "PASS" : "FAIL");
 
     // Tampered message should fail
     auto bad_hash = msg_hash;
     bad_hash[0] ^= 0x01;
-    bool ecdsa_bad = ecdsa_verify(bad_hash, pub, ecdsa_sig);
+    bool const ecdsa_bad = ecdsa_verify(bad_hash, pub, ecdsa_sig);
     printf("  Tampered msg verify: %s (expected FAIL)\n",
            ecdsa_bad ? "PASS" : "FAIL");
     printf("\n");
@@ -101,7 +101,7 @@ int main() {
     printf("[3] Schnorr BIP-340 Signing\n");
 
     // Auxiliary randomness (can be all zeros for deterministic)
-    std::array<uint8_t, 32> aux_rand{};
+    std::array<uint8_t, 32> const aux_rand{};
 
     // Create keypair (recommended: pre-compute once, sign many)
     auto kp = schnorr_keypair_create(priv);
@@ -114,10 +114,10 @@ int main() {
     // -- 4. Schnorr Verify ---------------------------------------------------
 
     printf("[4] Schnorr BIP-340 Verification\n");
-    bool schnorr_ok = schnorr_verify(kp.px, msg_hash, schnorr_sig);
+    bool const schnorr_ok = schnorr_verify(kp.px, msg_hash, schnorr_sig);
     printf("  Verify: %s\n", schnorr_ok ? "PASS" : "FAIL");
 
-    bool schnorr_bad = schnorr_verify(kp.px, bad_hash, schnorr_sig);
+    bool const schnorr_bad = schnorr_verify(kp.px, bad_hash, schnorr_sig);
     printf("  Tampered msg verify: %s (expected FAIL)\n",
            schnorr_bad ? "PASS" : "FAIL");
     printf("\n");
@@ -128,20 +128,20 @@ int main() {
 
     // ECDSA compact round-trip
     auto decoded_ecdsa = ECDSASignature::from_compact(compact);
-    bool ecdsa_rt = ecdsa_verify(msg_hash, pub, decoded_ecdsa);
+    bool const ecdsa_rt = ecdsa_verify(msg_hash, pub, decoded_ecdsa);
     printf("  ECDSA compact round-trip verify: %s\n",
            ecdsa_rt ? "PASS" : "FAIL");
 
     // Schnorr round-trip
     auto decoded_schnorr = SchnorrSignature::from_bytes(sig_bytes);
-    bool schnorr_rt = schnorr_verify(kp.px, msg_hash, decoded_schnorr);
+    bool const schnorr_rt = schnorr_verify(kp.px, msg_hash, decoded_schnorr);
     printf("  Schnorr round-trip verify: %s\n",
            schnorr_rt ? "PASS" : "FAIL");
     printf("\n");
 
     // -- Summary --------------------------------------------------------------
 
-    bool all_pass = ecdsa_ok && !ecdsa_bad && schnorr_ok && !schnorr_bad
+    bool const all_pass = ecdsa_ok && !ecdsa_bad && schnorr_ok && !schnorr_bad
                     && ecdsa_rt && schnorr_rt;
 
     printf("=== All checks %s ===\n", all_pass ? "PASSED" : "FAILED");

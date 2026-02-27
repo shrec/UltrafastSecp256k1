@@ -82,7 +82,7 @@ static Scalar deterministic_scalar(uint64_t idx) {
 
 // Derive a point from index: k*G for a deterministic k
 static Point deterministic_point(uint64_t idx) {
-    Scalar k = deterministic_scalar(idx * 1000 + 7);
+    Scalar const k = deterministic_scalar(idx * 1000 + 7);
     return Point::generator().scalar_mul(k);
 }
 
@@ -91,16 +91,16 @@ static Point deterministic_point(uint64_t idx) {
 static void test_identity_element() {
     printf("\n--- Identity element: P + O == P ---\n");
 
-    Point G = Point::generator();
-    Point O = Point::infinity();
+    Point const G = Point::generator();
+    Point const O = Point::infinity();
 
     CHECK(points_equal(G.add(O), G), "G + O == G");
     CHECK(points_equal(O.add(G), G), "O + G == G");
     CHECK(O.add(O).is_infinity(),     "O + O == O");
 
     // Non-generator point
-    Scalar k = Scalar::from_uint64(12345);
-    Point P = G.scalar_mul(k);
+    Scalar const k = Scalar::from_uint64(12345);
+    Point const P = G.scalar_mul(k);
     CHECK(points_equal(P.add(O), P), "P + O == P (arbitrary point)");
     CHECK(points_equal(O.add(P), P), "O + P == P (arbitrary point)");
 }
@@ -108,13 +108,13 @@ static void test_identity_element() {
 static void test_inverse_element() {
     printf("\n--- Inverse element: P + (-P) == O ---\n");
 
-    Point G = Point::generator();
-    Point neg_G = G.negate();
+    Point const G = Point::generator();
+    Point const neg_G = G.negate();
     CHECK(G.add(neg_G).is_infinity(), "G + (-G) == O");
 
     for (uint64_t i = 1; i <= 5; ++i) {
-        Point P = deterministic_point(i);
-        Point neg_P = P.negate();
+        Point const P = deterministic_point(i);
+        Point const neg_P = P.negate();
         char buf[64];
         std::snprintf(buf, sizeof(buf), "P_%llu + (-P_%llu) == O",
                       static_cast<unsigned long long>(i),
@@ -126,11 +126,11 @@ static void test_inverse_element() {
 static void test_negate_involution() {
     printf("\n--- Negate involution: -(-P) == P ---\n");
 
-    Point G = Point::generator();
+    Point const G = Point::generator();
     CHECK(points_equal(G.negate().negate(), G), "-(-G) == G");
 
     for (uint64_t i = 1; i <= 5; ++i) {
-        Point P = deterministic_point(i);
+        Point const P = deterministic_point(i);
         char buf[64];
         std::snprintf(buf, sizeof(buf), "-(-P_%llu) == P_%llu",
                       static_cast<unsigned long long>(i),
@@ -143,10 +143,10 @@ static void test_commutativity() {
     printf("\n--- Commutativity: P + Q == Q + P ---\n");
 
     for (uint64_t i = 0; i < 8; ++i) {
-        Point P = deterministic_point(i * 2);
-        Point Q = deterministic_point(i * 2 + 1);
-        Point PQ = P.add(Q);
-        Point QP = Q.add(P);
+        Point const P = deterministic_point(i * 2);
+        Point const Q = deterministic_point(i * 2 + 1);
+        Point const PQ = P.add(Q);
+        Point const QP = Q.add(P);
         char buf[64];
         std::snprintf(buf, sizeof(buf), "P_%llu + Q_%llu == Q_%llu + P_%llu",
                       static_cast<unsigned long long>(i * 2),
@@ -161,12 +161,12 @@ static void test_associativity() {
     printf("\n--- Associativity: (P + Q) + R == P + (Q + R) ---\n");
 
     for (uint64_t i = 0; i < 5; ++i) {
-        Point P = deterministic_point(i * 3);
-        Point Q = deterministic_point(i * 3 + 1);
-        Point R = deterministic_point(i * 3 + 2);
+        Point const P = deterministic_point(i * 3);
+        Point const Q = deterministic_point(i * 3 + 1);
+        Point const R = deterministic_point(i * 3 + 2);
 
-        Point lhs = (P.add(Q)).add(R);
-        Point rhs = P.add(Q.add(R));
+        Point const lhs = (P.add(Q)).add(R);
+        Point const rhs = P.add(Q.add(R));
 
         char buf[80];
         std::snprintf(buf, sizeof(buf), "(P_%llu + Q_%llu) + R_%llu == P_%llu + (Q_%llu + R_%llu)",
@@ -183,11 +183,11 @@ static void test_associativity() {
 static void test_double_equals_add() {
     printf("\n--- Double consistency: 2*P == P + P ---\n");
 
-    Point G = Point::generator();
+    Point const G = Point::generator();
     CHECK(points_equal(G.dbl(), G.add(G)), "2*G == G + G");
 
     for (uint64_t i = 1; i <= 5; ++i) {
-        Point P = deterministic_point(i);
+        Point const P = deterministic_point(i);
         char buf[64];
         std::snprintf(buf, sizeof(buf), "2*P_%llu == P_%llu + P_%llu",
                       static_cast<unsigned long long>(i),
@@ -200,15 +200,15 @@ static void test_double_equals_add() {
 static void test_scalar_ring_distributivity() {
     printf("\n--- Scalar ring: (a + b)*G == a*G + b*G ---\n");
 
-    Point G = Point::generator();
+    Point const G = Point::generator();
 
     for (uint64_t i = 0; i < 8; ++i) {
-        Scalar a = deterministic_scalar(i * 2 + 100);
-        Scalar b = deterministic_scalar(i * 2 + 101);
-        Scalar ab = a + b;
+        Scalar const a = deterministic_scalar(i * 2 + 100);
+        Scalar const b = deterministic_scalar(i * 2 + 101);
+        Scalar const ab = a + b;
 
-        Point lhs = G.scalar_mul(ab);
-        Point rhs = G.scalar_mul(a).add(G.scalar_mul(b));
+        Point const lhs = G.scalar_mul(ab);
+        Point const rhs = G.scalar_mul(a).add(G.scalar_mul(b));
 
         char buf[64];
         std::snprintf(buf, sizeof(buf), "(a_%llu + b_%llu)*G == a_%llu*G + b_%llu*G",
@@ -223,15 +223,15 @@ static void test_scalar_ring_distributivity() {
 static void test_scalar_mul_associativity() {
     printf("\n--- Scalar associativity: (a*b)*G == a*(b*G) ---\n");
 
-    Point G = Point::generator();
+    Point const G = Point::generator();
 
     for (uint64_t i = 0; i < 8; ++i) {
-        Scalar a = deterministic_scalar(i * 2 + 200);
-        Scalar b = deterministic_scalar(i * 2 + 201);
-        Scalar ab = a * b;
+        Scalar const a = deterministic_scalar(i * 2 + 200);
+        Scalar const b = deterministic_scalar(i * 2 + 201);
+        Scalar const ab = a * b;
 
-        Point lhs = G.scalar_mul(ab);
-        Point rhs = G.scalar_mul(b).scalar_mul(a);
+        Point const lhs = G.scalar_mul(ab);
+        Point const rhs = G.scalar_mul(b).scalar_mul(a);
 
         char buf[64];
         std::snprintf(buf, sizeof(buf), "(a_%llu * b_%llu)*G == a_%llu * (b_%llu * G)",
@@ -247,12 +247,12 @@ static void test_distributivity() {
     printf("\n--- Distributivity: k*(P + Q) == k*P + k*Q ---\n");
 
     for (uint64_t i = 0; i < 8; ++i) {
-        Scalar k = deterministic_scalar(i + 300);
-        Point P = deterministic_point(i * 2 + 50);
-        Point Q = deterministic_point(i * 2 + 51);
+        Scalar const k = deterministic_scalar(i + 300);
+        Point const P = deterministic_point(i * 2 + 50);
+        Point const Q = deterministic_point(i * 2 + 51);
 
-        Point lhs = (P.add(Q)).scalar_mul(k);
-        Point rhs = P.scalar_mul(k).add(Q.scalar_mul(k));
+        Point const lhs = (P.add(Q)).scalar_mul(k);
+        Point const rhs = P.scalar_mul(k).add(Q.scalar_mul(k));
 
         char buf[64];
         std::snprintf(buf, sizeof(buf), "k_%llu * (P_%llu + Q_%llu) == k_%llu*P_%llu + k_%llu*Q_%llu",
@@ -271,26 +271,26 @@ static void test_generator_order() {
     printf("\n--- Generator order: n*G == O ---\n");
 
     // secp256k1 order n
-    Scalar n = Scalar::from_hex(
+    Scalar const n = Scalar::from_hex(
         "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141");
-    Point G = Point::generator();
+    Point const G = Point::generator();
 
-    Point nG = G.scalar_mul(n);
+    Point const nG = G.scalar_mul(n);
     CHECK(nG.is_infinity(), "n * G == O (full order)");
 
     // (n-1)*G should NOT be infinity and should equal -G
-    Scalar n_minus_1 = n - Scalar::from_uint64(1);
-    Point nm1G = G.scalar_mul(n_minus_1);
+    Scalar const n_minus_1 = n - Scalar::from_uint64(1);
+    Point const nm1G = G.scalar_mul(n_minus_1);
     CHECK(!nm1G.is_infinity(), "(n-1)*G != O");
     CHECK(points_equal(nm1G, G.negate()), "(n-1)*G == -G");
 
     // 1*G should be G
-    Point oneG = G.scalar_mul(Scalar::from_uint64(1));
+    Point const oneG = G.scalar_mul(Scalar::from_uint64(1));
     CHECK(points_equal(oneG, G), "1*G == G");
 
     // 0*G should be O
-    Scalar zero;  // default constructed = 0
-    Point zeroG = G.scalar_mul(zero);
+    Scalar const zero;  // default constructed = 0
+    Point const zeroG = G.scalar_mul(zero);
     CHECK(zeroG.is_infinity(), "0*G == O");
 }
 
@@ -298,11 +298,11 @@ static void test_sub_consistency() {
     printf("\n--- Subtraction: P - Q == P + (-Q) ---\n");
 
     for (uint64_t i = 0; i < 5; ++i) {
-        Point P = deterministic_point(i * 2 + 400);
-        Point Q = deterministic_point(i * 2 + 401);
+        Point const P = deterministic_point(i * 2 + 400);
+        Point const Q = deterministic_point(i * 2 + 401);
 
         // P - Q via add(negate)
-        Point via_negate = P.add(Q.negate());
+        Point const via_negate = P.add(Q.negate());
 
         // P - Q via scalar: P + (n-1)*Q (equivalent to P + (-Q))
         // We just verify the negate path is consistent
@@ -314,7 +314,7 @@ static void test_sub_consistency() {
                       static_cast<unsigned long long>(i * 2 + 1));
 
         // Verify: (P - Q) + Q == P
-        Point roundtrip = via_negate.add(Q);
+        Point const roundtrip = via_negate.add(Q);
         CHECK(points_equal(roundtrip, P), buf);
     }
 }
@@ -322,13 +322,13 @@ static void test_sub_consistency() {
 static void test_scalar_mul_small_values() {
     printf("\n--- Scalar mul small values: k*G consistency ---\n");
 
-    Point G = Point::generator();
+    Point const G = Point::generator();
     Point acc = Point::infinity();
 
     // Verify 1*G .. 8*G by repeated addition
     for (uint64_t k = 1; k <= 8; ++k) {
         acc = acc.add(G);
-        Point via_mul = G.scalar_mul(Scalar::from_uint64(k));
+        Point const via_mul = G.scalar_mul(Scalar::from_uint64(k));
         char buf[64];
         std::snprintf(buf, sizeof(buf), "%llu*G == G+G+...+G (%llu times)",
                       static_cast<unsigned long long>(k),
@@ -340,15 +340,15 @@ static void test_scalar_mul_small_values() {
 static void test_inplace_consistency() {
     printf("\n--- In-place ops consistency ---\n");
 
-    Point G = Point::generator();
-    Scalar k = deterministic_scalar(500);
-    Point P = G.scalar_mul(k);
-    Point Q = deterministic_point(501);
+    Point const G = Point::generator();
+    Scalar const k = deterministic_scalar(500);
+    Point const P = G.scalar_mul(k);
+    Point const Q = deterministic_point(501);
 
     // add_inplace vs add
     {
         Point p1 = P;
-        Point p2 = P.add(Q);
+        Point const p2 = P.add(Q);
         p1.add_inplace(Q);
         CHECK(points_equal(p1, p2), "add_inplace(Q) == add(Q)");
     }
@@ -356,7 +356,7 @@ static void test_inplace_consistency() {
     // dbl_inplace vs dbl
     {
         Point p1 = P;
-        Point p2 = P.dbl();
+        Point const p2 = P.dbl();
         p1.dbl_inplace();
         CHECK(points_equal(p1, p2), "dbl_inplace() == dbl()");
     }
@@ -364,7 +364,7 @@ static void test_inplace_consistency() {
     // negate_inplace vs negate
     {
         Point p1 = P;
-        Point p2 = P.negate();
+        Point const p2 = P.negate();
         p1.negate_inplace();
         CHECK(points_equal(p1, p2), "negate_inplace() == negate()");
     }
@@ -372,7 +372,7 @@ static void test_inplace_consistency() {
     // next_inplace vs next
     {
         Point p1 = P;
-        Point p2 = P.next();
+        Point const p2 = P.next();
         p1.next_inplace();
         CHECK(points_equal(p1, p2), "next_inplace() == next()");
     }
@@ -380,7 +380,7 @@ static void test_inplace_consistency() {
     // prev_inplace vs prev
     {
         Point p1 = P;
-        Point p2 = P.prev();
+        Point const p2 = P.prev();
         p1.prev_inplace();
         CHECK(points_equal(p1, p2), "prev_inplace() == prev()");
     }
@@ -397,15 +397,15 @@ static void test_inplace_consistency() {
 static void test_dual_scalar_mul() {
     printf("\n--- Dual scalar mul: a*G + b*P ---\n");
 
-    Point G = Point::generator();
+    Point const G = Point::generator();
 
     for (uint64_t i = 0; i < 5; ++i) {
-        Scalar a = deterministic_scalar(i + 600);
-        Scalar b = deterministic_scalar(i + 610);
-        Point P = deterministic_point(i + 620);
+        Scalar const a = deterministic_scalar(i + 600);
+        Scalar const b = deterministic_scalar(i + 610);
+        Point const P = deterministic_point(i + 620);
 
-        Point expected = G.scalar_mul(a).add(P.scalar_mul(b));
-        Point dual = Point::dual_scalar_mul_gen_point(a, b, P);
+        Point const expected = G.scalar_mul(a).add(P.scalar_mul(b));
+        Point const dual = Point::dual_scalar_mul_gen_point(a, b, P);
 
         char buf[64];
         std::snprintf(buf, sizeof(buf), "dual_mul(%llu) == a*G + b*P",

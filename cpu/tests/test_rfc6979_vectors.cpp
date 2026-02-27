@@ -34,8 +34,9 @@ static int tests_passed = 0;
 
 static void print_hex(const char* label, const uint8_t* data, size_t len) {
     printf("    %s: ", label);
-    for (size_t i = 0; i < len; ++i)
+    for (size_t i = 0; i < len; ++i) {
         printf("%02x", data[i]);
+}
     printf("\n");
 }
 
@@ -317,14 +318,14 @@ static void test_ecdsa_verify_roundtrip() {
         auto sig = ecdsa_sign(msg_hash, priv);
 
         // Verify correct
-        bool valid = ecdsa_verify(msg_hash, pub, sig);
+        bool const valid = ecdsa_verify(msg_hash, pub, sig);
         char label[128];
         std::snprintf(label, sizeof(label), "verify roundtrip #%zu", i + 1);
         CHECK(valid, label);
 
         // Verify wrong message fails
         auto wrong_hash = sha256_str("wrong");
-        bool invalid = ecdsa_verify(wrong_hash, pub, sig);
+        bool const invalid = ecdsa_verify(wrong_hash, pub, sig);
         std::snprintf(label, sizeof(label), "wrong msg rejects #%zu", i + 1);
         CHECK(!invalid, label);
     }

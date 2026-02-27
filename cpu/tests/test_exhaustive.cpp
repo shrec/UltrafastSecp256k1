@@ -64,7 +64,7 @@ static bool pt_eq(const PT& a, const PT& b) {
         if (cond) { ++g_pass; }                                 \
         else {                                                  \
             ++g_fail;                                           \
-            std::cerr << "  FAIL: " << msg << '\n';        \
+            std::cerr << "  FAIL: " << (msg) << '\n';        \
         }                                                       \
     } while (0)
 
@@ -73,15 +73,15 @@ static bool pt_eq(const PT& a, const PT& b) {
 // ----------------------------------------------------------------------------
 static void test_closure(unsigned N) {
     std::cout << "  [1] Closure: k*G on curve for k=1.." << N << '\n';
-    PT G = PT::generator();
+    PT const G = PT::generator();
     PT P = G;
     for (unsigned k = 1; k <= N; ++k) {
         CHECK(!P.is_infinity(), "k*G should not be infinity for small k");
         // Verify: y^2 = x^3 + 7 (affine check)
-        FE x = P.x();
-        FE y = P.y();
-        FE lhs = y.square();
-        FE rhs = x.square() * x + FE::from_uint64(7);
+        FE const x = P.x();
+        FE const y = P.y();
+        FE const lhs = y.square();
+        FE const rhs = x.square() * x + FE::from_uint64(7);
         CHECK(lhs == rhs, "k*G not on curve for k=" + std::to_string(k));
         P = P.add(G);
     }
@@ -92,7 +92,7 @@ static void test_closure(unsigned N) {
 // ----------------------------------------------------------------------------
 static void test_additive_consistency(unsigned N) {
     std::cout << "  [2] Additive consistency: k*G + G = (k+1)*G, k=1.." << N << '\n';
-    PT G = PT::generator();
+    PT const G = PT::generator();
     
     // Build reference table: ref[k] = k*G via repeated addition
     std::vector<PT> ref(N + 2);
@@ -104,7 +104,7 @@ static void test_additive_consistency(unsigned N) {
     
     // Verify: ref[k] + G = ref[k+1]
     for (unsigned k = 1; k <= N; ++k) {
-        PT sum = ref[k].add(G);
+        PT const sum = ref[k].add(G);
         CHECK(pt_eq(sum, ref[k + 1]),
               "k*G + G != (k+1)*G for k=" + std::to_string(k));
     }
@@ -115,10 +115,10 @@ static void test_additive_consistency(unsigned N) {
 // ----------------------------------------------------------------------------
 static void test_homomorphism(unsigned N) {
     std::cout << "  [3] Homomorphism: a*G + b*G = (a+b)*G, a,b=1.." << N << '\n';
-    PT G = PT::generator();
+    PT const G = PT::generator();
     
     // Build reference table
-    unsigned M = 2 * N + 1;
+    unsigned const M = 2 * N + 1;
     std::vector<PT> ref(M + 1);
     ref[0] = PT::infinity();
     ref[1] = G;
@@ -127,12 +127,12 @@ static void test_homomorphism(unsigned N) {
     }
 
     // Check all pairs (a, b) with step to keep runtime manageable
-    unsigned step = (N > 64) ? N / 32 : 1;
+    unsigned const step = (N > 64) ? N / 32 : 1;
     unsigned checks = 0;
     for (unsigned a = 1; a <= N; a += step) {
         for (unsigned b = 1; b <= N; b += step) {
-            PT lhs = ref[a].add(ref[b]);
-            PT rhs = ref[a + b];
+            PT const lhs = ref[a].add(ref[b]);
+            PT const rhs = ref[a + b];
             CHECK(pt_eq(lhs, rhs),
                   "a*G + b*G != (a+b)*G for a=" + std::to_string(a) +
                   ", b=" + std::to_string(b));
@@ -147,12 +147,12 @@ static void test_homomorphism(unsigned N) {
 // ----------------------------------------------------------------------------
 static void test_scalar_mul_consistency(unsigned N) {
     std::cout << "  [4] Scalar mul: scalar_mul(k) vs iterated add, k=1.." << N << '\n';
-    PT G = PT::generator();
+    PT const G = PT::generator();
     PT iterP = G;
     
     for (unsigned k = 1; k <= N; ++k) {
-        SC s = SC::from_uint64(k);
-        PT mulP = G.scalar_mul(s);
+        SC const s = SC::from_uint64(k);
+        PT const mulP = G.scalar_mul(s);
         CHECK(pt_eq(mulP, iterP),
               "scalar_mul(" + std::to_string(k) + ") != iterated add");
         iterP = iterP.add(G);
@@ -164,7 +164,7 @@ static void test_scalar_mul_consistency(unsigned N) {
 // ----------------------------------------------------------------------------
 static void test_scalar_associativity() {
     std::cout << "  [5] Scalar associativity: k*(l*G) = (k*l)*G" << '\n';
-    PT G = PT::generator();
+    PT const G = PT::generator();
     
     // Test with selected (k, l) pairs
     const uint64_t pairs[][2] = {
@@ -173,13 +173,13 @@ static void test_scalar_associativity() {
     };
     
     for (auto& [k, l] : pairs) {
-        SC sk = SC::from_uint64(k);
-        SC sl = SC::from_uint64(l);
-        SC skl = sk * sl;
+        SC const sk = SC::from_uint64(k);
+        SC const sl = SC::from_uint64(l);
+        SC const skl = sk * sl;
         
-        PT lG = G.scalar_mul(sl);
-        PT klG_left = lG.scalar_mul(sk);
-        PT klG_right = G.scalar_mul(skl);
+        PT const lG = G.scalar_mul(sl);
+        PT const klG_left = lG.scalar_mul(sk);
+        PT const klG_right = G.scalar_mul(skl);
         
         CHECK(pt_eq(klG_left, klG_right),
               "k*(l*G) != (k*l)*G for k=" + std::to_string(k) +
@@ -192,8 +192,8 @@ static void test_scalar_associativity() {
 // ----------------------------------------------------------------------------
 static void test_point_addition_axioms() {
     std::cout << "  [6] Addition axioms: assoc, commut, identity, inverse" << '\n';
-    PT G = PT::generator();
-    PT O = PT::infinity();
+    PT const G = PT::generator();
+    PT const O = PT::infinity();
     
     // Generate several distinct points
     std::vector<PT> pts;
@@ -206,8 +206,8 @@ static void test_point_addition_axioms() {
     // Commutativity: A + B = B + A
     for (std::size_t i = 0; i < 16; ++i) {
         for (std::size_t j = i + 1; j < 16; j += 3) {
-            PT ab = pts[i].add(pts[j]);
-            PT ba = pts[j].add(pts[i]);
+            PT const ab = pts[i].add(pts[j]);
+            PT const ba = pts[j].add(pts[i]);
             CHECK(pt_eq(ab, ba), "commutativity failed i=" + std::to_string(i) +
                                  " j=" + std::to_string(j));
         }
@@ -217,8 +217,8 @@ static void test_point_addition_axioms() {
     for (std::size_t i = 0; i < 8; ++i) {
         for (std::size_t j = i + 1; j < 16; j += 3) {
             for (std::size_t k = j + 1; k < 24; k += 5) {
-                PT ab_c = pts[i].add(pts[j]).add(pts[k]);
-                PT a_bc = pts[i].add(pts[j].add(pts[k]));
+                PT const ab_c = pts[i].add(pts[j]).add(pts[k]);
+                PT const a_bc = pts[i].add(pts[j].add(pts[k]));
                 CHECK(pt_eq(ab_c, a_bc),
                       "associativity failed i=" + std::to_string(i) +
                       " j=" + std::to_string(j) + " k=" + std::to_string(k));
@@ -234,8 +234,8 @@ static void test_point_addition_axioms() {
     
     // Inverse: P + (-P) = O
     for (std::size_t i = 0; i < 8; ++i) {
-        PT neg = pts[i].negate();
-        PT sum = pts[i].add(neg);
+        PT const neg = pts[i].negate();
+        PT const sum = pts[i].add(neg);
         CHECK(sum.is_infinity(), "P + (-P) != O for i=" + std::to_string(i));
     }
 }
@@ -245,12 +245,12 @@ static void test_point_addition_axioms() {
 // ----------------------------------------------------------------------------
 static void test_doubling() {
     std::cout << "  [7] Doubling: 2*P = P + P" << '\n';
-    PT G = PT::generator();
+    PT const G = PT::generator();
     PT P = G;
     
     for (int i = 0; i < 64; ++i) {
-        PT dbl = P.dbl();
-        PT add = P.add(P);
+        PT const dbl = P.dbl();
+        PT const add = P.add(P);
         CHECK(pt_eq(dbl, add), "dbl != add for i=" + std::to_string(i));
         P = P.add(G);
     }
@@ -261,26 +261,26 @@ static void test_doubling() {
 // ----------------------------------------------------------------------------
 static void test_order() {
     std::cout << "  [8] Curve order: n*G = O, (n-1)*G = -G" << '\n';
-    PT G = PT::generator();
+    PT const G = PT::generator();
     
     // n = group order of secp256k1
-    SC n = SC::from_hex("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141");
-    PT nG = G.scalar_mul(n);
+    SC const n = SC::from_hex("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141");
+    PT const nG = G.scalar_mul(n);
     CHECK(nG.is_infinity(), "n*G != O (must be identity)");
     
     // (n-1)*G should equal -G
-    SC n_minus_1 = n - SC::one();
-    PT n1G = G.scalar_mul(n_minus_1);
-    PT negG = G.negate();
+    SC const n_minus_1 = n - SC::one();
+    PT const n1G = G.scalar_mul(n_minus_1);
+    PT const negG = G.negate();
     CHECK(pt_eq(n1G, negG), "(n-1)*G != -G");
     
     // 0*G = O
-    SC zero = SC::zero();
-    PT zeroG = G.scalar_mul(zero);
+    SC const zero = SC::zero();
+    PT const zeroG = G.scalar_mul(zero);
     CHECK(zeroG.is_infinity(), "0*G != O");
     
     // 1*G = G
-    PT oneG = G.scalar_mul(SC::one());
+    PT const oneG = G.scalar_mul(SC::one());
     CHECK(pt_eq(oneG, G), "1*G != G");
 }
 
@@ -290,30 +290,30 @@ static void test_order() {
 static void test_scalar_arithmetic(unsigned N) {
     std::cout << "  [9] Scalar arithmetic exhaustive, N=" << N << '\n';
     
-    unsigned step = (N > 64) ? N / 32 : 1;
+    unsigned const step = (N > 64) ? N / 32 : 1;
     unsigned checks = 0;
     
     for (unsigned a = 0; a <= N; a += step) {
         for (unsigned b = 0; b <= N; b += step) {
-            SC sa = SC::from_uint64(a);
-            SC sb = SC::from_uint64(b);
+            SC const sa = SC::from_uint64(a);
+            SC const sb = SC::from_uint64(b);
             
             // Addition
-            SC sum = sa + sb;
-            SC expected_sum = SC::from_uint64(a + b);
+            SC const sum = sa + sb;
+            SC const expected_sum = SC::from_uint64(a + b);
             CHECK(sum == expected_sum,
                   "scalar add failed: " + std::to_string(a) + "+" + std::to_string(b));
             
             // Multiplication
-            SC prod = sa * sb;
-            SC expected_prod = SC::from_uint64(static_cast<uint64_t>(a) * b);
+            SC const prod = sa * sb;
+            SC const expected_prod = SC::from_uint64(static_cast<uint64_t>(a) * b);
             CHECK(prod == expected_prod,
                   "scalar mul failed: " + std::to_string(a) + "*" + std::to_string(b));
             
             // Subtraction (for a >= b)
             if (a >= b) {
-                SC diff = sa - sb;
-                SC expected_diff = SC::from_uint64(a - b);
+                SC const diff = sa - sb;
+                SC const expected_diff = SC::from_uint64(a - b);
                 CHECK(diff == expected_diff,
                       "scalar sub failed: " + std::to_string(a) + "-" + std::to_string(b));
             }
@@ -329,12 +329,12 @@ static void test_scalar_arithmetic(unsigned N) {
 // ----------------------------------------------------------------------------
 static void test_ct_consistency(unsigned N) {
     std::cout << "  [10] CT consistency: ct::scalar_mul vs fast::scalar_mul, k=1.." << N << '\n';
-    PT G = PT::generator();
+    PT const G = PT::generator();
     
     for (unsigned k = 1; k <= N; ++k) {
-        SC s = SC::from_uint64(k);
-        PT fast_result = G.scalar_mul(s);
-        PT ct_result = secp256k1::ct::scalar_mul(G, s);
+        SC const s = SC::from_uint64(k);
+        PT const fast_result = G.scalar_mul(s);
+        PT const ct_result = secp256k1::ct::scalar_mul(G, s);
         CHECK(pt_eq(fast_result, ct_result),
               "CT mismatch at k=" + std::to_string(k));
     }
@@ -345,28 +345,28 @@ static void test_ct_consistency(unsigned N) {
 // ----------------------------------------------------------------------------
 static void test_negation() {
     std::cout << "  [11] Negation properties" << '\n';
-    PT G = PT::generator();
+    PT const G = PT::generator();
     
     // -(-P) = P
     PT P = G;
     for (int i = 0; i < 16; ++i) {
-        PT neg = P.negate();
-        PT neg_neg = neg.negate();
+        PT const neg = P.negate();
+        PT const neg_neg = neg.negate();
         CHECK(pt_eq(P, neg_neg), "-(-P) != P at i=" + std::to_string(i));
         P = P.add(G);
     }
     
     // -(O) = O
-    PT O = PT::infinity();
+    PT const O = PT::infinity();
     CHECK(O.negate().is_infinity(), "-(O) != O");
     
     // k*G + (-k)*G = O
     for (unsigned k = 1; k <= 32; ++k) {
-        SC s = SC::from_uint64(k);
-        SC neg_s = s.negate();
-        PT kG = G.scalar_mul(s);
-        PT nkG = G.scalar_mul(neg_s);
-        PT sum = kG.add(nkG);
+        SC const s = SC::from_uint64(k);
+        SC const neg_s = s.negate();
+        PT const kG = G.scalar_mul(s);
+        PT const nkG = G.scalar_mul(neg_s);
+        PT const sum = kG.add(nkG);
         CHECK(sum.is_infinity(), "k*G + (-k)*G != O for k=" + std::to_string(k));
     }
 }
@@ -376,13 +376,13 @@ static void test_negation() {
 // ----------------------------------------------------------------------------
 static void test_inplace() {
     std::cout << "  [12] In-place ops: next/prev/dbl_inplace vs immutable" << '\n';
-    PT G = PT::generator();
+    PT const G = PT::generator();
     
     // next_inplace vs add(G)
     PT p1 = G;
     PT p2 = G;
     for (int i = 0; i < 64; ++i) {
-        PT immutable_next = p1.add(G);
+        PT const immutable_next = p1.add(G);
         p2.next_inplace();
         CHECK(pt_eq(immutable_next, p2),
               "next_inplace mismatch at i=" + std::to_string(i));
@@ -393,7 +393,7 @@ static void test_inplace() {
     p1 = G;
     p2 = G;
     for (int i = 0; i < 32; ++i) {
-        PT immutable_dbl = p1.dbl();
+        PT const immutable_dbl = p1.dbl();
         p2 = p1;
         p2.dbl_inplace();
         CHECK(pt_eq(immutable_dbl, p2),
@@ -407,7 +407,7 @@ static void test_inplace() {
 // ----------------------------------------------------------------------------
 static void test_pippenger() {
     std::cout << "  [13] Pippenger MSM correctness" << '\n';
-    PT G = PT::generator();
+    PT const G = PT::generator();
     
     // Build n random-ish points and scalars
     const int n = 256;
@@ -428,11 +428,11 @@ static void test_pippenger() {
     }
     
     // Pippenger
-    PT pip = secp256k1::pippenger_msm(scalars, points);
+    PT const pip = secp256k1::pippenger_msm(scalars, points);
     CHECK(pt_eq(naive, pip), "Pippenger MSM != naive sum");
     
     // Unified MSM
-    PT unified = secp256k1::msm(scalars, points);
+    PT const unified = secp256k1::msm(scalars, points);
     CHECK(pt_eq(naive, unified), "Unified MSM != naive sum");
     
     // Small n (should use Strauss)
@@ -443,18 +443,18 @@ static void test_pippenger() {
     for (std::size_t i = 0; i < 8; ++i) {
         naive_small = naive_small.add(small_p[i].scalar_mul(small_s[i]));
     }
-    PT msm_small = secp256k1::msm(small_s, small_p);
+    PT const msm_small = secp256k1::msm(small_s, small_p);
     CHECK(pt_eq(naive_small, msm_small), "MSM(n=8) != naive sum");
     
     // Edge: empty
-    PT empty = secp256k1::msm(std::vector<SC>{}, std::vector<PT>{});
+    PT const empty = secp256k1::msm(std::vector<SC>{}, std::vector<PT>{});
     CHECK(empty.is_infinity(), "MSM(empty) != infinity");
     
     // Edge: single
-    SC s1 = SC::from_uint64(42);
-    PT p1 = G;
-    PT single = secp256k1::msm(std::vector<SC>{s1}, std::vector<PT>{p1});
-    PT expected = G.scalar_mul(s1);
+    SC const s1 = SC::from_uint64(42);
+    PT const p1 = G;
+    PT const single = secp256k1::msm(std::vector<SC>{s1}, std::vector<PT>{p1});
+    PT const expected = G.scalar_mul(s1);
     CHECK(pt_eq(single, expected), "MSM(n=1) != scalar_mul");
 }
 
@@ -463,7 +463,7 @@ static void test_pippenger() {
 // ----------------------------------------------------------------------------
 static void test_comb_gen() {
     std::cout << "  [14] Comb generator: comb_mul(k) vs k*G" << '\n';
-    PT G = PT::generator();
+    PT const G = PT::generator();
     
     // Init with small teeth for fast test
     secp256k1::fast::CombGenContext ctx;
@@ -473,35 +473,35 @@ static void test_comb_gen() {
     
     // Test small scalars
     for (unsigned k = 1; k <= 128; ++k) {
-        SC s = SC::from_uint64(k);
-        PT comb_result = ctx.mul(s);
-        PT expected = G.scalar_mul(s);
+        SC const s = SC::from_uint64(k);
+        PT const comb_result = ctx.mul(s);
+        PT const expected = G.scalar_mul(s);
         CHECK(pt_eq(comb_result, expected),
               "comb_mul(" + std::to_string(k) + ") != k*G");
     }
     
     // Test CT version for a subset
     for (unsigned k = 1; k <= 16; ++k) {
-        SC s = SC::from_uint64(k);
-        PT ct_result = ctx.mul_ct(s);
-        PT expected = G.scalar_mul(s);
+        SC const s = SC::from_uint64(k);
+        PT const ct_result = ctx.mul_ct(s);
+        PT const expected = G.scalar_mul(s);
         CHECK(pt_eq(ct_result, expected),
               "comb_mul_ct(" + std::to_string(k) + ") != k*G");
     }
     
     // Test larger scalars
-    SC large = SC::from_hex("DEADBEEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF01234567");
-    PT comb_large = ctx.mul(large);
-    PT expected_large = G.scalar_mul(large);
+    SC const large = SC::from_hex("DEADBEEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF01234567");
+    PT const comb_large = ctx.mul(large);
+    PT const expected_large = G.scalar_mul(large);
     CHECK(pt_eq(comb_large, expected_large), "comb_mul(large) != large*G");
     
     // Test global singleton
     secp256k1::fast::init_comb_gen(6);
     CHECK(secp256k1::fast::comb_gen_ready(), "Global comb gen not ready");
     
-    SC s42 = SC::from_uint64(42);
-    PT global_result = secp256k1::fast::comb_gen_mul(s42);
-    PT expected42 = G.scalar_mul(s42);
+    SC const s42 = SC::from_uint64(42);
+    PT const global_result = secp256k1::fast::comb_gen_mul(s42);
+    PT const expected42 = G.scalar_mul(s42);
     CHECK(pt_eq(global_result, expected42), "global comb_gen_mul(42) != 42*G");
 }
 
@@ -521,9 +521,9 @@ int run_exhaustive_tests() {
     g_fail = 0;
     
     // Parameters (N controls exhaustive range)
-    unsigned N = 256;       // k range for single-variable tests
-    unsigned N_pair = 128;  // k range for pair tests
-    unsigned N_ct = 64;     // k range for CT (slower)
+    unsigned const N = 256;       // k range for single-variable tests
+    unsigned const N_pair = 128;  // k range for pair tests
+    unsigned const N_ct = 64;     // k range for CT (slower)
     
     test_closure(N);
     test_additive_consistency(N);
