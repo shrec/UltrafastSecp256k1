@@ -262,32 +262,39 @@ $(document).ready(function(){initNavTree('point_8hpp_source.html',''); initResiz
 <div class="line"><a id="l00159" name="l00159"></a><span class="lineno">  159</span><span class="preprocessor">#if defined(SECP256K1_FAST_52BIT)</span></div>
 <div class="line"><a id="l00160" name="l00160"></a><span class="lineno">  160</span>    <span class="comment">// Zero-conversion constructor: directly initializes FE52 members</span></div>
 <div class="line"><a id="l00161" name="l00161"></a><span class="lineno">  161</span>    <a class="code hl_function" href="classsecp256k1_1_1fast_1_1Point.html#ab19e0f8f8713ccf500103a167315896e">Point</a>(<span class="keyword">const</span> <a class="code hl_struct" href="structsecp256k1_1_1fast_1_1FieldElement52.html">FieldElement52</a>&amp; <a class="code hl_function" href="classsecp256k1_1_1fast_1_1Point.html#a9fac69f2a5fe229eb3bd933577eda9a4">x</a>, <span class="keyword">const</span> <a class="code hl_struct" href="structsecp256k1_1_1fast_1_1FieldElement52.html">FieldElement52</a>&amp; <a class="code hl_function" href="classsecp256k1_1_1fast_1_1Point.html#aa1c473d6c48e571884b379ca1859c23c">y</a>, <span class="keyword">const</span> <a class="code hl_struct" href="structsecp256k1_1_1fast_1_1FieldElement52.html">FieldElement52</a>&amp; <a class="code hl_function" href="classsecp256k1_1_1fast_1_1Point.html#aa775c3b7871aa652fb9574c29db6c17d">z</a>, <span class="keywordtype">bool</span> <a class="code hl_function" href="classsecp256k1_1_1fast_1_1Point.html#ae04bdd076cb60aef576a5fe34bb55699">infinity</a>, <span class="keywordtype">bool</span> <a class="code hl_function" href="classsecp256k1_1_1fast_1_1Point.html#a55d704d0641c6b31baf285adc14bcb8b">is_gen</a>);</div>
-<div class="line"><a id="l00162" name="l00162"></a><span class="lineno">  162</span><span class="preprocessor">#endif</span></div>
-<div class="line"><a id="l00163" name="l00163"></a><span class="lineno">  163</span> </div>
-<div class="line"><a id="l00164" name="l00164"></a><span class="lineno">  164</span><span class="preprocessor">#if defined(SECP256K1_FAST_52BIT)</span></div>
-<div class="line"><a id="l00165" name="l00165"></a><span class="lineno">  165</span>    <a class="code hl_struct" href="structsecp256k1_1_1fast_1_1FieldElement52.html">FieldElement52</a> x_;</div>
-<div class="line"><a id="l00166" name="l00166"></a><span class="lineno">  166</span>    <a class="code hl_struct" href="structsecp256k1_1_1fast_1_1FieldElement52.html">FieldElement52</a> y_;</div>
-<div class="line"><a id="l00167" name="l00167"></a><span class="lineno">  167</span>    <a class="code hl_struct" href="structsecp256k1_1_1fast_1_1FieldElement52.html">FieldElement52</a> z_;</div>
-<div class="line"><a id="l00168" name="l00168"></a><span class="lineno">  168</span><span class="preprocessor">#else</span></div>
-<div class="line"><a id="l00169" name="l00169"></a><span class="lineno">  169</span>    <a class="code hl_class" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a> x_;</div>
-<div class="line"><a id="l00170" name="l00170"></a><span class="lineno">  170</span>    <a class="code hl_class" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a> y_;</div>
-<div class="line"><a id="l00171" name="l00171"></a><span class="lineno">  171</span>    <a class="code hl_class" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a> z_;</div>
-<div class="line"><a id="l00172" name="l00172"></a><span class="lineno">  172</span><span class="preprocessor">#endif</span></div>
-<div class="line"><a id="l00173" name="l00173"></a><span class="lineno">  173</span>    <span class="keywordtype">bool</span> infinity_;</div>
-<div class="line"><a id="l00174" name="l00174"></a><span class="lineno">  174</span>    <span class="keywordtype">bool</span> is_generator_;</div>
-<div class="line"><a id="l00175" name="l00175"></a><span class="lineno">  175</span>};</div>
+<div class="line"><a id="l00162" name="l00162"></a><span class="lineno">  162</span> </div>
+<div class="line"><a id="l00163" name="l00163"></a><span class="lineno">  163</span>    <span class="comment">// Convert z_ (FE52) -&gt; normalized FieldElement + check for zero.</span></div>
+<div class="line"><a id="l00164" name="l00164"></a><span class="lineno">  164</span>    <span class="comment">// Returns true if z is nonzero (normal case); false if z is zero.</span></div>
+<div class="line"><a id="l00165" name="l00165"></a><span class="lineno">  165</span>    <span class="comment">// On true: out_z_fe contains the normalized 4x64 FieldElement.</span></div>
+<div class="line"><a id="l00166" name="l00166"></a><span class="lineno">  166</span>    <span class="comment">// Used by x(), y(), to_compressed(), to_uncompressed(), has_even_y(),</span></div>
+<div class="line"><a id="l00167" name="l00167"></a><span class="lineno">  167</span>    <span class="comment">// x_bytes_and_parity() to avoid duplicating the defensive Z=0 guard.</span></div>
+<div class="line"><a id="l00168" name="l00168"></a><span class="lineno">  168</span>    <span class="keywordtype">bool</span> z_fe_nonzero(<a class="code hl_class" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a>&amp; out_z_fe) <span class="keyword">const</span> <span class="keyword">noexcept</span>;</div>
+<div class="line"><a id="l00169" name="l00169"></a><span class="lineno">  169</span><span class="preprocessor">#endif</span></div>
+<div class="line"><a id="l00170" name="l00170"></a><span class="lineno">  170</span> </div>
+<div class="line"><a id="l00171" name="l00171"></a><span class="lineno">  171</span><span class="preprocessor">#if defined(SECP256K1_FAST_52BIT)</span></div>
+<div class="line"><a id="l00172" name="l00172"></a><span class="lineno">  172</span>    <a class="code hl_struct" href="structsecp256k1_1_1fast_1_1FieldElement52.html">FieldElement52</a> x_;</div>
+<div class="line"><a id="l00173" name="l00173"></a><span class="lineno">  173</span>    <a class="code hl_struct" href="structsecp256k1_1_1fast_1_1FieldElement52.html">FieldElement52</a> y_;</div>
+<div class="line"><a id="l00174" name="l00174"></a><span class="lineno">  174</span>    <a class="code hl_struct" href="structsecp256k1_1_1fast_1_1FieldElement52.html">FieldElement52</a> z_;</div>
+<div class="line"><a id="l00175" name="l00175"></a><span class="lineno">  175</span><span class="preprocessor">#else</span></div>
+<div class="line"><a id="l00176" name="l00176"></a><span class="lineno">  176</span>    <a class="code hl_class" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a> x_;</div>
+<div class="line"><a id="l00177" name="l00177"></a><span class="lineno">  177</span>    <a class="code hl_class" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a> y_;</div>
+<div class="line"><a id="l00178" name="l00178"></a><span class="lineno">  178</span>    <a class="code hl_class" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a> z_;</div>
+<div class="line"><a id="l00179" name="l00179"></a><span class="lineno">  179</span><span class="preprocessor">#endif</span></div>
+<div class="line"><a id="l00180" name="l00180"></a><span class="lineno">  180</span>    <span class="keywordtype">bool</span> infinity_;</div>
+<div class="line"><a id="l00181" name="l00181"></a><span class="lineno">  181</span>    <span class="keywordtype">bool</span> is_generator_;</div>
+<div class="line"><a id="l00182" name="l00182"></a><span class="lineno">  182</span>};</div>
 </div>
-<div class="line"><a id="l00176" name="l00176"></a><span class="lineno">  176</span> </div>
-<div class="line"><a id="l00177" name="l00177"></a><span class="lineno">  177</span><span class="comment">// Self-test: Verify arithmetic correctness with known test vectors</span></div>
-<div class="line"><a id="l00178" name="l00178"></a><span class="lineno">  178</span><span class="comment">// Returns true if all tests pass, false otherwise</span></div>
-<div class="line"><a id="l00179" name="l00179"></a><span class="lineno">  179</span><span class="comment">// Run this after any code changes to ensure math is correct!</span></div>
-<div class="line"><a id="l00180" name="l00180"></a><span class="lineno">  180</span><span class="comment">// Set verbose=true to see detailed output for each test</span></div>
-<div class="line"><a id="l00181" name="l00181"></a><span class="lineno">  181</span><span class="keywordtype">bool</span> <a class="code hl_function" href="namespacesecp256k1_1_1fast.html#aa1ade8639ae8e331731389af48483662">Selftest</a>(<span class="keywordtype">bool</span> verbose = <span class="keyword">false</span>);</div>
-<div class="line"><a id="l00182" name="l00182"></a><span class="lineno">  182</span> </div>
-<div class="line"><a id="l00183" name="l00183"></a><span class="lineno">  183</span>} <span class="comment">// namespace secp256k1::fast</span></div>
-<div class="line"><a id="l00184" name="l00184"></a><span class="lineno">  184</span> </div>
-<div class="line"><a id="l00185" name="l00185"></a><span class="lineno">  185</span> </div>
-<div class="line"><a id="l00186" name="l00186"></a><span class="lineno">  186</span><span class="preprocessor">#endif </span><span class="comment">/* C870F4A3_192C_4B96_9AE6_497D1885C5D9 */</span><span class="preprocessor"></span></div>
+<div class="line"><a id="l00183" name="l00183"></a><span class="lineno">  183</span> </div>
+<div class="line"><a id="l00184" name="l00184"></a><span class="lineno">  184</span><span class="comment">// Self-test: Verify arithmetic correctness with known test vectors</span></div>
+<div class="line"><a id="l00185" name="l00185"></a><span class="lineno">  185</span><span class="comment">// Returns true if all tests pass, false otherwise</span></div>
+<div class="line"><a id="l00186" name="l00186"></a><span class="lineno">  186</span><span class="comment">// Run this after any code changes to ensure math is correct!</span></div>
+<div class="line"><a id="l00187" name="l00187"></a><span class="lineno">  187</span><span class="comment">// Set verbose=true to see detailed output for each test</span></div>
+<div class="line"><a id="l00188" name="l00188"></a><span class="lineno">  188</span><span class="keywordtype">bool</span> <a class="code hl_function" href="namespacesecp256k1_1_1fast.html#aa1ade8639ae8e331731389af48483662">Selftest</a>(<span class="keywordtype">bool</span> verbose = <span class="keyword">false</span>);</div>
+<div class="line"><a id="l00189" name="l00189"></a><span class="lineno">  189</span> </div>
+<div class="line"><a id="l00190" name="l00190"></a><span class="lineno">  190</span>} <span class="comment">// namespace secp256k1::fast</span></div>
+<div class="line"><a id="l00191" name="l00191"></a><span class="lineno">  191</span> </div>
+<div class="line"><a id="l00192" name="l00192"></a><span class="lineno">  192</span> </div>
+<div class="line"><a id="l00193" name="l00193"></a><span class="lineno">  193</span><span class="preprocessor">#endif </span><span class="comment">/* C870F4A3_192C_4B96_9AE6_497D1885C5D9 */</span><span class="preprocessor"></span></div>
 <div class="ttc" id="aclasssecp256k1_1_1fast_1_1FieldElement_html"><div class="ttname"><a href="classsecp256k1_1_1fast_1_1FieldElement.html">secp256k1::fast::FieldElement</a></div><div class="ttdef"><b>Definition</b> <a href="field_8hpp_source.html#l00042">field.hpp:42</a></div></div>
 <div class="ttc" id="aclasssecp256k1_1_1fast_1_1Point_html"><div class="ttname"><a href="classsecp256k1_1_1fast_1_1Point.html">secp256k1::fast::Point</a></div><div class="ttdef"><b>Definition</b> <a href="point_8hpp_source.html#l00041">point.hpp:41</a></div></div>
 <div class="ttc" id="aclasssecp256k1_1_1fast_1_1Point_html_a01fbac924f8decf2b741d081b4f34c3d"><div class="ttname"><a href="classsecp256k1_1_1fast_1_1Point.html#a01fbac924f8decf2b741d081b4f34c3d">secp256k1::fast::Point::from_hex</a></div><div class="ttdeci">static Point from_hex(const std::string &amp;x_hex, const std::string &amp;y_hex)</div></div>
