@@ -1222,6 +1222,12 @@ Point Point::from_jacobian52(const FieldElement52& x, const FieldElement52& y, c
 Point Point::from_affine52(const FieldElement52& x, const FieldElement52& y) {
     return Point(x, y, FieldElement52::one(), false, false);
 }
+
+bool Point::z_fe_nonzero(FieldElement& out_z_fe) const noexcept {
+    out_z_fe = z_.to_fe();  // fully normalizes
+    const auto& zL = out_z_fe.limbs();
+    return SECP256K1_LIKELY((zL[0] | zL[1] | zL[2] | zL[3]) != 0);
+}
 #endif
 
 // Precomputed generator point G in affine coordinates (for fast mixed addition)
@@ -1273,11 +1279,8 @@ FieldElement Point::x() const {
         return FieldElement::zero();
     }
 #if defined(SECP256K1_FAST_52BIT)
-    FieldElement z_fe = z_.to_fe();  // fully normalizes
-    { const auto& zL = z_fe.limbs();
-      if (SECP256K1_UNLIKELY((zL[0] | zL[1] | zL[2] | zL[3]) == 0))
-          return FieldElement::zero();
-    }
+    FieldElement z_fe;
+    if (!z_fe_nonzero(z_fe)) return FieldElement::zero();
     FieldElement z_inv = z_fe.inverse();
     FieldElement z_inv2 = z_inv;
     z_inv2.square_inplace();
@@ -1295,11 +1298,8 @@ FieldElement Point::y() const {
         return FieldElement::zero();
     }
 #if defined(SECP256K1_FAST_52BIT)
-    FieldElement z_fe = z_.to_fe();  // fully normalizes
-    { const auto& zL = z_fe.limbs();
-      if (SECP256K1_UNLIKELY((zL[0] | zL[1] | zL[2] | zL[3]) == 0))
-          return FieldElement::zero();
-    }
+    FieldElement z_fe;
+    if (!z_fe_nonzero(z_fe)) return FieldElement::zero();
     FieldElement z_inv = z_fe.inverse();
     FieldElement z_inv3 = z_inv;
     z_inv3.square_inplace();
@@ -2232,13 +2232,8 @@ std::array<std::uint8_t, 33> Point::to_compressed() const {
     }
     // Compute affine coordinates with a single inversion
 #if defined(SECP256K1_FAST_52BIT)
-    FieldElement z_fe = z_.to_fe();  // fully normalizes
-    // Defensive: if Z reduces to zero treat as infinity
-    { const auto& zL = z_fe.limbs();
-      if (SECP256K1_UNLIKELY((zL[0] | zL[1] | zL[2] | zL[3]) == 0)) {
-          out.fill(0); return out;
-      }
-    }
+    FieldElement z_fe;
+    if (!z_fe_nonzero(z_fe)) { out.fill(0); return out; }
     FieldElement z_inv = z_fe.inverse();
     FieldElement z_inv2 = z_inv;
     z_inv2.square_inplace();
@@ -2266,13 +2261,8 @@ std::array<std::uint8_t, 65> Point::to_uncompressed() const {
     }
     // Compute affine coordinates with a single inversion
 #if defined(SECP256K1_FAST_52BIT)
-    FieldElement z_fe = z_.to_fe();  // fully normalizes
-    // Defensive: if Z reduces to zero treat as infinity
-    { const auto& zL = z_fe.limbs();
-      if (SECP256K1_UNLIKELY((zL[0] | zL[1] | zL[2] | zL[3]) == 0)) {
-          out.fill(0); return out;
-      }
-    }
+    FieldElement z_fe;
+    if (!z_fe_nonzero(z_fe)) { out.fill(0); return out; }
     FieldElement z_inv = z_fe.inverse();
     FieldElement z_inv2 = z_inv;
     z_inv2.square_inplace();
@@ -2297,10 +2287,8 @@ std::array<std::uint8_t, 65> Point::to_uncompressed() const {
 bool Point::has_even_y() const {
     if (infinity_) return false;
 #if defined(SECP256K1_FAST_52BIT)
-    FieldElement z_fe = z_.to_fe();  // fully normalizes
-    { const auto& zL = z_fe.limbs();
-      if (SECP256K1_UNLIKELY((zL[0] | zL[1] | zL[2] | zL[3]) == 0)) return false;
-    }
+    FieldElement z_fe;
+    if (!z_fe_nonzero(z_fe)) return false;
     FieldElement z_inv = z_fe.inverse();
     FieldElement z_inv2 = z_inv;
     z_inv2.square_inplace();
@@ -2319,11 +2307,8 @@ bool Point::has_even_y() const {
 std::pair<std::array<uint8_t, 32>, bool> Point::x_bytes_and_parity() const {
     if (infinity_) return {std::array<uint8_t,32>{}, false};
 #if defined(SECP256K1_FAST_52BIT)
-    FieldElement z_fe = z_.to_fe();  // fully normalizes
-    { const auto& zL = z_fe.limbs();
-      if (SECP256K1_UNLIKELY((zL[0] | zL[1] | zL[2] | zL[3]) == 0))
-          return {std::array<uint8_t,32>{}, false};
-    }
+    FieldElement z_fe;
+    if (!z_fe_nonzero(z_fe)) return {std::array<uint8_t,32>{}, false};
     FieldElement z_inv = z_fe.inverse();
     FieldElement z_inv2 = z_inv;
     z_inv2.square_inplace();

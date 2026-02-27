@@ -159,6 +159,13 @@ private:
 #if defined(SECP256K1_FAST_52BIT)
     // Zero-conversion constructor: directly initializes FE52 members
     Point(const FieldElement52& x, const FieldElement52& y, const FieldElement52& z, bool infinity, bool is_gen);
+
+    // Convert z_ (FE52) -> normalized FieldElement + check for zero.
+    // Returns true if z is nonzero (normal case); false if z is zero.
+    // On true: out_z_fe contains the normalized 4x64 FieldElement.
+    // Used by x(), y(), to_compressed(), to_uncompressed(), has_even_y(),
+    // x_bytes_and_parity() to avoid duplicating the defensive Z=0 guard.
+    bool z_fe_nonzero(FieldElement& out_z_fe) const noexcept;
 #endif
 
 #if defined(SECP256K1_FAST_52BIT)

@@ -802,6 +802,17 @@ if(BUILD_TESTING)
     endif()
     add_test(NAME ecc_properties COMMAND test_ecc_properties_standalone)
 
+    # Point edge-case tests (infinity, Z=0 guards, roundtrip encoding)
+    add_executable(test_point_edge_cases_standalone
+        tests/test_point_edge_cases.cpp
+    )
+    target_link_libraries(test_point_edge_cases_standalone PRIVATE ${SECP256K1_LIB_NAME})
+    target_compile_definitions(test_point_edge_cases_standalone PRIVATE STANDALONE_TEST)
+    if(MSVC OR (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND WIN32))
+        target_link_options(test_point_edge_cases_standalone PRIVATE "LINKER:/STACK:8388608")
+    endif()
+    add_test(NAME point_edge_cases COMMAND test_point_edge_cases_standalone)
+
     # -- Audit infrastructure lives in audit/ ------------------------------
     # All audit-specific targets (unified_audit_runner, standalone CT/fuzz/
     # differential/protocol tests) are defined in ../audit/CMakeLists.txt
