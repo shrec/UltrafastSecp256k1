@@ -18,7 +18,9 @@
 //   audit_report.txt    -- human-readable summary
 // ============================================================================
 
+#ifndef UNIFIED_AUDIT_RUNNER
 #define UNIFIED_AUDIT_RUNNER  // Guard standalone main() in test modules
+#endif
 
 #include "secp256k1/selftest.hpp"
 #include <cstdio>

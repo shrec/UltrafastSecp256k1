@@ -308,6 +308,7 @@ static void test_compact_recovery_serial() {
     printf("[7] Compact recovery serialization (1K)\n");
 
     auto G = Point::generator();
+    (void)G;
 
     for (int i = 0; i < 1000; ++i) {
         auto sk = random_scalar();
@@ -406,6 +407,7 @@ static void test_high_s_rejection() {
     printf("[10] High-S detection\n");
 
     auto G = Point::generator();
+    (void)G;
 
     for (int i = 0; i < 1000; ++i) {
         auto sk = random_scalar();

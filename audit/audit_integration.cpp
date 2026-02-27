@@ -445,7 +445,7 @@ static void test_stress_mixed() {
         uint64_t v = rng();
         std::memcpy(msg.data(), &v, 8);
 
-        int op = rng() % 5;
+        int op = static_cast<int>(rng() % 5);
         switch (op) {
         case 0: { // ECDSA round-trip
             auto sig = secp256k1::ecdsa_sign(msg, sk);

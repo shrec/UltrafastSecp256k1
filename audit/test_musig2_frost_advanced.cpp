@@ -143,10 +143,8 @@ static void test_musig2_rogue_key_resistance() {
 
         // At least one coefficient should not be the trivial "1"
         // (second unique key gets a_i=1 in BIP-327 optimization)
-        bool coeff0_is_one = key_agg.key_coefficients[0].to_bytes() ==
-                             Scalar::one().to_bytes();
-        bool coeff1_is_one = key_agg.key_coefficients[1].to_bytes() ==
-                             Scalar::one().to_bytes();
+        bool coeff0_is_one = coeff0_bytes == Scalar::one().to_bytes();
+        bool coeff1_is_one = coeff1_bytes == Scalar::one().to_bytes();
         // With 2 distinct keys, exactly one gets coefficient 1 (the optimization)
         // The other gets a hash-derived coefficient
         CHECK(!(coeff0_is_one && coeff1_is_one),

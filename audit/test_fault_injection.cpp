@@ -126,6 +126,7 @@ static void test_point_coord_fault() {
         // Get correct result
         Point P2_correct = P.dbl();
         auto correct_bytes = P2_correct.to_compressed();
+        CHECK(correct_bytes[0] == 0x02 || correct_bytes[0] == 0x03, "double result serializes");
 
         // Now corrupt P's serialized form and re-parse
         auto p_uncomp = P.to_uncompressed();

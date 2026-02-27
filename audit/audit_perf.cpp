@@ -64,7 +64,7 @@ struct BenchResult {
         return {name_str, N, us, ns_per}; \
     }()
 
-static void print_result(const BenchResult& r) {
+[[maybe_unused]] static void print_result(const BenchResult& r) {
     double ops_per_sec = (r.total_us > 0) ? (r.iters / (r.total_us / 1e6)) : 0;
     printf("  %-30s %8d iters  %10.1f us  %8.1f ns/op  %10.0f op/s\n",
            r.name, r.iters, r.total_us, r.per_op_ns, ops_per_sec);

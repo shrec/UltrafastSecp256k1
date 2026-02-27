@@ -72,7 +72,7 @@ static const SC K_CONST = SC::from_limbs({
 });
 static const SC S_OFFSET = SC::from_limbs({0, 0, 1, 0});
 
-static void diagnose_scalar(const char* name, const SC& k) {
+[[maybe_unused]] static void diagnose_scalar(const char* name, const SC& k) {
     printf("\n=== DIAGNOSE scalar: %s ===\n", name);
     print_limbs("  k       = ", k);
     

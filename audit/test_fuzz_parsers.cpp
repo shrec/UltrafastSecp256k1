@@ -36,7 +36,7 @@
 
 static int g_pass  = 0;
 static int g_fail  = 0;
-static int g_crash = 0;  // should stay 0
+[[maybe_unused]] static int g_crash = 0;  // should stay 0
 
 #define CHECK(cond, msg) do { \
     if (!(cond)) { \
@@ -152,6 +152,7 @@ static void test_der_adversarial(ufsecp_ctx* ctx) {
         uint8_t zeros[] = {0x30, 0x06, 0x02, 0x01, 0x00, 0x02, 0x01, 0x00};
         // Parser should accept (structural parse OK); verification would fail later
         ufsecp_error_t err = ufsecp_ecdsa_sig_from_der(ctx, zeros, 8, sig64);
+        (void)err;
         // Either accepted or rejected is fine -- no crash
         ++g_pass;
     }

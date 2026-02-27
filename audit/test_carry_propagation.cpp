@@ -42,6 +42,7 @@ static const std::array<uint8_t, 32> P_BYTES = {
     0xFF,0xFF,0xFF,0xFE, 0xFF,0xFF,0xFC,0x2F
 };
 
+[[maybe_unused]]
 static FieldElement fe_from_hex(const char* hex64) {
     std::array<uint8_t, 32> bytes{};
     for (int i = 0; i < 32; ++i) {
@@ -72,6 +73,7 @@ static void test_all_ones() {
     );
     auto zero = FieldElement::zero();
     auto one  = FieldElement::one();
+    CHECK(zero.to_bytes() != one.to_bytes(), "zero != one");
 
     // (2^256 - 1) mod p = 0x1000003D0
     auto expected = FieldElement::from_uint64(0x1000003D0ULL);

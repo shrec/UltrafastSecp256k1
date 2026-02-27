@@ -561,16 +561,18 @@ static void test_timing_variance() {
     for (int i = 0; i < TRIALS; ++i) {
         auto t0 = std::chrono::high_resolution_clock::now();
         volatile auto r = secp256k1::ct::scalar_mul(G, k_low);
+        (void)r;
         auto t1 = std::chrono::high_resolution_clock::now();
-        avg_low += std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count();
+        avg_low += static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count());
     }
     avg_low /= TRIALS;
 
     for (int i = 0; i < TRIALS; ++i) {
         auto t0 = std::chrono::high_resolution_clock::now();
         volatile auto r = secp256k1::ct::scalar_mul(G, k_high);
+        (void)r;
         auto t1 = std::chrono::high_resolution_clock::now();
-        avg_high += std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count();
+        avg_high += static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count());
     }
     avg_high /= TRIALS;
 

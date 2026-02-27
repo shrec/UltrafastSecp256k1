@@ -225,6 +225,7 @@ static void test_boundary_field_elements() {
     // p itself (should reduce to 0)
     auto p_val = FieldElement::from_hex(
         "fffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f");
+    (void)p_val;
 
     // 2^256-1 (larger than p)
     std::array<uint8_t, 32> all_ff{};
@@ -232,6 +233,7 @@ static void test_boundary_field_elements() {
     auto big = FieldElement::from_bytes(all_ff);
     // Should reduce into [0, p)
     auto bytes_out = big.to_bytes();
+    (void)bytes_out;
     // Verify it stores something (not crash)
     CHECK(true, "from_bytes(0xFF*32) succeeds");
 
@@ -309,7 +311,7 @@ static void test_random_op_sequence() {
     auto acc = Point::infinity();
 
     for (int i = 0; i < 10000; ++i) {
-        int op = rng() % 6;
+        int op = static_cast<int>(rng() % 6);
         auto k = random_scalar();
 
         switch (op) {
@@ -361,6 +363,7 @@ static void test_der_roundtrip() {
     printf("[8] DER encoding round-trip (1K)\n");
 
     auto G = Point::generator();
+    (void)G;
 
     for (int i = 0; i < 1000; ++i) {
         auto sk = random_scalar();

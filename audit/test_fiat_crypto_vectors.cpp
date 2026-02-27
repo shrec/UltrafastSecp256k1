@@ -275,6 +275,7 @@ static void test_scalar_vectors() {
 
     auto one = Scalar::from_bytes({0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1});
     auto zero = Scalar::from_bytes({0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0});
+    CHECK(zero.is_zero(), "scalar zero is zero");
 
     // n (the order) reduces to 0
     auto n = scalar_from_hex("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141");
