@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772220233623,
+  "lastUpdate": 1772225495250,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -20492,6 +20492,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Batch Inverse (n=1000)",
             "value": 107,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "Vano Chkheidze",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "bb1967944be5933fa1a04d8573dc93e1055f5b24",
+          "message": "fix: suppress ~550 code scanning alerts (batch 2) (#56)\n\nCategories fixed:\n- objectIndex (64): cppcheck-suppress in sha512.hpp\n- cert-err33-c (159): (void) cast on printf/snprintf/fprintf return values\n- cert-msc32-c (44): NOLINT on intentional constant-seed mt19937 in tests\n- bugprone-implicit-widening (43): static_cast<size_t> on loop counters\n- misc-const-correctness (37): add const to variables where safe\n- shiftTooManyBitsSigned (16): suppress intentional sign-bit arithmetic shifts\n- StackAddressEscape: NOLINTBEGIN in bench_field_26.cpp (benchmark escape idiom)\n- nullPointerRedundantCheck (14): suppress defensive null checks\n- arrayIndexOutOfBoundsCond (6): suppress bounded-loop false positives\n- containerOutOfBounds (2): suppress guarded access false positive\n- uninitMemberVar (2): init buf_ in RIPEMD160 constructors\n- passedByValue (1): pass FieldElement by const ref (field.cpp/field.hpp)\n- AssignmentAddressToInteger (1): fix pointer-to-integer in test_coins.cpp\n\nBuild: 48/48 targets OK (MSVC/Clang)\nTests: 25/25 passed",
+          "timestamp": "2026-02-28T00:50:00+04:00",
+          "tree_id": "19bfccf5d91feb8fb6d91c5c8865724dcf29ee28",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/bb1967944be5933fa1a04d8573dc93e1055f5b24"
+        },
+        "date": 1772225493720,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 27,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 22,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 282,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 149,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 38000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 10000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 14000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 47000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 24000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 53000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 141,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 132,
             "unit": "ns"
           }
         ]
