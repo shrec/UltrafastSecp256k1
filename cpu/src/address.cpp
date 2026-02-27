@@ -29,7 +29,7 @@ public:
         return ctx.finalize();
     }
 
-    RIPEMD160() {
+    RIPEMD160() : buf_{} {
         h_[0] = 0x67452301u; h_[1] = 0xEFCDAB89u;
         h_[2] = 0x98BADCFEu; h_[3] = 0x10325476u;
         h_[4] = 0xC3D2E1F0u;
@@ -78,8 +78,9 @@ private:
     void compress(const std::uint8_t* block) {
         std::uint32_t X[16];
         for (int i = 0; i < 16; ++i) {
-            X[i] = std::uint32_t(block[i*4]) | (std::uint32_t(block[i*4+1])<<8) |
-                   (std::uint32_t(block[i*4+2])<<16) | (std::uint32_t(block[i*4+3])<<24);
+            auto const idx = static_cast<std::size_t>(i) * 4;
+            X[i] = std::uint32_t(block[idx]) | (std::uint32_t(block[idx+1])<<8) |
+                   (std::uint32_t(block[idx+2])<<16) | (std::uint32_t(block[idx+3])<<24);
 }
 
         static constexpr int rl[80] = {
@@ -386,7 +387,7 @@ Bech32DecodeResult bech32_decode(const std::string& addr) {
     values.insert(values.end(), data5.begin(), data5.end());
     std::uint32_t const polymod = bech32_polymod(values);
 
-    Bech32Encoding enc;
+    Bech32Encoding enc = Bech32Encoding::BECH32;  // initialized to satisfy cppcoreguidelines
     if (polymod == 1) { enc = Bech32Encoding::BECH32;
     } else if (polymod == 0x2bc830a3u) { enc = Bech32Encoding::BECH32M;
     } else { return result;

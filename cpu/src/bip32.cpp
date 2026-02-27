@@ -12,7 +12,6 @@ namespace secp256k1 {
 
 using fast::Scalar;
 using fast::Point;
-using fast::FieldElement;
 
 // -- HMAC-SHA512 --------------------------------------------------------------
 
@@ -65,7 +64,7 @@ private:
     uint8_t buf_[64];
     size_t buf_len_;
 
-    RIPEMD160() {
+    RIPEMD160() : buf_{} {
         h_[0] = 0x67452301u; h_[1] = 0xEFCDAB89u;
         h_[2] = 0x98BADCFEu; h_[3] = 0x10325476u;
         h_[4] = 0xC3D2E1F0u;
@@ -184,10 +183,11 @@ private:
 
         uint32_t X[16];
         for (int i = 0; i < 16; ++i) {
-            X[i] = static_cast<uint32_t>(block[i * 4]) |
-                   (static_cast<uint32_t>(block[i * 4 + 1]) << 8) |
-                   (static_cast<uint32_t>(block[i * 4 + 2]) << 16) |
-                   (static_cast<uint32_t>(block[i * 4 + 3]) << 24);
+            auto const idx = static_cast<std::size_t>(i) * 4;
+            X[i] = static_cast<uint32_t>(block[idx]) |
+                   (static_cast<uint32_t>(block[idx + 1]) << 8) |
+                   (static_cast<uint32_t>(block[idx + 2]) << 16) |
+                   (static_cast<uint32_t>(block[idx + 3]) << 24);
         }
 
         uint32_t al = h_[0], bl = h_[1], cl = h_[2], dl = h_[3], el = h_[4];

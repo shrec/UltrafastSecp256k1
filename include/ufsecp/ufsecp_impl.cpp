@@ -59,6 +59,7 @@ static ufsecp_error_t ctx_set_err(ufsecp_ctx* ctx, ufsecp_error_t err, const cha
     if (msg) {
         /* Portable safe copy without MSVC deprecation warning */
         size_t i = 0;
+        /* cppcheck-suppress arrayIndexOutOfBoundsCond ; i bounded by sizeof(last_msg)-1 */
         for (; i < sizeof(ctx->last_msg) - 1 && msg[i]; ++i) {
             ctx->last_msg[i] = msg[i];
 }

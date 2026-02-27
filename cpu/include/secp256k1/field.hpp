@@ -239,7 +239,7 @@ FieldElement pow_p_minus_2_lehmer(FieldElement base);
 FieldElement pow_p_minus_2_stein(FieldElement base);
 FieldElement pow_p_minus_2_secp256k1_special(FieldElement base);
 FieldElement pow_p_minus_2_warp_optimized(FieldElement base);
-FieldElement pow_p_minus_2_double_base(FieldElement base);
+FieldElement pow_p_minus_2_double_base(const FieldElement& base);
 FieldElement pow_p_minus_2_compact_table(FieldElement base);
 
 // Wrapper functions

@@ -48,13 +48,13 @@ struct BenchResult {
 };
 
 static void print_header() {
-    std::printf("\n");
-    std::printf("=================================================================\n");
-    std::printf("  FieldElement (4x64) vs FieldElement52 (5x52) Benchmark\n");
-    std::printf("=================================================================\n");
+    (void)std::printf("\n");
+    (void)std::printf("=================================================================\n");
+    (void)std::printf("  FieldElement (4x64) vs FieldElement52 (5x52) Benchmark\n");
+    (void)std::printf("=================================================================\n");
     H.print_config();
-    std::printf("\n%-36s %10s %10s %10s\n", "Operation", "4x64 (ns)", "5x52 (ns)", "Ratio");
-    std::printf("%-36s %10s %10s %10s\n", "------------------------------------",
+    (void)std::printf("\n%-36s %10s %10s %10s\n", "Operation", "4x64 (ns)", "5x52 (ns)", "Ratio");
+    (void)std::printf("%-36s %10s %10s %10s\n", "------------------------------------",
                 "----------", "----------", "----------");
 }
 
@@ -62,12 +62,12 @@ static void print_result(const BenchResult& r) {
     double const ratio = r.ns_4x64 / r.ns_5x52;
     const char* indicator = (ratio > 1.05) ? " <-- 5x52 wins" :
                             (ratio < 0.95) ? " <-- 4x64 wins" : "";
-    std::printf("%-36s %9.2f  %9.2f  %8.3fx%s\n",
+    (void)std::printf("%-36s %9.2f  %9.2f  %8.3fx%s\n",
                 r.name, r.ns_4x64, r.ns_5x52, ratio, indicator);
 }
 
 static void print_separator(const char* section) {
-    std::printf("\n--- %s ---\n", section);
+    (void)std::printf("\n--- %s ---\n", section);
 }
 
 // =============================================================================
@@ -75,9 +75,9 @@ static void print_separator(const char* section) {
 // =============================================================================
 
 int main() {
-    std::printf("[bench_field_52] Running arithmetic validation...\n");
+    (void)std::printf("[bench_field_52] Running arithmetic validation...\n");
     secp256k1::fast::Selftest(false);
-    std::printf("[bench_field_52] Validation OK\n");
+    (void)std::printf("[bench_field_52] Validation OK\n");
 
     bench::pin_thread_and_elevate();
 
@@ -167,8 +167,8 @@ int main() {
             bench::DoNotOptimize(tmp);
         });
 
-        std::printf("%-36s %9s  %9.2f\n", "Normalize (weak, 5x52 only)", "N/A", ns5_weak);
-        std::printf("%-36s %9s  %9.2f\n", "Normalize (full, 5x52 only)", "N/A", ns5_full);
+        (void)std::printf("%-36s %9s  %9.2f\n", "Normalize (weak, 5x52 only)", "N/A", ns5_weak);
+        (void)std::printf("%-36s %9s  %9.2f\n", "Normalize (full, 5x52 only)", "N/A", ns5_full);
     }
 
     // -- 5. Negation ----------------------------------------------------------
@@ -200,7 +200,7 @@ int main() {
             bench::DoNotOptimize(r5);
         });
 
-        std::printf("%-36s %9s  %9.2f\n", "Half (5x52 only)", "N/A", ns5);
+        (void)std::printf("%-36s %9s  %9.2f\n", "Half (5x52 only)", "N/A", ns5);
     }
 
     // -- 7. Conversion cost ---------------------------------------------------
@@ -219,8 +219,8 @@ int main() {
             bench::DoNotOptimize(r4);
         });
 
-        std::printf("%-36s %9s  %9.2f\n", "Convert 4x64 -> 5x52", "N/A", ns_to52);
-        std::printf("%-36s %9.2f  %9s\n", "Convert 5x52 -> 4x64", ns_to4, "N/A");
+        (void)std::printf("%-36s %9s  %9.2f\n", "Convert 4x64 -> 5x52", "N/A", ns_to52);
+        (void)std::printf("%-36s %9.2f  %9s\n", "Convert 5x52 -> 4x64", ns_to4, "N/A");
     }
 
     // =========================================================================
@@ -253,7 +253,7 @@ int main() {
         });
 
         char name[64];
-        std::snprintf(name, sizeof(name), "Add chain (%d adds + norm)", chain_len);
+        (void)std::snprintf(name, sizeof(name), "Add chain (%d adds + norm)", chain_len);
         print_result({name, ns4, ns5});
     }
 
@@ -267,7 +267,7 @@ int main() {
 
         // 4x64 version
         double const ns4 = H.run(ITERS, [&]() {
-            FieldElement t0 = fe_a, t1 = fe_b;
+            FieldElement const t0 = fe_a, t1 = fe_b;
             // Simulate point-add field ops
             FieldElement const u1 = t0 * t1;
             FieldElement const u2 = t1.square();
@@ -286,7 +286,7 @@ int main() {
 
         // 5x52 version
         double const ns5 = H.run(ITERS, [&]() {
-            FieldElement52 t0 = fe52_a, t1 = fe52_b;
+            FieldElement52 const t0 = fe52_a, t1 = fe52_b;
             FieldElement52 const u1 = t0 * t1;
             FieldElement52 const u2 = t1.square();
             FieldElement52 const s1 = u1 + u2;          // lazy add
@@ -402,7 +402,7 @@ int main() {
         double const mul4_mops = 1000.0 / mul4_ns;
         double const mul5_mops = 1000.0 / mul5_ns;
 
-        std::printf("%-36s %7.2f M/s  %7.2f M/s  %6.3fx\n",
+        (void)std::printf("%-36s %7.2f M/s  %7.2f M/s  %6.3fx\n",
                     "Multiplication throughput",
                     mul4_mops, mul5_mops, mul5_mops / mul4_mops);
 
@@ -420,7 +420,7 @@ int main() {
         double const add4_mops = 1000.0 / add4_ns;
         double const add5_mops = 1000.0 / add5_ns;
 
-        std::printf("%-36s %7.2f M/s  %7.2f M/s  %6.3fx\n",
+        (void)std::printf("%-36s %7.2f M/s  %7.2f M/s  %6.3fx\n",
                     "Addition throughput",
                     add4_mops, add5_mops, add5_mops / add4_mops);
 
@@ -438,16 +438,16 @@ int main() {
         double const sqr4_mops = 1000.0 / sqr4_ns;
         double const sqr5_mops = 1000.0 / sqr5_ns;
 
-        std::printf("%-36s %7.2f M/s  %7.2f M/s  %6.3fx\n",
+        (void)std::printf("%-36s %7.2f M/s  %7.2f M/s  %6.3fx\n",
                     "Squaring throughput",
                     sqr4_mops, sqr5_mops, sqr5_mops / sqr4_mops);
     }
 
-    std::printf("\n=================================================================\n");
-    std::printf("  Legend: Ratio = 4x64_time / 5x52_time  (>1 = 5x52 faster)\n");
-    std::printf("  5x52 advantage: add chains (lazy), fewer carries\n");
-    std::printf("  4x64 advantage: fewer limbs for mul (4 vs 5), no conversion\n");
-    std::printf("=================================================================\n\n");
+    (void)std::printf("\n=================================================================\n");
+    (void)std::printf("  Legend: Ratio = 4x64_time / 5x52_time  (>1 = 5x52 faster)\n");
+    (void)std::printf("  5x52 advantage: add chains (lazy), fewer carries\n");
+    (void)std::printf("  4x64 advantage: fewer limbs for mul (4 vs 5), no conversion\n");
+    (void)std::printf("=================================================================\n\n");
 
     return 0;
 }

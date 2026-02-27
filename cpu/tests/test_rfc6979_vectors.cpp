@@ -33,11 +33,11 @@ static int tests_passed = 0;
 // -- Hex helpers (allocation-free) -------------------------------------------
 
 static void print_hex(const char* label, const uint8_t* data, size_t len) {
-    printf("    %s: ", label);
+    (void)printf("    %s: ", label);
     for (size_t i = 0; i < len; ++i) {
-        printf("%02x", data[i]);
+        (void)printf("%02x", data[i]);
 }
-    printf("\n");
+    (void)printf("\n");
 }
 
 // -- SHA-256 of ASCII string --------------------------------------------------
@@ -56,7 +56,7 @@ static bool scalar_eq_hex(const Scalar& got, const char* expected_hex,
     // Diagnostic on mismatch
     auto got_bytes = got.to_bytes();
     auto exp_bytes = expected.to_bytes();
-    printf("    MISMATCH in %s:\n", label);
+    (void)printf("    MISMATCH in %s:\n", label);
     print_hex("expected", exp_bytes.data(), 32);
     print_hex("got     ", got_bytes.data(), 32);
     return false;
@@ -70,7 +70,7 @@ static bool scalar_eq_hex(const Scalar& got, const char* expected_hex,
 // ============================================================================
 
 static void test_rfc6979_nonce_vectors() {
-    printf("\n--- RFC 6979 Nonce Generation (secp256k1 + SHA-256) ---\n");
+    (void)printf("\n--- RFC 6979 Nonce Generation (secp256k1 + SHA-256) ---\n");
 
     // Vector 1: d=fee0...be1e, msg="test data"
     {
@@ -154,7 +154,7 @@ static void test_rfc6979_nonce_vectors() {
 // ============================================================================
 
 static void test_ecdsa_sign_vectors() {
-    printf("\n--- ECDSA Signature Vectors (secp256k1 + SHA-256) ---\n");
+    (void)printf("\n--- ECDSA Signature Vectors (secp256k1 + SHA-256) ---\n");
 
     // Vector 1: d=1, msg="Everything should be made as simple..."
     {
@@ -290,7 +290,7 @@ static void test_ecdsa_sign_vectors() {
 // ============================================================================
 
 static void test_ecdsa_verify_roundtrip() {
-    printf("\n--- ECDSA Verify Roundtrip ---\n");
+    (void)printf("\n--- ECDSA Verify Roundtrip ---\n");
 
     struct SignVerifyVec {
         const char* d_hex;
@@ -338,7 +338,7 @@ static void test_ecdsa_verify_roundtrip() {
 // ============================================================================
 
 static void test_ecdsa_determinism() {
-    printf("\n--- ECDSA Determinism ---\n");
+    (void)printf("\n--- ECDSA Determinism ---\n");
 
     auto priv = Scalar::from_hex(
         "e8f32e723decf4051aefac8e2c93c9c5b214313817cdb01a1494b917c8436b35");
@@ -367,18 +367,18 @@ static void test_ecdsa_determinism() {
 // ============================================================================
 
 int test_rfc6979_vectors_run() {
-    printf("================================================================\n");
-    printf("  RFC 6979 Deterministic ECDSA Test Vectors (secp256k1)\n");
-    printf("================================================================\n");
+    (void)printf("================================================================\n");
+    (void)printf("  RFC 6979 Deterministic ECDSA Test Vectors (secp256k1)\n");
+    (void)printf("================================================================\n");
 
     test_rfc6979_nonce_vectors();
     test_ecdsa_sign_vectors();
     test_ecdsa_verify_roundtrip();
     test_ecdsa_determinism();
 
-    printf("\n================================================================\n");
-    printf("  Results: %d / %d passed\n", tests_passed, tests_run);
-    printf("================================================================\n");
+    (void)printf("\n================================================================\n");
+    (void)printf("  Results: %d / %d passed\n", tests_passed, tests_run);
+    (void)printf("================================================================\n");
 
     return (tests_passed == tests_run) ? 0 : 1;
 }

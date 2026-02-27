@@ -13,7 +13,7 @@ using namespace secp256k1::fast;
 
 static std::vector<Scalar> gen_scalars(size_t count) {
     std::vector<Scalar> out; out.reserve(count);
-    std::mt19937_64 rng(0xC0FFEEULL);
+    std::mt19937_64 rng(0xC0FFEEULL);  // NOLINT(cert-msc32-c,cert-msc51-cpp)
     for (size_t i = 0; i < count; ++i) {
         std::array<std::uint8_t, 32> b{};
         for (size_t j = 0; j < 4; ++j) {

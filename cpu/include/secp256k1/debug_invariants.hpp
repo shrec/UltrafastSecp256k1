@@ -151,7 +151,7 @@ struct DebugCounters {
     uint64_t invariant_check_count = 0;
     
     void report() const noexcept {
-        std::fprintf(stderr,
+        (void)std::fprintf(stderr,
             "[DEBUG COUNTERS]\n"
             "  field_mul:   %llu\n"
             "  field_sqr:   %llu\n"
@@ -179,7 +179,7 @@ inline DebugCounters& counters() noexcept {
 
 #define SECP_ASSERT(expr) do { \
     if (!(expr)) { \
-        std::fprintf(stderr, \
+        (void)std::fprintf(stderr, \
             "SECP_ASSERT FAILED: %s\n  at %s:%d (%s)\n", \
             #expr, __FILE__, __LINE__, __func__); \
         std::abort(); \
@@ -188,7 +188,7 @@ inline DebugCounters& counters() noexcept {
 
 #define SECP_ASSERT_MSG(expr, msg) do { \
     if (!(expr)) { \
-        std::fprintf(stderr, \
+        (void)std::fprintf(stderr, \
             "SECP_ASSERT FAILED: %s\n  %s\n  at %s:%d (%s)\n", \
             #expr, msg, __FILE__, __LINE__, __func__); \
         std::abort(); \
@@ -198,11 +198,11 @@ inline DebugCounters& counters() noexcept {
 #define SECP_ASSERT_NORMALIZED(fe) do { \
     ++secp256k1::fast::debug::counters().invariant_check_count; \
     if (!secp256k1::fast::debug::is_normalized_field_element(fe)) { \
-        std::fprintf(stderr, \
+        (void)std::fprintf(stderr, \
             "SECP_ASSERT_NORMALIZED FAILED: field element not canonical\n" \
             "  at %s:%d (%s)\n", __FILE__, __LINE__, __func__); \
         const auto& _l = (fe).limbs(); \
-        std::fprintf(stderr, "  limbs: [%016llx, %016llx, %016llx, %016llx]\n", \
+        (void)std::fprintf(stderr, "  limbs: [%016llx, %016llx, %016llx, %016llx]\n", \
             (unsigned long long)_l[0], (unsigned long long)_l[1], \
             (unsigned long long)_l[2], (unsigned long long)_l[3]); \
         std::abort(); \
@@ -212,7 +212,7 @@ inline DebugCounters& counters() noexcept {
 #define SECP_ASSERT_ON_CURVE(pt) do { \
     ++secp256k1::fast::debug::counters().invariant_check_count; \
     if (!secp256k1::fast::debug::is_on_curve(pt)) { \
-        std::fprintf(stderr, \
+        (void)std::fprintf(stderr, \
             "SECP_ASSERT_ON_CURVE FAILED: point not on secp256k1\n" \
             "  at %s:%d (%s)\n", __FILE__, __LINE__, __func__); \
         std::abort(); \
@@ -222,7 +222,7 @@ inline DebugCounters& counters() noexcept {
 #define SECP_ASSERT_SCALAR_VALID(s) do { \
     ++secp256k1::fast::debug::counters().invariant_check_count; \
     if (!secp256k1::fast::debug::is_valid_scalar(s)) { \
-        std::fprintf(stderr, \
+        (void)std::fprintf(stderr, \
             "SECP_ASSERT_SCALAR_VALID FAILED: scalar is zero\n" \
             "  at %s:%d (%s)\n", __FILE__, __LINE__, __func__); \
         std::abort(); \
@@ -233,7 +233,7 @@ inline DebugCounters& counters() noexcept {
 
 #define SECP_ASSERT_NOT_INFINITY(pt) do { \
     if ((pt).is_infinity()) { \
-        std::fprintf(stderr, \
+        (void)std::fprintf(stderr, \
             "SECP_ASSERT_NOT_INFINITY FAILED\n" \
             "  at %s:%d (%s)\n", __FILE__, __LINE__, __func__); \
         std::abort(); \

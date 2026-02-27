@@ -41,7 +41,7 @@ static int tests_failed = 0;
     do { printf("FAIL: %s\n", msg); ++tests_failed; } while(0)
 
 #define ASSERT_TRUE(cond, msg) \
-    do { if (!(cond)) { FAIL(msg); return; } } while(0)
+    do { if (cond) { (void)0; } else { FAIL(msg); return; } } while(0)
 
 #define ASSERT_EQ(a, b, msg) \
     do { if ((a) != (b)) { FAIL(msg); return; } } while(0)
@@ -220,7 +220,8 @@ static void test_keccak256_abc() {
 static void test_keccak256_incremental() {
     TEST("Keccak-256: incremental == one-shot");
     
-    const std::uint8_t data[] = "hello world";
+    const char data_raw[] = "hello world";
+    const auto* data = reinterpret_cast<const std::uint8_t*>(data_raw);
     auto one_shot = secp256k1::coins::keccak256(data, 11);
     
     secp256k1::coins::Keccak256State state;

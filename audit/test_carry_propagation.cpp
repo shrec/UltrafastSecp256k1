@@ -26,11 +26,11 @@ static int g_pass = 0, g_fail = 0;
 static const char* g_section = "";
 
 #define CHECK(cond, msg) do { \
-    if (!(cond)) { \
-        printf("  FAIL [%s]: %s (line %d)\n", g_section, msg, __LINE__); \
-        ++g_fail; \
-    } else { \
+    if (cond) { \
         ++g_pass; \
+    } else { \
+        (void)printf("  FAIL [%s]: %s (line %d)\n", g_section, msg, __LINE__); \
+        ++g_fail; \
     } \
 } while(0)
 
@@ -47,8 +47,8 @@ static FieldElement fe_from_hex(const char* hex64) {
     std::array<uint8_t, 32> bytes{};
     for (int i = 0; i < 32; ++i) {
         unsigned hi = 0, lo = 0;
-        sscanf(hex64 + i * 2, "%1x", &hi);
-        sscanf(hex64 + i * 2 + 1, "%1x", &lo);
+        (void)sscanf(hex64 + static_cast<std::size_t>(i) * 2, "%1x", &hi);
+        (void)sscanf(hex64 + static_cast<std::size_t>(i) * 2 + 1, "%1x", &lo);
         bytes[i] = static_cast<uint8_t>((hi << 4) | lo);
     }
     return FieldElement::from_bytes(bytes);
@@ -65,7 +65,7 @@ static FieldElement fe_from_limbs4(uint64_t l0, uint64_t l1, uint64_t l2, uint64
 // ============================================================================
 static void test_all_ones() {
     g_section = "all_ones";
-    printf("[1] All-ones limb pattern (2^256 - 1)\n");
+    (void)printf("[1] All-ones limb pattern (2^256 - 1)\n");
 
     auto max_val = fe_from_limbs4(
         0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF,
@@ -101,7 +101,7 @@ static void test_all_ones() {
 // ============================================================================
 static void test_single_limb_max() {
     g_section = "single_limb_max";
-    printf("[2] Single-limb maximum patterns\n");
+    (void)printf("[2] Single-limb maximum patterns\n");
 
     auto one  = FieldElement::one();
     auto zero = FieldElement::zero();
@@ -137,7 +137,7 @@ static void test_single_limb_max() {
 // ============================================================================
 static void test_cross_limb_carry() {
     g_section = "cross_limb_carry";
-    printf("[3] Cross-limb boundary carry patterns\n");
+    (void)printf("[3] Cross-limb boundary carry patterns\n");
 
     auto one = FieldElement::one();
 
@@ -199,7 +199,7 @@ static void test_cross_limb_carry() {
 // ============================================================================
 static void test_near_prime() {
     g_section = "near_prime";
-    printf("[4] Values near the prime p (reduction boundary)\n");
+    (void)printf("[4] Values near the prime p (reduction boundary)\n");
 
     auto p_m1 = FieldElement::from_bytes(P_BYTES) - FieldElement::one();
     auto zero = FieldElement::zero();
@@ -243,7 +243,7 @@ static void test_near_prime() {
 // ============================================================================
 static void test_max_intermediate() {
     g_section = "max_intermediate";
-    printf("[5] Maximum intermediate values (carry chain stress)\n");
+    (void)printf("[5] Maximum intermediate values (carry chain stress)\n");
 
     auto one  = FieldElement::one();
 
@@ -282,7 +282,7 @@ static void test_max_intermediate() {
 // ============================================================================
 static void test_scalar_carry() {
     g_section = "scalar_carry";
-    printf("[6] Scalar carry propagation near group order n\n");
+    (void)printf("[6] Scalar carry propagation near group order n\n");
 
     // n = FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
     auto n_m1_bytes = std::array<uint8_t, 32>{
@@ -324,7 +324,7 @@ static void test_scalar_carry() {
 // ============================================================================
 static void test_point_carry() {
     g_section = "point_carry";
-    printf("[7] Point arithmetic carry propagation\n");
+    (void)printf("[7] Point arithmetic carry propagation\n");
 
     auto G = Point::generator();
 
@@ -382,7 +382,7 @@ int test_carry_propagation_run() {
     test_max_intermediate();
     test_scalar_carry();
     test_point_carry();
-    printf("  [carry_propagation] %d passed, %d failed\n", g_pass, g_fail);
+    (void)printf("  [carry_propagation] %d passed, %d failed\n", g_pass, g_fail);
     return g_fail > 0 ? 1 : 0;
 }
 
@@ -391,10 +391,10 @@ int test_carry_propagation_run() {
 // ============================================================================
 #ifndef UNIFIED_AUDIT_RUNNER
 int main() {
-    printf("============================================================\n");
-    printf("  Carry Propagation Stress Test\n");
-    printf("  Arithmetic boundary & limb carry-chain verification\n");
-    printf("============================================================\n\n");
+    (void)printf("============================================================\n");
+    (void)printf("  Carry Propagation Stress Test\n");
+    (void)printf("  Arithmetic boundary & limb carry-chain verification\n");
+    (void)printf("============================================================\n\n");
 
     test_all_ones();          printf("\n");
     test_single_limb_max();   printf("\n");
@@ -404,9 +404,9 @@ int main() {
     test_scalar_carry();      printf("\n");
     test_point_carry();
 
-    printf("\n============================================================\n");
-    printf("  Summary: %d passed, %d failed\n", g_pass, g_fail);
-    printf("============================================================\n");
+    (void)printf("\n============================================================\n");
+    (void)printf("  Summary: %d passed, %d failed\n", g_pass, g_fail);
+    (void)printf("============================================================\n");
 
     return g_fail > 0 ? 1 : 0;
 }

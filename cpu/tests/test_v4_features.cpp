@@ -351,6 +351,7 @@ static void test_base58check() {
     std::uint8_t payload[21] = {};  // version 0x00 + 20 zero bytes
     auto encoded = base58check_encode(payload, 21);
     CHECK(!encoded.empty(), "base58_encode_nonempty");
+    // cppcheck-suppress containerOutOfBounds
     CHECK(encoded[0] == '1', "base58_leading_ones");
 
     // Roundtrip

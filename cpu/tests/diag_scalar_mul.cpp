@@ -122,13 +122,13 @@ static const SC S_OFFSET = SC::from_limbs({0, 0, 1, 0});
     // Print window digits for v1 and v2
     printf("  v1 digits (group 25..0): ");
     for (int g = 25; g >= 0; --g) {
-        std::uint64_t const w = ct::scalar_window(v1, g*5, 5);
+        std::uint64_t const w = ct::scalar_window(v1, static_cast<std::size_t>(g) * 5, 5);
         printf("%02lu ", (unsigned long)w);
     }
     printf("\n");
     printf("  v2 digits (group 25..0): ");
     for (int g = 25; g >= 0; --g) {
-        std::uint64_t const w = ct::scalar_window(v2, g*5, 5);
+        std::uint64_t const w = ct::scalar_window(v2, static_cast<std::size_t>(g) * 5, 5);
         printf("%02lu ", (unsigned long)w);
     }
     printf("\n");

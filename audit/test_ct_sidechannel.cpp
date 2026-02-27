@@ -132,7 +132,7 @@ struct WelchState {
 // PRNG + helpers -- pre-generation only
 // ===========================================================================
 
-static std::mt19937_64 rng(0xA0D17'51DE0);
+static std::mt19937_64 rng(0xA0D17'51DE0);  // NOLINT(cert-msc32-c,cert-msc51-cpp)
 
 static void random_bytes(uint8_t* out, size_t len) {
     for (size_t i = 0; i < len; i += 8) {
@@ -1103,7 +1103,7 @@ static void test_ct_utils() {
         WelchState ws;
         for (int i = 0; i < N; ++i) {
             int const cls = classes[i];
-            bool flag = flags[cls];
+            bool flag = flags[cls];  // NOLINT(misc-const-correctness) -- BARRIER_OPAQUE writes to flag
 
             BARRIER_OPAQUE(flag);
             uint64_t const t0 = rdtsc();
@@ -1134,7 +1134,7 @@ static void test_ct_utils() {
         WelchState ws;
         for (int i = 0; i < N; ++i) {
             int const cls = classes[i];
-            bool flag = flags[cls];
+            bool flag = flags[cls];  // NOLINT(misc-const-correctness) -- BARRIER_OPAQUE writes to flag
 
             BARRIER_OPAQUE(flag);
             uint64_t const t0 = rdtsc();

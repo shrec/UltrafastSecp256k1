@@ -727,7 +727,7 @@ Limbs4 mul_shift_round(const Limbs4& value, const std::array<std::uint64_t, N>& 
     // Add 2^(shift-1) for rounding (if shift>0)
     if (shift > 0) {
         unsigned const add_bit = shift - 1;
-        std::size_t limb_index = add_bit / 64U;
+        std::size_t const limb_index = add_bit / 64U;
         unsigned const bit_index = add_bit % 64U;
         if (limb_index < wide.size()) {
             std::uint64_t mask = 1ULL << bit_index;
@@ -847,8 +847,9 @@ template <std::size_t N>
             // Decrement qhat and adjust rhat
             --qhat;
             std::uint64_t const new_rhat = rhat + v_hi;
+            (void)rhat;
             if (new_rhat < rhat) { // overflow => break
-                rhat = new_rhat; break;
+                break;
             }
             rhat = new_rhat;
         }
@@ -1702,10 +1703,12 @@ static Scalar barrett_reduce_512(const std::array<std::uint64_t, 8>& wide) {
         if (ge_n) {
             // Subtract n once using intrinsics
             unsigned char borrow = 0;
+            (void)borrow;
             borrow = COMPAT_SUBBORROW_U64(borrow, low_limbs[0], N[0], &low_limbs[0]);
             borrow = COMPAT_SUBBORROW_U64(borrow, low_limbs[1], N[1], &low_limbs[1]);
             borrow = COMPAT_SUBBORROW_U64(borrow, low_limbs[2], N[2], &low_limbs[2]);
             borrow = COMPAT_SUBBORROW_U64(borrow, low_limbs[3], N[3], &low_limbs[3]);
+            (void)borrow;
         }
         
 #if SECP256K1_PROFILE_DECOMP
@@ -1830,10 +1833,12 @@ static JSF_Result compute_jsf(const Scalar& k1, const Scalar& k2) {
             unsigned char borrow = 0;
             std::uint64_t tmp = 0;
             borrow = COMPAT_SUBBORROW_U64(borrow, a[0], static_cast<std::uint64_t>(static_cast<int64_t>(u1)), &tmp); a[0] = tmp;
+            (void)borrow;
             borrow = COMPAT_SUBBORROW_U64(borrow, a[1], 0ULL, &tmp); a[1] = tmp;
             borrow = COMPAT_SUBBORROW_U64(borrow, a[2], 0ULL, &tmp); a[2] = tmp;
             borrow = COMPAT_SUBBORROW_U64(borrow, a[3], 0ULL, &tmp); a[3] = tmp;
             borrow = COMPAT_SUBBORROW_U64(borrow, a[4], 0ULL, &tmp); a[4] = tmp;
+            (void)borrow;
         }
         a[0] = (a[0] >> 1) | (a[1] << 63);
         a[1] = (a[1] >> 1) | (a[2] << 63);
@@ -1844,12 +1849,14 @@ static JSF_Result compute_jsf(const Scalar& k1, const Scalar& k2) {
         // Update b := (b - u2) >> 1
         if (u2 != 0) {
             unsigned char borrow = 0;
+            (void)borrow;
             std::uint64_t tmp = 0;
             borrow = COMPAT_SUBBORROW_U64(borrow, b[0], static_cast<std::uint64_t>(static_cast<int64_t>(u2)), &tmp); b[0] = tmp;
             borrow = COMPAT_SUBBORROW_U64(borrow, b[1], 0ULL, &tmp); b[1] = tmp;
             borrow = COMPAT_SUBBORROW_U64(borrow, b[2], 0ULL, &tmp); b[2] = tmp;
             borrow = COMPAT_SUBBORROW_U64(borrow, b[3], 0ULL, &tmp); b[3] = tmp;
             borrow = COMPAT_SUBBORROW_U64(borrow, b[4], 0ULL, &tmp); b[4] = tmp;
+            (void)borrow;
         }
         b[0] = (b[0] >> 1) | (b[1] << 63);
         b[1] = (b[1] >> 1) | (b[2] << 63);
@@ -1913,10 +1920,12 @@ static JSF_Result compute_jsf(const Scalar& k1, const Scalar& k2) {
     
     Limbs4 result;
     unsigned char carry = 0;
+    (void)carry;
     carry = COMPAT_ADDCARRY_U64(0, a[0], b[0], &result[0]);
     carry = COMPAT_ADDCARRY_U64(carry, a[1], b[1], &result[1]);
     carry = COMPAT_ADDCARRY_U64(carry, a[2], b[2], &result[2]);
     carry = COMPAT_ADDCARRY_U64(carry, a[3], b[3], &result[3]);
+    (void)carry;
     
     // Check if result >= n
     bool const ge_n = (result[3] > N[3]) ||
@@ -1927,10 +1936,12 @@ static JSF_Result compute_jsf(const Scalar& k1, const Scalar& k2) {
     if (ge_n) {
         // Subtract n
         unsigned char borrow = 0;
+        (void)borrow;
         borrow = COMPAT_SUBBORROW_U64(0, result[0], N[0], &result[0]);
         borrow = COMPAT_SUBBORROW_U64(borrow, result[1], N[1], &result[1]);
         borrow = COMPAT_SUBBORROW_U64(borrow, result[2], N[2], &result[2]);
         borrow = COMPAT_SUBBORROW_U64(borrow, result[3], N[3], &result[3]);
+        (void)borrow;
     }
     
     return result;
@@ -2865,6 +2876,7 @@ std::vector<int32_t> compute_wnaf(const Scalar& scalar, unsigned window_bits) {
                 // This creates the non-adjacent property
                 const auto add_val = static_cast<std::uint64_t>(-digit);
                 unsigned char carry = 0;
+                (void)carry;
                 std::uint64_t tmp = 0;
                 carry = COMPAT_ADDCARRY_U64(carry, k[0], add_val, &tmp); k[0] = tmp;
                 carry = COMPAT_ADDCARRY_U64(carry, k[1], 0ULL, &tmp); k[1] = tmp;
@@ -2876,6 +2888,7 @@ std::vector<int32_t> compute_wnaf(const Scalar& scalar, unsigned window_bits) {
                 
                 // Subtract digit from k
                 unsigned char borrow = 0;
+                (void)borrow;
                 std::uint64_t tmp = 0;
                 borrow = COMPAT_SUBBORROW_U64(borrow, k[0], static_cast<std::uint64_t>(digit), &tmp); k[0] = tmp;
                 borrow = COMPAT_SUBBORROW_U64(borrow, k[1], 0ULL, &tmp); k[1] = tmp;
@@ -2943,6 +2956,7 @@ void compute_wnaf_into(const Scalar& scalar,
                 digit = chunk - window_size;
                 const auto add_val = static_cast<std::uint64_t>(-digit);
                 unsigned char carry = 0;
+                (void)carry;
                 std::uint64_t tmp = 0;
                 carry = COMPAT_ADDCARRY_U64(carry, k[0], add_val, &tmp); k[0] = tmp;
                 carry = COMPAT_ADDCARRY_U64(carry, k[1], 0ULL, &tmp); k[1] = tmp;
@@ -2952,6 +2966,7 @@ void compute_wnaf_into(const Scalar& scalar,
             } else {
                 digit = chunk;
                 unsigned char borrow = 0;
+                (void)borrow;
                 std::uint64_t tmp = 0;
                 borrow = COMPAT_SUBBORROW_U64(borrow, k[0], static_cast<std::uint64_t>(digit), &tmp); k[0] = tmp;
                 borrow = COMPAT_SUBBORROW_U64(borrow, k[1], 0ULL, &tmp); k[1] = tmp;

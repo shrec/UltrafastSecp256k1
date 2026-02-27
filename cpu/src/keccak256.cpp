@@ -139,7 +139,7 @@ std::array<std::uint8_t, 32> Keccak256State::finalize() {
     // Squeeze: extract first 32 bytes (256 bits)
     std::array<std::uint8_t, 32> output;
     for (int i = 0; i < 4; ++i) {
-        std::memcpy(output.data() + i * 8, &state[i], 8);
+        std::memcpy(output.data() + static_cast<std::size_t>(i) * 8, &state[i], 8);
     }
     return output;
 }

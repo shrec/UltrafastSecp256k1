@@ -338,7 +338,7 @@ static bool test_kq_random() {
     std::cout << "+==========================================================+" << '\n';
     
     Point const G = Point::generator();
-    std::mt19937_64 rng(12345);
+    std::mt19937_64 rng(12345);  // NOLINT(cert-msc32-c,cert-msc51-cpp)
     int passed = 0;
     int const total = 10;
     

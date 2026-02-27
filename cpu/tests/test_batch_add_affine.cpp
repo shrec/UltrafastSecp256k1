@@ -24,14 +24,14 @@ static void check(bool cond, const char* name) {
         ++g_pass;
     } else {
         ++g_fail;
-        std::printf("  FAIL: %s\n", name);
+        (void)std::printf("  FAIL: %s\n", name);
     }
 }
 
 // -- Test 1: Precompute G-multiples table -------------------------------------
 
 static void test_precompute_g_multiples() {
-    std::printf("[BatchAffine] Precompute G-multiples table...\n");
+    (void)std::printf("[BatchAffine] Precompute G-multiples table...\n");
 
     constexpr std::size_t N = 64;
     auto table = precompute_g_multiples(N);
@@ -46,8 +46,8 @@ static void test_precompute_g_multiples() {
         FieldElement const expected_y = current.y();
 
         char label_x[64], label_y[64];
-        std::snprintf(label_x, sizeof(label_x), "table[%zu].x == %zuG.x", i, i + 1);
-        std::snprintf(label_y, sizeof(label_y), "table[%zu].y == %zuG.y", i, i + 1);
+        (void)std::snprintf(label_x, sizeof(label_x), "table[%zu].x == %zuG.x", i, i + 1);
+        (void)std::snprintf(label_y, sizeof(label_y), "table[%zu].y == %zuG.y", i, i + 1);
 
         check(table[i].x == expected_x, label_x);
         check(table[i].y == expected_y, label_y);
@@ -55,13 +55,13 @@ static void test_precompute_g_multiples() {
         current.next_inplace();
     }
 
-    std::printf("  Verified %zu G-multiples\n", N);
+    (void)std::printf("  Verified %zu G-multiples\n", N);
 }
 
 // -- Test 2: batch_add_affine_x correctness ----------------------------------
 
 static void test_batch_add_x_correctness() {
-    std::printf("[BatchAffine] batch_add_affine_x correctness...\n");
+    (void)std::printf("[BatchAffine] batch_add_affine_x correctness...\n");
 
     constexpr std::size_t BATCH = 128;
     auto g_table = precompute_g_multiples(BATCH);
@@ -84,7 +84,7 @@ static void test_batch_add_x_correctness() {
         // This is the degenerate doubling case, handled correctly by sentinel.
         if (i + 1 == 42) {
             char label[80];
-            std::snprintf(label, sizeof(label), "P + %zuG: degenerate (dx=0) -> sentinel zero", i + 1);
+            (void)std::snprintf(label, sizeof(label), "P + %zuG: degenerate (dx=0) -> sentinel zero", i + 1);
             check(out_x[i] == fe_zero, label);
             continue;
         }
@@ -94,17 +94,17 @@ static void test_batch_add_x_correctness() {
         FieldElement const expected_x = expected.x();
 
         char label[64];
-        std::snprintf(label, sizeof(label), "P + %zuG == %zuG (x-coord)", i + 1, 42 + i + 1);
+        (void)std::snprintf(label, sizeof(label), "P + %zuG == %zuG (x-coord)", i + 1, 42 + i + 1);
         check(out_x[i] == expected_x, label);
     }
 
-    std::printf("  Verified %zu batch additions\n", BATCH);
+    (void)std::printf("  Verified %zu batch additions\n", BATCH);
 }
 
 // -- Test 3: batch_add_affine_xy correctness ---------------------------------
 
 static void test_batch_add_xy_correctness() {
-    std::printf("[BatchAffine] batch_add_affine_xy correctness...\n");
+    (void)std::printf("[BatchAffine] batch_add_affine_xy correctness...\n");
 
     constexpr std::size_t BATCH = 64;
     auto g_table = precompute_g_multiples(BATCH);
@@ -125,19 +125,19 @@ static void test_batch_add_xy_correctness() {
         Point const expected = scalar_mul_generator(s);
 
         char label_x[64], label_y[64];
-        std::snprintf(label_x, sizeof(label_x), "xy[%zu].x correct", i);
-        std::snprintf(label_y, sizeof(label_y), "xy[%zu].y correct", i);
+        (void)std::snprintf(label_x, sizeof(label_x), "xy[%zu].x correct", i);
+        (void)std::snprintf(label_y, sizeof(label_y), "xy[%zu].y correct", i);
         check(out_x[i] == expected.x(), label_x);
         check(out_y[i] == expected.y(), label_y);
     }
 
-    std::printf("  Verified %zu XY results\n", BATCH);
+    (void)std::printf("  Verified %zu XY results\n", BATCH);
 }
 
 // -- Test 4: Bidirectional batch add ------------------------------------------
 
 static void test_bidirectional() {
-    std::printf("[BatchAffine] Bidirectional batch add...\n");
+    (void)std::printf("[BatchAffine] Bidirectional batch add...\n");
 
     constexpr std::size_t BATCH = 32;
     auto g_table = precompute_g_multiples(BATCH);
@@ -166,19 +166,19 @@ static void test_bidirectional() {
         Point const exp_bwd = scalar_mul_generator(s_bwd);
 
         char label_f[64], label_b[64];
-        std::snprintf(label_f, sizeof(label_f), "fwd[%zu] == %zuG", i, 500 + i + 1);
-        std::snprintf(label_b, sizeof(label_b), "bwd[%zu] == %zuG", i, 500 - i - 1);
+        (void)std::snprintf(label_f, sizeof(label_f), "fwd[%zu] == %zuG", i, 500 + i + 1);
+        (void)std::snprintf(label_b, sizeof(label_b), "bwd[%zu] == %zuG", i, 500 - i - 1);
         check(out_fwd[i] == exp_fwd.x(), label_f);
         check(out_bwd[i] == exp_bwd.x(), label_b);
     }
 
-    std::printf("  Verified %zu bidirectional pairs\n", BATCH);
+    (void)std::printf("  Verified %zu bidirectional pairs\n", BATCH);
 }
 
 // -- Test 5: Parity extraction ------------------------------------------------
 
 static void test_parity() {
-    std::printf("[BatchAffine] Y-parity extraction...\n");
+    (void)std::printf("[BatchAffine] Y-parity extraction...\n");
 
     constexpr std::size_t BATCH = 32;
     auto g_table = precompute_g_multiples(BATCH);
@@ -202,17 +202,17 @@ static void test_parity() {
         uint8_t const expected_parity = y_bytes[31] & 1;
 
         char label[64];
-        std::snprintf(label, sizeof(label), "parity[%zu] correct", i);
+        (void)std::snprintf(label, sizeof(label), "parity[%zu] correct", i);
         check(out_parity[i] == expected_parity, label);
     }
 
-    std::printf("  Verified %zu parity values\n", BATCH);
+    (void)std::printf("  Verified %zu parity values\n", BATCH);
 }
 
 // -- Test 6: Arbitrary point multiples ----------------------------------------
 
 static void test_arbitrary_point_table() {
-    std::printf("[BatchAffine] Arbitrary point multiples table...\n");
+    (void)std::printf("[BatchAffine] Arbitrary point multiples table...\n");
 
     // Use 7*G as base
     Scalar const s7 = Scalar::from_uint64(7);
@@ -229,18 +229,18 @@ static void test_arbitrary_point_table() {
         Point const expected = scalar_mul_generator(s);
 
         char label[64];
-        std::snprintf(label, sizeof(label), "arb_table[%zu] == %zuQ", i, i + 1);
+        (void)std::snprintf(label, sizeof(label), "arb_table[%zu] == %zuQ", i, i + 1);
         check(table[i].x == expected.x(), label);
         check(table[i].y == expected.y(), label);
     }
 
-    std::printf("  Verified %zu arbitrary multiples\n", N);
+    (void)std::printf("  Verified %zu arbitrary multiples\n", N);
 }
 
 // -- Test 7: Large batch (search-scale) ---------------------------------------
 
 static void test_large_batch() {
-    std::printf("[BatchAffine] Large batch (1024 points)...\n");
+    (void)std::printf("[BatchAffine] Large batch (1024 points)...\n");
 
     constexpr std::size_t BATCH = 1024;
     
@@ -248,7 +248,7 @@ static void test_large_batch() {
     auto g_table = precompute_g_multiples(BATCH);
     auto t1 = std::chrono::high_resolution_clock::now();
     double const precomp_us = static_cast<double>(std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0).count());
-    std::printf("  Precompute %zu G-multiples: %.1f us\n", BATCH, precomp_us);
+    (void)std::printf("  Precompute %zu G-multiples: %.1f us\n", BATCH, precomp_us);
 
     // Base: P = 999999*G
     Scalar const sbase = Scalar::from_uint64(999999);
@@ -273,8 +273,8 @@ static void test_large_batch() {
     double const per_batch_us = total_ns / ITERS / 1000.0;
     double const per_point_ns = total_ns / ITERS / BATCH;
 
-    std::printf("  Batch %zu: %.1f us total, %.1f ns/point\n", BATCH, per_batch_us, per_point_ns);
-    std::printf("  Throughput: %.2f Mpoints/s (single thread)\n", 1e9 / per_point_ns / 1e6);
+    (void)std::printf("  Batch %zu: %.1f us total, %.1f ns/point\n", BATCH, per_batch_us, per_point_ns);
+    (void)std::printf("  Throughput: %.2f Mpoints/s (single thread)\n", 1e9 / per_point_ns / 1e6);
 
     // Spot-check first and last
     {
@@ -292,7 +292,7 @@ static void test_large_batch() {
 // -- Test 8: Edge case -- empty batch ------------------------------------------
 
 static void test_empty() {
-    std::printf("[BatchAffine] Empty batch...\n");
+    (void)std::printf("[BatchAffine] Empty batch...\n");
     std::vector<FieldElement> scratch;
     FieldElement const base_x = FieldElement::from_uint64(1);
     FieldElement const base_y = FieldElement::from_uint64(2);
@@ -303,7 +303,7 @@ static void test_empty() {
 // -- Test 9: Negate table correctness -----------------------------------------
 
 static void test_negate_table() {
-    std::printf("[BatchAffine] Negate table...\n");
+    (void)std::printf("[BatchAffine] Negate table...\n");
 
     constexpr std::size_t N = 16;
     auto table = precompute_g_multiples(N);
@@ -315,18 +315,18 @@ static void test_negate_table() {
         Point const expected = scalar_mul_generator(s).negate();
 
         char label[64];
-        std::snprintf(label, sizeof(label), "neg_table[%zu] == -%zuG", i, i + 1);
+        (void)std::snprintf(label, sizeof(label), "neg_table[%zu] == -%zuG", i, i + 1);
         check(neg[i].x == expected.x(), label);
         check(neg[i].y == expected.y(), label);
     }
 
-    std::printf("  Verified %zu negated points\n", N);
+    (void)std::printf("  Verified %zu negated points\n", N);
 }
 
 // -- Entry point --------------------------------------------------------------
 
 int test_batch_add_affine_run() {
-    std::printf("\n=== Affine Batch Addition Tests ===\n");
+    (void)std::printf("\n=== Affine Batch Addition Tests ===\n");
 
     test_empty();
     test_precompute_g_multiples();
@@ -338,7 +338,7 @@ int test_batch_add_affine_run() {
     test_negate_table();
     test_large_batch();
 
-    std::printf("\n  Affine batch add: %d passed, %d failed\n", g_pass, g_fail);
+    (void)std::printf("\n  Affine batch add: %d passed, %d failed\n", g_pass, g_fail);
     return g_fail;
 }
 

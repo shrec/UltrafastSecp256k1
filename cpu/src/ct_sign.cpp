@@ -15,9 +15,6 @@
 
 namespace secp256k1::ct {
 
-using fast::Scalar;
-using fast::Point;
-using fast::FieldElement;
 
 // ============================================================================
 // CT ECDSA Sign

@@ -572,7 +572,9 @@ static void test_field_optimal() {
     CHECK(from_optimal(to_optimal(pm1)) == pm1, "p-1 optimal roundtrip");
     
     // 6.6: Tier name is non-null
+    // cppcheck-suppress nullPointerRedundantCheck
     CHECK(kOptimalTierName != nullptr, "optimal tier name exists");
+    // cppcheck-suppress nullPointerRedundantCheck
     CHECK(std::strlen(kOptimalTierName) > 0, "optimal tier name non-empty");
     
     // 6.7: Multiple distinct values

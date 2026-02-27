@@ -33,7 +33,6 @@
 
 using secp256k1::fast::Scalar;
 using secp256k1::fast::Point;
-using secp256k1::fast::FieldElement;
 
 // -- Minimal test harness -----------------------------------------------------
 
@@ -43,7 +42,7 @@ static int g_fail = 0;
 #define CHECK(cond, label) do { \
     if (cond) { ++g_pass; } else { \
         ++g_fail; \
-        std::printf("  FAIL: %s (line %d)\n", label, __LINE__); \
+        (void)std::printf("  FAIL: %s (line %d)\n", label, __LINE__); \
     } \
 } while(0)
 
@@ -65,7 +64,7 @@ static bool points_equal(const Point& a, const Point& b) {
 // ===============================================================================
 
 static void test_lagrange_properties() {
-    std::printf("[1] Lagrange Coefficient: Mathematical Properties\n");
+    (void)std::printf("[1] Lagrange Coefficient: Mathematical Properties\n");
 
     // Property 1: For signer set {1,2} with 2-of-2:
     //   lambda_1 = 2/(2-1) = 2
@@ -165,7 +164,7 @@ static void test_lagrange_properties() {
 // ===============================================================================
 
 static void test_dkg_determinism() {
-    std::printf("[2] FROST DKG: Determinism with Fixed Seeds\n");
+    (void)std::printf("[2] FROST DKG: Determinism with Fixed Seeds\n");
 
     const uint32_t t = 2, n = 3;
     auto seed1 = make_seed(0xF205E001);
@@ -213,7 +212,7 @@ static void test_dkg_determinism() {
 // ===============================================================================
 
 static void test_dkg_feldman_vss() {
-    std::printf("[3] FROST DKG: Feldman VSS Commitment Verification\n");
+    (void)std::printf("[3] FROST DKG: Feldman VSS Commitment Verification\n");
 
     const uint32_t t = 2, n = 3;
 
@@ -262,7 +261,7 @@ static void test_dkg_feldman_vss() {
 // ===============================================================================
 
 static void test_2of3_full_signing() {
-    std::printf("[4] FROST 2-of-3: Full Signing -> BIP-340 Verify\n");
+    (void)std::printf("[4] FROST 2-of-3: Full Signing -> BIP-340 Verify\n");
 
     const uint32_t t = 2, n = 3;
 
@@ -330,7 +329,7 @@ static void test_2of3_full_signing() {
         bool const valid = secp256k1::schnorr_verify(pk_bytes, msg, final_sig);
 
         char label[64];
-        std::snprintf(label, sizeof(label), "2-of-3 subset {%u,%u} BIP-340 valid", id_a, id_b);
+        (void)std::snprintf(label, sizeof(label), "2-of-3 subset {%u,%u} BIP-340 valid", id_a, id_b);
         CHECK(valid, label);
     }
 }
@@ -340,7 +339,7 @@ static void test_2of3_full_signing() {
 // ===============================================================================
 
 static void test_3of5_full_signing() {
-    std::printf("[5] FROST 3-of-5: Full Signing -> BIP-340 Verify\n");
+    (void)std::printf("[5] FROST 3-of-5: Full Signing -> BIP-340 Verify\n");
 
     const uint32_t t = 3, n = 5;
 
@@ -353,8 +352,8 @@ static void test_3of5_full_signing() {
 
     for (uint32_t i = 1; i <= n; ++i) {
         auto [ci, si] = secp256k1::frost_keygen_begin(i, t, n, seeds[i - 1]);
-        commitments.push_back(std::move(ci));
-        all_shares.push_back(std::move(si));
+        commitments.push_back(ci);
+        all_shares.push_back(si);
     }
 
     // DKG Round 2
@@ -367,7 +366,7 @@ for (uint32_t from = 0; from < n; ++from) {
         }
         auto [kp, ok] = secp256k1::frost_keygen_finalize(i, commitments, received, t, n);
         CHECK(ok, "3-of-5 DKG finalize");
-        key_pkgs.push_back(std::move(kp));
+        key_pkgs.push_back(kp);
     }
 
     // All agree on group key
@@ -390,8 +389,8 @@ for (uint32_t from = 0; from < n; ++from) {
     for (auto id : signer_ids) {
         auto nonce_seed = make_seed(0x30500000 + id);
         auto [nc, cm] = secp256k1::frost_sign_nonce_gen(id, nonce_seed);
-        nonces.push_back(std::move(nc));
-        nonce_commits.push_back(std::move(cm));
+        nonces.push_back(nc);
+        nonce_commits.push_back(cm);
     }
 
     // Partial signatures
@@ -399,7 +398,7 @@ for (uint32_t from = 0; from < n; ++from) {
     for (size_t i = 0; i < signer_ids.size(); ++i) {
         auto psig = secp256k1::frost_sign(
             key_pkgs[signer_ids[i] - 1], nonces[i], msg, nonce_commits);
-        partials.push_back(std::move(psig));
+        partials.push_back(psig);
     }
 
     // Aggregate
@@ -418,15 +417,15 @@ for (uint32_t from = 0; from < n; ++from) {
     for (auto id : signer_ids) {
         auto nonce_seed = make_seed(0x30520000 + id);
         auto [nc, cm] = secp256k1::frost_sign_nonce_gen(id, nonce_seed);
-        nonces.push_back(std::move(nc));
-        nonce_commits.push_back(std::move(cm));
+        nonces.push_back(nc);
+        nonce_commits.push_back(cm);
     }
 
     partials.clear();
     for (size_t i = 0; i < signer_ids.size(); ++i) {
         auto psig = secp256k1::frost_sign(
             key_pkgs[signer_ids[i] - 1], nonces[i], msg, nonce_commits);
-        partials.push_back(std::move(psig));
+        partials.push_back(psig);
     }
 
     auto final_sig2 = secp256k1::frost_aggregate(
@@ -447,7 +446,7 @@ for (uint32_t from = 0; from < n; ++from) {
 // ===============================================================================
 
 static void test_lagrange_consistency() {
-    std::printf("[6] Lagrange Coefficients: Consistency Across 10 Subsets\n");
+    (void)std::printf("[6] Lagrange Coefficients: Consistency Across 10 Subsets\n");
 
     // For a 3-of-5 scheme: all C(5,3) = 10 subsets reconstruct same secret
     // Polynomial f(x) = 17 + 3x + 5x^2
@@ -478,7 +477,7 @@ static void test_lagrange_consistency() {
                            + (l2 * shares[ids[2] - 1]);
 
         char label[80];
-        std::snprintf(label, sizeof(label), "3-of-5 subset {%u,%u,%u} reconstructs secret",
+        (void)std::snprintf(label, sizeof(label), "3-of-5 subset {%u,%u,%u} reconstructs secret",
                       ids[0], ids[1], ids[2]);
         CHECK(reconstructed == secret, label);
     }
@@ -489,7 +488,7 @@ static void test_lagrange_consistency() {
 // ===============================================================================
 
 static void test_pinned_dkg_group_key() {
-    std::printf("[7] Pinned KAT: DKG Group Key Determinism\n");
+    (void)std::printf("[7] Pinned KAT: DKG Group Key Determinism\n");
 
     const uint32_t t = 2, n = 3;
 
@@ -531,7 +530,7 @@ static void test_pinned_dkg_group_key() {
 // ===============================================================================
 
 static void test_pinned_signing_roundtrip() {
-    std::printf("[8] Pinned KAT: Full Signing Round-Trip Determinism\n");
+    (void)std::printf("[8] Pinned KAT: Full Signing Round-Trip Determinism\n");
 
     const uint32_t t = 2, n = 3;
     auto seed1 = make_seed(0x51670001);
@@ -589,7 +588,7 @@ static void test_pinned_signing_roundtrip() {
 // ===============================================================================
 
 static void test_secret_reconstruction() {
-    std::printf("[9] FROST DKG: Secret Reconstruction via Lagrange\n");
+    (void)std::printf("[9] FROST DKG: Secret Reconstruction via Lagrange\n");
 
     const uint32_t t = 2, n = 3;
     auto seed1 = make_seed(0xEE000001);
@@ -661,7 +660,7 @@ int test_frost_kat_run() {
 
 #ifndef UNIFIED_AUDIT_RUNNER
 int main() {
-    std::printf("=== FROST Reference KAT Tests (Phase II 2.2.5) ===\n\n");
+    (void)std::printf("=== FROST Reference KAT Tests (Phase II 2.2.5) ===\n\n");
 
     test_lagrange_properties();
     test_dkg_determinism();
@@ -673,13 +672,13 @@ int main() {
     test_pinned_signing_roundtrip();
     test_secret_reconstruction();
 
-    std::printf("\n=== Results: %d passed, %d failed ===\n", g_pass, g_fail);
+    (void)std::printf("\n=== Results: %d passed, %d failed ===\n", g_pass, g_fail);
 
     if (g_fail > 0) {
-        std::printf("*** %d FAILURES ***\n", g_fail);
+        (void)std::printf("*** %d FAILURES ***\n", g_fail);
         return 1;
     }
-    std::printf("All reference KAT checks passed.\n");
+    (void)std::printf("All reference KAT checks passed.\n");
     return 0;
 }
 #endif // UNIFIED_AUDIT_RUNNER

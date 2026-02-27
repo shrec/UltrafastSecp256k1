@@ -39,7 +39,7 @@ static bool g_generate = false;
 
 #define CHECK(cond, msg) do { \
     if (!(cond)) { \
-        printf("  FAIL [%s]: %s (line %d)\n", g_section, msg, __LINE__); \
+        (void)printf("  FAIL [%s]: %s (line %d)\n", g_section, msg, __LINE__); \
         ++g_fail; \
     } else { \
         ++g_pass; \
@@ -51,7 +51,7 @@ static std::string bytes_to_hex(const uint8_t* data, size_t len) {
     out.reserve(len * 2);
     for (size_t i = 0; i < len; ++i) {
         char buf[3];
-        snprintf(buf, sizeof(buf), "%02x", data[i]);
+        (void)snprintf(buf, sizeof(buf), "%02x", data[i]);
         out += buf;
     }
     return out;
@@ -60,11 +60,11 @@ static std::string bytes_to_hex(const uint8_t* data, size_t len) {
 static void verify_hex(const char* label, const uint8_t* data, size_t len, const char* expected) {
     auto got = bytes_to_hex(data, len);
     if (g_generate) {
-        printf("    {\"%s\", \"%s\"},\n", label, got.c_str());
+        (void)printf("    {\"%s\", \"%s\"},\n", label, got.c_str());
         return;
     }
     char msg[128];
-    snprintf(msg, sizeof(msg), "%s mismatch", label);
+    (void)snprintf(msg, sizeof(msg), "%s mismatch", label);
     CHECK(got == expected, msg);
 }
 
@@ -123,7 +123,7 @@ static const KV FIELD_KAT[] = {
 
 static void test_field_kat() {
     g_section = "field_kat";
-    printf("[1] Field arithmetic KAT\n");
+    (void)printf("[1] Field arithmetic KAT\n");
 
     auto G = Point::generator();
     auto gx = G.x();
@@ -156,7 +156,7 @@ static void test_field_kat() {
 // ============================================================================
 static void test_scalar_kat() {
     g_section = "scalar_kat";
-    printf("[2] Scalar arithmetic KAT\n");
+    (void)printf("[2] Scalar arithmetic KAT\n");
 
     auto s1 = Scalar::from_bytes(PRIVKEY_BYTES);   // = 1
     auto s2 = Scalar::from_bytes(PRIVKEY2_BYTES);
@@ -164,7 +164,7 @@ static void test_scalar_kat() {
     auto sum = s1 + s2;
     auto sum_bytes = sum.to_bytes();
     if (g_generate) {
-        printf("    {\"s1+s2\", \"%s\"},\n", bytes_to_hex(sum_bytes.data(), 32).c_str());
+        (void)printf("    {\"s1+s2\", \"%s\"},\n", bytes_to_hex(sum_bytes.data(), 32).c_str());
     }
 
     auto prod = s1 * s2;
@@ -201,7 +201,7 @@ static const KV POINT_KAT[] = {
 
 static void test_point_kat() {
     g_section = "point_kat";
-    printf("[3] Point operation KAT\n");
+    (void)printf("[3] Point operation KAT\n");
 
     auto G = Point::generator();
     auto one_s = Scalar::from_bytes(PRIVKEY_BYTES);
@@ -228,8 +228,8 @@ static void test_point_kat() {
     auto ps2_comp = Ps2.to_compressed();
 
     if (g_generate) {
-        printf("    {\"s2G_comp\", \"%s\"},\n", bytes_to_hex(ps2_comp.data(), 33).c_str());
-        printf("    {\"s2G_uncomp\", \"%s\"},\n", bytes_to_hex(ps2_uncomp.data(), 65).c_str());
+        (void)printf("    {\"s2G_comp\", \"%s\"},\n", bytes_to_hex(ps2_comp.data(), 33).c_str());
+        (void)printf("    {\"s2G_uncomp\", \"%s\"},\n", bytes_to_hex(ps2_uncomp.data(), 65).c_str());
     }
 
     // Verify s2*G against golden vector
@@ -297,7 +297,7 @@ static void test_point_kat() {
 // ============================================================================
 static void test_ecdsa_kat() {
     g_section = "ecdsa_kat";
-    printf("[4] ECDSA KAT (RFC 6979 deterministic)\n");
+    (void)printf("[4] ECDSA KAT (RFC 6979 deterministic)\n");
 
     auto privkey = Scalar::from_bytes(PRIVKEY2_BYTES);
     auto pubkey = Point::generator().scalar_mul(privkey);
@@ -309,8 +309,8 @@ static void test_ecdsa_kat() {
     auto s_bytes = sig.s.to_bytes();
 
     if (g_generate) {
-        printf("    {\"ecdsa_r\", \"%s\"},\n", bytes_to_hex(r_bytes.data(), 32).c_str());
-        printf("    {\"ecdsa_s\", \"%s\"},\n", bytes_to_hex(s_bytes.data(), 32).c_str());
+        (void)printf("    {\"ecdsa_r\", \"%s\"},\n", bytes_to_hex(r_bytes.data(), 32).c_str());
+        (void)printf("    {\"ecdsa_s\", \"%s\"},\n", bytes_to_hex(s_bytes.data(), 32).c_str());
     }
 
     // Verify
@@ -333,7 +333,7 @@ static void test_ecdsa_kat() {
 // ============================================================================
 static void test_schnorr_kat() {
     g_section = "schnorr_kat";
-    printf("[5] Schnorr KAT (BIP-340 deterministic)\n");
+    (void)printf("[5] Schnorr KAT (BIP-340 deterministic)\n");
 
     auto privkey = Scalar::from_bytes(PRIVKEY2_BYTES);
 
@@ -342,10 +342,10 @@ static void test_schnorr_kat() {
     auto pubkey_x = secp256k1::schnorr_pubkey(privkey);
 
     if (g_generate) {
-        printf("    {\"schnorr_r\", \"%s\"},\n", bytes_to_hex(sig.r.data(), 32).c_str());
+        (void)printf("    {\"schnorr_r\", \"%s\"},\n", bytes_to_hex(sig.r.data(), 32).c_str());
         auto s_bytes = sig.s.to_bytes();
-        printf("    {\"schnorr_s\", \"%s\"},\n", bytes_to_hex(s_bytes.data(), 32).c_str());
-        printf("    {\"schnorr_pubkey_x\", \"%s\"},\n", bytes_to_hex(pubkey_x.data(), 32).c_str());
+        (void)printf("    {\"schnorr_s\", \"%s\"},\n", bytes_to_hex(s_bytes.data(), 32).c_str());
+        (void)printf("    {\"schnorr_pubkey_x\", \"%s\"},\n", bytes_to_hex(pubkey_x.data(), 32).c_str());
     }
 
     // Verify
@@ -368,7 +368,7 @@ static void test_schnorr_kat() {
 // ============================================================================
 static void test_serialization_kat() {
     g_section = "serial_kat";
-    printf("[6] Serialization consistency KAT\n");
+    (void)printf("[6] Serialization consistency KAT\n");
 
     auto privkey = Scalar::from_bytes(PRIVKEY2_BYTES);
     auto pubkey = Point::generator().scalar_mul(privkey);
@@ -383,10 +383,10 @@ static void test_serialization_kat() {
     auto compact = ecdsa_sig.to_compact();
 
     if (g_generate) {
-        printf("    {\"pubkey_comp\", \"%s\"},\n", bytes_to_hex(comp.data(), 33).c_str());
-        printf("    {\"pubkey_uncomp\", \"%s\"},\n", bytes_to_hex(uncomp.data(), 65).c_str());
-        printf("    {\"sig_compact\", \"%s\"},\n", bytes_to_hex(compact.data(), 64).c_str());
-        printf("    {\"sig_der\", \"%s\"},\n", bytes_to_hex(der_bytes.data(), der_len).c_str());
+        (void)printf("    {\"pubkey_comp\", \"%s\"},\n", bytes_to_hex(comp.data(), 33).c_str());
+        (void)printf("    {\"pubkey_uncomp\", \"%s\"},\n", bytes_to_hex(uncomp.data(), 65).c_str());
+        (void)printf("    {\"sig_compact\", \"%s\"},\n", bytes_to_hex(compact.data(), 64).c_str());
+        (void)printf("    {\"sig_der\", \"%s\"},\n", bytes_to_hex(der_bytes.data(), der_len).c_str());
     }
 
     // Compact round-trip
@@ -407,7 +407,7 @@ int test_cross_platform_kat_run() {
     test_ecdsa_kat();
     test_schnorr_kat();
     test_serialization_kat();
-    printf("  [cross_platform_kat] %d passed, %d failed\n", g_pass, g_fail);
+    (void)printf("  [cross_platform_kat] %d passed, %d failed\n", g_pass, g_fail);
     return g_fail > 0 ? 1 : 0;
 }
 
@@ -434,16 +434,16 @@ int main(int argc, char** argv) {
     for (int i = 1; i < argc; ++i) {
         if (std::string(argv[i]) == "--generate") {
             g_generate = true;
-            printf("// KAT Generator Mode -- copy these vectors into golden arrays\n");
-            printf("static const KV GOLDEN[] = {\n");
+            (void)printf("// KAT Generator Mode -- copy these vectors into golden arrays\n");
+            (void)printf("static const KV GOLDEN[] = {\n");
         }
     }
 
     if (!g_generate) {
-        printf("============================================================\n");
-        printf("  Cross-Platform KAT Equivalence Test\n");
-        printf("  Phase II, Tasks 2.6.3 / 2.6.4\n");
-        printf("============================================================\n\n");
+        (void)printf("============================================================\n");
+        (void)printf("  Cross-Platform KAT Equivalence Test\n");
+        (void)printf("  Phase II, Tasks 2.6.3 / 2.6.4\n");
+        (void)printf("============================================================\n\n");
     }
 
     test_field_kat();          if(!g_generate) printf("\n");
@@ -454,11 +454,11 @@ int main(int argc, char** argv) {
     test_serialization_kat();
 
     if (g_generate) {
-        printf("};\n");
+        (void)printf("};\n");
     } else {
-        printf("\n============================================================\n");
-        printf("  Summary: %d passed, %d failed\n", g_pass, g_fail);
-        printf("============================================================\n");
+        (void)printf("\n============================================================\n");
+        (void)printf("  Summary: %d passed, %d failed\n", g_pass, g_fail);
+        (void)printf("============================================================\n");
     }
 
     return g_fail > 0 ? 1 : 0;

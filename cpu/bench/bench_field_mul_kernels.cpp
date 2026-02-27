@@ -57,7 +57,7 @@ int main() {
 #endif
 
     // Prepare random inputs
-    std::mt19937_64 rng(123456789ULL);
+    std::mt19937_64 rng(123456789ULL);  // NOLINT(cert-msc32-c,cert-msc51-cpp)
     std::uniform_int_distribution<uint64_t> dist;
     std::vector<Pair> vec(elements);
     for (auto& p : vec) {

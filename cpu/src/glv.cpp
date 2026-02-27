@@ -42,8 +42,8 @@ static void glv_mul_comba(const std::uint32_t a[8], const std::uint32_t b[8],
 // Convert uint64_t[4] LE limbs to uint32_t[8] LE limbs
 static void limbs64_to_32(const std::uint64_t* src, std::uint32_t* dst) {
     for (int i = 0; i < 4; i++) {
-        dst[2 * i]     = (std::uint32_t)src[i];
-        dst[2 * i + 1] = (std::uint32_t)(src[i] >> 32);
+        dst[static_cast<std::size_t>(i) * 2]     = (std::uint32_t)src[i];
+        dst[static_cast<std::size_t>(i) * 2 + 1] = (std::uint32_t)(src[i] >> 32);
     }
 }
 

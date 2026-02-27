@@ -30,8 +30,8 @@ static int g_tests_passed = 0;
 
 #define CHECK(cond, msg) do { \
     ++g_tests_run; \
-    if (cond) { ++g_tests_passed; printf("  [PASS] %s\n", msg); } \
-    else { printf("  [FAIL] %s\n", msg); } \
+    if (cond) { ++g_tests_passed; (void)printf("  [PASS] %s\n", msg); } \
+    else { (void)printf("  [FAIL] %s\n", msg); } \
 } while(0)
 
 // -- Hex utility (no heap) ----------------------------------------------------
@@ -73,10 +73,10 @@ static void verify_chain(const ExtendedKey& master,
         hex_to_bytes(vecs[0].chain_code, expected_cc, 32);
         hex_to_bytes(vecs[0].priv_key, expected_key, 32);
 
-        std::snprintf(label, sizeof(label), "%s m: chain_code", tv_label);
+        (void)std::snprintf(label, sizeof(label), "%s m: chain_code", tv_label);
         CHECK(std::memcmp(master.chain_code.data(), expected_cc, 32) == 0, label);
 
-        std::snprintf(label, sizeof(label), "%s m: priv_key", tv_label);
+        (void)std::snprintf(label, sizeof(label), "%s m: priv_key", tv_label);
         CHECK(std::memcmp(master.key.data(), expected_key, 32) == 0, label);
 
         // Verify public key
@@ -85,7 +85,7 @@ static void verify_chain(const ExtendedKey& master,
             hex_to_bytes(vecs[0].pub_key, expected_pub, 33);
             auto pub_point = master.public_key();
             auto pub_bytes = pub_point.to_compressed();
-            std::snprintf(label, sizeof(label), "%s m: pub_key", tv_label);
+            (void)std::snprintf(label, sizeof(label), "%s m: pub_key", tv_label);
             CHECK(std::memcmp(pub_bytes.data(), expected_pub, 33) == 0, label);
         }
     }
@@ -93,7 +93,7 @@ static void verify_chain(const ExtendedKey& master,
     // Derive and verify each child level
     for (int i = 1; i < count; ++i) {
         auto [child, ok] = bip32_derive_path(master, vecs[i].path);
-        std::snprintf(label, sizeof(label), "%s %s: derivation succeeds", tv_label, vecs[i].path);
+        (void)std::snprintf(label, sizeof(label), "%s %s: derivation succeeds", tv_label, vecs[i].path);
         CHECK(ok, label);
         if (!ok) continue;
 
@@ -101,10 +101,10 @@ static void verify_chain(const ExtendedKey& master,
         hex_to_bytes(vecs[i].chain_code, expected_cc, 32);
         hex_to_bytes(vecs[i].priv_key, expected_key, 32);
 
-        std::snprintf(label, sizeof(label), "%s %s: chain_code", tv_label, vecs[i].path);
+        (void)std::snprintf(label, sizeof(label), "%s %s: chain_code", tv_label, vecs[i].path);
         CHECK(std::memcmp(child.chain_code.data(), expected_cc, 32) == 0, label);
 
-        std::snprintf(label, sizeof(label), "%s %s: priv_key", tv_label, vecs[i].path);
+        (void)std::snprintf(label, sizeof(label), "%s %s: priv_key", tv_label, vecs[i].path);
         CHECK(std::memcmp(child.key.data(), expected_key, 32) == 0, label);
 
         // Verify public key
@@ -113,7 +113,7 @@ static void verify_chain(const ExtendedKey& master,
             hex_to_bytes(vecs[i].pub_key, expected_pub, 33);
             auto pub_point = child.public_key();
             auto pub_bytes = pub_point.to_compressed();
-            std::snprintf(label, sizeof(label), "%s %s: pub_key", tv_label, vecs[i].path);
+            (void)std::snprintf(label, sizeof(label), "%s %s: pub_key", tv_label, vecs[i].path);
             CHECK(std::memcmp(pub_bytes.data(), expected_pub, 33) == 0, label);
         }
     }
@@ -151,7 +151,7 @@ static const ChainVector TV1[] = {
 };
 
 static void test_bip32_tv1() {
-    printf("\n--- BIP-32 Test Vector 1 ---\n");
+    (void)printf("\n--- BIP-32 Test Vector 1 ---\n");
     std::uint8_t seed[16];
     hex_to_bytes("000102030405060708090a0b0c0d0e0f", seed, 16);
     auto [master, ok] = bip32_master_key(seed, 16);
@@ -194,7 +194,7 @@ static const ChainVector TV2[] = {
 };
 
 static void test_bip32_tv2() {
-    printf("\n--- BIP-32 Test Vector 2 ---\n");
+    (void)printf("\n--- BIP-32 Test Vector 2 ---\n");
     // 64-byte seed
     std::uint8_t seed[64];
     hex_to_bytes(
@@ -224,7 +224,7 @@ static const ChainVector TV3[] = {
 };
 
 static void test_bip32_tv3() {
-    printf("\n--- BIP-32 Test Vector 3 (leading zeros retention) ---\n");
+    (void)printf("\n--- BIP-32 Test Vector 3 (leading zeros retention) ---\n");
     std::uint8_t seed[64];
     hex_to_bytes(
         "4b381541583be4423346c643850da4b320e46a87ae3d2a4e6da11e"
@@ -257,7 +257,7 @@ static const ChainVector TV4[] = {
 };
 
 static void test_bip32_tv4() {
-    printf("\n--- BIP-32 Test Vector 4 (leading zeros, hardened children) ---\n");
+    (void)printf("\n--- BIP-32 Test Vector 4 (leading zeros, hardened children) ---\n");
     std::uint8_t seed[32];
     hex_to_bytes("3ddd5602285899a946114506157c7997e5444528f3003f6134712147db19b678",
                  seed, 32);
@@ -274,7 +274,7 @@ static void test_bip32_tv4() {
 // ============================================================================
 
 static void test_bip32_tv5_serialization() {
-    printf("\n--- BIP-32 Test Vector 5 (serialization) ---\n");
+    (void)printf("\n--- BIP-32 Test Vector 5 (serialization) ---\n");
 
     // Use TV1 seed
     std::uint8_t seed[16];
@@ -354,7 +354,7 @@ static void test_bip32_tv5_serialization() {
 // ============================================================================
 
 static void test_bip32_public_derivation() {
-    printf("\n--- BIP-32 Public Derivation Consistency ---\n");
+    (void)printf("\n--- BIP-32 Public Derivation Consistency ---\n");
 
     // TV1: derive m/0'/1 (hardened then normal)
     std::uint8_t seed[16];
@@ -396,7 +396,7 @@ static void test_bip32_public_derivation() {
 // ============================================================================
 
 int test_bip32_vectors_run() {
-    printf("=== BIP-32 Official Test Vectors (TV1-TV5) ===\n");
+    (void)printf("=== BIP-32 Official Test Vectors (TV1-TV5) ===\n");
 
     test_bip32_tv1();
     test_bip32_tv2();
@@ -405,7 +405,7 @@ int test_bip32_vectors_run() {
     test_bip32_tv5_serialization();
     test_bip32_public_derivation();
 
-    printf("\n=== BIP-32 Vectors: %d/%d passed ===\n", g_tests_passed, g_tests_run);
+    (void)printf("\n=== BIP-32 Vectors: %d/%d passed ===\n", g_tests_passed, g_tests_run);
     return (g_tests_passed == g_tests_run) ? 0 : 1;
 }
 

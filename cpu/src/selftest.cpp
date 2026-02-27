@@ -23,13 +23,13 @@
 
 // ESP32/STM32 platform: use printf instead of iostream
 #if defined(SECP256K1_PLATFORM_ESP32) || defined(ESP_PLATFORM) || defined(IDF_VER) || defined(SECP256K1_PLATFORM_STM32)
-    #define SELFTEST_PRINT(...) printf(__VA_ARGS__)
+    #define SELFTEST_PRINT(...) (void)printf(__VA_ARGS__)
 #else
     #include <iostream>
     #include <fstream>
     #include <sstream>
     #include <iomanip>
-    #define SELFTEST_PRINT(...) printf(__VA_ARGS__)
+    #define SELFTEST_PRINT(...) (void)printf(__VA_ARGS__)
 #endif
 
 namespace secp256k1::fast {
@@ -1318,7 +1318,7 @@ bool Selftest(bool verbose, SelftestMode mode, uint64_t seed) {
         int vi = 0;
         for (const auto& vec : TEST_VECTORS) {
             char vname[48];
-            std::snprintf(vname, sizeof(vname), "scalar_mul_vector_%d", ++vi);
+            (void)std::snprintf(vname, sizeof(vname), "scalar_mul_vector_%d", ++vi);
             tally(total, passed, vname, test_scalar_mul(vec, verbose));
         }
     }

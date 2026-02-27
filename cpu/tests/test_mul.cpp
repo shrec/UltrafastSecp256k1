@@ -16,10 +16,12 @@ static int g_pass = 0;
 static int g_fail = 0;
 
 #define CHECK(cond, msg) do { \
-    if (!(cond)) { \
+    if (cond) { \
+        ++g_pass; \
+    } else { \
         std::cerr << "FAIL: " << (msg) << " (" << __FILE__ << ":" << __LINE__ << ")\n"; \
         ++g_fail; \
-    } else { ++g_pass; } \
+    } \
 } while(0)
 
 // ================================================================
@@ -65,7 +67,7 @@ static void test_field_mul() {
     CHECK((a * b) * c == a * (b * c), "(a*b)*c = a*(b*c)");
 
     // Distributivity random stress: a*(b+c) = a*b + a*c
-    std::mt19937_64 rng(101);
+    std::mt19937_64 rng(101);  // NOLINT(cert-msc32-c,cert-msc51-cpp)
     for (int i = 0; i < 500; i++) {
         std::array<uint64_t, 4> const la{rng(), rng(), rng(), rng()};
         std::array<uint64_t, 4> const lb{rng(), rng(), rng(), rng()};
@@ -96,7 +98,7 @@ static void test_field_square() {
     CHECK(o2 == o, "1^2 = 1");
 
     // Random: sq(a) == a*a
-    std::mt19937_64 rng(202);
+    std::mt19937_64 rng(202);  // NOLINT(cert-msc32-c,cert-msc51-cpp)
     for (int i = 0; i < 500; i++) {
         std::array<uint64_t, 4> const la{rng(), rng(), rng(), rng()};
         FieldElement const fa = FieldElement::from_limbs(la);
@@ -139,7 +141,7 @@ static void test_field_add_sub() {
     CHECK(sum == mul2, "big+big == big*2 (modular wrap)");
 
     // Random stress: (a-b)+b = a
-    std::mt19937_64 rng(303);
+    std::mt19937_64 rng(303);  // NOLINT(cert-msc32-c,cert-msc51-cpp)
     for (int i = 0; i < 500; i++) {
         std::array<uint64_t, 4> const la{rng(), rng(), rng(), rng()};
         std::array<uint64_t, 4> const lb{rng(), rng(), rng(), rng()};
@@ -239,7 +241,7 @@ static void test_scalar_arithmetic() {
     CHECK(nm1 + one == zero, "(n-1)+1 = 0");
 
     // Distributive: a*(b+c) = a*b + a*c  (random)
-    std::mt19937_64 rng(404);
+    std::mt19937_64 rng(404);  // NOLINT(cert-msc32-c,cert-msc51-cpp)
     for (int i = 0; i < 1000; i++) {
         std::array<uint8_t, 32> ba{}, bb{}, bc{};
         for (std::size_t j = 0; j < 32; j++) {
@@ -296,7 +298,7 @@ static void test_scalar_encoding() {
     CHECK(naf1.size() == 1 && naf1[0] == 1, "NAF(1) = {1}");
 
     // NAF adjacency property: no two consecutive non-zero digits
-    std::mt19937_64 rng(505);
+    std::mt19937_64 rng(505);  // NOLINT(cert-msc32-c,cert-msc51-cpp)
     for (int i = 0; i < 200; i++) {
         std::array<uint8_t, 32> ba{};
         for (std::size_t j = 0; j < 32; j++) ba[j] = static_cast<uint8_t>(rng());

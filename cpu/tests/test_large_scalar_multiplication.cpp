@@ -126,7 +126,7 @@ static void test_fast_vs_generic() {
     }
 
     // Random large scalars
-    std::mt19937_64 rng(111);
+    std::mt19937_64 rng(111);  // NOLINT(cert-msc32-c,cert-msc51-cpp)
     for (int i = 0; i < 100; i++) {
         std::array<uint64_t, 4> const ls{rng(), rng(), rng(), rng()};
         Scalar const k = Scalar::from_limbs(ls);
@@ -283,7 +283,7 @@ static void test_kq_random() {
     std::cout << "-- Random K*Q = (k1*k2)*G --\n";
 
     Point const G = Point::generator();
-    std::mt19937_64 rng(222);
+    std::mt19937_64 rng(222);  // NOLINT(cert-msc32-c,cert-msc51-cpp)
 
     for (int i = 0; i < 50; i++) {
         std::array<uint8_t, 32> b1{}, b2{};
@@ -321,7 +321,7 @@ static void test_distributive() {
     }
 
     // Random large k
-    std::mt19937_64 rng(333);
+    std::mt19937_64 rng(333);  // NOLINT(cert-msc32-c,cert-msc51-cpp)
     for (int i = 0; i < 20; i++) {
         std::array<uint8_t, 32> bk{};
         for (std::size_t j = 0; j < 32; j++) bk[j] = static_cast<uint8_t>(rng());

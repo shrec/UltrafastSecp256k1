@@ -33,7 +33,7 @@ static int tests_passed = 0;
 static void hex_to_bytes(const char* hex, uint8_t* out, size_t len) {
     for (size_t i = 0; i < len; ++i) {
         unsigned hi = 0, lo = 0;
-        char c0 = hex[i * 2], c1 = hex[i * 2 + 1];
+        char const c0 = hex[i * 2], c1 = hex[i * 2 + 1];
         if (c0 >= '0' && c0 <= '9') { hi = static_cast<unsigned>(c0 - '0');
         } else if (c0 >= 'a' && c0 <= 'f') { hi = static_cast<unsigned>(c0 - 'a' + 10);
         } else if (c0 >= 'A' && c0 <= 'F') { hi = static_cast<unsigned>(c0 - 'A' + 10);

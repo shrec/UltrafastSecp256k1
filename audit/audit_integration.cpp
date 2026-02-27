@@ -29,21 +29,21 @@ static int g_pass = 0, g_fail = 0;
 static const char* g_section = "";
 
 #define CHECK(cond, msg) do { \
-    if (!(cond)) { \
+    if (cond) { \
+        ++g_pass; \
+    } else { \
         printf("  FAIL [%s]: %s (line %d)\n", g_section, msg, __LINE__); \
         ++g_fail; \
-    } else { \
-        ++g_pass; \
     } \
 } while(0)
 
-static std::mt19937_64 rng(0xA0D17'1D7E6);
+static std::mt19937_64 rng(0xA0D17'1D7E6);  // NOLINT(cert-msc32-c,cert-msc51-cpp)
 
 static Scalar random_scalar() {
     std::array<uint8_t, 32> out{};
     for (int i = 0; i < 4; ++i) {
         uint64_t v = rng();
-        std::memcpy(out.data() + i * 8, &v, 8);
+        std::memcpy(out.data() + static_cast<std::size_t>(i) * 8, &v, 8);
     }
     for (;;) {
         auto s = Scalar::from_bytes(out);

@@ -23,32 +23,32 @@ static void check(bool cond, const char* name) {
         ++g_pass;
     } else {
         ++g_fail;
-        std::printf("  FAIL: %s\n", name);
+        (void)std::printf("  FAIL: %s\n", name);
     }
 }
 
 [[maybe_unused]] static void print_hex(const std::uint8_t* data, std::size_t len) {
     for (std::size_t i = 0; i < len; ++i) {
-        std::printf("%02x", data[i]);
+        (void)std::printf("%02x", data[i]);
 }
 }
 
 // -- Test 1: Feature detection ------------------------------------------------
 
 static void test_feature_detection() {
-    std::printf("[HashAccel] Feature detection...\n");
+    (void)std::printf("[HashAccel] Feature detection...\n");
     auto tier = hash::detect_hash_tier();
-    std::printf("  Hash tier: %s\n", hash::hash_tier_name(tier));
-    std::printf("  SHA-NI:    %s\n", hash::sha_ni_available() ? "yes" : "no");
-    std::printf("  AVX2:      %s\n", hash::avx2_available() ? "yes" : "no");
-    std::printf("  AVX-512:   %s\n", hash::avx512_available() ? "yes" : "no");
+    (void)std::printf("  Hash tier: %s\n", hash::hash_tier_name(tier));
+    (void)std::printf("  SHA-NI:    %s\n", hash::sha_ni_available() ? "yes" : "no");
+    (void)std::printf("  AVX2:      %s\n", hash::avx2_available() ? "yes" : "no");
+    (void)std::printf("  AVX-512:   %s\n", hash::avx512_available() ? "yes" : "no");
     check(true, "feature detection completed");
 }
 
 // -- Test 2: SHA-256 known vectors --------------------------------------------
 
 static void test_sha256_vectors() {
-    std::printf("[HashAccel] SHA-256 known vectors...\n");
+    (void)std::printf("[HashAccel] SHA-256 known vectors...\n");
 
     // NIST vector: SHA256("abc")
     {
@@ -78,7 +78,7 @@ static void test_sha256_vectors() {
 // -- Test 3: sha256_33 vs reference -------------------------------------------
 
 static void test_sha256_33_correctness() {
-    std::printf("[HashAccel] sha256_33 correctness...\n");
+    (void)std::printf("[HashAccel] sha256_33 correctness...\n");
 
     // Generate a compressed pubkey from 1*G
     auto gen = fast::Point::generator();
@@ -105,7 +105,7 @@ static void test_sha256_33_correctness() {
         auto r = SHA256::hash(comp.data(), 33);
         hash::sha256_33(comp.data(), accel);
         char label[80];
-        std::snprintf(label, sizeof(label), "sha256_33(%dG) correct", i + 1);
+        (void)std::snprintf(label, sizeof(label), "sha256_33(%dG) correct", i + 1);
         check(std::memcmp(r.data(), accel, 32) == 0, label);
         pt.next_inplace();
     }
@@ -114,7 +114,7 @@ static void test_sha256_33_correctness() {
 // -- Test 4: sha256_32 correctness --------------------------------------------
 
 static void test_sha256_32_correctness() {
-    std::printf("[HashAccel] sha256_32 correctness...\n");
+    (void)std::printf("[HashAccel] sha256_32 correctness...\n");
 
     std::uint8_t data[32];
     for (int i = 0; i < 32; ++i) data[i] = static_cast<std::uint8_t>(i);
@@ -129,7 +129,7 @@ static void test_sha256_32_correctness() {
 // -- Test 5: RIPEMD-160 known vectors -----------------------------------------
 
 static void test_ripemd160_vectors() {
-    std::printf("[HashAccel] RIPEMD-160 known vectors...\n");
+    (void)std::printf("[HashAccel] RIPEMD-160 known vectors...\n");
 
     // RIPEMD-160("abc") = 8eb208f7e05d987a9b044a8e98c6b087f15a0bfc
     {
@@ -169,7 +169,7 @@ static void test_ripemd160_vectors() {
 // -- Test 6: ripemd160_32 correctness -----------------------------------------
 
 static void test_ripemd160_32_correctness() {
-    std::printf("[HashAccel] ripemd160_32 correctness...\n");
+    (void)std::printf("[HashAccel] ripemd160_32 correctness...\n");
 
     // Hash 32 zero bytes via general API
     std::uint8_t zeros[32] = {};
@@ -191,7 +191,7 @@ static void test_ripemd160_32_correctness() {
 // -- Test 7: Hash160 pipeline -------------------------------------------------
 
 static void test_hash160_pipeline() {
-    std::printf("[HashAccel] Hash160 pipeline correctness...\n");
+    (void)std::printf("[HashAccel] Hash160 pipeline correctness...\n");
 
     // Compute Hash160 of 1*G compressed pubkey via two methods:
     // Method 1: hash::hash160_33
@@ -223,7 +223,7 @@ static void test_hash160_pipeline() {
         hash::hash160_33(c.data(), accel);
         
         char label[80];
-        std::snprintf(label, sizeof(label), "hash160_33(%dG) correct", i + 1);
+        (void)std::snprintf(label, sizeof(label), "hash160_33(%dG) correct", i + 1);
         check(std::memcmp(ref_rmd.data(), accel, 20) == 0, label);
         pt.next_inplace();
     }
@@ -232,7 +232,7 @@ static void test_hash160_pipeline() {
 // -- Test 8: Batch operations -------------------------------------------------
 
 static void test_batch_ops() {
-    std::printf("[HashAccel] Batch operations...\n");
+    (void)std::printf("[HashAccel] Batch operations...\n");
 
     constexpr std::size_t COUNT = 256;
 
@@ -253,7 +253,7 @@ static void test_batch_ops() {
     for (std::size_t i = 0; i < COUNT; ++i) {
         auto ref = SHA256::hash(pubkeys.data() + i * 33, 33);
         char label[80];
-        std::snprintf(label, sizeof(label), "sha256_33_batch[%zu]", i);
+        (void)std::snprintf(label, sizeof(label), "sha256_33_batch[%zu]", i);
         check(std::memcmp(ref.data(), sha_results.data() + i * 32, 32) == 0, label);
     }
 
@@ -268,7 +268,7 @@ static void test_batch_ops() {
         auto ref_sha = SHA256::hash(comp.data(), 33);
         auto ref_rmd = hash::ripemd160(ref_sha.data(), 32);
         char label[80];
-        std::snprintf(label, sizeof(label), "hash160_33_batch[%zu]", i);
+        (void)std::snprintf(label, sizeof(label), "hash160_33_batch[%zu]", i);
         check(std::memcmp(ref_rmd.data(), h160_results.data() + i * 20, 20) == 0, label);
         pt.next_inplace();
     }
@@ -277,11 +277,11 @@ static void test_batch_ops() {
 // -- Test 9: SHA-NI vs Scalar cross-check -------------------------------------
 
 static void test_shani_vs_scalar() {
-    std::printf("[HashAccel] SHA-NI vs Scalar cross-check...\n");
+    (void)std::printf("[HashAccel] SHA-NI vs Scalar cross-check...\n");
 
 #ifdef SECP256K1_X86_TARGET
     if (!hash::sha_ni_available()) {
-        std::printf("  SHA-NI not available, skipping\n");
+        (void)std::printf("  SHA-NI not available, skipping\n");
         check(true, "SHA-NI not available (skip)");
         return;
     }
@@ -297,13 +297,13 @@ static void test_shani_vs_scalar() {
         hash::shani::sha256_33(comp.data(), shani_out);
 
         char label[80];
-        std::snprintf(label, sizeof(label), "SHA-NI == Scalar for %dG", i + 1);
+        (void)std::snprintf(label, sizeof(label), "SHA-NI == Scalar for %dG", i + 1);
         check(std::memcmp(scalar_out, shani_out, 32) == 0, label);
 
         pt.next_inplace();
     }
 #else
-    std::printf("  Not x86, skipping SHA-NI test\n");
+    (void)std::printf("  Not x86, skipping SHA-NI test\n");
     check(true, "Not x86 (skip)");
 #endif
 }
@@ -311,7 +311,7 @@ static void test_shani_vs_scalar() {
 // -- Test 10: Benchmark -------------------------------------------------------
 
 static void test_benchmark() {
-    std::printf("[HashAccel] Benchmark...\n");
+    (void)std::printf("[HashAccel] Benchmark...\n");
 
     // Prepare a typical compressed pubkey
     auto gen = fast::Point::generator();
@@ -328,7 +328,7 @@ static void test_benchmark() {
         }
         auto t1 = std::chrono::high_resolution_clock::now();
         double const ns = static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count());
-        std::printf("  Scalar SHA256_33:  %.1f ns/call\n", ns / ITERS);
+        (void)std::printf("  Scalar SHA256_33:  %.1f ns/call\n", ns / ITERS);
     }
 
     // Auto-dispatch SHA256_33
@@ -339,7 +339,7 @@ static void test_benchmark() {
         }
         auto t1 = std::chrono::high_resolution_clock::now();
         double const ns = static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count());
-        std::printf("  Auto   SHA256_33:  %.1f ns/call (%s)\n", ns / ITERS, hash::hash_tier_name(hash::detect_hash_tier()));
+        (void)std::printf("  Auto   SHA256_33:  %.1f ns/call (%s)\n", ns / ITERS, hash::hash_tier_name(hash::detect_hash_tier()));
     }
 
     // Scalar RIPEMD160_32
@@ -350,7 +350,7 @@ static void test_benchmark() {
         }
         auto t1 = std::chrono::high_resolution_clock::now();
         double const ns = static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count());
-        std::printf("  Scalar RIPEMD160_32: %.1f ns/call\n", ns / ITERS);
+        (void)std::printf("  Scalar RIPEMD160_32: %.1f ns/call\n", ns / ITERS);
     }
 
     // Hash160_33 (fused SHA256+RIPEMD160)
@@ -361,7 +361,7 @@ static void test_benchmark() {
         }
         auto t1 = std::chrono::high_resolution_clock::now();
         double const ns = static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count());
-        std::printf("  Auto   Hash160_33: %.1f ns/call\n", ns / ITERS);
+        (void)std::printf("  Auto   Hash160_33: %.1f ns/call\n", ns / ITERS);
     }
 
     // Old SHA256 class (reference baseline)
@@ -373,7 +373,7 @@ static void test_benchmark() {
         }
         auto t1 = std::chrono::high_resolution_clock::now();
         double const ns = static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count());
-        std::printf("  Old    SHA256::hash: %.1f ns/call (reference)\n", ns / ITERS);
+        (void)std::printf("  Old    SHA256::hash: %.1f ns/call (reference)\n", ns / ITERS);
     }
 
     // Batch Hash160
@@ -399,7 +399,7 @@ static void test_benchmark() {
         auto t1 = std::chrono::high_resolution_clock::now();
         double const total_ns = static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count());
         double const per_key = total_ns / BATCH_ITERS / BATCH;
-        std::printf("  Batch  Hash160_33 (%zu): %.1f ns/key, %.2f Mkeys/s\n",
+        (void)std::printf("  Batch  Hash160_33 (%zu): %.1f ns/key, %.2f Mkeys/s\n",
                     BATCH, per_key, 1e9 / per_key / 1e6);
     }
 
@@ -409,7 +409,7 @@ static void test_benchmark() {
 // -- Test 11: Double-SHA256 ---------------------------------------------------
 
 static void test_double_sha256() {
-    std::printf("[HashAccel] Double-SHA256...\n");
+    (void)std::printf("[HashAccel] Double-SHA256...\n");
 
     std::uint8_t data[] = {0x01, 0x02, 0x03};
 
@@ -424,7 +424,7 @@ static void test_double_sha256() {
 // -- Entry point --------------------------------------------------------------
 
 int test_hash_accel_run() {
-    std::printf("\n=== Accelerated Hashing Tests ===\n");
+    (void)std::printf("\n=== Accelerated Hashing Tests ===\n");
 
     test_feature_detection();
     test_sha256_vectors();
@@ -438,7 +438,7 @@ int test_hash_accel_run() {
     test_shani_vs_scalar();
     test_benchmark();
 
-    std::printf("\n  Hash accel: %d passed, %d failed\n", g_pass, g_fail);
+    (void)std::printf("\n  Hash accel: %d passed, %d failed\n", g_pass, g_fail);
     return g_fail;
 }
 
