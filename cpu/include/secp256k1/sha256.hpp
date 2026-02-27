@@ -72,9 +72,9 @@ public:
 
         // -- Direct in-place padding (no per-byte update() calls) ---------
         // buf_len_ is invariantly [0,63] after update() processes full blocks.
-        // Branchless clamp satisfies static analysis (Sonar S3519) without
-        // changing behavior -- the mask is a no-op when the invariant holds.
-        buf_len_ &= 63u;
+        // Explicit check satisfies static analysis (Sonar overflow warning)
+        // without changing behavior -- the branch is never taken.
+        if (buf_len_ >= 64) buf_len_ = 0;
         buf_[buf_len_++] = 0x80;
 
         if (buf_len_ > 56) {
