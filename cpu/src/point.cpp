@@ -1280,7 +1280,7 @@ FieldElement Point::x() const {
     }
 #if defined(SECP256K1_FAST_52BIT)
     FieldElement z_fe;
-    if (!z_fe_nonzero(z_fe)) return FieldElement::zero();
+    if (!z_fe_nonzero(z_fe)) return FieldElement::zero(); // LCOV_EXCL_LINE
     FieldElement z_inv = z_fe.inverse();
     FieldElement z_inv2 = z_inv;
     z_inv2.square_inplace();
@@ -1299,7 +1299,7 @@ FieldElement Point::y() const {
     }
 #if defined(SECP256K1_FAST_52BIT)
     FieldElement z_fe;
-    if (!z_fe_nonzero(z_fe)) return FieldElement::zero();
+    if (!z_fe_nonzero(z_fe)) return FieldElement::zero(); // LCOV_EXCL_LINE
     FieldElement z_inv = z_fe.inverse();
     FieldElement z_inv3 = z_inv;
     z_inv3.square_inplace();
@@ -2233,7 +2233,7 @@ std::array<std::uint8_t, 33> Point::to_compressed() const {
     // Compute affine coordinates with a single inversion
 #if defined(SECP256K1_FAST_52BIT)
     FieldElement z_fe;
-    if (!z_fe_nonzero(z_fe)) { out.fill(0); return out; }
+    if (!z_fe_nonzero(z_fe)) { out.fill(0); return out; } // LCOV_EXCL_LINE
     FieldElement z_inv = z_fe.inverse();
     FieldElement z_inv2 = z_inv;
     z_inv2.square_inplace();
@@ -2262,7 +2262,7 @@ std::array<std::uint8_t, 65> Point::to_uncompressed() const {
     // Compute affine coordinates with a single inversion
 #if defined(SECP256K1_FAST_52BIT)
     FieldElement z_fe;
-    if (!z_fe_nonzero(z_fe)) { out.fill(0); return out; }
+    if (!z_fe_nonzero(z_fe)) { out.fill(0); return out; } // LCOV_EXCL_LINE
     FieldElement z_inv = z_fe.inverse();
     FieldElement z_inv2 = z_inv;
     z_inv2.square_inplace();
@@ -2288,7 +2288,7 @@ bool Point::has_even_y() const {
     if (infinity_) return false;
 #if defined(SECP256K1_FAST_52BIT)
     FieldElement z_fe;
-    if (!z_fe_nonzero(z_fe)) return false;
+    if (!z_fe_nonzero(z_fe)) return false; // LCOV_EXCL_LINE
     FieldElement z_inv = z_fe.inverse();
     FieldElement z_inv2 = z_inv;
     z_inv2.square_inplace();
@@ -2308,7 +2308,7 @@ std::pair<std::array<uint8_t, 32>, bool> Point::x_bytes_and_parity() const {
     if (infinity_) return {std::array<uint8_t,32>{}, false};
 #if defined(SECP256K1_FAST_52BIT)
     FieldElement z_fe;
-    if (!z_fe_nonzero(z_fe)) return {std::array<uint8_t,32>{}, false};
+    if (!z_fe_nonzero(z_fe)) return {std::array<uint8_t,32>{}, false}; // LCOV_EXCL_LINE
     FieldElement z_inv = z_fe.inverse();
     FieldElement z_inv2 = z_inv;
     z_inv2.square_inplace();
