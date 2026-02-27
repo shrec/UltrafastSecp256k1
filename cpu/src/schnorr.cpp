@@ -229,7 +229,11 @@ bool schnorr_verify(const std::array<uint8_t, 32>& pubkey_x,
     FieldElement z_inv2 = z_inv;
     z_inv2.square_inplace();
     FieldElement y_aff = R.y_raw() * z_inv2 * z_inv;
-    return (y_aff.limbs()[0] & 1) == 0;
+    // Normalize to canonical [0, p) before parity check -- arithmetic
+    // paths can leave values in [p, 2^256). Since p is odd, a non-
+    // canonical value has the wrong LSB, flipping the parity result.
+    auto y_parity_bytes = y_aff.to_bytes();
+    return (y_parity_bytes[31] & 1) == 0;
 #endif
 }
 
@@ -343,7 +347,9 @@ bool schnorr_verify(const SchnorrXonlyPubkey& pubkey,
     FieldElement z_inv2 = z_inv;
     z_inv2.square_inplace();
     FieldElement y_aff = R.y_raw() * z_inv2 * z_inv;
-    return (y_aff.limbs()[0] & 1) == 0;
+    // Normalize to canonical [0, p) -- see first verify overload above.
+    auto y_parity_bytes = y_aff.to_bytes();
+    return (y_parity_bytes[31] & 1) == 0;
 #endif
 }
 

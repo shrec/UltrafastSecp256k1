@@ -36,7 +36,6 @@
 
 static int g_pass  = 0;
 static int g_fail  = 0;
-[[maybe_unused]] static int g_crash = 0;  // should stay 0
 
 #define CHECK(cond, msg) do { \
     if (!(cond)) { \
