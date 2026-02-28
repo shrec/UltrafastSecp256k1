@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772234272878,
+  "lastUpdate": 1772238761064,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -21383,6 +21383,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Batch Inverse (n=1000)",
             "value": 137,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "Vano Chkheidze",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1519ff96053ba79ff3d994db90245181d428f1d9",
+          "message": "fix: resolve 266 code scanning alerts (cppcheck + clang-tidy + CodeQL) (#65)\n\n- Add .cppcheck-suppressions for objectIndex/passedByValue/containerOutOfBounds/\n  arrayIndexOutOfBoundsCond/uninitvar false positives (111 alerts)\n- Wire suppressions file into .github/workflows/cppcheck.yml\n- Add const qualifiers where variables are never modified (misc-const-correctness)\n- Initialize variables at declaration (cppcheck init-variables)\n- Replace C-style casts with reinterpret_cast (cstyle-cast)\n- Replace std::atoi with std::strtol (cert-err34-c)\n- Check sscanf/snprintf return values (cert-err33-c, cert-err34-c)\n- Add NOLINTNEXTLINE for false positives (BARRIER_OPAQUE, fe52_cmov,\n  reserved identifiers, 2-digit hex parsing)\n- Fix misplaced widening casts (bugprone-misplaced-widening-cast)\n- Add default: break to switch statements\n- Remove unused variables/imports, add (void) for unused bindings\n- Fix unsigned >= 0 tautology (cpp/unsigned-comparison-zero)\n- Add null guard before strlen (NonNullParamChecker)\n- Replace localtime with localtime_s/localtime_r\n- Replace fopen with POSIX open+fdopen for secure permissions\n\nAll 25 tests pass. No behavior changes.",
+          "timestamp": "2026-02-28T04:31:04+04:00",
+          "tree_id": "670cbe9366c12bc75b1b43e922431d9d54fc97fa",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/1519ff96053ba79ff3d994db90245181d428f1d9"
+        },
+        "date": 1772238759543,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 26,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 19,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 267,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 133,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 35000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 8000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 12000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 43000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 20000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 49000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 116,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 107,
             "unit": "ns"
           }
         ]
