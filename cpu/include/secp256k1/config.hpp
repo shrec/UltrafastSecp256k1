@@ -107,6 +107,19 @@
     #define SECP256K1_CONST
 #endif
 
+// Disable stack protector (GS-cookie / stack canary) on a per-function basis.
+// Required for large-stack-frame hot functions (~5 KB+ of local arrays)
+// where try/catch was previously used as a workaround to force SEH frame
+// emission.  This attribute is the proper fix: no try/catch overhead,
+// no SEH unwind tables, no GS-cookie check on each return.
+#if defined(_MSC_VER)
+    #define SECP256K1_NO_STACK_PROTECTOR __declspec(safebuffers)
+#elif defined(__clang__) || defined(__GNUC__)
+    #define SECP256K1_NO_STACK_PROTECTOR __attribute__((no_stack_protector))
+#else
+    #define SECP256K1_NO_STACK_PROTECTOR
+#endif
+
 // Prefetch macros for cache optimization (Phase 4)
 // Hints to CPU to load data into cache before it's needed
 #if defined(_MSC_VER)

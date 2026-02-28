@@ -74,6 +74,31 @@ extern "C" {
 }
 #endif
 
+// -- x86-64 hand-tuned FE52 kernels (GAS assembly) -----------------------
+// Uses MULX (BMI2) with hand-scheduled register allocation for optimal
+// throughput. The body runs at ~7-8ns but function-call overhead adds ~2ns.
+// Trade-off vs __int128 inline: extern ASM has better instruction scheduling
+// but loses cross-operation ILP that inlining provides.
+//
+// Enabled by CMake when SECP256K1_USE_ASM52_X64=ON sets SECP256K1_HAS_X64_FE52_ASM.
+// To disable and fall back to __int128 C++: -DSECP256K1_USE_ASM52_X64=OFF
+#if (defined(__x86_64__) || defined(_M_X64)) && defined(SECP256K1_HAS_X64_FE52_ASM) \
+    && !defined(SECP256K1_X64_FE52_DISABLE)
+  #define SECP256K1_X64_FE52_ASM 1
+  // The ASM uses System V ABI (rdi, rsi, rdx) even on Windows.
+  #if defined(_WIN32)
+    extern "C" __attribute__((sysv_abi)) void fe52_mul_inner_x64(
+        std::uint64_t* r, const std::uint64_t* a, const std::uint64_t* b);
+    extern "C" __attribute__((sysv_abi)) void fe52_sqr_inner_x64(
+        std::uint64_t* r, const std::uint64_t* a);
+  #else
+    extern "C" {
+        void fe52_mul_inner_x64(std::uint64_t* r, const std::uint64_t* a, const std::uint64_t* b);
+        void fe52_sqr_inner_x64(std::uint64_t* r, const std::uint64_t* a);
+    }
+  #endif
+#endif
+
 // Force-inline attribute -- ensures zero call overhead for field ops.
 // The compiler generates MULX assembly automatically with -mbmi2.
 #if defined(__GNUC__) || defined(__clang__)
@@ -115,6 +140,10 @@ void fe52_mul_inner(std::uint64_t* __restrict__ r,
     // outperforms __int128 C++ (which Clang compiles to MUL/MULHU pairs
     // with suboptimal register allocation for 25+ multiplications).
     fe52_mul_inner_riscv64(r, a, b);
+#elif defined(SECP256K1_X64_FE52_ASM)
+    // x86-64: Hand-tuned MULX (BMI2) assembly with optimal register scheduling.
+    // ~8ns body vs ~16ns from compiler-generated __int128 code.
+    fe52_mul_inner_x64(r, a, b);
 #else
     using u128 = unsigned __int128;
     u128 c = 0, d = 0;
@@ -204,6 +233,9 @@ void fe52_sqr_inner(std::uint64_t* __restrict__ r,
     // RISC-V: Symmetry-optimized squaring in asm.
     // Cross-products doubled via shift, halving multiplication count.
     fe52_sqr_inner_riscv64(r, a);
+#elif defined(SECP256K1_X64_FE52_ASM)
+    // x86-64: Hand-tuned MULX squaring with symmetry optimization.
+    fe52_sqr_inner_x64(r, a);
 #else
     using u128 = unsigned __int128;
     u128 c = 0, d = 0;

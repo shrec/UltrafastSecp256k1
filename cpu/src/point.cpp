@@ -822,19 +822,52 @@ static inline JacobianPoint52 jac52_negate(const JacobianPoint52& p) {
 }
 
 // -- GLV + Shamir + 5x52 scalar multiplication (isolated stack frame) -----
+// -- 4x64 Fallback for scalar_mul when 5x52 batch inversion fails --------
+// Extracted to its own noinline function to keep the hot 5x52 path free
+// of try/catch overhead.  Called only when eff_z product is zero (~never
+// in practice; requires point-at-infinity in the precomputation chain).
+SECP256K1_NOINLINE
+static Point scalar_mul_fallback_4x64(const Point& base, const Scalar& scalar) {
+    constexpr unsigned window_width = 5;
+    std::array<int32_t, 260> wnaf_buf{};
+    std::size_t wnaf_len = 0;
+    compute_wnaf_into(scalar, window_width, wnaf_buf.data(), wnaf_buf.size(), wnaf_len);
+    constexpr int table_size = (1 << (window_width - 1));
+    std::array<Point, table_size> precomp;
+    precomp[0] = base;
+    Point double_p = base;
+    double_p.dbl_inplace();
+    for (std::size_t i = 1; i < static_cast<std::size_t>(table_size); i++) {
+        precomp[i] = precomp[i-1];
+        precomp[i].add_inplace(double_p);
+    }
+    Point result = Point::infinity();
+    for (int i = static_cast<int>(wnaf_len) - 1; i >= 0; --i) {
+        result.dbl_inplace();
+        int32_t const digit = wnaf_buf[static_cast<std::size_t>(i)];
+        if (digit > 0) {
+            result.add_inplace(precomp[static_cast<std::size_t>((digit - 1) / 2)]);
+        } else if (digit < 0) {
+            Point neg_point = precomp[static_cast<std::size_t>((-digit - 1) / 2)];
+            neg_point.negate_inplace();
+            result.add_inplace(neg_point);
+        }
+    }
+    return result;
+}
+
 // Kept as a separate noinline function so the ~5 KB of local arrays
 // live in their own stack frame, preventing GS-cookie corruption that
 // occurs when Clang 21 inlines all jac52 helpers into Point::scalar_mul.
-// The try/catch is required: it forces Clang to emit an SEH frame on
-// Windows, without which the large stack frame triggers a GS-cookie fault.
-SECP256K1_NOINLINE
+// SECP256K1_NO_STACK_PROTECTOR replaces the old try/catch workaround:
+// zero overhead, no SEH unwind tables, no GS-cookie check on return.
+SECP256K1_NOINLINE SECP256K1_NO_STACK_PROTECTOR
 static Point scalar_mul_glv52(const Point& base, const Scalar& scalar) {
     // Guard: infinity base or zero scalar -> result is always infinity
     if (SECP256K1_UNLIKELY(base.is_infinity() || scalar.is_zero())) {
         return Point::infinity();
     }
 
-    try {
     // -- GLV decomposition --------------------------------------------
     GLVDecomposition const decomp = glv_decompose(scalar);
 
@@ -898,9 +931,9 @@ static Point scalar_mul_glv52(const Point& base, const Scalar& scalar) {
             prods[i] = prods[i - 1] * eff_z[i];
         }
         // Guard: if any eff_z is zero the cumulative product is zero
-        // and batch inversion is undefined. Fall through to 4x64 path.
+        // and batch inversion is undefined.  Delegate to 4x64 fallback.
         if (SECP256K1_UNLIKELY(prods[glv_table_size - 1].normalizes_to_zero())) {
-            throw 0;  // caught by catch(...) below -> 4x64 fallback
+            return scalar_mul_fallback_4x64(base, scalar);
         }
         FieldElement52 inv = prods[glv_table_size - 1].inverse_safegcd();
         std::array<FieldElement52, glv_table_size> zs;
@@ -975,35 +1008,6 @@ static Point scalar_mul_glv52(const Point& base, const Scalar& scalar) {
     }
 
     return from_jac52(result52);
-    } catch (...) {
-        // 5x52 path failed -- fall through to 4x64
-        constexpr unsigned window_width = 5;
-        std::array<int32_t, 260> wnaf_buf{};
-        std::size_t wnaf_len = 0;
-        compute_wnaf_into(scalar, window_width, wnaf_buf.data(), wnaf_buf.size(), wnaf_len);
-        constexpr int table_size = (1 << (window_width - 1));
-        std::array<Point, table_size> precomp;
-        precomp[0] = base;
-        Point double_p = base;
-        double_p.dbl_inplace();
-        for (std::size_t i = 1; i < static_cast<std::size_t>(table_size); i++) {
-            precomp[i] = precomp[i-1];
-            precomp[i].add_inplace(double_p);
-        }
-        Point result = Point::infinity();
-        for (int i = static_cast<int>(wnaf_len) - 1; i >= 0; --i) {
-            result.dbl_inplace();
-            int32_t const digit = wnaf_buf[static_cast<std::size_t>(i)];
-            if (digit > 0) {
-                result.add_inplace(precomp[static_cast<std::size_t>((digit - 1) / 2)]);
-            } else if (digit < 0) {
-                Point neg_point = precomp[static_cast<std::size_t>((-digit - 1) / 2)];
-                neg_point.negate_inplace();
-                result.add_inplace(neg_point);
-            }
-        }
-        return result;
-    }
 }
 
 #endif // SECP256K1_FAST_52BIT
@@ -2530,50 +2534,50 @@ Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const P
     for (int i = static_cast<int>(max_len) - 1; i >= 0; --i) {
         jac52_double_inplace(result52);
 
-        // Stream 1: a_lo * G (negate Y on-the-fly for negative digits)
+        // Stream 1: a_lo * G
         {
             int32_t const d = wnaf_a_lo[static_cast<std::size_t>(i)];
             if (d > 0) {
                 jac52_add_mixed_inplace(result52, gen_tables->tbl_G[static_cast<std::size_t>((d - 1) >> 1)]);
             } else if (d < 0) {
                 AffinePoint52 pt = gen_tables->tbl_G[static_cast<std::size_t>((-d - 1) >> 1)];
-                pt.y.negate_assign(1);  // mag 2 (safe for mul: 2*1*5 << 3.3M)
+                pt.y.negate_assign(1);
                 jac52_add_mixed_inplace(result52, pt);
             }
         }
 
-        // Stream 2: a_hi * H (negate Y on-the-fly for negative digits)
+        // Stream 2: a_hi * H
         {
             int32_t const d = wnaf_a_hi[static_cast<std::size_t>(i)];
             if (d > 0) {
                 jac52_add_mixed_inplace(result52, gen_tables->tbl_H[static_cast<std::size_t>((d - 1) >> 1)]);
             } else if (d < 0) {
                 AffinePoint52 pt = gen_tables->tbl_H[static_cast<std::size_t>((-d - 1) >> 1)];
-                pt.y.negate_assign(1);  // mag 2 (safe for mul: 2*1*5 << 3.3M)
+                pt.y.negate_assign(1);
                 jac52_add_mixed_inplace(result52, pt);
             }
         }
 
-        // Stream 3: b1 * P (negate Y on-the-fly for negative digits)
+        // Stream 3: b1 * P
         {
             int32_t const d = wnaf_b1[static_cast<std::size_t>(i)];
             if (d > 0) {
                 jac52_add_mixed_inplace(result52, tbl_P[static_cast<std::size_t>((d - 1) >> 1)]);
             } else if (d < 0) {
                 AffinePoint52 pt = tbl_P[static_cast<std::size_t>((-d - 1) >> 1)];
-                pt.y.negate_assign(1);  // mag 2 (safe for mul: 2*1*5 << 3.3M)
+                pt.y.negate_assign(1);
                 jac52_add_mixed_inplace(result52, pt);
             }
         }
 
-        // Stream 4: b2 * psi(P) (negate Y on-the-fly for negative digits)
+        // Stream 4: b2 * psi(P)
         {
             int32_t const d = wnaf_b2[static_cast<std::size_t>(i)];
             if (d > 0) {
                 jac52_add_mixed_inplace(result52, tbl_phiP[static_cast<std::size_t>((d - 1) >> 1)]);
             } else if (d < 0) {
                 AffinePoint52 pt = tbl_phiP[static_cast<std::size_t>((-d - 1) >> 1)];
-                pt.y.negate_assign(1);  // mag 2 (safe for mul: 2*1*5 << 3.3M)
+                pt.y.negate_assign(1);
                 jac52_add_mixed_inplace(result52, pt);
             }
         }
