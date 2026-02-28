@@ -110,11 +110,14 @@ FieldElement field_add(const FieldElement& a, const FieldElement& b) noexcept {
     std::uint64_t tmp[4];
     std::uint64_t const borrow = sub256(tmp, r, P);
 
-    // If carry, we definitely need to subtract p (result overflowed 256 bits)
-    // If no carry and no borrow, we still use tmp (r was >= p)
-    // If no carry and borrow, keep r (r was < p)
-    // Combined: use_tmp if (carry OR (borrow == 0))
-    // mask = all-ones if we should use tmp
+    // Four cases for correct reduction of a+b (mod p):
+    //   carry=0 borrow=0 : a+b < 2^256 and a+b >= p -> use tmp (a+b-p)
+    //   carry=0 borrow=1 : a+b < 2^256 and a+b < p  -> keep r
+    //   carry=1 borrow=1 : a+b >= 2^256 -> must subtract p.
+    //     tmp wraps to (a+b - p) via 2^256 arithmetic.  Always correct.
+    //   carry=1 borrow=0 : impossible (a,b < p implies a+b < 2p, so
+    //     r = a+b - 2^256 < p when carry=1, hence sub always borrows)
+    // Combined: use_tmp = no_borrow | has_carry (covers all 3 "use tmp" rows)
     std::uint64_t const no_borrow = is_zero_mask(borrow);
     std::uint64_t const has_carry = is_nonzero_mask(carry);
     std::uint64_t const mask = no_borrow | has_carry;

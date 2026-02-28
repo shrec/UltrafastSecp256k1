@@ -2508,8 +2508,8 @@ bool Point::has_even_y() const {
     z_inv2.square_inplace();
     FieldElement y_aff = y_ * z_inv2 * z_inv;
 #endif
-    auto y_bytes = y_aff.to_bytes();
-    return (y_bytes[31] & 1) == 0;
+    // mul_impl Barrett-reduces to [0, p) -- limbs()[0] LSB is parity.
+    return (y_aff.limbs()[0] & 1) == 0;
 }
 
 // -- Combined x-bytes + Y-parity (single inversion) --------------------------
@@ -2530,8 +2530,9 @@ std::pair<std::array<uint8_t, 32>, bool> Point::x_bytes_and_parity() const {
     FieldElement x_aff = x_ * z_inv2;
     FieldElement y_aff = y_ * z_inv2 * z_inv;
 #endif
-    auto y_bytes = y_aff.to_bytes();
-    return {x_aff.to_bytes(), (y_bytes[31] & 1) != 0};
+    // Parity from limbs directly (avoids to_bytes serialization)
+    bool const y_odd = (y_aff.limbs()[0] & 1) != 0;
+    return {x_aff.to_bytes(), y_odd};
 }
 
 // -- 128-bit split Shamir: a*G + b*P -----------------------------------------

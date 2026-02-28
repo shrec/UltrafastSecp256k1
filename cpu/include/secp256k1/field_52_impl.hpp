@@ -628,7 +628,9 @@ FieldElement52 FieldElement52::from_bytes(const std::uint8_t* bytes) noexcept {
         0xFFFFFFFEFFFFFC2FULL, 0xFFFFFFFFFFFFFFFFULL,
         0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL
     };
-    // ge(L, P): check L >= P lexicographically from high limb
+    // ge(L, P): check L >= P lexicographically from high limb.
+    // NOTE: Variable-time comparison -- acceptable because input bytes
+    // are public data (from wire / serialized keys), not secret.
     bool ge_p = true;
     for (int i = 3; i >= 0; --i) {
         if (L[i] < P[i]) { ge_p = false; break; }

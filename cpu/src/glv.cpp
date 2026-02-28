@@ -151,10 +151,15 @@ static unsigned scalar_bitlen(const Scalar& s) {
             _BitScanReverse64(&index, limbs[i]);
             return static_cast<unsigned>(i * 64 + index + 1);
 #else
+#if defined(__XTENSA__) || defined(SECP256K1_ESP32) || defined(SECP256K1_PLATFORM_ESP32)
             // 32-bit CLZ for portability (ESP32 Xtensa has NSAU for 32-bit)
             auto const hi32 = static_cast<std::uint32_t>(limbs[i] >> 32);
             if (hi32) return static_cast<unsigned>(i * 64 + 64 - static_cast<unsigned>(__builtin_clz(hi32)));
             return static_cast<unsigned>(i * 64 + 32 - static_cast<unsigned>(__builtin_clz(static_cast<std::uint32_t>(limbs[i]))));
+#else
+            // x86-64/ARM64/RISC-V: single LZCNT/CLZ instruction
+            return static_cast<unsigned>(i * 64 + 64 - static_cast<unsigned>(__builtin_clzll(limbs[i])));
+#endif
 #endif
         }
     }

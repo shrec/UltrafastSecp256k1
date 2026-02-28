@@ -40,15 +40,21 @@ unsigned pippenger_optimal_window(std::size_t n) {
 // -- Extract c-bit digit at position `bit_offset` from scalar -----------------
 // Extracts bits [bit_offset, bit_offset+width) from the scalar.
 // Returns unsigned digit in [0, 2^width).
+// Word-level extraction: 1-2 limb reads instead of `width` calls to s.bit().
 static inline uint32_t extract_digit(const Scalar& s, unsigned bit_offset, unsigned width) {
-    uint32_t digit = 0;
-    for (unsigned b = 0; b < width; ++b) {
-        unsigned const pos = bit_offset + b;
-        if (pos < 256) {
-            digit |= static_cast<uint32_t>(s.bit(pos)) << b;
-        }
+    auto const& limbs = s.limbs();
+    unsigned const limb_idx = bit_offset >> 6;   // / 64
+    unsigned const bit_idx  = bit_offset & 63;   // % 64
+
+    // Primary word: shift down to align desired bits
+    std::uint64_t word = limbs[limb_idx] >> bit_idx;
+
+    // If window crosses a limb boundary, OR in bits from next limb
+    if (bit_idx + width > 64 && limb_idx < 3) {
+        word |= limbs[limb_idx + 1] << (64 - bit_idx);
     }
-    return digit;
+
+    return static_cast<uint32_t>(word) & ((1U << width) - 1);
 }
 
 // -- Pippenger Core -----------------------------------------------------------

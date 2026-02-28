@@ -91,9 +91,7 @@ bool decompress_pubkey(secp256k1::fast::Point& out, const uint8_t* pubkey33, siz
 
 // Convert 64-byte compact sig to ECDSASignature
 bool parse_compact_sig(secp256k1::ECDSASignature& out, const uint8_t* sig64) {
-    std::array<uint8_t, 64> compact;
-    std::memcpy(compact.data(), sig64, 64);
-    out = secp256k1::ECDSASignature::from_compact(compact);
+    out = secp256k1::ECDSASignature::from_compact(sig64);
     return true;
 }
 
@@ -237,23 +235,17 @@ public:
         const uint8_t* sig64,
         const uint8_t* msg32) override
     {
-        std::array<uint8_t, 32> pubkey_x;
-        std::memcpy(pubkey_x.data(), xonly_pubkey32, 32);
-
         auto schnorr_sig = secp256k1::SchnorrSignature::from_bytes(sig64);
 
-        return secp256k1::schnorr_verify(pubkey_x, msg32, schnorr_sig);
+        return secp256k1::schnorr_verify(xonly_pubkey32, msg32, schnorr_sig);
     }
 
     // -- Schnorr parse xonly ------------------------------------------------
     bool schnorr_parse_xonly(ParsedXonlyPubkey* out,
         const uint8_t* xonly32) override
     {
-        std::array<uint8_t, 32> xonly_bytes;
-        std::memcpy(xonly_bytes.data(), xonly32, 32);
-
         secp256k1::SchnorrXonlyPubkey xpk;
-        if (!secp256k1::schnorr_xonly_pubkey_parse(xpk, xonly_bytes)) return false;
+        if (!secp256k1::schnorr_xonly_pubkey_parse(xpk, xonly32)) return false;
         store_xonly(out, xpk);
         return true;
     }

@@ -65,11 +65,12 @@ std::array<std::uint8_t, 64> ECDSASignature::to_compact() const {
     return out;
 }
 
-ECDSASignature ECDSASignature::from_compact(const std::array<std::uint8_t, 64>& data) {
-    std::array<uint8_t, 32> rb{}, sb{};
-    std::memcpy(rb.data(), data.data(), 32);
-    std::memcpy(sb.data(), data.data() + 32, 32);
-    return {Scalar::from_bytes(rb), Scalar::from_bytes(sb)};
+ECDSASignature ECDSASignature::from_compact(const uint8_t* data64) {
+    return {Scalar::from_bytes(data64), Scalar::from_bytes(data64 + 32)};
+}
+
+ECDSASignature ECDSASignature::from_compact(const std::array<uint8_t, 64>& data) {
+    return from_compact(data.data());
 }
 
 ECDSASignature ECDSASignature::normalize() const {

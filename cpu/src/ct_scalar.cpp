@@ -67,6 +67,8 @@ Scalar scalar_add(const Scalar& a, const Scalar& b) noexcept {
     std::uint64_t tmp[4];
     std::uint64_t const borrow = sub256_scalar(tmp, r, N);
 
+    // carry=1 implies r < n (since a+b < 2n < n + 2^256), so borrow=1.
+    // carry=1 AND borrow=0 is impossible -> OR safely covers all cases.
     std::uint64_t const no_borrow = is_zero_mask(borrow);
     std::uint64_t const has_carry = is_nonzero_mask(carry);
     std::uint64_t const mask = no_borrow | has_carry;

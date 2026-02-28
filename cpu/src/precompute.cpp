@@ -603,33 +603,19 @@ static inline Scalar scalar_from_limbs_normalized(const Limbs4& limbs) {
     unsigned long long start = RDTSC();
 #endif
     
-    // Create zero scalar and directly set its limbs
-    // This avoids the modular reduction check in from_limbs()
-    Scalar s = Scalar::zero();
-    
-#if SECP256K1_PROFILE_DECOMP
-    unsigned long long t1 = RDTSC();
-#endif
-    
-    // HACK: Access private limbs_ member through const_cast
-    // This is safe because we KNOW limbs < ORDER
-    const_cast<Scalar::limbs_type&>(s.limbs()) = limbs;
+    // Pre-normalized: limbs < ORDER guaranteed by caller.
+    // from_limbs() checks >= ORDER (4 compares, never triggers) -- no UB.
+    Scalar s = Scalar::from_limbs(limbs);
     
 #if SECP256K1_PROFILE_DECOMP
     unsigned long long end = RDTSC();
-    static unsigned long long total_zero = 0;
-    static unsigned long long total_assign = 0;
+    static unsigned long long total = 0;
     static int norm_calls = 0;
-    
-    total_zero += (t1 - start);
-    total_assign += (end - t1);
+    total += (end - start);
     norm_calls++;
-    
     if (norm_calls == 1000 || norm_calls == 3000) {
-        std::printf("  [SCALAR_FROM_LIMBS_NORM] After %d calls:\n", norm_calls);
-        std::printf("    Scalar::zero():    %llu cycles\n", total_zero / norm_calls);
-        std::printf("    Assign limbs:      %llu cycles\n", total_assign / norm_calls);
-        std::printf("    TOTAL AVG:         %llu cycles\n", (total_zero + total_assign) / norm_calls);
+        std::printf("  [SCALAR_FROM_LIMBS_NORM] After %d calls: AVG %llu cycles\n",
+                    norm_calls, total / norm_calls);
     }
 #endif
     

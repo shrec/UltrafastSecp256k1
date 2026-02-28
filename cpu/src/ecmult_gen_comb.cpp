@@ -81,11 +81,13 @@ void CombGenContext::init(unsigned teeth) {
 // forming a t-bit index.
 
 uint32_t CombGenContext::extract_comb_index(const Scalar& k, unsigned b) const {
+    // Direct limb access: 1-2 shifts per tooth instead of k.bit() function call.
+    auto const& L = k.limbs();
     uint32_t idx = 0;
     for (unsigned j = 0; j < teeth_; ++j) {
         unsigned const pos = b + j * spacing_;
         if (pos < 256) {
-            idx |= static_cast<uint32_t>(k.bit(pos)) << j;
+            idx |= static_cast<uint32_t>((L[pos >> 6] >> (pos & 63)) & 1) << j;
         }
     }
     return idx;

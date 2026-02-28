@@ -57,10 +57,9 @@ std::pair<bool, Point> lift_x(const std::array<uint8_t, 32>& pubkey_x) {
     // Verify: y^2 == y2
     if (y.square() != y2) return {false, Point::infinity()};
 
-    // Ensure even Y (BIP-340)
-    auto y_bytes = y.to_bytes();
-    if (y_bytes[31] & 1) {
-        y = FieldElement::zero() - y;
+    // Ensure even Y (BIP-340) -- direct limb check avoids to_bytes() overhead
+    if (y.limbs()[0] & 1) {
+        y = y.negate();
     }
 
     return {true, Point::from_affine(px_fe, y)};

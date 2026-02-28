@@ -37,12 +37,11 @@ Point decompress_point(const std::array<uint8_t, 33>& compressed) {
 
     if (y.square() != y2) return Point::infinity();
 
-    // Select parity
-    auto y_bytes = y.to_bytes();
-    bool const y_odd = (y_bytes[31] & 1) != 0;
+    // Select parity (limbs()[0] LSB == big-endian byte[31] LSB for normalized FE)
+    bool const y_odd = (y.limbs()[0] & 1) != 0;
     bool const want_odd = (compressed[0] == 0x03);
     if (y_odd != want_odd) {
-        y = FieldElement::zero() - y;
+        y = y.negate();
     }
 
     return Point::from_affine(x, y);
@@ -50,8 +49,7 @@ Point decompress_point(const std::array<uint8_t, 33>& compressed) {
 
 // Check if point has even Y
 bool has_even_y(const Point& P) {
-    auto uncomp = P.to_uncompressed();
-    return (uncomp[64] & 1) == 0;
+    return P.has_even_y();
 }
 
 } // anonymous namespace
@@ -112,23 +110,13 @@ MuSig2KeyAggCtx musig2_key_agg(const std::vector<std::array<uint8_t, 32>>& pubke
         auto x3 = px.square() * px;
         auto y2 = x3 + FieldElement::from_uint64(7);
 
-        auto exp = FieldElement::from_hex(
-            "3fffffffffffffffffffffffffffffffffffffffffffffffffffffffbfffff0c");
-        auto y = FieldElement::one();
-        auto base = y2;
-        auto exp_bytes = exp.to_bytes();
-        for (std::size_t b = 0; b < 256; ++b) {
-            y = y.square();
-            std::size_t const byte_idx = b / 8;
-            auto const bit_idx = static_cast<unsigned>(7 - (b % 8));
-            if ((exp_bytes[byte_idx] >> bit_idx) & 1) {
-                y = y * base;
-            }
-        }
+        // sqrt via optimized addition chain (~253 sqr + 13 mul)
+        auto y = y2.sqrt();
+        if (y.square() != y2) continue;  // invalid pubkey x-coord
 
-        auto y_bytes = y.to_bytes();
-        if (y_bytes[31] & 1) {
-            y = FieldElement::zero() - y;
+        // BIP-340: ensure even Y
+        if (y.limbs()[0] & 1) {
+            y = y.negate();
         }
 
         auto Pi = Point::from_affine(px, y);
@@ -341,21 +329,10 @@ bool musig2_partial_verify(
     auto px = FieldElement::from_bytes(pubkey);
     auto x3 = px.square() * px;
     auto y2 = x3 + FieldElement::from_uint64(7);
-    auto exp = FieldElement::from_hex(
-        "3fffffffffffffffffffffffffffffffffffffffffffffffffffffffbfffff0c");
-    auto y = FieldElement::one();
-    auto base = y2;
-    auto exp_bytes = exp.to_bytes();
-    for (std::size_t b_idx = 0; b_idx < 256; ++b_idx) {
-        y = y.square();
-        std::size_t const byte_idx = b_idx / 8;
-        auto const bit_idx = static_cast<unsigned>(7 - (b_idx % 8));
-        if ((exp_bytes[byte_idx] >> bit_idx) & 1) {
-            y = y * base;
-        }
-    }
-    auto y_bytes = y.to_bytes();
-    if (y_bytes[31] & 1) y = FieldElement::zero() - y;
+    // sqrt via optimized addition chain (~253 sqr + 13 mul)
+    auto y = y2.sqrt();
+    // BIP-340: ensure even Y
+    if (y.limbs()[0] & 1) y = y.negate();
 
     auto Pi = Point::from_affine(px, y);
     Scalar ea = session.e * key_agg_ctx.key_coefficients[signer_index];

@@ -60,11 +60,15 @@ SchnorrSignature schnorr_sign(const fast::Scalar& private_key,
 // pubkey_x: 32-byte x-only public key
 // msg: 32-byte message
 // sig: 64-byte signature
+bool schnorr_verify(const std::uint8_t* pubkey_x32,
+                    const std::uint8_t* msg32,
+                    const SchnorrSignature& sig);
+
+// Array convenience wrappers
 bool schnorr_verify(const std::array<std::uint8_t, 32>& pubkey_x,
                     const std::array<std::uint8_t, 32>& msg,
                     const SchnorrSignature& sig);
 
-// Raw-pointer msg overload (avoids 32B array copy)
 bool schnorr_verify(const std::array<std::uint8_t, 32>& pubkey_x,
                     const std::uint8_t* msg32,
                     const SchnorrSignature& sig);
@@ -80,6 +84,8 @@ struct SchnorrXonlyPubkey {
 
 // Parse an x-only pubkey (call once; lift_x + sqrt done here).
 // Returns false if the x-coordinate is not on the curve.
+bool schnorr_xonly_pubkey_parse(SchnorrXonlyPubkey& out,
+                                const std::uint8_t* pubkey_x32);
 bool schnorr_xonly_pubkey_parse(SchnorrXonlyPubkey& out,
                                 const std::array<std::uint8_t, 32>& pubkey_x);
 

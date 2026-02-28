@@ -457,6 +457,9 @@ limbs4 add_impl(const limbs4& a, const limbs4& b) {
     // Branchless select: use reduced if carry from add OR no borrow from sub
     // carry=1 means sum >= 2^256 -> definitely >= p
     // borrow=0 means (sum - p) didn't underflow -> sum >= p
+    // Note: carry=1 AND borrow=0 is impossible (a,b < p -> a+b < 2p,
+    //   so r = a+b-2^256 < p when carry=1, hence sub always borrows).
+    // OR safely covers all 4 cases.
     const auto use_reduced = static_cast<std::uint64_t>(carry | (1U - borrow));
     const auto mask = 0ULL - use_reduced;
     out[0] ^= (out[0] ^ reduced[0]) & mask;
@@ -2303,6 +2306,8 @@ FieldElement FieldElement::from_bytes(const std::array<std::uint8_t, 32>& bytes)
         }
         limbs[3 - i] = limb;
     }
+    // Variable-time branch on public (wire) input -- acceptable.
+    // ge() itself is branchless (always processes 4 limbs).
     if (ge(limbs, PRIME)) {
         limbs = sub_impl(limbs, PRIME);
     }

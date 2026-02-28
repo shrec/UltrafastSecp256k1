@@ -141,24 +141,25 @@ SchnorrSignature schnorr_sign(const Scalar& private_key,
 
 // -- BIP-340 Verify -----------------------------------------------------------
 
-bool schnorr_verify(const std::array<uint8_t, 32>& pubkey_x,
+bool schnorr_verify(const uint8_t* pubkey_x32,
                     const uint8_t* msg32,
                     const SchnorrSignature& sig) {
     // Step 1: Check s < n (from_bytes already reduces)
     if (sig.s.is_zero()) return false;
 
     // Step 2: e = tagged_hash("BIP0340/challenge", r || pubkey_x || msg) mod n
-    uint8_t challenge_input[96];
-    std::memcpy(challenge_input, sig.r.data(), 32);
-    std::memcpy(challenge_input + 32, pubkey_x.data(), 32);
-    std::memcpy(challenge_input + 64, msg32, 32);
-    auto e_hash = cached_tagged_hash(g_challenge_midstate, challenge_input, 96);
+    // Streaming SHA256: feed data directly, no intermediate buffer
+    SHA256 ctx = g_challenge_midstate;
+    ctx.update(sig.r.data(), 32);
+    ctx.update(pubkey_x32, 32);
+    ctx.update(msg32, 32);
+    auto e_hash = ctx.finalize();
     auto e = Scalar::from_bytes(e_hash);
 
     // Step 3: Lift x-only pubkey to point (all in FE52 -- ~3x faster sqrt)
 #if defined(SECP256K1_FAST_52BIT)
     // Direct bytes->FE52: avoids FieldElement construction overhead
-    FE52 const px52 = FE52::from_bytes(pubkey_x);
+    FE52 const px52 = FE52::from_bytes(pubkey_x32);
 
     // y^2 = x^3 + 7
     FE52 const x3 = px52.square() * px52;
@@ -194,8 +195,8 @@ bool schnorr_verify(const std::array<uint8_t, 32>& pubkey_x,
     auto y_fe = y2.sqrt();
     auto check = y_fe * y_fe;
     if (!(check == y2)) return false;
-    auto y_bytes = y_fe.to_bytes();
-    if (y_bytes[31] & 1) y_fe = y_fe.negate();
+    // 4x64 sqrt result is Barrett-reduced -> limbs()[0] & 1 == parity
+    if (y_fe.limbs()[0] & 1) y_fe = y_fe.negate();
     auto P = Point::from_affine(px_fe, y_fe);
 #endif
 
@@ -229,21 +230,19 @@ bool schnorr_verify(const std::array<uint8_t, 32>& pubkey_x,
     FieldElement z_inv2 = z_inv;
     z_inv2.square_inplace();
     FieldElement y_aff = R.y_raw() * z_inv2 * z_inv;
-    // Normalize to canonical [0, p) before parity check -- arithmetic
-    // paths can leave values in [p, 2^256). Since p is odd, a non-
-    // canonical value has the wrong LSB, flipping the parity result.
-    auto y_parity_bytes = y_aff.to_bytes();
-    return (y_parity_bytes[31] & 1) == 0;
+    // 4x64 mul_impl Barrett-reduces to [0, p), so limbs()[0] & 1 is
+    // the true parity -- no serialization needed.
+    return (y_aff.limbs()[0] & 1) == 0;
 #endif
 }
 
 // -- Pre-cached X-only Pubkey -------------------------------------------------
 
 bool schnorr_xonly_pubkey_parse(SchnorrXonlyPubkey& out,
-                                const std::array<uint8_t, 32>& pubkey_x) {
+                                const uint8_t* pubkey_x32) {
 #if defined(SECP256K1_FAST_52BIT)
     // Direct bytes->FE52: avoids FieldElement construction overhead
-    FE52 const px52 = FE52::from_bytes(pubkey_x);
+    FE52 const px52 = FE52::from_bytes(pubkey_x32);
 
     FE52 const x3 = px52.square() * px52;
     static const FE52 seven52 = FE52::from_fe(FieldElement::from_uint64(7));
@@ -268,7 +267,9 @@ bool schnorr_xonly_pubkey_parse(SchnorrXonlyPubkey& out,
     out.point = Point::from_affine52(px52, y52);
 #else
     // Fallback: 4x64 lift_x
-    auto px_fe = FieldElement::from_bytes(pubkey_x);
+    std::array<uint8_t, 32> pubkey_x_arr;
+    std::memcpy(pubkey_x_arr.data(), pubkey_x32, 32);
+    auto px_fe = FieldElement::from_bytes(pubkey_x_arr);
     auto x3 = px_fe * px_fe * px_fe;
     auto y2 = x3 + FieldElement::from_uint64(7);
     auto y_fe = y2.sqrt();
@@ -278,8 +279,13 @@ bool schnorr_xonly_pubkey_parse(SchnorrXonlyPubkey& out,
     if (y_bytes_chk[31] & 1) y_fe = y_fe.negate();
     out.point = Point::from_affine(px_fe, y_fe);
 #endif
-    out.x_bytes = pubkey_x;
+    std::memcpy(out.x_bytes.data(), pubkey_x32, 32);
     return true;
+}
+
+bool schnorr_xonly_pubkey_parse(SchnorrXonlyPubkey& out,
+                                const std::array<uint8_t, 32>& pubkey_x) {
+    return schnorr_xonly_pubkey_parse(out, pubkey_x.data());
 }
 
 SchnorrXonlyPubkey schnorr_xonly_from_keypair(const SchnorrKeypair& kp) {
@@ -309,12 +315,12 @@ bool schnorr_verify(const SchnorrXonlyPubkey& pubkey,
                     const SchnorrSignature& sig) {
     if (sig.s.is_zero()) return false;
 
-    // Challenge hash uses cached x_bytes
-    uint8_t challenge_input[96];
-    std::memcpy(challenge_input, sig.r.data(), 32);
-    std::memcpy(challenge_input + 32, pubkey.x_bytes.data(), 32);
-    std::memcpy(challenge_input + 64, msg32, 32);
-    auto e_hash = cached_tagged_hash(g_challenge_midstate, challenge_input, 96);
+    // Challenge hash: streaming SHA256 (no intermediate buffer)
+    SHA256 ctx = g_challenge_midstate;
+    ctx.update(sig.r.data(), 32);
+    ctx.update(pubkey.x_bytes.data(), 32);
+    ctx.update(msg32, 32);
+    auto e_hash = ctx.finalize();
     auto e = Scalar::from_bytes(e_hash);
 
     // R = s*G - e*P  (direct Point -- no sqrt needed)
@@ -347,9 +353,8 @@ bool schnorr_verify(const SchnorrXonlyPubkey& pubkey,
     FieldElement z_inv2 = z_inv;
     z_inv2.square_inplace();
     FieldElement y_aff = R.y_raw() * z_inv2 * z_inv;
-    // Normalize to canonical [0, p) -- see first verify overload above.
-    auto y_parity_bytes = y_aff.to_bytes();
-    return (y_parity_bytes[31] & 1) == 0;
+    // 4x64 mul_impl Barrett-reduces to [0, p) -- limbs()[0] LSB is parity.
+    return (y_aff.limbs()[0] & 1) == 0;
 #endif
 }
 
@@ -358,7 +363,13 @@ bool schnorr_verify(const SchnorrXonlyPubkey& pubkey,
 bool schnorr_verify(const std::array<uint8_t, 32>& pubkey_x,
                     const std::array<uint8_t, 32>& msg,
                     const SchnorrSignature& sig) {
-    return schnorr_verify(pubkey_x, msg.data(), sig);
+    return schnorr_verify(pubkey_x.data(), msg.data(), sig);
+}
+
+bool schnorr_verify(const std::array<uint8_t, 32>& pubkey_x,
+                    const uint8_t* msg32,
+                    const SchnorrSignature& sig) {
+    return schnorr_verify(pubkey_x.data(), msg32, sig);
 }
 
 bool schnorr_verify(const SchnorrXonlyPubkey& pubkey,

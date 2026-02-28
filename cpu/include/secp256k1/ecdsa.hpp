@@ -37,6 +37,7 @@ struct ECDSASignature {
     std::array<std::uint8_t, 64> to_compact() const;
 
     // Decode from compact 64-byte encoding
+    static ECDSASignature from_compact(const std::uint8_t* data64);
     static ECDSASignature from_compact(const std::array<std::uint8_t, 64>& data);
 
     // Normalize to low-S form (BIP-62): if s > n/2, replace with n - s
