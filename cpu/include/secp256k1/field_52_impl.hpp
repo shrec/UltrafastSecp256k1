@@ -128,9 +128,9 @@ using namespace fe52_constants;
 // With always_inline: zero function-call overhead.
 
 SECP256K1_FE52_FORCE_INLINE
-void fe52_mul_inner(std::uint64_t* __restrict__ r,
-                    const std::uint64_t* __restrict__ a,
-                    const std::uint64_t* __restrict__ b) noexcept {
+void fe52_mul_inner(std::uint64_t* r,
+                    const std::uint64_t* a,
+                    const std::uint64_t* b) noexcept {
 #if defined(SECP256K1_ARM64_FE52_V2)
     // ARM64: hand-scheduled MUL/UMULH interleaving for Cortex-A76 class cores
     arm64_v2::fe52_mul_arm64_v2(r, a, b);
@@ -225,8 +225,8 @@ void fe52_mul_inner(std::uint64_t* __restrict__ r,
 // Cross-products computed once and doubled via (a[i]*2) trick.
 
 SECP256K1_FE52_FORCE_INLINE
-void fe52_sqr_inner(std::uint64_t* __restrict__ r,
-                    const std::uint64_t* __restrict__ a) noexcept {
+void fe52_sqr_inner(std::uint64_t* r,
+                    const std::uint64_t* a) noexcept {
 #if defined(SECP256K1_ARM64_FE52_V2)
     arm64_v2::fe52_sqr_arm64_v2(r, a);
 #elif defined(SECP256K1_RISCV_FE52_V1)
@@ -342,16 +342,12 @@ FieldElement52 FieldElement52::square() const noexcept {
 
 SECP256K1_FE52_FORCE_INLINE
 void FieldElement52::mul_assign(const FieldElement52& rhs) noexcept {
-    std::uint64_t tmp[5];
-    fe52_mul_inner(tmp, n, rhs.n);
-    n[0] = tmp[0]; n[1] = tmp[1]; n[2] = tmp[2]; n[3] = tmp[3]; n[4] = tmp[4];
+    fe52_mul_inner(n, n, rhs.n);
 }
 
 SECP256K1_FE52_FORCE_INLINE
 void FieldElement52::square_inplace() noexcept {
-    std::uint64_t tmp[5];
-    fe52_sqr_inner(tmp, n);
-    n[0] = tmp[0]; n[1] = tmp[1]; n[2] = tmp[2]; n[3] = tmp[3]; n[4] = tmp[4];
+    fe52_sqr_inner(n, n);
 }
 
 // -- Lazy Addition (NO carry propagation!) --------------------------------

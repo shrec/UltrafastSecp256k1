@@ -109,6 +109,10 @@ struct alignas(8) FieldElement52 {
 
     // In-place variants
     void mul_assign(const FieldElement52& rhs) noexcept;
+    FieldElement52& operator*=(const FieldElement52& rhs) noexcept {
+        mul_assign(rhs);
+        return *this;
+    }
     void square_inplace() noexcept;
 
     // -- Comparison (requires normalized inputs!) ---------------------

@@ -50,13 +50,15 @@ std::array<uint8_t, 64> SchnorrSignature::to_bytes() const {
     return out;
 }
 
-SchnorrSignature SchnorrSignature::from_bytes(const std::array<uint8_t, 64>& data) {
+SchnorrSignature SchnorrSignature::from_bytes(const uint8_t* data64) {
     SchnorrSignature sig{};
-    std::memcpy(sig.r.data(), data.data(), 32);
-    std::array<uint8_t, 32> s_bytes{};
-    std::memcpy(s_bytes.data(), data.data() + 32, 32);
-    sig.s = Scalar::from_bytes(s_bytes);
+    std::memcpy(sig.r.data(), data64, 32);
+    sig.s = Scalar::from_bytes(data64 + 32);
     return sig;
+}
+
+SchnorrSignature SchnorrSignature::from_bytes(const std::array<uint8_t, 64>& data) {
+    return from_bytes(data.data());
 }
 
 // -- X-only pubkey ------------------------------------------------------------
@@ -140,7 +142,7 @@ SchnorrSignature schnorr_sign(const Scalar& private_key,
 // -- BIP-340 Verify -----------------------------------------------------------
 
 bool schnorr_verify(const std::array<uint8_t, 32>& pubkey_x,
-                    const std::array<uint8_t, 32>& msg,
+                    const uint8_t* msg32,
                     const SchnorrSignature& sig) {
     // Step 1: Check s < n (from_bytes already reduces)
     if (sig.s.is_zero()) return false;
@@ -149,7 +151,7 @@ bool schnorr_verify(const std::array<uint8_t, 32>& pubkey_x,
     uint8_t challenge_input[96];
     std::memcpy(challenge_input, sig.r.data(), 32);
     std::memcpy(challenge_input + 32, pubkey_x.data(), 32);
-    std::memcpy(challenge_input + 64, msg.data(), 32);
+    std::memcpy(challenge_input + 64, msg32, 32);
     auto e_hash = cached_tagged_hash(g_challenge_midstate, challenge_input, 96);
     auto e = Scalar::from_bytes(e_hash);
 
@@ -204,7 +206,6 @@ bool schnorr_verify(const std::array<uint8_t, 32>& pubkey_x,
     if (R.is_infinity()) return false;
 
     // Steps 5+6: Combined X-check + Y-parity via single Z inverse (all FE52)
-    // One SafeGCD inverse (~3us) shared between both checks.
 #if defined(SECP256K1_FAST_52BIT)
     FE52 const z_inv52 = R.Z52().inverse_safegcd();
     FE52 const z_inv2 = z_inv52.square();         // Z^-^2
@@ -304,7 +305,7 @@ SchnorrXonlyPubkey schnorr_xonly_from_keypair(const SchnorrKeypair& kp) {
 // Skips lift_x sqrt (~1.6us savings). Same algorithm, just uses cached Point.
 
 bool schnorr_verify(const SchnorrXonlyPubkey& pubkey,
-                    const std::array<uint8_t, 32>& msg,
+                    const uint8_t* msg32,
                     const SchnorrSignature& sig) {
     if (sig.s.is_zero()) return false;
 
@@ -312,7 +313,7 @@ bool schnorr_verify(const SchnorrXonlyPubkey& pubkey,
     uint8_t challenge_input[96];
     std::memcpy(challenge_input, sig.r.data(), 32);
     std::memcpy(challenge_input + 32, pubkey.x_bytes.data(), 32);
-    std::memcpy(challenge_input + 64, msg.data(), 32);
+    std::memcpy(challenge_input + 64, msg32, 32);
     auto e_hash = cached_tagged_hash(g_challenge_midstate, challenge_input, 96);
     auto e = Scalar::from_bytes(e_hash);
 
@@ -350,6 +351,20 @@ bool schnorr_verify(const SchnorrXonlyPubkey& pubkey,
     auto y_parity_bytes = y_aff.to_bytes();
     return (y_parity_bytes[31] & 1) == 0;
 #endif
+}
+
+// -- Array wrappers (delegate to raw-pointer implementations) -----------------
+
+bool schnorr_verify(const std::array<uint8_t, 32>& pubkey_x,
+                    const std::array<uint8_t, 32>& msg,
+                    const SchnorrSignature& sig) {
+    return schnorr_verify(pubkey_x, msg.data(), sig);
+}
+
+bool schnorr_verify(const SchnorrXonlyPubkey& pubkey,
+                    const std::array<uint8_t, 32>& msg,
+                    const SchnorrSignature& sig) {
+    return schnorr_verify(pubkey, msg.data(), sig);
 }
 
 } // namespace secp256k1

@@ -237,15 +237,12 @@ public:
         const uint8_t* sig64,
         const uint8_t* msg32) override
     {
-        std::array<uint8_t, 32> pubkey_x, msg;
+        std::array<uint8_t, 32> pubkey_x;
         std::memcpy(pubkey_x.data(), xonly_pubkey32, 32);
-        std::memcpy(msg.data(), msg32, 32);
 
-        std::array<uint8_t, 64> sig_bytes;
-        std::memcpy(sig_bytes.data(), sig64, 64);
-        auto schnorr_sig = secp256k1::SchnorrSignature::from_bytes(sig_bytes);
+        auto schnorr_sig = secp256k1::SchnorrSignature::from_bytes(sig64);
 
-        return secp256k1::schnorr_verify(pubkey_x, msg, schnorr_sig);
+        return secp256k1::schnorr_verify(pubkey_x, msg32, schnorr_sig);
     }
 
     // -- Schnorr parse xonly ------------------------------------------------
@@ -269,23 +266,16 @@ public:
     {
         const auto& xpk = load_xonly(pubkey);
 
-        std::array<uint8_t, 32> msg;
-        std::memcpy(msg.data(), msg32, 32);
+        auto schnorr_sig = secp256k1::SchnorrSignature::from_bytes(sig64);
 
-        std::array<uint8_t, 64> sig_bytes;
-        std::memcpy(sig_bytes.data(), sig64, 64);
-        auto schnorr_sig = secp256k1::SchnorrSignature::from_bytes(sig_bytes);
-
-        return secp256k1::schnorr_verify(xpk, msg, schnorr_sig);
+        return secp256k1::schnorr_verify(xpk, msg32, schnorr_sig);
     }
 
     // -- pubkey_create (k * G) ----------------------------------------------
     bool pubkey_create(uint8_t* out33,
         const uint8_t* seckey32) override
     {
-        std::array<uint8_t, 32> sk_bytes;
-        std::memcpy(sk_bytes.data(), seckey32, 32);
-        auto scalar = secp256k1::fast::Scalar::from_bytes(sk_bytes);
+        auto scalar = secp256k1::fast::Scalar::from_bytes(seckey32);
 
         if (scalar.is_zero()) return false;
 
@@ -303,9 +293,7 @@ public:
         secp256k1::fast::Point pk;
         if (!decompress_pubkey(pk, pubkey33, pubkey_len)) return false;
 
-        std::array<uint8_t, 32> sk_bytes;
-        std::memcpy(sk_bytes.data(), seckey32, 32);
-        auto scalar = secp256k1::fast::Scalar::from_bytes(sk_bytes);
+        auto scalar = secp256k1::fast::Scalar::from_bytes(seckey32);
 
         if (scalar.is_zero()) return false;
 

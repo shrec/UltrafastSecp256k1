@@ -29,6 +29,7 @@ struct SchnorrSignature {
     // 64-byte compact encoding: r [32 bytes] concatenated with s [32 bytes]
     std::array<std::uint8_t, 64> to_bytes() const;
     static SchnorrSignature from_bytes(const std::array<std::uint8_t, 64>& data);
+    static SchnorrSignature from_bytes(const std::uint8_t* data64);
 };
 
 // -- Pre-computed Schnorr Keypair ----------------------------------------------
@@ -63,6 +64,11 @@ bool schnorr_verify(const std::array<std::uint8_t, 32>& pubkey_x,
                     const std::array<std::uint8_t, 32>& msg,
                     const SchnorrSignature& sig);
 
+// Raw-pointer msg overload (avoids 32B array copy)
+bool schnorr_verify(const std::array<std::uint8_t, 32>& pubkey_x,
+                    const std::uint8_t* msg32,
+                    const SchnorrSignature& sig);
+
 // -- Pre-cached X-only Public Key ---------------------------------------------
 // Caches the full Point (avoiding sqrt per verify), similar to libsecp's
 // secp256k1_xonly_pubkey which internally stores the cached (x,y) point.
@@ -83,6 +89,11 @@ SchnorrXonlyPubkey schnorr_xonly_from_keypair(const SchnorrKeypair& kp);
 // Verify using pre-cached pubkey (fast: skips lift_x sqrt).
 bool schnorr_verify(const SchnorrXonlyPubkey& pubkey,
                     const std::array<std::uint8_t, 32>& msg,
+                    const SchnorrSignature& sig);
+
+// Raw-pointer msg overload for pre-cached pubkey.
+bool schnorr_verify(const SchnorrXonlyPubkey& pubkey,
+                    const std::uint8_t* msg32,
                     const SchnorrSignature& sig);
 
 // -- Tagged Hashing (BIP-340) -------------------------------------------------
