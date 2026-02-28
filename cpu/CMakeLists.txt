@@ -600,15 +600,18 @@ if(NOT SECP256K1_SANITIZER_BUILD)
             COMPILE_FLAGS "-O3 ${ARCH_FLAGS} -funroll-loops -ftree-vectorize -fipa-pta -fpredictive-commoning"
         )
         set_source_files_properties(src/point.cpp PROPERTIES 
-            COMPILE_FLAGS "-O3 ${ARCH_FLAGS} -funroll-loops -ftree-vectorize -fipa-pta -fpredictive-commoning"
+            COMPILE_FLAGS "-O3 ${ARCH_FLAGS} -funroll-loops -ftree-vectorize -fno-exceptions -fno-rtti -fipa-pta -fpredictive-commoning"
         )
     elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-        # Clang: no GCC-specific flags
+        # Clang: no GCC-specific flags.
+        # point.cpp: -fno-exceptions/-fno-rtti removes exception tables and
+        # RTTI metadata, reducing code size.  field.cpp keeps exceptions
+        # (utility functions use throw for validation errors).
         set_source_files_properties(src/field.cpp PROPERTIES 
             COMPILE_FLAGS "-O3 ${ARCH_FLAGS} -funroll-loops -ftree-vectorize"
         )
         set_source_files_properties(src/point.cpp PROPERTIES 
-            COMPILE_FLAGS "-O3 ${ARCH_FLAGS} -funroll-loops -ftree-vectorize"
+            COMPILE_FLAGS "-O3 ${ARCH_FLAGS} -funroll-loops -ftree-vectorize -fno-exceptions -fno-rtti"
         )
     endif()
 endif()

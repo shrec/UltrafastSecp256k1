@@ -480,7 +480,7 @@ static inline Point from_jac52(const JacobianPoint52& j) {
 // Formula: dbl-2009-l (a=0 specialization)
 // Cost: 2M + 5S + ~11A (additions near-free in 5x52)
 SECP256K1_HOT_FUNCTION SECP256K1_NOINLINE
-static JacobianPoint52 jac52_double(const JacobianPoint52& p) {
+static JacobianPoint52 jac52_double(const JacobianPoint52& p) noexcept {
     if (SECP256K1_UNLIKELY(p.infinity)) {
         return {FieldElement52::zero(), FieldElement52::one(), FieldElement52::zero(), true};
     }
@@ -526,8 +526,12 @@ static JacobianPoint52 jac52_double(const JacobianPoint52& p) {
 // Same formula as jac52_double but overwrites the input point in-place.
 // Eliminates the 128-byte return value copy on every call.
 SECP256K1_HOT_FUNCTION __attribute__((always_inline))
-static inline void jac52_double_inplace(JacobianPoint52& p) {
-    if (SECP256K1_UNLIKELY(p.infinity)) return;
+static inline void jac52_double_inplace(JacobianPoint52& p) noexcept {
+    // Branchless infinity propagation (like libsecp's secp256k1_gej_double):
+    // On secp256k1 (a=0), 2Q = infinity iff Q = infinity (no order-2 points).
+    // If p.infinity == true, the formula runs on garbage X/Y/Z but p.infinity
+    // stays true, so consumers correctly ignore the garbage coordinates.
+    // This eliminates a branch from the hottest loop (~129 calls per verify).
 
     // -- Z3 = 2*Y1*Z1 (must read p.y, p.z before they're reused as scratch) --
     FieldElement52 z3 = p.y * p.z;                            // mag 1
@@ -578,7 +582,7 @@ static inline void jac52_double_inplace(JacobianPoint52& p) {
 // Formula: madd-2007-bl (a=0 specialization)
 // Cost: 7M + 4S + ~12A (additions near-free in 5x52)
 [[maybe_unused]] SECP256K1_HOT_FUNCTION SECP256K1_NOINLINE
-static JacobianPoint52 jac52_add_mixed(const JacobianPoint52& p, const AffinePoint52& q) {
+static JacobianPoint52 jac52_add_mixed(const JacobianPoint52& p, const AffinePoint52& q) noexcept {
     if (SECP256K1_UNLIKELY(p.infinity)) {
         return {q.x, q.y, FieldElement52::one(), false};
     }
@@ -660,7 +664,7 @@ static JacobianPoint52 jac52_add_mixed(const JacobianPoint52& p, const AffinePoi
 // noinline: reduces hot-loop code size from ~5KB to ~1KB, improving I-cache.
 // The 127KB dual_scalar_mul_gen_point thrashes L1 I-cache (32-48KB) when inlined.
 SECP256K1_HOT_FUNCTION SECP256K1_NOINLINE
-static void jac52_add_mixed_inplace(JacobianPoint52& p, const AffinePoint52& q) {
+static void jac52_add_mixed_inplace(JacobianPoint52& p, const AffinePoint52& q) noexcept {
     if (SECP256K1_UNLIKELY(p.infinity)) {
         p.x = q.x; p.y = q.y; p.z = FieldElement52::one(); p.infinity = false;
         return;
@@ -730,7 +734,7 @@ static void jac52_add_mixed_inplace(JacobianPoint52& p, const AffinePoint52& q) 
 SECP256K1_NOINLINE
 static void jac52_add_mixed_inplace_zr(JacobianPoint52& p,
                                         const AffinePoint52& q,
-                                        FieldElement52& zr_out) {
+                                        FieldElement52& zr_out) noexcept {
     if (SECP256K1_UNLIKELY(p.infinity)) {
         p.x = q.x; p.y = q.y; p.z = FieldElement52::one(); p.infinity = false;
         zr_out = FieldElement52::one();
@@ -814,7 +818,7 @@ static void jac52_add_mixed_inplace_zr(JacobianPoint52& p,
 SECP256K1_HOT_FUNCTION SECP256K1_NOINLINE
 static void jac52_add_zinv_inplace(JacobianPoint52& p,
                                     const AffinePoint52& b,
-                                    const FieldElement52& bzinv) {
+                                    const FieldElement52& bzinv) noexcept {
     // Handle infinity and edge cases
     if (SECP256K1_UNLIKELY(p.infinity)) {
         // Result = (b.x * bzinv^2, b.y * bzinv^3, 1)
@@ -902,7 +906,7 @@ static void jac52_add_zinv_inplace(JacobianPoint52& p,
 // Formula: add-2007-bl (a=0)
 // Cost: 12M + 5S + ~11A.  Eliminates 128-byte return copy.
 SECP256K1_HOT_FUNCTION __attribute__((always_inline))
-static inline void jac52_add_inplace(JacobianPoint52& p, const JacobianPoint52& q) {
+static inline void jac52_add_inplace(JacobianPoint52& p, const JacobianPoint52& q) noexcept {
     if (SECP256K1_UNLIKELY(p.infinity)) { p = q; return; }
     if (SECP256K1_UNLIKELY(q.infinity)) return;
 
@@ -2707,7 +2711,10 @@ Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const P
     // neg tables removed -- negate Y on-the-fly in hot loop
 
     // -- Compute wNAF for all 4 half-scalars -------------------------
-    std::array<int32_t, 260> wnaf_a_lo{}, wnaf_a_hi{}, wnaf_b1{}, wnaf_b2{};
+    // GLV half-scalars are <= 128 bits; wNAF produces at most 129 digits.
+    // a_lo/a_hi are 128-bit halves of scalar a (same bound).
+    // 130 entries = 129 max digits + 1 carry.  Saves ~2KB of stack zeroing.
+    std::array<int32_t, 130> wnaf_a_lo{}, wnaf_a_hi{}, wnaf_b1{}, wnaf_b2{};
     std::size_t len_a_lo = 0, len_a_hi = 0, len_b1 = 0, len_b2 = 0;
 
     compute_wnaf_into(a_lo,  WINDOW_G, wnaf_a_lo.data(), wnaf_a_lo.size(), len_a_lo);
@@ -2736,27 +2743,27 @@ Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const P
         jac52_double_inplace(result52);
 
         // Stream 1: a_lo * G  (add_zinv: fold Z_shared into formula, 9M+3S)
+        // Merged if/else-if into single if(d!=0) with branchless abs.
+        // Halves call sites (better I-cache), eliminates sign branch mispredictions.
         {
             int32_t const d = wnaf_a_lo[static_cast<std::size_t>(i)];
-            if (d > 0) {
-                AffinePoint52 const pt = gen_tables->tbl_G[static_cast<std::size_t>((d - 1) >> 1)].to_affine52();
-                jac52_add_zinv_inplace(result52, pt, Z_shared);
-            } else if (d < 0) {
-                AffinePoint52 pt = gen_tables->tbl_G[static_cast<std::size_t>((-d - 1) >> 1)].to_affine52();
-                pt.y.negate_assign(1);
+            if (d != 0) {
+                int32_t const sign = d >> 31;                        // -1 if neg, 0 if pos
+                int32_t const abs_d = (d ^ sign) - sign;             // branchless abs
+                AffinePoint52 pt = gen_tables->tbl_G[static_cast<std::size_t>((abs_d - 1) >> 1)].to_affine52();
+                if (sign) pt.y.negate_assign(1);                     // conditional negate
                 jac52_add_zinv_inplace(result52, pt, Z_shared);
             }
         }
 
-        // Stream 2: a_hi * H  (add_zinv: fold Z_shared into formula, 9M+3S)
+        // Stream 2: a_hi * H
         {
             int32_t const d = wnaf_a_hi[static_cast<std::size_t>(i)];
-            if (d > 0) {
-                AffinePoint52 const pt = gen_tables->tbl_H[static_cast<std::size_t>((d - 1) >> 1)].to_affine52();
-                jac52_add_zinv_inplace(result52, pt, Z_shared);
-            } else if (d < 0) {
-                AffinePoint52 pt = gen_tables->tbl_H[static_cast<std::size_t>((-d - 1) >> 1)].to_affine52();
-                pt.y.negate_assign(1);
+            if (d != 0) {
+                int32_t const sign = d >> 31;
+                int32_t const abs_d = (d ^ sign) - sign;
+                AffinePoint52 pt = gen_tables->tbl_H[static_cast<std::size_t>((abs_d - 1) >> 1)].to_affine52();
+                if (sign) pt.y.negate_assign(1);
                 jac52_add_zinv_inplace(result52, pt, Z_shared);
             }
         }
@@ -2764,11 +2771,11 @@ Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const P
         // Stream 3: b1 * P
         {
             int32_t const d = wnaf_b1[static_cast<std::size_t>(i)];
-            if (d > 0) {
-                jac52_add_mixed_inplace(result52, tbl_P[static_cast<std::size_t>((d - 1) >> 1)]);
-            } else if (d < 0) {
-                AffinePoint52 pt = tbl_P[static_cast<std::size_t>((-d - 1) >> 1)];
-                pt.y.negate_assign(1);
+            if (d != 0) {
+                int32_t const sign = d >> 31;
+                int32_t const abs_d = (d ^ sign) - sign;
+                AffinePoint52 pt = tbl_P[static_cast<std::size_t>((abs_d - 1) >> 1)];
+                if (sign) pt.y.negate_assign(1);
                 jac52_add_mixed_inplace(result52, pt);
             }
         }
@@ -2776,11 +2783,11 @@ Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const P
         // Stream 4: b2 * psi(P)
         {
             int32_t const d = wnaf_b2[static_cast<std::size_t>(i)];
-            if (d > 0) {
-                jac52_add_mixed_inplace(result52, tbl_phiP[static_cast<std::size_t>((d - 1) >> 1)]);
-            } else if (d < 0) {
-                AffinePoint52 pt = tbl_phiP[static_cast<std::size_t>((-d - 1) >> 1)];
-                pt.y.negate_assign(1);
+            if (d != 0) {
+                int32_t const sign = d >> 31;
+                int32_t const abs_d = (d ^ sign) - sign;
+                AffinePoint52 pt = tbl_phiP[static_cast<std::size_t>((abs_d - 1) >> 1)];
+                if (sign) pt.y.negate_assign(1);
                 jac52_add_mixed_inplace(result52, pt);
             }
         }
