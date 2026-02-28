@@ -17,7 +17,7 @@
 //
 //   // Recover public key
 //   auto [pk, ok] = ecdsa_recover(msg_hash, sig, recid);
-//   if (ok) { /* pk is the recovered public key */ }
+//   if (ok) { ... pk is the recovered public key ... }
 // ============================================================================
 
 #include <array>
