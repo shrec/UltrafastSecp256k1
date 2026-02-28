@@ -751,7 +751,7 @@ static limbs4 inverse_impl(const limbs4& x) {
             if (cond == 0) break;
         }
 
-        int64_t fn = f.v[len - 1], gn = g.v[len - 1];
+        int64_t const fn = f.v[len - 1], gn = g.v[len - 1];
         int64_t cond = ((int64_t)len - 2) >> 63;
         cond |= fn ^ (fn >> 63);
         cond |= gn ^ (gn >> 63);

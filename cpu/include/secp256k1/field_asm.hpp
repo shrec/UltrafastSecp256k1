@@ -115,7 +115,7 @@ inline void mulx64(uint64_t a, uint64_t b, uint64_t& lo, uint64_t& hi) {
     #elif defined(__GNUC__) || defined(__clang__)
         #if defined(__BMI2__)
             // GCC/Clang intrinsic with BMI2
-            lo = _mulx_u64(a, b, (unsigned long long*)&hi);
+            lo = _mulx_u64(a, b, reinterpret_cast<unsigned long long*>(&hi));
         #else
             // GCC/Clang fallback
             #ifdef SECP256K1_NO_INT128
@@ -171,7 +171,7 @@ inline uint8_t adcx64(uint64_t a, uint64_t b, uint8_t carry, uint64_t& result) {
         return _addcarry_u64(carry, a, b, reinterpret_cast<unsigned long long*>(&result));
     #else
         // GCC/Clang intrinsic (_addcarry_u64 in x86intrin.h/immintrin.h)
-        return _addcarry_u64(carry, a, b, (unsigned long long*)&result);
+        return _addcarry_u64(carry, a, b, reinterpret_cast<unsigned long long*>(&result));
     #endif
 }
 #else

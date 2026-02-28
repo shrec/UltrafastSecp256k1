@@ -43,6 +43,7 @@ static void hex_to_bytes(const char* hex, std::uint8_t* out, std::size_t len) {
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
 #endif
+        // NOLINTNEXTLINE(cert-err34-c) -- parsing 2-digit hex, overflow impossible
         if (std::sscanf(hex + i * 2, "%02x", &byte) != 1) byte = 0;
 #ifdef __clang__
 #pragma clang diagnostic pop

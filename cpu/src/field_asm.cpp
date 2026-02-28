@@ -111,7 +111,7 @@ inline uint8_t subborrow64(uint8_t borrow_in, uint64_t a, uint64_t b, uint64_t& 
 #if defined(_MSC_VER)
     return _subborrow_u64(borrow_in, a, b, reinterpret_cast<unsigned long long*>(&result));
 #elif defined(__SIZEOF_INT128__)
-    __uint128_t diff = static_cast<__uint128_t>(a) - b - borrow_in;
+    __uint128_t const diff = static_cast<__uint128_t>(a) - b - borrow_in;
     result = static_cast<uint64_t>(diff);
     return static_cast<uint8_t>((diff >> 127) & 1);
 #else

@@ -479,6 +479,7 @@ static void test_stress_mixed() {
             if (points_equal(pk, ct_pk)) ++ok_count;
             break;
         }
+        default: break;
         }
     }
 

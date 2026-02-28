@@ -919,6 +919,7 @@ void unified_add_core(CTJacobianPoint* out,
 
     FE52 x3 = rr_alt.square();
     x3.add_assign(q);                                // X3    M=2   [1S]
+    // NOLINTNEXTLINE(misc-const-correctness) -- modified by fe52_cmov in CHECK_INFINITY path
     FE52 z3 = m_alt * Z1;                                  // Z3    M=1   [1M]
 
     FE52 tq = x3;
@@ -927,11 +928,12 @@ void unified_add_core(CTJacobianPoint* out,
     rr_alt.mul_assign(tq);                           // Ralt*(2X3+Q) M=1  [1M=7th]
     rr_alt.add_assign(n);                            // +M^3Malt      M<=12
     rr_alt.negate_assign(12);                        // -(...)        M=13
+    // NOLINTNEXTLINE(misc-const-correctness) -- modified by fe52_cmov in CHECK_INFINITY path
     FE52 y3 = rr_alt.half();                               // Y3    M=1 (half normalizes)
 
     if constexpr (CHECK_INFINITY) {
         // Handle a=infinity: replace result with (b.x, b.y, 1)
-        FE52 one52 = FE52::one();
+        FE52 const one52 = FE52::one();
         fe52_cmov(&x3, b.x, a_inf);
         fe52_cmov(&y3, b.y, a_inf);
         fe52_cmov(&z3, one52, a_inf);

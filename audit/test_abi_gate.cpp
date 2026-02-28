@@ -129,9 +129,8 @@ int main() {
         CHECK(true, "ABI gate: version matches");
     }
 
-    // 8. Backward compatibility: packed >= should be safe for minor bumps
-    unsigned int const min_required = (0 << 16) | (0 << 8) | 0;  // 0.0.0
-    CHECK(packed >= min_required, "Packed version >= minimum required (0.0.0)");
+    // 8. Backward compatibility: packed encoding fits in valid 24-bit range
+    CHECK(packed <= 0x00FFFFFFu, "Packed version within valid 24-bit range");
 
     printf("\n============================================================\n");
     printf("  Summary: %d passed, %d failed\n", g_pass, g_fail);

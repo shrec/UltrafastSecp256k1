@@ -549,6 +549,8 @@ static void test_pinned_signing_roundtrip() {
 
         auto [kp1, ok1] = secp256k1::frost_keygen_finalize(1, commitments, p1_shares, t, n);
         auto [kp2, ok2] = secp256k1::frost_keygen_finalize(2, commitments, p2_shares, t, n);
+        (void)ok1;
+        (void)ok2;
 
         // Fixed message
         std::array<uint8_t, 32> msg{};

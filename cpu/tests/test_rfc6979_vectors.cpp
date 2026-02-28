@@ -320,13 +320,13 @@ static void test_ecdsa_verify_roundtrip() {
         // Verify correct
         bool const valid = ecdsa_verify(msg_hash, pub, sig);
         char label[128];
-        std::snprintf(label, sizeof(label), "verify roundtrip #%zu", i + 1);
+        (void)std::snprintf(label, sizeof(label), "verify roundtrip #%zu", i + 1);
         CHECK(valid, label);
 
         // Verify wrong message fails
         auto wrong_hash = sha256_str("wrong");
         bool const invalid = ecdsa_verify(wrong_hash, pub, sig);
-        std::snprintf(label, sizeof(label), "wrong msg rejects #%zu", i + 1);
+        (void)std::snprintf(label, sizeof(label), "wrong msg rejects #%zu", i + 1);
         CHECK(!invalid, label);
     }
 }

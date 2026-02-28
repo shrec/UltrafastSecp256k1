@@ -418,6 +418,7 @@ for (uint32_t j = 0; j < n; ++j) {
 
         auto [pkg, ok] = secp256k1::frost_keygen_finalize(
             1, comms, p1_shares, t, n);
+        (void)pkg;
         CHECK(!ok, "DKG detects tampered share");
     }
 
@@ -433,7 +434,7 @@ static void test_frost_bad_partial_sig() {
     const int N = 10;
 
     for (int round = 0; round < N; ++round) {
-        uint32_t t = 2, n = 3;
+        uint32_t const t = 2, n = 3;
         std::vector<secp256k1::FrostCommitment> comms;
         std::vector<std::vector<secp256k1::FrostShare>> smatrix;
         for (uint32_t i = 0; i < n; ++i) {
@@ -449,6 +450,7 @@ static void test_frost_bad_partial_sig() {
             ms.reserve(n);
 for (uint32_t j = 0; j < n; ++j) ms.push_back(smatrix[j][i]);
             auto [pkg, ok] = secp256k1::frost_keygen_finalize(i+1, comms, ms, t, n);
+            (void)ok;
             pkgs.push_back(pkg);
         }
 
@@ -505,7 +507,7 @@ static void test_frost_message_binding() {
 
     for (int round = 0; round < N; ++round) {
         // Quick 2-of-3 DKG
-        uint32_t t = 2, n = 3;
+        uint32_t const t = 2, n = 3;
         std::vector<secp256k1::FrostCommitment> comms;
         std::vector<std::vector<secp256k1::FrostShare>> smatrix;
         for (uint32_t i = 0; i < n; ++i) {
@@ -520,6 +522,7 @@ static void test_frost_message_binding() {
             ms.reserve(n);
 for (uint32_t j = 0; j < n; ++j) ms.push_back(smatrix[j][i]);
             auto [pkg, ok] = secp256k1::frost_keygen_finalize(i+1, comms, ms, t, n);
+            (void)ok;
             pkgs.push_back(pkg);
         }
 
@@ -564,7 +567,7 @@ static void test_frost_signer_set_binding() {
     std::mt19937_64 rng(0xF5557000);  // NOLINT(cert-msc32-c,cert-msc51-cpp)
 
     // 2-of-3 DKG
-    uint32_t t = 2, n = 3;
+    uint32_t const t = 2, n = 3;
     std::vector<secp256k1::FrostCommitment> comms;
     std::vector<std::vector<secp256k1::FrostShare>> smatrix;
     for (uint32_t i = 0; i < n; ++i) {
@@ -579,6 +582,7 @@ static void test_frost_signer_set_binding() {
         ms.reserve(n);
 for (uint32_t j = 0; j < n; ++j) ms.push_back(smatrix[j][i]);
         auto [pkg, ok] = secp256k1::frost_keygen_finalize(i+1, comms, ms, t, n);
+        (void)ok;
         pkgs.push_back(pkg);
     }
 
@@ -591,7 +595,7 @@ for (uint32_t j = 0; j < n; ++j) ms.push_back(smatrix[j][i]);
     std::vector<secp256k1::SchnorrSignature> sigs;
 
     for (int s = 0; s < 3; ++s) {
-        uint32_t a = subsets[s][0], b = subsets[s][1];
+        uint32_t const a = subsets[s][0], b = subsets[s][1];
         auto [na, nca] = secp256k1::frost_sign_nonce_gen(pkgs[a].id, random32(rng));
         auto [nb, ncb] = secp256k1::frost_sign_nonce_gen(pkgs[b].id, random32(rng));
         std::vector<secp256k1::FrostNonceCommitment> const ncs = {nca, ncb};

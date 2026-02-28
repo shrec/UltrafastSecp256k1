@@ -110,6 +110,7 @@
 
 #if defined(SECP256K1_NO_INT128) || defined(SECP256K1_PLATFORM_ESP32)
 // Portable 64x64->128 multiplication for 32-bit platforms
+// NOLINTNEXTLINE(bugprone-reserved-identifier,cert-dcl37-c,cert-dcl51-cpp)
 static inline uint64_t _umul128(uint64_t a, uint64_t b, uint64_t* hi) {
     uint32_t a_lo = (uint32_t)a;
     uint32_t a_hi = (uint32_t)(a >> 32);
@@ -133,8 +134,9 @@ static inline uint64_t _umul128(uint64_t a, uint64_t b, uint64_t* hi) {
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpedantic"
 #endif
+// NOLINTNEXTLINE(bugprone-reserved-identifier,cert-dcl37-c,cert-dcl51-cpp)
 [[maybe_unused]] static inline uint64_t _umul128(uint64_t a, uint64_t b, uint64_t* hi) {
-    unsigned __int128 r = (unsigned __int128)a * b;
+    unsigned __int128 const r = (unsigned __int128)a * b;
     *hi = static_cast<uint64_t>(r >> 64);
     return static_cast<uint64_t>(r);
 }
@@ -143,6 +145,7 @@ static inline uint64_t _umul128(uint64_t a, uint64_t b, uint64_t* hi) {
 #endif
 #endif
 
+// NOLINTNEXTLINE(bugprone-reserved-identifier,cert-dcl37-c,cert-dcl51-cpp)
 static inline unsigned char _BitScanReverse64(unsigned long* index, uint64_t mask) {
     if (mask == 0) return 0;
     *index = 63 - __builtin_clzll(mask);
@@ -730,7 +733,7 @@ Limbs4 mul_shift_round(const Limbs4& value, const std::array<std::uint64_t, N>& 
         std::size_t const limb_index = add_bit / 64U;
         unsigned const bit_index = add_bit % 64U;
         if (limb_index < wide.size()) {
-            std::uint64_t mask = 1ULL << bit_index;
+            std::uint64_t const mask = 1ULL << bit_index;
             std::uint64_t prev = wide[limb_index];
             wide[limb_index] += mask;
             // propagate carry
@@ -841,8 +844,7 @@ template <std::size_t N>
             // Compute lhs = qhat * v[2], rhs = rhat*B + u[j+2]
             std::uint64_t lhs_lo = 0, lhs_hi = 0; mul64x64(qhat, v[2], lhs_lo, lhs_hi);
             // rhs_hi = rhat, rhs_lo = u[j+2]
-            bool greater = false;
-            if (lhs_hi > rhat) greater = true; else if (lhs_hi == rhat && lhs_lo > u[static_cast<std::size_t>(j)+2]) greater = true;
+            bool const greater = (lhs_hi > rhat) || (lhs_hi == rhat && lhs_lo > u[static_cast<std::size_t>(j)+2]);
             if (!greater) break;
             // Decrement qhat and adjust rhat
             --qhat;
@@ -1816,10 +1818,8 @@ static JSF_Result compute_jsf(const Scalar& k1, const Scalar& k2) {
                 const bool b_pref = (b8 == 3) || (b8 == 5);
                 if (a_pref && !b_pref) {
                     u1 = static_cast<int8_t>(-u1);
-                } else if (!a_pref && b_pref) {
-                    u2 = static_cast<int8_t>(-u2);
                 } else {
-                    // If inconclusive, flip u2 to balance
+                    // b_pref or inconclusive: flip u2 to balance
                     u2 = static_cast<int8_t>(-u2);
                 }
             }
@@ -2883,6 +2883,7 @@ std::vector<int32_t> compute_wnaf(const Scalar& scalar, unsigned window_bits) {
                 carry = COMPAT_ADDCARRY_U64(carry, k[2], 0ULL, &tmp); k[2] = tmp;
                 carry = COMPAT_ADDCARRY_U64(carry, k[3], 0ULL, &tmp); k[3] = tmp;
                 carry = COMPAT_ADDCARRY_U64(carry, k[4], 0ULL, &tmp); k[4] = tmp;
+                (void)carry;
             } else {
                 digit = chunk;
                 
@@ -2895,6 +2896,7 @@ std::vector<int32_t> compute_wnaf(const Scalar& scalar, unsigned window_bits) {
                 borrow = COMPAT_SUBBORROW_U64(borrow, k[2], 0ULL, &tmp); k[2] = tmp;
                 borrow = COMPAT_SUBBORROW_U64(borrow, k[3], 0ULL, &tmp); k[3] = tmp;
                 borrow = COMPAT_SUBBORROW_U64(borrow, k[4], 0ULL, &tmp); k[4] = tmp;
+                (void)borrow;
             }
         }
         
@@ -2963,6 +2965,7 @@ void compute_wnaf_into(const Scalar& scalar,
                 carry = COMPAT_ADDCARRY_U64(carry, k[2], 0ULL, &tmp); k[2] = tmp;
                 carry = COMPAT_ADDCARRY_U64(carry, k[3], 0ULL, &tmp); k[3] = tmp;
                 carry = COMPAT_ADDCARRY_U64(carry, k[4], 0ULL, &tmp); k[4] = tmp;
+                (void)carry;
             } else {
                 digit = chunk;
                 unsigned char borrow = 0;
@@ -2973,6 +2976,7 @@ void compute_wnaf_into(const Scalar& scalar,
                 borrow = COMPAT_SUBBORROW_U64(borrow, k[2], 0ULL, &tmp); k[2] = tmp;
                 borrow = COMPAT_SUBBORROW_U64(borrow, k[3], 0ULL, &tmp); k[3] = tmp;
                 borrow = COMPAT_SUBBORROW_U64(borrow, k[4], 0ULL, &tmp); k[4] = tmp;
+                (void)borrow;
             }
         }
 
