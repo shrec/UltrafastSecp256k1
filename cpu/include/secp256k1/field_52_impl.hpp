@@ -529,11 +529,11 @@ bool FieldElement52::normalizes_to_zero_var() const noexcept {
     if ((t0 | t1 | t2 | t3 | t4) == 0) return true;
 
     // Value is in [1, p].  Check if it equals p.
-    // p = {0xFFFFFEFFFFFC2F, M52, M52, M52, M48}
+    // p = {P0, M52, M52, M52, M48}  where P0 = 0xFFFFEFFFFFC2F
     // Quick exit: if any of t1..t3 != M52, it cannot be p.
     if ((t1 & t2 & t3) != M52 || t4 != M48) return false;
 
-    return t0 == 0xFFFFFEFFFFFC2FULL;
+    return t0 == P0;
 }
 
 // -- Conversion: 4x64 -> 5x52 (inline) -----------------------------------
