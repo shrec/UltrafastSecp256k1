@@ -121,6 +121,13 @@ struct alignas(8) FieldElement52 {
     // Variable-time: safe for non-secret values (point coordinates in ECC).
     bool normalizes_to_zero() const noexcept;
 
+    // Variable-time zero check with early exit (verify hot path).
+    // Combined normalize_weak + zero check in a single pass.
+    // Safe for magnitudes up to ~4000.  99.99..% of calls exit after
+    // a single OR-reduction (non-zero fast path).  Only values that
+    // happen to be 0 or p fall through to the full limb comparison.
+    bool normalizes_to_zero_var() const noexcept;
+
     // -- Half ---------------------------------------------------------
     // Computes a/2 mod p. Branchless.
     FieldElement52 half() const noexcept;

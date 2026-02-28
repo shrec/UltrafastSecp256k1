@@ -567,15 +567,14 @@ static JacobianPoint52 jac52_add_mixed(const JacobianPoint52& p, const AffinePoi
     // p.x magnitude: <=23 (from jac52_double) or <=7 (from add_mixed). Use 23.
     const FieldElement52 negX1 = p.x.negate(23);     // mag 24
     FieldElement52 h = u2 + negX1;                   // mag 25
-    // normalize_weak before zero-check: h is at magnitude 25 (= 1 + 24).
-    // Reduce limbs to canonical range so normalizes_to_zero() is reliable.
-    h.normalize_weak();
 
-    // Check for point equality/inverse (rare -- fast normalizes_to_zero)
-    if (SECP256K1_UNLIKELY(h.normalizes_to_zero())) {
+    // Variable-time zero check with early exit (combines normalize_weak +
+    // zero check in one pass).  h==0 means U2==X1, i.e. same x-coordinate.
+    // Probability ~2^-256 on random inputs.
+    if (SECP256K1_UNLIKELY(h.normalizes_to_zero_var())) {
         const FieldElement52 negY1 = p.y.negate(10);
         const FieldElement52 diff = s2 + negY1;
-        if (diff.normalizes_to_zero()) {
+        if (diff.normalizes_to_zero_var()) {
             return jac52_double(p);
         }
         return {FieldElement52::zero(), FieldElement52::one(), FieldElement52::zero(), true};
@@ -645,13 +644,12 @@ static void jac52_add_mixed_inplace(JacobianPoint52& p, const AffinePoint52& q) 
     const FieldElement52 negX1 = p.x.negate(23);
     FieldElement52 h = u2 + negX1;                            // u2, negX1 dead
 
-    // normalize_weak before zero-check: h is at magnitude 25 (= 1 + 24).
-    // Reduce limbs to canonical range so normalizes_to_zero() is reliable.
-    h.normalize_weak();
-    if (SECP256K1_UNLIKELY(h.normalizes_to_zero())) {
+    // Variable-time zero check with early exit.  h==0 means same x-coordinate.
+    // Probability ~2^-256 on random inputs.
+    if (SECP256K1_UNLIKELY(h.normalizes_to_zero_var())) {
         FieldElement52 const negY1 = p.y.negate(10);
         FieldElement52 const diff = s2 + negY1;
-        if (diff.normalizes_to_zero()) {
+        if (diff.normalizes_to_zero_var()) {
             jac52_double_inplace(p);
             return;
         }
@@ -713,10 +711,10 @@ static inline void jac52_add_inplace(JacobianPoint52& p, const JacobianPoint52& 
     FieldElement52 const negU1 = u1.negate(1);
     FieldElement52 const h = u2 + negU1;
 
-    if (SECP256K1_UNLIKELY(h.normalizes_to_zero())) {
+    if (SECP256K1_UNLIKELY(h.normalizes_to_zero_var())) {
         FieldElement52 const negS1 = s1.negate(1);
         FieldElement52 const diff = s2 + negS1;
-        if (diff.normalizes_to_zero()) { jac52_double_inplace(p); return; }
+        if (diff.normalizes_to_zero_var()) { jac52_double_inplace(p); return; }
         p = {FieldElement52::zero(), FieldElement52::one(), FieldElement52::zero(), true};
         return;
     }
@@ -773,10 +771,10 @@ static JacobianPoint52 jac52_add(const JacobianPoint52& p, const JacobianPoint52
     const FieldElement52 negU1 = u1.negate(1);              // mag 2
     const FieldElement52 h = u2 + negU1;                    // mag 3
 
-    if (SECP256K1_UNLIKELY(h.normalizes_to_zero())) {
+    if (SECP256K1_UNLIKELY(h.normalizes_to_zero_var())) {
         const FieldElement52 negS1 = s1.negate(1);
         const FieldElement52 diff = s2 + negS1;
-        if (diff.normalizes_to_zero()) return jac52_double(p);
+        if (diff.normalizes_to_zero_var()) return jac52_double(p);
         return {FieldElement52::zero(), FieldElement52::one(), FieldElement52::zero(), true};
     }
 
@@ -936,17 +934,9 @@ static Point scalar_mul_glv52(const Point& base, const Scalar& scalar) {
         }
     }
 
-    // -- Pre-compute negated tables (avoid negate+normalize_weak in hot loop)
-    std::array<AffinePoint52, glv_table_size> neg_tbl_P;
-    std::array<AffinePoint52, glv_table_size> neg_tbl_phiP;
-    for (std::size_t i = 0; i < glv_table_size; i++) {
-        neg_tbl_P[i].x = tbl_P[i].x;
-        neg_tbl_P[i].y = tbl_P[i].y.negate(1);
-        neg_tbl_P[i].y.normalize_weak();
-        neg_tbl_phiP[i].x = tbl_phiP[i].x;
-        neg_tbl_phiP[i].y = tbl_phiP[i].y.negate(1);
-        neg_tbl_phiP[i].y.normalize_weak();
-    }
+    // -- Pre-negation eliminated: negate Y on-the-fly in hot loop.
+    // P tables are small (8 entries x 80 bytes = 640 bytes) so cache impact
+    // is trivial, but this removes setup cost and simplifies the code.
 
     // -- Shamir's trick -- single doubling chain, dual lookups ---------
     JacobianPoint52 result52 = {
@@ -965,7 +955,9 @@ static Point scalar_mul_glv52(const Point& base, const Scalar& scalar) {
             if (d > 0) {
                 jac52_add_mixed_inplace(result52, tbl_P[static_cast<std::size_t>((d - 1) >> 1)]);
             } else if (d < 0) {
-                jac52_add_mixed_inplace(result52, neg_tbl_P[static_cast<std::size_t>((-d - 1) >> 1)]);
+                AffinePoint52 pt = tbl_P[static_cast<std::size_t>((-d - 1) >> 1)];
+                pt.y.negate_assign(1);
+                jac52_add_mixed_inplace(result52, pt);
             }
         }
 
@@ -975,7 +967,9 @@ static Point scalar_mul_glv52(const Point& base, const Scalar& scalar) {
             if (d > 0) {
                 jac52_add_mixed_inplace(result52, tbl_phiP[static_cast<std::size_t>((d - 1) >> 1)]);
             } else if (d < 0) {
-                jac52_add_mixed_inplace(result52, neg_tbl_phiP[static_cast<std::size_t>((-d - 1) >> 1)]);
+                AffinePoint52 pt = tbl_phiP[static_cast<std::size_t>((-d - 1) >> 1)];
+                pt.y.negate_assign(1);
+                jac52_add_mixed_inplace(result52, pt);
             }
         }
     }
@@ -2352,12 +2346,13 @@ Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const P
     // -- Static generator tables (computed once, 8192 entries per base) --
     // Two bases: G (generator) and H = 2^128*G
     // Uses effective-affine technique for efficient table building.
-    // Pre-negated tables avoid per-digit negate+normalize_weak in hot loop.
+    // Negative wNAF digits negate Y on-the-fly (5 limb ops, data already
+    // in L1 cache from the lookup) instead of pre-negated tables.
+    // This halves the table memory from 2.5 MB to 1.25 MB, fitting in
+    // per-core L3 cache and reducing TLB + cache pressure.
     struct GenTables {
         AffinePoint52 tbl_G[G_TABLE_SIZE];       // [G, 3G, 5G, ..., 16383G]
         AffinePoint52 tbl_H[G_TABLE_SIZE];       // [H, 3H, 5H, ..., 16383H]
-        AffinePoint52 neg_tbl_G[G_TABLE_SIZE];   // negated Y for negative wNAF digits
-        AffinePoint52 neg_tbl_H[G_TABLE_SIZE];   // negated Y for negative wNAF digits
     };
     static const GenTables* const gen_tables = []() -> const GenTables* {
         auto* t = new GenTables;
@@ -2423,16 +2418,6 @@ Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const P
         }
         build_table(H52, t->tbl_H, G_TABLE_SIZE);
 
-        // Pre-negate G/H tables: avoid per-digit negate+normalize_weak in hot loop
-        for (std::size_t i = 0; i < static_cast<std::size_t>(G_TABLE_SIZE); i++) {
-            t->neg_tbl_G[i].x = t->tbl_G[i].x;
-            t->neg_tbl_G[i].y = t->tbl_G[i].y.negate(1);
-            t->neg_tbl_G[i].y.normalize_weak();
-            t->neg_tbl_H[i].x = t->tbl_H[i].x;
-            t->neg_tbl_H[i].y = t->tbl_H[i].y.negate(1);
-            t->neg_tbl_H[i].y.normalize_weak();
-        }
-
         return t;
     }();
 
@@ -2448,8 +2433,6 @@ Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const P
 
     std::array<AffinePoint52, P_TABLE_SIZE> tbl_P;
     std::array<AffinePoint52, P_TABLE_SIZE> tbl_phiP;
-    std::array<AffinePoint52, P_TABLE_SIZE> neg_tbl_P;
-    std::array<AffinePoint52, P_TABLE_SIZE> neg_tbl_phiP;
 
     // Build table via effective-affine on isomorphic curve
     {
@@ -2516,15 +2499,7 @@ Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const P
         }
     }
 
-    // Pre-negate P tables
-    for (std::size_t i = 0; i < static_cast<std::size_t>(P_TABLE_SIZE); i++) {
-        neg_tbl_P[i].x = tbl_P[i].x;
-        neg_tbl_P[i].y = tbl_P[i].y.negate(1);
-        neg_tbl_P[i].y.normalize_weak();
-        neg_tbl_phiP[i].x = tbl_phiP[i].x;
-        neg_tbl_phiP[i].y = tbl_phiP[i].y.negate(1);
-        neg_tbl_phiP[i].y.normalize_weak();
-    }
+    // neg tables removed -- negate Y on-the-fly in hot loop
 
     // -- Compute wNAF for all 4 half-scalars -------------------------
     std::array<int32_t, 260> wnaf_a_lo{}, wnaf_a_hi{}, wnaf_b1{}, wnaf_b2{};
@@ -2555,43 +2530,51 @@ Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const P
     for (int i = static_cast<int>(max_len) - 1; i >= 0; --i) {
         jac52_double_inplace(result52);
 
-        // Stream 1: a_lo * G (pre-negated table for negative digits)
+        // Stream 1: a_lo * G (negate Y on-the-fly for negative digits)
         {
             int32_t const d = wnaf_a_lo[static_cast<std::size_t>(i)];
             if (d > 0) {
                 jac52_add_mixed_inplace(result52, gen_tables->tbl_G[static_cast<std::size_t>((d - 1) >> 1)]);
             } else if (d < 0) {
-                jac52_add_mixed_inplace(result52, gen_tables->neg_tbl_G[static_cast<std::size_t>((-d - 1) >> 1)]);
+                AffinePoint52 pt = gen_tables->tbl_G[static_cast<std::size_t>((-d - 1) >> 1)];
+                pt.y.negate_assign(1);  // mag 2 (safe for mul: 2*1*5 << 3.3M)
+                jac52_add_mixed_inplace(result52, pt);
             }
         }
 
-        // Stream 2: a_hi * H (pre-negated table for negative digits)
+        // Stream 2: a_hi * H (negate Y on-the-fly for negative digits)
         {
             int32_t const d = wnaf_a_hi[static_cast<std::size_t>(i)];
             if (d > 0) {
                 jac52_add_mixed_inplace(result52, gen_tables->tbl_H[static_cast<std::size_t>((d - 1) >> 1)]);
             } else if (d < 0) {
-                jac52_add_mixed_inplace(result52, gen_tables->neg_tbl_H[static_cast<std::size_t>((-d - 1) >> 1)]);
+                AffinePoint52 pt = gen_tables->tbl_H[static_cast<std::size_t>((-d - 1) >> 1)];
+                pt.y.negate_assign(1);  // mag 2 (safe for mul: 2*1*5 << 3.3M)
+                jac52_add_mixed_inplace(result52, pt);
             }
         }
 
-        // Stream 3: b1 * P
+        // Stream 3: b1 * P (negate Y on-the-fly for negative digits)
         {
             int32_t const d = wnaf_b1[static_cast<std::size_t>(i)];
             if (d > 0) {
                 jac52_add_mixed_inplace(result52, tbl_P[static_cast<std::size_t>((d - 1) >> 1)]);
             } else if (d < 0) {
-                jac52_add_mixed_inplace(result52, neg_tbl_P[static_cast<std::size_t>((-d - 1) >> 1)]);
+                AffinePoint52 pt = tbl_P[static_cast<std::size_t>((-d - 1) >> 1)];
+                pt.y.negate_assign(1);  // mag 2 (safe for mul: 2*1*5 << 3.3M)
+                jac52_add_mixed_inplace(result52, pt);
             }
         }
 
-        // Stream 4: b2 * psi(P)
+        // Stream 4: b2 * psi(P) (negate Y on-the-fly for negative digits)
         {
             int32_t const d = wnaf_b2[static_cast<std::size_t>(i)];
             if (d > 0) {
                 jac52_add_mixed_inplace(result52, tbl_phiP[static_cast<std::size_t>((d - 1) >> 1)]);
             } else if (d < 0) {
-                jac52_add_mixed_inplace(result52, neg_tbl_phiP[static_cast<std::size_t>((-d - 1) >> 1)]);
+                AffinePoint52 pt = tbl_phiP[static_cast<std::size_t>((-d - 1) >> 1)];
+                pt.y.negate_assign(1);  // mag 2 (safe for mul: 2*1*5 << 3.3M)
+                jac52_add_mixed_inplace(result52, pt);
             }
         }
     }

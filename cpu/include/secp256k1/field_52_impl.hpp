@@ -477,6 +477,65 @@ bool FieldElement52::normalizes_to_zero() const noexcept {
     return (t[0] | t[1] | t[2] | t[3] | t[4]) == 0;
 }
 
+// -- Variable-time Zero Check with Early Exit ------------------------------
+// Performs a single normalize_weak pass (carry + overflow reduction + carry),
+// then checks for raw-zero and p.  Avoids the expensive conditional
+// p-subtraction + branchless-select of fe52_normalize_inline.
+//
+// After one normalize_weak pass at any magnitude <= ~4000, the value is
+// in [0, 2p).  The only representations of 0 mod p in [0, 2p) are
+// raw-zero (all limbs 0) and p itself.
+//
+// In the ecmult hot loop, h == 0 occurs with probability ~2^-256,
+// so the fast non-zero path fires in essentially 100% of calls.
+// This replaces the old normalize_weak() + normalizes_to_zero() pair
+// in jac52_add_mixed*, saving ~40 limb ops per mixed add.
+
+SECP256K1_FE52_FORCE_INLINE
+bool FieldElement52::normalizes_to_zero_var() const noexcept {
+    using namespace fe52_constants;
+    std::uint64_t t0 = n[0], t1 = n[1], t2 = n[2], t3 = n[3], t4 = n[4];
+
+    // Pass 1: carry propagation
+    t1 += (t0 >> 52); t0 &= M52;
+    t2 += (t1 >> 52); t1 &= M52;
+    t3 += (t2 >> 52); t2 &= M52;
+    t4 += (t3 >> 52); t3 &= M52;
+
+    // Overflow reduction: fold (t4 >> 48) * R back into t0
+    std::uint64_t x = t4 >> 48;
+    t4 &= M48;
+    t0 += x * 0x1000003D1ULL;
+
+    // Pass 2: propagate injection carry
+    t1 += (t0 >> 52); t0 &= M52;
+    t2 += (t1 >> 52); t1 &= M52;
+    t3 += (t2 >> 52); t2 &= M52;
+    t4 += (t3 >> 52); t3 &= M52;
+
+    // Second overflow reduction (handles magnitude > ~25)
+    x = t4 >> 48;
+    t4 &= M48;
+    if (SECP256K1_UNLIKELY(x != 0)) {
+        t0 += x * 0x1000003D1ULL;
+        t1 += (t0 >> 52); t0 &= M52;
+        t2 += (t1 >> 52); t1 &= M52;
+        t3 += (t2 >> 52); t2 &= M52;
+        t4 += (t3 >> 52); t3 &= M52;
+        t4 &= M48;
+    }
+
+    // Fast path: raw-zero check (fires ~100% of the time for non-zero h)
+    if ((t0 | t1 | t2 | t3 | t4) == 0) return true;
+
+    // Value is in [1, p].  Check if it equals p.
+    // p = {0xFFFFFEFFFFFC2F, M52, M52, M52, M48}
+    // Quick exit: if any of t1..t3 != M52, it cannot be p.
+    if ((t1 & t2 & t3) != M52 || t4 != M48) return false;
+
+    return t0 == 0xFFFFFEFFFFFC2FULL;
+}
+
 // -- Conversion: 4x64 -> 5x52 (inline) -----------------------------------
 
 SECP256K1_FE52_FORCE_INLINE
