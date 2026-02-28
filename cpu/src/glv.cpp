@@ -9,12 +9,86 @@
 namespace secp256k1::fast {
 
 // ============================================================================
-//  Internal helpers for GLV decomposition (32-bit safe, no __int128)
+//  Internal helpers for GLV decomposition
 // ============================================================================
 
+#if defined(__SIZEOF_INT128__) || (defined(__x86_64__) || defined(_M_X64) || defined(__aarch64__))
+// 64-bit Comba using __int128: 4x4 = 16 multiplications (vs 8x8 = 64 at 32-bit).
+// Each 64x64->128 multiply maps to MUL + MULHU on x86-64, UMULH on AArch64.
+// Carry chain uses libsecp256k1-style 192-bit accumulator (c0:c1:c2).
+// Result: product[0..7] as 64-bit limbs (512 bits total).
+static void glv_mul_comba_64(const std::uint64_t a[4], const std::uint64_t b[4],
+                             std::uint64_t r[8]) {
+    using u128 = unsigned __int128;
+    std::uint64_t c0 = 0, c1 = 0;
+    std::uint32_t c2 = 0;
+
+    // muladd: add a[i]*b[j] into 192-bit accumulator (c2:c1:c0)
+    #define GLV_MULADD(i, j) do { \
+        u128 p_ = (u128)(a[i]) * (b[j]); \
+        std::uint64_t tl_ = (std::uint64_t)p_; \
+        std::uint64_t th_ = (std::uint64_t)(p_ >> 64); \
+        c0 += tl_; \
+        th_ += (c0 < tl_) ? 1ULL : 0ULL; \
+        c1 += th_; \
+        c2 += (c1 < th_) ? 1U : 0U; \
+    } while(0)
+
+    // extract: output c0 as result word, shift accumulator right by 64
+    #define GLV_EXTRACT(out) do { \
+        (out) = c0; \
+        c0 = c1; \
+        c1 = static_cast<std::uint64_t>(c2); \
+        c2 = 0; \
+    } while(0)
+
+    GLV_MULADD(0, 0);
+    GLV_EXTRACT(r[0]);
+    GLV_MULADD(0, 1);  GLV_MULADD(1, 0);
+    GLV_EXTRACT(r[1]);
+    GLV_MULADD(0, 2);  GLV_MULADD(1, 1);  GLV_MULADD(2, 0);
+    GLV_EXTRACT(r[2]);
+    GLV_MULADD(0, 3);  GLV_MULADD(1, 2);  GLV_MULADD(2, 1);  GLV_MULADD(3, 0);
+    GLV_EXTRACT(r[3]);
+    GLV_MULADD(1, 3);  GLV_MULADD(2, 2);  GLV_MULADD(3, 1);
+    GLV_EXTRACT(r[4]);
+    GLV_MULADD(2, 3);  GLV_MULADD(3, 2);
+    GLV_EXTRACT(r[5]);
+    GLV_MULADD(3, 3);
+    GLV_EXTRACT(r[6]);
+    r[7] = c0;
+
+    #undef GLV_MULADD
+    #undef GLV_EXTRACT
+}
+
+// Compute (a * b) >> 384 with rounding bit (libsecp256k1 style)
+// a, b: 256-bit values as LE uint64_t[4]
+// Returns upper ~128 bits as LE uint64_t[4] (top two limbs typically 0)
+static std::array<std::uint64_t, 4> mul_shift_384(
+    const std::array<std::uint64_t, 4>& a,
+    const std::array<std::uint64_t, 4>& b) {
+
+    std::uint64_t prod[8];
+    glv_mul_comba_64(a.data(), b.data(), prod);
+
+    // Bits 384..511 sit in prod[6..7] (since 384/64 = 6)
+    std::array<std::uint64_t, 4> result{};
+    result[0] = prod[6];
+    result[1] = prod[7];
+    // result[2] = result[3] = 0
+
+    // Rounding bit: bit 383 of 512-bit product = bit 63 of prod[5]
+    if (prod[5] >> 63) {
+        result[0]++;
+        if (result[0] == 0) result[1]++;
+    }
+    return result;
+}
+
+#else
+// 32-bit fallback for platforms without __int128 (e.g. ESP32)
 // Comba product-scanning: 8x8 -> 16 words (256x256 -> 512 bit)
-// Same algorithm as esp32_mul_comba in field.cpp, duplicated here to avoid
-// cross-TU dependency (glv.cpp must be self-contained).
 static void glv_mul_comba(const std::uint32_t a[8], const std::uint32_t b[8],
                           std::uint32_t r[16]) {
     std::uint32_t c0 = 0, c1 = 0, c2 = 0;
@@ -39,7 +113,6 @@ static void glv_mul_comba(const std::uint32_t a[8], const std::uint32_t b[8],
     r[15] = c0;
 }
 
-// Convert uint64_t[4] LE limbs to uint32_t[8] LE limbs
 static void limbs64_to_32(const std::uint64_t* src, std::uint32_t* dst) {
     for (int i = 0; i < 4; i++) {
         dst[static_cast<std::size_t>(i) * 2]     = (std::uint32_t)src[i];
@@ -47,9 +120,6 @@ static void limbs64_to_32(const std::uint64_t* src, std::uint32_t* dst) {
     }
 }
 
-// Compute (a * b) >> 384 with rounding bit (libsecp256k1 style)
-// a, b: 256-bit values as LE uint64_t[4]
-// Returns upper ~128 bits as LE uint64_t[4] (top two limbs typically 0)
 static std::array<std::uint64_t, 4> mul_shift_384(
     const std::array<std::uint64_t, 4>& a,
     const std::array<std::uint64_t, 4>& b) {
@@ -59,19 +129,17 @@ static std::array<std::uint64_t, 4> mul_shift_384(
     limbs64_to_32(b.data(), b32);
     glv_mul_comba(a32, b32, prod);
 
-    // Bits 384..511 sit in prod[12..15] (since 384/32 = 12)
     std::array<std::uint64_t, 4> result{};
     result[0] = (std::uint64_t)prod[12] | ((std::uint64_t)prod[13] << 32);
     result[1] = (std::uint64_t)prod[14] | ((std::uint64_t)prod[15] << 32);
-    // result[2] = result[3] = 0
 
-    // Rounding bit: bit 383 = MSB of prod[11]
     if (prod[11] >> 31) {
         result[0]++;
         if (result[0] == 0) result[1]++;
     }
     return result;
 }
+#endif
 
 // Bit-length of a Scalar (for sign selection: pick shorter representation)
 static unsigned scalar_bitlen(const Scalar& s) {

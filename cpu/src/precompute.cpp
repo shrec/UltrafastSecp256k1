@@ -59,6 +59,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
+#include <cstring>
 #include <cctype>
 #include <limits>
 #include <memory>
@@ -2921,85 +2922,74 @@ std::vector<int32_t> compute_wnaf(const Scalar& scalar, unsigned window_bits) {
 }
 
 // No-alloc variant of compute_wnaf: writes into caller-provided buffer
+// Bit-scanning algorithm (libsecp256k1 style): reads bits directly from the
+// scalar limbs via indexed extraction instead of destructively shifting a
+// 5-limb working copy per bit position. Uses a carry variable to track the
+// implicit subtraction without modifying the scalar.
+//
+// Performance: ~3 ops per zero position, ~10 ops per non-zero position.
+// For 128-bit GLV scalars with w=15: ~120 skip + ~8 extract = ~400 ops total.
+// Prior shift-and-subtract: ~256 * 13 + ~60 * 20 = ~4500 ops per call.
 void compute_wnaf_into(const Scalar& scalar,
                        unsigned window_bits,
                        int32_t* out,
                        std::size_t max,
                        std::size_t& out_len) {
-    if (window_bits < 2U || window_bits > 16U) {
-        throw std::runtime_error("wNAF window size must be between 2 and 16");
+    if (SECP256K1_UNLIKELY(window_bits < 2U || window_bits > 16U ||
+                           out == nullptr || max == 0)) {
+        out_len = 0;
+        return;
     }
-    if (out == nullptr || max == 0) {
-        throw std::runtime_error("compute_wnaf_into: invalid output buffer");
-    }
 
-    // Working scalar in 5-limb array to accommodate carries
-    std::array<std::uint64_t, 5> k{};
-    const auto& limbs = scalar.limbs();
-    for (std::size_t i = 0; i < 4; ++i) {
-        k[i] = limbs[i];
-    }
-    k[4] = 0;
+    const auto& d = scalar.limbs();        // uint64_t[4], 256-bit LE
+    const int w = static_cast<int>(window_bits);
 
-    const int32_t window_size = 1 << window_bits;        // 2^w
-    const std::uint64_t window_mask = static_cast<std::uint64_t>(window_size) - 1U; // 2^w - 1
-    const int32_t half_window = window_size >> 1;        // 2^(w-1)
+    // Zero-fill: Shamir loop reads all positions up to max_len
+    const std::size_t clear_n = (max < 260) ? max : 260;
+    std::memset(out, 0, clear_n * sizeof(int32_t));
 
-    out_len = 0;
-    std::size_t bit_pos = 0;
-    const std::size_t max_length = 257; // 256-bit scalar + 1 for carry
+    int carry = 0;
+    int last_set = -1;
+    int bit = 0;
 
-    while (bit_pos < 256 || k[0] != 0 || k[1] != 0 || k[2] != 0 || k[3] != 0) {
-        int32_t digit = 0;
+    while (bit < 256) {
+        // Read single bit at position `bit`
+        const unsigned cur = static_cast<unsigned>(
+            (d[static_cast<unsigned>(bit) >> 6] >>
+             (static_cast<unsigned>(bit) & 63)) & 1);
 
-        if (k[0] & 1ULL) {
-            const auto chunk = static_cast<int32_t>(k[0] & window_mask);
-            if (chunk >= half_window) {
-                digit = chunk - window_size;
-                const auto add_val = static_cast<std::uint64_t>(-digit);
-                unsigned char carry = 0;
-                (void)carry;
-                std::uint64_t tmp = 0;
-                carry = COMPAT_ADDCARRY_U64(carry, k[0], add_val, &tmp); k[0] = tmp;
-                carry = COMPAT_ADDCARRY_U64(carry, k[1], 0ULL, &tmp); k[1] = tmp;
-                carry = COMPAT_ADDCARRY_U64(carry, k[2], 0ULL, &tmp); k[2] = tmp;
-                carry = COMPAT_ADDCARRY_U64(carry, k[3], 0ULL, &tmp); k[3] = tmp;
-                carry = COMPAT_ADDCARRY_U64(carry, k[4], 0ULL, &tmp); k[4] = tmp;
-                (void)carry;
-            } else {
-                digit = chunk;
-                unsigned char borrow = 0;
-                (void)borrow;
-                std::uint64_t tmp = 0;
-                borrow = COMPAT_SUBBORROW_U64(borrow, k[0], static_cast<std::uint64_t>(digit), &tmp); k[0] = tmp;
-                borrow = COMPAT_SUBBORROW_U64(borrow, k[1], 0ULL, &tmp); k[1] = tmp;
-                borrow = COMPAT_SUBBORROW_U64(borrow, k[2], 0ULL, &tmp); k[2] = tmp;
-                borrow = COMPAT_SUBBORROW_U64(borrow, k[3], 0ULL, &tmp); k[3] = tmp;
-                borrow = COMPAT_SUBBORROW_U64(borrow, k[4], 0ULL, &tmp); k[4] = tmp;
-                (void)borrow;
-            }
+        if (cur == static_cast<unsigned>(carry)) {
+            ++bit;                           // zero digit (already cleared)
+            continue;
         }
 
-        if (out_len >= max) {
-            throw std::runtime_error("compute_wnaf_into: output buffer too small");
-        }
-        out[out_len++] = digit;
+        // Non-zero digit: extract up to w bits (clamped at 256)
+        int now = w;
+        if (now > 256 - bit) now = 256 - bit;
 
-        // Right shift k by 1 bit
-        k[0] = (k[0] >> 1) | (k[1] << 63);
-        k[1] = (k[1] >> 1) | (k[2] << 63);
-        k[2] = (k[2] >> 1) | (k[3] << 63);
-        k[3] = (k[3] >> 1) | (k[4] << 63);
-        k[4] >>= 1;
-
-        ++bit_pos;
-        if (bit_pos > max_length) {
-            #if !SECP256K1_ESP32_BUILD
-            throw std::runtime_error("wNAF computation exceeded maximum length");
-            #else
-            break;
-            #endif
+        // Inline bit extraction from scalar limbs
+        const unsigned limb = static_cast<unsigned>(bit) >> 6;
+        const unsigned shift = static_cast<unsigned>(bit) & 63;
+        std::uint64_t val = d[limb] >> shift;
+        if (shift + static_cast<unsigned>(now) > 64 && limb < 3) {
+            val |= d[limb + 1] << (64 - shift);
         }
+        int word = static_cast<int>(val & ((1ULL << now) - 1)) + carry;
+
+        carry = (word >> (w - 1)) & 1;
+        word -= carry << w;
+
+        if (static_cast<std::size_t>(bit) < max) {
+            out[bit] = static_cast<int32_t>(word);
+        }
+        last_set = bit;
+        bit += now;
+    }
+
+    out_len = static_cast<std::size_t>((last_set >= 0) ? last_set + 1 : 0);
+    if (carry && out_len < max) {
+        out[out_len] = 1;                    // carry extends past bit 255
+        ++out_len;
     }
 }
 
