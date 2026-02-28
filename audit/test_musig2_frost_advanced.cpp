@@ -394,7 +394,7 @@ static void test_frost_bad_share_dkg() {
 
     for (int round = 0; round < N; ++round) {
         uint32_t const t = 2;
-        uint32_t n = 3;
+        uint32_t const n = 3;
         std::vector<secp256k1::FrostCommitment> comms;
         std::vector<std::vector<secp256k1::FrostShare>> smatrix;
         for (uint32_t i = 0; i < n; ++i) {

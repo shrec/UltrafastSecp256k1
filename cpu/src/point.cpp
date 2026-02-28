@@ -415,6 +415,36 @@ struct AffinePoint52 {
     FieldElement52 y;
 };
 
+// -- Compact Affine Point (4x64 = 64 bytes = 1 cache line) -------------------
+// For precomputed G/H tables: stores fully normalized affine coordinates in
+// 4x64-bit limb format.  64 bytes = exactly 1 cache line, halving the cache
+// footprint per entry compared to AffinePoint52 (80 bytes = 2 cache lines).
+// Conversion to AffinePoint52 on lookup costs ~2ns (bit-shift only, no mul).
+struct alignas(64) AffinePointCompact {
+    std::uint64_t x[4];
+    std::uint64_t y[4];
+
+    // Convert to AffinePoint52 for computation (4x64 -> 5x52 bit-slice)
+    inline AffinePoint52 to_affine52() const noexcept {
+        return {
+            FieldElement52::from_4x64_limbs(x),
+            FieldElement52::from_4x64_limbs(y)
+        };
+    }
+
+    // Construct from AffinePoint52 (5x52 -> 4x64 via full normalize + pack)
+    static inline AffinePointCompact from_affine52(const AffinePoint52& p) noexcept {
+        FieldElement const fx = p.x.to_fe();
+        FieldElement const fy = p.y.to_fe();
+        AffinePointCompact c;
+        auto const& lx = fx.limbs();
+        auto const& ly = fy.limbs();
+        c.x[0] = lx[0]; c.x[1] = lx[1]; c.x[2] = lx[2]; c.x[3] = lx[3];
+        c.y[0] = ly[0]; c.y[1] = ly[1]; c.y[2] = ly[2]; c.y[3] = ly[3];
+        return c;
+    }
+};
+
 // Convert Point -> 5x52 JacobianPoint52
 // With FE52 storage: zero-cost (direct member copy)
 // Without FE52 storage: 3x from_fe conversions
@@ -690,6 +720,181 @@ static void jac52_add_mixed_inplace(JacobianPoint52& p, const AffinePoint52& q) 
 
     p.x = x3;
     p.y = r;                                                  // Y3
+    p.infinity = false;
+}
+
+// -- In-place Mixed Addition with Z-ratio output (5x52) -----------------------
+// Identical to jac52_add_mixed_inplace but additionally outputs the z-ratio
+// (Z3/Z1 = 2*H for our madd-2007-bl formula) needed by table_set_globalz.
+// Only used during P table construction (never in the hot main loop).
+SECP256K1_NOINLINE
+static void jac52_add_mixed_inplace_zr(JacobianPoint52& p,
+                                        const AffinePoint52& q,
+                                        FieldElement52& zr_out) {
+    if (SECP256K1_UNLIKELY(p.infinity)) {
+        p.x = q.x; p.y = q.y; p.z = FieldElement52::one(); p.infinity = false;
+        zr_out = FieldElement52::one();
+        return;
+    }
+
+    FieldElement52 z1z1 = p.z.square();
+    FieldElement52 const u2 = q.x * z1z1;
+    FieldElement52 const z1_z1z1 = p.z * z1z1;
+    FieldElement52 const s2 = q.y * z1_z1z1;
+
+    const FieldElement52 negX1 = p.x.negate(23);
+    FieldElement52 h = u2 + negX1;
+
+    if (SECP256K1_UNLIKELY(h.normalizes_to_zero_var())) {
+        FieldElement52 const negY1 = p.y.negate(10);
+        FieldElement52 const diff = s2 + negY1;
+        if (diff.normalizes_to_zero_var()) {
+            jac52_double_inplace(p);
+            zr_out = FieldElement52::one();
+            return;
+        }
+        p = {FieldElement52::zero(), FieldElement52::one(), FieldElement52::zero(), true};
+        zr_out = FieldElement52::zero();
+        return;
+    }
+
+    // Output z-ratio: Z3/Z1 = 2*H for the madd-2007-bl formula.
+    // h is not modified by subsequent operations (all const reads).
+    zr_out = h;
+    zr_out.add_assign(h);                                     // zr = 2*H, mag 50
+
+    FieldElement52 hh = h.square();
+    FieldElement52 I = hh + hh;
+    I.add_assign(I);
+    FieldElement52 j = h * I;
+
+    FieldElement52 y1j = p.y * j;
+    j.negate_assign(1);
+
+    FieldElement52 const negY1 = p.y.negate(10);
+    FieldElement52 r = s2 + negY1;
+    r.add_assign(r);
+    FieldElement52 const v = p.x * I;
+    FieldElement52 const r_sq = r.square();
+    FieldElement52 const negV = v.negate(1);
+    FieldElement52 const x3 = r_sq + j + negV + negV;
+    FieldElement52 const negX3 = x3.negate(7);
+    FieldElement52 const vx3 = v + negX3;
+    r.mul_assign(vx3);
+    y1j.add_assign(y1j);
+    y1j.negate_assign(2);
+    r.add_assign(y1j);
+
+    p.z.add_assign(h);
+    p.z.square_inplace();
+    z1z1.negate_assign(1);
+    hh.negate_assign(1);
+    p.z.add_assign(z1z1);
+    p.z.add_assign(hh);
+
+    p.x = x3;
+    p.y = r;
+    p.infinity = false;
+}
+
+// -- In-Place Zinv Addition (5x52): p += (b.x, b.y, 1/bzinv) ----------------
+// Adds the affine point b as if it has effective Z = 1/bzinv.
+// Equivalent to: scaling b into the bzinv frame then doing mixed addition,
+// but folds the Z factor into the formula itself (no table entry modification).
+//
+// This is the secp256k1 analog of libsecp's secp256k1_gej_add_zinv_var.
+// Used for G/H table lookups in the main ecmult loop: the precomputed G/H
+// entries are true affine (Z=1), and bzinv = Z_shared (from P table's z-ratio
+// construction), so the point being added is (b.x, b.y, 1/Z_shared) which
+// maps G/H onto the isomorphic curve where P entries live.
+//
+// Cost: 9M + 3S + ~11A
+// Saves 1S per G/H lookup vs the previous approach (2M scale + 7M+4S mixed add).
+// Also avoids modifying the G/H table entry (no cache-line dirtying).
+SECP256K1_HOT_FUNCTION SECP256K1_NOINLINE
+static void jac52_add_zinv_inplace(JacobianPoint52& p,
+                                    const AffinePoint52& b,
+                                    const FieldElement52& bzinv) {
+    // Handle infinity and edge cases
+    if (SECP256K1_UNLIKELY(p.infinity)) {
+        // Result = (b.x * bzinv^2, b.y * bzinv^3, 1)
+        // This maps the true affine b into the bzinv frame with Z=1,
+        // consistent with the final result.z *= bzinv correction.
+        FieldElement52 const bzinv2 = bzinv.square();             // 1S
+        FieldElement52 const bzinv3 = bzinv2 * bzinv;             // 1M
+        p.x = b.x * bzinv2;                                      // 1M
+        p.y = b.y * bzinv3;                                      // 1M
+        p.z = FieldElement52::one();
+        p.infinity = false;
+        return;
+    }
+
+    // az = Z1 * bzinv  (modified Z for u2, s2 computation)
+    FieldElement52 const az = p.z * bzinv;                        // 1M (extra vs mixed add)
+
+    // az2 = az^2 (replaces z1z1 in mixed add)
+    FieldElement52 const az2 = az.square();                       // 1S
+
+    // u2 = b.x * az^2,  u1 = p.x  (implicit)
+    FieldElement52 const u2 = b.x * az2;                          // 1M
+
+    // s2 = b.y * az^3,  s1 = p.y  (implicit)
+    FieldElement52 s2 = b.y * az2;                                // 1M
+    s2.mul_assign(az);                                            // s2 = b.y * az^3, 1M
+
+    // h = u2 - u1
+    FieldElement52 const negX1 = p.x.negate(23);                  // mag 24
+    FieldElement52 h = u2 + negX1;                                // mag 25
+
+    // Variable-time zero check (prob ~2^-256)
+    if (SECP256K1_UNLIKELY(h.normalizes_to_zero_var())) {
+        FieldElement52 const negS2 = s2.negate(1);
+        FieldElement52 const diff = p.y + negS2;
+        if (diff.normalizes_to_zero_var()) {
+            jac52_double_inplace(p);
+            return;
+        }
+        p = {FieldElement52::zero(), FieldElement52::one(), FieldElement52::zero(), true};
+        return;
+    }
+
+    // Z3 = Z1 * h  (uses ORIGINAL p.z, NOT az!)
+    // This is the key difference from mixed add: Z3 does NOT include bzinv,
+    // keeping the accumulator Z in the secp256k1 domain.
+    FieldElement52 z3 = p.z * h;                                  // 1M
+
+    // h2 = -h^2
+    FieldElement52 h2 = h.square();                               // 1S
+    h2.negate_assign(1);                                          // h2 = -h^2, mag 2
+
+    // h3 = h * (-h^2) = -h^3
+    FieldElement52 h3 = h2 * h;                                   // 1M
+
+    // t = u1 * (-h^2) = -X1 * h^2  (but u1 = p.x, and h2 = -h^2)
+    FieldElement52 t = p.x * h2;                                  // 1M
+
+    // i = s1 - s2 = Y1 - s2  (sign convention matching libsecp)
+    FieldElement52 const negS2 = s2.negate(1);                    // mag 2
+    FieldElement52 const i_val = p.y + negS2;                     // mag 12 (p.y mag<=10, negS2 mag 2)
+
+    // X3 = i^2 - h^3 + 2*t  (where h3 = -h^3, t = -u1*h^2 = u1*h2)
+    // = i^2 + (-h^3) + (-u1*h^2) + (-u1*h^2)
+    FieldElement52 const i_sq = i_val.square();                   // 1S
+    FieldElement52 x3 = i_sq + h3;                                // mag 3 (1 + 2)
+    x3.add_assign(t);                                             // mag 4
+    x3.add_assign(t);                                             // mag 5, X3 = i^2 - h^3 - 2*u1*h^2
+
+    // Y3 = i*(t + X3) + s1*(-h^3)
+    // = i*(-u1*h^2 + X3) + Y1*(-h^3)
+    // = i*(X3 - u1*h^2) - Y1*h^3
+    t.add_assign(x3);                                             // t = (-u1*h^2) + X3
+    FieldElement52 y3 = t * i_val;                                // 1M, y3 = i*(X3 - u1*h^2)
+    h3.mul_assign(p.y);                                           // h3 = (-h^3)*Y1 = -Y1*h^3, 1M
+    y3.add_assign(h3);                                            // Y3 = i*(X3-u1*h^2) - Y1*h^3
+
+    p.x = x3;
+    p.y = y3;
+    p.z = z3;
     p.infinity = false;
 }
 
@@ -2355,15 +2560,15 @@ Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const P
     // This halves the table memory from 2.5 MB to 1.25 MB, fitting in
     // per-core L3 cache and reducing TLB + cache pressure.
     struct GenTables {
-        AffinePoint52 tbl_G[G_TABLE_SIZE];       // [G, 3G, 5G, ..., 16383G]
-        AffinePoint52 tbl_H[G_TABLE_SIZE];       // [H, 3H, 5H, ..., 16383H]
+        AffinePointCompact tbl_G[G_TABLE_SIZE];  // [G, 3G, 5G, ..., 16383G] compact 64B
+        AffinePointCompact tbl_H[G_TABLE_SIZE];  // [H, 3H, 5H, ..., 16383H] compact 64B
     };
     static const GenTables* const gen_tables = []() -> const GenTables* {
         auto* t = new GenTables;
 
         // Helper: build odd-multiple table for base point B using effective-affine
         auto build_table = [](const JacobianPoint52& B,
-                              AffinePoint52* out, int count) {
+                              AffinePointCompact* out, int count) {
             // d = 2*B, work on isomorphic curve where d is affine
             JacobianPoint52 const d = jac52_double(B);
             FieldElement52 const C  = d.z;
@@ -2400,8 +2605,8 @@ Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const P
             for (std::size_t i = 0; i < static_cast<std::size_t>(count); i++) {
                 FieldElement52 const zinv2 = zs[i].square();
                 FieldElement52 const zinv3 = zinv2 * zs[i];
-                out[i].x = iso[i].x * zinv2;
-                out[i].y = iso[i].y * zinv3;
+                AffinePoint52 const aff = {iso[i].x * zinv2, iso[i].y * zinv3};
+                out[i] = AffinePointCompact::from_affine52(aff);
             }
 
             delete[] zs;
@@ -2438,54 +2643,50 @@ Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const P
     std::array<AffinePoint52, P_TABLE_SIZE> tbl_P;
     std::array<AffinePoint52, P_TABLE_SIZE> tbl_phiP;
 
-    // Build table via effective-affine on isomorphic curve
-    {
-        // d = 2*P (Jacobian)
-        JacobianPoint52 const d = jac52_double(P52);
-        FieldElement52 const C  = d.z;              // C = d.Z
-        FieldElement52 const C2 = C.square();       // C^2
-        FieldElement52 const C3 = C2 * C;           // C^3
+    // Z_shared: effective Z on secp256k1 shared by all pseudo-affine P entries.
+    // Declared here so it is available for add_zinv and final Z correction.
+    FieldElement52 Z_shared;
 
-        // d as affine on iso curve: phi(d) = (d.X, d.Y)
-        // (Z = C on iso curve cancels in the isomorphism)
+    // -- Z-ratio table construction (0 inversions) -------------------
+    // Instead of batch-inverting all Z coordinates (~2us), collect z-ratios
+    // during the iso-curve additions and use a backward sweep to express
+    // all entries at a common shared Z.  The main loop works in this
+    // "Z_shared frame" (G/H entries are scaled into the frame), and
+    // result52.z is multiplied by Z_shared before returning.
+    {
+        JacobianPoint52 const d = jac52_double(P52);
+        FieldElement52 const C  = d.z;
+        FieldElement52 const C2 = C.square();
+        FieldElement52 const C3 = C2 * C;
         AffinePoint52 const d_aff = {d.x, d.y};
 
-        // Transform P onto iso curve: phi(P) = (P.X*C^2, P.Y*C^3, P.Z)
-        std::array<JacobianPoint52, P_TABLE_SIZE> iso;
-        iso[0] = {P52.x * C2, P52.y * C3, P52.z, false};
+        // Build table on iso curve, collecting z-ratios from each addition.
+        JacobianPoint52 ai = {P52.x * C2, P52.y * C3, P52.z, false};
+        tbl_P[0] = {ai.x, ai.y};  // pseudo-affine: Jacobian X,Y with Z implicit
 
-        // Build rest using mixed adds on iso curve (7M+4S each, not 12M+5S)
+        std::array<FieldElement52, P_TABLE_SIZE> zr;  // z-ratios [1..n-1]
         for (std::size_t i = 1; i < static_cast<std::size_t>(P_TABLE_SIZE); i++) {
-            iso[i] = iso[i - 1];
-            jac52_add_mixed_inplace(iso[i], d_aff);
+            jac52_add_mixed_inplace_zr(ai, d_aff, zr[i]);
+            tbl_P[i] = {ai.x, ai.y};
         }
 
-        // Batch-invert effective Z: true Z on secp256k1 = Z_iso * C
-        std::array<FieldElement52, P_TABLE_SIZE> eff_z;
-        for (std::size_t i = 0; i < static_cast<std::size_t>(P_TABLE_SIZE); i++) {
-            eff_z[i] = iso[i].z * C;
+        // Backward sweep (a la libsecp256k1 table_set_globalz):
+        // Scale entries 0..n-2 so all share Z of the last point on iso curve.
+        // Cost: (n-2) muls + (n-1)*(1S+2M) = 20M+7S for n=8.
+        tbl_P[P_TABLE_SIZE - 1].y.normalize_weak();
+        FieldElement52 zs = zr[P_TABLE_SIZE - 1];
+        for (int j = static_cast<int>(P_TABLE_SIZE) - 2; j >= 0; --j) {
+            if (j != static_cast<int>(P_TABLE_SIZE) - 2) {
+                zs.mul_assign(zr[static_cast<std::size_t>(j) + 1]);
+            }
+            FieldElement52 const zs2 = zs.square();
+            FieldElement52 const zs3 = zs2 * zs;
+            tbl_P[static_cast<std::size_t>(j)].x.mul_assign(zs2);
+            tbl_P[static_cast<std::size_t>(j)].y.mul_assign(zs3);
         }
 
-        std::array<FieldElement52, P_TABLE_SIZE> prods;
-        prods[0] = eff_z[0];
-        for (std::size_t i = 1; i < static_cast<std::size_t>(P_TABLE_SIZE); i++) {
-            prods[i] = prods[i - 1] * eff_z[i];
-        }
-        FieldElement52 inv = prods[P_TABLE_SIZE - 1].inverse_safegcd();
-        std::array<FieldElement52, P_TABLE_SIZE> zs;
-        for (std::size_t i = static_cast<std::size_t>(P_TABLE_SIZE) - 1; i > 0; --i) {
-            zs[i] = prods[i - 1] * inv;
-            inv = inv * eff_z[i];
-        }
-        zs[0] = inv;
-
-        // Convert from iso to secp256k1 affine: x = X*(Z*C)^-^2, y = Y*(Z*C)^-^3
-        for (std::size_t i = 0; i < static_cast<std::size_t>(P_TABLE_SIZE); i++) {
-            FieldElement52 const zinv2 = zs[i].square();
-            FieldElement52 const zinv3 = zinv2 * zs[i];
-            tbl_P[i].x = iso[i].x * zinv2;
-            tbl_P[i].y = iso[i].y * zinv3;
-        }
+        // Z_shared = ai.z * C: effective Z on secp256k1 for all pseudo-affine entries.
+        Z_shared = ai.z * C;
     }
 
     // psi(P) table
@@ -2534,27 +2735,29 @@ Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const P
     for (int i = static_cast<int>(max_len) - 1; i >= 0; --i) {
         jac52_double_inplace(result52);
 
-        // Stream 1: a_lo * G
+        // Stream 1: a_lo * G  (add_zinv: fold Z_shared into formula, 9M+3S)
         {
             int32_t const d = wnaf_a_lo[static_cast<std::size_t>(i)];
             if (d > 0) {
-                jac52_add_mixed_inplace(result52, gen_tables->tbl_G[static_cast<std::size_t>((d - 1) >> 1)]);
+                AffinePoint52 const pt = gen_tables->tbl_G[static_cast<std::size_t>((d - 1) >> 1)].to_affine52();
+                jac52_add_zinv_inplace(result52, pt, Z_shared);
             } else if (d < 0) {
-                AffinePoint52 pt = gen_tables->tbl_G[static_cast<std::size_t>((-d - 1) >> 1)];
+                AffinePoint52 pt = gen_tables->tbl_G[static_cast<std::size_t>((-d - 1) >> 1)].to_affine52();
                 pt.y.negate_assign(1);
-                jac52_add_mixed_inplace(result52, pt);
+                jac52_add_zinv_inplace(result52, pt, Z_shared);
             }
         }
 
-        // Stream 2: a_hi * H
+        // Stream 2: a_hi * H  (add_zinv: fold Z_shared into formula, 9M+3S)
         {
             int32_t const d = wnaf_a_hi[static_cast<std::size_t>(i)];
             if (d > 0) {
-                jac52_add_mixed_inplace(result52, gen_tables->tbl_H[static_cast<std::size_t>((d - 1) >> 1)]);
+                AffinePoint52 const pt = gen_tables->tbl_H[static_cast<std::size_t>((d - 1) >> 1)].to_affine52();
+                jac52_add_zinv_inplace(result52, pt, Z_shared);
             } else if (d < 0) {
-                AffinePoint52 pt = gen_tables->tbl_H[static_cast<std::size_t>((-d - 1) >> 1)];
+                AffinePoint52 pt = gen_tables->tbl_H[static_cast<std::size_t>((-d - 1) >> 1)].to_affine52();
                 pt.y.negate_assign(1);
-                jac52_add_mixed_inplace(result52, pt);
+                jac52_add_zinv_inplace(result52, pt, Z_shared);
             }
         }
 
@@ -2581,6 +2784,12 @@ Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const P
                 jac52_add_mixed_inplace(result52, pt);
             }
         }
+    }
+
+    // Correct Z: main loop ran in Z_shared frame, so true secp256k1 Z
+    // is result52.z * Z_shared.  One multiplication (~13ns).
+    if (!result52.infinity) {
+        result52.z.mul_assign(Z_shared);
     }
 
     return from_jac52(result52);
