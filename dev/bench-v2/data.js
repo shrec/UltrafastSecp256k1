@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772278458274,
+  "lastUpdate": 1772280083852,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -22006,6 +22006,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "benchmark_parse_warning",
             "value": 0,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "1714e00167315919c7fbf8f6cf3d0ce1bf4933e1",
+          "message": "fix: normalizes_to_zero_var P0 constant typo (extra F)\n\nThe p-comparison in normalizes_to_zero_var() used 0xFFFFFEFFFFFC2F\n(14 hex digits, 56 bits) instead of P0 = 0xFFFFEFFFFFC2F (13 hex\ndigits, 52 bits).  The extra 'F' before 'E' made the constant exceed\na 52-bit limb, so the equality check could never match -- values\nequal to p (= 0 mod p) were reported as non-zero.\n\nEffect: jac52_add/jac52_add_mixed failed to detect equal-x points\n(h = u2 - u1 = 0 mod p reduces to p after normalize_weak).  Instead\nof doubling, the code proceeded with h = 0 in the general addition\nformula, producing wrong results.\n\nFix: use P0 constant directly instead of a literal.\n\nVerified: all local tests pass (exhaustive 5399/0, batch_add_affine\n548/0, comprehensive 12023/0, selftest 21/21, field_52 267/0).",
+          "timestamp": "2026-02-28T15:59:46+04:00",
+          "tree_id": "582c8a2f5fdda7accdc54291b89ea9cb90c09d38",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/1714e00167315919c7fbf8f6cf3d0ce1bf4933e1"
+        },
+        "date": 1772280082267,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 27,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 22,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 279,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 148,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 38000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 10000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 14000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 47000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 24000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 53000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 152,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 133,
             "unit": "ns"
           }
         ]
