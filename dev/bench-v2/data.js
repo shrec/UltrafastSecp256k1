@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772271825086,
+  "lastUpdate": 1772278458274,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -21977,6 +21977,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Batch Inverse (n=1000)",
             "value": 132,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "5565acdef8e0f4d329925aca83f2b34c9cf1a86d",
+          "message": "perf: optimize verify hot path -- normalizes_to_zero_var + eliminate neg tables\n\nThree optimizations to the 5x52 ECC verify path:\n\n1. normalizes_to_zero_var(): combined normalize_weak + zero check with\n   early exit. Raw-zero fast path fires ~100% of the time (probability\n   of h==0 is ~2^-256). Saves ~40 limb ops per mixed add call.\n\n2. Remove redundant normalize_weak() before normalizes_to_zero() in all\n   4 point-add functions (jac52_add_mixed, _inplace, jac52_add, _inplace).\n   The old normalizes_to_zero() already normalizes internally.\n\n3. Eliminate pre-negated tables (neg_tbl_G, neg_tbl_H, neg_tbl_P,\n   neg_tbl_phiP) from GenTables and scalar_mul_glv52 and\n   dual_scalar_mul_gen_point. Negate Y on-the-fly for negative wNAF\n   digits (5 limb ops, data already in L1 from lookup). Halves static\n   table memory from 2.5 MB to 1.25 MB.\n\nPinned benchmark (core 2, n=2000, Clang 21.1.0, Zen 3):\n  UF ECDSA verify preparsed: 33100 -> 28200 ns (+17% faster)\n  UF Schnorr verify preparsed: 30200 -> 28600 ns (+6% faster)\n  UF pubkey_create: 7100 ns vs libsecp 13100 ns (UF 1.85x faster)\n  field_52 tests: 267/267 PASSED\n  bench_compare correctness: 10/10 gates PASSED\n\nFiles changed:\n  field_52.hpp       -- added normalizes_to_zero_var() declaration\n  field_52_impl.hpp  -- added normalizes_to_zero_var() implementation\n  point.cpp          -- all point-add + ecmult hot path changes",
+          "timestamp": "2026-02-28T15:32:42+04:00",
+          "tree_id": "20d5f03052d364cb9c721e21f82526840dc6f8f5",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/5565acdef8e0f4d329925aca83f2b34c9cf1a86d"
+        },
+        "date": 1772278456013,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "benchmark_parse_warning",
+            "value": 0,
             "unit": "ns"
           }
         ]
