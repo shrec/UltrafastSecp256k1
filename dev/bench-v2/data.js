@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772238761064,
+  "lastUpdate": 1772241843834,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -21482,6 +21482,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Batch Inverse (n=1000)",
             "value": 107,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "Vano Chkheidze",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "37cd5da5257679f9ef16e97084911f2516e30a80",
+          "message": "fix: raise dudect T_THRESHOLD to 35.0 for CI stability & fix misleading /* in recovery.hpp (#66)\n\n- audit/test_ct_sidechannel.cpp: raise DUDECT_SMOKE T_THRESHOLD from 25.0 to\n  35.0 for non-MSVC. Shared CI runners (ubuntu-24.04) produce timing noise\n  with only 5000 samples; ct_equal measured |t|=27.43 (false positive).\n  The ct_equal implementation is correct (no early exit, XOR accumulate +\n  is_zero_mask). 35.0 still catches gross leaks (|t|>100).\n\n- cpu/include/secp256k1/recovery.hpp: replace /* ... */ inside // comment\n  with ... to satisfy SonarCloud S125 (misleading comment characters).",
+          "timestamp": "2026-02-28T05:22:24+04:00",
+          "tree_id": "1f0237abcdd7d75b34480bb4f0a0d383f71e8bd3",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/37cd5da5257679f9ef16e97084911f2516e30a80"
+        },
+        "date": 1772241842265,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 27,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 22,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 287,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 151,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 38000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 10000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 14000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 47000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 24000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 53000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 141,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 131,
             "unit": "ns"
           }
         ]
