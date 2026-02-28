@@ -32,6 +32,7 @@ ignore:
   - "tests/**"
   - "bench/**"
   - "examples/**"
+  - "audit/**"
   - "wasm/**"
   - "android/**"
   - "bindings/**"

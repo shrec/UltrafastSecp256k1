@@ -479,14 +479,14 @@ jobs:
             --format=lcov \
             --instr-profile=coverage.profdata \
             $OBJECTS \
-            --ignore-filename-regex='(tests/|bench/|examples/|/usr/)' \
+            --ignore-filename-regex='(tests/|bench/|examples/|audit/|/usr/)' \
             > coverage.lcov
 
           echo "=== Coverage summary ==="
           llvm-cov-17 report \
             --instr-profile=coverage.profdata \
             $OBJECTS \
-            --ignore-filename-regex='(tests/|bench/|examples/|/usr/)' \
+            --ignore-filename-regex='(tests/|bench/|examples/|audit/|/usr/)' \
             | tail -5
 
       - name: Upload to Codecov
