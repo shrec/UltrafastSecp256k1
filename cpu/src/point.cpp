@@ -661,9 +661,10 @@ static JacobianPoint52 jac52_add_mixed(const JacobianPoint52& p, const AffinePoi
 
 // -- In-Place Mixed Addition (5x52): Jacobian + Affine -> Jacobian -------------
 // Same formula as jac52_add_mixed but overwrites p in-place.
-// noinline: reduces hot-loop code size from ~5KB to ~1KB, improving I-cache.
-// The 127KB dual_scalar_mul_gen_point thrashes L1 I-cache (32-48KB) when inlined.
-SECP256K1_HOT_FUNCTION SECP256K1_NOINLINE
+// Compiler decides inlining: with merged streams (4 call sites), estimated
+// loop body ~2.5KB fits easily in L1 I-cache (32KB). libsecp uses the same
+// approach (static functions, no explicit NOINLINE).
+SECP256K1_HOT_FUNCTION
 static void jac52_add_mixed_inplace(JacobianPoint52& p, const AffinePoint52& q) noexcept {
     if (SECP256K1_UNLIKELY(p.infinity)) {
         p.x = q.x; p.y = q.y; p.z = FieldElement52::one(); p.infinity = false;
@@ -815,7 +816,7 @@ static void jac52_add_mixed_inplace_zr(JacobianPoint52& p,
 // Cost: 9M + 3S + ~11A
 // Saves 1S per G/H lookup vs the previous approach (2M scale + 7M+4S mixed add).
 // Also avoids modifying the G/H table entry (no cache-line dirtying).
-SECP256K1_HOT_FUNCTION SECP256K1_NOINLINE
+SECP256K1_HOT_FUNCTION
 static void jac52_add_zinv_inplace(JacobianPoint52& p,
                                     const AffinePoint52& b,
                                     const FieldElement52& bzinv) noexcept {
@@ -2740,6 +2741,24 @@ Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const P
     if (len_b2 > max_len) max_len = len_b2;
 
     for (int i = static_cast<int>(max_len) - 1; i >= 0; --i) {
+        // -- SW prefetch for G/H table entries (512KB each, random access) ----
+        // Issue prefetch BEFORE the double (~88ns) so the cache line is ready
+        // by the time we need it.  P/phiP tables (8 entries = 640B) are always
+        // in L1, so no prefetch needed for those.
+        // Branchless index: use current digit to compute table offset.
+        {
+            int32_t const d_g = wnaf_a_lo[static_cast<std::size_t>(i)];
+            if (d_g) {
+                int32_t const abs_g = (d_g ^ (d_g >> 31)) - (d_g >> 31);
+                SECP256K1_PREFETCH_READ(&gen_tables->tbl_G[(abs_g - 1) >> 1]);
+            }
+            int32_t const d_h = wnaf_a_hi[static_cast<std::size_t>(i)];
+            if (d_h) {
+                int32_t const abs_h = (d_h ^ (d_h >> 31)) - (d_h >> 31);
+                SECP256K1_PREFETCH_READ(&gen_tables->tbl_H[(abs_h - 1) >> 1]);
+            }
+        }
+
         jac52_double_inplace(result52);
 
         // Stream 1: a_lo * G  (add_zinv: fold Z_shared into formula, 9M+3S)
@@ -2747,7 +2766,7 @@ Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const P
         // Halves call sites (better I-cache), eliminates sign branch mispredictions.
         {
             int32_t const d = wnaf_a_lo[static_cast<std::size_t>(i)];
-            if (d != 0) {
+            if (SECP256K1_UNLIKELY(d != 0)) {
                 int32_t const sign = d >> 31;                        // -1 if neg, 0 if pos
                 int32_t const abs_d = (d ^ sign) - sign;             // branchless abs
                 AffinePoint52 pt = gen_tables->tbl_G[static_cast<std::size_t>((abs_d - 1) >> 1)].to_affine52();
@@ -2759,7 +2778,7 @@ Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const P
         // Stream 2: a_hi * H
         {
             int32_t const d = wnaf_a_hi[static_cast<std::size_t>(i)];
-            if (d != 0) {
+            if (SECP256K1_UNLIKELY(d != 0)) {
                 int32_t const sign = d >> 31;
                 int32_t const abs_d = (d ^ sign) - sign;
                 AffinePoint52 pt = gen_tables->tbl_H[static_cast<std::size_t>((abs_d - 1) >> 1)].to_affine52();
@@ -2771,7 +2790,7 @@ Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const P
         // Stream 3: b1 * P
         {
             int32_t const d = wnaf_b1[static_cast<std::size_t>(i)];
-            if (d != 0) {
+            if (SECP256K1_UNLIKELY(d != 0)) {
                 int32_t const sign = d >> 31;
                 int32_t const abs_d = (d ^ sign) - sign;
                 AffinePoint52 pt = tbl_P[static_cast<std::size_t>((abs_d - 1) >> 1)];
@@ -2783,7 +2802,7 @@ Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const P
         // Stream 4: b2 * psi(P)
         {
             int32_t const d = wnaf_b2[static_cast<std::size_t>(i)];
-            if (d != 0) {
+            if (SECP256K1_UNLIKELY(d != 0)) {
                 int32_t const sign = d >> 31;
                 int32_t const abs_d = (d ^ sign) - sign;
                 AffinePoint52 pt = tbl_phiP[static_cast<std::size_t>((abs_d - 1) >> 1)];

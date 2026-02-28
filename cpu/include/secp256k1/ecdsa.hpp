@@ -57,6 +57,12 @@ ECDSASignature ecdsa_sign(const std::array<std::uint8_t, 32>& msg_hash,
 
 // Verify an ECDSA signature against a public key and message hash.
 // Accepts both low-S and high-S signatures.
+// Raw-pointer overload: avoids 32B array copy when caller has a raw pointer.
+bool ecdsa_verify(const std::uint8_t* msg_hash32,
+                  const fast::Point& public_key,
+                  const ECDSASignature& sig);
+
+// Array overload: thin wrapper.
 bool ecdsa_verify(const std::array<std::uint8_t, 32>& msg_hash,
                   const fast::Point& public_key,
                   const ECDSASignature& sig);

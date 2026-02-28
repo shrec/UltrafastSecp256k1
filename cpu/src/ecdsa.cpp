@@ -13,8 +13,13 @@ using fast::FieldElement; // NOLINT(misc-unused-using-decls) -- used in #else pa
 
 // -- Half-order for low-S check -----------------------------------------------
 // n/2 = 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0
-static const Scalar HALF_ORDER = Scalar::from_hex(
-    "7fffffffffffffffffffffffffffffff5d576e7357a4501ddfe92f46681b20a0");
+// Stored as 4x64 LE limbs for direct comparison (no to_bytes() needed).
+static constexpr std::uint64_t HALF_ORDER_LIMBS[4] = {
+    0xDFE92F46681B20A0ULL,  // limb 0 (least significant)
+    0x5D576E7357A4501DULL,  // limb 1
+    0xFFFFFFFFFFFFFFFFULL,  // limb 2
+    0x7FFFFFFFFFFFFFFFULL   // limb 3 (most significant)
+};
 
 // -- Signature Methods --------------------------------------------------------
 
@@ -73,12 +78,12 @@ ECDSASignature ECDSASignature::normalize() const {
 }
 
 bool ECDSASignature::is_low_s() const {
-    // s <= n/2 ?
-    auto s_bytes = s.to_bytes();
-    auto half_bytes = HALF_ORDER.to_bytes();
-    for (size_t i = 0; i < 32; ++i) {
-        if (s_bytes[i] < half_bytes[i]) return true;
-        if (s_bytes[i] > half_bytes[i]) return false;
+    // s <= n/2 ?  Direct limb comparison (avoids 2x to_bytes() serialization).
+    // Compare from most-significant limb to least-significant.
+    const auto& sl = s.limbs();
+    for (int i = 3; i >= 0; --i) {
+        if (sl[static_cast<unsigned>(i)] < HALF_ORDER_LIMBS[static_cast<unsigned>(i)]) return true;
+        if (sl[static_cast<unsigned>(i)] > HALF_ORDER_LIMBS[static_cast<unsigned>(i)]) return false;
     }
     return true; // equal
 }
@@ -309,15 +314,16 @@ ECDSASignature ecdsa_sign(const std::array<uint8_t, 32>& msg_hash,
 
 // -- ECDSA Verify -------------------------------------------------------------
 
-bool ecdsa_verify(const std::array<uint8_t, 32>& msg_hash,
+// Primary implementation: raw pointer, no copies.
+bool ecdsa_verify(const uint8_t* msg_hash32,
                   const Point& public_key,
                   const ECDSASignature& sig) {
     // Reject degenerate inputs early
     if (public_key.is_infinity()) return false;
     if (sig.r.is_zero() || sig.s.is_zero()) return false;
 
-    // z = message hash as scalar
-    auto z = Scalar::from_bytes(msg_hash);
+    // z = message hash as scalar (direct from raw pointer)
+    auto z = Scalar::from_bytes(msg_hash32);
 
     // w = s^{-1} mod n
     auto w = sig.s.inverse();
@@ -464,6 +470,13 @@ bool ecdsa_verify(const std::array<uint8_t, 32>& msg_hash,
 
     return false;
 #endif
+}
+
+// Array wrapper: delegates to raw-pointer implementation.
+bool ecdsa_verify(const std::array<uint8_t, 32>& msg_hash,
+                  const Point& public_key,
+                  const ECDSASignature& sig) {
+    return ecdsa_verify(msg_hash.data(), public_key, sig);
 }
 
 } // namespace secp256k1

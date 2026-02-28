@@ -180,12 +180,12 @@ Scalar Scalar::from_limbs(const limbs_type& limbs) {
     return s;
 }
 
-Scalar Scalar::from_bytes(const std::array<std::uint8_t, 32>& bytes) {
+Scalar Scalar::from_bytes(const std::uint8_t* bytes32) {
     limbs4 limbs{};
     for (std::size_t i = 0; i < 4; ++i) {
         std::uint64_t limb = 0;
         for (std::size_t j = 0; j < 8; ++j) {
-            limb = (limb << 8) | bytes[i * 8 + j];
+            limb = (limb << 8) | bytes32[i * 8 + j];
         }
         limbs[3 - i] = limb;
     }
@@ -195,6 +195,10 @@ Scalar Scalar::from_bytes(const std::array<std::uint8_t, 32>& bytes) {
     Scalar s;
     s.limbs_ = limbs;
     return s;
+}
+
+Scalar Scalar::from_bytes(const std::array<std::uint8_t, 32>& bytes) {
+    return from_bytes(bytes.data());
 }
 
 std::array<std::uint8_t, 32> Scalar::to_bytes() const {

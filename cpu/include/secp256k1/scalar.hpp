@@ -20,6 +20,7 @@ public:
     static Scalar from_uint64(std::uint64_t value);
     static Scalar from_limbs(const limbs_type& limbs);
     static Scalar from_bytes(const std::array<std::uint8_t, 32>& bytes);
+    static Scalar from_bytes(const std::uint8_t* bytes32);
     
     // Developer-friendly: Create from hex string (64 hex chars)
     // Example: Scalar::from_hex("fffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364140")
