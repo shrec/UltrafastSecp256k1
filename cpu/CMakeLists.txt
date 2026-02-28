@@ -670,6 +670,10 @@ if(BUILD_TESTING)
     add_executable(bench_field_26 bench/bench_field_26.cpp)
     target_link_libraries(bench_field_26 PRIVATE ${SECP256K1_LIB_NAME})
 
+    # Hornet Node benchmark (Bitcoin consensus full-suite, RDTSC, CT layer)
+    add_executable(bench_hornet bench/bench_hornet.cpp)
+    target_link_libraries(bench_hornet PRIVATE ${SECP256K1_LIB_NAME})
+
     # Comprehensive cross-platform benchmark (all operations for README performance table)
     add_executable(bench_comprehensive bench/bench_comprehensive_riscv.cpp)
     target_link_libraries(bench_comprehensive PRIVATE ${SECP256K1_LIB_NAME})
