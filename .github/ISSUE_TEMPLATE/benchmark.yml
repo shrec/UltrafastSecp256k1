@@ -1,0 +1,104 @@
+name: "Benchmark Results"
+description: "Submit bench_compare results from your hardware"
+title: "[bench] <CPU model> / <OS> / <compiler>"
+labels: ["bench-results"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Submit your bench_compare results
+
+        Run the benchmark on your machine and paste the results below.
+        This helps the community validate performance claims across hardware.
+
+        ```bash
+        # Linux
+        bash bench/scripts/build.sh
+        bash bench/scripts/run.sh --pin 2
+
+        # Windows
+        .\bench\scripts\build.ps1
+        .\bench\scripts\run.ps1 -PinCore 2
+        ```
+
+  - type: input
+    id: cpu
+    attributes:
+      label: CPU Model
+      description: "e.g. AMD Ryzen 9 7950X, Intel Core i9-14900K, Apple M3 Max"
+      placeholder: "AMD Ryzen 9 7950X 16-Core"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating System
+      options:
+        - Linux (Ubuntu/Debian)
+        - Linux (Fedora/RHEL)
+        - Linux (Arch)
+        - Linux (other)
+        - Windows 11
+        - Windows 10
+        - macOS (Apple Silicon)
+        - macOS (Intel)
+    validations:
+      required: true
+
+  - type: input
+    id: compiler
+    attributes:
+      label: Compiler + Version
+      description: "e.g. clang-17.0.6, gcc-13.2.0, MSVC 19.38"
+      placeholder: "clang-17.0.6"
+    validations:
+      required: true
+
+  - type: input
+    id: flags
+    attributes:
+      label: Build Flags
+      description: "CMAKE_BUILD_TYPE and any special flags"
+      placeholder: "Release, -march=native"
+    validations:
+      required: false
+
+  - type: textarea
+    id: console
+    attributes:
+      label: Console Output (Markdown Table)
+      description: "Paste the full console output from bench_compare"
+      render: text
+    validations:
+      required: true
+
+  - type: input
+    id: json_gist
+    attributes:
+      label: report.json (Gist URL)
+      description: "Upload report.json as a GitHub Gist and paste the URL"
+      placeholder: "https://gist.github.com/..."
+    validations:
+      required: false
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes
+      description: "CPU governor, turbo status, background load, NUMA, etc."
+      placeholder: "CPU pinned to core 2, performance governor, turbo boost enabled"
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: "Both providers (UF + libsecp256k1) show correctness OK"
+          required: true
+        - label: "CPU was pinned to a single core"
+          required: false
+        - label: "No significant background load during measurement"
+          required: false

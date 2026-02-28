@@ -36,6 +36,7 @@ option(SECP256K1_BUILD_OPENCL "Build OpenCL support" OFF)
 option(SECP256K1_BUILD_METAL "Build Apple Metal GPU support" OFF)
 option(SECP256K1_BUILD_TESTS "Build test suite" ON)
 option(SECP256K1_BUILD_BENCH "Build benchmarks" ON)
+option(SECP256K1_BUILD_BENCH_COMPARE "Build apples-to-apples UF vs libsecp256k1 comparison bench" OFF)
 option(SECP256K1_BUILD_EXAMPLES "Build example programs" ON)
 option(SECP256K1_USE_ASM "Enable assembly optimizations (x64/RISC-V)" ON)
 
@@ -187,6 +188,12 @@ if(SECP256K1_BUILD_CPU AND BUILD_TESTING)
     add_subdirectory(audit)
 endif()
 
+# -- Apples-to-apples comparison benchmark (UF vs libsecp256k1) ------------
+# Enable with: cmake -DSECP256K1_BUILD_BENCH_COMPARE=ON ...
+if(SECP256K1_BUILD_CPU AND SECP256K1_BUILD_BENCH_COMPARE)
+    add_subdirectory(bench)
+endif()
+
 # -- Cross-library differential test -----------------------------------------
 # Moved to audit/CMakeLists.txt -- enable with -DSECP256K1_BUILD_CROSS_TESTS=ON
 
@@ -312,6 +319,7 @@ message(STATUS "    OpenCL:         ${SECP256K1_BUILD_OPENCL}")
 message(STATUS "    Metal:          ${SECP256K1_BUILD_METAL}")
 message(STATUS "    Tests:          ${SECP256K1_BUILD_TESTS}")
 message(STATUS "    Benchmarks:     ${SECP256K1_BUILD_BENCH}")
+message(STATUS "    Bench Compare:  ${SECP256K1_BUILD_BENCH_COMPARE}")
 message(STATUS "    Examples:       ${SECP256K1_BUILD_EXAMPLES}")
 message(STATUS "")
 message(STATUS "  Optimizations:")
