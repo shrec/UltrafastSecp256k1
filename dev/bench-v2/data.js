@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772241843834,
+  "lastUpdate": 1772267986363,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -21581,6 +21581,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Batch Inverse (n=1000)",
             "value": 131,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "Vano Chkheidze",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b16602c625bdca4ad016286baf41101dd337d871",
+          "message": "fix: resolve all 21 remaining code scanning alerts (#67)\n\nFiles changed (9):\n\n1. benchmark_harness.hpp, test_ct_sidechannel.cpp:\n   - Split 'uint32_t lo = 0, hi = 0' into separate declarations\n   - Fixes misc-const-correctness (3 alerts + 1 alert)\n\n2. test_fiat_crypto_vectors.cpp, test_carry_propagation.cpp:\n   - Replace sscanf with std::strtoul for hex parsing\n   - Add #include <cstdlib>\n   - Fixes cert-err34-c (4 + 2 alerts)\n\n3. test_ecdh_recovery_taproot.cpp:\n   - Replace sscanf with std::strtoul for hex parsing\n   - Remove clang diagnostic push/pop (no longer needed)\n   - Fixes cert-err34-c (1 alert)\n\n4. test_musig2_frost.cpp:\n   - Add (void)n2 to suppress unused variable\n   - Fixes cpp/unused-local-variable (1 alert)\n\n5. test_abi_gate.cpp:\n   - Use volatile load to prevent constant-folding of packed version\n   - Fixes cpp/unsigned-comparison-zero (1 alert)\n\n6. unified_audit_runner.cpp:\n   - Convert for-loop arg parser to while-loop (no loop var mutation)\n   - Add const to fd variable in write_json_report/write_text_report\n   - Fixes cpp/loop-variable-changed (2 alerts)\n   - Fixes misc-const-correctness (2 alerts)\n\n7. test_musig2_frost_advanced.cpp:\n   - Split 'uint32_t t = 2, n = 3' -> separate const t, mutable n\n   - Fixes misc-const-correctness (1 alert)\n\nAll 25 tests pass. No behavioral changes.",
+          "timestamp": "2026-02-28T12:38:03+04:00",
+          "tree_id": "0b82cd0725152f2eabcba88635ecacbf5c32151b",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/b16602c625bdca4ad016286baf41101dd337d871"
+        },
+        "date": 1772267983832,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 27,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 22,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 282,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 150,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 38000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 10000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 14000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 47000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 24000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 53000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 141,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 135,
             "unit": "ns"
           }
         ]
