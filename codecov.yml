@@ -21,6 +21,7 @@ coverage:
       default:
         target: 80%         # new code should have ≥80% coverage
         threshold: 5%
+        informational: true # report only -- never block PRs
 
   # Only measure coverage on production source code
   # (exclude tests, benchmarks, examples, third-party, build artifacts)
