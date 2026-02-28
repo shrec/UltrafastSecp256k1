@@ -229,323 +229,324 @@ $(document).ready(function(){initNavTree('benchmark__harness_8hpp_source.html','
 <div class="line"><a id="l00122" name="l00122"></a><span class="lineno">  122</span>        <span class="keywordtype">unsigned</span> <span class="keywordtype">int</span> aux = 0;</div>
 <div class="line"><a id="l00123" name="l00123"></a><span class="lineno">  123</span>        <span class="keywordflow">return</span> __rdtscp(&amp;aux);</div>
 <div class="line"><a id="l00124" name="l00124"></a><span class="lineno">  124</span><span class="preprocessor">#  else</span></div>
-<div class="line"><a id="l00125" name="l00125"></a><span class="lineno">  125</span>        uint32_t lo = 0, hi = 0;</div>
-<div class="line"><a id="l00126" name="l00126"></a><span class="lineno">  126</span>        <span class="comment">// RDTSCP serializes instruction stream and reads TSC</span></div>
-<div class="line"><a id="l00127" name="l00127"></a><span class="lineno">  127</span>        <span class="keyword">asm</span> <span class="keyword">volatile</span>(<span class="stringliteral">&quot;rdtscp&quot;</span> : <span class="stringliteral">&quot;=a&quot;</span>(lo), <span class="stringliteral">&quot;=d&quot;</span>(hi) : : <span class="stringliteral">&quot;%ecx&quot;</span>);</div>
-<div class="line"><a id="l00128" name="l00128"></a><span class="lineno">  128</span>        <span class="keywordflow">return</span> (<span class="keyword">static_cast&lt;</span>uint64_t<span class="keyword">&gt;</span>(hi) &lt;&lt; 32) | lo;</div>
-<div class="line"><a id="l00129" name="l00129"></a><span class="lineno">  129</span><span class="preprocessor">#  endif</span></div>
-<div class="line"><a id="l00130" name="l00130"></a><span class="lineno">  130</span><span class="preprocessor">#else</span></div>
-<div class="line"><a id="l00131" name="l00131"></a><span class="lineno">  131</span>        <span class="keywordflow">return</span> <span class="keyword">static_cast&lt;</span>uint64_t<span class="keyword">&gt;</span>(</div>
-<div class="line"><a id="l00132" name="l00132"></a><span class="lineno">  132</span>            std::chrono::high_resolution_clock::now().time_since_epoch().count());</div>
-<div class="line"><a id="l00133" name="l00133"></a><span class="lineno">  133</span><span class="preprocessor">#endif</span></div>
-<div class="line"><a id="l00134" name="l00134"></a><span class="lineno">  134</span>    }</div>
+<div class="line"><a id="l00125" name="l00125"></a><span class="lineno">  125</span>        uint32_t lo = 0;</div>
+<div class="line"><a id="l00126" name="l00126"></a><span class="lineno">  126</span>        uint32_t hi = 0;</div>
+<div class="line"><a id="l00127" name="l00127"></a><span class="lineno">  127</span>        <span class="comment">// RDTSCP serializes instruction stream and reads TSC</span></div>
+<div class="line"><a id="l00128" name="l00128"></a><span class="lineno">  128</span>        <span class="keyword">asm</span> <span class="keyword">volatile</span>(<span class="stringliteral">&quot;rdtscp&quot;</span> : <span class="stringliteral">&quot;=a&quot;</span>(lo), <span class="stringliteral">&quot;=d&quot;</span>(hi) : : <span class="stringliteral">&quot;%ecx&quot;</span>);</div>
+<div class="line"><a id="l00129" name="l00129"></a><span class="lineno">  129</span>        <span class="keywordflow">return</span> (<span class="keyword">static_cast&lt;</span>uint64_t<span class="keyword">&gt;</span>(hi) &lt;&lt; 32) | lo;</div>
+<div class="line"><a id="l00130" name="l00130"></a><span class="lineno">  130</span><span class="preprocessor">#  endif</span></div>
+<div class="line"><a id="l00131" name="l00131"></a><span class="lineno">  131</span><span class="preprocessor">#else</span></div>
+<div class="line"><a id="l00132" name="l00132"></a><span class="lineno">  132</span>        <span class="keywordflow">return</span> <span class="keyword">static_cast&lt;</span>uint64_t<span class="keyword">&gt;</span>(</div>
+<div class="line"><a id="l00133" name="l00133"></a><span class="lineno">  133</span>            std::chrono::high_resolution_clock::now().time_since_epoch().count());</div>
+<div class="line"><a id="l00134" name="l00134"></a><span class="lineno">  134</span><span class="preprocessor">#endif</span></div>
+<div class="line"><a id="l00135" name="l00135"></a><span class="lineno">  135</span>    }</div>
 </div>
-<div class="line"><a id="l00135" name="l00135"></a><span class="lineno">  135</span> </div>
-<div class="line"><a id="l00136" name="l00136"></a><span class="lineno">  136</span>    <span class="comment">// Ticks -&gt; nanoseconds conversion.</span></div>
-<div class="line"><a id="l00137" name="l00137"></a><span class="lineno">  137</span>    <span class="comment">// On x86 with RDTSC: calibrates TSC frequency at first call.</span></div>
-<div class="line"><a id="l00138" name="l00138"></a><span class="lineno">  138</span>    <span class="comment">// On non-x86: ticks ARE nanoseconds (chrono).</span></div>
-<div class="foldopen" id="foldopen00139" data-start="{" data-end="}">
-<div class="line"><a id="l00139" name="l00139"></a><span class="lineno"><a class="line" href="structbench_1_1Timer.html#a9088680bdc572c5d781ae181c445cc89">  139</a></span>    <span class="keyword">static</span> <span class="keywordtype">double</span> <a class="code hl_function" href="structbench_1_1Timer.html#a9088680bdc572c5d781ae181c445cc89">ticks_to_ns</a>(uint64_t ticks) <span class="keyword">noexcept</span> {</div>
-<div class="line"><a id="l00140" name="l00140"></a><span class="lineno">  140</span><span class="preprocessor">#if BENCH_HAS_RDTSC</span></div>
-<div class="line"><a id="l00141" name="l00141"></a><span class="lineno">  141</span>        <span class="keyword">static</span> <span class="keyword">const</span> <span class="keywordtype">double</span> ns_per_tick = calibrate_tsc();</div>
-<div class="line"><a id="l00142" name="l00142"></a><span class="lineno">  142</span>        <span class="keywordflow">return</span> <span class="keyword">static_cast&lt;</span><span class="keywordtype">double</span><span class="keyword">&gt;</span>(ticks) * ns_per_tick;</div>
-<div class="line"><a id="l00143" name="l00143"></a><span class="lineno">  143</span><span class="preprocessor">#else</span></div>
-<div class="line"><a id="l00144" name="l00144"></a><span class="lineno">  144</span>        <span class="comment">// chrono ticks -- convert to nanoseconds using the clock&#39;s period</span></div>
-<div class="line"><a id="l00145" name="l00145"></a><span class="lineno">  145</span>        <span class="keyword">using </span>Period = std::chrono::high_resolution_clock::period;</div>
-<div class="line"><a id="l00146" name="l00146"></a><span class="lineno">  146</span>        <span class="keyword">constexpr</span> <span class="keywordtype">double</span> ratio = <span class="keyword">static_cast&lt;</span><span class="keywordtype">double</span><span class="keyword">&gt;</span>(Period::num) / <span class="keyword">static_cast&lt;</span><span class="keywordtype">double</span><span class="keyword">&gt;</span>(Period::den) * 1e9;</div>
-<div class="line"><a id="l00147" name="l00147"></a><span class="lineno">  147</span>        <span class="keywordflow">return</span> <span class="keyword">static_cast&lt;</span><span class="keywordtype">double</span><span class="keyword">&gt;</span>(ticks) * ratio;</div>
-<div class="line"><a id="l00148" name="l00148"></a><span class="lineno">  148</span><span class="preprocessor">#endif</span></div>
-<div class="line"><a id="l00149" name="l00149"></a><span class="lineno">  149</span>    }</div>
+<div class="line"><a id="l00136" name="l00136"></a><span class="lineno">  136</span> </div>
+<div class="line"><a id="l00137" name="l00137"></a><span class="lineno">  137</span>    <span class="comment">// Ticks -&gt; nanoseconds conversion.</span></div>
+<div class="line"><a id="l00138" name="l00138"></a><span class="lineno">  138</span>    <span class="comment">// On x86 with RDTSC: calibrates TSC frequency at first call.</span></div>
+<div class="line"><a id="l00139" name="l00139"></a><span class="lineno">  139</span>    <span class="comment">// On non-x86: ticks ARE nanoseconds (chrono).</span></div>
+<div class="foldopen" id="foldopen00140" data-start="{" data-end="}">
+<div class="line"><a id="l00140" name="l00140"></a><span class="lineno"><a class="line" href="structbench_1_1Timer.html#a9088680bdc572c5d781ae181c445cc89">  140</a></span>    <span class="keyword">static</span> <span class="keywordtype">double</span> <a class="code hl_function" href="structbench_1_1Timer.html#a9088680bdc572c5d781ae181c445cc89">ticks_to_ns</a>(uint64_t ticks) <span class="keyword">noexcept</span> {</div>
+<div class="line"><a id="l00141" name="l00141"></a><span class="lineno">  141</span><span class="preprocessor">#if BENCH_HAS_RDTSC</span></div>
+<div class="line"><a id="l00142" name="l00142"></a><span class="lineno">  142</span>        <span class="keyword">static</span> <span class="keyword">const</span> <span class="keywordtype">double</span> ns_per_tick = calibrate_tsc();</div>
+<div class="line"><a id="l00143" name="l00143"></a><span class="lineno">  143</span>        <span class="keywordflow">return</span> <span class="keyword">static_cast&lt;</span><span class="keywordtype">double</span><span class="keyword">&gt;</span>(ticks) * ns_per_tick;</div>
+<div class="line"><a id="l00144" name="l00144"></a><span class="lineno">  144</span><span class="preprocessor">#else</span></div>
+<div class="line"><a id="l00145" name="l00145"></a><span class="lineno">  145</span>        <span class="comment">// chrono ticks -- convert to nanoseconds using the clock&#39;s period</span></div>
+<div class="line"><a id="l00146" name="l00146"></a><span class="lineno">  146</span>        <span class="keyword">using </span>Period = std::chrono::high_resolution_clock::period;</div>
+<div class="line"><a id="l00147" name="l00147"></a><span class="lineno">  147</span>        <span class="keyword">constexpr</span> <span class="keywordtype">double</span> ratio = <span class="keyword">static_cast&lt;</span><span class="keywordtype">double</span><span class="keyword">&gt;</span>(Period::num) / <span class="keyword">static_cast&lt;</span><span class="keywordtype">double</span><span class="keyword">&gt;</span>(Period::den) * 1e9;</div>
+<div class="line"><a id="l00148" name="l00148"></a><span class="lineno">  148</span>        <span class="keywordflow">return</span> <span class="keyword">static_cast&lt;</span><span class="keywordtype">double</span><span class="keyword">&gt;</span>(ticks) * ratio;</div>
+<div class="line"><a id="l00149" name="l00149"></a><span class="lineno">  149</span><span class="preprocessor">#endif</span></div>
+<div class="line"><a id="l00150" name="l00150"></a><span class="lineno">  150</span>    }</div>
 </div>
-<div class="line"><a id="l00150" name="l00150"></a><span class="lineno">  150</span> </div>
-<div class="line"><a id="l00151" name="l00151"></a><span class="lineno">  151</span>    <span class="comment">// Returns the timer type name for display</span></div>
-<div class="foldopen" id="foldopen00152" data-start="{" data-end="}">
-<div class="line"><a id="l00152" name="l00152"></a><span class="lineno"><a class="line" href="structbench_1_1Timer.html#a11f3fad3ac499da50f149346bd8acf92">  152</a></span>    <span class="keyword">static</span> <span class="keyword">const</span> <span class="keywordtype">char</span>* <a class="code hl_function" href="structbench_1_1Timer.html#a11f3fad3ac499da50f149346bd8acf92">timer_name</a>() noexcept {</div>
-<div class="line"><a id="l00153" name="l00153"></a><span class="lineno">  153</span><span class="preprocessor">#if BENCH_HAS_RDTSC</span></div>
-<div class="line"><a id="l00154" name="l00154"></a><span class="lineno">  154</span>        <span class="keywordflow">return</span> <span class="stringliteral">&quot;RDTSCP&quot;</span>;</div>
-<div class="line"><a id="l00155" name="l00155"></a><span class="lineno">  155</span><span class="preprocessor">#else</span></div>
-<div class="line"><a id="l00156" name="l00156"></a><span class="lineno">  156</span>        <span class="keywordflow">return</span> <span class="stringliteral">&quot;chrono::high_resolution_clock&quot;</span>;</div>
-<div class="line"><a id="l00157" name="l00157"></a><span class="lineno">  157</span><span class="preprocessor">#endif</span></div>
-<div class="line"><a id="l00158" name="l00158"></a><span class="lineno">  158</span>    }</div>
+<div class="line"><a id="l00151" name="l00151"></a><span class="lineno">  151</span> </div>
+<div class="line"><a id="l00152" name="l00152"></a><span class="lineno">  152</span>    <span class="comment">// Returns the timer type name for display</span></div>
+<div class="foldopen" id="foldopen00153" data-start="{" data-end="}">
+<div class="line"><a id="l00153" name="l00153"></a><span class="lineno"><a class="line" href="structbench_1_1Timer.html#a11f3fad3ac499da50f149346bd8acf92">  153</a></span>    <span class="keyword">static</span> <span class="keyword">const</span> <span class="keywordtype">char</span>* <a class="code hl_function" href="structbench_1_1Timer.html#a11f3fad3ac499da50f149346bd8acf92">timer_name</a>() noexcept {</div>
+<div class="line"><a id="l00154" name="l00154"></a><span class="lineno">  154</span><span class="preprocessor">#if BENCH_HAS_RDTSC</span></div>
+<div class="line"><a id="l00155" name="l00155"></a><span class="lineno">  155</span>        <span class="keywordflow">return</span> <span class="stringliteral">&quot;RDTSCP&quot;</span>;</div>
+<div class="line"><a id="l00156" name="l00156"></a><span class="lineno">  156</span><span class="preprocessor">#else</span></div>
+<div class="line"><a id="l00157" name="l00157"></a><span class="lineno">  157</span>        <span class="keywordflow">return</span> <span class="stringliteral">&quot;chrono::high_resolution_clock&quot;</span>;</div>
+<div class="line"><a id="l00158" name="l00158"></a><span class="lineno">  158</span><span class="preprocessor">#endif</span></div>
+<div class="line"><a id="l00159" name="l00159"></a><span class="lineno">  159</span>    }</div>
 </div>
-<div class="line"><a id="l00159" name="l00159"></a><span class="lineno">  159</span> </div>
-<div class="line"><a id="l00160" name="l00160"></a><span class="lineno">  160</span><span class="keyword">private</span>:</div>
-<div class="line"><a id="l00161" name="l00161"></a><span class="lineno">  161</span><span class="preprocessor">#if BENCH_HAS_RDTSC</span></div>
-<div class="line"><a id="l00162" name="l00162"></a><span class="lineno">  162</span>    <span class="comment">// Calibrate TSC: measure ~10ms with chrono to get ns/tick ratio</span></div>
-<div class="line"><a id="l00163" name="l00163"></a><span class="lineno">  163</span>    <span class="keyword">static</span> <span class="keywordtype">double</span> calibrate_tsc() noexcept {</div>
-<div class="line"><a id="l00164" name="l00164"></a><span class="lineno">  164</span>        <span class="keyword">using </span>Clock = std::chrono::high_resolution_clock;</div>
-<div class="line"><a id="l00165" name="l00165"></a><span class="lineno">  165</span>        <span class="keyword">constexpr</span> <span class="keywordtype">int</span> CALIBRATE_MS = 10;</div>
-<div class="line"><a id="l00166" name="l00166"></a><span class="lineno">  166</span> </div>
-<div class="line"><a id="l00167" name="l00167"></a><span class="lineno">  167</span>        <span class="comment">// Warm up</span></div>
-<div class="line"><a id="l00168" name="l00168"></a><span class="lineno">  168</span>        <span class="keyword">volatile</span> uint64_t <span class="keyword">const</span> warm = <a class="code hl_function" href="structbench_1_1Timer.html#a9aeee552886e3350d32eebbd648880fa">now</a>();</div>
-<div class="line"><a id="l00169" name="l00169"></a><span class="lineno">  169</span>        (void)warm;</div>
-<div class="line"><a id="l00170" name="l00170"></a><span class="lineno">  170</span> </div>
-<div class="line"><a id="l00171" name="l00171"></a><span class="lineno">  171</span>        <span class="keyword">auto</span> chrono_start = Clock::now();</div>
-<div class="line"><a id="l00172" name="l00172"></a><span class="lineno">  172</span>        uint64_t <span class="keyword">const</span> tsc_start = <a class="code hl_function" href="structbench_1_1Timer.html#a9aeee552886e3350d32eebbd648880fa">now</a>();</div>
-<div class="line"><a id="l00173" name="l00173"></a><span class="lineno">  173</span> </div>
-<div class="line"><a id="l00174" name="l00174"></a><span class="lineno">  174</span>        <span class="comment">// Spin for ~10ms</span></div>
-<div class="line"><a id="l00175" name="l00175"></a><span class="lineno">  175</span>        <span class="keyword">auto</span> target = chrono_start + std::chrono::milliseconds(CALIBRATE_MS);</div>
-<div class="line"><a id="l00176" name="l00176"></a><span class="lineno">  176</span>        <span class="keywordflow">while</span> (Clock::now() &lt; target) {</div>
-<div class="line"><a id="l00177" name="l00177"></a><span class="lineno">  177</span>            <span class="comment">// busy-wait</span></div>
-<div class="line"><a id="l00178" name="l00178"></a><span class="lineno">  178</span>        }</div>
-<div class="line"><a id="l00179" name="l00179"></a><span class="lineno">  179</span> </div>
-<div class="line"><a id="l00180" name="l00180"></a><span class="lineno">  180</span>        uint64_t <span class="keyword">const</span> tsc_end = <a class="code hl_function" href="structbench_1_1Timer.html#a9aeee552886e3350d32eebbd648880fa">now</a>();</div>
-<div class="line"><a id="l00181" name="l00181"></a><span class="lineno">  181</span>        <span class="keyword">auto</span> chrono_end = Clock::now();</div>
-<div class="line"><a id="l00182" name="l00182"></a><span class="lineno">  182</span> </div>
-<div class="line"><a id="l00183" name="l00183"></a><span class="lineno">  183</span>        <span class="keywordtype">double</span> <span class="keyword">const</span> ns_elapsed = <span class="keyword">static_cast&lt;</span><span class="keywordtype">double</span><span class="keyword">&gt;</span>(</div>
-<div class="line"><a id="l00184" name="l00184"></a><span class="lineno">  184</span>            std::chrono::duration_cast&lt;std::chrono::nanoseconds&gt;(chrono_end - chrono_start).count());</div>
-<div class="line"><a id="l00185" name="l00185"></a><span class="lineno">  185</span>        <span class="keyword">auto</span> <span class="keyword">const</span> tsc_elapsed = <span class="keyword">static_cast&lt;</span><span class="keywordtype">double</span><span class="keyword">&gt;</span>(tsc_end - tsc_start);</div>
-<div class="line"><a id="l00186" name="l00186"></a><span class="lineno">  186</span> </div>
-<div class="line"><a id="l00187" name="l00187"></a><span class="lineno">  187</span>        <span class="keywordflow">return</span> (tsc_elapsed &gt; 0.0) ? (ns_elapsed / tsc_elapsed) : 1.0;</div>
-<div class="line"><a id="l00188" name="l00188"></a><span class="lineno">  188</span>    }</div>
-<div class="line"><a id="l00189" name="l00189"></a><span class="lineno">  189</span><span class="preprocessor">#endif</span></div>
-<div class="line"><a id="l00190" name="l00190"></a><span class="lineno">  190</span>};</div>
+<div class="line"><a id="l00160" name="l00160"></a><span class="lineno">  160</span> </div>
+<div class="line"><a id="l00161" name="l00161"></a><span class="lineno">  161</span><span class="keyword">private</span>:</div>
+<div class="line"><a id="l00162" name="l00162"></a><span class="lineno">  162</span><span class="preprocessor">#if BENCH_HAS_RDTSC</span></div>
+<div class="line"><a id="l00163" name="l00163"></a><span class="lineno">  163</span>    <span class="comment">// Calibrate TSC: measure ~10ms with chrono to get ns/tick ratio</span></div>
+<div class="line"><a id="l00164" name="l00164"></a><span class="lineno">  164</span>    <span class="keyword">static</span> <span class="keywordtype">double</span> calibrate_tsc() noexcept {</div>
+<div class="line"><a id="l00165" name="l00165"></a><span class="lineno">  165</span>        <span class="keyword">using </span>Clock = std::chrono::high_resolution_clock;</div>
+<div class="line"><a id="l00166" name="l00166"></a><span class="lineno">  166</span>        <span class="keyword">constexpr</span> <span class="keywordtype">int</span> CALIBRATE_MS = 10;</div>
+<div class="line"><a id="l00167" name="l00167"></a><span class="lineno">  167</span> </div>
+<div class="line"><a id="l00168" name="l00168"></a><span class="lineno">  168</span>        <span class="comment">// Warm up</span></div>
+<div class="line"><a id="l00169" name="l00169"></a><span class="lineno">  169</span>        <span class="keyword">volatile</span> uint64_t <span class="keyword">const</span> warm = <a class="code hl_function" href="structbench_1_1Timer.html#a9aeee552886e3350d32eebbd648880fa">now</a>();</div>
+<div class="line"><a id="l00170" name="l00170"></a><span class="lineno">  170</span>        (void)warm;</div>
+<div class="line"><a id="l00171" name="l00171"></a><span class="lineno">  171</span> </div>
+<div class="line"><a id="l00172" name="l00172"></a><span class="lineno">  172</span>        <span class="keyword">auto</span> chrono_start = Clock::now();</div>
+<div class="line"><a id="l00173" name="l00173"></a><span class="lineno">  173</span>        uint64_t <span class="keyword">const</span> tsc_start = <a class="code hl_function" href="structbench_1_1Timer.html#a9aeee552886e3350d32eebbd648880fa">now</a>();</div>
+<div class="line"><a id="l00174" name="l00174"></a><span class="lineno">  174</span> </div>
+<div class="line"><a id="l00175" name="l00175"></a><span class="lineno">  175</span>        <span class="comment">// Spin for ~10ms</span></div>
+<div class="line"><a id="l00176" name="l00176"></a><span class="lineno">  176</span>        <span class="keyword">auto</span> target = chrono_start + std::chrono::milliseconds(CALIBRATE_MS);</div>
+<div class="line"><a id="l00177" name="l00177"></a><span class="lineno">  177</span>        <span class="keywordflow">while</span> (Clock::now() &lt; target) {</div>
+<div class="line"><a id="l00178" name="l00178"></a><span class="lineno">  178</span>            <span class="comment">// busy-wait</span></div>
+<div class="line"><a id="l00179" name="l00179"></a><span class="lineno">  179</span>        }</div>
+<div class="line"><a id="l00180" name="l00180"></a><span class="lineno">  180</span> </div>
+<div class="line"><a id="l00181" name="l00181"></a><span class="lineno">  181</span>        uint64_t <span class="keyword">const</span> tsc_end = <a class="code hl_function" href="structbench_1_1Timer.html#a9aeee552886e3350d32eebbd648880fa">now</a>();</div>
+<div class="line"><a id="l00182" name="l00182"></a><span class="lineno">  182</span>        <span class="keyword">auto</span> chrono_end = Clock::now();</div>
+<div class="line"><a id="l00183" name="l00183"></a><span class="lineno">  183</span> </div>
+<div class="line"><a id="l00184" name="l00184"></a><span class="lineno">  184</span>        <span class="keywordtype">double</span> <span class="keyword">const</span> ns_elapsed = <span class="keyword">static_cast&lt;</span><span class="keywordtype">double</span><span class="keyword">&gt;</span>(</div>
+<div class="line"><a id="l00185" name="l00185"></a><span class="lineno">  185</span>            std::chrono::duration_cast&lt;std::chrono::nanoseconds&gt;(chrono_end - chrono_start).count());</div>
+<div class="line"><a id="l00186" name="l00186"></a><span class="lineno">  186</span>        <span class="keyword">auto</span> <span class="keyword">const</span> tsc_elapsed = <span class="keyword">static_cast&lt;</span><span class="keywordtype">double</span><span class="keyword">&gt;</span>(tsc_end - tsc_start);</div>
+<div class="line"><a id="l00187" name="l00187"></a><span class="lineno">  187</span> </div>
+<div class="line"><a id="l00188" name="l00188"></a><span class="lineno">  188</span>        <span class="keywordflow">return</span> (tsc_elapsed &gt; 0.0) ? (ns_elapsed / tsc_elapsed) : 1.0;</div>
+<div class="line"><a id="l00189" name="l00189"></a><span class="lineno">  189</span>    }</div>
+<div class="line"><a id="l00190" name="l00190"></a><span class="lineno">  190</span><span class="preprocessor">#endif</span></div>
+<div class="line"><a id="l00191" name="l00191"></a><span class="lineno">  191</span>};</div>
 </div>
-<div class="line"><a id="l00191" name="l00191"></a><span class="lineno">  191</span> </div>
-<div class="line"><a id="l00192" name="l00192"></a><span class="lineno">  192</span><span class="comment">// -- Statistics ---------------------------------------------------------------</span></div>
-<div class="line"><a id="l00193" name="l00193"></a><span class="lineno">  193</span> </div>
-<div class="foldopen" id="foldopen00194" data-start="{" data-end="};">
-<div class="line"><a id="l00194" name="l00194"></a><span class="lineno"><a class="line" href="structbench_1_1Stats.html">  194</a></span><span class="keyword">struct </span><a class="code hl_struct" href="structbench_1_1Stats.html">Stats</a> {</div>
-<div class="line"><a id="l00195" name="l00195"></a><span class="lineno"><a class="line" href="structbench_1_1Stats.html#ac24571992ceb4cfeda039a9a76fa14f6">  195</a></span>    <span class="keywordtype">double</span> <a class="code hl_variable" href="structbench_1_1Stats.html#ac24571992ceb4cfeda039a9a76fa14f6">min_ns</a>    = 0.0;</div>
-<div class="line"><a id="l00196" name="l00196"></a><span class="lineno"><a class="line" href="structbench_1_1Stats.html#a712d66113687b78b260175edf055d0c2">  196</a></span>    <span class="keywordtype">double</span> <a class="code hl_variable" href="structbench_1_1Stats.html#a712d66113687b78b260175edf055d0c2">max_ns</a>    = 0.0;</div>
-<div class="line"><a id="l00197" name="l00197"></a><span class="lineno"><a class="line" href="structbench_1_1Stats.html#a77fdebbb7965b0b3f51e3cda88f0aba4">  197</a></span>    <span class="keywordtype">double</span> <a class="code hl_variable" href="structbench_1_1Stats.html#a77fdebbb7965b0b3f51e3cda88f0aba4">median_ns</a> = 0.0;</div>
-<div class="line"><a id="l00198" name="l00198"></a><span class="lineno"><a class="line" href="structbench_1_1Stats.html#aa9a8a9de794b384f208668eeb50fc468">  198</a></span>    <span class="keywordtype">double</span> <a class="code hl_variable" href="structbench_1_1Stats.html#aa9a8a9de794b384f208668eeb50fc468">mean_ns</a>   = 0.0;</div>
-<div class="line"><a id="l00199" name="l00199"></a><span class="lineno"><a class="line" href="structbench_1_1Stats.html#a5627931965cb083b1655695e271c980a">  199</a></span>    <span class="keywordtype">double</span> <a class="code hl_variable" href="structbench_1_1Stats.html#a5627931965cb083b1655695e271c980a">stddev_ns</a> = 0.0;</div>
-<div class="line"><a id="l00200" name="l00200"></a><span class="lineno"><a class="line" href="structbench_1_1Stats.html#aedf1035b892277d37e5a8930fe95e630">  200</a></span>    <span class="keywordtype">int</span>    <a class="code hl_variable" href="structbench_1_1Stats.html#aedf1035b892277d37e5a8930fe95e630">samples</a>   = 0;   <span class="comment">// after outlier removal</span></div>
-<div class="line"><a id="l00201" name="l00201"></a><span class="lineno"><a class="line" href="structbench_1_1Stats.html#a97ddce2348cf6fcd6d1fb79d1dd154f6">  201</a></span>    <span class="keywordtype">int</span>    <a class="code hl_variable" href="structbench_1_1Stats.html#a97ddce2348cf6fcd6d1fb79d1dd154f6">outliers</a>  = 0;   <span class="comment">// removed samples</span></div>
-<div class="line"><a id="l00202" name="l00202"></a><span class="lineno">  202</span>};</div>
+<div class="line"><a id="l00192" name="l00192"></a><span class="lineno">  192</span> </div>
+<div class="line"><a id="l00193" name="l00193"></a><span class="lineno">  193</span><span class="comment">// -- Statistics ---------------------------------------------------------------</span></div>
+<div class="line"><a id="l00194" name="l00194"></a><span class="lineno">  194</span> </div>
+<div class="foldopen" id="foldopen00195" data-start="{" data-end="};">
+<div class="line"><a id="l00195" name="l00195"></a><span class="lineno"><a class="line" href="structbench_1_1Stats.html">  195</a></span><span class="keyword">struct </span><a class="code hl_struct" href="structbench_1_1Stats.html">Stats</a> {</div>
+<div class="line"><a id="l00196" name="l00196"></a><span class="lineno"><a class="line" href="structbench_1_1Stats.html#ac24571992ceb4cfeda039a9a76fa14f6">  196</a></span>    <span class="keywordtype">double</span> <a class="code hl_variable" href="structbench_1_1Stats.html#ac24571992ceb4cfeda039a9a76fa14f6">min_ns</a>    = 0.0;</div>
+<div class="line"><a id="l00197" name="l00197"></a><span class="lineno"><a class="line" href="structbench_1_1Stats.html#a712d66113687b78b260175edf055d0c2">  197</a></span>    <span class="keywordtype">double</span> <a class="code hl_variable" href="structbench_1_1Stats.html#a712d66113687b78b260175edf055d0c2">max_ns</a>    = 0.0;</div>
+<div class="line"><a id="l00198" name="l00198"></a><span class="lineno"><a class="line" href="structbench_1_1Stats.html#a77fdebbb7965b0b3f51e3cda88f0aba4">  198</a></span>    <span class="keywordtype">double</span> <a class="code hl_variable" href="structbench_1_1Stats.html#a77fdebbb7965b0b3f51e3cda88f0aba4">median_ns</a> = 0.0;</div>
+<div class="line"><a id="l00199" name="l00199"></a><span class="lineno"><a class="line" href="structbench_1_1Stats.html#aa9a8a9de794b384f208668eeb50fc468">  199</a></span>    <span class="keywordtype">double</span> <a class="code hl_variable" href="structbench_1_1Stats.html#aa9a8a9de794b384f208668eeb50fc468">mean_ns</a>   = 0.0;</div>
+<div class="line"><a id="l00200" name="l00200"></a><span class="lineno"><a class="line" href="structbench_1_1Stats.html#a5627931965cb083b1655695e271c980a">  200</a></span>    <span class="keywordtype">double</span> <a class="code hl_variable" href="structbench_1_1Stats.html#a5627931965cb083b1655695e271c980a">stddev_ns</a> = 0.0;</div>
+<div class="line"><a id="l00201" name="l00201"></a><span class="lineno"><a class="line" href="structbench_1_1Stats.html#aedf1035b892277d37e5a8930fe95e630">  201</a></span>    <span class="keywordtype">int</span>    <a class="code hl_variable" href="structbench_1_1Stats.html#aedf1035b892277d37e5a8930fe95e630">samples</a>   = 0;   <span class="comment">// after outlier removal</span></div>
+<div class="line"><a id="l00202" name="l00202"></a><span class="lineno"><a class="line" href="structbench_1_1Stats.html#a97ddce2348cf6fcd6d1fb79d1dd154f6">  202</a></span>    <span class="keywordtype">int</span>    <a class="code hl_variable" href="structbench_1_1Stats.html#a97ddce2348cf6fcd6d1fb79d1dd154f6">outliers</a>  = 0;   <span class="comment">// removed samples</span></div>
+<div class="line"><a id="l00203" name="l00203"></a><span class="lineno">  203</span>};</div>
 </div>
-<div class="line"><a id="l00203" name="l00203"></a><span class="lineno">  203</span> </div>
-<div class="line"><a id="l00204" name="l00204"></a><span class="lineno">  204</span><span class="comment">// Compute stats with IQR outlier removal</span></div>
-<div class="foldopen" id="foldopen00205" data-start="{" data-end="}">
-<div class="line"><a id="l00205" name="l00205"></a><span class="lineno"><a class="line" href="namespacebench.html#ad73b74a3a46ae99095f1ce23d2737470">  205</a></span><span class="keyword">inline</span> <a class="code hl_struct" href="structbench_1_1Stats.html">Stats</a> <a class="code hl_function" href="namespacebench.html#ad73b74a3a46ae99095f1ce23d2737470">compute_stats</a>(std::vector&lt;double&gt;&amp; data) {</div>
-<div class="line"><a id="l00206" name="l00206"></a><span class="lineno">  206</span>    <a class="code hl_struct" href="structbench_1_1Stats.html">Stats</a> s{};</div>
-<div class="line"><a id="l00207" name="l00207"></a><span class="lineno">  207</span>    <span class="keywordflow">if</span> (data.empty()) <span class="keywordflow">return</span> s;</div>
-<div class="line"><a id="l00208" name="l00208"></a><span class="lineno">  208</span> </div>
-<div class="line"><a id="l00209" name="l00209"></a><span class="lineno">  209</span>    std::sort(data.begin(), data.end());</div>
-<div class="line"><a id="l00210" name="l00210"></a><span class="lineno">  210</span> </div>
-<div class="line"><a id="l00211" name="l00211"></a><span class="lineno">  211</span>    <span class="keyword">const</span> std::size_t n = data.size();</div>
-<div class="line"><a id="l00212" name="l00212"></a><span class="lineno">  212</span> </div>
-<div class="line"><a id="l00213" name="l00213"></a><span class="lineno">  213</span>    <span class="keywordflow">if</span> (n &lt; 4) {</div>
-<div class="line"><a id="l00214" name="l00214"></a><span class="lineno">  214</span>        <span class="comment">// Too few samples for IQR -- use all</span></div>
-<div class="line"><a id="l00215" name="l00215"></a><span class="lineno">  215</span>        s.min_ns = data.front();</div>
-<div class="line"><a id="l00216" name="l00216"></a><span class="lineno">  216</span>        s.max_ns = data.back();</div>
-<div class="line"><a id="l00217" name="l00217"></a><span class="lineno">  217</span>        s.median_ns = data[n / 2];</div>
-<div class="line"><a id="l00218" name="l00218"></a><span class="lineno">  218</span>        <span class="keywordtype">double</span> sum = 0.0;</div>
-<div class="line"><a id="l00219" name="l00219"></a><span class="lineno">  219</span>        <span class="keywordflow">for</span> (<span class="keyword">auto</span> v : data) sum += v;</div>
-<div class="line"><a id="l00220" name="l00220"></a><span class="lineno">  220</span>        s.mean_ns = sum / <span class="keyword">static_cast&lt;</span><span class="keywordtype">double</span><span class="keyword">&gt;</span>(n);</div>
-<div class="line"><a id="l00221" name="l00221"></a><span class="lineno">  221</span>        s.samples = <span class="keyword">static_cast&lt;</span><span class="keywordtype">int</span><span class="keyword">&gt;</span>(n);</div>
-<div class="line"><a id="l00222" name="l00222"></a><span class="lineno">  222</span>        s.outliers = 0;</div>
-<div class="line"><a id="l00223" name="l00223"></a><span class="lineno">  223</span>        <span class="keywordflow">return</span> s;</div>
-<div class="line"><a id="l00224" name="l00224"></a><span class="lineno">  224</span>    }</div>
-<div class="line"><a id="l00225" name="l00225"></a><span class="lineno">  225</span> </div>
-<div class="line"><a id="l00226" name="l00226"></a><span class="lineno">  226</span>    <span class="comment">// IQR-based outlier removal</span></div>
-<div class="line"><a id="l00227" name="l00227"></a><span class="lineno">  227</span>    <span class="keywordtype">double</span> <span class="keyword">const</span> q1 = data[n / 4];</div>
-<div class="line"><a id="l00228" name="l00228"></a><span class="lineno">  228</span>    <span class="keywordtype">double</span> <span class="keyword">const</span> q3 = data[(3 * n) / 4];</div>
-<div class="line"><a id="l00229" name="l00229"></a><span class="lineno">  229</span>    <span class="keywordtype">double</span> <span class="keyword">const</span> iqr = q3 - q1;</div>
-<div class="line"><a id="l00230" name="l00230"></a><span class="lineno">  230</span>    <span class="keywordtype">double</span> <span class="keyword">const</span> lower = q1 - 1.5 * iqr;</div>
-<div class="line"><a id="l00231" name="l00231"></a><span class="lineno">  231</span>    <span class="keywordtype">double</span> <span class="keyword">const</span> upper = q3 + 1.5 * iqr;</div>
-<div class="line"><a id="l00232" name="l00232"></a><span class="lineno">  232</span> </div>
-<div class="line"><a id="l00233" name="l00233"></a><span class="lineno">  233</span>    std::vector&lt;double&gt; filtered;</div>
-<div class="line"><a id="l00234" name="l00234"></a><span class="lineno">  234</span>    filtered.reserve(n);</div>
-<div class="line"><a id="l00235" name="l00235"></a><span class="lineno">  235</span>    <span class="keywordflow">for</span> (<span class="keyword">auto</span> v : data) {</div>
-<div class="line"><a id="l00236" name="l00236"></a><span class="lineno">  236</span>        <span class="keywordflow">if</span> (v &gt;= lower &amp;&amp; v &lt;= upper) {</div>
-<div class="line"><a id="l00237" name="l00237"></a><span class="lineno">  237</span>            filtered.push_back(v);</div>
-<div class="line"><a id="l00238" name="l00238"></a><span class="lineno">  238</span>        }</div>
-<div class="line"><a id="l00239" name="l00239"></a><span class="lineno">  239</span>    }</div>
-<div class="line"><a id="l00240" name="l00240"></a><span class="lineno">  240</span> </div>
-<div class="line"><a id="l00241" name="l00241"></a><span class="lineno">  241</span>    <span class="keywordflow">if</span> (filtered.empty()) {</div>
-<div class="line"><a id="l00242" name="l00242"></a><span class="lineno">  242</span>        <span class="comment">// All outliers? Fall back to raw data</span></div>
-<div class="line"><a id="l00243" name="l00243"></a><span class="lineno">  243</span>        filtered = data;</div>
-<div class="line"><a id="l00244" name="l00244"></a><span class="lineno">  244</span>    }</div>
-<div class="line"><a id="l00245" name="l00245"></a><span class="lineno">  245</span> </div>
-<div class="line"><a id="l00246" name="l00246"></a><span class="lineno">  246</span>    <span class="keyword">const</span> std::size_t fn = filtered.size();</div>
-<div class="line"><a id="l00247" name="l00247"></a><span class="lineno">  247</span>    s.outliers = <span class="keyword">static_cast&lt;</span><span class="keywordtype">int</span><span class="keyword">&gt;</span>(n - fn);</div>
-<div class="line"><a id="l00248" name="l00248"></a><span class="lineno">  248</span>    s.samples = <span class="keyword">static_cast&lt;</span><span class="keywordtype">int</span><span class="keyword">&gt;</span>(fn);</div>
-<div class="line"><a id="l00249" name="l00249"></a><span class="lineno">  249</span>    s.min_ns = filtered.front();</div>
-<div class="line"><a id="l00250" name="l00250"></a><span class="lineno">  250</span>    s.max_ns = filtered.back();</div>
-<div class="line"><a id="l00251" name="l00251"></a><span class="lineno">  251</span>    s.median_ns = filtered[fn / 2];</div>
-<div class="line"><a id="l00252" name="l00252"></a><span class="lineno">  252</span> </div>
-<div class="line"><a id="l00253" name="l00253"></a><span class="lineno">  253</span>    <span class="keywordtype">double</span> sum = 0.0;</div>
-<div class="line"><a id="l00254" name="l00254"></a><span class="lineno">  254</span>    <span class="keywordflow">for</span> (<span class="keyword">auto</span> v : filtered) sum += v;</div>
-<div class="line"><a id="l00255" name="l00255"></a><span class="lineno">  255</span>    s.mean_ns = sum / <span class="keyword">static_cast&lt;</span><span class="keywordtype">double</span><span class="keyword">&gt;</span>(fn);</div>
-<div class="line"><a id="l00256" name="l00256"></a><span class="lineno">  256</span> </div>
-<div class="line"><a id="l00257" name="l00257"></a><span class="lineno">  257</span>    <span class="keywordtype">double</span> var = 0.0;</div>
-<div class="line"><a id="l00258" name="l00258"></a><span class="lineno">  258</span>    <span class="keywordflow">for</span> (<span class="keyword">auto</span> v : filtered) {</div>
-<div class="line"><a id="l00259" name="l00259"></a><span class="lineno">  259</span>        <span class="keywordtype">double</span> <span class="keyword">const</span> d = v - s.mean_ns;</div>
-<div class="line"><a id="l00260" name="l00260"></a><span class="lineno">  260</span>        var += d * d;</div>
-<div class="line"><a id="l00261" name="l00261"></a><span class="lineno">  261</span>    }</div>
-<div class="line"><a id="l00262" name="l00262"></a><span class="lineno">  262</span>    s.stddev_ns = std::sqrt(var / <span class="keyword">static_cast&lt;</span><span class="keywordtype">double</span><span class="keyword">&gt;</span>(fn));</div>
-<div class="line"><a id="l00263" name="l00263"></a><span class="lineno">  263</span> </div>
-<div class="line"><a id="l00264" name="l00264"></a><span class="lineno">  264</span>    <span class="keywordflow">return</span> s;</div>
-<div class="line"><a id="l00265" name="l00265"></a><span class="lineno">  265</span>}</div>
+<div class="line"><a id="l00204" name="l00204"></a><span class="lineno">  204</span> </div>
+<div class="line"><a id="l00205" name="l00205"></a><span class="lineno">  205</span><span class="comment">// Compute stats with IQR outlier removal</span></div>
+<div class="foldopen" id="foldopen00206" data-start="{" data-end="}">
+<div class="line"><a id="l00206" name="l00206"></a><span class="lineno"><a class="line" href="namespacebench.html#ad73b74a3a46ae99095f1ce23d2737470">  206</a></span><span class="keyword">inline</span> <a class="code hl_struct" href="structbench_1_1Stats.html">Stats</a> <a class="code hl_function" href="namespacebench.html#ad73b74a3a46ae99095f1ce23d2737470">compute_stats</a>(std::vector&lt;double&gt;&amp; data) {</div>
+<div class="line"><a id="l00207" name="l00207"></a><span class="lineno">  207</span>    <a class="code hl_struct" href="structbench_1_1Stats.html">Stats</a> s{};</div>
+<div class="line"><a id="l00208" name="l00208"></a><span class="lineno">  208</span>    <span class="keywordflow">if</span> (data.empty()) <span class="keywordflow">return</span> s;</div>
+<div class="line"><a id="l00209" name="l00209"></a><span class="lineno">  209</span> </div>
+<div class="line"><a id="l00210" name="l00210"></a><span class="lineno">  210</span>    std::sort(data.begin(), data.end());</div>
+<div class="line"><a id="l00211" name="l00211"></a><span class="lineno">  211</span> </div>
+<div class="line"><a id="l00212" name="l00212"></a><span class="lineno">  212</span>    <span class="keyword">const</span> std::size_t n = data.size();</div>
+<div class="line"><a id="l00213" name="l00213"></a><span class="lineno">  213</span> </div>
+<div class="line"><a id="l00214" name="l00214"></a><span class="lineno">  214</span>    <span class="keywordflow">if</span> (n &lt; 4) {</div>
+<div class="line"><a id="l00215" name="l00215"></a><span class="lineno">  215</span>        <span class="comment">// Too few samples for IQR -- use all</span></div>
+<div class="line"><a id="l00216" name="l00216"></a><span class="lineno">  216</span>        s.min_ns = data.front();</div>
+<div class="line"><a id="l00217" name="l00217"></a><span class="lineno">  217</span>        s.max_ns = data.back();</div>
+<div class="line"><a id="l00218" name="l00218"></a><span class="lineno">  218</span>        s.median_ns = data[n / 2];</div>
+<div class="line"><a id="l00219" name="l00219"></a><span class="lineno">  219</span>        <span class="keywordtype">double</span> sum = 0.0;</div>
+<div class="line"><a id="l00220" name="l00220"></a><span class="lineno">  220</span>        <span class="keywordflow">for</span> (<span class="keyword">auto</span> v : data) sum += v;</div>
+<div class="line"><a id="l00221" name="l00221"></a><span class="lineno">  221</span>        s.mean_ns = sum / <span class="keyword">static_cast&lt;</span><span class="keywordtype">double</span><span class="keyword">&gt;</span>(n);</div>
+<div class="line"><a id="l00222" name="l00222"></a><span class="lineno">  222</span>        s.samples = <span class="keyword">static_cast&lt;</span><span class="keywordtype">int</span><span class="keyword">&gt;</span>(n);</div>
+<div class="line"><a id="l00223" name="l00223"></a><span class="lineno">  223</span>        s.outliers = 0;</div>
+<div class="line"><a id="l00224" name="l00224"></a><span class="lineno">  224</span>        <span class="keywordflow">return</span> s;</div>
+<div class="line"><a id="l00225" name="l00225"></a><span class="lineno">  225</span>    }</div>
+<div class="line"><a id="l00226" name="l00226"></a><span class="lineno">  226</span> </div>
+<div class="line"><a id="l00227" name="l00227"></a><span class="lineno">  227</span>    <span class="comment">// IQR-based outlier removal</span></div>
+<div class="line"><a id="l00228" name="l00228"></a><span class="lineno">  228</span>    <span class="keywordtype">double</span> <span class="keyword">const</span> q1 = data[n / 4];</div>
+<div class="line"><a id="l00229" name="l00229"></a><span class="lineno">  229</span>    <span class="keywordtype">double</span> <span class="keyword">const</span> q3 = data[(3 * n) / 4];</div>
+<div class="line"><a id="l00230" name="l00230"></a><span class="lineno">  230</span>    <span class="keywordtype">double</span> <span class="keyword">const</span> iqr = q3 - q1;</div>
+<div class="line"><a id="l00231" name="l00231"></a><span class="lineno">  231</span>    <span class="keywordtype">double</span> <span class="keyword">const</span> lower = q1 - 1.5 * iqr;</div>
+<div class="line"><a id="l00232" name="l00232"></a><span class="lineno">  232</span>    <span class="keywordtype">double</span> <span class="keyword">const</span> upper = q3 + 1.5 * iqr;</div>
+<div class="line"><a id="l00233" name="l00233"></a><span class="lineno">  233</span> </div>
+<div class="line"><a id="l00234" name="l00234"></a><span class="lineno">  234</span>    std::vector&lt;double&gt; filtered;</div>
+<div class="line"><a id="l00235" name="l00235"></a><span class="lineno">  235</span>    filtered.reserve(n);</div>
+<div class="line"><a id="l00236" name="l00236"></a><span class="lineno">  236</span>    <span class="keywordflow">for</span> (<span class="keyword">auto</span> v : data) {</div>
+<div class="line"><a id="l00237" name="l00237"></a><span class="lineno">  237</span>        <span class="keywordflow">if</span> (v &gt;= lower &amp;&amp; v &lt;= upper) {</div>
+<div class="line"><a id="l00238" name="l00238"></a><span class="lineno">  238</span>            filtered.push_back(v);</div>
+<div class="line"><a id="l00239" name="l00239"></a><span class="lineno">  239</span>        }</div>
+<div class="line"><a id="l00240" name="l00240"></a><span class="lineno">  240</span>    }</div>
+<div class="line"><a id="l00241" name="l00241"></a><span class="lineno">  241</span> </div>
+<div class="line"><a id="l00242" name="l00242"></a><span class="lineno">  242</span>    <span class="keywordflow">if</span> (filtered.empty()) {</div>
+<div class="line"><a id="l00243" name="l00243"></a><span class="lineno">  243</span>        <span class="comment">// All outliers? Fall back to raw data</span></div>
+<div class="line"><a id="l00244" name="l00244"></a><span class="lineno">  244</span>        filtered = data;</div>
+<div class="line"><a id="l00245" name="l00245"></a><span class="lineno">  245</span>    }</div>
+<div class="line"><a id="l00246" name="l00246"></a><span class="lineno">  246</span> </div>
+<div class="line"><a id="l00247" name="l00247"></a><span class="lineno">  247</span>    <span class="keyword">const</span> std::size_t fn = filtered.size();</div>
+<div class="line"><a id="l00248" name="l00248"></a><span class="lineno">  248</span>    s.outliers = <span class="keyword">static_cast&lt;</span><span class="keywordtype">int</span><span class="keyword">&gt;</span>(n - fn);</div>
+<div class="line"><a id="l00249" name="l00249"></a><span class="lineno">  249</span>    s.samples = <span class="keyword">static_cast&lt;</span><span class="keywordtype">int</span><span class="keyword">&gt;</span>(fn);</div>
+<div class="line"><a id="l00250" name="l00250"></a><span class="lineno">  250</span>    s.min_ns = filtered.front();</div>
+<div class="line"><a id="l00251" name="l00251"></a><span class="lineno">  251</span>    s.max_ns = filtered.back();</div>
+<div class="line"><a id="l00252" name="l00252"></a><span class="lineno">  252</span>    s.median_ns = filtered[fn / 2];</div>
+<div class="line"><a id="l00253" name="l00253"></a><span class="lineno">  253</span> </div>
+<div class="line"><a id="l00254" name="l00254"></a><span class="lineno">  254</span>    <span class="keywordtype">double</span> sum = 0.0;</div>
+<div class="line"><a id="l00255" name="l00255"></a><span class="lineno">  255</span>    <span class="keywordflow">for</span> (<span class="keyword">auto</span> v : filtered) sum += v;</div>
+<div class="line"><a id="l00256" name="l00256"></a><span class="lineno">  256</span>    s.mean_ns = sum / <span class="keyword">static_cast&lt;</span><span class="keywordtype">double</span><span class="keyword">&gt;</span>(fn);</div>
+<div class="line"><a id="l00257" name="l00257"></a><span class="lineno">  257</span> </div>
+<div class="line"><a id="l00258" name="l00258"></a><span class="lineno">  258</span>    <span class="keywordtype">double</span> var = 0.0;</div>
+<div class="line"><a id="l00259" name="l00259"></a><span class="lineno">  259</span>    <span class="keywordflow">for</span> (<span class="keyword">auto</span> v : filtered) {</div>
+<div class="line"><a id="l00260" name="l00260"></a><span class="lineno">  260</span>        <span class="keywordtype">double</span> <span class="keyword">const</span> d = v - s.mean_ns;</div>
+<div class="line"><a id="l00261" name="l00261"></a><span class="lineno">  261</span>        var += d * d;</div>
+<div class="line"><a id="l00262" name="l00262"></a><span class="lineno">  262</span>    }</div>
+<div class="line"><a id="l00263" name="l00263"></a><span class="lineno">  263</span>    s.stddev_ns = std::sqrt(var / <span class="keyword">static_cast&lt;</span><span class="keywordtype">double</span><span class="keyword">&gt;</span>(fn));</div>
+<div class="line"><a id="l00264" name="l00264"></a><span class="lineno">  264</span> </div>
+<div class="line"><a id="l00265" name="l00265"></a><span class="lineno">  265</span>    <span class="keywordflow">return</span> s;</div>
+<div class="line"><a id="l00266" name="l00266"></a><span class="lineno">  266</span>}</div>
 </div>
-<div class="line"><a id="l00266" name="l00266"></a><span class="lineno">  266</span> </div>
-<div class="line"><a id="l00267" name="l00267"></a><span class="lineno">  267</span><span class="comment">// -- Platform Setup -----------------------------------------------------------</span></div>
-<div class="line"><a id="l00268" name="l00268"></a><span class="lineno">  268</span> </div>
-<div class="foldopen" id="foldopen00269" data-start="{" data-end="}">
-<div class="line"><a id="l00269" name="l00269"></a><span class="lineno"><a class="line" href="namespacebench.html#a56f986b338c0faf411236d3277207eb9">  269</a></span><span class="keyword">inline</span> <span class="keywordtype">void</span> <a class="code hl_function" href="namespacebench.html#a56f986b338c0faf411236d3277207eb9">pin_thread_and_elevate</a>() {</div>
-<div class="line"><a id="l00270" name="l00270"></a><span class="lineno">  270</span><span class="preprocessor">#if defined(_WIN32)</span></div>
-<div class="line"><a id="l00271" name="l00271"></a><span class="lineno">  271</span>    SetThreadAffinityMask(GetCurrentThread(), 1ULL);</div>
-<div class="line"><a id="l00272" name="l00272"></a><span class="lineno">  272</span>    SetPriorityClass(GetCurrentProcess(), HIGH_PRIORITY_CLASS);</div>
-<div class="line"><a id="l00273" name="l00273"></a><span class="lineno">  273</span>    SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);</div>
-<div class="line"><a id="l00274" name="l00274"></a><span class="lineno">  274</span><span class="preprocessor">#elif defined(__linux__) &amp;&amp; !defined(__ANDROID__)</span></div>
-<div class="line"><a id="l00275" name="l00275"></a><span class="lineno">  275</span>    <span class="comment">// Pin to CPU 0 on Linux</span></div>
-<div class="line"><a id="l00276" name="l00276"></a><span class="lineno">  276</span>    cpu_set_t cpuset;</div>
-<div class="line"><a id="l00277" name="l00277"></a><span class="lineno">  277</span>    CPU_ZERO(&amp;cpuset);</div>
-<div class="line"><a id="l00278" name="l00278"></a><span class="lineno">  278</span>    CPU_SET(0, &amp;cpuset);</div>
-<div class="line"><a id="l00279" name="l00279"></a><span class="lineno">  279</span>    sched_setaffinity(0, <span class="keyword">sizeof</span>(cpuset), &amp;cpuset);</div>
-<div class="line"><a id="l00280" name="l00280"></a><span class="lineno">  280</span><span class="preprocessor">#endif</span></div>
-<div class="line"><a id="l00281" name="l00281"></a><span class="lineno">  281</span>}</div>
+<div class="line"><a id="l00267" name="l00267"></a><span class="lineno">  267</span> </div>
+<div class="line"><a id="l00268" name="l00268"></a><span class="lineno">  268</span><span class="comment">// -- Platform Setup -----------------------------------------------------------</span></div>
+<div class="line"><a id="l00269" name="l00269"></a><span class="lineno">  269</span> </div>
+<div class="foldopen" id="foldopen00270" data-start="{" data-end="}">
+<div class="line"><a id="l00270" name="l00270"></a><span class="lineno"><a class="line" href="namespacebench.html#a56f986b338c0faf411236d3277207eb9">  270</a></span><span class="keyword">inline</span> <span class="keywordtype">void</span> <a class="code hl_function" href="namespacebench.html#a56f986b338c0faf411236d3277207eb9">pin_thread_and_elevate</a>() {</div>
+<div class="line"><a id="l00271" name="l00271"></a><span class="lineno">  271</span><span class="preprocessor">#if defined(_WIN32)</span></div>
+<div class="line"><a id="l00272" name="l00272"></a><span class="lineno">  272</span>    SetThreadAffinityMask(GetCurrentThread(), 1ULL);</div>
+<div class="line"><a id="l00273" name="l00273"></a><span class="lineno">  273</span>    SetPriorityClass(GetCurrentProcess(), HIGH_PRIORITY_CLASS);</div>
+<div class="line"><a id="l00274" name="l00274"></a><span class="lineno">  274</span>    SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);</div>
+<div class="line"><a id="l00275" name="l00275"></a><span class="lineno">  275</span><span class="preprocessor">#elif defined(__linux__) &amp;&amp; !defined(__ANDROID__)</span></div>
+<div class="line"><a id="l00276" name="l00276"></a><span class="lineno">  276</span>    <span class="comment">// Pin to CPU 0 on Linux</span></div>
+<div class="line"><a id="l00277" name="l00277"></a><span class="lineno">  277</span>    cpu_set_t cpuset;</div>
+<div class="line"><a id="l00278" name="l00278"></a><span class="lineno">  278</span>    CPU_ZERO(&amp;cpuset);</div>
+<div class="line"><a id="l00279" name="l00279"></a><span class="lineno">  279</span>    CPU_SET(0, &amp;cpuset);</div>
+<div class="line"><a id="l00280" name="l00280"></a><span class="lineno">  280</span>    sched_setaffinity(0, <span class="keyword">sizeof</span>(cpuset), &amp;cpuset);</div>
+<div class="line"><a id="l00281" name="l00281"></a><span class="lineno">  281</span><span class="preprocessor">#endif</span></div>
+<div class="line"><a id="l00282" name="l00282"></a><span class="lineno">  282</span>}</div>
 </div>
-<div class="line"><a id="l00282" name="l00282"></a><span class="lineno">  282</span> </div>
-<div class="line"><a id="l00283" name="l00283"></a><span class="lineno">  283</span><span class="comment">// -- Main Harness -------------------------------------------------------------</span></div>
-<div class="line"><a id="l00284" name="l00284"></a><span class="lineno">  284</span> </div>
-<div class="foldopen" id="foldopen00285" data-start="{" data-end="};">
-<div class="line"><a id="l00285" name="l00285"></a><span class="lineno"><a class="line" href="classbench_1_1Harness.html">  285</a></span><span class="keyword">class </span><a class="code hl_class" href="classbench_1_1Harness.html">Harness</a> {</div>
-<div class="line"><a id="l00286" name="l00286"></a><span class="lineno">  286</span><span class="keyword">public</span>:</div>
-<div class="line"><a id="l00287" name="l00287"></a><span class="lineno"><a class="line" href="classbench_1_1Harness.html#a8f106c0bd77d6921e2008bc6f0f2895e">  287</a></span>    <span class="keywordtype">int</span> <a class="code hl_variable" href="classbench_1_1Harness.html#a8f106c0bd77d6921e2008bc6f0f2895e">warmup_iters</a> = 500;          <span class="comment">// warmup iterations per function call</span></div>
-<div class="line"><a id="l00288" name="l00288"></a><span class="lineno"><a class="line" href="classbench_1_1Harness.html#a21c596d4b48b194ff7e9c93a0c4ac263">  288</a></span>    std::size_t <a class="code hl_variable" href="classbench_1_1Harness.html#a21c596d4b48b194ff7e9c93a0c4ac263">passes</a> = 11;          <span class="comment">// measurement passes (odd number for clean median)</span></div>
-<div class="line"><a id="l00289" name="l00289"></a><span class="lineno">  289</span> </div>
-<div class="line"><a id="l00290" name="l00290"></a><span class="lineno"><a class="line" href="classbench_1_1Harness.html#a155ee068739e416d4cd3e3810ce6a276">  290</a></span>    <a class="code hl_function" href="classbench_1_1Harness.html#a155ee068739e416d4cd3e3810ce6a276">Harness</a>() = <span class="keywordflow">default</span>;</div>
-<div class="line"><a id="l00291" name="l00291"></a><span class="lineno"><a class="line" href="classbench_1_1Harness.html#a5770fda8d615155c93311e76e54c8aa8">  291</a></span>    <a class="code hl_function" href="classbench_1_1Harness.html#a5770fda8d615155c93311e76e54c8aa8">Harness</a>(<span class="keywordtype">int</span> warmup, std::size_t p) : <a class="code hl_variable" href="classbench_1_1Harness.html#a8f106c0bd77d6921e2008bc6f0f2895e">warmup_iters</a>(warmup), <a class="code hl_variable" href="classbench_1_1Harness.html#a21c596d4b48b194ff7e9c93a0c4ac263">passes</a>(p) {}</div>
-<div class="line"><a id="l00292" name="l00292"></a><span class="lineno">  292</span> </div>
-<div class="line"><a id="l00293" name="l00293"></a><span class="lineno">  293</span>    <span class="comment">// Run benchmark: returns median ns/iter after IQR outlier removal.</span></div>
-<div class="line"><a id="l00294" name="l00294"></a><span class="lineno">  294</span>    <span class="comment">// Func is called `iters` times per pass.</span></div>
-<div class="line"><a id="l00295" name="l00295"></a><span class="lineno">  295</span>    <span class="keyword">template</span> &lt;<span class="keyword">typename</span> Func&gt;</div>
-<div class="foldopen" id="foldopen00296" data-start="{" data-end="}">
-<div class="line"><a id="l00296" name="l00296"></a><span class="lineno"><a class="line" href="classbench_1_1Harness.html#a225f81e5b5389154b07a1aba05233353">  296</a></span>    <span class="keywordtype">double</span> <a class="code hl_function" href="classbench_1_1Harness.html#a225f81e5b5389154b07a1aba05233353">run</a>(<span class="keywordtype">int</span> iters, Func&amp;&amp; func)<span class="keyword"> const </span>{</div>
-<div class="line"><a id="l00297" name="l00297"></a><span class="lineno">  297</span>        <span class="comment">// Warmup</span></div>
-<div class="line"><a id="l00298" name="l00298"></a><span class="lineno">  298</span>        <span class="keywordflow">for</span> (<span class="keywordtype">int</span> i = 0; i &lt; <a class="code hl_variable" href="classbench_1_1Harness.html#a8f106c0bd77d6921e2008bc6f0f2895e">warmup_iters</a>; ++i) {</div>
-<div class="line"><a id="l00299" name="l00299"></a><span class="lineno">  299</span>            func();</div>
-<div class="line"><a id="l00300" name="l00300"></a><span class="lineno">  300</span>            <a class="code hl_function" href="namespacebench.html#a1eb00262c49f9a564e431bb5f72a3dde">ClobberMemory</a>();</div>
-<div class="line"><a id="l00301" name="l00301"></a><span class="lineno">  301</span>        }</div>
-<div class="line"><a id="l00302" name="l00302"></a><span class="lineno">  302</span> </div>
-<div class="line"><a id="l00303" name="l00303"></a><span class="lineno">  303</span>        <span class="comment">// Measurement passes</span></div>
-<div class="line"><a id="l00304" name="l00304"></a><span class="lineno">  304</span>        std::vector&lt;double&gt; ns_per_iter;</div>
-<div class="line"><a id="l00305" name="l00305"></a><span class="lineno">  305</span>        ns_per_iter.reserve(<a class="code hl_variable" href="classbench_1_1Harness.html#a21c596d4b48b194ff7e9c93a0c4ac263">passes</a>);</div>
-<div class="line"><a id="l00306" name="l00306"></a><span class="lineno">  306</span> </div>
-<div class="line"><a id="l00307" name="l00307"></a><span class="lineno">  307</span>        <span class="keywordflow">for</span> (std::size_t p = 0; p &lt; <a class="code hl_variable" href="classbench_1_1Harness.html#a21c596d4b48b194ff7e9c93a0c4ac263">passes</a>; ++p) {</div>
-<div class="line"><a id="l00308" name="l00308"></a><span class="lineno">  308</span>            uint64_t <span class="keyword">const</span> t0 = <a class="code hl_function" href="structbench_1_1Timer.html#a9aeee552886e3350d32eebbd648880fa">Timer::now</a>();</div>
-<div class="line"><a id="l00309" name="l00309"></a><span class="lineno">  309</span>            <span class="keywordflow">for</span> (<span class="keywordtype">int</span> i = 0; i &lt; iters; ++i) {</div>
-<div class="line"><a id="l00310" name="l00310"></a><span class="lineno">  310</span>                func();</div>
-<div class="line"><a id="l00311" name="l00311"></a><span class="lineno">  311</span>            }</div>
-<div class="line"><a id="l00312" name="l00312"></a><span class="lineno">  312</span>            <a class="code hl_function" href="namespacebench.html#a1eb00262c49f9a564e431bb5f72a3dde">ClobberMemory</a>();</div>
-<div class="line"><a id="l00313" name="l00313"></a><span class="lineno">  313</span>            uint64_t <span class="keyword">const</span> t1 = <a class="code hl_function" href="structbench_1_1Timer.html#a9aeee552886e3350d32eebbd648880fa">Timer::now</a>();</div>
-<div class="line"><a id="l00314" name="l00314"></a><span class="lineno">  314</span> </div>
-<div class="line"><a id="l00315" name="l00315"></a><span class="lineno">  315</span>            <span class="keywordtype">double</span> <span class="keyword">const</span> total_ns = <a class="code hl_function" href="structbench_1_1Timer.html#a9088680bdc572c5d781ae181c445cc89">Timer::ticks_to_ns</a>(t1 - t0);</div>
-<div class="line"><a id="l00316" name="l00316"></a><span class="lineno">  316</span>            ns_per_iter.push_back(total_ns / iters);</div>
-<div class="line"><a id="l00317" name="l00317"></a><span class="lineno">  317</span>        }</div>
-<div class="line"><a id="l00318" name="l00318"></a><span class="lineno">  318</span> </div>
-<div class="line"><a id="l00319" name="l00319"></a><span class="lineno">  319</span>        <a class="code hl_struct" href="structbench_1_1Stats.html">Stats</a> <span class="keyword">const</span> st = <a class="code hl_function" href="namespacebench.html#ad73b74a3a46ae99095f1ce23d2737470">compute_stats</a>(ns_per_iter);</div>
-<div class="line"><a id="l00320" name="l00320"></a><span class="lineno">  320</span>        <span class="keywordflow">return</span> st.<a class="code hl_variable" href="structbench_1_1Stats.html#a77fdebbb7965b0b3f51e3cda88f0aba4">median_ns</a>;</div>
-<div class="line"><a id="l00321" name="l00321"></a><span class="lineno">  321</span>    }</div>
+<div class="line"><a id="l00283" name="l00283"></a><span class="lineno">  283</span> </div>
+<div class="line"><a id="l00284" name="l00284"></a><span class="lineno">  284</span><span class="comment">// -- Main Harness -------------------------------------------------------------</span></div>
+<div class="line"><a id="l00285" name="l00285"></a><span class="lineno">  285</span> </div>
+<div class="foldopen" id="foldopen00286" data-start="{" data-end="};">
+<div class="line"><a id="l00286" name="l00286"></a><span class="lineno"><a class="line" href="classbench_1_1Harness.html">  286</a></span><span class="keyword">class </span><a class="code hl_class" href="classbench_1_1Harness.html">Harness</a> {</div>
+<div class="line"><a id="l00287" name="l00287"></a><span class="lineno">  287</span><span class="keyword">public</span>:</div>
+<div class="line"><a id="l00288" name="l00288"></a><span class="lineno"><a class="line" href="classbench_1_1Harness.html#a8f106c0bd77d6921e2008bc6f0f2895e">  288</a></span>    <span class="keywordtype">int</span> <a class="code hl_variable" href="classbench_1_1Harness.html#a8f106c0bd77d6921e2008bc6f0f2895e">warmup_iters</a> = 500;          <span class="comment">// warmup iterations per function call</span></div>
+<div class="line"><a id="l00289" name="l00289"></a><span class="lineno"><a class="line" href="classbench_1_1Harness.html#a21c596d4b48b194ff7e9c93a0c4ac263">  289</a></span>    std::size_t <a class="code hl_variable" href="classbench_1_1Harness.html#a21c596d4b48b194ff7e9c93a0c4ac263">passes</a> = 11;          <span class="comment">// measurement passes (odd number for clean median)</span></div>
+<div class="line"><a id="l00290" name="l00290"></a><span class="lineno">  290</span> </div>
+<div class="line"><a id="l00291" name="l00291"></a><span class="lineno"><a class="line" href="classbench_1_1Harness.html#a155ee068739e416d4cd3e3810ce6a276">  291</a></span>    <a class="code hl_function" href="classbench_1_1Harness.html#a155ee068739e416d4cd3e3810ce6a276">Harness</a>() = <span class="keywordflow">default</span>;</div>
+<div class="line"><a id="l00292" name="l00292"></a><span class="lineno"><a class="line" href="classbench_1_1Harness.html#a5770fda8d615155c93311e76e54c8aa8">  292</a></span>    <a class="code hl_function" href="classbench_1_1Harness.html#a5770fda8d615155c93311e76e54c8aa8">Harness</a>(<span class="keywordtype">int</span> warmup, std::size_t p) : <a class="code hl_variable" href="classbench_1_1Harness.html#a8f106c0bd77d6921e2008bc6f0f2895e">warmup_iters</a>(warmup), <a class="code hl_variable" href="classbench_1_1Harness.html#a21c596d4b48b194ff7e9c93a0c4ac263">passes</a>(p) {}</div>
+<div class="line"><a id="l00293" name="l00293"></a><span class="lineno">  293</span> </div>
+<div class="line"><a id="l00294" name="l00294"></a><span class="lineno">  294</span>    <span class="comment">// Run benchmark: returns median ns/iter after IQR outlier removal.</span></div>
+<div class="line"><a id="l00295" name="l00295"></a><span class="lineno">  295</span>    <span class="comment">// Func is called `iters` times per pass.</span></div>
+<div class="line"><a id="l00296" name="l00296"></a><span class="lineno">  296</span>    <span class="keyword">template</span> &lt;<span class="keyword">typename</span> Func&gt;</div>
+<div class="foldopen" id="foldopen00297" data-start="{" data-end="}">
+<div class="line"><a id="l00297" name="l00297"></a><span class="lineno"><a class="line" href="classbench_1_1Harness.html#a225f81e5b5389154b07a1aba05233353">  297</a></span>    <span class="keywordtype">double</span> <a class="code hl_function" href="classbench_1_1Harness.html#a225f81e5b5389154b07a1aba05233353">run</a>(<span class="keywordtype">int</span> iters, Func&amp;&amp; func)<span class="keyword"> const </span>{</div>
+<div class="line"><a id="l00298" name="l00298"></a><span class="lineno">  298</span>        <span class="comment">// Warmup</span></div>
+<div class="line"><a id="l00299" name="l00299"></a><span class="lineno">  299</span>        <span class="keywordflow">for</span> (<span class="keywordtype">int</span> i = 0; i &lt; <a class="code hl_variable" href="classbench_1_1Harness.html#a8f106c0bd77d6921e2008bc6f0f2895e">warmup_iters</a>; ++i) {</div>
+<div class="line"><a id="l00300" name="l00300"></a><span class="lineno">  300</span>            func();</div>
+<div class="line"><a id="l00301" name="l00301"></a><span class="lineno">  301</span>            <a class="code hl_function" href="namespacebench.html#a1eb00262c49f9a564e431bb5f72a3dde">ClobberMemory</a>();</div>
+<div class="line"><a id="l00302" name="l00302"></a><span class="lineno">  302</span>        }</div>
+<div class="line"><a id="l00303" name="l00303"></a><span class="lineno">  303</span> </div>
+<div class="line"><a id="l00304" name="l00304"></a><span class="lineno">  304</span>        <span class="comment">// Measurement passes</span></div>
+<div class="line"><a id="l00305" name="l00305"></a><span class="lineno">  305</span>        std::vector&lt;double&gt; ns_per_iter;</div>
+<div class="line"><a id="l00306" name="l00306"></a><span class="lineno">  306</span>        ns_per_iter.reserve(<a class="code hl_variable" href="classbench_1_1Harness.html#a21c596d4b48b194ff7e9c93a0c4ac263">passes</a>);</div>
+<div class="line"><a id="l00307" name="l00307"></a><span class="lineno">  307</span> </div>
+<div class="line"><a id="l00308" name="l00308"></a><span class="lineno">  308</span>        <span class="keywordflow">for</span> (std::size_t p = 0; p &lt; <a class="code hl_variable" href="classbench_1_1Harness.html#a21c596d4b48b194ff7e9c93a0c4ac263">passes</a>; ++p) {</div>
+<div class="line"><a id="l00309" name="l00309"></a><span class="lineno">  309</span>            uint64_t <span class="keyword">const</span> t0 = <a class="code hl_function" href="structbench_1_1Timer.html#a9aeee552886e3350d32eebbd648880fa">Timer::now</a>();</div>
+<div class="line"><a id="l00310" name="l00310"></a><span class="lineno">  310</span>            <span class="keywordflow">for</span> (<span class="keywordtype">int</span> i = 0; i &lt; iters; ++i) {</div>
+<div class="line"><a id="l00311" name="l00311"></a><span class="lineno">  311</span>                func();</div>
+<div class="line"><a id="l00312" name="l00312"></a><span class="lineno">  312</span>            }</div>
+<div class="line"><a id="l00313" name="l00313"></a><span class="lineno">  313</span>            <a class="code hl_function" href="namespacebench.html#a1eb00262c49f9a564e431bb5f72a3dde">ClobberMemory</a>();</div>
+<div class="line"><a id="l00314" name="l00314"></a><span class="lineno">  314</span>            uint64_t <span class="keyword">const</span> t1 = <a class="code hl_function" href="structbench_1_1Timer.html#a9aeee552886e3350d32eebbd648880fa">Timer::now</a>();</div>
+<div class="line"><a id="l00315" name="l00315"></a><span class="lineno">  315</span> </div>
+<div class="line"><a id="l00316" name="l00316"></a><span class="lineno">  316</span>            <span class="keywordtype">double</span> <span class="keyword">const</span> total_ns = <a class="code hl_function" href="structbench_1_1Timer.html#a9088680bdc572c5d781ae181c445cc89">Timer::ticks_to_ns</a>(t1 - t0);</div>
+<div class="line"><a id="l00317" name="l00317"></a><span class="lineno">  317</span>            ns_per_iter.push_back(total_ns / iters);</div>
+<div class="line"><a id="l00318" name="l00318"></a><span class="lineno">  318</span>        }</div>
+<div class="line"><a id="l00319" name="l00319"></a><span class="lineno">  319</span> </div>
+<div class="line"><a id="l00320" name="l00320"></a><span class="lineno">  320</span>        <a class="code hl_struct" href="structbench_1_1Stats.html">Stats</a> <span class="keyword">const</span> st = <a class="code hl_function" href="namespacebench.html#ad73b74a3a46ae99095f1ce23d2737470">compute_stats</a>(ns_per_iter);</div>
+<div class="line"><a id="l00321" name="l00321"></a><span class="lineno">  321</span>        <span class="keywordflow">return</span> st.<a class="code hl_variable" href="structbench_1_1Stats.html#a77fdebbb7965b0b3f51e3cda88f0aba4">median_ns</a>;</div>
+<div class="line"><a id="l00322" name="l00322"></a><span class="lineno">  322</span>    }</div>
 </div>
-<div class="line"><a id="l00322" name="l00322"></a><span class="lineno">  322</span> </div>
-<div class="line"><a id="l00323" name="l00323"></a><span class="lineno">  323</span>    <span class="comment">// Run benchmark and return full statistics.</span></div>
-<div class="line"><a id="l00324" name="l00324"></a><span class="lineno">  324</span>    <span class="keyword">template</span> &lt;<span class="keyword">typename</span> Func&gt;</div>
-<div class="foldopen" id="foldopen00325" data-start="{" data-end="}">
-<div class="line"><a id="l00325" name="l00325"></a><span class="lineno"><a class="line" href="classbench_1_1Harness.html#a05298bd1b0f0af2b03b7e4768749d9ed">  325</a></span>    <a class="code hl_struct" href="structbench_1_1Stats.html">Stats</a> <a class="code hl_function" href="classbench_1_1Harness.html#a05298bd1b0f0af2b03b7e4768749d9ed">run_stats</a>(<span class="keywordtype">int</span> iters, Func&amp;&amp; func)<span class="keyword"> const </span>{</div>
-<div class="line"><a id="l00326" name="l00326"></a><span class="lineno">  326</span>        <span class="comment">// Warmup</span></div>
-<div class="line"><a id="l00327" name="l00327"></a><span class="lineno">  327</span>        <span class="keywordflow">for</span> (<span class="keywordtype">int</span> i = 0; i &lt; <a class="code hl_variable" href="classbench_1_1Harness.html#a8f106c0bd77d6921e2008bc6f0f2895e">warmup_iters</a>; ++i) {</div>
-<div class="line"><a id="l00328" name="l00328"></a><span class="lineno">  328</span>            func();</div>
-<div class="line"><a id="l00329" name="l00329"></a><span class="lineno">  329</span>            <a class="code hl_function" href="namespacebench.html#a1eb00262c49f9a564e431bb5f72a3dde">ClobberMemory</a>();</div>
-<div class="line"><a id="l00330" name="l00330"></a><span class="lineno">  330</span>        }</div>
-<div class="line"><a id="l00331" name="l00331"></a><span class="lineno">  331</span> </div>
-<div class="line"><a id="l00332" name="l00332"></a><span class="lineno">  332</span>        <span class="comment">// Measurement passes</span></div>
-<div class="line"><a id="l00333" name="l00333"></a><span class="lineno">  333</span>        std::vector&lt;double&gt; ns_per_iter;</div>
-<div class="line"><a id="l00334" name="l00334"></a><span class="lineno">  334</span>        ns_per_iter.reserve(<a class="code hl_variable" href="classbench_1_1Harness.html#a21c596d4b48b194ff7e9c93a0c4ac263">passes</a>);</div>
-<div class="line"><a id="l00335" name="l00335"></a><span class="lineno">  335</span> </div>
-<div class="line"><a id="l00336" name="l00336"></a><span class="lineno">  336</span>        <span class="keywordflow">for</span> (std::size_t p = 0; p &lt; <a class="code hl_variable" href="classbench_1_1Harness.html#a21c596d4b48b194ff7e9c93a0c4ac263">passes</a>; ++p) {</div>
-<div class="line"><a id="l00337" name="l00337"></a><span class="lineno">  337</span>            uint64_t <span class="keyword">const</span> t0 = <a class="code hl_function" href="structbench_1_1Timer.html#a9aeee552886e3350d32eebbd648880fa">Timer::now</a>();</div>
-<div class="line"><a id="l00338" name="l00338"></a><span class="lineno">  338</span>            <span class="keywordflow">for</span> (<span class="keywordtype">int</span> i = 0; i &lt; iters; ++i) {</div>
-<div class="line"><a id="l00339" name="l00339"></a><span class="lineno">  339</span>                func();</div>
-<div class="line"><a id="l00340" name="l00340"></a><span class="lineno">  340</span>            }</div>
-<div class="line"><a id="l00341" name="l00341"></a><span class="lineno">  341</span>            <a class="code hl_function" href="namespacebench.html#a1eb00262c49f9a564e431bb5f72a3dde">ClobberMemory</a>();</div>
-<div class="line"><a id="l00342" name="l00342"></a><span class="lineno">  342</span>            uint64_t <span class="keyword">const</span> t1 = <a class="code hl_function" href="structbench_1_1Timer.html#a9aeee552886e3350d32eebbd648880fa">Timer::now</a>();</div>
-<div class="line"><a id="l00343" name="l00343"></a><span class="lineno">  343</span> </div>
-<div class="line"><a id="l00344" name="l00344"></a><span class="lineno">  344</span>            <span class="keywordtype">double</span> <span class="keyword">const</span> total_ns = <a class="code hl_function" href="structbench_1_1Timer.html#a9088680bdc572c5d781ae181c445cc89">Timer::ticks_to_ns</a>(t1 - t0);</div>
-<div class="line"><a id="l00345" name="l00345"></a><span class="lineno">  345</span>            ns_per_iter.push_back(total_ns / iters);</div>
-<div class="line"><a id="l00346" name="l00346"></a><span class="lineno">  346</span>        }</div>
-<div class="line"><a id="l00347" name="l00347"></a><span class="lineno">  347</span> </div>
-<div class="line"><a id="l00348" name="l00348"></a><span class="lineno">  348</span>        <span class="keywordflow">return</span> <a class="code hl_function" href="namespacebench.html#ad73b74a3a46ae99095f1ce23d2737470">compute_stats</a>(ns_per_iter);</div>
-<div class="line"><a id="l00349" name="l00349"></a><span class="lineno">  349</span>    }</div>
+<div class="line"><a id="l00323" name="l00323"></a><span class="lineno">  323</span> </div>
+<div class="line"><a id="l00324" name="l00324"></a><span class="lineno">  324</span>    <span class="comment">// Run benchmark and return full statistics.</span></div>
+<div class="line"><a id="l00325" name="l00325"></a><span class="lineno">  325</span>    <span class="keyword">template</span> &lt;<span class="keyword">typename</span> Func&gt;</div>
+<div class="foldopen" id="foldopen00326" data-start="{" data-end="}">
+<div class="line"><a id="l00326" name="l00326"></a><span class="lineno"><a class="line" href="classbench_1_1Harness.html#a05298bd1b0f0af2b03b7e4768749d9ed">  326</a></span>    <a class="code hl_struct" href="structbench_1_1Stats.html">Stats</a> <a class="code hl_function" href="classbench_1_1Harness.html#a05298bd1b0f0af2b03b7e4768749d9ed">run_stats</a>(<span class="keywordtype">int</span> iters, Func&amp;&amp; func)<span class="keyword"> const </span>{</div>
+<div class="line"><a id="l00327" name="l00327"></a><span class="lineno">  327</span>        <span class="comment">// Warmup</span></div>
+<div class="line"><a id="l00328" name="l00328"></a><span class="lineno">  328</span>        <span class="keywordflow">for</span> (<span class="keywordtype">int</span> i = 0; i &lt; <a class="code hl_variable" href="classbench_1_1Harness.html#a8f106c0bd77d6921e2008bc6f0f2895e">warmup_iters</a>; ++i) {</div>
+<div class="line"><a id="l00329" name="l00329"></a><span class="lineno">  329</span>            func();</div>
+<div class="line"><a id="l00330" name="l00330"></a><span class="lineno">  330</span>            <a class="code hl_function" href="namespacebench.html#a1eb00262c49f9a564e431bb5f72a3dde">ClobberMemory</a>();</div>
+<div class="line"><a id="l00331" name="l00331"></a><span class="lineno">  331</span>        }</div>
+<div class="line"><a id="l00332" name="l00332"></a><span class="lineno">  332</span> </div>
+<div class="line"><a id="l00333" name="l00333"></a><span class="lineno">  333</span>        <span class="comment">// Measurement passes</span></div>
+<div class="line"><a id="l00334" name="l00334"></a><span class="lineno">  334</span>        std::vector&lt;double&gt; ns_per_iter;</div>
+<div class="line"><a id="l00335" name="l00335"></a><span class="lineno">  335</span>        ns_per_iter.reserve(<a class="code hl_variable" href="classbench_1_1Harness.html#a21c596d4b48b194ff7e9c93a0c4ac263">passes</a>);</div>
+<div class="line"><a id="l00336" name="l00336"></a><span class="lineno">  336</span> </div>
+<div class="line"><a id="l00337" name="l00337"></a><span class="lineno">  337</span>        <span class="keywordflow">for</span> (std::size_t p = 0; p &lt; <a class="code hl_variable" href="classbench_1_1Harness.html#a21c596d4b48b194ff7e9c93a0c4ac263">passes</a>; ++p) {</div>
+<div class="line"><a id="l00338" name="l00338"></a><span class="lineno">  338</span>            uint64_t <span class="keyword">const</span> t0 = <a class="code hl_function" href="structbench_1_1Timer.html#a9aeee552886e3350d32eebbd648880fa">Timer::now</a>();</div>
+<div class="line"><a id="l00339" name="l00339"></a><span class="lineno">  339</span>            <span class="keywordflow">for</span> (<span class="keywordtype">int</span> i = 0; i &lt; iters; ++i) {</div>
+<div class="line"><a id="l00340" name="l00340"></a><span class="lineno">  340</span>                func();</div>
+<div class="line"><a id="l00341" name="l00341"></a><span class="lineno">  341</span>            }</div>
+<div class="line"><a id="l00342" name="l00342"></a><span class="lineno">  342</span>            <a class="code hl_function" href="namespacebench.html#a1eb00262c49f9a564e431bb5f72a3dde">ClobberMemory</a>();</div>
+<div class="line"><a id="l00343" name="l00343"></a><span class="lineno">  343</span>            uint64_t <span class="keyword">const</span> t1 = <a class="code hl_function" href="structbench_1_1Timer.html#a9aeee552886e3350d32eebbd648880fa">Timer::now</a>();</div>
+<div class="line"><a id="l00344" name="l00344"></a><span class="lineno">  344</span> </div>
+<div class="line"><a id="l00345" name="l00345"></a><span class="lineno">  345</span>            <span class="keywordtype">double</span> <span class="keyword">const</span> total_ns = <a class="code hl_function" href="structbench_1_1Timer.html#a9088680bdc572c5d781ae181c445cc89">Timer::ticks_to_ns</a>(t1 - t0);</div>
+<div class="line"><a id="l00346" name="l00346"></a><span class="lineno">  346</span>            ns_per_iter.push_back(total_ns / iters);</div>
+<div class="line"><a id="l00347" name="l00347"></a><span class="lineno">  347</span>        }</div>
+<div class="line"><a id="l00348" name="l00348"></a><span class="lineno">  348</span> </div>
+<div class="line"><a id="l00349" name="l00349"></a><span class="lineno">  349</span>        <span class="keywordflow">return</span> <a class="code hl_function" href="namespacebench.html#ad73b74a3a46ae99095f1ce23d2737470">compute_stats</a>(ns_per_iter);</div>
+<div class="line"><a id="l00350" name="l00350"></a><span class="lineno">  350</span>    }</div>
 </div>
-<div class="line"><a id="l00350" name="l00350"></a><span class="lineno">  350</span> </div>
-<div class="line"><a id="l00351" name="l00351"></a><span class="lineno">  351</span>    <span class="comment">// Convenience: run + print one-liner result</span></div>
-<div class="line"><a id="l00352" name="l00352"></a><span class="lineno">  352</span>    <span class="keyword">template</span> &lt;<span class="keyword">typename</span> Func&gt;</div>
-<div class="foldopen" id="foldopen00353" data-start="{" data-end="}">
-<div class="line"><a id="l00353" name="l00353"></a><span class="lineno"><a class="line" href="classbench_1_1Harness.html#ab41b76464cc0c0dbb337aa184e77158b">  353</a></span>    <span class="keywordtype">double</span> <a class="code hl_function" href="classbench_1_1Harness.html#ab41b76464cc0c0dbb337aa184e77158b">run_and_print</a>(<span class="keyword">const</span> <span class="keywordtype">char</span>* name, <span class="keywordtype">int</span> iters, Func&amp;&amp; func)<span class="keyword"> const </span>{</div>
-<div class="line"><a id="l00354" name="l00354"></a><span class="lineno">  354</span>        <a class="code hl_struct" href="structbench_1_1Stats.html">Stats</a> st = <a class="code hl_function" href="classbench_1_1Harness.html#a05298bd1b0f0af2b03b7e4768749d9ed">run_stats</a>(iters, func);</div>
-<div class="line"><a id="l00355" name="l00355"></a><span class="lineno">  355</span>        (void)std::printf(<span class="stringliteral">&quot;  %-28s %9.2f ns  (min=%6.2f  median=%6.2f  stddev=%5.2f  n=%d-%d)\n&quot;</span>,</div>
-<div class="line"><a id="l00356" name="l00356"></a><span class="lineno">  356</span>                    name, st.<a class="code hl_variable" href="structbench_1_1Stats.html#a77fdebbb7965b0b3f51e3cda88f0aba4">median_ns</a>, st.<a class="code hl_variable" href="structbench_1_1Stats.html#ac24571992ceb4cfeda039a9a76fa14f6">min_ns</a>, st.<a class="code hl_variable" href="structbench_1_1Stats.html#a77fdebbb7965b0b3f51e3cda88f0aba4">median_ns</a>, st.<a class="code hl_variable" href="structbench_1_1Stats.html#a5627931965cb083b1655695e271c980a">stddev_ns</a>,</div>
-<div class="line"><a id="l00357" name="l00357"></a><span class="lineno">  357</span>                    st.<a class="code hl_variable" href="structbench_1_1Stats.html#aedf1035b892277d37e5a8930fe95e630">samples</a>, st.<a class="code hl_variable" href="structbench_1_1Stats.html#a97ddce2348cf6fcd6d1fb79d1dd154f6">outliers</a>);</div>
-<div class="line"><a id="l00358" name="l00358"></a><span class="lineno">  358</span>        <span class="keywordflow">return</span> st.<a class="code hl_variable" href="structbench_1_1Stats.html#a77fdebbb7965b0b3f51e3cda88f0aba4">median_ns</a>;</div>
-<div class="line"><a id="l00359" name="l00359"></a><span class="lineno">  359</span>    }</div>
+<div class="line"><a id="l00351" name="l00351"></a><span class="lineno">  351</span> </div>
+<div class="line"><a id="l00352" name="l00352"></a><span class="lineno">  352</span>    <span class="comment">// Convenience: run + print one-liner result</span></div>
+<div class="line"><a id="l00353" name="l00353"></a><span class="lineno">  353</span>    <span class="keyword">template</span> &lt;<span class="keyword">typename</span> Func&gt;</div>
+<div class="foldopen" id="foldopen00354" data-start="{" data-end="}">
+<div class="line"><a id="l00354" name="l00354"></a><span class="lineno"><a class="line" href="classbench_1_1Harness.html#ab41b76464cc0c0dbb337aa184e77158b">  354</a></span>    <span class="keywordtype">double</span> <a class="code hl_function" href="classbench_1_1Harness.html#ab41b76464cc0c0dbb337aa184e77158b">run_and_print</a>(<span class="keyword">const</span> <span class="keywordtype">char</span>* name, <span class="keywordtype">int</span> iters, Func&amp;&amp; func)<span class="keyword"> const </span>{</div>
+<div class="line"><a id="l00355" name="l00355"></a><span class="lineno">  355</span>        <a class="code hl_struct" href="structbench_1_1Stats.html">Stats</a> st = <a class="code hl_function" href="classbench_1_1Harness.html#a05298bd1b0f0af2b03b7e4768749d9ed">run_stats</a>(iters, func);</div>
+<div class="line"><a id="l00356" name="l00356"></a><span class="lineno">  356</span>        (void)std::printf(<span class="stringliteral">&quot;  %-28s %9.2f ns  (min=%6.2f  median=%6.2f  stddev=%5.2f  n=%d-%d)\n&quot;</span>,</div>
+<div class="line"><a id="l00357" name="l00357"></a><span class="lineno">  357</span>                    name, st.<a class="code hl_variable" href="structbench_1_1Stats.html#a77fdebbb7965b0b3f51e3cda88f0aba4">median_ns</a>, st.<a class="code hl_variable" href="structbench_1_1Stats.html#ac24571992ceb4cfeda039a9a76fa14f6">min_ns</a>, st.<a class="code hl_variable" href="structbench_1_1Stats.html#a77fdebbb7965b0b3f51e3cda88f0aba4">median_ns</a>, st.<a class="code hl_variable" href="structbench_1_1Stats.html#a5627931965cb083b1655695e271c980a">stddev_ns</a>,</div>
+<div class="line"><a id="l00358" name="l00358"></a><span class="lineno">  358</span>                    st.<a class="code hl_variable" href="structbench_1_1Stats.html#aedf1035b892277d37e5a8930fe95e630">samples</a>, st.<a class="code hl_variable" href="structbench_1_1Stats.html#a97ddce2348cf6fcd6d1fb79d1dd154f6">outliers</a>);</div>
+<div class="line"><a id="l00359" name="l00359"></a><span class="lineno">  359</span>        <span class="keywordflow">return</span> st.<a class="code hl_variable" href="structbench_1_1Stats.html#a77fdebbb7965b0b3f51e3cda88f0aba4">median_ns</a>;</div>
+<div class="line"><a id="l00360" name="l00360"></a><span class="lineno">  360</span>    }</div>
 </div>
-<div class="line"><a id="l00360" name="l00360"></a><span class="lineno">  360</span> </div>
-<div class="line"><a id="l00361" name="l00361"></a><span class="lineno">  361</span>    <span class="comment">// Print harness configuration info</span></div>
-<div class="foldopen" id="foldopen00362" data-start="{" data-end="}">
-<div class="line"><a id="l00362" name="l00362"></a><span class="lineno"><a class="line" href="classbench_1_1Harness.html#a365c3851d928bf5d13ca09bf14787206">  362</a></span>    <span class="keywordtype">void</span> <a class="code hl_function" href="classbench_1_1Harness.html#a365c3851d928bf5d13ca09bf14787206">print_config</a>()<span class="keyword"> const </span>{</div>
-<div class="line"><a id="l00363" name="l00363"></a><span class="lineno">  363</span>        (void)std::printf(<span class="stringliteral">&quot;  Timer:    %s\n&quot;</span>, <a class="code hl_function" href="structbench_1_1Timer.html#a11f3fad3ac499da50f149346bd8acf92">Timer::timer_name</a>());</div>
-<div class="line"><a id="l00364" name="l00364"></a><span class="lineno">  364</span>        (void)std::printf(<span class="stringliteral">&quot;  Warmup:   %d iterations\n&quot;</span>, <a class="code hl_variable" href="classbench_1_1Harness.html#a8f106c0bd77d6921e2008bc6f0f2895e">warmup_iters</a>);</div>
-<div class="line"><a id="l00365" name="l00365"></a><span class="lineno">  365</span>        (void)std::printf(<span class="stringliteral">&quot;  Passes:   %zu (IQR outlier removal + median)\n&quot;</span>, <a class="code hl_variable" href="classbench_1_1Harness.html#a21c596d4b48b194ff7e9c93a0c4ac263">passes</a>);</div>
-<div class="line"><a id="l00366" name="l00366"></a><span class="lineno">  366</span>    }</div>
+<div class="line"><a id="l00361" name="l00361"></a><span class="lineno">  361</span> </div>
+<div class="line"><a id="l00362" name="l00362"></a><span class="lineno">  362</span>    <span class="comment">// Print harness configuration info</span></div>
+<div class="foldopen" id="foldopen00363" data-start="{" data-end="}">
+<div class="line"><a id="l00363" name="l00363"></a><span class="lineno"><a class="line" href="classbench_1_1Harness.html#a365c3851d928bf5d13ca09bf14787206">  363</a></span>    <span class="keywordtype">void</span> <a class="code hl_function" href="classbench_1_1Harness.html#a365c3851d928bf5d13ca09bf14787206">print_config</a>()<span class="keyword"> const </span>{</div>
+<div class="line"><a id="l00364" name="l00364"></a><span class="lineno">  364</span>        (void)std::printf(<span class="stringliteral">&quot;  Timer:    %s\n&quot;</span>, <a class="code hl_function" href="structbench_1_1Timer.html#a11f3fad3ac499da50f149346bd8acf92">Timer::timer_name</a>());</div>
+<div class="line"><a id="l00365" name="l00365"></a><span class="lineno">  365</span>        (void)std::printf(<span class="stringliteral">&quot;  Warmup:   %d iterations\n&quot;</span>, <a class="code hl_variable" href="classbench_1_1Harness.html#a8f106c0bd77d6921e2008bc6f0f2895e">warmup_iters</a>);</div>
+<div class="line"><a id="l00366" name="l00366"></a><span class="lineno">  366</span>        (void)std::printf(<span class="stringliteral">&quot;  Passes:   %zu (IQR outlier removal + median)\n&quot;</span>, <a class="code hl_variable" href="classbench_1_1Harness.html#a21c596d4b48b194ff7e9c93a0c4ac263">passes</a>);</div>
+<div class="line"><a id="l00367" name="l00367"></a><span class="lineno">  367</span>    }</div>
 </div>
-<div class="line"><a id="l00367" name="l00367"></a><span class="lineno">  367</span>};</div>
+<div class="line"><a id="l00368" name="l00368"></a><span class="lineno">  368</span>};</div>
 </div>
-<div class="line"><a id="l00368" name="l00368"></a><span class="lineno">  368</span> </div>
-<div class="line"><a id="l00369" name="l00369"></a><span class="lineno">  369</span><span class="comment">// -- Formatting helpers -------------------------------------------------------</span></div>
-<div class="line"><a id="l00370" name="l00370"></a><span class="lineno">  370</span> </div>
-<div class="foldopen" id="foldopen00371" data-start="{" data-end="}">
-<div class="line"><a id="l00371" name="l00371"></a><span class="lineno"><a class="line" href="namespacebench.html#a915d5c8b45bcd098f6eff6957d64cf26">  371</a></span><span class="keyword">inline</span> <span class="keyword">const</span> <span class="keywordtype">char</span>* <a class="code hl_function" href="namespacebench.html#a915d5c8b45bcd098f6eff6957d64cf26">format_ns</a>(<span class="keywordtype">double</span> ns, <span class="keywordtype">char</span>* buf, std::size_t buflen) {</div>
-<div class="line"><a id="l00372" name="l00372"></a><span class="lineno">  372</span>    <span class="keywordflow">if</span> (ns &lt; 1000.0) {</div>
-<div class="line"><a id="l00373" name="l00373"></a><span class="lineno">  373</span>        (void)std::snprintf(buf, buflen, <span class="stringliteral">&quot;%.2f ns&quot;</span>, ns);</div>
-<div class="line"><a id="l00374" name="l00374"></a><span class="lineno">  374</span>    } <span class="keywordflow">else</span> <span class="keywordflow">if</span> (ns &lt; 1000000.0) {</div>
-<div class="line"><a id="l00375" name="l00375"></a><span class="lineno">  375</span>        (void)std::snprintf(buf, buflen, <span class="stringliteral">&quot;%.2f us&quot;</span>, ns / 1000.0);</div>
-<div class="line"><a id="l00376" name="l00376"></a><span class="lineno">  376</span>    } <span class="keywordflow">else</span> {</div>
-<div class="line"><a id="l00377" name="l00377"></a><span class="lineno">  377</span>        (void)std::snprintf(buf, buflen, <span class="stringliteral">&quot;%.2f ms&quot;</span>, ns / 1000000.0);</div>
-<div class="line"><a id="l00378" name="l00378"></a><span class="lineno">  378</span>    }</div>
-<div class="line"><a id="l00379" name="l00379"></a><span class="lineno">  379</span>    <span class="keywordflow">return</span> buf;</div>
-<div class="line"><a id="l00380" name="l00380"></a><span class="lineno">  380</span>}</div>
+<div class="line"><a id="l00369" name="l00369"></a><span class="lineno">  369</span> </div>
+<div class="line"><a id="l00370" name="l00370"></a><span class="lineno">  370</span><span class="comment">// -- Formatting helpers -------------------------------------------------------</span></div>
+<div class="line"><a id="l00371" name="l00371"></a><span class="lineno">  371</span> </div>
+<div class="foldopen" id="foldopen00372" data-start="{" data-end="}">
+<div class="line"><a id="l00372" name="l00372"></a><span class="lineno"><a class="line" href="namespacebench.html#a915d5c8b45bcd098f6eff6957d64cf26">  372</a></span><span class="keyword">inline</span> <span class="keyword">const</span> <span class="keywordtype">char</span>* <a class="code hl_function" href="namespacebench.html#a915d5c8b45bcd098f6eff6957d64cf26">format_ns</a>(<span class="keywordtype">double</span> ns, <span class="keywordtype">char</span>* buf, std::size_t buflen) {</div>
+<div class="line"><a id="l00373" name="l00373"></a><span class="lineno">  373</span>    <span class="keywordflow">if</span> (ns &lt; 1000.0) {</div>
+<div class="line"><a id="l00374" name="l00374"></a><span class="lineno">  374</span>        (void)std::snprintf(buf, buflen, <span class="stringliteral">&quot;%.2f ns&quot;</span>, ns);</div>
+<div class="line"><a id="l00375" name="l00375"></a><span class="lineno">  375</span>    } <span class="keywordflow">else</span> <span class="keywordflow">if</span> (ns &lt; 1000000.0) {</div>
+<div class="line"><a id="l00376" name="l00376"></a><span class="lineno">  376</span>        (void)std::snprintf(buf, buflen, <span class="stringliteral">&quot;%.2f us&quot;</span>, ns / 1000.0);</div>
+<div class="line"><a id="l00377" name="l00377"></a><span class="lineno">  377</span>    } <span class="keywordflow">else</span> {</div>
+<div class="line"><a id="l00378" name="l00378"></a><span class="lineno">  378</span>        (void)std::snprintf(buf, buflen, <span class="stringliteral">&quot;%.2f ms&quot;</span>, ns / 1000000.0);</div>
+<div class="line"><a id="l00379" name="l00379"></a><span class="lineno">  379</span>    }</div>
+<div class="line"><a id="l00380" name="l00380"></a><span class="lineno">  380</span>    <span class="keywordflow">return</span> buf;</div>
+<div class="line"><a id="l00381" name="l00381"></a><span class="lineno">  381</span>}</div>
 </div>
-<div class="line"><a id="l00381" name="l00381"></a><span class="lineno">  381</span> </div>
-<div class="line"><a id="l00382" name="l00382"></a><span class="lineno">  382</span><span class="comment">// Overload that uses a static buffer (not thread-safe, fine for sequential bench output)</span></div>
-<div class="foldopen" id="foldopen00383" data-start="{" data-end="}">
-<div class="line"><a id="l00383" name="l00383"></a><span class="lineno"><a class="line" href="namespacebench.html#a0d3d9002000efcf12088850e37e06f0b">  383</a></span><span class="keyword">inline</span> <span class="keyword">const</span> <span class="keywordtype">char</span>* <a class="code hl_function" href="namespacebench.html#a915d5c8b45bcd098f6eff6957d64cf26">format_ns</a>(<span class="keywordtype">double</span> ns) {</div>
-<div class="line"><a id="l00384" name="l00384"></a><span class="lineno">  384</span>    <span class="keyword">static</span> <span class="keywordtype">char</span> buf[64];</div>
-<div class="line"><a id="l00385" name="l00385"></a><span class="lineno">  385</span>    <span class="keywordflow">return</span> <a class="code hl_function" href="namespacebench.html#a915d5c8b45bcd098f6eff6957d64cf26">format_ns</a>(ns, buf, <span class="keyword">sizeof</span>(buf));</div>
-<div class="line"><a id="l00386" name="l00386"></a><span class="lineno">  386</span>}</div>
+<div class="line"><a id="l00382" name="l00382"></a><span class="lineno">  382</span> </div>
+<div class="line"><a id="l00383" name="l00383"></a><span class="lineno">  383</span><span class="comment">// Overload that uses a static buffer (not thread-safe, fine for sequential bench output)</span></div>
+<div class="foldopen" id="foldopen00384" data-start="{" data-end="}">
+<div class="line"><a id="l00384" name="l00384"></a><span class="lineno"><a class="line" href="namespacebench.html#a0d3d9002000efcf12088850e37e06f0b">  384</a></span><span class="keyword">inline</span> <span class="keyword">const</span> <span class="keywordtype">char</span>* <a class="code hl_function" href="namespacebench.html#a915d5c8b45bcd098f6eff6957d64cf26">format_ns</a>(<span class="keywordtype">double</span> ns) {</div>
+<div class="line"><a id="l00385" name="l00385"></a><span class="lineno">  385</span>    <span class="keyword">static</span> <span class="keywordtype">char</span> buf[64];</div>
+<div class="line"><a id="l00386" name="l00386"></a><span class="lineno">  386</span>    <span class="keywordflow">return</span> <a class="code hl_function" href="namespacebench.html#a915d5c8b45bcd098f6eff6957d64cf26">format_ns</a>(ns, buf, <span class="keyword">sizeof</span>(buf));</div>
+<div class="line"><a id="l00387" name="l00387"></a><span class="lineno">  387</span>}</div>
 </div>
-<div class="line"><a id="l00387" name="l00387"></a><span class="lineno">  387</span> </div>
-<div class="line"><a id="l00388" name="l00388"></a><span class="lineno">  388</span>} <span class="comment">// namespace bench</span></div>
+<div class="line"><a id="l00388" name="l00388"></a><span class="lineno">  388</span> </div>
+<div class="line"><a id="l00389" name="l00389"></a><span class="lineno">  389</span>} <span class="comment">// namespace bench</span></div>
 </div>
-<div class="ttc" id="aclassbench_1_1Harness_html"><div class="ttname"><a href="classbench_1_1Harness.html">bench::Harness</a></div><div class="ttdef"><b>Definition</b> <a href="benchmark__harness_8hpp_source.html#l00285">benchmark_harness.hpp:285</a></div></div>
-<div class="ttc" id="aclassbench_1_1Harness_html_a05298bd1b0f0af2b03b7e4768749d9ed"><div class="ttname"><a href="classbench_1_1Harness.html#a05298bd1b0f0af2b03b7e4768749d9ed">bench::Harness::run_stats</a></div><div class="ttdeci">Stats run_stats(int iters, Func &amp;&amp;func) const</div><div class="ttdef"><b>Definition</b> <a href="benchmark__harness_8hpp_source.html#l00325">benchmark_harness.hpp:325</a></div></div>
+<div class="ttc" id="aclassbench_1_1Harness_html"><div class="ttname"><a href="classbench_1_1Harness.html">bench::Harness</a></div><div class="ttdef"><b>Definition</b> <a href="benchmark__harness_8hpp_source.html#l00286">benchmark_harness.hpp:286</a></div></div>
+<div class="ttc" id="aclassbench_1_1Harness_html_a05298bd1b0f0af2b03b7e4768749d9ed"><div class="ttname"><a href="classbench_1_1Harness.html#a05298bd1b0f0af2b03b7e4768749d9ed">bench::Harness::run_stats</a></div><div class="ttdeci">Stats run_stats(int iters, Func &amp;&amp;func) const</div><div class="ttdef"><b>Definition</b> <a href="benchmark__harness_8hpp_source.html#l00326">benchmark_harness.hpp:326</a></div></div>
 <div class="ttc" id="aclassbench_1_1Harness_html_a155ee068739e416d4cd3e3810ce6a276"><div class="ttname"><a href="classbench_1_1Harness.html#a155ee068739e416d4cd3e3810ce6a276">bench::Harness::Harness</a></div><div class="ttdeci">Harness()=default</div></div>
-<div class="ttc" id="aclassbench_1_1Harness_html_a21c596d4b48b194ff7e9c93a0c4ac263"><div class="ttname"><a href="classbench_1_1Harness.html#a21c596d4b48b194ff7e9c93a0c4ac263">bench::Harness::passes</a></div><div class="ttdeci">std::size_t passes</div><div class="ttdef"><b>Definition</b> <a href="benchmark__harness_8hpp_source.html#l00288">benchmark_harness.hpp:288</a></div></div>
-<div class="ttc" id="aclassbench_1_1Harness_html_a225f81e5b5389154b07a1aba05233353"><div class="ttname"><a href="classbench_1_1Harness.html#a225f81e5b5389154b07a1aba05233353">bench::Harness::run</a></div><div class="ttdeci">double run(int iters, Func &amp;&amp;func) const</div><div class="ttdef"><b>Definition</b> <a href="benchmark__harness_8hpp_source.html#l00296">benchmark_harness.hpp:296</a></div></div>
-<div class="ttc" id="aclassbench_1_1Harness_html_a365c3851d928bf5d13ca09bf14787206"><div class="ttname"><a href="classbench_1_1Harness.html#a365c3851d928bf5d13ca09bf14787206">bench::Harness::print_config</a></div><div class="ttdeci">void print_config() const</div><div class="ttdef"><b>Definition</b> <a href="benchmark__harness_8hpp_source.html#l00362">benchmark_harness.hpp:362</a></div></div>
-<div class="ttc" id="aclassbench_1_1Harness_html_a5770fda8d615155c93311e76e54c8aa8"><div class="ttname"><a href="classbench_1_1Harness.html#a5770fda8d615155c93311e76e54c8aa8">bench::Harness::Harness</a></div><div class="ttdeci">Harness(int warmup, std::size_t p)</div><div class="ttdef"><b>Definition</b> <a href="benchmark__harness_8hpp_source.html#l00291">benchmark_harness.hpp:291</a></div></div>
-<div class="ttc" id="aclassbench_1_1Harness_html_a8f106c0bd77d6921e2008bc6f0f2895e"><div class="ttname"><a href="classbench_1_1Harness.html#a8f106c0bd77d6921e2008bc6f0f2895e">bench::Harness::warmup_iters</a></div><div class="ttdeci">int warmup_iters</div><div class="ttdef"><b>Definition</b> <a href="benchmark__harness_8hpp_source.html#l00287">benchmark_harness.hpp:287</a></div></div>
-<div class="ttc" id="aclassbench_1_1Harness_html_ab41b76464cc0c0dbb337aa184e77158b"><div class="ttname"><a href="classbench_1_1Harness.html#ab41b76464cc0c0dbb337aa184e77158b">bench::Harness::run_and_print</a></div><div class="ttdeci">double run_and_print(const char *name, int iters, Func &amp;&amp;func) const</div><div class="ttdef"><b>Definition</b> <a href="benchmark__harness_8hpp_source.html#l00353">benchmark_harness.hpp:353</a></div></div>
+<div class="ttc" id="aclassbench_1_1Harness_html_a21c596d4b48b194ff7e9c93a0c4ac263"><div class="ttname"><a href="classbench_1_1Harness.html#a21c596d4b48b194ff7e9c93a0c4ac263">bench::Harness::passes</a></div><div class="ttdeci">std::size_t passes</div><div class="ttdef"><b>Definition</b> <a href="benchmark__harness_8hpp_source.html#l00289">benchmark_harness.hpp:289</a></div></div>
+<div class="ttc" id="aclassbench_1_1Harness_html_a225f81e5b5389154b07a1aba05233353"><div class="ttname"><a href="classbench_1_1Harness.html#a225f81e5b5389154b07a1aba05233353">bench::Harness::run</a></div><div class="ttdeci">double run(int iters, Func &amp;&amp;func) const</div><div class="ttdef"><b>Definition</b> <a href="benchmark__harness_8hpp_source.html#l00297">benchmark_harness.hpp:297</a></div></div>
+<div class="ttc" id="aclassbench_1_1Harness_html_a365c3851d928bf5d13ca09bf14787206"><div class="ttname"><a href="classbench_1_1Harness.html#a365c3851d928bf5d13ca09bf14787206">bench::Harness::print_config</a></div><div class="ttdeci">void print_config() const</div><div class="ttdef"><b>Definition</b> <a href="benchmark__harness_8hpp_source.html#l00363">benchmark_harness.hpp:363</a></div></div>
+<div class="ttc" id="aclassbench_1_1Harness_html_a5770fda8d615155c93311e76e54c8aa8"><div class="ttname"><a href="classbench_1_1Harness.html#a5770fda8d615155c93311e76e54c8aa8">bench::Harness::Harness</a></div><div class="ttdeci">Harness(int warmup, std::size_t p)</div><div class="ttdef"><b>Definition</b> <a href="benchmark__harness_8hpp_source.html#l00292">benchmark_harness.hpp:292</a></div></div>
+<div class="ttc" id="aclassbench_1_1Harness_html_a8f106c0bd77d6921e2008bc6f0f2895e"><div class="ttname"><a href="classbench_1_1Harness.html#a8f106c0bd77d6921e2008bc6f0f2895e">bench::Harness::warmup_iters</a></div><div class="ttdeci">int warmup_iters</div><div class="ttdef"><b>Definition</b> <a href="benchmark__harness_8hpp_source.html#l00288">benchmark_harness.hpp:288</a></div></div>
+<div class="ttc" id="aclassbench_1_1Harness_html_ab41b76464cc0c0dbb337aa184e77158b"><div class="ttname"><a href="classbench_1_1Harness.html#ab41b76464cc0c0dbb337aa184e77158b">bench::Harness::run_and_print</a></div><div class="ttdeci">double run_and_print(const char *name, int iters, Func &amp;&amp;func) const</div><div class="ttdef"><b>Definition</b> <a href="benchmark__harness_8hpp_source.html#l00354">benchmark_harness.hpp:354</a></div></div>
 <div class="ttc" id="anamespacebench_html"><div class="ttname"><a href="namespacebench.html">bench</a></div><div class="ttdef"><b>Definition</b> <a href="benchmark__harness_8hpp_source.html#l00041">benchmark_harness.hpp:41</a></div></div>
 <div class="ttc" id="anamespacebench_html_a1eb00262c49f9a564e431bb5f72a3dde"><div class="ttname"><a href="namespacebench.html#a1eb00262c49f9a564e431bb5f72a3dde">bench::ClobberMemory</a></div><div class="ttdeci">void ClobberMemory()</div><div class="ttdef"><b>Definition</b> <a href="benchmark__harness_8hpp_source.html#l00097">benchmark_harness.hpp:97</a></div></div>
 <div class="ttc" id="anamespacebench_html_a30176299d4be413891cfb20229bdeca7"><div class="ttname"><a href="namespacebench.html#a30176299d4be413891cfb20229bdeca7">bench::DoNotOptimize</a></div><div class="ttdeci">void DoNotOptimize(T const &amp;value)</div><div class="ttdef"><b>Definition</b> <a href="benchmark__harness_8hpp_source.html#l00086">benchmark_harness.hpp:86</a></div></div>
-<div class="ttc" id="anamespacebench_html_a56f986b338c0faf411236d3277207eb9"><div class="ttname"><a href="namespacebench.html#a56f986b338c0faf411236d3277207eb9">bench::pin_thread_and_elevate</a></div><div class="ttdeci">void pin_thread_and_elevate()</div><div class="ttdef"><b>Definition</b> <a href="benchmark__harness_8hpp_source.html#l00269">benchmark_harness.hpp:269</a></div></div>
-<div class="ttc" id="anamespacebench_html_a915d5c8b45bcd098f6eff6957d64cf26"><div class="ttname"><a href="namespacebench.html#a915d5c8b45bcd098f6eff6957d64cf26">bench::format_ns</a></div><div class="ttdeci">const char * format_ns(double ns, char *buf, std::size_t buflen)</div><div class="ttdef"><b>Definition</b> <a href="benchmark__harness_8hpp_source.html#l00371">benchmark_harness.hpp:371</a></div></div>
-<div class="ttc" id="anamespacebench_html_ad73b74a3a46ae99095f1ce23d2737470"><div class="ttname"><a href="namespacebench.html#ad73b74a3a46ae99095f1ce23d2737470">bench::compute_stats</a></div><div class="ttdeci">Stats compute_stats(std::vector&lt; double &gt; &amp;data)</div><div class="ttdef"><b>Definition</b> <a href="benchmark__harness_8hpp_source.html#l00205">benchmark_harness.hpp:205</a></div></div>
-<div class="ttc" id="astructbench_1_1Stats_html"><div class="ttname"><a href="structbench_1_1Stats.html">bench::Stats</a></div><div class="ttdef"><b>Definition</b> <a href="benchmark__harness_8hpp_source.html#l00194">benchmark_harness.hpp:194</a></div></div>
-<div class="ttc" id="astructbench_1_1Stats_html_a5627931965cb083b1655695e271c980a"><div class="ttname"><a href="structbench_1_1Stats.html#a5627931965cb083b1655695e271c980a">bench::Stats::stddev_ns</a></div><div class="ttdeci">double stddev_ns</div><div class="ttdef"><b>Definition</b> <a href="benchmark__harness_8hpp_source.html#l00199">benchmark_harness.hpp:199</a></div></div>
-<div class="ttc" id="astructbench_1_1Stats_html_a712d66113687b78b260175edf055d0c2"><div class="ttname"><a href="structbench_1_1Stats.html#a712d66113687b78b260175edf055d0c2">bench::Stats::max_ns</a></div><div class="ttdeci">double max_ns</div><div class="ttdef"><b>Definition</b> <a href="benchmark__harness_8hpp_source.html#l00196">benchmark_harness.hpp:196</a></div></div>
-<div class="ttc" id="astructbench_1_1Stats_html_a77fdebbb7965b0b3f51e3cda88f0aba4"><div class="ttname"><a href="structbench_1_1Stats.html#a77fdebbb7965b0b3f51e3cda88f0aba4">bench::Stats::median_ns</a></div><div class="ttdeci">double median_ns</div><div class="ttdef"><b>Definition</b> <a href="benchmark__harness_8hpp_source.html#l00197">benchmark_harness.hpp:197</a></div></div>
-<div class="ttc" id="astructbench_1_1Stats_html_a97ddce2348cf6fcd6d1fb79d1dd154f6"><div class="ttname"><a href="structbench_1_1Stats.html#a97ddce2348cf6fcd6d1fb79d1dd154f6">bench::Stats::outliers</a></div><div class="ttdeci">int outliers</div><div class="ttdef"><b>Definition</b> <a href="benchmark__harness_8hpp_source.html#l00201">benchmark_harness.hpp:201</a></div></div>
-<div class="ttc" id="astructbench_1_1Stats_html_aa9a8a9de794b384f208668eeb50fc468"><div class="ttname"><a href="structbench_1_1Stats.html#aa9a8a9de794b384f208668eeb50fc468">bench::Stats::mean_ns</a></div><div class="ttdeci">double mean_ns</div><div class="ttdef"><b>Definition</b> <a href="benchmark__harness_8hpp_source.html#l00198">benchmark_harness.hpp:198</a></div></div>
-<div class="ttc" id="astructbench_1_1Stats_html_ac24571992ceb4cfeda039a9a76fa14f6"><div class="ttname"><a href="structbench_1_1Stats.html#ac24571992ceb4cfeda039a9a76fa14f6">bench::Stats::min_ns</a></div><div class="ttdeci">double min_ns</div><div class="ttdef"><b>Definition</b> <a href="benchmark__harness_8hpp_source.html#l00195">benchmark_harness.hpp:195</a></div></div>
-<div class="ttc" id="astructbench_1_1Stats_html_aedf1035b892277d37e5a8930fe95e630"><div class="ttname"><a href="structbench_1_1Stats.html#aedf1035b892277d37e5a8930fe95e630">bench::Stats::samples</a></div><div class="ttdeci">int samples</div><div class="ttdef"><b>Definition</b> <a href="benchmark__harness_8hpp_source.html#l00200">benchmark_harness.hpp:200</a></div></div>
+<div class="ttc" id="anamespacebench_html_a56f986b338c0faf411236d3277207eb9"><div class="ttname"><a href="namespacebench.html#a56f986b338c0faf411236d3277207eb9">bench::pin_thread_and_elevate</a></div><div class="ttdeci">void pin_thread_and_elevate()</div><div class="ttdef"><b>Definition</b> <a href="benchmark__harness_8hpp_source.html#l00270">benchmark_harness.hpp:270</a></div></div>
+<div class="ttc" id="anamespacebench_html_a915d5c8b45bcd098f6eff6957d64cf26"><div class="ttname"><a href="namespacebench.html#a915d5c8b45bcd098f6eff6957d64cf26">bench::format_ns</a></div><div class="ttdeci">const char * format_ns(double ns, char *buf, std::size_t buflen)</div><div class="ttdef"><b>Definition</b> <a href="benchmark__harness_8hpp_source.html#l00372">benchmark_harness.hpp:372</a></div></div>
+<div class="ttc" id="anamespacebench_html_ad73b74a3a46ae99095f1ce23d2737470"><div class="ttname"><a href="namespacebench.html#ad73b74a3a46ae99095f1ce23d2737470">bench::compute_stats</a></div><div class="ttdeci">Stats compute_stats(std::vector&lt; double &gt; &amp;data)</div><div class="ttdef"><b>Definition</b> <a href="benchmark__harness_8hpp_source.html#l00206">benchmark_harness.hpp:206</a></div></div>
+<div class="ttc" id="astructbench_1_1Stats_html"><div class="ttname"><a href="structbench_1_1Stats.html">bench::Stats</a></div><div class="ttdef"><b>Definition</b> <a href="benchmark__harness_8hpp_source.html#l00195">benchmark_harness.hpp:195</a></div></div>
+<div class="ttc" id="astructbench_1_1Stats_html_a5627931965cb083b1655695e271c980a"><div class="ttname"><a href="structbench_1_1Stats.html#a5627931965cb083b1655695e271c980a">bench::Stats::stddev_ns</a></div><div class="ttdeci">double stddev_ns</div><div class="ttdef"><b>Definition</b> <a href="benchmark__harness_8hpp_source.html#l00200">benchmark_harness.hpp:200</a></div></div>
+<div class="ttc" id="astructbench_1_1Stats_html_a712d66113687b78b260175edf055d0c2"><div class="ttname"><a href="structbench_1_1Stats.html#a712d66113687b78b260175edf055d0c2">bench::Stats::max_ns</a></div><div class="ttdeci">double max_ns</div><div class="ttdef"><b>Definition</b> <a href="benchmark__harness_8hpp_source.html#l00197">benchmark_harness.hpp:197</a></div></div>
+<div class="ttc" id="astructbench_1_1Stats_html_a77fdebbb7965b0b3f51e3cda88f0aba4"><div class="ttname"><a href="structbench_1_1Stats.html#a77fdebbb7965b0b3f51e3cda88f0aba4">bench::Stats::median_ns</a></div><div class="ttdeci">double median_ns</div><div class="ttdef"><b>Definition</b> <a href="benchmark__harness_8hpp_source.html#l00198">benchmark_harness.hpp:198</a></div></div>
+<div class="ttc" id="astructbench_1_1Stats_html_a97ddce2348cf6fcd6d1fb79d1dd154f6"><div class="ttname"><a href="structbench_1_1Stats.html#a97ddce2348cf6fcd6d1fb79d1dd154f6">bench::Stats::outliers</a></div><div class="ttdeci">int outliers</div><div class="ttdef"><b>Definition</b> <a href="benchmark__harness_8hpp_source.html#l00202">benchmark_harness.hpp:202</a></div></div>
+<div class="ttc" id="astructbench_1_1Stats_html_aa9a8a9de794b384f208668eeb50fc468"><div class="ttname"><a href="structbench_1_1Stats.html#aa9a8a9de794b384f208668eeb50fc468">bench::Stats::mean_ns</a></div><div class="ttdeci">double mean_ns</div><div class="ttdef"><b>Definition</b> <a href="benchmark__harness_8hpp_source.html#l00199">benchmark_harness.hpp:199</a></div></div>
+<div class="ttc" id="astructbench_1_1Stats_html_ac24571992ceb4cfeda039a9a76fa14f6"><div class="ttname"><a href="structbench_1_1Stats.html#ac24571992ceb4cfeda039a9a76fa14f6">bench::Stats::min_ns</a></div><div class="ttdeci">double min_ns</div><div class="ttdef"><b>Definition</b> <a href="benchmark__harness_8hpp_source.html#l00196">benchmark_harness.hpp:196</a></div></div>
+<div class="ttc" id="astructbench_1_1Stats_html_aedf1035b892277d37e5a8930fe95e630"><div class="ttname"><a href="structbench_1_1Stats.html#aedf1035b892277d37e5a8930fe95e630">bench::Stats::samples</a></div><div class="ttdeci">int samples</div><div class="ttdef"><b>Definition</b> <a href="benchmark__harness_8hpp_source.html#l00201">benchmark_harness.hpp:201</a></div></div>
 <div class="ttc" id="astructbench_1_1Timer_html"><div class="ttname"><a href="structbench_1_1Timer.html">bench::Timer</a></div><div class="ttdef"><b>Definition</b> <a href="benchmark__harness_8hpp_source.html#l00115">benchmark_harness.hpp:115</a></div></div>
-<div class="ttc" id="astructbench_1_1Timer_html_a11f3fad3ac499da50f149346bd8acf92"><div class="ttname"><a href="structbench_1_1Timer.html#a11f3fad3ac499da50f149346bd8acf92">bench::Timer::timer_name</a></div><div class="ttdeci">static const char * timer_name() noexcept</div><div class="ttdef"><b>Definition</b> <a href="benchmark__harness_8hpp_source.html#l00152">benchmark_harness.hpp:152</a></div></div>
-<div class="ttc" id="astructbench_1_1Timer_html_a9088680bdc572c5d781ae181c445cc89"><div class="ttname"><a href="structbench_1_1Timer.html#a9088680bdc572c5d781ae181c445cc89">bench::Timer::ticks_to_ns</a></div><div class="ttdeci">static double ticks_to_ns(uint64_t ticks) noexcept</div><div class="ttdef"><b>Definition</b> <a href="benchmark__harness_8hpp_source.html#l00139">benchmark_harness.hpp:139</a></div></div>
+<div class="ttc" id="astructbench_1_1Timer_html_a11f3fad3ac499da50f149346bd8acf92"><div class="ttname"><a href="structbench_1_1Timer.html#a11f3fad3ac499da50f149346bd8acf92">bench::Timer::timer_name</a></div><div class="ttdeci">static const char * timer_name() noexcept</div><div class="ttdef"><b>Definition</b> <a href="benchmark__harness_8hpp_source.html#l00153">benchmark_harness.hpp:153</a></div></div>
+<div class="ttc" id="astructbench_1_1Timer_html_a9088680bdc572c5d781ae181c445cc89"><div class="ttname"><a href="structbench_1_1Timer.html#a9088680bdc572c5d781ae181c445cc89">bench::Timer::ticks_to_ns</a></div><div class="ttdeci">static double ticks_to_ns(uint64_t ticks) noexcept</div><div class="ttdef"><b>Definition</b> <a href="benchmark__harness_8hpp_source.html#l00140">benchmark_harness.hpp:140</a></div></div>
 <div class="ttc" id="astructbench_1_1Timer_html_a9aeee552886e3350d32eebbd648880fa"><div class="ttname"><a href="structbench_1_1Timer.html#a9aeee552886e3350d32eebbd648880fa">bench::Timer::now</a></div><div class="ttdeci">static uint64_t now() noexcept</div><div class="ttdef"><b>Definition</b> <a href="benchmark__harness_8hpp_source.html#l00119">benchmark_harness.hpp:119</a></div></div>
 </div><!-- fragment --></div><!-- contents -->
 </div><!-- doc-content -->
