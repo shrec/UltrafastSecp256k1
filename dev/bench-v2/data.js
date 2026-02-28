@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772268901447,
+  "lastUpdate": 1772271825086,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -21863,6 +21863,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Schnorr Sign",
             "value": 24000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 53000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 141,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 132,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "ce059261731cb7f6d58bea16deaaa37f892afcbc",
+          "message": "bench: wire bench_compare harness into build + add docs/scripts/templates\n\n- Add SECP256K1_BUILD_BENCH_COMPARE option to root CMakeLists.txt (OFF by default)\n- Add bench/README.md: comprehensive documentation (quick start, workloads, fairness, CLI, output)\n- Add bench/scripts/{build,run}.{sh,ps1} for one-command build/run on Linux and Windows\n- Add .github/ISSUE_TEMPLATE/benchmark.yml for community benchmark submissions\n- Enable blank issues in .github/ISSUE_TEMPLATE/config.yml\n\nExisting bench/ sources (CMakeLists.txt, providers, main.cpp, headers) unchanged.\n\nVerified: cmake configure + MSBuild Release + smoke test (all correctness gates pass,\nall 5 workloads run for both UltrafastSecp256k1 v3.14.0 and libsecp256k1 v0.6.0).",
+          "timestamp": "2026-02-28T13:42:01+04:00",
+          "tree_id": "195e238b85f61faf2b22de89dd97e7d703794c2a",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/ce059261731cb7f6d58bea16deaaa37f892afcbc"
+        },
+        "date": 1772271823559,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 27,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 22,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 282,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 149,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 38000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 10000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 14000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 47000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 25000,
             "unit": "ns"
           },
           {
