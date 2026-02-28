@@ -13,6 +13,7 @@
 
 #include <cstdio>
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
 #include <array>
 
@@ -46,9 +47,12 @@ static const std::array<uint8_t, 32> P_BYTES = {
 static FieldElement fe_from_hex(const char* hex64) {
     std::array<uint8_t, 32> bytes{};
     for (int i = 0; i < 32; ++i) {
-        unsigned hi = 0, lo = 0;
-        if (sscanf(hex64 + static_cast<std::size_t>(i) * 2, "%1x", &hi) != 1) hi = 0;
-        if (sscanf(hex64 + static_cast<std::size_t>(i) * 2 + 1, "%1x", &lo) != 1) lo = 0;
+        char const h_char = hex64[static_cast<std::size_t>(i) * 2];
+        char const l_char = hex64[static_cast<std::size_t>(i) * 2 + 1];
+        char h_buf[2] = {h_char, '\0'};
+        char l_buf[2] = {l_char, '\0'};
+        unsigned long const hi = std::strtoul(h_buf, nullptr, 16);
+        unsigned long const lo = std::strtoul(l_buf, nullptr, 16);
         bytes[i] = static_cast<uint8_t>((hi << 4) | lo);
     }
     return FieldElement::from_bytes(bytes);

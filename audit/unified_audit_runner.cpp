@@ -432,7 +432,7 @@ static void write_json_report(const char* path,
 #ifdef _WIN32
     FILE* f = std::fopen(path, "w");
 #else
-    int fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    int const fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
     FILE* f = (fd >= 0) ? fdopen(fd, "w") : nullptr;
 #endif
     if (!f) {
@@ -522,7 +522,7 @@ static void write_text_report(const char* path,
 #ifdef _WIN32
     FILE* f = std::fopen(path, "w");
 #else
-    int fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    int const fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
     FILE* f = (fd >= 0) ? fdopen(fd, "w") : nullptr;
 #endif
     if (!f) {
@@ -634,21 +634,29 @@ int main(int argc, char* argv[]) {
     bool json_only = false;
     std::string report_dir = "";
     std::string section_filter = "";  // empty = run all
-    for (int i = 1; i < argc; ++i) {
-        if (std::strcmp(argv[i], "--json-only") == 0) {
-            json_only = true;
-        } else if (std::strcmp(argv[i], "--report-dir") == 0 && i + 1 < argc) {
-            ++i; report_dir = argv[i];
-        } else if (std::strcmp(argv[i], "--section") == 0 && i + 1 < argc) {
-            ++i; section_filter = argv[i];
-        } else if (std::strcmp(argv[i], "--list-sections") == 0) {
-            for (int s = 0; s < NUM_SECTIONS; ++s) {
-                std::printf("%s\n", SECTIONS[s].id);
+    {
+        int i = 1;
+        while (i < argc) {
+            if (std::strcmp(argv[i], "--json-only") == 0) {
+                json_only = true;
+                ++i;
+            } else if (std::strcmp(argv[i], "--report-dir") == 0 && i + 1 < argc) {
+                report_dir = argv[i + 1];
+                i += 2;
+            } else if (std::strcmp(argv[i], "--section") == 0 && i + 1 < argc) {
+                section_filter = argv[i + 1];
+                i += 2;
+            } else if (std::strcmp(argv[i], "--list-sections") == 0) {
+                for (int s = 0; s < NUM_SECTIONS; ++s) {
+                    std::printf("%s\n", SECTIONS[s].id);
+                }
+                return 0;
+            } else if (std::strcmp(argv[i], "--help") == 0 || std::strcmp(argv[i], "-h") == 0) {
+                print_usage();
+                return 0;
+            } else {
+                ++i;
             }
-            return 0;
-        } else if (std::strcmp(argv[i], "--help") == 0 || std::strcmp(argv[i], "-h") == 0) {
-            print_usage();
-            return 0;
         }
     }
     if (report_dir.empty()) {

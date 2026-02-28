@@ -40,15 +40,8 @@ static void check(bool cond, const char* name) {
 static std::array<uint8_t, 32> hex32(const char* hex) {
     std::array<uint8_t, 32> out{};
     for (std::size_t i = 0; i < 32; ++i) {
-        unsigned val = 0;
-#ifdef __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-#endif
-        if (std::sscanf(hex + i * 2, "%02x", &val) != 1) val = 0;
-#ifdef __clang__
-#pragma clang diagnostic pop
-#endif
+        char byte_buf[3] = {hex[i * 2], hex[i * 2 + 1], '\0'};
+        unsigned long const val = std::strtoul(byte_buf, nullptr, 16);
         out[i] = static_cast<uint8_t>(val);
     }
     return out;

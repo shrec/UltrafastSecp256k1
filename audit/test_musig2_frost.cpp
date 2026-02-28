@@ -657,6 +657,7 @@ for (uint32_t j = 0; j < n; ++j) ms.push_back(smatrix[j][i]);
 
         auto [n1, nc1] = secp256k1::frost_sign_nonce_gen(1, random32(rng));
         auto [n2, nc2] = secp256k1::frost_sign_nonce_gen(2, random32(rng));
+        (void)n2;  // only nc2 (nonce commitment) is needed for verification
         std::vector<secp256k1::FrostNonceCommitment> const ncs = {nc1, nc2};
 
         auto ps1 = secp256k1::frost_sign(pkgs[0], n1, msg, ncs);

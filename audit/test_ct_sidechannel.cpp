@@ -77,7 +77,8 @@ static inline uint64_t rdtsc() {
 }
 #elif defined(__x86_64__)
 static inline uint64_t rdtsc() {
-    uint32_t lo = 0, hi = 0;
+    uint32_t lo = 0;
+    uint32_t hi = 0;
     asm volatile("rdtscp" : "=a"(lo), "=d"(hi) :: "ecx");
     return (static_cast<uint64_t>(hi) << 32) | lo;
 }
