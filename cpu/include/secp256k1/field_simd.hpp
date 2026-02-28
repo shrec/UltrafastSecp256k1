@@ -55,7 +55,7 @@ inline bool avx2_available() noexcept {
         __cpuidex(info, 7, 0);
         return (info[1] & (1 << 5)) != 0;  // EBX bit 5 = AVX2
     #elif defined(__GNUC__) || defined(__clang__)
-        unsigned int eax, ebx, ecx, edx;
+        unsigned int eax = 0, ebx = 0, ecx = 0, edx = 0;
         if (__get_cpuid_count(7, 0, &eax, &ebx, &ecx, &edx)) {
             return (ebx & (1 << 5)) != 0;
         }
@@ -74,7 +74,7 @@ inline bool avx512_available() noexcept {
         __cpuidex(info, 7, 0);
         return (info[1] & (1 << 16)) != 0;  // EBX bit 16 = AVX-512F
     #elif defined(__GNUC__) || defined(__clang__)
-        unsigned int eax, ebx, ecx, edx;
+        unsigned int eax = 0, ebx = 0, ecx = 0, edx = 0;
         if (__get_cpuid_count(7, 0, &eax, &ebx, &ecx, &edx)) {
             return (ebx & (1 << 16)) != 0;
         }

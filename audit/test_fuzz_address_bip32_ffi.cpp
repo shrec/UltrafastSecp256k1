@@ -882,6 +882,7 @@ static void suite_13_ffi_error_inspection(ufsecp_ctx* ctx) {
         const char* str = ufsecp_error_str(static_cast<ufsecp_error_t>(code));
         // cppcheck-suppress nullPointerRedundantCheck
         CHECK(str != nullptr, "error_str_not_null");
+        if (str == nullptr) continue;
         // cppcheck-suppress nullPointerRedundantCheck
         CHECK(std::strlen(str) > 0, "error_str_not_empty");
     }

@@ -2941,7 +2941,7 @@ static const uint8_t inv256[128] = {
             if (cond == 0) break;
         }
 
-        int32_t fn = f.v[len - 1], gn = g.v[len - 1];
+        int32_t const fn = f.v[len - 1], gn = g.v[len - 1];
         // cppcheck-suppress shiftTooManyBitsSigned
         int32_t cond = ((int32_t)len - 2) >> 31;
         // cppcheck-suppress shiftTooManyBitsSigned

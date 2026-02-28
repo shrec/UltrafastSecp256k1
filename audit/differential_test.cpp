@@ -372,12 +372,12 @@ int main(int argc, char* argv[]) {
     // Optional multiplier: ./differential_test [multiplier]
     // Or set DIFFERENTIAL_MULTIPLIER env var.
     if (argc > 1) {
-        g_multiplier = std::atoi(argv[1]);
+        g_multiplier = static_cast<int>(std::strtol(argv[1], nullptr, 10));
         if (g_multiplier < 1) g_multiplier = 1;
     } else {
         const char* env = std::getenv("DIFFERENTIAL_MULTIPLIER");
         if (env) {
-            g_multiplier = std::atoi(env);
+            g_multiplier = static_cast<int>(std::strtol(env, nullptr, 10));
             if (g_multiplier < 1) g_multiplier = 1;
         }
     }

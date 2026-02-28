@@ -36,6 +36,9 @@
 #else
 #include <unistd.h>
 #include <sys/utsname.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #endif
 
 // Library version (injected by CMake from VERSION.txt)
@@ -336,7 +339,13 @@ static PlatformInfo detect_platform() {
     auto now = std::chrono::system_clock::now();
     auto t = std::chrono::system_clock::to_time_t(now);
     char timebuf[64];
-    (void)std::strftime(timebuf, sizeof(timebuf), "%Y-%m-%dT%H:%M:%S", std::localtime(&t));
+    struct tm tm_buf{};
+#ifdef _WIN32
+    (void)localtime_s(&tm_buf, &t);
+#else
+    (void)localtime_r(&t, &tm_buf);
+#endif
+    (void)std::strftime(timebuf, sizeof(timebuf), "%Y-%m-%dT%H:%M:%S", &tm_buf);
     info.timestamp = timebuf;
 
     // -- Version / git / framework --
@@ -420,7 +429,12 @@ static void write_json_report(const char* path,
                                bool selftest_passed,
                                double selftest_ms,
                                double total_ms) {
+#ifdef _WIN32
     FILE* f = std::fopen(path, "w");
+#else
+    int fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    FILE* f = (fd >= 0) ? fdopen(fd, "w") : nullptr;
+#endif
     if (!f) {
         (void)std::fprintf(stderr, "WARNING: Cannot open %s for writing\n", path);
         return;
@@ -505,7 +519,12 @@ static void write_text_report(const char* path,
                                bool selftest_passed,
                                double selftest_ms,
                                double total_ms) {
+#ifdef _WIN32
     FILE* f = std::fopen(path, "w");
+#else
+    int fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    FILE* f = (fd >= 0) ? fdopen(fd, "w") : nullptr;
+#endif
     if (!f) {
         (void)std::fprintf(stderr, "WARNING: Cannot open %s for writing\n", path);
         return;
@@ -559,17 +578,17 @@ static void write_text_report(const char* path,
     }
 
     // -- Grand total ---
-    std::fprintf(f, "================================================================\n");
-    std::fprintf(f, "  AUDIT VERDICT: %s\n",
+    (void)std::fprintf(f, "================================================================\n");
+    (void)std::fprintf(f, "  AUDIT VERDICT: %s\n",
                  (total_fail == 0) ? "AUDIT-READY (ALL PASSED)" : "AUDIT-BLOCKED (FAILURES DETECTED)");
-    std::fprintf(f, "  TOTAL: %d/%d modules passed  (%.1f s)\n",
+    (void)std::fprintf(f, "  TOTAL: %d/%d modules passed  (%.1f s)\n",
                  total_pass, total_pass + total_fail, total_ms / 1000.0);
-    std::fprintf(f, "  Platform: %s %s | %s | %s\n",
+    (void)std::fprintf(f, "  Platform: %s %s | %s | %s\n",
                  plat.os.c_str(), plat.arch.c_str(),
                  plat.compiler.c_str(), plat.build_type.c_str());
-    std::fprintf(f, "================================================================\n");
+    (void)std::fprintf(f, "================================================================\n");
 
-    std::fclose(f);
+    (void)std::fclose(f);
 }
 
 // ============================================================================
@@ -584,10 +603,10 @@ static std::string get_exe_dir() {
     return (pos != std::string::npos) ? path.substr(0, pos) : ".";
 #else
     char buf[4096] = {};
-    ssize_t len = readlink("/proc/self/exe", buf, sizeof(buf) - 1);
+    ssize_t const len = readlink("/proc/self/exe", buf, sizeof(buf) - 1);
     if (len <= 0) return ".";
     buf[len] = '\0';
-    std::string path(buf);
+    std::string const path(buf);
     auto pos = path.find_last_of('/');
     return (pos != std::string::npos) ? path.substr(0, pos) : ".";
 #endif
@@ -619,9 +638,9 @@ int main(int argc, char* argv[]) {
         if (std::strcmp(argv[i], "--json-only") == 0) {
             json_only = true;
         } else if (std::strcmp(argv[i], "--report-dir") == 0 && i + 1 < argc) {
-            report_dir = argv[++i];
+            ++i; report_dir = argv[i];
         } else if (std::strcmp(argv[i], "--section") == 0 && i + 1 < argc) {
-            section_filter = argv[++i];
+            ++i; section_filter = argv[i];
         } else if (std::strcmp(argv[i], "--list-sections") == 0) {
             for (int s = 0; s < NUM_SECTIONS; ++s) {
                 std::printf("%s\n", SECTIONS[s].id);

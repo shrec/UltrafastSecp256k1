@@ -297,6 +297,7 @@ static void test_recovery_edges() {
         auto rsig = secp256k1::ecdsa_sign_recoverable(msg, sk);
         // recid 4 should fail
         auto [_, fail] = secp256k1::ecdsa_recover(msg, rsig.sig, 4);
+        (void)_;
         CHECK(!fail, "recid=4 fails");
     }
 
@@ -346,6 +347,7 @@ static void test_random_op_sequence() {
             }
             break;
         }
+        default: break;
         }
     }
 

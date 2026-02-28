@@ -74,7 +74,7 @@ public:
         // buf_len_ is invariantly [0,63] after update() processes full blocks.
         // Explicit bounds check satisfies static analysis (Sonar cpp:S3519).
         if (buf_len_ >= 64) buf_len_ = 0;
-        std::size_t pos = buf_len_;   // capture index before increment
+        std::size_t const pos = buf_len_;   // capture index before increment
         buf_len_ = pos + 1;           // new length [1, 64]
         buf_[pos] = 0x80;             // write at [0, 63] -- always in bounds
 

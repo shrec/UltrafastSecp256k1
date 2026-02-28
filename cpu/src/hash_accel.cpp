@@ -61,7 +61,7 @@ static struct CpuFeatures {
         avx2   = (info[1] & (1 << 5))  != 0;
         avx512 = (info[1] & (1 << 16)) != 0;
     #elif defined(__GNUC__) || defined(__clang__)
-        unsigned int eax, ebx, ecx, edx;
+        unsigned int eax = 0, ebx = 0, ecx = 0, edx = 0;
         if (__get_cpuid_count(7, 0, &eax, &ebx, &ecx, &edx)) {
             sha_ni = (ebx & (1 << 29)) != 0;
             avx2   = (ebx & (1 << 5))  != 0;

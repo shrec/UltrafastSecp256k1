@@ -46,8 +46,8 @@ static void test_batch_add() {
     FieldElement a[N], b[N], out[N], expected[N];
 
     for (int i = 0; i < N; ++i) {
-        a[i] = FieldElement::from_uint64(static_cast<uint64_t>(100 + i));
-        b[i] = FieldElement::from_uint64(static_cast<uint64_t>(200 + i));
+        a[i] = FieldElement::from_uint64(static_cast<uint64_t>(i) + 100);
+        b[i] = FieldElement::from_uint64(static_cast<uint64_t>(i) + 200);
         expected[i] = a[i] + b[i];
     }
 
@@ -70,8 +70,8 @@ static void test_batch_sub() {
     FieldElement a[N], b[N], out[N], expected[N];
 
     for (int i = 0; i < N; ++i) {
-        a[i] = FieldElement::from_uint64(static_cast<uint64_t>(1000 + i));
-        b[i] = FieldElement::from_uint64(static_cast<uint64_t>(500 + i));
+        a[i] = FieldElement::from_uint64(static_cast<uint64_t>(i) + 1000);
+        b[i] = FieldElement::from_uint64(static_cast<uint64_t>(i) + 500);
         expected[i] = a[i] - b[i];
     }
 
@@ -94,8 +94,8 @@ static void test_batch_mul() {
     FieldElement a[N], b[N], out[N], expected[N];
 
     for (int i = 0; i < N; ++i) {
-        a[i] = FieldElement::from_uint64(static_cast<uint64_t>(7 + i * 3));
-        b[i] = FieldElement::from_uint64(static_cast<uint64_t>(11 + i * 5));
+        a[i] = FieldElement::from_uint64(static_cast<uint64_t>(i) * 3 + 7);
+        b[i] = FieldElement::from_uint64(static_cast<uint64_t>(i) * 5 + 11);
         expected[i] = a[i] * b[i];
     }
 
@@ -118,7 +118,7 @@ static void test_batch_sqr() {
     FieldElement a[N], out[N], expected[N];
 
     for (int i = 0; i < N; ++i) {
-        a[i] = FieldElement::from_uint64(static_cast<uint64_t>(13 + i * 7));
+        a[i] = FieldElement::from_uint64(static_cast<uint64_t>(i) * 7 + 13);
         expected[i] = a[i].square();
     }
 
@@ -141,7 +141,7 @@ static void test_batch_inv() {
     FieldElement a[N], out[N];
 
     for (int i = 0; i < N; ++i) {
-        a[i] = FieldElement::from_uint64(static_cast<uint64_t>(3 + i * 2));
+        a[i] = FieldElement::from_uint64(static_cast<uint64_t>(i) * 2 + 3);
     }
 
     simd::batch_field_inv(out, a, N);
@@ -180,7 +180,7 @@ static void test_batch_inv_with_scratch() {
     FieldElement a[N], out[N], scratch[N];
 
     for (int i = 0; i < N; ++i) {
-        a[i] = FieldElement::from_uint64(static_cast<uint64_t>(17 + i * 11));
+        a[i] = FieldElement::from_uint64(static_cast<uint64_t>(i) * 11 + 17);
     }
 
     simd::batch_field_inv(out, a, N, scratch);

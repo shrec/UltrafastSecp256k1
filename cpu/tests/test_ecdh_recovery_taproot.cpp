@@ -45,7 +45,7 @@ static std::array<uint8_t, 32> hex32(const char* hex) {
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
 #endif
-        (void)std::sscanf(hex + i * 2, "%02x", &val);
+        if (std::sscanf(hex + i * 2, "%02x", &val) != 1) val = 0;
 #ifdef __clang__
 #pragma clang diagnostic pop
 #endif

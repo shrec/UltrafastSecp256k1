@@ -122,7 +122,7 @@ struct Timer {
         unsigned int aux = 0;
         return __rdtscp(&aux);
 #  else
-        uint32_t lo, hi;
+        uint32_t lo = 0, hi = 0;
         // RDTSCP serializes instruction stream and reads TSC
         asm volatile("rdtscp" : "=a"(lo), "=d"(hi) : : "%ecx");
         return (static_cast<uint64_t>(hi) << 32) | lo;

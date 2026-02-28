@@ -488,7 +488,8 @@ for (uint32_t i = 0; i < threshold; ++i) {
         // Ensure we're using even-Y version for BIP-340
         auto gpk_y = key_packages[0].group_public_key.y().to_bytes();
         if (gpk_y[31] & 1) {
-            // Negate -- but x stays the same for x-only
+            // x-only Schnorr: x stays the same regardless of Y parity
+            (void)0;
         }
         bool const ok = secp256k1::schnorr_verify(gpk_x, msg, final_sig);
         CHECK(ok, "FROST aggregated sig passes schnorr_verify");
@@ -507,7 +508,7 @@ static void test_frost_different_subsets() {
 
     for (int round = 0; round < ROUNDS; ++round) {
         // DKG: 2-of-3
-        uint32_t threshold = 2, n_parts = 3;
+        uint32_t const threshold = 2, n_parts = 3;
         std::vector<secp256k1::FrostCommitment> all_commitments;
         std::vector<std::vector<secp256k1::FrostShare>> share_matrix;
 
@@ -539,7 +540,7 @@ for (uint32_t j = 0; j < n_parts; ++j) {
         // Try all 3 possible 2-signer subsets: {1,2}, {1,3}, {2,3}
         uint32_t const subsets[][2] = {{0,1}, {0,2}, {1,2}};
         for (int s = 0; s < 3; ++s) {
-            uint32_t a = subsets[s][0], b = subsets[s][1];
+            uint32_t const a = subsets[s][0], b = subsets[s][1];
 
             // Nonces
             auto seed_a = random32(rng);
@@ -577,7 +578,7 @@ static void test_frost_bitflip() {
 
     for (int round = 0; round < N; ++round) {
         // Quick 2-of-3 DKG
-        uint32_t t = 2, n = 3;
+        uint32_t const t = 2, n = 3;
         std::vector<secp256k1::FrostCommitment> comms;
         std::vector<std::vector<secp256k1::FrostShare>> smatrix;
         for (uint32_t i = 0; i < n; ++i) {
@@ -592,6 +593,7 @@ static void test_frost_bitflip() {
             ms.reserve(n);
 for (uint32_t j = 0; j < n; ++j) ms.push_back(smatrix[j][i]);
             auto [pkg, ok] = secp256k1::frost_keygen_finalize(i+1, comms, ms, t, n);
+            (void)ok;
             pkgs.push_back(pkg);
         }
 
@@ -602,6 +604,7 @@ for (uint32_t j = 0; j < n; ++j) ms.push_back(smatrix[j][i]);
         // Sign with signers 1,2
         auto [n1, nc1] = secp256k1::frost_sign_nonce_gen(1, random32(rng));
         auto [n2, nc2] = secp256k1::frost_sign_nonce_gen(2, random32(rng));
+        (void)n2;
         std::vector<secp256k1::FrostNonceCommitment> const ncs = {nc1, nc2};
         auto ps1 = secp256k1::frost_sign(pkgs[0], n1, msg, ncs);
         auto ps2 = secp256k1::frost_sign(pkgs[1], n2, msg, ncs);
@@ -630,7 +633,7 @@ static void test_frost_wrong_partial() {
     const int N = 10;
 
     for (int round = 0; round < N; ++round) {
-        uint32_t t = 2, n = 3;
+        uint32_t const t = 2, n = 3;
         std::vector<secp256k1::FrostCommitment> comms;
         std::vector<std::vector<secp256k1::FrostShare>> smatrix;
         for (uint32_t i = 0; i < n; ++i) {
@@ -645,6 +648,7 @@ static void test_frost_wrong_partial() {
             ms.reserve(n);
 for (uint32_t j = 0; j < n; ++j) ms.push_back(smatrix[j][i]);
             auto [pkg, ok] = secp256k1::frost_keygen_finalize(i+1, comms, ms, t, n);
+            (void)ok;
             pkgs.push_back(pkg);
         }
 

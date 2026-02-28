@@ -77,7 +77,7 @@ static inline uint64_t rdtsc() {
 }
 #elif defined(__x86_64__)
 static inline uint64_t rdtsc() {
-    uint32_t lo, hi;
+    uint32_t lo = 0, hi = 0;
     asm volatile("rdtscp" : "=a"(lo), "=d"(hi) :: "ecx");
     return (static_cast<uint64_t>(hi) << 32) | lo;
 }
@@ -211,6 +211,7 @@ static void test_ct_primitives() {
         WelchState ws;
         for (int i = 0; i < N; ++i) {
             int const cls = classes[i];
+            // NOLINTNEXTLINE(misc-const-correctness) -- modified by BARRIER_OPAQUE
             uint64_t val = inputs[cls][i];
 
             BARRIER_OPAQUE(val);
@@ -244,6 +245,7 @@ static void test_ct_primitives() {
         WelchState ws;
         for (int i = 0; i < N; ++i) {
             int const cls = classes[i];
+            // NOLINTNEXTLINE(misc-const-correctness) -- modified by BARRIER_OPAQUE
             bool flag = inputs[cls][i];
 
             BARRIER_OPAQUE(flag);
@@ -279,6 +281,7 @@ static void test_ct_primitives() {
         WelchState ws;
         for (int i = 0; i < N; ++i) {
             int const cls = classes[i];
+            // NOLINTNEXTLINE(misc-const-correctness) -- modified by BARRIER_OPAQUE
             uint64_t mask = masks[cls][i];
 
             BARRIER_OPAQUE(mask);
@@ -312,6 +315,7 @@ static void test_ct_primitives() {
         WelchState ws;
         for (int i = 0; i < N; ++i) {
             int const cls = classes[i];
+            // NOLINTNEXTLINE(misc-const-correctness) -- modified by BARRIER_OPAQUE
             uint64_t mask = masks[cls][i];
 
             BARRIER_OPAQUE(mask);
@@ -349,6 +353,7 @@ static void test_ct_primitives() {
         WelchState ws;
         for (int i = 0; i < N; ++i) {
             int const cls = classes[i];
+            // NOLINTNEXTLINE(misc-const-correctness) -- modified by BARRIER_OPAQUE
             size_t idx = indices[cls][i];
 
             BARRIER_OPAQUE(idx);
@@ -557,6 +562,7 @@ static void test_ct_field() {
         WelchState ws;
         for (int i = 0; i < N; ++i) {
             int const cls = classes[i];
+            // NOLINTNEXTLINE(misc-const-correctness) -- modified by BARRIER_OPAQUE
             uint64_t mask = masks[cls];
             auto dst = fe_base[i];
             auto src = fe_input[i].v[1];
@@ -693,6 +699,7 @@ static void test_ct_scalar() {
         WelchState ws;
         for (int i = 0; i < N; ++i) {
             int const cls = classes[i];
+            // NOLINTNEXTLINE(misc-const-correctness) -- modified by BARRIER_OPAQUE
             uint64_t mask = masks[cls];
             auto dst = sc_base[i];
             auto src = sc_input[i].v[1];
@@ -792,6 +799,7 @@ static void test_ct_scalar() {
         WelchState ws;
         for (int i = 0; i < N; ++i) {
             int const cls = classes[i];
+            // NOLINTNEXTLINE(misc-const-correctness) -- modified by BARRIER_OPAQUE
             size_t pos = positions[cls][i];
 
             BARRIER_OPAQUE(pos);
@@ -1057,6 +1065,7 @@ static void test_ct_point() {
         WelchState ws;
         for (int i = 0; i < N; ++i) {
             int const cls = classes[i];
+            // NOLINTNEXTLINE(misc-const-correctness) -- modified by BARRIER_OPAQUE
             size_t idx = indices[cls][i];
 
             BARRIER_OPAQUE(idx);

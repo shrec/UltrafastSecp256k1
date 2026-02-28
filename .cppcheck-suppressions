@@ -1,0 +1,27 @@
+// Cppcheck suppressions for known false-positives
+// Referenced by .github/workflows/cppcheck.yml via --suppressions-list
+
+// sha512.hpp: cppcheck cannot track pointer bounds through function calls.
+// update(&pad, 1) and compress(buf_) pass valid pointers to stack variables.
+objectIndex:*sha512.hpp
+
+// field.cpp: FieldElement is intentionally passed by value in Montgomery
+// arithmetic for aliasing safety in crypto hot paths.
+passedByValue:*field.cpp
+
+// field.cpp: cppcheck cannot verify dynamic bounds in field arithmetic;
+// all array accesses are within allocated fixed-size arrays.
+containerOutOfBounds:*field.cpp
+
+// context.hpp: loop index is bounded by sizeof(ctx.name) - 1.
+arrayIndexOutOfBoundsCond:*context.hpp
+
+// field_26.cpp: result objects are immediately filled by fe26_mul_inner /
+// fe26_sqr_inner before any read. cppcheck cannot model output parameters.
+uninitvar:*field_26.cpp
+
+// field_asm.cpp: FieldElement out is immediately overwritten by memcpy.
+uninitvar:*field_asm.cpp
+
+// precompute.cpp: intentional pass-by-value for FieldElement.
+passedByValue:*precompute.cpp

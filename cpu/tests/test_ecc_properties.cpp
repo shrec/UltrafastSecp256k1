@@ -149,10 +149,10 @@ static void test_commutativity() {
         Point const QP = Q.add(P);
         char buf[64];
         (void)std::snprintf(buf, sizeof(buf), "P_%llu + Q_%llu == Q_%llu + P_%llu",
-                      static_cast<unsigned long long>(i * 2),
-                      static_cast<unsigned long long>(i * 2 + 1),
-                      static_cast<unsigned long long>(i * 2 + 1),
-                      static_cast<unsigned long long>(i * 2));
+                      static_cast<unsigned long long>(i) * 2,
+                      static_cast<unsigned long long>(i) * 2 + 1,
+                      static_cast<unsigned long long>(i) * 2 + 1,
+                      static_cast<unsigned long long>(i) * 2);
         CHECK(points_equal(PQ, QP), buf);
     }
 }
@@ -170,12 +170,12 @@ static void test_associativity() {
 
         char buf[80];
         (void)std::snprintf(buf, sizeof(buf), "(P_%llu + Q_%llu) + R_%llu == P_%llu + (Q_%llu + R_%llu)",
-                      static_cast<unsigned long long>(i * 3),
-                      static_cast<unsigned long long>(i * 3 + 1),
-                      static_cast<unsigned long long>(i * 3 + 2),
-                      static_cast<unsigned long long>(i * 3),
-                      static_cast<unsigned long long>(i * 3 + 1),
-                      static_cast<unsigned long long>(i * 3 + 2));
+                      static_cast<unsigned long long>(i) * 3,
+                      static_cast<unsigned long long>(i) * 3 + 1,
+                      static_cast<unsigned long long>(i) * 3 + 2,
+                      static_cast<unsigned long long>(i) * 3,
+                      static_cast<unsigned long long>(i) * 3 + 1,
+                      static_cast<unsigned long long>(i) * 3 + 2);
         CHECK(points_equal(lhs, rhs), buf);
     }
 }
@@ -212,10 +212,10 @@ static void test_scalar_ring_distributivity() {
 
         char buf[64];
         (void)std::snprintf(buf, sizeof(buf), "(a_%llu + b_%llu)*G == a_%llu*G + b_%llu*G",
-                      static_cast<unsigned long long>(i * 2),
-                      static_cast<unsigned long long>(i * 2 + 1),
-                      static_cast<unsigned long long>(i * 2),
-                      static_cast<unsigned long long>(i * 2 + 1));
+                      static_cast<unsigned long long>(i) * 2,
+                      static_cast<unsigned long long>(i) * 2 + 1,
+                      static_cast<unsigned long long>(i) * 2,
+                      static_cast<unsigned long long>(i) * 2 + 1);
         CHECK(points_equal(lhs, rhs), buf);
     }
 }
@@ -235,10 +235,10 @@ static void test_scalar_mul_associativity() {
 
         char buf[64];
         (void)std::snprintf(buf, sizeof(buf), "(a_%llu * b_%llu)*G == a_%llu * (b_%llu * G)",
-                      static_cast<unsigned long long>(i * 2),
-                      static_cast<unsigned long long>(i * 2 + 1),
-                      static_cast<unsigned long long>(i * 2),
-                      static_cast<unsigned long long>(i * 2 + 1));
+                      static_cast<unsigned long long>(i) * 2,
+                      static_cast<unsigned long long>(i) * 2 + 1,
+                      static_cast<unsigned long long>(i) * 2,
+                      static_cast<unsigned long long>(i) * 2 + 1);
         CHECK(points_equal(lhs, rhs), buf);
     }
 }
@@ -257,12 +257,12 @@ static void test_distributivity() {
         char buf[64];
         (void)std::snprintf(buf, sizeof(buf), "k_%llu * (P_%llu + Q_%llu) == k_%llu*P_%llu + k_%llu*Q_%llu",
                       static_cast<unsigned long long>(i),
-                      static_cast<unsigned long long>(i * 2),
-                      static_cast<unsigned long long>(i * 2 + 1),
+                      static_cast<unsigned long long>(i) * 2,
+                      static_cast<unsigned long long>(i) * 2 + 1,
                       static_cast<unsigned long long>(i),
-                      static_cast<unsigned long long>(i * 2),
+                      static_cast<unsigned long long>(i) * 2,
                       static_cast<unsigned long long>(i),
-                      static_cast<unsigned long long>(i * 2 + 1));
+                      static_cast<unsigned long long>(i) * 2 + 1);
         CHECK(points_equal(lhs, rhs), buf);
     }
 }
@@ -308,10 +308,10 @@ static void test_sub_consistency() {
         // We just verify the negate path is consistent
         char buf[64];
         (void)std::snprintf(buf, sizeof(buf), "P_%llu - Q_%llu == P_%llu + (-Q_%llu)",
-                      static_cast<unsigned long long>(i * 2),
-                      static_cast<unsigned long long>(i * 2 + 1),
-                      static_cast<unsigned long long>(i * 2),
-                      static_cast<unsigned long long>(i * 2 + 1));
+                      static_cast<unsigned long long>(i) * 2,
+                      static_cast<unsigned long long>(i) * 2 + 1,
+                      static_cast<unsigned long long>(i) * 2,
+                      static_cast<unsigned long long>(i) * 2 + 1);
 
         // Verify: (P - Q) + Q == P
         Point const roundtrip = via_negate.add(Q);
