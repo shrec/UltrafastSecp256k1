@@ -229,7 +229,7 @@ $(document).ready(function(){initNavTree('benchmark__harness_8hpp_source.html','
 <div class="line"><a id="l00122" name="l00122"></a><span class="lineno">  122</span>        <span class="keywordtype">unsigned</span> <span class="keywordtype">int</span> aux = 0;</div>
 <div class="line"><a id="l00123" name="l00123"></a><span class="lineno">  123</span>        <span class="keywordflow">return</span> __rdtscp(&amp;aux);</div>
 <div class="line"><a id="l00124" name="l00124"></a><span class="lineno">  124</span><span class="preprocessor">#  else</span></div>
-<div class="line"><a id="l00125" name="l00125"></a><span class="lineno">  125</span>        uint32_t lo, hi;</div>
+<div class="line"><a id="l00125" name="l00125"></a><span class="lineno">  125</span>        uint32_t lo = 0, hi = 0;</div>
 <div class="line"><a id="l00126" name="l00126"></a><span class="lineno">  126</span>        <span class="comment">// RDTSCP serializes instruction stream and reads TSC</span></div>
 <div class="line"><a id="l00127" name="l00127"></a><span class="lineno">  127</span>        <span class="keyword">asm</span> <span class="keyword">volatile</span>(<span class="stringliteral">&quot;rdtscp&quot;</span> : <span class="stringliteral">&quot;=a&quot;</span>(lo), <span class="stringliteral">&quot;=d&quot;</span>(hi) : : <span class="stringliteral">&quot;%ecx&quot;</span>);</div>
 <div class="line"><a id="l00128" name="l00128"></a><span class="lineno">  128</span>        <span class="keywordflow">return</span> (<span class="keyword">static_cast&lt;</span>uint64_t<span class="keyword">&gt;</span>(hi) &lt;&lt; 32) | lo;</div>

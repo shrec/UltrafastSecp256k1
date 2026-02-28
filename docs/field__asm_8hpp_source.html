@@ -217,7 +217,7 @@ $(document).ready(function(){initNavTree('field__asm_8hpp_source.html',''); init
 <div class="line"><a id="l00115" name="l00115"></a><span class="lineno">  115</span><span class="preprocessor">    #elif defined(__GNUC__) || defined(__clang__)</span></div>
 <div class="line"><a id="l00116" name="l00116"></a><span class="lineno">  116</span><span class="preprocessor">        #if defined(__BMI2__)</span></div>
 <div class="line"><a id="l00117" name="l00117"></a><span class="lineno">  117</span>            <span class="comment">// GCC/Clang intrinsic with BMI2</span></div>
-<div class="line"><a id="l00118" name="l00118"></a><span class="lineno">  118</span>            lo = _mulx_u64(a, b, (<span class="keywordtype">unsigned</span> <span class="keywordtype">long</span> <span class="keywordtype">long</span>*)&amp;hi);</div>
+<div class="line"><a id="l00118" name="l00118"></a><span class="lineno">  118</span>            lo = _mulx_u64(a, b, <span class="keyword">reinterpret_cast&lt;</span><span class="keywordtype">unsigned</span> <span class="keywordtype">long</span> <span class="keywordtype">long</span>*<span class="keyword">&gt;</span>(&amp;hi));</div>
 <div class="line"><a id="l00119" name="l00119"></a><span class="lineno">  119</span><span class="preprocessor">        #else</span></div>
 <div class="line"><a id="l00120" name="l00120"></a><span class="lineno">  120</span>            <span class="comment">// GCC/Clang fallback</span></div>
 <div class="line"><a id="l00121" name="l00121"></a><span class="lineno">  121</span><span class="preprocessor">            #ifdef SECP256K1_NO_INT128</span></div>
@@ -274,7 +274,7 @@ $(document).ready(function(){initNavTree('field__asm_8hpp_source.html',''); init
 <div class="line"><a id="l00171" name="l00171"></a><span class="lineno">  171</span>        <span class="keywordflow">return</span> _addcarry_u64(carry, a, b, <span class="keyword">reinterpret_cast&lt;</span><span class="keywordtype">unsigned</span> <span class="keywordtype">long</span> <span class="keywordtype">long</span>*<span class="keyword">&gt;</span>(&amp;result));</div>
 <div class="line"><a id="l00172" name="l00172"></a><span class="lineno">  172</span><span class="preprocessor">    #else</span></div>
 <div class="line"><a id="l00173" name="l00173"></a><span class="lineno">  173</span>        <span class="comment">// GCC/Clang intrinsic (_addcarry_u64 in x86intrin.h/immintrin.h)</span></div>
-<div class="line"><a id="l00174" name="l00174"></a><span class="lineno">  174</span>        <span class="keywordflow">return</span> _addcarry_u64(carry, a, b, (<span class="keywordtype">unsigned</span> <span class="keywordtype">long</span> <span class="keywordtype">long</span>*)&amp;result);</div>
+<div class="line"><a id="l00174" name="l00174"></a><span class="lineno">  174</span>        <span class="keywordflow">return</span> _addcarry_u64(carry, a, b, <span class="keyword">reinterpret_cast&lt;</span><span class="keywordtype">unsigned</span> <span class="keywordtype">long</span> <span class="keywordtype">long</span>*<span class="keyword">&gt;</span>(&amp;result));</div>
 <div class="line"><a id="l00175" name="l00175"></a><span class="lineno">  175</span><span class="preprocessor">    #endif</span></div>
 <div class="line"><a id="l00176" name="l00176"></a><span class="lineno">  176</span>}</div>
 <div class="line"><a id="l00177" name="l00177"></a><span class="lineno">  177</span><span class="preprocessor">#else</span></div>

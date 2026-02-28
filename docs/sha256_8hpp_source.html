@@ -182,7 +182,7 @@ $(document).ready(function(){initNavTree('sha256_8hpp_source.html',''); initResi
 <div class="line"><a id="l00074" name="l00074"></a><span class="lineno">   74</span>        <span class="comment">// buf_len_ is invariantly [0,63] after update() processes full blocks.</span></div>
 <div class="line"><a id="l00075" name="l00075"></a><span class="lineno">   75</span>        <span class="comment">// Explicit bounds check satisfies static analysis (Sonar cpp:S3519).</span></div>
 <div class="line"><a id="l00076" name="l00076"></a><span class="lineno">   76</span>        <span class="keywordflow">if</span> (buf_len_ &gt;= 64) buf_len_ = 0;</div>
-<div class="line"><a id="l00077" name="l00077"></a><span class="lineno">   77</span>        std::size_t pos = buf_len_;   <span class="comment">// capture index before increment</span></div>
+<div class="line"><a id="l00077" name="l00077"></a><span class="lineno">   77</span>        std::size_t <span class="keyword">const</span> pos = buf_len_;   <span class="comment">// capture index before increment</span></div>
 <div class="line"><a id="l00078" name="l00078"></a><span class="lineno">   78</span>        buf_len_ = pos + 1;           <span class="comment">// new length [1, 64]</span></div>
 <div class="line"><a id="l00079" name="l00079"></a><span class="lineno">   79</span>        buf_[pos] = 0x80;             <span class="comment">// write at [0, 63] -- always in bounds</span></div>
 <div class="line"><a id="l00080" name="l00080"></a><span class="lineno">   80</span> </div>
