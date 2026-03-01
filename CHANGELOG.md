@@ -5,7 +5,7 @@ All notable changes to UltrafastSecp256k1 are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [3.15.2] - 2026-03-01
+## [3.15.3] - 2026-03-01
 
 ### Fixed -- Code Quality (136 code scanning alerts resolved)
 - **bench_hornet.cpp** -- 73 fixes: const-correctness, braces, cert-err33-c, modernize-use-auto, implicit-widening, reserved-identifier, init-variables
