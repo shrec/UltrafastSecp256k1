@@ -25,7 +25,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.15.0</span>
+   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.16.0</span>
    </div>
    <div id="projectbrief">Ultra high-performance secp256k1 elliptic curve cryptography library</div>
   </td>
@@ -157,7 +157,11 @@ Tier 2 – Experimental (no ABI promise)</h1>
 <td class="markdownTableBodyNone">GPU batch operations   </td><td class="markdownTableBodyNone">Separate library, no C ABI promise   </td></tr>
 </table>
 <p>These will graduate to Tier 1 once their API surface is frozen and a test harness covers all edge cases.</p>
-<hr  />
+<blockquote class="doxtable">
+<p>&zwj;<b>MuSig2 and FROST</b>: These multi-party protocols have complex security models (rogue-key attacks, nonce reuse, abort handling) that go beyond standard single-signer ECDSA/Schnorr. <b>Independent external security review is required before production deployment.</b> The self-audit suite covers functional correctness and known-answer tests, but does not substitute for a protocol-level cryptographic review. </p>
+</blockquote>
+<h1><a class="anchor" id="autotoc_md7"></a>
+&lt;/blockquote&gt;</h1>
 <h1><a class="anchor" id="autotoc_md8"></a>
 Tier 3 – Internal (never exposed)</h1>
 <ul>

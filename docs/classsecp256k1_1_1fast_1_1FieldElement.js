@@ -24,6 +24,8 @@ var classsecp256k1_1_1fast_1_1FieldElement =
     [ "operator-", "classsecp256k1_1_1fast_1_1FieldElement.html#ac358f67b6dade36b92ca3cd3807e32d5", null ],
     [ "operator-=", "classsecp256k1_1_1fast_1_1FieldElement.html#a6d7bc730553a64babff7898173ed222d", null ],
     [ "operator==", "classsecp256k1_1_1fast_1_1FieldElement.html#a5760a20c72ac845240f4695d35e7cf78", null ],
+    [ "parse_bytes_strict", "classsecp256k1_1_1fast_1_1FieldElement.html#ad0533b078f157d726c1fd1573dca329f", null ],
+    [ "parse_bytes_strict", "classsecp256k1_1_1fast_1_1FieldElement.html#a3a1a9ac9368da1c0f2827465f79cad6f", null ],
     [ "sqrt", "classsecp256k1_1_1fast_1_1FieldElement.html#af90b8917ee194393974764e04fd14ec2", null ],
     [ "square", "classsecp256k1_1_1fast_1_1FieldElement.html#a2a0ace299feb8784be069c602ba788ca", null ],
     [ "square_inplace", "classsecp256k1_1_1fast_1_1FieldElement.html#a4b0fc4a1d1e3aad26f5fad6c14c901ef", null ],

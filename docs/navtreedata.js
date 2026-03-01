@@ -32,6 +32,7 @@ var NAVTREE =
         [ "Memory", "md_include_2ufsecp_2SUPPORTED__GUARANTEES.html#autotoc_md4", null ]
       ] ],
       [ "Tier 2 – Experimental (no ABI promise)", "md_include_2ufsecp_2SUPPORTED__GUARANTEES.html#autotoc_md6", null ],
+      [ "</blockquote>", "md_include_2ufsecp_2SUPPORTED__GUARANTEES.html#autotoc_md7", null ],
       [ "Tier 3 – Internal (never exposed)", "md_include_2ufsecp_2SUPPORTED__GUARANTEES.html#autotoc_md8", null ],
       [ "Constant-Time Architecture (Dual-Layer Model)", "md_include_2ufsecp_2SUPPORTED__GUARANTEES.html#autotoc_md10", [
         [ "Verification tools", "md_include_2ufsecp_2SUPPORTED__GUARANTEES.html#autotoc_md11", null ]
@@ -75,16 +76,16 @@ var NAVTREE =
 var NAVTREEINDEX =
 [
 "UltrafastSecp256k1_8hpp.html",
-"classsecp256k1_1_1fast_1_1Point.html#a8367250e42eff7658dbe1357529e50de",
-"ct__utils_8hpp_source.html",
-"functions_func_t.html",
-"namespacemembers_func_t.html",
-"namespacesecp256k1_1_1ct.html#abd47420826338d6cd6cd495c2d5d57fb",
-"namespacesecp256k1_1_1hash_1_1scalar.html#a32b9ee0ad802a167605efa0e10d3a1d3",
-"structsecp256k1_1_1CurveContext.html#af2dc1a529517a0d76871b03fc049811d",
-"structsecp256k1_1_1WIFDecodeResult.html#acce7e81686cddff3bcd3cd581bf350a7",
-"structsecp256k1_1_1fast_1_1FixedBaseConfig.html#ac46baa3a335288715aaaf9cb653d32aa",
-"ufsecp_8h.html#a46f3b958ae4a3e7f1389944cc2f59efc"
+"classsecp256k1_1_1fast_1_1Point.html#a6eaf43dcf6153248964d52f67fe32c8f",
+"ct__utils_8hpp.html",
+"functions_func_f.html",
+"namespacemembers_func_e.html",
+"namespacesecp256k1_1_1ct.html#a7cc6bee5345ed46977ce46f0f0dc4d51",
+"namespacesecp256k1_1_1hash.html#aa6787a03bd05e16254c43a777dce5efd",
+"structsecp256k1_1_1CurveContext.html#a1fb92a7a8c307f7399f70c34e6ace056",
+"structsecp256k1_1_1SchnorrXonlyPubkey.html#a70a3b6e258dc7b2af6f7267e42d5e06c",
+"structsecp256k1_1_1fast_1_1FixedBaseConfig.html#a6b509bb7aefcf93b39db386f9e0c4d67",
+"test__framework_8hpp.html#a67d5ad2842e24c72d6e79f845fb96335afdcd35dba299339ac7d74dbf08b5afc2"
 ];
 
 var SYNCONMSG = 'click to disable panel synchronisation';

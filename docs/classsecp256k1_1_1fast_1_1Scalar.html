@@ -25,7 +25,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.15.0</span>
+   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.16.0</span>
    </div>
    <div id="projectbrief">Ultra high-performance secp256k1 elliptic curve cryptography library</div>
   </td>
@@ -163,6 +163,14 @@ Static Public Member Functions</h2></td></tr>
 <tr class="separator:ab42c494ac695a8a1f01ecb662d52883e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:add830998d775d0078e16ddbe22926ee1" id="r_add830998d775d0078e16ddbe22926ee1"><td class="memItemLeft" align="right" valign="top">static <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">Scalar</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html#add830998d775d0078e16ddbe22926ee1">from_bytes</a> (const std::uint8_t *bytes32)</td></tr>
 <tr class="separator:add830998d775d0078e16ddbe22926ee1"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a68806585ed78689d8487ab2dee0471a8" id="r_a68806585ed78689d8487ab2dee0471a8"><td class="memItemLeft" align="right" valign="top">static bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html#a68806585ed78689d8487ab2dee0471a8">parse_bytes_strict</a> (const std::uint8_t *bytes32, <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">Scalar</a> &amp;out) noexcept</td></tr>
+<tr class="separator:a68806585ed78689d8487ab2dee0471a8"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aaffe623b8ae3e6ade042c7331ecbeb22" id="r_aaffe623b8ae3e6ade042c7331ecbeb22"><td class="memItemLeft" align="right" valign="top">static bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html#aaffe623b8ae3e6ade042c7331ecbeb22">parse_bytes_strict</a> (const std::array&lt; std::uint8_t, 32 &gt; &amp;bytes, <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">Scalar</a> &amp;out) noexcept</td></tr>
+<tr class="separator:aaffe623b8ae3e6ade042c7331ecbeb22"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a0895deacc801a097504db1da8b0d4872" id="r_a0895deacc801a097504db1da8b0d4872"><td class="memItemLeft" align="right" valign="top">static bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html#a0895deacc801a097504db1da8b0d4872">parse_bytes_strict_nonzero</a> (const std::uint8_t *bytes32, <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">Scalar</a> &amp;out) noexcept</td></tr>
+<tr class="separator:a0895deacc801a097504db1da8b0d4872"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:af46d0eadd4c73dc3da4d362e0c82fb8e" id="r_af46d0eadd4c73dc3da4d362e0c82fb8e"><td class="memItemLeft" align="right" valign="top">static bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html#af46d0eadd4c73dc3da4d362e0c82fb8e">parse_bytes_strict_nonzero</a> (const std::array&lt; std::uint8_t, 32 &gt; &amp;bytes, <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">Scalar</a> &amp;out) noexcept</td></tr>
+<tr class="separator:af46d0eadd4c73dc3da4d362e0c82fb8e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a405303c64f84eeb9d9f8eafe2474342f" id="r_a405303c64f84eeb9d9f8eafe2474342f"><td class="memItemLeft" align="right" valign="top">static <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">Scalar</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html#a405303c64f84eeb9d9f8eafe2474342f">from_hex</a> (const std::string &amp;hex)</td></tr>
 <tr class="separator:a405303c64f84eeb9d9f8eafe2474342f"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a09b0c05c9f8278dd545da0ed95472cc5" id="r_a09b0c05c9f8278dd545da0ed95472cc5"><td class="memItemLeft" align="right" valign="top">static <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">Scalar</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html#a09b0c05c9f8278dd545da0ed95472cc5">from_data</a> (const <a class="el" href="structsecp256k1_1_1ScalarData.html">::secp256k1::ScalarData</a> &amp;d)</td></tr>
@@ -248,7 +256,7 @@ Static Public Member Functions</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="scalar_8hpp_source.html#l00059">59</a> of file <a class="el" href="scalar_8hpp_source.html">scalar.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="scalar_8hpp_source.html#l00070">70</a> of file <a class="el" href="scalar_8hpp_source.html">scalar.hpp</a>.</p>
 
 </div>
 </div>
@@ -275,7 +283,7 @@ Static Public Member Functions</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="scalar_8hpp_source.html#l00062">62</a> of file <a class="el" href="scalar_8hpp_source.html">scalar.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="scalar_8hpp_source.html#l00073">73</a> of file <a class="el" href="scalar_8hpp_source.html">scalar.hpp</a>.</p>
 
 </div>
 </div>
@@ -357,7 +365,7 @@ Static Public Member Functions</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="scalar_8hpp_source.html#l00068">68</a> of file <a class="el" href="scalar_8hpp_source.html">scalar.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="scalar_8hpp_source.html#l00079">79</a> of file <a class="el" href="scalar_8hpp_source.html">scalar.hpp</a>.</p>
 
 <p class="reference">References <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html#a8606a2124864679f0fc72388e1c1d0f1">from_limbs()</a>.</p>
 
@@ -413,7 +421,7 @@ Static Public Member Functions</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="scalar_8hpp_source.html#l00068">from_data()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="scalar_8hpp_source.html#l00079">from_data()</a>.</p>
 
 </div>
 </div>
@@ -533,7 +541,7 @@ Static Public Member Functions</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="scalar_8hpp_source.html#l00031">31</a> of file <a class="el" href="scalar_8hpp_source.html">scalar.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="scalar_8hpp_source.html#l00042">42</a> of file <a class="el" href="scalar_8hpp_source.html">scalar.hpp</a>.</p>
 
 </div>
 </div>
@@ -710,6 +718,152 @@ Static Public Member Functions</h2></td></tr>
   </tr>
 </table>
 </div><div class="memdoc">
+
+</div>
+</div>
+<a id="aaffe623b8ae3e6ade042c7331ecbeb22" name="aaffe623b8ae3e6ade042c7331ecbeb22"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aaffe623b8ae3e6ade042c7331ecbeb22">&#9670;&#160;</a></span>parse_bytes_strict() <span class="overload">[1/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">static bool secp256k1::fast::Scalar::parse_bytes_strict </td>
+          <td>(</td>
+          <td class="paramtype">const std::array&lt; std::uint8_t, 32 &gt; &amp;&#160;</td>
+          <td class="paramname"><em>bytes</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">Scalar</a> &amp;&#160;</td>
+          <td class="paramname"><em>out</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">static</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="a68806585ed78689d8487ab2dee0471a8" name="a68806585ed78689d8487ab2dee0471a8"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a68806585ed78689d8487ab2dee0471a8">&#9670;&#160;</a></span>parse_bytes_strict() <span class="overload">[2/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">static bool secp256k1::fast::Scalar::parse_bytes_strict </td>
+          <td>(</td>
+          <td class="paramtype">const std::uint8_t *&#160;</td>
+          <td class="paramname"><em>bytes32</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">Scalar</a> &amp;&#160;</td>
+          <td class="paramname"><em>out</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">static</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="af46d0eadd4c73dc3da4d362e0c82fb8e" name="af46d0eadd4c73dc3da4d362e0c82fb8e"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#af46d0eadd4c73dc3da4d362e0c82fb8e">&#9670;&#160;</a></span>parse_bytes_strict_nonzero() <span class="overload">[1/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">static bool secp256k1::fast::Scalar::parse_bytes_strict_nonzero </td>
+          <td>(</td>
+          <td class="paramtype">const std::array&lt; std::uint8_t, 32 &gt; &amp;&#160;</td>
+          <td class="paramname"><em>bytes</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">Scalar</a> &amp;&#160;</td>
+          <td class="paramname"><em>out</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">static</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="a0895deacc801a097504db1da8b0d4872" name="a0895deacc801a097504db1da8b0d4872"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a0895deacc801a097504db1da8b0d4872">&#9670;&#160;</a></span>parse_bytes_strict_nonzero() <span class="overload">[2/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">static bool secp256k1::fast::Scalar::parse_bytes_strict_nonzero </td>
+          <td>(</td>
+          <td class="paramtype">const std::uint8_t *&#160;</td>
+          <td class="paramname"><em>bytes32</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">Scalar</a> &amp;&#160;</td>
+          <td class="paramname"><em>out</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">static</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00241">ufsecp_seckey_verify()</a>.</p>
 
 </div>
 </div>
