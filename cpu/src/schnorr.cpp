@@ -189,7 +189,9 @@ bool schnorr_verify(const uint8_t* pubkey_x32,
     auto P = Point::from_affine52(px52, y52);
 #else
     // Fallback: 4x64 lift_x
-    auto px_fe = FieldElement::from_bytes(pubkey_x32);
+    std::array<uint8_t, 32> px_arr;
+    std::memcpy(px_arr.data(), pubkey_x32, 32);
+    auto px_fe = FieldElement::from_bytes(px_arr);
     auto x3 = px_fe * px_fe * px_fe;
     auto y2 = x3 + FieldElement::from_uint64(7);
     auto y_fe = y2.sqrt();
