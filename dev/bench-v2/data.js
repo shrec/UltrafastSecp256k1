@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772323682291,
+  "lastUpdate": 1772325666876,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -22303,6 +22303,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Batch Inverse (n=1000)",
             "value": 204,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "0099ddfcd7c345f4116cae745b08f502c1759461",
+          "message": "v3.15.0: ecdsa_recover 1.9x speedup via dual_scalar_mul, platform asm improvements, audit fixes\n\n- recovery.cpp: replace 3 separate scalar_mul with single dual_scalar_mul_gen_point (69us -> 36us)\n- recovery.cpp: lift_x parity check via limbs()[0]&1 instead of to_bytes()\n- field.cpp: improved Montgomery path selection\n- field_asm_arm64.cpp: CSEL branchless, sqr EXTR optimization\n- field_asm52_riscv64.S: preload optimization, reduced register pressure\n- batch_verify.cpp: improved error handling\n- audit: 11 dudect false positive fixes, expanded CT integration tests\n- docs: version bump to 3.15.0 across SECURITY, AUDIT_GUIDE, README",
+          "timestamp": "2026-03-01T04:38:17+04:00",
+          "tree_id": "b404a57e241296d64400a3c6e770a477e96627b7",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/0099ddfcd7c345f4116cae745b08f502c1759461"
+        },
+        "date": 1772325664544,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 27,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 22,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 281,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 150,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 36000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 10000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 14000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 42000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 24000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 49000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 139,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 131,
             "unit": "ns"
           }
         ]
