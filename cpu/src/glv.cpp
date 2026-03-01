@@ -12,7 +12,7 @@ namespace secp256k1::fast {
 //  Internal helpers for GLV decomposition
 // ============================================================================
 
-#if defined(__SIZEOF_INT128__) || (defined(__x86_64__) || defined(_M_X64) || defined(__aarch64__))
+#if defined(__SIZEOF_INT128__)
 // 64-bit Comba using __int128: 4x4 = 16 multiplications (vs 8x8 = 64 at 32-bit).
 // Each 64x64->128 multiply maps to MUL + MULHU on x86-64, UMULH on AArch64.
 // Carry chain uses libsecp256k1-style 192-bit accumulator (c0:c1:c2).
@@ -62,9 +62,29 @@ static void glv_mul_comba_64(const std::uint64_t a[4], const std::uint64_t b[4],
     #undef GLV_EXTRACT
 }
 
-// Compute (a * b) >> 384 with rounding bit (libsecp256k1 style)
-// a, b: 256-bit values as LE uint64_t[4]
-// Returns upper ~128 bits as LE uint64_t[4] (top two limbs typically 0)
+// Template version: b[] constants known at compile time -> compiler can
+// constant-fold multiplies and optimize register allocation.
+template<std::uint64_t B0, std::uint64_t B1, std::uint64_t B2, std::uint64_t B3>
+static std::array<std::uint64_t, 4> mul_shift_384_const(
+    const std::array<std::uint64_t, 4>& a) {
+
+    static constexpr std::uint64_t b[4] = {B0, B1, B2, B3};
+    std::uint64_t prod[8];
+    glv_mul_comba_64(a.data(), b, prod);
+
+    std::array<std::uint64_t, 4> result{};
+    result[0] = prod[6];
+    result[1] = prod[7];
+
+    // Rounding bit: bit 383 of 512-bit product = bit 63 of prod[5]
+    if (prod[5] >> 63) {
+        result[0]++;
+        if (result[0] == 0) result[1]++;
+    }
+    return result;
+}
+
+// Runtime version (fallback)
 static std::array<std::uint64_t, 4> mul_shift_384(
     const std::array<std::uint64_t, 4>& a,
     const std::array<std::uint64_t, 4>& b) {
@@ -139,6 +159,14 @@ static std::array<std::uint64_t, 4> mul_shift_384(
     }
     return result;
 }
+
+// Template wrapper for 32-bit path (calls runtime mul_shift_384)
+template<std::uint64_t B0, std::uint64_t B1, std::uint64_t B2, std::uint64_t B3>
+static std::array<std::uint64_t, 4> mul_shift_384_const(
+    const std::array<std::uint64_t, 4>& a) {
+    const std::array<std::uint64_t, 4> b{{B0, B1, B2, B3}};
+    return mul_shift_384(a, b);
+}
 #endif
 
 // Bit-length of a Scalar (for sign selection: pick shorter representation)
@@ -212,8 +240,9 @@ GLVDecomposition glv_decompose(const Scalar& k) {
 
     // Step 1: c1 = round(k * g1 / 2^384),  c2 = round(k * g2 / 2^384)
     auto k_limbs = k.limbs();
-    auto c1_limbs = mul_shift_384({k_limbs[0], k_limbs[1], k_limbs[2], k_limbs[3]}, kG1);
-    auto c2_limbs = mul_shift_384({k_limbs[0], k_limbs[1], k_limbs[2], k_limbs[3]}, kG2);
+    std::array<std::uint64_t, 4> k_arr{{k_limbs[0], k_limbs[1], k_limbs[2], k_limbs[3]}};
+    auto c1_limbs = mul_shift_384_const<kG1[0], kG1[1], kG1[2], kG1[3]>(k_arr);
+    auto c2_limbs = mul_shift_384_const<kG2[0], kG2[1], kG2[2], kG2[3]>(k_arr);
 
     Scalar const c1 = Scalar::from_limbs(c1_limbs);
     Scalar const c2 = Scalar::from_limbs(c2_limbs);
