@@ -1,0 +1,127 @@
+{
+  "library": "UltrafastSecp256k1",
+  "version": "3.14.0",
+  "git_hash": "3d6b540",
+  "benchmark": "bench_hornet (Bitcoin Consensus CPU Benchmark)",
+  "target": "Hornet Node (hornetnode.org)",
+  "timestamp": "2026-03-02T00:18:00",
+  "platform": {
+    "cpu": "11th Gen Intel Core i7-11700 @ 2.50GHz",
+    "tsc_ghz": 2.497,
+    "arch": "x86-64 (BMI2/ADX)",
+    "cores_used": 1,
+    "compiler": "Clang 21.1.0",
+    "linker": "lld-link (LLVM LLD)",
+    "os": "Windows",
+    "build": "Release"
+  },
+  "config": {
+    "field": "4x64 limbs, Montgomery reduction",
+    "scalar": "4x64 limbs, Barrett/GLV",
+    "point_mul": "GLV endomorphism + wNAF (w=5)",
+    "dual_mul": "Shamir's trick (a*G + b*P)",
+    "timer": "RDTSCP",
+    "warmup": 500,
+    "passes": 11,
+    "method": "IQR outlier removal + median",
+    "pool_size": 64
+  },
+  "benchmarks": {
+    "ecdsa": {
+      "sign_ns": 9082.6,
+      "verify_ns": 28872.8
+    },
+    "schnorr": {
+      "sign_keypair_ns": 9534.1,
+      "sign_raw_ns": 18665.1,
+      "verify_xonly_ns": 37123.1,
+      "verify_cached_ns": 30341.9
+    },
+    "batch_verification_n64": {
+      "schnorr_per_sig_ns": 71739.7,
+      "schnorr_vs_individual": 0.52,
+      "ecdsa_per_sig_ns": 34821.0,
+      "ecdsa_vs_individual": 0.83
+    },
+    "key_generation": {
+      "pubkey_create_ns": 5789.6,
+      "schnorr_keypair_create_ns": 7677.1
+    },
+    "point_arithmetic": {
+      "scalar_mul_kP_ns": 25292.1,
+      "dual_mul_shamir_ns": 27850.1,
+      "point_add_ns": 233.2,
+      "point_dbl_ns": 91.3
+    },
+    "field_arithmetic": {
+      "mul_ns": 21.7,
+      "sqr_ns": 21.1,
+      "inv_ns": 777.5,
+      "add_ns": 3.5,
+      "sub_ns": 2.6,
+      "neg_ns": 3.1
+    },
+    "scalar_arithmetic": {
+      "mul_ns": 29.9,
+      "inv_ns": 914.8,
+      "add_ns": 3.0,
+      "neg_ns": 2.8
+    },
+    "serialization": {
+      "pubkey_compress_ns": 1334.3,
+      "ecdsa_der_encode_ns": 24.9,
+      "schnorr_bytes_ns": 4.8
+    },
+    "constant_time": {
+      "ct_ecdsa_sign_ns": 17649.4,
+      "ct_overhead_ecdsa": 1.94,
+      "ct_schnorr_sign_ns": 23958.5,
+      "ct_overhead_schnorr": 2.51
+    }
+  },
+  "apple_to_apple": {
+    "reference": "libsecp256k1 (bitcoin-core v0.7.2)",
+    "config": "default (64-bit field, precomputed tables)",
+    "modules": "ECDSA + Schnorr (BIP-340) + extrakeys",
+    "method": "100 iterations, 20 warmup, QueryPerformanceCounter",
+    "results": [
+      {"op": "Generator*k", "ours_ns": 5976, "theirs_ns": 15402, "speedup": 2.58},
+      {"op": "ECDSA Sign", "ours_ns": 9991, "theirs_ns": 25512, "speedup": 2.55},
+      {"op": "ECDSA Verify", "ours_ns": 30743, "theirs_ns": 25423, "speedup": 0.83, "note": "libsecp256k1 wins"},
+      {"op": "Schnorr Keypair", "ours_ns": 7207, "theirs_ns": 15234, "speedup": 2.11},
+      {"op": "Schnorr Sign", "ours_ns": 8620, "theirs_ns": 16007, "speedup": 1.86},
+      {"op": "Schnorr Verify", "ours_ns": 34939, "theirs_ns": 37523, "speedup": 1.07}
+    ],
+    "summary": "UltrafastSecp256k1 FAST wins 5/6 ops (1.07x-2.58x); libsecp256k1 wins ECDSA Verify (1.21x)",
+    "note": "libsecp256k1 is ALWAYS constant-time; FAST comparison is unfair for signing ops",
+    "ct_vs_libsecp": [
+      {"op": "ECDSA Sign", "ours_ct_ns": 17649, "theirs_ns": 25512, "speedup": 1.45},
+      {"op": "ECDSA Verify", "ours_ns": 30743, "theirs_ns": 25423, "speedup": 0.83, "note": "libsecp256k1 wins; verify is public-input, no CT needed"},
+      {"op": "Schnorr Sign", "ours_ct_ns": 23959, "theirs_ns": 16007, "speedup": 0.67, "note": "libsecp256k1 wins"},
+      {"op": "Schnorr Verify", "ours_ns": 34939, "theirs_ns": 37523, "speedup": 1.07}
+    ],
+    "ct_summary": "CT-vs-CT: Ultra wins 2/4 (ECDSA Sign 1.45x, Schnorr Verify 1.07x); libsecp256k1 wins 2/4 (ECDSA Verify 1.21x, Schnorr Sign 1.50x)"
+  },
+  "block_validation_estimates": {
+    "pre_taproot_3000_ecdsa": {
+      "individual_ms": 86.6,
+      "batch_n64_ms": 104.5
+    },
+    "taproot_2000s_1000e": {
+      "individual_ms": 103.1,
+      "batch_n64_ms": 178.3
+    },
+    "ibd_1_35B_sigs": {
+      "individual_hours": 10.8,
+      "batch_hours": 13.1
+    },
+    "blocks_per_sec_1core": {
+      "pre_taproot": 11.5,
+      "taproot": 9.7
+    },
+    "tx_per_sec_1core": {
+      "ecdsa": 34635,
+      "schnorr": 26937
+    }
+  }
+}

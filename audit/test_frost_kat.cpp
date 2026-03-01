@@ -324,7 +324,7 @@ static void test_2of3_full_signing() {
         bool const valid = secp256k1::schnorr_verify(pk_bytes, msg, final_sig);
 
         char label[64];
-        (void)std::snprintf(label, sizeof(label), "2-of-3 subset {%u,%u} BIP-340 valid", id_a, id_b);
+        (void)std::snprintf(label, sizeof(label), "2-of-3 subset {%u,%u} BIP-340 valid", (unsigned)id_a, (unsigned)id_b);
         CHECK(valid, label);
     }
 }
@@ -473,7 +473,7 @@ static void test_lagrange_consistency() {
 
         char label[80];
         (void)std::snprintf(label, sizeof(label), "3-of-5 subset {%u,%u,%u} reconstructs secret",
-                      ids[0], ids[1], ids[2]);
+                      (unsigned)ids[0], (unsigned)ids[1], (unsigned)ids[2]);
         CHECK(reconstructed == secret, label);
     }
 }
@@ -727,7 +727,7 @@ static void test_rfc9591_invariants() {
 
     // Verify signature with BIP-340 schnorr_verify
     auto gpk_bytes = kp1.group_public_key.x().to_bytes();
-    bool v12 = secp256k1::schnorr_verify(gpk_bytes.data(), msg.data(), sig12);
+    bool const v12 = secp256k1::schnorr_verify(gpk_bytes.data(), msg.data(), sig12);
     CHECK(v12, "RFC9591: sig from {1,2} verifies");
 
     // Sign with subset {1,3} (fresh nonces required)
@@ -742,7 +742,7 @@ static void test_rfc9591_invariants() {
 
     auto sig13 = secp256k1::frost_aggregate({ps1_13, ps3_13}, nc13,
                                              kp1.group_public_key, msg);
-    bool v13 = secp256k1::schnorr_verify(gpk_bytes.data(), msg.data(), sig13);
+    bool const v13 = secp256k1::schnorr_verify(gpk_bytes.data(), msg.data(), sig13);
     CHECK(v13, "RFC9591: sig from {1,3} verifies");
 
     // Both sigs are valid but may differ (different nonces) -- that's correct!
@@ -759,9 +759,9 @@ static void test_rfc9591_invariants() {
     auto psV1 = secp256k1::frost_sign(kp1, nV1, msg, ncV);
     auto psV2 = secp256k1::frost_sign(kp2, nV2, msg, ncV);
 
-    bool pv1 = secp256k1::frost_verify_partial(psV1, ncV1,
+    const bool pv1 = secp256k1::frost_verify_partial(psV1, ncV1,
                 kp1.verification_share, msg, ncV, kp1.group_public_key);
-    bool pv2 = secp256k1::frost_verify_partial(psV2, ncV2,
+    const bool pv2 = secp256k1::frost_verify_partial(psV2, ncV2,
                 kp2.verification_share, msg, ncV, kp1.group_public_key);
     CHECK(pv1, "RFC9591: partial sig 1 valid");
     CHECK(pv2, "RFC9591: partial sig 2 valid");
@@ -774,7 +774,7 @@ static void test_rfc9591_invariants() {
 
     // -- Invariant 6: Wrong share -> partial verify fails --
     // Give P2's partial sig but P1's verification share => must fail
-    bool pv_wrong = secp256k1::frost_verify_partial(psV2, ncV2,
+    const bool pv_wrong = secp256k1::frost_verify_partial(psV2, ncV2,
                      kp1.verification_share, msg, ncV, kp1.group_public_key);
     CHECK(!pv_wrong, "RFC9591: wrong verification share -> partial verify fails");
 
@@ -837,10 +837,11 @@ static void test_rfc9591_3of5() {
     for (uint32_t a = 0; a < n - 2; ++a) {
         for (uint32_t b = a + 1; b < n - 1; ++b) {
             for (uint32_t c = b + 1; c < n; ++c) {
-                uint32_t ids[3] = {a, b, c};
+                const uint32_t ids[3] = {a, b, c};
 
                 // Generate nonces
                 std::vector<secp256k1::FrostNonceCommitment> ncs;
+                ncs.reserve(3);
                 secp256k1::FrostNonce nonces[3];
                 for (int k = 0; k < 3; ++k) {
                     auto nseed = make_seed(0x95910500 + sig_count * 10 + k);
@@ -858,7 +859,7 @@ static void test_rfc9591_3of5() {
                 // Aggregate
                 auto sig = secp256k1::frost_aggregate(psigs, ncs,
                                                        kps[0].group_public_key, msg);
-                bool ok = secp256k1::schnorr_verify(gpk_bytes.data(), msg.data(), sig);
+                const bool ok = secp256k1::schnorr_verify(gpk_bytes.data(), msg.data(), sig);
                 CHECK(ok, "3of5 subset sig verifies");
                 ++sig_count;
             }

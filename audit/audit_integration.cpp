@@ -63,7 +63,8 @@ static void test_ecdh() {
 
     auto G = Point::generator();
 
-    for (int i = 0; i < SCALED(1000, 50); ++i) {
+    { const int total = SCALED(1000, 50);
+    for (int i = 0; i < total; ++i) {
         auto sk_a = random_scalar();
         auto sk_b = random_scalar();
         auto pk_a = G.scalar_mul(sk_a);
@@ -90,7 +91,8 @@ static void test_ecdh() {
         std::array<uint8_t, 32> expected_x;
         std::memcpy(expected_x.data(), shared_uncomp.data() + 1, 32);
         CHECK(raw_a == expected_x, "ECDH raw == x-coord of shared point");
-    }
+        if ((i+1) % (total/5+1) == 0) printf("      ecdh %d/%d\n", i+1, total);
+    } }
 
     // ECDH with infinity should return zeros
     {
@@ -112,7 +114,13 @@ static void test_schnorr_batch_verify() {
     printf("[2] Schnorr batch verification\n");
 
     // Create N valid Schnorr signatures
+    // ESP32: schnorr_batch_verify builds MSM with 1+2*N points; Strauss
+    // tables for 201 points ~= 100KB, exceeding 151KB heap.
+#if defined(SECP256K1_PLATFORM_ESP32) || defined(ESP_PLATFORM)
+    constexpr int N = 8;
+#else
     constexpr int N = 100;
+#endif
     std::vector<secp256k1::SchnorrBatchEntry> entries;
     entries.reserve(N);
 
@@ -134,15 +142,16 @@ static void test_schnorr_batch_verify() {
     // Corrupt one signature
     {
         auto bad = entries;
-        bad[50].signature.r[0] ^= 0x01;
+        int const corrupt_idx = N > 50 ? 50 : N / 2;
+        bad[corrupt_idx].signature.r[0] ^= 0x01;
         bool const bad_result = secp256k1::schnorr_batch_verify(bad);
         CHECK(!bad_result, "batch with 1 bad -> false");
 
         // Identify the bad one
         auto invalids = secp256k1::schnorr_batch_identify_invalid(
             bad.data(), bad.size());
-        CHECK(invalids.size() == 1 && invalids[0] == 50,
-              "identify_invalid finds index 50");
+        CHECK(invalids.size() == 1 && invalids[0] == static_cast<std::size_t>(corrupt_idx),
+              "identify_invalid finds corrupted index");
     }
 
     // Empty batch
@@ -181,6 +190,7 @@ static void test_ecdsa_batch_verify() {
 
         auto sig = secp256k1::ecdsa_sign(msg, sk);
         entries.push_back({msg, pk, sig});
+        if ((i+1) % (N/5+1) == 0) printf("      batch_gen %d/%d\n", i+1, N);
     }
 
     bool const all_valid = secp256k1::ecdsa_batch_verify(entries);
@@ -215,7 +225,8 @@ static void test_ecdsa_full_roundtrip() {
 
     auto G = Point::generator();
 
-    for (int i = 0; i < SCALED(1000, 50); ++i) {
+    { const int total = SCALED(1000, 50);
+    for (int i = 0; i < total; ++i) {
         auto sk = random_scalar();
         auto pk = G.scalar_mul(sk);
         std::array<uint8_t, 32> msg{};
@@ -241,7 +252,8 @@ static void test_ecdsa_full_roundtrip() {
         auto [der, der_len] = rsig.sig.to_der();
         CHECK(der_len > 0 && der_len <= 72, "DER len ok");
         CHECK(der[0] == 0x30, "DER SEQUENCE tag");
-    }
+        if ((i+1) % (total/5+1) == 0) printf("      full_rt %d/%d\n", i+1, total);
+    } }
 
     printf("    %d checks\n\n", g_pass);
 }
@@ -254,9 +266,19 @@ static void test_schnorr_cross_path() {
     printf("[5] Schnorr cross-path: individual vs batch (500)\n");
 
     std::vector<secp256k1::SchnorrBatchEntry> batch;
-    batch.reserve(500);
+    // ESP32: Schnorr batch_verify builds MSM with 1+2*n points.
+    // With n=30 -> 61-point Strauss tables ~94KB -> exceeds ~151KB heap.
+    // Use n=8 on ESP32 (17 MSM points, ~13KB tables).
+    constexpr int BATCH_N = 
+#if defined(SECP256K1_PLATFORM_ESP32) || defined(ESP_PLATFORM)
+        8;
+#else
+        500;
+#endif
+    batch.reserve(BATCH_N);
 
-    for (int i = 0; i < SCALED(500, 30); ++i) {
+    { const int total_b = SCALED(500, BATCH_N);
+    for (int i = 0; i < total_b; ++i) {
         auto sk = random_scalar();
         auto pkx = secp256k1::schnorr_pubkey(sk);
         std::array<uint8_t, 32> msg{};
@@ -275,7 +297,8 @@ static void test_schnorr_cross_path() {
         CHECK(secp256k1::schnorr_verify(pkx, msg, restored), "restored sig verify");
 
         batch.push_back({pkx, msg, sig});
-    }
+        if ((i+1) % (total_b/5+1) == 0) printf("      schn_cross %d/%d\n", i+1, total_b);
+    } }
 
     // Batch verify all 500
     CHECK(secp256k1::schnorr_batch_verify(batch), "batch verify 500");
@@ -292,7 +315,8 @@ static void test_fast_vs_ct_integration() {
 
     auto G = Point::generator();
 
-    for (int i = 0; i < SCALED(500, 30); ++i) {
+    { const int total_ct = SCALED(500, 30);
+    for (int i = 0; i < total_ct; ++i) {
         auto sk = random_scalar();
 
         // Generate pubkey via fast path
@@ -311,7 +335,8 @@ static void test_fast_vs_ct_integration() {
         auto sig = secp256k1::ecdsa_sign(msg, sk);
         CHECK(secp256k1::ecdsa_verify(msg, pk_fast, sig), "verify w/ fast pk");
         CHECK(secp256k1::ecdsa_verify(msg, pk_ct, sig), "verify w/ CT pk");
-    }
+        if ((i+1) % (total_ct/5+1) == 0) printf("      fast_ct %d/%d\n", i+1, total_ct);
+    } }
 
     printf("    %d checks\n\n", g_pass);
 }
@@ -350,6 +375,7 @@ static void test_combined_protocol() {
         auto rsig = secp256k1::ecdsa_sign_recoverable(shared, sk_a);
         auto [rec_pk, ok] = secp256k1::ecdsa_recover(shared, rsig.sig, rsig.recid);
         CHECK(ok && points_equal(rec_pk, pk_a), "recovered Alice's pk");
+        if ((i+1) % 25 == 0) printf("      proto %d/100\n", i+1);
     }
 
     printf("    %d checks\n\n", g_pass);
@@ -373,6 +399,7 @@ static void test_multikey_consistency() {
         auto pk_add = G.scalar_mul(k1).add(G.scalar_mul(k2));
 
         CHECK(points_equal(pk_sum, pk_add), "k1*G + k2*G == (k1+k2)*G");
+        if ((i+1) % 50 == 0) printf("      multikey %d/200\n", i+1);
     }
 
     printf("    %d checks\n\n", g_pass);
@@ -419,6 +446,7 @@ static void test_schnorr_ecdsa_key_consistency() {
         std::array<uint8_t, 32> const aux{};
         auto schnorr_sig = secp256k1::schnorr_sign(sk, msg, aux);
         CHECK(secp256k1::schnorr_verify(schnorr_x, msg, schnorr_sig), "Schnorr verifies");
+        if ((i+1) % 50 == 0) printf("      key_cons %d/200\n", i+1);
     }
 
     printf("    %d checks\n\n", g_pass);
@@ -434,7 +462,9 @@ static void test_stress_mixed() {
     auto G = Point::generator();
     int ok_count = 0;
 
-    for (int i = 0; i < SCALED(5000, 100); ++i) {
+    int const total_ops = SCALED(5000, 100);
+
+    for (int i = 0; i < total_ops; ++i) {
         auto sk = random_scalar();
         auto pk = G.scalar_mul(sk);
         std::array<uint8_t, 32> msg{};
@@ -476,10 +506,11 @@ static void test_stress_mixed() {
         }
         default: break;
         }
+        if ((i+1) % (total_ops/10+1) == 0) printf("      stress %d/%d\n", i+1, total_ops);
     }
 
-    CHECK(ok_count == 5000, "all 5K mixed ops succeeded");
-    printf("    success: %d/5000\n", ok_count);
+    CHECK(ok_count == total_ops, "all mixed ops succeeded");
+    printf("    success: %d/%d\n", ok_count, total_ops);
     printf("    %d checks\n\n", g_pass);
 }
 
@@ -492,7 +523,12 @@ static void test_ecdsa_batch_nsweep() {
 
     auto G = Point::generator();
 
+    // ESP32: n=500 entries ~112KB + copy = 224KB > 151KB heap
+#if defined(SECP256K1_PLATFORM_ESP32) || defined(ESP_PLATFORM)
+    const int sizes[] = {1, 2, 3, 10};
+#else
     const int sizes[] = {1, 2, 3, 10, 50, 100, 500};
+#endif
     for (const int n : sizes) {
         std::vector<secp256k1::ECDSABatchEntry> entries;
         entries.reserve(n);
@@ -534,6 +570,13 @@ static void test_ecdsa_batch_nsweep() {
 static void test_pippenger_large_n() {
     g_section = "pipp_lgn";
     printf("[12] Pippenger MSM large-n correctness\n");
+
+#if defined(SECP256K1_PLATFORM_ESP32) || defined(ESP_PLATFORM)
+    // ESP32: n=128 Strauss tables alone ~262KB > 151KB heap.
+    // Skip large-n MSM on embedded targets.
+    printf("    SKIP -- ESP32 (heap limits for MSM tables)\n");
+    return;
+#endif
 
     auto G = Point::generator();
 

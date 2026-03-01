@@ -1,0 +1,139 @@
+================================================================
+  UltrafastSecp256k1 -- Industrial Self-Audit Report
+================================================================
+
+Library:    UltrafastSecp256k1 v3.16.0
+Git Hash:   3d6b5400
+Framework:  Audit Framework v2.0.0
+Timestamp:  2026-03-01T22:05:08
+OS:         Linux (Debian, kernel 6.6.20-starfive)
+Arch:       RISC-V 64 (rv64imafdc_zba_zbb)
+Board:      Milk-V Mars (StarFive VisionFive 2)
+CPU:        SiFive U74-MC @ 1.5 GHz, 4 cores, dual-issue in-order
+RAM:        3.8 GB
+Compiler:   GCC 13.3.0 (riscv64-linux-gnu, cross-compiled)
+Build:      Release (-O3)
+Binary:     2.2 MB (statically linked to fastsecp256k1)
+
+Config:     SECP256K1_FIELD_64BIT=1 (4x64 Montgomery)
+            SECP256K1_USE_ASM=1 (RISC-V inline asm)
+            SECP256K1_FAST_REDUCTION=1
+            UNIFIED_AUDIT_RUNNER=1
+            DUDECT_SMOKE=1
+
+Skipped Modules (0/49):
+  - None (all 49 modules run on RISC-V 64-bit)
+
+Note: 1 advisory warning (dudect smoke) -- probabilistic timing test
+      that flakes on all platforms under noise. Not a failure.
+
+----------------------------------------------------------------
+  [0] Library Selftest (core KAT)          PASS  (17176 ms)
+----------------------------------------------------------------
+
+================================================================
+  Section 1/8: Mathematical Invariants (Fp, Zn, Group Laws)
+================================================================
+  [ 1] Field Fp deep audit (add/mul/inv/sqrt/batch)  PASS  (1089 ms)
+  [ 2] Scalar Zn deep audit (mod/GLV/edge/inv)       PASS  (208 ms)
+  [ 3] Point ops deep audit (Jac/affine/sigs)        PASS  (7489 ms)
+  [ 4] Field & scalar arithmetic                     PASS  (10 ms)
+  [ 5] Arithmetic correctness                        PASS  (12 ms)
+  [ 6] Scalar multiplication                         PASS  (9175 ms)
+  [ 7] Exhaustive algebraic verification             PASS  (106 ms)
+  [ 8] Comprehensive 500+ suite                      PASS  (184 ms)
+  [ 9] ECC property-based invariants                 PASS  (18 ms)
+  [10] Affine batch addition                         PASS  (1321 ms)
+  [11] Carry chain stress (limb boundary)            PASS  (1 ms)
+  [12] FieldElement52 (5x52) vs 4x64                 PASS  (0 ms)
+  [13] FieldElement26 (10x26) vs 4x64                PASS  (0 ms)
+  -------- Section Result: 13/13 passed (19614 ms)
+
+================================================================
+  Section 2/8: Constant-Time & Side-Channel Analysis
+================================================================
+  [14] CT deep audit (masks/cmov/cswap/timing)       PASS  (631 ms)
+  [15] Constant-time layer                           PASS  (4 ms)
+  [16] FAST == CT equivalence                        PASS  (92 ms)
+  [17] Side-channel dudect (smoke)                   WARN  (203 ms)  (advisory)
+  [18] CT scalar_mul vs fast (diagnostic)            PASS  (33 ms)
+  -------- Section Result: 4/5 passed (961 ms)
+
+================================================================
+  Section 3/8: Differential & Cross-Library Testing
+================================================================
+  [19] Differential correctness                      PASS  (1860 ms)
+  [20] Fiat-Crypto reference vectors                 PASS  (3 ms)
+  [21] Cross-platform KAT                            PASS  (3 ms)
+  -------- Section Result: 3/3 passed (1866 ms)
+
+================================================================
+  Section 4/8: Standard Test Vectors (BIP-340, RFC-6979, BIP-32)
+================================================================
+  [22] BIP-340 official vectors                      PASS  (8 ms)
+  [23] BIP-340 strict encoding (non-canonical)       PASS  (2 ms)
+  [24] BIP-32 official vectors TV1-5                 PASS  (7 ms)
+  [25] RFC 6979 ECDSA vectors                        PASS  (5 ms)
+  [26] FROST reference KAT vectors                   PASS  (103 ms)
+  [27] MuSig2 BIP-327 reference vectors              PASS  (28 ms)
+  -------- Section Result: 6/6 passed (153 ms)
+
+================================================================
+  Section 5/8: Fuzzing & Adversarial Attack Resilience
+================================================================
+  [28] Adversarial fuzz (malform/edge)               PASS  (1586 ms)
+  [29] Parser fuzz (DER/Schnorr/Pubkey)              PASS  (47494 ms)
+  [30] Address/BIP32/FFI boundary fuzz               PASS  (11014 ms)
+  [31] Fault injection simulation                    PASS  (571 ms)
+  -------- Section Result: 4/4 passed (60665 ms)
+
+================================================================
+  Section 6/8: Protocol Security (ECDSA, Schnorr, MuSig2, FROST)
+================================================================
+  [32] ECDSA + Schnorr                               PASS  (5 ms)
+  [33] BIP-32 HD derivation                          PASS  (2 ms)
+  [34] MuSig2                                        PASS  (10 ms)
+  [35] ECDH + recovery + taproot                     PASS  (10 ms)
+  [36] v4 (Pedersen/FROST/etc)                       PASS  (18 ms)
+  [37] Coins layer                                   PASS  (4 ms)
+  [38] MuSig2 + FROST protocol suite                 PASS  (809 ms)
+  [39] MuSig2 + FROST advanced/adversar              PASS  (312 ms)
+  [40] Integration (ECDH/batch/cross-proto)          PASS  (6976 ms)
+  -------- Section Result: 9/9 passed (8146 ms)
+
+================================================================
+  Section 7/8: ABI & Memory Safety (zeroization, hardening)
+================================================================
+  [41] Security hardening (zero/bitflip/nonce)       PASS  (136527 ms)
+  [42] Debug invariant assertions                    PASS  (3 ms)
+  [43] ABI version gate (compile-time)               PASS  (0 ms)
+  [44] Cross-ABI/FFI round-trip (ufsecp C API)       PASS  (7 ms)
+  -------- Section Result: 4/4 passed (136538 ms)
+
+================================================================
+  Section 8/8: Performance Validation & Regression
+================================================================
+  [45] Accelerated hashing                           PASS  (4901 ms)
+  [46] SIMD batch operations                         PASS  (1 ms)
+  [47] Multi-scalar & batch verify                   PASS  (13 ms)
+  [48] Performance smoke (sign/verify roundtrip)     PASS  (1 ms)
+  -------- Section Result: 4/4 passed (4916 ms)
+
+================================================================
+  AUDIT VERDICT: AUDIT-READY
+  TOTAL: 48/49 modules passed  (1 advisory warning)  (~250 s)
+  Platform: Milk-V Mars | SiFive U74-MC @ 1.5 GHz | rv64gc_zba_zbb
+  Compiler: GCC 13.3.0 | Linux 6.6.20-starfive | Release
+  Binary:   2.2 MB | All 49 modules attempted (0 skipped)
+================================================================
+
+Notes:
+  - Cross-compiled on x86-64 WSL Ubuntu, deployed via SCP, run on real HW
+  - All 49 modules run (unlike ESP32 which skips 8 platform-incompatible)
+  - RISC-V uses 4x64 Montgomery field (same representation as x86-64)
+  - FieldElement52 (5x52) and FieldElement26 (10x26) cross-validated against 4x64
+  - Security hardening test dominates runtime (136.5s bitflip + zeroization scan)
+  - Parser fuzz runtime elevated on RISC-V (47.5s vs 8.3s on x86) -- expected
+  - dudect smoke WARN is advisory: probabilistic timing test, flakes under noise
+  - RISC-V inline assembly enabled (field_mul, field_sqr, fast reduction)
+

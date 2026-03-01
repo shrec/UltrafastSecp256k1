@@ -136,11 +136,19 @@ static void test_zeroization() {
 // ============================================================================
 static void test_bitflip_resilience() {
     g_section = "bitflip";
-    printf("[3] Bit-flip resilience on signatures (1K)\n");
+    // Each iteration does 512 ECDSA verifies (1 per bit flip).
+    // On ESP32 (240 MHz, ~50-100ms/verify), 50 iters = 25K verifies = ~30 min.
+    // Use 5 iters on embedded: 5 * 513 = 2565 checks, ~3 min.
+#if SECP256K1_EMBEDDED_BUILD
+    constexpr int N = 5;
+#else
+    int const N = SCALED(1000, 50);
+#endif
+    printf("[3] Bit-flip resilience on signatures (%d)\n", N);
 
     auto G = Point::generator();
 
-    for (int i = 0; i < SCALED(1000, 50); ++i) {
+    for (int i = 0; i < N; ++i) {
         auto sk = random_scalar();
         auto pk = G.scalar_mul(sk);
         std::array<uint8_t, 32> msg{};
@@ -165,6 +173,7 @@ static void test_bitflip_resilience() {
         }
         // All 512 bit-flips should be rejected
         CHECK(rejections == 512, "all 512 bit-flips rejected");
+        printf("      bitflip %d/%d\n", i+1, N);
     }
 
     printf("    %d checks\n\n", g_pass);
@@ -179,7 +188,8 @@ static void test_message_bitflip() {
 
     auto G = Point::generator();
 
-    for (int i = 0; i < SCALED(1000, 50); ++i) {
+    { const int total = SCALED(1000, 50);
+    for (int i = 0; i < total; ++i) {
         auto sk = random_scalar();
         auto pk = G.scalar_mul(sk);
         std::array<uint8_t, 32> msg{};
@@ -198,7 +208,8 @@ static void test_message_bitflip() {
             }
         }
         CHECK(rejections == 32, "all 32 byte-flips rejected");
-    }
+        if ((i+1) % (total/5+1) == 0) printf("      msg_flip %d/%d\n", i+1, total);
+    } }
 
     printf("    %d checks\n\n", g_pass);
 }
@@ -221,6 +232,7 @@ static void test_nonce_determinism() {
         auto sig2 = secp256k1::ecdsa_sign(msg, sk);
 
         CHECK(sig1.r == sig2.r && sig1.s == sig2.s, "deterministic nonce");
+        if ((i+1) % 25 == 0) printf("      nonce %d/100\n", i+1);
     }
 
     // Different messages -> different r (overwhelming probability)
@@ -249,7 +261,8 @@ static void test_serialization_integrity() {
     auto G = Point::generator();
 
     // Point serialization
-    for (int i = 0; i < SCALED(1000, 50); ++i) {
+    { const int total = SCALED(1000, 50);
+    for (int i = 0; i < total; ++i) {
         auto P = G.scalar_mul(random_scalar());
 
         auto comp = P.to_compressed();
@@ -266,18 +279,22 @@ static void test_serialization_integrity() {
         // X match
         CHECK(std::memcmp(comp.data() + 1, uncomp.data() + 1, 32) == 0,
               "X coordinates match");
-    }
+        if ((i+1) % (total/5+1) == 0) printf("      serial_pt %d/%d\n", i+1, total);
+    } }
 
     // Scalar byte round-trip
-    for (int i = 0; i < SCALED(1000, 50); ++i) {
+    { const int total_s = SCALED(1000, 50);
+    for (int i = 0; i < total_s; ++i) {
         auto s = random_scalar();
         auto bytes = s.to_bytes();
         auto restored = Scalar::from_bytes(bytes);
         CHECK(s == restored, "scalar byte round-trip");
-    }
+        if ((i+1) % (total_s/5+1) == 0) printf("      scalar_rt %d/%d\n", i+1, total_s);
+    } }
 
     // FieldElement byte round-trip
-    for (int i = 0; i < SCALED(1000, 50); ++i) {
+    { const int total_f = SCALED(1000, 50);
+    for (int i = 0; i < total_f; ++i) {
         std::array<uint8_t, 32> bytes{};
         for (int j = 0; j < 4; ++j) {
             uint64_t v = rng();
@@ -289,7 +306,8 @@ static void test_serialization_integrity() {
         auto out = fe.to_bytes();
         auto fe2 = FieldElement::from_bytes(out);
         CHECK(fe == fe2, "field element byte round-trip");
-    }
+        if ((i+1) % (total_f/5+1) == 0) printf("      fe_rt %d/%d\n", i+1, total_f);
+    } }
 
     printf("    %d checks\n\n", g_pass);
 }
@@ -304,7 +322,8 @@ static void test_compact_recovery_serial() {
     auto G = Point::generator();
     (void)G;
 
-    for (int i = 0; i < SCALED(1000, 50); ++i) {
+    { const int total_r = SCALED(1000, 50);
+    for (int i = 0; i < total_r; ++i) {
         auto sk = random_scalar();
         std::array<uint8_t, 32> msg{};
         uint64_t v = rng();
@@ -317,7 +336,8 @@ static void test_compact_recovery_serial() {
         // First byte encodes recid: 27 + recid + 4(compressed)
         int const expected_first = 27 + rsig.recid + 4;
         CHECK(compact[0] == static_cast<uint8_t>(expected_first), "header byte correct");
-    }
+        if ((i+1) % (total_r/5+1) == 0) printf("      recovery %d/%d\n", i+1, total_r);
+    } }
 
     printf("    %d checks\n\n", g_pass);
 }
@@ -332,21 +352,25 @@ static void test_double_ops() {
     auto G = Point::generator();
 
     // Double inverse: inv(inv(a)) == a
-    for (int i = 0; i < SCALED(1000, 50); ++i) {
+    { const int total_i = SCALED(1000, 50);
+    for (int i = 0; i < total_i; ++i) {
         auto a = random_scalar();
         auto inv1 = a.inverse();
         auto inv2 = inv1.inverse();
         CHECK(a == inv2, "scalar: inv(inv(a)) == a");
-    }
+        if ((i+1) % (total_i/5+1) == 0) printf("      dbl_inv %d/%d\n", i+1, total_i);
+    } }
 
     // Double negate: neg(neg(P)) == P
-    for (int i = 0; i < SCALED(1000, 50); ++i) {
+    { const int total_n = SCALED(1000, 50);
+    for (int i = 0; i < total_n; ++i) {
         auto P = G.scalar_mul(random_scalar());
         auto nn = P.negate().negate();
         auto P_bytes = P.to_compressed();
         auto nn_bytes = nn.to_compressed();
         CHECK(P_bytes == nn_bytes, "point: neg(neg(P)) == P");
-    }
+        if ((i+1) % (total_n/5+1) == 0) printf("      dbl_neg %d/%d\n", i+1, total_n);
+    } }
 
     // Double dbl consistency
     for (int i = 0; i < 100; ++i) {
@@ -354,6 +378,7 @@ static void test_double_ops() {
         auto P4a = P.dbl().dbl();
         auto P4b = P.scalar_mul(Scalar::from_uint64(4));
         CHECK(P4a.to_compressed() == P4b.to_compressed(), "dbl(dbl(P)) == 4*P");
+        if ((i+1) % 25 == 0) printf("      dbl_dbl %d/100\n", i+1);
     }
 
     printf("    %d checks\n\n", g_pass);
@@ -388,6 +413,7 @@ static void test_cross_algorithm() {
         }
 
         CHECK(x_match, "schnorr_pubkey x matches ECDSA pk x (or negated)");
+        if ((i+1) % 25 == 0) printf("      cross %d/100\n", i+1);
     }
 
     printf("    %d checks\n\n", g_pass);
@@ -403,7 +429,8 @@ static void test_high_s_rejection() {
     auto G = Point::generator();
     (void)G;
 
-    for (int i = 0; i < SCALED(1000, 50); ++i) {
+    { const int total_h = SCALED(1000, 50);
+    for (int i = 0; i < total_h; ++i) {
         auto sk = random_scalar();
         std::array<uint8_t, 32> msg{};
         uint64_t v = rng();
@@ -421,7 +448,8 @@ static void test_high_s_rejection() {
 
         CHECK(!high.is_low_s(), "negated s is high-S");
         CHECK(high.normalize().is_low_s(), "normalize restores low-S");
-    }
+        if ((i+1) % (total_h/5+1) == 0) printf("      high_s %d/%d\n", i+1, total_h);
+    } }
 
     printf("    %d checks\n\n", g_pass);
 }

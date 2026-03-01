@@ -1,0 +1,210 @@
+================================================================================
+  UltrafastSecp256k1 -- Cross-Platform Performance Comparison
+  bench_hornet (Bitcoin Consensus CPU Benchmark)
+  Target: Hornet Node (hornetnode.org)
+================================================================================
+
+  Platform A:  Intel i7-11700 @ 2.50 GHz  (x86-64, BMI2/ADX)
+               Clang 21.1.0, 4x64 limbs, Montgomery, TSC timer
+  Platform B:  ESP32-S3 (Xtensa LX7) @ 240 MHz  (32-bit, no __int128)
+               GCC 14.2.0, 10x26 limbs, esp_timer
+  Platform C:  ARM Cortex-A55 (YF_022A) (aarch64, NEON, crypto)
+               Clang 18.0.1, 10x26 limbs, clock_gettime
+  Platform D:  SiFive U74-MC (Milk-V Mars) @ 1.5 GHz (rv64gc_zba_zbb)
+               GCC 13.3.0, 4x64 limbs, Montgomery, chrono timer
+
+  Clock ratio (x86/ESP32): 2500 / 240 = 10.4x
+  Clock ratio (x86/RISC-V): 2500 / 1500 = 1.67x
+
+================================================================================
+  1. HIGH-LEVEL OPERATIONS (Bitcoin-critical)
+================================================================================
+
+  +---------------------------+-----------+-----------+-----------+-----------+-----------+
+  |          Operation        |  x86 (us) | ARM64(us) |RISCV (us) | ESP32(us) |x86/RISCV  |
+  +---------------------------+-----------+-----------+-----------+-----------+-----------+
+  | ecdsa_sign                |     9.08  |    27.98  |    81.25  |   7599.8  |    8.9x   |
+  | ecdsa_verify              |    28.87  |   146.95  |   235.50  |  18446.2  |    8.2x   |
+  | schnorr_sign (keypair)    |     9.53  |    20.11  |    56.37  |   6640.4  |    5.9x   |
+  | schnorr_verify (xonly)    |    37.12  |   167.15  |   265.88  |  20606.2  |    7.2x   |
+  | pubkey_create (k*G)       |     5.79  |    17.46  |    40.60  |   6272.6  |    7.0x   |
+  +---------------------------+-----------+-----------+-----------+-----------+-----------+
+
+  x86 vs ESP32:   ~762x average ratio
+  x86 vs RISC-V:  ~7.4x average ratio
+  x86 vs ARM64:   ~3.5x average ratio
+  ARM64 vs RISC-V: ~2.1x average ratio
+  RISC-V vs ESP32: ~103x average ratio
+
+================================================================================
+  2. POINT ARITHMETIC
+================================================================================
+
+  +---------------------------+-----------+-----------+-----------+-----------+-----------+
+  |          Operation        |  x86 (us) | ARM64(us) |RISCV (us) | ESP32(us) |x86/RISCV  |
+  +---------------------------+-----------+-----------+-----------+-----------+-----------+
+  | scalar_mul (k*P)          |    25.29  |   131.65  |   191.40  |  13342.6  |    7.6x   |
+  | dual_mul (a*G+b*P)        |    27.85  |   145.37  |   227.01  |  18649.6  |    8.2x   |
+  | point_add                 |     0.23  |     4.42  |     2.35  |    576.0  |   10.2x   |
+  | point_dbl                 |     0.09  |     3.66  |     0.89  |    526.5  |    9.9x   |
+  +---------------------------+-----------+-----------+-----------+-----------+-----------+
+
+================================================================================
+  3. FIELD ARITHMETIC (innermost hot loop)
+================================================================================
+
+  +---------------------------+-----------+-----------+-----------+-----------+-----------+
+  |          Operation        | x86 (ns)  |ARM64 (ns) |RISCV (ns) | ESP32(ns) |x86/RISCV  |
+  +---------------------------+-----------+-----------+-----------+-----------+-----------+
+  | field_mul                 |     21.7  |     69.9  |    182.2  |     5910  |    8.4x   |
+  | field_sqr                 |     21.1  |     50.4  |    174.2  |     4848  |    8.3x   |
+  | field_inv                 |    777.5  |   2823.3  |   4430.1  |   130150  |    5.7x   |
+  | field_add                 |      3.5  |     12.5  |     46.0  |      798  |   13.1x   |
+  | field_sub                 |      2.6  |      9.1  |     38.7  |      810  |   14.9x   |
+  +---------------------------+-----------+-----------+-----------+-----------+-----------+
+
+================================================================================
+  4. SCALAR ARITHMETIC
+================================================================================
+
+  +---------------------------+-----------+-----------+-----------+-----------+-----------+
+  |          Operation        | x86 (ns)  |ARM64 (ns) |RISCV (ns) | ESP32(ns) |x86/RISCV  |
+  +---------------------------+-----------+-----------+-----------+-----------+-----------+
+  | scalar_mul                |     29.9  |    107.9  |    182.2  |    18886  |    6.1x   |
+  | scalar_inv                |    914.8  |   2864.2  |   4983.9  |   132950  |    5.4x   |
+  | scalar_add                |      3.0  |      8.9  |     56.7  |      998  |   18.9x   |
+  +---------------------------+-----------+-----------+-----------+-----------+-----------+
+
+================================================================================
+  5. CONSTANT-TIME OVERHEAD
+================================================================================
+
+  +---------------------------+-----------+-----------+-----------+-----------+
+  |          Metric           |   x86     |  ARM64    |  RISC-V   |   ESP32   |
+  +---------------------------+-----------+-----------+-----------+-----------+
+  | CT overhead (ECDSA)       |   1.94x   |   2.57x   |   1.96x   |   1.05x   |
+  | CT overhead (Schnorr)     |   2.51x   |   3.18x   |   2.37x   |   1.06x   |
+  +---------------------------+-----------+-----------+-----------+-----------+
+
+  ESP32 has lowest CT overhead: in-order Xtensa LX7, no speculative execution.
+  RISC-V U74 (dual-issue in-order) CT overhead is close to x86 (~2x).
+  ARM64 Cortex-A55 has highest CT overhead despite being in-order --
+  possible memory/cache pressure on larger working set.
+
+================================================================================
+  6. BITCOIN BLOCK VALIDATION ESTIMATES
+================================================================================
+
+  Pre-Taproot block (3000 ECDSA):
+  +---------------------------+-----------+-----------+-----------+-----------+-----------+
+  |          Metric           |   x86     |  ARM64    |  RISC-V   |   ESP32   |x86/RISCV  |
+  +---------------------------+-----------+-----------+-----------+-----------+-----------+
+  | Wall time                 |  86.6 ms  |  440.9 ms |  706.5 ms |   55.3 s  |    8.2x   |
+  | Blocks/sec                |    11.5   |     2.27  |     1.4   |    0.02   |    8.2x   |
+  +---------------------------+-----------+-----------+-----------+-----------+-----------+
+
+  Taproot block (2000 Schnorr + 1000 ECDSA):
+  +---------------------------+-----------+-----------+-----------+-----------+-----------+
+  |          Metric           |   x86     |  ARM64    |  RISC-V   |   ESP32   |x86/RISCV  |
+  +---------------------------+-----------+-----------+-----------+-----------+-----------+
+  | Wall time                 | 103.1 ms  |  481.3 ms |  767.3 ms |   59.7 s  |    7.4x   |
+  | Blocks/sec                |     9.7   |     2.08  |     1.3   |    0.02   |    7.4x   |
+  +---------------------------+-----------+-----------+-----------+-----------+-----------+
+
+  TX throughput (1 core):
+  +---------------------------+-----------+-----------+-----------+-----------+-----------+
+  |          Metric           |   x86     |  ARM64    |  RISC-V   |   ESP32   |x86/RISCV  |
+  +---------------------------+-----------+-----------+-----------+-----------+-----------+
+  | ECDSA tx/sec              |  34,635   |   6,805   |   4,246   |      54   |    8.2x   |
+  | Schnorr tx/sec            |  26,937   |   5,983   |   3,761   |      49   |    7.2x   |
+  +---------------------------+-----------+-----------+-----------+-----------+-----------+
+
+================================================================================
+  7. vs libsecp256k1 (apple-to-apple, same hardware)
+================================================================================
+
+  A) FAST path vs libsecp256k1:
+  +---------------------------+-----------+-----------+-----------+-----------+
+  |          Operation        |   x86     |  ARM64    |  RISC-V   |   ESP32   |
+  +---------------------------+-----------+-----------+-----------+-----------+
+  | Generator * k             |   2.58x   |   3.62x   |   3.08x   |   1.15x   |
+  | ECDSA Sign                |   2.55x   |   2.73x   |   2.02x   |   1.25x   |
+  | ECDSA Verify              |   0.83x * |   1.01x   |   0.94x * |   1.59x   |
+  | Schnorr Keypair           |   2.11x   |   3.58x   |   2.71x   |   1.16x   |
+  | Schnorr Sign              |   1.86x   |   3.23x   |   2.36x   |   1.42x   |
+  | Schnorr Verify            |   1.07x   |   1.01x   |   0.94x * |   1.43x   |
+  +---------------------------+-----------+-----------+-----------+-----------+
+
+  * libsecp256k1 wins: x86 ECDSA Verify (1.21x), RISC-V Verify ops (1.06x)
+
+  x86 FAST:    wins 5/6 ops (1.07x-2.58x); loses ECDSA Verify
+  ARM64 FAST:  wins 6/6 ops (1.01x-3.62x)
+  RISC-V FAST: wins 4/6 ops (2.02x-3.08x); loses both Verify ops
+  ESP32 FAST:  wins 6/6 ops (1.15x-1.59x)
+
+  B) CT-vs-CT FAIR comparison (signing ops constant-time vs constant-time):
+     libsecp256k1 is ALWAYS constant-time. FAST comparison is UNFAIR for
+     signing/keygen ops. CT-vs-CT shows the true picture.
+     Verify uses public inputs -- no CT needed, same result in both paths.
+
+  +---------------------------+-----------+-----------+-----------+-----------+
+  |          Operation        |   x86     |  ARM64    |  RISC-V   |   ESP32   |
+  +---------------------------+-----------+-----------+-----------+-----------+
+  | ECDSA Sign (CT)           |   0.67x * |   1.02x   |   1.03x   |   1.20x   |
+  | ECDSA Verify              |   0.83x * |   1.01x   |   0.94x * |   1.59x   |
+  | Schnorr Sign (CT)         |   0.67x * |   1.06x   |   1.00x   |   1.36x   |
+  | Schnorr Verify            |   1.07x   |   1.01x   |   0.94x * |   1.43x   |
+  +---------------------------+-----------+-----------+-----------+-----------+
+
+  * libsecp256k1 wins in CT-vs-CT:
+    x86: both Sign ops (0.67x) + ECDSA Verify (0.83x)
+    RISC-V: both Verify ops (0.94x)
+
+  x86 CT:    wins 1/4 ops; libsecp256k1 wins Sign (0.67x) + ECDSA Verify
+  ARM64 CT:  wins 4/4 ops (1.01x-1.06x)
+  RISC-V CT: tied on Sign (1.00x-1.03x); loses Verify (0.94x)
+  ESP32 CT:  wins 4/4 ops (1.20x-1.59x)
+
+================================================================================
+  KEY INSIGHTS
+================================================================================
+
+  1. x86 is ~3.5x faster than ARM64, ~7.4x faster than RISC-V,
+     and ~640-840x faster than ESP32 for high-level ECC operations
+
+  2. RISC-V U74 @ 1.5 GHz delivers 1.4 blocks/sec pre-Taproot
+     -- borderline viable for lightweight Bitcoin node, needs multi-core
+     ARM64 Cortex-A55 delivers 2.3 blocks/sec -- viable
+
+  3. UltrafastSecp256k1 FAST gains are largest on ARM64 and RISC-V:
+     - ARM64:  Generator*k 3.62x, Schnorr Keypair 3.58x, Sign 3.23x
+     - RISC-V: Generator*k 3.08x, Schnorr Keypair 2.71x, Sign 2.36x
+     - x86:    Generator*k 2.58x, Schnorr Keypair 2.11x, Sign 1.86x
+
+  4. CT-vs-CT tells the REAL story:
+     - x86: libsecp256k1 wins Sign ops (0.67x!) -- our CT overhead is too high
+     - ARM64: Ultra wins (1.02x-1.06x) -- CT overhead is manageable
+     - RISC-V: essentially tied on Sign (1.00x-1.03x), loses Verify (0.94x)
+     - ESP32: Ultra wins decisively (1.20x-1.59x) -- lowest CT overhead
+
+  5. Verify ops are the closest race on all platforms:
+     - x86: 0.83x (libsecp256k1 wins ECDSA Verify)
+     - ARM64: 1.01x (tied)
+     - RISC-V: 0.94x (libsecp256k1 wins both Verify ops)
+     - ESP32: 1.43x-1.59x (Ultra wins)
+
+  6. Field multiply: x86 and RISC-V use 4x64 Montgomery;
+     ARM64 and ESP32 use 10x26 schoolbook.
+     RISC-V 4x64 is 8.4x slower than x86 (no BMI2/ADX, single mul unit)
+
+  7. CT overhead ranking: ESP32 (1.05x) < RISC-V (1.96x) < x86 (1.94x) < ARM64 (2.57x)
+     In-order cores (ESP32, RISC-V) have lower CT overhead than OoO (x86) --
+     BUT ARM64 A55 (in-order) is anomalously high (cache pressure?)
+
+  8. RISC-V point_add (2.35 us) is 1.9x FASTER than ARM64 (4.42 us)
+     despite ARM64's higher clock -- 4x64 limbs win over 10x26 for basic ops
+
+================================================================================
+  i7-11700 (x86-64) vs Cortex-A55 (ARM64) vs U74-MC (RISC-V) vs ESP32-S3
+  UltrafastSecp256k1 v3.16.0
+================================================================================

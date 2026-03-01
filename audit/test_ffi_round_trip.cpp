@@ -46,7 +46,7 @@ static void hex_to_bytes(const char* hex, uint8_t* out, int len) {
     for (int i = 0; i < len; ++i) {
         unsigned byte = 0;
         // NOLINTNEXTLINE(cert-err34-c)
-        if (std::sscanf(hex + i * 2, "%02x", &byte) != 1) byte = 0;
+        if (std::sscanf(hex + static_cast<size_t>(i) * 2, "%02x", &byte) != 1) byte = 0;
         out[i] = static_cast<uint8_t>(byte);
     }
 }
@@ -211,9 +211,9 @@ static void test_ecdsa_recovery() {
           "recovered pubkey matches");
 
     // Wrong recid should give different pubkey (or fail)
-    int bad_recid = (recid + 1) % 4;
+    const int bad_recid = (recid + 1) % 4;
     uint8_t wrong33[33] = {};
-    ufsecp_error_t err = ufsecp_ecdsa_recover(ctx, msg32, sig64, bad_recid, wrong33);
+    const ufsecp_error_t err = ufsecp_ecdsa_recover(ctx, msg32, sig64, bad_recid, wrong33);
     if (err == UFSECP_OK) {
         // If it succeeded, the pubkey must differ
         CHECK(std::memcmp(pub33_expected, wrong33, 33) != 0,
@@ -460,7 +460,7 @@ static void test_hashing_vectors() {
     (void)std::printf("[10] FFI: SHA-256, Hash160, tagged hash\n");
 
     // SHA-256("") = e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
-    uint8_t empty = 0; // non-null pointer for 0-length hash
+    const uint8_t empty = 0; // non-null pointer for 0-length hash
     uint8_t digest[32] = {};
     CHECK_OK(ufsecp_sha256(&empty, 0, digest), "sha256(\"\")");
 

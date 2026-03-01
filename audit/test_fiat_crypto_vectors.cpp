@@ -517,8 +517,8 @@ static void test_sqrt_vectors() {
 
     // Verify sqrt result is either gy or -gy
     auto neg_gy = FieldElement::zero() - gy;
-    bool match_positive = (sqrt_gy2.to_bytes() == gy.to_bytes());
-    bool match_negative = (sqrt_gy2.to_bytes() == neg_gy.to_bytes());
+    const bool match_positive = (sqrt_gy2.to_bytes() == gy.to_bytes());
+    const bool match_negative = (sqrt_gy2.to_bytes() == neg_gy.to_bytes());
     CHECK(match_positive || match_negative, "sqrt(G.y^2) == G.y or -G.y");
 
     // sqrt(9) = 3 or p-3

@@ -244,8 +244,9 @@ ufsecp_error_t ufsecp_seckey_verify(const ufsecp_ctx* ctx,
     (void)ctx;
     // BIP-340 strict: reject if privkey == 0 or privkey >= n (no reduction)
     Scalar sk;
-    if (!Scalar::parse_bytes_strict_nonzero(privkey, sk))
+    if (!Scalar::parse_bytes_strict_nonzero(privkey, sk)) {
         return UFSECP_ERR_BAD_KEY;
+    }
     return UFSECP_OK;
 }
 

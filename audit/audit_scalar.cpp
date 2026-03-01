@@ -67,12 +67,14 @@ static void test_mod_n_reduction() {
     CHECK(sum.is_zero(), "(n-1) + 1 == 0");
 
     // to_bytes -> from_bytes roundtrip
-    for (int i = 0; i < SCALED(10000, 200); ++i) {
+    { const int total = SCALED(10000, 200);
+    for (int i = 0; i < total; ++i) {
         auto s = random_scalar();
         auto bytes = s.to_bytes();
         auto s2 = Scalar::from_bytes(bytes);
         CHECK(s == s2, "roundtrip");
-    }
+        if ((i+1) % (total/5+1) == 0) printf("      roundtrip %d/%d\n", i+1, total);
+    } }
 
     printf("    %d checks\n\n", g_pass);
 }
@@ -93,7 +95,8 @@ static void test_overflow_normalization() {
         0xBF,0xD2,0x5E,0x8C,0xD0,0x36,0x41,0x41
     };
 
-    for (int i = 0; i < SCALED(10000, 200); ++i) {
+    { const int total = SCALED(10000, 200);
+    for (int i = 0; i < total; ++i) {
         auto bytes = random_bytes();
         auto s = Scalar::from_bytes(bytes);
         // Verify serialized form is < n
@@ -112,7 +115,8 @@ static void test_overflow_normalization() {
             }
             CHECK(all_zero, "if == n, must serialize as 0");
         }
-    }
+        if ((i+1) % (total/5+1) == 0) printf("      overflow %d/%d\n", i+1, total);
+    } }
 
     printf("    %d checks\n\n", g_pass);
 }
@@ -173,7 +177,8 @@ static void test_scalar_laws() {
     g_section = "laws";
     printf("[4] Scalar arithmetic laws (10K random)\n");
 
-    for (int i = 0; i < SCALED(10000, 200); ++i) {
+    { const int total = SCALED(10000, 200);
+    for (int i = 0; i < total; ++i) {
         auto a = random_scalar();
         auto b = random_scalar();
         auto c = random_scalar();
@@ -188,7 +193,8 @@ static void test_scalar_laws() {
 
         // Distributivity
         CHECK((a * (b + c)) == ((a * b) + (a * c)), "a*(b+c) == a*b + a*c");
-    }
+        if ((i+1) % (total/5+1) == 0) printf("      laws %d/%d\n", i+1, total);
+    } }
 
     printf("    %d checks\n\n", g_pass);
 }
@@ -202,17 +208,21 @@ static void test_scalar_inverse() {
 
     auto one = Scalar::one();
 
-    for (int i = 0; i < SCALED(10000, 200); ++i) {
+    { const int total = SCALED(10000, 200);
+    for (int i = 0; i < total; ++i) {
         auto a = random_scalar();
         auto inv = a.inverse();
         CHECK((a * inv) == one, "a * a^-1 == 1");
-    }
+        if ((i+1) % (total/5+1) == 0) printf("      inverse %d/%d\n", i+1, total);
+    } }
 
     // Double inverse
-    for (int i = 0; i < SCALED(1000, 50); ++i) {
+    { const int total = SCALED(1000, 50);
+    for (int i = 0; i < total; ++i) {
         auto a = random_scalar();
         CHECK(a.inverse().inverse() == a, "(a^-1)^-1 == a");
-    }
+        if ((i+1) % (total/5+1) == 0) printf("      dbl_inv %d/%d\n", i+1, total);
+    } }
 
     printf("    %d checks\n\n", g_pass);
 }
@@ -228,7 +238,8 @@ static void test_glv_split() {
 
     // For random k, verify k*G computed via GLV matches direct scalar_mul
     // (scalar_mul internally uses GLV, but we verify algebraic identity)
-    for (int i = 0; i < SCALED(1000, 50); ++i) {
+    { const int total = SCALED(1000, 50);
+    for (int i = 0; i < total; ++i) {
         auto k = random_scalar();
 
         // Compute k*G
@@ -240,7 +251,8 @@ static void test_glv_split() {
         auto P2 = G.scalar_mul(k_plus_1);
         auto P3 = P.add(G);
         CHECK(P2.to_compressed() == P3.to_compressed(), "(k+1)*G == k*G + G");
-    }
+        if ((i+1) % (total/5+1) == 0) printf("      glv %d/%d\n", i+1, total);
+    } }
 
     printf("    %d checks\n\n", g_pass);
 }
@@ -284,12 +296,14 @@ static void test_negate() {
     g_section = "negate";
     printf("[8] Negate self-consistency\n");
 
-    for (int i = 0; i < SCALED(10000, 200); ++i) {
+    { const int total = SCALED(10000, 200);
+    for (int i = 0; i < total; ++i) {
         auto a = random_scalar();
         auto neg = a.negate();
         CHECK((a + neg).is_zero(), "a + (-a) == 0");
         CHECK(neg.negate() == a, "-(-a) == a");
-    }
+        if ((i+1) % (total/5+1) == 0) printf("      negate %d/%d\n", i+1, total);
+    } }
 
     // negate(0) == 0
     CHECK(Scalar::from_uint64(0).negate().is_zero(), "-(0) == 0");

@@ -97,6 +97,7 @@ static void test_musig2_key_agg_determinism() {
                   ctx2.key_coefficients[i].to_bytes(),
                   "coefficient deterministic");
         }
+        if ((round+1) % (N/5+1) == 0) std::printf("      key_agg %d/%d\n", round+1, N);
     }
 
     std::printf("    %d checks OK\n\n", g_pass);
@@ -223,6 +224,7 @@ static void test_musig2_round_trip(int n_signers, const char* label) {
         auto schnorr_sig = secp256k1::SchnorrSignature::from_bytes(sig64);
         bool const ok = secp256k1::schnorr_verify(key_agg.Q_x, msg, schnorr_sig);
         CHECK(ok, "aggregated sig passes schnorr_verify");
+        if ((round+1) % (ROUNDS/5+1) == 0) std::printf("      rt_%s %d/%d\n", label, round+1, ROUNDS);
     }
 
     std::printf("    %d checks OK\n\n", g_pass);
@@ -267,6 +269,7 @@ static void test_musig2_wrong_signer() {
         bool const bad_pv = secp256k1::musig2_partial_verify(
             s_0, pub_nonces[1], pks[1], key_agg, session, 1);
         CHECK(!bad_pv, "wrong signer partial verify fails");
+        if ((round+1) % (N/5+1) == 0) std::printf("      wrong %d/%d\n", round+1, N);
     }
 
     std::printf("    %d checks OK\n\n", g_pass);
@@ -325,6 +328,7 @@ for (int i = 0; i < 2; ++i) {
         auto sig_flipped = secp256k1::SchnorrSignature::from_bytes(sig_bad);
         CHECK(!secp256k1::schnorr_verify(key_agg.Q_x, msg, sig_flipped),
               "bitflipped sig invalid");
+        if ((round+1) % (N/5+1) == 0) std::printf("      m_flip %d/%d\n", round+1, N);
     }
 
     std::printf("    %d checks OK\n\n", g_pass);
@@ -338,7 +342,7 @@ for (int i = 0; i < 2; ++i) {
 
 static void test_frost_dkg(uint32_t threshold, uint32_t n_participants,
                            const char* label) {
-    std::printf("[7.%s] FROST DKG: %u-of-%u\n", label, threshold, n_participants);
+    std::printf("[7.%s] FROST DKG: %u-of-%u\n", label, (unsigned)threshold, (unsigned)n_participants);
 
     std::mt19937_64 rng(0xF0057000 + threshold * 100 + n_participants);  // NOLINT(cert-msc32-c,cert-msc51-cpp)
     const int ROUNDS = 10;
@@ -391,6 +395,7 @@ for (uint32_t j = 0; j < n_participants; ++j) {
             CHECK(sG.to_compressed() == vs.to_compressed(),
                   "signing_share*G == verification_share");
         }
+        if ((round+1) % (ROUNDS/5+1) == 0) std::printf("      dkg_%s %d/%d\n", label, round+1, ROUNDS);
     }
 
     std::printf("    %d checks OK\n\n", g_pass);
@@ -400,7 +405,7 @@ for (uint32_t j = 0; j < n_participants; ++j) {
 
 static void test_frost_signing(uint32_t threshold, uint32_t n_participants,
                                const char* label) {
-    std::printf("[8.%s] FROST Signing: %u-of-%u\n", label, threshold, n_participants);
+    std::printf("[8.%s] FROST Signing: %u-of-%u\n", label, (unsigned)threshold, (unsigned)n_participants);
 
     std::mt19937_64 rng(0xF5160000 + threshold * 100 + n_participants);  // NOLINT(cert-msc32-c,cert-msc51-cpp)
     const int ROUNDS = 10;
@@ -488,6 +493,7 @@ for (uint32_t i = 0; i < threshold; ++i) {
         }
         bool const ok = secp256k1::schnorr_verify(gpk_x, msg, final_sig);
         CHECK(ok, "FROST aggregated sig passes schnorr_verify");
+        std::printf("      sign_%s %d/%d\n", label, round+1, ROUNDS);
     }
 
     std::printf("    %d checks OK\n\n", g_pass);
@@ -558,6 +564,7 @@ for (uint32_t j = 0; j < n_parts; ++j) {
             bool const ok = secp256k1::schnorr_verify(gpk_x, msg, sig);
             CHECK(ok, "subset signature valid");
         }
+        std::printf("      subsets %d/%d\n", round+1, ROUNDS);
     }
 
     std::printf("    %d checks OK\n\n", g_pass);
@@ -614,6 +621,7 @@ for (uint32_t j = 0; j < n; ++j) ms.push_back(smatrix[j][i]);
         s_bytes[round % 32] ^= 0x01;
         sig_bad.s = Scalar::from_bytes(s_bytes);
         CHECK(!secp256k1::schnorr_verify(gpk_x, msg, sig_bad), "bitflipped invalid");
+        if ((round+1) % (N/5+1) == 0) std::printf("      f_flip %d/%d\n", round+1, N);
     }
 
     std::printf("    %d checks OK\n\n", g_pass);
@@ -661,6 +669,7 @@ for (uint32_t j = 0; j < n; ++j) ms.push_back(smatrix[j][i]);
         bool const bad = secp256k1::frost_verify_partial(
             ps1, nc1, pkgs[1].verification_share, msg, ncs, gpk);
         CHECK(!bad, "wrong verification share -> partial verify fails");
+        if ((round+1) % (N/5+1) == 0) std::printf("      f_wrong %d/%d\n", round+1, N);
     }
 
     std::printf("    %d checks OK\n\n", g_pass);

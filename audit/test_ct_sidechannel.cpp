@@ -1422,14 +1422,14 @@ static void test_protocol_timing() {
         auto sk_fixed = Scalar::from_hex(
             "0000000000000000000000000000000000000000000000000000000000000001");
         auto pk_fixed_pt = G.scalar_mul(sk_fixed);
-        std::array<uint8_t, 32> pk_fixed_x = pk_fixed_pt.x().to_bytes();
+        const std::array<uint8_t, 32> pk_fixed_x = pk_fixed_pt.x().to_bytes();
 
         // Generate a second signer for a valid session
         auto sk2 = random_scalar();
         auto pk2_pt = G.scalar_mul(sk2);
-        std::array<uint8_t, 32> pk2_x = pk2_pt.x().to_bytes();
+        const std::array<uint8_t, 32> pk2_x = pk2_pt.x().to_bytes();
 
-        std::vector<std::array<uint8_t, 32>> pubkeys = { pk_fixed_x, pk2_x };
+        const std::vector<std::array<uint8_t, 32>> pubkeys = { pk_fixed_x, pk2_x };
         auto ctx = secp256k1::musig2_key_agg(pubkeys);
 
         // Generate nonces using proper API
@@ -1519,7 +1519,7 @@ static void test_protocol_timing() {
             auto [pkg, ok] = secp256k1::frost_keygen_finalize(
                 i + 1, commitments, received, threshold, n_signers);
             (void)ok;
-            key_pkgs.push_back(std::move(pkg));
+            key_pkgs.push_back(pkg);
         }
 
         // Signing: participants 1 and 2
@@ -1530,7 +1530,7 @@ static void test_protocol_timing() {
         ns1[0] = 0x71; ns2[0] = 0x72;
         auto [nonce1, nc1] = secp256k1::frost_sign_nonce_gen(1, ns1);
         auto [nonce2, nc2] = secp256k1::frost_sign_nonce_gen(2, ns2);
-        std::vector<secp256k1::FrostNonceCommitment> ncs = { nc1, nc2 };
+        const std::vector<secp256k1::FrostNonceCommitment> ncs = { nc1, nc2 };
 
         // Scalar with low Hamming weight
         auto sc_low = Scalar::from_hex(
@@ -1584,8 +1584,8 @@ static void test_protocol_timing() {
         constexpr int NL = 10000;
 #endif
         // Two different signer sets for the same participant
-        std::vector<secp256k1::ParticipantId> set_a = {1, 2};
-        std::vector<secp256k1::ParticipantId> set_b = {1, 3};
+        const std::vector<secp256k1::ParticipantId> set_a = {1, 2};
+        const std::vector<secp256k1::ParticipantId> set_b = {1, 3};
 
         int classes[NL];
         for (int i = 0; i < NL; ++i) classes[i] = rng() & 1;
@@ -1633,6 +1633,13 @@ static void test_assembly_info() {
 
 // Exportable run function (for unified audit runner -- smoke mode)
 int test_ct_sidechannel_smoke_run() {
+#if defined(SECP256K1_PLATFORM_ESP32)
+    // Skip on ESP32: dudect timing tests use >80KB stack arrays which
+    // overflow the 65KB task stack. rdtsc-style cycle counting is also
+    // unavailable on Xtensa, making results meaningless.
+    printf("  [ct_sidechannel_smoke] SKIP -- ESP32 (stack/timer limits)\n");
+    return 0;
+#endif
     g_pass = g_fail = 0;
     test_ct_primitives();
     test_ct_field();

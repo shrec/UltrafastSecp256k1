@@ -1,0 +1,96 @@
+{
+  "library": "UltrafastSecp256k1",
+  "version": "3.15.3-2-g3d6b540",
+  "git_hash": "3d6b540",
+  "timestamp": "2026-03-02T00:10:00",
+  "platform": {
+    "chip": "ESP32-S3",
+    "package": "QFN56",
+    "revision": "v0.1",
+    "cpu": "Xtensa LX7",
+    "cores": 2,
+    "freq_mhz": 240,
+    "sram_kb": 512,
+    "flash_mb": 8,
+    "heap_free_bytes": 230520,
+    "os": "FreeRTOS (ESP-IDF v5.5.1)",
+    "compiler": "GCC 14.2.0 (xtensa-esp-elf)",
+    "build": "Release (-O3)"
+  },
+  "binary_size_bytes": 479184,
+  "config": {
+    "assembly": "Portable C++ (no ASM)",
+    "int128": false,
+    "field_tier": "4x64 (ESP32-S3 native)",
+    "reduction": "ESP32 Comba 8x32 + branchless"
+  },
+  "selftest": {"total": 37, "passed": 37},
+  "method": "median of 3 runs, per-op warmup",
+  "benchmarks": {
+    "field_arithmetic": {
+      "mul_ns": 6000,
+      "sqr_ns": 5000,
+      "add_ns": 842,
+      "neg_ns": 1000,
+      "inv_ns": 129000
+    },
+    "point_operations": {
+      "add_jacobian_ns": 75000,
+      "double_ns": 47000,
+      "scalar_mul_ns": 12000000,
+      "generator_mul_ns": 5000000
+    },
+    "signatures": {
+      "ecdsa_sign_ns": 7000000,
+      "ecdsa_verify_ns": 18000000,
+      "schnorr_sign_ns": 7000000,
+      "schnorr_verify_ns": 21000000
+    },
+    "bottleneck_profile": {
+      "scalar_inverse_ns": 131000,
+      "scalar_modmul_ns": 19000,
+      "sha256_32byte_ns": 21000
+    },
+    "batch_operations": {
+      "batch_inv_32_per_elem_ns": 21000,
+      "batch_inv_100_per_elem_ns": 19000
+    },
+    "constant_time": {
+      "ct_scalar_mul_ns": 16000000,
+      "ct_generator_mul_ns": 5000000,
+      "ct_point_add_complete_ns": 113000,
+      "ct_point_dbl_ns": 50000,
+      "ct_correctness_tests": {"total": 4, "passed": 4},
+      "fast_vs_ct": {
+        "fast_scalar_g_us": 5581,
+        "ct_scalar_g_us": 15545,
+        "ct_fast_ratio": 2.79
+      }
+    }
+  },
+  "apple_to_apple_comparison": {
+    "reference": "libsecp256k1 (bitcoin-core v0.7.2)",
+    "reference_config": "COMB 11x6 (22KB tables)",
+    "results": [
+      {
+        "operation": "Generator*k (ec_pubkey_create)",
+        "ours_us": 5000,
+        "theirs_us": 8178,
+        "speedup": 1.64
+      },
+      {
+        "operation": "ECDSA Sign",
+        "ours_us": 7000,
+        "theirs_us": 10349,
+        "speedup": 1.48
+      },
+      {
+        "operation": "ECDSA Verify",
+        "ours_us": 18000,
+        "theirs_us": 26397,
+        "speedup": 1.47
+      }
+    ],
+    "summary": "UltrafastSecp256k1 is 1.47x-1.64x faster than bitcoin-core libsecp256k1"
+  }
+}

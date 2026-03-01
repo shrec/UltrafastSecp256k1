@@ -2821,7 +2821,13 @@ Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const P
 
     return from_jac52(result52);
 }
-#elif defined(SECP256K1_PLATFORM_ESP32) || defined(ESP_PLATFORM) || defined(SECP256K1_PLATFORM_STM32)
+// DISABLED: ESP32/Embedded 4-stream GLV Strauss produces incorrect verify results.
+// Root cause: the 4-stream interleaved Shamir scan with GLV decomposition of BOTH
+// scalars (a and b) computes wrong R' point, causing 100% ECDSA/Schnorr verify failure.
+// The simple fallback (a*G + b*P via separate scalar_muls) uses proven code paths
+// (gen_fixed_mul for G, GLV+Shamir per-point for P) and is correct.
+// TODO: investigate and fix the 4-stream path, then re-enable.
+#elif 0 && (defined(SECP256K1_PLATFORM_ESP32) || defined(ESP_PLATFORM) || defined(SECP256K1_PLATFORM_STM32))
 // -- ESP32/Embedded: 4-stream GLV Strauss (4x64 field) --------------------
 // Combines a*G + b*P into a single doubling chain with 4 wNAF streams,
 // halving the doublings compared to two separate scalar_mul calls.

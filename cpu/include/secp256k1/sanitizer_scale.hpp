@@ -24,7 +24,16 @@
 #  define SECP256K1_SANITIZER_BUILD 0
 #endif
 
+// Detect embedded / resource-constrained targets
+#if defined(SECP256K1_PLATFORM_ESP32) || defined(ESP_PLATFORM) || defined(SECP256K1_PLATFORM_STM32)
+#  define SECP256K1_EMBEDDED_BUILD 1
+#else
+#  define SECP256K1_EMBEDDED_BUILD 0
+#endif
+
 // SCALED(normal, reduced) -- pick count based on build type
-#define SCALED(normal, reduced) (SECP256K1_SANITIZER_BUILD ? (reduced) : (normal))
+// Uses reduced counts under sanitizers AND on embedded targets (ESP32, STM32)
+// where the 240 MHz CPU makes large iteration counts impractical.
+#define SCALED(normal, reduced) ((SECP256K1_SANITIZER_BUILD || SECP256K1_EMBEDDED_BUILD) ? (reduced) : (normal))
 
 #endif // SECP256K1_SANITIZER_SCALE_HPP

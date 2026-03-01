@@ -252,7 +252,8 @@ static void test_recovery_edges() {
 
     auto G = Point::generator();
 
-    for (int i = 0; i < SCALED(1000, 50); ++i) {
+    { const int total = SCALED(1000, 50);
+    for (int i = 0; i < total; ++i) {
         auto sk = random_scalar();
         auto pk = G.scalar_mul(sk);
         std::array<uint8_t, 32> msg{};
@@ -281,7 +282,8 @@ static void test_recovery_edges() {
             auto rec_bytes = wrong_pk.to_compressed();
             CHECK(rec_bytes != pk.to_compressed(), "wrong recid != original pk");
         }
-    }
+        if ((i+1) % (total/5+1) == 0) printf("      rec_edge %d/%d\n", i+1, total);
+    } }
 
     // Invalid recid
     {
@@ -307,7 +309,8 @@ static void test_random_op_sequence() {
     auto G = Point::generator();
     auto acc = Point::infinity();
 
-    for (int i = 0; i < SCALED(10000, 200); ++i) {
+    { const int total = SCALED(10000, 200);
+    for (int i = 0; i < total; ++i) {
         int const op = static_cast<int>(rng() % 6);
         auto k = random_scalar();
 
@@ -342,7 +345,8 @@ static void test_random_op_sequence() {
         }
         default: break;
         }
-    }
+        if ((i+1) % (total/10+1) == 0) printf("      rnd_ops %d/%d\n", i+1, total);
+    } }
 
     // Final: check acc is still on curve (if not infinity)
     if (!acc.is_infinity()) {
@@ -363,7 +367,8 @@ static void test_der_roundtrip() {
     auto G = Point::generator();
     (void)G;
 
-    for (int i = 0; i < SCALED(1000, 50); ++i) {
+    { const int total = SCALED(1000, 50);
+    for (int i = 0; i < total; ++i) {
         auto sk = random_scalar();
         std::array<uint8_t, 32> msg{};
         uint64_t v = rng();
@@ -380,7 +385,8 @@ static void test_der_roundtrip() {
         auto [der_bytes, der_len] = sig.to_der();
         CHECK(der_len > 0 && der_len <= 72, "DER length valid");
         CHECK(der_bytes[0] == 0x30, "DER starts with SEQUENCE tag");
-    }
+        if ((i+1) % (total/5+1) == 0) printf("      der %d/%d\n", i+1, total);
+    } }
 
     printf("    %d checks\n\n", g_pass);
 }
@@ -392,7 +398,8 @@ static void test_schnorr_bytes_roundtrip() {
     g_section = "schn_rt";
     printf("[9] Schnorr signature byte round-trip (1K)\n");
 
-    for (int i = 0; i < SCALED(1000, 50); ++i) {
+    { const int total = SCALED(1000, 50);
+    for (int i = 0; i < total; ++i) {
         auto sk = random_scalar();
         std::array<uint8_t, 32> msg{};
         uint64_t v = rng();
@@ -405,7 +412,8 @@ static void test_schnorr_bytes_roundtrip() {
 
         CHECK(std::memcmp(sig.r.data(), restored.r.data(), 32) == 0, "schnorr r round-trip");
         CHECK(sig.s == restored.s, "schnorr s round-trip");
-    }
+        if ((i+1) % (total/5+1) == 0) printf("      schn_rt %d/%d\n", i+1, total);
+    } }
 
     printf("    %d checks\n\n", g_pass);
 }
@@ -419,7 +427,8 @@ static void test_sig_normalization() {
 
     auto G = Point::generator();
 
-    for (int i = 0; i < SCALED(1000, 50); ++i) {
+    { const int total = SCALED(1000, 50);
+    for (int i = 0; i < total; ++i) {
         auto sk = random_scalar();
         auto pk = G.scalar_mul(sk);
         std::array<uint8_t, 32> msg{};
@@ -441,7 +450,8 @@ static void test_sig_normalization() {
         auto normalized = high_s_sig.normalize();
         CHECK(normalized.is_low_s(), "normalize -> low-S");
         CHECK(normalized.r == sig.r && normalized.s == sig.s, "normalize matches original");
-    }
+        if ((i+1) % (total/5+1) == 0) printf("      sig_norm %d/%d\n", i+1, total);
+    } }
 
     printf("    %d checks\n\n", g_pass);
 }

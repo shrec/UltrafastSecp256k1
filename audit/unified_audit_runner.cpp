@@ -423,8 +423,11 @@ static std::vector<SectionSummary> compute_section_summaries(
         for (auto& r : results) {
             if (std::strcmp(r.section, SECTIONS[s].id) == 0) {
                 ++ss.total;
-                if (r.passed) ++ss.passed;
-                else if (!r.advisory) ++ss.failed;
+                if (r.passed) {
+                    ++ss.passed;
+                } else if (!r.advisory) {
+                    ++ss.failed;
+                }
                 // advisory warnings count in total but not in failed
                 ss.time_ms += r.elapsed_ms;
             }
@@ -456,11 +459,15 @@ static void write_json_report(const char* path,
 
     int total_pass = 0, total_fail = 0, total_advisory = 0;
     for (auto& r : results) {
-        if (r.passed) ++total_pass;
-        else if (r.advisory) ++total_advisory;
-        else ++total_fail;
+        if (r.passed) {
+            ++total_pass;
+        } else if (r.advisory) {
+            ++total_advisory;
+        } else {
+            ++total_fail;
+        }
     }
-    if (selftest_passed) ++total_pass; else ++total_fail;
+    if (selftest_passed) { ++total_pass; } else { ++total_fail; }
 
     auto sections = compute_section_summaries(results);
 
@@ -550,11 +557,15 @@ static void write_text_report(const char* path,
 
     int total_pass = 0, total_fail = 0, total_advisory = 0;
     for (auto& r : results) {
-        if (r.passed) ++total_pass;
-        else if (r.advisory) ++total_advisory;
-        else ++total_fail;
+        if (r.passed) {
+            ++total_pass;
+        } else if (r.advisory) {
+            ++total_advisory;
+        } else {
+            ++total_fail;
+        }
     }
-    if (selftest_passed) ++total_pass; else ++total_fail;
+    if (selftest_passed) { ++total_pass; } else { ++total_fail; }
 
     auto sections = compute_section_summaries(results);
 
@@ -690,21 +701,34 @@ static void write_sarif_report(const char* path,
     }
 
     for (auto& r : results) {
-        if (r.passed) continue;
-        if (!first_result) (void)std::fprintf(f, ",\n");
-        else (void)std::fprintf(f, "\n");
+        if (r.passed) {
+            continue;
+        }
+        if (!first_result) {
+            (void)std::fprintf(f, ",\n");
+        } else {
+            (void)std::fprintf(f, "\n");
+        }
         first_result = false;
 
         const char* level = r.advisory ? "warning" : "error";
         // Map section to a representative source file
         const char* uri = "audit/unified_audit_runner.cpp";
-        if (std::strcmp(r.section, "math_invariants") == 0) uri = "cpu/src/field.cpp";
-        else if (std::strcmp(r.section, "ct_analysis") == 0) uri = "cpu/include/secp256k1/ct/ops.hpp";
-        else if (std::strcmp(r.section, "standard_vectors") == 0) uri = "audit/test_cross_platform_kat.cpp";
-        else if (std::strcmp(r.section, "protocol_security") == 0) uri = "cpu/src/musig2.cpp";
-        else if (std::strcmp(r.section, "fuzzing") == 0) uri = "audit/audit_fuzz.cpp";
-        else if (std::strcmp(r.section, "memory_safety") == 0) uri = "audit/test_abi_gate.cpp";
-        else if (std::strcmp(r.section, "performance") == 0) uri = "cpu/tests/bench_comprehensive.cpp";
+        if (std::strcmp(r.section, "math_invariants") == 0) {
+            uri = "cpu/src/field.cpp";
+        } else if (std::strcmp(r.section, "ct_analysis") == 0) {
+            uri = "cpu/include/secp256k1/ct/ops.hpp";
+        } else if (std::strcmp(r.section, "standard_vectors") == 0) {
+            uri = "audit/test_cross_platform_kat.cpp";
+        } else if (std::strcmp(r.section, "protocol_security") == 0) {
+            uri = "cpu/src/musig2.cpp";
+        } else if (std::strcmp(r.section, "fuzzing") == 0) {
+            uri = "audit/audit_fuzz.cpp";
+        } else if (std::strcmp(r.section, "memory_safety") == 0) {
+            uri = "audit/test_abi_gate.cpp";
+        } else if (std::strcmp(r.section, "performance") == 0) {
+            uri = "cpu/tests/bench_comprehensive.cpp";
+        }
 
         (void)std::fprintf(f, "        {\n");
         (void)std::fprintf(f, "          \"ruleId\": \"AUDIT/%s\",\n", r.id);

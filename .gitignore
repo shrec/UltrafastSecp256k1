@@ -119,6 +119,36 @@ cpu/secp256k1/
 # Local working documents (not for repo)
 INDUSTRIAL_ROADMAP_WORKING.md
 
+# Local scratch/debug files (never commit)
+_*.py
+_*.cpp
+_*.txt
+_cfl_artifacts/
+alerts_dump.txt
+all_alerts*.tsv
+ci_log.txt
+bench_asm_inline.cpp
+bench_inv.cpp
+bench3*.txt
+bench_pf*.txt
+bench_result.txt
+audit_full_dump*.txt
+local-ci-output/
+test_asm_check.*
+test_inline_check.*
+STACKER_NEWS_POST.md
+*.pdb
+
+# ESP32 build artifacts and logs
+tests/esp32_audit/build*/
+tests/esp32_audit/*.txt
+tests/esp32_audit/sdkconfig.old
+examples/esp32_bench_hornet/build/
+examples/esp32_test/capture_bench.py
+
+# Android build artifacts
+android/build-*/
+
 # Git bundle artifacts (binary, never commit)
 *.bundle
 

@@ -240,9 +240,12 @@ static void test_arbitrary_point_table() {
 // -- Test 7: Large batch (search-scale) ---------------------------------------
 
 static void test_large_batch() {
-    (void)std::printf("[BatchAffine] Large batch (1024 points)...\n");
-
+#if defined(SECP256K1_PLATFORM_ESP32)
+    constexpr std::size_t BATCH = 64;   // ESP32: limited heap
+#else
     constexpr std::size_t BATCH = 1024;
+#endif
+    (void)std::printf("[BatchAffine] Large batch (%zu points)...\n", BATCH);
     
     auto t0 = std::chrono::high_resolution_clock::now();
     auto g_table = precompute_g_multiples(BATCH);
@@ -263,7 +266,11 @@ static void test_large_batch() {
     batch_add_affine_x(base_x, base_y, g_table.data(), out_x.data(), BATCH, scratch);
 
     // Benchmark
+#if defined(SECP256K1_PLATFORM_ESP32)
+    constexpr int ITERS = 10;   // ESP32: quick smoke test
+#else
     constexpr int ITERS = 1000;
+#endif
     t0 = std::chrono::high_resolution_clock::now();
     for (int iter = 0; iter < ITERS; ++iter) {
         batch_add_affine_x(base_x, base_y, g_table.data(), out_x.data(), BATCH, scratch);

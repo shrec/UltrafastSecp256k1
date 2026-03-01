@@ -5,20 +5,24 @@
 
 ## Summary
 
-| # | Platform            | OS      | Arch   | Compiler       | Build   | Modules | Verdict      | Time    |
-|---|---------------------|---------|--------|----------------|---------|---------|--------------|---------|
-| 1 | Windows (local)     | Windows | x86-64 | Clang 21.1.0   | Release | 48/49   | AUDIT-READY  | 39.3 s  |
-| 2 | Linux Docker (local)| Linux   | x86-64 | GCC 13.3.0     | Release | 48/49   | AUDIT-READY  | 46.0 s  |
-| 3 | Linux CI            | Linux   | x86-64 | Clang 17.0.6   | Release | 46/46   | AUDIT-READY  | 44.3 s  |
-| 4 | Linux CI            | Linux   | x86-64 | GCC 13.3.0     | Release | 46/46   | AUDIT-READY  | 48.4 s  |
-| 5 | Windows CI          | Windows | x86-64 | MSVC 1944      | Release | 45/45   | AUDIT-READY  | 139.1 s |
+| # | Platform            | OS      | Arch      | Compiler       | Build   | Modules | Verdict      | Time    |
+|---|---------------------|---------|-----------|----------------|---------|---------|--------------|---------|
+| 1 | Windows (local)     | Windows | x86-64    | Clang 21.1.0   | Release | 48/49   | AUDIT-READY  | 39.3 s  |
+| 2 | Linux Docker (local)| Linux   | x86-64    | GCC 13.3.0     | Release | 48/49   | AUDIT-READY  | 46.0 s  |
+| 3 | Linux CI            | Linux   | x86-64    | Clang 17.0.6   | Release | 46/46   | AUDIT-READY  | 44.3 s  |
+| 4 | Linux CI            | Linux   | x86-64    | GCC 13.3.0     | Release | 46/46   | AUDIT-READY  | 48.4 s  |
+| 5 | Windows CI          | Windows | x86-64    | MSVC 1944      | Release | 45/45   | AUDIT-READY  | 139.1 s |
+| 6 | ESP32-S3 (real HW)  | FreeRTOS| Xtensa    | GCC 14.2.0     | Release | 40/40   | AUDIT-READY  | 583 s   |
+| 7 | Milk-V Mars (real HW)| Linux  | RISC-V 64 | GCC 13.3.0     | Release | 48/49   | AUDIT-READY  | 250 s   |
 
-**All 5 platform configurations: AUDIT-READY**
+**All 7 platform configurations: AUDIT-READY**
 
 ## Notes
 
 - Rows 1-2 run against v3.16.0 (commit 28a40d0a) with 49 modules (includes BIP-340 strict, MuSig2 BIP-327 vectors, FFI round-trip, RFC 9591 invariants/3-of-5)
 - Rows 3-5 run against v3.15.2 (commit 03b1661a) with 45-46 modules (before BIP-340 strict + FROST RFC 9591 modules were added)
+- Row 6: ESP32-S3 real hardware (Xtensa LX7 240 MHz), 8 modules skipped (platform-incompatible: __int128, AVX2, SHA-NI, exhaustive, comprehensive, FFI, desktop fuzz)
+- Row 7: Milk-V Mars real hardware (SiFive U74-MC rv64gc_zba_zbb @ 1.5 GHz), all 49 modules run, cross-compiled from x86-64
 - Module count difference: v3.16.0 added 3 new modules (BIP-340 strict, MuSig2 BIP-327, FFI round-trip)
 - "48/49" means 1 advisory warning: Side-channel dudect smoke test (probabilistic timing; flakes under shared-runner / hypervisor noise)
 - FieldElement52 (5x52) test skipped on MSVC (no __uint128_t), hence 45 vs 46 on CI
@@ -114,3 +118,5 @@ Individual reports are stored as text and JSON in this directory:
 - `linux-x86_64-clang17-ci.txt` / `.json` -- Linux GitHub CI (v3.15.2)
 - `linux-x86_64-gcc13-ci.txt` / `.json` -- Linux GitHub CI (v3.15.2)
 - `windows-x86_64-msvc-ci.txt` / `.json` -- Windows GitHub CI (v3.15.2)
+- `esp32s3-xtensa-idf551.txt` / `.json` -- ESP32-S3 real hardware (v3.16.0)
+- `riscv64-gcc13-hw.txt` / `.json` -- Milk-V Mars RISC-V real hardware (v3.16.0)

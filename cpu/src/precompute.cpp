@@ -2098,8 +2098,9 @@ ScalarDecomposition split_scalar_internal(const Scalar& scalar) {
     return decomposition;
 }
 
+#if !SECP256K1_ESP32_BUILD
 // ============================================================================
-// Cache Serialization System
+// Cache Serialization System (desktop only -- requires fstream/chrono/mutex)
 // ============================================================================
 // Cache System
 // ============================================================================
@@ -2555,7 +2556,7 @@ bool configure_fixed_base_auto() {
 }
 
 // ----------------------------------------------------------------------------
-// Auto-tuning implementation
+// Auto-tuning implementation (desktop only -- requires iostream/filesystem/mutex)
 // ----------------------------------------------------------------------------
 
 namespace {
@@ -2801,6 +2802,9 @@ bool auto_tune_and_write_config(const std::string& path, unsigned iterations, un
     configure_fixed_base(guess);
     return true;
 }
+#else  // SECP256K1_ESP32_BUILD -- close anonymous namespace without cache/config/autotune
+} // namespace (ESP32: no cache/config/autotune functions)
+#endif // !SECP256K1_ESP32_BUILD  (cache + config + auto-tuning)
 
 // ============================================================================
 // wNAF (width-w Non-Adjacent Form) Implementation
@@ -3269,6 +3273,20 @@ JacobianPoint shamir_jsf_glv(
 
 } // anonymous namespace
 
+#if SECP256K1_ESP32_BUILD
+// ESP32 fallback: delegate to Point::generator().scalar_mul() which uses
+// the local gen_fixed_mul / wNAF path -- no mutex, no PrecomputeContext.
+Point scalar_mul_generator(const Scalar& scalar) {
+    return Point::generator().scalar_mul(scalar);
+}
+
+Point scalar_mul_generator_glv_predecomposed(const Scalar& /*k1*/, const Scalar& /*k2*/,
+                                              bool /*neg1*/, bool /*neg2*/) {
+    // Not available on ESP32 (requires PrecomputeContext + mutex).
+    // Callers should use Point::generator().scalar_mul() instead.
+    return Point::infinity();
+}
+#else
 Point scalar_mul_generator(const Scalar& scalar) {
     std::unique_lock<std::mutex> lock(g_mutex);
     ensure_built_locked();
@@ -3436,6 +3454,7 @@ Point scalar_mul_generator_glv_predecomposed(const Scalar& k1, const Scalar& k2,
     }
     return Point::from_jacobian_coords(result.x, result.y, result.z, result.infinity);
 }
+#endif // !SECP256K1_ESP32_BUILD  (scalar_mul_generator / glv_predecomposed)
 
 bool save_precompute_cache(const std::string& path) {
     (void)path;

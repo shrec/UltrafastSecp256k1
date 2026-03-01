@@ -1,0 +1,121 @@
+{
+  "library": "UltrafastSecp256k1",
+  "version": "3.16.0",
+  "benchmark": "bench_hornet (Bitcoin Consensus CPU Benchmark)",
+  "target": "Hornet Node (hornetnode.org)",
+  "timestamp": "2026-03-02",
+  "platform": {
+    "cpu": "ARM Cortex-A55 (0xd05)",
+    "arch": "aarch64 (NEON, __int128)",
+    "cores": 8,
+    "cores_used": 1,
+    "compiler": "Clang 18.0.1 (Android NDK r27)",
+    "os": "Android 13 (Linux 5.10.157)",
+    "device": "YF_022A",
+    "build": "Release (-O3, -mcpu=cortex-a76)"
+  },
+  "config": {
+    "field": "10x26 (ARM64 -- wins all field ops)",
+    "scalar": "4x64 limbs, Barrett/GLV",
+    "point_mul": "GLV endomorphism + wNAF (w=5)",
+    "dual_mul": "Shamir's trick (a*G + b*P)",
+    "timer": "clock_gettime(CLOCK_MONOTONIC)",
+    "passes": 5,
+    "method": "median of 5 runs",
+    "pool_size": 32
+  },
+  "benchmarks": {
+    "ecdsa": {
+      "sign_ns": 27982.5,
+      "verify_ns": 146953.4
+    },
+    "schnorr": {
+      "sign_keypair_ns": 20107.5,
+      "sign_raw_ns": 37887.5,
+      "verify_xonly_ns": 167148.3,
+      "verify_cached_ns": 147589.2
+    },
+    "batch_verification_n32": {
+      "schnorr_per_sig_ns": 213141.8,
+      "schnorr_vs_individual": 0.78,
+      "ecdsa_per_sig_ns": 148088.3,
+      "ecdsa_vs_individual": 0.99
+    },
+    "key_generation": {
+      "pubkey_create_ns": 17459.2,
+      "schnorr_keypair_create_ns": 17622.5
+    },
+    "point_arithmetic": {
+      "scalar_mul_kP_ns": 131652.5,
+      "dual_mul_shamir_ns": 145366.7,
+      "point_add_ns": 4421.4,
+      "point_dbl_ns": 3655.9
+    },
+    "field_arithmetic": {
+      "mul_ns": 69.9,
+      "sqr_ns": 50.4,
+      "inv_ns": 2823.3,
+      "add_ns": 12.5,
+      "sub_ns": 9.1,
+      "neg_ns": 10.5
+    },
+    "scalar_arithmetic": {
+      "mul_ns": 107.9,
+      "inv_ns": 2864.2,
+      "add_ns": 8.9,
+      "neg_ns": 7.9
+    },
+    "serialization": {
+      "pubkey_compress_ns": 3186.3,
+      "ecdsa_der_encode_ns": 49.6,
+      "schnorr_bytes_ns": 7.3
+    },
+    "constant_time": {
+      "ct_ecdsa_sign_ns": 71907.5,
+      "ct_overhead_ecdsa": 2.57,
+      "ct_schnorr_sign_ns": 64003.3,
+      "ct_overhead_schnorr": 3.18
+    }
+  },
+  "apple_to_apple": {
+    "reference": "libsecp256k1 (bitcoin-core v0.7.2)",
+    "config": "default (64-bit field, precomputed tables)",
+    "modules": "ECDSA + Schnorr (BIP-340) + extrakeys",
+    "method": "100 iterations, 20 warmup, clock_gettime(CLOCK_MONOTONIC)",
+    "results": [
+      {"op": "Generator*k", "ours_ns": 17459, "theirs_ns": 63120, "speedup": 3.62},
+      {"op": "ECDSA Sign", "ours_ns": 27983, "theirs_ns": 76382, "speedup": 2.73},
+      {"op": "ECDSA Verify", "ours_ns": 146953, "theirs_ns": 148945, "speedup": 1.01},
+      {"op": "Schnorr Keypair", "ours_ns": 17623, "theirs_ns": 63090, "speedup": 3.58},
+      {"op": "Schnorr Sign", "ours_ns": 20108, "theirs_ns": 64998, "speedup": 3.23},
+      {"op": "Schnorr Verify", "ours_ns": 147589, "theirs_ns": 149386, "speedup": 1.01}
+    ],
+    "summary": "UltrafastSecp256k1 FAST wins 6/6 ops (1.01x-3.62x)",
+    "note": "libsecp256k1 is ALWAYS constant-time; FAST comparison is unfair for signing ops",
+    "ct_vs_libsecp": [
+      {"op": "ECDSA Sign", "ours_ct_ns": 71908, "theirs_ns": 76382, "speedup": 1.06},
+      {"op": "ECDSA Verify", "ours_ns": 146953, "theirs_ns": 148945, "speedup": 1.01, "note": "verify is public-input, no CT needed"},
+      {"op": "Schnorr Sign", "ours_ct_ns": 64003, "theirs_ns": 64998, "speedup": 1.02},
+      {"op": "Schnorr Verify", "ours_ns": 147589, "theirs_ns": 149386, "speedup": 1.01, "note": "verify is public-input, no CT needed"}
+    ],
+    "ct_summary": "CT-vs-CT: Ultra wins 4/4 (1.01x-1.06x)"
+  },
+  "block_validation_estimates": {
+    "pre_taproot_3000_ecdsa": {
+      "individual_ms": 440.9,
+      "batch_n32_ms": 444.3
+    },
+    "taproot_2000s_1000e": {
+      "individual_ms": 481.3,
+      "batch_n32_ms": 574.4
+    },
+    "blocks_per_sec_1core": {
+      "pre_taproot": 2.27,
+      "taproot": 2.08
+    },
+    "tx_per_sec_1core": {
+      "ecdsa": 6805,
+      "schnorr": 5983
+    }
+  }
+}

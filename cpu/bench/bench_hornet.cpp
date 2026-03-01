@@ -37,6 +37,9 @@
 #include <vector>
 #include <chrono>
 
+// -- libsecp256k1 apple-to-apple comparison (linked from libsecp_bench.c) -----
+extern "C" void libsecp_benchmark(void);
+
 #if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
   #if defined(_MSC_VER)
     #include <intrin.h>
@@ -724,7 +727,12 @@ int main() {
     printf("    ECDSA txs:    %8.0f tx/sec\n", ecdsa_per_sec);
     printf("    Schnorr txs:  %8.0f tx/sec\n", schnorr_per_sec);
     printf("\n");
+    // =========================================================================
+    // Apple-to-Apple: vs libsecp256k1 (bitcoin-core)
+    // =========================================================================
+    libsecp_benchmark();
 
+    printf("\n");
     printf("==========================================================================================\n");
     printf("  NOTES\n");
     printf("==========================================================================================\n\n");

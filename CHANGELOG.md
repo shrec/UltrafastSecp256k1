@@ -5,6 +5,53 @@ All notable changes to UltrafastSecp256k1 are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.16.1] - 2026-03-02
+
+> No breaking changes -- drop-in upgrade from v3.16.0 | ABI compatible
+> Focus: cross-platform benchmark campaign + audit on real hardware
+
+### 1. Cross-Platform Benchmark Campaign (bench_hornet)
+- **4 platforms benchmarked** with identical 6-op apple-to-apple suite vs bitcoin-core/libsecp256k1 v0.7.2
+  - x86-64: Intel i7-11700 @ 2.50 GHz, Clang 21.1.0 (Windows)
+  - ARM64: Cortex-A55 (YF_022A), Clang 18.0.1 (Android NDK 27)
+  - RISC-V 64: SiFive U74-MC @ 1.5 GHz, GCC 13.3.0 (Milk-V Mars, real HW)
+  - ESP32-S3: Xtensa LX7 @ 240 MHz, GCC 14.2.0 (ESP-IDF 5.5.1, real HW)
+- **CT-vs-CT fair comparison** -- libsecp256k1 is always constant-time; added separate CT-vs-CT comparison showing true performance for signing ops
+- **13 report files** generated (JSON + TXT per platform + cross-platform comparison)
+
+### 2. Cross-Platform Audit Campaign (unified_audit_runner)
+- **7 platform configs, all AUDIT-READY** (48/49 or 40/40 modules depending on platform)
+  - Windows x86-64 (Clang 21.1.0): 48/49 PASS
+  - Linux Docker x86-64 (GCC 13.3.0): 48/49 PASS
+  - Linux CI x86-64 (Clang 17.0.6): 46/46 PASS
+  - Linux CI x86-64 (GCC 13.3.0): 46/46 PASS
+  - Windows CI x86-64 (MSVC 1944): 45/45 PASS
+  - ESP32-S3 real HW (GCC 14.2.0): 40/40 PASS (8 modules skipped: platform-incompatible)
+  - RISC-V 64 real HW (GCC 13.3.0): 48/49 PASS (0 modules skipped, 1 advisory)
+- PLATFORM_AUDIT.md updated with all 7 configurations
+
+### 3. ARM64 Android Benchmark Port
+- **bench_hornet_android.cpp** -- full bench_hornet port for ARM64 Android (clock_gettime, median of 5, 32 key pool)
+- **libsecp_bench.c** -- libsecp256k1 apple-to-apple benchmark for Android NDK cross-compilation
+- **android/CMakeLists.txt** -- added C language, bench_hornet target, LIBSECP_SRC_DIR
+
+### 4. RISC-V Benchmark on Real Hardware
+- Cross-compiled bench_hornet for rv64gc_zba_zbb, deployed to Milk-V Mars via SCP
+- Results: Ultra FAST wins 4/6 ops (2.02x-3.08x), loses both Verify (0.94x)
+- CT-vs-CT: signing ops essentially tied (1.00x-1.03x), loses Verify (0.94x)
+
+### 5. Build & CI Fixes
+- **audit-report.yml** -- security-events permission scoped to job level (not workflow level)
+- **Dockerfile.ci** -- ubuntu:24.04 pinned to SHA256 digest
+- **sanitizer_scale.hpp** -- iteration scaling for sanitizer builds
+- **ESP32 audit** -- expanded sdkconfig, CMakeLists, and audit_main for 40-module auditing
+- **.gitignore** -- expanded to exclude local scratch files, build logs, and temp scripts
+
+### 6. Documentation
+- **BENCHMARKING.md** -- complete guide: how to run bench_hornet on all 4 platforms
+- **AUDIT_GUIDE.md** -- complete guide: how to run the 40/48-module audit on any platform
+- Examples README updated with stability markers
+
 ## [3.16.0] - 2026-03-01
 
 > No breaking changes -- drop-in upgrade from v3.15.x | ABI compatible

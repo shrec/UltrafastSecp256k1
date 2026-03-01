@@ -1,0 +1,123 @@
+{
+  "library": "UltrafastSecp256k1",
+  "version": "3.14.0",
+  "benchmark": "bench_hornet (Bitcoin Consensus CPU Benchmark)",
+  "target": "Hornet Node (hornetnode.org)",
+  "timestamp": "2026-03-02",
+  "platform": {
+    "cpu": "SiFive U74-MC (rv64imafdc_zba_zbb) @ 1.5 GHz",
+    "board": "Milk-V Mars (StarFive VisionFive 2)",
+    "arch": "RISC-V 64 (rv64gc_zba_zbb)",
+    "cores": 4,
+    "cores_used": 1,
+    "ram_gb": 3.8,
+    "compiler": "GCC 13.3.0 (cross-compiled, riscv64-linux-gnu)",
+    "os": "Debian (Linux 6.6.20-starfive)",
+    "build": "Release (-O3, -march=rv64gc_zba_zbb)"
+  },
+  "config": {
+    "field": "4x64 limbs, Montgomery reduction",
+    "scalar": "4x64 limbs, Barrett/GLV",
+    "point_mul": "GLV endomorphism + wNAF (w=5)",
+    "dual_mul": "Shamir's trick (a*G + b*P)",
+    "timer": "chrono::high_resolution_clock",
+    "warmup": 500,
+    "passes": 11,
+    "method": "IQR outlier removal + median",
+    "pool_size": 64
+  },
+  "benchmarks": {
+    "ecdsa": {
+      "sign_ns": 81248.1,
+      "verify_ns": 235495.4
+    },
+    "schnorr": {
+      "sign_keypair_ns": 56374.3,
+      "sign_raw_ns": 103152.8,
+      "verify_xonly_ns": 265882.9,
+      "verify_cached_ns": 239437.6
+    },
+    "batch_verification_n64": {
+      "schnorr_per_sig_ns": 605455.4,
+      "schnorr_vs_individual": 0.44,
+      "ecdsa_per_sig_ns": 246600.9,
+      "ecdsa_vs_individual": 0.95
+    },
+    "key_generation": {
+      "pubkey_create_ns": 40601.3,
+      "schnorr_keypair_create_ns": 46296.5
+    },
+    "point_arithmetic": {
+      "scalar_mul_kP_ns": 191395.0,
+      "dual_mul_shamir_ns": 227013.7,
+      "point_add_ns": 2349.4,
+      "point_dbl_ns": 894.0
+    },
+    "field_arithmetic": {
+      "mul_ns": 182.2,
+      "sqr_ns": 174.2,
+      "inv_ns": 4430.1,
+      "add_ns": 46.0,
+      "sub_ns": 38.7,
+      "neg_ns": 46.7
+    },
+    "scalar_arithmetic": {
+      "mul_ns": 182.2,
+      "inv_ns": 4983.9,
+      "add_ns": 56.7,
+      "neg_ns": 35.4
+    },
+    "serialization": {
+      "pubkey_compress_ns": 5658.8,
+      "ecdsa_der_encode_ns": 457.1,
+      "schnorr_bytes_ns": 149.5
+    },
+    "constant_time": {
+      "ct_ecdsa_sign_ns": 159246.0,
+      "ct_overhead_ecdsa": 1.96,
+      "ct_schnorr_sign_ns": 133446.2,
+      "ct_overhead_schnorr": 2.37
+    }
+  },
+  "apple_to_apple": {
+    "reference": "libsecp256k1 (bitcoin-core v0.7.2)",
+    "config": "default (64-bit field, precomputed tables)",
+    "modules": "ECDSA + Schnorr (BIP-340) + extrakeys",
+    "method": "100 iterations, 20 warmup, chrono::high_resolution_clock",
+    "note": "libsecp256k1 is ALWAYS constant-time; FAST comparison is unfair for signing ops",
+    "fast_vs_libsecp": [
+      {"op": "Generator*k", "ours_ns": 40601, "theirs_ns": 124986, "speedup": 3.08},
+      {"op": "ECDSA Sign", "ours_ns": 81248, "theirs_ns": 164348, "speedup": 2.02},
+      {"op": "ECDSA Verify", "ours_ns": 235495, "theirs_ns": 220342, "speedup": 0.94, "note": "libsecp256k1 wins"},
+      {"op": "Schnorr Keypair", "ours_ns": 46297, "theirs_ns": 125382, "speedup": 2.71},
+      {"op": "Schnorr Sign", "ours_ns": 56374, "theirs_ns": 132827, "speedup": 2.36},
+      {"op": "Schnorr Verify", "ours_ns": 239438, "theirs_ns": 224200, "speedup": 0.94, "note": "libsecp256k1 wins"}
+    ],
+    "fast_summary": "UltrafastSecp256k1 FAST wins 4/6 (2.02x-3.08x); libsecp256k1 wins Verify ops (0.94x)",
+    "ct_vs_libsecp": [
+      {"op": "ECDSA Sign", "ours_ct_ns": 159246, "theirs_ns": 164348, "speedup": 1.03, "note": "essentially tied"},
+      {"op": "ECDSA Verify", "ours_ns": 235495, "theirs_ns": 220342, "speedup": 0.94, "note": "libsecp256k1 wins; verify is public-input, no CT needed"},
+      {"op": "Schnorr Sign", "ours_ct_ns": 133446, "theirs_ns": 132827, "speedup": 1.00, "note": "dead even"},
+      {"op": "Schnorr Verify", "ours_ns": 239438, "theirs_ns": 224200, "speedup": 0.94, "note": "libsecp256k1 wins; verify is public-input, no CT needed"}
+    ],
+    "ct_summary": "CT-vs-CT: signing ops tied (1.00x-1.03x); libsecp256k1 wins both verify ops (0.94x)"
+  },
+  "block_validation_estimates": {
+    "pre_taproot_3000_ecdsa": {
+      "individual_ms": 706.5,
+      "batch_n64_ms": 739.8
+    },
+    "taproot_2000s_1000e": {
+      "individual_ms": 767.3,
+      "batch_n64_ms": 1457.5
+    },
+    "blocks_per_sec_1core": {
+      "pre_taproot": 1.4,
+      "taproot": 1.3
+    },
+    "tx_per_sec_1core": {
+      "ecdsa": 4246,
+      "schnorr": 3761
+    }
+  }
+}

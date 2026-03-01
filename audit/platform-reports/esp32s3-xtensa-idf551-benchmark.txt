@@ -1,0 +1,134 @@
+================================================================
+  UltrafastSecp256k1 -- ESP32-S3 Benchmark Report
+================================================================
+
+Library:    UltrafastSecp256k1 v3.15.3-2-g3d6b540
+Git Hash:   3d6b540
+Timestamp:  2026-03-02T00:10:00
+Platform:   ESP32-S3 (QFN56, rev v0.1)
+CPU:        Xtensa LX7 dual-core @ 240 MHz
+RAM:        512 KB SRAM (230520 bytes free heap at start)
+Flash:      8 MB (DIO, 80 MHz)
+ESP-IDF:    v5.5.1
+Compiler:   GCC 14.2.0 (xtensa-esp-elf)
+Build:      Release (-O3, -fno-exceptions, -fno-rtti)
+Binary:     479 KB (0x74fd0)
+
+Config:
+  Assembly:     Portable C++ (no platform ASM)
+  Int128:       Disabled (32-bit Xtensa)
+  Field Tier:   4x64 (ESP32-S3 -- native wins mul)
+  Reduction:    ESP32 Comba 8x32 + branchless reduce
+
+Method:     median of 3 runs, per-op warmup
+Self-Test:  37/37 PASS
+
+================================================================
+  1. FIELD ARITHMETIC (4x64 Tier)
+================================================================
+  Field Mul                            6 us
+  Field Square                         5 us
+  Field Add                          842 ns
+  Field Negate                         1 us
+  Field Inverse                      129 us
+
+================================================================
+  2. POINT OPERATIONS
+================================================================
+  Point Add (Jacobian)                75 us
+  Point Double                        47 us
+  Scalar Mul (k*P)                    12 ms
+  Generator Mul (k*G)                  5 ms
+
+================================================================
+  3. ECDSA & SCHNORR SIGNATURES
+================================================================
+  ECDSA Sign                           7 ms
+  ECDSA Verify                        18 ms
+  Schnorr Sign (BIP-340)               7 ms
+  Schnorr Verify (BIP-340)            21 ms
+
+================================================================
+  3b. BOTTLENECK PROFILING
+================================================================
+  Scalar Inverse                     131 us
+  Scalar Mul (a*b mod n)              19 us
+  SHA-256 (32-byte)                   21 us
+
+================================================================
+  4. BATCH OPERATIONS
+================================================================
+  Batch Inv (n=32)                    21 us  per elem
+  Batch Inv (n=100)                   19 us  per elem
+
+================================================================
+  5. CONSTANT-TIME (CT) LAYER
+================================================================
+  CT Correctness Tests:  4/4 PASS
+    [PASS] CT scalar_mul == fast scalar_mul
+    [PASS] CT generator_mul == fast generator_mul
+    [PASS] CT field_cmov (select / no-select)
+    [PASS] CT complete_add(G,G) == fast G+G
+
+  CT Scalar Mul (k*P)                16 ms
+  CT Generator Mul (k*G)              5 ms  (Comb)
+  CT Point Add (complete)           113 us
+  CT Point Double                    50 us
+
+  Fast vs CT Comparison:
+    Fast Scalar*G:   5581 us
+    CT Scalar*G:    15545 us
+    CT/Fast ratio:   2.79x
+
+================================================================
+  6. APPLE-TO-APPLE: UltrafastSecp256k1 vs libsecp256k1 (bitcoin-core v0.7.2)
+================================================================
+
+  libsecp256k1 config: COMB 11x6 (22KB tables)
+  Same test key, same hardware, same compiler.
+
+  +---------------------+-------------------+--------------------+----------+
+  | Operation           | UltrafastSecp256k1 | libsecp256k1      | Speedup  |
+  +---------------------+-------------------+--------------------+----------+
+  | Generator*k         |       5,000 us    |       8,178 us     |  1.64x   |
+  | ECDSA Sign          |       7,000 us    |      10,349 us     |  1.48x   |
+  | ECDSA Verify        |      18,000 us    |      26,397 us     |  1.47x   |
+  +---------------------+-------------------+--------------------+----------+
+
+  UltrafastSecp256k1 is 1.47x - 1.64x FASTER than bitcoin-core libsecp256k1
+  on the same ESP32-S3 hardware.
+
+================================================================
+  PERFORMANCE SUMMARY TABLE
+================================================================
+
+  | Operation                    |         Time |
+  |------------------------------|--------------|
+  | Field Mul                    |         6 us |
+  | Field Square                 |         5 us |
+  | Field Add                    |       842 ns |
+  | Field Negate                 |         1 us |
+  | Field Inverse                |       129 us |
+  | Point Add (Jacobian)         |        75 us |
+  | Point Double                 |        47 us |
+  | Scalar Mul (k*P)             |        12 ms |
+  | Generator Mul (k*G)          |         5 ms |
+  | ECDSA Sign                   |         7 ms |
+  | ECDSA Verify                 |        18 ms |
+  | Schnorr Sign (BIP-340)       |         7 ms |
+  | Schnorr Verify (BIP-340)     |        21 ms |
+  | Scalar Inverse               |       131 us |
+  | Scalar Mul (a*b mod n)       |        19 us |
+  | SHA-256 (32-byte)            |        21 us |
+  | Batch Inv (n=32)             |        21 us |
+  | Batch Inv (n=100)            |        19 us |
+  | CT Scalar Mul (k*P)          |        16 ms |
+  | CT Generator Mul (k*G)       |         5 ms |
+  | CT Point Add (complete)      |       113 us |
+  | CT Point Double              |        50 us |
+
+================================================================
+  ESP32-S3 (Xtensa LX7, dual-core) @ 240 MHz
+  Field Tier: 4x64 (ESP32-S3 -- native wins mul)
+  Benchmark Complete
+================================================================

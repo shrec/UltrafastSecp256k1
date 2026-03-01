@@ -98,7 +98,8 @@ static void test_jacobian_add() {
     CHECK(points_equal(G2_add, G2_dbl), "G+G == 2G");
 
     // P + Q where P != Q, P != -Q
-    for (int i = 0; i < SCALED(1000, 50); ++i) {
+    { const int total = SCALED(1000, 50);
+    for (int i = 0; i < total; ++i) {
         auto k1 = random_scalar();
         auto k2 = random_scalar();
         auto P = G.scalar_mul(k1);
@@ -106,7 +107,8 @@ static void test_jacobian_add() {
         auto R1 = P.add(Q);
         auto R2 = Q.add(P);
         CHECK(points_equal(R1, R2), "P+Q == Q+P");
-    }
+        if ((i+1) % (total/5+1) == 0) printf("      commutativity %d/%d\n", i+1, total);
+    } }
 
     // Associativity: (P + Q) + R == P + (Q + R)
     for (int i = 0; i < SCALED(500, 30); ++i) {
@@ -167,6 +169,7 @@ static void test_mixed_add_same_point() {
         auto sum = P.add(P);
         auto dbl = P.dbl();
         CHECK(points_equal(sum, dbl), "P+P == dbl(P)");
+        if ((i+1) % 25 == 0) printf("      %d/100\n", i+1);
     }
 
     printf("    %d checks\n\n", g_pass);
@@ -181,14 +184,16 @@ static void test_point_negation() {
 
     auto G = Point::generator();
 
-    for (int i = 0; i < SCALED(1000, 50); ++i) {
+    { const int total = SCALED(1000, 50);
+    for (int i = 0; i < total; ++i) {
         auto P = G.scalar_mul(random_scalar());
         auto neg_P = P.negate();
 
         CHECK(!neg_P.is_infinity(), "-P is not infinity");
         auto sum = P.add(neg_P);
         CHECK(sum.is_infinity(), "P + (-P) == O");
-    }
+        if ((i+1) % (total/5+1) == 0) printf("      %d/%d\n", i+1, total);
+    } }
 
     // Verify negate preserves x, flips y
     {
@@ -216,7 +221,8 @@ static void test_affine_conversion() {
 
     auto G = Point::generator();
 
-    for (int i = 0; i < SCALED(1000, 50); ++i) {
+    { const int total = SCALED(1000, 50);
+    for (int i = 0; i < total; ++i) {
         auto P = G.scalar_mul(random_scalar());
 
         // compressed -> uncompressed should represent same point
@@ -240,7 +246,8 @@ static void test_affine_conversion() {
         auto x3 = x.square() * x;
         auto rhs = x3 + FieldElement::from_uint64(7);
         CHECK(y2 == rhs, "on-curve: y^2 == x^3 + 7");
-    }
+        if ((i+1) % (total/5+1) == 0) printf("      %d/%d\n", i+1, total);
+    } }
 
     printf("    %d checks\n\n", g_pass);
 }
@@ -255,13 +262,15 @@ static void test_scalar_mul_identities() {
     auto G = Point::generator();
 
     // (a + b) * G == a*G + b*G
-    for (int i = 0; i < SCALED(1000, 50); ++i) {
+    { const int total = SCALED(1000, 50);
+    for (int i = 0; i < total; ++i) {
         auto a = random_scalar();
         auto b = random_scalar();
         auto lhs = G.scalar_mul(a + b);
         auto rhs = G.scalar_mul(a).add(G.scalar_mul(b));
         CHECK(points_equal(lhs, rhs), "(a+b)*G == a*G + b*G");
-    }
+        if ((i+1) % (total/5+1) == 0) printf("      distributive %d/%d\n", i+1, total);
+    } }
 
     // (a * b) * G == a * (b * G)
     for (int i = 0; i < SCALED(500, 30); ++i) {
@@ -311,7 +320,8 @@ static void test_ecdsa_roundtrip() {
 
     auto G = Point::generator();
 
-    for (int i = 0; i < SCALED(1000, 50); ++i) {
+    { const int total = SCALED(1000, 50);
+    for (int i = 0; i < total; ++i) {
         auto sk = random_scalar();
         auto pk = G.scalar_mul(sk);
         std::array<uint8_t, 32> msg{};
@@ -333,7 +343,8 @@ static void test_ecdsa_roundtrip() {
         // Wrong key
         auto pk2 = G.scalar_mul(random_scalar());
         CHECK(!secp256k1::ecdsa_verify(msg, pk2, sig), "wrong key fails");
-    }
+        if ((i+1) % (total/5+1) == 0) printf("      %d/%d\n", i+1, total);
+    } }
 
     printf("    %d checks\n\n", g_pass);
 }
@@ -345,7 +356,8 @@ static void test_schnorr_roundtrip() {
     g_section = "schnorr";
     printf("[10] Schnorr BIP-340 sign+verify round-trip (1000 random)\n");
 
-    for (int i = 0; i < SCALED(1000, 50); ++i) {
+    { const int total = SCALED(1000, 50);
+    for (int i = 0; i < total; ++i) {
         auto sk = random_scalar();
         std::array<uint8_t, 32> msg{};
         uint64_t v = rng();
@@ -361,7 +373,8 @@ static void test_schnorr_roundtrip() {
         // Wrong message
         msg[0] ^= 0x01;
         CHECK(!secp256k1::schnorr_verify(pk_x, msg, sig), "wrong msg fails schnorr");
-    }
+        if ((i+1) % (total/5+1) == 0) printf("      %d/%d\n", i+1, total);
+    } }
 
     printf("    %d checks\n\n", g_pass);
 }
@@ -376,7 +389,8 @@ static void test_stress_random() {
     auto G = Point::generator();
     int failures = 0;
 
-    for (int i = 0; i < SCALED(100000, 1000); ++i) {
+    { const int total = SCALED(100000, 1000);
+    for (int i = 0; i < total; ++i) {
         auto k = random_scalar();
         auto P = G.scalar_mul(k);
 
@@ -392,7 +406,8 @@ static void test_stress_random() {
         auto y2 = y.square();
         auto x3_7 = x.square() * x + FieldElement::from_uint64(7);
         CHECK(y2 == x3_7, "on-curve check");
-    }
+        if ((i+1) % (total/10+1) == 0) printf("      %d/%d\n", i+1, total);
+    } }
 
     printf("    infinity hits (should be 0): %d\n", failures);
     printf("    %d checks\n\n", g_pass);

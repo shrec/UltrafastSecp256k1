@@ -1,8 +1,13 @@
 /**
- * ESP32 Audit Test - Minimal secp256k1 verification for Xtensa targets
+ * ESP32 Unified Audit Runner -- Full secp256k1 verification for Xtensa targets
  *
- * Tests: field_26 ops, scalar ops, point operations, KAT vectors
- * Targets: ESP32-S3 (Xtensa LX7), ESP32/PICO-D4 (Xtensa LX6)
+ * Adapted from audit/unified_audit_runner.cpp for ESP32-S3
+ * Runs 40/48 audit modules (skips: field_52, SIMD, hash_accel,
+ *   exhaustive, comprehensive, FFI round-trip, fuzz_parsers, fuzz_addr_bip32)
+ *
+ * API: v3.16.0
+ * Target: ESP32-S3 (Xtensa LX7, 240 MHz)
+ * Build: ESP-IDF v5.5.1
  */
 #include <cstdio>
 #include <cstdint>
@@ -11,237 +16,236 @@
 #ifdef ESP_PLATFORM
 #include "esp_log.h"
 #include "esp_system.h"
+#include "esp_timer.h"
+#include "esp_heap_caps.h"
 static const char* TAG = "secp256k1_audit";
 #define LOG(fmt, ...) ESP_LOGI(TAG, fmt, ##__VA_ARGS__)
 #else
 #define LOG(fmt, ...) printf("[AUDIT] " fmt "\n", ##__VA_ARGS__)
 #endif
 
-// Include library headers
-#include "secp256k1/field.hpp"
-#include "secp256k1/scalar.hpp"
-#include "secp256k1/point.hpp"
-#include "secp256k1/ecdsa.hpp"
+// ============================================================================
+// Forward declarations -- all _run() functions from audit + cpu/tests sources
+// ============================================================================
 
-using namespace secp256k1::fast;
+// Section 1: Mathematical Invariants
+int audit_field_run();
+int audit_scalar_run();
+int audit_point_run();
+int test_mul_run();
+int test_arithmetic_correctness_run();
+int test_large_scalar_multiplication_run();
+int test_ecc_properties_run();
+int test_batch_add_affine_run();
+int test_carry_propagation_run();
+int test_field_26_main();
 
-static int g_pass = 0;
-static int g_fail = 0;
+// Section 2: Constant-Time / Side-Channel
+int audit_ct_run();
+int test_ct_run();
+int test_ct_equivalence_run();
+int test_ct_sidechannel_smoke_run();
+int diag_scalar_mul_run();
 
-#define CHECK(cond, name) do { \
-    if (cond) { g_pass++; LOG("  PASS: %s", name); } \
-    else { g_fail++; LOG("  FAIL: %s", name); } \
-} while(0)
+// Section 3: Differential & Cross-Library
+int test_differential_run();
+int test_fiat_crypto_vectors_run();
+int test_cross_platform_kat_run();
 
-// -- Test 1: Field element basics ----------------------------------
-static void test_field_basics() {
-    LOG("=== Field Element Basics ===");
+// Section 4: Standard Test Vectors
+int test_bip340_vectors_run();
+int test_bip340_strict_run();
+int test_bip32_vectors_run();
+int test_rfc6979_vectors_run();
+int test_frost_kat_run();
+int test_musig2_bip327_vectors_run();
 
-    auto zero = FieldElement::zero();
-    auto one  = FieldElement::one();
+// Section 5: Fuzzing & Adversarial
+int test_audit_fuzz_run();
+int test_fault_injection_run();
 
-    // zero + one = one
-    auto result = FieldElement::add(zero, one);
-    CHECK(result == one, "0 + 1 == 1");
+// Section 6: Protocol Security
+int test_ecdsa_schnorr_run();
+int test_bip32_run();
+int test_musig2_run();
+int test_ecdh_recovery_taproot_run();
+int test_v4_features_run();
+int test_coins_run();
+int test_musig2_frost_protocol_run();
+int test_musig2_frost_advanced_run();
+int audit_integration_run();
 
-    // one + one != one
-    auto two = FieldElement::add(one, one);
-    CHECK(!(two == one), "1 + 1 != 1");
+// Section 7: ABI & Memory Safety
+int audit_security_run();
+int test_debug_invariants_run();
+int test_abi_gate_run();
 
-    // one * one = one
-    auto prod = FieldElement::mul(one, one);
-    CHECK(prod == one, "1 * 1 == 1");
+// Section 8: Performance Validation
+int test_multiscalar_batch_run();
+int audit_perf_run();
 
-    // one - one = zero
-    auto diff = FieldElement::sub(one, one);
-    CHECK(diff == zero, "1 - 1 == 0");
+// ============================================================================
+// Module table
+// ============================================================================
+struct AuditModule {
+    const char* id;
+    const char* name;
+    const char* section;
+    int (*run)();
+    bool advisory;  // if true, FAIL does not block audit verdict
+};
 
-    // Negation: -0 == 0
-    auto neg_zero = FieldElement::negate(zero);
-    CHECK(neg_zero == zero, "negate(0) == 0");
+static const AuditModule ALL_MODULES[] = {
+    // Section 1: Mathematical Invariants
+    { "audit_field",       "Field Fp deep audit",            "math",     audit_field_run, false },
+    { "audit_scalar",      "Scalar Zn deep audit",           "math",     audit_scalar_run, false },
+    { "audit_point",       "Point ops deep audit",           "math",     audit_point_run, false },
+    { "mul",               "Field & scalar arithmetic",      "math",     test_mul_run, false },
+    { "arith_correct",     "Arithmetic correctness",         "math",     test_arithmetic_correctness_run, false },
+    { "scalar_mul",        "Scalar multiplication",          "math",     test_large_scalar_multiplication_run, false },
+    { "ecc_properties",    "ECC property-based invariants",  "math",     test_ecc_properties_run, false },
+    { "batch_add",         "Affine batch addition",          "math",     test_batch_add_affine_run, false },
+    { "carry_propagation", "Carry chain stress",             "math",     test_carry_propagation_run, false },
+    { "field_26",          "FieldElement26 (10x26)",         "math",     test_field_26_main, false },
 
-    // a + (-a) = 0
-    auto neg_one = FieldElement::negate(one);
-    auto sum = FieldElement::add(one, neg_one);
-    CHECK(sum == zero, "1 + (-1) == 0");
-}
+    // Section 2: CT / Side-Channel
+    { "audit_ct",          "CT deep audit",                  "ct",       audit_ct_run, false },
+    { "ct",                "Constant-time layer",            "ct",       test_ct_run, false },
+    { "ct_equivalence",    "FAST == CT equivalence",         "ct",       test_ct_equivalence_run, false },
+    { "ct_sidechannel",    "Side-channel dudect (smoke)",    "ct",       test_ct_sidechannel_smoke_run, true },
+    { "diag_scalar_mul",   "CT scalar_mul diagnostic",       "ct",       diag_scalar_mul_run, false },
 
-// -- Test 2: Field multiplication properties -----------------------
-static void test_field_mul_properties() {
-    LOG("=== Field Multiplication Properties ===");
+    // Section 3: Differential
+    { "differential",      "Differential correctness",       "diff",     test_differential_run, false },
+    { "fiat_crypto",       "Fiat-Crypto reference vectors",  "diff",     test_fiat_crypto_vectors_run, false },
+    { "cross_platform_kat","Cross-platform KAT",             "diff",     test_cross_platform_kat_run, false },
 
-    auto a = FieldElement::from_uint64(0x123456789ABCDEF0ULL);
-    auto b = FieldElement::from_uint64(0xFEDCBA9876543210ULL);
-    auto one = FieldElement::one();
+    // Section 4: Standard Vectors
+    { "bip340_vectors",    "BIP-340 official vectors",       "vectors",  test_bip340_vectors_run, false },
+    { "bip340_strict",     "BIP-340 strict encoding",        "vectors",  test_bip340_strict_run, false },
+    { "bip32_vectors",     "BIP-32 official vectors TV1-5",  "vectors",  test_bip32_vectors_run, false },
+    { "rfc6979_vectors",   "RFC 6979 ECDSA vectors",         "vectors",  test_rfc6979_vectors_run, false },
+    { "frost_kat",         "FROST reference KAT vectors",    "vectors",  test_frost_kat_run, false },
+    { "musig2_bip327",     "MuSig2 BIP-327 vectors",         "vectors",  test_musig2_bip327_vectors_run, false },
 
-    // Commutativity: a*b == b*a
-    auto ab = FieldElement::mul(a, b);
-    auto ba = FieldElement::mul(b, a);
-    CHECK(ab == ba, "mul commutativity: a*b == b*a");
+    // Section 5: Fuzzing & Adversarial
+    { "audit_fuzz",        "Adversarial fuzz",               "fuzz",     test_audit_fuzz_run, false },
+    { "fault_injection",   "Fault injection simulation",     "fuzz",     test_fault_injection_run, false },
 
-    // Identity: a*1 == a
-    auto a1 = FieldElement::mul(a, one);
-    CHECK(a1 == a, "mul identity: a*1 == a");
+    // Section 6: Protocol Security
+    { "ecdsa_schnorr",     "ECDSA + Schnorr",                "proto",    test_ecdsa_schnorr_run, false },
+    { "bip32",             "BIP-32 HD derivation",           "proto",    test_bip32_run, false },
+    { "musig2",            "MuSig2",                          "proto",    test_musig2_run, false },
+    { "ecdh_recovery",     "ECDH + recovery + taproot",      "proto",    test_ecdh_recovery_taproot_run, false },
+    { "v4_features",       "v4 (Pedersen/FROST/adaptor)",    "proto",    test_v4_features_run, false },
+    { "coins",             "Coins layer",                    "proto",    test_coins_run, false },
+    { "musig2_frost",      "MuSig2 + FROST protocol",        "proto",    test_musig2_frost_protocol_run, false },
+    { "musig2_frost_adv",  "MuSig2 + FROST adversarial",    "proto",    test_musig2_frost_advanced_run, false },
+    { "audit_integration", "Integration (cross-proto)",       "proto",    audit_integration_run, false },
 
-    // Squaring: a*a == square(a)
-    auto aa = FieldElement::mul(a, a);
-    auto sq = FieldElement::square(a);
-    CHECK(aa == sq, "a*a == square(a)");
-}
+    // Section 7: Memory Safety
+    { "audit_security",    "Security hardening",              "safety",   audit_security_run, false },
+    { "debug_invariants",  "Debug invariant assertions",      "safety",   test_debug_invariants_run, false },
+    { "abi_gate",          "ABI version gate",                "safety",   test_abi_gate_run, false },
 
-// -- Test 3: Scalar basics ----------------------------------------
-static void test_scalar_basics() {
-    LOG("=== Scalar Basics ===");
+    // Section 8: Performance
+    { "multiscalar",       "Multi-scalar & batch verify",     "perf",     test_multiscalar_batch_run, false },
+    { "audit_perf",        "Performance smoke",               "perf",     audit_perf_run, false },
+};
 
-    auto zero = Scalar::zero();
-    auto one  = Scalar::one();
+static constexpr int NUM_MODULES = sizeof(ALL_MODULES) / sizeof(ALL_MODULES[0]);
 
-    CHECK(zero.is_zero(), "scalar zero is_zero");
-    CHECK(!one.is_zero(), "scalar one is not zero");
-
-    // one + zero = one
-    auto sum = Scalar::add(one, zero);
-    CHECK(sum == one, "scalar 1 + 0 == 1");
-
-    // one - one = zero
-    auto diff = Scalar::sub(one, one);
-    CHECK(diff.is_zero(), "scalar 1 - 1 == 0");
-
-    // one * one = one
-    auto prod = Scalar::mul(one, one);
-    CHECK(prod == one, "scalar 1 * 1 == 1");
-}
-
-// -- Test 4: Point on curve ---------------------------------------
-static void test_point_basics() {
-    LOG("=== Point Basics ===");
-
-    auto G = Point::generator();
-    CHECK(!G.is_infinity(), "generator is not infinity");
-
-    auto inf = Point::infinity();
-    CHECK(inf.is_infinity(), "infinity is infinity");
-
-    // G + infinity = G
-    auto sum = Point::add(G, inf);
-    CHECK(!sum.is_infinity(), "G + inf is not infinity");
-
-    // G - G = infinity
-    auto neg_G = Point::negate(G);
-    auto diff = Point::add(G, neg_G);
-    CHECK(diff.is_infinity(), "G + (-G) == infinity");
-}
-
-// -- Test 5: Scalar multiplication KAT ----------------------------
-static void test_scalar_mul_kat() {
-    LOG("=== Scalar Multiplication KAT ===");
-
-    auto G = Point::generator();
-    auto one = Scalar::one();
-
-    // 1*G == G
-    auto P1 = Point::mul(G, one);
-    auto G_bytes = G.to_compressed();
-    auto P1_bytes = P1.to_compressed();
-    CHECK(G_bytes == P1_bytes, "1*G == G");
-
-    // 2*G
-    auto two = Scalar::add(one, one);
-    auto P2 = Point::mul(G, two);
-    CHECK(!P2.is_infinity(), "2*G is not infinity");
-
-    // 2*G == G+G
-    auto G_plus_G = Point::add(G, G);
-    auto P2_bytes = P2.to_compressed();
-    auto GG_bytes = G_plus_G.to_compressed();
-    CHECK(P2_bytes == GG_bytes, "2*G == G+G");
-
-    // Known 2*G x-coordinate (first 4 bytes of compressed)
-    // 02c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5
-    CHECK(P2_bytes[0] == 0x02 || P2_bytes[0] == 0x03, "2*G compressed prefix valid");
-    CHECK(P2_bytes[1] == 0xc6, "2*G x[0] == 0xc6");
-    CHECK(P2_bytes[2] == 0x04, "2*G x[1] == 0x04");
-    CHECK(P2_bytes[3] == 0x7f, "2*G x[2] == 0x7f");
-}
-
-// -- Test 6: ECDSA sign/verify ------------------------------------
-static void test_ecdsa() {
-    LOG("=== ECDSA Sign/Verify ===");
-
-    // Private key (test vector)
-    std::array<uint8_t, 32> privkey = {
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01
-    };
-
-    // Message hash
-    std::array<uint8_t, 32> msg = {
-        0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
-        0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10,
-        0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18,
-        0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f, 0x20
-    };
-
-    auto sk = Scalar::from_bytes(privkey);
-    CHECK(!sk.is_zero(), "private key is not zero");
-
-    // Derive public key: pk = sk * G
-    auto G = Point::generator();
-    auto pk = Point::mul(G, sk);
-    CHECK(!pk.is_infinity(), "public key is not infinity");
-
-    // Sign
-    auto sig = secp256k1::fast::ecdsa_sign(msg, sk);
-    CHECK(sig.has_value(), "ECDSA sign succeeded");
-
-    if (sig.has_value()) {
-        // Verify
-        bool valid = secp256k1::fast::ecdsa_verify(msg, sig.value(), pk);
-        CHECK(valid, "ECDSA verify succeeded");
-
-        // Tamper with message -> verify should fail
-        std::array<uint8_t, 32> bad_msg = msg;
-        bad_msg[0] ^= 0xFF;
-        bool invalid = secp256k1::fast::ecdsa_verify(bad_msg, sig.value(), pk);
-        CHECK(!invalid, "ECDSA verify rejects tampered message");
-    }
-}
-
+// ============================================================================
+// ESP32 entry point
+// ============================================================================
 #ifdef ESP_PLATFORM
 extern "C" void app_main(void)
 #else
 int main()
 #endif
 {
-    LOG("+==================================================+");
-    LOG("|  UltrafastSecp256k1 ESP32 Audit Test v3.14.0    |");
-    LOG("+==================================================+");
+    LOG("+==========================================================+");
+    LOG("|  UltrafastSecp256k1 ESP32 Audit Runner v3.16.0          |");
+    LOG("|  Audit Framework v2.0.0 -- ESP32 Adaptation             |");
+    LOG("+==========================================================+");
 #ifdef CONFIG_IDF_TARGET_ESP32S3
-    LOG("|  Target: ESP32-S3 (Xtensa LX7)                 |");
+    LOG("|  Target: ESP32-S3 (Xtensa LX7, 240 MHz)                |");
 #elif defined(CONFIG_IDF_TARGET_ESP32)
-    LOG("|  Target: ESP32 (Xtensa LX6 / PICO-D4)          |");
+    LOG("|  Target: ESP32 (Xtensa LX6)                             |");
 #else
-    LOG("|  Target: Generic                                |");
+    LOG("|  Target: Generic                                        |");
 #endif
-    LOG("+==================================================+");
-    LOG("");
+    LOG("|  Modules: %d / 48 (skip: field_52/SIMD/hash_accel/     |", NUM_MODULES);
+    LOG("|           exhaustive/comprehensive/FFI)                  |");
+    LOG("+==========================================================+");
 
-    test_field_basics();
-    test_field_mul_properties();
-    test_scalar_basics();
-    test_point_basics();
-    test_scalar_mul_kat();
-    test_ecdsa();
+#ifdef ESP_PLATFORM
+    // Print free heap at start
+    LOG("Free heap: %lu bytes", (unsigned long)esp_get_free_heap_size());
+    LOG("Min free heap: %lu bytes", (unsigned long)esp_get_minimum_free_heap_size());
+#endif
+
+    int total_pass = 0;
+    int total_fail = 0;
+    int advisory_fail = 0;
+
+    for (int i = 0; i < NUM_MODULES; ++i) {
+        const auto& m = ALL_MODULES[i];
+
+        LOG("");
+        LOG("------------------------------------------------------------");
+        LOG("[%d/%d] %s -- %s", i + 1, NUM_MODULES, m.id, m.name);
+        LOG("------------------------------------------------------------");
+
+#ifdef ESP_PLATFORM
+        int64_t t0 = esp_timer_get_time();
+#endif
+
+        int result = m.run();
+
+#ifdef ESP_PLATFORM
+        int64_t t1 = esp_timer_get_time();
+        int64_t elapsed_ms = (t1 - t0) / 1000;
+        LOG("  Time: %lld ms | Heap: %lu bytes free",
+            (long long)elapsed_ms,
+            (unsigned long)esp_get_free_heap_size());
+#endif
+
+        if (result == 0) {
+            total_pass++;
+            LOG("  -> PASS");
+        } else {
+            if (m.advisory) {
+                advisory_fail++;
+                LOG("  -> FAIL (advisory, does not block verdict)");
+            } else {
+                total_fail++;
+                LOG("  -> FAIL");
+            }
+        }
+    }
 
     LOG("");
-    LOG("===================================================");
-    LOG("  Results: %d PASSED, %d FAILED", g_pass, g_fail);
-    LOG("  Status:  %s", g_fail == 0 ? "ALL PASS OK" : "FAILURES DETECTED X");
-    LOG("===================================================");
+    LOG("============================================================");
+    LOG("  ESP32 AUDIT RESULTS");
+    LOG("============================================================");
+    LOG("  Modules tested: %d", NUM_MODULES);
+    LOG("  PASSED:         %d", total_pass);
+    LOG("  FAILED:         %d", total_fail);
+    LOG("  Advisory FAIL:  %d", advisory_fail);
+    LOG("  Skipped (N/A):  %d", 48 - NUM_MODULES);
+    LOG("  Verdict:        %s", total_fail == 0 ? "AUDIT-READY" : "FAIL");
+    LOG("  Platform:       ESP32-S3 Xtensa LX7 | ESP-IDF 5.5.1");
+    LOG("============================================================");
+
+#ifdef ESP_PLATFORM
+    LOG("Final free heap: %lu bytes", (unsigned long)esp_get_free_heap_size());
+    LOG("Min free heap:   %lu bytes", (unsigned long)esp_get_minimum_free_heap_size());
+#endif
+
+    LOG("ESP32_AUDIT_COMPLETE");
 
 #ifndef ESP_PLATFORM
-    return g_fail > 0 ? 1 : 0;
+    return total_fail > 0 ? 1 : 0;
 #endif
 }

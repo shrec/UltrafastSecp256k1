@@ -1,0 +1,54 @@
+{
+  "library": "UltrafastSecp256k1",
+  "version": "3.16.0",
+  "git_hash": "3d6b5400",
+  "framework": "Audit Framework v2.0.0 (ESP32 Adaptation)",
+  "timestamp": "2026-03-02T00:01:17",
+  "platform": {
+    "os": "FreeRTOS (ESP-IDF v5.5.1)",
+    "arch": "Xtensa LX7",
+    "chip": "ESP32-S3",
+    "cores": 2,
+    "freq_mhz": 240,
+    "compiler": "GCC 14.2.0 (xtensa-esp-elf)",
+    "build": "Release (-O3)"
+  },
+  "binary_size_bytes": 877776,
+  "heap_free_bytes": 151604,
+  "heap_min_bytes": 89924,
+  "build_config": {
+    "SECP256K1_FIELD_26BIT": true,
+    "SECP256K1_NO_INT128": true,
+    "SECP256K1_PLATFORM_ESP32": true,
+    "UNIFIED_AUDIT_RUNNER": true,
+    "DUDECT_SMOKE": true
+  },
+  "modules_total": 48,
+  "modules_tested": 40,
+  "modules_pass": 40,
+  "modules_fail": 0,
+  "modules_advisory": 1,
+  "modules_skipped": 8,
+  "total_time_seconds": 583,
+  "verdict": "AUDIT-READY",
+  "skipped_modules": [
+    {"id": "field_52", "reason": "Requires __int128 (32-bit Xtensa)"},
+    {"id": "simd_batch", "reason": "Requires x86 AVX2"},
+    {"id": "hash_accel", "reason": "Requires x86 SHA-NI"},
+    {"id": "exhaustive", "reason": "Too heavy for 520KB SRAM"},
+    {"id": "comprehensive", "reason": "Too heavy for 520KB SRAM"},
+    {"id": "ffi_roundtrip", "reason": "No C FFI on ESP32"},
+    {"id": "fuzz_parsers", "reason": "Desktop-only fuzzer"},
+    {"id": "fuzz_addr_bip32", "reason": "Desktop-only fuzzer"}
+  ],
+  "sections": [
+    {"name": "Mathematical Invariants", "tested": 10, "passed": 10},
+    {"name": "Constant-Time & Side-Channel", "tested": 5, "passed": 4, "advisory": 1},
+    {"name": "Differential & Cross-Library", "tested": 3, "passed": 3},
+    {"name": "Standard Test Vectors", "tested": 6, "passed": 6},
+    {"name": "Fuzzing & Adversarial", "tested": 2, "passed": 2},
+    {"name": "Protocol Security", "tested": 9, "passed": 9},
+    {"name": "ABI & Memory Safety", "tested": 3, "passed": 3},
+    {"name": "Performance Validation", "tested": 2, "passed": 2}
+  ]
+}

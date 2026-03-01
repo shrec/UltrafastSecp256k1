@@ -1,0 +1,129 @@
+================================================================
+  UltrafastSecp256k1 -- Industrial Self-Audit Report
+================================================================
+
+Library:    UltrafastSecp256k1 v3.16.0
+Git Hash:   3d6b5400
+Framework:  Audit Framework v2.0.0 (ESP32 Adaptation)
+Timestamp:  2026-03-02T00:01:17
+OS:         FreeRTOS (ESP-IDF v5.5.1)
+Arch:       Xtensa LX7 (ESP32-S3, dual-core, 240 MHz)
+Compiler:   GCC 14.2.0 (xtensa-esp-elf)
+Build:      Release (-O3, SINGLE_APP_LARGE partition)
+Binary:     878 KB (0xd64d0)
+Heap:       151604 bytes free | 89924 bytes min free
+
+Config:     SECP256K1_FIELD_26BIT=1
+            SECP256K1_NO_INT128=1
+            SECP256K1_PLATFORM_ESP32=1
+            UNIFIED_AUDIT_RUNNER=1
+            DUDECT_SMOKE=1
+
+Skipped Modules (8/48):
+  - field_52:        Requires __int128 (not available on 32-bit Xtensa)
+  - simd_batch:      Requires x86 AVX2
+  - hash_accel:      Requires x86 SHA-NI
+  - exhaustive:      Too heavy for 520KB SRAM
+  - comprehensive:   Too heavy for 520KB SRAM
+  - ffi_roundtrip:   No C FFI layer on ESP32
+  - fuzz_parsers:    Desktop-only fuzzer
+  - fuzz_addr_bip32: Desktop-only fuzzer
+
+----------------------------------------------------------------
+  [0] Library Selftest (core KAT)          PASS
+----------------------------------------------------------------
+
+================================================================
+  Section 1/8: Mathematical Invariants (Fp, Zn, Group Laws)
+================================================================
+  [ 1] Field Fp deep audit (add/mul/inv/sqrt/batch)  PASS
+  [ 2] Scalar Zn deep audit (mod/GLV/edge/inv)       PASS
+  [ 3] Point ops deep audit (Jac/affine/sigs)        PASS
+  [ 4] Field & scalar arithmetic                     PASS
+  [ 5] Arithmetic correctness                        PASS
+  [ 6] Scalar multiplication                         PASS
+  [ 7] ECC property-based invariants                 PASS
+  [ 8] Affine batch addition                         PASS
+  [ 9] Carry chain stress (limb boundary)            PASS
+  [10] FieldElement26 (10x26)                        PASS
+  -------- Section Result: 10/10 passed
+
+================================================================
+  Section 2/8: Constant-Time & Side-Channel Analysis
+================================================================
+  [11] CT deep audit (masks/cmov/cswap/timing)       PASS
+  [12] Constant-time layer (60 sub-tests)            PASS
+  [13] FAST == CT equivalence                        PASS
+  [14] Side-channel dudect (smoke)                   WARN  (advisory)
+  [15] CT scalar_mul vs fast (diagnostic)            PASS
+  -------- Section Result: 4/5 passed (1 advisory)
+
+================================================================
+  Section 3/8: Differential & Cross-Library Testing
+================================================================
+  [16] Differential correctness                      PASS
+  [17] Fiat-Crypto reference vectors                 PASS
+  [18] Cross-platform KAT                            PASS
+  -------- Section Result: 3/3 passed
+
+================================================================
+  Section 4/8: Standard Test Vectors (BIP-340, RFC-6979, BIP-32)
+================================================================
+  [19] BIP-340 official vectors                      PASS
+  [20] BIP-340 strict encoding (non-canonical)       PASS
+  [21] BIP-32 official vectors TV1-5                 PASS
+  [22] RFC 6979 ECDSA vectors                        PASS
+  [23] FROST reference KAT vectors                   PASS
+  [24] MuSig2 BIP-327 reference vectors              PASS
+  -------- Section Result: 6/6 passed
+
+================================================================
+  Section 5/8: Fuzzing & Adversarial Attack Resilience
+================================================================
+  [25] Adversarial fuzz (malform/edge)               PASS
+  [26] Fault injection simulation                    PASS
+  -------- Section Result: 2/2 passed
+
+================================================================
+  Section 6/8: Protocol Security (ECDSA, Schnorr, MuSig2, FROST)
+================================================================
+  [27] ECDSA + Schnorr                               PASS
+  [28] BIP-32 HD derivation                          PASS
+  [29] MuSig2                                        PASS
+  [30] ECDH + recovery + taproot                     PASS
+  [31] v4 (Pedersen/FROST/adaptor)                   PASS
+  [32] Coins layer                                   PASS
+  [33] MuSig2 + FROST protocol suite                 PASS
+  [34] MuSig2 + FROST adversarial                    PASS
+  [35] Integration (ECDH/batch/cross-proto)          PASS
+  -------- Section Result: 9/9 passed
+
+================================================================
+  Section 7/8: ABI & Memory Safety (zeroization, hardening)
+================================================================
+  [36] Security hardening (zero/bitflip/nonce)       PASS
+  [37] Debug invariant assertions                    PASS
+  [38] ABI version gate (compile-time)               PASS
+  -------- Section Result: 3/3 passed
+
+================================================================
+  Section 8/8: Performance Validation & Regression
+================================================================
+  [39] Multi-scalar & batch verify                   PASS
+  [40] Performance smoke (sign/verify roundtrip)     PASS
+  -------- Section Result: 2/2 passed
+
+================================================================
+  AUDIT VERDICT: AUDIT-READY
+  TOTAL: 40/40 modules passed  (1 advisory warning)  (~583 s)
+  Skipped: 8 modules (platform-incompatible, see header)
+  Platform: ESP32-S3 Xtensa LX7 240 MHz | ESP-IDF 5.5.1 | GCC 14.2.0
+  Binary: 878 KB | Heap: 151 KB free | Min: 87 KB free
+================================================================
+
+Notes:
+  - All progress indicators visible during runtime (no "stuck" appearance)
+  - CT tests include: ct_ops (60 sub-tests), ct_equivalence, fast_ct (30 random)
+  - Batch operations use Strauss fallback (linear combination) for ESP32
+  - WDT disabled for long-running security harden test (~80s bitflip scan)
+  - Stack size 65KB (sdkconfig), SINGLE_APP_LARGE partition table

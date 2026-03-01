@@ -21,7 +21,7 @@ string(STRIP "${_version_raw}" UFSECP_VERSION)
 
 project(UltrafastSecp256k1Android
     VERSION ${UFSECP_VERSION}
-    LANGUAGES CXX
+    LANGUAGES C CXX
     DESCRIPTION "UltrafastSecp256k1 for Android"
 )
 
@@ -106,8 +106,32 @@ target_compile_features(bench_comprehensive PRIVATE cxx_std_20)
 target_compile_options(bench_comprehensive PRIVATE -O3)
 target_link_options(bench_comprehensive PRIVATE -static-libstdc++)
 
+# ============================================================================
+# Bench Hornet (Bitcoin Consensus full benchmark with libsecp256k1 apple-to-apple)
+# ============================================================================
+set(LIBSECP_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../../_research_repos/secp256k1/src")
+
+add_executable(bench_hornet
+    test/bench_hornet_android.cpp
+    test/libsecp_bench.c
+    ${LIBSECP_SRC_DIR}/precomputed_ecmult.c
+    ${LIBSECP_SRC_DIR}/precomputed_ecmult_gen.c
+)
+target_link_libraries(bench_hornet PRIVATE fastsecp256k1)
+target_include_directories(bench_hornet PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../../_research_repos/secp256k1/include
+    ${LIBSECP_SRC_DIR}
+)
+target_compile_features(bench_hornet PRIVATE cxx_std_20)
+target_compile_options(bench_hornet PRIVATE -O3)
+target_link_options(bench_hornet PRIVATE -static-libstdc++)
+target_link_options(bench_comprehensive PRIVATE -static-libstdc++)
+
 message(STATUS "Targets available:")
 message(STATUS "  fastsecp256k1      - Static library (link into your native code)")
 message(STATUS "  secp256k1_jni      - Shared JNI library (for Java/Kotlin apps)")
 message(STATUS "  android_test       - On-device test binary (adb push + adb shell)")
 message(STATUS "  bench_comprehensive - Cross-platform benchmark (adb push + adb shell)")
+message(STATUS "  bench_hornet       - Bitcoin Consensus bench + libsecp256k1 apple-to-apple")

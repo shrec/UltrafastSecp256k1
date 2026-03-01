@@ -33,7 +33,6 @@
 
 using secp256k1::fast::Scalar;
 using secp256k1::fast::Point;
-using secp256k1::fast::FieldElement;
 
 static int g_pass = 0, g_fail = 0;
 
@@ -45,16 +44,16 @@ static void hex_to_bytes(const char* hex, uint8_t* out, int len) {
     for (int i = 0; i < len; ++i) {
         unsigned byte = 0;
         // NOLINTNEXTLINE(cert-err34-c)
-        if (std::sscanf(hex + i * 2, "%02x", &byte) != 1) byte = 0;
+        if (std::sscanf(hex + static_cast<size_t>(i) * 2, "%02x", &byte) != 1) byte = 0;
         out[i] = static_cast<uint8_t>(byte);
     }
 }
 
 static void bytes_to_hex(const uint8_t* data, int len, char* out) {
     for (int i = 0; i < len; ++i) {
-        (void)std::sprintf(out + i * 2, "%02x", data[i]);
+        (void)std::sprintf(out + static_cast<size_t>(i) * 2, "%02x", data[i]);
     }
-    out[len * 2] = '\0';
+    out[static_cast<size_t>(len) * 2] = '\0';
 }
 
 static std::array<uint8_t, 32> hex32(const char* hex) {
@@ -108,7 +107,7 @@ static void test_key_agg_known_keys() {
     CHECK(pk2 == hex32(PK2_X_HEX), "pk2 matches 2G.x");
 
     // Aggregate
-    std::vector<std::array<uint8_t, 32>> pks = {pk1, pk2};
+    const std::vector<std::array<uint8_t, 32>> pks = {pk1, pk2};
     auto ctx = secp256k1::musig2_key_agg(pks);
 
     // Pin the aggregated x-only key (regression)
@@ -134,7 +133,7 @@ static void test_key_agg_known_keys() {
     auto pk3 = xonly_pubkey(s3);
     CHECK(pk3 == hex32(PK3_X_HEX), "pk3 matches 3G.x");
 
-    std::vector<std::array<uint8_t, 32>> pks3 = {pk1, pk2, pk3};
+    const std::vector<std::array<uint8_t, 32>> pks3 = {pk1, pk2, pk3};
     auto ctx3 = secp256k1::musig2_key_agg(pks3);
 
     char agg3_hex[65];
@@ -162,8 +161,8 @@ static void test_key_agg_ordering() {
     auto pk3 = xonly_pubkey(s3);
 
     // BIP-327: L = hash(pk1 || pk2 || ...) depends on ordering
-    std::vector<std::array<uint8_t, 32>> fwd = {pk1, pk2, pk3};
-    std::vector<std::array<uint8_t, 32>> rev = {pk3, pk2, pk1};
+    const std::vector<std::array<uint8_t, 32>> fwd = {pk1, pk2, pk3};
+    const std::vector<std::array<uint8_t, 32>> rev = {pk3, pk2, pk1};
 
     auto ctx_fwd = secp256k1::musig2_key_agg(fwd);
     auto ctx_rev = secp256k1::musig2_key_agg(rev);
@@ -172,7 +171,7 @@ static void test_key_agg_ordering() {
           "different key order -> different agg key");
 
     // Swap just two keys
-    std::vector<std::array<uint8_t, 32>> swap12 = {pk2, pk1, pk3};
+    const std::vector<std::array<uint8_t, 32>> swap12 = {pk2, pk1, pk3};
     auto ctx_swap = secp256k1::musig2_key_agg(swap12);
     CHECK(ctx_fwd.Q_x != ctx_swap.Q_x,
           "swap(1,2) -> different agg key");
@@ -190,10 +189,10 @@ static void test_2of2_signing_pinned() {
     auto pk1 = xonly_pubkey(s1);
     auto pk2 = xonly_pubkey(s2);
 
-    std::vector<std::array<uint8_t, 32>> pks = {pk1, pk2};
+    const std::vector<std::array<uint8_t, 32>> pks = {pk1, pk2};
     auto key_ctx = secp256k1::musig2_key_agg(pks);
 
-    auto msg = hex32(MSG_HEX);
+    const auto msg = hex32(MSG_HEX);
 
     // Nonce gen with deterministic extra_input
     std::array<uint8_t, 32> extra1{};
@@ -205,7 +204,7 @@ static void test_2of2_signing_pinned() {
     auto [sec2, pub2] = secp256k1::musig2_nonce_gen(s2, pk2, key_ctx.Q_x, msg, extra2.data());
 
     // Nonce aggregation
-    std::vector<secp256k1::MuSig2PubNonce> pub_nonces = {pub1, pub2};
+    const std::vector<secp256k1::MuSig2PubNonce> pub_nonces = {pub1, pub2};
     auto agg_nonce = secp256k1::musig2_nonce_agg(pub_nonces);
 
     // Start session
@@ -216,18 +215,18 @@ static void test_2of2_signing_pinned() {
     auto psig2 = secp256k1::musig2_partial_sign(sec2, s2, key_ctx, session, 1);
 
     // Partial verification
-    bool v1 = secp256k1::musig2_partial_verify(psig1, pub1, pk1, key_ctx, session, 0);
-    bool v2 = secp256k1::musig2_partial_verify(psig2, pub2, pk2, key_ctx, session, 1);
+    const bool v1 = secp256k1::musig2_partial_verify(psig1, pub1, pk1, key_ctx, session, 0);
+    const bool v2 = secp256k1::musig2_partial_verify(psig2, pub2, pk2, key_ctx, session, 1);
     CHECK(v1, "partial_sig1 verifies");
     CHECK(v2, "partial_sig2 verifies");
 
     // Aggregate
-    std::vector<Scalar> psigs = {psig1, psig2};
+    const std::vector<Scalar> psigs = {psig1, psig2};
     auto sig = secp256k1::musig2_partial_sig_agg(psigs, session);
 
     // BIP-340 Schnorr verify on final signature
-    auto schnorr_sig = secp256k1::SchnorrSignature::from_bytes(sig);
-    bool ok = secp256k1::schnorr_verify(key_ctx.Q_x, msg, schnorr_sig);
+    const auto schnorr_sig = secp256k1::SchnorrSignature::from_bytes(sig);
+    const bool ok = secp256k1::schnorr_verify(key_ctx.Q_x, msg, schnorr_sig);
     CHECK(ok, "2-of-2 final sig passes BIP-340 verify");
 
     // Pin the final signature for regression
@@ -238,12 +237,12 @@ static void test_2of2_signing_pinned() {
     // Determinism: repeat the entire flow
     auto [sec1b, pub1b] = secp256k1::musig2_nonce_gen(s1, pk1, key_ctx.Q_x, msg, extra1.data());
     auto [sec2b, pub2b] = secp256k1::musig2_nonce_gen(s2, pk2, key_ctx.Q_x, msg, extra2.data());
-    std::vector<secp256k1::MuSig2PubNonce> pub_nonces_b = {pub1b, pub2b};
+    const std::vector<secp256k1::MuSig2PubNonce> pub_nonces_b = {pub1b, pub2b};
     auto agg_nonce_b = secp256k1::musig2_nonce_agg(pub_nonces_b);
     auto session_b = secp256k1::musig2_start_sign_session(agg_nonce_b, key_ctx, msg);
     auto psig1b = secp256k1::musig2_partial_sign(sec1b, s1, key_ctx, session_b, 0);
     auto psig2b = secp256k1::musig2_partial_sign(sec2b, s2, key_ctx, session_b, 1);
-    std::vector<Scalar> psigs_b = {psig1b, psig2b};
+    const std::vector<Scalar> psigs_b = {psig1b, psig2b};
     auto sig_b = secp256k1::musig2_partial_sig_agg(psigs_b, session_b);
     CHECK(sig == sig_b, "2-of-2 signing is fully deterministic");
 }
@@ -262,10 +261,10 @@ static void test_3of3_signing_pinned() {
     auto pk2 = xonly_pubkey(s2);
     auto pk3 = xonly_pubkey(s3);
 
-    std::vector<std::array<uint8_t, 32>> pks = {pk1, pk2, pk3};
+    const std::vector<std::array<uint8_t, 32>> pks = {pk1, pk2, pk3};
     auto key_ctx = secp256k1::musig2_key_agg(pks);
 
-    auto msg = hex32(MSG_HEX);
+    const auto msg = hex32(MSG_HEX);
 
     // Nonce gen
     std::array<uint8_t, 32> extras[3]{};
@@ -273,8 +272,8 @@ static void test_3of3_signing_pinned() {
     extras[1][0] = 0x20;
     extras[2][0] = 0x30;
 
-    Scalar sks[3] = {s1, s2, s3};
-    std::array<uint8_t, 32> pubkeys[3] = {pk1, pk2, pk3};
+    const Scalar sks[3] = {s1, s2, s3};
+    const std::array<uint8_t, 32> pubkeys[3] = {pk1, pk2, pk3};
 
     std::vector<secp256k1::MuSig2SecNonce> sec_nonces;
     std::vector<secp256k1::MuSig2PubNonce> pub_nonces;
@@ -306,8 +305,8 @@ static void test_3of3_signing_pinned() {
     auto sig = secp256k1::musig2_partial_sig_agg(psigs, session);
 
     // BIP-340 verify
-    auto schnorr_sig = secp256k1::SchnorrSignature::from_bytes(sig);
-    bool ok = secp256k1::schnorr_verify(key_ctx.Q_x, msg, schnorr_sig);
+    const auto schnorr_sig = secp256k1::SchnorrSignature::from_bytes(sig);
+    const bool ok = secp256k1::schnorr_verify(key_ctx.Q_x, msg, schnorr_sig);
     CHECK(ok, "3-of-3 final sig passes BIP-340 verify");
 
     char sig_hex[129];
@@ -327,9 +326,9 @@ static void test_nonce_freshness() {
     auto pk1 = xonly_pubkey(s1);
     auto pk2 = xonly_pubkey(s2);
 
-    std::vector<std::array<uint8_t, 32>> pks = {pk1, pk2};
-    auto key_ctx = secp256k1::musig2_key_agg(pks);
-    auto msg = hex32(MSG_HEX);
+    const std::vector<std::array<uint8_t, 32>> pks = {pk1, pk2};
+    const auto key_ctx = secp256k1::musig2_key_agg(pks);
+    const auto msg = hex32(MSG_HEX);
 
     // Two runs with different extra_input
     auto make_sig = [&](uint8_t e1, uint8_t e2) {
@@ -341,14 +340,14 @@ static void test_nonce_freshness() {
         auto [sec1, pub1] = secp256k1::musig2_nonce_gen(s1, pk1, key_ctx.Q_x, msg, extra1.data());
         auto [sec2, pub2] = secp256k1::musig2_nonce_gen(s2, pk2, key_ctx.Q_x, msg, extra2.data());
 
-        std::vector<secp256k1::MuSig2PubNonce> pn = {pub1, pub2};
+        const std::vector<secp256k1::MuSig2PubNonce> pn = {pub1, pub2};
         auto an = secp256k1::musig2_nonce_agg(pn);
         auto sess = secp256k1::musig2_start_sign_session(an, key_ctx, msg);
 
         auto ps1 = secp256k1::musig2_partial_sign(sec1, s1, key_ctx, sess, 0);
         auto ps2 = secp256k1::musig2_partial_sign(sec2, s2, key_ctx, sess, 1);
 
-        std::vector<Scalar> psigs = {ps1, ps2};
+        const std::vector<Scalar> psigs = {ps1, ps2};
         return secp256k1::musig2_partial_sig_agg(psigs, sess);
     };
 
@@ -358,8 +357,8 @@ static void test_nonce_freshness() {
     CHECK(sig_a != sig_b, "different extra -> different signature");
 
     // Both must still verify
-    auto schnorr_a = secp256k1::SchnorrSignature::from_bytes(sig_a);
-    auto schnorr_b = secp256k1::SchnorrSignature::from_bytes(sig_b);
+    const auto schnorr_a = secp256k1::SchnorrSignature::from_bytes(sig_a);
+    const auto schnorr_b = secp256k1::SchnorrSignature::from_bytes(sig_b);
     CHECK(secp256k1::schnorr_verify(key_ctx.Q_x, msg, schnorr_a),
           "sig_a passes BIP-340 verify");
     CHECK(secp256k1::schnorr_verify(key_ctx.Q_x, msg, schnorr_b),
@@ -380,7 +379,7 @@ static void test_coefficient_properties() {
     auto pk2 = xonly_pubkey(s2);
     auto pk3 = xonly_pubkey(s3);
 
-    std::vector<std::array<uint8_t, 32>> pks = {pk1, pk2, pk3};
+    const std::vector<std::array<uint8_t, 32>> pks = {pk1, pk2, pk3};
     auto ctx = secp256k1::musig2_key_agg(pks);
 
     // All coefficients must be non-zero
@@ -391,9 +390,9 @@ static void test_coefficient_properties() {
     }
 
     // Verify aggregated point: Q = sum(a_i * P_i)
-    Point PK1 = Point::generator().scalar_mul(s1);
-    Point PK2 = Point::generator().scalar_mul(s2);
-    Point PK3 = Point::generator().scalar_mul(s3);
+    const Point PK1 = Point::generator().scalar_mul(s1);
+    const Point PK2 = Point::generator().scalar_mul(s2);
+    const Point PK3 = Point::generator().scalar_mul(s3);
 
     Point Q_manual = PK1.scalar_mul(ctx.key_coefficients[0])
                      .add(PK2.scalar_mul(ctx.key_coefficients[1]))
@@ -420,8 +419,8 @@ static void test_multiple_messages() {
     auto pk1 = xonly_pubkey(s1);
     auto pk2 = xonly_pubkey(s2);
 
-    std::vector<std::array<uint8_t, 32>> pks = {pk1, pk2};
-    auto key_ctx = secp256k1::musig2_key_agg(pks);
+    const std::vector<std::array<uint8_t, 32>> pks = {pk1, pk2};
+    const auto key_ctx = secp256k1::musig2_key_agg(pks);
 
     // Two different messages
     auto msg1 = hex32("0000000000000000000000000000000000000000000000000000000000000001");
@@ -436,14 +435,14 @@ static void test_multiple_messages() {
         auto [sec1, pub1] = secp256k1::musig2_nonce_gen(s1, pk1, key_ctx.Q_x, msg, e1.data());
         auto [sec2, pub2] = secp256k1::musig2_nonce_gen(s2, pk2, key_ctx.Q_x, msg, e2.data());
 
-        std::vector<secp256k1::MuSig2PubNonce> pn = {pub1, pub2};
+        const std::vector<secp256k1::MuSig2PubNonce> pn = {pub1, pub2};
         auto an = secp256k1::musig2_nonce_agg(pn);
         auto sess = secp256k1::musig2_start_sign_session(an, key_ctx, msg);
 
         auto ps1 = secp256k1::musig2_partial_sign(sec1, s1, key_ctx, sess, 0);
         auto ps2 = secp256k1::musig2_partial_sign(sec2, s2, key_ctx, sess, 1);
 
-        std::vector<Scalar> psigs = {ps1, ps2};
+        const std::vector<Scalar> psigs = {ps1, ps2};
         return secp256k1::musig2_partial_sig_agg(psigs, sess);
     };
 
@@ -453,8 +452,8 @@ static void test_multiple_messages() {
     CHECK(sig1 != sig2, "different messages -> different sigs");
 
     // Both verify
-    auto ss1 = secp256k1::SchnorrSignature::from_bytes(sig1);
-    auto ss2 = secp256k1::SchnorrSignature::from_bytes(sig2);
+    const auto ss1 = secp256k1::SchnorrSignature::from_bytes(sig1);
+    const auto ss2 = secp256k1::SchnorrSignature::from_bytes(sig2);
     CHECK(secp256k1::schnorr_verify(key_ctx.Q_x, msg1, ss1), "msg1 sig verifies");
     CHECK(secp256k1::schnorr_verify(key_ctx.Q_x, msg2, ss2), "msg2 sig verifies");
 
@@ -489,6 +488,7 @@ static void test_signer_scaling() {
 
     for (int n = 2; n <= 5; ++n) {
         std::vector<std::array<uint8_t, 32>> pks;
+        pks.reserve(static_cast<size_t>(n));
         for (int i = 0; i < n; ++i) pks.push_back(pubkeys[i]);
 
         auto key_ctx = secp256k1::musig2_key_agg(pks);
@@ -518,8 +518,8 @@ static void test_signer_scaling() {
 
         auto sig = secp256k1::musig2_partial_sig_agg(psigs, session);
 
-        auto schnorr_sig = secp256k1::SchnorrSignature::from_bytes(sig);
-        bool ok = secp256k1::schnorr_verify(key_ctx.Q_x, msg, schnorr_sig);
+        const auto schnorr_sig = secp256k1::SchnorrSignature::from_bytes(sig);
+        const bool ok = secp256k1::schnorr_verify(key_ctx.Q_x, msg, schnorr_sig);
 
         char label[64];
         (void)std::snprintf(label, sizeof(label), "%d-of-%d BIP-340 verify", n, n);
