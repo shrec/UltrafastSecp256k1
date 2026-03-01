@@ -5,6 +5,13 @@ All notable changes to UltrafastSecp256k1 are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.15.1] - 2026-03-01
+
+### Fixed -- Build (MSVC / wasm / armv7 / GCC -Wpedantic)
+- **schnorr.cpp** -- `FieldElement::from_bytes()` called with `const uint8_t*` instead of `const std::array<uint8_t,32>&`; copy into std::array before call. Broke MSVC, wasm, armv7 builds.
+- **glv.cpp** -- suppress GCC `-Wpedantic` warning for `__int128` extension type (`#pragma GCC diagnostic push/pop`).
+- **glv.cpp** -- removed unused `mul_shift_384` runtime function in `__int128` path (only template `mul_shift_384_const` is used).
+
 ## [3.15.0] - 2026-03-01
 
 ### Optimized -- ECDSA Recovery (1.9x speedup)
