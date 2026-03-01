@@ -48,9 +48,16 @@ option(SECP256K1_INSTALL_PKGCONFIG "Install pkg-config file" ON)
 option(SECP256K1_SPEED_FIRST "Prioritize speed over safety checks" OFF)
 option(SECP256K1_BUILD_SHARED "Build shared library" OFF)
 
+# Bitcoin strict mode (default ON): public API rejects non-canonical inputs
+option(UFSECP_BITCOIN_STRICT "Enforce BIP-340 strict encoding in public API (reject r>=p, s>=n)" ON)
+
 # Global compile definitions
 if(SECP256K1_SPEED_FIRST)
     add_compile_definitions(SECP256K1_FAST_NO_SECURITY_CHECKS=1)
+endif()
+
+if(UFSECP_BITCOIN_STRICT)
+    add_compile_definitions(UFSECP_BITCOIN_STRICT=1)
 endif()
 
 # Platform detection
@@ -325,6 +332,7 @@ message(STATUS "")
 message(STATUS "  Optimizations:")
 message(STATUS "    Assembly:       ${SECP256K1_USE_ASM}")
 message(STATUS "    Speed First:    ${SECP256K1_SPEED_FIRST}")
+message(STATUS "    Bitcoin Strict: ${UFSECP_BITCOIN_STRICT}")
 message(STATUS "")
 message(STATUS "===========================================================")
 message(STATUS "")

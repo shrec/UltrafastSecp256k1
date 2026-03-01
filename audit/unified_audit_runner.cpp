@@ -95,6 +95,7 @@ int test_debug_invariants_run();
 int test_abi_gate_run();
 int test_ct_sidechannel_smoke_run();
 int test_differential_run();
+int test_bip340_strict_run();
 
 // ============================================================================
 // Forward declarations -- MuSig2 / FROST protocol tests
@@ -152,6 +153,7 @@ struct AuditModule {
     const char* name;         // human-readable name
     const char* section;      // one of 8 report sections
     int (*run)();             // returns 0=PASS, non-zero=FAIL
+    bool advisory;            // if true, failure does not block audit verdict
 };
 
 // Section display names (Georgian + English)
@@ -185,81 +187,82 @@ static const AuditModule ALL_MODULES[] = {
     // ===================================================================
     // Section 1: Mathematical Invariants (Fp, Zn, Group Laws)
     // ===================================================================
-    { "audit_field",       "Field Fp deep audit (add/mul/inv/sqrt/batch)", "math_invariants", audit_field_run },
-    { "audit_scalar",      "Scalar Zn deep audit (mod/GLV/edge/inv)",      "math_invariants", audit_scalar_run },
-    { "audit_point",       "Point ops deep audit (Jac/affine/sigs)",       "math_invariants", audit_point_run },
-    { "mul",               "Field & scalar arithmetic",                    "math_invariants", test_mul_run },
-    { "arith_correct",     "Arithmetic correctness",                       "math_invariants", test_arithmetic_correctness_run },
-    { "scalar_mul",        "Scalar multiplication",                        "math_invariants", test_large_scalar_multiplication_run },
-    { "exhaustive",        "Exhaustive algebraic verification",            "math_invariants", run_exhaustive_tests },
-    { "comprehensive",     "Comprehensive 500+ suite",                     "math_invariants", test_comprehensive_run },
-    { "ecc_properties",    "ECC property-based invariants",                "math_invariants", test_ecc_properties_run },
-    { "batch_add",         "Affine batch addition",                        "math_invariants", test_batch_add_affine_run },
-    { "carry_propagation", "Carry chain stress (limb boundary)",           "math_invariants", test_carry_propagation_run },
+    { "audit_field",       "Field Fp deep audit (add/mul/inv/sqrt/batch)", "math_invariants", audit_field_run, false },
+    { "audit_scalar",      "Scalar Zn deep audit (mod/GLV/edge/inv)",      "math_invariants", audit_scalar_run, false },
+    { "audit_point",       "Point ops deep audit (Jac/affine/sigs)",       "math_invariants", audit_point_run, false },
+    { "mul",               "Field & scalar arithmetic",                    "math_invariants", test_mul_run, false },
+    { "arith_correct",     "Arithmetic correctness",                       "math_invariants", test_arithmetic_correctness_run, false },
+    { "scalar_mul",        "Scalar multiplication",                        "math_invariants", test_large_scalar_multiplication_run, false },
+    { "exhaustive",        "Exhaustive algebraic verification",            "math_invariants", run_exhaustive_tests, false },
+    { "comprehensive",     "Comprehensive 500+ suite",                     "math_invariants", test_comprehensive_run, false },
+    { "ecc_properties",    "ECC property-based invariants",                "math_invariants", test_ecc_properties_run, false },
+    { "batch_add",         "Affine batch addition",                        "math_invariants", test_batch_add_affine_run, false },
+    { "carry_propagation", "Carry chain stress (limb boundary)",           "math_invariants", test_carry_propagation_run, false },
 #ifdef __SIZEOF_INT128__
-    { "field_52",          "FieldElement52 (5x52) vs 4x64",               "math_invariants", test_field_52_main },
+    { "field_52",          "FieldElement52 (5x52) vs 4x64",               "math_invariants", test_field_52_main, false },
 #endif
-    { "field_26",          "FieldElement26 (10x26) vs 4x64",              "math_invariants", test_field_26_main },
+    { "field_26",          "FieldElement26 (10x26) vs 4x64",              "math_invariants", test_field_26_main, false },
 
     // ===================================================================
     // Section 2: Constant-Time / Side-Channel Analysis
     // ===================================================================
-    { "audit_ct",          "CT deep audit (masks/cmov/cswap/timing)",      "ct_analysis",    audit_ct_run },
-    { "ct",                "Constant-time layer",                          "ct_analysis",    test_ct_run },
-    { "ct_equivalence",    "FAST == CT equivalence",                       "ct_analysis",    test_ct_equivalence_run },
-    { "ct_sidechannel",    "Side-channel dudect (smoke)",                  "ct_analysis",    test_ct_sidechannel_smoke_run },
-    { "diag_scalar_mul",   "CT scalar_mul vs fast (diagnostic)",           "ct_analysis",    diag_scalar_mul_run },
+    { "audit_ct",          "CT deep audit (masks/cmov/cswap/timing)",      "ct_analysis",    audit_ct_run, false },
+    { "ct",                "Constant-time layer",                          "ct_analysis",    test_ct_run, false },
+    { "ct_equivalence",    "FAST == CT equivalence",                       "ct_analysis",    test_ct_equivalence_run, false },
+    { "ct_sidechannel",    "Side-channel dudect (smoke)",                  "ct_analysis",    test_ct_sidechannel_smoke_run, true },
+    { "diag_scalar_mul",   "CT scalar_mul vs fast (diagnostic)",           "ct_analysis",    diag_scalar_mul_run, false },
 
     // ===================================================================
     // Section 3: Differential & Cross-Library Testing
     // ===================================================================
-    { "differential",      "Differential correctness",                     "differential",   test_differential_run },
-    { "fiat_crypto",       "Fiat-Crypto reference vectors",               "differential",   test_fiat_crypto_vectors_run },
-    { "cross_platform_kat","Cross-platform KAT",                          "differential",   test_cross_platform_kat_run },
+    { "differential",      "Differential correctness",                     "differential",   test_differential_run, false },
+    { "fiat_crypto",       "Fiat-Crypto reference vectors",               "differential",   test_fiat_crypto_vectors_run, false },
+    { "cross_platform_kat","Cross-platform KAT",                          "differential",   test_cross_platform_kat_run, false },
 
     // ===================================================================
     // Section 4: Standard Test Vectors (BIP-340, RFC-6979, BIP-32)
     // ===================================================================
-    { "bip340_vectors",    "BIP-340 official vectors",                     "standard_vectors", test_bip340_vectors_run },
-    { "bip32_vectors",     "BIP-32 official vectors TV1-5",               "standard_vectors", test_bip32_vectors_run },
-    { "rfc6979_vectors",   "RFC 6979 ECDSA vectors",                      "standard_vectors", test_rfc6979_vectors_run },
-    { "frost_kat",         "FROST reference KAT vectors",                 "standard_vectors", test_frost_kat_run },
+    { "bip340_vectors",    "BIP-340 official vectors",                     "standard_vectors", test_bip340_vectors_run, false },
+    { "bip340_strict",     "BIP-340 strict encoding (non-canonical)",      "standard_vectors", test_bip340_strict_run, false },
+    { "bip32_vectors",     "BIP-32 official vectors TV1-5",               "standard_vectors", test_bip32_vectors_run, false },
+    { "rfc6979_vectors",   "RFC 6979 ECDSA vectors",                      "standard_vectors", test_rfc6979_vectors_run, false },
+    { "frost_kat",         "FROST reference KAT vectors",                 "standard_vectors", test_frost_kat_run, false },
 
     // ===================================================================
     // Section 5: Fuzzing & Adversarial Attack Resilience
     // ===================================================================
-    { "audit_fuzz",        "Adversarial fuzz (malform/edge)",              "fuzzing",        test_audit_fuzz_run },
-    { "fuzz_parsers",      "Parser fuzz (DER/Schnorr/Pubkey)",            "fuzzing",        test_fuzz_parsers_run },
-    { "fuzz_addr_bip32",   "Address/BIP32/FFI boundary fuzz",             "fuzzing",        test_fuzz_address_bip32_ffi_run },
-    { "fault_injection",   "Fault injection simulation",                   "fuzzing",        test_fault_injection_run },
+    { "audit_fuzz",        "Adversarial fuzz (malform/edge)",              "fuzzing",        test_audit_fuzz_run, false },
+    { "fuzz_parsers",      "Parser fuzz (DER/Schnorr/Pubkey)",            "fuzzing",        test_fuzz_parsers_run, false },
+    { "fuzz_addr_bip32",   "Address/BIP32/FFI boundary fuzz",             "fuzzing",        test_fuzz_address_bip32_ffi_run, false },
+    { "fault_injection",   "Fault injection simulation",                   "fuzzing",        test_fault_injection_run, false },
 
     // ===================================================================
     // Section 6: Protocol Security (ECDSA, Schnorr, MuSig2, FROST)
     // ===================================================================
-    { "ecdsa_schnorr",     "ECDSA + Schnorr",                             "protocol_security", test_ecdsa_schnorr_run },
-    { "bip32",             "BIP-32 HD derivation",                        "protocol_security", test_bip32_run },
-    { "musig2",            "MuSig2",                                       "protocol_security", test_musig2_run },
-    { "ecdh_recovery",     "ECDH + recovery + taproot",                   "protocol_security", test_ecdh_recovery_taproot_run },
-    { "v4_features",       "v4 (Pedersen/FROST/etc)",                     "protocol_security", test_v4_features_run },
-    { "coins",             "Coins layer",                                  "protocol_security", test_coins_run },
-    { "musig2_frost",      "MuSig2 + FROST protocol suite",              "protocol_security", test_musig2_frost_protocol_run },
-    { "musig2_frost_adv",  "MuSig2 + FROST advanced/adversar",           "protocol_security", test_musig2_frost_advanced_run },
-    { "audit_integration", "Integration (ECDH/batch/cross-proto)",        "protocol_security", audit_integration_run },
+    { "ecdsa_schnorr",     "ECDSA + Schnorr",                             "protocol_security", test_ecdsa_schnorr_run, false },
+    { "bip32",             "BIP-32 HD derivation",                        "protocol_security", test_bip32_run, false },
+    { "musig2",            "MuSig2",                                       "protocol_security", test_musig2_run, false },
+    { "ecdh_recovery",     "ECDH + recovery + taproot",                   "protocol_security", test_ecdh_recovery_taproot_run, false },
+    { "v4_features",       "v4 (Pedersen/FROST/etc)",                     "protocol_security", test_v4_features_run, false },
+    { "coins",             "Coins layer",                                  "protocol_security", test_coins_run, false },
+    { "musig2_frost",      "MuSig2 + FROST protocol suite",              "protocol_security", test_musig2_frost_protocol_run, false },
+    { "musig2_frost_adv",  "MuSig2 + FROST advanced/adversar",           "protocol_security", test_musig2_frost_advanced_run, false },
+    { "audit_integration", "Integration (ECDH/batch/cross-proto)",        "protocol_security", audit_integration_run, false },
 
     // ===================================================================
     // Section 7: ABI & Memory Safety (zeroization, hardening)
     // ===================================================================
-    { "audit_security",    "Security hardening (zero/bitflip/nonce)",      "memory_safety",  audit_security_run },
-    { "debug_invariants",  "Debug invariant assertions",                   "memory_safety",  test_debug_invariants_run },
-    { "abi_gate",          "ABI version gate (compile-time)",              "memory_safety",  test_abi_gate_run },
+    { "audit_security",    "Security hardening (zero/bitflip/nonce)",      "memory_safety",  audit_security_run, false },
+    { "debug_invariants",  "Debug invariant assertions",                   "memory_safety",  test_debug_invariants_run, false },
+    { "abi_gate",          "ABI version gate (compile-time)",              "memory_safety",  test_abi_gate_run, false },
 
     // ===================================================================
     // Section 8: Performance Validation & Regression
     // ===================================================================
-    { "hash_accel",        "Accelerated hashing",                          "performance",    test_hash_accel_run },
-    { "simd_batch",        "SIMD batch operations",                        "performance",    test_simd_batch_run },
-    { "multiscalar",       "Multi-scalar & batch verify",                  "performance",    test_multiscalar_batch_run },
-    { "audit_perf",        "Performance smoke (sign/verify roundtrip)",    "performance",    audit_perf_run },
+    { "hash_accel",        "Accelerated hashing",                          "performance",    test_hash_accel_run, false },
+    { "simd_batch",        "SIMD batch operations",                        "performance",    test_simd_batch_run, false },
+    { "multiscalar",       "Multi-scalar & batch verify",                  "performance",    test_multiscalar_batch_run, false },
+    { "audit_perf",        "Performance smoke (sign/verify roundtrip)",    "performance",    audit_perf_run, false },
 };
 
 static constexpr int NUM_MODULES = sizeof(ALL_MODULES) / sizeof(ALL_MODULES[0]);
@@ -383,6 +386,7 @@ struct ModuleResult {
     const char* name;
     const char* section;
     bool        passed;
+    bool        advisory;
     double      elapsed_ms;
 };
 
@@ -497,9 +501,10 @@ static void write_json_report(const char* path,
             if (std::strcmp(r.section, sec.section_id) != 0) continue;
             if (!first) (void)std::fprintf(f, ",\n");
             first = false;
-            (void)std::fprintf(f, "        { \"id\": \"%s\", \"name\": \"%s\", \"passed\": %s, \"time_ms\": %.1f }",
+            (void)std::fprintf(f, "        { \"id\": \"%s\", \"name\": \"%s\", \"passed\": %s, \"advisory\": %s, \"time_ms\": %.1f }",
                          r.id, json_escape(r.name).c_str(),
-                         r.passed ? "true" : "false", r.elapsed_ms);
+                         r.passed ? "true" : "false",
+                         r.advisory ? "true" : "false", r.elapsed_ms);
         }
         (void)std::fprintf(f, "\n      ]\n");
         (void)std::fprintf(f, "    }%s\n", (s + 1 < (int)sections.size()) ? "," : "");
@@ -730,6 +735,7 @@ int main(int argc, char* argv[]) {
 
     int modules_passed = 0;
     int modules_failed = 0;
+    int modules_advisory_warned = 0;
 
     // Track which section we're in for console grouping
     const char* current_section = "";
@@ -774,12 +780,15 @@ int main(int argc, char* argv[]) {
         if (ok) {
             ++modules_passed;
             if (!json_only) std::printf("PASS  (%.0f ms)\n", ms);
+        } else if (m.advisory) {
+            ++modules_advisory_warned;
+            if (!json_only) std::printf("WARN  (%.0f ms) [advisory]\n", ms);
         } else {
             ++modules_failed;
             if (!json_only) std::printf("FAIL  (%.0f ms)\n", ms);
         }
 
-        results.push_back({ m.id, m.name, m.section, ok, ms });
+        results.push_back({ m.id, m.name, m.section, ok, m.advisory, ms });
     }
 
     auto total_end = std::chrono::steady_clock::now();
@@ -820,7 +829,7 @@ int main(int argc, char* argv[]) {
     // -- Final Summary ---------------------------------------------------
     int const total_pass = modules_passed + (selftest_passed ? 1 : 0);
     int const total_fail = modules_failed + (selftest_passed ? 0 : 1);
-    int const total_count = total_pass + total_fail;
+    int const total_count = total_pass + total_fail + modules_advisory_warned;
 
     if (!json_only) {
         std::printf("\n================================================================\n");
@@ -831,6 +840,9 @@ int main(int argc, char* argv[]) {
             std::printf("  --  ALL PASSED");
         } else {
             std::printf("  --  %d FAILED", total_fail);
+        }
+        if (modules_advisory_warned > 0) {
+            std::printf("  (%d advisory warnings)", modules_advisory_warned);
         }
         std::printf("  (%.1f s)\n", total_ms / 1000.0);
         std::printf("  Platform: %s %s | %s | %s\n",

@@ -263,6 +263,10 @@ Scalar rfc6979_nonce(const Scalar& private_key,
 
         std::array<uint8_t, 32> t;
         std::memcpy(t.data(), V, 32);
+        // Scalar::from_bytes() implicitly reduces mod n (if the 256-bit
+        // HMAC output >= n, it is reduced).  This is correct for RFC 6979:
+        // the spec defines k = bits2int(T) mod n, which is exactly what
+        // from_bytes() does.  The retry is only for the degenerate k==0.
         auto candidate = Scalar::from_bytes(t);
         if (!candidate.is_zero()) {
             return candidate;
@@ -399,6 +403,14 @@ bool ecdsa_verify(const uint8_t* msg_hash32,
         rn[1] = static_cast<std::uint64_t>(acc);
         acc = static_cast<unsigned __int128>(rl[2]) + N_LIMBS[2] + static_cast<std::uint64_t>(acc >> 64);
         rn[2] = static_cast<std::uint64_t>(acc);
+        // rn[3] cannot overflow 64 bits: rl[3] < p-n limb3 == 0 (since
+        // r_less_than_pmn implies rl[3]==0), and N_LIMBS[3]==0xFFFF...FFFF,
+        // plus at most carry=1.  0 + 0xFFFF...FFFF + 1 == 2^64 wraps to 0
+        // with carry, but that carry propagates to a 5th limb we discard.
+        // The result sig.r + n < p is guaranteed by the r_less_than_pmn
+        // check, so the 256-bit value is valid (no 5th-limb overflow in
+        // the mathematical sum; the C wrap is benign since we only need
+        // the low 4 limbs of a value < p).
         rn[3] = rl[3] + N_LIMBS[3] + static_cast<std::uint64_t>(acc >> 64);
 
         FE52 const r2_52 = FE52::from_4x64_limbs(rn);
@@ -461,6 +473,9 @@ bool ecdsa_verify(const uint8_t* msg_hash32,
         rn[2] = tmp2 + carry;
         carry = c2 + ((rn[2] < tmp2) ? 1u : 0u);
         // limb 3
+        // rn[3] cannot overflow meaningfully: rl[3]==0 (r_less_than_pmn
+        // guard), N_LIMBS[3]==0xFFFF...FFFF, carry<=1.  The 256-bit sum
+        // sig.r + n < p is guaranteed, so only the low 4 limbs matter.
         rn[3] = rl[3] + N_LIMBS[3] + carry;
 
         FieldElement::limbs_type rn_arr = {rn[0], rn[1], rn[2], rn[3]};

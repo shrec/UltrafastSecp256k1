@@ -2345,6 +2345,28 @@ FieldElement FieldElement::from_bytes(const std::array<std::uint8_t, 32>& bytes)
     return FieldElement(limbs, true);
 }
 
+// -- BIP-340 strict parsing (no reduction) ------------------------------------
+
+bool FieldElement::parse_bytes_strict(const std::uint8_t* bytes32, FieldElement& out) noexcept {
+    FieldElement::limbs_type limbs{};
+    for (std::size_t i = 0; i < 4; ++i) {
+        std::uint64_t limb = 0;
+        for (std::size_t j = 0; j < 8; ++j) {
+            limb = (limb << 8) | static_cast<std::uint64_t>(bytes32[i * 8 + j]);
+        }
+        limbs[3 - i] = limb;
+    }
+    // Reject if limbs >= PRIME (BIP-340: fail if r >= p, fail if pk.x >= p)
+    if (ge(limbs, PRIME)) return false;
+    out = FieldElement(limbs, true);
+    return true;
+}
+
+bool FieldElement::parse_bytes_strict(const std::array<std::uint8_t, 32>& bytes,
+                                       FieldElement& out) noexcept {
+    return parse_bytes_strict(bytes.data(), out);
+}
+
 FieldElement FieldElement::from_mont(const FieldElement& a) {
     // Convert a (Montgomery residue aR) -> a (standard): MontMul(aR, 1).
     // Logic: a * R^-1 mod P

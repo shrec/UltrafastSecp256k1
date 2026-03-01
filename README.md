@@ -114,6 +114,15 @@ Features are organized into **maturity tiers** (see [SUPPORTED_GUARANTEES.md](in
 
 > **Tier 1** = battle-tested core crypto with stable API. **Tier 2** = protocol-level features, API may evolve. **Tier 3** = convenience utilities.
 
+### BIP-340 Strict Encoding
+
+All public API functions enforce **canonical input encoding** as required by BIP-340 and Bitcoin consensus:
+- Signatures with `r >= p` or `s >= n` are **rejected, not reduced**
+- Public keys with `x >= p` are **rejected, not reduced**
+- Private keys must satisfy `1 <= sk < n`
+
+The C ABI (`ufsecp_*`) returns distinct error codes: `UFSECP_ERR_BAD_SIG` (non-canonical signature) vs `UFSECP_ERR_VERIFY_FAIL` (valid encoding, bad math). See [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md) for details.
+
 ---
 
 ## 60-Second Quickstart

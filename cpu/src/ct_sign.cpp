@@ -13,6 +13,16 @@
 #include "secp256k1/config.hpp"
 #include <cstring>
 
+// -- Secure buffer erasure (not optimized away by the compiler) ---------------
+// Uses the volatile function-pointer trick from libsecp256k1: the compiler
+// cannot prove the callee is memset, so it is not allowed to elide the call.
+namespace {
+inline void secure_erase(void* ptr, std::size_t len) noexcept {
+    void *(*volatile const volatile_memset)(void *, int, std::size_t) = std::memset;
+    volatile_memset(ptr, 0, len);
+}
+} // anonymous namespace
+
 namespace secp256k1::ct {
 
 // ============================================================================
@@ -129,6 +139,13 @@ SchnorrSignature schnorr_sign(const SchnorrKeypair& kp,
     SchnorrSignature sig{};
     sig.r = rx;
     sig.s = k + e * kp.d;
+
+    // Erase stack buffers that held secret key material:
+    //   t[32]           -- d XOR aux_hash  (derived from private key)
+    //   nonce_input[96] -- t || pubkey_x || msg  (contains t)
+    secure_erase(t, sizeof(t));
+    secure_erase(nonce_input, sizeof(nonce_input));
+
     return sig;
 }
 

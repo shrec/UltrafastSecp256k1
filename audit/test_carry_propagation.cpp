@@ -323,6 +323,15 @@ static void test_scalar_carry() {
     }
 }
 
+// Helper: print 32-byte array as hex (ASCII only, no unicode)
+static void print_hex(const char* label, const std::array<uint8_t, 32>& data) {
+    (void)printf("    %s: ", label);
+    for (int i = 0; i < 32; ++i) {
+        (void)printf("%02x", data[i]);
+    }
+    (void)printf("\n");
+}
+
 // ============================================================================
 // 7. Point arithmetic at carry boundaries
 // ============================================================================
@@ -342,12 +351,65 @@ static void test_point_carry() {
 
     auto P = G.scalar_mul(n_m1);
 
+    // Diagnostic: print actual vs expected x coordinates
+    auto p_x_bytes = P.x().to_bytes();
+    auto g_x_bytes = G.x().to_bytes();
+    if (p_x_bytes != g_x_bytes) {
+        (void)printf("  DIAGNOSTIC: (n-1)*G x mismatch detected!\n");
+        print_hex("G.x()     ", g_x_bytes);
+        print_hex("P.x()     ", p_x_bytes);
+        auto p_y_bytes = P.y().to_bytes();
+        auto g_y_bytes = G.y().to_bytes();
+        print_hex("G.y()     ", g_y_bytes);
+        print_hex("P.y()     ", p_y_bytes);
+        (void)printf("    P.is_infinity() = %d\n", P.is_infinity() ? 1 : 0);
+
+        // Cross-validation: compute via non-generator path
+        // Construct a non-generator copy of G to bypass scalar_mul_generator
+        auto G_copy = Point::from_affine(G.x(), G.y());
+        auto P_generic = G_copy.scalar_mul(n_m1);
+        auto pg_x_bytes = P_generic.x().to_bytes();
+        auto pg_y_bytes = P_generic.y().to_bytes();
+        print_hex("P_gen.x() ", pg_x_bytes);
+        print_hex("P_gen.y() ", pg_y_bytes);
+        (void)printf("    P_generic.is_infinity() = %d\n", P_generic.is_infinity() ? 1 : 0);
+        (void)printf("    generic==expected: x=%d y_neg=%d\n",
+                     pg_x_bytes == g_x_bytes ? 1 : 0,
+                     pg_y_bytes != g_y_bytes ? 1 : 0);
+
+        // Also check: does the result at least lie on the curve?
+        auto x_chk = P.x();
+        auto y_chk = P.y();
+        auto y2 = y_chk.square();
+        auto x3_plus7 = x_chk * x_chk * x_chk + FieldElement::from_uint64(7);
+        (void)printf("    P on curve: %d\n", y2.to_bytes() == x3_plus7.to_bytes() ? 1 : 0);
+
+        // Verify via double-scalar: (n-1)*G + 1*G should be O
+        auto sum_check = P.add(G);
+        (void)printf("    P + G = O: %d\n", sum_check.is_infinity() ? 1 : 0);
+        auto sum_generic = P_generic.add(G);
+        (void)printf("    P_generic + G = O: %d\n", sum_generic.is_infinity() ? 1 : 0);
+    }
+
     // (n-1)*G should have same x as G
     CHECK(P.x().to_bytes() == G.x().to_bytes(), "(n-1)G has same x as G");
 
     // (n-1)*G + G should be infinity
     auto sum = P.add(G);
     CHECK(sum.is_infinity(), "(n-1)G + G = O");
+
+    // Cross-validation: generic scalar_mul (GLV path, no precomputed tables)
+    // must agree with generator-optimized path
+    {
+        auto G_non_gen = Point::from_affine(G.x(), G.y());
+        auto P2 = G_non_gen.scalar_mul(n_m1);
+        CHECK(P2.x().to_bytes() == G.x().to_bytes(), "(n-1)G generic path has same x as G");
+        auto sum2 = P2.add(G);
+        CHECK(sum2.is_infinity(), "(n-1)G generic + G = O");
+
+        // Generator vs generic must agree
+        CHECK(P.x().to_bytes() == P2.x().to_bytes(), "generator vs generic path: same x");
+    }
 
     // Double-and-add vs scalar_mul consistency at carry boundary
     auto k = Scalar::from_bytes({
@@ -372,6 +434,14 @@ static void test_point_carry() {
     auto seven = FieldElement::from_uint64(7);
     auto rhs = x_cubed + seven;
     CHECK(y_sq.to_bytes() == rhs.to_bytes(), "carry result on curve: y^2==x^3+7");
+
+    // Cross-validate the carry-boundary scalar too
+    {
+        auto G_non_gen = Point::from_affine(G.x(), G.y());
+        auto R2 = G_non_gen.scalar_mul(k);
+        CHECK(R1.x().to_bytes() == R2.x().to_bytes(), "carry-boundary: generator vs generic x match");
+        CHECK(R1.y().to_bytes() == R2.y().to_bytes(), "carry-boundary: generator vs generic y match");
+    }
 }
 
 // ============================================================================

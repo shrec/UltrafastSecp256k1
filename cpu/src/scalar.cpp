@@ -201,6 +201,36 @@ Scalar Scalar::from_bytes(const std::array<std::uint8_t, 32>& bytes) {
     return from_bytes(bytes.data());
 }
 
+// -- BIP-340 strict parsing (no reduction) ------------------------------------
+
+bool Scalar::parse_bytes_strict(const std::uint8_t* bytes32, Scalar& out) noexcept {
+    limbs4 limbs{};
+    for (std::size_t i = 0; i < 4; ++i) {
+        std::uint64_t limb = 0;
+        for (std::size_t j = 0; j < 8; ++j) {
+            limb = (limb << 8) | bytes32[i * 8 + j];
+        }
+        limbs[3 - i] = limb;
+    }
+    // Reject if limbs >= ORDER (BIP-340: fail if s >= n)
+    if (ge(limbs, ORDER)) return false;
+    out.limbs_ = limbs;
+    return true;
+}
+
+bool Scalar::parse_bytes_strict(const std::array<std::uint8_t, 32>& bytes, Scalar& out) noexcept {
+    return parse_bytes_strict(bytes.data(), out);
+}
+
+bool Scalar::parse_bytes_strict_nonzero(const std::uint8_t* bytes32, Scalar& out) noexcept {
+    if (!parse_bytes_strict(bytes32, out)) return false;
+    return !out.is_zero();
+}
+
+bool Scalar::parse_bytes_strict_nonzero(const std::array<std::uint8_t, 32>& bytes, Scalar& out) noexcept {
+    return parse_bytes_strict_nonzero(bytes.data(), out);
+}
+
 std::array<std::uint8_t, 32> Scalar::to_bytes() const {
     std::array<std::uint8_t, 32> out{};
     for (std::size_t i = 0; i < 4; ++i) {

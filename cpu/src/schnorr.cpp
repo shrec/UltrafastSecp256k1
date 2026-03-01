@@ -21,6 +21,56 @@ using FE52 = fast::FieldElement52;
 // inverse() uses FE52 Fermat (~4us) -- but SafeGCD (~2-3us) is faster for
 // variable-time paths (point.cpp batch inverse, verify Y-parity).
 
+// -- lift_x: shared BIP-340 x-only -> affine Point (no duplication) -----------
+// Returns Point::infinity() on failure (x not on curve).
+static Point lift_x(const uint8_t* x32) {
+#if defined(SECP256K1_FAST_52BIT)
+    // Direct bytes->FE52: avoids FieldElement construction overhead
+    FE52 const px52 = FE52::from_bytes(x32);
+
+    // y^2 = x^3 + 7
+    FE52 const x3 = px52.square() * px52;
+    static const FE52 seven52 = FE52::from_fe(FieldElement::from_uint64(7));
+    FE52 const y2 = x3 + seven52;
+
+    // sqrt via FE52 addition chain: a^((p+1)/4), ~253 sqr + 13 mul
+    FE52 y52 = y2.sqrt();
+
+    // Verify: y^2 == y2 (check that sqrt succeeded)
+    FE52 check = y52.square();
+    check.normalize();
+    FE52 y2n = y2;
+    y2n.normalize();
+    if (!(check == y2n)) return Point::infinity();
+
+    // Ensure even Y (BIP-340 convention): check parity of normalized y
+    FE52 y_norm = y52;
+    y_norm.normalize();
+    if (y_norm.n[0] & 1) {
+        // Negate: y = p - y
+        y52 = y52.negate(1);
+        y52.normalize_weak();
+    }
+
+    // Zero-conversion: construct Point directly from FE52 affine coordinates
+    return Point::from_affine52(px52, y52);
+#else
+    // Fallback: 4x64 lift_x
+    std::array<uint8_t, 32> px_arr;
+    std::memcpy(px_arr.data(), x32, 32);
+    auto px_fe = FieldElement::from_bytes(px_arr);
+    auto x3 = px_fe * px_fe * px_fe;
+    auto y2 = x3 + FieldElement::from_uint64(7);
+    auto y_fe = y2.sqrt();
+    auto chk = y_fe * y_fe;
+    if (!(chk == y2)) return Point::infinity();
+    // 4x64 mul_impl Barrett-reduces to [0, p), so limbs()[0] & 1 is
+    // the true parity -- no serialization needed.
+    if (y_fe.limbs()[0] & 1) y_fe = y_fe.negate();
+    return Point::from_affine(px_fe, y_fe);
+#endif
+}
+
 // -- Shared BIP-340 tagged-hash midstates (from tagged_hash.hpp) ---------------
 using detail::g_aux_midstate;
 using detail::g_nonce_midstate;
@@ -59,6 +109,27 @@ SchnorrSignature SchnorrSignature::from_bytes(const uint8_t* data64) {
 
 SchnorrSignature SchnorrSignature::from_bytes(const std::array<uint8_t, 64>& data) {
     return from_bytes(data.data());
+}
+
+// -- BIP-340 strict signature parsing (r < p, 0 < s < n) ---------------------
+
+bool SchnorrSignature::parse_strict(const uint8_t* data64, SchnorrSignature& out) noexcept {
+    // BIP-340: fail if r >= p
+    FieldElement r_fe;
+    if (!FieldElement::parse_bytes_strict(data64, r_fe)) return false;
+
+    // BIP-340: fail if s >= n; also reject s == 0
+    Scalar s_val;
+    if (!Scalar::parse_bytes_strict_nonzero(data64 + 32, s_val)) return false;
+
+    std::memcpy(out.r.data(), data64, 32);
+    out.s = s_val;
+    return true;
+}
+
+bool SchnorrSignature::parse_strict(const std::array<uint8_t, 64>& data,
+                                     SchnorrSignature& out) noexcept {
+    return parse_strict(data.data(), out);
 }
 
 // -- X-only pubkey ------------------------------------------------------------
@@ -144,8 +215,18 @@ SchnorrSignature schnorr_sign(const Scalar& private_key,
 bool schnorr_verify(const uint8_t* pubkey_x32,
                     const uint8_t* msg32,
                     const SchnorrSignature& sig) {
-    // Step 1: Check s < n (from_bytes already reduces)
+    // Step 0: BIP-340 strict range checks
+    // Check s: must be in [1, n-1] -- enforced at parse time by parse_strict,
+    // but also guard here for callers using from_bytes (reducing parser).
     if (sig.s.is_zero()) return false;
+
+    // Check r < p: if sig.r bytes represent a value >= p, reject.
+    FieldElement r_fe_check;
+    if (!FieldElement::parse_bytes_strict(sig.r.data(), r_fe_check)) return false;
+
+    // Check pubkey x < p: if pubkey_x32 bytes represent a value >= p, reject.
+    FieldElement pk_fe_check;
+    if (!FieldElement::parse_bytes_strict(pubkey_x32, pk_fe_check)) return false;
 
     // Step 2: e = tagged_hash("BIP0340/challenge", r || pubkey_x || msg) mod n
     // Streaming SHA256: feed data directly, no intermediate buffer
@@ -156,51 +237,9 @@ bool schnorr_verify(const uint8_t* pubkey_x32,
     auto e_hash = ctx.finalize();
     auto e = Scalar::from_bytes(e_hash);
 
-    // Step 3: Lift x-only pubkey to point (all in FE52 -- ~3x faster sqrt)
-#if defined(SECP256K1_FAST_52BIT)
-    // Direct bytes->FE52: avoids FieldElement construction overhead
-    FE52 const px52 = FE52::from_bytes(pubkey_x32);
-
-    // y^2 = x^3 + 7
-    FE52 const x3 = px52.square() * px52;
-    static const FE52 seven52 = FE52::from_fe(FieldElement::from_uint64(7));
-    FE52 const y2 = x3 + seven52;
-
-    // sqrt via FE52 addition chain: a^((p+1)/4), ~253 sqr + 13 mul
-    FE52 y52 = y2.sqrt();
-
-    // Verify: y^2 == y2 (check that sqrt succeeded)
-    FE52 check = y52.square();
-    check.normalize();
-    FE52 y2n = y2;
-    y2n.normalize();
-    if (!(check == y2n)) return false;
-
-    // Ensure even Y (BIP-340 convention): check parity of normalized y
-    FE52 y_norm = y52;
-    y_norm.normalize();
-    if (y_norm.n[0] & 1) {
-        // Negate: y = p - y
-        y52 = y52.negate(1);
-        y52.normalize_weak();
-    }
-
-    // Zero-conversion: construct Point directly from FE52 affine coordinates
-    auto P = Point::from_affine52(px52, y52);
-#else
-    // Fallback: 4x64 lift_x
-    std::array<uint8_t, 32> px_arr;
-    std::memcpy(px_arr.data(), pubkey_x32, 32);
-    auto px_fe = FieldElement::from_bytes(px_arr);
-    auto x3 = px_fe * px_fe * px_fe;
-    auto y2 = x3 + FieldElement::from_uint64(7);
-    auto y_fe = y2.sqrt();
-    auto check = y_fe * y_fe;
-    if (!(check == y2)) return false;
-    // 4x64 sqrt result is Barrett-reduced -> limbs()[0] & 1 == parity
-    if (y_fe.limbs()[0] & 1) y_fe = y_fe.negate();
-    auto P = Point::from_affine(px_fe, y_fe);
-#endif
+    // Step 3: Lift x-only pubkey to point
+    auto P = lift_x(pubkey_x32);
+    if (P.is_infinity()) return false;
 
     // Step 4: R = s*G - e*P  (4-stream GLV Strauss: s*G + (-e)*P in one pass)
     auto neg_e = e.negate();
@@ -242,45 +281,13 @@ bool schnorr_verify(const uint8_t* pubkey_x32,
 
 bool schnorr_xonly_pubkey_parse(SchnorrXonlyPubkey& out,
                                 const uint8_t* pubkey_x32) {
-#if defined(SECP256K1_FAST_52BIT)
-    // Direct bytes->FE52: avoids FieldElement construction overhead
-    FE52 const px52 = FE52::from_bytes(pubkey_x32);
+    // BIP-340 strict: reject x >= p (no reduction)
+    FieldElement x_check;
+    if (!FieldElement::parse_bytes_strict(pubkey_x32, x_check)) return false;
 
-    FE52 const x3 = px52.square() * px52;
-    static const FE52 seven52 = FE52::from_fe(FieldElement::from_uint64(7));
-    FE52 const y2 = x3 + seven52;
-
-    FE52 y52 = y2.sqrt();
-
-    FE52 check = y52.square();
-    check.normalize();
-    FE52 y2n = y2;
-    y2n.normalize();
-    if (!(check == y2n)) return false;
-
-    FE52 y_norm = y52;
-    y_norm.normalize();
-    if (y_norm.n[0] & 1) {
-        y52 = y52.negate(1);
-        y52.normalize_weak();
-    }
-
-    // Zero-conversion: construct Point directly from FE52 affine coordinates
-    out.point = Point::from_affine52(px52, y52);
-#else
-    // Fallback: 4x64 lift_x
-    std::array<uint8_t, 32> pubkey_x_arr;
-    std::memcpy(pubkey_x_arr.data(), pubkey_x32, 32);
-    auto px_fe = FieldElement::from_bytes(pubkey_x_arr);
-    auto x3 = px_fe * px_fe * px_fe;
-    auto y2 = x3 + FieldElement::from_uint64(7);
-    auto y_fe = y2.sqrt();
-    auto check = y_fe * y_fe;
-    if (!(check == y2)) return false;
-    auto y_bytes_chk = y_fe.to_bytes();
-    if (y_bytes_chk[31] & 1) y_fe = y_fe.negate();
-    out.point = Point::from_affine(px_fe, y_fe);
-#endif
+    auto P = lift_x(pubkey_x32);
+    if (P.is_infinity()) return false;
+    out.point = P;
     std::memcpy(out.x_bytes.data(), pubkey_x32, 32);
     return true;
 }
@@ -315,7 +322,12 @@ SchnorrXonlyPubkey schnorr_xonly_from_keypair(const SchnorrKeypair& kp) {
 bool schnorr_verify(const SchnorrXonlyPubkey& pubkey,
                     const uint8_t* msg32,
                     const SchnorrSignature& sig) {
+    // BIP-340 strict: s must be nonzero
     if (sig.s.is_zero()) return false;
+
+    // BIP-340 strict: r < p
+    FieldElement r_fe_check;
+    if (!FieldElement::parse_bytes_strict(sig.r.data(), r_fe_check)) return false;
 
     // Challenge hash: streaming SHA256 (no intermediate buffer)
     SHA256 ctx = g_challenge_midstate;

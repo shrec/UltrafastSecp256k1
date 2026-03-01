@@ -50,6 +50,12 @@ public:
     static FieldElement from_limbs(const limbs_type& limbs);
     static FieldElement from_bytes(const std::array<std::uint8_t, 32>& bytes);
 
+    // BIP-340 strict parsing: rejects values >= field prime p (no reduction).
+    // Returns false if bytes represent a value >= p.
+    // Use for pubkey/signature r-value parsing where canonical encoding is required.
+    static bool parse_bytes_strict(const std::uint8_t* bytes32, FieldElement& out) noexcept;
+    static bool parse_bytes_strict(const std::array<std::uint8_t, 32>& bytes, FieldElement& out) noexcept;
+
     // Convert from Montgomery domain (a*R) to Standard domain (a)
     static FieldElement from_mont(const FieldElement& a);
     

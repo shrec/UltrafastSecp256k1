@@ -5,6 +5,40 @@ All notable changes to UltrafastSecp256k1 are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.16.0] - 2026-03-01
+
+> No breaking changes -- drop-in upgrade from v3.15.x | ABI compatible
+
+### 1. Security Hardening
+- **BIP-340 strict parsing** -- `Scalar::parse_bytes_strict`, `FieldElement::parse_bytes_strict`, `SchnorrSignature::parse_strict` reject all malformed inputs (#73)
+- **CT buffer erasure** -- `ct::schnorr_sign` and `ct::ecdsa_sign` erase intermediate nonces via volatile function-pointer trick (same as libsecp256k1)
+- **lift_x deduplication** -- single `static lift_x()` replaces duplicated code in schnorr verify/sign
+- **Y-parity fix** -- uses `limbs()[0] & 1` instead of byte-level parity check
+- **Pragma balance fix** -- removed misbalanced `#pragma GCC diagnostic push/pop` in ct_field.cpp
+
+### 2. Audit Infrastructure
+- **Advisory flag** -- `ct_sidechannel_smoke` marked advisory in unified_audit_runner (timing flakes on shared CI runners don't fail the audit)
+- **carry_propagation cross-validation** -- test now verifies generator-optimized path vs generic GLV path and prints hex diagnostics on ARM64 mismatch
+- **BIP-340 strict test suite** -- 31 tests covering reject-zero, reject-overflow, reject-p-plus, accept-valid for all strict parsing APIs
+
+### 3. Local CI (Docker)
+- **docker-compose.ci.yml** -- single-command orchestration for all 14 CI jobs
+- **pre-push target** -- `docker compose run --rm pre-push` validates warnings + tests + ASan + audit in ~5 min
+- **audit job** -- `docker/run_ci.sh audit` mirrors audit-report.yml (GCC-13 + Clang-17)
+- **ccache integration** -- Docker volume persistence for fast rebuilds
+- **pre-push hook** -- `scripts/hooks/pre-push` blocks push on CI failure
+- **PowerShell wrapper** -- `scripts/pre-push-ci.ps1` for Windows
+
+### 4. Documentation
+- **COMPATIBILITY.md** -- BIP-340 strict encoding compatibility notes
+- **BINDINGS_ERROR_MODEL.md** -- BIP-340 strict semantics for binding authors
+- **SECURITY.md** -- updated Memory Handling (library-side erasure), Planned items checklist, API Stability references
+- **UFSECP_BITCOIN_STRICT** -- CMake option to enforce strict-only parsing at compile time
+
+### 5. Build & CI
+- **packaging.yml** -- release workflow race condition fix (gh release upload with retry)
+- **C ABI** -- `ufsecp_schnorr_verify`, `ufsecp_schnorr_sign`, `ufsecp_xonly_pubkey_parse` now use strict parsing internally
+
 ## [3.15.3] - 2026-03-01
 
 ### Fixed -- Code Quality (136 code scanning alerts resolved)

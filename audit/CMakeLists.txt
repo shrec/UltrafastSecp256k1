@@ -281,6 +281,7 @@ add_executable(unified_audit_runner
     ${CPU_TESTS_DIR}/test_exhaustive.cpp
     ${CPU_TESTS_DIR}/test_comprehensive.cpp
     ${CPU_TESTS_DIR}/test_bip340_vectors.cpp
+    ${CPU_TESTS_DIR}/test_bip340_strict.cpp
     ${CPU_TESTS_DIR}/test_rfc6979_vectors.cpp
     ${CPU_TESTS_DIR}/test_ecc_properties.cpp
     # -- standalone audit modules (in this directory) --

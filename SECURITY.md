@@ -87,8 +87,10 @@ The following automated security measures are in place:
 - [ ] Independent third-party cryptographic audit (seeking funding)
 - [ ] Formal verification of field/scalar arithmetic (Fiat-Crypto / Cryptol)
 - [ ] ct-verif LLVM pass integration for compile-time CT verification
-- [ ] Hardware timing analysis on multiple CPU microarchitectures
-- [ ] Multi-uarch dudect campaign (Intel, AMD, ARM, Apple Silicon)
+- [ ] Native ARM64 / Apple Silicon dudect CI (macos-14 runner)
+- [x] Multi-uarch dudect campaign -- x86-64 native + RISC-V via QEMU + ARM64 cross-compile
+- [x] CT buffer erasure -- volatile function-pointer trick in signing paths
+- [x] value_barrier on CT mask derivation
 - [ ] FROST / MuSig2 protocol-level test vectors from reference implementations
 - [ ] Cross-ABI / FFI correctness tests across calling conventions
 
@@ -141,8 +143,10 @@ The CT layer uses no secret-dependent branches or memory access patterns. It car
 ### Memory Handling
 
 - No dynamic allocation in hot paths
-- Sensitive data (private keys, nonces) should be zeroed by the caller after use
+- **Library-side secret erasure**: `ct::schnorr_sign` and `ct::ecdsa_sign` automatically erase intermediate nonces and scalar buffers via a volatile function-pointer trick (same pattern as libsecp256k1). The compiler cannot elide this erasure.
+- `value_barrier` applied to CT mask derivations to prevent compiler speculation
 - Fixed-size POD types used throughout (no hidden copies)
+- Callers should still erase their own copies of private keys after use
 
 ---
 
@@ -194,6 +198,12 @@ The public API is **not yet stable**. Breaking changes may occur in any minor re
 
 Layers marked "Stable" in the Production Readiness table above have mature interfaces that are unlikely to change, but no formal compatibility guarantee exists until v4.0.
 
+For detailed stability classifications, see:
+- [docs/adoption/API_STABILITY.md](docs/adoption/API_STABILITY.md) -- Tiered header classification (Stable / Provisional / Experimental / Internal)
+- [docs/ABI_VERSIONING.md](docs/ABI_VERSIONING.md) -- MAJOR.MINOR.PATCH + ABI version
+- [docs/DEPRECATION_POLICY.md](docs/DEPRECATION_POLICY.md) -- 2 minor release deprecation cycle
+- [docs/LTS_POLICY.md](docs/LTS_POLICY.md) -- 12-month LTS, SemVer 2.0.0
+
 ---
 
 ## Vulnerability Disclosure Policy
@@ -234,4 +244,4 @@ We appreciate responsible disclosure. Contributors who report valid security iss
 
 ---
 
-*UltrafastSecp256k1 v3.15.0 -- Security Policy*
+*UltrafastSecp256k1 v3.16.0 -- Security Policy*

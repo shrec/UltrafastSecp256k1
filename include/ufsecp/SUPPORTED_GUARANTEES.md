@@ -57,6 +57,13 @@ behalf of the caller except during `ufsecp_ctx_create` /
 These will graduate to Tier 1 once their API surface is frozen and a
 test harness covers all edge cases.
 
+> **MuSig2 and FROST**: These multi-party protocols have complex security
+> models (rogue-key attacks, nonce reuse, abort handling) that go beyond
+> standard single-signer ECDSA/Schnorr. **Independent external security
+> review is required before production deployment.** The self-audit suite
+> covers functional correctness and known-answer tests, but does not
+> substitute for a protocol-level cryptographic review.
+
 ---
 
 ## Tier 3 -- Internal (never exposed)

@@ -1,0 +1,91 @@
+# =============================================================================
+# docker-compose.ci.yml -- Local CI orchestration
+# =============================================================================
+# Usage:
+#   docker compose -f docker-compose.ci.yml run --rm pre-push   # Before git push
+#   docker compose -f docker-compose.ci.yml run --rm all         # Full CI suite
+#   docker compose -f docker-compose.ci.yml run --rm quick       # Quick smoke
+#   docker compose -f docker-compose.ci.yml run --rm audit       # Audit only
+#   docker compose -f docker-compose.ci.yml run --rm asan        # ASan only
+#
+# First run builds the image (~2 min), subsequent runs use cache.
+# ccache volume persists across runs for fast rebuilds.
+# =============================================================================
+
+services:
+  # -- Base CI image (shared by all targets) ----------------------------------
+  ci-base: &ci-base
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.ci
+    volumes:
+      - .:/src
+      - ci-ccache:/ccache
+    working_dir: /src
+    environment:
+      - CCACHE_DIR=/ccache
+      - CCACHE_MAXSIZE=5G
+      - CCACHE_COMPRESS=1
+    tmpfs:
+      - /tmp:size=2G
+
+  # -- Targets (one per CI job group) -----------------------------------------
+  pre-push:
+    <<: *ci-base
+    command: ["./docker/run_ci.sh", "pre-push"]
+
+  all:
+    <<: *ci-base
+    command: ["./docker/run_ci.sh", "all"]
+
+  quick:
+    <<: *ci-base
+    command: ["./docker/run_ci.sh", "quick"]
+
+  audit:
+    <<: *ci-base
+    command: ["./docker/run_ci.sh", "audit"]
+
+  linux-gcc:
+    <<: *ci-base
+    command: ["./docker/run_ci.sh", "linux-gcc"]
+
+  linux-clang:
+    <<: *ci-base
+    command: ["./docker/run_ci.sh", "linux-clang"]
+
+  asan:
+    <<: *ci-base
+    command: ["./docker/run_ci.sh", "sanitizers"]
+
+  tsan:
+    <<: *ci-base
+    command: ["./docker/run_ci.sh", "tsan"]
+
+  valgrind:
+    <<: *ci-base
+    command: ["./docker/run_ci.sh", "valgrind"]
+
+  wasm:
+    <<: *ci-base
+    command: ["./docker/run_ci.sh", "wasm"]
+
+  arm64:
+    <<: *ci-base
+    command: ["./docker/run_ci.sh", "arm64"]
+
+  coverage:
+    <<: *ci-base
+    command: ["./docker/run_ci.sh", "coverage"]
+
+  clang-tidy:
+    <<: *ci-base
+    command: ["./docker/run_ci.sh", "clang-tidy"]
+
+  warnings:
+    <<: *ci-base
+    command: ["./docker/run_ci.sh", "warnings"]
+
+volumes:
+  ci-ccache:
+    name: ufsecp-ci-ccache

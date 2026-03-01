@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+# =============================================================================
+# Git pre-push hook -- Local CI gate
+# =============================================================================
+# Runs the pre-push CI suite in Docker before allowing push to remote.
+# Install:
+#   cp scripts/hooks/pre-push .git/hooks/pre-push
+#   chmod +x .git/hooks/pre-push
+#
+# Skip (emergency):
+#   git push --no-verify
+# =============================================================================
+
+set -euo pipefail
+
+echo "========================================"
+echo "  Pre-push CI gate (Docker)"
+echo "========================================"
+
+# Check if Docker is available
+if ! command -v docker &>/dev/null; then
+    echo "WARNING: Docker not found -- skipping pre-push CI"
+    echo "Install Docker to enable local CI validation"
+    exit 0
+fi
+
+# Check if Docker daemon is running
+if ! docker info &>/dev/null 2>&1; then
+    echo "WARNING: Docker daemon not running -- skipping pre-push CI"
+    exit 0
+fi
+
+# Run pre-push CI suite
+echo "Running local CI (pre-push gate)..."
+echo "This takes ~5 minutes. Use 'git push --no-verify' to skip."
+echo ""
+
+if docker compose -f docker-compose.ci.yml run --rm pre-push; then
+    echo ""
+    echo "[OK] Pre-push CI passed -- pushing"
+    exit 0
+else
+    echo ""
+    echo "[FAIL] Pre-push CI failed -- push blocked"
+    echo "Fix failures and try again, or use 'git push --no-verify' to force"
+    exit 1
+fi

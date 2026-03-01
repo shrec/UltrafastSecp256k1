@@ -30,6 +30,11 @@ struct SchnorrSignature {
     std::array<std::uint8_t, 64> to_bytes() const;
     static SchnorrSignature from_bytes(const std::array<std::uint8_t, 64>& data);
     static SchnorrSignature from_bytes(const std::uint8_t* data64);
+
+    // BIP-340 strict parsing: rejects if r >= p or s >= n or s == 0.
+    // Returns false for non-canonical encodings (BIP-340 compliance).
+    static bool parse_strict(const std::uint8_t* data64, SchnorrSignature& out) noexcept;
+    static bool parse_strict(const std::array<std::uint8_t, 64>& data, SchnorrSignature& out) noexcept;
 };
 
 // -- Pre-computed Schnorr Keypair ----------------------------------------------

@@ -86,9 +86,9 @@ static inline void scalar_to_bytes(const Scalar& s, uint8_t out[32]) {
 }
 
 static inline Point point_from_compressed(const uint8_t pub[33]) {
-    std::array<uint8_t, 32> x_bytes;
-    std::memcpy(x_bytes.data(), pub + 1, 32);
-    auto x = FE::from_bytes(x_bytes);
+    // Strict: reject x >= p (no reduction)
+    FE x;
+    if (!FE::parse_bytes_strict(pub + 1, x)) return Point::infinity();
 
     /* y^2 = x^3 + 7 */
     auto x2 = x * x;
@@ -242,8 +242,11 @@ ufsecp_error_t ufsecp_seckey_verify(const ufsecp_ctx* ctx,
                                     const uint8_t privkey[32]) {
     if (!privkey) return UFSECP_ERR_NULL_ARG;
     (void)ctx;
-    auto sk = scalar_from_bytes(privkey);
-    return sk.is_zero() ? UFSECP_ERR_BAD_KEY : UFSECP_OK;
+    // BIP-340 strict: reject if privkey == 0 or privkey >= n (no reduction)
+    Scalar sk;
+    if (!Scalar::parse_bytes_strict_nonzero(privkey, sk))
+        return UFSECP_ERR_BAD_KEY;
+    return UFSECP_OK;
 }
 
 ufsecp_error_t ufsecp_seckey_negate(ufsecp_ctx* ctx, uint8_t privkey[32]) {
@@ -583,13 +586,22 @@ ufsecp_error_t ufsecp_schnorr_verify(ufsecp_ctx* ctx,
     if (!ctx || !msg32 || !sig64 || !pubkey_x) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
 
+    // BIP-340 strict parse: reject non-canonical r >= p, s >= n, or s == 0
+    secp256k1::SchnorrSignature schnorr_sig;
+    if (!secp256k1::SchnorrSignature::parse_strict(sig64, schnorr_sig)) {
+        return ctx_set_err(ctx, UFSECP_ERR_BAD_SIG, "Non-canonical Schnorr sig (r>=p or s>=n)");
+    }
+
+    // BIP-340 strict: reject pubkey x >= p
+    FE pk_fe;
+    if (!FE::parse_bytes_strict(pubkey_x, pk_fe)) {
+        return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "Non-canonical pubkey (x>=p)");
+    }
+
     std::array<uint8_t, 32> pk_arr, msg_arr;
     std::memcpy(pk_arr.data(), pubkey_x, 32);
     std::memcpy(msg_arr.data(), msg32, 32);
-    std::array<uint8_t, 64> sig_arr;
-    std::memcpy(sig_arr.data(), sig64, 64);
 
-    auto schnorr_sig = secp256k1::SchnorrSignature::from_bytes(sig_arr);
     if (!secp256k1::schnorr_verify(pk_arr, msg_arr, schnorr_sig)) {
         return ctx_set_err(ctx, UFSECP_ERR_VERIFY_FAIL, "Schnorr verify failed");
 }

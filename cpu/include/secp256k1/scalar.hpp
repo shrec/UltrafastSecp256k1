@@ -21,7 +21,18 @@ public:
     static Scalar from_limbs(const limbs_type& limbs);
     static Scalar from_bytes(const std::array<std::uint8_t, 32>& bytes);
     static Scalar from_bytes(const std::uint8_t* bytes32);
-    
+
+    // BIP-340 strict parsing: rejects values >= curve order n (no reduction).
+    // Returns false if bytes represent a value >= n.
+    // Use for signature/key parsing where canonical encoding is required.
+    static bool parse_bytes_strict(const std::uint8_t* bytes32, Scalar& out) noexcept;
+    static bool parse_bytes_strict(const std::array<std::uint8_t, 32>& bytes, Scalar& out) noexcept;
+
+    // BIP-340 strict parsing + nonzero: rejects values >= n OR == 0.
+    // Use for secret key validation (BIP-340: 0 < d' < n).
+    static bool parse_bytes_strict_nonzero(const std::uint8_t* bytes32, Scalar& out) noexcept;
+    static bool parse_bytes_strict_nonzero(const std::array<std::uint8_t, 32>& bytes, Scalar& out) noexcept;
+
     // Developer-friendly: Create from hex string (64 hex chars)
     // Example: Scalar::from_hex("fffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364140")
     static Scalar from_hex(const std::string& hex);

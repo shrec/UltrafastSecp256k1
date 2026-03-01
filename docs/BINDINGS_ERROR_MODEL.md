@@ -30,6 +30,24 @@ Every `ufsecp_*` function returns `ufsecp_error_t` (`int`, 0 = success).
 - **Recoverable** (codes 1-7, 10): Invalid caller input. The context remains valid. Caller should fix the input and retry.
 - **Fatal** (codes 8-9): Library integrity compromised. Context should be destroyed. Do not retry.
 
+### BIP-340 Strict Encoding Semantics
+
+The C ABI enforces **canonical encoding** on all public inputs per BIP-340.
+Non-canonical values are rejected at parse time with a distinct error code,
+separate from cryptographic verification failure:
+
+| Function | Strict check | Error code |
+|----------|-------------|-----------|
+| `ufsecp_seckey_verify` | 1 <= sk < n | `UFSECP_ERR_BAD_KEY` (2) |
+| `ufsecp_schnorr_verify` | r < p, s < n, s != 0 | `UFSECP_ERR_BAD_SIG` (4) |
+| `ufsecp_schnorr_verify` | pk.x < p | `UFSECP_ERR_BAD_KEY` (2) |
+| `ufsecp_ec_pubkey_parse` | x < p | `UFSECP_ERR_BAD_PUBKEY` (3) |
+
+**Distinction:** `UFSECP_ERR_BAD_SIG` (4) means the signature bytes are
+non-canonical (encoding error). `UFSECP_ERR_VERIFY_FAIL` (6) means the
+signature had valid encoding but failed the cryptographic equation.
+Downstream code can use this to provide better diagnostics.
+
 ### Per-Context Diagnostics
 
 ```c

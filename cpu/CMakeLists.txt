@@ -794,6 +794,14 @@ if(BUILD_TESTING)
     target_compile_definitions(test_bip340_vectors_standalone PRIVATE STANDALONE_TEST)
     add_test(NAME bip340_vectors COMMAND test_bip340_vectors_standalone)
 
+    # Standalone BIP-340 strict encoding tests (non-canonical rejection)
+    add_executable(test_bip340_strict_standalone
+        tests/test_bip340_strict.cpp
+    )
+    target_link_libraries(test_bip340_strict_standalone PRIVATE ${SECP256K1_LIB_NAME})
+    target_compile_definitions(test_bip340_strict_standalone PRIVATE STANDALONE_TEST)
+    add_test(NAME bip340_strict COMMAND test_bip340_strict_standalone)
+
     # Standalone BIP-32 official test vectors (TV1-TV5)
     add_executable(test_bip32_vectors_standalone
         tests/test_bip32_vectors.cpp
