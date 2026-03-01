@@ -12,7 +12,7 @@ var searchData=
   ['ecdsa_5frecover_9',['ecdsa_recover',['../namespacesecp256k1.html#acbcfaa342e3f423b75cf5a3b3a9981a8',1,'secp256k1']]],
   ['ecdsa_5fsign_10',['ecdsa_sign',['../namespacesecp256k1_1_1ct.html#ab7ed5b91beefbed1f8af079f197d0776',1,'secp256k1::ct::ecdsa_sign()'],['../namespacesecp256k1.html#ae91d47690356ed60430b67d44ca4896f',1,'secp256k1::ecdsa_sign(const std::array&lt; std::uint8_t, 32 &gt; &amp;msg_hash, const fast::Scalar &amp;private_key)']]],
   ['ecdsa_5fsign_5frecoverable_11',['ecdsa_sign_recoverable',['../namespacesecp256k1.html#a225e86fbf960bfcb2ff28b56a803b7ab',1,'secp256k1']]],
-  ['ecdsa_5fverify_12',['ecdsa_verify',['../namespacesecp256k1.html#ada3591351002959d2488acfea0de84c8',1,'secp256k1']]],
+  ['ecdsa_5fverify_12',['ecdsa_verify',['../namespacesecp256k1.html#aef88e27ee6273ca33a7fa5fdb374b1af',1,'secp256k1::ecdsa_verify(const std::uint8_t *msg_hash32, const fast::Point &amp;public_key, const ECDSASignature &amp;sig)'],['../namespacesecp256k1.html#ada3591351002959d2488acfea0de84c8',1,'secp256k1::ecdsa_verify(const std::array&lt; std::uint8_t, 32 &gt; &amp;msg_hash, const fast::Point &amp;public_key, const ECDSASignature &amp;sig)']]],
   ['effective_5fgenerator_13',['effective_generator',['../namespacesecp256k1.html#a95488158a1e555261e297868c47db41d',1,'secp256k1']]],
   ['eip55_5fchecksum_14',['eip55_checksum',['../namespacesecp256k1_1_1coins.html#a3e64a7241c4087ff107c77bce0209348',1,'secp256k1::coins']]],
   ['eip55_5fverify_15',['eip55_verify',['../namespacesecp256k1_1_1coins.html#a364101d3fc7a302873edb855306d06ce',1,'secp256k1::coins']]],

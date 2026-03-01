@@ -6,6 +6,7 @@ var classsecp256k1_1_1fast_1_1Scalar =
     [ "data", "classsecp256k1_1_1fast_1_1Scalar.html#abd174dcdd99a91025cde83a73575f8c5", null ],
     [ "data", "classsecp256k1_1_1fast_1_1Scalar.html#ab293d8ee3ddafef18a03a37a1c010f4f", null ],
     [ "from_bytes", "classsecp256k1_1_1fast_1_1Scalar.html#ab42c494ac695a8a1f01ecb662d52883e", null ],
+    [ "from_bytes", "classsecp256k1_1_1fast_1_1Scalar.html#add830998d775d0078e16ddbe22926ee1", null ],
     [ "from_data", "classsecp256k1_1_1fast_1_1Scalar.html#a09b0c05c9f8278dd545da0ed95472cc5", null ],
     [ "from_hex", "classsecp256k1_1_1fast_1_1Scalar.html#a405303c64f84eeb9d9f8eafe2474342f", null ],
     [ "from_limbs", "classsecp256k1_1_1fast_1_1Scalar.html#a8606a2124864679f0fc72388e1c1d0f1", null ],

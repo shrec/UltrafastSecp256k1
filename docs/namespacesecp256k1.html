@@ -25,7 +25,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.14.0</span>
+   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.15.0</span>
    </div>
    <div id="projectbrief">Ultra high-performance secp256k1 elliptic curve cryptography library</div>
   </td>
@@ -280,6 +280,8 @@ Functions</h2></td></tr>
 <tr class="separator:a018372bd150a2b30ce4dfa604ec9fddf"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ae91d47690356ed60430b67d44ca4896f" id="r_ae91d47690356ed60430b67d44ca4896f"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structsecp256k1_1_1ECDSASignature.html">ECDSASignature</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#ae91d47690356ed60430b67d44ca4896f">ecdsa_sign</a> (const std::array&lt; std::uint8_t, 32 &gt; &amp;msg_hash, const <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">fast::Scalar</a> &amp;private_key)</td></tr>
 <tr class="separator:ae91d47690356ed60430b67d44ca4896f"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aef88e27ee6273ca33a7fa5fdb374b1af" id="r_aef88e27ee6273ca33a7fa5fdb374b1af"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#aef88e27ee6273ca33a7fa5fdb374b1af">ecdsa_verify</a> (const std::uint8_t *msg_hash32, const <a class="el" href="classsecp256k1_1_1fast_1_1Point.html">fast::Point</a> &amp;public_key, const <a class="el" href="structsecp256k1_1_1ECDSASignature.html">ECDSASignature</a> &amp;sig)</td></tr>
+<tr class="separator:aef88e27ee6273ca33a7fa5fdb374b1af"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ada3591351002959d2488acfea0de84c8" id="r_ada3591351002959d2488acfea0de84c8"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#ada3591351002959d2488acfea0de84c8">ecdsa_verify</a> (const std::array&lt; std::uint8_t, 32 &gt; &amp;msg_hash, const <a class="el" href="classsecp256k1_1_1fast_1_1Point.html">fast::Point</a> &amp;public_key, const <a class="el" href="structsecp256k1_1_1ECDSASignature.html">ECDSASignature</a> &amp;sig)</td></tr>
 <tr class="separator:ada3591351002959d2488acfea0de84c8"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a944c4d81e26ad0af5325655767a77e37" id="r_a944c4d81e26ad0af5325655767a77e37"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">fast::Scalar</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#a944c4d81e26ad0af5325655767a77e37">rfc6979_nonce</a> (const <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">fast::Scalar</a> &amp;private_key, const std::array&lt; std::uint8_t, 32 &gt; &amp;msg_hash)</td></tr>
@@ -358,14 +360,22 @@ Functions</h2></td></tr>
 <tr class="separator:a41d4f172981683c43c7edb9390ceccc6"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:abdafefa1bbce97d2a9de0b9f5ea112c3" id="r_abdafefa1bbce97d2a9de0b9f5ea112c3"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structsecp256k1_1_1SchnorrSignature.html">SchnorrSignature</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#abdafefa1bbce97d2a9de0b9f5ea112c3">schnorr_sign</a> (const <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">fast::Scalar</a> &amp;private_key, const std::array&lt; std::uint8_t, 32 &gt; &amp;msg, const std::array&lt; std::uint8_t, 32 &gt; &amp;aux_rand)</td></tr>
 <tr class="separator:abdafefa1bbce97d2a9de0b9f5ea112c3"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a7816df2793be5148898e0be7756dcbd3" id="r_a7816df2793be5148898e0be7756dcbd3"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#a7816df2793be5148898e0be7756dcbd3">schnorr_verify</a> (const std::uint8_t *pubkey_x32, const std::uint8_t *msg32, const <a class="el" href="structsecp256k1_1_1SchnorrSignature.html">SchnorrSignature</a> &amp;sig)</td></tr>
+<tr class="separator:a7816df2793be5148898e0be7756dcbd3"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a26bc72f1db971e5854681c65e4b6c1ae" id="r_a26bc72f1db971e5854681c65e4b6c1ae"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#a26bc72f1db971e5854681c65e4b6c1ae">schnorr_verify</a> (const std::array&lt; std::uint8_t, 32 &gt; &amp;pubkey_x, const std::array&lt; std::uint8_t, 32 &gt; &amp;msg, const <a class="el" href="structsecp256k1_1_1SchnorrSignature.html">SchnorrSignature</a> &amp;sig)</td></tr>
 <tr class="separator:a26bc72f1db971e5854681c65e4b6c1ae"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a025509569e36e809a3c4b67c04e92ba4" id="r_a025509569e36e809a3c4b67c04e92ba4"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#a025509569e36e809a3c4b67c04e92ba4">schnorr_verify</a> (const std::array&lt; std::uint8_t, 32 &gt; &amp;pubkey_x, const std::uint8_t *msg32, const <a class="el" href="structsecp256k1_1_1SchnorrSignature.html">SchnorrSignature</a> &amp;sig)</td></tr>
+<tr class="separator:a025509569e36e809a3c4b67c04e92ba4"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a8738ad2ad0515f5e9a2677de3d662100" id="r_a8738ad2ad0515f5e9a2677de3d662100"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#a8738ad2ad0515f5e9a2677de3d662100">schnorr_xonly_pubkey_parse</a> (<a class="el" href="structsecp256k1_1_1SchnorrXonlyPubkey.html">SchnorrXonlyPubkey</a> &amp;out, const std::uint8_t *pubkey_x32)</td></tr>
+<tr class="separator:a8738ad2ad0515f5e9a2677de3d662100"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aea18dd497c62eb56ae2687ed1234f8b8" id="r_aea18dd497c62eb56ae2687ed1234f8b8"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#aea18dd497c62eb56ae2687ed1234f8b8">schnorr_xonly_pubkey_parse</a> (<a class="el" href="structsecp256k1_1_1SchnorrXonlyPubkey.html">SchnorrXonlyPubkey</a> &amp;out, const std::array&lt; std::uint8_t, 32 &gt; &amp;pubkey_x)</td></tr>
 <tr class="separator:aea18dd497c62eb56ae2687ed1234f8b8"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aca1aa4565e070b342762da3037bf9ceb" id="r_aca1aa4565e070b342762da3037bf9ceb"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structsecp256k1_1_1SchnorrXonlyPubkey.html">SchnorrXonlyPubkey</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#aca1aa4565e070b342762da3037bf9ceb">schnorr_xonly_from_keypair</a> (const <a class="el" href="structsecp256k1_1_1SchnorrKeypair.html">SchnorrKeypair</a> &amp;kp)</td></tr>
 <tr class="separator:aca1aa4565e070b342762da3037bf9ceb"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a70e526ac24938437dc4eb04062de3165" id="r_a70e526ac24938437dc4eb04062de3165"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#a70e526ac24938437dc4eb04062de3165">schnorr_verify</a> (const <a class="el" href="structsecp256k1_1_1SchnorrXonlyPubkey.html">SchnorrXonlyPubkey</a> &amp;pubkey, const std::array&lt; std::uint8_t, 32 &gt; &amp;msg, const <a class="el" href="structsecp256k1_1_1SchnorrSignature.html">SchnorrSignature</a> &amp;sig)</td></tr>
 <tr class="separator:a70e526ac24938437dc4eb04062de3165"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:abe2d6bd72a50960213d7e93220f4044b" id="r_abe2d6bd72a50960213d7e93220f4044b"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#abe2d6bd72a50960213d7e93220f4044b">schnorr_verify</a> (const <a class="el" href="structsecp256k1_1_1SchnorrXonlyPubkey.html">SchnorrXonlyPubkey</a> &amp;pubkey, const std::uint8_t *msg32, const <a class="el" href="structsecp256k1_1_1SchnorrSignature.html">SchnorrSignature</a> &amp;sig)</td></tr>
+<tr class="separator:abe2d6bd72a50960213d7e93220f4044b"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a4f309954a0216a8c8d7ee538405be62c" id="r_a4f309954a0216a8c8d7ee538405be62c"><td class="memItemLeft" align="right" valign="top">std::array&lt; std::uint8_t, 32 &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#a4f309954a0216a8c8d7ee538405be62c">tagged_hash</a> (const char *tag, const void *data, std::size_t len)</td></tr>
 <tr class="separator:a4f309954a0216a8c8d7ee538405be62c"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ae508026a4b6a2d3be70fbe3f4e96d4c6" id="r_ae508026a4b6a2d3be70fbe3f4e96d4c6"><td class="memItemLeft" align="right" valign="top">std::array&lt; std::uint8_t, 32 &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#ae508026a4b6a2d3be70fbe3f4e96d4c6">schnorr_pubkey</a> (const <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">fast::Scalar</a> &amp;private_key)</td></tr>
@@ -1183,7 +1193,7 @@ Functions</h2></td></tr>
 </div>
 </div>
 <a id="ada3591351002959d2488acfea0de84c8" name="ada3591351002959d2488acfea0de84c8"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ada3591351002959d2488acfea0de84c8">&#9670;&#160;</a></span>ecdsa_verify()</h2>
+<h2 class="memtitle"><span class="permalink"><a href="#ada3591351002959d2488acfea0de84c8">&#9670;&#160;</a></span>ecdsa_verify() <span class="overload">[1/2]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -1193,6 +1203,40 @@ Functions</h2></td></tr>
           <td>(</td>
           <td class="paramtype">const std::array&lt; std::uint8_t, 32 &gt; &amp;&#160;</td>
           <td class="paramname"><em>msg_hash</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const <a class="el" href="classsecp256k1_1_1fast_1_1Point.html">fast::Point</a> &amp;&#160;</td>
+          <td class="paramname"><em>public_key</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const <a class="el" href="structsecp256k1_1_1ECDSASignature.html">ECDSASignature</a> &amp;&#160;</td>
+          <td class="paramname"><em>sig</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="aef88e27ee6273ca33a7fa5fdb374b1af" name="aef88e27ee6273ca33a7fa5fdb374b1af"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aef88e27ee6273ca33a7fa5fdb374b1af">&#9670;&#160;</a></span>ecdsa_verify() <span class="overload">[2/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">bool secp256k1::ecdsa_verify </td>
+          <td>(</td>
+          <td class="paramtype">const std::uint8_t *&#160;</td>
+          <td class="paramname"><em>msg_hash32</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
@@ -2795,7 +2839,7 @@ Functions</h2></td></tr>
 </div>
 </div>
 <a id="a70e526ac24938437dc4eb04062de3165" name="a70e526ac24938437dc4eb04062de3165"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a70e526ac24938437dc4eb04062de3165">&#9670;&#160;</a></span>schnorr_verify() <span class="overload">[1/2]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a70e526ac24938437dc4eb04062de3165">&#9670;&#160;</a></span>schnorr_verify() <span class="overload">[1/5]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -2828,8 +2872,42 @@ Functions</h2></td></tr>
 
 </div>
 </div>
+<a id="abe2d6bd72a50960213d7e93220f4044b" name="abe2d6bd72a50960213d7e93220f4044b"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#abe2d6bd72a50960213d7e93220f4044b">&#9670;&#160;</a></span>schnorr_verify() <span class="overload">[2/5]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">bool secp256k1::schnorr_verify </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="structsecp256k1_1_1SchnorrXonlyPubkey.html">SchnorrXonlyPubkey</a> &amp;&#160;</td>
+          <td class="paramname"><em>pubkey</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const std::uint8_t *&#160;</td>
+          <td class="paramname"><em>msg32</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const <a class="el" href="structsecp256k1_1_1SchnorrSignature.html">SchnorrSignature</a> &amp;&#160;</td>
+          <td class="paramname"><em>sig</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
 <a id="a26bc72f1db971e5854681c65e4b6c1ae" name="a26bc72f1db971e5854681c65e4b6c1ae"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a26bc72f1db971e5854681c65e4b6c1ae">&#9670;&#160;</a></span>schnorr_verify() <span class="overload">[2/2]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a26bc72f1db971e5854681c65e4b6c1ae">&#9670;&#160;</a></span>schnorr_verify() <span class="overload">[3/5]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -2845,6 +2923,74 @@ Functions</h2></td></tr>
           <td></td>
           <td class="paramtype">const std::array&lt; std::uint8_t, 32 &gt; &amp;&#160;</td>
           <td class="paramname"><em>msg</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const <a class="el" href="structsecp256k1_1_1SchnorrSignature.html">SchnorrSignature</a> &amp;&#160;</td>
+          <td class="paramname"><em>sig</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="a025509569e36e809a3c4b67c04e92ba4" name="a025509569e36e809a3c4b67c04e92ba4"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a025509569e36e809a3c4b67c04e92ba4">&#9670;&#160;</a></span>schnorr_verify() <span class="overload">[4/5]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">bool secp256k1::schnorr_verify </td>
+          <td>(</td>
+          <td class="paramtype">const std::array&lt; std::uint8_t, 32 &gt; &amp;&#160;</td>
+          <td class="paramname"><em>pubkey_x</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const std::uint8_t *&#160;</td>
+          <td class="paramname"><em>msg32</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const <a class="el" href="structsecp256k1_1_1SchnorrSignature.html">SchnorrSignature</a> &amp;&#160;</td>
+          <td class="paramname"><em>sig</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="a7816df2793be5148898e0be7756dcbd3" name="a7816df2793be5148898e0be7756dcbd3"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a7816df2793be5148898e0be7756dcbd3">&#9670;&#160;</a></span>schnorr_verify() <span class="overload">[5/5]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">bool secp256k1::schnorr_verify </td>
+          <td>(</td>
+          <td class="paramtype">const std::uint8_t *&#160;</td>
+          <td class="paramname"><em>pubkey_x32</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const std::uint8_t *&#160;</td>
+          <td class="paramname"><em>msg32</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
@@ -2883,7 +3029,7 @@ Functions</h2></td></tr>
 </div>
 </div>
 <a id="aea18dd497c62eb56ae2687ed1234f8b8" name="aea18dd497c62eb56ae2687ed1234f8b8"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#aea18dd497c62eb56ae2687ed1234f8b8">&#9670;&#160;</a></span>schnorr_xonly_pubkey_parse()</h2>
+<h2 class="memtitle"><span class="permalink"><a href="#aea18dd497c62eb56ae2687ed1234f8b8">&#9670;&#160;</a></span>schnorr_xonly_pubkey_parse() <span class="overload">[1/2]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -2899,6 +3045,34 @@ Functions</h2></td></tr>
           <td></td>
           <td class="paramtype">const std::array&lt; std::uint8_t, 32 &gt; &amp;&#160;</td>
           <td class="paramname"><em>pubkey_x</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="a8738ad2ad0515f5e9a2677de3d662100" name="a8738ad2ad0515f5e9a2677de3d662100"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a8738ad2ad0515f5e9a2677de3d662100">&#9670;&#160;</a></span>schnorr_xonly_pubkey_parse() <span class="overload">[2/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">bool secp256k1::schnorr_xonly_pubkey_parse </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structsecp256k1_1_1SchnorrXonlyPubkey.html">SchnorrXonlyPubkey</a> &amp;&#160;</td>
+          <td class="paramname"><em>out</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const std::uint8_t *&#160;</td>
+          <td class="paramname"><em>pubkey_x32</em>&#160;</td>
         </tr>
         <tr>
           <td></td>
