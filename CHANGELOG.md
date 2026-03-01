@@ -14,25 +14,84 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [3.15.0] - 2026-03-01
 
-### Optimized -- ECDSA Recovery (1.9x speedup)
+> 115 commits since v3.14.0 | 387 files changed | +47,795 / -8,404 lines
+> No breaking changes -- drop-in upgrade from v3.14.0 | ABI compatible -- SOVERSION unchanged
+
+### 1. Security & Constant-Time Hardening
+- **Schnorr parity fix** -- correct parity bit computation in BIP-340 signatures (#48)
+- **Z=0 guard deduplication** -- point edge-case test additions (#49)
+- **CT branchless scalar_window** -- branchless on RISC-V, branched on x86/ARM (#42-#44)
+- **value_barrier** -- added after mask derivation in ct_compare + WASM KAT target
+- **is_zero_mask** -- RISC-V branchless asm + triple barrier + rdcycle fence
+- **reverse-scan ct_compare** -- interleaved test data pattern
+
+### 2. WASM/Emscripten Support
+- **SECP256K1_NO_INT128** -- automatic define on Emscripten
+- **SECP256K1_FAST_52BIT** -- disabled for Emscripten
+- **Precompute generator bypass** -- avoids timeouts on WASM
+- **GLV+Shamir fallback** -- wNAF w=5 replaced with optimal double-and-add
+- **KAT test** -- SINGLE_FILE=1 + ESM conflict resolution
+
+### 3. CI/CD Infrastructure
+- **OpenSSF Scorecard** -- all actions pinned to SHA + harden-runner (#52)
+- **pip deps pinned by hash** -- supply chain security (#52)
+- **ClusterFuzzLite** -- integration + UBSan vptr sanitizer compatibility
+- **Cppcheck + Mutation testing + SARIF** -- new CI workflows
+- **Fuzz + Protocol tests** -- enabled in all CI jobs
+
+### 4. Code Quality (~5,150 alerts fixed)
+- **~4,600 code scanning alerts** -- mass cleanup (#53)
+- **~550 code scanning alerts** -- batch 2 (#56)
+- **Duplicate const qualifiers** -- GCC-13 build failure fix (#54, #55)
+- **using declarations** -- restored clang-tidy-removed declarations for MSVC/ESP32/WASM (#57)
+- **audit_field.cpp** -- unused variable -Werror fix (#58)
+
+### 5. SonarCloud Quality Gate
+- **SHA-256 SonarCloud blocker** -- S3519 buf_ overflow false positive suppression (#50, #60, #61)
+- **Coverage** -- 61.8% -> 85.8% (exclusions: audit/, include/ufsecp/) (#59)
+- **Duplication** -- 3.3% -> below threshold (CT variant CPD exclusion) (#61)
+- **cpp:S876** -- CT masking unsigned negation suppression (#59)
+- **Codecov exclusions** -- correct configuration (#50)
+
+### 6. Audit Framework
+- **A-M audit framework** -- full audit scripts + cross-platform test plan
+- **audit_ct** -- timing sanity threshold raised for CI (1.5x -> 2.0x)
+- **AUDIT_COVERAGE.md** -- full CI infrastructure documentation
+- **Unified runner + CI workflow** -- evidence scripts
+
+### 7. Testing
+- **MuSig2 + FROST** -- advanced protocol tests (Phase II)
+- **Parser fuzz** -- DER + Schnorr + Pubkey
+- **Cross-library differential test** -- vs bitcoin-core/libsecp256k1
+- **Address/BIP32/FFI fuzz tests**
+- **FROST KAT tests**
+- **Point edge-case tests**
+- **FE52 Jacobian is_on_curve** -- FAST_52BIT platforms
+- **FieldElement::operator== normalize** -- non-canonical limb handling
+
+### 8. Build & Platform
+- **MSVC** -- SECP256K1_NOINLINE macro + s_gen4 race fix
+- **Reproducible builds** -- signed releases, SBOM
+- **Fuzz point** -- precomputed-table timeout avoidance under sanitizers
+
+### 9. Performance -- ECDSA Recovery (1.9x speedup)
 - **`ecdsa_recover()` rewritten** -- replaced 3 separate scalar multiplications (`s*R`, `z*G`, `r^-1 * result`) with single `dual_scalar_mul_gen_point(u1, u2, R)` using 4-stream GLV Strauss with interleaved wNAF. Recovery now matches libsecp256k1 performance (~36us vs previous ~69us).
 - **`lift_x()` parity optimization** -- replaced `to_bytes()` serialization (32-byte encode) with direct `limbs()[0] & 1` parity check for y-coordinate odd/even detection.
-
-### Improved -- Audit & Security
 - **Dudect cache artifact false positives** -- fixed 11 smoke-test false positives in constant-time side-channel tests by tightening thresholds and isolating cache effects.
-- **Audit integration tests** -- expanded coverage for CT sign, recovery, and ECDH paths.
-- **CT sidechannel tests** -- restructured test harness for cleaner pass/fail reporting.
 
-### Improved -- Platform Assembly
+### 10. Platform Assembly
 - **ARM64** -- CSEL branchless conditionals, sqr EXTR optimization for field squaring.
 - **RISC-V** -- preload optimization for field multiply assembly, reduced register pressure in `field_asm52_riscv64.S`.
 - **Field operations** -- refactored `field.cpp` with improved Montgomery path selection.
 
-### Improved -- Batch Operations
-- **`batch_verify.cpp`** -- improved error handling and edge-case coverage for Schnorr batch verification.
-
-### Added -- Apple-to-Apple Benchmark
+### 11. Apple-to-Apple Benchmark
 - **`bench_apple_to_apple`** -- definitive head-to-head benchmark vs libsecp256k1 v0.6.0: 13 operations, same compiler/flags/assembly, IQR outlier removal, median of 11 passes. Result: 7 FASTER, 5 EQUAL, 0 SLOWER (geometric mean 0.68x = UF 1.47x faster overall).
+
+### 12. Documentation & Bindings (v3.14.0 continuation)
+- **Release artifacts** -- signed SHA256SUMS manifest + verify instructions
+- **ABI versioning policy**
+- **7 Phase III docs** -- audit, invariants, bug bounty, thread safety, etc.
+- **User guide + FAQ**
 
 ---
 
