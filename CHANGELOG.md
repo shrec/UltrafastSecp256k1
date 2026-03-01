@@ -50,6 +50,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **bench-regression.yml** -- per-commit performance regression gate (120% threshold, fail-on-alert)
 - **audit-report.yml** -- now uploads SARIF to GitHub Code Scanning (linux-gcc job)
 
+### 8. OpenSSF Scorecard Hardening
+- **Pinned actions** -- all GitHub Actions pinned to full SHA (codeql-action v4.32.4, upload-artifact v6.0.0)
+- **harden-runner** -- added to discord-commits and packaging RPM jobs
+- **persist-credentials: false** -- added to all checkout steps with write permissions (benchmark, docs, packaging, release, bench-regression)
+- **Standardized versions** -- 13 workflow files audited and hardened
+
+### 9. FROST RFC 9591 Protocol Invariant Tests
+- **test_rfc9591_invariants** -- 7 ciphersuite-independent invariants: verification share = signing_share * G, Lagrange interpolation of Y_i, Feldman VSS, partial sig linearity, partial sig verification, wrong-share rejection, nonce commitment consistency
+- **test_rfc9591_3of5** -- exhaustive 3-of-5 FROST signing across all C(5,3)=10 subsets with BIP-340 verification
+- **valgrind_ct_check.sh** -- fixed binary path (audit/ not cpu/) for test_ct_sidechannel_standalone
+
+### 10. Audit UX
+- **audit_check.hpp** -- centralized CHECK macro with 20-char ASCII progress bar (`[####................] N OK`), interval 4096
+- **22 audit .cpp files** -- migrated from per-file CHECK macros to shared `audit_check.hpp`
+- **Windows stdout fix** -- `setvbuf(stdout, nullptr, _IONBF, 0)` for unbuffered output on Windows (avoids `_IOLBF` crash)
+
+### 11. New Audit Modules
+- **test_musig2_bip327_vectors.cpp** -- 35 BIP-327 MuSig2 reference tests (key aggregation, nonce aggregation, signing, verification)
+- **test_ffi_round_trip.cpp** -- 103 FFI round-trip boundary tests (Schnorr, ECDSA, pubkey, ECDH, tweaking, error paths)
+- **test_fiat_crypto_vectors.cpp** -- expanded to 752 cross-checks (field arithmetic against Fiat-Crypto reference)
+
+### 12. Community
+- **ADOPTERS.md** -- production/development/hobby adopter categories
+- **GitHub Discussion templates** -- Q&A, Show-and-Tell, Ideas, Integration Help
+
 ## [3.15.3] - 2026-03-01
 
 ### Fixed -- Code Quality (136 code scanning alerts resolved)
