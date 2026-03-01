@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772325727876,
+  "lastUpdate": 1772325900460,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -22501,6 +22501,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Batch Inverse (n=1000)",
             "value": 130,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "Vano Chkheidze",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4638616c76aca7f4558bbd5f0c0ac07b7a18be03",
+          "message": "v3.15.0: ecdsa_recover 1.9x speedup, platform asm improvements, audit fixes (#70)\n\n* bench: wire bench_compare harness into build + add docs/scripts/templates\n\n- Add SECP256K1_BUILD_BENCH_COMPARE option to root CMakeLists.txt (OFF by default)\n- Add bench/README.md: comprehensive documentation (quick start, workloads, fairness, CLI, output)\n- Add bench/scripts/{build,run}.{sh,ps1} for one-command build/run on Linux and Windows\n- Add .github/ISSUE_TEMPLATE/benchmark.yml for community benchmark submissions\n- Enable blank issues in .github/ISSUE_TEMPLATE/config.yml\n\nExisting bench/ sources (CMakeLists.txt, providers, main.cpp, headers) unchanged.\n\nVerified: cmake configure + MSBuild Release + smoke test (all correctness gates pass,\nall 5 workloads run for both UltrafastSecp256k1 v3.14.0 and libsecp256k1 v0.6.0).\n\n* perf: optimize verify hot path -- normalizes_to_zero_var + eliminate neg tables\n\nThree optimizations to the 5x52 ECC verify path:\n\n1. normalizes_to_zero_var(): combined normalize_weak + zero check with\n   early exit. Raw-zero fast path fires ~100% of the time (probability\n   of h==0 is ~2^-256). Saves ~40 limb ops per mixed add call.\n\n2. Remove redundant normalize_weak() before normalizes_to_zero() in all\n   4 point-add functions (jac52_add_mixed, _inplace, jac52_add, _inplace).\n   The old normalizes_to_zero() already normalizes internally.\n\n3. Eliminate pre-negated tables (neg_tbl_G, neg_tbl_H, neg_tbl_P,\n   neg_tbl_phiP) from GenTables and scalar_mul_glv52 and\n   dual_scalar_mul_gen_point. Negate Y on-the-fly for negative wNAF\n   digits (5 limb ops, data already in L1 from lookup). Halves static\n   table memory from 2.5 MB to 1.25 MB.\n\nPinned benchmark (core 2, n=2000, Clang 21.1.0, Zen 3):\n  UF ECDSA verify preparsed: 33100 -> 28200 ns (+17% faster)\n  UF Schnorr verify preparsed: 30200 -> 28600 ns (+6% faster)\n  UF pubkey_create: 7100 ns vs libsecp 13100 ns (UF 1.85x faster)\n  field_52 tests: 267/267 PASSED\n  bench_compare correctness: 10/10 gates PASSED\n\nFiles changed:\n  field_52.hpp       -- added normalizes_to_zero_var() declaration\n  field_52_impl.hpp  -- added normalizes_to_zero_var() implementation\n  point.cpp          -- all point-add + ecmult hot path changes\n\n* fix: normalizes_to_zero_var P0 constant typo (extra F)\n\nThe p-comparison in normalizes_to_zero_var() used 0xFFFFFEFFFFFC2F\n(14 hex digits, 56 bits) instead of P0 = 0xFFFFEFFFFFC2F (13 hex\ndigits, 52 bits).  The extra 'F' before 'E' made the constant exceed\na 52-bit limb, so the equality check could never match -- values\nequal to p (= 0 mod p) were reported as non-zero.\n\nEffect: jac52_add/jac52_add_mixed failed to detect equal-x points\n(h = u2 - u1 = 0 mod p reduces to p after normalize_weak).  Instead\nof doubling, the code proceeded with h = 0 in the general addition\nformula, producing wrong results.\n\nFix: use P0 constant directly instead of a literal.\n\nVerified: all local tests pass (exhaustive 5399/0, batch_add_affine\n548/0, comprehensive 12023/0, selftest 21/21, field_52 267/0).\n\n* perf: remove try/catch from scalar_mul_glv52, add ASM52 option\n\n- config.hpp: add SECP256K1_NO_STACK_PROTECTOR macro (GCC/Clang/MSVC)\n- point.cpp: replace try/catch with NO_STACK_PROTECTOR attribute on\n  scalar_mul_glv52; extract scalar_mul_fallback_4x64 to separate noinline\n  function for batch-inversion failure path (zero overhead on hot path)\n- field_52_impl.hpp: add SECP256K1_X64_FE52_ASM dispatch for hand-tuned\n  MULX assembly (extern C with sysv_abi on Windows)\n- CMakeLists.txt: add SECP256K1_USE_ASM52_X64 option (OFF by default;\n  tested at 23ns but inlining at 16ns wins due to cross-operation ILP)\n\nECDSA Verify: 29us (clang++ 21.1, -O3 -march=native, Windows)\nTests: exhaustive 5399/0, comprehensive 12023/0\n\n* perf: bit-scanning wNAF + 64-bit Comba GLV\n\n- precompute.cpp: replace shift-and-subtract wNAF with bit-scanning\n  algorithm (libsecp256k1 style). Reads bits directly from scalar limbs\n  via indexed extraction instead of destructively shifting a 5-limb copy\n  per bit position. Uses carry variable for implicit subtraction.\n  Cost: ~3 ops/zero-bit, ~10 ops/non-zero vs ~13 ops/bit previously.\n  For 128-bit GLV scalars: ~400 ops vs ~4500 ops per call.\n- glv.cpp: replace 32-bit Comba (8x8 = 64 muls) with 64-bit __int128\n  Comba (4x4 = 16 muls) for mul_shift_384. Carry chain matches\n  libsecp256k1 muladd pattern. 32-bit fallback kept for ESP32.\n\nECDSA Verify: 28us (was 29us). Tests: 5399/0, 12023/0.\n\n* perf: add_zinv_inplace + AffinePointCompact (64B) G/H tables\n\n- Add jac52_add_zinv_inplace: 9M+3S formula that folds Z_shared into\n  chord computation, eliminating Zs2/Zs3 pre-scaling (saves 1S per\n  G/H lookup, avoids cache-line dirtying from mutation).\n\n- Add AffinePointCompact (alignas(64), 64 bytes): stores precomputed\n  G/H table entries as 4x64-bit limbs, halving cache footprint from\n  80 bytes (2 cache lines) to 64 bytes (1 cache line) per entry.\n\n- Add jac52_add_mixed_inplace_zr: mixed add variant that outputs\n  z-ratio (Z3/Z1) for Z-ratio table construction (P table sweep).\n\n- Remove Zs2/Zs3 variables and computation from dual_scalar_mul_impl.\n\n- Fix 10 misc-const-correctness code scanning alerts:\n  benchmark_harness.hpp (NOLINTNEXTLINE on asm outputs),\n  test_ct_sidechannel.cpp (same), test_musig2_frost_advanced.cpp\n  (const n), test_abi_gate.cpp (const volatile).\n\nBenchmark (3 runs, clang 21, LTO, ecdsa_verify_preparsed):\n  UF best: 24700ns median / 23500ns P10\n  libsecp best: 24800ns median / 23700ns P10\n  -> Gap closed to noise level (~100-200ns, <1%)\n\n* perf: branchless double + merged streams + noexcept + shrink wNAF\n\n- Remove infinity branch from jac52_double_inplace: on secp256k1 (a=0),\n  doubling never creates infinity from non-infinity, so just let the\n  formula run and propagate p.infinity unchanged (like libsecp's inline\n  secp256k1_gej_double). Eliminates a branch from the hottest loop.\n\n- Merge if(d>0)/else-if(d<0) into single if(d!=0) with branchless abs\n  (XOR+subtract) for all 4 wNAF streams. Halves call sites in the loop\n  body (4 instead of 8), improving I-cache. Eliminates sign-branch\n  mispredictions (~8 per verify * 20 cycles = ~64ns).\n\n- Shrink wNAF arrays from 260 to 130 entries: GLV half-scalars and\n  128-bit a_lo/a_hi produce at most 129 wNAF digits. Saves ~2KB of\n  stack zeroing (memset) per verify call.\n\n- Add noexcept to all hot path point functions: jac52_double_inplace,\n  jac52_add_mixed_inplace, jac52_add_zinv_inplace, jac52_double,\n  jac52_add_mixed, jac52_add_mixed_inplace_zr, jac52_add_inplace.\n\n- CMake: add -fno-exceptions -fno-rtti to point.cpp compile flags\n  (Clang and GCC). Eliminates exception tables and RTTI metadata.\n\nBenchmark (3 runs, clang 21, LTO, ecdsa_verify_preparsed):\n  UF best: 23900ns median / 23200ns P10\n  libsecp best: 24600ns median / 23300ns P10\n  -> UF now FASTER by 700ns median (2.8%)\n\n* perf: FE52 decompress + raw-pointer ecdsa_verify + is_low_s limb compare\n\n- decompress_pubkey: rewrite with FieldElement52 sqrt (253S+13M in native 5x52)\n  instead of slow 4x64 FieldElement. Use from_affine52() for zero-conversion\n  Point construction. Saves ~1900ns on bytes path.\n\n- ecdsa_verify: add raw-pointer overload (const uint8_t* msg_hash32) as primary\n  implementation. Array overload delegates to it. Eliminates 32B memcpy in callers.\n\n- Scalar::from_bytes: add raw-pointer overload (const uint8_t* bytes32).\n  Array overload now delegates to pointer version.\n\n- is_low_s(): replace 2x to_bytes() serialization with direct limb comparison\n  against constexpr HALF_ORDER_LIMBS[4]. Saves ~100ns per normalize check.\n\n- provider_uf: remove unnecessary msg32 memcpy in both ecdsa_verify_bytes\n  and ecdsa_verify_preparsed paths.\n\nResult: ecdsa_verify_bytes 30100ns -> 27300ns (-9.3%), closes 2800ns gap vs libsecp.\nBest-of-3: UF 27300ns vs libsecp 27100ns (TIE, within noise margin).\n\n* perf: eliminate tmp buffers in FE52 sqr/mul inplace + schnorr raw-pointer overloads\n\n- Remove __restrict__ from fe52_sqr_inner/fe52_mul_inner (allows r==a aliasing;\n  safe because both functions copy a[] into locals before any writes to r[])\n- square_inplace(): fe52_sqr_inner(n, n) directly, no tmp buffer + copy\n- mul_assign(): fe52_mul_inner(n, n, rhs.n) directly, no tmp buffer + copy\n- Add operator*= for FieldElement52\n- inverse()/sqrt(): use *= instead of = operator* (eliminates temporaries)\n- schnorr_verify: raw-pointer msg32 overloads (bytes + preparsed)\n- SchnorrSignature::from_bytes(const uint8_t*) raw-pointer overload\n- Provider: remove memcpy in schnorr/pubkey_create/ecdh paths\n\nImpact (best-of-3, median ns, vs libsecp256k1 v0.6.0):\n  schnorr_verify_bytes: 29500 -> 27800 (-5.8%, gap closed from 2100ns to TIE)\n  schnorr_verify_preparsed: 26400 -> 24700 (-6.4%, TIE)\n  ecdsa_verify_bytes: 27400 (TIE)\n  ecdsa_verify_preparsed: 24200 (TIE)\n  pubkey_create: 6800 vs 13700 (UF 2.01x)\n  ecdh: 26200 vs 32600 (UF 1.24x)\n\n* perf+fix: comprehensive code audit -- UB elimination, parity optimization, sqrt fix, word-level extraction\n\nChanges across 16 files:\n\nCritical fixes:\n- musig2: replace manual square-and-multiply VT loop with y2.sqrt() addition chain\n- precompute: eliminate const_cast UB in scalar_from_limbs_normalized -> Scalar::from_limbs()\n- glv: scalar_bitlen __builtin_clz hi32/lo32 -> __builtin_clzll (1 instr on x64/ARM64/RISC-V)\n  ESP32 Xtensa guard retains 32-bit CLZ path\n\nParity optimization (to_bytes() -> limbs()[0] & 1):\n- schnorr.cpp: 4x64 fallback Y-parity in both verify functions + lift_x (3 sites)\n- batch_verify.cpp: lift_x parity check\n- point.cpp: has_even_y() + x_bytes_and_parity()\n- musig2.cpp: decompress_point + has_even_y -> Point::has_even_y()\n\nWord-level bit extraction:\n- pippenger: extract_digit bit-by-bit loop -> word-level limb shift (1-2 reads vs width calls)\n- ecmult_gen_comb: extract_comb_index k.bit() per-tooth -> direct L[pos>>6]>>(pos&63)\n\nDocumentation/comments:\n- field_52_impl.hpp: from_bytes ge_p variable-time comment (public wire input)\n- field.cpp: from_bytes VT comment + add_impl carry/borrow impossibility proof\n- ct_field.cpp + ct_scalar.cpp: full truth-table proof for no_borrow|has_carry logic\n\nPrior session (memcpy elimination):\n- ecdsa: from_compact raw-pointer overload (eliminates 2x32B array+memcpy)\n- schnorr: streaming SHA256 challenge hash (eliminates 96B buffer + 3x memcpy)\n- schnorr: raw-pointer verify/xonly_parse primaries\n- provider_uf: 3 memcpy sites removed (parse_compact_sig, schnorr_verify, xonly_parse)\n\nBenchmark (best-of-3, clang 21.1.0, -O3 -flto=thin, pinned core):\n  ecdsa_verify_bytes:     UF 27500 vs libsecp 28800 (-4.5%)\n  schnorr_verify_bytes:   UF 28700 vs libsecp 28800 (TIE)\n  pubkey_create:          UF 6700  vs libsecp 14100 (2.10x)\n  ecdh:                   UF 26100 vs libsecp 31700 (1.21x)\n\n25/25 tests pass.\n\n* build: add bench_hornet CMake target\n\n* fix: resolve CI build failures on MSVC, Linux clang, Android, WASM\n\n- glv.cpp: guard __int128 path with __SIZEOF_INT128__ only (MSVC lacks it);\n  add mul_shift_384_const template wrapper in 32-bit fallback path\n- schnorr.cpp: fix undeclared 'pubkey_x' -> 'pubkey_x32' in non-52bit path\n- bench_hornet.cpp: use <intrin.h> only under _MSC_VER; clang/gcc on Linux\n  use <cpuid.h> + <x86intrin.h> instead\n\nVerified: 25/25 tests pass locally (build-clang21).\n\n* v3.15.0: ecdsa_recover 1.9x speedup via dual_scalar_mul, platform asm improvements, audit fixes\n\n- recovery.cpp: replace 3 separate scalar_mul with single dual_scalar_mul_gen_point (69us -> 36us)\n- recovery.cpp: lift_x parity check via limbs()[0]&1 instead of to_bytes()\n- field.cpp: improved Montgomery path selection\n- field_asm_arm64.cpp: CSEL branchless, sqr EXTR optimization\n- field_asm52_riscv64.S: preload optimization, reduced register pressure\n- batch_verify.cpp: improved error handling\n- audit: 11 dudect false positive fixes, expanded CT integration tests\n- docs: version bump to 3.15.0 across SECURITY, AUDIT_GUIDE, README",
+          "timestamp": "2026-03-01T04:40:01+04:00",
+          "tree_id": "b404a57e241296d64400a3c6e770a477e96627b7",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/4638616c76aca7f4558bbd5f0c0ac07b7a18be03"
+        },
+        "date": 1772325898978,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 27,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 22,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 281,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 149,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 36000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 10000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 14000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 43000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 24000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 82000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 142,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 131,
             "unit": "ns"
           }
         ]
