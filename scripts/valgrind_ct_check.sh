@@ -108,13 +108,18 @@ echo "[4/4] Analyzing Valgrind output..."
 echo ""
 
 # Count "Conditional jump or move depends on uninitialised value(s)"
-CT_ERRORS=$(grep -c "Conditional jump or move depends on uninitialised" "$VALGRIND_LOG" 2>/dev/null || echo "0")
+# NOTE: grep -c prints "0" on no match but exits 1; use || true to avoid
+# the fallback echo which would produce "0\n0" and break integer comparisons.
+CT_ERRORS=$(grep -c "Conditional jump or move depends on uninitialised" "$VALGRIND_LOG" 2>/dev/null || true)
+CT_ERRORS=${CT_ERRORS:-0}
 
 # Count "Use of uninitialised value of size"
-UNINIT_ERRORS=$(grep -c "Use of uninitialised value" "$VALGRIND_LOG" 2>/dev/null || echo "0")
+UNINIT_ERRORS=$(grep -c "Use of uninitialised value" "$VALGRIND_LOG" 2>/dev/null || true)
+UNINIT_ERRORS=${UNINIT_ERRORS:-0}
 
 # Count total errors
-TOTAL_ERRORS=$(grep -c "ERROR SUMMARY:" "$VALGRIND_LOG" 2>/dev/null || echo "0")
+TOTAL_ERRORS=$(grep -c "ERROR SUMMARY:" "$VALGRIND_LOG" 2>/dev/null || true)
+TOTAL_ERRORS=${TOTAL_ERRORS:-0}
 ERROR_SUMMARY=$(grep "ERROR SUMMARY:" "$VALGRIND_LOG" 2>/dev/null | tail -1 || echo "N/A")
 
 echo "-----------------------------------------------------------"
