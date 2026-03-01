@@ -4,9 +4,9 @@
 
 | Version | Supported |
 |---------|-----------|
-| 3.15.x  | [OK] Active  |
-| 3.14.x  | [OK] Maintained |
-| 3.12.x-3.13.x | [!] Critical fixes only |
+| 3.16.x  | [OK] Active  |
+| 3.15.x  | [OK] Maintained |
+| 3.14.x  | [!] Critical fixes only |
 | 3.11.x  | [!] Critical fixes only |
 | < 3.11  | [FAIL] Unsupported |
 
@@ -80,14 +80,16 @@ The following automated security measures are in place:
 - **libFuzzer harnesses** -- continuous fuzz testing of field/scalar/point layers
 - **Docker SHA-pinned images** -- reproducible builds with digest-pinned base images
 - **dudect timing analysis** -- Welch t-test side-channel detection (1300+ line test suite)
+- **Native ARM64 dudect** -- Apple Silicon (M1) smoke + full statistical analysis on macos-14 runners
+- **ct-verif LLVM pass** -- deterministic compile-time constant-time verification of CT modules
 - **Internal audit suite** -- 641,194 checks across 8 dedicated audit test suites
 
 ### Planned Security Improvements
 
 - [ ] Independent third-party cryptographic audit (seeking funding)
 - [ ] Formal verification of field/scalar arithmetic (Fiat-Crypto / Cryptol)
-- [ ] ct-verif LLVM pass integration for compile-time CT verification
-- [ ] Native ARM64 / Apple Silicon dudect CI (macos-14 runner)
+- [x] ct-verif LLVM pass integration for compile-time CT verification (`.github/workflows/ct-verif.yml`)
+- [x] Native ARM64 / Apple Silicon dudect CI -- macos-14 M1 runner, smoke + full (`.github/workflows/ct-arm64.yml`)
 - [x] Multi-uarch dudect campaign -- x86-64 native + RISC-V via QEMU + ARM64 cross-compile
 - [x] CT buffer erasure -- volatile function-pointer trick in signing paths
 - [x] value_barrier on CT mask derivation

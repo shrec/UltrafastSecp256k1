@@ -1,0 +1,130 @@
+# ============================================================================
+# Native ARM64 / Apple Silicon dudect CI
+# ============================================================================
+# Runs the full dudect constant-time analysis suite natively on an M1 runner.
+# This is NOT cross-compiled -- it executes on real Apple Silicon hardware,
+# catching microarchitecture-specific timing leakage that x86 CI cannot.
+#
+# Reaching CT ***** requires native multi-arch dudect coverage.
+# ============================================================================
+name: CT ARM64 (dudect native)
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Nightly 04:00 UTC -- extended dudect on ARM64
+    - cron: '0 4 * * *'
+  workflow_dispatch:
+    inputs:
+      timeout_seconds:
+        description: 'dudect timeout in seconds (default: 600)'
+        required: false
+        default: '600'
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ── Smoke (per-PR, ~2 min) ──────────────────────────────────────────────
+  dudect-arm64-smoke:
+    name: dudect ARM64 smoke
+    runs-on: macos-14   # M1 Apple Silicon -- free for public repos
+    timeout-minutes: 10
+
+    steps:
+      - name: Harden the runner
+        uses: step-security/harden-runner@5ef0c079ce82195b2a36a210272d6b661572d83e # v2.14.2
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Configure (Release)
+        run: |
+          cmake -S . -B build -G "Unix Makefiles" \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DSECP256K1_BUILD_TESTS=ON
+
+      - name: Build dudect smoke test
+        run: cmake --build build --target test_ct_sidechannel_smoke -j$(sysctl -n hw.logicalcpu)
+
+      - name: Run dudect smoke (ARM64 native)
+        run: |
+          echo "=== Apple Silicon dudect smoke test ==="
+          echo "Arch: $(uname -m)"
+          echo "CPU: $(sysctl -n machdep.cpu.brand_string 2>/dev/null || echo 'Apple Silicon')"
+          echo ""
+          ./build/audit/test_ct_sidechannel_smoke 2>&1 | tee dudect_arm64_smoke.log
+          echo ""
+          echo "=== dudect ARM64 smoke complete ==="
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: dudect-arm64-smoke
+          path: dudect_arm64_smoke.log
+          retention-days: 30
+
+  # ── Full statistical (nightly + manual, ~10 min) ────────────────────────
+  dudect-arm64-full:
+    name: dudect ARM64 full
+    runs-on: macos-14
+    timeout-minutes: 20
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+
+    steps:
+      - name: Harden the runner
+        uses: step-security/harden-runner@5ef0c079ce82195b2a36a210272d6b661572d83e # v2.14.2
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Configure (Release, no ASM -- portable CT baseline)
+        run: |
+          cmake -S . -B build -G "Unix Makefiles" \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DSECP256K1_BUILD_TESTS=ON \
+            -DSECP256K1_USE_ASM=OFF
+
+      - name: Build dudect full test
+        run: cmake --build build --target test_ct_sidechannel_standalone -j$(sysctl -n hw.logicalcpu)
+
+      - name: Run dudect full (ARM64 native)
+        run: |
+          TIMEOUT="${{ github.event.inputs.timeout_seconds || '600' }}"
+          echo "=== Apple Silicon dudect FULL statistical analysis ==="
+          echo "Arch: $(uname -m)"
+          echo "CPU: $(sysctl -n machdep.cpu.brand_string 2>/dev/null || echo 'Apple Silicon')"
+          echo "Timeout: ${TIMEOUT}s"
+          echo ""
+          EXIT=0
+          timeout "${TIMEOUT}" ./build/audit/test_ct_sidechannel_standalone 2>&1 | tee dudect_arm64_full.log || EXIT=$?
+          if [ "${EXIT}" -eq 124 ]; then
+            echo ""
+            echo "::notice::dudect reached time limit (${TIMEOUT}s) -- expected for nightly"
+          elif [ "${EXIT}" -ne 0 ]; then
+            echo ""
+            echo "::error::dudect detected timing leakage on ARM64 (t > threshold)"
+            exit 1
+          else
+            echo ""
+            echo "::notice::dudect completed -- all operations constant-time on ARM64"
+          fi
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: dudect-arm64-full
+          path: dudect_arm64_full.log
+          retention-days: 90

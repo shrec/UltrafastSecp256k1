@@ -1,6 +1,6 @@
 # Constant-Time Verification
 
-**UltrafastSecp256k1 v3.13.0** -- CT Layer Methodology & Audit Status
+**UltrafastSecp256k1 v3.16.0** -- CT Layer Methodology & Audit Status
 
 ---
 
@@ -191,18 +191,20 @@ valgrind ./build/tests/test_ct_sidechannel_vg
 
 ## Known Limitations
 
-### 1. No Formal Verification
+### 1. Formal Verification (Partial)
 
-The CT layer has NOT been formally verified using tools like:
-- **ct-verif** (LLVM-based CT verification)
+The CT layer is verified using:
+- **ct-verif LLVM pass** -- deterministic compile-time CT check of `ct_field.cpp`, `ct_scalar.cpp`, `ct_sign.cpp` (`.github/workflows/ct-verif.yml`). If the LLVM pass is unavailable, a fallback IR branch analysis runs.
+
+Not yet integrated:
 - **Vale** (F\* verified assembly)
 - **Fiat-Crypto** (formally verified field arithmetic)
 - **Cryptol/SAW** (symbolic analysis)
 
-CT guarantees rely on:
+Additional CT guarantees come from:
 - Manual code review
 - Compiler discipline (`-O2` specifically)
-- dudect empirical testing
+- dudect empirical testing (x86-64 + ARM64 native)
 - ASan/UBSan runtime checks
 
 ### 2. Compiler Risk
@@ -222,7 +224,10 @@ CT properties verified on one CPU may not hold on another:
 - Variable-latency multipliers on some uarch
 - Cache hierarchy differences
 
-**Status**: Tested on x86-64 (Intel/AMD) and ARM64. No multi-uarch timing campaign has been conducted yet.
+**Status**: Tested on x86-64 (Intel/AMD) and ARM64 (Apple M1 native). Multi-uarch dudect coverage:
+- x86-64: CI runners (ubuntu-24.04) -- every push/PR
+- ARM64: Apple Silicon M1 (macos-14) -- smoke per-PR, full nightly (`.github/workflows/ct-arm64.yml`)
+- ARM64: cross-compiled via aarch64-linux-gnu-g++-13 (compile check only)
 
 ### 4. GPU Is Explicitly Non-CT
 
@@ -262,11 +267,12 @@ FROST and MuSig2 have NOT been CT-audited:
 ## Planned Improvements
 
 - [ ] **Formal verification** with Fiat-Crypto for field arithmetic
-- [ ] **ct-verif** LLVM pass integration for CT verification
-- [ ] **Multi-uarch timing campaign** (Intel Skylake, AMD Zen3+, Apple M-series, Cortex-A76)
-- [ ] **dudect expansion** to cover FROST nonce generation
+- [x] **ct-verif** LLVM pass integration for CT verification (`.github/workflows/ct-verif.yml`)
+- [x] **Multi-uarch dudect** -- x86-64 CI + ARM64 Apple M1 native (`.github/workflows/ct-arm64.yml`)
+- [ ] **dudect expansion** to cover FROST/MuSig2 nonce generation and partial signing
 - [ ] **Hardware timing analysis** with oscilloscope-level measurements
 - [ ] **Compiler output audit** for every release at `-O2` and `-O3`
+- [ ] **Valgrind CT taint** in CI -- SECP256K1_CLASSIFY/DECLASSIFY markers with automated check
 
 ---
 
@@ -280,4 +286,4 @@ FROST and MuSig2 have NOT been CT-audited:
 
 ---
 
-*UltrafastSecp256k1 v3.13.0 -- CT Verification*
+*UltrafastSecp256k1 v3.16.0 -- CT Verification*

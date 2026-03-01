@@ -39,6 +39,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **packaging.yml** -- release workflow race condition fix (gh release upload with retry)
 - **C ABI** -- `ufsecp_schnorr_verify`, `ufsecp_schnorr_sign`, `ufsecp_xonly_pubkey_parse` now use strict parsing internally
 
+### 6. CT Verification CI
+- **ct-arm64.yml** -- native ARM64 / Apple Silicon dudect (macos-14 M1): smoke per-PR + full nightly
+- **ct-verif.yml** -- compile-time CT verification via ct-verif LLVM pass (deterministic, not statistical)
+
 ## [3.15.3] - 2026-03-01
 
 ### Fixed -- Code Quality (136 code scanning alerts resolved)

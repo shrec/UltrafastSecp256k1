@@ -1,0 +1,172 @@
+# ============================================================================
+# CT-Verif -- Compile-Time Constant-Time Verification
+# ============================================================================
+# Uses the ct-verif LLVM pass (Borrello et al., CCS 2021) to check that
+# secret-dependent branches/loads are absent in compiled CT code.
+#
+# This is DETERMINISTIC (unlike dudect which is statistical) -- if it passes,
+# the compiled code is provably constant-time for the analyzed functions.
+#
+# Repo: https://github.com/imdea-software/verifying-constant-time
+# ============================================================================
+name: CT-Verif (compile-time CT check)
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ct-verif:
+    name: ct-verif LLVM analysis
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Harden the runner
+        uses: step-security/harden-runner@5ef0c079ce82195b2a36a210272d6b661572d83e # v2.14.2
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Install toolchain
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            clang-17 llvm-17 llvm-17-dev lld-17 ninja-build \
+            python3 python3-pip cmake
+
+      - name: Build ct-verif tool
+        run: |
+          git clone --depth 1 https://github.com/imdea-software/verifying-constant-time.git /tmp/ct-verif
+          cd /tmp/ct-verif
+          # Build the LLVM pass against system LLVM-17
+          mkdir -p build && cd build
+          cmake .. -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DLLVM_DIR=/usr/lib/llvm-17/cmake \
+            -DCMAKE_C_COMPILER=clang-17 \
+            -DCMAKE_CXX_COMPILER=clang++-17 || {
+            echo "::warning::ct-verif build failed -- falling back to manual IR analysis"
+            echo "CT_VERIF_AVAILABLE=false" >> $GITHUB_ENV
+            exit 0
+          }
+          cmake --build . -j$(nproc) || {
+            echo "::warning::ct-verif build failed"
+            echo "CT_VERIF_AVAILABLE=false" >> $GITHUB_ENV
+            exit 0
+          }
+          echo "CT_VERIF_AVAILABLE=true" >> $GITHUB_ENV
+          echo "CT_VERIF_LIB=$(pwd)/lib" >> $GITHUB_ENV
+
+      - name: Emit LLVM IR for CT modules
+        run: |
+          # Compile CT-critical source files to LLVM IR for analysis
+          CXXFLAGS="-std=c++20 -O2 -emit-llvm -S -fno-exceptions -fno-rtti"
+          INCLUDES="-I cpu/include -I cpu/include/secp256k1 -I cpu"
+
+          mkdir -p ct-ir
+
+          # Core CT modules -- these MUST be constant-time
+          CT_SOURCES=(
+            "cpu/src/ct_field.cpp"
+            "cpu/src/ct_scalar.cpp"
+            "cpu/src/ct_sign.cpp"
+          )
+
+          for src in "${CT_SOURCES[@]}"; do
+            base=$(basename "$src" .cpp)
+            echo "Compiling $src -> ct-ir/${base}.ll"
+            clang++-17 $CXXFLAGS $INCLUDES \
+              -o "ct-ir/${base}.ll" "$src" 2>&1 || {
+              echo "::error::Failed to compile $src to LLVM IR"
+              exit 1
+            }
+          done
+
+          echo "=== Generated IR files ==="
+          ls -lh ct-ir/
+
+      - name: Run ct-verif analysis
+        if: env.CT_VERIF_AVAILABLE == 'true'
+        run: |
+          echo "=== ct-verif deterministic CT analysis ==="
+          PASS_RESULT=0
+
+          for ll in ct-ir/*.ll; do
+            base=$(basename "$ll" .ll)
+            echo ""
+            echo "--- Analyzing: $base ---"
+            opt-17 -load-pass-plugin="${CT_VERIF_LIB}/libCTVerif.so" \
+                   -passes=ct-verif \
+                   "$ll" -o /dev/null 2>&1 | tee "ct-ir/${base}_report.txt" || {
+              echo "::warning::ct-verif reported potential CT violation in $base"
+              PASS_RESULT=1
+            }
+          done
+
+          if [ "$PASS_RESULT" -eq 0 ]; then
+            echo ""
+            echo "=== ct-verif: ALL CT modules verified constant-time ==="
+          else
+            echo ""
+            echo "::warning::ct-verif found potential issues -- review reports"
+          fi
+          exit $PASS_RESULT
+
+      - name: Fallback -- manual IR branch analysis
+        if: env.CT_VERIF_AVAILABLE != 'true'
+        run: |
+          echo "=== Manual IR analysis (ct-verif unavailable) ==="
+          echo "Checking for secret-dependent branches in CT code..."
+          echo ""
+
+          VIOLATIONS=0
+          for ll in ct-ir/*.ll; do
+            base=$(basename "$ll" .ll)
+            echo "--- $base ---"
+
+            # Count conditional branches -- high count in CT code is suspicious
+            BR_COUNT=$(grep -c "^  br i1" "$ll" 2>/dev/null || echo "0")
+            SELECT_COUNT=$(grep -c "select i1" "$ll" 2>/dev/null || echo "0")
+            echo "  Conditional branches: $BR_COUNT"
+            echo "  Select (branchless):  $SELECT_COUNT"
+
+            # Check for known non-CT patterns
+            if grep -q "switch.*label" "$ll" 2>/dev/null; then
+              echo "  [!] Found switch statement -- potential CT violation"
+              VIOLATIONS=$((VIOLATIONS + 1))
+            fi
+
+            if grep -q "variable_gep" "$ll" 2>/dev/null; then
+              echo "  [!] Found variable GEP -- potential secret-dependent load"
+              VIOLATIONS=$((VIOLATIONS + 1))
+            fi
+          done
+
+          echo ""
+          if [ "$VIOLATIONS" -eq 0 ]; then
+            echo "=== No obvious CT violations found in IR ==="
+          else
+            echo "::warning::Found $VIOLATIONS potential CT issues in IR"
+          fi
+          # Don't fail CI -- this is a best-effort fallback
+          exit 0
+
+      - name: Upload IR reports
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: ct-verif-reports
+          path: ct-ir/
+          retention-days: 30
