@@ -600,7 +600,7 @@ static JacobianPoint52 jac52_add_mixed(const JacobianPoint52& p, const AffinePoi
     // H = U2 - X1 [sub via negate]
     // p.x magnitude: <=23 (from jac52_double) or <=7 (from add_mixed). Use 23.
     const FieldElement52 negX1 = p.x.negate(23);     // mag 24
-    FieldElement52 h = u2 + negX1;                   // mag 25
+    FieldElement52 const h = u2 + negX1;                   // mag 25
 
     // Variable-time zero check with early exit (combines normalize_weak +
     // zero check in one pass).  h==0 means U2==X1, i.e. same x-coordinate.
@@ -677,7 +677,7 @@ static void jac52_add_mixed_inplace(JacobianPoint52& p, const AffinePoint52& q) 
     FieldElement52 const s2 = q.y * z1_z1z1;                       // z1_z1z1 dead
 
     const FieldElement52 negX1 = p.x.negate(23);
-    FieldElement52 h = u2 + negX1;                            // u2, negX1 dead
+    FieldElement52 const h = u2 + negX1;                            // u2, negX1 dead
 
     // Variable-time zero check with early exit.  h==0 means same x-coordinate.
     // Probability ~2^-256 on random inputs.
@@ -748,7 +748,7 @@ static void jac52_add_mixed_inplace_zr(JacobianPoint52& p,
     FieldElement52 const s2 = q.y * z1_z1z1;
 
     const FieldElement52 negX1 = p.x.negate(23);
-    FieldElement52 h = u2 + negX1;
+    FieldElement52 const h = u2 + negX1;
 
     if (SECP256K1_UNLIKELY(h.normalizes_to_zero_var())) {
         FieldElement52 const negY1 = p.y.negate(10);
@@ -849,7 +849,7 @@ static void jac52_add_zinv_inplace(JacobianPoint52& p,
 
     // h = u2 - u1
     FieldElement52 const negX1 = p.x.negate(23);                  // mag 24
-    FieldElement52 h = u2 + negX1;                                // mag 25
+    FieldElement52 const h = u2 + negX1;                                // mag 25
 
     // Variable-time zero check (prob ~2^-256)
     if (SECP256K1_UNLIKELY(h.normalizes_to_zero_var())) {
@@ -866,7 +866,7 @@ static void jac52_add_zinv_inplace(JacobianPoint52& p,
     // Z3 = Z1 * h  (uses ORIGINAL p.z, NOT az!)
     // This is the key difference from mixed add: Z3 does NOT include bzinv,
     // keeping the accumulator Z in the secp256k1 domain.
-    FieldElement52 z3 = p.z * h;                                  // 1M
+    FieldElement52 const z3 = p.z * h;                                  // 1M
 
     // h2 = -h^2
     FieldElement52 h2 = h.square();                               // 1S

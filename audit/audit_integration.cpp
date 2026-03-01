@@ -500,7 +500,7 @@ static void test_ecdsa_batch_nsweep() {
     auto G = Point::generator();
 
     int sizes[] = {1, 2, 3, 10, 50, 100, 500};
-    for (int n : sizes) {
+    for (const int n : sizes) {
         std::vector<secp256k1::ECDSABatchEntry> entries;
         entries.reserve(n);
 
@@ -516,7 +516,7 @@ static void test_ecdsa_batch_nsweep() {
 
         bool const valid = secp256k1::ecdsa_batch_verify(entries);
         char label[64];
-        snprintf(label, sizeof(label), "ECDSA batch n=%d valid", n);
+        (void)snprintf(label, sizeof(label), "ECDSA batch n=%d valid", n);
         CHECK(valid, label);
 
         // Corrupt random entry and verify rejection
@@ -527,7 +527,7 @@ static void test_ecdsa_batch_nsweep() {
             compact[0] ^= 0x01;
             bad[idx].signature = secp256k1::ECDSASignature::from_compact(compact);
             bool const rejected = !secp256k1::ecdsa_batch_verify(bad);
-            snprintf(label, sizeof(label), "ECDSA batch n=%d reject bad", n);
+            (void)snprintf(label, sizeof(label), "ECDSA batch n=%d reject bad", n);
             CHECK(rejected, label);
         }
     }
@@ -546,7 +546,7 @@ static void test_pippenger_large_n() {
 
     // For each size: compute MSM and verify against naive sum
     int sizes[] = {128, 256, 512, 1000};
-    for (int n : sizes) {
+    for (const int n : sizes) {
         std::vector<Scalar> scalars(n);
         std::vector<Point> points(n);
 
@@ -566,12 +566,12 @@ static void test_pippenger_large_n() {
         // Compare
         bool const match = points_equal(pipp_result, strauss_result);
         char label[64];
-        snprintf(label, sizeof(label), "Pippenger n=%d == Strauss", n);
+        (void)snprintf(label, sizeof(label), "Pippenger n=%d == Strauss", n);
         CHECK(match, label);
 
         // Also verify via unified msm()
         auto msm_result = secp256k1::msm(scalars, points);
-        snprintf(label, sizeof(label), "msm() n=%d == Strauss", n);
+        (void)snprintf(label, sizeof(label), "msm() n=%d == Strauss", n);
         CHECK(points_equal(msm_result, strauss_result), label);
     }
 

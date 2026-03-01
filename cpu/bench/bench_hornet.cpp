@@ -48,6 +48,7 @@
         __cpuid(level, regs[0], regs[1], regs[2], regs[3]);
     }
     #undef __cpuid
+    // NOLINTNEXTLINE(bugprone-reserved-identifier,cert-dcl37-c,cert-dcl51-cpp)
     #define __cpuid(regs, level) gcc_compat_cpuid(regs, level)
   #endif
 #endif
@@ -64,14 +65,14 @@ using namespace secp256k1;
 static void get_cpu_brand(char brand[49]) {
     int regs[4];
     __cpuid(regs, 0x80000000);
-    unsigned max_ext = static_cast<unsigned>(regs[0]);
+    const auto max_ext = static_cast<unsigned>(regs[0]);
     if (max_ext < 0x80000004u) {
-        snprintf(brand, 49, "(unknown CPU)");
+        (void)snprintf(brand, 49, "(unknown CPU)");
         return;
     }
     for (unsigned i = 0; i < 3; ++i) {
         __cpuid(regs, 0x80000002u + i);
-        std::memcpy(brand + i * 16, regs, 16);
+        std::memcpy(brand + static_cast<std::size_t>(i) * 16, regs, 16);
     }
     brand[48] = '\0';
     // trim leading spaces
@@ -89,19 +90,19 @@ static void get_cpu_brand(char brand[49]) {
 
 static double calibrate_tsc_ghz() {
 #if defined(__x86_64__) || defined(_M_X64)
-    unsigned aux;
-    uint64_t t0 = __rdtscp(&aux);
+    unsigned aux = 0;
+    const uint64_t t0 = __rdtscp(&aux);
     auto wall0 = std::chrono::high_resolution_clock::now();
 
     // Spin for ~50ms to calibrate
     volatile uint64_t sink = 0;
     for (int i = 0; i < 5000000; ++i) sink += i;
 
-    uint64_t t1 = __rdtscp(&aux);
+    const uint64_t t1 = __rdtscp(&aux);
     auto wall1 = std::chrono::high_resolution_clock::now();
 
-    double ns = std::chrono::duration<double, std::nano>(wall1 - wall0).count();
-    double cycles = static_cast<double>(t1 - t0);
+    const double ns = std::chrono::duration<double, std::nano>(wall1 - wall0).count();
+    const auto cycles = static_cast<double>(t1 - t0);
     return cycles / ns; // GHz
 #else
     return 0.0;
@@ -123,7 +124,7 @@ static std::array<std::uint8_t, 32> make_hash(uint64_t seed) {
     std::array<std::uint8_t, 32> h{};
     for (int i = 0; i < 4; ++i) {
         uint64_t v = seed ^ (seed << 13) ^ (uint64_t(i) * 0x9e3779b97f4a7c15ULL);
-        std::memcpy(&h[i * 8], &v, 8);
+        std::memcpy(&h[static_cast<std::size_t>(i) * 8], &v, 8);
     }
     return h;
 }
@@ -155,14 +156,18 @@ static void print_section(const char* name) {
 }
 
 static void print_row(const char* name, double ns) {
-    double us = ns / 1000.0;
-    double cycles = ns * g_tsc_ghz;
-    double ops = 1e9 / ns;
+    const double us = ns / 1000.0;
+    const double cycles = ns * g_tsc_ghz;
+    const double ops = 1e9 / ns;
 
     char ops_buf[32];
-    if (ops >= 1e6)       snprintf(ops_buf, sizeof(ops_buf), "%6.2f M", ops / 1e6);
-    else if (ops >= 1e3)  snprintf(ops_buf, sizeof(ops_buf), "%6.1f k", ops / 1e3);
-    else                  snprintf(ops_buf, sizeof(ops_buf), "%6.0f  ", ops);
+    if (ops >= 1e6) {
+        (void)snprintf(ops_buf, sizeof(ops_buf), "%6.2f M", ops / 1e6);
+    } else if (ops >= 1e3) {
+        (void)snprintf(ops_buf, sizeof(ops_buf), "%6.1f k", ops / 1e3);
+    } else {
+        (void)snprintf(ops_buf, sizeof(ops_buf), "%6.0f  ", ops);
+    }
 
     if (cycles > 0.5) {
         printf("| %-40s | %8.1f | %8.2f | %9.0f | %8s |\n",
@@ -252,24 +257,31 @@ int main() {
     constexpr int POOL = 64;
 
     Scalar privkeys[POOL];
-    for (int i = 0; i < POOL; ++i)
+    for (int i = 0; i < POOL; ++i) {
         privkeys[i] = make_scalar(0xdeadbeef00ULL + i);
+    }
 
     Point pubkeys[POOL];
-    for (int i = 0; i < POOL; ++i)
+    for (int i = 0; i < POOL; ++i) {
         pubkeys[i] = Point::generator().scalar_mul(privkeys[i]);
+    }
 
+    // cppcheck-suppress[containerOutOfBounds] -- POOL=64, inner dim is 32 bytes
     std::array<std::uint8_t, 32> msghashes[POOL];
-    for (int i = 0; i < POOL; ++i)
+    for (int i = 0; i < POOL; ++i) {
         msghashes[i] = make_hash(0xcafebabe00ULL + i);
+    }
 
+    // cppcheck-suppress[containerOutOfBounds] -- POOL=64, inner dim is 32 bytes
     std::array<std::uint8_t, 32> aux_rands[POOL];
-    for (int i = 0; i < POOL; ++i)
+    for (int i = 0; i < POOL; ++i) {
         aux_rands[i] = make_hash(0xfeedface00ULL + i);
+    }
 
     ECDSASignature ecdsa_sigs[POOL];
-    for (int i = 0; i < POOL; ++i)
+    for (int i = 0; i < POOL; ++i) {
         ecdsa_sigs[i] = ecdsa_sign(msghashes[i], privkeys[i]);
+    }
 
     SchnorrKeypair schnorr_kps[POOL];
     SchnorrSignature schnorr_sigs[POOL];
@@ -299,7 +311,7 @@ int main() {
 
     print_section("ECDSA (RFC 6979)");
 
-    double ecdsa_sign_ns = bench_ns([&]() {
+    const double ecdsa_sign_ns = bench_ns([&]() {
         auto sig = ecdsa_sign(msghashes[idx % POOL], privkeys[idx % POOL]);
         bench::DoNotOptimize(sig);
         ++idx;
@@ -307,7 +319,7 @@ int main() {
     print_row("ecdsa_sign (deterministic nonce)", ecdsa_sign_ns);
 
     idx = 0;
-    double ecdsa_verify_ns = bench_ns([&]() {
+    const double ecdsa_verify_ns = bench_ns([&]() {
         bool ok = ecdsa_verify(msghashes[idx % POOL], pubkeys[idx % POOL],
                                ecdsa_sigs[idx % POOL]);
         bench::DoNotOptimize(ok);
@@ -323,7 +335,7 @@ int main() {
     print_section("Schnorr / BIP-340 (Taproot)");
 
     idx = 0;
-    double schnorr_sign_ns = bench_ns([&]() {
+    const double schnorr_sign_ns = bench_ns([&]() {
         auto sig = schnorr_sign(schnorr_kps[idx % POOL], msghashes[idx % POOL],
                                 aux_rands[idx % POOL]);
         bench::DoNotOptimize(sig);
@@ -332,7 +344,7 @@ int main() {
     print_row("schnorr_sign (pre-computed keypair)", schnorr_sign_ns);
 
     idx = 0;
-    double schnorr_sign_raw_ns = bench_ns([&]() {
+    const double schnorr_sign_raw_ns = bench_ns([&]() {
         auto sig = schnorr_sign(privkeys[idx % POOL], msghashes[idx % POOL],
                                 aux_rands[idx % POOL]);
         bench::DoNotOptimize(sig);
@@ -341,7 +353,7 @@ int main() {
     print_row("schnorr_sign (from raw privkey)", schnorr_sign_raw_ns);
 
     idx = 0;
-    double schnorr_verify_ns = bench_ns([&]() {
+    const double schnorr_verify_ns = bench_ns([&]() {
         bool ok = schnorr_verify(schnorr_pubkeys_x[idx % POOL],
                                  msghashes[idx % POOL],
                                  schnorr_sigs[idx % POOL]);
@@ -351,7 +363,7 @@ int main() {
     print_row("schnorr_verify (x-only 32B pubkey)", schnorr_verify_ns);
 
     idx = 0;
-    double schnorr_verify_cached_ns = bench_ns([&]() {
+    const double schnorr_verify_cached_ns = bench_ns([&]() {
         bool ok = schnorr_verify(schnorr_xonly[idx % POOL],
                                  msghashes[idx % POOL],
                                  schnorr_sigs[idx % POOL]);
@@ -375,13 +387,13 @@ int main() {
             batch[i].message  = msghashes[i];
             batch[i].signature = schnorr_sigs[i];
         }
-        double total = bench_ns([&]() {
+        const double total = bench_ns([&]() {
             bool ok = schnorr_batch_verify(batch);
             bench::DoNotOptimize(ok);
         }, N_BATCH);
         schnorr_batch_per_sig = total / POOL;
         char buf[80];
-        snprintf(buf, sizeof(buf), "schnorr_batch_verify (per sig, N=%d)", POOL);
+        (void)snprintf(buf, sizeof(buf), "schnorr_batch_verify (per sig, N=%d)", POOL);
         print_row(buf, schnorr_batch_per_sig);
         print_ratio_row("  -> vs individual schnorr_verify", schnorr_verify_ns / schnorr_batch_per_sig);
     }
@@ -394,13 +406,13 @@ int main() {
             batch[i].public_key = pubkeys[i];
             batch[i].signature  = ecdsa_sigs[i];
         }
-        double total = bench_ns([&]() {
+        const double total = bench_ns([&]() {
             bool ok = ecdsa_batch_verify(batch);
             bench::DoNotOptimize(ok);
         }, N_BATCH);
         ecdsa_batch_per_sig = total / POOL;
         char buf[80];
-        snprintf(buf, sizeof(buf), "ecdsa_batch_verify (per sig, N=%d)", POOL);
+        (void)snprintf(buf, sizeof(buf), "ecdsa_batch_verify (per sig, N=%d)", POOL);
         print_row(buf, ecdsa_batch_per_sig);
         print_ratio_row("  -> vs individual ecdsa_verify", ecdsa_verify_ns / ecdsa_batch_per_sig);
     }
@@ -413,7 +425,7 @@ int main() {
     print_section("Key Generation");
 
     idx = 0;
-    double keygen_ns = bench_ns([&]() {
+    const double keygen_ns = bench_ns([&]() {
         auto pk = Point::generator().scalar_mul(privkeys[idx % POOL]);
         bench::DoNotOptimize(pk);
         ++idx;
@@ -421,7 +433,7 @@ int main() {
     print_row("pubkey_create (k*G, GLV+wNAF)", keygen_ns);
 
     idx = 0;
-    double schnorr_keygen_ns = bench_ns([&]() {
+    const double schnorr_keygen_ns = bench_ns([&]() {
         auto kp = schnorr_keypair_create(privkeys[idx % POOL]);
         bench::DoNotOptimize(kp);
         ++idx;
@@ -436,7 +448,7 @@ int main() {
     print_section("Point Arithmetic (ECC core)");
 
     idx = 0;
-    double scalar_mul_ns = bench_ns([&]() {
+    const double scalar_mul_ns = bench_ns([&]() {
         auto r = pubkeys[idx % POOL].scalar_mul(privkeys[(idx + 1) % POOL]);
         bench::DoNotOptimize(r);
         ++idx;
@@ -444,7 +456,7 @@ int main() {
     print_row("k*P (arbitrary point, GLV+wNAF)", scalar_mul_ns);
 
     idx = 0;
-    double dual_mul_ns = bench_ns([&]() {
+    const double dual_mul_ns = bench_ns([&]() {
         auto r = Point::dual_scalar_mul_gen_point(
             privkeys[idx % POOL], privkeys[(idx + 1) % POOL],
             pubkeys[(idx + 2) % POOL]);
@@ -453,13 +465,13 @@ int main() {
     }, N_SCALAR);
     print_row("a*G + b*P (Shamir dual mul)", dual_mul_ns);
 
-    double add_ns = bench_ns([&]() {
+    const double add_ns = bench_ns([&]() {
         auto r = pubkeys[0].add(pubkeys[1]);
         bench::DoNotOptimize(r);
     }, N_POINT);
     print_row("point_add (Jacobian mixed)", add_ns);
 
-    double dbl_ns = bench_ns([&]() {
+    const double dbl_ns = bench_ns([&]() {
         auto r = pubkeys[0].dbl();
         bench::DoNotOptimize(r);
     }, N_POINT);
@@ -477,37 +489,37 @@ int main() {
     auto fe_b = FieldElement::from_hex(
         "483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8");
 
-    double fmul_ns = bench_ns([&]() {
+    const double fmul_ns = bench_ns([&]() {
         auto r = fe_a * fe_b;
         bench::DoNotOptimize(r);
     }, N_FIELD);
     print_row("field_mul (Montgomery)", fmul_ns);
 
-    double fsqr_ns = bench_ns([&]() {
+    const double fsqr_ns = bench_ns([&]() {
         auto r = fe_a.square();
         bench::DoNotOptimize(r);
     }, N_FIELD);
     print_row("field_sqr (Montgomery)", fsqr_ns);
 
-    double finv_ns = bench_ns([&]() {
+    const double finv_ns = bench_ns([&]() {
         auto r = fe_a.inverse();
         bench::DoNotOptimize(r);
     }, 200);
     print_row("field_inv (Fermat, 256-bit exp)", finv_ns);
 
-    double fadd_ns = bench_ns([&]() {
+    const double fadd_ns = bench_ns([&]() {
         auto r = fe_a + fe_b;
         bench::DoNotOptimize(r);
     }, N_FIELD);
     print_row("field_add (mod p)", fadd_ns);
 
-    double fsub_ns = bench_ns([&]() {
+    const double fsub_ns = bench_ns([&]() {
         auto r = fe_a - fe_b;
         bench::DoNotOptimize(r);
     }, N_FIELD);
     print_row("field_sub (mod p)", fsub_ns);
 
-    double fneg_ns = bench_ns([&]() {
+    const double fneg_ns = bench_ns([&]() {
         auto r = fe_a.negate();
         bench::DoNotOptimize(r);
     }, N_FIELD);
@@ -523,25 +535,25 @@ int main() {
     auto sc_a = make_scalar(0xdeadbeef01ULL);
     auto sc_b = make_scalar(0xdeadbeef02ULL);
 
-    double smul_ns = bench_ns([&]() {
+    const double smul_ns = bench_ns([&]() {
         auto r = sc_a * sc_b;
         bench::DoNotOptimize(r);
     }, N_FIELD);
     print_row("scalar_mul (mod n)", smul_ns);
 
-    double sinv_ns = bench_ns([&]() {
+    const double sinv_ns = bench_ns([&]() {
         auto r = sc_a.inverse();
         bench::DoNotOptimize(r);
     }, 200);
     print_row("scalar_inv (mod n)", sinv_ns);
 
-    double sadd_ns = bench_ns([&]() {
+    const double sadd_ns = bench_ns([&]() {
         auto r = sc_a + sc_b;
         bench::DoNotOptimize(r);
     }, N_FIELD);
     print_row("scalar_add (mod n)", sadd_ns);
 
-    double sneg_ns = bench_ns([&]() {
+    const double sneg_ns = bench_ns([&]() {
         auto r = sc_a.negate();
         bench::DoNotOptimize(r);
     }, N_FIELD);
@@ -555,7 +567,7 @@ int main() {
     print_section("Serialization");
 
     idx = 0;
-    double compress_ns = bench_ns([&]() {
+    const double compress_ns = bench_ns([&]() {
         auto c = pubkeys[idx % POOL].to_compressed();
         bench::DoNotOptimize(c);
         ++idx;
@@ -563,7 +575,7 @@ int main() {
     print_row("pubkey_serialize (33B compressed)", compress_ns);
 
     idx = 0;
-    double der_encode_ns = bench_ns([&]() {
+    const double der_encode_ns = bench_ns([&]() {
         auto d = ecdsa_sigs[idx % POOL].to_der();
         bench::DoNotOptimize(d);
         ++idx;
@@ -571,7 +583,7 @@ int main() {
     print_row("ecdsa_sig_to_der (DER encode)", der_encode_ns);
 
     idx = 0;
-    double schnorr_ser_ns = bench_ns([&]() {
+    const double schnorr_ser_ns = bench_ns([&]() {
         auto b = schnorr_sigs[idx % POOL].to_bytes();
         bench::DoNotOptimize(b);
         ++idx;
@@ -586,7 +598,7 @@ int main() {
     print_section("Constant-Time Signing (CT layer)");
 
     idx = 0;
-    double ct_ecdsa_ns = bench_ns([&]() {
+    const double ct_ecdsa_ns = bench_ns([&]() {
         auto sig = ct::ecdsa_sign(msghashes[idx % POOL], privkeys[idx % POOL]);
         bench::DoNotOptimize(sig);
         ++idx;
@@ -595,7 +607,7 @@ int main() {
     print_ratio_row("  -> CT overhead vs fast::ecdsa_sign", ct_ecdsa_ns / ecdsa_sign_ns);
 
     idx = 0;
-    double ct_schnorr_ns = bench_ns([&]() {
+    const double ct_schnorr_ns = bench_ns([&]() {
         auto sig = ct::schnorr_sign(schnorr_kps[idx % POOL],
                                      msghashes[idx % POOL],
                                      aux_rands[idx % POOL]);
@@ -616,8 +628,8 @@ int main() {
     printf("==========================================================================================\n\n");
 
     auto print_tput = [](const char* name, double ns) {
-        double ops = 1e9 / ns;
-        double us = ns / 1000.0;
+        const double ops = 1e9 / ns;
+        const double us = ns / 1000.0;
         if (ops >= 1e6) {
             printf("  %-42s %8.2f us  ->  %8.2f M op/s\n", name, us, ops / 1e6);
         } else if (ops >= 1e3) {
@@ -662,10 +674,10 @@ int main() {
     printf("  BITCOIN BLOCK VALIDATION ESTIMATES (1 core)\n");
     printf("==========================================================================================\n\n");
 
-    double pre_taproot_ms = 3000.0 * ecdsa_verify_ns / 1e6;
-    double pre_taproot_batch_ms = 3000.0 * ecdsa_batch_per_sig / 1e6;
-    double taproot_ms = (2000.0 * schnorr_verify_ns + 1000.0 * ecdsa_verify_ns) / 1e6;
-    double taproot_batch_ms = (2000.0 * schnorr_batch_per_sig + 1000.0 * ecdsa_batch_per_sig) / 1e6;
+    const double pre_taproot_ms = 3000.0 * ecdsa_verify_ns / 1e6;
+    const double pre_taproot_batch_ms = 3000.0 * ecdsa_batch_per_sig / 1e6;
+    const double taproot_ms = (2000.0 * schnorr_verify_ns + 1000.0 * ecdsa_verify_ns) / 1e6;
+    const double taproot_batch_ms = (2000.0 * schnorr_batch_per_sig + 1000.0 * ecdsa_batch_per_sig) / 1e6;
 
     printf("  Pre-Taproot block (~3000 ECDSA verify):\n");
     printf("    Individual:    %7.1f ms\n", pre_taproot_ms);
@@ -677,9 +689,9 @@ int main() {
     printf("\n");
 
     // IBD estimates
-    double ibd_sigs = 900000.0 * 1500.0; // ~1.35 billion
-    double ibd_individual_h = ibd_sigs * ecdsa_verify_ns / 1e9 / 3600.0;
-    double ibd_batch_h = ibd_sigs * ecdsa_batch_per_sig / 1e9 / 3600.0;
+    const double ibd_sigs = 900000.0 * 1500.0; // ~1.35 billion
+    const double ibd_individual_h = ibd_sigs * ecdsa_verify_ns / 1e9 / 3600.0;
+    const double ibd_batch_h = ibd_sigs * ecdsa_batch_per_sig / 1e9 / 3600.0;
 
     printf("  Full IBD estimate (~%.2f billion sig verifies):\n", ibd_sigs / 1e9);
     printf("    Individual verify:  %6.1f hours  (%4.1f days)\n",
@@ -690,24 +702,24 @@ int main() {
 
     // Multi-core projection (linear scaling assumption)
     printf("  Multi-core IBD projection (assuming linear sig-verify parallelism):\n");
-    int core_counts[] = {2, 4, 8, 16};
-    for (int nc : core_counts) {
-        double h = ibd_individual_h / nc;
+    const int core_counts[] = {2, 4, 8, 16};
+    for (const int nc : core_counts) {
+        const double h = ibd_individual_h / nc;
         printf("    %2d cores:  %6.1f hours  (%4.1f days)\n", nc, h, h / 24.0);
     }
     printf("\n");
 
     // Blocks per second
-    double blocks_per_sec_pre = 1000.0 / pre_taproot_ms;
-    double blocks_per_sec_tap = 1000.0 / taproot_ms;
+    const double blocks_per_sec_pre = 1000.0 / pre_taproot_ms;
+    const double blocks_per_sec_tap = 1000.0 / taproot_ms;
     printf("  Blocks/sec throughput (sig verify only, 1 core):\n");
     printf("    Pre-Taproot:  %6.1f blocks/sec\n", blocks_per_sec_pre);
     printf("    Taproot:      %6.1f blocks/sec\n", blocks_per_sec_tap);
     printf("\n");
 
     // Transaction processing rate
-    double ecdsa_per_sec = 1e9 / ecdsa_verify_ns;
-    double schnorr_per_sec = 1e9 / schnorr_verify_ns;
+    const double ecdsa_per_sec = 1e9 / ecdsa_verify_ns;
+    const double schnorr_per_sec = 1e9 / schnorr_verify_ns;
     printf("  Transaction throughput (1-input txs, 1 core):\n");
     printf("    ECDSA txs:    %8.0f tx/sec\n", ecdsa_per_sec);
     printf("    Schnorr txs:  %8.0f tx/sec\n", schnorr_per_sec);

@@ -30,8 +30,8 @@ static void glv_mul_comba_64(const std::uint64_t a[4], const std::uint64_t b[4],
 
     // muladd: add a[i]*b[j] into 192-bit accumulator (c2:c1:c0)
     #define GLV_MULADD(i, j) do { \
-        u128 p_ = (u128)(a[i]) * (b[j]); \
-        std::uint64_t tl_ = (std::uint64_t)p_; \
+        const u128 p_ = (u128)(a[i]) * (b[j]); \
+        const std::uint64_t tl_ = (std::uint64_t)p_; \
         std::uint64_t th_ = (std::uint64_t)(p_ >> 64); \
         c0 += tl_; \
         th_ += (c0 < tl_) ? 1ULL : 0ULL; \
@@ -227,7 +227,7 @@ GLVDecomposition glv_decompose(const Scalar& k) {
 
     // Step 1: c1 = round(k * g1 / 2^384),  c2 = round(k * g2 / 2^384)
     auto k_limbs = k.limbs();
-    std::array<std::uint64_t, 4> k_arr{{k_limbs[0], k_limbs[1], k_limbs[2], k_limbs[3]}};
+    const std::array<std::uint64_t, 4> k_arr{{k_limbs[0], k_limbs[1], k_limbs[2], k_limbs[3]}};
     auto c1_limbs = mul_shift_384_const<kG1[0], kG1[1], kG1[2], kG1[3]>(k_arr);
     auto c2_limbs = mul_shift_384_const<kG2[0], kG2[1], kG2[2], kG2[3]>(k_arr);
 

@@ -2921,6 +2921,7 @@ void compute_wnaf_into(const Scalar& scalar,
                        int32_t* out,
                        std::size_t max,
                        std::size_t& out_len) {
+    // NOLINTNEXTLINE(readability-simplify-boolean-expr)
     if (SECP256K1_UNLIKELY(window_bits < 2U || window_bits > 16U ||
                            out == nullptr || max == 0)) {
         out_len = 0;
@@ -2940,7 +2941,7 @@ void compute_wnaf_into(const Scalar& scalar,
 
     while (bit < 256) {
         // Read single bit at position `bit`
-        const unsigned cur = static_cast<unsigned>(
+        const auto cur = static_cast<unsigned>(
             (d[static_cast<unsigned>(bit) >> 6] >>
              (static_cast<unsigned>(bit) & 63)) & 1);
 
