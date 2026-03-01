@@ -28,6 +28,7 @@ on:
 
 permissions:
   contents: read
+  security-events: write
 
 jobs:
   # =========================================================================
@@ -71,6 +72,7 @@ jobs:
           fi
           ./build-audit/audit/unified_audit_runner \
             --report-dir ./audit-output \
+            --sarif \
             $SECTION_ARG || true
 
       - name: Upload audit reports
@@ -81,7 +83,16 @@ jobs:
           path: |
             audit-output/audit_report.json
             audit-output/audit_report.txt
+            audit-output/audit_report.sarif
           retention-days: 90
+
+      - name: Upload SARIF to GitHub Code Scanning
+        if: always() && github.event_name != 'pull_request'
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: audit-output/audit_report.sarif
+          category: audit-runner
+        continue-on-error: true
 
       - name: Print summary
         if: always()

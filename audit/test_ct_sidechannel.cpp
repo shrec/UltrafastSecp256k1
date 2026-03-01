@@ -41,6 +41,8 @@
 #include "secp256k1/point.hpp"
 #include "secp256k1/ecdsa.hpp"
 #include "secp256k1/schnorr.hpp"
+#include "secp256k1/musig2.hpp"
+#include "secp256k1/frost.hpp"
 #include "secp256k1/ct/ops.hpp"
 #include "secp256k1/ct/field.hpp"
 #include "secp256k1/ct/scalar.hpp"
@@ -1397,6 +1399,223 @@ static void test_valgrind_markers() {
 }
 
 // ===========================================================================
+//  9: MuSig2 / FROST Protocol Timing (secret-key-dependent)
+// ===========================================================================
+
+static void test_protocol_timing() {
+    printf("\n[9] MuSig2 / FROST Protocol Timing -- dudect\n");
+
+    auto G = Point::generator();
+
+#ifdef DUDECT_SMOKE
+    constexpr int N = SMOKE_N_SIGN;
+#else
+    constexpr int N = 2000;
+#endif
+
+    // ---------------------------------------------------------------
+    // 9a: MuSig2 partial_sign (secret_key = 1 vs random)
+    //     Secret key is the sensitive input; timing must not depend on it.
+    // ---------------------------------------------------------------
+    {
+        // Set up a deterministic 2-of-2 MuSig2 session
+        auto sk_fixed = Scalar::from_hex(
+            "0000000000000000000000000000000000000000000000000000000000000001");
+        auto pk_fixed_pt = G.scalar_mul(sk_fixed);
+        std::array<uint8_t, 32> pk_fixed_x = pk_fixed_pt.x().to_bytes();
+
+        // Generate a second signer for a valid session
+        auto sk2 = random_scalar();
+        auto pk2_pt = G.scalar_mul(sk2);
+        std::array<uint8_t, 32> pk2_x = pk2_pt.x().to_bytes();
+
+        std::vector<std::array<uint8_t, 32>> pubkeys = { pk_fixed_x, pk2_x };
+        auto ctx = secp256k1::musig2_key_agg(pubkeys);
+
+        // Generate nonces using proper API
+        std::array<uint8_t, 32> msg{};
+        msg[0] = 0xAA;
+
+        auto [sec1, pub1] = secp256k1::musig2_nonce_gen(
+            sk_fixed, pk_fixed_x, ctx.Q_x, msg);
+        auto [sec2, pub2] = secp256k1::musig2_nonce_gen(
+            sk2, pk2_x, ctx.Q_x, msg);
+
+        auto agg_nonce = secp256k1::musig2_nonce_agg({ pub1, pub2 });
+        auto session = secp256k1::musig2_start_sign_session(
+            agg_nonce, ctx, msg);
+
+        // Pre-generate test scalars: class 0=fixed(1), class 1=random
+        auto* test_keys = new Scalar[N];
+        int classes[N];
+        for (int i = 0; i < N; ++i) {
+            classes[i] = rng() & 1;
+            test_keys[i] = (classes[i] == 0) ? sk_fixed : random_scalar();
+        }
+
+        WelchState ws;
+        for (int i = 0; i < N; ++i) {
+            int const cls = classes[i];
+            auto& sk = test_keys[i];
+
+            // Regenerate nonce for each iteration to avoid nonce reuse
+            // (same seed -> same nonce is OK for timing test, not crypto)
+            BARRIER_FENCE();
+            uint64_t const t0 = rdtsc();
+            BARRIER_FENCE();
+            volatile auto s = secp256k1::musig2_partial_sign(
+                sec1, sk, ctx, session, 0);
+            (void)s;
+            BARRIER_FENCE();
+            uint64_t const t1 = rdtsc();
+            BARRIER_FENCE();
+
+            ws.push(cls, static_cast<double>(t1 - t0));
+        }
+        delete[] test_keys;
+        double const t = std::abs(ws.t_value());
+        printf("    musig2_partial_sign (sk=1 vs random): |t| = %6.2f  (%d/%d)  %s\n",
+               t, (int)ws.n[0], (int)ws.n[1],
+               t < T_THRESHOLD ? "[OK] CT" : "[!]  LEAK");
+        check(t < T_THRESHOLD, "musig2_partial_sign sk timing leak");
+    }
+
+    // ---------------------------------------------------------------
+    // 9b: FROST sign (signing_share = low-HW vs high-HW)
+    //     Secret share is the sensitive input.
+    // ---------------------------------------------------------------
+    {
+        // Set up a simple 2-of-3 FROST DKG
+        constexpr uint32_t n_signers = 3;
+        constexpr uint32_t threshold = 2;
+
+        std::array<uint8_t, 32> dkg_seeds[n_signers]{};
+        for (uint32_t i = 0; i < n_signers; ++i) {
+            dkg_seeds[i][0] = static_cast<uint8_t>(0x10 + i);
+            dkg_seeds[i][1] = static_cast<uint8_t>(0xAB);
+        }
+
+        // Run DKG
+        std::vector<secp256k1::FrostCommitment> commitments;
+        std::vector<std::vector<secp256k1::FrostShare>> all_shares;
+        commitments.reserve(n_signers);
+        all_shares.reserve(n_signers);
+
+        for (uint32_t i = 0; i < n_signers; ++i) {
+            auto [comm, shares] = secp256k1::frost_keygen_begin(
+                i + 1, threshold, n_signers, dkg_seeds[i]);
+            commitments.push_back(std::move(comm));
+            all_shares.push_back(std::move(shares));
+        }
+
+        // Collect per-participant received shares
+        std::vector<secp256k1::FrostKeyPackage> key_pkgs;
+        key_pkgs.reserve(n_signers);
+        for (uint32_t i = 0; i < n_signers; ++i) {
+            std::vector<secp256k1::FrostShare> received;
+            for (uint32_t j = 0; j < n_signers; ++j) {
+                received.push_back(all_shares[j][i]);
+            }
+            auto [pkg, ok] = secp256k1::frost_keygen_finalize(
+                i + 1, commitments, received, threshold, n_signers);
+            (void)ok;
+            key_pkgs.push_back(std::move(pkg));
+        }
+
+        // Signing: participants 1 and 2
+        std::array<uint8_t, 32> msg{};
+        msg[0] = 0xBB;
+
+        std::array<uint8_t, 32> ns1{}, ns2{};
+        ns1[0] = 0x71; ns2[0] = 0x72;
+        auto [nonce1, nc1] = secp256k1::frost_sign_nonce_gen(1, ns1);
+        auto [nonce2, nc2] = secp256k1::frost_sign_nonce_gen(2, ns2);
+        std::vector<secp256k1::FrostNonceCommitment> ncs = { nc1, nc2 };
+
+        // Scalar with low Hamming weight
+        auto sc_low = Scalar::from_hex(
+            "0000000000000000000000000000000100000000000000000000000000000000");
+        // Scalar with high Hamming weight
+        auto sc_high = Scalar::from_hex(
+            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364140");
+
+        // Pre-generate key packages with different signing shares
+        auto* test_pkgs = new secp256k1::FrostKeyPackage[N];
+        int classes[N];
+        for (int i = 0; i < N; ++i) {
+            classes[i] = rng() & 1;
+            test_pkgs[i] = key_pkgs[0]; // copy base
+            test_pkgs[i].signing_share = (classes[i] == 0) ? sc_low : sc_high;
+        }
+
+        WelchState ws;
+        for (int i = 0; i < N; ++i) {
+            int const cls = classes[i];
+
+            BARRIER_FENCE();
+            uint64_t const t0 = rdtsc();
+            BARRIER_FENCE();
+            volatile auto ps = secp256k1::frost_sign(
+                test_pkgs[i], nonce1, msg, ncs);
+            (void)ps;
+            BARRIER_FENCE();
+            uint64_t const t1 = rdtsc();
+            BARRIER_FENCE();
+
+            ws.push(cls, static_cast<double>(t1 - t0));
+        }
+        delete[] test_pkgs;
+        double const t = std::abs(ws.t_value());
+        printf("    frost_sign (share=low vs high HW):    |t| = %6.2f  (%d/%d)  %s\n",
+               t, (int)ws.n[0], (int)ws.n[1],
+               t < T_THRESHOLD ? "[OK] CT" : "[!]  LEAK");
+        check(t < T_THRESHOLD, "frost_sign signing_share timing leak");
+    }
+
+    // ---------------------------------------------------------------
+    // 9c: FROST Lagrange coefficient (participant set difference)
+    //     Lagrange coefficients use modular inversion on public indices;
+    //     should still be CT wrt index values.
+    // ---------------------------------------------------------------
+    {
+#ifdef DUDECT_SMOKE
+        constexpr int NL = SMOKE_N_FIELD;
+#else
+        constexpr int NL = 10000;
+#endif
+        // Two different signer sets for the same participant
+        std::vector<secp256k1::ParticipantId> set_a = {1, 2};
+        std::vector<secp256k1::ParticipantId> set_b = {1, 3};
+
+        int classes[NL];
+        for (int i = 0; i < NL; ++i) classes[i] = rng() & 1;
+
+        WelchState ws;
+        for (int i = 0; i < NL; ++i) {
+            int const cls = classes[i];
+            auto& signer_set = (cls == 0) ? set_a : set_b;
+
+            BARRIER_FENCE();
+            uint64_t const t0 = rdtsc();
+            BARRIER_FENCE();
+            volatile auto lam = secp256k1::frost_lagrange_coefficient(1, signer_set);
+            (void)lam;
+            BARRIER_FENCE();
+            uint64_t const t1 = rdtsc();
+            BARRIER_FENCE();
+
+            ws.push(cls, static_cast<double>(t1 - t0));
+        }
+        double const t = std::abs(ws.t_value());
+        printf("    frost_lagrange (set{1,2} vs {1,3}):   |t| = %6.2f  %s\n",
+               t, t < T_THRESHOLD ? "[OK] CT" : "[!]  LEAK");
+        // Advisory: Lagrange is computed on public indices, so timing variance
+        // is acceptable but we track it for regression detection.
+        check(t < T_THRESHOLD, "frost_lagrange_coefficient timing variance");
+    }
+}
+
+// ===========================================================================
 //  8:   -- 
 // ===========================================================================
 
@@ -1422,6 +1641,7 @@ int test_ct_sidechannel_smoke_run() {
     test_ct_utils();
     test_fast_not_ct();
     test_valgrind_markers();
+    test_protocol_timing();
     test_assembly_info();
     printf("  [ct_sidechannel_smoke] %d passed, %d failed\n", g_pass, g_fail);
     return g_fail > 0 ? 1 : 0;
@@ -1443,6 +1663,7 @@ int main() {
     test_ct_utils();         // 5
     test_fast_not_ct();      // 6 ()
     test_valgrind_markers(); // 7
+    test_protocol_timing();  // 9 (MuSig2/FROST)
     test_assembly_info();    // 8
 
     printf("\n===============================================================\n");

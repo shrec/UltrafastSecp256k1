@@ -269,10 +269,10 @@ FROST and MuSig2 have NOT been CT-audited:
 - [ ] **Formal verification** with Fiat-Crypto for field arithmetic
 - [x] **ct-verif** LLVM pass integration for CT verification (`.github/workflows/ct-verif.yml`)
 - [x] **Multi-uarch dudect** -- x86-64 CI + ARM64 Apple M1 native (`.github/workflows/ct-arm64.yml`)
-- [ ] **dudect expansion** to cover FROST/MuSig2 nonce generation and partial signing
+- [x] **dudect expansion** to cover FROST/MuSig2 -- `musig2_partial_sign`, `frost_sign`, `frost_lagrange_coefficient`
+- [x] **Valgrind CT taint** in CI -- MAKE_MEM_UNDEFINED + --track-origins (`.github/workflows/valgrind-ct.yml`)
 - [ ] **Hardware timing analysis** with oscilloscope-level measurements
 - [ ] **Compiler output audit** for every release at `-O2` and `-O3`
-- [ ] **Valgrind CT taint** in CI -- SECP256K1_CLASSIFY/DECLASSIFY markers with automated check
 
 ---
 

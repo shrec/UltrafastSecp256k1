@@ -1,0 +1,109 @@
+# ============================================================================
+# Performance Regression Gate -- Per-Commit Benchmark Check
+# ============================================================================
+# Runs benchmarks on every push to main/dev and fails if any operation
+# regresses >20% compared to the previous stored baseline.
+#
+# Separate from benchmark.yml (dashboard) -- this one BLOCKS merges.
+# Uses github-action-benchmark with fail-on-alert: true.
+# ============================================================================
+
+name: Perf Regression Gate
+
+on:
+  push:
+    branches: [main, dev]
+    paths:
+      - 'cpu/src/**'
+      - 'cpu/include/**'
+      - 'CMakeLists.txt'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'cpu/src/**'
+      - 'cpu/include/**'
+      - 'CMakeLists.txt'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bench-gate:
+    name: Benchmark Regression Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+    - name: Harden the runner
+      uses: step-security/harden-runner@5ef0c079ce82195b2a36a210272d6b661572d83e # v2.14.2
+      with:
+        egress-policy: audit
+
+    - name: Checkout
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      with:
+        submodules: recursive
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update -qq
+        sudo apt-get install -y -qq ninja-build cmake
+
+    - name: Configure (Release)
+      run: |
+        cmake -S . -B build/bench-gate \
+          -G Ninja \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DBUILD_TESTING=ON \
+          -DSECP256K1_USE_ASM=ON
+
+    - name: Build
+      run: cmake --build build/bench-gate -j$(nproc)
+
+    - name: Run benchmark suite
+      run: |
+        mkdir -p benchmark_results
+        ./build/bench-gate/cpu/bench_comprehensive 2>&1 | tee benchmark_results/raw_output.txt
+        python3 .github/scripts/parse_benchmark.py \
+          benchmark_results/raw_output.txt \
+          benchmark_results/benchmark.json
+
+    - name: Check for regression (fail on >20%)
+      if: github.event_name == 'push'
+      uses: benchmark-action/github-action-benchmark@4bdcce38c94cec68da58d012ac24b7b1155efe8b # v1
+      with:
+        name: 'Perf Regression Gate'
+        tool: 'customSmallerIsBetter'
+        output-file-path: benchmark_results/benchmark.json
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        auto-push: false
+        alert-threshold: '120%'
+        comment-on-alert: true
+        fail-on-alert: true
+        benchmark-data-dir-path: 'dev/bench-gate'
+
+    - name: PR comment (comparison only, no store)
+      if: github.event_name == 'pull_request'
+      uses: benchmark-action/github-action-benchmark@4bdcce38c94cec68da58d012ac24b7b1155efe8b # v1
+      with:
+        name: 'Perf Regression Gate'
+        tool: 'customSmallerIsBetter'
+        output-file-path: benchmark_results/benchmark.json
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        auto-push: false
+        alert-threshold: '120%'
+        comment-on-alert: true
+        fail-on-alert: true
+        benchmark-data-dir-path: 'dev/bench-gate'
+      continue-on-error: true
+
+    - name: Summary
+      if: always()
+      run: |
+        echo "## Benchmark Regression Gate" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        head -40 benchmark_results/raw_output.txt >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "Threshold: 120% (fails if any operation >20% slower than baseline)" >> $GITHUB_STEP_SUMMARY

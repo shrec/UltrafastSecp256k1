@@ -83,6 +83,10 @@ The following automated security measures are in place:
 - **Native ARM64 dudect** -- Apple Silicon (M1) smoke + full statistical analysis on macos-14 runners
 - **ct-verif LLVM pass** -- deterministic compile-time constant-time verification of CT modules
 - **Internal audit suite** -- 641,194 checks across 8 dedicated audit test suites
+- **Valgrind CT taint analysis** -- MAKE_MEM_UNDEFINED + --track-origins secret-dependent branch detection
+- **MuSig2/FROST dudect** -- protocol-level timing analysis (partial_sign, frost_sign, Lagrange)
+- **SARIF audit output** -- `--sarif` flag for GitHub Code Scanning integration
+- **Perf regression gate** -- per-commit benchmark check, fails on >20% regression
 
 ### Planned Security Improvements
 
@@ -93,7 +97,11 @@ The following automated security measures are in place:
 - [x] Multi-uarch dudect campaign -- x86-64 native + RISC-V via QEMU + ARM64 cross-compile
 - [x] CT buffer erasure -- volatile function-pointer trick in signing paths
 - [x] value_barrier on CT mask derivation
-- [ ] FROST / MuSig2 protocol-level test vectors from reference implementations
+- [x] Valgrind CT taint CI -- secret-dependent branch detection (`.github/workflows/valgrind-ct.yml`)
+- [x] MuSig2/FROST protocol-level dudect -- timing tests for partial_sign, frost_sign, Lagrange
+- [x] SARIF output from audit runner -- `--sarif` CLI flag + GitHub Code Scanning upload
+- [x] Performance regression gate -- per-commit 120% threshold (`.github/workflows/bench-regression.yml`)
+- [ ] FROST / MuSig2 reference test vectors from BIP-327/RFC-9591 implementations
 - [ ] Cross-ABI / FFI correctness tests across calling conventions
 
 For production cryptographic systems, prefer audited libraries such as

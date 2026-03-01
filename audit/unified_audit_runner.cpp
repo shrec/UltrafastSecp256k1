@@ -597,6 +597,129 @@ static void write_text_report(const char* path,
 }
 
 // ============================================================================
+// Report writer -- SARIF v2.1.0 (for GitHub Code Scanning integration)
+// ============================================================================
+// SARIF (Static Analysis Results Interchange Format) output enables
+// GitHub Advanced Security code scanning alerts from audit failures.
+// Upload with: github/codeql-action/upload-sarif@v3
+// ============================================================================
+static void write_sarif_report(const char* path,
+                                const PlatformInfo& plat,
+                                const std::vector<ModuleResult>& results,
+                                bool selftest_passed,
+                                double /* selftest_ms */,
+                                double /* total_ms */) {
+#ifdef _WIN32
+    FILE* f = std::fopen(path, "w");
+#else
+    int const fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    FILE* f = (fd >= 0) ? fdopen(fd, "w") : nullptr;
+#endif
+    if (!f) {
+        (void)std::fprintf(stderr, "WARNING: Cannot open %s for SARIF writing\n", path);
+        return;
+    }
+
+    // Collect failed modules (non-advisory) as SARIF results
+    // Advisory warnings become "warning" level; hard failures become "error"
+    int result_count = 0;
+
+    (void)std::fprintf(f, "{\n");
+    (void)std::fprintf(f, "  \"$schema\": \"https://raw.githubusercontent.com/oasis-tcs/sarif-spec/main/sarif-2.1/schema/sarif-schema-2.1.0.json\",\n");
+    (void)std::fprintf(f, "  \"version\": \"2.1.0\",\n");
+    (void)std::fprintf(f, "  \"runs\": [\n");
+    (void)std::fprintf(f, "    {\n");
+    (void)std::fprintf(f, "      \"tool\": {\n");
+    (void)std::fprintf(f, "        \"driver\": {\n");
+    (void)std::fprintf(f, "          \"name\": \"UltrafastSecp256k1 Audit Runner\",\n");
+    (void)std::fprintf(f, "          \"version\": \"%s\",\n", json_escape(plat.library_version).c_str());
+    (void)std::fprintf(f, "          \"semanticVersion\": \"%s\",\n", json_escape(plat.framework_version).c_str());
+    (void)std::fprintf(f, "          \"informationUri\": \"https://github.com/shrec/UltrafastSecp256k1\",\n");
+    (void)std::fprintf(f, "          \"rules\": [\n");
+
+    // Emit rule definitions for all modules
+    for (int i = 0; i < NUM_MODULES; ++i) {
+        auto& m = ALL_MODULES[i];
+        (void)std::fprintf(f, "            {\n");
+        (void)std::fprintf(f, "              \"id\": \"AUDIT/%s\",\n", m.id);
+        (void)std::fprintf(f, "              \"name\": \"%s\",\n", json_escape(m.name).c_str());
+        (void)std::fprintf(f, "              \"shortDescription\": { \"text\": \"%s\" },\n", json_escape(m.name).c_str());
+        (void)std::fprintf(f, "              \"defaultConfiguration\": { \"level\": \"%s\" },\n",
+                     m.advisory ? "warning" : "error");
+        (void)std::fprintf(f, "              \"properties\": { \"section\": \"%s\" }\n", m.section);
+        (void)std::fprintf(f, "            }%s\n", (i + 1 < NUM_MODULES) ? "," : "");
+    }
+    (void)std::fprintf(f, "          ]\n");
+    (void)std::fprintf(f, "        }\n");
+    (void)std::fprintf(f, "      },\n");
+
+    // Results array: only failed modules produce SARIF results
+    (void)std::fprintf(f, "      \"results\": [\n");
+    bool first_result = true;
+
+    // Selftest failure
+    if (!selftest_passed) {
+        (void)std::fprintf(f, "        {\n");
+        (void)std::fprintf(f, "          \"ruleId\": \"AUDIT/selftest\",\n");
+        (void)std::fprintf(f, "          \"level\": \"error\",\n");
+        (void)std::fprintf(f, "          \"message\": { \"text\": \"Library selftest (core KAT) FAILED\" },\n");
+        (void)std::fprintf(f, "          \"locations\": [{ \"physicalLocation\": { \"artifactLocation\": { \"uri\": \"cpu/include/secp256k1/selftest.hpp\" } } }]\n");
+        (void)std::fprintf(f, "        }");
+        first_result = false;
+        ++result_count;
+    }
+
+    for (auto& r : results) {
+        if (r.passed) continue;
+        if (!first_result) (void)std::fprintf(f, ",\n");
+        else (void)std::fprintf(f, "\n");
+        first_result = false;
+
+        const char* level = r.advisory ? "warning" : "error";
+        // Map section to a representative source file
+        const char* uri = "audit/unified_audit_runner.cpp";
+        if (std::strcmp(r.section, "math_invariants") == 0) uri = "cpu/src/field.cpp";
+        else if (std::strcmp(r.section, "ct_analysis") == 0) uri = "cpu/include/secp256k1/ct/ops.hpp";
+        else if (std::strcmp(r.section, "standard_vectors") == 0) uri = "audit/test_cross_platform_kat.cpp";
+        else if (std::strcmp(r.section, "protocol_security") == 0) uri = "cpu/src/musig2.cpp";
+        else if (std::strcmp(r.section, "fuzzing") == 0) uri = "audit/audit_fuzz.cpp";
+        else if (std::strcmp(r.section, "memory_safety") == 0) uri = "audit/test_abi_gate.cpp";
+        else if (std::strcmp(r.section, "performance") == 0) uri = "cpu/tests/bench_comprehensive.cpp";
+
+        (void)std::fprintf(f, "        {\n");
+        (void)std::fprintf(f, "          \"ruleId\": \"AUDIT/%s\",\n", r.id);
+        (void)std::fprintf(f, "          \"level\": \"%s\",\n", level);
+        (void)std::fprintf(f, "          \"message\": { \"text\": \"Audit module '%s' FAILED (section: %s, %.0f ms)\" },\n",
+                     json_escape(r.name).c_str(), r.section, r.elapsed_ms);
+        (void)std::fprintf(f, "          \"locations\": [{ \"physicalLocation\": { \"artifactLocation\": { \"uri\": \"%s\" } } }]\n", uri);
+        (void)std::fprintf(f, "        }");
+        ++result_count;
+    }
+
+    (void)std::fprintf(f, "\n      ],\n");
+
+    // Invocation properties
+    (void)std::fprintf(f, "      \"invocations\": [\n");
+    (void)std::fprintf(f, "        {\n");
+    (void)std::fprintf(f, "          \"executionSuccessful\": %s,\n", (result_count == 0) ? "true" : "false");
+    (void)std::fprintf(f, "          \"toolExecutionNotifications\": []\n");
+    (void)std::fprintf(f, "        }\n");
+    (void)std::fprintf(f, "      ],\n");
+
+    // Properties
+    (void)std::fprintf(f, "      \"properties\": {\n");
+    (void)std::fprintf(f, "        \"platform\": \"%s %s\",\n", plat.os.c_str(), plat.arch.c_str());
+    (void)std::fprintf(f, "        \"compiler\": \"%s\",\n", json_escape(plat.compiler).c_str());
+    (void)std::fprintf(f, "        \"gitHash\": \"%s\"\n", json_escape(plat.git_hash).c_str());
+    (void)std::fprintf(f, "      }\n");
+    (void)std::fprintf(f, "    }\n");
+    (void)std::fprintf(f, "  ]\n");
+    (void)std::fprintf(f, "}\n");
+
+    (void)std::fclose(f);
+}
+
+// ============================================================================
 // Resolve output directory (executable dir by default)
 // ============================================================================
 static std::string get_exe_dir() {
@@ -624,6 +747,7 @@ static void print_usage() {
     std::printf("Usage: unified_audit_runner [OPTIONS]\n\n");
     std::printf("Options:\n");
     std::printf("  --json-only            Suppress console output; write JSON only\n");
+    std::printf("  --sarif                Also generate SARIF v2.1.0 report (for GitHub Code Scanning)\n");
     std::printf("  --report-dir <dir>     Write reports to <dir> (default: exe dir)\n");
     std::printf("  --section <id>         Run only modules in section <id>\n");
     std::printf("  --list-sections        Print available sections and exit\n");
@@ -637,6 +761,7 @@ static void print_usage() {
 int main(int argc, char* argv[]) {
     // Parse args
     bool json_only = false;
+    bool sarif_enabled = false;
     std::string report_dir = "";
     std::string section_filter = "";  // empty = run all
     {
@@ -644,6 +769,9 @@ int main(int argc, char* argv[]) {
         while (i < argc) {
             if (std::strcmp(argv[i], "--json-only") == 0) {
                 json_only = true;
+                ++i;
+            } else if (std::strcmp(argv[i], "--sarif") == 0) {
+                sarif_enabled = true;
                 ++i;
             } else if (std::strcmp(argv[i], "--report-dir") == 0 && i + 1 < argc) {
                 report_dir = argv[i + 1];
@@ -805,9 +933,19 @@ int main(int argc, char* argv[]) {
         write_text_report(text_path.c_str(), plat, results, selftest_passed, selftest_ms, total_ms);
     }
 
+    // SARIF report (for GitHub Code Scanning)
+    std::string sarif_path;
+    if (sarif_enabled) {
+        sarif_path = report_dir + "/audit_report.sarif";
+        write_sarif_report(sarif_path.c_str(), plat, results, selftest_passed, selftest_ms, total_ms);
+    }
+
     if (!json_only) {
-        std::printf("  JSON: %s\n", json_path.c_str());
-        std::printf("  Text: %s\n", text_path.c_str());
+        std::printf("  JSON:  %s\n", json_path.c_str());
+        std::printf("  Text:  %s\n", text_path.c_str());
+        if (sarif_enabled) {
+            std::printf("  SARIF: %s\n", sarif_path.c_str());
+        }
     }
 
     // -- Section Summary Table -------------------------------------------

@@ -1,0 +1,85 @@
+# ============================================================================
+# Valgrind CT Taint Analysis -- Detect Secret-Dependent Branches
+# ============================================================================
+# Uses Valgrind MAKE_MEM_UNDEFINED + --track-origins to detect control flow
+# that depends on secret key material. Zero reports = CT proven at binary
+# level for the tested paths.
+#
+# Wraps scripts/valgrind_ct_check.sh which:
+#   1. Builds with -DVALGRIND_CT_CHECK=1 (marks secrets as undefined)
+#   2. Runs CT ops under valgrind --tool=memcheck --track-origins=yes
+#   3. Reports "Conditional jump depends on uninitialised value" as FAIL
+#
+# Schedule: nightly + on push to main/dev + manual dispatch
+# ============================================================================
+
+name: Valgrind CT Taint
+
+on:
+  push:
+    branches: [main, dev]
+    paths:
+      - 'cpu/src/**'
+      - 'cpu/include/**'
+      - 'audit/**'
+      - 'scripts/valgrind_ct_check.sh'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'cpu/src/**'
+      - 'cpu/include/**'
+      - 'audit/**'
+  schedule:
+    - cron: '30 3 * * *'   # Nightly at 03:30 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  valgrind-ct:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+    - name: Harden the runner
+      uses: step-security/harden-runner@5ef0c079ce82195b2a36a210272d6b661572d83e # v2.14.2
+      with:
+        egress-policy: audit
+
+    - name: Checkout
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      with:
+        submodules: recursive
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y valgrind ninja-build cmake
+
+    - name: Run Valgrind CT analysis
+      run: |
+        chmod +x scripts/valgrind_ct_check.sh
+        ./scripts/valgrind_ct_check.sh build/valgrind-ct
+
+    - name: Upload Valgrind reports
+      if: always()
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      with:
+        name: valgrind-ct-reports
+        path: |
+          build/valgrind-ct/valgrind_reports/valgrind_ct_report.json
+          build/valgrind-ct/valgrind_reports/valgrind_ct.log
+          build/valgrind-ct/valgrind_reports/valgrind_ct.xml
+        retention-days: 30
+
+    - name: Summary
+      if: always()
+      run: |
+        REPORT="build/valgrind-ct/valgrind_reports/valgrind_ct_report.json"
+        if [ -f "$REPORT" ]; then
+          echo "## Valgrind CT Taint Analysis" >> $GITHUB_STEP_SUMMARY
+          echo '```json' >> $GITHUB_STEP_SUMMARY
+          cat "$REPORT" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+        fi

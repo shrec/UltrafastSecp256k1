@@ -30,6 +30,8 @@
 [![Security Audit](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/security-audit.yml/badge.svg)](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/security-audit.yml)
 [![CT ARM64](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/ct-arm64.yml/badge.svg)](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/ct-arm64.yml)
 [![CT-Verif](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/ct-verif.yml/badge.svg)](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/ct-verif.yml)
+[![Valgrind CT](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/valgrind-ct.yml/badge.svg)](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/valgrind-ct.yml)
+[![Perf Gate](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/bench-regression.yml/badge.svg)](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/bench-regression.yml)
 [![Clang-Tidy](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/clang-tidy.yml/badge.svg)](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/clang-tidy.yml)
 [![SonarCloud](https://sonarcloud.io/api/project_badges/measure?project=shrec_UltrafastSecp256k1&metric=security_rating)](https://sonarcloud.io/summary/overall?id=shrec_UltrafastSecp256k1)
 [![codecov](https://codecov.io/gh/shrec/UltrafastSecp256k1/graph/badge.svg)](https://codecov.io/gh/shrec/UltrafastSecp256k1)

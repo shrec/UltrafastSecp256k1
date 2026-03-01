@@ -42,6 +42,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### 6. CT Verification CI
 - **ct-arm64.yml** -- native ARM64 / Apple Silicon dudect (macos-14 M1): smoke per-PR + full nightly
 - **ct-verif.yml** -- compile-time CT verification via ct-verif LLVM pass (deterministic, not statistical)
+- **valgrind-ct.yml** -- Valgrind MAKE_MEM_UNDEFINED taint analysis: detects secret-dependent branches at binary level
+- **MuSig2/FROST dudect** -- protocol-level timing tests: musig2_partial_sign, frost_sign, frost_lagrange_coefficient
+
+### 7. Audit Infrastructure
+- **SARIF output** -- `unified_audit_runner --sarif` generates SARIF v2.1.0 for GitHub Code Scanning
+- **bench-regression.yml** -- per-commit performance regression gate (120% threshold, fail-on-alert)
+- **audit-report.yml** -- now uploads SARIF to GitHub Code Scanning (linux-gcc job)
 
 ## [3.15.3] - 2026-03-01
 
