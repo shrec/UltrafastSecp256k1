@@ -13,6 +13,11 @@ namespace secp256k1::fast {
 // ============================================================================
 
 #if defined(__SIZEOF_INT128__)
+// Suppress -Wpedantic for __int128 (GCC extension, required for 64-bit Comba)
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+#endif
 // 64-bit Comba using __int128: 4x4 = 16 multiplications (vs 8x8 = 64 at 32-bit).
 // Each 64x64->128 multiply maps to MUL + MULHU on x86-64, UMULH on AArch64.
 // Carry chain uses libsecp256k1-style 192-bit accumulator (c0:c1:c2).
@@ -84,27 +89,9 @@ static std::array<std::uint64_t, 4> mul_shift_384_const(
     return result;
 }
 
-// Runtime version (fallback)
-static std::array<std::uint64_t, 4> mul_shift_384(
-    const std::array<std::uint64_t, 4>& a,
-    const std::array<std::uint64_t, 4>& b) {
-
-    std::uint64_t prod[8];
-    glv_mul_comba_64(a.data(), b.data(), prod);
-
-    // Bits 384..511 sit in prod[6..7] (since 384/64 = 6)
-    std::array<std::uint64_t, 4> result{};
-    result[0] = prod[6];
-    result[1] = prod[7];
-    // result[2] = result[3] = 0
-
-    // Rounding bit: bit 383 of 512-bit product = bit 63 of prod[5]
-    if (prod[5] >> 63) {
-        result[0]++;
-        if (result[0] == 0) result[1]++;
-    }
-    return result;
-}
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
 
 #else
 // 32-bit fallback for platforms without __int128 (e.g. ESP32)
