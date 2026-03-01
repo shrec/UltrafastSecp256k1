@@ -1,6 +1,6 @@
 # Audit Guide
 
-**UltrafastSecp256k1 v3.12.1** -- Independent Auditor Navigation
+**UltrafastSecp256k1 v3.15.0** -- Independent Auditor Navigation
 
 > This document is for auditors. Here you will find everything needed
 > to evaluate the library's security, correctness, and quality.
@@ -323,4 +323,4 @@ clang++ -fsanitize=fuzzer,address -O2 -std=c++20 \
 
 ---
 
-*UltrafastSecp256k1 v3.12.1 -- Audit Guide*
+*UltrafastSecp256k1 v3.15.0 -- Audit Guide*

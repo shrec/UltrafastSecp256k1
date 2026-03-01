@@ -7,6 +7,7 @@
 
 #include "secp256k1/batch_verify.hpp"
 #include "secp256k1/multiscalar.hpp"
+#include "secp256k1/pippenger.hpp"
 #include "secp256k1/sha256.hpp"
 #include <cstring>
 
@@ -150,8 +151,10 @@ bool schnorr_batch_verify(const SchnorrBatchEntry* entries, std::size_t n) {
         points.push_back(R_points[i]);
     }
 
-    // Verify: multi_scalar_mul should yield infinity
-    auto result = multi_scalar_mul(scalars, points);
+    // Verify: MSM should yield infinity
+    // msm() auto-selects Strauss (n<=128) or Pippenger (n>128)
+    // For n=500 Schnorr batch -> 1001 points -> Pippenger is 10x+ faster
+    auto result = msm(scalars, points);
     return result.is_infinity();
 }
 
@@ -205,7 +208,19 @@ bool ecdsa_batch_verify(const ECDSABatchEntry* entries, std::size_t n) {
         s_inv[0] = inv;
     }
 
-    // Verify each signature using Shamir's trick (shared G across all)
+    // ECDSA batch: per-signature Shamir trick + Montgomery batch inversion.
+    //
+    // Unlike Schnorr (where batch = single MSM -> infinity check), ECDSA
+    // requires per-signature x-coordinate check: R'_i.x mod n == r_i.
+    // True single-MSM batch would require lifting r_i to R_i (sqrt), but
+    // standard ECDSA doesn't provide the y-parity (recovery flag), so
+    // ~50% of attempts would pick wrong y and force fallback.
+    //
+    // Shamir's trick (simultaneous u1*G + u2*Q, joint wNAF scan) gives
+    // ~2x speedup over naive separate muls. Combined with Montgomery
+    // batch inversion above (1 modular inverse instead of n), this is
+    // near-optimal for standard ECDSA without recovery parameter.
+
     for (std::size_t i = 0; i < n; ++i) {
         if (entries[i].signature.r.is_zero() || entries[i].signature.s.is_zero()) {
             return false;
@@ -215,7 +230,7 @@ bool ecdsa_batch_verify(const ECDSABatchEntry* entries, std::size_t n) {
         auto u1 = z * s_inv[i];
         auto u2 = entries[i].signature.r * s_inv[i];
 
-        // R' = u1*G + u2*Q via Shamir's trick
+        // R' = u1*G + u2*Q via Shamir's trick (joint wNAF, ~2x individual)
         auto R_prime = shamir_trick(u1, Point::generator(),
                                     u2, entries[i].public_key);
         if (R_prime.is_infinity()) return false;

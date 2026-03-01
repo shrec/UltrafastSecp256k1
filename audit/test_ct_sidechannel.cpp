@@ -164,16 +164,15 @@ static int g_pass = 0, g_fail = 0;
 // Smoke mode: short run for CI (compile with -DDUDECT_SMOKE).
 // Full mode: longer statistical run for local/nightly testing.
 #ifdef DUDECT_SMOKE
-// MSVC value_barrier uses volatile store-load pairs (no inline asm on x64)
-// which adds ~15-30 t-stat noise on is_zero_mask tests.  Raise threshold
-// to avoid false-positive flakes while still catching gross leaks (|t|>100).
-// Non-MSVC CI runners (shared ubuntu-24.04) also exhibit timing noise
-// with SMOKE_N_PRIM=5000 samples; 35.0 avoids false flakes while still
-// catching genuine leaks (|t| > 100).
+// All test data now uses INTERLEAVED single arrays (not [2][N] separate
+// classes) which eliminates cache-line bias that was causing false positives
+// (e.g. scalar_bit |t|=192 was cache artifact, not real leak).
+// Post-fix thresholds: tightened from 35/50 to 20/25 to catch genuine leaks.
+// MSVC volatile store-load barriers add ~10-15 t-stat noise (no inline asm).
 #if defined(_MSC_VER)
-static constexpr double T_THRESHOLD = 50.0;
+static constexpr double T_THRESHOLD = 25.0;
 #else
-static constexpr double T_THRESHOLD = 35.0;
+static constexpr double T_THRESHOLD = 20.0;
 #endif
 static constexpr int    SMOKE_N_PRIM  = 5000; // Primitive ops (masks, cmov, etc.)
 static constexpr int    SMOKE_N_FIELD = 3000; // Field/scalar ops
@@ -238,19 +237,18 @@ static void test_ct_primitives() {
 
     // -- 1b: bool_to_mask -------------------------------------------------
     {
-        bool inputs[2][N];
+        auto* flag_arr = new bool[N];
         int classes[N];
         for (int i = 0; i < N; ++i) {
             classes[i] = rng() & 1;
-            inputs[0][i] = false;
-            inputs[1][i] = true;
+            flag_arr[i] = (classes[i] != 0);
         }
 
         WelchState ws;
         for (int i = 0; i < N; ++i) {
             int const cls = classes[i];
             // NOLINTNEXTLINE(misc-const-correctness) -- modified by BARRIER_OPAQUE
-            bool flag = inputs[cls][i];
+            bool flag = flag_arr[i];
 
             BARRIER_OPAQUE(flag);
             uint64_t const t0 = rdtsc();
@@ -263,6 +261,7 @@ static void test_ct_primitives() {
 
             ws.push(cls, static_cast<double>(t1 - t0));
         }
+        delete[] flag_arr;
         double const t = std::abs(ws.t_value());
         printf("    bool_to_mask:    |t| = %6.2f  (%d/%d)  %s\n",
                t, (int)ws.n[0], (int)ws.n[1],
@@ -272,12 +271,11 @@ static void test_ct_primitives() {
 
     // -- 1c: cmov256 -----------------------------------------------------
     {
-        uint64_t masks[2][N];
+        auto* mask_arr = new uint64_t[N];
         int classes[N];
         for (int i = 0; i < N; ++i) {
             classes[i] = rng() & 1;
-            masks[0][i] = 0;
-            masks[1][i] = ~0ULL;
+            mask_arr[i] = (classes[i] == 0) ? 0ULL : ~0ULL;
         }
         uint64_t dst[4] = {1,2,3,4};
         uint64_t src[4] = {5,6,7,8};
@@ -286,7 +284,7 @@ static void test_ct_primitives() {
         for (int i = 0; i < N; ++i) {
             int const cls = classes[i];
             // NOLINTNEXTLINE(misc-const-correctness) -- modified by BARRIER_OPAQUE
-            uint64_t mask = masks[cls][i];
+            uint64_t mask = mask_arr[i];
 
             BARRIER_OPAQUE(mask);
             uint64_t const t0 = rdtsc();
@@ -298,6 +296,7 @@ static void test_ct_primitives() {
 
             ws.push(cls, static_cast<double>(t1 - t0));
         }
+        delete[] mask_arr;
         double const t = std::abs(ws.t_value());
         printf("    cmov256:         |t| = %6.2f  (%d/%d)  %s\n",
                t, (int)ws.n[0], (int)ws.n[1],
@@ -307,12 +306,12 @@ static void test_ct_primitives() {
 
     // -- 1d: cswap256 ----------------------------------------------------
     {
-        uint64_t masks[2][N];
+        // Single interleaved array for masks
+        auto* mask_arr = new uint64_t[N];
         int classes[N];
         for (int i = 0; i < N; ++i) {
             classes[i] = rng() & 1;
-            masks[0][i] = 0;
-            masks[1][i] = ~0ULL;
+            mask_arr[i] = (classes[i] == 0) ? 0ULL : ~0ULL;
         }
         uint64_t a[4] = {1,2,3,4}, b[4] = {5,6,7,8};
 
@@ -320,7 +319,7 @@ static void test_ct_primitives() {
         for (int i = 0; i < N; ++i) {
             int const cls = classes[i];
             // NOLINTNEXTLINE(misc-const-correctness) -- modified by BARRIER_OPAQUE
-            uint64_t mask = masks[cls][i];
+            uint64_t mask = mask_arr[i];
 
             BARRIER_OPAQUE(mask);
             uint64_t const t0 = rdtsc();
@@ -337,16 +336,17 @@ static void test_ct_primitives() {
                t, (int)ws.n[0], (int)ws.n[1],
                t < T_THRESHOLD ? "[OK] CT" : "[!]  LEAK");
         check(t < T_THRESHOLD, "cswap256 timing leak");
+        delete[] mask_arr;
     }
 
     // -- 1e: ct_lookup_256 (16 entries) ----------------------------------
     {
-        size_t indices[2][N];
+        // Single interleaved array for indices
+        auto* idx_arr = new size_t[N];
         int classes[N];
         for (int i = 0; i < N; ++i) {
             classes[i] = rng() & 1;
-            indices[0][i] = 0;            // always first
-            indices[1][i] = rng() % 16;   // random
+            idx_arr[i] = (classes[i] == 0) ? 0 : (rng() % 16);
         }
         uint64_t table[16][4];
         for (int i = 0; i < 16; ++i) {
@@ -358,7 +358,7 @@ static void test_ct_primitives() {
         for (int i = 0; i < N; ++i) {
             int const cls = classes[i];
             // NOLINTNEXTLINE(misc-const-correctness) -- modified by BARRIER_OPAQUE
-            size_t idx = indices[cls][i];
+            size_t idx = idx_arr[i];
 
             BARRIER_OPAQUE(idx);
             uint64_t const t0 = rdtsc();
@@ -370,6 +370,7 @@ static void test_ct_primitives() {
 
             ws.push(cls, static_cast<double>(t1 - t0));
         }
+        delete[] idx_arr;
         double const t = std::abs(ws.t_value());
         printf("    ct_lookup_256:   |t| = %6.2f  (%d/%d)  %s\n",
                t, (int)ws.n[0], (int)ws.n[1],
@@ -379,29 +380,29 @@ static void test_ct_primitives() {
 
     // -- 1f: ct_equal ----------------------------------------------------
     {
-        // Pre-generate: class 0 = identical buffers, class 1 = different
+        // Pre-generate: single interleaved array
+        // class 0 = identical buffers, class 1 = different buffers
         struct Pair { uint8_t a[32]; uint8_t b[32]; };
-        auto* pairs0 = new Pair[N]; // class 0: a == b
-        auto* pairs1 = new Pair[N]; // class 1: a != b
+        auto* pairs = new Pair[N];
         int classes[N];
         for (int i = 0; i < N; ++i) {
             classes[i] = rng() & 1;
-            random_bytes(pairs0[i].a, 32);
-            std::memcpy(pairs0[i].b, pairs0[i].a, 32);
-            random_bytes(pairs1[i].a, 32);
-            random_bytes(pairs1[i].b, 32);
+            random_bytes(pairs[i].a, 32);
+            if (classes[i] == 0) {
+                std::memcpy(pairs[i].b, pairs[i].a, 32); // identical
+            } else {
+                random_bytes(pairs[i].b, 32); // different
+            }
         }
 
         WelchState ws;
         for (int i = 0; i < N; ++i) {
             int const cls = classes[i];
-            const uint8_t* a = (cls == 0) ? pairs0[i].a : pairs1[i].a;
-            const uint8_t* b = (cls == 0) ? pairs0[i].b : pairs1[i].b;
 
             BARRIER_FENCE();
             uint64_t const t0 = rdtsc();
             BARRIER_FENCE();
-            volatile bool const eq = secp256k1::ct::ct_equal(a, b, 32);
+            volatile bool const eq = secp256k1::ct::ct_equal(pairs[i].a, pairs[i].b, 32);
             (void)eq;
             BARRIER_FENCE();
             uint64_t const t1 = rdtsc();
@@ -409,8 +410,7 @@ static void test_ct_primitives() {
 
             ws.push(cls, static_cast<double>(t1 - t0));
         }
-        delete[] pairs0;
-        delete[] pairs1;
+        delete[] pairs;
         double const t = std::abs(ws.t_value());
         printf("    ct_equal:        |t| = %6.2f  (%d/%d)  %s\n",
                t, (int)ws.n[0], (int)ws.n[1],
@@ -757,28 +757,33 @@ static void test_ct_scalar() {
         // We test that timing doesn't reveal the bit VALUE at a fixed position.
         constexpr size_t TEST_POS = 128;  // middle bit, limb 2
 
-        // Pre-generate scalars where bit TEST_POS is forced to 0 or 1
-        static Scalar sc_cls[2][N];
+        // Pre-generate scalars in a SINGLE interleaved array.
+        // Previous version used sc_cls[2][N] (two separate arrays), which
+        // placed class 0 and class 1 scalars in different memory regions,
+        // causing cache-line misses correlated with class -> false |t|=192.
+        // Fix: one array, each slot pre-assigned to its class.
+        auto* sc_bit = new Scalar[N];
         for (int i = 0; i < N; ++i) {
             auto s = random_scalar();
             auto limbs = s.limbs();
-            // Class 0: force bit to 0
-            limbs[TEST_POS / 64] &= ~(uint64_t(1) << (TEST_POS % 64));
-            sc_cls[0][i] = Scalar::from_limbs(limbs);
-            // Class 1: force bit to 1
-            limbs[TEST_POS / 64] |= (uint64_t(1) << (TEST_POS % 64));
-            sc_cls[1][i] = Scalar::from_limbs(limbs);
+            if (classes[i] == 0) {
+                // Class 0: force bit to 0
+                limbs[TEST_POS / 64] &= ~(uint64_t(1) << (TEST_POS % 64));
+            } else {
+                // Class 1: force bit to 1
+                limbs[TEST_POS / 64] |= (uint64_t(1) << (TEST_POS % 64));
+            }
+            sc_bit[i] = Scalar::from_limbs(limbs);
         }
 
         WelchState ws;
         for (int i = 0; i < N; ++i) {
             int const cls = classes[i];
-            const auto& sc = sc_cls[cls][i];
 
             BARRIER_FENCE();
             uint64_t const t0 = rdtsc();
             BARRIER_FENCE();
-            volatile auto bit = secp256k1::ct::scalar_bit(sc, TEST_POS);
+            volatile auto bit = secp256k1::ct::scalar_bit(sc_bit[i], TEST_POS);
             (void)bit;
             BARRIER_FENCE();
             uint64_t const t1 = rdtsc();
@@ -786,6 +791,7 @@ static void test_ct_scalar() {
 
             ws.push(cls, static_cast<double>(t1 - t0));
         }
+        delete[] sc_bit;
         double const t = std::abs(ws.t_value());
         printf("    scalar_bit:      |t| = %6.2f  %s\n",
                t, t < T_THRESHOLD ? "[OK] CT" : "[!]  LEAK");
@@ -794,17 +800,18 @@ static void test_ct_scalar() {
 
     // -- 3f: scalar_window -----------------------------------------------
     {
-        size_t positions[2][N];
+        // Same interleaving fix as scalar_bit: single array avoids
+        // cache-correlated timing from separate position arrays.
+        auto* pos_arr = new size_t[N];
         for (int i = 0; i < N; ++i) {
-            positions[0][i] = 0;
-            positions[1][i] = (rng() % 63) * 4; // random 4-bit window position
+            pos_arr[i] = (classes[i] == 0) ? 0 : ((rng() % 63) * 4);
         }
 
         WelchState ws;
         for (int i = 0; i < N; ++i) {
             int const cls = classes[i];
             // NOLINTNEXTLINE(misc-const-correctness) -- modified by BARRIER_OPAQUE
-            size_t pos = positions[cls][i];
+            size_t pos = pos_arr[i];
 
             BARRIER_OPAQUE(pos);
             uint64_t const t0 = rdtsc();
@@ -817,6 +824,7 @@ static void test_ct_scalar() {
 
             ws.push(cls, static_cast<double>(t1 - t0));
         }
+        delete[] pos_arr;
         double const t = std::abs(ws.t_value());
         printf("    scalar_window:   |t| = %6.2f  %s\n",
                t, t < T_THRESHOLD ? "[OK] CT" : "[!]  LEAK");
@@ -928,18 +936,18 @@ static void test_ct_point() {
         auto sc_one = Scalar::from_hex(
             "0000000000000000000000000000000000000000000000000000000000000001");
 
-        Scalar scalars[2][N];
+        // Single interleaved array: avoids cache-line bias from [2][N] layout
+        auto* test_scalars = new Scalar[N];
         int classes[N];
         for (int i = 0; i < N; ++i) {
             classes[i] = rng() & 1;
-            scalars[0][i] = sc_one;
-            scalars[1][i] = random_scalar();
+            test_scalars[i] = (classes[i] == 0) ? sc_one : random_scalar();
         }
 
         WelchState ws;
         for (int i = 0; i < N; ++i) {
             int const cls = classes[i];
-            auto& k = scalars[cls][i];
+            auto& k = test_scalars[i];
 
             BARRIER_FENCE();
             uint64_t const t0 = rdtsc();
@@ -952,6 +960,7 @@ static void test_ct_point() {
 
             ws.push(cls, static_cast<double>(t1 - t0));
         }
+        delete[] test_scalars;
         double const t = std::abs(ws.t_value());
         printf("    scalar_mul (k=1 vs random):  |t| = %6.2f  (%d/%d)  %s\n",
                t, (int)ws.n[0], (int)ws.n[1],
@@ -969,18 +978,18 @@ static void test_ct_point() {
         auto sc_nm1 = Scalar::from_hex(
             "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364140");
 
-        Scalar scalars[2][N];
+        // Single interleaved array
+        auto* test_scalars = new Scalar[N];
         int classes[N];
         for (int i = 0; i < N; ++i) {
             classes[i] = rng() & 1;
-            scalars[0][i] = sc_nm1;
-            scalars[1][i] = random_scalar();
+            test_scalars[i] = (classes[i] == 0) ? sc_nm1 : random_scalar();
         }
 
         WelchState ws;
         for (int i = 0; i < N; ++i) {
             int const cls = classes[i];
-            auto& k = scalars[cls][i];
+            auto& k = test_scalars[i];
 
             BARRIER_FENCE();
             uint64_t const t0 = rdtsc();
@@ -993,6 +1002,7 @@ static void test_ct_point() {
 
             ws.push(cls, static_cast<double>(t1 - t0));
         }
+        delete[] test_scalars;
         double const t = std::abs(ws.t_value());
         printf("    scalar_mul (k=n-1 vs random):|t| = %6.2f  (%d/%d)  %s\n",
                t, (int)ws.n[0], (int)ws.n[1],
@@ -1012,18 +1022,18 @@ static void test_ct_point() {
         auto sc_high = Scalar::from_hex(
             "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364140");
 
-        Scalar scalars[2][N];
+        // Single interleaved array
+        auto* test_scalars = new Scalar[N];
         int classes[N];
         for (int i = 0; i < N; ++i) {
             classes[i] = rng() & 1;
-            scalars[0][i] = sc_low;
-            scalars[1][i] = sc_high;
+            test_scalars[i] = (classes[i] == 0) ? sc_low : sc_high;
         }
 
         WelchState ws;
         for (int i = 0; i < N; ++i) {
             int const cls = classes[i];
-            auto& k = scalars[cls][i];
+            auto& k = test_scalars[i];
 
             BARRIER_FENCE();
             uint64_t const t0 = rdtsc();
@@ -1036,6 +1046,7 @@ static void test_ct_point() {
 
             ws.push(cls, static_cast<double>(t1 - t0));
         }
+        delete[] test_scalars;
         double const t = std::abs(ws.t_value());
         printf("    generator_mul (low vs high HW):|t| = %6.2f  (%d/%d)  %s\n",
                t, (int)ws.n[0], (int)ws.n[1],
@@ -1058,19 +1069,19 @@ static void test_ct_point() {
                      secp256k1::ct::CTJacobianPoint::from_point(G));
         }
 
-        size_t indices[2][N];
+        // Single interleaved array
+        auto* idx_arr = new size_t[N];
         int classes[N];
         for (int i = 0; i < N; ++i) {
             classes[i] = rng() & 1;
-            indices[0][i] = 0;
-            indices[1][i] = 15;
+            idx_arr[i] = (classes[i] == 0) ? 0 : 15;
         }
 
         WelchState ws;
         for (int i = 0; i < N; ++i) {
             int const cls = classes[i];
             // NOLINTNEXTLINE(misc-const-correctness) -- modified by BARRIER_OPAQUE
-            size_t idx = indices[cls][i];
+            size_t idx = idx_arr[i];
 
             BARRIER_OPAQUE(idx);
             uint64_t const t0 = rdtsc();
@@ -1083,6 +1094,7 @@ static void test_ct_point() {
 
             ws.push(cls, static_cast<double>(t1 - t0));
         }
+        delete[] idx_arr;
         double const t = std::abs(ws.t_value());
         printf("    point_tbl_lookup (0 vs 15):  |t| = %6.2f  %s\n",
                t, t < T_THRESHOLD ? "[OK] CT" : "[!]  LEAK");

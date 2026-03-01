@@ -82,14 +82,12 @@ fe52_mul_inner_riscv64:
     # s0=a0, s1=a1, s2=a2, s3=a3, s4=a4 (loaded from a[])
     # s5=M52 mask
     # s6=r pointer (saved a0)
-    # s7=b pointer (saved a2)
+    # s7=b0, t1=b1, t2=b2, t5=b3, a7=b4 (preloaded from b[])
     # s8=d_lo, s9=d_hi
     # s10=c_lo, s11=c_hi
-    # t0-t4 = scratch
-    # a3-a7 = more scratch
+    # t0, t3, t4, t6 = scratch
 
     mv   s6, a0                 # save r pointer
-    mv   s7, a2                 # save b pointer
 
     # Load a[0..4]
     ld   s0,  0(a1)
@@ -98,25 +96,28 @@ fe52_mul_inner_riscv64:
     ld   s3, 24(a1)
     ld   s4, 32(a1)
 
+    # Preload b[0..4] into registers -- eliminates ~20 memory loads
+    # (each ld is 3-4 cycle stall on SiFive U74 L1 cache)
+    ld   s7,  0(a2)             # b[0]
+    ld   t1,  8(a2)             # b[1]
+    ld   t2, 16(a2)             # b[2]
+    ld   t5, 24(a2)             # b[3]
+    ld   a7, 32(a2)             # b[4]
+
     # M52 constant
     li   s5, 0xFFFFFFFFFFFFF
 
-    # ─── Step 1: d = a0*b3 + a1*b2 + a2*b1 + a3*b0 ──────────────────
-    ld   t0, 24(s7)             # b[3]
-    MULPROD s8, s9, s0, t0      # d = a0*b3
+    # --- Step 1: d = a0*b3 + a1*b2 + a2*b1 + a3*b0 ------------------
+    MULPROD s8, s9, s0, t5      # d = a0*b3
 
-    ld   t0, 16(s7)             # b[2]
-    MULACCUM s8, s9, s1, t0, t3, t4
+    MULACCUM s8, s9, s1, t2, t3, t4
 
-    ld   t0,  8(s7)             # b[1]
-    MULACCUM s8, s9, s2, t0, t3, t4
+    MULACCUM s8, s9, s2, t1, t3, t4
 
-    ld   t0,  0(s7)             # b[0]
-    MULACCUM s8, s9, s3, t0, t3, t4
+    MULACCUM s8, s9, s3, s7, t3, t4
 
     # c = a4*b4
-    ld   t0, 32(s7)             # b[4]
-    MULPROD s10, s11, s4, t0
+    MULPROD s10, s11, s4, a7
 
     # d += R * c_lo
     li   t0, 0x1000003D10
@@ -129,17 +130,12 @@ fe52_mul_inner_riscv64:
     and  a3, s8, s5             # a3 = t3
     RSHIFT52 s8, s9
 
-    # ─── Step 2: d += a0*b4 + a1*b3 + a2*b2 + a3_val*b1 + a4*b0 ────
-    ld   t0, 32(s7)
-    MULACCUM s8, s9, s0, t0, t3, t4
-    ld   t0, 24(s7)
-    MULACCUM s8, s9, s1, t0, t3, t4
-    ld   t0, 16(s7)
-    MULACCUM s8, s9, s2, t0, t3, t4
-    ld   t0,  8(s7)
-    MULACCUM s8, s9, s3, t0, t3, t4
-    ld   t0,  0(s7)
-    MULACCUM s8, s9, s4, t0, t3, t4
+    # --- Step 2: d += a0*b4 + a1*b3 + a2*b2 + a3_val*b1 + a4*b0 ------
+    MULACCUM s8, s9, s0, a7, t3, t4
+    MULACCUM s8, s9, s1, t5, t3, t4
+    MULACCUM s8, s9, s2, t2, t3, t4
+    MULACCUM s8, s9, s3, t1, t3, t4
+    MULACCUM s8, s9, s4, s7, t3, t4
 
     # d += (R<<12) * c_remaining
     li   t0, 0x1000003D10000
@@ -154,15 +150,11 @@ fe52_mul_inner_riscv64:
     srli t0, s5, 4
     and  a4, a4, t0             # t4 with M48 mask
 
-    # ─── Step 3: col0 + col5 ─────────────────────────────────────────
-    ld   t0, 32(s7)
-    MULACCUM s8, s9, s1, t0, t3, t4
-    ld   t0, 24(s7)
-    MULACCUM s8, s9, s2, t0, t3, t4
-    ld   t0, 16(s7)
-    MULACCUM s8, s9, s3, t0, t3, t4
-    ld   t0,  8(s7)
-    MULACCUM s8, s9, s4, t0, t3, t4
+    # --- Step 3: col0 + col5 -------------------------------------------
+    MULACCUM s8, s9, s1, a7, t3, t4
+    MULACCUM s8, s9, s2, t5, t3, t4
+    MULACCUM s8, s9, s3, t2, t3, t4
+    MULACCUM s8, s9, s4, t1, t3, t4
 
     # u0 = d & M52;  d >>= 52
     and  a6, s8, s5             # a6 = u0
@@ -173,8 +165,7 @@ fe52_mul_inner_riscv64:
     or   a6, a6, a5
 
     # c = a0 * b[0]
-    ld   t0, 0(s7)
-    MULPROD s10, s11, s0, t0
+    MULPROD s10, s11, s0, s7
 
     # c += u0 * (R >> 4)
     li   t0, 0x1000003D1
@@ -185,18 +176,13 @@ fe52_mul_inner_riscv64:
     sd   t0, 0(s6)
     RSHIFT52 s10, s11
 
-    # ─── Step 4: col1 + col6 ─────────────────────────────────────────
-    ld   t0, 8(s7)
-    MULACCUM s10, s11, s0, t0, t3, t4
-    ld   t0, 0(s7)
-    MULACCUM s10, s11, s1, t0, t3, t4
+    # --- Step 4: col1 + col6 -------------------------------------------
+    MULACCUM s10, s11, s0, t1, t3, t4
+    MULACCUM s10, s11, s1, s7, t3, t4
 
-    ld   t0, 32(s7)
-    MULACCUM s8, s9, s2, t0, t3, t4
-    ld   t0, 24(s7)
-    MULACCUM s8, s9, s3, t0, t3, t4
-    ld   t0, 16(s7)
-    MULACCUM s8, s9, s4, t0, t3, t4
+    MULACCUM s8, s9, s2, a7, t3, t4
+    MULACCUM s8, s9, s3, t5, t3, t4
+    MULACCUM s8, s9, s4, t2, t3, t4
 
     # c += (d & M52) * R
     and  a6, s8, s5
@@ -211,18 +197,13 @@ fe52_mul_inner_riscv64:
     sd   t0, 8(s6)
     RSHIFT52 s10, s11
 
-    # ─── Step 5: col2 + col7 ─────────────────────────────────────────
-    ld   t0, 16(s7)
-    MULACCUM s10, s11, s0, t0, t3, t4
-    ld   t0, 8(s7)
-    MULACCUM s10, s11, s1, t0, t3, t4
-    ld   t0, 0(s7)
-    MULACCUM s10, s11, s2, t0, t3, t4
+    # --- Step 5: col2 + col7 -------------------------------------------
+    MULACCUM s10, s11, s0, t2, t3, t4
+    MULACCUM s10, s11, s1, t1, t3, t4
+    MULACCUM s10, s11, s2, s7, t3, t4
 
-    ld   t0, 32(s7)
-    MULACCUM s8, s9, s3, t0, t3, t4
-    ld   t0, 24(s7)
-    MULACCUM s8, s9, s4, t0, t3, t4
+    MULACCUM s8, s9, s3, a7, t3, t4
+    MULACCUM s8, s9, s4, t5, t3, t4
 
     # c += R * d_lo (full 64-bit!)
     li   t0, 0x1000003D10
@@ -237,7 +218,7 @@ fe52_mul_inner_riscv64:
     sd   t0, 16(s6)
     RSHIFT52 s10, s11
 
-    # ─── Step 6: Finalize ─────────────────────────────────────────────
+    # --- Step 6: Finalize -----------------------------------------------
     # c += (R<<12) * d
     li   t0, 0x1000003D10000
     MULACCUM s10, s11, t0, s8, t3, t4

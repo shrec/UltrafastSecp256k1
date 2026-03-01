@@ -224,7 +224,6 @@ void field_mul_arm64(uint64_t out[4], const uint64_t a[4], const uint64_t b[4]) 
     constexpr uint64_t P0 = 0xFFFFFFFEFFFFFC2FULL;
     constexpr uint64_t P1 = 0xFFFFFFFFFFFFFFFFULL;
     uint64_t s0, s1, s2, s3;
-    uint64_t mask;
     
     __asm__ __volatile__(
         // Subtract p
@@ -232,26 +231,17 @@ void field_mul_arm64(uint64_t out[4], const uint64_t a[4], const uint64_t b[4]) 
         "sbcs   %[s1], %[r1], %[p1]         \n\t"
         "sbcs   %[s2], %[r2], %[p1]         \n\t"
         "sbcs   %[s3], %[r3], %[p1]         \n\t"
-        // mask = borrow ? ~0 : 0
-        "csetm  %[mask], cc                 \n\t"
-        // Branchless select: out = borrow ? r : s
-        "bic    x8,  %[s0], %[mask]         \n\t"
-        "and    x9,  %[r0], %[mask]         \n\t"
-        "orr    %[s0], x8, x9               \n\t"
-        "bic    x8,  %[s1], %[mask]         \n\t"
-        "and    x9,  %[r1], %[mask]         \n\t"
-        "orr    %[s1], x8, x9               \n\t"
-        "bic    x8,  %[s2], %[mask]         \n\t"
-        "and    x9,  %[r2], %[mask]         \n\t"
-        "orr    %[s2], x8, x9               \n\t"
-        "bic    x8,  %[s3], %[mask]         \n\t"
-        "and    x9,  %[r3], %[mask]         \n\t"
-        "orr    %[s3], x8, x9               \n\t"
-        : [s0] "=&r"(s0), [s1] "=&r"(s1), [s2] "=&r"(s2), [s3] "=&r"(s3),
-          [mask] "=&r"(mask)
+        // Branchless select via CSEL: out = borrow ? r : s
+        // CSEL is 1 instruction per limb vs BIC+AND+ORR (3 per limb)
+        // cc = carry clear = borrow occurred
+        "csel   %[s0], %[r0], %[s0], cc     \n\t"
+        "csel   %[s1], %[r1], %[s1], cc     \n\t"
+        "csel   %[s2], %[r2], %[s2], cc     \n\t"
+        "csel   %[s3], %[r3], %[s3], cc     \n\t"
+        : [s0] "=&r"(s0), [s1] "=&r"(s1), [s2] "=&r"(s2), [s3] "=&r"(s3)
         : [r0] "r"(r0), [r1] "r"(r1), [r2] "r"(r2), [r3] "r"(r3),
           [p0] "r"(P0), [p1] "r"(P1)
-        : "x8", "x9", "cc"
+        : "cc"
     );
     
     out[0] = s0;
@@ -327,13 +317,15 @@ void field_sqr_arm64(uint64_t out[4], const uint64_t a[4]) noexcept {
         "adc    x20, x20, x21          \n\t"   // col6
         
         // Double everything (shift left by 1 for 2x cross products)
-        "adds   x8,  x8,  x8           \n\t"   // col1 x 2
-        "adcs   x9,  x9,  x9           \n\t"   // col2 x 2
-        "adcs   x11, x11, x11          \n\t"   // col3 x 2
-        "adcs   x13, x13, x13          \n\t"   // col4 x 2
-        "adcs   x17, x17, x17          \n\t"   // col5 x 2
-        "adcs   x20, x20, x20          \n\t"   // col6 x 2
-        "adc    x21, xzr, xzr          \n\t"   // col7 carry
+        // EXTR-based: no carry flag dependencies -- all 7 instructions independent
+        // on OoO cores (Apple M1/M2: all dispatch in 1-2 cycles vs 7 for ADDS chain)
+        "lsr    x21, x20, #63          \n\t"   // col7 = MSB of col6
+        "extr   x20, x20, x17, #63     \n\t"   // col6 x 2 (with col5 carry-in)
+        "extr   x17, x17, x13, #63     \n\t"   // col5 x 2
+        "extr   x13, x13, x11, #63     \n\t"   // col4 x 2
+        "extr   x11, x11, x9,  #63     \n\t"   // col3 x 2
+        "extr   x9,  x9,  x8,  #63     \n\t"   // col2 x 2
+        "lsl    x8,  x8,  #1           \n\t"   // col1 x 2
         
         // Now add diagonal products a[i]*a[i]
         // a[0]*a[0]
@@ -430,30 +422,21 @@ void field_sqr_arm64(uint64_t out[4], const uint64_t a[4]) noexcept {
     // Branchless normalization
     constexpr uint64_t NP0 = 0xFFFFFFFEFFFFFC2FULL;
     constexpr uint64_t NP1 = 0xFFFFFFFFFFFFFFFFULL;
-    uint64_t s0, s1, s2, s3, mask;
+    uint64_t s0, s1, s2, s3;
     __asm__ __volatile__(
         "subs   %[s0], %[r0], %[p0]         \n\t"
         "sbcs   %[s1], %[r1], %[p1]         \n\t"
         "sbcs   %[s2], %[r2], %[p1]         \n\t"
         "sbcs   %[s3], %[r3], %[p1]         \n\t"
-        "csetm  %[mask], cc                 \n\t"
-        "bic    x8,  %[s0], %[mask]         \n\t"
-        "and    x9,  %[r0], %[mask]         \n\t"
-        "orr    %[s0], x8, x9               \n\t"
-        "bic    x8,  %[s1], %[mask]         \n\t"
-        "and    x9,  %[r1], %[mask]         \n\t"
-        "orr    %[s1], x8, x9               \n\t"
-        "bic    x8,  %[s2], %[mask]         \n\t"
-        "and    x9,  %[r2], %[mask]         \n\t"
-        "orr    %[s2], x8, x9               \n\t"
-        "bic    x8,  %[s3], %[mask]         \n\t"
-        "and    x9,  %[r3], %[mask]         \n\t"
-        "orr    %[s3], x8, x9               \n\t"
-        : [s0] "=&r"(s0), [s1] "=&r"(s1), [s2] "=&r"(s2), [s3] "=&r"(s3),
-          [mask] "=&r"(mask)
+        // CSEL: 4 instructions vs BIC+AND+ORR (12 instructions)
+        "csel   %[s0], %[r0], %[s0], cc     \n\t"
+        "csel   %[s1], %[r1], %[s1], cc     \n\t"
+        "csel   %[s2], %[r2], %[s2], cc     \n\t"
+        "csel   %[s3], %[r3], %[s3], cc     \n\t"
+        : [s0] "=&r"(s0), [s1] "=&r"(s1), [s2] "=&r"(s2), [s3] "=&r"(s3)
         : [r0] "r"(r0), [r1] "r"(r1), [r2] "r"(r2), [r3] "r"(r3),
           [p0] "r"(NP0), [p1] "r"(NP1)
-        : "x8", "x9", "cc"
+        : "cc"
     );
     
     out[0] = s0;
@@ -469,7 +452,6 @@ void field_sqr_arm64(uint64_t out[4], const uint64_t a[4]) noexcept {
 void field_add_arm64(uint64_t out[4], const uint64_t a[4], const uint64_t b[4]) noexcept {
     uint64_t r0, r1, r2, r3;
     uint64_t s0, s1, s2, s3;
-    uint64_t mask;
     
     // Prime p limbs -- passed as register inputs (ARM64 MOV can't encode arbitrary 64-bit)
     constexpr uint64_t P0 = 0xFFFFFFFEFFFFFC2FULL;
@@ -492,29 +474,18 @@ void field_add_arm64(uint64_t out[4], const uint64_t a[4], const uint64_t b[4]) 
         
         // If x14 == 0 (no borrow from carry): use subtracted
         // If x14 wrapped (borrow): use original sum
-        "csetm  %[mask], cc                 \n\t"  // mask = borrow ? ~0 : 0
-        
-        // Branchless select
-        "bic    x8,  %[s0], %[mask]         \n\t"
-        "and    x9,  %[r0], %[mask]         \n\t"
-        "orr    %[s0], x8, x9               \n\t"
-        "bic    x8,  %[s1], %[mask]         \n\t"
-        "and    x9,  %[r1], %[mask]         \n\t"
-        "orr    %[s1], x8, x9               \n\t"
-        "bic    x8,  %[s2], %[mask]         \n\t"
-        "and    x9,  %[r2], %[mask]         \n\t"
-        "orr    %[s2], x8, x9               \n\t"
-        "bic    x8,  %[s3], %[mask]         \n\t"
-        "and    x9,  %[r3], %[mask]         \n\t"
-        "orr    %[s3], x8, x9               \n\t"
+        // CSEL: 4 instructions vs BIC+AND+ORR (12 instructions)
+        "csel   %[s0], %[r0], %[s0], cc     \n\t"
+        "csel   %[s1], %[r1], %[s1], cc     \n\t"
+        "csel   %[s2], %[r2], %[s2], cc     \n\t"
+        "csel   %[s3], %[r3], %[s3], cc     \n\t"
         
         : [r0] "=&r"(r0), [r1] "=&r"(r1), [r2] "=&r"(r2), [r3] "=&r"(r3),
-          [s0] "=&r"(s0), [s1] "=&r"(s1), [s2] "=&r"(s2), [s3] "=&r"(s3),
-          [mask] "=&r"(mask)
+          [s0] "=&r"(s0), [s1] "=&r"(s1), [s2] "=&r"(s2), [s3] "=&r"(s3)
         : [a0] "r"(a[0]), [a1] "r"(a[1]), [a2] "r"(a[2]), [a3] "r"(a[3]),
           [b0] "r"(b[0]), [b1] "r"(b[1]), [b2] "r"(b[2]), [b3] "r"(b[3]),
           [p0] "r"(P0), [p1] "r"(P1)
-        : "x8", "x9", "x14", "cc"
+        : "x14", "cc"
     );
     
     out[0] = s0;

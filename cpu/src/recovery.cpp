@@ -23,9 +23,10 @@ static std::pair<Point, bool> lift_x(const FieldElement& x_fe, int parity) {
     // Verify: y^2 == y2
     if (y.square() != y2) return {Point::infinity(), false};
 
-    // Adjust parity
-    auto y_bytes = y.to_bytes();
-    bool const y_is_odd = (y_bytes[31] & 1) != 0;
+    // Adjust parity -- check LSB directly from normalized limbs (avoids
+    // expensive to_bytes() serialization just for one parity bit).
+    // FE64 limbs are always fully reduced, so limbs()[0] & 1 == value mod 2.
+    bool const y_is_odd = (y.limbs()[0] & 1) != 0;
     if ((parity != 0) != y_is_odd) {
         y = FieldElement::zero() - y;
     }
@@ -127,16 +128,18 @@ std::pair<Point, bool> ecdsa_recover(
     if (!valid) return {Point::infinity(), false};
 
     // Step 3: Recover public key
-    // Q = r^-^1 * (s*R - z*G)
+    // Q = r^-1 * (s*R - z*G)
+    //   = (s * r^-1) * R  +  (-z * r^-1) * G
+    //   = u2 * R  +  u1 * G
+    // This is exactly dual_scalar_mul_gen_point(u1, u2, R) which uses
+    // 4-stream GLV Strauss with interleaved wNAF -- a single combined
+    // multi-scalar multiplication instead of 3 separate scalar muls.
     auto z = Scalar::from_bytes(msg_hash);
     auto r_inv = sig.r.inverse();
+    auto u1 = z.negate() * r_inv;    // -z * r^-1 mod n  (G coefficient)
+    auto u2 = sig.s * r_inv;         //  s * r^-1 mod n  (R coefficient)
 
-    auto sR = R.scalar_mul(sig.s);
-    auto zG = Point::generator().scalar_mul(z);
-    auto neg_zG = zG.negate();
-    auto sR_minus_zG = sR.add(neg_zG);
-
-    auto Q = sR_minus_zG.scalar_mul(r_inv);
+    auto Q = Point::dual_scalar_mul_gen_point(u1, u2, R);
 
     if (Q.is_infinity()) return {Point::infinity(), false};
 

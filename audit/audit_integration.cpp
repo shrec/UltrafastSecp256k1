@@ -20,6 +20,8 @@
 #include "secp256k1/recovery.hpp"
 #include "secp256k1/ecdh.hpp"
 #include "secp256k1/batch_verify.hpp"
+#include "secp256k1/multiscalar.hpp"
+#include "secp256k1/pippenger.hpp"
 #include "secp256k1/ct/point.hpp"
 #include "secp256k1/ct_utils.hpp"
 #include "secp256k1/sanitizer_scale.hpp"
@@ -489,6 +491,94 @@ static void test_stress_mixed() {
 }
 
 // ============================================================================
+// 11. ECDSA batch verify n-sweep (n=1,2,3,10,50,100,500)
+// ============================================================================
+static void test_ecdsa_batch_nsweep() {
+    g_section = "batch_nsw";
+    printf("[11] ECDSA batch verify n-sweep\n");
+
+    auto G = Point::generator();
+
+    int sizes[] = {1, 2, 3, 10, 50, 100, 500};
+    for (int n : sizes) {
+        std::vector<secp256k1::ECDSABatchEntry> entries;
+        entries.reserve(n);
+
+        for (int i = 0; i < n; ++i) {
+            auto sk = random_scalar();
+            auto pk = G.scalar_mul(sk);
+            std::array<uint8_t, 32> msg{};
+            uint64_t v = rng();
+            std::memcpy(msg.data(), &v, 8);
+            auto sig = secp256k1::ecdsa_sign(msg, sk);
+            entries.push_back({msg, pk, sig});
+        }
+
+        bool const valid = secp256k1::ecdsa_batch_verify(entries);
+        char label[64];
+        snprintf(label, sizeof(label), "ECDSA batch n=%d valid", n);
+        CHECK(valid, label);
+
+        // Corrupt random entry and verify rejection
+        if (n > 0) {
+            auto bad = entries;
+            int const idx = static_cast<int>(rng() % n);
+            auto compact = bad[idx].signature.to_compact();
+            compact[0] ^= 0x01;
+            bad[idx].signature = secp256k1::ECDSASignature::from_compact(compact);
+            bool const rejected = !secp256k1::ecdsa_batch_verify(bad);
+            snprintf(label, sizeof(label), "ECDSA batch n=%d reject bad", n);
+            CHECK(rejected, label);
+        }
+    }
+
+    printf("    %d checks\n\n", g_pass);
+}
+
+// ============================================================================
+// 12. Pippenger MSM large-n correctness
+// ============================================================================
+static void test_pippenger_large_n() {
+    g_section = "pipp_lgn";
+    printf("[12] Pippenger MSM large-n correctness\n");
+
+    auto G = Point::generator();
+
+    // For each size: compute MSM and verify against naive sum
+    int sizes[] = {128, 256, 512, 1000};
+    for (int n : sizes) {
+        std::vector<Scalar> scalars(n);
+        std::vector<Point> points(n);
+
+        // Generate random scalars and points
+        for (int i = 0; i < n; ++i) {
+            scalars[i] = random_scalar();
+            // Use small multiples of G for fast generation
+            points[i] = G.scalar_mul(random_scalar());
+        }
+
+        // Compute via Pippenger
+        auto pipp_result = secp256k1::pippenger_msm(scalars, points);
+
+        // Compute via Strauss (multi_scalar_mul)
+        auto strauss_result = secp256k1::multi_scalar_mul(scalars, points);
+
+        // Compare
+        bool const match = points_equal(pipp_result, strauss_result);
+        char label[64];
+        snprintf(label, sizeof(label), "Pippenger n=%d == Strauss", n);
+        CHECK(match, label);
+
+        // Also verify via unified msm()
+        auto msm_result = secp256k1::msm(scalars, points);
+        snprintf(label, sizeof(label), "msm() n=%d == Strauss", n);
+        CHECK(points_equal(msm_result, strauss_result), label);
+    }
+
+    printf("    %d checks\n\n", g_pass);
+}
+
+// ============================================================================
 // _run() entry point for unified audit runner
 // ============================================================================
 
@@ -505,6 +595,8 @@ int audit_integration_run() {
     test_multikey_consistency();
     test_schnorr_ecdsa_key_consistency();
     test_stress_mixed();
+    test_ecdsa_batch_nsweep();
+    test_pippenger_large_n();
 
     return g_fail > 0 ? 1 : 0;
 }
@@ -526,6 +618,8 @@ int main() {
     test_multikey_consistency();
     test_schnorr_ecdsa_key_consistency();
     test_stress_mixed();
+    test_ecdsa_batch_nsweep();
+    test_pippenger_large_n();
 
     printf("===============================================================\n");
     printf("  INTEGRATION AUDIT: %d passed, %d failed\n", g_pass, g_fail);

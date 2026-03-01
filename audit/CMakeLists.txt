@@ -156,6 +156,17 @@ if(SECP256K1_BUILD_CROSS_TESTS)
     add_test(NAME cross_libsecp256k1 COMMAND test_cross_libsecp256k1)
     set_tests_properties(cross_libsecp256k1 PROPERTIES TIMEOUT 900)
     message(STATUS "  Cross-test vs libsecp256k1: ON (ref: v0.6.0)")
+
+    # -- CT vs libsecp256k1 benchmark (apple-to-apple CT comparison) -------
+    add_executable(bench_ct_vs_libsecp bench_ct_vs_libsecp.cpp)
+    target_link_libraries(bench_ct_vs_libsecp PRIVATE fastsecp256k1 secp256k1)
+    target_include_directories(bench_ct_vs_libsecp
+        PRIVATE ${libsecp256k1_ref_SOURCE_DIR}/include
+    )
+    if(MSVC OR (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND WIN32))
+        target_link_options(bench_ct_vs_libsecp PRIVATE "LINKER:/STACK:8388608")
+    endif()
+    message(STATUS "  bench_ct_vs_libsecp: ON (CT apple-to-apple)")
 endif()
 
 # ===========================================================================

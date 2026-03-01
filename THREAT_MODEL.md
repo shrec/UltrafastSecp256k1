@@ -1,6 +1,6 @@
 # Threat Model
 
-UltrafastSecp256k1 v3.12.1 -- Layer-by-Layer Risk Assessment
+UltrafastSecp256k1 v3.14.0 -- Layer-by-Layer Risk Assessment
 
 ---
 
@@ -221,7 +221,7 @@ NOT TRUSTED (caller responsibility):
 
 ---
 
-## Automated Security Measures (v3.12.1)
+## Automated Security Measures (v3.14.0)
 
 | Measure | Frequency | What It Catches |
 |---------|-----------|-----------------|
@@ -253,4 +253,4 @@ NOT TRUSTED (caller responsibility):
 
 ---
 
-*UltrafastSecp256k1 v3.12.1 -- Threat Model*
+*UltrafastSecp256k1 v3.14.0 -- Threat Model*

@@ -1,6 +1,6 @@
 # UltrafastSecp256k1 Documentation
 
-> **Version 3.12.1** -- Cross-platform secp256k1 ECC library
+> **Version 3.15.0** -- Cross-platform secp256k1 ECC library
 
 ---
 

@@ -5,6 +5,30 @@ All notable changes to UltrafastSecp256k1 are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.15.0] - 2026-03-01
+
+### Optimized -- ECDSA Recovery (1.9x speedup)
+- **`ecdsa_recover()` rewritten** -- replaced 3 separate scalar multiplications (`s*R`, `z*G`, `r^-1 * result`) with single `dual_scalar_mul_gen_point(u1, u2, R)` using 4-stream GLV Strauss with interleaved wNAF. Recovery now matches libsecp256k1 performance (~36us vs previous ~69us).
+- **`lift_x()` parity optimization** -- replaced `to_bytes()` serialization (32-byte encode) with direct `limbs()[0] & 1` parity check for y-coordinate odd/even detection.
+
+### Improved -- Audit & Security
+- **Dudect cache artifact false positives** -- fixed 11 smoke-test false positives in constant-time side-channel tests by tightening thresholds and isolating cache effects.
+- **Audit integration tests** -- expanded coverage for CT sign, recovery, and ECDH paths.
+- **CT sidechannel tests** -- restructured test harness for cleaner pass/fail reporting.
+
+### Improved -- Platform Assembly
+- **ARM64** -- CSEL branchless conditionals, sqr EXTR optimization for field squaring.
+- **RISC-V** -- preload optimization for field multiply assembly, reduced register pressure in `field_asm52_riscv64.S`.
+- **Field operations** -- refactored `field.cpp` with improved Montgomery path selection.
+
+### Improved -- Batch Operations
+- **`batch_verify.cpp`** -- improved error handling and edge-case coverage for Schnorr batch verification.
+
+### Added -- Apple-to-Apple Benchmark
+- **`bench_apple_to_apple`** -- definitive head-to-head benchmark vs libsecp256k1 v0.6.0: 13 operations, same compiler/flags/assembly, IQR outlier removal, median of 11 passes. Result: 7 FASTER, 5 EQUAL, 0 SLOWER (geometric mean 0.68x = UF 1.47x faster overall).
+
+---
+
 ## [3.14.0] - 2026-02-25
 
 ### Added -- Language Bindings (12 languages, 41-function C API parity)

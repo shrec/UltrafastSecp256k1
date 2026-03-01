@@ -1,6 +1,6 @@
 # Test Coverage Matrix
 
-**UltrafastSecp256k1 v3.12.1** -- Comprehensive Test Map for Auditors
+**UltrafastSecp256k1 v3.14.0** -- Comprehensive Test Map for Auditors
 
 ---
 
@@ -258,4 +258,4 @@ clang++ -fsanitize=fuzzer,address -O2 -std=c++20 \
 
 ---
 
-*UltrafastSecp256k1 v3.12.1 -- Test Coverage Matrix*
+*UltrafastSecp256k1 v3.14.0 -- Test Coverage Matrix*
