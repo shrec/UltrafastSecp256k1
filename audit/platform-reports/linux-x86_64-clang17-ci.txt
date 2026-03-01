@@ -1,0 +1,107 @@
+================================================================
+  UltrafastSecp256k1 -- Industrial Self-Audit Report
+================================================================
+
+Library:    UltrafastSecp256k1 v3.15.2
+Git Hash:   03b1661a
+Framework:  Audit Framework v2.0.0
+Timestamp:  2026-03-01T03:44:49
+OS:         Linux
+Arch:       x86-64
+Compiler:   Clang 17.0.6
+Build:      Release
+
+----------------------------------------------------------------
+  [0] Library Selftest (core KAT)          PASS  (5916 ms)
+----------------------------------------------------------------
+
+================================================================
+  Section 1/8: Mathematical Invariants (Fp, Zn, Group Laws)
+================================================================
+  [ 1] Field Fp deep audit (add/mul/inv/sqrt/batch)  PASS  (333 ms)
+  [ 2] Scalar Zn deep audit (mod/GLV/edge/inv)       PASS  (46 ms)
+  [ 3] Point ops deep audit (Jac/affine/sigs)        PASS  (1597 ms)
+  [ 4] Field & scalar arithmetic                     PASS  (2 ms)
+  [ 5] Arithmetic correctness                        PASS  (1 ms)
+  [ 6] Scalar multiplication                         PASS  (2335 ms)
+  [ 7] Exhaustive algebraic verification             PASS  (23 ms)
+  [ 8] Comprehensive 500+ suite                      PASS  (37 ms)
+  [ 9] ECC property-based invariants                 PASS  (4 ms)
+  [10] Affine batch addition                         PASS  (345 ms)
+  [11] Carry chain stress (limb boundary)            PASS  (0 ms)
+  [12] FieldElement52 (5x52) vs 4x64                 PASS  (0 ms)
+  [13] FieldElement26 (10x26) vs 4x64                PASS  (0 ms)
+  -------- Section Result: 13/13 passed (4723 ms)
+
+================================================================
+  Section 2/8: Constant-Time & Side-Channel Analysis
+================================================================
+  [14] CT deep audit (masks/cmov/cswap/timing)       PASS  (119 ms)
+  [15] Constant-time layer                           PASS  (1 ms)
+  [16] FAST == CT equivalence                        PASS  (19 ms)
+  [17] Side-channel dudect (smoke)                   PASS  (26 ms)
+  [18] CT scalar_mul vs fast (diagnostic)            PASS  (6 ms)
+  -------- Section Result: 5/5 passed (171 ms)
+
+================================================================
+  Section 3/8: Differential & Cross-Library Testing
+================================================================
+  [19] Differential correctness                      PASS  (324 ms)
+  [20] Fiat-Crypto reference vectors                 PASS  (0 ms)
+  [21] Cross-platform KAT                            PASS  (1 ms)
+  -------- Section Result: 3/3 passed (325 ms)
+
+================================================================
+  Section 4/8: Standard Test Vectors (BIP-340, RFC-6979, BIP-32)
+================================================================
+  [22] BIP-340 official vectors                      PASS  (1 ms)
+  [23] BIP-32 official vectors TV1-5                 PASS  (2 ms)
+  [24] RFC 6979 ECDSA vectors                        PASS  (1 ms)
+  [25] FROST reference KAT vectors                   PASS  (11 ms)
+  -------- Section Result: 4/4 passed (15 ms)
+
+================================================================
+  Section 5/8: Fuzzing & Adversarial Attack Resilience
+================================================================
+  [26] Adversarial fuzz (malform/edge)               PASS  (296 ms)
+  [27] Parser fuzz (DER/Schnorr/Pubkey)              PASS  (7825 ms)
+  [28] Address/BIP32/FFI boundary fuzz               PASS  (1996 ms)
+  [29] Fault injection simulation                    PASS  (105 ms)
+  -------- Section Result: 4/4 passed (10221 ms)
+
+================================================================
+  Section 6/8: Protocol Security (ECDSA, Schnorr, MuSig2, FROST)
+================================================================
+  [30] ECDSA + Schnorr                               PASS  (0 ms)
+  [31] BIP-32 HD derivation                          PASS  (0 ms)
+  [32] MuSig2                                        PASS  (3 ms)
+  [33] ECDH + recovery + taproot                     PASS  (2 ms)
+  [34] v4 (Pedersen/FROST/etc)                       PASS  (2 ms)
+  [35] Coins layer                                   PASS  (1 ms)
+  [36] MuSig2 + FROST protocol suite                 PASS  (154 ms)
+  [37] MuSig2 + FROST advanced/adversar              PASS  (58 ms)
+  [38] Integration (ECDH/batch/cross-proto)          PASS  (1199 ms)
+  -------- Section Result: 9/9 passed (1419 ms)
+
+================================================================
+  Section 7/8: ABI & Memory Safety (zeroization, hardening)
+================================================================
+  [39] Security hardening (zero/bitflip/nonce)       PASS  (21043 ms)
+  [40] Debug invariant assertions                    PASS  (1 ms)
+  [41] ABI version gate (compile-time)               PASS  (0 ms)
+  -------- Section Result: 3/3 passed (21044 ms)
+
+================================================================
+  Section 8/8: Performance Validation & Regression
+================================================================
+  [42] Accelerated hashing                           PASS  (448 ms)
+  [43] SIMD batch operations                         PASS  (0 ms)
+  [44] Multi-scalar & batch verify                   PASS  (3 ms)
+  [45] Performance smoke (sign/verify roundtrip)     PASS  (0 ms)
+  -------- Section Result: 4/4 passed (451 ms)
+
+================================================================
+  AUDIT VERDICT: AUDIT-READY (ALL PASSED)
+  TOTAL: 46/46 modules passed  (44.3 s)
+  Platform: Linux x86-64 | Clang 17.0.6 | Release
+================================================================

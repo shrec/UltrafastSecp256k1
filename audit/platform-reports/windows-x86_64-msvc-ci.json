@@ -1,0 +1,160 @@
+{
+  "report_type": "industrial_self_audit",
+  "library": "UltrafastSecp256k1",
+  "library_version": "3.15.2",
+  "git_hash": "03b1661a",
+  "audit_framework_version": "2.0.0",
+  "timestamp": "2026-03-01T03:46:55",
+  "platform": {
+    "os": "Windows",
+    "arch": "x86-64",
+    "compiler": "MSVC 1944",
+    "build_type": "Release"
+  },
+  "summary": {
+    "total_modules": 45,
+    "passed": 45,
+    "failed": 0,
+    "all_passed": true,
+    "total_time_ms": 139138.3,
+    "audit_verdict": "AUDIT-READY"
+  },
+  "selftest": {
+    "passed": true,
+    "time_ms": 7608.1
+  },
+  "sections": [
+    {
+      "id": "math_invariants",
+      "title": "Mathematical Invariants (Fp, Zn, Group Laws)",
+      "total": 12,
+      "passed": 12,
+      "failed": 0,
+      "time_ms": 5890.3,
+      "status": "PASS",
+      "modules": [
+        { "id": "audit_field", "name": "Field Fp deep audit (add/mul/inv/sqrt/batch)", "passed": true, "time_ms": 332.3 },
+        { "id": "audit_scalar", "name": "Scalar Zn deep audit (mod/GLV/edge/inv)", "passed": true, "time_ms": 64.8 },
+        { "id": "audit_point", "name": "Point ops deep audit (Jac/affine/sigs)", "passed": true, "time_ms": 2035.6 },
+        { "id": "mul", "name": "Field & scalar arithmetic", "passed": true, "time_ms": 3.5 },
+        { "id": "arith_correct", "name": "Arithmetic correctness", "passed": true, "time_ms": 5.4 },
+        { "id": "scalar_mul", "name": "Scalar multiplication", "passed": true, "time_ms": 3040.6 },
+        { "id": "exhaustive", "name": "Exhaustive algebraic verification", "passed": true, "time_ms": 51.1 },
+        { "id": "comprehensive", "name": "Comprehensive 500+ suite", "passed": true, "time_ms": 89.5 },
+        { "id": "ecc_properties", "name": "ECC property-based invariants", "passed": true, "time_ms": 8.5 },
+        { "id": "batch_add", "name": "Affine batch addition", "passed": true, "time_ms": 258.4 },
+        { "id": "carry_propagation", "name": "Carry chain stress (limb boundary)", "passed": true, "time_ms": 0.5 },
+        { "id": "field_26", "name": "FieldElement26 (10x26) vs 4x64", "passed": true, "time_ms": 0.1 }
+      ]
+    },
+    {
+      "id": "ct_analysis",
+      "title": "Constant-Time & Side-Channel Analysis",
+      "total": 5,
+      "passed": 5,
+      "failed": 0,
+      "time_ms": 303.7,
+      "status": "PASS",
+      "modules": [
+        { "id": "audit_ct", "name": "CT deep audit (masks/cmov/cswap/timing)", "passed": true, "time_ms": 188.0 },
+        { "id": "ct", "name": "Constant-time layer", "passed": true, "time_ms": 2.0 },
+        { "id": "ct_equivalence", "name": "FAST == CT equivalence", "passed": true, "time_ms": 38.5 },
+        { "id": "ct_sidechannel", "name": "Side-channel dudect (smoke)", "passed": true, "time_ms": 58.4 },
+        { "id": "diag_scalar_mul", "name": "CT scalar_mul vs fast (diagnostic)", "passed": true, "time_ms": 16.7 }
+      ]
+    },
+    {
+      "id": "differential",
+      "title": "Differential & Cross-Library Testing",
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "time_ms": 967.2,
+      "status": "PASS",
+      "modules": [
+        { "id": "differential", "name": "Differential correctness", "passed": true, "time_ms": 965.5 },
+        { "id": "fiat_crypto", "name": "Fiat-Crypto reference vectors", "passed": true, "time_ms": 0.3 },
+        { "id": "cross_platform_kat", "name": "Cross-platform KAT", "passed": true, "time_ms": 1.3 }
+      ]
+    },
+    {
+      "id": "standard_vectors",
+      "title": "Standard Test Vectors (BIP-340, RFC-6979, BIP-32)",
+      "total": 4,
+      "passed": 4,
+      "failed": 0,
+      "time_ms": 42.4,
+      "status": "PASS",
+      "modules": [
+        { "id": "bip340_vectors", "name": "BIP-340 official vectors", "passed": true, "time_ms": 3.2 },
+        { "id": "bip32_vectors", "name": "BIP-32 official vectors TV1-5", "passed": true, "time_ms": 1.5 },
+        { "id": "rfc6979_vectors", "name": "RFC 6979 ECDSA vectors", "passed": true, "time_ms": 2.3 },
+        { "id": "frost_kat", "name": "FROST reference KAT vectors", "passed": true, "time_ms": 35.4 }
+      ]
+    },
+    {
+      "id": "fuzzing",
+      "title": "Fuzzing & Adversarial Attack Resilience",
+      "total": 4,
+      "passed": 4,
+      "failed": 0,
+      "time_ms": 28937.2,
+      "status": "PASS",
+      "modules": [
+        { "id": "audit_fuzz", "name": "Adversarial fuzz (malform/edge)", "passed": true, "time_ms": 627.3 },
+        { "id": "fuzz_parsers", "name": "Parser fuzz (DER/Schnorr/Pubkey)", "passed": true, "time_ms": 23094.6 },
+        { "id": "fuzz_addr_bip32", "name": "Address/BIP32/FFI boundary fuzz", "passed": true, "time_ms": 4944.3 },
+        { "id": "fault_injection", "name": "Fault injection simulation", "passed": true, "time_ms": 271.0 }
+      ]
+    },
+    {
+      "id": "protocol_security",
+      "title": "Protocol Security (ECDSA, Schnorr, MuSig2, FROST)",
+      "total": 9,
+      "passed": 9,
+      "failed": 0,
+      "time_ms": 4240.9,
+      "status": "PASS",
+      "modules": [
+        { "id": "ecdsa_schnorr", "name": "ECDSA + Schnorr", "passed": true, "time_ms": 1.2 },
+        { "id": "bip32", "name": "BIP-32 HD derivation", "passed": true, "time_ms": 0.3 },
+        { "id": "musig2", "name": "MuSig2", "passed": true, "time_ms": 5.7 },
+        { "id": "ecdh_recovery", "name": "ECDH + recovery + taproot", "passed": true, "time_ms": 4.8 },
+        { "id": "v4_features", "name": "v4 (Pedersen/FROST/etc)", "passed": true, "time_ms": 7.0 },
+        { "id": "coins", "name": "Coins layer", "passed": true, "time_ms": 1.2 },
+        { "id": "musig2_frost", "name": "MuSig2 + FROST protocol suite", "passed": true, "time_ms": 545.3 },
+        { "id": "musig2_frost_adv", "name": "MuSig2 + FROST advanced/adversar", "passed": true, "time_ms": 181.6 },
+        { "id": "audit_integration", "name": "Integration (ECDH/batch/cross-proto)", "passed": true, "time_ms": 3493.7 }
+      ]
+    },
+    {
+      "id": "memory_safety",
+      "title": "ABI & Memory Safety (zeroization, hardening)",
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "time_ms": 90594.2,
+      "status": "PASS",
+      "modules": [
+        { "id": "audit_security", "name": "Security hardening (zero/bitflip/nonce)", "passed": true, "time_ms": 90593.5 },
+        { "id": "debug_invariants", "name": "Debug invariant assertions", "passed": true, "time_ms": 0.7 },
+        { "id": "abi_gate", "name": "ABI version gate (compile-time)", "passed": true, "time_ms": 0.0 }
+      ]
+    },
+    {
+      "id": "performance",
+      "title": "Performance Validation & Regression",
+      "total": 4,
+      "passed": 4,
+      "failed": 0,
+      "time_ms": 553.2,
+      "status": "PASS",
+      "modules": [
+        { "id": "hash_accel", "name": "Accelerated hashing", "passed": true, "time_ms": 547.4 },
+        { "id": "simd_batch", "name": "SIMD batch operations", "passed": true, "time_ms": 0.1 },
+        { "id": "multiscalar", "name": "Multi-scalar & batch verify", "passed": true, "time_ms": 5.2 },
+        { "id": "audit_perf", "name": "Performance smoke (sign/verify roundtrip)", "passed": true, "time_ms": 0.5 }
+      ]
+    }
+  ]
+}

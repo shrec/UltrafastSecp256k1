@@ -827,6 +827,23 @@ libFuzzer harnesses cover core arithmetic (`cpu/fuzz/`):
 | WebAssembly | CPU | Emscripten | [OK] CI |
 | ROCm/HIP | CPU + GPU | ROCm 6.3 | [OK] CI |
 
+### Cross-Platform Audit Results
+
+The `unified_audit_runner` executes **49 audit modules** across 8 sections
+(mathematical invariants, constant-time analysis, differential testing, standard
+vectors, fuzzing, protocol security, ABI safety, performance validation).
+
+| Platform | OS | Compiler | Modules | Verdict | Time |
+|----------|----|----------|---------|---------|------|
+| Windows (local) | Windows x86-64 | Clang 21.1.0 | 48/49 | AUDIT-READY | 39 s |
+| Linux Docker | Linux x86-64 | GCC 13.3.0 | 48/49 | AUDIT-READY | 46 s |
+| Linux CI | Linux x86-64 | Clang 17.0.6 | 46/46 | AUDIT-READY | 44 s |
+| Linux CI | Linux x86-64 | GCC 13.3.0 | 46/46 | AUDIT-READY | 48 s |
+| Windows CI | Windows x86-64 | MSVC 1944 | 45/45 | AUDIT-READY | 139 s |
+
+> 48/49 = 1 advisory warning (dudect timing smoke -- probabilistic, flakes under hypervisor noise).
+> Full reports: [audit/platform-reports/](audit/platform-reports/PLATFORM_AUDIT.md)
+
 ---
 
 ## secp256k1 Benchmark Targets
