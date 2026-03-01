@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772331218647,
+  "lastUpdate": 1772332851825,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -23288,6 +23288,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
             "value": 144,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 132,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "Vano Chkheidze",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "94c489a498e0d6e8d36a2960b6ac38e3daf992ed",
+          "message": "fix: resolve 136 code-scanning alerts (clang-tidy + cppcheck) (#73)\n\n- glv.cpp: add const to p_/tl_ in GLV_MULADD macro + k_arr (33 alerts)\n- point.cpp: add const to h/z3 in Jacobian add variants (5 alerts)\n- precompute.cpp: modernize-use-auto + NOLINT for simplify-boolean (2 alerts)\n- audit_integration.cpp: const-correctness + (void)snprintf (8 alerts)\n- bench_hornet.cpp: misc-const-correctness (53), readability-braces (8),\n  cert-err33-c (6), modernize-use-auto (2), implicit-widening (2),\n  reserved-identifier NOLINT (1), init-variables (1)\n\nNo behavior changes. No hot-path modifications.",
+          "timestamp": "2026-03-01T06:39:12+04:00",
+          "tree_id": "3bfc0cd3e960f71478f79b61610742940a297c10",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/94c489a498e0d6e8d36a2960b6ac38e3daf992ed"
+        },
+        "date": 1772332849977,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 27,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 22,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 280,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 149,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 36000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 10000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 14000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 42000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 24000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 49000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 142,
             "unit": "ns"
           },
           {
