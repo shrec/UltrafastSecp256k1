@@ -24,7 +24,7 @@ var searchData=
   ['digest_5ftype_21',['digest_type',['../classsecp256k1_1_1SHA256.html#afe548d04a90858ec7601e304fdaadbb5',1,'secp256k1::SHA256::digest_type'],['../classsecp256k1_1_1SHA512.html#aeff28df05751f2335296f033eb70af8f',1,'secp256k1::SHA512::digest_type']]],
   ['digibyte_22',['DigiByte',['../namespacesecp256k1_1_1coins.html#af8584b5a9a5909c5fe48b5d0e747a4e9',1,'secp256k1::coins']]],
   ['do_23',['What This Library Does NOT Do',['../md_include_2ufsecp_2SUPPORTED__GUARANTEES.html#autotoc_md15',1,'']]],
-  ['documentation_24',['Documentation',['../index.html#autotoc_md109',1,'']]],
+  ['documentation_24',['Documentation',['../index.html#autotoc_md110',1,'']]],
   ['does_20not_20do_25',['What This Library Does NOT Do',['../md_include_2ufsecp_2SUPPORTED__GUARANTEES.html#autotoc_md15',1,'']]],
   ['dogecoin_26',['Dogecoin',['../namespacesecp256k1_1_1coins.html#a53cc055722f1672418ff9a50820e4139',1,'secp256k1::coins']]],
   ['donotoptimize_27',['donotoptimize',['../namespacebench.html#a30176299d4be413891cfb20229bdeca7',1,'bench::DoNotOptimize(T const &amp;value)'],['../namespacebench.html#a91fdf78584b5ac7cb09cd02b536ee818',1,'bench::DoNotOptimize(T &amp;value)']]],

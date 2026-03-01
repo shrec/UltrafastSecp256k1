@@ -1,5 +1,7 @@
 var NAVTREEINDEX4 =
 {
+"namespacemembers_func_c.html":[2,1,1,2],
+"namespacemembers_func_d.html":[2,1,1,3],
 "namespacemembers_func_e.html":[2,1,1,4],
 "namespacemembers_func_f.html":[2,1,1,5],
 "namespacemembers_func_g.html":[2,1,1,6],
@@ -247,7 +249,5 @@ var NAVTREEINDEX4 =
 "namespacesecp256k1_1_1ct.html#a727006dd081888d5926c986caa15ff5a":[2,0,1,1,28],
 "namespacesecp256k1_1_1ct.html#a7326ac4644fbf6fe8f02a84c5249ddff":[2,0,1,1,48],
 "namespacesecp256k1_1_1ct.html#a7417ebfd48caaf56acacff404f90c13f":[2,0,1,1,56],
-"namespacesecp256k1_1_1ct.html#a74395d3b5459de6b516ab362db9694d4":[2,0,1,1,34],
-"namespacesecp256k1_1_1ct.html#a789281f10768ef4d12fe6eb377468e54":[2,0,1,1,59],
-"namespacesecp256k1_1_1ct.html#a7be9e740d4cbfbc1fda725c8e6b75b50":[2,0,1,1,76]
+"namespacesecp256k1_1_1ct.html#a74395d3b5459de6b516ab362db9694d4":[2,0,1,1,34]
 };

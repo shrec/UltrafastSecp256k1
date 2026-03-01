@@ -1,5 +1,7 @@
 var NAVTREEINDEX6 =
 {
+"namespacesecp256k1_1_1hash.html#a4caba186460712ebd064679ef90b2685af9b74ec03cab38f5abf983914ee525fc":[2,0,1,4,1,1],
+"namespacesecp256k1_1_1hash.html#a54adce0e32313060c0c7c72b353e91e3":[2,0,1,4,6],
 "namespacesecp256k1_1_1hash.html#aa6787a03bd05e16254c43a777dce5efd":[2,0,1,4,12],
 "namespacesecp256k1_1_1hash.html#aa9baa48a38bbe07a5b3a664e5767bc92":[2,0,1,4,13],
 "namespacesecp256k1_1_1hash.html#aac8f364cad1ff1db408782ccae00465c":[2,0,1,4,16],
@@ -154,7 +156,8 @@ var NAVTREEINDEX6 =
 "recovery_8hpp.html#acbcfaa342e3f423b75cf5a3b3a9981a8":[4,0,0,0,0,34,1],
 "recovery_8hpp_source.html":[4,0,0,0,0,34],
 "sanitizer__scale_8hpp.html":[4,0,0,0,0,35],
-"sanitizer__scale_8hpp.html#a54d8d06fa60f605454dbffd5d4561ed4":[4,0,0,0,0,35,1],
+"sanitizer__scale_8hpp.html#a401f14b74b3514939dc2a21ec9ea5f31":[4,0,0,0,0,35,1],
+"sanitizer__scale_8hpp.html#a54d8d06fa60f605454dbffd5d4561ed4":[4,0,0,0,0,35,2],
 "sanitizer__scale_8hpp.html#af75e60b7fe33c8dcfe913827094e982a":[4,0,0,0,0,35,0],
 "sanitizer__scale_8hpp_source.html":[4,0,0,0,0,35],
 "scalar_8hpp.html":[4,0,0,0,0,36],
@@ -207,8 +210,8 @@ var NAVTREEINDEX6 =
 "sign_8hpp.html#ad253f17b576c8232a0b92f990543b58e":[4,0,0,0,0,1,4,3],
 "sign_8hpp.html#afaf842945d7a9d75206d9d1b858f13fa":[4,0,0,0,0,1,4,1],
 "sign_8hpp_source.html":[4,0,0,0,0,1,4],
-"structbench_1_1Stats.html":[2,0,0,1],
 "structbench_1_1Stats.html":[3,0,0,1],
+"structbench_1_1Stats.html":[2,0,0,1],
 "structbench_1_1Stats.html#a5627931965cb083b1655695e271c980a":[3,0,0,1,6],
 "structbench_1_1Stats.html#a5627931965cb083b1655695e271c980a":[2,0,0,1,6],
 "structbench_1_1Stats.html#a712d66113687b78b260175edf055d0c2":[3,0,0,1,0],
@@ -246,8 +249,5 @@ var NAVTREEINDEX6 =
 "structsecp256k1_1_1Bech32DecodeResult.html#a91d8ad4c2f74a060dd9e7ecb658f7219":[2,0,1,8,0],
 "structsecp256k1_1_1Bech32DecodeResult.html#a91d8ad4c2f74a060dd9e7ecb658f7219":[3,0,1,5,0],
 "structsecp256k1_1_1Bech32DecodeResult.html#af9d489dbd9973558699acd3dbd755e13":[2,0,1,8,3],
-"structsecp256k1_1_1Bech32DecodeResult.html#af9d489dbd9973558699acd3dbd755e13":[3,0,1,5,3],
-"structsecp256k1_1_1CurveContext.html":[2,0,1,9],
-"structsecp256k1_1_1CurveContext.html":[3,0,1,6],
-"structsecp256k1_1_1CurveContext.html#a1fb92a7a8c307f7399f70c34e6ace056":[2,0,1,9,2]
+"structsecp256k1_1_1Bech32DecodeResult.html#af9d489dbd9973558699acd3dbd755e13":[3,0,1,5,3]
 };

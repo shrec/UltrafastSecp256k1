@@ -1,5 +1,7 @@
 var NAVTREEINDEX5 =
 {
+"namespacesecp256k1_1_1ct.html#a789281f10768ef4d12fe6eb377468e54":[2,0,1,1,59],
+"namespacesecp256k1_1_1ct.html#a7be9e740d4cbfbc1fda725c8e6b75b50":[2,0,1,1,76],
 "namespacesecp256k1_1_1ct.html#a7cc6bee5345ed46977ce46f0f0dc4d51":[2,0,1,1,52],
 "namespacesecp256k1_1_1ct.html#a85a7d82aa4c208dbbd1f5de6b6f7d8ac":[2,0,1,1,83],
 "namespacesecp256k1_1_1ct.html#a8e1ae79cac2082af82e69fc1f66a6f0a":[2,0,1,1,6],
@@ -247,7 +249,5 @@ var NAVTREEINDEX5 =
 "namespacesecp256k1_1_1hash.html#a4caba186460712ebd064679ef90b2685":[2,0,1,4,1],
 "namespacesecp256k1_1_1hash.html#a4caba186460712ebd064679ef90b2685a5f8acb5068c8c8db7b2a4069bd17d9fd":[2,0,1,4,1,3],
 "namespacesecp256k1_1_1hash.html#a4caba186460712ebd064679ef90b2685a8f3d9a4b6a7b7f2c7afa61ca113d0db9":[2,0,1,4,1,0],
-"namespacesecp256k1_1_1hash.html#a4caba186460712ebd064679ef90b2685aee6ecd3e091cdefd02e783f9b9869388":[2,0,1,4,1,2],
-"namespacesecp256k1_1_1hash.html#a4caba186460712ebd064679ef90b2685af9b74ec03cab38f5abf983914ee525fc":[2,0,1,4,1,1],
-"namespacesecp256k1_1_1hash.html#a54adce0e32313060c0c7c72b353e91e3":[2,0,1,4,6]
+"namespacesecp256k1_1_1hash.html#a4caba186460712ebd064679ef90b2685aee6ecd3e091cdefd02e783f9b9869388":[2,0,1,4,1,2]
 };

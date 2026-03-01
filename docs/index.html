@@ -617,8 +617,8 @@ Quick Start (C)</h2>
 <div class="line"><a class="code hl_function" href="ufsecp_8h.html#a87d42e60b2f61d1931c088231b6e6b59">ufsecp_ctx_destroy</a>(ctx);</div>
 <div class="ttc" id="astructufsecp__ctx_html"><div class="ttname"><a href="structufsecp__ctx.html">ufsecp_ctx</a></div><div class="ttdef"><b>Definition</b> <a href="ufsecp__impl_8cpp_source.html#l00046">ufsecp_impl.cpp:46</a></div></div>
 <div class="ttc" id="aufsecp_8h_html"><div class="ttname"><a href="ufsecp_8h.html">ufsecp.h</a></div></div>
-<div class="ttc" id="aufsecp_8h_html_a3bcb3e21569903007e46c2a377637a84"><div class="ttname"><a href="ufsecp_8h.html#a3bcb3e21569903007e46c2a377637a84">ufsecp_ecdsa_verify</a></div><div class="ttdeci">UFSECP_API ufsecp_error_t ufsecp_ecdsa_verify(ufsecp_ctx *ctx, const uint8_t msg32[32], const uint8_t sig64[64], const uint8_t pubkey33[33])</div><div class="ttdef"><b>Definition</b> <a href="ufsecp__impl_8cpp_source.html#l00404">ufsecp_impl.cpp:404</a></div></div>
-<div class="ttc" id="aufsecp_8h_html_a4e1fa2ddc0f82ca0772ce2e4b500c55e"><div class="ttname"><a href="ufsecp_8h.html#a4e1fa2ddc0f82ca0772ce2e4b500c55e">ufsecp_ecdsa_sign</a></div><div class="ttdeci">UFSECP_API ufsecp_error_t ufsecp_ecdsa_sign(ufsecp_ctx *ctx, const uint8_t msg32[32], const uint8_t privkey[32], uint8_t sig64_out[64])</div><div class="ttdef"><b>Definition</b> <a href="ufsecp__impl_8cpp_source.html#l00383">ufsecp_impl.cpp:383</a></div></div>
+<div class="ttc" id="aufsecp_8h_html_a3bcb3e21569903007e46c2a377637a84"><div class="ttname"><a href="ufsecp_8h.html#a3bcb3e21569903007e46c2a377637a84">ufsecp_ecdsa_verify</a></div><div class="ttdeci">UFSECP_API ufsecp_error_t ufsecp_ecdsa_verify(ufsecp_ctx *ctx, const uint8_t msg32[32], const uint8_t sig64[64], const uint8_t pubkey33[33])</div><div class="ttdef"><b>Definition</b> <a href="ufsecp__impl_8cpp_source.html#l00405">ufsecp_impl.cpp:405</a></div></div>
+<div class="ttc" id="aufsecp_8h_html_a4e1fa2ddc0f82ca0772ce2e4b500c55e"><div class="ttname"><a href="ufsecp_8h.html#a4e1fa2ddc0f82ca0772ce2e4b500c55e">ufsecp_ecdsa_sign</a></div><div class="ttdeci">UFSECP_API ufsecp_error_t ufsecp_ecdsa_sign(ufsecp_ctx *ctx, const uint8_t msg32[32], const uint8_t privkey[32], uint8_t sig64_out[64])</div><div class="ttdef"><b>Definition</b> <a href="ufsecp__impl_8cpp_source.html#l00384">ufsecp_impl.cpp:384</a></div></div>
 <div class="ttc" id="aufsecp_8h_html_a87d42e60b2f61d1931c088231b6e6b59"><div class="ttname"><a href="ufsecp_8h.html#a87d42e60b2f61d1931c088231b6e6b59">ufsecp_ctx_destroy</a></div><div class="ttdeci">UFSECP_API void ufsecp_ctx_destroy(ufsecp_ctx *ctx)</div><div class="ttdef"><b>Definition</b> <a href="ufsecp__impl_8cpp_source.html#l00220">ufsecp_impl.cpp:220</a></div></div>
 <div class="ttc" id="aufsecp_8h_html_ad59bb140d404cf17909ad63955e8e948"><div class="ttname"><a href="ufsecp_8h.html#ad59bb140d404cf17909ad63955e8e948">ufsecp_ctx_create</a></div><div class="ttdeci">UFSECP_API ufsecp_error_t ufsecp_ctx_create(ufsecp_ctx **ctx_out)</div><div class="ttdef"><b>Definition</b> <a href="ufsecp__impl_8cpp_source.html#l00185">ufsecp_impl.cpp:185</a></div></div>
 </div><!-- fragment --><h2><a class="anchor" id="autotoc_md67"></a>
@@ -936,8 +936,29 @@ Platform CI Coverage</h2>
 <tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone">ROCm/HIP   </td><td class="markdownTableBodyNone">CPU + GPU   </td><td class="markdownTableBodyNone">ROCm 6.3   </td><td class="markdownTableBodyNone">[OK] CI   </td></tr>
 </table>
-<hr  />
+<h2><a class="anchor" id="autotoc_md96"></a>
+Cross-Platform Audit Results</h2>
+<p>The <code>unified_audit_runner</code> executes <b>49 audit modules</b> across 8 sections (mathematical invariants, constant-time analysis, differential testing, standard vectors, fuzzing, protocol security, ABI safety, performance validation).</p>
+<table class="markdownTable">
+<tr class="markdownTableHead">
+<th class="markdownTableHeadNone">Platform   </th><th class="markdownTableHeadNone">OS   </th><th class="markdownTableHeadNone">Compiler   </th><th class="markdownTableHeadNone">Modules   </th><th class="markdownTableHeadNone">Verdict   </th><th class="markdownTableHeadNone">Time    </th></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone">Windows (local)   </td><td class="markdownTableBodyNone">Windows x86-64   </td><td class="markdownTableBodyNone">Clang 21.1.0   </td><td class="markdownTableBodyNone">48/49   </td><td class="markdownTableBodyNone">AUDIT-READY   </td><td class="markdownTableBodyNone">39 s    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone">Linux Docker   </td><td class="markdownTableBodyNone">Linux x86-64   </td><td class="markdownTableBodyNone">GCC 13.3.0   </td><td class="markdownTableBodyNone">48/49   </td><td class="markdownTableBodyNone">AUDIT-READY   </td><td class="markdownTableBodyNone">46 s    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone">Linux CI   </td><td class="markdownTableBodyNone">Linux x86-64   </td><td class="markdownTableBodyNone">Clang 17.0.6   </td><td class="markdownTableBodyNone">46/46   </td><td class="markdownTableBodyNone">AUDIT-READY   </td><td class="markdownTableBodyNone">44 s    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone">Linux CI   </td><td class="markdownTableBodyNone">Linux x86-64   </td><td class="markdownTableBodyNone">GCC 13.3.0   </td><td class="markdownTableBodyNone">46/46   </td><td class="markdownTableBodyNone">AUDIT-READY   </td><td class="markdownTableBodyNone">48 s    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone">Windows CI   </td><td class="markdownTableBodyNone">Windows x86-64   </td><td class="markdownTableBodyNone">MSVC 1944   </td><td class="markdownTableBodyNone">45/45   </td><td class="markdownTableBodyNone">AUDIT-READY   </td><td class="markdownTableBodyNone">139 s   </td></tr>
+</table>
+<blockquote class="doxtable">
+<p>&zwj;48/49 = 1 advisory warning (dudect timing smoke &ndash; probabilistic, flakes under hypervisor noise). Full reports: audit/platform-reports/ </p>
+</blockquote>
 <h1><a class="anchor" id="autotoc_md97"></a>
+&lt;/blockquote&gt;</h1>
+<h1><a class="anchor" id="autotoc_md98"></a>
 secp256k1 Benchmark Targets</h1>
 <table class="markdownTable">
 <tr class="markdownTableHead">
@@ -962,16 +983,16 @@ secp256k1 Benchmark Targets</h1>
 <td class="markdownTableBodyNone"><code>bench_comprehensive_riscv</code>   </td><td class="markdownTableBodyNone">RISC-V optimized benchmark suite   </td></tr>
 </table>
 <hr  />
-<h1><a class="anchor" id="autotoc_md99"></a>
+<h1><a class="anchor" id="autotoc_md100"></a>
 Research Statement</h1>
 <p>This library explores the <b>performance ceiling of <a class="el" href="namespacesecp256k1.html">secp256k1</a></b> across CPU architectures (x64, ARM64, RISC-V, Cortex-M, Xtensa) and GPUs (CUDA, OpenCL, Metal, ROCm). Zero external dependencies. Pure C++20.</p>
 <hr  />
-<h1><a class="anchor" id="autotoc_md101"></a>
+<h1><a class="anchor" id="autotoc_md102"></a>
 API Stability</h1>
 <p><b>C++ API</b>: Not yet stable. Breaking changes may occur before <b>v4.0</b>. Core layers (field, scalar, point, ECDSA, Schnorr) are mature. Experimental layers (MuSig2, FROST, Adaptor, Pedersen, Taproot, HD, Coins) may change.</p>
 <p>**C ABI (<code>ufsecp</code>)**: Stable from v3.4.0. ABI version tracked separately. See <a class="el" href="md_include_2ufsecp_2SUPPORTED__GUARANTEES.html">SUPPORTED_GUARANTEES.md</a>.</p>
 <hr  />
-<h1><a class="anchor" id="autotoc_md103"></a>
+<h1><a class="anchor" id="autotoc_md104"></a>
 Release Signing &amp; Verification</h1>
 <p>All releases starting from <b>v3.15.0</b> are cryptographically signed using <a href="https://docs.sigstore.dev/">Sigstore cosign</a> (keyless, GitHub OIDC identity). Older historical releases remain unsigned but are preserved unchanged.</p>
 <p>Every release includes:</p>
@@ -989,7 +1010,7 @@ Release Signing &amp; Verification</h1>
 <tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone">Per-archive <code>.sig</code> + <code>.pem</code>   </td><td class="markdownTableBodyNone">Individual artifact signatures   </td></tr>
 </table>
-<h2><a class="anchor" id="autotoc_md104"></a>
+<h2><a class="anchor" id="autotoc_md105"></a>
 Verify checksums</h2>
 <p><b>Linux:</b></p>
 <div class="fragment"><div class="line">curl -LO https://github.com/shrec/UltrafastSecp256k1/releases/latest/download/SHA256SUMS</div>
@@ -1003,7 +1024,7 @@ Verify checksums</h2>
 <div class="line">  $actual = (Get-FileHash $file -Algorithm SHA256).Hash.ToLower()</div>
 <div class="line">  if ($actual -eq $expected) { &quot;[OK] $file&quot; } else { &quot;[FAIL] $file&quot; }</div>
 <div class="line">}</div>
-</div><!-- fragment --><h2><a class="anchor" id="autotoc_md105"></a>
+</div><!-- fragment --><h2><a class="anchor" id="autotoc_md106"></a>
 Verify signature (cosign)</h2>
 <div class="fragment"><div class="line">cosign verify-blob SHA256SUMS \</div>
 <div class="line">  --signature SHA256SUMS.sig \</div>
@@ -1027,7 +1048,7 @@ Verify signature (cosign)</h2>
 <td class="markdownTableBodyNone">Reproducible builds documentation   </td><td class="markdownTableBodyNone">[OK] Dockerfile.reproducible   </td></tr>
 </table>
 <hr  />
-<h1><a class="anchor" id="autotoc_md107"></a>
+<h1><a class="anchor" id="autotoc_md108"></a>
 FAQ</h1>
 <p><b>Is UltrafastSecp256k1 a drop-in replacement for libsecp256k1?</b> </p><blockquote class="doxtable">
 <p>&zwj;No. It is an independent implementation with a different API. The C ABI (<code>ufsecp</code>) provides a stable FFI surface, but function signatures differ from libsecp256k1. Migration requires code changes. </p>
@@ -1044,9 +1065,9 @@ FAQ</h1>
 <p><b>How do I reproduce the benchmarks?</b> </p><blockquote class="doxtable">
 <p>&zwj;See `docs/BENCHMARKS.md` for exact commands, pinned compiler/driver versions, and raw logs. The <a href="https://shrec.github.io/UltrafastSecp256k1/dev/bench/">live dashboard</a> tracks performance across commits. </p>
 </blockquote>
-<h1><a class="anchor" id="autotoc_md108"></a>
-&lt;/blockquote&gt;</h1>
 <h1><a class="anchor" id="autotoc_md109"></a>
+&lt;/blockquote&gt;</h1>
+<h1><a class="anchor" id="autotoc_md110"></a>
 Documentation</h1>
 <table class="markdownTable">
 <tr class="markdownTableHead">
@@ -1073,7 +1094,7 @@ Documentation</h1>
 <td class="markdownTableBodyNone">Changelog   </td><td class="markdownTableBodyNone">Version history   </td></tr>
 </table>
 <hr  />
-<h1><a class="anchor" id="autotoc_md111"></a>
+<h1><a class="anchor" id="autotoc_md112"></a>
 Contributing</h1>
 <p>Contributions are welcome! Please read CONTRIBUTING.md.</p>
 <div class="fragment"><div class="line">git clone https://github.com/shrec/UltrafastSecp256k1.git</div>
@@ -1082,13 +1103,13 @@ Contributing</h1>
 <div class="line">cmake --build build/dev -j</div>
 <div class="line">ctest --test-dir build/dev --output-on-failure</div>
 </div><!-- fragment --><hr  />
-<h1><a class="anchor" id="autotoc_md113"></a>
+<h1><a class="anchor" id="autotoc_md114"></a>
 License</h1>
 <p><b>MIT License</b></p>
 <p>This project is licensed under the MIT License. Previously released versions (up to v3.14.x) were under AGPL-3.0. As of v3.15.0 the license is MIT &ndash; to align with the broader Bitcoin ecosystem and remove adoption friction.</p>
 <p>See [LICENSE](LICENSE) for full details.</p>
 <hr  />
-<h1><a class="anchor" id="autotoc_md115"></a>
+<h1><a class="anchor" id="autotoc_md116"></a>
 Contact &amp; Community</h1>
 <table class="markdownTable">
 <tr class="markdownTableHead">
@@ -1107,7 +1128,7 @@ Contact &amp; Community</h1>
 <td class="markdownTableBodyNone">Commercial   </td><td class="markdownTableBodyNone"><a href="#" onclick="location.href='mai'+'lto:'+'pay'+'ys'+'oon'+'@g'+'mai'+'l.'+'com'; return false;">payysoon@gmail.com</a>   </td></tr>
 </table>
 <hr  />
-<h1><a class="anchor" id="autotoc_md117"></a>
+<h1><a class="anchor" id="autotoc_md118"></a>
 Acknowledgements</h1>
 <p>UltrafastSecp256k1 is an independent implementation &ndash; written from scratch with our own architecture, GPU pipeline, embedded ports, and optimization techniques. At the same time, no project exists in a vacuum. The published research, specifications, and open discussions from the wider cryptographic community helped us refine our own ideas and validate our results.</p>
 <p>We want to acknowledge the teams whose public work informed parts of our journey:</p>
@@ -1120,7 +1141,7 @@ Acknowledgements</h1>
 <p>Special thanks to the <a href="https://stacker.news">Stacker News</a> and <a href="https://delvingbitcoin.org">Delving Bitcoin</a> communities for their early support and technical feedback.</p>
 <p>Extra gratitude to <a href="https://stacker.news/0xbitcoiner">@0xbitcoiner</a> for the initial outreach and for helping bridge the project with the wider Bitcoin developer ecosystem.</p>
 <hr  />
-<h1><a class="anchor" id="autotoc_md119"></a>
+<h1><a class="anchor" id="autotoc_md120"></a>
 ⚡ Support the Project</h1>
 <p>If you find <b>UltrafastSecp256k1</b> useful, consider supporting its development!</p>
 <p><a href="https://stacker.news/shrec"><img src="https://img.shields.io/badge/Donate%20with-Lightning%20%E2%9A%A1-yellow?style=for-the-badge&amp;logo=bitcoin" alt="Donate with Bitcoin Lightning" class="inline"/></a></p>

@@ -124,10 +124,19 @@ $(document).ready(function(){initNavTree('sanitizer__scale_8hpp_source.html','')
 <div class="line"><a id="l00024" name="l00024"></a><span class="lineno"><a class="line" href="sanitizer__scale_8hpp.html#a54d8d06fa60f605454dbffd5d4561ed4">   24</a></span><span class="preprocessor">#  define SECP256K1_SANITIZER_BUILD 0</span></div>
 <div class="line"><a id="l00025" name="l00025"></a><span class="lineno">   25</span><span class="preprocessor">#endif</span></div>
 <div class="line"><a id="l00026" name="l00026"></a><span class="lineno">   26</span> </div>
-<div class="line"><a id="l00027" name="l00027"></a><span class="lineno">   27</span><span class="comment">// SCALED(normal, reduced) -- pick count based on build type</span></div>
-<div class="line"><a id="l00028" name="l00028"></a><span class="lineno"><a class="line" href="sanitizer__scale_8hpp.html#af75e60b7fe33c8dcfe913827094e982a">   28</a></span><span class="preprocessor">#define SCALED(normal, reduced) (SECP256K1_SANITIZER_BUILD ? (reduced) : (normal))</span></div>
-<div class="line"><a id="l00029" name="l00029"></a><span class="lineno">   29</span> </div>
-<div class="line"><a id="l00030" name="l00030"></a><span class="lineno">   30</span><span class="preprocessor">#endif </span><span class="comment">// SECP256K1_SANITIZER_SCALE_HPP</span></div>
+<div class="line"><a id="l00027" name="l00027"></a><span class="lineno">   27</span><span class="comment">// Detect embedded / resource-constrained targets</span></div>
+<div class="line"><a id="l00028" name="l00028"></a><span class="lineno">   28</span><span class="preprocessor">#if defined(SECP256K1_PLATFORM_ESP32) || defined(ESP_PLATFORM) || defined(SECP256K1_PLATFORM_STM32)</span></div>
+<div class="line"><a id="l00029" name="l00029"></a><span class="lineno">   29</span><span class="preprocessor">#  define SECP256K1_EMBEDDED_BUILD 1</span></div>
+<div class="line"><a id="l00030" name="l00030"></a><span class="lineno">   30</span><span class="preprocessor">#else</span></div>
+<div class="line"><a id="l00031" name="l00031"></a><span class="lineno"><a class="line" href="sanitizer__scale_8hpp.html#a401f14b74b3514939dc2a21ec9ea5f31">   31</a></span><span class="preprocessor">#  define SECP256K1_EMBEDDED_BUILD 0</span></div>
+<div class="line"><a id="l00032" name="l00032"></a><span class="lineno">   32</span><span class="preprocessor">#endif</span></div>
+<div class="line"><a id="l00033" name="l00033"></a><span class="lineno">   33</span> </div>
+<div class="line"><a id="l00034" name="l00034"></a><span class="lineno">   34</span><span class="comment">// SCALED(normal, reduced) -- pick count based on build type</span></div>
+<div class="line"><a id="l00035" name="l00035"></a><span class="lineno">   35</span><span class="comment">// Uses reduced counts under sanitizers AND on embedded targets (ESP32, STM32)</span></div>
+<div class="line"><a id="l00036" name="l00036"></a><span class="lineno">   36</span><span class="comment">// where the 240 MHz CPU makes large iteration counts impractical.</span></div>
+<div class="line"><a id="l00037" name="l00037"></a><span class="lineno"><a class="line" href="sanitizer__scale_8hpp.html#af75e60b7fe33c8dcfe913827094e982a">   37</a></span><span class="preprocessor">#define SCALED(normal, reduced) ((SECP256K1_SANITIZER_BUILD || SECP256K1_EMBEDDED_BUILD) ? (reduced) : (normal))</span></div>
+<div class="line"><a id="l00038" name="l00038"></a><span class="lineno">   38</span> </div>
+<div class="line"><a id="l00039" name="l00039"></a><span class="lineno">   39</span><span class="preprocessor">#endif </span><span class="comment">// SECP256K1_SANITIZER_SCALE_HPP</span></div>
 </div><!-- fragment --></div><!-- contents -->
 </div><!-- doc-content -->
 <!-- start footer part -->

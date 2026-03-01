@@ -70,21 +70,23 @@ var index =
       [ "Built-in Selftest", "index.html#autotoc_md92", null ],
       [ "Sanitizer Builds", "index.html#autotoc_md93", null ],
       [ "Fuzz Testing", "index.html#autotoc_md94", null ],
-      [ "Platform CI Coverage", "index.html#autotoc_md95", null ]
+      [ "Platform CI Coverage", "index.html#autotoc_md95", null ],
+      [ "Cross-Platform Audit Results", "index.html#autotoc_md96", null ]
     ] ],
-    [ "secp256k1 Benchmark Targets", "index.html#autotoc_md97", null ],
-    [ "Research Statement", "index.html#autotoc_md99", null ],
-    [ "API Stability", "index.html#autotoc_md101", null ],
-    [ "Release Signing & Verification", "index.html#autotoc_md103", [
-      [ "Verify checksums", "index.html#autotoc_md104", null ],
-      [ "Verify signature (cosign)", "index.html#autotoc_md105", null ]
+    [ "</blockquote>", "index.html#autotoc_md97", null ],
+    [ "secp256k1 Benchmark Targets", "index.html#autotoc_md98", null ],
+    [ "Research Statement", "index.html#autotoc_md100", null ],
+    [ "API Stability", "index.html#autotoc_md102", null ],
+    [ "Release Signing & Verification", "index.html#autotoc_md104", [
+      [ "Verify checksums", "index.html#autotoc_md105", null ],
+      [ "Verify signature (cosign)", "index.html#autotoc_md106", null ]
     ] ],
-    [ "FAQ", "index.html#autotoc_md107", null ],
-    [ "</blockquote>", "index.html#autotoc_md108", null ],
-    [ "Documentation", "index.html#autotoc_md109", null ],
-    [ "Contributing", "index.html#autotoc_md111", null ],
-    [ "License", "index.html#autotoc_md113", null ],
-    [ "Contact & Community", "index.html#autotoc_md115", null ],
-    [ "Acknowledgements", "index.html#autotoc_md117", null ],
-    [ "⚡ Support the Project", "index.html#autotoc_md119", null ]
+    [ "FAQ", "index.html#autotoc_md108", null ],
+    [ "</blockquote>", "index.html#autotoc_md109", null ],
+    [ "Documentation", "index.html#autotoc_md110", null ],
+    [ "Contributing", "index.html#autotoc_md112", null ],
+    [ "License", "index.html#autotoc_md114", null ],
+    [ "Contact & Community", "index.html#autotoc_md116", null ],
+    [ "Acknowledgements", "index.html#autotoc_md118", null ],
+    [ "⚡ Support the Project", "index.html#autotoc_md120", null ]
 ];

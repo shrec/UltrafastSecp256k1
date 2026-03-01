@@ -102,7 +102,9 @@ $(document).ready(function(){initNavTree('sanitizer__scale_8hpp.html',''); initR
 Macros</h2></td></tr>
 <tr class="memitem:a54d8d06fa60f605454dbffd5d4561ed4" id="r_a54d8d06fa60f605454dbffd5d4561ed4"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="sanitizer__scale_8hpp.html#a54d8d06fa60f605454dbffd5d4561ed4">SECP256K1_SANITIZER_BUILD</a>&#160;&#160;&#160;0</td></tr>
 <tr class="separator:a54d8d06fa60f605454dbffd5d4561ed4"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:af75e60b7fe33c8dcfe913827094e982a" id="r_af75e60b7fe33c8dcfe913827094e982a"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="sanitizer__scale_8hpp.html#af75e60b7fe33c8dcfe913827094e982a">SCALED</a>(normal,  reduced)&#160;&#160;&#160;(<a class="el" href="sanitizer__scale_8hpp.html#a54d8d06fa60f605454dbffd5d4561ed4">SECP256K1_SANITIZER_BUILD</a> ? (reduced) : (normal))</td></tr>
+<tr class="memitem:a401f14b74b3514939dc2a21ec9ea5f31" id="r_a401f14b74b3514939dc2a21ec9ea5f31"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="sanitizer__scale_8hpp.html#a401f14b74b3514939dc2a21ec9ea5f31">SECP256K1_EMBEDDED_BUILD</a>&#160;&#160;&#160;0</td></tr>
+<tr class="separator:a401f14b74b3514939dc2a21ec9ea5f31"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:af75e60b7fe33c8dcfe913827094e982a" id="r_af75e60b7fe33c8dcfe913827094e982a"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="sanitizer__scale_8hpp.html#af75e60b7fe33c8dcfe913827094e982a">SCALED</a>(normal,  reduced)&#160;&#160;&#160;((<a class="el" href="sanitizer__scale_8hpp.html#a54d8d06fa60f605454dbffd5d4561ed4">SECP256K1_SANITIZER_BUILD</a> || <a class="el" href="sanitizer__scale_8hpp.html#a401f14b74b3514939dc2a21ec9ea5f31">SECP256K1_EMBEDDED_BUILD</a>) ? (reduced) : (normal))</td></tr>
 <tr class="separator:af75e60b7fe33c8dcfe913827094e982a"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <h2 class="groupheader">Macro Definition Documentation</h2>
@@ -127,12 +129,28 @@ Macros</h2></td></tr>
         <tr>
           <td></td>
           <td>)</td>
-          <td></td><td>&#160;&#160;&#160;(<a class="el" href="sanitizer__scale_8hpp.html#a54d8d06fa60f605454dbffd5d4561ed4">SECP256K1_SANITIZER_BUILD</a> ? (reduced) : (normal))</td>
+          <td></td><td>&#160;&#160;&#160;((<a class="el" href="sanitizer__scale_8hpp.html#a54d8d06fa60f605454dbffd5d4561ed4">SECP256K1_SANITIZER_BUILD</a> || <a class="el" href="sanitizer__scale_8hpp.html#a401f14b74b3514939dc2a21ec9ea5f31">SECP256K1_EMBEDDED_BUILD</a>) ? (reduced) : (normal))</td>
         </tr>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="sanitizer__scale_8hpp_source.html#l00028">28</a> of file <a class="el" href="sanitizer__scale_8hpp_source.html">sanitizer_scale.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="sanitizer__scale_8hpp_source.html#l00037">37</a> of file <a class="el" href="sanitizer__scale_8hpp_source.html">sanitizer_scale.hpp</a>.</p>
+
+</div>
+</div>
+<a id="a401f14b74b3514939dc2a21ec9ea5f31" name="a401f14b74b3514939dc2a21ec9ea5f31"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a401f14b74b3514939dc2a21ec9ea5f31">&#9670;&#160;</a></span>SECP256K1_EMBEDDED_BUILD</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">#define SECP256K1_EMBEDDED_BUILD&#160;&#160;&#160;0</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p class="definition">Definition at line <a class="el" href="sanitizer__scale_8hpp_source.html#l00031">31</a> of file <a class="el" href="sanitizer__scale_8hpp_source.html">sanitizer_scale.hpp</a>.</p>
 
 </div>
 </div>
