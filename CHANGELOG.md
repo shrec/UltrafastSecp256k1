@@ -5,6 +5,16 @@ All notable changes to UltrafastSecp256k1 are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.15.2] - 2026-03-01
+
+### Fixed -- Code Quality (136 code scanning alerts resolved)
+- **bench_hornet.cpp** -- 73 fixes: const-correctness, braces, cert-err33-c, modernize-use-auto, implicit-widening, reserved-identifier, init-variables
+- **glv.cpp** -- 33 fixes: const-correctness in GLV_MULADD macro and k_arr array
+- **audit_integration.cpp** -- 10 fixes: const-correctness, cert-err33-c, sizes[] arrays
+- **point.cpp** -- 5 fixes: const-correctness for Jacobian add intermediates
+- **precompute.cpp** -- 2 fixes: modernize-use-auto, simplify-boolean-expr
+- 12 containerOutOfBounds (Cppcheck false positives) dismissed
+
 ## [3.15.1] - 2026-03-01
 
 ### Fixed -- Build (MSVC / wasm / armv7 / GCC -Wpedantic)
