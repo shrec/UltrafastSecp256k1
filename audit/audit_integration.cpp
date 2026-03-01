@@ -499,7 +499,7 @@ static void test_ecdsa_batch_nsweep() {
 
     auto G = Point::generator();
 
-    int sizes[] = {1, 2, 3, 10, 50, 100, 500};
+    const int sizes[] = {1, 2, 3, 10, 50, 100, 500};
     for (const int n : sizes) {
         std::vector<secp256k1::ECDSABatchEntry> entries;
         entries.reserve(n);
@@ -545,7 +545,7 @@ static void test_pippenger_large_n() {
     auto G = Point::generator();
 
     // For each size: compute MSM and verify against naive sum
-    int sizes[] = {128, 256, 512, 1000};
+    const int sizes[] = {128, 256, 512, 1000};
     for (const int n : sizes) {
         std::vector<Scalar> scalars(n);
         std::vector<Point> points(n);
