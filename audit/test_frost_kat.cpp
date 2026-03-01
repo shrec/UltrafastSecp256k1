@@ -39,12 +39,7 @@ using secp256k1::fast::Point;
 static int g_pass = 0;
 static int g_fail = 0;
 
-#define CHECK(cond, label) do { \
-    if (cond) { ++g_pass; } else { \
-        ++g_fail; \
-        (void)std::printf("  FAIL: %s (line %d)\n", label, __LINE__); \
-    } \
-} while(0)
+#include "audit_check.hpp"
 
 // -- Helpers ------------------------------------------------------------------
 
@@ -637,6 +632,242 @@ static void test_secret_reconstruction() {
 }
 
 // ===============================================================================
+// Test 10: RFC 9591 Protocol Invariants (ciphersuite-independent)
+// ===============================================================================
+// These verify the mathematical properties required by IETF RFC 9591 Section 5
+// applied to our secp256k1 BIP-340 ciphersuite, ensuring structural compliance.
+
+static void test_rfc9591_invariants() {
+    (void)std::printf("[10] RFC 9591 Protocol Invariants (secp256k1/BIP-340)\n");
+
+    const uint32_t t = 2, n = 3;
+    auto seed1 = make_seed(0x9591'0001);
+    auto seed2 = make_seed(0x9591'0002);
+    auto seed3 = make_seed(0x9591'0003);
+
+    // -- DKG --
+    auto [c1, sh1] = secp256k1::frost_keygen_begin(1, t, n, seed1);
+    auto [c2, sh2] = secp256k1::frost_keygen_begin(2, t, n, seed2);
+    auto [c3, sh3] = secp256k1::frost_keygen_begin(3, t, n, seed3);
+
+    std::vector<secp256k1::FrostCommitment> const commits = {c1, c2, c3};
+    std::vector<secp256k1::FrostShare> const p1_sh = {sh1[0], sh2[0], sh3[0]};
+    std::vector<secp256k1::FrostShare> const p2_sh = {sh1[1], sh2[1], sh3[1]};
+    std::vector<secp256k1::FrostShare> const p3_sh = {sh1[2], sh2[2], sh3[2]};
+
+    auto [kp1, ok1] = secp256k1::frost_keygen_finalize(1, commits, p1_sh, t, n);
+    auto [kp2, ok2] = secp256k1::frost_keygen_finalize(2, commits, p2_sh, t, n);
+    auto [kp3, ok3] = secp256k1::frost_keygen_finalize(3, commits, p3_sh, t, n);
+    CHECK(ok1 && ok2 && ok3, "RFC9591 DKG success");
+
+    // -- Invariant 1: Verification share = signing_share * G (RFC 9591 S5.2) --
+    auto v1_calc = Point::generator().scalar_mul(kp1.signing_share);
+    auto v2_calc = Point::generator().scalar_mul(kp2.signing_share);
+    auto v3_calc = Point::generator().scalar_mul(kp3.signing_share);
+    CHECK(points_equal(v1_calc, kp1.verification_share),
+          "RFC9591: Y_1 == s_1 * G");
+    CHECK(points_equal(v2_calc, kp2.verification_share),
+          "RFC9591: Y_2 == s_2 * G");
+    CHECK(points_equal(v3_calc, kp3.verification_share),
+          "RFC9591: Y_3 == s_3 * G");
+
+    // -- Invariant 2: Group key from Lagrange interpolation of Y_i (RFC 9591 S5.2) --
+    // Y = sum_i(lambda_i * Y_i) for any t-sized subset
+    {
+        std::vector<secp256k1::ParticipantId> const ids12 = {1, 2};
+        auto l1 = secp256k1::frost_lagrange_coefficient(1, ids12);
+        auto l2 = secp256k1::frost_lagrange_coefficient(2, ids12);
+        auto Y_from_12 = kp1.verification_share.scalar_mul(l1)
+                         .add(kp2.verification_share.scalar_mul(l2));
+        CHECK(Y_from_12.x().to_bytes() == kp1.group_public_key.x().to_bytes(),
+              "RFC9591: Y from {Y1,Y2} Lagrange == group key");
+
+        std::vector<secp256k1::ParticipantId> const ids23 = {2, 3};
+        auto l2b = secp256k1::frost_lagrange_coefficient(2, ids23);
+        auto l3b = secp256k1::frost_lagrange_coefficient(3, ids23);
+        auto Y_from_23 = kp2.verification_share.scalar_mul(l2b)
+                         .add(kp3.verification_share.scalar_mul(l3b));
+        CHECK(Y_from_23.x().to_bytes() == kp1.group_public_key.x().to_bytes(),
+              "RFC9591: Y from {Y2,Y3} Lagrange == group key");
+    }
+
+    // -- Invariant 3: Commitment A_i[0] == secret_share_i * G (Feldman VSS) --
+    for (size_t i = 0; i < commits.size(); ++i) {
+        // c_i.coeffs[0] is the commitment to the constant term (secret)
+        // This verifies Feldman VSS correctness per RFC 9591 S5.1
+        CHECK(!commits[i].coeffs.empty(),
+              "RFC9591: commitment has coefficients");
+        // Each participant's constant commitment should be on the curve
+        CHECK(!commits[i].coeffs[0].is_infinity(),
+              "RFC9591: A_i[0] is not infinity");
+    }
+
+    // -- Invariant 4: Partial sig linearity (RFC 9591 S5.4) --
+    // If we sign the same message with two different subsets,
+    // the final aggregated signature must be identical
+    std::array<uint8_t, 32> msg{};
+    msg[0] = 0x95; msg[1] = 0x91; msg[2] = 0x42;
+
+    auto nseed1 = make_seed(0x9591'A001);
+    auto nseed2 = make_seed(0x9591'A002);
+    auto nseed3 = make_seed(0x9591'A003);
+
+    auto [n1, nc1] = secp256k1::frost_sign_nonce_gen(1, nseed1);
+    auto [n2, nc2] = secp256k1::frost_sign_nonce_gen(2, nseed2);
+    // n3/nc3 intentionally unused: subset {1,2} does not include participant 3
+    (void)secp256k1::frost_sign_nonce_gen(3, nseed3);
+
+    // Sign with subset {1,2}
+    std::vector<secp256k1::FrostNonceCommitment> const nc12 = {nc1, nc2};
+    auto ps1_12 = secp256k1::frost_sign(kp1, n1, msg, nc12);
+    auto ps2_12 = secp256k1::frost_sign(kp2, n2, msg, nc12);
+
+    auto sig12 = secp256k1::frost_aggregate({ps1_12, ps2_12}, nc12,
+                                             kp1.group_public_key, msg);
+
+    // Verify signature with BIP-340 schnorr_verify
+    auto gpk_bytes = kp1.group_public_key.x().to_bytes();
+    bool v12 = secp256k1::schnorr_verify(gpk_bytes.data(), msg.data(), sig12);
+    CHECK(v12, "RFC9591: sig from {1,2} verifies");
+
+    // Sign with subset {1,3} (fresh nonces required)
+    auto nseed1b = make_seed(0x9591'B001);
+    auto nseed3b = make_seed(0x9591'B003);
+    auto [n1b, nc1b] = secp256k1::frost_sign_nonce_gen(1, nseed1b);
+    auto [n3b, nc3b] = secp256k1::frost_sign_nonce_gen(3, nseed3b);
+
+    std::vector<secp256k1::FrostNonceCommitment> const nc13 = {nc1b, nc3b};
+    auto ps1_13 = secp256k1::frost_sign(kp1, n1b, msg, nc13);
+    auto ps3_13 = secp256k1::frost_sign(kp3, n3b, msg, nc13);
+
+    auto sig13 = secp256k1::frost_aggregate({ps1_13, ps3_13}, nc13,
+                                             kp1.group_public_key, msg);
+    bool v13 = secp256k1::schnorr_verify(gpk_bytes.data(), msg.data(), sig13);
+    CHECK(v13, "RFC9591: sig from {1,3} verifies");
+
+    // Both sigs are valid but may differ (different nonces) -- that's correct!
+    // The key invariant: both verify against the SAME group public key.
+
+    // -- Invariant 5: Partial signature verification (RFC 9591 S5.3) --
+    // Each partial sig should verify against its signer's verification share
+    auto nseedV1 = make_seed(0x9591'C001);
+    auto nseedV2 = make_seed(0x9591'C002);
+    auto [nV1, ncV1] = secp256k1::frost_sign_nonce_gen(1, nseedV1);
+    auto [nV2, ncV2] = secp256k1::frost_sign_nonce_gen(2, nseedV2);
+
+    std::vector<secp256k1::FrostNonceCommitment> const ncV = {ncV1, ncV2};
+    auto psV1 = secp256k1::frost_sign(kp1, nV1, msg, ncV);
+    auto psV2 = secp256k1::frost_sign(kp2, nV2, msg, ncV);
+
+    bool pv1 = secp256k1::frost_verify_partial(psV1, ncV1,
+                kp1.verification_share, msg, ncV, kp1.group_public_key);
+    bool pv2 = secp256k1::frost_verify_partial(psV2, ncV2,
+                kp2.verification_share, msg, ncV, kp1.group_public_key);
+    CHECK(pv1, "RFC9591: partial sig 1 valid");
+    CHECK(pv2, "RFC9591: partial sig 2 valid");
+
+    // Aggregate and verify final sig
+    auto sigV = secp256k1::frost_aggregate({psV1, psV2}, ncV,
+                                            kp1.group_public_key, msg);
+    CHECK(secp256k1::schnorr_verify(gpk_bytes.data(), msg.data(), sigV),
+          "RFC9591: aggregated sig verifies");
+
+    // -- Invariant 6: Wrong share -> partial verify fails --
+    // Give P2's partial sig but P1's verification share => must fail
+    bool pv_wrong = secp256k1::frost_verify_partial(psV2, ncV2,
+                     kp1.verification_share, msg, ncV, kp1.group_public_key);
+    CHECK(!pv_wrong, "RFC9591: wrong verification share -> partial verify fails");
+
+    // -- Invariant 7: Nonce commitment consistency --
+    // D_i == d_i * G, E_i == e_i * G
+    CHECK(points_equal(Point::generator().scalar_mul(nV1.hiding_nonce), ncV1.hiding_point),
+          "RFC9591: D_1 == d_1 * G");
+    CHECK(points_equal(Point::generator().scalar_mul(nV1.binding_nonce), ncV1.binding_point),
+          "RFC9591: E_1 == e_1 * G");
+    CHECK(points_equal(Point::generator().scalar_mul(nV2.hiding_nonce), ncV2.hiding_point),
+          "RFC9591: D_2 == d_2 * G");
+    CHECK(points_equal(Point::generator().scalar_mul(nV2.binding_nonce), ncV2.binding_point),
+          "RFC9591: E_2 == e_2 * G");
+}
+
+// ===============================================================================
+// Test 11: 3-of-5 RFC 9591 Full Protocol Walk-through
+// ===============================================================================
+
+static void test_rfc9591_3of5() {
+    (void)std::printf("[11] RFC 9591: 3-of-5 Full Protocol (secp256k1/BIP-340)\n");
+
+    const uint32_t t = 3, n = 5;
+    std::array<std::array<uint8_t, 32>, 5> seeds;
+    for (uint32_t i = 0; i < n; ++i) seeds[i] = make_seed(0x95910300 + i);
+
+    // -- DKG --
+    std::vector<secp256k1::FrostCommitment> commits(n);
+    std::vector<std::vector<secp256k1::FrostShare>> all_shares(n);
+    for (uint32_t i = 0; i < n; ++i) {
+        auto [ci, si] = secp256k1::frost_keygen_begin(i + 1, t, n, seeds[i]);
+        commits[i] = ci;
+        all_shares[i] = si;
+    }
+
+    std::vector<secp256k1::FrostKeyPackage> kps(n);
+    for (uint32_t i = 0; i < n; ++i) {
+        std::vector<secp256k1::FrostShare> my_shares;
+        for (uint32_t j = 0; j < n; ++j) my_shares.push_back(all_shares[j][i]);
+        auto [kp, ok] = secp256k1::frost_keygen_finalize(i + 1, commits, my_shares, t, n);
+        CHECK(ok, "3of5 DKG participant ok");
+        kps[i] = kp;
+    }
+
+    // All must agree on the group key
+    for (uint32_t i = 1; i < n; ++i) {
+        CHECK(kps[i].group_public_key.to_compressed() ==
+              kps[0].group_public_key.to_compressed(),
+              "3of5 group key consistent");
+    }
+
+    // -- Try all C(5,3)=10 signing subsets --
+    std::array<uint8_t, 32> msg{};
+    msg[0] = 0x35; msg[1] = 0x0F; msg[2] = 0x05;
+
+    auto gpk_bytes = kps[0].group_public_key.x().to_bytes();
+    int sig_count = 0;
+
+    // Enumerate all 3-element subsets of {0,1,2,3,4}
+    for (uint32_t a = 0; a < n - 2; ++a) {
+        for (uint32_t b = a + 1; b < n - 1; ++b) {
+            for (uint32_t c = b + 1; c < n; ++c) {
+                uint32_t ids[3] = {a, b, c};
+
+                // Generate nonces
+                std::vector<secp256k1::FrostNonceCommitment> ncs;
+                secp256k1::FrostNonce nonces[3];
+                for (int k = 0; k < 3; ++k) {
+                    auto nseed = make_seed(0x95910500 + sig_count * 10 + k);
+                    auto [ni, nci] = secp256k1::frost_sign_nonce_gen(ids[k] + 1, nseed);
+                    nonces[k] = ni;
+                    ncs.push_back(nci);
+                }
+
+                // Partial sigs
+                std::vector<secp256k1::FrostPartialSig> psigs;
+                for (int k = 0; k < 3; ++k) {
+                    psigs.push_back(secp256k1::frost_sign(kps[ids[k]], nonces[k], msg, ncs));
+                }
+
+                // Aggregate
+                auto sig = secp256k1::frost_aggregate(psigs, ncs,
+                                                       kps[0].group_public_key, msg);
+                bool ok = secp256k1::schnorr_verify(gpk_bytes.data(), msg.data(), sig);
+                CHECK(ok, "3of5 subset sig verifies");
+                ++sig_count;
+            }
+        }
+    }
+    CHECK(sig_count == 10, "3of5: all 10 subsets tested");
+}
+
+// ===============================================================================
 // _run() entry point for unified audit runner
 // ===============================================================================
 
@@ -652,6 +883,8 @@ int test_frost_kat_run() {
     test_pinned_dkg_group_key();
     test_pinned_signing_roundtrip();
     test_secret_reconstruction();
+    test_rfc9591_invariants();
+    test_rfc9591_3of5();
 
     return g_fail > 0 ? 1 : 0;
 }
@@ -673,6 +906,8 @@ int main() {
     test_pinned_dkg_group_key();
     test_pinned_signing_roundtrip();
     test_secret_reconstruction();
+    test_rfc9591_invariants();
+    test_rfc9591_3of5();
 
     (void)std::printf("\n=== Results: %d passed, %d failed ===\n", g_pass, g_fail);
 

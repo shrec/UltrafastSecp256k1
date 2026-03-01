@@ -28,14 +28,7 @@ using namespace secp256k1::fast;
 static int g_pass = 0, g_fail = 0;
 static const char* g_section = "";
 
-#define CHECK(cond, msg) do { \
-    if (!(cond)) { \
-        printf("  FAIL [%s]: %s (line %d)\n", g_section, msg, __LINE__); \
-        ++g_fail; \
-    } else { \
-        ++g_pass; \
-    } \
-} while(0)
+#include "audit_check.hpp"
 
 static std::mt19937_64 rng(0xA0D17'C7C7A);  // NOLINT(cert-msc32-c,cert-msc51-cpp)
 

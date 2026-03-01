@@ -21,14 +21,7 @@ using namespace secp256k1::fast;
 static int g_pass = 0, g_fail = 0;
 static const char* g_section = "";
 
-#define CHECK(cond, msg) do { \
-    if (cond) { \
-        ++g_pass; \
-    } else { \
-        printf("  FAIL [%s]: %s (line %d)\n", g_section, msg, __LINE__); \
-        ++g_fail; \
-    } \
-} while(0)
+#include "audit_check.hpp"
 
 // Deterministic PRNG
 static std::mt19937_64 rng(0xA0D17'F1E1D);  // NOLINT(cert-msc32-c,cert-msc51-cpp)

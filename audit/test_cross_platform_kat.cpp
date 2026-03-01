@@ -37,14 +37,7 @@ static int g_pass = 0, g_fail = 0;
 static const char* g_section = "";
 static bool g_generate = false;
 
-#define CHECK(cond, msg) do { \
-    if (!(cond)) { \
-        (void)printf("  FAIL [%s]: %s (line %d)\n", g_section, msg, __LINE__); \
-        ++g_fail; \
-    } else { \
-        ++g_pass; \
-    } \
-} while(0)
+#include "audit_check.hpp"
 
 static std::string bytes_to_hex(const uint8_t* data, size_t len) {
     std::string out;

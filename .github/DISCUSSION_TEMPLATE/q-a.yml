@@ -1,0 +1,47 @@
+title: "Q&A"
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for using UltrafastSecp256k1!
+        Search [existing discussions](https://github.com/shrec/UltrafastSecp256k1/discussions) before posting.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Which part of the library does this relate to?
+      options:
+        - ECDSA (sign / verify / recover)
+        - Schnorr / BIP-340
+        - MuSig2 / BIP-327
+        - FROST threshold signing
+        - GPU / CUDA batch operations
+        - Build / CMake / toolchain
+        - Performance / benchmarks
+        - Security / constant-time
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: question
+    attributes:
+      label: Question
+      description: What would you like to know?
+      placeholder: Describe your question clearly. Include code snippets if relevant.
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Anything else that helps us answer (OS, compiler, version, etc.)
+      placeholder: |
+        - Library version: v3.16.0
+        - OS: Ubuntu 24.04
+        - Compiler: GCC 13
+    validations:
+      required: false

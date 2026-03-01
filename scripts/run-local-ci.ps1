@@ -4,30 +4,42 @@
 
 .DESCRIPTION
     Builds the Docker image and runs the full CI suite locally.
-    Equivalent to GitHub Actions security-audit.yml + coverage + clang-tidy.
+    Mirrors GitHub Actions: security-audit.yml + ci.yml + audit-report.yml + clang-tidy.yml + cppcheck.yml
 
 .PARAMETER Job
-    Run a specific job: werror, asan, valgrind, dudect, coverage, clang-tidy, ci
+    Run specific job(s): werror, ci, asan, tsan, valgrind, dudect, audit,
+                         clang-tidy, cppcheck, coverage, valgrind-ct
+    Comma-separated list accepted: -Job asan,tsan
+
+.PARAMETER Quick
+    Fast pre-commit gate (~5 min): werror + ci (Release+Debug)
 
 .PARAMETER Full
-    Run all 7 jobs (security + coverage + clang-tidy + ci matrix)
+    Release-quality check (~45-60 min): all jobs including valgrind + dudect
 
 .PARAMETER NoBuild
-    Skip rebuilding the Docker image (use existing)
+    Skip rebuilding the Docker image (use existing uf-local-ci image)
+
+.PARAMETER List
+    List all available jobs and presets, then exit
 
 .EXAMPLE
-    .\scripts\run-local-ci.ps1                          # 4 security-audit jobs
-    .\scripts\run-local-ci.ps1 -Full                    # all 7 jobs
-    .\scripts\run-local-ci.ps1 -Job coverage            # only coverage
-    .\scripts\run-local-ci.ps1 -Job asan -NoBuild       # only ASan, skip image rebuild
-    .\scripts\run-local-ci.ps1 -Job coverage,clang-tidy # coverage + clang-tidy
+    .\scripts\run-local-ci.ps1                          # Standard: 7 jobs (~20-25 min)
+    .\scripts\run-local-ci.ps1 -Quick                   # Fast gate: werror + ci (~5 min)
+    .\scripts\run-local-ci.ps1 -Full                    # All jobs (~45-60 min)
+    .\scripts\run-local-ci.ps1 -Job audit               # Only unified_audit_runner
+    .\scripts\run-local-ci.ps1 -Job asan,tsan           # Only ASan + TSan
+    .\scripts\run-local-ci.ps1 -Job asan -NoBuild       # Skip image rebuild
+    .\scripts\run-local-ci.ps1 -List                    # Show available jobs
 #>
 
 [CmdletBinding()]
 param(
     [string[]]$Job,
+    [switch]$Quick,
     [switch]$Full,
-    [switch]$NoBuild
+    [switch]$NoBuild,
+    [switch]$List
 )
 
 $ErrorActionPreference = 'Stop'
@@ -38,18 +50,26 @@ $RepoRoot = Split-Path -Parent $PSScriptRoot  # one level up from scripts/
 
 Push-Location $RepoRoot
 try {
-    # -- Verify Docker is available --------------------------------------
+    # -- Verify Docker is available ----------------------------------------
     if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
-        Write-Error "Docker not found. Install Docker Desktop first: https://docs.docker.com/desktop/install/windows-install/"
+        Write-Error "Docker not found. Install Docker Desktop: https://docs.docker.com/desktop/install/windows-install/"
         return
     }
 
-    # -- Ensure BuildKit for layer caching ----------------------------
+    # -- --List: delegate to local-ci.sh --list ----------------------------
+    if ($List) {
+        $env:DOCKER_BUILDKIT = '1'
+        docker run --rm -v "${RepoRoot}:/src" $ImageName `
+            bash /src/scripts/local-ci.sh --list
+        return
+    }
+
+    # -- Ensure BuildKit for layer caching ---------------------------------
     $env:DOCKER_BUILDKIT = '1'
 
-    # -- Build image -----------------------------------------------------
+    # -- Build image -------------------------------------------------------
     if (-not $NoBuild) {
-        Write-Host "`n=== Building Docker image: $ImageName (BuildKit) ===" -ForegroundColor Cyan
+        Write-Host "`n=== Building Docker image: $ImageName ===" -ForegroundColor Cyan
         docker build -f Dockerfile.local-ci -t $ImageName .
         if ($LASTEXITCODE -ne 0) {
             Write-Error "Docker build failed"
@@ -57,48 +77,60 @@ try {
         }
     }
 
-    # -- Compose run arguments -------------------------------------------
-    $ciArgs = @()
-    if ($Full) {
-        $ciArgs = @('bash', '/src/scripts/local-ci.sh', '--full')
+    # -- Compose local-ci.sh arguments ------------------------------------
+    $ciArgs = @('bash', '/src/scripts/local-ci.sh')
+
+    if ($Quick) {
+        $ciArgs += '--quick'
+    }
+    elseif ($Full) {
+        $ciArgs += '--full'
     }
     elseif ($Job -and $Job.Count -gt 0) {
-        $ciArgs = @('bash', '/src/scripts/local-ci.sh')
+        # Support comma-separated: -Job asan,tsan  OR  -Job asan -Job tsan
         foreach ($j in $Job) {
-            $ciArgs += '--job'
-            $ciArgs += $j
+            foreach ($single in ($j -split ',')) {
+                $ciArgs += '--job'
+                $ciArgs += $single.Trim()
+            }
         }
     }
-    # else: default CMD from Dockerfile (--all)
+    # else: no flag → local-ci.sh defaults to --all
 
-    # -- Run container (with ccache volume for fast rebuilds) ----------
-    Write-Host "`n=== Running local CI (ccache volume: $CcacheVolume) ===" -ForegroundColor Cyan
+    # -- Run container (ccache volume for fast incremental builds) --------
+    Write-Host "`n=== Running local CI (ccache: $CcacheVolume) ===" -ForegroundColor Cyan
     $runArgs = @(
         'run', '--rm',
         '-v', "${RepoRoot}:/src",
         '-v', "${CcacheVolume}:/ccache",
         $ImageName
-    )
-    if ($ciArgs.Count -gt 0) {
-        $runArgs += $ciArgs
-    }
+    ) + $ciArgs
 
     & docker @runArgs
     $exitCode = $LASTEXITCODE
 
-    # -- Report ----------------------------------------------------------
+    # -- Report ------------------------------------------------------------
     if ($exitCode -eq 0) {
-        Write-Host "`nAll local CI jobs passed!" -ForegroundColor Green
+        Write-Host "`n✓ All local CI jobs passed!" -ForegroundColor Green
     }
     else {
-        Write-Host "`nSome local CI jobs failed (exit code: $exitCode)" -ForegroundColor Red
+        Write-Host "`n✗ Some local CI jobs failed (exit: $exitCode)" -ForegroundColor Red
     }
 
-    # Check if coverage HTML was generated
-    $covHtml = Join-Path $RepoRoot 'build-local-ci-coverage/html/index.html'
-    if (Test-Path $covHtml) {
-        Write-Host "`nCoverage report: $covHtml" -ForegroundColor Yellow
-        Write-Host "Open in browser:  start $covHtml" -ForegroundColor Yellow
+    # Surface artifacts written back to /src/local-ci-output/
+    $outDir = Join-Path $RepoRoot 'local-ci-output'
+    if (Test-Path $outDir) {
+        Write-Host "`nArtifacts in: $outDir" -ForegroundColor Yellow
+
+        $covHtml = Join-Path $outDir 'coverage-html\index.html'
+        if (Test-Path $covHtml) {
+            Write-Host "  Coverage HTML: $covHtml" -ForegroundColor Yellow
+            Write-Host "  Open:  start `"$covHtml`"" -ForegroundColor DarkYellow
+        }
+        $auditTxt = Join-Path $outDir 'audit\audit_report.txt'
+        if (Test-Path $auditTxt) {
+            Write-Host "  Audit report:  $auditTxt" -ForegroundColor Yellow
+        }
     }
 
     exit $exitCode

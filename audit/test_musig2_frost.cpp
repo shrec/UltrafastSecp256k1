@@ -37,12 +37,7 @@ using secp256k1::fast::Point;
 static int g_pass = 0;
 static int g_fail = 0;
 
-#define CHECK(cond, label) do { \
-    if (cond) { ++g_pass; } else { \
-        ++g_fail; \
-        std::printf("  FAIL: %s (line %d)\n", label, __LINE__); \
-    } \
-} while(0)
+#include "audit_check.hpp"
 
 // -- Helpers ------------------------------------------------------------------
 

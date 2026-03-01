@@ -1,0 +1,70 @@
+title: "Integration Help"
+labels: ["question", "integration"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Need help integrating UltrafastSecp256k1 into your project?
+        Read the [Build Guide](../../docs/BUILDING.md) and [API Reference](../../docs/API_REFERENCE.md) first.
+
+  - type: dropdown
+    id: integration-type
+    attributes:
+      label: Integration method
+      options:
+        - CMake FetchContent / add_subdirectory
+        - System-installed library (find_package)
+        - Header-only include
+        - C ABI (ufsecp)
+        - GPU kernel integration (CUDA/OpenCL)
+        - Cross-compilation (embedded/mobile)
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Target platform
+      options:
+        - Linux x86-64
+        - Linux ARM64
+        - Windows (MSVC)
+        - Windows (Clang/LLVM)
+        - macOS (Intel)
+        - macOS (Apple Silicon)
+        - iOS
+        - Android (NDK)
+        - WebAssembly (Emscripten)
+        - ESP32 / STM32
+        - RISC-V
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What are you trying to do?
+      description: Describe your integration goal and where you are stuck.
+      placeholder: |
+        I am trying to use UltrafastSecp256k1 in my CMake project but ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: errors
+    attributes:
+      label: Error output
+      description: Paste compiler/linker errors or CMake output (if any)
+      render: text
+    validations:
+      required: false
+
+  - type: input
+    id: version
+    attributes:
+      label: Library version
+      placeholder: "v3.16.0"
+    validations:
+      required: false

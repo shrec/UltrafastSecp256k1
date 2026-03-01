@@ -30,14 +30,7 @@ using namespace secp256k1::fast;
 static int g_pass = 0, g_fail = 0;
 static const char* g_section = "";
 
-#define CHECK(cond, msg) do { \
-    if (!(cond)) { \
-        (void)printf("  FAIL [%s]: %s (line %d)\n", g_section, msg, __LINE__); \
-        ++g_fail; \
-    } else { \
-        ++g_pass; \
-    } \
-} while(0)
+#include "audit_check.hpp"
 
 // ============================================================================
 // 1. Field element normalization check

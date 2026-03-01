@@ -39,14 +39,7 @@ static int g_pass = 0;
 static int g_fail = 0;
 static int g_crash = 0;  // should stay 0
 
-#define CHECK(cond, msg) do { \
-    if (cond) { \
-        ++g_pass; \
-    } else { \
-        std::printf("  FAIL: %s (line %d)\n", (msg), __LINE__); \
-        ++g_fail; \
-    } \
-} while(0)
+#include "audit_check.hpp"
 
 #define MUST_NOT_CRASH(expr, msg) do { \
     (expr); \

@@ -22,14 +22,7 @@
 
 static int g_pass = 0, g_fail = 0;
 
-#define CHECK(cond, msg) do { \
-    if (!(cond)) { \
-        printf("  FAIL: %s (line %d)\n", msg, __LINE__); \
-        ++g_fail; \
-    } else { \
-        ++g_pass; \
-    } \
-} while(0)
+#include "audit_check.hpp"
 
 // Exportable run function (for unified audit runner)
 int test_abi_gate_run() {

@@ -33,6 +33,9 @@ jobs:
     name: Benchmark Regression Check
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    permissions:
+      contents: write       # needed to push baseline to gh-pages on push events
+      pull-requests: write  # needed to comment on PRs when regression detected
 
     steps:
     - name: Harden the runner
@@ -43,6 +46,7 @@ jobs:
     - name: Checkout
       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       with:
+        persist-credentials: false
         submodules: recursive
 
     - name: Install dependencies
@@ -69,21 +73,27 @@ jobs:
           benchmark_results/raw_output.txt \
           benchmark_results/benchmark.json
 
-    - name: Check for regression (fail on >20%)
-      if: github.event_name == 'push'
+    - name: Store baseline + check regression (push to main/dev or manual dispatch)
+      # Stores the result to gh-pages and FAILS the job if >20% regression.
+      # auto-push: true is required so future runs have a baseline to compare.
+      # workflow_dispatch also stores so you can bootstrap/reset the baseline manually.
+      if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
       uses: benchmark-action/github-action-benchmark@4bdcce38c94cec68da58d012ac24b7b1155efe8b # v1
       with:
         name: 'Perf Regression Gate'
         tool: 'customSmallerIsBetter'
         output-file-path: benchmark_results/benchmark.json
         github-token: ${{ secrets.GITHUB_TOKEN }}
-        auto-push: false
+        auto-push: true
         alert-threshold: '120%'
         comment-on-alert: true
         fail-on-alert: true
         benchmark-data-dir-path: 'dev/bench-gate'
 
-    - name: PR comment (comparison only, no store)
+    - name: PR comparison (alert only, do not store)
+      # Compares PR benchmark against the stored baseline from push events.
+      # Does NOT store (auto-push: false) — only the push to main/dev updates baseline.
+      # continue-on-error: true so PR is not hard-blocked, but alert comment is posted.
       if: github.event_name == 'pull_request'
       uses: benchmark-action/github-action-benchmark@4bdcce38c94cec68da58d012ac24b7b1155efe8b # v1
       with:
@@ -102,8 +112,14 @@ jobs:
       if: always()
       run: |
         echo "## Benchmark Regression Gate" >> $GITHUB_STEP_SUMMARY
-        echo '```' >> $GITHUB_STEP_SUMMARY
-        head -40 benchmark_results/raw_output.txt >> $GITHUB_STEP_SUMMARY
-        echo '```' >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "Threshold: 120% (fails if any operation >20% slower than baseline)" >> $GITHUB_STEP_SUMMARY
+        echo "**Event:** \`${{ github.event_name }}\`  **Threshold:** 120% (>20% slower = fail)" >> $GITHUB_STEP_SUMMARY
+        if [ "${{ github.event_name }}" = "push" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          echo "**Baseline:** stored to \`dev/bench-gate\` on gh-pages (auto-push: true)" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "**Baseline:** read-only comparison (PR — baseline not updated)" >> $GITHUB_STEP_SUMMARY
+        fi
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        head -50 benchmark_results/raw_output.txt >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY

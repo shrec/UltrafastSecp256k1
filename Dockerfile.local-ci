@@ -38,6 +38,8 @@ RUN apt-get update -qq && \
         ninja-build cmake \
         ccache \
         valgrind \
+        cppcheck \
+        python3-minimal \
         jq \
         ca-certificates \
     && rm -rf /var/lib/apt/lists/*
@@ -59,5 +61,5 @@ ENV PATH="/usr/lib/ccache:${PATH}"
 
 WORKDIR /src
 
-# Default: run all security-audit jobs
+# Default: --all (werror + ci + asan + tsan + audit + clang-tidy + cppcheck)
 CMD ["bash", "/src/scripts/local-ci.sh", "--all"]

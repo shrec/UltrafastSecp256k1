@@ -1,0 +1,84 @@
+title: "Show & Tell"
+labels: ["show-and-tell"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Share what you built with UltrafastSecp256k1!
+        We will add notable projects to [ADOPTERS.md](../../ADOPTERS.md).
+
+  - type: input
+    id: project-name
+    attributes:
+      label: Project / Organization
+      description: Name of your project or organization
+      placeholder: "e.g. MyWallet, Acme Corp"
+    validations:
+      required: true
+
+  - type: input
+    id: project-url
+    attributes:
+      label: URL
+      description: Homepage, repo, or app store link (optional)
+      placeholder: "https://..."
+    validations:
+      required: false
+
+  - type: dropdown
+    id: features
+    attributes:
+      label: Features used
+      description: Which parts of the library do you use?
+      multiple: true
+      options:
+        - ECDSA sign/verify
+        - Schnorr / BIP-340
+        - MuSig2 / BIP-327
+        - FROST threshold signing
+        - GPU batch (CUDA/OpenCL/Metal)
+        - Key generation / recovery
+        - Hash acceleration (SHA-256/RIPEMD-160)
+        - Address derivation (BIP-32)
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Brief description of your use case and what you built.
+      placeholder: |
+        We use UltrafastSecp256k1 for ...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Deployment target
+      description: Where does your project run?
+      multiple: true
+      options:
+        - Server (Linux x86-64)
+        - Server (Linux ARM64)
+        - Desktop (Windows)
+        - Desktop (macOS)
+        - Mobile (iOS)
+        - Mobile (Android)
+        - Embedded (ESP32/STM32/RISC-V)
+        - WebAssembly
+        - GPU cluster
+        - Other
+    validations:
+      required: false
+
+  - type: input
+    id: version
+    attributes:
+      label: Library version
+      description: Which version did you start with?
+      placeholder: "v3.16.0"
+    validations:
+      required: false

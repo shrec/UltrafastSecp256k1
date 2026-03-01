@@ -252,6 +252,19 @@ if(SECP256K1_BUILD_PROTOCOL_TESTS)
     add_test(NAME frost_kat COMMAND test_frost_kat)
     set_tests_properties(frost_kat PROPERTIES TIMEOUT 600)
     message(STATUS "  FROST reference KAT vectors: ON")
+
+    # MuSig2 BIP-327 reference vectors
+    add_executable(test_musig2_bip327_vectors test_musig2_bip327_vectors.cpp)
+    target_link_libraries(test_musig2_bip327_vectors PRIVATE fastsecp256k1)
+    target_include_directories(test_musig2_bip327_vectors PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/include
+    )
+    if(MSVC OR (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND WIN32))
+        target_link_options(test_musig2_bip327_vectors PRIVATE "LINKER:/STACK:8388608")
+    endif()
+    add_test(NAME musig2_bip327_vectors COMMAND test_musig2_bip327_vectors)
+    set_tests_properties(musig2_bip327_vectors PROPERTIES TIMEOUT 600)
+    message(STATUS "  MuSig2 BIP-327 reference vectors: ON")
 endif()
 
 # ===========================================================================
@@ -297,6 +310,8 @@ add_executable(unified_audit_runner
     test_musig2_frost.cpp
     test_musig2_frost_advanced.cpp
     test_frost_kat.cpp
+    test_musig2_bip327_vectors.cpp
+    test_ffi_round_trip.cpp
     audit_fuzz.cpp
     test_fuzz_parsers.cpp
     test_fuzz_address_bip32_ffi.cpp

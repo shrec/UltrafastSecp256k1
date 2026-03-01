@@ -1,0 +1,43 @@
+title: "Ideas"
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Suggest new features, API improvements, or platform support.
+        Check [existing ideas](https://github.com/shrec/UltrafastSecp256k1/discussions/categories/ideas) first.
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Category
+      options:
+        - New cryptographic primitive
+        - New platform / backend
+        - API improvement
+        - Performance optimization
+        - Developer experience / tooling
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: Describe the idea and why it would be useful.
+      placeholder: |
+        **Problem:** ...
+        **Proposed solution:** ...
+        **Alternatives considered:** ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Links, papers, benchmarks, or examples
+    validations:
+      required: false

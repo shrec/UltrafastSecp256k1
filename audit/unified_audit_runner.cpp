@@ -103,6 +103,12 @@ int test_bip340_strict_run();
 int test_musig2_frost_protocol_run();
 int test_musig2_frost_advanced_run();
 int test_frost_kat_run();
+int test_musig2_bip327_vectors_run();
+
+// ============================================================================
+// Forward declarations -- Cross-ABI / FFI round-trip tests
+// ============================================================================
+int test_ffi_round_trip_run();
 
 // ============================================================================
 // Forward declarations -- adversarial / fuzz tests
@@ -227,6 +233,7 @@ static const AuditModule ALL_MODULES[] = {
     { "bip32_vectors",     "BIP-32 official vectors TV1-5",               "standard_vectors", test_bip32_vectors_run, false },
     { "rfc6979_vectors",   "RFC 6979 ECDSA vectors",                      "standard_vectors", test_rfc6979_vectors_run, false },
     { "frost_kat",         "FROST reference KAT vectors",                 "standard_vectors", test_frost_kat_run, false },
+    { "musig2_bip327",     "MuSig2 BIP-327 reference vectors",            "standard_vectors", test_musig2_bip327_vectors_run, false },
 
     // ===================================================================
     // Section 5: Fuzzing & Adversarial Attack Resilience
@@ -255,6 +262,7 @@ static const AuditModule ALL_MODULES[] = {
     { "audit_security",    "Security hardening (zero/bitflip/nonce)",      "memory_safety",  audit_security_run, false },
     { "debug_invariants",  "Debug invariant assertions",                   "memory_safety",  test_debug_invariants_run, false },
     { "abi_gate",          "ABI version gate (compile-time)",              "memory_safety",  test_abi_gate_run, false },
+    { "ffi_round_trip",    "Cross-ABI/FFI round-trip (ufsecp C API)",     "memory_safety",  test_ffi_round_trip_run, false },
 
     // ===================================================================
     // Section 8: Performance Validation & Regression
@@ -415,7 +423,9 @@ static std::vector<SectionSummary> compute_section_summaries(
         for (auto& r : results) {
             if (std::strcmp(r.section, SECTIONS[s].id) == 0) {
                 ++ss.total;
-                if (r.passed) ++ss.passed; else ++ss.failed;
+                if (r.passed) ++ss.passed;
+                else if (!r.advisory) ++ss.failed;
+                // advisory warnings count in total but not in failed
                 ss.time_ms += r.elapsed_ms;
             }
         }
@@ -444,9 +454,11 @@ static void write_json_report(const char* path,
         return;
     }
 
-    int total_pass = 0, total_fail = 0;
+    int total_pass = 0, total_fail = 0, total_advisory = 0;
     for (auto& r : results) {
-        if (r.passed) ++total_pass; else ++total_fail;
+        if (r.passed) ++total_pass;
+        else if (r.advisory) ++total_advisory;
+        else ++total_fail;
     }
     if (selftest_passed) ++total_pass; else ++total_fail;
 
@@ -469,6 +481,7 @@ static void write_json_report(const char* path,
     (void)std::fprintf(f, "    \"total_modules\": %d,\n", (int)results.size() + 1);
     (void)std::fprintf(f, "    \"passed\": %d,\n", total_pass);
     (void)std::fprintf(f, "    \"failed\": %d,\n", total_fail);
+    (void)std::fprintf(f, "    \"advisory_warnings\": %d,\n", total_advisory);
     (void)std::fprintf(f, "    \"all_passed\": %s,\n", (total_fail == 0) ? "true" : "false");
     (void)std::fprintf(f, "    \"total_time_ms\": %.1f,\n", total_ms);
     (void)std::fprintf(f, "    \"audit_verdict\": \"%s\"\n",
@@ -535,9 +548,11 @@ static void write_text_report(const char* path,
         return;
     }
 
-    int total_pass = 0, total_fail = 0;
+    int total_pass = 0, total_fail = 0, total_advisory = 0;
     for (auto& r : results) {
-        if (r.passed) ++total_pass; else ++total_fail;
+        if (r.passed) ++total_pass;
+        else if (r.advisory) ++total_advisory;
+        else ++total_fail;
     }
     if (selftest_passed) ++total_pass; else ++total_fail;
 
@@ -572,9 +587,10 @@ static void write_text_report(const char* path,
 
         for (auto& r : results) {
             if (std::strcmp(r.section, sec.section_id) != 0) continue;
+            const char* status = r.passed ? "PASS" : (r.advisory ? "WARN" : "FAIL");
             (void)std::fprintf(f, "  [%2d] %-45s %s  (%.0f ms)\n",
                          module_idx++, r.name,
-                         r.passed ? "PASS" : "FAIL", r.elapsed_ms);
+                         status, r.elapsed_ms);
         }
 
         (void)std::fprintf(f, "  -------- Section Result: %d/%d passed", sec.passed, sec.total);
@@ -583,11 +599,15 @@ static void write_text_report(const char* path,
     }
 
     // -- Grand total ---
+    int const total_count = total_pass + total_fail + total_advisory;
     (void)std::fprintf(f, "================================================================\n");
     (void)std::fprintf(f, "  AUDIT VERDICT: %s\n",
-                 (total_fail == 0) ? "AUDIT-READY (ALL PASSED)" : "AUDIT-BLOCKED (FAILURES DETECTED)");
-    (void)std::fprintf(f, "  TOTAL: %d/%d modules passed  (%.1f s)\n",
-                 total_pass, total_pass + total_fail, total_ms / 1000.0);
+                 (total_fail == 0) ? "AUDIT-READY" : "AUDIT-BLOCKED (FAILURES DETECTED)");
+    (void)std::fprintf(f, "  TOTAL: %d/%d modules passed", total_pass, total_count);
+    if (total_advisory > 0) {
+        (void)std::fprintf(f, "  (%d advisory warnings)", total_advisory);
+    }
+    (void)std::fprintf(f, "  (%.1f s)\n", total_ms / 1000.0);
     (void)std::fprintf(f, "  Platform: %s %s | %s | %s\n",
                  plat.os.c_str(), plat.arch.c_str(),
                  plat.compiler.c_str(), plat.build_type.c_str());
@@ -759,6 +779,14 @@ static void print_usage() {
 }
 
 int main(int argc, char* argv[]) {
+    // Disable full-buffering so sub-test progress appears in real-time
+    // (CTest / Docker / CI runners buffer stdout when it is not a TTY)
+#ifdef _WIN32
+    (void)std::setvbuf(stdout, nullptr, _IONBF, 0);  // Windows: unbuffered
+#else
+    (void)std::setvbuf(stdout, nullptr, _IOLBF, 0);  // POSIX: line-buffered
+#endif
+
     // Parse args
     bool json_only = false;
     bool sarif_enabled = false;

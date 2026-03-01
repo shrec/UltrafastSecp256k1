@@ -44,14 +44,7 @@ namespace uf = secp256k1::fast;
 static int g_pass = 0;
 static int g_fail = 0;
 
-#define CHECK(cond, msg) do { \
-    if (!(cond)) { \
-        std::printf("  FAIL: %s (line %d)\n", (msg), __LINE__); \
-        ++g_fail; \
-    } else { \
-        ++g_pass; \
-    } \
-} while(0)
+#include "audit_check.hpp"
 
 static std::mt19937_64 rng(42);
 static int g_multiplier = 1;
