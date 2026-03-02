@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772456935586,
+  "lastUpdate": 1772457061545,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -24535,6 +24535,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
             "value": 279,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 149,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 36000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 10000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 14000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 42000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 24000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 49000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 141,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 132,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d1187b917677d3158221c167435b8281f35726cb",
+          "message": "ci(deps): bump sigstore/cosign-installer from 3.8.1 to 4.0.0 (#84)\n\nBumps [sigstore/cosign-installer](https://github.com/sigstore/cosign-installer) from 3.8.1 to 4.0.0.\n- [Release notes](https://github.com/sigstore/cosign-installer/releases)\n- [Commits](https://github.com/sigstore/cosign-installer/compare/d7d6bc7722e3daa8354c50bcb52f4837da5e9b6a...faadad0cce49287aee09b3a48701e75088a2c6ad)\n\n---\nupdated-dependencies:\n- dependency-name: sigstore/cosign-installer\n  dependency-version: 4.0.0\n  dependency-type: direct:production\n  update-type: version-update:semver-major\n...\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-03-02T17:09:03+04:00",
+          "tree_id": "45a06a30464261652289b5a4302237bd31c61f13",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/d1187b917677d3158221c167435b8281f35726cb"
+        },
+        "date": 1772457054950,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 27,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 22,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 281,
             "unit": "ns"
           },
           {
