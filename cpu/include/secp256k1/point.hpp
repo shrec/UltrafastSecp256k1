@@ -118,6 +118,11 @@ public:
     // Branchless mixed-add against affine point (z=1): avoids runtime checks
     void add_mixed_inplace(const FieldElement& ax, const FieldElement& ay);
     void sub_mixed_inplace(const FieldElement& ax, const FieldElement& ay);
+#if defined(SECP256K1_FAST_52BIT)
+    // FE52-native mixed-add: avoids FE52->FE->FE52 roundtrip in hot loops.
+    // Used by effective-affine Strauss MSM where precomp is stored as FE52.
+    void add_mixed52_inplace(const FieldElement52& ax, const FieldElement52& ay);
+#endif
     void dbl_inplace();   // this = 2*this (modifies this, no allocation)
     void negate_inplace(); // this = -this (modifies this, no allocation)
     // Optimized repeated addition by a fixed affine point (z=1)

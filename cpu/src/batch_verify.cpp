@@ -215,7 +215,7 @@ bool ecdsa_batch_verify(const ECDSABatchEntry* entries, std::size_t n) {
         s_inv[0] = inv;
     }
 
-    // ECDSA batch: per-signature Shamir trick + Montgomery batch inversion.
+    // ECDSA batch: dual_scalar_mul_gen_point + Montgomery batch inversion.
     //
     // Unlike Schnorr (where batch = single MSM -> infinity check), ECDSA
     // requires per-signature x-coordinate check: R'_i.x mod n == r_i.
@@ -223,10 +223,10 @@ bool ecdsa_batch_verify(const ECDSABatchEntry* entries, std::size_t n) {
     // standard ECDSA doesn't provide the y-parity (recovery flag), so
     // ~50% of attempts would pick wrong y and force fallback.
     //
-    // Shamir's trick (simultaneous u1*G + u2*Q, joint wNAF scan) gives
-    // ~2x speedup over naive separate muls. Combined with Montgomery
-    // batch inversion above (1 modular inverse instead of n), this is
-    // near-optimal for standard ECDSA without recovery parameter.
+    // dual_scalar_mul_gen_point uses 4-stream GLV Strauss with precomputed
+    // generator tables (shared doublings, affine-mixed adds, W_G=15).
+    // Combined with Montgomery batch inversion (1 inverse instead of n),
+    // this is near-optimal for standard ECDSA without recovery parameter.
 
     for (std::size_t i = 0; i < n; ++i) {
         if (entries[i].signature.r.is_zero() || entries[i].signature.s.is_zero()) {
@@ -237,14 +237,59 @@ bool ecdsa_batch_verify(const ECDSABatchEntry* entries, std::size_t n) {
         auto u1 = z * s_inv[i];
         auto u2 = entries[i].signature.r * s_inv[i];
 
-        // R' = u1*G + u2*Q via Shamir's trick (joint wNAF, ~2x individual)
-        auto R_prime = shamir_trick(u1, Point::generator(),
-                                    u2, entries[i].public_key);
+        // R' = u1*G + u2*Q via 4-stream GLV Strauss (precomp G tables, ~27us)
+        auto R_prime = Point::dual_scalar_mul_gen_point(u1, u2,
+                                                        entries[i].public_key);
         if (R_prime.is_infinity()) return false;
 
+        // Z^2-based x-coordinate check (avoids field inverse ~940ns).
+        // Check: R'.x / R'.z^2 mod n == sig.r
+        // Equivalent: sig.r * R'.z^2 == R'.x (mod p)
+#if defined(SECP256K1_FAST_52BIT)
+        using FE52 = fast::FieldElement52;
+        FE52 const r52 = FE52::from_4x64_limbs(entries[i].signature.r.limbs().data());
+        FE52 const z2 = R_prime.Z52().square();
+        FE52 const r_z2 = r52 * z2;
+
+        FE52 diff = R_prime.X52();
+        diff.negate_assign(23);
+        diff.add_assign(r_z2);
+        if (!diff.normalizes_to_zero_var()) {
+            // Rare case: x_R mod p in [n, p). Probability ~2^-128.
+            static constexpr std::uint64_t PMN_0 = 0x402da1732fc9bebfULL;
+            static constexpr std::uint64_t PMN_1 = 0x14551231950b75fcULL;
+            const auto& rl = entries[i].signature.r.limbs();
+            bool r_less_than_pmn = (rl[3] == 0 && rl[2] == 0);
+            if (r_less_than_pmn) {
+                if (rl[1] != PMN_1) r_less_than_pmn = (rl[1] < PMN_1);
+                else r_less_than_pmn = (rl[0] < PMN_0);
+            }
+            if (!r_less_than_pmn) return false;
+
+            static constexpr std::uint64_t N_LIMBS[4] = {
+                0xBFD25E8CD0364141ULL, 0xBAAEDCE6AF48A03BULL,
+                0xFFFFFFFFFFFFFFFEULL, 0xFFFFFFFFFFFFFFFFULL
+            };
+            alignas(32) std::uint64_t rn[4];
+            unsigned __int128 acc = static_cast<unsigned __int128>(rl[0]) + N_LIMBS[0];
+            rn[0] = static_cast<std::uint64_t>(acc);
+            acc = static_cast<unsigned __int128>(rl[1]) + N_LIMBS[1] + static_cast<std::uint64_t>(acc >> 64);
+            rn[1] = static_cast<std::uint64_t>(acc);
+            acc = static_cast<unsigned __int128>(rl[2]) + N_LIMBS[2] + static_cast<std::uint64_t>(acc >> 64);
+            rn[2] = static_cast<std::uint64_t>(acc);
+            rn[3] = rl[3] + N_LIMBS[3] + static_cast<std::uint64_t>(acc >> 64);
+
+            FE52 const r2_z2 = FE52::from_4x64_limbs(rn) * z2;
+            FE52 diff2 = R_prime.X52();
+            diff2.negate_assign(23);
+            diff2.add_assign(r2_z2);
+            if (!diff2.normalizes_to_zero_var()) return false;
+        }
+#else
         auto v_bytes = R_prime.x().to_bytes();
         auto v = Scalar::from_bytes(v_bytes);
         if (v != entries[i].signature.r) return false;
+#endif
     }
 
     return true;

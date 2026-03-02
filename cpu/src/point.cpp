@@ -1928,6 +1928,27 @@ void Point::add_mixed_inplace(const FieldElement& ax, const FieldElement& ay) {
 }
 
 // Explicit mixed-sub with affine input: this -= (ax, ay) == this + (ax, -ay)
+
+#if defined(SECP256K1_FAST_52BIT)
+// FE52-native mixed-add: skips FE52->FE->FE52 roundtrip.
+// Used by effective-affine Strauss MSM for zero-conversion hot-loop adds.
+void Point::add_mixed52_inplace(const FieldElement52& ax, const FieldElement52& ay) {
+    if (SECP256K1_UNLIKELY(infinity_)) {
+        x_ = ax;
+        y_ = ay;
+        z_ = FieldElement52::one();
+        infinity_ = false;
+        is_generator_ = false;
+        return;
+    }
+    JacobianPoint52 p52{x_, y_, z_, infinity_};
+    AffinePoint52 const q52{ax, ay};
+    jac52_add_mixed_inplace(p52, q52);
+    x_ = p52.x; y_ = p52.y; z_ = p52.z;
+    infinity_ = p52.infinity;
+    is_generator_ = false;
+}
+#endif
 // OPTIMIZED: Inline implementation to avoid 6 FieldElement struct copies per call
 void Point::sub_mixed_inplace(const FieldElement& ax, const FieldElement& ay) {
     // Negate Y coordinate: subtract is add with negated Y
