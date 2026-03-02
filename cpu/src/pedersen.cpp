@@ -5,6 +5,7 @@
 #include "secp256k1/pedersen.hpp"
 #include "secp256k1/sha256.hpp"
 #include "secp256k1/field.hpp"
+#include "secp256k1/ct/point.hpp"
 #include <cstring>
 
 namespace secp256k1 {
@@ -95,8 +96,8 @@ bool PedersenCommitment::verify(const Scalar& value, const Scalar& blinding) con
 PedersenCommitment pedersen_commit(const Scalar& value, const Scalar& blinding) {
     // C = v*H + r*G
     const Point& H = pedersen_generator_H();
-    Point const vH = H.scalar_mul(value);
-    Point const rG = Point::generator().scalar_mul(blinding);
+    Point const vH = ct::scalar_mul(H, value);
+    Point const rG = ct::generator_mul(blinding);
     return PedersenCommitment{vH.add(rG)};
 }
 
@@ -149,9 +150,9 @@ PedersenCommitment pedersen_switch_commit(const Scalar& value,
     // C = v*H + r*G + s*J
     const Point& H = pedersen_generator_H();
     const Point& J = pedersen_generator_J();
-    Point const vH = H.scalar_mul(value);
-    Point const rG = Point::generator().scalar_mul(blinding);
-    Point const sJ = J.scalar_mul(switch_blind);
+    Point const vH = ct::scalar_mul(H, value);
+    Point const rG = ct::generator_mul(blinding);
+    Point const sJ = ct::scalar_mul(J, switch_blind);
     return PedersenCommitment{vH.add(rG).add(sJ)};
 }
 

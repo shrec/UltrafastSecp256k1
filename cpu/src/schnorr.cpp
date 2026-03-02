@@ -319,7 +319,7 @@ bool schnorr_xonly_pubkey_parse(SchnorrXonlyPubkey& out,
 
 SchnorrXonlyPubkey schnorr_xonly_from_keypair(const SchnorrKeypair& kp) {
     SchnorrXonlyPubkey pub{};
-    auto P = Point::generator().scalar_mul(kp.d);
+    auto P = ct::generator_mul(kp.d);
     auto [px, p_y_odd] = P.x_bytes_and_parity();
     if (p_y_odd) {
 #if defined(SECP256K1_FAST_52BIT)

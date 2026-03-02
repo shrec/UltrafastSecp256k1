@@ -6,6 +6,7 @@
 #include "secp256k1/sha256.hpp"
 #include "secp256k1/schnorr.hpp"
 #include "secp256k1/field.hpp"
+#include "secp256k1/ct/point.hpp"
 #include <algorithm>
 #include <cstring>
 
@@ -520,8 +521,8 @@ SilentPaymentAddress
 silent_payment_address(const Scalar& scan_privkey,
                        const Scalar& spend_privkey) {
     SilentPaymentAddress addr;
-    addr.scan_pubkey = Point::generator().scalar_mul(scan_privkey);
-    addr.spend_pubkey = Point::generator().scalar_mul(spend_privkey);
+    addr.scan_pubkey = ct::generator_mul(scan_privkey);
+    addr.spend_pubkey = ct::generator_mul(spend_privkey);
     return addr;
 }
 
@@ -555,7 +556,7 @@ silent_payment_create_output(const std::vector<Scalar>& input_privkeys,
     }
 
     // Shared secret: S = a_sum * B_scan
-    Point const S = recipient.scan_pubkey.scalar_mul(a_sum);
+    Point const S = ct::scalar_mul(recipient.scan_pubkey, a_sum);
 
     // t_k = SHA256(tagged_hash("BIP0352/SharedSecret", ser(S)) || ser32(k))
     auto S_comp = S.to_compressed();
@@ -594,7 +595,7 @@ silent_payment_scan(const Scalar& scan_privkey,
     }
 
     // Shared secret: S = b_scan * A_sum
-    Point const S = A_sum.scalar_mul(scan_privkey);
+    Point const S = ct::scalar_mul(A_sum, scan_privkey);
 
     // Check each output
     for (std::uint32_t k = 0; k < static_cast<std::uint32_t>(output_pubkeys.size()); ++k) {
@@ -615,7 +616,7 @@ silent_payment_scan(const Scalar& scan_privkey,
         Scalar const t_k = Scalar::from_bytes(t_hash);
 
         // Expected output: P = B_spend + t_k * G
-        Point const B_spend = Point::generator().scalar_mul(spend_privkey);
+        Point const B_spend = ct::generator_mul(spend_privkey);
         Point const expected = B_spend.add(Point::generator().scalar_mul(t_k));
         auto expected_x = expected.x().to_bytes();
 

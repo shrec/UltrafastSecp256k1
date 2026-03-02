@@ -6,6 +6,8 @@
 #include "secp256k1/sha256.hpp"
 #include "secp256k1/schnorr.hpp"
 #include "secp256k1/ecdsa.hpp"
+#include "secp256k1/ct/point.hpp"
+#include "secp256k1/ct/scalar.hpp"
 #include <cstring>
 
 namespace secp256k1 {
@@ -48,14 +50,15 @@ schnorr_adaptor_sign(const Scalar& private_key,
                      const std::array<std::uint8_t, 32>& msg,
                      const Point& adaptor_point,
                      const std::array<std::uint8_t, 32>& aux_rand) {
-    // Compute public key P = sk * G
-    Point P = Point::generator().scalar_mul(private_key);
+    // Compute public key P = sk * G (CT)
+    Point P = ct::generator_mul(private_key);
 
-    // BIP-340: negate sk if P.y is odd
-    Scalar sk = private_key;
-    auto P_y = P.y().to_bytes();
-    if (P_y[31] & 1) {
-        sk = sk.negate();
+    // BIP-340: negate sk if P.y is odd (CT branchless)
+    auto [P_x_bytes, p_y_odd] = P.x_bytes_and_parity();
+    std::uint64_t const sk_neg_mask = static_cast<std::uint64_t>(p_y_odd)
+                                    * UINT64_C(0xFFFFFFFFFFFFFFFF);
+    Scalar sk = ct::scalar_cneg(private_key, sk_neg_mask);
+    if (p_y_odd) {
         P = P.negate();
     }
 
@@ -142,7 +145,7 @@ schnorr_adaptor_adapt(const SchnorrAdaptorSig& pre_sig,
     Scalar const t = pre_sig.needs_negation ? adaptor_secret.negate() : adaptor_secret;
 
     // R = R^ + t_adj*G (should have even y since we ensured it during signing)
-    Point const R = pre_sig.R_hat.add(Point::generator().scalar_mul(t));
+    Point const R = pre_sig.R_hat.add(ct::generator_mul(t));
 
     // s = s + t
     Scalar const s = pre_sig.s_hat + t;

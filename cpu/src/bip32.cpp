@@ -5,6 +5,7 @@
 #include "secp256k1/bip32.hpp"
 #include "secp256k1/sha256.hpp"
 #include "secp256k1/sha512.hpp"
+#include "secp256k1/ct/point.hpp"
 #include <cstring>
 #include <cctype>
 
@@ -223,7 +224,7 @@ std::array<uint8_t, 20> hash160(const void* data, std::size_t len) {
 fast::Point ExtendedKey::public_key() const {
     if (is_private) {
         auto sk = Scalar::from_bytes(key);
-        return Point::generator().scalar_mul(sk);
+        return ct::generator_mul(sk);
     }
     // Public key: decompress from pub_prefix + key (x-coordinate)
     // y^2 = x^3 + 7, then pick y matching parity

@@ -1,5 +1,6 @@
 #include "secp256k1/ecdh.hpp"
 #include "secp256k1/sha256.hpp"
+#include "secp256k1/ct/point.hpp"
 #include <cstring>
 
 namespace secp256k1 {
@@ -15,7 +16,7 @@ std::array<std::uint8_t, 32> ecdh_compute(
 
     if (private_key.is_zero()) return {};
 
-    auto shared_point = public_key.scalar_mul(private_key);
+    auto shared_point = ct::scalar_mul(public_key, private_key);
     if (shared_point.is_infinity()) return {};
 
     // Serialize as compressed point (33 bytes: 02/03 prefix + x)
@@ -33,7 +34,7 @@ std::array<std::uint8_t, 32> ecdh_compute_xonly(
 
     if (private_key.is_zero()) return {};
 
-    auto shared_point = public_key.scalar_mul(private_key);
+    auto shared_point = ct::scalar_mul(public_key, private_key);
     if (shared_point.is_infinity()) return {};
 
     // x-coordinate only
@@ -50,7 +51,7 @@ std::array<std::uint8_t, 32> ecdh_compute_raw(
 
     if (private_key.is_zero()) return {};
 
-    auto shared_point = public_key.scalar_mul(private_key);
+    auto shared_point = ct::scalar_mul(public_key, private_key);
     if (shared_point.is_infinity()) return {};
 
     return shared_point.x().to_bytes();
