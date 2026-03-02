@@ -246,7 +246,7 @@ int main() {
         "Unknown"
 #endif
         "\n");
-    printf("  Library:   UltrafastSecp256k1 v3.14.0\n");
+    printf("  Library:   UltrafastSecp256k1 v3.16.0\n");
     printf("  Field:     4x64 limbs (uint64_t[4]), Montgomery reduction\n");
     printf("  Scalar:    4x64 limbs, Barrett/GLV decomposition\n");
     printf("  Point mul: GLV endomorphism + wNAF (w=5)\n");
@@ -758,7 +758,7 @@ int main() {
 #else
         "Unknown"
 #endif
-        " | UltrafastSecp256k1 v3.14.0\n", cpu_brand);
+        " | UltrafastSecp256k1 v3.16.0\n", cpu_brand);
     printf("==========================================================================================\n\n");
 
     return 0;

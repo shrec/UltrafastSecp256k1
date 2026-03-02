@@ -35,8 +35,10 @@ RUN apt-get update -qq && apt-get install -y --no-install-recommends \
     valgrind cppcheck ccache jq \
     # Python (for Emscripten + scripts)
     python3 python3-pip \
-    # Node.js 20 (for WASM tests)
-    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    # Node.js 20 (for WASM tests) -- download script to file, then run
+    && curl -fsSL https://deb.nodesource.com/setup_20.x -o /tmp/nodesource_setup.sh \
+    && bash /tmp/nodesource_setup.sh \
+    && rm -f /tmp/nodesource_setup.sh \
     && apt-get install -y --no-install-recommends nodejs \
     # Cleanup
     && apt-get clean && rm -rf /var/lib/apt/lists/*

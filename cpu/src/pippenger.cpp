@@ -3,6 +3,11 @@
 // ============================================================================
 // Reference: Bernstein et al. "Faster batch forgery identification" (2012)
 //
+// GLV note: GLV-decomposition was evaluated but found counterproductive
+// for Pippenger: doubling point count (2N) increases scatter/aggregate
+// cost more than the saved window-doublings (ceil(128/c) vs ceil(256/c)).
+// Individual scalar_mul already uses GLV internally.
+//
 // Bucket method for computing sum(s_i * P_i):
 //   For each window of c bits, scatter points into 2^c buckets by digit,
 //   aggregate buckets bottom-up (running sum trick), then combine windows.

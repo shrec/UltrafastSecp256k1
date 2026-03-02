@@ -247,32 +247,39 @@ bool schnorr_verify(const uint8_t* pubkey_x32,
 
     if (R.is_infinity()) return false;
 
-    // Steps 5+6: Combined X-check + Y-parity via single Z inverse (all FE52)
+    // Steps 5+6: X-check (inversion-free early exit) + Y-parity (needs inverse)
+    // X-check: sig.r * Z^2 == R.X (avoids Z^-2; early exit saves inverse on mismatch)
+    // Y-parity: affine y = Y * Z^-3 must be even (NO shortcut -- parity requires
+    //           the canonical representative, so the inverse is unavoidable).
 #if defined(SECP256K1_FAST_52BIT)
-    FE52 const z_inv52 = R.Z52().inverse_safegcd();
-    FE52 const z_inv2 = z_inv52.square();         // Z^-^2
-
-    // X-check: X * Z^-^2 == sig.r  (affine x)
-    FE52 x_aff = R.X52() * z_inv2;
-    x_aff.normalize();
+    // X-check: r * Z^2 == X   (1S + 1M + compare)
+    FE52 const z2 = R.Z52().square();
     FE52 r52 = FE52::from_bytes(sig.r);
-    r52.normalize();
-    if (!(x_aff == r52)) return false;
+    FE52 lhs = r52 * z2;
+    lhs.normalize();
+    FE52 rhs = R.X52();
+    rhs.normalize();
+    if (!(lhs == rhs)) return false;
 
-    // Y-parity: Y * Z^-^3 must be even
-    FE52 y_aff = (R.Y52() * z_inv2) * z_inv52;
+    // Y-parity: y = Y * Z^-3 must be even
+    FE52 const z_inv = R.Z52().inverse_safegcd();
+    FE52 const z_inv2 = z_inv.square();
+    FE52 y_aff = (R.Y52() * z_inv2) * z_inv;
     y_aff.normalize();
     return (y_aff.n[0] & 1) == 0;
 #else
-    auto rx_fe = R.x();
+    // X-check: r * Z^2 == X
+    FieldElement z2 = R.z_raw();
+    z2.square_inplace();
     auto r_fe = FieldElement::from_bytes(sig.r);
-    if (!(r_fe == rx_fe)) return false;
+    auto lhs_fe = r_fe * z2;
+    if (!(lhs_fe == R.x_raw())) return false;
+
+    // Y-parity: y = Y * Z^-3 must be even
     FieldElement z_inv = R.z_raw().inverse();
     FieldElement z_inv2 = z_inv;
     z_inv2.square_inplace();
     FieldElement y_aff = R.y_raw() * z_inv2 * z_inv;
-    // 4x64 mul_impl Barrett-reduces to [0, p), so limbs()[0] & 1 is
-    // the true parity -- no serialization needed.
     return (y_aff.limbs()[0] & 1) == 0;
 #endif
 }
@@ -343,31 +350,34 @@ bool schnorr_verify(const SchnorrXonlyPubkey& pubkey,
 
     if (R.is_infinity()) return false;
 
-    // Combined X-check + Y-parity via single Z inverse (all FE52)
+    // X-check (inversion-free early exit) + Y-parity (needs inverse)
+    // X-check: sig.r * Z^2 == R.X (avoids Z^-2; early exit saves inverse on mismatch)
+    // Y-parity: affine y = Y * Z^-3 must be even (NO shortcut).
 #if defined(SECP256K1_FAST_52BIT)
-    FE52 const z_inv52 = R.Z52().inverse_safegcd();
-    FE52 const z_inv2 = z_inv52.square();         // Z^-^2
-
-    // X-check: X * Z^-^2 == sig.r
-    FE52 x_aff = R.X52() * z_inv2;
-    x_aff.normalize();
+    FE52 const z2 = R.Z52().square();
     FE52 r52 = FE52::from_bytes(sig.r);
-    r52.normalize();
-    if (!(x_aff == r52)) return false;
+    FE52 lhs = r52 * z2;
+    lhs.normalize();
+    FE52 rhs = R.X52();
+    rhs.normalize();
+    if (!(lhs == rhs)) return false;
 
-    // Y-parity: Y * Z^-^3 must be even
-    FE52 y_aff = (R.Y52() * z_inv2) * z_inv52;
+    FE52 const z_inv = R.Z52().inverse_safegcd();
+    FE52 const z_inv2 = z_inv.square();
+    FE52 y_aff = (R.Y52() * z_inv2) * z_inv;
     y_aff.normalize();
     return (y_aff.n[0] & 1) == 0;
 #else
-    auto rx_fe = R.x();
+    FieldElement z2 = R.z_raw();
+    z2.square_inplace();
     auto r_fe = FieldElement::from_bytes(sig.r);
-    if (!(r_fe == rx_fe)) return false;
+    auto lhs_fe = r_fe * z2;
+    if (!(lhs_fe == R.x_raw())) return false;
+
     FieldElement z_inv = R.z_raw().inverse();
     FieldElement z_inv2 = z_inv;
     z_inv2.square_inplace();
     FieldElement y_aff = R.y_raw() * z_inv2 * z_inv;
-    // 4x64 mul_impl Barrett-reduces to [0, p) -- limbs()[0] LSB is parity.
     return (y_aff.limbs()[0] & 1) == 0;
 #endif
 }

@@ -37,23 +37,10 @@
 #endif
 
 // -- ARM64 optimized field kernels ----------------------------------------
-// With -mcpu=cortex-a76, Clang already knows the A76 pipeline and schedules
-// MUL/UMULH interleaving optimally from __int128 C code. The hand-scheduled
-// ARM64 v2 ASM (field_asm52_arm64_v2.cpp) is kept for reference but disabled:
-// separate asm volatile blocks act as compiler barriers that PREVENT optimal
-// scheduling, and cross-TU calls add function-call overhead.
-//
-// To re-enable: uncomment the #define below.
-// #define SECP256K1_ARM64_FE52_V2 1
-#if 0 && defined(__aarch64__) && defined(SECP256K1_HAS_ARM64_FE52_ASM)
-namespace secp256k1::fast::arm64_v2 {
-    void fe52_mul_arm64_v2(std::uint64_t* __restrict r,
-                           const std::uint64_t* __restrict a,
-                           const std::uint64_t* __restrict b) noexcept;
-    void fe52_sqr_arm64_v2(std::uint64_t* __restrict r,
-                           const std::uint64_t* __restrict a) noexcept;
-} // namespace secp256k1::fast::arm64_v2
-#endif
+// ARM64 v2 hand-scheduled ASM (field_asm52_arm64_v2.cpp) was benchmarked
+// but disabled: with -mcpu=cortex-a76, Clang schedules MUL/UMULH
+// interleaving optimally from __int128 C code. Separate asm volatile blocks
+// act as compiler barriers that PREVENT optimal scheduling.
 
 // -- RISC-V 64-bit optimized FE52 kernels ---------------------------------
 // On SiFive U74 (in-order dual-issue), hand-scheduled MUL/MULHU assembly
@@ -306,13 +293,18 @@ void fe52_sqr_inner(std::uint64_t* r,
 SECP256K1_FE52_FORCE_INLINE
 void fe52_normalize_weak(std::uint64_t* r) noexcept {
     std::uint64_t t0 = r[0], t1 = r[1], t2 = r[2], t3 = r[3], t4 = r[4];
+    // Pass 1: propagate carries bottom-to-top to get true t4 value.
+    // Required because our negate convention (1*(m+1)*P, not 2*(m+1)*P)
+    // allows lower-limb carries that propagate to t4.
     t1 += (t0 >> 52); t0 &= M52;
     t2 += (t1 >> 52); t1 &= M52;
     t3 += (t2 >> 52); t2 &= M52;
     t4 += (t3 >> 52); t3 &= M52;
+    // Fold t4 overflow: x * 2^256 == x * R (mod p)
     std::uint64_t const x = t4 >> 48;
     t4 &= M48;
     t0 += x * 0x1000003D1ULL;
+    // Pass 2: re-propagate carry from fold
     t1 += (t0 >> 52); t0 &= M52;
     t2 += (t1 >> 52); t1 &= M52;
     t3 += (t2 >> 52); t2 &= M52;

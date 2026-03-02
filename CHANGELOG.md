@@ -8,240 +8,240 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [3.16.1] - 2026-03-02
 
 > No breaking changes -- drop-in upgrade from v3.16.0 | ABI compatible
-> Focus: cross-platform benchmark campaign + audit on real hardware
+> Focus: cross-platform benchmark campaign and audit on real hardware
 
 ### 1. Cross-Platform Benchmark Campaign (bench_hornet)
-- **4 platforms benchmarked** with identical 6-op apple-to-apple suite vs bitcoin-core/libsecp256k1 v0.7.2
+- Benchmarked **4 platforms** with an identical 6-operation apple-to-apple suite against bitcoin-core/libsecp256k1 v0.7.2:
   - x86-64: Intel i7-11700 @ 2.50 GHz, Clang 21.1.0 (Windows)
   - ARM64: Cortex-A55 (YF_022A), Clang 18.0.1 (Android NDK 27)
-  - RISC-V 64: SiFive U74-MC @ 1.5 GHz, GCC 13.3.0 (Milk-V Mars, real HW)
-  - ESP32-S3: Xtensa LX7 @ 240 MHz, GCC 14.2.0 (ESP-IDF 5.5.1, real HW)
-- **CT-vs-CT fair comparison** -- libsecp256k1 is always constant-time; added separate CT-vs-CT comparison showing true performance for signing ops
-- **13 report files** generated (JSON + TXT per platform + cross-platform comparison)
+  - RISC-V 64: SiFive U74-MC @ 1.5 GHz, GCC 13.3.0 (Milk-V Mars, real hardware)
+  - ESP32-S3: Xtensa LX7 @ 240 MHz, GCC 14.2.0 (ESP-IDF 5.5.1, real hardware)
+- Added a **CT-vs-CT fair comparison** since libsecp256k1 is always constant-time; the separate CT-vs-CT section shows true relative performance for signing operations
+- Generated **13 report files** (JSON + TXT per platform, plus a cross-platform comparison)
 
 ### 2. Cross-Platform Audit Campaign (unified_audit_runner)
-- **7 platform configs, all AUDIT-READY** (48/49 or 40/40 modules depending on platform)
+- **7 platform configurations, all AUDIT-READY** (48/49 or 40/40 modules depending on platform):
   - Windows x86-64 (Clang 21.1.0): 48/49 PASS
   - Linux Docker x86-64 (GCC 13.3.0): 48/49 PASS
   - Linux CI x86-64 (Clang 17.0.6): 46/46 PASS
   - Linux CI x86-64 (GCC 13.3.0): 46/46 PASS
   - Windows CI x86-64 (MSVC 1944): 45/45 PASS
-  - ESP32-S3 real HW (GCC 14.2.0): 40/40 PASS (8 modules skipped: platform-incompatible)
-  - RISC-V 64 real HW (GCC 13.3.0): 48/49 PASS (0 modules skipped, 1 advisory)
-- PLATFORM_AUDIT.md updated with all 7 configurations
+  - ESP32-S3 real hardware (GCC 14.2.0): 40/40 PASS (8 modules skipped as platform-incompatible)
+  - RISC-V 64 real hardware (GCC 13.3.0): 48/49 PASS (0 modules skipped, 1 advisory)
+- Updated PLATFORM_AUDIT.md with all 7 configurations
 
 ### 3. ARM64 Android Benchmark Port
-- **bench_hornet_android.cpp** -- full bench_hornet port for ARM64 Android (clock_gettime, median of 5, 32 key pool)
+- **bench_hornet_android.cpp** -- complete bench_hornet port for ARM64 Android using `clock_gettime`, median-of-5 timing, and a 32-key pool
 - **libsecp_bench.c** -- libsecp256k1 apple-to-apple benchmark for Android NDK cross-compilation
-- **android/CMakeLists.txt** -- added C language, bench_hornet target, LIBSECP_SRC_DIR
+- **android/CMakeLists.txt** -- added C language support, bench_hornet target, and LIBSECP_SRC_DIR
 
 ### 4. RISC-V Benchmark on Real Hardware
-- Cross-compiled bench_hornet for rv64gc_zba_zbb, deployed to Milk-V Mars via SCP
-- Results: Ultra FAST wins 4/6 ops (2.02x-3.08x), loses both Verify (0.94x)
-- CT-vs-CT: signing ops essentially tied (1.00x-1.03x), loses Verify (0.94x)
+- Cross-compiled bench_hornet for rv64gc_zba_zbb and deployed to Milk-V Mars via SCP
+- Results: UltrafastSecp256k1 wins 4 of 6 operations (2.02x--3.08x faster), loses both Verify variants (0.94x)
+- CT-vs-CT comparison: signing operations are essentially tied (1.00x--1.03x); Verify remains at 0.94x
 
 ### 5. Build & CI Fixes
-- **audit-report.yml** -- security-events permission scoped to job level (not workflow level)
-- **Dockerfile.ci** -- ubuntu:24.04 pinned to SHA256 digest
-- **sanitizer_scale.hpp** -- iteration scaling for sanitizer builds
-- **ESP32 audit** -- expanded sdkconfig, CMakeLists, and audit_main for 40-module auditing
-- **.gitignore** -- expanded to exclude local scratch files, build logs, and temp scripts
+- **audit-report.yml** -- scoped `security-events` permission to job level instead of workflow level
+- **Dockerfile.ci** -- pinned ubuntu:24.04 to a SHA-256 digest for reproducibility
+- **sanitizer_scale.hpp** -- added iteration scaling for sanitizer builds
+- **ESP32 audit** -- expanded sdkconfig, CMakeLists, and audit_main to support 40-module auditing
+- **.gitignore** -- expanded to exclude local scratch files, build logs, and temporary scripts
 
 ### 6. Documentation
-- **BENCHMARKING.md** -- complete guide: how to run bench_hornet on all 4 platforms
-- **AUDIT_GUIDE.md** -- complete guide: how to run the 40/48-module audit on any platform
-- Examples README updated with stability markers
+- **BENCHMARKING.md** -- complete guide covering how to run bench_hornet on all 4 platforms
+- **AUDIT_GUIDE.md** -- complete guide covering how to run the 40/48-module audit on any platform
+- Updated examples README with stability markers ([STABLE], [EXPERIMENTAL])
 
 ## [3.16.0] - 2026-03-01
 
 > No breaking changes -- drop-in upgrade from v3.15.x | ABI compatible
 
 ### 1. Security Hardening
-- **BIP-340 strict parsing** -- `Scalar::parse_bytes_strict`, `FieldElement::parse_bytes_strict`, `SchnorrSignature::parse_strict` reject all malformed inputs (#73)
-- **CT buffer erasure** -- `ct::schnorr_sign` and `ct::ecdsa_sign` erase intermediate nonces via volatile function-pointer trick (same as libsecp256k1)
-- **lift_x deduplication** -- single `static lift_x()` replaces duplicated code in schnorr verify/sign
-- **Y-parity fix** -- uses `limbs()[0] & 1` instead of byte-level parity check
-- **Pragma balance fix** -- removed misbalanced `#pragma GCC diagnostic push/pop` in ct_field.cpp
+- **BIP-340 strict parsing** -- added `Scalar::parse_bytes_strict`, `FieldElement::parse_bytes_strict`, and `SchnorrSignature::parse_strict`, which reject all malformed inputs (#73)
+- **CT buffer erasure** -- `ct::schnorr_sign` and `ct::ecdsa_sign` now erase intermediate nonces via a volatile function-pointer trick (same technique used by libsecp256k1)
+- **lift_x deduplication** -- consolidated duplicated code in Schnorr verify/sign into a single `static lift_x()` helper
+- **Y-parity fix** -- switched to `limbs()[0] & 1` instead of a byte-level parity check
+- **Pragma balance fix** -- removed a misbalanced `#pragma GCC diagnostic push/pop` pair in ct_field.cpp
 
 ### 2. Audit Infrastructure
-- **Advisory flag** -- `ct_sidechannel_smoke` marked advisory in unified_audit_runner (timing flakes on shared CI runners don't fail the audit)
-- **carry_propagation cross-validation** -- test now verifies generator-optimized path vs generic GLV path and prints hex diagnostics on ARM64 mismatch
-- **BIP-340 strict test suite** -- 31 tests covering reject-zero, reject-overflow, reject-p-plus, accept-valid for all strict parsing APIs
+- **Advisory flag** -- marked `ct_sidechannel_smoke` as advisory in unified_audit_runner so that timing flakes on shared CI runners do not fail the overall audit
+- **carry_propagation cross-validation** -- the test now verifies the generator-optimized path against the generic GLV path and prints hex diagnostics on ARM64 mismatch
+- **BIP-340 strict test suite** -- added 31 tests covering reject-zero, reject-overflow, reject-p-plus, and accept-valid scenarios for all strict parsing APIs
 
 ### 3. Local CI (Docker)
 - **docker-compose.ci.yml** -- single-command orchestration for all 14 CI jobs
-- **pre-push target** -- `docker compose run --rm pre-push` validates warnings + tests + ASan + audit in ~5 min
+- **pre-push target** -- `docker compose run --rm pre-push` validates warnings, tests, ASan, and the audit in approximately 5 minutes
 - **audit job** -- `docker/run_ci.sh audit` mirrors audit-report.yml (GCC-13 + Clang-17)
 - **ccache integration** -- Docker volume persistence for fast rebuilds
-- **pre-push hook** -- `scripts/hooks/pre-push` blocks push on CI failure
-- **PowerShell wrapper** -- `scripts/pre-push-ci.ps1` for Windows
+- **pre-push hook** -- `scripts/hooks/pre-push` blocks pushes on CI failure
+- **PowerShell wrapper** -- `scripts/pre-push-ci.ps1` for Windows users
 
 ### 4. Documentation
 - **COMPATIBILITY.md** -- BIP-340 strict encoding compatibility notes
 - **BINDINGS_ERROR_MODEL.md** -- BIP-340 strict semantics for binding authors
-- **SECURITY.md** -- updated Memory Handling (library-side erasure), Planned items checklist, API Stability references
-- **UFSECP_BITCOIN_STRICT** -- CMake option to enforce strict-only parsing at compile time
+- **SECURITY.md** -- updated Memory Handling section (library-side erasure), Planned items checklist, and API Stability references
+- **UFSECP_BITCOIN_STRICT** -- new CMake option to enforce strict-only parsing at compile time
 
 ### 5. Build & CI
-- **packaging.yml** -- release workflow race condition fix (gh release upload with retry)
-- **C ABI** -- `ufsecp_schnorr_verify`, `ufsecp_schnorr_sign`, `ufsecp_xonly_pubkey_parse` now use strict parsing internally
+- **packaging.yml** -- fixed a release workflow race condition (`gh release upload` with retry)
+- **C ABI** -- `ufsecp_schnorr_verify`, `ufsecp_schnorr_sign`, and `ufsecp_xonly_pubkey_parse` now use strict parsing internally
 
 ### 6. CT Verification CI
-- **ct-arm64.yml** -- native ARM64 / Apple Silicon dudect (macos-14 M1): smoke per-PR + full nightly
-- **ct-verif.yml** -- compile-time CT verification via ct-verif LLVM pass (deterministic, not statistical)
-- **valgrind-ct.yml** -- Valgrind MAKE_MEM_UNDEFINED taint analysis: detects secret-dependent branches at binary level
-- **MuSig2/FROST dudect** -- protocol-level timing tests: musig2_partial_sign, frost_sign, frost_lagrange_coefficient
+- **ct-arm64.yml** -- native ARM64 / Apple Silicon dudect on macos-14 M1: smoke tests per-PR, full suite nightly
+- **ct-verif.yml** -- compile-time constant-time verification via the ct-verif LLVM pass (deterministic, not statistical)
+- **valgrind-ct.yml** -- Valgrind `MAKE_MEM_UNDEFINED` taint analysis that detects secret-dependent branches at the binary level
+- **MuSig2/FROST dudect** -- protocol-level timing tests for `musig2_partial_sign`, `frost_sign`, and `frost_lagrange_coefficient`
 
-### 7. Audit Infrastructure
-- **SARIF output** -- `unified_audit_runner --sarif` generates SARIF v2.1.0 for GitHub Code Scanning
-- **bench-regression.yml** -- per-commit performance regression gate (120% threshold, fail-on-alert)
-- **audit-report.yml** -- now uploads SARIF to GitHub Code Scanning (linux-gcc job)
+### 7. Audit Infrastructure (SARIF & Regression)
+- **SARIF output** -- `unified_audit_runner --sarif` generates SARIF v2.1.0 reports for GitHub Code Scanning
+- **bench-regression.yml** -- per-commit performance regression gate with a 120% threshold (fail-on-alert)
+- **audit-report.yml** -- now uploads SARIF results to GitHub Code Scanning (linux-gcc job)
 
 ### 8. OpenSSF Scorecard Hardening
 - **Pinned actions** -- all GitHub Actions pinned to full SHA (codeql-action v4.32.4, upload-artifact v6.0.0)
 - **harden-runner** -- added to discord-commits and packaging RPM jobs
-- **persist-credentials: false** -- added to all checkout steps with write permissions (benchmark, docs, packaging, release, bench-regression)
-- **Standardized versions** -- 13 workflow files audited and hardened
+- **persist-credentials: false** -- applied to all checkout steps with write permissions (benchmark, docs, packaging, release, bench-regression)
+- **Standardized versions** -- audited and hardened 13 workflow files
 
 ### 9. FROST RFC 9591 Protocol Invariant Tests
-- **test_rfc9591_invariants** -- 7 ciphersuite-independent invariants: verification share = signing_share * G, Lagrange interpolation of Y_i, Feldman VSS, partial sig linearity, partial sig verification, wrong-share rejection, nonce commitment consistency
-- **test_rfc9591_3of5** -- exhaustive 3-of-5 FROST signing across all C(5,3)=10 subsets with BIP-340 verification
-- **valgrind_ct_check.sh** -- fixed binary path (audit/ not cpu/) for test_ct_sidechannel_standalone
+- **test_rfc9591_invariants** -- verifies 7 ciphersuite-independent invariants: verification_share = signing_share * G, Lagrange interpolation of Y_i, Feldman VSS commitment, partial signature linearity, partial signature verification, wrong-share rejection, and nonce commitment consistency
+- **test_rfc9591_3of5** -- exhaustive 3-of-5 FROST signing across all C(5,3) = 10 participant subsets with BIP-340 verification
+- **valgrind_ct_check.sh** -- fixed binary path (audit/ instead of cpu/) for `test_ct_sidechannel_standalone`
 
 ### 10. Audit UX
-- **audit_check.hpp** -- centralized CHECK macro with 20-char ASCII progress bar (`[####................] N OK`), interval 4096
-- **22 audit .cpp files** -- migrated from per-file CHECK macros to shared `audit_check.hpp`
-- **Windows stdout fix** -- `setvbuf(stdout, nullptr, _IONBF, 0)` for unbuffered output on Windows (avoids `_IOLBF` crash)
+- **audit_check.hpp** -- centralized CHECK macro with a 20-character ASCII progress bar (`[####................] N OK`), reporting every 4096 iterations
+- **22 audit .cpp files** -- migrated from per-file CHECK macros to the shared `audit_check.hpp`
+- **Windows stdout fix** -- applied `setvbuf(stdout, nullptr, _IONBF, 0)` for unbuffered output on Windows (avoids `_IOLBF` crash)
 
 ### 11. New Audit Modules
-- **test_musig2_bip327_vectors.cpp** -- 35 BIP-327 MuSig2 reference tests (key aggregation, nonce aggregation, signing, verification)
-- **test_ffi_round_trip.cpp** -- 103 FFI round-trip boundary tests (Schnorr, ECDSA, pubkey, ECDH, tweaking, error paths)
-- **test_fiat_crypto_vectors.cpp** -- expanded to 752 cross-checks (field arithmetic against Fiat-Crypto reference)
+- **test_musig2_bip327_vectors.cpp** -- 35 BIP-327 MuSig2 reference tests covering key aggregation, nonce aggregation, signing, and verification
+- **test_ffi_round_trip.cpp** -- 103 FFI round-trip boundary tests covering Schnorr, ECDSA, pubkey, ECDH, tweaking, and error paths
+- **test_fiat_crypto_vectors.cpp** -- expanded to 752 cross-checks of field arithmetic against the Fiat-Crypto reference implementation
 
 ### 12. Community
-- **ADOPTERS.md** -- production/development/hobby adopter categories
-- **GitHub Discussion templates** -- Q&A, Show-and-Tell, Ideas, Integration Help
+- **ADOPTERS.md** -- added production, development, and hobby adopter categories
+- **GitHub Discussion templates** -- added Q&A, Show-and-Tell, Ideas, and Integration Help categories
 
 ## [3.15.3] - 2026-03-01
 
 ### Fixed -- Code Quality (136 code scanning alerts resolved)
-- **bench_hornet.cpp** -- 73 fixes: const-correctness, braces, cert-err33-c, modernize-use-auto, implicit-widening, reserved-identifier, init-variables
-- **glv.cpp** -- 33 fixes: const-correctness in GLV_MULADD macro and k_arr array
-- **audit_integration.cpp** -- 10 fixes: const-correctness, cert-err33-c, sizes[] arrays
-- **point.cpp** -- 5 fixes: const-correctness for Jacobian add intermediates
-- **precompute.cpp** -- 2 fixes: modernize-use-auto, simplify-boolean-expr
-- 12 containerOutOfBounds (Cppcheck false positives) dismissed
+- **bench_hornet.cpp** -- 73 fixes covering const-correctness, braces, cert-err33-c, modernize-use-auto, implicit-widening, reserved-identifier, and init-variables
+- **glv.cpp** -- 33 fixes for const-correctness in the GLV_MULADD macro and k_arr array
+- **audit_integration.cpp** -- 10 fixes for const-correctness, cert-err33-c, and sizes[] arrays
+- **point.cpp** -- 5 fixes for const-correctness on Jacobian addition intermediates
+- **precompute.cpp** -- 2 fixes: modernize-use-auto and simplify-boolean-expr
+- Dismissed 12 containerOutOfBounds alerts (Cppcheck false positives)
 
 ## [3.15.1] - 2026-03-01
 
-### Fixed -- Build (MSVC / wasm / armv7 / GCC -Wpedantic)
-- **schnorr.cpp** -- `FieldElement::from_bytes()` called with `const uint8_t*` instead of `const std::array<uint8_t,32>&`; copy into std::array before call. Broke MSVC, wasm, armv7 builds.
-- **glv.cpp** -- suppress GCC `-Wpedantic` warning for `__int128` extension type (`#pragma GCC diagnostic push/pop`).
-- **glv.cpp** -- removed unused `mul_shift_384` runtime function in `__int128` path (only template `mul_shift_384_const` is used).
+### Fixed -- Build Compatibility (MSVC / WASM / armv7 / GCC -Wpedantic)
+- **schnorr.cpp** -- `FieldElement::from_bytes()` was called with `const uint8_t*` instead of `const std::array<uint8_t,32>&`; added a copy into `std::array` before the call. This had broken MSVC, WASM, and armv7 builds.
+- **glv.cpp** -- suppressed the GCC `-Wpedantic` warning for the `__int128` extension type using `#pragma GCC diagnostic push/pop`.
+- **glv.cpp** -- removed the unused `mul_shift_384` runtime function in the `__int128` path (only the template `mul_shift_384_const` is used).
 
 ## [3.15.0] - 2026-03-01
 
-> 115 commits since v3.14.0 | 387 files changed | +47,795 / -8,404 lines
+> 104 commits since v3.14.0 | 368 files changed | +45,388 / -7,639 lines
 > No breaking changes -- drop-in upgrade from v3.14.0 | ABI compatible -- SOVERSION unchanged
 
 ### 1. Security & Constant-Time Hardening
-- **Schnorr parity fix** -- correct parity bit computation in BIP-340 signatures (#48)
-- **Z=0 guard deduplication** -- point edge-case test additions (#49)
-- **CT branchless scalar_window** -- branchless on RISC-V, branched on x86/ARM (#42-#44)
-- **value_barrier** -- added after mask derivation in ct_compare + WASM KAT target
-- **is_zero_mask** -- RISC-V branchless asm + triple barrier + rdcycle fence
-- **reverse-scan ct_compare** -- interleaved test data pattern
+- **Schnorr parity fix** -- corrected the parity bit computation in BIP-340 signatures (#48)
+- **Z=0 guard deduplication** -- added point edge-case tests (#49)
+- **CT branchless scalar_window** -- branchless implementation on RISC-V, branched on x86/ARM (#42--#44)
+- **value_barrier** -- added after mask derivation in `ct_compare`, plus a WASM KAT target
+- **is_zero_mask** -- RISC-V branchless assembly with triple barrier and `rdcycle` fence
+- **reverse-scan ct_compare** -- uses an interleaved test data pattern
 
-### 2. WASM/Emscripten Support
-- **SECP256K1_NO_INT128** -- automatic define on Emscripten
-- **SECP256K1_FAST_52BIT** -- disabled for Emscripten
+### 2. WASM / Emscripten Support
+- **SECP256K1_NO_INT128** -- automatically defined on Emscripten
+- **SECP256K1_FAST_52BIT** -- disabled for Emscripten targets
 - **Precompute generator bypass** -- avoids timeouts on WASM
-- **GLV+Shamir fallback** -- wNAF w=5 replaced with optimal double-and-add
-- **KAT test** -- SINGLE_FILE=1 + ESM conflict resolution
+- **GLV+Shamir fallback** -- replaced wNAF w=5 with an optimal double-and-add implementation
+- **KAT test** -- resolved `SINGLE_FILE=1` and ESM conflicts
 
 ### 3. CI/CD Infrastructure
-- **OpenSSF Scorecard** -- all actions pinned to SHA + harden-runner (#52)
-- **pip deps pinned by hash** -- supply chain security (#52)
-- **ClusterFuzzLite** -- integration + UBSan vptr sanitizer compatibility
-- **Cppcheck + Mutation testing + SARIF** -- new CI workflows
+- **OpenSSF Scorecard** -- pinned all actions to SHA and added harden-runner (#52)
+- **pip deps pinned by hash** -- improved supply chain security (#52)
+- **ClusterFuzzLite** -- integrated with UBSan `vptr` sanitizer compatibility
+- **Cppcheck + Mutation testing + SARIF** -- added new CI workflows
 - **Fuzz + Protocol tests** -- enabled in all CI jobs
 
 ### 4. Code Quality (~5,150 alerts fixed)
 - **~4,600 code scanning alerts** -- mass cleanup (#53)
 - **~550 code scanning alerts** -- batch 2 (#56)
-- **Duplicate const qualifiers** -- GCC-13 build failure fix (#54, #55)
-- **using declarations** -- restored clang-tidy-removed declarations for MSVC/ESP32/WASM (#57)
-- **audit_field.cpp** -- unused variable -Werror fix (#58)
+- **Duplicate const qualifiers** -- fixed GCC-13 build failure (#54, #55)
+- **using declarations** -- restored declarations removed by clang-tidy, required for MSVC/ESP32/WASM (#57)
+- **audit_field.cpp** -- fixed unused variable `-Werror` failure (#58)
 
 ### 5. SonarCloud Quality Gate
-- **SHA-256 SonarCloud blocker** -- S3519 buf_ overflow false positive suppression (#50, #60, #61)
-- **Coverage** -- 61.8% -> 85.8% (exclusions: audit/, include/ufsecp/) (#59)
-- **Duplication** -- 3.3% -> below threshold (CT variant CPD exclusion) (#61)
-- **cpp:S876** -- CT masking unsigned negation suppression (#59)
-- **Codecov exclusions** -- correct configuration (#50)
+- **SHA-256 SonarCloud blocker** -- suppressed S3519 `buf_` overflow false positive (#50, #60, #61)
+- **Coverage** -- raised from 61.8% to 85.8% (exclusions: audit/, include/ufsecp/) (#59)
+- **Duplication** -- reduced from 3.3% to below threshold via CT variant CPD exclusion (#61)
+- **cpp:S876** -- suppressed CT masking unsigned negation warning (#59)
+- **Codecov exclusions** -- corrected configuration (#50)
 
 ### 6. Audit Framework
-- **A-M audit framework** -- full audit scripts + cross-platform test plan
-- **audit_ct** -- timing sanity threshold raised for CI (1.5x -> 2.0x)
+- **A--M audit framework** -- complete audit scripts with a cross-platform test plan
+- **audit_ct** -- raised timing sanity threshold for CI from 1.5x to 2.0x
 - **AUDIT_COVERAGE.md** -- full CI infrastructure documentation
-- **Unified runner + CI workflow** -- evidence scripts
+- **Unified runner + CI workflow** -- added evidence collection scripts
 
 ### 7. Testing
 - **MuSig2 + FROST** -- advanced protocol tests (Phase II)
-- **Parser fuzz** -- DER + Schnorr + Pubkey
-- **Cross-library differential test** -- vs bitcoin-core/libsecp256k1
-- **Address/BIP32/FFI fuzz tests**
-- **FROST KAT tests**
-- **Point edge-case tests**
-- **FE52 Jacobian is_on_curve** -- FAST_52BIT platforms
-- **FieldElement::operator== normalize** -- non-canonical limb handling
+- **Parser fuzz** -- DER, Schnorr, and Pubkey fuzzing
+- **Cross-library differential test** -- verified against bitcoin-core/libsecp256k1
+- **Address/BIP32/FFI fuzz tests** -- added
+- **FROST KAT tests** -- added
+- **Point edge-case tests** -- added
+- **FE52 Jacobian is_on_curve** -- added for `FAST_52BIT` platforms
+- **FieldElement::operator== normalize** -- handles non-canonical limb values correctly
 
 ### 8. Build & Platform
-- **MSVC** -- SECP256K1_NOINLINE macro + s_gen4 race fix
-- **Reproducible builds** -- signed releases, SBOM
-- **Fuzz point** -- precomputed-table timeout avoidance under sanitizers
+- **MSVC** -- added `SECP256K1_NOINLINE` macro and fixed `s_gen4` race condition
+- **Reproducible builds** -- signed releases with SBOM
+- **Fuzz point** -- avoided precomputed-table timeouts under sanitizers
 
 ### 9. Performance -- ECDSA Recovery (1.9x speedup)
-- **`ecdsa_recover()` rewritten** -- replaced 3 separate scalar multiplications (`s*R`, `z*G`, `r^-1 * result`) with single `dual_scalar_mul_gen_point(u1, u2, R)` using 4-stream GLV Strauss with interleaved wNAF. Recovery now matches libsecp256k1 performance (~36us vs previous ~69us).
-- **`lift_x()` parity optimization** -- replaced `to_bytes()` serialization (32-byte encode) with direct `limbs()[0] & 1` parity check for y-coordinate odd/even detection.
+- **`ecdsa_recover()` rewritten** -- replaced 3 separate scalar multiplications (`s*R`, `z*G`, `r^-1 * result`) with a single call to `dual_scalar_mul_gen_point(u1, u2, R)` using 4-stream GLV Strauss with interleaved wNAF. Recovery now matches libsecp256k1 performance (~36 us vs. the previous ~69 us).
+- **`lift_x()` parity optimization** -- replaced `to_bytes()` serialization (32-byte encode) with a direct `limbs()[0] & 1` parity check for y-coordinate odd/even detection.
 - **Dudect cache artifact false positives** -- fixed 11 smoke-test false positives in constant-time side-channel tests by tightening thresholds and isolating cache effects.
 
 ### 10. Platform Assembly
-- **ARM64** -- CSEL branchless conditionals, sqr EXTR optimization for field squaring.
-- **RISC-V** -- preload optimization for field multiply assembly, reduced register pressure in `field_asm52_riscv64.S`.
+- **ARM64** -- added CSEL branchless conditionals and EXTR optimization for field squaring.
+- **RISC-V** -- applied preload optimization for field multiply assembly and reduced register pressure in `field_asm52_riscv64.S`.
 - **Field operations** -- refactored `field.cpp` with improved Montgomery path selection.
 
 ### 11. Apple-to-Apple Benchmark
-- **`bench_apple_to_apple`** -- definitive head-to-head benchmark vs libsecp256k1 v0.6.0: 13 operations, same compiler/flags/assembly, IQR outlier removal, median of 11 passes. Result: 7 FASTER, 5 EQUAL, 0 SLOWER (geometric mean 0.68x = UF 1.47x faster overall).
+- **`bench_apple_to_apple`** -- definitive head-to-head benchmark against libsecp256k1 v0.6.0 covering 13 operations with the same compiler, flags, and assembly. Uses IQR outlier removal and median-of-11 passes. Result: **7 FASTER, 5 EQUAL, 0 SLOWER** (geometric mean 0.68x = UltrafastSecp256k1 is 1.47x faster overall).
 
-### 12. Documentation & Bindings (v3.14.0 continuation)
-- **Release artifacts** -- signed SHA256SUMS manifest + verify instructions
-- **ABI versioning policy**
-- **7 Phase III docs** -- audit, invariants, bug bounty, thread safety, etc.
-- **User guide + FAQ**
+### 12. Documentation & Bindings (continuation of v3.14.0)
+- **Release artifacts** -- signed SHA256SUMS manifest with verification instructions
+- **ABI versioning policy** -- documented
+- **7 Phase III documents** -- covering audit, invariants, bug bounty, thread safety, and more
+- **User guide + FAQ** -- added
 
 ---
 
 ## [3.14.0] - 2026-02-25
 
 ### Added -- Language Bindings (12 languages, 41-function C API parity)
-- **Java** -- 22 new JNI functions + 3 helper classes (`RecoverableSignature`, `WifDecoded`, `TaprootOutputKeyResult`): full coverage of ECDSA sign/verify, DER encoding, recovery, ECDH, Schnorr, BIP-32, BIP-39, taproot, WIF, address encoding, tagged hash
-- **Swift** -- 20 new functions: DER encode/decode, recovery sign/recover, ECDH, tagged hash, BIP-32/39, taproot, WIF, address encoding
-- **React Native** -- 15 new functions: DER, recovery, ECDH, Schnorr, BIP-32/39, taproot, WIF, address, tagged hash
+- **Java** -- 22 new JNI functions and 3 helper classes (`RecoverableSignature`, `WifDecoded`, `TaprootOutputKeyResult`): full coverage of ECDSA sign/verify, DER encoding, recovery, ECDH, Schnorr, BIP-32, BIP-39, taproot, WIF, address encoding, and tagged hash
+- **Swift** -- 20 new functions: DER encode/decode, recovery sign/recover, ECDH, tagged hash, BIP-32/39, taproot, WIF, and address encoding
+- **React Native** -- 15 new functions: DER, recovery, ECDH, Schnorr, BIP-32/39, taproot, WIF, address, and tagged hash
 - **Python** -- 3 new functions: `ctx_clone()`, `last_error()`, `last_error_msg()`
 - **Rust** -- 2 new functions: `last_error()`, `last_error_msg()`
 - **Dart** -- 1 new function: `ctx_clone()`
-- **Go, Node.js, C#, Ruby, PHP** -- already complete (verified, no changes needed)
-- **9 new binding READMEs** -- `c_api`, `dart`, `go`, `java`, `php`, `python`, `ruby`, `rust`, `swift`
-- **Selftest report API** -- `SelftestReport` and `SelftestCase` structs in `selftest.hpp`; `tally()` refactored for programmatic reporting
+- **Go, Node.js, C#, Ruby, PHP** -- already complete (verified; no changes needed)
+- **9 new binding READMEs** -- for `c_api`, `dart`, `go`, `java`, `php`, `python`, `ruby`, `rust`, and `swift`
+- **Selftest report API** -- added `SelftestReport` and `SelftestCase` structs in `selftest.hpp`; `tally()` refactored for programmatic reporting
 
 ### Fixed -- Documentation & Packaging
-- **Package naming corrected across all documentation** -- `libsecp256k1-fast*` -> `libufsecp*` (apt, rpm, arch); CMake target `secp256k1-fast-cpu` -> `secp256k1::fast`; linker flag `-lsecp256k1-fast-cpu` -> `-lfastsecp256k1`; pkg-config Libs `-lsecp256k1-fast-cpu` -> `-lfastsecp256k1`
-- **RPM spec renamed** -- `libsecp256k1-fast.spec` -> `libufsecp.spec`
+- **Package naming corrected across all documentation** -- renamed `libsecp256k1-fast*` to `libufsecp*` (apt, rpm, arch); CMake target `secp256k1-fast-cpu` to `secp256k1::fast`; linker flag `-lsecp256k1-fast-cpu` to `-lfastsecp256k1`; pkg-config Libs `-lsecp256k1-fast-cpu` to `-lfastsecp256k1`
+- **RPM spec renamed** -- from `libsecp256k1-fast.spec` to `libufsecp.spec`
 - **Debian control** -- source `libufsecp`, binary packages `libufsecp3`/`libufsecp-dev`
 - **Arch PKGBUILD** -- `pkgname=libufsecp`, `provides=('libufsecp')`
-- **3 existing binding READMEs fixed** -- Node.js, C#, React Native: removed inaccurate CT-layer claims (C API uses fast:: path only)
-- **README dead link** -- `INDUSTRIAL_ROADMAP_WORKING.md` -> `ROADMAP.md`
+- **3 existing binding READMEs fixed** -- Node.js, C#, and React Native: removed inaccurate CT-layer claims (the C API uses the `fast::` path only)
+- **README dead link** -- fixed `INDUSTRIAL_ROADMAP_WORKING.md` to point to `ROADMAP.md`
 
 ### Fixed -- CI / Build
 - **`-Werror=unused-function`** -- added `[[maybe_unused]]` to `get_platform_string()` in `selftest.cpp`
@@ -252,29 +252,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [3.13.1] - 2026-02-24
 
 ### Fixed
-- **Critical: GLV decomposition overflow in `ct::scalar_mul()`** -- `ct_mul_256x_lo128_mod` used single-phase reduction (256x128-bit), which overflowed when GLV's `c1`/`c2` rounded to exactly 2^128. Additionally, `lambda*k2` computation only read 2 lower limbs of `k2_abs`, silently dropping `limb[2]=1`. This caused wrong results for ~5/64 random scalar inputs. Replaced with full `ct_scalar_mul_mod_n()`: 4x4 schoolbook -> 8-limb product -> 3-phase `reduce_512` (512->385->258->256 bits), matching libsecp256k1's algorithm. Both `5x52` (`__int128`) and `4x64` (portable `U128`/`mul64`) paths fixed.
-- **GLV constant `minus_b2`** -- changed from 128-bit `b2_pos` to full 256-bit `Scalar(n - b2)`, and decomposition formula from `scalar_sub(p1, p2)` to `scalar_add(p1, p2)` since both constants are already negated
+- **Critical: GLV decomposition overflow in `ct::scalar_mul()`** -- `ct_mul_256x_lo128_mod` used a single-phase reduction (256x128-bit), which overflowed when GLV's `c1`/`c2` rounded to exactly 2^128. Additionally, the `lambda*k2` computation only read 2 lower limbs of `k2_abs`, silently dropping `limb[2]=1`. This caused incorrect results for approximately 5 out of 64 random scalar inputs. Replaced with a full `ct_scalar_mul_mod_n()`: 4x4 schoolbook multiply producing an 8-limb product, followed by 3-phase `reduce_512` (512 -> 385 -> 258 -> 256 bits), matching libsecp256k1's algorithm. Both the `5x52` (`__int128`) and `4x64` (portable `U128`/`mul64`) paths were fixed.
+- **GLV constant `minus_b2`** -- changed from a 128-bit `b2_pos` to a full 256-bit `Scalar(n - b2)`, and updated the decomposition formula from `scalar_sub(p1, p2)` to `scalar_add(p1, p2)` since both constants are already negated
 - **`-Werror=unused-function`** -- added `[[maybe_unused]]` to diagnostic helpers `print_scalar()` and `print_point_xy()` in `diag_scalar_mul.cpp`
 
 ### Removed
 - Dead code: `ct_mul_lo128_mod()` and `ct_mul_256x_lo128_mod()` (replaced by `ct_scalar_mul_mod_n`)
 
 ### Performance
-- CT scalar_mul overhead vs fast path: **1.05x** (25.3us vs 24.0us) -- no regression
+- CT `scalar_mul` overhead vs. the fast path: **1.05x** (25.3 us vs. 24.0 us) -- no regression
 
 ---
 
 ## [3.13.0] - 2026-02-24
 
 ### Added
-- **BIP-32 official test vectors TV1-TV5** -- 90 comprehensive checks covering master key derivation, hardened/normal child paths, and public-only derivation chains (`test_bip32_vectors.cpp`)
-- **Nightly CI workflow** -- daily extended verification: differential correctness with 100x multiplier (~1.3M checks) and dudect full-mode statistical analysis (30 min, t=4.5 threshold)
-- **Differential test CLI/env multiplier** -- `differential_test` accepts `--multiplier=N` or `UFSECP_DIFF_MULTIPLIER` env variable; default 1 preserves existing CI behavior
+- **BIP-32 official test vectors TV1--TV5** -- 90 comprehensive checks covering master key derivation, hardened/normal child paths, and public-only derivation chains (`test_bip32_vectors.cpp`)
+- **Nightly CI workflow** -- daily extended verification with a differential correctness check using a 100x multiplier (~1.3M checks) and dudect full-mode statistical analysis (30 min, t=4.5 threshold)
+- **Differential test CLI/env multiplier** -- `differential_test` accepts `--multiplier=N` or the `UFSECP_DIFF_MULTIPLIER` environment variable; default 1 preserves existing CI behavior
 
 ### Fixed
-- **BIP-32 public key decompression** -- `public_key()` now correctly decompresses from compressed prefix + x-coordinate via y^2=x^3+7 square root with parity check; previously treated x-coordinate as scalar, producing wrong public keys for public-only derivation
-- **`pub_prefix` field** in `ExtendedKey` -- stores y-parity byte (0x02/0x03) across `to_public()`, `derive_child()`, and `serialize()` for correct compressed public key round-trip
-- **SonarCloud `ct_sidechannel` exclusion** -- changed `-E ct_sidechannel` to exact-match `-E "^ct_sidechannel$"` to prevent accidental exclusion of other tests
+- **BIP-32 public key decompression** -- `public_key()` now correctly decompresses from the compressed prefix + x-coordinate via the y^2 = x^3 + 7 square root with a parity check; previously it treated the x-coordinate as a scalar, producing incorrect public keys for public-only derivation
+- **`pub_prefix` field** in `ExtendedKey` -- now stores the y-parity byte (0x02/0x03) across `to_public()`, `derive_child()`, and `serialize()` for correct compressed public key round-trip
+- **SonarCloud `ct_sidechannel` exclusion** -- changed `-E ct_sidechannel` to the exact-match `-E "^ct_sidechannel$"` to prevent accidental exclusion of other tests
 
 ---
 

@@ -2021,7 +2021,6 @@ ScalarDecomposition split_scalar_internal(const Scalar& scalar) {
 #else
     uint64_t const t3 = 0;
     (void)t3; // Silence unused variable warning for CodeQL
-    (void)t3;
 #endif
     Scalar const k2_neg_val = Scalar::zero() - k2_mod;
     bool const k2_is_neg = (fast_bitlen(k2_neg_val) < fast_bitlen(k2_mod));

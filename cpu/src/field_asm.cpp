@@ -687,32 +687,7 @@ FieldElement field_mul_bmi2(const FieldElement& a, const FieldElement& b) {
     std::memcpy(a_limbs, &a, sizeof(a_limbs));
     std::memcpy(b_limbs, &b, sizeof(b_limbs));
 
-    // NEW: Full assembly with integrated Montgomery reduction (7-10ns target!)
-    // TEMPORARILY DISABLED - has bugs, needs rewrite
-    #if 0 && defined(SECP256K1_HAS_ASM) && defined(__GNUC__) && defined(__x86_64__)
-    static int use_full_asm = [](){
-        // Check if full assembly is available and CPU supports it
-        bool supported = has_bmi2_support() && has_adx_support();
-        if (std::getenv("SECP256K1_DEBUG_ASM")) {
-            fprintf(stderr, "[ASM] Full mul+reduce: BMI2=%d ADX=%d SUPPORTED=%d\n", 
-                   has_bmi2_support(), has_adx_support(), supported);
-        }
-        return supported ? 1 : 0;
-    }();
-    
-    if (use_full_asm) {
-        // Direct call to full assembly (mul+reduce in one function, 7-10ns!)
-        uint64_t result_asm[4];
-        field_mul_full_asm(a_limbs, b_limbs, result_asm);
-        
-        // Create result FieldElement
-        FieldElement out;
-        std::memcpy(&out, result_asm, 32);  // Result is already reduced
-        return out;
-    }
-    #endif
-    
-    // Fallback: BMI2 intrinsics (17ns on Clang 18, 32ns on GCC)
+    // BMI2 intrinsics (17ns on Clang 18, 32ns on GCC)
     #if defined(SECP256K1_HAS_ASM) && (defined(__x86_64__) || defined(_M_X64))
         // Use full assembly multiplication + reduction (fastest)
         field_mul_full_asm(a_limbs, b_limbs, result);
