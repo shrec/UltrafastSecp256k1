@@ -852,6 +852,7 @@ static void test_rfc9591_3of5() {
 
                 // Partial sigs
                 std::vector<secp256k1::FrostPartialSig> psigs;
+                psigs.reserve(3);
                 for (int k = 0; k < 3; ++k) {
                     psigs.push_back(secp256k1::frost_sign(kps[ids[k]], nonces[k], msg, ncs));
                 }

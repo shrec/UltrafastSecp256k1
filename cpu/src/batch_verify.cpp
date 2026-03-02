@@ -91,14 +91,14 @@ bool schnorr_batch_verify(const SchnorrBatchEntry* entries, std::size_t n) {
     }
     auto batch_seed = seed_ctx.finalize();
 
-    // Collect: scalars and points for multi_scalar_mul
-    // Layout: [G_coeff, P_0, ..., P_{n-1}, R_0, ..., R_{n-1}]
-    // Scalars: [sum(a_i*s_i), -a_0*e_0, ..., -a_{n-1}*e_{n-1}, -a_0, ..., -a_{n-1}]
+    // Collect: scalars and points for multi_scalar_mul (non-generator only)
+    // Layout: [P_0, ..., P_{n-1}, R_0, ..., R_{n-1}]
+    // Scalars: [-a_0*e_0, ..., -a_{n-1}*e_{n-1}, -a_0, ..., -a_{n-1}]
     std::vector<Scalar> scalars;
     std::vector<Point> points;
 
-    scalars.reserve(1 + 2 * n);
-    points.reserve(1 + 2 * n);
+    scalars.reserve(2 * n);
+    points.reserve(2 * n);
 
     // G coefficient: sum(a_i * s_i)
     Scalar g_coeff = Scalar::zero();
@@ -134,27 +134,34 @@ bool schnorr_batch_verify(const SchnorrBatchEntry* entries, std::size_t n) {
         g_coeff += weights[i] * entries[i].signature.s;
     }
 
-    // Build multi-scalar arrays
-    // First: G with coefficient sum(a_i*s_i)
-    scalars.push_back(g_coeff);
-    points.push_back(Point::generator());
+    // ---- Optimization: separate G coefficient from MSM ----
+    // G has a precomputed comb table (~6us via scalar_mul), while generic
+    // points cost ~25us each in MSM.  By computing g_coeff*G separately
+    // we avoid treating the generator as a generic point, gaining ~19us
+    // and keeping the remaining 2*n points in the MSM range for Strauss.
 
-    // Then: -a_i * e_i * P_i  for each signature
+    // Step 1: g_coeff * G  (uses precomputed comb table -- fast path)
+    auto G_term = Point::generator().scalar_mul(g_coeff);
+
+    // Step 2: Build MSM for non-generator points only (2*n points)
+    //   scalars: [-a_0*e_0, ..., -a_{n-1}*e_{n-1}, -a_0, ..., -a_{n-1}]
+    //   points:  [P_0, ..., P_{n-1}, R_0, ..., R_{n-1}]
     for (std::size_t i = 0; i < n; ++i) {
         scalars.push_back((weights[i] * challenges[i]).negate());
         points.push_back(pubkeys[i]);
     }
 
-    // Then: -a_i * R_i  for each signature
     for (std::size_t i = 0; i < n; ++i) {
         scalars.push_back(weights[i].negate());
         points.push_back(R_points[i]);
     }
 
-    // Verify: MSM should yield infinity
+    // Step 3: Compute MSM for P_i and R_i terms
     // msm() auto-selects Strauss (n<=128) or Pippenger (n>128)
-    // For n=500 Schnorr batch -> 1001 points -> Pippenger is 10x+ faster
-    auto result = msm(scalars, points);
+    auto rest = msm(scalars, points);
+
+    // Step 4: Verify g_coeff*G + rest = infinity
+    auto result = G_term.add(rest);
     return result.is_infinity();
 }
 

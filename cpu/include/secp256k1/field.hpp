@@ -29,14 +29,6 @@ struct MidFieldElement {
     inline const FieldElement* ToFieldElement() const noexcept {
         return reinterpret_cast<const FieldElement*>(this);
     }
-    
-    // Legacy lowercase (compatibility)
-    inline FieldElement* toFieldElement() noexcept {
-        return reinterpret_cast<FieldElement*>(this);
-    }
-    inline const FieldElement* toFieldElement() const noexcept {
-        return reinterpret_cast<const FieldElement*>(this);
-    }
 };
 
 class FieldElement {

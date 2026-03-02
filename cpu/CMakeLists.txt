@@ -685,8 +685,22 @@ if(BUILD_TESTING)
             ${LIBSECP_SRC_DIR}
         )
         target_link_libraries(bench_hornet PRIVATE ${SECP256K1_LIB_NAME})
+
+        # ---- Unified Apple-to-Apple Benchmark (cross-platform, single binary) ----
+        add_executable(bench_unified
+            bench/bench_unified.cpp
+            bench/libsecp_provider.c
+            ${LIBSECP_SRC_DIR}/precomputed_ecmult.c
+            ${LIBSECP_SRC_DIR}/precomputed_ecmult_gen.c
+        )
+        target_include_directories(bench_unified PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/../../../_research_repos/secp256k1/include
+            ${LIBSECP_SRC_DIR}
+        )
+        target_link_libraries(bench_unified PRIVATE ${SECP256K1_LIB_NAME})
     else()
         message(STATUS "bench_hornet: skipped (libsecp256k1 source not found at ${LIBSECP_SRC_DIR})")
+        message(STATUS "bench_unified: skipped (libsecp256k1 source not found at ${LIBSECP_SRC_DIR})")
     endif()
 
     # Comprehensive cross-platform benchmark (all operations for README performance table)

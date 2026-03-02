@@ -1,6 +1,10 @@
 // ============================================================================
 // Multi-Scalar Multiplication: Strauss / Shamir's trick
 // ============================================================================
+// GLV note: GLV-decomposition was evaluated for Strauss MSM but found
+// counterproductive: it doubles point count (2N) while halving scan length
+// (~130 vs ~256).  The extra precompute+per-step cost outweighs the saved
+// doublings for N >= 4.  Individual scalar_mul already uses GLV internally.
 
 #include "secp256k1/multiscalar.hpp"
 #include <algorithm>

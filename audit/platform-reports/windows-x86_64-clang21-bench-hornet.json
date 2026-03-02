@@ -1,13 +1,12 @@
 {
   "library": "UltrafastSecp256k1",
-  "version": "3.14.0",
-  "git_hash": "3d6b540",
+  "version": "3.16.0",
   "benchmark": "bench_hornet (Bitcoin Consensus CPU Benchmark)",
   "target": "Hornet Node (hornetnode.org)",
-  "timestamp": "2026-03-02T00:18:00",
+  "timestamp": "2026-03-02T16:00:00",
   "platform": {
     "cpu": "11th Gen Intel Core i7-11700 @ 2.50GHz",
-    "tsc_ghz": 2.497,
+    "tsc_ghz": 2.498,
     "arch": "x86-64 (BMI2/ADX)",
     "cores_used": 1,
     "compiler": "Clang 21.1.0",
@@ -28,55 +27,55 @@
   },
   "benchmarks": {
     "ecdsa": {
-      "sign_ns": 9082.6,
-      "verify_ns": 28872.8
+      "sign_ns": 10177.2,
+      "verify_ns": 31309.9
     },
     "schnorr": {
-      "sign_keypair_ns": 9534.1,
-      "sign_raw_ns": 18665.1,
-      "verify_xonly_ns": 37123.1,
-      "verify_cached_ns": 30341.9
+      "sign_keypair_ns": 8369.5,
+      "sign_raw_ns": 15606.6,
+      "verify_xonly_ns": 33767.3,
+      "verify_cached_ns": 30490.2
     },
     "batch_verification_n64": {
-      "schnorr_per_sig_ns": 71739.7,
-      "schnorr_vs_individual": 0.52,
-      "ecdsa_per_sig_ns": 34821.0,
-      "ecdsa_vs_individual": 0.83
+      "schnorr_per_sig_ns": 69725.9,
+      "schnorr_vs_individual": 0.48,
+      "ecdsa_per_sig_ns": 34860.6,
+      "ecdsa_vs_individual": 0.90
     },
     "key_generation": {
-      "pubkey_create_ns": 5789.6,
-      "schnorr_keypair_create_ns": 7677.1
+      "pubkey_create_ns": 5951.7,
+      "schnorr_keypair_create_ns": 7883.3
     },
     "point_arithmetic": {
-      "scalar_mul_kP_ns": 25292.1,
-      "dual_mul_shamir_ns": 27850.1,
-      "point_add_ns": 233.2,
-      "point_dbl_ns": 91.3
+      "scalar_mul_kP_ns": 26461.5,
+      "dual_mul_shamir_ns": 31749.6,
+      "point_add_ns": 267.0,
+      "point_dbl_ns": 104.8
     },
     "field_arithmetic": {
-      "mul_ns": 21.7,
-      "sqr_ns": 21.1,
-      "inv_ns": 777.5,
-      "add_ns": 3.5,
-      "sub_ns": 2.6,
-      "neg_ns": 3.1
+      "mul_ns": 26.4,
+      "sqr_ns": 23.6,
+      "inv_ns": 1087.2,
+      "add_ns": 4.5,
+      "sub_ns": 3.3,
+      "neg_ns": 4.0
     },
     "scalar_arithmetic": {
-      "mul_ns": 29.9,
-      "inv_ns": 914.8,
-      "add_ns": 3.0,
-      "neg_ns": 2.8
+      "mul_ns": 31.5,
+      "inv_ns": 1065.7,
+      "add_ns": 4.2,
+      "neg_ns": 2.2
     },
     "serialization": {
-      "pubkey_compress_ns": 1334.3,
-      "ecdsa_der_encode_ns": 24.9,
-      "schnorr_bytes_ns": 4.8
+      "pubkey_compress_ns": 1410.0,
+      "ecdsa_der_encode_ns": 45.4,
+      "schnorr_bytes_ns": 4.4
     },
     "constant_time": {
-      "ct_ecdsa_sign_ns": 17649.4,
-      "ct_overhead_ecdsa": 1.94,
-      "ct_schnorr_sign_ns": 23958.5,
-      "ct_overhead_schnorr": 2.51
+      "ct_ecdsa_sign_ns": 17995.1,
+      "ct_overhead_ecdsa": 1.77,
+      "ct_schnorr_sign_ns": 17029.1,
+      "ct_overhead_schnorr": 2.03
     }
   },
   "apple_to_apple": {
@@ -85,43 +84,43 @@
     "modules": "ECDSA + Schnorr (BIP-340) + extrakeys",
     "method": "100 iterations, 20 warmup, QueryPerformanceCounter",
     "results": [
-      {"op": "Generator*k", "ours_ns": 5976, "theirs_ns": 15402, "speedup": 2.58},
-      {"op": "ECDSA Sign", "ours_ns": 9991, "theirs_ns": 25512, "speedup": 2.55},
-      {"op": "ECDSA Verify", "ours_ns": 30743, "theirs_ns": 25423, "speedup": 0.83, "note": "libsecp256k1 wins"},
-      {"op": "Schnorr Keypair", "ours_ns": 7207, "theirs_ns": 15234, "speedup": 2.11},
-      {"op": "Schnorr Sign", "ours_ns": 8620, "theirs_ns": 16007, "speedup": 1.86},
-      {"op": "Schnorr Verify", "ours_ns": 34939, "theirs_ns": 37523, "speedup": 1.07}
+      {"op": "Generator*k", "ours_ns": 5952, "theirs_ns": 17105, "speedup": 2.87},
+      {"op": "ECDSA Sign", "ours_ns": 10177, "theirs_ns": 25001, "speedup": 2.46},
+      {"op": "ECDSA Verify", "ours_ns": 31310, "theirs_ns": 28479, "speedup": 0.91, "note": "libsecp256k1 wins"},
+      {"op": "Schnorr Keypair", "ours_ns": 7883, "theirs_ns": 16617, "speedup": 2.11},
+      {"op": "Schnorr Sign", "ours_ns": 8370, "theirs_ns": 17731, "speedup": 2.12},
+      {"op": "Schnorr Verify", "ours_ns": 30490, "theirs_ns": 33763, "speedup": 1.11}
     ],
-    "summary": "UltrafastSecp256k1 FAST wins 5/6 ops (1.07x-2.58x); libsecp256k1 wins ECDSA Verify (1.21x)",
+    "summary": "UltrafastSecp256k1 FAST wins 5/6 ops (1.11x-2.87x); libsecp256k1 wins ECDSA Verify (1.10x)",
     "note": "libsecp256k1 is ALWAYS constant-time; FAST comparison is unfair for signing ops",
     "ct_vs_libsecp": [
-      {"op": "ECDSA Sign", "ours_ct_ns": 17649, "theirs_ns": 25512, "speedup": 1.45},
-      {"op": "ECDSA Verify", "ours_ns": 30743, "theirs_ns": 25423, "speedup": 0.83, "note": "libsecp256k1 wins; verify is public-input, no CT needed"},
-      {"op": "Schnorr Sign", "ours_ct_ns": 23959, "theirs_ns": 16007, "speedup": 0.67, "note": "libsecp256k1 wins"},
-      {"op": "Schnorr Verify", "ours_ns": 34939, "theirs_ns": 37523, "speedup": 1.07}
+      {"op": "ECDSA Sign", "ours_ct_ns": 17995, "theirs_ns": 25001, "speedup": 1.39},
+      {"op": "ECDSA Verify", "ours_ns": 31310, "theirs_ns": 28479, "speedup": 0.91, "note": "libsecp256k1 wins; verify is public-input, no CT needed"},
+      {"op": "Schnorr Sign", "ours_ct_ns": 17029, "theirs_ns": 17731, "speedup": 1.04},
+      {"op": "Schnorr Verify", "ours_ns": 30490, "theirs_ns": 33763, "speedup": 1.11}
     ],
-    "ct_summary": "CT-vs-CT: Ultra wins 2/4 (ECDSA Sign 1.45x, Schnorr Verify 1.07x); libsecp256k1 wins 2/4 (ECDSA Verify 1.21x, Schnorr Sign 1.50x)"
+    "ct_summary": "CT-vs-CT: Ultra wins 3/4 (ECDSA Sign 1.39x, Schnorr Sign 1.04x, Schnorr Verify 1.11x); libsecp256k1 wins 1/4 (ECDSA Verify 1.10x)"
   },
   "block_validation_estimates": {
     "pre_taproot_3000_ecdsa": {
-      "individual_ms": 86.6,
-      "batch_n64_ms": 104.5
+      "individual_ms": 93.9,
+      "batch_n64_ms": 104.6
     },
     "taproot_2000s_1000e": {
-      "individual_ms": 103.1,
-      "batch_n64_ms": 178.3
+      "individual_ms": 98.8,
+      "batch_n64_ms": 174.3
     },
     "ibd_1_35B_sigs": {
-      "individual_hours": 10.8,
+      "individual_hours": 11.7,
       "batch_hours": 13.1
     },
     "blocks_per_sec_1core": {
-      "pre_taproot": 11.5,
-      "taproot": 9.7
+      "pre_taproot": 10.6,
+      "taproot": 10.1
     },
     "tx_per_sec_1core": {
-      "ecdsa": 34635,
-      "schnorr": 26937
+      "ecdsa": 31939,
+      "schnorr": 29614
     }
   }
 }

@@ -9,7 +9,7 @@ string(STRIP "${_version_raw}" UFSECP_VERSION)
 project(UltrafastSecp256k1
     VERSION ${UFSECP_VERSION}
     DESCRIPTION "Ultra high-performance secp256k1 elliptic curve cryptography library"
-    LANGUAGES CXX
+    LANGUAGES CXX C
 )
 
 # Project metadata

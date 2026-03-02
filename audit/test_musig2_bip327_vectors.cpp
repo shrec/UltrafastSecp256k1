@@ -293,7 +293,7 @@ static void test_3of3_signing_pinned() {
     for (int i = 0; i < 3; ++i) {
         auto psig = secp256k1::musig2_partial_sign(
             sec_nonces[static_cast<size_t>(i)], sks[i], key_ctx, session, i);
-        bool v = secp256k1::musig2_partial_verify(
+        const bool v = secp256k1::musig2_partial_verify(
             psig, pub_nonces[static_cast<size_t>(i)], pubkeys[i], key_ctx, session, i);
         char label[64];
         (void)std::snprintf(label, sizeof(label), "partial_sig[%d] verifies", i);
