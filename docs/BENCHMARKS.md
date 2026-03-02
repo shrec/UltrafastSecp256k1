@@ -10,7 +10,7 @@ Benchmark results for UltrafastSecp256k1 across all supported platforms.
 |----------|-----------|---------------|------------|-------------|------------|
 | **x86-64 (i5-14400F, GCC 14)** | **12.8 ns** | **6.7 us** | **17.6 us** | **21.3 us** | **1.09x** |
 | x86-64 (Clang 21, Win) | 17 ns (5x52) | 5 us | 25 us | -- | -- |
-| RISC-V 64 (SiFive U74, Clang 21) | 176 ns | 39.8 us | 150.5 us | **180.5 us** | **1.11x** |
+| RISC-V 64 (SiFive U74, Clang 21) | 176 ns | 40.2 us | 150.5 us | **181.8 us** | **1.13x** |
 | ARM64 (RK3588, A76) | 74 ns | 14 us | 131 us | -- | -- |
 | ESP32-S3 (LX7, 240 MHz) | 7,458 ns | 2,483 us | -- | -- | -- |
 | ESP32 (LX6, 240 MHz) | 6,993 ns | 6,203 us | -- | -- | -- |
@@ -612,27 +612,27 @@ libsecp256k1 is constant-time by design, so this comparison is the fairest:
 
 | Operation | Ultra CT (ns) | libsecp (ns) | Speedup |
 |-----------|----------:|----------:|--------:|
-| ECDSA Sign | 152,374 | 138,128 | **0.91x** |
-| ECDSA Verify | 180,511 | 201,135 | **1.11x** |
-| Schnorr Sign (BIP-340) | 131,893 | 105,310 | **0.80x** |
-| Schnorr Verify (BIP-340) | 185,487 | 204,944 | **1.10x** |
+| ECDSA Sign | 131,177 | 138,818 | **1.06x** |
+| ECDSA Verify | 181,837 | 204,594 | **1.13x** |
+| Schnorr Sign (BIP-340) | 110,926 | 106,139 | **0.96x** |
+| Schnorr Verify (BIP-340) | 186,944 | 208,525 | **1.12x** |
 
 #### Throughput (single core)
 
 | | Ultra FAST | Ultra CT | libsecp |
 |---|---:|---:|---:|
-| ECDSA sign | **13.6k** op/s | 6.6k op/s | 7.2k op/s |
-| ECDSA verify | **5.5k** op/s | -- | 5.0k op/s |
-| Schnorr sign | **18.5k** op/s | 7.6k op/s | 9.5k op/s |
-| Schnorr verify | **5.4k** op/s | -- | 4.9k op/s |
-| pubkey_create (k x G) | **25.1k** op/s | -- | 10.5k op/s |
+| ECDSA sign | **13.5k** op/s | **7.6k** op/s | 7.2k op/s |
+| ECDSA verify | **5.5k** op/s | -- | 4.9k op/s |
+| Schnorr sign | **18.4k** op/s | 9.0k op/s | 9.4k op/s |
+| Schnorr verify | **5.3k** op/s | -- | 4.8k op/s |
+| pubkey_create (k x G) | **24.9k** op/s | -- | 10.5k op/s |
 
 #### Bitcoin Block Validation (1 core estimate)
 
 | Block type | Ultra | libsecp | Speedup |
 |------------|---:|---:|---:|
-| Pre-Taproot (~3000 ECDSA verify) | 541.5 ms | 603.4 ms | **1.11x** |
-| Taproot (~2000 Schnorr + ~1000 ECDSA) | 551.5 ms | 611.0 ms | **1.10x** |
+| Pre-Taproot (~3000 ECDSA verify) | 545.5 ms | 613.8 ms | **1.13x** |
+| Taproot (~2000 Schnorr + ~1000 ECDSA) | 555.7 ms | 621.6 ms | **1.12x** |
 
 #### Field Micro-ops
 
@@ -655,10 +655,12 @@ libsecp256k1 is constant-time by design, so this comparison is the fairest:
 - Despite this, the precomputed comb table gives a **2.4x** generator speedup,
   showing the optimization is algorithmic (fewer point additions) not
   microarchitecture-dependent.
-- CT signing is slower than libsecp on RV64 (0.80-0.91x) because the CT
-  generator_mul path does not use the comb table. This is expected and matches
-  the design: CT paths use uniform double-and-always-add.
-- Verify speedups (1.10-1.11x) come from the same L1 icache optimization as x86
+- CT generator_mul uses an 11-block comb (COMB_BLOCKS=11, COMB_SPACING=4) with
+  a ~31 KB table that fits in the U74's 32 KB L1D cache. This gives a **1.04x**
+  advantage over libsecp's generator_mul (91.4 us vs 95.4 us).
+- CT ECDSA Sign wins 1.06x. CT Schnorr Sign is 0.96x due to auxiliary overhead
+  (SHA-256, nonce derivation) not related to the core ECC operation.
+- Verify speedups (1.12-1.13x) come from the same L1 icache optimization as x86
   (called vs inlined additions) plus branchless conditional negate.
 
 ### Key Optimisations (vs libsecp256k1)
