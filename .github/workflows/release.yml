@@ -1584,7 +1584,7 @@ jobs:
 
       # -- Cosign keyless signing (Sigstore) --
       - name: Install cosign
-        uses: sigstore/cosign-installer@d7d6bc7722e3daa8354c50bcb52f4837da5e9b6a # v3.8.0
+        uses: sigstore/cosign-installer@faadad0cce49287aee09b3a48701e75088a2c6ad # v3.8.0
 
       - name: Sign release artifacts with cosign
         run: |
