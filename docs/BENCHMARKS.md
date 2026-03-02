@@ -8,16 +8,16 @@ Benchmark results for UltrafastSecp256k1 across all supported platforms.
 
 | Platform | Field Mul | Generator Mul | Scalar Mul | ECDSA Verify | vs libsecp |
 |----------|-----------|---------------|------------|-------------|------------|
-| **x86-64 (i5-14400F, GCC 14)** | **12.8 ns** | **6.7 µs** | **17.6 µs** | **21.3 µs** | **1.09×** |
-| x86-64 (Clang 21, Win) | 17 ns (5x52) | 5 µs | 25 µs | — | — |
-| RISC-V 64 (SiFive U74, LTO) | 95 ns | 33 µs | 154 µs | — | — |
-| ARM64 (RK3588, A76) | 74 ns | 14 µs | 131 µs | — | — |
-| ESP32-S3 (LX7, 240 MHz) | 7,458 ns | 2,483 µs | — | — | — |
-| ESP32 (LX6, 240 MHz) | 6,993 ns | 6,203 µs | — | — | — |
-| STM32F103 (CM3, 72 MHz) | 15,331 ns | 37,982 µs | — | — | — |
-| CUDA (RTX 5060 Ti) | 0.2 ns | 217.7 ns | 225.8 ns | — | — |
-| OpenCL (RTX 5060 Ti) | 0.2 ns | 295.1 ns | — | — | — |
-| Metal (Apple M3 Pro) | 1.9 ns | 3.00 µs | 2.94 µs | — | — |
+| **x86-64 (i5-14400F, GCC 14)** | **12.8 ns** | **6.7 us** | **17.6 us** | **21.3 us** | **1.09x** |
+| x86-64 (Clang 21, Win) | 17 ns (5x52) | 5 us | 25 us | -- | -- |
+| RISC-V 64 (SiFive U74, Clang 21) | 176 ns | 39.8 us | 150.5 us | **180.5 us** | **1.11x** |
+| ARM64 (RK3588, A76) | 74 ns | 14 us | 131 us | -- | -- |
+| ESP32-S3 (LX7, 240 MHz) | 7,458 ns | 2,483 us | -- | -- | -- |
+| ESP32 (LX6, 240 MHz) | 6,993 ns | 6,203 us | -- | -- | -- |
+| STM32F103 (CM3, 72 MHz) | 15,331 ns | 37,982 us | -- | -- | -- |
+| CUDA (RTX 5060 Ti) | 0.2 ns | 217.7 ns | 225.8 ns | -- | -- |
+| OpenCL (RTX 5060 Ti) | 0.2 ns | 295.1 ns | -- | -- | -- |
+| Metal (Apple M3 Pro) | 1.9 ns | 3.00 us | 2.94 us | -- | -- |
 
 ---
 
@@ -514,9 +514,9 @@ conditions.
 - **Pinning:** Single core, `taskset -c 0`, `SCHED_FIFO` where available.
 - **Compiler parity:** Both libraries compiled with the same compiler, same
   `-O3 -march=native` flags, same link step.
-- **Source:** `bench_unified.cpp` — open-source, fully reproducible.
+- **Source:** `bench_unified.cpp` -- open-source, fully reproducible.
 
-### Platform 1 — Intel Core i5-14400F (Raptor Lake)
+### Platform 1 -- Intel Core i5-14400F (Raptor Lake)
 
 | Detail | Value |
 |--------|-------|
@@ -526,75 +526,153 @@ conditions.
 | OS | Ubuntu 24.04 LTS, kernel 6.x |
 | Compiler | GCC 14.2.0, `-O3 -march=native -fno-exceptions -fno-rtti` |
 | ISA features | BMI2 (MULX), ADX, AVX2, SHA-NI |
-| libsecp256k1 | v0.7.x (latest master, 5×52 + exhaustive GLV Strauss) |
-| UltrafastSecp256k1 | v3.16.0, 5×52 limb layout, `__int128` field arithmetic |
-| Assembly | Both libraries: GCC `__int128` → auto-generated MULX code |
+| libsecp256k1 | v0.7.x (latest master, 5x52 + exhaustive GLV Strauss) |
+| UltrafastSecp256k1 | v3.16.0, 5x52 limb layout, `__int128` field arithmetic |
+| Assembly | Both libraries: GCC `__int128` -> auto-generated MULX code |
 
 #### FAST Path (variable-time, non-secret inputs)
 
 | Operation | Ultra (ns) | libsecp (ns) | Speedup | Notes |
 |-----------|----------:|----------:|--------:|-------|
-| Generator × k (pubkey_create) | 6,730 | 11,362 | **1.69×** | W=15 comb vs W=15 Strauss |
-| ECDSA Sign | 8,989 | 15,631 | **1.74×** | Includes k⁻¹ (safegcd) |
-| ECDSA Verify | 21,324 | 23,306 | **1.09×** | Identical Strauss algorithm |
-| Schnorr Keypair Create | 10,522 | 11,228 | **1.07×** | |
-| Schnorr Sign (BIP-340) | 8,443 | 12,255 | **1.45×** | Includes SHA-256 challenge |
-| Schnorr Verify (BIP-340) | 21,151 | 22,642 | **1.07×** | Includes lift_x + SHA-256 |
+| Generator x k (pubkey_create) | 6,730 | 11,362 | **1.69x** | W=15 comb vs W=15 Strauss |
+| ECDSA Sign | 8,989 | 15,631 | **1.74x** | Includes k^-1 (safegcd) |
+| ECDSA Verify | 21,324 | 23,306 | **1.09x** | Identical Strauss algorithm |
+| Schnorr Keypair Create | 10,522 | 11,228 | **1.07x** | |
+| Schnorr Sign (BIP-340) | 8,443 | 12,255 | **1.45x** | Includes SHA-256 challenge |
+| Schnorr Verify (BIP-340) | 21,151 | 22,642 | **1.07x** | Includes lift_x + SHA-256 |
 
-#### CT Path (constant-time, for secret inputs — true apples-to-apples)
+#### CT Path (constant-time, for secret inputs -- true apples-to-apples)
 
 libsecp256k1 is constant-time by design, so this comparison is the fairest:
 
 | Operation | Ultra CT (ns) | libsecp (ns) | Speedup |
 |-----------|----------:|----------:|--------:|
-| ECDSA Sign | 13,431 | 15,631 | **1.16×** |
-| ECDSA Verify | 21,324 | 23,306 | **1.09×** |
-| Schnorr Sign (BIP-340) | 11,393 | 12,255 | **1.08×** |
-| Schnorr Verify (BIP-340) | 21,151 | 22,642 | **1.07×** |
+| ECDSA Sign | 13,431 | 15,631 | **1.16x** |
+| ECDSA Verify | 21,324 | 23,306 | **1.09x** |
+| Schnorr Sign (BIP-340) | 11,393 | 12,255 | **1.08x** |
+| Schnorr Verify (BIP-340) | 21,151 | 22,642 | **1.07x** |
 
 #### Throughput (single core)
 
 | | Ultra FAST | Ultra CT | libsecp |
 |---|---:|---:|---:|
 | ECDSA sign | **111.3k** op/s | 74.5k op/s | 64.0k op/s |
-| ECDSA verify | **46.9k** op/s | — | 42.9k op/s |
+| ECDSA verify | **46.9k** op/s | -- | 42.9k op/s |
 | Schnorr sign | **118.4k** op/s | 87.8k op/s | 81.6k op/s |
-| Schnorr verify | **47.3k** op/s | — | 44.2k op/s |
-| pubkey_create (k×G) | **148.6k** op/s | — | 88.0k op/s |
+| Schnorr verify | **47.3k** op/s | -- | 44.2k op/s |
+| pubkey_create (k x G) | **148.6k** op/s | -- | 88.0k op/s |
 
 #### Bitcoin Block Validation (1 core estimate)
 
 | Block type | Ultra | libsecp | Speedup |
 |------------|---:|---:|---:|
-| Pre-Taproot (~3000 ECDSA verify) | 64.0 ms | 69.9 ms | **1.09×** |
-| Taproot (~2000 Schnorr + ~1000 ECDSA) | 63.6 ms | 67.9 ms | **1.07×** |
+| Pre-Taproot (~3000 ECDSA verify) | 64.0 ms | 69.9 ms | **1.09x** |
+| Taproot (~2000 Schnorr + ~1000 ECDSA) | 63.6 ms | 67.9 ms | **1.07x** |
 
 #### Field Micro-ops
 
 | Operation | Ultra (ns) | Notes |
 |-----------|----------:|-------|
-| FE52 mul | 12.8 | 5×52, `__int128` → MULX |
+| FE52 mul | 12.8 | 5x52, `__int128` -> MULX |
 | FE52 sqr | 9.5 | Dedicated squaring |
 | FE52 add | 8.1 | |
 | FE52 sub | 5.5 | |
 | FE52 negate | 6.0 | |
-| FE52 inverse (safegcd) | 666.8 | Bernstein–Yang, `__builtin_ctzll` |
-| Scalar mul | 23.2 | 4×64 |
+| FE52 inverse (safegcd) | 666.8 | Bernstein-Yang, `__builtin_ctzll` |
+| Scalar mul | 23.2 | 4x64 |
 | Scalar inverse (safegcd) | 843.1 | |
 | GLV decomposition | 146.0 | Lattice-based |
 
+### Platform 2 -- StarFive VisionFive 2 (RISC-V 64)
+
+| Detail | Value |
+|--------|-------|
+| CPU | SiFive U74-MC (quad-core RV64GC) |
+| Microarchitecture | SiFive U74, dual-issue in-order, 32 KB L1i, 32 KB L1d |
+| ISA extensions | rv64gc + Zba (address), Zbb (bit-manipulation) |
+| Clock | ~1.5 GHz (StarFive JH7110 SoC) |
+| OS | Debian (StarFive kernel 6.6.20) |
+| Compiler | Clang 21.1.8, `-O3 -march=rv64gcv_zba_zbb` |
+| libsecp256k1 | v0.7.x (latest master) |
+| UltrafastSecp256k1 | v3.16.0, 5x52 limb layout, `__int128` field arithmetic |
+| Assembly | Both libraries: `__int128` -> compiler-generated MUL/MULHU |
+
+#### FAST Path (variable-time, non-secret inputs)
+
+| Operation | Ultra (ns) | libsecp (ns) | Speedup | Notes |
+|-----------|----------:|----------:|--------:|-------|
+| Generator x k (pubkey_create) | 39,764 | 95,341 | **2.40x** | W=15 comb vs W=15 Strauss |
+| ECDSA Sign | 73,784 | 138,128 | **1.87x** | Includes k^-1 (safegcd) |
+| ECDSA Verify | 180,511 | 201,135 | **1.11x** | Identical Strauss algorithm |
+| Schnorr Keypair Create | 45,873 | 95,946 | **2.09x** | |
+| Schnorr Sign (BIP-340) | 53,957 | 105,310 | **1.95x** | Includes SHA-256 challenge |
+| Schnorr Verify (BIP-340) | 185,487 | 204,944 | **1.10x** | Includes lift_x + SHA-256 |
+
+#### CT Path (constant-time, for secret inputs -- true apples-to-apples)
+
+| Operation | Ultra CT (ns) | libsecp (ns) | Speedup |
+|-----------|----------:|----------:|--------:|
+| ECDSA Sign | 152,374 | 138,128 | **0.91x** |
+| ECDSA Verify | 180,511 | 201,135 | **1.11x** |
+| Schnorr Sign (BIP-340) | 131,893 | 105,310 | **0.80x** |
+| Schnorr Verify (BIP-340) | 185,487 | 204,944 | **1.10x** |
+
+#### Throughput (single core)
+
+| | Ultra FAST | Ultra CT | libsecp |
+|---|---:|---:|---:|
+| ECDSA sign | **13.6k** op/s | 6.6k op/s | 7.2k op/s |
+| ECDSA verify | **5.5k** op/s | -- | 5.0k op/s |
+| Schnorr sign | **18.5k** op/s | 7.6k op/s | 9.5k op/s |
+| Schnorr verify | **5.4k** op/s | -- | 4.9k op/s |
+| pubkey_create (k x G) | **25.1k** op/s | -- | 10.5k op/s |
+
+#### Bitcoin Block Validation (1 core estimate)
+
+| Block type | Ultra | libsecp | Speedup |
+|------------|---:|---:|---:|
+| Pre-Taproot (~3000 ECDSA verify) | 541.5 ms | 603.4 ms | **1.11x** |
+| Taproot (~2000 Schnorr + ~1000 ECDSA) | 551.5 ms | 611.0 ms | **1.10x** |
+
+#### Field Micro-ops
+
+| Operation | Ultra (ns) | Notes |
+|-----------|----------:|-------|
+| FE52 mul | 176.2 | 5x52, `__int128` -> MUL/MULHU |
+| FE52 sqr | 166.8 | Dedicated squaring |
+| FE52 add | 42.1 | |
+| FE52 sub | 34.7 | |
+| FE52 negate | 42.7 | |
+| FE52 inverse (safegcd) | 4,697.6 | Bernstein-Yang |
+| Scalar mul | 147.5 | 4x64 |
+| Scalar inverse (safegcd) | 3,698.9 | |
+| GLV decomposition | 851.3 | Lattice-based |
+
+#### RISC-V Notes
+
+- The U74 is a dual-issue in-order core -- no out-of-order execution, no
+  speculative execution, no branch prediction beyond basic BTB.
+- Despite this, the precomputed comb table gives a **2.4x** generator speedup,
+  showing the optimization is algorithmic (fewer point additions) not
+  microarchitecture-dependent.
+- CT signing is slower than libsecp on RV64 (0.80-0.91x) because the CT
+  generator_mul path does not use the comb table. This is expected and matches
+  the design: CT paths use uniform double-and-always-add.
+- Verify speedups (1.10-1.11x) come from the same L1 icache optimization as x86
+  (called vs inlined additions) plus branchless conditional negate.
+
 ### Key Optimisations (vs libsecp256k1)
 
-1. **Precomputed generator table** — 8192-entry comb table for k×G (6.7 µs vs 11.4 µs)
-2. **Force-inlined doubling** — `jac52_double_inplace` always-inline in hot loop
-3. **Called (not inlined) additions** — Reduced ecmult function from 124 KB to 39 KB,
+1. **Precomputed generator table** -- 8192-entry comb table for k x G (6.7 us vs 11.4 us on x86; 39.8 us vs 95.3 us on RV64)
+2. **Force-inlined doubling** -- `jac52_double_inplace` always-inline in hot loop
+3. **Called (not inlined) additions** -- Reduced ecmult function from 124 KB to 39 KB,
    fitting the hot loop in L1 I-cache (1.5 KB loop body vs 32 KB I-cache)
-4. **Branchless conditional negate** — XOR-select in Strauss loop eliminates
+4. **Branchless conditional negate** -- XOR-select in Strauss loop eliminates
    50% unpredictable sign branches
-5. **Single affine conversion in Schnorr verify** — Merged X-check + Y-parity
-   into one Z⁻¹ computation (saves 1 sqr + 1 mul + redundant parse)
-6. **SW prefetch** — Prefetch G/H table entries before doublings
-7. **2M+5S doubling formula** — Saves 1M per double vs libsecp's 3M+4S
+5. **Single affine conversion in Schnorr verify** -- Merged X-check + Y-parity
+   into one Z^-1 computation (saves 1 sqr + 1 mul + redundant parse)
+6. **SW prefetch** -- Prefetch G/H table entries before doublings
+7. **2M+5S doubling formula** -- Saves 1M per double vs libsecp's 3M+4S
 
 ### How to Reproduce
 
@@ -618,7 +696,7 @@ We welcome benchmark contributions from other platforms. To add your results:
 3. Open a PR adding a new "Platform N" subsection with your hardware details
 
 Platforms we'd especially like to see: AMD Zen 4/5, Apple M-series (ARM64),
-AWS Graviton, AMD EPYC, Intel Xeon Sapphire Rapids.
+AWS Graviton, AMD EPYC, Intel Xeon Sapphire Rapids, Milk-V Pioneer (C920).
 
 ---
 
