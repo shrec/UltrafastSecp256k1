@@ -45,13 +45,19 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y ninja-build cmake
 
+    - name: Clone libsecp256k1 (for apple-to-apple comparison)
+      run: |
+        git clone --depth 1 https://github.com/bitcoin-core/secp256k1.git \
+          "$GITHUB_WORKSPACE/_libsecp256k1"
+
     - name: Configure (Release)
       run: |
         cmake -S . -B build/bench \
           -G Ninja \
           -DCMAKE_BUILD_TYPE=Release \
           -DBUILD_TESTING=ON \
-          -DSECP256K1_USE_ASM=ON
+          -DSECP256K1_USE_ASM=ON \
+          -DLIBSECP_SRC_DIR="$GITHUB_WORKSPACE/_libsecp256k1/src"
 
     - name: Build
       run: cmake --build build/bench -j$(nproc)
@@ -60,8 +66,8 @@ jobs:
       run: |
         mkdir -p benchmark_results
         
-        # Run comprehensive benchmark and capture output
-        ./build/bench/cpu/bench_comprehensive 2>&1 | tee benchmark_results/raw_output.txt
+        # Run unified benchmark and capture output
+        ./build/bench/cpu/bench_unified 2>&1 | tee benchmark_results/raw_output.txt
         
         # Parse output into benchmark.js-compatible JSON
         python3 .github/scripts/parse_benchmark.py \
@@ -107,9 +113,13 @@ jobs:
         persist-credentials: false
         submodules: recursive
 
+    - name: Clone libsecp256k1 (for apple-to-apple comparison)
+      run: |
+        git clone --depth 1 https://github.com/bitcoin-core/secp256k1.git "$env:GITHUB_WORKSPACE\_libsecp256k1"
+
     - name: Configure (Release, MSVC)
       run: |
-        cmake -S . -B build/bench -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
+        cmake -S . -B build/bench -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON -DLIBSECP_SRC_DIR="$env:GITHUB_WORKSPACE\_libsecp256k1\src"
 
     - name: Build
       run: cmake --build build/bench --config Release -j $env:NUMBER_OF_PROCESSORS
@@ -117,7 +127,7 @@ jobs:
     - name: Run benchmark suite
       run: |
         New-Item -Path benchmark_results -ItemType Directory -Force
-        & .\build/bench\cpu\Release\bench_comprehensive.exe 2>&1 | Tee-Object -FilePath benchmark_results\raw_output.txt
+        & .\build\bench\cpu\Release\bench_unified.exe 2>&1 | Tee-Object -FilePath benchmark_results\raw_output.txt
 
     - name: Summary
       run: |

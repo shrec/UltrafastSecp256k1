@@ -92,21 +92,6 @@ target_compile_options(android_test PRIVATE -O3)
 target_link_options(android_test PRIVATE -static-libstdc++)
 
 # ============================================================================
-# Comprehensive benchmark executable (same as desktop, for cross-platform comparison)
-# ============================================================================
-add_executable(bench_comprehensive
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/bench/bench_comprehensive_riscv.cpp
-)
-target_link_libraries(bench_comprehensive PRIVATE fastsecp256k1)
-target_include_directories(bench_comprehensive PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/../include
-)
-target_compile_features(bench_comprehensive PRIVATE cxx_std_20)
-target_compile_options(bench_comprehensive PRIVATE -O3)
-target_link_options(bench_comprehensive PRIVATE -static-libstdc++)
-
-# ============================================================================
 # Bench Hornet (Bitcoin Consensus full benchmark with libsecp256k1 apple-to-apple)
 # Requires libsecp256k1 source tree -- skip gracefully when absent (e.g. CI)
 # ============================================================================
@@ -139,5 +124,4 @@ message(STATUS "Targets available:")
 message(STATUS "  fastsecp256k1      - Static library (link into your native code)")
 message(STATUS "  secp256k1_jni      - Shared JNI library (for Java/Kotlin apps)")
 message(STATUS "  android_test       - On-device test binary (adb push + adb shell)")
-message(STATUS "  bench_comprehensive - Cross-platform benchmark (adb push + adb shell)")
 message(STATUS "  ${_bench_hornet_status}")

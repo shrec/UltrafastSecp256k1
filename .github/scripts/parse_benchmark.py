@@ -1,15 +1,20 @@
 #!/usr/bin/env python3
 """
-Parse benchmark output from bench_comprehensive into
-github-action-benchmark compatible JSON (customSmallerIsBetter format).
+Parse benchmark output from bench_unified (or legacy bench_comprehensive)
+into github-action-benchmark compatible JSON (customSmallerIsBetter format).
 
-Input:  Raw text output from bench_comprehensive
+Input:  Raw text output from bench_unified or bench_comprehensive
 Output: JSON file with benchmark entries
 
-Expected input format (lines like):
-  scalar_mul (K*G):          18.45 us    (54,201 ops/sec)
-  point_add:                  0.87 us    (1,149,425 ops/sec)
-  field_mul:                  8.23 ns    (121,506,682 ops/sec)
+Supported input formats:
+
+  bench_unified table (ns/op, always nanoseconds):
+    | field_mul                                      |        8.2 |
+    | Generator * k (FAST)                           |     5841.0 |
+
+  Legacy bench_comprehensive (name: value unit):
+    scalar_mul (K*G):          18.45 us    (54,201 ops/sec)
+    field_mul:                  8.23 ns    (121,506,682 ops/sec)
 """
 
 import json
@@ -21,22 +26,51 @@ from pathlib import Path
 def parse_benchmark_output(text: str) -> list[dict]:
     """Parse benchmark text output into benchmark entries."""
     entries = []
+    seen = set()
 
-    # Pattern: "name: value unit (ops/sec)"
+    # Pattern 1 (bench_unified): table rows "| name | value |"
+    # Matches numeric ns/op values only; skips headers (ns/op) and ratios (1.23x).
+    table_pattern = re.compile(
+        r'^\|\s+(.+?)\s+\|\s+([\d,]+(?:\.[\d]+)?)\s+\|$',
+        re.MULTILINE
+    )
+
+    for match in table_pattern.finditer(text):
+        name = match.group(1).strip()
+        value_str = match.group(2).replace(',', '')
+        # Skip header rows
+        if name == '' or value_str == '' or 'ns/op' in name.lower():
+            continue
+        try:
+            value_ns = float(value_str)
+        except ValueError:
+            continue
+        if name not in seen:
+            seen.add(name)
+            entries.append({
+                'name': name,
+                'unit': 'ns',
+                'value': round(value_ns, 2),
+            })
+
+    # Pattern 2 (legacy): "name: value unit (ops/sec)"
     # Examples:
     #   scalar_mul:     18.45 us
     #   field_mul:       8.23 ns
     # Name class includes = for entries like "Batch Inverse (n=100)".
-    pattern = re.compile(
+    legacy_pattern = re.compile(
         r'^\s*([a-zA-Z0-9_\s\(\)/\*\+\-=]+?):\s+'
         r'([\d,\.]+)\s*(ns|us|ms|s)\b',
         re.MULTILINE
     )
 
-    for match in pattern.finditer(text):
+    for match in legacy_pattern.finditer(text):
         name = match.group(1).strip()
         value_str = match.group(2).replace(',', '')
         unit = match.group(3)
+
+        if name in seen:
+            continue
 
         try:
             value = float(value_str)
@@ -52,6 +86,7 @@ def parse_benchmark_output(text: str) -> list[dict]:
         }.get(unit, 1.0)
 
         value_ns = value * multiplier
+        seen.add(name)
 
         entries.append({
             'name': name,
