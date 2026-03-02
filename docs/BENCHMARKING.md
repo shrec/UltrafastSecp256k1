@@ -13,7 +13,7 @@ How to build, run, and interpret benchmarks on all supported platforms.
 | **`bench_comprehensive`** | **YES** | **YES** | All secp256k1 ops (standalone, no dependencies) |
 | `bench_hornet` | No | No (needs libsecp256k1 src) | Apple-to-apple comparison vs libsecp256k1 |
 | `bench_unified` | No | No (needs libsecp256k1 src) | Combined UF + libsecp runner |
-| `bench_comprehensive_riscv` | No | Yes | Legacy alias for bench_comprehensive |
+
 
 **`bench_comprehensive`** is the CI-canonical benchmark. It runs in
 `benchmark.yml` and `bench-regression.yml` and does NOT require any

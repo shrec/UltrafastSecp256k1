@@ -14,7 +14,7 @@
 #
 # What this changes:
 #   BEFORE: required checks = [build, ci, test]
-#   AFTER:  required checks = [build, ci, test, security-audit, codeql, ct-verif, bench-gate]
+#   AFTER:  required checks = [build, ci, test, security-audit, codeql, ct-verif, bench-gate, audit-verdict]
 # ===========================================================================
 
 set -euo pipefail
@@ -54,7 +54,8 @@ gh api "repos/${REPO}/branches/${BRANCH}/protection/required_status_checks" \
     "Valgrind Memcheck",
     "ct-verif LLVM analysis",
     "Benchmark Regression Check",
-    "CodeQL"
+    "CodeQL",
+    "Audit Verdict"
   ]
 }
 EOF
@@ -74,3 +75,4 @@ echo "  - Valgrind Memcheck (leak detection)"
 echo "  - ct-verif LLVM analysis (constant-time verification)"
 echo "  - Benchmark Regression Check (performance gate)"
 echo "  - CodeQL (security scanning)"
+echo "  - Audit Verdict (unified audit 3-platform pass)"

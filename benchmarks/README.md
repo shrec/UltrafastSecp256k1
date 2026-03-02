@@ -44,7 +44,7 @@ cmake --build build -j
 ./build/cpu/bench/benchmark_scalar
 
 # RISC-V comprehensive benchmark
-./build/libs/UltrafastSecp256k1/cpu/bench_comprehensive_riscv
+./build/libs/UltrafastSecp256k1/cpu/bench_comprehensive
 
 # Save results
 ./build/cpu/bench/benchmark_field > benchmarks/cpu/x86-64/linux/field_$(date +%Y%m%d).txt

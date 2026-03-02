@@ -858,7 +858,7 @@ vectors, fuzzing, protocol security, ABI safety, performance validation).
 | `bench_ecdsa_multiscalar` | k_1xG + k_2xQ (Shamir vs separate) |
 | `bench_jsf_vs_shamir` | JSF vs Windowed Shamir comparison |
 | `bench_adaptive_glv` | GLV window size sweep (8-20) |
-| `bench_comprehensive_riscv` | RISC-V optimized benchmark suite |
+| `bench_comprehensive` | Cross-platform benchmark suite (all ops) |
 
 ---
 

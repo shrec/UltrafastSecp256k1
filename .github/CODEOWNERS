@@ -3,13 +3,24 @@
 #
 # These owners are automatically requested for review on pull requests
 # that modify the matched files.
+#
+# GOVERNANCE NOTE: Currently single-maintainer (@shrec).
+# When additional maintainers join, crypto core paths (field, scalar,
+# point, schnorr, ecdsa, modinv) MUST require 2+ reviewers.
+# Update branch protection to require CODEOWNERS approval.
 
 # Default owner for everything
 * @shrec
 
-# Core cryptographic code — requires careful review
+# Core cryptographic code -- requires careful review
+# NOTE: These paths contain security-critical ECC implementation.
+# Any change here MUST have a test or deterministic repro command.
 /cpu/src/        @shrec
 /cpu/include/    @shrec
+
+# Constant-time primitives -- side-channel sensitive
+/cpu/src/ct_*.cpp   @shrec
+/cpu/include/ct_*.h @shrec
 
 # GPU backends
 /cuda/           @shrec
@@ -19,9 +30,14 @@
 # Security-sensitive files
 /SECURITY.md     @shrec
 /THREAT_MODEL.md @shrec
+/AUDIT_REPORT.md @shrec
 
-# CI/CD workflows
+# CI/CD workflows -- changes here affect all builds and security gates
 /.github/        @shrec
+
+# Audit/test framework
+/audit/          @shrec
+/cpu/tests/      @shrec
 
 # Packaging
 /packaging/      @shrec

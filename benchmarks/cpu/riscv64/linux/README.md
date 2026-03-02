@@ -33,7 +33,7 @@ cmake -B build -DCMAKE_BUILD_TYPE=Release -DSECP256K1_BUILD_BENCH=ON
 cmake --build build -j
 
 # Run comprehensive benchmark
-./build/libs/UltrafastSecp256k1/cpu/bench_comprehensive_riscv > results.txt
+./build/libs/UltrafastSecp256k1/cpu/bench_comprehensive > results.txt
 
 # Name format: <board>-<date>.txt
 # e.g., visionfive2-20260208.txt

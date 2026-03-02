@@ -1,9 +1,9 @@
 # Dead / Junk Code Inventory
 
-**Date:** 2026-03-03
+**Date:** 2026-03-03 (updated 2026-03-03)
 **Scope:** Primary (`libs/UltrafastSecp256k1/`), Root workspace (`Secp256K1/`)
 **Purpose:** Identify orphaned, deprecated, and dead code for cleanup.
-**Status:** Draft -- cleanup execution requires green test suite + zero behavior change.
+**Status:** Batch 1 executed -- 16 orphaned source files removed, bench_comprehensive_riscv alias removed.
 
 ---
 
@@ -11,24 +11,24 @@
 
 | File | Evidence | Action |
 |------|----------|--------|
-| `cpu/src/decomposition_optimized.hpp` | Not compiled or #included. Only in iOS Podspec. Dead GLV code. | Delete |
-| `cpu/src/field_asm_x64.cpp` | Not in CMakeLists. MSVC uses `.asm`, Clang uses `.S`. | Delete |
-| `cpu/src/modinv_shim.h` | Not #included anywhere | Delete |
-| `cpu/bench/bench_field_operations.cpp` | Not in CMakeLists | Delete |
-| `cpu/bench/bench_glv_cache_analysis.cpp` | Not in CMakeLists | Delete |
-| `cpu/bench/bench_glv_cache_test.cpp` | Not in CMakeLists | Delete |
-| `cpu/bench/bench_h_based_inversion.cpp` | Not in CMakeLists | Delete |
-| `cpu/bench/bench_kg_glv_noglv.cpp` | Not in CMakeLists | Delete |
-| `cpu/bench/bench_lazy_reduction.cpp` | Not in CMakeLists | Delete |
-| `cpu/bench/bench_montgomery.cpp` | Not in CMakeLists | Delete |
-| `cpu/bench/bench_mutable_vs_immutable.cpp` | Not in CMakeLists | Delete |
-| `cpu/bench/bench_point_serialization.cpp` | Not in CMakeLists | Delete |
-| `cpu/bench/bench_turbo_intensive.cpp` | Not in CMakeLists | Delete |
-| `cpu/fuzz/fuzz_field.cpp` | Not in CMakeLists (audit/ has own fuzz) | Delete |
-| `cpu/fuzz/fuzz_point.cpp` | Not in CMakeLists | Delete |
-| `cpu/fuzz/fuzz_scalar.cpp` | Not in CMakeLists | Delete |
+| ~~`cpu/src/decomposition_optimized.hpp`~~ | Not compiled or #included. Dead GLV code. | **DELETED** |
+| ~~`cpu/src/field_asm_x64.cpp`~~ | Not in CMakeLists. MSVC uses `.asm`, Clang uses `.S`. | **DELETED** |
+| ~~`cpu/src/modinv_shim.h`~~ | Not #included anywhere | **DELETED** |
+| ~~`cpu/bench/bench_field_operations.cpp`~~ | Not in CMakeLists | **DELETED** |
+| ~~`cpu/bench/bench_glv_cache_analysis.cpp`~~ | Not in CMakeLists | **DELETED** |
+| ~~`cpu/bench/bench_glv_cache_test.cpp`~~ | Not in CMakeLists | **DELETED** |
+| ~~`cpu/bench/bench_h_based_inversion.cpp`~~ | Not in CMakeLists | **DELETED** |
+| ~~`cpu/bench/bench_kg_glv_noglv.cpp`~~ | Not in CMakeLists | **DELETED** |
+| ~~`cpu/bench/bench_lazy_reduction.cpp`~~ | Not in CMakeLists | **DELETED** |
+| ~~`cpu/bench/bench_montgomery.cpp`~~ | Not in CMakeLists | **DELETED** |
+| ~~`cpu/bench/bench_mutable_vs_immutable.cpp`~~ | Not in CMakeLists | **DELETED** |
+| ~~`cpu/bench/bench_point_serialization.cpp`~~ | Not in CMakeLists | **DELETED** |
+| ~~`cpu/bench/bench_turbo_intensive.cpp`~~ | Not in CMakeLists | **DELETED** |
+| ~~`cpu/fuzz/fuzz_field.cpp`~~ | Not in CMakeLists (audit/ has own fuzz) | **DELETED** |
+| ~~`cpu/fuzz/fuzz_point.cpp`~~ | Not in CMakeLists | **DELETED** |
+| ~~`cpu/fuzz/fuzz_scalar.cpp`~~ | Not in CMakeLists | **DELETED** |
 
-**Duplicate CMake target:** `bench_comprehensive_riscv` is an alias for `bench_comprehensive` (same source). Remove alias.
+~~**Duplicate CMake target:** `bench_comprehensive_riscv` is an alias for `bench_comprehensive` (same source). Remove alias.~~ **DONE**
 
 ---
 

@@ -441,7 +441,7 @@ All targets registered in CMake. Build with `cmake --build build -j` then run fr
 | `bench_jsf_vs_shamir` | JSF (Joint Sparse Form) vs Windowed Shamir multi-scalar |
 | `bench_adaptive_glv` | GLV window size sweep (w=8 to w=20) |
 | `bench_glv_decomp_profile` | GLV decomposition profiling |
-| `bench_comprehensive_riscv` | RISC-V specific benchmark suite |
+
 
 ---
 

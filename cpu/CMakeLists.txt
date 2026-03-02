@@ -714,14 +714,9 @@ if(BUILD_TESTING)
     add_executable(bench_comprehensive bench/bench_comprehensive_riscv.cpp)
     target_link_libraries(bench_comprehensive PRIVATE ${SECP256K1_LIB_NAME})
 
-    # Legacy alias for compatibility
-    add_executable(bench_comprehensive_riscv bench/bench_comprehensive_riscv.cpp)
-    target_link_libraries(bench_comprehensive_riscv PRIVATE ${SECP256K1_LIB_NAME})
-
     # LTO compile options for benchmark sources (link flags auto-propagate via INTERFACE)
     if(SECP256K1_USE_LTO AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
         target_compile_options(bench_comprehensive PRIVATE -flto=thin)
-        target_compile_options(bench_comprehensive_riscv PRIVATE -flto=thin)
         target_compile_options(bench_atomic_operations PRIVATE -flto=thin)
     endif()
 
