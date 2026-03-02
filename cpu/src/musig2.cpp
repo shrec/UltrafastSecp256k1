@@ -5,6 +5,8 @@
 #include "secp256k1/musig2.hpp"
 #include "secp256k1/schnorr.hpp"
 #include "secp256k1/sha256.hpp"
+#include "secp256k1/ct/point.hpp"
+#include "secp256k1/ct/scalar.hpp"
 #include <cstring>
 #include <algorithm>
 
@@ -286,11 +288,14 @@ Scalar musig2_partial_sign(
     // Adjust secret key:
     // 1) Negate if this signer's pubkey P_i = d*G has odd Y
     //    (x-only pubkeys assume even Y, so effective d must match lift_x)
+    //    CT: generator_mul is constant-time, scalar_cneg is branchless.
     Scalar d = secret_key;
-    auto Pi = Point::generator().scalar_mul(d);
-    if (!has_even_y(Pi)) {
-        d = d.negate();
-    }
+    auto Pi = ct::generator_mul(d);
+    auto [pi_x, pi_y_odd] = Pi.x_bytes_and_parity();
+    // mask = all-ones if Y is odd (need negate), 0 if even
+    std::uint64_t const negate_mask = static_cast<std::uint64_t>(pi_y_odd)
+                                    * UINT64_C(0xFFFFFFFFFFFFFFFF);
+    d = ct::scalar_cneg(d, negate_mask);
     // 2) Negate if aggregate key Q was negated for even-Y
     if (key_agg_ctx.Q_negated) {
         d = d.negate();
