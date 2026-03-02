@@ -71,10 +71,15 @@
 | P0 | required checks sync script | **Done** (needs admin to run) |
 | P0 | Dead/junk inventory draft | **Done** |
 | P0 | Local Docker CI parity definition | **Done** |
-| P1 | root `CMakeLists.txt` safe default baseline | Not started |
-| P1 | `CMakePresets.json` secure canonical preset | Not started |
-| P2 | docs/version sync | Not started |
-| P2 | `CODEOWNERS` reinforcement | Not started |
+| P1 | root `CMakeLists.txt` safe default baseline | **Done** (`2a42775`) |
+| P1 | `CMakePresets.json` secure canonical preset | **Done** (`2a42775`) |
+| P1 | Benchmark naming harmonization | **Done** (`2a42775`) |
+| P2 | Dead code cleanup (orphans + artifacts) | **Done** (`3fc0d3a`, `1af0717`) |
+| P2 | CODEOWNERS reinforcement | **Done** (`3fc0d3a`) |
+| P2 | docs/version sync | **Done** (`2a42775`) |
+| CT | musig2_partial_sign timing leak fix | **Done** (`e16247b`) |
+| CT | schnorr_pubkey + keypair_create CT fix | **Done** (`3ccf84f`) |
+| CT | Batch CT-harden 8 modules (17 sites) | **Done** (`67da5fb`) |
 
 ---
 
@@ -114,6 +119,7 @@ To verify these changes:
 | Release signing fail-open | **CLOSED** | Cosign now hard-fails |
 | CT-verif fallback advisory | **CLOSED** | Violations now block |
 | PR perf gate non-blocking | **CLOSED** | continue-on-error removed |
-| Speed-first root build defaults | **OPEN** (P1) | root CMakeLists.txt forces SPEED_FIRST=ON |
+| Speed-first root build defaults | **CLOSED** (P1) | SPEED_FIRST=OFF default, safe preset canonical |
+| Variable-time secret-key scalar_mul | **CLOSED** | 20 call sites migrated to ct:: path |
 | Single-owner governance | **OPEN** (P2) | CODEOWNERS has @shrec only |
 | Docs version drift | **OPEN** (P2) | SECURITY/THREAT_MODEL/AUDIT_REPORT |
