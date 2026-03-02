@@ -127,7 +127,7 @@ jobs:
       - name: Fallback -- manual IR branch analysis
         if: env.CT_VERIF_AVAILABLE != 'true'
         run: |
-          echo "=== Manual IR analysis (ct-verif unavailable) ==="
+          echo "=== Manual IR analysis (ct-verif tool unavailable) ==="
           echo "Checking for secret-dependent branches in CT code..."
           echo ""
 
@@ -142,26 +142,25 @@ jobs:
             echo "  Conditional branches: $BR_COUNT"
             echo "  Select (branchless):  $SELECT_COUNT"
 
-            # Check for known non-CT patterns
+            # Check for known non-CT patterns -- these are BLOCKING violations
             if grep -q "switch.*label" "$ll" 2>/dev/null; then
-              echo "  [!] Found switch statement -- potential CT violation"
+              echo "  [FAIL] Found switch statement -- CT violation"
               VIOLATIONS=$((VIOLATIONS + 1))
             fi
 
             if grep -q "variable_gep" "$ll" 2>/dev/null; then
-              echo "  [!] Found variable GEP -- potential secret-dependent load"
+              echo "  [FAIL] Found variable GEP -- secret-dependent load"
               VIOLATIONS=$((VIOLATIONS + 1))
             fi
           done
 
           echo ""
           if [ "$VIOLATIONS" -eq 0 ]; then
-            echo "=== No obvious CT violations found in IR ==="
+            echo "=== No CT violations found in IR (fallback analysis) ==="
           else
-            echo "::warning::Found $VIOLATIONS potential CT issues in IR"
+            echo "::error::Found $VIOLATIONS CT violations in IR -- blocking"
+            exit 1
           fi
-          # Don't fail CI -- this is a best-effort fallback
-          exit 0
 
       - name: Upload IR reports
         if: always()

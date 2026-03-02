@@ -74,7 +74,7 @@ jobs:
           ./build-audit/audit/unified_audit_runner \
             --report-dir ./audit-output \
             --sarif \
-            $SECTION_ARG || true
+            $SECTION_ARG
 
       - name: Upload audit reports
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
@@ -144,7 +144,7 @@ jobs:
           fi
           ./build-audit/audit/unified_audit_runner \
             --report-dir ./audit-output \
-            $SECTION_ARG || true
+            $SECTION_ARG
 
       - name: Upload audit reports
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
@@ -198,7 +198,8 @@ jobs:
           if ($section) { $args += @("--section", $section) }
           & .\build-audit\audit\Release\unified_audit_runner.exe @args
           if ($LASTEXITCODE -ne 0) {
-            Write-Warning "Audit runner exited with code $LASTEXITCODE"
+            Write-Error "Audit runner failed with exit code $LASTEXITCODE"
+            exit $LASTEXITCODE
           }
 
       - name: Upload audit reports
@@ -249,13 +250,31 @@ jobs:
           echo "| Platform | Verdict |" >> $GITHUB_STEP_SUMMARY
           echo "|----------|---------|" >> $GITHUB_STEP_SUMMARY
 
+          ALL_PASS=true
+          MISSING=0
           for dir in audit-report-*/; do
             platform=$(basename "$dir" | sed 's/audit-report-//')
             json="$dir/audit_report.json"
             if [ -f "$json" ]; then
               verdict=$(grep -o '"audit_verdict": *"[^"]*"' "$json" | head -1 | cut -d'"' -f4)
               echo "| $platform | $verdict |" >> $GITHUB_STEP_SUMMARY
+              if [ "$verdict" != "PASS" ] && [ "$verdict" != "pass" ]; then
+                ALL_PASS=false
+                echo "::error::Audit verdict FAILED on platform: $platform (verdict: $verdict)"
+              fi
             else
               echo "| $platform | NO REPORT |" >> $GITHUB_STEP_SUMMARY
+              ALL_PASS=false
+              MISSING=$((MISSING + 1))
+              echo "::error::No audit report generated for platform: $platform"
             fi
           done
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "$ALL_PASS" = "true" ]; then
+            echo "**Overall: PASS**" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "**Overall: FAIL**" >> $GITHUB_STEP_SUMMARY
+            echo "::error::Audit verdict check failed -- one or more platforms did not PASS"
+            exit 1
+          fi

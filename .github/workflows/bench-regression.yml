@@ -90,10 +90,10 @@ jobs:
         fail-on-alert: true
         benchmark-data-dir-path: 'dev/bench-gate'
 
-    - name: PR comparison (alert only, do not store)
+    - name: PR comparison (alert + block on regression)
       # Compares PR benchmark against the stored baseline from push events.
-      # Does NOT store (auto-push: false) — only the push to main/dev updates baseline.
-      # continue-on-error: true so PR is not hard-blocked, but alert comment is posted.
+      # Does NOT store (auto-push: false) -- only the push to main/dev updates baseline.
+      # BLOCKS PR if regression exceeds threshold.
       if: github.event_name == 'pull_request'
       uses: benchmark-action/github-action-benchmark@4bdcce38c94cec68da58d012ac24b7b1155efe8b # v1
       with:
@@ -106,7 +106,6 @@ jobs:
         comment-on-alert: true
         fail-on-alert: true
         benchmark-data-dir-path: 'dev/bench-gate'
-      continue-on-error: true
 
     - name: Summary
       if: always()

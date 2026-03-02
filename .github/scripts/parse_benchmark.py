@@ -78,13 +78,15 @@ def main():
     entries = parse_benchmark_output(text)
 
     if not entries:
-        # Create a dummy entry if no benchmarks were parsed
-        entries = [{
-            'name': 'benchmark_parse_warning',
-            'unit': 'ns',
-            'value': 0,
-        }]
-        print("Warning: No benchmark entries parsed from output")
+        # No benchmarks parsed -- this is a HARD FAILURE.
+        # A dummy entry would hide real regressions by making future comparisons
+        # succeed against a meaningless baseline.
+        print("Error: No benchmark entries parsed from output -- failing")
+        print("  Input file:", input_path)
+        print("  Input size:", input_path.stat().st_size, "bytes")
+        print("  First 500 chars of input:")
+        print(text[:500])
+        sys.exit(1)
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(json.dumps(entries, indent=2))

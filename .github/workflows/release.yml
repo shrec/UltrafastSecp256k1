@@ -197,7 +197,7 @@ jobs:
       - name: Test (via QEMU)
         run: |
           export QEMU_LD_PREFIX=/usr/aarch64-linux-gnu
-          ctest --test-dir build --output-on-failure -j4 -E "^ct_sidechannel" || echo "Some tests may skip under QEMU"
+          ctest --test-dir build --output-on-failure -j4 -E "^ct_sidechannel"
 
       - name: Collect release artifacts
         run: |
@@ -1590,17 +1590,24 @@ jobs:
         run: |
           echo "cosign version: $(cosign version 2>&1 | head -1)"
 
-          # Sign the SHA256SUMS manifest itself (most important)
+          # Sign the SHA256SUMS manifest itself -- HARD FAIL if this fails.
+          # SHA256SUMS signature is the root of trust for the entire release.
           echo "Signing: SHA256SUMS"
-          if cosign sign-blob --yes SHA256SUMS \
-               --output-signature SHA256SUMS.sig \
-               --output-certificate SHA256SUMS.pem; then
-            echo "  [OK] SHA256SUMS signed"
-          else
-            echo "::warning::cosign sign-blob failed for SHA256SUMS (exit $?)"
-          fi
+          cosign sign-blob --yes SHA256SUMS \
+            --output-signature SHA256SUMS.sig \
+            --output-certificate SHA256SUMS.pem
+          echo "  [OK] SHA256SUMS signed"
 
-          # Sign individual release archives
+          # Verify the signature immediately (fail-fast integrity check)
+          cosign verify-blob SHA256SUMS \
+            --signature SHA256SUMS.sig \
+            --certificate SHA256SUMS.pem \
+            --certificate-identity-regexp='.*' \
+            --certificate-oidc-issuer-regexp='.*'
+          echo "  [OK] SHA256SUMS signature verified"
+
+          # Sign individual release archives -- also hard-fail.
+          # Every release artifact MUST be signed.
           SIGNED=0
           FAILED=0
           cd dist
@@ -1608,19 +1615,14 @@ jobs:
             -o -name '*.nupkg' -o -name '*.tgz' -o -name '*.gem' -o -name '*.jar' \) \
             | while read -r f; do
               echo "Signing: $f"
-              if cosign sign-blob --yes "$f" \
-                   --output-signature "${f}.sig" \
-                   --output-certificate "${f}.pem"; then
-                SIGNED=$((SIGNED+1))
-              else
-                echo "::warning::cosign sign-blob failed for $f (exit $?)"
-                FAILED=$((FAILED+1))
-              fi
+              cosign sign-blob --yes "$f" \
+                --output-signature "${f}.sig" \
+                --output-certificate "${f}.pem"
             done
           cd ..
 
-          echo "=== Cosign summary: signed=${SIGNED:-0} failed=${FAILED:-0} ==="
-          ls -la SHA256SUMS.sig SHA256SUMS.pem 2>/dev/null || echo "No SHA256SUMS signature files found"
+          echo "=== Cosign: all artifacts signed successfully ==="
+          ls -la SHA256SUMS.sig SHA256SUMS.pem
 
       # -- Verification Artifacts --
       - name: Generate verification artifacts
