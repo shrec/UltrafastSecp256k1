@@ -62,10 +62,15 @@ static inline std::uint64_t sub256_scalar(std::uint64_t r[4],
 
 Scalar scalar_add(const Scalar& a, const Scalar& b) noexcept {
     std::uint64_t r[4];
-    std::uint64_t const carry = add256_scalar(r, a.limbs().data(), b.limbs().data());
+    std::uint64_t carry = add256_scalar(r, a.limbs().data(), b.limbs().data());
 
     std::uint64_t tmp[4];
-    std::uint64_t const borrow = sub256_scalar(tmp, r, N);
+    std::uint64_t borrow = sub256_scalar(tmp, r, N);
+
+    // value_barrier prevents the compiler from reasoning about carry/borrow
+    // values and converting the mask computation into a branch.
+    value_barrier(carry);
+    value_barrier(borrow);
 
     // carry=1 implies r < n (since a+b < 2n < n + 2^256), so borrow=1.
     // carry=1 AND borrow=0 is impossible -> OR safely covers all cases.
@@ -79,11 +84,14 @@ Scalar scalar_add(const Scalar& a, const Scalar& b) noexcept {
 
 Scalar scalar_sub(const Scalar& a, const Scalar& b) noexcept {
     std::uint64_t r[4];
-    std::uint64_t const borrow = sub256_scalar(r, a.limbs().data(), b.limbs().data());
+    std::uint64_t borrow = sub256_scalar(r, a.limbs().data(), b.limbs().data());
 
     std::uint64_t tmp[4];
     add256_scalar(tmp, r, N);
 
+    // value_barrier prevents the compiler from converting the conditional
+    // move into a branch on the borrow flag.
+    value_barrier(borrow);
     std::uint64_t const mask = is_nonzero_mask(borrow);
     cmov256(r, tmp, mask);
 
@@ -163,15 +171,31 @@ Scalar scalar_cneg(const Scalar& a, std::uint64_t mask) noexcept {
 
 std::uint64_t scalar_is_zero(const Scalar& a) noexcept {
     const auto& l = a.limbs();
-    std::uint64_t const z = l[0] | l[1] | l[2] | l[3];
+    // value_barrier each limb before OR to prevent the compiler from
+    // constant-propagating zero limbs -> zero OR -> optimized is_zero_mask.
+    std::uint64_t a0 = l[0], a1 = l[1], a2 = l[2], a3 = l[3];
+    value_barrier(a0);
+    value_barrier(a1);
+    value_barrier(a2);
+    value_barrier(a3);
+    std::uint64_t const z = a0 | a1 | a2 | a3;
     return is_zero_mask(z);
 }
 
 std::uint64_t scalar_eq(const Scalar& a, const Scalar& b) noexcept {
     const auto& al = a.limbs();
     const auto& bl = b.limbs();
-    std::uint64_t const diff = (al[0] ^ bl[0]) | (al[1] ^ bl[1]) |
-                         (al[2] ^ bl[2]) | (al[3] ^ bl[3]);
+    // value_barrier each XOR result to prevent compiler from
+    // short-circuiting when a == b (XOR of same provenance -> 0).
+    std::uint64_t d0 = al[0] ^ bl[0];
+    std::uint64_t d1 = al[1] ^ bl[1];
+    std::uint64_t d2 = al[2] ^ bl[2];
+    std::uint64_t d3 = al[3] ^ bl[3];
+    value_barrier(d0);
+    value_barrier(d1);
+    value_barrier(d2);
+    value_barrier(d3);
+    std::uint64_t const diff = d0 | d1 | d2 | d3;
     return is_zero_mask(diff);
 }
 

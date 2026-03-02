@@ -102,6 +102,10 @@ struct alignas(8) FieldElement52 {
     FieldElement52 negate(unsigned magnitude) const noexcept;
     void negate_assign(unsigned magnitude) noexcept;
 
+    // Branchless conditional negate (magnitude 1).
+    // sign_mask: 0 = keep, -1 = negate.  No branch; compiles to XOR+AND.
+    void conditional_negate_assign(std::int32_t sign_mask) noexcept;
+
     // -- Fully-Reduced Arithmetic -------------------------------------
     // Multiplication and squaring produce normalized output (magnitude=1).
     FieldElement52 operator*(const FieldElement52& rhs) const noexcept;

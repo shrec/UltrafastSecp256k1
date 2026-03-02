@@ -1,7 +1,9 @@
 /**
  * libsecp256k1 (bitcoin-core) benchmark wrapper for ESP32.
- * Compiles the official library as a single translation unit
- * and provides a timing function for generator_mul comparison.
+ * Compiles the official library as a single translation unit.
+ * Returns timing results for apple-to-apple ratio computation.
+ *
+ * Uses median-of-3 (identical harness to Ultra benchmark).
  */
 
 // --- libsecp256k1 configuration for ESP32 ------------------------------------
@@ -24,8 +26,12 @@
 
 // --- ESP32 benchmark API -----------------------------------------------------
 #include "esp_timer.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 #include <stdio.h>
 #include <string.h>
+
+#include "libsecp_bench.h"
 
 // Fixed test secret key (same scalar we use in our benchmark)
 static const unsigned char test_seckey[32] = {
@@ -35,149 +41,138 @@ static const unsigned char test_seckey[32] = {
     0x58, 0x70, 0x07, 0x92, 0xd5, 0x01, 0xa5, 0x91
 };
 
-void libsecp_benchmark(void) {
+/* Median of 3 doubles */
+static double median3(double a, double b, double c) {
+    if (a > b) { double t = a; a = b; b = t; }
+    if (b > c) { double t = b; b = c; c = t; }
+    if (a > b) { double t = a; a = b; b = t; }
+    return b;
+}
+
+/* Run func N times, return ns/op.  Repeat 3x, yield, return median. */
+#define BENCH_MEDIAN3(out_ns, N, body)                  \
+    do {                                                 \
+        double _r[3];                                    \
+        for (int _pass = 0; _pass < 3; ++_pass) {       \
+            int64_t _t0 = esp_timer_get_time();          \
+            for (int _i = 0; _i < (N); ++_i) { body; }  \
+            int64_t _dt = esp_timer_get_time() - _t0;    \
+            _r[_pass] = (double)_dt * 1000.0 / (N);     \
+            vTaskDelay(pdMS_TO_TICKS(10));                \
+        }                                                \
+        (out_ns) = median3(_r[0], _r[1], _r[2]);        \
+    } while (0)
+
+#define LIBSECP_ITERS 5
+
+void libsecp_benchmark(libsecp_results_t* out) {
+    memset(out, 0, sizeof(*out));
+
     printf("\n");
-    printf("==============================================\n");
-    printf("  libsecp256k1 (bitcoin-core) Benchmark\n");
-    printf("  Version: 0.7.2\n");
-    printf("  Table:   COMB %dx%d (%dKB)\n", COMB_BLOCKS, COMB_TEETH, 22);
-    printf("  Modules: ECDSA + Schnorr (BIP-340)\n");
-    printf("==============================================\n");
+    printf("+----------------------------------------------+------------+\n");
+    printf("| libsecp256k1 (bitcoin-core v0.7.2)           |      ns/op |\n");
+    printf("| ECMULT_WINDOW=%d, COMB %dx%d                   |            |\n",
+           ECMULT_WINDOW_SIZE, COMB_BLOCKS, COMB_TEETH);
+    printf("+----------------------------------------------+------------+\n");
 
     secp256k1_context* ctx = secp256k1_context_create(SECP256K1_CONTEXT_NONE);
     if (!ctx) {
-        printf("  ERROR: context creation failed\n");
+        printf("| ERROR: context creation failed               |            |\n");
+        printf("+----------------------------------------------+------------+\n");
         return;
     }
 
     secp256k1_pubkey pubkey;
     volatile uint64_t sink = 0;
 
-    // Warmup (also triggers lazy table init)
+    /* Warmup (triggers lazy table init) */
     secp256k1_ec_pubkey_create(ctx, &pubkey, test_seckey);
     sink = pubkey.data[0];
+    vTaskDelay(pdMS_TO_TICKS(10));
 
-    // -- Generator Multiplication (ec_pubkey_create) --
-    {
-        int64_t start = esp_timer_get_time();
-        for (int i = 0; i < 3; i++) {
-            secp256k1_ec_pubkey_create(ctx, &pubkey, test_seckey);
-        }
-        int64_t elapsed = esp_timer_get_time() - start;
+    /* Generator * k */
+    BENCH_MEDIAN3(out->generator_mul_ns, LIBSECP_ITERS, {
+        secp256k1_ec_pubkey_create(ctx, &pubkey, test_seckey);
         sink ^= pubkey.data[0];
-        printf("  Generator*k:      %5lld us/op  (ec_pubkey_create)\n", elapsed / 3);
-    }
+    });
+    printf("| %-44s | %10.1f |\n", "generator_mul (ec_pubkey_create)", out->generator_mul_ns);
 
-    // -- ECDSA Sign --
+    /* ECDSA Sign */
     {
-        unsigned char msg[32];
-        memset(msg, 0x42, 32);
+        unsigned char msg[32]; memset(msg, 0x42, 32);
         secp256k1_ecdsa_signature sig;
-
-        // Warmup
         secp256k1_ecdsa_sign(ctx, &sig, msg, test_seckey, NULL, NULL);
-
-        int64_t start = esp_timer_get_time();
-        for (int i = 0; i < 3; i++) {
-            msg[0] = (unsigned char)i;
+        int idx = 0;
+        BENCH_MEDIAN3(out->ecdsa_sign_ns, LIBSECP_ITERS, {
+            msg[0] = (unsigned char)(idx++ & 0xFF);
             secp256k1_ecdsa_sign(ctx, &sig, msg, test_seckey, NULL, NULL);
-        }
-        int64_t elapsed = esp_timer_get_time() - start;
-        sink ^= sig.data[0];
-        printf("  ECDSA Sign:       %5lld us/op\n", elapsed / 3);
+            sink ^= sig.data[0];
+        });
+        printf("| %-44s | %10.1f |\n", "ecdsa_sign", out->ecdsa_sign_ns);
     }
 
-    // -- ECDSA Verify --
+    /* ECDSA Verify */
     {
-        unsigned char msg[32];
-        memset(msg, 0x42, 32);
+        unsigned char msg[32]; memset(msg, 0x42, 32);
         secp256k1_ecdsa_signature sig;
         secp256k1_ec_pubkey_create(ctx, &pubkey, test_seckey);
         secp256k1_ecdsa_sign(ctx, &sig, msg, test_seckey, NULL, NULL);
-
-        // Warmup
         secp256k1_ecdsa_verify(ctx, &sig, msg, &pubkey);
-
-        int64_t start = esp_timer_get_time();
-        int ok = 1;
-        for (int i = 0; i < 3; i++) {
-            ok &= secp256k1_ecdsa_verify(ctx, &sig, msg, &pubkey);
-        }
-        int64_t elapsed = esp_timer_get_time() - start;
-        sink ^= (uint64_t)ok;
-        printf("  ECDSA Verify:     %5lld us/op\n", elapsed / 3);
+        BENCH_MEDIAN3(out->ecdsa_verify_ns, LIBSECP_ITERS, {
+            volatile int ok = secp256k1_ecdsa_verify(ctx, &sig, msg, &pubkey);
+            sink ^= (uint64_t)ok;
+        });
+        printf("| %-44s | %10.1f |\n", "ecdsa_verify", out->ecdsa_verify_ns);
     }
 
-    // -- Schnorr Keypair Create --
+    /* Schnorr Keypair Create */
     {
         secp256k1_keypair keypair;
-
-        // Warmup
         secp256k1_keypair_create(ctx, &keypair, test_seckey);
-
-        int64_t start = esp_timer_get_time();
-        for (int i = 0; i < 3; i++) {
+        BENCH_MEDIAN3(out->schnorr_keypair_ns, LIBSECP_ITERS, {
             secp256k1_keypair_create(ctx, &keypair, test_seckey);
-        }
-        int64_t elapsed = esp_timer_get_time() - start;
-        sink ^= keypair.data[0];
-        printf("  Schnorr Keypair:  %5lld us/op  (keypair_create)\n", elapsed / 3);
+            sink ^= keypair.data[0];
+        });
+        printf("| %-44s | %10.1f |\n", "schnorr_keypair_create", out->schnorr_keypair_ns);
     }
 
-    // -- Schnorr Sign (BIP-340) --
+    /* Schnorr Sign (BIP-340) */
     {
         secp256k1_keypair keypair;
         secp256k1_keypair_create(ctx, &keypair, test_seckey);
-
-        unsigned char msg[32];
-        memset(msg, 0x42, 32);
+        unsigned char msg[32]; memset(msg, 0x42, 32);
         unsigned char sig64[64];
-        unsigned char aux[32];
-        memset(aux, 0x11, 32);
-
-        // Warmup
+        unsigned char aux[32]; memset(aux, 0x11, 32);
         secp256k1_schnorrsig_sign32(ctx, sig64, msg, &keypair, aux);
-
-        int64_t start = esp_timer_get_time();
-        for (int i = 0; i < 3; i++) {
-            msg[0] = (unsigned char)(i + 0x10);
+        int idx = 0;
+        BENCH_MEDIAN3(out->schnorr_sign_ns, LIBSECP_ITERS, {
+            msg[0] = (unsigned char)((idx++ + 0x10) & 0xFF);
             secp256k1_schnorrsig_sign32(ctx, sig64, msg, &keypair, aux);
-        }
-        int64_t elapsed = esp_timer_get_time() - start;
-        sink ^= sig64[0];
-        printf("  Schnorr Sign:     %5lld us/op  (BIP-340)\n", elapsed / 3);
+            sink ^= sig64[0];
+        });
+        printf("| %-44s | %10.1f |\n", "schnorr_sign (BIP-340)", out->schnorr_sign_ns);
     }
 
-    // -- Schnorr Verify (BIP-340) --
+    /* Schnorr Verify (BIP-340) */
     {
         secp256k1_keypair keypair;
         secp256k1_keypair_create(ctx, &keypair, test_seckey);
-
         secp256k1_xonly_pubkey xonly_pk;
         secp256k1_keypair_xonly_pub(ctx, &xonly_pk, NULL, &keypair);
-
-        unsigned char msg[32];
-        memset(msg, 0x42, 32);
+        unsigned char msg[32]; memset(msg, 0x42, 32);
         unsigned char sig64[64];
-        unsigned char aux[32];
-        memset(aux, 0x11, 32);
+        unsigned char aux[32]; memset(aux, 0x11, 32);
         secp256k1_schnorrsig_sign32(ctx, sig64, msg, &keypair, aux);
-
-        // Warmup
         secp256k1_schnorrsig_verify(ctx, sig64, msg, 32, &xonly_pk);
-
-        int64_t start = esp_timer_get_time();
-        int ok = 1;
-        for (int i = 0; i < 3; i++) {
-            ok &= secp256k1_schnorrsig_verify(ctx, sig64, msg, 32, &xonly_pk);
-        }
-        int64_t elapsed = esp_timer_get_time() - start;
-        sink ^= (uint64_t)ok;
-        printf("  Schnorr Verify:   %5lld us/op  (BIP-340)\n", elapsed / 3);
+        BENCH_MEDIAN3(out->schnorr_verify_ns, LIBSECP_ITERS, {
+            volatile int ok = secp256k1_schnorrsig_verify(ctx, sig64, msg, 32, &xonly_pk);
+            sink ^= (uint64_t)ok;
+        });
+        printf("| %-44s | %10.1f |\n", "schnorr_verify (BIP-340)", out->schnorr_verify_ns);
     }
 
     (void)sink;
     secp256k1_context_destroy(ctx);
 
-    printf("  --------------------------------------------\n");
+    printf("+----------------------------------------------+------------+\n");
 }

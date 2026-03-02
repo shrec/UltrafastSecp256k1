@@ -383,6 +383,26 @@ void FieldElement52::negate_assign(unsigned magnitude) noexcept {
     n[4] = m1 * P4 - n[4];
 }
 
+// -- Branchless conditional negate (magnitude 1) --------------------------
+// sign_mask: 0 = keep original, -1 (0xFFFFFFFF) = negate.
+// Uses XOR-select to avoid branches on unpredictable sign bits.
+SECP256K1_FE52_FORCE_INLINE
+void FieldElement52::conditional_negate_assign(std::int32_t sign_mask) noexcept {
+    const std::uint64_t mask = static_cast<std::uint64_t>(static_cast<std::int64_t>(sign_mask));
+    // Compute negated limbs (magnitude 1: 2*P - n)
+    const std::uint64_t neg0 = 2ULL * P0 - n[0];
+    const std::uint64_t neg1 = 2ULL * P1 - n[1];
+    const std::uint64_t neg2 = 2ULL * P2 - n[2];
+    const std::uint64_t neg3 = 2ULL * P3 - n[3];
+    const std::uint64_t neg4 = 2ULL * P4 - n[4];
+    // Branchless select: mask=0 → keep n[i]; mask=~0 → use neg[i]
+    n[0] ^= (n[0] ^ neg0) & mask;
+    n[1] ^= (n[1] ^ neg1) & mask;
+    n[2] ^= (n[2] ^ neg2) & mask;
+    n[3] ^= (n[3] ^ neg3) & mask;
+    n[4] ^= (n[4] ^ neg4) & mask;
+}
+
 // -- Weak Normalization (member) ------------------------------------------
 
 SECP256K1_FE52_FORCE_INLINE

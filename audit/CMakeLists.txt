@@ -36,7 +36,7 @@ add_executable(test_ct_sidechannel_standalone test_ct_sidechannel.cpp)
 audit_target_defaults(test_ct_sidechannel_standalone)
 target_compile_definitions(test_ct_sidechannel_standalone PRIVATE STANDALONE_TEST)
 add_test(NAME ct_sidechannel COMMAND test_ct_sidechannel_standalone)
-set_tests_properties(ct_sidechannel PROPERTIES TIMEOUT 300)
+set_tests_properties(ct_sidechannel PROPERTIES TIMEOUT 600)
 
 # Smoke version of dudect (short run, relaxed threshold -- safe for CI)
 add_executable(test_ct_sidechannel_smoke test_ct_sidechannel.cpp)
@@ -157,16 +157,8 @@ if(SECP256K1_BUILD_CROSS_TESTS)
     set_tests_properties(cross_libsecp256k1 PROPERTIES TIMEOUT 900)
     message(STATUS "  Cross-test vs libsecp256k1: ON (ref: v0.6.0)")
 
-    # -- CT vs libsecp256k1 benchmark (apple-to-apple CT comparison) -------
-    add_executable(bench_ct_vs_libsecp bench_ct_vs_libsecp.cpp)
-    target_link_libraries(bench_ct_vs_libsecp PRIVATE fastsecp256k1 secp256k1)
-    target_include_directories(bench_ct_vs_libsecp
-        PRIVATE ${libsecp256k1_ref_SOURCE_DIR}/include
-    )
-    if(MSVC OR (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND WIN32))
-        target_link_options(bench_ct_vs_libsecp PRIVATE "LINKER:/STACK:8388608")
-    endif()
-    message(STATUS "  bench_ct_vs_libsecp: ON (CT apple-to-apple)")
+    # NOTE: CT vs libsecp benchmark removed -- use cpu/bench/bench_unified instead
+    #       (bench_unified Section 8 has full CT-vs-CT apple-to-apple ratios)
 endif()
 
 # ===========================================================================

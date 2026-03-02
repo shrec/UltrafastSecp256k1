@@ -1445,28 +1445,31 @@ Point scalar_mul(const Point& p, const Scalar& k) noexcept {
 }
 
 // --- CT Generator Multiplication (5x52) -- Comb Method -----------------------
-// Uses comb method with signed digits (adapted from bitcoin-core/secp256k1).
+// Uses signed-digit multi-comb (adapted from bitcoin-core/secp256k1).
 //
-// Parameters: COMB_TEETH=6, COMB_BLOCKS=43.
-//   teeth x blocks = 258 >= 256 (2 extra bits corrected at end).
+// Parameters: COMB_TEETH=6, COMB_BLOCKS=11, COMB_SPACING=4.
+//   COMB_BITS = 11*6*4 = 264 >= 256 (8 extra bits corrected at end).
 //
 // Hamburg encoding: v = (k + K_gen) / 2 mod n, bits of v become {+1,-1} signs.
-// Comb digit for block b: gather bit at positions {b, 43+b, 86+b, 129+b, 172+b, 215+b}
-// from v -> 6-bit unsigned value -> signed table lookup (32 entries).
+// Outer loop over COMB_SPACING (4 iterations with 3 doublings between them).
+// Inner loop over COMB_BLOCKS (11 blocks): lookup + unified add.
 //
-// Since 6x43=258 > 256, bits 256-257 of v are 0 (treated as sign=-1).
-// Correction: add precomputed (2^256 + 2^257)*G after the main loop.
+// For block b at spacing offset s, comb digit gathers bits at positions:
+//   tooth t -> (b * COMB_TEETH + t) * COMB_SPACING + s
+// Each digit -> 6-bit unsigned -> signed table lookup (32 entries).
 //
-// Runtime: 42 additions + 43 lookups (31 cmovs each) + 1 correction add.
-// vs Hamburg w=4: 63 additions + 64 lookups (7 cmovs each).
-// Net: 33% fewer additions, larger lookups -> ~25% faster on ARM64.
+// Since 264 > 256, bits 256-263 of v are 0 (treated as sign=-1).
+// Correction: add precomputed (2^264 - 2^256)*G after the main loop.
 //
-// Table: 43 blocks x 32 entries = 1376 affine points ~= 108 KB.
+// Runtime: 43 additions + 44 lookups (31 cmovs each) + 3 doublings + 1 correction.
+// Table: 11 blocks x 32 entries = 352 affine points ~= 31 KB (fits L1D).
 
 namespace {
 
-constexpr unsigned COMB_TEETH = 6;
-constexpr unsigned COMB_BLOCKS = 43;   // ceil(256 / COMB_TEETH) = 43
+constexpr unsigned COMB_TEETH   = 6;
+constexpr unsigned COMB_BLOCKS  = 11;    // 11 blocks with spacing 4
+constexpr unsigned COMB_SPACING = 4;     // ceil(256 / (11*6)) = 4
+constexpr unsigned COMB_BITS    = COMB_BLOCKS * COMB_TEETH * COMB_SPACING;  // 264
 constexpr std::size_t COMB_TABLE_SIZE = 1u << (COMB_TEETH - 1);  // 32
 
 // Hamburg constant: K_gen = (2^256 - 1) mod n
@@ -1479,7 +1482,7 @@ static constexpr std::uint64_t K_GEN[4] = {
 
 struct alignas(64) CombGenTable {
     CTAffinePoint entries[COMB_BLOCKS][COMB_TABLE_SIZE];
-    CTAffinePoint correction;  // (2^256 + 2^257)*G for 258-bit correction
+    CTAffinePoint correction;  // (2^264 - 2^256)*G for 264-bit correction
     bool initialized = false;
 };
 
@@ -1487,12 +1490,16 @@ static CombGenTable g_comb_table;
 static std::once_flag g_comb_table_once;
 
 // -- Extract 6-bit comb digit from scattered bit positions --------------------
-// For block b: gather bit at position (tooth * COMB_BLOCKS + b) for each tooth.
-// Bits beyond 255 are treated as 0 (v is 256 bits).
-inline std::uint64_t extract_comb_digit(const Scalar& v, unsigned block) noexcept {
+// For block b at spacing offset comb_off: gather bit at position
+//   (b * COMB_TEETH + tooth) * COMB_SPACING + comb_off
+// for each tooth. Bits beyond 255 are treated as 0 (v is 256 bits).
+inline std::uint64_t extract_comb_digit(const Scalar& v,
+                                         unsigned block,
+                                         unsigned comb_off) noexcept {
     std::uint64_t digit = 0;
     for (unsigned tooth = 0; tooth < COMB_TEETH; ++tooth) {
-        std::size_t const pos = static_cast<std::size_t>(tooth) * COMB_BLOCKS + block;
+        std::size_t const pos = (static_cast<std::size_t>(block) * COMB_TEETH
+                                 + tooth) * COMB_SPACING + comb_off;
         std::uint64_t const bit = (pos < 256) ? scalar_bit(v, pos) : 0;
         digit |= bit << tooth;
     }
@@ -1546,45 +1553,43 @@ void comb_lookup(CTAffinePoint* out,
 void build_comb_table() noexcept {
     Point const G = Point::generator();
 
-    // Step 1: Compute teeth base points: 2^(tooth * COMB_BLOCKS) * G
-    //   teeth_bases[0] = G
-    //   teeth_bases[1] = 2^43 * G
-    //   teeth_bases[2] = 2^86 * G
-    //   teeth_bases[j] = 2^(j*43) * G
-    Point teeth_bases[COMB_TEETH];
-    teeth_bases[0] = G;
-    for (unsigned j = 1; j < COMB_TEETH; ++j) {
-        teeth_bases[j] = teeth_bases[j - 1];
-        for (unsigned d = 0; d < COMB_BLOCKS; ++d) {
-            teeth_bases[j].dbl_inplace();
+    // Step 1: Compute base points for all (block, tooth) pairs.
+    // For block b, tooth t: base = 2^((b*COMB_TEETH + t) * COMB_SPACING) * G
+    //                             = 2^((b*6 + t)*4) * G
+    // Total: COMB_BLOCKS * COMB_TEETH = 66 base points.
+    constexpr unsigned NUM_BASES = COMB_BLOCKS * COMB_TEETH;  // 66
+    Point bases[NUM_BASES];
+    bases[0] = G;
+    for (unsigned i = 1; i < NUM_BASES; ++i) {
+        bases[i] = bases[i - 1];
+        for (unsigned d = 0; d < COMB_SPACING; ++d) {
+            bases[i].dbl_inplace();
         }
     }
 
     // Step 2: For each block b, build signed table from 6 base points.
-    // After building block b, double all bases for block b+1.
     for (unsigned b = 0; b < COMB_BLOCKS; ++b) {
-        // Current state: teeth_bases[j] = 2^(j*43 + b) * G
+        // Teeth for block b are at indices b*6 + t, for t = 0..5
+        unsigned const base_off = b * COMB_TEETH;
 
         // Convert teeth base points to affine for efficient construction
         FE52 zs[COMB_TEETH], z_invs[COMB_TEETH];
-        for (unsigned j = 0; j < COMB_TEETH; ++j) {
-            zs[j] = teeth_bases[j].Z52();
+        for (unsigned t = 0; t < COMB_TEETH; ++t) {
+            zs[t] = bases[base_off + t].Z52();
         }
         fe52_batch_inverse(z_invs, zs, COMB_TEETH);
 
         FE52 aff_x[COMB_TEETH], aff_y[COMB_TEETH];
-        for (unsigned j = 0; j < COMB_TEETH; ++j) {
-            FE52 const zi2 = z_invs[j].square();
-            FE52 const zi3 = zi2 * z_invs[j];
-            aff_x[j] = teeth_bases[j].X52() * zi2;
-            aff_y[j] = teeth_bases[j].Y52() * zi3;
-            aff_x[j].normalize();
-            aff_y[j].normalize();
+        for (unsigned t = 0; t < COMB_TEETH; ++t) {
+            FE52 const zi2 = z_invs[t].square();
+            FE52 const zi3 = zi2 * z_invs[t];
+            aff_x[t] = bases[base_off + t].X52() * zi2;
+            aff_y[t] = bases[base_off + t].Y52() * zi3;
+            aff_x[t].normalize();
+            aff_y[t].normalize();
         }
 
         // Build all 32 signed entries.
-        // table_s[idx] = sum_{j=0}^{4} (2*bit_j(idx)-1)*P_j + (+1)*P_5
-        // Computation: build each entry as sum of +/-P_j using Jacobian arithmetic.
         Point entries_jac[COMB_TABLE_SIZE];
 
         for (unsigned idx = 0; idx < COMB_TABLE_SIZE; ++idx) {
@@ -1616,30 +1621,24 @@ void build_comb_table() noexcept {
             g_comb_table.entries[b][idx].y.normalize();
             g_comb_table.entries[b][idx].infinity = 0;
         }
-
-        // Advance all base points by one doubling for next block
-        if (b + 1 < COMB_BLOCKS) {
-            for (unsigned j = 0; j < COMB_TEETH; ++j) {
-                teeth_bases[j].dbl_inplace();
-            }
-        }
     }
 
-    // Step 3: Precompute correction point = (2^256 + 2^257) * G
-    // The comb covers 258 bits but v has only 256. Bits 256-257 are 0,
+    // Step 3: Precompute correction point = (2^264 - 2^256)*G
+    // COMB_BITS=264 covers 264 bits but v has only 256. Bits 256-263 are 0,
     // interpreted as sign=-1 in Hamburg encoding. This adds an unwanted
-    // -(2^256 + 2^257)*G. We correct by adding (2^256 + 2^257)*G at the end.
+    // -(2^256 + 2^257 + ... + 2^263)*G = -(2^264 - 2^256)*G.
+    // Correction: add (2^264 - 2^256)*G at the end.
     //
-    // 2^256*G: double G 256 times.
-    // 2^257*G = 2 * 2^256*G.
-    // correction = 2^256*G + 2^257*G = 3 * 2^256*G
-    Point p256 = G;
+    // Compute: 2^256*G, then accumulate 2^257..2^263 via doubling.
+    Point p_pow = G;
     for (unsigned d = 0; d < 256; ++d) {
-        p256.dbl_inplace();
+        p_pow.dbl_inplace();
     }
-    Point p257 = p256;
-    p257.dbl_inplace();
-    Point const corr = p256.add(p257);
+    Point corr = p_pow;  // 2^256 * G
+    for (unsigned i = 0; i < COMB_BITS - 256 - 1; ++i) { // 7 more
+        p_pow.dbl_inplace();
+        corr = corr.add(p_pow);
+    }
     // Store as affine
     FE52 const cz_inv = fe52_inverse(corr.Z52());
     FE52 const cz2 = cz_inv.square();
@@ -1673,10 +1672,15 @@ Point generator_mul(const Scalar& k) noexcept {
     CTJacobianPoint R;
     CTAffinePoint T;
 
-    // -- Main loop: 43 comb blocks ----------------------------------------
-    // First block: initialize R directly from table lookup
+    // -- Main loop: outer COMB_SPACING x inner COMB_BLOCKS ----------------
+    // Outer loop iterates over spacing offsets from COMB_SPACING-1 down to 0.
+    // Inner loop iterates over 11 blocks.
+    // Between outer iterations, double the accumulator once.
+    unsigned comb_off = COMB_SPACING - 1;
+
+    // First outer iteration: first block initializes R directly
     {
-        std::uint64_t const digit = extract_comb_digit(v, 0);
+        std::uint64_t const digit = extract_comb_digit(v, 0, comb_off);
         comb_lookup(&T, g_comb_table.entries[0], digit);
         R.x = T.x;
         R.y = T.y;
@@ -1684,17 +1688,31 @@ Point generator_mul(const Scalar& k) noexcept {
         R.infinity = 0;
     }
 
-    // Remaining 42 blocks: lookup + unified add
+    // Remaining blocks of the first outer iteration
     #ifdef __clang__
     #pragma clang loop unroll(disable)
     #endif
     for (unsigned b = 1; b < COMB_BLOCKS; ++b) {
-        std::uint64_t const digit = extract_comb_digit(v, b);
+        std::uint64_t const digit = extract_comb_digit(v, b, comb_off);
         comb_lookup(&T, g_comb_table.entries[b], digit);
         unified_add_core<false>(&R, R, T);
     }
 
-    // -- Correction: add (2^256 + 2^257)*G for the 2 extra comb bits -----
+    // Remaining outer iterations with doubling
+    while (comb_off-- > 0) {
+        point_dbl_n_core(&R, 1);
+
+        #ifdef __clang__
+        #pragma clang loop unroll(disable)
+        #endif
+        for (unsigned b = 0; b < COMB_BLOCKS; ++b) {
+            std::uint64_t const digit = extract_comb_digit(v, b, comb_off);
+            comb_lookup(&T, g_comb_table.entries[b], digit);
+            unified_add_core<false>(&R, R, T);
+        }
+    }
+
+    // -- Correction: add (2^264 - 2^256)*G for the 8 extra comb bits -----
     unified_add_core<false>(&R, R, g_comb_table.correction);
 
     Point result = R.to_point();
@@ -2748,14 +2766,16 @@ Point scalar_mul(const Point& p, const Scalar& k) noexcept {
 }
 
 // --- CT Generator Multiplication (4x64) -- Comb Method ------------------------
-// COMB_TEETH=6, COMB_BLOCKS=43.  teeth x blocks = 258 >= 256.
-// Table: 43 blocks x 32 entries = 1376 affine points.
-// Runtime: 42 additions + 43 lookups + 1 correction.
+// COMB_TEETH=6, COMB_BLOCKS=11, COMB_SPACING=4.  COMB_BITS = 264 >= 256.
+// Table: 11 blocks x 32 entries = 352 affine points ~= 31 KB (fits L1D).
+// Runtime: 43 additions + 44 lookups + 3 doublings + 1 correction.
 
 namespace {
 
-constexpr unsigned COMB_TEETH = 6;
-constexpr unsigned COMB_BLOCKS = 43;
+constexpr unsigned COMB_TEETH   = 6;
+constexpr unsigned COMB_BLOCKS  = 11;
+constexpr unsigned COMB_SPACING = 4;
+constexpr unsigned COMB_BITS    = COMB_BLOCKS * COMB_TEETH * COMB_SPACING;  // 264
 constexpr std::size_t COMB_TABLE_SIZE = 1u << (COMB_TEETH - 1);  // 32
 
 static constexpr std::uint64_t K_GEN[4] = {
@@ -2773,10 +2793,12 @@ static CombGenTable g_comb_table;
 static std::once_flag g_comb_table_once;
 
 inline std::uint64_t extract_comb_digit(const Scalar& v,
-                                         unsigned block) noexcept {
+                                         unsigned block,
+                                         unsigned comb_off) noexcept {
     std::uint64_t digit = 0;
     for (unsigned tooth = 0; tooth < COMB_TEETH; ++tooth) {
-        std::size_t pos = static_cast<std::size_t>(tooth) * COMB_BLOCKS + block;
+        std::size_t pos = (static_cast<std::size_t>(block) * COMB_TEETH
+                           + tooth) * COMB_SPACING + comb_off;
         std::uint64_t bit = (pos < 256) ? scalar_bit(v, pos) : 0;
         digit |= bit << tooth;
     }
@@ -2813,27 +2835,30 @@ void comb_lookup(CTAffinePoint* out,
 void build_comb_table() noexcept {
     Point G = Point::generator();
 
-    Point teeth_bases[COMB_TEETH];
-    teeth_bases[0] = G;
-    for (unsigned j = 1; j < COMB_TEETH; ++j) {
-        teeth_bases[j] = teeth_bases[j - 1];
-        for (unsigned d = 0; d < COMB_BLOCKS; ++d) {
-            teeth_bases[j].dbl_inplace();
-        }
+    // Compute base points: base[i] = 2^(i * COMB_SPACING) * G for i = 0..65
+    constexpr unsigned NUM_BASES = COMB_BLOCKS * COMB_TEETH;  // 66
+    Point bases[NUM_BASES];
+    bases[0] = G;
+    for (unsigned i = 1; i < NUM_BASES; ++i) {
+        bases[i] = bases[i - 1];
+        for (unsigned d = 0; d < COMB_SPACING; ++d)
+            bases[i].dbl_inplace();
     }
 
     for (unsigned b = 0; b < COMB_BLOCKS; ++b) {
+        unsigned const base_off = b * COMB_TEETH;
+
         FE52 zs[COMB_TEETH], z_invs[COMB_TEETH];
-        for (unsigned j = 0; j < COMB_TEETH; ++j)
-            zs[j] = teeth_bases[j].z();
+        for (unsigned t = 0; t < COMB_TEETH; ++t)
+            zs[t] = bases[base_off + t].z();
         fe_batch_inverse(z_invs, zs, COMB_TEETH);
 
         FE52 aff_x[COMB_TEETH], aff_y[COMB_TEETH];
-        for (unsigned j = 0; j < COMB_TEETH; ++j) {
-            FE52 zi2 = field_sqr(z_invs[j]);
-            FE52 zi3 = field_mul(zi2, z_invs[j]);
-            aff_x[j] = field_mul(teeth_bases[j].X(), zi2);
-            aff_y[j] = field_mul(teeth_bases[j].Y(), zi3);
+        for (unsigned t = 0; t < COMB_TEETH; ++t) {
+            FE52 zi2 = field_sqr(z_invs[t]);
+            FE52 zi3 = field_mul(zi2, z_invs[t]);
+            aff_x[t] = field_mul(bases[base_off + t].X(), zi2);
+            aff_y[t] = field_mul(bases[base_off + t].Y(), zi3);
         }
 
         Point entries_jac[COMB_TABLE_SIZE];
@@ -2862,20 +2887,17 @@ void build_comb_table() noexcept {
                 entries_jac[idx].Y(), zi3);
             g_comb_table.entries[b][idx].infinity = 0;
         }
-
-        if (b + 1 < COMB_BLOCKS) {
-            for (unsigned j = 0; j < COMB_TEETH; ++j)
-                teeth_bases[j].dbl_inplace();
-        }
     }
 
-    // Correction point: (2^256 + 2^257)*G = 3 * 2^256 * G
-    Point p256 = G;
+    // Correction point: (2^264 - 2^256)*G
+    Point p_pow = G;
     for (unsigned d = 0; d < 256; ++d)
-        p256.dbl_inplace();
-    Point p257 = p256;
-    p257.dbl_inplace();
-    Point corr = p256.add(p257);
+        p_pow.dbl_inplace();
+    Point corr = p_pow;  // 2^256 * G
+    for (unsigned i = 0; i < COMB_BITS - 256 - 1; ++i) { // 7 more
+        p_pow.dbl_inplace();
+        corr = corr.add(p_pow);
+    }
     FE52 cz_inv = field_inv(corr.z());
     FE52 cz2 = field_sqr(cz_inv);
     FE52 cz3 = field_mul(cz2, cz_inv);
@@ -2904,18 +2926,33 @@ Point generator_mul(const Scalar& k) noexcept {
     CTJacobianPoint R;
     CTAffinePoint T;
 
+    unsigned comb_off = COMB_SPACING - 1;
+
+    // First outer iteration: first block initializes R
     {
-        std::uint64_t digit = extract_comb_digit(v, 0);
+        std::uint64_t digit = extract_comb_digit(v, 0, comb_off);
         comb_lookup(&T, g_comb_table.entries[0], digit);
         R.x = T.x;  R.y = T.y;  R.z = FieldElement::one();  R.infinity = 0;
     }
 
     for (unsigned b = 1; b < COMB_BLOCKS; ++b) {
-        std::uint64_t digit = extract_comb_digit(v, b);
+        std::uint64_t digit = extract_comb_digit(v, b, comb_off);
         comb_lookup(&T, g_comb_table.entries[b], digit);
         unified_add_core<false>(&R, R, T);
     }
 
+    // Remaining outer iterations with doubling
+    while (comb_off-- > 0) {
+        point_dbl_n_core(&R, 1);
+
+        for (unsigned b = 0; b < COMB_BLOCKS; ++b) {
+            std::uint64_t digit = extract_comb_digit(v, b, comb_off);
+            comb_lookup(&T, g_comb_table.entries[b], digit);
+            unified_add_core<false>(&R, R, T);
+        }
+    }
+
+    // Correction for extra comb bits
     unified_add_core<false>(&R, R, g_comb_table.correction);
 
     Point result = R.to_point();

@@ -210,53 +210,6 @@ SchnorrSignature schnorr_sign(const Scalar& private_key,
     return schnorr_sign(kp, msg, aux_rand);
 }
 
-// -- BIP-340 shared verify helpers (no duplication) ---------------------------
-
-// Compute e = tagged_hash("BIP0340/challenge", r || pubkey_x || msg) mod n
-static Scalar compute_bip340_challenge(const uint8_t* r32,
-                                       const uint8_t* pubkey_x32,
-                                       const uint8_t* msg32) {
-    SHA256 ctx = g_challenge_midstate;
-    ctx.update(r32, 32);
-    ctx.update(pubkey_x32, 32);
-    ctx.update(msg32, 32);
-    return Scalar::from_bytes(ctx.finalize());
-}
-
-// BIP-340 final checks on R: X matches sig.r, and Y is even.
-// X-check: sig.r * Z^2 == R.X  (avoids Z^-2; early exit saves inverse on mismatch)
-// Y-parity: affine y = Y * Z^-3 must be even (inverse unavoidable).
-static bool verify_r_xcheck_yparity(const Point& R,
-                                     const std::array<uint8_t, 32>& r_bytes) {
-#if defined(SECP256K1_FAST_52BIT)
-    FE52 const z2 = R.Z52().square();
-    FE52 r52 = FE52::from_bytes(r_bytes);
-    FE52 lhs = r52 * z2;
-    lhs.normalize();
-    FE52 rhs = R.X52();
-    rhs.normalize();
-    if (!(lhs == rhs)) return false;
-
-    FE52 const z_inv = R.Z52().inverse_safegcd();
-    FE52 const z_inv2 = z_inv.square();
-    FE52 y_aff = (R.Y52() * z_inv2) * z_inv;
-    y_aff.normalize();
-    return (y_aff.n[0] & 1) == 0;
-#else
-    FieldElement z2 = R.z_raw();
-    z2.square_inplace();
-    auto r_fe = FieldElement::from_bytes(r_bytes);
-    auto lhs_fe = r_fe * z2;
-    if (!(lhs_fe == R.x_raw())) return false;
-
-    FieldElement z_inv = R.z_raw().inverse();
-    FieldElement z_inv2 = z_inv;
-    z_inv2.square_inplace();
-    FieldElement y_aff = R.y_raw() * z_inv2 * z_inv;
-    return (y_aff.limbs()[0] & 1) == 0;
-#endif
-}
-
 // -- BIP-340 Verify -----------------------------------------------------------
 
 bool schnorr_verify(const uint8_t* pubkey_x32,
@@ -276,7 +229,13 @@ bool schnorr_verify(const uint8_t* pubkey_x32,
     if (!FieldElement::parse_bytes_strict(pubkey_x32, pk_fe_check)) return false;
 
     // Step 2: e = tagged_hash("BIP0340/challenge", r || pubkey_x || msg) mod n
-    auto e = compute_bip340_challenge(sig.r.data(), pubkey_x32, msg32);
+    // Streaming SHA256: feed data directly, no intermediate buffer
+    SHA256 ctx = g_challenge_midstate;
+    ctx.update(sig.r.data(), 32);
+    ctx.update(pubkey_x32, 32);
+    ctx.update(msg32, 32);
+    auto e_hash = ctx.finalize();
+    auto e = Scalar::from_bytes(e_hash);
 
     // Step 3: Lift x-only pubkey to point
     auto P = lift_x(pubkey_x32);
@@ -288,8 +247,35 @@ bool schnorr_verify(const uint8_t* pubkey_x32,
 
     if (R.is_infinity()) return false;
 
-    // Steps 5+6: X-check (inversion-free early exit) + Y-parity
-    return verify_r_xcheck_yparity(R, sig.r);
+    // Steps 5+6: Single affine conversion (matches libsecp256k1 approach).
+    // Z^{-1} -> Z^{-2}, Z^{-3} -> x_aff, y_aff -> check both X match and Y-parity.
+    // Since Y-parity requires Z^{-3} anyway, computing X from Z^{-2} is free.
+#if defined(SECP256K1_FAST_52BIT)
+    FE52 const z_inv = R.Z52().inverse_safegcd();
+    FE52 const z_inv2 = z_inv.square();
+    FE52 x_aff = R.X52() * z_inv2;       // magnitude 1
+    FE52 const z_inv3 = z_inv * z_inv2;
+    FE52 y_aff = R.Y52() * z_inv3;       // magnitude 1
+
+    // X-check: negate + add + normalizes_to_zero_var (0 full normalizations).
+    // Replaces 3 explicit normalize() + 2 inside operator== = 5 normalizations.
+    FE52 r52 = FE52::from_fe(r_fe_check); // magnitude 1
+    x_aff.negate_assign(1);               // magnitude 2
+    x_aff.add_assign(r52);                // magnitude 3 (r52 - x_aff)
+    bool x_match = x_aff.normalizes_to_zero_var();
+
+    // Y-parity: must fully normalize to check lowest bit reliably.
+    y_aff.normalize();
+    return x_match & ((y_aff.n[0] & 1) == 0);
+#else
+    FieldElement z_inv = R.z_raw().inverse();
+    FieldElement z_inv2 = z_inv;
+    z_inv2.square_inplace();
+    FieldElement x_aff = R.x_raw() * z_inv2;
+    FieldElement z_inv3 = z_inv * z_inv2;
+    FieldElement y_aff = R.y_raw() * z_inv3;
+    return (x_aff == r_fe_check) & ((y_aff.limbs()[0] & 1) == 0);
+#endif
 }
 
 // -- Pre-cached X-only Pubkey -------------------------------------------------
@@ -344,8 +330,13 @@ bool schnorr_verify(const SchnorrXonlyPubkey& pubkey,
     FieldElement r_fe_check;
     if (!FieldElement::parse_bytes_strict(sig.r.data(), r_fe_check)) return false;
 
-    // Challenge hash
-    auto e = compute_bip340_challenge(sig.r.data(), pubkey.x_bytes.data(), msg32);
+    // Challenge hash: streaming SHA256 (no intermediate buffer)
+    SHA256 ctx = g_challenge_midstate;
+    ctx.update(sig.r.data(), 32);
+    ctx.update(pubkey.x_bytes.data(), 32);
+    ctx.update(msg32, 32);
+    auto e_hash = ctx.finalize();
+    auto e = Scalar::from_bytes(e_hash);
 
     // R = s*G - e*P  (direct Point -- no sqrt needed)
     auto neg_e = e.negate();
@@ -353,8 +344,35 @@ bool schnorr_verify(const SchnorrXonlyPubkey& pubkey,
 
     if (R.is_infinity()) return false;
 
-    // X-check (inversion-free early exit) + Y-parity
-    return verify_r_xcheck_yparity(R, sig.r);
+    // Single affine conversion: Z^{-1} -> (x_aff, y_aff) -> check both.
+    // Matches libsecp256k1's approach: one inverse, no redundant X-check.
+    // Since Y-parity requires Z^{-3} anyway, computing X from Z^{-2} is free.
+#if defined(SECP256K1_FAST_52BIT)
+    FE52 const z_inv = R.Z52().inverse_safegcd();
+    FE52 const z_inv2 = z_inv.square();
+    FE52 x_aff = R.X52() * z_inv2;       // magnitude 1
+    FE52 const z_inv3 = z_inv * z_inv2;
+    FE52 y_aff = R.Y52() * z_inv3;       // magnitude 1
+
+    // X-check: negate + add + normalizes_to_zero_var (0 full normalizations).
+    // Replaces 3 explicit normalize() + 2 inside operator== = 5 normalizations.
+    FE52 r52 = FE52::from_fe(r_fe_check); // magnitude 1
+    x_aff.negate_assign(1);               // magnitude 2
+    x_aff.add_assign(r52);                // magnitude 3 (r52 - x_aff)
+    bool x_match = x_aff.normalizes_to_zero_var();
+
+    // Y-parity: must fully normalize to check lowest bit reliably.
+    y_aff.normalize();
+    return x_match & ((y_aff.n[0] & 1) == 0);
+#else
+    FieldElement z_inv = R.z_raw().inverse();
+    FieldElement z_inv2 = z_inv;
+    z_inv2.square_inplace();
+    FieldElement x_aff = R.x_raw() * z_inv2;
+    FieldElement z_inv3 = z_inv * z_inv2;
+    FieldElement y_aff = R.y_raw() * z_inv3;
+    return (x_aff == r_fe_check) & ((y_aff.limbs()[0] & 1) == 0);
+#endif
 }
 
 // -- Array wrappers (delegate to raw-pointer implementations) -----------------

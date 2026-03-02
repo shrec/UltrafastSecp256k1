@@ -634,66 +634,37 @@ endif()
     endif()
 endif()
 
+# =============================================================================
 # Benchmarks (only build if testing is enabled)
+# =============================================================================
+#
+# bench_unified   -- THE standard: full apple-to-apple vs libsecp256k1
+#                    (field, scalar, point, ECDSA, Schnorr, CT, batch)
+# bench_ct        -- CT layer overhead: fast:: vs ct:: comparison
+# bench_field_52  -- FE52 (5x52) vs FE64 (4x64) regression test
+# bench_field_26  -- FE26 (10x26) vs FE64 (4x64) -- 32-bit platform target
+#
+# All use benchmark_harness.hpp (RDTSC/chrono, IQR, thread pinning).
+# =============================================================================
 if(BUILD_TESTING)
-    add_executable(bench_scalar_mul bench/bench_scalar_mul.cpp)
-    target_link_libraries(bench_scalar_mul PRIVATE ${SECP256K1_LIB_NAME})
-
-    # JSF vs Shamir (GLV) microbenchmark
-    add_executable(bench_jsf_vs_shamir bench/bench_jsf_vs_shamir.cpp)
-    target_link_libraries(bench_jsf_vs_shamir PRIVATE ${SECP256K1_LIB_NAME})
-
-    # ECDSA-style multi-scalar microbenchmark (k1*G + k2*Q)
-    add_executable(bench_ecdsa_multiscalar bench/bench_ecdsa_multiscalar.cpp)
-    target_link_libraries(bench_ecdsa_multiscalar PRIVATE ${SECP256K1_LIB_NAME})
-
-    # GLV decomposition profiling (RDTSC cycle breakdown)
-    add_executable(bench_glv_decomp_profile bench/bench_glv_decomp_profile.cpp)
-    target_link_libraries(bench_glv_decomp_profile PRIVATE ${SECP256K1_LIB_NAME})
-
-    # Adaptive GLV threshold sweep benchmark
-    add_executable(bench_adaptive_glv bench/bench_adaptive_glv.cpp)
-    target_link_libraries(bench_adaptive_glv PRIVATE ${SECP256K1_LIB_NAME})
-
-    # Field mul kernel benchmark (BMI2 vs ASM)
-    add_executable(bench_field_mul_kernels bench/bench_field_mul_kernels.cpp)
-    target_link_libraries(bench_field_mul_kernels PRIVATE ${SECP256K1_LIB_NAME})
-
-    # Atomic operations micro-benchmark (Point Add/Double, Field ops, Inverse)
-    add_executable(bench_atomic_operations bench/bench_atomic_operations.cpp)
-    target_link_libraries(bench_atomic_operations PRIVATE ${SECP256K1_LIB_NAME})
-
     # CT (Constant-Time) layer benchmark -- fast:: vs ct:: overhead comparison
     add_executable(bench_ct bench/bench_ct.cpp)
     target_link_libraries(bench_ct PRIVATE ${SECP256K1_LIB_NAME})
 
-    # Field 5x52 vs 4x64 comparison benchmark (requires __uint128_t; skip on MSVC)
+    # Field 5x52 vs 4x64 comparison (requires __uint128_t; skip on MSVC)
     if(NOT (MSVC AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
         add_executable(bench_field_52 bench/bench_field_52.cpp)
         target_link_libraries(bench_field_52 PRIVATE ${SECP256K1_LIB_NAME})
     endif()
 
-    # Field 10x26 vs 4x64 comparison benchmark (32-bit platform target)
+    # Field 10x26 vs 4x64 comparison (32-bit / ESP32 target)
     add_executable(bench_field_26 bench/bench_field_26.cpp)
     target_link_libraries(bench_field_26 PRIVATE ${SECP256K1_LIB_NAME})
 
-    # Hornet Node benchmark (Bitcoin consensus full-suite, RDTSC, CT layer)
-    # libsecp_bench.c includes libsecp256k1 as single TU for apple-to-apple comparison
+    # Unified Apple-to-Apple Benchmark (cross-platform, single binary)
+    # Requires libsecp256k1 source for side-by-side comparison
     set(LIBSECP_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../../_research_repos/secp256k1/src")
     if(EXISTS "${LIBSECP_SRC_DIR}/secp256k1.c")
-        add_executable(bench_hornet
-            bench/bench_hornet.cpp
-            bench/libsecp_bench.c
-            ${LIBSECP_SRC_DIR}/precomputed_ecmult.c
-            ${LIBSECP_SRC_DIR}/precomputed_ecmult_gen.c
-        )
-        target_include_directories(bench_hornet PRIVATE
-            ${CMAKE_CURRENT_SOURCE_DIR}/../../../_research_repos/secp256k1/include
-            ${LIBSECP_SRC_DIR}
-        )
-        target_link_libraries(bench_hornet PRIVATE ${SECP256K1_LIB_NAME})
-
-        # ---- Unified Apple-to-Apple Benchmark (cross-platform, single binary) ----
         add_executable(bench_unified
             bench/bench_unified.cpp
             bench/libsecp_provider.c
@@ -705,23 +676,19 @@ if(BUILD_TESTING)
             ${LIBSECP_SRC_DIR}
         )
         target_link_libraries(bench_unified PRIVATE ${SECP256K1_LIB_NAME})
+
+        # Optional: OpenSSL integration for multi-library comparison
+        find_package(OpenSSL QUIET)
+        if(OpenSSL_FOUND)
+            target_compile_definitions(bench_unified PRIVATE BENCH_HAS_OPENSSL)
+            target_link_libraries(bench_unified PRIVATE OpenSSL::Crypto)
+            message(STATUS "bench_unified: OpenSSL ${OPENSSL_VERSION} enabled for comparison")
+        else()
+            message(STATUS "bench_unified: OpenSSL not found -- OpenSSL comparison disabled")
+        endif()
     else()
-        message(STATUS "bench_hornet: skipped (libsecp256k1 source not found at ${LIBSECP_SRC_DIR})")
         message(STATUS "bench_unified: skipped (libsecp256k1 source not found at ${LIBSECP_SRC_DIR})")
     endif()
-
-    # Comprehensive cross-platform benchmark (all operations for README performance table)
-    add_executable(bench_comprehensive bench/bench_comprehensive_riscv.cpp)
-    target_link_libraries(bench_comprehensive PRIVATE ${SECP256K1_LIB_NAME})
-
-    # LTO compile options for benchmark sources (link flags auto-propagate via INTERFACE)
-    if(SECP256K1_USE_LTO AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-        target_compile_options(bench_comprehensive PRIVATE -flto=thin)
-        target_compile_options(bench_atomic_operations PRIVATE -flto=thin)
-    endif()
-
-    # NOTE: Benchmarks use default optimization (-O3 from CMAKE_CXX_FLAGS_RELEASE)
-    # Over-optimizing benchmark code can distort measurements (aggressive inlining, etc.)
 endif()
 
 # Tests -- unified test runner

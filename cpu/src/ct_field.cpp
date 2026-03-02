@@ -582,15 +582,31 @@ FieldElement field_cneg(const FieldElement& a, std::uint64_t mask) noexcept {
 
 std::uint64_t field_is_zero(const FieldElement& a) noexcept {
     const auto& l = a.limbs();
-    std::uint64_t const z = l[0] | l[1] | l[2] | l[3];
+    // value_barrier each limb before OR to prevent the compiler from
+    // constant-propagating zero limbs -> zero OR -> optimized is_zero_mask.
+    std::uint64_t a0 = l[0], a1 = l[1], a2 = l[2], a3 = l[3];
+    value_barrier(a0);
+    value_barrier(a1);
+    value_barrier(a2);
+    value_barrier(a3);
+    std::uint64_t const z = a0 | a1 | a2 | a3;
     return is_zero_mask(z);
 }
 
 std::uint64_t field_eq(const FieldElement& a, const FieldElement& b) noexcept {
     const auto& al = a.limbs();
     const auto& bl = b.limbs();
-    std::uint64_t const diff = (al[0] ^ bl[0]) | (al[1] ^ bl[1]) |
-                         (al[2] ^ bl[2]) | (al[3] ^ bl[3]);
+    // value_barrier each XOR result to prevent compiler from
+    // short-circuiting when a == b (XOR of same provenance -> 0).
+    std::uint64_t d0 = al[0] ^ bl[0];
+    std::uint64_t d1 = al[1] ^ bl[1];
+    std::uint64_t d2 = al[2] ^ bl[2];
+    std::uint64_t d3 = al[3] ^ bl[3];
+    value_barrier(d0);
+    value_barrier(d1);
+    value_barrier(d2);
+    value_barrier(d3);
+    std::uint64_t const diff = d0 | d1 | d2 | d3;
     return is_zero_mask(diff);
 }
 

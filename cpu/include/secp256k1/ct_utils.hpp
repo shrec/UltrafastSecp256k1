@@ -151,9 +151,23 @@ inline void ct_cmp_pair(std::uint64_t wa, std::uint64_t wb,
     asm volatile("sltu %0, %2, %1" : "=r"(gt) : "r"(wa), "r"(wb));
     asm volatile("sltu %0, %2, %1" : "=r"(lt) : "r"(wb), "r"(wa));
 #else
-    gt = static_cast<std::uint64_t>(wa > wb);
-    lt = static_cast<std::uint64_t>(wa < wb);
+    // Fully arithmetic comparison: extracts the borrow bit from
+    // unsigned subtraction.  Avoids x86 seta/setb which read FLAGS --
+    // some Intel uarchs have data-dependent latency for FLAG reads
+    // depending on the flag state (CF+ZF pattern).
+    {
+        std::uint64_t const diff = wa - wb;
+        lt = (wa ^ ((wa ^ wb) | (diff ^ wa))) >> 63;
+    }
+    {
+        std::uint64_t const diff = wb - wa;
+        gt = (wb ^ ((wb ^ wa) | (diff ^ wb))) >> 63;
+    }
 #endif
+    // Barrier outputs to prevent the compiler from seeing gt==lt==0
+    // when inputs are equal and converting downstream code into branches.
+    ct::value_barrier(gt);
+    ct::value_barrier(lt);
 }
 
 // Load 8 bytes + bswap for lexicographic order.

@@ -7,6 +7,8 @@
 #include "secp256k1/sha256.hpp"
 #include "secp256k1/ct/point.hpp"
 #include "secp256k1/ct/scalar.hpp"
+#include "secp256k1/ct/field.hpp"
+#include "secp256k1/ct/ops.hpp"
 #include <cstring>
 #include <algorithm>
 
@@ -280,28 +282,44 @@ Scalar musig2_partial_sign(
     // k = k1 + b * k2
     Scalar k = sec_nonce.k1 + session.b * sec_nonce.k2;
 
-    // Adjust k if R was negated
-    if (session.R_negated) {
-        k = k.negate();
+    // CT conditional negate k if R was negated (R_negated is public,
+    // but keep branchless for consistency and to avoid pipeline leaks).
+    {
+        std::uint64_t const mask = ct::bool_to_mask(session.R_negated);
+        Scalar const neg_k = k.negate();
+        k = ct::scalar_select(neg_k, k, mask);
     }
 
-    // Adjust secret key:
-    // 1) Negate if this signer's pubkey P_i = d*G has odd Y
-    //    (x-only pubkeys assume even Y, so effective d must match lift_x)
-    //    CT: generator_mul is constant-time, scalar_cneg is branchless.
+    // Adjust secret key -- fully constant-time path:
+    // 1) Compute P_i = d*G using CT generator multiplication (the secret
+    //    key d is the sensitive input; fast::scalar_mul is variable-time).
     Scalar d = secret_key;
     auto Pi = ct::generator_mul(d);
-    auto [pi_x, pi_y_odd] = Pi.x_bytes_and_parity();
-    // mask = all-ones if Y is odd (need negate), 0 if even
-    std::uint64_t const negate_mask = static_cast<std::uint64_t>(pi_y_odd)
-                                    * UINT64_C(0xFFFFFFFFFFFFFFFF);
-    d = ct::scalar_cneg(d, negate_mask);
-    // 2) Negate if aggregate key Q was negated for even-Y
-    if (key_agg_ctx.Q_negated) {
-        d = d.negate();
+
+    // 2) CT negate d if P_i has odd Y (x-only pubkeys assume even Y).
+    //    Point::has_even_y() uses fast FieldElement::inverse() (SafeGCD,
+    //    variable-time). Since Pi depends on the secret key d, the Z
+    //    coordinate is secret-dependent. Use CT field inverse instead.
+    {
+        FieldElement z_inv = ct::field_inv(Pi.z_raw());
+        FieldElement z_inv2 = z_inv.square();
+        FieldElement y_aff = Pi.y_raw() * z_inv2 * z_inv;
+        // y_aff is fully reduced -- LSB gives parity (0 = even, 1 = odd)
+        bool const odd_y = (y_aff.limbs()[0] & 1) != 0;
+        std::uint64_t const mask = ct::bool_to_mask(odd_y);
+        Scalar const neg_d = d.negate();
+        d = ct::scalar_select(neg_d, d, mask);
+    }
+
+    // 3) CT negate d if aggregate key Q was negated for even-Y.
+    {
+        std::uint64_t const mask = ct::bool_to_mask(key_agg_ctx.Q_negated);
+        Scalar const neg_d = d.negate();
+        d = ct::scalar_select(neg_d, d, mask);
     }
 
     // s_i = k + e * a_i * d  (mod n)
+    // Scalar +/* are fixed-iteration multi-limb arithmetic -- CT by construction.
     return k + session.e * key_agg_ctx.key_coefficients[signer_index] * d;
 }
 

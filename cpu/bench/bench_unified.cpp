@@ -5,7 +5,7 @@
 // Single benchmark binary that runs on ALL platforms (x86, ARM64, RISC-V,
 // ESP32) and produces identical output format everywhere.
 //
-// Measures UltrafastSecp256k1  vs  bitcoin-core libsecp256k1  side-by-side
+// Measures UltrafastSecp256k1  vs  bitcoin-core libsecp256k1  vs  OpenSSL
 // for every operation category:
 //
 //   1. Field arithmetic    (mul, sqr, inv, add, sub, negate)
@@ -15,7 +15,8 @@
 //   5. Schnorr / BIP-340   (keypair, sign FAST, verify)
 //   6. Constant-time       (CT sign ECDSA, CT sign Schnorr, overhead ratios)
 //   7. libsecp256k1        (same ops for direct comparison)
-//   8. Apple-to-Apple      (ratio table: Ultra / libsecp256k1)
+//   7.5 OpenSSL            (ECDSA on secp256k1, system library)
+//   8. Apple-to-Apple      (ratio table: Ultra / libsecp256k1 / OpenSSL)
 //
 // Methodology:
 //   - Thread pinned to core 0, priority elevated
@@ -23,6 +24,15 @@
 //   - 11 measurement passes, IQR outlier removal, median
 //   - 64-key pool to prevent caching artifacts
 //   - RDTSCP on x86, chrono fallback on ARM/RISC-V/ESP32
+//
+// CLI:
+//   bench_unified [OPTIONS]
+//     --json <file>    Write structured JSON report to <file>
+//     --suite <name>   Run specific suite: core, extended, all (default: all)
+//     --passes <N>     Override number of measurement passes (default: 11)
+//     --quick          CI smoke mode: 3 passes, reduced iterations
+//     --no-warmup      Skip CPU frequency ramp-up
+//     --help           Show usage
 //
 // Build:
 //   Part of CMake: target "bench_unified"
@@ -51,11 +61,164 @@
 #include "secp256k1_extrakeys.h"
 #include "secp256k1_schnorrsig.h"
 
+// Thin wrappers from libsecp_provider.c exposing internal field ops
+extern "C" {
+    void libsecp_fe_inv_var(unsigned char out32[32], const unsigned char in32[32]);
+    void libsecp_fe_inv_var_raw(void *r, const void *a);
+}
+
 #include <array>
+#include <cmath>
 #include <cstdio>
 #include <cstdint>
 #include <cstring>
 #include <chrono>
+
+// OpenSSL (optional, system library -- enabled by CMake find_package(OpenSSL))
+#ifdef BENCH_HAS_OPENSSL
+#include <openssl/ec.h>
+#include <openssl/ecdsa.h>
+#include <openssl/bn.h>
+#include <openssl/obj_mac.h>
+#include <openssl/opensslv.h>
+#include <openssl/crypto.h>
+#endif
+
+// ---- JSON Result Collector --------------------------------------------------
+// Accumulates all benchmark results for optional JSON export.
+
+struct BenchEntry {
+    char section[64];
+    char name[64];
+    double ns;
+    double ratio;     // 0.0 if not a ratio entry
+    bool is_ratio;
+};
+
+static constexpr int MAX_ENTRIES = 256;
+
+struct BenchReport {
+    BenchEntry entries[MAX_ENTRIES];
+    int count;
+    char cpu_brand[49];
+    char compiler[64];
+    char arch[32];
+    char timer[48];
+    double tsc_ghz;
+    int passes;
+    int warmup;
+    int pool_size;
+
+    void add(const char* section, const char* name, double ns_val) {
+        if (count >= MAX_ENTRIES) return;
+        auto& e = entries[count++];
+        snprintf(e.section, sizeof(e.section), "%s", section);
+        snprintf(e.name, sizeof(e.name), "%s", name);
+        e.ns = ns_val;
+        e.ratio = 0.0;
+        e.is_ratio = false;
+    }
+
+    void add_ratio(const char* section, const char* name, double ratio_val) {
+        if (count >= MAX_ENTRIES) return;
+        auto& e = entries[count++];
+        snprintf(e.section, sizeof(e.section), "%s", section);
+        snprintf(e.name, sizeof(e.name), "%s", name);
+        e.ns = 0.0;
+        e.ratio = ratio_val;
+        e.is_ratio = true;
+    }
+
+    bool write_json(const char* path) const {
+        FILE* f = fopen(path, "w");
+        if (!f) return false;
+
+        fprintf(f, "{\n");
+        fprintf(f, "  \"metadata\": {\n");
+        fprintf(f, "    \"cpu\": \"%s\",\n", cpu_brand);
+        fprintf(f, "    \"compiler\": \"%s\",\n", compiler);
+        fprintf(f, "    \"arch\": \"%s\",\n", arch);
+        fprintf(f, "    \"timer\": \"%s\",\n", timer);
+        fprintf(f, "    \"tsc_ghz\": %.3f,\n", tsc_ghz);
+        fprintf(f, "    \"passes\": %d,\n", passes);
+        fprintf(f, "    \"warmup\": %d,\n", warmup);
+        fprintf(f, "    \"pool_size\": %d\n", pool_size);
+        fprintf(f, "  },\n");
+
+        fprintf(f, "  \"results\": [\n");
+        for (int i = 0; i < count; ++i) {
+            const auto& e = entries[i];
+            fprintf(f, "    {\"section\": \"%s\", \"name\": \"%s\"", e.section, e.name);
+            if (e.is_ratio) {
+                fprintf(f, ", \"ratio\": %.4f", e.ratio);
+            } else {
+                fprintf(f, ", \"ns\": %.2f", e.ns);
+            }
+            fprintf(f, "}%s\n", (i + 1 < count) ? "," : "");
+        }
+        fprintf(f, "  ]\n");
+        fprintf(f, "}\n");
+        fclose(f);
+        return true;
+    }
+};
+
+static BenchReport g_report{};
+
+// ---- CLI Options ------------------------------------------------------------
+
+struct CliOptions {
+    const char* json_path;  // NULL if no JSON output
+    int passes;             // 0 = use default
+    bool quick;             // reduced iterations for CI
+    bool no_warmup;         // skip CPU frequency ramp-up
+    bool help;
+
+    // Suite filter: 0=all, 1=core (field/scalar/point/ecdsa/schnorr/libsecp/ratio)
+    //               2=extended (+ ct, batch, micro-diagnostics)
+    int suite;
+};
+
+static CliOptions parse_cli(int argc, char** argv) {
+    CliOptions opts{};
+    opts.json_path = nullptr;
+    opts.passes = 0;
+    opts.quick = false;
+    opts.no_warmup = false;
+    opts.help = false;
+    opts.suite = 0;  // all
+
+    for (int i = 1; i < argc; ++i) {
+        if (strcmp(argv[i], "--json") == 0 && i + 1 < argc) {
+            opts.json_path = argv[++i];
+        } else if (strcmp(argv[i], "--passes") == 0 && i + 1 < argc) {
+            opts.passes = atoi(argv[++i]);
+            if (opts.passes < 3) opts.passes = 3;
+        } else if (strcmp(argv[i], "--quick") == 0) {
+            opts.quick = true;
+        } else if (strcmp(argv[i], "--no-warmup") == 0) {
+            opts.no_warmup = true;
+        } else if (strcmp(argv[i], "--suite") == 0 && i + 1 < argc) {
+            ++i;
+            if (strcmp(argv[i], "core") == 0) opts.suite = 1;
+            else if (strcmp(argv[i], "extended") == 0) opts.suite = 2;
+            else opts.suite = 0;  // all
+        } else if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
+            opts.help = true;
+        }
+    }
+    return opts;
+}
+
+static void print_usage() {
+    printf("Usage: bench_unified [OPTIONS]\n");
+    printf("  --json <file>    Write structured JSON report to <file>\n");
+    printf("  --suite <name>   core | extended | all (default: all)\n");
+    printf("  --passes <N>     Override measurement passes (default: 11, min: 3)\n");
+    printf("  --quick          CI smoke mode (3 passes, reduced iterations)\n");
+    printf("  --no-warmup      Skip CPU frequency ramp-up\n");
+    printf("  --help           Show this help\n");
+}
 
 // ---- CPU identification -----------------------------------------------------
 
@@ -113,6 +276,79 @@ static void get_cpu_brand(char brand[49]) {
 #endif
 }
 
+// ---- CPU frequency warmup (defeats powersave governor) -----------------------
+// Runs heavy crypto work for `target_ms` to force the CPU frequency up, then
+// monitors TSC rate until it stabilises (two consecutive 200ms windows within 1%).
+
+static void cpu_frequency_warmup() {
+    using Clock = std::chrono::steady_clock;
+
+    // Phase 1: heavy load for 3 seconds using real crypto work
+    constexpr int TARGET_MS = 3000;
+    printf("  CPU frequency warmup (%d ms heavy load)...", TARGET_MS);
+    fflush(stdout);
+
+    Scalar k = Scalar::from_bytes(std::array<uint8_t,32>{
+        0xde,0xad,0xbe,0xef,0x01,0x02,0x03,0x04,
+        0x05,0x06,0x07,0x08,0x09,0x0a,0x0b,0x0c,
+        0x0d,0x0e,0x0f,0x10,0x11,0x12,0x13,0x14,
+        0x15,0x16,0x17,0x18,0x19,0x1a,0x1b,0x1c}.data());
+    Point G = Point::generator();
+    volatile uint64_t anti_opt = 0;
+
+    auto const start = Clock::now();
+    int iters = 0;
+    while (std::chrono::duration_cast<std::chrono::milliseconds>(
+               Clock::now() - start).count() < TARGET_MS) {
+        // Real ecmult work — same hot path as verify
+        Point R = G.scalar_mul(k);
+        auto bytes = R.to_compressed();
+        anti_opt += bytes[1];
+        k = k + Scalar::one();
+        ++iters;
+    }
+    (void)anti_opt;
+
+    // Phase 2: measure TSC rate stabilisation (two consecutive windows within 1%)
+#if BENCH_HAS_RDTSC
+    double prev_ghz = 0.0;
+    constexpr int WINDOW_MS = 200;
+    for (int attempt = 0; attempt < 10; ++attempt) {
+        unsigned aux = 0;
+        uint64_t const tsc0 = __rdtscp(&aux);
+        auto const w0 = Clock::now();
+        // Busy spin with light work
+        while (std::chrono::duration_cast<std::chrono::milliseconds>(
+                   Clock::now() - w0).count() < WINDOW_MS) {
+            Point R = G.scalar_mul(k);
+            auto bytes = R.to_compressed();
+            anti_opt += bytes[1];
+            k = k + Scalar::one();
+        }
+        uint64_t const tsc1 = __rdtscp(&aux);
+        auto const w1 = Clock::now();
+        double const ns_elapsed = static_cast<double>(
+            std::chrono::duration_cast<std::chrono::nanoseconds>(w1 - w0).count());
+        double const ghz = static_cast<double>(tsc1 - tsc0) / ns_elapsed;
+
+        if (prev_ghz > 0.1) {
+            double const drift = std::abs(ghz - prev_ghz) / prev_ghz;
+            if (drift < 0.01) {
+                // Stable — done
+                printf(" stable at %.3f GHz (%d k*G ops)\n", ghz, iters);
+                fflush(stdout);
+                return;
+            }
+        }
+        prev_ghz = ghz;
+    }
+    printf(" done (%d k*G ops, freq may still drift)\n", iters);
+#else
+    printf(" done (%d k*G ops)\n", iters);
+#endif
+    fflush(stdout);
+}
+
 // ---- TSC frequency calibration (x86 only) -----------------------------------
 
 static double calibrate_tsc_ghz() {
@@ -166,18 +402,23 @@ static void print_sep() {
     printf("+----------------------------------------------+------------+\n");
 }
 
+static const char* g_current_section = "";
+
 static void print_header(const char* section) {
     print_sep();
     printf("| %-44s | %10s |\n", section, "ns/op");
     print_sep();
+    g_current_section = section;
 }
 
 static void print_row(const char* name, double ns) {
     printf("| %-44s | %10.1f |\n", name, ns);
+    g_report.add(g_current_section, name, ns);
 }
 
 static void print_ratio(const char* name, double ratio) {
     printf("| %-44s | %9.2fx |\n", name, ratio);
+    g_report.add_ratio(g_current_section, name, ratio);
 }
 
 // (libsecp256k1 is benchmarked inline in main() using the SAME Harness)
@@ -186,13 +427,75 @@ static void print_ratio(const char* name, double ratio) {
 // main
 // ===========================================================================
 
-int main() {
+int main(int argc, char** argv) {
+    // ---- CLI ----------------------------------------------------------------
+    auto opts = parse_cli(argc, argv);
+    if (opts.help) {
+        print_usage();
+        return 0;
+    }
+
     SECP256K1_INIT();
     bench::pin_thread_and_elevate();
+
+    // ---- Apply CLI overrides ------------------------------------------------
+    int effective_passes = 11;
+    int effective_warmup = 500;
+    double iter_scale = 1.0;
+
+    if (opts.quick) {
+        effective_passes = 3;
+        effective_warmup = 50;
+        iter_scale = 0.2;  // 1/5 iterations
+    }
+    if (opts.passes > 0) {
+        effective_passes = opts.passes;
+    }
+
+    H = bench::Harness(effective_warmup, static_cast<std::size_t>(effective_passes));
+
+    // ---- CPU frequency ramp-up (critical for powersave governor) ----
+    if (!opts.no_warmup) {
+        cpu_frequency_warmup();
+    } else {
+        printf("  CPU frequency warmup: SKIPPED (--no-warmup)\n");
+    }
 
     char cpu_brand[49] = {};
     get_cpu_brand(cpu_brand);
     g_tsc_ghz = calibrate_tsc_ghz();
+
+    // ---- Populate report metadata -------------------------------------------
+    std::memcpy(g_report.cpu_brand, cpu_brand, 49);
+    snprintf(g_report.compiler, sizeof(g_report.compiler), "%s",
+#if defined(__clang__)
+        "Clang " __clang_version__
+#elif defined(_MSC_VER)
+        "MSVC"
+#elif defined(__GNUC__)
+        "GCC " __VERSION__
+#else
+        "Unknown"
+#endif
+    );
+    snprintf(g_report.arch, sizeof(g_report.arch),
+#if defined(__x86_64__) || defined(_M_X64)
+        "x86-64"
+#elif defined(__aarch64__)
+        "ARM64"
+#elif defined(__riscv)
+        "RISC-V 64"
+#elif defined(__XTENSA__)
+        "Xtensa (ESP32)"
+#else
+        "Unknown"
+#endif
+    );
+    snprintf(g_report.timer, sizeof(g_report.timer), "%s", bench::Timer::timer_name());
+    g_report.tsc_ghz = g_tsc_ghz;
+    g_report.passes = effective_passes;
+    g_report.warmup = effective_warmup;
+    g_report.pool_size = 64;
 
     // Integrity check
     printf("Running integrity check... ");
@@ -236,7 +539,8 @@ int main() {
         "\n");
     printf("  Ultra:     UltrafastSecp256k1\n");
     printf("  libsecp:   bitcoin-core libsecp256k1 v0.7.x\n");
-    printf("  Harness:   500 warmup, 11 passes, IQR outlier removal, median\n");
+    printf("  Harness:   3s CPU ramp-up, %d warmup/op, %d passes, IQR outlier removal, median\n",
+           effective_warmup, effective_passes);
     printf("  Timer:     %s\n", bench::Timer::timer_name());
     printf("  Pool:      64 independent key/msg/sig sets\n");
     printf("  NOTE:      Both Ultra and libsecp use IDENTICAL harness\n");
@@ -279,12 +583,19 @@ int main() {
 
     int idx = 0;
 
-    constexpr int N_SIGN   = 500;
-    constexpr int N_VERIFY = 500;
-    constexpr int N_KEYGEN = 500;
-    constexpr int N_FIELD  = 50000;
-    constexpr int N_POINT  = 10000;
-    constexpr int N_SCALAR = 500;
+    constexpr int N_SIGN_BASE   = 500;
+    constexpr int N_VERIFY_BASE = 500;
+    constexpr int N_KEYGEN_BASE = 500;
+    constexpr int N_FIELD_BASE  = 50000;
+    constexpr int N_POINT_BASE  = 10000;
+    constexpr int N_SCALAR_BASE = 500;
+
+    const int N_SIGN   = static_cast<int>(N_SIGN_BASE   * iter_scale);
+    const int N_VERIFY = static_cast<int>(N_VERIFY_BASE * iter_scale);
+    const int N_KEYGEN = static_cast<int>(N_KEYGEN_BASE * iter_scale);
+    const int N_FIELD  = static_cast<int>(N_FIELD_BASE  * iter_scale);
+    const int N_POINT  = static_cast<int>(N_POINT_BASE  * iter_scale);
+    const int N_SCALAR = static_cast<int>(N_SCALAR_BASE * iter_scale);
 
     // =====================================================================
     //  SECTION 1: Field Arithmetic
@@ -857,7 +1168,7 @@ int main() {
     //  SECTION 7: libsecp256k1 (bitcoin-core) -- SAME harness, pool, timer
     // =====================================================================
 
-    printf("Running libsecp256k1 benchmark (same harness: RDTSCP, 500 warmup, 11 passes, IQR)...\n");
+    printf("Running libsecp256k1 benchmark (same harness: RDTSCP, 3s ramp-up, 500 warmup, 11 passes, IQR)...\n");
 
     secp256k1_context* ls_ctx = secp256k1_context_create(SECP256K1_CONTEXT_NONE);
     if (!ls_ctx) {
@@ -892,6 +1203,24 @@ int main() {
         secp256k1_schnorrsig_sign32(ls_ctx, ls_schnorr_sigs[i], ls_msgs[i],
                                     &ls_keypairs[i], ls_aux[i]);
     }
+
+    // --- libsecp field_inv_var micro-benchmark ---
+    // Uses a 32-byte serialisation round-trip wrapper; measures the
+    // full inv_var cost (set_b32 + inv_var + normalize + get_b32).
+    unsigned char ls_fe_in[32];
+    unsigned char ls_fe_out[32];
+    std::memcpy(ls_fe_in,
+        "\x79\xbe\x66\x7e\xf9\xdc\xbb\xac"
+        "\x55\xa0\x62\x95\xce\x87\x0b\x07"
+        "\x02\x9b\xfc\xdb\x2d\xce\x28\xd9"
+        "\x59\xf2\x81\x5b\x16\xf8\x17\x98", 32);
+
+    const double ls_fe_inv = bench_ns([&]() {
+        libsecp_fe_inv_var(ls_fe_out, ls_fe_in);
+        bench::DoNotOptimize(ls_fe_out);
+        // Feed output back as input to prevent CSE
+        std::memcpy(ls_fe_in, ls_fe_out, 32);
+    }, 200);
 
     // Generator * k  (same N_KEYGEN, same bench_ns -> H.run)
     idx = 0;
@@ -950,6 +1279,7 @@ int main() {
     secp256k1_context_destroy(ls_ctx);
 
     print_header("libsecp256k1 (bitcoin-core)");
+    print_row("field_inv_var",                    ls_fe_inv);
     print_row("generator_mul (ec_pubkey_create)", ls_gen);
     print_row("ecdsa_sign",                      ls_ecdsa_sign);
     print_row("ecdsa_verify",                    ls_ecdsa_verify);
@@ -958,6 +1288,127 @@ int main() {
     print_row("schnorr_verify (BIP-340)",        ls_schnorr_verify);
     print_sep();
     printf("\n");
+
+    // =====================================================================
+    //  SECTION 7.5: OpenSSL (system library) -- SAME harness, pool, timer
+    // =====================================================================
+    //
+    // OpenSSL provides ECDSA on secp256k1 but NOT BIP-340 Schnorr.
+    // Uses low-level EC API (ECDSA_do_sign/verify) for raw performance.
+    // Pre-allocates scratch (BN_CTX, EC_POINT, BIGNUM) to isolate crypto cost.
+    //
+
+    double ossl_gen = 0.0, ossl_ecdsa_sign = 0.0, ossl_ecdsa_verify = 0.0;
+
+#ifdef BENCH_HAS_OPENSSL
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
+
+    printf("Running OpenSSL benchmark (%s, same harness)...\n",
+           OPENSSL_VERSION_TEXT);
+
+    BN_CTX *ossl_bn_ctx = BN_CTX_new();
+    EC_KEY *ossl_keys[POOL];
+    ECDSA_SIG *ossl_esigs[POOL];
+    const EC_GROUP *ossl_group = NULL;
+
+    // Set up pool -- same 64 seeds as Ultra and libsecp
+    {
+        bool ossl_ok = true;
+        for (int i = 0; i < POOL; ++i) {
+            ossl_keys[i] = EC_KEY_new_by_curve_name(NID_secp256k1);
+            if (!ossl_keys[i]) {
+                printf("[FAIL] OpenSSL: EC_KEY_new_by_curve_name(NID_secp256k1) "
+                       "returned NULL -- secp256k1 not supported?\n");
+                ossl_ok = false;
+                break;
+            }
+            if (i == 0) ossl_group = EC_KEY_get0_group(ossl_keys[i]);
+
+            // Private key from same seed as libsecp pool
+            BIGNUM *priv = BN_new();
+            BN_bin2bn(ls_seckeys[i], 32, priv);
+            EC_KEY_set_private_key(ossl_keys[i], priv);
+
+            // Compute public key = priv * G
+            EC_POINT *pub = EC_POINT_new(ossl_group);
+            EC_POINT_mul(ossl_group, pub, priv, NULL, NULL, ossl_bn_ctx);
+            EC_KEY_set_public_key(ossl_keys[i], pub);
+            EC_POINT_free(pub);
+            BN_free(priv);
+
+            // Pre-sign for verify benchmark (same message bytes as libsecp)
+            ossl_esigs[i] = ECDSA_do_sign(ls_msgs[i], 32, ossl_keys[i]);
+            if (!ossl_esigs[i]) {
+                printf("[FAIL] OpenSSL: ECDSA_do_sign failed for pool[%d]\n", i);
+                ossl_ok = false;
+                break;
+            }
+        }
+
+        if (ossl_ok) {
+            // Generator * k  (pre-allocate scratch to isolate crypto cost)
+            EC_POINT *ossl_R = EC_POINT_new(ossl_group);
+            BIGNUM *ossl_bn_k = BN_new();
+
+            idx = 0;
+            ossl_gen = bench_ns([&]() {
+                BN_bin2bn(ls_seckeys[idx % POOL], 32, ossl_bn_k);
+                EC_POINT_mul(ossl_group, ossl_R, ossl_bn_k,
+                             NULL, NULL, ossl_bn_ctx);
+                bench::DoNotOptimize(ossl_R);
+                ++idx;
+            }, N_KEYGEN);
+
+            EC_POINT_free(ossl_R);
+            BN_free(ossl_bn_k);
+
+            // ECDSA Sign
+            idx = 0;
+            ossl_ecdsa_sign = bench_ns([&]() {
+                ECDSA_SIG *sig = ECDSA_do_sign(ls_msgs[idx % POOL], 32,
+                                               ossl_keys[idx % POOL]);
+                bench::DoNotOptimize(sig);
+                ECDSA_SIG_free(sig);
+                ++idx;
+            }, N_SIGN);
+
+            // ECDSA Verify
+            idx = 0;
+            ossl_ecdsa_verify = bench_ns([&]() {
+                volatile int ok = ECDSA_do_verify(
+                    ls_msgs[idx % POOL], 32,
+                    ossl_esigs[idx % POOL],
+                    ossl_keys[idx % POOL]);
+                (void)ok;
+                ++idx;
+            }, N_VERIFY);
+
+            print_header("OpenSSL (ECDSA, secp256k1)");
+            print_row("generator_mul (EC_POINT_mul k*G)", ossl_gen);
+            print_row("ecdsa_sign (ECDSA_do_sign)",       ossl_ecdsa_sign);
+            print_row("ecdsa_verify (ECDSA_do_verify)",   ossl_ecdsa_verify);
+            print_sep();
+            printf("  (OpenSSL has no BIP-340 Schnorr -- ECDSA-only comparison)\n");
+            printf("\n");
+        }
+
+        // Cleanup
+        for (int i = 0; i < POOL; ++i) {
+            if (ossl_esigs[i]) ECDSA_SIG_free(ossl_esigs[i]);
+            if (ossl_keys[i])  EC_KEY_free(ossl_keys[i]);
+        }
+        BN_CTX_free(ossl_bn_ctx);
+    }
+
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
+#else
+    printf("OpenSSL: not linked (rebuild with -DBENCH_HAS_OPENSSL or install libssl-dev)\n\n");
+#endif // BENCH_HAS_OPENSSL
 
     // =====================================================================
     //  SECTION 8: Apple-to-Apple Ratio Table
@@ -992,6 +1443,31 @@ int main() {
     print_ratio("Schnorr Verify",           ls_schnorr_verify / u_schnorr_verify);
     print_sep();
     printf("\n");
+
+    // --- OpenSSL ratios (only if measured) ---
+#ifdef BENCH_HAS_OPENSSL
+    if (ossl_gen > 0.0) {
+        printf("======================================================================\n");
+        printf("  APPLE-TO-APPLE: UltrafastSecp256k1 / OpenSSL\n");
+        printf("  (ratio > 1.0 = Ultra wins, < 1.0 = OpenSSL wins)\n");
+        printf("======================================================================\n\n");
+
+        print_header("FAST path (Ultra FAST vs OpenSSL)");
+        print_ratio("Generator * k",   ossl_gen          / keygen);
+        print_ratio("ECDSA Sign",      ossl_ecdsa_sign   / u_ecdsa_sign);
+        print_ratio("ECDSA Verify",    ossl_ecdsa_verify / u_ecdsa_verify);
+        print_sep();
+        printf("\n");
+
+        // OpenSSL ECDSA sign is constant-time (modern versions) --
+        // compare with Ultra CT sign for fair assessment.
+        print_header("CT path (Ultra CT vs OpenSSL)");
+        print_ratio("ECDSA Sign (CT vs CT)",    ossl_ecdsa_sign   / u_ct_ecdsa);
+        print_ratio("ECDSA Verify",             ossl_ecdsa_verify / u_ecdsa_verify);
+        print_sep();
+        printf("\n");
+    }
+#endif
 
     // =====================================================================
     //  SECTION 9: Summary
@@ -1030,6 +1506,15 @@ int main() {
     tput("Schnorr verify",            ls_schnorr_verify);
     tput("generator_mul",             ls_gen);
     printf("\n");
+#ifdef BENCH_HAS_OPENSSL
+    if (ossl_gen > 0.0) {
+        printf("  --- OpenSSL ---\n");
+        tput("ECDSA sign",                ossl_ecdsa_sign);
+        tput("ECDSA verify",              ossl_ecdsa_verify);
+        tput("generator_mul (k*G)",       ossl_gen);
+        printf("\n");
+    }
+#endif
 
     // ---- Block validation estimates -----------------------------------------
 
@@ -1065,8 +1550,21 @@ int main() {
         "Unknown"
 #endif
         "\n", cpu_brand);
-    printf("  UltrafastSecp256k1 vs libsecp256k1 -- Unified Benchmark\n");
+    printf("  UltrafastSecp256k1 vs libsecp256k1"
+#ifdef BENCH_HAS_OPENSSL
+           " vs OpenSSL"
+#endif
+           " -- Unified Benchmark\n");
     printf("======================================================================\n\n");
+
+    // ---- JSON export --------------------------------------------------------
+    if (opts.json_path) {
+        if (g_report.write_json(opts.json_path)) {
+            printf("  JSON report written to: %s\n", opts.json_path);
+        } else {
+            printf("  [!] Failed to write JSON report to: %s\n", opts.json_path);
+        }
+    }
 
     return 0;
 }
