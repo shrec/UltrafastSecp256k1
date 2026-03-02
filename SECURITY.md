@@ -55,7 +55,7 @@ For auditors and security researchers, the following documents are available:
 | Document | Purpose |
 |----------|---------|
 | [AUDIT_GUIDE.md](AUDIT_GUIDE.md) | **Start here** -- Auditor navigation, checklist, reproduction commands |
-| [AUDIT_REPORT.md](AUDIT_REPORT.md) | Internal audit: 641,194 checks, 8 suites, 0 failures |
+| [AUDIT_REPORT.md](AUDIT_REPORT.md) | Internal audit report (v3.9.0 baseline; test suite restructured since -- see below) |
 | [THREAT_MODEL.md](THREAT_MODEL.md) | Layer-by-layer risk + attack surface analysis |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Technical architecture for auditors |
 | [docs/CT_VERIFICATION.md](docs/CT_VERIFICATION.md) | Constant-time methodology, dudect, known limitations |
@@ -82,7 +82,7 @@ The following automated security measures are in place:
 - **dudect timing analysis** -- Welch t-test side-channel detection (1300+ line test suite)
 - **Native ARM64 dudect** -- Apple Silicon (M1) smoke + full statistical analysis on macos-14 runners
 - **ct-verif LLVM pass** -- deterministic compile-time constant-time verification of CT modules
-- **Internal audit suite** -- 641,194 checks across 8 dedicated audit test suites
+- **Internal audit suite** -- 26 CTest targets (13 audit-labeled), including fuzz parsers, differential tests, fault injection, CT equivalence, cross-platform KAT, and unified audit runner. The original v3.9.0 audit (641,194 checks) has been superseded by a restructured suite.
 - **Valgrind CT taint analysis** -- MAKE_MEM_UNDEFINED + --track-origins secret-dependent branch detection
 - **MuSig2/FROST dudect** -- protocol-level timing analysis (partial_sign, frost_sign, Lagrange)
 - **SARIF audit output** -- `--sarif` flag for GitHub Code Scanning integration

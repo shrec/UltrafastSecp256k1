@@ -516,6 +516,7 @@ if(SECP256K1_SANITIZER_BUILD)
     )
 else()
     # Production build: maximum performance
+    # Base flags (always applied for optimized builds)
     target_compile_options(${SECP256K1_LIB_NAME} PRIVATE
         -O3                      # Maximum optimization
         "SHELL:${ARCH_FLAGS}"    # Platform-specific architecture (SHELL: splits by whitespace)
@@ -524,13 +525,19 @@ else()
         -fno-trapping-math       # No FP exceptions
         -funroll-loops           # Aggressive loop unrolling
         -finline-functions       # Inline everything possible
-        -fomit-frame-pointer     # Remove frame pointers for speed
-        -fno-stack-protector     # Disable stack canaries (no security)
         $<$<PLATFORM_ID:Linux>:-fno-plt>  # No PLT (ELF/Linux only; skipped on macOS/Windows)
         -ftree-vectorize         # Auto-vectorization (AVX2/SSE/NEON)
         # Note: LTO is controlled separately by SECP256K1_USE_LTO option
         # Do NOT add -fno-lto here -- it would override the LTO setting
     )
+    # Speed-first flags: disable safety features for maximum throughput.
+    # Only applied when explicitly opted-in via -DSECP256K1_SPEED_FIRST=ON.
+    if(SECP256K1_SPEED_FIRST)
+        target_compile_options(${SECP256K1_LIB_NAME} PRIVATE
+            -fomit-frame-pointer     # Remove frame pointers for speed
+            -fno-stack-protector     # Disable stack canaries (no security)
+        )
+    endif()
 endif()
 # Propagate ARCH_FLAGS to consumers so their TU's also compile with -mcpu
 # (important for header-only / inline code and for ThinLTO codegen at link time)

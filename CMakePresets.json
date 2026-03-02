@@ -38,15 +38,30 @@
         },
         {
             "name": "cpu-release",
-            "displayName": "CPU Release",
-            "description": "CPU-only optimized build",
+            "displayName": "CPU Release (Safe)",
+            "description": "CPU-only optimized build with safe defaults (stack protector, FORTIFY_SOURCE active)",
             "inherits": "base",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",
                 "SECP256K1_BUILD_CPU": "ON",
                 "SECP256K1_BUILD_CUDA": "OFF",
                 "SECP256K1_BUILD_TESTS": "ON",
-                "SECP256K1_BUILD_BENCH": "ON"
+                "SECP256K1_BUILD_BENCH": "ON",
+                "SECP256K1_SPEED_FIRST": "OFF"
+            }
+        },
+        {
+            "name": "cpu-release-speed",
+            "displayName": "CPU Release (Speed-First, UNSAFE)",
+            "description": "CPU-only maximum throughput: -Ofast, no stack protector, no FORTIFY_SOURCE. Use only in controlled environments.",
+            "inherits": "base",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "SECP256K1_BUILD_CPU": "ON",
+                "SECP256K1_BUILD_CUDA": "OFF",
+                "SECP256K1_BUILD_TESTS": "ON",
+                "SECP256K1_BUILD_BENCH": "ON",
+                "SECP256K1_SPEED_FIRST": "ON"
             }
         },
         {
@@ -139,6 +154,10 @@
         {
             "name": "cpu-release",
             "configurePreset": "cpu-release"
+        },
+        {
+            "name": "cpu-release-speed",
+            "configurePreset": "cpu-release-speed"
         },
         {
             "name": "cpu-debug",

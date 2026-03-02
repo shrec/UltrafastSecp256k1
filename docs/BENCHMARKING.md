@@ -1,16 +1,28 @@
 # Benchmarking Guide
 
-How to build, run, and interpret the bench_hornet benchmark suite on all
-supported platforms.
+How to build, run, and interpret benchmarks on all supported platforms.
 
 ---
 
 ## Overview
 
-**bench_hornet** is the canonical single-core CPU benchmark for
-UltrafastSecp256k1. It measures every secp256k1 operation relevant to
+### Benchmark Targets
+
+| Target | CI Canonical | Always Builds | Purpose |
+|--------|:---:|:---:|---------|
+| **`bench_comprehensive`** | **YES** | **YES** | All secp256k1 ops (standalone, no dependencies) |
+| `bench_hornet` | No | No (needs libsecp256k1 src) | Apple-to-apple comparison vs libsecp256k1 |
+| `bench_unified` | No | No (needs libsecp256k1 src) | Combined UF + libsecp runner |
+| `bench_comprehensive_riscv` | No | Yes | Legacy alias for bench_comprehensive |
+
+**`bench_comprehensive`** is the CI-canonical benchmark. It runs in
+`benchmark.yml` and `bench-regression.yml` and does NOT require any
+external dependencies. Use this for regression testing and CI.
+
+**`bench_hornet`** measures every secp256k1 operation relevant to
 Bitcoin block validation and IBD (Initial Block Download), including an
 apple-to-apple comparison against bitcoin-core/libsecp256k1 v0.7.2.
+It requires the libsecp256k1 source tree to build.
 
 ### What It Measures
 

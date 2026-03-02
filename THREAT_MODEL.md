@@ -1,6 +1,6 @@
 # Threat Model
 
-UltrafastSecp256k1 v3.14.0 -- Layer-by-Layer Risk Assessment
+UltrafastSecp256k1 v3.16.0 -- Layer-by-Layer Risk Assessment
 
 ---
 
@@ -221,7 +221,7 @@ NOT TRUSTED (caller responsibility):
 
 ---
 
-## Automated Security Measures (v3.14.0)
+## Automated Security Measures (v3.16.0)
 
 | Measure | Frequency | What It Catches |
 |---------|-----------|-----------------|
@@ -245,7 +245,7 @@ NOT TRUSTED (caller responsibility):
 | Document | Purpose |
 |----------|---------|
 | [AUDIT_GUIDE.md](AUDIT_GUIDE.md) | Auditor navigation and checklist |
-| [AUDIT_REPORT.md](AUDIT_REPORT.md) | Internal audit: 641,194 checks |
+| [AUDIT_REPORT.md](AUDIT_REPORT.md) | Internal audit report (v3.9.0 baseline; test suite has been restructured since) |
 | [SECURITY.md](SECURITY.md) | Vulnerability reporting, production readiness |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Technical architecture deep-dive |
 | [docs/CT_VERIFICATION.md](docs/CT_VERIFICATION.md) | Constant-time methodology |
@@ -253,4 +253,4 @@ NOT TRUSTED (caller responsibility):
 
 ---
 
-*UltrafastSecp256k1 v3.14.0 -- Threat Model*
+*UltrafastSecp256k1 v3.16.0 -- Threat Model*
