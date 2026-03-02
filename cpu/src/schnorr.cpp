@@ -247,40 +247,28 @@ bool schnorr_verify(const uint8_t* pubkey_x32,
 
     if (R.is_infinity()) return false;
 
-    // Steps 5+6: X-check (inversion-free early exit) + Y-parity (needs inverse)
-    // X-check: sig.r * Z^2 == R.X (avoids Z^-2; early exit saves inverse on mismatch)
-    // Y-parity: affine y = Y * Z^-3 must be even (NO shortcut -- parity requires
-    //           the canonical representative, so the inverse is unavoidable).
+    // Steps 5+6: Single affine conversion (matches libsecp256k1 approach).
+    // Z^{-1} -> Z^{-2}, Z^{-3} -> x_aff, y_aff -> check both X match and Y-parity.
+    // Since Y-parity requires Z^{-3} anyway, computing X from Z^{-2} is free.
 #if defined(SECP256K1_FAST_52BIT)
-    // X-check: r * Z^2 == X   (1S + 1M + compare)
-    FE52 const z2 = R.Z52().square();
-    FE52 r52 = FE52::from_bytes(sig.r);
-    FE52 lhs = r52 * z2;
-    lhs.normalize();
-    FE52 rhs = R.X52();
-    rhs.normalize();
-    if (!(lhs == rhs)) return false;
-
-    // Y-parity: y = Y * Z^-3 must be even
     FE52 const z_inv = R.Z52().inverse_safegcd();
     FE52 const z_inv2 = z_inv.square();
-    FE52 y_aff = (R.Y52() * z_inv2) * z_inv;
+    FE52 x_aff = R.X52() * z_inv2;
+    FE52 const z_inv3 = z_inv * z_inv2;
+    FE52 y_aff = R.Y52() * z_inv3;
+    x_aff.normalize();
     y_aff.normalize();
-    return (y_aff.n[0] & 1) == 0;
+    FE52 r52 = FE52::from_fe(r_fe_check);
+    r52.normalize();
+    return (x_aff == r52) & ((y_aff.n[0] & 1) == 0);
 #else
-    // X-check: r * Z^2 == X
-    FieldElement z2 = R.z_raw();
-    z2.square_inplace();
-    auto r_fe = FieldElement::from_bytes(sig.r);
-    auto lhs_fe = r_fe * z2;
-    if (!(lhs_fe == R.x_raw())) return false;
-
-    // Y-parity: y = Y * Z^-3 must be even
     FieldElement z_inv = R.z_raw().inverse();
     FieldElement z_inv2 = z_inv;
     z_inv2.square_inplace();
-    FieldElement y_aff = R.y_raw() * z_inv2 * z_inv;
-    return (y_aff.limbs()[0] & 1) == 0;
+    FieldElement x_aff = R.x_raw() * z_inv2;
+    FieldElement z_inv3 = z_inv * z_inv2;
+    FieldElement y_aff = R.y_raw() * z_inv3;
+    return (x_aff == r_fe_check) & ((y_aff.limbs()[0] & 1) == 0);
 #endif
 }
 
@@ -350,35 +338,29 @@ bool schnorr_verify(const SchnorrXonlyPubkey& pubkey,
 
     if (R.is_infinity()) return false;
 
-    // X-check (inversion-free early exit) + Y-parity (needs inverse)
-    // X-check: sig.r * Z^2 == R.X (avoids Z^-2; early exit saves inverse on mismatch)
-    // Y-parity: affine y = Y * Z^-3 must be even (NO shortcut).
+    // Single affine conversion: Z^{-1} -> (x_aff, y_aff) -> check both.
+    // Matches libsecp256k1's approach: one inverse, no redundant X-check.
+    // Since Y-parity requires Z^{-3} anyway, computing X from Z^{-2} is free.
 #if defined(SECP256K1_FAST_52BIT)
-    FE52 const z2 = R.Z52().square();
-    FE52 r52 = FE52::from_bytes(sig.r);
-    FE52 lhs = r52 * z2;
-    lhs.normalize();
-    FE52 rhs = R.X52();
-    rhs.normalize();
-    if (!(lhs == rhs)) return false;
-
     FE52 const z_inv = R.Z52().inverse_safegcd();
     FE52 const z_inv2 = z_inv.square();
-    FE52 y_aff = (R.Y52() * z_inv2) * z_inv;
+    FE52 x_aff = R.X52() * z_inv2;
+    FE52 const z_inv3 = z_inv * z_inv2;
+    FE52 y_aff = R.Y52() * z_inv3;
+    x_aff.normalize();
     y_aff.normalize();
-    return (y_aff.n[0] & 1) == 0;
+    // Reuse already-parsed r_fe_check (avoids redundant FE52::from_bytes)
+    FE52 r52 = FE52::from_fe(r_fe_check);
+    r52.normalize();
+    return (x_aff == r52) & ((y_aff.n[0] & 1) == 0);
 #else
-    FieldElement z2 = R.z_raw();
-    z2.square_inplace();
-    auto r_fe = FieldElement::from_bytes(sig.r);
-    auto lhs_fe = r_fe * z2;
-    if (!(lhs_fe == R.x_raw())) return false;
-
     FieldElement z_inv = R.z_raw().inverse();
     FieldElement z_inv2 = z_inv;
     z_inv2.square_inplace();
-    FieldElement y_aff = R.y_raw() * z_inv2 * z_inv;
-    return (y_aff.limbs()[0] & 1) == 0;
+    FieldElement x_aff = R.x_raw() * z_inv2;
+    FieldElement z_inv3 = z_inv * z_inv2;
+    FieldElement y_aff = R.y_raw() * z_inv3;
+    return (x_aff == r_fe_check) & ((y_aff.limbs()[0] & 1) == 0);
 #endif
 }
 

@@ -51,7 +51,14 @@
 #include "secp256k1_extrakeys.h"
 #include "secp256k1_schnorrsig.h"
 
+// Thin wrappers from libsecp_provider.c exposing internal field ops
+extern "C" {
+    void libsecp_fe_inv_var(unsigned char out32[32], const unsigned char in32[32]);
+    void libsecp_fe_inv_var_raw(void *r, const void *a);
+}
+
 #include <array>
+#include <cmath>
 #include <cstdio>
 #include <cstdint>
 #include <cstring>
@@ -111,6 +118,79 @@ static void get_cpu_brand(char brand[49]) {
 #else
     (void)snprintf(brand, 49, "(unknown)");
 #endif
+}
+
+// ---- CPU frequency warmup (defeats powersave governor) -----------------------
+// Runs heavy crypto work for `target_ms` to force the CPU frequency up, then
+// monitors TSC rate until it stabilises (two consecutive 200ms windows within 1%).
+
+static void cpu_frequency_warmup() {
+    using Clock = std::chrono::steady_clock;
+
+    // Phase 1: heavy load for 3 seconds using real crypto work
+    constexpr int TARGET_MS = 3000;
+    printf("  CPU frequency warmup (%d ms heavy load)...", TARGET_MS);
+    fflush(stdout);
+
+    Scalar k = Scalar::from_bytes(std::array<uint8_t,32>{
+        0xde,0xad,0xbe,0xef,0x01,0x02,0x03,0x04,
+        0x05,0x06,0x07,0x08,0x09,0x0a,0x0b,0x0c,
+        0x0d,0x0e,0x0f,0x10,0x11,0x12,0x13,0x14,
+        0x15,0x16,0x17,0x18,0x19,0x1a,0x1b,0x1c}.data());
+    Point G = Point::generator();
+    volatile uint64_t anti_opt = 0;
+
+    auto const start = Clock::now();
+    int iters = 0;
+    while (std::chrono::duration_cast<std::chrono::milliseconds>(
+               Clock::now() - start).count() < TARGET_MS) {
+        // Real ecmult work — same hot path as verify
+        Point R = G.scalar_mul(k);
+        auto bytes = R.to_compressed();
+        anti_opt += bytes[1];
+        k = k + Scalar::one();
+        ++iters;
+    }
+    (void)anti_opt;
+
+    // Phase 2: measure TSC rate stabilisation (two consecutive windows within 1%)
+#if BENCH_HAS_RDTSC
+    double prev_ghz = 0.0;
+    constexpr int WINDOW_MS = 200;
+    for (int attempt = 0; attempt < 10; ++attempt) {
+        unsigned aux = 0;
+        uint64_t const tsc0 = __rdtscp(&aux);
+        auto const w0 = Clock::now();
+        // Busy spin with light work
+        while (std::chrono::duration_cast<std::chrono::milliseconds>(
+                   Clock::now() - w0).count() < WINDOW_MS) {
+            Point R = G.scalar_mul(k);
+            auto bytes = R.to_compressed();
+            anti_opt += bytes[1];
+            k = k + Scalar::one();
+        }
+        uint64_t const tsc1 = __rdtscp(&aux);
+        auto const w1 = Clock::now();
+        double const ns_elapsed = static_cast<double>(
+            std::chrono::duration_cast<std::chrono::nanoseconds>(w1 - w0).count());
+        double const ghz = static_cast<double>(tsc1 - tsc0) / ns_elapsed;
+
+        if (prev_ghz > 0.1) {
+            double const drift = std::abs(ghz - prev_ghz) / prev_ghz;
+            if (drift < 0.01) {
+                // Stable — done
+                printf(" stable at %.3f GHz (%d k*G ops)\n", ghz, iters);
+                fflush(stdout);
+                return;
+            }
+        }
+        prev_ghz = ghz;
+    }
+    printf(" done (%d k*G ops, freq may still drift)\n", iters);
+#else
+    printf(" done (%d k*G ops)\n", iters);
+#endif
+    fflush(stdout);
 }
 
 // ---- TSC frequency calibration (x86 only) -----------------------------------
@@ -190,6 +270,9 @@ int main() {
     SECP256K1_INIT();
     bench::pin_thread_and_elevate();
 
+    // ---- CPU frequency ramp-up (critical for powersave governor) ----
+    cpu_frequency_warmup();
+
     char cpu_brand[49] = {};
     get_cpu_brand(cpu_brand);
     g_tsc_ghz = calibrate_tsc_ghz();
@@ -236,7 +319,7 @@ int main() {
         "\n");
     printf("  Ultra:     UltrafastSecp256k1\n");
     printf("  libsecp:   bitcoin-core libsecp256k1 v0.7.x\n");
-    printf("  Harness:   500 warmup, 11 passes, IQR outlier removal, median\n");
+    printf("  Harness:   3s CPU ramp-up, 500 warmup/op, 11 passes, IQR outlier removal, median\n");
     printf("  Timer:     %s\n", bench::Timer::timer_name());
     printf("  Pool:      64 independent key/msg/sig sets\n");
     printf("  NOTE:      Both Ultra and libsecp use IDENTICAL harness\n");
@@ -857,7 +940,7 @@ int main() {
     //  SECTION 7: libsecp256k1 (bitcoin-core) -- SAME harness, pool, timer
     // =====================================================================
 
-    printf("Running libsecp256k1 benchmark (same harness: RDTSCP, 500 warmup, 11 passes, IQR)...\n");
+    printf("Running libsecp256k1 benchmark (same harness: RDTSCP, 3s ramp-up, 500 warmup, 11 passes, IQR)...\n");
 
     secp256k1_context* ls_ctx = secp256k1_context_create(SECP256K1_CONTEXT_NONE);
     if (!ls_ctx) {
@@ -892,6 +975,24 @@ int main() {
         secp256k1_schnorrsig_sign32(ls_ctx, ls_schnorr_sigs[i], ls_msgs[i],
                                     &ls_keypairs[i], ls_aux[i]);
     }
+
+    // --- libsecp field_inv_var micro-benchmark ---
+    // Uses a 32-byte serialisation round-trip wrapper; measures the
+    // full inv_var cost (set_b32 + inv_var + normalize + get_b32).
+    unsigned char ls_fe_in[32];
+    unsigned char ls_fe_out[32];
+    std::memcpy(ls_fe_in,
+        "\x79\xbe\x66\x7e\xf9\xdc\xbb\xac"
+        "\x55\xa0\x62\x95\xce\x87\x0b\x07"
+        "\x02\x9b\xfc\xdb\x2d\xce\x28\xd9"
+        "\x59\xf2\x81\x5b\x16\xf8\x17\x98", 32);
+
+    const double ls_fe_inv = bench_ns([&]() {
+        libsecp_fe_inv_var(ls_fe_out, ls_fe_in);
+        bench::DoNotOptimize(ls_fe_out);
+        // Feed output back as input to prevent CSE
+        std::memcpy(ls_fe_in, ls_fe_out, 32);
+    }, 200);
 
     // Generator * k  (same N_KEYGEN, same bench_ns -> H.run)
     idx = 0;
@@ -950,6 +1051,7 @@ int main() {
     secp256k1_context_destroy(ls_ctx);
 
     print_header("libsecp256k1 (bitcoin-core)");
+    print_row("field_inv_var",                    ls_fe_inv);
     print_row("generator_mul (ec_pubkey_create)", ls_gen);
     print_row("ecdsa_sign",                      ls_ecdsa_sign);
     print_row("ecdsa_verify",                    ls_ecdsa_verify);

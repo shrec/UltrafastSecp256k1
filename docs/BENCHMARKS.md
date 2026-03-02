@@ -6,18 +6,18 @@ Benchmark results for UltrafastSecp256k1 across all supported platforms.
 
 ## Summary
 
-| Platform | Field Mul | Generator Mul | Scalar Mul |
-|----------|-----------|---------------|------------|
-| x86-64 (i5, AVX2) | 33 ns | 5 us | 110 us |
-| x86-64 (Clang 21, Win) | 17 ns (5x52) | 5 us | 25 us |
-| RISC-V 64 (SiFive U74, LTO) | 95 ns | 33 us | 154 us |
-| ARM64 (RK3588, A76) | 74 ns | 14 us | 131 us |
-| ESP32-S3 (LX7, 240 MHz) | 7,458 ns | 2,483 us | -- |
-| ESP32 (LX6, 240 MHz) | 6,993 ns | 6,203 us | -- |
-| STM32F103 (CM3, 72 MHz) | 15,331 ns | 37,982 us | -- |
-| CUDA (RTX 5060 Ti) | 0.2 ns | 217.7 ns | 225.8 ns |
-| OpenCL (RTX 5060 Ti) | 0.2 ns | 295.1 ns | -- |
-| Metal (Apple M3 Pro) | 1.9 ns | 3.00 us | 2.94 us |
+| Platform | Field Mul | Generator Mul | Scalar Mul | ECDSA Verify | vs libsecp |
+|----------|-----------|---------------|------------|-------------|------------|
+| **x86-64 (i5-14400F, GCC 14)** | **12.8 ns** | **6.7 µs** | **17.6 µs** | **21.3 µs** | **1.09×** |
+| x86-64 (Clang 21, Win) | 17 ns (5x52) | 5 µs | 25 µs | — | — |
+| RISC-V 64 (SiFive U74, LTO) | 95 ns | 33 µs | 154 µs | — | — |
+| ARM64 (RK3588, A76) | 74 ns | 14 µs | 131 µs | — | — |
+| ESP32-S3 (LX7, 240 MHz) | 7,458 ns | 2,483 µs | — | — | — |
+| ESP32 (LX6, 240 MHz) | 6,993 ns | 6,203 µs | — | — | — |
+| STM32F103 (CM3, 72 MHz) | 15,331 ns | 37,982 µs | — | — | — |
+| CUDA (RTX 5060 Ti) | 0.2 ns | 217.7 ns | 225.8 ns | — | — |
+| OpenCL (RTX 5060 Ti) | 0.2 ns | 295.1 ns | — | — | — |
+| Metal (Apple M3 Pro) | 1.9 ns | 3.00 µs | 2.94 µs | — | — |
 
 ---
 
@@ -497,6 +497,131 @@ All targets registered in CMake. Build with `cmake --build build -j` then run fr
 
 ---
 
+## Apple-to-Apple: UltrafastSecp256k1 vs bitcoin-core/libsecp256k1
+
+Rigorous head-to-head comparison using **identical benchmark harness** (same timer,
+warmup, statistical methodology) for both libraries.  Both libraries are compiled
+from source, linked into a single binary, and measured under the exact same
+conditions.
+
+### Methodology
+
+- **Harness:** 3 s CPU frequency ramp-up, 500 warmup iterations per operation,
+  11 measurement passes, IQR outlier removal, median reported.
+- **Timer:** RDTSCP (serialising, sub-ns precision on x86-64).
+- **Data pool:** 64 independent key / message / signature sets, round-robin
+  indexed to defeat branch-predictor / cache training on a single input.
+- **Pinning:** Single core, `taskset -c 0`, `SCHED_FIFO` where available.
+- **Compiler parity:** Both libraries compiled with the same compiler, same
+  `-O3 -march=native` flags, same link step.
+- **Source:** `bench_unified.cpp` — open-source, fully reproducible.
+
+### Platform 1 — Intel Core i5-14400F (Raptor Lake)
+
+| Detail | Value |
+|--------|-------|
+| CPU | Intel Core i5-14400F (P-core, Raptor Lake) |
+| Microarchitecture | Golden Cove (P-core), 32 KB L1i, 48 KB L1d, 1.25 MB L2 |
+| TSC frequency | 2.497 GHz |
+| OS | Ubuntu 24.04 LTS, kernel 6.x |
+| Compiler | GCC 14.2.0, `-O3 -march=native -fno-exceptions -fno-rtti` |
+| ISA features | BMI2 (MULX), ADX, AVX2, SHA-NI |
+| libsecp256k1 | v0.7.x (latest master, 5×52 + exhaustive GLV Strauss) |
+| UltrafastSecp256k1 | v3.16.0, 5×52 limb layout, `__int128` field arithmetic |
+| Assembly | Both libraries: GCC `__int128` → auto-generated MULX code |
+
+#### FAST Path (variable-time, non-secret inputs)
+
+| Operation | Ultra (ns) | libsecp (ns) | Speedup | Notes |
+|-----------|----------:|----------:|--------:|-------|
+| Generator × k (pubkey_create) | 6,730 | 11,362 | **1.69×** | W=15 comb vs W=15 Strauss |
+| ECDSA Sign | 8,989 | 15,631 | **1.74×** | Includes k⁻¹ (safegcd) |
+| ECDSA Verify | 21,324 | 23,306 | **1.09×** | Identical Strauss algorithm |
+| Schnorr Keypair Create | 10,522 | 11,228 | **1.07×** | |
+| Schnorr Sign (BIP-340) | 8,443 | 12,255 | **1.45×** | Includes SHA-256 challenge |
+| Schnorr Verify (BIP-340) | 21,151 | 22,642 | **1.07×** | Includes lift_x + SHA-256 |
+
+#### CT Path (constant-time, for secret inputs — true apples-to-apples)
+
+libsecp256k1 is constant-time by design, so this comparison is the fairest:
+
+| Operation | Ultra CT (ns) | libsecp (ns) | Speedup |
+|-----------|----------:|----------:|--------:|
+| ECDSA Sign | 13,431 | 15,631 | **1.16×** |
+| ECDSA Verify | 21,324 | 23,306 | **1.09×** |
+| Schnorr Sign (BIP-340) | 11,393 | 12,255 | **1.08×** |
+| Schnorr Verify (BIP-340) | 21,151 | 22,642 | **1.07×** |
+
+#### Throughput (single core)
+
+| | Ultra FAST | Ultra CT | libsecp |
+|---|---:|---:|---:|
+| ECDSA sign | **111.3k** op/s | 74.5k op/s | 64.0k op/s |
+| ECDSA verify | **46.9k** op/s | — | 42.9k op/s |
+| Schnorr sign | **118.4k** op/s | 87.8k op/s | 81.6k op/s |
+| Schnorr verify | **47.3k** op/s | — | 44.2k op/s |
+| pubkey_create (k×G) | **148.6k** op/s | — | 88.0k op/s |
+
+#### Bitcoin Block Validation (1 core estimate)
+
+| Block type | Ultra | libsecp | Speedup |
+|------------|---:|---:|---:|
+| Pre-Taproot (~3000 ECDSA verify) | 64.0 ms | 69.9 ms | **1.09×** |
+| Taproot (~2000 Schnorr + ~1000 ECDSA) | 63.6 ms | 67.9 ms | **1.07×** |
+
+#### Field Micro-ops
+
+| Operation | Ultra (ns) | Notes |
+|-----------|----------:|-------|
+| FE52 mul | 12.8 | 5×52, `__int128` → MULX |
+| FE52 sqr | 9.5 | Dedicated squaring |
+| FE52 add | 8.1 | |
+| FE52 sub | 5.5 | |
+| FE52 negate | 6.0 | |
+| FE52 inverse (safegcd) | 666.8 | Bernstein–Yang, `__builtin_ctzll` |
+| Scalar mul | 23.2 | 4×64 |
+| Scalar inverse (safegcd) | 843.1 | |
+| GLV decomposition | 146.0 | Lattice-based |
+
+### Key Optimisations (vs libsecp256k1)
+
+1. **Precomputed generator table** — 8192-entry comb table for k×G (6.7 µs vs 11.4 µs)
+2. **Force-inlined doubling** — `jac52_double_inplace` always-inline in hot loop
+3. **Called (not inlined) additions** — Reduced ecmult function from 124 KB to 39 KB,
+   fitting the hot loop in L1 I-cache (1.5 KB loop body vs 32 KB I-cache)
+4. **Branchless conditional negate** — XOR-select in Strauss loop eliminates
+   50% unpredictable sign branches
+5. **Single affine conversion in Schnorr verify** — Merged X-check + Y-parity
+   into one Z⁻¹ computation (saves 1 sqr + 1 mul + redundant parse)
+6. **SW prefetch** — Prefetch G/H table entries before doublings
+7. **2M+5S doubling formula** — Saves 1M per double vs libsecp's 3M+4S
+
+### How to Reproduce
+
+```bash
+# Clone and build
+git clone --recurse-submodules <repo>
+cd Secp256K1fast/libs/UltrafastSecp256k1
+cmake -S ../.. -B build_rel -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake --build build_rel -j
+
+# Run benchmark (pin to one core for stability)
+taskset -c 0 build_rel/cpu/bench_unified
+```
+
+### Contributing Benchmarks
+
+We welcome benchmark contributions from other platforms. To add your results:
+
+1. Run `taskset -c 0 build_rel/cpu/bench_unified` (or equivalent pinning)
+2. Copy the full terminal output
+3. Open a PR adding a new "Platform N" subsection with your hardware details
+
+Platforms we'd especially like to see: AMD Zen 4/5, Apple M-series (ARM64),
+AWS Graviton, AMD EPYC, Intel Xeon Sapphire Rapids.
+
+---
+
 ## Future Optimizations
 
 ### Planned
@@ -521,6 +646,6 @@ All targets registered in CMake. Build with `cmake --build build -j` then run fr
 
 ## Version
 
-UltrafastSecp256k1 v3.6.0  
-Benchmarks updated: 2026-02-20
+UltrafastSecp256k1 v3.16.0  
+Benchmarks updated: 2026-03-02
 

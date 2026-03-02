@@ -19,3 +19,19 @@
 
 /* Include the entire libsecp256k1 as a single compilation unit */
 #include "../../../../_research_repos/secp256k1/src/secp256k1.c"
+
+/* ---- Thin wrappers exposing internal field ops for benchmarking ---- */
+
+#include "../../../../_research_repos/secp256k1/src/field.h"
+
+void libsecp_fe_inv_var(unsigned char out32[32], const unsigned char in32[32]) {
+    secp256k1_fe a, r;
+    secp256k1_fe_set_b32_mod(&a, in32);
+    secp256k1_fe_inv_var(&r, &a);
+    secp256k1_fe_normalize_var(&r);
+    secp256k1_fe_get_b32(out32, &r);
+}
+
+void libsecp_fe_inv_var_raw(void *r, const void *a) {
+    secp256k1_fe_inv_var((secp256k1_fe *)r, (const secp256k1_fe *)a);
+}

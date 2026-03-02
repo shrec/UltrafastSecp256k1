@@ -658,11 +658,13 @@ static JacobianPoint52 jac52_add_mixed(const JacobianPoint52& p, const AffinePoi
 
 // -- In-Place Mixed Addition (5x52): Jacobian + Affine -> Jacobian -------------
 // Same formula as jac52_add_mixed but overwrites p in-place.
-// FORCE-INLINED: eliminates function-call overhead (~3ns * 42 calls/verify = ~126ns)
-// and enables cross-operation ILP within the hot loop.  Loop body ~3KB fits in
-// L1 I-cache (32KB).  libsecp also inlines these via static-in-header pattern.
-SECP256K1_HOT_FUNCTION __attribute__((always_inline))
-static inline void jac52_add_mixed_inplace(JacobianPoint52& p, const AffinePoint52& q) noexcept {
+// NOT force-inlined: the combined hot function with all inlined additions was
+// ~124KB / 22K instructions, far exceeding L1 I$ (32KB).  Keeping this as a
+// regular call reduces hot-path code to ~18KB, eliminates I$ thrashing, while
+// adding only ~3ns per call (~42 calls/verify = ~126ns).  Net effect depends
+// on whether I$ savings exceed call overhead.
+SECP256K1_HOT_FUNCTION
+static void jac52_add_mixed_inplace(JacobianPoint52& p, const AffinePoint52& q) noexcept {
     if (SECP256K1_UNLIKELY(p.infinity)) {
         p.x = q.x; p.y = q.y; p.z = FieldElement52::one(); p.infinity = false;
         return;
@@ -813,10 +815,10 @@ static void jac52_add_mixed_inplace_zr(JacobianPoint52& p,
 // Cost: 9M + 3S + ~11A
 // Saves 1S per G/H lookup vs the previous approach (2M scale + 7M+4S mixed add).
 // Also avoids modifying the G/H table entry (no cache-line dirtying).
-// FORCE-INLINED: eliminates function-call overhead (~3ns * 18 calls/verify = ~54ns)
-// and enables cross-operation ILP with the hot loop body.
-SECP256K1_HOT_FUNCTION __attribute__((always_inline))
-static inline void jac52_add_zinv_inplace(JacobianPoint52& p,
+// NOT force-inlined: see jac52_add_mixed_inplace comment -- reducing hot-path
+// code size for better I$ utilization outweighs ~54ns call overhead.
+SECP256K1_HOT_FUNCTION
+static void jac52_add_zinv_inplace(JacobianPoint52& p,
                                     const AffinePoint52& b,
                                     const FieldElement52& bzinv) noexcept {
     // Handle infinity and edge cases
@@ -2770,7 +2772,7 @@ Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const P
                 int32_t const sign = d >> 31;                        // -1 if neg, 0 if pos
                 int32_t const abs_d = (d ^ sign) - sign;             // branchless abs
                 AffinePoint52 pt = gen_tables->tbl_G[static_cast<std::size_t>((abs_d - 1) >> 1)].to_affine52();
-                if (sign) pt.y.negate_assign(1);                     // conditional negate
+                pt.y.conditional_negate_assign(sign);                // branchless conditional negate
                 jac52_add_zinv_inplace(result52, pt, Z_shared);
             }
         }
@@ -2782,7 +2784,7 @@ Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const P
                 int32_t const sign = d >> 31;
                 int32_t const abs_d = (d ^ sign) - sign;
                 AffinePoint52 pt = gen_tables->tbl_H[static_cast<std::size_t>((abs_d - 1) >> 1)].to_affine52();
-                if (sign) pt.y.negate_assign(1);
+                pt.y.conditional_negate_assign(sign);                // branchless
                 jac52_add_zinv_inplace(result52, pt, Z_shared);
             }
         }
@@ -2794,7 +2796,7 @@ Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const P
                 int32_t const sign = d >> 31;
                 int32_t const abs_d = (d ^ sign) - sign;
                 AffinePoint52 pt = tbl_P[static_cast<std::size_t>((abs_d - 1) >> 1)];
-                if (sign) pt.y.negate_assign(1);
+                pt.y.conditional_negate_assign(sign);                // branchless
                 jac52_add_mixed_inplace(result52, pt);
             }
         }
@@ -2806,7 +2808,7 @@ Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const P
                 int32_t const sign = d >> 31;
                 int32_t const abs_d = (d ^ sign) - sign;
                 AffinePoint52 pt = tbl_phiP[static_cast<std::size_t>((abs_d - 1) >> 1)];
-                if (sign) pt.y.negate_assign(1);
+                pt.y.conditional_negate_assign(sign);                // branchless
                 jac52_add_mixed_inplace(result52, pt);
             }
         }
