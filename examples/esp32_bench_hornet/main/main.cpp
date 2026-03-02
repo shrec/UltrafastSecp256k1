@@ -124,7 +124,7 @@ static void print_ratio_row(const char* name, double ratio) {
 }
 
 // -- libsecp256k1 extern ------------------------------------------------------
-extern "C" void libsecp_benchmark(void);
+#include "libsecp_bench.h"
 
 // -- Main ---------------------------------------------------------------------
 
@@ -544,10 +544,47 @@ extern "C" void app_main() {
 
     printf("\n");
     printf("==========================================================================================\n");
-    printf("  libsecp256k1 (bitcoin-core v0.7.2) APPLE-TO-APPLE COMPARISON\n");
+    printf("  libsecp256k1 (bitcoin-core v0.7.2) -- Same Harness, Same Hardware\n");
     printf("==========================================================================================\n\n");
-    libsecp_benchmark();
+    libsecp_results_t lsr;
+    libsecp_benchmark(&lsr);
     WDT_YIELD();
+
+    // =========================================================================
+    // APPLE-TO-APPLE RATIO TABLE (identical format to bench_unified)
+    // =========================================================================
+
+    printf("\n");
+    printf("==========================================================================================\n");
+    printf("  APPLE-TO-APPLE: UltrafastSecp256k1 / libsecp256k1\n");
+    printf("  (ratio > 1.0 = Ultra wins, < 1.0 = libsecp256k1 wins)\n");
+    printf("==========================================================================================\n\n");
+
+    printf("+----------------------------------------------+------------+\n");
+    printf("| %-44s | %10s |\n", "FAST path (Ultra FAST vs libsecp)", "ratio");
+    printf("+----------------------------------------------+------------+\n");
+
+    auto print_ratio = [](const char* name, double ratio) {
+        printf("| %-44s | %9.2fx |\n", name, ratio);
+    };
+
+    print_ratio("Generator * k",      lsr.generator_mul_ns / keygen_ns);
+    print_ratio("ECDSA Sign",         lsr.ecdsa_sign_ns    / ecdsa_sign_ns);
+    print_ratio("ECDSA Verify",       lsr.ecdsa_verify_ns  / ecdsa_verify_ns);
+    print_ratio("Schnorr Keypair",    lsr.schnorr_keypair_ns / schnorr_keygen_ns);
+    print_ratio("Schnorr Sign",       lsr.schnorr_sign_ns  / schnorr_sign_ns);
+    print_ratio("Schnorr Verify",     lsr.schnorr_verify_ns / schnorr_verify_ns);
+    printf("+----------------------------------------------+------------+\n");
+
+    printf("\n");
+    printf("+----------------------------------------------+------------+\n");
+    printf("| %-44s | %10s |\n", "CT-vs-CT (Ultra CT vs libsecp CT-equivalent)", "ratio");
+    printf("+----------------------------------------------+------------+\n");
+    print_ratio("ECDSA Sign (CT vs CT)",    lsr.ecdsa_sign_ns    / ct_ecdsa_ns);
+    print_ratio("ECDSA Verify",             lsr.ecdsa_verify_ns  / ecdsa_verify_ns);
+    print_ratio("Schnorr Sign (CT vs CT)",  lsr.schnorr_sign_ns  / ct_schnorr_ns);
+    print_ratio("Schnorr Verify",           lsr.schnorr_verify_ns / schnorr_verify_ns);
+    printf("+----------------------------------------------+------------+\n");
 
     // =========================================================================
     // THROUGHPUT SUMMARY

@@ -24,6 +24,15 @@
 //   - 64-key pool to prevent caching artifacts
 //   - RDTSCP on x86, chrono fallback on ARM/RISC-V/ESP32
 //
+// CLI:
+//   bench_unified [OPTIONS]
+//     --json <file>    Write structured JSON report to <file>
+//     --suite <name>   Run specific suite: core, extended, all (default: all)
+//     --passes <N>     Override number of measurement passes (default: 11)
+//     --quick          CI smoke mode: 3 passes, reduced iterations
+//     --no-warmup      Skip CPU frequency ramp-up
+//     --help           Show usage
+//
 // Build:
 //   Part of CMake: target "bench_unified"
 //   Requires libsecp256k1 source at _research_repos/secp256k1/
@@ -63,6 +72,142 @@ extern "C" {
 #include <cstdint>
 #include <cstring>
 #include <chrono>
+
+// ---- JSON Result Collector --------------------------------------------------
+// Accumulates all benchmark results for optional JSON export.
+
+struct BenchEntry {
+    char section[64];
+    char name[64];
+    double ns;
+    double ratio;     // 0.0 if not a ratio entry
+    bool is_ratio;
+};
+
+static constexpr int MAX_ENTRIES = 256;
+
+struct BenchReport {
+    BenchEntry entries[MAX_ENTRIES];
+    int count;
+    char cpu_brand[49];
+    char compiler[64];
+    char arch[32];
+    char timer[48];
+    double tsc_ghz;
+    int passes;
+    int warmup;
+    int pool_size;
+
+    void add(const char* section, const char* name, double ns_val) {
+        if (count >= MAX_ENTRIES) return;
+        auto& e = entries[count++];
+        snprintf(e.section, sizeof(e.section), "%s", section);
+        snprintf(e.name, sizeof(e.name), "%s", name);
+        e.ns = ns_val;
+        e.ratio = 0.0;
+        e.is_ratio = false;
+    }
+
+    void add_ratio(const char* section, const char* name, double ratio_val) {
+        if (count >= MAX_ENTRIES) return;
+        auto& e = entries[count++];
+        snprintf(e.section, sizeof(e.section), "%s", section);
+        snprintf(e.name, sizeof(e.name), "%s", name);
+        e.ns = 0.0;
+        e.ratio = ratio_val;
+        e.is_ratio = true;
+    }
+
+    bool write_json(const char* path) const {
+        FILE* f = fopen(path, "w");
+        if (!f) return false;
+
+        fprintf(f, "{\n");
+        fprintf(f, "  \"metadata\": {\n");
+        fprintf(f, "    \"cpu\": \"%s\",\n", cpu_brand);
+        fprintf(f, "    \"compiler\": \"%s\",\n", compiler);
+        fprintf(f, "    \"arch\": \"%s\",\n", arch);
+        fprintf(f, "    \"timer\": \"%s\",\n", timer);
+        fprintf(f, "    \"tsc_ghz\": %.3f,\n", tsc_ghz);
+        fprintf(f, "    \"passes\": %d,\n", passes);
+        fprintf(f, "    \"warmup\": %d,\n", warmup);
+        fprintf(f, "    \"pool_size\": %d\n", pool_size);
+        fprintf(f, "  },\n");
+
+        fprintf(f, "  \"results\": [\n");
+        for (int i = 0; i < count; ++i) {
+            const auto& e = entries[i];
+            fprintf(f, "    {\"section\": \"%s\", \"name\": \"%s\"", e.section, e.name);
+            if (e.is_ratio) {
+                fprintf(f, ", \"ratio\": %.4f", e.ratio);
+            } else {
+                fprintf(f, ", \"ns\": %.2f", e.ns);
+            }
+            fprintf(f, "}%s\n", (i + 1 < count) ? "," : "");
+        }
+        fprintf(f, "  ]\n");
+        fprintf(f, "}\n");
+        fclose(f);
+        return true;
+    }
+};
+
+static BenchReport g_report{};
+
+// ---- CLI Options ------------------------------------------------------------
+
+struct CliOptions {
+    const char* json_path;  // NULL if no JSON output
+    int passes;             // 0 = use default
+    bool quick;             // reduced iterations for CI
+    bool no_warmup;         // skip CPU frequency ramp-up
+    bool help;
+
+    // Suite filter: 0=all, 1=core (field/scalar/point/ecdsa/schnorr/libsecp/ratio)
+    //               2=extended (+ ct, batch, micro-diagnostics)
+    int suite;
+};
+
+static CliOptions parse_cli(int argc, char** argv) {
+    CliOptions opts{};
+    opts.json_path = nullptr;
+    opts.passes = 0;
+    opts.quick = false;
+    opts.no_warmup = false;
+    opts.help = false;
+    opts.suite = 0;  // all
+
+    for (int i = 1; i < argc; ++i) {
+        if (strcmp(argv[i], "--json") == 0 && i + 1 < argc) {
+            opts.json_path = argv[++i];
+        } else if (strcmp(argv[i], "--passes") == 0 && i + 1 < argc) {
+            opts.passes = atoi(argv[++i]);
+            if (opts.passes < 3) opts.passes = 3;
+        } else if (strcmp(argv[i], "--quick") == 0) {
+            opts.quick = true;
+        } else if (strcmp(argv[i], "--no-warmup") == 0) {
+            opts.no_warmup = true;
+        } else if (strcmp(argv[i], "--suite") == 0 && i + 1 < argc) {
+            ++i;
+            if (strcmp(argv[i], "core") == 0) opts.suite = 1;
+            else if (strcmp(argv[i], "extended") == 0) opts.suite = 2;
+            else opts.suite = 0;  // all
+        } else if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
+            opts.help = true;
+        }
+    }
+    return opts;
+}
+
+static void print_usage() {
+    printf("Usage: bench_unified [OPTIONS]\n");
+    printf("  --json <file>    Write structured JSON report to <file>\n");
+    printf("  --suite <name>   core | extended | all (default: all)\n");
+    printf("  --passes <N>     Override measurement passes (default: 11, min: 3)\n");
+    printf("  --quick          CI smoke mode (3 passes, reduced iterations)\n");
+    printf("  --no-warmup      Skip CPU frequency ramp-up\n");
+    printf("  --help           Show this help\n");
+}
 
 // ---- CPU identification -----------------------------------------------------
 
@@ -246,18 +391,23 @@ static void print_sep() {
     printf("+----------------------------------------------+------------+\n");
 }
 
+static const char* g_current_section = "";
+
 static void print_header(const char* section) {
     print_sep();
     printf("| %-44s | %10s |\n", section, "ns/op");
     print_sep();
+    g_current_section = section;
 }
 
 static void print_row(const char* name, double ns) {
     printf("| %-44s | %10.1f |\n", name, ns);
+    g_report.add(g_current_section, name, ns);
 }
 
 static void print_ratio(const char* name, double ratio) {
     printf("| %-44s | %9.2fx |\n", name, ratio);
+    g_report.add_ratio(g_current_section, name, ratio);
 }
 
 // (libsecp256k1 is benchmarked inline in main() using the SAME Harness)
@@ -266,16 +416,75 @@ static void print_ratio(const char* name, double ratio) {
 // main
 // ===========================================================================
 
-int main() {
+int main(int argc, char** argv) {
+    // ---- CLI ----------------------------------------------------------------
+    auto opts = parse_cli(argc, argv);
+    if (opts.help) {
+        print_usage();
+        return 0;
+    }
+
     SECP256K1_INIT();
     bench::pin_thread_and_elevate();
 
+    // ---- Apply CLI overrides ------------------------------------------------
+    int effective_passes = 11;
+    int effective_warmup = 500;
+    double iter_scale = 1.0;
+
+    if (opts.quick) {
+        effective_passes = 3;
+        effective_warmup = 50;
+        iter_scale = 0.2;  // 1/5 iterations
+    }
+    if (opts.passes > 0) {
+        effective_passes = opts.passes;
+    }
+
+    H = bench::Harness(effective_warmup, static_cast<std::size_t>(effective_passes));
+
     // ---- CPU frequency ramp-up (critical for powersave governor) ----
-    cpu_frequency_warmup();
+    if (!opts.no_warmup) {
+        cpu_frequency_warmup();
+    } else {
+        printf("  CPU frequency warmup: SKIPPED (--no-warmup)\n");
+    }
 
     char cpu_brand[49] = {};
     get_cpu_brand(cpu_brand);
     g_tsc_ghz = calibrate_tsc_ghz();
+
+    // ---- Populate report metadata -------------------------------------------
+    std::memcpy(g_report.cpu_brand, cpu_brand, 49);
+    snprintf(g_report.compiler, sizeof(g_report.compiler), "%s",
+#if defined(__clang__)
+        "Clang " __clang_version__
+#elif defined(_MSC_VER)
+        "MSVC"
+#elif defined(__GNUC__)
+        "GCC " __VERSION__
+#else
+        "Unknown"
+#endif
+    );
+    snprintf(g_report.arch, sizeof(g_report.arch),
+#if defined(__x86_64__) || defined(_M_X64)
+        "x86-64"
+#elif defined(__aarch64__)
+        "ARM64"
+#elif defined(__riscv)
+        "RISC-V 64"
+#elif defined(__XTENSA__)
+        "Xtensa (ESP32)"
+#else
+        "Unknown"
+#endif
+    );
+    snprintf(g_report.timer, sizeof(g_report.timer), "%s", bench::Timer::timer_name());
+    g_report.tsc_ghz = g_tsc_ghz;
+    g_report.passes = effective_passes;
+    g_report.warmup = effective_warmup;
+    g_report.pool_size = 64;
 
     // Integrity check
     printf("Running integrity check... ");
@@ -319,7 +528,8 @@ int main() {
         "\n");
     printf("  Ultra:     UltrafastSecp256k1\n");
     printf("  libsecp:   bitcoin-core libsecp256k1 v0.7.x\n");
-    printf("  Harness:   3s CPU ramp-up, 500 warmup/op, 11 passes, IQR outlier removal, median\n");
+    printf("  Harness:   3s CPU ramp-up, %d warmup/op, %d passes, IQR outlier removal, median\n",
+           effective_warmup, effective_passes);
     printf("  Timer:     %s\n", bench::Timer::timer_name());
     printf("  Pool:      64 independent key/msg/sig sets\n");
     printf("  NOTE:      Both Ultra and libsecp use IDENTICAL harness\n");
@@ -362,12 +572,19 @@ int main() {
 
     int idx = 0;
 
-    constexpr int N_SIGN   = 500;
-    constexpr int N_VERIFY = 500;
-    constexpr int N_KEYGEN = 500;
-    constexpr int N_FIELD  = 50000;
-    constexpr int N_POINT  = 10000;
-    constexpr int N_SCALAR = 500;
+    constexpr int N_SIGN_BASE   = 500;
+    constexpr int N_VERIFY_BASE = 500;
+    constexpr int N_KEYGEN_BASE = 500;
+    constexpr int N_FIELD_BASE  = 50000;
+    constexpr int N_POINT_BASE  = 10000;
+    constexpr int N_SCALAR_BASE = 500;
+
+    const int N_SIGN   = static_cast<int>(N_SIGN_BASE   * iter_scale);
+    const int N_VERIFY = static_cast<int>(N_VERIFY_BASE * iter_scale);
+    const int N_KEYGEN = static_cast<int>(N_KEYGEN_BASE * iter_scale);
+    const int N_FIELD  = static_cast<int>(N_FIELD_BASE  * iter_scale);
+    const int N_POINT  = static_cast<int>(N_POINT_BASE  * iter_scale);
+    const int N_SCALAR = static_cast<int>(N_SCALAR_BASE * iter_scale);
 
     // =====================================================================
     //  SECTION 1: Field Arithmetic
@@ -1169,6 +1386,15 @@ int main() {
         "\n", cpu_brand);
     printf("  UltrafastSecp256k1 vs libsecp256k1 -- Unified Benchmark\n");
     printf("======================================================================\n\n");
+
+    // ---- JSON export --------------------------------------------------------
+    if (opts.json_path) {
+        if (g_report.write_json(opts.json_path)) {
+            printf("  JSON report written to: %s\n", opts.json_path);
+        } else {
+            printf("  [!] Failed to write JSON report to: %s\n", opts.json_path);
+        }
+    }
 
     return 0;
 }
