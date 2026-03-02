@@ -348,6 +348,10 @@ bool ecdsa_verify(const uint8_t* msg_hash32,
     // Check: R'.x/R'.z^2 mod n == sig.r
     // Equivalent: sig.r * R'.z^2 == R'.x (mod p)
     // This saves ~3us by avoiding the field inversion in Point::x().
+    //
+    // Comparison uses negate+add+normalizes_to_zero_var (matches libsecp's
+    // gej_eq_x_var approach).  This avoids 4 full fe52_normalize_inline
+    // calls that the previous normalize()+normalize()+operator== path did.
 #if defined(SECP256K1_FAST_52BIT)
 #if defined(__GNUC__)
 #pragma GCC diagnostic push
@@ -359,13 +363,18 @@ bool ecdsa_verify(const uint8_t* msg_hash32,
     // Since sig.r < n < p, the raw limbs are a valid field element -- no reduction needed.
     FE52 const r52 = FE52::from_4x64_limbs(sig.r.limbs().data());
     FE52 const z2 = R_prime.Z52().square();    // Z^2  [1S] mag=1
-    FE52 lhs = r52 * z2;                 // r*Z^2 [1M] mag=1
-    lhs.normalize();
+    FE52 const r_z2 = r52 * z2;               // r*Z^2 [1M] mag=1
 
-    FE52 rx = R_prime.X52();
-    rx.normalize();
-
-    if (lhs == rx) return true;
+    // Compare via subtract + normalizes_to_zero_var:
+    //   diff = r*Z^2 - X;  diff == 0 (mod p) iff sig.r matches
+    // R'.X magnitude: <= 23 after jac52_double, <= 7 after mixed add.
+    // negate(23) is a safe upper bound for all paths.
+    {
+        FE52 diff = R_prime.X52();                // mag <= 23
+        diff.negate_assign(23);                   // mag 24
+        diff.add_assign(r_z2);                    // mag 25
+        if (diff.normalizes_to_zero_var()) return true;
+    }
 
     // Rare case: x_R mod p in [n, p), so x_R mod n = x_R - n = sig.r
     // -> need to check (sig.r + n) * Z^2 == X.  Probability ~2^-128.
@@ -403,20 +412,13 @@ bool ecdsa_verify(const uint8_t* msg_hash32,
         rn[1] = static_cast<std::uint64_t>(acc);
         acc = static_cast<unsigned __int128>(rl[2]) + N_LIMBS[2] + static_cast<std::uint64_t>(acc >> 64);
         rn[2] = static_cast<std::uint64_t>(acc);
-        // rn[3] cannot overflow 64 bits: rl[3] < p-n limb3 == 0 (since
-        // r_less_than_pmn implies rl[3]==0), and N_LIMBS[3]==0xFFFF...FFFF,
-        // plus at most carry=1.  0 + 0xFFFF...FFFF + 1 == 2^64 wraps to 0
-        // with carry, but that carry propagates to a 5th limb we discard.
-        // The result sig.r + n < p is guaranteed by the r_less_than_pmn
-        // check, so the 256-bit value is valid (no 5th-limb overflow in
-        // the mathematical sum; the C wrap is benign since we only need
-        // the low 4 limbs of a value < p).
         rn[3] = rl[3] + N_LIMBS[3] + static_cast<std::uint64_t>(acc >> 64);
 
-        FE52 const r2_52 = FE52::from_4x64_limbs(rn);
-        FE52 lhs2 = r2_52 * z2;
-        lhs2.normalize();
-        if (lhs2 == rx) return true;
+        FE52 const r2_z2 = FE52::from_4x64_limbs(rn) * z2;   // (r+n)*Z^2
+        FE52 diff2 = R_prime.X52();
+        diff2.negate_assign(23);
+        diff2.add_assign(r2_z2);
+        if (diff2.normalizes_to_zero_var()) return true;
     }
 
     return false;

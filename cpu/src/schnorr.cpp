@@ -253,14 +253,20 @@ bool schnorr_verify(const uint8_t* pubkey_x32,
 #if defined(SECP256K1_FAST_52BIT)
     FE52 const z_inv = R.Z52().inverse_safegcd();
     FE52 const z_inv2 = z_inv.square();
-    FE52 x_aff = R.X52() * z_inv2;
+    FE52 x_aff = R.X52() * z_inv2;       // magnitude 1
     FE52 const z_inv3 = z_inv * z_inv2;
-    FE52 y_aff = R.Y52() * z_inv3;
-    x_aff.normalize();
+    FE52 y_aff = R.Y52() * z_inv3;       // magnitude 1
+
+    // X-check: negate + add + normalizes_to_zero_var (0 full normalizations).
+    // Replaces 3 explicit normalize() + 2 inside operator== = 5 normalizations.
+    FE52 r52 = FE52::from_fe(r_fe_check); // magnitude 1
+    x_aff.negate_assign(1);               // magnitude 2
+    x_aff.add_assign(r52);                // magnitude 3 (r52 - x_aff)
+    bool x_match = x_aff.normalizes_to_zero_var();
+
+    // Y-parity: must fully normalize to check lowest bit reliably.
     y_aff.normalize();
-    FE52 r52 = FE52::from_fe(r_fe_check);
-    r52.normalize();
-    return (x_aff == r52) & ((y_aff.n[0] & 1) == 0);
+    return x_match & ((y_aff.n[0] & 1) == 0);
 #else
     FieldElement z_inv = R.z_raw().inverse();
     FieldElement z_inv2 = z_inv;
@@ -344,15 +350,20 @@ bool schnorr_verify(const SchnorrXonlyPubkey& pubkey,
 #if defined(SECP256K1_FAST_52BIT)
     FE52 const z_inv = R.Z52().inverse_safegcd();
     FE52 const z_inv2 = z_inv.square();
-    FE52 x_aff = R.X52() * z_inv2;
+    FE52 x_aff = R.X52() * z_inv2;       // magnitude 1
     FE52 const z_inv3 = z_inv * z_inv2;
-    FE52 y_aff = R.Y52() * z_inv3;
-    x_aff.normalize();
+    FE52 y_aff = R.Y52() * z_inv3;       // magnitude 1
+
+    // X-check: negate + add + normalizes_to_zero_var (0 full normalizations).
+    // Replaces 3 explicit normalize() + 2 inside operator== = 5 normalizations.
+    FE52 r52 = FE52::from_fe(r_fe_check); // magnitude 1
+    x_aff.negate_assign(1);               // magnitude 2
+    x_aff.add_assign(r52);                // magnitude 3 (r52 - x_aff)
+    bool x_match = x_aff.normalizes_to_zero_var();
+
+    // Y-parity: must fully normalize to check lowest bit reliably.
     y_aff.normalize();
-    // Reuse already-parsed r_fe_check (avoids redundant FE52::from_bytes)
-    FE52 r52 = FE52::from_fe(r_fe_check);
-    r52.normalize();
-    return (x_aff == r52) & ((y_aff.n[0] & 1) == 0);
+    return x_match & ((y_aff.n[0] & 1) == 0);
 #else
     FieldElement z_inv = R.z_raw().inverse();
     FieldElement z_inv2 = z_inv;
