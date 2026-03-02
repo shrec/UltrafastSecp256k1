@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772405905853,
+  "lastUpdate": 1772456926422,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -24382,6 +24382,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "Batch Inverse (n=1000)",
             "value": 131,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "638fbeb2758190daab34a3878d60489e48975c89",
+          "message": "ci(deps): bump actions/upload-artifact from 6.0.0 to 7.0.0 (#81)\n\nBumps [actions/upload-artifact](https://github.com/actions/upload-artifact) from 6.0.0 to 7.0.0.\n- [Release notes](https://github.com/actions/upload-artifact/releases)\n- [Commits](https://github.com/actions/upload-artifact/compare/b7c566a772e6b6bfb58ed0dc250532a479d7789f...bbbca2ddaa5d8feaa63e36b76fdaad77386f024f)\n\n---\nupdated-dependencies:\n- dependency-name: actions/upload-artifact\n  dependency-version: 7.0.0\n  dependency-type: direct:production\n  update-type: version-update:semver-major\n...\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-03-02T17:07:01+04:00",
+          "tree_id": "dcd6bb8e7380ffdb5a6757665e307b7294042662",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/638fbeb2758190daab34a3878d60489e48975c89"
+        },
+        "date": 1772456924115,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "==============================================\nField Mul",
+            "value": 27,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Square",
+            "value": 22,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Add",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Negate",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "Field Inverse",
+            "value": 1000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  POINT OPERATIONS\n==============================================\nPoint Add",
+            "value": 280,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Double",
+            "value": 149,
+            "unit": "ns"
+          },
+          {
+            "name": "Point Scalar Mul",
+            "value": 36000,
+            "unit": "ns"
+          },
+          {
+            "name": "Generator Mul",
+            "value": 10000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Sign",
+            "value": 14000,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA Verify",
+            "value": 42000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Sign",
+            "value": 24000,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr Verify",
+            "value": 49000,
+            "unit": "ns"
+          },
+          {
+            "name": "==============================================\n  BATCH OPERATIONS\n==============================================\nBatch Inverse (n=100)",
+            "value": 139,
+            "unit": "ns"
+          },
+          {
+            "name": "Batch Inverse (n=1000)",
+            "value": 130,
             "unit": "ns"
           }
         ]
