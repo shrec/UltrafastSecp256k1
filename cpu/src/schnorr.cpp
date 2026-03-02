@@ -4,6 +4,8 @@
 #include "secp256k1/multiscalar.hpp"
 #include "secp256k1/config.hpp"    // SECP256K1_FAST_52BIT
 #include "secp256k1/field_52.hpp"
+#include "secp256k1/ct/point.hpp"
+#include "secp256k1/ct/scalar.hpp"
 #include <cstring>
 #include <string_view>
 
@@ -135,7 +137,7 @@ bool SchnorrSignature::parse_strict(const std::array<uint8_t, 64>& data,
 // -- X-only pubkey ------------------------------------------------------------
 
 std::array<uint8_t, 32> schnorr_pubkey(const Scalar& private_key) {
-    auto P = Point::generator().scalar_mul(private_key);
+    auto P = ct::generator_mul(private_key);
     auto [px, p_y_odd] = P.x_bytes_and_parity();
     (void)p_y_odd;
     return px;
@@ -148,10 +150,13 @@ SchnorrKeypair schnorr_keypair_create(const Scalar& private_key) {
     auto d_prime = private_key;
     if (d_prime.is_zero()) return kp;
 
-    auto P = Point::generator().scalar_mul(d_prime);
+    auto P = ct::generator_mul(d_prime);
     auto [px, p_y_odd] = P.x_bytes_and_parity();
 
-    kp.d = p_y_odd ? d_prime.negate() : d_prime;
+    // CT conditional negate: branchless based on Y-parity
+    std::uint64_t const neg_mask = static_cast<std::uint64_t>(p_y_odd)
+                                 * UINT64_C(0xFFFFFFFFFFFFFFFF);
+    kp.d = ct::scalar_cneg(d_prime, neg_mask);
     kp.px = px;
     return kp;
 }
