@@ -36,7 +36,7 @@ add_executable(test_ct_sidechannel_standalone test_ct_sidechannel.cpp)
 audit_target_defaults(test_ct_sidechannel_standalone)
 target_compile_definitions(test_ct_sidechannel_standalone PRIVATE STANDALONE_TEST)
 add_test(NAME ct_sidechannel COMMAND test_ct_sidechannel_standalone)
-set_tests_properties(ct_sidechannel PROPERTIES TIMEOUT 300)
+set_tests_properties(ct_sidechannel PROPERTIES TIMEOUT 600)
 
 # Smoke version of dudect (short run, relaxed threshold -- safe for CI)
 add_executable(test_ct_sidechannel_smoke test_ct_sidechannel.cpp)

@@ -5,7 +5,7 @@
 // Single benchmark binary that runs on ALL platforms (x86, ARM64, RISC-V,
 // ESP32) and produces identical output format everywhere.
 //
-// Measures UltrafastSecp256k1  vs  bitcoin-core libsecp256k1  side-by-side
+// Measures UltrafastSecp256k1  vs  bitcoin-core libsecp256k1  vs  OpenSSL
 // for every operation category:
 //
 //   1. Field arithmetic    (mul, sqr, inv, add, sub, negate)
@@ -15,7 +15,8 @@
 //   5. Schnorr / BIP-340   (keypair, sign FAST, verify)
 //   6. Constant-time       (CT sign ECDSA, CT sign Schnorr, overhead ratios)
 //   7. libsecp256k1        (same ops for direct comparison)
-//   8. Apple-to-Apple      (ratio table: Ultra / libsecp256k1)
+//   7.5 OpenSSL            (ECDSA on secp256k1, system library)
+//   8. Apple-to-Apple      (ratio table: Ultra / libsecp256k1 / OpenSSL)
 //
 // Methodology:
 //   - Thread pinned to core 0, priority elevated
@@ -72,6 +73,16 @@ extern "C" {
 #include <cstdint>
 #include <cstring>
 #include <chrono>
+
+// OpenSSL (optional, system library -- enabled by CMake find_package(OpenSSL))
+#ifdef BENCH_HAS_OPENSSL
+#include <openssl/ec.h>
+#include <openssl/ecdsa.h>
+#include <openssl/bn.h>
+#include <openssl/obj_mac.h>
+#include <openssl/opensslv.h>
+#include <openssl/crypto.h>
+#endif
 
 // ---- JSON Result Collector --------------------------------------------------
 // Accumulates all benchmark results for optional JSON export.
@@ -1279,6 +1290,127 @@ int main(int argc, char** argv) {
     printf("\n");
 
     // =====================================================================
+    //  SECTION 7.5: OpenSSL (system library) -- SAME harness, pool, timer
+    // =====================================================================
+    //
+    // OpenSSL provides ECDSA on secp256k1 but NOT BIP-340 Schnorr.
+    // Uses low-level EC API (ECDSA_do_sign/verify) for raw performance.
+    // Pre-allocates scratch (BN_CTX, EC_POINT, BIGNUM) to isolate crypto cost.
+    //
+
+    double ossl_gen = 0.0, ossl_ecdsa_sign = 0.0, ossl_ecdsa_verify = 0.0;
+
+#ifdef BENCH_HAS_OPENSSL
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
+
+    printf("Running OpenSSL benchmark (%s, same harness)...\n",
+           OPENSSL_VERSION_TEXT);
+
+    BN_CTX *ossl_bn_ctx = BN_CTX_new();
+    EC_KEY *ossl_keys[POOL];
+    ECDSA_SIG *ossl_esigs[POOL];
+    const EC_GROUP *ossl_group = NULL;
+
+    // Set up pool -- same 64 seeds as Ultra and libsecp
+    {
+        bool ossl_ok = true;
+        for (int i = 0; i < POOL; ++i) {
+            ossl_keys[i] = EC_KEY_new_by_curve_name(NID_secp256k1);
+            if (!ossl_keys[i]) {
+                printf("[FAIL] OpenSSL: EC_KEY_new_by_curve_name(NID_secp256k1) "
+                       "returned NULL -- secp256k1 not supported?\n");
+                ossl_ok = false;
+                break;
+            }
+            if (i == 0) ossl_group = EC_KEY_get0_group(ossl_keys[i]);
+
+            // Private key from same seed as libsecp pool
+            BIGNUM *priv = BN_new();
+            BN_bin2bn(ls_seckeys[i], 32, priv);
+            EC_KEY_set_private_key(ossl_keys[i], priv);
+
+            // Compute public key = priv * G
+            EC_POINT *pub = EC_POINT_new(ossl_group);
+            EC_POINT_mul(ossl_group, pub, priv, NULL, NULL, ossl_bn_ctx);
+            EC_KEY_set_public_key(ossl_keys[i], pub);
+            EC_POINT_free(pub);
+            BN_free(priv);
+
+            // Pre-sign for verify benchmark (same message bytes as libsecp)
+            ossl_esigs[i] = ECDSA_do_sign(ls_msgs[i], 32, ossl_keys[i]);
+            if (!ossl_esigs[i]) {
+                printf("[FAIL] OpenSSL: ECDSA_do_sign failed for pool[%d]\n", i);
+                ossl_ok = false;
+                break;
+            }
+        }
+
+        if (ossl_ok) {
+            // Generator * k  (pre-allocate scratch to isolate crypto cost)
+            EC_POINT *ossl_R = EC_POINT_new(ossl_group);
+            BIGNUM *ossl_bn_k = BN_new();
+
+            idx = 0;
+            ossl_gen = bench_ns([&]() {
+                BN_bin2bn(ls_seckeys[idx % POOL], 32, ossl_bn_k);
+                EC_POINT_mul(ossl_group, ossl_R, ossl_bn_k,
+                             NULL, NULL, ossl_bn_ctx);
+                bench::DoNotOptimize(ossl_R);
+                ++idx;
+            }, N_KEYGEN);
+
+            EC_POINT_free(ossl_R);
+            BN_free(ossl_bn_k);
+
+            // ECDSA Sign
+            idx = 0;
+            ossl_ecdsa_sign = bench_ns([&]() {
+                ECDSA_SIG *sig = ECDSA_do_sign(ls_msgs[idx % POOL], 32,
+                                               ossl_keys[idx % POOL]);
+                bench::DoNotOptimize(sig);
+                ECDSA_SIG_free(sig);
+                ++idx;
+            }, N_SIGN);
+
+            // ECDSA Verify
+            idx = 0;
+            ossl_ecdsa_verify = bench_ns([&]() {
+                volatile int ok = ECDSA_do_verify(
+                    ls_msgs[idx % POOL], 32,
+                    ossl_esigs[idx % POOL],
+                    ossl_keys[idx % POOL]);
+                (void)ok;
+                ++idx;
+            }, N_VERIFY);
+
+            print_header("OpenSSL (ECDSA, secp256k1)");
+            print_row("generator_mul (EC_POINT_mul k*G)", ossl_gen);
+            print_row("ecdsa_sign (ECDSA_do_sign)",       ossl_ecdsa_sign);
+            print_row("ecdsa_verify (ECDSA_do_verify)",   ossl_ecdsa_verify);
+            print_sep();
+            printf("  (OpenSSL has no BIP-340 Schnorr -- ECDSA-only comparison)\n");
+            printf("\n");
+        }
+
+        // Cleanup
+        for (int i = 0; i < POOL; ++i) {
+            if (ossl_esigs[i]) ECDSA_SIG_free(ossl_esigs[i]);
+            if (ossl_keys[i])  EC_KEY_free(ossl_keys[i]);
+        }
+        BN_CTX_free(ossl_bn_ctx);
+    }
+
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
+#else
+    printf("OpenSSL: not linked (rebuild with -DBENCH_HAS_OPENSSL or install libssl-dev)\n\n");
+#endif // BENCH_HAS_OPENSSL
+
+    // =====================================================================
     //  SECTION 8: Apple-to-Apple Ratio Table
     // =====================================================================
 
@@ -1311,6 +1443,31 @@ int main(int argc, char** argv) {
     print_ratio("Schnorr Verify",           ls_schnorr_verify / u_schnorr_verify);
     print_sep();
     printf("\n");
+
+    // --- OpenSSL ratios (only if measured) ---
+#ifdef BENCH_HAS_OPENSSL
+    if (ossl_gen > 0.0) {
+        printf("======================================================================\n");
+        printf("  APPLE-TO-APPLE: UltrafastSecp256k1 / OpenSSL\n");
+        printf("  (ratio > 1.0 = Ultra wins, < 1.0 = OpenSSL wins)\n");
+        printf("======================================================================\n\n");
+
+        print_header("FAST path (Ultra FAST vs OpenSSL)");
+        print_ratio("Generator * k",   ossl_gen          / keygen);
+        print_ratio("ECDSA Sign",      ossl_ecdsa_sign   / u_ecdsa_sign);
+        print_ratio("ECDSA Verify",    ossl_ecdsa_verify / u_ecdsa_verify);
+        print_sep();
+        printf("\n");
+
+        // OpenSSL ECDSA sign is constant-time (modern versions) --
+        // compare with Ultra CT sign for fair assessment.
+        print_header("CT path (Ultra CT vs OpenSSL)");
+        print_ratio("ECDSA Sign (CT vs CT)",    ossl_ecdsa_sign   / u_ct_ecdsa);
+        print_ratio("ECDSA Verify",             ossl_ecdsa_verify / u_ecdsa_verify);
+        print_sep();
+        printf("\n");
+    }
+#endif
 
     // =====================================================================
     //  SECTION 9: Summary
@@ -1349,6 +1506,15 @@ int main(int argc, char** argv) {
     tput("Schnorr verify",            ls_schnorr_verify);
     tput("generator_mul",             ls_gen);
     printf("\n");
+#ifdef BENCH_HAS_OPENSSL
+    if (ossl_gen > 0.0) {
+        printf("  --- OpenSSL ---\n");
+        tput("ECDSA sign",                ossl_ecdsa_sign);
+        tput("ECDSA verify",              ossl_ecdsa_verify);
+        tput("generator_mul (k*G)",       ossl_gen);
+        printf("\n");
+    }
+#endif
 
     // ---- Block validation estimates -----------------------------------------
 
@@ -1384,7 +1550,11 @@ int main(int argc, char** argv) {
         "Unknown"
 #endif
         "\n", cpu_brand);
-    printf("  UltrafastSecp256k1 vs libsecp256k1 -- Unified Benchmark\n");
+    printf("  UltrafastSecp256k1 vs libsecp256k1"
+#ifdef BENCH_HAS_OPENSSL
+           " vs OpenSSL"
+#endif
+           " -- Unified Benchmark\n");
     printf("======================================================================\n\n");
 
     // ---- JSON export --------------------------------------------------------

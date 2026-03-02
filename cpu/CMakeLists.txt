@@ -669,6 +669,16 @@ if(BUILD_TESTING)
             ${LIBSECP_SRC_DIR}
         )
         target_link_libraries(bench_unified PRIVATE ${SECP256K1_LIB_NAME})
+
+        # Optional: OpenSSL integration for multi-library comparison
+        find_package(OpenSSL QUIET)
+        if(OpenSSL_FOUND)
+            target_compile_definitions(bench_unified PRIVATE BENCH_HAS_OPENSSL)
+            target_link_libraries(bench_unified PRIVATE OpenSSL::Crypto)
+            message(STATUS "bench_unified: OpenSSL ${OPENSSL_VERSION} enabled for comparison")
+        else()
+            message(STATUS "bench_unified: OpenSSL not found -- OpenSSL comparison disabled")
+        endif()
     else()
         message(STATUS "bench_unified: skipped (libsecp256k1 source not found at ${LIBSECP_SRC_DIR})")
     endif()
