@@ -17,12 +17,14 @@
 #define ENABLE_MODULE_MUSIG 0
 #define ENABLE_MODULE_ELLSWIFT 0
 
-/* Include the entire libsecp256k1 as a single compilation unit */
-#include "../../../../_research_repos/secp256k1/src/secp256k1.c"
+/* Include the entire libsecp256k1 as a single compilation unit.
+ * Path resolved via CMake target_include_directories (LIBSECP_SRC_DIR).
+ * CI passes -DLIBSECP_SRC_DIR=<cloned>/src; local dev uses _research_repos default. */
+#include "secp256k1.c"
 
 /* ---- Thin wrappers exposing internal field ops for benchmarking ---- */
 
-#include "../../../../_research_repos/secp256k1/src/field.h"
+#include "field.h"
 
 void libsecp_fe_inv_var(unsigned char out32[32], const unsigned char in32[32]) {
     secp256k1_fe a, r;
