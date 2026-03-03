@@ -1882,6 +1882,16 @@ Point Point::next() const {
     result.is_generator_ = false;
     return result;
   #endif
+#else
+    // Fallback: 4x64 path (non-52-bit platforms / MSVC)
+    JacobianPoint p{x_, y_, z_, infinity_};
+    AffinePoint const g{kGeneratorX, kGeneratorY};
+    JacobianPoint const r = jacobian_add_mixed(p, g);
+    Point result;
+    result.x_ = r.x; result.y_ = r.y; result.z_ = r.z;
+    result.infinity_ = r.infinity;
+    result.is_generator_ = false;
+    return result;
 #endif
 }
 
@@ -1907,6 +1917,16 @@ Point Point::prev() const {
     result.is_generator_ = false;
     return result;
   #endif
+#else
+    // Fallback: 4x64 path (non-52-bit platforms / MSVC)
+    JacobianPoint p{x_, y_, z_, infinity_};
+    AffinePoint const ng{kGeneratorX, kNegGeneratorY};
+    JacobianPoint const r = jacobian_add_mixed(p, ng);
+    Point result;
+    result.x_ = r.x; result.y_ = r.y; result.z_ = r.z;
+    result.infinity_ = r.infinity;
+    result.is_generator_ = false;
+    return result;
 #endif
 }
 
@@ -2019,6 +2039,14 @@ void Point::add_inplace(const Point& other) {
     infinity_ = p52.infinity;
     is_generator_ = false;
   #endif
+#else
+    // Fallback: 4x64 path (non-52-bit platforms)
+    JacobianPoint p{x_, y_, z_, infinity_};
+    JacobianPoint const q{other.x_, other.y_, other.z_, other.infinity_};
+    jacobian_add_inplace(p, q);
+    x_ = p.x; y_ = p.y; z_ = p.z;
+    infinity_ = p.infinity;
+    is_generator_ = false;
 #endif
 }
 
@@ -2044,6 +2072,15 @@ void Point::sub_inplace(const Point& other) {
     infinity_ = p52.infinity;
     is_generator_ = false;
   #endif
+#else
+    // Fallback: 4x64 path (non-52-bit platforms)
+    JacobianPoint p{x_, y_, z_, infinity_};
+    JacobianPoint q{other.x_, other.y_, other.z_, other.infinity_};
+    q.y = FieldElement::zero() - q.y;
+    jacobian_add_inplace(p, q);
+    x_ = p.x; y_ = p.y; z_ = p.z;
+    infinity_ = p.infinity;
+    is_generator_ = false;
 #endif
 }
 

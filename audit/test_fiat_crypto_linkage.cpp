@@ -34,6 +34,24 @@
 #include <array>
 #include <random>
 
+// MSVC does not support __int128 which is required by the fiat-crypto
+// reference implementation. Skip entire test on MSVC.
+#if defined(_MSC_VER)
+
+int test_fiat_crypto_linkage_run() {
+    (void)printf("  [fiat_crypto_linkage] SKIPPED -- __int128 not available on MSVC\n");
+    return 0;
+}
+
+#if defined(STANDALONE_TEST)
+int main() {
+    (void)printf("  [fiat_crypto_linkage] SKIPPED -- __int128 not available on MSVC\n");
+    return 0;
+}
+#endif
+
+#else // !_MSC_VER
+
 #include "secp256k1/field.hpp"
 
 using namespace secp256k1::fast;
@@ -650,3 +668,5 @@ int main() {
     return rc;
 }
 #endif // STANDALONE_TEST
+
+#endif // !_MSC_VER
