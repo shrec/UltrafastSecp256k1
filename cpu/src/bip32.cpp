@@ -228,12 +228,20 @@ fast::Point ExtendedKey::public_key() const {
     }
     // Public key: decompress from pub_prefix + key (x-coordinate)
     // y^2 = x^3 + 7, then pick y matching parity
-    auto x = fast::FieldElement::from_bytes(key);
+    // Strict: reject x >= p
+    fast::FieldElement x;
+    if (!fast::FieldElement::parse_bytes_strict(key, x)) {
+        return Point::infinity();
+    }
     auto x2 = x * x;
     auto x3 = x2 * x;
     auto seven = fast::FieldElement::from_uint64(7);
     auto y2 = x3 + seven;
     auto y = y2.sqrt();
+    // Verify sqrt: y^2 must equal y2 (reject if x not on curve)
+    if (y * y != y2) {
+        return Point::infinity();
+    }
     // Check parity: prefix 0x02 = even y, 0x03 = odd y
     auto y_bytes = y.to_bytes();
     bool const y_is_odd = (y_bytes[31] & 1) != 0;

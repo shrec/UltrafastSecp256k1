@@ -136,9 +136,15 @@ struct alignas(8) FieldElement52 {
     // happen to be 0 or p fall through to the full limb comparison.
     bool normalizes_to_zero_var() const noexcept;
 
+    // -- Multiply by small integer (no carry propagation) ---------------
+    // Multiplies each limb by a (must be <= 32).
+    // Output magnitude = input_magnitude * a.
+    void mul_int_assign(std::uint32_t a) noexcept;
+
     // -- Half ---------------------------------------------------------
     // Computes a/2 mod p. Branchless.
     FieldElement52 half() const noexcept;
+    void half_assign() noexcept;
 
     // -- Inverse (Fermat) ---------------------------------------------
     // a^(p-2) mod p. 255 squarings + 14 multiplications in native FE52.

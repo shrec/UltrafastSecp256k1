@@ -12,6 +12,14 @@
 #include <cstring>
 #include <algorithm>
 
+// -- Secure buffer erasure (not optimized away by the compiler) ---------------
+namespace {
+inline void secure_erase(void* ptr, std::size_t len) noexcept {
+    void *(*volatile const volatile_memset)(void *, int, std::size_t) = std::memset;
+    volatile_memset(ptr, 0, len);
+}
+} // anonymous namespace
+
 namespace secp256k1 {
 
 using fast::Scalar;
@@ -28,9 +36,11 @@ Point decompress_point(const std::array<uint8_t, 33>& compressed) {
         return Point::infinity();
     }
 
-    std::array<uint8_t, 32> x_bytes;
-    std::memcpy(x_bytes.data(), compressed.data() + 1, 32);
-    auto x = FieldElement::from_bytes(x_bytes);
+    // Strict: reject x >= p
+    FieldElement x;
+    if (!FieldElement::parse_bytes_strict(compressed.data() + 1, x)) {
+        return Point::infinity();
+    }
 
     // y^2 = x^3 + 7
     auto x3 = x.square() * x;
@@ -109,8 +119,9 @@ MuSig2KeyAggCtx musig2_key_agg(const std::vector<std::array<uint8_t, 32>>& pubke
     // First, lift all x-only pubkeys to points
     Point Q = Point::infinity();
     for (std::size_t i = 0; i < n; ++i) {
-        // Lift x-only to point (even Y)
-        auto px = FieldElement::from_bytes(pubkeys[i]);
+        // Lift x-only to point (even Y) -- strict: reject x >= p
+        FieldElement px;
+        if (!FieldElement::parse_bytes_strict(pubkeys[i], px)) continue;
         auto x3 = px.square() * px;
         auto y2 = x3 + FieldElement::from_uint64(7);
 
@@ -185,9 +196,14 @@ std::pair<MuSig2SecNonce, MuSig2PubNonce> musig2_nonce_gen(
         sec.k2 = Scalar::from_bytes(k2_hash);
     }
 
-    // R1 = k1 * G, R2 = k2 * G
-    auto R1 = Point::generator().scalar_mul(sec.k1);
-    auto R2 = Point::generator().scalar_mul(sec.k2);
+    // Zeroize secret key material now that nonces are derived
+    secure_erase(sk_bytes.data(), sk_bytes.size());
+    secure_erase(aux_hash.data(), aux_hash.size());
+    secure_erase(t, sizeof(t));
+
+    // R1 = k1 * G, R2 = k2 * G (CT: nonces are secret, must use constant-time path)
+    auto R1 = ct::generator_mul(sec.k1);
+    auto R2 = ct::generator_mul(sec.k2);
     pub.R1 = R1.to_compressed();
     pub.R2 = R2.to_compressed();
 

@@ -52,11 +52,22 @@ SchnorrKeypair schnorr_keypair_create(const fast::Scalar& private_key);
 // -- BIP-340 Operations -------------------------------------------------------
 
 // Sign using pre-computed keypair (fast: only 1 gen_mul per sign).
+//
+// aux_rand: MUST be 32 bytes of fresh cryptographic randomness (e.g. from
+//   OS CSPRNG). Per BIP-340: aux_rand provides synthetic nonce hedging --
+//   the signing nonce k is derived as H(d XOR H(aux_rand) || P || m).
+//   All-zeros aux_rand makes the nonce fully deterministic (no entropy
+//   hedging), which is safe against nonce reuse but not against fault
+//   injection or HMAC-state compromise.
+//   WARNING: Never reuse aux_rand across different messages with the same
+//   key -- while BIP-340 nonces remain safe, unique randomness per sign
+//   maximizes defense-in-depth.
 SchnorrSignature schnorr_sign(const SchnorrKeypair& kp,
                               const std::array<std::uint8_t, 32>& msg,
                               const std::array<std::uint8_t, 32>& aux_rand);
 
 // Sign from raw private key (convenience: creates keypair internally).
+// See above for aux_rand entropy requirements.
 SchnorrSignature schnorr_sign(const fast::Scalar& private_key,
                               const std::array<std::uint8_t, 32>& msg,
                               const std::array<std::uint8_t, 32>& aux_rand);

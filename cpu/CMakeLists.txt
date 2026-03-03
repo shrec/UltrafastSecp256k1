@@ -71,6 +71,13 @@ set(SECP256K1_PGO_PROFILE_DIR "${CMAKE_BINARY_DIR}/pgo_profiles" CACHE PATH "Dir
 # x64 5x52 hand-tuned ASM for field mul/sqr (extern, non-inline, MULX-scheduled)
 option(SECP256K1_USE_ASM52_X64 "Use hand-tuned 5x52 MULX assembly for field mul/sqr (x64)" OFF)
 
+# Force 4x64 FieldElement for point arithmetic (FE52 storage kept, but ops route through 4x64 ADCX/ADOX)
+option(SECP256K1_USE_4X64_POINT_OPS "Force point ops through 4x64 FieldElement arithmetic (benchmark mode)" OFF)
+if(SECP256K1_USE_4X64_POINT_OPS)
+    add_compile_definitions(SECP256K1_USE_4X64_POINT_OPS=1)
+    message(STATUS "Secp256k1: Point ops forced to 4x64 FieldElement path (dual representation benchmark mode)")
+endif()
+
 if(SECP256K1_USE_ASM)
     if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|X64" AND CMAKE_SIZEOF_VOID_P EQUAL 8)
         # x64 Assembly (Windows/Linux/macOS)
@@ -295,14 +302,14 @@ if(NOT TARGET ${SECP256K1_LIB_NAME})
                 target_compile_options(${SECP256K1_LIB_NAME} PRIVATE
                     -fprofile-generate=${SECP256K1_PGO_PROFILE_DIR}
                 )
-                target_link_options(${SECP256K1_LIB_NAME} PRIVATE
+                target_link_options(${SECP256K1_LIB_NAME} INTERFACE
                     -fprofile-generate=${SECP256K1_PGO_PROFILE_DIR}
                 )
             else()  # GCC
                 target_compile_options(${SECP256K1_LIB_NAME} PRIVATE
                     -fprofile-generate -fprofile-dir=${SECP256K1_PGO_PROFILE_DIR}
                 )
-                target_link_options(${SECP256K1_LIB_NAME} PRIVATE
+                target_link_options(${SECP256K1_LIB_NAME} INTERFACE
                     -fprofile-generate
                 )
             endif()

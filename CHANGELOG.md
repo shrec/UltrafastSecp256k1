@@ -5,6 +5,43 @@ All notable changes to UltrafastSecp256k1 are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.0] - 2026-03-04
+
+> No breaking changes -- drop-in upgrade from v3.16.x | ABI compatible
+> Focus: Track I Crypto Auditor Gaps -- industrial-grade hardening campaign (16/16 items DONE)
+
+### 1. Secret Zeroization (I1)
+- **[I1-1] ECDSA fast-path scalar zeroization** -- `ecdsa_sign()` rewritten with single-cleanup-path structure; `k`, `k_inv`, `z` guaranteed `secure_erase()` on all code paths
+- **[I1-2] RFC 6979 HMAC state zeroization** -- `rfc6979_nonce()`: V, K, x_bytes, buf97 all zeroed before every return via `secure_erase()`
+- **[I1-3] MuSig2 secret zeroization** -- `sk_bytes`, `aux_hash`, `t` zeroed after XOR block in `musig2_nonce_gen()`
+
+### 2. Fault Attack Countermeasures (I2)
+- **[I2-1] ECDSA sign-then-verify** -- `ecdsa_sign()` verifies signature before returning; failure zeroes result. Both fast and CT paths hardened
+- **[I2-2] Schnorr sign-then-verify** -- `ct::schnorr_sign()` verifies via `schnorr_verify()` before returning; failure returns empty signature
+
+### 3. Test Vector Coverage (I3)
+- **[I3-1] Google Wycheproof ECDSA** -- `audit/test_wycheproof_ecdsa.cpp`: 89 test cases covering 10 categories (valid, invalid r/s, modified, boundary, wrong key/msg, infinity, high-S, known vectors, Schnorr invalid, degenerate). 89/89 passed
+- **[I3-2] Google Wycheproof ECDH** -- `audit/test_wycheproof_ecdh.cpp`: 36 test cases covering 7 categories (valid ECDH, infinity, off-curve, zero key, commutativity, point validation, variant consistency). 36/36 passed
+
+### 4. API Misuse Resistance (I4)
+- **[I4-1] MuSig2 nonce CT migration** -- `fast::Point::generator().scalar_mul()` replaced with `ct::generator_mul()` in MuSig2 nonce generation
+- **[I4-2] Point on-curve validation** -- audited 18 deserialization paths; fixed 4 CRITICAL + 1 HIGH + 3 LOW missing validations
+- **[I4-3] PrivateKey strong type** -- new `cpu/include/secp256k1/private_key.hpp`: PrivateKey wrapping `fast::Scalar`, no implicit conversion, `secure_erase` in destructor, `[[nodiscard]]` accessors. CT overloads for `ecdsa_sign`, `schnorr_pubkey`, `schnorr_keypair_create`
+- **[I4-4] aux_rand entropy contract** -- comprehensive BIP-340 aux_rand documentation on `schnorr_sign()` (both overloads) and CT variant: CSPRNG requirement, XOR nonce hedging, all-zeros safety, reuse warnings
+
+### 5. Formal Verification (I5)
+- **[I5-1] Formal CT verification (Valgrind ctgrind)** -- `audit/test_ct_verif_formal.cpp`: marks secrets as undefined via SECP256K1_CLASSIFY(), runs CT operations (ECDSA sign, Schnorr sign, field/scalar/point ops), then declassifies. Any secret-dependent branch triggers Valgrind error. Same technique as libsecp256k1 `valgrind_ctime_test.c` and BoringSSL `constant_time_test`
+- **[I5-2] Fiat-Crypto direct linkage** -- `audit/test_fiat_crypto_linkage.cpp`: Fiat-Crypto secp256k1_64 reference implementation (MIT License, Coq-extracted) embedded directly; 6085 cross-checks at function level (mul, sqr, add, sub, neg) with 100% output parity
+
+### 6. Protocol-Level Hardening (I6)
+- **[I6-1] Hedged ECDSA** -- `ecdsa_sign_hedged()` + `rfc6979_nonce_hedged()` implementing RFC 6979 Section 3.6 with 32-byte aux_rand mixed into HMAC-DRBG. Both fast and CT variants. Sign-then-verify + secure_erase included
+- **[I6-2] FROST BIP-387 compliance** -- `docs/FROST_COMPLIANCE.md`: RFC 9591/BIP-FROST checkpoint matrix covering DKG, nonce generation, signing, verification, aggregation. 5 deviation notes, 4 recommendations
+- **[I6-3] Batch verify randomness audit** -- `audit/test_batch_randomness.cpp`: 1022 checks confirming hash-derived (SHA256) deterministic weights -- not PRNG-dependent. Bellare-Garay immune
+
+### 7. Test Suite Growth
+- Test count: 29 -> 31 (added ct_verif_formal, fiat_crypto_linkage)
+- All 31 tests pass (31/31)
+
 ## [3.16.1] - 2026-03-02
 
 > No breaking changes -- drop-in upgrade from v3.16.0 | ABI compatible

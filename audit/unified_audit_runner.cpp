@@ -118,6 +118,19 @@ int test_fuzz_parsers_run();
 int test_fuzz_address_bip32_ffi_run();
 
 // ============================================================================
+// Forward declarations -- Wycheproof & batch-randomness (Track I3, I6-3)
+// ============================================================================
+int test_wycheproof_ecdsa_run();
+int test_wycheproof_ecdh_run();
+int test_batch_randomness_run();
+
+// ============================================================================
+// Forward declarations -- CT formal verification & Fiat-Crypto linkage (I5)
+// ============================================================================
+int test_ct_verif_formal_run();
+int test_fiat_crypto_linkage_run();
+
+// ============================================================================
 // Forward declarations -- deep audit modules
 // ============================================================================
 int audit_field_run();       // Section I.1: Field Fp correctness
@@ -216,6 +229,7 @@ static const AuditModule ALL_MODULES[] = {
     { "ct",                "Constant-time layer",                          "ct_analysis",    test_ct_run, false },
     { "ct_equivalence",    "FAST == CT equivalence",                       "ct_analysis",    test_ct_equivalence_run, false },
     { "ct_sidechannel",    "Side-channel dudect (smoke)",                  "ct_analysis",    test_ct_sidechannel_smoke_run, true },
+    { "ct_verif_formal",   "Formal CT verification (ctgrind/MSAN)",       "ct_analysis",    test_ct_verif_formal_run, false },
     { "diag_scalar_mul",   "CT scalar_mul vs fast (diagnostic)",           "ct_analysis",    diag_scalar_mul_run, false },
 
     // ===================================================================
@@ -223,6 +237,7 @@ static const AuditModule ALL_MODULES[] = {
     // ===================================================================
     { "differential",      "Differential correctness",                     "differential",   test_differential_run, false },
     { "fiat_crypto",       "Fiat-Crypto reference vectors",               "differential",   test_fiat_crypto_vectors_run, false },
+    { "fiat_crypto_link",  "Fiat-Crypto direct linkage (100%% parity)",   "differential",   test_fiat_crypto_linkage_run, false },
     { "cross_platform_kat","Cross-platform KAT",                          "differential",   test_cross_platform_kat_run, false },
 
     // ===================================================================
@@ -234,6 +249,8 @@ static const AuditModule ALL_MODULES[] = {
     { "rfc6979_vectors",   "RFC 6979 ECDSA vectors",                      "standard_vectors", test_rfc6979_vectors_run, false },
     { "frost_kat",         "FROST reference KAT vectors",                 "standard_vectors", test_frost_kat_run, false },
     { "musig2_bip327",     "MuSig2 BIP-327 reference vectors",            "standard_vectors", test_musig2_bip327_vectors_run, false },
+    { "wycheproof_ecdsa",  "Wycheproof ECDSA secp256k1 vectors",          "standard_vectors", test_wycheproof_ecdsa_run, false },
+    { "wycheproof_ecdh",   "Wycheproof ECDH secp256k1 vectors",           "standard_vectors", test_wycheproof_ecdh_run, false },
 
     // ===================================================================
     // Section 5: Fuzzing & Adversarial Attack Resilience
@@ -255,6 +272,7 @@ static const AuditModule ALL_MODULES[] = {
     { "musig2_frost",      "MuSig2 + FROST protocol suite",              "protocol_security", test_musig2_frost_protocol_run, false },
     { "musig2_frost_adv",  "MuSig2 + FROST advanced/adversar",           "protocol_security", test_musig2_frost_advanced_run, false },
     { "audit_integration", "Integration (ECDH/batch/cross-proto)",        "protocol_security", audit_integration_run, false },
+    { "batch_randomness",  "Batch verify weight randomness audit",        "protocol_security", test_batch_randomness_run, false },
 
     // ===================================================================
     // Section 7: ABI & Memory Safety (zeroization, hardening)

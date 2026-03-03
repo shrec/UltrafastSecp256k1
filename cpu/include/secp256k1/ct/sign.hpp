@@ -23,6 +23,7 @@
 #include <cstdint>
 #include "secp256k1/ecdsa.hpp"
 #include "secp256k1/schnorr.hpp"
+#include "secp256k1/private_key.hpp"
 #include "secp256k1/ct/point.hpp"
 
 namespace secp256k1::ct {
@@ -33,16 +34,51 @@ namespace secp256k1::ct {
 ECDSASignature ecdsa_sign(const std::array<std::uint8_t, 32>& msg_hash,
                           const fast::Scalar& private_key);
 
+// -- CT ECDSA Sign (hedged, with extra entropy) --------------------------------
+// RFC 6979 Section 3.6: aux_rand mixed into HMAC-DRBG. CT generator_mul for R.
+ECDSASignature ecdsa_sign_hedged(const std::array<std::uint8_t, 32>& msg_hash,
+                                  const fast::Scalar& private_key,
+                                  const std::array<std::uint8_t, 32>& aux_rand);
+
+// -- CT ECDSA Sign (PrivateKey overload) --------------------------------------
+// Preferred overload: accepts strong-typed PrivateKey for compile-time safety.
+inline ECDSASignature ecdsa_sign(const std::array<std::uint8_t, 32>& msg_hash,
+                                  const PrivateKey& private_key) {
+    return ecdsa_sign(msg_hash, private_key.scalar());
+}
+
+// -- CT ECDSA Sign Hedged (PrivateKey overload) --------------------------------
+inline ECDSASignature ecdsa_sign_hedged(const std::array<std::uint8_t, 32>& msg_hash,
+                                         const PrivateKey& private_key,
+                                         const std::array<std::uint8_t, 32>& aux_rand) {
+    return ecdsa_sign_hedged(msg_hash, private_key.scalar(), aux_rand);
+}
+
 // -- CT Schnorr Pubkey --------------------------------------------------------
 // X-only public key derivation using ct::generator_mul().
 std::array<std::uint8_t, 32> schnorr_pubkey(const fast::Scalar& private_key);
+
+// PrivateKey overload.
+inline std::array<std::uint8_t, 32> schnorr_pubkey(const PrivateKey& pk) {
+    return schnorr_pubkey(pk.scalar());
+}
 
 // -- CT Schnorr Keypair Create ------------------------------------------------
 // Creates a BIP-340 keypair using ct::generator_mul().
 SchnorrKeypair schnorr_keypair_create(const fast::Scalar& private_key);
 
+// PrivateKey overload.
+inline SchnorrKeypair schnorr_keypair_create(const PrivateKey& pk) {
+    return schnorr_keypair_create(pk.scalar());
+}
+
 // -- CT Schnorr Sign (keypair variant) ----------------------------------------
 // BIP-340 signing using ct::generator_mul() for the nonce point R = k'*G.
+//
+// aux_rand: MUST be 32 bytes of fresh cryptographic randomness (e.g. from
+//   OS CSPRNG). Provides synthetic nonce hedging per BIP-340. All-zeros is
+//   safe against nonce reuse but not against fault injection.
+//   See secp256k1/schnorr.hpp for full entropy contract.
 SchnorrSignature schnorr_sign(const SchnorrKeypair& kp,
                               const std::array<std::uint8_t, 32>& msg,
                               const std::array<std::uint8_t, 32>& aux_rand);

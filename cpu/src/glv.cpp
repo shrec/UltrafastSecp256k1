@@ -219,6 +219,210 @@ static constexpr std::array<std::uint8_t, 32> kGlvLambdaBytes{{
 }};
 
 // ============================================================================
+//  Fast GLV decomposition helpers (exploit known limb sizes)
+// ============================================================================
+
+#if defined(__SIZEOF_INT128__)
+
+// Group order n (little-endian 64-bit limbs)
+static constexpr std::uint64_t kN[4] = {
+    0xBFD25E8CD0364141ULL, 0xBAAEDCE6AF48A03BULL,
+    0xFFFFFFFFFFFFFFFEULL, 0xFFFFFFFFFFFFFFFFULL
+};
+
+// NC = 2^256 - n (129 bits, 3 limbs). Used for fast modular reduction.
+static constexpr std::uint64_t kNC[3] = {
+    0x402DA1732FC9BEBFULL, 0x4551231950B75FC4ULL, 0x0000000000000001ULL
+};
+
+// minus_b1 as raw limbs (128-bit: only 2 limbs non-zero)
+static constexpr std::uint64_t kMB1[2] = {
+    0x6F547FA90ABFE4C3ULL, 0xE4437ED6010E8828ULL
+};
+
+// minus_b2 as raw limbs (256-bit)
+static constexpr std::uint64_t kMB2[4] = {
+    0xD765CDA83DB1562CULL, 0x8A280AC50774346DULL,
+    0xFFFFFFFFFFFFFFFEULL, 0xFFFFFFFFFFFFFFFFULL
+};
+
+// lambda as raw limbs (256-bit)
+static constexpr std::uint64_t kLambdaLimbs[4] = {
+    0xDF02967C1B23BD72ULL, 0x122E22EA20816678ULL,
+    0xA5261C028812645AULL, 0x5363AD4CC05C30E0ULL
+};
+
+// 128-bit x 128-bit -> 256-bit Comba multiply (4 macs)
+static void glv_mul_2x2(const std::uint64_t a[2], const std::uint64_t b[2],
+                         std::uint64_t r[4]) {
+    using u128 = unsigned __int128;
+    std::uint64_t c0 = 0, c1 = 0;
+    std::uint32_t c2 = 0;
+
+    #define GLV_F_MA(i, j) do { \
+        const u128 p_ = (u128)(a[i]) * (b[j]); \
+        const std::uint64_t tl_ = (std::uint64_t)p_; \
+        std::uint64_t th_ = (std::uint64_t)(p_ >> 64); \
+        c0 += tl_; \
+        th_ += (c0 < tl_) ? 1ULL : 0ULL; \
+        c1 += th_; \
+        c2 += (c1 < th_) ? 1U : 0U; \
+    } while(0)
+
+    #define GLV_F_EX(out) do { \
+        (out) = c0; c0 = c1; c1 = static_cast<std::uint64_t>(c2); c2 = 0; \
+    } while(0)
+
+    GLV_F_MA(0, 0);
+    GLV_F_EX(r[0]);
+    GLV_F_MA(0, 1); GLV_F_MA(1, 0);
+    GLV_F_EX(r[1]);
+    GLV_F_MA(1, 1);
+    GLV_F_EX(r[2]);
+    r[3] = c0;
+
+    #undef GLV_F_MA
+    #undef GLV_F_EX
+}
+
+// 128-bit x 256-bit -> 384-bit Comba multiply (8 macs)
+static void glv_mul_2x4(const std::uint64_t a[2], const std::uint64_t b[4],
+                         std::uint64_t r[6]) {
+    using u128 = unsigned __int128;
+    std::uint64_t c0 = 0, c1 = 0;
+    std::uint32_t c2 = 0;
+
+    #define GLV_F_MA(i, j) do { \
+        const u128 p_ = (u128)(a[i]) * (b[j]); \
+        const std::uint64_t tl_ = (std::uint64_t)p_; \
+        std::uint64_t th_ = (std::uint64_t)(p_ >> 64); \
+        c0 += tl_; \
+        th_ += (c0 < tl_) ? 1ULL : 0ULL; \
+        c1 += th_; \
+        c2 += (c1 < th_) ? 1U : 0U; \
+    } while(0)
+
+    #define GLV_F_EX(out) do { \
+        (out) = c0; c0 = c1; c1 = static_cast<std::uint64_t>(c2); c2 = 0; \
+    } while(0)
+
+    // Column 0: a[0]*b[0]
+    GLV_F_MA(0, 0);
+    GLV_F_EX(r[0]);
+    // Column 1: a[0]*b[1] + a[1]*b[0]
+    GLV_F_MA(0, 1); GLV_F_MA(1, 0);
+    GLV_F_EX(r[1]);
+    // Column 2: a[0]*b[2] + a[1]*b[1]
+    GLV_F_MA(0, 2); GLV_F_MA(1, 1);
+    GLV_F_EX(r[2]);
+    // Column 3: a[0]*b[3] + a[1]*b[2]
+    GLV_F_MA(0, 3); GLV_F_MA(1, 2);
+    GLV_F_EX(r[3]);
+    // Column 4: a[1]*b[3]
+    GLV_F_MA(1, 3);
+    GLV_F_EX(r[4]);
+    // Column 5: carry
+    r[5] = c0;
+
+    #undef GLV_F_MA
+    #undef GLV_F_EX
+}
+
+// Compare 4-limb unsigned value: a >= b (little-endian)
+static bool glv_ge_n(const std::uint64_t a[4], const std::uint64_t b[4]) {
+    for (int i = 3; i >= 0; --i) {
+        if (a[i] > b[i]) return true;
+        if (a[i] < b[i]) return false;
+    }
+    return true; // equal
+}
+
+// Subtract n from a (4-limb). Returns borrow (0 or 1).
+static std::uint64_t glv_sub4(const std::uint64_t a[4], const std::uint64_t b[4],
+                               std::uint64_t r[4]) {
+    std::uint64_t borrow = 0;
+    for (int i = 0; i < 4; ++i) {
+        std::uint64_t t = a[i] - borrow;
+        borrow = (a[i] < borrow) ? 1ULL : 0ULL;
+        std::uint64_t s = t - b[i];
+        borrow += (t < b[i]) ? 1ULL : 0ULL;
+        r[i] = s;
+    }
+    return borrow;
+}
+
+// Reduce a wide value (up to 7 limbs) modulo n.
+// Uses 2^256 = NC (mod n) trick for fast reduction.
+// Result written to out[4], guaranteed < n.
+static void glv_reduce_mod_n(const std::uint64_t* w, int wlen,
+                              std::uint64_t out[4]) {
+    using u128 = unsigned __int128;
+
+    std::uint64_t r[5] = {};
+
+    if (wlen <= 4) {
+        // Already fits in 256 bits -- just conditional subtract
+        for (int i = 0; i < wlen; ++i) r[i] = w[i];
+    } else {
+        // Split: value = w_high * 2^256 + w_low
+        // w_high = w[4..wlen-1] (up to 3 limbs for wlen<=7)
+        // Compute w_high * NC (schoolbook, high_len x 3)
+        int const high_len = wlen - 4;
+        std::uint64_t hprod[7] = {};
+        for (int i = 0; i < high_len; ++i) {
+            u128 carry = 0;
+            for (int j = 0; j < 3; ++j) {
+                carry += (u128)w[4 + i] * kNC[j] + hprod[i + j];
+                hprod[i + j] = (std::uint64_t)carry;
+                carry >>= 64;
+            }
+            hprod[i + 3] = (std::uint64_t)carry;
+        }
+
+        // Add w_low (first 4 limbs) to hprod
+        u128 carry = 0;
+        for (int i = 0; i < 4; ++i) {
+            carry += (u128)hprod[i] + w[i];
+            r[i] = (std::uint64_t)carry;
+            carry >>= 64;
+        }
+        // Propagate carry into upper part
+        int const hprod_top = high_len + 2; // max index with data
+        for (int i = 4; i <= hprod_top; ++i) {
+            carry += hprod[i];
+            if (i < 5) {
+                r[i] = (std::uint64_t)carry;
+            }
+            carry >>= 64;
+        }
+        // If r[4] > 0, we may need one more NC round (rare)
+        if (r[4] > 0) {
+            // r[4] is small (at most ~4). Apply: r = r[4]*NC + r[0..3]
+            std::uint64_t extra[4] = {};
+            u128 ec = 0;
+            for (int j = 0; j < 3; ++j) {
+                ec += (u128)r[4] * kNC[j] + r[j];
+                extra[j] = (std::uint64_t)ec;
+                ec >>= 64;
+            }
+            extra[3] = r[3] + (std::uint64_t)ec;
+            r[0] = extra[0]; r[1] = extra[1];
+            r[2] = extra[2]; r[3] = extra[3];
+            r[4] = 0;
+        }
+    }
+
+    // Final: while r >= n, subtract n (at most 2 times for practical inputs)
+    while (glv_ge_n(r, kN)) {
+        glv_sub4(r, kN, r);
+    }
+
+    for (int i = 0; i < 4; ++i) out[i] = r[i];
+}
+
+#endif // __SIZEOF_INT128__
+
+// ============================================================================
 //  Public API
 // ============================================================================
 
@@ -231,30 +435,97 @@ GLVDecomposition glv_decompose(const Scalar& k) {
     auto c1_limbs = mul_shift_384_const<kG1[0], kG1[1], kG1[2], kG1[3]>(k_arr);
     auto c2_limbs = mul_shift_384_const<kG2[0], kG2[1], kG2[2], kG2[3]>(k_arr);
 
+#if defined(__SIZEOF_INT128__)
+    // ---- Fast path: exploit known limb sizes (3.4x fewer multiply-accumulates) ----
+    // c1, c2 are at most 128-bit (only limbs[0..1] non-zero from mul_shift_384).
+    // c1*mb1: 2x2 = 4 macs (vs 16 for full Scalar::operator* schoolbook)
+    // c2*mb2: 2x4 = 8 macs
+    // Reduction via NC-trick: ~6 macs (vs 20 for Barrett)
+    // Total: ~32 macs vs ~108 for 3x full Scalar multiply+Barrett.
+
+    // c2*mb2: 128-bit x 256-bit -> 384-bit (6 limbs)
+    std::uint64_t wide[7] = {};
+    glv_mul_2x4(c2_limbs.data(), kMB2, wide); // fills [0..5]
+
+    // c1*mb1: 128-bit x 128-bit -> 256-bit (4 limbs), add to wide
+    std::uint64_t p1[4];
+    glv_mul_2x2(c1_limbs.data(), kMB1, p1);
+    {
+        using u128 = unsigned __int128;
+        u128 carry = 0;
+        for (int i = 0; i < 4; ++i) {
+            carry += (u128)wide[i] + p1[i];
+            wide[i] = (std::uint64_t)carry;
+            carry >>= 64;
+        }
+        for (int i = 4; i < 7 && carry; ++i) {
+            carry += wide[i];
+            wide[i] = (std::uint64_t)carry;
+            carry >>= 64;
+        }
+    }
+
+    // Reduce wide (up to 7 limbs) mod n -> k2
+    std::uint64_t k2_raw[4];
+    glv_reduce_mod_n(wide, 7, k2_raw);
+    Scalar const k2_mod = Scalar::from_limbs(
+        {k2_raw[0], k2_raw[1], k2_raw[2], k2_raw[3]});
+
+    // k2 sign handling: pick shorter representation
+    Scalar const k2_neg_val = Scalar::zero() - k2_mod;
+    bool const k2_is_neg = (scalar_bitlen(k2_neg_val) < scalar_bitlen(k2_mod));
+    Scalar const k2_abs = k2_is_neg ? k2_neg_val : k2_mod;
+
+    // k1 = k - lambda * k2_mod (mod n)
+    // k2_signed === k2_mod (mod n) always, so use k2_mod directly.
+    // Exploit: k2_abs is ~128-bit -> lambda*k2_abs is 2x4 multiply (8 macs).
+    // Then adjust sign: lambda*k2_mod = k2_is_neg ? -lambda*k2_abs : lambda*k2_abs
+    auto const& k2a = k2_abs.limbs();
+
+    std::uint64_t lk2[6] = {};
+    if (k2a[2] == 0 && k2a[3] == 0) {
+        // Fast: 2x4 multiply (k2_abs is 128-bit, as expected by GLV)
+        glv_mul_2x4(k2a.data(), kLambdaLimbs, lk2);
+    } else {
+        // Fallback: full 4x4 (unlikely edge case)
+        std::uint64_t lk8[8];
+        glv_mul_comba_64(k2a.data(), kLambdaLimbs, lk8);
+        for (int i = 0; i < 6; ++i) lk2[i] = lk8[i];
+    }
+
+    std::uint64_t lk2_mod[4];
+    glv_reduce_mod_n(lk2, 6, lk2_mod);
+    Scalar const lambda_k2_abs = Scalar::from_limbs(
+        {lk2_mod[0], lk2_mod[1], lk2_mod[2], lk2_mod[3]});
+
+    // k1 = k - lambda*k2_mod
+    //     = k2_is_neg ? (k + lambda*k2_abs) : (k - lambda*k2_abs)
+    Scalar const k1_mod = k2_is_neg
+        ? (k + lambda_k2_abs)
+        : (k - lambda_k2_abs);
+
+#else
+    // ---- Fallback (no __int128): use Scalar arithmetic ----
     Scalar const c1 = Scalar::from_limbs(c1_limbs);
     Scalar const c2 = Scalar::from_limbs(c2_limbs);
 
-    // Step 2: k2 = c1*(-b1) + c2*(-b2)  (mod n)
-    // Lazy-init constants (thread-safe in C++11+)
     static const Scalar minus_b1 = Scalar::from_bytes(kMinusB1Bytes);
     static const Scalar minus_b2 = Scalar::from_bytes(kMinusB2Bytes);
     static const Scalar lambda   = Scalar::from_bytes(kGlvLambdaBytes);
 
     Scalar const k2_mod = (c1 * minus_b1) + (c2 * minus_b2);
 
-    // Step 3: pick shorter representation for k2
-    Scalar const k2_neg = Scalar::zero() - k2_mod;
-    bool const k2_is_neg = (scalar_bitlen(k2_neg) < scalar_bitlen(k2_mod));
-    Scalar const k2_abs    = k2_is_neg ? k2_neg : k2_mod;
-    Scalar const k2_signed = k2_is_neg ? (Scalar::zero() - k2_abs) : k2_abs;
+    Scalar const k2_neg_val = Scalar::zero() - k2_mod;
+    bool const k2_is_neg = (scalar_bitlen(k2_neg_val) < scalar_bitlen(k2_mod));
+    Scalar const k2_abs = k2_is_neg ? k2_neg_val : k2_mod;
 
-    // Step 4: k1 = k - lambda*k2  (mod n)
-    Scalar const k1_mod = k - lambda * k2_signed;
+    Scalar const k1_mod = k - lambda * k2_mod;
+#endif
 
-    // Step 5: pick shorter representation for k1
-    Scalar const k1_neg = Scalar::zero() - k1_mod;
-    bool const k1_is_neg = (scalar_bitlen(k1_neg) < scalar_bitlen(k1_mod));
-    Scalar const k1_abs = k1_is_neg ? k1_neg : k1_mod;
+    // k1 sign handling (common path)
+    Scalar const k1_neg_val = Scalar::zero() - k1_mod;
+    bool const k1_is_neg = (scalar_bitlen(k1_neg_val) < scalar_bitlen(k1_mod));
+    Scalar const k1_abs = k1_is_neg ? k1_neg_val : k1_mod;
 
     result.k1     = k1_abs;
     result.k2     = k2_abs;

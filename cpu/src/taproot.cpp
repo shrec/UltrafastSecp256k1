@@ -101,7 +101,10 @@ std::array<uint8_t, 32> taproot_branch_hash(
 
 // Helper: lift x-only key to point with even y
 static std::pair<Point, bool> lift_x_even(const std::array<uint8_t, 32>& x_bytes) {
-    auto px_fe = FieldElement::from_bytes(x_bytes);
+    // Strict: reject x >= p
+    FieldElement px_fe;
+    if (!FieldElement::parse_bytes_strict(x_bytes, px_fe))
+        return {Point::infinity(), false};
 
     // y^2 = x^3 + 7
     auto x3 = px_fe.square() * px_fe;

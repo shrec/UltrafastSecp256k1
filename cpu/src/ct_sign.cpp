@@ -54,8 +54,58 @@ ECDSASignature ecdsa_sign(const std::array<uint8_t, 32>& msg_hash,
     auto s = k_inv * (z + r * private_key);
     if (s.is_zero()) return {Scalar::zero(), Scalar::zero()};
 
-    ECDSASignature const sig{r, s};
-    return sig.normalize();
+    ECDSASignature const sig = ECDSASignature{r, s}.normalize();
+
+    // Sign-then-verify: fault attack countermeasure (FIPS 186-4).
+    // Verify uses fast path -- public key and signature are not secret.
+    auto pk = ct::generator_mul(private_key);
+    if (!ecdsa_verify(msg_hash.data(), pk, sig)) {
+        return {Scalar::zero(), Scalar::zero()};
+    }
+
+    return sig;
+}
+
+// ============================================================================
+// CT ECDSA Sign (hedged, with extra entropy)
+// ============================================================================
+// RFC 6979 Section 3.6: aux_rand mixed into HMAC-DRBG for defense-in-depth.
+// Uses ct::generator_mul() for R = k*G (constant-time).
+
+// Forward declaration (defined in ecdsa.cpp, declared in ecdsa.hpp)
+// rfc6979_nonce_hedged is in namespace secp256k1 (already accessible via ecdsa.hpp include)
+
+ECDSASignature ecdsa_sign_hedged(const std::array<uint8_t, 32>& msg_hash,
+                                  const Scalar& private_key,
+                                  const std::array<uint8_t, 32>& aux_rand) {
+    if (private_key.is_zero()) return {Scalar::zero(), Scalar::zero()};
+
+    auto z = Scalar::from_bytes(msg_hash);
+    auto k = secp256k1::rfc6979_nonce_hedged(private_key, msg_hash, aux_rand);
+    if (k.is_zero()) return {Scalar::zero(), Scalar::zero()};
+
+    // R = k * G  -- CT path
+    auto R = ct::generator_mul(k);
+    if (R.is_infinity()) return {Scalar::zero(), Scalar::zero()};
+
+    auto r_fe = R.x();
+    auto r_bytes = r_fe.to_bytes();
+    auto r = Scalar::from_bytes(r_bytes);
+    if (r.is_zero()) return {Scalar::zero(), Scalar::zero()};
+
+    auto k_inv = k.inverse();
+    auto s = k_inv * (z + r * private_key);
+    if (s.is_zero()) return {Scalar::zero(), Scalar::zero()};
+
+    ECDSASignature const sig = ECDSASignature{r, s}.normalize();
+
+    // Sign-then-verify countermeasure
+    auto pk = ct::generator_mul(private_key);
+    if (!ecdsa_verify(msg_hash.data(), pk, sig)) {
+        return {Scalar::zero(), Scalar::zero()};
+    }
+
+    return sig;
 }
 
 // ============================================================================
@@ -145,6 +195,12 @@ SchnorrSignature schnorr_sign(const SchnorrKeypair& kp,
     //   nonce_input[96] -- t || pubkey_x || msg  (contains t)
     secure_erase(t, sizeof(t));
     secure_erase(nonce_input, sizeof(nonce_input));
+
+    // Sign-then-verify: fault attack countermeasure.
+    // Public key and signature are not secret -- fast verify is safe.
+    if (!schnorr_verify(kp.px, msg, sig)) {
+        return SchnorrSignature{};
+    }
 
     return sig;
 }

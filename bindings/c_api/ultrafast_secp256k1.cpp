@@ -48,9 +48,10 @@ static inline void scalar_to_bytes(const Scalar& s, uint8_t out[32]) {
 static inline Point point_from_compressed(const uint8_t pub[33]) {
     // Parse compressed: 0x02/0x03 prefix + 32-byte x
     // Recover y from x using curve equation y^2 = x^3 + 7
-    std::array<uint8_t, 32> x_bytes;
-    std::memcpy(x_bytes.data(), pub + 1, 32);
-    auto x = secp256k1::fast::FieldElement::from_bytes(x_bytes);
+    // Strict: reject x >= p (no reduction)
+    secp256k1::fast::FieldElement x;
+    if (!secp256k1::fast::FieldElement::parse_bytes_strict(pub + 1, x))
+        return Point::infinity();
 
     // y^2 = x^3 + 7
     auto x2 = x * x;
@@ -115,6 +116,9 @@ static inline Point point_from_compressed(const uint8_t pub[33]) {
     y = y.square();
     y = y.square(); // two more squares to reach bit 0
 
+    // Verify sqrt: y^2 must equal y2 (reject if x has no valid y on curve)
+    if (y * y != y2) return Point::infinity();
+
     // Check parity -- 0x02 = even, 0x03 = odd
     auto y_bytes = y.to_bytes();
     bool y_is_odd = (y_bytes[31] & 1) != 0;
@@ -175,8 +179,14 @@ int secp256k1_ec_pubkey_parse(const uint8_t* input, size_t input_len, uint8_t pu
         std::array<uint8_t, 32> x_bytes, y_bytes;
         std::memcpy(x_bytes.data(), input + 1, 32);
         std::memcpy(y_bytes.data(), input + 33, 32);
-        auto x = secp256k1::fast::FieldElement::from_bytes(x_bytes);
-        auto y = secp256k1::fast::FieldElement::from_bytes(y_bytes);
+        // Strict: reject x >= p or y >= p
+        secp256k1::fast::FieldElement x, y;
+        if (!secp256k1::fast::FieldElement::parse_bytes_strict(x_bytes, x) ||
+            !secp256k1::fast::FieldElement::parse_bytes_strict(y_bytes, y)) return 1;
+        // On-curve check: y^2 == x^3 + 7
+        auto lhs = y * y;
+        auto rhs = x * x * x + secp256k1::fast::FieldElement::from_uint64(7);
+        if (lhs != rhs) return 1;
         auto p = Point::from_affine(x, y);
         if (p.is_infinity()) return 1;
         point_to_compressed(p, pubkey_out);

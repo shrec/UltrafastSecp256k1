@@ -46,7 +46,10 @@ Scalar batch_weight(const std::array<uint8_t, 32>& batch_seed, uint32_t index) {
 // Lift x-only key to point (same as in schnorr_verify)
 // Returns (success, point)
 std::pair<bool, Point> lift_x(const std::array<uint8_t, 32>& pubkey_x) {
-    auto px_fe = FieldElement::from_bytes(pubkey_x);
+    // Strict: reject x >= p
+    FieldElement px_fe;
+    if (!FieldElement::parse_bytes_strict(pubkey_x, px_fe))
+        return {false, Point::infinity()};
 
     // y^2 = x^3 + 7
     auto x3 = px_fe.square() * px_fe;

@@ -125,6 +125,9 @@ static inline Point point_from_compressed(const uint8_t pub[33]) {
     y = y * a;
     y = y.square().square();
 
+    // Verify sqrt: y^2 must equal y2 (reject if x has no valid y on curve)
+    if (y * y != y2) return Point::infinity();
+
     auto y_bytes = y.to_bytes();
     bool const y_is_odd = (y_bytes[31] & 1) != 0;
     bool const want_odd = (pub[0] == 0x03);
@@ -349,8 +352,18 @@ ufsecp_error_t ufsecp_pubkey_parse(ufsecp_ctx* ctx,
         std::array<uint8_t, 32> x_bytes, y_bytes;
         std::memcpy(x_bytes.data(), input + 1, 32);
         std::memcpy(y_bytes.data(), input + 33, 32);
-        auto x = FE::from_bytes(x_bytes);
-        auto y = FE::from_bytes(y_bytes);
+        // Strict: reject x >= p or y >= p
+        FE x, y;
+        if (!FE::parse_bytes_strict(x_bytes, x) ||
+            !FE::parse_bytes_strict(y_bytes, y)) {
+            return ctx_set_err(ctx, UFSECP_ERR_BAD_PUBKEY, "coordinate >= p");
+        }
+        // On-curve check: y^2 == x^3 + 7
+        auto lhs = y * y;
+        auto rhs = x * x * x + FE::from_uint64(7);
+        if (lhs != rhs) {
+            return ctx_set_err(ctx, UFSECP_ERR_BAD_PUBKEY, "point not on curve");
+        }
         auto p = Point::from_affine(x, y);
         if (p.is_infinity()) {
             return ctx_set_err(ctx, UFSECP_ERR_BAD_PUBKEY, "point at infinity");
