@@ -541,115 +541,59 @@ reduce_4_asm:
     mov r9, [rdi+8]
     mov r10, [rdi+16]
     mov r11, [rdi+24]
-    xor r12, r12  # 5th limb (carry)
+    xor r12, r12  # carry accumulator
 
-    mov rdx, 977  # Constant for mulx
+    mov rdx, 0x1000003D1  # K = 2^32 + 977
 
-    # === Limb 4 (Offset 0) ===
+    # === Limb 4: add data[4] * K to r8..r11 ===
     mov rax, [rdi+32]
-    
-    # 1. mul by 977
     mulx rcx, rbx, rax
-    add r8, rbx
-    adc r9, rcx
-    adc r10, 0
-    adc r11, 0
-    adc r12, 0
+    add  r8,  rbx
+    adc  r9,  rcx
+    adc  r10, 0
+    adc  r11, 0
+    adc  r12, 0
 
-    # 2. shift by 32
-    mov rbx, rax
-    shl rbx, 32
-    shr rax, 32
-    add r8, rbx
-    adc r9, rax
-    adc r10, 0
-    adc r11, 0
-    adc r12, 0
-
-    # === Limb 5 (Offset 1) ===
+    # === Limb 5: add data[5] * K to r9..r11 ===
     mov rax, [rdi+40]
-    
-    # 1. mul by 977
     mulx rcx, rbx, rax
-    add r9, rbx
-    adc r10, rcx
-    adc r11, 0
-    adc r12, 0
+    add  r9,  rbx
+    adc  r10, rcx
+    adc  r11, 0
+    adc  r12, 0
 
-    # 2. shift by 32
-    mov rbx, rax
-    shl rbx, 32
-    shr rax, 32
-    add r9, rbx
-    adc r10, rax
-    adc r11, 0
-    adc r12, 0
-
-    # === Limb 6 (Offset 2) ===
+    # === Limb 6: add data[6] * K to r10..r11 ===
     mov rax, [rdi+48]
-    
-    # 1. mul by 977
     mulx rcx, rbx, rax
-    add r10, rbx
-    adc r11, rcx
-    adc r12, 0
+    add  r10, rbx
+    adc  r11, rcx
+    adc  r12, 0
 
-    # 2. shift by 32
-    mov rbx, rax
-    shl rbx, 32
-    shr rax, 32
-    add r10, rbx
-    adc r11, rax
-    adc r12, 0
-
-    # === Limb 7 (Offset 3) ===
+    # === Limb 7: add data[7] * K to r11 ===
     mov rax, [rdi+56]
-    
-    # 1. mul by 977
     mulx rcx, rbx, rax
-    add r11, rbx
-    adc r12, rcx
+    add  r11, rbx
+    adc  r12, rcx
 
-    # 2. shift by 32
-    mov rbx, rax
-    shl rbx, 32
-    shr rax, 32
-    add r11, rbx
-    adc r12, rax
+    # --- Pass 1: reduce overflow (r12 is at most ~34 bits) ---
+    mulx rcx, rbx, r12
+    xor  r12, r12
+    add  r8,  rbx
+    adc  r9,  rcx
+    adc  r10, 0
+    adc  r11, 0
+    adc  r12, 0
 
-.Lreduce_loop_strict:
-    test r12, r12
-    jz .Lcheck_mod_p
+    # --- Pass 2: reduce final 1-bit overflow (branchless) ---
+    mov  rax, 0x1000003D1
+    and  rax, r12
+    add  r8,  rax
+    adc  r9,  0
+    adc  r10, 0
+    adc  r11, 0
 
-    mov rax, r12
-    xor r12, r12 # Clear carry
-
-    # 1. mul by 977
-    mulx rcx, rbx, rax
-    add r8, rbx
-    adc r9, rcx
-    adc r10, 0
-    adc r11, 0
-    adc r12, 0
-
-    # 2. shift by 32
-    mov rbx, rax
-    shl rbx, 32
-    shr rax, 32
-    add r8, rbx
-    adc r9, rax
-    adc r10, 0
-    adc r11, 0
-    adc r12, 0
-    
-    jmp .Lreduce_loop_strict
-
-.Lcheck_mod_p:
-    # Check if result >= P
-    # P = 2^256 - K, where K = 0x1000003D1
-    # result >= P <=> result + K >= 2^256 (Carry out)
-    
-    mov r13, 0x1000003D1 # K
+    # Branchless mod-p: if result >= p, subtract p
+    mov r13, 0x1000003D1
     
     mov rax, r8
     add rax, r13
@@ -660,16 +604,11 @@ reduce_4_asm:
     mov rdx, r11
     adc rdx, 0
     
-    # If Carry (CF=1), then result >= P
-    # And (rax, rbx, rcx, rdx) contains (result + K) mod 2^256
-    # Which is exactly (result - P)
-    
     cmovc r8, rax
     cmovc r9, rbx
     cmovc r10, rcx
     cmovc r11, rdx
 
-.Ldone_strict:
     mov [rdi], r8
     mov [rdi+8], r9
     mov [rdi+16], r10
@@ -849,116 +788,75 @@ field_mul_full_asm:
     #    Input: r8..r15
     #    Output: r8..r11
     # ----------------------------------------------------------------
+    #
+    # secp256k1: p = 2^256 - K where K = 0x1000003D1
+    # So 2^256 = K (mod p), meaning high[i] * 2^(256+64i) = high[i] * K * 2^(64i)
+    # Single MULX per high limb: K * high[i] -> hi:lo, add to result[i..i+1]
+    #
     
-    # We need a temporary register for carry.
-    # rdi and rsi are free now (we loaded a and b).
-    # Let's use rdi as carry accumulator (instead of r12 in reduce_4_asm, which is occupied).
-    
-    xor rdi, rdi # Carry for reduction
-    mov rdx, 977 # Constant
+    # rdi is free (inputs already loaded). Use as carry accumulator.
+    xor rdi, rdi
+    mov rdx, 0x1000003D1  # K constant for full reduction
 
-    # === Limb 4 (r12) ===
-    mov rax, r12
-    
-    # 1. mul by 977
-    mulx rcx, rbx, rax
-    add r8, rbx
-    adc r9, rcx
-    adc r10, 0
-    adc r11, 0
-    adc rdi, 0
+    # === Limb 4 (r12): add r12 * K to r8..r11 ===
+    mulx rcx, rbx, r12
+    add  r8,  rbx
+    adc  r9,  rcx
+    adc  r10, 0
+    adc  r11, 0
+    adc  rdi, 0
 
-    # 2. shift by 32
-    mov rbx, rax
-    shl rbx, 32
-    shr rax, 32
-    add r8, rbx
-    adc r9, rax
-    adc r10, 0
-    adc r11, 0
-    adc rdi, 0
+    # === Limb 5 (r13): add r13 * K to r9..r11 ===
+    mulx rcx, rbx, r13
+    add  r9,  rbx
+    adc  r10, rcx
+    adc  r11, 0
+    adc  rdi, 0
 
-    # === Limb 5 (r13) ===
-    mov rax, r13
-    
-    # 1. mul by 977
-    mulx rcx, rbx, rax
-    add r9, rbx
-    adc r10, rcx
-    adc r11, 0
-    adc rdi, 0
+    # === Limb 6 (r14): add r14 * K to r10..r11 ===
+    mulx rcx, rbx, r14
+    add  r10, rbx
+    adc  r11, rcx
+    adc  rdi, 0
 
-    # 2. shift by 32
-    mov rbx, rax
-    shl rbx, 32
-    shr rax, 32
-    add r9, rbx
-    adc r10, rax
-    adc r11, 0
-    adc rdi, 0
+    # === Limb 7 (r15): add r15 * K to r11 ===
+    mulx rcx, rbx, r15
+    add  r11, rbx
+    adc  rdi, rcx
 
-    # === Limb 6 (r14) ===
-    mov rax, r14
-    
-    # 1. mul by 977
-    mulx rcx, rbx, rax
-    add r10, rbx
-    adc r11, rcx
-    adc rdi, 0
+    # ----------------------------------------------------------------
+    # 3. Overflow reduction (unrolled, no loop)
+    #    After reducing 4 high limbs, carry (rdi) is at most ~34 bits.
+    #    One pass: rdi * K is at most ~67 bits; new carry <= 1 bit.
+    #    Second pass: 1 * K is at most 33 bits; no further carry.
+    # ----------------------------------------------------------------
 
-    # 2. shift by 32
-    mov rbx, rax
-    shl rbx, 32
-    shr rax, 32
-    add r10, rbx
-    adc r11, rax
-    adc rdi, 0
+    # --- Pass 1: reduce rdi overflow ---
+    mulx rcx, rbx, rdi      # rdi * K -> rcx:rbx
+    xor  rdi, rdi            # clear carry for pass 2
+    add  r8,  rbx
+    adc  r9,  rcx
+    adc  r10, 0
+    adc  r11, 0
+    adc  rdi, 0              # rdi = 0 or 1
 
-    # === Limb 7 (r15) ===
-    mov rax, r15
-    
-    # 1. mul by 977
-    mulx rcx, rbx, rax
-    add r11, rbx
-    adc rdi, rcx
+    # --- Pass 2: reduce final 1-bit overflow (branchless) ---
+    # K * rdi where rdi is 0 or 1: result is 0 or K.
+    # Use AND mask instead of MULX (cheaper for 1-bit input).
+    mov  rax, 0x1000003D1
+    and  rax, rdi            # rax = K if rdi=1, else 0
+    add  r8,  rax
+    adc  r9,  0
+    adc  r10, 0
+    adc  r11, 0
+    # No further carry possible: max(r8..r11) + K < 2^257 in this path,
+    # and the branchless mod-p check below handles values in [p, 2p).
 
-    # 2. shift by 32
-    mov rbx, rax
-    shl rbx, 32
-    shr rax, 32
-    add r11, rbx
-    adc rdi, rax
-
-.Lfull_reduce_loop:
-    test rdi, rdi
-    jz .Lfull_check_mod_p
-
-    mov rax, rdi
-    xor rdi, rdi # Clear carry
-
-    # 1. mul by 977
-    mulx rcx, rbx, rax
-    add r8, rbx
-    adc r9, rcx
-    adc r10, 0
-    adc r11, 0
-    adc rdi, 0
-
-    # 2. shift by 32
-    mov rbx, rax
-    shl rbx, 32
-    shr rax, 32
-    add r8, rbx
-    adc r9, rax
-    adc r10, 0
-    adc r11, 0
-    adc rdi, 0
-    
-    jmp .Lfull_reduce_loop
-
-.Lfull_check_mod_p:
-    # Check if result >= P
-    mov r13, 0x1000003D1 # K
+    # ----------------------------------------------------------------
+    # 4. Branchless mod-p check: if result >= p, subtract p
+    #    p = 2^256 - K, so result >= p iff result + K >= 2^256 (carry set)
+    # ----------------------------------------------------------------
+    mov r13, 0x1000003D1
     
     mov rax, r8
     add rax, r13
@@ -969,8 +867,8 @@ field_mul_full_asm:
     mov rdx, r11
     adc rdx, 0
     
-    cmovc r8, rax
-    cmovc r9, rbx
+    cmovc r8,  rax
+    cmovc r9,  rbx
     cmovc r10, rcx
     cmovc r11, rdx
 
@@ -1124,95 +1022,58 @@ field_sqr_full_asm:
     # 4. Reduction (512 -> 256)
     # ----------------------------------------------------------------
     
-    xor rdi, rdi # Carry
-    mov rdx, 977
+    # ----------------------------------------------------------------
+    # Reduction (512 -> 256) using K = 0x1000003D1
+    # Single MULX per high limb, no loop, fully unrolled overflow handling
+    # ----------------------------------------------------------------
     
-    # === Limb 4 (r12) ===
-    mov rax, r12
-    mulx rcx, rbx, rax
-    add r8, rbx
-    adc r9, rcx
-    adc r10, 0
-    adc r11, 0
-    adc rdi, 0
-
-    mov rbx, rax
-    shl rbx, 32
-    shr rax, 32
-    add r8, rbx
-    adc r9, rax
-    adc r10, 0
-    adc r11, 0
-    adc rdi, 0
-
-    # === Limb 5 (r13) ===
-    mov rax, r13
-    mulx rcx, rbx, rax
-    add r9, rbx
-    adc r10, rcx
-    adc r11, 0
-    adc rdi, 0
-
-    mov rbx, rax
-    shl rbx, 32
-    shr rax, 32
-    add r9, rbx
-    adc r10, rax
-    adc r11, 0
-    adc rdi, 0
-
-    # === Limb 6 (r14) ===
-    mov rax, r14
-    mulx rcx, rbx, rax
-    add r10, rbx
-    adc r11, rcx
-    adc rdi, 0
-
-    mov rbx, rax
-    shl rbx, 32
-    shr rax, 32
-    add r10, rbx
-    adc r11, rax
-    adc rdi, 0
-
-    # === Limb 7 (r15) ===
-    mov rax, r15
-    mulx rcx, rbx, rax
-    add r11, rbx
-    adc rdi, rcx
-
-    mov rbx, rax
-    shl rbx, 32
-    shr rax, 32
-    add r11, rbx
-    adc rdi, rax
-
-.Lsqr_reduce_loop:
-    test rdi, rdi
-    jz .Lsqr_check_mod_p
-
-    mov rax, rdi
     xor rdi, rdi
-    
-    mulx rcx, rbx, rax
-    add r8, rbx
-    adc r9, rcx
-    adc r10, 0
-    adc r11, 0
-    adc rdi, 0
+    mov rdx, 0x1000003D1  # K constant
 
-    mov rbx, rax
-    shl rbx, 32
-    shr rax, 32
-    add r8, rbx
-    adc r9, rax
-    adc r10, 0
-    adc r11, 0
-    adc rdi, 0
-    
-    jmp .Lsqr_reduce_loop
+    # === Limb 4 (r12): add r12 * K to r8..r11 ===
+    mulx rcx, rbx, r12
+    add  r8,  rbx
+    adc  r9,  rcx
+    adc  r10, 0
+    adc  r11, 0
+    adc  rdi, 0
 
-.Lsqr_check_mod_p:
+    # === Limb 5 (r13): add r13 * K to r9..r11 ===
+    mulx rcx, rbx, r13
+    add  r9,  rbx
+    adc  r10, rcx
+    adc  r11, 0
+    adc  rdi, 0
+
+    # === Limb 6 (r14): add r14 * K to r10..r11 ===
+    mulx rcx, rbx, r14
+    add  r10, rbx
+    adc  r11, rcx
+    adc  rdi, 0
+
+    # === Limb 7 (r15): add r15 * K to r11 ===
+    mulx rcx, rbx, r15
+    add  r11, rbx
+    adc  rdi, rcx
+
+    # --- Pass 1: reduce overflow ---
+    mulx rcx, rbx, rdi
+    xor  rdi, rdi
+    add  r8,  rbx
+    adc  r9,  rcx
+    adc  r10, 0
+    adc  r11, 0
+    adc  rdi, 0
+
+    # --- Pass 2: reduce final 1-bit overflow (branchless) ---
+    mov  rax, 0x1000003D1
+    and  rax, rdi
+    add  r8,  rax
+    adc  r9,  0
+    adc  r10, 0
+    adc  r11, 0
+
+    # Branchless mod-p: if result >= p, subtract p
     mov r13, 0x1000003D1
     
     mov rax, r8

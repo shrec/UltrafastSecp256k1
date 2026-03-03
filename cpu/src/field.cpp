@@ -508,50 +508,56 @@ wide8 mul_wide(const limbs4& a, const limbs4& b) {
 // We have: t == t_low + t_high * (2^32 + 977) (mod p)
 // One-pass reduction algorithm
 limbs4 reduce(const wide8& t) {
-    // Step 1: Start with low 256 bits
+    // Step 1: Start with low 256 bits + overflow accumulator
     std::array<std::uint64_t, 5> result{t[0], t[1], t[2], t[3], 0ULL};
 
-    // Step 2: Process each high limb: add high[i] * (2^32 + 977) to appropriate position
-    // For each t[4+i], we add:
-    //   - t[4+i] * 977 to position i   (128-bit product: lo at i, hi at i+1)
-    //   - t[4+i] * 2^32 to position i  (shift: low32 at i, high32 at i+1)
-    // Use add_into() for proper carry propagation through the full array.
+    // Step 2: Process each high limb: add high[i] * 0x1000003D1 to position i
+    // secp256k1: 2^256 = 0x1000003D1 mod p, so high[i] * 2^(256 + 64*i) = high[i] * 0x1000003D1 * 2^(64*i)
     for (std::size_t i = 0; i < 4; ++i) {
         std::uint64_t const hi_limb = t[4 + i];
         if (hi_limb == 0) continue;
 
-        // Add hi_limb * 977 starting at position i
+        // hi_limb * 0x1000003D1 = hi_limb * (2^32 + 977)
         std::uint64_t lo = 0, hi = 0;
         mul64(hi_limb, 977ULL, lo, hi);
         add_into(result, i, lo);
         add_into(result, i + 1, hi);
-
-        // Add hi_limb * 2^32 (shift left by 32 bits)
         add_into(result, i, hi_limb << 32);
         add_into(result, i + 1, hi_limb >> 32);
     }
 
-    // Step 3: Handle overflow in result[4] if present
-    while (result[4] != 0) {
+    // Step 3: Handle overflow in result[4] -- unrolled 2 iterations (bounded)
+    // After reducing 4 high limbs, overflow is at most ~34 bits.
+    // First pass: overflow * 0x1000003D1 is at most ~67 bits, new overflow <= 1 bit.
+    // Second pass: 1 * 0x1000003D1 = 33 bits, no further overflow possible.
+    for (int pass = 0; pass < 2; ++pass) {
         std::uint64_t const overflow = result[4];
         result[4] = 0;
+        if (overflow == 0) break;
 
-        // Add overflow * (2^32 + 977)
         std::uint64_t lo = 0, hi = 0;
         mul64(overflow, 977ULL, lo, hi);
         add_into(result, static_cast<std::size_t>(0), lo);
         add_into(result, static_cast<std::size_t>(1), hi);
-
         add_into(result, static_cast<std::size_t>(0), overflow << 32);
         add_into(result, static_cast<std::size_t>(1), overflow >> 32);
     }
 
-    // Step 4: Extract final 256-bit result and normalize
+    // Step 4: Branchless final normalization (subtract p if value >= p)
     limbs4 out{result[0], result[1], result[2], result[3]};
 
-    while (ge(out, PRIME)) {
-        out = sub_impl(out, PRIME);
-    }
+    unsigned char borrow = 0;
+    limbs4 reduced;
+    reduced[0] = sub64(out[0], PRIME[0], borrow);
+    reduced[1] = sub64(out[1], PRIME[1], borrow);
+    reduced[2] = sub64(out[2], PRIME[2], borrow);
+    reduced[3] = sub64(out[3], PRIME[3], borrow);
+    // borrow == 0 means out >= PRIME -> use reduced
+    auto const mask = 0ULL - static_cast<std::uint64_t>(1U - borrow);
+    out[0] = (out[0] & ~mask) | (reduced[0] & mask);
+    out[1] = (out[1] & ~mask) | (reduced[1] & mask);
+    out[2] = (out[2] & ~mask) | (reduced[2] & mask);
+    out[3] = (out[3] & ~mask) | (reduced[3] & mask);
 
     return out;
 }
@@ -1023,6 +1029,21 @@ extern "C" {
 }
 #endif
 
+// x86-64 assembly: direct extern for zero-copy hot path
+#if defined(SECP256K1_HAS_ASM) && (defined(__x86_64__) || defined(_M_X64))
+    #if defined(_WIN32) && (defined(__clang__) || defined(__GNUC__))
+        #define SECP_FIELD_ASM_CC __attribute__((sysv_abi))
+    #else
+        #define SECP_FIELD_ASM_CC
+    #endif
+    extern "C" {
+        void SECP_FIELD_ASM_CC field_mul_full_asm(
+            const uint64_t* a, const uint64_t* b, uint64_t* result);
+        void SECP_FIELD_ASM_CC field_sqr_full_asm(
+            const uint64_t* a, uint64_t* result);
+    }
+#endif
+
 SECP256K1_HOT_FUNCTION
 limbs4 mul_impl(const limbs4& a, const limbs4& b) {
 #ifdef SECP256K1_HAS_RISCV_ASM
@@ -1038,12 +1059,17 @@ limbs4 mul_impl(const limbs4& a, const limbs4& b) {
     limbs4 out;
     arm64::field_mul_arm64(out.data(), a.data(), b.data());
     return out;
+#elif defined(SECP256K1_HAS_ASM) && (defined(__x86_64__) || defined(_M_X64))
+    // x86-64: Direct assembly call -- zero-copy, no FieldElement wrapper overhead
+    limbs4 out;
+    field_mul_full_asm(a.data(), b.data(), out.data());
+    return out;
 #elif defined(SECP256K1_NO_ASM)
     // Generic no-asm fallback
     auto result = reduce(mul_wide(a, b));
     return result;
 #else
-    // x86/x64: Use BMI2 if available for better performance
+    // x86/x64 without assembly: Use BMI2 if available
     static bool const bmi2_available = has_bmi2_support();
     if (bmi2_available) {
         FieldElement const result = field_mul_bmi2(
@@ -1072,11 +1098,16 @@ limbs4 square_impl(const limbs4& a) {
     limbs4 out;
     arm64::field_sqr_arm64(out.data(), a.data());
     return out;
+#elif defined(SECP256K1_HAS_ASM) && (defined(__x86_64__) || defined(_M_X64))
+    // x86-64: Direct assembly call -- zero-copy, no FieldElement wrapper overhead
+    limbs4 out;
+    field_sqr_full_asm(a.data(), out.data());
+    return out;
 #elif defined(SECP256K1_NO_ASM)
     // Generic no-asm fallback
     return reduce(mul_wide(a, a));
 #else
-    // x86/x64: Use BMI2 if available for better performance
+    // x86/x64 without assembly: Use BMI2 if available
     static bool const bmi2_available = has_bmi2_support();
     if (bmi2_available) {
         FieldElement const result = field_square_bmi2(
