@@ -96,9 +96,13 @@ static inline uint64_t rdtsc() {
 #elif defined(__riscv) && __riscv_xlen == 64
 static inline uint64_t rdtsc() {
     uint64_t val;
-    // fence serialises all prior loads/stores so rdcycle doesn't capture
-    // tail-end memory latency from the test-harness operand selection.
-    asm volatile("fence\nrdcycle %0" : "=r"(val) :: "memory");
+    // U74 is in-order: compiler "memory" clobber is sufficient for
+    // serialisation.  Do NOT add a hardware 'fence' here -- the fence
+    // would drain the store-buffer synchronously, capturing its
+    // data-dependent retirement latency (zero-coalescing, ECC, etc.)
+    // and producing false-positive timing leaks in dudect.  x86's
+    // rdtscp and ARM64's cntvct_el0 also do not drain the store buffer.
+    asm volatile("rdcycle %0" : "=r"(val) :: "memory");
     return val;
 }
 #else

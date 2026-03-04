@@ -67,41 +67,42 @@ The harness produces a **JSON report** with machine-readable metadata:
 
 ## Platform Summary
 
-| Platform | ECDSA Sign | ECDSA Verify | Schnorr Sign | Schnorr Verify | Generator k*G |
+| Platform | ECDSA Sign FAST | ECDSA Verify | Schnorr Sign FAST | Schnorr Verify | Generator k*G |
 |----------|:----------:|:------------:|:------------:|:--------------:|:-------------:|
-| **x86-64 (i5-14400F)** | **1.74x** | **1.09x** | **1.45x** | **1.07x** | **1.69x** |
-| **RISC-V 64 (U74)** | **1.87x** | **1.11x** | **1.95x** | **1.10x** | **2.40x** |
-| **x86-64 CT-vs-CT** | **1.16x** | **1.09x** | **1.08x** | **1.07x** | -- |
-| **RISC-V CT-vs-CT** | **1.06x** | **1.13x** | 0.96x | **1.12x** | -- |
+| **x86-64 (i7-11700, Clang 21)** | **2.94x** | 0.82x | **2.40x** | 0.85x | **3.44x** |
+| **RISC-V 64 (U74, Clang 21)** | **1.84x** | 0.90x | **1.93x** | 0.90x | **2.37x** |
+| **x86-64 CT-vs-CT** | 0.89x | 0.82x | **1.21x** | 0.85x | **1.26x** |
+| **RISC-V CT-vs-CT** | **1.01x** | 0.90x | 0.94x | 0.90x | **1.04x** |
 
 > CT-vs-CT is the **fairest comparison** since libsecp256k1 is always constant-time.
 > UltrafastSecp256k1's FAST path provides additional speedup when secret protection is not needed.
+> **Verify operations are currently slower** -- optimization in progress (root cause: `dual_scalar_mul` bottleneck).
 
 ---
 
-## x86-64 Results (Intel i5-14400F)
+## x86-64 Results (Intel i7-11700)
 
 | Detail | Value |
 |--------|-------|
-| CPU | Intel Core i5-14400F (P-core, Raptor Lake) |
-| Microarchitecture | Golden Cove, 32 KB L1i, 48 KB L1d, 1.25 MB L2 |
-| TSC frequency | 2.497 GHz |
-| OS | Ubuntu 24.04 LTS, kernel 6.x |
-| Compiler | GCC 14.2.0, `-O3 -march=native -fno-exceptions -fno-rtti` |
+| CPU | Intel Core i7-11700 @ 2.50 GHz (Rocket Lake) |
+| OS | Windows, kernel 10.x |
+| Compiler | Clang 21.1.0, `-O3 -march=native -fno-exceptions -fno-rtti` |
 | ISA features | BMI2 (MULX), ADX, AVX2, SHA-NI |
 | libsecp256k1 | v0.7.x (latest master, 5x52 + exhaustive GLV Strauss) |
-| UltrafastSecp256k1 | v3.16.0+, 5x52 limb layout, `__int128` field arithmetic |
+| UltrafastSecp256k1 | v3.18.0 (dev), 5x52 limb layout, `__int128` field arithmetic |
+| Timer | RDTSCP (serializing, sub-ns precision) |
+| Harness | 3s CPU ramp-up, 500 warmup/op, 11 passes, IQR outlier removal, median |
 
 ### FAST Path (variable-time, non-secret inputs)
 
 | Operation | Ultra FAST (ns) | libsecp256k1 (ns) | **Speedup** |
 |-----------|----------------:|-------------------:|:-----------:|
-| Generator x k (pubkey_create) | 6,730 | 11,362 | **1.69x** |
-| ECDSA Sign | 8,989 | 15,631 | **1.74x** |
-| ECDSA Verify | 21,324 | 23,306 | **1.09x** |
-| Schnorr Keypair Create | 10,522 | 11,228 | **1.07x** |
-| Schnorr Sign (BIP-340) | 8,443 | 12,255 | **1.45x** |
-| Schnorr Verify (BIP-340) | 21,151 | 22,642 | **1.07x** |
+| Generator x k (pubkey_create) | 4,160 | 14,312 | **3.44x** |
+| ECDSA Sign | 7,159 | 21,067 | **2.94x** |
+| ECDSA Verify | 29,967 | 24,523 | 0.82x |
+| Schnorr Keypair Create | 4,660 | 14,312 | **3.07x** |
+| Schnorr Sign (BIP-340) | 6,427 | 15,397 | **2.40x** |
+| Schnorr Verify (BIP-340) | 29,454 | 24,927 | 0.85x |
 
 ### CT Path (constant-time -- true apples-to-apples)
 
@@ -109,32 +110,32 @@ Since libsecp256k1 is constant-time by design, **this is the fairest comparison*
 
 | Operation | Ultra CT (ns) | libsecp256k1 (ns) | **Speedup** |
 |-----------|--------------:|-------------------:|:-----------:|
-| ECDSA Sign | 13,431 | 15,631 | **1.16x** |
-| ECDSA Verify | 21,324 | 23,306 | **1.09x** |
-| Schnorr Sign (BIP-340) | 11,393 | 12,255 | **1.08x** |
-| Schnorr Verify (BIP-340) | 21,151 | 22,642 | **1.07x** |
+| ECDSA Sign | 23,542 | 21,067 | 0.89x |
+| ECDSA Verify | 29,967 | 24,523 | 0.82x |
+| Schnorr Sign (BIP-340) | 12,741 | 15,397 | **1.21x** |
+| Schnorr Verify (BIP-340) | 29,454 | 24,927 | 0.85x |
 
 ### Throughput (single core)
 
 | Operation | Ultra FAST | Ultra CT | libsecp256k1 |
 |-----------|----------:|---------:|-------------:|
-| ECDSA Sign | **111.3k** op/s | 74.5k op/s | 64.0k op/s |
-| ECDSA Verify | **46.9k** op/s | -- | 42.9k op/s |
-| Schnorr Sign | **118.4k** op/s | 87.8k op/s | 81.6k op/s |
-| Schnorr Verify | **47.3k** op/s | -- | 44.2k op/s |
-| pubkey_create (k*G) | **148.6k** op/s | -- | 88.0k op/s |
+| ECDSA Sign | **139.7k** op/s | 42.5k op/s | 47.5k op/s |
+| ECDSA Verify | 33.4k op/s | -- | **40.8k** op/s |
+| Schnorr Sign | **155.6k** op/s | 78.5k op/s | 65.0k op/s |
+| Schnorr Verify | 33.9k op/s | -- | **40.1k** op/s |
+| pubkey_create (k*G) | **240.4k** op/s | -- | 69.9k op/s |
 
 ### Field Micro-ops
 
 | Operation | Time (ns) | Notes |
 |-----------|----------:|-------|
-| FE52 mul | 12.8 | 5x52, `__int128` -> MULX |
-| FE52 sqr | 9.5 | Dedicated squaring |
-| FE52 add | 8.1 | |
+| FE52 mul | 15.3 | 5x52, `__int128` -> MULX (ASM52 OFF) |
+| FE52 sqr | 14.4 | Dedicated squaring |
+| FE52 add | 1.6 | |
 | FE52 inverse (SafeGCD) | 666.8 | Bernstein-Yang, `__builtin_ctzll` |
-| Scalar mul | 23.2 | 4x64 |
-| Scalar inverse (SafeGCD) | 843.1 | |
-| GLV decomposition | 146.0 | Lattice-based |
+| Scalar mul | 15.6 | 4x64 |
+| Scalar inverse (SafeGCD) | 1,605.5 | |
+| GLV decomposition | 75.1 | Lattice-based |
 
 ---
 
@@ -149,52 +150,54 @@ Since libsecp256k1 is constant-time by design, **this is the fairest comparison*
 | OS | Debian (StarFive kernel 6.6.20) |
 | Compiler | Clang 21.1.8, `-O3 -march=rv64gcv_zba_zbb` |
 | libsecp256k1 | v0.7.x (latest master) |
-| UltrafastSecp256k1 | v3.16.0+, 5x52, `__int128` |
+| UltrafastSecp256k1 | v3.18.0 (dev), 5x52, `__int128`, RISC-V FE52 ASM |
+| Timer | chrono::high_resolution_clock |
+| Harness | 3s CPU ramp-up, 500 warmup/op, 11 passes, IQR outlier removal, median |
 
 ### FAST Path
 
 | Operation | Ultra FAST (ns) | libsecp256k1 (ns) | **Speedup** |
 |-----------|----------------:|-------------------:|:-----------:|
-| Generator x k (pubkey_create) | 39,764 | 95,341 | **2.40x** |
-| ECDSA Sign | 73,784 | 138,128 | **1.87x** |
-| ECDSA Verify | 180,511 | 201,135 | **1.11x** |
-| Schnorr Keypair Create | 45,873 | 95,946 | **2.09x** |
-| Schnorr Sign (BIP-340) | 53,957 | 105,310 | **1.95x** |
-| Schnorr Verify (BIP-340) | 185,487 | 204,944 | **1.10x** |
+| Generator x k (pubkey_create) | 40,031 | 94,767 | **2.37x** |
+| ECDSA Sign | 75,217 | 138,337 | **1.84x** |
+| ECDSA Verify | 208,016 | 187,088 | 0.90x |
+| Schnorr Keypair Create | 45,891 | 95,123 | **2.07x** |
+| Schnorr Sign (BIP-340) | 54,480 | 104,901 | **1.93x** |
+| Schnorr Verify (BIP-340) | 213,416 | 191,644 | 0.90x |
 
 ### CT Path (constant-time, apples-to-apples)
 
 | Operation | Ultra CT (ns) | libsecp256k1 (ns) | **Speedup** |
 |-----------|--------------:|-------------------:|:-----------:|
-| ECDSA Sign | 131,177 | 138,818 | **1.06x** |
-| ECDSA Verify | 181,837 | 204,594 | **1.13x** |
-| Schnorr Sign (BIP-340) | 110,926 | 106,139 | **0.96x** |
-| Schnorr Verify (BIP-340) | 186,944 | 208,525 | **1.12x** |
+| ECDSA Sign | 137,389 | 138,337 | **1.01x** |
+| ECDSA Verify | 208,016 | 187,088 | 0.90x |
+| Schnorr Sign (BIP-340) | 111,580 | 104,901 | 0.94x |
+| Schnorr Verify (BIP-340) | 213,416 | 191,644 | 0.90x |
 
-> CT Schnorr Sign on RISC-V is 0.96x due to auxiliary overhead (SHA-256 tagged hash,
+> CT Schnorr Sign on RISC-V is 0.94x due to auxiliary overhead (SHA-256 tagged hash,
 > nonce derivation) not related to the core ECC operation. The core scalar_mul is faster.
 
 ### Throughput (single core)
 
 | Operation | Ultra FAST | Ultra CT | libsecp256k1 |
 |-----------|----------:|---------:|-------------:|
-| ECDSA Sign | **13.5k** op/s | 7.6k op/s | 7.2k op/s |
-| ECDSA Verify | **5.5k** op/s | -- | 4.9k op/s |
-| Schnorr Sign | **18.4k** op/s | 9.0k op/s | 9.4k op/s |
-| Schnorr Verify | **5.3k** op/s | -- | 4.8k op/s |
-| pubkey_create (k*G) | **24.9k** op/s | -- | 10.5k op/s |
+| ECDSA Sign | **13.3k** op/s | 7.3k op/s | 7.2k op/s |
+| ECDSA Verify | 4.8k op/s | -- | **5.3k** op/s |
+| Schnorr Sign | **18.4k** op/s | 9.0k op/s | 9.5k op/s |
+| Schnorr Verify | 4.7k op/s | -- | **5.2k** op/s |
+| pubkey_create (k*G) | **25.0k** op/s | -- | 10.6k op/s |
 
 ### Field Micro-ops
 
 | Operation | Time (ns) | Notes |
 |-----------|----------:|-------|
-| FE52 mul | 176.2 | 5x52, `__int128` -> MUL/MULHU |
-| FE52 sqr | 166.8 | Dedicated squaring |
+| FE52 mul | 176.4 | 5x52, `__int128` -> MUL/MULHU |
+| FE52 sqr | 167.0 | Dedicated squaring |
 | FE52 add | 42.1 | |
-| FE52 inverse (SafeGCD) | 4,697.6 | Bernstein-Yang |
-| Scalar mul | 147.5 | 4x64 |
-| Scalar inverse (SafeGCD) | 3,698.9 | |
-| GLV decomposition | 851.3 | Lattice-based |
+| FE52 inverse (SafeGCD) | 4,736.4 | Bernstein-Yang |
+| Scalar mul | 149.6 | 4x64 |
+| Scalar inverse (SafeGCD) | 3,610.1 | |
+| GLV decomposition | 522.7 | Lattice-based |
 
 ### RISC-V Notes
 
@@ -328,8 +331,8 @@ Since libsecp256k1 is constant-time by design, **this is the fairest comparison*
 
 | Platform | Ultra FAST | Ultra CT | libsecp256k1 | FAST Speedup |
 |----------|----------:|---------:|-------------:|:------------:|
-| x86-64 (i5-14400F) | 8,989 ns | 13,431 ns | 15,631 ns | **1.74x** |
-| RISC-V 64 (U74) | 73,784 ns | 131,177 ns | 138,128 ns | **1.87x** |
+| x86-64 (i7-11700) | 7,159 ns | 23,542 ns | 21,067 ns | **2.94x** |
+| RISC-V 64 (U74) | 75,217 ns | 137,389 ns | 138,337 ns | **1.84x** |
 | ARM64 (A76) | 30,000 ns | -- | -- | -- |
 | CUDA (RTX 5060 Ti) | 204.8 ns | -- | -- | -- |
 
@@ -337,8 +340,8 @@ Since libsecp256k1 is constant-time by design, **this is the fairest comparison*
 
 | Platform | Ultra FAST | libsecp256k1 | Speedup |
 |----------|----------:|-------------:|:-------:|
-| x86-64 (i5-14400F) | 21,324 ns | 23,306 ns | **1.09x** |
-| RISC-V 64 (U74) | 180,511 ns | 201,135 ns | **1.11x** |
+| x86-64 (i7-11700) | 29,967 ns | 24,523 ns | 0.82x |
+| RISC-V 64 (U74) | 208,016 ns | 187,088 ns | 0.90x |
 | ARM64 (A76) | 153,000 ns | -- | -- |
 | CUDA (RTX 5060 Ti) | 410.1 ns | -- | -- |
 
@@ -346,8 +349,8 @@ Since libsecp256k1 is constant-time by design, **this is the fairest comparison*
 
 | Platform | Ultra FAST | libsecp256k1 | Speedup |
 |----------|----------:|-------------:|:-------:|
-| x86-64 (i5-14400F) | 6,730 ns | 11,362 ns | **1.69x** |
-| RISC-V 64 (U74) | 39,764 ns | 95,341 ns | **2.40x** |
+| x86-64 (i7-11700) | 4,160 ns | 14,312 ns | **3.44x** |
+| RISC-V 64 (U74) | 40,031 ns | 94,767 ns | **2.37x** |
 | ARM64 (A76) | 14,000 ns | -- | -- |
 | CUDA (RTX 5060 Ti) | 217.7 ns | -- | -- |
 | ESP32-S3 | 2,483,000 ns | -- | -- |
@@ -359,19 +362,19 @@ Since libsecp256k1 is constant-time by design, **this is the fairest comparison*
 
 Estimated per-block validation time (single core):
 
-### x86-64 (i5-14400F)
+### x86-64 (i7-11700)
 
 | Block Type | Ultra FAST | libsecp256k1 | Speedup |
 |------------|----------:|-------------:|:-------:|
-| Pre-Taproot (~3000 ECDSA verify) | 64.0 ms | 69.9 ms | **1.09x** |
-| Taproot (~2000 Schnorr + ~1000 ECDSA) | 63.6 ms | 67.9 ms | **1.07x** |
+| Pre-Taproot (~3000 ECDSA verify) | 89.9 ms | 73.6 ms | 0.82x |
+| Taproot (~2000 Schnorr + ~1000 ECDSA) | 88.9 ms | 73.5 ms | 0.83x |
 
 ### RISC-V 64 (U74)
 
 | Block Type | Ultra FAST | libsecp256k1 | Speedup |
 |------------|----------:|-------------:|:-------:|
-| Pre-Taproot (~3000 ECDSA verify) | 545.5 ms | 613.8 ms | **1.13x** |
-| Taproot (~2000 Schnorr + ~1000 ECDSA) | 555.7 ms | 621.6 ms | **1.12x** |
+| Pre-Taproot (~3000 ECDSA verify) | 624.0 ms | 561.3 ms | 0.90x |
+| Taproot (~2000 Schnorr + ~1000 ECDSA) | 634.8 ms | 565.4 ms | 0.90x |
 
 ### GPU Block Validation (theoretical, RTX 5060 Ti)
 
@@ -489,6 +492,7 @@ Platforms we'd especially like to see: **AMD Zen 4/5**, **Apple M-series (ARM64)
 
 ---
 
-*Last updated: 2026-03-04*
-*UltrafastSecp256k1 v3.18.0*
-*Benchmark harness: bench_unified.cpp*
+*Last updated: 2025-07-14*
+*UltrafastSecp256k1 v3.18.0 (dev branch)*
+*Benchmark harness: bench_unified.cpp (11-pass median, IQR outlier removal)*
+*Platforms measured: x86-64 (i7-11700, Clang 21), RISC-V (U74, Clang 21)*

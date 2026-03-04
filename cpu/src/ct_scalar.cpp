@@ -93,13 +93,6 @@ Scalar scalar_sub(const Scalar& a, const Scalar& b) noexcept {
     // move into a branch on the borrow flag.
     value_barrier(borrow);
     std::uint64_t mask = is_nonzero_mask(borrow);
-#if defined(__riscv)
-    // RISC-V U74: barrier the mask AND each XOR-AND result to prevent
-    // the compiler from scheduling the cmov differently when mask is
-    // all-zeros vs all-ones (dudect detects the forwarding latency
-    // difference on in-order pipelines).
-    value_barrier(mask);
-#endif
     cmov256(r, tmp, mask);
 
     return Scalar::from_limbs({r[0], r[1], r[2], r[3]});
@@ -212,7 +205,7 @@ static int64_t divsteps_59(int64_t zeta, uint64_t f0, uint64_t g0, T2x2& t) {
     uint64_t mask1, mask2, f = f0, g = g0, x, y, z;
 
     for (int i = 3; i < 62; ++i) {
-        c1 = zeta >> 63;
+        c1 = static_cast<uint64_t>(zeta >> 63);
         mask1 = c1;
         c2 = g & 1;
         mask2 = -c2;
@@ -223,7 +216,7 @@ static int64_t divsteps_59(int64_t zeta, uint64_t f0, uint64_t g0, T2x2& t) {
         q += y & mask2;
         r += z & mask2;
         mask1 &= mask2;
-        zeta = (zeta ^ mask1) - 1;
+        zeta = static_cast<int64_t>(static_cast<uint64_t>(zeta) ^ mask1) - 1;
         f += g & mask1;
         u += q & mask1;
         v += r & mask1;

@@ -163,8 +163,9 @@ FieldElement field_sqr(const FieldElement& a) noexcept {
     // RISC-V U74: barrier the FE52 limbs before squaring to prevent
     // the compiler from propagating known-limb patterns (e.g. fe_one)
     // into the square kernel (differentiating edge-case vs random).
+    // Register-only -- no "memory" clobber (see value_barrier comment).
     asm volatile("" : "+r"(tmp.n[0]), "+r"(tmp.n[1]), "+r"(tmp.n[2]),
-                      "+r"(tmp.n[3]), "+r"(tmp.n[4]) : : "memory");
+                      "+r"(tmp.n[3]), "+r"(tmp.n[4]));
 #endif
     return tmp.square().to_fe();
 #else

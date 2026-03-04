@@ -5,6 +5,60 @@ All notable changes to UltrafastSecp256k1 are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.19.0] - 2026-03-04
+
+> No breaking changes -- drop-in upgrade from v3.18.x | ABI compatible
+> Focus: RISC-V constant-time hardening, L1 I-cache optimization, -Werror clean build
+
+### 1. RISC-V Constant-Time Timing Leak Fixes
+- **Root cause**: dudect testing on SiFive U74 (in-order core) detected 5 persistent
+  timing leaks (|t| > 10): `field_sqr`, `scalar_is_zero`, `scalar_sub`, `scalar_window`,
+  `ct_compare`. The compiler (Clang 21) reordered instructions across barriers, and
+  store-buffer retirement latency created data-dependent timing differences.
+- **Fix (v1)**: Added `"memory"` clobber to RISC-V `value_barrier()` and explicit barriers
+  at critical points in `ct_field.cpp` and `ct_scalar.cpp`.
+- **Fix (v2)**: Reverted to register-only barrier `asm volatile("" : "+r"(v))` on RISC-V.
+  The `"memory"` clobber forced store-to-load-forwarding sequences with data-dependent
+  retirement latency on U74's store buffer (zero-coalescing), creating false-positive
+  dudect leaks in `field_add`, `field_is_zero`, and `scalar_add`. Register-only is
+  sufficient on in-order cores because the pipeline cannot reorder past `asm volatile`.
+- **rdtsc fix**: Removed hardware `fence` from RISC-V `rdcycle` timer -- the fence drained
+  the store buffer synchronously, capturing its data-dependent retirement latency and
+  producing false-positive timing leaks. Matches x86 `rdtscp` and ARM64 `cntvct_el0`
+  behavior (neither drains the store buffer).
+- Files changed: `cpu/include/secp256k1/ct/ops.hpp`, `cpu/src/ct_field.cpp`,
+  `cpu/src/ct_scalar.cpp`, `audit/test_ct_sidechannel.cpp`
+
+### 2. L1 I-Cache Optimization (ECDSA Verify)
+- **Root cause**: ECDSA verify performance was 0.82x vs libsecp256k1 due to L1 instruction
+  cache thrashing. Aggressive inlining of point arithmetic functions (`jac52_add`,
+  `jac52_double`, etc.) caused the hot verify loop to exceed L1 I-cache capacity (32 KB).
+- **Fix**: Added `__attribute__((noinline))` to point add/double functions, reducing code
+  size in the verify hot path below L1 I-cache threshold.
+- **Performance**: ECDSA verify ratio vs libsecp: 0.82x -> 0.92x (+12% improvement)
+- Files changed: `cpu/src/point.cpp`
+
+### 3. Benchmark Diagnostics
+- Added Schnorr verify sub-operation diagnostics (SHA256, FE52_inv, parse_strict) to
+  `bench_unified.cpp` for identifying verify bottlenecks.
+- Files changed: `cpu/bench/bench_unified.cpp`
+
+### 4. Build Hardening
+- Fixed `-Wsign-conversion` warnings in `ct_scalar.cpp` SafeGCD `divsteps_59()` function.
+  Added explicit `static_cast` for `int64_t` <-> `uint64_t` conversions that were
+  previously implicit. Clean `-Werror -Wall -Wextra -Wpedantic` build.
+- Files changed: `cpu/src/ct_scalar.cpp`
+
+### x86-64 Benchmark Results (i7-11700 @ 2.50 GHz, Clang 21.1.0)
+
+| Operation | Ultra FAST | Ultra CT | libsecp256k1 | Ratio (fast) | Ratio (CT) |
+|-----------|-----------|----------|-------------|-------------|-----------|
+| ECDSA sign | 8.06 us | 15.74 us | 21.67 us | **2.69x** | **1.38x** |
+| ECDSA verify | 29.06 us | -- | 26.62 us | 0.92x | -- |
+| Schnorr sign | 6.42 us | 13.59 us | 17.07 us | **2.66x** | **1.26x** |
+| Schnorr verify | 28.67 us | -- | 27.72 us | 0.97x | -- |
+| k*G | 4.29 us | 11.86 us | 17.59 us | **4.10x** | **1.48x** |
+
 ## [3.18.0] - 2026-03-04
 
 > No breaking changes -- drop-in upgrade from v3.17.x | ABI compatible
