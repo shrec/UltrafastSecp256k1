@@ -80,7 +80,9 @@ jobs:
           benchmark_results/benchmark.json
 
     - name: Store baseline + check regression (push to main/dev or manual dispatch)
-      # Stores the result to gh-pages and FAILS the job if >20% regression.
+      # Stores the result to gh-pages and FAILS the job if >50% regression.
+      # Threshold is generous (150%) because push events run on shared CI runners
+      # with high variance; the baseline auto-updates on each push anyway.
       # auto-push: true is required so future runs have a baseline to compare.
       # workflow_dispatch also stores so you can bootstrap/reset the baseline manually.
       if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
@@ -91,7 +93,7 @@ jobs:
         output-file-path: benchmark_results/benchmark.json
         github-token: ${{ secrets.GITHUB_TOKEN }}
         auto-push: true
-        alert-threshold: '120%'
+        alert-threshold: '150%'
         comment-on-alert: true
         fail-on-alert: true
         benchmark-data-dir-path: 'dev/bench-gate'

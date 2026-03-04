@@ -855,13 +855,17 @@ if(BUILD_TESTING)
     # -- CTest labels for core library tests --------------------------------
     # Label all core tests so they can be run as a group:
     #   ctest --test-dir <build> -L core
-    set_tests_properties(
+    set(CORE_TESTS
         selftest batch_add_affine hash_accel
-        field_52 field_26 exhaustive comprehensive
+        field_26 exhaustive comprehensive
         bip340_vectors bip340_strict bip32_vectors
         rfc6979_vectors ecc_properties point_edge_cases
-        PROPERTIES LABELS "core"
     )
+    # field_52 only exists when __uint128_t is available (not plain MSVC)
+    if(NOT (MSVC AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
+        list(APPEND CORE_TESTS field_52)
+    endif()
+    set_tests_properties(${CORE_TESTS} PROPERTIES LABELS "core")
 
     # -- Audit infrastructure lives in audit/ ------------------------------
     # All audit-specific targets (unified_audit_runner, standalone CT/fuzz/
