@@ -12,6 +12,8 @@ Welcome to the **UltrafastSecp256k1** wiki -- an ultra high-performance secp256k
 | [[Android Guide]] | Android port (ARM64, ARMv7, JNI) |
 | [[CUDA Guide]] | GPU implementation and batch processing |
 | [[Benchmarks]] | Performance measurements |
+| [[Benchmark Comparison]] | Head-to-head vs libsecp256k1 (all platforms) |
+| [[Audit Framework]] | Comprehensive audit framework (49+ modules, 8 domains) |
 | [[Examples]] | Code examples and use cases |
 
 ## Key Features
