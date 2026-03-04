@@ -21,6 +21,7 @@
 #   bash scripts/local-ci.sh --job ci           # CI matrix (GCC+Clang x Debug+Release)
 #   bash scripts/local-ci.sh --job valgrind-ct  # Valgrind CT taint analysis
 #   bash scripts/local-ci.sh --job bench        # Quick benchmark snapshot (no regression check)
+#   bash scripts/local-ci.sh --job trust        # Trust signals summary (coverage + links)
 #   bash scripts/local-ci.sh --list             # List all available jobs
 #
 # Build dirs use /tmp/build-local-ci-* (not /src) to avoid Windows NTFS overhead.
@@ -527,6 +528,27 @@ job_bench() {
 }
 
 # -----------------------------------------------------------------------------
+# Job: trust - Trust signals summary (local)
+# Mirrors: codecov + SonarCloud + scorecard (local = evidence + links)
+# -----------------------------------------------------------------------------
+job_trust() {
+    banner "trust: Public Trust Signals (local summary)"
+    job_coverage
+
+    local out_dir="$SRC/local-ci-output"
+    mkdir -p "$out_dir"
+    cat > "$out_dir/trust_summary.txt" <<'EOF'
+Public Trust Signals (local):
+- Codecov: ensure coverage artifacts exist (local-ci-output/coverage/)
+- SonarCloud: run remote analysis in CI (requires token)
+- OSSF Scorecard: GitHub-hosted scan (public)
+EOF
+
+    echo -e "${GREEN}Trust summary saved to: local-ci-output/trust_summary.txt${NC}"
+    echo -e "${YELLOW}NOTE:${NC} SonarCloud/Scorecard run in GitHub Actions (not local)."
+    pass "trust: Summary complete"
+}
+# -----------------------------------------------------------------------------
 # Job: valgrind-ct — Valgrind CT taint analysis
 # Mirrors: valgrind-ct.yml
 # -----------------------------------------------------------------------------
@@ -610,6 +632,7 @@ main() {
                 echo "  dudect      dudect 60s timing smoke test   (security-audit.yml)"
                 echo "  valgrind-ct Valgrind CT taint analysis     (valgrind-ct.yml)"
                 echo "  bench       Benchmark snapshot (output only) (benchmark.yml)"
+                echo "  trust       Trust signals summary (coverage + links)"
                 echo ""
                 echo "Presets:"
                 echo "  --quick  ${PRESET_QUICK[*]}  (~5 min)"
@@ -654,6 +677,7 @@ main() {
             audit)       job_audit ;;
             valgrind-ct) job_valgrind_ct ;;
             bench)       job_bench ;;
+            trust)       job_trust ;;
             *) echo -e "${RED}Unknown job: $job${NC}"; exit 1 ;;
         esac
     done

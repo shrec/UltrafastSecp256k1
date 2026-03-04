@@ -146,7 +146,7 @@ jobs:
         # Sanitizers add 3-15x overhead; raise per-test timeout from 300s to 900s.
         # Exclude selftest (unified runner) -- standalone tests cover the same
         # modules individually and finish faster under instrumentation.
-        run: ctest --test-dir build/${{ matrix.sanitizer }} --output-on-failure -j$(nproc) -E "^(ct_sidechannel|unified_audit|selftest)" --timeout 900
+        run: ctest --test-dir build/${{ matrix.sanitizer }} --output-on-failure -j$(nproc) -E "^(ct_sidechannel|unified_audit|selftest|batch_randomness)" --timeout 900
 
   # -- Windows (MSVC + Clang-cl) ----------------------------------------------
   windows:

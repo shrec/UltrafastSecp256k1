@@ -47,6 +47,33 @@ All pure computation functions in `secp256k1::fast::` and `secp256k1::ct::` name
 | Group order `n` | Compile-time constant | [OK] Thread-safe |
 | Endomorphism constants `lambda`, `beta` | Compile-time constant | [OK] Thread-safe |
 
+### 3.3 First-Call Latency (Global Mutex)
+
+The precomputed generator comb table (`CombGenContext` in `ecmult_gen_comb.cpp`)
+is initialized lazily on the first call to any signing function
+(`ecdsa_sign`, `schnorr_sign`, `ct::generator_mul`, etc.). This initialization
+is protected by a `std::mutex` which is acquired once, populates the table,
+and is never contended again.
+
+**Impact on callers:**
+
+| Scenario | Behavior |
+|----------|----------|
+| First call from any thread | Acquires mutex, builds table (~0.5-2 ms), releases mutex |
+| Subsequent calls | No lock contention -- table is already initialized |
+| Concurrent first calls | One thread initializes, others block on the mutex briefly |
+
+**Embedded / real-time considerations:**
+On latency-sensitive systems (hard real-time, interrupt handlers), the
+one-time 0.5-2 ms initialization can be triggered explicitly at startup:
+
+```cpp
+// Call during application startup to avoid first-call latency:
+secp256k1::ct::init_generator_table();
+```
+
+After this call, all signing operations are lock-free and allocation-free.
+
 ---
 
 ## 4. Signature Operations

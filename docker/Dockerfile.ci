@@ -29,6 +29,8 @@ RUN apt-get update -qq && apt-get install -y --no-install-recommends \
     gcc-13 g++-13 \
     # Clang 17
     clang-17 clang++-17 lld-17 clang-tidy-17 llvm-17 \
+    # Clang sanitizer runtimes (ASan, UBSan, TSan, MSan)
+    libclang-rt-17-dev \
     # ARM64 cross-compiler
     gcc-13-aarch64-linux-gnu g++-13-aarch64-linux-gnu \
     # Analysis tools

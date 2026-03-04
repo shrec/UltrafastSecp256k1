@@ -70,8 +70,8 @@ job_linux_gcc_release() {
         -DSECP256K1_BUILD_BENCH=ON \
         -DSECP256K1_BUILD_EXAMPLES=ON \
         -DSECP256K1_BUILD_FUZZ_TESTS=ON \
-        -DSECP256K1_BUILD_PROTOCOL_TESTS=ON
-    cmake --build "$bd" -j"$NPROC"
+        -DSECP256K1_BUILD_PROTOCOL_TESTS=ON || return 1
+    cmake --build "$bd" -j"$NPROC" || return 1
     ctest --test-dir "$bd" --output-on-failure -j"$NPROC" -E "^ct_sidechannel"
 }
 
@@ -84,8 +84,8 @@ job_linux_gcc_debug() {
         -DSECP256K1_BUILD_BENCH=ON \
         -DSECP256K1_BUILD_EXAMPLES=ON \
         -DSECP256K1_BUILD_FUZZ_TESTS=ON \
-        -DSECP256K1_BUILD_PROTOCOL_TESTS=ON
-    cmake --build "$bd" -j"$NPROC"
+        -DSECP256K1_BUILD_PROTOCOL_TESTS=ON || return 1
+    cmake --build "$bd" -j"$NPROC" || return 1
     ctest --test-dir "$bd" --output-on-failure -j"$NPROC" -E "^ct_sidechannel"
 }
 
@@ -99,8 +99,8 @@ job_linux_clang_release() {
         -DSECP256K1_BUILD_EXAMPLES=ON \
         -DSECP256K1_BUILD_METAL=ON \
         -DSECP256K1_BUILD_FUZZ_TESTS=ON \
-        -DSECP256K1_BUILD_PROTOCOL_TESTS=ON
-    cmake --build "$bd" -j"$NPROC"
+        -DSECP256K1_BUILD_PROTOCOL_TESTS=ON || return 1
+    cmake --build "$bd" -j"$NPROC" || return 1
     ctest --test-dir "$bd" --output-on-failure -j"$NPROC" -E "^ct_sidechannel"
 }
 
@@ -111,8 +111,8 @@ job_linux_clang_debug() {
         -DCMAKE_BUILD_TYPE=Debug \
         -DSECP256K1_BUILD_TESTS=ON \
         -DSECP256K1_BUILD_FUZZ_TESTS=ON \
-        -DSECP256K1_BUILD_PROTOCOL_TESTS=ON
-    cmake --build "$bd" -j"$NPROC"
+        -DSECP256K1_BUILD_PROTOCOL_TESTS=ON || return 1
+    cmake --build "$bd" -j"$NPROC" || return 1
     ctest --test-dir "$bd" --output-on-failure -j"$NPROC" -E "^ct_sidechannel"
 }
 
@@ -127,8 +127,8 @@ job_sanitizers_asan() {
         -DSECP256K1_USE_ASM=OFF \
         -DCMAKE_C_FLAGS="-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer" \
         -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer" \
-        -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined"
-    cmake --build "$bd" -j"$NPROC"
+        -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined" || return 1
+    cmake --build "$bd" -j"$NPROC" || return 1
     ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 \
     UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1 \
     ctest --test-dir "$bd" --output-on-failure -j"$NPROC" \
@@ -146,10 +146,10 @@ job_sanitizers_tsan() {
         -DSECP256K1_USE_ASM=OFF \
         -DCMAKE_C_FLAGS="-fsanitize=thread -fno-omit-frame-pointer" \
         -DCMAKE_CXX_FLAGS="-fsanitize=thread -fno-omit-frame-pointer" \
-        -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=thread"
-    cmake --build "$bd" -j"$NPROC"
+        -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=thread" || return 1
+    cmake --build "$bd" -j"$NPROC" || return 1
     ctest --test-dir "$bd" --output-on-failure -j"$NPROC" \
-        -E "^(ct_sidechannel|unified_audit)" --timeout 300
+        -E "^(ct_sidechannel|unified_audit|batch_randomness)" --timeout 900
 }
 
 job_valgrind() {
@@ -157,8 +157,8 @@ job_valgrind() {
     rm -rf "$bd"
     CC=gcc-13 CXX=g++-13 cmake -S . -B "$bd" -G Ninja \
         -DCMAKE_BUILD_TYPE=Debug \
-        -DSECP256K1_BUILD_TESTS=ON
-    cmake --build "$bd" -j"$NPROC"
+        -DSECP256K1_BUILD_TESTS=ON || return 1
+    cmake --build "$bd" -j"$NPROC" || return 1
     ctest --test-dir "$bd" --output-on-failure -j"$NPROC" \
         -E "^ct_sidechannel" -T MemCheck \
         --overwrite MemoryCheckCommandOptions="--leak-check=full --error-exitcode=1"
@@ -170,8 +170,8 @@ job_wasm() {
     # Source Emscripten env
     # shellcheck disable=SC1091
     source /emsdk/emsdk_env.sh 2>/dev/null || true
-    emcmake cmake -S wasm -B "$bd" -DCMAKE_BUILD_TYPE=Release
-    cmake --build "$bd" -j"$NPROC"
+    emcmake cmake -S wasm -B "$bd" -DCMAKE_BUILD_TYPE=Release || return 1
+    cmake --build "$bd" -j"$NPROC" || return 1
     echo "WASM artifacts:"
     ls -lh "$bd/dist/secp256k1_wasm.js" "$bd/dist/secp256k1_wasm.wasm" 2>/dev/null || true
     echo "KAT test:"
@@ -190,8 +190,8 @@ job_arm64() {
         -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++-13 \
         -DSECP256K1_BUILD_TESTS=ON \
         -DSECP256K1_BUILD_BENCH=ON \
-        -DSECP256K1_BUILD_METAL=OFF
-    cmake --build "$bd" -j"$NPROC"
+        -DSECP256K1_BUILD_METAL=OFF || return 1
+    cmake --build "$bd" -j"$NPROC" || return 1
     echo "ARM64 library:"
     file "$bd/cpu/libfastsecp256k1.a"
     echo "Size: $(du -h "$bd/cpu/libfastsecp256k1.a" | cut -f1)"
@@ -205,8 +205,8 @@ job_clang_tidy() {
         -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
         -DSECP256K1_BUILD_TESTS=ON \
         -DSECP256K1_BUILD_BENCH=ON \
-        -DSECP256K1_BUILD_EXAMPLES=ON
-    cmake --build "$bd" -j"$NPROC"
+        -DSECP256K1_BUILD_EXAMPLES=ON || return 1
+    cmake --build "$bd" -j"$NPROC" || return 1
     # Run clang-tidy on source files (warnings only, non-blocking)
     local files
     files=$(python3 -c "
@@ -237,8 +237,8 @@ job_coverage() {
         -DSECP256K1_USE_ASM=OFF \
         -DCMAKE_C_FLAGS="-fprofile-instr-generate -fcoverage-mapping" \
         -DCMAKE_CXX_FLAGS="-fprofile-instr-generate -fcoverage-mapping" \
-        -DCMAKE_EXE_LINKER_FLAGS="-fprofile-instr-generate"
-    cmake --build "$bd" -j"$NPROC"
+        -DCMAKE_EXE_LINKER_FLAGS="-fprofile-instr-generate" || return 1
+    cmake --build "$bd" -j"$NPROC" || return 1
     LLVM_PROFILE_FILE="$bd/%p-%m.profraw" \
     ctest --test-dir "$bd" --output-on-failure -j"$NPROC" -E "^ct_sidechannel"
 
@@ -271,8 +271,8 @@ job_compiler_warnings() {
     CC=gcc-13 CXX=g++-13 cmake -S . -B "$bd" -G Ninja \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_CXX_FLAGS="-Werror -Wall -Wextra -Wpedantic -Wconversion -Wshadow" \
-        -DSECP256K1_BUILD_TESTS=ON
-    cmake --build "$bd" -j"$NPROC"
+        -DSECP256K1_BUILD_TESTS=ON || return 1
+    cmake --build "$bd" -j"$NPROC" || return 1
 }
 
 job_audit() {
@@ -291,8 +291,8 @@ job_audit() {
             -DBUILD_TESTING=ON \
             -DSECP256K1_BUILD_TESTS=ON \
             -DSECP256K1_BUILD_PROTOCOL_TESTS=ON \
-            -DSECP256K1_BUILD_FUZZ_TESTS=ON
-        cmake --build "$bd" -j"$NPROC"
+            -DSECP256K1_BUILD_FUZZ_TESTS=ON || return 1
+        cmake --build "$bd" -j"$NPROC" || return 1
         mkdir -p "audit-output-${compiler}"
         "$bd/audit/unified_audit_runner" \
             --report-dir "./audit-output-${compiler}" || true

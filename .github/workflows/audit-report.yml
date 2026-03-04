@@ -225,6 +225,55 @@ jobs:
           }
           '```' | Out-File -Append $env:GITHUB_STEP_SUMMARY
 
+
+  # =========================================================================
+  # Publish audit artifacts to gh-pages (public logs)
+  # =========================================================================
+  publish-artifacts:
+    name: Publish Audit Artifacts (gh-pages)
+    needs: verdict
+    runs-on: ubuntu-24.04
+    if: always()
+    permissions:
+      contents: write
+    steps:
+      - uses: step-security/harden-runner@a90bcbc6539c36a85cdfeb73f7e2f433735f215b # v2.15.0
+        with:
+          egress-policy: audit
+
+      - name: Download audit artifacts
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          pattern: audit-report-*
+          merge-multiple: false
+
+      - name: Checkout gh-pages
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: gh-pages
+          path: gh-pages
+
+      - name: Stage artifacts
+        run: |
+          DATE=$(date -u +%Y%m%d)
+          RUN_ID=${GITHUB_RUN_ID}
+          DEST="gh-pages/audit/${DATE}/${RUN_ID}"
+          mkdir -p "$DEST"
+          cp -r audit-report-* "$DEST"/
+          echo "${DATE}/${RUN_ID}" > "gh-pages/audit/latest.txt"
+
+      - name: Commit and push
+        run: |
+          cd gh-pages
+          git add audit
+          if git diff --cached --quiet; then
+            echo "No changes to publish"
+            exit 0
+          fi
+          git config user.email "actions@github.com"
+          git config user.name "github-actions[bot]"
+          git commit -m "Publish audit artifacts (${GITHUB_RUN_ID})"
+          git push
   # =========================================================================
   # Aggregate verdict
   # =========================================================================
@@ -278,3 +327,4 @@ jobs:
             echo "::error::Audit verdict check failed -- one or more platforms did not PASS"
             exit 1
           fi
+
