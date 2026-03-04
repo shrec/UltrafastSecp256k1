@@ -24,6 +24,8 @@ namespace secp256k1::ct {
 // ============================================================================
 // CT ECDSA Sign
 // ============================================================================
+// Pure CT sign: no sign-then-verify countermeasure.
+// Use ct::ecdsa_sign_verified() if fault attack resistance is needed.
 
 ECDSASignature ecdsa_sign(const std::array<uint8_t, 32>& msg_hash,
                           const Scalar& private_key) {
@@ -52,15 +54,26 @@ ECDSASignature ecdsa_sign(const std::array<uint8_t, 32>& msg_hash,
     if (s.is_zero()) return {Scalar::zero(), Scalar::zero()};
 
     // CT low-S normalization: branchless comparison with n/2 + conditional negate.
-    // Variable-time ECDSASignature::normalize() uses early-return branches that
-    // leak whether s was high via timing. ct_normalize_low_s is fully branchless.
     ECDSASignature const sig = ct::ct_normalize_low_s(ECDSASignature{r, s});
 
-    // Sign-then-verify: fault attack countermeasure (FIPS 186-4).
-    // Verify uses fast path -- public key and signature are not secret.
-    auto pk = ct::generator_mul(private_key);
-    if (!ecdsa_verify(msg_hash.data(), pk, sig)) {
-        return {Scalar::zero(), Scalar::zero()};
+    return sig;
+}
+
+// ============================================================================
+// CT ECDSA Sign + Verify (fault attack countermeasure)
+// ============================================================================
+// Signs and then verifies (FIPS 186-4 fault countermeasure).
+// Verify uses fast path -- public key and signature are not secret.
+
+ECDSASignature ecdsa_sign_verified(const std::array<uint8_t, 32>& msg_hash,
+                                   const Scalar& private_key) {
+    auto sig = ecdsa_sign(msg_hash, private_key);
+
+    if (!sig.r.is_zero()) {
+        auto pk = ct::generator_mul(private_key);
+        if (!ecdsa_verify(msg_hash.data(), pk, sig)) {
+            return {Scalar::zero(), Scalar::zero()};
+        }
     }
 
     return sig;
@@ -101,10 +114,23 @@ ECDSASignature ecdsa_sign_hedged(const std::array<uint8_t, 32>& msg_hash,
     // CT low-S normalization (branchless)
     ECDSASignature const sig = ct::ct_normalize_low_s(ECDSASignature{r, s});
 
-    // Sign-then-verify countermeasure
-    auto pk = ct::generator_mul(private_key);
-    if (!ecdsa_verify(msg_hash.data(), pk, sig)) {
-        return {Scalar::zero(), Scalar::zero()};
+    return sig;
+}
+
+// ============================================================================
+// CT ECDSA Sign Hedged + Verify (fault attack countermeasure)
+// ============================================================================
+
+ECDSASignature ecdsa_sign_hedged_verified(const std::array<uint8_t, 32>& msg_hash,
+                                          const Scalar& private_key,
+                                          const std::array<uint8_t, 32>& aux_rand) {
+    auto sig = ecdsa_sign_hedged(msg_hash, private_key, aux_rand);
+
+    if (!sig.r.is_zero()) {
+        auto pk = ct::generator_mul(private_key);
+        if (!ecdsa_verify(msg_hash.data(), pk, sig)) {
+            return {Scalar::zero(), Scalar::zero()};
+        }
     }
 
     return sig;
@@ -213,8 +239,22 @@ SchnorrSignature schnorr_sign(const SchnorrKeypair& kp,
     secure_erase(&k_prime, sizeof(k_prime));
     secure_erase(&k, sizeof(k));
 
-    // Sign-then-verify: fault attack countermeasure.
-    // Public key and signature are not secret -- fast verify is safe.
+    return sig;
+}
+
+// ============================================================================
+// CT Schnorr Sign + Verify (fault attack countermeasure)
+// ============================================================================
+// Signs and then verifies (FIPS 186-4 fault countermeasure).
+// Public key and signature are not secret -- fast verify is safe.
+
+SchnorrSignature schnorr_sign_verified(const SchnorrKeypair& kp,
+                                       const std::array<uint8_t, 32>& msg,
+                                       const std::array<uint8_t, 32>& aux_rand) {
+    auto sig = ct::schnorr_sign(kp, msg, aux_rand);
+
+    if (sig.s.is_zero()) return SchnorrSignature{};
+
     if (!schnorr_verify(kp.px, msg, sig)) {
         return SchnorrSignature{};
     }

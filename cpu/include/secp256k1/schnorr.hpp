@@ -66,11 +66,22 @@ SchnorrSignature schnorr_sign(const SchnorrKeypair& kp,
                               const std::array<std::uint8_t, 32>& msg,
                               const std::array<std::uint8_t, 32>& aux_rand);
 
+// Sign + verify (FIPS 186-4 fault attack countermeasure).
+// Verifies the produced Schnorr signature before returning it.
+SchnorrSignature schnorr_sign_verified(const SchnorrKeypair& kp,
+                                       const std::array<std::uint8_t, 32>& msg,
+                                       const std::array<std::uint8_t, 32>& aux_rand);
+
 // Sign from raw private key (convenience: creates keypair internally).
 // See above for aux_rand entropy requirements.
 SchnorrSignature schnorr_sign(const fast::Scalar& private_key,
                               const std::array<std::uint8_t, 32>& msg,
                               const std::array<std::uint8_t, 32>& aux_rand);
+
+// Raw key sign + verify (fault attack countermeasure).
+SchnorrSignature schnorr_sign_verified(const fast::Scalar& private_key,
+                                       const std::array<std::uint8_t, 32>& msg,
+                                       const std::array<std::uint8_t, 32>& aux_rand);
 
 // Verify a BIP-340 Schnorr signature.
 // pubkey_x: 32-byte x-only public key

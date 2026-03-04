@@ -452,6 +452,27 @@ ufsecp_error_t ufsecp_ecdsa_sign(ufsecp_ctx* ctx,
     return UFSECP_OK;
 }
 
+ufsecp_error_t ufsecp_ecdsa_sign_verified(ufsecp_ctx* ctx,
+                                          const uint8_t msg32[32],
+                                          const uint8_t privkey[32],
+                                          uint8_t sig64_out[64]) {
+    if (!ctx || !msg32 || !privkey || !sig64_out) return UFSECP_ERR_NULL_ARG;
+    ctx_clear_err(ctx);
+
+    std::array<uint8_t, 32> msg;
+    std::memcpy(msg.data(), msg32, 32);
+    Scalar sk;
+    if (!scalar_parse_strict_nonzero(privkey, sk)) {
+        return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "privkey is zero or >= n");
+    }
+
+    auto sig = secp256k1::ct::ecdsa_sign_verified(msg, sk);
+    secp256k1::detail::secure_erase(&sk, sizeof(sk));
+    auto compact = sig.to_compact();
+    std::memcpy(sig64_out, compact.data(), 64);
+    return UFSECP_OK;
+}
+
 ufsecp_error_t ufsecp_ecdsa_verify(ufsecp_ctx* ctx,
                                    const uint8_t msg32[32],
                                    const uint8_t sig64[64],
@@ -700,6 +721,34 @@ ufsecp_error_t ufsecp_schnorr_sign(ufsecp_ctx* ctx,
 
     auto kp = secp256k1::ct::schnorr_keypair_create(sk);
     auto sig = secp256k1::ct::schnorr_sign(kp, msg_arr, aux_arr);
+    secp256k1::detail::secure_erase(&sk, sizeof(sk));
+    secp256k1::detail::secure_erase(&kp.d, sizeof(kp.d));
+    auto bytes = sig.to_bytes();
+    std::memcpy(sig64_out, bytes.data(), 64);
+    return UFSECP_OK;
+}
+
+ufsecp_error_t ufsecp_schnorr_sign_verified(ufsecp_ctx* ctx,
+                                            const uint8_t msg32[32],
+                                            const uint8_t privkey[32],
+                                            const uint8_t aux_rand[32],
+                                            uint8_t sig64_out[64]) {
+    if (!ctx || !msg32 || !privkey || !aux_rand || !sig64_out) {
+        return UFSECP_ERR_NULL_ARG;
+    }
+    ctx_clear_err(ctx);
+
+    Scalar sk;
+    if (!scalar_parse_strict_nonzero(privkey, sk)) {
+        return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "privkey is zero or >= n");
+    }
+
+    std::array<uint8_t, 32> msg_arr, aux_arr;
+    std::memcpy(msg_arr.data(), msg32, 32);
+    std::memcpy(aux_arr.data(), aux_rand, 32);
+
+    auto kp = secp256k1::ct::schnorr_keypair_create(sk);
+    auto sig = secp256k1::ct::schnorr_sign_verified(kp, msg_arr, aux_arr);
     secp256k1::detail::secure_erase(&sk, sizeof(sk));
     secp256k1::detail::secure_erase(&kp.d, sizeof(kp.d));
     auto bytes = sig.to_bytes();

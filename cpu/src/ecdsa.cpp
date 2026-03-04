@@ -427,6 +427,8 @@ Scalar rfc6979_nonce_hedged(const Scalar& private_key,
 }
 
 // -- ECDSA Sign ---------------------------------------------------------------
+// Pure sign: no sign-then-verify countermeasure.
+// Use ecdsa_sign_verified() if fault attack resistance is needed.
 
 ECDSASignature ecdsa_sign(const std::array<uint8_t, 32>& msg_hash,
                           const Scalar& private_key) {
@@ -460,20 +462,29 @@ ECDSASignature ecdsa_sign(const std::array<uint8_t, 32>& msg_hash,
         }
     }
 
-    // Sign-then-verify: fault attack countermeasure (FIPS 186-4).
-    // A transient fault during signing could produce a corrupted (r,s)
-    // from which the private key is recoverable via lattice attack.
-    // Verify the signature before releasing it.
+    // Zeroize sensitive scalar temporaries before returning
+    secure_erase(&k, sizeof(k));
+    secure_erase(&z, sizeof(z));
+    return result;
+}
+
+// -- ECDSA Sign + Verify (fault attack countermeasure) ------------------------
+// Signs and then verifies the signature (FIPS 186-4 fault countermeasure).
+// A transient fault during signing could produce a corrupted (r,s) from which
+// the private key is recoverable via lattice attack. This variant verifies
+// the signature before releasing it.
+
+ECDSASignature ecdsa_sign_verified(const std::array<uint8_t, 32>& msg_hash,
+                                   const Scalar& private_key) {
+    auto result = ecdsa_sign(msg_hash, private_key);
+
     if (!result.r.is_zero()) {
-        auto pk = ct::generator_mul(private_key);
+        auto pk = Point::generator().scalar_mul(private_key);
         if (!ecdsa_verify(msg_hash.data(), pk, result)) {
             result = {Scalar::zero(), Scalar::zero()};
         }
     }
 
-    // Zeroize sensitive scalar temporaries before returning
-    secure_erase(&k, sizeof(k));
-    secure_erase(&z, sizeof(z));
     return result;
 }
 
@@ -508,16 +519,25 @@ ECDSASignature ecdsa_sign_hedged(const std::array<uint8_t, 32>& msg_hash,
         }
     }
 
-    // Sign-then-verify countermeasure
+    secure_erase(&k, sizeof(k));
+    secure_erase(&z, sizeof(z));
+    return result;
+}
+
+// -- ECDSA Sign Hedged + Verify (fault attack countermeasure) -----------------
+
+ECDSASignature ecdsa_sign_hedged_verified(const std::array<uint8_t, 32>& msg_hash,
+                                          const Scalar& private_key,
+                                          const std::array<uint8_t, 32>& aux_rand) {
+    auto result = ecdsa_sign_hedged(msg_hash, private_key, aux_rand);
+
     if (!result.r.is_zero()) {
-        auto pk = ct::generator_mul(private_key);
+        auto pk = Point::generator().scalar_mul(private_key);
         if (!ecdsa_verify(msg_hash.data(), pk, result)) {
             result = {Scalar::zero(), Scalar::zero()};
         }
     }
 
-    secure_erase(&k, sizeof(k));
-    secure_erase(&z, sizeof(z));
     return result;
 }
 

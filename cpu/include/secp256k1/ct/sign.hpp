@@ -34,11 +34,21 @@ namespace secp256k1::ct {
 ECDSASignature ecdsa_sign(const std::array<std::uint8_t, 32>& msg_hash,
                           const fast::Scalar& private_key);
 
+// -- CT ECDSA Sign + Verify (fault attack countermeasure) ---------------------
+// Signs and then verifies (FIPS 186-4 fault countermeasure).
+ECDSASignature ecdsa_sign_verified(const std::array<std::uint8_t, 32>& msg_hash,
+                                   const fast::Scalar& private_key);
+
 // -- CT ECDSA Sign (hedged, with extra entropy) --------------------------------
 // RFC 6979 Section 3.6: aux_rand mixed into HMAC-DRBG. CT generator_mul for R.
 ECDSASignature ecdsa_sign_hedged(const std::array<std::uint8_t, 32>& msg_hash,
                                   const fast::Scalar& private_key,
                                   const std::array<std::uint8_t, 32>& aux_rand);
+
+// -- CT ECDSA Sign Hedged + Verify (fault attack countermeasure) ---------------
+ECDSASignature ecdsa_sign_hedged_verified(const std::array<std::uint8_t, 32>& msg_hash,
+                                          const fast::Scalar& private_key,
+                                          const std::array<std::uint8_t, 32>& aux_rand);
 
 // -- CT ECDSA Sign (PrivateKey overload) --------------------------------------
 // Preferred overload: accepts strong-typed PrivateKey for compile-time safety.
@@ -47,11 +57,22 @@ inline ECDSASignature ecdsa_sign(const std::array<std::uint8_t, 32>& msg_hash,
     return ecdsa_sign(msg_hash, private_key.scalar());
 }
 
+inline ECDSASignature ecdsa_sign_verified(const std::array<std::uint8_t, 32>& msg_hash,
+                                          const PrivateKey& private_key) {
+    return ecdsa_sign_verified(msg_hash, private_key.scalar());
+}
+
 // -- CT ECDSA Sign Hedged (PrivateKey overload) --------------------------------
 inline ECDSASignature ecdsa_sign_hedged(const std::array<std::uint8_t, 32>& msg_hash,
                                          const PrivateKey& private_key,
                                          const std::array<std::uint8_t, 32>& aux_rand) {
     return ecdsa_sign_hedged(msg_hash, private_key.scalar(), aux_rand);
+}
+
+inline ECDSASignature ecdsa_sign_hedged_verified(const std::array<std::uint8_t, 32>& msg_hash,
+                                                 const PrivateKey& private_key,
+                                                 const std::array<std::uint8_t, 32>& aux_rand) {
+    return ecdsa_sign_hedged_verified(msg_hash, private_key.scalar(), aux_rand);
 }
 
 // -- CT Schnorr Pubkey --------------------------------------------------------
@@ -82,6 +103,12 @@ inline SchnorrKeypair schnorr_keypair_create(const PrivateKey& pk) {
 SchnorrSignature schnorr_sign(const SchnorrKeypair& kp,
                               const std::array<std::uint8_t, 32>& msg,
                               const std::array<std::uint8_t, 32>& aux_rand);
+
+// -- CT Schnorr Sign + Verify (fault attack countermeasure) --------------------
+// Signs and then verifies (FIPS 186-4 fault countermeasure).
+SchnorrSignature schnorr_sign_verified(const SchnorrKeypair& kp,
+                                       const std::array<std::uint8_t, 32>& msg,
+                                       const std::array<std::uint8_t, 32>& aux_rand);
 
 } // namespace secp256k1::ct
 

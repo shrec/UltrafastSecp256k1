@@ -60,6 +60,12 @@ struct ECDSASignature {
 ECDSASignature ecdsa_sign(const std::array<std::uint8_t, 32>& msg_hash,
                           const fast::Scalar& private_key);
 
+// Sign + verify (FIPS 186-4 fault attack countermeasure).
+// Verifies the produced signature before returning it.
+// Use this when fault injection resistance is required.
+ECDSASignature ecdsa_sign_verified(const std::array<std::uint8_t, 32>& msg_hash,
+                                   const fast::Scalar& private_key);
+
 // Sign with hedged nonce: RFC 6979 + extra entropy (RFC 6979 Section 3.6).
 // aux_rand: 32 bytes of fresh CSPRNG randomness mixed into the HMAC-DRBG.
 // This provides defense-in-depth against HMAC-SHA256 weakness or fault
@@ -69,6 +75,11 @@ ECDSASignature ecdsa_sign(const std::array<std::uint8_t, 32>& msg_hash,
 ECDSASignature ecdsa_sign_hedged(const std::array<std::uint8_t, 32>& msg_hash,
                                   const fast::Scalar& private_key,
                                   const std::array<std::uint8_t, 32>& aux_rand);
+
+// Hedged sign + verify (FIPS 186-4 fault attack countermeasure).
+ECDSASignature ecdsa_sign_hedged_verified(const std::array<std::uint8_t, 32>& msg_hash,
+                                          const fast::Scalar& private_key,
+                                          const std::array<std::uint8_t, 32>& aux_rand);
 
 // Verify an ECDSA signature against a public key and message hash.
 // Accepts both low-S and high-S signatures.

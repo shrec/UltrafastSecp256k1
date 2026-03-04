@@ -201,6 +201,22 @@ SchnorrSignature schnorr_sign(const SchnorrKeypair& kp,
     return sig;
 }
 
+// -- BIP-340 Sign + Verify (fault attack countermeasure) ----------------------
+
+SchnorrSignature schnorr_sign_verified(const SchnorrKeypair& kp,
+                                       const std::array<uint8_t, 32>& msg,
+                                       const std::array<uint8_t, 32>& aux_rand) {
+    auto sig = schnorr_sign(kp, msg, aux_rand);
+
+    if (sig.s.is_zero()) return SchnorrSignature{};
+
+    if (!schnorr_verify(kp.px, msg, sig)) {
+        return SchnorrSignature{};
+    }
+
+    return sig;
+}
+
 // -- BIP-340 Sign (raw key, convenience) --------------------------------------
 
 SchnorrSignature schnorr_sign(const Scalar& private_key,
@@ -208,6 +224,15 @@ SchnorrSignature schnorr_sign(const Scalar& private_key,
                               const std::array<uint8_t, 32>& aux_rand) {
     auto kp = schnorr_keypair_create(private_key);
     return schnorr_sign(kp, msg, aux_rand);
+}
+
+// -- BIP-340 Sign (raw key) + Verify ------------------------------------------
+
+SchnorrSignature schnorr_sign_verified(const Scalar& private_key,
+                                       const std::array<uint8_t, 32>& msg,
+                                       const std::array<uint8_t, 32>& aux_rand) {
+    auto kp = schnorr_keypair_create(private_key);
+    return schnorr_sign_verified(kp, msg, aux_rand);
 }
 
 // -- BIP-340 Verify -----------------------------------------------------------

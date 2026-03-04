@@ -169,6 +169,14 @@ UFSECP_API ufsecp_error_t ufsecp_ecdsa_sign(ufsecp_ctx* ctx,
                                             const uint8_t privkey[32],
                                             uint8_t sig64_out[64]);
 
+/** Sign + verify (FIPS 186-4 fault attack countermeasure).
+ *  Verifies the produced signature before returning it.
+ *  Use this when fault injection resistance is required. */
+UFSECP_API ufsecp_error_t ufsecp_ecdsa_sign_verified(ufsecp_ctx* ctx,
+                                                     const uint8_t msg32[32],
+                                                     const uint8_t privkey[32],
+                                                     uint8_t sig64_out[64]);
+
 /** Verify an ECDSA compact signature.
  *  Returns UFSECP_OK if valid, UFSECP_ERR_VERIFY_FAIL if invalid. */
 UFSECP_API ufsecp_error_t ufsecp_ecdsa_verify(ufsecp_ctx* ctx,
@@ -218,6 +226,14 @@ UFSECP_API ufsecp_error_t ufsecp_schnorr_sign(ufsecp_ctx* ctx,
                                               const uint8_t privkey[32],
                                               const uint8_t aux_rand[32],
                                               uint8_t sig64_out[64]);
+
+/** BIP-340 Schnorr sign + verify (FIPS 186-4 fault attack countermeasure).
+ *  Verifies the produced signature before returning it. */
+UFSECP_API ufsecp_error_t ufsecp_schnorr_sign_verified(ufsecp_ctx* ctx,
+                                                       const uint8_t msg32[32],
+                                                       const uint8_t privkey[32],
+                                                       const uint8_t aux_rand[32],
+                                                       uint8_t sig64_out[64]);
 
 /** BIP-340 Schnorr verify.
  *  pubkey_x: 32-byte x-only public key. */

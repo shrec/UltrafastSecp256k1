@@ -728,6 +728,13 @@ int main(int argc, char** argv) {
     print_row("ecdsa_sign", u_ecdsa_sign);
 
     idx = 0;
+    const double u_ecdsa_sign_v = bench_ns([&]() {
+        auto sig = ecdsa_sign_verified(msghashes[idx % POOL], privkeys[idx % POOL]);
+        bench::DoNotOptimize(sig); ++idx;
+    }, N_SIGN);
+    print_row("ecdsa_sign_verified", u_ecdsa_sign_v);
+
+    idx = 0;
     const double u_ecdsa_verify = bench_ns([&]() {
         bool ok = ecdsa_verify(msghashes[idx % POOL], pubkeys[idx % POOL],
                                ecdsa_sigs[idx % POOL]);
@@ -757,6 +764,14 @@ int main(int argc, char** argv) {
         bench::DoNotOptimize(sig); ++idx;
     }, N_SIGN);
     print_row("schnorr_sign", u_schnorr_sign);
+
+    idx = 0;
+    const double u_schnorr_sign_v = bench_ns([&]() {
+        auto sig = schnorr_sign_verified(schnorr_kps[idx % POOL], msghashes[idx % POOL],
+                                          aux_rands[idx % POOL]);
+        bench::DoNotOptimize(sig); ++idx;
+    }, N_SIGN);
+    print_row("schnorr_sign_verified", u_schnorr_sign_v);
 
     idx = 0;
     const double u_schnorr_verify = bench_ns([&]() {
@@ -910,6 +925,27 @@ int main(int argc, char** argv) {
     printf("    Total ECDSA verify:        %8.1f ns\n", u_ecdsa_verify);
     printf("    Overhead (verify - d+i):   %8.1f ns\n",
            u_ecdsa_verify - micro_dual_mul - micro_scalar_inv);
+    printf("\n");
+
+    // -- SIGN DECOMPOSITION: show where time goes --
+    printf("  ---- SIGN COST DECOMPOSITION (FAST path) ----\n");
+    printf("  ecdsa_sign = RFC6979 + k*G + field_inv + scalar_inv + scalar_muls\n");
+    printf("    k*G (generator_mul):       %8.1f ns\n", keygen);
+    printf("    field_inv (R.x):           %8.1f ns\n", finv);
+    printf("    scalar_inv (k^-1):         %8.1f ns\n", micro_scalar_inv);
+    printf("    scalar_mul (2x):           %8.1f ns\n", 2.0 * micro_scalar_mul);
+    double sign_core = keygen + finv + micro_scalar_inv + 2.0 * micro_scalar_mul;
+    printf("    --------------------------------\n");
+    printf("    Core signing (no RFC6979):  %8.1f ns\n", sign_core);
+    double rfc6979_cost = u_ecdsa_sign - sign_core;
+    printf("    MEASURED ecdsa_sign:        %8.1f ns\n", u_ecdsa_sign);
+    printf("    RFC6979 overhead:           %8.1f ns  (%.1f%%)\n",
+           rfc6979_cost,
+           100.0 * rfc6979_cost / u_ecdsa_sign);
+    double verify_overhead = u_ecdsa_sign_v - u_ecdsa_sign;
+    printf("    MEASURED ecdsa_sign_verified:%7.1f ns\n", u_ecdsa_sign_v);
+    printf("    sign-then-verify overhead:  %8.1f ns  (pubkey + verify)\n",
+           verify_overhead);
     printf("\n");
 
     // =====================================================================
@@ -1109,6 +1145,13 @@ int main(int argc, char** argv) {
     print_ratio("  CT overhead (ECDSA)", u_ct_ecdsa / u_ecdsa_sign);
 
     idx = 0;
+    const double u_ct_ecdsa_v = bench_ns([&]() {
+        auto sig = ct::ecdsa_sign_verified(msghashes[idx % POOL], privkeys[idx % POOL]);
+        bench::DoNotOptimize(sig); ++idx;
+    }, N_SIGN);
+    print_row("ct::ecdsa_sign_verified", u_ct_ecdsa_v);
+
+    idx = 0;
     const double u_ct_schnorr = bench_ns([&]() {
         auto sig = ct::schnorr_sign(schnorr_kps[idx % POOL],
                                      msghashes[idx % POOL],
@@ -1117,6 +1160,15 @@ int main(int argc, char** argv) {
     }, N_SIGN);
     print_row("ct::schnorr_sign", u_ct_schnorr);
     print_ratio("  CT overhead (Schnorr)", u_ct_schnorr / u_schnorr_sign);
+
+    idx = 0;
+    const double u_ct_schnorr_v = bench_ns([&]() {
+        auto sig = ct::schnorr_sign_verified(schnorr_kps[idx % POOL],
+                                              msghashes[idx % POOL],
+                                              aux_rands[idx % POOL]);
+        bench::DoNotOptimize(sig); ++idx;
+    }, N_SIGN);
+    print_row("ct::schnorr_sign_verified", u_ct_schnorr_v);
 
     // -- CT Schnorr Keypair --
     idx = 0;
