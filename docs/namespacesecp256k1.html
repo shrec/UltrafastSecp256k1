@@ -25,7 +25,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.16.0</span>
+   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.19.0</span>
    </div>
    <div id="projectbrief">Ultra high-performance secp256k1 elliptic curve cryptography library</div>
   </td>
@@ -163,6 +163,8 @@ Classes</h2></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structsecp256k1_1_1PedersenCommitment.html">PedersenCommitment</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classsecp256k1_1_1PrivateKey.html">PrivateKey</a></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structsecp256k1_1_1RecoverableSignature.html">RecoverableSignature</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structsecp256k1_1_1ScalarData.html">ScalarData</a></td></tr>
@@ -280,12 +282,20 @@ Functions</h2></td></tr>
 <tr class="separator:a018372bd150a2b30ce4dfa604ec9fddf"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ae91d47690356ed60430b67d44ca4896f" id="r_ae91d47690356ed60430b67d44ca4896f"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structsecp256k1_1_1ECDSASignature.html">ECDSASignature</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#ae91d47690356ed60430b67d44ca4896f">ecdsa_sign</a> (const std::array&lt; std::uint8_t, 32 &gt; &amp;msg_hash, const <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">fast::Scalar</a> &amp;private_key)</td></tr>
 <tr class="separator:ae91d47690356ed60430b67d44ca4896f"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a8b7a5e11f7425303b843a8f21997177d" id="r_a8b7a5e11f7425303b843a8f21997177d"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structsecp256k1_1_1ECDSASignature.html">ECDSASignature</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#a8b7a5e11f7425303b843a8f21997177d">ecdsa_sign_verified</a> (const std::array&lt; std::uint8_t, 32 &gt; &amp;msg_hash, const <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">fast::Scalar</a> &amp;private_key)</td></tr>
+<tr class="separator:a8b7a5e11f7425303b843a8f21997177d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:acc72537eac599f41d0221c7e54cccddf" id="r_acc72537eac599f41d0221c7e54cccddf"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structsecp256k1_1_1ECDSASignature.html">ECDSASignature</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#acc72537eac599f41d0221c7e54cccddf">ecdsa_sign_hedged</a> (const std::array&lt; std::uint8_t, 32 &gt; &amp;msg_hash, const <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">fast::Scalar</a> &amp;private_key, const std::array&lt; std::uint8_t, 32 &gt; &amp;aux_rand)</td></tr>
+<tr class="separator:acc72537eac599f41d0221c7e54cccddf"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:afa71ec010db0a74a4eafc502aec9d99a" id="r_afa71ec010db0a74a4eafc502aec9d99a"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structsecp256k1_1_1ECDSASignature.html">ECDSASignature</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#afa71ec010db0a74a4eafc502aec9d99a">ecdsa_sign_hedged_verified</a> (const std::array&lt; std::uint8_t, 32 &gt; &amp;msg_hash, const <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">fast::Scalar</a> &amp;private_key, const std::array&lt; std::uint8_t, 32 &gt; &amp;aux_rand)</td></tr>
+<tr class="separator:afa71ec010db0a74a4eafc502aec9d99a"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aef88e27ee6273ca33a7fa5fdb374b1af" id="r_aef88e27ee6273ca33a7fa5fdb374b1af"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#aef88e27ee6273ca33a7fa5fdb374b1af">ecdsa_verify</a> (const std::uint8_t *msg_hash32, const <a class="el" href="classsecp256k1_1_1fast_1_1Point.html">fast::Point</a> &amp;public_key, const <a class="el" href="structsecp256k1_1_1ECDSASignature.html">ECDSASignature</a> &amp;sig)</td></tr>
 <tr class="separator:aef88e27ee6273ca33a7fa5fdb374b1af"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ada3591351002959d2488acfea0de84c8" id="r_ada3591351002959d2488acfea0de84c8"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#ada3591351002959d2488acfea0de84c8">ecdsa_verify</a> (const std::array&lt; std::uint8_t, 32 &gt; &amp;msg_hash, const <a class="el" href="classsecp256k1_1_1fast_1_1Point.html">fast::Point</a> &amp;public_key, const <a class="el" href="structsecp256k1_1_1ECDSASignature.html">ECDSASignature</a> &amp;sig)</td></tr>
 <tr class="separator:ada3591351002959d2488acfea0de84c8"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a944c4d81e26ad0af5325655767a77e37" id="r_a944c4d81e26ad0af5325655767a77e37"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">fast::Scalar</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#a944c4d81e26ad0af5325655767a77e37">rfc6979_nonce</a> (const <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">fast::Scalar</a> &amp;private_key, const std::array&lt; std::uint8_t, 32 &gt; &amp;msg_hash)</td></tr>
 <tr class="separator:a944c4d81e26ad0af5325655767a77e37"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a99942ef97f7b8f3454e1d2f7a98deb5f" id="r_a99942ef97f7b8f3454e1d2f7a98deb5f"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">fast::Scalar</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#a99942ef97f7b8f3454e1d2f7a98deb5f">rfc6979_nonce_hedged</a> (const <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">fast::Scalar</a> &amp;private_key, const std::array&lt; std::uint8_t, 32 &gt; &amp;msg_hash, const std::array&lt; std::uint8_t, 32 &gt; &amp;aux_rand)</td></tr>
+<tr class="separator:a99942ef97f7b8f3454e1d2f7a98deb5f"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a799903aca6c37f859aa9782a6b4a3267" id="r_a799903aca6c37f859aa9782a6b4a3267"><td class="memItemLeft" align="right" valign="top">std::pair&lt; <a class="el" href="structsecp256k1_1_1FrostCommitment.html">FrostCommitment</a>, std::vector&lt; <a class="el" href="structsecp256k1_1_1FrostShare.html">FrostShare</a> &gt; &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#a799903aca6c37f859aa9782a6b4a3267">frost_keygen_begin</a> (<a class="el" href="namespacesecp256k1.html#a1b9640e94c535a205c9ca5edf2a5dbcf">ParticipantId</a> participant_id, std::uint32_t threshold, std::uint32_t num_participants, const std::array&lt; std::uint8_t, 32 &gt; &amp;secret_seed)</td></tr>
 <tr class="separator:a799903aca6c37f859aa9782a6b4a3267"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a0c50436c571f4ffc30510e2eb8ace6d1" id="r_a0c50436c571f4ffc30510e2eb8ace6d1"><td class="memItemLeft" align="right" valign="top">std::pair&lt; <a class="el" href="structsecp256k1_1_1FrostKeyPackage.html">FrostKeyPackage</a>, bool &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#a0c50436c571f4ffc30510e2eb8ace6d1">frost_keygen_finalize</a> (<a class="el" href="namespacesecp256k1.html#a1b9640e94c535a205c9ca5edf2a5dbcf">ParticipantId</a> participant_id, const std::vector&lt; <a class="el" href="structsecp256k1_1_1FrostCommitment.html">FrostCommitment</a> &gt; &amp;commitments, const std::vector&lt; <a class="el" href="structsecp256k1_1_1FrostShare.html">FrostShare</a> &gt; &amp;received_shares, std::uint32_t threshold, std::uint32_t num_participants)</td></tr>
@@ -346,6 +356,8 @@ Functions</h2></td></tr>
 <tr class="separator:a5c035fd3478f23b2eb5281e4a765ab84"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a2f1ebb75ed0e1a36a0d24b815d5adee8" id="r_a2f1ebb75ed0e1a36a0d24b815d5adee8"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classsecp256k1_1_1fast_1_1Point.html">fast::Point</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#a2f1ebb75ed0e1a36a0d24b815d5adee8">msm</a> (const std::vector&lt; <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">fast::Scalar</a> &gt; &amp;scalars, const std::vector&lt; <a class="el" href="classsecp256k1_1_1fast_1_1Point.html">fast::Point</a> &gt; &amp;points)</td></tr>
 <tr class="separator:a2f1ebb75ed0e1a36a0d24b815d5adee8"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:abc87f00cdfb554df7b96ba8b1f0d849a" id="r_abc87f00cdfb554df7b96ba8b1f0d849a"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#abc87f00cdfb554df7b96ba8b1f0d849a">operator==</a> (const <a class="el" href="classsecp256k1_1_1PrivateKey.html">PrivateKey</a> &amp;a, const <a class="el" href="classsecp256k1_1_1PrivateKey.html">PrivateKey</a> &amp;b) noexcept</td></tr>
+<tr class="separator:abc87f00cdfb554df7b96ba8b1f0d849a"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a225e86fbf960bfcb2ff28b56a803b7ab" id="r_a225e86fbf960bfcb2ff28b56a803b7ab"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structsecp256k1_1_1RecoverableSignature.html">RecoverableSignature</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#a225e86fbf960bfcb2ff28b56a803b7ab">ecdsa_sign_recoverable</a> (const std::array&lt; std::uint8_t, 32 &gt; &amp;msg_hash, const <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">Scalar</a> &amp;private_key)</td></tr>
 <tr class="separator:a225e86fbf960bfcb2ff28b56a803b7ab"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:acbcfaa342e3f423b75cf5a3b3a9981a8" id="r_acbcfaa342e3f423b75cf5a3b3a9981a8"><td class="memItemLeft" align="right" valign="top">std::pair&lt; <a class="el" href="classsecp256k1_1_1fast_1_1Point.html">Point</a>, bool &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#acbcfaa342e3f423b75cf5a3b3a9981a8">ecdsa_recover</a> (const std::array&lt; std::uint8_t, 32 &gt; &amp;msg_hash, const <a class="el" href="structsecp256k1_1_1ECDSASignature.html">ECDSASignature</a> &amp;sig, int recid)</td></tr>
@@ -358,8 +370,12 @@ Functions</h2></td></tr>
 <tr class="separator:ad64fb01d49d247a1767b65fd105163a0"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a41d4f172981683c43c7edb9390ceccc6" id="r_a41d4f172981683c43c7edb9390ceccc6"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structsecp256k1_1_1SchnorrSignature.html">SchnorrSignature</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#a41d4f172981683c43c7edb9390ceccc6">schnorr_sign</a> (const <a class="el" href="structsecp256k1_1_1SchnorrKeypair.html">SchnorrKeypair</a> &amp;kp, const std::array&lt; std::uint8_t, 32 &gt; &amp;msg, const std::array&lt; std::uint8_t, 32 &gt; &amp;aux_rand)</td></tr>
 <tr class="separator:a41d4f172981683c43c7edb9390ceccc6"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a2d99c4ebb7ea382452c5777b409e89c8" id="r_a2d99c4ebb7ea382452c5777b409e89c8"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structsecp256k1_1_1SchnorrSignature.html">SchnorrSignature</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#a2d99c4ebb7ea382452c5777b409e89c8">schnorr_sign_verified</a> (const <a class="el" href="structsecp256k1_1_1SchnorrKeypair.html">SchnorrKeypair</a> &amp;kp, const std::array&lt; std::uint8_t, 32 &gt; &amp;msg, const std::array&lt; std::uint8_t, 32 &gt; &amp;aux_rand)</td></tr>
+<tr class="separator:a2d99c4ebb7ea382452c5777b409e89c8"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:abdafefa1bbce97d2a9de0b9f5ea112c3" id="r_abdafefa1bbce97d2a9de0b9f5ea112c3"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structsecp256k1_1_1SchnorrSignature.html">SchnorrSignature</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#abdafefa1bbce97d2a9de0b9f5ea112c3">schnorr_sign</a> (const <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">fast::Scalar</a> &amp;private_key, const std::array&lt; std::uint8_t, 32 &gt; &amp;msg, const std::array&lt; std::uint8_t, 32 &gt; &amp;aux_rand)</td></tr>
 <tr class="separator:abdafefa1bbce97d2a9de0b9f5ea112c3"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a258a1bc80dbc3fcfb935e49cf1fb2ca3" id="r_a258a1bc80dbc3fcfb935e49cf1fb2ca3"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structsecp256k1_1_1SchnorrSignature.html">SchnorrSignature</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#a258a1bc80dbc3fcfb935e49cf1fb2ca3">schnorr_sign_verified</a> (const <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">fast::Scalar</a> &amp;private_key, const std::array&lt; std::uint8_t, 32 &gt; &amp;msg, const std::array&lt; std::uint8_t, 32 &gt; &amp;aux_rand)</td></tr>
+<tr class="separator:a258a1bc80dbc3fcfb935e49cf1fb2ca3"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a7816df2793be5148898e0be7756dcbd3" id="r_a7816df2793be5148898e0be7756dcbd3"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#a7816df2793be5148898e0be7756dcbd3">schnorr_verify</a> (const std::uint8_t *pubkey_x32, const std::uint8_t *msg32, const <a class="el" href="structsecp256k1_1_1SchnorrSignature.html">SchnorrSignature</a> &amp;sig)</td></tr>
 <tr class="separator:a7816df2793be5148898e0be7756dcbd3"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a26bc72f1db971e5854681c65e4b6c1ae" id="r_a26bc72f1db971e5854681c65e4b6c1ae"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#a26bc72f1db971e5854681c65e4b6c1ae">schnorr_verify</a> (const std::array&lt; std::uint8_t, 32 &gt; &amp;pubkey_x, const std::array&lt; std::uint8_t, 32 &gt; &amp;msg, const <a class="el" href="structsecp256k1_1_1SchnorrSignature.html">SchnorrSignature</a> &amp;sig)</td></tr>
@@ -506,7 +522,7 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00694">ufsecp_addr_p2pkh()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00888">ufsecp_addr_p2pkh()</a>.</p>
 
 </div>
 </div>
@@ -564,7 +580,7 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00732">ufsecp_addr_p2tr()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00926">ufsecp_addr_p2tr()</a>.</p>
 
 </div>
 </div>
@@ -594,7 +610,7 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00713">ufsecp_addr_p2wpkh()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00907">ufsecp_addr_p2wpkh()</a>.</p>
 
 </div>
 </div>
@@ -728,7 +744,7 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00862">ufsecp_bip32_derive_path()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l01059">ufsecp_bip32_derive_path()</a>.</p>
 
 </div>
 </div>
@@ -758,7 +774,7 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00826">ufsecp_bip32_master()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l01023">ufsecp_bip32_master()</a>.</p>
 
 </div>
 </div>
@@ -828,7 +844,7 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00617">ufsecp_ecdh()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00793">ufsecp_ecdh()</a>.</p>
 
 </div>
 </div>
@@ -858,7 +874,7 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00645">ufsecp_ecdh_raw()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00833">ufsecp_ecdh_raw()</a>.</p>
 
 </div>
 </div>
@@ -888,7 +904,7 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00631">ufsecp_ecdh_xonly()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00813">ufsecp_ecdh_xonly()</a>.</p>
 
 </div>
 </div>
@@ -1128,7 +1144,7 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00531">ufsecp_ecdsa_recover()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00668">ufsecp_ecdsa_recover()</a>.</p>
 
 </div>
 </div>
@@ -1158,7 +1174,73 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00384">ufsecp_ecdsa_sign()</a>.</p>
+</div>
+</div>
+<a id="acc72537eac599f41d0221c7e54cccddf" name="acc72537eac599f41d0221c7e54cccddf"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#acc72537eac599f41d0221c7e54cccddf">&#9670;&#160;</a></span>ecdsa_sign_hedged()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="structsecp256k1_1_1ECDSASignature.html">ECDSASignature</a> secp256k1::ecdsa_sign_hedged </td>
+          <td>(</td>
+          <td class="paramtype">const std::array&lt; std::uint8_t, 32 &gt; &amp;&#160;</td>
+          <td class="paramname"><em>msg_hash</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">fast::Scalar</a> &amp;&#160;</td>
+          <td class="paramname"><em>private_key</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const std::array&lt; std::uint8_t, 32 &gt; &amp;&#160;</td>
+          <td class="paramname"><em>aux_rand</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="afa71ec010db0a74a4eafc502aec9d99a" name="afa71ec010db0a74a4eafc502aec9d99a"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#afa71ec010db0a74a4eafc502aec9d99a">&#9670;&#160;</a></span>ecdsa_sign_hedged_verified()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="structsecp256k1_1_1ECDSASignature.html">ECDSASignature</a> secp256k1::ecdsa_sign_hedged_verified </td>
+          <td>(</td>
+          <td class="paramtype">const std::array&lt; std::uint8_t, 32 &gt; &amp;&#160;</td>
+          <td class="paramname"><em>msg_hash</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">fast::Scalar</a> &amp;&#160;</td>
+          <td class="paramname"><em>private_key</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const std::array&lt; std::uint8_t, 32 &gt; &amp;&#160;</td>
+          <td class="paramname"><em>aux_rand</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
 
 </div>
 </div>
@@ -1188,7 +1270,35 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00506">ufsecp_ecdsa_sign_recoverable()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00639">ufsecp_ecdsa_sign_recoverable()</a>.</p>
+
+</div>
+</div>
+<a id="a8b7a5e11f7425303b843a8f21997177d" name="a8b7a5e11f7425303b843a8f21997177d"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a8b7a5e11f7425303b843a8f21997177d">&#9670;&#160;</a></span>ecdsa_sign_verified()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="structsecp256k1_1_1ECDSASignature.html">ECDSASignature</a> secp256k1::ecdsa_sign_verified </td>
+          <td>(</td>
+          <td class="paramtype">const std::array&lt; std::uint8_t, 32 &gt; &amp;&#160;</td>
+          <td class="paramname"><em>msg_hash</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">fast::Scalar</a> &amp;&#160;</td>
+          <td class="paramname"><em>private_key</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
 
 </div>
 </div>
@@ -1258,7 +1368,7 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00405">ufsecp_ecdsa_verify()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00476">ufsecp_ecdsa_verify()</a>.</p>
 
 </div>
 </div>
@@ -1650,7 +1760,7 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00673">ufsecp_hash160()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00867">ufsecp_hash160()</a>.</p>
 
 </div>
 </div>
@@ -2060,6 +2170,44 @@ Functions</h2></td></tr>
 
 </div>
 </div>
+<a id="abc87f00cdfb554df7b96ba8b1f0d849a" name="abc87f00cdfb554df7b96ba8b1f0d849a"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#abc87f00cdfb554df7b96ba8b1f0d849a">&#9670;&#160;</a></span>operator==()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">bool secp256k1::operator== </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="classsecp256k1_1_1PrivateKey.html">PrivateKey</a> &amp;&#160;</td>
+          <td class="paramname"><em>a</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const <a class="el" href="classsecp256k1_1_1PrivateKey.html">PrivateKey</a> &amp;&#160;</td>
+          <td class="paramname"><em>b</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p class="definition">Definition at line <a class="el" href="private__key_8hpp_source.html#l00117">117</a> of file <a class="el" href="private__key_8hpp_source.html">private_key.hpp</a>.</p>
+
+</div>
+</div>
 <a id="a92645e9b5a632e94fcb67a4c8e6c568e" name="a92645e9b5a632e94fcb67a4c8e6c568e"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a92645e9b5a632e94fcb67a4c8e6c568e">&#9670;&#160;</a></span>pedersen_blind_sum()</h2>
 
@@ -2424,6 +2572,40 @@ Functions</h2></td></tr>
 
 </div>
 </div>
+<a id="a99942ef97f7b8f3454e1d2f7a98deb5f" name="a99942ef97f7b8f3454e1d2f7a98deb5f"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a99942ef97f7b8f3454e1d2f7a98deb5f">&#9670;&#160;</a></span>rfc6979_nonce_hedged()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">fast::Scalar</a> secp256k1::rfc6979_nonce_hedged </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">fast::Scalar</a> &amp;&#160;</td>
+          <td class="paramname"><em>private_key</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const std::array&lt; std::uint8_t, 32 &gt; &amp;&#160;</td>
+          <td class="paramname"><em>msg_hash</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const std::array&lt; std::uint8_t, 32 &gt; &amp;&#160;</td>
+          <td class="paramname"><em>aux_rand</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
 <a id="ab46e298b2483bf0238a1c61958aa0312" name="ab46e298b2483bf0238a1c61958aa0312"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#ab46e298b2483bf0238a1c61958aa0312">&#9670;&#160;</a></span>sc_to_data() <span class="overload">[1/2]</span></h2>
 
@@ -2764,7 +2946,7 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00364">ufsecp_pubkey_xonly()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00413">ufsecp_pubkey_xonly()</a>.</p>
 
 </div>
 </div>
@@ -2834,7 +3016,73 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00558">ufsecp_schnorr_sign()</a>.</p>
+</div>
+</div>
+<a id="a258a1bc80dbc3fcfb935e49cf1fb2ca3" name="a258a1bc80dbc3fcfb935e49cf1fb2ca3"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a258a1bc80dbc3fcfb935e49cf1fb2ca3">&#9670;&#160;</a></span>schnorr_sign_verified() <span class="overload">[1/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="structsecp256k1_1_1SchnorrSignature.html">SchnorrSignature</a> secp256k1::schnorr_sign_verified </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">fast::Scalar</a> &amp;&#160;</td>
+          <td class="paramname"><em>private_key</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const std::array&lt; std::uint8_t, 32 &gt; &amp;&#160;</td>
+          <td class="paramname"><em>msg</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const std::array&lt; std::uint8_t, 32 &gt; &amp;&#160;</td>
+          <td class="paramname"><em>aux_rand</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="a2d99c4ebb7ea382452c5777b409e89c8" name="a2d99c4ebb7ea382452c5777b409e89c8"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a2d99c4ebb7ea382452c5777b409e89c8">&#9670;&#160;</a></span>schnorr_sign_verified() <span class="overload">[2/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="structsecp256k1_1_1SchnorrSignature.html">SchnorrSignature</a> secp256k1::schnorr_sign_verified </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="structsecp256k1_1_1SchnorrKeypair.html">SchnorrKeypair</a> &amp;&#160;</td>
+          <td class="paramname"><em>kp</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const std::array&lt; std::uint8_t, 32 &gt; &amp;&#160;</td>
+          <td class="paramname"><em>msg</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const std::array&lt; std::uint8_t, 32 &gt; &amp;&#160;</td>
+          <td class="paramname"><em>aux_rand</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
 
 </div>
 </div>
@@ -3006,7 +3254,7 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00583">ufsecp_schnorr_verify()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00759">ufsecp_schnorr_verify()</a>.</p>
 
 </div>
 </div>
@@ -3276,7 +3524,7 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00681">ufsecp_tagged_hash()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00875">ufsecp_tagged_hash()</a>.</p>
 
 </div>
 </div>
@@ -3420,7 +3668,7 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00911">ufsecp_taproot_output_key()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l01108">ufsecp_taproot_output_key()</a>.</p>
 
 </div>
 </div>
@@ -3490,7 +3738,7 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00931">ufsecp_taproot_tweak_seckey()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l01128">ufsecp_taproot_tweak_seckey()</a>.</p>
 
 </div>
 </div>
@@ -3538,7 +3786,7 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00950">ufsecp_taproot_verify()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l01150">ufsecp_taproot_verify()</a>.</p>
 
 </div>
 </div>
@@ -3558,7 +3806,7 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00776">ufsecp_wif_decode()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00973">ufsecp_wif_decode()</a>.</p>
 
 </div>
 </div>
@@ -3594,7 +3842,7 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00756">ufsecp_wif_encode()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00950">ufsecp_wif_encode()</a>.</p>
 
 </div>
 </div>

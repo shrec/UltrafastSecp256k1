@@ -4,6 +4,8 @@ var structsecp256k1_1_1ECDSASignature =
     [ "from_compact", "structsecp256k1_1_1ECDSASignature.html#afb3c12a1c797287a41952bebbd1a3047", null ],
     [ "is_low_s", "structsecp256k1_1_1ECDSASignature.html#a4ca47335fdf9e6533fa8f21a1eea493f", null ],
     [ "normalize", "structsecp256k1_1_1ECDSASignature.html#a72798c30cb0019e6f73ed22949e5c752", null ],
+    [ "parse_compact_strict", "structsecp256k1_1_1ECDSASignature.html#abf646a2f681d4522419d6706317bd074", null ],
+    [ "parse_compact_strict", "structsecp256k1_1_1ECDSASignature.html#a7f1dc966ca60a9c54d885b2b5ace36eb", null ],
     [ "to_compact", "structsecp256k1_1_1ECDSASignature.html#ad64ea5327a573b95585b6ab4abc6cdc6", null ],
     [ "to_der", "structsecp256k1_1_1ECDSASignature.html#a530874c3c06087805eb1e09938648db5", null ],
     [ "r", "structsecp256k1_1_1ECDSASignature.html#a6daa57e289be9b8066565cedaddb1d01", null ],

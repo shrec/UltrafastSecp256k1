@@ -2,6 +2,7 @@ var dir_3015dd157bf50376ab3b1f9a873c3f74 =
 [
     [ "coins", "dir_3234739ae8f2abd76dd15a5b36659f54.html", "dir_3234739ae8f2abd76dd15a5b36659f54" ],
     [ "ct", "dir_0492806a7de02b02ef9853a203a7b2bc.html", "dir_0492806a7de02b02ef9853a203a7b2bc" ],
+    [ "detail", "dir_8824802074ad978c053d89c7add3a3dc.html", "dir_8824802074ad978c053d89c7add3a3dc" ],
     [ "adaptor.hpp", "adaptor_8hpp.html", "adaptor_8hpp" ],
     [ "address.hpp", "address_8hpp.html", "address_8hpp" ],
     [ "batch_add_affine.hpp", "batch__add__affine_8hpp.html", "batch__add__affine_8hpp" ],
@@ -17,6 +18,7 @@ var dir_3015dd157bf50376ab3b1f9a873c3f74 =
     [ "fast.hpp", "fast_8hpp.html", null ],
     [ "field.hpp", "field_8hpp.html", "field_8hpp" ],
     [ "field_26.hpp", "field__26_8hpp.html", "field__26_8hpp" ],
+    [ "field_4x64_inline.hpp", "field__4x64__inline_8hpp.html", null ],
     [ "field_52.hpp", "field__52_8hpp.html", "field__52_8hpp" ],
     [ "field_52_impl.hpp", "field__52__impl_8hpp.html", null ],
     [ "field_asm.hpp", "field__asm_8hpp.html", "field__asm_8hpp" ],
@@ -34,6 +36,7 @@ var dir_3015dd157bf50376ab3b1f9a873c3f74 =
     [ "pippenger.hpp", "pippenger_8hpp.html", "pippenger_8hpp" ],
     [ "point.hpp", "point_8hpp.html", "point_8hpp" ],
     [ "precompute.hpp", "precompute_8hpp.html", "precompute_8hpp" ],
+    [ "private_key.hpp", "private__key_8hpp.html", "private__key_8hpp" ],
     [ "recovery.hpp", "recovery_8hpp.html", "recovery_8hpp" ],
     [ "sanitizer_scale.hpp", "sanitizer__scale_8hpp.html", "sanitizer__scale_8hpp" ],
     [ "scalar.hpp", "scalar_8hpp.html", "scalar_8hpp" ],

@@ -25,7 +25,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.16.0</span>
+   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.19.0</span>
    </div>
    <div id="projectbrief">Ultra high-performance secp256k1 elliptic curve cryptography library</div>
   </td>
@@ -118,6 +118,10 @@ Static Public Member Functions</h2></td></tr>
 <tr class="separator:afb3c12a1c797287a41952bebbd1a3047"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a39366c15215b760ee70edfae82a93eda" id="r_a39366c15215b760ee70edfae82a93eda"><td class="memItemLeft" align="right" valign="top">static <a class="el" href="structsecp256k1_1_1ECDSASignature.html">ECDSASignature</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structsecp256k1_1_1ECDSASignature.html#a39366c15215b760ee70edfae82a93eda">from_compact</a> (const std::array&lt; std::uint8_t, 64 &gt; &amp;data)</td></tr>
 <tr class="separator:a39366c15215b760ee70edfae82a93eda"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a7f1dc966ca60a9c54d885b2b5ace36eb" id="r_a7f1dc966ca60a9c54d885b2b5ace36eb"><td class="memItemLeft" align="right" valign="top">static bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structsecp256k1_1_1ECDSASignature.html#a7f1dc966ca60a9c54d885b2b5ace36eb">parse_compact_strict</a> (const std::uint8_t *data64, <a class="el" href="structsecp256k1_1_1ECDSASignature.html">ECDSASignature</a> &amp;out) noexcept</td></tr>
+<tr class="separator:a7f1dc966ca60a9c54d885b2b5ace36eb"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:abf646a2f681d4522419d6706317bd074" id="r_abf646a2f681d4522419d6706317bd074"><td class="memItemLeft" align="right" valign="top">static bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structsecp256k1_1_1ECDSASignature.html#abf646a2f681d4522419d6706317bd074">parse_compact_strict</a> (const std::array&lt; std::uint8_t, 64 &gt; &amp;data, <a class="el" href="structsecp256k1_1_1ECDSASignature.html">ECDSASignature</a> &amp;out) noexcept</td></tr>
+<tr class="separator:abf646a2f681d4522419d6706317bd074"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-attribs" name="pub-attribs"></a>
 Public Attributes</h2></td></tr>
@@ -180,8 +184,6 @@ Public Attributes</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00531">ufsecp_ecdsa_recover()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00427">ufsecp_ecdsa_sig_to_der()</a>, and <a class="el" href="ufsecp__impl_8cpp_source.html#l00405">ufsecp_ecdsa_verify()</a>.</p>
-
 </div>
 </div>
 <a id="a4ca47335fdf9e6533fa8f21a1eea493f" name="a4ca47335fdf9e6533fa8f21a1eea493f"></a>
@@ -218,6 +220,80 @@ Public Attributes</h2></td></tr>
 
 </div>
 </div>
+<a id="abf646a2f681d4522419d6706317bd074" name="abf646a2f681d4522419d6706317bd074"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#abf646a2f681d4522419d6706317bd074">&#9670;&#160;</a></span>parse_compact_strict() <span class="overload">[1/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">static bool secp256k1::ECDSASignature::parse_compact_strict </td>
+          <td>(</td>
+          <td class="paramtype">const std::array&lt; std::uint8_t, 64 &gt; &amp;&#160;</td>
+          <td class="paramname"><em>data</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="structsecp256k1_1_1ECDSASignature.html">ECDSASignature</a> &amp;&#160;</td>
+          <td class="paramname"><em>out</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">static</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="a7f1dc966ca60a9c54d885b2b5ace36eb" name="a7f1dc966ca60a9c54d885b2b5ace36eb"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a7f1dc966ca60a9c54d885b2b5ace36eb">&#9670;&#160;</a></span>parse_compact_strict() <span class="overload">[2/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">static bool secp256k1::ECDSASignature::parse_compact_strict </td>
+          <td>(</td>
+          <td class="paramtype">const std::uint8_t *&#160;</td>
+          <td class="paramname"><em>data64</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="structsecp256k1_1_1ECDSASignature.html">ECDSASignature</a> &amp;&#160;</td>
+          <td class="paramname"><em>out</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">static</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00668">ufsecp_ecdsa_recover()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00501">ufsecp_ecdsa_sig_to_der()</a>, and <a class="el" href="ufsecp__impl_8cpp_source.html#l00476">ufsecp_ecdsa_verify()</a>.</p>
+
+</div>
+</div>
 <a id="ad64ea5327a573b95585b6ab4abc6cdc6" name="ad64ea5327a573b95585b6ab4abc6cdc6"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#ad64ea5327a573b95585b6ab4abc6cdc6">&#9670;&#160;</a></span>to_compact()</h2>
 
@@ -249,6 +325,8 @@ Public Attributes</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00501">ufsecp_ecdsa_sig_to_der()</a>.</p>
 
 </div>
 </div>

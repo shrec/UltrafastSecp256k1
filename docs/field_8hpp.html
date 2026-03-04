@@ -25,7 +25,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.16.0</span>
+   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.19.0</span>
    </div>
    <div id="projectbrief">Ultra high-performance secp256k1 elliptic curve cryptography library</div>
   </td>
@@ -99,6 +99,7 @@ $(document).ready(function(){initNavTree('field_8hpp.html',''); initResizable();
 <div class="contents">
 <div class="textblock"><code>#include &lt;array&gt;</code><br />
 <code>#include &lt;cstdint&gt;</code><br />
+<code>#include &lt;cstring&gt;</code><br />
 <code>#include &lt;string&gt;</code><br />
 <code>#include &lt;vector&gt;</code><br />
 <code>#include &quot;config.hpp&quot;</code><br />
@@ -124,10 +125,8 @@ Namespaces</h2></td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="func-members" name="func-members"></a>
 Functions</h2></td></tr>
-<tr class="memitem:abc96c67855e4991d413d35284c148f50" id="r_abc96c67855e4991d413d35284c148f50"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structsecp256k1_1_1fast_1_1MidFieldElement.html">MidFieldElement</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1fast.html#abc96c67855e4991d413d35284c148f50">secp256k1::fast::toMid</a> (<a class="el" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a> *fe) noexcept</td></tr>
-<tr class="separator:abc96c67855e4991d413d35284c148f50"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a299678fa62af6171cad9ac631856acf0" id="r_a299678fa62af6171cad9ac631856acf0"><td class="memItemLeft" align="right" valign="top">const <a class="el" href="structsecp256k1_1_1fast_1_1MidFieldElement.html">MidFieldElement</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1fast.html#a299678fa62af6171cad9ac631856acf0">secp256k1::fast::toMid</a> (const <a class="el" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a> *fe) noexcept</td></tr>
-<tr class="separator:a299678fa62af6171cad9ac631856acf0"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a552997037f272d2df6b3b872e1d05409" id="r_a552997037f272d2df6b3b872e1d05409"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structsecp256k1_1_1fast_1_1MidFieldElement.html">MidFieldElement</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1fast.html#a552997037f272d2df6b3b872e1d05409">secp256k1::fast::toMid</a> (const <a class="el" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a> &amp;fe) noexcept</td></tr>
+<tr class="separator:a552997037f272d2df6b3b872e1d05409"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aa23214e08a8cd6061ff9d23edfc624aa" id="r_aa23214e08a8cd6061ff9d23edfc624aa"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1fast.html#aa23214e08a8cd6061ff9d23edfc624aa">secp256k1::fast::fe_inverse_binary</a> (const <a class="el" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a> &amp;value)</td></tr>
 <tr class="separator:aa23214e08a8cd6061ff9d23edfc624aa"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:adc2e74dd45476a57f4cb8eb3f7313af5" id="r_adc2e74dd45476a57f4cb8eb3f7313af5"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1fast.html#adc2e74dd45476a57f4cb8eb3f7313af5">secp256k1::fast::fe_inverse_window4</a> (const <a class="el" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a> &amp;value)</td></tr>

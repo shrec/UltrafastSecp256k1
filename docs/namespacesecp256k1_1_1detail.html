@@ -25,7 +25,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.16.0</span>
+   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.19.0</span>
    </div>
    <div id="projectbrief">Ultra high-performance secp256k1 elliptic curve cryptography library</div>
   </td>
@@ -99,6 +99,8 @@ $(document).ready(function(){initNavTree('namespacesecp256k1_1_1detail.html','')
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="func-members" name="func-members"></a>
 Functions</h2></td></tr>
+<tr class="memitem:a5dea1f75154fb440422d13d1356fcaa4" id="r_a5dea1f75154fb440422d13d1356fcaa4"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1detail.html#a5dea1f75154fb440422d13d1356fcaa4">secure_erase</a> (void *ptr, std::size_t len) noexcept</td></tr>
+<tr class="separator:a5dea1f75154fb440422d13d1356fcaa4"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aeb7ac005ebf31bbcf37bc8c253bbad40" id="r_aeb7ac005ebf31bbcf37bc8c253bbad40"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1detail.html#aeb7ac005ebf31bbcf37bc8c253bbad40">sha256_compress_dispatch</a> (const std::uint8_t block[64], std::uint32_t state[8]) noexcept</td></tr>
 <tr class="separator:aeb7ac005ebf31bbcf37bc8c253bbad40"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aec98baa39922e3a212c7660cf36700e2" id="r_aec98baa39922e3a212c7660cf36700e2"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classsecp256k1_1_1SHA256.html">SHA256</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1detail.html#aec98baa39922e3a212c7660cf36700e2">make_tag_midstate</a> (std::string_view tag)</td></tr>
@@ -189,6 +191,46 @@ Variables</h2></td></tr>
 <p class="definition">Definition at line <a class="el" href="tagged__hash_8hpp_source.html#l00024">24</a> of file <a class="el" href="tagged__hash_8hpp_source.html">tagged_hash.hpp</a>.</p>
 
 <p class="reference">References <a class="el" href="sha256_8hpp_source.html#l00117">secp256k1::SHA256::hash()</a>, and <a class="el" href="sha256_8hpp_source.html#l00040">secp256k1::SHA256::update()</a>.</p>
+
+</div>
+</div>
+<a id="a5dea1f75154fb440422d13d1356fcaa4" name="a5dea1f75154fb440422d13d1356fcaa4"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a5dea1f75154fb440422d13d1356fcaa4">&#9670;&#160;</a></span>secure_erase()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void secp256k1::detail::secure_erase </td>
+          <td>(</td>
+          <td class="paramtype">void *&#160;</td>
+          <td class="paramname"><em>ptr</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">std::size_t&#160;</td>
+          <td class="paramname"><em>len</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p class="definition">Definition at line <a class="el" href="secure__erase_8hpp_source.html#l00018">18</a> of file <a class="el" href="secure__erase_8hpp_source.html">secure_erase.hpp</a>.</p>
+
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00433">ufsecp_ecdsa_sign()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00639">ufsecp_ecdsa_sign_recoverable()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00455">ufsecp_ecdsa_sign_verified()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00328">ufsecp_pubkey_create()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00350">ufsecp_pubkey_create_uncompressed()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00703">ufsecp_schnorr_sign()</a>, and <a class="el" href="ufsecp__impl_8cpp_source.html#l00731">ufsecp_schnorr_sign_verified()</a>.</p>
 
 </div>
 </div>

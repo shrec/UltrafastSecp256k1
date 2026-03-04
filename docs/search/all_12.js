@@ -8,13 +8,14 @@ var searchData=
   ['library_20does_20not_20do_5',['What This Library Does NOT Do',['../md_include_2ufsecp_2SUPPORTED__GUARANTEES.html#autotoc_md15',1,'']]],
   ['license_6',['License',['../index.html#autotoc_md114',1,'']]],
   ['limbs_7',['limbs',['../structsecp256k1_1_1MidFieldElementData.html#ac940c01594bd9eaddfd7404290fbbb28',1,'secp256k1::MidFieldElementData::limbs'],['../structsecp256k1_1_1fast_1_1MidFieldElement.html#a404da8c0dccabe650316a90db209edf3',1,'secp256k1::fast::MidFieldElement::limbs'],['../classsecp256k1_1_1fast_1_1Scalar.html#a52988cdd890977cdd51f7bfdac076deb',1,'secp256k1::fast::Scalar::limbs()'],['../classsecp256k1_1_1fast_1_1FieldElement.html#a0d2d12a0c06e62965c27856432e490de',1,'secp256k1::fast::FieldElement::limbs()'],['../structsecp256k1_1_1ScalarData.html#ae407462b76480b74153ba5bf47e5f1e0',1,'secp256k1::ScalarData::limbs'],['../structsecp256k1_1_1FieldElementData.html#a2ded31b1bdf973e35ade41240bc96bb9',1,'secp256k1::FieldElementData::limbs']]],
-  ['limbs_5ftype_8',['limbs_type',['../classsecp256k1_1_1fast_1_1Scalar.html#a6813aa404ba9f4fcd40265bb8cf4370f',1,'secp256k1::fast::Scalar::limbs_type'],['../classsecp256k1_1_1fast_1_1FieldElement.html#a4398e83b161d53536cdf6d2a171d613f',1,'secp256k1::fast::FieldElement::limbs_type']]],
-  ['linux_20apt_20ndash_20debian_20ubuntu_9',['Linux (APT &amp;ndash; Debian / Ubuntu)',['../index.html#autotoc_md31',1,'']]],
-  ['linux_20aur_10',['Arch Linux (AUR)',['../index.html#autotoc_md33',1,'']]],
-  ['linux_20rpm_20ndash_20fedora_20rhel_11',['Linux (RPM &amp;ndash; Fedora / RHEL)',['../index.html#autotoc_md32',1,'']]],
-  ['litecoin_12',['Litecoin',['../namespacesecp256k1_1_1coins.html#ac54c95af7577aa020c8c03730b0e9ff3',1,'secp256k1::coins']]],
-  ['load_5fcache_13',['load_cache',['../classsecp256k1_1_1fast_1_1CombGenContext.html#a464dfe173835f60e9ea32292f03a9165',1,'secp256k1::fast::CombGenContext']]],
-  ['load_5ffixed_5fbase_5fconfig_5ffile_14',['load_fixed_base_config_file',['../namespacesecp256k1_1_1fast.html#a84571daeea5cce1f3a0458fc424f1605',1,'secp256k1::fast']]],
-  ['load_5fprecompute_5fcache_15',['load_precompute_cache',['../namespacesecp256k1_1_1fast.html#a0f2630617093e195459d21cdac4db28a',1,'secp256k1::fast']]],
-  ['lt_5fmask_16',['lt_mask',['../namespacesecp256k1_1_1ct.html#a0a4336fe5228a718d36acf600faae4df',1,'secp256k1::ct']]]
+  ['limbs_5fmut_8',['limbs_mut',['../classsecp256k1_1_1fast_1_1FieldElement.html#a4354c5302be917a3c5a368ebdd481a39',1,'secp256k1::fast::FieldElement']]],
+  ['limbs_5ftype_9',['limbs_type',['../classsecp256k1_1_1fast_1_1FieldElement.html#a4398e83b161d53536cdf6d2a171d613f',1,'secp256k1::fast::FieldElement::limbs_type'],['../classsecp256k1_1_1fast_1_1Scalar.html#a6813aa404ba9f4fcd40265bb8cf4370f',1,'secp256k1::fast::Scalar::limbs_type']]],
+  ['linux_20apt_20ndash_20debian_20ubuntu_10',['Linux (APT &amp;ndash; Debian / Ubuntu)',['../index.html#autotoc_md31',1,'']]],
+  ['linux_20aur_11',['Arch Linux (AUR)',['../index.html#autotoc_md33',1,'']]],
+  ['linux_20rpm_20ndash_20fedora_20rhel_12',['Linux (RPM &amp;ndash; Fedora / RHEL)',['../index.html#autotoc_md32',1,'']]],
+  ['litecoin_13',['Litecoin',['../namespacesecp256k1_1_1coins.html#ac54c95af7577aa020c8c03730b0e9ff3',1,'secp256k1::coins']]],
+  ['load_5fcache_14',['load_cache',['../classsecp256k1_1_1fast_1_1CombGenContext.html#a464dfe173835f60e9ea32292f03a9165',1,'secp256k1::fast::CombGenContext']]],
+  ['load_5ffixed_5fbase_5fconfig_5ffile_15',['load_fixed_base_config_file',['../namespacesecp256k1_1_1fast.html#a84571daeea5cce1f3a0458fc424f1605',1,'secp256k1::fast']]],
+  ['load_5fprecompute_5fcache_16',['load_precompute_cache',['../namespacesecp256k1_1_1fast.html#a0f2630617093e195459d21cdac4db28a',1,'secp256k1::fast']]],
+  ['lt_5fmask_17',['lt_mask',['../namespacesecp256k1_1_1ct.html#a0a4336fe5228a718d36acf600faae4df',1,'secp256k1::ct']]]
 ];

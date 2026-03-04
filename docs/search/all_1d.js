@@ -20,6 +20,7 @@ var searchData=
   ['witness_5fversion_17',['witness_version',['../structsecp256k1_1_1Bech32DecodeResult.html#af9d489dbd9973558699acd3dbd755e13',1,'secp256k1::Bech32DecodeResult']]],
   ['wnaf1_18',['wnaf1',['../structsecp256k1_1_1fast_1_1KPlan.html#ac37127223b3b857907b1ee9685405a91',1,'secp256k1::fast::KPlan::wnaf1'],['../structsecp256k1_1_1fast_1_1PrecomputedScalar.html#ae83be6d9b05c9b0feae26a062e4d8474',1,'secp256k1::fast::PrecomputedScalar::wnaf1']]],
   ['wnaf2_19',['wnaf2',['../structsecp256k1_1_1fast_1_1KPlan.html#adf69df2fee05021b0997a68d43f38000',1,'secp256k1::fast::KPlan::wnaf2'],['../structsecp256k1_1_1fast_1_1PrecomputedScalar.html#ab5f139f5395513323622a8b95a016ed6',1,'secp256k1::fast::PrecomputedScalar::wnaf2']]],
-  ['write_5fdefault_5ffixed_5fbase_5fconfig_20',['write_default_fixed_base_config',['../namespacesecp256k1_1_1fast.html#ad46b0efc0be626bdc377dac50575e78b',1,'secp256k1::fast']]],
-  ['write_5ffixed_5fbase_5fconfig_21',['write_fixed_base_config',['../namespacesecp256k1_1_1fast.html#a1b9571a65741f1fa9c91244b0d36cb21',1,'secp256k1::fast']]]
+  ['wrap_20',['wrap',['../classsecp256k1_1_1PrivateKey.html#af3b07cf717bff151fce36c82e5c2424c',1,'secp256k1::PrivateKey']]],
+  ['write_5fdefault_5ffixed_5fbase_5fconfig_21',['write_default_fixed_base_config',['../namespacesecp256k1_1_1fast.html#ad46b0efc0be626bdc377dac50575e78b',1,'secp256k1::fast']]],
+  ['write_5ffixed_5fbase_5fconfig_22',['write_fixed_base_config',['../namespacesecp256k1_1_1fast.html#a1b9571a65741f1fa9c91244b0d36cb21',1,'secp256k1::fast']]]
 ];

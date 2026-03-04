@@ -64,6 +64,7 @@ var annotated_dup =
       [ "MuSig2SecNonce", "structsecp256k1_1_1MuSig2SecNonce.html", "structsecp256k1_1_1MuSig2SecNonce" ],
       [ "MuSig2Session", "structsecp256k1_1_1MuSig2Session.html", "structsecp256k1_1_1MuSig2Session" ],
       [ "PedersenCommitment", "structsecp256k1_1_1PedersenCommitment.html", "structsecp256k1_1_1PedersenCommitment" ],
+      [ "PrivateKey", "classsecp256k1_1_1PrivateKey.html", "classsecp256k1_1_1PrivateKey" ],
       [ "RecoverableSignature", "structsecp256k1_1_1RecoverableSignature.html", "structsecp256k1_1_1RecoverableSignature" ],
       [ "ScalarData", "structsecp256k1_1_1ScalarData.html", "structsecp256k1_1_1ScalarData" ],
       [ "SchnorrAdaptorSig", "structsecp256k1_1_1SchnorrAdaptorSig.html", "structsecp256k1_1_1SchnorrAdaptorSig" ],

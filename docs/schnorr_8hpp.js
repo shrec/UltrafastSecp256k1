@@ -7,6 +7,8 @@ var schnorr_8hpp =
     [ "schnorr_pubkey", "schnorr_8hpp.html#ae508026a4b6a2d3be70fbe3f4e96d4c6", null ],
     [ "schnorr_sign", "schnorr_8hpp.html#abdafefa1bbce97d2a9de0b9f5ea112c3", null ],
     [ "schnorr_sign", "schnorr_8hpp.html#a41d4f172981683c43c7edb9390ceccc6", null ],
+    [ "schnorr_sign_verified", "schnorr_8hpp.html#a258a1bc80dbc3fcfb935e49cf1fb2ca3", null ],
+    [ "schnorr_sign_verified", "schnorr_8hpp.html#a2d99c4ebb7ea382452c5777b409e89c8", null ],
     [ "schnorr_verify", "schnorr_8hpp.html#a70e526ac24938437dc4eb04062de3165", null ],
     [ "schnorr_verify", "schnorr_8hpp.html#abe2d6bd72a50960213d7e93220f4044b", null ],
     [ "schnorr_verify", "schnorr_8hpp.html#a26bc72f1db971e5854681c65e4b6c1ae", null ],

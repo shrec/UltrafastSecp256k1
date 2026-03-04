@@ -2,7 +2,7 @@ var searchData=
 [
   ['d_0',['d',['../structsecp256k1_1_1SchnorrKeypair.html#a3e5043a83a9ed29354605246da8b4ecb',1,'secp256k1::SchnorrKeypair']]],
   ['dash_1',['Dash',['../namespacesecp256k1_1_1coins.html#af1a6b40521b40c747c2892c55c28424e',1,'secp256k1::coins']]],
-  ['data_2',['data',['../structufsecp__bip32__key.html#ad236ded3fbd33d12321534ce8de024da',1,'ufsecp_bip32_key::data'],['../classsecp256k1_1_1fast_1_1FieldElement.html#a03e8e10d02591b02b4620037fe7bbe03',1,'secp256k1::fast::FieldElement::data() const noexcept'],['../classsecp256k1_1_1fast_1_1FieldElement.html#a6d4cdd86b2cf63af2b884836f5c67585',1,'secp256k1::fast::FieldElement::data() noexcept'],['../classsecp256k1_1_1fast_1_1Scalar.html#abd174dcdd99a91025cde83a73575f8c5',1,'secp256k1::fast::Scalar::data() const noexcept'],['../classsecp256k1_1_1fast_1_1Scalar.html#ab293d8ee3ddafef18a03a37a1c010f4f',1,'secp256k1::fast::Scalar::data() noexcept']]],
+  ['data_2',['data',['../structufsecp__bip32__key.html#ad236ded3fbd33d12321534ce8de024da',1,'ufsecp_bip32_key::data'],['../classsecp256k1_1_1fast_1_1FieldElement.html#a8febb756a3038615f72852774df5629a',1,'secp256k1::fast::FieldElement::data()'],['../classsecp256k1_1_1fast_1_1Scalar.html#ae634c2ab98447b45a16a507b6d5b76d3',1,'secp256k1::fast::Scalar::data()']]],
   ['db_5fpath_3',['db_path',['../structsecp256k1_1_1fast_1_1FixedBaseConfig.html#a9e4322aa04a28fe86ebb496baf23463b',1,'secp256k1::fast::FixedBaseConfig']]],
   ['dbl_4',['dbl',['../classsecp256k1_1_1fast_1_1Point.html#ad5995d5102af3aa5ee1214cf0d98aca3',1,'secp256k1::fast::Point']]],
   ['dbl_5finplace_5',['dbl_inplace',['../classsecp256k1_1_1fast_1_1Point.html#aea46f4aa10a5f5932e15ecc6fc5b99ae',1,'secp256k1::fast::Point']]],
@@ -21,7 +21,7 @@ var searchData=
   ['detail_18',['detail',['../structsecp256k1_1_1fast_1_1SelftestCaseResult.html#a3b2ddf5512fe73efd48d475878a50ad4',1,'secp256k1::fast::SelftestCaseResult']]],
   ['detect_5fhash_5ftier_19',['detect_hash_tier',['../namespacesecp256k1_1_1hash.html#ac1691b10cf03655683e2710c0e46bf31',1,'secp256k1::hash']]],
   ['detect_5fsimd_5ftier_20',['detect_simd_tier',['../namespacesecp256k1_1_1simd.html#a60293c3683aa104f3f3b4dd29ee2f3d4',1,'secp256k1::simd']]],
-  ['digest_5ftype_21',['digest_type',['../classsecp256k1_1_1SHA256.html#afe548d04a90858ec7601e304fdaadbb5',1,'secp256k1::SHA256::digest_type'],['../classsecp256k1_1_1SHA512.html#aeff28df05751f2335296f033eb70af8f',1,'secp256k1::SHA512::digest_type']]],
+  ['digest_5ftype_21',['digest_type',['../classsecp256k1_1_1SHA512.html#aeff28df05751f2335296f033eb70af8f',1,'secp256k1::SHA512::digest_type'],['../classsecp256k1_1_1SHA256.html#afe548d04a90858ec7601e304fdaadbb5',1,'secp256k1::SHA256::digest_type']]],
   ['digibyte_22',['DigiByte',['../namespacesecp256k1_1_1coins.html#af8584b5a9a5909c5fe48b5d0e747a4e9',1,'secp256k1::coins']]],
   ['do_23',['What This Library Does NOT Do',['../md_include_2ufsecp_2SUPPORTED__GUARANTEES.html#autotoc_md15',1,'']]],
   ['documentation_24',['Documentation',['../index.html#autotoc_md110',1,'']]],

@@ -1,6 +1,6 @@
 var searchData=
 [
-  ['data_0',['data',['../classsecp256k1_1_1fast_1_1FieldElement.html#a03e8e10d02591b02b4620037fe7bbe03',1,'secp256k1::fast::FieldElement::data() const noexcept'],['../classsecp256k1_1_1fast_1_1FieldElement.html#a6d4cdd86b2cf63af2b884836f5c67585',1,'secp256k1::fast::FieldElement::data() noexcept'],['../classsecp256k1_1_1fast_1_1Scalar.html#abd174dcdd99a91025cde83a73575f8c5',1,'secp256k1::fast::Scalar::data() const noexcept'],['../classsecp256k1_1_1fast_1_1Scalar.html#ab293d8ee3ddafef18a03a37a1c010f4f',1,'secp256k1::fast::Scalar::data() noexcept']]],
+  ['data_0',['data',['../classsecp256k1_1_1fast_1_1FieldElement.html#a8febb756a3038615f72852774df5629a',1,'secp256k1::fast::FieldElement::data()'],['../classsecp256k1_1_1fast_1_1Scalar.html#ae634c2ab98447b45a16a507b6d5b76d3',1,'secp256k1::fast::Scalar::data()']]],
   ['dbl_1',['dbl',['../classsecp256k1_1_1fast_1_1Point.html#ad5995d5102af3aa5ee1214cf0d98aca3',1,'secp256k1::fast::Point']]],
   ['dbl_5finplace_2',['dbl_inplace',['../classsecp256k1_1_1fast_1_1Point.html#aea46f4aa10a5f5932e15ecc6fc5b99ae',1,'secp256k1::fast::Point']]],
   ['derive_5fchild_3',['derive_child',['../structsecp256k1_1_1ExtendedKey.html#a99769644a1833f5642dcade2e8ce1f65',1,'secp256k1::ExtendedKey']]],

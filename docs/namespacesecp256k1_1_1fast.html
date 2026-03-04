@@ -25,7 +25,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.16.0</span>
+   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.19.0</span>
    </div>
    <div id="projectbrief">Ultra high-performance secp256k1 elliptic curve cryptography library</div>
   </td>
@@ -199,10 +199,8 @@ Functions</h2></td></tr>
 <tr class="separator:a41378871634150e7254bdcfb6a79da81"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a7351530a09b2c36386085378b24488c6" id="r_a7351530a09b2c36386085378b24488c6"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classsecp256k1_1_1fast_1_1Point.html">Point</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1fast.html#a7351530a09b2c36386085378b24488c6">comb_gen_mul_ct</a> (const <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">Scalar</a> &amp;k)</td></tr>
 <tr class="separator:a7351530a09b2c36386085378b24488c6"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:abc96c67855e4991d413d35284c148f50" id="r_abc96c67855e4991d413d35284c148f50"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structsecp256k1_1_1fast_1_1MidFieldElement.html">MidFieldElement</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1fast.html#abc96c67855e4991d413d35284c148f50">toMid</a> (<a class="el" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a> *fe) noexcept</td></tr>
-<tr class="separator:abc96c67855e4991d413d35284c148f50"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a299678fa62af6171cad9ac631856acf0" id="r_a299678fa62af6171cad9ac631856acf0"><td class="memItemLeft" align="right" valign="top">const <a class="el" href="structsecp256k1_1_1fast_1_1MidFieldElement.html">MidFieldElement</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1fast.html#a299678fa62af6171cad9ac631856acf0">toMid</a> (const <a class="el" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a> *fe) noexcept</td></tr>
-<tr class="separator:a299678fa62af6171cad9ac631856acf0"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a552997037f272d2df6b3b872e1d05409" id="r_a552997037f272d2df6b3b872e1d05409"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structsecp256k1_1_1fast_1_1MidFieldElement.html">MidFieldElement</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1fast.html#a552997037f272d2df6b3b872e1d05409">toMid</a> (const <a class="el" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a> &amp;fe) noexcept</td></tr>
+<tr class="separator:a552997037f272d2df6b3b872e1d05409"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aa23214e08a8cd6061ff9d23edfc624aa" id="r_aa23214e08a8cd6061ff9d23edfc624aa"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1fast.html#aa23214e08a8cd6061ff9d23edfc624aa">fe_inverse_binary</a> (const <a class="el" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a> &amp;value)</td></tr>
 <tr class="separator:aa23214e08a8cd6061ff9d23edfc624aa"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:adc2e74dd45476a57f4cb8eb3f7313af5" id="r_adc2e74dd45476a57f4cb8eb3f7313af5"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1fast.html#adc2e74dd45476a57f4cb8eb3f7313af5">fe_inverse_window4</a> (const <a class="el" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a> &amp;value)</td></tr>
@@ -1225,7 +1223,7 @@ Variables</h2></td></tr>
 
 <p class="reference">References <a class="el" href="namespacesecp256k1_1_1fast.html#aa1ade8639ae8e331731389af48483662">Selftest()</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00185">ufsecp_ctx_create()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00202">ufsecp_ctx_create()</a>.</p>
 
 </div>
 </div>
@@ -1508,7 +1506,7 @@ This function is optimized for fixed-step ECC walks where we have a deterministi
 <div class="line"><span class="keywordflow">for</span> (<span class="keywordtype">size_t</span> i = 0; i &lt; h_values.size(); i++) {</div>
 <div class="line">    <a class="code hl_class" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a> x_affine = jacobian_x[i] * h_values[i];  <span class="comment">// X / Z^2</span></div>
 <div class="line">}</div>
-<div class="ttc" id="aclasssecp256k1_1_1fast_1_1FieldElement_html"><div class="ttname"><a href="classsecp256k1_1_1fast_1_1FieldElement.html">secp256k1::fast::FieldElement</a></div><div class="ttdef"><b>Definition</b> <a href="field_8hpp_source.html#l00042">field.hpp:42</a></div></div>
+<div class="ttc" id="aclasssecp256k1_1_1fast_1_1FieldElement_html"><div class="ttname"><a href="classsecp256k1_1_1fast_1_1FieldElement.html">secp256k1::fast::FieldElement</a></div><div class="ttdef"><b>Definition</b> <a href="field_8hpp_source.html#l00030">field.hpp:30</a></div></div>
 <div class="ttc" id="anamespacesecp256k1_1_1fast_html_a7f16e9e295808b8e747764b2b52506d7"><div class="ttname"><a href="namespacesecp256k1_1_1fast.html#a7f16e9e295808b8e747764b2b52506d7">secp256k1::fast::fe_h_based_inversion</a></div><div class="ttdeci">void fe_h_based_inversion(FieldElement *h_values, const FieldElement &amp;z0_value, std::size_t count)</div><div class="ttdef"><b>Definition</b> <a href="field__h__based_8hpp_source.html#l00095">field_h_based.hpp:95</a></div></div>
 </div><!-- fragment --> 
 <p class="definition">Definition at line <a class="el" href="field__h__based_8hpp_source.html#l00095">95</a> of file <a class="el" href="field__h__based_8hpp_source.html">field_h_based.hpp</a>.</p>
@@ -2492,7 +2490,7 @@ This function is optimized for fixed-step ECC walks where we have a deterministi
 
 <p class="definition">Definition at line <a class="el" href="field__branchless_8hpp_source.html#l00084">84</a> of file <a class="el" href="field__branchless_8hpp_source.html">field_branchless.hpp</a>.</p>
 
-<p class="reference">References <a class="el" href="field_8hpp_source.html#l00070">secp256k1::fast::FieldElement::limbs()</a>.</p>
+<p class="reference">References <a class="el" href="field_8hpp_source.html#l00058">secp256k1::fast::FieldElement::limbs()</a>.</p>
 
 </div>
 </div>
@@ -2584,7 +2582,7 @@ This function is optimized for fixed-step ECC walks where we have a deterministi
 
 <p class="definition">Definition at line <a class="el" href="field__branchless_8hpp_source.html#l00067">67</a> of file <a class="el" href="field__branchless_8hpp_source.html">field_branchless.hpp</a>.</p>
 
-<p class="reference">References <a class="el" href="classsecp256k1_1_1fast_1_1FieldElement.html#ac2c68016a8a629adc3cdca2c80183abe">secp256k1::fast::FieldElement::from_limbs()</a>, and <a class="el" href="field_8hpp_source.html#l00070">secp256k1::fast::FieldElement::limbs()</a>.</p>
+<p class="reference">References <a class="el" href="classsecp256k1_1_1fast_1_1FieldElement.html#ac2c68016a8a629adc3cdca2c80183abe">secp256k1::fast::FieldElement::from_limbs()</a>, and <a class="el" href="field_8hpp_source.html#l00058">secp256k1::fast::FieldElement::limbs()</a>.</p>
 
 </div>
 </div>
@@ -3878,8 +3876,8 @@ This function is optimized for fixed-step ECC walks where we have a deterministi
 
 </div>
 </div>
-<a id="a299678fa62af6171cad9ac631856acf0" name="a299678fa62af6171cad9ac631856acf0"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a299678fa62af6171cad9ac631856acf0">&#9670;&#160;</a></span>toMid() <span class="overload">[1/2]</span></h2>
+<a id="a552997037f272d2df6b3b872e1d05409" name="a552997037f272d2df6b3b872e1d05409"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a552997037f272d2df6b3b872e1d05409">&#9670;&#160;</a></span>toMid()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -3888,9 +3886,9 @@ This function is optimized for fixed-step ECC walks where we have a deterministi
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname">const <a class="el" href="structsecp256k1_1_1fast_1_1MidFieldElement.html">MidFieldElement</a> * secp256k1::fast::toMid </td>
+          <td class="memname"><a class="el" href="structsecp256k1_1_1fast_1_1MidFieldElement.html">MidFieldElement</a> secp256k1::fast::toMid </td>
           <td>(</td>
-          <td class="paramtype">const <a class="el" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a> *&#160;</td>
+          <td class="paramtype">const <a class="el" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a> &amp;&#160;</td>
           <td class="paramname"><em>fe</em></td><td>)</td>
           <td></td>
         </tr>
@@ -3902,35 +3900,7 @@ This function is optimized for fixed-step ECC walks where we have a deterministi
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="field_8hpp_source.html#l00141">141</a> of file <a class="el" href="field_8hpp_source.html">field.hpp</a>.</p>
-
-</div>
-</div>
-<a id="abc96c67855e4991d413d35284c148f50" name="abc96c67855e4991d413d35284c148f50"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#abc96c67855e4991d413d35284c148f50">&#9670;&#160;</a></span>toMid() <span class="overload">[2/2]</span></h2>
-
-<div class="memitem">
-<div class="memproto">
-<table class="mlabels">
-  <tr>
-  <td class="mlabels-left">
-      <table class="memname">
-        <tr>
-          <td class="memname"><a class="el" href="structsecp256k1_1_1fast_1_1MidFieldElement.html">MidFieldElement</a> * secp256k1::fast::toMid </td>
-          <td>(</td>
-          <td class="paramtype"><a class="el" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a> *&#160;</td>
-          <td class="paramname"><em>fe</em></td><td>)</td>
-          <td></td>
-        </tr>
-      </table>
-  </td>
-  <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">noexcept</span></span>  </td>
-  </tr>
-</table>
-</div><div class="memdoc">
-
-<p class="definition">Definition at line <a class="el" href="field_8hpp_source.html#l00137">137</a> of file <a class="el" href="field_8hpp_source.html">field.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="field_8hpp_source.html#l00122">122</a> of file <a class="el" href="field_8hpp_source.html">field.hpp</a>.</p>
 
 </div>
 </div>

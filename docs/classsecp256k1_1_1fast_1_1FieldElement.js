@@ -2,8 +2,7 @@ var classsecp256k1_1_1fast_1_1FieldElement =
 [
     [ "limbs_type", "classsecp256k1_1_1fast_1_1FieldElement.html#a4398e83b161d53536cdf6d2a171d613f", null ],
     [ "FieldElement", "classsecp256k1_1_1fast_1_1FieldElement.html#a613f64a08995094ddf45e1756d3d1cf6", null ],
-    [ "data", "classsecp256k1_1_1fast_1_1FieldElement.html#a03e8e10d02591b02b4620037fe7bbe03", null ],
-    [ "data", "classsecp256k1_1_1fast_1_1FieldElement.html#a6d4cdd86b2cf63af2b884836f5c67585", null ],
+    [ "data", "classsecp256k1_1_1fast_1_1FieldElement.html#a8febb756a3038615f72852774df5629a", null ],
     [ "from_bytes", "classsecp256k1_1_1fast_1_1FieldElement.html#aeb3e0a1b309238f5d2152d6a529f942a", null ],
     [ "from_data", "classsecp256k1_1_1fast_1_1FieldElement.html#a595613e3166a559caf336f4e193db5ee", null ],
     [ "from_hex", "classsecp256k1_1_1fast_1_1FieldElement.html#a6e41319df072798f76c4754ed688e610", null ],
@@ -14,6 +13,7 @@ var classsecp256k1_1_1fast_1_1FieldElement =
     [ "inverse", "classsecp256k1_1_1fast_1_1FieldElement.html#ac6d7aceb9b580a7867972a7754091315", null ],
     [ "inverse_inplace", "classsecp256k1_1_1fast_1_1FieldElement.html#a6c6b6e5e2469bcfd77f1423985cdd78c", null ],
     [ "limbs", "classsecp256k1_1_1fast_1_1FieldElement.html#a0d2d12a0c06e62965c27856432e490de", null ],
+    [ "limbs_mut", "classsecp256k1_1_1fast_1_1FieldElement.html#a4354c5302be917a3c5a368ebdd481a39", null ],
     [ "negate", "classsecp256k1_1_1fast_1_1FieldElement.html#add85f7e245c3b34df168eb54b604f1fe", null ],
     [ "negate_assign", "classsecp256k1_1_1fast_1_1FieldElement.html#a42d21e14a25a5fa2b60f31bf2e44fed5", null ],
     [ "one", "classsecp256k1_1_1fast_1_1FieldElement.html#acba3f6493ff465149640c1591aab170f", null ],

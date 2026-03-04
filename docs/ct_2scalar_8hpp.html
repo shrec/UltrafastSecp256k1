@@ -25,7 +25,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.16.0</span>
+   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.19.0</span>
    </div>
    <div id="projectbrief">Ultra high-performance secp256k1 elliptic curve cryptography library</div>
   </td>
@@ -98,6 +98,7 @@ $(document).ready(function(){initNavTree('ct_2scalar_8hpp.html',''); initResizab
 <div class="contents">
 <div class="textblock"><code>#include &lt;cstdint&gt;</code><br />
 <code>#include &quot;<a class="el" href="scalar_8hpp_source.html">secp256k1/scalar.hpp</a>&quot;</code><br />
+<code>#include &quot;<a class="el" href="ecdsa_8hpp_source.html">secp256k1/ecdsa.hpp</a>&quot;</code><br />
 <code>#include &quot;<a class="el" href="ops_8hpp_source.html">secp256k1/ct/ops.hpp</a>&quot;</code><br />
 </div>
 <p><a href="ct_2scalar_8hpp_source.html">Go to the source code of this file.</a></p>
@@ -119,6 +120,8 @@ Functions</h2></td></tr>
 <tr class="separator:a10bf7857db60f97c621500ee14daa3b8"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:afe20e62ecd6d35b8840b6d36af44e256" id="r_afe20e62ecd6d35b8840b6d36af44e256"><td class="memItemLeft" align="right" valign="top"><a class="el" href="namespacesecp256k1_1_1ct.html#ae54db4309cace8136d6d134bdf9a2cba">Scalar</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1ct.html#afe20e62ecd6d35b8840b6d36af44e256">secp256k1::ct::scalar_half</a> (const <a class="el" href="namespacesecp256k1_1_1ct.html#ae54db4309cace8136d6d134bdf9a2cba">Scalar</a> &amp;a) noexcept</td></tr>
 <tr class="separator:afe20e62ecd6d35b8840b6d36af44e256"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a6295f486ad0ce7d5b7b929baa007778d" id="r_a6295f486ad0ce7d5b7b929baa007778d"><td class="memItemLeft" align="right" valign="top"><a class="el" href="namespacesecp256k1_1_1ct.html#ae54db4309cace8136d6d134bdf9a2cba">Scalar</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1ct.html#a6295f486ad0ce7d5b7b929baa007778d">secp256k1::ct::scalar_inverse</a> (const <a class="el" href="namespacesecp256k1_1_1ct.html#ae54db4309cace8136d6d134bdf9a2cba">Scalar</a> &amp;a) noexcept</td></tr>
+<tr class="separator:a6295f486ad0ce7d5b7b929baa007778d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a2871de9b5f1889b77c749e2f8b07cb4c" id="r_a2871de9b5f1889b77c749e2f8b07cb4c"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1ct.html#a2871de9b5f1889b77c749e2f8b07cb4c">secp256k1::ct::scalar_cmov</a> (<a class="el" href="namespacesecp256k1_1_1ct.html#ae54db4309cace8136d6d134bdf9a2cba">Scalar</a> *r, const <a class="el" href="namespacesecp256k1_1_1ct.html#ae54db4309cace8136d6d134bdf9a2cba">Scalar</a> &amp;a, std::uint64_t mask) noexcept</td></tr>
 <tr class="separator:a2871de9b5f1889b77c749e2f8b07cb4c"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a03b1757e8f036c092670a3bf61f47b02" id="r_a03b1757e8f036c092670a3bf61f47b02"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1ct.html#a03b1757e8f036c092670a3bf61f47b02">secp256k1::ct::scalar_cswap</a> (<a class="el" href="namespacesecp256k1_1_1ct.html#ae54db4309cace8136d6d134bdf9a2cba">Scalar</a> *a, <a class="el" href="namespacesecp256k1_1_1ct.html#ae54db4309cace8136d6d134bdf9a2cba">Scalar</a> *b, std::uint64_t mask) noexcept</td></tr>
@@ -131,10 +134,14 @@ Functions</h2></td></tr>
 <tr class="separator:a1e7870bad9c390fa78deea0fea701435"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:af295fab112339baf03b3622b9eda864b" id="r_af295fab112339baf03b3622b9eda864b"><td class="memItemLeft" align="right" valign="top">std::uint64_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1ct.html#af295fab112339baf03b3622b9eda864b">secp256k1::ct::scalar_eq</a> (const <a class="el" href="namespacesecp256k1_1_1ct.html#ae54db4309cace8136d6d134bdf9a2cba">Scalar</a> &amp;a, const <a class="el" href="namespacesecp256k1_1_1ct.html#ae54db4309cace8136d6d134bdf9a2cba">Scalar</a> &amp;b) noexcept</td></tr>
 <tr class="separator:af295fab112339baf03b3622b9eda864b"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a2bd7b91347d5987346af60684a44065b" id="r_a2bd7b91347d5987346af60684a44065b"><td class="memItemLeft" align="right" valign="top">std::uint64_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1ct.html#a2bd7b91347d5987346af60684a44065b">secp256k1::ct::scalar_is_high</a> (const <a class="el" href="namespacesecp256k1_1_1ct.html#ae54db4309cace8136d6d134bdf9a2cba">Scalar</a> &amp;a) noexcept</td></tr>
+<tr class="separator:a2bd7b91347d5987346af60684a44065b"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a13ce761bbd51ff8b13396650f87b5983" id="r_a13ce761bbd51ff8b13396650f87b5983"><td class="memItemLeft" align="right" valign="top">std::uint64_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1ct.html#a13ce761bbd51ff8b13396650f87b5983">secp256k1::ct::scalar_bit</a> (const <a class="el" href="namespacesecp256k1_1_1ct.html#ae54db4309cace8136d6d134bdf9a2cba">Scalar</a> &amp;a, std::size_t index) noexcept</td></tr>
 <tr class="separator:a13ce761bbd51ff8b13396650f87b5983"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a60c4c0b6778a957305f9f06122a4e454" id="r_a60c4c0b6778a957305f9f06122a4e454"><td class="memItemLeft" align="right" valign="top">std::uint64_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1ct.html#a60c4c0b6778a957305f9f06122a4e454">secp256k1::ct::scalar_window</a> (const <a class="el" href="namespacesecp256k1_1_1ct.html#ae54db4309cace8136d6d134bdf9a2cba">Scalar</a> &amp;a, std::size_t pos, unsigned width) noexcept</td></tr>
 <tr class="separator:a60c4c0b6778a957305f9f06122a4e454"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a4796a48328810961d87ec4203f150719" id="r_a4796a48328810961d87ec4203f150719"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structsecp256k1_1_1ECDSASignature.html">ECDSASignature</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1ct.html#a4796a48328810961d87ec4203f150719">secp256k1::ct::ct_normalize_low_s</a> (const <a class="el" href="structsecp256k1_1_1ECDSASignature.html">ECDSASignature</a> &amp;sig) noexcept</td></tr>
+<tr class="separator:a4796a48328810961d87ec4203f150719"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 </div><!-- contents -->
 </div><!-- doc-content -->
