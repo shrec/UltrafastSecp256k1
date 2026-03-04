@@ -65,6 +65,7 @@ static std::array<uint8_t, 32> hex32(const char* h) {
     return out;
 }
 
+[[maybe_unused]]
 static Point make_pubkey(const char* x_hex, const char* y_hex) {
     auto x = FieldElement::from_bytes(hex32(x_hex));
     auto y = FieldElement::from_bytes(hex32(y_hex));
@@ -242,11 +243,6 @@ static void test_modified_signatures() {
 static void test_boundary_scalars() {
     g_section = "boundary_scalar";
     std::printf("  [4] Boundary scalar values (near n, near p)\n");
-
-    auto pk = Point::generator();  // G itself, private key = 1
-
-    const uint8_t test_msg[] = "boundary";
-    auto msg_hash = SHA256::hash(test_msg, 8);
 
     // n+1 wraps to 1 via from_bytes modular reduction
     {

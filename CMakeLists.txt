@@ -92,6 +92,12 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
         $<$<AND:$<CONFIG:Release>,$<COMPILE_LANGUAGE:C,CXX>>:-O3>
         $<$<AND:$<CONFIG:Release>,$<COMPILE_LANGUAGE:C,CXX>>:-DNDEBUG>
     )
+    # GCC warns about unsigned __int128 under -Wpedantic (ISO C++ extension).
+    # This project fundamentally requires __int128 for 64-bit ECC arithmetic.
+    # Clang treats __int128 as a built-in type and does not warn.
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        add_compile_options($<$<COMPILE_LANGUAGE:C,CXX>:-Wno-pedantic>)
+    endif()
 elseif(MSVC)
     add_compile_options(
         /W4

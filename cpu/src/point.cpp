@@ -573,6 +573,14 @@ static JacobianPoint52 jac52_double(const JacobianPoint52& p) noexcept {
 // ---------------------------------------------------------------------------
 #if defined(SECP256K1_HYBRID_4X64_ACTIVE) && (defined(__ADX__) && defined(__BMI2__))
 
+// NOTE: These functions are currently unused -- they are scaffolding for an
+// upcoming 4x64-only scalar_mul path. Suppress -Wunused-function.
+#if defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-function"
+#pragma GCC diagnostic ignored "-Wrestrict"
+#endif
+
 __attribute__((noinline))
 static void jac_double_4x64_inplace(
     std::uint64_t* __restrict__ X,
@@ -754,6 +762,10 @@ static void jac_add_zinv_4x64_inplace(
     copy(Z, z3);
     infinity = false;
 }
+
+#if defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
 
 #endif // SECP256K1_HYBRID_4X64_ACTIVE && ADX && BMI2
 

@@ -274,6 +274,8 @@ bool ecdsa_batch_verify(const ECDSABatchEntry* entries, std::size_t n) {
                 0xFFFFFFFFFFFFFFFEULL, 0xFFFFFFFFFFFFFFFFULL
             };
             alignas(32) std::uint64_t rn[4];
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
             unsigned __int128 acc = static_cast<unsigned __int128>(rl[0]) + N_LIMBS[0];
             rn[0] = static_cast<std::uint64_t>(acc);
             acc = static_cast<unsigned __int128>(rl[1]) + N_LIMBS[1] + static_cast<std::uint64_t>(acc >> 64);
@@ -281,6 +283,7 @@ bool ecdsa_batch_verify(const ECDSABatchEntry* entries, std::size_t n) {
             acc = static_cast<unsigned __int128>(rl[2]) + N_LIMBS[2] + static_cast<std::uint64_t>(acc >> 64);
             rn[2] = static_cast<std::uint64_t>(acc);
             rn[3] = rl[3] + N_LIMBS[3] + static_cast<std::uint64_t>(acc >> 64);
+#pragma GCC diagnostic pop
 
             FE52 const r2_z2 = FE52::from_4x64_limbs(rn) * z2;
             FE52 diff2 = R_prime.X52();

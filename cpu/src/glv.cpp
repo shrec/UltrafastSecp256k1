@@ -223,6 +223,10 @@ static constexpr std::array<std::uint8_t, 32> kGlvLambdaBytes{{
 // ============================================================================
 
 #if defined(__SIZEOF_INT128__)
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+#endif
 
 // Group order n (little-endian 64-bit limbs)
 static constexpr std::uint64_t kN[4] = {
@@ -420,6 +424,9 @@ static void glv_reduce_mod_n(const std::uint64_t* w, int wlen,
     for (int i = 0; i < 4; ++i) out[i] = r[i];
 }
 
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
 #endif // __SIZEOF_INT128__
 
 // ============================================================================
@@ -436,6 +443,10 @@ GLVDecomposition glv_decompose(const Scalar& k) {
     auto c2_limbs = mul_shift_384_const<kG2[0], kG2[1], kG2[2], kG2[3]>(k_arr);
 
 #if defined(__SIZEOF_INT128__)
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+#endif
     // ---- Fast path: exploit known limb sizes (3.4x fewer multiply-accumulates) ----
     // c1, c2 are at most 128-bit (only limbs[0..1] non-zero from mul_shift_384).
     // c1*mb1: 2x2 = 4 macs (vs 16 for full Scalar::operator* schoolbook)
@@ -504,6 +515,9 @@ GLVDecomposition glv_decompose(const Scalar& k) {
         ? (k + lambda_k2_abs)
         : (k - lambda_k2_abs);
 
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
 #else
     // ---- Fallback (no __int128): use Scalar arithmetic ----
     Scalar const c1 = Scalar::from_limbs(c1_limbs);

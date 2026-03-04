@@ -91,7 +91,10 @@ static constexpr uint64_t P[4] = {
 // Reduction constant: 2^256 mod p = 0x1000003D1
 static constexpr uint64_t REDUCE_C = 0x1000003D1ULL;
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
 using u128 = unsigned __int128;
+#pragma GCC diagnostic pop
 
 // ============================================================================
 // Helper: conditional subtract p (branchless)

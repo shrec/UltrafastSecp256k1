@@ -21,6 +21,12 @@
 
 #if (defined(__x86_64__) || defined(_M_X64)) && defined(__ADX__) && defined(__BMI2__)
 
+// Suppress GCC -Wpedantic for unsigned __int128 (ISO C++ extension, required here)
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+#endif
+
 #if defined(__GNUC__) || defined(__clang__)
   #define FE4X64_FORCE_INLINE __attribute__((always_inline)) inline
 #elif defined(_MSC_VER)
@@ -583,5 +589,9 @@ bool is_zero(const std::uint64_t* a) noexcept {
 }
 
 } // namespace secp256k1::fast::fe4x64
+
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
 
 #endif // x86_64 + ADX + BMI2
