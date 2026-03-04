@@ -1,6 +1,6 @@
 # Threat Model
 
-UltrafastSecp256k1 v3.16.0 -- Layer-by-Layer Risk Assessment
+UltrafastSecp256k1 v3.17.0 -- Layer-by-Layer Risk Assessment
 
 ---
 
@@ -59,9 +59,9 @@ Variable-time algorithms may leak information about operands through timing, cac
 | Threat | Compiler optimization may break CT guarantees |
 | Mitigation | Sanitizer builds (ASan, TSan), manual inspection, `-O2` only |
 
-The CT layer provides complete addition formulas, constant-time field inversion, and timing-safe scalar multiplication. Callers must still zero sensitive buffers after use -- the library does not manage key lifetimes.
+The CT layer provides complete addition formulas, constant-time field inversion (SafeGCD), and timing-safe scalar multiplication. The library automatically erases secret-derived intermediates in CT signing paths (`ct::ecdsa_sign`, `ct::schnorr_sign`) via `secure_erase` -- callers only need to erase their own copies of private keys.
 
-**Known limitation**: No formal verification (e.g., ct-verif, Vale) has been applied. CT guarantees rely on code review and compiler discipline.
+**Known limitation**: Formal verification via ct-verif LLVM pass and Valgrind CT taint analysis is in CI, but Vale-level machine-checked proofs have not been applied.
 
 ### 3. GPU Backends (CUDA, ROCm, OpenCL, Metal)
 
@@ -185,7 +185,7 @@ NOT TRUSTED (caller responsibility):
 | Buffer overflow in field/scalar ops | CRITICAL | Fixed-size POD types, no dynamic allocation |
 | Use-after-free | HIGH | ASan in CI, no heap pointers in hot path |
 | Uninitialized memory reads | MEDIUM | Valgrind memcheck (weekly CI) |
-| Stack-based secret leakage | MEDIUM | Caller must zero sensitive buffers |
+| Stack-based secret leakage | MEDIUM | Library erases CT signing intermediates; caller zeros own copies |
 
 ### A5: Supply Chain
 
@@ -210,7 +210,7 @@ NOT TRUSTED (caller responsibility):
 ## Recommendations for Integrators
 
 1. **Always use `ct::` for secret scalar operations** (signing, key derivation)
-2. **Zero sensitive buffers** after use (`memset_s` or platform equivalent)
+2. **Zero your own private key copies** after use -- the library erases its intermediates automatically via `secure_erase` (volatile trick + `explicit_bzero` + `std::atomic_signal_fence`)
 3. **Build with sanitizers** regularly (`cpu-asan`, `cpu-tsan` presets)
 4. **Run selftest on startup** (`Selftest(false, SelftestMode::smoke)`)
 5. **Do not expose GPU memory** to untrusted contexts
@@ -221,10 +221,10 @@ NOT TRUSTED (caller responsibility):
 
 ---
 
-## Automated Security Measures (v3.16.0)
+## Automated Security Measures (v3.17.0)
 
 | Measure | Frequency | What It Catches |
-|---------|-----------|-----------------|
+|---------|-----------|------------------|
 | CodeQL | Every push/PR | Static security bugs, injection, overflow |
 | OpenSSF Scorecard | Weekly | Supply-chain weaknesses |
 | Security Audit CI | Push/PR + weekly | Compiler warnings (-Werror), memory errors, UB |
@@ -233,6 +233,11 @@ NOT TRUSTED (caller responsibility):
 | ASan + UBSan | CI | Address errors, undefined behavior |
 | TSan | CI | Data races, thread safety |
 | Valgrind | Weekly | Memory leaks, invalid access |
+| Valgrind CT taint | CI | Secret-dependent branches (CLASSIFY/DECLASSIFY) |
+| dudect timing analysis | CI | Side-channel timing leaks (Welch t-test) |
+| ct-verif LLVM pass | CI | Compile-time CT verification |
+| Fiat-Crypto linkage | CI | Formally verified field arithmetic cross-check |
+| Wycheproof vectors | CI | ECDSA/ECDH invalid input rejection (89+36 cases) |
 | Dependabot | Daily | Vulnerable dependency updates |
 | Dependency Review | Every PR | New vulnerable dependencies |
 | SLSA Attestation | Every release | Build provenance verification |
@@ -253,4 +258,4 @@ NOT TRUSTED (caller responsibility):
 
 ---
 
-*UltrafastSecp256k1 v3.16.0 -- Threat Model*
+*UltrafastSecp256k1 v3.17.0 -- Threat Model*

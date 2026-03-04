@@ -1,9 +1,12 @@
 # UltrafastSecp256k1 -- Cryptographic Audit Report
 
-> **Note (2026-03-03):** This report was generated against v3.9.0 (commit `cc20253`).
-> The test suite has been significantly restructured since then (26 CTest targets
-> as of v3.16.0 vs 20 at time of this audit). The 8 original audit suites have
-> been consolidated into `unified_audit` + specialized standalone tests.
+> **Note (2026-03-04):** This report was generated against v3.9.0 (commit `cc20253`).
+> The test suite has been significantly restructured since then (31 CTest targets
+> as of v3.17.0 vs 20 at time of this audit). The 8 original audit suites have
+> been consolidated into `unified_audit` + 17 specialized standalone audit tests
+> (including Wycheproof ECDSA/ECDH, Fiat-Crypto linkage, CT formal verification,
+> fault injection, and cross-platform KAT).
+> FROST/MuSig2 protocol-level tests have been added since this report.
 > This document is preserved as a historical baseline.
 
 **Library Version:** 3.9.0  

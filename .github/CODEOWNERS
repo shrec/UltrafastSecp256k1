@@ -19,8 +19,8 @@
 /cpu/include/    @shrec
 
 # Constant-time primitives -- side-channel sensitive
-/cpu/src/ct_*.cpp   @shrec
-/cpu/include/ct_*.h @shrec
+/cpu/src/ct_*.cpp          @shrec
+/cpu/include/secp256k1/ct/ @shrec
 
 # GPU backends
 /cuda/           @shrec
