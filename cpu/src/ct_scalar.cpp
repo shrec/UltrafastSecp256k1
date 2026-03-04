@@ -92,7 +92,14 @@ Scalar scalar_sub(const Scalar& a, const Scalar& b) noexcept {
     // value_barrier prevents the compiler from converting the conditional
     // move into a branch on the borrow flag.
     value_barrier(borrow);
-    std::uint64_t const mask = is_nonzero_mask(borrow);
+    std::uint64_t mask = is_nonzero_mask(borrow);
+#if defined(__riscv)
+    // RISC-V U74: barrier the mask AND each XOR-AND result to prevent
+    // the compiler from scheduling the cmov differently when mask is
+    // all-zeros vs all-ones (dudect detects the forwarding latency
+    // difference on in-order pipelines).
+    value_barrier(mask);
+#endif
     cmov256(r, tmp, mask);
 
     return Scalar::from_limbs({r[0], r[1], r[2], r[3]});
@@ -457,6 +464,23 @@ Scalar scalar_cneg(const Scalar& a, std::uint64_t mask) noexcept {
 
 std::uint64_t scalar_is_zero(const Scalar& a) noexcept {
     const auto& l = a.limbs();
+#if defined(__riscv) && (__riscv_xlen == 64)
+    // RISC-V U74: single asm block performs OR-reduction + is_zero_mask.
+    // This prevents the compiler from scheduling the OR chain differently
+    // for zero vs non-zero inputs (dudect |t| > 10 without this).
+    std::uint64_t a0 = l[0], a1 = l[1], a2 = l[2], a3 = l[3];
+    std::uint64_t mask;
+    asm volatile(
+        "or    %0, %1, %2\n\t"
+        "or    %0, %0, %3\n\t"
+        "or    %0, %0, %4\n\t"
+        "seqz  %0, %0\n\t"
+        "neg   %0, %0"
+        : "=&r"(mask)
+        : "r"(a0), "r"(a1), "r"(a2), "r"(a3)
+    );
+    return mask;
+#else
     // value_barrier each limb before OR to prevent the compiler from
     // constant-propagating zero limbs -> zero OR -> optimized is_zero_mask.
     std::uint64_t a0 = l[0], a1 = l[1], a2 = l[2], a3 = l[3];
@@ -466,6 +490,7 @@ std::uint64_t scalar_is_zero(const Scalar& a) noexcept {
     value_barrier(a3);
     std::uint64_t const z = a0 | a1 | a2 | a3;
     return is_zero_mask(z);
+#endif
 }
 
 std::uint64_t scalar_eq(const Scalar& a, const Scalar& b) noexcept {
@@ -557,24 +582,36 @@ std::uint64_t scalar_window(const Scalar& a, std::size_t pos,
     std::uint64_t const mask   = (1ULL << width) - 1;
 
 #if defined(__riscv)
-    // Branchless window extraction for RISC-V in-order cores.
-    // Branches on pos/width are public but create timing jitter on U74
-    // that fails dudect. Fully branchless via is_nonzero_mask.
-    std::uint64_t lo = limbs[limb_idx] >> bit_idx;
+    // RISC-V U74: CT lookup loop replaces indexed load to avoid
+    // timing variation from different limb_idx values on in-order core.
+    // Always reads all 4 limbs; selects via eq_mask (branchless).
+    std::uint64_t lo_limb = 0;
+    for (std::size_t i = 0; i < 4; ++i) {
+        std::uint64_t const m = eq_mask(static_cast<std::uint64_t>(i),
+                                  static_cast<std::uint64_t>(limb_idx));
+        lo_limb |= limbs[i] & m;
+    }
+    std::uint64_t lo = lo_limb >> bit_idx;
 
-    // Load next limb; wrap index and zero when out-of-bounds (limb_idx == 3)
-    std::uint64_t hi = limbs[(limb_idx + 1) & 3];
+    // Next limb (limb_idx+1), zeroed when limb_idx == 3 (out of bounds)
+    std::size_t const next_idx = (limb_idx + 1) & 3;
+    std::uint64_t hi_limb = 0;
+    for (std::size_t i = 0; i < 4; ++i) {
+        std::uint64_t const m = eq_mask(static_cast<std::uint64_t>(i),
+                                  static_cast<std::uint64_t>(next_idx));
+        hi_limb |= limbs[i] & m;
+    }
     std::uint64_t in_bounds = is_nonzero_mask(
         static_cast<std::uint64_t>(limb_idx ^ 3));
-    hi &= in_bounds;
+    hi_limb &= in_bounds;
 
     // Combine: shift by (64 - bit_idx). When bit_idx == 0 shift would be 64
     // (UB), so clamp to [0,63] and zero hi contribution instead.
     std::uint64_t shift = (64 - bit_idx) & 63;
     std::uint64_t hi_active = is_nonzero_mask(static_cast<std::uint64_t>(bit_idx));
-    hi &= hi_active;
+    hi_limb &= hi_active;
 
-    return (lo | (hi << shift)) & mask;
+    return (lo | (hi_limb << shift)) & mask;
 #else
     // Branched path: safe on x86/ARM OOO cores (branch predictor handles
     // the public pos/width pattern perfectly). Avoids MSVC/Clang LTCG

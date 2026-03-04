@@ -158,7 +158,15 @@ FieldElement field_sqr(const FieldElement& a) noexcept {
     // FE52 5x52 square with integrated reduction -- best codegen on
     // x86-64 (BMI2), ARM64, and RISC-V (dedicated asm: fe52_sqr_inner_riscv64).
     using FE52 = secp256k1::fast::FieldElement52;
-    return FE52::from_fe(a).square().to_fe();
+    FE52 tmp = FE52::from_fe(a);
+#if defined(__riscv)
+    // RISC-V U74: barrier the FE52 limbs before squaring to prevent
+    // the compiler from propagating known-limb patterns (e.g. fe_one)
+    // into the square kernel (differentiating edge-case vs random).
+    asm volatile("" : "+r"(tmp.n[0]), "+r"(tmp.n[1]), "+r"(tmp.n[2]),
+                      "+r"(tmp.n[3]), "+r"(tmp.n[4]) : : "memory");
+#endif
+    return tmp.square().to_fe();
 #else
     // MSVC / ESP32: 4x64 square with separate reduction.
     return a.square();

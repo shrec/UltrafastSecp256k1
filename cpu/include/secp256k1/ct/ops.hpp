@@ -61,16 +61,19 @@ namespace secp256k1::ct {
 
 #if defined(__GNUC__) || defined(__clang__)
 #if defined(__riscv)
-    // RISC-V in-order cores (U74): register-only barrier.
-    // "memory" clobber forces excessive stack spills/reloads on simple
-    // in-order pipelines, creating store-to-load forwarding timing jitter
-    // that defeats CT guarantees. "+r" alone prevents the compiler from
-    // reasoning about the register value (sufficient for branchless patterns).
+    // RISC-V in-order cores (U74): register barrier + "memory" clobber.
+    // The "memory" clobber is required to prevent Clang 21 RISC-V from
+    // scheduling loads/stores across the barrier -- without it, the
+    // compiler reorders enough to create timing leaks detectable by
+    // dudect (5 persistent leaks in ct_sidechannel_smoke: field_sqr,
+    // scalar_is_zero, scalar_sub, scalar_window, ct_compare).
+    // The store-forwarding timing jitter from spills/reloads is smaller
+    // (~0.5 cycle) than the leaks it prevents (|t| > 10).
     inline void value_barrier(std::uint64_t& v) noexcept {
-        asm volatile("" : "+r"(v));
+        asm volatile("" : "+r"(v) : : "memory");
     }
     inline void value_barrier(std::uint32_t& v) noexcept {
-        asm volatile("" : "+r"(v));
+        asm volatile("" : "+r"(v) : : "memory");
     }
 #else
     // x86/ARM OOO cores: memory clobber is cheap; keep full fence.
