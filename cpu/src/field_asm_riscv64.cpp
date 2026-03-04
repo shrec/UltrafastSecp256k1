@@ -21,7 +21,7 @@ extern "C" {
 FieldElement field_mul_riscv(const FieldElement& a, const FieldElement& b) {
     FieldElement result;
     field_mul_asm_riscv64(
-        const_cast<uint64_t*>(result.limbs().data()),
+        result.limbs_mut().data(),
         a.limbs().data(),
         b.limbs().data()
     );
@@ -32,7 +32,7 @@ FieldElement field_mul_riscv(const FieldElement& a, const FieldElement& b) {
 FieldElement field_square_riscv(const FieldElement& a) {
     FieldElement result;
     field_square_asm_riscv64(
-        const_cast<uint64_t*>(result.limbs().data()),
+        result.limbs_mut().data(),
         a.limbs().data()
     );
     return result;
@@ -42,7 +42,7 @@ FieldElement field_square_riscv(const FieldElement& a) {
 FieldElement field_add_riscv(const FieldElement& a, const FieldElement& b) {
     FieldElement result;
     field_add_asm_riscv64(
-        const_cast<uint64_t*>(result.limbs().data()),
+        result.limbs_mut().data(),
         a.limbs().data(),
         b.limbs().data()
     );
@@ -53,7 +53,7 @@ FieldElement field_add_riscv(const FieldElement& a, const FieldElement& b) {
 FieldElement field_sub_riscv(const FieldElement& a, const FieldElement& b) {
     FieldElement result;
     field_sub_asm_riscv64(
-        const_cast<uint64_t*>(result.limbs().data()),
+        result.limbs_mut().data(),
         a.limbs().data(),
         b.limbs().data()
     );
@@ -64,7 +64,7 @@ FieldElement field_sub_riscv(const FieldElement& a, const FieldElement& b) {
 FieldElement field_negate_riscv(const FieldElement& a) {
     FieldElement result;
     field_negate_asm_riscv64(
-        const_cast<uint64_t*>(result.limbs().data()),
+        result.limbs_mut().data(),
         a.limbs().data()
     );
     return result;

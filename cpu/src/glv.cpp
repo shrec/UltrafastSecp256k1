@@ -173,6 +173,8 @@ static unsigned scalar_bitlen(const Scalar& s) {
             return static_cast<unsigned>(i * 64 + 32 - static_cast<unsigned>(__builtin_clz(static_cast<std::uint32_t>(limbs[i]))));
 #else
             // x86-64/ARM64/RISC-V: single LZCNT/CLZ instruction
+            // SAFETY: limbs[i] != 0 is guaranteed by the if-guard above.
+            // __builtin_clzll(0) is UB per GCC docs; the guard prevents this.
             return static_cast<unsigned>(i * 64 + 64 - static_cast<unsigned>(__builtin_clzll(limbs[i])));
 #endif
 #endif

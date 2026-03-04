@@ -155,8 +155,8 @@ Point CombGenContext::mul_ct(const Scalar& k) const {
             uint64_t const mask = ct::eq_mask(static_cast<uint64_t>(i),
                                         static_cast<uint64_t>(idx));
             // CT conditional copy
-            ct::cmov256(selected.x.data().limbs, table_[i].x.data().limbs, mask);
-            ct::cmov256(selected.y.data().limbs, table_[i].y.data().limbs, mask);
+            ct::cmov256(selected.x.limbs_mut().data(), table_[i].x.limbs().data(), mask);
+            ct::cmov256(selected.y.limbs_mut().data(), table_[i].y.limbs().data(), mask);
             // CT update infinity flag
             uint64_t const inf_val = table_[i].infinity ? UINT64_MAX : 0;
             uint64_t sel_inf = selected.infinity ? UINT64_MAX : 0;

@@ -145,11 +145,13 @@ Point pippenger_msm(const std::vector<Scalar>& scalars,
 }
 
 // -- Unified MSM (auto-select) ------------------------------------------------
-// Strauss <= 128 points, Pippenger > 128
+// Strauss <= 64 points, Pippenger > 64
+// Pippenger crossover is ~33 points; using 64 for safety margin.
+// N=64 Schnorr batch -> 128 points in MSM -> Pippenger path.
 Point msm(const Scalar* scalars,
           const Point* points,
           std::size_t n) {
-    if (n <= 128) {
+    if (n <= 64) {
         return multi_scalar_mul(scalars, points, n);
     }
     return pippenger_msm(scalars, points, n);
