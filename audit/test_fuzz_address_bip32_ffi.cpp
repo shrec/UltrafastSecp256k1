@@ -381,7 +381,7 @@ static void suite_5_bip32_master_fuzz(ufsecp_ctx* ctx) {
     std::printf("\n[5] BIP32 Master Key from Seed Fuzz\n");
 
     // 5a: Valid seed lengths (16, 32, 64)
-    for (int const slen : {16, 32, 64}) {
+    for (size_t const slen : {size_t{16}, size_t{32}, size_t{64}}) {
         uint8_t seed[64];
         fill_random(seed, slen);
         ufsecp_bip32_key key;
@@ -391,7 +391,7 @@ static void suite_5_bip32_master_fuzz(ufsecp_ctx* ctx) {
     }
 
     // 5b: Invalid seed lengths
-    for (size_t const slen : {0, 1, 5, 15, 65, 100, 255}) {
+    for (size_t const slen : {size_t{0}, size_t{1}, size_t{5}, size_t{15}, size_t{65}, size_t{100}, size_t{255}}) {
         uint8_t seed[256];
         fill_random(seed, slen > 0 ? slen : 1);
         ufsecp_bip32_key key;
@@ -907,6 +907,105 @@ static void suite_13_ffi_error_inspection(ufsecp_ctx* ctx) {
 }
 
 // ===========================================================================
+// Suite [14]: FFI ECDSA Recovery Boundary Fuzz
+// ===========================================================================
+
+static void suite_14_ffi_ecdsa_recover(ufsecp_ctx* ctx) {
+    std::printf("\n[14] FFI ECDSA Recovery Boundary Fuzz\n");
+
+    // 14a: Valid sign-then-recover roundtrip
+    {
+        uint8_t sk[32];
+        fill_random(sk, 32);
+        uint8_t pub33[33];
+        if (ufsecp_pubkey_create(ctx, sk, pub33) == UFSECP_OK) {
+            uint8_t msg[32];
+            fill_random(msg, 32);
+            uint8_t sig64[64];
+            int recid = -1;
+            ufsecp_error_t err = ufsecp_ecdsa_sign_recoverable(ctx, msg, sk, sig64, &recid);
+            if (err == UFSECP_OK && recid >= 0 && recid <= 3) {
+                uint8_t recovered_pub[33];
+                err = ufsecp_ecdsa_recover(ctx, msg, sig64, recid, recovered_pub);
+                CHECK(err == UFSECP_OK, "recover_roundtrip_ok");
+                CHECK(std::memcmp(pub33, recovered_pub, 33) == 0,
+                      "recover_roundtrip_match");
+            }
+        }
+    }
+
+    // 14b: Invalid recid values
+    {
+        uint8_t msg[32], sig[64], pub[33];
+        fill_random(msg, 32);
+        fill_random(sig, 64);
+        for (int rid : {-1, -100, 4, 5, 100, 255, -2147483647}) {
+            ufsecp_error_t const err = ufsecp_ecdsa_recover(ctx, msg, sig, rid, pub);
+            CHECK(err != UFSECP_OK, "recover_bad_recid_rejected");
+        }
+    }
+
+    // 14c: Random sig bytes with all valid recids
+    for (int i = 0; i < SCALED(5000, 100); ++i) {
+        uint8_t msg[32], sig[64], pub[33];
+        fill_random(msg, 32);
+        fill_random(sig, 64);
+        int const rid = static_cast<int>(rng() % 4);
+        MUST_NOT_CRASH(ufsecp_ecdsa_recover(ctx, msg, sig, rid, pub),
+                       "recover_random_sig");
+    }
+
+    // 14d: NULL args
+    {
+        uint8_t msg[32] = {}, sig[64] = {}, pub[33];
+        MUST_NOT_CRASH(ufsecp_ecdsa_recover(ctx, nullptr, sig, 0, pub),
+                       "recover_null_msg");
+        MUST_NOT_CRASH(ufsecp_ecdsa_recover(ctx, msg, nullptr, 0, pub),
+                       "recover_null_sig");
+        MUST_NOT_CRASH(ufsecp_ecdsa_recover(ctx, msg, sig, 0, nullptr),
+                       "recover_null_out");
+        MUST_NOT_CRASH(ufsecp_ecdsa_recover(nullptr, msg, sig, 0, pub),
+                       "recover_null_ctx");
+    }
+}
+
+// ===========================================================================
+// Suite [15]: FFI ECDH Infinity / Edge Cases
+// ===========================================================================
+
+static void suite_15_ffi_ecdh_edge(ufsecp_ctx* ctx) {
+    std::printf("\n[15] FFI ECDH Infinity / Edge Cases\n");
+
+    // 15a: ECDH x-only with random bytes
+    for (int i = 0; i < SCALED(2000, 50); ++i) {
+        uint8_t sk[32], xpub[32], secret[32];
+        fill_random(sk, 32);
+        fill_random(xpub, 32);
+        MUST_NOT_CRASH(ufsecp_ecdh_xonly(ctx, sk, xpub, secret),
+                       "ecdh_xonly_random");
+    }
+
+    // 15b: ECDH raw with random bytes
+    for (int i = 0; i < SCALED(2000, 50); ++i) {
+        uint8_t sk[32], pub33[33], secret[32];
+        fill_random(sk, 32);
+        fill_random(pub33, 33);
+        MUST_NOT_CRASH(ufsecp_ecdh_raw(ctx, sk, pub33, secret),
+                       "ecdh_raw_random");
+    }
+
+    // 15c: All-zero pubkey (would decompress to infinity)
+    {
+        uint8_t sk[32], zero_pub[33] = {0x02}, secret[32];
+        std::memset(zero_pub + 1, 0, 32);
+        fill_random(sk, 32);
+        ufsecp_error_t err = ufsecp_ecdh(ctx, sk, zero_pub, secret);
+        // Must reject: x=0 is not on the curve
+        CHECK(err != UFSECP_OK, "ecdh_zero_pubkey_rejected");
+    }
+}
+
+// ===========================================================================
 // _run() entry point for unified audit runner
 // ===========================================================================
 
@@ -933,6 +1032,8 @@ int test_fuzz_address_bip32_ffi_run() {
     suite_11_ffi_ecdh_tweak(ctx);
     suite_12_ffi_taproot_boundary(ctx);
     suite_13_ffi_error_inspection(ctx);
+    suite_14_ffi_ecdsa_recover(ctx);
+    suite_15_ffi_ecdh_edge(ctx);
 
     ufsecp_ctx_destroy(ctx);
     return (g_fail > 0 || g_crash > 0) ? 1 : 0;
@@ -967,6 +1068,8 @@ int main() {
     suite_11_ffi_ecdh_tweak(ctx);
     suite_12_ffi_taproot_boundary(ctx);
     suite_13_ffi_error_inspection(ctx);
+    suite_14_ffi_ecdsa_recover(ctx);
+    suite_15_ffi_ecdh_edge(ctx);
 
     ufsecp_ctx_destroy(ctx);
 
