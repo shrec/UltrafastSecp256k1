@@ -3,6 +3,7 @@
 
 #include <array>
 #include <cstdint>
+#include <cstring>
 #include <string>
 #include <vector>
 #include "config.hpp"
@@ -22,13 +23,8 @@ class FieldElement;
 struct MidFieldElement {
     std::uint32_t limbs[8];  // Same 256 bits, different view
     
-    // Zero-cost conversion back to 64-bit representation
-    inline FieldElement* ToFieldElement() noexcept {
-        return reinterpret_cast<FieldElement*>(this);
-    }
-    inline const FieldElement* ToFieldElement() const noexcept {
-        return reinterpret_cast<const FieldElement*>(this);
-    }
+    // Safe conversion back to 64-bit representation (memcpy, compiler-optimized to noop)
+    inline FieldElement ToFieldElement() const noexcept;
 };
 
 class FieldElement {
@@ -60,6 +56,10 @@ public:
     void to_bytes_into(std::uint8_t* out) const noexcept;
     std::string to_hex() const;
     const limbs_type& limbs() const noexcept { return limbs_; }
+
+    // Non-const limb access for assembly wrappers that write into result directly.
+    // Avoids const_cast UB. Caller must ensure the written values are canonical.
+    limbs_type& limbs_mut() noexcept { return limbs_; }
 
     // Raw limb setter (no normalization) -- for use when caller guarantees canonical form.
     // Used by FieldElement52::to_fe() which already normalizes via fe52_normalize_inline.
@@ -101,20 +101,13 @@ public:
 
     bool operator==(const FieldElement& rhs) const noexcept;
 
-    // Zero-cost conversion to/from shared data type (for cross-backend interop)
-#if defined(__GNUC__)
-    _Pragma("GCC diagnostic push")
-    _Pragma("GCC diagnostic ignored \"-Wstrict-aliasing\"")
-#endif
-    const ::secp256k1::FieldElementData& data() const noexcept {
-        return *reinterpret_cast<const ::secp256k1::FieldElementData*>(&limbs_);
+    // Safe conversion to shared data type (memcpy, compiler-optimized to noop).
+    // Returns by value -- no strict-aliasing UB.
+    ::secp256k1::FieldElementData data() const noexcept {
+        ::secp256k1::FieldElementData d;
+        std::memcpy(&d, &limbs_, sizeof(d));
+        return d;
     }
-    ::secp256k1::FieldElementData& data() noexcept {
-        return *reinterpret_cast<::secp256k1::FieldElementData*>(&limbs_);
-    }
-#if defined(__GNUC__)
-    _Pragma("GCC diagnostic pop")
-#endif
     static FieldElement from_data(const ::secp256k1::FieldElementData& d) {
         return from_limbs({d.limbs[0], d.limbs[1], d.limbs[2], d.limbs[3]});
     }
@@ -125,13 +118,18 @@ private:
     limbs_type limbs_{};
 };
 
-// Zero-cost conversions for FieldElement <-> MidFieldElement
-inline MidFieldElement* toMid(FieldElement* fe) noexcept {
-    return reinterpret_cast<MidFieldElement*>(fe);
+// Safe conversions for FieldElement <-> MidFieldElement (memcpy, compiler-optimized)
+inline MidFieldElement toMid(const FieldElement& fe) noexcept {
+    MidFieldElement mid;
+    std::memcpy(&mid, &fe, sizeof(mid));
+    return mid;
 }
 
-inline const MidFieldElement* toMid(const FieldElement* fe) noexcept {
-    return reinterpret_cast<const MidFieldElement*>(fe);
+// Deferred inline definition (needs FieldElement to be complete)
+inline FieldElement MidFieldElement::ToFieldElement() const noexcept {
+    FieldElement::limbs_type lm;
+    std::memcpy(&lm, limbs, sizeof(lm));
+    return FieldElement::from_limbs_raw(lm);
 }
 
 // Compile-time verification

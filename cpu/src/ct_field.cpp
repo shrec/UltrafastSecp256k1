@@ -11,7 +11,7 @@
 //
 // PLATFORM DISPATCH (field_inv):
 //   x86-64 / ARM64 (__int128): SafeGCD 10x59=590 divsteps (CT, matches libsecp).
-//   Generic:                   Fermat chain a^(p-2) via field_mul/field_sqr.
+//   Generic (MSVC/32-bit):     SafeGCD30 25x30=750 divsteps (CT, no __int128).
 // ============================================================================
 
 #include "secp256k1/ct/field.hpp"
@@ -390,6 +390,235 @@ static void ct_sg_normalize(SG62& r, int64_t f_sign) noexcept {
 #endif
 #endif // __SIZEOF_INT128__
 
+// -- CT SafeGCD30 building blocks (MSVC / no __int128) -----------------------
+// Bernstein-Yang divstep with 30-bit batches, using only int32_t/int64_t.
+// Constant-time: fixed 30 iterations per batch, branchless swap/negate.
+// Matches bitcoin-core/secp256k1 secp256k1_modinv32 (MIT license).
+#if !defined(__SIZEOF_INT128__)
+namespace {
+
+struct S30CT  { int32_t v[9]; };
+struct T2x2CT { int32_t u, v, q, r; };
+struct ModInfoCT { S30CT modulus; std::uint32_t modulus_inv30; };
+
+// secp256k1 prime p in signed-30 representation:
+// p = 2^256 - 2^32 - 977
+static constexpr ModInfoCT PINFO_CT = {
+    {{-0x3D1, -4, 0, 0, 0, 0, 0, 0, 65536}},
+    0x2DDACACFU
+};
+
+// Constant-time 30 divsteps -- branchless, no ctz, fixed iteration count.
+// zeta tracks -(delta + 1/2); delta starts at 1/2, so zeta starts at -1.
+static int32_t ct_divsteps_30(int32_t zeta, std::uint32_t f0, std::uint32_t g0,
+                               T2x2CT& t) noexcept {
+    std::uint32_t u = 1, v = 0, q = 0, r = 1;
+    std::uint32_t f = f0, g = g0;
+
+    for (int i = 0; i < 30; ++i) {
+        // c1 = all-ones if zeta < 0 (i.e. delta > 0), else 0
+        auto c1 = static_cast<std::uint32_t>(zeta >> 31);
+        // c2 = all-ones if g is odd, else 0
+        std::uint32_t const c2 = 0U - (g & 1U);
+
+        // Conditionally negate f,u,v (if zeta < 0)
+        std::uint32_t const x = (f ^ c1) - c1;
+        std::uint32_t const y = (u ^ c1) - c1;
+        std::uint32_t const z = (v ^ c1) - c1;
+
+        // Conditionally add negated f to g (if g odd)
+        g += x & c2;
+        q += y & c2;
+        r += z & c2;
+
+        // Combined mask: swap iff zeta < 0 AND g was odd
+        c1 &= c2;
+
+        // zeta update: swap -> -(old_zeta)-2; no-swap -> zeta-1
+        zeta = static_cast<int32_t>(static_cast<std::uint32_t>(zeta) ^ c1) - 1;
+
+        // Conditionally swap: add new (g,q,r) into (f,u,v)
+        f += g & c1;
+        u += q & c1;
+        v += r & c1;
+
+        // Halve g, double (u,v) columns
+        g >>= 1;
+        u <<= 1;
+        v <<= 1;
+    }
+
+    t.u = static_cast<int32_t>(u); t.v = static_cast<int32_t>(v);
+    t.q = static_cast<int32_t>(q); t.r = static_cast<int32_t>(r);
+    return zeta;
+}
+
+// Apply transition matrix to (d,e) mod p.  Constant-time.
+// Computes (d', e') = (t / 2^30) * (d, e)  mod p.
+static void ct_update_de_30(S30CT& d, S30CT& e, const T2x2CT& t,
+                             const ModInfoCT& mod) noexcept {
+    const auto M30 = static_cast<int32_t>(UINT32_MAX >> 2);
+    const int32_t u = t.u, v = t.v, q = t.q, r = t.r;
+    int32_t di, ei, md, me, sd, se;
+    int64_t cd, ce;
+
+    sd = d.v[8] >> 31;
+    se = e.v[8] >> 31;
+    md = (u & sd) + (v & se);
+    me = (q & sd) + (r & se);
+
+    di = d.v[0]; ei = e.v[0];
+    cd = static_cast<int64_t>(u) * di + static_cast<int64_t>(v) * ei;
+    ce = static_cast<int64_t>(q) * di + static_cast<int64_t>(r) * ei;
+
+    md -= static_cast<int32_t>((mod.modulus_inv30 * static_cast<std::uint32_t>(cd)
+          + static_cast<std::uint32_t>(md)) & static_cast<std::uint32_t>(M30));
+    me -= static_cast<int32_t>((mod.modulus_inv30 * static_cast<std::uint32_t>(ce)
+          + static_cast<std::uint32_t>(me)) & static_cast<std::uint32_t>(M30));
+
+    cd += static_cast<int64_t>(mod.modulus.v[0]) * md;
+    ce += static_cast<int64_t>(mod.modulus.v[0]) * me;
+    cd >>= 30; ce >>= 30;
+
+    for (int i = 1; i < 9; ++i) {
+        di = d.v[i]; ei = e.v[i];
+        cd += static_cast<int64_t>(u) * di + static_cast<int64_t>(v) * ei;
+        ce += static_cast<int64_t>(q) * di + static_cast<int64_t>(r) * ei;
+        cd += static_cast<int64_t>(mod.modulus.v[i]) * md;
+        ce += static_cast<int64_t>(mod.modulus.v[i]) * me;
+        d.v[i - 1] = static_cast<int32_t>(cd) & M30; cd >>= 30;
+        e.v[i - 1] = static_cast<int32_t>(ce) & M30; ce >>= 30;
+    }
+    d.v[8] = static_cast<int32_t>(cd);
+    e.v[8] = static_cast<int32_t>(ce);
+}
+
+// Apply transition matrix to (f,g).  Constant-time, always full 9 limbs.
+static void ct_update_fg_30(S30CT& f, S30CT& g, const T2x2CT& t) noexcept {
+    const auto M30 = static_cast<int32_t>(UINT32_MAX >> 2);
+    int32_t fi, gi;
+    int64_t cf, cg;
+
+    fi = f.v[0]; gi = g.v[0];
+    cf = static_cast<int64_t>(t.u) * fi + static_cast<int64_t>(t.v) * gi;
+    cg = static_cast<int64_t>(t.q) * fi + static_cast<int64_t>(t.r) * gi;
+    cf >>= 30; cg >>= 30;
+
+    for (int j = 1; j < 9; ++j) {
+        fi = f.v[j]; gi = g.v[j];
+        cf += static_cast<int64_t>(t.u) * fi + static_cast<int64_t>(t.v) * gi;
+        cg += static_cast<int64_t>(t.q) * fi + static_cast<int64_t>(t.r) * gi;
+        f.v[j - 1] = static_cast<int32_t>(static_cast<std::uint32_t>(cf) & static_cast<std::uint32_t>(M30));
+        cf >>= 30;
+        g.v[j - 1] = static_cast<int32_t>(static_cast<std::uint32_t>(cg) & static_cast<std::uint32_t>(M30));
+        cg >>= 30;
+    }
+    f.v[8] = static_cast<int32_t>(cf);
+    g.v[8] = static_cast<int32_t>(cg);
+}
+
+// Normalize signed-30 result to [0, p).  Constant-time (branchless).
+static void ct_normalize_30(S30CT& r, int32_t sign, const ModInfoCT& mod) noexcept {
+    const auto M30 = static_cast<int32_t>(UINT32_MAX >> 2);
+    int32_t r0=r.v[0], r1=r.v[1], r2=r.v[2], r3=r.v[3], r4=r.v[4],
+            r5=r.v[5], r6=r.v[6], r7=r.v[7], r8=r.v[8];
+    int32_t cond;
+
+    // If r < 0, add modulus
+    cond = r8 >> 31;
+    r0 += mod.modulus.v[0] & cond;
+    r1 += mod.modulus.v[1] & cond;
+    r2 += mod.modulus.v[2] & cond;
+    r3 += mod.modulus.v[3] & cond;
+    r4 += mod.modulus.v[4] & cond;
+    r5 += mod.modulus.v[5] & cond;
+    r6 += mod.modulus.v[6] & cond;
+    r7 += mod.modulus.v[7] & cond;
+    r8 += mod.modulus.v[8] & cond;
+
+    // Conditionally negate based on sign of f
+    cond = sign >> 31;
+    r0 = (r0 ^ cond) - cond;
+    r1 = (r1 ^ cond) - cond;
+    r2 = (r2 ^ cond) - cond;
+    r3 = (r3 ^ cond) - cond;
+    r4 = (r4 ^ cond) - cond;
+    r5 = (r5 ^ cond) - cond;
+    r6 = (r6 ^ cond) - cond;
+    r7 = (r7 ^ cond) - cond;
+    r8 = (r8 ^ cond) - cond;
+
+    // Carry propagation
+    r1 += r0 >> 30; r0 &= M30;
+    r2 += r1 >> 30; r1 &= M30;
+    r3 += r2 >> 30; r2 &= M30;
+    r4 += r3 >> 30; r3 &= M30;
+    r5 += r4 >> 30; r4 &= M30;
+    r6 += r5 >> 30; r5 &= M30;
+    r7 += r6 >> 30; r6 &= M30;
+    r8 += r7 >> 30; r7 &= M30;
+
+    // Second conditional add (may still be negative after negate)
+    cond = r8 >> 31;
+    r0 += mod.modulus.v[0] & cond;
+    r1 += mod.modulus.v[1] & cond;
+    r2 += mod.modulus.v[2] & cond;
+    r3 += mod.modulus.v[3] & cond;
+    r4 += mod.modulus.v[4] & cond;
+    r5 += mod.modulus.v[5] & cond;
+    r6 += mod.modulus.v[6] & cond;
+    r7 += mod.modulus.v[7] & cond;
+    r8 += mod.modulus.v[8] & cond;
+
+    // Final carry propagation
+    r1 += r0 >> 30; r0 &= M30;
+    r2 += r1 >> 30; r1 &= M30;
+    r3 += r2 >> 30; r2 &= M30;
+    r4 += r3 >> 30; r3 &= M30;
+    r5 += r4 >> 30; r4 &= M30;
+    r6 += r5 >> 30; r5 &= M30;
+    r7 += r6 >> 30; r6 &= M30;
+    r8 += r7 >> 30; r7 &= M30;
+
+    r.v[0]=r0; r.v[1]=r1; r.v[2]=r2; r.v[3]=r3; r.v[4]=r4;
+    r.v[5]=r5; r.v[6]=r6; r.v[7]=r7; r.v[8]=r8;
+}
+
+// Convert 4x64-bit limbs -> signed-30 representation
+static S30CT ct_limbs_to_s30(const std::uint64_t* x) noexcept {
+    S30CT r{};
+    const std::uint32_t M30 = 0x3FFFFFFFu;
+    r.v[0] = static_cast<int32_t>( x[0]        & M30);
+    r.v[1] = static_cast<int32_t>((x[0] >> 30) & M30);
+    r.v[2] = static_cast<int32_t>(((x[0] >> 60) | (x[1] <<  4)) & M30);
+    r.v[3] = static_cast<int32_t>((x[1] >> 26) & M30);
+    r.v[4] = static_cast<int32_t>(((x[1] >> 56) | (x[2] <<  8)) & M30);
+    r.v[5] = static_cast<int32_t>((x[2] >> 22) & M30);
+    r.v[6] = static_cast<int32_t>(((x[2] >> 52) | (x[3] << 12)) & M30);
+    r.v[7] = static_cast<int32_t>((x[3] >> 18) & M30);
+    r.v[8] = static_cast<int32_t>( x[3] >> 48);
+    return r;
+}
+
+// Convert signed-30 -> 4x64-bit limbs
+static void ct_s30_to_u64(const S30CT& s, std::uint64_t* r) noexcept {
+    r[0] = (static_cast<std::uint64_t>(static_cast<std::uint32_t>(s.v[0])))
+         | (static_cast<std::uint64_t>(static_cast<std::uint32_t>(s.v[1])) << 30)
+         | (static_cast<std::uint64_t>(static_cast<std::uint32_t>(s.v[2])) << 60);
+    r[1] = (static_cast<std::uint64_t>(static_cast<std::uint32_t>(s.v[2])) >> 4)
+         | (static_cast<std::uint64_t>(static_cast<std::uint32_t>(s.v[3])) << 26)
+         | (static_cast<std::uint64_t>(static_cast<std::uint32_t>(s.v[4])) << 56);
+    r[2] = (static_cast<std::uint64_t>(static_cast<std::uint32_t>(s.v[4])) >> 8)
+         | (static_cast<std::uint64_t>(static_cast<std::uint32_t>(s.v[5])) << 22)
+         | (static_cast<std::uint64_t>(static_cast<std::uint32_t>(s.v[6])) << 52);
+    r[3] = (static_cast<std::uint64_t>(static_cast<std::uint32_t>(s.v[6])) >> 12)
+         | (static_cast<std::uint64_t>(static_cast<std::uint32_t>(s.v[7])) << 18)
+         | (static_cast<std::uint64_t>(static_cast<std::uint32_t>(s.v[8])) << 48);
+}
+
+} // anonymous namespace
+#endif // !__SIZEOF_INT128__
+
 FieldElement field_inv(const FieldElement& a) noexcept {
 #if defined(__SIZEOF_INT128__)
     // -- CT SafeGCD inverse -----------------------------------------------
@@ -431,107 +660,35 @@ FieldElement field_inv(const FieldElement& a) noexcept {
     });
 
 #else
-    // -- Generic 4x64 path (x86_64 ASM or fallback) ----------------------
-    // Fermat's little theorem: a^(p-2) mod p
-    // Using addition chain optimized for secp256k1:
-    // p-2 = FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2D
-    //
-    // This is a fixed sequence of squarings and multiplications.
-    // Always the same number of operations regardless of input.
-    //
-    // Optimal addition chain:
-    // 1. Compute a^2 ... a^(2^k) powers via repeated squaring
-    // 2. Multiply specific powers together
-    // Total: 255 squarings + 14 multiplications (fixed)
+    // -- CT SafeGCD30 inverse (MSVC / no __int128) -------------------------
+    // Bernstein-Yang divstep: 25 x 30 = 750 branchless divsteps.
+    // Matches bitcoin-core/secp256k1 secp256k1_modinv32 proven bound.
+    // No __int128 required -- uses int32_t/int64_t only.
+    // Replaces the Fermat chain (a^(p-2)) which leaked via non-CT multiply.
 
-    FieldElement x = a;
+    const auto& al = a.limbs();
 
-    // x2 = a^(2^2 - 1) = a^3
-    FieldElement x2 = field_sqr(x);
-    x2 = field_mul(x2, x);
+    S30CT d{};
+    S30CT e{}; e.v[0] = 1;
+    S30CT f = PINFO_CT.modulus;
+    S30CT g = ct_limbs_to_s30(al.data());
+    int32_t zeta = -1;  // zeta = -(delta + 1/2); delta starts at 1/2
 
-    // x3 = a^(2^3 - 1) = a^7
-    FieldElement x3 = field_sqr(x2);
-    x3 = field_mul(x3, x);
+    // 25 x 30 = 750 divsteps (proven sufficient for 256-bit; same as libsecp)
+    for (int iter = 0; iter < 25; ++iter) {
+        T2x2CT t;
+        zeta = ct_divsteps_30(zeta, static_cast<std::uint32_t>(f.v[0]),
+                              static_cast<std::uint32_t>(g.v[0]), t);
+        ct_update_de_30(d, e, t, PINFO_CT);
+        ct_update_fg_30(f, g, t);
+    }
 
-    // x6 = a^(2^6 - 1)
-    FieldElement x6 = x3;
-    for (int i = 0; i < 3; ++i) x6 = field_sqr(x6);
-    x6 = field_mul(x6, x3);
+    ct_normalize_30(d, f.v[8], PINFO_CT);
 
-    // x9 = a^(2^9 - 1)
-    FieldElement x9 = x6;
-    for (int i = 0; i < 3; ++i) x9 = field_sqr(x9);
-    x9 = field_mul(x9, x3);
-
-    // x11 = a^(2^11 - 1)
-    FieldElement x11 = x9;
-    for (int i = 0; i < 2; ++i) x11 = field_sqr(x11);
-    x11 = field_mul(x11, x2);
-
-    // x22 = a^(2^22 - 1)
-    FieldElement x22 = x11;
-    for (int i = 0; i < 11; ++i) x22 = field_sqr(x22);
-    x22 = field_mul(x22, x11);
-
-    // x44 = a^(2^44 - 1)
-    FieldElement x44 = x22;
-    for (int i = 0; i < 22; ++i) x44 = field_sqr(x44);
-    x44 = field_mul(x44, x22);
-
-    // x88 = a^(2^88 - 1)
-    FieldElement x88 = x44;
-    for (int i = 0; i < 44; ++i) x88 = field_sqr(x88);
-    x88 = field_mul(x88, x44);
-
-    // x176 = a^(2^176 - 1)
-    FieldElement x176 = x88;
-    for (int i = 0; i < 88; ++i) x176 = field_sqr(x176);
-    x176 = field_mul(x176, x88);
-
-    // x220 = a^(2^220 - 1)
-    FieldElement x220 = x176;
-    for (int i = 0; i < 44; ++i) x220 = field_sqr(x220);
-    x220 = field_mul(x220, x44);
-
-    // x223 = a^(2^223 - 1)
-    FieldElement x223 = x220;
-    for (int i = 0; i < 3; ++i) x223 = field_sqr(x223);
-    x223 = field_mul(x223, x3);
-
-    // Final: t = x223^(2^23) * x22^(2^1) * ...
-    // p-2 = 2^256 - 2^32 - 977 - 2
-    //      = 2^256 - 0x1000003D3
-    // Exponent in binary from bit 255 down:
-    //   bits 255..33: all ones (223 ones = x223 covers bits 255..33)
-    //   bit 32: 0
-    //   bits 31..0: FFFFFC2D = ...11111100 00101101
-    //
-    // After x223 (covers bits 255..33):
-    //   Square 23 times -> x223 * 2^23, then multiply by x22
-    //   Square 5 times -> then multiply by a
-    //   Square 3 times -> then multiply by x2
-    //   Square 2 times -> then multiply by a
-
-    FieldElement t = x223;
-
-    // Square 23 times
-    for (int i = 0; i < 23; ++i) t = field_sqr(t);
-    t = field_mul(t, x22);
-
-    // Square 5 times
-    for (int i = 0; i < 5; ++i) t = field_sqr(t);
-    t = field_mul(t, x);
-
-    // Square 3 times
-    for (int i = 0; i < 3; ++i) t = field_sqr(t);
-    t = field_mul(t, x2);
-
-    // Square 2 times
-    for (int i = 0; i < 2; ++i) t = field_sqr(t);
-    t = field_mul(t, x);
-
-    return t;
+    // s30 -> fe
+    std::uint64_t out[4];
+    ct_s30_to_u64(d, out);
+    return FieldElement::from_limbs({out[0], out[1], out[2], out[3]});
 #endif  // __SIZEOF_INT128__
 }
 
@@ -541,8 +698,8 @@ void field_cmov(FieldElement* r, const FieldElement& a,
                 std::uint64_t mask) noexcept {
     // In-place XOR-mask conditional move -- no temporary FieldElement.
     // mask is all-ones (select a) or all-zeros (keep r).
-    auto& rd = r->data().limbs;
-    const auto& ad = a.data().limbs;
+    auto* rd = r->limbs_mut().data();
+    const auto* ad = a.limbs().data();
     rd[0] ^= (rd[0] ^ ad[0]) & mask;
     rd[1] ^= (rd[1] ^ ad[1]) & mask;
     rd[2] ^= (rd[2] ^ ad[2]) & mask;
@@ -552,8 +709,8 @@ void field_cmov(FieldElement* r, const FieldElement& a,
 void field_cswap(FieldElement* a, FieldElement* b,
                  std::uint64_t mask) noexcept {
     // Direct in-place XOR swap -- no temporaries.
-    auto& ad = a->data().limbs;
-    auto& bd = b->data().limbs;
+    auto* ad = a->limbs_mut().data();
+    auto* bd = b->limbs_mut().data();
     for (int i = 0; i < 4; ++i) {
         std::uint64_t const diff = (ad[i] ^ bd[i]) & mask;
         ad[i] ^= diff;
