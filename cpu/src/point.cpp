@@ -901,11 +901,13 @@ static JacobianPoint52 jac52_add_mixed(const JacobianPoint52& p, const AffinePoi
 
 // -- In-Place Mixed Addition (5x52): Jacobian + Affine -> Jacobian -------------
 // Same formula as jac52_add_mixed but overwrites p in-place.
-// Force-inlined: libsecp256k1 inlines all group operations for maximum
-// throughput.  Total hot-loop code (dbl + 2x mixed_add + 2x zinv_add)
-// compiles to ~12-15KB which fits in L1 I$ (32KB).
-SECP256K1_HOT_FUNCTION __attribute__((always_inline))
-static inline void jac52_add_mixed_inplace(JacobianPoint52& p, const AffinePoint52& q) noexcept {
+// NOT force-inlined: the hot loop (dual_scalar_mul_gen_point) compiles to
+// ~75 KB with always_inline -- 2.3x the L1 I-cache (32 KB).  Making add
+// functions NOINLINE shrinks the loop body to ~3 KB.  The ~82 function calls
+// per verify cost ~400 ns, but eliminating I-cache pressure saves ~5000+ ns.
+// libsecp256k1 uses regular `inline` (not always_inline) for the same reason.
+SECP256K1_HOT_FUNCTION SECP256K1_NOINLINE
+static void jac52_add_mixed_inplace(JacobianPoint52& p, const AffinePoint52& q) noexcept {
     if (SECP256K1_UNLIKELY(p.infinity)) {
         p.x = q.x; p.y = q.y; p.z = FieldElement52::one(); p.infinity = false;
         return;
@@ -1056,9 +1058,9 @@ static void jac52_add_mixed_inplace_zr(JacobianPoint52& p,
 // Cost: 9M + 3S + ~11A
 // Saves 1S per G/H lookup vs the previous approach (2M scale + 7M+4S mixed add).
 // Also avoids modifying the G/H table entry (no cache-line dirtying).
-// Force-inlined: matches libsecp256k1 which inlines all group operations.
-SECP256K1_HOT_FUNCTION __attribute__((always_inline))
-static inline void jac52_add_zinv_inplace(JacobianPoint52& p,
+// NOT force-inlined: see jac52_add_mixed_inplace comment on I-cache pressure.
+SECP256K1_HOT_FUNCTION SECP256K1_NOINLINE
+static void jac52_add_zinv_inplace(JacobianPoint52& p,
                                     const AffinePoint52& b,
                                     const FieldElement52& bzinv) noexcept {
     // Handle infinity and edge cases
