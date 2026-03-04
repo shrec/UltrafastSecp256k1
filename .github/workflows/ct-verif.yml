@@ -51,22 +51,15 @@ jobs:
           git clone --depth 1 https://github.com/imdea-software/verifying-constant-time.git /tmp/ct-verif
           cd /tmp/ct-verif
           # Build the LLVM pass against system LLVM-17
+          # HARD FAIL: ct-verif tool MUST build successfully.
+          # If this fails, the CI job fails -- no fallback to weaker analysis.
           mkdir -p build && cd build
           cmake .. -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DLLVM_DIR=/usr/lib/llvm-17/cmake \
             -DCMAKE_C_COMPILER=clang-17 \
-            -DCMAKE_CXX_COMPILER=clang++-17 || {
-            echo "::warning::ct-verif build failed -- falling back to manual IR analysis"
-            echo "CT_VERIF_AVAILABLE=false" >> $GITHUB_ENV
-            exit 0
-          }
-          cmake --build . -j$(nproc) || {
-            echo "::warning::ct-verif build failed"
-            echo "CT_VERIF_AVAILABLE=false" >> $GITHUB_ENV
-            exit 0
-          }
-          echo "CT_VERIF_AVAILABLE=true" >> $GITHUB_ENV
+            -DCMAKE_CXX_COMPILER=clang++-17
+          cmake --build . -j$(nproc)
           echo "CT_VERIF_LIB=$(pwd)/lib" >> $GITHUB_ENV
 
       - name: Emit LLVM IR for CT modules
@@ -98,7 +91,6 @@ jobs:
           ls -lh ct-ir/
 
       - name: Run ct-verif analysis
-        if: env.CT_VERIF_AVAILABLE == 'true'
         run: |
           echo "=== ct-verif deterministic CT analysis ==="
           PASS_RESULT=0
@@ -110,7 +102,7 @@ jobs:
             opt-17 -load-pass-plugin="${CT_VERIF_LIB}/libCTVerif.so" \
                    -passes=ct-verif \
                    "$ll" -o /dev/null 2>&1 | tee "ct-ir/${base}_report.txt" || {
-              echo "::warning::ct-verif reported potential CT violation in $base"
+              echo "::error::ct-verif reported CT violation in $base"
               PASS_RESULT=1
             }
           done
@@ -120,47 +112,9 @@ jobs:
             echo "=== ct-verif: ALL CT modules verified constant-time ==="
           else
             echo ""
-            echo "::warning::ct-verif found potential issues -- review reports"
+            echo "::error::ct-verif found CT violations -- blocking merge"
           fi
           exit $PASS_RESULT
-
-      - name: Fallback -- manual IR branch analysis
-        if: env.CT_VERIF_AVAILABLE != 'true'
-        run: |
-          echo "=== Manual IR analysis (ct-verif tool unavailable) ==="
-          echo "Checking for secret-dependent branches in CT code..."
-          echo ""
-
-          VIOLATIONS=0
-          for ll in ct-ir/*.ll; do
-            base=$(basename "$ll" .ll)
-            echo "--- $base ---"
-
-            # Count conditional branches -- high count in CT code is suspicious
-            BR_COUNT=$(grep -c "^  br i1" "$ll" 2>/dev/null || echo "0")
-            SELECT_COUNT=$(grep -c "select i1" "$ll" 2>/dev/null || echo "0")
-            echo "  Conditional branches: $BR_COUNT"
-            echo "  Select (branchless):  $SELECT_COUNT"
-
-            # Check for known non-CT patterns -- these are BLOCKING violations
-            if grep -q "switch.*label" "$ll" 2>/dev/null; then
-              echo "  [FAIL] Found switch statement -- CT violation"
-              VIOLATIONS=$((VIOLATIONS + 1))
-            fi
-
-            if grep -q "variable_gep" "$ll" 2>/dev/null; then
-              echo "  [FAIL] Found variable GEP -- secret-dependent load"
-              VIOLATIONS=$((VIOLATIONS + 1))
-            fi
-          done
-
-          echo ""
-          if [ "$VIOLATIONS" -eq 0 ]; then
-            echo "=== No CT violations found in IR (fallback analysis) ==="
-          else
-            echo "::error::Found $VIOLATIONS CT violations in IR -- blocking"
-            exit 1
-          fi
 
       - name: Upload IR reports
         if: always()
