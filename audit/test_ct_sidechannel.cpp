@@ -182,9 +182,9 @@ static std::set<std::string> g_ever_failed;   // tests that failed >= 1 attempt
 // Post-fix thresholds: tightened from 35/50 to 20/25 to catch genuine leaks.
 // MSVC volatile store-load barriers add ~10-15 t-stat noise (no inline asm).
 #if defined(_MSC_VER)
-static constexpr double T_THRESHOLD = 25.0;
+static constexpr double T_THRESHOLD = 15.0;
 #else
-static constexpr double T_THRESHOLD = 20.0;
+static constexpr double T_THRESHOLD = 10.0;
 #endif
 static constexpr int    SMOKE_N_PRIM  = 5000; // Primitive ops (masks, cmov, etc.)
 static constexpr int    SMOKE_N_FIELD = 3000; // Field/scalar ops

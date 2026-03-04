@@ -696,6 +696,241 @@ static void test_cross_api_schnorr() {
 }
 
 // ============================================================================
+// Test 16: Negative Test Vectors (Strict Parsing)
+// ============================================================================
+// Bounty-hunter-grade negative vectors: non-canonical keys, sigs, DER malforms
+static void test_negative_vectors() {
+    (void)std::printf("[16] FFI: Negative test vectors (strict parsing)\n");
+
+    ufsecp_ctx* ctx = nullptr;
+    ufsecp_ctx_create(&ctx);
+
+    // -- secp256k1 curve order n (hex) --
+    // n = FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
+    uint8_t order_n[32];
+    hex_to_bytes("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141",
+                 order_n, 32);
+
+    // n+1
+    uint8_t order_n_plus1[32];
+    hex_to_bytes("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364142",
+                 order_n_plus1, 32);
+
+    // Zero key
+    uint8_t zero32[32] = {};
+
+    // Valid privkey for reference
+    uint8_t valid_priv[32];
+    hex_to_bytes(PRIVKEY1_HEX, valid_priv, 32);
+    uint8_t pub33[33] = {};
+    CHECK_OK(ufsecp_pubkey_create(ctx, valid_priv, pub33), "setup: pubkey_create");
+
+    // === A: seckey strict parsing ===
+    CHECK(ufsecp_seckey_verify(ctx, zero32) != UFSECP_OK,
+          "seckey_verify(0) rejects");
+    CHECK(ufsecp_seckey_verify(ctx, order_n) != UFSECP_OK,
+          "seckey_verify(n) rejects");
+    CHECK(ufsecp_seckey_verify(ctx, order_n_plus1) != UFSECP_OK,
+          "seckey_verify(n+1) rejects");
+
+    // pubkey_create with bad keys
+    uint8_t dummy_pub[33];
+    CHECK(ufsecp_pubkey_create(ctx, zero32, dummy_pub) != UFSECP_OK,
+          "pubkey_create(0) rejects");
+    CHECK(ufsecp_pubkey_create(ctx, order_n, dummy_pub) != UFSECP_OK,
+          "pubkey_create(n) rejects");
+    CHECK(ufsecp_pubkey_create(ctx, order_n_plus1, dummy_pub) != UFSECP_OK,
+          "pubkey_create(n+1) rejects");
+
+    // ecdsa_sign with bad keys
+    uint8_t msg32[32] = {1};
+    uint8_t sig64[64];
+    CHECK(ufsecp_ecdsa_sign(ctx, msg32, zero32, sig64) != UFSECP_OK,
+          "ecdsa_sign(sk=0) rejects");
+    CHECK(ufsecp_ecdsa_sign(ctx, msg32, order_n, sig64) != UFSECP_OK,
+          "ecdsa_sign(sk=n) rejects");
+
+    // schnorr_sign with bad keys
+    uint8_t aux32[32] = {};
+    CHECK(ufsecp_schnorr_sign(ctx, msg32, zero32, aux32, sig64) != UFSECP_OK,
+          "schnorr_sign(sk=0) rejects");
+    CHECK(ufsecp_schnorr_sign(ctx, msg32, order_n, aux32, sig64) != UFSECP_OK,
+          "schnorr_sign(sk=n) rejects");
+
+    // tweak_add: tweak = n should fail
+    {
+        uint8_t sk[32];
+        std::memcpy(sk, valid_priv, 32);
+        CHECK(ufsecp_seckey_tweak_add(ctx, sk, order_n) != UFSECP_OK,
+              "tweak_add(tweak=n) rejects");
+    }
+    // tweak_mul: tweak = 0 should fail
+    {
+        uint8_t sk[32];
+        std::memcpy(sk, valid_priv, 32);
+        CHECK(ufsecp_seckey_tweak_mul(ctx, sk, zero32) != UFSECP_OK,
+              "tweak_mul(tweak=0) rejects");
+    }
+    // tweak_mul: tweak = n should fail
+    {
+        uint8_t sk[32];
+        std::memcpy(sk, valid_priv, 32);
+        CHECK(ufsecp_seckey_tweak_mul(ctx, sk, order_n) != UFSECP_OK,
+              "tweak_mul(tweak=n) rejects");
+    }
+
+    // === B: ECDSA compact sig with r=0 or s=0 ===
+    // First sign a valid signature for reference
+    uint8_t valid_sig[64];
+    CHECK_OK(ufsecp_ecdsa_sign(ctx, msg32, valid_priv, valid_sig), "setup: ecdsa_sign");
+
+    // sig with r=0 (first 32 bytes zero)
+    {
+        uint8_t bad_sig[64];
+        std::memset(bad_sig, 0, 64);
+        std::memcpy(bad_sig + 32, valid_sig + 32, 32); // keep valid s
+        CHECK(ufsecp_ecdsa_verify(ctx, msg32, bad_sig, pub33) == UFSECP_ERR_BAD_SIG,
+              "ecdsa_verify(r=0) -> BAD_SIG");
+    }
+    // sig with s=0
+    {
+        uint8_t bad_sig[64];
+        std::memcpy(bad_sig, valid_sig, 32); // keep valid r
+        std::memset(bad_sig + 32, 0, 32);
+        CHECK(ufsecp_ecdsa_verify(ctx, msg32, bad_sig, pub33) == UFSECP_ERR_BAD_SIG,
+              "ecdsa_verify(s=0) -> BAD_SIG");
+    }
+    // sig with r=n
+    {
+        uint8_t bad_sig[64];
+        std::memcpy(bad_sig, order_n, 32);
+        std::memcpy(bad_sig + 32, valid_sig + 32, 32);
+        CHECK(ufsecp_ecdsa_verify(ctx, msg32, bad_sig, pub33) == UFSECP_ERR_BAD_SIG,
+              "ecdsa_verify(r=n) -> BAD_SIG");
+    }
+    // sig with s=n
+    {
+        uint8_t bad_sig[64];
+        std::memcpy(bad_sig, valid_sig, 32);
+        std::memcpy(bad_sig + 32, order_n, 32);
+        CHECK(ufsecp_ecdsa_verify(ctx, msg32, bad_sig, pub33) == UFSECP_ERR_BAD_SIG,
+              "ecdsa_verify(s=n) -> BAD_SIG");
+    }
+
+    // sig_to_der with non-canonical compact sig
+    {
+        uint8_t bad_sig[64] = {};  // r=0, s=0
+        uint8_t der_buf[72];
+        size_t der_len = sizeof(der_buf);
+        CHECK(ufsecp_ecdsa_sig_to_der(ctx, bad_sig, der_buf, &der_len) == UFSECP_ERR_BAD_SIG,
+              "sig_to_der(r=0,s=0) -> BAD_SIG");
+    }
+
+    // === B3: DER malformation corpus ===
+    auto check_bad_der = [&](const uint8_t* der, size_t len, const char* label) {
+        uint8_t out64[64];
+        ufsecp_error_t rc = ufsecp_ecdsa_sig_from_der(ctx, der, len, out64);
+        CHECK(rc == UFSECP_ERR_BAD_SIG, label);
+    };
+
+    // Too short
+    {
+        const uint8_t d[] = {0x30, 0x06, 0x02, 0x01, 0x01, 0x02, 0x01};
+        check_bad_der(d, sizeof(d), "DER: truncated (7 bytes)");
+    }
+    // Wrong tag (not SEQUENCE)
+    {
+        const uint8_t d[] = {0x31, 0x06, 0x02, 0x01, 0x01, 0x02, 0x01, 0x01};
+        check_bad_der(d, sizeof(d), "DER: wrong tag 0x31");
+    }
+    // Length mismatch (seq_len says 7 but only 6 bytes follow)
+    {
+        const uint8_t d[] = {0x30, 0x07, 0x02, 0x01, 0x01, 0x02, 0x01, 0x01};
+        check_bad_der(d, sizeof(d), "DER: seq length mismatch");
+    }
+    // Negative R (high bit set, no leading zero)
+    {
+        const uint8_t d[] = {0x30, 0x06, 0x02, 0x01, 0x80, 0x02, 0x01, 0x01};
+        check_bad_der(d, sizeof(d), "DER: negative R");
+    }
+    // Negative S
+    {
+        const uint8_t d[] = {0x30, 0x06, 0x02, 0x01, 0x01, 0x02, 0x01, 0xFF};
+        check_bad_der(d, sizeof(d), "DER: negative S");
+    }
+    // Unnecessary leading zero in R (0x00 + byte without high bit)
+    {
+        const uint8_t d[] = {0x30, 0x07, 0x02, 0x02, 0x00, 0x01, 0x02, 0x01, 0x01};
+        check_bad_der(d, sizeof(d), "DER: unnecessary leading zero in R");
+    }
+    // Unnecessary leading zero in S
+    {
+        const uint8_t d[] = {0x30, 0x07, 0x02, 0x01, 0x01, 0x02, 0x02, 0x00, 0x01};
+        check_bad_der(d, sizeof(d), "DER: unnecessary leading zero in S");
+    }
+    // Trailing bytes after S
+    {
+        const uint8_t d[] = {0x30, 0x08, 0x02, 0x01, 0x01, 0x02, 0x01, 0x01, 0x00, 0x00};
+        check_bad_der(d, 10, "DER: trailing bytes");
+    }
+    // Long-form length (0x81 prefix)
+    {
+        const uint8_t d[] = {0x30, 0x81, 0x06, 0x02, 0x01, 0x01, 0x02, 0x01, 0x01};
+        check_bad_der(d, sizeof(d), "DER: long-form sequence length");
+    }
+    // R integer zero length
+    {
+        const uint8_t d[] = {0x30, 0x04, 0x02, 0x00, 0x02, 0x01, 0x01};
+        check_bad_der(d, sizeof(d), "DER: R zero length");
+    }
+    // Missing S INTEGER tag
+    {
+        const uint8_t d[] = {0x30, 0x05, 0x02, 0x01, 0x01, 0x03, 0x01, 0x01};
+        check_bad_der(d, sizeof(d), "DER: wrong S tag");
+    }
+
+    // === ECDSA recovery with non-canonical sig ===
+    {
+        uint8_t bad_sig[64] = {};  // r=0, s=0
+        uint8_t recovered[33];
+        CHECK(ufsecp_ecdsa_recover(ctx, msg32, bad_sig, 0, recovered) == UFSECP_ERR_BAD_SIG,
+              "ecdsa_recover(r=0,s=0) -> BAD_SIG");
+    }
+
+    // === Error model: parse-fail vs verify-fail ===
+    // Valid-format sig but wrong message -> VERIFY_FAIL (not BAD_SIG)
+    {
+        uint8_t wrong_msg[32] = {0x42};
+        ufsecp_error_t rc = ufsecp_ecdsa_verify(ctx, wrong_msg, valid_sig, pub33);
+        CHECK(rc == UFSECP_ERR_VERIFY_FAIL,
+              "ecdsa_verify(wrong msg) -> VERIFY_FAIL (not BAD_SIG)");
+    }
+
+    // === Schnorr negative vectors ===
+    {
+        // sig with s=0 (all-zero s portion)
+        uint8_t bad_schnorr[64] = {};
+        bad_schnorr[0] = 0x01;  // some r
+        uint8_t xonly[32];
+        hex_to_bytes(PRIVKEY1_HEX, valid_priv, 32);
+        CHECK_OK(ufsecp_pubkey_xonly(ctx, valid_priv, xonly), "setup: pubkey_xonly");
+        ufsecp_error_t rc = ufsecp_schnorr_verify(ctx, msg32, bad_schnorr, xonly);
+        CHECK(rc != UFSECP_OK, "schnorr_verify(bad sig) rejects");
+    }
+
+    // === ECDH with bad private key ===
+    {
+        uint8_t secret[32];
+        CHECK(ufsecp_ecdh(ctx, zero32, pub33, secret) != UFSECP_OK,
+              "ecdh(sk=0) rejects");
+        CHECK(ufsecp_ecdh(ctx, order_n, pub33, secret) != UFSECP_OK,
+              "ecdh(sk=n) rejects");
+    }
+
+    ufsecp_ctx_destroy(ctx);
+}
+
+// ============================================================================
 // Entry Point
 // ============================================================================
 
@@ -720,6 +955,7 @@ int test_ffi_round_trip_run() {
     test_key_tweaks();
     test_cross_api_ecdsa();
     test_cross_api_schnorr();
+    test_negative_vectors();
 
     (void)std::printf("\n--- FFI Round-Trip Summary: %d passed, %d failed ---\n\n",
                       g_pass, g_fail);

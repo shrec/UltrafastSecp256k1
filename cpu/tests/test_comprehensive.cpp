@@ -253,15 +253,15 @@ static void test_field_conversions() {
     CHECK(lower == upper, "hex case insensitive");
     
     // 2.8: data() <-> from_data roundtrip
-    auto& data = val.data();
-    FE const from_d = FE::from_data(data);
+    auto d = val.data();
+    FE const from_d = FE::from_data(d);
     CHECK(val == from_d, "data() roundtrip");
     
-    // 2.9: MidFieldElement zero-cost cast
+    // 2.9: MidFieldElement memcpy-based conversion roundtrip
     FE fe4 = FE::from_uint64(0x12345678);
-    auto* mid = secp256k1::fast::toMid(&fe4);
-    FE const* back_fe = mid->ToFieldElement();
-    CHECK(*back_fe == fe4, "MidFieldElement cast roundtrip");
+    auto mid = secp256k1::fast::toMid(fe4);
+    FE back_fe = mid.ToFieldElement();
+    CHECK(back_fe == fe4, "MidFieldElement conversion roundtrip");
     
     // 2.10: Large hex value
     FE const max_fe = FE::from_hex("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2E");
@@ -802,8 +802,8 @@ static void test_scalar_conversions() {
     CHECK(s5.bit(2) == 1, "s: bit(2) of 5");
     
     // 9.6: data() <-> from_data
-    auto& data = val.data();
-    SC const from_d = SC::from_data(data);
+    auto d = val.data();
+    SC const from_d = SC::from_data(d);
     CHECK(val == from_d, "s: data() roundtrip");
 }
 
