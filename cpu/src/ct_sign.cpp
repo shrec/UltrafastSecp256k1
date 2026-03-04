@@ -51,7 +51,10 @@ ECDSASignature ecdsa_sign(const std::array<uint8_t, 32>& msg_hash,
     auto s = k_inv * (z + r * private_key);
     if (s.is_zero()) return {Scalar::zero(), Scalar::zero()};
 
-    ECDSASignature const sig = ECDSASignature{r, s}.normalize();
+    // CT low-S normalization: branchless comparison with n/2 + conditional negate.
+    // Variable-time ECDSASignature::normalize() uses early-return branches that
+    // leak whether s was high via timing. ct_normalize_low_s is fully branchless.
+    ECDSASignature const sig = ct::ct_normalize_low_s(ECDSASignature{r, s});
 
     // Sign-then-verify: fault attack countermeasure (FIPS 186-4).
     // Verify uses fast path -- public key and signature are not secret.
@@ -95,7 +98,8 @@ ECDSASignature ecdsa_sign_hedged(const std::array<uint8_t, 32>& msg_hash,
     auto s = k_inv * (z + r * private_key);
     if (s.is_zero()) return {Scalar::zero(), Scalar::zero()};
 
-    ECDSASignature const sig = ECDSASignature{r, s}.normalize();
+    // CT low-S normalization (branchless)
+    ECDSASignature const sig = ct::ct_normalize_low_s(ECDSASignature{r, s});
 
     // Sign-then-verify countermeasure
     auto pk = ct::generator_mul(private_key);
@@ -139,7 +143,9 @@ SchnorrKeypair schnorr_keypair_create(const Scalar& private_key) {
     auto P = ct::generator_mul(d_prime);
     auto [px, p_y_odd] = P.x_bytes_and_parity();
 
-    kp.d = p_y_odd ? d_prime.negate() : d_prime;
+    // CT: conditional negate based on parity. p_y_odd is derived from the
+    // secret key, so the ternary branch would leak via timing.
+    kp.d = ct::scalar_cneg(d_prime, ct::bool_to_mask(p_y_odd));
     kp.px = px;
     return kp;
 }
@@ -173,7 +179,8 @@ SchnorrSignature schnorr_sign(const SchnorrKeypair& kp,
     auto [rx, r_y_odd] = R.x_bytes_and_parity();
 
     // Step 4: k = k' if even_y(R), else n - k'
-    auto k = r_y_odd ? k_prime.negate() : k_prime;
+    // CT: branchless conditional negate. r_y_odd is secret-derived (from k').
+    auto k = ct::scalar_cneg(k_prime, ct::bool_to_mask(r_y_odd));
 
     // Step 5: e = tagged_hash("BIP0340/challenge", R.x || pubkey_x || msg)
     uint8_t challenge_input[96];
@@ -188,11 +195,23 @@ SchnorrSignature schnorr_sign(const SchnorrKeypair& kp,
     sig.r = rx;
     sig.s = k + e * kp.d;
 
-    // Erase stack buffers that held secret key material:
-    //   t[32]           -- d XOR aux_hash  (derived from private key)
-    //   nonce_input[96] -- t || pubkey_x || msg  (contains t)
+    // Erase ALL stack buffers that held secret-derived material:
+    //   d_bytes[32]          -- private key serialized
+    //   t_hash[32]           -- tagged_hash output (XOR'd with d_bytes)
+    //   t[32]                -- d XOR t_hash (derived from private key)
+    //   nonce_input[96]      -- t || pubkey_x || msg (contains t)
+    //   rand_hash[32]        -- nonce hash output (determines k')
+    //   challenge_input[96]  -- R.x || pubkey_x || msg (public but erase for hygiene)
+    //   k_prime, k           -- secret nonce scalars
+    secure_erase(d_bytes.data(), d_bytes.size());
+    secure_erase(t_hash.data(), t_hash.size());
     secure_erase(t, sizeof(t));
     secure_erase(nonce_input, sizeof(nonce_input));
+    secure_erase(rand_hash.data(), rand_hash.size());
+    secure_erase(challenge_input, sizeof(challenge_input));
+    // Erase secret nonce scalars. Scalar is a POD-like 32-byte struct (4x uint64_t).
+    secure_erase(&k_prime, sizeof(k_prime));
+    secure_erase(&k, sizeof(k));
 
     // Sign-then-verify: fault attack countermeasure.
     // Public key and signature are not secret -- fast verify is safe.

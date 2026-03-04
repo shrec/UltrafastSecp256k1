@@ -275,6 +275,52 @@ std::uint64_t scalar_eq(const Scalar& a, const Scalar& b) noexcept {
 
 // --- Bit Access --------------------------------------------------------------
 
+// -- Half-order n/2 for CT low-S check ----------------------------------------
+// n/2 = 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0
+static constexpr std::uint64_t HALF_N[4] = {
+    0xDFE92F46681B20A0ULL,  // limb 0 (least significant)
+    0x5D576E7357A4501DULL,  // limb 1
+    0xFFFFFFFFFFFFFFFFULL,  // limb 2
+    0x7FFFFFFFFFFFFFFFULL   // limb 3 (most significant)
+};
+
+std::uint64_t scalar_is_high(const Scalar& a) noexcept {
+    // CT comparison: a > n/2 ?
+    // Compute a - (n/2) - 1 and check for NO borrow (a > n/2).
+    // Equivalently: a > n/2 iff sub(a, HALF_N) has no borrow AND a != HALF_N.
+    // We use: gt = NOT(lt_mask(a, HALF_N+1)) = NOT(a < n/2+1) = a >= n/2+1 = a > n/2.
+    //
+    // But n/2+1 is annoying to compute statically. Instead:
+    //   a > n/2  iff  (a - n/2) has no borrow AND (a - n/2) != 0
+    const auto& al = a.limbs();
+
+    // Subtract HALF_N from a
+    std::uint64_t diff[4];
+    std::uint64_t borrow = sub256_scalar(diff, al.data(), HALF_N);
+
+    // value_barrier prevents compiler from reasoning about borrow/diff
+    value_barrier(borrow);
+
+    // No borrow means a >= n/2. Check equality too (a == n/2 means low-S).
+    std::uint64_t d0 = diff[0], d1 = diff[1], d2 = diff[2], d3 = diff[3];
+    value_barrier(d0); value_barrier(d1); value_barrier(d2); value_barrier(d3);
+    std::uint64_t const is_eq = is_zero_mask(d0 | d1 | d2 | d3);
+    std::uint64_t const no_borrow = is_zero_mask(borrow);
+
+    // high iff no_borrow AND NOT equal
+    return no_borrow & ~is_eq;
+}
+
+ECDSASignature ct_normalize_low_s(const ECDSASignature& sig) noexcept {
+    // CT: if s > n/2, negate s; otherwise keep s unchanged.
+    // Both paths always execute; select via branchless mask.
+    std::uint64_t const high_mask = scalar_is_high(sig.s);
+    Scalar const s_norm = scalar_cneg(sig.s, high_mask);
+    return {sig.r, s_norm};
+}
+
+// --- Bit Access --------------------------------------------------------------
+
 std::uint64_t scalar_bit(const Scalar& a, std::size_t index) noexcept {
     // CT w.r.t. scalar value (the secret). Position is public (loop counter).
     // index / 64 = limb, index % 64 = bit within limb

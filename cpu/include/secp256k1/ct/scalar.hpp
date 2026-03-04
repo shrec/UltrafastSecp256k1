@@ -10,6 +10,7 @@
 
 #include <cstdint>
 #include "secp256k1/scalar.hpp"
+#include "secp256k1/ecdsa.hpp"
 #include "secp256k1/ct/ops.hpp"
 
 namespace secp256k1::ct {
@@ -59,6 +60,10 @@ std::uint64_t scalar_is_zero(const Scalar& a) noexcept;
 // Returns all-ones mask if a == b, else 0.
 std::uint64_t scalar_eq(const Scalar& a, const Scalar& b) noexcept;
 
+// Returns all-ones mask if a > n/2 ("high-S"), else 0.
+// Used for CT low-S normalization in ECDSA signing.
+std::uint64_t scalar_is_high(const Scalar& a) noexcept;
+
 // --- CT Bit Access -----------------------------------------------------------
 
 // Returns bit at position 'index' (0 = LSB). CT (always same memory access).
@@ -67,6 +72,13 @@ std::uint64_t scalar_bit(const Scalar& a, std::size_t index) noexcept;
 // Returns w-bit window at position 'pos' (0 = LSB). CT.
 std::uint64_t scalar_window(const Scalar& a, std::size_t pos,
                             unsigned width) noexcept;
+
+// --- CT ECDSA Low-S Normalize ------------------------------------------------
+
+// CT low-S normalization: if s > n/2 return {r, n-s}, else return {r, s}.
+// Branchless comparison + conditional negate. Required for CT signing paths
+// where the variable-time ECDSASignature::normalize() would leak via branches.
+ECDSASignature ct_normalize_low_s(const ECDSASignature& sig) noexcept;
 
 } // namespace secp256k1::ct
 
