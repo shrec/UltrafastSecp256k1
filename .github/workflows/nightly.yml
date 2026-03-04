@@ -46,17 +46,25 @@ jobs:
           cmake -S . -B build -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_CXX_COMPILER=g++-13 \
-            -DSECP256K1_BUILD_TESTS=ON
+            -DSECP256K1_BUILD_TESTS=ON \
+            -DSECP256K1_BUILD_CROSS_TESTS=ON
 
-      - name: Build differential test
-        run: cmake --build build --target test_differential_standalone -j"$(nproc)"
+      - name: Build differential tests
+        run: |
+          cmake --build build --target test_differential_standalone -j"$(nproc)"
+          cmake --build build --target test_cross_libsecp256k1 -j"$(nproc)"
 
-      - name: Run extended differential test
+      - name: Run extended self-consistency test
         env:
           DIFFERENTIAL_MULTIPLIER: ${{ github.event.inputs.differential_multiplier || '100' }}
         run: |
           echo "Multiplier: ${DIFFERENTIAL_MULTIPLIER}"
           ./build/cpu/test_differential_standalone "${DIFFERENTIAL_MULTIPLIER}"
+
+      - name: Run cross-library test (vs libsecp256k1 v0.6.0)
+        run: |
+          echo "Running cross-library differential test..."
+          ./build/audit/test_cross_libsecp256k1
 
   # ── dudect full statistical run (30 min) ─────────────────────────────────
   dudect-full:
