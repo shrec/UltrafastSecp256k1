@@ -234,8 +234,8 @@ frost_sign_nonce_gen(ParticipantId participant_id,
 
     FrostNonceCommitment commitment;
     commitment.id = participant_id;
-    commitment.hiding_point = Point::generator().scalar_mul(nonce.hiding_nonce);
-    commitment.binding_point = Point::generator().scalar_mul(nonce.binding_nonce);
+    commitment.hiding_point = ct::generator_mul(nonce.hiding_nonce);
+    commitment.binding_point = ct::generator_mul(nonce.binding_nonce);
 
     return {nonce, commitment};
 }
@@ -317,14 +317,14 @@ bool frost_verify_partial(const FrostPartialSig& partial_sig,
     // Collect signer IDs
     std::vector<ParticipantId> signer_ids;
     signer_ids.reserve(nonce_commitments.size());
-for (const auto& nc : nonce_commitments) {
+    for (const auto& nc : nonce_commitments) {
         signer_ids.push_back(nc.id);
     }
 
     // Compute binding factors
     std::vector<Scalar> binding_factors;
     binding_factors.reserve(nonce_commitments.size());
-for (const auto& nc : nonce_commitments) {
+    for (const auto& nc : nonce_commitments) {
         binding_factors.push_back(
             compute_binding_factor(group_public_key, nc.id, nonce_commitments, msg));
     }
@@ -377,7 +377,7 @@ frost_aggregate(const std::vector<FrostPartialSig>& partial_sigs,
     // Compute binding factors
     std::vector<Scalar> binding_factors;
     binding_factors.reserve(nonce_commitments.size());
-for (const auto& nc : nonce_commitments) {
+    for (const auto& nc : nonce_commitments) {
         binding_factors.push_back(
             compute_binding_factor(group_public_key, nc.id, nonce_commitments, msg));
     }

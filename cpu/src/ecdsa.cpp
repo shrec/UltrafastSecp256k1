@@ -3,6 +3,8 @@
 #include "secp256k1/multiscalar.hpp"
 #include "secp256k1/config.hpp"  // SECP256K1_FAST_52BIT
 #include "secp256k1/field_52.hpp"
+#include "secp256k1/ct/point.hpp"  // ct::generator_mul for sign-then-verify
+#include "secp256k1/detail/secure_erase.hpp"
 #include <cstring>
 
 namespace secp256k1 {
@@ -73,6 +75,22 @@ ECDSASignature ECDSASignature::from_compact(const std::array<uint8_t, 64>& data)
     return from_compact(data.data());
 }
 
+bool ECDSASignature::parse_compact_strict(const uint8_t* data64,
+                                           ECDSASignature& out) noexcept {
+    // Strict: reject r >= n or r == 0; reject s >= n or s == 0
+    Scalar r_val, s_val;
+    if (!Scalar::parse_bytes_strict_nonzero(data64, r_val)) return false;
+    if (!Scalar::parse_bytes_strict_nonzero(data64 + 32, s_val)) return false;
+    out.r = r_val;
+    out.s = s_val;
+    return true;
+}
+
+bool ECDSASignature::parse_compact_strict(const std::array<uint8_t, 64>& data,
+                                           ECDSASignature& out) noexcept {
+    return parse_compact_strict(data.data(), out);
+}
+
 ECDSASignature ECDSASignature::normalize() const {
     if (is_low_s()) return *this;
     return {r, s.negate()};
@@ -96,13 +114,7 @@ bool ECDSASignature::is_low_s() const {
 
 namespace {
 
-// -- Secure buffer erasure (not optimized away by the compiler) ---------------
-// Volatile function-pointer trick from libsecp256k1: compiler cannot prove the
-// callee is memset, so it is not allowed to elide the call.
-inline void secure_erase(void* ptr, std::size_t len) noexcept {
-    void *(*volatile const volatile_memset)(void *, int, std::size_t) = std::memset;
-    volatile_memset(ptr, 0, len);
-}
+using secp256k1::detail::secure_erase;
 
 // -- SHA-256 IV ---------------------------------------------------------------
 static constexpr std::uint32_t SHA256_IV[8] = {
@@ -453,7 +465,7 @@ ECDSASignature ecdsa_sign(const std::array<uint8_t, 32>& msg_hash,
     // from which the private key is recoverable via lattice attack.
     // Verify the signature before releasing it.
     if (!result.r.is_zero()) {
-        auto pk = Point::generator().scalar_mul(private_key);
+        auto pk = ct::generator_mul(private_key);
         if (!ecdsa_verify(msg_hash.data(), pk, result)) {
             result = {Scalar::zero(), Scalar::zero()};
         }
@@ -498,7 +510,7 @@ ECDSASignature ecdsa_sign_hedged(const std::array<uint8_t, 32>& msg_hash,
 
     // Sign-then-verify countermeasure
     if (!result.r.is_zero()) {
-        auto pk = Point::generator().scalar_mul(private_key);
+        auto pk = ct::generator_mul(private_key);
         if (!ecdsa_verify(msg_hash.data(), pk, result)) {
             result = {Scalar::zero(), Scalar::zero()};
         }

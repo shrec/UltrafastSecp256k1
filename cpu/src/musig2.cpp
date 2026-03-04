@@ -9,15 +9,12 @@
 #include "secp256k1/ct/scalar.hpp"
 #include "secp256k1/ct/field.hpp"
 #include "secp256k1/ct/ops.hpp"
+#include "secp256k1/detail/secure_erase.hpp"
 #include <cstring>
 #include <algorithm>
 
-// -- Secure buffer erasure (not optimized away by the compiler) ---------------
 namespace {
-inline void secure_erase(void* ptr, std::size_t len) noexcept {
-    void *(*volatile const volatile_memset)(void *, int, std::size_t) = std::memset;
-    volatile_memset(ptr, 0, len);
-}
+using secp256k1::detail::secure_erase;
 } // anonymous namespace
 
 namespace secp256k1 {
@@ -364,12 +361,15 @@ bool musig2_partial_verify(
     }
 
     // Key contribution: e * a_i * P_i
-    // Lift pubkey
-    auto px = FieldElement::from_bytes(pubkey);
+    // Lift pubkey (strict: reject x >= p)
+    FieldElement px;
+    if (!FieldElement::parse_bytes_strict(pubkey, px)) return false;
     auto x3 = px.square() * px;
     auto y2 = x3 + FieldElement::from_uint64(7);
     // sqrt via optimized addition chain (~253 sqr + 13 mul)
     auto y = y2.sqrt();
+    // Validate sqrt: reject non-residue (x not on curve)
+    if (y.square() != y2) return false;
     // BIP-340: ensure even Y
     if (y.limbs()[0] & 1) y = y.negate();
 
@@ -380,14 +380,14 @@ bool musig2_partial_verify(
     auto eaP = Pi.scalar_mul(ea);
 
     auto expected = R_eff.add(eaP);
-    // Compare: sG == expected
-    // Both are in Jacobian; convert to affine and compare x,y
-    auto sG_x = sG.x().to_bytes();
-    auto exp_x = expected.x().to_bytes();
-    auto sG_y = sG.y().to_bytes();
-    auto exp_y = expected.y().to_bytes();
-
-    return sG_x == exp_x && sG_y == exp_y;
+    // Compare: sG == expected (Jacobian cross-multiplication, avoids 2 inversions)
+    // (X1,Y1,Z1) == (X2,Y2,Z2)  iff  X1*Z2^2 == X2*Z1^2  &&  Y1*Z2^3 == Y2*Z1^3
+    auto const z1sq = sG.z().square();
+    auto const z2sq = expected.z().square();
+    if (sG.X() * z2sq != expected.X() * z1sq) return false;
+    auto const z1cu = z1sq * sG.z();
+    auto const z2cu = z2sq * expected.z();
+    return sG.Y() * z2cu == expected.Y() * z1cu;
 }
 
 // -- Signature Aggregation ----------------------------------------------------

@@ -8,19 +8,15 @@
 
 #include "secp256k1/ct/sign.hpp"
 #include "secp256k1/ct/point.hpp"
+#include "secp256k1/ct/scalar.hpp"
 #include "secp256k1/sha256.hpp"
 #include "secp256k1/tagged_hash.hpp"
 #include "secp256k1/config.hpp"
+#include "secp256k1/detail/secure_erase.hpp"
 #include <cstring>
 
-// -- Secure buffer erasure (not optimized away by the compiler) ---------------
-// Uses the volatile function-pointer trick from libsecp256k1: the compiler
-// cannot prove the callee is memset, so it is not allowed to elide the call.
 namespace {
-inline void secure_erase(void* ptr, std::size_t len) noexcept {
-    void *(*volatile const volatile_memset)(void *, int, std::size_t) = std::memset;
-    volatile_memset(ptr, 0, len);
-}
+using secp256k1::detail::secure_erase;
 } // anonymous namespace
 
 namespace secp256k1::ct {
@@ -50,7 +46,8 @@ ECDSASignature ecdsa_sign(const std::array<uint8_t, 32>& msg_hash,
     if (r.is_zero()) return {Scalar::zero(), Scalar::zero()};
 
     // s = k^{-1} * (z + r * d) mod n
-    auto k_inv = k.inverse();
+    // CT inverse: Fermat a^{n-2} -- fixed addition chain, no secret-dependent branches.
+    auto k_inv = ct::scalar_inverse(k);
     auto s = k_inv * (z + r * private_key);
     if (s.is_zero()) return {Scalar::zero(), Scalar::zero()};
 
@@ -93,7 +90,8 @@ ECDSASignature ecdsa_sign_hedged(const std::array<uint8_t, 32>& msg_hash,
     auto r = Scalar::from_bytes(r_bytes);
     if (r.is_zero()) return {Scalar::zero(), Scalar::zero()};
 
-    auto k_inv = k.inverse();
+    // CT inverse: Fermat a^{n-2} -- same fixed chain as ecdsa_sign above.
+    auto k_inv = ct::scalar_inverse(k);
     auto s = k_inv * (z + r * private_key);
     if (s.is_zero()) return {Scalar::zero(), Scalar::zero()};
 

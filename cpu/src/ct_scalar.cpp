@@ -162,6 +162,80 @@ Scalar scalar_select(const Scalar& a, const Scalar& b,
     });
 }
 
+// ============================================================================
+// CT Scalar Modular Inverse -- Fermat's Little Theorem
+// ============================================================================
+// a^{-1} = a^{n-2} mod n, where n is the secp256k1 group order.
+//
+// n-2 = FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD036413F
+//
+// Bit structure of n-2 (256 bits, MSB to LSB):
+//   bits 255..129: 127 consecutive ones
+//   bit  128:      0
+//   bits 127..0:   0xBAAEDCE6AF48A03BBFD25E8CD036413F (69 ones, 59 zeros)
+//
+// Strategy:
+//   Phase 1: Build x^(2^127 - 1) via addition chain (no data-dependent ops).
+//   Phase 2: Square once for the zero bit at position 128.
+//   Phase 3: Process bits 127..0 with square + conditional multiply.
+//            The conditional depends on CONSTANT bits of n-2, not the input.
+//
+// Total cost: 312 squarings + 81 multiplications = 393 scalar ops (all CT).
+// ~10x slower than variable-time SafeGCD (Scalar::inverse()), acceptable
+// for CT signing paths where the nonce k is secret.
+// ============================================================================
+Scalar scalar_inverse(const Scalar& a) noexcept {
+    // Helper: scalar squaring (same cost as multiply, both CT)
+    auto sqr = [](const Scalar& s) -> Scalar { return s * s; };
+
+    // Helper: repeated squaring
+    auto sqr_n = [&sqr](Scalar s, int count) -> Scalar {
+        for (int i = 0; i < count; ++i) s = sqr(s);
+        return s;
+    };
+
+    // -- Phase 1: x^(2^127 - 1) via addition chain -----------------------
+    // Build u_k = x^(2^k - 1) using doubling: u_{2k} = u_k^(2^k) * u_k
+
+    Scalar const u1 = a;                                   // x^1
+    Scalar const u2 = sqr(u1) * u1;                        // x^3 = x^(2^2-1)
+    Scalar const u4 = sqr_n(u2, 2) * u2;                   // x^(2^4-1)
+    Scalar const u8 = sqr_n(u4, 4) * u4;                   // x^(2^8-1)
+    Scalar const u16 = sqr_n(u8, 8) * u8;                  // x^(2^16-1)
+    Scalar const u32 = sqr_n(u16, 16) * u16;               // x^(2^32-1)
+    Scalar const u64 = sqr_n(u32, 32) * u32;               // x^(2^64-1)
+
+    // Odd-length chains for the 2^127-1 decomposition
+    Scalar const u3  = sqr(u2) * u1;                       // x^(2^3-1)
+    Scalar const u7  = sqr_n(u4, 3) * u3;                  // x^(2^7-1)
+    Scalar const u15 = sqr_n(u8, 7) * u7;                  // x^(2^15-1)
+    Scalar const u31 = sqr_n(u16, 15) * u15;               // x^(2^31-1)
+    Scalar const u63 = sqr_n(u32, 31) * u31;               // x^(2^63-1)
+    Scalar const u127 = sqr_n(u64, 63) * u63;              // x^(2^127-1)
+
+    // -- Phase 2: bit 128 = 0 (just square) -------------------------------
+    Scalar result = sqr(u127);                              // x^(2^128-2)
+
+    // -- Phase 3: bits 127..0 via square-and-conditional-multiply ---------
+    // Lower 128 bits of n-2  (little-endian limb order)
+    static constexpr std::uint64_t LO[2] = {
+        0xBFD25E8CD036413FULL,   // bits  63..0
+        0xBAAEDCE6AF48A03BULL    // bits 127..64
+    };
+
+    // The conditional multiply depends only on CONSTANT bits of n-2,
+    // never on the secret input a. Execution trace is input-independent.
+    for (int i = 127; i >= 0; --i) {
+        result = sqr(result);
+        std::uint64_t const bit = (LO[i >> 6] >> (i & 63)) & 1;
+        if (bit) {
+            result = result * a;
+        }
+    }
+
+    return result;
+}
+
 Scalar scalar_cneg(const Scalar& a, std::uint64_t mask) noexcept {
     Scalar const neg = scalar_neg(a);
     return scalar_select(neg, a, mask);

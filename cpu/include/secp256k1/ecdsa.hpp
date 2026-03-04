@@ -40,6 +40,10 @@ struct ECDSASignature {
     static ECDSASignature from_compact(const std::uint8_t* data64);
     static ECDSASignature from_compact(const std::array<std::uint8_t, 64>& data);
 
+    // Strict compact parse: rejects r >= n, s >= n, r == 0, s == 0 (no reduce)
+    static bool parse_compact_strict(const std::uint8_t* data64, ECDSASignature& out) noexcept;
+    static bool parse_compact_strict(const std::array<std::uint8_t, 64>& data, ECDSASignature& out) noexcept;
+
     // Normalize to low-S form (BIP-62): if s > n/2, replace with n - s
     ECDSASignature normalize() const;
 

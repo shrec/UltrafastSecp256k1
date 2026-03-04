@@ -342,10 +342,10 @@ std::pair<ExtendedKey, bool> ExtendedKey::derive_child(uint32_t index) const {
     std::memcpy(IL.data(), I.data(), 32);
     std::memcpy(IR.data(), I.data() + 32, 32);
 
-    auto il_scalar = Scalar::from_bytes(IL);
-    // Check IL is valid (less than curve order -- from_bytes handles mod n)
-    // But we need to check it wasn't zero after reduction when original was >= n
-    // from_bytes already reduces mod n, so just check non-zero
+    auto il_scalar = Scalar{};
+    // BIP-32: IL must be < curve order n; reject (skip to next index) if >= n
+    if (!Scalar::parse_bytes_strict(IL, il_scalar)) return {ExtendedKey{}, false};
+    // Also reject zero
     if (il_scalar.is_zero()) return {ExtendedKey{}, false};
 
     ExtendedKey child{};
