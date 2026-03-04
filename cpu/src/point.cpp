@@ -2855,6 +2855,183 @@ Point Point::scalar_mul_precomputed_wnaf(const std::vector<int32_t>& wnaf1,
     return Point(result.x, result.y, result.z, result.infinity);
 }
 
+// ============================================================================
+// scalar_mul_with_plan: FE52 fast path
+// ============================================================================
+// Uses effective-affine technique + batch inversion + mixed additions (7M+4S)
+// instead of full Jacobian additions (12M+5S) from the legacy 4x64 path.
+// wNAF digits and GLV decomposition are taken from the pre-cached KPlan.
+// Separate NOINLINE function to keep ~5KB of stack arrays in their own frame.
+#if defined(SECP256K1_FAST_52BIT)
+SECP256K1_NOINLINE SECP256K1_NO_STACK_PROTECTOR
+static Point scalar_mul_with_plan_glv52(const Point& base, const KPlan& plan) {
+    // Guard: infinity base -> result is always infinity
+    if (SECP256K1_UNLIKELY(base.is_infinity())) {
+        return Point::infinity();
+    }
+
+    // -- Convert base point to 5x52 domain ----------------------------
+    JacobianPoint52 const P52 = plan.neg1
+        ? to_jac52(base.negate())
+        : to_jac52(base);
+
+    // -- Table size from plan's window width ---------------------------
+    const unsigned glv_window = plan.window_width;
+    constexpr unsigned kMaxGlvWindow = 7;
+    constexpr int kMaxGlvTableSize = 1 << (kMaxGlvWindow - 2);  // 32
+    const int glv_table_size = 1 << (glv_window - 2);
+
+    if (SECP256K1_UNLIKELY(glv_table_size > kMaxGlvTableSize || glv_window < 3)) {
+        // Safety fallback for unsupported window sizes
+        return base.scalar_mul_precomputed_wnaf(plan.wnaf1, plan.wnaf2,
+                                                 plan.neg1, plan.neg2);
+    }
+
+    // -- Copy wNAF from plan to stack arrays and trim trailing zeros ---
+    std::array<int32_t, 260> wnaf1_buf{}, wnaf2_buf{};
+    std::size_t wnaf1_len = 0, wnaf2_len = 0;
+    {
+        const auto& w1 = plan.wnaf1;
+        const auto& w2 = plan.wnaf2;
+        wnaf1_len = std::min(w1.size(), wnaf1_buf.size());
+        wnaf2_len = std::min(w2.size(), wnaf2_buf.size());
+        std::copy_n(w1.data(), wnaf1_len, wnaf1_buf.data());
+        std::copy_n(w2.data(), wnaf2_len, wnaf2_buf.data());
+    }
+
+    // Trim trailing zeros -- GLV half-scalars are ~128 bits but wNAF
+    // always outputs 256+ positions.  This halves the doubling count.
+    while (wnaf1_len > 0 && wnaf1_buf[wnaf1_len - 1] == 0) --wnaf1_len;
+    while (wnaf2_len > 0 && wnaf2_buf[wnaf2_len - 1] == 0) --wnaf2_len;
+
+    // -- Precompute odd multiples [1P, 3P, ..., (2T-1)P] in 5x52 -----
+    // Uses effective-affine technique: build table on isomorphic curve
+    // where 2P is affine, so table additions use cheaper mixed add
+    // (7M+4S) instead of full Jacobian add (12M+5S).
+    std::array<AffinePoint52, kMaxGlvTableSize> tbl_P;
+    std::array<AffinePoint52, kMaxGlvTableSize> tbl_phiP;
+
+    {
+        // d = 2*P (Jacobian)
+        JacobianPoint52 const d = jac52_double(P52);
+        FieldElement52 const C  = d.z;              // C = d.Z
+        FieldElement52 const C2 = C.square();       // C^2
+        FieldElement52 const C3 = C2 * C;           // C^3
+
+        // d as affine on iso curve (Z cancels in isomorphism)
+        AffinePoint52 const d_aff = {d.x, d.y};
+
+        // Transform P onto iso curve: phi(P) = (P.X*C^2, P.Y*C^3, P.Z)
+        std::array<JacobianPoint52, kMaxGlvTableSize> iso;
+        iso[0] = {P52.x * C2, P52.y * C3, P52.z, false};
+
+        // Build rest using mixed adds on iso curve (7M+4S each)
+        for (int i = 1; i < glv_table_size; i++) {
+            iso[static_cast<std::size_t>(i)] = iso[static_cast<std::size_t>(i - 1)];
+            jac52_add_mixed_inplace(iso[static_cast<std::size_t>(i)], d_aff);
+        }
+
+        // Batch-invert effective Z: true Z on secp256k1 = Z_iso * C
+        std::array<FieldElement52, kMaxGlvTableSize> eff_z;
+        for (int i = 0; i < glv_table_size; i++) {
+            eff_z[static_cast<std::size_t>(i)] = iso[static_cast<std::size_t>(i)].z * C;
+        }
+
+        std::array<FieldElement52, kMaxGlvTableSize> prods;
+        prods[0] = eff_z[0];
+        for (int i = 1; i < glv_table_size; i++) {
+            prods[static_cast<std::size_t>(i)] = prods[static_cast<std::size_t>(i - 1)]
+                                                  * eff_z[static_cast<std::size_t>(i)];
+        }
+
+        // Guard: if any eff_z is zero the cumulative product is zero
+        // and batch inversion is undefined.  Delegate to 4x64 fallback.
+        if (SECP256K1_UNLIKELY(
+                prods[static_cast<std::size_t>(glv_table_size - 1)].normalizes_to_zero())) {
+            return base.scalar_mul_precomputed_wnaf(plan.wnaf1, plan.wnaf2,
+                                                     plan.neg1, plan.neg2);
+        }
+
+        FieldElement52 inv =
+            prods[static_cast<std::size_t>(glv_table_size - 1)].inverse_safegcd();
+        std::array<FieldElement52, kMaxGlvTableSize> zs;
+        for (int i = glv_table_size - 1; i > 0; --i) {
+            zs[static_cast<std::size_t>(i)] = prods[static_cast<std::size_t>(i - 1)] * inv;
+            inv = inv * eff_z[static_cast<std::size_t>(i)];
+        }
+        zs[0] = inv;
+
+        // Convert from iso to secp256k1 affine
+        for (int i = 0; i < glv_table_size; i++) {
+            FieldElement52 const zinv2 = zs[static_cast<std::size_t>(i)].square();
+            FieldElement52 const zinv3 = zinv2 * zs[static_cast<std::size_t>(i)];
+            tbl_P[static_cast<std::size_t>(i)].x =
+                iso[static_cast<std::size_t>(i)].x * zinv2;
+            tbl_P[static_cast<std::size_t>(i)].y =
+                iso[static_cast<std::size_t>(i)].y * zinv3;
+        }
+    }
+
+    // -- Derive phi(P) table: phi(x,y) = (beta*x, y) -----------------
+    static const FieldElement52 beta52 = FieldElement52::from_fe(
+        FieldElement::from_bytes(glv_constants::BETA));
+
+    const bool flip_phi = (plan.neg1 != plan.neg2);
+    for (int i = 0; i < glv_table_size; i++) {
+        tbl_phiP[static_cast<std::size_t>(i)].x =
+            tbl_P[static_cast<std::size_t>(i)].x * beta52;
+        if (flip_phi) {
+            tbl_phiP[static_cast<std::size_t>(i)].y =
+                tbl_P[static_cast<std::size_t>(i)].y.negate(1);
+            tbl_phiP[static_cast<std::size_t>(i)].y.normalize_weak();
+        } else {
+            tbl_phiP[static_cast<std::size_t>(i)].y =
+                tbl_P[static_cast<std::size_t>(i)].y;
+        }
+    }
+
+    // -- Shamir's trick -- single doubling chain, dual lookups ---------
+    JacobianPoint52 result52 = {
+        FieldElement52::zero(), FieldElement52::one(),
+        FieldElement52::zero(), true
+    };
+
+    const std::size_t max_len = (wnaf1_len > wnaf2_len) ? wnaf1_len : wnaf2_len;
+
+    for (int i = static_cast<int>(max_len) - 1; i >= 0; --i) {
+        jac52_double_inplace(result52);
+
+        // k1 contribution
+        {
+            int32_t const d = wnaf1_buf[static_cast<std::size_t>(i)];
+            if (d > 0) {
+                jac52_add_mixed_inplace(
+                    result52, tbl_P[static_cast<std::size_t>((d - 1) >> 1)]);
+            } else if (d < 0) {
+                AffinePoint52 pt = tbl_P[static_cast<std::size_t>((-d - 1) >> 1)];
+                pt.y.negate_assign(1);
+                jac52_add_mixed_inplace(result52, pt);
+            }
+        }
+
+        // k2 contribution
+        {
+            int32_t const d = wnaf2_buf[static_cast<std::size_t>(i)];
+            if (d > 0) {
+                jac52_add_mixed_inplace(
+                    result52, tbl_phiP[static_cast<std::size_t>((d - 1) >> 1)]);
+            } else if (d < 0) {
+                AffinePoint52 pt = tbl_phiP[static_cast<std::size_t>((-d - 1) >> 1)];
+                pt.y.negate_assign(1);
+                jac52_add_mixed_inplace(result52, pt);
+            }
+        }
+    }
+
+    return from_jac52(result52);
+}
+#endif // SECP256K1_FAST_52BIT
+
 // Fixed K x Variable Q: Optimal performance for repeated K with different Q
 // All K-dependent work is cached in KPlan (GLV decomposition + wNAF computation)
 // Runtime: phi(Q), tables, Shamir's trick (if signs allow) or separate computation
@@ -2862,8 +3039,11 @@ Point Point::scalar_mul_with_plan(const KPlan& plan) const {
 #if defined(SECP256K1_PLATFORM_ESP32) || defined(ESP_PLATFORM) || defined(SECP256K1_PLATFORM_STM32)
     // Embedded: fallback to regular scalar_mul using stored k1
     return scalar_mul(plan.k1);
+#elif defined(SECP256K1_FAST_52BIT)
+    // FE52 fast path: effective-affine + batch inversion + mixed adds (7M+4S)
+    return scalar_mul_with_plan_glv52(*this, plan);
 #else
-    // Fast path: Interleaved Shamir using precomputed wNAF digits from plan
+    // Legacy 4x64 path: full Jacobian adds (12M+5S)
     return scalar_mul_precomputed_wnaf(plan.wnaf1, plan.wnaf2, plan.neg1, plan.neg2);
 #endif
 }

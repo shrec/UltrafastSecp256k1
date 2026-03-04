@@ -699,6 +699,15 @@ int main(int argc, char** argv) {
     }, N_SCALAR);
     print_row("scalar_mul (k*P)", scalarmul);
 
+    // scalar_mul_with_plan: fixed K * variable Q (BIP-352 bottleneck)
+    auto kplan = KPlan::from_scalar(privkeys[0], 4);
+    idx = 0;
+    const double plan_mul = bench_ns([&]() {
+        auto r = pubkeys[idx % POOL].scalar_mul_with_plan(kplan);
+        bench::DoNotOptimize(r); ++idx;
+    }, N_SCALAR);
+    print_row("scalar_mul_with_plan", plan_mul);
+
     idx = 0;
     const double dualmul = bench_ns([&]() {
         auto r = Point::dual_scalar_mul_gen_point(

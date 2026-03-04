@@ -668,6 +668,10 @@ if(BUILD_TESTING)
     add_executable(bench_field_26 bench/bench_field_26.cpp)
     target_link_libraries(bench_field_26 PRIVATE ${SECP256K1_LIB_NAME})
 
+    # k*P benchmark: scalar_mul vs scalar_mul_with_plan (BIP-352 bottleneck)
+    add_executable(bench_kP tests/bench_kP.cpp)
+    target_link_libraries(bench_kP PRIVATE ${SECP256K1_LIB_NAME})
+
     # Unified Apple-to-Apple Benchmark (cross-platform, single binary)
     # Requires libsecp256k1 source for side-by-side comparison
     # CI can override: -DLIBSECP_SRC_DIR=/path/to/secp256k1/src

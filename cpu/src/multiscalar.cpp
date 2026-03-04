@@ -1,10 +1,10 @@
 // ============================================================================
-// Multi-Scalar Multiplication: Strauss / Shamir's trick
+// Multi-Scalar Multiplication: GLV Strauss with Effective-Affine
 // ============================================================================
-// GLV note: GLV-decomposition was evaluated for Strauss MSM but found
-// counterproductive: it doubles point count (2N) while halving scan length
-// (~130 vs ~256).  The extra precompute+per-step cost outweighs the saved
-// doublings for N >= 4.  Individual scalar_mul already uses GLV internally.
+// GLV decomposition halves the scan length (~130 vs ~257 positions) by
+// splitting each 256-bit scalar into two ~128-bit halves.  Combined with
+// effective-affine table construction (7M+4S per add vs 12M+5S) and
+// batch-inverted affine tables for mixed additions in the scan loop.
 //
 // Effective-affine: Precomp tables are batch-converted to affine using
 // Montgomery's trick (1 field inverse + O(n) muls).  The scan loop then
@@ -12,6 +12,8 @@
 // (12M+5S, ~275ns), a ~38% reduction per addition.
 
 #include "secp256k1/multiscalar.hpp"
+#include "secp256k1/glv.hpp"
+#include "secp256k1/precompute.hpp"
 #include <algorithm>
 #include <cstring>
 
@@ -60,10 +62,11 @@ Point shamir_trick(const Scalar& a, const Point& P,
     return aP;
 }
 
-// -- Strauss Multi-Scalar Multiplication (Effective-Affine) -------------------
-// Interleaved wNAF: pre-compute odd multiples of each point, batch convert
-// to affine via Montgomery's trick, then scan all wNAFs simultaneously from
-// MSB to LSB using mixed additions.
+// -- Strauss Multi-Scalar Multiplication (GLV + Effective-Affine) -------------
+// GLV decomposes each 256-bit scalar into two ~128-bit halves, halving the
+// doubling chain from ~257 to ~130 positions.  Per-point tables are built
+// using effective-affine (iso curve + batch inversion) and phi(P) tables
+// are derived via beta multiplication (no extra precompute).
 
 Point multi_scalar_mul(const Scalar* scalars,
                        const Point* points,
@@ -75,7 +78,180 @@ Point multi_scalar_mul(const Scalar* scalars,
     unsigned const w = strauss_optimal_window(n);
     std::size_t const table_size = static_cast<std::size_t>(1) << (w - 1);
 
-    // Step 1: Compute wNAF for each scalar
+#if defined(SECP256K1_FAST_52BIT)
+    using FE52 = fast::FieldElement52;
+
+    // -- Step 1: GLV decompose all scalars --------------------------------
+    // Each scalar_i -> (k1_i, k2_i, neg1_i, neg2_i)
+    // scalar_i * P_i = k1_i * Q_i + k2_i * phi(Q_i)
+    //   where Q_i = neg1_i ? -P_i : P_i
+    //   and phi(Q_i).y is negated if neg1_i XOR neg2_i
+
+    struct GLVInfo {
+        bool neg1, neg2;
+    };
+    std::vector<GLVInfo> glv_info(n);
+
+    // wNAF for k1 streams at [0..n-1], k2 streams at [n..2n-1]
+    std::vector<std::vector<int32_t>> wnaf_bufs(2 * n);
+    std::vector<std::size_t> wnaf_lens(2 * n, 0);
+    std::size_t max_len = 0;
+
+    for (std::size_t i = 0; i < n; ++i) {
+        auto decomp = fast::glv_decompose(scalars[i]);
+        glv_info[i] = {decomp.k1_neg, decomp.k2_neg};
+
+        // Allocate and compute wNAF for both half-scalars
+        wnaf_bufs[i].resize(260, 0);
+        wnaf_bufs[n + i].resize(260, 0);
+        compute_wnaf_into(decomp.k1, w,
+                          wnaf_bufs[i].data(), 260, wnaf_lens[i]);
+        compute_wnaf_into(decomp.k2, w,
+                          wnaf_bufs[n + i].data(), 260, wnaf_lens[n + i]);
+
+        // Trim trailing zeros -- half-scalars are ~128 bits
+        while (wnaf_lens[i] > 0 && wnaf_bufs[i][wnaf_lens[i] - 1] == 0)
+            --wnaf_lens[i];
+        while (wnaf_lens[n + i] > 0 && wnaf_bufs[n + i][wnaf_lens[n + i] - 1] == 0)
+            --wnaf_lens[n + i];
+
+        max_len = std::max(max_len,
+                           std::max(wnaf_lens[i], wnaf_lens[n + i]));
+    }
+
+    // -- Step 2: Build precomp tables per point + batch invert to affine ----
+    // Table[i][j] = (2j+1) * Q_i where Q_i = neg1_i ? -P_i : P_i
+    // After batch inversion, tables are stored as affine FE52 (x, y).
+
+    std::size_t const total_entries = n * table_size;
+    std::vector<FE52> tbl_P_x(total_entries), tbl_P_y(total_entries);
+    std::vector<FE52> tbl_phiP_x(total_entries), tbl_phiP_y(total_entries);
+
+    {
+        // Build tables using Point-level operations (handles all edge cases)
+        std::vector<Point> base_pts(n);
+        for (std::size_t i = 0; i < n; ++i) {
+            base_pts[i] = glv_info[i].neg1 ? points[i].negate() : points[i];
+        }
+
+        // Build odd-multiple tables: [1Q, 3Q, 5Q, ..., (2T-1)Q]
+        std::vector<std::vector<Point>> tables(n);
+        for (std::size_t i = 0; i < n; ++i) {
+            tables[i].resize(table_size);
+            tables[i][0] = base_pts[i];
+            if (table_size > 1) {
+                Point const P2 = base_pts[i].dbl();
+                for (std::size_t j = 1; j < table_size; ++j) {
+                    tables[i][j] = tables[i][j - 1].add(P2);
+                }
+            }
+        }
+
+        // Batch-invert all Z values via Montgomery's trick
+        std::vector<FE52> z_vals(total_entries);
+        for (std::size_t i = 0; i < n; ++i) {
+            for (std::size_t j = 0; j < table_size; ++j) {
+                z_vals[i * table_size + j] = tables[i][j].Z52();
+            }
+        }
+
+        std::vector<FE52> prefix(total_entries);
+        prefix[0] = z_vals[0];
+        for (std::size_t k = 1; k < total_entries; ++k) {
+            prefix[k] = prefix[k - 1] * z_vals[k];
+        }
+
+        // Guard: degenerate case
+        if (prefix[total_entries - 1].normalizes_to_zero()) {
+            Point result = Point::infinity();
+            for (std::size_t i = 0; i < n; ++i) {
+                result.add_inplace(points[i].scalar_mul(scalars[i]));
+            }
+            return result;
+        }
+
+        FE52 inv = prefix[total_entries - 1].inverse();
+        for (std::size_t k = total_entries; k-- > 0; ) {
+            FE52 const z_inv = (k > 0) ? prefix[k - 1] * inv : inv;
+            if (k > 0) inv *= z_vals[k];
+
+            FE52 const z2 = z_inv.square();
+            FE52 const z3 = z2 * z_inv;
+
+            std::size_t const pi = k / table_size;
+            std::size_t const pj = k % table_size;
+            tbl_P_x[k] = tables[pi][pj].X52() * z2;
+            tbl_P_y[k] = tables[pi][pj].Y52() * z3;
+        }
+    }
+
+    // -- Step 3: Derive phi(P) tables via beta multiplication -------------
+    static const FE52 beta52 = FE52::from_fe(
+        fast::FieldElement::from_bytes(fast::glv_constants::BETA));
+
+    for (std::size_t i = 0; i < n; ++i) {
+        bool const flip_phi = (glv_info[i].neg1 != glv_info[i].neg2);
+        std::size_t const base = i * table_size;
+        for (std::size_t j = 0; j < table_size; ++j) {
+            tbl_phiP_x[base + j] = tbl_P_x[base + j] * beta52;
+            if (flip_phi) {
+                tbl_phiP_y[base + j] = tbl_P_y[base + j].negate(1);
+                tbl_phiP_y[base + j].normalize_weak();
+            } else {
+                tbl_phiP_y[base + j] = tbl_P_y[base + j];
+            }
+        }
+    }
+
+    // -- Step 4: Scan ~130 positions with 2n streams ----------------------
+    Point R = Point::infinity();
+
+    for (std::size_t bit = max_len; bit-- > 0; ) {
+        R.dbl_inplace();
+
+        for (std::size_t i = 0; i < n; ++i) {
+            std::size_t const base = i * table_size;
+
+            // k1 stream: lookup from tbl_P
+            if (bit < wnaf_lens[i]) {
+                int32_t const digit = wnaf_bufs[i][bit];
+                if (digit != 0) {
+                    std::size_t const idx = static_cast<std::size_t>(
+                        (digit > 0 ? digit - 1 : -digit - 1) / 2
+                    );
+                    FE52 lx = tbl_P_x[base + idx];
+                    FE52 ly = tbl_P_y[base + idx];
+                    if (digit < 0) {
+                        ly.negate_assign(1);
+                    }
+                    R.add_mixed52_inplace(lx, ly);
+                }
+            }
+
+            // k2 stream: lookup from tbl_phiP
+            if (bit < wnaf_lens[n + i]) {
+                int32_t const digit = wnaf_bufs[n + i][bit];
+                if (digit != 0) {
+                    std::size_t const idx = static_cast<std::size_t>(
+                        (digit > 0 ? digit - 1 : -digit - 1) / 2
+                    );
+                    FE52 lx = tbl_phiP_x[base + idx];
+                    FE52 ly = tbl_phiP_y[base + idx];
+                    if (digit < 0) {
+                        ly.negate_assign(1);
+                    }
+                    R.add_mixed52_inplace(lx, ly);
+                }
+            }
+        }
+    }
+
+    return R;
+
+#else
+    // Non-FE52 fallback: original Strauss without GLV
+
+    // Compute wNAF for each scalar
     std::vector<std::vector<int8_t>> wnafs(n);
     std::size_t max_len = 0;
     for (std::size_t i = 0; i < n; ++i) {
@@ -85,7 +261,7 @@ Point multi_scalar_mul(const Scalar* scalars,
         }
     }
 
-    // Step 2: Pre-compute odd multiples: table[i][j] = (2j+1) * points[i]
+    // Pre-compute odd multiples: table[i][j] = (2j+1) * points[i]
     std::vector<std::vector<Point>> tables(n);
     for (std::size_t i = 0; i < n; ++i) {
         tables[i].resize(table_size);
@@ -98,82 +274,6 @@ Point multi_scalar_mul(const Scalar* scalars,
         }
     }
 
-#if defined(SECP256K1_FAST_52BIT)
-    // Step 3: Batch convert ALL precomp entries to affine via Montgomery's trick.
-    // Enables mixed additions (7M+4S) in the scan loop instead of
-    // full Jacobian additions (12M+5S), saving ~38% per addition.
-    using FE52 = fast::FieldElement52;
-
-    std::size_t const total_entries = n * table_size;
-    std::vector<FE52> aff_x(total_entries);
-    std::vector<FE52> aff_y(total_entries);
-
-    {
-        // Collect Z coords from all precomp entries
-        std::vector<FE52> z_vals(total_entries);
-        for (std::size_t i = 0; i < n; ++i) {
-            for (std::size_t j = 0; j < table_size; ++j) {
-                z_vals[i * table_size + j] = tables[i][j].Z52();
-            }
-        }
-
-        // Montgomery batch inversion: prefix[k] = z[0] * z[1] * ... * z[k]
-        std::vector<FE52> prefix(total_entries);
-        prefix[0] = z_vals[0];
-        for (std::size_t k = 1; k < total_entries; ++k) {
-            prefix[k] = prefix[k - 1] * z_vals[k];
-        }
-
-        // Single field inversion (~940ns vs ~275ns * total_entries saves)
-        FE52 inv = prefix[total_entries - 1].inverse();
-
-        // Back-propagate inversions and compute affine coordinates
-        for (std::size_t k = total_entries; k-- > 0; ) {
-            FE52 const z_inv = (k > 0) ? prefix[k - 1] * inv : inv;
-            if (k > 0) inv *= z_vals[k];
-
-            // x_aff = X * z_inv^2,  y_aff = Y * z_inv^3
-            FE52 const z2 = z_inv.square();
-            FE52 const z3 = z2 * z_inv;
-
-            std::size_t const pi = k / table_size;
-            std::size_t const pj = k % table_size;
-            aff_x[k] = tables[pi][pj].X52() * z2;
-            aff_y[k] = tables[pi][pj].Y52() * z3;
-        }
-    }
-
-    // Step 4: Interleaved scan with mixed additions (effective-affine)
-    Point R = Point::infinity();
-
-    for (std::size_t bit = max_len; bit-- > 0; ) {
-        R.dbl_inplace();
-
-        for (std::size_t i = 0; i < n; ++i) {
-            if (bit >= wnafs[i].size()) continue;
-            int8_t const digit = wnafs[i][bit];
-            if (digit == 0) continue;
-
-            std::size_t const idx = static_cast<std::size_t>(
-                (digit > 0 ? digit - 1 : -digit - 1) / 2
-            );
-            std::size_t const flat = i * table_size + idx;
-
-            if (digit > 0) {
-                R.add_mixed52_inplace(aff_x[flat], aff_y[flat]);
-            } else {
-                // Negate Y for subtraction: -(x, y) = (x, -y)
-                FE52 neg_y = aff_y[flat];
-                neg_y.negate_assign(1);
-                R.add_mixed52_inplace(aff_x[flat], neg_y);
-            }
-        }
-    }
-
-    return R;
-
-#else
-    // Fallback: original Jacobian-add scan (no FE52 batch inversion available)
     Point R = Point::infinity();
 
     for (std::size_t bit = max_len; bit-- > 0; ) {

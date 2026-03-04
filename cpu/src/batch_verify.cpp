@@ -83,6 +83,23 @@ bool schnorr_batch_verify(const SchnorrBatchEntry* entries, std::size_t n) {
                               entries[0].signature);
     }
 
+    // ---- Small-batch fast path: individual verification ----
+    // For small N, individual schnorr_verify uses the highly-optimized
+    // 4-stream GLV Strauss with precomputed generator tables (~30us/sig),
+    // which outperforms the generic 2N-point MSM that lacks generator
+    // tables and GLV.  MSM becomes profitable only for large N (>16)
+    // where amortized doublings offset the per-point overhead.
+    if (n <= 16) {
+        for (std::size_t i = 0; i < n; ++i) {
+            if (!schnorr_verify(entries[i].pubkey_x, entries[i].message,
+                                entries[i].signature)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    // ---- Large-batch path: randomized MSM ----
     // Compute batch seed = SHA256(all signature data)
     SHA256 seed_ctx;
     for (std::size_t i = 0; i < n; ++i) {
