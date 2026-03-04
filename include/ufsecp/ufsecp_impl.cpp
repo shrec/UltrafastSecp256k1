@@ -29,6 +29,9 @@
 #include "secp256k1/schnorr.hpp"
 #include "secp256k1/ecdh.hpp"
 #include "secp256k1/recovery.hpp"
+#include "secp256k1/ct/sign.hpp"
+#include "secp256k1/ct/point.hpp"
+#include "secp256k1/detail/secure_erase.hpp"
 #include "secp256k1/sha256.hpp"
 #include "secp256k1/address.hpp"
 #include "secp256k1/bip32.hpp"
@@ -338,7 +341,9 @@ ufsecp_error_t ufsecp_pubkey_create(ufsecp_ctx* ctx,
         return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "privkey is zero or >= n");
     }
 
-    auto pk = Point::generator().scalar_mul(sk);
+    // CT path: private key is secret, use constant-time generator_mul
+    auto pk = secp256k1::ct::generator_mul(sk);
+    secp256k1::detail::secure_erase(&sk, sizeof(sk));
     if (pk.is_infinity()) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "pubkey at infinity");
 }
@@ -358,7 +363,9 @@ ufsecp_error_t ufsecp_pubkey_create_uncompressed(ufsecp_ctx* ctx,
         return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "privkey is zero or >= n");
     }
 
-    auto pk = Point::generator().scalar_mul(sk);
+    // CT path: private key is secret, use constant-time generator_mul
+    auto pk = secp256k1::ct::generator_mul(sk);
+    secp256k1::detail::secure_erase(&sk, sizeof(sk));
     if (pk.is_infinity()) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "pubkey at infinity");
 }
@@ -442,8 +449,9 @@ ufsecp_error_t ufsecp_ecdsa_sign(ufsecp_ctx* ctx,
         return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "privkey is zero or >= n");
     }
 
-    auto sig = secp256k1::ecdsa_sign(msg, sk);
-    sig = sig.normalize();
+    auto sig = secp256k1::ct::ecdsa_sign(msg, sk);
+    secp256k1::detail::secure_erase(&sk, sizeof(sk));
+    // CT path returns already-normalized (low-S) signature
     auto compact = sig.to_compact();
     std::memcpy(sig64_out, compact.data(), 64);
     return UFSECP_OK;
@@ -629,7 +637,11 @@ ufsecp_error_t ufsecp_ecdsa_sign_recoverable(ufsecp_ctx* ctx,
         return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "privkey is zero or >= n");
     }
 
+    // NOTE: No ct::ecdsa_sign_recoverable exists yet. Using fast path with
+    // zeroization. Recovery signing is inherently non-CT due to recid computation.
+    // TODO: Implement ct::ecdsa_sign_recoverable when CT recovery is needed.
     auto rsig = secp256k1::ecdsa_sign_recoverable(msg, sk);
+    secp256k1::detail::secure_erase(&sk, sizeof(sk));
     auto normalized = rsig.sig.normalize();
     auto compact = normalized.to_compact();
     std::memcpy(sig64_out, compact.data(), 64);
@@ -687,7 +699,10 @@ ufsecp_error_t ufsecp_schnorr_sign(ufsecp_ctx* ctx,
     std::memcpy(msg_arr.data(), msg32, 32);
     std::memcpy(aux_arr.data(), aux_rand, 32);
 
-    auto sig = secp256k1::schnorr_sign(sk, msg_arr, aux_arr);
+    auto kp = secp256k1::ct::schnorr_keypair_create(sk);
+    auto sig = secp256k1::ct::schnorr_sign(kp, msg_arr, aux_arr);
+    secp256k1::detail::secure_erase(&sk, sizeof(sk));
+    secp256k1::detail::secure_erase(&kp.d, sizeof(kp.d));
     auto bytes = sig.to_bytes();
     std::memcpy(sig64_out, bytes.data(), 64);
     return UFSECP_OK;

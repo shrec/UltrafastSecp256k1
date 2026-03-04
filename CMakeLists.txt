@@ -50,9 +50,17 @@ option(SECP256K1_BUILD_SHARED "Build shared library" OFF)
 # Bitcoin strict mode (default ON): public API rejects non-canonical inputs
 option(UFSECP_BITCOIN_STRICT "Enforce BIP-340 strict encoding in public API (reject r>=p, s>=n)" ON)
 
+# CT enforcement: deprecate non-CT signing functions at compile time
+option(SECP256K1_REQUIRE_CT "Deprecate non-CT sign functions (compile warnings on fast:: signing)" OFF)
+
 # Global compile definitions
 if(SECP256K1_SPEED_FIRST)
     add_compile_definitions(SECP256K1_FAST_NO_SECURITY_CHECKS=1)
+endif()
+
+if(SECP256K1_REQUIRE_CT)
+    add_compile_definitions(SECP256K1_REQUIRE_CT=1)
+    message(STATUS "secp256k1-fast: CT enforcement enabled -- non-CT sign functions are deprecated")
 endif()
 
 if(UFSECP_BITCOIN_STRICT)
