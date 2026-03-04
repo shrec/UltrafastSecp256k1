@@ -5,6 +5,43 @@ All notable changes to UltrafastSecp256k1 are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.18.0] - 2026-03-04
+
+> No breaking changes -- drop-in upgrade from v3.17.x | ABI compatible
+> Focus: CT scalar inverse -- SafeGCD replaces Fermat chain, 6.4x faster CT signing
+
+### CT Scalar Inverse: SafeGCD (Bernstein-Yang constant-time divsteps)
+- **Root cause**: `ct::scalar_inverse()` used Fermat's Little Theorem chain (a^{n-2} mod n)
+  with 254 squarings + 40 multiplications = 294 scalar ops, costing ~10,650 ns.
+  This single function accounted for ~40% of CT ECDSA sign latency.
+- **Fix**: Replaced with constant-time SafeGCD (Bernstein-Yang divsteps-59), port of
+  `secp256k1_modinv64` from bitcoin-core/secp256k1. Fixed 10 rounds x 59 branchless
+  divsteps = 590 total. All loops fixed-count, all conditionals use bitmasks.
+  No `ctz`, no early termination, no secret-dependent branches.
+- **Performance**: `ct::scalar_inverse`: 10,650 ns -> 1,671 ns (**6.4x faster**)
+- **Impact on CT ECDSA Sign**: 26,942 ns -> 15,360 ns (**43% faster**)
+- **CT vs libsecp ECDSA Sign ratio**: 0.80x (lose) -> **1.44x (win)**
+- **Fallback**: Fermat chain preserved for platforms without `__int128` (ESP32, etc.)
+- Files changed: `cpu/src/ct_scalar.cpp`, `cpu/include/secp256k1/ct/scalar.hpp`,
+  `cpu/bench/bench_unified.cpp`
+- All 32 tests pass (excluding ct_sidechannel long-run)
+
+## [3.17.1] - 2026-03-05
+
+> No breaking changes -- drop-in upgrade from v3.17.0 | ABI compatible
+> Focus: CI reliability fixes -- precompute cache race condition + ASan buffer overread
+
+### 1. Precompute Cache Atomic Write (bip340_vectors CI flake fix)
+- **Root cause**: `save_precompute_cache_locked()` wrote directly to `cache_w{N}.bin`. When CTest runs tests in parallel (`-j$(nproc)`), a reader process could see a partially-written cache file from another writer, loading corrupt precompute tables. This caused intermittent `bip340_vectors` failures where `scalar_mul_generator()` produced wrong results for large scalars (higher window tables not yet written).
+- **Fix**: Atomic write-then-rename pattern -- cache is written to `cache_w{N}.bin.tmp.{pid}`, then atomically renamed to `cache_w{N}.bin`. Readers always see either the old complete file or the new complete file.
+- **Additional hardening**: `load_precompute_cache_locked()` now validates expected file size (computed from header `window_count * digit_count * 65 + sizeof(CacheHeader)`) before reading point data. Truncated or partially-written files are rejected immediately.
+- Files changed: `cpu/src/precompute.cpp`
+
+### 2. ASan Buffer Overread Fix (fuzz_address_bip32_ffi suite 15a)
+- **Root cause**: `suite_15_ffi_ecdh_edge()` passed `uint8_t xpub[32]` (32 bytes) to `ufsecp_ecdh_xonly()` which expects `const uint8_t pubkey33[33]` (33-byte compressed pubkey). ASan detected a 1-byte stack-buffer-overflow in `FieldElement::parse_bytes_strict()`.
+- **Fix**: Changed buffer to `uint8_t xpub[33]` with `fill_random(xpub, 33)` to correctly match the API's 33-byte compressed pubkey parameter.
+- Files changed: `audit/test_fuzz_address_bip32_ffi.cpp`
+
 ## [3.17.0] - 2026-03-04
 
 > No breaking changes -- drop-in upgrade from v3.16.x | ABI compatible

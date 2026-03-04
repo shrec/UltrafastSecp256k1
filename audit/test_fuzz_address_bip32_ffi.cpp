@@ -977,10 +977,11 @@ static void suite_15_ffi_ecdh_edge(ufsecp_ctx* ctx) {
     std::printf("\n[15] FFI ECDH Infinity / Edge Cases\n");
 
     // 15a: ECDH x-only with random bytes
+    // NOTE: ufsecp_ecdh_xonly expects a 33-byte compressed pubkey (0x02/0x03 prefix + 32-byte x)
     for (int i = 0; i < SCALED(2000, 50); ++i) {
-        uint8_t sk[32], xpub[32], secret[32];
+        uint8_t sk[32], xpub[33], secret[32];
         fill_random(sk, 32);
-        fill_random(xpub, 32);
+        fill_random(xpub, 33);
         MUST_NOT_CRASH(ufsecp_ecdh_xonly(ctx, sk, xpub, secret),
                        "ecdh_xonly_random");
     }

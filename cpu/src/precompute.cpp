@@ -78,6 +78,11 @@
 #include <iomanip>
 #include <ctime>
 #include <mutex>
+#if defined(_WIN32)
+#include <process.h>  // _getpid()
+#else
+#include <unistd.h>   // getpid()
+#endif
 #include <thread>
 #include <queue>
 #include <condition_variable>
@@ -2173,7 +2178,16 @@ bool save_precompute_cache_locked(const std::string& path) {
     
     PrecomputeContext const& ctx = *g_context;
     
-    std::ofstream file(path, std::ios::binary);
+    // Atomic write: write to a temporary file, then rename.
+    // This prevents cross-process races where a reader sees a partially-written file
+    // (e.g. when CTest runs tests in parallel with -j).
+#if defined(_WIN32)
+    std::string const tmp_path = path + ".tmp." + std::to_string(_getpid());
+#else
+    std::string const tmp_path = path + ".tmp." + std::to_string(getpid());
+#endif
+    
+    std::ofstream file(tmp_path, std::ios::binary);
     if (!file.is_open()) {
         return false;
     }
@@ -2189,12 +2203,13 @@ bool save_precompute_cache_locked(const std::string& path) {
     header.reserved = 0;
     
     file.write(reinterpret_cast<const char*>(&header), sizeof(header));
-    if (!file.good()) return false;
+    if (!file.good()) { std::remove(tmp_path.c_str()); return false; }
     
     // Write base tables
     for (const auto& window : ctx.base_tables) {
         for (const auto& point : window) {
             if (!write_affine_point(file, point)) {
+                std::remove(tmp_path.c_str());
                 return false;
             }
         }
@@ -2205,6 +2220,7 @@ bool save_precompute_cache_locked(const std::string& path) {
         for (const auto& window : ctx.psi_tables) {
             for (const auto& point : window) {
                 if (!write_affine_point(file, point)) {
+                    std::remove(tmp_path.c_str());
                     return false;
                 }
             }
@@ -2212,7 +2228,16 @@ bool save_precompute_cache_locked(const std::string& path) {
     }
     
     file.close();
-    return file.good();
+    if (!file.good()) { std::remove(tmp_path.c_str()); return false; }
+    
+    // Atomic rename: readers see either the old complete file or the new complete file
+    std::error_code ec;
+    std::filesystem::rename(tmp_path, path, ec);
+    if (ec) {
+        std::remove(tmp_path.c_str());
+        return false;
+    }
+    return true;
 }
 
 // Internal version without lock - must be called with g_mutex already locked
@@ -2231,6 +2256,25 @@ bool load_precompute_cache_locked(const std::string& path, unsigned max_windows)
     file.read(reinterpret_cast<char*>(&header), sizeof(header));
     if (!file.good() || header.magic != CACHE_MAGIC || header.version != CACHE_VERSION) {
         return false;
+    }
+    
+    // Validate file size to reject truncated/partially-written files.
+    // Each non-infinity point = 1 (infinity byte) + 32 (x) + 32 (y) = 65 bytes.
+    // Total = header + base_tables + psi_tables (if GLV).
+    {
+        std::size_t const points_per_table = static_cast<std::size_t>(header.window_count) * header.digit_count;
+        std::size_t const bytes_per_point = 65;  // 1 + 32 + 32
+        std::size_t const expected_size = sizeof(CacheHeader)
+            + points_per_table * bytes_per_point
+            + (header.has_glv ? points_per_table * bytes_per_point : 0);
+        
+        file.seekg(0, std::ios::end);
+        auto const actual_size = static_cast<std::size_t>(file.tellg());
+        if (actual_size < expected_size) {
+            return false;  // Truncated file -- reject
+        }
+        file.seekg(sizeof(CacheHeader), std::ios::beg);
+        if (!file.good()) return false;
     }
     
 #if SECP256K1_DEBUG_GLV

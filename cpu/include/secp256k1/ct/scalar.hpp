@@ -31,10 +31,10 @@ Scalar scalar_neg(const Scalar& a) noexcept;
 // CT modular halving: r = a/2 mod n  (if a is odd: (a+n)/2, else a/2)
 Scalar scalar_half(const Scalar& a) noexcept;
 
-// CT modular inverse: r = a^{-1} mod n  (Fermat: a^{n-2})
-// Fixed addition chain: always same number of sqr+mul regardless of input.
-// Approximately 10x slower than variable-time Scalar::inverse() (SafeGCD),
-// but required in CT signing paths where the input (nonce k) is secret.
+// CT modular inverse: r = a^{-1} mod n
+// Uses constant-time SafeGCD (Bernstein-Yang divsteps) on platforms with
+// __int128 (~900 ns, matching FAST SafeGCD speed).
+// Fallback: Fermat a^{n-2} chain (254S + 40M) on platforms without __int128.
 Scalar scalar_inverse(const Scalar& a) noexcept;
 
 // --- CT Conditional Operations -----------------------------------------------

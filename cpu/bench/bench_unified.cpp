@@ -411,6 +411,13 @@ static void print_header(const char* section) {
     g_current_section = section;
 }
 
+static void print_header_ratio(const char* section) {
+    print_sep();
+    printf("| %-44s | %10s |\n", section, "ratio");
+    print_sep();
+    g_current_section = section;
+}
+
 static void print_row(const char* name, double ns) {
     printf("| %-44s | %10.1f |\n", name, ns);
     g_report.add(g_current_section, name, ns);
@@ -864,22 +871,25 @@ int main(int argc, char** argv) {
         print_row("FE52::from_4x64_limbs", micro_from_4x64);
     }
 
-    // -- FE52 mul (52-bit field multiply) --
+    // -- FE52 mul (52-bit field multiply, chained to prevent optimization) --
     {
         using FE52 = fast::FieldElement52;
         auto fe52_a = FE52::from_fe(fe_a);
         auto fe52_b = FE52::from_fe(fe_b);
+        // Dependent chain: each mul feeds into the next to avoid CSE/hoisting
         const double micro_fe52_mul = bench_ns([&]() {
-            auto r = fe52_a * fe52_b;
-            bench::DoNotOptimize(r);
+            fe52_a = fe52_a * fe52_b;
+            bench::DoNotOptimize(fe52_a);
         }, N_FIELD);
         print_row("FE52::mul (52-bit)", micro_fe52_mul);
 
+        fe52_a = FE52::from_fe(fe_a); // reset for sqr bench
         const double micro_fe52_sqr = bench_ns([&]() {
-            auto r = fe52_a.square();
-            bench::DoNotOptimize(r);
+            fe52_a = fe52_a.square();
+            bench::DoNotOptimize(fe52_a);
         }, N_FIELD);
         print_row("FE52::sqr (52-bit)", micro_fe52_sqr);
+        fe52_a = FE52::from_fe(fe_a); // restore
     }
 #endif
 
@@ -1059,6 +1069,14 @@ int main(int argc, char** argv) {
 
     print_header("CT POINT ARITHMETIC (sub-ops)");
 
+    // -- CT scalar_inverse (SafeGCD on __int128, Fermat fallback) --
+    idx = 0;
+    const double ct_scalar_inv = bench_ns([&]() {
+        auto r = ct::scalar_inverse(privkeys[idx % POOL]);
+        bench::DoNotOptimize(r); ++idx;
+    }, N_SCALAR);
+    print_row("ct::scalar_inverse (SafeGCD)", ct_scalar_inv);
+
     // -- CT generator_mul (k*G, Hamburg comb + precomputed table) --
     idx = 0;
     const double ct_gen_mul = bench_ns([&]() {
@@ -1185,13 +1203,14 @@ int main(int argc, char** argv) {
     printf("\n");
     printf("  ---- CT ECDSA SIGN DECOMPOSITION ----\n");
     printf("    ct::generator_mul (R=k*G): %8.1f ns\n", ct_gen_mul);
-    printf("    scalar_inv (k^-1):         %8.1f ns\n", micro_scalar_inv);
+    printf("    ct::scalar_inverse (k^-1): %8.1f ns\n", ct_scalar_inv);
+    printf("    field_inv (R.x affine):    %8.1f ns\n", finv);
     printf("    scalar_mul (2x):           %8.1f ns\n", 2.0 * micro_scalar_mul);
-    double ct_ecdsa_sum = ct_gen_mul + micro_scalar_inv + 2.0 * micro_scalar_mul;
+    double ct_ecdsa_sum = ct_gen_mul + ct_scalar_inv + finv + 2.0 * micro_scalar_mul;
     printf("    --------------------------------\n");
     printf("    SUM (sub-ops):             %8.1f ns\n", ct_ecdsa_sum);
     printf("    MEASURED ct::ecdsa_sign:   %8.1f ns\n", u_ct_ecdsa);
-    printf("    UNEXPLAINED gap:           %8.1f ns  (%.1f%%)\n",
+    printf("    UNEXPLAINED gap:           %8.1f ns  (%.1f%%, RFC6979+checks)\n",
            u_ct_ecdsa - ct_ecdsa_sum,
            100.0 * (u_ct_ecdsa - ct_ecdsa_sum) / u_ct_ecdsa);
     printf("\n");
@@ -1476,7 +1495,7 @@ int main(int argc, char** argv) {
     printf("  (ratio > 1.0 = Ultra wins, < 1.0 = libsecp256k1 wins)\n");
     printf("======================================================================\n\n");
 
-    print_header("FAST path (Ultra FAST vs libsecp)");
+    print_header_ratio("FAST path (Ultra FAST vs libsecp)");
     print_ratio("Generator * k",   ls_gen          / keygen);
     print_ratio("ECDSA Sign",      ls_ecdsa_sign   / u_ecdsa_sign);
     print_ratio("ECDSA Verify",    ls_ecdsa_verify / u_ecdsa_verify);
@@ -1488,7 +1507,7 @@ int main(int argc, char** argv) {
 
     // CT-vs-CT: libsecp256k1 sign is always CT, so compare with Ultra CT sign.
     // Verify doesn't change (no secret data), so same numbers as FAST.
-    print_header("CT-vs-CT (Ultra CT vs libsecp CT)");
+    print_header_ratio("CT-vs-CT (Ultra CT vs libsecp CT)");
     print_ratio("ECDSA Sign (CT vs CT)",    ls_ecdsa_sign   / u_ct_ecdsa);
     print_ratio("ECDSA Verify",             ls_ecdsa_verify / u_ecdsa_verify);
     print_ratio("Schnorr Sign (CT vs CT)",  ls_schnorr_sign / u_ct_schnorr);
@@ -1504,7 +1523,7 @@ int main(int argc, char** argv) {
         printf("  (ratio > 1.0 = Ultra wins, < 1.0 = OpenSSL wins)\n");
         printf("======================================================================\n\n");
 
-        print_header("FAST path (Ultra FAST vs OpenSSL)");
+        print_header_ratio("FAST path (Ultra FAST vs OpenSSL)");
         print_ratio("Generator * k",   ossl_gen          / keygen);
         print_ratio("ECDSA Sign",      ossl_ecdsa_sign   / u_ecdsa_sign);
         print_ratio("ECDSA Verify",    ossl_ecdsa_verify / u_ecdsa_verify);
@@ -1513,7 +1532,7 @@ int main(int argc, char** argv) {
 
         // OpenSSL ECDSA sign is constant-time (modern versions) --
         // compare with Ultra CT sign for fair assessment.
-        print_header("CT path (Ultra CT vs OpenSSL)");
+        print_header_ratio("CT path (Ultra CT vs OpenSSL)");
         print_ratio("ECDSA Sign (CT vs CT)",    ossl_ecdsa_sign   / u_ct_ecdsa);
         print_ratio("ECDSA Verify",             ossl_ecdsa_verify / u_ecdsa_verify);
         print_sep();
