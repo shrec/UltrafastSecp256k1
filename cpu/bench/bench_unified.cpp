@@ -45,6 +45,7 @@
 #include "secp256k1/point.hpp"
 #include "secp256k1/ecdsa.hpp"
 #include "secp256k1/schnorr.hpp"
+#include "secp256k1/tagged_hash.hpp"
 #include "secp256k1/ct/sign.hpp"
 #include "secp256k1/ct/point.hpp"
 #include "secp256k1/selftest.hpp"
@@ -890,8 +891,41 @@ int main(int argc, char** argv) {
         }, N_FIELD);
         print_row("FE52::sqr (52-bit)", micro_fe52_sqr);
         fe52_a = FE52::from_fe(fe_a); // restore
+
+        // -- FE52 inverse_safegcd (field inverse used by Schnorr verify) --
+        auto fe52_inv_input = FE52::from_fe(fe_a);
+        const double micro_fe52_inv = bench_ns([&]() {
+            auto r = fe52_inv_input.inverse_safegcd();
+            bench::DoNotOptimize(r);
+        }, 200);
+        print_row("FE52::inverse_safegcd", micro_fe52_inv);
     }
 #endif
+
+    // -- SHA256 challenge hash (BIP-340 tagged hash with midstate) --
+    {
+        const double micro_sha256_challenge = bench_ns([&]() {
+            SHA256 ctx = detail::g_challenge_midstate;
+            ctx.update(schnorr_sigs[idx % POOL].r.data(), 32);
+            ctx.update(schnorr_xonly[idx % POOL].x_bytes.data(), 32);
+            ctx.update(msghashes[idx % POOL].data(), 32);
+            auto h = ctx.finalize();
+            bench::DoNotOptimize(h); ++idx;
+        }, N_FIELD);
+        print_row("SHA256 (BIP0340/challenge)", micro_sha256_challenge);
+    }
+
+    // -- FieldElement::parse_bytes_strict (BIP-340 range check) --
+    {
+        idx = 0;
+        const double micro_parse_strict = bench_ns([&]() {
+            FieldElement out;
+            bool ok = FieldElement::parse_bytes_strict(
+                schnorr_sigs[idx % POOL].r.data(), out);
+            bench::DoNotOptimize(ok); bench::DoNotOptimize(out); ++idx;
+        }, N_FIELD);
+        print_row("FE::parse_bytes_strict", micro_parse_strict);
+    }
 
     print_sep();
 
