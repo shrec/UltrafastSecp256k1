@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772601185408,
+  "lastUpdate": 1772625675291,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "Perf Regression Gate": [
@@ -2142,6 +2142,445 @@ window.BENCHMARK_DATA = {
           {
             "name": "Wall time",
             "value": 130100000,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "payysoon@gmail.com",
+            "name": "vano",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "5923702e81942a9ce6d2d95721c8515986324894",
+          "message": "feat: CT SafeGCD scalar inverse + CI stability fixes (v3.18.0)\n\n- Replace Fermat chain (254S+40M=294 ops, ~10.6us) with Bernstein-Yang\n  CT SafeGCD (10 rounds x 59 divsteps, ~1.6us) for scalar_inverse on\n  __int128 platforms. 6.5x faster. Fermat kept as fallback.\n- CT ECDSA Sign: 26.9us -> 15.2us (1.91x vs libsecp, was 0.80x)\n- ECDSA Verify: 27.3us (1.24x vs libsecp)\n- Atomic precompute cache writes (tmp+rename) to fix CTest -j race\n- Validate cache file size on load to reject truncated files\n- Fix fuzz test buffer size for ufsecp_ecdh_xonly (33-byte compressed pubkey)\n- Remove stale win_log.txt",
+          "timestamp": "2026-03-04T15:58:52+04:00",
+          "tree_id": "962704f7dd32c8d9e91a6a5a785285c19aaa5426",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/5923702e81942a9ce6d2d95721c8515986324894"
+        },
+        "date": 1772625673404,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "field_mul",
+            "value": 17.3,
+            "unit": "ns"
+          },
+          {
+            "name": "field_sqr",
+            "value": 16.1,
+            "unit": "ns"
+          },
+          {
+            "name": "field_inv",
+            "value": 1104.4,
+            "unit": "ns"
+          },
+          {
+            "name": "field_add",
+            "value": 14.2,
+            "unit": "ns"
+          },
+          {
+            "name": "field_sub",
+            "value": 9.5,
+            "unit": "ns"
+          },
+          {
+            "name": "field_negate",
+            "value": 12.5,
+            "unit": "ns"
+          },
+          {
+            "name": "scalar_mul",
+            "value": 43.4,
+            "unit": "ns"
+          },
+          {
+            "name": "scalar_inv",
+            "value": 1334.1,
+            "unit": "ns"
+          },
+          {
+            "name": "scalar_add",
+            "value": 10.8,
+            "unit": "ns"
+          },
+          {
+            "name": "scalar_negate",
+            "value": 11.4,
+            "unit": "ns"
+          },
+          {
+            "name": "pubkey_create (k*G)",
+            "value": 7318.7,
+            "unit": "ns"
+          },
+          {
+            "name": "scalar_mul (k*P)",
+            "value": 36747.5,
+            "unit": "ns"
+          },
+          {
+            "name": "dual_mul (a*G + b*P)",
+            "value": 41046.7,
+            "unit": "ns"
+          },
+          {
+            "name": "point_add",
+            "value": 401.9,
+            "unit": "ns"
+          },
+          {
+            "name": "point_dbl",
+            "value": 159,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_sign",
+            "value": 11756.1,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_sign_verified",
+            "value": 62809,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_verify",
+            "value": 43116.1,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_keypair_create",
+            "value": 9130.8,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_sign",
+            "value": 9598.7,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_sign_verified",
+            "value": 58564.4,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_verify (cached xonly)",
+            "value": 43551.2,
+            "unit": "ns"
+          },
+          {
+            "name": "Scalar::from_bytes (32B->scalar)",
+            "value": 11.8,
+            "unit": "ns"
+          },
+          {
+            "name": "Scalar::inverse (safegcd)",
+            "value": 1349.2,
+            "unit": "ns"
+          },
+          {
+            "name": "Scalar::mul",
+            "value": 44.9,
+            "unit": "ns"
+          },
+          {
+            "name": "Scalar::negate",
+            "value": 11.4,
+            "unit": "ns"
+          },
+          {
+            "name": "glv_decompose",
+            "value": 146.1,
+            "unit": "ns"
+          },
+          {
+            "name": "Point::dbl (jac52_double)",
+            "value": 161,
+            "unit": "ns"
+          },
+          {
+            "name": "Point::add (jac52_add)",
+            "value": 401.9,
+            "unit": "ns"
+          },
+          {
+            "name": "dual_scalar_mul_gen_point",
+            "value": 40813.3,
+            "unit": "ns"
+          },
+          {
+            "name": "FE52::from_4x64_limbs",
+            "value": 1.9,
+            "unit": "ns"
+          },
+          {
+            "name": "FE52::mul (52-bit)",
+            "value": 29.1,
+            "unit": "ns"
+          },
+          {
+            "name": "FE52::sqr (52-bit)",
+            "value": 26.3,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_batch_verify(N=4)",
+            "value": 286771.3,
+            "unit": "ns"
+          },
+          {
+            "name": "-> per-sig amortized (N=4)",
+            "value": 71692.8,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_batch_verify(N=16)",
+            "value": 1024980.9,
+            "unit": "ns"
+          },
+          {
+            "name": "-> per-sig amortized (N=16)",
+            "value": 64061.3,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_batch_verify(N=64)",
+            "value": 5049371.1,
+            "unit": "ns"
+          },
+          {
+            "name": "-> per-sig amortized (N=64)",
+            "value": 78896.4,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_batch_verify(N=4)",
+            "value": 164622,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_batch_verify(N=16)",
+            "value": 659233,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_batch_verify(N=64)",
+            "value": 2663353.4,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::scalar_inverse (SafeGCD)",
+            "value": 1962.1,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::generator_mul (k*G)",
+            "value": 19671.1,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::scalar_mul (k*P)",
+            "value": 41088.9,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::point_dbl",
+            "value": 159.9,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::point_add_complete (11M+6S)",
+            "value": 424,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::point_add_mixed_complete (7M+5S)",
+            "value": 315.3,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::point_add_mixed_unified (7M+5S)",
+            "value": 305.2,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::ecdsa_sign",
+            "value": 24655.7,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::ecdsa_sign_verified",
+            "value": 87942.1,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::schnorr_sign",
+            "value": 21871.2,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::schnorr_sign_verified",
+            "value": 70925.7,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::schnorr_keypair_create",
+            "value": 21341.8,
+            "unit": "ns"
+          },
+          {
+            "name": "field_inv_var",
+            "value": 1196.6,
+            "unit": "ns"
+          },
+          {
+            "name": "generator_mul (ec_pubkey_create)",
+            "value": 20804.8,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_sign (BIP-340)",
+            "value": 22063.7,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_verify (BIP-340)",
+            "value": 42619.7,
+            "unit": "ns"
+          },
+          {
+            "name": "generator_mul (EC_POINT_mul k*G)",
+            "value": 391840.3,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_sign (ECDSA_do_sign)",
+            "value": 414880.2,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_verify (ECDSA_do_verify)",
+            "value": 375649.7,
+            "unit": "ns"
+          },
+          {
+            "name": "Harness",
+            "value": 3000000000,
+            "unit": "ns"
+          },
+          {
+            "name": "scalar_inv (1x)",
+            "value": 1349.2,
+            "unit": "ns"
+          },
+          {
+            "name": "scalar_mul (2x)",
+            "value": 89.7,
+            "unit": "ns"
+          },
+          {
+            "name": "dual_scalar_mul",
+            "value": 40813.3,
+            "unit": "ns"
+          },
+          {
+            "name": "from_bytes + overhead",
+            "value": 11.8,
+            "unit": "ns"
+          },
+          {
+            "name": "--------------------------------\n    SUM (sub-ops)",
+            "value": 42264,
+            "unit": "ns"
+          },
+          {
+            "name": "MEASURED ecdsa_verify",
+            "value": 43116.1,
+            "unit": "ns"
+          },
+          {
+            "name": "UNEXPLAINED gap",
+            "value": 852.1,
+            "unit": "ns"
+          },
+          {
+            "name": "from_bytes",
+            "value": 11.8,
+            "unit": "ns"
+          },
+          {
+            "name": "MEASURED schnorr_verify",
+            "value": 43551.2,
+            "unit": "ns"
+          },
+          {
+            "name": "Our dual_mul",
+            "value": 40813.3,
+            "unit": "ns"
+          },
+          {
+            "name": "Our scalar_inv",
+            "value": 1349.2,
+            "unit": "ns"
+          },
+          {
+            "name": "Our dual+inv",
+            "value": 42162.5,
+            "unit": "ns"
+          },
+          {
+            "name": "Total ECDSA verify",
+            "value": 43116.1,
+            "unit": "ns"
+          },
+          {
+            "name": "Overhead (verify - d+i)",
+            "value": 953.6,
+            "unit": "ns"
+          },
+          {
+            "name": "---- SIGN COST DECOMPOSITION (FAST path) ----\n  ecdsa_sign = RFC6979 + k*G + field_inv + scalar_inv + scalar_muls\n    k*G (generator_mul)",
+            "value": 7318.7,
+            "unit": "ns"
+          },
+          {
+            "name": "--------------------------------\n    Core signing (no RFC6979)",
+            "value": 9862,
+            "unit": "ns"
+          },
+          {
+            "name": "MEASURED ecdsa_sign",
+            "value": 11756.1,
+            "unit": "ns"
+          },
+          {
+            "name": "RFC6979 overhead",
+            "value": 1894.1,
+            "unit": "ns"
+          },
+          {
+            "name": "sign-then-verify overhead",
+            "value": 51052.9,
+            "unit": "ns"
+          },
+          {
+            "name": "scalar_mul + negate",
+            "value": 56.3,
+            "unit": "ns"
+          },
+          {
+            "name": "Wall time",
+            "value": 129300000,
             "unit": "ns"
           }
         ]
