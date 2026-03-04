@@ -1594,14 +1594,12 @@ jobs:
           # SHA256SUMS signature is the root of trust for the entire release.
           echo "Signing: SHA256SUMS"
           cosign sign-blob --yes SHA256SUMS \
-            --output-signature SHA256SUMS.sig \
-            --output-certificate SHA256SUMS.pem
+            --bundle SHA256SUMS.bundle
           echo "  [OK] SHA256SUMS signed"
 
           # Verify the signature immediately (fail-fast integrity check)
           cosign verify-blob SHA256SUMS \
-            --signature SHA256SUMS.sig \
-            --certificate SHA256SUMS.pem \
+            --bundle SHA256SUMS.bundle \
             --certificate-identity-regexp='.*' \
             --certificate-oidc-issuer-regexp='.*'
           echo "  [OK] SHA256SUMS signature verified"
@@ -1616,8 +1614,7 @@ jobs:
           while IFS= read -r -d '' f; do
             echo "Signing: $f"
             if cosign sign-blob --yes "$f" \
-                --output-signature "${f}.sig" \
-                --output-certificate "${f}.pem"; then
+                --bundle "${f}.bundle"; then
               SIGNED=$((SIGNED + 1))
             else
               echo "::error::Failed to sign artifact: $f"
@@ -1637,7 +1634,7 @@ jobs:
             exit 1
           fi
           echo "=== Cosign: all $SIGNED artifacts signed successfully ==="
-          ls -la SHA256SUMS.sig SHA256SUMS.pem
+          ls -la SHA256SUMS.bundle
 
       # -- Verification Artifacts --
       - name: Generate verification artifacts
@@ -1721,8 +1718,8 @@ jobs:
           files: |
             dist/**/*
             SHA256SUMS
-            SHA256SUMS.sig
-            SHA256SUMS.pem
+            SHA256SUMS.bundle
+            dist/**/*.bundle
             sbom.cdx.json
             selftest_report.json
             traceability_report.json
