@@ -108,6 +108,7 @@ jobs:
             -DCMAKE_CXX_COMPILER=clang++-17 \
             -DCMAKE_CXX_FLAGS="-fsanitize=memory -fno-omit-frame-pointer -fsanitize-memory-track-origins=2" \
             -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=memory" \
+            -DSECP256K1_USE_ASM=OFF \
             -DSECP256K1_BUILD_TESTS=ON
 
       - name: Build

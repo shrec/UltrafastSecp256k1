@@ -75,6 +75,13 @@ static struct CpuFeatures {
 #endif
 
 bool sha_ni_available() noexcept {
+#if defined(__has_feature)
+  #if __has_feature(memory_sanitizer)
+    // MSan cannot track data flow through SIMD intrinsics (SHA-NI, SSE4.1).
+    // Force scalar path so MSan can fully instrument the hash computation.
+    return false;
+  #endif
+#endif
 #ifdef SECP256K1_X86_TARGET
     return g_cpu_features.sha_ni;
 #else

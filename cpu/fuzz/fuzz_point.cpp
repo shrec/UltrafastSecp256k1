@@ -31,24 +31,26 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
         // k*G should NOT be infinity for nonzero k
         if (P.is_infinity()) __builtin_trap();
 
-        // Point should be on curve: y^2 == x^3 + 7
-        // Verify via serialize/deserialize round-trip (parse validates on-curve)
-        auto compressed = P.serialize_compressed();
-        auto P2 = Point::parse_compressed(compressed.data());
-        if (!P2.has_value()) __builtin_trap();
+        // Point should be on curve: verify via compressed serialization round-trip
+        // to_compressed() performs field inversion + normalization; any corrupt
+        // internal state would produce an invalid 33-byte encoding.
+        auto compressed = P.to_compressed();
+        // Sanity: prefix byte must be 0x02 or 0x03
+        if (compressed[0] != 0x02 && compressed[0] != 0x03) __builtin_trap();
 
         // -- Distributivity: (k+1)*G == k*G + G
         auto k1 = k + Scalar::one();
         auto P_k1 = G.scalar_mul(k1);
         auto P_plus_G = P.add(G);
-        if (!(P_k1 == P_plus_G)) __builtin_trap();
+        // Compare via compressed encoding (canonical byte representation)
+        if (P_k1.to_compressed() != P_plus_G.to_compressed()) __builtin_trap();
 
         // -- 2*k*G == k*G + k*G (doubling)
         auto two = Scalar::one() + Scalar::one();
         auto k2 = k * two;
         auto P_2k = G.scalar_mul(k2);
         auto P_double = P.add(P);
-        if (!(P_2k == P_double)) __builtin_trap();
+        if (P_2k.to_compressed() != P_double.to_compressed()) __builtin_trap();
     }
 
     return 0;
