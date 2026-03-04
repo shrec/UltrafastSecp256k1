@@ -83,6 +83,76 @@ jobs:
         # selftest/unified_audit (standalone tests cover the same modules).
         run: ctest --test-dir build --output-on-failure -j"$(nproc)" -E "^(ct_sidechannel|selftest|unified_audit)" --timeout 900
 
+  # ── Memory Sanitizer (uninitialized reads) ──────────────────────────────
+  msan:
+    name: MSan
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Harden the runner
+        uses: step-security/harden-runner@a90bcbc6539c36a85cdfeb73f7e2f433735f215b # v2.15.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Install toolchain
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends clang-17 lld-17 ninja-build
+
+      - name: Configure with MSan
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_C_COMPILER=clang-17 \
+            -DCMAKE_CXX_COMPILER=clang++-17 \
+            -DCMAKE_CXX_FLAGS="-fsanitize=memory -fno-omit-frame-pointer -fsanitize-memory-track-origins=2" \
+            -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=memory" \
+            -DSECP256K1_BUILD_TESTS=ON
+
+      - name: Build
+        run: cmake --build build -j"$(nproc)"
+
+      - name: Test under MSan
+        env:
+          MSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+        run: ctest --test-dir build --output-on-failure -j"$(nproc)" -E "^(ct_sidechannel|selftest|unified_audit)" --timeout 900
+
+  # ── Thread Sanitizer (data races) ───────────────────────────────────────
+  tsan:
+    name: TSan
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Harden the runner
+        uses: step-security/harden-runner@a90bcbc6539c36a85cdfeb73f7e2f433735f215b # v2.15.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Install toolchain
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends clang-17 lld-17 ninja-build
+
+      - name: Configure with TSan
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_C_COMPILER=clang-17 \
+            -DCMAKE_CXX_COMPILER=clang++-17 \
+            -DCMAKE_CXX_FLAGS="-fsanitize=thread -fno-omit-frame-pointer" \
+            -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=thread" \
+            -DSECP256K1_BUILD_TESTS=ON
+
+      - name: Build
+        run: cmake --build build -j"$(nproc)"
+
+      - name: Test under TSan
+        env:
+          TSAN_OPTIONS: halt_on_error=1:second_deadlock_stack=1
+        run: ctest --test-dir build --output-on-failure -j"$(nproc)" -E "^(ct_sidechannel|selftest|unified_audit)" --timeout 900
+
   # ── Valgrind memcheck ───────────────────────────────────────────────────
   valgrind:
     name: Valgrind Memcheck

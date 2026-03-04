@@ -77,13 +77,8 @@ static ufsecp_error_t ctx_set_err(ufsecp_ctx* ctx, ufsecp_error_t err, const cha
  * Internal helpers (same pattern as existing c_api, but with error model)
  * =========================================================================== */
 
-// reduce-parser: ONLY for non-secret contexts (e.g. message scalars).
-// NEVER use for seckey/tweak API boundaries -- use strict variants below.
-static inline Scalar scalar_from_bytes(const uint8_t b[32]) {
-    std::array<uint8_t, 32> arr;
-    std::memcpy(arr.data(), b, 32);
-    return Scalar::from_bytes(arr);
-}
+// All scalar parsing uses the strict variants below.
+// Message hashes (32-byte) are handled as raw byte arrays (no scalar reduction).
 
 // Strict parser for secret keys: rejects 0, values >= n. No reduction.
 static inline bool scalar_parse_strict_nonzero(const uint8_t b[32], Scalar& out) {
@@ -657,6 +652,10 @@ ufsecp_error_t ufsecp_ecdsa_recover(ufsecp_ctx* ctx,
     if (!ctx || !msg32 || !sig64 || !pubkey33_out) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
 
+    if (recid < 0 || recid > 3) {
+        return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "recid must be 0..3");
+    }
+
     std::array<uint8_t, 32> msg;
     std::memcpy(msg.data(), msg32, 32);
     std::array<uint8_t, 64> compact;
@@ -754,6 +753,9 @@ ufsecp_error_t ufsecp_ecdh(ufsecp_ctx* ctx,
         return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "privkey is zero or >= n");
     }
     auto pk = point_from_compressed(pubkey33);
+    if (pk.is_infinity()) {
+        return ctx_set_err(ctx, UFSECP_ERR_BAD_PUBKEY, "invalid or infinity pubkey");
+    }
     auto secret = secp256k1::ecdh_compute(sk, pk);
     std::memcpy(secret32_out, secret.data(), 32);
     return UFSECP_OK;
@@ -771,6 +773,9 @@ ufsecp_error_t ufsecp_ecdh_xonly(ufsecp_ctx* ctx,
         return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "privkey is zero or >= n");
     }
     auto pk = point_from_compressed(pubkey33);
+    if (pk.is_infinity()) {
+        return ctx_set_err(ctx, UFSECP_ERR_BAD_PUBKEY, "invalid or infinity pubkey");
+    }
     auto secret = secp256k1::ecdh_compute_xonly(sk, pk);
     std::memcpy(secret32_out, secret.data(), 32);
     return UFSECP_OK;
@@ -788,6 +793,9 @@ ufsecp_error_t ufsecp_ecdh_raw(ufsecp_ctx* ctx,
         return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "privkey is zero or >= n");
     }
     auto pk = point_from_compressed(pubkey33);
+    if (pk.is_infinity()) {
+        return ctx_set_err(ctx, UFSECP_ERR_BAD_PUBKEY, "invalid or infinity pubkey");
+    }
     auto secret = secp256k1::ecdh_compute_raw(sk, pk);
     std::memcpy(secret32_out, secret.data(), 32);
     return UFSECP_OK;
