@@ -199,6 +199,9 @@ static constexpr std::array<std::uint64_t, 4> kG2{{
 }};
 
 // minus_b1 and minus_b2 as big-endian 32-byte arrays (for Scalar::from_bytes)
+// Only needed on platforms without __int128 (MSVC, 32-bit) where the
+// fallback Scalar-arithmetic GLV path is used.
+#if !defined(__SIZEOF_INT128__)
 static constexpr std::array<std::uint8_t, 32> kMinusB1Bytes{{
     0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
     0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
@@ -219,6 +222,7 @@ static constexpr std::array<std::uint8_t, 32> kGlvLambdaBytes{{
     0x12,0x2E,0x22,0xEA,0x20,0x81,0x66,0x78,
     0xDF,0x02,0x96,0x7C,0x1B,0x23,0xBD,0x72
 }};
+#endif // !__SIZEOF_INT128__
 
 // ============================================================================
 //  Fast GLV decomposition helpers (exploit known limb sizes)

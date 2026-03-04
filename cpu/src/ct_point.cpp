@@ -1045,9 +1045,9 @@ static Scalar ct_scalar_mul_mod_n(const Scalar& a, const Scalar& b) noexcept {
 
     // --- 4x4 schoolbook multiply -> 8-limb product l[0..7] ---
     std::uint64_t l[8] = {};
-    for (int i = 0; i < 4; ++i) {
+    for (size_t i = 0; i < 4; ++i) {
         unsigned __int128 carry = 0;
-        for (int j = 0; j < 4; ++j) {
+        for (size_t j = 0; j < 4; ++j) {
             unsigned __int128 const t = (unsigned __int128)al[i] * bl[j] + l[i + j] + carry;
             l[i + j] = (std::uint64_t)t;
             carry = t >> 64;

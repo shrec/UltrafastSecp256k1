@@ -56,9 +56,10 @@ target_compile_options(${PROJECT_NAME}.elf PRIVATE
     -ffunction-sections
     -fdata-sections
     -Wall
+    -Wextra
+    -Wno-unused-parameter
     -Wno-unused-variable
     -Wno-unused-function
-    -Wno-return-type
 )
 
 # Linker flags

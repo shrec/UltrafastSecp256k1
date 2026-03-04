@@ -575,13 +575,15 @@ static JacobianPoint52 jac52_double(const JacobianPoint52& p) noexcept {
 
 // NOTE: These functions are currently unused -- they are scaffolding for an
 // upcoming 4x64-only scalar_mul path. Suppress -Wunused-function.
-#if defined(__GNUC__)
+#if defined(__GNUC__) || defined(__clang__)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-function"
+#if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic ignored "-Wrestrict"
 #endif
+#endif
 
-__attribute__((noinline))
+[[maybe_unused]] __attribute__((noinline))
 static void jac_double_4x64_inplace(
     std::uint64_t* __restrict__ X,
     std::uint64_t* __restrict__ Y,
@@ -630,7 +632,7 @@ static void jac_double_4x64_inplace(
 // Formula: madd-2007-bl (a=0 specialization)
 // Cost: 7M + 4S + ~12A (additions near-free with branchless mod-p)
 // Qx, Qy are raw uint64_t[4] affine coordinates (e.g. AffinePointCompact.x/y).
-__attribute__((noinline))
+[[maybe_unused]] __attribute__((noinline))
 static void jac_add_mixed_4x64_inplace(
     std::uint64_t* __restrict__ X,
     std::uint64_t* __restrict__ Y,
@@ -699,7 +701,7 @@ static void jac_add_mixed_4x64_inplace(
 // Like mixed addition but the affine point lives in a different Z-frame.
 // bzinv = inverse of the shared Z, used to scale the affine coordinates.
 // Cost: 9M + 3S + ~8A
-__attribute__((noinline))
+[[maybe_unused]] __attribute__((noinline))
 static void jac_add_zinv_4x64_inplace(
     std::uint64_t* __restrict__ X,
     std::uint64_t* __restrict__ Y,
@@ -763,7 +765,7 @@ static void jac_add_zinv_4x64_inplace(
     infinity = false;
 }
 
-#if defined(__GNUC__)
+#if defined(__GNUC__) || defined(__clang__)
 #pragma GCC diagnostic pop
 #endif
 

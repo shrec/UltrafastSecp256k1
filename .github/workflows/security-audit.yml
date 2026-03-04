@@ -39,7 +39,7 @@ jobs:
           cmake -S . -B build -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_CXX_COMPILER=g++-13 \
-            -DCMAKE_CXX_FLAGS="-Werror -Wall -Wextra -Wpedantic -Wconversion -Wshadow" \
+            -DSECP256K1_WERROR=ON \
             -DSECP256K1_BUILD_TESTS=ON
 
       - name: Build (zero warnings required)

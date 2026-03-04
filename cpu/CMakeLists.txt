@@ -852,6 +852,17 @@ if(BUILD_TESTING)
     endif()
     add_test(NAME point_edge_cases COMMAND test_point_edge_cases_standalone)
 
+    # -- CTest labels for core library tests --------------------------------
+    # Label all core tests so they can be run as a group:
+    #   ctest --test-dir <build> -L core
+    set_tests_properties(
+        selftest batch_add_affine hash_accel
+        field_52 field_26 exhaustive comprehensive
+        bip340_vectors bip340_strict bip32_vectors
+        rfc6979_vectors ecc_properties point_edge_cases
+        PROPERTIES LABELS "core"
+    )
+
     # -- Audit infrastructure lives in audit/ ------------------------------
     # All audit-specific targets (unified_audit_runner, standalone CT/fuzz/
     # differential/protocol tests) are defined in ../audit/CMakeLists.txt

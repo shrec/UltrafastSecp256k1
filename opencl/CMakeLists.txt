@@ -105,19 +105,12 @@ target_link_libraries(secp256k1_opencl
         ${OpenCL_LIBRARY}
 )
 
-# Compiler flags
-if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+# Compiler flags (global -Wall/-Wextra/-Wpedantic inherited from root CMakeLists.txt)
+# Only add per-target overrides that differ from global policy.
+if(MSVC)
     target_compile_options(secp256k1_opencl PRIVATE
-        -Wall -Wextra -Wpedantic
-        -Wno-unused-parameter
-        $<$<CONFIG:Release>:-O3>
-    )
-elseif(MSVC)
-    target_compile_options(secp256k1_opencl PRIVATE
-        /W4
-        /wd4100  # unreferenced formal parameter
-        /wd4244  # conversion warnings
-        $<$<CONFIG:Release>:/O2 /Ob2>
+        /wd4100  # unreferenced formal parameter (matches -Wno-unused-parameter)
+        /wd4244  # conversion warnings (OpenCL host API types)
     )
 endif()
 
