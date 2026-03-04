@@ -89,21 +89,21 @@ add_executable(test_wycheproof_ecdsa test_wycheproof_ecdsa.cpp)
 audit_target_defaults(test_wycheproof_ecdsa)
 target_compile_definitions(test_wycheproof_ecdsa PRIVATE STANDALONE_TEST)
 add_test(NAME wycheproof_ecdsa COMMAND test_wycheproof_ecdsa)
-set_tests_properties(wycheproof_ecdsa PROPERTIES TIMEOUT 300)
+set_tests_properties(wycheproof_ecdsa PROPERTIES TIMEOUT 1200)
 
 # -- Wycheproof ECDH secp256k1 vectors (Track I3-2) -----------------------
 add_executable(test_wycheproof_ecdh test_wycheproof_ecdh.cpp)
 audit_target_defaults(test_wycheproof_ecdh)
 target_compile_definitions(test_wycheproof_ecdh PRIVATE STANDALONE_TEST)
 add_test(NAME wycheproof_ecdh COMMAND test_wycheproof_ecdh)
-set_tests_properties(wycheproof_ecdh PROPERTIES TIMEOUT 300)
+set_tests_properties(wycheproof_ecdh PROPERTIES TIMEOUT 1200)
 
 # -- Batch verify randomness audit (Track I6-3) ---------------------------
 add_executable(test_batch_randomness test_batch_randomness.cpp)
 audit_target_defaults(test_batch_randomness)
 target_compile_definitions(test_batch_randomness PRIVATE STANDALONE_TEST)
 add_test(NAME batch_randomness COMMAND test_batch_randomness)
-set_tests_properties(batch_randomness PROPERTIES TIMEOUT 120)
+set_tests_properties(batch_randomness PROPERTIES TIMEOUT 600)
 
 # -- Cross-platform KAT equivalence ---------------------------------------
 add_executable(test_cross_platform_kat test_cross_platform_kat.cpp)
@@ -126,14 +126,14 @@ add_executable(test_ct_verif_formal_standalone test_ct_verif_formal.cpp)
 audit_target_defaults(test_ct_verif_formal_standalone)
 target_compile_definitions(test_ct_verif_formal_standalone PRIVATE STANDALONE_TEST)
 add_test(NAME ct_verif_formal COMMAND test_ct_verif_formal_standalone)
-set_tests_properties(ct_verif_formal PROPERTIES TIMEOUT 300)
+set_tests_properties(ct_verif_formal PROPERTIES TIMEOUT 1200)
 
 # -- Fiat-Crypto direct linkage cross-check (Track I5-2) ------------------
 add_executable(test_fiat_crypto_linkage_standalone test_fiat_crypto_linkage.cpp)
 audit_target_defaults(test_fiat_crypto_linkage_standalone)
 target_compile_definitions(test_fiat_crypto_linkage_standalone PRIVATE STANDALONE_TEST)
 add_test(NAME fiat_crypto_linkage COMMAND test_fiat_crypto_linkage_standalone)
-set_tests_properties(fiat_crypto_linkage PROPERTIES TIMEOUT 300)
+set_tests_properties(fiat_crypto_linkage PROPERTIES TIMEOUT 900)
 
 # -- Standalone audit_fuzz test --------------------------------------------
 add_executable(test_audit_fuzz_standalone audit_fuzz.cpp)

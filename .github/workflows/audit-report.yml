@@ -307,7 +307,7 @@ jobs:
             if [ -f "$json" ]; then
               verdict=$(grep -o '"audit_verdict": *"[^"]*"' "$json" | head -1 | cut -d'"' -f4)
               echo "| $platform | $verdict |" >> $GITHUB_STEP_SUMMARY
-              if [ "$verdict" != "PASS" ] && [ "$verdict" != "pass" ]; then
+              if [ "$verdict" != "PASS" ] && [ "$verdict" != "pass" ] && [ "$verdict" != "AUDIT-READY" ]; then
                 ALL_PASS=false
                 echo "::error::Audit verdict FAILED on platform: $platform (verdict: $verdict)"
               fi

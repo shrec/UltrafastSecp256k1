@@ -287,23 +287,36 @@ jobs:
   # NOTE: GitHub-hosted runners have no AMD GPU (/dev/kfd, /dev/dri).
   # This job validates that the HIP toolchain compiles successfully.
   # Runtime GPU tests require a self-hosted runner with an AMD GPU.
+  # -- ROCm/HIP (AMD GPU, compile check) ---------------------------------------
+  # NOTE: GitHub-hosted runners have no AMD GPU (/dev/kfd, /dev/dri).
+  # This job validates that the HIP toolchain compiles successfully.
+  # Runtime GPU tests require a self-hosted runner with an AMD GPU.
   rocm:
     runs-on: ubuntu-24.04
-    container:
-      image: rocm/dev-ubuntu-24.04:6.3-complete
-
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@a90bcbc6539c36a85cdfeb73f7e2f433735f215b # v2.15.0
         with:
           egress-policy: audit
 
+      - name: Free disk space for ROCm
+        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          swap-storage: false
+
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
-      - name: Install build tools
+      - name: Install ROCm HIP SDK
         run: |
-          apt-get update -qq
-          apt-get install -y cmake ninja-build
+          wget -qO- https://repo.radeon.com/rocm/rocm.gpg.key | sudo gpg --dearmor -o /etc/apt/keyrings/rocm.gpg
+          echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/rocm.gpg] https://repo.radeon.com/rocm/apt/6.3 noble main" | sudo tee /etc/apt/sources.list.d/rocm.list
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends hip-dev rocm-cmake ninja-build cmake
 
       - name: Configure (ROCm/HIP)
         run: |
