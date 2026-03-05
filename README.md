@@ -8,6 +8,7 @@
 
 - **Fastest open-source GPU signatures** -- no other library provides secp256k1 ECDSA + Schnorr sign/verify on CUDA, OpenCL, and Metal ([reproducible benchmark suite and raw logs](docs/BENCHMARKS.md))
 - **Fast CPU signing (k\*G-dominant workloads)** -- generator multiply 2-4x faster than libsecp256k1; scalar multiply (k\*P) is comparable on x86-64 ([see bench_unified ratio table](docs/BENCHMARKS.md))
+- **BIP-352 Silent Payments scanning** -- full pipeline 1.20x faster than libsecp256k1 on isolated single-threaded benchmark ([standalone benchmark by @craigraw](https://github.com/craigraw/bench_bip352))
 - **Zero dependencies** -- pure C++20, no Boost, no OpenSSL, compiles anywhere with a conforming compiler
 - **Dual-layer security** -- variable-time FAST path for throughput, constant-time CT path for secret-key operations
 - **12+ platforms** -- x86-64, ARM64, RISC-V, WASM, iOS, Android, ESP32, STM32, CUDA, Metal, OpenCL, ROCm
@@ -127,6 +128,32 @@ All public API functions enforce **canonical input encoding** as required by BIP
 - Private keys must satisfy `1 <= sk < n`
 
 The C ABI (`ufsecp_*`) returns distinct error codes: `UFSECP_ERR_BAD_SIG` (non-canonical signature) vs `UFSECP_ERR_VERIFY_FAIL` (valid encoding, bad math). See [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md) for details.
+
+---
+
+## BIP-352 Silent Payments Scanning Benchmark
+
+Standalone single-threaded benchmark comparing UltrafastSecp256k1 vs libsecp256k1 on the full BIP-352 scanning pipeline (k\*P, serialize, tagged SHA-256, k\*G, point add, serialize, prefix match). Benchmark by [@craigraw](https://github.com/craigraw) ([bench_bip352](https://github.com/craigraw/bench_bip352)). Thank you for the contribution!
+
+**Full pipeline** (10K points, 11 passes, median, GCC 12.4, `-O3 -march=native`, `USE_ASM_X86_64=1`):
+
+| Backend | Median | ns/op | Ratio |
+|---------|--------|-------|-------|
+| libsecp256k1 | 545.2 ms | 54,519 ns | 1.00x |
+| **UltrafastSecp256k1** | **456.1 ms** | **45,615 ns** | **1.20x faster** |
+
+**Per-operation breakdown** (1K points, 11 passes, median):
+
+| Operation | libsecp256k1 | UltrafastSecp256k1 | Ratio |
+|-----------|-------------|-------------------|-------|
+| k\*P (scalar mul) | 37,975 ns | 26,460 ns | 1.44x faster |
+| Serialize compressed (1st) | 36 ns | 15 ns | 2.4x faster |
+| Tagged SHA-256 | 744 ns | 65 ns | 11.4x faster |
+| k\*G (generator mul) | 17,460 ns | 8,559 ns | 2.04x faster |
+| Point addition | 2,250 ns | 2,457 ns | 0.92x |
+| Serialize compressed (2nd) | 23 ns | 21 ns | 1.1x faster |
+
+> **Note:** Point addition is slightly slower because both inputs have Z=1 (affine), so UltrafastSecp256k1 uses direct affine addition with a field inversion to return an affine result -- this eliminates the separate inversion in serialization.
 
 ---
 
@@ -966,6 +993,9 @@ cosign verify-blob SHA256SUMS \
 | [API Reference](docs/API_REFERENCE.md) | Full C++ and C ABI reference |
 | [Build Guide](docs/BUILDING.md) | Detailed build instructions for all platforms |
 | [Benchmarks](docs/BENCHMARKS.md) | Complete benchmark results and methodology |
+| [Audit Coverage](AUDIT_COVERAGE.md) | Full audit report with 46+ modules and platform verdicts |
+| [Audit Guide](docs/AUDIT_GUIDE.md) | How to run and interpret audit suite |
+| [Test Matrix](docs/TEST_MATRIX.md) | Comprehensive test coverage map for auditors |
 | [Threat Model](THREAT_MODEL.md) | Layer-by-layer security risk assessment |
 | [Security Policy](SECURITY.md) | Vulnerability reporting and audit status |
 | [Porting Guide](PORTING.md) | Add new platforms, architectures, GPU backends |
@@ -1025,6 +1055,7 @@ We want to acknowledge the teams whose public work informed parts of our journey
 - **[bitcoin-core/secp256k1](https://github.com/bitcoin-core/secp256k1)** -- The reference C library whose published research on constant-time field arithmetic and endomorphism-based scalar multiplication (GLV, Strauss, Pippenger) helped us benchmark and verify our own independent implementations on GPU and embedded targets.
 - **[Bitcoin Core](https://github.com/bitcoin/bitcoin)** contributors -- For open specifications (BIP-340 Schnorr, BIP-341 Taproot, RFC 6979) and a correctness-first engineering culture that benefits everyone building in this space.
 - **Pieter Wuille, Jonas Nick, Tim Ruffing** and the libsecp256k1 maintainers -- For publicly sharing their research on side-channel resistance, exhaustive testing, and field representation trade-offs. Their published findings helped us make better decisions when designing our own architecture.
+- **[@craigraw](https://github.com/craigraw)** ([Sparrow Wallet](https://sparrowwallet.com)) -- For creating the [bench_bip352](https://github.com/craigraw/bench_bip352) standalone BIP-352 Silent Payments scanning benchmark, which provided an independent, reproducible pipeline comparison between secp256k1 implementations.
 
 We share our optimizations, GPU kernels, embedded ports, and cross-platform techniques freely -- because open-source cryptography grows stronger when knowledge flows in every direction.
 
