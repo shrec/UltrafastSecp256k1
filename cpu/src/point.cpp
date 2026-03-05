@@ -3216,7 +3216,7 @@ std::array<std::uint8_t, 33> Point::to_compressed() const {
 #if defined(SECP256K1_FAST_52BIT)
         // z_one_ guarantees FE52 is pre-normalized: skip copy+normalize
         out[0] = (y_.n[0] & 1) ? 0x03 : 0x02;
-        x_.to_fe().to_bytes_into(out.data() + 1);
+        x_.to_bytes_into(out.data() + 1);
 #else
         out[0] = (y_.limbs()[0] & 1) ? 0x03 : 0x02;
         x_.to_bytes_into(out.data() + 1);
@@ -3254,8 +3254,8 @@ std::array<std::uint8_t, 65> Point::to_uncompressed() const {
     if (z_one_) {
 #if defined(SECP256K1_FAST_52BIT)
         out[0] = 0x04;
-        x_.to_fe().to_bytes_into(out.data() + 1);
-        y_.to_fe().to_bytes_into(out.data() + 33);
+        x_.to_bytes_into(out.data() + 1);
+        y_.to_bytes_into(out.data() + 33);
 #else
         out[0] = 0x04;
         x_.to_bytes_into(out.data() + 1);
@@ -3323,7 +3323,7 @@ std::pair<std::array<uint8_t, 32>, bool> Point::x_bytes_and_parity() const {
         // z_one_ guarantees FE52 is pre-normalized
         bool const y_odd = (y_.n[0] & 1) != 0;
         std::array<uint8_t, 32> xb{};
-        x_.to_fe().to_bytes_into(xb.data());
+        x_.to_bytes_into(xb.data());
         return {xb, y_odd};
 #else
         bool const y_odd = (y_.limbs()[0] & 1) != 0;
@@ -3387,7 +3387,7 @@ std::array<uint8_t, 32> Point::x_only_bytes() const {
     if (z_one_) {
 #if defined(SECP256K1_FAST_52BIT)
         std::array<uint8_t, 32> xb{};
-        x_.to_fe().to_bytes_into(xb.data());
+        x_.to_bytes_into(xb.data());
         return xb;
 #else
         return x_.to_bytes();

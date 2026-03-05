@@ -1073,6 +1073,12 @@ FieldElement FieldElement52::to_fe() const noexcept {
     return FieldElement::from_limbs_raw(L);  // already canonical -- skip redundant normalize
 }
 
+// Convenience serialization: FE52 -> bytes in one call
+SECP256K1_FE52_FORCE_INLINE
+void FieldElement52::to_bytes_into(std::uint8_t* out) const noexcept {
+    to_fe().to_bytes_into(out);
+}
+
 // -- Direct 4x64 limbs -> 5x52 (no FieldElement construction) -------------
 // Same bit-slicing as from_fe but takes raw uint64_t[4] pointer.
 // Avoids FieldElement copy + normalization when caller knows value < p.
