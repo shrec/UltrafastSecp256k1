@@ -784,8 +784,8 @@ $(document).ready(function(){initNavTree('ufsecp__impl_8cpp_source.html',''); in
 <div class="line"><a id="l00621" name="l00621"></a><span class="lineno">  621</span> </div>
 <div class="line"><a id="l00622" name="l00622"></a><span class="lineno">  622</span>    <span class="comment">/* Build compact sig64 (big-endian, right-aligned in 32-byte slots) */</span></div>
 <div class="line"><a id="l00623" name="l00623"></a><span class="lineno">  623</span>    std::memset(sig64_out, 0, 64);</div>
-<div class="line"><a id="l00624" name="l00624"></a><span class="lineno">  624</span>    std::memcpy(sig64_out + (32 - r_data_len), r_ptr, r_data_len);</div>
-<div class="line"><a id="l00625" name="l00625"></a><span class="lineno">  625</span>    std::memcpy(sig64_out + 32 + (32 - s_data_len), s_ptr, s_data_len);</div>
+<div class="line"><a id="l00624" name="l00624"></a><span class="lineno">  624</span>    <span class="keywordflow">if</span> (r_data_len &gt; 0) std::memcpy(sig64_out + (32 - r_data_len), r_ptr, r_data_len);</div>
+<div class="line"><a id="l00625" name="l00625"></a><span class="lineno">  625</span>    <span class="keywordflow">if</span> (s_data_len &gt; 0) std::memcpy(sig64_out + 32 + (32 - s_data_len), s_ptr, s_data_len);</div>
 <div class="line"><a id="l00626" name="l00626"></a><span class="lineno">  626</span> </div>
 <div class="line"><a id="l00627" name="l00627"></a><span class="lineno">  627</span>    <span class="comment">/* Range check: r and s must be in [1, n-1] (strict nonzero, no reduce) */</span></div>
 <div class="line"><a id="l00628" name="l00628"></a><span class="lineno">  628</span>    <a class="code hl_class" href="classsecp256k1_1_1fast_1_1Scalar.html">Scalar</a> r_sc, s_sc;</div>
