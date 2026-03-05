@@ -101,9 +101,14 @@ def parse_benchmark_output(text: str) -> list[dict]:
         if name in seen:
             continue
 
-        # Skip entries from excluded sections (same as table pattern above)
+        # In bench_unified output, all standalone benchmarks use table-format
+        # rows (Pattern 1 above). Legacy-format printf lines that appear
+        # within bench_unified sections are diagnostic/derived metrics (cost
+        # decompositions, UNEXPLAINED gap, RFC6979 overhead, etc.), not
+        # independent benchmarks. Skip them to avoid false regression alerts
+        # on noisy computed values.
         section = get_section(match.start())
-        if any(excl in section for excl in excluded_sections):
+        if section:
             continue
 
         try:
