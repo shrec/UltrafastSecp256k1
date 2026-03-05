@@ -621,8 +621,14 @@ ufsecp_error_t ufsecp_ecdsa_sig_from_der(ufsecp_ctx* ctx,
 
     /* Build compact sig64 (big-endian, right-aligned in 32-byte slots) */
     std::memset(sig64_out, 0, 64);
-    if (r_data_len > 0) std::memcpy(sig64_out + (32 - r_data_len), r_ptr, r_data_len);
-    if (s_data_len > 0) std::memcpy(sig64_out + 32 + (32 - s_data_len), s_ptr, s_data_len);
+    /* Explicit null checks for static analyzer (r_ptr/s_ptr guaranteed non-null
+     * when *_data_len > 0 by parse_int() success, but SonarCloud can't track it) */
+    if (r_data_len > 0 && r_ptr) {
+        std::memcpy(sig64_out + (32 - r_data_len), r_ptr, r_data_len);
+    }
+    if (s_data_len > 0 && s_ptr) {
+        std::memcpy(sig64_out + 32 + (32 - s_data_len), s_ptr, s_data_len);
+    }
 
     /* Range check: r and s must be in [1, n-1] (strict nonzero, no reduce) */
     Scalar r_sc, s_sc;
