@@ -68,16 +68,6 @@ option(SECP256K1_USE_PGO_GEN "Enable Profile-Guided Optimization - Generate prof
 option(SECP256K1_USE_PGO_USE "Enable Profile-Guided Optimization - Use profile" OFF)
 set(SECP256K1_PGO_PROFILE_DIR "${CMAKE_BINARY_DIR}/pgo_profiles" CACHE PATH "Directory for PGO profiles")
 
-# x64 5x52 hand-tuned ASM for field mul/sqr (extern, non-inline, MULX-scheduled)
-option(SECP256K1_USE_ASM52_X64 "Use hand-tuned 5x52 MULX assembly for field mul/sqr (x64)" OFF)
-
-# Force 4x64 FieldElement for point arithmetic (FE52 storage kept, but ops route through 4x64 ADCX/ADOX)
-option(SECP256K1_USE_4X64_POINT_OPS "Force point ops through 4x64 FieldElement arithmetic (benchmark mode)" OFF)
-if(SECP256K1_USE_4X64_POINT_OPS)
-    add_compile_definitions(SECP256K1_USE_4X64_POINT_OPS=1)
-    message(STATUS "Secp256k1: Point ops forced to 4x64 FieldElement path (dual representation benchmark mode)")
-endif()
-
 if(SECP256K1_USE_ASM)
     if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|X64" AND CMAKE_SIZEOF_VOID_P EQUAL 8)
         # x64 Assembly (Windows/Linux/macOS)
@@ -95,15 +85,6 @@ if(SECP256K1_USE_ASM)
                 COMPILE_FLAGS "${ASM_FLAGS}")
             set(SECP256K1_HAS_ASM TRUE CACHE INTERNAL "Assembly support enabled")
             message(STATUS "Secp256k1: 5x52 using C __int128 (x64, inlines better than external ASM)")
-
-            # Optional: hand-tuned 5x52 MULX assembly for field mul/sqr
-            if(SECP256K1_USE_ASM52_X64)
-                list(APPEND SECP256K1_SOURCES src/field_asm52_x64_gas.S)
-                set_source_files_properties(src/field_asm52_x64_gas.S PROPERTIES
-                    COMPILE_FLAGS "${ASM_FLAGS}")
-                add_compile_definitions(SECP256K1_HAS_X64_FE52_ASM=1)
-                message(STATUS "Secp256k1: 5x52 using hand-tuned MULX assembly (extern, ~8ns field_mul)")
-            endif()
 
             # Enable fast reduction on x64 (uses BMI2/ADX)
             if(SECP256K1_USE_FAST_REDUCTION)
@@ -228,7 +209,6 @@ if(SECP256K1_USE_ASM)
         list(APPEND SECP256K1_SOURCES
             src/field_asm_arm64.cpp
             src/field_asm52_arm64.cpp
-            src/field_asm52_arm64_v2.cpp
         )
         
         add_compile_definitions(SECP256K1_HAS_ARM64_ASM=1)

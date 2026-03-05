@@ -36,12 +36,6 @@
 #pragma GCC diagnostic ignored "-Wpedantic"
 #endif
 
-// -- ARM64 optimized field kernels ----------------------------------------
-// ARM64 v2 hand-scheduled ASM (field_asm52_arm64_v2.cpp) was benchmarked
-// but disabled: with -mcpu=cortex-a76, Clang schedules MUL/UMULH
-// interleaving optimally from __int128 C code. Separate asm volatile blocks
-// act as compiler barriers that PREVENT optimal scheduling.
-
 // -- RISC-V 64-bit optimized FE52 kernels ---------------------------------
 // On SiFive U74 (in-order dual-issue), hand-scheduled MUL/MULHU assembly
 // for 5x52 Comba multiply with integrated secp256k1 reduction outperforms
@@ -59,31 +53,6 @@ extern "C" {
     void fe52_mul_inner_riscv64(std::uint64_t* r, const std::uint64_t* a, const std::uint64_t* b);
     void fe52_sqr_inner_riscv64(std::uint64_t* r, const std::uint64_t* a);
 }
-#endif
-
-// -- x86-64 hand-tuned FE52 kernels (GAS assembly) -----------------------
-// Uses MULX (BMI2) with hand-scheduled register allocation for optimal
-// throughput. The body runs at ~7-8ns but function-call overhead adds ~2ns.
-// Trade-off vs __int128 inline: extern ASM has better instruction scheduling
-// but loses cross-operation ILP that inlining provides.
-//
-// Enabled by CMake when SECP256K1_USE_ASM52_X64=ON sets SECP256K1_HAS_X64_FE52_ASM.
-// To disable and fall back to __int128 C++: -DSECP256K1_USE_ASM52_X64=OFF
-#if (defined(__x86_64__) || defined(_M_X64)) && defined(SECP256K1_HAS_X64_FE52_ASM) \
-    && !defined(SECP256K1_X64_FE52_DISABLE)
-  #define SECP256K1_X64_FE52_ASM 1
-  // The ASM uses System V ABI (rdi, rsi, rdx) even on Windows.
-  #if defined(_WIN32)
-    extern "C" __attribute__((sysv_abi)) void fe52_mul_inner_x64(
-        std::uint64_t* r, const std::uint64_t* a, const std::uint64_t* b);
-    extern "C" __attribute__((sysv_abi)) void fe52_sqr_inner_x64(
-        std::uint64_t* r, const std::uint64_t* a);
-  #else
-    extern "C" {
-        void fe52_mul_inner_x64(std::uint64_t* r, const std::uint64_t* a, const std::uint64_t* b);
-        void fe52_sqr_inner_x64(std::uint64_t* r, const std::uint64_t* a);
-    }
-  #endif
 #endif
 
 // -- 4x64 assembly bridge for boundary-level FE52 optimizations ---------------
@@ -184,21 +153,13 @@ SECP256K1_FE52_FORCE_INLINE
 void fe52_mul_inner(std::uint64_t* r,
                     const std::uint64_t* a,
                     const std::uint64_t* b) noexcept {
-#if defined(SECP256K1_ARM64_FE52_V2)
-    // ARM64: hand-scheduled MUL/UMULH interleaving for Cortex-A76 class cores
-    arm64_v2::fe52_mul_arm64_v2(r, a, b);
-#elif defined(SECP256K1_RISCV_FE52_V1)
+#if defined(SECP256K1_RISCV_FE52_V1)
     // RISC-V: Comba 5x52 multiply with integrated reduction in asm.
     // On U74 in-order core, explicit register scheduling + carry hiding
     // outperforms __int128 C++ (which Clang compiles to MUL/MULHU pairs
     // with suboptimal register allocation for 25+ multiplications).
     fe52_mul_inner_riscv64(r, a, b);
-#elif defined(SECP256K1_X64_FE52_ASM)
-    // x86-64: Hand-tuned MULX (BMI2) assembly with optimal register scheduling.
-    // ~8ns body vs ~16ns from compiler-generated __int128 code.
-    fe52_mul_inner_x64(r, a, b);
-#elif defined(SECP256K1_USE_INLINE_ADX_FE52) \
-    && (defined(__x86_64__) || defined(_M_X64)) && defined(__ADX__) && defined(__BMI2__)
+#elif 0 // INLINE_ADX disabled: asm barriers prevent ILP, __int128 is 6% faster
     // ------------------------------------------------------------------
     // x86-64 inline MULX + ADCX/ADOX dual carry chain path (OPT-IN)
     // NOTE: opt-in only. In benchmarks, the overhead of asm-block
@@ -520,17 +481,11 @@ void fe52_mul_inner(std::uint64_t* r,
 SECP256K1_FE52_FORCE_INLINE
 void fe52_sqr_inner(std::uint64_t* r,
                     const std::uint64_t* a) noexcept {
-#if defined(SECP256K1_ARM64_FE52_V2)
-    arm64_v2::fe52_sqr_arm64_v2(r, a);
-#elif defined(SECP256K1_RISCV_FE52_V1)
+#if defined(SECP256K1_RISCV_FE52_V1)
     // RISC-V: Symmetry-optimized squaring in asm.
     // Cross-products doubled via shift, halving multiplication count.
     fe52_sqr_inner_riscv64(r, a);
-#elif defined(SECP256K1_X64_FE52_ASM)
-    // x86-64: Hand-tuned MULX squaring with symmetry optimization.
-    fe52_sqr_inner_x64(r, a);
-#elif defined(SECP256K1_USE_INLINE_ADX_FE52) \
-    && (defined(__x86_64__) || defined(_M_X64)) && defined(__ADX__) && defined(__BMI2__)
+#elif 0 // INLINE_ADX disabled: asm barriers prevent ILP, __int128 is 6% faster
     // ------------------------------------------------------------------
     // x86-64 inline MULX + ADCX/ADOX squaring (OPT-IN) -- see mul note
     // ------------------------------------------------------------------

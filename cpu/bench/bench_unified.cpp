@@ -1458,11 +1458,21 @@ int main(int argc, char** argv) {
         (void)ok; ++idx;
     }, N_VERIFY);
 
+    // k*P (arbitrary-point scalar multiply) -- BIP-352 bottleneck
+    idx = 0;
+    const double ls_kP = bench_ns([&]() {
+        secp256k1_pubkey pk_copy = ls_pubkeys[idx % POOL];
+        secp256k1_ec_pubkey_tweak_mul(ls_ctx, &pk_copy,
+                                      ls_seckeys[(idx + 1) % POOL]);
+        bench::DoNotOptimize(pk_copy); ++idx;
+    }, N_SCALAR);
+
     secp256k1_context_destroy(ls_ctx);
 
     print_header("libsecp256k1 (bitcoin-core)");
     print_row("field_inv_var",                    ls_fe_inv);
     print_row("generator_mul (ec_pubkey_create)", ls_gen);
+    print_row("scalar_mul (k*P, tweak_mul)",     ls_kP);
     print_row("ecdsa_sign",                      ls_ecdsa_sign);
     print_row("ecdsa_verify",                    ls_ecdsa_verify);
     print_row("schnorr_keypair_create",          ls_schnorr_kp);
@@ -1607,12 +1617,14 @@ int main(int argc, char** argv) {
     printf("======================================================================\n\n");
 
     print_header_ratio("FAST path (Ultra FAST vs libsecp)");
-    print_ratio("Generator * k",   ls_gen          / keygen);
-    print_ratio("ECDSA Sign",      ls_ecdsa_sign   / u_ecdsa_sign);
-    print_ratio("ECDSA Verify",    ls_ecdsa_verify / u_ecdsa_verify);
-    print_ratio("Schnorr Keypair", ls_schnorr_kp   / u_schnorr_kp);
-    print_ratio("Schnorr Sign",    ls_schnorr_sign / u_schnorr_sign);
-    print_ratio("Schnorr Verify",  ls_schnorr_verify / u_schnorr_verify);
+    print_ratio("Generator * k",        ls_gen            / keygen);
+    print_ratio("Scalar * P (k*P)",     ls_kP             / scalarmul);
+    print_ratio("Scalar * P (KPlan)",   ls_kP             / plan_mul);
+    print_ratio("ECDSA Sign",           ls_ecdsa_sign     / u_ecdsa_sign);
+    print_ratio("ECDSA Verify",         ls_ecdsa_verify   / u_ecdsa_verify);
+    print_ratio("Schnorr Keypair",      ls_schnorr_kp     / u_schnorr_kp);
+    print_ratio("Schnorr Sign",         ls_schnorr_sign   / u_schnorr_sign);
+    print_ratio("Schnorr Verify",       ls_schnorr_verify / u_schnorr_verify);
     print_sep();
     printf("\n");
 
@@ -1687,6 +1699,7 @@ int main(int argc, char** argv) {
     tput("Schnorr sign",              ls_schnorr_sign);
     tput("Schnorr verify",            ls_schnorr_verify);
     tput("generator_mul",             ls_gen);
+    tput("scalar_mul (k*P)",          ls_kP);
     printf("\n");
 #ifdef BENCH_HAS_OPENSSL
     if (ossl_gen > 0.0) {

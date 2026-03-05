@@ -2120,9 +2120,7 @@ std::string get_default_cache_path(unsigned window_bits) {
     // Use configured cache directory (default: G:\EccTables)
     if (!g_config.cache_dir.empty()) {
         std::string cache_path = g_config.cache_dir + "\\" + filename;
-        std::ifstream test_file(cache_path, std::ios::binary);
-        if (test_file.good()) {
-            test_file.close();
+        if (std::filesystem::exists(cache_path)) {
             return cache_path;
         }
     }
