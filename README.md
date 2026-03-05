@@ -993,6 +993,9 @@ cosign verify-blob SHA256SUMS \
 | [API Reference](docs/API_REFERENCE.md) | Full C++ and C ABI reference |
 | [Build Guide](docs/BUILDING.md) | Detailed build instructions for all platforms |
 | [Benchmarks](docs/BENCHMARKS.md) | Complete benchmark results and methodology |
+| [Audit Coverage](AUDIT_COVERAGE.md) | Full audit report with 46+ modules and platform verdicts |
+| [Audit Guide](docs/AUDIT_GUIDE.md) | How to run and interpret audit suite |
+| [Test Matrix](docs/TEST_MATRIX.md) | Comprehensive test coverage map for auditors |
 | [Threat Model](THREAT_MODEL.md) | Layer-by-layer security risk assessment |
 | [Security Policy](SECURITY.md) | Vulnerability reporting and audit status |
 | [Porting Guide](PORTING.md) | Add new platforms, architectures, GPU backends |
@@ -1052,6 +1055,7 @@ We want to acknowledge the teams whose public work informed parts of our journey
 - **[bitcoin-core/secp256k1](https://github.com/bitcoin-core/secp256k1)** -- The reference C library whose published research on constant-time field arithmetic and endomorphism-based scalar multiplication (GLV, Strauss, Pippenger) helped us benchmark and verify our own independent implementations on GPU and embedded targets.
 - **[Bitcoin Core](https://github.com/bitcoin/bitcoin)** contributors -- For open specifications (BIP-340 Schnorr, BIP-341 Taproot, RFC 6979) and a correctness-first engineering culture that benefits everyone building in this space.
 - **Pieter Wuille, Jonas Nick, Tim Ruffing** and the libsecp256k1 maintainers -- For publicly sharing their research on side-channel resistance, exhaustive testing, and field representation trade-offs. Their published findings helped us make better decisions when designing our own architecture.
+- **[@craigraw](https://github.com/craigraw)** ([Sparrow Wallet](https://sparrowwallet.com)) -- For creating the [bench_bip352](https://github.com/craigraw/bench_bip352) standalone BIP-352 Silent Payments scanning benchmark, which provided an independent, reproducible pipeline comparison between secp256k1 implementations.
 
 We share our optimizations, GPU kernels, embedded ports, and cross-platform techniques freely -- because open-source cryptography grows stronger when knowledge flows in every direction.
 
