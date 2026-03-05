@@ -522,21 +522,12 @@ static JacobianPoint52 jac52_double(const JacobianPoint52& p) noexcept {
     return {x3, y3, z3, false};
 }
 
-// -- 4x64 Inline ASM Point Doubling ------------------------------------------
-// Performs point doubling entirely in 4x64 representation using inline
-// MULX+ADCX/ADOX assembly. Uses the same 3M+4S libsecp formula as the
-// 5x52 path but with hand-scheduled instructions and lower register pressure.
-//
-// Advantages:
-//   - 20 MULX per field_mul (vs 30 for 5x52): 33% fewer multiplications
-//   - 14 MULX per field_sqr (vs 20 for 5x52): 30% fewer multiplications
-//   - 4 limbs per element (vs 5): lower register pressure in hot loops
-//   - ADCX/ADOX dual carry chains: no dependency stalls
-//
-// This function operates on raw uint64_t[4] arrays (no struct overhead).
-// Used by the hot loop path when SECP256K1_HYBRID_4X64_ACTIVE is set.
-// ---------------------------------------------------------------------------
-#if defined(SECP256K1_HYBRID_4X64_ACTIVE) && (defined(__ADX__) && defined(__BMI2__))
+// -- Dead 4x64 point-ops block removed (lines 525-737 in previous version) --
+// These functions (jac_double_4x64_inplace, jac_add_mixed_4x64_inplace) were
+// scaffolding that is now superseded by the FE52 path.
+// SECP256K1_HYBRID_4X64_ACTIVE remains defined for the FE52->4x64 inverse/sqrt
+// boundary optimization in field_52_impl.hpp.
+#if 0  // Dead code -- previously gated on SECP256K1_HYBRID_4X64_ACTIVE
 
 // NOTE: These functions are currently unused -- they are scaffolding for an
 // upcoming 4x64-only scalar_mul path. Suppress -Wunused-function.
@@ -734,7 +725,7 @@ static void jac_add_zinv_4x64_inplace(
 #pragma GCC diagnostic pop
 #endif
 
-#endif // SECP256K1_HYBRID_4X64_ACTIVE && ADX && BMI2
+#endif // Dead 4x64 point ops (was SECP256K1_HYBRID_4X64_ACTIVE)
 
 // -- In-Place Point Doubling (5x52) ----------------------------------------
 // Same formula as jac52_double but overwrites the input point in-place.
@@ -1262,15 +1253,9 @@ static Point scalar_mul_fallback_4x64(const Point& base, const Scalar& scalar) {
     return result;
 }
 
-// -- 4x64 GLV scalar multiplication with z-ratio table (NO batch inversion) --
-// Combines two optimizations over scalar_mul_glv52:
-//   1. Z-ratio propagation eliminates inverse_safegcd (~1100 ns savings)
-//   2. 4x64 inline ASM (MULX+ADCX/ADOX) for the hot doubling/addition loop
-//
-// All precomputation and the Shamir main loop operate on an isomorphic curve
-// y^2 = x^3 + 7*C^6 where C = dbl(P).Z, so the a=0 group law formulas are
-// identical.  A single Z *= globalz correction at the end maps back to secp256k1.
-#if defined(SECP256K1_HYBRID_4X64_ACTIVE) && (defined(__ADX__) && defined(__BMI2__))
+// -- Dead 4x64 GLV scalar multiplication removed --
+// (jac_add_mixed_4x64_inplace_zr + scalar_mul_glv_4x64) superseded by FE52 path.
+#if 0  // Dead code -- previously gated on SECP256K1_HYBRID_4X64_ACTIVE
 
 // Mixed Add with Z-ratio output (4x64): same formula as jac_add_mixed_4x64_inplace
 // but additionally outputs zr = 2*H (the Z3/Z1 ratio for madd-2007-bl).
@@ -1545,7 +1530,7 @@ static Point scalar_mul_glv_4x64(const Point& base, const Scalar& scalar) {
     return Point::from_jacobian52(rx52, ry52, rz52, R_inf);
 }
 
-#endif // SECP256K1_HYBRID_4X64_ACTIVE && ADX && BMI2
+#endif // Dead 4x64 GLV scalar mul (was SECP256K1_HYBRID_4X64_ACTIVE)
 
 // Kept as a separate noinline function so the ~5 KB of local arrays
 // live in their own stack frame, preventing GS-cookie corruption that
