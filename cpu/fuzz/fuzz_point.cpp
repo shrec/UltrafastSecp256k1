@@ -12,6 +12,15 @@
 using secp256k1::fast::Scalar;
 using secp256k1::fast::Point;
 
+// Pre-build the precompute table during init (not subject to per-input timeout).
+// Without this, the first scalar_mul_generator call exceeds libFuzzer's 25s
+// per-input limit under ASan/UBSan when compiled without ASM.
+extern "C" int LLVMFuzzerInitialize(int* /*argc*/, char*** /*argv*/) {
+    volatile auto warm = Point::generator().scalar_mul(Scalar::one());
+    (void)warm;
+    return 0;
+}
+
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
     if (size < 32) return 0;
 
