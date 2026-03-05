@@ -85,7 +85,7 @@ var NAVTREEINDEX =
 "secp256k1__wasm_8h.html#a1f8e9258fe5ad7d0dd87ea0ccc79c9e3",
 "structsecp256k1_1_1MuSig2KeyAggCtx.html#a5f6b04c54f6372fbd2f72cf8db93bfda",
 "structsecp256k1_1_1fast_1_1FieldElement26.html#a73aeb4c8c2a4436426f554c49fd1e525",
-"structsecp256k1_1_1fast_1_1debug_1_1DebugCounters.html"
+"structsecp256k1_1_1fast_1_1SelftestReport.html#ae9ec4cb1a1aaa4a60b80ea442c8eb417"
 ];
 
 var SYNCONMSG = 'click to disable panel synchronisation';
