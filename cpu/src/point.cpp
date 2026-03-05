@@ -741,7 +741,7 @@ static inline void jac52_double_inplace(JacobianPoint52& p) noexcept {
     // stays true, so consumers correctly ignore the garbage coordinates.
 
     // Z3 = Y1 * Z1 (1M) -- must read p.y, p.z before reuse
-    FieldElement52 z3 = p.y * p.z;          // mag 1
+    const FieldElement52 z3 = p.y * p.z;          // mag 1
 
     // S = Y1^2 (1S)
     FieldElement52 s = p.y.square();         // mag 1
@@ -1874,23 +1874,23 @@ KPlan KPlan::from_scalar(const Scalar& k, uint8_t w) {
 
 #if defined(SECP256K1_FAST_52BIT)
 Point::Point() : x_(FieldElement52::zero()), y_(FieldElement52::one()), z_(FieldElement52::zero()), 
-                 infinity_(true), is_generator_(false) {}
+                 infinity_(true), is_generator_(false), z_one_(false) {}
 
 Point::Point(const FieldElement& x, const FieldElement& y, const FieldElement& z, bool infinity)
     : x_(FieldElement52::from_fe(x)), y_(FieldElement52::from_fe(y)), z_(FieldElement52::from_fe(z)), 
-      infinity_(infinity), is_generator_(false) {}
+      infinity_(infinity), is_generator_(false), z_one_(false) {}
 
 // Zero-conversion FE52 constructor -- used by from_jac52 to avoid FE52->FE->FE52 round-trip
 Point::Point(const FieldElement52& x, const FieldElement52& y, const FieldElement52& z, bool infinity, bool is_gen)
     : x_(x), y_(y), z_(z), 
-      infinity_(infinity), is_generator_(is_gen) {}
+      infinity_(infinity), is_generator_(is_gen), z_one_(false) {}
 #else
 Point::Point() : x_(FieldElement::zero()), y_(FieldElement::one()), z_(FieldElement::zero()), 
-                 infinity_(true), is_generator_(false) {}
+                 infinity_(true), is_generator_(false), z_one_(false) {}
 
 Point::Point(const FieldElement& x, const FieldElement& y, const FieldElement& z, bool infinity)
     : x_(x), y_(y), z_(z), 
-      infinity_(infinity), is_generator_(false) {}
+      infinity_(infinity), is_generator_(false), z_one_(false) {}
 #endif
 
 Point Point::from_jacobian_coords(const FieldElement& x, const FieldElement& y, const FieldElement& z, bool infinity) {
@@ -1912,7 +1912,11 @@ Point Point::from_jacobian52(const FieldElement52& x, const FieldElement52& y, c
 }
 
 Point Point::from_affine52(const FieldElement52& x, const FieldElement52& y) {
-    return Point(x, y, FieldElement52::one(), false, false);
+    Point p(x, y, FieldElement52::one(), false, false);
+    p.x_.normalize();
+    p.y_.normalize();
+    p.z_one_ = true;
+    return p;
 }
 
 bool Point::z_fe_nonzero(FieldElement& out_z_fe) const noexcept {
@@ -1949,6 +1953,7 @@ static const FieldElement kNegGeneratorY = FieldElement::from_bytes({
 Point Point::generator() {
     Point g(kGeneratorX, kGeneratorY, fe_from_uint(1), false);
     g.is_generator_ = true;
+    g.z_one_ = true;
     return g;
 }
 
@@ -1957,7 +1962,13 @@ Point Point::infinity() {
 }
 
 Point Point::from_affine(const FieldElement& x, const FieldElement& y) {
-    return Point(x, y, fe_from_uint(1), false);
+    Point p(x, y, fe_from_uint(1), false);
+#if defined(SECP256K1_FAST_52BIT)
+    p.x_.normalize();
+    p.y_.normalize();
+#endif
+    p.z_one_ = true;
+    return p;
 }
 
 Point Point::from_hex(const std::string& x_hex, const std::string& y_hex) {
@@ -1969,6 +1980,14 @@ Point Point::from_hex(const std::string& x_hex, const std::string& y_hex) {
 FieldElement Point::x() const {
     if (infinity_) {
         return FieldElement::zero();
+    }
+    // Fast path: Z == 1, x_ is already affine
+    if (z_one_) {
+#if defined(SECP256K1_FAST_52BIT)
+        return x_.to_fe();
+#else
+        return x_;
+#endif
     }
 #if defined(SECP256K1_FAST_52BIT)
     FieldElement z_fe;
@@ -1988,6 +2007,14 @@ FieldElement Point::x() const {
 FieldElement Point::y() const {
     if (infinity_) {
         return FieldElement::zero();
+    }
+    // Fast path: Z == 1, y_ is already affine
+    if (z_one_) {
+#if defined(SECP256K1_FAST_52BIT)
+        return y_.to_fe();
+#else
+        return y_;
+#endif
     }
 #if defined(SECP256K1_FAST_52BIT)
     FieldElement z_fe;
@@ -2036,6 +2063,46 @@ std::array<uint8_t, 16> Point::x_second_half() const {
 }
 
 Point Point::add(const Point& other) const {
+    // Fast path: both points affine (Z=1) -- direct affine addition.
+    // Returns an affine result (z_one_=true), saving ~12 field muls + the
+    // field inversion that to_compressed() would otherwise need.
+    // Cost: 1 inversion + 1 mul + 1 sqr  vs  ~15 muls + 4 sqr + 1 inversion.
+    if (z_one_ && other.z_one_) {
+        if (SECP256K1_UNLIKELY(infinity_)) return other;
+        if (SECP256K1_UNLIKELY(other.infinity_)) return *this;
+#if defined(SECP256K1_FAST_52BIT)
+        // Check x-equality using FE52
+        FieldElement52 const dx52 = other.x_ + x_.negate(1);
+        if (SECP256K1_UNLIKELY(dx52.normalizes_to_zero_var())) {
+            FieldElement52 const dy52 = other.y_ + y_.negate(1);
+            if (dy52.normalizes_to_zero_var()) return dbl();
+            return Point::infinity();
+        }
+        // Affine addition: lambda = (y2-y1)/(x2-x1), x3 = lam^2-x1-x2, y3 = lam*(x1-x3)-y1
+        FieldElement const dx = dx52.to_fe();
+        FieldElement const dx_inv = dx.inverse();
+        FieldElement const x1 = x_.to_fe();
+        FieldElement const y1 = y_.to_fe();
+        FieldElement const x2 = other.x_.to_fe();
+        FieldElement const y2 = other.y_.to_fe();
+        FieldElement const lam = (y2 - y1) * dx_inv;
+        FieldElement const x3 = lam * lam - x1 - x2;
+        FieldElement const y3 = lam * (x1 - x3) - y1;
+        return Point::from_affine(x3, y3);
+#else
+        FieldElement const dx = other.x_ - x_;
+        if (dx == FieldElement::zero()) {
+            FieldElement const dy = other.y_ - y_;
+            if (dy == FieldElement::zero()) return dbl();
+            return Point::infinity();
+        }
+        FieldElement const dx_inv = dx.inverse();
+        FieldElement const lam = (other.y_ - y_) * dx_inv;
+        FieldElement const x3 = lam * lam - x_ - other.x_;
+        FieldElement const y3 = lam * (x_ - x3) - y_;
+        return Point::from_affine(x3, y3);
+#endif
+    }
 #if defined(SECP256K1_FAST_52BIT)
     JacobianPoint52 const p52{x_, y_, z_, infinity_};
     JacobianPoint52 const q52{other.x_, other.y_, other.z_, other.infinity_};
@@ -2087,11 +2154,13 @@ Point Point::negate() const {
     result.z_ = z_;
     result.infinity_ = false;
     result.is_generator_ = false;
+    result.z_one_ = z_one_;
     return result;
 #else
     FieldElement neg_y = FieldElement::zero() - y_;
     Point result(x_, neg_y, z_, false);
     result.is_generator_ = false;
+    result.z_one_ = z_one_;
     return result;
 #endif
 }
@@ -2148,6 +2217,7 @@ Point Point::prev() const {
 
 // Mutable in-place addition: *this += G (no allocation overhead)
 void Point::next_inplace() {
+    z_one_ = false;
     if (infinity_) {
         *this = Point::generator();
         return;
@@ -2174,6 +2244,7 @@ void Point::next_inplace() {
 
 // Mutable in-place subtraction: *this -= G (no allocation overhead)
 void Point::prev_inplace() {
+    z_one_ = false;
     if (infinity_) {
         *this = Point::generator().negate();
         return;
@@ -2201,6 +2272,7 @@ void Point::prev_inplace() {
 // Mutable in-place addition: *this += other (no allocation overhead)
 // Routes through 5x52 path on x64 for inlined field ops (zero call overhead)
 void Point::add_inplace(const Point& other) {
+    z_one_ = false;
 #if defined(SECP256K1_FAST_52BIT)
     // Fast path: if other is affine (z = 1), use mixed addition
     // Raw limb check -- no normalization, z_ from affine construction is already canonical {1,0,0,0,0}
@@ -2235,6 +2307,7 @@ void Point::add_inplace(const Point& other) {
 
 // Mutable in-place subtraction: *this -= other (no allocation overhead)
 void Point::sub_inplace(const Point& other) {
+    z_one_ = false;
 #if defined(SECP256K1_FAST_52BIT)
     // 5x52 path: negate other.y, then add in-place
     JacobianPoint52 p52{x_, y_, z_, infinity_};
@@ -2260,6 +2333,7 @@ void Point::sub_inplace(const Point& other) {
 
 // Mutable in-place doubling: *this = 2*this (no allocation overhead)
 void Point::dbl_inplace() {
+    z_one_ = false;
 #if defined(SECP256K1_PLATFORM_ESP32) || defined(__XTENSA__) || defined(SECP256K1_PLATFORM_STM32)
     // Optimized: 5S + 2M formula (saves 2S vs generic 7S + 1M)
     // Z3 = 2*Y*Z (1M) replaces (Y+Z)^2-Y^2-Z^2 (2S), operates on fields directly
@@ -2327,6 +2401,7 @@ void Point::negate_inplace() {
 // Explicit mixed-add with affine input: this += (ax, ay)
 // Routes through 5x52 path on x64 for inlined field ops
 void Point::add_mixed_inplace(const FieldElement& ax, const FieldElement& ay) {
+    z_one_ = false;
 #if defined(SECP256K1_FAST_52BIT)
     if (SECP256K1_UNLIKELY(infinity_)) {
         x_ = FieldElement52::from_fe(ax);
@@ -2409,6 +2484,7 @@ void Point::add_mixed_inplace(const FieldElement& ax, const FieldElement& ay) {
 // FE52-native mixed-add: skips FE52->FE->FE52 roundtrip.
 // Used by effective-affine Strauss MSM for zero-conversion hot-loop adds.
 void Point::add_mixed52_inplace(const FieldElement52& ax, const FieldElement52& ay) {
+    z_one_ = false;
     if (SECP256K1_UNLIKELY(infinity_)) {
         x_ = ax;
         y_ = ay;
@@ -2436,6 +2512,7 @@ void Point::sub_mixed_inplace(const FieldElement& ax, const FieldElement& ay) {
 // Changed from CRITICAL_FUNCTION to HOT_FUNCTION - flatten breaks this!
 SECP256K1_HOT_FUNCTION
 void Point::add_affine_constant_inplace(const FieldElement& ax, const FieldElement& ay) {
+    z_one_ = false;
 #if defined(SECP256K1_FAST_52BIT)
     // Delegate to add_mixed_inplace which uses the FE52 path
     add_mixed_inplace(ax, ay);
@@ -2615,6 +2692,7 @@ Point Point::scalar_mul(const Scalar& scalar) const {
     // path diverges for some scalars).  Use the proven double-and-add
     // fallback instead -- correct and acceptable perf for WASM.
     if (is_generator_) {
+        // scalar_mul_generator already normalizes via the auto-normalize path
         return scalar_mul_generator(scalar);
     }
 #endif
@@ -2717,6 +2795,7 @@ Point Point::scalar_mul(const Scalar& scalar) const {
         }
     }
 
+    result.normalize();
     return result;
 
 #else
@@ -2731,7 +2810,11 @@ Point Point::scalar_mul(const Scalar& scalar) const {
     // -----------------------------------------------------------------
 
 #ifdef SECP256K1_FAST_52BIT
-    return scalar_mul_glv52(*this, scalar);
+    {
+        Point r = scalar_mul_glv52(*this, scalar);
+        r.normalize();
+        return r;
+    }
 #else
     // -----------------------------------------------------------------
     // Non-FE52 fallback: simple right-to-left binary double-and-add.
@@ -2753,6 +2836,7 @@ Point Point::scalar_mul(const Scalar& scalar) const {
             base.dbl_inplace();
         }
     }
+    result.normalize();
     return result;
 #endif // SECP256K1_FAST_52BIT
 #endif // ESP32/STM32
@@ -2782,7 +2866,7 @@ Point Point::scalar_mul_predecomposed(const Scalar& k1, const Scalar& k2,
 #if !defined(SECP256K1_PLATFORM_ESP32) && !defined(ESP_PLATFORM) && !defined(SECP256K1_PLATFORM_STM32)
     // If both signs are positive, use fast Shamir's trick
     // Otherwise, fall back to separate computation (sign handling is complex)
-    if (!neg1 && !neg2) {
+    if (!(neg1 || neg2)) {
         // Fast path: K = k1 + k2*lambda (both positive)
         constexpr unsigned window_width = 4;
         auto wnaf1 = compute_wnaf(k1, window_width);
@@ -2969,11 +3053,13 @@ static Point scalar_mul_with_plan_glv52(const Point& base, const KPlan& plan) {
     while (wnaf2_len > 0 && wnaf2_buf[wnaf2_len - 1] == 0) --wnaf2_len;
 
     // -- Precompute odd multiples [1P, 3P, ..., (2T-1)P] in 5x52 -----
-    // Uses effective-affine technique: build table on isomorphic curve
-    // where 2P is affine, so table additions use cheaper mixed add
-    // (7M+4S) instead of full Jacobian add (12M+5S).
+    // Uses z-ratio technique: no field inversion needed.
+    // Build table on isomorphic curve where 2P is affine,
+    // track Z-ratios from each mixed addition, then backward sweep.
+    // All table entries share an implied Z = globalz on secp256k1.
     std::array<AffinePoint52, kMaxGlvTableSize> tbl_P;
     std::array<AffinePoint52, kMaxGlvTableSize> tbl_phiP;
+    FieldElement52 globalz;
 
     {
         // d = 2*P (Jacobian)
@@ -2985,54 +3071,47 @@ static Point scalar_mul_with_plan_glv52(const Point& base, const KPlan& plan) {
         // d as affine on iso curve (Z cancels in isomorphism)
         AffinePoint52 const d_aff = {d.x, d.y};
 
-        // Transform P onto iso curve: phi(P) = (P.X*C^2, P.Y*C^3, P.Z)
-        std::array<JacobianPoint52, kMaxGlvTableSize> iso;
-        iso[0] = {P52.x * C2, P52.y * C3, P52.z, false};
+        // Transform P onto iso curve: (P.X*C^2, P.Y*C^3, P.Z)
+        JacobianPoint52 ai = {P52.x * C2, P52.y * C3, P52.z, false};
+        tbl_P[0].x = ai.x;
+        tbl_P[0].y = ai.y;
 
-        // Build rest using mixed adds on iso curve (7M+4S each)
+        // Z-ratio array: zr[i] = Z_i / Z_{i-1} for the accumulator
+        std::array<FieldElement52, kMaxGlvTableSize> zr;
+        zr[0] = C;  // first z-ratio is C (from iso mapping)
+
+        // Build rest using mixed adds on iso curve with z-ratio output
         for (int i = 1; i < glv_table_size; i++) {
-            iso[static_cast<std::size_t>(i)] = iso[static_cast<std::size_t>(i - 1)];
-            jac52_add_mixed_inplace(iso[static_cast<std::size_t>(i)], d_aff);
+            jac52_add_mixed_inplace_zr(ai, d_aff, zr[static_cast<std::size_t>(i)]);
+            if (SECP256K1_UNLIKELY(ai.infinity)) {
+                return base.scalar_mul_precomputed_wnaf(plan.wnaf1, plan.wnaf2,
+                                                         plan.neg1, plan.neg2);
+            }
+            tbl_P[static_cast<std::size_t>(i)].x = ai.x;
+            tbl_P[static_cast<std::size_t>(i)].y = ai.y;
         }
 
-        // Batch-invert effective Z: true Z on secp256k1 = Z_iso * C
-        std::array<FieldElement52, kMaxGlvTableSize> eff_z{};
+        // globalz = final_Z * C (maps from iso curve back to secp256k1)
+        globalz = ai.z * C;
+
+        // Backward sweep: rescale table entries so all share implied Z = Z_last.
+        {
+            FieldElement52 zs = zr[static_cast<std::size_t>(glv_table_size - 1)];
+
+            for (int idx = glv_table_size - 2; idx >= 0; --idx) {
+                if (idx != glv_table_size - 2)
+                    zs.mul_assign(zr[static_cast<std::size_t>(idx) + 1]);
+                FieldElement52 const zs2 = zs.square();
+                FieldElement52 const zs3 = zs2 * zs;
+                tbl_P[static_cast<std::size_t>(idx)].x.mul_assign(zs2);
+                tbl_P[static_cast<std::size_t>(idx)].y.mul_assign(zs3);
+            }
+        }
+
+        // Normalize all entries to magnitude 1
         for (int i = 0; i < glv_table_size; i++) {
-            eff_z[static_cast<std::size_t>(i)] = iso[static_cast<std::size_t>(i)].z * C;
-        }
-
-        std::array<FieldElement52, kMaxGlvTableSize> prods{};
-        prods[0] = eff_z[0];
-        for (int i = 1; i < glv_table_size; i++) {
-            prods[static_cast<std::size_t>(i)] = prods[static_cast<std::size_t>(i - 1)]
-                                                  * eff_z[static_cast<std::size_t>(i)];
-        }
-
-        // Guard: if any eff_z is zero the cumulative product is zero
-        // and batch inversion is undefined.  Delegate to 4x64 fallback.
-        if (SECP256K1_UNLIKELY(
-                prods[static_cast<std::size_t>(glv_table_size - 1)].normalizes_to_zero())) {
-            return base.scalar_mul_precomputed_wnaf(plan.wnaf1, plan.wnaf2,
-                                                     plan.neg1, plan.neg2);
-        }
-
-        FieldElement52 inv =
-            prods[static_cast<std::size_t>(glv_table_size - 1)].inverse_safegcd();
-        std::array<FieldElement52, kMaxGlvTableSize> zs{};
-        for (int i = glv_table_size - 1; i > 0; --i) {
-            zs[static_cast<std::size_t>(i)] = prods[static_cast<std::size_t>(i - 1)] * inv;
-            inv = inv * eff_z[static_cast<std::size_t>(i)];
-        }
-        zs[0] = inv;
-
-        // Convert from iso to secp256k1 affine
-        for (int i = 0; i < glv_table_size; i++) {
-            FieldElement52 const zinv2 = zs[static_cast<std::size_t>(i)].square();
-            FieldElement52 const zinv3 = zinv2 * zs[static_cast<std::size_t>(i)];
-            tbl_P[static_cast<std::size_t>(i)].x =
-                iso[static_cast<std::size_t>(i)].x * zinv2;
-            tbl_P[static_cast<std::size_t>(i)].y =
-                iso[static_cast<std::size_t>(i)].y * zinv3;
+            tbl_P[static_cast<std::size_t>(i)].x.normalize_weak();
+            tbl_P[static_cast<std::size_t>(i)].y.normalize_weak();
         }
     }
 
@@ -3092,6 +3171,12 @@ static Point scalar_mul_with_plan_glv52(const Point& base, const KPlan& plan) {
         }
     }
 
+    // Final Z correction: all table entries had implied Z = globalz.
+    // The Shamir loop treated them as affine (Z=1), so the accumulated
+    // result's Z is off by a factor of globalz.
+    if (!result52.infinity)
+        result52.z.mul_assign(globalz);
+
     return from_jac52(result52);
 }
 #endif // SECP256K1_FAST_52BIT
@@ -3102,13 +3187,21 @@ static Point scalar_mul_with_plan_glv52(const Point& base, const KPlan& plan) {
 Point Point::scalar_mul_with_plan(const KPlan& plan) const {
 #if defined(SECP256K1_PLATFORM_ESP32) || defined(ESP_PLATFORM) || defined(SECP256K1_PLATFORM_STM32)
     // Embedded: fallback to regular scalar_mul using stored k1
-    return scalar_mul(plan.k1);
+    return scalar_mul(plan.k1);  // scalar_mul already normalizes
 #elif defined(SECP256K1_FAST_52BIT)
     // FE52 fast path: effective-affine + batch inversion + mixed adds (7M+4S)
-    return scalar_mul_with_plan_glv52(*this, plan);
+    {
+        Point r = scalar_mul_with_plan_glv52(*this, plan);
+        r.normalize();
+        return r;
+    }
 #else
     // Legacy 4x64 path: full Jacobian adds (12M+5S)
-    return scalar_mul_precomputed_wnaf(plan.wnaf1, plan.wnaf2, plan.neg1, plan.neg2);
+    {
+        Point r = scalar_mul_precomputed_wnaf(plan.wnaf1, plan.wnaf2, plan.neg1, plan.neg2);
+        r.normalize();
+        return r;
+    }
 #endif
 }
 
@@ -3118,7 +3211,19 @@ std::array<std::uint8_t, 33> Point::to_compressed() const {
         out.fill(0);
         return out;
     }
-    // Compute affine coordinates with a single inversion
+    // Fast path: Z == 1, coordinates are already affine
+    if (z_one_) {
+#if defined(SECP256K1_FAST_52BIT)
+        // z_one_ guarantees FE52 is pre-normalized: skip copy+normalize
+        out[0] = (y_.n[0] & 1) ? 0x03 : 0x02;
+        x_.to_bytes_into_normalized(out.data() + 1);
+#else
+        out[0] = (y_.limbs()[0] & 1) ? 0x03 : 0x02;
+        x_.to_bytes_into(out.data() + 1);
+#endif
+        return out;
+    }
+    // Slow path: compute affine coordinates with a single inversion
 #if defined(SECP256K1_FAST_52BIT)
     FieldElement z_fe;
     if (!z_fe_nonzero(z_fe)) { out.fill(0); return out; } // LCOV_EXCL_LINE
@@ -3134,10 +3239,8 @@ std::array<std::uint8_t, 33> Point::to_compressed() const {
     FieldElement x_aff = x_ * z_inv2;
     FieldElement y_aff = y_ * z_inv2 * z_inv;
 #endif
-    auto x_bytes = x_aff.to_bytes();
-    auto y_bytes = y_aff.to_bytes();
-    out[0] = (y_bytes[31] & 1U) ? 0x03 : 0x02;
-    std::copy(x_bytes.begin(), x_bytes.end(), out.begin() + 1);
+    out[0] = (y_aff.limbs()[0] & 1) ? 0x03 : 0x02;
+    x_aff.to_bytes_into(out.data() + 1);
     return out;
 }
 
@@ -3147,7 +3250,20 @@ std::array<std::uint8_t, 65> Point::to_uncompressed() const {
         out.fill(0);
         return out;
     }
-    // Compute affine coordinates with a single inversion
+    // Fast path: Z == 1, coordinates are already affine
+    if (z_one_) {
+#if defined(SECP256K1_FAST_52BIT)
+        out[0] = 0x04;
+        x_.to_bytes_into_normalized(out.data() + 1);
+        y_.to_bytes_into_normalized(out.data() + 33);
+#else
+        out[0] = 0x04;
+        x_.to_bytes_into(out.data() + 1);
+        y_.to_bytes_into(out.data() + 33);
+#endif
+        return out;
+    }
+    // Slow path: compute affine coordinates with a single inversion
 #if defined(SECP256K1_FAST_52BIT)
     FieldElement z_fe;
     if (!z_fe_nonzero(z_fe)) { out.fill(0); return out; } // LCOV_EXCL_LINE
@@ -3163,17 +3279,24 @@ std::array<std::uint8_t, 65> Point::to_uncompressed() const {
     FieldElement x_aff = x_ * z_inv2;
     FieldElement y_aff = y_ * z_inv2 * z_inv;
 #endif
-    auto x_bytes = x_aff.to_bytes();
-    auto y_bytes = y_aff.to_bytes();
     out[0] = 0x04;
-    std::copy(x_bytes.begin(), x_bytes.end(), out.begin() + 1);
-    std::copy(y_bytes.begin(), y_bytes.end(), out.begin() + 33);
+    x_aff.to_bytes_into(out.data() + 1);
+    y_aff.to_bytes_into(out.data() + 33);
     return out;
 }
 
 // -- Y-parity check (single inversion) ---------------------------------------
 bool Point::has_even_y() const {
     if (infinity_) return false;
+    // Fast path: Z == 1, Y is already affine
+    if (z_one_) {
+#if defined(SECP256K1_FAST_52BIT)
+        // z_one_ guarantees FE52 is pre-normalized
+        return (y_.n[0] & 1) == 0;
+#else
+        return (y_.limbs()[0] & 1) == 0;
+#endif
+    }
 #if defined(SECP256K1_FAST_52BIT)
     FieldElement z_fe;
     if (!z_fe_nonzero(z_fe)) return false; // LCOV_EXCL_LINE
@@ -3194,6 +3317,19 @@ bool Point::has_even_y() const {
 // -- Combined x-bytes + Y-parity (single inversion) --------------------------
 std::pair<std::array<uint8_t, 32>, bool> Point::x_bytes_and_parity() const {
     if (infinity_) return {std::array<uint8_t,32>{}, false};
+    // Fast path: Z == 1
+    if (z_one_) {
+#if defined(SECP256K1_FAST_52BIT)
+        // z_one_ guarantees FE52 is pre-normalized
+        bool const y_odd = (y_.n[0] & 1) != 0;
+        std::array<uint8_t, 32> xb{};
+        x_.to_bytes_into_normalized(xb.data());
+        return {xb, y_odd};
+#else
+        bool const y_odd = (y_.limbs()[0] & 1) != 0;
+        return {x_.to_bytes(), y_odd};
+#endif
+    }
 #if defined(SECP256K1_FAST_52BIT)
     FieldElement z_fe;
     if (!z_fe_nonzero(z_fe)) return {std::array<uint8_t,32>{}, false}; // LCOV_EXCL_LINE
@@ -3214,10 +3350,49 @@ std::pair<std::array<uint8_t, 32>, bool> Point::x_bytes_and_parity() const {
     return {x_aff.to_bytes(), y_odd};
 }
 
+// -- Normalize: Jacobian -> affine (Z=1) with ONE field inversion -------------
+// After this call z_one_ == true and all serialization is O(1).
+void Point::normalize() {
+    if (z_one_ || infinity_) return;
+#if defined(SECP256K1_FAST_52BIT)
+    FieldElement z_fe;
+    if (!z_fe_nonzero(z_fe)) return; // LCOV_EXCL_LINE
+    FieldElement const z_inv = z_fe.inverse();
+    FieldElement z_inv2 = z_inv;
+    z_inv2.square_inplace();
+    FieldElement const z_inv3 = z_inv2 * z_inv;
+    x_ = FieldElement52::from_fe(x_.to_fe() * z_inv2);
+    y_ = FieldElement52::from_fe(y_.to_fe() * z_inv3);
+    // Pre-normalize FE52 so z_one_ fast paths skip redundant normalize
+    x_.normalize();
+    y_.normalize();
+    z_ = FieldElement52::one();
+#else
+    FieldElement z_inv = z_.inverse();
+    FieldElement z_inv2 = z_inv;
+    z_inv2.square_inplace();
+    FieldElement const z_inv3 = z_inv2 * z_inv;
+    x_ *= z_inv2;
+    y_ *= z_inv3;
+    z_ = fe_from_uint(1);
+#endif
+    z_one_ = true;
+}
+
 // -- Fast x-only: 32-byte x-coordinate (no Y recovery) -----------------------
 // Saves one multiply vs x_bytes_and_parity() by skipping Z^(-3)*Y.
 std::array<uint8_t, 32> Point::x_only_bytes() const {
     if (infinity_) return {};
+    // Fast path: Z == 1
+    if (z_one_) {
+#if defined(SECP256K1_FAST_52BIT)
+        std::array<uint8_t, 32> xb{};
+        x_.to_bytes_into_normalized(xb.data());
+        return xb;
+#else
+        return x_.to_bytes();
+#endif
+    }
 #if defined(SECP256K1_FAST_52BIT)
     FieldElement z_fe;
     if (!z_fe_nonzero(z_fe)) return {}; // LCOV_EXCL_LINE
@@ -3246,7 +3421,7 @@ void Point::batch_normalize(const Point* points, size_t n,
     constexpr size_t STACK_LIMIT = 256;
     FieldElement stack_partials[STACK_LIMIT];
     std::unique_ptr<FieldElement[]> heap_partials;
-    FieldElement* partials;
+    FieldElement* partials = nullptr;
     if (n <= STACK_LIMIT) {
         partials = stack_partials;
     } else {
@@ -3311,8 +3486,8 @@ void Point::batch_to_compressed(const Point* points, size_t n,
     constexpr size_t STACK_LIMIT = 256;
     FieldElement stack_x[STACK_LIMIT], stack_y[STACK_LIMIT];
     std::unique_ptr<FieldElement[]> heap_x, heap_y;
-    FieldElement* aff_x;
-    FieldElement* aff_y;
+    FieldElement* aff_x = nullptr;
+    FieldElement* aff_y = nullptr;
     if (n <= STACK_LIMIT) {
         aff_x = stack_x; aff_y = stack_y;
     } else {
@@ -3344,7 +3519,7 @@ void Point::batch_x_only_bytes(const Point* points, size_t n,
     constexpr size_t STACK_LIMIT = 256;
     FieldElement stack_partials[STACK_LIMIT];
     std::unique_ptr<FieldElement[]> heap_partials;
-    FieldElement* partials;
+    FieldElement* partials = nullptr;
     if (n <= STACK_LIMIT) {
         partials = stack_partials;
     } else {
@@ -3845,7 +4020,10 @@ Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const P
         }
     }
 
-    return Point(jac.x, jac.y, jac.z, jac.infinity);
+    {
+        Point r(jac.x, jac.y, jac.z, jac.infinity);
+        return r;
+    }
 }
 #else
 // Non-52bit / non-embedded fallback: separate multiplications
