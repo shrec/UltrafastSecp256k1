@@ -101,6 +101,11 @@ def parse_benchmark_output(text: str) -> list[dict]:
         if name in seen:
             continue
 
+        # Skip entries from excluded sections (same as table pattern above)
+        section = get_section(match.start())
+        if any(excl in section for excl in excluded_sections):
+            continue
+
         try:
             value = float(value_str)
         except ValueError:
