@@ -2,9 +2,9 @@ var searchData=
 [
   ['failed_0',['failed',['../structsecp256k1_1_1test_1_1TestCounters.html#a9782357836de2bc474453be7cf10abd1',1,'secp256k1::test::TestCounters']]],
   ['fantom_1',['Fantom',['../namespacesecp256k1_1_1coins.html#ab03b1ab58695ee79859c2e251c81194a',1,'secp256k1::coins']]],
-  ['faq_2',['FAQ',['../index.html#autotoc_md108',1,'']]],
-  ['fast_20profile_20default_3',['FAST Profile (Default)',['../index.html#autotoc_md84',1,'']]],
-  ['fast_20vs_20ct_4',['secp256k1 Security Model (FAST vs CT)',['../index.html#autotoc_md83',1,'']]],
+  ['faq_2',['FAQ',['../index.html#autotoc_md110',1,'']]],
+  ['fast_20profile_20default_3',['FAST Profile (Default)',['../index.html#autotoc_md86',1,'']]],
+  ['fast_20vs_20ct_4',['secp256k1 Security Model (FAST vs CT)',['../index.html#autotoc_md85',1,'']]],
   ['fast_2ehpp_5',['fast.hpp',['../fast_8hpp.html',1,'']]],
   ['fe_6',['FE',['../ufsecp__impl_8cpp.html#a1a4f34259900c8b62d71525d5eb01070',1,'ufsecp_impl.cpp']]],
   ['fe26_7',['FE26',['../namespacesecp256k1_1_1fast.html#a0eaa920ca64c359d03cc376492e70caba0220c35e8e7b548084256c53654d0a59',1,'secp256k1::fast']]],
@@ -52,9 +52,9 @@ var searchData=
   ['fe_5fto_5fdata_49',['fe_to_data',['../namespacesecp256k1.html#a7e6d38a63098bede5c75ee17ca4ebf9f',1,'secp256k1::fe_to_data(void *fe) noexcept'],['../namespacesecp256k1.html#ab69bb17fffa81e4e0fa7f89eb36ea5aa',1,'secp256k1::fe_to_data(const void *fe) noexcept']]],
   ['feature_20overview_50',['secp256k1 Feature Overview',['../index.html#autotoc_md23',1,'']]],
   ['features_51',['features',['../structsecp256k1_1_1coins_1_1CoinParams.html#a38086df8d9c4870eb6298fc566dfc267',1,'secp256k1::coins::CoinParams']]],
-  ['fedora_20rhel_52',['Linux (RPM &amp;ndash; Fedora / RHEL)',['../index.html#autotoc_md32',1,'']]],
-  ['ffi_20bindings_53',['secp256k1 Stable C ABI (&lt;tt&gt;ufsecp&lt;/tt&gt;) &amp;ndash; FFI Bindings',['../index.html#autotoc_md65',1,'']]],
-  ['field_20representation_3a_205x52_20vs_204x64_54',['Field Representation: 5x52 vs 4x64',['../index.html#autotoc_md54',1,'']]],
+  ['fedora_20rhel_52',['Linux (RPM &amp;ndash; Fedora / RHEL)',['../index.html#autotoc_md34',1,'']]],
+  ['ffi_20bindings_53',['secp256k1 Stable C ABI (&lt;tt&gt;ufsecp&lt;/tt&gt;) &amp;ndash; FFI Bindings',['../index.html#autotoc_md67',1,'']]],
+  ['field_20representation_3a_205x52_20vs_204x64_54',['Field Representation: 5x52 vs 4x64',['../index.html#autotoc_md56',1,'']]],
   ['field_2ehpp_55',['field.hpp',['../ct_2field_8hpp.html',1,'(Global Namespace)'],['../field_8hpp.html',1,'(Global Namespace)']]],
   ['field_5f26_2ehpp_56',['field_26.hpp',['../field__26_8hpp.html',1,'']]],
   ['field_5f4x64_5finline_2ehpp_57',['field_4x64_inline.hpp',['../field__4x64__inline_8hpp.html',1,'']]],
@@ -111,8 +111,8 @@ var searchData=
   ['flux_108',['Flux',['../namespacesecp256k1_1_1coins.html#a9a573eecbcb84bef02367ba24a94442f',1,'secp256k1::coins']]],
   ['format_5fns_109',['format_ns',['../namespacebench.html#a915d5c8b45bcd098f6eff6957d64cf26',1,'bench::format_ns(double ns, char *buf, std::size_t buflen)'],['../namespacebench.html#a0d3d9002000efcf12088850e37e06f0b',1,'bench::format_ns(double ns)']]],
   ['from_110',['from',['../structsecp256k1_1_1FrostShare.html#a7614c7135cc2b42041b2f2d11ebb103c',1,'secp256k1::FrostShare::from'],['../structsecp256k1_1_1FrostCommitment.html#a2c8f7a7ce6f8950bc9d73e0a487e7780',1,'secp256k1::FrostCommitment::from']]],
-  ['from_20source_20any_20platform_111',['From source (any platform)',['../index.html#autotoc_md34',1,'']]],
-  ['from_20source_20cmake_112',['Building secp256k1 from Source (CMake)',['../index.html#autotoc_md71',1,'']]],
+  ['from_20source_20any_20platform_111',['From source (any platform)',['../index.html#autotoc_md36',1,'']]],
+  ['from_20source_20cmake_112',['Building secp256k1 from Source (CMake)',['../index.html#autotoc_md73',1,'']]],
   ['from_5f4x64_5flimbs_113',['from_4x64_limbs',['../structsecp256k1_1_1fast_1_1FieldElement52.html#a921eb1aa837a9e8986849252646f357d',1,'secp256k1::fast::FieldElement52']]],
   ['from_5faffine_114',['from_affine',['../classsecp256k1_1_1fast_1_1Point.html#a079977183e498ec8d09b7550cc7c11c2',1,'secp256k1::fast::Point']]],
   ['from_5fbytes_115',['from_bytes',['../classsecp256k1_1_1PrivateKey.html#aa9a18feb154fbe27db30db5ecdbff102',1,'secp256k1::PrivateKey::from_bytes()'],['../classsecp256k1_1_1fast_1_1FieldElement.html#aeb3e0a1b309238f5d2152d6a529f942a',1,'secp256k1::fast::FieldElement::from_bytes()'],['../structsecp256k1_1_1fast_1_1FieldElement52.html#a6e784b39f8de494cd3b2438caeb5cac6',1,'secp256k1::fast::FieldElement52::from_bytes(const std::array&lt; std::uint8_t, 32 &gt; &amp;bytes) noexcept'],['../structsecp256k1_1_1fast_1_1FieldElement52.html#a2475a86895c879fa33b5d350c331f54d',1,'secp256k1::fast::FieldElement52::from_bytes(const std::uint8_t *bytes) noexcept'],['../classsecp256k1_1_1PrivateKey.html#a615a5c32e2cc94278f614d3911ca7fbe',1,'secp256k1::PrivateKey::from_bytes()'],['../classsecp256k1_1_1fast_1_1Scalar.html#ab42c494ac695a8a1f01ecb662d52883e',1,'secp256k1::fast::Scalar::from_bytes()'],['../structsecp256k1_1_1SchnorrSignature.html#ad766c96936debbb20f527f72cf073fef',1,'secp256k1::SchnorrSignature::from_bytes()'],['../classsecp256k1_1_1fast_1_1Scalar.html#add830998d775d0078e16ddbe22926ee1',1,'secp256k1::fast::Scalar::from_bytes()'],['../structsecp256k1_1_1SchnorrSignature.html#ab0c625c05e9dae3da46385ba0bf77a1e',1,'secp256k1::SchnorrSignature::from_bytes()']]],
@@ -143,5 +143,5 @@ var searchData=
   ['frostpartialsig_140',['FrostPartialSig',['../structsecp256k1_1_1FrostPartialSig.html',1,'secp256k1']]],
   ['frostshare_141',['FrostShare',['../structsecp256k1_1_1FrostShare.html',1,'secp256k1']]],
   ['fulldb_5fpath_142',['fulldb_path',['../structsecp256k1_1_1fast_1_1FixedBaseConfig.html#ad8faaba103016c58f730ae4d8a3e424e',1,'secp256k1::fast::FixedBaseConfig']]],
-  ['fuzz_20testing_143',['Fuzz Testing',['../index.html#autotoc_md94',1,'']]]
+  ['fuzz_20testing_143',['Fuzz Testing',['../index.html#autotoc_md96',1,'']]]
 ];

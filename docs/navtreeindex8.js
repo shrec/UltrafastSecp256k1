@@ -1,5 +1,7 @@
 var NAVTREEINDEX8 =
 {
+"structsecp256k1_1_1MuSig2KeyAggCtx.html#aa41f3d2da6676f796021841cb13dfef1":[3,0,1,21,3],
+"structsecp256k1_1_1MuSig2PubNonce.html":[2,0,1,25],
 "structsecp256k1_1_1MuSig2PubNonce.html":[3,0,1,22],
 "structsecp256k1_1_1MuSig2PubNonce.html#a016fc90ae3043926589a43ffa00c6ea5":[2,0,1,25,3],
 "structsecp256k1_1_1MuSig2PubNonce.html#a016fc90ae3043926589a43ffa00c6ea5":[3,0,1,22,3],
@@ -247,7 +249,5 @@ var NAVTREEINDEX8 =
 "structsecp256k1_1_1fast_1_1FieldElement26.html#a73aeb4c8c2a4436426f554c49fd1e525":[2,0,1,3,10,11],
 "structsecp256k1_1_1fast_1_1FieldElement26.html#a787819a87299efdf84dc4f7ad29e15ab":[2,0,1,3,10,6],
 "structsecp256k1_1_1fast_1_1FieldElement26.html#a787819a87299efdf84dc4f7ad29e15ab":[3,0,1,2,5,6],
-"structsecp256k1_1_1fast_1_1FieldElement26.html#a83cebed78b557d2b6b36ce12636642d9":[3,0,1,2,5,10],
-"structsecp256k1_1_1fast_1_1FieldElement26.html#a83cebed78b557d2b6b36ce12636642d9":[2,0,1,3,10,10],
-"structsecp256k1_1_1fast_1_1FieldElement26.html#a8c19a224f4c8d53f97d2845904c60918":[3,0,1,2,5,16]
+"structsecp256k1_1_1fast_1_1FieldElement26.html#a83cebed78b557d2b6b36ce12636642d9":[3,0,1,2,5,10]
 };
