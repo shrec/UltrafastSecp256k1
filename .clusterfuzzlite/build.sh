@@ -76,5 +76,6 @@ echo "max_len = 64" >> "$OUT/fuzz_scalar.options"
 
 echo "[libfuzzer]"  > "$OUT/fuzz_point.options"
 echo "max_len = 32" >> "$OUT/fuzz_point.options"
+echo "timeout = 120" >> "$OUT/fuzz_point.options"
 
 echo "[OK] Built 3 fuzz targets: fuzz_field, fuzz_scalar, fuzz_point"
