@@ -1,4 +1,4 @@
-# UltrafastSecp256k1 -- Fastest Open-Source secp256k1 Library
+# UltrafastSecp256k1 -- High-Performance Open-Source secp256k1 Library
 
 **Zero-dependency, multi-backend secp256k1 elliptic curve cryptography library** -- GPU-accelerated ECDSA & Schnorr signatures, constant-time side-channel protection, 12+ platform targets inc. CUDA, Metal, OpenCL, ROCm, WebAssembly, RISC-V, ESP32, and STM32.
 
@@ -7,6 +7,7 @@
 ### Why UltrafastSecp256k1?
 
 - **Fastest open-source GPU signatures** -- no other library provides secp256k1 ECDSA + Schnorr sign/verify on CUDA, OpenCL, and Metal ([reproducible benchmark suite and raw logs](docs/BENCHMARKS.md))
+- **Fast CPU signing (k\*G-dominant workloads)** -- generator multiply 2-4x faster than libsecp256k1; scalar multiply (k\*P) is comparable on x86-64 ([see bench_unified ratio table](docs/BENCHMARKS.md))
 - **Zero dependencies** -- pure C++20, no Boost, no OpenSSL, compiles anywhere with a conforming compiler
 - **Dual-layer security** -- variable-time FAST path for throughput, constant-time CT path for secret-key operations
 - **12+ platforms** -- x86-64, ARM64, RISC-V, WASM, iOS, Android, ESP32, STM32, CUDA, Metal, OpenCL, ROCm

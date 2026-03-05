@@ -732,6 +732,76 @@ int main(int argc, char** argv) {
     printf("\n");
 
     // =====================================================================
+    //  SECTION 3.5: Point Serialization (Ultra)
+    // =====================================================================
+    // BIP-352 bottleneck: Jacobian -> affine requires field inversion.
+    // libsecp256k1 stores affine internally, so serialize = byte copy (15 ns).
+    // Ultra stores Jacobian, so serialize = Z^(-1) + Z^(-2) + muls (~1000 ns).
+    // Batch methods amortize: 1 inversion + 3(N-1) muls for N points.
+
+    print_header("POINT SERIALIZATION (Ultra)");
+
+    idx = 0;
+    const double u_to_compressed = bench_ns([&]() {
+        auto r = pubkeys[idx % POOL].to_compressed();
+        bench::DoNotOptimize(r); ++idx;
+    }, N_POINT);
+    print_row("to_compressed (33B)", u_to_compressed);
+
+    idx = 0;
+    const double u_to_uncompressed = bench_ns([&]() {
+        auto r = pubkeys[idx % POOL].to_uncompressed();
+        bench::DoNotOptimize(r); ++idx;
+    }, N_POINT);
+    print_row("to_uncompressed (65B)", u_to_uncompressed);
+
+    idx = 0;
+    const double u_x_only = bench_ns([&]() {
+        auto r = pubkeys[idx % POOL].x_only_bytes();
+        bench::DoNotOptimize(r); ++idx;
+    }, N_POINT);
+    print_row("x_only_bytes (32B)", u_x_only);
+
+    idx = 0;
+    const double u_x_parity = bench_ns([&]() {
+        auto r = pubkeys[idx % POOL].x_bytes_and_parity();
+        bench::DoNotOptimize(r); ++idx;
+    }, N_POINT);
+    print_row("x_bytes_and_parity", u_x_parity);
+
+    idx = 0;
+    const double u_has_even_y = bench_ns([&]() {
+        bool r = pubkeys[idx % POOL].has_even_y();
+        bench::DoNotOptimize(r); ++idx;
+    }, N_POINT);
+    print_row("has_even_y", u_has_even_y);
+
+    // Batch serialization (N=64 per batch, amortized cost per point)
+    constexpr int BATCH_N = 64;
+    {
+        Point batch_pts[BATCH_N];
+        for (int i = 0; i < BATCH_N; ++i)
+            batch_pts[i] = pubkeys[i % POOL];
+
+        std::array<uint8_t, 33> batch_out33[BATCH_N];
+        const double u_batch_compressed = bench_ns([&]() {
+            Point::batch_to_compressed(batch_pts, BATCH_N, batch_out33);
+            bench::DoNotOptimize(batch_out33);
+        }, N_POINT / BATCH_N);
+        print_row("batch_to_compressed /pt (N=64)", u_batch_compressed / BATCH_N);
+
+        std::array<uint8_t, 32> batch_out32[BATCH_N];
+        const double u_batch_xonly = bench_ns([&]() {
+            Point::batch_x_only_bytes(batch_pts, BATCH_N, batch_out32);
+            bench::DoNotOptimize(batch_out32);
+        }, N_POINT / BATCH_N);
+        print_row("batch_x_only_bytes /pt (N=64)", u_batch_xonly / BATCH_N);
+    }
+
+    print_sep();
+    printf("\n");
+
+    // =====================================================================
     //  SECTION 4: ECDSA (Ultra FAST)
     // =====================================================================
 
@@ -1467,12 +1537,50 @@ int main(int argc, char** argv) {
         bench::DoNotOptimize(pk_copy); ++idx;
     }, N_SCALAR);
 
+    // Serialization: ec_pubkey_serialize compressed (33 bytes)
+    // libsecp stores affine internally -> serialization = byte copy (~15 ns)
+    idx = 0;
+    const double ls_serialize_comp = bench_ns([&]() {
+        unsigned char out33[33];
+        size_t outlen = 33;
+        secp256k1_ec_pubkey_serialize(ls_ctx, out33, &outlen,
+                                     &ls_pubkeys[idx % POOL],
+                                     SECP256K1_EC_COMPRESSED);
+        bench::DoNotOptimize(out33); ++idx;
+    }, N_POINT);
+
+    // Serialization: ec_pubkey_serialize uncompressed (65 bytes)
+    idx = 0;
+    const double ls_serialize_uncomp = bench_ns([&]() {
+        unsigned char out65[65];
+        size_t outlen = 65;
+        secp256k1_ec_pubkey_serialize(ls_ctx, out65, &outlen,
+                                     &ls_pubkeys[idx % POOL],
+                                     SECP256K1_EC_UNCOMPRESSED);
+        bench::DoNotOptimize(out65); ++idx;
+    }, N_POINT);
+
+    // Point addition: ec_pubkey_combine (2 pubkeys)
+    idx = 0;
+    const double ls_point_add = bench_ns([&]() {
+        secp256k1_pubkey result;
+        const secp256k1_pubkey* ins[2] = {
+            &ls_pubkeys[idx % POOL],
+            &ls_pubkeys[(idx + 1) % POOL]
+        };
+        secp256k1_ec_pubkey_combine(ls_ctx, &result, ins, 2);
+        bench::DoNotOptimize(result); ++idx;
+    }, N_POINT);
+
     secp256k1_context_destroy(ls_ctx);
 
     print_header("libsecp256k1 (bitcoin-core)");
     print_row("field_inv_var",                    ls_fe_inv);
     print_row("generator_mul (ec_pubkey_create)", ls_gen);
     print_row("scalar_mul (k*P, tweak_mul)",     ls_kP);
+    print_row("serialize_compressed (33B)",      ls_serialize_comp);
+    print_row("serialize_uncompressed (65B)",    ls_serialize_uncomp);
+    print_row("point_add (pubkey_combine)",      ls_point_add);
     print_row("ecdsa_sign",                      ls_ecdsa_sign);
     print_row("ecdsa_verify",                    ls_ecdsa_verify);
     print_row("schnorr_keypair_create",          ls_schnorr_kp);
@@ -1620,6 +1728,9 @@ int main(int argc, char** argv) {
     print_ratio("Generator * k",        ls_gen            / keygen);
     print_ratio("Scalar * P (k*P)",     ls_kP             / scalarmul);
     print_ratio("Scalar * P (KPlan)",   ls_kP             / plan_mul);
+    print_ratio("Serialize compressed",  ls_serialize_comp / u_to_compressed);
+    print_ratio("Serialize uncompressed",ls_serialize_uncomp / u_to_uncompressed);
+    print_ratio("Point add",            ls_point_add      / ptadd);
     print_ratio("ECDSA Sign",           ls_ecdsa_sign     / u_ecdsa_sign);
     print_ratio("ECDSA Verify",         ls_ecdsa_verify   / u_ecdsa_verify);
     print_ratio("Schnorr Keypair",      ls_schnorr_kp     / u_schnorr_kp);

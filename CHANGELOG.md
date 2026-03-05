@@ -340,7 +340,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Field operations** -- refactored `field.cpp` with improved Montgomery path selection.
 
 ### 11. Apple-to-Apple Benchmark
-- **`bench_apple_to_apple`** -- definitive head-to-head benchmark against libsecp256k1 v0.6.0 covering 13 operations with the same compiler, flags, and assembly. Uses IQR outlier removal and median-of-11 passes. Result: **7 FASTER, 5 EQUAL, 0 SLOWER** (geometric mean 0.68x = UltrafastSecp256k1 is 1.47x faster overall).
+- **`bench_apple_to_apple`** -- definitive head-to-head benchmark against libsecp256k1 v0.6.0 covering 13 operations with the same compiler, flags, and assembly. Uses IQR outlier removal and median-of-11 passes. Result: **7 FASTER, 5 EQUAL, 0 SLOWER** (geometric mean 0.68x = UltrafastSecp256k1 is 1.47x faster on the 13-op suite). **Note:** this geometric mean is not weighted by real-world operation frequency. Workloads dominated by k\*G (signing, key generation) will see the full benefit; workloads dominated by k\*P (ECDH, BIP-352 scanning, key tweaking) may not -- see `bench_unified` ratio table for per-operation breakdown ([#87](https://github.com/shrec/UltrafastSecp256k1/issues/87)).
 
 ### 12. Documentation & Bindings (continuation of v3.14.0)
 - **Release artifacts** -- signed SHA256SUMS manifest with verification instructions

@@ -16,6 +16,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <memory>
 
 namespace secp256k1::fast {
 namespace {
@@ -3211,6 +3212,185 @@ std::pair<std::array<uint8_t, 32>, bool> Point::x_bytes_and_parity() const {
     // Parity from limbs directly (avoids to_bytes serialization)
     bool const y_odd = (y_aff.limbs()[0] & 1) != 0;
     return {x_aff.to_bytes(), y_odd};
+}
+
+// -- Fast x-only: 32-byte x-coordinate (no Y recovery) -----------------------
+// Saves one multiply vs x_bytes_and_parity() by skipping Z^(-3)*Y.
+std::array<uint8_t, 32> Point::x_only_bytes() const {
+    if (infinity_) return {};
+#if defined(SECP256K1_FAST_52BIT)
+    FieldElement z_fe;
+    if (!z_fe_nonzero(z_fe)) return {}; // LCOV_EXCL_LINE
+    FieldElement const z_inv = z_fe.inverse();
+    FieldElement z_inv2 = z_inv;
+    z_inv2.square_inplace();
+    FieldElement const x_aff = x_.to_fe() * z_inv2;
+#else
+    FieldElement z_inv = z_.inverse();
+    FieldElement z_inv2 = z_inv;
+    z_inv2.square_inplace();
+    FieldElement const x_aff = x_ * z_inv2;
+#endif
+    return x_aff.to_bytes();
+}
+
+// -- Batch normalize: Montgomery trick for N points ---------------------------
+// 1 inversion + 3(N-1) multiplications instead of N inversions.
+void Point::batch_normalize(const Point* points, size_t n,
+                            FieldElement* out_x, FieldElement* out_y) {
+    if (n == 0) return;
+
+    // Accumulate products of Z values (Montgomery's trick)
+    // partials[i] = Z[0] * Z[1] * ... * Z[i]
+    // We allocate on the stack for small N, heap for large N.
+    constexpr size_t STACK_LIMIT = 256;
+    FieldElement stack_partials[STACK_LIMIT];
+    std::unique_ptr<FieldElement[]> heap_partials;
+    FieldElement* partials;
+    if (n <= STACK_LIMIT) {
+        partials = stack_partials;
+    } else {
+        heap_partials = std::make_unique<FieldElement[]>(n);
+        partials = heap_partials.get();
+    }
+
+    // Forward pass: accumulate Z products
+    FieldElement running = FieldElement::one();
+    for (size_t i = 0; i < n; ++i) {
+        if (points[i].is_infinity()) {
+            partials[i] = running; // skip infinity, don't multiply
+        } else {
+#if defined(SECP256K1_FAST_52BIT)
+            FieldElement z_fe = points[i].z_.to_fe();
+#else
+            FieldElement z_fe = points[i].z_;
+#endif
+            partials[i] = running;
+            running *= z_fe;
+        }
+    }
+
+    // Single inversion of the accumulated product
+    FieldElement inv = running.inverse();
+
+    // Backward pass: recover individual Z^(-1) values
+    for (size_t i = n; i-- > 0; ) {
+        if (points[i].is_infinity()) {
+            out_x[i] = FieldElement::zero();
+            out_y[i] = FieldElement::zero();
+            continue;
+        }
+#if defined(SECP256K1_FAST_52BIT)
+        FieldElement z_fe = points[i].z_.to_fe();
+#else
+        FieldElement z_fe = points[i].z_;
+#endif
+        // z_inv_i = partials[i] * inv  (partials[i] = product of Z[0..i-1])
+        FieldElement const z_inv_i = partials[i] * inv;
+        // Update inv for next iteration: inv *= Z[i]
+        inv *= z_fe;
+
+        // Compute affine: x_aff = X * Z^(-2), y_aff = Y * Z^(-3)
+        FieldElement z_inv2 = z_inv_i;
+        z_inv2.square_inplace();
+#if defined(SECP256K1_FAST_52BIT)
+        out_x[i] = points[i].x_.to_fe() * z_inv2;
+        out_y[i] = points[i].y_.to_fe() * z_inv2 * z_inv_i;
+#else
+        out_x[i] = points[i].x_ * z_inv2;
+        out_y[i] = points[i].y_ * z_inv2 * z_inv_i;
+#endif
+    }
+}
+
+// -- Batch to_compressed: serialize N points with ONE inversion ---------------
+void Point::batch_to_compressed(const Point* points, size_t n,
+                                std::array<uint8_t, 33>* out) {
+    if (n == 0) return;
+
+    constexpr size_t STACK_LIMIT = 256;
+    FieldElement stack_x[STACK_LIMIT], stack_y[STACK_LIMIT];
+    std::unique_ptr<FieldElement[]> heap_x, heap_y;
+    FieldElement* aff_x;
+    FieldElement* aff_y;
+    if (n <= STACK_LIMIT) {
+        aff_x = stack_x; aff_y = stack_y;
+    } else {
+        heap_x = std::make_unique<FieldElement[]>(n);
+        heap_y = std::make_unique<FieldElement[]>(n);
+        aff_x = heap_x.get(); aff_y = heap_y.get();
+    }
+
+    batch_normalize(points, n, aff_x, aff_y);
+
+    for (size_t i = 0; i < n; ++i) {
+        if (points[i].is_infinity()) {
+            out[i].fill(0);
+            continue;
+        }
+        auto x_bytes = aff_x[i].to_bytes();
+        auto y_bytes = aff_y[i].to_bytes();
+        out[i][0] = (y_bytes[31] & 1U) ? 0x03 : 0x02;
+        std::copy(x_bytes.begin(), x_bytes.end(), out[i].begin() + 1);
+    }
+}
+
+// -- Batch x_only_bytes: extract N x-coordinates with ONE inversion -----------
+void Point::batch_x_only_bytes(const Point* points, size_t n,
+                               std::array<uint8_t, 32>* out) {
+    if (n == 0) return;
+
+    // Montgomery batch inversion (same trick, but only need x = X*Z^(-2))
+    constexpr size_t STACK_LIMIT = 256;
+    FieldElement stack_partials[STACK_LIMIT];
+    std::unique_ptr<FieldElement[]> heap_partials;
+    FieldElement* partials;
+    if (n <= STACK_LIMIT) {
+        partials = stack_partials;
+    } else {
+        heap_partials = std::make_unique<FieldElement[]>(n);
+        partials = heap_partials.get();
+    }
+
+    FieldElement running = FieldElement::one();
+    for (size_t i = 0; i < n; ++i) {
+        if (points[i].is_infinity()) {
+            partials[i] = running;
+        } else {
+#if defined(SECP256K1_FAST_52BIT)
+            FieldElement z_fe = points[i].z_.to_fe();
+#else
+            FieldElement z_fe = points[i].z_;
+#endif
+            partials[i] = running;
+            running *= z_fe;
+        }
+    }
+
+    FieldElement inv = running.inverse();
+
+    for (size_t i = n; i-- > 0; ) {
+        if (points[i].is_infinity()) {
+            out[i].fill(0);
+            continue;
+        }
+#if defined(SECP256K1_FAST_52BIT)
+        FieldElement z_fe = points[i].z_.to_fe();
+#else
+        FieldElement z_fe = points[i].z_;
+#endif
+        FieldElement const z_inv_i = partials[i] * inv;
+        inv *= z_fe;
+
+        FieldElement z_inv2 = z_inv_i;
+        z_inv2.square_inplace();
+#if defined(SECP256K1_FAST_52BIT)
+        FieldElement const x_aff = points[i].x_.to_fe() * z_inv2;
+#else
+        FieldElement const x_aff = points[i].x_ * z_inv2;
+#endif
+        out[i] = x_aff.to_bytes();
+    }
 }
 
 // -- 128-bit split Shamir: a*G + b*P -----------------------------------------
