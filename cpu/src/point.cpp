@@ -1874,23 +1874,23 @@ KPlan KPlan::from_scalar(const Scalar& k, uint8_t w) {
 
 #if defined(SECP256K1_FAST_52BIT)
 Point::Point() : x_(FieldElement52::zero()), y_(FieldElement52::one()), z_(FieldElement52::zero()), 
-                 infinity_(true), is_generator_(false), z_one_(false) {}
+                 infinity_(true), is_generator_(false) {}
 
 Point::Point(const FieldElement& x, const FieldElement& y, const FieldElement& z, bool infinity)
     : x_(FieldElement52::from_fe(x)), y_(FieldElement52::from_fe(y)), z_(FieldElement52::from_fe(z)), 
-      infinity_(infinity), is_generator_(false), z_one_(false) {}
+      infinity_(infinity), is_generator_(false) {}
 
 // Zero-conversion FE52 constructor -- used by from_jac52 to avoid FE52->FE->FE52 round-trip
 Point::Point(const FieldElement52& x, const FieldElement52& y, const FieldElement52& z, bool infinity, bool is_gen)
     : x_(x), y_(y), z_(z), 
-      infinity_(infinity), is_generator_(is_gen), z_one_(false) {}
+      infinity_(infinity), is_generator_(is_gen) {}
 #else
 Point::Point() : x_(FieldElement::zero()), y_(FieldElement::one()), z_(FieldElement::zero()), 
-                 infinity_(true), is_generator_(false), z_one_(false) {}
+                 infinity_(true), is_generator_(false) {}
 
 Point::Point(const FieldElement& x, const FieldElement& y, const FieldElement& z, bool infinity)
     : x_(x), y_(y), z_(z), 
-      infinity_(infinity), is_generator_(false), z_one_(false) {}
+      infinity_(infinity), is_generator_(false) {}
 #endif
 
 Point Point::from_jacobian_coords(const FieldElement& x, const FieldElement& y, const FieldElement& z, bool infinity) {
