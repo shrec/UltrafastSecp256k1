@@ -8,6 +8,7 @@
 
 - **Fastest open-source GPU signatures** -- no other library provides secp256k1 ECDSA + Schnorr sign/verify on CUDA, OpenCL, and Metal ([reproducible benchmark suite and raw logs](docs/BENCHMARKS.md))
 - **Fast CPU signing (k\*G-dominant workloads)** -- generator multiply 2-4x faster than libsecp256k1; scalar multiply (k\*P) is comparable on x86-64 ([see bench_unified ratio table](docs/BENCHMARKS.md))
+- **BIP-352 Silent Payments scanning** -- full pipeline 1.17x faster than libsecp256k1 on isolated single-threaded benchmark ([standalone benchmark by @craigraw](https://github.com/craigraw/bench_bip352))
 - **Zero dependencies** -- pure C++20, no Boost, no OpenSSL, compiles anywhere with a conforming compiler
 - **Dual-layer security** -- variable-time FAST path for throughput, constant-time CT path for secret-key operations
 - **12+ platforms** -- x86-64, ARM64, RISC-V, WASM, iOS, Android, ESP32, STM32, CUDA, Metal, OpenCL, ROCm
@@ -127,6 +128,32 @@ All public API functions enforce **canonical input encoding** as required by BIP
 - Private keys must satisfy `1 <= sk < n`
 
 The C ABI (`ufsecp_*`) returns distinct error codes: `UFSECP_ERR_BAD_SIG` (non-canonical signature) vs `UFSECP_ERR_VERIFY_FAIL` (valid encoding, bad math). See [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md) for details.
+
+---
+
+## BIP-352 Silent Payments Scanning Benchmark
+
+Standalone single-threaded benchmark comparing UltrafastSecp256k1 vs libsecp256k1 on the full BIP-352 scanning pipeline (k\*P, serialize, tagged SHA-256, k\*G, point add, serialize, prefix match). Benchmark by [@craigraw](https://github.com/craigraw) ([bench_bip352](https://github.com/craigraw/bench_bip352)). Thank you for the contribution!
+
+**Full pipeline** (10K points, 11 passes, median, GCC 12.4, `-O3 -march=native`, `USE_ASM_X86_64=1`):
+
+| Backend | Median | ns/op | Ratio |
+|---------|--------|-------|-------|
+| libsecp256k1 | 604.1 ms | 60,412 ns | 1.00x |
+| **UltrafastSecp256k1** | **516.8 ms** | **51,680 ns** | **1.17x faster** |
+
+**Per-operation breakdown** (1K points, 11 passes, median):
+
+| Operation | libsecp256k1 | UltrafastSecp256k1 | Ratio |
+|-----------|-------------|-------------------|-------|
+| k\*P (scalar mul) | 38,136 ns | 32,838 ns | 1.16x faster |
+| Serialize compressed (1st) | 52 ns | 14 ns | 3.7x faster |
+| Tagged SHA-256 | 1,319 ns | 62 ns | 21.3x faster |
+| k\*G (generator mul) | 24,976 ns | 9,125 ns | 2.74x faster |
+| Point addition | 2,494 ns | 579 ns | 4.3x faster |
+| Serialize compressed (2nd) | 26 ns | 1,614 ns | 0.02x |
+
+> **Note:** The 2nd serialization is slower because the `spend + output` point has Jacobian Z != 1, requiring a field inversion. The 1st serialization benefits from z-one normalization in `scalar_mul_with_plan`.
 
 ---
 
