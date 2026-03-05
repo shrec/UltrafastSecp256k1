@@ -15,11 +15,14 @@ var searchData=
   ['batch_5ffield_5fsqr_5fscalar_12',['batch_field_sqr_scalar',['../namespacesecp256k1_1_1simd_1_1detail.html#a0b7e2361a601fcbb34d3ecdac679d98f',1,'secp256k1::simd::detail']]],
   ['batch_5ffield_5fsub_13',['batch_field_sub',['../namespacesecp256k1_1_1simd.html#a84b2b9015d94c953e4d436427d2847cb',1,'secp256k1::simd']]],
   ['batch_5ffield_5fsub_5fscalar_14',['batch_field_sub_scalar',['../namespacesecp256k1_1_1simd_1_1detail.html#aa704445d32ebb35fcb181b89d899228e',1,'secp256k1::simd::detail']]],
-  ['bech32_5fdecode_15',['bech32_decode',['../namespacesecp256k1.html#a0397bf33518eeb41c5ca2a4faaa349c3',1,'secp256k1']]],
-  ['bech32_5fencode_16',['bech32_encode',['../namespacesecp256k1.html#a96716096c393724a5a60d2faf1eff530',1,'secp256k1']]],
-  ['best_5fpurpose_17',['best_purpose',['../namespacesecp256k1_1_1coins.html#a94a9fd080c98fa0c1110edf774fbd8ce',1,'secp256k1::coins']]],
-  ['bip32_5fderive_5fpath_18',['bip32_derive_path',['../namespacesecp256k1.html#aff490eb527f1e92e5b5bed039244608d',1,'secp256k1']]],
-  ['bip32_5fmaster_5fkey_19',['bip32_master_key',['../namespacesecp256k1.html#a205c6f3c059c9be0b5f757886aa30483',1,'secp256k1']]],
-  ['bit_20',['bit',['../classsecp256k1_1_1fast_1_1Scalar.html#a1984674118f16c760bf1b1b090b5dfaf',1,'secp256k1::fast::Scalar']]],
-  ['bool_5fto_5fmask_21',['bool_to_mask',['../namespacesecp256k1_1_1ct.html#afeef0db6bdf114f53c2a9a156d551055',1,'secp256k1::ct']]]
+  ['batch_5fnormalize_15',['batch_normalize',['../classsecp256k1_1_1fast_1_1Point.html#a62e13494338a0f90967824f072d61c6f',1,'secp256k1::fast::Point']]],
+  ['batch_5fto_5fcompressed_16',['batch_to_compressed',['../classsecp256k1_1_1fast_1_1Point.html#a284b4df039ee9dbcbb7a40a59cfe4a6c',1,'secp256k1::fast::Point']]],
+  ['batch_5fx_5fonly_5fbytes_17',['batch_x_only_bytes',['../classsecp256k1_1_1fast_1_1Point.html#a124c40a178d9f43c983ceca265e58394',1,'secp256k1::fast::Point']]],
+  ['bech32_5fdecode_18',['bech32_decode',['../namespacesecp256k1.html#a0397bf33518eeb41c5ca2a4faaa349c3',1,'secp256k1']]],
+  ['bech32_5fencode_19',['bech32_encode',['../namespacesecp256k1.html#a96716096c393724a5a60d2faf1eff530',1,'secp256k1']]],
+  ['best_5fpurpose_20',['best_purpose',['../namespacesecp256k1_1_1coins.html#a94a9fd080c98fa0c1110edf774fbd8ce',1,'secp256k1::coins']]],
+  ['bip32_5fderive_5fpath_21',['bip32_derive_path',['../namespacesecp256k1.html#aff490eb527f1e92e5b5bed039244608d',1,'secp256k1']]],
+  ['bip32_5fmaster_5fkey_22',['bip32_master_key',['../namespacesecp256k1.html#a205c6f3c059c9be0b5f757886aa30483',1,'secp256k1']]],
+  ['bit_23',['bit',['../classsecp256k1_1_1fast_1_1Scalar.html#a1984674118f16c760bf1b1b090b5dfaf',1,'secp256k1::fast::Scalar']]],
+  ['bool_5fto_5fmask_24',['bool_to_mask',['../namespacesecp256k1_1_1ct.html#afeef0db6bdf114f53c2a9a156d551055',1,'secp256k1::ct']]]
 ];

@@ -5,7 +5,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=11"/>
 <meta name="generator" content="Doxygen 1.9.8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>UltrafastSecp256k1: UltrafastSecp256k1 &ndash; Fastest Open-Source secp256k1 Library</title>
+<title>UltrafastSecp256k1: UltrafastSecp256k1 &ndash; High-Performance Open-Source secp256k1 Library</title>
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
 <script type="text/javascript" src="dynsections.js"></script>
@@ -90,7 +90,7 @@ $(document).ready(function(){initNavTree('index.html',''); initResizable(); });
 </div>
 
 <div><div class="header">
-  <div class="headertitle"><div class="title">UltrafastSecp256k1 &ndash; Fastest Open-Source <a class="el" href="namespacesecp256k1.html">secp256k1</a> Library </div></div>
+  <div class="headertitle"><div class="title">UltrafastSecp256k1 &ndash; High-Performance Open-Source <a class="el" href="namespacesecp256k1.html">secp256k1</a> Library </div></div>
 </div><!--header-->
 <div class="contents">
 <div class="textblock"><p><a class="anchor" id="md_README"></a> <b>Zero-dependency, multi-backend <a class="el" href="namespacesecp256k1.html">secp256k1</a> elliptic curve cryptography library</b> &ndash; GPU-accelerated ECDSA &amp; Schnorr signatures, constant-time side-channel protection, 12+ platform targets inc. CUDA, Metal, OpenCL, ROCm, WebAssembly, RISC-V, ESP32, and STM32.</p>
@@ -101,6 +101,7 @@ $(document).ready(function(){initNavTree('index.html',''); initResizable(); });
 Why UltrafastSecp256k1?</h2>
 <ul>
 <li><b>Fastest open-source GPU signatures</b> &ndash; no other library provides <a class="el" href="namespacesecp256k1.html">secp256k1</a> ECDSA + Schnorr sign/verify on CUDA, OpenCL, and Metal (reproducible benchmark suite and raw logs)</li>
+<li><b>Fast CPU signing (k*G-dominant workloads)</b> &ndash; generator multiply 2-4x faster than libsecp256k1; scalar multiply (k*P) is comparable on x86-64 (see bench_unified ratio table)</li>
 <li><b>Zero dependencies</b> &ndash; pure C++20, no Boost, no OpenSSL, compiles anywhere with a conforming compiler</li>
 <li><b>Dual-layer security</b> &ndash; variable-time FAST path for throughput, constant-time CT path for secret-key operations</li>
 <li><b>12+ platforms</b> &ndash; x86-64, ARM64, RISC-V, WASM, iOS, Android, ESP32, STM32, CUDA, Metal, OpenCL, ROCm</li>

@@ -20,7 +20,8 @@ var searchData=
   ['hashtier_17',['HashTier',['../namespacesecp256k1_1_1hash.html#a4caba186460712ebd064679ef90b2685',1,'secp256k1::hash']]],
   ['hiding_5fnonce_18',['hiding_nonce',['../structsecp256k1_1_1FrostNonce.html#a4a652ad109334d5d0a99841d214e9447',1,'secp256k1::FrostNonce']]],
   ['hiding_5fpoint_19',['hiding_point',['../structsecp256k1_1_1FrostNonceCommitment.html#a74c06e716b1b9d46c136236682717be5',1,'secp256k1::FrostNonceCommitment']]],
-  ['hmac_5fsha512_20',['hmac_sha512',['../namespacesecp256k1.html#a5b674e02b3a37bc4c91097ac1502b980',1,'secp256k1']]],
-  ['horizen_21',['Horizen',['../namespacesecp256k1_1_1coins.html#a1854f765e4e0cd90d8d1fa8e878acaf6',1,'secp256k1::coins']]],
-  ['hrp_22',['hrp',['../structsecp256k1_1_1Bech32DecodeResult.html#a91d8ad4c2f74a060dd9e7ecb658f7219',1,'secp256k1::Bech32DecodeResult']]]
+  ['high_20performance_20open_20source_20secp256k1_20library_20',['UltrafastSecp256k1 &amp;ndash; High-Performance Open-Source secp256k1 Library',['../index.html',1,'']]],
+  ['hmac_5fsha512_21',['hmac_sha512',['../namespacesecp256k1.html#a5b674e02b3a37bc4c91097ac1502b980',1,'secp256k1']]],
+  ['horizen_22',['Horizen',['../namespacesecp256k1_1_1coins.html#a1854f765e4e0cd90d8d1fa8e878acaf6',1,'secp256k1::coins']]],
+  ['hrp_23',['hrp',['../structsecp256k1_1_1Bech32DecodeResult.html#a91d8ad4c2f74a060dd9e7ecb658f7219',1,'secp256k1::Bech32DecodeResult']]]
 ];

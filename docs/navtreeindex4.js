@@ -1,5 +1,13 @@
 var NAVTREEINDEX4 =
 {
+"md_include_2ufsecp_2SUPPORTED__GUARANTEES.html#autotoc_md15":[1,7],
+"md_include_2ufsecp_2SUPPORTED__GUARANTEES.html#autotoc_md2":[1,0],
+"md_include_2ufsecp_2SUPPORTED__GUARANTEES.html#autotoc_md3":[1,0,0],
+"md_include_2ufsecp_2SUPPORTED__GUARANTEES.html#autotoc_md4":[1,0,1],
+"md_include_2ufsecp_2SUPPORTED__GUARANTEES.html#autotoc_md6":[1,1],
+"md_include_2ufsecp_2SUPPORTED__GUARANTEES.html#autotoc_md7":[1,2],
+"md_include_2ufsecp_2SUPPORTED__GUARANTEES.html#autotoc_md8":[1,3],
+"multiscalar_8hpp.html":[4,0,0,0,0,30],
 "multiscalar_8hpp.html#a03ccaf89eefb01c0e251db92af63f745":[4,0,0,0,0,30,1],
 "multiscalar_8hpp.html#a710d5963b9ce553b958f007209438faf":[4,0,0,0,0,30,2],
 "multiscalar_8hpp.html#a882905c11972263399924316d1d2b926":[4,0,0,0,0,30,0],
@@ -22,8 +30,8 @@ var NAVTREEINDEX4 =
 "namespacebench.html#a915d5c8b45bcd098f6eff6957d64cf26":[2,0,0,8],
 "namespacebench.html#a91fdf78584b5ac7cb09cd02b536ee818":[2,0,0,5],
 "namespacebench.html#ad73b74a3a46ae99095f1ce23d2737470":[2,0,0,4],
-"namespacemembers.html":[2,1,0],
 "namespacemembers.html":[2,1,0,0],
+"namespacemembers.html":[2,1,0],
 "namespacemembers_b.html":[2,1,0,1],
 "namespacemembers_c.html":[2,1,0,2],
 "namespacemembers_d.html":[2,1,0,3],
@@ -241,13 +249,5 @@ var NAVTREEINDEX4 =
 "namespacesecp256k1_1_1coins.html#ae0b2bacced0f77a15da9fa30ea9f24dd":[2,0,1,0,13],
 "namespacesecp256k1_1_1coins.html#ae23fd2c01c7fdd7613299ffdac732d42":[2,0,1,0,25],
 "namespacesecp256k1_1_1coins.html#ae9978405d4dfef91cc06d90518d512d5":[2,0,1,0,54],
-"namespacesecp256k1_1_1coins.html#aecc44da6ab8152f3cbd0ceafd9f258a4":[2,0,1,0,24],
-"namespacesecp256k1_1_1coins.html#aeff28fb4c71738b9baf242f7828122b4":[2,0,1,0,27],
-"namespacesecp256k1_1_1coins.html#af1a6b40521b40c747c2892c55c28424e":[2,0,1,0,35],
-"namespacesecp256k1_1_1coins.html#af39cdac6b34b6dc59104bf2d5cf68029":[2,0,1,0,48],
-"namespacesecp256k1_1_1coins.html#af8584b5a9a5909c5fe48b5d0e747a4e9":[2,0,1,0,36],
-"namespacesecp256k1_1_1coins.html#afb1968e9af2472f4b9b4a7fc7ecf48ab":[2,0,1,0,16],
-"namespacesecp256k1_1_1coins.html#aff849301f019d7e644d2cdcac680a2ff":[2,0,1,0,14],
-"namespacesecp256k1_1_1ct.html":[2,0,1,1],
-"namespacesecp256k1_1_1ct.html#a0076337fce993cc7c95f76f60460017b":[2,0,1,1,46]
+"namespacesecp256k1_1_1coins.html#aecc44da6ab8152f3cbd0ceafd9f258a4":[2,0,1,0,24]
 };

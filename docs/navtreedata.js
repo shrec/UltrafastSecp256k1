@@ -25,7 +25,7 @@
 var NAVTREE =
 [
   [ "UltrafastSecp256k1", "index.html", [
-    [ "UltrafastSecp256k1 – Fastest Open-Source secp256k1 Library", "index.html", "index" ],
+    [ "UltrafastSecp256k1 – High-Performance Open-Source secp256k1 Library", "index.html", "index" ],
     [ "Supported Guarantees – <tt>ufsecp</tt> C ABI", "md_include_2ufsecp_2SUPPORTED__GUARANTEES.html", [
       [ "Tier 1 – Stable (ABI >= 1)", "md_include_2ufsecp_2SUPPORTED__GUARANTEES.html#autotoc_md2", [
         [ "Thread safety", "md_include_2ufsecp_2SUPPORTED__GUARANTEES.html#autotoc_md3", null ],
@@ -77,15 +77,15 @@ var NAVTREEINDEX =
 [
 "UltrafastSecp256k1_8hpp.html",
 "classsecp256k1_1_1fast_1_1Point.html#a092a382e549cb6faac5ee7bc61066078",
-"ct_2point_8hpp.html#a9318c71df40cf00c16d37a425e4a364b",
-"field__simd_8hpp.html#a6d90a4c3494e6cdcac9ea7058a727d6c",
-"multiscalar_8hpp.html#a03ccaf89eefb01c0e251db92af63f745",
-"namespacesecp256k1_1_1ct.html#a0395559c34023213c3182f49e8e73807",
-"namespacesecp256k1_1_1fast_1_1debug.html",
-"secure__erase_8hpp_source.html",
-"structsecp256k1_1_1MuSig2PubNonce.html#ab224c2a63e73f38d2acd24c7043effaf",
-"structsecp256k1_1_1fast_1_1FieldElement26.html#abb1984b2d88f7b0a54ed5efeb6fc7b1d",
-"structsecp256k1_1_1fast_1_1debug_1_1DebugCounters.html#af6d43061042a313c0c6ef71fc06a1692"
+"ct_2point_8hpp.html#a678dc9c8a806443ca41fc45bb94ae34b",
+"field__simd_8hpp.html#a2210420d886c52574f257d5014201b79",
+"md_include_2ufsecp_2SUPPORTED__GUARANTEES.html#autotoc_md15",
+"namespacesecp256k1_1_1coins.html#aeff28fb4c71738b9baf242f7828122b4",
+"namespacesecp256k1_1_1fast.html#aedd2ad06e0ba3ce8e3be6ab7a51a3c0e",
+"secp256k1__wasm_8h.html#aabe152a371105b3677e4f3745f4a043e",
+"structsecp256k1_1_1MuSig2PubNonce.html",
+"structsecp256k1_1_1fast_1_1FieldElement26.html#a8c19a224f4c8d53f97d2845904c60918",
+"structsecp256k1_1_1fast_1_1debug_1_1DebugCounters.html#a7edd84fbe67e10884c69a659fa4b1134"
 ];
 
 var SYNCONMSG = 'click to disable panel synchronisation';

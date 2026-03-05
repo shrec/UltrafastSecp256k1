@@ -164,6 +164,8 @@ Public Member Functions</h2></td></tr>
 <tr class="separator:ab2cdb1e9b7502a542045da52b92fbdcb"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a24cea8423dc92703f2c859b76b36bf03" id="r_a24cea8423dc92703f2c859b76b36bf03"><td class="memItemLeft" align="right" valign="top">std::pair&lt; std::array&lt; uint8_t, 32 &gt;, bool &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classsecp256k1_1_1fast_1_1Point.html#a24cea8423dc92703f2c859b76b36bf03">x_bytes_and_parity</a> () const</td></tr>
 <tr class="separator:a24cea8423dc92703f2c859b76b36bf03"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a5790939f0356ab8f680d2252f99f7283" id="r_a5790939f0356ab8f680d2252f99f7283"><td class="memItemLeft" align="right" valign="top">std::array&lt; uint8_t, 32 &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classsecp256k1_1_1fast_1_1Point.html#a5790939f0356ab8f680d2252f99f7283">x_only_bytes</a> () const</td></tr>
+<tr class="separator:a5790939f0356ab8f680d2252f99f7283"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ae73f22dc5f207017b4b34b8abbb79b58" id="r_ae73f22dc5f207017b4b34b8abbb79b58"><td class="memItemLeft" align="right" valign="top">std::array&lt; std::uint8_t, 33 &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classsecp256k1_1_1fast_1_1Point.html#ae73f22dc5f207017b4b34b8abbb79b58">to_compressed</a> () const</td></tr>
 <tr class="separator:ae73f22dc5f207017b4b34b8abbb79b58"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a1383a95558f108749ff6c4d344720500" id="r_a1383a95558f108749ff6c4d344720500"><td class="memItemLeft" align="right" valign="top">std::array&lt; std::uint8_t, 65 &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classsecp256k1_1_1fast_1_1Point.html#a1383a95558f108749ff6c4d344720500">to_uncompressed</a> () const</td></tr>
@@ -185,6 +187,12 @@ Static Public Member Functions</h2></td></tr>
 <tr class="separator:a079977183e498ec8d09b7550cc7c11c2"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a01fbac924f8decf2b741d081b4f34c3d" id="r_a01fbac924f8decf2b741d081b4f34c3d"><td class="memItemLeft" align="right" valign="top">static <a class="el" href="classsecp256k1_1_1fast_1_1Point.html">Point</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classsecp256k1_1_1fast_1_1Point.html#a01fbac924f8decf2b741d081b4f34c3d">from_hex</a> (const std::string &amp;x_hex, const std::string &amp;y_hex)</td></tr>
 <tr class="separator:a01fbac924f8decf2b741d081b4f34c3d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a62e13494338a0f90967824f072d61c6f" id="r_a62e13494338a0f90967824f072d61c6f"><td class="memItemLeft" align="right" valign="top">static void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classsecp256k1_1_1fast_1_1Point.html#a62e13494338a0f90967824f072d61c6f">batch_normalize</a> (const <a class="el" href="classsecp256k1_1_1fast_1_1Point.html">Point</a> *points, size_t n, <a class="el" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a> *out_x, <a class="el" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a> *out_y)</td></tr>
+<tr class="separator:a62e13494338a0f90967824f072d61c6f"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a284b4df039ee9dbcbb7a40a59cfe4a6c" id="r_a284b4df039ee9dbcbb7a40a59cfe4a6c"><td class="memItemLeft" align="right" valign="top">static void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classsecp256k1_1_1fast_1_1Point.html#a284b4df039ee9dbcbb7a40a59cfe4a6c">batch_to_compressed</a> (const <a class="el" href="classsecp256k1_1_1fast_1_1Point.html">Point</a> *points, size_t n, std::array&lt; uint8_t, 33 &gt; *out)</td></tr>
+<tr class="separator:a284b4df039ee9dbcbb7a40a59cfe4a6c"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a124c40a178d9f43c983ceca265e58394" id="r_a124c40a178d9f43c983ceca265e58394"><td class="memItemLeft" align="right" valign="top">static void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classsecp256k1_1_1fast_1_1Point.html#a124c40a178d9f43c983ceca265e58394">batch_x_only_bytes</a> (const <a class="el" href="classsecp256k1_1_1fast_1_1Point.html">Point</a> *points, size_t n, std::array&lt; uint8_t, 32 &gt; *out)</td></tr>
+<tr class="separator:a124c40a178d9f43c983ceca265e58394"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a092a382e549cb6faac5ee7bc61066078" id="r_a092a382e549cb6faac5ee7bc61066078"><td class="memItemLeft" align="right" valign="top">static <a class="el" href="classsecp256k1_1_1fast_1_1Point.html">Point</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classsecp256k1_1_1fast_1_1Point.html#a092a382e549cb6faac5ee7bc61066078">dual_scalar_mul_gen_point</a> (const <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">Scalar</a> &amp;a, const <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">Scalar</a> &amp;b, const <a class="el" href="classsecp256k1_1_1fast_1_1Point.html">Point</a> &amp;P)</td></tr>
 <tr class="separator:a092a382e549cb6faac5ee7bc61066078"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a0a07e775daa9e8b6ba9ff8bd5a3211b5" id="r_a0a07e775daa9e8b6ba9ff8bd5a3211b5"><td class="memItemLeft" align="right" valign="top">static <a class="el" href="classsecp256k1_1_1fast_1_1Point.html">Point</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classsecp256k1_1_1fast_1_1Point.html#a0a07e775daa9e8b6ba9ff8bd5a3211b5">from_jacobian_coords</a> (const <a class="el" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a> &amp;<a class="el" href="classsecp256k1_1_1fast_1_1Point.html#a9fac69f2a5fe229eb3bd933577eda9a4">x</a>, const <a class="el" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a> &amp;<a class="el" href="classsecp256k1_1_1fast_1_1Point.html#aa1c473d6c48e571884b379ca1859c23c">y</a>, const <a class="el" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a> &amp;<a class="el" href="classsecp256k1_1_1fast_1_1Point.html#aa775c3b7871aa652fb9574c29db6c17d">z</a>, bool <a class="el" href="classsecp256k1_1_1fast_1_1Point.html#ae04bdd076cb60aef576a5fe34bb55699">infinity</a>)</td></tr>
@@ -300,6 +308,138 @@ Static Public Member Functions</h2></td></tr>
           <td></td><td></td>
         </tr>
       </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="a62e13494338a0f90967824f072d61c6f" name="a62e13494338a0f90967824f072d61c6f"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a62e13494338a0f90967824f072d61c6f">&#9670;&#160;</a></span>batch_normalize()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">static void secp256k1::fast::Point::batch_normalize </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="classsecp256k1_1_1fast_1_1Point.html">Point</a> *&#160;</td>
+          <td class="paramname"><em>points</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">size_t&#160;</td>
+          <td class="paramname"><em>n</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a> *&#160;</td>
+          <td class="paramname"><em>out_x</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a> *&#160;</td>
+          <td class="paramname"><em>out_y</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">static</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="a284b4df039ee9dbcbb7a40a59cfe4a6c" name="a284b4df039ee9dbcbb7a40a59cfe4a6c"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a284b4df039ee9dbcbb7a40a59cfe4a6c">&#9670;&#160;</a></span>batch_to_compressed()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">static void secp256k1::fast::Point::batch_to_compressed </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="classsecp256k1_1_1fast_1_1Point.html">Point</a> *&#160;</td>
+          <td class="paramname"><em>points</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">size_t&#160;</td>
+          <td class="paramname"><em>n</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">std::array&lt; uint8_t, 33 &gt; *&#160;</td>
+          <td class="paramname"><em>out</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">static</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="a124c40a178d9f43c983ceca265e58394" name="a124c40a178d9f43c983ceca265e58394"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a124c40a178d9f43c983ceca265e58394">&#9670;&#160;</a></span>batch_x_only_bytes()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">static void secp256k1::fast::Point::batch_x_only_bytes </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="classsecp256k1_1_1fast_1_1Point.html">Point</a> *&#160;</td>
+          <td class="paramname"><em>points</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">size_t&#160;</td>
+          <td class="paramname"><em>n</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">std::array&lt; uint8_t, 32 &gt; *&#160;</td>
+          <td class="paramname"><em>out</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">static</span></span>  </td>
+  </tr>
+</table>
 </div><div class="memdoc">
 
 </div>
@@ -1025,6 +1165,23 @@ Static Public Member Functions</h2></td></tr>
 
 </div>
 </div>
+<a id="a5790939f0356ab8f680d2252f99f7283" name="a5790939f0356ab8f680d2252f99f7283"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a5790939f0356ab8f680d2252f99f7283">&#9670;&#160;</a></span>x_only_bytes()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">std::array&lt; uint8_t, 32 &gt; secp256k1::fast::Point::x_only_bytes </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
 <a id="abff5c00ffb3074c4cd1b502e447b33c7" name="abff5c00ffb3074c4cd1b502e447b33c7"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#abff5c00ffb3074c4cd1b502e447b33c7">&#9670;&#160;</a></span>x_raw()</h2>
 
@@ -1048,7 +1205,7 @@ Static Public Member Functions</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="point_8hpp_source.html#l00149">149</a> of file <a class="el" href="point_8hpp_source.html">point.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="point_8hpp_source.html#l00172">172</a> of file <a class="el" href="point_8hpp_source.html">point.hpp</a>.</p>
 
 </div>
 </div>
@@ -1136,7 +1293,7 @@ Static Public Member Functions</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="point_8hpp_source.html#l00150">150</a> of file <a class="el" href="point_8hpp_source.html">point.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="point_8hpp_source.html#l00173">173</a> of file <a class="el" href="point_8hpp_source.html">point.hpp</a>.</p>
 
 </div>
 </div>
@@ -1190,7 +1347,7 @@ Static Public Member Functions</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="point_8hpp_source.html#l00151">151</a> of file <a class="el" href="point_8hpp_source.html">point.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="point_8hpp_source.html#l00174">174</a> of file <a class="el" href="point_8hpp_source.html">point.hpp</a>.</p>
 
 </div>
 </div>

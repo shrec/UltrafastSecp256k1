@@ -1,5 +1,13 @@
 var NAVTREEINDEX10 =
 {
+"structsecp256k1_1_1fast_1_1debug_1_1DebugCounters.html#a7edd84fbe67e10884c69a659fa4b1134":[3,0,1,2,0,0,5],
+"structsecp256k1_1_1fast_1_1debug_1_1DebugCounters.html#a9e43a37a37f7b224cf46c35996078fc8":[2,0,1,3,0,0,2],
+"structsecp256k1_1_1fast_1_1debug_1_1DebugCounters.html#a9e43a37a37f7b224cf46c35996078fc8":[3,0,1,2,0,0,2],
+"structsecp256k1_1_1fast_1_1debug_1_1DebugCounters.html#aa2b24ee279c5fad65acdf2d5fd1f97e8":[2,0,1,3,0,0,6],
+"structsecp256k1_1_1fast_1_1debug_1_1DebugCounters.html#aa2b24ee279c5fad65acdf2d5fd1f97e8":[3,0,1,2,0,0,6],
+"structsecp256k1_1_1fast_1_1debug_1_1DebugCounters.html#adc36ff492f74b4d50fe4fb4ee7442eca":[2,0,1,3,0,0,1],
+"structsecp256k1_1_1fast_1_1debug_1_1DebugCounters.html#adc36ff492f74b4d50fe4fb4ee7442eca":[3,0,1,2,0,0,1],
+"structsecp256k1_1_1fast_1_1debug_1_1DebugCounters.html#af6d43061042a313c0c6ef71fc06a1692":[3,0,1,2,0,0,4],
 "structsecp256k1_1_1fast_1_1debug_1_1DebugCounters.html#af6d43061042a313c0c6ef71fc06a1692":[2,0,1,3,0,0,4],
 "structsecp256k1_1_1test_1_1TestCounters.html":[2,0,1,6,0],
 "structsecp256k1_1_1test_1_1TestCounters.html":[3,0,1,3,0],

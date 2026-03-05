@@ -5,7 +5,7 @@ var searchData=
   ['only_2',['Apple Metal (M3 Pro) &amp;ndash; Kernel-Only',['../index.html#autotoc_md42',1,'']]],
   ['only_20build_3',['CPU-Only Build',['../index.html#autotoc_md73',1,'']]],
   ['only_20throughput_4',['CUDA Core ECC Operations (Kernel-Only Throughput)',['../index.html#autotoc_md39',1,'']]],
-  ['open_20source_20secp256k1_20library_5',['UltrafastSecp256k1 &amp;ndash; Fastest Open-Source secp256k1 Library',['../index.html',1,'']]],
+  ['open_20source_20secp256k1_20library_5',['UltrafastSecp256k1 &amp;ndash; High-Performance Open-Source secp256k1 Library',['../index.html',1,'']]],
   ['opencl_20comparison_20rtx_205060_20ti_6',['CUDA vs OpenCL Comparison (RTX 5060 Ti)',['../index.html#autotoc_md41',1,'']]],
   ['opencl_20metal_20rocm_7',['secp256k1 GPU Acceleration (CUDA / OpenCL / Metal / ROCm)',['../index.html#autotoc_md38',1,'']]],
   ['opencl_20vs_20metal_8',['GPU: CUDA vs OpenCL vs Metal',['../index.html#autotoc_md52',1,'']]],

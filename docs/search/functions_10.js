@@ -3,7 +3,7 @@ var searchData=
   ['save_5fcache_0',['save_cache',['../classsecp256k1_1_1fast_1_1CombGenContext.html#ace64a26ac6efbc483f0773304c7a98fa',1,'secp256k1::fast::CombGenContext']]],
   ['save_5fprecompute_5fcache_1',['save_precompute_cache',['../namespacesecp256k1_1_1fast.html#adfc221d2c46371a84fd7dada86c3d786',1,'secp256k1::fast']]],
   ['sc_5fto_5fdata_2',['sc_to_data',['../namespacesecp256k1.html#aab02cd1c9ac8442c8af185007153dd74',1,'secp256k1::sc_to_data(void *sc) noexcept'],['../namespacesecp256k1.html#ab46e298b2483bf0238a1c61958aa0312',1,'secp256k1::sc_to_data(const void *sc) noexcept']]],
-  ['scalar_3',['scalar',['../classsecp256k1_1_1PrivateKey.html#aabb24d9968201607d997ac08746605b1',1,'secp256k1::PrivateKey::scalar()'],['../classsecp256k1_1_1fast_1_1Scalar.html#a47e9c6952c4339c3070d779d3fdafcc8',1,'secp256k1::fast::Scalar::Scalar()']]],
+  ['scalar_3',['scalar',['../classsecp256k1_1_1fast_1_1Scalar.html#a47e9c6952c4339c3070d779d3fdafcc8',1,'secp256k1::fast::Scalar::Scalar()'],['../classsecp256k1_1_1PrivateKey.html#aabb24d9968201607d997ac08746605b1',1,'secp256k1::PrivateKey::scalar()']]],
   ['scalar_5fadd_4',['scalar_add',['../namespacesecp256k1_1_1ct.html#a2fc97413b0fe7f284895286da8d9cc10',1,'secp256k1::ct']]],
   ['scalar_5fbit_5',['scalar_bit',['../namespacesecp256k1_1_1ct.html#a13ce761bbd51ff8b13396650f87b5983',1,'secp256k1::ct']]],
   ['scalar_5fcmov_6',['scalar_cmov',['../namespacesecp256k1_1_1ct.html#a2871de9b5f1889b77c749e2f8b07cb4c',1,'secp256k1::ct']]],

@@ -1,5 +1,13 @@
 var NAVTREEINDEX8 =
 {
+"structsecp256k1_1_1MuSig2PubNonce.html":[3,0,1,22],
+"structsecp256k1_1_1MuSig2PubNonce.html#a016fc90ae3043926589a43ffa00c6ea5":[2,0,1,25,3],
+"structsecp256k1_1_1MuSig2PubNonce.html#a016fc90ae3043926589a43ffa00c6ea5":[3,0,1,22,3],
+"structsecp256k1_1_1MuSig2PubNonce.html#a277a14dbcdb33d43a13f87cfbdfbbf97":[2,0,1,25,2],
+"structsecp256k1_1_1MuSig2PubNonce.html#a277a14dbcdb33d43a13f87cfbdfbbf97":[3,0,1,22,2],
+"structsecp256k1_1_1MuSig2PubNonce.html#a46aab0cf4cb3d6a55eb5b77a6808ef02":[2,0,1,25,0],
+"structsecp256k1_1_1MuSig2PubNonce.html#a46aab0cf4cb3d6a55eb5b77a6808ef02":[3,0,1,22,0],
+"structsecp256k1_1_1MuSig2PubNonce.html#ab224c2a63e73f38d2acd24c7043effaf":[2,0,1,25,1],
 "structsecp256k1_1_1MuSig2PubNonce.html#ab224c2a63e73f38d2acd24c7043effaf":[3,0,1,22,1],
 "structsecp256k1_1_1MuSig2SecNonce.html":[3,0,1,23],
 "structsecp256k1_1_1MuSig2SecNonce.html":[2,0,1,26],
@@ -241,13 +249,5 @@ var NAVTREEINDEX8 =
 "structsecp256k1_1_1fast_1_1FieldElement26.html#a787819a87299efdf84dc4f7ad29e15ab":[3,0,1,2,5,6],
 "structsecp256k1_1_1fast_1_1FieldElement26.html#a83cebed78b557d2b6b36ce12636642d9":[3,0,1,2,5,10],
 "structsecp256k1_1_1fast_1_1FieldElement26.html#a83cebed78b557d2b6b36ce12636642d9":[2,0,1,3,10,10],
-"structsecp256k1_1_1fast_1_1FieldElement26.html#a8c19a224f4c8d53f97d2845904c60918":[3,0,1,2,5,16],
-"structsecp256k1_1_1fast_1_1FieldElement26.html#a8c19a224f4c8d53f97d2845904c60918":[2,0,1,3,10,16],
-"structsecp256k1_1_1fast_1_1FieldElement26.html#ab3109a333ee577be7716d811695e4278":[3,0,1,2,5,17],
-"structsecp256k1_1_1fast_1_1FieldElement26.html#ab3109a333ee577be7716d811695e4278":[2,0,1,3,10,17],
-"structsecp256k1_1_1fast_1_1FieldElement26.html#ab4baf898e10b8c91d08c6465cd4357e4":[2,0,1,3,10,9],
-"structsecp256k1_1_1fast_1_1FieldElement26.html#ab4baf898e10b8c91d08c6465cd4357e4":[3,0,1,2,5,9],
-"structsecp256k1_1_1fast_1_1FieldElement26.html#ab6307327660f5c25fc7b0d026ca44bfc":[2,0,1,3,10,7],
-"structsecp256k1_1_1fast_1_1FieldElement26.html#ab6307327660f5c25fc7b0d026ca44bfc":[3,0,1,2,5,7],
-"structsecp256k1_1_1fast_1_1FieldElement26.html#abb1984b2d88f7b0a54ed5efeb6fc7b1d":[2,0,1,3,10,12]
+"structsecp256k1_1_1fast_1_1FieldElement26.html#a8c19a224f4c8d53f97d2845904c60918":[3,0,1,2,5,16]
 };
