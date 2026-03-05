@@ -157,6 +157,12 @@ public:
     static void batch_x_only_bytes(const Point* points, size_t n,
                                    std::array<uint8_t, 32>* out);
 
+    // Normalize: convert Jacobian -> affine (Z=1) with ONE field inversion.
+    // After this call, all serialization methods become O(1) byte copies.
+    // Called automatically by scalar_mul/generator_mul/dual_scalar_mul.
+    void normalize();
+    bool is_normalized() const noexcept { return z_one_; }
+
     // Dual scalar multiplication: a*G + b*P (4-stream GLV Shamir)
     // Much faster than separate generator_mul(a) + scalar_mul(b) + add
     static Point dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const Point& P);
@@ -207,6 +213,7 @@ private:
 #endif
     bool infinity_;
     bool is_generator_;
+    bool z_one_ = false;  // true when Z == 1 (point is affine-normalized)
 };
 
 // Self-test: Verify arithmetic correctness with known test vectors
