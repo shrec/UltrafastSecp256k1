@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772651524135,
+  "lastUpdate": 1772710720543,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "Perf Regression Gate": [
@@ -4851,6 +4851,295 @@ window.BENCHMARK_DATA = {
           {
             "name": "Wall time",
             "value": 134400000,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "Vano Chkheidze",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0e89b14dc03506c6761a02066adfd8bfb2efc892",
+          "message": "perf: FE52 fast path for scalar_mul_with_plan + GLV MSM + batch fix (#92)\n\n* perf: FE52 fast path for scalar_mul_with_plan + GLV MSM + batch fix\n\nscalar_mul_with_plan (Issue #87):\n- New scalar_mul_with_plan_glv52: effective-affine + batch inversion +\n  mixed additions (7M+4S) instead of legacy 4x64 full Jacobian (12M+5S)\n- Uses pre-cached wNAF from KPlan, GLV sign handling via neg1/neg2\n- Performance: 71us -> 22us (3.2x speedup), now matches scalar_mul\n\nmulti_scalar_mul (GLV Strauss):\n- GLV decomposition halves scan length: ~257 -> ~130 positions\n- Effective-affine tables with batch inversion for mixed additions\n- phi(P) tables derived via beta multiplication (no extra precompute)\n- Halves doubling cost (~13us saved for N=8)\n\nschnorr_batch_verify:\n- For N<=16: use individual schnorr_verify (4-stream GLV Strauss with\n  precomputed G tables, ~30us/sig) instead of generic 2N-point MSM\n- Fixes 0.63x regression: batch now matches individual verify speed\n- MSM path retained for N>16 where amortized savings are profitable\n\nbench_unified: add scalar_mul_with_plan benchmark\nbench_kP: standalone k*P benchmark comparing scalar_mul vs plan path\n\n* perf: batch_verify midstate + FE52 lift_x + diagnostic benchmarks\n\nFix #1: Use cached g_challenge_midstate instead of tagged_hash() in\nschnorr_batch_verify large-batch path. Avoids re-hashing the BIP0340\ntag prefix on every signature. Measured: 2.11x faster per hash\n(204.5 ns -> 97.1 ns).\n\nFix #2: Switch batch_verify lift_x to FE52 path on 52-bit platforms.\nMatches schnorr.cpp's optimized lift_x. Measured: 1.37x faster\n(5810 ns -> 4240 ns per lift_x).\n\nBenchmarks: Add tagged_hash vs cached_tagged_hash and lift_x 4x64 vs\nFE52 micro-benchmarks to bench_unified for ongoing regression tracking.\n\nDiagnostic findings (no code changes needed):\n- W_G=15 cache: ECDSA verify already 1.03x vs libsecp. Not bottleneck.\n- GLV Barrett: glv_decompose is 82.6 ns vs 29.1 us dual_mul. Negligible.\n- ASM52 flag: Hand-tuned extern ASM is 49% SLOWER than __int128 inline\n  (27.1 ns vs 18.2 ns FE52::mul) due to call overhead preventing inlining.\n  Current __int128 default is correct.\n\n* fix(ci): value-init arrays for -Werror + filesystem::exists for MSan\n\n- Value-initialize eff_z{}, prods{}, zs{} arrays in scalar_mul_with_plan_glv52\n  to fix -Werror=maybe-uninitialized (GCC-13)\n- Replace std::ifstream existence check with std::filesystem::exists() in\n  get_default_cache_path to fix MSan use-of-uninitialized-value false positive\n- Remove dead code: ASM52_X64, 4X64_POINT_OPS, ARM64_V2 dispatch paths\n- Delete unused field_asm52_x64_gas.S and field_asm52_arm64_v2.cpp\n- Add k*P benchmark sections to bench_unified.cpp\n\nAll 33 local tests pass. No performance regression.\n\n* fix(ci): disable dead 4x64 point-ops blocks causing -Werror=restrict\n\nTwo blocks of 4x64 inline-ASM point operations (guarded by\nSECP256K1_HYBRID_4X64_ACTIVE) trigger -Werror=restrict and\n-Werror=unused-function under GCC-13: the in-place field primitives\nalias restrict-qualified parameters, and scalar_mul_glv_4x64 is\nnever called.\n\nThese functions are dead scaffolding superseded by the FE52 path.\nChange both #if guards to #if 0 to exclude them from compilation.\n\nSECP256K1_HYBRID_4X64_ACTIVE remains defined (field_52_impl.hpp:65)\nfor the FE52->4x64 inverse/sqrt boundary optimization.\n\n* fix(ci): resolve CFL timeout + benchmark regression gate\n\nfuzz_point: reduce from 3 to 1 scalar_mul per input. The old harness\ndid k*G, (k+1)*G, and 2k*G per fuzz iteration -- under ASan without\nASM, this exceeded libFuzzer's 25s per-input timeout on stored corpus\nentries. Now does 1 scalar_mul + lightweight point-add/double checks.\n\nbuild.sh: set timeout=120 in fuzz_point.options to raise the\nper-input timeout from libFuzzer's default 25s.\n\nparse_benchmark.py: exclude MICRO-DIAGNOSTICS section from regression\ncomparison. Sub-operation benchmarks (FE52::mul, FE52::inverse_safegcd)\nmay legitimately trade per-op speed for pipeline ILP via inlining.\nThe FE52 x64 GAS ASM removal trades ~10ns FE52::mul overhead for\ncross-operation inlining that benefits end-to-end scalar_mul.\n\n* fix(ci): remove std::filesystem to fix MSan false positives\n\nMSan reports use-of-uninitialized-value in std::filesystem::path's\ndestructor because libstdc++ is not MSan-instrumented. Replace all\nstd::filesystem usage with POSIX/C equivalents:\n\n  - exists()          -> stat()\n  - rename()          -> std::rename() (from <cstdio>)\n  - directory_iterator -> opendir/readdir (POSIX) / _findfirst (Win32)\n\nThe <filesystem> header is no longer included.\n\n* fuzz: pre-warm precompute table in LLVMFuzzerInitialize\n\nThe first scalar_mul_generator call builds the precompute table, which\ntakes >25s under ASan/UBSan with ASM disabled. This exceeds libFuzzer's\ndefault per-input timeout (25s), causing CFL to report a timeout crash\non the stored corpus entry timeout-662a824575ea822f8536b78cc7717d3ec4540afd.\n\nFix: call scalar_mul(one()) in LLVMFuzzerInitialize so the table is built\nduring fuzzer startup (not subject to per-input timeout). Subsequent\ncorpus inputs process in <1s each.\n\n* ci: tolerate Valgrind/MSan timeouts in Security Audit\n\nValgrind MemCheck: restore '|| true' on ctest -T MemCheck (removed in\n#91).  The grep-based log checks catch real memory errors; test timeouts\nunder 10-20x Valgrind overhead are expected and harmless.\n\nMSan: increase per-test timeout from 900s to 3600s and tolerate CTest\nexit code.  MSan + no-ASM + Debug + origin-tracking makes precompute\ntable build extremely slow, causing most tests to timeout.\nhalt_on_error=1 still prints real MSan errors in the CI log.\n\n* bench: apply section exclusion to legacy-format entries too\n\nThe regression gate parser had section-aware filtering only for\ntable-format entries (Pattern 1). Legacy-format entries like\n'RFC6979 overhead: 1925.7 ns' -- which are printf-based cost\ndecomposition lines inside the MICRO-DIAGNOSTICS section -- were\nnot filtered, causing false regression alerts on derived metrics\nthat amplify CI benchmark noise.\n\nApply the same excluded_sections check to the legacy pattern loop.\n\n* bench: skip all legacy-format entries within bench_unified sections\n\nIn bench_unified, all standalone benchmarks use table-format rows\n(print_row -> '| name | value |'). The legacy-format printf lines\n(name: value unit) that appear within sections are diagnostic/derived\nmetrics -- cost decompositions, UNEXPLAINED gap, RFC6979 overhead,\nsign-then-verify overhead, etc. These are computed from other\nmeasurements and amplify CI benchmark noise.\n\nThe previous fix only excluded legacy entries from MICRO-DIAGNOSTICS,\nbut 'UNEXPLAINED gap' also appears in CT SIGNING and other sections.\nFix: skip ALL legacy-format entries that appear within any section\nheader context. The legacy pattern remains active for old\nbench_comprehensive output which has no section headers.",
+          "timestamp": "2026-03-05T15:36:30+04:00",
+          "tree_id": "11b2e380fce202b88a372e0e64885d2fefbaae39",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/0e89b14dc03506c6761a02066adfd8bfb2efc892"
+        },
+        "date": 1772710718493,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "field_mul",
+            "value": 17.1,
+            "unit": "ns"
+          },
+          {
+            "name": "field_sqr",
+            "value": 16.1,
+            "unit": "ns"
+          },
+          {
+            "name": "field_inv",
+            "value": 1107.5,
+            "unit": "ns"
+          },
+          {
+            "name": "field_add",
+            "value": 14.2,
+            "unit": "ns"
+          },
+          {
+            "name": "field_sub",
+            "value": 9.2,
+            "unit": "ns"
+          },
+          {
+            "name": "field_negate",
+            "value": 12.1,
+            "unit": "ns"
+          },
+          {
+            "name": "scalar_mul",
+            "value": 44.1,
+            "unit": "ns"
+          },
+          {
+            "name": "scalar_inv",
+            "value": 1337.6,
+            "unit": "ns"
+          },
+          {
+            "name": "scalar_add",
+            "value": 10.8,
+            "unit": "ns"
+          },
+          {
+            "name": "scalar_negate",
+            "value": 11.4,
+            "unit": "ns"
+          },
+          {
+            "name": "pubkey_create (k*G)",
+            "value": 7246,
+            "unit": "ns"
+          },
+          {
+            "name": "scalar_mul (k*P)",
+            "value": 35510.2,
+            "unit": "ns"
+          },
+          {
+            "name": "scalar_mul_with_plan",
+            "value": 36937.4,
+            "unit": "ns"
+          },
+          {
+            "name": "dual_mul (a*G + b*P)",
+            "value": 40185.6,
+            "unit": "ns"
+          },
+          {
+            "name": "point_add",
+            "value": 395.6,
+            "unit": "ns"
+          },
+          {
+            "name": "point_dbl",
+            "value": 156.1,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_sign",
+            "value": 12007.2,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_sign_verified",
+            "value": 61565.9,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_verify",
+            "value": 42173.2,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_keypair_create",
+            "value": 9018.9,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_sign",
+            "value": 9549.1,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_sign_verified",
+            "value": 57385.1,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_verify (cached xonly)",
+            "value": 42516.3,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_batch_verify(N=4)",
+            "value": 187280,
+            "unit": "ns"
+          },
+          {
+            "name": "-> per-sig amortized (N=4)",
+            "value": 46820,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_batch_verify(N=16)",
+            "value": 743245.2,
+            "unit": "ns"
+          },
+          {
+            "name": "-> per-sig amortized (N=16)",
+            "value": 46452.8,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_batch_verify(N=64)",
+            "value": 4654021.5,
+            "unit": "ns"
+          },
+          {
+            "name": "-> per-sig amortized (N=64)",
+            "value": 72719.1,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_batch_verify(N=4)",
+            "value": 161421.9,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_batch_verify(N=16)",
+            "value": 647668.5,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_batch_verify(N=64)",
+            "value": 2605062.3,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::scalar_inverse (SafeGCD)",
+            "value": 1880.2,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::generator_mul (k*G)",
+            "value": 19461.7,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::scalar_mul (k*P)",
+            "value": 41273.5,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::point_dbl",
+            "value": 160.5,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::point_add_complete (11M+6S)",
+            "value": 422.9,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::point_add_mixed_complete (7M+5S)",
+            "value": 307.2,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::point_add_mixed_unified (7M+5S)",
+            "value": 304.8,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::ecdsa_sign",
+            "value": 24054.6,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::ecdsa_sign_verified",
+            "value": 86049.5,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::schnorr_sign",
+            "value": 21492.8,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::schnorr_sign_verified",
+            "value": 69558.7,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::schnorr_keypair_create",
+            "value": 21002.9,
+            "unit": "ns"
+          },
+          {
+            "name": "field_inv_var",
+            "value": 1180.3,
+            "unit": "ns"
+          },
+          {
+            "name": "generator_mul (ec_pubkey_create)",
+            "value": 19988.3,
+            "unit": "ns"
+          },
+          {
+            "name": "scalar_mul (k*P, tweak_mul)",
+            "value": 37653.3,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_sign (BIP-340)",
+            "value": 21266.1,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_verify (BIP-340)",
+            "value": 42610.8,
+            "unit": "ns"
+          },
+          {
+            "name": "generator_mul (EC_POINT_mul k*G)",
+            "value": 391119.2,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_sign (ECDSA_do_sign)",
+            "value": 417366.5,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_verify (ECDSA_do_verify)",
+            "value": 376321.9,
+            "unit": "ns"
+          },
+          {
+            "name": "Harness",
+            "value": 3000000000,
             "unit": "ns"
           }
         ]
