@@ -1,5 +1,9 @@
 var NAVTREEINDEX7 =
 {
+"secp256k1__wasm_8h.html#a1f8e9258fe5ad7d0dd87ea0ccc79c9e3":[4,0,2,0,7],
+"secp256k1__wasm_8h.html#a20bdc3ac49c4d3f0cb9219a1ba93ebb2":[4,0,2,0,10],
+"secp256k1__wasm_8h.html#a3063561216a7e953a5f2725bcdba08d8":[4,0,2,0,6],
+"secp256k1__wasm_8h.html#a479a51d80cd652614578c2c1e17e279c":[4,0,2,0,4],
 "secp256k1__wasm_8h.html#a65432f7d07c57557501f011129d6728e":[4,0,2,0,9],
 "secp256k1__wasm_8h.html#a7a68ab7828467084a7cd25c12e57028f":[4,0,2,0,0],
 "secp256k1__wasm_8h.html#aabe152a371105b3677e4f3745f4a043e":[4,0,2,0,1],
@@ -245,9 +249,5 @@ var NAVTREEINDEX7 =
 "structsecp256k1_1_1MuSig2KeyAggCtx.html":[2,0,1,24],
 "structsecp256k1_1_1MuSig2KeyAggCtx.html#a11b4bfa558ecfb2ae94fddddc5e99bf1":[3,0,1,21,0],
 "structsecp256k1_1_1MuSig2KeyAggCtx.html#a11b4bfa558ecfb2ae94fddddc5e99bf1":[2,0,1,24,0],
-"structsecp256k1_1_1MuSig2KeyAggCtx.html#a5f6b04c54f6372fbd2f72cf8db93bfda":[2,0,1,24,1],
-"structsecp256k1_1_1MuSig2KeyAggCtx.html#a5f6b04c54f6372fbd2f72cf8db93bfda":[3,0,1,21,1],
-"structsecp256k1_1_1MuSig2KeyAggCtx.html#a9884acb63a92bcac3727893d362d9817":[2,0,1,24,2],
-"structsecp256k1_1_1MuSig2KeyAggCtx.html#a9884acb63a92bcac3727893d362d9817":[3,0,1,21,2],
-"structsecp256k1_1_1MuSig2KeyAggCtx.html#aa41f3d2da6676f796021841cb13dfef1":[2,0,1,24,3]
+"structsecp256k1_1_1MuSig2KeyAggCtx.html#a5f6b04c54f6372fbd2f72cf8db93bfda":[2,0,1,24,1]
 };

@@ -1,5 +1,9 @@
 var NAVTREEINDEX10 =
 {
+"structsecp256k1_1_1fast_1_1debug_1_1DebugCounters.html":[2,0,1,3,0,0],
+"structsecp256k1_1_1fast_1_1debug_1_1DebugCounters.html#a3d8567972fec9e3007b48a1a85464799":[3,0,1,2,0,0,0],
+"structsecp256k1_1_1fast_1_1debug_1_1DebugCounters.html#a3d8567972fec9e3007b48a1a85464799":[2,0,1,3,0,0,0],
+"structsecp256k1_1_1fast_1_1debug_1_1DebugCounters.html#a6d576e5f1147a010b3e8cb3e2b49362e":[3,0,1,2,0,0,3],
 "structsecp256k1_1_1fast_1_1debug_1_1DebugCounters.html#a6d576e5f1147a010b3e8cb3e2b49362e":[2,0,1,3,0,0,3],
 "structsecp256k1_1_1fast_1_1debug_1_1DebugCounters.html#a7edd84fbe67e10884c69a659fa4b1134":[2,0,1,3,0,0,5],
 "structsecp256k1_1_1fast_1_1debug_1_1DebugCounters.html#a7edd84fbe67e10884c69a659fa4b1134":[3,0,1,2,0,0,5],

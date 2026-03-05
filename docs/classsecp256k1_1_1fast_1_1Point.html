@@ -166,6 +166,10 @@ Public Member Functions</h2></td></tr>
 <tr class="separator:a24cea8423dc92703f2c859b76b36bf03"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a5790939f0356ab8f680d2252f99f7283" id="r_a5790939f0356ab8f680d2252f99f7283"><td class="memItemLeft" align="right" valign="top">std::array&lt; uint8_t, 32 &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classsecp256k1_1_1fast_1_1Point.html#a5790939f0356ab8f680d2252f99f7283">x_only_bytes</a> () const</td></tr>
 <tr class="separator:a5790939f0356ab8f680d2252f99f7283"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a7d4ddd9e629e51d6e9629143f4eb1531" id="r_a7d4ddd9e629e51d6e9629143f4eb1531"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classsecp256k1_1_1fast_1_1Point.html#a7d4ddd9e629e51d6e9629143f4eb1531">normalize</a> ()</td></tr>
+<tr class="separator:a7d4ddd9e629e51d6e9629143f4eb1531"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a98cf09bf9cdfa1e130df9a549d0a2f9f" id="r_a98cf09bf9cdfa1e130df9a549d0a2f9f"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classsecp256k1_1_1fast_1_1Point.html#a98cf09bf9cdfa1e130df9a549d0a2f9f">is_normalized</a> () const noexcept</td></tr>
+<tr class="separator:a98cf09bf9cdfa1e130df9a549d0a2f9f"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ae73f22dc5f207017b4b34b8abbb79b58" id="r_ae73f22dc5f207017b4b34b8abbb79b58"><td class="memItemLeft" align="right" valign="top">std::array&lt; std::uint8_t, 33 &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classsecp256k1_1_1fast_1_1Point.html#ae73f22dc5f207017b4b34b8abbb79b58">to_compressed</a> () const</td></tr>
 <tr class="separator:ae73f22dc5f207017b4b34b8abbb79b58"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a1383a95558f108749ff6c4d344720500" id="r_a1383a95558f108749ff6c4d344720500"><td class="memItemLeft" align="right" valign="top">std::array&lt; std::uint8_t, 65 &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classsecp256k1_1_1fast_1_1Point.html#a1383a95558f108749ff6c4d344720500">to_uncompressed</a> () const</td></tr>
@@ -767,6 +771,33 @@ Static Public Member Functions</h2></td></tr>
 
 </div>
 </div>
+<a id="a98cf09bf9cdfa1e130df9a549d0a2f9f" name="a98cf09bf9cdfa1e130df9a549d0a2f9f"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a98cf09bf9cdfa1e130df9a549d0a2f9f">&#9670;&#160;</a></span>is_normalized()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">bool secp256k1::fast::Point::is_normalized </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p class="definition">Definition at line <a class="el" href="point_8hpp_source.html#l00164">164</a> of file <a class="el" href="point_8hpp_source.html">point.hpp</a>.</p>
+
+</div>
+</div>
 <a id="a2273e8eafa4c276586a4430ca256d751" name="a2273e8eafa4c276586a4430ca256d751"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a2273e8eafa4c276586a4430ca256d751">&#9670;&#160;</a></span>negate()</h2>
 
@@ -826,6 +857,23 @@ Static Public Member Functions</h2></td></tr>
       <table class="memname">
         <tr>
           <td class="memname">void secp256k1::fast::Point::next_inplace </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="a7d4ddd9e629e51d6e9629143f4eb1531" name="a7d4ddd9e629e51d6e9629143f4eb1531"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a7d4ddd9e629e51d6e9629143f4eb1531">&#9670;&#160;</a></span>normalize()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void secp256k1::fast::Point::normalize </td>
           <td>(</td>
           <td class="paramname"></td><td>)</td>
           <td></td>
@@ -1205,7 +1253,7 @@ Static Public Member Functions</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="point_8hpp_source.html#l00172">172</a> of file <a class="el" href="point_8hpp_source.html">point.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="point_8hpp_source.html#l00178">178</a> of file <a class="el" href="point_8hpp_source.html">point.hpp</a>.</p>
 
 </div>
 </div>
@@ -1293,7 +1341,7 @@ Static Public Member Functions</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="point_8hpp_source.html#l00173">173</a> of file <a class="el" href="point_8hpp_source.html">point.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="point_8hpp_source.html#l00179">179</a> of file <a class="el" href="point_8hpp_source.html">point.hpp</a>.</p>
 
 </div>
 </div>
@@ -1347,7 +1395,7 @@ Static Public Member Functions</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="point_8hpp_source.html#l00174">174</a> of file <a class="el" href="point_8hpp_source.html">point.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="point_8hpp_source.html#l00180">180</a> of file <a class="el" href="point_8hpp_source.html">point.hpp</a>.</p>
 
 </div>
 </div>

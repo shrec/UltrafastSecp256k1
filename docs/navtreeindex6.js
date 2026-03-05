@@ -1,5 +1,9 @@
 var NAVTREEINDEX6 =
 {
+"namespacesecp256k1_1_1fast.html#ae293281617cc06d8031e54b7fbcb7a89":[2,0,1,3,76],
+"namespacesecp256k1_1_1fast.html#ae2a576d7169ad2a60399a9ef367c5255":[2,0,1,3,158],
+"namespacesecp256k1_1_1fast.html#ae59239a08482e4e2d675ed2784984908":[2,0,1,3,112],
+"namespacesecp256k1_1_1fast.html#ae749942cd0a5c56c5b1a95b7e051f71b":[2,0,1,3,153],
 "namespacesecp256k1_1_1fast.html#aebd5eaa38549ccb639d523883d9e6ca0":[2,0,1,3,50],
 "namespacesecp256k1_1_1fast.html#aec97c3e9d6fb0e5fff4dcf590c97f463":[2,0,1,3,146],
 "namespacesecp256k1_1_1fast.html#aedd2ad06e0ba3ce8e3be6ab7a51a3c0e":[2,0,1,3,123],
@@ -245,9 +249,5 @@ var NAVTREEINDEX6 =
 "schnorr_8hpp.html#ae508026a4b6a2d3be70fbe3f4e96d4c6":[4,0,0,0,0,40,4],
 "schnorr_8hpp.html#aea18dd497c62eb56ae2687ed1234f8b8":[4,0,0,0,0,40,15],
 "schnorr_8hpp_source.html":[4,0,0,0,0,40],
-"secp256k1__wasm_8h.html":[4,0,2,0],
-"secp256k1__wasm_8h.html#a1f8e9258fe5ad7d0dd87ea0ccc79c9e3":[4,0,2,0,7],
-"secp256k1__wasm_8h.html#a20bdc3ac49c4d3f0cb9219a1ba93ebb2":[4,0,2,0,10],
-"secp256k1__wasm_8h.html#a3063561216a7e953a5f2725bcdba08d8":[4,0,2,0,6],
-"secp256k1__wasm_8h.html#a479a51d80cd652614578c2c1e17e279c":[4,0,2,0,4]
+"secp256k1__wasm_8h.html":[4,0,2,0]
 };
