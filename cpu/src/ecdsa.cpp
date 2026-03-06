@@ -445,9 +445,13 @@ ECDSASignature ecdsa_sign(const std::array<uint8_t, 32>& msg_hash,
         // R = k * G
         auto R = Point::generator().scalar_mul(k);
         if (!R.is_infinity()) {
-            // r = R.x mod n
-            auto r_fe = R.x();
-            auto r_bytes = r_fe.to_bytes();
+            // r = R.x mod n  (direct FE52→bytes, avoids FieldElement intermediate)
+#if defined(SECP256K1_FAST_52BIT)
+            std::array<uint8_t, 32> r_bytes{};
+            R.X52().store_b32_prenorm(r_bytes.data());
+#else
+            auto r_bytes = R.x().to_bytes();
+#endif
             auto r = Scalar::from_bytes(r_bytes);
             if (!r.is_zero()) {
                 // s = k^{-1} * (z + r * d) mod n
