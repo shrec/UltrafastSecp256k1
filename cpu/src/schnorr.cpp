@@ -6,6 +6,9 @@
 #include "secp256k1/field_52.hpp"
 #include <cstring>
 #include <string_view>
+#if defined(_MSC_VER)
+#include <intrin.h>
+#endif
 
 namespace secp256k1 {
 
@@ -85,7 +88,9 @@ static Point lift_x_from_limbs(const std::uint64_t* px_limb_le) {
 static inline std::uint64_t load_be64_unaligned(const uint8_t* p) {
     std::uint64_t v = 0;
     std::memcpy(&v, p, sizeof(v));
-#if defined(__BYTE_ORDER__) && (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)
+#if defined(_MSC_VER)
+    return _byteswap_uint64(v);
+#elif defined(__BYTE_ORDER__) && (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)
     return __builtin_bswap64(v);
 #else
     return v;
