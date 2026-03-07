@@ -69,6 +69,7 @@ var searchData=
   ['prev_5finplace_66',['prev_inplace',['../classsecp256k1_1_1fast_1_1Point.html#a799ad7adc180235caaf11e47c98e2086',1,'secp256k1::fast::Point']]],
   ['print_5fconfig_67',['print_config',['../classbench_1_1Harness.html#a365c3851d928bf5d13ca09bf14787206',1,'bench::Harness']]],
   ['private_5fkey_68',['private_key',['../structsecp256k1_1_1ExtendedKey.html#a05c9809a4292dc2ffc6b99c940af9788',1,'secp256k1::ExtendedKey']]],
-  ['privatekey_69',['privatekey',['../classsecp256k1_1_1PrivateKey.html#a433dc9f85b5d7a3fb1289034d31febd7',1,'secp256k1::PrivateKey::PrivateKey() noexcept=default'],['../classsecp256k1_1_1PrivateKey.html#a0f9f41316c34353f959715371b50586b',1,'secp256k1::PrivateKey::PrivateKey(const PrivateKey &amp;other) noexcept'],['../classsecp256k1_1_1PrivateKey.html#affc8904d4e4a0e63b0d645026ab14221',1,'secp256k1::PrivateKey::PrivateKey(PrivateKey &amp;&amp;other) noexcept']]],
-  ['public_5fkey_70',['public_key',['../structsecp256k1_1_1ExtendedKey.html#a196e6cfe0ad5d64b3fbdb8887fe35fdd',1,'secp256k1::ExtendedKey']]]
+  ['privatekey_69',['privatekey',['../classsecp256k1_1_1PrivateKey.html#affc8904d4e4a0e63b0d645026ab14221',1,'secp256k1::PrivateKey::PrivateKey(PrivateKey &amp;&amp;other) noexcept'],['../classsecp256k1_1_1PrivateKey.html#a433dc9f85b5d7a3fb1289034d31febd7',1,'secp256k1::PrivateKey::PrivateKey() noexcept=default'],['../classsecp256k1_1_1PrivateKey.html#a0f9f41316c34353f959715371b50586b',1,'secp256k1::PrivateKey::PrivateKey(const PrivateKey &amp;other) noexcept']]],
+  ['pubkey_5fcreate_5fcore_70',['pubkey_create_core',['../ufsecp__impl_8cpp.html#a22f2fc3c26007df9ae462cd248b2b2d8',1,'ufsecp_impl.cpp']]],
+  ['public_5fkey_71',['public_key',['../structsecp256k1_1_1ExtendedKey.html#a196e6cfe0ad5d64b3fbdb8887fe35fdd',1,'secp256k1::ExtendedKey']]]
 ];

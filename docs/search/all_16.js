@@ -45,7 +45,7 @@ var searchData=
   ['platform_20comparison_42',['secp256k1 Benchmarks &amp;ndash; Cross-Platform Comparison',['../index.html#autotoc_md52',1,'']]],
   ['platform_20support_20matrix_43',['Platform Support Matrix',['../index.html#autotoc_md30',1,'']]],
   ['platforms_44',['Porting to New Platforms',['../index.html#autotoc_md59',1,'']]],
-  ['point_45',['point',['../ufsecp__impl_8cpp.html#a60051d6ae89015e67ae01b3c4417ceab',1,'Point:&#160;ufsecp_impl.cpp'],['../classsecp256k1_1_1fast_1_1Point.html',1,'secp256k1::fast::Point'],['../namespacesecp256k1_1_1ct.html#a8e1ae79cac2082af82e69fc1f66a6f0a',1,'secp256k1::ct::Point'],['../structsecp256k1_1_1SchnorrXonlyPubkey.html#a70a3b6e258dc7b2af6f7267e42d5e06c',1,'secp256k1::SchnorrXonlyPubkey::point'],['../structsecp256k1_1_1PedersenCommitment.html#aea692ceb3cb7317917b103d5ede41577',1,'secp256k1::PedersenCommitment::point'],['../classsecp256k1_1_1fast_1_1Point.html#ab19e0f8f8713ccf500103a167315896e',1,'secp256k1::fast::Point::Point()']]],
+  ['point_45',['point',['../ufsecp__impl_8cpp.html#a60051d6ae89015e67ae01b3c4417ceab',1,'Point:&#160;ufsecp_impl.cpp'],['../classsecp256k1_1_1fast_1_1Point.html',1,'secp256k1::fast::Point'],['../namespacesecp256k1_1_1ct.html#a8e1ae79cac2082af82e69fc1f66a6f0a',1,'secp256k1::ct::Point'],['../classsecp256k1_1_1fast_1_1Point.html#ab19e0f8f8713ccf500103a167315896e',1,'secp256k1::fast::Point::Point()'],['../structsecp256k1_1_1PedersenCommitment.html#aea692ceb3cb7317917b103d5ede41577',1,'secp256k1::PedersenCommitment::point'],['../structsecp256k1_1_1SchnorrXonlyPubkey.html#a70a3b6e258dc7b2af6f7267e42d5e06c',1,'secp256k1::SchnorrXonlyPubkey::point']]],
   ['point_20operations_46',['Basic Point Operations',['../index.html#autotoc_md82',1,'']]],
   ['point_2ehpp_47',['point.hpp',['../ct_2point_8hpp.html',1,'(Global Namespace)'],['../point_8hpp.html',1,'(Global Namespace)']]],
   ['point_5fadd_5fcomplete_48',['point_add_complete',['../namespacesecp256k1_1_1ct.html#a7cc6bee5345ed46977ce46f0f0dc4d51',1,'secp256k1::ct']]],
@@ -115,9 +115,9 @@ var searchData=
   ['prev_112',['prev',['../classsecp256k1_1_1fast_1_1Point.html#a6bdc3c07e2719efa22bf1eb18839136b',1,'secp256k1::fast::Point']]],
   ['prev_5finplace_113',['prev_inplace',['../classsecp256k1_1_1fast_1_1Point.html#a799ad7adc180235caaf11e47c98e2086',1,'secp256k1::fast::Point']]],
   ['print_5fconfig_114',['print_config',['../classbench_1_1Harness.html#a365c3851d928bf5d13ca09bf14787206',1,'bench::Harness']]],
-  ['private_5fkey_115',['private_key',['../structsecp256k1_1_1coins_1_1CoinKeyPair.html#ab07af41a852cb1b5e14e0213b9044688',1,'secp256k1::coins::CoinKeyPair::private_key'],['../structsecp256k1_1_1ExtendedKey.html#a05c9809a4292dc2ffc6b99c940af9788',1,'secp256k1::ExtendedKey::private_key()']]],
+  ['private_5fkey_115',['private_key',['../structsecp256k1_1_1ExtendedKey.html#a05c9809a4292dc2ffc6b99c940af9788',1,'secp256k1::ExtendedKey::private_key()'],['../structsecp256k1_1_1coins_1_1CoinKeyPair.html#ab07af41a852cb1b5e14e0213b9044688',1,'secp256k1::coins::CoinKeyPair::private_key']]],
   ['private_5fkey_2ehpp_116',['private_key.hpp',['../private__key_8hpp.html',1,'']]],
-  ['privatekey_117',['privatekey',['../classsecp256k1_1_1PrivateKey.html',1,'secp256k1::PrivateKey'],['../classsecp256k1_1_1PrivateKey.html#affc8904d4e4a0e63b0d645026ab14221',1,'secp256k1::PrivateKey::PrivateKey(PrivateKey &amp;&amp;other) noexcept'],['../classsecp256k1_1_1PrivateKey.html#a0f9f41316c34353f959715371b50586b',1,'secp256k1::PrivateKey::PrivateKey(const PrivateKey &amp;other) noexcept'],['../classsecp256k1_1_1PrivateKey.html#a433dc9f85b5d7a3fb1289034d31febd7',1,'secp256k1::PrivateKey::PrivateKey() noexcept=default']]],
+  ['privatekey_117',['privatekey',['../classsecp256k1_1_1PrivateKey.html#a0f9f41316c34353f959715371b50586b',1,'secp256k1::PrivateKey::PrivateKey()'],['../classsecp256k1_1_1PrivateKey.html',1,'secp256k1::PrivateKey'],['../classsecp256k1_1_1PrivateKey.html#affc8904d4e4a0e63b0d645026ab14221',1,'secp256k1::PrivateKey::PrivateKey(PrivateKey &amp;&amp;other) noexcept'],['../classsecp256k1_1_1PrivateKey.html#a433dc9f85b5d7a3fb1289034d31febd7',1,'secp256k1::PrivateKey::PrivateKey() noexcept=default']]],
   ['pro_20ndash_20kernel_20only_118',['Apple Metal (M3 Pro) &amp;ndash; Kernel-Only',['../index.html#autotoc_md44',1,'']]],
   ['product_20serial_20inversion_119',['GPU Pattern: H-Product Serial Inversion',['../index.html#autotoc_md65',1,'']]],
   ['profile_20default_120',['FAST Profile (Default)',['../index.html#autotoc_md86',1,'']]],
@@ -127,7 +127,8 @@ var searchData=
   ['project_124',['project',['../index.html#autotoc_md122',1,'⚡ Support the Project'],['../index.html#autotoc_md37',1,'Use in your CMake project']]],
   ['promise_125',['Tier 2 &amp;ndash; Experimental (no ABI promise)',['../md_include_2ufsecp_2SUPPORTED__GUARANTEES.html#autotoc_md6',1,'']]],
   ['pub_5fprefix_126',['pub_prefix',['../structsecp256k1_1_1ExtendedKey.html#aff761f7bc981243505d1a340480d6af6',1,'secp256k1::ExtendedKey']]],
-  ['pubkey_5fx_127',['pubkey_x',['../structsecp256k1_1_1SchnorrBatchEntry.html#acd36cca81dba3bdbe3005828be899b7e',1,'secp256k1::SchnorrBatchEntry']]],
-  ['public_5fkey_128',['public_key',['../structsecp256k1_1_1ECDSABatchEntry.html#a77503c972c1c25b7396110c47cf810ad',1,'secp256k1::ECDSABatchEntry::public_key'],['../structsecp256k1_1_1coins_1_1CoinKeyPair.html#af85e18af8963ed680ebec91c211731a9',1,'secp256k1::coins::CoinKeyPair::public_key'],['../structsecp256k1_1_1ExtendedKey.html#a196e6cfe0ad5d64b3fbdb8887fe35fdd',1,'secp256k1::ExtendedKey::public_key()']]],
-  ['px_129',['px',['../structsecp256k1_1_1SchnorrKeypair.html#a7eefdd9e21715b60f6fffa47ea99df81',1,'secp256k1::SchnorrKeypair']]]
+  ['pubkey_5fcreate_5fcore_127',['pubkey_create_core',['../ufsecp__impl_8cpp.html#a22f2fc3c26007df9ae462cd248b2b2d8',1,'ufsecp_impl.cpp']]],
+  ['pubkey_5fx_128',['pubkey_x',['../structsecp256k1_1_1SchnorrBatchEntry.html#acd36cca81dba3bdbe3005828be899b7e',1,'secp256k1::SchnorrBatchEntry']]],
+  ['public_5fkey_129',['public_key',['../structsecp256k1_1_1ECDSABatchEntry.html#a77503c972c1c25b7396110c47cf810ad',1,'secp256k1::ECDSABatchEntry::public_key'],['../structsecp256k1_1_1coins_1_1CoinKeyPair.html#af85e18af8963ed680ebec91c211731a9',1,'secp256k1::coins::CoinKeyPair::public_key'],['../structsecp256k1_1_1ExtendedKey.html#a196e6cfe0ad5d64b3fbdb8887fe35fdd',1,'secp256k1::ExtendedKey::public_key()']]],
+  ['px_130',['px',['../structsecp256k1_1_1SchnorrKeypair.html#a7eefdd9e21715b60f6fffa47ea99df81',1,'secp256k1::SchnorrKeypair']]]
 ];

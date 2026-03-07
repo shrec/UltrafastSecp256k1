@@ -1,5 +1,9 @@
 var NAVTREEINDEX4 =
 {
+"init_8hpp.html#aa1ade8639ae8e331731389af48483662":[4,0,0,0,0,29,3],
+"init_8hpp_source.html":[4,0,0,0,0,29],
+"keccak256_8hpp.html":[4,0,0,0,0,0,4],
+"keccak256_8hpp.html#ae23fd2c01c7fdd7613299ffdac732d42":[4,0,0,0,0,0,4,1],
 "keccak256_8hpp_source.html":[4,0,0,0,0,0,4],
 "md_include_2ufsecp_2SUPPORTED__GUARANTEES.html":[1],
 "md_include_2ufsecp_2SUPPORTED__GUARANTEES.html#autotoc_md10":[1,4],
@@ -245,9 +249,5 @@ var NAVTREEINDEX4 =
 "namespacesecp256k1_1_1coins.html#ac0e162c11624302a1b1bfa1c30813dd6":[2,0,1,0,28],
 "namespacesecp256k1_1_1coins.html#ac1ff5191517994931c9408403ed57f41":[2,0,1,0,31],
 "namespacesecp256k1_1_1coins.html#ac3609eeb54f2706d0e8d0743b9fd05a1":[2,0,1,0,26],
-"namespacesecp256k1_1_1coins.html#ac54c95af7577aa020c8c03730b0e9ff3":[2,0,1,0,44],
-"namespacesecp256k1_1_1coins.html#ac6b0477033f1a1058c2959fd4316c59a":[2,0,1,0,50],
-"namespacesecp256k1_1_1coins.html#ac9d71f047490c3fae14f7aff305d9084":[2,0,1,0,12],
-"namespacesecp256k1_1_1coins.html#aca8eaf4780da4eba71b217a62f129103":[2,0,1,0,33],
-"namespacesecp256k1_1_1coins.html#acf4e38367cdb5f0cb33b7d6d1dca7de7":[2,0,1,0,30]
+"namespacesecp256k1_1_1coins.html#ac54c95af7577aa020c8c03730b0e9ff3":[2,0,1,0,44]
 };

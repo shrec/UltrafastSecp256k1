@@ -99,6 +99,10 @@ $(document).ready(function(){initNavTree('namespacesecp256k1_1_1detail.html','')
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="func-members" name="func-members"></a>
 Functions</h2></td></tr>
+<tr class="memitem:a5f2168c0f64443393e1ac8bdbde5b801" id="r_a5f2168c0f64443393e1ac8bdbde5b801"><td class="memItemLeft" align="right" valign="top">std::uint64_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1detail.html#a5f2168c0f64443393e1ac8bdbde5b801">add64</a> (std::uint64_t a, std::uint64_t b, unsigned char &amp;carry)</td></tr>
+<tr class="separator:a5f2168c0f64443393e1ac8bdbde5b801"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a9c0f7cc93786575336de21cb862d615f" id="r_a9c0f7cc93786575336de21cb862d615f"><td class="memItemLeft" align="right" valign="top">std::uint64_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1detail.html#a9c0f7cc93786575336de21cb862d615f">sub64</a> (std::uint64_t a, std::uint64_t b, unsigned char &amp;borrow)</td></tr>
+<tr class="separator:a9c0f7cc93786575336de21cb862d615f"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a5dea1f75154fb440422d13d1356fcaa4" id="r_a5dea1f75154fb440422d13d1356fcaa4"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1detail.html#a5dea1f75154fb440422d13d1356fcaa4">secure_erase</a> (void *ptr, std::size_t len) noexcept</td></tr>
 <tr class="separator:a5dea1f75154fb440422d13d1356fcaa4"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aeb7ac005ebf31bbcf37bc8c253bbad40" id="r_aeb7ac005ebf31bbcf37bc8c253bbad40"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1detail.html#aeb7ac005ebf31bbcf37bc8c253bbad40">sha256_compress_dispatch</a> (const std::uint8_t block[64], std::uint32_t state[8]) noexcept</td></tr>
@@ -118,6 +122,50 @@ Variables</h2></td></tr>
 <tr class="separator:aea57e467ccf2cbfd04509985b1678bb9"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <h2 class="groupheader">Function Documentation</h2>
+<a id="a5f2168c0f64443393e1ac8bdbde5b801" name="a5f2168c0f64443393e1ac8bdbde5b801"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a5f2168c0f64443393e1ac8bdbde5b801">&#9670;&#160;</a></span>add64()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">std::uint64_t secp256k1::detail::add64 </td>
+          <td>(</td>
+          <td class="paramtype">std::uint64_t&#160;</td>
+          <td class="paramname"><em>a</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">std::uint64_t&#160;</td>
+          <td class="paramname"><em>b</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">unsigned char &amp;&#160;</td>
+          <td class="paramname"><em>carry</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p class="definition">Definition at line <a class="el" href="arith64_8hpp_source.html#l00053">53</a> of file <a class="el" href="arith64_8hpp_source.html">arith64.hpp</a>.</p>
+
+</div>
+</div>
 <a id="a54d7fd6888249cc08d4440b12f3db547" name="a54d7fd6888249cc08d4440b12f3db547"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a54d7fd6888249cc08d4440b12f3db547">&#9670;&#160;</a></span>cached_tagged_hash()</h2>
 
@@ -230,7 +278,7 @@ Variables</h2></td></tr>
 
 <p class="definition">Definition at line <a class="el" href="secure__erase_8hpp_source.html#l00018">18</a> of file <a class="el" href="secure__erase_8hpp_source.html">secure_erase.hpp</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00433">ufsecp_ecdsa_sign()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00645">ufsecp_ecdsa_sign_recoverable()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00455">ufsecp_ecdsa_sign_verified()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00328">ufsecp_pubkey_create()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00350">ufsecp_pubkey_create_uncompressed()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00709">ufsecp_schnorr_sign()</a>, and <a class="el" href="ufsecp__impl_8cpp_source.html#l00737">ufsecp_schnorr_sign_verified()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00328">pubkey_create_core()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00428">ufsecp_ecdsa_sign()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00640">ufsecp_ecdsa_sign_recoverable()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00450">ufsecp_ecdsa_sign_verified()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00704">ufsecp_schnorr_sign()</a>, and <a class="el" href="ufsecp__impl_8cpp_source.html#l00732">ufsecp_schnorr_sign_verified()</a>.</p>
 
 </div>
 </div>
@@ -269,6 +317,50 @@ Variables</h2></td></tr>
 </div><div class="memdoc">
 
 <p class="reference">Referenced by <a class="el" href="sha256_8hpp_source.html#l00070">secp256k1::SHA256::finalize()</a>, and <a class="el" href="sha256_8hpp_source.html#l00040">secp256k1::SHA256::update()</a>.</p>
+
+</div>
+</div>
+<a id="a9c0f7cc93786575336de21cb862d615f" name="a9c0f7cc93786575336de21cb862d615f"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a9c0f7cc93786575336de21cb862d615f">&#9670;&#160;</a></span>sub64()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">std::uint64_t secp256k1::detail::sub64 </td>
+          <td>(</td>
+          <td class="paramtype">std::uint64_t&#160;</td>
+          <td class="paramname"><em>a</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">std::uint64_t&#160;</td>
+          <td class="paramname"><em>b</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">unsigned char &amp;&#160;</td>
+          <td class="paramname"><em>borrow</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p class="definition">Definition at line <a class="el" href="arith64_8hpp_source.html#l00063">63</a> of file <a class="el" href="arith64_8hpp_source.html">arith64.hpp</a>.</p>
 
 </div>
 </div>
