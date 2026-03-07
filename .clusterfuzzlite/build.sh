@@ -29,7 +29,8 @@ cmake -S . -B build-fuzz -G Ninja \
     -DSECP256K1_BUILD_BENCH=OFF \
     -DSECP256K1_BUILD_EXAMPLES=OFF \
     -DSECP256K1_BUILD_METAL=OFF \
-    -DSECP256K1_USE_ASM=OFF
+    -DSECP256K1_USE_ASM=OFF \
+    -DSECP256K1_USE_LTO=OFF
 
 cmake --build build-fuzz -j"$(nproc)" --target fastsecp256k1
 
