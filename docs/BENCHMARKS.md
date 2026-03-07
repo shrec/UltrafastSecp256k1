@@ -98,6 +98,37 @@ Benchmark results for UltrafastSecp256k1 across all supported platforms.
 | Schnorr Sign (BIP-340) | 86 us | |
 | Schnorr Verify (BIP-340) | 216 us | |
 
+### RISC-V Native Re-Run (Milk-V Mars, 2026-03-07)
+
+Run policy: native board execution (no QEMU), `bench_unified --suite all --passes 11`, plus `unified_audit_runner`.
+
+#### Full Benchmark (opt3 retained)
+
+| Operation | Time | Ratio vs libsecp | Notes |
+|-----------|------|------------------|-------|
+| ECDSA Sign | 72.64 us | 2.00x | FAST path |
+| Schnorr Sign | 51.69 us | 2.24x | FAST path |
+| Schnorr Keypair | 43.98 us | 2.45x | x-only keypair create |
+| ECDSA Verify | 198.01 us | 1.01x | Slightly faster than libsecp |
+| Schnorr Verify (cached xonly) | 200.46 us | 1.02x | Slightly faster than libsecp |
+| Schnorr Verify (raw bytes) | 206.75 us | 0.99x | Near parity; about 1.2% slower |
+
+Source artifact (Mars): `/tmp/bench_unified_mars_full_opt3.json`.
+
+#### Quick A/B Check (raw verify hotspot)
+
+| Variant | Schnorr Verify (raw) | Schnorr Verify (cached) | ECDSA Verify |
+|---------|----------------------|--------------------------|--------------|
+| opt3 | 206963.9 ns | 200468.7 ns | 198126.1 ns |
+| opt4 | 216081.5 ns | 200431.1 ns | 198231.0 ns |
+
+Conclusion: `opt3` is kept because it is measurably faster in raw verify.
+
+#### Security Validation (same code path)
+
+`unified_audit_runner` verdict: `AUDIT-READY`  
+Summary: `53/54 modules passed -- ALL PASSED (1 advisory warnings)`.
+
 ### RISC-V Optimization Gains (vs generic RV64GC build)
 
 | Optimization | Speedup | Applied To |
