@@ -218,7 +218,7 @@ $(document).ready(function(){initNavTree('private__key_8hpp_source.html',''); in
 <div class="line"><a id="l00103" name="l00103"></a><span class="lineno">  103</span><span class="keyword">private</span>:</div>
 <div class="line"><a id="l00104" name="l00104"></a><span class="lineno">  104</span>    <span class="keywordtype">void</span> secure_erase() noexcept {</div>
 <div class="line"><a id="l00105" name="l00105"></a><span class="lineno">  105</span>        <span class="comment">// volatile prevents compiler from optimizing away the memset</span></div>
-<div class="line"><a id="l00106" name="l00106"></a><span class="lineno">  106</span>        <span class="keyword">volatile</span> std::uint8_t* p =</div>
+<div class="line"><a id="l00106" name="l00106"></a><span class="lineno">  106</span>        <span class="keyword">auto</span>* p =</div>
 <div class="line"><a id="l00107" name="l00107"></a><span class="lineno">  107</span>            <span class="keyword">reinterpret_cast&lt;</span><span class="keyword">volatile </span>std::uint8_t*<span class="keyword">&gt;</span>(&amp;scalar_);</div>
 <div class="line"><a id="l00108" name="l00108"></a><span class="lineno">  108</span>        <span class="keywordflow">for</span> (std::size_t i = 0; i &lt; <span class="keyword">sizeof</span>(scalar_); ++i) {</div>
 <div class="line"><a id="l00109" name="l00109"></a><span class="lineno">  109</span>            p[i] = 0;</div>
