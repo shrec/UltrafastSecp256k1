@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772903748354,
+  "lastUpdate": 1772908892569,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -39811,6 +39811,430 @@ window.BENCHMARK_DATA = {
           {
             "name": "ecdsa_verify (ECDSA_do_verify)",
             "value": 374613.3,
+            "unit": "ns"
+          },
+          {
+            "name": "Harness",
+            "value": 3000000000,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "Vano Chkheidze",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "04b9f8e10104296eee97fb7455bfe76780deedda",
+          "message": "fix: resolve 5 open clang-tidy code scanning alerts (#109)\n\n- schnorr.cpp: simplify boolean via DeMorgan (readability-simplify-boolean-expr)\n- schnorr.cpp: use auto with static_cast (modernize-use-auto)\n- scalar.cpp: add const to __int128 variable (misc-const-correctness)\n- scalar.cpp: use auto with static_cast (modernize-use-auto)\n- point.cpp: add const to z_fe variable (misc-const-correctness)\n\nAddresses alerts #6982-#6986.\n\nCo-authored-by: shrec <shrec@users.noreply.github.com>",
+          "timestamp": "2026-03-07T22:35:30+04:00",
+          "tree_id": "ae80b916d738db71b18d5a5e60c31917aae9c56a",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/04b9f8e10104296eee97fb7455bfe76780deedda"
+        },
+        "date": 1772908890680,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "field_mul",
+            "value": 19,
+            "unit": "ns"
+          },
+          {
+            "name": "field_sqr",
+            "value": 18.3,
+            "unit": "ns"
+          },
+          {
+            "name": "field_inv",
+            "value": 1049,
+            "unit": "ns"
+          },
+          {
+            "name": "field_add",
+            "value": 7.7,
+            "unit": "ns"
+          },
+          {
+            "name": "field_sub",
+            "value": 8.3,
+            "unit": "ns"
+          },
+          {
+            "name": "field_negate",
+            "value": 3.5,
+            "unit": "ns"
+          },
+          {
+            "name": "field_from_bytes (32B)",
+            "value": 5.3,
+            "unit": "ns"
+          },
+          {
+            "name": "scalar_mul",
+            "value": 34.4,
+            "unit": "ns"
+          },
+          {
+            "name": "scalar_inv",
+            "value": 1416.6,
+            "unit": "ns"
+          },
+          {
+            "name": "scalar_add",
+            "value": 7.9,
+            "unit": "ns"
+          },
+          {
+            "name": "scalar_negate",
+            "value": 4.9,
+            "unit": "ns"
+          },
+          {
+            "name": "scalar_from_bytes (32B)",
+            "value": 4.1,
+            "unit": "ns"
+          },
+          {
+            "name": "pubkey_create (k*G)",
+            "value": 7841.7,
+            "unit": "ns"
+          },
+          {
+            "name": "scalar_mul (k*P)",
+            "value": 37456.8,
+            "unit": "ns"
+          },
+          {
+            "name": "scalar_mul_with_plan",
+            "value": 37655.5,
+            "unit": "ns"
+          },
+          {
+            "name": "dual_mul (a*G + b*P)",
+            "value": 41686.9,
+            "unit": "ns"
+          },
+          {
+            "name": "point_add (affine+affine)",
+            "value": 1308.4,
+            "unit": "ns"
+          },
+          {
+            "name": "point_add (J+A mixed)",
+            "value": 272.4,
+            "unit": "ns"
+          },
+          {
+            "name": "point_dbl",
+            "value": 165.9,
+            "unit": "ns"
+          },
+          {
+            "name": "normalize (J->affine)",
+            "value": 5.7,
+            "unit": "ns"
+          },
+          {
+            "name": "batch_normalize /pt (N=64)",
+            "value": 215.8,
+            "unit": "ns"
+          },
+          {
+            "name": "next_inplace (+=G)",
+            "value": 287.8,
+            "unit": "ns"
+          },
+          {
+            "name": "KPlan::from_scalar(w=4)",
+            "value": 2597.7,
+            "unit": "ns"
+          },
+          {
+            "name": "to_compressed (33B)",
+            "value": 10.7,
+            "unit": "ns"
+          },
+          {
+            "name": "to_uncompressed (65B)",
+            "value": 12.7,
+            "unit": "ns"
+          },
+          {
+            "name": "x_only_bytes (32B)",
+            "value": 6.3,
+            "unit": "ns"
+          },
+          {
+            "name": "x_bytes_and_parity",
+            "value": 8,
+            "unit": "ns"
+          },
+          {
+            "name": "has_even_y",
+            "value": 3.6,
+            "unit": "ns"
+          },
+          {
+            "name": "batch_to_compressed /pt (N=64)",
+            "value": 227.7,
+            "unit": "ns"
+          },
+          {
+            "name": "batch_x_only_bytes /pt (N=64)",
+            "value": 172.2,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_sign",
+            "value": 10659.3,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_sign_verified",
+            "value": 62512.3,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_verify",
+            "value": 43619.6,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_keypair_create",
+            "value": 7963,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_sign",
+            "value": 8359.6,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_sign_verified",
+            "value": 53400.1,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_verify (cached xonly)",
+            "value": 43420.3,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_verify (raw bytes)",
+            "value": 44866.4,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_batch_verify(N=4)",
+            "value": 173840,
+            "unit": "ns"
+          },
+          {
+            "name": "-> per-sig amortized (N=4)",
+            "value": 43460,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_batch_verify(N=16)",
+            "value": 705777.2,
+            "unit": "ns"
+          },
+          {
+            "name": "-> per-sig amortized (N=16)",
+            "value": 44111.1,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_batch_verify(N=64)",
+            "value": 4490448.6,
+            "unit": "ns"
+          },
+          {
+            "name": "-> per-sig amortized (N=64)",
+            "value": 70163.3,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_batch_verify(N=4)",
+            "value": 169532.4,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_batch_verify(N=16)",
+            "value": 680212.3,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_batch_verify(N=64)",
+            "value": 2713561.1,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::scalar_inverse (SafeGCD)",
+            "value": 2158.7,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::generator_mul (k*G)",
+            "value": 20429.4,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::scalar_mul (k*P)",
+            "value": 45489.6,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::point_dbl",
+            "value": 163.2,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::point_add_complete (11M+6S)",
+            "value": 464.8,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::point_add_mixed_complete (7M+5S)",
+            "value": 317.2,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::point_add_mixed_unified (7M+5S)",
+            "value": 311.8,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::ecdsa_sign",
+            "value": 25016.8,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::ecdsa_sign_verified",
+            "value": 90198.7,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::schnorr_sign",
+            "value": 22105.9,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::schnorr_sign_verified",
+            "value": 67401.7,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::schnorr_keypair_create",
+            "value": 21657.8,
+            "unit": "ns"
+          },
+          {
+            "name": "field_inv_var",
+            "value": 1237,
+            "unit": "ns"
+          },
+          {
+            "name": "field_normalize",
+            "value": 11.7,
+            "unit": "ns"
+          },
+          {
+            "name": "field_from_bytes (set_b32)",
+            "value": 12.4,
+            "unit": "ns"
+          },
+          {
+            "name": "scalar_inverse (CT)",
+            "value": 2328.9,
+            "unit": "ns"
+          },
+          {
+            "name": "scalar_inverse_var",
+            "value": 1254,
+            "unit": "ns"
+          },
+          {
+            "name": "scalar_from_bytes (set_b32)",
+            "value": 9.2,
+            "unit": "ns"
+          },
+          {
+            "name": "point_dbl (gej_double_var)",
+            "value": 174.6,
+            "unit": "ns"
+          },
+          {
+            "name": "point_add (gej_add_ge_var)",
+            "value": 310.7,
+            "unit": "ns"
+          },
+          {
+            "name": "ecmult (a*P + b*G, Strauss)",
+            "value": 45357.4,
+            "unit": "ns"
+          },
+          {
+            "name": "ecmult_gen (k*G, comb)",
+            "value": 19924.1,
+            "unit": "ns"
+          },
+          {
+            "name": "generator_mul (ec_pubkey_create)",
+            "value": 22399.9,
+            "unit": "ns"
+          },
+          {
+            "name": "scalar_mul_P (k*P, tweak_mul)",
+            "value": 42384.1,
+            "unit": "ns"
+          },
+          {
+            "name": "serialize_compressed (33B)",
+            "value": 31.9,
+            "unit": "ns"
+          },
+          {
+            "name": "serialize_uncompressed (65B)",
+            "value": 43.4,
+            "unit": "ns"
+          },
+          {
+            "name": "point_add (pubkey_combine)",
+            "value": 3218.2,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_sign (BIP-340)",
+            "value": 23836.6,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_verify (BIP-340)",
+            "value": 47822.3,
+            "unit": "ns"
+          },
+          {
+            "name": "generator_mul (EC_POINT_mul k*G)",
+            "value": 420974.7,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_sign (ECDSA_do_sign)",
+            "value": 446552,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_verify (ECDSA_do_verify)",
+            "value": 400386.7,
             "unit": "ns"
           },
           {
