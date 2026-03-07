@@ -63,23 +63,13 @@ option(SECP256K1_RISCV_USE_VECTOR "Enable RISC-V Vector Extension (RVV) if avail
 option(SECP256K1_RISCV_USE_PREFETCH "Enable prefetch hints for cache optimization" ON)
 
 # LTO/PGO options
-option(SECP256K1_USE_LTO "Enable Link Time Optimization (LTO) for C++ code" OFF)
+option(SECP256K1_USE_LTO "Enable Link Time Optimization (LTO) for C++ code" ON)
 option(SECP256K1_USE_PGO_GEN "Enable Profile-Guided Optimization - Generate profile" OFF)
 option(SECP256K1_USE_PGO_USE "Enable Profile-Guided Optimization - Use profile" OFF)
 set(SECP256K1_PGO_PROFILE_DIR "${CMAKE_BINARY_DIR}/pgo_profiles" CACHE PATH "Directory for PGO profiles")
 
-# x64 5x52 hand-tuned ASM for field mul/sqr (extern, non-inline, MULX-scheduled)
-option(SECP256K1_USE_ASM52_X64 "Use hand-tuned 5x52 MULX assembly for field mul/sqr (x64)" OFF)
-
-# Force 4x64 FieldElement for point arithmetic (FE52 storage kept, but ops route through 4x64 ADCX/ADOX)
-option(SECP256K1_USE_4X64_POINT_OPS "Force point ops through 4x64 FieldElement arithmetic (benchmark mode)" OFF)
-if(SECP256K1_USE_4X64_POINT_OPS)
-    add_compile_definitions(SECP256K1_USE_4X64_POINT_OPS=1)
-    message(STATUS "Secp256k1: Point ops forced to 4x64 FieldElement path (dual representation benchmark mode)")
-endif()
-
 if(SECP256K1_USE_ASM)
-    if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|X64" AND CMAKE_SIZEOF_VOID_P EQUAL 8)
+    if(_SECP_TARGET_ARCH MATCHES "x86_64|AMD64|X64" AND CMAKE_SIZEOF_VOID_P EQUAL 8)
         # x64 Assembly (Windows/Linux/macOS)
         if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
             # GAS syntax for Clang/GCC (Windows MinGW, Linux, macOS)
@@ -95,15 +85,6 @@ if(SECP256K1_USE_ASM)
                 COMPILE_FLAGS "${ASM_FLAGS}")
             set(SECP256K1_HAS_ASM TRUE CACHE INTERNAL "Assembly support enabled")
             message(STATUS "Secp256k1: 5x52 using C __int128 (x64, inlines better than external ASM)")
-
-            # Optional: hand-tuned 5x52 MULX assembly for field mul/sqr
-            if(SECP256K1_USE_ASM52_X64)
-                list(APPEND SECP256K1_SOURCES src/field_asm52_x64_gas.S)
-                set_source_files_properties(src/field_asm52_x64_gas.S PROPERTIES
-                    COMPILE_FLAGS "${ASM_FLAGS}")
-                add_compile_definitions(SECP256K1_HAS_X64_FE52_ASM=1)
-                message(STATUS "Secp256k1: 5x52 using hand-tuned MULX assembly (extern, ~8ns field_mul)")
-            endif()
 
             # Enable fast reduction on x64 (uses BMI2/ADX)
             if(SECP256K1_USE_FAST_REDUCTION)
@@ -126,7 +107,7 @@ if(SECP256K1_USE_ASM)
             message(WARNING "Secp256k1: Unsupported compiler ${CMAKE_CXX_COMPILER_ID} for x64 assembly")
             set(SECP256K1_HAS_ASM FALSE)
         endif()
-    elseif(UNIX AND CMAKE_SYSTEM_PROCESSOR MATCHES "riscv64|RISCV64")
+    elseif(UNIX AND _SECP_TARGET_ARCH MATCHES "riscv64|RISCV64")
         # RISC-V 64-bit Assembly Support
         enable_language(ASM)
 
@@ -219,7 +200,7 @@ if(SECP256K1_USE_ASM)
         endif()
 
         set(SECP256K1_HAS_ASM TRUE CACHE INTERNAL "Assembly support enabled")
-    elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|ARM64|arm64")
+    elseif(_SECP_TARGET_ARCH MATCHES "aarch64|ARM64|arm64")
         # ARM64 (AArch64) Assembly Support
         # Uses MUL/UMULH inline assembly for field arithmetic
         # Available on: Android NDK, Linux aarch64, macOS Apple Silicon
@@ -228,7 +209,6 @@ if(SECP256K1_USE_ASM)
         list(APPEND SECP256K1_SOURCES
             src/field_asm_arm64.cpp
             src/field_asm52_arm64.cpp
-            src/field_asm52_arm64_v2.cpp
         )
         
         add_compile_definitions(SECP256K1_HAS_ARM64_ASM=1)
@@ -241,7 +221,7 @@ if(SECP256K1_USE_ASM)
             message(STATUS "Secp256k1: Fast modular reduction enabled (ARM64 secp256k1-specific)")
         endif()
     else()
-        message(WARNING "Secp256k1: Inline assembly requested but not available for ${CMAKE_SYSTEM_PROCESSOR} on ${CMAKE_SYSTEM_NAME}")
+        message(WARNING "Secp256k1: Inline assembly requested but not available for ${_SECP_TARGET_ARCH} on ${CMAKE_SYSTEM_NAME}")
         message(WARNING "  Assembly is enabled only on: x86_64, RISC-V 64-bit, ARM64 (aarch64). Falling back.")
         set(SECP256K1_HAS_ASM FALSE)
     endif()
@@ -403,7 +383,7 @@ if(SECP256K1_HAS_ASM)
 endif()
 
 # Enable fast modular reduction on x86_64 (even without ASM, uses BMI2 intrinsics)
-if(SECP256K1_USE_FAST_REDUCTION AND CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|X64")
+if(SECP256K1_USE_FAST_REDUCTION AND _SECP_TARGET_ARCH MATCHES "x86_64|AMD64|X64")
     target_compile_definitions(${SECP256K1_LIB_NAME} PUBLIC SECP256K1_USE_FAST_REDUCTION=1)
     if(NOT SECP256K1_HAS_ASM)
         message(STATUS "Secp256k1: Fast modular reduction enabled (x64 BMI2 intrinsics)")
@@ -418,7 +398,7 @@ endif()
 # Note: MSVC support removed - use Clang-cl if needed on Windows
 
 # Platform-specific architecture flags
-if(CMAKE_SYSTEM_PROCESSOR MATCHES "riscv64|RISCV64")
+if(_SECP_TARGET_ARCH MATCHES "riscv64|RISCV64")
     # RISC-V CPU tuning: -mcpu tells the compiler exact pipeline model for
     # instruction scheduling. On SiFive U74 (in-order dual-issue), this alone
     # gives 28-34% speedup on field/point operations by enabling U74-specific
@@ -461,7 +441,7 @@ if(CMAKE_SYSTEM_PROCESSOR MATCHES "riscv64|RISCV64")
         set(ARCH_FLAGS "-march=rv64gc_zba_zbb")
         message(STATUS "Secp256k1: RISC-V generic -march=rv64gc_zba_zbb (no CPU-specific tuning)")
     endif()
-elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|ARM64|arm64")
+elseif(_SECP_TARGET_ARCH MATCHES "aarch64|ARM64|arm64")
     if(ANDROID)
         # Android NDK: target Cortex-A76 specifically for optimal scheduling
         # -mcpu=cortex-a76 implies armv8.2-a + crypto + lse + rdm + fp16
@@ -475,12 +455,12 @@ elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|ARM64|arm64")
     else()
         set(ARCH_FLAGS "-march=armv8-a+crypto")
     endif()
-elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "armv7|armeabi")
+elseif(_SECP_TARGET_ARCH MATCHES "armv7|armeabi")
     # Android ARMv7 (32-bit) -- no __int128, uses NO_INT128 fallback
     set(ARCH_FLAGS "-march=armv7-a -mfpu=neon-vfpv4 -mfloat-abi=softfp")
     add_compile_definitions(SECP256K1_NO_INT128=1)
     message(STATUS "Secp256k1: Android ARMv7 target (32-bit, no __int128)")
-elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|X64")
+elseif(_SECP_TARGET_ARCH MATCHES "x86_64|AMD64|X64")
     if(ANDROID)
         # Android x86_64 emulator -- no -march=native for cross-compile
         set(ARCH_FLAGS "-march=x86-64 -msse4.2")
@@ -488,7 +468,7 @@ elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|X64")
     else()
         set(ARCH_FLAGS "-march=native")
     endif()
-elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "i686|x86")
+elseif(_SECP_TARGET_ARCH MATCHES "i686|x86")
     if(ANDROID)
         set(ARCH_FLAGS "-march=i686 -msse3")
         add_compile_definitions(SECP256K1_NO_INT128=1)
@@ -583,7 +563,7 @@ endif()
 # Sanitizer builds: skip -O3 override, keep arch + safe flags.
 # -fno-exceptions is safe (field_asm has no exception code paths).
 if(SECP256K1_SANITIZER_BUILD)
-    if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|X64")
+    if(_SECP_TARGET_ARCH MATCHES "x86_64|AMD64|X64")
         set_source_files_properties(src/field_asm.cpp PROPERTIES
             COMPILE_FLAGS "${ARCH_FLAGS} -mbmi2 -madx -mpopcnt -fno-exceptions ${_FIELD_ASM_NORTTI}"
         )
@@ -593,7 +573,7 @@ if(SECP256K1_SANITIZER_BUILD)
         )
     endif()
 else()
-    if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|X64")
+    if(_SECP_TARGET_ARCH MATCHES "x86_64|AMD64|X64")
         set_source_files_properties(src/field_asm.cpp PROPERTIES 
             COMPILE_FLAGS "-O3 ${ARCH_FLAGS} -mbmi2 -madx -mpopcnt -funroll-loops -ftree-vectorize -fno-exceptions ${_FIELD_ASM_NORTTI}"
         )
@@ -667,6 +647,10 @@ if(BUILD_TESTING)
     # Field 10x26 vs 4x64 comparison (32-bit / ESP32 target)
     add_executable(bench_field_26 bench/bench_field_26.cpp)
     target_link_libraries(bench_field_26 PRIVATE ${SECP256K1_LIB_NAME})
+
+    # k*P benchmark: scalar_mul vs scalar_mul_with_plan (BIP-352 bottleneck)
+    add_executable(bench_kP tests/bench_kP.cpp)
+    target_link_libraries(bench_kP PRIVATE ${SECP256K1_LIB_NAME})
 
     # Unified Apple-to-Apple Benchmark (cross-platform, single binary)
     # Requires libsecp256k1 source for side-by-side comparison

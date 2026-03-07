@@ -32,19 +32,31 @@ static int tests_passed = 0;
 
 // Check that all 33 bytes are zero (infinity encoding)
 static bool is_zero_33(const std::array<uint8_t, 33>& a) {
-    for (auto b : a) if (b != 0) return false;
+    for (auto b : a) {
+        if (b != 0) {
+            return false;
+        }
+    }
     return true;
 }
 
 // Check that all 65 bytes are zero (infinity encoding)
 static bool is_zero_65(const std::array<uint8_t, 65>& a) {
-    for (auto b : a) if (b != 0) return false;
+    for (auto b : a) {
+        if (b != 0) {
+            return false;
+        }
+    }
     return true;
 }
 
 // All 32 bytes zero
 static bool is_zero_32(const std::array<uint8_t, 32>& a) {
-    for (auto b : a) if (b != 0) return false;
+    for (auto b : a) {
+        if (b != 0) {
+            return false;
+        }
+    }
     return true;
 }
 
@@ -220,6 +232,100 @@ static void test_roundtrip() {
     CHECK(p1 == p2, "G parity consistency");
 }
 
+// -- x_only_bytes tests ------------------------------------------------------
+
+static void test_x_only_bytes() {
+    printf("\n=== x_only_bytes tests ===\n");
+    const Point G = Point::generator();
+
+    // x_only_bytes should match x_bytes_and_parity x component
+    auto xonly = G.x_only_bytes();
+    auto [xbp, parity] = G.x_bytes_and_parity();
+    (void)parity;
+    CHECK(xonly == xbp, "G x_only_bytes matches x_bytes_and_parity");
+
+    // x_only_bytes should match to_compressed bytes 1..32
+    auto comp = G.to_compressed();
+    std::array<uint8_t, 32> comp_x;
+    std::copy(comp.begin() + 1, comp.end(), comp_x.begin());
+    CHECK(xonly == comp_x, "G x_only_bytes matches to_compressed[1..32]");
+
+    // infinity -> zeros
+    auto inf_xonly = Point::infinity().x_only_bytes();
+    CHECK(is_zero_32(inf_xonly), "infinity x_only_bytes -> zeros");
+
+    // 2G consistency
+    const Point G2 = G.add(G);
+    auto xonly2a = G2.x_only_bytes();
+    auto xonly2b = G2.x_only_bytes();
+    CHECK(xonly2a == xonly2b, "2G x_only_bytes consistency");
+}
+
+// -- batch serialization tests -----------------------------------------------
+
+static void test_batch_serialization() {
+    printf("\n=== Batch serialization tests ===\n");
+    const Point G = Point::generator();
+
+    // Create 8 distinct points: G, 2G, 3G, ..., 8G
+    constexpr int N = 8;
+    Point points[N];
+    points[0] = G;
+    for (int i = 1; i < N; ++i) {
+        points[i] = points[i-1].add(G);
+    }
+
+    // batch_to_compressed: should match individual to_compressed
+    std::array<uint8_t, 33> batch_comp[N];
+    Point::batch_to_compressed(points, N, batch_comp);
+    bool all_match = true;
+    for (int i = 0; i < N; ++i) {
+        if (batch_comp[i] != points[i].to_compressed()) {
+            all_match = false;
+            printf("    batch_to_compressed mismatch at index %d\n", i);
+        }
+    }
+    CHECK(all_match, "batch_to_compressed matches individual");
+
+    // batch_x_only_bytes: should match individual x_only_bytes
+    std::array<uint8_t, 32> batch_xonly[N];
+    Point::batch_x_only_bytes(points, N, batch_xonly);
+    bool xonly_match = true;
+    for (int i = 0; i < N; ++i) {
+        if (batch_xonly[i] != points[i].x_only_bytes()) {
+            xonly_match = false;
+            printf("    batch_x_only_bytes mismatch at index %d\n", i);
+        }
+    }
+    CHECK(xonly_match, "batch_x_only_bytes matches individual");
+
+    // batch_normalize: check x,y match individual x(),y()
+    FieldElement batch_x[N], batch_y[N];
+    Point::batch_normalize(points, N, batch_x, batch_y);
+    bool norm_match = true;
+    for (int i = 0; i < N; ++i) {
+        if (!(batch_x[i] == points[i].x()) || !(batch_y[i] == points[i].y())) {
+            norm_match = false;
+            printf("    batch_normalize mismatch at index %d\n", i);
+        }
+    }
+    CHECK(norm_match, "batch_normalize matches individual x(),y()");
+
+    // Edge: batch with infinity points mixed in
+    Point mixed[4] = {G, Point::infinity(), G.add(G), Point::infinity()};
+    std::array<uint8_t, 33> mixed_comp[4];
+    Point::batch_to_compressed(mixed, 4, mixed_comp);
+    CHECK(mixed_comp[0] == G.to_compressed(), "batch mixed[0]=G correct");
+    CHECK(is_zero_33(mixed_comp[1]), "batch mixed[1]=inf -> zeros");
+    CHECK(mixed_comp[2] == G.add(G).to_compressed(), "batch mixed[2]=2G correct");
+    CHECK(is_zero_33(mixed_comp[3]), "batch mixed[3]=inf -> zeros");
+
+    // Edge: empty batch (should not crash)
+    Point::batch_to_compressed(nullptr, 0, nullptr);
+    Point::batch_x_only_bytes(nullptr, 0, nullptr);
+    CHECK(true, "empty batch calls do not crash");
+}
+
 // ============================================================================
 
 int main() {
@@ -231,6 +337,8 @@ int main() {
     test_generator_outputs();
     test_scalar_mul_edge_cases();
     test_roundtrip();
+    test_x_only_bytes();
+    test_batch_serialization();
 
     printf("\n-----\nResults: %d / %d passed\n", tests_passed, tests_run);
     return (tests_passed == tests_run) ? 0 : 1;

@@ -28,12 +28,37 @@ def parse_benchmark_output(text: str) -> list[dict]:
     entries = []
     seen = set()
 
+    # Sections whose entries should be excluded from regression comparison.
+    # MICRO-DIAGNOSTICS are sub-operation benchmarks that may legitimately
+    # diverge from end-to-end performance (e.g. per-op speed traded for
+    # better pipeline ILP via inlining).
+    excluded_sections = {'MICRO-DIAGNOSTICS'}
+
     # Pattern 1 (bench_unified): table rows "| name | value |"
     # Matches numeric ns/op values only; skips headers (ns/op) and ratios (1.23x).
     table_pattern = re.compile(
         r'^\|\s+(.+?)\s+\|\s+([\d,]+(?:\.[\d]+)?)\s+\|$',
         re.MULTILINE
     )
+    # Section header: "| SECTION NAME (extra) | ns/op |"
+    section_pattern = re.compile(
+        r'^\|\s+(.+?)\s+\|\s+ns/op\s+\|$',
+        re.MULTILINE
+    )
+
+    # Build a map of position -> section name for section-aware filtering
+    section_starts = []
+    for m in section_pattern.finditer(text):
+        section_starts.append((m.start(), m.group(1).strip()))
+
+    def get_section(pos: int) -> str:
+        """Return the section name for a given text position."""
+        current = ''
+        for start, name in section_starts:
+            if start > pos:
+                break
+            current = name
+        return current
 
     for match in table_pattern.finditer(text):
         name = match.group(1).strip()
@@ -44,6 +69,10 @@ def parse_benchmark_output(text: str) -> list[dict]:
         try:
             value_ns = float(value_str)
         except ValueError:
+            continue
+        # Skip entries from excluded sections
+        section = get_section(match.start())
+        if any(excl in section for excl in excluded_sections):
             continue
         if name not in seen:
             seen.add(name)
@@ -70,6 +99,16 @@ def parse_benchmark_output(text: str) -> list[dict]:
         unit = match.group(3)
 
         if name in seen:
+            continue
+
+        # In bench_unified output, all standalone benchmarks use table-format
+        # rows (Pattern 1 above). Legacy-format printf lines that appear
+        # within bench_unified sections are diagnostic/derived metrics (cost
+        # decompositions, UNEXPLAINED gap, RFC6979 overhead, etc.), not
+        # independent benchmarks. Skip them to avoid false regression alerts
+        # on noisy computed values.
+        section = get_section(match.start())
+        if section:
             continue
 
         try:

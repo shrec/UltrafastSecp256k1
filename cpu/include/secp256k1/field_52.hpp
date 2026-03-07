@@ -67,6 +67,16 @@ struct alignas(8) FieldElement52 {
     static FieldElement52 from_fe(const FieldElement& fe) noexcept;
     FieldElement to_fe() const noexcept;  // Normalizes first!
 
+    // Convenience: serialize FE52 -> bytes (BE) in one call.
+    // Replaces common pattern: to_fe().to_bytes_into(out)
+    void to_bytes_into(std::uint8_t* out) const noexcept;
+
+    // Fast serialize for pre-normalized limbs (z_one_ affine points).
+    // PRECONDITION: limbs must already be fully normalized (each <= 52 bits,
+    // value < p). Guaranteed by make_affine_inplace / from_affine / from_bytes.
+    // Skips fe52_normalize_inline for ~2x speedup on public key serialization.
+    void store_b32_prenorm(std::uint8_t* out) const noexcept;
+
     // Direct 4x64 limbs -> 5x52 conversion (zero-copy, no FieldElement construction).
     // Input: 4 little-endian uint64_t limbs representing a value < p.
     // Use for Scalar->FE52 where we know value < n < p.

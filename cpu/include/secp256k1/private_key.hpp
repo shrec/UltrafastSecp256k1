@@ -103,7 +103,7 @@ public:
 private:
     void secure_erase() noexcept {
         // volatile prevents compiler from optimizing away the memset
-        volatile std::uint8_t* p =
+        auto* p =
             reinterpret_cast<volatile std::uint8_t*>(&scalar_);
         for (std::size_t i = 0; i < sizeof(scalar_); ++i) {
             p[i] = 0;

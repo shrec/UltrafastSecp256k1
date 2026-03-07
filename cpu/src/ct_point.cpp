@@ -170,85 +170,15 @@ inline JacFE52 jac_add_ge_var_zr(const JacFE52& a,
     return {x3, y3, z3};
 }
 
-// --- FE52 Native Field Inversion (Fermat's little theorem) ------------------
-// Computes a^(-1) = a^(p-2) mod p using optimal addition chain.
-// p = 2^256 - 2^32 - 977. Binary structure of p-2 has blocks of 1s with
-// lengths {1, 2, 22, 223}. Uses 253 squarings + 14 multiplications.
-// All operations in native FE52 -- no 4x64 conversion overhead.
-//
-// Adapted from bitcoin-core/secp256k1 field_impl.h (MIT license).
+// --- FE52 Field Inversion ---------------------------------------------------
+// Delegates to FieldElement52::inverse() which uses the optimal Fermat
+// addition chain (253S + 14M).  When SECP256K1_HYBRID_4X64_ACTIVE is
+// defined, the class method runs the entire chain in 4x64 MULX/ADCX/ADOX
+// assembly with only one FE52<->4x64 boundary conversion at each end.
+// Net saving: ~538 ns per call (6 ns boundary vs ~2 ns/op x 269 ops).
 
 inline FE52 fe52_inverse(const FE52& a) noexcept {
-    FE52 x2, x3, x6, x9, x11, x22, x44, x88, x176, x220, x223, t1;
-
-    // x2 = a^(2^2-1) = a^3
-    x2 = a.square();              // a^2
-    x2 = x2 * a;                  // a^3
-
-    // x3 = a^(2^3-1) = a^7
-    x3 = x2.square();             // a^6
-    x3 = x3 * a;                  // a^7
-
-    // x6 = a^(2^6-1)
-    x6 = x3;
-    for (int j = 0; j < 3; ++j) x6.square_inplace();
-    x6 = x6 * x3;
-
-    // x9 = a^(2^9-1)
-    x9 = x6;
-    for (int j = 0; j < 3; ++j) x9.square_inplace();
-    x9 = x9 * x3;
-
-    // x11 = a^(2^11-1)
-    x11 = x9;
-    for (int j = 0; j < 2; ++j) x11.square_inplace();
-    x11 = x11 * x2;
-
-    // x22 = a^(2^22-1)
-    x22 = x11;
-    for (int j = 0; j < 11; ++j) x22.square_inplace();
-    x22 = x22 * x11;
-
-    // x44 = a^(2^44-1)
-    x44 = x22;
-    for (int j = 0; j < 22; ++j) x44.square_inplace();
-    x44 = x44 * x22;
-
-    // x88 = a^(2^88-1)
-    x88 = x44;
-    for (int j = 0; j < 44; ++j) x88.square_inplace();
-    x88 = x88 * x44;
-
-    // x176 = a^(2^176-1)
-    x176 = x88;
-    for (int j = 0; j < 88; ++j) x176.square_inplace();
-    x176 = x176 * x88;
-
-    // x220 = a^(2^220-1)
-    x220 = x176;
-    for (int j = 0; j < 44; ++j) x220.square_inplace();
-    x220 = x220 * x44;
-
-    // x223 = a^(2^223-1)
-    x223 = x220;
-    for (int j = 0; j < 3; ++j) x223.square_inplace();
-    x223 = x223 * x3;
-
-    // Final assembly:  a^(p-2) using sliding window
-    t1 = x223;
-    for (int j = 0; j < 23; ++j) t1.square_inplace();
-    t1 = t1 * x22;
-
-    for (int j = 0; j < 5; ++j) t1.square_inplace();
-    t1 = t1 * a;
-
-    for (int j = 0; j < 3; ++j) t1.square_inplace();
-    t1 = t1 * x2;
-
-    for (int j = 0; j < 2; ++j) t1.square_inplace();
-    t1 = t1 * a;
-
-    return t1;
+    return a.inverse();
 }
 
 // --- FE52 Batch Inversion (Montgomery's trick) ------------------------------

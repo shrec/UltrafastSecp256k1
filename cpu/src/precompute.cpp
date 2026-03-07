@@ -72,7 +72,8 @@
 // Desktop-only includes
 #include <fstream>
 #include <chrono>
-#include <filesystem>
+#include <sys/stat.h>
+#include <cerrno>
 #include <unordered_map>
 #include <iostream>
 #include <iomanip>
@@ -80,8 +81,10 @@
 #include <mutex>
 #if defined(_WIN32)
 #include <process.h>  // _getpid()
+#include <io.h>       // _findfirst, _findnext
 #else
 #include <unistd.h>   // getpid()
+#include <dirent.h>   // opendir, readdir
 #endif
 #include <thread>
 #include <queue>
@@ -184,6 +187,13 @@ uint64_t g_decomp_barrett_reduce_cycles = 0;
 uint64_t g_decomp_normalize_cycles = 0;
 
 namespace {
+
+static bool remove_file_if_exists(const std::string& path) {
+    if (std::remove(path.c_str()) == 0) {
+        return true;
+    }
+    return errno == ENOENT;
+}
 
 struct AffinePointPacked {
     FieldElement x;
@@ -2120,9 +2130,10 @@ std::string get_default_cache_path(unsigned window_bits) {
     // Use configured cache directory (default: G:\EccTables)
     if (!g_config.cache_dir.empty()) {
         std::string cache_path = g_config.cache_dir + "\\" + filename;
-        std::ifstream test_file(cache_path, std::ios::binary);
-        if (test_file.good()) {
-            test_file.close();
+        // Use stat() instead of std::filesystem::exists() to avoid
+        // MSan false positives from uninstrumented libstdc++ internals.
+        struct stat st;
+        if (::stat(cache_path.c_str(), &st) == 0) {
             return cache_path;
         }
     }
@@ -2203,13 +2214,16 @@ bool save_precompute_cache_locked(const std::string& path) {
     header.reserved = 0;
     
     file.write(reinterpret_cast<const char*>(&header), sizeof(header));
-    if (!file.good()) { std::remove(tmp_path.c_str()); return false; }
+    if (!file.good()) {
+        (void)remove_file_if_exists(tmp_path);
+        return false;
+    }
     
     // Write base tables
     for (const auto& window : ctx.base_tables) {
         for (const auto& point : window) {
             if (!write_affine_point(file, point)) {
-                std::remove(tmp_path.c_str());
+                (void)remove_file_if_exists(tmp_path);
                 return false;
             }
         }
@@ -2220,7 +2234,7 @@ bool save_precompute_cache_locked(const std::string& path) {
         for (const auto& window : ctx.psi_tables) {
             for (const auto& point : window) {
                 if (!write_affine_point(file, point)) {
-                    std::remove(tmp_path.c_str());
+                    (void)remove_file_if_exists(tmp_path);
                     return false;
                 }
             }
@@ -2228,13 +2242,16 @@ bool save_precompute_cache_locked(const std::string& path) {
     }
     
     file.close();
-    if (!file.good()) { std::remove(tmp_path.c_str()); return false; }
+    if (!file.good()) {
+        (void)remove_file_if_exists(tmp_path);
+        return false;
+    }
     
-    // Atomic rename: readers see either the old complete file or the new complete file
-    std::error_code ec;
-    std::filesystem::rename(tmp_path, path, ec);
-    if (ec) {
-        std::remove(tmp_path.c_str());
+    // Atomic rename: readers see either the old complete file or the new complete file.
+    // Use std::rename (C) instead of std::filesystem::rename to avoid MSan false
+    // positives from uninstrumented libstdc++ filesystem internals.
+    if (std::rename(tmp_path.c_str(), path.c_str()) != 0) {
+        (void)remove_file_if_exists(tmp_path);
         return false;
     }
     return true;
@@ -2659,38 +2676,63 @@ static double measure_ns_per_mul(const FixedBaseConfig& cfg,
     return ns / static_cast<double>(iterations);
 }
 
-// Discover available windows and GLV variants by scanning cache_dir
+// Discover available windows and GLV variants by scanning cache_dir.
+// Uses POSIX opendir/readdir instead of std::filesystem to avoid MSan
+// false positives from uninstrumented libstdc++ filesystem internals.
 static std::vector<TuneCandidate> discover_candidates(const FixedBaseConfig& base_cfg, unsigned min_w, unsigned max_w) {
     std::vector<TuneCandidate> out;
-    namespace fs = std::filesystem;
 
     std::string const dir = base_cfg.cache_dir.empty() ? std::string("F:\\EccTables") : base_cfg.cache_dir;
-    std::error_code ec;
-    if (!fs::exists(dir, ec) || !fs::is_directory(dir, ec)) {
-        return out;
-    }
+    struct stat dir_st;
+    if (::stat(dir.c_str(), &dir_st) != 0) return out;
+#ifdef _WIN32
+    if (!(dir_st.st_mode & _S_IFDIR)) return out;
+#else
+    if (!S_ISDIR(dir_st.st_mode)) return out;
+#endif
 
     // Map: window_bits -> {has_non_glv, has_glv}
     struct Flags { bool non_glv{false}; bool glv{false}; };
     std::unordered_map<unsigned, Flags> windows;
 
-    for (fs::directory_iterator it(dir, ec), end; !ec && it != end; it.increment(ec)) {
-        if (!it->is_regular_file()) continue;
-        const auto p = it->path();
-        const auto fname = p.filename().string();
-        // Expected: cache_w{bits}.bin or cache_w{bits}_glv.bin
-        if (fname.rfind("cache_w", 0) == 0 && p.extension() == ".bin") {
-            // Extract digits after 'cache_w'
-            size_t const pos = std::string("cache_w").size();
-            size_t num_end = pos;
-            while (num_end < fname.size() && isdigit(static_cast<unsigned char>(fname[num_end]))) ++num_end;
-            if (num_end == pos) continue;
-            unsigned const wb = static_cast<unsigned>(std::strtoul(fname.substr(pos, num_end - pos).c_str(), nullptr, 10));
-            bool const is_glv = (fname.find("_glv", num_end) != std::string::npos);
-            auto& f = windows[wb];
-            if (is_glv) f.glv = true; else f.non_glv = true;
-        }
+#ifdef _WIN32
+    // Windows: use _findfirst/_findnext
+    std::string pattern = dir + "\\cache_w*.bin";
+    struct _finddata_t fd;
+    intptr_t handle = _findfirst(pattern.c_str(), &fd);
+    if (handle != -1) {
+        do {
+            std::string fname(fd.name);
+#else
+    // POSIX: opendir/readdir
+    DIR* dp = opendir(dir.c_str());
+    if (dp) {
+        struct dirent* ep = nullptr;
+        while ((ep = readdir(dp)) != nullptr) {
+            std::string fname(ep->d_name);
+#endif
+            // Expected: cache_w{bits}.bin or cache_w{bits}_glv.bin
+            if (fname.rfind("cache_w", 0) == 0) {
+                std::size_t const ext_pos = fname.rfind(".bin");
+                if (ext_pos == std::string::npos || ext_pos + 4 != fname.size()) continue;
+                size_t const pos = 7; // strlen("cache_w")
+                size_t num_end = pos;
+                while (num_end < fname.size() && isdigit(static_cast<unsigned char>(fname[num_end]))) ++num_end;
+                if (num_end == pos) continue;
+                unsigned const wb = static_cast<unsigned>(std::strtoul(fname.substr(pos, num_end - pos).c_str(), nullptr, 10));
+                bool const is_glv = (fname.find("_glv", num_end) != std::string::npos);
+                auto& f = windows[wb];
+                if (is_glv) f.glv = true; else f.non_glv = true;
+            }
+#ifdef _WIN32
+        } while (_findnext(handle, &fd) == 0);
+        _findclose(handle);
     }
+#else
+        }
+        closedir(dp);
+    }
+#endif
 
     for (const auto& kv : windows) {
         const unsigned wb = kv.first;
@@ -2752,7 +2794,8 @@ bool auto_tune_fixed_base(FixedBaseConfig& best_out,
         if (cfg.enable_glv) filename += "_glv";
         filename += ".bin";
         std::string const cache_path = cfg.cache_dir.empty() ? filename : (cfg.cache_dir + "\\" + filename);
-        bool const cache_exists = std::filesystem::exists(cache_path);
+        struct stat cache_st;
+        bool const cache_exists = (::stat(cache_path.c_str(), &cache_st) == 0);
         std::cout << "[" << (i+1) << "/" << candidates.size() << "]"
                   << " w=" << cfg.window_bits
                   << ", glv=" << (cfg.enable_glv?"true":"false")

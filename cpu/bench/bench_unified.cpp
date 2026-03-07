@@ -66,6 +66,26 @@
 extern "C" {
     void libsecp_fe_inv_var(unsigned char out32[32], const unsigned char in32[32]);
     void libsecp_fe_inv_var_raw(void *r, const void *a);
+    void libsecp_fe_mul(void *r, const void *a, const void *b);
+    void libsecp_fe_sqr(void *r, const void *a);
+    void libsecp_fe_add(void *r, const void *a);
+    void libsecp_fe_negate(void *r, const void *a, int m);
+    void libsecp_fe_normalize(void *r);
+    void libsecp_fe_set_b32(void *r, const unsigned char *b32);
+    void libsecp_scalar_mul(void *r, const void *a, const void *b);
+    void libsecp_scalar_inverse(void *r, const void *a);
+    void libsecp_scalar_inverse_var(void *r, const void *a);
+    void libsecp_scalar_add(void *r, const void *a, const void *b);
+    void libsecp_scalar_negate(void *r, const void *a);
+    void libsecp_scalar_set_b32(void *r, const unsigned char *b32, int *overflow);
+    void libsecp_gej_double_var(void *r, const void *a);
+    void libsecp_gej_add_ge_var(void *r, const void *a, const void *b);
+    void libsecp_ecmult(void *r, const void *a, const void *na, const void *ng);
+    void libsecp_ecmult_gen(const void *ctx_ecmult_gen, void *r, const void *k);
+    const void* libsecp_get_ecmult_gen_ctx(const secp256k1_context *ctx);
+    void libsecp_gej_set_ge(void *r, const void *a);
+    int  libsecp_pubkey_load(const secp256k1_context *ctx, void *ge,
+                             const secp256k1_pubkey *pubkey);
 }
 
 #include <array>
@@ -429,6 +449,27 @@ static void print_ratio(const char* name, double ratio) {
     g_report.add_ratio(g_current_section, name, ratio);
 }
 
+static void print_sep_3col() {
+    printf("+------------------------------------+----------+----------+-----------+\n");
+}
+
+static void print_header_3col(const char* section) {
+    print_sep_3col();
+    printf("| %-34s | %8s | %8s | %9s |\n", section, "Ultra ns", "libsecp", "ratio");
+    print_sep_3col();
+    g_current_section = section;
+}
+
+static void print_row_3col(const char* name, double ultra, double libsecp) {
+    if (libsecp <= 0) {
+        printf("| %-34s | %8.1f | %8s | %9s |\n", name, ultra, "---", "---");
+    } else {
+        double ratio = libsecp / ultra;
+        printf("| %-34s | %8.1f | %8.1f | %8.2fx |\n", name, ultra, libsecp, ratio);
+    }
+    g_report.add(g_current_section, name, ultra);
+}
+
 // (libsecp256k1 is benchmarked inline in main() using the SAME Harness)
 
 // ===========================================================================
@@ -563,8 +604,10 @@ int main(int argc, char** argv) {
         privkeys[i] = make_scalar(0xdeadbeef00ULL + static_cast<uint64_t>(i));
 
     Point pubkeys[POOL];
-    for (int i = 0; i < POOL; ++i)
+    for (int i = 0; i < POOL; ++i) {
         pubkeys[i] = Point::generator().scalar_mul(privkeys[i]);
+        pubkeys[i].normalize();  // affine (z_one_=true), same as libsecp internal repr
+    }
 
     std::array<std::uint8_t, 32> msghashes[POOL];
     for (int i = 0; i < POOL; ++i)
@@ -645,6 +688,13 @@ int main(int argc, char** argv) {
         auto r = fe_a.negate(); bench::DoNotOptimize(r);
     }, N_FIELD);
     print_row("field_negate", fneg);
+
+    // -- from_bytes: parse 32-byte big-endian --
+    auto fe_bytes_a = fe_a.to_bytes();
+    const double fe_from_bytes = bench_ns([&]() {
+        auto r = FieldElement::from_bytes(fe_bytes_a); bench::DoNotOptimize(r);
+    }, N_FIELD);
+    print_row("field_from_bytes (32B)", fe_from_bytes);
     print_sep();
     printf("\n");
 
@@ -676,6 +726,13 @@ int main(int argc, char** argv) {
         auto r = sc_a.negate(); bench::DoNotOptimize(r);
     }, N_FIELD);
     print_row("scalar_negate", sneg);
+
+    // -- from_bytes: parse 32-byte to scalar --
+    const double sc_from_bytes = bench_ns([&]() {
+        auto r = Scalar::from_bytes(msghashes[idx % POOL]);
+        bench::DoNotOptimize(r); ++idx;
+    }, N_FIELD);
+    print_row("scalar_from_bytes (32B)", sc_from_bytes);
     print_sep();
     printf("\n");
 
@@ -699,6 +756,15 @@ int main(int argc, char** argv) {
     }, N_SCALAR);
     print_row("scalar_mul (k*P)", scalarmul);
 
+    // scalar_mul_with_plan: fixed K * variable Q (BIP-352 bottleneck)
+    auto kplan = KPlan::from_scalar(privkeys[0], 4);
+    idx = 0;
+    const double plan_mul = bench_ns([&]() {
+        auto r = pubkeys[idx % POOL].scalar_mul_with_plan(kplan);
+        bench::DoNotOptimize(r); ++idx;
+    }, N_SCALAR);
+    print_row("scalar_mul_with_plan", plan_mul);
+
     idx = 0;
     const double dualmul = bench_ns([&]() {
         auto r = Point::dual_scalar_mul_gen_point(
@@ -712,13 +778,145 @@ int main(int argc, char** argv) {
         auto r = pubkeys[0].add(pubkeys[1]);
         bench::DoNotOptimize(r);
     }, N_POINT);
-    print_row("point_add", ptadd);
+    print_row("point_add (affine+affine)", ptadd);
 
+    // Mixed add: Jacobian + Affine (8M+3S -- the actual hot path in scalar_mul)
+    // Apple-to-apple with libsecp: split I/O, constant inputs, no loop-carried dep.
+    // libsecp measures gej_add_ge_var(r, a, b) where a/b are constant per iteration;
+    // we use Point::add() which calls jac52_add_mixed_to (same split I/O pattern).
+    Point jac_test = pubkeys[0].dbl();  // non-affine (z != 1)
+    const double ptadd_mixed = bench_ns([&]() {
+        auto r = jac_test.add(pubkeys[1]);
+        bench::DoNotOptimize(r);
+    }, N_POINT);
+    print_row("point_add (J+A mixed)", ptadd_mixed);
+
+    // Apple-to-apple with libsecp: split I/O, constant input, no loop-carried dep.
+    // libsecp measures gej_double_var(r, a) where a is constant per iteration;
+    // we use Point::dbl() which returns a new Point (same independence pattern).
+    Point dbl_target = pubkeys[0].dbl();  // non-affine start
     const double ptdbl = bench_ns([&]() {
-        auto r = pubkeys[0].dbl();
+        auto r = dbl_target.dbl();
         bench::DoNotOptimize(r);
     }, N_POINT);
     print_row("point_dbl", ptdbl);
+
+    // normalize: Jacobian -> affine (1 field inversion + 2 muls)
+    {
+        Point norm_pts[POOL];
+        for (int i = 0; i < POOL; ++i)
+            norm_pts[i] = Point::generator().scalar_mul(privkeys[i]);
+        idx = 0;
+        const double pt_normalize = bench_ns([&]() {
+            norm_pts[idx % POOL].normalize();
+            bench::DoNotOptimize(norm_pts[idx % POOL]); ++idx;
+        }, N_POINT);
+        print_row("normalize (J->affine)", pt_normalize);
+    }
+
+    // batch_normalize: N points via Montgomery's trick (1 inv + 3(N-1) muls)
+    {
+        constexpr int BN = 64;
+        Point bn_pts[BN];
+        for (int i = 0; i < BN; ++i)
+            bn_pts[i] = Point::generator().scalar_mul(privkeys[i % POOL]);
+        FieldElement bn_out_x[BN], bn_out_y[BN];
+        const double pt_batch_norm = bench_ns([&]() {
+            Point::batch_normalize(bn_pts, BN, bn_out_x, bn_out_y);
+            bench::DoNotOptimize(bn_out_x); bench::DoNotOptimize(bn_out_y);
+        }, N_POINT / BN);
+        print_row("batch_normalize /pt (N=64)", pt_batch_norm / BN);
+    }
+
+    // next_inplace: this += G (search hot-loop operation)
+    {
+        Point search_pt = pubkeys[0];
+        const double pt_next = bench_ns([&]() {
+            search_pt.next_inplace();
+            bench::DoNotOptimize(search_pt);
+        }, N_POINT);
+        print_row("next_inplace (+=G)", pt_next);
+    }
+
+    // KPlan::from_scalar precomputation cost
+    {
+        idx = 0;
+        const double kplan_cost = bench_ns([&]() {
+            auto kp = KPlan::from_scalar(privkeys[idx % POOL], 4);
+            bench::DoNotOptimize(kp); ++idx;
+        }, N_POINT);
+        print_row("KPlan::from_scalar(w=4)", kplan_cost);
+    }
+    print_sep();
+    printf("\n");
+
+    // =====================================================================
+    //  SECTION 3.5: Point Serialization (Ultra)
+    // =====================================================================
+    // Apple-to-apple: both Ultra and libsecp store pubkeys as affine internally
+    // (Ultra: z_one_=true after normalize(), libsecp: affine in secp256k1_pubkey).
+    // Serialization = byte extraction only, no field inversion.
+    // Batch methods shown for reference (amortize Jacobian->affine when needed).
+
+    print_header("POINT SERIALIZATION (Ultra)");
+
+    idx = 0;
+    const double u_to_compressed = bench_ns([&]() {
+        auto r = pubkeys[idx % POOL].to_compressed();
+        bench::DoNotOptimize(r); ++idx;
+    }, N_POINT);
+    print_row("to_compressed (33B)", u_to_compressed);
+
+    idx = 0;
+    const double u_to_uncompressed = bench_ns([&]() {
+        auto r = pubkeys[idx % POOL].to_uncompressed();
+        bench::DoNotOptimize(r); ++idx;
+    }, N_POINT);
+    print_row("to_uncompressed (65B)", u_to_uncompressed);
+
+    idx = 0;
+    const double u_x_only = bench_ns([&]() {
+        auto r = pubkeys[idx % POOL].x_only_bytes();
+        bench::DoNotOptimize(r); ++idx;
+    }, N_POINT);
+    print_row("x_only_bytes (32B)", u_x_only);
+
+    idx = 0;
+    const double u_x_parity = bench_ns([&]() {
+        auto r = pubkeys[idx % POOL].x_bytes_and_parity();
+        bench::DoNotOptimize(r); ++idx;
+    }, N_POINT);
+    print_row("x_bytes_and_parity", u_x_parity);
+
+    idx = 0;
+    const double u_has_even_y = bench_ns([&]() {
+        bool r = pubkeys[idx % POOL].has_even_y();
+        bench::DoNotOptimize(r); ++idx;
+    }, N_POINT);
+    print_row("has_even_y", u_has_even_y);
+
+    // Batch serialization (N=64 per batch, amortized cost per point)
+    constexpr int BATCH_N = 64;
+    {
+        Point batch_pts[BATCH_N];
+        for (int i = 0; i < BATCH_N; ++i)
+            batch_pts[i] = pubkeys[i % POOL];
+
+        std::array<uint8_t, 33> batch_out33[BATCH_N];
+        const double u_batch_compressed = bench_ns([&]() {
+            Point::batch_to_compressed(batch_pts, BATCH_N, batch_out33);
+            bench::DoNotOptimize(batch_out33);
+        }, N_POINT / BATCH_N);
+        print_row("batch_to_compressed /pt (N=64)", u_batch_compressed / BATCH_N);
+
+        std::array<uint8_t, 32> batch_out32[BATCH_N];
+        const double u_batch_xonly = bench_ns([&]() {
+            Point::batch_x_only_bytes(batch_pts, BATCH_N, batch_out32);
+            bench::DoNotOptimize(batch_out32);
+        }, N_POINT / BATCH_N);
+        print_row("batch_x_only_bytes /pt (N=64)", u_batch_xonly / BATCH_N);
+    }
+
     print_sep();
     printf("\n");
 
@@ -789,6 +987,17 @@ int main(int argc, char** argv) {
         bench::DoNotOptimize(ok); ++idx;
     }, N_VERIFY);
     print_row("schnorr_verify (cached xonly)", u_schnorr_verify);
+
+    // Raw verify: takes 32-byte x-only pubkey bytes (includes lift_x sqrt).
+    // This is what libsecp's schnorrsig_verify does internally.
+    idx = 0;
+    const double u_schnorr_verify_raw = bench_ns([&]() {
+        bool ok = schnorr_verify(schnorr_pubkeys_x[idx % POOL].data(),
+                                 msghashes[idx % POOL].data(),
+                                 schnorr_sigs[idx % POOL]);
+        bench::DoNotOptimize(ok); ++idx;
+    }, N_VERIFY);
+    print_row("schnorr_verify (raw bytes)", u_schnorr_verify_raw);
     print_sep();
     printf("\n");
 
@@ -840,12 +1049,13 @@ int main(int argc, char** argv) {
     }, N_POINT);
     print_row("Point::dbl (jac52_double)", micro_pt_dbl);
 
-    // -- Point::add (wrapper around jac52_add) --
+    // -- Point::add: Jacobian + Affine mixed (8M+3S hot-path formula) --
+    Point jac_pt = pubkeys[0].dbl();  // non-affine (z != 1)
     const double micro_pt_add = bench_ns([&]() {
-        auto r = pubkeys[0].add(pubkeys[1]);
+        auto r = jac_pt.add(pubkeys[1]);
         bench::DoNotOptimize(r);
     }, N_POINT);
-    print_row("Point::add (jac52_add)", micro_pt_add);
+    print_row("Point::add (J+A mixed)", micro_pt_add);
 
     // -- dual_scalar_mul_gen_point (verify hot core) --
     idx = 0;
@@ -858,6 +1068,8 @@ int main(int argc, char** argv) {
     print_row("dual_scalar_mul_gen_point", micro_dual_mul);
 
 #if defined(SECP256K1_FAST_52BIT)
+    // Outer-scope FE52 add/negate/normalize times for ratio table (hot-path repr)
+    double micro_fe52_add = 0.0, micro_fe52_neg = 0.0, micro_fe52_norm_val = 0.0;
     // -- FE52::from_4x64_limbs (table lookup conversion cost) --
     {
         using FE52 = fast::FieldElement52;
@@ -899,6 +1111,43 @@ int main(int argc, char** argv) {
             bench::DoNotOptimize(r);
         }, 200);
         print_row("FE52::inverse_safegcd", micro_fe52_inv);
+
+        // -- FE52 inverse (Fermat addchain, 255 sqr + 13 mul) --
+        auto fe52_inv_fermat_input = FE52::from_fe(fe_a);
+        const double micro_fe52_inv_fermat = bench_ns([&]() {
+            auto r = fe52_inv_fermat_input.inverse();
+            bench::DoNotOptimize(r);
+        }, 200);
+        print_row("FE52::inverse (Fermat)", micro_fe52_inv_fermat);
+        printf("| %-44s | %8.2fx  |\n",
+               "  -> SafeGCD/Fermat speedup",
+               micro_fe52_inv_fermat / micro_fe52_inv);
+
+        // -- FE52 add / negate (5x52 lazy, same as libsecp hot path) --
+        fe52_a = FE52::from_fe(fe_a);
+        fe52_b = FE52::from_fe(fe_b);
+        micro_fe52_add = bench_ns([&]() {
+            auto r = fe52_a + fe52_b;
+            bench::DoNotOptimize(r);
+        }, N_FIELD);
+        print_row("FE52::add (52-bit)", micro_fe52_add);
+
+        micro_fe52_neg = bench_ns([&]() {
+            auto r = fe52_a.negate(1);
+            bench::DoNotOptimize(r);
+        }, N_FIELD);
+        print_row("FE52::negate (52-bit)", micro_fe52_neg);
+
+        // -- FE52 normalize (full reduction to canonical form) --
+        fe52_a = FE52::from_fe(fe_a);
+        fe52_a = fe52_a + fe52_b; // magnitude > 1 so normalize has work to do
+        const double micro_fe52_norm = bench_ns([&]() {
+            auto r = fe52_a;
+            r.normalize();
+            bench::DoNotOptimize(r);
+        }, N_FIELD);
+        micro_fe52_norm_val = micro_fe52_norm;
+        print_row("FE52::normalize", micro_fe52_norm);
     }
 #endif
 
@@ -913,6 +1162,74 @@ int main(int argc, char** argv) {
             bench::DoNotOptimize(h); ++idx;
         }, N_FIELD);
         print_row("SHA256 (BIP0340/challenge)", micro_sha256_challenge);
+    }
+
+    // -- tagged_hash vs cached_tagged_hash (fix #1 validation) --
+    {
+        idx = 0;
+        uint8_t th_input[96];
+        std::memcpy(th_input, schnorr_sigs[0].r.data(), 32);
+        std::memcpy(th_input + 32, schnorr_xonly[0].x_bytes.data(), 32);
+        std::memcpy(th_input + 64, msghashes[0].data(), 32);
+
+        const double micro_tagged_hash_slow = bench_ns([&]() {
+            auto h = tagged_hash("BIP0340/challenge", th_input, 96);
+            bench::DoNotOptimize(h);
+        }, N_FIELD);
+        print_row("tagged_hash (recompute tag)", micro_tagged_hash_slow);
+
+        const double micro_tagged_hash_fast = bench_ns([&]() {
+            auto h = detail::cached_tagged_hash(
+                detail::g_challenge_midstate, th_input, 96);
+            bench::DoNotOptimize(h);
+        }, N_FIELD);
+        print_row("cached_tagged_hash (midstate)", micro_tagged_hash_fast);
+
+        printf("| %-44s | %8.2fx  |\n",
+               "  -> midstate speedup",
+               micro_tagged_hash_slow / micro_tagged_hash_fast);
+    }
+
+    // -- lift_x micro-benchmark (fix #2 validation) --
+    {
+        idx = 0;
+        const double micro_lift_x = bench_ns([&]() {
+            // Use the Point class lift_x path through schnorr verify's infrastructure
+            FieldElement px_fe;
+            bool ok = FieldElement::parse_bytes_strict(
+                schnorr_xonly[idx % POOL].x_bytes, px_fe);
+            if (ok) {
+                auto x3 = px_fe.square() * px_fe;
+                auto y2 = x3 + FieldElement::from_uint64(7);
+                auto y = y2.sqrt();
+                bench::DoNotOptimize(y);
+            }
+            ++idx;
+        }, N_POINT);
+        print_row("lift_x (4x64 sqrt)", micro_lift_x);
+
+#if defined(SECP256K1_FAST_52BIT)
+        {
+            using FE52 = fast::FieldElement52;
+            idx = 0;
+            const double micro_lift_x_52 = bench_ns([&]() {
+                FE52 const px52 = FE52::from_bytes(
+                    schnorr_xonly[idx % POOL].x_bytes.data());
+                FE52 const x3 = px52.square() * px52;
+                static const FE52 seven52 = FE52::from_fe(
+                    FieldElement::from_uint64(7));
+                FE52 const y2 = x3 + seven52;
+                FE52 y52 = y2.sqrt();
+                bench::DoNotOptimize(y52);
+                ++idx;
+            }, N_POINT);
+            print_row("lift_x (FE52 sqrt)", micro_lift_x_52);
+
+            printf("| %-44s | %8.2fx  |\n",
+                   "  -> FE52/4x64 speedup",
+                   micro_lift_x / micro_lift_x_52);
+        }
+#endif
     }
 
     // -- FieldElement::parse_bytes_strict (BIP-340 range check) --
@@ -1381,16 +1698,246 @@ int main(int argc, char** argv) {
         (void)ok; ++idx;
     }, N_VERIFY);
 
+    // k*P (arbitrary-point scalar multiply) -- BIP-352 bottleneck
+    idx = 0;
+    const double ls_kP = bench_ns([&]() {
+        secp256k1_pubkey pk_copy = ls_pubkeys[idx % POOL];
+        secp256k1_ec_pubkey_tweak_mul(ls_ctx, &pk_copy,
+                                      ls_seckeys[(idx + 1) % POOL]);
+        bench::DoNotOptimize(pk_copy); ++idx;
+    }, N_SCALAR);
+
+    // Serialization: ec_pubkey_serialize compressed (33 bytes)
+    // libsecp stores affine internally -> serialization = byte copy (~15 ns)
+    idx = 0;
+    const double ls_serialize_comp = bench_ns([&]() {
+        unsigned char out33[33];
+        size_t outlen = 33;
+        secp256k1_ec_pubkey_serialize(ls_ctx, out33, &outlen,
+                                     &ls_pubkeys[idx % POOL],
+                                     SECP256K1_EC_COMPRESSED);
+        bench::DoNotOptimize(out33); ++idx;
+    }, N_POINT);
+
+    // Serialization: ec_pubkey_serialize uncompressed (65 bytes)
+    idx = 0;
+    const double ls_serialize_uncomp = bench_ns([&]() {
+        unsigned char out65[65];
+        size_t outlen = 65;
+        secp256k1_ec_pubkey_serialize(ls_ctx, out65, &outlen,
+                                     &ls_pubkeys[idx % POOL],
+                                     SECP256K1_EC_UNCOMPRESSED);
+        bench::DoNotOptimize(out65); ++idx;
+    }, N_POINT);
+
+    // Point addition: ec_pubkey_combine (2 pubkeys)
+    idx = 0;
+    const double ls_point_add = bench_ns([&]() {
+        secp256k1_pubkey result;
+        const secp256k1_pubkey* ins[2] = {
+            &ls_pubkeys[idx % POOL],
+            &ls_pubkeys[(idx + 1) % POOL]
+        };
+        secp256k1_ec_pubkey_combine(ls_ctx, &result, ins, 2);
+        bench::DoNotOptimize(result); ++idx;
+    }, N_POINT);
+
+    // -----------------------------------------------------------------
+    //  libsecp MICRO-BENCHMARKS: internal field/scalar/point primitives
+    // -----------------------------------------------------------------
+    // Uses opaque byte buffers sized >=  actual struct sizes.
+    // secp256k1_fe = 40B, secp256k1_scalar = 32B,
+    // secp256k1_ge = 88B, secp256k1_gej = 128B (on 5x52/4x64 builds)
+    // Over-allocate to 256B each for safety/alignment.
+
+    alignas(64) unsigned char ls_raw_fe_a[256], ls_raw_fe_b[256], ls_raw_fe_r[256];
+    alignas(64) unsigned char ls_raw_sc_a[256], ls_raw_sc_b[256], ls_raw_sc_r[256];
+    alignas(64) unsigned char ls_raw_ge_a[256], ls_raw_ge_b[256];
+    alignas(64) unsigned char ls_raw_gej_a[256], ls_raw_gej_r[256];
+
+    // Initialise field elements from known bytes
+    {
+        static const unsigned char gx[32] = {
+            0x79,0xbe,0x66,0x7e,0xf9,0xdc,0xbb,0xac,
+            0x55,0xa0,0x62,0x95,0xce,0x87,0x0b,0x07,
+            0x02,0x9b,0xfc,0xdb,0x2d,0xce,0x28,0xd9,
+            0x59,0xf2,0x81,0x5b,0x16,0xf8,0x17,0x98};
+        static const unsigned char gy[32] = {
+            0x48,0x3a,0xda,0x77,0x26,0xa3,0xc4,0x65,
+            0x5d,0xa4,0xfb,0xfc,0x0e,0x11,0x08,0xa8,
+            0xfd,0x17,0xb4,0x48,0xa6,0x85,0x54,0x19,
+            0x9c,0x47,0xd0,0x8f,0xfb,0x10,0xd4,0xb8};
+        libsecp_fe_set_b32(ls_raw_fe_a, gx);
+        libsecp_fe_set_b32(ls_raw_fe_b, gy);
+        std::memcpy(ls_raw_fe_r, ls_raw_fe_a, 256);
+
+        int ov = 0;
+        libsecp_scalar_set_b32(ls_raw_sc_a, gx, &ov);
+        libsecp_scalar_set_b32(ls_raw_sc_b, gy, &ov);
+        std::memcpy(ls_raw_sc_r, ls_raw_sc_a, 256);
+
+        // Load a pubkey into affine ge, then convert to Jacobian gej
+        libsecp_pubkey_load(ls_ctx, ls_raw_ge_a, &ls_pubkeys[0]);
+        libsecp_pubkey_load(ls_ctx, ls_raw_ge_b, &ls_pubkeys[1]);
+        libsecp_gej_set_ge(ls_raw_gej_a, ls_raw_ge_a);
+    }
+
+    // -- Field arithmetic --
+    const double ls_fe_mul = bench_ns([&]() {
+        libsecp_fe_mul(ls_raw_fe_r, ls_raw_fe_a, ls_raw_fe_b);
+        bench::DoNotOptimize(ls_raw_fe_r);
+    }, N_FIELD);
+
+    const double ls_fe_sqr = bench_ns([&]() {
+        libsecp_fe_sqr(ls_raw_fe_r, ls_raw_fe_a);
+        bench::DoNotOptimize(ls_raw_fe_r);
+    }, N_FIELD);
+
+    const double ls_fe_add = bench_ns([&]() {
+        // fe_add is in-place: r += a. Copy first to avoid accumulation.
+        std::memcpy(ls_raw_fe_r, ls_raw_fe_a, 64);
+        libsecp_fe_add(ls_raw_fe_r, ls_raw_fe_b);
+        bench::DoNotOptimize(ls_raw_fe_r);
+    }, N_FIELD);
+
+    const double ls_fe_neg = bench_ns([&]() {
+        libsecp_fe_negate(ls_raw_fe_r, ls_raw_fe_a, 1);
+        bench::DoNotOptimize(ls_raw_fe_r);
+    }, N_FIELD);
+
+    // -- Field normalize (full reduction to canonical form) --
+    // Fair test: normalize a magnitude-2 input (fe_a + fe_b), matching
+    // Ultra's micro-diagnostic which also normalizes fe52_a + fe52_b.
+    // A magnitude-1 (set_b32) input is trivially easy to normalize since
+    // there's no overflow to fold -- that inflates libsecp's score unfairly.
+    alignas(64) unsigned char ls_norm_input[256];
+    std::memcpy(ls_norm_input, ls_raw_fe_a, 64);
+    libsecp_fe_add(ls_norm_input, ls_raw_fe_b);  // magnitude 2
+    const double ls_fe_norm = bench_ns([&]() {
+        std::memcpy(ls_raw_fe_r, ls_norm_input, 64);
+        libsecp_fe_normalize(ls_raw_fe_r);
+        bench::DoNotOptimize(ls_raw_fe_r);
+    }, N_FIELD);
+
+    // -- Field from bytes (parse 32B -> fe) --
+    const double ls_fe_from_bytes = bench_ns([&]() {
+        static const unsigned char gx32[32] = {
+            0x79,0xbe,0x66,0x7e,0xf9,0xdc,0xbb,0xac,
+            0x55,0xa0,0x62,0x95,0xce,0x87,0x0b,0x07,
+            0x02,0x9b,0xfc,0xdb,0x2d,0xce,0x28,0xd9,
+            0x59,0xf2,0x81,0x5b,0x16,0xf8,0x17,0x98};
+        libsecp_fe_set_b32(ls_raw_fe_r, gx32);
+        bench::DoNotOptimize(ls_raw_fe_r);
+    }, N_FIELD);
+
+    // -- Scalar arithmetic --
+    const double ls_sc_mul = bench_ns([&]() {
+        libsecp_scalar_mul(ls_raw_sc_r, ls_raw_sc_a, ls_raw_sc_b);
+        bench::DoNotOptimize(ls_raw_sc_r);
+    }, N_FIELD);
+
+    const double ls_sc_inv = bench_ns([&]() {
+        libsecp_scalar_inverse(ls_raw_sc_r, ls_raw_sc_a);
+        bench::DoNotOptimize(ls_raw_sc_r);
+    }, 200);
+
+    const double ls_sc_inv_var = bench_ns([&]() {
+        libsecp_scalar_inverse_var(ls_raw_sc_r, ls_raw_sc_a);
+        bench::DoNotOptimize(ls_raw_sc_r);
+    }, 200);
+
+    const double ls_sc_add = bench_ns([&]() {
+        libsecp_scalar_add(ls_raw_sc_r, ls_raw_sc_a, ls_raw_sc_b);
+        bench::DoNotOptimize(ls_raw_sc_r);
+    }, N_FIELD);
+
+    const double ls_sc_neg = bench_ns([&]() {
+        libsecp_scalar_negate(ls_raw_sc_r, ls_raw_sc_a);
+        bench::DoNotOptimize(ls_raw_sc_r);
+    }, N_FIELD);
+
+    // -- Scalar from bytes (parse 32B -> scalar) --
+    const double ls_sc_from_bytes = bench_ns([&]() {
+        int ov = 0;
+        libsecp_scalar_set_b32(ls_raw_sc_r, ls_seckeys[0], &ov);
+        bench::DoNotOptimize(ls_raw_sc_r);
+    }, N_FIELD);
+
+    // -- Point arithmetic --
+    // Split I/O: r != a, matching how ecmult internally calls these.
+    // Both Ultra and libsecp measure the same way for apple-to-apple.
+    const double ls_pt_dbl = bench_ns([&]() {
+        libsecp_gej_double_var(ls_raw_gej_r, ls_raw_gej_a);
+        bench::DoNotOptimize(ls_raw_gej_r);
+    }, N_POINT);
+
+    const double ls_pt_add_ge = bench_ns([&]() {
+        libsecp_gej_add_ge_var(ls_raw_gej_r, ls_raw_gej_a, ls_raw_ge_b);
+        bench::DoNotOptimize(ls_raw_gej_r);
+    }, N_POINT);
+
+    // -- ecmult: a*P + b*G (Strauss dual mul -- verify core) --
+    // Pre-parse inputs to measure pure ecmult, not parsing overhead.
+    unsigned char ls_ecmult_gej[POOL][256];
+    unsigned char ls_ecmult_sca[POOL][256];
+    unsigned char ls_ecmult_scb[POOL][256];
+    for (int pi = 0; pi < POOL; pi++) {
+        unsigned char ge_tmp[256];
+        libsecp_pubkey_load(ls_ctx, ge_tmp, &ls_pubkeys[pi]);
+        libsecp_gej_set_ge(ls_ecmult_gej[pi], ge_tmp);
+        int ov = 0;
+        libsecp_scalar_set_b32(ls_ecmult_sca[pi], ls_seckeys[pi], &ov);
+        libsecp_scalar_set_b32(ls_ecmult_scb[pi], ls_seckeys[(pi + 1) % POOL], &ov);
+    }
+    idx = 0;
+    const double ls_ecmult = bench_ns([&]() {
+        unsigned char gej_out[256];
+        libsecp_ecmult(gej_out, ls_ecmult_gej[idx % POOL],
+                       ls_ecmult_sca[idx % POOL], ls_ecmult_scb[idx % POOL]);
+        bench::DoNotOptimize(gej_out); ++idx;
+    }, N_SCALAR);
+
+    // -- ecmult_gen: k*G (comb table generator mul) --
+    const void* ls_ecmult_gen_ctx = libsecp_get_ecmult_gen_ctx(ls_ctx);
+    idx = 0;
+    const double ls_ecmult_gen = bench_ns([&]() {
+        unsigned char sc_k[256], gej_out[256];
+        int ov = 0;
+        libsecp_scalar_set_b32(sc_k, ls_seckeys[idx % POOL], &ov);
+        libsecp_ecmult_gen(ls_ecmult_gen_ctx, gej_out, sc_k);
+        bench::DoNotOptimize(gej_out); ++idx;
+    }, N_KEYGEN);
+
     secp256k1_context_destroy(ls_ctx);
 
     print_header("libsecp256k1 (bitcoin-core)");
+    print_row("field_mul",                        ls_fe_mul);
+    print_row("field_sqr",                        ls_fe_sqr);
     print_row("field_inv_var",                    ls_fe_inv);
+    print_row("field_add",                        ls_fe_add);
+    print_row("field_negate",                     ls_fe_neg);
+    print_row("field_normalize",                   ls_fe_norm);
+    print_row("field_from_bytes (set_b32)",        ls_fe_from_bytes);
+    print_row("scalar_mul",                       ls_sc_mul);
+    print_row("scalar_inverse (CT)",              ls_sc_inv);
+    print_row("scalar_inverse_var",               ls_sc_inv_var);
+    print_row("scalar_add",                       ls_sc_add);
+    print_row("scalar_negate",                    ls_sc_neg);
+    print_row("scalar_from_bytes (set_b32)",       ls_sc_from_bytes);
+    print_row("point_dbl (gej_double_var)",       ls_pt_dbl);
+    print_row("point_add (gej_add_ge_var)",       ls_pt_add_ge);
+    print_row("ecmult (a*P + b*G, Strauss)",      ls_ecmult);
+    print_row("ecmult_gen (k*G, comb)",           ls_ecmult_gen);
     print_row("generator_mul (ec_pubkey_create)", ls_gen);
-    print_row("ecdsa_sign",                      ls_ecdsa_sign);
-    print_row("ecdsa_verify",                    ls_ecdsa_verify);
-    print_row("schnorr_keypair_create",          ls_schnorr_kp);
-    print_row("schnorr_sign (BIP-340)",          ls_schnorr_sign);
-    print_row("schnorr_verify (BIP-340)",        ls_schnorr_verify);
+    print_row("scalar_mul_P (k*P, tweak_mul)",    ls_kP);
+    print_row("serialize_compressed (33B)",       ls_serialize_comp);
+    print_row("serialize_uncompressed (65B)",     ls_serialize_uncomp);
+    print_row("point_add (pubkey_combine)",       ls_point_add);
+    print_row("ecdsa_sign",                       ls_ecdsa_sign);
+    print_row("ecdsa_verify",                     ls_ecdsa_verify);
+    print_row("schnorr_keypair_create",           ls_schnorr_kp);
+    print_row("schnorr_sign (BIP-340)",           ls_schnorr_sign);
+    print_row("schnorr_verify (BIP-340)",         ls_schnorr_verify);
     print_sep();
     printf("\n");
 
@@ -1516,7 +2063,7 @@ int main(int argc, char** argv) {
 #endif // BENCH_HAS_OPENSSL
 
     // =====================================================================
-    //  SECTION 8: Apple-to-Apple Ratio Table
+    //  SECTION 8: Apple-to-Apple Detailed Head-to-Head
     // =====================================================================
 
     // Note: libsecp256k1 is ALWAYS constant-time for signing.
@@ -1525,28 +2072,85 @@ int main(int argc, char** argv) {
     // Verify uses only public data -- no CT needed, same in both paths.
 
     printf("======================================================================\n");
-    printf("  APPLE-TO-APPLE: UltrafastSecp256k1 / libsecp256k1\n");
-    printf("  (ratio > 1.0 = Ultra wins, < 1.0 = libsecp256k1 wins)\n");
+    printf("  HEAD-TO-HEAD: UltrafastSecp256k1 vs libsecp256k1\n");
+    printf("  (ratio > 1.0 = Ultra wins, < 1.0 = libsecp wins)\n");
     printf("======================================================================\n\n");
 
-    print_header_ratio("FAST path (Ultra FAST vs libsecp)");
-    print_ratio("Generator * k",   ls_gen          / keygen);
-    print_ratio("ECDSA Sign",      ls_ecdsa_sign   / u_ecdsa_sign);
-    print_ratio("ECDSA Verify",    ls_ecdsa_verify / u_ecdsa_verify);
-    print_ratio("Schnorr Keypair", ls_schnorr_kp   / u_schnorr_kp);
-    print_ratio("Schnorr Sign",    ls_schnorr_sign / u_schnorr_sign);
-    print_ratio("Schnorr Verify",  ls_schnorr_verify / u_schnorr_verify);
-    print_sep();
+    // ---- Field Arithmetic ----
+    print_header_3col("FIELD ARITHMETIC");
+    print_row_3col("mul",               fmul,           ls_fe_mul);
+    print_row_3col("sqr",               fsqr,           ls_fe_sqr);
+    print_row_3col("inv",               finv,           ls_fe_inv);
+    print_row_3col("add",               fadd,           ls_fe_add);
+    print_row_3col("sub",               fsub,           0);
+    print_row_3col("negate",            fneg,           ls_fe_neg);
+#if defined(SECP256K1_FAST_52BIT)
+    print_row_3col("normalize (FE52)",  micro_fe52_norm_val, ls_fe_norm);
+#endif
+    print_row_3col("from_bytes (32B)",  fe_from_bytes,  ls_fe_from_bytes);
+#if defined(SECP256K1_FAST_52BIT)
+    if (micro_fe52_add > 0) {
+        print_row_3col("FE52 add (hot path)",  micro_fe52_add, ls_fe_add);
+        print_row_3col("FE52 neg (hot path)",  micro_fe52_neg, ls_fe_neg);
+    }
+#endif
+    print_sep_3col();
+    printf("\n");
+
+    // ---- Scalar Arithmetic ----
+    print_header_3col("SCALAR ARITHMETIC");
+    print_row_3col("mul",               smul,           ls_sc_mul);
+    print_row_3col("inv (CT)",          micro_scalar_inv, ls_sc_inv);
+    print_row_3col("inv (var-time)",    micro_scalar_inv, ls_sc_inv_var);
+    print_row_3col("add",               sadd,           ls_sc_add);
+    print_row_3col("negate",            sneg,           ls_sc_neg);
+    print_row_3col("from_bytes (32B)",  sc_from_bytes,  ls_sc_from_bytes);
+    print_sep_3col();
+    printf("\n");
+
+    // ---- Point Arithmetic ----
+    print_header_3col("POINT ARITHMETIC");
+    print_row_3col("dbl (Jacobian)",     ptdbl,         ls_pt_dbl);
+    print_row_3col("add (mixed J+A)",    ptadd_mixed,   ls_pt_add_ge);
+    print_row_3col("ecmult (a*P+b*G)",   dualmul,       ls_ecmult);
+    print_row_3col("ecmult_gen (k*G raw)",keygen,        ls_ecmult_gen);
+    print_row_3col("pubkey_create (API)", keygen,        ls_gen);
+    print_row_3col("scalar_mul (k*P)",    scalarmul,     ls_kP);
+    print_row_3col("scalar_mul (KPlan)",  plan_mul,      ls_kP);
+    print_row_3col("point_add (combine)", ptadd,         ls_point_add);
+    print_sep_3col();
+    printf("\n");
+
+    // ---- Serialization ----
+    print_header_3col("SERIALIZATION");
+    print_row_3col("compressed (33B)",    u_to_compressed,   ls_serialize_comp);
+    print_row_3col("uncompressed (65B)",  u_to_uncompressed, ls_serialize_uncomp);
+    print_sep_3col();
+    printf("\n");
+
+    // ---- High-Level Operations (FAST path) ----
+    print_header_3col("SIGNING (FAST vs libsecp CT)");
+    print_row_3col("ECDSA Sign",          u_ecdsa_sign,     ls_ecdsa_sign);
+    print_row_3col("Schnorr Sign",        u_schnorr_sign,   ls_schnorr_sign);
+    print_row_3col("Schnorr Keypair",     u_schnorr_kp,     ls_schnorr_kp);
+    print_sep_3col();
+    printf("\n");
+
+    print_header_3col("VERIFICATION");
+    print_row_3col("ECDSA Verify",              u_ecdsa_verify,       ls_ecdsa_verify);
+    print_row_3col("Schnorr Verify (cached)",   u_schnorr_verify,     ls_schnorr_verify);
+    print_row_3col("Schnorr Verify (raw)",      u_schnorr_verify_raw, ls_schnorr_verify);
+    print_sep_3col();
     printf("\n");
 
     // CT-vs-CT: libsecp256k1 sign is always CT, so compare with Ultra CT sign.
     // Verify doesn't change (no secret data), so same numbers as FAST.
-    print_header_ratio("CT-vs-CT (Ultra CT vs libsecp CT)");
-    print_ratio("ECDSA Sign (CT vs CT)",    ls_ecdsa_sign   / u_ct_ecdsa);
-    print_ratio("ECDSA Verify",             ls_ecdsa_verify / u_ecdsa_verify);
-    print_ratio("Schnorr Sign (CT vs CT)",  ls_schnorr_sign / u_ct_schnorr);
-    print_ratio("Schnorr Verify",           ls_schnorr_verify / u_schnorr_verify);
-    print_sep();
+    print_header_3col("CT-vs-CT (fair signing)");
+    print_row_3col("ECDSA Sign",          u_ct_ecdsa,         ls_ecdsa_sign);
+    print_row_3col("Schnorr Sign",        u_ct_schnorr,       ls_schnorr_sign);
+    print_row_3col("ECDSA Verify",        u_ecdsa_verify,     ls_ecdsa_verify);
+    print_row_3col("Schnorr Verify",      u_schnorr_verify_raw, ls_schnorr_verify);
+    print_sep_3col();
     printf("\n");
 
     // --- OpenSSL ratios (only if measured) ---
@@ -1597,7 +2201,8 @@ int main(int argc, char** argv) {
     tput("ECDSA sign",                u_ecdsa_sign);
     tput("ECDSA verify",              u_ecdsa_verify);
     tput("Schnorr sign",              u_schnorr_sign);
-    tput("Schnorr verify",            u_schnorr_verify);
+    tput("Schnorr verify (cached)",   u_schnorr_verify);
+    tput("Schnorr verify (raw)",      u_schnorr_verify_raw);
     tput("pubkey_create (k*G)",       keygen);
     printf("\n");
     printf("  --- Ultra CT ---\n");
@@ -1605,11 +2210,22 @@ int main(int argc, char** argv) {
     tput("CT Schnorr sign",           u_ct_schnorr);
     printf("\n");
     printf("  --- libsecp256k1 ---\n");
+    tput("field_mul",                 ls_fe_mul);
+    tput("field_sqr",                 ls_fe_sqr);
+    tput("field_inv_var",             ls_fe_inv);
+    tput("scalar_mul",                ls_sc_mul);
+    tput("scalar_inverse (CT)",       ls_sc_inv);
+    tput("scalar_inverse_var",        ls_sc_inv_var);
+    tput("point_dbl",                 ls_pt_dbl);
+    tput("point_add (mixed)",         ls_pt_add_ge);
+    tput("ecmult (a*P+b*G)",         ls_ecmult);
+    tput("ecmult_gen (k*G raw)",      ls_ecmult_gen);
+    tput("generator_mul (API)",       ls_gen);
+    tput("scalar_mul_P (k*P)",        ls_kP);
     tput("ECDSA sign",                ls_ecdsa_sign);
     tput("ECDSA verify",              ls_ecdsa_verify);
     tput("Schnorr sign",              ls_schnorr_sign);
     tput("Schnorr verify",            ls_schnorr_verify);
-    tput("generator_mul",             ls_gen);
     printf("\n");
 #ifdef BENCH_HAS_OPENSSL
     if (ossl_gen > 0.0) {
@@ -1628,7 +2244,7 @@ int main(int argc, char** argv) {
     printf("======================================================================\n\n");
 
     const double pre_taproot_ms = 3000.0 * u_ecdsa_verify / 1e6;
-    const double taproot_ms = (2000.0 * u_schnorr_verify + 1000.0 * u_ecdsa_verify) / 1e6;
+    const double taproot_ms = (2000.0 * u_schnorr_verify_raw + 1000.0 * u_ecdsa_verify) / 1e6;
     printf("  Pre-Taproot block (~3000 ECDSA verify):\n");
     printf("    Wall time:  %7.1f ms\n", pre_taproot_ms);
     printf("    Blocks/sec: %7.1f\n\n", 1000.0 / pre_taproot_ms);
@@ -1639,7 +2255,7 @@ int main(int argc, char** argv) {
 
     printf("  TX throughput (1 core):\n");
     printf("    ECDSA:    %8.0f tx/sec\n", 1e9 / u_ecdsa_verify);
-    printf("    Schnorr:  %8.0f tx/sec\n", 1e9 / u_schnorr_verify);
+    printf("    Schnorr:  %8.0f tx/sec\n", 1e9 / u_schnorr_verify_raw);
     printf("\n");
 
     // ---- Footer -------------------------------------------------------------

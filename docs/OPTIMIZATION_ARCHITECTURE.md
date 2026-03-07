@@ -150,7 +150,6 @@ Measured speedup (N=64): ~2.5-3.5x vs individual verification.
 |-------------------------------|-----------|--------------------------------------------------|
 | `field_asm.cpp`               | x64 BMI2  | `mul_4x4_bmi2`, `square_4_bmi2`, `mont_reduce`  |
 | `field_asm_x64_gas.S`         | x64 GAS   | `field_mul_full_asm`, `field_sqr_full_asm`       |
-| `field_asm52_x64_gas.S`       | x64 BMI2  | 5x52 MULX assembly (`SECP256K1_USE_ASM52_X64`)  |
 | `field_asm_arm64.cpp`         | AArch64   | `field_mul_arm64`, `field_sqr_arm64`, add, sub   |
 | `decomposition_optimized.hpp` | x64 BMI2  | 16x `_mulx_u64` for GLV decomposition            |
 | `ct_field.cpp`                | portable  | SafeGCD divsteps, 5x52 mul/sqr with `__int128`  |
@@ -170,7 +169,6 @@ otherwise, falls back to portable C++ with `__int128`.
 |----------------------------------|---------|-------------------------------------------------|
 | `SECP256K1_USE_ASM`              | ON      | Enable inline assembly (x64/RISC-V, 2-5x)      |
 | `SECP256K1_USE_FAST_REDUCTION`   | ON      | Fast mod-p reduction (RISC-V asm, x64 BMI2)     |
-| `SECP256K1_USE_ASM52_X64`        | OFF     | Hand-tuned 5x52 MULX asm (~8ns field_mul)       |
 | `SECP256K1_USE_RISCV_FE52_ASM`   | OFF     | RISC-V 5x52 asm (slower on in-order U74)        |
 | `SECP256K1_RISCV_USE_VECTOR`     | ON      | RISC-V Vector Extension (RVV)                   |
 | `SECP256K1_RISCV_USE_PREFETCH`   | ON      | Cache prefetch hints (RISC-V)                   |

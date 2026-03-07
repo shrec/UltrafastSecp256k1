@@ -9,6 +9,10 @@
 #include "secp256k1/multiscalar.hpp"
 #include "secp256k1/pippenger.hpp"
 #include "secp256k1/sha256.hpp"
+#include "secp256k1/tagged_hash.hpp"
+#if defined(__SIZEOF_INT128__) && !defined(SECP256K1_PLATFORM_ESP32) && !defined(SECP256K1_PLATFORM_STM32) && !defined(__EMSCRIPTEN__)
+#include "secp256k1/field_52.hpp"
+#endif
 #include <cstring>
 
 namespace secp256k1 {
@@ -46,7 +50,37 @@ Scalar batch_weight(const std::array<uint8_t, 32>& batch_seed, uint32_t index) {
 // Lift x-only key to point (same as in schnorr_verify)
 // Returns (success, point)
 std::pair<bool, Point> lift_x(const std::array<uint8_t, 32>& pubkey_x) {
-    // Strict: reject x >= p
+#if defined(SECP256K1_FAST_52BIT)
+    using FE52 = fast::FieldElement52;
+    // Direct bytes->FE52: avoids FieldElement construction overhead
+    FE52 const px52 = FE52::from_bytes(pubkey_x.data());
+
+    // y^2 = x^3 + 7
+    FE52 const x3 = px52.square() * px52;
+    static const FE52 seven52 = FE52::from_fe(FieldElement::from_uint64(7));
+    FE52 const y2 = x3 + seven52;
+
+    // sqrt via FE52 addition chain: a^((p+1)/4), ~253 sqr + 13 mul
+    FE52 y52 = y2.sqrt();
+
+    // Verify: y^2 == y2 (check that sqrt succeeded)
+    FE52 check = y52.square();
+    check.normalize();
+    FE52 y2n = y2;
+    y2n.normalize();
+    if (!(check == y2n)) return {false, Point::infinity()};
+
+    // Ensure even Y (BIP-340 convention): check parity of normalized y
+    FE52 y_norm = y52;
+    y_norm.normalize();
+    if (y_norm.n[0] & 1) {
+        y52 = y52.negate(1);
+        y52.normalize_weak();
+    }
+
+    return {true, Point::from_affine52(px52, y52)};
+#else
+    // Fallback: 4x64 lift_x
     FieldElement px_fe;
     if (!FieldElement::parse_bytes_strict(pubkey_x, px_fe))
         return {false, Point::infinity()};
@@ -67,6 +101,7 @@ std::pair<bool, Point> lift_x(const std::array<uint8_t, 32>& pubkey_x) {
     }
 
     return {true, Point::from_affine(px_fe, y)};
+#endif
 }
 
 } // anonymous namespace
@@ -83,6 +118,23 @@ bool schnorr_batch_verify(const SchnorrBatchEntry* entries, std::size_t n) {
                               entries[0].signature);
     }
 
+    // ---- Small-batch fast path: individual verification ----
+    // For small N, individual schnorr_verify uses the highly-optimized
+    // 4-stream GLV Strauss with precomputed generator tables (~30us/sig),
+    // which outperforms the generic 2N-point MSM that lacks generator
+    // tables and GLV.  MSM becomes profitable only for large N (>16)
+    // where amortized doublings offset the per-point overhead.
+    if (n <= 16) {
+        for (std::size_t i = 0; i < n; ++i) {
+            if (!schnorr_verify(entries[i].pubkey_x, entries[i].message,
+                                entries[i].signature)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    // ---- Large-batch path: randomized MSM ----
     // Compute batch seed = SHA256(all signature data)
     SHA256 seed_ctx;
     for (std::size_t i = 0; i < n; ++i) {
@@ -126,11 +178,14 @@ bool schnorr_batch_verify(const SchnorrBatchEntry* entries, std::size_t n) {
         pubkeys[i] = P_pt;
 
         // e_i = tagged_hash("BIP0340/challenge", R.x || pubkey_x || msg)
+        // Uses precomputed midstate: avoids re-hashing tag on every iteration
+        // (saves 2 SHA256 compress calls per signature vs generic tagged_hash)
         uint8_t challenge_input[96];
         std::memcpy(challenge_input, entries[i].signature.r.data(), 32);
         std::memcpy(challenge_input + 32, entries[i].pubkey_x.data(), 32);
         std::memcpy(challenge_input + 64, entries[i].message.data(), 32);
-        auto e_hash = tagged_hash("BIP0340/challenge", challenge_input, 96);
+        auto e_hash = detail::cached_tagged_hash(
+            detail::g_challenge_midstate, challenge_input, 96);
         challenges[i] = Scalar::from_bytes(e_hash);
 
         // Accumulate G coefficient: sum(a_i * s_i)

@@ -1000,7 +1000,7 @@ static void suite_15_ffi_ecdh_edge(ufsecp_ctx* ctx) {
         uint8_t sk[32], zero_pub[33] = {0x02}, secret[32];
         std::memset(zero_pub + 1, 0, 32);
         fill_random(sk, 32);
-        ufsecp_error_t err = ufsecp_ecdh(ctx, sk, zero_pub, secret);
+        ufsecp_error_t const err = ufsecp_ecdh(ctx, sk, zero_pub, secret);
         // Must reject: x=0 is not on the curve
         CHECK(err != UFSECP_OK, "ecdh_zero_pubkey_rejected");
     }

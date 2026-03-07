@@ -201,7 +201,8 @@ static constexpr ModInfo NINFO = {
 // Matrix is scaled by 2^62 (starts at 8*I, 59 divsteps each multiply by 2).
 static int64_t divsteps_59(int64_t zeta, uint64_t f0, uint64_t g0, T2x2& t) {
     uint64_t u = 8, v = 0, q = 0, r = 8;
-    volatile uint64_t c1, c2;
+    volatile uint64_t c1 = 0;
+    volatile uint64_t c2 = 0;
     uint64_t mask1, mask2, f = f0, g = g0, x, y, z;
 
     for (int i = 3; i < 62; ++i) {
@@ -235,8 +236,12 @@ static void update_de_62(S62& d, S62& e, const T2x2& t, const ModInfo& mod) {
     const int64_t d0 = d.v[0], d1 = d.v[1], d2 = d.v[2], d3 = d.v[3], d4 = d.v[4];
     const int64_t e0 = e.v[0], e1 = e.v[1], e2 = e.v[2], e3 = e.v[3], e4 = e.v[4];
     const int64_t u = t.u, v = t.v, q = t.q, r = t.r;
-    int64_t md, me, sd, se;
-    i128 cd, ce;
+    int64_t md = 0;
+    int64_t me = 0;
+    int64_t sd = 0;
+    int64_t se = 0;
+    i128 cd = 0;
+    i128 ce = 0;
 
     sd = d4 >> 63;
     se = e4 >> 63;
@@ -288,7 +293,8 @@ static void update_fg_62(S62& f, S62& g, const T2x2& t) {
     const int64_t f0 = f.v[0], f1 = f.v[1], f2 = f.v[2], f3 = f.v[3], f4 = f.v[4];
     const int64_t g0 = g.v[0], g1 = g.v[1], g2 = g.v[2], g3 = g.v[3], g4 = g.v[4];
     const int64_t u = t.u, v = t.v, q = t.q, r = t.r;
-    i128 cf, cg;
+    i128 cf = 0;
+    i128 cg = 0;
 
     cf = (i128)u * f0 + (i128)v * g0;
     cg = (i128)q * f0 + (i128)r * g0;

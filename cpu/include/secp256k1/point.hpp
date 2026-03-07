@@ -134,6 +134,35 @@ public:
     // Combined: returns (x_bytes, y_is_odd) with a single field inversion
     std::pair<std::array<uint8_t, 32>, bool> x_bytes_and_parity() const;
 
+    // Fast x-only: 32-byte big-endian x-coordinate (no Y recovery).
+    // Saves one multiply vs x_bytes_and_parity() by skipping Z^(-3)*Y.
+    // Use when only x is needed (e.g. BIP-352 SHA-256 input, BIP-340 x-only).
+    std::array<uint8_t, 32> x_only_bytes() const;
+
+    // Batch normalize: convert N Jacobian points to affine with ONE inversion
+    // via Montgomery's trick. Cost: 1 inversion + 3(N-1) multiplications.
+    // For N=2048: ~9.5 ns/point vs ~1000 ns/point individually.
+    // out_x, out_y: output affine coordinates (caller-owned, size >= n).
+    // Skips infinity points (leaves output zero-filled).
+    static void batch_normalize(const Point* points, size_t n,
+                                FieldElement* out_x, FieldElement* out_y);
+
+    // Batch to_compressed: serialize N Jacobian points using ONE inversion.
+    // out: caller-owned array of 33-byte compressed pubkeys, size >= n.
+    static void batch_to_compressed(const Point* points, size_t n,
+                                    std::array<uint8_t, 33>* out);
+
+    // Batch x_only_bytes: extract N x-coordinates using ONE inversion.
+    // out: caller-owned array of 32-byte x coords, size >= n.
+    static void batch_x_only_bytes(const Point* points, size_t n,
+                                   std::array<uint8_t, 32>* out);
+
+    // Normalize: convert Jacobian -> affine (Z=1) with ONE field inversion.
+    // After this call, all serialization methods become O(1) byte copies.
+    // Called automatically by scalar_mul/generator_mul/dual_scalar_mul.
+    void normalize();
+    bool is_normalized() const noexcept { return z_one_; }
+
     // Dual scalar multiplication: a*G + b*P (4-stream GLV Shamir)
     // Much faster than separate generator_mul(a) + scalar_mul(b) + add
     static Point dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const Point& P);
@@ -184,6 +213,7 @@ private:
 #endif
     bool infinity_;
     bool is_generator_;
+    bool z_one_ = false;  // true when Z == 1 (point is affine-normalized)
 };
 
 // Self-test: Verify arithmetic correctness with known test vectors

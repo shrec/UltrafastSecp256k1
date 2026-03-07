@@ -36,12 +36,6 @@
 #pragma GCC diagnostic ignored "-Wpedantic"
 #endif
 
-// -- ARM64 optimized field kernels ----------------------------------------
-// ARM64 v2 hand-scheduled ASM (field_asm52_arm64_v2.cpp) was benchmarked
-// but disabled: with -mcpu=cortex-a76, Clang schedules MUL/UMULH
-// interleaving optimally from __int128 C code. Separate asm volatile blocks
-// act as compiler barriers that PREVENT optimal scheduling.
-
 // -- RISC-V 64-bit optimized FE52 kernels ---------------------------------
 // On SiFive U74 (in-order dual-issue), hand-scheduled MUL/MULHU assembly
 // for 5x52 Comba multiply with integrated secp256k1 reduction outperforms
@@ -61,30 +55,28 @@ extern "C" {
 }
 #endif
 
-// -- x86-64 hand-tuned FE52 kernels (GAS assembly) -----------------------
-// Uses MULX (BMI2) with hand-scheduled register allocation for optimal
-// throughput. The body runs at ~7-8ns but function-call overhead adds ~2ns.
-// Trade-off vs __int128 inline: extern ASM has better instruction scheduling
-// but loses cross-operation ILP that inlining provides.
-//
-// Enabled by CMake when SECP256K1_USE_ASM52_X64=ON sets SECP256K1_HAS_X64_FE52_ASM.
-// To disable and fall back to __int128 C++: -DSECP256K1_USE_ASM52_X64=OFF
-#if (defined(__x86_64__) || defined(_M_X64)) && defined(SECP256K1_HAS_X64_FE52_ASM) \
-    && !defined(SECP256K1_X64_FE52_DISABLE)
-  #define SECP256K1_X64_FE52_ASM 1
-  // The ASM uses System V ABI (rdi, rsi, rdx) even on Windows.
+// -- 4x64 assembly bridge for boundary-level FE52 optimizations ---------------
+// Provides access to 4x64 ADCX/ADOX field_mul/sqr assembly from FE52 code.
+// Used for pure sqr/mul chains (inverse, sqrt) where conversion at boundaries
+// is negligible (~6ns) compared to per-op savings (~2ns x 269 ops = ~538ns).
+// NOT used per-mul/sqr (GPU-style hybrid: same pointer, no conversion).
+// Requires: SECP256K1_HAS_ASM + x86-64 (4x64 assembly always linked)
+#if defined(SECP256K1_HAS_ASM) && (defined(__x86_64__) || defined(_M_X64))
+  #define SECP256K1_HYBRID_4X64_ACTIVE 1
   #if defined(_WIN32)
-    extern "C" __attribute__((sysv_abi)) void fe52_mul_inner_x64(
-        std::uint64_t* r, const std::uint64_t* a, const std::uint64_t* b);
-    extern "C" __attribute__((sysv_abi)) void fe52_sqr_inner_x64(
-        std::uint64_t* r, const std::uint64_t* a);
+    extern "C" __attribute__((sysv_abi)) void field_mul_full_asm(
+        const std::uint64_t* a, const std::uint64_t* b, std::uint64_t* result);
+    extern "C" __attribute__((sysv_abi)) void field_sqr_full_asm(
+        const std::uint64_t* a, std::uint64_t* result);
   #else
     extern "C" {
-        void fe52_mul_inner_x64(std::uint64_t* r, const std::uint64_t* a, const std::uint64_t* b);
-        void fe52_sqr_inner_x64(std::uint64_t* r, const std::uint64_t* a);
+        void field_mul_full_asm(
+            const std::uint64_t* a, const std::uint64_t* b, std::uint64_t* result);
+        void field_sqr_full_asm(
+            const std::uint64_t* a, std::uint64_t* result);
     }
   #endif
-#endif
+#endif // SECP256K1_HAS_ASM && x86-64
 
 // -- 4x64 assembly bridge for boundary-level FE52 optimizations ---------------
 // Provides access to 4x64 ADCX/ADOX field_mul/sqr assembly from FE52 code.
@@ -184,21 +176,273 @@ SECP256K1_FE52_FORCE_INLINE
 void fe52_mul_inner(std::uint64_t* r,
                     const std::uint64_t* a,
                     const std::uint64_t* b) noexcept {
-#if defined(SECP256K1_ARM64_FE52_V2)
-    // ARM64: hand-scheduled MUL/UMULH interleaving for Cortex-A76 class cores
-    arm64_v2::fe52_mul_arm64_v2(r, a, b);
-#elif defined(SECP256K1_RISCV_FE52_V1)
+#if defined(SECP256K1_RISCV_FE52_V1)
     // RISC-V: Comba 5x52 multiply with integrated reduction in asm.
     // On U74 in-order core, explicit register scheduling + carry hiding
     // outperforms __int128 C++ (which Clang compiles to MUL/MULHU pairs
     // with suboptimal register allocation for 25+ multiplications).
     fe52_mul_inner_riscv64(r, a, b);
-#elif defined(SECP256K1_X64_FE52_ASM)
-    // x86-64: Hand-tuned MULX (BMI2) assembly with optimal register scheduling.
-    // ~8ns body vs ~16ns from compiler-generated __int128 code.
-    fe52_mul_inner_x64(r, a, b);
-#elif defined(SECP256K1_USE_INLINE_ADX_FE52) \
-    && (defined(__x86_64__) || defined(_M_X64)) && defined(__ADX__) && defined(__BMI2__)
+#elif 0 // MONOLITHIC_MUL_ASM: Disabled -- with -march=native, Clang __int128
+      // already emits optimal MULX+ADCX/ADOX code. The inline asm prevents
+      // cross-operation scheduling and increases register pressure (~30% slower
+      // point_add when enabled). Kept for reference/non-native builds.
+    // ========================================================================
+    // Monolithic x86-64 MULX + ADCX/ADOX field multiply (single asm block)
+    // ========================================================================
+    // Single asm block = ZERO optimization barriers between columns.
+    // ADCX/ADOX dual carry chains enable ILP in columns 1 & 2.
+    //
+    // Register layout — ALL clobbered registers are volatile on Win64:
+    //   [a0]-[a4] = a limbs (read-only inputs, compiler picks registers)
+    //   [bp]      = b pointer (read-only input)
+    //   r8        = d_lo accumulator (volatile, clobbered)
+    //   r9        = d_hi accumulator (volatile, clobbered)
+    //   r10       = c_lo accumulator (volatile, clobbered)
+    //   r11       = c_hi accumulator (volatile, clobbered)
+    //   rdx       = MULX source (volatile, clobbered)
+    //   rax       = MULX low / scratch (volatile, clobbered)
+    //   rcx       = MULX high / scratch (volatile, clobbered)
+    //   rbp,rsi,rbx,rdi,r12-r15 = FREE for compiler (not touched by asm)
+    // ========================================================================
+    std::uint64_t out0, out1, out2, out3 = 0, out4 = 0;
+    const std::uint64_t a0_v = a[0], a1_v = a[1], a2_v = a[2];
+    const std::uint64_t a3_v = a[3], a4_v = a[4];
+    __asm__ __volatile__ (
+        // ---- Column 3 + reduced column 8 ----
+        "xorl %%r8d, %%r8d\n\t"                // d_lo=0, clears CF+OF
+        "xorl %%r9d, %%r9d\n\t"                // d_hi=0
+
+        "movq %[a0], %%rdx\n\t"
+        "mulxq 24(%[bp]), %%rax, %%rcx\n\t"
+        "adcxq %%rax, %%r8\n\t"
+        "adcxq %%rcx, %%r9\n\t"
+        "movq %[a1], %%rdx\n\t"
+        "mulxq 16(%[bp]), %%rax, %%rcx\n\t"
+        "adcxq %%rax, %%r8\n\t"
+        "adcxq %%rcx, %%r9\n\t"
+        "movq %[a2], %%rdx\n\t"
+        "mulxq 8(%[bp]), %%rax, %%rcx\n\t"
+        "adcxq %%rax, %%r8\n\t"
+        "adcxq %%rcx, %%r9\n\t"
+        "movq %[a3], %%rdx\n\t"
+        "mulxq (%[bp]), %%rax, %%rcx\n\t"
+        "adcxq %%rax, %%r8\n\t"
+        "adcxq %%rcx, %%r9\n\t"
+
+        // c = a4*b4
+        "movq %[a4], %%rdx\n\t"
+        "mulxq 32(%[bp]), %%r10, %%r11\n\t"
+
+        // d += R52 * c_lo
+        "movabsq $0x1000003D10, %%rdx\n\t"
+        "mulxq %%r10, %%rax, %%rcx\n\t"
+        "addq %%rax, %%r8\n\t"
+        "adcq %%rcx, %%r9\n\t"
+        // c >>= 64
+        "movq %%r11, %%r10\n\t"
+
+        // t3 = d & M52 → store to out3; d >>= 52
+        "movq %%r8, %%rax\n\t"
+        "movq $0xFFFFFFFFFFFFF, %%rcx\n\t"
+        "andq %%rcx, %%rax\n\t"
+        "movq %%rax, %[o3]\n\t"
+        "shrdq $52, %%r9, %%r8\n\t"
+        "shrq $52, %%r9\n\t"
+
+        // ---- Column 4 + column 8 carry ----
+        "xorl %%eax, %%eax\n\t"
+        "movq %[a0], %%rdx\n\t"
+        "mulxq 32(%[bp]), %%rax, %%rcx\n\t"
+        "adcxq %%rax, %%r8\n\t"
+        "adcxq %%rcx, %%r9\n\t"
+        "movq %[a1], %%rdx\n\t"
+        "mulxq 24(%[bp]), %%rax, %%rcx\n\t"
+        "adcxq %%rax, %%r8\n\t"
+        "adcxq %%rcx, %%r9\n\t"
+        "movq %[a2], %%rdx\n\t"
+        "mulxq 16(%[bp]), %%rax, %%rcx\n\t"
+        "adcxq %%rax, %%r8\n\t"
+        "adcxq %%rcx, %%r9\n\t"
+        "movq %[a3], %%rdx\n\t"
+        "mulxq 8(%[bp]), %%rax, %%rcx\n\t"
+        "adcxq %%rax, %%r8\n\t"
+        "adcxq %%rcx, %%r9\n\t"
+        "movq %[a4], %%rdx\n\t"
+        "mulxq (%[bp]), %%rax, %%rcx\n\t"
+        "adcxq %%rax, %%r8\n\t"
+        "adcxq %%rcx, %%r9\n\t"
+
+        // d += (R52 << 12) * c_lo
+        "movabsq $0x1000003D10000, %%rdx\n\t"
+        "mulxq %%r10, %%rax, %%rcx\n\t"
+        "addq %%rax, %%r8\n\t"
+        "adcq %%rcx, %%r9\n\t"
+
+        // t4_full = d & M52 → r10; d >>= 52
+        "movq %%r8, %%r10\n\t"
+        "movq $0xFFFFFFFFFFFFF, %%rax\n\t"
+        "andq %%rax, %%r10\n\t"
+        "shrdq $52, %%r9, %%r8\n\t"
+        "shrq $52, %%r9\n\t"
+
+        // ---- Column 0 + reduced column 5 ----
+        "xorl %%eax, %%eax\n\t"
+        "movq %[a1], %%rdx\n\t"
+        "mulxq 32(%[bp]), %%rax, %%rcx\n\t"
+        "adcxq %%rax, %%r8\n\t"
+        "adcxq %%rcx, %%r9\n\t"
+        "movq %[a2], %%rdx\n\t"
+        "mulxq 24(%[bp]), %%rax, %%rcx\n\t"
+        "adcxq %%rax, %%r8\n\t"
+        "adcxq %%rcx, %%r9\n\t"
+        "movq %[a3], %%rdx\n\t"
+        "mulxq 16(%[bp]), %%rax, %%rcx\n\t"
+        "adcxq %%rax, %%r8\n\t"
+        "adcxq %%rcx, %%r9\n\t"
+        "movq %[a4], %%rdx\n\t"
+        "mulxq 8(%[bp]), %%rax, %%rcx\n\t"
+        "adcxq %%rax, %%r8\n\t"
+        "adcxq %%rcx, %%r9\n\t"
+
+        // u0 = ((d & M52) << 4) | (t4_full >> 48)
+        "movq $0xFFFFFFFFFFFFF, %%rax\n\t"
+        "movq %%r8, %%rcx\n\t"
+        "andq %%rax, %%rcx\n\t"
+        "shrdq $52, %%r9, %%r8\n\t"
+        "shrq $52, %%r9\n\t"
+        "shlq $4, %%rcx\n\t"
+        "movq %%r10, %%rax\n\t"
+        "shrq $48, %%rax\n\t"
+        "orq %%rax, %%rcx\n\t"
+        // t4 = t4_full & M48 → store to out4
+        "movq $0xFFFFFFFFFFFF, %%rax\n\t"
+        "andq %%rax, %%r10\n\t"
+        "movq %%r10, %[o4]\n\t"
+
+        // c = a0*b0 + u0 * (R52 >> 4)
+        "movq %[a0], %%rdx\n\t"
+        "mulxq (%[bp]), %%r10, %%r11\n\t"
+        "movabsq $0x1000003D1, %%rdx\n\t"
+        "mulxq %%rcx, %%rax, %%rcx\n\t"
+        "addq %%rax, %%r10\n\t"
+        "adcq %%rcx, %%r11\n\t"
+
+        // r[0] = c & M52; c >>= 52
+        "movq $0xFFFFFFFFFFFFF, %%rax\n\t"
+        "movq %%r10, %%rcx\n\t"
+        "andq %%rax, %%rcx\n\t"
+        "movq %%rcx, %[o0]\n\t"
+        "shrdq $52, %%r11, %%r10\n\t"
+        "shrq $52, %%r11\n\t"
+
+        // ---- Column 1 + reduced column 6 (dual chain) ----
+        "xorl %%eax, %%eax\n\t"
+        "movq %[a0], %%rdx\n\t"
+        "mulxq 8(%[bp]), %%rax, %%rcx\n\t"
+        "adoxq %%rax, %%r10\n\t"
+        "adoxq %%rcx, %%r11\n\t"
+        "movq %[a2], %%rdx\n\t"
+        "mulxq 32(%[bp]), %%rax, %%rcx\n\t"
+        "adcxq %%rax, %%r8\n\t"
+        "adcxq %%rcx, %%r9\n\t"
+        "movq %[a1], %%rdx\n\t"
+        "mulxq (%[bp]), %%rax, %%rcx\n\t"
+        "adoxq %%rax, %%r10\n\t"
+        "adoxq %%rcx, %%r11\n\t"
+        "movq %[a3], %%rdx\n\t"
+        "mulxq 24(%[bp]), %%rax, %%rcx\n\t"
+        "adcxq %%rax, %%r8\n\t"
+        "adcxq %%rcx, %%r9\n\t"
+        "movq %[a4], %%rdx\n\t"
+        "mulxq 16(%[bp]), %%rax, %%rcx\n\t"
+        "adcxq %%rax, %%r8\n\t"
+        "adcxq %%rcx, %%r9\n\t"
+
+        // c += (d & M52) * R52; d >>= 52
+        "movq $0xFFFFFFFFFFFFF, %%rax\n\t"
+        "movq %%r8, %%rcx\n\t"
+        "andq %%rax, %%rcx\n\t"
+        "shrdq $52, %%r9, %%r8\n\t"
+        "shrq $52, %%r9\n\t"
+        "movabsq $0x1000003D10, %%rdx\n\t"
+        "mulxq %%rcx, %%rax, %%rcx\n\t"
+        "addq %%rax, %%r10\n\t"
+        "adcq %%rcx, %%r11\n\t"
+
+        // r[1] = c & M52; c >>= 52
+        "movq $0xFFFFFFFFFFFFF, %%rax\n\t"
+        "movq %%r10, %%rcx\n\t"
+        "andq %%rax, %%rcx\n\t"
+        "movq %%rcx, %[o1]\n\t"
+        "shrdq $52, %%r11, %%r10\n\t"
+        "shrq $52, %%r11\n\t"
+
+        // ---- Column 2 + reduced column 7 (dual chain) ----
+        "xorl %%eax, %%eax\n\t"
+        "movq %[a0], %%rdx\n\t"
+        "mulxq 16(%[bp]), %%rax, %%rcx\n\t"
+        "adoxq %%rax, %%r10\n\t"
+        "adoxq %%rcx, %%r11\n\t"
+        "movq %[a3], %%rdx\n\t"
+        "mulxq 32(%[bp]), %%rax, %%rcx\n\t"
+        "adcxq %%rax, %%r8\n\t"
+        "adcxq %%rcx, %%r9\n\t"
+        "movq %[a1], %%rdx\n\t"
+        "mulxq 8(%[bp]), %%rax, %%rcx\n\t"
+        "adoxq %%rax, %%r10\n\t"
+        "adoxq %%rcx, %%r11\n\t"
+        "movq %[a4], %%rdx\n\t"
+        "mulxq 24(%[bp]), %%rax, %%rcx\n\t"
+        "adcxq %%rax, %%r8\n\t"
+        "adcxq %%rcx, %%r9\n\t"
+        "movq %[a2], %%rdx\n\t"
+        "mulxq (%[bp]), %%rax, %%rcx\n\t"
+        "adoxq %%rax, %%r10\n\t"
+        "adoxq %%rcx, %%r11\n\t"
+
+        // c += R52 * d_lo; d = d_hi
+        "movabsq $0x1000003D10, %%rdx\n\t"
+        "mulxq %%r8, %%rax, %%rcx\n\t"
+        "addq %%rax, %%r10\n\t"
+        "adcq %%rcx, %%r11\n\t"
+        "movq %%r9, %%r8\n\t"
+        "xorl %%r9d, %%r9d\n\t"
+
+        // r[2] = c & M52; c >>= 52
+        "movq $0xFFFFFFFFFFFFF, %%rax\n\t"
+        "movq %%r10, %%rcx\n\t"
+        "andq %%rax, %%rcx\n\t"
+        "movq %%rcx, %[o2]\n\t"
+        "shrdq $52, %%r11, %%r10\n\t"
+        "shrq $52, %%r11\n\t"
+
+        // ---- Finalize columns 3 and 4 ----
+        "movabsq $0x1000003D10000, %%rdx\n\t"
+        "mulxq %%r8, %%rax, %%rcx\n\t"
+        "addq %%rax, %%r10\n\t"
+        "adcq %%rcx, %%r11\n\t"
+        "addq %[o3], %%r10\n\t"
+        "adcq $0, %%r11\n\t"
+
+        // r[3] = c & M52; c >>= 52
+        "movq $0xFFFFFFFFFFFFF, %%rax\n\t"
+        "movq %%r10, %%rcx\n\t"
+        "andq %%rax, %%rcx\n\t"
+        "movq %%rcx, %[o3]\n\t"
+        "shrdq $52, %%r11, %%r10\n\t"
+
+        // r[4] = c + t4
+        "addq %[o4], %%r10\n\t"
+        "movq %%r10, %[o4]\n\t"
+
+        : [o0] "=m"(out0), [o1] "=m"(out1), [o2] "=m"(out2),
+          [o3] "+m"(out3), [o4] "+m"(out4)
+        : [a0] "r"(a0_v), [a1] "r"(a1_v), [a2] "r"(a2_v),
+          [a3] "r"(a3_v), [a4] "r"(a4_v), [bp] "r"(b)
+        : "rax", "rcx", "rdx", "r8", "r9", "r10", "r11", "cc", "memory"
+    );
+    r[0] = out0; r[1] = out1; r[2] = out2; r[3] = out3; r[4] = out4;
+#elif 0 // INLINE_ADX disabled: asm barriers prevent ILP, __int128 is 6% faster
     // ------------------------------------------------------------------
     // x86-64 inline MULX + ADCX/ADOX dual carry chain path (OPT-IN)
     // NOTE: opt-in only. In benchmarks, the overhead of asm-block
@@ -520,17 +764,221 @@ void fe52_mul_inner(std::uint64_t* r,
 SECP256K1_FE52_FORCE_INLINE
 void fe52_sqr_inner(std::uint64_t* r,
                     const std::uint64_t* a) noexcept {
-#if defined(SECP256K1_ARM64_FE52_V2)
-    arm64_v2::fe52_sqr_arm64_v2(r, a);
-#elif defined(SECP256K1_RISCV_FE52_V1)
+#if defined(SECP256K1_RISCV_FE52_V1)
     // RISC-V: Symmetry-optimized squaring in asm.
     // Cross-products doubled via shift, halving multiplication count.
     fe52_sqr_inner_riscv64(r, a);
-#elif defined(SECP256K1_X64_FE52_ASM)
-    // x86-64: Hand-tuned MULX squaring with symmetry optimization.
-    fe52_sqr_inner_x64(r, a);
-#elif defined(SECP256K1_USE_INLINE_ADX_FE52) \
-    && (defined(__x86_64__) || defined(_M_X64)) && defined(__ADX__) && defined(__BMI2__)
+#elif 0 // MONOLITHIC_SQR_ASM: Disabled -- same rationale as mul ASM above.
+    // ========================================================================
+    // Monolithic x86-64 MULX + ADCX/ADOX field squaring (single asm block)
+    // ========================================================================
+    // Cross-products doubled via LEA (flags-neutral), only 15 MULXes vs 25.
+    // ALL clobbered registers are volatile on Win64 (r8-r11, rax, rcx, rdx).
+    // ========================================================================
+    std::uint64_t out0, out1, out2, out3 = 0, out4 = 0;
+    const std::uint64_t a0_v = a[0], a1_v = a[1], a2_v = a[2];
+    const std::uint64_t a3_v = a[3], a4_v = a[4];
+    __asm__ __volatile__ (
+        // ---- Column 3 + reduced column 8 ----
+        // d = 2*a0*a3 + 2*a1*a2; c = a4^2
+        "xorl %%r8d, %%r8d\n\t"
+        "xorl %%r9d, %%r9d\n\t"
+
+        "leaq (%[a0], %[a0]), %%rdx\n\t"
+        "mulxq %[a3], %%rax, %%rcx\n\t"
+        "adcxq %%rax, %%r8\n\t"
+        "adcxq %%rcx, %%r9\n\t"
+        "leaq (%[a1], %[a1]), %%rdx\n\t"
+        "mulxq %[a2], %%rax, %%rcx\n\t"
+        "adcxq %%rax, %%r8\n\t"
+        "adcxq %%rcx, %%r9\n\t"
+
+        // c = a4*a4
+        "movq %[a4], %%rdx\n\t"
+        "mulxq %[a4], %%r10, %%r11\n\t"
+
+        // d += R52 * c_lo
+        "movabsq $0x1000003D10, %%rdx\n\t"
+        "mulxq %%r10, %%rax, %%rcx\n\t"
+        "addq %%rax, %%r8\n\t"
+        "adcq %%rcx, %%r9\n\t"
+        // c >>= 64
+        "movq %%r11, %%r10\n\t"
+
+        // t3 = d & M52; d >>= 52
+        "movq %%r8, %%rax\n\t"
+        "movq $0xFFFFFFFFFFFFF, %%rcx\n\t"
+        "andq %%rcx, %%rax\n\t"
+        "movq %%rax, %[o3]\n\t"
+        "shrdq $52, %%r9, %%r8\n\t"
+        "shrq $52, %%r9\n\t"
+
+        // ---- Column 4 ----
+        // d += 2*a0*a4 + 2*a1*a3 + a2^2
+        "xorl %%eax, %%eax\n\t"
+        "leaq (%[a0], %[a0]), %%rdx\n\t"
+        "mulxq %[a4], %%rax, %%rcx\n\t"
+        "adcxq %%rax, %%r8\n\t"
+        "adcxq %%rcx, %%r9\n\t"
+        "leaq (%[a1], %[a1]), %%rdx\n\t"
+        "mulxq %[a3], %%rax, %%rcx\n\t"
+        "adcxq %%rax, %%r8\n\t"
+        "adcxq %%rcx, %%r9\n\t"
+        "movq %[a2], %%rdx\n\t"
+        "mulxq %[a2], %%rax, %%rcx\n\t"
+        "adcxq %%rax, %%r8\n\t"
+        "adcxq %%rcx, %%r9\n\t"
+
+        // d += (R52 << 12) * c_lo
+        "movabsq $0x1000003D10000, %%rdx\n\t"
+        "mulxq %%r10, %%rax, %%rcx\n\t"
+        "addq %%rax, %%r8\n\t"
+        "adcq %%rcx, %%r9\n\t"
+
+        // t4_full = d & M52; d >>= 52
+        "movq %%r8, %%r10\n\t"
+        "movq $0xFFFFFFFFFFFFF, %%rax\n\t"
+        "andq %%rax, %%r10\n\t"
+        "shrdq $52, %%r9, %%r8\n\t"
+        "shrq $52, %%r9\n\t"
+
+        // ---- Column 0 + reduced column 5 ----
+        // c = a0^2; d += 2*a1*a4 + 2*a2*a3
+        "xorl %%eax, %%eax\n\t"
+        "leaq (%[a1], %[a1]), %%rdx\n\t"
+        "mulxq %[a4], %%rax, %%rcx\n\t"
+        "adcxq %%rax, %%r8\n\t"
+        "adcxq %%rcx, %%r9\n\t"
+        "leaq (%[a2], %[a2]), %%rdx\n\t"
+        "mulxq %[a3], %%rax, %%rcx\n\t"
+        "adcxq %%rax, %%r8\n\t"
+        "adcxq %%rcx, %%r9\n\t"
+
+        // u0 = ((d & M52) << 4) | (t4_full >> 48)
+        "movq $0xFFFFFFFFFFFFF, %%rax\n\t"
+        "movq %%r8, %%rcx\n\t"
+        "andq %%rax, %%rcx\n\t"
+        "shrdq $52, %%r9, %%r8\n\t"
+        "shrq $52, %%r9\n\t"
+        "shlq $4, %%rcx\n\t"
+        "movq %%r10, %%rax\n\t"
+        "shrq $48, %%rax\n\t"
+        "orq %%rax, %%rcx\n\t"
+        // t4 = t4_full & M48
+        "movq $0xFFFFFFFFFFFF, %%rax\n\t"
+        "andq %%rax, %%r10\n\t"
+        "movq %%r10, %[o4]\n\t"
+
+        // c = a0*a0 + u0 * (R52 >> 4)
+        "movq %[a0], %%rdx\n\t"
+        "mulxq %[a0], %%r10, %%r11\n\t"
+        "movabsq $0x1000003D1, %%rdx\n\t"
+        "mulxq %%rcx, %%rax, %%rcx\n\t"
+        "addq %%rax, %%r10\n\t"
+        "adcq %%rcx, %%r11\n\t"
+
+        // r[0] = c & M52; c >>= 52
+        "movq $0xFFFFFFFFFFFFF, %%rax\n\t"
+        "movq %%r10, %%rcx\n\t"
+        "andq %%rax, %%rcx\n\t"
+        "movq %%rcx, %[o0]\n\t"
+        "shrdq $52, %%r11, %%r10\n\t"
+        "shrq $52, %%r11\n\t"
+
+        // ---- Column 1 + reduced column 6 (dual chain) ----
+        // c += 2*a0*a1 (ADOX); d += 2*a2*a4 + a3^2 (ADCX)
+        "xorl %%eax, %%eax\n\t"
+        "leaq (%[a0], %[a0]), %%rdx\n\t"
+        "mulxq %[a1], %%rax, %%rcx\n\t"
+        "adoxq %%rax, %%r10\n\t"
+        "adoxq %%rcx, %%r11\n\t"
+        "leaq (%[a2], %[a2]), %%rdx\n\t"
+        "mulxq %[a4], %%rax, %%rcx\n\t"
+        "adcxq %%rax, %%r8\n\t"
+        "adcxq %%rcx, %%r9\n\t"
+        "movq %[a3], %%rdx\n\t"
+        "mulxq %[a3], %%rax, %%rcx\n\t"
+        "adcxq %%rax, %%r8\n\t"
+        "adcxq %%rcx, %%r9\n\t"
+
+        // c += (d & M52) * R52; d >>= 52
+        "movq $0xFFFFFFFFFFFFF, %%rax\n\t"
+        "movq %%r8, %%rcx\n\t"
+        "andq %%rax, %%rcx\n\t"
+        "shrdq $52, %%r9, %%r8\n\t"
+        "shrq $52, %%r9\n\t"
+        "movabsq $0x1000003D10, %%rdx\n\t"
+        "mulxq %%rcx, %%rax, %%rcx\n\t"
+        "addq %%rax, %%r10\n\t"
+        "adcq %%rcx, %%r11\n\t"
+
+        // r[1] = c & M52; c >>= 52
+        "movq $0xFFFFFFFFFFFFF, %%rax\n\t"
+        "movq %%r10, %%rcx\n\t"
+        "andq %%rax, %%rcx\n\t"
+        "movq %%rcx, %[o1]\n\t"
+        "shrdq $52, %%r11, %%r10\n\t"
+        "shrq $52, %%r11\n\t"
+
+        // ---- Column 2 + reduced column 7 (dual chain) ----
+        // c += 2*a0*a2 + a1^2 (ADOX); d += 2*a3*a4 (ADCX)
+        "xorl %%eax, %%eax\n\t"
+        "leaq (%[a0], %[a0]), %%rdx\n\t"
+        "mulxq %[a2], %%rax, %%rcx\n\t"
+        "adoxq %%rax, %%r10\n\t"
+        "adoxq %%rcx, %%r11\n\t"
+        "leaq (%[a3], %[a3]), %%rdx\n\t"
+        "mulxq %[a4], %%rax, %%rcx\n\t"
+        "adcxq %%rax, %%r8\n\t"
+        "adcxq %%rcx, %%r9\n\t"
+        "movq %[a1], %%rdx\n\t"
+        "mulxq %[a1], %%rax, %%rcx\n\t"
+        "adoxq %%rax, %%r10\n\t"
+        "adoxq %%rcx, %%r11\n\t"
+
+        // c += R52 * d_lo; d = d_hi
+        "movabsq $0x1000003D10, %%rdx\n\t"
+        "mulxq %%r8, %%rax, %%rcx\n\t"
+        "addq %%rax, %%r10\n\t"
+        "adcq %%rcx, %%r11\n\t"
+        "movq %%r9, %%r8\n\t"
+        "xorl %%r9d, %%r9d\n\t"
+
+        // r[2] = c & M52; c >>= 52
+        "movq $0xFFFFFFFFFFFFF, %%rax\n\t"
+        "movq %%r10, %%rcx\n\t"
+        "andq %%rax, %%rcx\n\t"
+        "movq %%rcx, %[o2]\n\t"
+        "shrdq $52, %%r11, %%r10\n\t"
+        "shrq $52, %%r11\n\t"
+
+        // ---- Finalize columns 3 and 4 ----
+        "movabsq $0x1000003D10000, %%rdx\n\t"
+        "mulxq %%r8, %%rax, %%rcx\n\t"
+        "addq %%rax, %%r10\n\t"
+        "adcq %%rcx, %%r11\n\t"
+        "addq %[o3], %%r10\n\t"
+        "adcq $0, %%r11\n\t"
+
+        // r[3] = c & M52; c >>= 52
+        "movq $0xFFFFFFFFFFFFF, %%rax\n\t"
+        "movq %%r10, %%rcx\n\t"
+        "andq %%rax, %%rcx\n\t"
+        "movq %%rcx, %[o3]\n\t"
+        "shrdq $52, %%r11, %%r10\n\t"
+
+        // r[4] = c + t4
+        "addq %[o4], %%r10\n\t"
+        "movq %%r10, %[o4]\n\t"
+
+        : [o0] "=m"(out0), [o1] "=m"(out1), [o2] "=m"(out2),
+          [o3] "+m"(out3), [o4] "+m"(out4)
+        : [a0] "r"(a0_v), [a1] "r"(a1_v), [a2] "r"(a2_v),
+          [a3] "r"(a3_v), [a4] "r"(a4_v)
+        : "rax", "rcx", "rdx", "r8", "r9", "r10", "r11", "cc", "memory"
+    );
+    r[0] = out0; r[1] = out1; r[2] = out2; r[3] = out3; r[4] = out4;
+#elif 0 // INLINE_ADX disabled: asm barriers prevent ILP, __int128 is 6% faster
     // ------------------------------------------------------------------
     // x86-64 inline MULX + ADCX/ADOX squaring (OPT-IN) -- see mul note
     // ------------------------------------------------------------------
@@ -851,8 +1299,14 @@ void FieldElement52::add_assign(const FieldElement52& rhs) noexcept {
 
 SECP256K1_FE52_FORCE_INLINE
 FieldElement52 FieldElement52::negate(unsigned magnitude) const noexcept {
-    FieldElement52 r = *this;
-    r.negate_assign(magnitude);
+    using namespace fe52_constants;
+    FieldElement52 r;
+    const std::uint64_t m1 = static_cast<std::uint64_t>(magnitude) + 1ULL;
+    r.n[0] = m1 * P0 - n[0];
+    r.n[1] = m1 * P1 - n[1];
+    r.n[2] = m1 * P2 - n[2];
+    r.n[3] = m1 * P3 - n[3];
+    r.n[4] = m1 * P4 - n[4];
     return r;
 }
 
@@ -960,51 +1414,41 @@ void FieldElement52::mul_int_assign(std::uint32_t a) noexcept {
 }
 
 // -- Full Normalization: canonical result in [0, p) ----------------------
+// Fold-first approach (matches libsecp256k1): fold t4 overflow BEFORE carry
+// propagation so only 2 carry chains are needed instead of 3.
 
 SECP256K1_FE52_FORCE_INLINE
 static void fe52_normalize_inline(std::uint64_t* r) noexcept {
     std::uint64_t t0 = r[0], t1 = r[1], t2 = r[2], t3 = r[3], t4 = r[4];
 
-    // First pass: carry propagation + overflow reduction
-    t1 += (t0 >> 52); t0 &= M52;
-    t2 += (t1 >> 52); t1 &= M52;
-    t3 += (t2 >> 52); t2 &= M52;
-    t4 += (t3 >> 52); t3 &= M52;
+    // Reduce t4 overflow first (before carry propagation).
+    // This ensures at most a single carry from the first pass.
+    std::uint64_t m;
+    std::uint64_t x = t4 >> 48; t4 &= M48;
 
-    std::uint64_t x = t4 >> 48;
-    t4 &= M48;
-    t0 += x * 0x1000003D1ULL;
-
-    t1 += (t0 >> 52); t0 &= M52;
-    t2 += (t1 >> 52); t1 &= M52;
-    t3 += (t2 >> 52); t2 &= M52;
-    t4 += (t3 >> 52); t3 &= M52;
-
-    // Second overflow reduction
-    x = t4 >> 48;
-    t4 &= M48;
+    // Single carry propagation pass with m accumulation for >= p check
     t0 += x * 0x1000003D1ULL;
     t1 += (t0 >> 52); t0 &= M52;
+    t2 += (t1 >> 52); t1 &= M52; m = t1;
+    t3 += (t2 >> 52); t2 &= M52; m &= t2;
+    t4 += (t3 >> 52); t3 &= M52; m &= t3;
+
+    // At most a single bit of overflow at bit 48 of t4 (bit 256 of value).
+    // Check if result >= p:
+    //   bit 48 of t4 set (value >= 2^256), OR
+    //   all limbs at max (t1&t2&t3 == M52, t4 == M48, t0 >= p's low 52 bits)
+    x = (t4 >> 48) | ((t4 == M48) & (m == M52)
+        & (t0 >= 0xFFFFEFFFFFC2FULL));
+
+    // Conditional final reduction (always executed for constant-time)
+    t0 += x * 0x1000003D1ULL;
+    t1 += (t0 >> 52); t0 &= M52;
     t2 += (t1 >> 52); t1 &= M52;
     t3 += (t2 >> 52); t2 &= M52;
     t4 += (t3 >> 52); t3 &= M52;
+    t4 &= M48;
 
-    // Branchless conditional subtraction of p if t >= p
-    std::uint64_t u0 = t0 + 0x1000003D1ULL;
-    std::uint64_t u1 = t1 + (u0 >> 52); u0 &= M52;
-    std::uint64_t u2 = t2 + (u1 >> 52); u1 &= M52;
-    std::uint64_t u3 = t3 + (u2 >> 52); u2 &= M52;
-    std::uint64_t u4 = t4 + (u3 >> 52); u3 &= M52;
-
-    const std::uint64_t overflow = u4 >> 48;
-    u4 &= M48;
-
-    const std::uint64_t mask = 0ULL - overflow;
-    r[0] = (u0 & mask) | (t0 & ~mask);
-    r[1] = (u1 & mask) | (t1 & ~mask);
-    r[2] = (u2 & mask) | (t2 & ~mask);
-    r[3] = (u3 & mask) | (t3 & ~mask);
-    r[4] = (u4 & mask) | (t4 & ~mask);
+    r[0] = t0; r[1] = t1; r[2] = t2; r[3] = t3; r[4] = t4;
 }
 
 // -- Inline Normalization Method -----------------------------------------
@@ -1015,11 +1459,11 @@ void FieldElement52::normalize() noexcept {
 }
 
 // -- Variable-time Zero Check (full normalize) ----------------------------
-// Uses fe52_normalize_inline (TWO overflow-reduction passes + conditional
-// p-subtraction) then checks canonical zero.  The previous single-pass
-// implementation could produce false negatives at magnitude >= 25
-// (e.g. h = u2 + negate(23) in mixed-add) because one pass can leave
-// the value in [p, 2p) -- neither raw-0 nor raw-p.
+// Uses fe52_normalize_inline (fold-first carry + conditional p-subtraction)
+// then checks canonical zero.  The previous single-pass implementation
+// could produce false negatives at magnitude >= 25 (e.g. h = u2 +
+// negate(23) in mixed-add) because one pass can leave the value in
+// [p, 2p) -- neither raw-0 nor raw-p.
 //
 // Variable-time: safe for non-secret values (point coordinates in ECC).
 
@@ -1047,46 +1491,36 @@ bool FieldElement52::normalizes_to_zero() const noexcept {
 SECP256K1_FE52_FORCE_INLINE
 bool FieldElement52::normalizes_to_zero_var() const noexcept {
     using namespace fe52_constants;
-    std::uint64_t t0 = n[0], t1 = n[1], t2 = n[2], t3 = n[3], t4 = n[4];
+    std::uint64_t t0 = n[0], t4 = n[4];
 
-    // Pass 1: carry propagation
-    t1 += (t0 >> 52); t0 &= M52;
-    t2 += (t1 >> 52); t1 &= M52;
-    t3 += (t2 >> 52); t2 &= M52;
-    t4 += (t3 >> 52); t3 &= M52;
-
-    // Overflow reduction: fold (t4 >> 48) * R back into t0
+    // Reduce t4 overflow into t0 first (at most one carry fold).
+    // This ensures the first full carry pass has at most one carry
+    // propagation step from the injected overflow.
     std::uint64_t x = t4 >> 48;
-    t4 &= M48;
     t0 += x * 0x1000003D1ULL;
 
-    // Pass 2: propagate injection carry
-    t1 += (t0 >> 52); t0 &= M52;
-    t2 += (t1 >> 52); t1 &= M52;
-    t3 += (t2 >> 52); t2 &= M52;
-    t4 += (t3 >> 52); t3 &= M52;
+    // z0 tracks "could be raw zero", z1 tracks "could be p".
+    // If the low 52 bits of t0 are clearly non-zero AND don't match P0,
+    // the full value is neither 0 nor p -- early exit without touching n[1..3].
+    std::uint64_t z0 = t0 & M52;
+    std::uint64_t z1 = z0 ^ 0x1000003D0ULL;
 
-    // Second overflow reduction (handles magnitude > ~25)
-    x = t4 >> 48;
-    t4 &= M48;
-    if (SECP256K1_UNLIKELY(x != 0)) {
-        t0 += x * 0x1000003D1ULL;
-        t1 += (t0 >> 52); t0 &= M52;
-        t2 += (t1 >> 52); t1 &= M52;
-        t3 += (t2 >> 52); t2 &= M52;
-        t4 += (t3 >> 52); t3 &= M52;
-        t4 &= M48;
+    // Fast return: catches ~100% of cases using only t0 and t4.
+    if ((z0 != 0ULL) & (z1 != M52)) {
+        return false;
     }
 
-    // Fast path: raw-zero check (fires ~100% of the time for non-zero h)
-    if ((t0 | t1 | t2 | t3 | t4) == 0) return true;
+    // Slow path: full carry propagation for the remaining cases.
+    std::uint64_t t1 = n[1], t2 = n[2], t3 = n[3];
+    t4 &= M48;
 
-    // Value is in [1, p].  Check if it equals p.
-    // p = {P0, M52, M52, M52, M48}  where P0 = 0xFFFFEFFFFFC2F
-    // Quick exit: if any of t1..t3 != M52, it cannot be p.
-    if ((t1 & t2 & t3) != M52 || t4 != M48) return false;
+    t1 += (t0 >> 52);
+    t2 += (t1 >> 52); t1 &= M52; z0 |= t1; z1 &= t1;
+    t3 += (t2 >> 52); t2 &= M52; z0 |= t2; z1 &= t2;
+    t4 += (t3 >> 52); t3 &= M52; z0 |= t3; z1 &= t3;
+                                  z0 |= t4; z1 &= t4 ^ 0xF000000000000ULL;
 
-    return t0 == P0;
+    return (z0 == 0) | (z1 == M52);
 }
 
 // -- Conversion: 4x64 -> 5x52 (inline) -----------------------------------
@@ -1116,6 +1550,82 @@ FieldElement FieldElement52::to_fe() const noexcept {
     L[2] = (tmp.n[2] >> 24) | (tmp.n[3] << 28);
     L[3] = (tmp.n[3] >> 36) | (tmp.n[4] << 16);
     return FieldElement::from_limbs_raw(L);  // already canonical -- skip redundant normalize
+}
+
+// Convenience serialization: FE52 -> bytes in one call
+SECP256K1_FE52_FORCE_INLINE
+void FieldElement52::to_bytes_into(std::uint8_t* out) const noexcept {
+    // Direct 5x52 -> 32 big-endian bytes (skip intermediate 4x64 conversion).
+    // Same approach as libsecp256k1's secp256k1_fe_impl_get_b32.
+    FieldElement52 tmp = *this;
+    fe52_normalize_inline(tmp.n);
+
+    out[ 0] = static_cast<std::uint8_t>(tmp.n[4] >> 40);
+    out[ 1] = static_cast<std::uint8_t>(tmp.n[4] >> 32);
+    out[ 2] = static_cast<std::uint8_t>(tmp.n[4] >> 24);
+    out[ 3] = static_cast<std::uint8_t>(tmp.n[4] >> 16);
+    out[ 4] = static_cast<std::uint8_t>(tmp.n[4] >>  8);
+    out[ 5] = static_cast<std::uint8_t>(tmp.n[4]      );
+    out[ 6] = static_cast<std::uint8_t>(tmp.n[3] >> 44);
+    out[ 7] = static_cast<std::uint8_t>(tmp.n[3] >> 36);
+    out[ 8] = static_cast<std::uint8_t>(tmp.n[3] >> 28);
+    out[ 9] = static_cast<std::uint8_t>(tmp.n[3] >> 20);
+    out[10] = static_cast<std::uint8_t>(tmp.n[3] >> 12);
+    out[11] = static_cast<std::uint8_t>(tmp.n[3] >>  4);
+    out[12] = static_cast<std::uint8_t>(((tmp.n[2] >> 48) & 0xF) | ((tmp.n[3] & 0xF) << 4));
+    out[13] = static_cast<std::uint8_t>(tmp.n[2] >> 40);
+    out[14] = static_cast<std::uint8_t>(tmp.n[2] >> 32);
+    out[15] = static_cast<std::uint8_t>(tmp.n[2] >> 24);
+    out[16] = static_cast<std::uint8_t>(tmp.n[2] >> 16);
+    out[17] = static_cast<std::uint8_t>(tmp.n[2] >>  8);
+    out[18] = static_cast<std::uint8_t>(tmp.n[2]      );
+    out[19] = static_cast<std::uint8_t>(tmp.n[1] >> 44);
+    out[20] = static_cast<std::uint8_t>(tmp.n[1] >> 36);
+    out[21] = static_cast<std::uint8_t>(tmp.n[1] >> 28);
+    out[22] = static_cast<std::uint8_t>(tmp.n[1] >> 20);
+    out[23] = static_cast<std::uint8_t>(tmp.n[1] >> 12);
+    out[24] = static_cast<std::uint8_t>(tmp.n[1] >>  4);
+    out[25] = static_cast<std::uint8_t>(((tmp.n[0] >> 48) & 0xF) | ((tmp.n[1] & 0xF) << 4));
+    out[26] = static_cast<std::uint8_t>(tmp.n[0] >> 40);
+    out[27] = static_cast<std::uint8_t>(tmp.n[0] >> 32);
+    out[28] = static_cast<std::uint8_t>(tmp.n[0] >> 24);
+    out[29] = static_cast<std::uint8_t>(tmp.n[0] >> 16);
+    out[30] = static_cast<std::uint8_t>(tmp.n[0] >>  8);
+    out[31] = static_cast<std::uint8_t>(tmp.n[0]      );
+}
+
+// Fast serialize for pre-normalized limbs: 5x52 -> 32 big-endian bytes.
+// Skips fe52_normalize_inline (saves ~10 ns per call on pre-normalized inputs).
+// Uses bit-slicing to 4x64 intermediary + byte-swap stores.
+SECP256K1_FE52_FORCE_INLINE
+void FieldElement52::store_b32_prenorm(std::uint8_t* out) const noexcept {
+    // 5x52 -> 4x64 bit-slicing (same logic as to_fe, no normalize)
+    std::uint64_t L0 =  n[0]        | (n[1] << 52);
+    std::uint64_t L1 = (n[1] >> 12) | (n[2] << 40);
+    std::uint64_t L2 = (n[2] >> 24) | (n[3] << 28);
+    std::uint64_t L3 = (n[3] >> 36) | (n[4] << 16);
+
+    // Big-endian store: 4 bswap + 4 unaligned writes (L3 = MSB)
+#if defined(__GNUC__) || defined(__clang__)
+    L3 = __builtin_bswap64(L3); L2 = __builtin_bswap64(L2);
+    L1 = __builtin_bswap64(L1); L0 = __builtin_bswap64(L0);
+#elif defined(_MSC_VER)
+    L3 = _byteswap_uint64(L3); L2 = _byteswap_uint64(L2);
+    L1 = _byteswap_uint64(L1); L0 = _byteswap_uint64(L0);
+#else
+    // Portable bswap fallback
+    auto bswap64 = [](std::uint64_t v) -> std::uint64_t {
+        v = ((v >> 8) & 0x00FF00FF00FF00FFULL) | ((v & 0x00FF00FF00FF00FFULL) << 8);
+        v = ((v >> 16) & 0x0000FFFF0000FFFFULL) | ((v & 0x0000FFFF0000FFFFULL) << 16);
+        return (v >> 32) | (v << 32);
+    };
+    L3 = bswap64(L3); L2 = bswap64(L2);
+    L1 = bswap64(L1); L0 = bswap64(L0);
+#endif
+    std::memcpy(out,      &L3, 8);
+    std::memcpy(out + 8,  &L2, 8);
+    std::memcpy(out + 16, &L1, 8);
+    std::memcpy(out + 24, &L0, 8);
 }
 
 // -- Direct 4x64 limbs -> 5x52 (no FieldElement construction) -------------
@@ -1185,10 +1695,17 @@ FieldElement52 FieldElement52::from_bytes(const std::array<std::uint8_t, 32>& by
 
 SECP256K1_FE52_FORCE_INLINE
 FieldElement52 FieldElement52::inverse_safegcd() const noexcept {
-    if (SECP256K1_UNLIKELY(normalizes_to_zero())) {
+    if (SECP256K1_UNLIKELY(normalizes_to_zero_var())) {
         return FieldElement52::zero();
     }
-    return from_fe(to_fe().inverse());
+    // Direct 5x52 → signed62 → SafeGCD → signed62 → 5x52.
+    // Bypasses the old FE52→to_fe()→inverse()→from_fe() chain
+    // which had 4 intermediate format conversions (5x52↔4x64↔signed62).
+    FieldElement52 tmp = *this;
+    fe52_normalize_inline(tmp.n);
+    FieldElement52 r;
+    fe52_inverse_safegcd_var(tmp.n, r.n);
+    return r;
 }
 
 } // namespace secp256k1::fast
