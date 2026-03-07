@@ -2380,6 +2380,7 @@ Point Point::next() const {
     AffinePoint52 const g52{kGenX52, kGenY52};
     jac52_add_mixed_inplace(p52, g52);
     return Point(p52.x, p52.y, p52.z, p52.infinity, false);
+    #endif
 #else
     // Fallback: 4x64 path (non-52-bit platforms / MSVC)
     JacobianPoint p{x_, y_, z_, infinity_};
@@ -2410,6 +2411,7 @@ Point Point::prev() const {
     AffinePoint52 const ng52{kGenX52, kNegGenY52};
     jac52_add_mixed_inplace(p52, ng52);
     return Point(p52.x, p52.y, p52.z, p52.infinity, false);
+    #endif
 #else
     // Fallback: 4x64 path (non-52-bit platforms / MSVC)
     JacobianPoint p{x_, y_, z_, infinity_};
@@ -2622,7 +2624,6 @@ void Point::dbl_inplace() {
     if (SECP256K1_UNLIKELY(infinity_)) return;
     jac52_double_coords(x_, y_, z_);
     is_generator_ = false;
-  #endif
 #else
     // In-place: no return-value copy (eliminates 100B struct copy per call)
     JacobianPoint p{x_, y_, z_, infinity_};
