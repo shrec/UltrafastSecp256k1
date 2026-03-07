@@ -1325,7 +1325,7 @@ void FieldElement52::negate_assign(unsigned magnitude) noexcept {
 // Uses XOR-select to avoid branches on unpredictable sign bits.
 SECP256K1_FE52_FORCE_INLINE
 void FieldElement52::conditional_negate_assign(std::int32_t sign_mask) noexcept {
-    const std::uint64_t mask = static_cast<std::uint64_t>(static_cast<std::int64_t>(sign_mask));
+    const auto mask = static_cast<std::uint64_t>(static_cast<std::int64_t>(sign_mask));
     // Compute negated limbs (magnitude 1: 2*P - n)
     const std::uint64_t neg0 = 2ULL * P0 - n[0];
     const std::uint64_t neg1 = 2ULL * P1 - n[1];
@@ -1362,11 +1362,11 @@ FieldElement52 FieldElement52::half() const noexcept {
     const std::uint64_t mask = (0ULL - (src[0] & one)) >> 12;  // 52-bit mask if odd
 
     // Conditionally add p (limb-wise, no carry propagation needed)
-    std::uint64_t t0 = src[0] + (0xFFFFEFFFFFC2FULL & mask);
-    std::uint64_t t1 = src[1] + mask;       // P1 = M52 = mask
-    std::uint64_t t2 = src[2] + mask;       // P2 = M52 = mask
-    std::uint64_t t3 = src[3] + mask;       // P3 = M52 = mask
-    std::uint64_t t4 = src[4] + (mask >> 4); // P4 = 48-bit
+    const std::uint64_t t0 = src[0] + (0xFFFFEFFFFFC2FULL & mask);
+    const std::uint64_t t1 = src[1] + mask;       // P1 = M52 = mask
+    const std::uint64_t t2 = src[2] + mask;       // P2 = M52 = mask
+    const std::uint64_t t3 = src[3] + mask;       // P3 = M52 = mask
+    const std::uint64_t t4 = src[4] + (mask >> 4); // P4 = 48-bit
 
     // Right shift by 1 (divide by 2)
     // MUST use + (not |): without carry propagation, t_i can exceed M52,
@@ -1386,11 +1386,11 @@ void FieldElement52::half_assign() noexcept {
     const std::uint64_t one = 1ULL;
     const std::uint64_t mask = (0ULL - (n[0] & one)) >> 12;
 
-    std::uint64_t t0 = n[0] + (0xFFFFEFFFFFC2FULL & mask);
-    std::uint64_t t1 = n[1] + mask;
-    std::uint64_t t2 = n[2] + mask;
-    std::uint64_t t3 = n[3] + mask;
-    std::uint64_t t4 = n[4] + (mask >> 4);
+    const std::uint64_t t0 = n[0] + (0xFFFFEFFFFFC2FULL & mask);
+    const std::uint64_t t1 = n[1] + mask;
+    const std::uint64_t t2 = n[2] + mask;
+    const std::uint64_t t3 = n[3] + mask;
+    const std::uint64_t t4 = n[4] + (mask >> 4);
 
     // MUST use + (not |): see half() comment above.
     n[0] = (t0 >> 1) + ((t1 & one) << 51);

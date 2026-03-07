@@ -282,10 +282,10 @@ All results from **v3.11.0** (2026-02-23). Benchmarks use IQR outlier removal an
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DSECP256K1_BUILD_BENCH=ON
 cmake --build build -j
 
-./build/cpu/bench_comprehensive
-./build/cpu/bench_ct                   # Fast vs CT comparison
-./build/cpu/bench_scalar_mul           # k*G and k*P with wNAF analysis
-./build/cpu/bench_atomic_operations    # Individual building block latencies
+./build/cpu/bench/bench_unified
+./build/cpu/bench/bench_ct                   # Fast vs CT comparison
+./build/cpu/bench/bench_field_52              # Field arithmetic (5x52)
+./build/cpu/bench/bench_kP                    # Scalar multiplication k*P
 ```
 
 ### CUDA Benchmark

@@ -218,7 +218,7 @@ Point multi_scalar_mul(const Scalar* scalars,
             if (bit < wnaf_lens[i]) {
                 int32_t const digit = wnaf_bufs[i][bit];
                 if (digit != 0) {
-                    std::size_t const idx = static_cast<std::size_t>(
+                    auto const idx = static_cast<std::size_t>(
                         (digit > 0 ? digit - 1 : -digit - 1) / 2
                     );
                     auto const lx = tbl_P_x[base + idx];
@@ -234,7 +234,7 @@ Point multi_scalar_mul(const Scalar* scalars,
             if (bit < wnaf_lens[n + i]) {
                 int32_t const digit = wnaf_bufs[n + i][bit];
                 if (digit != 0) {
-                    std::size_t const idx = static_cast<std::size_t>(
+                    auto const idx = static_cast<std::size_t>(
                         (digit > 0 ? digit - 1 : -digit - 1) / 2
                     );
                     auto const lx = tbl_phiP_x[base + idx];

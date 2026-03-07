@@ -203,7 +203,7 @@ static int64_t divsteps_59(int64_t zeta, uint64_t f0, uint64_t g0, T2x2& t) {
     uint64_t u = 8, v = 0, q = 0, r = 8;
     volatile uint64_t c1 = 0;
     volatile uint64_t c2 = 0;
-    uint64_t mask1, mask2, f = f0, g = g0, x, y, z;
+    uint64_t mask1 = 0, mask2 = 0, f = f0, g = g0, x = 0, y = 0, z = 0;
 
     for (int i = 3; i < 62; ++i) {
         c1 = static_cast<uint64_t>(zeta >> 63);
@@ -328,7 +328,7 @@ static void update_fg_62(S62& f, S62& g, const T2x2& t) {
 static void normalize_62(S62& r, int64_t sign, const ModInfo& mod) {
     const auto M62 = (int64_t)(UINT64_MAX >> 2);
     int64_t r0 = r.v[0], r1 = r.v[1], r2 = r.v[2], r3 = r.v[3], r4 = r.v[4];
-    int64_t cond_add, cond_negate;
+    int64_t cond_add = 0, cond_negate = 0;
 
     cond_add = r4 >> 63;
     r0 += mod.modulus.v[0] & cond_add;

@@ -10,19 +10,19 @@ How to build, run, and interpret benchmarks on all supported platforms.
 
 | Target | CI Canonical | Always Builds | Purpose |
 |--------|:---:|:---:|---------|
-| **`bench_comprehensive`** | **YES** | **YES** | All secp256k1 ops (standalone, no dependencies) |
-| `bench_hornet` | No | No (needs libsecp256k1 src) | Apple-to-apple comparison vs libsecp256k1 |
-| `bench_unified` | No | No (needs libsecp256k1 src) | Combined UF + libsecp runner |
+| **`bench_unified`** | **YES** | No (needs libsecp256k1 src) | THE standard: full apple-to-apple vs libsecp256k1 + OpenSSL |
+| `bench_ct` | No | YES | CT-layer benchmarks (standalone, no dependencies) |
+| `bench_field_52` | No | YES (x86/ARM/RISC-V) | Field arithmetic micro-benchmarks (5x52 limbs) |
+| `bench_field_26` | No | YES | Field arithmetic micro-benchmarks (10x26 limbs) |
+| `bench_kP` | No | YES | Scalar multiplication (k*P) benchmarks |
+| `bench_hornet` | No | No (Android only) | ARM64 Android benchmark (in android/test/) |
 
+**`bench_unified`** is the canonical benchmark runner (see copilot-instructions: Benchmark rules).
+It runs ALL operation categories in a single binary and produces apple-to-apple
+comparison ratios against both libsecp256k1 and OpenSSL.
 
-**`bench_comprehensive`** is the CI-canonical benchmark. It runs in
-`benchmark.yml` and `bench-regression.yml` and does NOT require any
-external dependencies. Use this for regression testing and CI.
-
-**`bench_hornet`** measures every secp256k1 operation relevant to
-Bitcoin block validation and IBD (Initial Block Download), including an
-apple-to-apple comparison against bitcoin-core/libsecp256k1 v0.7.2.
-It requires the libsecp256k1 source tree to build.
+**`bench_hornet`** is the ARM64 Android port at `android/test/bench_hornet_android.cpp`.
+It measures Bitcoin consensus operations with an apple-to-apple comparison.
 
 ### What It Measures
 
@@ -53,11 +53,11 @@ It requires the libsecp256k1 source tree to build.
 # Configure (from repo root)
 cmake -S . -B build-bench -G Ninja -DCMAKE_BUILD_TYPE=Release
 
-# Build bench_hornet target
-cmake --build build-bench --target bench_hornet -j
+# Build bench_unified target
+cmake --build build-bench --target bench_unified -j
 
 # Run
-./build-bench/cpu/bench/bench_hornet
+./build-bench/cpu/bench/bench_unified
 ```
 
 On Windows with Clang:
@@ -66,8 +66,8 @@ cmake -S . -B build-bench -G "NMake Makefiles" ^
   -DCMAKE_BUILD_TYPE=Release ^
   -DCMAKE_CXX_COMPILER=clang-cl ^
   -DCMAKE_LINKER=lld-link
-cmake --build build-bench --target bench_hornet -j
-build-bench\cpu\bench\bench_hornet.exe
+cmake --build build-bench --target bench_unified -j
+build-bench\cpu\bench\bench_unified.exe
 ```
 
 ### 2. ARM64 Android (Cross-compile via NDK)
@@ -107,11 +107,11 @@ cmake -S . -B build-riscv -G Ninja \
   -DCMAKE_TOOLCHAIN_FILE=cmake/riscv64-toolchain.cmake
 
 # Build
-cmake --build build-riscv --target bench_hornet -j
+cmake --build build-riscv --target bench_unified -j
 
 # Deploy and run (example: Milk-V Mars at 192.168.1.31)
-scp build-riscv/cpu/bench/bench_hornet user@192.168.1.31:/tmp/
-ssh user@192.168.1.31 /tmp/bench_hornet
+scp build-riscv/cpu/bench/bench_unified user@192.168.1.31:/tmp/
+ssh user@192.168.1.31 /tmp/bench_unified
 ```
 
 ### 4. ESP32-S3 (ESP-IDF)
@@ -135,7 +135,7 @@ and a reduced key pool (16 keys, median of 5 passes) due to memory limits.
 ## Apple-to-Apple Comparison
 
 Section F runs the same 6 operations using the official bitcoin-core
-libsecp256k1 compiled as a single translation unit (`libsecp_bench.c`).
+libsecp256k1 compiled as a single translation unit (`libsecp_provider.c`).
 Both libraries execute on the same CPU, at the same optimization level,
 in the same process -- eliminating all environmental variables.
 
@@ -155,13 +155,13 @@ compare `secp256k1::ct::*` operations against libsecp256k1's CT ops.
 
 ## Output Format
 
-bench_hornet prints a structured ASCII table suitable for capture:
+bench_unified prints a structured ASCII table suitable for capture:
 
 ```
 =============================================================
- UltrafastSecp256k1 bench_hornet -- Bitcoin Consensus Benchmark
+ UltrafastSecp256k1 bench_unified
 =============================================================
- Library     : UltrafastSecp256k1 v3.16.0 ...
+ Library     : UltrafastSecp256k1 v3.20.0 ...
  Platform    : x86-64 (AVX2, BMI2, ADX)
  CPU         : 13th Gen Intel Core i7-11700
  ...
@@ -177,7 +177,7 @@ bench_hornet prints a structured ASCII table suitable for capture:
 
 To save reports for the audit campaign:
 ```bash
-./bench_hornet > bench_hornet_report.txt 2>&1
+./bench_unified > bench_unified_report.txt 2>&1
 ```
 
 JSON report files (for platform-reports/) are generated separately
@@ -210,8 +210,11 @@ by the benchmark infrastructure scripts -- see `audit/platform-reports/`.
 
 | File | Purpose |
 |------|---------|
-| `cpu/bench/bench_hornet.cpp` | x86-64 / Linux bench_hornet (RDTSC) |
-| `cpu/bench/libsecp_bench.c` | libsecp256k1 apple-to-apple (x86 / RISC-V) |
+| `cpu/bench/bench_unified.cpp` | THE standard: full apple-to-apple benchmark |
+| `cpu/bench/bench_ct.cpp` | CT-layer benchmarks |
+| `cpu/bench/bench_field_52.cpp` | 5x52 field arithmetic micro-benchmarks |
+| `cpu/bench/bench_field_26.cpp` | 10x26 field arithmetic micro-benchmarks |
+| `cpu/bench/libsecp_provider.c` | libsecp256k1 apple-to-apple provider |
 | `android/test/bench_hornet_android.cpp` | ARM64 Android port |
 | `android/test/libsecp_bench.c` | libsecp256k1 apple-to-apple (ARM64) |
 | `examples/esp32_bench_hornet/` | ESP32-S3 bench_hornet example |

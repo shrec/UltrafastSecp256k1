@@ -120,6 +120,22 @@ Built on hand-optimized C/C++ with platform-specific acceleration (AVX2, SHA-NI,
 | kG (generator mul) | 5 us | 14 us | 33 us |
 | kP (arbitrary mul) | 25 us | 131 us | 154 us |
 
+## Performance Tuning
+
+When building the native addon from source, you can tune scalar multiplication (k*P) performance via the GLV window width:
+
+```bash
+cmake -S . -B build -DSECP256K1_GLV_WINDOW_WIDTH=6
+```
+
+| Window | Default On | Tradeoff |
+|--------|-----------|----------|
+| w=4 | ESP32, WASM | Smaller tables, more point additions |
+| w=5 | x86-64, ARM64, RISC-V | Balanced (default) |
+| w=6 | -- | Larger tables, fewer additions |
+
+See [docs/PERFORMANCE_GUIDE.md](../../docs/PERFORMANCE_GUIDE.md) for detailed benchmarks and per-platform tuning advice.
+
 ## License
 
 MIT

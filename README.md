@@ -617,7 +617,7 @@ See [SUPPORTED_GUARANTEES.md](include/ufsecp/SUPPORTED_GUARANTEES.md) for Tier 1
 ### Prerequisites
 
 - CMake 3.18+
-- C++20 compiler (GCC 11+, Clang/LLVM 15+, MSVC 2022+ with `-DSECP256K1_ALLOW_MSVC=ON`)
+- C++20 compiler (GCC 11+, Clang/LLVM 15+, MSVC 2022+)
 - CUDA Toolkit 12.0+ (optional, for GPU)
 - Ninja (recommended)
 
@@ -661,7 +661,7 @@ Universal XCFramework (arm64 device + arm64 simulator). Also available via **Swi
 | `SECP256K1_BUILD_ROCM` | OFF | ROCm/HIP GPU support (AMD) |
 | `SECP256K1_BUILD_TESTS` | ON | Test suite |
 | `SECP256K1_BUILD_BENCH` | ON | Benchmarks |
-| `SECP256K1_RISCV_FAST_REDUCTION` | ON | Fast modular reduction (RISC-V) |
+| `SECP256K1_GLV_WINDOW_WIDTH` | platform | GLV window width (4-7); default 5 on x86/ARM/RISC-V, 4 on ESP32 |
 | `SECP256K1_RISCV_USE_VECTOR` | ON | RVV vector extension (RISC-V) |
 
 For detailed build instructions, see [docs/BUILDING.md](docs/BUILDING.md).
@@ -878,15 +878,11 @@ vectors, fuzzing, protocol security, ABI safety, performance validation).
 
 | Target | Description |
 |--------|-------------|
-| `bench_comprehensive` | Full field/point/batch/signature suite |
-| `bench_scalar_mul` | kxG and kxP with wNAF analysis |
+| `bench_unified` | THE standard: full apple-to-apple vs libsecp256k1 + OpenSSL |
 | `bench_ct` | Fast-vs-CT overhead comparison |
-| `bench_atomic_operations` | Individual ECC building block latencies |
-| `bench_field_52` | 4x64 vs 5x52 field representation |
-| `bench_ecdsa_multiscalar` | k_1xG + k_2xQ (Shamir vs separate) |
-| `bench_jsf_vs_shamir` | JSF vs Windowed Shamir comparison |
-| `bench_adaptive_glv` | GLV window size sweep (8-20) |
-| `bench_comprehensive` | Cross-platform benchmark suite (all ops) |
+| `bench_field_52` | 5x52 field arithmetic micro-benchmarks |
+| `bench_field_26` | 10x26 field arithmetic micro-benchmarks |
+| `bench_kP` | Scalar multiplication (k*P) benchmarks |
 
 ---
 

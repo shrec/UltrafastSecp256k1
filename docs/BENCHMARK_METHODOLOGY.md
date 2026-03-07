@@ -17,14 +17,14 @@ regression detection.
 
 ## Benchmark Framework
 
-### `bench_comprehensive`
+### `bench_unified`
 
 The primary benchmark binary:
 
 ```bash
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DSECP256K1_BUILD_BENCH=ON
-cmake --build build --target bench_comprehensive
-./build/cpu/bench_comprehensive
+cmake --build build --target bench_unified
+./build/cpu/bench/bench_unified
 ```
 
 #### Operations Measured
@@ -99,7 +99,7 @@ sudo cpupower frequency-set -g performance
 echo 1 | sudo tee /sys/devices/system/cpu/intel_pstate/no_turbo
 
 # Pin to single core (reduce scheduling noise)
-taskset -c 0 ./build/cpu/bench_comprehensive
+taskset -c 0 ./build/cpu/bench/bench_unified
 ```
 
 ### Windows
@@ -186,7 +186,7 @@ metric is flagged.
 
 ## Adding New Benchmarks
 
-1. Add the benchmark to `benchmarks/bench_comprehensive.cpp`
+1. Add the benchmark to `cpu/bench/bench_unified.cpp`
 2. Use the standard timing pattern (warmup + DoNotOptimize + median)
 3. Output format: `[operation_name]  <value> <unit>`
 4. Update `.github/scripts/parse_benchmark.py` if the output format changes

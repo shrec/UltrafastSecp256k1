@@ -22,7 +22,7 @@ The `.github/workflows/benchmark.yml` workflow:
 
 1. Runs on **every push** to `dev` and `main`
 2. Builds in `Release` mode with optimizations
-3. Executes `bench_comprehensive` (all operations)
+3. Executes `bench_unified` (all operations)
 4. Parses output into JSON via `.github/scripts/parse_benchmark.py`
 5. Pushes to [GitHub Pages dashboard](https://shrec.github.io/UltrafastSecp256k1/dev/bench-v2/)
 6. Compares against historical baseline
@@ -42,7 +42,7 @@ Alert notifications appear as:
 
 ### Tracked Operations
 
-All operations in `bench_comprehensive` are tracked. Key metrics:
+All operations in `bench_unified` are tracked. Key metrics:
 
 | Operation | Baseline (ns) | Max Acceptable |
 |-----------|--------------|----------------|
@@ -75,15 +75,15 @@ Regression detected by CI or manual report:
 ```bash
 # Build benchmark
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DSECP256K1_BUILD_BENCH=ON
-cmake --build build --target bench_comprehensive
+cmake --build build --target bench_unified
 
 # Run on current commit
-./build/cpu/bench_comprehensive | grep scalar_mul
+./build/cpu/bench/bench_unified | grep scalar_mul
 
 # Compare with parent commit
 git stash
-cmake --build build --target bench_comprehensive
-./build/cpu/bench_comprehensive | grep scalar_mul
+cmake --build build --target bench_unified
+./build/cpu/bench/bench_unified | grep scalar_mul
 git stash pop
 ```
 
@@ -104,7 +104,7 @@ Common causes:
 
 ```bash
 # After fix, verify regression is resolved
-./build/cpu/bench_comprehensive | grep scalar_mul
+./build/cpu/bench/bench_unified | grep scalar_mul
 # Expected: back to baseline +-5%
 ```
 
@@ -156,7 +156,7 @@ benchmark-data-dir-path: 'dev/bench-v3'  # bump version
 
 ### Adding New Metrics
 
-1. Add operation to `bench_comprehensive.cpp`
+1. Add operation to `cpu/bench/bench_unified.cpp`
 2. Follow existing output format: `[name]  value unit`
 3. Update `parse_benchmark.py` if format differs
 4. CI will auto-discover the new metric

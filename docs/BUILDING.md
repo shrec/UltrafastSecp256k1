@@ -36,7 +36,7 @@ Complete build guide for all supported platforms.
 - **C++20 compiler**:
   - GCC 11+ (recommended for Linux)
   - Clang/LLVM 15+ (recommended, best optimization)
-  - MSVC 2022+ (Windows, requires `-DSECP256K1_ALLOW_MSVC=ON`)
+  - MSVC 2022+ (Windows)
 - **Ninja** (recommended) or Make
 
 ### Optional
@@ -93,16 +93,15 @@ cmake --build build -j
 | `SECP256K1_BUILD_TESTS` | ON | Build test suite |
 | `SECP256K1_BUILD_BENCH` | ON | Build benchmarks |
 | `SECP256K1_BUILD_EXAMPLES` | ON | Build example programs |
-| `SECP256K1_USE_LTO` | OFF | Link-Time Optimization |
+| `SECP256K1_USE_LTO` | ON | Link-Time Optimization |
 | `SECP256K1_SPEED_FIRST` | OFF | Aggressive speed optimizations |
-| `SECP256K1_ALLOW_MSVC` | OFF | Allow MSVC compiler |
+| `SECP256K1_GLV_WINDOW_WIDTH` | platform | GLV window width (4-7); default 5 on x86/ARM/RISC-V, 4 on ESP32 |
 | `SECP256K1_INSTALL` | ON | Generate install target |
 
 ### RISC-V Specific
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `SECP256K1_RISCV_FAST_REDUCTION` | ON | Fast modular reduction |
 | `SECP256K1_RISCV_USE_VECTOR` | ON | RVV vector extension |
 | `SECP256K1_RISCV_USE_PREFETCH` | ON | Memory prefetch hints |
 
@@ -178,8 +177,7 @@ cmake --build build -j
 ```powershell
 # Open Visual Studio Developer Command Prompt
 # Then:
-cmake -S . -B build -G "Visual Studio 17 2022" `
-  -DSECP256K1_ALLOW_MSVC=ON
+cmake -S . -B build -G "Visual Studio 17 2022"
 
 cmake --build build --config Release
 ```
@@ -611,7 +609,7 @@ After building, run tests to verify correctness:
 ctest --test-dir build --output-on-failure
 
 # Run benchmarks
-./build/cpu/bench_comprehensive
+./build/cpu/bench/bench_unified
 ./build/cuda/secp256k1_cuda_bench  # If CUDA enabled
 ```
 

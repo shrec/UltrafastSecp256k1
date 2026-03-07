@@ -5,6 +5,240 @@ All notable changes to UltrafastSecp256k1 are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.20.0] - 2026-03-07
+
+> **Cumulative release: v3.14.0 -> v3.20.0** | 120+ commits | ABI compatible
+> No breaking changes -- drop-in upgrade from v3.14.x
+>
+> This release consolidates all work from v3.15.0 through v3.19.0, plus
+> 19 additional commits (PRs #90--#111) into a single stable release.
+
+### 1. Security & Constant-Time Hardening
+
+- **RISC-V CT timing leak fixes** -- dudect testing on SiFive U74 detected 5 persistent
+  timing leaks (`field_sqr`, `scalar_is_zero`, `scalar_sub`, `scalar_window`, `ct_compare`).
+  Fixed with register-only `value_barrier()` and corrected `rdcycle` timer (no `fence`).
+  (#v3.19.0)
+- **CT SafeGCD scalar inverse** -- replaced Fermat chain (294 scalar ops) with constant-time
+  Bernstein-Yang divsteps-59 port from bitcoin-core/secp256k1. `ct::scalar_inverse`:
+  10,650 ns -> 1,671 ns (**6.4x faster**). CT ECDSA Sign: 26,942 ns -> 15,360 ns
+  (**43% faster**). Fermat chain preserved for non-`__int128` platforms (ESP32). (#v3.18.0)
+- **Secret zeroization** -- `ecdsa_sign()`, `rfc6979_nonce()`, `musig2_nonce_gen()` now
+  guarantee `secure_erase()` of all intermediate secrets (k, k_inv, z, V, K, HMAC state)
+  on every code path. (#v3.17.0)
+- **Sign-then-verify countermeasure** -- both `ecdsa_sign()` and `ct::schnorr_sign()` verify
+  the signature before returning; failure zeroes the result. (#v3.17.0)
+- **BIP-340 strict parsing** -- `Scalar::parse_bytes_strict`, `FieldElement::parse_bytes_strict`,
+  `SchnorrSignature::parse_strict` reject all malformed inputs. C ABI uses strict parsing
+  internally. UFSECP_BITCOIN_STRICT CMake option for compile-time enforcement. (#v3.16.0)
+- **CT buffer erasure** -- volatile function-pointer trick in `ct::schnorr_sign` and
+  `ct::ecdsa_sign` (same technique as libsecp256k1). (#v3.16.0)
+- **Hedged ECDSA** -- `ecdsa_sign_hedged()` + `rfc6979_nonce_hedged()` implementing RFC 6979
+  Section 3.6 with 32-byte aux_rand mixed into HMAC-DRBG. (#v3.17.0)
+- **PrivateKey strong type** -- `private_key.hpp`: wraps `fast::Scalar`, no implicit
+  conversion, `secure_erase` in destructor, `[[nodiscard]]` accessors. CT overloads for
+  ECDSA/Schnorr operations. (#v3.17.0)
+- **Formal CT verification** -- Valgrind ctgrind (`SECP256K1_CLASSIFY`/`DECLASSIFY` markers),
+  Fiat-Crypto direct linkage (6085 cross-checks), ct-verif LLVM pass. (#v3.17.0, #v3.16.0)
+- **Schnorr parity fix + branchless scalar_window** -- corrected BIP-340 parity bit,
+  branchless CT implementation on RISC-V, platform-specific path on x86/ARM. (#v3.15.0)
+- **Point on-curve validation** -- audited 18 deserialization paths, fixed 4 CRITICAL +
+  1 HIGH + 3 LOW missing validations. (#v3.17.0)
+
+### 2. Performance
+
+- **L1 I-cache optimization** -- `__attribute__((noinline))` on point add/double functions
+  reduced verify hot path below L1 I-cache threshold. ECDSA verify ratio vs libsecp:
+  0.82x -> 0.92x (+12%). (#v3.19.0)
+- **BIP-352 affine add fast path** -- 1.20x speedup for silent payment scanning. (#95)
+- **FE52 fast path for scalar_mul_with_plan + GLV MSM** -- optimized multi-scalar
+  multiplication with FE52-native operations. (#92)
+- **ECDSA recovery 1.9x speedup** -- replaced 3 separate scalar muls with single
+  `dual_scalar_mul_gen_point(u1, u2, R)` using 4-stream GLV Strauss. Recovery:
+  ~69 us -> ~36 us. (#v3.15.0)
+- **Precompute cache atomic write** -- write-then-rename pattern prevents CTest parallel
+  test flakes. File size validation on load. (#v3.17.1)
+
+### 3. Testing & Audit
+
+- **Google Wycheproof ECDSA** -- 89 test cases, 10 categories. (#v3.17.0)
+- **Google Wycheproof ECDH** -- 36 test cases, 7 categories. (#v3.17.0)
+- **FROST RFC 9591 invariants** -- 7 ciphersuite-independent invariants + exhaustive
+  3-of-5 signing across all C(5,3) = 10 subsets. (#v3.16.0)
+- **MuSig2 BIP-327 vectors** -- 35 reference tests. (#v3.16.0)
+- **FFI round-trip tests** -- 103 boundary tests for Schnorr, ECDSA, pubkey, ECDH,
+  tweaking, and error paths. (#v3.16.0)
+- **Fiat-Crypto cross-checks** -- 752 field arithmetic checks against Coq-extracted
+  reference. (#v3.16.0)
+- **Cross-platform audit campaign** -- 7 configurations (Windows/Linux/CI x86-64,
+  ESP32-S3, RISC-V 64), all AUDIT-READY (40--49 modules each). (#v3.16.1)
+- **Cross-platform benchmark campaign** -- 4 platforms (x86-64, ARM64, RISC-V, ESP32-S3)
+  with identical apple-to-apple suite vs libsecp256k1 v0.7.2. (#v3.16.1)
+- **ASan buffer overread fix** -- `suite_15_ffi_ecdh_edge()` 32-byte buffer corrected
+  to 33-byte for compressed pubkey. (#v3.17.1)
+- **Batch serialization + bench_unified coverage** -- extended benchmark suite. (#94)
+- **Test count**: grew from ~29 to 31 core tests + 49 audit modules.
+
+### 4. CI/CD & Code Quality
+
+- **OpenSSF Scorecard hardening** -- all GitHub Actions pinned to SHA, harden-runner on
+  every job, persist-credentials: false, pip hash pinning, Dependabot. (#v3.15.0, #v3.16.0)
+- **CT verification CI** -- ct-arm64.yml (native Apple Silicon dudect), ct-verif.yml
+  (compile-time LLVM pass), valgrind-ct.yml (taint analysis). (#v3.16.0)
+- **ClusterFuzzLite** -- integrated with UBSan vptr compatibility, LTO disabled in fuzz
+  builds to prevent link failures. (#v3.15.0, #108)
+- **Docker local CI** -- docker-compose.ci.yml, pre-push hook, ~5 min full validation. (#v3.16.0)
+- **Performance regression gate** -- per-commit benchmark with 150% threshold. (#v3.16.0)
+- **SARIF output** -- `unified_audit_runner --sarif` for GitHub Code Scanning. (#v3.16.0)
+- **SonarCloud Quality Gate** -- coverage 61.8% -> 85.8%, duplication below threshold,
+  CPD exclusion for CT variants. (#v3.15.0)
+- **5,150+ code scanning alerts resolved** -- mass clang-tidy, cppcheck, CodeQL
+  remediation across v3.15.0--v3.15.3 + PRs #102, #105, #109, #111.
+- **Code deduplication** -- -817 lines net across 8 files: point.cpp (-765), glv.cpp (-64),
+  benchmark_harness.hpp, ufsecp_impl.cpp, selftest.cpp, field.cpp, scalar.cpp +
+  new shared `detail/arith64.hpp`. (#110)
+- **CI dependency bumps** -- actions/attest-build-provenance v4.1.0, sigstore/cosign-installer
+  v4.0.0, step-security/harden-runner v2.15.0, actions/upload-artifact v7.0.0. (#80--#84)
+- **ClusterFuzzLite + MSan failures** fixed. (#91)
+- **6 CI workflow failures** resolved. (#90)
+
+### 5. Platform Support
+
+- **ESP32-S3** -- bench_hornet benchmark data, 40-module audit. (#107, #v3.16.1)
+- **WASM / Emscripten** -- `SECP256K1_NO_INT128` auto-defined, `FAST_52BIT` disabled,
+  precompute generator bypass, GLV+Shamir fallback. (#v3.15.0)
+- **ARM64 Android** -- bench_hornet port with `clock_gettime`, libsecp_bench.c for
+  cross-compilation. (#v3.16.1)
+- **RISC-V real hardware** -- Milk-V Mars benchmarks, 4/6 ops faster (2.02x--3.08x),
+  value_barrier register-only fix. (#v3.16.1, #v3.19.0)
+- **Preprocessor branch repair** -- fixed broken conditional compilation in point ops. (#104)
+
+### 6. Build & Packaging
+
+- **Benchmark diagnostics** -- Schnorr verify sub-operation diagnostics (SHA256, FE52_inv,
+  parse_strict) added to bench_unified. (#v3.19.0)
+- **Build hardening** -- clean `-Werror -Wall -Wextra -Wpedantic` build, fixed
+  `-Wsign-conversion` in SafeGCD, `-Wstringop-overflow` in base58. (#v3.19.0, #v3.15.1)
+- **MSVC / GCC / Clang compatibility** -- resolved `__int128` pedantic warnings, using
+  declaration restoration, duplicate const qualifiers. (#v3.15.0, #v3.15.1)
+- **Audit UX** -- centralized CHECK macro with ASCII progress bar, Windows stdout fix. (#v3.16.0)
+- **z_one_ member fix** -- removed from constructor initializer lists, restored as member
+  with normalize() methods. (#96, #97)
+- **SonarCloud fixes** -- `FieldElement52::to_bytes_into()` deduplication, null checks,
+  crypto impl exclusion. (#93, #98, #99)
+
+### 7. Documentation
+
+- **BENCHMARKING.md** -- complete guide for all 4 platforms.
+- **AUDIT_GUIDE.md** -- 40/48-module audit how-to.
+- **FROST_COMPLIANCE.md** -- RFC 9591/BIP-FROST checkpoint matrix.
+- **COMPATIBILITY.md** -- BIP-340 strict encoding notes.
+- **BINDINGS_ERROR_MODEL.md** -- strict semantics for binding authors.
+- **ADOPTERS.md** -- production/development/hobby adopter categories.
+- **GitHub Discussion templates** -- Q&A, Show-and-Tell, Ideas, Integration Help.
+
+### Cross-Platform Benchmark Results (vs libsecp256k1 v0.7.2)
+
+#### x86-64 (i5-14400F @ 2.50 GHz, GCC 14.2.0, Ubuntu 24.04)
+
+| Operation | Ultra FAST | Ultra CT | libsecp256k1 | Ratio (fast) | Ratio (CT) |
+|-----------|-----------|----------|-------------|-------------|-----------|
+| ECDSA sign | 7.45 us | 13.48 us | 17.86 us | **2.40x** | **1.33x** |
+| ECDSA verify | 20.39 us | -- | 21.93 us | **1.08x** | -- |
+| Schnorr sign | 5.86 us | 10.85 us | 12.58 us | **2.15x** | **1.16x** |
+| Schnorr verify | 21.49 us | -- | 22.57 us | **1.05x** | -- |
+| k*G | 5.39 us | 9.67 us | 12.78 us | **2.37x** | **1.32x** |
+
+#### x86-64 (i7-11700 @ 2.50 GHz, Clang 21.1.0)
+
+| Operation | Ultra FAST | Ultra CT | libsecp256k1 | Ratio (fast) | Ratio (CT) |
+|-----------|-----------|----------|-------------|-------------|-----------|
+| ECDSA sign | 8.06 us | 15.74 us | 21.67 us | **2.69x** | **1.38x** |
+| ECDSA verify | 29.06 us | -- | 26.62 us | 0.92x | -- |
+| Schnorr sign | 6.42 us | 13.59 us | 17.07 us | **2.66x** | **1.26x** |
+| Schnorr verify | 28.67 us | -- | 27.72 us | 0.97x | -- |
+| k*G | 4.29 us | 11.86 us | 17.59 us | **4.10x** | **1.48x** |
+
+#### ARM64 (Cortex-A55 @ YF_022A, Clang 18.0.1 NDK r27)
+
+| Operation | Ultra FAST | Ultra CT | libsecp256k1 | Ratio (fast) | Ratio (CT) |
+|-----------|-----------|----------|-------------|-------------|-----------|
+| ECDSA sign | 27.98 us | 71.91 us | 76.35 us | **2.73x** | **1.06x** |
+| ECDSA verify | 146.95 us | -- | 148.42 us | **1.01x** | -- |
+| Schnorr sign | 20.11 us | 64.00 us | 64.95 us | **3.23x** | **1.02x** |
+| Schnorr verify | 147.59 us | -- | 149.06 us | **1.01x** | -- |
+| k*G | 17.46 us | -- | 63.20 us | **3.62x** | -- |
+
+#### RISC-V 64 (SiFive U74-MC @ 1.5 GHz, GCC 13.3.0, Milk-V Mars)
+
+| Operation | Ultra FAST | Ultra CT | libsecp256k1 | Ratio (fast) | Ratio (CT) |
+|-----------|-----------|----------|-------------|-------------|-----------|
+| ECDSA sign | 81.25 us | 159.25 us | 164.12 us | **2.02x** | **1.03x** |
+| ECDSA verify | 235.50 us | -- | 221.37 us | 0.94x | -- |
+| Schnorr sign | 56.37 us | 133.45 us | 133.01 us | **2.36x** | 1.00x |
+| Schnorr verify | 239.44 us | -- | 225.07 us | 0.94x | -- |
+| k*G | 40.60 us | -- | 125.05 us | **3.08x** | -- |
+
+#### ESP32-S3 (Xtensa LX7 @ 240 MHz, GCC 14.2.0, ESP-IDF 5.5.1)
+
+| Operation | Ultra FAST | Ultra CT | libsecp256k1 | Ratio (fast) | Ratio (CT) |
+|-----------|-----------|----------|-------------|-------------|-----------|
+| ECDSA sign | 7,600 us | 7,951 us | 9,538 us | **1.25x** | **1.20x** |
+| ECDSA verify | 18,446 us | -- | 29,329 us | **1.59x** | -- |
+| Schnorr sign | 6,640 us | 7,051 us | 9,451 us | **1.42x** | **1.34x** |
+| Schnorr verify | 19,023 us | -- | 27,203 us | **1.43x** | -- |
+| k*G | 6,273 us | -- | 7,214 us | **1.15x** | -- |
+
+#### BIP-352 Silent Payments Pipeline ([bench_bip352](https://github.com/shrec/bench_bip352))
+
+External standalone benchmark isolating the full BIP-352 scanning pipeline:
+k\*P -> serialize -> tagged\_SHA256 -> k\*G -> point\_add -> serialize -> prefix match.
+Equalized compiler flags (`-O3 -march=native`), 10K ops, 11 passes, median.
+
+##### x86-64 (i5-14400F @ 2.50 GHz, GCC 14.2.0, Ubuntu 24.04)
+
+| Operation | libsecp256k1 | UltrafastSecp256k1 | Ratio |
+|---|---:|---:|---:|
+| k\*P (scalar mul) | 21,083 ns | 16,689 ns | **1.26x** |
+| k\*G (generator mul) | 11,082 ns | 5,149 ns | **2.15x** |
+| k\*G (precomputed tables) | -- | 4,396 ns | **2.52x** |
+| Point addition | 1,794 ns | 1,336 ns | **1.34x** |
+| Tagged SHA-256 | 457 ns | 43 ns | **10.6x** |
+| Serialize compressed | 22 ns | 9 ns | **2.4x** |
+| **Full pipeline** | **33,642 ns** | **25,079 ns** | **1.34x** |
+
+##### ARM64 (Cortex-A55 @ YF_022A, Clang 18.0.3 NDK r27)
+
+| Operation | libsecp256k1 | UltrafastSecp256k1 | Ratio |
+|---|---:|---:|---:|
+| k\*P (scalar mul) | 131,694 ns | 130,596 ns | **1.01x** |
+| k\*G (generator mul) | 59,199 ns | 16,056 ns | **3.69x** |
+| k\*G (precomputed tables) | -- | 12,626 ns | **4.69x** |
+| Point addition | 8,161 ns | 3,232 ns | **2.52x** |
+| Tagged SHA-256 | 971 ns | 431 ns | **2.25x** |
+| Serialize compressed | 44 ns | 12 ns | **3.7x** |
+| **Full pipeline** | **200,289 ns** | **153,385 ns** | **1.31x** |
+
+##### RISC-V 64 (SiFive U74-MC @ 1.5 GHz, GCC 13.3.0, Milk-V Mars)
+
+| Operation | libsecp256k1 | UltrafastSecp256k1 | Ratio |
+|---|---:|---:|---:|
+| k\*P (scalar mul) | 196,364 ns | 201,162 ns | 0.98x |
+| k\*G (generator mul) | 133,519 ns | 45,016 ns | **2.97x** |
+| k\*G (precomputed tables) | -- | 38,995 ns | **3.42x** |
+| Point addition | 14,699 ns | 5,449 ns | **2.70x** |
+| Tagged SHA-256 | 5,227 ns | 1,688 ns | **3.10x** |
+| Serialize compressed | 274 ns | 131 ns | **2.1x** |
+| **Full pipeline** | **354,234 ns** | **257,996 ns** | **1.37x** |
+
+Validation prefix: `0xb63b4601066a6971` (all platforms, both libraries match).
+
+---
+
+*Detailed per-version changelogs follow below for historical reference.*
+
+---
+
 ## [3.19.0] - 2026-03-04
 
 > No breaking changes -- drop-in upgrade from v3.18.x | ABI compatible

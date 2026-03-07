@@ -1104,8 +1104,9 @@ static Point scalar_mul_glv52(const Point& base, const Scalar& scalar) {
             FieldElement52 zs = zr[glv_table_size - 1];
 
             for (int idx = glv_table_size - 2; idx >= 0; --idx) {
-                if (idx != glv_table_size - 2)
+                if (idx != glv_table_size - 2) {
                     zs.mul_assign(zr[static_cast<std::size_t>(idx) + 1]);
+                }
                 FieldElement52 const zs2 = zs.square();
                 FieldElement52 const zs3 = zs2 * zs;
                 tbl_P[static_cast<std::size_t>(idx)].x.mul_assign(zs2);
@@ -1182,8 +1183,9 @@ static Point scalar_mul_glv52(const Point& base, const Scalar& scalar) {
     // -- Final Z correction: all table entries had implied Z = globalz.
     // The Shamir loop treated them as affine (Z=1), so the accumulated
     // result's Z is off by a factor of globalz.  One multiplication fixes it.
-    if (!result52.infinity)
+    if (!result52.infinity) {
         result52.z.mul_assign(globalz);
+    }
 
     return from_jac52(result52);
 }
@@ -2722,8 +2724,9 @@ static Point scalar_mul_with_plan_glv52(const Point& base, const KPlan& plan) {
             FieldElement52 zs = zr[static_cast<std::size_t>(glv_table_size - 1)];
 
             for (int idx = glv_table_size - 2; idx >= 0; --idx) {
-                if (idx != glv_table_size - 2)
+                if (idx != glv_table_size - 2) {
                     zs.mul_assign(zr[static_cast<std::size_t>(idx) + 1]);
+                }
                 FieldElement52 const zs2 = zs.square();
                 FieldElement52 const zs3 = zs2 * zs;
                 tbl_P[static_cast<std::size_t>(idx)].x.mul_assign(zs2);
@@ -2797,8 +2800,9 @@ static Point scalar_mul_with_plan_glv52(const Point& base, const KPlan& plan) {
     // Final Z correction: all table entries had implied Z = globalz.
     // The Shamir loop treated them as affine (Z=1), so the accumulated
     // result's Z is off by a factor of globalz.
-    if (!result52.infinity)
+    if (!result52.infinity) {
         result52.z.mul_assign(globalz);
+    }
 
     return from_jac52(result52);
 }
@@ -3070,7 +3074,7 @@ void Point::batch_normalize(const Point* points, size_t n,
     if (n <= STACK_LIMIT) {
         partials = stack_partials;
     } else {
-        std::ptrdiff_t const signed_n = static_cast<std::ptrdiff_t>(n);
+        auto const signed_n = static_cast<std::ptrdiff_t>(n);
         heap_partials = std::make_unique<FieldElement[]>(static_cast<size_t>(signed_n));
         partials = heap_partials.get();
     }
@@ -3102,9 +3106,9 @@ void Point::batch_normalize(const Point* points, size_t n,
             continue;
         }
 #if defined(SECP256K1_FAST_52BIT)
-        FieldElement z_fe = points[i].z_.to_fe();
+        const FieldElement z_fe = points[i].z_.to_fe();
 #else
-        FieldElement z_fe = points[i].z_;
+        const FieldElement z_fe = points[i].z_;
 #endif
         // z_inv_i = partials[i] * inv  (partials[i] = product of Z[0..i-1])
         FieldElement const z_inv_i = partials[i] * inv;
@@ -3140,7 +3144,7 @@ void Point::batch_to_compressed(const Point* points, size_t n,
     if (n <= STACK_LIMIT) {
         aff_x = stack_x; aff_y = stack_y;
     } else {
-        std::ptrdiff_t const signed_n = static_cast<std::ptrdiff_t>(n);
+        auto const signed_n = static_cast<std::ptrdiff_t>(n);
         heap_x = std::make_unique<FieldElement[]>(static_cast<size_t>(signed_n));
         heap_y = std::make_unique<FieldElement[]>(static_cast<size_t>(signed_n));
         aff_x = heap_x.get(); aff_y = heap_y.get();
@@ -3176,7 +3180,7 @@ void Point::batch_x_only_bytes(const Point* points, size_t n,
     if (n <= STACK_LIMIT) {
         partials = stack_partials;
     } else {
-        std::ptrdiff_t const signed_n = static_cast<std::ptrdiff_t>(n);
+        auto const signed_n = static_cast<std::ptrdiff_t>(n);
         heap_partials = std::make_unique<FieldElement[]>(static_cast<size_t>(signed_n));
         partials = heap_partials.get();
     }
@@ -3187,9 +3191,9 @@ void Point::batch_x_only_bytes(const Point* points, size_t n,
             partials[i] = running;
         } else {
 #if defined(SECP256K1_FAST_52BIT)
-            FieldElement z_fe = points[i].z_.to_fe();
+            const FieldElement z_fe = points[i].z_.to_fe();
 #else
-            FieldElement z_fe = points[i].z_;
+            const FieldElement z_fe = points[i].z_;
 #endif
             partials[i] = running;
             running *= z_fe;
@@ -3204,9 +3208,9 @@ void Point::batch_x_only_bytes(const Point* points, size_t n,
             continue;
         }
 #if defined(SECP256K1_FAST_52BIT)
-        FieldElement z_fe = points[i].z_.to_fe();
+        const FieldElement z_fe = points[i].z_.to_fe();
 #else
-        FieldElement z_fe = points[i].z_;
+        const FieldElement z_fe = points[i].z_;
 #endif
         FieldElement const z_inv_i = partials[i] * inv;
         inv *= z_fe;

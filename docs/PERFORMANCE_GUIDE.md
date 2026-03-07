@@ -210,6 +210,45 @@ The library's hot path is **zero-allocation**:
 - **GLV decomposition**: Splits 256-bit scalar mul into two 128-bit muls, reducing
   table lookups by ~40%
 
+### GLV Window Width Tuning
+
+The GLV window width (`w`) controls the tradeoff between precomputation table size
+and the number of point additions during scalar multiplication (k*P):
+
+| Window | Table Entries | Adds per 128-bit half | Total Adds (approx) | Best For |
+|--------|--------------|----------------------|---------------------|----------|
+| w=4 | 4 | ~33 | ~66 | ESP32, WASM (tiny cache) |
+| w=5 | 8 | ~26 | ~52 | x86-64, ARM64, RISC-V (default) |
+| w=6 | 16 | ~21 | ~42 | Large L1 cache, diminishing returns |
+| w=7 | 32 | ~18 | ~36 | Rarely beneficial (table pressure) |
+
+**Platform defaults** (set in `cpu/include/secp256k1/point.hpp`):
+
+| Platform | Default | Rationale |
+|----------|---------|-----------|
+| x86-64 | w=5 | Large L1, fast mul -- balanced |
+| ARM64 | w=5 | Good cache, benefits from fewer adds |
+| RISC-V | w=5 | Closes gap with libsecp256k1 (w=4 was 0.98x, w=5 is 1.00x) |
+| ESP32 / WASM | w=4 | Small cache, table pressure outweighs add savings |
+
+**Override at build time** (CMake):
+```bash
+cmake -S . -B build -DSECP256K1_GLV_WINDOW_WIDTH=6
+```
+
+**Override at runtime** (per-call):
+```cpp
+auto plan = KPlan::from_scalar(k, 6);  // use w=6 for this call
+```
+
+**Measured k*P impact (w=4 vs w=5)**:
+
+| Platform | w=4 | w=5 | Change |
+|----------|-----|-----|--------|
+| RISC-V (SiFive U74) | 201.2 us | 197.7 us | -1.7% |
+| ARM64 (Cortex-A55) | 130.6 us | 129.5 us | -0.9% |
+| x86-64 (i5-14400F) | 16.7 us | 16.8 us | +0.9% |
+
 ### Stack Usage
 
 | Operation | Stack (approx) |
@@ -261,10 +300,9 @@ Disable unused protocol modules to save flash.
 ### WASM (Emscripten)
 
 ```bash
-emcmake cmake -S . -B build-wasm \
-  -DCMAKE_BUILD_TYPE=Release \
-  -DSECP256K1_BUILD_WASM=ON
-emmake cmake --build build-wasm
+emcmake cmake -S wasm -B build-wasm \
+  -DCMAKE_BUILD_TYPE=Release
+cmake --build build-wasm
 ```
 
 WASM performance is typically 3-5x slower than native due to 64-bit integer
@@ -293,18 +331,18 @@ or any secret-dependent data. The FAST path is only safe for public inputs.
 ### Quick Benchmark
 
 ```bash
-cmake --build build --target bench_comprehensive
-./build/cpu/bench_comprehensive
+cmake --build build --target bench_unified
+./build/cpu/bench/bench_unified
 ```
 
 ### Targeted Profiling (Linux)
 
 ```bash
 # perf stat for operation counts
-perf stat -e cycles,instructions,cache-misses ./build/cpu/bench_comprehensive
+perf stat -e cycles,instructions,cache-misses ./build/cpu/bench/bench_unified
 
 # perf record for flame graph
-perf record -g ./build/cpu/bench_comprehensive
+perf record -g ./build/cpu/bench/bench_unified
 perf script | stackcollapse-perf.pl | flamegraph.pl > flame.svg
 ```
 

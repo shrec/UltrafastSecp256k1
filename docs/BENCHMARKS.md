@@ -461,17 +461,11 @@ All targets registered in CMake. Build with `cmake --build build -j` then run fr
 
 | Target | What It Measures |
 |--------|-----------------|
-| `bench_comprehensive` | Full field/point/batch/5x52/10x26 suite -- primary benchmark |
-| `bench_scalar_mul` | kxG and kxP with wNAF overhead analysis |
+| `bench_unified` | THE standard: full apple-to-apple vs libsecp256k1 + OpenSSL |
 | `bench_ct` | Fast (`fast::`) vs Constant-Time (`ct::`) layer comparison |
-| `bench_atomic_operations` | Individual ECC building block latencies (point add/dbl, field mul/sqr/inv) |
-| `bench_field_52` | 4x64 vs 5x52 field representation: single ops + add chains + ECC simulation |
-| `bench_field_26` | 4x64 vs 10x26 field representation comparison |
-| `bench_field_mul_kernels` | BMI2 `mulx` kernel micro-benchmark |
-| `bench_ecdsa_multiscalar` | k_1xG + k_2xQ: Shamir interleaved vs separate vs variable-base |
-| `bench_jsf_vs_shamir` | JSF (Joint Sparse Form) vs Windowed Shamir multi-scalar |
-| `bench_adaptive_glv` | GLV window size sweep (w=8 to w=20) |
-| `bench_glv_decomp_profile` | GLV decomposition profiling |
+| `bench_field_52` | 5x52 field arithmetic micro-benchmarks |
+| `bench_field_26` | 10x26 field arithmetic micro-benchmarks |
+| `bench_kP` | Scalar multiplication (k*P) benchmarks |
 
 
 ---
@@ -496,7 +490,7 @@ All targets registered in CMake. Build with `cmake --build build -j` then run fr
 
 ```bash
 # Run CPU benchmark
-./build/cpu/bench_comprehensive
+./build/cpu/bench/bench_unified
 
 # Run CUDA benchmark
 ./build/cuda/secp256k1_cuda_bench
