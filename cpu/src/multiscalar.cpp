@@ -110,10 +110,12 @@ Point multi_scalar_mul(const Scalar* scalars,
                           wnaf_bufs[n + i].data(), 260, wnaf_lens[n + i]);
 
         // Trim trailing zeros -- half-scalars are ~128 bits
-        while (wnaf_lens[i] > 0 && wnaf_bufs[i][wnaf_lens[i] - 1] == 0)
+        while (wnaf_lens[i] > 0 && wnaf_bufs[i][wnaf_lens[i] - 1] == 0) {
             --wnaf_lens[i];
-        while (wnaf_lens[n + i] > 0 && wnaf_bufs[n + i][wnaf_lens[n + i] - 1] == 0)
+        }
+        while (wnaf_lens[n + i] > 0 && wnaf_bufs[n + i][wnaf_lens[n + i] - 1] == 0) {
             --wnaf_lens[n + i];
+        }
 
         max_len = std::max(max_len,
                            std::max(wnaf_lens[i], wnaf_lens[n + i]));
@@ -219,8 +221,8 @@ Point multi_scalar_mul(const Scalar* scalars,
                     std::size_t const idx = static_cast<std::size_t>(
                         (digit > 0 ? digit - 1 : -digit - 1) / 2
                     );
-                    FE52 lx = tbl_P_x[base + idx];
-                    FE52 ly = tbl_P_y[base + idx];
+                    auto const lx = tbl_P_x[base + idx];
+                    auto ly = tbl_P_y[base + idx];
                     if (digit < 0) {
                         ly.negate_assign(1);
                     }
@@ -235,8 +237,8 @@ Point multi_scalar_mul(const Scalar* scalars,
                     std::size_t const idx = static_cast<std::size_t>(
                         (digit > 0 ? digit - 1 : -digit - 1) / 2
                     );
-                    FE52 lx = tbl_phiP_x[base + idx];
-                    FE52 ly = tbl_phiP_y[base + idx];
+                    auto const lx = tbl_phiP_x[base + idx];
+                    auto ly = tbl_phiP_y[base + idx];
                     if (digit < 0) {
                         ly.negate_assign(1);
                     }

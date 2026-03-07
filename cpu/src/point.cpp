@@ -16,6 +16,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <limits>
 #include <memory>
 
 namespace secp256k1::fast {
@@ -1630,8 +1631,9 @@ static Point scalar_mul_glv_4x64(const Point& base, const Scalar& scalar) {
     const std::size_t max_len = (wnaf1_len > wnaf2_len) ? wnaf1_len : wnaf2_len;
 
     for (int i = static_cast<int>(max_len) - 1; i >= 0; --i) {
-        if (!R_inf)
+        if (!R_inf) {
             jac_double_4x64_inplace(Rx, Ry, Rz);
+        }
 
         // k1 contribution
         {
@@ -1666,8 +1668,9 @@ static Point scalar_mul_glv_4x64(const Point& base, const Scalar& scalar) {
     // All table entries had implied Z = globalz on secp256k1.
     // The Shamir loop treated them as affine (Z=1), so the accumulated
     // result's Z is off by a factor of globalz.
-    if (!R_inf)
+    if (!R_inf) {
         mul(Rz, Rz, globalz);
+    }
 
     // -- Convert 4x64 result back to Point via FE52 -----------------------
     FieldElement52 const rx52 = FieldElement52::from_4x64_limbs(Rx);
@@ -3058,7 +3061,7 @@ Point Point::scalar_mul_predecomposed(const Scalar& k1, const Scalar& k2,
 #if !defined(SECP256K1_PLATFORM_ESP32) && !defined(ESP_PLATFORM) && !defined(SECP256K1_PLATFORM_STM32)
     // If both signs are positive, use fast Shamir's trick
     // Otherwise, fall back to separate computation (sign handling is complex)
-    if (!(neg1 || neg2)) {
+    if (!neg1 && !neg2) {
         // Fast path: K = k1 + k2*lambda (both positive)
         constexpr unsigned window_width = 4;
         auto wnaf1 = compute_wnaf(k1, window_width);
@@ -3105,11 +3108,15 @@ Point Point::scalar_mul_precomputed_wnaf(const std::vector<int32_t>& wnaf1,
     int max_digit = 0;
     for (auto d : wnaf1) {
         int const abs_d = (d < 0) ? -d : d;
-        if (abs_d > max_digit) max_digit = abs_d;
+        if (abs_d > max_digit) {
+            max_digit = abs_d;
+        }
     }
     for (auto d : wnaf2) {
         int const abs_d = (d < 0) ? -d : d;
-        if (abs_d > max_digit) max_digit = abs_d;
+        if (abs_d > max_digit) {
+            max_digit = abs_d;
+        }
     }
     
     // Table size needed to handle max_digit
@@ -3156,13 +3163,17 @@ Point Point::scalar_mul_precomputed_wnaf(const std::vector<int32_t>& wnaf1,
     }
 
     // If global sign flags are set, swap positive/negative tables
-    if (neg1) { std::swap(table_Q_jac, neg_table_Q_jac); }
-    if (neg2) { std::swap(table_phi_Q_jac, neg_table_phi_Q_jac); }
+    if (neg1) {
+        std::swap(table_Q_jac, neg_table_Q_jac);
+    }
+    if (neg2) {
+        std::swap(table_phi_Q_jac, neg_table_phi_Q_jac);
+    }
 
     // Shamir's trick: process both wNAF streams simultaneously (inplace ops)
     JacobianPoint result = {FieldElement::zero(), FieldElement::one(), FieldElement::zero(), true};
     
-    size_t const max_len = std::max(wnaf1.size(), wnaf2.size());
+    std::size_t const max_len = std::max(wnaf1.size(), wnaf2.size());
     
     for (int i = static_cast<int>(max_len) - 1; i >= 0; --i) {
         jacobian_double_inplace(result);
@@ -3619,6 +3630,9 @@ std::array<uint8_t, 32> Point::x_only_bytes() const {
 void Point::batch_normalize(const Point* points, size_t n,
                             FieldElement* out_x, FieldElement* out_y) {
     if (n == 0) return;
+    constexpr size_t kMaxAllocElems =
+        static_cast<size_t>(std::numeric_limits<std::ptrdiff_t>::max()) / sizeof(FieldElement);
+    if (SECP256K1_UNLIKELY(n > kMaxAllocElems)) return;
 
     // Accumulate products of Z values (Montgomery's trick)
     // partials[i] = Z[0] * Z[1] * ... * Z[i]
@@ -3630,7 +3644,8 @@ void Point::batch_normalize(const Point* points, size_t n,
     if (n <= STACK_LIMIT) {
         partials = stack_partials;
     } else {
-        heap_partials = std::make_unique<FieldElement[]>(n);
+        std::ptrdiff_t const signed_n = static_cast<std::ptrdiff_t>(n);
+        heap_partials = std::make_unique<FieldElement[]>(static_cast<size_t>(signed_n));
         partials = heap_partials.get();
     }
 
@@ -3687,6 +3702,9 @@ void Point::batch_normalize(const Point* points, size_t n,
 void Point::batch_to_compressed(const Point* points, size_t n,
                                 std::array<uint8_t, 33>* out) {
     if (n == 0) return;
+    constexpr size_t kMaxAllocElems =
+        static_cast<size_t>(std::numeric_limits<std::ptrdiff_t>::max()) / sizeof(FieldElement);
+    if (SECP256K1_UNLIKELY(n > kMaxAllocElems)) return;
 
     constexpr size_t STACK_LIMIT = 256;
     FieldElement stack_x[STACK_LIMIT], stack_y[STACK_LIMIT];
@@ -3696,8 +3714,9 @@ void Point::batch_to_compressed(const Point* points, size_t n,
     if (n <= STACK_LIMIT) {
         aff_x = stack_x; aff_y = stack_y;
     } else {
-        heap_x = std::make_unique<FieldElement[]>(n);
-        heap_y = std::make_unique<FieldElement[]>(n);
+        std::ptrdiff_t const signed_n = static_cast<std::ptrdiff_t>(n);
+        heap_x = std::make_unique<FieldElement[]>(static_cast<size_t>(signed_n));
+        heap_y = std::make_unique<FieldElement[]>(static_cast<size_t>(signed_n));
         aff_x = heap_x.get(); aff_y = heap_y.get();
     }
 
@@ -3719,6 +3738,9 @@ void Point::batch_to_compressed(const Point* points, size_t n,
 void Point::batch_x_only_bytes(const Point* points, size_t n,
                                std::array<uint8_t, 32>* out) {
     if (n == 0) return;
+    constexpr size_t kMaxAllocElems =
+        static_cast<size_t>(std::numeric_limits<std::ptrdiff_t>::max()) / sizeof(FieldElement);
+    if (SECP256K1_UNLIKELY(n > kMaxAllocElems)) return;
 
     // Montgomery batch inversion (same trick, but only need x = X*Z^(-2))
     constexpr size_t STACK_LIMIT = 256;
@@ -3728,7 +3750,8 @@ void Point::batch_x_only_bytes(const Point* points, size_t n,
     if (n <= STACK_LIMIT) {
         partials = stack_partials;
     } else {
-        heap_partials = std::make_unique<FieldElement[]>(n);
+        std::ptrdiff_t const signed_n = static_cast<std::ptrdiff_t>(n);
+        heap_partials = std::make_unique<FieldElement[]>(static_cast<size_t>(signed_n));
         partials = heap_partials.get();
     }
 

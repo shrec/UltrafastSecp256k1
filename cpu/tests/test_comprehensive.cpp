@@ -216,8 +216,8 @@ static void test_field_conversions() {
     }
     
     // 2.2: from_bytes <-> to_bytes roundtrip
-    FE val = FE::from_hex("09AF57F4F5C1D64C6BEA6D4193C5D9130421F4F078868E5EC00A56E68001136C");
-    auto bytes = val.to_bytes();
+    FE const val = FE::from_hex("09AF57F4F5C1D64C6BEA6D4193C5D9130421F4F078868E5EC00A56E68001136C");
+    auto const bytes = val.to_bytes();
     FE const recovered = FE::from_bytes(bytes);
     CHECK(val == recovered, "bytes roundtrip");
     
@@ -227,7 +227,7 @@ static void test_field_conversions() {
     CHECK(buf == bytes, "to_bytes_into matches to_bytes");
     
     // 2.4: from_limbs roundtrip
-    auto limbs = val.limbs();
+    auto const limbs = val.limbs();
     FE const from_l = FE::from_limbs(limbs);
     CHECK(val == from_l, "limbs roundtrip");
     
@@ -258,9 +258,9 @@ static void test_field_conversions() {
     CHECK(val == from_d, "data() roundtrip");
     
     // 2.9: MidFieldElement memcpy-based conversion roundtrip
-    FE fe4 = FE::from_uint64(0x12345678);
-    auto mid = secp256k1::fast::toMid(fe4);
-    FE back_fe = mid.ToFieldElement();
+    FE const fe4 = FE::from_uint64(0x12345678);
+    auto const mid = secp256k1::fast::toMid(fe4);
+    FE const back_fe = mid.ToFieldElement();
     CHECK(back_fe == fe4, "MidFieldElement conversion roundtrip");
     
     // 2.10: Large hex value
@@ -773,13 +773,13 @@ static void test_scalar_conversions() {
     }
     
     // 9.2: from_bytes <-> to_bytes
-    SC val = SC::from_hex("DEADBEEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF01234567");
-    auto bytes = val.to_bytes();
+    SC const val = SC::from_hex("DEADBEEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF01234567");
+    auto const bytes = val.to_bytes();
     SC const recovered = SC::from_bytes(bytes);
     CHECK(val == recovered, "s: bytes roundtrip");
     
     // 9.3: from_limbs roundtrip
-    auto limbs = val.limbs();
+    auto const limbs = val.limbs();
     SC const from_l = SC::from_limbs(limbs);
     CHECK(val == from_l, "s: limbs roundtrip");
     

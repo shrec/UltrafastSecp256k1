@@ -32,19 +32,31 @@ static int tests_passed = 0;
 
 // Check that all 33 bytes are zero (infinity encoding)
 static bool is_zero_33(const std::array<uint8_t, 33>& a) {
-    for (auto b : a) if (b != 0) return false;
+    for (auto b : a) {
+        if (b != 0) {
+            return false;
+        }
+    }
     return true;
 }
 
 // Check that all 65 bytes are zero (infinity encoding)
 static bool is_zero_65(const std::array<uint8_t, 65>& a) {
-    for (auto b : a) if (b != 0) return false;
+    for (auto b : a) {
+        if (b != 0) {
+            return false;
+        }
+    }
     return true;
 }
 
 // All 32 bytes zero
 static bool is_zero_32(const std::array<uint8_t, 32>& a) {
-    for (auto b : a) if (b != 0) return false;
+    for (auto b : a) {
+        if (b != 0) {
+            return false;
+        }
+    }
     return true;
 }
 
@@ -229,6 +241,7 @@ static void test_x_only_bytes() {
     // x_only_bytes should match x_bytes_and_parity x component
     auto xonly = G.x_only_bytes();
     auto [xbp, parity] = G.x_bytes_and_parity();
+    (void)parity;
     CHECK(xonly == xbp, "G x_only_bytes matches x_bytes_and_parity");
 
     // x_only_bytes should match to_compressed bytes 1..32
@@ -258,8 +271,9 @@ static void test_batch_serialization() {
     constexpr int N = 8;
     Point points[N];
     points[0] = G;
-    for (int i = 1; i < N; ++i)
+    for (int i = 1; i < N; ++i) {
         points[i] = points[i-1].add(G);
+    }
 
     // batch_to_compressed: should match individual to_compressed
     std::array<uint8_t, 33> batch_comp[N];
