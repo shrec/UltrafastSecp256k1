@@ -118,19 +118,18 @@ inline std::uint64_t sub64(std::uint64_t a, std::uint64_t b, unsigned char& borr
         sum[i] = add64(a[i], b[i], carry);
     }
 
-    // Compute sum - ORDER without modular wrap to decide reduction
-    limbs4 sum_minus_order{};
-    unsigned char borrow = 0;
-    for (std::size_t i = 0; i < 4; ++i) {
-        sum_minus_order[i] = sub64(sum[i], ORDER[i], borrow);
+    // Fast path: if no wrap and sum < ORDER, no reduction needed.
+    // This avoids an unconditional 256-bit subtraction in the common case.
+    if (!carry && !ge(sum, ORDER)) {
+        return sum;
     }
 
-    // If carry from addition (sum >= 2^256) OR no borrow in subtraction (sum >= ORDER),
-    // then result = sum - ORDER; otherwise result = sum.
-    if (carry || (borrow == 0)) {
-        return sum_minus_order;
+    limbs4 reduced{};
+    unsigned char borrow = 0;
+    for (std::size_t i = 0; i < 4; ++i) {
+        reduced[i] = sub64(sum[i], ORDER[i], borrow);
     }
-    return sum;
+    return reduced;
 }
 
 [[nodiscard]] limbs4 sub_impl(const limbs4& a, const limbs4& b) {
@@ -183,7 +182,7 @@ Scalar Scalar::from_limbs(const limbs_type& limbs) {
 
 namespace {
 inline std::uint64_t load_be64(const std::uint8_t* p) noexcept {
-    std::uint64_t v;
+    std::uint64_t v = 0;
     std::memcpy(&v, p, 8);
 #if defined(__GNUC__) || defined(__clang__)
     return __builtin_bswap64(v);
@@ -340,7 +339,7 @@ Scalar Scalar::operator*(const Scalar& rhs) const {
     // {c0,c1,c2} += x * y
     auto muladd = [&](std::uint64_t x, std::uint64_t y) {
         unsigned __int128 p = static_cast<unsigned __int128>(x) * y;
-        std::uint64_t tl = static_cast<std::uint64_t>(p);
+        const std::uint64_t tl = static_cast<std::uint64_t>(p);
         std::uint64_t th = static_cast<std::uint64_t>(p >> 64);
         c0 += tl;
         th += (c0 < tl);
@@ -350,7 +349,7 @@ Scalar Scalar::operator*(const Scalar& rhs) const {
     // {c0,c1,c2} += x
     auto sumadd = [&](std::uint64_t x) {
         c0 += x;
-        std::uint64_t o = (c0 < x);
+        const std::uint64_t o = (c0 < x);
         c1 += o;
         c2 += (c1 < o);
     };
@@ -361,7 +360,7 @@ Scalar Scalar::operator*(const Scalar& rhs) const {
     };
 
     // --- 4x4 schoolbook multiply (column-by-column) ---
-    std::uint64_t l0, l1, l2, l3, l4, l5, l6, l7;
+    std::uint64_t l0 = 0, l1 = 0, l2 = 0, l3 = 0, l4 = 0, l5 = 0, l6 = 0, l7 = 0;
 
     muladd(a[0], b[0]);
     extract_to(l0);
@@ -381,7 +380,7 @@ Scalar Scalar::operator*(const Scalar& rhs) const {
 
     // --- Reduce 512 -> 385 bits ---
     // m[0..6] = l[0..3] + l[4..7] * {NC0, NC1, 1, 0}
-    std::uint64_t m0, m1, m2, m3, m4, m5, m6;
+    std::uint64_t m0 = 0, m1 = 0, m2 = 0, m3 = 0, m4 = 0, m5 = 0, m6 = 0;
 
     c0 = l0; c1 = 0; c2 = 0;
     muladd(l4, NC0);
@@ -400,8 +399,8 @@ Scalar Scalar::operator*(const Scalar& rhs) const {
 
     // --- Reduce 385 -> 258 bits ---
     // p[0..4] = m[0..3] + m[4..6] * {NC0, NC1, 1, 0}
-    std::uint64_t p0, p1, p2, p3;
-    std::uint32_t p4;
+    std::uint64_t p0 = 0, p1 = 0, p2 = 0, p3 = 0;
+    std::uint32_t p4 = 0;
 
     c0 = m0; c1 = 0; c2 = 0;
     muladd(m4, NC0);
@@ -415,8 +414,8 @@ Scalar Scalar::operator*(const Scalar& rhs) const {
     p4 = static_cast<std::uint32_t>(c0 + m6);
 
     // --- Reduce 258 -> 256 bits ---
-    unsigned __int128 acc;
-    limbs4 r;
+    unsigned __int128 acc = 0;
+    limbs4 r{};
     acc = static_cast<unsigned __int128>(p0) + static_cast<unsigned __int128>(NC0) * p4;
     r[0] = static_cast<std::uint64_t>(acc); acc >>= 64;
     acc += static_cast<unsigned __int128>(p1) + static_cast<unsigned __int128>(NC1) * p4;
@@ -425,10 +424,10 @@ Scalar Scalar::operator*(const Scalar& rhs) const {
     r[2] = static_cast<std::uint64_t>(acc); acc >>= 64;
     acc += p3;
     r[3] = static_cast<std::uint64_t>(acc);
-    auto carry = static_cast<unsigned int>(acc >> 64);
+    const auto carry = static_cast<unsigned int>(acc >> 64);
 
     // Final reduction: if r >= ORDER, subtract ORDER via adding N_C
-    unsigned int reduce_count = carry + (ge(r, ORDER) ? 1u : 0u);
+    const unsigned int reduce_count = carry + (ge(r, ORDER) ? 1u : 0u);
     if (reduce_count) {
         acc = static_cast<unsigned __int128>(r[0]) + static_cast<unsigned __int128>(NC0) * reduce_count;
         r[0] = static_cast<std::uint64_t>(acc); acc >>= 64;
