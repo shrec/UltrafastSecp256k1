@@ -1523,7 +1523,7 @@ $(document).ready(function(){initNavTree('field__52__impl_8hpp_source.html','');
 <div class="line"><a id="l01423" name="l01423"></a><span class="lineno"> 1423</span> </div>
 <div class="line"><a id="l01424" name="l01424"></a><span class="lineno"> 1424</span>    <span class="comment">// Reduce t4 overflow first (before carry propagation).</span></div>
 <div class="line"><a id="l01425" name="l01425"></a><span class="lineno"> 1425</span>    <span class="comment">// This ensures at most a single carry from the first pass.</span></div>
-<div class="line"><a id="l01426" name="l01426"></a><span class="lineno"> 1426</span>    std::uint64_t m;</div>
+<div class="line"><a id="l01426" name="l01426"></a><span class="lineno"> 1426</span>    std::uint64_t m = 0;</div>
 <div class="line"><a id="l01427" name="l01427"></a><span class="lineno"> 1427</span>    std::uint64_t x = t4 &gt;&gt; 48; t4 &amp;= <a class="code hl_variable" href="namespacesecp256k1_1_1fast_1_1fe52__constants.html#a87b119bba7d2e01e7a6cb2361d523c62">M48</a>;</div>
 <div class="line"><a id="l01428" name="l01428"></a><span class="lineno"> 1428</span> </div>
 <div class="line"><a id="l01429" name="l01429"></a><span class="lineno"> 1429</span>    <span class="comment">// Single carry propagation pass with m accumulation for &gt;= p check</span></div>
@@ -1596,7 +1596,7 @@ $(document).ready(function(){initNavTree('field__52__impl_8hpp_source.html','');
 <div class="line"><a id="l01496" name="l01496"></a><span class="lineno"> 1496</span>    <span class="comment">// Reduce t4 overflow into t0 first (at most one carry fold).</span></div>
 <div class="line"><a id="l01497" name="l01497"></a><span class="lineno"> 1497</span>    <span class="comment">// This ensures the first full carry pass has at most one carry</span></div>
 <div class="line"><a id="l01498" name="l01498"></a><span class="lineno"> 1498</span>    <span class="comment">// propagation step from the injected overflow.</span></div>
-<div class="line"><a id="l01499" name="l01499"></a><span class="lineno"> 1499</span>    std::uint64_t x = t4 &gt;&gt; 48;</div>
+<div class="line"><a id="l01499" name="l01499"></a><span class="lineno"> 1499</span>    <span class="keyword">const</span> std::uint64_t x = t4 &gt;&gt; 48;</div>
 <div class="line"><a id="l01500" name="l01500"></a><span class="lineno"> 1500</span>    t0 += x * 0x1000003D1ULL;</div>
 <div class="line"><a id="l01501" name="l01501"></a><span class="lineno"> 1501</span> </div>
 <div class="line"><a id="l01502" name="l01502"></a><span class="lineno"> 1502</span>    <span class="comment">// z0 tracks &quot;could be raw zero&quot;, z1 tracks &quot;could be p&quot;.</span></div>
