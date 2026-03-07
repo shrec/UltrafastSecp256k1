@@ -1,4 +1,5 @@
 #include "secp256k1/scalar.hpp"
+#include "secp256k1/detail/arith64.hpp"
 
 #include <array>
 #include <cstddef>
@@ -10,6 +11,9 @@
 
 namespace secp256k1::fast {
 namespace {
+
+using secp256k1::detail::add64;
+using secp256k1::detail::sub64;
 
 using limbs4 = std::array<std::uint64_t, 4>;
 
@@ -34,65 +38,6 @@ constexpr std::array<std::uint64_t, 5> BARRETT_MU{
 
 // 8-limb wide integer
 using wide8 = std::array<std::uint64_t, 8>;
-
-#if defined(_MSC_VER) && !defined(__clang__)
-
-inline std::uint64_t add64(std::uint64_t a, std::uint64_t b, unsigned char& carry) {
-    unsigned __int64 out;
-    carry = _addcarry_u64(carry, a, b, &out);
-    return out;
-}
-
-inline std::uint64_t sub64(std::uint64_t a, std::uint64_t b, unsigned char& borrow) {
-    unsigned __int64 out;
-    borrow = _subborrow_u64(borrow, a, b, &out);
-    return out;
-}
-
-#else
-
-// 32-bit safe implementation (no __int128)
-#ifdef SECP256K1_NO_INT128
-
-inline std::uint64_t add64(std::uint64_t a, std::uint64_t b, unsigned char& carry) {
-    std::uint64_t result = a + b;
-    unsigned char new_carry = (result < a) ? 1 : 0;
-    if (carry) {
-        std::uint64_t temp = result + 1;
-        new_carry |= (temp < result) ? 1 : 0;
-        result = temp;
-    }
-    carry = new_carry;
-    return result;
-}
-
-#else
-
-#if defined(__GNUC__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wpedantic"
-#endif
-inline std::uint64_t add64(std::uint64_t a, std::uint64_t b, unsigned char& carry) {
-    unsigned __int128 const sum = static_cast<unsigned __int128>(a) + b + carry;
-    carry = static_cast<unsigned char>(sum >> 64);
-    return static_cast<std::uint64_t>(sum);
-}
-#if defined(__GNUC__)
-#pragma GCC diagnostic pop
-#endif
-
-#endif // SECP256K1_NO_INT128
-
-inline std::uint64_t sub64(std::uint64_t a, std::uint64_t b, unsigned char& borrow) {
-    uint64_t const temp = a - borrow;
-    unsigned char const borrow1 = (a < borrow);
-    uint64_t const result = temp - b;
-    unsigned char const borrow2 = (temp < b);
-    borrow = borrow1 | borrow2;
-    return result;
-}
-
-#endif
 
 [[nodiscard]] bool ge(const limbs4& a, const limbs4& b) {
     for (std::size_t i = 4; i-- > 0;) {

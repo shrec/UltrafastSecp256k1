@@ -1,5 +1,6 @@
 #include "secp256k1/field.hpp"
 #include "secp256k1/field_asm.hpp"
+#include "secp256k1/detail/arith64.hpp"
 
 #include <array>
 #include <cstddef>
@@ -12,50 +13,20 @@
 namespace secp256k1::fast {
 namespace {
 
+using secp256k1::detail::add64;
+using secp256k1::detail::sub64;
+
 using limbs4 = FieldElement::limbs_type;
 using wide8 = std::array<std::uint64_t, 8>;
 
 #if defined(_MSC_VER) && !defined(__clang__)
-inline std::uint64_t add64(std::uint64_t a, std::uint64_t b, unsigned char& carry) {
-    unsigned __int64 out;
-    carry = _addcarry_u64(carry, a, b, &out);
-    return out;
-}
-
-inline std::uint64_t sub64(std::uint64_t a, std::uint64_t b, unsigned char& borrow) {
-    unsigned __int64 out;
-    borrow = _subborrow_u64(borrow, a, b, &out);
-    return out;
-}
 
 inline void mul64(std::uint64_t a, std::uint64_t b, std::uint64_t& lo, std::uint64_t& hi) {
     lo = _umul128(a, b, &hi);
 }
 #else
 
-// 32-bit safe implementations (no __int128)
 #ifdef SECP256K1_NO_INT128
-
-inline std::uint64_t add64(std::uint64_t a, std::uint64_t b, unsigned char& carry) {
-    std::uint64_t result = a + b;
-    unsigned char new_carry = (result < a) ? 1 : 0;
-    if (carry) {
-        std::uint64_t temp = result + 1;
-        new_carry |= (temp < result) ? 1 : 0;
-        result = temp;
-    }
-    carry = new_carry;
-    return result;
-}
-
-inline std::uint64_t sub64(std::uint64_t a, std::uint64_t b, unsigned char& borrow) {
-    std::uint64_t temp = a - borrow;
-    unsigned char borrow1 = (a < borrow);
-    std::uint64_t result = temp - b;
-    unsigned char borrow2 = (temp < b);
-    borrow = borrow1 | borrow2;
-    return result;
-}
 
 inline void mul64(std::uint64_t a, std::uint64_t b, std::uint64_t& lo, std::uint64_t& hi) {
     // Split into 32-bit parts
@@ -81,20 +52,6 @@ inline void mul64(std::uint64_t a, std::uint64_t b, std::uint64_t& lo, std::uint
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpedantic"
 #endif
-inline std::uint64_t add64(std::uint64_t a, std::uint64_t b, unsigned char& carry) {
-    unsigned __int128 const sum = static_cast<unsigned __int128>(a) + b + carry;
-    carry = static_cast<unsigned char>(sum >> 64);
-    return static_cast<std::uint64_t>(sum);
-}
-
-inline std::uint64_t sub64(std::uint64_t a, std::uint64_t b, unsigned char& borrow) {
-    uint64_t const temp = a - borrow;
-    unsigned char const borrow1 = (a < borrow);
-    uint64_t const result = temp - b;
-    unsigned char const borrow2 = (temp < b);
-    borrow = borrow1 | borrow2;
-    return result;
-}
 
 inline void mul64(std::uint64_t a, std::uint64_t b, std::uint64_t& lo, std::uint64_t& hi) {
     unsigned __int128 const product = static_cast<unsigned __int128>(a) * b;
@@ -2350,6 +2307,21 @@ FieldElement FieldElement::from_uint64(std::uint64_t value) {
     return FieldElement(limbs, true);
 }
 
+inline std::uint64_t load_be64(const std::uint8_t* p) noexcept {
+    std::uint64_t v;
+    std::memcpy(&v, p, 8);
+#if defined(__GNUC__) || defined(__clang__)
+    return __builtin_bswap64(v);
+#elif defined(_MSC_VER)
+    return _byteswap_uint64(v);
+#else
+    return ((v >> 56) & 0xFF) | ((v >> 40) & 0xFF00) |
+           ((v >> 24) & 0xFF0000) | ((v >> 8) & 0xFF000000ULL) |
+           ((v << 8) & 0xFF00000000ULL) | ((v << 24) & 0xFF0000000000ULL) |
+           ((v << 40) & 0xFF000000000000ULL) | (v << 56);
+#endif
+}
+
 FieldElement FieldElement::from_limbs(const FieldElement::limbs_type& limbs) {
     FieldElement fe;
     fe.limbs_ = limbs;
@@ -2359,21 +2331,6 @@ FieldElement FieldElement::from_limbs(const FieldElement::limbs_type& limbs) {
 
 FieldElement FieldElement::from_bytes(const std::array<std::uint8_t, 32>& bytes) {
     FieldElement::limbs_type limbs{};
-    // Direct 8-byte loads + byte-swap (4 bswap vs 32 shift+OR iterations)
-    auto load_be64 = [](const std::uint8_t* p) -> std::uint64_t {
-        std::uint64_t v;
-        std::memcpy(&v, p, 8);
-#if defined(__GNUC__) || defined(__clang__)
-        return __builtin_bswap64(v);
-#elif defined(_MSC_VER)
-        return _byteswap_uint64(v);
-#else
-        return ((v >> 56) & 0xFF) | ((v >> 40) & 0xFF00) |
-               ((v >> 24) & 0xFF0000) | ((v >> 8) & 0xFF000000ULL) |
-               ((v << 8) & 0xFF00000000ULL) | ((v << 24) & 0xFF0000000000ULL) |
-               ((v << 40) & 0xFF000000000000ULL) | (v << 56);
-#endif
-    };
     limbs[3] = load_be64(&bytes[0]);
     limbs[2] = load_be64(&bytes[8]);
     limbs[1] = load_be64(&bytes[16]);
@@ -2390,20 +2347,6 @@ FieldElement FieldElement::from_bytes(const std::array<std::uint8_t, 32>& bytes)
 
 bool FieldElement::parse_bytes_strict(const std::uint8_t* bytes32, FieldElement& out) noexcept {
     FieldElement::limbs_type limbs{};
-    auto load_be64 = [](const std::uint8_t* p) -> std::uint64_t {
-        std::uint64_t v;
-        std::memcpy(&v, p, 8);
-#if defined(__GNUC__) || defined(__clang__)
-        return __builtin_bswap64(v);
-#elif defined(_MSC_VER)
-        return _byteswap_uint64(v);
-#else
-        return ((v >> 56) & 0xFF) | ((v >> 40) & 0xFF00) |
-               ((v >> 24) & 0xFF0000) | ((v >> 8) & 0xFF000000ULL) |
-               ((v << 8) & 0xFF00000000ULL) | ((v << 24) & 0xFF0000000000ULL) |
-               ((v << 40) & 0xFF000000000000ULL) | (v << 56);
-#endif
-    };
     limbs[3] = load_be64(bytes32);
     limbs[2] = load_be64(bytes32 + 8);
     limbs[1] = load_be64(bytes32 + 16);

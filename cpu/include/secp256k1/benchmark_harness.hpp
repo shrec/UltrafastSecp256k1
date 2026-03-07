@@ -295,30 +295,7 @@ public:
     // Func is called `iters` times per pass.
     template <typename Func>
     double run(int iters, Func&& func) const {
-        // Warmup
-        for (int i = 0; i < warmup_iters; ++i) {
-            func();
-            ClobberMemory();
-        }
-
-        // Measurement passes
-        std::vector<double> ns_per_iter;
-        ns_per_iter.reserve(passes);
-
-        for (std::size_t p = 0; p < passes; ++p) {
-            uint64_t const t0 = Timer::now();
-            for (int i = 0; i < iters; ++i) {
-                func();
-            }
-            ClobberMemory();
-            uint64_t const t1 = Timer::now();
-
-            double const total_ns = Timer::ticks_to_ns(t1 - t0);
-            ns_per_iter.push_back(total_ns / iters);
-        }
-
-        Stats const st = compute_stats(ns_per_iter);
-        return st.median_ns;
+        return run_stats(iters, std::forward<Func>(func)).median_ns;
     }
 
     // Run benchmark and return full statistics.
