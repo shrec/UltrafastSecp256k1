@@ -338,9 +338,9 @@ Scalar Scalar::operator*(const Scalar& rhs) const {
 
     // {c0,c1,c2} += x * y
     auto muladd = [&](std::uint64_t x, std::uint64_t y) {
-        unsigned __int128 p = static_cast<unsigned __int128>(x) * y;
-        const std::uint64_t tl = static_cast<std::uint64_t>(p);
-        std::uint64_t th = static_cast<std::uint64_t>(p >> 64);
+        const unsigned __int128 p = static_cast<unsigned __int128>(x) * y;
+        const auto tl = static_cast<std::uint64_t>(p);
+        auto th = static_cast<std::uint64_t>(p >> 64);
         c0 += tl;
         th += (c0 < tl);
         c1 += th;

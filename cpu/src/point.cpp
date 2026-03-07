@@ -3781,9 +3781,9 @@ void Point::batch_normalize(const Point* points, size_t n,
             partials[i] = running; // skip infinity, don't multiply
         } else {
 #if defined(SECP256K1_FAST_52BIT)
-            FieldElement z_fe = points[i].z_.to_fe();
+            const FieldElement z_fe = points[i].z_.to_fe();
 #else
-            auto z_fe = points[i].z_;
+            const auto z_fe = points[i].z_;
 #endif
             partials[i] = running;
             running *= z_fe;

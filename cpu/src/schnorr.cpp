@@ -106,10 +106,10 @@ static inline void parse_be32_to_le64(const uint8_t* in32, std::uint64_t* out4) 
 
 static inline bool limbs_lt_p(const std::uint64_t* x4) {
     constexpr std::uint64_t P0 = 0xFFFFFFFEFFFFFC2FULL;
-    return !(x4[3] == 0xFFFFFFFFFFFFFFFFULL &&
-             x4[2] == 0xFFFFFFFFFFFFFFFFULL &&
-             x4[1] == 0xFFFFFFFFFFFFFFFFULL &&
-             x4[0] >= P0);
+    return x4[3] != 0xFFFFFFFFFFFFFFFFULL ||
+           x4[2] != 0xFFFFFFFFFFFFFFFFULL ||
+           x4[1] != 0xFFFFFFFFFFFFFFFFULL ||
+           x4[0] < P0;
 }
 
 static inline bool parse_and_check_lt_p(const uint8_t* in32, std::uint64_t* out4) {
@@ -155,7 +155,7 @@ static inline bool lift_x_cached(const uint8_t* pubkey_x32,
     // Direct-mapped table keeps lookup O(1) with minimal branch/memcmp overhead.
     static constexpr std::size_t kCacheSlots = 256;
     thread_local std::array<XOnlyLiftCacheEntry, kCacheSlots> cache{};
-    std::size_t const idx = static_cast<std::size_t>(
+    auto const idx = static_cast<std::size_t>(
         pubkey_x32[0] ^ pubkey_x32[7] ^ pubkey_x32[15] ^ pubkey_x32[23] ^ pubkey_x32[31]);
 
     auto& slot = cache[idx];
