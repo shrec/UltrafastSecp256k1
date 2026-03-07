@@ -325,24 +325,29 @@ ufsecp_error_t ufsecp_seckey_tweak_mul(ufsecp_ctx* ctx, uint8_t privkey[32],
  * Public key
  * =========================================================================== */
 
+static ufsecp_error_t pubkey_create_core(ufsecp_ctx* ctx,
+                                         const uint8_t privkey[32],
+                                         Point& pk_out) {
+    Scalar sk;
+    if (!scalar_parse_strict_nonzero(privkey, sk)) {
+        return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "privkey is zero or >= n");
+    }
+    pk_out = secp256k1::ct::generator_mul(sk);
+    secp256k1::detail::secure_erase(&sk, sizeof(sk));
+    if (pk_out.is_infinity()) {
+        return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "pubkey at infinity");
+    }
+    return UFSECP_OK;
+}
+
 ufsecp_error_t ufsecp_pubkey_create(ufsecp_ctx* ctx,
                                     const uint8_t privkey[32],
                                     uint8_t pubkey33_out[33]) {
     if (!ctx || !privkey || !pubkey33_out) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
-
-    Scalar sk;
-    if (!scalar_parse_strict_nonzero(privkey, sk)) {
-        return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "privkey is zero or >= n");
-    }
-
-    // CT path: private key is secret, use constant-time generator_mul
-    auto pk = secp256k1::ct::generator_mul(sk);
-    secp256k1::detail::secure_erase(&sk, sizeof(sk));
-    if (pk.is_infinity()) {
-        return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "pubkey at infinity");
-}
-
+    Point pk;
+    ufsecp_error_t err = pubkey_create_core(ctx, privkey, pk);
+    if (err != UFSECP_OK) return err;
     point_to_compressed(pk, pubkey33_out);
     return UFSECP_OK;
 }
@@ -352,19 +357,9 @@ ufsecp_error_t ufsecp_pubkey_create_uncompressed(ufsecp_ctx* ctx,
                                                  uint8_t pubkey65_out[65]) {
     if (!ctx || !privkey || !pubkey65_out) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
-
-    Scalar sk;
-    if (!scalar_parse_strict_nonzero(privkey, sk)) {
-        return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "privkey is zero or >= n");
-    }
-
-    // CT path: private key is secret, use constant-time generator_mul
-    auto pk = secp256k1::ct::generator_mul(sk);
-    secp256k1::detail::secure_erase(&sk, sizeof(sk));
-    if (pk.is_infinity()) {
-        return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "pubkey at infinity");
-}
-
+    Point pk;
+    ufsecp_error_t err = pubkey_create_core(ctx, privkey, pk);
+    if (err != UFSECP_OK) return err;
     auto uncomp = pk.to_uncompressed();
     std::memcpy(pubkey65_out, uncomp.data(), 65);
     return UFSECP_OK;
@@ -796,21 +791,29 @@ ufsecp_error_t ufsecp_schnorr_verify(ufsecp_ctx* ctx,
  * ECDH
  * =========================================================================== */
 
+static ufsecp_error_t ecdh_parse_args(ufsecp_ctx* ctx,
+                                      const uint8_t privkey[32],
+                                      const uint8_t pubkey33[33],
+                                      Scalar& sk, Point& pk) {
+    if (!scalar_parse_strict_nonzero(privkey, sk)) {
+        return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "privkey is zero or >= n");
+    }
+    pk = point_from_compressed(pubkey33);
+    if (pk.is_infinity()) {
+        return ctx_set_err(ctx, UFSECP_ERR_BAD_PUBKEY, "invalid or infinity pubkey");
+    }
+    return UFSECP_OK;
+}
+
 ufsecp_error_t ufsecp_ecdh(ufsecp_ctx* ctx,
                            const uint8_t privkey[32],
                            const uint8_t pubkey33[33],
                            uint8_t secret32_out[32]) {
     if (!ctx || !privkey || !pubkey33 || !secret32_out) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
-
-    Scalar sk;
-    if (!scalar_parse_strict_nonzero(privkey, sk)) {
-        return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "privkey is zero or >= n");
-    }
-    auto pk = point_from_compressed(pubkey33);
-    if (pk.is_infinity()) {
-        return ctx_set_err(ctx, UFSECP_ERR_BAD_PUBKEY, "invalid or infinity pubkey");
-    }
+    Scalar sk; Point pk;
+    ufsecp_error_t err = ecdh_parse_args(ctx, privkey, pubkey33, sk, pk);
+    if (err != UFSECP_OK) return err;
     auto secret = secp256k1::ecdh_compute(sk, pk);
     std::memcpy(secret32_out, secret.data(), 32);
     return UFSECP_OK;
@@ -822,15 +825,9 @@ ufsecp_error_t ufsecp_ecdh_xonly(ufsecp_ctx* ctx,
                                  uint8_t secret32_out[32]) {
     if (!ctx || !privkey || !pubkey33 || !secret32_out) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
-
-    Scalar sk;
-    if (!scalar_parse_strict_nonzero(privkey, sk)) {
-        return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "privkey is zero or >= n");
-    }
-    auto pk = point_from_compressed(pubkey33);
-    if (pk.is_infinity()) {
-        return ctx_set_err(ctx, UFSECP_ERR_BAD_PUBKEY, "invalid or infinity pubkey");
-    }
+    Scalar sk; Point pk;
+    ufsecp_error_t err = ecdh_parse_args(ctx, privkey, pubkey33, sk, pk);
+    if (err != UFSECP_OK) return err;
     auto secret = secp256k1::ecdh_compute_xonly(sk, pk);
     std::memcpy(secret32_out, secret.data(), 32);
     return UFSECP_OK;
@@ -842,15 +839,9 @@ ufsecp_error_t ufsecp_ecdh_raw(ufsecp_ctx* ctx,
                                uint8_t secret32_out[32]) {
     if (!ctx || !privkey || !pubkey33 || !secret32_out) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
-
-    Scalar sk;
-    if (!scalar_parse_strict_nonzero(privkey, sk)) {
-        return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "privkey is zero or >= n");
-    }
-    auto pk = point_from_compressed(pubkey33);
-    if (pk.is_infinity()) {
-        return ctx_set_err(ctx, UFSECP_ERR_BAD_PUBKEY, "invalid or infinity pubkey");
-    }
+    Scalar sk; Point pk;
+    ufsecp_error_t err = ecdh_parse_args(ctx, privkey, pubkey33, sk, pk);
+    if (err != UFSECP_OK) return err;
     auto secret = secp256k1::ecdh_compute_raw(sk, pk);
     std::memcpy(secret32_out, secret.data(), 32);
     return UFSECP_OK;

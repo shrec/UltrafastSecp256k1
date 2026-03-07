@@ -18,6 +18,30 @@ namespace secp256k1::fast {
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpedantic"
 #endif
+
+// 192-bit accumulator macros for Comba multiplication (shared by all mul variants).
+// Accumulator state: c0:c1:c2 (local variables, declared in each caller).
+// IMPORTANT: callers must declare these locals:
+//   using u128 = unsigned __int128;
+//   std::uint64_t c0 = 0, c1 = 0;
+//   std::uint32_t c2 = 0;
+#define GLV_MULADD(i, j) do { \
+    const u128 p_ = (u128)(a[i]) * (b[j]); \
+    const std::uint64_t tl_ = (std::uint64_t)p_; \
+    std::uint64_t th_ = (std::uint64_t)(p_ >> 64); \
+    c0 += tl_; \
+    th_ += (c0 < tl_) ? 1ULL : 0ULL; \
+    c1 += th_; \
+    c2 += (c1 < th_) ? 1U : 0U; \
+} while(0)
+
+#define GLV_EXTRACT(out) do { \
+    (out) = c0; \
+    c0 = c1; \
+    c1 = static_cast<std::uint64_t>(c2); \
+    c2 = 0; \
+} while(0)
+
 // 64-bit Comba using __int128: 4x4 = 16 multiplications (vs 8x8 = 64 at 32-bit).
 // Each 64x64->128 multiply maps to MUL + MULHU on x86-64, UMULH on AArch64.
 // Carry chain uses libsecp256k1-style 192-bit accumulator (c0:c1:c2).
@@ -27,25 +51,6 @@ static void glv_mul_comba_64(const std::uint64_t a[4], const std::uint64_t b[4],
     using u128 = unsigned __int128;
     std::uint64_t c0 = 0, c1 = 0;
     std::uint32_t c2 = 0;
-
-    // muladd: add a[i]*b[j] into 192-bit accumulator (c2:c1:c0)
-    #define GLV_MULADD(i, j) do { \
-        const u128 p_ = (u128)(a[i]) * (b[j]); \
-        const std::uint64_t tl_ = (std::uint64_t)p_; \
-        std::uint64_t th_ = (std::uint64_t)(p_ >> 64); \
-        c0 += tl_; \
-        th_ += (c0 < tl_) ? 1ULL : 0ULL; \
-        c1 += th_; \
-        c2 += (c1 < th_) ? 1U : 0U; \
-    } while(0)
-
-    // extract: output c0 as result word, shift accumulator right by 64
-    #define GLV_EXTRACT(out) do { \
-        (out) = c0; \
-        c0 = c1; \
-        c1 = static_cast<std::uint64_t>(c2); \
-        c2 = 0; \
-    } while(0)
 
     GLV_MULADD(0, 0);
     GLV_EXTRACT(r[0]);
@@ -62,9 +67,6 @@ static void glv_mul_comba_64(const std::uint64_t a[4], const std::uint64_t b[4],
     GLV_MULADD(3, 3);
     GLV_EXTRACT(r[6]);
     r[7] = c0;
-
-    #undef GLV_MULADD
-    #undef GLV_EXTRACT
 }
 
 // Template version: b[] constants known at compile time -> compiler can
@@ -269,30 +271,13 @@ static void glv_mul_2x2(const std::uint64_t a[2], const std::uint64_t b[2],
     std::uint64_t c0 = 0, c1 = 0;
     std::uint32_t c2 = 0;
 
-    #define GLV_F_MA(i, j) do { \
-        const u128 p_ = (u128)(a[i]) * (b[j]); \
-        const std::uint64_t tl_ = (std::uint64_t)p_; \
-        std::uint64_t th_ = (std::uint64_t)(p_ >> 64); \
-        c0 += tl_; \
-        th_ += (c0 < tl_) ? 1ULL : 0ULL; \
-        c1 += th_; \
-        c2 += (c1 < th_) ? 1U : 0U; \
-    } while(0)
-
-    #define GLV_F_EX(out) do { \
-        (out) = c0; c0 = c1; c1 = static_cast<std::uint64_t>(c2); c2 = 0; \
-    } while(0)
-
-    GLV_F_MA(0, 0);
-    GLV_F_EX(r[0]);
-    GLV_F_MA(0, 1); GLV_F_MA(1, 0);
-    GLV_F_EX(r[1]);
-    GLV_F_MA(1, 1);
-    GLV_F_EX(r[2]);
+    GLV_MULADD(0, 0);
+    GLV_EXTRACT(r[0]);
+    GLV_MULADD(0, 1); GLV_MULADD(1, 0);
+    GLV_EXTRACT(r[1]);
+    GLV_MULADD(1, 1);
+    GLV_EXTRACT(r[2]);
     r[3] = c0;
-
-    #undef GLV_F_MA
-    #undef GLV_F_EX
 }
 
 // 128-bit x 256-bit -> 384-bit Comba multiply (8 macs)
@@ -302,40 +287,23 @@ static void glv_mul_2x4(const std::uint64_t a[2], const std::uint64_t b[4],
     std::uint64_t c0 = 0, c1 = 0;
     std::uint32_t c2 = 0;
 
-    #define GLV_F_MA(i, j) do { \
-        const u128 p_ = (u128)(a[i]) * (b[j]); \
-        const std::uint64_t tl_ = (std::uint64_t)p_; \
-        std::uint64_t th_ = (std::uint64_t)(p_ >> 64); \
-        c0 += tl_; \
-        th_ += (c0 < tl_) ? 1ULL : 0ULL; \
-        c1 += th_; \
-        c2 += (c1 < th_) ? 1U : 0U; \
-    } while(0)
-
-    #define GLV_F_EX(out) do { \
-        (out) = c0; c0 = c1; c1 = static_cast<std::uint64_t>(c2); c2 = 0; \
-    } while(0)
-
     // Column 0: a[0]*b[0]
-    GLV_F_MA(0, 0);
-    GLV_F_EX(r[0]);
+    GLV_MULADD(0, 0);
+    GLV_EXTRACT(r[0]);
     // Column 1: a[0]*b[1] + a[1]*b[0]
-    GLV_F_MA(0, 1); GLV_F_MA(1, 0);
-    GLV_F_EX(r[1]);
+    GLV_MULADD(0, 1); GLV_MULADD(1, 0);
+    GLV_EXTRACT(r[1]);
     // Column 2: a[0]*b[2] + a[1]*b[1]
-    GLV_F_MA(0, 2); GLV_F_MA(1, 1);
-    GLV_F_EX(r[2]);
+    GLV_MULADD(0, 2); GLV_MULADD(1, 1);
+    GLV_EXTRACT(r[2]);
     // Column 3: a[0]*b[3] + a[1]*b[2]
-    GLV_F_MA(0, 3); GLV_F_MA(1, 2);
-    GLV_F_EX(r[3]);
+    GLV_MULADD(0, 3); GLV_MULADD(1, 2);
+    GLV_EXTRACT(r[3]);
     // Column 4: a[1]*b[3]
-    GLV_F_MA(1, 3);
-    GLV_F_EX(r[4]);
+    GLV_MULADD(1, 3);
+    GLV_EXTRACT(r[4]);
     // Column 5: carry
     r[5] = c0;
-
-    #undef GLV_F_MA
-    #undef GLV_F_EX
 }
 
 // Compare 4-limb unsigned value: a >= b (little-endian)
@@ -433,6 +401,10 @@ static void glv_reduce_mod_n(const std::uint64_t* w, int wlen,
 #if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic pop
 #endif
+
+#undef GLV_MULADD
+#undef GLV_EXTRACT
+
 #endif // __SIZEOF_INT128__
 
 // ============================================================================

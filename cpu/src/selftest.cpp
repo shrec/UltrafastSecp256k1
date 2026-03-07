@@ -191,6 +191,27 @@ static bool test_scalar_mul(const TestVector& vec, bool verbose) {
     }
 }
 
+// Helper: compare two points' hex coordinates and print verbose diagnostics
+static bool check_point_match(const Point& result, const Point& expected, bool verbose) {
+    std::string const result_x = result.x().to_hex();
+    std::string const result_y = result.y().to_hex();
+    std::string const expected_x = expected.x().to_hex();
+    std::string const expected_y = expected.y().to_hex();
+    bool const match = (result_x == expected_x) && (result_y == expected_y);
+    if (verbose) {
+        if (match) {
+            SELFTEST_PRINT("    PASS\n");
+        } else {
+            SELFTEST_PRINT("    FAIL\n");
+            SELFTEST_PRINT("      Expected X: %s\n", expected_x.c_str());
+            SELFTEST_PRINT("      Got      X: %s\n", result_x.c_str());
+            SELFTEST_PRINT("      Expected Y: %s\n", expected_y.c_str());
+            SELFTEST_PRINT("      Got      Y: %s\n", result_y.c_str());
+        }
+    }
+    return match;
+}
+
 // Test point addition: (k1*G) + (k2*G) = (k1+k2)*G
 static bool test_addition(bool verbose) {
     if (verbose) {
@@ -204,28 +225,7 @@ static bool test_addition(bool verbose) {
     Point const expected = scalar_mul_generator(Scalar::from_hex(
         "0000000000000000000000000000000000000000000000000000000000000005"));
     
-    Point const result = pt1.add(pt2);
-    
-    std::string const result_x = result.x().to_hex();
-    std::string const result_y = result.y().to_hex();
-    std::string const expected_x = expected.x().to_hex();
-    std::string const expected_y = expected.y().to_hex();
-    
-    bool const match = (result_x == expected_x) && (result_y == expected_y);
-    
-    if (verbose) {
-        if (match) {
-            SELFTEST_PRINT("    PASS\n");
-        } else {
-            SELFTEST_PRINT("    FAIL\n");
-            SELFTEST_PRINT("      Expected X: %s\n", expected_x.c_str());
-            SELFTEST_PRINT("      Got      X: %s\n", result_x.c_str());
-            SELFTEST_PRINT("      Expected Y: %s\n", expected_y.c_str());
-            SELFTEST_PRINT("      Got      Y: %s\n", result_y.c_str());
-        }
-    }
-    
-    return match;
+    return check_point_match(pt1.add(pt2), expected, verbose);
 }
 
 // Test point subtraction: (k1*G) - (k2*G) = (k1-k2)*G
@@ -241,29 +241,7 @@ static bool test_subtraction(bool verbose) {
     Point const expected = scalar_mul_generator(Scalar::from_hex(
         "0000000000000000000000000000000000000000000000000000000000000003"));
     
-    // P1 - P2 = P1 + (-P2)
-    Point const result = pt1.add(pt2.negate());
-    
-    std::string const result_x = result.x().to_hex();
-    std::string const result_y = result.y().to_hex();
-    std::string const expected_x = expected.x().to_hex();
-    std::string const expected_y = expected.y().to_hex();
-    
-    bool const match = (result_x == expected_x) && (result_y == expected_y);
-    
-    if (verbose) {
-        if (match) {
-            SELFTEST_PRINT("    PASS\n");
-        } else {
-            SELFTEST_PRINT("    FAIL\n");
-            SELFTEST_PRINT("      Expected X: %s\n", expected_x.c_str());
-            SELFTEST_PRINT("      Got      X: %s\n", result_x.c_str());
-            SELFTEST_PRINT("      Expected Y: %s\n", expected_y.c_str());
-            SELFTEST_PRINT("      Got      Y: %s\n", result_y.c_str());
-        }
-    }
-    
-    return match;
+    return check_point_match(pt1.add(pt2.negate()), expected, verbose);
 }
 
 // Basic field arithmetic identities (deterministic sanity)

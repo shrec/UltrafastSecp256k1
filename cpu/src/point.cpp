@@ -117,113 +117,31 @@ struct JacobianPoint {
     bool infinity{true};
 };
 
-// Hot path: Point doubling - force aggressive inlining
-// Optimized dbl-2007-a formula for a=0 curves (secp256k1)
-// Operations: 4 squarings + 4 multiplications (vs previous 5 sqr + 3+ mul)
-// Uses additions instead of multiplications for small constants (2, 3, 8)
+// Forward declarations for delegation pattern (avoid duplicating formula bodies)
+static inline void jacobian_double_inplace(JacobianPoint& p);
+[[maybe_unused]] static inline void jacobian_add_mixed_inplace(JacobianPoint& p, const AffinePoint& q);
+
+// Point doubling: dbl-2007-a formula (a=0). Delegates to in-place variant.
 #if defined(_MSC_VER) && !defined(__clang__)
 #pragma inline_recursion(on)
 #pragma inline_depth(255)
 #endif
 SECP256K1_HOT_FUNCTION
 JacobianPoint jacobian_double(const JacobianPoint& p) {
-    if (SECP256K1_UNLIKELY(p.infinity || p.y == FieldElement::zero())) {
-        return {FieldElement::zero(), FieldElement::one(), FieldElement::zero(), true};
-    }
-
-    // A = X^2 (in-place)
-    FieldElement A = p.x;           // Copy for in-place
-    A.square_inplace();             // X^2 in-place!
-    
-    // B = Y^2 (in-place)
-    FieldElement B = p.y;           // Copy for in-place
-    B.square_inplace();             // Y^2 in-place!
-    
-    // C = B^2 (in-place)
-    FieldElement C = B;             // Copy for in-place
-    C.square_inplace();             // B^2 in-place!
-    
-    // D = 2*((X + B)^2 - A - C)
-    FieldElement temp = p.x + B;
-    temp.square_inplace();          // (X + B)^2 in-place!
-    temp = temp - A;
-    temp = temp - C;
-    FieldElement const D = temp + temp;  // *2 via addition (faster than mul)
-    
-    // E = 3*A
-    FieldElement E = A + A;
-    E = E + A;  // *3 via two additions (faster than mul)
-    
-    // F = E^2 (in-place)
-    FieldElement F = E;             // Copy for in-place
-    F.square_inplace();             // E^2 in-place!
-    
-    // X' = F - 2*D
-    FieldElement const two_D = D + D;
-    FieldElement const x3 = F - two_D;
-    
-    // Y' = E*(D - X') - 8*C
-    FieldElement y3 = E * (D - x3);
-    FieldElement eight_C = C + C;  // 2C
-    eight_C = eight_C + eight_C;  // 4C
-    eight_C = eight_C + eight_C;  // 8C (3 additions vs 1 mul)
-    y3 = y3 - eight_C;
-    
-    // Z' = 2*Y*Z
-    FieldElement z3 = p.y * p.z;
-    z3 = z3 + z3;  // *2 via addition
-    
-    return {x3, y3, z3, false};
+    JacobianPoint r = p;
+    jacobian_double_inplace(r);
+    return r;
 }
 
-// Hot path: Mixed addition - optimize heavily
+// Mixed Jacobian-Affine addition: delegates to in-place variant.
 #if defined(_MSC_VER) && !defined(__clang__)
 #pragma inline_recursion(on)
 #pragma inline_depth(255)
 #endif
-// Mixed Jacobian-Affine addition: P (Jacobian) + Q (Affine) -> Result (Jacobian)
-// Optimized with dbl-2007-mix formula (7M + 4S for a=0)
 [[nodiscard]] [[maybe_unused]] JacobianPoint jacobian_add_mixed(const JacobianPoint& p, const AffinePoint& q) {
-    if (SECP256K1_UNLIKELY(p.infinity)) {
-        // Convert affine to Jacobian: (x, y) -> (x, y, 1, false)
-        return {q.x, q.y, FieldElement::one(), false};
-    }
-
-    // Core formula optimized for a=0 curve
-    FieldElement z1z1 = p.z;                    // Copy for in-place
-    z1z1.square_inplace();                      // Z1^2 in-place! [1S]
-    FieldElement const u2 = q.x * z1z1;               // U2 = X2*Z1^2 [1M]
-    FieldElement const s2 = q.y * p.z * z1z1;         // S2 = Y2*Z1^3 [2M]
-    
-    if (SECP256K1_UNLIKELY(p.x == u2)) {
-        if (p.y == s2) {
-            return jacobian_double(p);
-        }
-        return {FieldElement::zero(), FieldElement::one(), FieldElement::zero(), true};
-    }
-
-    FieldElement const h = u2 - p.x;                  // H = U2 - X1
-    FieldElement hh = h;                        // Copy for in-place
-    hh.square_inplace();                        // HH = H^2 in-place! [1S]
-    FieldElement const i = hh + hh + hh + hh;         // I = 4*HH (3 additions)
-    FieldElement const j = h * i;                     // J = H*I [1M]
-    FieldElement const r = (s2 - p.y) + (s2 - p.y);   // r = 2*(S2 - Y1)
-    FieldElement const v = p.x * i;                   // V = X1*I [1M]
-    
-    FieldElement x3 = r;                        // Copy for in-place
-    x3.square_inplace();                        // r^2 in-place!
-    x3 -= j + v + v;                            // X3 = r^2 - J - 2*V [1S]
-    
-    // Y3 = r*(V - X3) - 2*Y1*J -- optimized: *2 via addition
-    FieldElement const y1j = p.y * j;                 // [1M]
-    FieldElement const y3 = r * (v - x3) - (y1j + y1j); // [1M]
-    
-    // Z3 = (Z1+H)^2 - Z1^2 - HH -- in-place for performance
-    FieldElement z3 = p.z + h;                  // Z1 + H
-    z3.square_inplace();                        // (Z1+H)^2 in-place!
-    z3 -= z1z1 + hh;                           // Z3 = (Z1+H)^2 - Z1^2 - HH [1S: total 7M + 4S]
-
-    return {x3, y3, z3, false};
+    JacobianPoint r = p;
+    jacobian_add_mixed_inplace(r, q);
+    return r;
 }
 
 // Fast z==1 check for 4x64 FieldElement: raw limb comparison, no allocation
@@ -517,253 +435,23 @@ static inline AffinePoint fe52_to_affine4x64(const FieldElement52& x,
 #endif // SECP256K1_USE_4X64_POINT_OPS && SECP256K1_FAST_52BIT
 
 // -- Point Doubling (5x52) ----------------------------------------------------
-// Formula: libsecp256k1 gej_double (a=0 specialization)
-// L = (3/2)*X^2, S = Y^2, T = -X*S, X3 = L^2+2T, Y3 = -(L*(X3+T)+S^2), Z3 = Y*Z
-// Cost: 3M + 4S + 8 cheap ops (half, mul_int, add, negate)
-// Saves ~11 cheap ops vs dbl-2009-l (2M+5S+19 cheap) per doubling.
+// Forward declaration for delegation
+static inline void jac52_double_coords(FieldElement52& x, FieldElement52& y, FieldElement52& z) noexcept;
+
+// Point doubling (5x52, return by value): delegates to the in-place coords variant.
+// Formula: libsecp256k1 gej_double (a=0 specialization), 3M+4S+8 cheap.
 SECP256K1_HOT_FUNCTION SECP256K1_NOINLINE
 static JacobianPoint52 jac52_double(const JacobianPoint52& p) noexcept {
     if (SECP256K1_UNLIKELY(p.infinity)) {
         return {FieldElement52::zero(), FieldElement52::one(), FieldElement52::zero(), true};
     }
-    // Z3 = Y1 * Z1 (1M)
-    FieldElement52 const z3 = p.y * p.z;    // mag 1
-
-    // S = Y1^2 (1S)
-    FieldElement52 s = p.y.square();         // mag 1
-
-    // L = (3/2)*X1^2 (1S + mul_int + half)
-    FieldElement52 l = p.x.square();         // mag 1
-    l.mul_int_assign(3);                     // mag 3
-    l.half_assign();                         // mag 2 (parity correct: 3*n[0]&1 == n[0]&1)
-
-    // T = -S * X1 (1N + 1M)
-    FieldElement52 t = s.negate(1);          // mag 2
-    t.mul_assign(p.x);                       // mag 1
-
-    // X3 = L^2 + 2T (1S + 2A)
-    FieldElement52 x3 = l.square();          // mag 1
-    x3.add_assign(t);                        // mag 2
-    x3.add_assign(t);                        // mag 3
-
-    // S' = S^2 (1S) -- S was Y^2, so S' = Y^4
-    s.square_inplace();                      // mag 1
-
-    // T' = T + X3
-    t.add_assign(x3);                        // mag 4
-
-    // Y3 = -(L*(X3+T) + S^2) (1M + 1A + 1N)
-    FieldElement52 y3 = t * l;               // mag 1
-    y3.add_assign(s);                        // mag 2
-    y3.negate_assign(2);                     // mag 3
-
-    return {x3, y3, z3, false};
+    JacobianPoint52 r = {p.x, p.y, p.z, false};
+    jac52_double_coords(r.x, r.y, r.z);
+    return r;
 }
 
-// -- Dead 4x64 point-ops block removed (lines 525-737 in previous version) --
-// These functions (jac_double_4x64_inplace, jac_add_mixed_4x64_inplace) were
-// scaffolding that is now superseded by the FE52 path.
-// SECP256K1_HYBRID_4X64_ACTIVE remains defined for the FE52->4x64 inverse/sqrt
-// boundary optimization in field_52_impl.hpp.
-#if 0  // Dead code -- previously gated on SECP256K1_HYBRID_4X64_ACTIVE
-
-// NOTE: These functions are currently unused -- they are scaffolding for an
-// upcoming 4x64-only scalar_mul path. Suppress -Wunused-function.
-#if defined(__GNUC__) || defined(__clang__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-function"
-#if defined(__GNUC__) && !defined(__clang__)
-#pragma GCC diagnostic ignored "-Wrestrict"
-#endif
-#endif
-
-[[maybe_unused]] __attribute__((noinline))
-static void jac_double_4x64_inplace(
-    std::uint64_t* __restrict__ X,
-    std::uint64_t* __restrict__ Y,
-    std::uint64_t* __restrict__ Z) noexcept
-{
-    using namespace secp256k1::fast::fe4x64;
-
-    alignas(32) std::uint64_t z3[4], s[4], l[4], t[4];
-
-    // Z3 = Y * Z (1M)
-    mul(z3, Y, Z);
-
-    // S = Y^2 (1S)
-    sqr(s, Y);
-
-    // L = (3/2) * X^2 (1S + mul_int(3) + half)
-    sqr(l, X);
-    mul_int(l, l, 3);
-    half(l, l);
-
-    // T = -S * X (negate + 1M)
-    negate(t, s);
-    mul(t, t, X);
-
-    // X3 = L^2 + 2T (1S + 2 add)
-    sqr(X, l);
-    add(X, X, t);
-    add(X, X, t);
-
-    // S' = S^2 (1S)
-    sqr(s, s);
-
-    // T' = T + X3 (add)
-    add(t, t, X);
-
-    // Y3 = -(L*(X3+T) + S^2) (1M + add + negate)
-    mul(Y, t, l);
-    add(Y, Y, s);
-    negate(Y, Y);
-
-    // Write Z3
-    copy(Z, z3);
-}
-
-// -- 4x64 Mixed Addition: Jacobian + Affine -> Jacobian (in-place) ---------
-// Formula: madd-2007-bl (a=0 specialization)
-// Cost: 7M + 4S + ~12A (additions near-free with branchless mod-p)
-// Qx, Qy are raw uint64_t[4] affine coordinates (e.g. AffinePointCompact.x/y).
-[[maybe_unused]] __attribute__((noinline))
-static void jac_add_mixed_4x64_inplace(
-    std::uint64_t* __restrict__ X,
-    std::uint64_t* __restrict__ Y,
-    std::uint64_t* __restrict__ Z,
-    bool& infinity,
-    const std::uint64_t* __restrict__ Qx,
-    const std::uint64_t* __restrict__ Qy) noexcept
-{
-    using namespace secp256k1::fast::fe4x64;
-
-    if (SECP256K1_UNLIKELY(infinity)) {
-        copy(X, Qx); copy(Y, Qy);
-        Z[0] = 1; Z[1] = 0; Z[2] = 0; Z[3] = 0;
-        infinity = false;
-        return;
-    }
-
-    alignas(32) std::uint64_t z1z1[4], u2[4], s2[4], h[4], hh[4], i_reg[4], j[4];
-    alignas(32) std::uint64_t r_val[4], v[4], x3[4], y3[4], z3[4], t1[4];
-
-    // Z1Z1 = Z^2 (1S)
-    sqr(z1z1, Z);
-    // U2 = Qx * Z1Z1 (1M)
-    mul(u2, Qx, z1z1);
-    // S2 = Qy * Z * Z1Z1 (2M)
-    mul(t1, Z, z1z1);
-    mul(s2, Qy, t1);
-    // H = U2 - X1
-    sub(h, u2, X);
-    // HH = H^2 (1S)
-    sqr(hh, h);
-    // I = 4*HH (2 add)
-    add(i_reg, hh, hh);
-    add(i_reg, i_reg, i_reg);
-    // J = H * I (1M)
-    mul(j, h, i_reg);
-    // r = 2*(S2 - Y) (sub + add)
-    sub(r_val, s2, Y);
-    add(r_val, r_val, r_val);
-    // V = X * I (1M)
-    mul(v, X, i_reg);
-    // X3 = r^2 - J - 2V (1S + subs)
-    sqr(x3, r_val);
-    sub(x3, x3, j);
-    sub(x3, x3, v);
-    sub(x3, x3, v);
-    // Y3 = r*(V-X3) - 2*Y*J (2M + sub)
-    sub(t1, v, x3);
-    mul(y3, r_val, t1);
-    mul(t1, Y, j);
-    add(t1, t1, t1);
-    sub(y3, y3, t1);
-    // Z3 = (Z+H)^2 - Z1Z1 - HH (1S + add + subs)
-    add(z3, Z, h);
-    sqr(z3, z3);
-    sub(z3, z3, z1z1);
-    sub(z3, z3, hh);
-
-    copy(X, x3);
-    copy(Y, y3);
-    copy(Z, z3);
-    infinity = false;
-}
-
-// -- 4x64 Add-Zinv: Jacobian + Affine-in-Z-frame -> Jacobian (in-place) ---
-// Like mixed addition but the affine point lives in a different Z-frame.
-// bzinv = inverse of the shared Z, used to scale the affine coordinates.
-// Cost: 9M + 3S + ~8A
-[[maybe_unused]] __attribute__((noinline))
-static void jac_add_zinv_4x64_inplace(
-    std::uint64_t* __restrict__ X,
-    std::uint64_t* __restrict__ Y,
-    std::uint64_t* __restrict__ Z,
-    bool& infinity,
-    const std::uint64_t* __restrict__ Qx,
-    const std::uint64_t* __restrict__ Qy,
-    const std::uint64_t* __restrict__ bzinv) noexcept
-{
-    using namespace secp256k1::fast::fe4x64;
-
-    if (SECP256K1_UNLIKELY(infinity)) {
-        alignas(32) std::uint64_t zi2[4], zi3[4];
-        sqr(zi2, bzinv);
-        mul(zi3, zi2, bzinv);
-        mul(X, Qx, zi2);
-        mul(Y, Qy, zi3);
-        Z[0] = 1; Z[1] = 0; Z[2] = 0; Z[3] = 0;
-        infinity = false;
-        return;
-    }
-
-    alignas(32) std::uint64_t az[4], az2[4], u2[4], s2[4], h[4];
-    alignas(32) std::uint64_t hh[4], h3[4], v[4], r_val[4], x3[4], y3[4], z3[4], t1[4];
-
-    // az = Z * bzinv (1M)
-    mul(az, Z, bzinv);
-    // az2 = az^2 (1S)
-    sqr(az2, az);
-    // U2 = Qx * az2 (1M)
-    mul(u2, Qx, az2);
-    // S2 = Qy * az^3 (2M: Qy*az2, then *az)
-    mul(s2, Qy, az2);
-    mul(s2, s2, az);
-    // H = U2 - X
-    sub(h, u2, X);
-    // Z3 = Z * H (1M, uses ORIGINAL Z -- not az)
-    mul(z3, Z, h);
-    // HH = H^2 (1S)
-    sqr(hh, h);
-    // H3 = H * HH = H^3 (1M)
-    mul(h3, h, hh);
-    // V = X * HH (1M)
-    mul(v, X, hh);
-    // r = S2 - Y
-    sub(r_val, s2, Y);
-    // X3 = r^2 - H3 - 2V (1S + subs)
-    sqr(x3, r_val);
-    sub(x3, x3, h3);
-    sub(x3, x3, v);
-    sub(x3, x3, v);
-    // Y3 = r*(V-X3) - Y*H3 (2M + sub)
-    sub(t1, v, x3);
-    mul(y3, r_val, t1);
-    mul(t1, Y, h3);
-    sub(y3, y3, t1);
-
-    copy(X, x3);
-    copy(Y, y3);
-    copy(Z, z3);
-    infinity = false;
-}
-
-#if defined(__GNUC__) || defined(__clang__)
-#pragma GCC diagnostic pop
-#endif
-
-#endif // Dead 4x64 point ops (was SECP256K1_HYBRID_4X64_ACTIVE)
+// Dead 4x64 point ops removed -- superseded by FE52 path.
+// SECP256K1_HYBRID_4X64_ACTIVE preserved for FE52->4x64 inverse/sqrt boundary.
 
 // -- In-Place Point Doubling (5x52) ----------------------------------------
 // Same formula as jac52_double but overwrites the input point in-place.
@@ -899,72 +587,14 @@ static inline void jac52_double_inplace(JacobianPoint52& p) noexcept {
     jac52_double_coords(p.x, p.y, p.z);
 }
 
-// -- Mixed Addition (5x52): Jacobian + Affine -> Jacobian ----------------------
-// Formula: h2-negation (libsecp-style, a=0 specialization)
-// Cost: 8M + 3S + ~8A
-// Saves 1S vs madd-2007-bl; fewer add/sub ops; lower output magnitudes.
-// Z3 = Z1*H (1M) instead of (Z1+H)^2-Z1Z1-HH (1S+2sub), freeing registers.
+// Mixed Addition (5x52, return by value): delegates to in-place variant.
+// Formula: h2-negation (libsecp-style, a=0 specialization), 8M+3S+~8A.
+static void jac52_add_mixed_inplace(JacobianPoint52& p, const AffinePoint52& q) noexcept;  // fwd
 [[maybe_unused]] SECP256K1_HOT_FUNCTION SECP256K1_NOINLINE
 static JacobianPoint52 jac52_add_mixed(const JacobianPoint52& p, const AffinePoint52& q) noexcept {
-    if (SECP256K1_UNLIKELY(p.infinity)) {
-        return {q.x, q.y, FieldElement52::one(), false};
-    }
-
-    // zz = Z1^2 [1S]
-    FieldElement52 const zz = p.z.square();
-
-    // U2 = X2 * zz [1M]
-    FieldElement52 const u2 = q.x * zz;
-
-    // S2 = Y2 * Z1 * zz [2M] -- order chosen for ILP (u2 parallel with s2_partial)
-    FieldElement52 s2 = q.y * zz;
-    s2.mul_assign(p.z);
-
-    // H = U2 - X1
-    FieldElement52 const negX1 = p.x.negate(8);     // mag 9 (jac52_add x max: 7)
-    FieldElement52 const h = u2 + negX1;              // mag 6
-
-    // Variable-time zero check (prob ~2^-256)
-    if (SECP256K1_UNLIKELY(h.normalizes_to_zero_var())) {
-        FieldElement52 const negY1 = p.y.negate(4);   // GEJ_Y_MAG_MAX=4
-        FieldElement52 const diff = s2 + negY1;
-        if (diff.normalizes_to_zero_var()) {
-            return jac52_double(p);
-        }
-        return {FieldElement52::zero(), FieldElement52::one(), FieldElement52::zero(), true};
-    }
-
-    // i = S1 - S2 = Y1 - S2 (not doubled -- saves 1S, 2A vs madd-2007-bl)
-    FieldElement52 const negS2 = s2.negate(1);        // mag 2
-    FieldElement52 const i_val = p.y + negS2;         // mag 6
-
-    // h2 = H^2 [1S], i2 = i^2 [1S] -- adjacent independent squares for ILP.
-    FieldElement52 h2 = h.square();                   // mag 1  (6*6*5 = 180 < 3.3M)
-    FieldElement52 const i2 = i_val.square();         // mag 1  (6*6*5 = 180 < 3.3M)
-    // h2 negation trick: h3,t carry the sign, turning subtractions into additions.
-    h2.negate_assign(1);                              // h2 = -H^2, mag 2
-
-    // h3 = H * (-H^2) = -H^3 [1M]
-    FieldElement52 h3 = h2 * h;                       // mag 1  (2*25 = 50 < 3.3M)
-
-    // t = U1 * (-H^2) = -X1*H^2 [1M]
-    FieldElement52 t = p.x * h2;                      // mag 1  (23*2 = 46 < 3.3M)
-
-    // X3 = i^2 + h3 + 2*t  (all additive; i2 ready from early square)
-    FieldElement52 x3 = i2 + h3;                      // mag 2
-    x3.add_assign(t);                                 // mag 3
-    x3.add_assign(t);                                 // mag 4
-
-    // Y3 = i*(t + X3) + h3*S1  [2M + 2A]
-    t.add_assign(x3);                                 // t += X3, mag 5
-    FieldElement52 y3 = t * i_val;                    // mag 1  (5*12 = 60 < 3.3M)
-    h3.mul_assign(p.y);                               // mag 1  (1*10 = 10 < 3.3M)
-    y3.add_assign(h3);                                // Y3, mag 2
-
-    // Z3 = Z1 * H [1M] -- simpler than (Z1+H)^2-Z1Z1-HH, fewer registers
-    FieldElement52 const z3 = p.z * h;                // mag 1  (5*25 = 125 < 3.3M)
-
-    return {x3, y3, z3, false};
+    JacobianPoint52 r = {p.x, p.y, p.z, p.infinity};
+    jac52_add_mixed_inplace(r, q);
+    return r;
 }
 
 // -- In-Place Mixed Addition (5x52): Jacobian + Affine -> Jacobian -------------
@@ -1333,62 +963,13 @@ static void jac52_add_inplace(JacobianPoint52& p, const JacobianPoint52& q) noex
     p.x = x3; p.y = r; p.infinity = false;
 }
 
-// -- Full Jacobian Addition (5x52): Jacobian + Jacobian -> Jacobian ------------
-// Formula: add-2007-bl (a=0)
-// Cost: 12M + 5S + ~11A
+// Full Jacobian Addition (5x52, return by value): delegates to in-place variant.
+// Formula: add-2007-bl (a=0), 12M+5S+~11A.
 SECP256K1_HOT_FUNCTION SECP256K1_NOINLINE
 static JacobianPoint52 jac52_add(const JacobianPoint52& p, const JacobianPoint52& q) {
-    if (SECP256K1_UNLIKELY(p.infinity)) return q;
-    if (SECP256K1_UNLIKELY(q.infinity)) return p;
-
-    const FieldElement52 z1z1 = p.z.square();
-    const FieldElement52 z2z2 = q.z.square();
-    const FieldElement52 u1 = p.x * z2z2;
-    const FieldElement52 u2 = q.x * z1z1;
-    const FieldElement52 s1 = p.y * q.z * z2z2;
-    const FieldElement52 s2 = q.y * p.z * z1z1;
-
-    const FieldElement52 negU1 = u1.negate(1);              // mag 2
-    const FieldElement52 h = u2 + negU1;                    // mag 3
-
-    if (SECP256K1_UNLIKELY(h.normalizes_to_zero_var())) {
-        const FieldElement52 negS1 = s1.negate(1);
-        const FieldElement52 diff = s2 + negS1;
-        if (diff.normalizes_to_zero_var()) return jac52_double(p);
-        return {FieldElement52::zero(), FieldElement52::one(), FieldElement52::zero(), true};
-    }
-
-    const FieldElement52 h2 = h + h;                        // mag 6
-    const FieldElement52 i = h2.square();                   // mag 1 (6^2*5=180 < 3.3M [ok])
-    const FieldElement52 j_val = h * i;                     // mag 1 (3*1=3 < 3.3M [ok])
-
-    const FieldElement52 negS1 = s1.negate(1);              // mag 2
-    FieldElement52 r = s2 + negS1;                          // mag 3
-    r = r + r;                                              // mag 6
-
-    const FieldElement52 v = u1 * i;                        // mag 1
-
-    const FieldElement52 r_sq = r.square();                 // mag 1 (6^2*5=180 < 3.3M [ok])
-    const FieldElement52 negJ = j_val.negate(1);            // mag 2
-    const FieldElement52 negV = v.negate(1);                // mag 2
-    const FieldElement52 x3 = r_sq + negJ + negV + negV;    // mag 7
-
-    const FieldElement52 negX3 = x3.negate(7);              // mag 8
-    const FieldElement52 vx3 = v + negX3;                   // mag 9
-    FieldElement52 y3 = r * vx3;                            // mag 1 (6*9=54 < 3.3M [ok])
-    const FieldElement52 s1j = s1 * j_val;                  // mag 1
-    const FieldElement52 s1j2 = s1j + s1j;                  // mag 2
-    const FieldElement52 negS1J2 = s1j2.negate(2);          // mag 3
-    y3 = y3 + negS1J2;                                      // mag 4
-
-    const FieldElement52 zpz = p.z + q.z;                   // mag <=3
-    const FieldElement52 zpz_sq = zpz.square();             // mag 1 (3^2*5=45 < 3.3M [ok])
-    const FieldElement52 negZ1Z1 = z1z1.negate(1);          // mag 2
-    const FieldElement52 negZ2Z2 = z2z2.negate(1);          // mag 2
-    FieldElement52 z3 = (zpz_sq + negZ1Z1 + negZ2Z2);       // mag 5
-    z3 = z3 * h;                                            // mag 1 (5*3=15 < 3.3M [ok])
-
-    return {x3, y3, z3, false};
+    JacobianPoint52 r = p;
+    jac52_add_inplace(r, q);
+    return r;
 }
 
 // Negate a JacobianPoint52: (X, Y, Z) -> (X, -Y, Z)
@@ -1436,286 +1017,6 @@ static Point scalar_mul_fallback_4x64(const Point& base, const Scalar& scalar) {
     return result;
 }
 
-// -- Dead 4x64 GLV scalar multiplication removed --
-// (jac_add_mixed_4x64_inplace_zr + scalar_mul_glv_4x64) superseded by FE52 path.
-#if 0  // Dead code -- previously gated on SECP256K1_HYBRID_4X64_ACTIVE
-
-// Mixed Add with Z-ratio output (4x64): same formula as jac_add_mixed_4x64_inplace
-// but additionally outputs zr = 2*H (the Z3/Z1 ratio for madd-2007-bl).
-// Used only during table construction (not in hot main loop).
-SECP256K1_NOINLINE
-static void jac_add_mixed_4x64_inplace_zr(
-    std::uint64_t* __restrict__ X,
-    std::uint64_t* __restrict__ Y,
-    std::uint64_t* __restrict__ Z,
-    bool& infinity,
-    const std::uint64_t* __restrict__ Qx,
-    const std::uint64_t* __restrict__ Qy,
-    std::uint64_t* __restrict__ zr_out) noexcept
-{
-    using namespace secp256k1::fast::fe4x64;
-
-    if (SECP256K1_UNLIKELY(infinity)) {
-        copy(X, Qx); copy(Y, Qy);
-        Z[0] = 1; Z[1] = 0; Z[2] = 0; Z[3] = 0;
-        infinity = false;
-        zr_out[0] = 1; zr_out[1] = 0; zr_out[2] = 0; zr_out[3] = 0;
-        return;
-    }
-
-    alignas(32) std::uint64_t z1z1[4], u2[4], s2[4], h[4], hh[4], i_reg[4], j[4];
-    alignas(32) std::uint64_t r_val[4], v[4], x3[4], y3[4], z3[4], t1[4];
-
-    // Z1Z1 = Z^2 (1S)
-    sqr(z1z1, Z);
-    // U2 = Qx * Z1Z1 (1M)
-    mul(u2, Qx, z1z1);
-    // S2 = Qy * Z * Z1Z1 (2M)
-    mul(t1, Z, z1z1);
-    mul(s2, Qy, t1);
-    // H = U2 - X1
-    sub(h, u2, X);
-
-    // Exceptional case: H == 0 means same x-coordinate
-    if (SECP256K1_UNLIKELY(is_zero(h))) {
-        alignas(32) std::uint64_t diff[4];
-        sub(diff, s2, Y);
-        if (is_zero(diff)) {
-            // Same point: double
-            jac_double_4x64_inplace(X, Y, Z);
-            zr_out[0] = 1; zr_out[1] = 0; zr_out[2] = 0; zr_out[3] = 0;
-            return;
-        }
-        // Inverse points: result is infinity
-        X[0] = 0; X[1] = 0; X[2] = 0; X[3] = 0;
-        Y[0] = 1; Y[1] = 0; Y[2] = 0; Y[3] = 0;
-        Z[0] = 0; Z[1] = 0; Z[2] = 0; Z[3] = 0;
-        infinity = true;
-        zr_out[0] = 0; zr_out[1] = 0; zr_out[2] = 0; zr_out[3] = 0;
-        return;
-    }
-
-    // Output z-ratio: Z3/Z1 = 2*H (h is const from here)
-    add(zr_out, h, h);
-
-    // HH = H^2 (1S)
-    sqr(hh, h);
-    // I = 4*HH (2 add)
-    add(i_reg, hh, hh);
-    add(i_reg, i_reg, i_reg);
-    // J = H * I (1M)
-    mul(j, h, i_reg);
-    // r = 2*(S2 - Y) (sub + add)
-    sub(r_val, s2, Y);
-    add(r_val, r_val, r_val);
-    // V = X * I (1M)
-    mul(v, X, i_reg);
-    // X3 = r^2 - J - 2V (1S + subs)
-    sqr(x3, r_val);
-    sub(x3, x3, j);
-    sub(x3, x3, v);
-    sub(x3, x3, v);
-    // Y3 = r*(V-X3) - 2*Y*J (2M + sub)
-    sub(t1, v, x3);
-    mul(y3, r_val, t1);
-    mul(t1, Y, j);
-    add(t1, t1, t1);
-    sub(y3, y3, t1);
-    // Z3 = (Z+H)^2 - Z1Z1 - HH (1S + add + subs)
-    add(z3, Z, h);
-    sqr(z3, z3);
-    sub(z3, z3, z1z1);
-    sub(z3, z3, hh);
-
-    copy(X, x3);
-    copy(Y, y3);
-    copy(Z, z3);
-    infinity = false;
-}
-
-// Main 4x64 GLV scalar multiplication with z-ratio table construction.
-SECP256K1_NOINLINE SECP256K1_NO_STACK_PROTECTOR
-static Point scalar_mul_glv_4x64(const Point& base, const Scalar& scalar) {
-    using namespace secp256k1::fast::fe4x64;
-
-    if (SECP256K1_UNLIKELY(base.is_infinity() || scalar.is_zero()))
-        return Point::infinity();
-
-    // -- GLV decomposition ------------------------------------------------
-    GLVDecomposition const decomp = glv_decompose(scalar);
-
-    // -- Convert base point to 4x64 limbs ---------------------------------
-    JacobianPoint52 const P52 = decomp.k1_neg
-        ? to_jac52(base.negate())
-        : to_jac52(base);
-
-    alignas(32) std::uint64_t Px[4], Py[4], Pz[4];
-    fe52_normalize_and_pack_4x64(P52.x.n, Px);
-    fe52_normalize_and_pack_4x64(P52.y.n, Py);
-    fe52_normalize_and_pack_4x64(P52.z.n, Pz);
-
-    // -- Compute wNAF for both half-scalars --------------------------------
-    constexpr unsigned glv_window = 5;
-    constexpr int glv_table_size = (1 << (glv_window - 2));  // 8
-
-    std::array<int32_t, 260> wnaf1_buf{}, wnaf2_buf{};
-    std::size_t wnaf1_len = 0, wnaf2_len = 0;
-    compute_wnaf_into(decomp.k1, glv_window,
-                      wnaf1_buf.data(), wnaf1_buf.size(), wnaf1_len);
-    compute_wnaf_into(decomp.k2, glv_window,
-                      wnaf2_buf.data(), wnaf2_buf.size(), wnaf2_len);
-
-    while (wnaf1_len > 0 && wnaf1_buf[wnaf1_len - 1] == 0) --wnaf1_len;
-    while (wnaf2_len > 0 && wnaf2_buf[wnaf2_len - 1] == 0) --wnaf2_len;
-
-    // -- Precompute table [1P, 3P, ..., 15P] using z-ratio propagation -----
-    // Isomorphic curve technique + z-ratio backward sweep.
-    // Cost: 1 dbl + 7 mixed adds + 1 backward sweep (7*3M = 21M) = ~28M + ~18S
-    // vs old: 1 dbl + 7 mixed adds + 1 batch inversion (~1100 ns SafeGCD)
-    struct alignas(32) Aff64 {
-        std::uint64_t x[4];
-        std::uint64_t y[4];
-    };
-
-    std::array<Aff64, glv_table_size> tbl_P{};
-    std::array<Aff64, glv_table_size> tbl_phiP{};
-    alignas(32) std::uint64_t globalz[4];
-
-    {
-        // D = 2*P (Jacobian)
-        alignas(32) std::uint64_t Dx[4], Dy[4], Dz[4];
-        copy(Dx, Px); copy(Dy, Py); copy(Dz, Pz);
-        jac_double_4x64_inplace(Dx, Dy, Dz);
-
-        // C = D.Z, C^2, C^3
-        alignas(32) std::uint64_t C[4], C2[4], C3[4];
-        copy(C, Dz);
-        sqr(C2, C);
-        mul(C3, C2, C);
-
-        // pre[0] = P mapped to iso curve: (P.X * C^2, P.Y * C^3)
-        mul(tbl_P[0].x, Px, C2);
-        mul(tbl_P[0].y, Py, C3);
-
-        // Accumulator on iso curve: (pre[0].x, pre[0].y, P.Z)
-        alignas(32) std::uint64_t ax[4], ay[4], az[4];
-        copy(ax, tbl_P[0].x);
-        copy(ay, tbl_P[0].y);
-        copy(az, Pz);
-        bool a_inf = false;
-
-        // d_aff on iso curve: (D.X, D.Y) -- affine since D.Z = C is the iso factor
-        // Z-ratio array (zr[i] = Z_i / Z_{i-1})
-        alignas(32) std::uint64_t zr[glv_table_size][4];
-        copy(zr[0], C);  // first z-ratio is C (iso mapping factor)
-
-        // Build 3P, 5P, ..., 15P via mixed adds on iso curve
-        for (std::size_t i = 1; i < static_cast<std::size_t>(glv_table_size); ++i) {
-            jac_add_mixed_4x64_inplace_zr(ax, ay, az, a_inf, Dx, Dy, zr[i]);
-            if (SECP256K1_UNLIKELY(a_inf)) {
-                // Exceptional: table entry is infinity -- use fallback
-                return scalar_mul_fallback_4x64(base, scalar);
-            }
-            copy(tbl_P[i].x, ax);
-            copy(tbl_P[i].y, ay);
-        }
-
-        // globalz = final_accumulator.Z * C (undo isomorphism: iso -> secp256k1)
-        mul(globalz, az, C);
-
-        // Backward sweep: equalize Z across all table entries.
-        // After this, all entries share implied Z = Z_last on iso curve.
-        // Combined with the C factor, globalz = Z_last * C maps to secp256k1.
-        {
-            alignas(32) std::uint64_t zs[4], zs2[4], zs3[4];
-            copy(zs, zr[glv_table_size - 1]);
-
-            std::size_t idx = static_cast<std::size_t>(glv_table_size) - 1;
-            while (idx > 0) {
-                if (idx != static_cast<std::size_t>(glv_table_size) - 1)
-                    mul(zs, zs, zr[idx]);
-                --idx;
-                sqr(zs2, zs);
-                mul(zs3, zs2, zs);
-                mul(tbl_P[idx].x, tbl_P[idx].x, zs2);
-                mul(tbl_P[idx].y, tbl_P[idx].y, zs3);
-            }
-        }
-    }
-
-    // -- Derive phi(P) table: phi(x,y) = (beta*x, y) or (beta*x, -y) ------
-    static constexpr std::uint64_t BETA_4x64[4] = {
-        0xc1396c28719501eeULL, 0x9cf0497512f58995ULL,
-        0x6e64479eac3434e9ULL, 0x7ae96a2b657c0710ULL
-    };
-
-    const bool flip_phi = (decomp.k1_neg != decomp.k2_neg);
-    for (std::size_t i = 0; i < static_cast<std::size_t>(glv_table_size); ++i) {
-        mul(tbl_phiP[i].x, tbl_P[i].x, BETA_4x64);
-        if (flip_phi) {
-            negate(tbl_phiP[i].y, tbl_P[i].y);
-        } else {
-            copy(tbl_phiP[i].y, tbl_P[i].y);
-        }
-    }
-
-    // -- Shamir's trick: single doubling chain, dual lookups ---------------
-    alignas(32) std::uint64_t Rx[4]{}, Ry[4]{}, Rz[4]{};
-    bool R_inf = true;
-
-    const std::size_t max_len = (wnaf1_len > wnaf2_len) ? wnaf1_len : wnaf2_len;
-
-    for (int i = static_cast<int>(max_len) - 1; i >= 0; --i) {
-        if (!R_inf) {
-            jac_double_4x64_inplace(Rx, Ry, Rz);
-        }
-
-        // k1 contribution
-        {
-            int32_t const d = wnaf1_buf[static_cast<std::size_t>(i)];
-            if (d > 0) {
-                const auto& entry = tbl_P[static_cast<std::size_t>((d - 1) >> 1)];
-                jac_add_mixed_4x64_inplace(Rx, Ry, Rz, R_inf, entry.x, entry.y);
-            } else if (d < 0) {
-                const auto& entry = tbl_P[static_cast<std::size_t>((-d - 1) >> 1)];
-                alignas(32) std::uint64_t neg_y[4];
-                negate(neg_y, entry.y);
-                jac_add_mixed_4x64_inplace(Rx, Ry, Rz, R_inf, entry.x, neg_y);
-            }
-        }
-
-        // k2 contribution
-        {
-            int32_t const d = wnaf2_buf[static_cast<std::size_t>(i)];
-            if (d > 0) {
-                const auto& entry = tbl_phiP[static_cast<std::size_t>((d - 1) >> 1)];
-                jac_add_mixed_4x64_inplace(Rx, Ry, Rz, R_inf, entry.x, entry.y);
-            } else if (d < 0) {
-                const auto& entry = tbl_phiP[static_cast<std::size_t>((-d - 1) >> 1)];
-                alignas(32) std::uint64_t neg_y[4];
-                negate(neg_y, entry.y);
-                jac_add_mixed_4x64_inplace(Rx, Ry, Rz, R_inf, entry.x, neg_y);
-            }
-        }
-    }
-
-    // -- Final Z correction: multiply by globalz ---------------------------
-    // All table entries had implied Z = globalz on secp256k1.
-    // The Shamir loop treated them as affine (Z=1), so the accumulated
-    // result's Z is off by a factor of globalz.
-    if (!R_inf) {
-        mul(Rz, Rz, globalz);
-    }
-
-    // -- Convert 4x64 result back to Point via FE52 -----------------------
-    FieldElement52 const rx52 = FieldElement52::from_4x64_limbs(Rx);
-    FieldElement52 const ry52 = FieldElement52::from_4x64_limbs(Ry);
-    FieldElement52 const rz52 = FieldElement52::from_4x64_limbs(Rz);
-
-    return Point::from_jacobian52(rx52, ry52, rz52, R_inf);
-}
-
-#endif // Dead 4x64 GLV scalar mul (was SECP256K1_HYBRID_4X64_ACTIVE)
 
 // Kept as a separate noinline function so the ~5 KB of local arrays
 // live in their own stack frame, preventing GS-cookie corruption that
