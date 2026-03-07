@@ -68,6 +68,17 @@ option(SECP256K1_USE_PGO_GEN "Enable Profile-Guided Optimization - Generate prof
 option(SECP256K1_USE_PGO_USE "Enable Profile-Guided Optimization - Use profile" OFF)
 set(SECP256K1_PGO_PROFILE_DIR "${CMAKE_BINARY_DIR}/pgo_profiles" CACHE PATH "Directory for PGO profiles")
 
+# Resolve target arch when cpu/ is built standalone (e.g. android/CMakeLists.txt)
+# and parent project did not predefine _SECP_TARGET_ARCH.
+if(NOT DEFINED _SECP_TARGET_ARCH OR _SECP_TARGET_ARCH STREQUAL "")
+    if(ANDROID AND DEFINED ANDROID_ABI AND NOT ANDROID_ABI STREQUAL "")
+        set(_SECP_TARGET_ARCH "${ANDROID_ABI}")
+    else()
+        set(_SECP_TARGET_ARCH "${CMAKE_SYSTEM_PROCESSOR}")
+    endif()
+endif()
+message(STATUS "Secp256k1: Effective target arch: ${_SECP_TARGET_ARCH}")
+
 if(SECP256K1_USE_ASM)
     if(_SECP_TARGET_ARCH MATCHES "x86_64|AMD64|X64" AND CMAKE_SIZEOF_VOID_P EQUAL 8)
         # x64 Assembly (Windows/Linux/macOS)

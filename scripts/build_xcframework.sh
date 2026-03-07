@@ -40,6 +40,7 @@ cmake -S "$ROOT_DIR" -B "$BUILD_DIR/ios-device" \
     -G Xcode \
     -DCMAKE_TOOLCHAIN_FILE="$ROOT_DIR/cmake/ios.toolchain.cmake" \
     -DIOS_PLATFORM=OS \
+    -DSECP256K1_USE_LTO=OFF \
     -DCMAKE_BUILD_TYPE="$CONFIG" \
     2>&1 | tail -5
 
@@ -56,6 +57,7 @@ cmake -S "$ROOT_DIR" -B "$BUILD_DIR/ios-simulator" \
     -G Xcode \
     -DCMAKE_TOOLCHAIN_FILE="$ROOT_DIR/cmake/ios.toolchain.cmake" \
     -DIOS_PLATFORM=SIMULATOR \
+    -DSECP256K1_USE_LTO=OFF \
     -DCMAKE_BUILD_TYPE="$CONFIG" \
     2>&1 | tail -5
 

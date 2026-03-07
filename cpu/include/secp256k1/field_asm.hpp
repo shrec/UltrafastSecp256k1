@@ -35,8 +35,6 @@ FieldElement field_square_bmi2(const FieldElement& a);
 // ===================================================================
 
 #if (defined(__aarch64__) || defined(_M_ARM64)) && !defined(SECP256K1_NO_ASM)
-#define SECP256K1_HAS_ARM64_ASM 1
-
 // Internal ARM64 assembly functions (direct pointer interface for hot paths)
 namespace arm64 {
     void field_mul_arm64(uint64_t out[4], const uint64_t a[4], const uint64_t b[4]) noexcept;
