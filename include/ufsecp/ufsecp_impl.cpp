@@ -346,7 +346,7 @@ ufsecp_error_t ufsecp_pubkey_create(ufsecp_ctx* ctx,
     if (!ctx || !privkey || !pubkey33_out) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
     Point pk;
-    ufsecp_error_t err = pubkey_create_core(ctx, privkey, pk);
+    const ufsecp_error_t err = pubkey_create_core(ctx, privkey, pk);
     if (err != UFSECP_OK) return err;
     point_to_compressed(pk, pubkey33_out);
     return UFSECP_OK;
@@ -358,7 +358,7 @@ ufsecp_error_t ufsecp_pubkey_create_uncompressed(ufsecp_ctx* ctx,
     if (!ctx || !privkey || !pubkey65_out) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
     Point pk;
-    ufsecp_error_t err = pubkey_create_core(ctx, privkey, pk);
+    const ufsecp_error_t err = pubkey_create_core(ctx, privkey, pk);
     if (err != UFSECP_OK) return err;
     auto uncomp = pk.to_uncompressed();
     std::memcpy(pubkey65_out, uncomp.data(), 65);
@@ -812,7 +812,7 @@ ufsecp_error_t ufsecp_ecdh(ufsecp_ctx* ctx,
     if (!ctx || !privkey || !pubkey33 || !secret32_out) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
     Scalar sk; Point pk;
-    ufsecp_error_t err = ecdh_parse_args(ctx, privkey, pubkey33, sk, pk);
+    const ufsecp_error_t err = ecdh_parse_args(ctx, privkey, pubkey33, sk, pk);
     if (err != UFSECP_OK) return err;
     auto secret = secp256k1::ecdh_compute(sk, pk);
     std::memcpy(secret32_out, secret.data(), 32);
@@ -826,7 +826,7 @@ ufsecp_error_t ufsecp_ecdh_xonly(ufsecp_ctx* ctx,
     if (!ctx || !privkey || !pubkey33 || !secret32_out) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
     Scalar sk; Point pk;
-    ufsecp_error_t err = ecdh_parse_args(ctx, privkey, pubkey33, sk, pk);
+    const ufsecp_error_t err = ecdh_parse_args(ctx, privkey, pubkey33, sk, pk);
     if (err != UFSECP_OK) return err;
     auto secret = secp256k1::ecdh_compute_xonly(sk, pk);
     std::memcpy(secret32_out, secret.data(), 32);
@@ -840,7 +840,7 @@ ufsecp_error_t ufsecp_ecdh_raw(ufsecp_ctx* ctx,
     if (!ctx || !privkey || !pubkey33 || !secret32_out) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
     Scalar sk; Point pk;
-    ufsecp_error_t err = ecdh_parse_args(ctx, privkey, pubkey33, sk, pk);
+    const ufsecp_error_t err = ecdh_parse_args(ctx, privkey, pubkey33, sk, pk);
     if (err != UFSECP_OK) return err;
     auto secret = secp256k1::ecdh_compute_raw(sk, pk);
     std::memcpy(secret32_out, secret.data(), 32);

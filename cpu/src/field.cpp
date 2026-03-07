@@ -2308,7 +2308,7 @@ FieldElement FieldElement::from_uint64(std::uint64_t value) {
 }
 
 inline std::uint64_t load_be64(const std::uint8_t* p) noexcept {
-    std::uint64_t v;
+    std::uint64_t v = 0;
     std::memcpy(&v, p, 8);
 #if defined(__GNUC__) || defined(__clang__)
     return __builtin_bswap64(v);
