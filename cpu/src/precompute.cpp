@@ -73,6 +73,7 @@
 #include <fstream>
 #include <chrono>
 #include <sys/stat.h>
+#include <cerrno>
 #include <unordered_map>
 #include <iostream>
 #include <iomanip>
@@ -186,6 +187,13 @@ uint64_t g_decomp_barrett_reduce_cycles = 0;
 uint64_t g_decomp_normalize_cycles = 0;
 
 namespace {
+
+static bool remove_file_if_exists(const std::string& path) {
+    if (std::remove(path.c_str()) == 0) {
+        return true;
+    }
+    return errno == ENOENT;
+}
 
 struct AffinePointPacked {
     FieldElement x;
@@ -2206,13 +2214,16 @@ bool save_precompute_cache_locked(const std::string& path) {
     header.reserved = 0;
     
     file.write(reinterpret_cast<const char*>(&header), sizeof(header));
-    if (!file.good()) { std::remove(tmp_path.c_str()); return false; }
+    if (!file.good()) {
+        (void)remove_file_if_exists(tmp_path);
+        return false;
+    }
     
     // Write base tables
     for (const auto& window : ctx.base_tables) {
         for (const auto& point : window) {
             if (!write_affine_point(file, point)) {
-                std::remove(tmp_path.c_str());
+                (void)remove_file_if_exists(tmp_path);
                 return false;
             }
         }
@@ -2223,7 +2234,7 @@ bool save_precompute_cache_locked(const std::string& path) {
         for (const auto& window : ctx.psi_tables) {
             for (const auto& point : window) {
                 if (!write_affine_point(file, point)) {
-                    std::remove(tmp_path.c_str());
+                    (void)remove_file_if_exists(tmp_path);
                     return false;
                 }
             }
@@ -2231,13 +2242,16 @@ bool save_precompute_cache_locked(const std::string& path) {
     }
     
     file.close();
-    if (!file.good()) { std::remove(tmp_path.c_str()); return false; }
+    if (!file.good()) {
+        (void)remove_file_if_exists(tmp_path);
+        return false;
+    }
     
     // Atomic rename: readers see either the old complete file or the new complete file.
     // Use std::rename (C) instead of std::filesystem::rename to avoid MSan false
     // positives from uninstrumented libstdc++ filesystem internals.
     if (std::rename(tmp_path.c_str(), path.c_str()) != 0) {
-        std::remove(tmp_path.c_str());
+        (void)remove_file_if_exists(tmp_path);
         return false;
     }
     return true;
@@ -2693,13 +2707,13 @@ static std::vector<TuneCandidate> discover_candidates(const FixedBaseConfig& bas
     // POSIX: opendir/readdir
     DIR* dp = opendir(dir.c_str());
     if (dp) {
-        struct dirent* ep;
+        struct dirent* ep = nullptr;
         while ((ep = readdir(dp)) != nullptr) {
             std::string fname(ep->d_name);
 #endif
             // Expected: cache_w{bits}.bin or cache_w{bits}_glv.bin
             if (fname.rfind("cache_w", 0) == 0) {
-                size_t ext_pos = fname.rfind(".bin");
+                std::size_t const ext_pos = fname.rfind(".bin");
                 if (ext_pos == std::string::npos || ext_pos + 4 != fname.size()) continue;
                 size_t const pos = 7; // strlen("cache_w")
                 size_t num_end = pos;

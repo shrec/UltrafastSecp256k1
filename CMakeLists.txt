@@ -70,12 +70,28 @@ if(UFSECP_BITCOIN_STRICT)
     add_compile_definitions(UFSECP_BITCOIN_STRICT=1)
 endif()
 
+# Resolve effective target architecture (handles macOS cross-compilation).
+# On macOS, CMAKE_SYSTEM_PROCESSOR reflects the HOST, not the TARGET when
+# cross-compiling via CMAKE_OSX_ARCHITECTURES (e.g. ARM64 host -> x86_64 target).
+# See: https://github.com/shrec/UltrafastSecp256k1/issues/101
+if(APPLE AND CMAKE_OSX_ARCHITECTURES)
+    if(CMAKE_OSX_ARCHITECTURES MATCHES "x86_64")
+        set(_SECP_TARGET_ARCH "x86_64")
+    elseif(CMAKE_OSX_ARCHITECTURES MATCHES "arm64")
+        set(_SECP_TARGET_ARCH "arm64")
+    else()
+        set(_SECP_TARGET_ARCH "${CMAKE_SYSTEM_PROCESSOR}")
+    endif()
+else()
+    set(_SECP_TARGET_ARCH "${CMAKE_SYSTEM_PROCESSOR}")
+endif()
+
 # Platform detection
-if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|X64")
+if(_SECP_TARGET_ARCH MATCHES "x86_64|AMD64|X64")
     set(SECP256K1_PLATFORM "x86_64")
-elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "riscv64|RISCV64")
+elseif(_SECP_TARGET_ARCH MATCHES "riscv64|RISCV64")
     set(SECP256K1_PLATFORM "riscv64")
-elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|ARM64")
+elseif(_SECP_TARGET_ARCH MATCHES "aarch64|ARM64|arm64")
     set(SECP256K1_PLATFORM "aarch64")
 else()
     set(SECP256K1_PLATFORM "generic")
@@ -293,7 +309,7 @@ set(CPACK_PACKAGE_DESCRIPTION_SUMMARY
 set(CPACK_PACKAGE_HOMEPAGE_URL "https://github.com/shrec/UltrafastSecp256k1")
 set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE")
 set(CPACK_PACKAGE_FILE_NAME
-    "${CPACK_PACKAGE_NAME}-${PROJECT_VERSION}-${CMAKE_SYSTEM_NAME}-${CMAKE_SYSTEM_PROCESSOR}")
+    "${CPACK_PACKAGE_NAME}-${PROJECT_VERSION}-${CMAKE_SYSTEM_NAME}-${_SECP_TARGET_ARCH}")
 set(CPACK_STRIP_FILES ON)
 
 # Generate ZIP on all platforms, plus TGZ + DEB + RPM on Unix
@@ -312,9 +328,9 @@ set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
 
 # Map target arch -> DEB architecture (critical for cross-compilation where
 # dpkg --print-architecture returns the HOST arch, not the TARGET arch).
-if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|ARM64")
+if(_SECP_TARGET_ARCH MATCHES "aarch64|ARM64|arm64")
     set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE "arm64")
-elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64")
+elseif(_SECP_TARGET_ARCH MATCHES "x86_64|AMD64")
     set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE "amd64")
 endif()
 

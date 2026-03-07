@@ -410,6 +410,15 @@ struct S30CT  { int32_t v[9]; };
 struct T2x2CT { int32_t u, v, q, r; };
 struct ModInfoCT { S30CT modulus; std::uint32_t modulus_inv30; };
 
+static inline int32_t arshift32(int32_t x, unsigned s) noexcept {
+    std::uint32_t const ux = static_cast<std::uint32_t>(x);
+    std::uint32_t const sign = 0U - (ux >> 31);
+    if (s == 0) {
+        return x;
+    }
+    return static_cast<int32_t>((ux >> s) | (sign << (32U - s)));
+}
+
 // secp256k1 prime p in signed-30 representation:
 // p = 2^256 - 2^32 - 977
 static constexpr ModInfoCT PINFO_CT = {
@@ -426,7 +435,7 @@ static int32_t ct_divsteps_30(int32_t zeta, std::uint32_t f0, std::uint32_t g0,
 
     for (int i = 0; i < 30; ++i) {
         // c1 = all-ones if zeta < 0 (i.e. delta > 0), else 0
-        auto c1 = static_cast<std::uint32_t>(zeta >> 31);
+        auto c1 = 0U - (static_cast<std::uint32_t>(zeta) >> 31);
         // c2 = all-ones if g is odd, else 0
         std::uint32_t const c2 = 0U - (g & 1U);
 
@@ -534,7 +543,7 @@ static void ct_normalize_30(S30CT& r, int32_t sign, const ModInfoCT& mod) noexce
     int32_t cond;
 
     // If r < 0, add modulus
-    cond = r8 >> 31;
+    cond = arshift32(r8, 31);
     r0 += mod.modulus.v[0] & cond;
     r1 += mod.modulus.v[1] & cond;
     r2 += mod.modulus.v[2] & cond;
@@ -546,7 +555,7 @@ static void ct_normalize_30(S30CT& r, int32_t sign, const ModInfoCT& mod) noexce
     r8 += mod.modulus.v[8] & cond;
 
     // Conditionally negate based on sign of f
-    cond = sign >> 31;
+    cond = arshift32(sign, 31);
     r0 = (r0 ^ cond) - cond;
     r1 = (r1 ^ cond) - cond;
     r2 = (r2 ^ cond) - cond;
@@ -558,17 +567,17 @@ static void ct_normalize_30(S30CT& r, int32_t sign, const ModInfoCT& mod) noexce
     r8 = (r8 ^ cond) - cond;
 
     // Carry propagation
-    r1 += r0 >> 30; r0 &= M30;
-    r2 += r1 >> 30; r1 &= M30;
-    r3 += r2 >> 30; r2 &= M30;
-    r4 += r3 >> 30; r3 &= M30;
-    r5 += r4 >> 30; r4 &= M30;
-    r6 += r5 >> 30; r5 &= M30;
-    r7 += r6 >> 30; r6 &= M30;
-    r8 += r7 >> 30; r7 &= M30;
+    r1 += arshift32(r0, 30); r0 &= M30;
+    r2 += arshift32(r1, 30); r1 &= M30;
+    r3 += arshift32(r2, 30); r2 &= M30;
+    r4 += arshift32(r3, 30); r3 &= M30;
+    r5 += arshift32(r4, 30); r4 &= M30;
+    r6 += arshift32(r5, 30); r5 &= M30;
+    r7 += arshift32(r6, 30); r6 &= M30;
+    r8 += arshift32(r7, 30); r7 &= M30;
 
     // Second conditional add (may still be negative after negate)
-    cond = r8 >> 31;
+    cond = arshift32(r8, 31);
     r0 += mod.modulus.v[0] & cond;
     r1 += mod.modulus.v[1] & cond;
     r2 += mod.modulus.v[2] & cond;
@@ -580,14 +589,14 @@ static void ct_normalize_30(S30CT& r, int32_t sign, const ModInfoCT& mod) noexce
     r8 += mod.modulus.v[8] & cond;
 
     // Final carry propagation
-    r1 += r0 >> 30; r0 &= M30;
-    r2 += r1 >> 30; r1 &= M30;
-    r3 += r2 >> 30; r2 &= M30;
-    r4 += r3 >> 30; r3 &= M30;
-    r5 += r4 >> 30; r4 &= M30;
-    r6 += r5 >> 30; r5 &= M30;
-    r7 += r6 >> 30; r6 &= M30;
-    r8 += r7 >> 30; r7 &= M30;
+    r1 += arshift32(r0, 30); r0 &= M30;
+    r2 += arshift32(r1, 30); r1 &= M30;
+    r3 += arshift32(r2, 30); r2 &= M30;
+    r4 += arshift32(r3, 30); r3 &= M30;
+    r5 += arshift32(r4, 30); r4 &= M30;
+    r6 += arshift32(r5, 30); r5 &= M30;
+    r7 += arshift32(r6, 30); r6 &= M30;
+    r8 += arshift32(r7, 30); r7 &= M30;
 
     r.v[0]=r0; r.v[1]=r1; r.v[2]=r2; r.v[3]=r3; r.v[4]=r4;
     r.v[5]=r5; r.v[6]=r6; r.v[7]=r7; r.v[8]=r8;

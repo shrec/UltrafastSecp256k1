@@ -996,6 +996,7 @@ cosign verify-blob SHA256SUMS \
 | [Audit Coverage](AUDIT_COVERAGE.md) | Full audit report with 46+ modules and platform verdicts |
 | [Audit Guide](docs/AUDIT_GUIDE.md) | How to run and interpret audit suite |
 | [Test Matrix](docs/TEST_MATRIX.md) | Comprehensive test coverage map for auditors |
+| [ARM64 Audit & Benchmark](docs/ARM64_AUDIT_BENCHMARK.md) | ARM64 platform certification and performance analysis |
 | [Threat Model](THREAT_MODEL.md) | Layer-by-layer security risk assessment |
 | [Security Policy](SECURITY.md) | Vulnerability reporting and audit status |
 | [Porting Guide](PORTING.md) | Add new platforms, architectures, GPU backends |

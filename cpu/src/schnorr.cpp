@@ -245,9 +245,24 @@ bool schnorr_verify(const uint8_t* pubkey_x32,
     // but also guard here for callers using from_bytes (reducing parser).
     if (sig.s.is_zero()) return false;
 
-    // Check r < p: if sig.r bytes represent a value >= p, reject.
-    FieldElement r_fe_check;
-    if (!FieldElement::parse_bytes_strict(sig.r.data(), r_fe_check)) return false;
+    // Check r < p: parse r bytes to 4x64 LE limbs + strict check, no FieldElement.
+    std::uint64_t rL[4];
+    for (int i = 0; i < 4; ++i) {
+        std::uint64_t limb = 0;
+        for (int j = 0; j < 8; ++j)
+            limb = (limb << 8) | static_cast<std::uint64_t>(sig.r[i * 8 + j]);
+        rL[3 - i] = limb;
+    }
+    {
+        constexpr std::uint64_t P0 = 0xFFFFFFFEFFFFFC2FULL;
+        bool overflow = false;
+        if (rL[3] == 0xFFFFFFFFFFFFFFFFULL &&
+            rL[2] == 0xFFFFFFFFFFFFFFFFULL &&
+            rL[1] == 0xFFFFFFFFFFFFFFFFULL &&
+            rL[0] >= P0)
+            overflow = true;
+        if (overflow) return false;
+    }
 
     // Check pubkey x < p: if pubkey_x32 bytes represent a value >= p, reject.
     FieldElement pk_fe_check;
@@ -282,9 +297,8 @@ bool schnorr_verify(const uint8_t* pubkey_x32,
     FE52 const z_inv3 = z_inv * z_inv2;
     FE52 y_aff = R.Y52() * z_inv3;       // magnitude 1
 
-    // X-check: negate + add + normalizes_to_zero_var (0 full normalizations).
-    // Replaces 3 explicit normalize() + 2 inside operator== = 5 normalizations.
-    FE52 r52 = FE52::from_fe(r_fe_check); // magnitude 1
+    // X-check: r parsed directly to FE52 (no FieldElement intermediate)
+    FE52 r52 = FE52::from_4x64_limbs(rL);
     x_aff.negate_assign(1);               // magnitude 2
     x_aff.add_assign(r52);                // magnitude 3 (r52 - x_aff)
     bool x_match = x_aff.normalizes_to_zero_var();
@@ -293,6 +307,7 @@ bool schnorr_verify(const uint8_t* pubkey_x32,
     y_aff.normalize();
     return x_match & ((y_aff.n[0] & 1) == 0);
 #else
+    FieldElement r_fe_check = FieldElement::from_limbs_raw({rL[0], rL[1], rL[2], rL[3]});
     FieldElement z_inv = R.z_raw().inverse();
     FieldElement z_inv2 = z_inv;
     z_inv2.square_inplace();
@@ -352,8 +367,28 @@ bool schnorr_verify(const SchnorrXonlyPubkey& pubkey,
     if (sig.s.is_zero()) return false;
 
     // BIP-340 strict: r < p
-    FieldElement r_fe_check;
-    if (!FieldElement::parse_bytes_strict(sig.r.data(), r_fe_check)) return false;
+    // Parse r bytes directly to 4x64 LE limbs, check against prime, then
+    // convert to FE52 in one shot -- no FieldElement intermediate object.
+    std::uint64_t rL[4];
+    for (int i = 0; i < 4; ++i) {
+        std::uint64_t limb = 0;
+        for (int j = 0; j < 8; ++j)
+            limb = (limb << 8) | static_cast<std::uint64_t>(sig.r[i * 8 + j]);
+        rL[3 - i] = limb;
+    }
+    // Reject r >= p.  p = {0xFFFFFFFEFFFFFC2F, 0xFFFF..., 0xFFFF..., 0xFFFF...}
+    {
+        constexpr std::uint64_t P0 = 0xFFFFFFFEFFFFFC2FULL;
+        bool overflow = (rL[3] > 0xFFFFFFFFFFFFFFFFULL); // can't happen, 64-bit
+        if (!overflow && rL[3] == 0xFFFFFFFFFFFFFFFFULL) {
+            if (rL[2] == 0xFFFFFFFFFFFFFFFFULL) {
+                if (rL[1] == 0xFFFFFFFFFFFFFFFFULL) {
+                    overflow = (rL[0] >= P0);
+                }
+            }
+        }
+        if (overflow) return false;
+    }
 
     // Challenge hash: streaming SHA256 (no intermediate buffer)
     SHA256 ctx = g_challenge_midstate;
@@ -370,7 +405,6 @@ bool schnorr_verify(const SchnorrXonlyPubkey& pubkey,
     if (R.is_infinity()) return false;
 
     // Single affine conversion: Z^{-1} -> (x_aff, y_aff) -> check both.
-    // Matches libsecp256k1's approach: one inverse, no redundant X-check.
     // Since Y-parity requires Z^{-3} anyway, computing X from Z^{-2} is free.
 #if defined(SECP256K1_FAST_52BIT)
     FE52 const z_inv = R.Z52().inverse_safegcd();
@@ -379,9 +413,8 @@ bool schnorr_verify(const SchnorrXonlyPubkey& pubkey,
     FE52 const z_inv3 = z_inv * z_inv2;
     FE52 y_aff = R.Y52() * z_inv3;       // magnitude 1
 
-    // X-check: negate + add + normalizes_to_zero_var (0 full normalizations).
-    // Replaces 3 explicit normalize() + 2 inside operator== = 5 normalizations.
-    FE52 r52 = FE52::from_fe(r_fe_check); // magnitude 1
+    // X-check: parse r directly to FE52 (no FieldElement intermediate)
+    FE52 r52 = FE52::from_4x64_limbs(rL);
     x_aff.negate_assign(1);               // magnitude 2
     x_aff.add_assign(r52);                // magnitude 3 (r52 - x_aff)
     bool x_match = x_aff.normalizes_to_zero_var();
@@ -390,6 +423,7 @@ bool schnorr_verify(const SchnorrXonlyPubkey& pubkey,
     y_aff.normalize();
     return x_match & ((y_aff.n[0] & 1) == 0);
 #else
+    FieldElement r_fe_check = FieldElement::from_limbs_raw({rL[0], rL[1], rL[2], rL[3]});
     FieldElement z_inv = R.z_raw().inverse();
     FieldElement z_inv2 = z_inv;
     z_inv2.square_inplace();

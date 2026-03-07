@@ -454,32 +454,30 @@ limbs4 sub_impl(const limbs4& a, const limbs4& b) {
 }
 
 limbs4 add_impl(const limbs4& a, const limbs4& b) {
-    // Compute a + b
-    limbs4 out{};
-    unsigned char carry = 0;
-    for (std::size_t i = 0; i < 4; ++i) {
-        out[i] = add64(a[i], b[i], carry);
-    }
-    // Try subtracting PRIME
-    limbs4 reduced{};
-    unsigned char borrow = 0;
-    reduced[0] = sub64(out[0], PRIME[0], borrow);
-    reduced[1] = sub64(out[1], PRIME[1], borrow);
-    reduced[2] = sub64(out[2], PRIME[2], borrow);
-    reduced[3] = sub64(out[3], PRIME[3], borrow);
-    // Branchless select: use reduced if carry from add OR no borrow from sub
-    // carry=1 means sum >= 2^256 -> definitely >= p
-    // borrow=0 means (sum - p) didn't underflow -> sum >= p
-    // Note: carry=1 AND borrow=0 is impossible (a,b < p -> a+b < 2p,
-    //   so r = a+b-2^256 < p when carry=1, hence sub always borrows).
-    // OR safely covers all 4 cases.
-    const auto use_reduced = static_cast<std::uint64_t>(carry | (1U - borrow));
+    // Compute s = a + b (may overflow 256 bits)
+    limbs4 s{};
+    unsigned char c1 = 0;
+    s[0] = add64(a[0], b[0], c1);
+    s[1] = add64(a[1], b[1], c1);
+    s[2] = add64(a[2], b[2], c1);
+    s[3] = add64(a[3], b[3], c1);
+    // Try s + C where C = 2^256 - p = 0x1000003D1.
+    // If c1=1: a+b overflowed, reduced = a+b+C mod 2^256 = a+b-p. Always correct.
+    // If c1=0 and c2=1: s+C overflowed, meaning s >= p. reduced = s-p. Correct.
+    // If c1=0 and c2=0: s < p. Keep original s.
+    limbs4 r{};
+    unsigned char c2 = 0;
+    r[0] = add64(s[0], MOD_ADJUST, c2);
+    r[1] = add64(s[1], 0, c2);
+    r[2] = add64(s[2], 0, c2);
+    r[3] = add64(s[3], 0, c2);
+    const auto use_reduced = static_cast<std::uint64_t>(c1 | c2);
     const auto mask = 0ULL - use_reduced;
-    out[0] ^= (out[0] ^ reduced[0]) & mask;
-    out[1] ^= (out[1] ^ reduced[1]) & mask;
-    out[2] ^= (out[2] ^ reduced[2]) & mask;
-    out[3] ^= (out[3] ^ reduced[3]) & mask;
-    return out;
+    s[0] ^= (s[0] ^ r[0]) & mask;
+    s[1] ^= (s[1] ^ r[1]) & mask;
+    s[2] ^= (s[2] ^ r[2]) & mask;
+    s[3] ^= (s[3] ^ r[3]) & mask;
+    return s;
 }
 #endif // SECP256K1_PLATFORM_STM32 && __arm__
 
@@ -2361,13 +2359,25 @@ FieldElement FieldElement::from_limbs(const FieldElement::limbs_type& limbs) {
 
 FieldElement FieldElement::from_bytes(const std::array<std::uint8_t, 32>& bytes) {
     FieldElement::limbs_type limbs{};
-    for (std::size_t i = 0; i < 4; ++i) {
-        std::uint64_t limb = 0;
-        for (std::size_t j = 0; j < 8; ++j) {
-            limb = (limb << 8) | static_cast<std::uint64_t>(bytes[i * 8 + j]);
-        }
-        limbs[3 - i] = limb;
-    }
+    // Direct 8-byte loads + byte-swap (4 bswap vs 32 shift+OR iterations)
+    auto load_be64 = [](const std::uint8_t* p) -> std::uint64_t {
+        std::uint64_t v;
+        std::memcpy(&v, p, 8);
+#if defined(__GNUC__) || defined(__clang__)
+        return __builtin_bswap64(v);
+#elif defined(_MSC_VER)
+        return _byteswap_uint64(v);
+#else
+        return ((v >> 56) & 0xFF) | ((v >> 40) & 0xFF00) |
+               ((v >> 24) & 0xFF0000) | ((v >> 8) & 0xFF000000ULL) |
+               ((v << 8) & 0xFF00000000ULL) | ((v << 24) & 0xFF0000000000ULL) |
+               ((v << 40) & 0xFF000000000000ULL) | (v << 56);
+#endif
+    };
+    limbs[3] = load_be64(&bytes[0]);
+    limbs[2] = load_be64(&bytes[8]);
+    limbs[1] = load_be64(&bytes[16]);
+    limbs[0] = load_be64(&bytes[24]);
     // Variable-time branch on public (wire) input -- acceptable.
     // ge() itself is branchless (always processes 4 limbs).
     if (ge(limbs, PRIME)) {
@@ -2380,13 +2390,24 @@ FieldElement FieldElement::from_bytes(const std::array<std::uint8_t, 32>& bytes)
 
 bool FieldElement::parse_bytes_strict(const std::uint8_t* bytes32, FieldElement& out) noexcept {
     FieldElement::limbs_type limbs{};
-    for (std::size_t i = 0; i < 4; ++i) {
-        std::uint64_t limb = 0;
-        for (std::size_t j = 0; j < 8; ++j) {
-            limb = (limb << 8) | static_cast<std::uint64_t>(bytes32[i * 8 + j]);
-        }
-        limbs[3 - i] = limb;
-    }
+    auto load_be64 = [](const std::uint8_t* p) -> std::uint64_t {
+        std::uint64_t v;
+        std::memcpy(&v, p, 8);
+#if defined(__GNUC__) || defined(__clang__)
+        return __builtin_bswap64(v);
+#elif defined(_MSC_VER)
+        return _byteswap_uint64(v);
+#else
+        return ((v >> 56) & 0xFF) | ((v >> 40) & 0xFF00) |
+               ((v >> 24) & 0xFF0000) | ((v >> 8) & 0xFF000000ULL) |
+               ((v << 8) & 0xFF00000000ULL) | ((v << 24) & 0xFF0000000000ULL) |
+               ((v << 40) & 0xFF000000000000ULL) | (v << 56);
+#endif
+    };
+    limbs[3] = load_be64(bytes32);
+    limbs[2] = load_be64(bytes32 + 8);
+    limbs[1] = load_be64(bytes32 + 16);
+    limbs[0] = load_be64(bytes32 + 24);
     // Reject if limbs >= PRIME (BIP-340: fail if r >= p, fail if pk.x >= p)
     if (ge(limbs, PRIME)) return false;
     out = FieldElement(limbs, true);
@@ -2540,7 +2561,8 @@ static FieldElement s62_to_fe(const SafeGCD_Int& s) {
 // Invariant: f is always odd.
 // Matrix semantics:  f_new = (u*f0 + v*g0) / 2^62
 //                    g_new = (q*f0 + r*g0) / 2^62
-static int64_t safegcd_divsteps_62_var(int64_t delta, uint64_t f0, uint64_t g0,
+__attribute__((always_inline))
+static inline int64_t safegcd_divsteps_62_var(int64_t delta, uint64_t f0, uint64_t g0,
                                         SafeGCD_Trans& t) {
     uint64_t u = 1, v = 0, q = 0, r = 1;
     uint64_t f = f0, g = g0;
@@ -2580,7 +2602,8 @@ static int64_t safegcd_divsteps_62_var(int64_t delta, uint64_t f0, uint64_t g0,
 
 // -- Apply transition matrix to full-precision (f, g) --
 // f' = (u*f + v*g) / 2^62,  g' = (q*f + r*g) / 2^62   (exact)
-static void safegcd_update_fg(SafeGCD_Int& f, SafeGCD_Int& g,
+__attribute__((always_inline))
+static inline void safegcd_update_fg(SafeGCD_Int& f, SafeGCD_Int& g,
                                const SafeGCD_Trans& t, int len) {
     const auto M62 = (int64_t)((uint64_t)(-1) >> 2);
     __int128 cf = 0, cg = 0;
@@ -2608,7 +2631,8 @@ static void safegcd_update_fg(SafeGCD_Int& f, SafeGCD_Int& g,
 // Computes (t/2^62) * [d, e] mod p.  On input, d and e are in range (-2p, p).
 // secp256k1 optimization: p.v[1..3] = 0, so only limbs 0 and 4 contribute.
 // Ref: secp256k1_modinv64_update_de_62 in bitcoin-core/secp256k1.
-static void safegcd_update_de(SafeGCD_Int& d, SafeGCD_Int& e,
+__attribute__((always_inline))
+static inline void safegcd_update_de(SafeGCD_Int& d, SafeGCD_Int& e,
                                const SafeGCD_Trans& t) {
     const uint64_t M62 = UINT64_MAX >> 2;
     const int64_t d0 = d.v[0], d1 = d.v[1], d2 = d.v[2], d3 = d.v[3], d4 = d.v[4];
@@ -2669,7 +2693,8 @@ static void safegcd_update_de(SafeGCD_Int& d, SafeGCD_Int& e,
 // -- Effective limb count reduction (with sign-extension propagation) --
 // Ref: inline len reduction in secp256k1_modinv64_var.
 // Reduces len when top limbs of both f and g are 0 or -1.
-static void safegcd_reduce_len(int& len, SafeGCD_Int& f, SafeGCD_Int& g) {
+__attribute__((always_inline))
+static inline void safegcd_reduce_len(int& len, SafeGCD_Int& f, SafeGCD_Int& g) {
     int64_t const fn = f.v[len - 1];
     int64_t const gn = g.v[len - 1];
     // cond == 0 iff len >= 2 AND fn in {0,-1} AND gn in {0,-1}
@@ -2687,7 +2712,8 @@ static void safegcd_reduce_len(int& len, SafeGCD_Int& f, SafeGCD_Int& g) {
 // -- Normalize to [0, p):  conditional add + negate + carry + conditional add --
 // Input:  r in range (-2p, p),  sign = top limb of f (negative if f = -1).
 // Ref: secp256k1_modinv64_normalize_62 in bitcoin-core/secp256k1.
-static void safegcd_normalize(SafeGCD_Int& r, int64_t f_sign) {
+__attribute__((always_inline))
+static inline void safegcd_normalize(SafeGCD_Int& r, int64_t f_sign) {
     const auto M62 = (int64_t)(UINT64_MAX >> 2);
     int64_t r0 = r.v[0], r1 = r.v[1], r2 = r.v[2], r3 = r.v[3], r4 = r.v[4];
 
@@ -2731,6 +2757,13 @@ static void safegcd_normalize(SafeGCD_Int& r, int64_t f_sign) {
 } // anonymous namespace (safegcd helpers)
 
 // -- SafeGCD inverse entry point --
+// noinline: prevents ThinLTO from inlining this ~600-line divsteps loop
+// into callers (schnorr_verify, ecdsa_sign), which would bloat icache and
+// degrade the tightly-optimized iteration. Standalone compilation lets the
+// register allocator see the full function without inter-procedural pressure.
+#if defined(__GNUC__) || defined(__clang__)
+__attribute__((noinline))
+#endif
 static FieldElement fe_inverse_safegcd_impl(const FieldElement& x) {
     SafeGCD_Int d = {{0, 0, 0, 0, 0}};     // d tracks: f = d*x (mod p)
     SafeGCD_Int e = {{1, 0, 0, 0, 0}};     // e tracks: g = e*x (mod p)
@@ -2764,6 +2797,64 @@ static FieldElement fe_inverse_safegcd_impl(const FieldElement& x) {
     safegcd_normalize(d, f.v[len - 1]);
     return s62_to_fe(d);
 }
+
+// -- Direct 5x52 SafeGCD inverse (no 4x64 intermediate) ----------------------
+// Eliminates 2 format conversions vs the FE52→to_fe()→inverse()→from_fe() chain.
+// Matches libsecp256k1's direct 5x52↔signed62 approach.
+#if defined(__GNUC__) || defined(__clang__)
+__attribute__((noinline))
+#endif
+void fe52_inverse_safegcd_var(const std::uint64_t* in5, std::uint64_t* out5) {
+    constexpr std::uint64_t M62 = (1ULL << 62) - 1;
+    constexpr std::uint64_t M52 = (1ULL << 52) - 1;
+
+    // Direct 5x52 → signed-62 (matches libsecp's secp256k1_fe_to_signed62)
+    SafeGCD_Int g;
+    g.v[0] = static_cast<int64_t>((in5[0]       | (in5[1] << 52)) & M62);
+    g.v[1] = static_cast<int64_t>(((in5[1] >> 10) | (in5[2] << 42)) & M62);
+    g.v[2] = static_cast<int64_t>(((in5[2] >> 20) | (in5[3] << 32)) & M62);
+    g.v[3] = static_cast<int64_t>(((in5[3] >> 30) | (in5[4] << 22)) & M62);
+    g.v[4] = static_cast<int64_t>(in5[4] >> 40);
+
+    SafeGCD_Int d = {{0, 0, 0, 0, 0}};
+    SafeGCD_Int e = {{1, 0, 0, 0, 0}};
+    SafeGCD_Int f = SAFEGCD_P;
+
+    int64_t delta = 1;
+    int len = 5;
+
+    for (int i = 0; i < 12; ++i) {
+        SafeGCD_Trans t;
+        delta = safegcd_divsteps_62_var(delta,
+                    (uint64_t)f.v[0], (uint64_t)g.v[0], t);
+
+        safegcd_update_de(d, e, t);
+        safegcd_update_fg(f, g, t, len);
+
+        {
+            int64_t cond = 0;
+            for (int j = 0; j < len; ++j) cond |= g.v[j];
+            if (cond == 0) break;
+        }
+
+        if (i < 11) safegcd_reduce_len(len, f, g);
+    }
+
+    safegcd_normalize(d, f.v[len - 1]);
+
+    // Direct signed-62 → 5x52 (matches libsecp's secp256k1_fe_from_signed62)
+    const auto a0 = static_cast<std::uint64_t>(d.v[0]);
+    const auto a1 = static_cast<std::uint64_t>(d.v[1]);
+    const auto a2 = static_cast<std::uint64_t>(d.v[2]);
+    const auto a3 = static_cast<std::uint64_t>(d.v[3]);
+    const auto a4 = static_cast<std::uint64_t>(d.v[4]);
+    out5[0] =  a0                   & M52;
+    out5[1] = (a0 >> 52 | a1 << 10) & M52;
+    out5[2] = (a1 >> 42 | a2 << 20) & M52;
+    out5[3] = (a2 >> 32 | a3 << 30) & M52;
+    out5[4] = (a3 >> 22 | a4 << 40);
+}
+
 #endif // __SIZEOF_INT128__
 
 // ============================================================================
@@ -3090,6 +3181,34 @@ FieldElement& FieldElement::operator+=(const FieldElement& rhs) {
 FieldElement& FieldElement::operator-=(const FieldElement& rhs) {
     limbs_ = sub_impl(limbs_, rhs.limbs_);
     return *this;
+}
+
+FieldElement FieldElement::negate(unsigned /*magnitude*/) const {
+    // Direct PRIME - x: single 4-limb borrow chain (saves ~25% vs sub_impl(0, x))
+    unsigned char borrow = 0;
+    limbs4 r;
+    r[0] = sub64(PRIME[0], limbs_[0], borrow);
+    r[1] = sub64(PRIME[1], limbs_[1], borrow);
+    r[2] = sub64(PRIME[2], limbs_[2], borrow);
+    r[3] = sub64(PRIME[3], limbs_[3], borrow);
+    // Branchless: if x == 0, return 0 (PRIME - 0 = PRIME is wrong)
+    const std::uint64_t nonzero = limbs_[0] | limbs_[1] | limbs_[2] | limbs_[3];
+    const std::uint64_t mask = 0ULL - static_cast<std::uint64_t>(nonzero != 0);
+    r[0] &= mask; r[1] &= mask; r[2] &= mask; r[3] &= mask;
+    return FieldElement(r, true);
+}
+
+void FieldElement::negate_assign(unsigned /*magnitude*/) {
+    unsigned char borrow = 0;
+    limbs4 r;
+    r[0] = sub64(PRIME[0], limbs_[0], borrow);
+    r[1] = sub64(PRIME[1], limbs_[1], borrow);
+    r[2] = sub64(PRIME[2], limbs_[2], borrow);
+    r[3] = sub64(PRIME[3], limbs_[3], borrow);
+    const std::uint64_t nonzero = limbs_[0] | limbs_[1] | limbs_[2] | limbs_[3];
+    const std::uint64_t mask = 0ULL - static_cast<std::uint64_t>(nonzero != 0);
+    limbs_[0] = r[0] & mask; limbs_[1] = r[1] & mask;
+    limbs_[2] = r[2] & mask; limbs_[3] = r[3] & mask;
 }
 
 FieldElement& FieldElement::operator*=(const FieldElement& rhs) {

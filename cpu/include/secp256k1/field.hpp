@@ -87,12 +87,8 @@ public:
     // Modular negation: returns p - this (mod p).
     // `magnitude` parameter exists for API compatibility with FieldElement52/26
     // (lazy-reduction magnitude tracking); ignored here since FE64 is always normalized.
-    FieldElement negate(unsigned /*magnitude*/ = 1) const {
-        return FieldElement::zero() - *this;
-    }
-    void negate_assign(unsigned /*magnitude*/ = 1) {
-        *this = FieldElement::zero() - *this;
-    }
+    FieldElement negate(unsigned magnitude = 1) const;
+    void negate_assign(unsigned magnitude = 1);
 
     // In-place mutable versions (modify this object directly)
     // ~10-15% faster than immutable versions due to no memory allocation
@@ -282,6 +278,15 @@ void fe_batch_inverse(FieldElement* elements, size_t count);
 void fe_batch_inverse(FieldElement* elements, size_t count, std::vector<FieldElement>& scratch);
 
 } // namespace secp256k1::fast
+
+// Direct 5x52 SafeGCD inverse — bypasses 4x64 intermediate.
+// Input: 5 limbs (52-bit each, normalized). Output: 5 limbs (52-bit, normalized).
+// Declared outside namespace for C-style linkage from FE52 code.
+#if defined(__SIZEOF_INT128__)
+namespace secp256k1::fast {
+void fe52_inverse_safegcd_var(const std::uint64_t* in5, std::uint64_t* out5);
+}
+#endif
 
 
 #endif /* B9C07A97_9853_412C_BCB7_F2FB19B8C1A7 */

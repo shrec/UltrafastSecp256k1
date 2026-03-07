@@ -829,7 +829,7 @@ static void test_negative_vectors() {
     // === B3: DER malformation corpus ===
     auto check_bad_der = [&](const uint8_t* der, size_t len, const char* label) {
         uint8_t out64[64];
-        ufsecp_error_t rc = ufsecp_ecdsa_sig_from_der(ctx, der, len, out64);
+        ufsecp_error_t const rc = ufsecp_ecdsa_sig_from_der(ctx, der, len, out64);
         CHECK(rc == UFSECP_ERR_BAD_SIG, label);
     };
 
@@ -901,7 +901,7 @@ static void test_negative_vectors() {
     // Valid-format sig but wrong message -> VERIFY_FAIL (not BAD_SIG)
     {
         uint8_t wrong_msg[32] = {0x42};
-        ufsecp_error_t rc = ufsecp_ecdsa_verify(ctx, wrong_msg, valid_sig, pub33);
+        ufsecp_error_t const rc = ufsecp_ecdsa_verify(ctx, wrong_msg, valid_sig, pub33);
         CHECK(rc == UFSECP_ERR_VERIFY_FAIL,
               "ecdsa_verify(wrong msg) -> VERIFY_FAIL (not BAD_SIG)");
     }
@@ -914,7 +914,7 @@ static void test_negative_vectors() {
         uint8_t xonly[32];
         hex_to_bytes(PRIVKEY1_HEX, valid_priv, 32);
         CHECK_OK(ufsecp_pubkey_xonly(ctx, valid_priv, xonly), "setup: pubkey_xonly");
-        ufsecp_error_t rc = ufsecp_schnorr_verify(ctx, msg32, bad_schnorr, xonly);
+        ufsecp_error_t const rc = ufsecp_schnorr_verify(ctx, msg32, bad_schnorr, xonly);
         CHECK(rc != UFSECP_OK, "schnorr_verify(bad sig) rejects");
     }
 

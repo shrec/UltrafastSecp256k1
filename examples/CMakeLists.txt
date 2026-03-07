@@ -4,7 +4,7 @@
 # See examples/esp32_test/ and examples/stm32_test/
 
 # -- Desktop examples ---------------------------------------------------------
-if(NOT CMAKE_SYSTEM_PROCESSOR MATCHES "xtensa|Xtensa" AND NOT SECP256K1_PLATFORM_STM32)
+if(NOT _SECP_TARGET_ARCH MATCHES "xtensa|Xtensa" AND NOT SECP256K1_PLATFORM_STM32)
 
     # Basic usage: key gen, point ops, serialization
     if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/basic_usage/main.cpp")

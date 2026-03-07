@@ -3,6 +3,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <stdexcept>
 #include <vector>
 
@@ -180,15 +181,43 @@ Scalar Scalar::from_limbs(const limbs_type& limbs) {
     return s;
 }
 
+namespace {
+inline std::uint64_t load_be64(const std::uint8_t* p) noexcept {
+    std::uint64_t v;
+    std::memcpy(&v, p, 8);
+#if defined(__GNUC__) || defined(__clang__)
+    return __builtin_bswap64(v);
+#elif defined(_MSC_VER)
+    return _byteswap_uint64(v);
+#else
+    return ((v >> 56) & 0xFF) | ((v >> 40) & 0xFF00) |
+           ((v >> 24) & 0xFF0000) | ((v >> 8) & 0xFF000000ULL) |
+           ((v << 8) & 0xFF00000000ULL) | ((v << 24) & 0xFF0000000000ULL) |
+           ((v << 40) & 0xFF000000000000ULL) | (v << 56);
+#endif
+}
+
+inline void store_be64(std::uint8_t* p, std::uint64_t v) noexcept {
+#if defined(__GNUC__) || defined(__clang__)
+    v = __builtin_bswap64(v);
+#elif defined(_MSC_VER)
+    v = _byteswap_uint64(v);
+#else
+    v = ((v >> 56) & 0xFF) | ((v >> 40) & 0xFF00) |
+        ((v >> 24) & 0xFF0000) | ((v >> 8) & 0xFF000000ULL) |
+        ((v << 8) & 0xFF00000000ULL) | ((v << 24) & 0xFF0000000000ULL) |
+        ((v << 40) & 0xFF000000000000ULL) | (v << 56);
+#endif
+    std::memcpy(p, &v, 8);
+}
+} // anonymous namespace
+
 Scalar Scalar::from_bytes(const std::uint8_t* bytes32) {
     limbs4 limbs{};
-    for (std::size_t i = 0; i < 4; ++i) {
-        std::uint64_t limb = 0;
-        for (std::size_t j = 0; j < 8; ++j) {
-            limb = (limb << 8) | bytes32[i * 8 + j];
-        }
-        limbs[3 - i] = limb;
-    }
+    limbs[3] = load_be64(bytes32);
+    limbs[2] = load_be64(bytes32 + 8);
+    limbs[1] = load_be64(bytes32 + 16);
+    limbs[0] = load_be64(bytes32 + 24);
     if (ge(limbs, ORDER)) {
         limbs = sub_impl(limbs, ORDER);
     }
@@ -205,13 +234,10 @@ Scalar Scalar::from_bytes(const std::array<std::uint8_t, 32>& bytes) {
 
 bool Scalar::parse_bytes_strict(const std::uint8_t* bytes32, Scalar& out) noexcept {
     limbs4 limbs{};
-    for (std::size_t i = 0; i < 4; ++i) {
-        std::uint64_t limb = 0;
-        for (std::size_t j = 0; j < 8; ++j) {
-            limb = (limb << 8) | bytes32[i * 8 + j];
-        }
-        limbs[3 - i] = limb;
-    }
+    limbs[3] = load_be64(bytes32);
+    limbs[2] = load_be64(bytes32 + 8);
+    limbs[1] = load_be64(bytes32 + 16);
+    limbs[0] = load_be64(bytes32 + 24);
     // Reject if limbs >= ORDER (BIP-340: fail if s >= n)
     if (ge(limbs, ORDER)) return false;
     out.limbs_ = limbs;
@@ -233,12 +259,10 @@ bool Scalar::parse_bytes_strict_nonzero(const std::array<std::uint8_t, 32>& byte
 
 std::array<std::uint8_t, 32> Scalar::to_bytes() const {
     std::array<std::uint8_t, 32> out{};
-    for (std::size_t i = 0; i < 4; ++i) {
-        std::uint64_t const limb = limbs_[3 - i];
-        for (std::size_t j = 0; j < 8; ++j) {
-            out[i * 8 + j] = static_cast<std::uint8_t>(limb >> (56 - 8 * j));
-        }
-    }
+    store_be64(out.data(),      limbs_[3]);
+    store_be64(out.data() + 8,  limbs_[2]);
+    store_be64(out.data() + 16, limbs_[1]);
+    store_be64(out.data() + 24, limbs_[0]);
     return out;
 }
 
@@ -294,19 +318,140 @@ Scalar Scalar::operator-(const Scalar& rhs) const {
 }
 
 Scalar Scalar::operator*(const Scalar& rhs) const {
-    // Schoolbook 4x4 limb multiplication -> 8-limb wide result
-    // Then Barrett reduction mod ORDER
-    // ~25-50x faster than double-and-add
+#ifndef SECP256K1_NO_INT128
+    // Fast path: unrolled column-by-column multiply + complement reduction
+    // N_C = 2^256 - ORDER (only 2 significant limbs + implicit 1 at position 2)
+    // Reduction: 512->385->258->256 bits via N_C, ~14 multiplies vs Barrett's ~36
+    const std::uint64_t* a = limbs_.data();
+    const std::uint64_t* b = rhs.limbs_.data();
 
-    // Step 1: Schoolbook 4x4 -> 512-bit product
+    constexpr std::uint64_t NC0 = 0x402DA1732FC9BEBFULL;
+    constexpr std::uint64_t NC1 = 0x4551231950B75FC4ULL;
+
+#if defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+#endif
+
+    // 160-bit accumulator {c0, c1, c2} for column-wise schoolbook multiply
+    std::uint64_t c0 = 0, c1 = 0;
+    std::uint32_t c2 = 0;
+
+    // {c0,c1,c2} += x * y
+    auto muladd = [&](std::uint64_t x, std::uint64_t y) {
+        unsigned __int128 p = static_cast<unsigned __int128>(x) * y;
+        std::uint64_t tl = static_cast<std::uint64_t>(p);
+        std::uint64_t th = static_cast<std::uint64_t>(p >> 64);
+        c0 += tl;
+        th += (c0 < tl);
+        c1 += th;
+        c2 += (c1 < th);
+    };
+    // {c0,c1,c2} += x
+    auto sumadd = [&](std::uint64_t x) {
+        c0 += x;
+        std::uint64_t o = (c0 < x);
+        c1 += o;
+        c2 += (c1 < o);
+    };
+    // out = c0; {c0,c1,c2} >>= 64
+    auto extract_to = [&](std::uint64_t& out) {
+        out = c0;
+        c0 = c1; c1 = c2; c2 = 0;
+    };
+
+    // --- 4x4 schoolbook multiply (column-by-column) ---
+    std::uint64_t l0, l1, l2, l3, l4, l5, l6, l7;
+
+    muladd(a[0], b[0]);
+    extract_to(l0);
+    muladd(a[0], b[1]); muladd(a[1], b[0]);
+    extract_to(l1);
+    muladd(a[0], b[2]); muladd(a[1], b[1]); muladd(a[2], b[0]);
+    extract_to(l2);
+    muladd(a[0], b[3]); muladd(a[1], b[2]); muladd(a[2], b[1]); muladd(a[3], b[0]);
+    extract_to(l3);
+    muladd(a[1], b[3]); muladd(a[2], b[2]); muladd(a[3], b[1]);
+    extract_to(l4);
+    muladd(a[2], b[3]); muladd(a[3], b[2]);
+    extract_to(l5);
+    muladd(a[3], b[3]);
+    extract_to(l6);
+    l7 = c0;
+
+    // --- Reduce 512 -> 385 bits ---
+    // m[0..6] = l[0..3] + l[4..7] * {NC0, NC1, 1, 0}
+    std::uint64_t m0, m1, m2, m3, m4, m5, m6;
+
+    c0 = l0; c1 = 0; c2 = 0;
+    muladd(l4, NC0);
+    extract_to(m0);
+    sumadd(l1); muladd(l5, NC0); muladd(l4, NC1);
+    extract_to(m1);
+    sumadd(l2); muladd(l6, NC0); muladd(l5, NC1); sumadd(l4);
+    extract_to(m2);
+    sumadd(l3); muladd(l7, NC0); muladd(l6, NC1); sumadd(l5);
+    extract_to(m3);
+    muladd(l7, NC1); sumadd(l6);
+    extract_to(m4);
+    sumadd(l7);
+    extract_to(m5);
+    m6 = c0;
+
+    // --- Reduce 385 -> 258 bits ---
+    // p[0..4] = m[0..3] + m[4..6] * {NC0, NC1, 1, 0}
+    std::uint64_t p0, p1, p2, p3;
+    std::uint32_t p4;
+
+    c0 = m0; c1 = 0; c2 = 0;
+    muladd(m4, NC0);
+    extract_to(p0);
+    sumadd(m1); muladd(m5, NC0); muladd(m4, NC1);
+    extract_to(p1);
+    sumadd(m2); muladd(m6, NC0); muladd(m5, NC1); sumadd(m4);
+    extract_to(p2);
+    sumadd(m3); muladd(m6, NC1); sumadd(m5);
+    extract_to(p3);
+    p4 = static_cast<std::uint32_t>(c0 + m6);
+
+    // --- Reduce 258 -> 256 bits ---
+    unsigned __int128 acc;
+    limbs4 r;
+    acc = static_cast<unsigned __int128>(p0) + static_cast<unsigned __int128>(NC0) * p4;
+    r[0] = static_cast<std::uint64_t>(acc); acc >>= 64;
+    acc += static_cast<unsigned __int128>(p1) + static_cast<unsigned __int128>(NC1) * p4;
+    r[1] = static_cast<std::uint64_t>(acc); acc >>= 64;
+    acc += static_cast<unsigned __int128>(p2) + p4;
+    r[2] = static_cast<std::uint64_t>(acc); acc >>= 64;
+    acc += p3;
+    r[3] = static_cast<std::uint64_t>(acc);
+    auto carry = static_cast<unsigned int>(acc >> 64);
+
+    // Final reduction: if r >= ORDER, subtract ORDER via adding N_C
+    unsigned int reduce_count = carry + (ge(r, ORDER) ? 1u : 0u);
+    if (reduce_count) {
+        acc = static_cast<unsigned __int128>(r[0]) + static_cast<unsigned __int128>(NC0) * reduce_count;
+        r[0] = static_cast<std::uint64_t>(acc); acc >>= 64;
+        acc += static_cast<unsigned __int128>(r[1]) + static_cast<unsigned __int128>(NC1) * reduce_count;
+        r[1] = static_cast<std::uint64_t>(acc); acc >>= 64;
+        acc += static_cast<unsigned __int128>(r[2]) + reduce_count;
+        r[2] = static_cast<std::uint64_t>(acc); acc >>= 64;
+        acc += r[3];
+        r[3] = static_cast<std::uint64_t>(acc);
+    }
+
+#if defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
+
+    return Scalar(r, true);
+
+#else
+    // 32-bit fallback: schoolbook + Barrett reduction
     wide8 prod{};
-
-#ifdef SECP256K1_NO_INT128
-    // 32-bit fallback: use add64 chains for accumulation
     for (std::size_t i = 0; i < 4; ++i) {
         std::uint64_t carry_hi = 0;
         for (std::size_t j = 0; j < 4; ++j) {
-            // Compute a[i] * b[j] using 32-bit pieces
             std::uint64_t a_lo = limbs_[i] & 0xFFFFFFFFULL;
             std::uint64_t a_hi = limbs_[i] >> 32;
             std::uint64_t b_lo = rhs.limbs_[j] & 0xFFFFFFFFULL;
@@ -317,7 +462,6 @@ Scalar Scalar::operator*(const Scalar& rhs) const {
             std::uint64_t p2 = a_hi * b_lo;
             std::uint64_t p3 = a_hi * b_hi;
 
-            // Combine cross terms
             std::uint64_t mid = p1 + p2;
             std::uint64_t mid_carry = (mid < p1) ? (1ULL << 32) : 0;
 
@@ -325,53 +469,17 @@ Scalar Scalar::operator*(const Scalar& rhs) const {
             std::uint64_t lo_carry = (lo < p0) ? 1ULL : 0;
             std::uint64_t hi = p3 + (mid >> 32) + mid_carry + lo_carry;
 
-            // Accumulate into prod[i+j] and prod[i+j+1]
             unsigned char c = 0;
             prod[i + j] = add64(prod[i + j], lo, c);
             prod[i + j + 1] = add64(prod[i + j + 1], hi, c);
-            // Propagate carry
             for (std::size_t k = i + j + 2; c && k < 8; ++k) {
                 prod[k] = add64(prod[k], 0ULL, c);
             }
         }
     }
-#else
-    // 64-bit path: use __int128
-#if defined(__GNUC__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wpedantic"
-#endif
-    for (std::size_t i = 0; i < 4; ++i) {
-        unsigned __int128 carry = 0;
-        for (std::size_t j = 0; j < 4; ++j) {
-            unsigned __int128 const t = static_cast<unsigned __int128>(limbs_[i]) * rhs.limbs_[j]
-                                  + prod[i + j] + carry;
-            prod[i + j] = static_cast<std::uint64_t>(t);
-            carry = t >> 64;
-        }
-        prod[i + 4] = static_cast<std::uint64_t>(carry);
-    }
-#if defined(__GNUC__)
-#pragma GCC diagnostic pop
-#endif
-#endif
 
-    // Step 2: Barrett reduction
-    // q = floor(prod / 2^256) (high 4 limbs = prod[4..7])
-    // q_approx = q * mu >> 256
-    // Then result = prod - q_approx * ORDER, with at most 2 conditional subtracts
-
-    // Compute q * mu (5-limb mu x 4-limb q -> we need high limbs)
-    // mu has non-zero limbs at [0],[1],[2],[4]
-    // q = prod[4..7]
-    const auto& q = prod; // use prod[4], prod[5], prod[6], prod[7]
-
-    // We need floor((q * mu) / 2^256) which means the high part of q * mu
-    // q is 4 limbs (prod[4..7]), mu is 5 limbs
-    // Full product is 9 limbs; we need limbs [4..8]
-
-#ifdef SECP256K1_NO_INT128
-    // 32-bit fallback for Barrett
+    // Barrett reduction
+    const auto& q = prod;
     std::array<std::uint64_t, 9> qmu{};
     for (std::size_t i = 0; i < 4; ++i) {
         for (std::size_t j = 0; j < 5; ++j) {
@@ -404,35 +512,8 @@ Scalar Scalar::operator*(const Scalar& rhs) const {
             }
         }
     }
-#else
-    // 64-bit path
-#if defined(__GNUC__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wpedantic"
-#endif
-    std::array<std::uint64_t, 9> qmu{};
-    for (std::size_t i = 0; i < 4; ++i) {
-        unsigned __int128 carry = 0;
-        for (std::size_t j = 0; j < 5; ++j) {
-            unsigned __int128 const t = static_cast<unsigned __int128>(q[4 + i]) * BARRETT_MU[j]
-                                  + qmu[i + j] + carry;
-            qmu[i + j] = static_cast<std::uint64_t>(t);
-            carry = t >> 64;
-        }
-        qmu[i + 5] = static_cast<std::uint64_t>(carry);
-    }
-#if defined(__GNUC__)
-#pragma GCC diagnostic pop
-#endif
-#endif
 
-    // q_approx = high part of qmu = qmu[4..8]
-    // r = prod mod 2^256 - q_approx * ORDER mod 2^256
-    // Compute q_approx * ORDER (only need low 5 limbs since prod < 2^512)
     limbs4 q_approx{qmu[4], qmu[5], qmu[6], qmu[7]};
-
-#ifdef SECP256K1_NO_INT128
-    // 32-bit fallback for q_approx * ORDER
     std::array<std::uint64_t, 5> qn{};
     for (std::size_t i = 0; i < 4; ++i) {
         for (std::size_t j = 0; j < 4; ++j) {
@@ -467,43 +548,14 @@ Scalar Scalar::operator*(const Scalar& rhs) const {
             }
         }
     }
-#else
-    // 64-bit path: q_approx * ORDER, only low 5 limbs
-#if defined(__GNUC__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wpedantic"
-#endif
-    std::array<std::uint64_t, 5> qn{};
-    for (std::size_t i = 0; i < 4; ++i) {
-        unsigned __int128 carry = 0;
-        for (std::size_t j = 0; j < 4; ++j) {
-            if (i + j >= 5) break;
-            unsigned __int128 const t = static_cast<unsigned __int128>(q_approx[i]) * ORDER[j]
-                                  + qn[i + j] + carry;
-            qn[i + j] = static_cast<std::uint64_t>(t);
-            carry = t >> 64;
-        }
-        if (i + 4 < 5) {
-            qn[i + 4] = static_cast<std::uint64_t>(carry);
-        }
-    }
-#if defined(__GNUC__)
-#pragma GCC diagnostic pop
-#endif
-#endif
 
-    // r = prod[0..3] - qn[0..3], tracking overflow into r4
-    // R = prod - q_approx*ORDER can be up to ~2*ORDER ~= 2^257, so we need
-    // the 5th limb (r4) to detect values >= 2^256.
     limbs4 r;
     unsigned char borrow = 0;
     for (std::size_t i = 0; i < 4; ++i) {
         r[i] = sub64(prod[i], qn[i], borrow);
     }
-    // r4 captures the overflow: prod[4] - qn[4] - borrow_from_low256
     std::uint64_t r4 = prod[4] - qn[4] - borrow;
 
-    // At most 2 conditional subtracts to bring into [0, ORDER)
     if (r4 > 0 || ge(r, ORDER)) {
         borrow = 0;
         for (std::size_t i = 0; i < 4; ++i) {
@@ -519,6 +571,7 @@ Scalar Scalar::operator*(const Scalar& rhs) const {
     }
 
     return Scalar(r, true);
+#endif
 }
 
 Scalar& Scalar::operator+=(const Scalar& rhs) {
@@ -589,7 +642,8 @@ static inline int ctz64_var(uint64_t x) {
 }
 
 // Exactly matches secp256k1_modinv64_divsteps_62_var
-static int64_t divsteps_62_var(int64_t eta, uint64_t f0, uint64_t g0, T2x2& t) {
+__attribute__((always_inline))
+static inline int64_t divsteps_62_var(int64_t eta, uint64_t f0, uint64_t g0, T2x2& t) {
     uint64_t u = 1, v = 0, q = 0, r = 1;
     uint64_t f = f0, g = g0, m = 0;
     uint32_t w = 0;
@@ -630,7 +684,8 @@ static int64_t divsteps_62_var(int64_t eta, uint64_t f0, uint64_t g0, T2x2& t) {
 }
 
 // Exactly matches secp256k1_modinv64_update_de_62
-static void update_de_62(S62& d, S62& e, const T2x2& t, const ModInfo& mod) {
+__attribute__((always_inline))
+static inline void update_de_62(S62& d, S62& e, const T2x2& t, const ModInfo& mod) {
     const uint64_t M62 = UINT64_MAX >> 2;
     const int64_t d0 = d.v[0], d1 = d.v[1], d2 = d.v[2], d3 = d.v[3], d4 = d.v[4];
     const int64_t e0 = e.v[0], e1 = e.v[1], e2 = e.v[2], e3 = e.v[3], e4 = e.v[4];
@@ -683,7 +738,8 @@ static void update_de_62(S62& d, S62& e, const T2x2& t, const ModInfo& mod) {
 }
 
 // Exactly matches secp256k1_modinv64_update_fg_62_var
-static void update_fg_62_var(int len, S62& f, S62& g, const T2x2& t) {
+__attribute__((always_inline))
+static inline void update_fg_62_var(int len, S62& f, S62& g, const T2x2& t) {
     const uint64_t M62 = UINT64_MAX >> 2;
     const int64_t u = t.u, v = t.v, q = t.q, r = t.r;
     int64_t fi = 0, gi = 0;
@@ -707,7 +763,8 @@ static void update_fg_62_var(int len, S62& f, S62& g, const T2x2& t) {
 }
 
 // Exactly matches secp256k1_modinv64_normalize_62
-static void normalize_62(S62& r, int64_t sign, const ModInfo& mod) {
+__attribute__((always_inline))
+static inline void normalize_62(S62& r, int64_t sign, const ModInfo& mod) {
     const auto M62 = (int64_t)(UINT64_MAX >> 2);
     int64_t r0 = r.v[0], r1 = r.v[1], r2 = r.v[2], r3 = r.v[3], r4 = r.v[4];
     int64_t cond_add = 0, cond_negate = 0;
