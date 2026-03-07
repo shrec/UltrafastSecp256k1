@@ -3549,7 +3549,10 @@ std::array<std::uint8_t, 33> Point::to_compressed() const {
     // Slow path: compute affine coordinates with a single inversion
 #if defined(SECP256K1_FAST_52BIT)
     FieldElement52 const z_inv = z_.inverse_safegcd();
-    if (SECP256K1_UNLIKELY(z_inv.normalizes_to_zero_var())) { out.fill(0); return out; } // LCOV_EXCL_LINE
+    if (SECP256K1_UNLIKELY(z_inv.normalizes_to_zero_var())) {
+        out.fill(0);
+        return out;
+    } // LCOV_EXCL_LINE
     FieldElement52 const z_inv2 = z_inv.square();
     FieldElement52 x_aff = x_ * z_inv2;
     FieldElement52 y_aff = y_ * (z_inv2 * z_inv);
@@ -3593,7 +3596,10 @@ std::array<std::uint8_t, 65> Point::to_uncompressed() const {
     // Slow path: compute affine coordinates with a single inversion
 #if defined(SECP256K1_FAST_52BIT)
     FieldElement52 const z_inv = z_.inverse_safegcd();
-    if (SECP256K1_UNLIKELY(z_inv.normalizes_to_zero_var())) { out.fill(0); return out; } // LCOV_EXCL_LINE
+    if (SECP256K1_UNLIKELY(z_inv.normalizes_to_zero_var())) {
+        out.fill(0);
+        return out;
+    } // LCOV_EXCL_LINE
     FieldElement52 const z_inv2 = z_inv.square();
     FieldElement52 x_aff = x_ * z_inv2;
     FieldElement52 y_aff = y_ * (z_inv2 * z_inv);
@@ -3777,7 +3783,7 @@ void Point::batch_normalize(const Point* points, size_t n,
 #if defined(SECP256K1_FAST_52BIT)
             FieldElement z_fe = points[i].z_.to_fe();
 #else
-            FieldElement z_fe = points[i].z_;
+            auto z_fe = points[i].z_;
 #endif
             partials[i] = running;
             running *= z_fe;
@@ -3971,14 +3977,14 @@ Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const P
             // iso[0] = phi(B) = (B.x*C^2, B.y*C^3, B.z) on iso curve
             auto* iso = new JacobianPoint52[static_cast<std::size_t>(count)];
             iso[0] = {B.x * C2, B.y * C3, B.z, false};
-            for (std::size_t i = 1; i < static_cast<std::size_t>(count); i++) {
+              for (auto i = static_cast<std::size_t>(1); i < static_cast<std::size_t>(count); i++) {
                 iso[i] = iso[i - 1];
                 jac52_add_mixed_inplace(iso[i], d_aff);
             }
 
             // Batch-invert effective Z = Z_iso * C
             auto* eff_z = new FieldElement52[static_cast<std::size_t>(count)];
-            for (std::size_t i = 0; i < static_cast<std::size_t>(count); i++) {
+            for (auto i = static_cast<std::size_t>(0); i < static_cast<std::size_t>(count); i++) {
                 eff_z[i] = iso[i].z * C;
             }
             auto* prods = new FieldElement52[static_cast<std::size_t>(count)];

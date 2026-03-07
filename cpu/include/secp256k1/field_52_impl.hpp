@@ -1423,7 +1423,7 @@ static void fe52_normalize_inline(std::uint64_t* r) noexcept {
 
     // Reduce t4 overflow first (before carry propagation).
     // This ensures at most a single carry from the first pass.
-    std::uint64_t m;
+    std::uint64_t m = 0;
     std::uint64_t x = t4 >> 48; t4 &= M48;
 
     // Single carry propagation pass with m accumulation for >= p check
@@ -1496,7 +1496,7 @@ bool FieldElement52::normalizes_to_zero_var() const noexcept {
     // Reduce t4 overflow into t0 first (at most one carry fold).
     // This ensures the first full carry pass has at most one carry
     // propagation step from the injected overflow.
-    std::uint64_t x = t4 >> 48;
+    const std::uint64_t x = t4 >> 48;
     t0 += x * 0x1000003D1ULL;
 
     // z0 tracks "could be raw zero", z1 tracks "could be p".

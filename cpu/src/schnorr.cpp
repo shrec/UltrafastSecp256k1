@@ -21,12 +21,12 @@ using FE52 = fast::FieldElement52;
 // inverse() uses FE52 Fermat (~4us) -- but SafeGCD (~2-3us) is faster for
 // variable-time paths (point.cpp batch inverse, verify Y-parity).
 
-// -- lift_x: shared BIP-340 x-only -> affine Point (no duplication) -----------
-// Returns Point::infinity() on failure (x not on curve).
-static Point lift_x(const uint8_t* x32) {
+// -- lift_x: shared BIP-340 x-only -> affine Point ----------------------------
+// Input must be strict x in [0, p), represented as 4x64 LE limbs.
+// Returns Point::infinity() if x is not on the curve.
+static Point lift_x_from_limbs(const std::uint64_t* px_limb_le) {
 #if defined(SECP256K1_FAST_52BIT)
-    // Direct bytes->FE52: avoids FieldElement construction overhead
-    FE52 const px52 = FE52::from_bytes(x32);
+    FE52 const px52 = FE52::from_4x64_limbs(px_limb_le);
 
     // y^2 = x^3 + 7
     FE52 const x3 = px52.square() * px52;
@@ -36,12 +36,11 @@ static Point lift_x(const uint8_t* x32) {
     // sqrt via FE52 addition chain: a^((p+1)/4), ~253 sqr + 13 mul
     FE52 y52 = y2.sqrt();
 
-    // Verify: y^2 == y2 (check that sqrt succeeded)
+    // Verify sqrt without fully normalizing both operands.
     FE52 check = y52.square();
-    check.normalize();
-    FE52 y2n = y2;
-    y2n.normalize();
-    if (!(check == y2n)) return Point::infinity();
+    check.negate_assign(1);
+    check.add_assign(y2);
+    if (!check.normalizes_to_zero_var()) return Point::infinity();
 
     // Ensure even Y (BIP-340 convention): check parity of normalized y
     FE52 y_norm = y52;
@@ -55,10 +54,8 @@ static Point lift_x(const uint8_t* x32) {
     // Zero-conversion: construct Point directly from FE52 affine coordinates
     return Point::from_affine52(px52, y52);
 #else
-    // Fallback: 4x64 lift_x
-    std::array<uint8_t, 32> px_arr;
-    std::memcpy(px_arr.data(), x32, 32);
-    auto px_fe = FieldElement::from_bytes(px_arr);
+    FieldElement const px_fe = FieldElement::from_limbs_raw({
+        px_limb_le[0], px_limb_le[1], px_limb_le[2], px_limb_le[3]});
     auto x3 = px_fe * px_fe * px_fe;
     auto y2 = x3 + FieldElement::from_uint64(7);
     auto y_fe = y2.sqrt();
@@ -69,6 +66,46 @@ static Point lift_x(const uint8_t* x32) {
     if (y_fe.limbs()[0] & 1) y_fe = y_fe.negate();
     return Point::from_affine(px_fe, y_fe);
 #endif
+}
+
+static inline void parse_be32_to_le64(const uint8_t* in32, std::uint64_t* out4) {
+    for (int i = 0; i < 4; ++i) {
+        std::uint64_t limb = 0;
+        for (int j = 0; j < 8; ++j) {
+            limb = (limb << 8) | static_cast<std::uint64_t>(in32[i * 8 + j]);
+        }
+        out4[3 - i] = limb;
+    }
+}
+
+static inline bool limbs_lt_p(const std::uint64_t* x4) {
+    constexpr std::uint64_t P0 = 0xFFFFFFFEFFFFFC2FULL;
+    return !(x4[3] == 0xFFFFFFFFFFFFFFFFULL &&
+             x4[2] == 0xFFFFFFFFFFFFFFFFULL &&
+             x4[1] == 0xFFFFFFFFFFFFFFFFULL &&
+             x4[0] >= P0);
+}
+
+static inline bool parse_and_check_lt_p(const uint8_t* in32, std::uint64_t* out4) {
+    parse_be32_to_le64(in32, out4);
+    return limbs_lt_p(out4);
+}
+
+static inline bool parse2_and_check_lt_p(const uint8_t* a32,
+                                         const uint8_t* b32,
+                                         std::uint64_t* out_a4,
+                                         std::uint64_t* out_b4) {
+    for (int i = 0; i < 4; ++i) {
+        std::uint64_t limb_a = 0;
+        std::uint64_t limb_b = 0;
+        for (int j = 0; j < 8; ++j) {
+            limb_a = (limb_a << 8) | static_cast<std::uint64_t>(a32[i * 8 + j]);
+            limb_b = (limb_b << 8) | static_cast<std::uint64_t>(b32[i * 8 + j]);
+        }
+        out_a4[3 - i] = limb_a;
+        out_b4[3 - i] = limb_b;
+    }
+    return limbs_lt_p(out_a4) && limbs_lt_p(out_b4);
 }
 
 // -- Shared BIP-340 tagged-hash midstates (from tagged_hash.hpp) ---------------
@@ -206,9 +243,11 @@ SchnorrSignature schnorr_sign(const SchnorrKeypair& kp,
 SchnorrSignature schnorr_sign_verified(const SchnorrKeypair& kp,
                                        const std::array<uint8_t, 32>& msg,
                                        const std::array<uint8_t, 32>& aux_rand) {
-    auto sig = schnorr_sign(kp, msg, aux_rand);
+    const auto sig = schnorr_sign(kp, msg, aux_rand);
 
-    if (sig.s.is_zero()) return SchnorrSignature{};
+    if (sig.s.is_zero()) {
+        return SchnorrSignature{};
+    }
 
     if (!schnorr_verify(kp.px, msg, sig)) {
         return SchnorrSignature{};
@@ -222,7 +261,7 @@ SchnorrSignature schnorr_sign_verified(const SchnorrKeypair& kp,
 SchnorrSignature schnorr_sign(const Scalar& private_key,
                               const std::array<uint8_t, 32>& msg,
                               const std::array<uint8_t, 32>& aux_rand) {
-    auto kp = schnorr_keypair_create(private_key);
+    const auto kp = schnorr_keypair_create(private_key);
     return schnorr_sign(kp, msg, aux_rand);
 }
 
@@ -231,7 +270,7 @@ SchnorrSignature schnorr_sign(const Scalar& private_key,
 SchnorrSignature schnorr_sign_verified(const Scalar& private_key,
                                        const std::array<uint8_t, 32>& msg,
                                        const std::array<uint8_t, 32>& aux_rand) {
-    auto kp = schnorr_keypair_create(private_key);
+    const auto kp = schnorr_keypair_create(private_key);
     return schnorr_sign_verified(kp, msg, aux_rand);
 }
 
@@ -247,26 +286,8 @@ bool schnorr_verify(const uint8_t* pubkey_x32,
 
     // Check r < p: parse r bytes to 4x64 LE limbs + strict check, no FieldElement.
     std::uint64_t rL[4];
-    for (int i = 0; i < 4; ++i) {
-        std::uint64_t limb = 0;
-        for (int j = 0; j < 8; ++j)
-            limb = (limb << 8) | static_cast<std::uint64_t>(sig.r[i * 8 + j]);
-        rL[3 - i] = limb;
-    }
-    {
-        constexpr std::uint64_t P0 = 0xFFFFFFFEFFFFFC2FULL;
-        bool overflow = false;
-        if (rL[3] == 0xFFFFFFFFFFFFFFFFULL &&
-            rL[2] == 0xFFFFFFFFFFFFFFFFULL &&
-            rL[1] == 0xFFFFFFFFFFFFFFFFULL &&
-            rL[0] >= P0)
-            overflow = true;
-        if (overflow) return false;
-    }
-
-    // Check pubkey x < p: if pubkey_x32 bytes represent a value >= p, reject.
-    FieldElement pk_fe_check;
-    if (!FieldElement::parse_bytes_strict(pubkey_x32, pk_fe_check)) return false;
+    std::uint64_t pkL[4];
+    if (!parse2_and_check_lt_p(sig.r.data(), pubkey_x32, rL, pkL)) return false;
 
     // Step 2: e = tagged_hash("BIP0340/challenge", r || pubkey_x || msg) mod n
     // Streaming SHA256: feed data directly, no intermediate buffer
@@ -274,16 +295,16 @@ bool schnorr_verify(const uint8_t* pubkey_x32,
     ctx.update(sig.r.data(), 32);
     ctx.update(pubkey_x32, 32);
     ctx.update(msg32, 32);
-    auto e_hash = ctx.finalize();
-    auto e = Scalar::from_bytes(e_hash);
+    const auto e_hash = ctx.finalize();
+    const auto e = Scalar::from_bytes(e_hash);
 
     // Step 3: Lift x-only pubkey to point
-    auto P = lift_x(pubkey_x32);
+    const auto P = lift_x_from_limbs(pkL);
     if (P.is_infinity()) return false;
 
     // Step 4: R = s*G - e*P  (4-stream GLV Strauss: s*G + (-e)*P in one pass)
-    auto neg_e = e.negate();
-    auto R = Point::dual_scalar_mul_gen_point(sig.s, neg_e, P);
+    const auto neg_e = e.negate();
+    const auto R = Point::dual_scalar_mul_gen_point(sig.s, neg_e, P);
 
     if (R.is_infinity()) return false;
 
@@ -298,10 +319,10 @@ bool schnorr_verify(const uint8_t* pubkey_x32,
     FE52 y_aff = R.Y52() * z_inv3;       // magnitude 1
 
     // X-check: r parsed directly to FE52 (no FieldElement intermediate)
-    FE52 r52 = FE52::from_4x64_limbs(rL);
+    const FE52 r52 = FE52::from_4x64_limbs(rL);
     x_aff.negate_assign(1);               // magnitude 2
     x_aff.add_assign(r52);                // magnitude 3 (r52 - x_aff)
-    bool x_match = x_aff.normalizes_to_zero_var();
+    const bool x_match = x_aff.normalizes_to_zero_var();
 
     // Y-parity: must fully normalize to check lowest bit reliably.
     y_aff.normalize();
@@ -323,10 +344,11 @@ bool schnorr_verify(const uint8_t* pubkey_x32,
 bool schnorr_xonly_pubkey_parse(SchnorrXonlyPubkey& out,
                                 const uint8_t* pubkey_x32) {
     // BIP-340 strict: reject x >= p (no reduction)
-    FieldElement x_check;
-    if (!FieldElement::parse_bytes_strict(pubkey_x32, x_check)) return false;
+    std::uint64_t xL[4];
+    parse_be32_to_le64(pubkey_x32, xL);
+    if (!limbs_lt_p(xL)) return false;
 
-    auto P = lift_x(pubkey_x32);
+    const auto P = lift_x_from_limbs(xL);
     if (P.is_infinity()) return false;
     out.point = P;
     std::memcpy(out.x_bytes.data(), pubkey_x32, 32);
@@ -348,7 +370,7 @@ SchnorrXonlyPubkey schnorr_xonly_from_keypair(const SchnorrKeypair& kp) {
         neg_y.normalize_weak();
         P = Point::from_jacobian52(P.X52(), neg_y, P.Z52(), false);
 #else
-        auto y_neg = P.y().negate();
+        const auto y_neg = P.y().negate();
         P = Point::from_jacobian_coords(P.x(), y_neg, P.z(), false);
 #endif
     }
@@ -370,37 +392,19 @@ bool schnorr_verify(const SchnorrXonlyPubkey& pubkey,
     // Parse r bytes directly to 4x64 LE limbs, check against prime, then
     // convert to FE52 in one shot -- no FieldElement intermediate object.
     std::uint64_t rL[4];
-    for (int i = 0; i < 4; ++i) {
-        std::uint64_t limb = 0;
-        for (int j = 0; j < 8; ++j)
-            limb = (limb << 8) | static_cast<std::uint64_t>(sig.r[i * 8 + j]);
-        rL[3 - i] = limb;
-    }
-    // Reject r >= p.  p = {0xFFFFFFFEFFFFFC2F, 0xFFFF..., 0xFFFF..., 0xFFFF...}
-    {
-        constexpr std::uint64_t P0 = 0xFFFFFFFEFFFFFC2FULL;
-        bool overflow = (rL[3] > 0xFFFFFFFFFFFFFFFFULL); // can't happen, 64-bit
-        if (!overflow && rL[3] == 0xFFFFFFFFFFFFFFFFULL) {
-            if (rL[2] == 0xFFFFFFFFFFFFFFFFULL) {
-                if (rL[1] == 0xFFFFFFFFFFFFFFFFULL) {
-                    overflow = (rL[0] >= P0);
-                }
-            }
-        }
-        if (overflow) return false;
-    }
+    if (!parse_and_check_lt_p(sig.r.data(), rL)) return false;
 
     // Challenge hash: streaming SHA256 (no intermediate buffer)
     SHA256 ctx = g_challenge_midstate;
     ctx.update(sig.r.data(), 32);
     ctx.update(pubkey.x_bytes.data(), 32);
     ctx.update(msg32, 32);
-    auto e_hash = ctx.finalize();
-    auto e = Scalar::from_bytes(e_hash);
+    const auto e_hash = ctx.finalize();
+    const auto e = Scalar::from_bytes(e_hash);
 
     // R = s*G - e*P  (direct Point -- no sqrt needed)
-    auto neg_e = e.negate();
-    auto R = Point::dual_scalar_mul_gen_point(sig.s, neg_e, pubkey.point);
+    const auto neg_e = e.negate();
+    const auto R = Point::dual_scalar_mul_gen_point(sig.s, neg_e, pubkey.point);
 
     if (R.is_infinity()) return false;
 
@@ -414,10 +418,10 @@ bool schnorr_verify(const SchnorrXonlyPubkey& pubkey,
     FE52 y_aff = R.Y52() * z_inv3;       // magnitude 1
 
     // X-check: parse r directly to FE52 (no FieldElement intermediate)
-    FE52 r52 = FE52::from_4x64_limbs(rL);
+    const FE52 r52 = FE52::from_4x64_limbs(rL);
     x_aff.negate_assign(1);               // magnitude 2
     x_aff.add_assign(r52);                // magnitude 3 (r52 - x_aff)
-    bool x_match = x_aff.normalizes_to_zero_var();
+    const bool x_match = x_aff.normalizes_to_zero_var();
 
     // Y-parity: must fully normalize to check lowest bit reliably.
     y_aff.normalize();
