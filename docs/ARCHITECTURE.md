@@ -371,6 +371,7 @@ Key CMake Options:
   -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined"  -- Sanitizer build
   -DSECP256K1_USE_ROCKSDB=ON       -- Enable RocksDB-dependent tools
   -DSECP256K1_SPEED_FIRST=ON       -- Aggressive speed optimizations
+  -DSECP256K1_GLV_WINDOW_WIDTH=5   -- GLV window width (4-7, platform default)
   -DCMAKE_CUDA_ARCHITECTURES=86;89 -- CUDA target architectures
 ```
 

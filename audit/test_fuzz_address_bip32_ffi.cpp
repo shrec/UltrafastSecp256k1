@@ -939,7 +939,7 @@ static void suite_14_ffi_ecdsa_recover(ufsecp_ctx* ctx) {
         uint8_t msg[32], sig[64], pub[33];
         fill_random(msg, 32);
         fill_random(sig, 64);
-        for (int rid : {-1, -100, 4, 5, 100, 255, -2147483647}) {
+        for (const int rid : {-1, -100, 4, 5, 100, 255, -2147483647}) {
             ufsecp_error_t const err = ufsecp_ecdsa_recover(ctx, msg, sig, rid, pub);
             CHECK(err != UFSECP_OK, "recover_bad_recid_rejected");
         }

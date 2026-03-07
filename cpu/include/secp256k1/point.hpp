@@ -22,11 +22,39 @@
 
 namespace secp256k1::fast {
 
+// Platform-optimal default GLV window width for k*P (scalar_mul_with_plan).
+//
+// Larger window = fewer point additions in the wNAF loop, but larger precompute
+// table (2^(w-2) entries, each requiring a mixed add + z-ratio tracking).
+//
+// Tradeoff by platform (BIP-352 pipeline benchmark, 10K ops, median):
+//   w=4: table=4 entries, ~33 adds per 128-bit GLV half-scalar
+//   w=5: table=8 entries, ~26 adds per 128-bit GLV half-scalar
+//   w=6: table=16 entries, ~21 adds (diminishing returns, precompute dominates)
+//
+// On in-order / narrow OoO cores (RISC-V U74, ARM Cortex-A55) where point_add
+// is expensive relative to precompute, w=5 saves more than it costs.
+// On wide OoO x86-64 with fast MULX, the tradeoff is roughly neutral for
+// single k*P but w=5 still wins the full pipeline.
+//
+// Override at call site: KPlan::from_scalar(k, 6) for batch-heavy workloads
+// where precompute is amortized across many points.
+#if defined(SECP256K1_GLV_WINDOW_WIDTH)
+  // CMake or user override: -DSECP256K1_GLV_WINDOW_WIDTH=6
+  inline constexpr uint8_t kDefaultGlvWindow = SECP256K1_GLV_WINDOW_WIDTH;
+#elif defined(__riscv) || defined(__aarch64__) || defined(_M_ARM64)
+  inline constexpr uint8_t kDefaultGlvWindow = 5;
+#elif defined(__x86_64__) || defined(_M_X64)
+  inline constexpr uint8_t kDefaultGlvWindow = 5;
+#else
+  inline constexpr uint8_t kDefaultGlvWindow = 4;  // ESP32, WASM, unknown
+#endif
+
 // Fixed K x Variable Q optimization plan
 // Caches all K-dependent work: GLV decomposition + wNAF computation
 // Use this when you need to multiply many different points Q by the same scalar K
 struct KPlan {
-    uint8_t window_width;           // wNAF window size (typically 4 or 5)
+    uint8_t window_width;           // wNAF window size (see kDefaultGlvWindow)
     Scalar k1;                       // Decomposed scalar k1
     Scalar k2;                       // Decomposed scalar k2
     std::vector<int32_t> wnaf1;     // Precomputed wNAF for k1
@@ -35,7 +63,8 @@ struct KPlan {
     bool neg2;                       // Sign flag for k2
     
     // Factory: Create plan from scalar K
-    static KPlan from_scalar(const Scalar& k, uint8_t w = 4);
+    // w: wNAF window width (default: platform-optimal kDefaultGlvWindow)
+    static KPlan from_scalar(const Scalar& k, uint8_t w = kDefaultGlvWindow);
 };
 
 class Point {

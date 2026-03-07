@@ -137,7 +137,8 @@ ctest --test-dir build --output-on-failure
 | `SECP256K1_BUILD_BENCH` | OFF | Build benchmarks |
 | `SECP256K1_BUILD_EXAMPLES` | OFF | Build example programs |
 | `SECP256K1_SPEED_FIRST` | OFF | Aggressive speed optimizations |
-| `SECP256K1_USE_LTO` | OFF | Link-time optimization |
+| `SECP256K1_GLV_WINDOW_WIDTH` | platform | GLV window width (4-7); default 5 on x86/ARM/RISC-V, 4 on ESP32 |
+| `SECP256K1_USE_LTO` | ON | Link-time optimization |
 
 ---
 

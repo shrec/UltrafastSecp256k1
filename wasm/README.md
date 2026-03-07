@@ -134,6 +134,21 @@ emcmake cmake -S wasm -B build/wasm -DCMAKE_BUILD_TYPE=Debug
 cmake --build build/wasm -j
 ```
 
+### GLV Window Width
+
+WASM defaults to GLV window w=4 (smaller tables for constrained environments). Override with:
+
+```bash
+emcmake cmake -S wasm -B build/wasm -DSECP256K1_GLV_WINDOW_WIDTH=5
+```
+
+| Window | Tradeoff |
+|--------|----------|
+| w=4 | Default for WASM -- smaller tables, more point additions |
+| w=5 | Fewer additions, beneficial if cache permits |
+
+See [docs/PERFORMANCE_GUIDE.md](../docs/PERFORMANCE_GUIDE.md) for detailed benchmarks.
+
 ## License
 
 MIT

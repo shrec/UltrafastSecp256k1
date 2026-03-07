@@ -8,7 +8,7 @@ This guide will help you build and use UltrafastSecp256k1 in your project.
 - **C++20 compiler**:
   - GCC 11+ 
   - Clang/LLVM 15+ (recommended)
-  - MSVC 2022+ (with `-DSECP256K1_ALLOW_MSVC=ON`)
+  - MSVC 2022+
 - **Ninja** (recommended) or Make
 - **CUDA 12.0+** (optional, for GPU support)
 
@@ -124,9 +124,9 @@ pkg-config --cflags --libs secp256k1-fast
 | `SECP256K1_BUILD_ROCM` | OFF | ROCm GPU support (AMD) |
 | `SECP256K1_BUILD_TESTS` | ON | Build tests |
 | `SECP256K1_BUILD_BENCH` | ON | Build benchmarks |
-| `SECP256K1_USE_LTO` | OFF | Link-Time Optimization |
+| `SECP256K1_USE_LTO` | ON | Link-Time Optimization |
 | `SECP256K1_SPEED_FIRST` | OFF | Aggressive optimizations |
-| `SECP256K1_ALLOW_MSVC` | OFF | Allow MSVC 2022+ compiler |
+| `SECP256K1_GLV_WINDOW_WIDTH` | platform | GLV window width (4-7); default 5 on x86/ARM/RISC-V, 4 on ESP32 |
 
 ## Next Steps
 

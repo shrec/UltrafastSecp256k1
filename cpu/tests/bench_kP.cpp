@@ -42,7 +42,7 @@ int main() {
     // Warmup
     volatile uint8_t sink = 0;
     for (int i = 0; i < WARMUP; i++) {
-        PT r = Qs[static_cast<std::size_t>(i % 256)].scalar_mul(K);
+        const PT r = Qs[static_cast<std::size_t>(i % 256)].scalar_mul(K);
         auto const c = r.to_compressed();
         sink ^= c[0];
     }
@@ -51,12 +51,12 @@ int main() {
     {
         auto const start = std::chrono::high_resolution_clock::now();
         for (int i = 0; i < ITERS; i++) {
-            PT r = Qs[static_cast<std::size_t>(i % 256)].scalar_mul(K);
+            const PT r = Qs[static_cast<std::size_t>(i % 256)].scalar_mul(K);
             auto const c = r.to_compressed();
             sink ^= c[0];
         }
         auto const end = std::chrono::high_resolution_clock::now();
-        double ns = std::chrono::duration<double, std::nano>(end - start).count() / ITERS;
+        const double ns = std::chrono::duration<double, std::nano>(end - start).count() / ITERS;
         std::printf("scalar_mul(K)            : %8.1f ns/op  (%.1f us)\n", ns, ns / 1000.0);
     }
 
@@ -64,12 +64,12 @@ int main() {
     {
         auto const start = std::chrono::high_resolution_clock::now();
         for (int i = 0; i < ITERS; i++) {
-            PT r = Qs[static_cast<std::size_t>(i % 256)].scalar_mul_with_plan(plan);
+            const PT r = Qs[static_cast<std::size_t>(i % 256)].scalar_mul_with_plan(plan);
             auto const c = r.to_compressed();
             sink ^= c[0];
         }
         auto const end = std::chrono::high_resolution_clock::now();
-        double ns = std::chrono::duration<double, std::nano>(end - start).count() / ITERS;
+        const double ns = std::chrono::duration<double, std::nano>(end - start).count() / ITERS;
         std::printf("scalar_mul_with_plan(K)  : %8.1f ns/op  (%.1f us)\n", ns, ns / 1000.0);
     }
 
@@ -77,12 +77,12 @@ int main() {
     {
         auto const start = std::chrono::high_resolution_clock::now();
         for (int i = 0; i < ITERS; i++) {
-            PT r = PT::generator().scalar_mul(K);
+            const PT r = PT::generator().scalar_mul(K);
             auto const c = r.to_compressed();
             sink ^= c[0];
         }
         auto const end = std::chrono::high_resolution_clock::now();
-        double ns = std::chrono::duration<double, std::nano>(end - start).count() / ITERS;
+        const double ns = std::chrono::duration<double, std::nano>(end - start).count() / ITERS;
         std::printf("K*G (generator mul)      : %8.1f ns/op  (%.1f us)\n", ns, ns / 1000.0);
     }
 

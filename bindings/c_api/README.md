@@ -48,6 +48,22 @@ int ok = secp256k1_ecdsa_verify(msg, sig, pubkey);
 
 Both APIs use the **fast** (variable-time) implementation for maximum throughput. A constant-time (CT) layer with identical mathematical operations is available via the C++ headers for applications requiring timing-attack resistance.
 
+## Performance Tuning
+
+When building the shared library from source, you can tune scalar multiplication (k*P) performance via the GLV window width:
+
+```bash
+cmake -S bindings/c_api -B bindings/c_api/build -DSECP256K1_GLV_WINDOW_WIDTH=6
+```
+
+| Window | Default On | Tradeoff |
+|--------|-----------|----------|
+| w=4 | ESP32, WASM | Smaller tables, more point additions |
+| w=5 | x86-64, ARM64, RISC-V | Balanced (default) |
+| w=6 | -- | Larger tables, fewer additions |
+
+See [docs/PERFORMANCE_GUIDE.md](../../docs/PERFORMANCE_GUIDE.md) for detailed benchmarks and per-platform tuning advice.
+
 ## License
 
 MIT
