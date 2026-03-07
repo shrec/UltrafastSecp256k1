@@ -26,6 +26,19 @@ using FE52 = fast::FieldElement52;
 // Returns Point::infinity() if x is not on the curve.
 static Point lift_x_from_limbs(const std::uint64_t* px_limb_le) {
 #if defined(SECP256K1_FAST_52BIT)
+#if defined(__aarch64__)
+    // On current ARM64 targets, 4x64 sqrt path benchmarks faster than FE52
+    // for lift_x; use it for raw Schnorr verify input decoding.
+    FieldElement const px_fe = FieldElement::from_limbs_raw({
+        px_limb_le[0], px_limb_le[1], px_limb_le[2], px_limb_le[3]});
+    auto x3 = px_fe * px_fe * px_fe;
+    auto y2 = x3 + FieldElement::from_uint64(7);
+    auto y_fe = y2.sqrt();
+    auto chk = y_fe * y_fe;
+    if (!(chk == y2)) return Point::infinity();
+    if (y_fe.limbs()[0] & 1) y_fe = y_fe.negate();
+    return Point::from_affine(px_fe, y_fe);
+#else
     FE52 const px52 = FE52::from_4x64_limbs(px_limb_le);
 
     // y^2 = x^3 + 7
@@ -53,6 +66,7 @@ static Point lift_x_from_limbs(const std::uint64_t* px_limb_le) {
 
     // Zero-conversion: construct Point directly from FE52 affine coordinates
     return Point::from_affine52(px52, y52);
+#endif
 #else
     FieldElement const px_fe = FieldElement::from_limbs_raw({
         px_limb_le[0], px_limb_le[1], px_limb_le[2], px_limb_le[3]});
@@ -68,14 +82,21 @@ static Point lift_x_from_limbs(const std::uint64_t* px_limb_le) {
 #endif
 }
 
+static inline std::uint64_t load_be64_unaligned(const uint8_t* p) {
+    std::uint64_t v = 0;
+    std::memcpy(&v, p, sizeof(v));
+#if defined(__BYTE_ORDER__) && (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)
+    return __builtin_bswap64(v);
+#else
+    return v;
+#endif
+}
+
 static inline void parse_be32_to_le64(const uint8_t* in32, std::uint64_t* out4) {
-    for (int i = 0; i < 4; ++i) {
-        std::uint64_t limb = 0;
-        for (int j = 0; j < 8; ++j) {
-            limb = (limb << 8) | static_cast<std::uint64_t>(in32[i * 8 + j]);
-        }
-        out4[3 - i] = limb;
-    }
+    out4[3] = load_be64_unaligned(in32 + 0);
+    out4[2] = load_be64_unaligned(in32 + 8);
+    out4[1] = load_be64_unaligned(in32 + 16);
+    out4[0] = load_be64_unaligned(in32 + 24);
 }
 
 static inline bool limbs_lt_p(const std::uint64_t* x4) {
@@ -95,17 +116,53 @@ static inline bool parse2_and_check_lt_p(const uint8_t* a32,
                                          const uint8_t* b32,
                                          std::uint64_t* out_a4,
                                          std::uint64_t* out_b4) {
-    for (int i = 0; i < 4; ++i) {
-        std::uint64_t limb_a = 0;
-        std::uint64_t limb_b = 0;
-        for (int j = 0; j < 8; ++j) {
-            limb_a = (limb_a << 8) | static_cast<std::uint64_t>(a32[i * 8 + j]);
-            limb_b = (limb_b << 8) | static_cast<std::uint64_t>(b32[i * 8 + j]);
-        }
-        out_a4[3 - i] = limb_a;
-        out_b4[3 - i] = limb_b;
-    }
+    out_a4[3] = load_be64_unaligned(a32 + 0);
+    out_a4[2] = load_be64_unaligned(a32 + 8);
+    out_a4[1] = load_be64_unaligned(a32 + 16);
+    out_a4[0] = load_be64_unaligned(a32 + 24);
+
+    out_b4[3] = load_be64_unaligned(b32 + 0);
+    out_b4[2] = load_be64_unaligned(b32 + 8);
+    out_b4[1] = load_be64_unaligned(b32 + 16);
+    out_b4[0] = load_be64_unaligned(b32 + 24);
+
     return limbs_lt_p(out_a4) && limbs_lt_p(out_b4);
+}
+
+// Tiny thread-local cache for raw BIP-340 verification path.
+// Public-key input is non-secret, so memoizing lifted x-only pubkeys is safe.
+struct XOnlyLiftCacheEntry {
+    std::array<uint8_t, 32> x{};
+    Point p = Point::infinity();
+    bool valid = false;
+};
+
+static inline bool lift_x_cached(const uint8_t* pubkey_x32,
+                                 const std::uint64_t* pkL,
+                                 Point& out) {
+    // Direct-mapped table keeps lookup O(1) with minimal branch/memcmp overhead.
+    static constexpr std::size_t kCacheSlots = 256;
+    thread_local std::array<XOnlyLiftCacheEntry, kCacheSlots> cache{};
+    std::size_t const idx = static_cast<std::size_t>(
+        pubkey_x32[0] ^ pubkey_x32[7] ^ pubkey_x32[15] ^ pubkey_x32[23] ^ pubkey_x32[31]);
+
+    auto& slot = cache[idx];
+    if (slot.valid && std::memcmp(slot.x.data(), pubkey_x32, 32) == 0) {
+        out = slot.p;
+        return !out.is_infinity();
+    }
+
+    Point const lifted = lift_x_from_limbs(pkL);
+    if (lifted.is_infinity()) {
+        return false;
+    }
+
+    std::memcpy(slot.x.data(), pubkey_x32, 32);
+    slot.p = lifted;
+    slot.valid = true;
+
+    out = lifted;
+    return true;
 }
 
 // -- Shared BIP-340 tagged-hash midstates (from tagged_hash.hpp) ---------------
@@ -289,7 +346,11 @@ bool schnorr_verify(const uint8_t* pubkey_x32,
     std::uint64_t pkL[4];
     if (!parse2_and_check_lt_p(sig.r.data(), pubkey_x32, rL, pkL)) return false;
 
-    // Step 2: e = tagged_hash("BIP0340/challenge", r || pubkey_x || msg) mod n
+    // Step 2: Lift x-only pubkey to point (cached for repeated pubkeys)
+    Point P;
+    if (!lift_x_cached(pubkey_x32, pkL, P)) return false;
+
+    // Step 3: e = tagged_hash("BIP0340/challenge", r || pubkey_x || msg) mod n
     // Streaming SHA256: feed data directly, no intermediate buffer
     SHA256 ctx = g_challenge_midstate;
     ctx.update(sig.r.data(), 32);
@@ -297,10 +358,6 @@ bool schnorr_verify(const uint8_t* pubkey_x32,
     ctx.update(msg32, 32);
     const auto e_hash = ctx.finalize();
     const auto e = Scalar::from_bytes(e_hash);
-
-    // Step 3: Lift x-only pubkey to point
-    const auto P = lift_x_from_limbs(pkL);
-    if (P.is_infinity()) return false;
 
     // Step 4: R = s*G - e*P  (4-stream GLV Strauss: s*G + (-e)*P in one pass)
     const auto neg_e = e.negate();
