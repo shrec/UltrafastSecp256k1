@@ -246,17 +246,24 @@ if(NOT TARGET ${SECP256K1_LIB_NAME})
 
     if(SECP256K1_USE_LTO)
         if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-            # Clang ThinLTO - requires lld linker.
+            # Clang ThinLTO.
             # PRIVATE: compile library sources with LTO (bitcode objects)
-            # INTERFACE: propagate LTO + arch flags to ALL consumers automatically
-            #   (any exe that links against this lib gets -flto=thin -fuse-ld=lld)
+            # INTERFACE: propagate LTO + arch flags to ALL consumers automatically.
             # CRITICAL: ARCH_FLAGS (e.g. -mcpu=sifive-u74) must be in link options
             #   because ThinLTO does final code generation at link time -- without it
             #   the linker uses generic scheduling, losing pipeline-specific gains.
             #   ARCH_FLAGS is added to link options later (after it's set).
             target_compile_options(${SECP256K1_LIB_NAME} PRIVATE -flto=thin)
-            target_link_options(${SECP256K1_LIB_NAME} INTERFACE -flto=thin -fuse-ld=lld)
-            message(STATUS "Secp256k1: OK LTO ENABLED (ThinLTO with Clang + lld, INTERFACE propagated)")
+
+            # Do not force lld on Apple CI: clang on macOS may reject -fuse-ld=lld
+            # when ld64 is the only linker available (CT ARM64 workflow failure).
+            if(APPLE)
+                target_link_options(${SECP256K1_LIB_NAME} INTERFACE -flto=thin)
+                message(STATUS "Secp256k1: OK LTO ENABLED (ThinLTO with Clang + default Apple linker, INTERFACE propagated)")
+            else()
+                target_link_options(${SECP256K1_LIB_NAME} INTERFACE -flto=thin -fuse-ld=lld)
+                message(STATUS "Secp256k1: OK LTO ENABLED (ThinLTO with Clang + lld, INTERFACE propagated)")
+            endif()
         elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
             target_compile_options(${SECP256K1_LIB_NAME} PRIVATE -flto)
             target_link_options(${SECP256K1_LIB_NAME} INTERFACE -flto)
@@ -675,14 +682,19 @@ if(BUILD_TESTING)
         )
         target_link_libraries(bench_unified PRIVATE ${SECP256K1_LIB_NAME})
 
-        # Optional: OpenSSL integration for multi-library comparison
-        find_package(OpenSSL QUIET)
-        if(OpenSSL_FOUND)
-            target_compile_definitions(bench_unified PRIVATE BENCH_HAS_OPENSSL)
-            target_link_libraries(bench_unified PRIVATE OpenSSL::Crypto)
-            message(STATUS "bench_unified: OpenSSL ${OPENSSL_VERSION} enabled for comparison")
+        # Optional: OpenSSL integration for multi-library comparison.
+        # Disable during cross-compilation to avoid accidentally binding host OpenSSL.
+        if(CMAKE_CROSSCOMPILING)
+            message(STATUS "bench_unified: cross-compiling -- OpenSSL comparison disabled")
         else()
-            message(STATUS "bench_unified: OpenSSL not found -- OpenSSL comparison disabled")
+            find_package(OpenSSL QUIET)
+            if(OpenSSL_FOUND)
+                target_compile_definitions(bench_unified PRIVATE BENCH_HAS_OPENSSL)
+                target_link_libraries(bench_unified PRIVATE OpenSSL::Crypto)
+                message(STATUS "bench_unified: OpenSSL ${OPENSSL_VERSION} enabled for comparison")
+            else()
+                message(STATUS "bench_unified: OpenSSL not found -- OpenSSL comparison disabled")
+            endif()
         endif()
     else()
         message(STATUS "bench_unified: skipped (libsecp256k1 source not found at ${LIBSECP_SRC_DIR})")
