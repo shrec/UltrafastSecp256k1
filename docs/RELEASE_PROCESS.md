@@ -16,6 +16,24 @@
 
 ---
 
+## 1.1 Strict Branch Policy (Non-Negotiable)
+
+The project uses a strict two-branch model:
+
+1. `dev` = active development and integration.
+2. `main` = release branch only.
+
+Mandatory rules:
+
+1. All normal development merges into `dev` first.
+2. `main` is updated only from `dev` (or emergency hotfixes).
+3. Release is performed only from `main`.
+4. Required sequence is fixed: merge `dev` -> run CI on `main` -> release.
+5. If CI on `main` is not fully green, release is blocked.
+6. Any hotfix done on `main` must be propagated back to `dev` immediately.
+
+---
+
 ## 2. Pre-Release Checklist
 
 ### 2.1 Code Freeze
@@ -72,6 +90,18 @@ See [ABI_VERSIONING.md](ABI_VERSIONING.md) for the complete ABI contract.
 git checkout main
 git merge --no-ff dev -m "release: vX.Y.Z"
 ```
+
+### 3.1.1 Mandatory CI Gate on `main`
+
+After `dev` is merged into `main`, run the full required CI gate on `main` and wait for green status checks.
+
+Only after all required checks are green:
+
+1. create the release tag,
+2. publish release artifacts,
+3. publish packages.
+
+No exceptions for normal releases.
 
 ### 3.2 Tag
 

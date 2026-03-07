@@ -62,6 +62,10 @@ services:
     <<: *ci-base
     command: ["./docker/run_ci.sh", "tsan"]
 
+  msan:
+    <<: *ci-base
+    command: ["./docker/run_ci.sh", "msan"]
+
   valgrind:
     <<: *ci-base
     command: ["./docker/run_ci.sh", "valgrind"]
@@ -81,6 +85,50 @@ services:
   clang-tidy:
     <<: *ci-base
     command: ["./docker/run_ci.sh", "clang-tidy"]
+
+  cppcheck:
+    <<: *ci-base
+    command: ["./docker/run_ci.sh", "cppcheck"]
+
+  ct-verif:
+    <<: *ci-base
+    command: ["./docker/run_ci.sh", "ct-verif"]
+
+  bench-regression:
+    <<: *ci-base
+    command: ["./docker/run_ci.sh", "bench-regression"]
+
+  gh-parity:
+    <<: *ci-base
+    command: ["./docker/run_ci.sh", "gh-parity"]
+
+  strict-audit:
+    <<: *ci-base
+    command: ["./docker/run_ci.sh", "strict-audit"]
+
+  strict-perf:
+    <<: *ci-base
+    command: ["./docker/run_ci.sh", "strict-perf"]
+
+  no-surprise:
+    <<: *ci-base
+    command: ["./docker/run_ci.sh", "no-surprise"]
+
+  dev-gate:
+    <<: *ci-base
+    command: ["./docker/run_ci.sh", "dev-gate"]
+
+  main-gate:
+    <<: *ci-base
+    command: ["./docker/run_ci.sh", "main-gate"]
+
+  branch-gate:
+    <<: *ci-base
+    command: ["./docker/run_ci.sh", "branch-gate"]
+
+  x86-full:
+    <<: *ci-base
+    command: ["./docker/run_ci.sh", "x86-full"]
 
   warnings:
     <<: *ci-base

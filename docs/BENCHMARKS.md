@@ -733,51 +733,6 @@ AWS Graviton, AMD EPYC, Intel Xeon Sapphire Rapids, Milk-V Pioneer (C920).
 
 ---
 
-## BIP-352 Silent Payments Scanning Benchmark
-
-Standalone single-threaded benchmark comparing UltrafastSecp256k1 vs libsecp256k1
-on the **full BIP-352 scanning pipeline**: k\*P, serialize, tagged SHA-256, k\*G,
-point add, serialize, prefix match.
-
-Benchmark by [@craigraw](https://github.com/craigraw)
-([bench_bip352](https://github.com/craigraw/bench_bip352)).
-
-### Setup
-
-| Detail | Value |
-|--------|-------|
-| CPU | x86-64 (WSL2 Ubuntu) |
-| Compiler | GCC 12.4, `-O3 -march=native` |
-| libsecp256k1 | v0.6.0 (`USE_ASM_X86_64=1`) |
-| UltrafastSecp256k1 | feat/z-one-normalize branch, 5x52 + `__int128` |
-| Methodology | 10K points, 11 passes, median |
-| Harness | Both libraries compiled with identical flags in the same binary |
-
-### Full Pipeline Results
-
-| Backend | Median | ns/op | Ratio |
-|---------|--------|-------|-------|
-| libsecp256k1 | 545.2 ms | 54,519 ns | 1.00x |
-| **UltrafastSecp256k1** | **456.1 ms** | **45,615 ns** | **1.20x faster** |
-
-### Per-Operation Breakdown (1K points, 11 passes, median)
-
-| Operation | libsecp256k1 | UltrafastSecp256k1 | Ratio |
-|-----------|-------------|-------------------|-------|
-| k\*P (scalar mul) | 37,975 ns | 26,460 ns | 1.44x faster |
-| Serialize compressed (1st) | 36 ns | 15 ns | 2.4x faster |
-| Tagged SHA-256 | 744 ns | 65 ns | 11.4x faster |
-| k\*G (generator mul) | 17,460 ns | 8,559 ns | 2.04x faster |
-| Point addition | 2,250 ns | 2,457 ns | 0.92x |
-| Serialize compressed (2nd) | 23 ns | 21 ns | 1.1x faster |
-
-> **Note:** Point addition is slightly slower because both inputs have Z=1
-> (affine), so UltrafastSecp256k1 uses direct affine addition with a field
-> inversion to return an affine result -- this eliminates the separate inversion
-> in serialization, making the net pipeline faster.
-
----
-
 ## Future Optimizations
 
 ### Planned

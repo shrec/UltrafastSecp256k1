@@ -96,6 +96,24 @@ cmake --build build-dev -j
 4. **Push** to the branch: `git push origin feature/amazing-feature`
 5. **Open** a Pull Request
 
+### Strict Branch Governance (Mandatory)
+
+This repository follows a strict two-branch model.
+
+1. `dev` is the only integration branch for active development.
+2. `main` is release-only and must remain stable.
+3. Direct feature work on `main` is not allowed.
+4. Release flow is always: `dev` -> `main` -> full CI -> release tag.
+5. If CI is red after merging `dev` into `main`, release is blocked until green.
+6. Emergency hotfixes on `main` must be merged/cherry-picked back into `dev` immediately after the fix.
+
+Operationally:
+
+1. Work is done in short-lived branches from `dev` (`feature/*`, `fix/*`, `perf/*`, `docs/*`).
+2. Those branches merge into `dev` only after checks pass.
+3. At release time, current `dev` state is merged into `main`.
+4. Release artifacts are created only from `main` after CI passes.
+
 ### Branch Naming
 
 - `feature/` - New features

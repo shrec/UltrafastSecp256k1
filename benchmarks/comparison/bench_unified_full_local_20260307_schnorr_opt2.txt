@@ -1,0 +1,443 @@
+  CPU frequency warmup (3000 ms heavy load)... stable at 2.496 GHz (553380 k*G ops)
+Running integrity check... OK
+
+======================================================================
+  UltrafastSecp256k1 -- Unified Apple-to-Apple Benchmark
+======================================================================
+
+  CPU:       Intel(R) Core(TM) i5-14400F
+  TSC freq:  2.496 GHz
+  Core:      1 (pinned to core 0, priority elevated)
+  Compiler:  GCC 14.2.0
+  Arch:      x86-64
+  Ultra:     UltrafastSecp256k1
+  libsecp:   bitcoin-core libsecp256k1 v0.7.x
+  Harness:   3s CPU ramp-up, 500 warmup/op, 11 passes, IQR outlier removal, median
+  Timer:     RDTSCP
+  Pool:      64 independent key/msg/sig sets
+  NOTE:      Both Ultra and libsecp use IDENTICAL harness
+
++----------------------------------------------+------------+
+| FIELD ARITHMETIC (Ultra)                     |      ns/op |
++----------------------------------------------+------------+
+| field_mul                                    |       12.1 |
+| field_sqr                                    |       11.3 |
+| field_inv                                    |      743.1 |
+| field_add                                    |        4.4 |
+| field_sub                                    |        4.7 |
+| field_negate                                 |        6.4 |
+| field_from_bytes (32B)                       |        3.1 |
++----------------------------------------------+------------+
+
++----------------------------------------------+------------+
+| SCALAR ARITHMETIC (Ultra)                    |      ns/op |
++----------------------------------------------+------------+
+| scalar_mul                                   |       22.4 |
+| scalar_inv                                   |      964.3 |
+| scalar_add                                   |        4.8 |
+| scalar_negate                                |        2.7 |
+| scalar_from_bytes (32B)                      |        2.9 |
++----------------------------------------------+------------+
+
++----------------------------------------------+------------+
+| POINT ARITHMETIC (Ultra)                     |      ns/op |
++----------------------------------------------+------------+
+| pubkey_create (k*G)                          |     5421.8 |
+| scalar_mul (k*P)                             |    17801.5 |
+| scalar_mul_with_plan                         |    17252.9 |
+| dual_mul (a*G + b*P)                         |    21187.2 |
+| point_add (affine+affine)                    |      804.9 |
+| point_add (J+A mixed)                        |      128.9 |
+| point_dbl                                    |       75.9 |
+| normalize (J->affine)                        |        2.9 |
+| batch_normalize /pt (N=64)                   |      125.8 |
+| next_inplace (+=G)                           |      131.0 |
+| KPlan::from_scalar(w=4)                      |     1104.2 |
++----------------------------------------------+------------+
+
++----------------------------------------------+------------+
+| POINT SERIALIZATION (Ultra)                  |      ns/op |
++----------------------------------------------+------------+
+| to_compressed (33B)                          |        6.5 |
+| to_uncompressed (65B)                        |        7.0 |
+| x_only_bytes (32B)                           |        3.1 |
+| x_bytes_and_parity                           |        4.1 |
+| has_even_y                                   |        1.7 |
+| batch_to_compressed /pt (N=64)               |      130.0 |
+| batch_x_only_bytes /pt (N=64)                |       97.0 |
++----------------------------------------------+------------+
+
++----------------------------------------------+------------+
+| ECDSA -- Ultra FAST                          |      ns/op |
++----------------------------------------------+------------+
+| ecdsa_sign                                   |     6589.3 |
+| ecdsa_sign_verified                          |    34769.9 |
+| ecdsa_verify                                 |    22660.8 |
++----------------------------------------------+------------+
+
++----------------------------------------------+------------+
+| SCHNORR / BIP-340 -- Ultra FAST              |      ns/op |
++----------------------------------------------+------------+
+| schnorr_keypair_create                       |     5410.7 |
+| schnorr_sign                                 |     5853.9 |
+| schnorr_sign_verified                        |    33544.2 |
+| schnorr_verify (cached xonly)                |    20636.2 |
+| schnorr_verify (raw bytes)                   |    24320.8 |
++----------------------------------------------+------------+
+
++----------------------------------------------+------------+
+| MICRO-DIAGNOSTICS (sub-ops)                  |      ns/op |
++----------------------------------------------+------------+
+| Scalar::from_bytes (32B->scalar)             |        2.6 |
+| Scalar::inverse (safegcd)                    |      835.6 |
+| Scalar::mul                                  |       19.6 |
+| Scalar::negate                               |        2.3 |
+| glv_decompose                                |       74.5 |
+| Point::dbl (jac52_double)                    |       62.4 |
+| Point::add (J+A mixed)                       |      114.6 |
+| dual_scalar_mul_gen_point                    |    19523.8 |
+| FE52::from_4x64_limbs                        |        1.3 |
+| FE52::mul (52-bit)                           |       14.6 |
+| FE52::sqr (52-bit)                           |       11.1 |
+| FE52::inverse_safegcd                        |      647.2 |
+| FE52::inverse (Fermat)                       |     3412.4 |
+|   -> SafeGCD/Fermat speedup                  |     5.27x  |
+| FE52::add (52-bit)                           |        0.6 |
+| FE52::negate (52-bit)                        |        0.5 |
+| FE52::normalize                              |        3.1 |
+| SHA256 (BIP0340/challenge)                   |      107.5 |
+| tagged_hash (recompute tag)                  |      179.9 |
+| cached_tagged_hash (midstate)                |       85.8 |
+|   -> midstate speedup                        |     2.10x  |
+| lift_x (4x64 sqrt)                           |     5292.9 |
+| lift_x (FE52 sqrt)                           |     3518.7 |
+|   -> FE52/4x64 speedup                       |     1.50x  |
+| FE::parse_bytes_strict                       |        3.3 |
++----------------------------------------------+------------+
+
+  ---- VERIFY COST DECOMPOSITION ----
+  ECDSA verify breakdown (estimated):
+    scalar_inv (1x):              835.6 ns
+    scalar_mul (2x):               39.1 ns
+    dual_scalar_mul:            19523.8 ns
+    from_bytes + overhead:          2.6 ns
+    --------------------------------
+    SUM (sub-ops):              20401.1 ns
+    MEASURED ecdsa_verify:      22660.8 ns
+    UNEXPLAINED gap:             2259.6 ns  (10.0%)
+
+  Schnorr verify breakdown (estimated):
+    SHA256 challenge:          (included in total)
+    scalar_negate:                  2.3 ns
+    dual_scalar_mul:            19523.8 ns
+    lift_x (sqrt):             (included in total)
+    from_bytes:                     2.6 ns
+    --------------------------------
+    SUM (sub-ops, partial):     19528.8 ns
+    MEASURED schnorr_verify:    20636.2 ns
+    UNEXPLAINED gap:             1107.4 ns  (SHA256+lift_x+Z-check)
+
+  Verify vs libsecp breakdown:
+    Our dual_mul:               19523.8 ns
+    Our scalar_inv:               835.6 ns
+    Our dual+inv:               20359.4 ns
+    Total ECDSA verify:         22660.8 ns
+    Overhead (verify - d+i):     2301.3 ns
+
+  ---- SIGN COST DECOMPOSITION (FAST path) ----
+  ecdsa_sign = RFC6979 + k*G + field_inv + scalar_inv + scalar_muls
+    k*G (generator_mul):         5421.8 ns
+    field_inv (R.x):              743.1 ns
+    scalar_inv (k^-1):            835.6 ns
+    scalar_mul (2x):               39.1 ns
+    --------------------------------
+    Core signing (no RFC6979):    7039.6 ns
+    MEASURED ecdsa_sign:          6589.3 ns
+    RFC6979 overhead:             -450.3 ns  (-6.8%)
+    MEASURED ecdsa_sign_verified:34769.9 ns
+    sign-then-verify overhead:   28180.5 ns  (pubkey + verify)
+
++----------------------------------------------+------------+
+| BATCH VERIFICATION (FAST)                    |      ns/op |
++----------------------------------------------+------------+
+| schnorr_batch_verify(N=4)                    |   103174.4 |
+|   -> per-sig amortized (N=4)                 |    25793.6 |
+|   -> speedup vs individual                   |     0.80x  |
+| schnorr_batch_verify(N=16)                   |   392264.5 |
+|   -> per-sig amortized (N=16)                |    24516.5 |
+|   -> speedup vs individual                   |     0.84x  |
+| schnorr_batch_verify(N=64)                   |  2257599.3 |
+|   -> per-sig amortized (N=64)                |    35275.0 |
+|   -> speedup vs individual                   |     0.59x  |
+|                                              |            |
+| ecdsa_batch_verify(N=4)                      |    85291.6 |
+|   -> per-sig amortized (N=4)                 |    21322.9 |
+|   -> speedup vs individual                   |     1.06x  |
+| ecdsa_batch_verify(N=16)                     |   335303.1 |
+|   -> per-sig amortized (N=16)                |    20956.4 |
+|   -> speedup vs individual                   |     1.08x  |
+| ecdsa_batch_verify(N=64)                     |  1300575.4 |
+|   -> per-sig amortized (N=64)                |    20321.5 |
+|   -> speedup vs individual                   |     1.12x  |
++----------------------------------------------+------------+
+
++----------------------------------------------+------------+
+| CT POINT ARITHMETIC (sub-ops)                |      ns/op |
++----------------------------------------------+------------+
+| ct::scalar_inverse (SafeGCD)                 |     1409.8 |
+| ct::generator_mul (k*G)                      |    10871.0 |
+| ct::scalar_mul (k*P)                         |    21430.3 |
+| ct::point_dbl                                |       70.3 |
+| ct::point_add_complete (11M+6S)              |      203.2 |
+| ct::point_add_mixed_complete (7M+5S)         |      154.3 |
+| ct::point_add_mixed_unified (7M+5S)          |      151.7 |
++----------------------------------------------+------------+
+
+  ---- CT vs FAST point ops ----
+  FAST Point::dbl                          62.4 ns
+  FAST Point::add                         114.6 ns
+  FAST pubkey_create (k*G)               5421.8 ns
+  FAST scalar_mul (k*P)                 17801.5 ns
+  CT   generator_mul (k*G)              10871.0 ns
+  CT   scalar_mul (k*P)                 21430.3 ns
+  CT/FAST ratio (k*G):  2.01x overhead
+  CT/FAST ratio (k*P):  1.20x overhead
+
++----------------------------------------------+------------+
+| CT SIGNING (Ultra CT)                        |      ns/op |
++----------------------------------------------+------------+
+| ct::ecdsa_sign                               |    14502.6 |
+|   CT overhead (ECDSA)                        |      2.20x |
+| ct::ecdsa_sign_verified                      |    47714.3 |
+| ct::schnorr_sign                             |    11833.5 |
+|   CT overhead (Schnorr)                      |      2.02x |
+| ct::schnorr_sign_verified                    |    39603.8 |
+| ct::schnorr_keypair_create                   |    10794.1 |
+|   CT overhead (keypair)                      |      1.99x |
++----------------------------------------------+------------+
+
+  ---- CT ECDSA SIGN DECOMPOSITION ----
+    ct::generator_mul (R=k*G):  10871.0 ns
+    ct::scalar_inverse (k^-1):   1409.8 ns
+    field_inv (R.x affine):       743.1 ns
+    scalar_mul (2x):               39.1 ns
+    --------------------------------
+    SUM (sub-ops):              13063.0 ns
+    MEASURED ct::ecdsa_sign:    14502.6 ns
+    UNEXPLAINED gap:             1439.6 ns  (9.9%, RFC6979+checks)
+
+  ---- CT SCHNORR SIGN DECOMPOSITION ----
+    ct::generator_mul (R=k*G):  10871.0 ns
+    SHA256 (tag+nonce+msg):    (included in total)
+    scalar_mul + negate:           21.9 ns
+    --------------------------------
+    SUM (sub-ops, partial):     10892.9 ns
+    MEASURED ct::schnorr_sign:  11833.5 ns
+    UNEXPLAINED gap:              940.6 ns  (SHA256+aux+serialize)
+
+  ---- CT vs libsecp (true apples-to-apples) ----
+  CT   ecdsa_sign                       14502.6 ns
+  lib  ecdsa_sign                      (measured after libsecp section)
+  CT   schnorr_sign                     11833.5 ns
+  lib  schnorr_sign                    (measured after libsecp section)
+
+Running libsecp256k1 benchmark (same harness: RDTSCP, 3s ramp-up, 500 warmup, 11 passes, IQR)...
++----------------------------------------------+------------+
+| libsecp256k1 (bitcoin-core)                  |      ns/op |
++----------------------------------------------+------------+
+| field_mul                                    |       13.1 |
+| field_sqr                                    |       11.6 |
+| field_inv_var                                |      955.1 |
+| field_add                                    |        7.4 |
+| field_negate                                 |        7.1 |
+| field_normalize                              |        8.3 |
+| field_from_bytes (set_b32)                   |        7.8 |
+| scalar_mul                                   |       29.2 |
+| scalar_inverse (CT)                          |     1579.4 |
+| scalar_inverse_var                           |      959.6 |
+| scalar_add                                   |        5.7 |
+| scalar_negate                                |        7.8 |
+| scalar_from_bytes (set_b32)                  |        5.6 |
+| point_dbl (gej_double_var)                   |       88.1 |
+| point_add (gej_add_ge_var)                   |      157.0 |
+| ecmult (a*P + b*G, Strauss)                  |    23601.1 |
+| ecmult_gen (k*G, comb)                       |    10270.6 |
+| generator_mul (ec_pubkey_create)             |    12768.6 |
+| scalar_mul_P (k*P, tweak_mul)                |    21339.5 |
+| serialize_compressed (33B)                   |       17.6 |
+| serialize_uncompressed (65B)                 |       22.6 |
+| point_add (pubkey_combine)                   |     1789.2 |
+| ecdsa_sign                                   |    15982.6 |
+| ecdsa_verify                                 |    22465.1 |
+| schnorr_keypair_create                       |    12772.2 |
+| schnorr_sign (BIP-340)                       |    12484.5 |
+| schnorr_verify (BIP-340)                     |    22788.0 |
++----------------------------------------------+------------+
+
+Running OpenSSL benchmark (OpenSSL 3.0.13 30 Jan 2024, same harness)...
++----------------------------------------------+------------+
+| OpenSSL (ECDSA, secp256k1)                   |      ns/op |
++----------------------------------------------+------------+
+| generator_mul (EC_POINT_mul k*G)             |   223519.3 |
+| ecdsa_sign (ECDSA_do_sign)                   |   247573.1 |
+| ecdsa_verify (ECDSA_do_verify)               |   238111.8 |
++----------------------------------------------+------------+
+  (OpenSSL has no BIP-340 Schnorr -- ECDSA-only comparison)
+
+======================================================================
+  HEAD-TO-HEAD: UltrafastSecp256k1 vs libsecp256k1
+  (ratio > 1.0 = Ultra wins, < 1.0 = libsecp wins)
+======================================================================
+
++------------------------------------+----------+----------+-----------+
+| FIELD ARITHMETIC                   | Ultra ns |  libsecp |     ratio |
++------------------------------------+----------+----------+-----------+
+| mul                                |     12.1 |     13.1 |     1.09x |
+| sqr                                |     11.3 |     11.6 |     1.03x |
+| inv                                |    743.1 |    955.1 |     1.29x |
+| add                                |      4.4 |      7.4 |     1.67x |
+| sub                                |      4.7 |      --- |       --- |
+| negate                             |      6.4 |      7.1 |     1.12x |
+| normalize (FE52)                   |      3.1 |      8.3 |     2.67x |
+| from_bytes (32B)                   |      3.1 |      7.8 |     2.51x |
+| FE52 add (hot path)                |      0.6 |      7.4 |    11.66x |
+| FE52 neg (hot path)                |      0.5 |      7.1 |    14.51x |
++------------------------------------+----------+----------+-----------+
+
++------------------------------------+----------+----------+-----------+
+| SCALAR ARITHMETIC                  | Ultra ns |  libsecp |     ratio |
++------------------------------------+----------+----------+-----------+
+| mul                                |     22.4 |     29.2 |     1.30x |
+| inv (CT)                           |    835.6 |   1579.4 |     1.89x |
+| inv (var-time)                     |    835.6 |    959.6 |     1.15x |
+| add                                |      4.8 |      5.7 |     1.19x |
+| negate                             |      2.7 |      7.8 |     2.92x |
+| from_bytes (32B)                   |      2.9 |      5.6 |     1.92x |
++------------------------------------+----------+----------+-----------+
+
++------------------------------------+----------+----------+-----------+
+| POINT ARITHMETIC                   | Ultra ns |  libsecp |     ratio |
++------------------------------------+----------+----------+-----------+
+| dbl (Jacobian)                     |     75.9 |     88.1 |     1.16x |
+| add (mixed J+A)                    |    128.9 |    157.0 |     1.22x |
+| ecmult (a*P+b*G)                   |  21187.2 |  23601.1 |     1.11x |
+| ecmult_gen (k*G raw)               |   5421.8 |  10270.6 |     1.89x |
+| pubkey_create (API)                |   5421.8 |  12768.6 |     2.36x |
+| scalar_mul (k*P)                   |  17801.5 |  21339.5 |     1.20x |
+| scalar_mul (KPlan)                 |  17252.9 |  21339.5 |     1.24x |
+| point_add (combine)                |    804.9 |   1789.2 |     2.22x |
++------------------------------------+----------+----------+-----------+
+
++------------------------------------+----------+----------+-----------+
+| SERIALIZATION                      | Ultra ns |  libsecp |     ratio |
++------------------------------------+----------+----------+-----------+
+| compressed (33B)                   |      6.5 |     17.6 |     2.69x |
+| uncompressed (65B)                 |      7.0 |     22.6 |     3.24x |
++------------------------------------+----------+----------+-----------+
+
++------------------------------------+----------+----------+-----------+
+| SIGNING (FAST vs libsecp CT)       | Ultra ns |  libsecp |     ratio |
++------------------------------------+----------+----------+-----------+
+| ECDSA Sign                         |   6589.3 |  15982.6 |     2.43x |
+| Schnorr Sign                       |   5853.9 |  12484.5 |     2.13x |
+| Schnorr Keypair                    |   5410.7 |  12772.2 |     2.36x |
++------------------------------------+----------+----------+-----------+
+
++------------------------------------+----------+----------+-----------+
+| VERIFICATION                       | Ultra ns |  libsecp |     ratio |
++------------------------------------+----------+----------+-----------+
+| ECDSA Verify                       |  22660.8 |  22465.1 |     0.99x |
+| Schnorr Verify (cached)            |  20636.2 |  22788.0 |     1.10x |
+| Schnorr Verify (raw)               |  24320.8 |  22788.0 |     0.94x |
++------------------------------------+----------+----------+-----------+
+
++------------------------------------+----------+----------+-----------+
+| CT-vs-CT (fair signing)            | Ultra ns |  libsecp |     ratio |
++------------------------------------+----------+----------+-----------+
+| ECDSA Sign                         |  14502.6 |  15982.6 |     1.10x |
+| Schnorr Sign                       |  11833.5 |  12484.5 |     1.06x |
+| ECDSA Verify                       |  22660.8 |  22465.1 |     0.99x |
+| Schnorr Verify                     |  24320.8 |  22788.0 |     0.94x |
++------------------------------------+----------+----------+-----------+
+
+======================================================================
+  APPLE-TO-APPLE: UltrafastSecp256k1 / OpenSSL
+  (ratio > 1.0 = Ultra wins, < 1.0 = OpenSSL wins)
+======================================================================
+
++----------------------------------------------+------------+
+| FAST path (Ultra FAST vs OpenSSL)            |      ratio |
++----------------------------------------------+------------+
+| Generator * k                                |     41.23x |
+| ECDSA Sign                                   |     37.57x |
+| ECDSA Verify                                 |     10.51x |
++----------------------------------------------+------------+
+
++----------------------------------------------+------------+
+| CT path (Ultra CT vs OpenSSL)                |      ratio |
++----------------------------------------------+------------+
+| ECDSA Sign (CT vs CT)                        |     17.07x |
+| ECDSA Verify                                 |     10.51x |
++----------------------------------------------+------------+
+
+======================================================================
+  THROUGHPUT SUMMARY (1 core, pinned)
+======================================================================
+
+  --- Ultra FAST ---
+  ECDSA sign                                 6.59 us  ->     151.8 k op/s
+  ECDSA verify                              22.66 us  ->      44.1 k op/s
+  Schnorr sign                               5.85 us  ->     170.8 k op/s
+  Schnorr verify (cached)                   20.64 us  ->      48.5 k op/s
+  Schnorr verify (raw)                      24.32 us  ->      41.1 k op/s
+  pubkey_create (k*G)                        5.42 us  ->     184.4 k op/s
+
+  --- Ultra CT ---
+  CT ECDSA sign                             14.50 us  ->      69.0 k op/s
+  CT Schnorr sign                           11.83 us  ->      84.5 k op/s
+
+  --- libsecp256k1 ---
+  field_mul                                  0.01 us  ->     76.40 M op/s
+  field_sqr                                  0.01 us  ->     86.00 M op/s
+  field_inv_var                              0.96 us  ->      1.05 M op/s
+  scalar_mul                                 0.03 us  ->     34.28 M op/s
+  scalar_inverse (CT)                        1.58 us  ->     633.1 k op/s
+  scalar_inverse_var                         0.96 us  ->      1.04 M op/s
+  point_dbl                                  0.09 us  ->     11.35 M op/s
+  point_add (mixed)                          0.16 us  ->      6.37 M op/s
+  ecmult (a*P+b*G)                          23.60 us  ->      42.4 k op/s
+  ecmult_gen (k*G raw)                      10.27 us  ->      97.4 k op/s
+  generator_mul (API)                       12.77 us  ->      78.3 k op/s
+  scalar_mul_P (k*P)                        21.34 us  ->      46.9 k op/s
+  ECDSA sign                                15.98 us  ->      62.6 k op/s
+  ECDSA verify                              22.47 us  ->      44.5 k op/s
+  Schnorr sign                              12.48 us  ->      80.1 k op/s
+  Schnorr verify                            22.79 us  ->      43.9 k op/s
+
+  --- OpenSSL ---
+  ECDSA sign                               247.57 us  ->       4.0 k op/s
+  ECDSA verify                             238.11 us  ->       4.2 k op/s
+  generator_mul (k*G)                      223.52 us  ->       4.5 k op/s
+
+======================================================================
+  BITCOIN BLOCK VALIDATION ESTIMATES (1 core)
+======================================================================
+
+  Pre-Taproot block (~3000 ECDSA verify):
+    Wall time:     68.0 ms
+    Blocks/sec:    14.7
+
+  Taproot block (~2000 Schnorr + ~1000 ECDSA):
+    Wall time:     71.3 ms
+    Blocks/sec:    14.0
+
+  TX throughput (1 core):
+    ECDSA:       44129 tx/sec
+    Schnorr:     41117 tx/sec
+
+======================================================================
+  Intel(R) Core(TM) i5-14400F | 1 core pinned | GCC 14.2.0
+  UltrafastSecp256k1 vs libsecp256k1 vs OpenSSL -- Unified Benchmark
+======================================================================
+
+  JSON report written to: benchmarks/comparison/bench_unified_full_local_20260307_schnorr_opt2.json

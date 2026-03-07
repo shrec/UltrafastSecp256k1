@@ -145,6 +145,13 @@ struct XOnlyLiftCacheEntry {
 static inline bool lift_x_cached(const uint8_t* pubkey_x32,
                                  const std::uint64_t* pkL,
                                  Point& out) {
+#if defined(SECP256K1_PLATFORM_ESP32) || defined(SECP256K1_PLATFORM_STM32)
+    // Embedded: skip 36KB thread-local cache, compute directly.
+    Point const lifted = lift_x_from_limbs(pkL);
+    if (lifted.is_infinity()) return false;
+    out = lifted;
+    return true;
+#else
     // Direct-mapped table keeps lookup O(1) with minimal branch/memcmp overhead.
     static constexpr std::size_t kCacheSlots = 256;
     thread_local std::array<XOnlyLiftCacheEntry, kCacheSlots> cache{};
@@ -168,6 +175,7 @@ static inline bool lift_x_cached(const uint8_t* pubkey_x32,
 
     out = lifted;
     return true;
+#endif
 }
 
 // -- Shared BIP-340 tagged-hash midstates (from tagged_hash.hpp) ---------------
