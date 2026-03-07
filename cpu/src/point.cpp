@@ -2897,41 +2897,20 @@ std::array<uint8_t, 32> Point::x_only_bytes() const {
 #endif
 }
 
-// -- Batch normalize: Montgomery trick for N points ---------------------------
-// 1 inversion + 3(N-1) multiplications instead of N inversions.
-void Point::batch_normalize(const Point* points, size_t n,
-                            FieldElement* out_x, FieldElement* out_y) {
-    if (n == 0) return;
-    constexpr size_t kMaxAllocElems =
-        static_cast<size_t>(std::numeric_limits<std::ptrdiff_t>::max()) / sizeof(FieldElement);
-    if (SECP256K1_UNLIKELY(n > kMaxAllocElems)) return;
-
-    // Accumulate products of Z values (Montgomery's trick)
-    // partials[i] = Z[0] * Z[1] * ... * Z[i]
-    // We allocate on the stack for small N, heap for large N.
-    constexpr size_t STACK_LIMIT = 256;
-    FieldElement stack_partials[STACK_LIMIT];
-    std::unique_ptr<FieldElement[]> heap_partials;
-    FieldElement* partials = nullptr;
-    if (n <= STACK_LIMIT) {
-        partials = stack_partials;
-    } else {
-        auto const signed_n = static_cast<std::ptrdiff_t>(n);
-        heap_partials = std::make_unique<FieldElement[]>(static_cast<size_t>(signed_n));
-        partials = heap_partials.get();
-    }
-
+// -- Shared Montgomery batch Z-inversion core ---------------------------------
+// Computes individual Z^(-1) values for N points using Montgomery's trick:
+// 1 field inversion + 2(N-1) multiplications.
+// out_z_inv: caller-owned array of FieldElement, size >= n.
+// For infinity points, out_z_inv[i] is left undefined (caller must check).
+static void batch_z_inv(const Point* points, size_t n,
+                        FieldElement* partials, FieldElement* out_z_inv) {
     // Forward pass: accumulate Z products
     FieldElement running = FieldElement::one();
     for (size_t i = 0; i < n; ++i) {
         if (points[i].is_infinity()) {
             partials[i] = running; // skip infinity, don't multiply
         } else {
-#if defined(SECP256K1_FAST_52BIT)
-            const FieldElement z_fe = points[i].z_.to_fe();
-#else
-            const auto z_fe = points[i].z_;
-#endif
+            FieldElement const z_fe = points[i].z();
             partials[i] = running;
             running *= z_fe;
         }
@@ -2943,29 +2922,57 @@ void Point::batch_normalize(const Point* points, size_t n,
     // Backward pass: recover individual Z^(-1) values
     for (size_t i = n; i-- > 0; ) {
         if (points[i].is_infinity()) {
+            continue;
+        }
+        FieldElement const z_fe = points[i].z();
+        out_z_inv[i] = partials[i] * inv;
+        inv *= z_fe;
+    }
+}
+
+// -- Batch normalize: Montgomery trick for N points ---------------------------
+// 1 inversion + 3(N-1) multiplications instead of N inversions.
+void Point::batch_normalize(const Point* points, size_t n,
+                            FieldElement* out_x, FieldElement* out_y) {
+    if (n == 0) return;
+    constexpr size_t kMaxAllocElems =
+        static_cast<size_t>(std::numeric_limits<std::ptrdiff_t>::max()) / sizeof(FieldElement);
+    if (SECP256K1_UNLIKELY(n > kMaxAllocElems)) return;
+
+    constexpr size_t STACK_LIMIT = 256;
+    FieldElement stack_partials[STACK_LIMIT];
+    FieldElement stack_z_inv[STACK_LIMIT];
+    std::unique_ptr<FieldElement[]> heap_partials, heap_z_inv;
+    FieldElement* partials = nullptr;
+    FieldElement* z_inv = nullptr;
+    if (n <= STACK_LIMIT) {
+        partials = stack_partials;
+        z_inv = stack_z_inv;
+    } else {
+        auto const signed_n = static_cast<std::ptrdiff_t>(n);
+        heap_partials = std::make_unique<FieldElement[]>(static_cast<size_t>(signed_n));
+        heap_z_inv = std::make_unique<FieldElement[]>(static_cast<size_t>(signed_n));
+        partials = heap_partials.get();
+        z_inv = heap_z_inv.get();
+    }
+
+    batch_z_inv(points, n, partials, z_inv);
+
+    // Compute affine: x_aff = X * Z^(-2), y_aff = Y * Z^(-3)
+    for (size_t i = 0; i < n; ++i) {
+        if (points[i].is_infinity()) {
             out_x[i] = FieldElement::zero();
             out_y[i] = FieldElement::zero();
             continue;
         }
-#if defined(SECP256K1_FAST_52BIT)
-        const FieldElement z_fe = points[i].z_.to_fe();
-#else
-        const FieldElement z_fe = points[i].z_;
-#endif
-        // z_inv_i = partials[i] * inv  (partials[i] = product of Z[0..i-1])
-        FieldElement const z_inv_i = partials[i] * inv;
-        // Update inv for next iteration: inv *= Z[i]
-        inv *= z_fe;
-
-        // Compute affine: x_aff = X * Z^(-2), y_aff = Y * Z^(-3)
-        FieldElement z_inv2 = z_inv_i;
+        FieldElement z_inv2 = z_inv[i];
         z_inv2.square_inplace();
 #if defined(SECP256K1_FAST_52BIT)
         out_x[i] = points[i].x_.to_fe() * z_inv2;
-        out_y[i] = points[i].y_.to_fe() * z_inv2 * z_inv_i;
+        out_y[i] = points[i].y_.to_fe() * z_inv2 * z_inv[i];
 #else
         out_x[i] = points[i].x_ * z_inv2;
-        out_y[i] = points[i].y_ * z_inv2 * z_inv_i;
+        out_y[i] = points[i].y_ * z_inv2 * z_inv[i];
 #endif
     }
 }
@@ -3007,6 +3014,8 @@ void Point::batch_to_compressed(const Point* points, size_t n,
 }
 
 // -- Batch x_only_bytes: extract N x-coordinates with ONE inversion -----------
+// Uses batch_z_inv for the Montgomery trick, then computes only x = X*Z^(-2)
+// (skips the Y*Z^(-3) multiply that batch_normalize does -- ~33% fewer muls).
 void Point::batch_x_only_bytes(const Point* points, size_t n,
                                std::array<uint8_t, 32>* out) {
     if (n == 0) return;
@@ -3014,29 +3023,34 @@ void Point::batch_x_only_bytes(const Point* points, size_t n,
         static_cast<size_t>(std::numeric_limits<std::ptrdiff_t>::max()) / sizeof(FieldElement);
     if (SECP256K1_UNLIKELY(n > kMaxAllocElems)) return;
 
-    // Reuse batch_normalize for the Montgomery batch inversion, then serialize x.
     constexpr size_t STACK_LIMIT = 256;
-    FieldElement stack_x[STACK_LIMIT], stack_y[STACK_LIMIT];
-    std::unique_ptr<FieldElement[]> heap_x, heap_y;
-    FieldElement* aff_x = nullptr;
-    FieldElement* aff_y = nullptr;
+    FieldElement stack_partials[STACK_LIMIT];
+    FieldElement stack_z_inv[STACK_LIMIT];
+    std::unique_ptr<FieldElement[]> heap_partials, heap_z_inv;
+    FieldElement* partials = nullptr;
+    FieldElement* z_inv = nullptr;
     if (n <= STACK_LIMIT) {
-        aff_x = stack_x; aff_y = stack_y;
+        partials = stack_partials;
+        z_inv = stack_z_inv;
     } else {
         auto const signed_n = static_cast<std::ptrdiff_t>(n);
-        heap_x = std::make_unique<FieldElement[]>(static_cast<size_t>(signed_n));
-        heap_y = std::make_unique<FieldElement[]>(static_cast<size_t>(signed_n));
-        aff_x = heap_x.get(); aff_y = heap_y.get();
+        heap_partials = std::make_unique<FieldElement[]>(static_cast<size_t>(signed_n));
+        heap_z_inv = std::make_unique<FieldElement[]>(static_cast<size_t>(signed_n));
+        partials = heap_partials.get();
+        z_inv = heap_z_inv.get();
     }
 
-    batch_normalize(points, n, aff_x, aff_y);
+    batch_z_inv(points, n, partials, z_inv);
 
     for (size_t i = 0; i < n; ++i) {
         if (points[i].is_infinity()) {
             out[i].fill(0);
             continue;
         }
-        out[i] = aff_x[i].to_bytes();
+        FieldElement z_inv2 = z_inv[i];
+        z_inv2.square_inplace();
+        FieldElement const x_aff = points[i].X() * z_inv2;
+        out[i] = x_aff.to_bytes();
     }
 }
 
