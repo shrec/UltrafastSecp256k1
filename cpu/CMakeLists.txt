@@ -255,11 +255,12 @@ if(NOT TARGET ${SECP256K1_LIB_NAME})
             #   ARCH_FLAGS is added to link options later (after it's set).
             target_compile_options(${SECP256K1_LIB_NAME} PRIVATE -flto=thin)
 
-            # Do not force lld on Apple CI: clang on macOS may reject -fuse-ld=lld
-            # when ld64 is the only linker available (CT ARM64 workflow failure).
-            if(APPLE)
+            # Do not force lld on Apple/Android CI toolchains.
+            # - macOS/iOS clang may reject -fuse-ld=lld when ld64 is used.
+            # - Android NDK clang may already select lld and can reject explicit override.
+            if(APPLE OR ANDROID)
                 target_link_options(${SECP256K1_LIB_NAME} INTERFACE -flto=thin)
-                message(STATUS "Secp256k1: OK LTO ENABLED (ThinLTO with Clang + default Apple linker, INTERFACE propagated)")
+                message(STATUS "Secp256k1: OK LTO ENABLED (ThinLTO with Clang + platform default linker, INTERFACE propagated)")
             else()
                 target_link_options(${SECP256K1_LIB_NAME} INTERFACE -flto=thin -fuse-ld=lld)
                 message(STATUS "Secp256k1: OK LTO ENABLED (ThinLTO with Clang + lld, INTERFACE propagated)")
