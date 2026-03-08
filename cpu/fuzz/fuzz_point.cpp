@@ -47,9 +47,15 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
         // Verify point addition is consistent: k*G + G == (k+1)*G
         // Use cheap addition + comparison instead of a second scalar_mul.
         auto P_plus_G = P.add(G);
-        if (P_plus_G.is_infinity()) __builtin_trap();
-        auto compressed2 = P_plus_G.to_compressed();
-        if (compressed2[0] != 0x02 && compressed2[0] != 0x03) __builtin_trap();
+        auto k_plus_1 = k + Scalar::one();
+        if (k_plus_1 == Scalar::zero()) {
+            // k == n-1: (k+1)*G = 0*G = infinity
+            if (!P_plus_G.is_infinity()) __builtin_trap();
+        } else {
+            if (P_plus_G.is_infinity()) __builtin_trap();
+            auto compressed2 = P_plus_G.to_compressed();
+            if (compressed2[0] != 0x02 && compressed2[0] != 0x03) __builtin_trap();
+        }
 
         // Doubling consistency: P + P should be on-curve
         auto P_dbl = P.add(P);
