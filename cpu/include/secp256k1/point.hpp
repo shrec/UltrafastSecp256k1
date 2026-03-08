@@ -42,6 +42,8 @@ namespace secp256k1::fast {
 #if defined(SECP256K1_GLV_WINDOW_WIDTH)
   // CMake override: -DSECP256K1_GLV_WINDOW_WIDTH=6
   // Or direct compiler flag: -DSECP256K1_GLV_WINDOW_WIDTH=6
+  static_assert(SECP256K1_GLV_WINDOW_WIDTH >= 4 && SECP256K1_GLV_WINDOW_WIDTH <= 7,
+                "SECP256K1_GLV_WINDOW_WIDTH must be in [4,7]");
   inline constexpr uint8_t kDefaultGlvWindow = SECP256K1_GLV_WINDOW_WIDTH;
 #elif defined(__riscv) || defined(__aarch64__) || defined(_M_ARM64)
   inline constexpr uint8_t kDefaultGlvWindow = 5;

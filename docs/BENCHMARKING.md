@@ -17,7 +17,7 @@ How to build, run, and interpret benchmarks on all supported platforms.
 | `bench_kP` | No | YES | Scalar multiplication (k*P) benchmarks |
 | `bench_hornet` | No | No (Android only) | ARM64 Android benchmark (in android/test/) |
 
-**`bench_unified`** is the canonical benchmark runner (see copilot-instructions: Benchmark rules).
+**`bench_unified`** is the canonical benchmark runner (see [.github/copilot-instructions.md](../.github/copilot-instructions.md) "Benchmark rules" section).
 It runs ALL operation categories in a single binary and produces apple-to-apple
 comparison ratios against both libsecp256k1 and OpenSSL.
 
