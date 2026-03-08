@@ -53,6 +53,10 @@ option(UFSECP_BITCOIN_STRICT "Enforce BIP-340 strict encoding in public API (rej
 # CT enforcement: deprecate non-CT signing functions at compile time
 option(SECP256K1_REQUIRE_CT "Deprecate non-CT sign functions (compile warnings on fast:: signing)" OFF)
 
+# x86-64 -march override: use "x86-64-v3" in CI with ccache to avoid SIGILL
+# when cached objects from a different runner CPU are reused.  Empty = native.
+set(SECP256K1_MARCH "" CACHE STRING "x86-64 -march override (empty = auto-detect)")
+
 # Warning policy: promote warnings to errors (recommended for CI)
 option(SECP256K1_WERROR "Treat compiler warnings as errors (-Werror / /WX)" OFF)
 
@@ -120,7 +124,9 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     if(SECP256K1_PLATFORM STREQUAL "riscv64")
         set(MARCH_FLAG "-march=rv64gc_zba_zbb")
     elseif(SECP256K1_PLATFORM STREQUAL "x86_64")
-        if(APPLE AND CMAKE_OSX_ARCHITECTURES STREQUAL "x86_64" AND NOT CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|X64")
+        if(SECP256K1_MARCH)
+            set(MARCH_FLAG "-march=${SECP256K1_MARCH}")
+        elseif(APPLE AND CMAKE_OSX_ARCHITECTURES STREQUAL "x86_64" AND NOT CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|X64")
             # macOS cross-compilation (ARM64 host -> single-arch x86_64 target)
             set(MARCH_FLAG "-march=x86-64-v3")
         else()

@@ -66,6 +66,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
             -DCMAKE_C_COMPILER_LAUNCHER=ccache \
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DSECP256K1_MARCH=x86-64-v3 \
             -DSECP256K1_BUILD_TESTS=ON \
             -DSECP256K1_BUILD_BENCH=ON \
             -DSECP256K1_BUILD_EXAMPLES=ON \
@@ -182,6 +183,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=Debug \
             -DCMAKE_C_COMPILER_LAUNCHER=ccache \
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DSECP256K1_MARCH=x86-64-v3 \
             -DSECP256K1_BUILD_TESTS=ON \
             -DSECP256K1_BUILD_FUZZ_TESTS=ON \
             -DSECP256K1_BUILD_PROTOCOL_TESTS=ON \

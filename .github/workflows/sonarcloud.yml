@@ -62,6 +62,7 @@ jobs:
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
             -DCMAKE_C_COMPILER_LAUNCHER=ccache \
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DSECP256K1_MARCH=x86-64-v3 \
             -DSECP256K1_BUILD_TESTS=ON \
             -DSECP256K1_BUILD_BENCH=OFF \
             -DSECP256K1_BUILD_EXAMPLES=OFF \

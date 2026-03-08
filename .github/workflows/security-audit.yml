@@ -55,6 +55,7 @@ jobs:
             -DCMAKE_CXX_COMPILER=g++-13 \
             -DCMAKE_C_COMPILER_LAUNCHER=ccache \
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DSECP256K1_MARCH=x86-64-v3 \
             -DSECP256K1_WERROR=ON \
             -DSECP256K1_BUILD_TESTS=ON
 
@@ -100,6 +101,7 @@ jobs:
             -DCMAKE_CXX_COMPILER=clang++-17 \
             -DCMAKE_C_COMPILER_LAUNCHER=ccache \
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DSECP256K1_MARCH=x86-64-v3 \
             -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer" \
             -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined" \
             -DSECP256K1_BUILD_TESTS=ON
@@ -154,6 +156,7 @@ jobs:
             -DCMAKE_CXX_COMPILER=clang++-17 \
             -DCMAKE_C_COMPILER_LAUNCHER=ccache \
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DSECP256K1_MARCH=x86-64-v3 \
             -DCMAKE_CXX_FLAGS="-fsanitize=memory -fno-omit-frame-pointer -fsanitize-memory-track-origins=2" \
             -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=memory" \
             -DSECP256K1_USE_ASM=OFF \
@@ -212,6 +215,7 @@ jobs:
             -DCMAKE_CXX_COMPILER=clang++-17 \
             -DCMAKE_C_COMPILER_LAUNCHER=ccache \
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DSECP256K1_MARCH=x86-64-v3 \
             -DCMAKE_CXX_FLAGS="-fsanitize=thread -fno-omit-frame-pointer" \
             -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=thread" \
             -DSECP256K1_BUILD_TESTS=ON
@@ -262,6 +266,7 @@ jobs:
             -DCMAKE_CXX_COMPILER=g++-13 \
             -DCMAKE_C_COMPILER_LAUNCHER=ccache \
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DSECP256K1_MARCH=x86-64-v3 \
             -DSECP256K1_BUILD_TESTS=ON
 
       - name: Build
@@ -328,6 +333,7 @@ jobs:
             -DCMAKE_CXX_COMPILER=g++-13 \
             -DCMAKE_C_COMPILER_LAUNCHER=ccache \
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DSECP256K1_MARCH=x86-64-v3 \
             -DSECP256K1_BUILD_TESTS=ON
 
       - name: Build dudect test
