@@ -1,5 +1,7 @@
 var NAVTREEINDEX10 =
 {
+"structsecp256k1_1_1fast_1_1SelftestReport.html#a6cf5ddafa46aa20a33e017e53c7abf25":[3,0,1,2,17,6],
+"structsecp256k1_1_1fast_1_1SelftestReport.html#aa790b0ff05ae7d2588aa9ceaa25b8eec":[3,0,1,2,17,2],
 "structsecp256k1_1_1fast_1_1SelftestReport.html#aa790b0ff05ae7d2588aa9ceaa25b8eec":[2,0,1,3,22,2],
 "structsecp256k1_1_1fast_1_1SelftestReport.html#aad18a65905272c76ec6e58adb3cdea86":[3,0,1,2,17,0],
 "structsecp256k1_1_1fast_1_1SelftestReport.html#aad18a65905272c76ec6e58adb3cdea86":[2,0,1,3,22,0],
@@ -247,7 +249,5 @@ var NAVTREEINDEX10 =
 "ufsecp__impl_8cpp.html#afab0f4032597d1596387884f06d2d053":[4,0,1,1,2,27],
 "ufsecp__impl_8cpp_source.html":[4,0,1,1,2],
 "ufsecp__version_8h.html":[4,0,1,1,3],
-"ufsecp__version_8h.html#a00aefa3a9a204565f192db4e1eb0a585":[4,0,1,1,3,8],
-"ufsecp__version_8h.html#a2152da1f53e65d8b80e428ca26e1e976":[4,0,1,1,3,9],
-"ufsecp__version_8h.html#a407719474ce7a71be9faf26f27f38c6c":[4,0,1,1,3,1]
+"ufsecp__version_8h.html#a00aefa3a9a204565f192db4e1eb0a585":[4,0,1,1,3,8]
 };

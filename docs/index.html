@@ -25,7 +25,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.19.0</span>
+   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.20.0</span>
    </div>
    <div id="projectbrief">Ultra high-performance secp256k1 elliptic curve cryptography library</div>
   </td>
@@ -594,7 +594,7 @@ Mixed Addition (Jacobian + Affine)</h2>
 <div class="line">    walker.<a class="code hl_function" href="classsecp256k1_1_1fast_1_1Point.html#ab1c2e6e7b9d44952844ec3915dae9301">add_mixed_inplace</a>(gx, gy);  <span class="comment">// walker += G each step</span></div>
 <div class="line">}</div>
 <div class="ttc" id="aclasssecp256k1_1_1fast_1_1FieldElement_html"><div class="ttname"><a href="classsecp256k1_1_1fast_1_1FieldElement.html">secp256k1::fast::FieldElement</a></div><div class="ttdef"><b>Definition</b> <a href="field_8hpp_source.html#l00030">field.hpp:30</a></div></div>
-<div class="ttc" id="aclasssecp256k1_1_1fast_1_1Point_html"><div class="ttname"><a href="classsecp256k1_1_1fast_1_1Point.html">secp256k1::fast::Point</a></div><div class="ttdef"><b>Definition</b> <a href="point_8hpp_source.html#l00041">point.hpp:41</a></div></div>
+<div class="ttc" id="aclasssecp256k1_1_1fast_1_1Point_html"><div class="ttname"><a href="classsecp256k1_1_1fast_1_1Point.html">secp256k1::fast::Point</a></div><div class="ttdef"><b>Definition</b> <a href="point_8hpp_source.html#l00073">point.hpp:73</a></div></div>
 <div class="ttc" id="aclasssecp256k1_1_1fast_1_1Point_html_a9fac69f2a5fe229eb3bd933577eda9a4"><div class="ttname"><a href="classsecp256k1_1_1fast_1_1Point.html#a9fac69f2a5fe229eb3bd933577eda9a4">secp256k1::fast::Point::x</a></div><div class="ttdeci">FieldElement x() const</div></div>
 <div class="ttc" id="aclasssecp256k1_1_1fast_1_1Point_html_aa1c473d6c48e571884b379ca1859c23c"><div class="ttname"><a href="classsecp256k1_1_1fast_1_1Point.html#aa1c473d6c48e571884b379ca1859c23c">secp256k1::fast::Point::y</a></div><div class="ttdeci">FieldElement y() const</div></div>
 <div class="ttc" id="aclasssecp256k1_1_1fast_1_1Point_html_ab1c2e6e7b9d44952844ec3915dae9301"><div class="ttname"><a href="classsecp256k1_1_1fast_1_1Point.html#ab1c2e6e7b9d44952844ec3915dae9301">secp256k1::fast::Point::add_mixed_inplace</a></div><div class="ttdeci">void add_mixed_inplace(const FieldElement &amp;ax, const FieldElement &amp;ay)</div></div>
@@ -715,7 +715,7 @@ Building secp256k1 from Source (CMake)</h1>
 Prerequisites</h2>
 <ul>
 <li>CMake 3.18+</li>
-<li>C++20 compiler (GCC 11+, Clang/LLVM 15+, MSVC 2022+ with <code>-DSECP256K1_ALLOW_MSVC=ON</code>)</li>
+<li>C++20 compiler (GCC 11+, Clang/LLVM 15+, MSVC 2022+)</li>
 <li>CUDA Toolkit 12.0+ (optional, for GPU)</li>
 <li>Ninja (recommended)</li>
 </ul>
@@ -754,7 +754,7 @@ Build Options</h2>
 <tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone"><code>SECP256K1_BUILD_BENCH</code>   </td><td class="markdownTableBodyNone">ON   </td><td class="markdownTableBodyNone">Benchmarks    </td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone"><code>SECP256K1_RISCV_FAST_REDUCTION</code>   </td><td class="markdownTableBodyNone">ON   </td><td class="markdownTableBodyNone">Fast modular reduction (RISC-V)    </td></tr>
+<td class="markdownTableBodyNone"><code>SECP256K1_GLV_WINDOW_WIDTH</code>   </td><td class="markdownTableBodyNone">platform   </td><td class="markdownTableBodyNone">GLV window width (4-7); default 5 on x86/ARM/RISC-V, 4 on ESP32/WASM    </td></tr>
 <tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone"><code>SECP256K1_RISCV_USE_VECTOR</code>   </td><td class="markdownTableBodyNone">ON   </td><td class="markdownTableBodyNone">RVV vector extension (RISC-V)   </td></tr>
 </table>
@@ -1000,23 +1000,15 @@ secp256k1 Benchmark Targets</h1>
 <tr class="markdownTableHead">
 <th class="markdownTableHeadNone">Target   </th><th class="markdownTableHeadNone">Description    </th></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone"><code>bench_comprehensive</code>   </td><td class="markdownTableBodyNone">Full field/point/batch/signature suite    </td></tr>
+<td class="markdownTableBodyNone"><code>bench_unified</code>   </td><td class="markdownTableBodyNone">THE standard: full apple-to-apple vs libsecp256k1 + OpenSSL    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone"><code>bench_scalar_mul</code>   </td><td class="markdownTableBodyNone">kxG and kxP with wNAF analysis    </td></tr>
-<tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone"><code>bench_ct</code>   </td><td class="markdownTableBodyNone">Fast-vs-CT overhead comparison    </td></tr>
-<tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone"><code>bench_atomic_operations</code>   </td><td class="markdownTableBodyNone">Individual ECC building block latencies    </td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone"><code>bench_field_52</code>   </td><td class="markdownTableBodyNone">4x64 vs 5x52 field representation    </td></tr>
+<td class="markdownTableBodyNone"><code>bench_field_52</code>   </td><td class="markdownTableBodyNone">5x52 field arithmetic micro-benchmarks    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone"><code>bench_ecdsa_multiscalar</code>   </td><td class="markdownTableBodyNone">k_1xG + k_2xQ (Shamir vs separate)    </td></tr>
+<td class="markdownTableBodyNone"><code>bench_field_26</code>   </td><td class="markdownTableBodyNone">10x26 field arithmetic micro-benchmarks    </td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone"><code>bench_jsf_vs_shamir</code>   </td><td class="markdownTableBodyNone">JSF vs Windowed Shamir comparison    </td></tr>
-<tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone"><code>bench_adaptive_glv</code>   </td><td class="markdownTableBodyNone">GLV window size sweep (8-20)    </td></tr>
-<tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone"><code>bench_comprehensive</code>   </td><td class="markdownTableBodyNone">Cross-platform benchmark suite (all ops)   </td></tr>
+<td class="markdownTableBodyNone"><code>bench_kP</code>   </td><td class="markdownTableBodyNone">Scalar multiplication (k*P) benchmarks   </td></tr>
 </table>
 <hr  />
 <h1><a class="anchor" id="autotoc_md102"></a>

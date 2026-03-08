@@ -1,6 +1,6 @@
 var structsecp256k1_1_1fast_1_1KPlan =
 [
-    [ "from_scalar", "structsecp256k1_1_1fast_1_1KPlan.html#a7daa0fdf27f8d26015391bb38e9610b4", null ],
+    [ "from_scalar", "structsecp256k1_1_1fast_1_1KPlan.html#a4f039ac3a6e69a38864928ff24f19b15", null ],
     [ "k1", "structsecp256k1_1_1fast_1_1KPlan.html#a303f1c59f4a039fa2f004451c4bb311c", null ],
     [ "k2", "structsecp256k1_1_1fast_1_1KPlan.html#acdc9bd7ec35e384f3c0e4c3db2684d2e", null ],
     [ "neg1", "structsecp256k1_1_1fast_1_1KPlan.html#ac006e0d79699c537d09045f3af25162f", null ],

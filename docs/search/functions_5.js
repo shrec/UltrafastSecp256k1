@@ -83,7 +83,7 @@ var searchData=
   ['from_5fmont_80',['from_mont',['../classsecp256k1_1_1fast_1_1FieldElement.html#abacc81f46ce5a0763ce2d5bd223b72f5',1,'secp256k1::fast::FieldElement']]],
   ['from_5foptimal_81',['from_optimal',['../namespacesecp256k1_1_1fast.html#a71a5591636949c2011f46b872dc0c0e4',1,'secp256k1::fast']]],
   ['from_5fpoint_82',['from_point',['../structsecp256k1_1_1ct_1_1CTJacobianPoint.html#a1285b1fb21aac2dffaf720a7788b5ea7',1,'secp256k1::ct::CTJacobianPoint::from_point()'],['../structsecp256k1_1_1ct_1_1CTAffinePoint.html#ac7138f3f2695f94744d4fd0f71282100',1,'secp256k1::ct::CTAffinePoint::from_point()']]],
-  ['from_5fscalar_83',['from_scalar',['../structsecp256k1_1_1fast_1_1KPlan.html#a7daa0fdf27f8d26015391bb38e9610b4',1,'secp256k1::fast::KPlan']]],
+  ['from_5fscalar_83',['from_scalar',['../structsecp256k1_1_1fast_1_1KPlan.html#a4f039ac3a6e69a38864928ff24f19b15',1,'secp256k1::fast::KPlan']]],
   ['from_5fuint64_84',['from_uint64',['../classsecp256k1_1_1fast_1_1FieldElement.html#ad5ab8576a5c0f3e743e8505c04743881',1,'secp256k1::fast::FieldElement::from_uint64()'],['../classsecp256k1_1_1fast_1_1Scalar.html#a55abc9d87bf891484dd1b6ffd70a1050',1,'secp256k1::fast::Scalar::from_uint64()']]],
   ['frost_5faggregate_85',['frost_aggregate',['../namespacesecp256k1.html#a0783bb6cc6d40ee3d07892c6b606c21d',1,'secp256k1']]],
   ['frost_5fkeygen_5fbegin_86',['frost_keygen_begin',['../namespacesecp256k1.html#a799903aca6c37f859aa9782a6b4a3267',1,'secp256k1']]],

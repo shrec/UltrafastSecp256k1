@@ -82,11 +82,11 @@ var NAVTREEINDEX =
 "init_8hpp.html#aa1ade8639ae8e331731389af48483662",
 "namespacesecp256k1_1_1coins.html#ac6b0477033f1a1058c2959fd4316c59a",
 "namespacesecp256k1_1_1fast.html#ad8775d33255b6a1cbcbf842e3dc50541",
-"schnorr_8hpp.html#aca1aa4565e070b342762da3037bf9ceb",
-"structsecp256k1_1_1MuSig2AggNonce.html#aa3df9b09984c6187eabf730e425f5799",
-"structsecp256k1_1_1fast_1_1FieldElement26.html#a0e2abe72ca8af3ca7830cf7fb51b0747",
-"structsecp256k1_1_1fast_1_1SelftestReport.html#aa790b0ff05ae7d2588aa9ceaa25b8eec",
-"ufsecp__version_8h.html#a4a9308f6f4b597d81f2dbc85ba939cb1"
+"schnorr_8hpp.html#abdafefa1bbce97d2a9de0b9f5ea112c3",
+"structsecp256k1_1_1MuSig2AggNonce.html#a3eff932b197290a6d54ce068fb0aeae3",
+"structsecp256k1_1_1fast_1_1FieldElement26.html#a0b19f3703363feb1a7779e1d07996846",
+"structsecp256k1_1_1fast_1_1SelftestReport.html#a6cf5ddafa46aa20a33e017e53c7abf25",
+"ufsecp__version_8h.html#a2152da1f53e65d8b80e428ca26e1e976"
 ];
 
 var SYNCONMSG = 'click to disable panel synchronisation';
