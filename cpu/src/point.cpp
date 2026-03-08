@@ -3169,7 +3169,13 @@ Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const P
     // -- Z-ratio table construction (0 inversions) -------------------
     // build_glv52_table_zr handles: iso-curve mapping, z-ratio collection,
     // backward sweep, and normalization.  All entries share Z = Z_shared.
-    build_glv52_table_zr(P52, tbl_P.data(), P_TABLE_SIZE, Z_shared);
+    if (!build_glv52_table_zr(P52, tbl_P.data(), P_TABLE_SIZE, Z_shared)) {
+        // Degenerate case (~2^-256): infinity during table building.
+        // Fallback to separate scalar multiplications.
+        auto aG = Point::generator().scalar_mul(a);
+        aG.add_inplace(P.scalar_mul(b));
+        return aG;
+    }
 
     // psi(P) table
     const bool flip_phi_b = (decomp_b.k1_neg != decomp_b.k2_neg);

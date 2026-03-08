@@ -140,7 +140,7 @@ public:
     Point prev() const;  // this - G (returns new Point)
     
     // In-place mutable versions (modify this object directly)
-    // ~12% faster than immutable next() due to no memory allocation
+    // In-place variants: modify this directly (same perf as immutable next/prev)
     void next_inplace();  // this += G (modifies this)
     void prev_inplace();  // this -= G (modifies this)
     void add_inplace(const Point& other);  // this += other (modifies this, no allocation)
