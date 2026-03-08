@@ -389,6 +389,24 @@ UFSECP_API ufsecp_error_t ufsecp_taproot_verify(
 
 #ifdef __cplusplus
 }
+
+/* -- ABI layout guards (C++ only) ------------------------------------------ */
+/* These fire at compile time if struct layout changes, preventing silent ABI  */
+/* breaks when bindings or cached objects assume a fixed layout.               */
+static_assert(sizeof(ufsecp_bip32_key) == 82,
+              "ABI break: ufsecp_bip32_key size changed (expected 82)");
+static_assert(UFSECP_BIP32_SERIALIZED_LEN == 78,
+              "ABI break: UFSECP_BIP32_SERIALIZED_LEN changed (expected 78)");
+static_assert(UFSECP_PRIVKEY_LEN == 32,
+              "ABI break: UFSECP_PRIVKEY_LEN changed");
+static_assert(UFSECP_PUBKEY_COMPRESSED_LEN == 33,
+              "ABI break: UFSECP_PUBKEY_COMPRESSED_LEN changed");
+static_assert(UFSECP_SIG_COMPACT_LEN == 64,
+              "ABI break: UFSECP_SIG_COMPACT_LEN changed");
+#else
+/* C11 _Static_assert equivalent for pure-C consumers */
+_Static_assert(sizeof(ufsecp_bip32_key) == 82,
+               "ABI break: ufsecp_bip32_key size changed (expected 82)");
 #endif
 
 #endif /* UFSECP_H */
