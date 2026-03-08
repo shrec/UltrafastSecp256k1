@@ -78,12 +78,12 @@ cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DSECP256K1_BUILD_BENCH=
 cmake --build build --target bench_unified
 
 # Run on current commit
-./build/cpu/bench/bench_unified | grep scalar_mul
+./build/cpu/bench_unified | grep scalar_mul
 
 # Compare with parent commit
 git stash
 cmake --build build --target bench_unified
-./build/cpu/bench/bench_unified | grep scalar_mul
+./build/cpu/bench_unified | grep scalar_mul
 git stash pop
 ```
 
@@ -104,7 +104,7 @@ Common causes:
 
 ```bash
 # After fix, verify regression is resolved
-./build/cpu/bench/bench_unified | grep scalar_mul
+./build/cpu/bench_unified | grep scalar_mul
 # Expected: back to baseline +-5%
 ```
 

@@ -661,7 +661,7 @@ Universal XCFramework (arm64 device + arm64 simulator). Also available via **Swi
 | `SECP256K1_BUILD_ROCM` | OFF | ROCm/HIP GPU support (AMD) |
 | `SECP256K1_BUILD_TESTS` | ON | Test suite |
 | `SECP256K1_BUILD_BENCH` | ON | Benchmarks |
-| `SECP256K1_GLV_WINDOW_WIDTH` | platform | GLV window width (4-7); default 5 on x86/ARM/RISC-V, 4 on ESP32 |
+| `SECP256K1_GLV_WINDOW_WIDTH` | platform | GLV window width (4-7); default 5 on x86/ARM/RISC-V, 4 on ESP32/WASM |
 | `SECP256K1_RISCV_USE_VECTOR` | ON | RVV vector extension (RISC-V) |
 
 For detailed build instructions, see [docs/BUILDING.md](docs/BUILDING.md).

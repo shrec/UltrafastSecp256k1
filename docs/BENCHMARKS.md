@@ -490,7 +490,7 @@ All targets registered in CMake. Build with `cmake --build build -j` then run fr
 
 ```bash
 # Run CPU benchmark
-./build/cpu/bench/bench_unified
+./build/cpu/bench_unified
 
 # Run CUDA benchmark
 ./build/cuda/secp256k1_cuda_bench

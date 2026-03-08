@@ -95,7 +95,7 @@ cmake --build build -j
 | `SECP256K1_BUILD_EXAMPLES` | ON | Build example programs |
 | `SECP256K1_USE_LTO` | ON | Link-Time Optimization |
 | `SECP256K1_SPEED_FIRST` | OFF | Aggressive speed optimizations |
-| `SECP256K1_GLV_WINDOW_WIDTH` | platform | GLV window width (4-7); default 5 on x86/ARM/RISC-V, 4 on ESP32 |
+| `SECP256K1_GLV_WINDOW_WIDTH` | platform | GLV window width (4-7); default 5 on x86/ARM/RISC-V, 4 on ESP32/WASM |
 | `SECP256K1_INSTALL` | ON | Generate install target |
 
 ### RISC-V Specific
@@ -609,7 +609,7 @@ After building, run tests to verify correctness:
 ctest --test-dir build --output-on-failure
 
 # Run benchmarks
-./build/cpu/bench/bench_unified
+./build/cpu/bench_unified
 ./build/cuda/secp256k1_cuda_bench  # If CUDA enabled
 ```
 
