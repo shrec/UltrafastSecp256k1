@@ -1073,6 +1073,19 @@ static void derive_phi52_table(
     }
 }
 
+// wNAF digit application: lookup table entry, negate if negative, mixed-add.
+static inline void apply_wnaf_mixed52(
+    JacobianPoint52& result, const AffinePoint52* table, int32_t d)
+{
+    if (d > 0) {
+        jac52_add_mixed_inplace(result, table[static_cast<std::size_t>((d - 1) >> 1)]);
+    } else if (d < 0) {
+        AffinePoint52 pt = table[static_cast<std::size_t>((-d - 1) >> 1)];
+        pt.y.negate_assign(1);
+        jac52_add_mixed_inplace(result, pt);
+    }
+}
+
 // 2-stream Shamir's trick: single doubling chain with dual wNAF lookups.
 // Returns the accumulated Jacobian result (caller must apply globalz correction).
 static JacobianPoint52 shamir_2stream_glv52(
@@ -1090,30 +1103,8 @@ static JacobianPoint52 shamir_2stream_glv52(
 
     for (int i = static_cast<int>(max_len) - 1; i >= 0; --i) {
         jac52_double_inplace(result52);
-
-        // k1 contribution (wnaf bufs are zero-init; d==0 is a no-op)
-        {
-            int32_t const d = wnaf1[static_cast<std::size_t>(i)];
-            if (d > 0) {
-                jac52_add_mixed_inplace(result52, tbl_P[static_cast<std::size_t>((d - 1) >> 1)]);
-            } else if (d < 0) {
-                AffinePoint52 pt = tbl_P[static_cast<std::size_t>((-d - 1) >> 1)];
-                pt.y.negate_assign(1);
-                jac52_add_mixed_inplace(result52, pt);
-            }
-        }
-
-        // k2 contribution
-        {
-            int32_t const d = wnaf2[static_cast<std::size_t>(i)];
-            if (d > 0) {
-                jac52_add_mixed_inplace(result52, tbl_phiP[static_cast<std::size_t>((d - 1) >> 1)]);
-            } else if (d < 0) {
-                AffinePoint52 pt = tbl_phiP[static_cast<std::size_t>((-d - 1) >> 1)];
-                pt.y.negate_assign(1);
-                jac52_add_mixed_inplace(result52, pt);
-            }
-        }
+        apply_wnaf_mixed52(result52, tbl_P, wnaf1[static_cast<std::size_t>(i)]);
+        apply_wnaf_mixed52(result52, tbl_phiP, wnaf2[static_cast<std::size_t>(i)]);
     }
 
     return result52;
@@ -2903,7 +2894,18 @@ std::array<uint8_t, 32> Point::x_only_bytes() const {
 // out_z_inv: caller-owned array of FieldElement, size >= n.
 // For infinity points, out_z_inv[i] is left undefined (caller must check).
 static void batch_z_inv(const Point* points, size_t n,
-                        FieldElement* partials, FieldElement* out_z_inv) {
+                        FieldElement* out_z_inv) {
+    // Internal partials buffer (only needed within this function)
+    constexpr size_t STACK_LIMIT = 256;
+    FieldElement stack_partials[STACK_LIMIT];
+    std::unique_ptr<FieldElement[]> heap_partials;
+    FieldElement* partials = stack_partials;
+    if (n > STACK_LIMIT) {
+        heap_partials = std::make_unique<FieldElement[]>(
+            static_cast<size_t>(static_cast<std::ptrdiff_t>(n)));
+        partials = heap_partials.get();
+    }
+
     // Forward pass: accumulate Z products
     FieldElement running = FieldElement::one();
     for (size_t i = 0; i < n; ++i) {
@@ -2940,23 +2942,16 @@ void Point::batch_normalize(const Point* points, size_t n,
     if (SECP256K1_UNLIKELY(n > kMaxAllocElems)) return;
 
     constexpr size_t STACK_LIMIT = 256;
-    FieldElement stack_partials[STACK_LIMIT];
     FieldElement stack_z_inv[STACK_LIMIT];
-    std::unique_ptr<FieldElement[]> heap_partials, heap_z_inv;
-    FieldElement* partials = nullptr;
-    FieldElement* z_inv = nullptr;
-    if (n <= STACK_LIMIT) {
-        partials = stack_partials;
-        z_inv = stack_z_inv;
-    } else {
-        auto const signed_n = static_cast<std::ptrdiff_t>(n);
-        heap_partials = std::make_unique<FieldElement[]>(static_cast<size_t>(signed_n));
-        heap_z_inv = std::make_unique<FieldElement[]>(static_cast<size_t>(signed_n));
-        partials = heap_partials.get();
+    std::unique_ptr<FieldElement[]> heap_z_inv;
+    FieldElement* z_inv = stack_z_inv;
+    if (n > STACK_LIMIT) {
+        heap_z_inv = std::make_unique<FieldElement[]>(
+            static_cast<size_t>(static_cast<std::ptrdiff_t>(n)));
         z_inv = heap_z_inv.get();
     }
 
-    batch_z_inv(points, n, partials, z_inv);
+    batch_z_inv(points, n, z_inv);
 
     // Compute affine: x_aff = X * Z^(-2), y_aff = Y * Z^(-3)
     for (size_t i = 0; i < n; ++i) {
@@ -3024,23 +3019,16 @@ void Point::batch_x_only_bytes(const Point* points, size_t n,
     if (SECP256K1_UNLIKELY(n > kMaxAllocElems)) return;
 
     constexpr size_t STACK_LIMIT = 256;
-    FieldElement stack_partials[STACK_LIMIT];
     FieldElement stack_z_inv[STACK_LIMIT];
-    std::unique_ptr<FieldElement[]> heap_partials, heap_z_inv;
-    FieldElement* partials = nullptr;
-    FieldElement* z_inv = nullptr;
-    if (n <= STACK_LIMIT) {
-        partials = stack_partials;
-        z_inv = stack_z_inv;
-    } else {
-        auto const signed_n = static_cast<std::ptrdiff_t>(n);
-        heap_partials = std::make_unique<FieldElement[]>(static_cast<size_t>(signed_n));
-        heap_z_inv = std::make_unique<FieldElement[]>(static_cast<size_t>(signed_n));
-        partials = heap_partials.get();
+    std::unique_ptr<FieldElement[]> heap_z_inv;
+    FieldElement* z_inv = stack_z_inv;
+    if (n > STACK_LIMIT) {
+        heap_z_inv = std::make_unique<FieldElement[]>(
+            static_cast<size_t>(static_cast<std::ptrdiff_t>(n)));
         z_inv = heap_z_inv.get();
     }
 
-    batch_z_inv(points, n, partials, z_inv);
+    batch_z_inv(points, n, z_inv);
 
     for (size_t i = 0; i < n; ++i) {
         if (points[i].is_infinity()) {
@@ -3267,33 +3255,8 @@ Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const P
             }
         }
 
-        {
-            int const d = wnaf_b1[static_cast<std::size_t>(i)];
-            if (SECP256K1_UNLIKELY(d != 0)) {
-                AffinePoint52 pt;
-                if (d > 0) {
-                    pt = tbl_P[static_cast<std::size_t>((d - 1) >> 1)];
-                } else {
-                    pt = tbl_P[static_cast<std::size_t>((-d - 1) >> 1)];
-                    pt.y.negate_assign(1);
-                }
-                jac52_add_mixed_inplace(result52, pt);
-            }
-        }
-
-        {
-            int const d = wnaf_b2[static_cast<std::size_t>(i)];
-            if (SECP256K1_UNLIKELY(d != 0)) {
-                AffinePoint52 pt;
-                if (d > 0) {
-                    pt = tbl_phiP[static_cast<std::size_t>((d - 1) >> 1)];
-                } else {
-                    pt = tbl_phiP[static_cast<std::size_t>((-d - 1) >> 1)];
-                    pt.y.negate_assign(1);
-                }
-                jac52_add_mixed_inplace(result52, pt);
-            }
-        }
+        apply_wnaf_mixed52(result52, tbl_P.data(), wnaf_b1[static_cast<std::size_t>(i)]);
+        apply_wnaf_mixed52(result52, tbl_phiP.data(), wnaf_b2[static_cast<std::size_t>(i)]);
     }
 
     if (!result52.infinity) {
