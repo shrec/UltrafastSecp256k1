@@ -2129,7 +2129,7 @@ std::string get_default_cache_path(unsigned window_bits) {
     
     // Use configured cache directory (default: G:\EccTables)
     if (!g_config.cache_dir.empty()) {
-        std::string cache_path = g_config.cache_dir + "\\" + filename;
+        std::string cache_path = g_config.cache_dir + "/" + filename;
         // Use stat() instead of std::filesystem::exists() to avoid
         // MSan false positives from uninstrumented libstdc++ internals.
         struct stat st;
@@ -2276,18 +2276,17 @@ bool load_precompute_cache_locked(const std::string& path, unsigned max_windows)
     }
     
     // Validate file size to reject truncated/partially-written files.
-    // Each non-infinity point = 1 (infinity byte) + 32 (x) + 32 (y) = 65 bytes.
-    // Total = header + base_tables + psi_tables (if GLV).
+    // Infinity points are serialized as 1 byte (flag only, no x/y),
+    // so use 1 byte per point as the minimum bound.
     {
         std::size_t const points_per_table = static_cast<std::size_t>(header.window_count) * header.digit_count;
-        std::size_t const bytes_per_point = 65;  // 1 + 32 + 32
-        std::size_t const expected_size = sizeof(CacheHeader)
-            + points_per_table * bytes_per_point
-            + (header.has_glv ? points_per_table * bytes_per_point : 0);
+        std::size_t const num_tables = 1 + (header.has_glv ? 1 : 0);
+        std::size_t const min_size = sizeof(CacheHeader)
+            + points_per_table * num_tables;  // 1 byte/point minimum
         
         file.seekg(0, std::ios::end);
         auto const actual_size = static_cast<std::size_t>(file.tellg());
-        if (actual_size < expected_size) {
+        if (actual_size < min_size) {
             return false;  // Truncated file -- reject
         }
         file.seekg(sizeof(CacheHeader), std::ios::beg);
@@ -2793,7 +2792,7 @@ bool auto_tune_fixed_base(FixedBaseConfig& best_out,
         std::string filename = "cache_w" + std::to_string(cfg.window_bits);
         if (cfg.enable_glv) filename += "_glv";
         filename += ".bin";
-        std::string const cache_path = cfg.cache_dir.empty() ? filename : (cfg.cache_dir + "\\" + filename);
+        std::string const cache_path = cfg.cache_dir.empty() ? filename : (cfg.cache_dir + "/" + filename);
         struct stat cache_st;
         bool const cache_exists = (::stat(cache_path.c_str(), &cache_st) == 0);
         std::cout << "[" << (i+1) << "/" << candidates.size() << "]"
