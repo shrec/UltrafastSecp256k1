@@ -28,6 +28,14 @@ def parse_benchmark_output(text: str) -> list[dict]:
     entries = []
     seen = set()
 
+    # Minimum duration (ns) for regression tracking.  Operations faster than
+    # this are too short to measure reliably on shared CI runners (GitHub
+    # Actions ubuntu-latest): scheduling jitter and timer granularity alone
+    # can cause 50-100% variance on sub-25ns timings.  These entries are
+    # still shown in the Benchmark Dashboard; they are only excluded from
+    # the Perf Regression Gate to avoid false alerts.
+    MIN_REGRESSION_NS = 25.0
+
     # Sections whose entries should be excluded from regression comparison.
     # MICRO-DIAGNOSTICS are sub-operation benchmarks that may legitimately
     # diverge from end-to-end performance (e.g. per-op speed traded for
@@ -73,6 +81,9 @@ def parse_benchmark_output(text: str) -> list[dict]:
         # Skip entries from excluded sections
         section = get_section(match.start())
         if any(excl in section for excl in excluded_sections):
+            continue
+        # Skip sub-threshold micro-ops (too noisy on shared runners)
+        if value_ns < MIN_REGRESSION_NS:
             continue
         if name not in seen:
             seen.add(name)
@@ -125,6 +136,9 @@ def parse_benchmark_output(text: str) -> list[dict]:
         }.get(unit, 1.0)
 
         value_ns = value * multiplier
+        # Skip sub-threshold micro-ops (too noisy on shared runners)
+        if value_ns < MIN_REGRESSION_NS:
+            continue
         seen.add(name)
 
         entries.append({
