@@ -2,7 +2,7 @@
 # Performance Regression Gate -- Per-Commit Benchmark Check
 # ============================================================================
 # Runs benchmarks on every push to main/dev and fails if any operation
-# regresses >20% compared to the previous stored baseline.
+# regresses >50% compared to the previous stored baseline.
 #
 # Separate from benchmark.yml (dashboard) -- this one BLOCKS merges.
 # Uses github-action-benchmark with fail-on-alert: true.
