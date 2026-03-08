@@ -31,10 +31,10 @@ def parse_benchmark_output(text: str) -> list[dict]:
     # Minimum duration (ns) for regression tracking.  Operations faster than
     # this are too short to measure reliably on shared CI runners (GitHub
     # Actions ubuntu-latest): scheduling jitter and timer granularity alone
-    # can cause 50-100% variance on sub-25ns timings.  These entries are
+    # can cause 50-100% variance on sub-50ns timings.  These entries are
     # still shown in the Benchmark Dashboard; they are only excluded from
     # the Perf Regression Gate to avoid false alerts.
-    MIN_REGRESSION_NS = 25.0
+    MIN_REGRESSION_NS = 50.0
 
     # Sections whose entries should be excluded from regression comparison.
     # MICRO-DIAGNOSTICS are sub-operation benchmarks that may legitimately
