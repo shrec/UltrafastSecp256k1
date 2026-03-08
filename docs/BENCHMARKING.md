@@ -57,7 +57,7 @@ cmake -S . -B build-bench -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build build-bench --target bench_unified -j
 
 # Run
-./build-bench/cpu/bench/bench_unified
+./build-bench/cpu/bench_unified
 ```
 
 On Windows with Clang:
@@ -67,7 +67,7 @@ cmake -S . -B build-bench -G "NMake Makefiles" ^
   -DCMAKE_CXX_COMPILER=clang-cl ^
   -DCMAKE_LINKER=lld-link
 cmake --build build-bench --target bench_unified -j
-build-bench\cpu\bench\bench_unified.exe
+build-bench\cpu\bench_unified.exe
 ```
 
 ### 2. ARM64 Android (Cross-compile via NDK)
@@ -110,7 +110,7 @@ cmake -S . -B build-riscv -G Ninja \
 cmake --build build-riscv --target bench_unified -j
 
 # Deploy and run (example: Milk-V Mars at 192.168.1.31)
-scp build-riscv/cpu/bench/bench_unified user@192.168.1.31:/tmp/
+scp build-riscv/cpu/bench_unified user@192.168.1.31:/tmp/
 ssh user@192.168.1.31 /tmp/bench_unified
 ```
 

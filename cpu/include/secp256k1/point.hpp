@@ -40,7 +40,8 @@ namespace secp256k1::fast {
 // Override at call site: KPlan::from_scalar(k, 6) for batch-heavy workloads
 // where precompute is amortized across many points.
 #if defined(SECP256K1_GLV_WINDOW_WIDTH)
-  // CMake or user override: -DSECP256K1_GLV_WINDOW_WIDTH=6
+  // CMake override: -DSECP256K1_GLV_WINDOW_WIDTH=6
+  // Or direct compiler flag: -DSECP256K1_GLV_WINDOW_WIDTH=6
   inline constexpr uint8_t kDefaultGlvWindow = SECP256K1_GLV_WINDOW_WIDTH;
 #elif defined(__riscv) || defined(__aarch64__) || defined(_M_ARM64)
   inline constexpr uint8_t kDefaultGlvWindow = 5;

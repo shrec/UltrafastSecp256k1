@@ -24,7 +24,7 @@ The primary benchmark binary:
 ```bash
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DSECP256K1_BUILD_BENCH=ON
 cmake --build build --target bench_unified
-./build/cpu/bench/bench_unified
+./build/cpu/bench_unified
 ```
 
 #### Operations Measured
@@ -99,7 +99,7 @@ sudo cpupower frequency-set -g performance
 echo 1 | sudo tee /sys/devices/system/cpu/intel_pstate/no_turbo
 
 # Pin to single core (reduce scheduling noise)
-taskset -c 0 ./build/cpu/bench/bench_unified
+taskset -c 0 ./build/cpu/bench_unified
 ```
 
 ### Windows

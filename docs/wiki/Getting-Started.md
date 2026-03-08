@@ -126,7 +126,7 @@ pkg-config --cflags --libs secp256k1-fast
 | `SECP256K1_BUILD_BENCH` | ON | Build benchmarks |
 | `SECP256K1_USE_LTO` | ON | Link-Time Optimization |
 | `SECP256K1_SPEED_FIRST` | OFF | Aggressive optimizations |
-| `SECP256K1_GLV_WINDOW_WIDTH` | platform | GLV window width (4-7); default 5 on x86/ARM/RISC-V, 4 on ESP32 |
+| `SECP256K1_GLV_WINDOW_WIDTH` | platform | GLV window width (4-7); default 5 on x86/ARM/RISC-V, 4 on ESP32/WASM |
 
 ## Next Steps
 

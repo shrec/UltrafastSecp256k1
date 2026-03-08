@@ -70,6 +70,13 @@ if(UFSECP_BITCOIN_STRICT)
     add_compile_definitions(UFSECP_BITCOIN_STRICT=1)
 endif()
 
+# GLV window width override (4-7). Empty = platform default (5 on x86/ARM/RISC-V, 4 on ESP32/WASM).
+set(SECP256K1_GLV_WINDOW_WIDTH "" CACHE STRING "GLV window width (4-7, empty = platform default)")
+if(SECP256K1_GLV_WINDOW_WIDTH)
+    add_compile_definitions(SECP256K1_GLV_WINDOW_WIDTH=${SECP256K1_GLV_WINDOW_WIDTH})
+    message(STATUS "secp256k1-fast: GLV window width override: ${SECP256K1_GLV_WINDOW_WIDTH}")
+endif()
+
 # Resolve effective target architecture (handles macOS cross-compilation).
 # On macOS, CMAKE_SYSTEM_PROCESSOR reflects the HOST, not the TARGET when
 # cross-compiling via CMAKE_OSX_ARCHITECTURES (e.g. ARM64 host -> x86_64 target).

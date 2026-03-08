@@ -286,7 +286,7 @@ For projects that need a C API compatible with libsecp256k1, see [`compat/libsec
 | `SECP256K1_BUILD_EXAMPLES` | `ON` | Build example programs |
 | `SECP256K1_USE_ASM` | `ON` | Enable assembly optimizations |
 | `SECP256K1_SPEED_FIRST` | `OFF` | Prioritize speed (skip runtime safety checks) |
-| `SECP256K1_GLV_WINDOW_WIDTH` | platform | GLV window width (4-7); default 5 on x86/ARM/RISC-V, 4 on ESP32 |
+| `SECP256K1_GLV_WINDOW_WIDTH` | platform | GLV window width (4-7); default 5 on x86/ARM/RISC-V, 4 on ESP32/WASM |
 | `SECP256K1_BUILD_SHARED` | `OFF` | Build shared library instead of static |
 | `SECP256K1_INSTALL` | `ON` | Generate install targets |
 | `CMAKE_CUDA_ARCHITECTURES` | `86;89` | GPU compute capabilities (GPU builds) |

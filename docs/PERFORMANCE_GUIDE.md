@@ -332,17 +332,17 @@ or any secret-dependent data. The FAST path is only safe for public inputs.
 
 ```bash
 cmake --build build --target bench_unified
-./build/cpu/bench/bench_unified
+./build/cpu/bench_unified
 ```
 
 ### Targeted Profiling (Linux)
 
 ```bash
 # perf stat for operation counts
-perf stat -e cycles,instructions,cache-misses ./build/cpu/bench/bench_unified
+perf stat -e cycles,instructions,cache-misses ./build/cpu/bench_unified
 
 # perf record for flame graph
-perf record -g ./build/cpu/bench/bench_unified
+perf record -g ./build/cpu/bench_unified
 perf script | stackcollapse-perf.pl | flamegraph.pl > flame.svg
 ```
 
