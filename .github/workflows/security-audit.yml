@@ -32,13 +32,29 @@ jobs:
       - name: Install toolchain
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends g++-13 ninja-build
+          sudo apt-get install -y --no-install-recommends g++-13 ninja-build ccache
+
+      - name: Cache ccache
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: ~/.cache/ccache
+          key: ccache-sa-werror-${{ hashFiles('cpu/src/**', 'cpu/include/**', 'include/**') }}
+          restore-keys: |
+            ccache-sa-werror-
+
+      - name: Configure ccache
+        run: |
+          ccache --set-config=max_size=200M
+          ccache --set-config=compression=true
+          ccache -z
 
       - name: Configure
         run: |
           cmake -S . -B build -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_CXX_COMPILER=g++-13 \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
             -DSECP256K1_WERROR=ON \
             -DSECP256K1_BUILD_TESTS=ON
 
@@ -60,7 +76,21 @@ jobs:
       - name: Install toolchain
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends clang-17 lld-17 ninja-build
+          sudo apt-get install -y --no-install-recommends clang-17 lld-17 ninja-build ccache
+
+      - name: Cache ccache
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: ~/.cache/ccache
+          key: ccache-sa-asan-${{ hashFiles('cpu/src/**', 'cpu/include/**', 'include/**') }}
+          restore-keys: |
+            ccache-sa-asan-
+
+      - name: Configure ccache
+        run: |
+          ccache --set-config=max_size=200M
+          ccache --set-config=compression=true
+          ccache -z
 
       - name: Configure with sanitizers
         run: |
@@ -68,6 +98,8 @@ jobs:
             -DCMAKE_BUILD_TYPE=Debug \
             -DCMAKE_C_COMPILER=clang-17 \
             -DCMAKE_CXX_COMPILER=clang++-17 \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
             -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer" \
             -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined" \
             -DSECP256K1_BUILD_TESTS=ON
@@ -98,7 +130,21 @@ jobs:
       - name: Install toolchain
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends clang-17 lld-17 ninja-build
+          sudo apt-get install -y --no-install-recommends clang-17 lld-17 ninja-build ccache
+
+      - name: Cache ccache
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: ~/.cache/ccache
+          key: ccache-sa-msan-${{ hashFiles('cpu/src/**', 'cpu/include/**', 'include/**') }}
+          restore-keys: |
+            ccache-sa-msan-
+
+      - name: Configure ccache
+        run: |
+          ccache --set-config=max_size=200M
+          ccache --set-config=compression=true
+          ccache -z
 
       - name: Configure with MSan
         run: |
@@ -106,6 +152,8 @@ jobs:
             -DCMAKE_BUILD_TYPE=Debug \
             -DCMAKE_C_COMPILER=clang-17 \
             -DCMAKE_CXX_COMPILER=clang++-17 \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
             -DCMAKE_CXX_FLAGS="-fsanitize=memory -fno-omit-frame-pointer -fsanitize-memory-track-origins=2" \
             -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=memory" \
             -DSECP256K1_USE_ASM=OFF \
@@ -140,7 +188,21 @@ jobs:
       - name: Install toolchain
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends clang-17 lld-17 ninja-build
+          sudo apt-get install -y --no-install-recommends clang-17 lld-17 ninja-build ccache
+
+      - name: Cache ccache
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: ~/.cache/ccache
+          key: ccache-sa-tsan-${{ hashFiles('cpu/src/**', 'cpu/include/**', 'include/**') }}
+          restore-keys: |
+            ccache-sa-tsan-
+
+      - name: Configure ccache
+        run: |
+          ccache --set-config=max_size=200M
+          ccache --set-config=compression=true
+          ccache -z
 
       - name: Configure with TSan
         run: |
@@ -148,6 +210,8 @@ jobs:
             -DCMAKE_BUILD_TYPE=Debug \
             -DCMAKE_C_COMPILER=clang-17 \
             -DCMAKE_CXX_COMPILER=clang++-17 \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
             -DCMAKE_CXX_FLAGS="-fsanitize=thread -fno-omit-frame-pointer" \
             -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=thread" \
             -DSECP256K1_BUILD_TESTS=ON
@@ -175,13 +239,29 @@ jobs:
       - name: Install toolchain
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends g++-13 ninja-build valgrind
+          sudo apt-get install -y --no-install-recommends g++-13 ninja-build valgrind ccache
+
+      - name: Cache ccache
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: ~/.cache/ccache
+          key: ccache-sa-valgrind-${{ hashFiles('cpu/src/**', 'cpu/include/**', 'include/**') }}
+          restore-keys: |
+            ccache-sa-valgrind-
+
+      - name: Configure ccache
+        run: |
+          ccache --set-config=max_size=200M
+          ccache --set-config=compression=true
+          ccache -z
 
       - name: Configure
         run: |
           cmake -S . -B build -G Ninja \
             -DCMAKE_BUILD_TYPE=Debug \
             -DCMAKE_CXX_COMPILER=g++-13 \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
             -DSECP256K1_BUILD_TESTS=ON
 
       - name: Build
@@ -225,13 +305,29 @@ jobs:
       - name: Install toolchain
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends g++-13 ninja-build
+          sudo apt-get install -y --no-install-recommends g++-13 ninja-build ccache
+
+      - name: Cache ccache
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: ~/.cache/ccache
+          key: ccache-sa-dudect-${{ hashFiles('cpu/src/**', 'cpu/include/**', 'include/**') }}
+          restore-keys: |
+            ccache-sa-dudect-
+
+      - name: Configure ccache
+        run: |
+          ccache --set-config=max_size=200M
+          ccache --set-config=compression=true
+          ccache -z
 
       - name: Configure
         run: |
           cmake -S . -B build -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_CXX_COMPILER=g++-13 \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
             -DSECP256K1_BUILD_TESTS=ON
 
       - name: Build dudect test

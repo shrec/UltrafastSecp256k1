@@ -43,7 +43,21 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y ninja-build cmake
+        sudo apt-get install -y ninja-build cmake ccache
+
+    - name: Cache ccache
+      uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+      with:
+        path: ~/.cache/ccache
+        key: ccache-bench-${{ hashFiles('cpu/src/**', 'cpu/include/**', 'include/**') }}
+        restore-keys: |
+          ccache-bench-
+
+    - name: Configure ccache
+      run: |
+        ccache --set-config=max_size=200M
+        ccache --set-config=compression=true
+        ccache -z
 
     - name: Clone libsecp256k1 (for apple-to-apple comparison)
       run: |
@@ -55,6 +69,8 @@ jobs:
         cmake -S . -B build/bench \
           -G Ninja \
           -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+          -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
           -DBUILD_TESTING=ON \
           -DSECP256K1_USE_ASM=ON \
           -DLIBSECP_SRC_DIR="$GITHUB_WORKSPACE/_libsecp256k1/src"

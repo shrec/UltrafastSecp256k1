@@ -41,7 +41,21 @@ jobs:
       - name: Install toolchain
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y clang-17 clang-tidy-17 lld-17 ninja-build
+          sudo apt-get install -y clang-17 clang-tidy-17 lld-17 ninja-build ccache
+
+      - name: Cache ccache
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: ~/.cache/ccache
+          key: ccache-tidy-${{ hashFiles('cpu/src/**', 'cpu/include/**', 'include/**') }}
+          restore-keys: |
+            ccache-tidy-
+
+      - name: Configure ccache
+        run: |
+          ccache --set-config=max_size=200M
+          ccache --set-config=compression=true
+          ccache -z
 
       - name: Configure (compile_commands.json)
         run: |
@@ -50,6 +64,8 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_C_COMPILER=clang-17 \
             -DCMAKE_CXX_COMPILER=clang++-17 \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
             -DSECP256K1_BUILD_TESTS=ON \
             -DSECP256K1_BUILD_BENCH=ON \

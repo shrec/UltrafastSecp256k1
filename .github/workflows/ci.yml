@@ -35,10 +35,25 @@ jobs:
         run: |
           sudo apt-get update -qq
           if [[ "${{ matrix.compiler }}" == gcc-* ]]; then
-            sudo apt-get install -y g++-13
+            sudo apt-get install -y g++-13 ccache ninja-build
           else
-            sudo apt-get install -y clang-17 lld-17
+            sudo apt-get install -y clang-17 lld-17 ccache ninja-build
           fi
+
+      - name: Cache ccache
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: ~/.cache/ccache
+          key: ccache-linux-${{ matrix.compiler }}-${{ matrix.build_type }}-${{ hashFiles('cpu/src/**', 'cpu/include/**', 'include/**') }}
+          restore-keys: |
+            ccache-linux-${{ matrix.compiler }}-${{ matrix.build_type }}-
+            ccache-linux-${{ matrix.compiler }}-
+
+      - name: Configure ccache
+        run: |
+          ccache --set-config=max_size=200M
+          ccache --set-config=compression=true
+          ccache -z
 
       - name: Configure
         run: |
@@ -47,8 +62,10 @@ jobs:
           else
             export CC=clang-17 CXX=clang++-17
           fi
-          cmake -S . -B build \
+          cmake -S . -B build -G Ninja \
             -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
             -DSECP256K1_BUILD_TESTS=ON \
             -DSECP256K1_BUILD_BENCH=ON \
             -DSECP256K1_BUILD_EXAMPLES=ON \
@@ -77,7 +94,21 @@ jobs:
       - name: Install cross toolchain
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y g++-13-aarch64-linux-gnu ninja-build
+          sudo apt-get install -y g++-13-aarch64-linux-gnu ninja-build ccache
+
+      - name: Cache ccache
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: ~/.cache/ccache
+          key: ccache-arm64-${{ hashFiles('cpu/src/**', 'cpu/include/**', 'include/**') }}
+          restore-keys: |
+            ccache-arm64-
+
+      - name: Configure ccache
+        run: |
+          ccache --set-config=max_size=200M
+          ccache --set-config=compression=true
+          ccache -z
 
       - name: Configure (aarch64 Release)
         run: |
@@ -87,6 +118,8 @@ jobs:
             -DCMAKE_SYSTEM_PROCESSOR=aarch64 \
             -DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc-13 \
             -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++-13 \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
             -DSECP256K1_BUILD_TESTS=ON \
             -DSECP256K1_BUILD_BENCH=ON \
             -DSECP256K1_BUILD_METAL=OFF
@@ -126,13 +159,29 @@ jobs:
       - name: Install Clang 17
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y clang-17 lld-17
+          sudo apt-get install -y clang-17 lld-17 ccache ninja-build
+
+      - name: Cache ccache
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: ~/.cache/ccache
+          key: ccache-san-${{ matrix.sanitizer }}-${{ hashFiles('cpu/src/**', 'cpu/include/**', 'include/**') }}
+          restore-keys: |
+            ccache-san-${{ matrix.sanitizer }}-
+
+      - name: Configure ccache
+        run: |
+          ccache --set-config=max_size=200M
+          ccache --set-config=compression=true
+          ccache -z
 
       - name: Configure (${{ matrix.label }})
         run: |
           export CC=clang-17 CXX=clang++-17
-          cmake -S . -B build/${{ matrix.sanitizer }} \
+          cmake -S . -B build/${{ matrix.sanitizer }} -G Ninja \
             -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
             -DSECP256K1_BUILD_TESTS=ON \
             -DSECP256K1_BUILD_FUZZ_TESTS=ON \
             -DSECP256K1_BUILD_PROTOCOL_TESTS=ON \

@@ -35,7 +35,21 @@ jobs:
       - name: Install compiler
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y clang-17 lld-17 ninja-build
+          sudo apt-get install -y clang-17 lld-17 ninja-build ccache
+
+      - name: Cache ccache
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: ~/.cache/ccache
+          key: ccache-codeql-${{ hashFiles('cpu/src/**', 'cpu/include/**', 'include/**') }}
+          restore-keys: |
+            ccache-codeql-
+
+      - name: Configure ccache
+        run: |
+          ccache --set-config=max_size=200M
+          ccache --set-config=compression=true
+          ccache -z
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@89a39a4e59826350b863aa6b6252a07ad50cf83e # v4.32.4
@@ -50,6 +64,8 @@ jobs:
           export CC=clang-17 CXX=clang++-17
           cmake -S . -B build/codeql -G Ninja \
             -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
             -DSECP256K1_BUILD_TESTS=ON \
             -DSECP256K1_BUILD_BENCH=OFF \
             -DSECP256K1_BUILD_EXAMPLES=OFF \
