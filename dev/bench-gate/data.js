@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772961385992,
+  "lastUpdate": 1772974202625,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "Perf Regression Gate": [
@@ -16243,6 +16243,430 @@ window.BENCHMARK_DATA = {
           {
             "name": "ecdsa_verify (ECDSA_do_verify)",
             "value": 378312.8,
+            "unit": "ns"
+          },
+          {
+            "name": "Harness",
+            "value": 3000000000,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "Vano Chkheidze",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "05822dcabea22fafaa9bd836f517da3c7dccd7c0",
+          "message": "v3.20.0: GLV window optimization, refactoring, CI acceleration (#115)\n\n* v3.20.0: GLV window optimization, code scanning fixes, docs-engine sync\n\n- Platform-aware configurable GLV window width (kDefaultGlvWindow):\n  x86-64/ARM64/RISC-V default w=5, ESP32/WASM w=4\n  3-tier config: CMake define > platform default > runtime per-call\n- Fix 501 code scanning alerts across 7 files:\n  shiftTooManyBitsSigned (ct_field.cpp), const-correctness,\n  modernize-use-auto, braces, init-variables\n- Full docs-engine consistency audit: fix 8 categories of stale\n  references across 14+ documentation files\n- Add GLV Window Width Tuning to PERFORMANCE_GUIDE + 12 bindings + WASM\n- CHANGELOG.md: consolidated v3.14.0-v3.20.0 (120+ commits)\n- VERSION.txt: 3.20.0\n- bench_bip352 results: x86-64 1.34x, ARM64 1.31x, RISC-V 1.37x\n\n* refactor(point): extract shared GLV52/batch/next-prev helpers to reduce duplication\n\nExtract build_glv52_table_zr, derive_phi52_table, shamir_2stream_glv52\nhelpers used by scalar_mul_glv52, scalar_mul_with_plan_glv52, and\ndual_scalar_mul_gen_point.\n\nRewrite batch_x_only_bytes to reuse batch_normalize (Montgomery trick).\n\nExtract add_gen_mixed helper for next/prev/next_inplace/prev_inplace.\n\nNet reduction: 234 lines (-425/+191). All 30 tests pass.\n\n* perf(batch): restore x-only fast path in batch_x_only_bytes\n\nCall batch_z_inv() directly instead of batch_normalize(), computing\nonly x = X * Z^(-2) and skipping the unused Y = Y * Z^(-3).\nEliminates ~33% redundant field multiplications per point.\n\nFixes benchmark regression gate failure (1.39x slowdown on\nbatch_x_only_bytes /pt N=64).\n\n* refactor(batch): deduplicate allocation+wNAF patterns in point.cpp\n\n- Move partials allocation inside batch_z_inv (callers only pass z_inv)\n- Extract apply_wnaf_mixed52 helper for wNAF digit lookup+negate+add\n- Use apply_wnaf_mixed52 in shamir_2stream_glv52 and dual_scalar_mul_gen_point\n- Reduces SonarCloud duplicated lines on new code (was 12%, gate requires <=3%)\n\n* ci: raise PR bench threshold to 150%, exclude point.cpp from CPD\n\n- bench-regression.yml: PR alert-threshold 120% -> 150% to match push\n  threshold. Shared CI runners (Xeon Platinum 8370C) show 20-30% variance\n  on sub-10ns operations, causing false positives on unrelated benchmarks.\n\n- sonar-project.properties: add point.cpp to sonar.cpd.exclusions.\n  point.cpp contains dual-platform paths (4x64 and 5x52 field representations)\n  implementing identical algorithms for different CPU architectures.\n  This structural duplication is an architectural requirement.\n\n* fix: use -march=x86-64-v3 for macOS ARM64->x86_64 cross-compilation\n\nWhen cross-compiling on macOS from ARM64 (Apple Silicon) to x86_64,\n-march=native resolves to the host CPU (e.g. apple-m3), which is not\na valid x86_64 target.\n\nDetect macOS cross-compilation via CMAKE_OSX_ARCHITECTURES and use\n-march=x86-64-v3 (AVX2+BMI2+FMA) as a reasonable modern x86_64\nbaseline instead.\n\nApplied to both top-level CMakeLists.txt and cpu/CMakeLists.txt.\n\nAddresses #113\n\n* fix: wire GLV_WINDOW_WIDTH CMake option, fix docs (WASM + bench paths)\n\nAddress Copilot review feedback on PR #112:\n\n1. CMake cache variable forwarding: add SECP256K1_GLV_WINDOW_WIDTH as a\n   CMake cache string option that forwards into a compile definition.\n   Now `-DSECP256K1_GLV_WINDOW_WIDTH=6` works as documented.\n\n2. Platform default descriptions: add WASM to the w=4 default set\n   (\"4 on ESP32/WASM\") in 6 docs + copilot-instructions.md.\n\n3. Benchmark binary paths: fix cpu/bench/bench_unified -> cpu/bench_unified\n   in 7 docs. Build outputs go to build/cpu/, not build/cpu/bench/.\n\n31/31 tests pass.\n\n* fix: address Copilot review (return check, comments, threshold)\n\n- Check build_glv52_table_zr return in dual_scalar_mul_gen_point,\n  fallback to separate a*G+b*P on degenerate case\n- Update next_inplace/prev_inplace header comment (no longer faster)\n- Fix bench-regression.yml header: >20% -> >50% to match threshold\n\n* ci: add ccache + Ninja to all Linux build workflows\n\nAdd ccache compilation caching and Ninja generator to 17 build jobs\nacross 6 workflow files to reduce CI build times on repeat pushes.\n\nChanges:\n- ci.yml: linux (4 matrix), arm64, sanitizers (2) = 7 jobs\n- security-audit.yml: werror, ASan, MSan, TSan, Valgrind, dudect = 6 jobs\n- clang-tidy.yml: 1 job\n- benchmark.yml: 1 job (linux)\n- sonarcloud.yml: 1 job\n- codeql.yml: 1 job\n\nImplementation:\n- actions/cache@v4.2.3 (SHA-pinned) for ~/.cache/ccache persistence\n- CMAKE_C/CXX_COMPILER_LAUNCHER=ccache via CMake native mechanism\n- Unique cache keys per job (compiler + sanitizer + source hash)\n- ccache max_size=200M, compression=true\n- Added -G Ninja to ci.yml linux and sanitizers jobs (others had it)\n\nNo changes to compiler flags, test invocations, or build configurations.\nWindows/macOS/iOS/WASM/Android/ROCm jobs unchanged (different toolchain).\n\n* fix: address Copilot review on PR #115\n\n- CMakeLists.txt: validate SECP256K1_GLV_WINDOW_WIDTH is integer in [4,7]\n- point.hpp: add static_assert for GLV window width range\n- CMakeLists.txt + cpu/CMakeLists.txt: guard macOS cross-compile with\n  STREQUAL \"x86_64\" to avoid breaking universal builds\n- docs/BENCHMARKING.md: replace plain-text reference with link to\n  .github/copilot-instructions.md\n\n---------\n\nCo-authored-by: shrec <shrec@users.noreply.github.com>",
+          "timestamp": "2026-03-08T16:46:24+04:00",
+          "tree_id": "4d1d40d4d5d70aac06ce8f6820104ef10d1c1d5b",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/05822dcabea22fafaa9bd836f517da3c7dccd7c0"
+        },
+        "date": 1772974200555,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "field_mul",
+            "value": 15.8,
+            "unit": "ns"
+          },
+          {
+            "name": "field_sqr",
+            "value": 14.1,
+            "unit": "ns"
+          },
+          {
+            "name": "field_inv",
+            "value": 976.5,
+            "unit": "ns"
+          },
+          {
+            "name": "field_add",
+            "value": 7.2,
+            "unit": "ns"
+          },
+          {
+            "name": "field_sub",
+            "value": 6.6,
+            "unit": "ns"
+          },
+          {
+            "name": "field_negate",
+            "value": 8,
+            "unit": "ns"
+          },
+          {
+            "name": "field_from_bytes (32B)",
+            "value": 4.3,
+            "unit": "ns"
+          },
+          {
+            "name": "scalar_mul",
+            "value": 34,
+            "unit": "ns"
+          },
+          {
+            "name": "scalar_inv",
+            "value": 1251.6,
+            "unit": "ns"
+          },
+          {
+            "name": "scalar_add",
+            "value": 7.2,
+            "unit": "ns"
+          },
+          {
+            "name": "scalar_negate",
+            "value": 4.3,
+            "unit": "ns"
+          },
+          {
+            "name": "scalar_from_bytes (32B)",
+            "value": 4,
+            "unit": "ns"
+          },
+          {
+            "name": "pubkey_create (k*G)",
+            "value": 6926.8,
+            "unit": "ns"
+          },
+          {
+            "name": "scalar_mul (k*P)",
+            "value": 33390.1,
+            "unit": "ns"
+          },
+          {
+            "name": "scalar_mul_with_plan",
+            "value": 32887.2,
+            "unit": "ns"
+          },
+          {
+            "name": "dual_mul (a*G + b*P)",
+            "value": 37163,
+            "unit": "ns"
+          },
+          {
+            "name": "point_add (affine+affine)",
+            "value": 1181.6,
+            "unit": "ns"
+          },
+          {
+            "name": "point_add (J+A mixed)",
+            "value": 242.3,
+            "unit": "ns"
+          },
+          {
+            "name": "point_dbl",
+            "value": 127.7,
+            "unit": "ns"
+          },
+          {
+            "name": "normalize (J->affine)",
+            "value": 4.1,
+            "unit": "ns"
+          },
+          {
+            "name": "batch_normalize /pt (N=64)",
+            "value": 184.4,
+            "unit": "ns"
+          },
+          {
+            "name": "next_inplace (+=G)",
+            "value": 254.9,
+            "unit": "ns"
+          },
+          {
+            "name": "KPlan::from_scalar(w=4)",
+            "value": 1907.4,
+            "unit": "ns"
+          },
+          {
+            "name": "to_compressed (33B)",
+            "value": 8.9,
+            "unit": "ns"
+          },
+          {
+            "name": "to_uncompressed (65B)",
+            "value": 9.7,
+            "unit": "ns"
+          },
+          {
+            "name": "x_only_bytes (32B)",
+            "value": 4.9,
+            "unit": "ns"
+          },
+          {
+            "name": "x_bytes_and_parity",
+            "value": 7.2,
+            "unit": "ns"
+          },
+          {
+            "name": "has_even_y",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "batch_to_compressed /pt (N=64)",
+            "value": 196.8,
+            "unit": "ns"
+          },
+          {
+            "name": "batch_x_only_bytes /pt (N=64)",
+            "value": 147.1,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_sign",
+            "value": 9944,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_sign_verified",
+            "value": 57114.7,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_verify",
+            "value": 39459.7,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_keypair_create",
+            "value": 7218.6,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_sign",
+            "value": 7737.8,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_sign_verified",
+            "value": 48800.1,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_verify (cached xonly)",
+            "value": 39479.5,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_verify (raw bytes)",
+            "value": 40750.7,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_batch_verify(N=4)",
+            "value": 151469.1,
+            "unit": "ns"
+          },
+          {
+            "name": "-> per-sig amortized (N=4)",
+            "value": 37867.3,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_batch_verify(N=16)",
+            "value": 619086.7,
+            "unit": "ns"
+          },
+          {
+            "name": "-> per-sig amortized (N=16)",
+            "value": 38692.9,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_batch_verify(N=64)",
+            "value": 4065459.7,
+            "unit": "ns"
+          },
+          {
+            "name": "-> per-sig amortized (N=64)",
+            "value": 63522.8,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_batch_verify(N=4)",
+            "value": 147947.6,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_batch_verify(N=16)",
+            "value": 593157.4,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_batch_verify(N=64)",
+            "value": 2408894.8,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::scalar_inverse (SafeGCD)",
+            "value": 2638.9,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::generator_mul (k*G)",
+            "value": 18364.5,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::scalar_mul (k*P)",
+            "value": 39729.3,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::point_dbl",
+            "value": 139.2,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::point_add_complete (11M+6S)",
+            "value": 409.5,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::point_add_mixed_complete (7M+5S)",
+            "value": 292.4,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::point_add_mixed_unified (7M+5S)",
+            "value": 263.3,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::ecdsa_sign",
+            "value": 24144.9,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::ecdsa_sign_verified",
+            "value": 82390,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::schnorr_sign",
+            "value": 20622.9,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::schnorr_sign_verified",
+            "value": 61821.3,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::schnorr_keypair_create",
+            "value": 20105.8,
+            "unit": "ns"
+          },
+          {
+            "name": "field_inv_var",
+            "value": 1145.3,
+            "unit": "ns"
+          },
+          {
+            "name": "field_normalize",
+            "value": 10.3,
+            "unit": "ns"
+          },
+          {
+            "name": "field_from_bytes (set_b32)",
+            "value": 9.7,
+            "unit": "ns"
+          },
+          {
+            "name": "scalar_inverse (CT)",
+            "value": 2838.8,
+            "unit": "ns"
+          },
+          {
+            "name": "scalar_inverse_var",
+            "value": 1182.3,
+            "unit": "ns"
+          },
+          {
+            "name": "scalar_from_bytes (set_b32)",
+            "value": 7.7,
+            "unit": "ns"
+          },
+          {
+            "name": "point_dbl (gej_double_var)",
+            "value": 131.1,
+            "unit": "ns"
+          },
+          {
+            "name": "point_add (gej_add_ge_var)",
+            "value": 233.4,
+            "unit": "ns"
+          },
+          {
+            "name": "ecmult (a*P + b*G, Strauss)",
+            "value": 35879.6,
+            "unit": "ns"
+          },
+          {
+            "name": "ecmult_gen (k*G, comb)",
+            "value": 14669.5,
+            "unit": "ns"
+          },
+          {
+            "name": "generator_mul (ec_pubkey_create)",
+            "value": 17725.3,
+            "unit": "ns"
+          },
+          {
+            "name": "scalar_mul_P (k*P, tweak_mul)",
+            "value": 34413.1,
+            "unit": "ns"
+          },
+          {
+            "name": "serialize_compressed (33B)",
+            "value": 26.2,
+            "unit": "ns"
+          },
+          {
+            "name": "serialize_uncompressed (65B)",
+            "value": 33.4,
+            "unit": "ns"
+          },
+          {
+            "name": "point_add (pubkey_combine)",
+            "value": 3454.9,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_sign (BIP-340)",
+            "value": 19036,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_verify (BIP-340)",
+            "value": 38214.3,
+            "unit": "ns"
+          },
+          {
+            "name": "generator_mul (EC_POINT_mul k*G)",
+            "value": 393948.8,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_sign (ECDSA_do_sign)",
+            "value": 415057.9,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_verify (ECDSA_do_verify)",
+            "value": 370245.9,
             "unit": "ns"
           },
           {
