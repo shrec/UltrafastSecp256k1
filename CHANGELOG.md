@@ -5,6 +5,48 @@ All notable changes to UltrafastSecp256k1 are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.21.1] - 2026-03-09
+
+> **Patch release: v3.21.0 -> v3.21.1** | Bug fixes, CI hardening, Metal audit | ABI compatible
+> No breaking changes -- drop-in upgrade from v3.21.0
+
+### Added
+
+- **Metal Unified Audit Runner** -- 27 audit modules across 8 sections for Apple
+  GPU (Metal) backend, matching OpenCL audit runner coverage. (#134)
+
+### Fixed
+
+- **CPUID PIC safety** -- replaced raw `cpuid` inline asm with `__get_cpuid_count()`
+  from `<cpuid.h>` to avoid EBX register conflicts with clang PIC mode and coverage
+  instrumentation. Eliminates SIGILL on clang-17 Release builds. (#135)
+- **CI MARCH level** -- downgraded from `x86-64-v3` to `x86-64-v2` in CI/SonarCloud
+  workflows to avoid AVX2/FMA instructions on runners without those extensions. (#135)
+- **Metal metallib path** -- audit runner now searches for `secp256k1_kernels.metallib`
+  (the name CMake copies) in addition to `secp256k1.metallib`. (#135)
+- **Benchmark CI output path** -- moved benchmark JSON output to `/tmp/` to prevent
+  git checkout conflicts with gh-pages branch. (#135)
+- **OpenCL audit 6-bug fix** -- fixed 6 bugs in OpenCL backend, achieving 27/27 audit
+  PASS status; dead code removal and Scorecard .sigstore cleanup. (#133)
+- **macOS amd64 build** -- fixed build failure on macOS x86-64. (#132)
+- **Code scanning alerts** -- resolved 6 clang-tidy findings in `test_edge_cases.cpp`:
+  unused `using` declaration, const-correctness on `zero_bytes` / `zero_sig`, unchecked
+  `std::remove()` returns, and redundant `one - one` expression. (#136)
+- **Delta audit findings** -- addressed audit delta findings with GPU audit runners
+  and documentation updates. (#126)
+
+### Dependencies
+
+- `benchmark-action/github-action-benchmark` bumped (#131)
+- `actions/dependency-review-action` 4.8.3 -> 4.9.0 (#130)
+- `github/codeql-action` 4.32.4 -> 4.32.6 (#129)
+- `actions/setup-go` 6.2.0 -> 6.3.0 (#128)
+- `ruby/setup-ruby` 1.288.0 -> 1.290.0 (#125)
+- `actions/setup-dotnet` 5.1.0 -> 5.2.0 (#124)
+- `step-security/harden-runner` 2.15.0 -> 2.15.1 (#123)
+- `actions/setup-node` 6.2.0 -> 6.3.0 (#122)
+- `actions/cache` 4.2.3 -> 5.0.3 (#121)
+
 ## [3.21.0] - 2026-03-08
 
 > **Cumulative release: v3.14.0 -> v3.21.0** | 120+ commits | ABI compatible
