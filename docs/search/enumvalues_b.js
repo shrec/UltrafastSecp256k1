@@ -1,6 +1,6 @@
 var searchData=
 [
-  ['scalar_0',['scalar',['../namespacesecp256k1_1_1simd.html#a43de8edd83659aaab4ec0c4bfa988b43a8f3d9a4b6a7b7f2c7afa61ca113d0db9',1,'secp256k1::simd::SCALAR'],['../namespacesecp256k1_1_1hash.html#a4caba186460712ebd064679ef90b2685a8f3d9a4b6a7b7f2c7afa61ca113d0db9',1,'secp256k1::hash::SCALAR']]],
+  ['scalar_0',['SCALAR',['../namespacesecp256k1_1_1hash.html#a4caba186460712ebd064679ef90b2685a8f3d9a4b6a7b7f2c7afa61ca113d0db9',1,'secp256k1::hash']]],
   ['scalararith_1',['ScalarArith',['../namespacesecp256k1_1_1test.html#a67d5ad2842e24c72d6e79f845fb96335aee83d44b178a3f652cb01f08cbb57e06',1,'secp256k1::test']]],
   ['scalarconversions_2',['ScalarConversions',['../namespacesecp256k1_1_1test.html#a67d5ad2842e24c72d6e79f845fb96335a53a69c9c4cc08ca68d981ba8fb432f01',1,'secp256k1::test']]],
   ['scalaredgecases_3',['ScalarEdgeCases',['../namespacesecp256k1_1_1test.html#a67d5ad2842e24c72d6e79f845fb96335a3bc32b010830159a50524108584721f8',1,'secp256k1::test']]],

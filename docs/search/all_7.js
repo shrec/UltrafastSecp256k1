@@ -70,9 +70,9 @@ var searchData=
   ['autotune_5fmax_5fw_67',['autotune_max_w',['../structsecp256k1_1_1fast_1_1FixedBaseConfig.html#aec53ff7cd6913105b2d54ed5051e451f',1,'secp256k1::fast::FixedBaseConfig']]],
   ['autotune_5fmin_5fw_68',['autotune_min_w',['../structsecp256k1_1_1fast_1_1FixedBaseConfig.html#af1d69f8253f2931bc7d49f5784333ea1',1,'secp256k1::fast::FixedBaseConfig']]],
   ['avalanche_69',['Avalanche',['../namespacesecp256k1_1_1coins.html#a687e77712b00dfcd4cac5a6814dd0c31',1,'secp256k1::coins']]],
-  ['avx2_70',['avx2',['../namespacesecp256k1_1_1hash.html#a4caba186460712ebd064679ef90b2685aee6ecd3e091cdefd02e783f9b9869388',1,'secp256k1::hash::AVX2'],['../namespacesecp256k1_1_1simd.html#a43de8edd83659aaab4ec0c4bfa988b43aee6ecd3e091cdefd02e783f9b9869388',1,'secp256k1::simd::AVX2']]],
+  ['avx2_70',['AVX2',['../namespacesecp256k1_1_1hash.html#a4caba186460712ebd064679ef90b2685aee6ecd3e091cdefd02e783f9b9869388',1,'secp256k1::hash']]],
   ['avx2_20release_71',['CPU Signature Benchmarks (x86-64, Clang 19, AVX2, Release)',['../index.html#autotoc_md47',1,'']]],
-  ['avx2_5favailable_72',['avx2_available',['../namespacesecp256k1_1_1hash.html#acaa50972a7c883534f52aed6830e4a73',1,'secp256k1::hash::avx2_available()'],['../namespacesecp256k1_1_1simd.html#a6d90a4c3494e6cdcac9ea7058a727d6c',1,'secp256k1::simd::avx2_available() noexcept']]],
-  ['avx512_73',['avx512',['../namespacesecp256k1_1_1simd.html#a43de8edd83659aaab4ec0c4bfa988b43a5f8acb5068c8c8db7b2a4069bd17d9fd',1,'secp256k1::simd::AVX512'],['../namespacesecp256k1_1_1hash.html#a4caba186460712ebd064679ef90b2685a5f8acb5068c8c8db7b2a4069bd17d9fd',1,'secp256k1::hash::AVX512']]],
-  ['avx512_5favailable_74',['avx512_available',['../namespacesecp256k1_1_1simd.html#a947e80d2d353e2d5c117d8bf53df1fca',1,'secp256k1::simd::avx512_available()'],['../namespacesecp256k1_1_1hash.html#aee36f0cd5d0b9126b5b59674152903d4',1,'secp256k1::hash::avx512_available()']]]
+  ['avx2_5favailable_72',['avx2_available',['../namespacesecp256k1_1_1hash.html#acaa50972a7c883534f52aed6830e4a73',1,'secp256k1::hash']]],
+  ['avx512_73',['AVX512',['../namespacesecp256k1_1_1hash.html#a4caba186460712ebd064679ef90b2685a5f8acb5068c8c8db7b2a4069bd17d9fd',1,'secp256k1::hash']]],
+  ['avx512_5favailable_74',['avx512_available',['../namespacesecp256k1_1_1hash.html#aee36f0cd5d0b9126b5b59674152903d4',1,'secp256k1::hash']]]
 ];

@@ -15,7 +15,6 @@ var namespacesecp256k1 =
     ] ],
     [ "fast", "namespacesecp256k1_1_1fast.html", "namespacesecp256k1_1_1fast" ],
     [ "hash", "namespacesecp256k1_1_1hash.html", "namespacesecp256k1_1_1hash" ],
-    [ "simd", "namespacesecp256k1_1_1simd.html", "namespacesecp256k1_1_1simd" ],
     [ "test", "namespacesecp256k1_1_1test.html", "namespacesecp256k1_1_1test" ],
     [ "AffinePointData", "structsecp256k1_1_1AffinePointData.html", "structsecp256k1_1_1AffinePointData" ],
     [ "Bech32DecodeResult", "structsecp256k1_1_1Bech32DecodeResult.html", "structsecp256k1_1_1Bech32DecodeResult" ],

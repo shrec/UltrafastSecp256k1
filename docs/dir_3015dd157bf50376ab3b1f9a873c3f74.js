@@ -25,7 +25,6 @@ var dir_3015dd157bf50376ab3b1f9a873c3f74 =
     [ "field_branchless.hpp", "field__branchless_8hpp.html", "field__branchless_8hpp" ],
     [ "field_h_based.hpp", "field__h__based_8hpp.html", "field__h__based_8hpp" ],
     [ "field_optimal.hpp", "field__optimal_8hpp.html", "field__optimal_8hpp" ],
-    [ "field_simd.hpp", "field__simd_8hpp.html", "field__simd_8hpp" ],
     [ "frost.hpp", "frost_8hpp.html", "frost_8hpp" ],
     [ "glv.hpp", "glv_8hpp.html", "glv_8hpp" ],
     [ "hash_accel.hpp", "hash__accel_8hpp.html", "hash__accel_8hpp" ],

@@ -14,7 +14,5 @@ var searchData=
   ['secp256k1_3a_3afast_3a_3amontgomery_11',['montgomery',['../namespacesecp256k1_1_1fast_1_1montgomery.html',1,'secp256k1::fast']]],
   ['secp256k1_3a_3ahash_12',['hash',['../namespacesecp256k1_1_1hash.html',1,'secp256k1']]],
   ['secp256k1_3a_3ahash_3a_3ascalar_13',['scalar',['../namespacesecp256k1_1_1hash_1_1scalar.html',1,'secp256k1::hash']]],
-  ['secp256k1_3a_3asimd_14',['simd',['../namespacesecp256k1_1_1simd.html',1,'secp256k1']]],
-  ['secp256k1_3a_3asimd_3a_3adetail_15',['detail',['../namespacesecp256k1_1_1simd_1_1detail.html',1,'secp256k1::simd']]],
-  ['secp256k1_3a_3atest_16',['test',['../namespacesecp256k1_1_1test.html',1,'secp256k1']]]
+  ['secp256k1_3a_3atest_14',['test',['../namespacesecp256k1_1_1test.html',1,'secp256k1']]]
 ];

@@ -10,6 +10,5 @@ var searchData=
   ['field_5fbranchless_2ehpp_7',['field_branchless.hpp',['../field__branchless_8hpp.html',1,'']]],
   ['field_5fh_5fbased_2ehpp_8',['field_h_based.hpp',['../field__h__based_8hpp.html',1,'']]],
   ['field_5foptimal_2ehpp_9',['field_optimal.hpp',['../field__optimal_8hpp.html',1,'']]],
-  ['field_5fsimd_2ehpp_10',['field_simd.hpp',['../field__simd_8hpp.html',1,'']]],
-  ['frost_2ehpp_11',['frost.hpp',['../frost_8hpp.html',1,'']]]
+  ['frost_2ehpp_10',['frost.hpp',['../frost_8hpp.html',1,'']]]
 ];

@@ -79,14 +79,13 @@ var NAVTREEINDEX =
 "classsecp256k1_1_1fast_1_1Point.html#a01fbac924f8decf2b741d081b4f34c3d",
 "ct_2point_8hpp.html#a2c0514f309fbaac7449849c8acabdea1",
 "field__optimal_8hpp.html#a7868f6defa52ba2b9afe7303eab5e677",
-"init_8hpp.html#aa1ade8639ae8e331731389af48483662",
-"namespacesecp256k1_1_1coins.html#ac6b0477033f1a1058c2959fd4316c59a",
-"namespacesecp256k1_1_1fast.html#ad8775d33255b6a1cbcbf842e3dc50541",
-"schnorr_8hpp.html#abdafefa1bbce97d2a9de0b9f5ea112c3",
-"structsecp256k1_1_1MuSig2AggNonce.html#a3eff932b197290a6d54ce068fb0aeae3",
-"structsecp256k1_1_1fast_1_1FieldElement26.html#a0b19f3703363feb1a7779e1d07996846",
-"structsecp256k1_1_1fast_1_1SelftestReport.html#a6cf5ddafa46aa20a33e017e53c7abf25",
-"ufsecp__version_8h.html#a2152da1f53e65d8b80e428ca26e1e976"
+"multiscalar_8hpp.html#a710d5963b9ce553b958f007209438faf",
+"namespacesecp256k1_1_1ct.html#a03b1757e8f036c092670a3bf61f47b02",
+"namespacesecp256k1_1_1fast.html#afb796e34f6d662a818fd5d773018a9f2",
+"sign_8hpp.html#a0395559c34023213c3182f49e8e73807",
+"structsecp256k1_1_1MuSig2Session.html#ab2280405f267eb375a9599cb2a0bd190",
+"structsecp256k1_1_1fast_1_1FieldElement52.html#a153b88a6790e92e5df0c1c3926565478",
+"structsecp256k1_1_1test_1_1TestCounters.html#acfc030f8e11c91a80f5beb16744d00e7"
 ];
 
 var SYNCONMSG = 'click to disable panel synchronisation';
