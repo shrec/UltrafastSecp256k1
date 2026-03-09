@@ -93,7 +93,7 @@ jobs:
 
     - name: Store benchmark result
       if: github.event_name == 'push'
-      uses: benchmark-action/github-action-benchmark@4bdcce38c94cec68da58d012ac24b7b1155efe8b # v1
+      uses: benchmark-action/github-action-benchmark@a7bc2366eda11037936ea57d811a43b3418d3073 # v1
       with:
         name: 'UltrafastSecp256k1 Performance'
         tool: 'customSmallerIsBetter'
