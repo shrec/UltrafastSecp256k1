@@ -41,7 +41,7 @@ jobs:
           fi
 
       - name: Cache ccache
-        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
         with:
           path: ~/.cache/ccache
           key: ccache-linux-${{ matrix.compiler }}-${{ matrix.build_type }}-${{ hashFiles('cpu/src/**', 'cpu/include/**', 'include/**') }}
@@ -98,7 +98,7 @@ jobs:
           sudo apt-get install -y g++-13-aarch64-linux-gnu ninja-build ccache
 
       - name: Cache ccache
-        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
         with:
           path: ~/.cache/ccache
           key: ccache-arm64-${{ hashFiles('cpu/src/**', 'cpu/include/**', 'include/**') }}
@@ -163,7 +163,7 @@ jobs:
           sudo apt-get install -y clang-17 lld-17 ccache ninja-build
 
       - name: Cache ccache
-        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
         with:
           path: ~/.cache/ccache
           key: ccache-san-${{ matrix.sanitizer }}-${{ hashFiles('cpu/src/**', 'cpu/include/**', 'include/**') }}
