@@ -1,6 +1,6 @@
 # Security Claims & API Contract
 
-**UltrafastSecp256k1 v3.16.0** -- FAST / CT Dual-Layer Architecture
+**UltrafastSecp256k1 v3.21.0** -- FAST / CT Dual-Layer Architecture (CPU + GPU)
 
 ---
 
@@ -20,16 +20,17 @@ mathematical semantics. They differ **only** in execution profile:
 | **Nonce Erasure** | Not erased | Intermediate nonces erased (volatile fn-ptr) |
 | **Side-Channel** | Not resistant | Resistant (CPU backend) |
 
-### CT Overhead by Platform (v3.16.0)
+### CT Overhead by Platform (v3.21.0)
 
-Measured with `bench_hornet` (signing operations; verify uses public inputs — CT not needed):
+Measured with `bench_unified` / `gpu_bench_unified` (signing operations; verify uses public inputs -- CT not needed):
 
 | Platform | ECDSA Sign CT/FAST | Schnorr Sign CT/FAST |
 |---|---|---|
-| x86-64 (i7-11700, Clang 21) | **1.77x** | **2.03x** |
+| x86-64 (i5-14400F, GCC 14.2) | **1.93x** | **2.13x** |
 | ARM64 Cortex-A55 (Clang 18) | 2.57x | 3.18x |
 | RISC-V U74 @ 1.5 GHz (GCC 13) | 1.96x | 2.37x |
 | ESP32-S3 Xtensa LX7 @ 240 MHz | 1.05x | 1.06x |
+| **GPU RTX 5060 Ti (CUDA 12.0)** | **2.06x** | **2.51x** |
 
 ESP32 has near-zero CT overhead: in-order core, no speculative execution. x86 overhead
 improved in v3.16.0 (was 1.94x ECDSA) following the GLV decomposition correctness fix.
@@ -190,6 +191,8 @@ cryptographic implementations, including libsecp256k1.
 
 ## 6. API Mapping: FAST <-> CT
 
+### CPU API
+
 | Operation | FAST (public data) | CT (secret data) |
 |-----------|--------------------|-------------------|
 | Scalar x G | `Point::generator().scalar_mul(k)` | `ct::generator_mul(k)` |
@@ -203,6 +206,34 @@ cryptographic implementations, including libsecp256k1.
 | Scalar cond. move | N/A (use if/else) | `ct::scalar_cmov(r, a, mask)` |
 | Scalar cond. swap | N/A (use std::swap) | `ct::scalar_cswap(a, b, mask)` |
 | Scalar cond. negate | `s.negate()` with if | `ct::scalar_cneg(a, mask)` |
+
+### GPU (CUDA) API
+
+All GPU CT functions are in the `secp256k1::cuda::ct::` namespace.
+Headers: `cuda/include/ct/{ct_ops.cuh, ct_field.cuh, ct_scalar.cuh, ct_point.cuh, ct_sign.cuh}`
+
+| Operation | FAST (`secp256k1::cuda::`) | CT (`secp256k1::cuda::ct::`) |
+|-----------|---------------------------|------------------------------|
+| Scalar x G | `scalar_mul_generator_const(k, &r)` | `ct_generator_mul(k, &r)` |
+| Scalar x P | `scalar_mul(&P, k, &r)` | `ct_scalar_mul(&P, k, &r)` |
+| Point add | `jacobian_add(&P, &Q, &r)` | `ct_point_add(&P, &Q, &r)` |
+| Point double | `jacobian_double(&P, &r)` | `ct_point_dbl(&P, &r)` |
+| Mixed add | N/A | `ct_point_add_mixed(&P, &Q, &r)` |
+| ECDSA sign | `ecdsa_sign(msg, key, &sig)` | `ct_ecdsa_sign(msg, key, &sig)` |
+| Schnorr sign | `schnorr_sign(key, msg, aux, &sig)` | `ct_schnorr_sign(key, msg, aux, &sig)` |
+| Keypair create | N/A | `ct_schnorr_keypair_create(key, &kp)` |
+| Field cmov | N/A | `field_cmov(&r, &a, mask)` |
+| Scalar cmov | N/A | `scalar_cmov(&r, &a, mask)` |
+| Scalar inverse | `scalar_inverse(a, &r)` | `scalar_inverse(a, &r)` (CT Fermat) |
+
+#### GPU CT Throughput (RTX 5060 Ti)
+
+| Operation | ns/op | Throughput | CT/FAST |
+|-----------|-------|------------|---------|
+| ct::k*G | 341.9 | 2.92 M/s | 2.65x |
+| ct::k*P | 347.2 | 2.88 M/s | -- |
+| ct::ecdsa_sign | 433.9 | **2.30 M/s** | 2.06x |
+| ct::schnorr_sign | 715.8 | **1.40 M/s** | 2.51x |
 
 ---
 
@@ -228,15 +259,19 @@ See [docs/CT_EMPIRICAL_REPORT.md](CT_EMPIRICAL_REPORT.md) for full methodology.
 
 ### CT Claim Scope
 
-> The CT guarantee applies to the **CPU backend** (`secp256k1::ct::`) under
-> the specified compilers (`g++-13` / `clang-17+`) at `-O2`, on **x86-64**
-> and **ARM64** architectures.
+> The CT guarantee applies to:
+> - **CPU**: `secp256k1::ct::` under `g++-13` / `clang-17+` at `-O2`, on **x86-64** and **ARM64**
+> - **GPU**: `secp256k1::cuda::ct::` under CUDA 12.0+ / nvcc, on **SM 7.5+** (Turing through Blackwell)
+
+The GPU CT layer provides **algorithmic** constant-time guarantees (no secret-dependent
+branches or memory access patterns). Hardware-level side-channel resistance on GPUs
+is limited by the SIMT execution model.
 
 **Explicitly NOT covered:**
-- GPU backends (CUDA, ROCm, OpenCL, Metal) — SIMT model leaks by design
-- Protocol internals of FROST and MuSig2 — partial coverage only
+- Protocol internals of FROST and MuSig2 -- partial coverage only
 - Compilers or optimization levels not tested in CI
 - Microarchitectures not in the CI matrix
+- Hardware-level electromagnetic/power analysis on any platform
 
 ---
 
@@ -246,6 +281,7 @@ Every release must answer: **"Did the CT scope change?"**
 
 | Release | CT Scope Changed? | Details |
 |---------|-------------------|---------|
+| v3.21.0 | **Yes** | GPU CT layer (5 headers); GPU CT audit modules in gpu_audit_runner; GPU CT benchmarks in gpu_bench_unified |
 | v3.16.0 | **Yes** | CT nonce erasure (volatile fn-ptr trick); MuSig2/FROST dudect added; ct-arm64 ARM64 native CI |
 | v3.15.0 | **Yes** | Branchless `scalar_window` on RISC-V; `value_barrier` after mask; RISC-V `is_zero_mask` asm |
 | v3.13.1 | **Yes (fix)** | GLV decomposition correctness fix; CT scalar_mul overhead reduced to 1.05x |
@@ -291,4 +327,4 @@ Every release must answer: **"Did the CT scope change?"**
 
 ---
 
-*UltrafastSecp256k1 v3.16.0 — Security Claims*
+*UltrafastSecp256k1 v3.21.0 -- Security Claims*

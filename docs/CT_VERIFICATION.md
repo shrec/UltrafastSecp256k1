@@ -1,18 +1,25 @@
 # Constant-Time Verification
 
-**UltrafastSecp256k1 v3.16.0** -- CT Layer Methodology & Audit Status
+**UltrafastSecp256k1 v3.21.0** -- CT Layer Methodology & Audit Status
 
 ---
 
 ## Overview
 
-The constant-time (CT) layer lives in the `secp256k1::ct` namespace and provides side-channel resistant operations for secret key material. The FAST layer (`secp256k1::fast`) is explicitly variable-time for maximum throughput on public data.
+The constant-time (CT) layer provides side-channel resistant operations for secret key material. It is available on **both CPU and GPU backends**:
+
+- **CPU**: `secp256k1::ct::` namespace (headers in `cpu/include/secp256k1/ct/`)
+- **GPU**: `secp256k1::cuda::ct::` namespace (headers in `cuda/include/ct/`)
+
+The FAST layer (`secp256k1::fast::` on CPU, `secp256k1::cuda::` on GPU) is explicitly variable-time for maximum throughput on public data.
 
 **Principle**: Any operation that touches secret data (private keys, nonces, intermediate scalars) MUST use `ct::` functions. The default `fast::` namespace is allowed only when all inputs are public.
 
 ---
 
 ## CT Layer Architecture
+
+### CPU CT Layer
 
 ```
 secp256k1::ct::
@@ -26,6 +33,54 @@ secp256k1::fast::
 +-- field_branchless.hpp  -- Branchless field_select (bitwise cmov)
 +-- ...                   -- Variable-time (NOT for secrets)
 ```
+
+### GPU CT Layer
+
+```
+secp256k1::cuda::ct::
++-- ct_ops.cuh       -- CT primitives: value_barrier (PTX asm), masks, cmov, cswap
++-- ct_field.cuh     -- CT field: add, sub, neg, mul, sqr, inv, half, cmov, cswap
++-- ct_scalar.cuh    -- CT scalar: add, sub, neg, half, mul, inverse (Fermat), GLV
++-- ct_point.cuh     -- CT point: dbl, add_mixed (Brier-Joye 7M+5S), add (11M+6S),
+|                       scalar_mul (GLV + bit-by-bit), generator_mul
++-- ct_sign.cuh      -- CT signing: ct_ecdsa_sign, ct_schnorr_sign, ct_schnorr_keypair
+```
+
+The GPU CT layer mirrors the CPU CT layer with identical algorithms adapted for CUDA:
+- `value_barrier()` uses PTX `asm volatile` to prevent compiler optimization
+- All mask operations are 64-bit (matching GPU's native word size)
+- No branch divergence on secret data (critical for SIMT warp execution)
+- Field/scalar heavy arithmetic delegates to fast-path (same cost) with CT
+  control flow wrapping
+
+#### GPU CT Usage
+
+```cuda
+#include "ct/ct_sign.cuh"
+
+__global__ void sign_kernel(const uint8_t* msg, const Scalar* privkey,
+                            ECDSASignatureGPU* sig, bool* ok) {
+    // CT ECDSA sign -- constant-time k*G, k^-1, scalar ops
+    *ok = secp256k1::cuda::ct::ct_ecdsa_sign(msg, privkey, sig);
+}
+
+__global__ void schnorr_kernel(const Scalar* privkey, const uint8_t* msg,
+                               const uint8_t* aux, SchnorrSignatureGPU* sig, bool* ok) {
+    // CT Schnorr sign -- constant-time nonce generation + signing
+    *ok = secp256k1::cuda::ct::ct_schnorr_sign(privkey, msg, aux, sig);
+}
+```
+
+#### GPU CT Benchmark Results (RTX 5060 Ti, SM 12.0)
+
+| Operation | FAST | CT | CT/FAST Overhead |
+|-----------|------|-----|------------------|
+| k*G (generator) | 129.1 ns | 341.9 ns | 2.65x |
+| k*P (scalar mul) | -- | 347.2 ns | -- |
+| ECDSA sign | 211.1 ns | 433.9 ns | 2.06x |
+| Schnorr sign | 284.9 ns | 715.8 ns | 2.51x |
+
+GPU CT throughput: **2.30M ECDSA sign/sec**, **1.40M Schnorr sign/sec**.
 
 ---
 
@@ -229,13 +284,25 @@ CT properties verified on one CPU may not hold on another:
 - ARM64: Apple Silicon M1 (macos-14) -- smoke per-PR, full nightly (`.github/workflows/ct-arm64.yml`)
 - ARM64: cross-compiled via aarch64-linux-gnu-g++-13 (compile check only)
 
-### 4. GPU Is Explicitly Non-CT
+### 4. GPU CT Guarantees
 
-GPU backends (CUDA, ROCm, OpenCL, Metal) make NO constant-time guarantees:
-- SIMT execution model exposes branch divergence
-- Shared memory access patterns are observable
-- No hardware support for CT on consumer GPUs
-- **Use GPU only for public-data workloads**
+The GPU CT layer (`secp256k1::cuda::ct::`) provides **algorithmic** constant-time
+guarantees: no secret-dependent branches, no secret-dependent memory access patterns,
+fixed iteration counts.
+
+**What GPU CT protects against:**
+- Software-level timing attacks from co-located GPU workloads
+- Branch divergence leaking scalar bits within a warp
+- Memory access pattern analysis via GPU profiling tools
+
+**What GPU CT does NOT protect against:**
+- Hardware-level electromagnetic or power analysis
+- GPU shared memory bank conflict timing (microarchitectural)
+- Driver-level scheduling observation
+- Physical side-channels requiring oscilloscope-level measurements
+
+The GPU CT layer is tested via `test_ct_smoke` (7 functional tests) and integrated
+into the GPU audit runner (Section S6: CT Analysis). See the GPU audit section below.
 
 ### 5. Experimental Protocols
 

@@ -1,0 +1,55 @@
+{
+  "framework_version": "2.0.0",
+  "backend": "OpenCL",
+  "device": {
+    "name": "NVIDIA GeForce RTX 5060 Ti",
+    "vendor": "NVIDIA Corporation",
+    "version": "OpenCL 3.0 CUDA",
+    "driver_version": "580.126.09",
+    "memory_mb": 15847,
+    "compute_units": 36
+  },
+  "platform": {
+    "os": "Linux",
+    "arch": "x86-64",
+    "compiler": "GCC 14.2.0",
+    "build_type": "Release"
+  },
+  "summary": {
+    "total": 27,
+    "passed": 19,
+    "failed": 8,
+    "skipped": 0,
+    "total_seconds": 0.195707,
+    "verdict": "ISSUES-FOUND"
+  },
+  "modules": [
+    { "id": "selftest_core", "name": "OpenCL Selftest (23+ kernel tests)", "section": "math_invariants", "result": "PASS", "time_ms": 157.458784, "error_code": 0 },
+    { "id": "field_add_sub", "name": "Field add/sub roundtrip", "section": "math_invariants", "result": "PASS", "time_ms": 0.344194, "error_code": 0 },
+    { "id": "field_mul_comm", "name": "Field mul commutativity", "section": "math_invariants", "result": "PASS", "time_ms": 0.161442, "error_code": 0 },
+    { "id": "field_inv", "name": "Field inverse roundtrip (a * a^-1 = 1)", "section": "math_invariants", "result": "PASS", "time_ms": 0.277172, "error_code": 0 },
+    { "id": "field_sqr", "name": "Field square == mul(a,a)", "section": "math_invariants", "result": "PASS", "time_ms": 0.133867, "error_code": 0 },
+    { "id": "field_negate", "name": "Field negate roundtrip (a + (-a) = 0)", "section": "math_invariants", "result": "PASS", "time_ms": 0.132015, "error_code": 0 },
+    { "id": "gen_mul_vec", "name": "Generator mul known vectors", "section": "math_invariants", "result": "PASS", "time_ms": 0.074126, "error_code": 0 },
+    { "id": "scalar_roundtrip", "name": "Scalar/Point consistency", "section": "math_invariants", "result": "PASS", "time_ms": 0.201873, "error_code": 0 },
+    { "id": "add_dbl_consist", "name": "Point add vs double consistency", "section": "math_invariants", "result": "PASS", "time_ms": 0.243917, "error_code": 0 },
+    { "id": "scalar_mul_lin", "name": "Scalar mul linearity (a+b)*G = aG+bG", "section": "math_invariants", "result": "PASS", "time_ms": 0.353603, "error_code": 0 },
+    { "id": "group_order", "name": "Group order basic checks", "section": "math_invariants", "result": "PASS", "time_ms": 0.234223, "error_code": 0 },
+    { "id": "batch_inv", "name": "Batch inversion (Montgomery trick)", "section": "math_invariants", "result": "PASS", "time_ms": 0.694958, "error_code": 0 },
+    { "id": "ecdsa_roundtrip", "name": "ECDSA sign + verify roundtrip", "section": "signatures", "result": "FAIL", "time_ms": 5.387598, "error_code": 2 },
+    { "id": "schnorr_roundtrip", "name": "Schnorr/BIP-340 sign + verify roundtrip", "section": "signatures", "result": "FAIL", "time_ms": 2.694820, "error_code": 2 },
+    { "id": "ecdsa_wrong_key", "name": "ECDSA verify rejects wrong pubkey", "section": "signatures", "result": "PASS", "time_ms": 4.869086, "error_code": 0 },
+    { "id": "batch_smul", "name": "Batch scalar mul generator", "section": "batch_advanced", "result": "PASS", "time_ms": 0.454583, "error_code": 0 },
+    { "id": "batch_j2a", "name": "Batch Jacobian to Affine", "section": "batch_advanced", "result": "FAIL", "time_ms": 0.375855, "error_code": 1 },
+    { "id": "diff_smul", "name": "OpenCL-host differential scalar mul", "section": "differential", "result": "PASS", "time_ms": 0.074472, "error_code": 0 },
+    { "id": "rfc6979_determ", "name": "RFC-6979 ECDSA deterministic nonce", "section": "standard_vectors", "result": "PASS", "time_ms": 5.097664, "error_code": 0 },
+    { "id": "bip340_vectors", "name": "BIP-340 Schnorr known-key roundtrip", "section": "standard_vectors", "result": "FAIL", "time_ms": 1.981557, "error_code": 2 },
+    { "id": "ecdsa_multi_key", "name": "ECDSA multi-key (10 keys) sign+verify", "section": "protocol_security", "result": "FAIL", "time_ms": 4.830620, "error_code": 20 },
+    { "id": "schnorr_multi_key", "name": "Schnorr multi-key (10 keys) sign+verify", "section": "protocol_security", "result": "FAIL", "time_ms": 1.892115, "error_code": 20 },
+    { "id": "fuzz_edge_scalar", "name": "Edge-case scalars (0*G, 1*G, G+G=2G)", "section": "fuzzing", "result": "PASS", "time_ms": 0.244023, "error_code": 0 },
+    { "id": "fuzz_ecdsa_zero", "name": "ECDSA rejects zero private key", "section": "fuzzing", "result": "PASS", "time_ms": 0.082785, "error_code": 0 },
+    { "id": "fuzz_schnorr_zero", "name": "Schnorr rejects zero private key", "section": "fuzzing", "result": "PASS", "time_ms": 0.088844, "error_code": 0 },
+    { "id": "perf_ecdsa_50", "name": "ECDSA 50-iteration stress", "section": "performance", "result": "FAIL", "time_ms": 4.934114, "error_code": 2 },
+    { "id": "perf_schnorr_25", "name": "Schnorr 25-iteration stress", "section": "performance", "result": "FAIL", "time_ms": 2.247930, "error_code": 2 }
+  ]
+}

@@ -8,6 +8,8 @@ How to build, run, and interpret benchmarks on all supported platforms.
 
 ### Benchmark Targets
 
+#### CPU Benchmarks
+
 | Target | CI Canonical | Always Builds | Purpose |
 |--------|:---:|:---:|---------|
 | **`bench_unified`** | **YES** | No (needs libsecp256k1 src) | THE standard: full apple-to-apple vs libsecp256k1 + OpenSSL |
@@ -16,6 +18,13 @@ How to build, run, and interpret benchmarks on all supported platforms.
 | `bench_field_26` | No | YES | Field arithmetic micro-benchmarks (10x26 limbs) |
 | `bench_kP` | No | YES | Scalar multiplication (k*P) benchmarks |
 | `bench_hornet` | No | No (Android only) | ARM64 Android benchmark (in android/test/) |
+
+#### GPU Benchmarks
+
+| Target | CI Canonical | Purpose |
+|--------|:---:|---------|
+| **`gpu_bench_unified`** | **YES** | GPU unified: FAST + CT ops, all categories, structured report |
+| `secp256k1_cuda_bench` | No | Basic GPU search throughput measurement |
 
 **`bench_unified`** is the canonical benchmark runner (see [.github/copilot-instructions.md](../.github/copilot-instructions.md) "Benchmark rules" section).
 It runs ALL operation categories in a single binary and produces apple-to-apple
@@ -130,6 +139,67 @@ idf.py flash monitor
 Results print to serial monitor. The ESP32 version uses `esp_timer_get_time()`
 and a reduced key pool (16 keys, median of 5 passes) due to memory limits.
 
+### 5. GPU (CUDA)
+
+Requires:
+- NVIDIA GPU with Compute Capability 7.5+ (Turing, Ampere, Ada Lovelace, Blackwell)
+- CUDA Toolkit 12.0+
+- CMake with `-DSECP256K1_BUILD_CUDA=ON`
+
+```bash
+# Configure (from repo root)
+cmake -S . -B build-cuda -G Ninja \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DSECP256K1_BUILD_CUDA=ON \
+  -DCMAKE_CUDA_ARCHITECTURES="86;89"
+
+# Build gpu_bench_unified
+cmake --build build-cuda --target gpu_bench_unified -j
+
+# Run
+./build-cuda/cuda/gpu_bench_unified
+```
+
+For Blackwell GPUs (RTX 50 series), use PTX JIT:
+```bash
+cmake -S . -B build-cuda -G Ninja \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DSECP256K1_BUILD_CUDA=ON \
+  -DCMAKE_CUDA_ARCHITECTURES=90
+
+cmake --build build-cuda --target gpu_bench_unified -j
+./build-cuda/cuda/gpu_bench_unified
+```
+
+#### GPU Benchmark Sections
+
+`gpu_bench_unified` measures all GPU operations in a single binary:
+
+| Section | Operations |
+|---------|-----------|
+| 1. Field Arithmetic | field_mul, field_sqr, field_inv, field_add, field_sub |
+| 2. Scalar Arithmetic | scalar_mul, scalar_inv, scalar_add, scalar_negate |
+| 3. Point Arithmetic | k*G (generator), k*P (arbitrary), point_add, point_dbl |
+| 4. ECDSA | sign (FAST), verify |
+| 5. Schnorr / BIP-340 | keypair, sign (FAST), verify |
+| 6. Constant-Time (CT) | ct::k*G, ct::k*P, ct::ecdsa_sign, ct::schnorr_sign |
+| 7. Throughput | ECDSA sign/s, Schnorr sign/s |
+
+Each section reports:
+- **ns/op** (nanoseconds per operation, averaged over batched GPU launch)
+- **ops/sec** (throughput)
+- **CT/FAST ratio** (for CT section, overhead vs. FAST equivalent)
+
+#### GPU Performance Expectations
+
+| GPU | k*G | ECDSA Sign | CT ECDSA Sign | CT/FAST |
+|-----|-----|-----------|---------------|---------|
+| RTX 5060 Ti (SM 12.0) | 129.1 ns | 211.1 ns | 433.9 ns | 2.06x |
+| RTX 4090 (SM 8.9) | ~90-120 ns | ~150-200 ns | ~300-400 ns | ~2x |
+
+**Note**: GPU kernel timings include launch overhead. Batch size strongly
+affects per-op cost -- larger batches amortize launch overhead better.
+
 ---
 
 ## Apple-to-Apple Comparison
@@ -215,6 +285,7 @@ by the benchmark infrastructure scripts -- see `audit/platform-reports/`.
 | `cpu/bench/bench_field_52.cpp` | 5x52 field arithmetic micro-benchmarks |
 | `cpu/bench/bench_field_26.cpp` | 10x26 field arithmetic micro-benchmarks |
 | `cpu/bench/libsecp_provider.c` | libsecp256k1 apple-to-apple provider |
+| `cuda/src/gpu_bench_unified.cu` | GPU unified benchmark (FAST + CT) |
 | `android/test/bench_hornet_android.cpp` | ARM64 Android port |
 | `android/test/libsecp_bench.c` | libsecp256k1 apple-to-apple (ARM64) |
 | `examples/esp32_bench_hornet/` | ESP32-S3 bench_hornet example |

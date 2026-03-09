@@ -1,0 +1,63 @@
+================================================================
+  UltrafastSecp256k1 -- OpenCL Unified Audit Report
+  Framework v2.0.0
+  Linux x86-64 | GCC 14.2.0 | Release
+  Device: NVIDIA GeForce RTX 5060 Ti (NVIDIA Corporation) | 36 CUs | 15847 MB
+================================================================
+
+
+  Section: math_invariants
+  --------------------------------------------------
+  [PASS]  OpenCL Selftest (23+ kernel tests)  (157.459 ms)
+  [PASS]  Field add/sub roundtrip  (0.344194 ms)
+  [PASS]  Field mul commutativity  (0.161442 ms)
+  [PASS]  Field inverse roundtrip (a * a^-1 = 1)  (0.277172 ms)
+  [PASS]  Field square == mul(a,a)  (0.133867 ms)
+  [PASS]  Field negate roundtrip (a + (-a) = 0)  (0.132015 ms)
+  [PASS]  Generator mul known vectors  (0.074126 ms)
+  [PASS]  Scalar/Point consistency  (0.201873 ms)
+  [PASS]  Point add vs double consistency  (0.243917 ms)
+  [PASS]  Scalar mul linearity (a+b)*G = aG+bG  (0.353603 ms)
+  [PASS]  Group order basic checks  (0.234223 ms)
+  [PASS]  Batch inversion (Montgomery trick)  (0.694958 ms)
+
+  Section: signatures
+  --------------------------------------------------
+  [FAIL]  ECDSA sign + verify roundtrip  (5.3876 ms)
+  [FAIL]  Schnorr/BIP-340 sign + verify roundtrip  (2.69482 ms)
+  [PASS]  ECDSA verify rejects wrong pubkey  (4.86909 ms)
+
+  Section: batch_advanced
+  --------------------------------------------------
+  [PASS]  Batch scalar mul generator  (0.454583 ms)
+  [FAIL]  Batch Jacobian to Affine  (0.375855 ms)
+
+  Section: differential
+  --------------------------------------------------
+  [PASS]  OpenCL-host differential scalar mul  (0.074472 ms)
+
+  Section: standard_vectors
+  --------------------------------------------------
+  [PASS]  RFC-6979 ECDSA deterministic nonce  (5.09766 ms)
+  [FAIL]  BIP-340 Schnorr known-key roundtrip  (1.98156 ms)
+
+  Section: protocol_security
+  --------------------------------------------------
+  [FAIL]  ECDSA multi-key (10 keys) sign+verify  (4.83062 ms)
+  [FAIL]  Schnorr multi-key (10 keys) sign+verify  (1.89211 ms)
+
+  Section: fuzzing
+  --------------------------------------------------
+  [PASS]  Edge-case scalars (0*G, 1*G, G+G=2G)  (0.244023 ms)
+  [PASS]  ECDSA rejects zero private key  (0.082785 ms)
+  [PASS]  Schnorr rejects zero private key  (0.088844 ms)
+
+  Section: performance
+  --------------------------------------------------
+  [FAIL]  ECDSA 50-iteration stress  (4.93411 ms)
+  [FAIL]  Schnorr 25-iteration stress  (2.24793 ms)
+
+================================================================
+  VERDICT: ISSUES-FOUND
+  TOTAL: 19/27 passed, 8 FAILED  (0.2 s)
+================================================================

@@ -1,0 +1,387 @@
+[
+  {
+    "name": "field_mul",
+    "unit": "ns",
+    "value": 10.7
+  },
+  {
+    "name": "field_sqr",
+    "unit": "ns",
+    "value": 10.0
+  },
+  {
+    "name": "field_inv",
+    "unit": "ns",
+    "value": 662.3
+  },
+  {
+    "name": "field_add",
+    "unit": "ns",
+    "value": 4.4
+  },
+  {
+    "name": "field_sub",
+    "unit": "ns",
+    "value": 4.1
+  },
+  {
+    "name": "field_negate",
+    "unit": "ns",
+    "value": 5.7
+  },
+  {
+    "name": "field_from_bytes (32B)",
+    "unit": "ns",
+    "value": 2.7
+  },
+  {
+    "name": "scalar_mul",
+    "unit": "ns",
+    "value": 19.7
+  },
+  {
+    "name": "scalar_inv",
+    "unit": "ns",
+    "value": 838.6
+  },
+  {
+    "name": "scalar_add",
+    "unit": "ns",
+    "value": 4.7
+  },
+  {
+    "name": "scalar_negate",
+    "unit": "ns",
+    "value": 2.9
+  },
+  {
+    "name": "scalar_from_bytes (32B)",
+    "unit": "ns",
+    "value": 2.9
+  },
+  {
+    "name": "pubkey_create (k*G)",
+    "unit": "ns",
+    "value": 5607.4
+  },
+  {
+    "name": "scalar_mul (k*P)",
+    "unit": "ns",
+    "value": 21169.2
+  },
+  {
+    "name": "scalar_mul_with_plan",
+    "unit": "ns",
+    "value": 20677.5
+  },
+  {
+    "name": "dual_mul (a*G + b*P)",
+    "unit": "ns",
+    "value": 23398.8
+  },
+  {
+    "name": "point_add (affine+affine)",
+    "unit": "ns",
+    "value": 914.2
+  },
+  {
+    "name": "point_add (J+A mixed)",
+    "unit": "ns",
+    "value": 149.3
+  },
+  {
+    "name": "point_dbl",
+    "unit": "ns",
+    "value": 82.6
+  },
+  {
+    "name": "normalize (J->affine)",
+    "unit": "ns",
+    "value": 2.8
+  },
+  {
+    "name": "batch_normalize /pt (N=64)",
+    "unit": "ns",
+    "value": 140.5
+  },
+  {
+    "name": "next_inplace (+=G)",
+    "unit": "ns",
+    "value": 147.1
+  },
+  {
+    "name": "KPlan::from_scalar(w=4)",
+    "unit": "ns",
+    "value": 1284.8
+  },
+  {
+    "name": "to_compressed (33B)",
+    "unit": "ns",
+    "value": 8.1
+  },
+  {
+    "name": "to_uncompressed (65B)",
+    "unit": "ns",
+    "value": 8.3
+  },
+  {
+    "name": "x_only_bytes (32B)",
+    "unit": "ns",
+    "value": 3.4
+  },
+  {
+    "name": "x_bytes_and_parity",
+    "unit": "ns",
+    "value": 4.7
+  },
+  {
+    "name": "has_even_y",
+    "unit": "ns",
+    "value": 2.0
+  },
+  {
+    "name": "batch_to_compressed /pt (N=64)",
+    "unit": "ns",
+    "value": 148.1
+  },
+  {
+    "name": "batch_x_only_bytes /pt (N=64)",
+    "unit": "ns",
+    "value": 109.9
+  },
+  {
+    "name": "ecdsa_sign",
+    "unit": "ns",
+    "value": 7705.8
+  },
+  {
+    "name": "ecdsa_sign_verified",
+    "unit": "ns",
+    "value": 38585.4
+  },
+  {
+    "name": "ecdsa_verify",
+    "unit": "ns",
+    "value": 24704.3
+  },
+  {
+    "name": "schnorr_keypair_create",
+    "unit": "ns",
+    "value": 5593.2
+  },
+  {
+    "name": "schnorr_sign",
+    "unit": "ns",
+    "value": 6030.8
+  },
+  {
+    "name": "schnorr_sign_verified",
+    "unit": "ns",
+    "value": 35556.5
+  },
+  {
+    "name": "schnorr_verify (cached xonly)",
+    "unit": "ns",
+    "value": 22837.2
+  },
+  {
+    "name": "schnorr_verify (raw bytes)",
+    "unit": "ns",
+    "value": 28809.0
+  },
+  {
+    "name": "schnorr_batch_verify(N=4)",
+    "unit": "ns",
+    "value": 109819.1
+  },
+  {
+    "name": "-> per-sig amortized (N=4)",
+    "unit": "ns",
+    "value": 27454.8
+  },
+  {
+    "name": "schnorr_batch_verify(N=16)",
+    "unit": "ns",
+    "value": 396874.1
+  },
+  {
+    "name": "-> per-sig amortized (N=16)",
+    "unit": "ns",
+    "value": 24804.6
+  },
+  {
+    "name": "schnorr_batch_verify(N=64)",
+    "unit": "ns",
+    "value": 2397940.9
+  },
+  {
+    "name": "-> per-sig amortized (N=64)",
+    "unit": "ns",
+    "value": 37467.8
+  },
+  {
+    "name": "ecdsa_batch_verify(N=4)",
+    "unit": "ns",
+    "value": 82520.4
+  },
+  {
+    "name": "ecdsa_batch_verify(N=16)",
+    "unit": "ns",
+    "value": 342148.9
+  },
+  {
+    "name": "ecdsa_batch_verify(N=64)",
+    "unit": "ns",
+    "value": 1403852.4
+  },
+  {
+    "name": "ct::scalar_inverse (SafeGCD)",
+    "unit": "ns",
+    "value": 1545.3
+  },
+  {
+    "name": "ct::generator_mul (k*G)",
+    "unit": "ns",
+    "value": 11613.9
+  },
+  {
+    "name": "ct::scalar_mul (k*P)",
+    "unit": "ns",
+    "value": 25233.8
+  },
+  {
+    "name": "ct::point_dbl",
+    "unit": "ns",
+    "value": 81.2
+  },
+  {
+    "name": "ct::point_add_complete (11M+6S)",
+    "unit": "ns",
+    "value": 263.1
+  },
+  {
+    "name": "ct::point_add_mixed_complete (7M+5S)",
+    "unit": "ns",
+    "value": 173.9
+  },
+  {
+    "name": "ct::point_add_mixed_unified (7M+5S)",
+    "unit": "ns",
+    "value": 163.1
+  },
+  {
+    "name": "ct::ecdsa_sign",
+    "unit": "ns",
+    "value": 15667.7
+  },
+  {
+    "name": "ct::ecdsa_sign_verified",
+    "unit": "ns",
+    "value": 52603.2
+  },
+  {
+    "name": "ct::schnorr_sign",
+    "unit": "ns",
+    "value": 13500.2
+  },
+  {
+    "name": "ct::schnorr_sign_verified",
+    "unit": "ns",
+    "value": 42850.8
+  },
+  {
+    "name": "ct::schnorr_keypair_create",
+    "unit": "ns",
+    "value": 13145.8
+  },
+  {
+    "name": "field_inv_var",
+    "unit": "ns",
+    "value": 937.0
+  },
+  {
+    "name": "field_normalize",
+    "unit": "ns",
+    "value": 7.4
+  },
+  {
+    "name": "field_from_bytes (set_b32)",
+    "unit": "ns",
+    "value": 7.2
+  },
+  {
+    "name": "scalar_inverse (CT)",
+    "unit": "ns",
+    "value": 1421.9
+  },
+  {
+    "name": "scalar_inverse_var",
+    "unit": "ns",
+    "value": 842.9
+  },
+  {
+    "name": "scalar_from_bytes (set_b32)",
+    "unit": "ns",
+    "value": 5.0
+  },
+  {
+    "name": "point_dbl (gej_double_var)",
+    "unit": "ns",
+    "value": 79.8
+  },
+  {
+    "name": "point_add (gej_add_ge_var)",
+    "unit": "ns",
+    "value": 156.5
+  },
+  {
+    "name": "ecmult (a*P + b*G, Strauss)",
+    "unit": "ns",
+    "value": 24125.0
+  },
+  {
+    "name": "ecmult_gen (k*G, comb)",
+    "unit": "ns",
+    "value": 11303.3
+  },
+  {
+    "name": "generator_mul (ec_pubkey_create)",
+    "unit": "ns",
+    "value": 12862.6
+  },
+  {
+    "name": "scalar_mul_P (k*P, tweak_mul)",
+    "unit": "ns",
+    "value": 22261.2
+  },
+  {
+    "name": "serialize_compressed (33B)",
+    "unit": "ns",
+    "value": 17.1
+  },
+  {
+    "name": "serialize_uncompressed (65B)",
+    "unit": "ns",
+    "value": 21.7
+  },
+  {
+    "name": "point_add (pubkey_combine)",
+    "unit": "ns",
+    "value": 1812.3
+  },
+  {
+    "name": "schnorr_sign (BIP-340)",
+    "unit": "ns",
+    "value": 13788.7
+  },
+  {
+    "name": "schnorr_verify (BIP-340)",
+    "unit": "ns",
+    "value": 25950.3
+  },
+  {
+    "name": "Harness",
+    "unit": "ns",
+    "value": 3000000000.0
+  }
+]
