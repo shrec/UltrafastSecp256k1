@@ -390,7 +390,9 @@ std::pair<ExtendedKey, bool> bip32_master_key(const uint8_t* seed, std::size_t s
     std::memcpy(IL.data(), I.data(), 32);
     std::memcpy(IR.data(), I.data() + 32, 32);
 
-    auto master_key = Scalar::from_bytes(IL);
+    auto master_key = Scalar{};
+    // BIP-32: IL must be < curve order n; reject if >= n (same as child derivation)
+    if (!Scalar::parse_bytes_strict(IL, master_key)) return {ExtendedKey{}, false};
     if (master_key.is_zero()) return {ExtendedKey{}, false};
 
     ExtendedKey ext{};

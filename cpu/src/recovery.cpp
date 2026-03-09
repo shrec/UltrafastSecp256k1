@@ -44,6 +44,10 @@ static const std::array<uint8_t, 32> SECP256K1_ORDER_BYTES = {
 };
 
 // -- Sign with Recovery ID ----------------------------------------------------
+// WARNING: Variable-time path -- uses fast::scalar_mul(k) and fast::inverse(k)
+// on the secret nonce. For side-channel-resistant signing, use ct::ecdsa_sign()
+// (which does not produce recovery IDs). This function is suitable only for
+// environments where timing attacks are not a concern.
 
 RecoverableSignature ecdsa_sign_recoverable(
     const std::array<uint8_t, 32>& msg_hash,

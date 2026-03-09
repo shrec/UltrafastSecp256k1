@@ -483,7 +483,7 @@ ECDSASignature ecdsa_sign_verified(const std::array<uint8_t, 32>& msg_hash,
     auto result = ecdsa_sign(msg_hash, private_key);
 
     if (!result.r.is_zero()) {
-        auto pk = Point::generator().scalar_mul(private_key);
+        auto pk = ct::generator_mul(private_key);
         if (!ecdsa_verify(msg_hash.data(), pk, result)) {
             result = {Scalar::zero(), Scalar::zero()};
         }
@@ -536,7 +536,7 @@ ECDSASignature ecdsa_sign_hedged_verified(const std::array<uint8_t, 32>& msg_has
     auto result = ecdsa_sign_hedged(msg_hash, private_key, aux_rand);
 
     if (!result.r.is_zero()) {
-        auto pk = Point::generator().scalar_mul(private_key);
+        auto pk = ct::generator_mul(private_key);
         if (!ecdsa_verify(msg_hash.data(), pk, result)) {
             result = {Scalar::zero(), Scalar::zero()};
         }

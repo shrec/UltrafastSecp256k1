@@ -1,6 +1,6 @@
 # Audit Guide
 
-**UltrafastSecp256k1 v3.16.0** -- Independent Auditor Navigation
+**UltrafastSecp256k1 v3.21.0** -- Independent Auditor Navigation
 
 > This document is for auditors. Here you will find everything needed
 > to evaluate the library's security, correctness, and quality.

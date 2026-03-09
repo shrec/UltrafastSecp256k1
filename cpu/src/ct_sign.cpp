@@ -48,7 +48,7 @@ ECDSASignature ecdsa_sign(const std::array<uint8_t, 32>& msg_hash,
     if (r.is_zero()) return {Scalar::zero(), Scalar::zero()};
 
     // s = k^{-1} * (z + r * d) mod n
-    // CT inverse: Fermat a^{n-2} -- fixed addition chain, no secret-dependent branches.
+    // CT inverse: SafeGCD Bernstein-Yang divsteps-59, constant-time.
     auto k_inv = ct::scalar_inverse(k);
     auto s = k_inv * (z + r * private_key);
     if (s.is_zero()) return {Scalar::zero(), Scalar::zero()};
@@ -106,7 +106,7 @@ ECDSASignature ecdsa_sign_hedged(const std::array<uint8_t, 32>& msg_hash,
     auto r = Scalar::from_bytes(r_bytes);
     if (r.is_zero()) return {Scalar::zero(), Scalar::zero()};
 
-    // CT inverse: Fermat a^{n-2} -- same fixed chain as ecdsa_sign above.
+    // CT inverse: SafeGCD Bernstein-Yang divsteps-59, same as ecdsa_sign above.
     auto k_inv = ct::scalar_inverse(k);
     auto s = k_inv * (z + r * private_key);
     if (s.is_zero()) return {Scalar::zero(), Scalar::zero()};

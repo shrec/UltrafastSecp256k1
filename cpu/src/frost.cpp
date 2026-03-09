@@ -274,6 +274,7 @@ frost_sign(const FrostKeyPackage& key_pkg,
     Point const R = compute_group_commitment(nonce_commitments, binding_factors);
 
     // BIP-340 compatibility: negate nonces if R has odd y
+    // NOTE: R and group_public_key are public values; VT field inverse is safe here.
     auto R_y = R.y().to_bytes();
     bool const negate_R = (R_y[31] & 1) != 0;
 
@@ -339,6 +340,7 @@ bool frost_verify_partial(const FrostPartialSig& partial_sig,
     }
 
     // Group commitment
+    // NOTE: R and group_public_key are public values; VT field inverse is safe here.
     Point const R = compute_group_commitment(nonce_commitments, binding_factors);
     auto R_y = R.y().to_bytes();
     bool const negate_R = (R_y[31] & 1) != 0;
@@ -386,6 +388,7 @@ frost_aggregate(const std::vector<FrostPartialSig>& partial_sigs,
     Point R = compute_group_commitment(nonce_commitments, binding_factors);
 
     // BIP-340: ensure even y
+    // NOTE: R is a public group commitment; VT field inverse is safe here.
     auto R_y = R.y().to_bytes();
     if (R_y[31] & 1) {
         R = R.negate();

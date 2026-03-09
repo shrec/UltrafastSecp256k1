@@ -69,6 +69,12 @@ bool has_even_y(const Point& P) {
 // BIP-327 KeyAgg: Q = sum(a_i * P_i)
 // a_i = tagged_hash("KeyAgg coefficient", L || pk_i)
 // where L = hash of all sorted pubkeys
+//
+// NOTE: This implementation uses 32-byte x-only pubkeys (even Y assumed).
+// BIP-327 specifies 33-byte compressed ("plain") pubkeys to preserve Y parity.
+// This is correct when all signers use x-only keys by convention, but does not
+// handle signers with odd-Y keys. A future revision should accept 33-byte keys
+// for full BIP-327 conformance.
 
 MuSig2KeyAggCtx musig2_key_agg(const std::vector<std::array<uint8_t, 32>>& pubkeys) {
     MuSig2KeyAggCtx ctx{};

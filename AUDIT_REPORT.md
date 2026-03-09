@@ -2,7 +2,7 @@
 
 > **Note (2026-03-04):** This report was generated against v3.9.0 (commit `cc20253`).
 > The test suite has been significantly restructured since then (31 CTest targets
-> as of v3.17.0 vs 20 at time of this audit). The 8 original audit suites have
+> as of v3.21.0 vs 20 at time of this audit). The 8 original audit suites have
 > been consolidated into `unified_audit` + 17 specialized standalone audit tests
 > (including Wycheproof ECDSA/ECDH, Fiat-Crypto linkage, CT formal verification,
 > fault injection, and cross-platform KAT).
