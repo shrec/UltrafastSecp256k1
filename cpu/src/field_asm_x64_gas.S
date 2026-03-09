@@ -8,7 +8,14 @@
 # Required: BMI2 (MULX) + ADX (ADCX/ADOX) (Intel Broadwell 2015+, AMD Zen 2017+)
 # ==============================================================================
 
-#if defined(_WIN32) || defined(__WIN32__) || defined(WIN32)
+/* macOS Mach-O requires a leading underscore on C symbols. */
+#if defined(__APPLE__)
+    #define CSYM(name) _##name
+#else
+    #define CSYM(name) name
+#endif
+
+#if defined(_WIN32) || defined(__WIN32__) || defined(WIN32) || defined(__APPLE__)
     #define ELF_TYPE(name)
     #define ELF_SIZE(name)
     #define ELF_SECTION(...)
@@ -50,9 +57,9 @@
 # Performance: Target 6-8 ns (vs 33-37 ns with BMI2 intrinsics)
 # ==============================================================================
 
-.globl mul_4x4_asm
-ELF_TYPE(mul_4x4_asm)
-mul_4x4_asm:
+.globl CSYM(mul_4x4_asm)
+ELF_TYPE(CSYM(mul_4x4_asm))
+CSYM(mul_4x4_asm):
     PROLOGUE_3ARG
     push rbx
     push rbp
@@ -186,7 +193,7 @@ mul_4x4_asm:
     pop rbx
     EPILOGUE
     ret
-ELF_SIZE(mul_4x4_asm)
+ELF_SIZE(CSYM(mul_4x4_asm))
 
 # ==============================================================================
 # sqr_4x4_asm: 256-bit Squaring -> 512-bit result
@@ -198,9 +205,9 @@ ELF_SIZE(mul_4x4_asm)
 #   RSI = uint64_t* result
 # ==============================================================================
 
-.globl sqr_4x4_asm
-ELF_TYPE(sqr_4x4_asm)
-sqr_4x4_asm:
+.globl CSYM(sqr_4x4_asm)
+ELF_TYPE(CSYM(sqr_4x4_asm))
+CSYM(sqr_4x4_asm):
     PROLOGUE_2ARG
     push rbx
     push rbp
@@ -325,7 +332,7 @@ sqr_4x4_asm:
     pop rbx
     EPILOGUE
     ret
-ELF_SIZE(sqr_4x4_asm)
+ELF_SIZE(CSYM(sqr_4x4_asm))
 
 # ==============================================================================
 # add_4_asm: 256-bit Modular Addition (a + b mod p)
@@ -338,9 +345,9 @@ ELF_SIZE(sqr_4x4_asm)
 #   RDX = uint64_t* result
 # ==============================================================================
 
-.globl add_4_asm
-ELF_TYPE(add_4_asm)
-add_4_asm:
+.globl CSYM(add_4_asm)
+ELF_TYPE(CSYM(add_4_asm))
+CSYM(add_4_asm):
     PROLOGUE_3ARG
     push rbx
     push rbp
@@ -399,7 +406,7 @@ add_4_asm:
     EPILOGUE
     ret
 
-ELF_SIZE(add_4_asm)
+ELF_SIZE(CSYM(add_4_asm))
 
 # ==============================================================================
 # sub_4_asm: 256-bit Modular Subtraction (a - b mod p)
@@ -410,9 +417,9 @@ ELF_SIZE(add_4_asm)
 #   RDX = uint64_t* result
 # ==============================================================================
 
-.globl sub_4_asm
-ELF_TYPE(sub_4_asm)
-sub_4_asm:
+.globl CSYM(sub_4_asm)
+ELF_TYPE(CSYM(sub_4_asm))
+CSYM(sub_4_asm):
     PROLOGUE_3ARG
     push rbx
     push rbp
@@ -463,7 +470,7 @@ sub_4_asm:
     EPILOGUE
     ret
 
-ELF_SIZE(sub_4_asm)
+ELF_SIZE(CSYM(sub_4_asm))
 
 .text
 
@@ -479,9 +486,9 @@ ELF_SIZE(sub_4_asm)
 #   RDI = uint64_t* data (pointer to 8 limbs, result stored in first 4)
 # ==============================================================================
 
-.globl reduce_4_asm
-ELF_TYPE(reduce_4_asm)
-reduce_4_asm:
+.globl CSYM(reduce_4_asm)
+ELF_TYPE(CSYM(reduce_4_asm))
+CSYM(reduce_4_asm):
     PROLOGUE_1ARG
     push rbx
     push r12
@@ -573,7 +580,7 @@ reduce_4_asm:
     pop r12
     pop rbx
     ret
-ELF_SIZE(reduce_4_asm)
+ELF_SIZE(CSYM(reduce_4_asm))
 
 # ==============================================================================
 # field_mul_full_asm: 256x256 -> 512 -> 256-bit Modular Multiplication
@@ -587,9 +594,9 @@ ELF_SIZE(reduce_4_asm)
 #   RDX = uint64_t* result
 # ==============================================================================
 
-.globl field_mul_full_asm
-ELF_TYPE(field_mul_full_asm)
-field_mul_full_asm:
+.globl CSYM(field_mul_full_asm)
+ELF_TYPE(CSYM(field_mul_full_asm))
+CSYM(field_mul_full_asm):
     PROLOGUE_3ARG
     push rbx
     push rbp
@@ -816,7 +823,7 @@ field_mul_full_asm:
     pop rbx
     EPILOGUE
     ret
-ELF_SIZE(field_mul_full_asm)
+ELF_SIZE(CSYM(field_mul_full_asm))
 
 # ==============================================================================
 # field_sqr_full_asm: 256 -> 512 -> 256-bit Modular Squaring
@@ -828,9 +835,9 @@ ELF_SIZE(field_mul_full_asm)
 #   RSI = uint64_t* result
 # ==============================================================================
 
-.globl field_sqr_full_asm
-ELF_TYPE(field_sqr_full_asm)
-field_sqr_full_asm:
+.globl CSYM(field_sqr_full_asm)
+ELF_TYPE(CSYM(field_sqr_full_asm))
+CSYM(field_sqr_full_asm):
     PROLOGUE_2ARG
     push rbx
     push rbp
@@ -1025,10 +1032,10 @@ field_sqr_full_asm:
     pop rbx
     EPILOGUE
     ret
-ELF_SIZE(field_sqr_full_asm)
+ELF_SIZE(CSYM(field_sqr_full_asm))
 
 /* Mark stack as non-executable (ELF). No-op on Windows. */
-#if !defined(_WIN32)
+#if !defined(_WIN32) && !defined(__APPLE__)
 .section .note.GNU-stack,"",@progbits
 #endif
 
