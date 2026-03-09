@@ -1711,6 +1711,11 @@ jobs:
           SBOM_HEREDOC
           sed -i "s/VERSION_PLACEHOLDER/${VERSION}/g; s/TIMESTAMP_PLACEHOLDER/${TIMESTAMP}/g" sbom.cdx.json
 
+      - name: Delete pre-existing release (if any)
+        run: gh release delete "${{ github.ref_name }}" --yes 2>/dev/null || true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2
         with:
@@ -1719,6 +1724,7 @@ jobs:
           body: ${{ steps.notes.outputs.NOTES }}
           draft: false
           prerelease: ${{ contains(github.ref_name, '-rc') || contains(github.ref_name, '-beta') || contains(github.ref_name, '-alpha') }}
+          fail_on_unmatched_files: false
           files: |
             dist/**/*
             SHA256SUMS
