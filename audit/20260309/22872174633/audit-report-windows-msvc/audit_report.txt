@@ -1,0 +1,113 @@
+================================================================
+  UltrafastSecp256k1 -- Industrial Self-Audit Report
+================================================================
+
+Library:    UltrafastSecp256k1 v3.21.1
+Git Hash:   8d0def85
+Framework:  Audit Framework v2.0.0
+Timestamp:  2026-03-09T20:03:20
+OS:         Windows
+Arch:       x86-64
+Compiler:   MSVC 1944
+Build:      Release
+
+----------------------------------------------------------------
+  [0] Library Selftest (core KAT)          PASS  (7271 ms)
+----------------------------------------------------------------
+
+================================================================
+  Section 1/8: Mathematical Invariants (Fp, Zn, Group Laws)
+================================================================
+  [ 1] Field Fp deep audit (add/mul/inv/sqrt/batch)  PASS  (319 ms)
+  [ 2] Scalar Zn deep audit (mod/GLV/edge/inv)       PASS  (67 ms)
+  [ 3] Point ops deep audit (Jac/affine/sigs)        PASS  (1764 ms)
+  [ 4] Field & scalar arithmetic                     PASS  (4 ms)
+  [ 5] Arithmetic correctness                        PASS  (7 ms)
+  [ 6] Scalar multiplication                         PASS  (2911 ms)
+  [ 7] Exhaustive algebraic verification             PASS  (47 ms)
+  [ 8] Comprehensive 500+ suite                      PASS  (80 ms)
+  [ 9] ECC property-based invariants                 PASS  (14 ms)
+  [10] Affine batch addition                         PASS  (197 ms)
+  [11] Carry chain stress (limb boundary)            PASS  (1 ms)
+  [12] FieldElement26 (10x26) vs 4x64                PASS  (1 ms)
+  -------- Section Result: 12/12 passed (5412 ms)
+
+================================================================
+  Section 2/8: Constant-Time & Side-Channel Analysis
+================================================================
+  [13] CT deep audit (masks/cmov/cswap/timing)       PASS  (171 ms)
+  [14] Constant-time layer                           PASS  (3 ms)
+  [15] FAST == CT equivalence                        PASS  (35 ms)
+  [16] Side-channel dudect (smoke)                   PASS  (87 ms)
+  [17] Formal CT verification (ctgrind/MSAN)         PASS  (3 ms)
+  [18] CT scalar_mul vs fast (diagnostic)            PASS  (14 ms)
+  -------- Section Result: 6/6 passed (314 ms)
+
+================================================================
+  Section 3/8: Differential & Cross-Library Testing
+================================================================
+  [19] Differential correctness                      PASS  (829 ms)
+  [20] Fiat-Crypto reference vectors                 PASS  (2 ms)
+  [21] Fiat-Crypto direct linkage (100%% parity)     PASS  (0 ms)
+  [22] Cross-platform KAT                            PASS  (1 ms)
+  -------- Section Result: 4/4 passed (833 ms)
+
+================================================================
+  Section 4/8: Standard Test Vectors (BIP-340, RFC-6979, BIP-32)
+================================================================
+  [23] BIP-340 official vectors                      PASS  (5 ms)
+  [24] BIP-340 strict encoding (non-canonical)       PASS  (1 ms)
+  [25] BIP-32 official vectors TV1-5                 PASS  (9 ms)
+  [26] RFC 6979 ECDSA vectors                        PASS  (5 ms)
+  [27] FROST reference KAT vectors                   PASS  (68 ms)
+  [28] MuSig2 BIP-327 reference vectors              PASS  (16 ms)
+  [29] Wycheproof ECDSA secp256k1 vectors            PASS  (10 ms)
+  [30] Wycheproof ECDH secp256k1 vectors             PASS  (3 ms)
+  -------- Section Result: 8/8 passed (117 ms)
+
+================================================================
+  Section 5/8: Fuzzing & Adversarial Attack Resilience
+================================================================
+  [31] Adversarial fuzz (malform/edge)               PASS  (555 ms)
+  [32] Parser fuzz (DER/Schnorr/Pubkey)              PASS  (21186 ms)
+  [33] Address/BIP32/FFI boundary fuzz               PASS  (5018 ms)
+  [34] Fault injection simulation                    PASS  (233 ms)
+  -------- Section Result: 4/4 passed (26991 ms)
+
+================================================================
+  Section 6/8: Protocol Security (ECDSA, Schnorr, MuSig2, FROST)
+================================================================
+  [35] ECDSA + Schnorr                               PASS  (3 ms)
+  [36] BIP-32 HD derivation                          PASS  (2 ms)
+  [37] MuSig2                                        PASS  (6 ms)
+  [38] ECDH + recovery + taproot                     PASS  (6 ms)
+  [39] v4 (Pedersen/FROST/etc)                       PASS  (13 ms)
+  [40] Coins layer                                   PASS  (5 ms)
+  [41] MuSig2 + FROST protocol suite                 PASS  (515 ms)
+  [42] MuSig2 + FROST advanced/adversar              PASS  (182 ms)
+  [43] Integration (ECDH/batch/cross-proto)          PASS  (2548 ms)
+  [44] Batch verify weight randomness audit          PASS  (3 ms)
+  -------- Section Result: 10/10 passed (3282 ms)
+
+================================================================
+  Section 7/8: ABI & Memory Safety (zeroization, hardening)
+================================================================
+  [45] Security hardening (zero/bitflip/nonce)       PASS  (77327 ms)
+  [46] Debug invariant assertions                    PASS  (1 ms)
+  [47] ABI version gate (compile-time)               PASS  (0 ms)
+  [48] Cross-ABI/FFI round-trip (ufsecp C API)       PASS  (5 ms)
+  -------- Section Result: 4/4 passed (77334 ms)
+
+================================================================
+  Section 8/8: Performance Validation & Regression
+================================================================
+  [49] Accelerated hashing                           PASS  (552 ms)
+  [50] Multi-scalar & batch verify                   PASS  (6 ms)
+  [51] Performance smoke (sign/verify roundtrip)     PASS  (0 ms)
+  -------- Section Result: 3/3 passed (558 ms)
+
+================================================================
+  AUDIT VERDICT: AUDIT-READY
+  TOTAL: 53/53 modules passed  (122.1 s)
+  Platform: Windows x86-64 | MSVC 1944 | Release
+================================================================
