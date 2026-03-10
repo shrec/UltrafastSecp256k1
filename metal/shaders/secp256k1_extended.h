@@ -271,48 +271,101 @@ inline Scalar256 scalar_mul_mod_n(thread const Scalar256 &a, thread const Scalar
         prod[i+8] = uint(carry);
     }
 
-    // Simple reduction: subtract q*n where q ~= prod[8..15]
-    // (Barrett approximation for 32-bit limb representation)
-    Scalar256 r;
-    for (int i = 0; i < 8; i++) r.limbs[i] = prod[i];
+    // Solinas reduction: n = 2^256 - c, so 2^256 ≡ c (mod n)
+    // c = 2^256 - n in LE 32-bit limbs (129 bits, 5 limbs):
+    const uint C[5] = {0x2FC9BEBFu, 0x402DA173u, 0x50B75FC4u, 0x45512319u, 0x00000001u};
 
-    uint q[8];
-    for (int i = 0; i < 8; i++) q[i] = prod[i + 8];
+    // Strategy: prod = hi * 2^256 + lo ≡ hi * c + lo (mod n).
+    // Repeat until value fits in ≤257 bits, then conditional-subtract n.
+    // Round 1: fold prod[8..15] via c → result ≤ 13 limbs (< 2^386)
+    // Round 2: fold w[8..12]   via c → result ≤ 10 limbs (< 2^260)
+    // Round 3: fold w[8..9]    via c → result ≤  9 limbs (< 2^257)
 
-    // Compute q * n (low 8 limbs only)
-    uint qn[8];
-    for (int i = 0; i < 8; i++) qn[i] = 0;
+    uint w[14];
+    for (int i = 0; i < 8; i++) w[i] = prod[i];
+    for (int i = 8; i < 14; i++) w[i] = 0;
+
+    // Round 1: accumulate prod[8..15] * c into w
     for (int i = 0; i < 8; i++) {
+        uint h = prod[8 + i];
+        if (h == 0) continue;
         ulong carry = 0;
-        for (int j = 0; j < 8 && (i+j) < 8; j++) {
-            ulong p = ulong(q[i]) * ulong(SECP256K1_N[j])
-                    + ulong(qn[i+j]) + carry;
-            qn[i+j] = uint(p);
+        for (int j = 0; j < 5; j++) {
+            ulong p = ulong(h) * ulong(C[j]) + ulong(w[i + j]) + carry;
+            w[i + j] = uint(p);
             carry = p >> 32;
+        }
+        for (int k = i + 5; k < 14 && carry; k++) {
+            ulong s = ulong(w[k]) + carry;
+            w[k] = uint(s);
+            carry = s >> 32;
         }
     }
 
-    // r = r - q*n
-    ulong borrow = 0;
-    for (int i = 0; i < 8; i++) {
-        ulong d = ulong(r.limbs[i]) - ulong(qn[i]) - borrow;
-        r.limbs[i] = uint(d);
-        borrow = (d >> 63);
+    // Round 2: fold w[8..13] via c
+    uint hi[6];
+    for (int i = 0; i < 6; i++) hi[i] = w[8 + i];
+    for (int i = 8; i < 14; i++) w[i] = 0;
+
+    for (int i = 0; i < 6; i++) {
+        if (hi[i] == 0) continue;
+        ulong carry = 0;
+        for (int j = 0; j < 5; j++) {
+            int pos = i + j;
+            if (pos >= 14) break;
+            ulong p = ulong(hi[i]) * ulong(C[j]) + ulong(w[pos]) + carry;
+            w[pos] = uint(p);
+            carry = p >> 32;
+        }
+        for (int k = i + 5; k < 14 && carry; k++) {
+            ulong s = ulong(w[k]) + carry;
+            w[k] = uint(s);
+            carry = s >> 32;
+        }
     }
+
+    // Round 3: fold w[8..13] via c (values are small now)
+    for (int i = 0; i < 6; i++) hi[i] = w[8 + i];
+    for (int i = 8; i < 14; i++) w[i] = 0;
+
+    for (int i = 0; i < 6; i++) {
+        if (hi[i] == 0) continue;
+        ulong carry = 0;
+        for (int j = 0; j < 5; j++) {
+            int pos = i + j;
+            if (pos >= 14) break;
+            ulong p = ulong(hi[i]) * ulong(C[j]) + ulong(w[pos]) + carry;
+            w[pos] = uint(p);
+            carry = p >> 32;
+        }
+        for (int k = i + 5; k < 14 && carry; k++) {
+            ulong s = ulong(w[k]) + carry;
+            w[k] = uint(s);
+            carry = s >> 32;
+        }
+    }
+
+    // Result in w[0..8], with w[8] ≤ 1 (value < 2^257 < 2n).
+    Scalar256 r;
+    for (int i = 0; i < 8; i++) r.limbs[i] = w[i];
+    uint overflow = w[8];
 
     // Conditional subtract n at most twice
     for (int pass = 0; pass < 2; pass++) {
-        borrow = 0;
+        ulong borrow = 0;
         uint tmp[8];
         for (int i = 0; i < 8; i++) {
             ulong d = ulong(r.limbs[i]) - ulong(SECP256K1_N[i]) - borrow;
             tmp[i] = uint(d);
             borrow = (d >> 63);
         }
-        uint mask = -(uint(borrow == 0));
+        ulong d_over = ulong(overflow) - borrow;
+        bool do_sub = (d_over >> 63) == 0;
+        uint mask = do_sub ? 0xFFFFFFFFu : 0u;
         uint nmask = ~mask;
         for (int i = 0; i < 8; i++)
             r.limbs[i] = (tmp[i] & mask) | (r.limbs[i] & nmask);
+        overflow = do_sub ? uint(d_over) : overflow;
     }
 
     return r;

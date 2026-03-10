@@ -168,6 +168,9 @@ if(METAL_COMPILER)
             ${SHADER_DIR}/secp256k1_field.h
             ${SHADER_DIR}/secp256k1_point.h
             ${SHADER_DIR}/secp256k1_bloom.h
+            ${SHADER_DIR}/secp256k1_extended.h
+            ${SHADER_DIR}/secp256k1_hash160.h
+            ${SHADER_DIR}/secp256k1_affine.h
         COMMENT "[Metal] Compiling secp256k1_kernels.metal -> .air"
     )
 
