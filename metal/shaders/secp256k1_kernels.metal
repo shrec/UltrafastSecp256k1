@@ -61,7 +61,7 @@ struct SearchParams {
 // =============================================================================
 // ACCELERATION: Instead of O(tid) incremental additions, each thread
 // computes its scalar offset k = batch_start + tid and does a single
-// scalar_mul(G, k). The 4-bit windowed scalar_mul makes this fast.
+// scalar_mul_glv(G, k). GLV endomorphism halves doublings (~1.8x speedup).
 //
 // For SUBTRACTION search (Q - kG = target?), host pre-computes:
 //   Q_start = target point
@@ -93,7 +93,7 @@ kernel void search_kernel(
     JacobianPoint kq_local = KQ_start;
 
     // Compute tid*KG via scalar_mul (4-bit windowed, efficient for small scalars)
-    JacobianPoint offset_point = scalar_mul(kg_local, k_offset);
+    JacobianPoint offset_point = scalar_mul_glv(kg_local, k_offset);
 
     // KQ = KQ_start + tid*KG
     JacobianPoint KQ = jacobian_add(kq_local, offset_point);
@@ -726,7 +726,7 @@ kernel void ecdsa_bench(
 
     // Derive public key
     AffinePoint gen = generator_affine();
-    JacobianPoint pub_jac = scalar_mul(gen, sec);
+    JacobianPoint pub_jac = scalar_mul_glv(gen, sec);
     AffinePoint pub_aff = jacobian_to_affine(pub_jac);
 
     // Verify
