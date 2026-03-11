@@ -28,16 +28,6 @@ namespace ct {
 // Helpers
 // ============================================================================
 
-// Format affine coordinates as 33-byte compressed point (no field_inv needed)
-__device__ inline void affine_to_compressed(
-    const FieldElement* x, const FieldElement* y, uint8_t out[33])
-{
-    uint8_t y_bytes[32];
-    secp256k1::cuda::field_to_bytes(y, y_bytes);
-    out[0] = (y_bytes[31] & 1) ? 0x03 : 0x02;
-    secp256k1::cuda::field_to_bytes(x, out + 1);
-}
-
 // Compress Jacobian point to 33 bytes (1x field_inv)
 __device__ inline void jac_to_compressed(
     const JacobianPoint* p, uint8_t out[33])
@@ -47,14 +37,18 @@ __device__ inline void jac_to_compressed(
     affine_to_compressed(&ax, &ay, out);
 }
 
-// Precomputed generator G compressed form (02 || Gx)
-__constant__ const uint8_t G_COMPRESSED[33] = {
-    0x02,
-    0x79, 0xBE, 0x66, 0x7E, 0xF9, 0xDC, 0xBB, 0xAC,
-    0x55, 0xA0, 0x62, 0x95, 0xCE, 0x87, 0x0B, 0x07,
-    0x02, 0x9B, 0xFC, 0xDB, 0x2D, 0xCE, 0x28, 0xD9,
-    0x59, 0xF2, 0x81, 0x5B, 0x16, 0xF8, 0x17, 0x98
-};
+// Compress Jacobian point using pre-computed Z inverse (no field_inv)
+// Used with ct_batch_field_inv to amortize inversion cost across N points
+__device__ inline void jac_to_compressed_with_zinv(
+    const JacobianPoint* p, const FieldElement* z_inv, uint8_t out[33])
+{
+    FieldElement z_inv2, z_inv3, ax, ay;
+    secp256k1::cuda::field_sqr(z_inv, &z_inv2);
+    secp256k1::cuda::field_mul(z_inv, &z_inv2, &z_inv3);
+    secp256k1::cuda::field_mul(&p->x, &z_inv2, &ax);
+    secp256k1::cuda::field_mul(&p->y, &z_inv3, &ay);
+    affine_to_compressed(&ax, &ay, out);
+}
 
 // ============================================================================
 // Deterministic Nonce Derivation (CT)
@@ -110,10 +104,15 @@ __device__ inline bool ct_knowledge_prove_device(
     const uint8_t aux[32],
     KnowledgeProofGPU* proof)
 {
-    // Pre-compress pubkey and base ONCE (saves 1 field_inv vs compressing twice)
+    // Pre-compress pubkey and base (batch invert 2 Z coords: 1 field_inv + 3 field_mul)
     uint8_t p_comp[33], b_comp[33];
-    jac_to_compressed(pubkey, p_comp);
-    jac_to_compressed(base, b_comp);
+    {
+        FieldElement z_in[2] = { pubkey->z, base->z };
+        FieldElement z_inv[2];
+        ct_batch_field_inv(z_in, z_inv, 2);
+        jac_to_compressed_with_zinv(pubkey, &z_inv[0], p_comp);
+        jac_to_compressed_with_zinv(base, &z_inv[1], b_comp);
+    }
 
     // k = deterministic nonce (uses pre-compressed pubkey)
     Scalar k;
@@ -177,17 +176,9 @@ __device__ inline bool ct_knowledge_prove_generator_device(
     ct_zk_derive_nonce(secret, p_comp, msg, aux, &k);
     if (secp256k1::cuda::scalar_is_zero(&k)) return false;
 
-    // R = k * G (CT: k is secret)
-    JacobianPoint G;
-    for (int i = 0; i < 4; i++) {
-        G.x.limbs[i] = GENERATOR_X[i];
-        G.y.limbs[i] = GENERATOR_Y[i];
-    }
-    secp256k1::cuda::field_set_one(&G.z);
-    G.infinity = false;
-
+    // R = k * G (CT: k is secret, precomputed generator table)
     JacobianPoint R;
-    ct_scalar_mul(&G, &k, &R);
+    ct_generator_mul(&k, &R);
 
     // Convert R to affine, get Y parity
     FieldElement rx_fe, ry_fe;
@@ -283,12 +274,17 @@ __device__ inline bool ct_dleq_prove_device(
     const uint8_t aux[32],
     DLEQProofGPU* proof)
 {
-    // Pre-compress input points once (saves 2 field_inv vs compressing Q,P twice)
-    uint8_t q_comp[33], g_comp[33], h_comp[33], p_comp[33];
-    jac_to_compressed(Q, q_comp);
-    jac_to_compressed(G, g_comp);
-    jac_to_compressed(H, h_comp);
-    jac_to_compressed(P, p_comp);
+    // Batch invert 4 input Z coords (1 field_inv + 9 field_mul vs 4 field_inv)
+    uint8_t g_comp[33], h_comp[33], p_comp[33], q_comp[33];
+    {
+        FieldElement z_in[4] = { Q->z, G->z, H->z, P->z };
+        FieldElement z_inv[4];
+        ct_batch_field_inv(z_in, z_inv, 4);
+        jac_to_compressed_with_zinv(Q, &z_inv[0], q_comp);
+        jac_to_compressed_with_zinv(G, &z_inv[1], g_comp);
+        jac_to_compressed_with_zinv(H, &z_inv[2], h_comp);
+        jac_to_compressed_with_zinv(P, &z_inv[3], p_comp);
+    }
 
     // Derive nonce using pre-compressed P as pubkey, Q as msg
     Scalar k;
@@ -300,10 +296,15 @@ __device__ inline bool ct_dleq_prove_device(
     ct_scalar_mul(G, &k, &R1);
     ct_scalar_mul(H, &k, &R2);
 
-    // Compress R1, R2 (unavoidable -- fresh points)
+    // Batch invert R1, R2 Z coords (1 field_inv + 3 field_mul vs 2 field_inv)
     uint8_t r1_comp[33], r2_comp[33];
-    jac_to_compressed(&R1, r1_comp);
-    jac_to_compressed(&R2, r2_comp);
+    {
+        FieldElement rz_in[2] = { R1.z, R2.z };
+        FieldElement rz_inv[2];
+        ct_batch_field_inv(rz_in, rz_inv, 2);
+        jac_to_compressed_with_zinv(&R1, &rz_inv[0], r1_comp);
+        jac_to_compressed_with_zinv(&R2, &rz_inv[1], r2_comp);
+    }
 
     // e = H("ZK/dleq" || G || H || P || Q || R1 || R2)
     // Reuse pre-compressed g_comp, h_comp, p_comp, q_comp
@@ -346,6 +347,97 @@ __global__ void ct_dleq_prove_batch_kernel(
 
     results[idx] = ct_dleq_prove_device(
         &secrets[idx], &G_pts[idx], &H_pts[idx],
+        &P_pts[idx], &Q_pts[idx],
+        &aux_rands[idx * 32], &proofs[idx]);
+}
+
+// ============================================================================
+// 3. CT DLEQ Proof -- Generator Specialized
+// ============================================================================
+// Optimized DLEQ prove when G = standard secp256k1 generator.
+// Uses precomputed G_COMPRESSED + ct_generator_mul for R1 = k*G.
+// Batch inverts H,P,Q Z coords (3 pts -> 1 field_inv + 6 field_mul).
+
+__device__ inline bool ct_dleq_prove_generator_device(
+    const Scalar* secret,
+    const JacobianPoint* H,
+    const JacobianPoint* P,
+    const JacobianPoint* Q,
+    const uint8_t aux[32],
+    DLEQProofGPU* proof)
+{
+    // Batch invert 3 input Z coords (1 field_inv + 6 field_mul vs 3 field_inv)
+    // G uses precomputed G_COMPRESSED (0 field_inv)
+    uint8_t h_comp[33], p_comp[33], q_comp[33];
+    {
+        FieldElement z_in[3] = { H->z, P->z, Q->z };
+        FieldElement z_inv[3];
+        ct_batch_field_inv(z_in, z_inv, 3);
+        jac_to_compressed_with_zinv(H, &z_inv[0], h_comp);
+        jac_to_compressed_with_zinv(P, &z_inv[1], p_comp);
+        jac_to_compressed_with_zinv(Q, &z_inv[2], q_comp);
+    }
+
+    // Derive nonce using pre-compressed P as pubkey, Q as msg
+    Scalar k;
+    ct_zk_derive_nonce(secret, p_comp, q_comp, aux, &k);
+    if (secp256k1::cuda::scalar_is_zero(&k)) return false;
+
+    // R1 = k * G (CT: precomputed generator table -- 41% faster than ct_scalar_mul)
+    // R2 = k * H (CT: arbitrary base)
+    JacobianPoint R1, R2;
+    ct_generator_mul(&k, &R1);
+    ct_scalar_mul(H, &k, &R2);
+
+    // Batch invert R1, R2 Z coords (1 field_inv + 3 field_mul vs 2 field_inv)
+    uint8_t r1_comp[33], r2_comp[33];
+    {
+        FieldElement rz_in[2] = { R1.z, R2.z };
+        FieldElement rz_inv[2];
+        ct_batch_field_inv(rz_in, rz_inv, 2);
+        jac_to_compressed_with_zinv(&R1, &rz_inv[0], r1_comp);
+        jac_to_compressed_with_zinv(&R2, &rz_inv[1], r2_comp);
+    }
+
+    // e = H("ZK/dleq" || G || H || P || Q || R1 || R2)
+    uint8_t buf[33 * 6];
+    for (int i = 0; i < 33; ++i) {
+        buf[i]       = G_COMPRESSED[i];
+        buf[33 + i]  = h_comp[i];
+        buf[66 + i]  = p_comp[i];
+        buf[99 + i]  = q_comp[i];
+        buf[132 + i] = r1_comp[i];
+        buf[165 + i] = r2_comp[i];
+    }
+
+    uint8_t e_hash[32];
+    zk_tagged_hash_midstate(&ZK_DLEQ_MIDSTATE, buf, sizeof(buf), e_hash);
+    secp256k1::cuda::scalar_from_bytes(e_hash, &proof->e);
+
+    // s = k + e * secret (CT scalar arithmetic)
+    Scalar e_sec;
+    scalar_mul(&proof->e, secret, &e_sec);
+    scalar_add(&k, &e_sec, &proof->s);
+
+    return true;
+}
+
+// Batch kernel: DLEQ prove with standard generator G
+__global__ void ct_dleq_prove_generator_batch_kernel(
+    const Scalar* __restrict__ secrets,
+    const JacobianPoint* __restrict__ H_pts,
+    const JacobianPoint* __restrict__ P_pts,
+    const JacobianPoint* __restrict__ Q_pts,
+    const uint8_t* __restrict__ aux_rands,
+    DLEQProofGPU* __restrict__ proofs,
+    bool* __restrict__ results,
+    uint32_t count)
+{
+    uint32_t const idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= count) return;
+
+    results[idx] = ct_dleq_prove_generator_device(
+        &secrets[idx], &H_pts[idx],
         &P_pts[idx], &Q_pts[idx],
         &aux_rands[idx * 32], &proofs[idx]);
 }

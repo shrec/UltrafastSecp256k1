@@ -35,6 +35,25 @@ __device__ inline void sha256_hash(const uint8_t* data, size_t len, uint8_t out[
     sha256_final(&ctx, out);
 }
 
+// Format affine coordinates as 33-byte compressed point (no field_inv needed)
+__device__ inline void affine_to_compressed(
+    const FieldElement* x, const FieldElement* y, uint8_t out[33])
+{
+    uint8_t y_bytes[32];
+    field_to_bytes(y, y_bytes);
+    out[0] = (y_bytes[31] & 1) ? 0x03 : 0x02;
+    field_to_bytes(x, out + 1);
+}
+
+// Precomputed generator G compressed form (02 || Gx)
+__constant__ const uint8_t G_COMPRESSED[33] = {
+    0x02,
+    0x79, 0xBE, 0x66, 0x7E, 0xF9, 0xDC, 0xBB, 0xAC,
+    0x55, 0xA0, 0x62, 0x95, 0xCE, 0x87, 0x0B, 0x07,
+    0x02, 0x9B, 0xFC, 0xDB, 0x2D, 0xCE, 0x28, 0xD9,
+    0x59, 0xF2, 0x81, 0x5B, 0x16, 0xF8, 0x17, 0x98
+};
+
 // Tagged hash: H(SHA256(tag) || SHA256(tag) || data)
 __device__ inline void zk_tagged_hash(
     const char* tag, size_t tag_len,
@@ -119,44 +138,33 @@ __device__ inline bool knowledge_verify_device(
     const AffinePoint* pubkey,
     const uint8_t msg[32])
 {
-    // Reconstruct challenge: e = H("ZK/knowledge" || R.x || P_comp || G_comp || msg)
-    // Serialize pubkey to compressed format
+    // Compress pubkey directly from affine (no field_inv needed)
     uint8_t p_comp[33];
-    JacobianPoint p_jac;
-    p_jac.x = pubkey->x;
-    p_jac.y = pubkey->y;
-    p_jac.z = FIELD_ONE;
-    p_jac.infinity = false;
-    point_to_compressed(&p_jac, p_comp);
+    affine_to_compressed(&pubkey->x, &pubkey->y, p_comp);
 
-    // Serialize generator
-    uint8_t g_comp[33];
-    JacobianPoint g_jac;
-    g_jac.x = {{GENERATOR_X[0], GENERATOR_X[1], GENERATOR_X[2], GENERATOR_X[3]}};
-    g_jac.y = {{GENERATOR_Y[0], GENERATOR_Y[1], GENERATOR_Y[2], GENERATOR_Y[3]}};
-    g_jac.z = FIELD_ONE;
-    g_jac.infinity = false;
-    point_to_compressed(&g_jac, g_comp);
-
-    // Build hash input: rx[32] || P_comp[33] || G_comp[33] || msg[32]
+    // Build hash input: rx[32] || P_comp[33] || G_COMPRESSED[33] || msg[32]
     uint8_t buf[32 + 33 + 33 + 32];
     for (int i = 0; i < 32; ++i) buf[i] = proof->rx[i];
     for (int i = 0; i < 33; ++i) buf[32 + i] = p_comp[i];
-    for (int i = 0; i < 33; ++i) buf[65 + i] = g_comp[i];
+    for (int i = 0; i < 33; ++i) buf[65 + i] = G_COMPRESSED[i];
     for (int i = 0; i < 32; ++i) buf[98 + i] = msg[i];
 
     uint8_t e_hash[32];
-    zk_tagged_hash("ZK/knowledge", 12, buf, sizeof(buf), e_hash);
+    zk_tagged_hash_midstate(&ZK_KNOWLEDGE_MIDSTATE, buf, sizeof(buf), e_hash);
 
     Scalar e;
     scalar_from_bytes(e_hash, &e);
 
     // Verify: s*G == R + e*P
-    // Compute s*G
     JacobianPoint sG;
     scalar_mul_generator_const(&proof->s, &sG);
 
     // Compute e*P
+    JacobianPoint p_jac;
+    p_jac.x = pubkey->x;
+    p_jac.y = pubkey->y;
+    p_jac.z = FIELD_ONE;
+    p_jac.infinity = false;
     JacobianPoint eP;
     scalar_mul(&p_jac, &e, &eP);
 
@@ -248,16 +256,12 @@ __device__ inline bool dleq_verify_device(
     JacobianPoint R2;
     jacobian_add(&sH, &eQ, &R2);
 
-    // Serialize all 6 points for challenge recomputation
+    // Serialize input points directly from affine (no field_inv needed -- Z=1)
     uint8_t g_comp[33], h_comp[33], p_comp[33], q_comp[33], r1_comp[33], r2_comp[33];
-    point_to_compressed(&G_jac, g_comp);
-    point_to_compressed(&H_jac, h_comp);
-
-    // Restore P and Q (re-init since we may have mutated via negate above)
-    P_jac.x = P->x; P_jac.y = P->y; P_jac.z = FIELD_ONE; P_jac.infinity = false;
-    Q_jac.x = Q->x; Q_jac.y = Q->y; Q_jac.z = FIELD_ONE; Q_jac.infinity = false;
-    point_to_compressed(&P_jac, p_comp);
-    point_to_compressed(&Q_jac, q_comp);
+    affine_to_compressed(&G->x, &G->y, g_comp);
+    affine_to_compressed(&H->x, &H->y, h_comp);
+    affine_to_compressed(&P->x, &P->y, p_comp);
+    affine_to_compressed(&Q->x, &Q->y, q_comp);
     point_to_compressed(&R1, r1_comp);
     point_to_compressed(&R2, r2_comp);
 
@@ -273,7 +277,7 @@ __device__ inline bool dleq_verify_device(
     }
 
     uint8_t e_hash[32];
-    zk_tagged_hash("ZK/dleq", 7, buf, sizeof(buf), e_hash);
+    zk_tagged_hash_midstate(&ZK_DLEQ_MIDSTATE, buf, sizeof(buf), e_hash);
 
     Scalar e_check;
     scalar_from_bytes(e_hash, &e_check);
