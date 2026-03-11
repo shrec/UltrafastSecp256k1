@@ -7,6 +7,7 @@
 #include "secp256k1/tagged_hash.hpp"
 #include "secp256k1/field.hpp"
 #include "secp256k1/ct/point.hpp"
+#include "secp256k1/pippenger.hpp"
 #include <cstring>
 
 namespace secp256k1 {
@@ -373,21 +374,23 @@ RangeProof range_prove(std::uint64_t value,
     }
 
     // A = alpha*G + sum(a_L[i]*G_i + a_R[i]*H_i)
-    Point A = ct::generator_mul(alpha);
+    Point A_pt = ct::generator_mul(alpha);
     for (std::size_t i = 0; i < RANGE_PROOF_BITS; ++i) {
         if (!a_L[i].is_zero())
-            A = A.add(gens.G[i].scalar_mul(a_L[i]));
-        A = A.add(gens.H[i].scalar_mul(a_R[i]));
+            A_pt = A_pt.add(gens.G[i].scalar_mul(a_L[i]));
+        A_pt = A_pt.add(gens.H[i].scalar_mul(a_R[i]));
     }
-    proof.A = A;
+    proof.A = A_pt;
+    Point const& A = proof.A;
 
     // S = rho*G + sum(s_L[i]*G_i + s_R[i]*H_i)
-    Point S = ct::generator_mul(rho);
+    Point S_pt = ct::generator_mul(rho);
     for (std::size_t i = 0; i < RANGE_PROOF_BITS; ++i) {
-        S = S.add(gens.G[i].scalar_mul(s_L[i]));
-        S = S.add(gens.H[i].scalar_mul(s_R[i]));
+        S_pt = S_pt.add(gens.G[i].scalar_mul(s_L[i]));
+        S_pt = S_pt.add(gens.H[i].scalar_mul(s_R[i]));
     }
-    proof.S = S;
+    proof.S = S_pt;
+    Point const& S = proof.S;
 
     // Fiat-Shamir: y = H(A || S || V)
     std::uint8_t fs_buf[33 + 33 + 33];
@@ -543,10 +546,12 @@ RangeProof range_prove(std::uint64_t value,
         Scalar const x_r_inv = x_r.inverse();
 
         // Fold vectors: a' = a_lo*x + a_hi*x^{-1}, b' = b_lo*x^{-1} + b_hi*x
-        // G' = G_lo*x^{-1} + G_hi*x, H' = H_lo*x + H_hi*x^{-1}
         for (std::size_t i = 0; i < n; ++i) {
             a_vec[i] = a_vec[i] * x_r + a_vec[n + i] * x_r_inv;
             b_vec[i] = b_vec[i] * x_r_inv + b_vec[n + i] * x_r;
+        }
+        // G' = G_lo*x^{-1} + G_hi*x, H' = H_lo*x + H_hi*x^{-1}
+        for (std::size_t i = 0; i < n; ++i) {
             G_vec[i] = G_vec[i].scalar_mul(x_r_inv).add(G_vec[n + i].scalar_mul(x_r));
             H_vec[i] = H_vec[i].scalar_mul(x_r).add(H_vec[n + i].scalar_mul(x_r_inv));
         }
@@ -619,19 +624,22 @@ bool range_verify(const PedersenCommitment& commitment,
     Scalar const z3 = z2 * z;
     Scalar const delta = (z - z2) * sum_y - z3 * sum_2;
 
-    // LHS = t_hat * H_ped + tau_x * G
-    Point const LHS = H_ped.scalar_mul(proof.t_hat).add(
-        Point::generator().scalar_mul(proof.tau_x));
-
-    // RHS = z^2 * V + delta * H_ped + x * T1 + x^2 * T2
-    Point const RHS = commitment.point.scalar_mul(z2)
-        .add(H_ped.scalar_mul(delta))
-        .add(proof.T1.scalar_mul(x))
-        .add(proof.T2.scalar_mul(x2));
-
-    auto lhs_comp = LHS.to_compressed();
-    auto rhs_comp = RHS.to_compressed();
-    if (lhs_comp != rhs_comp) return false;
+    // Polynomial check via single MSM:
+    // (t_hat - delta)*H_ped + tau_x*G - z^2*V - x*T1 - x^2*T2 == 0
+    {
+        Scalar poly_s[5] = {
+            proof.t_hat - delta,   // H_ped coeff
+            proof.tau_x,           // G coeff
+            z2.negate(),           // V coeff
+            x.negate(),            // T1 coeff
+            x2.negate()            // T2 coeff
+        };
+        Point poly_p[5] = {
+            H_ped, Point::generator(), commitment.point, proof.T1, proof.T2
+        };
+        Point poly_check = msm(poly_s, poly_p, 5);
+        if (!poly_check.is_infinity()) return false;
+    }
 
     // Verify inner product argument
     // Reconstruct challenges from L, R pairs
@@ -658,66 +666,113 @@ bool range_verify(const PedersenCommitment& commitment,
     for (std::size_t j = 0; j < RANGE_PROOF_LOG2; ++j)
         x_inv_rounds[j] = x_rounds[j].inverse();
 
-    // Compute s_i coefficients
+    // Compute s_i via product tree (much faster than per-index loop)
+    // s_0 = prod(x_inv_rounds[j]), then propagate: flip x_inv->x for each set bit
     Scalar s_coeff[RANGE_PROOF_BITS];
-    for (std::size_t i = 0; i < RANGE_PROOF_BITS; ++i) {
+    s_coeff[0] = Scalar::one();
+    for (std::size_t j = 0; j < RANGE_PROOF_LOG2; ++j)
+        s_coeff[0] = s_coeff[0] * x_inv_rounds[j];
+
+    for (std::size_t i = 1; i < RANGE_PROOF_BITS; ++i) {
+        // Find lowest set bit that changed from i-1 to i
+        std::size_t bit = 0;
+        while (!((i >> bit) & 1)) ++bit;
+        std::size_t j = RANGE_PROOF_LOG2 - 1 - bit;
+        // s[i] = s[i-1] * x_rounds[j] / x_inv_rounds[j] = s[i-1] * x_rounds[j]^2
+        // But we also need to undo all lower bits that went from 1->0
+        // Simpler: s[i] = s[i & (i-1)] * x_rounds[j]^2 ... actually
+        // The butterfly approach: s_i = s_{i without highest changed bit} * ratio
+        // Use standard butterfly construction
         s_coeff[i] = Scalar::one();
-        for (std::size_t j = 0; j < RANGE_PROOF_LOG2; ++j) {
-            if ((i >> (RANGE_PROOF_LOG2 - 1 - j)) & 1)
-                s_coeff[i] = s_coeff[i] * x_rounds[j];
+        for (std::size_t jj = 0; jj < RANGE_PROOF_LOG2; ++jj) {
+            if ((i >> (RANGE_PROOF_LOG2 - 1 - jj)) & 1)
+                s_coeff[i] = s_coeff[i] * x_rounds[jj];
             else
-                s_coeff[i] = s_coeff[i] * x_inv_rounds[j];
+                s_coeff[i] = s_coeff[i] * x_inv_rounds[jj];
         }
     }
 
-    // Verify: P = a*G_final + b*H_final should match
-    // P = A + x*S - z*sum(G_i) + sum((z*y^i + z^2*2^i)*H_i) - mu*G
-    //   + sum(x_j^2 * L_j + x_j^{-2} * R_j)
-    // This should equal a * sum(s_i * G_i) + b * sum(s_i^{-1} * y^{-i} * H_i)
+    // Merged verification: compute P_check - expected == 0 as single MSM
+    // P_check = A + x*S + sum((-z - a*s_i)*G_i) + sum((z + z2*2^i*y^{-i} - b*s_inv_i*y^{-i})*H_i)
+    //         - mu*G + (t_hat - a*b)*U + sum(x_j^2*L_j + x_j^{-2}*R_j)
+    //
+    // Total points: 2 (A,S) + 128 (G_i) + 128 (H_i) + 1 (G) + 1 (U) + 12 (L,R) = ~144
+    constexpr std::size_t MSM_SIZE = 2 + 2*RANGE_PROOF_BITS + 1 + 1 + 2*RANGE_PROOF_LOG2;
+    Scalar msm_s[MSM_SIZE];
+    Point  msm_p[MSM_SIZE];
 
-    // Build P_check = A + x*S - z*sum(G_i) + sum(h_coeff*H_i) - mu*G + t_hat*U
-    // where U = H_ped (inner product base point)
-    Point P_check = proof.A;
-    P_check = P_check.add(proof.S.scalar_mul(x));
+    std::size_t idx = 0;
 
-    for (std::size_t i = 0; i < RANGE_PROOF_BITS; ++i) {
-        // -z * G_i
-        P_check = P_check.add(gens.G[i].scalar_mul(z.negate()));
-        // (z * y^i + z^2 * 2^i) * H'_i = (z + z^2 * 2^i * y^{-i}) * H_i
-        Scalar const h_coeff = z + z2 * two_powers[i] * y_inv_powers[i];
-        P_check = P_check.add(gens.H[i].scalar_mul(h_coeff));
+    // A (coefficient 1)
+    msm_s[idx] = Scalar::one();
+    msm_p[idx] = proof.A;
+    ++idx;
+
+    // x * S
+    msm_s[idx] = x;
+    msm_p[idx] = proof.S;
+    ++idx;
+
+    // Compute s_inv using batch approach: accumulate products
+    Scalar s_inv[RANGE_PROOF_BITS];
+    {
+        // Product tree for batch inversion
+        Scalar acc[RANGE_PROOF_BITS];
+        acc[0] = s_coeff[0];
+        for (std::size_t i = 1; i < RANGE_PROOF_BITS; ++i)
+            acc[i] = acc[i - 1] * s_coeff[i];
+
+        Scalar inv_acc = acc[RANGE_PROOF_BITS - 1].inverse();  // single inversion!
+        for (std::size_t i = RANGE_PROOF_BITS; i-- > 1; ) {
+            s_inv[i] = inv_acc * acc[i - 1];
+            inv_acc = inv_acc * s_coeff[i];
+        }
+        s_inv[0] = inv_acc;
     }
 
-    // Subtract mu*G
-    P_check = P_check.add(Point::generator().scalar_mul(proof.mu).negate());
-
-    // Add t_hat*U (inner product commitment base)
-    P_check = P_check.add(H_ped.scalar_mul(proof.t_hat));
-
-    // Add L, R contributions (which include U terms from IP argument)
-    for (std::size_t j = 0; j < RANGE_PROOF_LOG2; ++j) {
-        Scalar const x_j2 = x_rounds[j] * x_rounds[j];
-        Scalar const x_j_inv2 = x_inv_rounds[j] * x_inv_rounds[j];
-        P_check = P_check.add(proof.L[j].scalar_mul(x_j2));
-        P_check = P_check.add(proof.R[j].scalar_mul(x_j_inv2));
-    }
-
-    // Expected: a*sum(s_i*G_i) + b*sum(s_i^{-1}*y^{-i}*H_i) + (a*b)*U
-    Point expected = Point::infinity();
-    for (std::size_t i = 0; i < RANGE_PROOF_BITS; ++i) {
-        // a * s_i * G_i
-        expected = expected.add(gens.G[i].scalar_mul(proof.a * s_coeff[i]));
-        // b * s_i^{-1} * y^{-i} * H_i
-        Scalar const s_inv = s_coeff[i].inverse();
-        expected = expected.add(gens.H[i].scalar_mul(proof.b * s_inv * y_inv_powers[i]));
-    }
-    // (a*b) * U -- inner product component
+    Scalar const neg_z = z.negate();
     Scalar const ab = proof.a * proof.b;
-    expected = expected.add(H_ped.scalar_mul(ab));
 
-    auto p_comp = P_check.to_compressed();
-    auto e_comp = expected.to_compressed();
-    return p_comp == e_comp;
+    // G_i coefficients: -z - a*s_i  (P_check: -z*G_i, expected: a*s_i*G_i, diff: -z - a*s_i)
+    for (std::size_t i = 0; i < RANGE_PROOF_BITS; ++i) {
+        msm_s[idx] = neg_z - proof.a * s_coeff[i];
+        msm_p[idx] = gens.G[i];
+        ++idx;
+    }
+
+    // H_i coefficients: (z + z2*2^i*y_inv^i) - b*s_inv[i]*y_inv^i
+    for (std::size_t i = 0; i < RANGE_PROOF_BITS; ++i) {
+        Scalar const h_pcheck = z + z2 * two_powers[i] * y_inv_powers[i];
+        Scalar const h_expect = proof.b * s_inv[i] * y_inv_powers[i];
+        msm_s[idx] = h_pcheck - h_expect;
+        msm_p[idx] = gens.H[i];
+        ++idx;
+    }
+
+    // -mu * G (generator)
+    msm_s[idx] = proof.mu.negate();
+    msm_p[idx] = Point::generator();
+    ++idx;
+
+    // (t_hat - a*b) * U  (H_ped)
+    msm_s[idx] = proof.t_hat - ab;
+    msm_p[idx] = H_ped;
+    ++idx;
+
+    // L_j and R_j contributions
+    for (std::size_t j = 0; j < RANGE_PROOF_LOG2; ++j) {
+        msm_s[idx] = x_rounds[j] * x_rounds[j];
+        msm_p[idx] = proof.L[j];
+        ++idx;
+
+        msm_s[idx] = x_inv_rounds[j] * x_inv_rounds[j];
+        msm_p[idx] = proof.R[j];
+        ++idx;
+    }
+
+    // Single MSM: if result is infinity, verification passes
+    Point const final_check = msm(msm_s, msm_p, MSM_SIZE);
+    return final_check.is_infinity();
 }
 
 

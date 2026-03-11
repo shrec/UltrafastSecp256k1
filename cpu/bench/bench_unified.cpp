@@ -48,6 +48,8 @@
 #include "secp256k1/tagged_hash.hpp"
 #include "secp256k1/ct/sign.hpp"
 #include "secp256k1/ct/point.hpp"
+#include "secp256k1/zk.hpp"
+#include "secp256k1/pedersen.hpp"
 #include "secp256k1/selftest.hpp"
 #include "secp256k1/init.hpp"
 #include "secp256k1/benchmark_harness.hpp"
@@ -2323,6 +2325,83 @@ int main(int argc, char** argv) {
 #endif
 
     // =====================================================================
+    //  SECTION 8.5: ZK Proofs & Commitments
+    // =====================================================================
+    double u_pedersen = 0, u_kp_prove = 0, u_kp_verify = 0;
+    double u_dleq_prove = 0, u_dleq_verify = 0;
+    double u_range_prove = 0, u_range_verify = 0;
+    {
+        using namespace secp256k1::zk;
+
+        auto sk_zk = make_scalar(42);
+        auto pk_zk = Point::generator().scalar_mul(sk_zk);
+        auto blind = make_scalar(99);
+        auto val_scalar = Scalar::from_uint64(12345);
+        auto commit = secp256k1::pedersen_commit(val_scalar, blind);
+        std::array<uint8_t, 32> aux_zk{};
+        aux_zk[0] = 0xAA;
+
+        // Pedersen commit
+        u_pedersen = bench_ns([&]{
+            auto c = secp256k1::pedersen_commit(val_scalar, blind);
+            bench::DoNotOptimize(c);
+        }, N_SIGN);
+
+        // Knowledge proof (Schnorr sigma protocol)
+        u_kp_prove = bench_ns([&]{
+            auto kp = knowledge_prove(sk_zk, pk_zk, {}, aux_zk);
+            bench::DoNotOptimize(kp);
+        }, N_SIGN);
+
+        auto kp = knowledge_prove(sk_zk, pk_zk, {}, aux_zk);
+        u_kp_verify = bench_ns([&]{
+            bool ok = knowledge_verify(kp, pk_zk, {});
+            bench::DoNotOptimize(ok);
+        }, N_SIGN);
+
+        // DLEQ proof
+        auto sk2_zk = make_scalar(87654321);
+        auto H_zk = Point::generator().scalar_mul(sk2_zk);
+        auto P_zk = Point::generator().scalar_mul(sk_zk);
+        auto Q_zk = H_zk.scalar_mul(sk_zk);
+
+        u_dleq_prove = bench_ns([&]{
+            auto dp = dleq_prove(sk_zk, Point::generator(), H_zk, P_zk, Q_zk, aux_zk);
+            bench::DoNotOptimize(dp);
+        }, N_SIGN / 2);
+
+        auto dp = dleq_prove(sk_zk, Point::generator(), H_zk, P_zk, Q_zk, aux_zk);
+        u_dleq_verify = bench_ns([&]{
+            bool ok = dleq_verify(dp, Point::generator(), H_zk, P_zk, Q_zk);
+            bench::DoNotOptimize(ok);
+        }, N_SIGN / 2);
+
+        // Bulletproof range proof (64-bit)
+        std::uint64_t val = 12345;
+        auto rp = range_prove(val, blind, commit, aux_zk);
+        u_range_prove = bench_ns([&]{
+            auto p = range_prove(val, blind, commit, aux_zk);
+            bench::DoNotOptimize(p);
+        }, std::max(1, N_SIGN / 64));
+
+        u_range_verify = bench_ns([&]{
+            bool ok = range_verify(commit, rp);
+            bench::DoNotOptimize(ok);
+        }, std::max(1, N_SIGN / 32));
+
+        print_header("ZK Proofs & Commitments");
+        print_row("Pedersen commit",              u_pedersen);
+        print_row("Knowledge prove (sigma)",      u_kp_prove);
+        print_row("Knowledge verify",             u_kp_verify);
+        print_row("DLEQ prove",                   u_dleq_prove);
+        print_row("DLEQ verify",                  u_dleq_verify);
+        print_row("Bulletproof range_prove (64b)", u_range_prove);
+        print_row("Bulletproof range_verify (64b)",u_range_verify);
+        print_sep();
+        printf("\n");
+    }
+
+    // =====================================================================
     //  SECTION 9: Summary
     // =====================================================================
 
@@ -2352,6 +2431,15 @@ int main(int argc, char** argv) {
     printf("  --- Ultra CT ---\n");
     tput("CT ECDSA sign",             u_ct_ecdsa);
     tput("CT Schnorr sign",           u_ct_schnorr);
+    printf("\n");
+    printf("  --- Ultra ZK ---\n");
+    tput("Pedersen commit",           u_pedersen);
+    tput("Knowledge prove",           u_kp_prove);
+    tput("Knowledge verify",          u_kp_verify);
+    tput("DLEQ prove",                u_dleq_prove);
+    tput("DLEQ verify",               u_dleq_verify);
+    tput("Bulletproof range_prove",   u_range_prove);
+    tput("Bulletproof range_verify",  u_range_verify);
     printf("\n");
     printf("  --- libsecp256k1 ---\n");
     tput("field_mul",                 ls_fe_mul);
