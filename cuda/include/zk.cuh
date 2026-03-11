@@ -174,7 +174,11 @@ __device__ inline bool knowledge_verify_device(
 
     // Build hash input: rx[32] || P_comp[33] || G_COMPRESSED[33] || msg[32]
     uint8_t buf[32 + 33 + 33 + 32];
-    for (int i = 0; i < 32; ++i) buf[i] = proof->rx[i];
+    // rx (32 bytes at offset 0) -- aligned, use uint64
+    #pragma unroll
+    for (int i = 0; i < 4; ++i)
+        reinterpret_cast<uint64_t*>(buf)[i] =
+            reinterpret_cast<const uint64_t*>(proof->rx)[i];
     for (int i = 0; i < 33; ++i) buf[32 + i] = p_comp[i];
     for (int i = 0; i < 33; ++i) buf[65 + i] = G_COMPRESSED[i];
     for (int i = 0; i < 32; ++i) buf[98 + i] = msg[i];
@@ -225,16 +229,13 @@ __device__ inline bool knowledge_verify_device(
         field_mul(&sG.y, &z2cu, &ly);
         field_mul(&R_plus_eP.y, &z1cu, &ry);
 
-        // Branchless compare: subtract and OR all limbs
+        // Branchless compare: subtract and check limbs directly
+        // field_sub outputs in [0, p) so zero check on limbs is exact
         FieldElement dx, dy;
         field_sub(&lx, &rx_cmp, &dx);
         field_sub(&ly, &ry, &dy);
-        // Normalize differences mod p
-        uint8_t dx_b[32], dy_b[32];
-        field_to_bytes(&dx, dx_b);
-        field_to_bytes(&dy, dy_b);
-        uint64_t acc = 0;
-        for (int i = 0; i < 32; ++i) acc |= dx_b[i] | dy_b[i];
+        uint64_t acc = dx.limbs[0] | dx.limbs[1] | dx.limbs[2] | dx.limbs[3]
+                     | dy.limbs[0] | dy.limbs[1] | dy.limbs[2] | dy.limbs[3];
         return acc == 0;
     }
 }
@@ -314,10 +315,7 @@ __device__ inline bool dleq_verify_device(
     scalar_from_bytes(e_hash, &e_check);
 
     // Compare e == e_check
-    return (proof->e.limbs[0] == e_check.limbs[0] &&
-            proof->e.limbs[1] == e_check.limbs[1] &&
-            proof->e.limbs[2] == e_check.limbs[2] &&
-            proof->e.limbs[3] == e_check.limbs[3]);
+    return scalar_eq(&proof->e, &e_check);
 }
 
 __global__ void dleq_verify_batch_kernel(
@@ -383,13 +381,11 @@ __device__ inline bool range_proof_poly_check_device(
     affine_to_compressed(&proof->T1.x, &proof->T1.y, t1_comp);
     affine_to_compressed(&proof->T2.x, &proof->T2.y, t2_comp);
 
-    uint8_t y_bytes[32], z_bytes[32];
-    scalar_to_bytes(&y, y_bytes);
-    scalar_to_bytes(&z, z_bytes);
-
     uint8_t x_buf[33 + 33 + 32 + 32];
     for (int i = 0; i < 33; ++i) { x_buf[i] = t1_comp[i]; x_buf[33 + i] = t2_comp[i]; }
-    for (int i = 0; i < 32; ++i) { x_buf[66 + i] = y_bytes[i]; x_buf[98 + i] = z_bytes[i]; }
+    // Write scalar bytes directly into x_buf (no intermediate y_bytes/z_bytes)
+    scalar_to_bytes(&y, x_buf + 66);
+    scalar_to_bytes(&z, x_buf + 98);
 
     uint8_t x_hash[32];
     zk_tagged_hash_midstate(&ZK_BULLETPROOF_X_MIDSTATE, x_buf, sizeof(x_buf), x_hash);
@@ -469,14 +465,12 @@ __device__ inline bool range_proof_poly_check_device(
     field_mul(&LHS.y, &z2cu, &ly);
     field_mul(&RHS.y, &z1cu, &ry);
 
+    // field_sub outputs in [0, p) so zero check on limbs is exact
     FieldElement dx, dy;
     field_sub(&lx, &rx_cmp, &dx);
     field_sub(&ly, &ry, &dy);
-    uint8_t dx_b[32], dy_b[32];
-    field_to_bytes(&dx, dx_b);
-    field_to_bytes(&dy, dy_b);
-    uint64_t acc = 0;
-    for (int i = 0; i < 32; ++i) acc |= dx_b[i] | dy_b[i];
+    uint64_t acc = dx.limbs[0] | dx.limbs[1] | dx.limbs[2] | dx.limbs[3]
+                 | dy.limbs[0] | dy.limbs[1] | dy.limbs[2] | dy.limbs[3];
     return acc == 0;
 }
 
