@@ -15,7 +15,7 @@
 
 > **Benchmark reproducibility:** All numbers come from pinned compiler/driver/toolkit versions with exact commands and raw logs. See [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md) (methodology) and the [live dashboard](https://shrec.github.io/UltrafastSecp256k1/dev/bench/).
 
-**Quick links:** [Discord](https://discord.gg/sUmW7cc5) * [Benchmarks](docs/BENCHMARKS.md) * [Build Guide](docs/BUILDING.md) * [API Reference](docs/API_REFERENCE.md) * [Security Policy](SECURITY.md) * [Threat Model](THREAT_MODEL.md) * [Porting Guide](PORTING.md)
+**Quick links:** [Discord](https://discord.gg/sUmW7cc5) * [Benchmarks](docs/BENCHMARKS.md) * [Build Guide](docs/BUILDING.md) * [API Reference](docs/API_REFERENCE.md) * [Security Policy](SECURITY.md) * [Threat Model](THREAT_MODEL.md) * [Porting Guide](PORTING.md) * [**Sponsor**](https://github.com/sponsors/shrec)
 
 ---
 
@@ -87,6 +87,61 @@ This library has **not undergone independent security audits**. It is provided f
 
 **Report vulnerabilities** via [GitHub Security Advisories](https://github.com/shrec/UltrafastSecp256k1/security/advisories/new) or email [payysoon@gmail.com](mailto:payysoon@gmail.com).
 For production cryptographic systems, prefer audited libraries like [libsecp256k1](https://github.com/bitcoin-core/secp256k1).
+
+---
+
+## Seeking Sponsors -- Audit, Bug Bounty & Development
+
+> **We are actively seeking sponsors and funding partners** to take UltrafastSecp256k1 from research-grade to production-ready.
+
+[![Sponsor](https://img.shields.io/badge/Sponsor_This_Project-GitHub_Sponsors-ea4aaa.svg?style=for-the-badge&logo=github)](https://github.com/sponsors/shrec)
+[![Donate with Bitcoin Lightning](https://img.shields.io/badge/Lightning_Sats-shrec@stacker.news-F7931A?style=for-the-badge&logo=bitcoin)](https://stacker.news/shrec)
+
+UltrafastSecp256k1 is a **high-performance, zero-dependency secp256k1 library** with GPU acceleration, constant-time side-channel protection, and 12+ platform targets. To reach production maturity, we need:
+
+### 1. Independent Cryptographic Audit
+
+The #1 priority. A professional third-party audit of the core cryptographic layers (field arithmetic, scalar operations, point operations, ECDSA, Schnorr BIP-340, constant-time layer) is essential before any production deployment. We are looking for:
+
+- **Audit firms** willing to perform a full review (NCC Group, Trail of Bits, Cure53, Least Authority, etc.)
+- **Grants** from blockchain foundations (Bitcoin, Ethereum, Zcash, etc.) to fund the audit
+- **Corporate sponsors** who use secp256k1 in their products and want a second high-quality audited implementation
+
+### 2. Bug Bounty Program
+
+We want to establish a **funded bug bounty program** to incentivize security researchers:
+
+- Critical vulnerabilities (signature forgery, key recovery, CT bypass) -- high bounty tier
+- Correctness bugs (arithmetic errors, edge cases) -- medium bounty tier
+- Memory safety / undefined behavior -- standard bounty tier
+- All GPU backends (CUDA, OpenCL, Metal, ROCm) covered
+
+Currently we accept vulnerability reports via [GitHub Security Advisories](https://github.com/shrec/UltrafastSecp256k1/security/advisories/new) but **cannot offer financial rewards without sponsor funding**.
+
+### 3. Ongoing Development
+
+Sponsorship helps sustain development of:
+
+- **Zero-knowledge proofs** -- Pedersen commitments, Bulletproofs, Schnorr sigma protocols, DLEQ proofs
+- **GPU compute** -- CUDA, OpenCL, Metal, ROCm batch signature generation/verification
+- **Platform ports** -- embedded (ESP32, STM32), mobile (iOS, Android), WASM
+- **Protocol features** -- MuSig2, FROST threshold signatures, Taproot, BIP-352 Silent Payments
+- **Multi-coin support** -- 27+ blockchain address formats and signing
+- **Formal verification** -- Fiat-Crypto integration, ct-verif, Cryptol models
+- **CI/CD infrastructure** -- cross-platform testing, performance regression gates, fuzzing
+
+### How to Sponsor
+
+| Method | Link |
+|--------|------|
+| **GitHub Sponsors** (preferred) | [github.com/sponsors/shrec](https://github.com/sponsors/shrec) |
+| **Bitcoin Lightning** | `shrec@stacker.news` (any Lightning wallet) |
+| **PayPal** | [paypal.me/IChkheidze](https://paypal.me/IChkheidze) |
+| **Corporate / Foundation** | [payysoon@gmail.com](mailto:payysoon@gmail.com) |
+| **Discord** | [Join our server](https://discord.gg/sUmW7cc5) |
+
+All sponsors will be acknowledged in the README, release notes, and project documentation.
+For corporate partnerships, audit co-funding, or grant applications -- please reach out via email.
 
 ---
 
@@ -1062,16 +1117,32 @@ Extra gratitude to [@0xbitcoiner](https://stacker.news/0xbitcoiner) for the init
 
 ---
 
-## ⚡ Support the Project
+## Support the Project
 
 If you find **UltrafastSecp256k1** useful, consider supporting its development!
 
-[![Donate with Bitcoin Lightning](https://img.shields.io/badge/Donate%20with-Lightning%20%E2%9A%A1-yellow?style=for-the-badge&logo=bitcoin)](https://stacker.news/shrec)
+> **We are actively seeking sponsors for an independent cryptographic audit, a funded bug bounty program, and ongoing development.**
+> See the [Seeking Sponsors](#seeking-sponsors----audit-bug-bounty--development) section above for details.
 
-**Lightning Address:** `shrec@stacker.news` -- send sats via any Lightning wallet or [stacker.news/shrec](https://stacker.news/shrec)
+[![Sponsor](https://img.shields.io/badge/Sponsor_This_Project-GitHub_Sponsors-ea4aaa.svg?style=for-the-badge&logo=github)](https://github.com/sponsors/shrec)
+[![Donate with Bitcoin Lightning](https://img.shields.io/badge/Lightning_Sats-shrec@stacker.news-F7931A?style=for-the-badge&logo=bitcoin)](https://stacker.news/shrec)
+[![PayPal](https://img.shields.io/badge/PayPal-Donate-blue.svg?style=for-the-badge&logo=paypal)](https://paypal.me/IChkheidze)
 
-[![Sponsor](https://img.shields.io/badge/Sponsor-GitHub%20Sponsors-ea4aaa.svg?logo=github)](https://github.com/sponsors/shrec)
-[![PayPal](https://img.shields.io/badge/PayPal-Donate-blue.svg?logo=paypal)](https://paypal.me/IChkheidze)
+| Method | Link |
+|--------|------|
+| **GitHub Sponsors** (preferred) | [github.com/sponsors/shrec](https://github.com/sponsors/shrec) |
+| **Bitcoin Lightning** | `shrec@stacker.news` via any Lightning wallet |
+| **PayPal** | [paypal.me/IChkheidze](https://paypal.me/IChkheidze) |
+| **Corporate / Foundation grants** | [payysoon@gmail.com](mailto:payysoon@gmail.com) |
+
+### What Your Sponsorship Funds
+
+- **Audit** -- Independent third-party cryptographic review by a professional security firm
+- **Bug Bounty** -- Financial rewards for security researchers who find vulnerabilities
+- **Development** -- GPU acceleration, ZK proofs, formal verification, embedded platform support
+- **Infrastructure** -- CI/CD, cross-platform testing, fuzzing, performance regression gates
+
+All sponsors are acknowledged in the README and release notes.
 
 ---
 

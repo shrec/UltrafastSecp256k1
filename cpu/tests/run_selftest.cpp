@@ -45,6 +45,7 @@ int test_ecc_properties_run();
 int test_ethereum_run();
 #endif
 int test_wallet_run();
+int test_zk_run();
 
 // -- Module descriptor --------------------------------------------------------
 struct TestModule {
@@ -78,6 +79,7 @@ static const TestModule MODULES[] = {
     { "Ethereum signing layer",                       test_ethereum_run },
 #endif
     { "Unified wallet API",                              test_wallet_run },
+    { "ZK proofs (knowledge/DLEQ/Bulletproof)",            test_zk_run },
 };
 
 static constexpr int NUM_MODULES = sizeof(MODULES) / sizeof(MODULES[0]);

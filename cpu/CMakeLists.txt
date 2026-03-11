@@ -38,6 +38,7 @@ set(SECP256K1_SOURCES
     src/batch_add_affine.cpp  # Affine batch addition for sequential ECC search
     src/hash_accel.cpp    # Accelerated SHA-256 (SHA-NI) + RIPEMD-160 + Hash160
     src/pedersen.cpp      # Pedersen commitments (homomorphic)
+    src/zk.cpp            # ZK proofs (knowledge, DLEQ, Bulletproofs)
     src/frost.cpp         # FROST threshold signatures (t-of-n)
     src/adaptor.cpp       # Adaptor signatures (Schnorr + ECDSA)
     src/address.cpp       # Address generation + BIP-352 Silent Payments
@@ -896,6 +897,13 @@ if(BUILD_TESTING)
         add_test(NAME ethereum COMMAND test_ethereum_standalone)
     endif()
 
+    # -- ZK Proof Layer tests (knowledge, DLEQ, Bulletproofs) --
+    target_sources(run_selftest PRIVATE tests/test_zk.cpp)
+    add_executable(test_zk_standalone tests/test_zk.cpp)
+    target_link_libraries(test_zk_standalone PRIVATE ${SECP256K1_LIB_NAME})
+    target_compile_definitions(test_zk_standalone PRIVATE STANDALONE_TEST)
+    add_test(NAME zk_proofs COMMAND test_zk_standalone)
+
     # -- Unified Wallet API tests (always built, has internal Ethereum guards)
     target_sources(run_selftest PRIVATE tests/test_wallet.cpp)
     add_executable(test_wallet_standalone tests/test_wallet.cpp)
@@ -919,7 +927,7 @@ if(BUILD_TESTING)
     if(SECP256K1_BUILD_ETHEREUM)
         list(APPEND CORE_TESTS ethereum)
     endif()
-    list(APPEND CORE_TESTS wallet)
+    list(APPEND CORE_TESTS wallet zk_proofs)
     set_tests_properties(${CORE_TESTS} PROPERTIES LABELS "core")
 
     # -- Audit infrastructure lives in audit/ ------------------------------

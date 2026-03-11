@@ -48,6 +48,16 @@ We will acknowledge within **72 hours** and provide a fix timeline.
 This library has **not undergone an independent security audit**.
 It is provided for research, educational, and experimental purposes.
 
+> **Seeking Sponsors for Independent Audit & Bug Bounty**
+>
+> We are actively looking for sponsors, grants, and funding partners to commission a professional
+> third-party cryptographic audit and establish a funded bug bounty program.
+> If your organization uses secp256k1 and would benefit from a second high-quality audited implementation,
+> please consider sponsoring via [GitHub Sponsors](https://github.com/sponsors/shrec)
+> or contact [payysoon@gmail.com](mailto:payysoon@gmail.com).
+>
+> See the [README](README.md#seeking-sponsors----audit-bug-bounty--development) for full details.
+
 ### Audit Documentation
 
 For auditors and security researchers, the following documents are available:
@@ -90,7 +100,8 @@ The following automated security measures are in place:
 
 ### Planned Security Improvements
 
-- [ ] Independent third-party cryptographic audit (seeking funding)
+- [ ] **Independent third-party cryptographic audit** -- actively seeking sponsors ([GitHub Sponsors](https://github.com/sponsors/shrec) | [payysoon@gmail.com](mailto:payysoon@gmail.com))
+- [ ] **Funded bug bounty program** -- seeking sponsors to offer financial rewards for vulnerability reports
 - [ ] Formal verification of field/scalar arithmetic (Fiat-Crypto / Cryptol)
 - [x] ct-verif LLVM pass integration for compile-time CT verification (`.github/workflows/ct-verif.yml`)
 - [x] Native ARM64 / Apple Silicon dudect CI -- macos-14 M1 runner, smoke + full (`.github/workflows/ct-arm64.yml`)

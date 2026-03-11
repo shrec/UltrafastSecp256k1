@@ -309,4 +309,16 @@ Include:
 
 ---
 
-Thank you for contributing to UltrafastSecp256k1! 🎉
+## Sponsorship & Funding
+
+We are actively seeking sponsors for:
+
+- **Independent cryptographic audit** -- professional third-party review
+- **Bug bounty program** -- financial rewards for security researchers
+- **Ongoing development** -- GPU acceleration, ZK proofs, formal verification, platform ports
+
+See the [README](README.md#seeking-sponsors----audit-bug-bounty--development) for details, or sponsor via [GitHub Sponsors](https://github.com/sponsors/shrec).
+
+---
+
+Thank you for contributing to UltrafastSecp256k1!
