@@ -60,7 +60,7 @@ __device__ inline void ct_zk_derive_nonce(
     for (int i = 0; i < 32; ++i) buf[97 + i] = aux[i];
 
     uint8_t hash[32];
-    zk_tagged_hash("ZK/nonce", 8, buf, sizeof(buf), hash);
+    zk_tagged_hash_midstate(&ZK_NONCE_MIDSTATE, buf, sizeof(buf), hash);
     secp256k1::cuda::scalar_from_bytes(hash, k_out);
 }
 
@@ -119,7 +119,7 @@ __device__ inline bool ct_knowledge_prove_device(
     for (int i = 0; i < 32; ++i) buf[98 + i] = msg[i];
 
     uint8_t e_hash[32];
-    zk_tagged_hash("ZK/knowledge", 12, buf, sizeof(buf), e_hash);
+    zk_tagged_hash_midstate(&ZK_KNOWLEDGE_MIDSTATE, buf, sizeof(buf), e_hash);
 
     Scalar e;
     secp256k1::cuda::scalar_from_bytes(e_hash, &e);
@@ -245,7 +245,7 @@ __device__ inline bool ct_dleq_prove_device(
     }
 
     uint8_t e_hash[32];
-    zk_tagged_hash("ZK/dleq", 7, buf, sizeof(buf), e_hash);
+    zk_tagged_hash_midstate(&ZK_DLEQ_MIDSTATE, buf, sizeof(buf), e_hash);
     secp256k1::cuda::scalar_from_bytes(e_hash, &proof->e);
 
     // s = k + e * secret (CT scalar arithmetic)

@@ -53,6 +53,48 @@ __device__ inline void zk_tagged_hash(
 }
 
 // ============================================================================
+// Precomputed Tagged Hash Midstates
+// ============================================================================
+// SHA256 state after processing SHA256(tag)||SHA256(tag) (1 block = 64 bytes).
+// Eliminates 2 SHA256 compressions per tagged hash call.
+
+struct ZKTagMidstate {
+    uint32_t h[8];
+};
+
+// Midstate for "ZK/nonce" (8 bytes)
+__constant__ const ZKTagMidstate ZK_NONCE_MIDSTATE = {{
+    0x9dc14780U, 0xff35a050U, 0x1ee52bf5U, 0xdb8cf3f4U,
+    0x08d70a7bU, 0x195b809dU, 0x70f3d011U, 0x7c124c01U
+}};
+
+// Midstate for "ZK/knowledge" (12 bytes)
+__constant__ const ZKTagMidstate ZK_KNOWLEDGE_MIDSTATE = {{
+    0xd88665c6U, 0x57be7980U, 0x8fb37fd8U, 0x485fc7f8U,
+    0x82a5716bU, 0x1db3ed4dU, 0x9dacd635U, 0xea1cfaa4U
+}};
+
+// Midstate for "ZK/dleq" (7 bytes)
+__constant__ const ZKTagMidstate ZK_DLEQ_MIDSTATE = {{
+    0xad61ec8eU, 0x5a747086U, 0x1dd98eefU, 0xe172f2ffU,
+    0x9b119897U, 0x02f290ddU, 0x21ffc089U, 0x0a5520b9U
+}};
+
+// Tagged hash using precomputed midstate -- skips tag hashing + first block
+__device__ inline void zk_tagged_hash_midstate(
+    const ZKTagMidstate* midstate,
+    const uint8_t* data, size_t data_len,
+    uint8_t out[32])
+{
+    SHA256Ctx ctx;
+    for (int i = 0; i < 8; i++) ctx.h[i] = midstate->h[i];
+    ctx.buf_len = 0;
+    ctx.total = 64;  // already processed 1 block (tag_hash || tag_hash)
+    sha256_update(&ctx, data, data_len);
+    sha256_final(&ctx, out);
+}
+
+// ============================================================================
 // Proof structures (GPU-compatible POD)
 // ============================================================================
 
