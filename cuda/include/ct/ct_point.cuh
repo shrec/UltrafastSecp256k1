@@ -517,23 +517,107 @@ void ct_scalar_mul(const JacobianPoint* p_in, const Scalar* k,
 // Uses a precomputed table (loaded at init time) and signed-digit comb method.
 // Falls back to ct_scalar_mul(G, k) if no precomputed table is available.
 
+// Precomputed table: odd multiples of G in affine (1G, 3G, ..., 15G)
+// Layout: [8][8] = 8 points x (4 limbs X + 4 limbs Y)
+__constant__ const uint64_t G_TABLE_A[8][8] = {
+    { 0x59f2815b16f81798ULL, 0x029bfcdb2dce28d9ULL, 0x55a06295ce870b07ULL, 0x79be667ef9dcbbacULL,
+      0x9c47d08ffb10d4b8ULL, 0xfd17b448a6855419ULL, 0x5da4fbfc0e1108a8ULL, 0x483ada7726a3c465ULL },
+    { 0x8601f113bce036f9ULL, 0xb531c845836f99b0ULL, 0x49344f85f89d5229ULL, 0xf9308a019258c310ULL,
+      0x6cb9fd7584b8e672ULL, 0x6500a99934c2231bULL, 0x0fe337e62a37f356ULL, 0x388f7b0f632de814ULL },
+    { 0xcba8d569b240efe4ULL, 0xe88b84bddc619ab7ULL, 0x55b4a7250a5c5128ULL, 0x2f8bde4d1a072093ULL,
+      0xdca87d3aa6ac62d6ULL, 0xf788271bab0d6840ULL, 0xd4dba9dda6c9c426ULL, 0xd8ac222636e5e3d6ULL },
+    { 0xe92bddedcac4f9bcULL, 0x3d419b7e0330e39cULL, 0xa398f365f2ea7a0eULL, 0x5cbdf0646e5db4eaULL,
+      0xa5082628087264daULL, 0xa813d0b813fde7b5ULL, 0xa3178d6d861a54dbULL, 0x6aebca40ba255960ULL },
+    { 0xc35f110dfc27ccbeULL, 0xe09796974c57e714ULL, 0x09ad178a9f559abdULL, 0xacd484e2f0c7f653ULL,
+      0x05cc262ac64f9c37ULL, 0xadd888a4375f8e0fULL, 0x64380971763b61e9ULL, 0xcc338921b0a7d9fdULL },
+    { 0xbbec17895da008cbULL, 0x5649980be5c17891ULL, 0x5ef4246b70c65aacULL, 0x774ae7f858a9411eULL,
+      0x301d74c9c953c61bULL, 0x372db1e2dff9d6a8ULL, 0x0243dd56d7b7b365ULL, 0xd984a032eb6b5e19ULL },
+    { 0xdeeddf8f19405aa8ULL, 0xb075fbc6610e58cdULL, 0xc7d1d205c3748651ULL, 0xf28773c2d975288bULL,
+      0x29b5cb52db03ed81ULL, 0x3a1a06da521fa91fULL, 0x758212eb65cdaf47ULL, 0x0ab0902e8d880a89ULL },
+    { 0x44adbcf8e27e080eULL, 0x31e5946f3c85f79eULL, 0x5a465ae3095ff411ULL, 0xd7924d4f7d43ea96ULL,
+      0xc504dc9ff6a26b58ULL, 0xea40af2bd896d3a5ULL, 0x83842ec228cc6defULL, 0x581e2872a86c72a6ULL },
+};
+
+// Endomorphism table: (beta*x, y) for each odd multiple of G
+__constant__ const uint64_t G_TABLE_B[8][8] = {
+    { 0xa7bba04400b88fcbULL, 0x872844067f15e98dULL, 0xab0102b696902325ULL, 0xbcace2e99da01887ULL,
+      0x9c47d08ffb10d4b8ULL, 0xfd17b448a6855419ULL, 0x5da4fbfc0e1108a8ULL, 0x483ada7726a3c465ULL },
+    { 0xf7f0728c77206b2fULL, 0x8af1e022c6dc8e1cULL, 0x8dcd8dcf2a28fa2fULL, 0xdf6edf03731f9b4bULL,
+      0x6cb9fd7584b8e672ULL, 0x6500a99934c2231bULL, 0x0fe337e62a37f356ULL, 0x388f7b0f632de814ULL },
+    { 0x138c694695a83668ULL, 0xa045693ee0d097ccULL, 0xf79f54fbccb94671ULL, 0x337b52e3acda49dfULL,
+      0xdca87d3aa6ac62d6ULL, 0xf788271bab0d6840ULL, 0xd4dba9dda6c9c426ULL, 0xd8ac222636e5e3d6ULL },
+    { 0x3bc4686e4e53bc94ULL, 0x0d3b20e20faf7aaaULL, 0xa4fec4d1c095c06eULL, 0x13f26e754bea0b77ULL,
+      0xa5082628087264daULL, 0xa813d0b813fde7b5ULL, 0xa3178d6d861a54dbULL, 0x6aebca40ba255960ULL },
+    { 0x20cd912e65953a52ULL, 0xb565cdf5ef6d44e1ULL, 0x7b6558afec58ab20ULL, 0x87b404037e44e819ULL,
+      0x05cc262ac64f9c37ULL, 0xadd888a4375f8e0fULL, 0x64380971763b61e9ULL, 0xcc338921b0a7d9fdULL },
+    { 0xc5ff4334bb209ce7ULL, 0x79859bb70b5ff620ULL, 0x8d897c41bebf1a26ULL, 0x51f4d3d1171dac1dULL,
+      0x301d74c9c953c61bULL, 0x372db1e2dff9d6a8ULL, 0x0243dd56d7b7b365ULL, 0xd984a032eb6b5e19ULL },
+    { 0x60aaee6a475fb678ULL, 0x32907ed74a3d0562ULL, 0x07046c4578fc783bULL, 0xf14d58374bb890a2ULL,
+      0x29b5cb52db03ed81ULL, 0x3a1a06da521fa91fULL, 0x758212eb65cdaf47ULL, 0x0ab0902e8d880a89ULL },
+    { 0x3ac0a40c71b1b3b4ULL, 0x05cc3bc9c1c0a639ULL, 0x0e1b4825512b6948ULL, 0x805f1105f5f9454aULL,
+      0xc504dc9ff6a26b58ULL, 0xea40af2bd896d3a5ULL, 0x83842ec228cc6defULL, 0x581e2872a86c72a6ULL },
+};
+
 __device__ inline
 void ct_generator_mul(const Scalar* k, JacobianPoint* r_out) {
     using namespace secp256k1::cuda;
 
-    // Use the standard generator point G
-    JacobianPoint G;
-    for (int i = 0; i < 4; i++) {
-        G.x.limbs[i] = GENERATOR_X[i];
-        G.y.limbs[i] = GENERATOR_Y[i];
-    }
-    field_set_one(&G.z);
-    G.infinity = false;
+    // GLV decompose
+    CTGLVDecomposition glv = ct_glv_decompose(k);
 
-    // For now, delegate to ct_scalar_mul which is fully constant-time
-    // A comb-based generator_mul with precomputed table would be faster
-    // but requires a global precomputed table (like the CPU version's 352-point table)
-    ct_scalar_mul(&G, k, r_out);
+    // Load precomputed tables from __constant__ memory
+    constexpr int TABLE_SIZE = 8;
+    CTAffinePoint table_a[TABLE_SIZE];
+    CTAffinePoint table_b[TABLE_SIZE];
+
+    for (int i = 0; i < TABLE_SIZE; i++) {
+        for (int j = 0; j < 4; j++) {
+            table_a[i].x.limbs[j] = G_TABLE_A[i][j];
+            table_a[i].y.limbs[j] = G_TABLE_A[i][j + 4];
+            table_b[i].x.limbs[j] = G_TABLE_B[i][j];
+            table_b[i].y.limbs[j] = G_TABLE_B[i][j + 4];
+        }
+        table_a[i].infinity = 0;
+        table_b[i].infinity = 0;
+    }
+
+    // Conditionally negate tables based on GLV sign
+    for (int i = 0; i < TABLE_SIZE; i++) {
+        ct_point_cneg_y(&table_a[i], glv.k1_neg);
+        ct_point_cneg_y(&table_b[i], glv.k2_neg);
+    }
+
+    // Main loop: 128 iterations of double + conditional add
+    CTJacobianPoint result;
+    ct_point_set_infinity(&result);
+
+    for (int i = 127; i >= 0; --i) {
+        ct_point_dbl(&result, &result);
+
+        // k1 bit
+        uint64_t b1 = ct::scalar_bit(&glv.k1, i);
+        uint64_t m1 = bool_to_mask(b1);
+        CTAffinePoint entry1;
+        entry1.x = table_a[0].x;
+        entry1.y = table_a[0].y;
+        entry1.infinity = 0;
+        CTJacobianPoint with_add1;
+        ct_point_add_mixed(&result, &entry1, &with_add1);
+        ct_point_cmov(&result, &with_add1, m1);
+
+        // k2 bit
+        uint64_t b2 = ct::scalar_bit(&glv.k2, i);
+        uint64_t m2 = bool_to_mask(b2);
+        CTAffinePoint entry2;
+        entry2.x = table_b[0].x;
+        entry2.y = table_b[0].y;
+        entry2.infinity = 0;
+        CTJacobianPoint with_add2;
+        ct_point_add_mixed(&result, &entry2, &with_add2);
+        ct_point_cmov(&result, &with_add2, m2);
+    }
+
+    *r_out = ct_point_to_jacobian(&result);
 }
 
 } // namespace ct
