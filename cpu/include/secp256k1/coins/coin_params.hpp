@@ -37,6 +37,7 @@ enum class AddressEncoding : std::uint8_t {
     BECH32,      // Bech32 / Bech32m (SegWit)
     EIP55,       // Ethereum EIP-55 mixed-case checksum
     CASHADDR,    // CashAddr (Bitcoin Cash)
+    TRON_BASE58, // Tron: Keccak-256(pubkey) + 0x41 prefix + Base58Check
 };
 
 // -- Feature Flags ------------------------------------------------------------
@@ -79,6 +80,9 @@ struct CoinParams {
     std::uint32_t xprv_version;       // xprv serialization magic (4 bytes)
     std::uint32_t xpub_version;       // xpub serialization magic (4 bytes)
     
+    // EVM chain ID (for EIP-155 signing; 0 = not applicable)
+    std::uint64_t chain_id;
+    
     // Features
     CoinFeatures  features;
 };
@@ -104,6 +108,7 @@ inline constexpr CoinParams Bitcoin = {
     .default_encoding   = AddressEncoding::BECH32,
     .xprv_version       = 0x0488ADE4,
     .xpub_version       = 0x0488B21E,
+    .chain_id           = 0,
     .features           = {true, true, true, true, false, true},
 };
 
@@ -123,6 +128,7 @@ inline constexpr CoinParams Litecoin = {
     .default_encoding   = AddressEncoding::BECH32,
     .xprv_version       = 0x0488ADE4,
     .xpub_version       = 0x0488B21E,
+    .chain_id           = 0,
     .features           = {true, false, true, true, false, false},
 };
 
@@ -142,6 +148,7 @@ inline constexpr CoinParams Dogecoin = {
     .default_encoding   = AddressEncoding::BASE58CHECK,
     .xprv_version       = 0x02FAC398,
     .xpub_version       = 0x02FACAFD,
+    .chain_id           = 0,
     .features           = {false, false, true, false, false, false},
 };
 
@@ -161,6 +168,7 @@ inline constexpr CoinParams Dash = {
     .default_encoding   = AddressEncoding::BASE58CHECK,
     .xprv_version       = 0x0488ADE4,
     .xpub_version       = 0x0488B21E,
+    .chain_id           = 0,
     .features           = {false, false, true, true, false, false},
 };
 
@@ -180,6 +188,7 @@ inline constexpr CoinParams Ethereum = {
     .default_encoding   = AddressEncoding::EIP55,
     .xprv_version       = 0x0488ADE4,
     .xpub_version       = 0x0488B21E,
+    .chain_id           = 1,
     .features           = {false, false, false, true, true, false},
 };
 
@@ -199,6 +208,7 @@ inline constexpr CoinParams BitcoinCash = {
     .default_encoding   = AddressEncoding::CASHADDR,
     .xprv_version       = 0x0488ADE4,
     .xpub_version       = 0x0488B21E,
+    .chain_id           = 0,
     .features           = {false, false, true, true, false, true},
 };
 
@@ -218,6 +228,7 @@ inline constexpr CoinParams BitcoinSV = {
     .default_encoding   = AddressEncoding::BASE58CHECK,
     .xprv_version       = 0x0488ADE4,
     .xpub_version       = 0x0488B21E,
+    .chain_id           = 0,
     .features           = {false, false, true, false, false, false},
 };
 
@@ -237,6 +248,7 @@ inline constexpr CoinParams Zcash = {
     .default_encoding   = AddressEncoding::BASE58CHECK,
     .xprv_version       = 0x0488ADE4,
     .xpub_version       = 0x0488B21E,
+    .chain_id           = 0,
     .features           = {false, false, true, true, false, false},
 };
 
@@ -256,6 +268,7 @@ inline constexpr CoinParams DigiByte = {
     .default_encoding   = AddressEncoding::BECH32,
     .xprv_version       = 0x0488ADE4,
     .xpub_version       = 0x0488B21E,
+    .chain_id           = 0,
     .features           = {true, false, true, true, false, false},
 };
 
@@ -275,6 +288,7 @@ inline constexpr CoinParams Namecoin = {
     .default_encoding   = AddressEncoding::BASE58CHECK,
     .xprv_version       = 0x0488ADE4,
     .xpub_version       = 0x0488B21E,
+    .chain_id           = 0,
     .features           = {false, false, true, true, false, false},
 };
 
@@ -294,6 +308,7 @@ inline constexpr CoinParams Peercoin = {
     .default_encoding   = AddressEncoding::BASE58CHECK,
     .xprv_version       = 0x0488ADE4,
     .xpub_version       = 0x0488B21E,
+    .chain_id           = 0,
     .features           = {false, false, true, false, false, false},
 };
 
@@ -313,6 +328,7 @@ inline constexpr CoinParams Vertcoin = {
     .default_encoding   = AddressEncoding::BECH32,
     .xprv_version       = 0x0488ADE4,
     .xpub_version       = 0x0488B21E,
+    .chain_id           = 0,
     .features           = {true, false, true, true, false, false},
 };
 
@@ -332,6 +348,7 @@ inline constexpr CoinParams Viacoin = {
     .default_encoding   = AddressEncoding::BECH32,
     .xprv_version       = 0x0488ADE4,
     .xpub_version       = 0x0488B21E,
+    .chain_id           = 0,
     .features           = {true, false, true, true, false, false},
 };
 
@@ -351,6 +368,7 @@ inline constexpr CoinParams Groestlcoin = {
     .default_encoding   = AddressEncoding::BECH32,
     .xprv_version       = 0x0488ADE4,
     .xpub_version       = 0x0488B21E,
+    .chain_id           = 0,
     .features           = {true, true, true, true, false, false},
 };
 
@@ -370,6 +388,7 @@ inline constexpr CoinParams Syscoin = {
     .default_encoding   = AddressEncoding::BECH32,
     .xprv_version       = 0x0488ADE4,
     .xpub_version       = 0x0488B21E,
+    .chain_id           = 0,
     .features           = {true, false, true, true, false, false},
 };
 
@@ -389,6 +408,7 @@ inline constexpr CoinParams BNBSmartChain = {
     .default_encoding   = AddressEncoding::EIP55,
     .xprv_version       = 0x0488ADE4,
     .xpub_version       = 0x0488B21E,
+    .chain_id           = 56,
     .features           = {false, false, false, true, true, false},
 };
 
@@ -408,6 +428,7 @@ inline constexpr CoinParams Polygon = {
     .default_encoding   = AddressEncoding::EIP55,
     .xprv_version       = 0x0488ADE4,
     .xpub_version       = 0x0488B21E,
+    .chain_id           = 137,
     .features           = {false, false, false, true, true, false},
 };
 
@@ -427,6 +448,7 @@ inline constexpr CoinParams Avalanche = {
     .default_encoding   = AddressEncoding::EIP55,
     .xprv_version       = 0x0488ADE4,
     .xpub_version       = 0x0488B21E,
+    .chain_id           = 43114,
     .features           = {false, false, false, true, true, false},
 };
 
@@ -446,6 +468,7 @@ inline constexpr CoinParams Fantom = {
     .default_encoding   = AddressEncoding::EIP55,
     .xprv_version       = 0x0488ADE4,
     .xpub_version       = 0x0488B21E,
+    .chain_id           = 250,
     .features           = {false, false, false, true, true, false},
 };
 
@@ -465,6 +488,7 @@ inline constexpr CoinParams Arbitrum = {
     .default_encoding   = AddressEncoding::EIP55,
     .xprv_version       = 0x0488ADE4,
     .xpub_version       = 0x0488B21E,
+    .chain_id           = 42161,
     .features           = {false, false, false, true, true, false},
 };
 
@@ -484,6 +508,7 @@ inline constexpr CoinParams Optimism = {
     .default_encoding   = AddressEncoding::EIP55,
     .xprv_version       = 0x0488ADE4,
     .xpub_version       = 0x0488B21E,
+    .chain_id           = 10,
     .features           = {false, false, false, true, true, false},
 };
 
@@ -503,6 +528,7 @@ inline constexpr CoinParams Ravencoin = {
     .default_encoding   = AddressEncoding::BASE58CHECK,
     .xprv_version       = 0x0488ADE4,
     .xpub_version       = 0x0488B21E,
+    .chain_id           = 0,
     .features           = {false, false, true, true, false, false},
 };
 
@@ -522,6 +548,7 @@ inline constexpr CoinParams Flux = {
     .default_encoding   = AddressEncoding::BASE58CHECK,
     .xprv_version       = 0x0488ADE4,
     .xpub_version       = 0x0488B21E,
+    .chain_id           = 0,
     .features           = {false, false, true, true, false, false},
 };
 
@@ -541,6 +568,7 @@ inline constexpr CoinParams Qtum = {
     .default_encoding   = AddressEncoding::BASE58CHECK,
     .xprv_version       = 0x0488ADE4,
     .xpub_version       = 0x0488B21E,
+    .chain_id           = 0,
     .features           = {true, false, true, true, false, false},
 };
 
@@ -560,6 +588,7 @@ inline constexpr CoinParams Horizen = {
     .default_encoding   = AddressEncoding::BASE58CHECK,
     .xprv_version       = 0x0488ADE4,
     .xpub_version       = 0x0488B21E,
+    .chain_id           = 0,
     .features           = {false, false, true, true, false, false},
 };
 
@@ -579,6 +608,7 @@ inline constexpr CoinParams BitcoinGold = {
     .default_encoding   = AddressEncoding::BASE58CHECK,
     .xprv_version       = 0x0488ADE4,
     .xpub_version       = 0x0488B21E,
+    .chain_id           = 0,
     .features           = {true, false, true, true, false, false},
 };
 
@@ -598,7 +628,28 @@ inline constexpr CoinParams Komodo = {
     .default_encoding   = AddressEncoding::BASE58CHECK,
     .xprv_version       = 0x0488ADE4,
     .xpub_version       = 0x0488B21E,
+    .chain_id           = 0,
     .features           = {false, false, true, true, false, false},
+};
+
+// -- Tron (TRX) ---------------------------------------------------------------
+inline constexpr CoinParams Tron = {
+    .name               = "Tron",
+    .ticker             = "TRX",
+    .p2pkh_version      = 0x41,  // Tron address prefix byte
+    .p2pkh_version_test = 0xA0,
+    .p2sh_version       = 0x00,
+    .wif_prefix         = 0x00,  // Not used (raw hex private keys)
+    .wif_prefix_test    = 0x00,
+    .bech32_hrp         = nullptr,
+    .bech32_hrp_test    = nullptr,
+    .coin_type          = 195,
+    .hash_algo          = AddressHash::KECCAK256,
+    .default_encoding   = AddressEncoding::TRON_BASE58,
+    .xprv_version       = 0x0488ADE4,
+    .xpub_version       = 0x0488B21E,
+    .chain_id           = 0,
+    .features           = {false, false, false, true, false, false},
 };
 
 // ============================================================================
@@ -612,7 +663,7 @@ inline constexpr const CoinParams* ALL_COINS[] = {
     &Peercoin, &Vertcoin, &Viacoin, &Groestlcoin, &Syscoin,
     &BNBSmartChain, &Polygon, &Avalanche, &Fantom, &Arbitrum,
     &Optimism, &Ravencoin, &Flux, &Qtum, &Horizen,
-    &BitcoinGold, &Komodo,
+    &BitcoinGold, &Komodo, &Tron,
 };
 
 inline constexpr std::size_t ALL_COINS_COUNT = std::size(ALL_COINS);

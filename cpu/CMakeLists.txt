@@ -42,8 +42,10 @@ set(SECP256K1_SOURCES
     src/adaptor.cpp       # Adaptor signatures (Schnorr + ECDSA)
     src/address.cpp       # Address generation + BIP-352 Silent Payments
     # Coins layer -- core infrastructure (always built)
-    src/coin_address.cpp  # Unified per-coin address generation
-    src/coin_hd.cpp       # BIP-44 coin-type HD derivation
+    src/coin_address.cpp    # Unified per-coin address generation
+    src/coin_hd.cpp         # BIP-44 coin-type HD derivation
+    src/message_signing.cpp # Bitcoin message signing (BIP-137)
+    src/wallet.cpp          # Unified multi-chain wallet API facade
     # Advanced algorithms -- Pippenger MSM + Comb generator multiplication
     src/pippenger.cpp        # Pippenger bucket method MSM (n > 128)
     src/ecmult_gen_comb.cpp  # Lim-Lee comb method for fast k*G
@@ -894,6 +896,13 @@ if(BUILD_TESTING)
         add_test(NAME ethereum COMMAND test_ethereum_standalone)
     endif()
 
+    # -- Unified Wallet API tests (always built, has internal Ethereum guards)
+    target_sources(run_selftest PRIVATE tests/test_wallet.cpp)
+    add_executable(test_wallet_standalone tests/test_wallet.cpp)
+    target_link_libraries(test_wallet_standalone PRIVATE ${SECP256K1_LIB_NAME})
+    target_compile_definitions(test_wallet_standalone PRIVATE STANDALONE_TEST)
+    add_test(NAME wallet COMMAND test_wallet_standalone)
+
     # -- CTest labels for core library tests --------------------------------
     # Label all core tests so they can be run as a group:
     #   ctest --test-dir <build> -L core
@@ -910,6 +919,7 @@ if(BUILD_TESTING)
     if(SECP256K1_BUILD_ETHEREUM)
         list(APPEND CORE_TESTS ethereum)
     endif()
+    list(APPEND CORE_TESTS wallet)
     set_tests_properties(${CORE_TESTS} PROPERTIES LABELS "core")
 
     # -- Audit infrastructure lives in audit/ ------------------------------

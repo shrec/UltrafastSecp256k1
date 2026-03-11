@@ -357,8 +357,121 @@ ufsecp_addr_p2tr(ctx, xonly_pubkey, UFSECP_NET_MAINNET, addr, &addr_len);
 
 | Constant | Value | Prefixes |
 |----------|-------|----------|
-| `UFSECP_NET_MAINNET` | 0 | `1`, `bc1q`, `bc1p` |
-| `UFSECP_NET_TESTNET` | 1 | `m`/`n`, `tb1q`, `tb1p` |
+| `UFSECP_NET_MAINNET` | 0 | `1`, `3`, `bc1q`, `bc1p` |
+| `UFSECP_NET_TESTNET` | 1 | `m`/`n`, `2`, `tb1q`, `tb1p` |
+
+### P2SH-P2WPKH (Nested SegWit, C API)
+
+```c
+char addr[64];
+size_t addr_len = sizeof(addr);
+ufsecp_addr_p2sh_p2wpkh(ctx, pubkey33, UFSECP_NET_MAINNET, addr, &addr_len);
+// Result: "3..." (BIP-49 wrapped SegWit)
+```
+
+### C++ Address Generation
+
+The C++ API provides direct access to all address formats without a context object.
+
+```cpp
+#include <secp256k1/address.hpp>
+using namespace secp256k1;
+
+auto privkey = fast::Scalar::from_hex("...");
+auto pubkey  = fast::Point::generator().scalar_mul(privkey);
+
+// All Bitcoin address formats
+auto legacy  = address_p2pkh(pubkey);          // "1..."
+auto segwit  = address_p2wpkh(pubkey);         // "bc1q..."
+auto taproot = address_p2tr(pubkey);           // "bc1p..."
+auto nested  = address_p2sh_p2wpkh(pubkey);    // "3..." (BIP-49)
+
+// CashAddr for Bitcoin Cash
+auto bch     = address_cashaddr(pubkey);        // "bitcoincash:q..."
+
+// WIF private key export
+auto wif     = wif_encode(privkey);             // "K..." or "L..."
+```
+
+### Multi-Chain Address Generation (C++ Coins Layer)
+
+The coins layer generates addresses for any of the 28 supported coins using a single API.
+
+```cpp
+#include <secp256k1/coins/coin_address.hpp>
+using namespace secp256k1::coins;
+
+auto privkey = fast::Scalar::from_hex("...");
+auto pubkey  = fast::Point::generator().scalar_mul(privkey);
+
+// Each coin uses its correct encoding automatically
+auto btc  = coin_address(pubkey, Bitcoin);      // "bc1q..." (Bech32)
+auto ltc  = coin_address(pubkey, Litecoin);     // "ltc1q..."
+auto doge = coin_address(pubkey, Dogecoin);     // "D..." (Base58Check)
+auto eth  = coin_address(pubkey, Ethereum);     // "0x..." (EIP-55)
+auto bch  = coin_address(pubkey, BitcoinCash);  // "bitcoincash:q..." (CashAddr)
+auto trx  = coin_address(pubkey, Tron);         // "T..." (TRON_BASE58)
+
+// Explicit format overrides
+auto btc_legacy = coin_address_p2pkh(pubkey, Bitcoin);         // "1..."
+auto btc_nested = coin_address_p2sh_p2wpkh(pubkey, Bitcoin);   // "3..."
+auto bch_cash   = coin_address_cashaddr(pubkey, BitcoinCash);  // "bitcoincash:q..."
+
+// Full key generation in one call
+auto keypair = coin_derive(privkey, Bitcoin);
+// keypair.address = "bc1q...", keypair.wif = "K..."
+```
+
+### Unified Wallet API
+
+The wallet API provides a chain-agnostic interface for key management, address generation,
+signing, and recovery across all 28 supported coins.
+
+```cpp
+#include <secp256k1/coins/wallet.hpp>
+using namespace secp256k1::coins::wallet;
+
+// Create wallet from private key
+uint8_t raw_key[32] = { /* ... */ };
+auto [key, ok] = from_private_key(raw_key);
+
+// Same API for any chain
+auto btc_addr = get_address(Bitcoin, key);       // "bc1q..."
+auto eth_addr = get_address(Ethereum, key);      // "0x..."
+auto trx_addr = get_address(Tron, key);          // "T..."
+
+// All Bitcoin address formats
+auto p2pkh    = get_address_p2pkh(Bitcoin, key);         // "1..."
+auto p2wpkh   = get_address_p2wpkh(Bitcoin, key);        // "bc1q..."
+auto p2sh     = get_address_p2sh_p2wpkh(Bitcoin, key);   // "3..."
+auto p2tr     = get_address_p2tr(Bitcoin, key);           // "bc1p..."
+auto cashaddr = get_address_cashaddr(BitcoinCash, key);   // "bitcoincash:q..."
+
+// Export keys in chain-appropriate format
+auto wif   = export_private_key(Bitcoin, key);   // WIF "K..."
+auto hex   = export_private_key(Ethereum, key);  // "0x..."
+
+// Sign and verify messages
+const char* msg = "Hello Bitcoin";
+auto sig = sign_message(Bitcoin, key, (const uint8_t*)msg, strlen(msg));
+bool valid = verify_message(Bitcoin, key.pub, (const uint8_t*)msg, strlen(msg), sig);
+
+// Recover signer from message + signature
+auto [recovered_addr, success] = recover_address(Bitcoin,
+    (const uint8_t*)msg, strlen(msg), sig);
+```
+
+### Buffer Sizes
+
+| Format | Max Size | Example |
+|--------|----------|---------|
+| P2PKH | 35 bytes | `1BvBMSEYstWetqT...` |
+| P2WPKH | 63 bytes | `bc1q...` |
+| P2TR | 63 bytes | `bc1p...` |
+| P2SH-P2WPKH | 35 bytes | `3J98t1WpEZ73CNm...` |
+| CashAddr | 55 bytes | `bitcoincash:q...` |
+| Ethereum | 42 bytes | `0x...` |
+| Tron | 34 bytes | `T...` |
 
 ---
 

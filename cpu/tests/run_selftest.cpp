@@ -44,6 +44,7 @@ int test_ecc_properties_run();
 #ifdef SECP256K1_BUILD_ETHEREUM
 int test_ethereum_run();
 #endif
+int test_wallet_run();
 
 // -- Module descriptor --------------------------------------------------------
 struct TestModule {
@@ -76,6 +77,7 @@ static const TestModule MODULES[] = {
 #ifdef SECP256K1_BUILD_ETHEREUM
     { "Ethereum signing layer",                       test_ethereum_run },
 #endif
+    { "Unified wallet API",                              test_wallet_run },
 };
 
 static constexpr int NUM_MODULES = sizeof(MODULES) / sizeof(MODULES[0]);

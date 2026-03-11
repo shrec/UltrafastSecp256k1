@@ -5,6 +5,43 @@ All notable changes to UltrafastSecp256k1 are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] (dev branch)
+
+> **Development: post-v3.22.0** | Unified Wallet API, multi-chain address formats, message signing
+
+### Added
+
+- **Unified Wallet API** (`wallet.hpp`/`wallet.cpp`) -- chain-agnostic key management, address
+  generation, message signing, and public key recovery. Single `wallet::` namespace works
+  identically across Bitcoin, Ethereum, Tron, and all 28 supported coins.
+- **Bitcoin message signing** (`message_signing.hpp`/`message_signing.cpp`) -- BIP-137/Electrum
+  compatible: `bitcoin_message_hash()`, `bitcoin_sign_message()`, `bitcoin_verify_message()`,
+  `bitcoin_recover_message()`, `bitcoin_sig_to_base64()`, `bitcoin_sig_from_base64()`.
+- **P2SH-P2WPKH** (nested/wrapped SegWit) address generation -- `address_p2sh_p2wpkh()`,
+  `coin_address_p2sh_p2wpkh()`, `wallet::get_address_p2sh_p2wpkh()`. Produces `3...` addresses
+  for backward-compatible SegWit (BIP-49).
+- **P2SH** (pay-to-script-hash) address primitive -- `address_p2sh()`, `coin_address_p2sh()`
+  from raw 20-byte script hash.
+- **P2WSH** (witness script hash) address primitive -- `address_p2wsh()` from 32-byte witness
+  script hash (SegWit v0, `bc1q...` 32-byte program).
+- **CashAddr encoding** (Bitcoin Cash BIP-0185) -- `cashaddr_encode()`, `address_cashaddr()`,
+  `coin_address_cashaddr()`, `wallet::get_address_cashaddr()`. Produces `bitcoincash:q...` addresses.
+- **Tron (TRX) coin descriptor** -- coin_type=195, `TRON_BASE58` encoding (Keccak-256 hash +
+  `0x41` prefix + Base58Check). 28th coin in registry.
+- **5 wallet address helpers** -- `get_address_p2pkh()`, `get_address_p2wpkh()`,
+  `get_address_p2sh_p2wpkh()`, `get_address_p2tr()`, `get_address_cashaddr()`.
+- **`chain_id` field** in `CoinParams` for EIP-155 signing (Ethereum=1, BSC=56, Polygon=137, etc.).
+- **19 new tests** -- 12 in `test_coins.cpp` (P2SH-P2WPKH, CashAddr, P2SH, Tron), 7 in
+  `test_wallet.cpp` (key management, signing, address formats, recovery).
+
+### Changed
+
+- `coin_address()` CASHADDR dispatch now correctly routes to `coin_address_cashaddr()` --
+  Bitcoin Cash addresses generate via CashAddr instead of falling through to Base58Check.
+- All 28 coins now generate addresses correctly (was 27; BCH fixed, Tron added).
+
+---
+
 ## [3.22.0] - 2026-03-10
 
 > **Minor release: v3.21.1 -> v3.22.0** | Modular Ethereum layer | ABI extension (backward compatible)

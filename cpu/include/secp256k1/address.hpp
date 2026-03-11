@@ -100,6 +100,31 @@ std::string address_p2tr(const fast::Point& internal_key,
 std::string address_p2tr_raw(const std::array<std::uint8_t, 32>& output_key_x,
                              Network net = Network::Mainnet);
 
+// P2SH-P2WPKH address (nested/wrapped SegWit, "3..." on mainnet)
+// Wraps P2WPKH witness program inside P2SH for backward compatibility
+std::string address_p2sh_p2wpkh(const fast::Point& pubkey,
+                                Network net = Network::Mainnet);
+
+// P2SH address from a 20-byte script hash (generic)
+std::string address_p2sh(const std::array<std::uint8_t, 20>& script_hash,
+                         Network net = Network::Mainnet);
+
+// P2WSH address from a 32-byte witness script hash (SegWit v0)
+std::string address_p2wsh(const std::array<std::uint8_t, 32>& witness_script_hash,
+                          Network net = Network::Mainnet);
+
+// -- CashAddr (Bitcoin Cash BIP-0185) -----------------------------------------
+
+// Encode a hash160 as CashAddr address
+// type: 0 = P2PKH, 1 = P2SH
+std::string cashaddr_encode(const std::array<std::uint8_t, 20>& hash,
+                            const std::string& prefix,
+                            std::uint8_t type = 0);
+
+// CashAddr P2PKH from public key
+std::string address_cashaddr(const fast::Point& pubkey,
+                             const std::string& prefix = "bitcoincash");
+
 // -- WIF (Wallet Import Format) -----------------------------------------------
 
 // Encode private key as WIF string

@@ -46,7 +46,9 @@
 | `test_ecdsa_schnorr.cpp` | ECDSA (RFC 6979) + Schnorr (BIP-340) vectors | [OK] |
 | `test_ecdh_recovery_taproot.cpp` | ECDH, key recovery, Taproot | [OK] |
 | `test_bip32.cpp` | BIP-32 HD key derivation | [OK] |
-| `test_coins.cpp` | 27-coin address dispatch | [OK] |
+| `test_coins.cpp` | 28-coin address dispatch + P2SH/P2SH-P2WPKH/CashAddr | [OK] |
+| `test_wallet.cpp` | Wallet API: key management, signing, address formats, recovery | [OK] |
+| `test_ethereum.cpp` | Ethereum signing: EIP-155, EIP-191, ecrecover, personal_sign | [OK] |
 | `test_musig2.cpp` | MuSig2 protocol tests | [OK] |
 | `test_batch_add_affine.cpp` | Batch affine addition | [OK] |
 | `test_multiscalar_batch.cpp` | Multi-scalar multiplication | [OK] |
@@ -170,7 +172,9 @@
 | Pedersen commitments | `test_v4_features.cpp` | [OK] Basic | Limited vectors |
 | Taproot (BIP-341) | `test_ecdh_recovery_taproot.cpp` | [OK] Basic | -- |
 | BIP-32 HD derivation | `test_bip32.cpp` | [OK] | Standard vectors |
-| 27-coin dispatch | `test_coins.cpp` | [OK] | Per-coin address format |
+| 28-coin dispatch | `test_coins.cpp` | [OK] | Per-coin address format (P2PKH, P2WPKH, P2TR, P2SH-P2WPKH, CashAddr, EIP-55, TRON_BASE58) |
+| Wallet API | `test_wallet.cpp` | [OK] | Chain-agnostic key mgmt, signing, recovery |
+| Ethereum signing | `test_ethereum.cpp` | [OK] | EIP-155/-191, ecrecover, multi-chain |
 | ECDH | `test_ecdh_recovery_taproot.cpp` | [OK] | -- |
 | Key recovery | `test_ecdh_recovery_taproot.cpp` | [OK] | -- |
 

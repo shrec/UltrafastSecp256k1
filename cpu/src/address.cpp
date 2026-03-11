@@ -451,6 +451,116 @@ std::string address_p2tr_raw(const std::array<std::uint8_t, 32>& output_key_x,
     return bech32_encode(hrp, 1, output_key_x.data(), 32);
 }
 
+std::string address_p2sh_p2wpkh(const Point& pubkey, Network net) {
+    // 1. hash160 of compressed pubkey
+    auto compressed = pubkey.to_compressed();
+    auto keyhash = hash160(compressed.data(), 33);
+
+    // 2. Build witness script: OP_0 PUSH20 <keyhash>
+    std::uint8_t witness_script[22];
+    witness_script[0] = 0x00;  // OP_0
+    witness_script[1] = 0x14;  // PUSH 20 bytes
+    std::memcpy(witness_script + 2, keyhash.data(), 20);
+
+    // 3. hash160 of witness script -> script hash
+    auto script_hash = hash160(witness_script, 22);
+
+    // 4. Base58Check with P2SH version byte
+    std::uint8_t payload[21];
+    payload[0] = (net == Network::Mainnet) ? 0x05 : 0xC4;
+    std::memcpy(payload + 1, script_hash.data(), 20);
+
+    return base58check_encode(payload, 21);
+}
+
+std::string address_p2sh(const std::array<std::uint8_t, 20>& script_hash,
+                         Network net) {
+    std::uint8_t payload[21];
+    payload[0] = (net == Network::Mainnet) ? 0x05 : 0xC4;
+    std::memcpy(payload + 1, script_hash.data(), 20);
+    return base58check_encode(payload, 21);
+}
+
+std::string address_p2wsh(const std::array<std::uint8_t, 32>& witness_script_hash,
+                          Network net) {
+    std::string const hrp = (net == Network::Mainnet) ? "bc" : "tb";
+    return bech32_encode(hrp, 0, witness_script_hash.data(), 32);
+}
+
+// ===============================================================================
+// CashAddr (Bitcoin Cash, BIP-0185)
+// ===============================================================================
+
+namespace {
+
+static std::uint64_t cashaddr_polymod(const std::vector<std::uint8_t>& v) {
+    static constexpr std::uint64_t GEN[5] = {
+        0x98f2bc8e61ULL, 0x79b76d99e2ULL,
+        0xf33e5fb3c4ULL, 0xae2eabe2a8ULL,
+        0x1e4f43e470ULL
+    };
+    std::uint64_t c = 1;
+    for (auto d : v) {
+        std::uint64_t const c0 = c >> 35;
+        c = ((c & 0x07ffffffffULL) << 5) ^ d;
+        for (int i = 0; i < 5; ++i) {
+            if ((c0 >> i) & 1) c ^= GEN[i];
+        }
+    }
+    return c ^ 1;
+}
+
+static std::vector<std::uint8_t> cashaddr_prefix_expand(const std::string& prefix) {
+    std::vector<std::uint8_t> ret;
+    ret.reserve(prefix.size() + 1);
+    for (char c : prefix) ret.push_back(static_cast<std::uint8_t>(c & 0x1f));
+    ret.push_back(0);
+    return ret;
+}
+
+} // anonymous namespace
+
+std::string cashaddr_encode(const std::array<std::uint8_t, 20>& hash,
+                            const std::string& prefix,
+                            std::uint8_t type) {
+    // Version byte: type (0=P2PKH, 1=P2SH) in upper 4 bits, size=0 (=20 bytes) in lower 4
+    std::uint8_t version_byte = static_cast<std::uint8_t>(type << 3);
+
+    // Payload: version_byte + 20-byte hash = 21 bytes
+    std::uint8_t payload[21];
+    payload[0] = version_byte;
+    std::memcpy(payload + 1, hash.data(), 20);
+
+    // Convert 8-bit payload to 5-bit groups
+    std::vector<std::uint8_t> data5;
+    convert_bits(data5, payload, 21, 8, 5, true);
+
+    // Compute checksum
+    auto prefix_exp = cashaddr_prefix_expand(prefix);
+    std::vector<std::uint8_t> values(prefix_exp);
+    values.insert(values.end(), data5.begin(), data5.end());
+    values.resize(values.size() + 8, 0);
+    std::uint64_t const poly = cashaddr_polymod(values);
+
+    static const char CASHADDR_CHARSET[] = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
+
+    // Build result
+    std::string result = prefix + ":";
+    for (auto v : data5) result.push_back(CASHADDR_CHARSET[v]);
+    for (int i = 0; i < 8; ++i) {
+        result.push_back(CASHADDR_CHARSET[(poly >> (5 * (7 - i))) & 31]);
+    }
+
+    return result;
+}
+
+std::string address_cashaddr(const Point& pubkey,
+                             const std::string& prefix) {
+    auto compressed = pubkey.to_compressed();
+    auto h160 = hash160(compressed.data(), 33);
+    return cashaddr_encode(h160, prefix, 0);
+}
+
 // ===============================================================================
 // WIF (Wallet Import Format)
 // ===============================================================================

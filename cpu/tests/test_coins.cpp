@@ -29,6 +29,8 @@
 #include "secp256k1/scalar.hpp"
 #include "secp256k1/ecdsa.hpp"
 #include "secp256k1/bip32.hpp"
+#include "secp256k1/sha256.hpp"
+#include "secp256k1/address.hpp"
 
 static int tests_passed = 0;
 static int tests_failed = 0;
@@ -141,8 +143,8 @@ static void test_context_effective_generator() {
 // ============================================================================
 
 static void test_coin_params_count() {
-    TEST("CoinParams: 27 coins defined");
-    ASSERT_EQ(secp256k1::coins::ALL_COINS_COUNT, 27u, "expected 27 coins");
+    TEST("CoinParams: 28 coins defined");
+    ASSERT_EQ(secp256k1::coins::ALL_COINS_COUNT, 28u, "expected 28 coins");
     PASS();
 }
 
@@ -380,6 +382,193 @@ static void test_no_segwit_returns_empty() {
     auto addr = secp256k1::coins::coin_address_p2wpkh(pubkey, secp256k1::coins::Dogecoin);
     ASSERT_TRUE(addr.empty(), "Dogecoin should return empty for P2WPKH");
     
+    PASS();
+}
+
+// -- P2SH-P2WPKH (Nested SegWit) Tests ---------------------------------------
+
+static void test_bitcoin_p2sh_p2wpkh() {
+    TEST("Bitcoin: P2SH-P2WPKH nested SegWit starts with 3");
+
+    auto pubkey = secp256k1::fast::Point::generator();
+
+    auto addr = secp256k1::coins::coin_address_p2sh_p2wpkh(pubkey, secp256k1::coins::Bitcoin);
+    ASSERT_TRUE(!addr.empty(), "P2SH-P2WPKH should not be empty");
+    ASSERT_TRUE(addr[0] == '3', "Bitcoin P2SH-P2WPKH should start with '3'");
+    ASSERT_TRUE(addr.size() >= 26 && addr.size() <= 35, "valid Base58Check length");
+
+    PASS();
+}
+
+static void test_litecoin_p2sh_p2wpkh() {
+    TEST("Litecoin: P2SH-P2WPKH nested SegWit starts with M");
+
+    auto pubkey = secp256k1::fast::Point::generator();
+
+    auto addr = secp256k1::coins::coin_address_p2sh_p2wpkh(pubkey, secp256k1::coins::Litecoin);
+    ASSERT_TRUE(!addr.empty(), "Litecoin P2SH-P2WPKH should not be empty");
+    // Litecoin p2sh_version = 0x32 -> first char is typically 'M'
+    ASSERT_TRUE(addr[0] == 'M', "Litecoin P2SH-P2WPKH should start with 'M'");
+
+    PASS();
+}
+
+static void test_no_segwit_p2sh_p2wpkh_returns_empty() {
+    TEST("Dogecoin: P2SH-P2WPKH returns empty (no SegWit)");
+
+    auto pubkey = secp256k1::fast::Point::generator();
+
+    auto addr = secp256k1::coins::coin_address_p2sh_p2wpkh(pubkey, secp256k1::coins::Dogecoin);
+    ASSERT_TRUE(addr.empty(), "Dogecoin should return empty for P2SH-P2WPKH");
+
+    PASS();
+}
+
+static void test_p2sh_p2wpkh_deterministic() {
+    TEST("P2SH-P2WPKH: same key produces same address");
+
+    auto pubkey = secp256k1::fast::Point::generator();
+
+    auto addr1 = secp256k1::coins::coin_address_p2sh_p2wpkh(pubkey, secp256k1::coins::Bitcoin);
+    auto addr2 = secp256k1::coins::coin_address_p2sh_p2wpkh(pubkey, secp256k1::coins::Bitcoin);
+    ASSERT_TRUE(addr1 == addr2, "same key must give same P2SH-P2WPKH");
+
+    PASS();
+}
+
+static void test_core_p2sh_p2wpkh() {
+    TEST("Core: address_p2sh_p2wpkh starts with 3");
+
+    auto pubkey = secp256k1::fast::Point::generator();
+
+    auto addr = secp256k1::address_p2sh_p2wpkh(pubkey);
+    ASSERT_TRUE(!addr.empty(), "should not be empty");
+    ASSERT_TRUE(addr[0] == '3', "should start with '3' on mainnet");
+
+    PASS();
+}
+
+// -- P2SH (generic) Tests ----------------------------------------------------
+
+static void test_core_p2sh() {
+    TEST("Core: address_p2sh from hash starts with 3");
+
+    auto pubkey = secp256k1::fast::Point::generator();
+    auto compressed = pubkey.to_compressed();
+    auto h160 = secp256k1::hash160(compressed.data(), compressed.size());
+
+    auto addr = secp256k1::address_p2sh(h160);
+    ASSERT_TRUE(!addr.empty(), "should not be empty");
+    ASSERT_TRUE(addr[0] == '3', "P2SH should start with '3' on mainnet");
+
+    PASS();
+}
+
+// -- P2WSH Tests --------------------------------------------------------------
+
+static void test_core_p2wsh() {
+    TEST("Core: address_p2wsh starts with bc1q (32-byte)");
+
+    // Create a 32-byte witness script hash (SHA256 of a script)
+    auto pubkey = secp256k1::fast::Point::generator();
+    auto compressed = pubkey.to_compressed();
+    auto script_hash = secp256k1::SHA256::hash(compressed.data(), 33);
+
+    auto addr = secp256k1::address_p2wsh(script_hash);
+    ASSERT_TRUE(!addr.empty(), "should not be empty");
+    ASSERT_TRUE(addr.substr(0, 4) == "bc1q", "P2WSH should start with 'bc1q'");
+    // P2WSH addresses are longer than P2WPKH because 32-byte program
+    ASSERT_TRUE(addr.size() > 42, "P2WSH should be longer than P2WPKH");
+
+    PASS();
+}
+
+// -- CashAddr (Bitcoin Cash) Tests --------------------------------------------
+
+static void test_bch_cashaddr() {
+    TEST("BCH: CashAddr starts with bitcoincash:q");
+
+    auto pubkey = secp256k1::fast::Point::generator();
+
+    auto addr = secp256k1::coins::coin_address_cashaddr(pubkey, secp256k1::coins::BitcoinCash);
+    ASSERT_TRUE(!addr.empty(), "CashAddr should not be empty");
+    ASSERT_TRUE(addr.substr(0, 13) == "bitcoincash:q",
+                "BCH CashAddr P2PKH should start with 'bitcoincash:q'");
+
+    PASS();
+}
+
+static void test_bch_cashaddr_default() {
+    TEST("BCH: coin_address returns CashAddr");
+
+    auto pubkey = secp256k1::fast::Point::generator();
+
+    auto addr = secp256k1::coins::coin_address(pubkey, secp256k1::coins::BitcoinCash);
+    ASSERT_TRUE(!addr.empty(), "default address should not be empty");
+    ASSERT_TRUE(addr.substr(0, 13) == "bitcoincash:q",
+                "BCH default should be CashAddr");
+
+    PASS();
+}
+
+static void test_bch_cashaddr_deterministic() {
+    TEST("BCH: CashAddr deterministic");
+
+    auto pubkey = secp256k1::fast::Point::generator();
+
+    auto addr1 = secp256k1::coins::coin_address_cashaddr(pubkey, secp256k1::coins::BitcoinCash);
+    auto addr2 = secp256k1::coins::coin_address_cashaddr(pubkey, secp256k1::coins::BitcoinCash);
+    ASSERT_TRUE(addr1 == addr2, "same key must produce same CashAddr");
+
+    PASS();
+}
+
+static void test_core_cashaddr() {
+    TEST("Core: address_cashaddr starts with bitcoincash:");
+
+    auto pubkey = secp256k1::fast::Point::generator();
+
+    auto addr = secp256k1::address_cashaddr(pubkey);
+    ASSERT_TRUE(!addr.empty(), "should not be empty");
+    ASSERT_TRUE(addr.substr(0, 13) == "bitcoincash:q",
+                "core cashaddr should start with 'bitcoincash:q'");
+
+    PASS();
+}
+
+static void test_cashaddr_non_bch_returns_empty() {
+    TEST("CashAddr: non-BCH coin returns empty");
+
+    auto pubkey = secp256k1::fast::Point::generator();
+
+    auto addr = secp256k1::coins::coin_address_cashaddr(pubkey, secp256k1::coins::Bitcoin);
+    ASSERT_TRUE(addr.empty(), "Bitcoin should return empty for CashAddr");
+
+    PASS();
+}
+
+// -- Bitcoin P2TR (Taproot) Tests ---------------------------------------------
+
+static void test_bitcoin_p2tr_address() {
+    TEST("Bitcoin: P2TR Taproot starts with bc1p");
+
+    auto pubkey = secp256k1::fast::Point::generator();
+
+    auto addr = secp256k1::coins::coin_address_p2tr(pubkey, secp256k1::coins::Bitcoin);
+    ASSERT_TRUE(!addr.empty(), "P2TR should not be empty for Bitcoin");
+    ASSERT_TRUE(addr.substr(0, 4) == "bc1p", "Bitcoin P2TR should start with 'bc1p'");
+
+    PASS();
+}
+
+static void test_no_taproot_returns_empty() {
+    TEST("Litecoin: P2TR returns empty (no Taproot)");
+
+    auto pubkey = secp256k1::fast::Point::generator();
+
+    auto addr = secp256k1::coins::coin_address_p2tr(pubkey, secp256k1::coins::Litecoin);
+    ASSERT_TRUE(addr.empty(), "Litecoin should return empty for P2TR");
+
     PASS();
 }
 
@@ -630,6 +819,28 @@ int test_coins_run() {
 #endif
     test_dash_address();
     test_no_segwit_returns_empty();
+    
+    printf("\n[P2SH-P2WPKH (Nested SegWit)]\n");
+    test_bitcoin_p2sh_p2wpkh();
+    test_litecoin_p2sh_p2wpkh();
+    test_no_segwit_p2sh_p2wpkh_returns_empty();
+    test_p2sh_p2wpkh_deterministic();
+    test_core_p2sh_p2wpkh();
+    
+    printf("\n[P2SH / P2WSH]\n");
+    test_core_p2sh();
+    test_core_p2wsh();
+    
+    printf("\n[CashAddr (Bitcoin Cash)]\n");
+    test_bch_cashaddr();
+    test_bch_cashaddr_default();
+    test_bch_cashaddr_deterministic();
+    test_core_cashaddr();
+    test_cashaddr_non_bch_returns_empty();
+    
+    printf("\n[Taproot]\n");
+    test_bitcoin_p2tr_address();
+    test_no_taproot_returns_empty();
     
     printf("\n[WIF]\n");
     test_bitcoin_wif();

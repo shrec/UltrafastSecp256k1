@@ -15,15 +15,30 @@ Complete API documentation for CPU, CUDA, and WASM implementations.
    - [SHA-256](#sha-256)
    - [Constant-Time Layer](#constant-time-layer)
    - [Utility Functions](#utility-functions)
-2. [CUDA API](#cuda-api)
+2. [Address Generation API](#address-generation-api)
+   - [Address Types](#address-types)
+   - [Encoding Functions](#encoding-functions)
+   - [WIF (Wallet Import Format)](#wif-wallet-import-format)
+   - [BIP-352 Silent Payments](#bip-352-silent-payments)
+3. [Multi-Chain Coins API](#multi-chain-coins-api)
+   - [Coin Parameters](#coin-parameters)
+   - [Coin Address Functions](#coin-address-functions)
+   - [Coin Key Generation](#coin-key-generation)
+4. [Unified Wallet API](#unified-wallet-api)
+   - [Wallet Key Management](#wallet-key-management)
+   - [Wallet Address Generation](#wallet-address-generation)
+   - [Wallet Signing](#wallet-signing)
+   - [Wallet Recovery](#wallet-recovery)
+5. [Message Signing API](#message-signing-api)
+6. [CUDA API](#cuda-api)
    - [Data Structures](#cuda-data-structures)
    - [Field Operations](#cuda-field-operations)
    - [Point Operations](#cuda-point-operations)
    - [Batch Operations](#cuda-batch-operations)
    - [Signature Operations](#cuda-signature-operations)
-3. [WASM API](#wasm-api)
-4. [Performance Tips](#performance-tips)
-5. [Examples](#examples)
+7. [WASM API](#wasm-api)
+8. [Performance Tips](#performance-tips)
+9. [Examples](#examples)
 
 ---
 
@@ -562,6 +577,413 @@ void point_dbl(const Point& p, Point& out);
 ```
 
 > [!] CT operations are ~5-7x slower than the fast variants. Use only for private key operations (signing, ECDH).
+
+---
+
+## Address Generation API
+
+**Namespace:** `secp256k1`
+
+**Header:**
+```cpp
+#include <secp256k1/address.hpp>
+```
+
+### Address Types
+
+All address functions take a `Network` enum (`Mainnet` or `Testnet`) and return a `std::string`.
+
+#### P2PKH (Legacy, Base58Check)
+
+```cpp
+// "1..." (mainnet) or "m/n..." (testnet)
+std::string address_p2pkh(const fast::Point& pubkey,
+                          Network net = Network::Mainnet);
+```
+
+#### P2WPKH (Native SegWit v0, Bech32)
+
+```cpp
+// "bc1q..." (mainnet) or "tb1q..." (testnet)
+std::string address_p2wpkh(const fast::Point& pubkey,
+                           Network net = Network::Mainnet);
+```
+
+#### P2TR (Taproot, SegWit v1, Bech32m)
+
+```cpp
+// "bc1p..." (mainnet) or "tb1p..." (testnet)
+std::string address_p2tr(const fast::Point& internal_key,
+                         Network net = Network::Mainnet);
+
+// From raw 32-byte x-only output key
+std::string address_p2tr_raw(const std::array<uint8_t, 32>& output_key_x,
+                             Network net = Network::Mainnet);
+```
+
+#### P2SH-P2WPKH (Nested/Wrapped SegWit)
+
+```cpp
+// "3..." (mainnet) -- wraps P2WPKH inside P2SH for backward compatibility (BIP-49)
+std::string address_p2sh_p2wpkh(const fast::Point& pubkey,
+                                Network net = Network::Mainnet);
+```
+
+#### P2SH (Pay-to-Script-Hash)
+
+```cpp
+// "3..." (mainnet) -- from raw 20-byte script hash
+std::string address_p2sh(const std::array<uint8_t, 20>& script_hash,
+                         Network net = Network::Mainnet);
+```
+
+#### P2WSH (Witness Script Hash)
+
+```cpp
+// "bc1q..." 32-byte program (SegWit v0)
+std::string address_p2wsh(const std::array<uint8_t, 32>& witness_script_hash,
+                          Network net = Network::Mainnet);
+```
+
+#### CashAddr (Bitcoin Cash BIP-0185)
+
+```cpp
+// Encode hash160 as CashAddr (type: 0=P2PKH, 1=P2SH)
+std::string cashaddr_encode(const std::array<uint8_t, 20>& hash,
+                            const std::string& prefix,
+                            uint8_t type = 0);
+
+// CashAddr P2PKH from public key: "bitcoincash:q..."
+std::string address_cashaddr(const fast::Point& pubkey,
+                             const std::string& prefix = "bitcoincash");
+```
+
+### Encoding Functions
+
+#### Base58Check
+
+```cpp
+std::string base58check_encode(const uint8_t* data, size_t len);
+std::pair<std::vector<uint8_t>, bool> base58check_decode(const std::string& encoded);
+```
+
+#### Bech32 / Bech32m (BIP-173 / BIP-350)
+
+```cpp
+std::string bech32_encode(const std::string& hrp,
+                          uint8_t witness_version,
+                          const uint8_t* witness_program,
+                          size_t prog_len);
+
+struct Bech32DecodeResult {
+    std::string hrp;
+    int witness_version;          // -1 if invalid
+    std::vector<uint8_t> witness_program;
+    bool valid;
+};
+Bech32DecodeResult bech32_decode(const std::string& addr);
+```
+
+#### HASH160
+
+```cpp
+// RIPEMD160(SHA256(data))
+std::array<uint8_t, 20> hash160(const uint8_t* data, size_t len);
+```
+
+### WIF (Wallet Import Format)
+
+```cpp
+std::string wif_encode(const fast::Scalar& private_key,
+                       bool compressed = true,
+                       Network net = Network::Mainnet);
+
+struct WIFDecodeResult {
+    fast::Scalar key;
+    bool compressed;
+    Network network;
+    bool valid;
+};
+WIFDecodeResult wif_decode(const std::string& wif);
+```
+
+### BIP-352 Silent Payments
+
+```cpp
+struct SilentPaymentAddress {
+    fast::Point scan_pubkey;     // B_scan
+    fast::Point spend_pubkey;    // B_spend
+    std::string encode(Network net = Network::Mainnet) const;  // sp1q... or tsp1q...
+};
+
+// Generate silent payment address from scan/spend private keys
+SilentPaymentAddress silent_payment_address(const fast::Scalar& scan_privkey,
+                                            const fast::Scalar& spend_privkey);
+
+// Sender: compute unique output key for recipient
+std::pair<fast::Point, fast::Scalar>
+silent_payment_create_output(const std::vector<fast::Scalar>& input_privkeys,
+                             const SilentPaymentAddress& recipient,
+                             uint32_t k = 0);
+
+// Receiver: scan transaction to detect addressed outputs
+std::vector<std::pair<uint32_t, fast::Scalar>>
+silent_payment_scan(const fast::Scalar& scan_privkey,
+                    const fast::Scalar& spend_privkey,
+                    const std::vector<fast::Point>& input_pubkeys,
+                    const std::vector<std::array<uint8_t, 32>>& output_pubkeys);
+```
+
+---
+
+## Multi-Chain Coins API
+
+**Namespace:** `secp256k1::coins`
+
+**Headers:**
+```cpp
+#include <secp256k1/coins/coin_params.hpp>
+#include <secp256k1/coins/coin_address.hpp>
+```
+
+### Coin Parameters
+
+28 coins predefined as `constexpr CoinParams` objects:
+
+| Coin | Ticker | Encoding | BIP-44 | Chain ID |
+|------|--------|----------|--------|----------|
+| Bitcoin | BTC | Bech32 | 0 | -- |
+| Litecoin | LTC | Bech32 | 2 | -- |
+| Dogecoin | DOGE | Base58Check | 3 | -- |
+| Dash | DASH | Base58Check | 5 | -- |
+| Ethereum | ETH | EIP-55 | 60 | 1 |
+| Bitcoin Cash | BCH | CashAddr | 145 | -- |
+| Bitcoin SV | BSV | Base58Check | 236 | -- |
+| Zcash | ZEC | Base58Check | 133 | -- |
+| DigiByte | DGB | Bech32 | 20 | -- |
+| Namecoin | NMC | Base58Check | 7 | -- |
+| Peercoin | PPC | Base58Check | 6 | -- |
+| Vertcoin | VTC | Bech32 | 28 | -- |
+| Viacoin | VIA | Bech32 | 14 | -- |
+| Groestlcoin | GRS | Bech32 | 17 | -- |
+| Syscoin | SYS | Bech32 | 57 | -- |
+| BNB Smart Chain | BNB | EIP-55 | 60 | 56 |
+| Polygon | POL | EIP-55 | 60 | 137 |
+| Avalanche | AVAX | EIP-55 | 60 | 43114 |
+| Fantom | FTM | EIP-55 | 60 | 250 |
+| Arbitrum | ARB | EIP-55 | 60 | 42161 |
+| Optimism | OP | EIP-55 | 60 | 10 |
+| Ravencoin | RVN | Base58Check | 175 | -- |
+| Flux | FLUX | Base58Check | 19167 | -- |
+| Qtum | QTUM | Base58Check | 2301 | -- |
+| Horizen | ZEN | Base58Check | 121 | -- |
+| Bitcoin Gold | BTG | Base58Check | 156 | -- |
+| Komodo | KMD | Base58Check | 141 | -- |
+| Tron | TRX | TRON_BASE58 | 195 | -- |
+
+#### Lookup Functions
+
+```cpp
+const CoinParams* find_by_coin_type(uint32_t coin_type);  // Returns nullptr if not found
+const CoinParams* find_by_ticker(const char* ticker);      // Case-sensitive
+```
+
+#### Iteration
+
+```cpp
+inline constexpr const CoinParams* ALL_COINS[];            // Array of all 28 coins
+inline constexpr size_t ALL_COINS_COUNT = 28;
+```
+
+### Coin Address Functions
+
+```cpp
+// Default/preferred format for each coin (Bech32 for BTC, EIP-55 for ETH, etc.)
+std::string coin_address(const fast::Point& pubkey, const CoinParams& coin,
+                         bool testnet = false);
+
+// Explicit format selection
+std::string coin_address_p2pkh(const fast::Point& pubkey, const CoinParams& coin,
+                               bool testnet = false);
+std::string coin_address_p2wpkh(const fast::Point& pubkey, const CoinParams& coin,
+                                bool testnet = false);
+std::string coin_address_p2tr(const fast::Point& internal_key, const CoinParams& coin,
+                              bool testnet = false);
+std::string coin_address_p2sh_p2wpkh(const fast::Point& pubkey, const CoinParams& coin,
+                                     bool testnet = false);
+std::string coin_address_p2sh(const std::array<uint8_t, 20>& script_hash,
+                              const CoinParams& coin, bool testnet = false);
+std::string coin_address_cashaddr(const fast::Point& pubkey, const CoinParams& coin,
+                                  bool testnet = false);
+
+// WIF encoding with coin-specific prefix
+std::string coin_wif_encode(const fast::Scalar& private_key, const CoinParams& coin,
+                            bool compressed = true, bool testnet = false);
+```
+
+> Functions return empty string if the coin does not support the requested format (e.g., `coin_address_p2wpkh` for Dogecoin).
+
+### Coin Key Generation
+
+```cpp
+struct CoinKeyPair {
+    fast::Scalar private_key;
+    fast::Point  public_key;
+    std::string  address;         // Default format for coin
+    std::string  wif;             // WIF-encoded key (empty for EVM coins)
+};
+
+CoinKeyPair coin_derive(const fast::Scalar& private_key, const CoinParams& coin,
+                        bool testnet = false, const CurveContext* ctx = nullptr);
+```
+
+---
+
+## Unified Wallet API
+
+**Namespace:** `secp256k1::coins::wallet`
+
+**Header:**
+```cpp
+#include <secp256k1/coins/wallet.hpp>
+```
+
+Chain-agnostic facade over all address, signing, and recovery operations. Same API regardless of underlying chain.
+
+### Wallet Key Management
+
+```cpp
+struct WalletKey {
+    fast::Scalar priv;           // 32-byte private scalar
+    fast::Point  pub;            // Public key
+};
+
+// Create from raw 32-byte key. Returns (key, success).
+std::pair<WalletKey, bool> from_private_key(const uint8_t* priv32);
+
+// Export in chain-appropriate format:
+//   Bitcoin-family: WIF (Base58Check)
+//   EVM-family:     0x-prefixed hex
+//   Tron:           raw hex
+std::string export_private_key(const CoinParams& coin, const WalletKey& key,
+                               bool testnet = false);
+
+std::string export_public_key_hex(const CoinParams& coin, const WalletKey& key);
+```
+
+### Wallet Address Generation
+
+```cpp
+// Default address format for coin
+std::string get_address(const CoinParams& coin, const WalletKey& key,
+                        bool testnet = false);
+
+// Explicit format selection
+std::string get_address_p2pkh(const CoinParams& coin, const WalletKey& key,
+                              bool testnet = false);
+std::string get_address_p2wpkh(const CoinParams& coin, const WalletKey& key,
+                               bool testnet = false);
+std::string get_address_p2sh_p2wpkh(const CoinParams& coin, const WalletKey& key,
+                                    bool testnet = false);
+std::string get_address_p2tr(const CoinParams& coin, const WalletKey& key,
+                             bool testnet = false);
+std::string get_address_cashaddr(const CoinParams& coin, const WalletKey& key,
+                                 bool testnet = false);
+```
+
+### Wallet Signing
+
+```cpp
+struct MessageSignature {
+    std::array<uint8_t, 32> r;
+    std::array<uint8_t, 32> s;
+    int recid;                   // Recovery ID (0-3)
+    uint64_t v;                  // EIP-155 v (EVM) or 27+recid (Bitcoin)
+    std::array<uint8_t, 65> to_rsv() const;  // [r:32][s:32][v:1]
+};
+
+// Chain-aware message signing:
+//   Bitcoin: "\x18Bitcoin Signed Message:\n" prefix -> dSHA256
+//   Ethereum: "\x19Ethereum Signed Message:\n" prefix -> Keccak-256
+MessageSignature sign_message(const CoinParams& coin, const WalletKey& key,
+                              const uint8_t* msg, size_t msg_len);
+
+// Sign raw 32-byte hash (no prefix, no hashing)
+MessageSignature sign_hash(const CoinParams& coin, const WalletKey& key,
+                           const uint8_t* hash32);
+
+// Verify signed message against public key
+bool verify_message(const CoinParams& coin, const fast::Point& pubkey,
+                    const uint8_t* msg, size_t msg_len,
+                    const MessageSignature& sig);
+```
+
+### Wallet Recovery
+
+```cpp
+// Recover public key from message + signature
+std::pair<fast::Point, bool>
+recover_signer(const CoinParams& coin,
+               const uint8_t* msg, size_t msg_len,
+               const MessageSignature& sig);
+
+// Recover address string from message + signature
+std::pair<std::string, bool>
+recover_address(const CoinParams& coin,
+                const uint8_t* msg, size_t msg_len,
+                const MessageSignature& sig);
+```
+
+---
+
+## Message Signing API
+
+**Namespace:** `secp256k1::coins`
+
+**Header:**
+```cpp
+#include <secp256k1/coins/message_signing.hpp>
+```
+
+Low-level Bitcoin message signing (BIP-137 / Electrum format).
+
+#### Bitcoin Message Hash
+
+```cpp
+// SHA256(SHA256("\x18Bitcoin Signed Message:\n" + varint(msg_len) + msg))
+std::array<uint8_t, 32> bitcoin_message_hash(const uint8_t* msg, size_t msg_len);
+```
+
+#### Sign / Verify / Recover
+
+```cpp
+RecoverableSignature bitcoin_sign_message(const uint8_t* msg, size_t msg_len,
+                                          const fast::Scalar& private_key);
+
+bool bitcoin_verify_message(const uint8_t* msg, size_t msg_len,
+                            const fast::Point& pubkey,
+                            const ECDSASignature& sig);
+
+std::pair<fast::Point, bool>
+bitcoin_recover_message(const uint8_t* msg, size_t msg_len,
+                        const ECDSASignature& sig, int recid);
+```
+
+#### Base64 Encoding
+
+```cpp
+// 65-byte format: 1-byte header (recid + compression flag, range 27-34) + r + s
+std::string bitcoin_sig_to_base64(const RecoverableSignature& rsig,
+                                  bool compressed = true);
+
+struct BitcoinSigDecodeResult {
+    ECDSASignature sig;
+    int recid;
+    bool compressed;
+    bool valid;
+};
+BitcoinSigDecodeResult bitcoin_sig_from_base64(const std::string& base64);
+```
 
 ---
 

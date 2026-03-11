@@ -34,6 +34,23 @@ std::string coin_address(const fast::Point& pubkey,
 #else
             return "";  // Ethereum module not built
 #endif
+
+        case AddressEncoding::TRON_BASE58:
+#if defined(SECP256K1_BUILD_ETHEREUM)
+        {
+            // Tron: Keccak-256(uncompressed[1:]) -> last 20 bytes -> 0x41 prefix -> Base58Check
+            auto addr_bytes = ethereum_address_bytes(pubkey);
+            std::uint8_t versioned[21];
+            versioned[0] = testnet ? coin.p2pkh_version_test : coin.p2pkh_version;
+            std::memcpy(versioned + 1, addr_bytes.data(), 20);
+            return base58check_encode(versioned, 21);
+        }
+#else
+            return "";  // Ethereum/Keccak module not built
+#endif
+
+        case AddressEncoding::CASHADDR:
+            return coin_address_cashaddr(pubkey, coin, testnet);
             
         case AddressEncoding::BASE58CHECK:
         default:
@@ -95,6 +112,63 @@ std::string coin_address_p2tr(const fast::Point& internal_key,
     // x-only key = compressed[1..33]
     // Bech32m encode: witness version 1, 32-byte program
     return bech32_encode(hrp, 1, compressed.data() + 1, 32);
+}
+
+// -- P2SH-P2WPKH (Nested SegWit) ---------------------------------------------
+
+std::string coin_address_p2sh_p2wpkh(const fast::Point& pubkey,
+                                     const CoinParams& coin,
+                                     bool testnet) {
+    // Requires SegWit support
+    if (!coin.features.supports_segwit) return {};
+
+    // 1. hash160 of compressed pubkey
+    auto compressed = pubkey.to_compressed();
+    auto keyhash = hash160(compressed.data(), compressed.size());
+
+    // 2. Build witness script: OP_0 PUSH20 <keyhash>
+    std::uint8_t witness_script[22];
+    witness_script[0] = 0x00;  // OP_0
+    witness_script[1] = 0x14;  // PUSH 20 bytes
+    std::memcpy(witness_script + 2, keyhash.data(), 20);
+
+    // 3. hash160 of witness script -> script hash
+    auto script_hash = hash160(witness_script, 22);
+
+    // 4. Base58Check with coin-specific P2SH version byte
+    std::uint8_t versioned[21];
+    versioned[0] = testnet ? 0xC4 : coin.p2sh_version;
+    std::memcpy(versioned + 1, script_hash.data(), 20);
+
+    return base58check_encode(versioned, 21);
+}
+
+// -- P2SH (generic script hash) -----------------------------------------------
+
+std::string coin_address_p2sh(const std::array<std::uint8_t, 20>& script_hash,
+                              const CoinParams& coin,
+                              bool testnet) {
+    if (!coin.features.supports_p2sh) return {};
+
+    std::uint8_t versioned[21];
+    versioned[0] = testnet ? 0xC4 : coin.p2sh_version;
+    std::memcpy(versioned + 1, script_hash.data(), 20);
+
+    return base58check_encode(versioned, 21);
+}
+
+// -- CashAddr (Bitcoin Cash) --------------------------------------------------
+
+std::string coin_address_cashaddr(const fast::Point& pubkey,
+                                  const CoinParams& coin,
+                                  bool testnet) {
+    if (coin.default_encoding != AddressEncoding::CASHADDR) return {};
+
+    auto compressed = pubkey.to_compressed();
+    auto h160 = hash160(compressed.data(), compressed.size());
+
+    std::string prefix = testnet ? "bchtest" : "bitcoincash";
+    return cashaddr_encode(h160, prefix, 0);
 }
 
 // -- WIF ----------------------------------------------------------------------

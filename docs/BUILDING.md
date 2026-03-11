@@ -96,6 +96,7 @@ cmake --build build -j
 | `SECP256K1_USE_LTO` | ON | Link-Time Optimization |
 | `SECP256K1_SPEED_FIRST` | OFF | Aggressive speed optimizations |
 | `SECP256K1_GLV_WINDOW_WIDTH` | platform | GLV window width (4-7); default 5 on x86/ARM/RISC-V, 4 on ESP32/WASM |
+| `SECP256K1_BUILD_ETHEREUM` | ON | Ethereum/EVM signing layer (Keccak-256, EIP-155, ecrecover). OFF for Bitcoin-only builds |
 | `SECP256K1_INSTALL` | ON | Generate install target |
 
 ### RISC-V Specific
