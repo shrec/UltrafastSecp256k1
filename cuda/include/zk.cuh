@@ -915,6 +915,7 @@ struct BPWarpShared {
     Scalar t_ab_val;               // t_hat - a*b
     Scalar xj_sq[BP_LOG2];         // x_rounds[j]^2
     Scalar xj_inv_sq[BP_LOG2];     // x_inv_rounds[j]^2
+    Scalar y_inv_pow2[BP_LOG2];    // y_inv^(2^j) for j=0..5, used for parallel y_inv_powers
     // Phase profiling (clock64 cycle stamps, lane 0 only)
     long long phase_ts[6];             // T0..T5 for P1a/P1b/P1c/P2/P3
 };
@@ -2091,99 +2092,95 @@ __device__ inline bool range_verify_warp_lut4_p1par_device(
     if (lane == 0) smem->phase_ts[1] = clock64();
 
     // ================================================================
-    // Phase 1b: Scalar prep — split serial/parallel
-    //   1b-serial (lane 0): batch inversion, xj_sq, y_inv_powers
-    //   1b-parallel (all 32 lanes): s_coeff[i] computation
-    //   1b-final (lane 0): batch inversion s_coeff → s_inv, two_powers
+    // Phase 1b: Scalar prep — fully parallelized
+    //   1b-serial (lane 0): batch inversion x_rounds+y, xj_sq, y_inv_pow2
+    //   1b-parallel (all 32 lanes): s_coeff + s_inv + y_inv_powers + two_powers
+    //   No batch inversion for s_inv (uses flipped bit logic)
     // ================================================================
 
-    // --- 1b-serial: lane 0 computes inversions and y_inv_powers ---
+    // --- 1b-serial: lane 0 computes inversions and y_inv_pow2 basis ---
     if (lane == 0) {
         // Combined batch inversion: x_rounds[0..5] + y → 7 scalars, 1 inverse
-        {
-            Scalar acc[BP_LOG2 + 1];
-            acc[0] = smem->x_rounds[0];
-            for (int j = 1; j < BP_LOG2; ++j)
-                scalar_mul_mod_n(&acc[j-1], &smem->x_rounds[j], &acc[j]);
-            scalar_mul_mod_n(&acc[BP_LOG2 - 1], &smem->y_val, &acc[BP_LOG2]);
+        Scalar acc[BP_LOG2 + 1];
+        acc[0] = smem->x_rounds[0];
+        for (int j = 1; j < BP_LOG2; ++j)
+            scalar_mul_mod_n(&acc[j-1], &smem->x_rounds[j], &acc[j]);
+        scalar_mul_mod_n(&acc[BP_LOG2 - 1], &smem->y_val, &acc[BP_LOG2]);
 
-            Scalar inv_acc;
-            scalar_inverse(&acc[BP_LOG2], &inv_acc);
+        Scalar inv_acc;
+        scalar_inverse(&acc[BP_LOG2], &inv_acc);
 
-            // Extract y_inv (last element)
-            Scalar y_inv;
-            scalar_mul_mod_n(&inv_acc, &acc[BP_LOG2 - 1], &y_inv);
-            scalar_mul_mod_n(&inv_acc, &smem->y_val, &inv_acc);
+        // Extract y_inv (last element)
+        Scalar y_inv;
+        scalar_mul_mod_n(&inv_acc, &acc[BP_LOG2 - 1], &y_inv);
+        scalar_mul_mod_n(&inv_acc, &smem->y_val, &inv_acc);
 
-            // Extract x_inv_rounds
-            for (int j = BP_LOG2 - 1; j >= 1; --j) {
-                scalar_mul_mod_n(&inv_acc, &acc[j-1], &smem->x_inv_rounds[j]);
-                scalar_mul_mod_n(&inv_acc, &smem->x_rounds[j], &inv_acc);
-            }
-            smem->x_inv_rounds[0] = inv_acc;
-
-            // xj^2 and xj_inv^2 for Phase 1c L/R terms
-            for (int j = 0; j < BP_LOG2; ++j) {
-                scalar_mul_mod_n(&smem->x_rounds[j], &smem->x_rounds[j], &smem->xj_sq[j]);
-                scalar_mul_mod_n(&smem->x_inv_rounds[j], &smem->x_inv_rounds[j], &smem->xj_inv_sq[j]);
-            }
-
-            // y_inv_powers
-            smem->y_inv_powers[0].limbs[0] = 1; smem->y_inv_powers[0].limbs[1] = 0;
-            smem->y_inv_powers[0].limbs[2] = 0; smem->y_inv_powers[0].limbs[3] = 0;
-            for (int i = 1; i < BP_BITS; ++i)
-                scalar_mul_mod_n(&smem->y_inv_powers[i-1], &y_inv, &smem->y_inv_powers[i]);
+        // Extract x_inv_rounds
+        for (int j = BP_LOG2 - 1; j >= 1; --j) {
+            scalar_mul_mod_n(&inv_acc, &acc[j-1], &smem->x_inv_rounds[j]);
+            scalar_mul_mod_n(&inv_acc, &smem->x_rounds[j], &inv_acc);
         }
-    }
+        smem->x_inv_rounds[0] = inv_acc;
 
-    __syncwarp(FULL_MASK);
-
-    // --- 1b-parallel: all 32 lanes compute s_coeff (2 per lane) ---
-    {
-        const int base_i = lane * 2;
-        for (int off = 0; off < 2 && (base_i + off) < BP_BITS; ++off) {
-            const int i = base_i + off;
-            Scalar sc;
-            sc.limbs[0] = 1; sc.limbs[1] = 0; sc.limbs[2] = 0; sc.limbs[3] = 0;
-            for (int jj = 0; jj < BP_LOG2; ++jj) {
-                if ((i >> (BP_LOG2 - 1 - jj)) & 1)
-                    scalar_mul_mod_n(&sc, &smem->x_rounds[jj], &sc);
-                else
-                    scalar_mul_mod_n(&sc, &smem->x_inv_rounds[jj], &sc);
-            }
-            smem->s_coeff[i] = sc;
-        }
-    }
-
-    __syncwarp(FULL_MASK);
-
-    // --- 1b-final: lane 0 does s_inv batch inversion + two_powers ---
-    if (lane == 0) {
-        // Batch inversion: s_coeff → s_inv
-        {
-            Scalar acc[BP_BITS];
-            acc[0] = smem->s_coeff[0];
-            for (int i = 1; i < BP_BITS; ++i) scalar_mul_mod_n(&acc[i-1], &smem->s_coeff[i], &acc[i]);
-            Scalar inv_acc;
-            scalar_inverse(&acc[BP_BITS - 1], &inv_acc);
-            for (int i = BP_BITS - 1; i >= 1; --i) {
-                scalar_mul_mod_n(&inv_acc, &acc[i-1], &smem->s_inv[i]);
-                scalar_mul_mod_n(&inv_acc, &smem->s_coeff[i], &inv_acc);
-            }
-            smem->s_inv[0] = inv_acc;
+        // xj^2 and xj_inv^2 for Phase 1c L/R terms
+        for (int j = 0; j < BP_LOG2; ++j) {
+            scalar_mul_mod_n(&smem->x_rounds[j], &smem->x_rounds[j], &smem->xj_sq[j]);
+            scalar_mul_mod_n(&smem->x_inv_rounds[j], &smem->x_inv_rounds[j], &smem->xj_inv_sq[j]);
         }
 
-        // two_powers
-        smem->two_powers[0].limbs[0] = 1; smem->two_powers[0].limbs[1] = 0;
-        smem->two_powers[0].limbs[2] = 0; smem->two_powers[0].limbs[3] = 0;
-        for (int i = 1; i < BP_BITS; ++i)
-            scalar_add(&smem->two_powers[i-1], &smem->two_powers[i-1], &smem->two_powers[i]);
+        // y_inv_pow2[j] = y_inv^(2^j) for binary decomposition
+        smem->y_inv_pow2[0] = y_inv;  // y_inv^1
+        for (int j = 1; j < BP_LOG2; ++j)
+            scalar_mul_mod_n(&smem->y_inv_pow2[j-1], &smem->y_inv_pow2[j-1], &smem->y_inv_pow2[j]);
 
         smem->poly_ok = true;
     }
 
     __syncwarp(FULL_MASK);
     if (!smem->poly_ok) return false;
+
+    // --- 1b-parallel: all 32 lanes compute s_coeff, s_inv, y_inv_powers, two_powers ---
+    {
+        const int base_i = lane * 2;
+        for (int off = 0; off < 2 && (base_i + off) < BP_BITS; ++off) {
+            const int i = base_i + off;
+
+            // s_coeff[i] and s_inv[i] simultaneously (flipped bit logic)
+            Scalar sc, si;
+            sc.limbs[0] = 1; sc.limbs[1] = 0; sc.limbs[2] = 0; sc.limbs[3] = 0;
+            si.limbs[0] = 1; si.limbs[1] = 0; si.limbs[2] = 0; si.limbs[3] = 0;
+            for (int jj = 0; jj < BP_LOG2; ++jj) {
+                if ((i >> (BP_LOG2 - 1 - jj)) & 1) {
+                    scalar_mul_mod_n(&sc, &smem->x_rounds[jj], &sc);
+                    scalar_mul_mod_n(&si, &smem->x_inv_rounds[jj], &si);
+                } else {
+                    scalar_mul_mod_n(&sc, &smem->x_inv_rounds[jj], &sc);
+                    scalar_mul_mod_n(&si, &smem->x_rounds[jj], &si);
+                }
+            }
+            smem->s_coeff[i] = sc;
+            smem->s_inv[i] = si;
+
+            // y_inv_powers[i] = y_inv^i via binary decomposition of i
+            Scalar yp;
+            yp.limbs[0] = 1; yp.limbs[1] = 0; yp.limbs[2] = 0; yp.limbs[3] = 0;
+            for (int jj = 0; jj < BP_LOG2; ++jj) {
+                if ((i >> jj) & 1)
+                    scalar_mul_mod_n(&yp, &smem->y_inv_pow2[jj], &yp);
+            }
+            smem->y_inv_powers[i] = yp;
+
+            // two_powers[i] = 2^i (direct bit shift, no arithmetic)
+            Scalar tp;
+            tp.limbs[0] = (i < 64) ? (1ULL << i) : 0;
+            tp.limbs[1] = 0;
+            tp.limbs[2] = 0;
+            tp.limbs[3] = 0;
+            smem->two_powers[i] = tp;
+        }
+    }
+
+    __syncwarp(FULL_MASK);
 
     // T2: after Phase 1b
     if (lane == 0) smem->phase_ts[2] = clock64();
@@ -2331,15 +2328,13 @@ __device__ inline bool range_verify_warp_lut4_p1par_device(
             scalar_mul_bp_lut4(&g_bp_lut4[i * BP_LUT4_GEN_STRIDE], &g_coeff, &g_term);
             jacobian_add(&local_acc, &g_term, &local_acc);
 
-            Scalar z2_2i, z2_2i_yi, h_pcheck;
+            // h_coeff = z + y_inv^i * (z2*2^i - b*s_inv[i])
+            Scalar z2_2i, b_si, inner, h_inner_yi, h_coeff;
             scalar_mul_mod_n(&smem->z2, &smem->two_powers[i], &z2_2i);
-            scalar_mul_mod_n(&z2_2i, &smem->y_inv_powers[i], &z2_2i_yi);
-            scalar_add(&smem->z, &z2_2i_yi, &h_pcheck);
-
-            Scalar b_si, b_si_yi, h_coeff;
             scalar_mul_mod_n(&smem->b_proof, &smem->s_inv[i], &b_si);
-            scalar_mul_mod_n(&b_si, &smem->y_inv_powers[i], &b_si_yi);
-            scalar_sub(&h_pcheck, &b_si_yi, &h_coeff);
+            scalar_sub(&z2_2i, &b_si, &inner);
+            scalar_mul_mod_n(&inner, &smem->y_inv_powers[i], &h_inner_yi);
+            scalar_add(&smem->z, &h_inner_yi, &h_coeff);
 
             JacobianPoint h_term;
             scalar_mul_bp_lut4(&g_bp_lut4[(64 + i) * BP_LUT4_GEN_STRIDE], &h_coeff, &h_term);
