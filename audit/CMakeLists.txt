@@ -141,6 +141,18 @@ audit_target_defaults(test_audit_fuzz_standalone)
 add_test(NAME audit_fuzz COMMAND test_audit_fuzz_standalone)
 set_tests_properties(audit_fuzz PROPERTIES TIMEOUT 600)
 
+# -- Adversarial protocol & FFI hostile-caller tests -----------------------
+add_executable(test_adversarial_protocol_standalone test_adversarial_protocol.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_adversarial_protocol_standalone)
+target_include_directories(test_adversarial_protocol_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+)
+target_compile_definitions(test_adversarial_protocol_standalone PRIVATE UFSECP_BUILDING)
+add_test(NAME adversarial_protocol COMMAND test_adversarial_protocol_standalone)
+set_tests_properties(adversarial_protocol PROPERTIES TIMEOUT 600)
+
 # -- Diagnostic: ct::scalar_mul step-by-step comparison --------------------
 add_executable(diag_scalar_mul ${CPU_TESTS_DIR}/diag_scalar_mul.cpp)
 audit_target_defaults(diag_scalar_mul)
@@ -349,6 +361,7 @@ add_executable(unified_audit_runner
     test_frost_kat.cpp
     test_musig2_bip327_vectors.cpp
     test_ffi_round_trip.cpp
+    test_adversarial_protocol.cpp
     audit_fuzz.cpp
     test_fuzz_parsers.cpp
     test_fuzz_address_bip32_ffi.cpp
@@ -449,6 +462,7 @@ set_tests_properties(
     wycheproof_ecdsa wycheproof_ecdh
     batch_randomness
     ct_verif_formal fiat_crypto_linkage
+    adversarial_protocol
     unified_audit
     PROPERTIES LABELS "audit"
 )

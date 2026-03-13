@@ -37,6 +37,14 @@
 #include "bip32.cuh"
 #include "batch_verify.cuh"
 
+#ifdef HAVE_CPU_LIB
+#include "secp256k1/field.hpp"
+#include "secp256k1/scalar.hpp"
+#include "secp256k1/point.hpp"
+#include "secp256k1/ecdsa.hpp"
+#include "secp256k1/schnorr.hpp"
+#endif
+
 #include <cuda_runtime.h>
 #include <cstdio>
 #include <cstdlib>
@@ -565,39 +573,181 @@ static int audit_bloom_filter() {
     return 0;
 }
 
-// Section 4: CPU-GPU differential (spot check: k*G must match)
+// Section 4: CPU-GPU differential
+#ifdef HAVE_CPU_LIB
+
 static int audit_cpu_gpu_differential_gen_mul() {
-    // Compute k*G on GPU for several known k values
-    // and verify known results
-    struct KnownVec {
-        uint64_t k;
-        // We just check non-infinity since exact affine coords
-        // need normalization which selftest handles
-    };
+    // Compute k*G on both GPU and CPU for deterministic test scalars,
+    // compare via compressed point bytes (33 bytes).
+    uint64_t test_scalars[] = {1, 2, 3, 7, 42, 256, 0xDEADBEEF, 0xFFFFFFFF};
+    int n = sizeof(test_scalars) / sizeof(test_scalars[0]);
 
-    KnownVec vecs[] = { {1}, {2}, {3}, {7}, {256}, {0xFFFFFFFF} };
-
-    for (auto& v : vecs) {
+    for (int i = 0; i < n; ++i) {
+        // GPU: compute k*G
         Scalar h_k{};
-        h_k.limbs[0] = v.k;
+        h_k.limbs[0] = test_scalars[i];
         JacobianPoint h_result{};
 
-        Scalar* d_k;
-        JacobianPoint* d_result;
+        Scalar* d_k; JacobianPoint* d_result;
         CUDA_CHECK(cudaMalloc(&d_k, sizeof(Scalar)));
         CUDA_CHECK(cudaMalloc(&d_result, sizeof(JacobianPoint)));
         CUDA_CHECK(cudaMemcpy(d_k, &h_k, sizeof(Scalar), cudaMemcpyHostToDevice));
-
         audit_scalar_mul_gen_kernel<<<1,1>>>(d_k, d_result);
         CUDA_CHECK(cudaDeviceSynchronize());
-
         CUDA_CHECK(cudaMemcpy(&h_result, d_result, sizeof(JacobianPoint), cudaMemcpyDeviceToHost));
         cudaFree(d_k); cudaFree(d_result);
 
+        // Convert GPU result to compressed bytes via HostPoint
+        auto hp = HostPoint::from_device(h_result);
+        auto gpu_compressed = hp.to_compressed();
+
+        // CPU: compute k*G
+        uint8_t k_bytes[32] = {};
+        k_bytes[24] = (test_scalars[i] >> 56) & 0xFF;
+        k_bytes[25] = (test_scalars[i] >> 48) & 0xFF;
+        k_bytes[26] = (test_scalars[i] >> 40) & 0xFF;
+        k_bytes[27] = (test_scalars[i] >> 32) & 0xFF;
+        k_bytes[28] = (test_scalars[i] >> 24) & 0xFF;
+        k_bytes[29] = (test_scalars[i] >> 16) & 0xFF;
+        k_bytes[30] = (test_scalars[i] >> 8)  & 0xFF;
+        k_bytes[31] = test_scalars[i] & 0xFF;
+        auto cpu_k = secp256k1::fast::Scalar::from_bytes(
+            *reinterpret_cast<const std::array<uint8_t,32>*>(k_bytes));
+        auto cpu_point = secp256k1::fast::Point::generator().scalar_mul(cpu_k);
+        auto cpu_compressed = cpu_point.to_compressed();
+
+        // Compare 33-byte compressed representation
+        if (gpu_compressed.size() != 33) return 1;
+        if (std::memcmp(gpu_compressed.data(), cpu_compressed.data(), 33) != 0) {
+            std::fprintf(stderr, "CPU-GPU scalar mul FAIL for k=%llu\n",
+                         (unsigned long long)test_scalars[i]);
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static int audit_cpu_gpu_differential_field_mul() {
+    // Compute field mul on GPU and CPU, compare via to_bytes
+    std::mt19937_64 rng(7007);
+    for (int round = 0; round < 10; ++round) {
+        FieldElement h_a, h_b, h_gpu_result;
+        for (int j = 0; j < 4; ++j) { h_a.limbs[j] = rng(); h_b.limbs[j] = rng(); }
+        h_a.limbs[3] &= 0x7FFFFFFFFFFFFFFFULL;
+        h_b.limbs[3] &= 0x7FFFFFFFFFFFFFFFULL;
+
+        // GPU
+        FieldElement *d_a, *d_b, *d_r;
+        CUDA_CHECK(cudaMalloc(&d_a, sizeof(FieldElement)));
+        CUDA_CHECK(cudaMalloc(&d_b, sizeof(FieldElement)));
+        CUDA_CHECK(cudaMalloc(&d_r, sizeof(FieldElement)));
+        CUDA_CHECK(cudaMemcpy(d_a, &h_a, sizeof(FieldElement), cudaMemcpyHostToDevice));
+        CUDA_CHECK(cudaMemcpy(d_b, &h_b, sizeof(FieldElement), cudaMemcpyHostToDevice));
+        audit_field_mul_kernel<<<1,1>>>(d_a, d_b, d_r);
+        CUDA_CHECK(cudaDeviceSynchronize());
+        CUDA_CHECK(cudaMemcpy(&h_gpu_result, d_r, sizeof(FieldElement), cudaMemcpyDeviceToHost));
+        cudaFree(d_a); cudaFree(d_b); cudaFree(d_r);
+
+        // Convert GPU result to bytes via HostFieldElement
+        auto gpu_fe = HostFieldElement::from_device(h_gpu_result);
+        auto gpu_bytes = gpu_fe.to_bytes();
+
+        // CPU
+        auto cpu_a = secp256k1::fast::FieldElement::from_limbs(
+            {h_a.limbs[0], h_a.limbs[1], h_a.limbs[2], h_a.limbs[3]});
+        auto cpu_b = secp256k1::fast::FieldElement::from_limbs(
+            {h_b.limbs[0], h_b.limbs[1], h_b.limbs[2], h_b.limbs[3]});
+        auto cpu_r = cpu_a * cpu_b;
+        auto cpu_bytes = cpu_r.to_bytes();
+
+        if (std::memcmp(gpu_bytes.data(), cpu_bytes.data(), 32) != 0) return 1;
+    }
+    return 0;
+}
+
+#if !SECP256K1_CUDA_LIMBS_32
+static int audit_cpu_gpu_differential_ecdsa() {
+    // Sign on GPU, verify result on CPU
+    uint8_t msg_hash[32] = {};
+    msg_hash[31] = 0x42;
+
+    Scalar h_priv{};
+    h_priv.limbs[0] = 0xDEADBEEFCAFEBABEULL;
+    h_priv.limbs[1] = 0x1234567890ABCDEFULL;
+
+    // GPU: sign
+    Scalar* d_priv; uint8_t* d_msg;
+    ECDSASignatureGPU* d_sig; bool* d_ok;
+    ECDSASignatureGPU h_sig{};
+    bool h_ok = false;
+
+    CUDA_CHECK(cudaMalloc(&d_priv, sizeof(Scalar)));
+    CUDA_CHECK(cudaMalloc(&d_msg, 32));
+    CUDA_CHECK(cudaMalloc(&d_sig, sizeof(ECDSASignatureGPU)));
+    CUDA_CHECK(cudaMalloc(&d_ok, sizeof(bool)));
+    CUDA_CHECK(cudaMemcpy(d_priv, &h_priv, sizeof(Scalar), cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(d_msg, msg_hash, 32, cudaMemcpyHostToDevice));
+
+    audit_ecdsa_sign_kernel<<<1,1>>>(d_msg, d_priv, d_sig, d_ok);
+    CUDA_CHECK(cudaDeviceSynchronize());
+    CUDA_CHECK(cudaMemcpy(&h_sig, d_sig, sizeof(ECDSASignatureGPU), cudaMemcpyDeviceToHost));
+    CUDA_CHECK(cudaMemcpy(&h_ok, d_ok, sizeof(bool), cudaMemcpyDeviceToHost));
+    cudaFree(d_priv); cudaFree(d_msg); cudaFree(d_sig); cudaFree(d_ok);
+
+    if (!h_ok) return 1;
+
+    // CPU: derive pubkey and verify the GPU-produced signature
+    // Construct private key bytes (big-endian)
+    uint8_t priv_bytes[32] = {};
+    for (int i = 0; i < 8; ++i) {
+        priv_bytes[31 - i]     = (h_priv.limbs[0] >> (i * 8)) & 0xFF;
+        priv_bytes[31 - 8 - i] = (h_priv.limbs[1] >> (i * 8)) & 0xFF;
+    }
+    auto cpu_sk = secp256k1::fast::Scalar::from_bytes(
+        *reinterpret_cast<const std::array<uint8_t,32>*>(priv_bytes));
+    auto cpu_pk = secp256k1::fast::Point::generator().scalar_mul(cpu_sk);
+
+    // Convert GPU sig r,s to CPU Scalar via bytes
+    uint8_t r_bytes[32], s_bytes[32];
+    for (int i = 0; i < 4; ++i) {
+        for (int b = 0; b < 8; ++b) {
+            r_bytes[31 - (i*8+b)] = (h_sig.r.limbs[i] >> (b*8)) & 0xFF;
+            s_bytes[31 - (i*8+b)] = (h_sig.s.limbs[i] >> (b*8)) & 0xFF;
+        }
+    }
+    auto cpu_r = secp256k1::fast::Scalar::from_bytes(
+        *reinterpret_cast<const std::array<uint8_t,32>*>(r_bytes));
+    auto cpu_s = secp256k1::fast::Scalar::from_bytes(
+        *reinterpret_cast<const std::array<uint8_t,32>*>(s_bytes));
+
+    std::array<uint8_t,32> msg_arr;
+    std::memcpy(msg_arr.data(), msg_hash, 32);
+    secp256k1::ECDSASignature cpu_sig{cpu_r, cpu_s};
+    return secp256k1::ecdsa_verify(msg_arr, cpu_pk, cpu_sig) ? 0 : 1;
+}
+#endif  // !SECP256K1_CUDA_LIMBS_32
+
+#else  // !HAVE_CPU_LIB
+// Fallback: minimal check without CPU library
+static int audit_cpu_gpu_differential_gen_mul() {
+    struct KnownVec { uint64_t k; };
+    KnownVec vecs[] = { {1}, {2}, {3}, {7}, {256}, {0xFFFFFFFF} };
+    for (auto& v : vecs) {
+        Scalar h_k{}; h_k.limbs[0] = v.k;
+        JacobianPoint h_result{};
+        Scalar* d_k; JacobianPoint* d_result;
+        CUDA_CHECK(cudaMalloc(&d_k, sizeof(Scalar)));
+        CUDA_CHECK(cudaMalloc(&d_result, sizeof(JacobianPoint)));
+        CUDA_CHECK(cudaMemcpy(d_k, &h_k, sizeof(Scalar), cudaMemcpyHostToDevice));
+        audit_scalar_mul_gen_kernel<<<1,1>>>(d_k, d_result);
+        CUDA_CHECK(cudaDeviceSynchronize());
+        CUDA_CHECK(cudaMemcpy(&h_result, d_result, sizeof(JacobianPoint), cudaMemcpyDeviceToHost));
+        cudaFree(d_k); cudaFree(d_result);
         if (h_result.infinity) return 1;
     }
     return 0;
 }
+#endif  // HAVE_CPU_LIB
 
 // Section 5: Memory safety -- device allocation stress
 static int audit_device_memory_stress() {
@@ -1843,6 +1993,12 @@ static const GpuAuditModule GPU_MODULES[] = {
 
     // Section 4: CPU-GPU Differential
     { "diff_gen_mul",      "CPU-GPU differential gen mul",                "differential", audit_cpu_gpu_differential_gen_mul, false },
+#ifdef HAVE_CPU_LIB
+    { "diff_field_mul",    "CPU-GPU differential field mul (10 rounds)",  "differential", audit_cpu_gpu_differential_field_mul, false },
+#if !SECP256K1_CUDA_LIMBS_32
+    { "diff_ecdsa",        "CPU-GPU differential ECDSA sign+verify",     "differential", audit_cpu_gpu_differential_ecdsa, false },
+#endif
+#endif
 
     // Section 5: Device Memory & Error State
     { "mem_stress",        "Device memory alloc/free stress",             "memory_safety", audit_device_memory_stress, false },

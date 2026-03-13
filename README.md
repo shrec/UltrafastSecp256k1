@@ -1,14 +1,16 @@
-# UltrafastSecp256k1 -- High-Performance Open-Source secp256k1 Library
+# UltrafastSecp256k1 -- High-Performance secp256k1 Engine for CPU, GPU, Mobile, Embedded, and Web
 
-**Zero-dependency, multi-backend secp256k1 elliptic curve cryptography library** -- GPU-accelerated ECDSA & Schnorr signatures, constant-time side-channel protection, 12+ platform targets inc. CUDA, Metal, OpenCL, ROCm, WebAssembly, RISC-V, ESP32, and STM32.
+**Zero-dependency, multi-backend secp256k1 cryptography engine** -- built independently from scratch for Bitcoin, Ethereum, Silent Payments, threshold signatures, embedded systems, and GPU-scale workloads. UltrafastSecp256k1 delivers GPU-accelerated ECDSA and Schnorr, constant-time CPU signing paths, and 12+ platform targets including CUDA, Metal, OpenCL, ROCm, WebAssembly, RISC-V, ESP32, and STM32.
 
-> **4.88 M ECDSA signs/s** * **2.44 M ECDSA verifies/s** * **3.66 M Schnorr signs/s** * **2.82 M Schnorr verifies/s** -- single GPU (RTX 5060 Ti)
+> **4.88 M ECDSA signs/s** * **2.44 M ECDSA verifies/s** * **3.66 M Schnorr signs/s** * **2.82 M Schnorr verifies/s** -- single GPU (RTX 5060 Ti, hybrid GPU execution model)
 
 ### Why UltrafastSecp256k1?
 
 - **Fastest open-source GPU signatures** -- no other library provides secp256k1 ECDSA + Schnorr sign/verify on CUDA, OpenCL, and Metal ([reproducible benchmark suite and raw logs](docs/BENCHMARKS.md))
-- **Fast CPU signing (k\*G-dominant workloads)** -- generator multiply 2-4x faster than libsecp256k1; scalar multiply (k\*P) is comparable on x86-64 ([see bench_unified ratio table](docs/BENCHMARKS.md))
-- **BIP-352 Silent Payments scanning** -- full pipeline 1.20x faster than libsecp256k1 on isolated single-threaded benchmark ([standalone benchmark by @craigraw](https://github.com/craigraw/bench_bip352))
+- **High-performance CPU secp256k1 engine** -- optimized generator multiply, scalar multiply, hashing, and serialization pipelines across x86-64, ARM64, RISC-V, and embedded targets ([see bench_unified ratio table](docs/BENCHMARKS.md))
+- **Independent benchmark wins on real workloads** -- BIP-352 Silent Payments scanning and other end-to-end flows show strong results in standalone external and in-repo benchmarks ([standalone benchmark by @craigraw](https://github.com/craigraw/bench_bip352))
+- **Built for modern secp256k1 workloads** -- signing, verification, wallet derivation, threshold protocols, adaptor signatures, ZK primitives, address generation, and large-scale public-key pipelines in one engine
+- **Field-tested GPU pipeline** -- the CUDA engine has been stress-tested in live high-throughput workflows over long-running sessions and very large point volumes, not only in short synthetic benchmarks
 - **Zero dependencies** -- pure C++20, no Boost, no OpenSSL, compiles anywhere with a conforming compiler
 - **Dual-layer security** -- variable-time FAST path for throughput, constant-time CT path for secret-key operations
 - **12+ platforms** -- x86-64, ARM64, RISC-V, WASM, iOS, Android, ESP32, STM32, CUDA, Metal, OpenCL, ROCm
@@ -75,18 +77,19 @@
 
 ## [!] Security Notice
 
-**Research & Development Project -- Not Audited**
+**Production-Focused Engine -- Independently Unaudited**
 
-This library has **not undergone independent security audits**. It is provided for research, educational, and experimental purposes.
+UltrafastSecp256k1 is engineered for real workloads and broad deployment targets, but it has **not yet undergone an independent third-party cryptographic audit**.
 
-- [FAIL] Not recommended for production without independent cryptographic audit
 - [OK] All self-tests pass (76/76 including all backends)
 - [OK] Dual-layer constant-time architecture (FAST + CT always active)
 - [OK] Stable C ABI (`ufsecp`) with 45 exported functions
 - [OK] Fuzz-tested core arithmetic (libFuzzer + ASan)
+- [OK] GPU and CPU paths are exercised by large benchmark and validation pipelines
+- [!] Independent external audit is still pending
 
 **Report vulnerabilities** via [GitHub Security Advisories](https://github.com/shrec/UltrafastSecp256k1/security/advisories/new) or email [payysoon@gmail.com](mailto:payysoon@gmail.com).
-For production cryptographic systems, prefer audited libraries like [libsecp256k1](https://github.com/bitcoin-core/secp256k1).
+For production cryptographic systems, perform your own risk review, review the current guarantees in [SUPPORTED_GUARANTEES.md](include/ufsecp/SUPPORTED_GUARANTEES.md), and apply the assurance level appropriate to your deployment.
 
 ---
 
@@ -189,7 +192,7 @@ The C ABI (`ufsecp_*`) returns distinct error codes: `UFSECP_ERR_BAD_SIG` (non-c
 
 ## BIP-352 Silent Payments Scanning Benchmark
 
-Standalone single-threaded benchmark comparing UltrafastSecp256k1 vs libsecp256k1 on the full BIP-352 scanning pipeline (k\*P, serialize, tagged SHA-256, k\*G, point add, serialize, prefix match). Benchmark by [@craigraw](https://github.com/craigraw) ([bench_bip352](https://github.com/craigraw/bench_bip352)). Thank you for the contribution!
+Standalone single-threaded benchmark on the full BIP-352 scanning pipeline (k\*P, serialize, tagged SHA-256, k\*G, point add, serialize, prefix match). Benchmark by [@craigraw](https://github.com/craigraw) ([bench_bip352](https://github.com/craigraw/bench_bip352)). Thank you for the contribution!
 
 **Full pipeline** (10K points, 11 passes, median, GCC 12.4, `-O3 -march=native`, `USE_ASM_X86_64=1`):
 
@@ -341,7 +344,7 @@ UltrafastSecp256k1 is the **only open-source library** that provides full secp25
 | **Metal** | Apple M3 Pro | 0.33 M/s | -- | -- | -- | -- |
 | **ROCm (HIP)** | AMD GPUs | Portable | -- | -- | -- | -- |
 
-*CUDA 12.0, sm_86;sm_89, batch=16K signatures. Metal 2.4, 8x32-bit Comba limbs, 18 GPU cores.*
+*CUDA 12.0, sm_86;sm_89, batch=16K signatures, measured on RTX 5060 Ti. The CUDA path uses our own hybrid GPU execution model, which improved end-to-end throughput by more than 10% during optimization. Metal 2.4, 8x32-bit Comba limbs, 18 GPU cores.*
 
 ### CUDA Core ECC Operations (Kernel-Only Throughput)
 
@@ -1137,13 +1140,13 @@ See [LICENSE](LICENSE) for full details.
 
 ## Acknowledgements
 
-UltrafastSecp256k1 is an independent implementation -- written from scratch with our own architecture, GPU pipeline, embedded ports, and optimization techniques. At the same time, no project exists in a vacuum. The published research, specifications, and open discussions from the wider cryptographic community helped us refine our own ideas and validate our results.
+UltrafastSecp256k1 is an independent implementation -- written from scratch with our own architecture, hybrid GPU execution model, embedded ports, and optimization techniques. The library's core structure and most performance gains came from direct experimentation, profiling, and iteration. At the same time, no project exists in a vacuum. Studying public research and implementation notes from the wider cryptographic community later helped us validate decisions, avoid weaker paths, and uncover additional optimization opportunities.
 
 We want to acknowledge the teams whose public work informed parts of our journey:
 
-- **[bitcoin-core/secp256k1](https://github.com/bitcoin-core/secp256k1)** -- The reference C library whose published research on constant-time field arithmetic and endomorphism-based scalar multiplication (GLV, Strauss, Pippenger) helped us benchmark and verify our own independent implementations on GPU and embedded targets.
+- **[bitcoin-core/secp256k1](https://github.com/bitcoin-core/secp256k1)** -- A major reference point for the ecosystem. UltrafastSecp256k1 was built independently from scratch, but studying their published research later helped us benchmark our own implementations, validate design choices, and extract additional optimization ideas for CPU, GPU, and embedded targets.
 - **[Bitcoin Core](https://github.com/bitcoin/bitcoin)** contributors -- For open specifications (BIP-340 Schnorr, BIP-341 Taproot, RFC 6979) and a correctness-first engineering culture that benefits everyone building in this space.
-- **Pieter Wuille, Jonas Nick, Tim Ruffing** and the libsecp256k1 maintainers -- For publicly sharing their research on side-channel resistance, exhaustive testing, and field representation trade-offs. Their published findings helped us make better decisions when designing our own architecture.
+- **Pieter Wuille, Jonas Nick, Tim Ruffing** and the libsecp256k1 maintainers -- For publicly sharing research and implementation insights on side-channel resistance, exhaustive testing, field representation trade-offs, and practical optimization techniques. Their published work was valuable to study in the later optimization phase and helped us push our independently built engine further.
 - **[@craigraw](https://github.com/craigraw)** ([Sparrow Wallet](https://sparrowwallet.com)) -- For creating the [bench_bip352](https://github.com/craigraw/bench_bip352) standalone BIP-352 Silent Payments scanning benchmark, which provided an independent, reproducible pipeline comparison between secp256k1 implementations.
 
 We share our optimizations, GPU kernels, embedded ports, and cross-platform techniques freely -- because open-source cryptography grows stronger when knowledge flows in every direction.

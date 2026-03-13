@@ -45,6 +45,10 @@
 #include "secp256k1/point.hpp"
 #include "secp256k1/ecdsa.hpp"
 #include "secp256k1/schnorr.hpp"
+#include "secp256k1/ecdh.hpp"
+#include "secp256k1/taproot.hpp"
+#include "secp256k1/address.hpp"
+#include "secp256k1/bip32.hpp"
 #include "secp256k1/tagged_hash.hpp"
 #include "secp256k1/ct/sign.hpp"
 #include "secp256k1/ct/point.hpp"
@@ -61,6 +65,9 @@
 #include "secp256k1/coins/ethereum.hpp"
 #include "secp256k1/coins/eth_signing.hpp"
 #endif
+#include "secp256k1/coins/coin_address.hpp"
+#include "secp256k1/coins/coin_hd.hpp"
+#include "secp256k1/coins/coin_params.hpp"
 #if defined(__SIZEOF_INT128__) && !defined(__EMSCRIPTEN__)
 #include "secp256k1/field_52.hpp"
 #endif
@@ -105,6 +112,8 @@ extern "C" {
 #include <cstdint>
 #include <cstring>
 #include <chrono>
+#include <string>
+#include <vector>
 
 // OpenSSL (optional, system library -- enabled by CMake find_package(OpenSSL))
 #ifdef BENCH_HAS_OPENSSL
@@ -1690,6 +1699,103 @@ int main(int argc, char** argv) {
 #endif // SECP256K1_BUILD_ETHEREUM
 
     // =====================================================================
+    //  SECTION 6.7: Real-World Wallet / Protocol Flows
+    // =====================================================================
+
+    double u_ecdh = 0, u_ecdh_raw = 0, u_taproot_out = 0, u_taproot_tweak = 0;
+    double u_bip32_master = 0, u_bip32_child = 0, u_coin_addr_btc = 0, u_coin_addr_eth = 0;
+    double u_silent_sender = 0, u_silent_scan = 0;
+    {
+        print_header("REAL-WORLD FLOWS");
+
+        std::array<std::uint8_t, 64> hd_seed{};
+        std::memcpy(hd_seed.data(), msghashes[0].data(), 32);
+        std::memcpy(hd_seed.data() + 32, msghashes[1].data(), 32);
+
+        auto [master_hd, master_ok] = bip32_master_key(hd_seed.data(), hd_seed.size());
+        if (!master_ok) {
+            printf("[!] bip32_master_key() setup failed\n");
+            return 1;
+        }
+
+        std::array<std::uint8_t, 32> empty_merkle{};
+        auto internal_key_x = schnorr_pubkeys_x[0];
+        std::vector<Scalar> sp_input_sks{privkeys[2], privkeys[3]};
+        std::vector<Point> sp_input_pks{pubkeys[2], pubkeys[3]};
+        auto sp_addr = silent_payment_address(privkeys[0], privkeys[1]);
+        auto [sp_output_pk, _sp_tweak] = silent_payment_create_output(sp_input_sks, sp_addr, 0);
+        std::vector<std::array<std::uint8_t, 32>> sp_outputs{sp_output_pk.x().to_bytes()};
+
+        idx = 0;
+        u_ecdh = bench_ns([&]() {
+            auto s = ecdh_compute(privkeys[idx % POOL], pubkeys[(idx + 1) % POOL]);
+            bench::DoNotOptimize(s); ++idx;
+        }, N_VERIFY);
+        print_row("ecdh_compute (SHA256 shared secret)", u_ecdh);
+
+        idx = 0;
+        u_ecdh_raw = bench_ns([&]() {
+            auto s = ecdh_compute_raw(privkeys[idx % POOL], pubkeys[(idx + 1) % POOL]);
+            bench::DoNotOptimize(s); ++idx;
+        }, N_VERIFY);
+        print_row("ecdh_compute_raw (x-only shared)", u_ecdh_raw);
+
+        u_taproot_out = bench_ns([&]() {
+            auto out = taproot_output_key(internal_key_x, empty_merkle.data(), 0);
+            bench::DoNotOptimize(out);
+        }, N_SIGN);
+        print_row("taproot_output_key (BIP-341 key path)", u_taproot_out);
+
+        u_taproot_tweak = bench_ns([&]() {
+            auto s = taproot_tweak_privkey(privkeys[0], empty_merkle.data(), 0);
+            bench::DoNotOptimize(s);
+        }, N_SIGN);
+        print_row("taproot_tweak_privkey (BIP-341)", u_taproot_tweak);
+
+        u_bip32_master = bench_ns([&]() {
+            auto mk = bip32_master_key(hd_seed.data(), hd_seed.size());
+            bench::DoNotOptimize(mk);
+        }, N_SIGN);
+        print_row("bip32_master_key (64B seed)", u_bip32_master);
+
+        u_bip32_child = bench_ns([&]() {
+            auto child = secp256k1::coins::coin_derive_key(master_hd, secp256k1::coins::Bitcoin, 0, false, 0);
+            bench::DoNotOptimize(child);
+        }, N_SIGN);
+        print_row("bip32_coin_derive_key (BTC m/84'/0'/0'/0/0)", u_bip32_child);
+
+        u_coin_addr_btc = bench_ns([&]() {
+            auto addr = secp256k1::coins::coin_address_from_seed(
+                hd_seed.data(), hd_seed.size(), secp256k1::coins::Bitcoin, 0, 0);
+            bench::DoNotOptimize(addr);
+        }, N_SIGN);
+        print_row("coin_address_from_seed (BTC end-to-end)", u_coin_addr_btc);
+
+        u_coin_addr_eth = bench_ns([&]() {
+            auto addr = secp256k1::coins::coin_address_from_seed(
+                hd_seed.data(), hd_seed.size(), secp256k1::coins::Ethereum, 0, 0);
+            bench::DoNotOptimize(addr);
+        }, N_SIGN);
+        print_row("coin_address_from_seed (ETH end-to-end)", u_coin_addr_eth);
+
+        u_silent_sender = bench_ns([&]() {
+            auto out = silent_payment_create_output(sp_input_sks, sp_addr, static_cast<std::uint32_t>(idx & 3));
+            bench::DoNotOptimize(out); ++idx;
+        }, N_SIGN);
+        print_row("silent_payment_create_output", u_silent_sender);
+
+        idx = 0;
+        u_silent_scan = bench_ns([&]() {
+            auto found = silent_payment_scan(privkeys[0], privkeys[1], sp_input_pks, sp_outputs);
+            bench::DoNotOptimize(found); ++idx;
+        }, N_SIGN);
+        print_row("silent_payment_scan (single output set)", u_silent_scan);
+
+        print_sep();
+        printf("\n");
+    }
+
+    // =====================================================================
     //  SECTION 7: libsecp256k1 (bitcoin-core) -- SAME harness, pool, timer
     // =====================================================================
 
@@ -2430,6 +2536,11 @@ int main(int argc, char** argv) {
     tput("Schnorr verify (cached)",   u_schnorr_verify);
     tput("Schnorr verify (raw)",      u_schnorr_verify_raw);
     tput("pubkey_create (k*G)",       keygen);
+    tput("ECDH",                      u_ecdh);
+    tput("Taproot output key",        u_taproot_out);
+    tput("BIP32 derive (BTC)",        u_bip32_child);
+    tput("Silent Payment sender",     u_silent_sender);
+    tput("Silent Payment scan",       u_silent_scan);
     printf("\n");
     printf("  --- Ultra CT ---\n");
     tput("CT ECDSA sign",             u_ct_ecdsa);

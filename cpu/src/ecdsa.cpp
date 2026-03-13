@@ -5,6 +5,7 @@
 #include "secp256k1/field_52.hpp"
 #include "secp256k1/ct/point.hpp"  // ct::generator_mul for sign-then-verify
 #include "secp256k1/detail/secure_erase.hpp"
+#include "secp256k1/debug_invariants.hpp"
 #include <cstring>
 
 namespace secp256k1 {
@@ -432,6 +433,7 @@ Scalar rfc6979_nonce_hedged(const Scalar& private_key,
 
 ECDSASignature ecdsa_sign(const std::array<uint8_t, 32>& msg_hash,
                           const Scalar& private_key) {
+    SECP_ASSERT_SCALAR_VALID(private_key);
     if (private_key.is_zero()) return {Scalar::zero(), Scalar::zero()};
 
     // z = message hash interpreted as scalar
@@ -551,6 +553,7 @@ ECDSASignature ecdsa_sign_hedged_verified(const std::array<uint8_t, 32>& msg_has
 bool ecdsa_verify(const uint8_t* msg_hash32,
                   const Point& public_key,
                   const ECDSASignature& sig) {
+    SECP_ASSERT_ON_CURVE(public_key);
     // Reject degenerate inputs early
     if (public_key.is_infinity()) return false;
     if (sig.r.is_zero() || sig.s.is_zero()) return false;

@@ -422,15 +422,17 @@ std::pair<ExtendedKey, bool> bip32_derive_path(const ExtendedKey& master,
             continue;
         }
 
-        // Parse number
-        uint32_t index = 0;
+        // Parse number with overflow detection
+        uint64_t index64 = 0;
         bool has_digit = false;
         while (pos < path.size() && std::isdigit(static_cast<unsigned char>(path[pos]))) {
-            index = index * 10 + static_cast<uint32_t>(path[pos] - '0');
+            index64 = index64 * 10 + static_cast<uint64_t>(path[pos] - '0');
+            if (index64 > 0x7FFFFFFFu) return {ExtendedKey{}, false}; // exceeds max BIP-32 index
             ++pos;
             has_digit = true;
         }
         if (!has_digit) return {ExtendedKey{}, false};
+        uint32_t index = static_cast<uint32_t>(index64);
 
         // Check for hardened marker
         bool hardened = false;

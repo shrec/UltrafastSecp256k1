@@ -110,6 +110,7 @@ int test_musig2_bip327_vectors_run();
 // Forward declarations -- Cross-ABI / FFI round-trip tests
 // ============================================================================
 int test_ffi_round_trip_run();
+int test_adversarial_protocol_run();
 
 // ============================================================================
 // Forward declarations -- adversarial / fuzz tests
@@ -293,6 +294,7 @@ static const AuditModule ALL_MODULES[] = {
     { "debug_invariants",  "Debug invariant assertions",                   "memory_safety",  test_debug_invariants_run, false },
     { "abi_gate",          "ABI version gate (compile-time)",              "memory_safety",  test_abi_gate_run, false },
     { "ffi_round_trip",    "Cross-ABI/FFI round-trip (ufsecp C API)",     "memory_safety",  test_ffi_round_trip_run, false },
+    { "adversarial_proto", "Adversarial protocol & FFI hostile-caller",   "fuzzing",         test_adversarial_protocol_run, false },
 
     // ===================================================================
     // Section 8: Performance Validation & Regression

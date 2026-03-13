@@ -1,6 +1,6 @@
 # UltrafastSecp256k1 Benchmarks
 
-Performance benchmarks across different platforms and configurations.
+Performance benchmarks across different platforms and configurations, from low-level ECC primitives to end-to-end wallet and protocol flows.
 
 ## 📊 Benchmark Results
 
@@ -31,6 +31,16 @@ benchmarks/
 
 ## 🚀 Running Benchmarks
 
+The main benchmark entry point is `bench_unified`, which measures:
+
+- field, scalar, and point arithmetic
+- ECDSA and Schnorr sign/verify
+- constant-time CPU paths
+- batch verification
+- Ethereum operations
+- zero-knowledge primitives
+- real-world flows such as ECDH, Taproot tweaking, BIP-32 derivation, seed-to-address generation, and Silent Payments
+
 ### CPU Benchmarks
 
 ```bash
@@ -38,16 +48,23 @@ benchmarks/
 cmake -B build -DSECP256K1_BUILD_BENCH=ON
 cmake --build build -j
 
-# Run all CPU benchmarks
-./build/cpu/bench/benchmark_field
-./build/cpu/bench/benchmark_point
-./build/cpu/bench/benchmark_scalar
+# Run the unified CPU benchmark suite
+./build/cpu/bench_unified
+
+# Quick smoke / CI-style run
+./build/cpu/bench_unified --quick
+
+# Optional specialized micro-benchmarks
+./build/cpu/bench_ct
+./build/cpu/bench_field_52
+./build/cpu/bench_field_26
+./build/cpu/bench_kP
 
 # RISC-V comprehensive benchmark
-./build/libs/UltrafastSecp256k1/cpu/bench_comprehensive
+./build/libs/UltrafastSecp256k1/cpu/bench_unified
 
 # Save results
-./build/cpu/bench/benchmark_field > benchmarks/cpu/x86-64/linux/field_$(date +%Y%m%d).txt
+./build/cpu/bench_unified > benchmarks/cpu/x86-64/linux/bench_unified_$(date +%Y%m%d).txt
 ```
 
 ### GPU Benchmarks (CUDA)
@@ -90,6 +107,13 @@ Batch Multiply (n):  X ms for n ops
 
 === Throughput ===
 Operations/second:   X M ops/s
+
+=== Real-World Flows ===
+ECDH:              X us/op
+Taproot tweak:     X us/op
+BIP-32 derive:     X us/op
+Seed -> address:   X us/op
+Silent Payments:   X us/op
 ```
 
 ## 🎯 Submitting Benchmarks

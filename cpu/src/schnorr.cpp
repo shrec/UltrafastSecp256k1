@@ -4,6 +4,7 @@
 #include "secp256k1/multiscalar.hpp"
 #include "secp256k1/config.hpp"    // SECP256K1_FAST_52BIT
 #include "secp256k1/field_52.hpp"
+#include "secp256k1/debug_invariants.hpp"
 #include <cstring>
 #include <string_view>
 #if defined(_MSC_VER)
@@ -242,6 +243,7 @@ bool SchnorrSignature::parse_strict(const std::array<uint8_t, 64>& data,
 // -- X-only pubkey ------------------------------------------------------------
 
 std::array<uint8_t, 32> schnorr_pubkey(const Scalar& private_key) {
+    SECP_ASSERT_SCALAR_VALID(private_key);
     auto P = Point::generator().scalar_mul(private_key);
     auto [px, p_y_odd] = P.x_bytes_and_parity();
     (void)p_y_odd;
@@ -251,6 +253,7 @@ std::array<uint8_t, 32> schnorr_pubkey(const Scalar& private_key) {
 // -- SchnorrKeypair Creation --------------------------------------------------
 
 SchnorrKeypair schnorr_keypair_create(const Scalar& private_key) {
+    SECP_ASSERT_SCALAR_VALID(private_key);
     SchnorrKeypair kp{};
     auto d_prime = private_key;
     if (d_prime.is_zero()) return kp;
@@ -269,6 +272,7 @@ SchnorrKeypair schnorr_keypair_create(const Scalar& private_key) {
 SchnorrSignature schnorr_sign(const SchnorrKeypair& kp,
                               const std::array<uint8_t, 32>& msg,
                               const std::array<uint8_t, 32>& aux_rand) {
+    SECP_ASSERT_SCALAR_VALID(kp.d);
     if (kp.d.is_zero()) return SchnorrSignature{};
 
     // Step 1: t = d XOR tagged_hash("BIP0340/aux", aux_rand)

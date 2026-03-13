@@ -1,6 +1,7 @@
 #include "secp256k1/ecdh.hpp"
 #include "secp256k1/sha256.hpp"
 #include "secp256k1/ct/point.hpp"
+#include "secp256k1/detail/secure_erase.hpp"
 #include <cstring>
 
 namespace secp256k1 {
@@ -23,7 +24,9 @@ std::array<std::uint8_t, 32> ecdh_compute(
     auto compressed = shared_point.to_compressed();
 
     // Hash with SHA-256
-    return SHA256::hash(compressed.data(), compressed.size());
+    auto result = SHA256::hash(compressed.data(), compressed.size());
+    secp256k1::detail::secure_erase(compressed.data(), compressed.size());
+    return result;
 }
 
 // -- ECDH: SHA-256(x-coordinate) ----------------------------------------------
@@ -40,7 +43,9 @@ std::array<std::uint8_t, 32> ecdh_compute_xonly(
     // x-coordinate only
     auto x_bytes = shared_point.x().to_bytes();
 
-    return SHA256::hash(x_bytes.data(), x_bytes.size());
+    auto result = SHA256::hash(x_bytes.data(), x_bytes.size());
+    secp256k1::detail::secure_erase(x_bytes.data(), x_bytes.size());
+    return result;
 }
 
 // -- ECDH: Raw x-coordinate --------------------------------------------------

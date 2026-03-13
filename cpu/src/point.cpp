@@ -11,6 +11,8 @@
 #include "secp256k1/field_4x64_inline.hpp"
 #endif
 
+#include "secp256k1/debug_invariants.hpp"
+
 #include <algorithm>
 #include <array>
 #include <cstddef>
@@ -1462,6 +1464,8 @@ Point Point::infinity() {
 }
 
 Point Point::from_affine(const FieldElement& x, const FieldElement& y) {
+    SECP_ASSERT_NORMALIZED(x);
+    SECP_ASSERT_NORMALIZED(y);
     Point p(x, y, fe_from_uint(1), false);
 #if defined(SECP256K1_FAST_52BIT)
     p.x_.normalize();
@@ -1557,6 +1561,8 @@ std::array<uint8_t, 16> Point::x_second_half() const {
 }
 
 Point Point::add(const Point& other) const {
+    SECP_ASSERT_ON_CURVE(*this);
+    SECP_ASSERT_ON_CURVE(other);
     // Fast path: both points affine (Z=1) -- direct affine addition.
     // Returns an affine result (z_one_=true), saving ~12 field muls + the
     // field inversion that to_compressed() would otherwise need.
@@ -1635,6 +1641,7 @@ Point Point::add(const Point& other) const {
 }
 
 Point Point::dbl() const {
+    SECP_ASSERT_ON_CURVE(*this);
 #if defined(SECP256K1_FAST_52BIT)
     if (SECP256K1_UNLIKELY(infinity_)) {
         return Point(x_, y_, z_, true, false);
@@ -1661,6 +1668,7 @@ Point Point::dbl() const {
 }
 
 Point Point::negate() const {
+    SECP_ASSERT_ON_CURVE(*this);
     if (infinity_) {
         return *this;  // Infinity is its own negation
     }
@@ -1739,6 +1747,8 @@ void Point::prev_inplace() {
 // Mutable in-place addition: *this += other (no allocation overhead)
 // Routes through 5x52 path on x64 for inlined field ops (zero call overhead)
 void Point::add_inplace(const Point& other) {
+    SECP_ASSERT_ON_CURVE(*this);
+    SECP_ASSERT_ON_CURVE(other);
     z_one_ = false;
 #if defined(SECP256K1_FAST_52BIT)
   #if defined(SECP256K1_USE_4X64_POINT_OPS)
@@ -1826,6 +1836,7 @@ void Point::sub_inplace(const Point& other) {
 
 // Mutable in-place doubling: *this = 2*this (no allocation overhead)
 void Point::dbl_inplace() {
+    SECP_ASSERT_ON_CURVE(*this);
     z_one_ = false;
 #if defined(SECP256K1_PLATFORM_ESP32) || defined(__XTENSA__) || defined(SECP256K1_PLATFORM_STM32)
     // Optimized: 5S + 2M formula (saves 2S vs generic 7S + 1M)
@@ -1879,6 +1890,7 @@ void Point::dbl_inplace() {
 
 // Mutable in-place negation: *this = -this (no allocation overhead)
 void Point::negate_inplace() {
+    SECP_ASSERT_ON_CURVE(*this);
     // Negation in Jacobian: (X, Y, Z) -> (X, -Y, Z)
 #if defined(SECP256K1_FAST_52BIT)
   #if defined(SECP256K1_USE_4X64_POINT_OPS)
@@ -1898,6 +1910,8 @@ void Point::negate_inplace() {
 // Explicit mixed-add with affine input: this += (ax, ay)
 // Routes through 5x52 path on x64 for inlined field ops
 void Point::add_mixed_inplace(const FieldElement& ax, const FieldElement& ay) {
+    SECP_ASSERT_NORMALIZED(ax);
+    SECP_ASSERT_NORMALIZED(ay);
     z_one_ = false;
 #if defined(SECP256K1_FAST_52BIT)
   #if defined(SECP256K1_USE_4X64_POINT_OPS)
@@ -2240,6 +2254,7 @@ static Point gen_fixed_mul(const Scalar& k) {
 #endif  // SECP256K1_PLATFORM_ESP32
 
 Point Point::scalar_mul(const Scalar& scalar) const {
+    SECP_ASSERT_ON_CURVE(*this);
 #if !defined(SECP256K1_PLATFORM_ESP32) && !defined(ESP_PLATFORM) && !defined(SECP256K1_PLATFORM_STM32) && !defined(__EMSCRIPTEN__)
     // WASM: precompute tables produce incorrect results under Emscripten's
     // __int128 emulation (field ops are fine, but the windowed accumulation
@@ -3051,6 +3066,7 @@ void Point::batch_x_only_bytes(const Point* points, size_t n,
 #if defined(SECP256K1_FAST_52BIT)
 SECP256K1_NOINLINE
 Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const Point& P) {
+    SECP_ASSERT_ON_CURVE(P);
 #if defined(SECP256K1_USE_4X64_POINT_OPS)
     // 4x64 path: use two separate scalar_muls (each already has GLV+Shamir 4x64)
     auto aG = Point::generator().scalar_mul(a);
@@ -3459,6 +3475,7 @@ Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const P
 #else
 // Non-52bit / non-embedded fallback: separate multiplications
 Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const Point& P) {
+    SECP_ASSERT_ON_CURVE(P);
     auto aG = Point::generator().scalar_mul(a);
     aG.add_inplace(P.scalar_mul(b));
     return aG;

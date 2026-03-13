@@ -34,6 +34,7 @@ set(SECP256K1_SOURCES
     src/bip39.cpp        # BIP-39 mnemonic seed phrases
     src/musig2.cpp       # MuSig2 multi-signatures (BIP-327)
     src/ecdh.cpp         # ECDH key exchange
+    src/ecies.cpp        # ECIES encryption (AES-256-CTR + HMAC-SHA256)
     src/recovery.cpp     # ECDSA public key recovery
     src/taproot.cpp      # Taproot (BIP-341/342) key tweaking
     src/batch_add_affine.cpp  # Affine batch addition for sequential ECC search

@@ -21,6 +21,43 @@ Benchmark results for UltrafastSecp256k1 across all supported platforms.
 
 ---
 
+## Real-World Flow Coverage
+
+`bench_unified` also measures higher-level wallet and protocol flows so the
+benchmark suite reflects product-shaped workloads, not only primitive-level ECC
+ operations.
+
+Covered flows include:
+
+- `ecdh_compute` and `ecdh_compute_raw`
+- `taproot_output_key` and `taproot_tweak_privkey`
+- `bip32_master_key`
+- `coin_derive_key` for standard Bitcoin HD paths
+- `coin_address_from_seed` end-to-end for Bitcoin and Ethereum
+- `silent_payment_create_output`
+- `silent_payment_scan`
+
+### Representative x86-64 / Linux Quick Snapshot
+
+Quick sanity run from `bench_unified --quick` on the local x86-64 validation machine:
+
+| Flow | Time |
+|------|-----:|
+| ECDH (`ecdh_compute`) | 22.8 us |
+| ECDH raw (`ecdh_compute_raw`) | 20.5 us |
+| Taproot output key | 10.5 us |
+| BIP-32 master key (64B seed) | 1.2 us |
+| BTC address from seed | 93.4 us |
+| ETH address from seed | 93.4 us |
+| Silent Payment create_output | 24.7 us |
+| Silent Payment scan | 35.7 us |
+
+These values are mainly intended as workflow reference points. For publishable
+cross-machine comparisons, use the full pinned benchmark methodology and JSON
+artifacts from `bench_unified`.
+
+---
+
 ## x86-64 Benchmarks
 
 ### x86-64 / Linux (i5, Clang 19.1.7, AVX2)
@@ -529,7 +566,7 @@ All targets registered in CMake. Build with `cmake --build build -j` then run fr
 
 | Target | What It Measures |
 |--------|-----------------|
-| `bench_unified` | THE standard: full apple-to-apple vs libsecp256k1 + OpenSSL |
+| `bench_unified` | THE standard: primitives + CT + batch verify + Ethereum + ZK + real-world wallet/protocol flows, with apple-to-apple comparison vs libsecp256k1 + OpenSSL |
 | `bench_ct` | Fast (`fast::`) vs Constant-Time (`ct::`) layer comparison |
 | `bench_field_52` | 5x52 field arithmetic micro-benchmarks |
 | `bench_field_26` | 10x26 field arithmetic micro-benchmarks |
@@ -547,6 +584,10 @@ All targets registered in CMake. Build with `cmake --build build -j` then run fr
 2. **Measurement:** 3 iterations, take median
 3. **Timer:** `std::chrono::high_resolution_clock`
 4. **Compiler flags:** `-O3 -march=native`
+
+`bench_unified` additionally reports workflow-level operations such as HD
+derivation, Taproot key tweaking, ECDH, and Silent Payments so primitive
+performance can be interpreted in a wallet and protocol context.
 
 ### CUDA Benchmarks
 
@@ -569,6 +610,12 @@ All targets registered in CMake. Build with `cmake --build build -j` then run fr
 ```bash
 # Run CPU benchmark (includes ZK section)
 ./build/cpu/bench_unified
+
+# Run the full unified suite explicitly
+./build/cpu/bench_unified --suite all
+
+# Quick smoke / CI-style run
+./build/cpu/bench_unified --quick
 
 # Run CUDA ECC benchmark
 ./build/cuda/secp256k1_cuda_bench
@@ -834,4 +881,3 @@ AWS Graviton, AMD EPYC, Intel Xeon Sapphire Rapids, Milk-V Pioneer (C920).
 
 UltrafastSecp256k1 v3.16.0  
 Benchmarks updated: 2026-03-02
-

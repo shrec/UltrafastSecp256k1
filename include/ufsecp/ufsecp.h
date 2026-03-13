@@ -564,10 +564,11 @@ UFSECP_API ufsecp_error_t ufsecp_musig2_start_sign_session(
     const uint8_t msg32[32],
     uint8_t session_out[UFSECP_MUSIG2_SESSION_LEN]);
 
-/** Produce a partial signature. */
+/** Produce a partial signature.
+ *  IMPORTANT: secnonce is zeroed after use to prevent nonce reuse. */
 UFSECP_API ufsecp_error_t ufsecp_musig2_partial_sign(
     ufsecp_ctx* ctx,
-    const uint8_t secnonce[UFSECP_MUSIG2_SECNONCE_LEN],
+    uint8_t secnonce[UFSECP_MUSIG2_SECNONCE_LEN],
     const uint8_t privkey[32],
     const uint8_t keyagg[UFSECP_MUSIG2_KEYAGG_LEN],
     const uint8_t session[UFSECP_MUSIG2_SESSION_LEN],
@@ -887,6 +888,92 @@ UFSECP_API ufsecp_error_t ufsecp_btc_message_verify(
 UFSECP_API ufsecp_error_t ufsecp_btc_message_hash(
     const uint8_t* msg, size_t msg_len,
     uint8_t digest32_out[32]);
+
+/* ===========================================================================
+ * BIP-352 Silent Payments
+ * =========================================================================== */
+
+/** Generate a Silent Payment address from scan and spend private keys.
+ *  scan_privkey:  32-byte scan private key.
+ *  spend_privkey: 32-byte spend private key.
+ *  scan_pubkey33_out:  33-byte compressed scan public key (B_scan).
+ *  spend_pubkey33_out: 33-byte compressed spend public key (B_spend).
+ *  addr_out: buffer for bech32m-encoded address (min 128 bytes).
+ *  addr_len: in = buffer size, out = strlen (excl. NUL). */
+UFSECP_API ufsecp_error_t ufsecp_silent_payment_address(
+    ufsecp_ctx* ctx,
+    const uint8_t scan_privkey[32],
+    const uint8_t spend_privkey[32],
+    uint8_t scan_pubkey33_out[33],
+    uint8_t spend_pubkey33_out[33],
+    char* addr_out, size_t* addr_len);
+
+/** Create a Silent Payment output (sender side).
+ *  Computes the tweaked output pubkey for the recipient.
+ *  input_privkeys: array of 32-byte private keys (N keys, one per input).
+ *  n_inputs: number of input private keys.
+ *  scan_pubkey33:  33-byte recipient scan pubkey (B_scan).
+ *  spend_pubkey33: 33-byte recipient spend pubkey (B_spend).
+ *  k: output index (for multiple outputs to same recipient).
+ *  output_pubkey33_out: 33-byte compressed tweaked output pubkey.
+ *  tweak32_out: 32-byte tweak scalar (optional, may be NULL). */
+UFSECP_API ufsecp_error_t ufsecp_silent_payment_create_output(
+    ufsecp_ctx* ctx,
+    const uint8_t* input_privkeys, size_t n_inputs,
+    const uint8_t scan_pubkey33[33],
+    const uint8_t spend_pubkey33[33],
+    uint32_t k,
+    uint8_t output_pubkey33_out[33],
+    uint8_t* tweak32_out);
+
+/** Scan for Silent Payment outputs (receiver side).
+ *  scan_privkey:  32-byte scan private key.
+ *  spend_privkey: 32-byte spend private key.
+ *  input_pubkeys33: array of 33-byte compressed pubkeys (sender inputs).
+ *  n_input_pubkeys: number of input pubkeys.
+ *  output_xonly32: array of 32-byte x-only output pubkeys to check.
+ *  n_outputs: number of output pubkeys.
+ *  found_indices_out: array to receive indices of matched outputs.
+ *  found_privkeys_out: array to receive 32-byte spending private keys (one per match).
+ *  n_found: in = array capacity, out = number of matches found. */
+UFSECP_API ufsecp_error_t ufsecp_silent_payment_scan(
+    ufsecp_ctx* ctx,
+    const uint8_t scan_privkey[32],
+    const uint8_t spend_privkey[32],
+    const uint8_t* input_pubkeys33, size_t n_input_pubkeys,
+    const uint8_t* output_xonly32, size_t n_outputs,
+    uint32_t* found_indices_out,
+    uint8_t* found_privkeys_out,
+    size_t* n_found);
+
+/* ===========================================================================
+ * ECIES (Elliptic Curve Integrated Encryption Scheme)
+ * =========================================================================== */
+
+/** ECIES envelope overhead: 33 (ephemeral pubkey) + 16 (IV) + 32 (HMAC) = 81 */
+#define UFSECP_ECIES_OVERHEAD 81
+
+/** ECIES encrypt: encrypt plaintext for a recipient's public key.
+ *  recipient_pubkey33: 33-byte compressed public key.
+ *  plaintext, plaintext_len: message to encrypt.
+ *  envelope_out: buffer for encrypted envelope (min plaintext_len + 81).
+ *  envelope_len: in = buffer size, out = actual envelope size. */
+UFSECP_API ufsecp_error_t ufsecp_ecies_encrypt(
+    ufsecp_ctx* ctx,
+    const uint8_t recipient_pubkey33[33],
+    const uint8_t* plaintext, size_t plaintext_len,
+    uint8_t* envelope_out, size_t* envelope_len);
+
+/** ECIES decrypt: decrypt an ECIES envelope with a private key.
+ *  privkey: 32-byte private key.
+ *  envelope, envelope_len: encrypted envelope.
+ *  plaintext_out: buffer for decrypted plaintext (min envelope_len - 81).
+ *  plaintext_len: in = buffer size, out = actual plaintext size. */
+UFSECP_API ufsecp_error_t ufsecp_ecies_decrypt(
+    ufsecp_ctx* ctx,
+    const uint8_t privkey[32],
+    const uint8_t* envelope, size_t envelope_len,
+    uint8_t* plaintext_out, size_t* plaintext_len);
 
 #ifdef SECP256K1_BUILD_ETHEREUM
 

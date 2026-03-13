@@ -1,5 +1,6 @@
 #include "secp256k1/scalar.hpp"
 #include "secp256k1/detail/arith64.hpp"
+#include "secp256k1/debug_invariants.hpp"
 
 #include <array>
 #include <cstddef>

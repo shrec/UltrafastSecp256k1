@@ -1543,6 +1543,189 @@ static void test_adaptor_signatures() {
 }
 
 // ============================================================================
+// Test 29: ECIES Round-Trip
+// ============================================================================
+
+static void test_ecies_round_trip() {
+    (void)std::printf("[29] FFI: ECIES (encrypt -> decrypt -> tamper -> wrong key)\n");
+
+    ufsecp_ctx* ctx = nullptr;
+    ufsecp_ctx_create(&ctx);
+
+    // Use PRIVKEY1 as recipient
+    uint8_t priv[32];
+    hex_to_bytes(PRIVKEY1_HEX, priv, 32);
+    uint8_t pub33[33] = {};
+    CHECK_OK(ufsecp_pubkey_create(ctx, priv, pub33), "pubkey_create for ECIES");
+
+    // Encrypt a message
+    const char* msg = "Hello, ECIES on secp256k1!";
+    size_t const msg_len = std::strlen(msg);
+    uint8_t envelope[256];
+    size_t env_len = sizeof(envelope);
+    CHECK_OK(ufsecp_ecies_encrypt(ctx, pub33,
+          reinterpret_cast<const uint8_t*>(msg), msg_len,
+          envelope, &env_len), "ECIES encrypt");
+    CHECK(env_len == msg_len + UFSECP_ECIES_OVERHEAD, "envelope size = plaintext + 81");
+
+    // Decrypt
+    uint8_t plaintext[256];
+    size_t pt_len = sizeof(plaintext);
+    CHECK_OK(ufsecp_ecies_decrypt(ctx, priv, envelope, env_len,
+          plaintext, &pt_len), "ECIES decrypt");
+    CHECK(pt_len == msg_len, "plaintext size matches");
+    CHECK(std::memcmp(plaintext, msg, msg_len) == 0, "plaintext matches original");
+
+    // Tamper test: flip one byte in ciphertext region -> should fail
+    envelope[50] ^= 0xFF;
+    pt_len = sizeof(plaintext);
+    CHECK(ufsecp_ecies_decrypt(ctx, priv, envelope, env_len,
+          plaintext, &pt_len) != UFSECP_OK, "tampered envelope rejected");
+
+    // Wrong key test
+    uint8_t priv2[32];
+    hex_to_bytes(PRIVKEY2_HEX, priv2, 32);
+    envelope[50] ^= 0xFF; // restore
+    pt_len = sizeof(plaintext);
+    CHECK(ufsecp_ecies_decrypt(ctx, priv2, envelope, env_len,
+          plaintext, &pt_len) != UFSECP_OK, "wrong key rejected");
+
+    // Null arg tests
+    env_len = sizeof(envelope);
+    CHECK(ufsecp_ecies_encrypt(nullptr, pub33,
+          reinterpret_cast<const uint8_t*>(msg), msg_len,
+          envelope, &env_len) == UFSECP_ERR_NULL_ARG, "encrypt null ctx");
+    CHECK(ufsecp_ecies_decrypt(ctx, nullptr, envelope, env_len,
+          plaintext, &pt_len) == UFSECP_ERR_NULL_ARG, "decrypt null privkey");
+
+    // Buffer too small
+    size_t small = 10;
+    CHECK(ufsecp_ecies_encrypt(ctx, pub33,
+          reinterpret_cast<const uint8_t*>(msg), msg_len,
+          envelope, &small) == UFSECP_ERR_BUF_TOO_SMALL, "encrypt buf too small");
+
+    // ---- Regression: parity-byte malleability (Finding #1) ----
+    // Flip ephemeral pubkey parity byte (0x02 <-> 0x03) in a valid envelope.
+    // HMAC now covers pubkey, so this MUST be rejected.
+    {
+        uint8_t env_copy[256];
+        std::memcpy(env_copy, envelope, env_len);
+        env_copy[0] ^= 0x01; // flip 0x02->0x03 or 0x03->0x02
+        pt_len = sizeof(plaintext);
+        // Re-encrypt fresh since we used priv2 above and envelope may be stale
+        env_len = sizeof(envelope);
+        CHECK_OK(ufsecp_ecies_encrypt(ctx, pub33,
+              reinterpret_cast<const uint8_t*>(msg), msg_len,
+              envelope, &env_len), "re-encrypt for malleability test");
+        std::memcpy(env_copy, envelope, env_len);
+        env_copy[0] ^= 0x01; // flip parity
+        pt_len = sizeof(plaintext);
+        CHECK(ufsecp_ecies_decrypt(ctx, priv, env_copy, env_len,
+              plaintext, &pt_len) != UFSECP_OK,
+              "parity-flipped ephemeral pubkey rejected (anti-malleability)");
+    }
+
+    // ---- Regression: invalid prefix byte (Finding #3) ----
+    // Set prefix to 0x04 (uncompressed), 0x00, 0x01, 0x07 -- all must fail.
+    {
+        uint8_t env_bad[256];
+        const uint8_t bad_prefixes[] = {0x00, 0x01, 0x04, 0x07, 0xFF};
+        for (auto bp : bad_prefixes) {
+            std::memcpy(env_bad, envelope, env_len);
+            env_bad[0] = bp;
+            pt_len = sizeof(plaintext);
+            CHECK(ufsecp_ecies_decrypt(ctx, priv, env_bad, env_len,
+                  plaintext, &pt_len) != UFSECP_OK,
+                  "bad prefix byte in ephemeral pubkey rejected");
+        }
+    }
+
+    // ---- Regression: bad prefix in pubkey for ECDH (Finding #3) ----
+    {
+        uint8_t bad_pub[33];
+        std::memcpy(bad_pub, pub33, 33);
+        bad_pub[0] = 0x04; // not valid for compressed
+        uint8_t ecdh_out[32];
+        CHECK(ufsecp_ecdh(ctx, priv, bad_pub, ecdh_out) != UFSECP_OK,
+              "ECDH rejects 0x04 prefix in compressed pubkey");
+        bad_pub[0] = 0x00;
+        CHECK(ufsecp_ecdh(ctx, priv, bad_pub, ecdh_out) != UFSECP_OK,
+              "ECDH rejects 0x00 prefix in compressed pubkey");
+    }
+
+    ufsecp_ctx_destroy(ctx);
+}
+
+// ============================================================================
+// Test 30: BIP-352 Silent Payments
+// ============================================================================
+
+static void test_silent_payments() {
+    (void)std::printf("[30] FFI: Silent Payments (address -> create_output -> scan)\n");
+
+    ufsecp_ctx* ctx = nullptr;
+    ufsecp_ctx_create(&ctx);
+
+    // Use PRIVKEY1 as scan key, PRIVKEY2 as spend key
+    uint8_t scan_priv[32], spend_priv[32];
+    hex_to_bytes(PRIVKEY1_HEX, scan_priv, 32);
+    hex_to_bytes(PRIVKEY2_HEX, spend_priv, 32);
+
+    // Generate Silent Payment address
+    uint8_t sp_scan33[33], sp_spend33[33];
+    char addr[256];
+    size_t addr_len = sizeof(addr);
+    CHECK_OK(ufsecp_silent_payment_address(ctx, scan_priv, spend_priv,
+          sp_scan33, sp_spend33, addr, &addr_len),
+          "silent_payment_address");
+    CHECK(addr_len > 0, "address not empty");
+
+    // Use a third key as sender input
+    // scalar=3 as sender
+    uint8_t sender_priv[32] = {};
+    sender_priv[31] = 3;
+    uint8_t sender_pub[33] = {};
+    CHECK_OK(ufsecp_pubkey_create(ctx, sender_priv, sender_pub), "sender pubkey");
+
+    // Create output (sender side)
+    uint8_t output_pub33[33], tweak32[32];
+    CHECK_OK(ufsecp_silent_payment_create_output(ctx,
+          sender_priv, 1, sp_scan33, sp_spend33, 0,
+          output_pub33, tweak32), "create_output");
+
+    // Scan: receiver should find the output
+    // Extract x-only from output_pub33
+    uint8_t xonly[32];
+    std::memcpy(xonly, output_pub33 + 1, 32);
+
+    uint32_t found_idx[4];
+    uint8_t found_keys[128];
+    size_t n_found = 4;
+    CHECK_OK(ufsecp_silent_payment_scan(ctx,
+          scan_priv, spend_priv,
+          sender_pub, 1,
+          xonly, 1,
+          found_idx, found_keys, &n_found), "scan");
+    CHECK(n_found == 1, "found exactly one output");
+    CHECK(found_idx[0] == 0, "found at index 0");
+
+    // Verify the found spending key produces the output pubkey
+    uint8_t verify_pub[33];
+    CHECK_OK(ufsecp_pubkey_create(ctx, found_keys, verify_pub),
+          "derive pubkey from found key");
+    CHECK(std::memcmp(verify_pub, output_pub33, 33) == 0,
+          "derived pubkey matches output");
+
+    // Null arg tests
+    addr_len = sizeof(addr);
+    CHECK(ufsecp_silent_payment_address(nullptr, scan_priv, spend_priv,
+          sp_scan33, sp_spend33, addr, &addr_len) == UFSECP_ERR_NULL_ARG,
+          "address null ctx");
+
+    ufsecp_ctx_destroy(ctx);
+}
+
+// ============================================================================
 // Entry Point
 // ============================================================================
 
@@ -1582,6 +1765,8 @@ int test_ffi_round_trip_run() {
 #endif
     test_musig2_flow();
     test_adaptor_signatures();
+    test_ecies_round_trip();
+    test_silent_payments();
 
     (void)std::printf("\n--- FFI Round-Trip Summary: %d passed, %d failed ---\n\n",
                       g_pass, g_fail);

@@ -113,6 +113,18 @@ else()
     )
 endif()
 target_link_libraries(gpu_audit_runner PRIVATE secp256k1_cuda_lib)
+# Link CPU library for CPU-GPU differential cross-verification
+if(TARGET fastsecp256k1)
+    target_include_directories(gpu_audit_runner PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/include
+    )
+    target_link_libraries(gpu_audit_runner PRIVATE
+        $<TARGET_FILE:fastsecp256k1>
+    )
+    target_compile_definitions(gpu_audit_runner PRIVATE HAVE_CPU_LIB=1)
+    set_target_properties(gpu_audit_runner PROPERTIES INTERPROCEDURAL_OPTIMIZATION FALSE)
+    target_link_options(gpu_audit_runner PRIVATE -fno-lto)
+endif()
 add_test(NAME gpu_audit COMMAND gpu_audit_runner --json-only)
 
 # ===== GPU Unified Benchmark =====
