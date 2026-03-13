@@ -2907,9 +2907,11 @@ __device__ inline void scalar_mul_glv_wnaf(const JacobianPoint* p, const Scalar*
     // wNAF encode both ~128-bit half-scalars
     constexpr int WNAF_MAXLEN = 130;
     int8_t wnaf1[WNAF_MAXLEN], wnaf2[WNAF_MAXLEN];
-    int len1 = wnaf_encode(&decomp.k1, WNAF_W, wnaf1, WNAF_MAXLEN);
-    int len2 = wnaf_encode(&decomp.k2, WNAF_W, wnaf2, WNAF_MAXLEN);
-    int max_len = (len1 > len2) ? len1 : len2;
+    wnaf_encode(&decomp.k1, WNAF_W, wnaf1, WNAF_MAXLEN);
+    wnaf_encode(&decomp.k2, WNAF_W, wnaf2, WNAF_MAXLEN);
+    // Fixed loop bound — avoids warp divergence from variable max_len
+    // wnaf_encode zero-fills beyond encoding, so extra iterations are no-ops
+    constexpr int LOOP_LEN = WNAF_MAXLEN;
 
     // Shamir's 2-stream wNAF loop: single doubling chain, dual table lookups
     r->infinity = true;
@@ -2918,7 +2920,7 @@ __device__ inline void scalar_mul_glv_wnaf(const JacobianPoint* p, const Scalar*
     field_set_zero(&r->z);
 
     #pragma unroll 1
-    for (int i = max_len - 1; i >= 0; --i) {
+    for (int i = LOOP_LEN - 1; i >= 0; --i) {
         if (!r->infinity) {
             jacobian_double(r, r);
         }

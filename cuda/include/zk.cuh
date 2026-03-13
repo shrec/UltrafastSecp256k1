@@ -2186,94 +2186,90 @@ __device__ inline bool range_verify_warp_lut4_p1par_device(
     if (lane == 0) smem->phase_ts[2] = clock64();
 
     // ================================================================
-    // Phase 1c: 22 lanes PARALLEL point scalar_muls + warp reduction
+    // Phase 1c: UNIFORM GLV scalar_muls — WARP-DIVERGENCE-FREE
     // ================================================================
-    // Poly check (LHS - RHS) folded into MSM base for single reduction.
-    // Lane assignments:
-    //  0: +t_hat*H        (poly LHS)     10: +L[0]*xj_sq[0]  (MSM)
-    //  1: +tau_x*G         (poly LHS)     11: +R[0]*xj_inv_sq[0]
-    //  2: -(z2*V)          (poly RHS)     12: +L[1]*xj_sq[1]
-    //  3: -(delta*H)       (poly RHS)     13: +R[1]*xj_inv_sq[1]
-    //  4: -(x*T1)          (poly RHS)     14: +L[2]*xj_sq[2]
-    //  5: -(x2*T2)         (poly RHS)     15: +R[2]*xj_inv_sq[2]
-    //  6: +A               (MSM, free)    16: +L[3]*xj_sq[3]
-    //  7: +x*S             (MSM)          17: +R[3]*xj_inv_sq[3]
-    //  8: -(mu*G)          (MSM)          18: +L[4]*xj_sq[4]
-    //  9: +(t_hat-ab)*H    (MSM)          19: +R[4]*xj_inv_sq[4]
-    // 20: +L[5]*xj_sq[5]   21: +R[5]*xj_inv_sq[5]   22-31: identity
+    // All active lanes call scalar_mul_glv in lockstep with lane-specific data.
+    // Eliminates 14x warp divergence from the previous if/else chain.
+    //
+    // H terms merged: (t_hat + t_ab - delta) * H  (was 3 separate lanes)
+    // G terms merged: (tau_x - mu) * G            (was 2 separate lanes)
+    //
+    // Lane assignments (19 active, 13 idle):
+    //  0: combined_H * H    7: L[0]*xj_sq[0]     14: R[3]*xj_inv_sq[3]
+    //  1: combined_G * G    8: R[0]*xj_inv_sq[0]  15: L[4]*xj_sq[4]
+    //  2: -z2 * V           9: L[1]*xj_sq[1]     16: R[4]*xj_inv_sq[4]
+    //  3: -x * T1          10: R[1]*xj_inv_sq[1]  17: L[5]*xj_sq[5]
+    //  4: -x2 * T2         11: L[2]*xj_sq[2]     18: R[5]*xj_inv_sq[5]
+    //  5: 1 * A             12: R[2]*xj_inv_sq[2]  19-31: identity
+    //  6: x * S             13: L[3]*xj_sq[3]
 
+    // --- Data loading (minor divergence, register ops only) ---
+    JacobianPoint my_jac;
+    my_jac.z = FIELD_ONE;
+    my_jac.infinity = false;
+    Scalar my_scalar;
+
+    switch (lane) {
+    case 0: {
+        // Combined H: (t_hat + t_ab - delta) * H
+        my_jac.x = H_gen->x; my_jac.y = H_gen->y;
+        scalar_add(&proof->t_hat, &smem->t_ab_val, &my_scalar);
+        scalar_sub(&my_scalar, &smem->delta_val, &my_scalar);
+    } break;
+    case 1: {
+        // Combined G: (tau_x - mu) * G
+        my_jac.x = GENERATOR_TABLE_AFFINE[1].x;
+        my_jac.y = GENERATOR_TABLE_AFFINE[1].y;
+        scalar_sub(&proof->tau_x, &proof->mu, &my_scalar);
+    } break;
+    case 2:
+        my_jac.x = commitment->x; my_jac.y = commitment->y;
+        scalar_negate(&smem->z2, &my_scalar);
+        break;
+    case 3:
+        my_jac.x = proof->T1.x; my_jac.y = proof->T1.y;
+        scalar_negate(&smem->x_val, &my_scalar);
+        break;
+    case 4:
+        my_jac.x = proof->T2.x; my_jac.y = proof->T2.y;
+        scalar_negate(&smem->x2_val, &my_scalar);
+        break;
+    case 5:
+        my_jac.x = proof->A.x; my_jac.y = proof->A.y;
+        my_scalar.limbs[0] = 1; my_scalar.limbs[1] = 0;
+        my_scalar.limbs[2] = 0; my_scalar.limbs[3] = 0;
+        break;
+    case 6:
+        my_jac.x = proof->S.x; my_jac.y = proof->S.y;
+        my_scalar = smem->x_val;
+        break;
+    default:
+        if (lane >= 7 && lane <= 18) {
+            int idx = lane - 7;
+            int j = idx >> 1;
+            if (idx & 1) {
+                my_jac.x = proof->R[j].x; my_jac.y = proof->R[j].y;
+                my_scalar = smem->xj_inv_sq[j];
+            } else {
+                my_jac.x = proof->L[j].x; my_jac.y = proof->L[j].y;
+                my_scalar = smem->xj_sq[j];
+            }
+        } else {
+            my_jac.infinity = true;
+            my_scalar.limbs[0] = 0; my_scalar.limbs[1] = 0;
+            my_scalar.limbs[2] = 0; my_scalar.limbs[3] = 0;
+        }
+        break;
+    }
+
+    // --- UNIFORM scalar_mul_glv: all active lanes execute in lockstep ---
     JacobianPoint local_pt;
     local_pt.infinity = true;
     local_pt.z = FIELD_ONE;
 
-    if (lane == 0) {
-        // +t_hat * H  (using H LUT4 precomp)
-        scalar_mul_bp_lut4(g_bp_h_lut4, &proof->t_hat, &local_pt);
-    } else if (lane == 1) {
-        // +tau_x * G  (using G LUT4 precomp)
-        scalar_mul_bp_lut4(g_bp_g_lut4, &proof->tau_x, &local_pt);
-    } else if (lane == 2) {
-        // -(z2 * V) — negate scalar to get -z2*V
-        Scalar neg_z2;
-        scalar_negate(&smem->z2, &neg_z2);
-        JacobianPoint V_jac;
-        V_jac.x = commitment->x; V_jac.y = commitment->y; V_jac.z = FIELD_ONE; V_jac.infinity = false;
-        scalar_mul_glv(&V_jac, &neg_z2, &local_pt);
-    } else if (lane == 3) {
-        // -(delta * H) (using H LUT4 precomp)
-        Scalar neg_delta;
-        scalar_negate(&smem->delta_val, &neg_delta);
-        scalar_mul_bp_lut4(g_bp_h_lut4, &neg_delta, &local_pt);
-    } else if (lane == 4) {
-        // -(x * T1)
-        Scalar neg_x;
-        scalar_negate(&smem->x_val, &neg_x);
-        JacobianPoint T1_jac;
-        T1_jac.x = proof->T1.x; T1_jac.y = proof->T1.y; T1_jac.z = FIELD_ONE; T1_jac.infinity = false;
-        scalar_mul_glv(&T1_jac, &neg_x, &local_pt);
-    } else if (lane == 5) {
-        // -(x2 * T2)
-        Scalar neg_x2;
-        scalar_negate(&smem->x2_val, &neg_x2);
-        JacobianPoint T2_jac;
-        T2_jac.x = proof->T2.x; T2_jac.y = proof->T2.y; T2_jac.z = FIELD_ONE; T2_jac.infinity = false;
-        scalar_mul_glv(&T2_jac, &neg_x2, &local_pt);
-    } else if (lane == 6) {
-        // +A (no scalar_mul needed)
-        local_pt.x = proof->A.x; local_pt.y = proof->A.y;
-        local_pt.z = FIELD_ONE; local_pt.infinity = false;
-    } else if (lane == 7) {
-        // +x * S
-        JacobianPoint S_jac;
-        S_jac.x = proof->S.x; S_jac.y = proof->S.y; S_jac.z = FIELD_ONE; S_jac.infinity = false;
-        scalar_mul_glv(&S_jac, &smem->x_val, &local_pt);
-    } else if (lane == 8) {
-        // -(mu * G)  (using G LUT4 precomp)
-        Scalar neg_mu;
-        scalar_negate(&proof->mu, &neg_mu);
-        scalar_mul_bp_lut4(g_bp_g_lut4, &neg_mu, &local_pt);
-    } else if (lane == 9) {
-        // +(t_hat - ab) * H  (using H LUT4 precomp)
-        scalar_mul_bp_lut4(g_bp_h_lut4, &smem->t_ab_val, &local_pt);
-    } else if (lane <= 21) {
-        // L/R round terms: lanes 10-21
-        int idx = lane - 10;
-        int j = idx >> 1;
-        if (idx & 1) {
-            // R[j] * xj_inv_sq[j]
-            JacobianPoint Rj;
-            Rj.x = proof->R[j].x; Rj.y = proof->R[j].y;
-            Rj.z = FIELD_ONE; Rj.infinity = false;
-            scalar_mul_glv(&Rj, &smem->xj_inv_sq[j], &local_pt);
-        } else {
-            // L[j] * xj_sq[j]
-            JacobianPoint Lj;
-            Lj.x = proof->L[j].x; Lj.y = proof->L[j].y;
-            Lj.z = FIELD_ONE; Lj.infinity = false;
-            scalar_mul_glv(&Lj, &smem->xj_sq[j], &local_pt);
-        }
-    }
-    // lanes 22-31: local_pt stays identity (contributes nothing)
+    if (lane <= 18)
+        scalar_mul_glv(&my_jac, &my_scalar, &local_pt);
+    // lanes 19-31: local_pt stays identity (contributes nothing)
 
     // Warp tree reduction for combined_base
     #pragma unroll
