@@ -207,12 +207,11 @@ jobs:
           # halt_on_error=1 ensures MSan violations produce non-zero exit.
           # No '|| true' -- this is a hard gate: any MSan error fails the job.
           #
-          # Heavy audit tests (differential, fault_injection, fiat_crypto_vectors,
-          # debug_invariants, carry_propagation, batch_randomness, wycheproof_*)
-          # are excluded because they exceed their CTest timeouts under MSan
-          # overhead (~10-20x). These tests are verified under ASan+UBSan and Valgrind.
+          # Heavy audit tests are excluded because they exceed their CTest
+          # timeouts under MSan overhead (~10-20x). These tests are verified
+          # under ASan+UBSan and Valgrind instead.
           ctest --test-dir build --output-on-failure -j"$(nproc)" \
-            -E "^(ct_sidechannel|selftest|unified_audit|differential|fault_injection|fiat_crypto_vectors|debug_invariants|carry_propagation|batch_randomness|wycheproof_ecdsa|wycheproof_ecdh)" --timeout 7200
+            -E "^(ct_sidechannel|selftest|unified_audit|differential|fault_injection|fiat_crypto_vectors|debug_invariants|carry_propagation|batch_randomness|wycheproof_ecdsa|wycheproof_ecdh|cross_platform_kat|audit_fuzz|ct_verif_formal|ecies_regression|adversarial_protocol)" --timeout 7200
 
   # ── Thread Sanitizer (data races) ───────────────────────────────────────
   tsan:
