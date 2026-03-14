@@ -9,8 +9,10 @@
 | Category | Tests | Status |
 |----------|-------|--------|
 | **CTest targets** | 41 | [OK] All passing |
-| **Audit suite checks** | 641,194 | [OK] 0 failures |
+| **Audit suite checks** | 641,194+ | [OK] 0 failures |
 | **Fuzz harnesses** | 3 | [OK] Active |
+| **ECIES regression** | 85 | [OK] All passing |
+| **Adversarial protocol** | 89 functions | [OK] Active |
 | **Side-channel (dudect)** | 1 | [OK] Active |
 | **Benchmark suites** | 4+ | [OK] Active |
 | **Platform-specific** | 5+ | [OK] Per-platform |
@@ -33,6 +35,10 @@
 | `audit_integration.cpp` | 13,144 | End-to-end: sign->verify, derive->use, full protocol flows |
 | `test_ct_sidechannel.cpp` | -- | dudect timing: Welch t-test for side-channel leakage |
 | `differential_test.cpp` | -- | Cross-implementation comparison |
+| `test_ecies_regression.cpp` | 85 | ECIES hardening: parity tamper, invalid prefix, truncated envelope, tamper matrix, KAT, ABI prefix rejection, pubkey parser consistency, RNG fail-closed |
+| `test_adversarial_protocol.cpp` | 89 functions | Adversarial protocol: MuSig2 nonce reuse/replay, FROST below-threshold, Silent Payments, adaptor, BIP-32 hostile-caller |
+| `test_fuzz_parsers.cpp` | 10K/suite | Parser fuzz: DER, Schnorr sig, compressed/uncompressed pubkey round-trip |
+| `test_fuzz_address_bip32_ffi.cpp` | 10K/suite | Address/BIP-32/FFI fuzz: P2PKH/P2WPKH/P2TR/WIF, BIP-32 paths, BIP-39, coin derivation, FFI boundaries |
 | `bench_ct_vs_libsecp.cpp` | -- | Performance comparison with libsecp256k1 |
 | `bench_field_ops.cpp` | -- | Field operation microbenchmarks |
 

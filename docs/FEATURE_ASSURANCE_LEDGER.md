@@ -381,10 +381,19 @@
 
 | Function | Unit Test | Fuzz | Adversarial | Differential | CT Path | GPU | Ext. Vectors | Zeroization |
 |----------|-----------|------|-------------|--------------|---------|-----|-------------|-------------|
-| `ufsecp_ecies_encrypt` | Y | - | - | - | Y (CT ECDH) | - | - | Y |
-| `ufsecp_ecies_decrypt` | Y | - | - | - | Y (CT scalar_mul) | - | - | Y |
+| `ufsecp_ecies_encrypt` | Y | Y | Y | - | Y (CT ECDH) | - | - | Y |
+| `ufsecp_ecies_decrypt` | Y | Y | Y | - | Y (CT scalar_mul) | - | - | Y |
 
-**Test files:** `audit/test_ffi_round_trip.cpp`
+**Test files:** `audit/test_ffi_round_trip.cpp`, `audit/test_ecies_regression.cpp`
+**Regression suite (85 tests):**
+- (A) Parity tamper: flip 0x02/0x03 on ephemeral pubkey -> decrypt must fail
+- (B) Invalid prefix: bad prefixes 0x00, 0x04, 0xFF -> decrypt must fail
+- (C) Truncated envelope: 6 truncated sizes (0, 1, 32, 33, 49, 81 bytes) -> clean failure
+- (D) Tamper matrix: flip 1 bit in each field (ephemeral pubkey, IV, ciphertext, HMAC tag)
+- (E) Round-trip KAT: 3 plaintext sizes (1, 13, 32 bytes), envelope structure, wrong-key rejection
+- (F) ABI prefix rejection: 6 bad prefixes x 5 ABI endpoints = 30 checks
+- (G) Pubkey parser consistency: 3 malformed x-coords -> consistent `BAD_PUBKEY` across `pubkey_parse`, `ecdh`, `ecies_encrypt`
+- (H) RNG fail-closed: fork + seccomp blocks `getrandom` -> process must SIGABRT (Linux x86-64 only)
 **Zeroization:** Extensive -- 14+ `secure_erase` calls in `cpu/src/ecies.cpp` covering ephemeral key, shared secret, KDF output, AES keystream, HMAC pads
 
 ---
@@ -501,14 +510,14 @@ Files with `secure_erase` for secret data cleanup:
 | Functions with external test vectors | ~35 (36%) |
 | Functions using CT signing path | ~25 (all secret-dependent ops) |
 | Functions with GPU support | ~50+ (point/field/scalar/hash + derived ops) |
-| Audit source files | 31 (.cpp files in `audit/`) |
+| Audit source files | 32 (.cpp files in `audit/`) |
 | GPU backends | 3 (CUDA, OpenCL, Metal) |
 | `secure_erase` call sites | 141 across 6 files |
 | CTest targets | 41 |
 
 ### Coverage Gaps (items for future work)
 
-1. **ECIES:** No fuzz or adversarial testing (only FFI round-trip)
+1. ~~**ECIES:** No fuzz or adversarial testing (only FFI round-trip)~~ **RESOLVED** -- `test_ecies_regression.cpp` (85 tests: parity tamper, invalid prefix, truncated envelope, tamper matrix, KAT, ABI prefix rejection, pubkey parser consistency, RNG fail-closed)
 2. **ZK range proofs:** No adversarial/malformed proof testing
 3. **Pedersen switch commit:** No adversarial testing
 4. **Ethereum functions:** No differential testing against reference (e.g., ethers.js)

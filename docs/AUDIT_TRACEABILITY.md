@@ -254,6 +254,23 @@ Each row in this matrix links:
 
 ---
 
+## 15. ECIES Hardening
+
+| ID | Invariant | Implementation | Validation | Test Location | Status |
+|----|-----------|---------------|------------|---------------|--------|
+| **EC1** | Encrypt->decrypt round-trip (1, 13, 32 byte plaintexts) | `cpu/src/ecies.cpp` | KAT with 3 sizes, wrong-key rejection | `test_ecies_regression.cpp` -> `test_ecies_roundtrip_kat()` | [OK] |
+| **EC2** | Parity tamper: flip 0x02/0x03 on ephemeral pubkey -> decrypt fails | `cpu/src/ecies.cpp` | Deterministic bit-flip | `test_ecies_regression.cpp` -> `test_ecies_parity_tamper()` | [OK] |
+| **EC3** | Invalid prefix (0x00, 0x04, 0xFF) -> clean error | `cpu/src/ecies.cpp` | 3 bad prefix checks | `test_ecies_regression.cpp` -> `test_ecies_invalid_prefix()` | [OK] |
+| **EC4** | Truncated envelope (0-81 bytes) -> clean error, no crash | `cpu/src/ecies.cpp` | 6 truncated sizes | `test_ecies_regression.cpp` -> `test_ecies_truncated_envelope()` | [OK] |
+| **EC5** | Single-bit tamper in any field (pubkey/IV/ct/HMAC) -> decrypt fails | `cpu/src/ecies.cpp` | Tamper matrix: 4 fields x bit-flip | `test_ecies_regression.cpp` -> `test_ecies_tamper_matrix()` | [OK] |
+| **EC6** | ABI prefix rejection: 6 bad prefixes x 5 endpoints -> consistent ERR | `include/ufsecp/ufsecp_impl.cpp` | 30 ABI boundary checks | `test_ecies_regression.cpp` -> `test_abi_prefix_rejection()` | [OK] |
+| **EC7** | Pubkey parser consistency: malformed x-coords -> same error across all parsers | `include/ufsecp/ufsecp_impl.cpp` | 3 malformed coords x 3 functions | `test_ecies_regression.cpp` -> `test_pubkey_parser_consistency()` | [OK] |
+| **EC8** | RNG fail-closed: blocked `getrandom` -> process SIGABRT (no silent fallback) | `cpu/src/random.cpp` | fork + seccomp filter (Linux x86-64) | `test_ecies_regression.cpp` -> `test_rng_fail_closed()` | [OK] |
+
+**ECIES Subtotal: 8/8 [OK]**
+
+---
+
 ## Cross-Cutting Evidence
 
 ### Differential Testing (Gold Standard)
@@ -292,6 +309,7 @@ All core arithmetic operations are tested on boundary values:
 | Address encoder fuzz | `test_fuzz_address_bip32_ffi.cpp` | 10K per suite | Suites 1-4 |
 | BIP32 path fuzz | `test_fuzz_address_bip32_ffi.cpp` | 10K per suite | Suites 5-7 |
 | FFI boundary fuzz | `test_fuzz_address_bip32_ffi.cpp` | 10K per suite | Suites 8-13 |
+| ECIES regression | `test_ecies_regression.cpp` | 85 tests | Categories A-H |
 
 ### Negative Testing (Adversarial Inputs)
 
@@ -327,7 +345,8 @@ All core arithmetic operations are tested on boundary values:
 | CT (CT) | 6 | 4 | 2 | 0 |
 | Batch (BP) | 3 | 3 | 0 | 0 |
 | Parsing (SP) | 5 | 5 | 0 | 0 |
-| **Total** | **108** | **105** | **3** | **0** |
+| ECIES (EC) | 8 | 8 | 0 | 0 |
+| **Total** | **116** | **113** | **3** | **0** |
 
 **Partial items** (3):
 - **C7**: Thread-safety (TSan in CI, but no dedicated multi-threaded stress test)
