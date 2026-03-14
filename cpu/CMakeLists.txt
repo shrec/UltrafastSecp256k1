@@ -400,6 +400,11 @@ target_compile_definitions(${SECP256K1_LIB_NAME}
         $<$<CXX_COMPILER_ID:MSVC>:SECP256K1_NO_INT128=1>  # MSVC has no __int128
 )
 
+# Windows: link bcrypt for BCryptGenRandom (used by ECIES + BIP-39 CSPRNG)
+if(WIN32)
+    target_link_libraries(${SECP256K1_LIB_NAME} PUBLIC bcrypt)
+endif()
+
 # Optional inline assembly support (x64 only)
 if(SECP256K1_HAS_ASM)
     target_compile_definitions(${SECP256K1_LIB_NAME} 
