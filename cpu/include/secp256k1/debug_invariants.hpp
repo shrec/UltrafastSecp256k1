@@ -169,7 +169,7 @@ struct DebugCounters {
 };
 
 inline DebugCounters& counters() noexcept {
-    static DebugCounters c;
+    static thread_local DebugCounters c;
     return c;
 }
 

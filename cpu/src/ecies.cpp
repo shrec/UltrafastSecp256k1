@@ -24,6 +24,8 @@
 #  pragma comment(lib, "bcrypt.lib")
 #elif defined(__APPLE__)
 #  include <Security/SecRandom.h>
+#elif defined(__ANDROID__)
+#  include <cstdio>   // fopen/fread for /dev/urandom
 #elif defined(__linux__) || defined(__FreeBSD__) || defined(__OpenBSD__)
 #  include <sys/random.h>
 #else
@@ -244,6 +246,12 @@ void csprng_fill(std::uint8_t* buf, std::size_t len) {
 #elif defined(__APPLE__)
     if (SecRandomCopyBytes(kSecRandomDefault, len, buf) != errSecSuccess)
         std::abort();
+#elif defined(__ANDROID__)
+    // Android: /dev/urandom (getrandom requires API 28+, CI targets API 24)
+    FILE* f = std::fopen("/dev/urandom", "rb");
+    if (!f) std::abort();
+    if (std::fread(buf, 1, len, f) != len) { std::fclose(f); std::abort(); }
+    std::fclose(f);
 #elif defined(__linux__) || defined(__FreeBSD__) || defined(__OpenBSD__)
     // getrandom(2): blocks until entropy available, no EINTR on < 256 bytes
     std::size_t filled = 0;
@@ -361,7 +369,7 @@ ecies_decrypt(const Scalar& privkey,
 
     // Constant-time compare
     std::uint8_t diff = 0;
-    for (int i = 0; i < 32; ++i)
+    for (std::size_t i = 0; i < 32; ++i)
         diff = static_cast<std::uint8_t>(diff | (expected_tag[i] ^ tag[i]));
     if (diff != 0) {
         secp256k1::detail::secure_erase(kdf.data(), 64);

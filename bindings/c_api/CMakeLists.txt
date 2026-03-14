@@ -82,6 +82,9 @@ elseif(APPLE)
         MACOSX_RPATH ON
         INSTALL_RPATH "@loader_path"
     )
+    # Link Security framework for SecRandomCopyBytes (ECIES CSPRNG)
+    find_library(SECURITY_FRAMEWORK Security REQUIRED)
+    target_link_libraries(ultrafast_secp256k1 PRIVATE ${SECURITY_FRAMEWORK})
 else()
     set_target_properties(ultrafast_secp256k1 PROPERTIES
         INSTALL_RPATH "$ORIGIN"
