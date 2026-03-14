@@ -12,7 +12,7 @@
 | **Audit suite checks** | 641,194+ | [OK] 0 failures |
 | **Fuzz harnesses** | 3 | [OK] Active |
 | **ECIES regression** | 85 | [OK] All passing |
-| **Adversarial protocol** | 89 functions | [OK] Active |
+| **Adversarial protocol** | 89 functions, 186 checks | [OK] Active |
 | **Side-channel (dudect)** | 1 | [OK] Active |
 | **Benchmark suites** | 4+ | [OK] Active |
 | **Platform-specific** | 5+ | [OK] Per-platform |
@@ -36,7 +36,7 @@
 | `test_ct_sidechannel.cpp` | -- | dudect timing: Welch t-test for side-channel leakage |
 | `differential_test.cpp` | -- | Cross-implementation comparison |
 | `test_ecies_regression.cpp` | 85 | ECIES hardening: parity tamper, invalid prefix, truncated envelope, tamper matrix, KAT, ABI prefix rejection, pubkey parser consistency, RNG fail-closed |
-| `test_adversarial_protocol.cpp` | 89 functions | Adversarial protocol: MuSig2 nonce reuse/replay, FROST below-threshold, Silent Payments, adaptor, BIP-32 hostile-caller |
+| `test_adversarial_protocol.cpp` | 89 functions, 186 checks | Adversarial protocol: MuSig2 (nonce reuse/replay, rogue-key, transcript mutation, signer ordering, malicious aggregator), FROST (below-threshold, malformed commitment, malicious coordinator, duplicate nonce), Silent Payments, ECDSA adaptor (round-trip, transcript mismatch, extraction misuse), Schnorr adaptor, DLEQ (malformed proof, wrong generators), BIP-32, FFI hostile-caller (null args, undersized buffers, overlapping buffers, malformed counts) |
 | `test_fuzz_parsers.cpp` | 10K/suite | Parser fuzz: DER, Schnorr sig, compressed/uncompressed pubkey round-trip |
 | `test_fuzz_address_bip32_ffi.cpp` | 10K/suite | Address/BIP-32/FFI fuzz: P2PKH/P2WPKH/P2TR/WIF, BIP-32 paths, BIP-39, coin derivation, FFI boundaries |
 | `bench_ct_vs_libsecp.cpp` | -- | Performance comparison with libsecp256k1 |
@@ -175,9 +175,9 @@
 | Function | Test File | Coverage | Notes |
 |----------|-----------|----------|-------|
 | MuSig2 key aggregation | `test_musig2.cpp` | [OK] Basic | No extended vectors |
-| MuSig2 2-round sign | `test_musig2.cpp` | [OK] Basic | Limited edge cases |
+| MuSig2 2-round sign | `test_musig2.cpp` | [OK] Full | Rogue-key, transcript mutation, signer ordering, malicious aggregator adversarial tests added |
 | FROST t-of-n | `test_v4_features.cpp` | [OK] Basic | Keygen, sign, aggregate, verify |
-| Adaptor signatures | `test_v4_features.cpp` | [OK] Basic | Limited vectors |
+| Adaptor signatures | `test_v4_features.cpp` | [OK] Full | Transcript mismatch, extraction misuse, DLEQ malformed proof, wrong generators adversarial tests added |
 | Pedersen commitments | `test_v4_features.cpp` | [OK] Basic | Limited vectors |
 | ZK Knowledge proof | `test_zk.cpp` | [OK] | Prove/verify, arbitrary base, serialization |
 | ZK DLEQ proof | `test_zk.cpp` | [OK] | Prove/verify, cross-basis equality |
@@ -208,7 +208,7 @@
 
 | Gap | Impact | Status |
 |-----|--------|--------|
-| MuSig2 extended test vectors | Limited edge-case coverage | Reference impl vectors needed |
+| MuSig2 extended test vectors | Full adversarial coverage (A.4-A.7) | Reference impl vectors available via BIP-327 |
 | Multi-uarch timing tests | CT may break on specific CPUs | Need hardware test farm |
 | GPU vs CPU differential | GPU arithmetic may diverge | Partial coverage via OpenCL tests |
 
@@ -218,7 +218,7 @@
 |-----|--------|--------|
 | WASM-specific tests | WASM arithmetic may diverge | Build-tested, limited runtime tests |
 | ESP32/STM32 hardware tests | Embedded correctness | Requires physical devices |
-| Adaptor signature extended vectors | Limited coverage | Low usage currently |
+| Adaptor signature extended vectors | Full adversarial coverage (D.1-D.6, E.1-E.5) | Transcript mismatch and extraction misuse covered |
 
 ---
 

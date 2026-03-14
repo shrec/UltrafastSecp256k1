@@ -462,7 +462,7 @@
 | **Fuzzing (random input)** | `audit_fuzz.cpp` | ECDSA, Schnorr, scalars, field, DER, recovery, state fuzzing |
 | **Parser fuzzing** | `test_fuzz_parsers.cpp` | Pubkey parse, DER parse |
 | **Address/BIP32/FFI fuzzing** | `test_fuzz_address_bip32_ffi.cpp` | Addresses, WIF, BIP-32, BIP-39, coin deriv |
-| **Adversarial protocol** | `test_adversarial_protocol.cpp` (89 unique ufsecp_ functions) | MuSig2 nonce reuse/replay, FROST below-threshold, Silent Payments, adaptor, BIP-32, FFI hostile-caller |
+| **Adversarial protocol** | `test_adversarial_protocol.cpp` (89 unique ufsecp_ functions, 186 checks) | MuSig2 (nonce reuse/replay, rogue-key, transcript mutation, signer ordering, malicious aggregator), FROST (below-threshold, malformed commitment, malicious coordinator, duplicate nonce), Silent Payments, ECDSA adaptor (round-trip, invalid/wrong point, transcript mismatch, extraction misuse), Schnorr adaptor, DLEQ (malformed proof, wrong generators), BIP-32, FFI hostile-caller (null args, undersized buffers, overlapping buffers, malformed counts) |
 | **Wycheproof ECDSA** | `test_wycheproof_ecdsa.cpp` | r/s validation, boundary scalars, bit-flip, DER, High-S |
 | **Wycheproof ECDH** | `test_wycheproof_ecdh.cpp` | Infinity, off-curve, twist, zero key, commutativity |
 | **Differential (fast vs CT)** | `audit_ct.cpp`, `differential_test.cpp` | Field, scalar, point ops, ECDSA, Schnorr |
@@ -505,7 +505,7 @@ Files with `secure_erase` for secret data cleanup:
 |--------|-------|
 | Total `UFSECP_API` functions | 96 |
 | Functions with unit test coverage | 96 (100%) |
-| Functions tested in adversarial protocol | 89 (93%) |
+| Functions tested in adversarial protocol | 89 (93%), 186 individual checks |
 | Functions with fuzzing | ~40 (42%) |
 | Functions with external test vectors | ~35 (36%) |
 | Functions using CT signing path | ~25 (all secret-dependent ops) |

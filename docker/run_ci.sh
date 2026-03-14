@@ -567,6 +567,7 @@ job_compiler_warnings() {
     CC=gcc-13 CXX=g++-13 cmake -S . -B "$bd" -G Ninja \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_CXX_FLAGS="-Werror -Wall -Wextra -Wpedantic -Wconversion -Wshadow -Wno-alloc-size-larger-than" \
+        -DSECP256K1_USE_LTO=OFF \
         -DSECP256K1_BUILD_TESTS=ON || return 1
     cmake --build "$bd" -j"$NPROC" || return 1
 }

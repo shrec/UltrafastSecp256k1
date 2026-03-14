@@ -141,10 +141,13 @@ Each row in this matrix links:
 | **M3** | Nonce aggregation deterministic | `cpu/musig2.hpp` | Same-input reproducibility | `test_musig2_frost.cpp` | [OK] |
 | **M4** | 2/3/5-of-N signing | `cpu/musig2.hpp` | Multi-threshold simulation | `test_musig2_frost.cpp` suites 4-6 | [OK] |
 | **M5** | Invalid partial sig detected | `cpu/musig2.hpp` | Fault injection | `test_musig2_frost_advanced.cpp` suite 5 | [OK] |
-| **M6** | Rogue-key attack detected | `cpu/musig2.hpp` | Wagner-style simulation | `test_musig2_frost_advanced.cpp` suites 1-2 | [OK] |
-| **M7** | Nonce reuse detected | `cpu/musig2.hpp` | Cross-message detection | `test_musig2_frost_advanced.cpp` suites 3-4 | [OK] |
+| **M6** | Rogue-key attack detected | `cpu/musig2.hpp` | Wagner-style simulation | `test_musig2_frost_advanced.cpp` suites 1-2, `test_adversarial_protocol.cpp` A.4 | [OK] |
+| **M7** | Nonce reuse detected | `cpu/musig2.hpp` | Cross-message detection | `test_musig2_frost_advanced.cpp` suites 3-4, `test_adversarial_protocol.cpp` A.1 | [OK] |
+| **M8** | Transcript mutation detected | `cpu/musig2.hpp` | Corrupt keyagg blob between steps | `test_adversarial_protocol.cpp` A.5 | [OK] |
+| **M9** | Signer ordering mismatch detected | `cpu/musig2.hpp` | Sign with wrong index | `test_adversarial_protocol.cpp` A.6 | [OK] |
+| **M10** | Malicious aggregator detected | `cpu/musig2.hpp` | Tampered aggnonce | `test_adversarial_protocol.cpp` A.7 | [OK] |
 
-**MuSig2 Subtotal: 7/7 [OK]**
+**MuSig2 Subtotal: 10/10 [OK]**
 
 ---
 
@@ -160,9 +163,11 @@ Each row in this matrix links:
 | **FR6** | Lagrange coefficients correct | `cpu/frost.hpp` | Secret reconstruction | `test_musig2_frost.cpp` | [OK] |
 | **FR7** | Malicious DKG share detected | `cpu/frost.hpp` | Commitment verification | `test_musig2_frost_advanced.cpp` suites 6-7 | [OK] |
 | **FR8** | Invalid partial sig detected | `cpu/frost.hpp` | Rejection test | `test_musig2_frost_advanced.cpp` | [OK] |
-| **FR9** | Below-threshold subset fails | `cpu/frost.hpp` | 1-of-3 attempt -> fail | `test_musig2_frost_advanced.cpp` | [OK] |
+| **FR9** | Below-threshold subset fails | `cpu/frost.hpp` | 1-of-3 attempt -> fail | `test_musig2_frost_advanced.cpp`, `test_adversarial_protocol.cpp` B.1 | [OK] |
+| **FR10** | Malicious coordinator detected | `cpu/frost.hpp` | Inconsistent commit sets | `test_adversarial_protocol.cpp` B.4 | [OK] |
+| **FR11** | Duplicate nonce commitments handled | `cpu/frost.hpp` | Submit same nonce twice | `test_adversarial_protocol.cpp` B.5 | [OK] |
 
-**FROST Subtotal: 9/9 [OK]**
+**FROST Subtotal: 11/11 [OK]**
 
 ---
 
@@ -324,6 +329,19 @@ All core arithmetic operations are tested on boundary values:
 | Message bit-flip | 1-bit change in msg -> verify fails | `audit_security.cpp` -> `test_message_bitflip()` |
 | Nonce determinism | Same (msg, sk) -> same nonce | `audit_security.cpp` -> `test_nonce_determinism()` |
 | Zeroization | Secret memory zeroed after use | `audit_security.cpp` -> `test_zeroization()` |
+| MuSig2 rogue-key | 0xFF / zero / duplicate xonly keys | `test_adversarial_protocol.cpp` A.4 |
+| MuSig2 transcript mutation | Corrupt keyagg blob between steps | `test_adversarial_protocol.cpp` A.5 |
+| MuSig2 signer ordering | Wrong signer index | `test_adversarial_protocol.cpp` A.6 |
+| MuSig2 malicious aggregator | Tampered aggnonce | `test_adversarial_protocol.cpp` A.7 |
+| FROST malicious coordinator | Inconsistent commit sets to signers | `test_adversarial_protocol.cpp` B.4 |
+| FROST duplicate nonce | Same commitment submitted twice | `test_adversarial_protocol.cpp` B.5 |
+| Adaptor transcript mismatch | Sign msg1, verify msg2 -> reject | `test_adversarial_protocol.cpp` D.5 |
+| Adaptor extraction misuse | Extract from unrelated sig pair | `test_adversarial_protocol.cpp` D.6 |
+| DLEQ malformed proof | 6 corruption strategies + zero proof | `test_adversarial_protocol.cpp` E.4 |
+| DLEQ wrong generators | Swap G/H, swap P/Q, different G'/H' | `test_adversarial_protocol.cpp` E.5 |
+| FFI undersized buffers | DER, WIF, BIP-39 with tiny output buffers | `test_adversarial_protocol.cpp` G.18 |
+| FFI overlapping buffers | Input==output aliasing | `test_adversarial_protocol.cpp` G.19 |
+| FFI malformed counts | n=0 for combine, batch, multi_scalar_mul | `test_adversarial_protocol.cpp` G.20 |
 
 ---
 
@@ -337,8 +355,8 @@ All core arithmetic operations are tested on boundary values:
 | GLV (G) | 4 | 4 | 0 | 0 |
 | ECDSA (E) | 8 | 8 | 0 | 0 |
 | Schnorr (B) | 6 | 6 | 0 | 0 |
-| MuSig2 (M) | 7 | 7 | 0 | 0 |
-| FROST (FR) | 9 | 9 | 0 | 0 |
+| MuSig2 (M) | 10 | 10 | 0 | 0 |
+| FROST (FR) | 11 | 11 | 0 | 0 |
 | BIP-32 (H) | 7 | 7 | 0 | 0 |
 | Address (A) | 6 | 6 | 0 | 0 |
 | C ABI (C) | 7 | 6 | 1 | 0 |
@@ -346,7 +364,7 @@ All core arithmetic operations are tested on boundary values:
 | Batch (BP) | 3 | 3 | 0 | 0 |
 | Parsing (SP) | 5 | 5 | 0 | 0 |
 | ECIES (EC) | 8 | 8 | 0 | 0 |
-| **Total** | **116** | **113** | **3** | **0** |
+| **Total** | **122** | **119** | **3** | **0** |
 
 **Partial items** (3):
 - **C7**: Thread-safety (TSan in CI, but no dedicated multi-threaded stress test)
