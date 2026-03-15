@@ -32,6 +32,7 @@ def scan_header_functions():
     """Extract all ufsecp_* function names from public headers."""
     headers = [
         LIB_ROOT / 'include' / 'ufsecp' / 'ufsecp.h',
+        LIB_ROOT / 'include' / 'ufsecp' / 'ufsecp_gpu.h',
         LIB_ROOT / 'include' / 'ufsecp' / 'ufsecp_version.h',
     ]
     api_re = re.compile(r'UFSECP_API\s+.*?(ufsecp_\w+)\s*\(')

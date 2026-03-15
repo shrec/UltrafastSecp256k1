@@ -121,8 +121,8 @@ target_compile_definitions(test_abi_gate PRIVATE STANDALONE_TEST)
 add_test(NAME abi_gate COMMAND test_abi_gate)
 set_tests_properties(abi_gate PROPERTIES TIMEOUT 30)
 
-# -- GPU ABI gate (requires ufsecp with GPU impl linked) -------------------
-if(TARGET ufsecp_static)
+# -- GPU ABI gate (requires GPU host layer + ufsecp with GPU impl) ----------
+if(TARGET secp256k1_gpu_host AND TARGET ufsecp_static)
     add_executable(test_gpu_abi_gate test_gpu_abi_gate.cpp)
     target_link_libraries(test_gpu_abi_gate PRIVATE ufsecp_static)
     target_include_directories(test_gpu_abi_gate PRIVATE
