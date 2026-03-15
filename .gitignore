@@ -100,12 +100,22 @@ android/example/.gradle/
 
 # Bindings build artifacts
 bindings/c_api/build/
+bindings/rust/target/
 bindings/rust/*/target/
+bindings/rust/Cargo.lock
 bindings/dart/.dart_tool/
 bindings/nodejs/node_modules/
+bindings/nodejs/package-lock.json
 bindings/ruby/*.gem
 bindings/csharp/**/bin/
 bindings/csharp/**/obj/
+
+# Example build artifacts
+examples/c_example/example
+examples/nodejs_example/node_modules/
+examples/nodejs_example/package-lock.json
+examples/rust_example/target/
+examples/java_example/*.class
 
 # Removed submodule (bitcoin-core/secp256k1 reference copy)
 cpu/secp256k1/

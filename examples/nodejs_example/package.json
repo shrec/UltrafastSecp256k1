@@ -1,0 +1,7 @@
+{
+  "name": "ufsecp-nodejs-example",
+  "private": true,
+  "dependencies": {
+    "koffi": "^2.9.0"
+  }
+}

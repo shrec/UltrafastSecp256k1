@@ -42,6 +42,15 @@ Operations returning `UFSECP_ERR_GPU_UNSUPPORTED` (104) gracefully decline.
 | `gpu_host_api_negative` | NULL ptrs, count=0, invalid backend/device, error strings | GPU host + ufsecp |
 | `gpu_backend_matrix` | Backend enumeration, device info, per-backend op probing | GPU host + ufsecp |
 
+### CI and Local Verification
+
+| Environment | CUDA | OpenCL | Metal | Tests |
+|-------------|------|--------|-------|-------|
+| **Local (dev machine)** | [OK] RTX 5060 Ti | [OK] RTX 5060 Ti | N/A (Linux) | All 49 tests pass including gpu_abi_gate, gpu_ops_equivalence, gpu_host_api_negative, gpu_backend_matrix |
+| **GitHub Actions CI** | N/A (no GPU runners) | N/A (no GPU runners) | [OK] macOS (lifecycle) | Metal discovery + lifecycle via macOS job |
+
+> **Note**: GitHub Actions standard runners do not have NVIDIA GPUs or OpenCL devices. CUDA and OpenCL tests are validated locally on developer machines with GPU hardware. Self-hosted GPU runners are planned for future CI coverage.
+
 ---
 
 ## Summary

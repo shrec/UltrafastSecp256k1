@@ -77,6 +77,9 @@ public:
     /* -- Context lifecycle ------------------------------------------------- */
     GpuError init(uint32_t device_index) override {
 #if defined(__APPLE__)
+        if (device_index >= device_count())
+            return set_error(GpuError::Device, "Metal device index out of range");
+
         if (runtime_) return GpuError::Ok;
 
         runtime_ = std::make_unique<secp256k1::metal::MetalRuntime>();

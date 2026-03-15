@@ -182,4 +182,68 @@
         {
             "name": "cpu-tsan",
             "configurePreset": "cpu-tsan"
-
+        },
+        {
+            "name": "cuda-audit",
+            "configurePreset": "cuda-release"
+        },
+        {
+            "name": "cuda-audit-5060ti",
+            "configurePreset": "cuda-release-5060ti"
+        }
+    ],
+    "testPresets": [
+        {
+            "name": "cpu-release",
+            "configurePreset": "cpu-release",
+            "output": {
+                "outputOnFailure": true
+            }
+        },
+        {
+            "name": "cpu-debug",
+            "configurePreset": "cpu-debug",
+            "output": {
+                "outputOnFailure": true
+            }
+        },
+        {
+            "name": "cpu-asan",
+            "configurePreset": "cpu-asan",
+            "output": {
+                "outputOnFailure": true
+            }
+        },
+        {
+            "name": "cpu-tsan",
+            "configurePreset": "cpu-tsan",
+            "output": {
+                "outputOnFailure": true
+            }
+        },
+        {
+            "name": "cuda-audit",
+            "configurePreset": "cuda-release",
+            "output": {
+                "outputOnFailure": true
+            },
+            "filter": {
+                "include": {
+                    "name": "^(gpu_abi_gate|gpu_ops_equivalence|gpu_host_api_negative|gpu_backend_matrix|unified_audit)$"
+                }
+            }
+        },
+        {
+            "name": "cuda-audit-5060ti",
+            "configurePreset": "cuda-release-5060ti",
+            "output": {
+                "outputOnFailure": true
+            },
+            "filter": {
+                "include": {
+                    "name": "^(gpu_abi_gate|gpu_ops_equivalence|gpu_host_api_negative|gpu_backend_matrix|unified_audit)$"
+                }
+            }
+        }
+    ]
+}

@@ -127,6 +127,11 @@ impl Context {
         Ok(Context { ptr })
     }
 
+    /// Return the raw context pointer for direct FFI calls.
+    pub fn as_ptr(&self) -> *mut ufsecp_sys::ufsecp_ctx {
+        self.ptr
+    }
+
     /// Return the last error code stored in this context.
     pub fn last_error(&self) -> i32 {
         unsafe { ufsecp_sys::ufsecp_last_error(self.ptr) }

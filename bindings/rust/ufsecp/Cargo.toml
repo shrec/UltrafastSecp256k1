@@ -9,5 +9,8 @@ repository = "https://github.com/shrec/UltrafastSecp256k1"
 [dependencies]
 ufsecp-sys = { path = "../ufsecp-sys", version = "0.0.0-dev" }
 
+[dev-dependencies]
+hex = "0.4"
+
 [features]
 default = []

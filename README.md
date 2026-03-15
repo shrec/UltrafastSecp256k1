@@ -6,7 +6,7 @@
 
 ### Why UltrafastSecp256k1?
 
-- **Fastest open-source GPU signatures** -- no other library provides secp256k1 ECDSA + Schnorr sign/verify on CUDA, OpenCL, and Metal ([reproducible benchmark suite and raw logs](docs/BENCHMARKS.md))
+- **Fastest open-source GPU signatures** -- no other library provides secp256k1 ECDSA + Schnorr sign/verify on CUDA; OpenCL covers core ECC ops, Metal provides discovery/lifecycle ([reproducible benchmark suite and raw logs](docs/BENCHMARKS.md))
 - **High-performance CPU secp256k1 engine** -- optimized generator multiply, scalar multiply, hashing, and serialization pipelines across x86-64, ARM64, RISC-V, and embedded targets ([see bench_unified ratio table](docs/BENCHMARKS.md))
 - **Independent benchmark wins on real workloads** -- BIP-352 Silent Payments scanning and other end-to-end flows show strong results in standalone external and in-repo benchmarks ([standalone benchmark by @craigraw](https://github.com/craigraw/bench_bip352))
 - **Built for modern secp256k1 workloads** -- signing, verification, wallet derivation, threshold protocols, adaptor signatures, ZK primitives, address generation, and large-scale public-key pipelines in one engine
@@ -72,6 +72,79 @@
 [![ESP32-S3](https://img.shields.io/badge/ESP32--S3-Xtensa%20LX7-orange.svg)](https://www.espressif.com/en/products/socs/esp32-s3)
 [![ESP32](https://img.shields.io/badge/ESP32-Xtensa%20LX6-orange.svg)](https://www.espressif.com/en/products/socs/esp32)
 [![STM32](https://img.shields.io/badge/STM32-Cortex--M3-orange.svg)](https://www.st.com/en/microcontrollers-microprocessors/stm32f103ze.html)
+
+---
+
+## Highlights
+
+- **GPU-accelerated secp256k1** -- ECDSA + Schnorr sign/verify on CUDA; core ECC on OpenCL; Metal experimental
+- **Zero-Knowledge cryptographic layer** -- Pedersen commitments, DLEQ proofs, Bulletproof range proofs
+- **Multi-language bindings** -- Python, Node.js, Rust, Go, C#, Java, Swift, PHP, Ruby, Dart
+- **Embedded device support** -- ESP32-S3, ESP32-P4, ESP32-C6, STM32 Cortex-M
+- **Zero-dependency C++20 core** -- no Boost, no OpenSSL, compiles anywhere
+- **Massively parallel workloads** -- batch signatures, key scanning, address generation at GPU scale
+
+## Performance
+
+**RTX 5060 Ti (CUDA 12, kernel throughput)**
+
+| Metric | Value |
+|--------|-------|
+| ECC operations (field/point) | ~2.3 B ops/sec |
+| ECDSA sign | 4.88 M sigs/sec |
+| ECDSA verify | 2.44 M verifies/sec |
+| Schnorr sign (BIP-340) | 3.66 M sigs/sec |
+| Schnorr verify (BIP-340) | 2.82 M verifies/sec |
+
+## Architecture
+
+```
++-------------------------------------------------------+
+|              Language Bindings (FFI)                   |
+|  Python | Node | Rust | Go | C# | Java | Swift | PHP |
++-------------------------------------------------------+
+                         |
+                  Bindings Layer
+                 (ctypes / koffi / cgo
+                  JNA / P/Invoke / FFI)
+                         |
++-------------------------------------------------------+
+|          UltrafastSecp256k1 Core (C++20)               |
+|                                                       |
+|  ECDSA | Schnorr | ECDH | MuSig2 | FROST | Pedersen  |
+|  Taproot | BIP-32 HD | Adaptor Sigs | ZK Proofs       |
+|  [FAST layer]              [CT layer]                 |
++-------------------------------------------------------+
+                         |
++--------+---------+---------+---------+----------------+
+|  CPU   |  CUDA   | OpenCL  |  Metal  |   Embedded     |
+| x86_64 | NVIDIA  | AMD/NV  |  Apple  | ESP32 / STM32  |
+| ARM64  | sm_50+  | any GPU | Silicon | RISC-V / WASM  |
+| RISC-V |         |         |         | Cortex-M       |
++--------+---------+---------+---------+----------------+
+```
+
+## Examples
+
+| Category | Description | Link |
+|----------|-------------|------|
+| **CPU** | Core ECC, ECDSA, Schnorr, BIP-32, Taproot, Pedersen | [examples/](examples/) |
+| **CUDA** | GPU signatures, batch operations, device management | [examples/](examples/) |
+| **OpenCL** | Cross-vendor GPU compute | [examples/](examples/) |
+| **Metal** | Apple Silicon GPU acceleration | [examples/](examples/) |
+| **Multi-language** | C, Python, Rust, Node.js, Go, Java binding examples | [examples/README.md](examples/README.md) |
+| **Embedded** | ESP32-S3, STM32 platform ports | [examples/esp32_test/](examples/esp32_test/) |
+
+## Use Cases
+
+- **Blockchain infrastructure** -- high-throughput transaction signing and validation
+- **Signature verification at scale** -- batch verify millions of signatures per second on GPU
+- **Cryptographic research** -- independent secp256k1 implementation with full source access
+- **Zero-knowledge pipelines** -- Pedersen commitments, Bulletproofs, DLEQ proofs
+- **Embedded cryptographic systems** -- hardware wallets, IoT devices, microcontrollers
+- **Key scanning & address generation** -- BIP-352 Silent Payments, vanity address mining
+
+> Star the repository if you find it useful!
 
 ---
 
@@ -261,8 +334,8 @@ cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build build -
 | **STM32 (Cortex-M)** | CPU | CMake cross-compile | [OK] Tested |
 | **NVIDIA GPU** | CUDA 12+ | Build with `-DSECP256K1_BUILD_CUDA=ON` | [OK] Stable |
 | **AMD GPU** | ROCm/HIP | Build with `-DSECP256K1_BUILD_ROCM=ON` | [!] Beta |
-| **Apple GPU** | Metal | Build with Metal backend | [OK] Stable |
-| **Any GPU** | OpenCL | Build with `-DSECP256K1_BUILD_OPENCL=ON` | [!] Beta |
+| **Apple GPU** | Metal | Build with Metal backend | [..] Experimental (discovery only) |
+| **Any GPU** | OpenCL | Build with `-DSECP256K1_BUILD_OPENCL=ON` | [OK] Partial (4/6 ops) |
 | **RISC-V (RV64GC)** | CPU | Cross-compile | [OK] Tested |
 
 ---
@@ -876,6 +949,75 @@ All EVM chains (ETH, BNB, MATIC, AVAX, FTM, ARB, OP) share the same address form
 
 ## secp256k1 Architecture
 
+### Library Stack
+
+```
++----------------------------------------------------------+
+|           Language Bindings (FFI / C ABI)                 |
+|  Python | Node.js | Rust | Go | C# | Java | Swift | PHP |
++----------------------------------------------------------+
+                          |
+                   Bindings Layer
+                  (ctypes / koffi / cgo
+                   JNA / P/Invoke / FFI)
+                          |
++----------------------------------------------------------+
+|            UltrafastSecp256k1 Core (C++20)                |
+|                                                          |
+|  Field Arithmetic | Scalar Ops | Point Ops | GLV/Endomo  |
+|  ECDSA | Schnorr BIP-340 | ECDH | MuSig2 | FROST       |
+|  Pedersen | Taproot | BIP-32 HD | Adaptor Sigs | ZK      |
+|                                                          |
+|  [FAST layer]              [CT layer]                    |
+|  Variable-time             Constant-time                 |
+|  Max throughput            Side-channel safe              |
++----------------------------------------------------------+
+                          |
++----------+----------+----------+----------+--------------+
+|   CPU    |   CUDA   |  OpenCL  |  Metal   |  Embedded    |
+|          |          |          |          |              |
+| x86_64   | NVIDIA   | AMD/NVIDIA| Apple   | ESP32-S3     |
+| ARM64    | sm_50+   | any GPU  | Silicon | ESP32-C6     |
+| RISC-V   |          |          |          | STM32        |
+| WASM     |          |          |          | Cortex-M     |
++----------+----------+----------+----------+--------------+
+```
+
+### Hardware Compatibility
+
+| Platform | Architecture | Backend | Status |
+|----------|-------------|---------|--------|
+| **Desktop CPU** | x86_64 (Intel / AMD) | CPU | [OK] Stable |
+| **Desktop CPU** | ARM64 (Apple Silicon, Ampere) | CPU | [OK] Stable |
+| **Desktop CPU** | RISC-V RV64GC | CPU | [OK] Stable |
+| **Raspberry Pi** | ARM64 (BCM2710, Zero 2 W) | CPU | [..] Testing |
+| **NVIDIA GPU** | RTX / GTX / Tesla (sm_50+) | CUDA 12+ | [OK] Stable (6/6 C ABI ops) |
+| **AMD GPU** | RDNA / CDNA | OpenCL | [OK] Partial (4/6 C ABI ops) |
+| **AMD GPU** | RDNA / CDNA | ROCm/HIP | [!] Beta |
+| **Apple GPU** | Apple Silicon (M1/M2/M3/M4) | Metal | [..] Experimental (discovery/lifecycle only) |
+| **Any GPU** | OpenCL 1.2+ compatible | OpenCL | [OK] Partial (4/6 C ABI ops) |
+| **ESP32-S3** | Xtensa LX7 @ 240 MHz | CPU | [OK] Tested |
+| **ESP32-P4** | RISC-V @ 400 MHz | CPU | [OK] Supported |
+| **ESP32-C6** | RISC-V (single-core) | CPU | [OK] Supported |
+| **STM32** | ARM Cortex-M3/M4 | CPU | [..] Experimental |
+| **WebAssembly** | WASM (Emscripten) | CPU | [OK] Stable |
+| **Android** | ARM64 (NDK r27c) | CPU | [OK] Stable |
+| **iOS** | ARM64 (Xcode) | CPU | [OK] Stable |
+
+> **GPU C ABI ops**: generator_mul_batch, ecdsa_verify_batch, schnorr_verify_batch, ecdh_batch, hash160_batch, msm. See [GPU Validation Matrix](docs/GPU_VALIDATION_MATRIX.md) for per-backend details.
+
+### Embedded Targets
+
+| Target | MCU | Clock | Scalar x G | Flash | RAM |
+|--------|-----|-------|-----------|-------|-----|
+| ESP32-S3 | Xtensa LX7 (dual) | 240 MHz | 5.2 ms | ~120 KB | ~8 KB |
+| ESP32-PICO-D4 | Xtensa LX6 (dual) | 240 MHz | 6.2 ms | ~120 KB | ~8 KB |
+| ESP32-P4 | RISC-V | 400 MHz | ~3 ms | ~120 KB | ~8 KB |
+| ESP32-C6 | RISC-V (single) | 160 MHz | ~12 ms | ~120 KB | ~8 KB |
+| STM32F103 | Cortex-M3 | 72 MHz | 38 ms | ~100 KB | ~6 KB |
+
+### Source Directory
+
 ```
 UltrafastSecp256k1/
 +-- cpu/                 # CPU-optimized implementation
@@ -889,7 +1031,14 @@ UltrafastSecp256k1/
 +-- wasm/                # WebAssembly (Emscripten)
 +-- android/             # Android NDK (ARM64)
 +-- include/ufsecp/      # Stable C ABI
++-- bindings/            # Language bindings (Rust, Python, Node.js, Go, C#, Java, ...)
 +-- examples/
+|   +-- c_example/       # C API usage
+|   +-- rust_example/    # Rust FFI example
+|   +-- python_example/  # Python ctypes example
+|   +-- nodejs_example/  # Node.js koffi example
+|   +-- go_example/      # Go cgo example
+|   +-- java_example/    # Java JNA example
 |   +-- esp32_test/      # ESP32-S3 Xtensa LX7 port
 |   +-- stm32_test/      # STM32F103 ARM Cortex-M3 port
 +-- docs/                # Documentation
@@ -1084,6 +1233,10 @@ cosign verify-blob SHA256SUMS \
 | [API Reference](docs/API_REFERENCE.md) | Full C++ and C ABI reference |
 | [Build Guide](docs/BUILDING.md) | Detailed build instructions for all platforms |
 | [Benchmarks](docs/BENCHMARKS.md) | Complete benchmark results and methodology |
+| [GPU API](include/ufsecp/ufsecp_gpu.h) | GPU C ABI header (16 functions, 3 backends) |
+| [GPU Validation Matrix](docs/GPU_VALIDATION_MATRIX.md) | Per-backend op coverage and validation status |
+| [Feature Maturity](docs/FEATURE_MATURITY.md) | Per-feature GPU/CT/fuzz/tier status table |
+| [Supported Guarantees](include/ufsecp/SUPPORTED_GUARANTEES.md) | ABI stability tiers and commitment levels |
 | [Audit Coverage](AUDIT_COVERAGE.md) | Full audit report with 46+ modules and platform verdicts |
 | [Audit Guide](docs/AUDIT_GUIDE.md) | How to run and interpret audit suite |
 | [Test Matrix](docs/TEST_MATRIX.md) | Comprehensive test coverage map for auditors |
@@ -1093,6 +1246,7 @@ cosign verify-blob SHA256SUMS \
 | [Porting Guide](PORTING.md) | Add new platforms, architectures, GPU backends |
 | [RISC-V Optimizations](RISCV_OPTIMIZATIONS.md) | RISC-V assembly details |
 | [ESP32 Setup](docs/ESP32_SETUP.md) | ESP32 embedded development guide |
+| [Examples](examples/README.md) | Multi-language binding examples (C, Python, Rust, Node.js, Go, Java) |
 | [Contributing](CONTRIBUTING.md) | Development guidelines |
 | [Changelog](CHANGELOG.md) | Version history |
 

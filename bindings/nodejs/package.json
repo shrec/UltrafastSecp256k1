@@ -16,10 +16,12 @@
     "test": "node test/test.js"
   },
   "dependencies": {
+    "ffi-napi": "^4.0.3",
+    "koffi": "^2.15.2",
     "node-addon-api": "^8.5.0",
-    "node-gyp": "^12.2.0"
+    "node-gyp": "^12.2.0",
+    "ref-napi": "^3.0.3"
   },
-  "devDependencies": {},
   "keywords": [
     "secp256k1",
     "ecdsa",

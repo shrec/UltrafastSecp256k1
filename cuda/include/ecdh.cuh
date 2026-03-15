@@ -61,7 +61,8 @@ __device__ inline bool ecdh_compute_xonly(
 }
 
 // -- ECDH: compute standard compressed hash ----------------------------------
-// shared_secret = SHA-256(0x02 || x) standard BIP-340 / libsecp256k1 style.
+// shared_secret = SHA-256(compressed_point) matching CPU ecdh_compute.
+// Prefix is 0x02 (even y) or 0x03 (odd y).
 
 __device__ inline bool ecdh_compute(
     const Scalar* private_key,
@@ -72,19 +73,25 @@ __device__ inline bool ecdh_compute(
     scalar_mul(peer_pubkey, private_key, &shared);
     if (shared.infinity) return false;
 
-    // Convert to affine
-    FieldElement z_inv, z_inv2, x_aff;
+    // Convert to affine x and y
+    FieldElement z_inv, z_inv2, z_inv3, x_aff, y_aff;
     field_inv(&shared.z, &z_inv);
     field_sqr(&z_inv, &z_inv2);
+    field_mul(&z_inv, &z_inv2, &z_inv3);
     field_mul(&shared.x, &z_inv2, &x_aff);
+    field_mul(&shared.y, &z_inv3, &y_aff);
 
     uint8_t x_bytes[32];
     field_to_bytes(&x_aff, x_bytes);
 
-    // SHA-256(0x02 || x)
+    // Determine y parity for prefix
+    uint8_t y_bytes[32];
+    field_to_bytes(&y_aff, y_bytes);
+    uint8_t prefix = (y_bytes[31] & 1) ? 0x03 : 0x02;
+
+    // SHA-256(prefix || x)
     SHA256Ctx ctx;
     sha256_init(&ctx);
-    uint8_t prefix = 0x02;
     sha256_update(&ctx, &prefix, 1);
     sha256_update(&ctx, x_bytes, 32);
     sha256_final(&ctx, out);

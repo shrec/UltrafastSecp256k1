@@ -41,13 +41,13 @@ Each feature is rated by: implementation status, threat model coverage, test vec
 | Feature | Status | Threat Model | Test Vectors | Fuzzed | GPU | Secret-Safe | Tier |
 |---------|--------|-------------|-------------|--------|-----|-------------|------|
 | ECDSA sign (RFC 6979) | Y | Nonce bias, k=0/n-1 | RFC 6979, Wycheproof | Y | Y (all 3) | CT | Hardened |
-| ECDSA verify | Y | Malleable sigs, r/s bounds | Wycheproof (500+ vectors) | Y | Y (all 3) | FAST | Hardened |
+| ECDSA verify | Y | Malleable sigs, r/s bounds | Wycheproof (500+ vectors) | Y | Y (CUDA) | FAST | Hardened |
 | ECDSA DER encode/decode | Y | Truncation, padding, length | Wycheproof, fuzz_parsers | Y | - | FAST | Hardened |
-| ECDSA recovery | Y | Invalid recid | Wycheproof | Y | Y (all 3) | FAST | Hardened |
-| ECDSA batch verify | Y | Batch vs individual consistency | Randomized | Y | Y (CUDA+Metal) | FAST | Production |
+| ECDSA recovery | Y | Invalid recid | Wycheproof | Y | Y (CUDA) | FAST | Hardened |
+| ECDSA batch verify | Y | Batch vs individual consistency | Randomized | Y | Y (CUDA) | FAST | Production |
 | Schnorr sign (BIP-340) | Y | Nonce bias, aux randomness | BIP-340 official (15 vectors) | Y | Y (all 3) | CT | Hardened |
-| Schnorr verify (BIP-340) | Y | Invalid R, e=0 | BIP-340 official | Y | Y (all 3) | FAST | Hardened |
-| Schnorr batch verify | Y | Batch vs individual consistency | Randomized | Y | Y (CUDA+Metal) | FAST | Production |
+| Schnorr verify (BIP-340) | Y | Invalid R, e=0 | BIP-340 official | Y | Y (CUDA) | FAST | Hardened |
+| Schnorr batch verify | Y | Batch vs individual consistency | Randomized | Y | Y (CUDA) | FAST | Production |
 
 ## Threshold / Multi-Party
 
@@ -65,7 +65,7 @@ Each feature is rated by: implementation status, threat model coverage, test vec
 
 | Feature | Status | Threat Model | Test Vectors | Fuzzed | GPU | Secret-Safe | Tier |
 |---------|--------|-------------|-------------|--------|-----|-------------|------|
-| BIP-32 HD derivation | Y | Hardened vs normal, invalid child | BIP-32 official, adversarial | Y | Y (all 3) | CT | Hardened |
+| BIP-32 HD derivation | Y | Hardened vs normal, invalid child | BIP-32 official, adversarial | Y | - | CT | Hardened |
 | BIP-39 mnemonic | Y | Invalid checksum, bad entropy | BIP-39 official | Y | - | CT | Production |
 | ECDH (x-only + raw) | Y | Infinity point, twist | Wycheproof ECDH | Y | Y (all 3) | CT | Hardened |
 | WIF encode/decode | Y | Invalid prefix, checksum | FFI fuzz | Y | - | CT | Production |

@@ -50,8 +50,8 @@ mod smoke {
 
     #[test]
     fn smoke_ctx_create_abi() {
-        let ctx = Context::new().expect("ctx_create failed");
-        let abi = ctx.abi_version();
+        let _ctx = Context::new().expect("ctx_create failed");
+        let abi = Context::abi_version();
         assert!(abi >= 1, "ABI {} < 1", abi);
     }
 
