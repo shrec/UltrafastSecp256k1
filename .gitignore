@@ -157,3 +157,4 @@ android/build-*/
 # Git bundle artifacts (binary, never commit)
 *.bundle
 
+.project_graph.db
