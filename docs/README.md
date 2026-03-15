@@ -26,6 +26,7 @@
 | [Security Policy](../SECURITY.md) | Vulnerability reporting, audit status, production readiness |
 | [Threat Model](../THREAT_MODEL.md) | Layer-by-layer risk + attack surface analysis |
 | [Audit Report](../AUDIT_REPORT.md) | Internal audit: 641,194 checks, 8 suites, 0 failures |
+| [GPU Validation Matrix](GPU_VALIDATION_MATRIX.md) | Backend parity, GPU ABI tests, and the canonical local GPU proof path |
 
 ## Adoption & Integration
 
@@ -191,4 +192,3 @@ UltrafastSecp256k1/
 MIT -- See [LICENSE](../LICENSE)
 
 Integration consulting available -- contact [payysoon@gmail.com](mailto:payysoon@gmail.com)
-

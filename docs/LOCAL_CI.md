@@ -89,17 +89,21 @@ The GPU audit cannot run on GitHub CI (no GPU runners). It runs **locally only**
 
 ```bash
 # From library root:
-cmake -S . -B build-cuda -G Ninja \
-  -DCMAKE_BUILD_TYPE=Release \
-  -DSECP256K1_BUILD_CUDA=ON \
-  -DCMAKE_CUDA_ARCHITECTURES="native"   # or e.g. "86;89;90"
-ninja -C build-cuda gpu_audit_runner
+cmake --preset cuda-audit-5060ti
+cmake --build --preset cuda-audit-5060ti -j
 ```
 
 ### Run
 
 ```bash
-./build-cuda/cuda/gpu_audit_runner
+# Confirm the GPU audit slice is visible in the active build tree
+ctest --test-dir build/cuda-release-5060ti -N
+
+# Run the GPU C ABI validation slice
+ctest --preset cuda-audit-5060ti
+
+# Run the standalone CUDA audit runner as well
+./build/cuda-release-5060ti/cuda/gpu_audit_runner
 ```
 
 ### Expected Output
@@ -120,6 +124,14 @@ The runner executes **43 modules** across **10 sections** and produces:
 | Performance Smoke | 2 | ECDSA 100-iter stress, Schnorr 50-iter stress |
 
 Verdict: **AUDIT-READY** when all 43/43 pass.
+
+The canonical GPU-enabled `ctest -N` output should also include these extra
+GPU C ABI tests:
+
+- `gpu_abi_gate`
+- `gpu_ops_equivalence`
+- `gpu_host_api_negative`
+- `gpu_backend_matrix`
 
 Reports are written to the build directory:
 - `gpu_audit_report.json` -- machine-readable
