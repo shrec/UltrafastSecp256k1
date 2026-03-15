@@ -2,6 +2,7 @@ var structsecp256k1_1_1coins_1_1CoinParams =
 [
     [ "bech32_hrp", "structsecp256k1_1_1coins_1_1CoinParams.html#ac8a6a6a4c27fe5170367299ec6536837", null ],
     [ "bech32_hrp_test", "structsecp256k1_1_1coins_1_1CoinParams.html#a80f4a41a970b433a6fe9193237c7aa22", null ],
+    [ "chain_id", "structsecp256k1_1_1coins_1_1CoinParams.html#aada7bf973da117e6ceaeeee203a459e0", null ],
     [ "coin_type", "structsecp256k1_1_1coins_1_1CoinParams.html#a1ebff654afc9f22f7880820cce4a343a", null ],
     [ "default_encoding", "structsecp256k1_1_1coins_1_1CoinParams.html#a560d5397ad69bbda4ee1e9cba05065d3", null ],
     [ "features", "structsecp256k1_1_1coins_1_1CoinParams.html#a38086df8d9c4870eb6298fc566dfc267", null ],

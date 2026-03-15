@@ -25,7 +25,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.21.0</span>
+   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.22.0</span>
    </div>
    <div id="projectbrief">Ultra high-performance secp256k1 elliptic curve cryptography library</div>
   </td>
@@ -281,7 +281,7 @@ $(document).ready(function(){initNavTree('debug__invariants_8hpp_source.html',''
 <div class="line"><a id="l00170" name="l00170"></a><span class="lineno">  170</span> </div>
 <div class="foldopen" id="foldopen00171" data-start="{" data-end="}">
 <div class="line"><a id="l00171" name="l00171"></a><span class="lineno"><a class="line" href="namespacesecp256k1_1_1fast_1_1debug.html#aacea7553cc7e802360611ef9f86c5d82">  171</a></span><span class="keyword">inline</span> <a class="code hl_struct" href="structsecp256k1_1_1fast_1_1debug_1_1DebugCounters.html">DebugCounters</a>&amp; <a class="code hl_function" href="namespacesecp256k1_1_1fast_1_1debug.html#aacea7553cc7e802360611ef9f86c5d82">counters</a>() noexcept {</div>
-<div class="line"><a id="l00172" name="l00172"></a><span class="lineno">  172</span>    <span class="keyword">static</span> <a class="code hl_struct" href="structsecp256k1_1_1fast_1_1debug_1_1DebugCounters.html">DebugCounters</a> c;</div>
+<div class="line"><a id="l00172" name="l00172"></a><span class="lineno">  172</span>    <span class="keyword">static</span> <span class="keyword">thread_local</span> <a class="code hl_struct" href="structsecp256k1_1_1fast_1_1debug_1_1DebugCounters.html">DebugCounters</a> c;</div>
 <div class="line"><a id="l00173" name="l00173"></a><span class="lineno">  173</span>    <span class="keywordflow">return</span> c;</div>
 <div class="line"><a id="l00174" name="l00174"></a><span class="lineno">  174</span>}</div>
 </div>

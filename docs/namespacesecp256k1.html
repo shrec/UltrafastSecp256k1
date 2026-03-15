@@ -25,7 +25,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.21.0</span>
+   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.22.0</span>
    </div>
    <div id="projectbrief">Ultra high-performance secp256k1 elliptic curve cryptography library</div>
   </td>
@@ -114,12 +114,16 @@ Namespaces</h2></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:namespacesecp256k1_1_1test" id="r_namespacesecp256k1_1_1test"><td class="memItemLeft" align="right" valign="top">namespace &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1test.html">test</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:namespacesecp256k1_1_1zk" id="r_namespacesecp256k1_1_1zk"><td class="memItemLeft" align="right" valign="top">namespace &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1zk.html">zk</a></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="nested-classes" name="nested-classes"></a>
 Classes</h2></td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structsecp256k1_1_1AffinePointData.html">AffinePointData</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structsecp256k1_1_1Bech32DecodeResult.html">Bech32DecodeResult</a></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structsecp256k1_1_1Bip39Entropy.html">Bip39Entropy</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structsecp256k1_1_1CurveContext.html">CurveContext</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -238,6 +242,16 @@ Functions</h2></td></tr>
 <tr class="separator:a206e390e0249a78964fa78210164840a"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a3785b85c37019ba1c1aa33a4410cd53e" id="r_a3785b85c37019ba1c1aa33a4410cd53e"><td class="memItemLeft" align="right" valign="top">std::string&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#a3785b85c37019ba1c1aa33a4410cd53e">address_p2tr_raw</a> (const std::array&lt; std::uint8_t, 32 &gt; &amp;output_key_x, <a class="el" href="namespacesecp256k1.html#a4fc755caaebc0d236e4b1e209a0389ad">Network</a> net=<a class="el" href="namespacesecp256k1.html#a4fc755caaebc0d236e4b1e209a0389ada953c0a0c67e864d0f080b5e705f45a81">Network::Mainnet</a>)</td></tr>
 <tr class="separator:a3785b85c37019ba1c1aa33a4410cd53e"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a44ff13e692740f4fe6239412a3b9ebb7" id="r_a44ff13e692740f4fe6239412a3b9ebb7"><td class="memItemLeft" align="right" valign="top">std::string&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#a44ff13e692740f4fe6239412a3b9ebb7">address_p2sh_p2wpkh</a> (const <a class="el" href="classsecp256k1_1_1fast_1_1Point.html">fast::Point</a> &amp;pubkey, <a class="el" href="namespacesecp256k1.html#a4fc755caaebc0d236e4b1e209a0389ad">Network</a> net=<a class="el" href="namespacesecp256k1.html#a4fc755caaebc0d236e4b1e209a0389ada953c0a0c67e864d0f080b5e705f45a81">Network::Mainnet</a>)</td></tr>
+<tr class="separator:a44ff13e692740f4fe6239412a3b9ebb7"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a19899f0c15f827ac0296f7f84e3d6306" id="r_a19899f0c15f827ac0296f7f84e3d6306"><td class="memItemLeft" align="right" valign="top">std::string&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#a19899f0c15f827ac0296f7f84e3d6306">address_p2sh</a> (const std::array&lt; std::uint8_t, 20 &gt; &amp;script_hash, <a class="el" href="namespacesecp256k1.html#a4fc755caaebc0d236e4b1e209a0389ad">Network</a> net=<a class="el" href="namespacesecp256k1.html#a4fc755caaebc0d236e4b1e209a0389ada953c0a0c67e864d0f080b5e705f45a81">Network::Mainnet</a>)</td></tr>
+<tr class="separator:a19899f0c15f827ac0296f7f84e3d6306"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a344af7dbd177542379bd62638547df5c" id="r_a344af7dbd177542379bd62638547df5c"><td class="memItemLeft" align="right" valign="top">std::string&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#a344af7dbd177542379bd62638547df5c">address_p2wsh</a> (const std::array&lt; std::uint8_t, 32 &gt; &amp;witness_script_hash, <a class="el" href="namespacesecp256k1.html#a4fc755caaebc0d236e4b1e209a0389ad">Network</a> net=<a class="el" href="namespacesecp256k1.html#a4fc755caaebc0d236e4b1e209a0389ada953c0a0c67e864d0f080b5e705f45a81">Network::Mainnet</a>)</td></tr>
+<tr class="separator:a344af7dbd177542379bd62638547df5c"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aaa32544b933d83434de0e304f3cbab07" id="r_aaa32544b933d83434de0e304f3cbab07"><td class="memItemLeft" align="right" valign="top">std::string&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#aaa32544b933d83434de0e304f3cbab07">cashaddr_encode</a> (const std::array&lt; std::uint8_t, 20 &gt; &amp;hash, const std::string &amp;prefix, std::uint8_t type=0)</td></tr>
+<tr class="separator:aaa32544b933d83434de0e304f3cbab07"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a47d6d4da7a6de3715bfc4f1d475e3a28" id="r_a47d6d4da7a6de3715bfc4f1d475e3a28"><td class="memItemLeft" align="right" valign="top">std::string&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#a47d6d4da7a6de3715bfc4f1d475e3a28">address_cashaddr</a> (const <a class="el" href="classsecp256k1_1_1fast_1_1Point.html">fast::Point</a> &amp;pubkey, const std::string &amp;prefix=&quot;bitcoincash&quot;)</td></tr>
+<tr class="separator:a47d6d4da7a6de3715bfc4f1d475e3a28"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:abf0a498d216f2463f9dcf7ad27624674" id="r_abf0a498d216f2463f9dcf7ad27624674"><td class="memItemLeft" align="right" valign="top">std::string&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#abf0a498d216f2463f9dcf7ad27624674">wif_encode</a> (const <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">fast::Scalar</a> &amp;private_key, bool compressed=true, <a class="el" href="namespacesecp256k1.html#a4fc755caaebc0d236e4b1e209a0389ad">Network</a> net=<a class="el" href="namespacesecp256k1.html#a4fc755caaebc0d236e4b1e209a0389ada953c0a0c67e864d0f080b5e705f45a81">Network::Mainnet</a>)</td></tr>
 <tr class="separator:abf0a498d216f2463f9dcf7ad27624674"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a573478fd6142708539156bd670d3e18d" id="r_a573478fd6142708539156bd670d3e18d"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structsecp256k1_1_1WIFDecodeResult.html">WIFDecodeResult</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#a573478fd6142708539156bd670d3e18d">wif_decode</a> (const std::string &amp;wif)</td></tr>
@@ -266,6 +280,18 @@ Functions</h2></td></tr>
 <tr class="separator:aff490eb527f1e92e5b5bed039244608d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a5b674e02b3a37bc4c91097ac1502b980" id="r_a5b674e02b3a37bc4c91097ac1502b980"><td class="memItemLeft" align="right" valign="top">std::array&lt; std::uint8_t, 64 &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#a5b674e02b3a37bc4c91097ac1502b980">hmac_sha512</a> (const std::uint8_t *key, std::size_t key_len, const std::uint8_t *data, std::size_t data_len)</td></tr>
 <tr class="separator:a5b674e02b3a37bc4c91097ac1502b980"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a589c1c7cfeb58e77acd208dd8c7405b5" id="r_a589c1c7cfeb58e77acd208dd8c7405b5"><td class="memItemLeft" align="right" valign="top">std::pair&lt; std::string, bool &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#a589c1c7cfeb58e77acd208dd8c7405b5">bip39_generate</a> (std::size_t entropy_bytes, const std::uint8_t *entropy_in=nullptr)</td></tr>
+<tr class="separator:a589c1c7cfeb58e77acd208dd8c7405b5"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a8e6bb7742ed7bfc2870d754856540d76" id="r_a8e6bb7742ed7bfc2870d754856540d76"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#a8e6bb7742ed7bfc2870d754856540d76">bip39_validate</a> (const std::string &amp;mnemonic)</td></tr>
+<tr class="separator:a8e6bb7742ed7bfc2870d754856540d76"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:abb1dcf4c6e179a641d94b1cc87cfdb54" id="r_abb1dcf4c6e179a641d94b1cc87cfdb54"><td class="memItemLeft" align="right" valign="top">std::pair&lt; std::array&lt; std::uint8_t, 64 &gt;, bool &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#abb1dcf4c6e179a641d94b1cc87cfdb54">bip39_mnemonic_to_seed</a> (const std::string &amp;mnemonic, const std::string &amp;passphrase=&quot;&quot;)</td></tr>
+<tr class="separator:abb1dcf4c6e179a641d94b1cc87cfdb54"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a12dcae3ae6b84f36f1a980d701cf5f70" id="r_a12dcae3ae6b84f36f1a980d701cf5f70"><td class="memItemLeft" align="right" valign="top">std::pair&lt; <a class="el" href="structsecp256k1_1_1Bip39Entropy.html">Bip39Entropy</a>, bool &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#a12dcae3ae6b84f36f1a980d701cf5f70">bip39_mnemonic_to_entropy</a> (const std::string &amp;mnemonic)</td></tr>
+<tr class="separator:a12dcae3ae6b84f36f1a980d701cf5f70"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ad7d4c64791bdbef580be702e468bddfc" id="r_ad7d4c64791bdbef580be702e468bddfc"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#ad7d4c64791bdbef580be702e468bddfc">pbkdf2_hmac_sha512</a> (const std::uint8_t *password, std::size_t password_len, const std::uint8_t *salt, std::size_t salt_len, std::uint32_t iterations, std::uint8_t *output, std::size_t output_len)</td></tr>
+<tr class="separator:ad7d4c64791bdbef580be702e468bddfc"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:af331c175fc46b3180040efa6796c29d0" id="r_af331c175fc46b3180040efa6796c29d0"><td class="memItemLeft" align="right" valign="top">const char *const *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#af331c175fc46b3180040efa6796c29d0">bip39_wordlist_english</a> ()</td></tr>
+<tr class="separator:af331c175fc46b3180040efa6796c29d0"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a95488158a1e555261e297868c47db41d" id="r_a95488158a1e555261e297868c47db41d"><td class="memItemLeft" align="right" valign="top">const <a class="el" href="classsecp256k1_1_1fast_1_1Point.html">fast::Point</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#a95488158a1e555261e297868c47db41d">effective_generator</a> (const <a class="el" href="structsecp256k1_1_1CurveContext.html">CurveContext</a> *ctx=nullptr)</td></tr>
 <tr class="separator:a95488158a1e555261e297868c47db41d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a5c0f3b14972eec08501b08b595d25dd0" id="r_a5c0f3b14972eec08501b08b595d25dd0"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classsecp256k1_1_1fast_1_1Point.html">fast::Point</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#a5c0f3b14972eec08501b08b595d25dd0">derive_public_key</a> (const <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">fast::Scalar</a> &amp;private_key, const <a class="el" href="structsecp256k1_1_1CurveContext.html">CurveContext</a> *ctx=nullptr)</td></tr>
@@ -294,6 +320,10 @@ Functions</h2></td></tr>
 <tr class="separator:a944c4d81e26ad0af5325655767a77e37"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a99942ef97f7b8f3454e1d2f7a98deb5f" id="r_a99942ef97f7b8f3454e1d2f7a98deb5f"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">fast::Scalar</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#a99942ef97f7b8f3454e1d2f7a98deb5f">rfc6979_nonce_hedged</a> (const <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">fast::Scalar</a> &amp;private_key, const std::array&lt; std::uint8_t, 32 &gt; &amp;msg_hash, const std::array&lt; std::uint8_t, 32 &gt; &amp;aux_rand)</td></tr>
 <tr class="separator:a99942ef97f7b8f3454e1d2f7a98deb5f"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:af718e31c07d8f7c9be36ba4324d4817f" id="r_af718e31c07d8f7c9be36ba4324d4817f"><td class="memItemLeft" align="right" valign="top">std::vector&lt; std::uint8_t &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#af718e31c07d8f7c9be36ba4324d4817f">ecies_encrypt</a> (const <a class="el" href="classsecp256k1_1_1fast_1_1Point.html">fast::Point</a> &amp;recipient_pubkey, const std::uint8_t *plaintext, std::size_t plaintext_len)</td></tr>
+<tr class="separator:af718e31c07d8f7c9be36ba4324d4817f"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a169c1c3d7696ea890cebdedfa79619f0" id="r_a169c1c3d7696ea890cebdedfa79619f0"><td class="memItemLeft" align="right" valign="top">std::vector&lt; std::uint8_t &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#a169c1c3d7696ea890cebdedfa79619f0">ecies_decrypt</a> (const <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">fast::Scalar</a> &amp;privkey, const std::uint8_t *envelope, std::size_t envelope_len)</td></tr>
+<tr class="separator:a169c1c3d7696ea890cebdedfa79619f0"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a799903aca6c37f859aa9782a6b4a3267" id="r_a799903aca6c37f859aa9782a6b4a3267"><td class="memItemLeft" align="right" valign="top">std::pair&lt; <a class="el" href="structsecp256k1_1_1FrostCommitment.html">FrostCommitment</a>, std::vector&lt; <a class="el" href="structsecp256k1_1_1FrostShare.html">FrostShare</a> &gt; &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#a799903aca6c37f859aa9782a6b4a3267">frost_keygen_begin</a> (<a class="el" href="namespacesecp256k1.html#a1b9640e94c535a205c9ca5edf2a5dbcf">ParticipantId</a> participant_id, std::uint32_t threshold, std::uint32_t num_participants, const std::array&lt; std::uint8_t, 32 &gt; &amp;secret_seed)</td></tr>
 <tr class="separator:a799903aca6c37f859aa9782a6b4a3267"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a0c50436c571f4ffc30510e2eb8ace6d1" id="r_a0c50436c571f4ffc30510e2eb8ace6d1"><td class="memItemLeft" align="right" valign="top">std::pair&lt; <a class="el" href="structsecp256k1_1_1FrostKeyPackage.html">FrostKeyPackage</a>, bool &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#a0c50436c571f4ffc30510e2eb8ace6d1">frost_keygen_finalize</a> (<a class="el" href="namespacesecp256k1.html#a1b9640e94c535a205c9ca5edf2a5dbcf">ParticipantId</a> participant_id, const std::vector&lt; <a class="el" href="structsecp256k1_1_1FrostCommitment.html">FrostCommitment</a> &gt; &amp;commitments, const std::vector&lt; <a class="el" href="structsecp256k1_1_1FrostShare.html">FrostShare</a> &gt; &amp;received_shares, std::uint32_t threshold, std::uint32_t num_participants)</td></tr>
@@ -494,6 +524,34 @@ Functions</h2></td></tr>
 </div>
 </div>
 <h2 class="groupheader">Function Documentation</h2>
+<a id="a47d6d4da7a6de3715bfc4f1d475e3a28" name="a47d6d4da7a6de3715bfc4f1d475e3a28"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a47d6d4da7a6de3715bfc4f1d475e3a28">&#9670;&#160;</a></span>address_cashaddr()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">std::string secp256k1::address_cashaddr </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="classsecp256k1_1_1fast_1_1Point.html">fast::Point</a> &amp;&#160;</td>
+          <td class="paramname"><em>pubkey</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const std::string &amp;&#160;</td>
+          <td class="paramname"><em>prefix</em> = <code>&quot;bitcoincash&quot;</code>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
 <a id="a7c2049a86d738a492e748f7f0e16ce4a" name="a7c2049a86d738a492e748f7f0e16ce4a"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a7c2049a86d738a492e748f7f0e16ce4a">&#9670;&#160;</a></span>address_p2pkh()</h2>
 
@@ -520,7 +578,63 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00885">ufsecp_addr_p2pkh()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00926">ufsecp_addr_p2pkh()</a>.</p>
+
+</div>
+</div>
+<a id="a19899f0c15f827ac0296f7f84e3d6306" name="a19899f0c15f827ac0296f7f84e3d6306"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a19899f0c15f827ac0296f7f84e3d6306">&#9670;&#160;</a></span>address_p2sh()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">std::string secp256k1::address_p2sh </td>
+          <td>(</td>
+          <td class="paramtype">const std::array&lt; std::uint8_t, 20 &gt; &amp;&#160;</td>
+          <td class="paramname"><em>script_hash</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="namespacesecp256k1.html#a4fc755caaebc0d236e4b1e209a0389ad">Network</a>&#160;</td>
+          <td class="paramname"><em>net</em> = <code><a class="el" href="namespacesecp256k1.html#a4fc755caaebc0d236e4b1e209a0389ada953c0a0c67e864d0f080b5e705f45a81">Network::Mainnet</a></code>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="a44ff13e692740f4fe6239412a3b9ebb7" name="a44ff13e692740f4fe6239412a3b9ebb7"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a44ff13e692740f4fe6239412a3b9ebb7">&#9670;&#160;</a></span>address_p2sh_p2wpkh()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">std::string secp256k1::address_p2sh_p2wpkh </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="classsecp256k1_1_1fast_1_1Point.html">fast::Point</a> &amp;&#160;</td>
+          <td class="paramname"><em>pubkey</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="namespacesecp256k1.html#a4fc755caaebc0d236e4b1e209a0389ad">Network</a>&#160;</td>
+          <td class="paramname"><em>net</em> = <code><a class="el" href="namespacesecp256k1.html#a4fc755caaebc0d236e4b1e209a0389ada953c0a0c67e864d0f080b5e705f45a81">Network::Mainnet</a></code>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
 
 </div>
 </div>
@@ -578,7 +692,7 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00923">ufsecp_addr_p2tr()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00968">ufsecp_addr_p2tr()</a>.</p>
 
 </div>
 </div>
@@ -608,7 +722,35 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00904">ufsecp_addr_p2wpkh()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00947">ufsecp_addr_p2wpkh()</a>.</p>
+
+</div>
+</div>
+<a id="a344af7dbd177542379bd62638547df5c" name="a344af7dbd177542379bd62638547df5c"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a344af7dbd177542379bd62638547df5c">&#9670;&#160;</a></span>address_p2wsh()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">std::string secp256k1::address_p2wsh </td>
+          <td>(</td>
+          <td class="paramtype">const std::array&lt; std::uint8_t, 32 &gt; &amp;&#160;</td>
+          <td class="paramname"><em>witness_script_hash</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="namespacesecp256k1.html#a4fc755caaebc0d236e4b1e209a0389ad">Network</a>&#160;</td>
+          <td class="paramname"><em>net</em> = <code><a class="el" href="namespacesecp256k1.html#a4fc755caaebc0d236e4b1e209a0389ada953c0a0c67e864d0f080b5e705f45a81">Network::Mainnet</a></code>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
 
 </div>
 </div>
@@ -742,7 +884,7 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l01056">ufsecp_bip32_derive_path()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l01109">ufsecp_bip32_derive_path()</a>.</p>
 
 </div>
 </div>
@@ -772,7 +914,158 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l01020">ufsecp_bip32_master()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l01067">ufsecp_bip32_master()</a>, and <a class="el" href="ufsecp__impl_8cpp_source.html#l02637">ufsecp_coin_derive_from_seed()</a>.</p>
+
+</div>
+</div>
+<a id="a589c1c7cfeb58e77acd208dd8c7405b5" name="a589c1c7cfeb58e77acd208dd8c7405b5"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a589c1c7cfeb58e77acd208dd8c7405b5">&#9670;&#160;</a></span>bip39_generate()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">std::pair&lt; std::string, bool &gt; secp256k1::bip39_generate </td>
+          <td>(</td>
+          <td class="paramtype">std::size_t&#160;</td>
+          <td class="paramname"><em>entropy_bytes</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const std::uint8_t *&#160;</td>
+          <td class="paramname"><em>entropy_in</em> = <code>nullptr</code>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l01329">ufsecp_bip39_generate()</a>.</p>
+
+</div>
+</div>
+<a id="a12dcae3ae6b84f36f1a980d701cf5f70" name="a12dcae3ae6b84f36f1a980d701cf5f70"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a12dcae3ae6b84f36f1a980d701cf5f70">&#9670;&#160;</a></span>bip39_mnemonic_to_entropy()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">std::pair&lt; <a class="el" href="structsecp256k1_1_1Bip39Entropy.html">Bip39Entropy</a>, bool &gt; secp256k1::bip39_mnemonic_to_entropy </td>
+          <td>(</td>
+          <td class="paramtype">const std::string &amp;&#160;</td>
+          <td class="paramname"><em>mnemonic</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l01371">ufsecp_bip39_to_entropy()</a>.</p>
+
+</div>
+</div>
+<a id="abb1dcf4c6e179a641d94b1cc87cfdb54" name="abb1dcf4c6e179a641d94b1cc87cfdb54"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#abb1dcf4c6e179a641d94b1cc87cfdb54">&#9670;&#160;</a></span>bip39_mnemonic_to_seed()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">std::pair&lt; std::array&lt; std::uint8_t, 64 &gt;, bool &gt; secp256k1::bip39_mnemonic_to_seed </td>
+          <td>(</td>
+          <td class="paramtype">const std::string &amp;&#160;</td>
+          <td class="paramname"><em>mnemonic</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const std::string &amp;&#160;</td>
+          <td class="paramname"><em>passphrase</em> = <code>&quot;&quot;</code>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l01357">ufsecp_bip39_to_seed()</a>.</p>
+
+</div>
+</div>
+<a id="a8e6bb7742ed7bfc2870d754856540d76" name="a8e6bb7742ed7bfc2870d754856540d76"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a8e6bb7742ed7bfc2870d754856540d76">&#9670;&#160;</a></span>bip39_validate()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">bool secp256k1::bip39_validate </td>
+          <td>(</td>
+          <td class="paramtype">const std::string &amp;&#160;</td>
+          <td class="paramname"><em>mnemonic</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l01349">ufsecp_bip39_validate()</a>.</p>
+
+</div>
+</div>
+<a id="af331c175fc46b3180040efa6796c29d0" name="af331c175fc46b3180040efa6796c29d0"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#af331c175fc46b3180040efa6796c29d0">&#9670;&#160;</a></span>bip39_wordlist_english()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">const char *const  * secp256k1::bip39_wordlist_english </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="aaa32544b933d83434de0e304f3cbab07" name="aaa32544b933d83434de0e304f3cbab07"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aaa32544b933d83434de0e304f3cbab07">&#9670;&#160;</a></span>cashaddr_encode()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">std::string secp256k1::cashaddr_encode </td>
+          <td>(</td>
+          <td class="paramtype">const std::array&lt; std::uint8_t, 20 &gt; &amp;&#160;</td>
+          <td class="paramname"><em>hash</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const std::string &amp;&#160;</td>
+          <td class="paramname"><em>prefix</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">std::uint8_t&#160;</td>
+          <td class="paramname"><em>type</em> = <code>0</code>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
 
 </div>
 </div>
@@ -842,7 +1135,7 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00808">ufsecp_ecdh()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00843">ufsecp_ecdh()</a>.</p>
 
 </div>
 </div>
@@ -872,7 +1165,7 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00836">ufsecp_ecdh_raw()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00875">ufsecp_ecdh_raw()</a>.</p>
 
 </div>
 </div>
@@ -902,7 +1195,7 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00822">ufsecp_ecdh_xonly()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00859">ufsecp_ecdh_xonly()</a>.</p>
 
 </div>
 </div>
@@ -932,6 +1225,8 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l02257">ufsecp_ecdsa_adaptor_adapt()</a>.</p>
+
 </div>
 </div>
 <a id="aa822de77c4daffb35bf7581982912615" name="aa822de77c4daffb35bf7581982912615"></a>
@@ -959,6 +1254,8 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l02284">ufsecp_ecdsa_adaptor_extract()</a>.</p>
 
 </div>
 </div>
@@ -993,6 +1290,8 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l02195">ufsecp_ecdsa_adaptor_sign()</a>.</p>
 
 </div>
 </div>
@@ -1034,6 +1333,8 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l02225">ufsecp_ecdsa_adaptor_verify()</a>.</p>
+
 </div>
 </div>
 <a id="ab71d81a28b742b2ab97647f10dc2b711" name="ab71d81a28b742b2ab97647f10dc2b711"></a>
@@ -1062,6 +1363,8 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l01460">ufsecp_ecdsa_batch_identify_invalid()</a>.</p>
+
 </div>
 </div>
 <a id="a83665b7ab6a1fcd0d85b49c2e92908d9" name="a83665b7ab6a1fcd0d85b49c2e92908d9"></a>
@@ -1089,6 +1392,8 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l01414">ufsecp_ecdsa_batch_verify()</a>.</p>
 
 </div>
 </div>
@@ -1142,7 +1447,7 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00669">ufsecp_ecdsa_recover()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00704">ufsecp_ecdsa_recover()</a>.</p>
 
 </div>
 </div>
@@ -1268,7 +1573,7 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00640">ufsecp_ecdsa_sign_recoverable()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00675">ufsecp_ecdsa_sign_recoverable()</a>.</p>
 
 </div>
 </div>
@@ -1366,7 +1671,79 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00471">ufsecp_ecdsa_verify()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00504">ufsecp_ecdsa_verify()</a>.</p>
+
+</div>
+</div>
+<a id="a169c1c3d7696ea890cebdedfa79619f0" name="a169c1c3d7696ea890cebdedfa79619f0"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a169c1c3d7696ea890cebdedfa79619f0">&#9670;&#160;</a></span>ecies_decrypt()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">std::vector&lt; std::uint8_t &gt; secp256k1::ecies_decrypt </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">fast::Scalar</a> &amp;&#160;</td>
+          <td class="paramname"><em>privkey</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const std::uint8_t *&#160;</td>
+          <td class="paramname"><em>envelope</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">std::size_t&#160;</td>
+          <td class="paramname"><em>envelope_len</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l02928">ufsecp_ecies_decrypt()</a>.</p>
+
+</div>
+</div>
+<a id="af718e31c07d8f7c9be36ba4324d4817f" name="af718e31c07d8f7c9be36ba4324d4817f"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#af718e31c07d8f7c9be36ba4324d4817f">&#9670;&#160;</a></span>ecies_encrypt()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">std::vector&lt; std::uint8_t &gt; secp256k1::ecies_encrypt </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="classsecp256k1_1_1fast_1_1Point.html">fast::Point</a> &amp;&#160;</td>
+          <td class="paramname"><em>recipient_pubkey</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const std::uint8_t *&#160;</td>
+          <td class="paramname"><em>plaintext</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">std::size_t&#160;</td>
+          <td class="paramname"><em>plaintext_len</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l02898">ufsecp_ecies_encrypt()</a>.</p>
 
 </div>
 </div>
@@ -1496,6 +1873,8 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l02033">ufsecp_frost_aggregate()</a>.</p>
+
 </div>
 </div>
 <a id="a799903aca6c37f859aa9782a6b4a3267" name="a799903aca6c37f859aa9782a6b4a3267"></a>
@@ -1535,6 +1914,8 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l01795">ufsecp_frost_keygen_begin()</a>.</p>
 
 </div>
 </div>
@@ -1581,6 +1962,8 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l01840">ufsecp_frost_keygen_finalize()</a>.</p>
 
 </div>
 </div>
@@ -1650,6 +2033,8 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l01930">ufsecp_frost_sign()</a>.</p>
+
 </div>
 </div>
 <a id="ad496d2f71ae2565cd6cbe2ffc721e838" name="ad496d2f71ae2565cd6cbe2ffc721e838"></a>
@@ -1677,6 +2062,8 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l01902">ufsecp_frost_sign_nonce_gen()</a>.</p>
 
 </div>
 </div>
@@ -1730,6 +2117,8 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l01984">ufsecp_frost_verify_partial()</a>.</p>
+
 </div>
 </div>
 <a id="a60845c5582c3d501cc42d8f3ec7c4b9f" name="a60845c5582c3d501cc42d8f3ec7c4b9f"></a>
@@ -1758,7 +2147,7 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00864">ufsecp_hash160()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00905">ufsecp_hash160()</a>.</p>
 
 </div>
 </div>
@@ -1896,6 +2285,8 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l01524">ufsecp_multi_scalar_mul()</a>.</p>
+
 </div>
 </div>
 <a id="a03ccaf89eefb01c0e251db92af63f745" name="a03ccaf89eefb01c0e251db92af63f745"></a>
@@ -1942,6 +2333,8 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l01552">ufsecp_musig2_key_agg()</a>.</p>
+
 </div>
 </div>
 <a id="a1e657aa17dd7fac020caf840c95a66c7" name="a1e657aa17dd7fac020caf840c95a66c7"></a>
@@ -1959,6 +2352,8 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l01607">ufsecp_musig2_nonce_agg()</a>.</p>
 
 </div>
 </div>
@@ -2006,6 +2401,8 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l01575">ufsecp_musig2_nonce_gen()</a>.</p>
+
 </div>
 </div>
 <a id="aef846e4a35cbf41f7492bfef7df8cd51" name="aef846e4a35cbf41f7492bfef7df8cd51"></a>
@@ -2033,6 +2430,8 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l01765">ufsecp_musig2_partial_sig_agg()</a>.</p>
 
 </div>
 </div>
@@ -2079,6 +2478,8 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l01672">ufsecp_musig2_partial_sign()</a>.</p>
 
 </div>
 </div>
@@ -2132,6 +2533,8 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l01722">ufsecp_musig2_partial_verify()</a>.</p>
+
 </div>
 </div>
 <a id="aac69418e53d08dfb473069cf133dac78" name="aac69418e53d08dfb473069cf133dac78"></a>
@@ -2165,6 +2568,8 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l01628">ufsecp_musig2_start_sign_session()</a>.</p>
 
 </div>
 </div>
@@ -2206,6 +2611,64 @@ Functions</h2></td></tr>
 
 </div>
 </div>
+<a id="ad7d4c64791bdbef580be702e468bddfc" name="ad7d4c64791bdbef580be702e468bddfc"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ad7d4c64791bdbef580be702e468bddfc">&#9670;&#160;</a></span>pbkdf2_hmac_sha512()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void secp256k1::pbkdf2_hmac_sha512 </td>
+          <td>(</td>
+          <td class="paramtype">const std::uint8_t *&#160;</td>
+          <td class="paramname"><em>password</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">std::size_t&#160;</td>
+          <td class="paramname"><em>password_len</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const std::uint8_t *&#160;</td>
+          <td class="paramname"><em>salt</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">std::size_t&#160;</td>
+          <td class="paramname"><em>salt_len</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">std::uint32_t&#160;</td>
+          <td class="paramname"><em>iterations</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">std::uint8_t *&#160;</td>
+          <td class="paramname"><em>output</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">std::size_t&#160;</td>
+          <td class="paramname"><em>output_len</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
 <a id="a92645e9b5a632e94fcb67a4c8e6c568e" name="a92645e9b5a632e94fcb67a4c8e6c568e"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a92645e9b5a632e94fcb67a4c8e6c568e">&#9670;&#160;</a></span>pedersen_blind_sum()</h2>
 
@@ -2244,6 +2707,8 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l02378">ufsecp_pedersen_blind_sum()</a>.</p>
+
 </div>
 </div>
 <a id="aa164bf7961c4c98e33564df8f56363e2" name="aa164bf7961c4c98e33564df8f56363e2"></a>
@@ -2271,6 +2736,8 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l02318">ufsecp_pedersen_commit()</a>.</p>
 
 </div>
 </div>
@@ -2340,6 +2807,8 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l02397">ufsecp_pedersen_switch_commit()</a>.</p>
+
 </div>
 </div>
 <a id="a90ce24eb3d14058f1365f87dbb51b8ae" name="a90ce24eb3d14058f1365f87dbb51b8ae"></a>
@@ -2373,6 +2842,8 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l02335">ufsecp_pedersen_verify()</a>.</p>
 
 </div>
 </div>
@@ -2413,6 +2884,8 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l02355">ufsecp_pedersen_verify_sum()</a>.</p>
 
 </div>
 </div>
@@ -2726,6 +3199,8 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l02142">ufsecp_schnorr_adaptor_adapt()</a>.</p>
+
 </div>
 </div>
 <a id="ac27a9a9d010fc747969b71f6db6c89a2" name="ac27a9a9d010fc747969b71f6db6c89a2"></a>
@@ -2753,6 +3228,8 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l02168">ufsecp_schnorr_adaptor_extract()</a>.</p>
 
 </div>
 </div>
@@ -2794,6 +3271,8 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l02078">ufsecp_schnorr_adaptor_sign()</a>.</p>
+
 </div>
 </div>
 <a id="a88abfd05258117363c779f5d24acb443" name="a88abfd05258117363c779f5d24acb443"></a>
@@ -2834,6 +3313,8 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l02109">ufsecp_schnorr_adaptor_verify()</a>.</p>
+
 </div>
 </div>
 <a id="a6bd6f391ee62c317ef9a3350c8a8ef58" name="a6bd6f391ee62c317ef9a3350c8a8ef58"></a>
@@ -2862,6 +3343,8 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l01437">ufsecp_schnorr_batch_identify_invalid()</a>.</p>
+
 </div>
 </div>
 <a id="a492eba5997fcf195c49c0ffbf62d1bf7" name="a492eba5997fcf195c49c0ffbf62d1bf7"></a>
@@ -2889,6 +3372,8 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l01391">ufsecp_schnorr_batch_verify()</a>.</p>
 
 </div>
 </div>
@@ -2944,7 +3429,7 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00408">ufsecp_pubkey_xonly()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00440">ufsecp_pubkey_xonly()</a>.</p>
 
 </div>
 </div>
@@ -3252,7 +3737,7 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00760">ufsecp_schnorr_verify()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00795">ufsecp_schnorr_verify()</a>.</p>
 
 </div>
 </div>
@@ -3368,6 +3853,8 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l01500">ufsecp_shamir_trick()</a>.</p>
+
 </div>
 </div>
 <a id="afa0a68be87c65148c94371f0abd5a7fd" name="afa0a68be87c65148c94371f0abd5a7fd"></a>
@@ -3395,6 +3882,8 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l02752">ufsecp_silent_payment_address()</a>.</p>
 
 </div>
 </div>
@@ -3429,6 +3918,8 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l02787">ufsecp_silent_payment_create_output()</a>.</p>
 
 </div>
 </div>
@@ -3469,6 +3960,8 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l02834">ufsecp_silent_payment_scan()</a>.</p>
 
 </div>
 </div>
@@ -3522,7 +4015,7 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00872">ufsecp_tagged_hash()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00913">ufsecp_tagged_hash()</a>.</p>
 
 </div>
 </div>
@@ -3666,7 +4159,7 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l01105">ufsecp_taproot_output_key()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l01165">ufsecp_taproot_output_key()</a>.</p>
 
 </div>
 </div>
@@ -3736,7 +4229,7 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l01125">ufsecp_taproot_tweak_seckey()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l01185">ufsecp_taproot_tweak_seckey()</a>.</p>
 
 </div>
 </div>
@@ -3784,7 +4277,7 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l01147">ufsecp_taproot_verify()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l01209">ufsecp_taproot_verify()</a>.</p>
 
 </div>
 </div>
@@ -3804,7 +4297,7 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00970">ufsecp_wif_decode()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l01016">ufsecp_wif_decode()</a>.</p>
 
 </div>
 </div>
@@ -3840,7 +4333,7 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00947">ufsecp_wif_encode()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00992">ufsecp_wif_encode()</a>.</p>
 
 </div>
 </div>

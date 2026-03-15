@@ -6,7 +6,8 @@ var coin__params_8hpp =
       [ "BASE58CHECK", "coin__params_8hpp.html#a1106e7d010a62072fb5c3a4ce65735a8ac8b16936c6601ef51e7f443b711f0e3e", null ],
       [ "BECH32", "coin__params_8hpp.html#a1106e7d010a62072fb5c3a4ce65735a8ad4fd7223ebde09ed36b615658d29d7bc", null ],
       [ "EIP55", "coin__params_8hpp.html#a1106e7d010a62072fb5c3a4ce65735a8aa0c3bf0167bc72e6114fc2e704b50c4a", null ],
-      [ "CASHADDR", "coin__params_8hpp.html#a1106e7d010a62072fb5c3a4ce65735a8a7a41d8518193e1934aa4710b7df4525e", null ]
+      [ "CASHADDR", "coin__params_8hpp.html#a1106e7d010a62072fb5c3a4ce65735a8a7a41d8518193e1934aa4710b7df4525e", null ],
+      [ "TRON_BASE58", "coin__params_8hpp.html#a1106e7d010a62072fb5c3a4ce65735a8a83008aa430495f53d49e0920699850a5", null ]
     ] ],
     [ "AddressHash", "coin__params_8hpp.html#a938922c0a6dfc2461fc0dbabb8d720fd", [
       [ "HASH160", "coin__params_8hpp.html#a938922c0a6dfc2461fc0dbabb8d720fda1af0faac30c308df3d59a5dbd47b762a", null ],
@@ -41,6 +42,7 @@ var coin__params_8hpp =
     [ "Qtum", "coin__params_8hpp.html#a8afd0775b34eec6206fbe1d3b782c7df", null ],
     [ "Ravencoin", "coin__params_8hpp.html#ac6b0477033f1a1058c2959fd4316c59a", null ],
     [ "Syscoin", "coin__params_8hpp.html#a1720afe3709d38993d496c8a7c810e96", null ],
+    [ "Tron", "coin__params_8hpp.html#ac85c6599d9dda16b046b00cfa0cf97e2", null ],
     [ "Vertcoin", "coin__params_8hpp.html#a70b837939709bbc5a1eba5bb399844ef", null ],
     [ "Viacoin", "coin__params_8hpp.html#a29ed3b1245c0b95505e944796b4e59f4", null ],
     [ "Zcash", "coin__params_8hpp.html#ae9978405d4dfef91cc06d90518d512d5", null ]

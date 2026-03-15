@@ -25,7 +25,7 @@
 var NAVTREE =
 [
   [ "UltrafastSecp256k1", "index.html", [
-    [ "UltrafastSecp256k1 – High-Performance Open-Source secp256k1 Library", "index.html", "index" ],
+    [ "UltrafastSecp256k1 – High-Performance secp256k1 Engine for CPU, GPU, Mobile, Embedded, and Web", "index.html", "index" ],
     [ "Supported Guarantees – <tt>ufsecp</tt> C ABI", "md_include_2ufsecp_2SUPPORTED__GUARANTEES.html", [
       [ "Tier 1 – Stable (ABI >= 1)", "md_include_2ufsecp_2SUPPORTED__GUARANTEES.html#autotoc_md2", [
         [ "Thread safety", "md_include_2ufsecp_2SUPPORTED__GUARANTEES.html#autotoc_md3", null ],
@@ -64,8 +64,8 @@ var NAVTREE =
     [ "Files", "files.html", [
       [ "File List", "files.html", "files_dup" ],
       [ "File Members", "globals.html", [
-        [ "All", "globals.html", null ],
-        [ "Functions", "globals_func.html", null ],
+        [ "All", "globals.html", "globals_dup" ],
+        [ "Functions", "globals_func.html", "globals_func" ],
         [ "Typedefs", "globals_type.html", null ],
         [ "Macros", "globals_defs.html", null ]
       ] ]
@@ -76,16 +76,18 @@ var NAVTREE =
 var NAVTREEINDEX =
 [
 "UltrafastSecp256k1_8hpp.html",
-"classsecp256k1_1_1fast_1_1Point.html#a01fbac924f8decf2b741d081b4f34c3d",
-"ct_2point_8hpp.html#a2c0514f309fbaac7449849c8acabdea1",
-"field__optimal_8hpp.html#a7868f6defa52ba2b9afe7303eab5e677",
-"multiscalar_8hpp.html#a710d5963b9ce553b958f007209438faf",
-"namespacesecp256k1_1_1ct.html#a03b1757e8f036c092670a3bf61f47b02",
-"namespacesecp256k1_1_1fast.html#afb796e34f6d662a818fd5d773018a9f2",
-"sign_8hpp.html#a0395559c34023213c3182f49e8e73807",
-"structsecp256k1_1_1MuSig2Session.html#ab2280405f267eb375a9599cb2a0bd190",
-"structsecp256k1_1_1fast_1_1FieldElement52.html#a153b88a6790e92e5df0c1c3926565478",
-"structsecp256k1_1_1test_1_1TestCounters.html#acfc030f8e11c91a80f5beb16744d00e7"
+"classsecp256k1_1_1fast_1_1FieldElement.html#accfb3e3a65a9e41deec53b3e9e21d59a",
+"cpu_2include_2secp256k1_2types_8hpp_source.html",
+"field__asm_8hpp.html#a2bd3922bd58f8a6d328d28d52003c3a1",
+"index.html#autotoc_md44",
+"namespacesecp256k1.html#ad0bcd9acaefe52ddd34bef83f78855a9ad4fd7223ebde09ed36b615658d29d7bc",
+"namespacesecp256k1_1_1fast.html#a2787116513dfdc5bf237210b658194ab",
+"namespacesecp256k1_1_1zk.html#a9d6eca241910168d723f7a9a5eb97414",
+"structsecp256k1_1_1ECDSASignature.html#abf646a2f681d4522419d6706317bd074",
+"structsecp256k1_1_1coins_1_1CoinFeatures.html#ad86e4ceec247c9f4ba907b9fc928c1e3",
+"structsecp256k1_1_1fast_1_1FixedBaseConfig.html#a49ec39077d6e057d10ec3df4308eeabc",
+"structufsecp__gpu__device__info__t.html#a31ca4c82d33732525bb96865fc6ce801",
+"ufsecp__gpu_8h.html#aff4a1309c80dd5ee8afaf1b86957c0af"
 ];
 
 var SYNCONMSG = 'click to disable panel synchronisation';

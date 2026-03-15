@@ -7,9 +7,15 @@ var annotated_dup =
     ] ],
     [ "secp256k1", "namespacesecp256k1.html", [
       [ "coins", "namespacesecp256k1_1_1coins.html", [
+        [ "wallet", "namespacesecp256k1_1_1coins_1_1wallet.html", [
+          [ "MessageSignature", "structsecp256k1_1_1coins_1_1wallet_1_1MessageSignature.html", "structsecp256k1_1_1coins_1_1wallet_1_1MessageSignature" ],
+          [ "WalletKey", "structsecp256k1_1_1coins_1_1wallet_1_1WalletKey.html", "structsecp256k1_1_1coins_1_1wallet_1_1WalletKey" ]
+        ] ],
+        [ "BitcoinSigDecodeResult", "structsecp256k1_1_1coins_1_1BitcoinSigDecodeResult.html", "structsecp256k1_1_1coins_1_1BitcoinSigDecodeResult" ],
         [ "CoinFeatures", "structsecp256k1_1_1coins_1_1CoinFeatures.html", "structsecp256k1_1_1coins_1_1CoinFeatures" ],
         [ "CoinKeyPair", "structsecp256k1_1_1coins_1_1CoinKeyPair.html", "structsecp256k1_1_1coins_1_1CoinKeyPair" ],
         [ "CoinParams", "structsecp256k1_1_1coins_1_1CoinParams.html", "structsecp256k1_1_1coins_1_1CoinParams" ],
+        [ "EthSignature", "structsecp256k1_1_1coins_1_1EthSignature.html", "structsecp256k1_1_1coins_1_1EthSignature" ],
         [ "Keccak256State", "structsecp256k1_1_1coins_1_1Keccak256State.html", "structsecp256k1_1_1coins_1_1Keccak256State" ]
       ] ],
       [ "ct", "namespacesecp256k1_1_1ct.html", [
@@ -42,8 +48,15 @@ var annotated_dup =
       [ "test", "namespacesecp256k1_1_1test.html", [
         [ "TestCounters", "structsecp256k1_1_1test_1_1TestCounters.html", "structsecp256k1_1_1test_1_1TestCounters" ]
       ] ],
+      [ "zk", "namespacesecp256k1_1_1zk.html", [
+        [ "DLEQProof", "structsecp256k1_1_1zk_1_1DLEQProof.html", "structsecp256k1_1_1zk_1_1DLEQProof" ],
+        [ "GeneratorVectors", "structsecp256k1_1_1zk_1_1GeneratorVectors.html", "structsecp256k1_1_1zk_1_1GeneratorVectors" ],
+        [ "KnowledgeProof", "structsecp256k1_1_1zk_1_1KnowledgeProof.html", "structsecp256k1_1_1zk_1_1KnowledgeProof" ],
+        [ "RangeProof", "structsecp256k1_1_1zk_1_1RangeProof.html", "structsecp256k1_1_1zk_1_1RangeProof" ]
+      ] ],
       [ "AffinePointData", "structsecp256k1_1_1AffinePointData.html", "structsecp256k1_1_1AffinePointData" ],
       [ "Bech32DecodeResult", "structsecp256k1_1_1Bech32DecodeResult.html", "structsecp256k1_1_1Bech32DecodeResult" ],
+      [ "Bip39Entropy", "structsecp256k1_1_1Bip39Entropy.html", "structsecp256k1_1_1Bip39Entropy" ],
       [ "CurveContext", "structsecp256k1_1_1CurveContext.html", "structsecp256k1_1_1CurveContext" ],
       [ "ECDSAAdaptorSig", "structsecp256k1_1_1ECDSAAdaptorSig.html", "structsecp256k1_1_1ECDSAAdaptorSig" ],
       [ "ECDSABatchEntry", "structsecp256k1_1_1ECDSABatchEntry.html", "structsecp256k1_1_1ECDSABatchEntry" ],
@@ -78,5 +91,7 @@ var annotated_dup =
       [ "WIFDecodeResult", "structsecp256k1_1_1WIFDecodeResult.html", "structsecp256k1_1_1WIFDecodeResult" ]
     ] ],
     [ "ufsecp_bip32_key", "structufsecp__bip32__key.html", "structufsecp__bip32__key" ],
-    [ "ufsecp_ctx", "structufsecp__ctx.html", "structufsecp__ctx" ]
+    [ "ufsecp_ctx", "structufsecp__ctx.html", "structufsecp__ctx" ],
+    [ "ufsecp_gpu_ctx", "structufsecp__gpu__ctx.html", "structufsecp__gpu__ctx" ],
+    [ "ufsecp_gpu_device_info_t", "structufsecp__gpu__device__info__t.html", "structufsecp__gpu__device__info__t" ]
 ];

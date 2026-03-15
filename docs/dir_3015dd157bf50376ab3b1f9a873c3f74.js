@@ -9,11 +9,14 @@ var dir_3015dd157bf50376ab3b1f9a873c3f74 =
     [ "batch_verify.hpp", "batch__verify_8hpp.html", "batch__verify_8hpp" ],
     [ "benchmark_harness.hpp", "benchmark__harness_8hpp.html", "benchmark__harness_8hpp" ],
     [ "bip32.hpp", "bip32_8hpp.html", "bip32_8hpp" ],
+    [ "bip39.hpp", "bip39_8hpp.html", "bip39_8hpp" ],
+    [ "bip39_wordlist.hpp", "bip39__wordlist_8hpp.html", "bip39__wordlist_8hpp" ],
     [ "context.hpp", "context_8hpp.html", "context_8hpp" ],
     [ "ct_utils.hpp", "ct__utils_8hpp.html", "ct__utils_8hpp" ],
     [ "debug_invariants.hpp", "debug__invariants_8hpp.html", "debug__invariants_8hpp" ],
     [ "ecdh.hpp", "ecdh_8hpp.html", "ecdh_8hpp" ],
     [ "ecdsa.hpp", "ecdsa_8hpp.html", "ecdsa_8hpp" ],
+    [ "ecies.hpp", "ecies_8hpp.html", "ecies_8hpp" ],
     [ "ecmult_gen_comb.hpp", "ecmult__gen__comb_8hpp.html", "ecmult__gen__comb_8hpp" ],
     [ "fast.hpp", "fast_8hpp.html", null ],
     [ "field.hpp", "field_8hpp.html", "field_8hpp" ],
@@ -46,5 +49,6 @@ var dir_3015dd157bf50376ab3b1f9a873c3f74 =
     [ "tagged_hash.hpp", "tagged__hash_8hpp.html", "tagged__hash_8hpp" ],
     [ "taproot.hpp", "taproot_8hpp.html", "taproot_8hpp" ],
     [ "test_framework.hpp", "test__framework_8hpp.html", "test__framework_8hpp" ],
-    [ "types.hpp", "cpu_2include_2secp256k1_2types_8hpp.html", null ]
+    [ "types.hpp", "cpu_2include_2secp256k1_2types_8hpp.html", null ],
+    [ "zk.hpp", "zk_8hpp.html", "zk_8hpp" ]
 ];
