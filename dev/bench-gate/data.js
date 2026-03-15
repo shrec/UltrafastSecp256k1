@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1773599311848,
+  "lastUpdate": 1773618271637,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "Perf Regression Gate": [
@@ -22667,6 +22667,450 @@ window.BENCHMARK_DATA = {
           {
             "name": "Bulletproof range_verify (64b)",
             "value": 4911237.1,
+            "unit": "ns"
+          },
+          {
+            "name": "Harness",
+            "value": 3000000000,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "Vano Chkheidze",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b3c0e7c87e2f0e31957652e960b8834cdfef089e",
+          "message": "release: merge dev to main for release preparation (#147)\n\n* feat(ethereum): add modular Ethereum signing layer with conditional build\n\n- Add SECP256K1_BUILD_ETHEREUM CMake option (default ON)\n- Implement eth_signing.hpp/.cpp: EIP-191, EIP-155, ecrecover, personal_sign\n- Extend C ABI with 6 new ufsecp_eth_* functions (guarded by ifdef)\n- Add 32-test Ethereum test suite (7 groups) in test_ethereum.cpp\n- Add 8 Ethereum benchmarks in bench_unified Section 6.5\n- Enable libsecp256k1 ENABLE_MODULE_RECOVERY for comparison benchmarks\n- Register Ethereum audit module in unified_audit_runner\n- Guard coin_address.cpp and test_coins.cpp with ifdef for Bitcoin-only builds\n- Bump version to 3.22.0\n\n* chore: update audit outputs and benchmark results\n\n* feat(coins): unified wallet API, address formats (P2SH/CashAddr/Tron), message signing\n\n- Add unified wallet API (wallet.hpp/cpp): chain-agnostic key mgmt, signing, recovery\n- Add Bitcoin message signing (message_signing.hpp/cpp): BIP-137/Electrum compatible\n- Add P2SH-P2WPKH (nested SegWit), P2SH, P2WSH address primitives\n- Add CashAddr encoding (Bitcoin Cash BIP-0185)\n- Add Tron coin descriptor (coin_type=195, TRON_BASE58 encoding)\n- Add 5 wallet address helpers (p2pkh/p2wpkh/p2sh_p2wpkh/p2tr/cashaddr)\n- Add chain_id field in CoinParams for EIP-155 signing\n- Fix coin_address() CASHADDR dispatch for Bitcoin Cash\n- 28 coins now all generate addresses correctly\n- Add 19 new tests (12 in test_coins.cpp, 7 in test_wallet.cpp)\n- Update docs: CHANGELOG, API_REFERENCE, USER_GUIDE, TEST_MATRIX, BUILDING\n\n* feat: ZK proof layer -- Schnorr knowledge proofs, DLEQ, Bulletproof range proofs\n\nCPU implementation:\n- Knowledge proofs (Schnorr sigma protocol): prove/verify discrete log knowledge\n- DLEQ proofs: prove equality of discrete logs across different bases\n- Bulletproof range proofs (64-bit): prove value in [0, 2^64) without revealing it\n- Inner product argument with recursive halving (6 rounds, log2(64))\n- Nothing-up-my-sleeve generator vectors (64 G + 64 H points)\n- Deterministic nonce derivation with aux_rand XOR hedging\n- CT layer for proving (secret ops), fast layer for verification\n- Tagged hash midstates for all Fiat-Shamir challenges\n- Batch commit operation for multiple Pedersen commitments\n\nGPU kernels (CUDA):\n- pedersen.cuh: batch Pedersen commit + homomorphic sum verification\n- zk.cuh: batch knowledge proof, DLEQ, and range proof polynomial verification\n\nTests: 24/24 pass (knowledge 10, DLEQ 4, range proof 7, batch 1, deterministic 2)\nFull suite: 37/37 CTest targets pass\n\nDocumentation:\n- README: Seeking Sponsors section (audit, bug bounty, development funding)\n- SECURITY.md: sponsor callout in Audit Status section\n- CONTRIBUTING.md: Sponsorship and Funding section\n- FUNDING.yml: added Lightning (stacker.news) link\n\n* perf(zk): MSM-optimize range_verify (1.93x) + add ZK to bench_unified\n\nVerifier optimization:\n- Merge polynomial check into single 5-point MSM (infinity check)\n- Merge P_check and expected into single 144-point MSM\n- Replace 64 individual s_coeff inversions with Montgomery batch\n  inversion (1 inversion + 126 muls instead of 64 inversions)\n- Result: range_verify 5,079 -> 2,634 us (1.93x speedup, 380 ops/s)\n\nbench_unified integration (Section 8.5):\n- Pedersen commit, Knowledge prove/verify, DLEQ prove/verify\n- Bulletproof range_prove/verify (64-bit)\n- Added ZK summary to throughput section\n\nBenchmark results (i7-14400F, 11 passes, pinned):\n  Pedersen commit:       33.0 us (30.3K ops/s)\n  Knowledge prove:       20.3 us (49.3K ops/s)\n  Knowledge verify:      21.8 us (46.0K ops/s)\n  DLEQ prove:            40.0 us (25.0K ops/s)\n  DLEQ verify:           56.4 us (17.7K ops/s)\n  Range prove (64b):  13,467 us (74 ops/s)\n  Range verify (64b):  2,634 us (380 ops/s)\n\nAll 37/37 tests pass.\n\n* docs: add ZK proofs to all documentation\n\nAdd zero-knowledge proof layer documentation across 8 files:\n\n- README.md: ZK feature row in tier table + dedicated ZK section with\n  API examples and benchmark summary\n- CHANGELOG.md: ZK entries under Unreleased (knowledge/DLEQ/Bulletproof,\n  MSM-optimized verifier, GPU kernels, 24 tests, bench_unified)\n- docs/BENCHMARKS.md: ZK benchmark table (7 operations) + range_verify\n  MSM optimization breakdown (1.93x speedup)\n- docs/API_REFERENCE.md: Full ZK API section (knowledge_prove/verify,\n  dleq_prove/verify, range_prove/verify, batch ops, GeneratorVectors)\n- docs/SECURITY_CLAIMS.md: ZK security properties (soundness, zero-\n  knowledge, CT model) + FAST/CT API mapping for all ZK functions\n- docs/TEST_MATRIX.md: test_zk.cpp entry + ZK protocol coverage rows\n- docs/PERFORMANCE_GUIDE.md: ZK performance table + optimization tips +\n  stack usage for range prove/verify\n- docs/AUDIT_GUIDE.md: ZK audit section (knowledge, DLEQ, Bulletproof)\n\n* feat: add GPU ZK proving across CUDA/OpenCL/Metal + fix pre-existing CUDA bugs\n\nCUDA (ct_zk.cuh):\n- CT knowledge proof (Schnorr sigma): ct_scalar_mul for k*B, BIP-340 Y-parity\n- CT DLEQ proof: two ct_scalar_mul (k*G, k*H), 6-point challenge hash\n- Deterministic nonce via SHA-256 tagged hash with XOR hedging\n- Batch kernels for both operations\n- Tests 8-9 in test_ct_smoke.cu: prove+verify round-trips (9/9 pass)\n\nOpenCL (secp256k1_zk.cl):\n- Knowledge prove/verify + DLEQ prove/verify device functions\n- Batch kernels using fast-path wNAF-5 scalar mul\n- point_to_compressed_impl, jacobian_to_affine_impl added\n\nMetal (secp256k1_zk.h + kernels 19-22):\n- Knowledge prove/verify + DLEQ prove/verify functions\n- Kernels 19-22 in secp256k1_kernels.metal\n- Uses branchless affine_select scalar mul (semi-CT)\n\nBug fixes (pre-existing, never compiled before):\n- pedersen.cuh: .d[] -> .limbs[] (7+), remove field_normalize(), remove dup field_sqrt()\n- zk.cuh: .d[] -> .limbs[] in verify/range, fix undefined SCALAR_ONE\n\nDocs: API_REFERENCE, CT_VERIFICATION, SECURITY_CLAIMS, TEST_MATRIX, CHANGELOG\n\n40/40 CTest pass, 18/18 CUDA targets build clean\n\n* perf(cuda): cache ZK tagged hash midstates in __constant__ memory\n\nPrecompute SHA256 midstate (h[8] after processing SHA256(tag)||SHA256(tag))\nfor ZK/nonce, ZK/knowledge, and ZK/dleq tags. Store in __constant__ memory.\nAdd zk_tagged_hash_midstate() that starts from cached state, eliminating\n2 SHA256 compressions per tagged hash call (~15 ns savings per call).\n\nUpdate ct_zk.cuh to use midstate variants in all proving functions.\n\n* perf(cuda): eliminate redundant point_to_compressed in ZK proving\n\nAdd affine_to_compressed() helper and jac_to_compressed() wrapper.\nPrecompute G_COMPRESSED in __constant__ memory.\n\nRefactor ct_zk_derive_nonce to accept pre-compressed bytes.\nIn ct_knowledge_prove_device: compress pubkey/base once, reuse for\nboth nonce derivation and challenge hash (saves 1 field_inv each).\nIn ct_knowledge_prove_generator_device: inline flow with G_COMPRESSED\n(saves 2 field_inv: no base compression + no duplicate pubkey).\nIn ct_dleq_prove_device: pre-compress P,Q,G,H once, reuse for nonce\nand challenge (saves 2 field_inv).\n\n* perf(cuda): batch inversion in ct_scalar_mul table build\n\nReplace 9 individual field_inv calls with Montgomery's batch inversion\n(ct_batch_field_inv): 1 field_inv + 21 field_mul instead of 9 field_inv.\nAt ~11 ns/inv on GPU, this saves ~88 ns per ct_scalar_mul call.\n\nSwitch table accumulation from Jac+Aff mixed add (needs 2P affine)\nto Jac+Jac complete add (keeps everything Jacobian until final batch\nconversion). Slightly more muls per add but massively fewer inversions.\n\n* perf(cuda): precomputed generator table for ct_generator_mul\n\nStore 16-point GLV table for generator G in __constant__ memory:\n- G_TABLE_A[8]: odd multiples 1G, 3G, ..., 15G in affine\n- G_TABLE_B[8]: endomorphism variants (beta*x, y) for GLV\n\nct_generator_mul now loads from precomputed tables instead of\ncomputing the table from scratch each call. This eliminates:\n- 1 field_inv (batch inversion)\n- 7 Jac+Jac additions (table accumulation)\n- 8 affine conversions (z_inv2/z_inv3 + coordinate muls)\n- 1 point doubling (for 2G)\n- 8 beta*x multiplications\n\nBenefits all CT operations using k*G: ECDSA sign, Schnorr sign,\nkeypair generation, ZK knowledge prove.\n\n* perf(cuda): 4-bit windowed evaluation for ct_scalar_mul and ct_generator_mul\n\nReplace bit-by-bit double-and-add (128 dbl + 256 mixed add) with\n4-bit windowed evaluation (132 dbl + 66 mixed add + 66 CT lookups).\n\nct_scalar_mul: build 16-entry table [0P..15P] via 14 Jac+Jac adds +\nbatch inversion of 15 Z values. Process 4 bits per window with CT\ntable lookup (scans all 16 entries) + mixed add.\n\nct_generator_mul: expand precomputed __constant__ tables from 8\nodd-only entries to 15 full entries (1G..15G). Same windowed loop.\n\nNet savings: ~190 fewer mixed additions (7M+5S each) per scalar mul,\nat the cost of 4 extra doublings and 66 CT table lookups (cheap).\n\n* ZK layer: ct_generator_mul, batch Z inversion, verification midstate\n\nProving optimizations (ct_zk.cuh):\n- ct_knowledge_prove_generator: replace ct_scalar_mul with ct_generator_mul\n  (precomputed table: 98ns vs 167ns, ~41% faster on scalar mul portion)\n- ct_knowledge_prove: batch invert pubkey.z + base.z (2->1 field_inv)\n- ct_dleq_prove: batch invert 4 input Z coords (4->1 field_inv)\n  + batch invert R1,R2 Z coords (2->1 field_inv). Total: 6->2 field_inv\n- Add ct_dleq_prove_generator_device: specialized for standard G\n  (ct_generator_mul + G_COMPRESSED + batch 3 input Z coords)\n- Add jac_to_compressed_with_zinv helper for batch compression\n\nVerification optimizations (zk.cuh):\n- knowledge_verify: use affine_to_compressed (skip field_inv for Z=1),\n  precomputed G_COMPRESSED, midstate tagged hash\n- dleq_verify: use affine_to_compressed for 4 Z=1 input points\n  (eliminates 4 field_inv), midstate tagged hash\n- Move affine_to_compressed + G_COMPRESSED to zk.cuh (shared by both paths)\n\n40/40 CTest PASS\n\n* ZK verify: branchless parity, Jacobian cross-multiply, Bulletproof midstates\n\nknowledge_verify_device:\n- field_from_bytes replaces 16-line manual BE parsing\n- Jacobian cross-multiply equality (4 mul + 2 sqr) replaces\n  2x point_to_compressed (2x field_inv)\n\nrange_proof_poly_check_device:\n- affine_to_compressed for Z=1 AffinePoint inputs (A,S,V,T1,T2)\n  eliminates 5x unnecessary field_inv\n- Jacobian cross-multiply for LHS==RHS eliminates 2 more field_inv\n- Bulletproof/{y,z,x} SHA-256 midstates eliminate 6 compressions\n\naffine_to_compressed:\n- branchless Y parity: normalize via limb subtraction, extract\n  limbs[0] & 1, no field_to_bytes(y)\n\nTotal: 9 field_inv eliminated, 6 SHA-256 compressions saved\n\n* ZK: limb zero-check, vectorized XOR/copies, scalar_eq\n\nknowledge_verify + range_proof cross-multiply:\n- Replace 2x field_to_bytes + 64-byte OR with direct limb check\n  (8 limb ORs vs ~100 ops for BE serialization + byte OR)\n\ndleq_verify:\n- Replace manual 4-limb compare with scalar_eq\n\nct_zk_derive_nonce:\n- 4x uint64 XOR replaces 32 byte-wise XOR for aux hedging\n\nBuffer construction (ct_knowledge_prove, knowledge_verify):\n- uint64 copies for aligned 32-byte rx field\n- scalar_to_bytes directly into x_buf (no intermediate buffers)\n\n40/40 CTest PASS\n\n* GPU ZK: Bulletproof range prove/verify + Pedersen commit\n\n- Fix GPU lift_x_even: add hash_to_point_increment (try-and-increment\n  loop) in pedersen.cuh -- SHA256('Pedersen_generator_H') is not a valid\n  x-coordinate, CPU had increment loop but GPU did not. Root cause of\n  256/256 verify failures.\n- Implement ct_range_prove_device in ct_zk.cuh: full 64-bit Bulletproof\n  prover with bit decomposition, vector commitments, Fiat-Shamir\n  challenges, polynomial commitments, and 6-round IPA.\n- Implement range_verify_full_device in zk.cuh: polynomial commitment\n  check + full inner product argument verification with batch scalar\n  inversion and butterfly s_coeff computation.\n- Add bulletproof_init_kernel: 128 generator points (G[64], H[64]) via\n  tagged hash with try-and-increment.\n- Add RangeProofGPU struct, bench_zk benchmark binary (bench_zk.cu).\n- Fix cudafe++ 12.0 crash: auto parameter with default arg in C++17\n  crashes cudafe++ parser, replaced with template<typename F>.\n- Remove bench_zk_diag diagnostic binary.\n- Update benchmark docs with GPU ZK results.\n\nResults (RTX 5060 Ti, batch 256):\n  range_prove:  3,711,570 ns/op (3.7x vs CPU)\n  range_verify:   764,649 ns/op (3.5x vs CPU)\n  pedersen_commit:     66 ns/op (450x vs CPU)\n  Correctness: 0/256 failures\n\nCTest: 45/45 passed\n\n* GPU ZK: warp-parallel verify + GLV + LUT4 precomp (45.1 us, 59.2x vs CPU)\n\nBulletproof range_verify optimization pipeline:\n- Phase 1 parallelization: Fiat-Shamir IPA (6 lanes), s_coeff (32 lanes)\n- Positional LUT4 precomp: 128 BP generators (8 MB), Pedersen H (64 KB)\n- GLV endomorphism: proof-specific scalar_mul lanes use scalar_mul_glv\n- Phase profiling: clock64() instrumentation for per-phase cycle analysis\n\nLane specialization in P1c (22 active lanes):\n  0,3,9 (H): scalar_mul_bp_lut4 (0 doublings)\n  1,8   (G): scalar_mul_generator_const (precomp)\n  2,4,5,7,10-21: scalar_mul_glv (~128 doublings via Shamir)\n\nCorrectness fixes:\n- scalar_negate: fixed aliasing bug (read nz/mask before write)\n- scalar_inverse: eliminated redundant tmp copies (in-place ops)\n\nNew file: bp_gen_table.cuh (LUT4 table init for BP generators + H)\n\nBenchmark evolution (verify_p1par_lut4):\n  warp cooperative  145,710 ns  18.3x vs CPU\n  + LUT4 MSM        123,251 ns  21.7x vs CPU\n  + P1par + H-LUT4   59,351 ns  45.0x vs CPU\n  + GLV              45,102 ns  59.2x vs CPU\n\n* GPU ZK: G generator LUT4 precomp (38.0 us, 70.2x vs CPU)\n\nAdd positional LUT4 table for secp256k1 generator G (64 KB).\nP1c lanes 1,8 now use scalar_mul_bp_lut4(g_bp_g_lut4) instead of\nscalar_mul_generator_const (0 doublings vs 256 doublings).\n\nNew: bp_g_lut4_init_kernel() in bp_gen_table.cuh\n\nP1c lane specialization (all 22 lanes now precomp or GLV):\n  0,3,9 (H): LUT4 (0 doublings)\n  1,8   (G): LUT4 (0 doublings)  <-- was 256 doublings\n  2,4,5,7,10-21: GLV (~128 doublings)\n  6: identity (free)\n\nverify_p1par_lut4: 45,102 -> 38,033 ns (-15.7%, 70.2x vs CPU)\n\n* GPU ZK: eliminate s_inv batch inversion, parallel P1b (35.0 us, 76.3x vs CPU)\n\nP1b restructured: fully parallel s_inv + y_inv_powers + two_powers.\n- s_inv[i] computed by flipped bit logic (same structure as s_coeff)\n  Eliminates 1 scalar_inverse + ~191 sequential muls from lane 0\n- y_inv_powers[i] via binary decomposition: y_inv^i = prod(y_inv^(2^j))\n  Eliminates 63 sequential muls from lane 0\n- two_powers[i] = 2^i via direct bit shift (was sequential add chain)\n- P2 h_coeff factored: h = z + y_inv^i*(z2*2^i - b*s_inv[i]), saves 1 mul/gen\n\nP1b: 783K -> 360K ns (-54.1%)\nverify_p1par_lut4: 38,033 -> 34,983 ns (-8.0%, 76.3x vs CPU)\n\n* GPU ZK: warp-divergence-free P1c (14.8 us, 180x vs CPU)\n\nEliminate warp divergence in Phase 1c scalar_mul lane assignments.\nPrevious if/else chain caused CUDA to serialize all 14 GLV calls\n(each lane's branch executed sequentially). Now all 19 active lanes\ncall scalar_mul_glv uniformly in lockstep.\n\nKey changes:\n- Switch/case data loading (register-only, minimal divergence)\n  then uniform scalar_mul_glv call for all lanes\n- H terms merged: (t_hat + t_ab - delta)*H -> single GLV op (was 3 LUT4)\n- G terms merged: (tau_x - mu)*G -> single GLV op (was 2 LUT4)\n- scalar_mul_glv_wnaf: fixed loop bound (WNAF_MAXLEN=130)\n  avoids per-lane variable max_len divergence\n- 19 active lanes (was 22), 13 idle (was 10)\n\nP1c: 5,048K -> 1,242K ns (-75.4%, 4.1x speedup)\nverify_p1par_lut4: 34,983 -> 14,823 ns (-57.6%, 180.1x vs CPU)\n\n* benchmarks: add ZK layer results for RTX 5060 Ti (14.8 us, 180x vs CPU)\n\nFull Bulletproof range proof benchmark results:\n- Verify: 14,836 ns/op (180.0x vs CPU, 67.4 k/s throughput)\n- Prove: 2,750,526 ns/op (5.0x vs CPU)\n- Pedersen commit: 66.5 ns/op (446.6x vs CPU)\n- Phase profile: P1c 43.5%, P2 40.1%, P1b 12.6%\n- Resource costs: 8.25 MB device mem, 11 KB shared/warp, ~128 regs/thread\n\nIncludes complete optimization history from single-thread (3.5x)\nthrough 9 progressive steps to final warp-divergence-free P1c (180x).\nDocuments two failed P2 optimization attempts and why 14.8 us is the\nfundamental limit.\n\n* feat(zk): port Bulletproof range proof verify to OpenCL and Metal\n\nPort single-thread Bulletproof 64-bit range proof verification from CUDA\n(commit 02ac59d) to OpenCL and Metal backends.\n\nOpenCL (secp256k1_zk.cl, +511 lines):\n- Tagged hash midstate infrastructure (6 precomputed midstates)\n- field_from_bytes, lift_x_field_even, hash_to_point_increment utilities\n- bulletproof_init_kernel: compute 128 generators + ip midstate on device\n- range_verify_full_impl: complete single-work-item Bulletproof verify\n  (Fiat-Shamir, delta, polynomial check, IPA with batch inversion, MSM)\n- bulletproof_verify_batch kernel wrapper\n- Fix: add jacobian_add_impl -> point_add_impl alias (fixes pre-existing\n  undefined symbol in existing ZK kernels)\n- Fix: correct scalar_mul_impl argument order (Scalar, AffinePoint)\n\nMetal (secp256k1_zk.h, +376 lines):\n- Same Bulletproof verify logic adapted for Metal conventions:\n  8x32 limbs, value-return functions, thread qualifiers\n- field_from_bytes, lift_x_field_even, hash_to_point_increment\n- RangeProofGPU struct, ZKTagMidstate, affine_to_compressed\n- range_verify_full: complete single-thread verify function\n- Uses jacobian_add, scalar_mul, scalar_mul_generator_windowed\n\n* fix(metal): field_neg -> field_negate + port ZK poly check & Pedersen to OpenCL/Metal\n\n- Fix Metal build: field_neg() does not exist, corrected to field_negate() (3 calls in secp256k1_zk.h)\n- Add secp256k1_zk.h to Metal CMake shader dependencies\n- OpenCL: add RangeProofPolyGPU polynomial check (fast partial bulletproof verify)\n- OpenCL: add Pedersen commit batch + verify sum kernels\n- Metal: add RangeProofPolyGPU polynomial check inline function\n- Metal: add pedersen_commit inline function\n- Metal: add 5 new kernel entries (bulletproof_init, bulletproof_verify_batch,\n  range_proof_poly_batch, pedersen_commit_batch, pedersen_verify_sum)\n- OpenCL: optimize batch API with cached GPU buffer reuse (36% overhead reduction)\n- OpenCL: all 33/33 tests pass, kG batch=65536: 124.9 ns/op (8.01 M/s)\n\n* fix(ci): release job 404 on duplicate sigstore assets + C# nullable\n\nrelease.yml:\n- Remove dist/**/*.sigstore from files list -- already matched by\n  dist/**/* which includes .sigstore files created by the cosign step.\n  The duplicate glob caused action-gh-release to hit 404 trying to\n  PATCH an already-uploaded asset with the same basename.\n- Add 5s sleep after gh release delete to let GitHub API propagate\n  the deletion before action-gh-release creates the new release.\n\nUfsecp.cs:\n- Add #nullable enable directive to suppress CS8669 warnings about\n  nullable annotations (byte[]?) used without a nullable context.\n\n* fix(ci): resolve compiler warnings + fix benchmark regression gate\n\n- bench_unified.cpp: wrap libsecp section with #pragma GCC diagnostic\n  push/pop to suppress warn_unused_result (GCC ignores (void) casts)\n- zk.cpp: add [[maybe_unused]] to transcript_append_{point,scalar},\n  remove unused variable j\n- test_zk.cpp: remove unused variable all_distinct\n- test_wallet.cpp: add [[maybe_unused]] to bytes_to_hex\n- run_ci.sh: fix benchmark gate awk filter -- skip FIELD/SCALAR\n  sections entirely (micro ops), skip point primitives dbl/add(mixed),\n  lower default BENCH_MIN_RATIO from 1.00 to 0.95 for Docker noise\n  tolerance\n\n* fix(ci): resolve macOS Metal shader errors + code scanning alerts\n\n- Metal: add constant address space overload for zk_tagged_hash_midstate()\n  (constant ZKTagMidstate refs cannot bind to thread address space params)\n- Metal: add device address space overload for scalar_mul()\n  (device AffinePoint arrays cannot bind to thread address space params)\n- Fix -Wsign-conversion in host_helpers.h (int -> size_t loop vars, explicit casts)\n- Fix -Wsign-conversion in audit/test_vectors.hpp (int -> size_t loop vars)\n- Fix -Wunused-const-variable for BARRETT_MU in scalar.cpp (only used in non-int128 path)\n- Fix CodeQL cpp/unused-local-variable alerts in test_edge_cases.cpp:\n  add (void) casts for unused structured binding variables (child, hchild, bad_master, bad_master2)\n\n* fix(metal): add device address space overloads for kernel buffer compatibility\n\n- scalar_from_bytes: device const uchar* overload (copies to thread-local)\n- field_to_bytes: device uchar* output overload (writes via thread-local buf)\n- lift_x: device const uchar* overload (copies to thread-local)\n- jacobian_add_mixed: device const AffinePoint& overload (copies to thread-local)\n\nMetal kernels receive device address space buffers but helper functions declared\nthread-only params. Apple Metal compiler rejects implicit address space casts.\n\n* fix(gpu): revert ECDSA verify from GLV to wNAF-5 + add kernel modules\n\n- Revert ecdsa_verify_impl from scalar_mul_glv_impl to scalar_mul_impl\n  in secp256k1_extended.cl -- GLV has edge case bug with ECDSA verify\n  scalar distributions (works for Schnorr, fails for ECDSA)\n- Fix GLV constant endianness (LE limb order) in extended kernel\n- Add ZK proof kernel (secp256k1_zk.cl) -- Schnorr, DLEQ, Bulletproof\n- Add modular kernel files: CT field/scalar/point/sign/zk, ECDH,\n  BIP-32, recovery, Pedersen, MSM, Keccak-256, bloom, gen tables\n- Port all above to Metal shaders (.h) for macOS GPU backend\n- OpenCL audit: 27/27 modules PASS (was 24/27 before fix)\n\n* feat: BIP-39 mnemonic support + C ABI expansion + FFI round-trip tests\n\nBIP-39 (cpu/src/bip39.cpp, cpu/include/secp256k1/bip39.hpp):\n- Entropy-to-mnemonic (12/15/18/21/24 words), validation, seed derivation\n- PBKDF2-HMAC-SHA512 (2048 rounds), OS CSPRNG entropy source\n- 2048-word English wordlist (BIP-39 spec), 57 tests across 8 functions\n- Registered in run_selftest (module 10/25) and unified_audit_runner\n\nC ABI expansion (include/ufsecp/):\n- Wire ufsecp_frost_verify_partial with verification_share33[33] param\n- Add BIP-39 functions: ufsecp_bip39_generate, _validate, _to_seed\n- Add ZK functions: schnorr_knowledge_proof, dleq_prove/verify\n- Add Bulletproof: range_prove, range_verify, pedersen_commit\n- Add multi-coin: derive_address, get_chain_params\n- Add ECDH: compute_shared_secret (with optional hash)\n- Total: 103 UFSECP_API functions\n\nFFI round-trip audit (audit/test_ffi_round_trip.cpp):\n- 247 test cases covering all C ABI entry points\n- Validates null-arg handling, error codes, round-trip correctness\n- CUDA keccak256.cuh header for GPU Ethereum support\n\n* docs: update versions to v3.22.0 + binding READMEs + CHANGELOG\n\n- Update stale v3.14.0 headers/footers to v3.22.0: BINDINGS.md,\n  DIFFERENTIAL_TESTING.md, AUDIT_TRACEABILITY.md, BINDINGS_PACKAGING.md,\n  INTERNAL_AUDIT.md, LTS_POLICY.md\n- Fix SECURITY_CLAIMS.md footer v3.21.0 -> v3.22.0\n- Update ARCHITECTURE.md, AUDIT_GUIDE.md, CT_VERIFICATION.md,\n  CROSS_PLATFORM_TEST_MATRIX.md, TEST_MATRIX.md, USER_GUIDE.md\n- Update API_REFERENCE.md: frost_verify_partial signature\n- Add BIP-39, ZK, Wallet, Multi-coin, ECDH to CHANGELOG [Unreleased]\n- Update all 12 binding READMEs + wasm/README.md with new API surface\n- Refresh audit reports (clang-17, gcc-13)\n\n* security: comprehensive hardening + adversarial testing + debug invariants\n\n- Parser strictness: FE::parse_bytes_strict at ABI boundary (batch verify,\n  batch identify, adaptor verify)\n- MuSig2 nonce reuse fix (CRITICAL): secnonce zeroed after partial_sign\n- BIP-32 overflow fix: uint64_t bounds check on derivation index\n- BIP-39 validate: null ctx guard added\n- ECIES: HMAC covers ephemeral pubkey, OS CSPRNG, strict prefix validation\n- Zeroization audit: secure_erase across 34 functions (ufsecp_impl, ecdh, ecies)\n\nTesting:\n- test_adversarial_protocol.cpp: 37 tests, 7 categories (MuSig2, FROST,\n  Silent Payments, adaptor sigs, BIP-32, FFI hostile-caller), 150/150 pass\n- CPU-GPU cross-verification: gen_mul, field_mul, ECDSA (GPU audit 45/45)\n- Debug invariants deployed: 15 SECP_ASSERT_* insertions across point.cpp,\n  ecdsa.cpp, schnorr.cpp, scalar.cpp (zero overhead in Release)\n\nDocumentation:\n- docs/FEATURE_ASSURANCE_LEDGER.md: 96 API functions, 25 categories,\n  8 coverage dimensions\n- docs/GPU_VALIDATION_MATRIX.md: CUDA/OpenCL/Metal validation checklist\n- docs/ENGINEERING_WORKDOC.md\n\nAll tests: 42/42 CTest PASS\n\n* audit: ECIES regression suite (85 tests) + CI hardening\n\n- Add test_ecies_regression.cpp with 8 categories (A-H):\n  A. Parity-byte tamper (0x02 <-> 0x03) must fail decrypt\n  B. Invalid pubkey prefix (0x00, 0x04, 0xFF) rejection\n  C. Truncated envelope matrix (0, 1, 32, 33, 49, 81 bytes)\n  D. Tamper matrix (flip ephemeral pubkey/IV/ciphertext/tag)\n  E. Round-trip KAT (1, 13, 32 byte plaintexts + wrong-key)\n  F. C ABI strict prefix rejection (6 prefixes x 5 endpoints)\n  G. Pubkey parser consistency (x>=p, x=0, x>=p+1 across 3 APIs)\n  H. RNG fail-closed seam (fork + seccomp blocks getrandom -> SIGABRT)\n\n- Register in unified_audit_runner + standalone CTest target\n- CI: security-audit.yml triggers on dev branch (was main-only)\n- CI: MSan hard gate -- remove '|| true', increase timeout to 7200s\n\n36/36 CTest pass (including ecies_regression #34, unified_audit #36)\n\n* fix(windows): link bcrypt.lib for BCryptGenRandom (BIP-39 + ECIES)\n\nbip39.cpp and ecies.cpp use BCryptGenRandom on Windows but bcrypt.lib\nwas never added to link dependencies. This caused LNK2001 unresolved\nexternal symbol errors on MSVC builds (CI/windows, Bindings C API,\nBenchmark Dashboard).\n\n- cpu/CMakeLists.txt: add PUBLIC bcrypt on WIN32 to fastsecp256k1\n- bindings/c_api/CMakeLists.txt: add PRIVATE bcrypt on WIN32\n\nRegression introduced in de01b7d (BIP-39 support).\n\n* fix: resolve compiler warnings and ASan+UBSan debug assert failures\n\nCompiler warnings fixed:\n- point.cpp: change build_table lambda param from int to std::size_t,\n  eliminating 'exceeds maximum object size' warning from signed-to-unsigned cast\n- test_adversarial_protocol.cpp: remove unused variables sig, addr, addr_len\n- test_ecies_regression.cpp: add bounds check before tampered buffer XOR\n\nASan+UBSan failures fixed (Debug build):\n- ecdsa.cpp: move zero-key early return before SECP_ASSERT_SCALAR_VALID so\n  ecdsa_sign handles zero private keys gracefully in both Debug and Release\n- test_wycheproof_ecdh.cpp: guard off-curve point ECDH test with NDEBUG;\n  in Debug builds SECP_ASSERT_ON_CURVE correctly aborts on off-curve input\n\nVerified: 43/43 Release CTest, 34/34 ASan+UBSan CTest (clang-18)\n\n* fix(ci): resolve macOS, Android, and TSan CI failures\n\n- macOS: link Security framework for SecRandomCopyBytes (ECIES CSPRNG)\n  in cpu/CMakeLists.txt (PUBLIC) and bindings/c_api/CMakeLists.txt\n- Android: add __ANDROID__ CSPRNG path using /dev/urandom (getrandom\n  requires API 28+, CI targets API 24)\n- TSan: make DebugCounters thread_local to eliminate data race on\n  shared invariant_check_count from multi-threaded precompute\n- Fix -Wsign-conversion in ecies.cpp CT compare loop (int -> size_t)\n\n* fix(security): patch C ABI buffer overflows, unchecked returns, MSan CI\n\nSecurity fixes in ufsecp_impl.cpp:\n- FROST keygen_begin: fix buffer size check (4+N*33 -> 8+N*33)\n- FROST verify_partial/aggregate: group_pubkey32[32] -> group_pubkey33[33]\n- FROST keygen_finalize: add deserialization bounds checks\n- bip39_to_entropy: add output buffer size validation\n- ECIES encrypt: add integer overflow guard for plaintext_len\n- Check all scalar_parse_strict return values (~20 call sites):\n  FROST, MuSig2, Schnorr/ECDSA adaptors, Pedersen, range proof\n- Range proof verify: propagate scalar parse failures\n\nbip39.cpp:\n- Replace 4x std::memset with detail::secure_erase for secrets\n\nMSan CI (.github/workflows/security-audit.yml):\n- Switch to libc++ (-stdlib=libc++) to eliminate false positives\n  from uninstrumented libstdc++ (precompute ofstream, bip39\n  istringstream, ostream<<unsigned long)\n\n* fix(ci): MSan instrumented libc++ + remaining reliability bugs\n\nMSan CI (.github/workflows/security-audit.yml):\n- Build MSan-instrumented libc++ from LLVM 17.0.6 source\n- Cache the built library to avoid rebuilding on every run\n- Use -nostdinc++ -isystem and -L/-rpath to link against it\n- Eliminates all false positives from uninstrumented stdlib\n\nReliability fixes in ufsecp_impl.cpp:\n- Check SchnorrSignature::parse_strict return value in adaptor extract\n- Fix extkey_from_uf: deduplicate identical if/else memcpy,\n  restore pub_prefix for public keys (was silently dropped)\n- Add R_hat infinity check in all 6 adaptor functions\n  (schnorr verify/adapt/extract, ecdsa verify/adapt/extract)\n- Add pubkey infinity check in ufsecp_ecdsa_verify\n- Add infinity checks on all 4 DLEQ prove/verify points\n- Add infinity checks on Pedersen verify_sum commitments\n- Add point_ok flag in range proof verify read_point lambda\n\n* fix(reliability): add infinity checks for all unchecked point_from_compressed calls\n\n- MuSig2: start_sign_session (R1,R2,Q), partial_sign (Q,R),\n  partial_verify (Q,R), partial_sig_agg (R)\n- FROST: keygen_finalize (coefficients), sign (verification_share,\n  group_public_key, nonce hiding/binding points),\n  verify_partial (nonce hiding/binding points),\n  aggregate (nonce hiding/binding points, group_pubkey)\n- Pedersen: verify (commitment), range_prove (commitment),\n  range_verify (commitment)\n- Address: p2pkh and p2wpkh (pubkey)\n\nAll 38 tests pass including unified_audit.\n\n* fix(ci): resolve SonarCloud SE bugs + MSan libunwind install failure\n\nSonarCloud reliability (3 SE-tagged BLOCKER bugs on new code):\n- message_signing.cpp: integer overflow in bitcoin_message_hash total size\n- wallet.cpp: null pointer dereference in sign_hash (hash32 unchecked)\n- ecies.cpp: integer overflow in ecies_encrypt hmac_data/envelope size\n\nMSan CI:\n- Remove libunwind from LLVM_ENABLE_RUNTIMES (not needed, caused\n  install failure: libunwind.so.1.0 not built by 'cxx cxxabi' targets)\n\n* fix(ci): SHA512 direct padding + SonarCloud issue diagnostic step\n\n- Rewrite SHA512::finalize() to use direct in-place padding instead of\n  per-byte update() loop, matching SHA256's approach. The while-loop\n  pattern triggers SonarCloud S3519 false positives because the SE\n  engine cannot prove buf_len_ stays within bounds through the loop.\n\n- Add post-scan diagnostic step to SonarCloud CI that queries the\n  issues API using SONAR_TOKEN to dump open bugs on new code.\n  This reveals the exact file/line/rule of SE-tagged issues that\n  are causing the quality gate failure.\n\n* fix(sonar): suppress S3519 false positive for sha512.hpp finalize() padding\n\nSHA-512 finalize() uses the same buf_len_ bounds pattern as SHA-256:\nbuf_len_ is invariantly [0,127] after update() processes full blocks.\nThe SE engine cannot prove this cross-function invariant, so suppress\ncpp:S3519 for sha512.hpp (same treatment as sha256.hpp / point.cpp).\n\n* fix(ci): suppress S2637 false positive + MSan install workaround\n\nsonar-project.properties:\n  Add e5: cpp:S2637 suppression for ufsecp_impl.cpp.\n  All C ABI functions validate pointers with null checks at entry,\n  but SE engine cannot track guards to later memcpy calls.\n  Same pattern as 4 resolved S2637 issues on main.\n\nsecurity-audit.yml:\n  LLVM 17 runtimes build ignores -DLIBCXX_ENABLE_EXPERIMENTAL_LIBRARY=OFF\n  in the install manifest. Tolerate cmake --install failure and verify\n  libc++.a + libc++abi.a are present. Bump cache key v2 -> v3.\n\n* fix(sonar): add API-based exclusion + verbose + S2259 suppression\n\n- Set multicriteria exclusions via SonarCloud API (server-side)\n- Add sonar.verbose=true for detailed scanner diagnostics\n- Add S2259 suppression for ufsecp_impl.cpp (SE false positive)\n- Improve diagnostic step: quality gate by analysisId, CE warnings\n- Scanner-side + server-side exclusions (belt-and-suspenders)\n\n* fix(sonar): broaden SE rule suppression to all files\n\nThe 3 SE false positives may appear in included headers, not just\nufsecp_impl.cpp. Broaden S2637, S2259, S3519 suppression to **/*\nand add S5782, S5945 as additional SE rules that may trigger in\ncrypto code with verified null checks at all function boundaries.\n\n* ci: exclude slow audit tests from MSan, clean up sonarcloud workflow\n\nMSan runs at ~10-20x overhead, causing 6 audit tests to exceed their\nCTest timeouts (differential, debug_invariants, fault_injection,\nfiat_crypto_vectors, carry_propagation, wycheproof_ecdsa/ecdh).\nThese tests already pass under ASan+UBSan and Valgrind.\n\nAlso remove the failed API exclusion step and verbose flag from the\nSonarCloud workflow -- the suppressions in sonar-project.properties\nare sufficient.\n\n* ci(msan): also exclude batch_randomness from MSan test run\n\nbatch_randomness times out at its 600s CTest timeout under MSan's\n~10-20x overhead. Already verified under ASan+UBSan and Valgrind.\n\n* ci(msan): exclude 5 more audit tests that timeout under MSan\n\ncross_platform_kat, audit_fuzz, ct_verif_formal, ecies_regression,\nand adversarial_protocol all exceed their CTest timeouts under MSan's\n~10-20x overhead. These tests pass under ASan+UBSan and Valgrind.\n\n* docs: add ECIES regression coverage to assurance docs\n\n* test: expand MuSig2/FROST/Adaptor/DLEQ/FFI adversarial coverage\n\n- A.4-A.7: MuSig2 rogue-key, transcript mutation, signer ordering, malicious aggregator\n- B.4-B.5: FROST malicious coordinator, duplicate nonce\n- D.5-D.6: ECDSA adaptor transcript mismatch, extraction misuse\n- E.4-E.5: DLEQ malformed proof corruption, wrong generators\n- G.18-G.20: FFI undersized buffers, overlapping buffers, malformed counts\n- Fix GCC-13 -Warray-bounds false positive (zero_key initialization)\n- Disable LTO in warnings CI job to avoid GCC LTO false positives\n- Update assurance docs: FEATURE_ASSURANCE_LEDGER, TEST_MATRIX, AUDIT_TRACEABILITY\n\n186 adversarial checks, 0 failures. 42/42 ctest passed.\n\n* feat: add ESP32-P4 and ESP32-C6 RISC-V benchmark support\n\nAdd bench_hornet benchmark projects for two new RISC-V 32-bit ESP32 platforms:\n\nESP32-P4 (JC-ESP32P4-M3):\n  - Dual-core RISC-V HP @ 360 MHz, rv32imafc_zicsr_zifencei_xesppie\n  - field_mul: 2.42 us (412.5k op/s)\n  - pubkey_create (k*G): 2252.80 us (444 op/s)\n  - ECDSA verify: 7527.80 us (133 tx/sec)\n  - Schnorr verify: 8052.00 us (124 tx/sec)\n\nESP32-C6 (ESP32-C6-WROOM-1):\n  - Single-core RISC-V @ 160 MHz, rv32imac_zicsr_zifencei\n  - field_mul: 5.97 us (167.6k op/s)\n  - pubkey_create (k*G): 5482.80 us (182 op/s)\n  - ECDSA verify: 18962.60 us (53 tx/sec)\n  - Schnorr verify: 20266.60 us (49 tx/sec)\n\nBoth use 8x32-bit Comba multiply with GCC 14.2.0 (riscv32-esp-elf).\nGCC 14 generates near-optimal RV32 code: 147 mul/mulhu with only 62\nmemory accesses in 1150 instructions. GLV window=5 (auto-detected\nvia __riscv).\n\nBuild: ESP-IDF 5.4, idf.py set-target <chip> && idf.py build\nFlash: idf.py -p /dev/ttyACMx flash monitor\n\n* security: erase secret nonces in CT sign/MuSig2/FROST + workdoc tasks B-F\n\nSECURITY FIXES (critical):\n- ct_sign.cpp: erase k, k_inv, z, s in ecdsa_sign and ecdsa_sign_hedged\n  (nonce leak = full private key recovery via k = (s*k_inv)^-1 * (z+r*d))\n- musig2.cpp: erase k (effective nonce) and d (adjusted key) in partial_sign\n- frost.cpp: erase polynomial coefficients in keygen_begin, erase d/ei/s_i\n  in frost_sign (previously had ZERO secure_erase calls)\n\nCI/WORKFLOWS:\n- clang-tidy.yml, cppcheck.yml: remove path filters for reliable required checks\n- ct-verif.yml: add dev to PR branches trigger\n\nTESTS:\n- test_adversarial_protocol.cpp: add A.8 MuSig2 abort/restart, B.6 FROST\n  participant identity mismatch (195 tests, 0 failures)\n- ci-evidence/: fuzz + adversarial execution proofs\n\nNAMING FIX:\n- Replace stale bench_comprehensive with bench_unified in 6 files:\n  Dockerfile, local-ci.sh, PORTING.md, issue template, AUDIT_COVERAGE.md,\n  unified_audit_runner.cpp (bench_comprehensive CMake target removed)\n\nDOCS (8 new, 1 updated):\n- BACKEND_PARITY.md: GPU operation parity matrix (CPU/CUDA/OpenCL/Metal)\n- FEATURE_MATURITY.md: per-feature maturity classification\n- PARSER_BOUNDARY_AUDIT.md: all C ABI parser entry points mapped\n- FFI_HOSTILE_CALLER.md: 20 hostile-caller attack vectors documented\n- SECRET_LIFECYCLE.md: secret material lifecycle and zeroization map\n- CI_ENFORCEMENT.md: workflow enforcement levels and fail policy\n- BENCHMARK_POLICY.md: canonical benchmark tool and regression policy\n- local_ci_failure_playbook.md: diagnosis playbook for local CI failures\n- FEATURE_ASSURANCE_LEDGER.md: fix 7 stale GPU matrix entries\n\n* feat: add SQLite project knowledge graph (22 tables, 7K+ records)\n\n- build_project_graph.py: scans codebase, populates 22 tables (source_files,\n  c_abi_functions, include_deps, edges, test_targets, ci_workflows,\n  audit_modules, cpp_methods, security_patterns, abi_routing,\n  binding_languages, macros, file_summaries, function_index, etc.)\n- query_graph.py: 22 CLI commands for agents (context, search, file, deps,\n  rdeps, subsystem, abi, impact, security, routing, methods, gaps, etc.)\n- preflight.py: pre-commit quality gate (5 checks: security invariants,\n  test coverage gaps, graph freshness, doc-code pairing, ABI surface)\n- context command: one-shot file info (summary+deps+rdeps+tests+security+\n  routing+functions with exact line ranges) -- saves 80% tool calls\n- file_summaries: 77 one-line descriptions for token-efficient agent context\n- function_index: 1119 function/method line ranges for precise read_file\n- FTS5 full-text search across files, functions, docs, methods, routing\n- 2400+ cross-reference edges (6 relation types)\n- .gitignore: exclude generated .project_graph.db\n\n* feat: CI preflight gate, assurance tooling, adversarial test depth\n\nNew CI workflow:\n- preflight.yml: security+ABI hard-fail, coverage/freshness advisory,\n  assurance report artifact upload\n\nNew scripts:\n- validate_assurance.py: cross-ref ledger vs ufsecp.h, TEST_MATRIX vs CTest\n- export_assurance.py: machine-readable JSON (subsystems, API coverage,\n  security density, protocol status, routing summary)\n- release_diff.py: release diff with ABI changes, categorized files, checklist\n\nNew docs:\n- BACKEND_ASSURANCE_MATRIX.md: CPU/CUDA/OpenCL/Metal feature/audit/secret matrix\n- RELEASE_VERIFICATION.md: SHA256/cosign/SLSA provenance verification guide\n\nModified:\n- preflight.py: DOC_PAIRS expanded 5->21 (protocols, CT, GPU, headers)\n- test_adversarial_protocol.cpp: +test_frost_stale_commitment_replay (B.7),\n  +test_ffi_invalid_enums (G.21: network/compressed flag boundary values)\n\n* fix: close 24 assurance drift issues, harden CI gates, gitignore audit outputs\n\n- Add ufsecp_abi_version to FEATURE_ASSURANCE_LEDGER (109/109 functions)\n- Add 23 undocumented CTest targets to TEST_MATRIX (56/56 covered)\n- Fix validate_assurance.py regex to handle path-style entries and .mm files\n- Harden preflight.yml: validate_assurance + freshness now hard-fail\n- Coverage and changed-files stay advisory (documented reason in workflow)\n- Add audit-output-*/ to .gitignore (machine-specific generated artifacts)\n- Remove tracked audit-output dirs from index (files remain on disk)\n- Rebuild project graph (841 source files, 301 security patterns)\n\nvalidate_assurance.py: 0 issues (was 24)\n\n* fix: CI build failures + ufsecp_abi_version false-positive\n\n- Fix test_adversarial_protocol.cpp: rename nonexistent ufsecp_p2pkh_address /\n  ufsecp_p2wpkh_address / ufsecp_p2tr_address to correct API names\n  ufsecp_addr_p2pkh / ufsecp_addr_p2wpkh / ufsecp_addr_p2tr\n- build_project_graph.py: scan ufsecp_version.h in addition to ufsecp.h\n  (picks up ufsecp_abi_version, ufsecp_version, ufsecp_version_string)\n- preflight.py: scan ufsecp_version.h with UFSECP_API regex (no comment\n  false-positives), ABI surface now shows 0 drift\n- validate_assurance.py: scan both headers with UFSECP_API regex\n- FEATURE_ASSURANCE_LEDGER: add ufsecp_version + ufsecp_version_string\n  (111/111 functions, section 1 now 9 functions)\n- Coverage stays advisory: 15 untested core files are mostly asm/platform\n  code not amenable to unit tests (field_asm, hash_accel, precompute)\n\n* fix: FROST tests extract group_pub from correct keypkg offset\n\nThe FROST adversarial tests extracted group_pub from offset 0 of keypkg\n(which contains id|threshold|num_participants|signing_share), instead of\noffset 77 where the 33-byte compressed group public key actually lives.\n\nThis caused B.7 (stale commitment replay) to fail its baseline CHECK_OK\nassertion, cascading to unified_audit AUDIT-BLOCKED on all CI platforms.\n\nFix: group_pub[32] -> group_pub[33], memcpy from keypkgs[0]+77 (33 bytes),\nand schnorr_verify uses group_pub+1 (x-only, skipping 02/03 prefix byte).\n\n* feat(gpu): backend-neutral GPU C ABI layer (ufsecp_gpu_*)\n\nImplements the GPU API workdoc: a 3-layer architecture wrapping existing\nCUDA/OpenCL/Metal engines behind a stable C ABI.\n\nLayer 2 -- Host Ops API:\n  - gpu/include/gpu_backend.hpp: abstract GpuBackend interface + DeviceInfo\n  - gpu/src/gpu_registry.cpp: compile-time backend factory\n  - gpu/src/gpu_backend_cuda.cu: 4/6 ops (gen_mul, ecdsa_verify,\n    schnorr_verify, hash160)\n  - gpu/src/gpu_backend_opencl.cpp: 1/6 ops (generator_mul)\n  - gpu/src/gpu_backend_metal.mm: stub (all UNSUPPORTED pending shaders)\n  - gpu/CMakeLists.txt: conditional backend compilation\n\nLayer 3 -- Stable C ABI (ufsecp_gpu.h):\n  - 16 public functions: discovery (5), lifecycle (5), batch ops (6)\n  - GPU error codes 100-106, separate opaque ufsecp_gpu_ctx\n  - include/ufsecp/ufsecp_gpu_impl.cpp: C ABI implementation\n\nTesting:\n  - audit/test_gpu_abi_gate.cpp: 39 assertions covering discovery,\n    lifecycle, NULL safety, error strings, generator_mul equivalence\n  - 42/42 CTest targets pass (including new gpu_abi_gate)\n\nCMake integration:\n  - Main CMakeLists.txt: add_subdirectory(gpu) with backend guards\n  - include/ufsecp/CMakeLists.txt: link gpu_host layer into ufsecp\n  - opencl/CMakeLists.txt: POSITION_INDEPENDENT_CODE for shared lib\n\nDocumentation updated atomically:\n  - API_REFERENCE.md: GPU Operations section with all 16 functions\n  - FEATURE_ASSURANCE_LEDGER.md: Section 26 (GPU C ABI) + updated stats\n  - FEATURE_MATURITY.md: GPU C ABI Layer tier table\n  - TEST_MATRIX.md: gpu_abi_gate entry\n\n* fix: guard GPU test behind secp256k1_gpu_host target, scan ufsecp_gpu.h in assurance\n\nTwo CI fixes for the GPU C ABI commit (492c75c):\n\n1. audit/CMakeLists.txt: Change gpu_abi_gate guard from\n   'if(TARGET ufsecp_static)' to 'if(TARGET secp256k1_gpu_host AND\n   TARGET ufsecp_static)'. Without GPU backends, ufsecp_static exists\n   but lacks GPU symbols, causing link failures on all 23 CI jobs.\n\n2. scripts/validate_assurance.py: Add ufsecp_gpu.h to scanned headers\n   so the 16 GPU ABI functions are counted in assurance validation.\n\nVerified: 38/38 tests pass (non-GPU), 41/41 tests pass (OpenCL).\nPreflight hard-fail checks all pass.\n\n* gpu: complete P0-P2 GPU API TODO -- CUDA/OpenCL/Metal\n\nCUDA completeness (P0):\n- Implement ecdh_batch kernel (thin wrapper over cuda::ecdh_compute)\n- Implement MSM: scatter k*P kernels + host-side accumulation\n- Split compilation: extract FieldElement-dependent code to\n  gpu_backend_cuda_host.cpp (host compiler, not nvcc) with POD-only\n  header gpu_cuda_host_helpers.h\n- Fix namespace: extern kernel decls in secp256k1::cuda:: (not gpu::)\n- Add POSITION_INDEPENDENT_CODE for CUDA static lib (shared lib linking)\n\nTest infrastructure (P0):\n- test_gpu_ops_equivalence.cpp: 6 equivalence tests (CPU vs GPU)\n- test_gpu_host_api_negative.cpp: 8 groups, 55 negative checks\n- test_gpu_backend_matrix.cpp: backend enum + per-backend op probing\n- Wire 3 new test targets in audit/CMakeLists.txt\n\nOpenCL expansion (P1):\n- Implement ecdh_batch, hash160_pubkey_batch, msm (4/6 ops now)\n- ECDSA/Schnorr verify remain UNSUPPORTED stubs\n\nError model hardening (P1):\n- Reorder all backends: count=0 check before NULL check (no-op is valid)\n- Unsupported stubs check is_ready() before returning\n- MSM n=0 returns Ok, infinity returns Arith\n\nMetal scope clarity (P2):\n- Mark Metal backend EXPERIMENTAL in header + ufsecp_gpu.h\n- All Metal stubs check is_ready()\n\nLTO/CUDA compatibility:\n- Guard INTERFACE -flto propagation when CUDA is enabled\n  (nvcc LTO v12 vs GCC LTO v14 version mismatch)\n- Add IPO opt-out for GPU-linked test targets\n\nDocumentation:\n- GPU_VALIDATION_MATRIX.md: feature maturity table\n- TEST_MATRIX.md: 3 new GPU test targets\n- AUDIT_TRACEABILITY.md: GPU coverage entries\n- ufsecp_gpu.h: feature maturity section (CUDA 6/6, OpenCL 4/6, Metal 0/6)\n- C example: include/ufsecp/examples/gpu_example.c\n\n* fix: Metal device validation + GPU audit presets + docs + examples (#146)\n\n* fix: CUDA RIPEMD160 r2 table + ECDH y-parity + GPU-side conversion\n\n- hash160.cuh: fix transposed r2[46..47] (was 13,4 -> correct 4,13)\n- ecdh.cuh: compute y-parity for SHA-256(02/03||x) to match CPU ecdh_compute\n- gpu_backend_cuda.cu: GPU-side Jacobian<->compressed conversion\n  via batch_jac_to_compressed_kernel and batch_compressed_to_jac_kernel;\n  fix bytes_to_scalar/bytes_to_field byte order;\n  add msm_reduce_and_compress_kernel for GPU-side MSM accumulation;\n  remove dead host-side FieldElement code\n- gpu/CMakeLists.txt: remove gpu_backend_cuda_host.cpp\n- bindings/rust: add hex dev-dep, fix abi_version() call in smoke test\n- bindings/nodejs: add koffi-based smoke test (Node 22 compatible)\n\nGPU test results: 154 passed, 0 failed\n  gpu_abi_gate:          44/44\n  gpu_ops_equivalence:   55/55\n  gpu_host_api_negative: 55/55\n\nBinding tests:\n  Rust (cargo test):     13/13\n  Node.js (koffi):       12/12\n\n* examples: add 6-language example suite (C, Python, Rust, Node.js, Go, Java)\n\nComprehensive CPU + GPU examples for all supported binding languages:\n\n- C:       Direct C ABI calls, 16 demo sections (CPU + GPU)\n- Python:  ctypes + Ufsecp wrapper, 14 sections (CPU + GPU)\n- Rust:    Safe ufsecp crate wrapper, 9 sections (CPU only)\n- Node.js: koffi FFI, 12 sections (CPU + GPU)\n- Go:      Pure cgo, 14 sections (CPU + GPU)\n- Java:    JNA FFI, 14 sections (CPU + GPU)\n\nEach example covers: key generation, ECDSA (sign/verify/recover/DER),\nSchnorr (BIP-340), ECDH, hashing (SHA-256, Hash160), Bitcoin addresses\n(P2PKH, P2WPKH, P2TR), WIF encoding, BIP-32 HD derivation, and Taproot.\n\nGPU examples demonstrate: backend discovery, batch key generation,\nbatch ECDSA verify, batch Hash160, and multi-scalar multiplication.\n\nAll 6 examples tested and verified against RTX 5060 Ti (CUDA + OpenCL).\n\n* examples: add GPU+Pedersen to all 6 languages, expand README\n\n- Rust: add GPU sections [10]-[15] + Pedersen, add GPU+Pedersen FFI to ufsecp-sys\n- Node.js: add BIP-32, Taproot, Pedersen sections [8]-[10], renumber GPU [11]-[15]\n- Python: add Pedersen section [10] via direct ctypes\n- Go: add Pedersen section [10] via cgo\n- Java: add Pedersen JNA declarations + section [10]\n- Rust safe wrapper: add Context::as_ptr() for GPU FFI access\n- examples/README.md: comprehensive rewrite with all 6 languages, build/run\n  instructions, feature coverage matrix, embedded platforms, troubleshooting\n- README.md: add Highlights, Performance, Architecture stack diagram,\n  Hardware Compatibility table (16 platforms), Embedded Targets, Examples\n  index, Use Cases section; expand Architecture with bindings + source tree\n\nAll 6 examples tested: C 16/16, Rust 15/15, Python 15/15, Node.js 15/15,\nGo 15/15, Java 15/15 -- all sections pass including GPU operations.\n\n* docs: fix GPU backend maturity labels, add docs links, clean repo hygiene\n\n- .gitignore: add rules for example build artifacts (binaries, node_modules,\n  target/, Cargo.lock, package-lock.json, .class files)\n- README.md: fix GPU overclaims -- OpenCL is partial (4/6 ops), Metal is\n  experimental (discovery only); add GPU API, Validation Matrix, Feature\n  Maturity, Supported Guarantees, Examples to Documentation table\n- FEATURE_MATURITY.md: fix contradictions -- ECDSA/Schnorr verify GPU column\n  corrected from 'all 3' to 'CUDA' (OpenCL UNSUPPORTED per ufsecp_gpu.h);\n  BIP-32 HD GPU corrected from 'all 3' to '-' (no GPU C ABI path)\n- GPU_VALIDATION_MATRIX.md: add CI and Local Verification table documenting\n  that CUDA/OpenCL tests pass locally (RTX 5060 Ti), GH Actions lacks GPU\n  runners; all 4 GPU C ABI tests (gpu_abi_gate, gpu_ops_equivalence,\n  gpu_host_api_negative, gpu_backend_matrix) confirmed in ctest matrix (49\n  total) and pass\n\n* fix: Metal device index validation + canonical GPU audit presets\n\n- Metal backend: reject out-of-range device_index in init() before\n  creating MetalRuntime (fixes gpu_host_api_negative on macOS CI)\n- CMakePresets.json: add cuda-audit, cuda-audit-5060ti configure/build\n  presets and testPresets for reproducible 49-test GPU verification\n- docs/BUILDING.md: document canonical GPU audit build path\n- docs/LOCAL_CI.md: add GPU proof-path quick-reference\n- docs/README.md: update docs index entry\n\n---------\n\nCo-authored-by: shrec <shrec@users.noreply.github.com>\n\n---------\n\nCo-authored-by: shrec <shrec@users.noreply.github.com>",
+          "timestamp": "2026-03-16T03:40:00+04:00",
+          "tree_id": "ad146f37fe9f24e373f9873da0a45b1ab5bb393a",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/b3c0e7c87e2f0e31957652e960b8834cdfef089e"
+        },
+        "date": 1773618268801,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "field_inv",
+            "value": 1048.1,
+            "unit": "ns"
+          },
+          {
+            "name": "scalar_inv",
+            "value": 1335.8,
+            "unit": "ns"
+          },
+          {
+            "name": "pubkey_create (k*G)",
+            "value": 8024,
+            "unit": "ns"
+          },
+          {
+            "name": "scalar_mul (k*P)",
+            "value": 33368.4,
+            "unit": "ns"
+          },
+          {
+            "name": "scalar_mul_with_plan",
+            "value": 32617.2,
+            "unit": "ns"
+          },
+          {
+            "name": "dual_mul (a*G + b*P)",
+            "value": 36264.1,
+            "unit": "ns"
+          },
+          {
+            "name": "point_add (affine+affine)",
+            "value": 1304.8,
+            "unit": "ns"
+          },
+          {
+            "name": "point_add (J+A mixed)",
+            "value": 240.1,
+            "unit": "ns"
+          },
+          {
+            "name": "point_dbl",
+            "value": 144.7,
+            "unit": "ns"
+          },
+          {
+            "name": "batch_normalize /pt (N=64)",
+            "value": 187,
+            "unit": "ns"
+          },
+          {
+            "name": "next_inplace (+=G)",
+            "value": 253.1,
+            "unit": "ns"
+          },
+          {
+            "name": "KPlan::from_scalar(w=4)",
+            "value": 2681.7,
+            "unit": "ns"
+          },
+          {
+            "name": "batch_to_compressed /pt (N=64)",
+            "value": 200,
+            "unit": "ns"
+          },
+          {
+            "name": "batch_x_only_bytes /pt (N=64)",
+            "value": 148.3,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_sign",
+            "value": 10681.9,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_sign_verified",
+            "value": 66932.2,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_verify",
+            "value": 38193.7,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_keypair_create",
+            "value": 8287.8,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_sign",
+            "value": 8894.3,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_sign_verified",
+            "value": 48932.4,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_verify (cached xonly)",
+            "value": 38529.5,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_verify (raw bytes)",
+            "value": 39710.9,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_batch_verify(N=4)",
+            "value": 148884.8,
+            "unit": "ns"
+          },
+          {
+            "name": "-> per-sig amortized (N=4)",
+            "value": 37221.2,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_batch_verify(N=16)",
+            "value": 605335.7,
+            "unit": "ns"
+          },
+          {
+            "name": "-> per-sig amortized (N=16)",
+            "value": 37833.5,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_batch_verify(N=64)",
+            "value": 3973047.3,
+            "unit": "ns"
+          },
+          {
+            "name": "-> per-sig amortized (N=64)",
+            "value": 62078.9,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_batch_verify(N=4)",
+            "value": 144854.9,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_batch_verify(N=16)",
+            "value": 581093.3,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_batch_verify(N=64)",
+            "value": 2337004.7,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::scalar_inverse (SafeGCD)",
+            "value": 1860.5,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::generator_mul (k*G)",
+            "value": 17527.6,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::scalar_mul (k*P)",
+            "value": 39136.2,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::point_dbl",
+            "value": 143.6,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::point_add_complete (11M+6S)",
+            "value": 400.6,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::point_add_mixed_complete (7M+5S)",
+            "value": 276.7,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::point_add_mixed_unified (7M+5S)",
+            "value": 274.4,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::ecdsa_sign",
+            "value": 22007.6,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::ecdsa_sign_verified",
+            "value": 78074.2,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::schnorr_sign",
+            "value": 19491.1,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::schnorr_sign_verified",
+            "value": 59674.3,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::schnorr_keypair_create",
+            "value": 19004.2,
+            "unit": "ns"
+          },
+          {
+            "name": "keccak256 (32B)",
+            "value": 437.7,
+            "unit": "ns"
+          },
+          {
+            "name": "ethereum_address",
+            "value": 439.5,
+            "unit": "ns"
+          },
+          {
+            "name": "eip191_hash",
+            "value": 438.5,
+            "unit": "ns"
+          },
+          {
+            "name": "eth_sign_hash",
+            "value": 11959.5,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_sign_recoverable",
+            "value": 10598.2,
+            "unit": "ns"
+          },
+          {
+            "name": "ecrecover",
+            "value": 47761.7,
+            "unit": "ns"
+          },
+          {
+            "name": "eth_personal_sign",
+            "value": 11191,
+            "unit": "ns"
+          },
+          {
+            "name": "ethereum_address_eip55",
+            "value": 989.8,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdh_compute (SHA256 shared secret)",
+            "value": 40731.4,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdh_compute_raw (x-only shared)",
+            "value": 40464.6,
+            "unit": "ns"
+          },
+          {
+            "name": "taproot_output_key (BIP-341 key path)",
+            "value": 16472.1,
+            "unit": "ns"
+          },
+          {
+            "name": "taproot_tweak_privkey (BIP-341)",
+            "value": 19990,
+            "unit": "ns"
+          },
+          {
+            "name": "bip32_master_key (64B seed)",
+            "value": 1305.7,
+            "unit": "ns"
+          },
+          {
+            "name": "bip32_coin_derive_key (BTC m/84'/0'/0'/0/0)",
+            "value": 139648.2,
+            "unit": "ns"
+          },
+          {
+            "name": "coin_address_from_seed (BTC end-to-end)",
+            "value": 160560,
+            "unit": "ns"
+          },
+          {
+            "name": "coin_address_from_seed (ETH end-to-end)",
+            "value": 160767.3,
+            "unit": "ns"
+          },
+          {
+            "name": "silent_payment_create_output",
+            "value": 48334.3,
+            "unit": "ns"
+          },
+          {
+            "name": "silent_payment_scan (single output set)",
+            "value": 67338.1,
+            "unit": "ns"
+          },
+          {
+            "name": "field_inv_var",
+            "value": 1136.2,
+            "unit": "ns"
+          },
+          {
+            "name": "scalar_inverse (CT)",
+            "value": 1911.1,
+            "unit": "ns"
+          },
+          {
+            "name": "scalar_inverse_var",
+            "value": 1165.5,
+            "unit": "ns"
+          },
+          {
+            "name": "point_dbl (gej_double_var)",
+            "value": 147.7,
+            "unit": "ns"
+          },
+          {
+            "name": "point_add (gej_add_ge_var)",
+            "value": 246.6,
+            "unit": "ns"
+          },
+          {
+            "name": "ecmult (a*P + b*G, Strauss)",
+            "value": 37446.7,
+            "unit": "ns"
+          },
+          {
+            "name": "ecmult_gen (k*G, comb)",
+            "value": 18438.4,
+            "unit": "ns"
+          },
+          {
+            "name": "generator_mul (ec_pubkey_create)",
+            "value": 20356.2,
+            "unit": "ns"
+          },
+          {
+            "name": "scalar_mul_P (k*P, tweak_mul)",
+            "value": 34729.2,
+            "unit": "ns"
+          },
+          {
+            "name": "point_add (pubkey_combine)",
+            "value": 2549.6,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_sign (BIP-340)",
+            "value": 21833.4,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_verify (BIP-340)",
+            "value": 40118.6,
+            "unit": "ns"
+          },
+          {
+            "name": "generator_mul (EC_POINT_mul k*G)",
+            "value": 392517.5,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_sign (ECDSA_do_sign)",
+            "value": 415403.9,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_verify (ECDSA_do_verify)",
+            "value": 376450.4,
+            "unit": "ns"
+          },
+          {
+            "name": "Pedersen commit",
+            "value": 57399.8,
+            "unit": "ns"
+          },
+          {
+            "name": "Knowledge prove (sigma)",
+            "value": 41684.1,
+            "unit": "ns"
+          },
+          {
+            "name": "Knowledge verify",
+            "value": 40713.5,
+            "unit": "ns"
+          },
+          {
+            "name": "DLEQ prove",
+            "value": 81038,
+            "unit": "ns"
+          },
+          {
+            "name": "DLEQ verify",
+            "value": 107499.4,
+            "unit": "ns"
+          },
+          {
+            "name": "Bulletproof range_prove (64b)",
+            "value": 24338928.4,
+            "unit": "ns"
+          },
+          {
+            "name": "Bulletproof range_verify (64b)",
+            "value": 4923187.6,
             "unit": "ns"
           },
           {
