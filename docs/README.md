@@ -177,9 +177,9 @@ UltrafastSecp256k1/
 | RISC-V 64 | RV64GC + RVV | RISC-V ASM | [OK] Production |
 | Android ARM64 | Cortex-A55/A76 | ARM64 ASM | [OK] Production |
 | iOS 17+ | Apple Silicon | ARM64 ASM | [OK] CI (testers wanted) |
-| CUDA (sm_75+) | PTX | PTX inline | [OK] Production |
-| ROCm / HIP | GCN / RDNA | Portable | [OK] CI (testers wanted) |
-| OpenCL 3.0 | PTX | PTX inline | [OK] Production |
+| CUDA (sm_75+) | PTX | PTX inline | [OK] Production path |
+| ROCm / HIP | GCN / RDNA | Portable | [..] Planned hardware validation |
+| OpenCL 3.0 | PTX | PTX inline | [OK] Broader backend, partial unified GPU C ABI (4/6) |
 | WebAssembly | Emscripten | Portable C++ | [OK] Production |
 | ESP32-S3 | Xtensa LX7 | Portable C++ | [OK] Tested |
 | ESP32-PICO-D4 | Xtensa LX6 | Portable C++ | [OK] Tested |

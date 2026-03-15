@@ -344,8 +344,8 @@ job_ct_verif() {
     rm -rf "$ct_repo" "$ct_build" "$ct_ir"
     mkdir -p "$ct_ir"
 
-    if ! git clone --depth 1 https://github.com/imdea-software/verifying-constant-time.git "$ct_repo"; then
-        echo "[WARN] ct-verif: unable to clone verifier repo, skipping"
+    if ! timeout 60 git clone --depth 1 https://github.com/imdea-software/verifying-constant-time.git "$ct_repo"; then
+        echo "[WARN] ct-verif: unable to clone verifier repo (timeout or network), skipping"
         return 0
     fi
 

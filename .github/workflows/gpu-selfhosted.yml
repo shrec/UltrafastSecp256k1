@@ -1,0 +1,285 @@
+# ============================================================================
+# GPU Self-Hosted CI -- CUDA/OpenCL Validation on Real Hardware
+# ============================================================================
+# Runs GPU C ABI tests, unified audit, and benchmarks on a self-hosted
+# NVIDIA runner (parking-gpu / RTX 5060 Ti).
+#
+# Triggers:
+#   - Push to dev/main (GPU-affecting paths)
+#   - Pull request to dev/main
+#   - Nightly schedule (04:00 UTC) -- full GPU validation
+#   - Manual dispatch
+#
+# Artifacts:
+#   - GPU environment manifest (driver, CUDA, compiler, GPU model)
+#   - ctest output log
+#   - GPU audit reports (JSON + TXT)
+#   - Benchmark results (raw + JSON)
+#   - Per-commit proof summary
+# ============================================================================
+
+name: GPU CI (Self-Hosted)
+
+on:
+  push:
+    branches: [dev, main]
+    paths:
+      - 'gpu/**'
+      - 'cuda/**'
+      - 'opencl/**'
+      - 'cpu/src/**'
+      - 'cpu/include/**'
+      - 'include/ufsecp/**'
+      - 'audit/**'
+      - 'CMakeLists.txt'
+      - 'CMakePresets.json'
+      - '.github/workflows/gpu-selfhosted.yml'
+  pull_request:
+    branches: [dev, main]
+    paths:
+      - 'gpu/**'
+      - 'cuda/**'
+      - 'opencl/**'
+      - 'cpu/src/**'
+      - 'cpu/include/**'
+      - 'include/ufsecp/**'
+      - 'audit/**'
+      - 'CMakeLists.txt'
+      - 'CMakePresets.json'
+      - '.github/workflows/gpu-selfhosted.yml'
+  schedule:
+    # Nightly 04:00 UTC -- full GPU validation + backend matrix
+    - cron: '0 4 * * *'
+  workflow_dispatch:
+    inputs:
+      run_benchmarks:
+        description: 'Run GPU benchmarks (adds ~5 min)'
+        required: false
+        default: 'true'
+        type: boolean
+      full_audit:
+        description: 'Run full unified audit (adds ~2 min)'
+        required: false
+        default: 'true'
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gpu-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ==========================================================================
+  # Job 1: GPU Environment Manifest + Build + Test
+  # ==========================================================================
+  gpu-validation:
+    name: GPU Validation (CUDA + OpenCL)
+    runs-on: [self-hosted, linux, x64, cuda, rtx5060ti]
+    timeout-minutes: 30
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      with:
+        persist-credentials: false
+        submodules: recursive
+
+    # -- P0 #3: Environment manifest ------------------------------------------
+    - name: Emit GPU environment manifest
+      id: env-manifest
+      run: |
+        mkdir -p /tmp/gpu-ci-artifacts
+
+        cat > /tmp/gpu-ci-artifacts/gpu_environment.json << ENVEOF
+        {
+          "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+          "commit_sha": "${{ github.sha }}",
+          "ref": "${{ github.ref }}",
+          "event": "${{ github.event_name }}",
+          "runner": "$(hostname)",
+          "gpu": {
+            "model": "$(nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null || echo 'N/A')",
+            "driver": "$(nvidia-smi --query-gpu=driver_version --format=csv,noheader 2>/dev/null || echo 'N/A')",
+            "compute_cap": "$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader 2>/dev/null || echo 'N/A')",
+            "memory_mb": "$(nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits 2>/dev/null || echo 'N/A')",
+            "cuda_version": "$(nvcc --version 2>/dev/null | grep -oP 'release \K[0-9.]+' || echo 'N/A')"
+          },
+          "compiler": {
+            "cxx": "$(g++ --version 2>/dev/null | head -1 || echo 'N/A')",
+            "cmake": "$(cmake --version 2>/dev/null | head -1 || echo 'N/A')",
+            "ninja": "$(ninja --version 2>/dev/null || echo 'N/A')"
+          },
+          "os": {
+            "kernel": "$(uname -r)",
+            "distro": "$(lsb_release -ds 2>/dev/null || cat /etc/os-release 2>/dev/null | grep PRETTY_NAME | cut -d= -f2 | tr -d '\"' || echo 'N/A')",
+            "arch": "$(uname -m)"
+          }
+        }
+        ENVEOF
+
+        cat /tmp/gpu-ci-artifacts/gpu_environment.json
+        echo "gpu_model=$(nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null)" >> "$GITHUB_OUTPUT"
+
+    # -- Configure + Build ----------------------------------------------------
+    - name: Configure (CUDA + OpenCL Release)
+      run: |
+        cmake -S . -B build/gpu-ci \
+          -G Ninja \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DSECP256K1_BUILD_CPU=ON \
+          -DSECP256K1_BUILD_CUDA=ON \
+          -DSECP256K1_BUILD_TESTS=ON \
+          -DSECP256K1_BUILD_BENCH=ON \
+          -DSECP256K1_BUILD_EXAMPLES=ON \
+          -DCMAKE_CUDA_ARCHITECTURES="89"
+
+    - name: Build (all targets)
+      run: cmake --build build/gpu-ci -j$(nproc)
+
+    # -- P0 #2: GPU C ABI test slice -----------------------------------------
+    - name: GPU C ABI tests
+      id: gpu-tests
+      run: |
+        ctest --test-dir build/gpu-ci \
+          --output-on-failure \
+          -j$(nproc) \
+          -R "^(gpu_abi_gate|gpu_ops_equivalence|gpu_host_api_negative|gpu_backend_matrix)$" \
+          2>&1 | tee /tmp/gpu-ci-artifacts/gpu_ctest_output.txt
+
+    # -- CPU core tests (sanity) ----------------------------------------------
+    - name: CPU core tests
+      run: |
+        ctest --test-dir build/gpu-ci \
+          --output-on-failure \
+          -j$(nproc) \
+          -E "^(ct_sidechannel|gpu_)" \
+          2>&1 | tee -a /tmp/gpu-ci-artifacts/cpu_ctest_output.txt
+
+    # -- P1 #4: Unified audit ------------------------------------------------
+    - name: Unified audit
+      if: >-
+        github.event_name == 'schedule' ||
+        github.event_name == 'workflow_dispatch' && inputs.full_audit == 'true' ||
+        github.event_name == 'push'
+      run: |
+        AUDIT_BIN=$(find build/gpu-ci -name unified_audit_runner -type f | head -1)
+        if [ -n "$AUDIT_BIN" ] && [ -x "$AUDIT_BIN" ]; then
+          "$AUDIT_BIN" --report-dir /tmp/gpu-ci-artifacts 2>&1 | tee /tmp/gpu-ci-artifacts/audit_stdout.txt
+        else
+          echo "::warning::unified_audit_runner not found in build"
+        fi
+
+    # -- P1 #5: Benchmarks ---------------------------------------------------
+    - name: Run benchmarks
+      if: >-
+        github.event_name == 'schedule' ||
+        github.event_name == 'workflow_dispatch' && inputs.run_benchmarks == 'true' ||
+        github.event_name == 'push'
+      run: |
+        BENCH_BIN=$(find build/gpu-ci -name bench_unified -type f | head -1)
+        if [ -n "$BENCH_BIN" ] && [ -x "$BENCH_BIN" ]; then
+          "$BENCH_BIN" --quick 2>&1 | tee /tmp/gpu-ci-artifacts/benchmark_raw.txt
+
+          # Parse to JSON if parser exists
+          if [ -f .github/scripts/parse_benchmark.py ]; then
+            python3 .github/scripts/parse_benchmark.py \
+              /tmp/gpu-ci-artifacts/benchmark_raw.txt \
+              /tmp/gpu-ci-artifacts/benchmark_gpu.json || true
+          fi
+        else
+          echo "::warning::bench_unified not found in build"
+        fi
+
+    # -- P3 #11: Nightly backend matrix validation ----------------------------
+    - name: Backend matrix validation (nightly)
+      if: github.event_name == 'schedule'
+      run: |
+        echo "=== Backend Discovery ===" | tee /tmp/gpu-ci-artifacts/backend_matrix.txt
+
+        # CUDA device info
+        nvidia-smi 2>&1 | tee -a /tmp/gpu-ci-artifacts/backend_matrix.txt
+        echo "" >> /tmp/gpu-ci-artifacts/backend_matrix.txt
+
+        # OpenCL device info (if clinfo available)
+        if command -v clinfo &>/dev/null; then
+          echo "=== OpenCL Devices ===" >> /tmp/gpu-ci-artifacts/backend_matrix.txt
+          clinfo --list 2>&1 | tee -a /tmp/gpu-ci-artifacts/backend_matrix.txt
+        fi
+
+        # Run backend matrix test specifically
+        ctest --test-dir build/gpu-ci \
+          --output-on-failure \
+          -R "gpu_backend_matrix" \
+          2>&1 | tee -a /tmp/gpu-ci-artifacts/backend_matrix.txt
+
+    # -- P1 #6: Per-commit proof summary --------------------------------------
+    - name: Generate proof summary
+      if: always()
+      run: |
+        GPU_TESTS="${{ steps.gpu-tests.outcome }}"
+        cat > /tmp/gpu-ci-artifacts/proof_summary.json << PROOFEOF
+        {
+          "commit": "${{ github.sha }}",
+          "ref": "${{ github.ref }}",
+          "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+          "event": "${{ github.event_name }}",
+          "runner": "$(hostname)",
+          "gpu_model": "${{ steps.env-manifest.outputs.gpu_model }}",
+          "results": {
+            "gpu_tests": "${GPU_TESTS}",
+            "cpu_tests": "$([ -f /tmp/gpu-ci-artifacts/cpu_ctest_output.txt ] && grep -c 'Passed' /tmp/gpu-ci-artifacts/cpu_ctest_output.txt || echo 'N/A')",
+            "audit": "$([ -f /tmp/gpu-ci-artifacts/audit_report.json ] && echo 'present' || echo 'not_run')",
+            "benchmark": "$([ -f /tmp/gpu-ci-artifacts/benchmark_raw.txt ] && echo 'present' || echo 'not_run')"
+          },
+          "artifacts": [
+            "gpu_environment.json",
+            "gpu_ctest_output.txt",
+            "cpu_ctest_output.txt",
+            "audit_report.json",
+            "audit_report.txt",
+            "benchmark_raw.txt",
+            "benchmark_gpu.json",
+            "proof_summary.json"
+          ]
+        }
+        PROOFEOF
+
+        cat /tmp/gpu-ci-artifacts/proof_summary.json
+
+    # -- Step Summary ---------------------------------------------------------
+    - name: Job summary
+      if: always()
+      run: |
+        echo "## GPU CI Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "| Item | Status |" >> $GITHUB_STEP_SUMMARY
+        echo "|------|--------|" >> $GITHUB_STEP_SUMMARY
+        echo "| GPU Model | ${{ steps.env-manifest.outputs.gpu_model }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| GPU Tests | ${{ steps.gpu-tests.outcome }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Commit | \`${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+
+        if [ -f /tmp/gpu-ci-artifacts/gpu_ctest_output.txt ]; then
+          echo "### GPU Test Output" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat /tmp/gpu-ci-artifacts/gpu_ctest_output.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+        fi
+
+        if [ -f /tmp/gpu-ci-artifacts/benchmark_raw.txt ]; then
+          echo "### Benchmark (quick)" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          head -60 /tmp/gpu-ci-artifacts/benchmark_raw.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+        fi
+
+    # -- Upload all artifacts -------------------------------------------------
+    - name: Upload GPU CI artifacts
+      if: always()
+      uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+      with:
+        name: gpu-ci-${{ github.sha }}
+        path: /tmp/gpu-ci-artifacts/
+        retention-days: 90

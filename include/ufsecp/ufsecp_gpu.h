@@ -21,8 +21,11 @@
  *   per-operation varies:
  *
  *     CUDA   -- all 6 first-wave ops implemented
- *     OpenCL -- 4/6 ops (generator_mul, ecdh, hash160, msm); ECDSA/Schnorr
- *               verify return UNSUPPORTED (needs extended kernel compilation)
+ *     OpenCL -- the native backend itself has broader coverage, but this
+ *               first-wave unified C ABI currently exposes 4/6 ops
+ *               (generator_mul, ecdh, hash160, msm); ECDSA/Schnorr verify
+ *               return UNSUPPORTED here until the extended verify kernels are
+ *               wired through the shared host ABI layer
  *     Metal  -- device discovery / lifecycle only; all ops return UNSUPPORTED
  *
  *   Operations that a backend does not implement return

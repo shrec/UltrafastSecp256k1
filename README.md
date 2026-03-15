@@ -6,7 +6,7 @@
 
 ### Why UltrafastSecp256k1?
 
-- **Fastest open-source GPU signatures** -- no other library provides secp256k1 ECDSA + Schnorr sign/verify on CUDA; OpenCL covers core ECC ops, Metal provides discovery/lifecycle ([reproducible benchmark suite and raw logs](docs/BENCHMARKS.md))
+- **High-throughput GPU secp256k1 engine** -- CUDA delivers full first-wave GPU ops with reproducible benchmark evidence; the OpenCL backend has broader native coverage, while the shared first-wave GPU C ABI currently exposes generator-mul, ECDH, Hash160, and MSM there; Metal currently provides discovery/lifecycle integration ([raw logs and methodology](docs/BENCHMARKS.md))
 - **High-performance CPU secp256k1 engine** -- optimized generator multiply, scalar multiply, hashing, and serialization pipelines across x86-64, ARM64, RISC-V, and embedded targets ([see bench_unified ratio table](docs/BENCHMARKS.md))
 - **Independent benchmark wins on real workloads** -- BIP-352 Silent Payments scanning and other end-to-end flows show strong results in standalone external and in-repo benchmarks ([standalone benchmark by @craigraw](https://github.com/craigraw/bench_bip352))
 - **Built for modern secp256k1 workloads** -- signing, verification, wallet derivation, threshold protocols, adaptor signatures, ZK primitives, address generation, and large-scale public-key pipelines in one engine
@@ -77,7 +77,7 @@
 
 ## Highlights
 
-- **GPU-accelerated secp256k1** -- ECDSA + Schnorr sign/verify on CUDA; core ECC on OpenCL; Metal experimental
+- **GPU-accelerated secp256k1** -- ECDSA + Schnorr sign/verify on CUDA; broader native OpenCL backend plus partial first-wave OpenCL C ABI; Metal experimental
 - **Zero-Knowledge cryptographic layer** -- Pedersen commitments, DLEQ proofs, Bulletproof range proofs
 - **Multi-language bindings** -- Python, Node.js, Rust, Go, C#, Java, Swift, PHP, Ruby, Dart
 - **Embedded device support** -- ESP32-S3, ESP32-P4, ESP32-C6, STM32 Cortex-M
@@ -1219,7 +1219,7 @@ cosign verify-blob SHA256SUMS \
 > All functions in `ct::` namespace are constant-time: field arithmetic, scalar arithmetic, point multiplication, complete addition, signing, and ECDH. The C ABI uses CT internally for all secret-key operations. See [CT Evidence](#ct-evidence--methodology) above.
 
 **Which parts are production-safe today?**
-> This library has **not been independently audited**. Tier 1 features (core ECC, ECDSA, Schnorr, ECDH) are extensively tested (12,000+ test cases, ASan/UBSan/TSan CI, fuzz testing). For production systems handling real funds, prefer audited libraries until an independent audit is completed.
+> This library has **not been independently audited**. Tier 1 features (core ECC, ECDSA, Schnorr, ECDH, stable C ABI) are extensively tested, fuzzed, regression-gated, and run through sanitizer-backed CI. Teams can evaluate it today with a strong self-audit trail, but high-value production deployments should still prefer independently audited cryptographic libraries until external review is completed.
 
 **How do I reproduce the benchmarks?**
 > See [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md) for exact commands, pinned compiler/driver versions, and raw logs. The [live dashboard](https://shrec.github.io/UltrafastSecp256k1/dev/bench/) tracks performance across commits.
@@ -1340,7 +1340,7 @@ All sponsors are acknowledged in the README and release notes.
 
 ---
 
-**UltrafastSecp256k1** -- The fastest open-source secp256k1 library. GPU-accelerated ECDSA & Schnorr signatures for Bitcoin, Ethereum, and 25+ blockchains. Zero dependencies. Constant-time layer. 12+ platforms.
+**UltrafastSecp256k1** -- High-performance secp256k1 cryptography for CPU, CUDA, OpenCL, mobile, embedded, and WebAssembly. GPU-accelerated ECDSA and Schnorr on CUDA, zero dependencies, constant-time secret-key paths, and broad multi-platform coverage.
 
 <!-- SEO keywords (not rendered by GitHub) -->
 <!-- secp256k1 library fastest GPU CUDA OpenCL Metal ROCm ECDSA sign verify Schnorr BIP-340 Bitcoin Ethereum signature acceleration elliptic curve cryptography C++ C++20 high performance zero dependency batch verification constant time side channel resistance embedded ESP32 STM32 ARM Cortex-M RISC-V ARM64 WebAssembly WASM cross-platform multi-coin address generation BIP-32 BIP-44 HD wallet derivation key recovery EIP-155 RFC-6979 transaction signing blockchain cryptocurrency libsecp256k1 alternative NVIDIA AMD Apple Silicon MuSig2 FROST threshold signatures Taproot BIP-341 BIP-342 Pedersen commitments adaptor signatures ECDH key exchange secp256k1 GPU acceleration secp256k1 on embedded secp256k1 benchmarks secp256k1 constant time secp256k1 WASM secp256k1 C ABI FFI bindings Python Go Rust Java Node.js fastest secp256k1 implementation constant-time ECC library for RISC-V bitcoin cryptography optimization high-throughput elliptic curve signing secp256k1 RISC-V constant-time branchless cryptography GLV endomorphism Hamburg signed-digit comb Renes-Costello-Bathalter complete addition formulas dudect side-channel testing ASan UBSan TSan fuzzing libFuzzer valgrind memcheck security audit vulnerability scanning SLSA provenance supply chain security OpenSSF Scorecard CodeQL SonarCloud clang-tidy static analysis Docker container reproducible build Debian APT RPM Arch AUR Linux packaging MIT open source cryptographic library secp256k1 formal verification Fiat-Crypto Montgomery multiplication Barrett reduction BIP-327 multi-party computation MPC digital signatures public key cryptography PKI key agreement protocol -->

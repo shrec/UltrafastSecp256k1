@@ -89,7 +89,7 @@ The GPU audit cannot run on GitHub CI (no GPU runners). It runs **locally only**
 
 ```bash
 # From library root:
-cmake --preset cuda-audit-5060ti
+cmake --preset cuda-release-5060ti
 cmake --build --preset cuda-audit-5060ti -j
 ```
 

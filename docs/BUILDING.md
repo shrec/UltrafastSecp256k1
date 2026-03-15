@@ -87,7 +87,7 @@ Use the preset-based path below when you want the GPU C ABI tests to appear in
 
 ```bash
 # Configure + build the canonical CUDA audit tree
-cmake --preset cuda-audit-5060ti
+cmake --preset cuda-release-5060ti
 cmake --build --preset cuda-audit-5060ti -j
 
 # Verify the GPU audit tests are present

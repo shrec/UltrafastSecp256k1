@@ -122,9 +122,18 @@ add_test(NAME abi_gate COMMAND test_abi_gate)
 set_tests_properties(abi_gate PROPERTIES TIMEOUT 30)
 
 # -- GPU ABI gate (requires GPU host layer + ufsecp with GPU impl) ----------
-if(TARGET secp256k1_gpu_host AND TARGET ufsecp_static)
+if(TARGET secp256k1_gpu_host AND (TARGET ufsecp_shared OR TARGET ufsecp_static))
+    # Prefer the already device-linked shared C ABI when present.
+    # This avoids duplicate CUDA static archive/device-link ownership in the
+    # standalone GPU audit executables while keeping a static fallback.
+    if(TARGET ufsecp_shared)
+        set(UFSECP_GPU_TEST_LIB ufsecp_shared)
+    else()
+        set(UFSECP_GPU_TEST_LIB ufsecp_static)
+    endif()
+
     add_executable(test_gpu_abi_gate test_gpu_abi_gate.cpp)
-    target_link_libraries(test_gpu_abi_gate PRIVATE ufsecp_static)
+    target_link_libraries(test_gpu_abi_gate PRIVATE ${UFSECP_GPU_TEST_LIB})
     target_include_directories(test_gpu_abi_gate PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/../include
         ${CMAKE_BINARY_DIR}/include/ufsecp    # ufsecp_version.h
@@ -135,7 +144,7 @@ if(TARGET secp256k1_gpu_host AND TARGET ufsecp_static)
 
     # -- GPU ops equivalence (GPU vs CPU reference) --
     add_executable(test_gpu_ops_equivalence test_gpu_ops_equivalence.cpp)
-    target_link_libraries(test_gpu_ops_equivalence PRIVATE ufsecp_static)
+    target_link_libraries(test_gpu_ops_equivalence PRIVATE ${UFSECP_GPU_TEST_LIB})
     target_include_directories(test_gpu_ops_equivalence PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/../include
         ${CMAKE_BINARY_DIR}/include/ufsecp
@@ -146,7 +155,7 @@ if(TARGET secp256k1_gpu_host AND TARGET ufsecp_static)
 
     # -- GPU host API negative tests --
     add_executable(test_gpu_host_api_negative test_gpu_host_api_negative.cpp)
-    target_link_libraries(test_gpu_host_api_negative PRIVATE ufsecp_static)
+    target_link_libraries(test_gpu_host_api_negative PRIVATE ${UFSECP_GPU_TEST_LIB})
     target_include_directories(test_gpu_host_api_negative PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/../include
         ${CMAKE_BINARY_DIR}/include/ufsecp
@@ -157,7 +166,7 @@ if(TARGET secp256k1_gpu_host AND TARGET ufsecp_static)
 
     # -- GPU backend matrix (enumerate + probe) --
     add_executable(test_gpu_backend_matrix test_gpu_backend_matrix.cpp)
-    target_link_libraries(test_gpu_backend_matrix PRIVATE ufsecp_static)
+    target_link_libraries(test_gpu_backend_matrix PRIVATE ${UFSECP_GPU_TEST_LIB})
     target_include_directories(test_gpu_backend_matrix PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/../include
         ${CMAKE_BINARY_DIR}/include/ufsecp

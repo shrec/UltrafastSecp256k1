@@ -1711,6 +1711,24 @@ jobs:
           SBOM_HEREDOC
           sed -i "s/VERSION_PLACEHOLDER/${VERSION}/g; s/TIMESTAMP_PLACEHOLDER/${TIMESTAMP}/g" sbom.cdx.json
 
+      # -- GPU evidence bundle (P4: release evidence) --
+      - name: Collect GPU validation evidence
+        run: |
+          mkdir -p gpu_evidence
+          # Fetch latest GPU CI artifact for this commit (if available)
+          RUN_ID=$(gh api "repos/${{ github.repository }}/actions/workflows/gpu-selfhosted.yml/runs?head_sha=${{ github.sha }}&status=completed&per_page=1" \
+            --jq '.workflow_runs[0].id' 2>/dev/null || echo "")
+          if [ -n "$RUN_ID" ] && [ "$RUN_ID" != "null" ]; then
+            echo "Found GPU CI run: $RUN_ID"
+            gh run download "$RUN_ID" -D gpu_evidence --repo "${{ github.repository }}" 2>/dev/null || true
+          else
+            echo "No GPU CI run found for ${{ github.sha }} -- generating placeholder"
+            echo '{"status":"no_gpu_ci_run","commit":"${{ github.sha }}"}' > gpu_evidence/gpu_status.json
+          fi
+          ls -la gpu_evidence/ 2>/dev/null || true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Delete pre-existing release (if any)
         run: |
           gh release delete "${{ github.ref_name }}" --yes 2>/dev/null || true
@@ -1742,6 +1760,7 @@ jobs:
             selftest_report.json
             traceability_report.json
             verification_report.md
+            gpu_evidence/**
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
