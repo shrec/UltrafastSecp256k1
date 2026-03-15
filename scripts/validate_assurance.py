@@ -94,8 +94,10 @@ def scan_test_matrix_targets():
     if not matrix.exists():
         return set()
     targets = set()
-    # Match backtick-wrapped filenames in table rows: `audit_field.cpp`
-    file_re = re.compile(r'`([\w_-]+\.(?:cpp|cu|hpp))`')
+    # Match backtick-wrapped filenames (with optional path prefix): `audit_field.cpp`, `metal/tests/test_metal_host.cpp`
+    file_re = re.compile(r'`(?:[\w./-]*/)?([\w_-]+\.(?:cpp|cu|hpp|mm))`')
+    # Also match bare CTest target names in backtick table cells: `cuda_selftest`
+    target_re = re.compile(r'`([\w_-]+)`')
     with open(matrix, 'r', errors='replace') as f:
         for line in f:
             for m in file_re.finditer(line):
@@ -109,6 +111,14 @@ def scan_test_matrix_targets():
                 targets.add(stem)
                 # Also keep the raw filename stem
                 targets.add(Path(fname).stem)
+            # Capture bare identifiers (only from table rows with |)
+            if '|' in line:
+                for m in target_re.finditer(line):
+                    name = m.group(1)
+                    # Skip if it looks like a source file (already handled above)
+                    if '.' in name:
+                        continue
+                    targets.add(name)
     return targets
 
 

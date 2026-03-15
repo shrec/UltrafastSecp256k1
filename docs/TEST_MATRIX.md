@@ -41,6 +41,17 @@
 | `test_fuzz_address_bip32_ffi.cpp` | 10K/suite | Address/BIP-32/FFI fuzz: P2PKH/P2WPKH/P2TR/WIF, BIP-32 paths, BIP-39, coin derivation, FFI boundaries |
 | `bench_ct_vs_libsecp.cpp` | -- | Performance comparison with libsecp256k1 |
 | `bench_field_ops.cpp` | -- | Field operation microbenchmarks |
+| `test_abi_gate.cpp` | -- | ABI compatibility gate: version checks, symbol presence, struct sizes |
+| `test_batch_randomness.cpp` | -- | Batch randomness: nonce independence, distribution, uniqueness |
+| `test_carry_propagation.cpp` | -- | Carry propagation: field arithmetic edge cases across limb boundaries |
+| `test_cross_libsecp256k1.cpp` | -- | Cross-implementation: differential test against bitcoin-core/secp256k1 |
+| `test_cross_platform_kat.cpp` | -- | Cross-platform known-answer tests: deterministic outputs across architectures |
+| `test_debug_invariants.cpp` | -- | Debug invariants: internal consistency checks under debug mode |
+| `test_fiat_crypto_linkage.cpp` | -- | Fiat-Crypto linkage: formal arithmetic verification vectors |
+| `test_frost_kat.cpp` | -- | FROST t-of-n threshold signing known-answer tests |
+| `test_wycheproof_ecdsa.cpp` | -- | Wycheproof ECDSA: Google Project Wycheproof test vectors |
+| `test_wycheproof_ecdh.cpp` | -- | Wycheproof ECDH: Google Project Wycheproof test vectors |
+| `unified_audit_runner.cpp` | 49 modules | Unified audit: all 49 audit modules in single binary |
 
 ### CPU Unit Tests (`cpu/tests/`)
 
@@ -69,6 +80,9 @@
 | `test_exhaustive.cpp` | Exhaustive tests (small curves) | [OK] |
 | `test_v4_features.cpp` | v4 feature tests | [OK] |
 | `run_selftest.cpp` | Selftest runner (smoke/ci/stress) | [OK] |
+| `test_ecc_properties.cpp` | ECC algebraic properties: associativity, commutativity, distributivity | [OK] |
+| `test_edge_cases.cpp` | Edge cases: scalar zero, infinity arithmetic, BIP-32 IL>=n, cache corruption | [OK] |
+| `test_point_edge_cases.cpp` | Point edge cases: infinity, Z=0 guards, roundtrip encoding | [OK] |
 
 ### Fuzz Harnesses (`cpu/fuzz/`)
 
@@ -86,8 +100,13 @@
 | `opencl/tests/opencl_extended_test.cpp` | OpenCL | Extended operations |
 | `opencl/src/opencl_audit_runner.cpp` | OpenCL | Unified GPU audit (27 modules, 8 sections) |
 | `metal/tests/test_metal_host.cpp` | Metal | Metal shader correctness |
-| `metal/src/metal_audit_runner.mm` | Metal | Unified GPU audit (27 modules, 8 sections) |
+| `metal/src/metal_audit_runner.mm` | Metal | `secp256k1_metal_audit`: unified GPU audit (27 modules, 8 sections) |
 | `cuda/src/test_ct_smoke.cu` | CUDA | CT smoke tests incl. ZK knowledge + DLEQ prove/verify (9 tests) |
+| `cuda/src/test_suite.cu` | CUDA | `cuda_selftest`: kernel correctness, field + scalar + point ops |
+| `cuda/src/gpu_audit_runner.cu` | CUDA | `gpu_audit`: unified GPU audit (27 modules, 8 sections) |
+| `metal/app/metal_test.mm` | Metal | `secp256k1_metal_test`: shader correctness, compute pipeline |
+| `metal/app/bench_metal.mm` | Metal | `secp256k1_metal_bench_full`: comprehensive Metal benchmark |
+| `compat/libsecp256k1_shim/tests/shim_test.cpp` | CPU | `secp256k1_shim_test`: libsecp256k1 API compatibility shim |
 
 ---
 

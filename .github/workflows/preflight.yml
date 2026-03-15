@@ -1,7 +1,8 @@
 # preflight.yml -- Pre-commit quality gate
 # Runs preflight.py checks on every push/PR to main/dev.
-# Hard-fail: --security, --abi
-# Advisory: --coverage, --freshness (warnings only)
+# Hard-fail: --security, --abi, --freshness, validate_assurance.py
+# Advisory: --coverage (may flag gaps that are acknowledged in FEATURE_ASSURANCE_LEDGER),
+#           --changed (informational only, no blocking threshold)
 
 name: Preflight
 
@@ -48,14 +49,14 @@ jobs:
       - name: Preflight -- Coverage gaps (advisory)
         run: python3 scripts/preflight.py --coverage || true
 
-      - name: Preflight -- Graph freshness (advisory)
-        run: python3 scripts/preflight.py --freshness || true
+      - name: Preflight -- Graph freshness (hard-fail)
+        run: python3 scripts/preflight.py --freshness
 
       - name: Preflight -- Changed files impact (advisory)
         run: python3 scripts/preflight.py --changed || true
 
-      - name: Assurance docs validation (advisory)
-        run: python3 scripts/validate_assurance.py || true
+      - name: Assurance docs validation (hard-fail)
+        run: python3 scripts/validate_assurance.py
 
       - name: Export assurance report (JSON)
         run: python3 scripts/export_assurance.py -o assurance_report.json
