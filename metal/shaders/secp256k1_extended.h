@@ -441,6 +441,158 @@ inline bool scalar_is_low_s(thread const Scalar256 &s) {
 }
 
 // =============================================================================
+// wNAF Helpers for GLV Scalar Multiplication
+// =============================================================================
+
+// Extract count bits at bit position pos from 8x32 LE scalar.
+// count in [1,5]. Positions beyond 255 return 0.
+inline uint scalar_get_bits_256(thread const Scalar256 &s, int pos, int count) {
+    int limb_idx = pos >> 5;
+    int bit_off  = pos & 31;
+    uint val = 0;
+    if (limb_idx < 8) {
+        val = s.limbs[limb_idx] >> bit_off;
+        if (bit_off + count > 32 && limb_idx + 1 < 8) {
+            val |= s.limbs[limb_idx + 1] << (32 - bit_off);
+        }
+    }
+    return val & ((1u << count) - 1);
+}
+
+// Encode scalar into width-w wNAF (windowed Non-Adjacent Form).
+// Digits are odd values in [-(2^(w-1)-1) .. +(2^(w-1)-1)].
+// Output zero-filled to max_len. Uses char to minimize register pressure.
+inline void wnaf_encode(thread const Scalar256 &s, int w,
+                         thread char *out, int max_len) {
+    for (int i = 0; i < max_len; i++) out[i] = 0;
+
+    int carry = 0;
+    int bit = 0;
+
+    while (bit < max_len) {
+        uint b = scalar_get_bits_256(s, bit, 1);
+        if (int(b) == carry) {
+            bit++;
+            continue;
+        }
+
+        int now = w;
+        if (now > max_len - bit) now = max_len - bit;
+
+        int word = int(scalar_get_bits_256(s, bit, now)) + carry;
+        carry = word >> (w - 1);
+        word -= carry << w;
+
+        out[bit] = char(word);
+        bit += now;
+    }
+}
+
+// Mixed addition P (Jacobian) + Q (Affine) -> Result + H z-ratio.
+// hmv formula: 8M + 3S. Z3 = Z1 * H where H = U2 - X1.
+// Used by build_wnaf_table_zr for the z-ratio precomputed table technique.
+inline JacobianPoint jacobian_add_mixed_h(thread const JacobianPoint &p,
+                                           thread const AffinePoint &q,
+                                           thread FieldElement &h_out) {
+    if (p.infinity != 0) {
+        JacobianPoint r;
+        r.x = q.x; r.y = q.y;
+        r.z = field_one();
+        r.infinity = 0;
+        h_out = field_one();
+        return r;
+    }
+
+    FieldElement z1z1 = field_sqr(p.z);
+    FieldElement u2 = field_mul(q.x, z1z1);
+    FieldElement z1_cubed = field_mul(p.z, z1z1);
+    FieldElement s2 = field_mul(q.y, z1_cubed);
+
+    if (field_eq(p.x, u2)) {
+        h_out = field_one();
+        if (field_eq(p.y, s2)) return jacobian_double(p);
+        return point_at_infinity();
+    }
+
+    FieldElement h = field_sub(u2, p.x);
+    h_out = h;
+
+    FieldElement hh = field_sqr(h);
+    FieldElement hhh = field_mul(h, hh);
+    FieldElement rr = field_sub(s2, p.y);
+    FieldElement v = field_mul(p.x, hh);
+
+    FieldElement t1 = field_add(v, v);
+    FieldElement X3 = field_sqr(rr);
+    X3 = field_sub(X3, hhh);
+    X3 = field_sub(X3, t1);
+
+    t1 = field_mul(p.y, hhh);
+    FieldElement v_minus_x3 = field_sub(v, X3);
+    FieldElement Y3 = field_mul(rr, v_minus_x3);
+    Y3 = field_sub(Y3, t1);
+
+    FieldElement Z3 = field_mul(p.z, h);
+
+    JacobianPoint r;
+    r.x = X3; r.y = Y3; r.z = Z3;
+    r.infinity = 0;
+    return r;
+}
+
+// Build odd-multiple table [1P, 3P, ..., (2*n-1)*P] using the z-ratio technique.
+// All table entries share an implied Z = globalz. Zero field inversions.
+inline void build_wnaf_table_zr(thread const AffinePoint &base,
+                                  thread AffinePoint *tbl, int table_size,
+                                  thread FieldElement &globalz) {
+    JacobianPoint P_jac;
+    P_jac.x = base.x; P_jac.y = base.y;
+    P_jac.z = field_one(); P_jac.infinity = 0;
+
+    JacobianPoint D = jacobian_double(P_jac);
+
+    FieldElement C = D.z;
+    FieldElement C2 = field_sqr(C);
+    FieldElement C3 = field_mul(C2, C);
+
+    AffinePoint d_aff;
+    d_aff.x = D.x; d_aff.y = D.y;
+
+    JacobianPoint ai;
+    ai.x = field_mul(base.x, C2);
+    ai.y = field_mul(base.y, C3);
+    ai.z = field_one();
+    ai.infinity = 0;
+
+    tbl[0].x = ai.x;
+    tbl[0].y = ai.y;
+
+    FieldElement zr[8];
+    zr[0] = C;
+
+    for (int i = 1; i < table_size; i++) {
+        FieldElement h;
+        ai = jacobian_add_mixed_h(ai, d_aff, h);
+        tbl[i].x = ai.x;
+        tbl[i].y = ai.y;
+        zr[i] = h;
+    }
+
+    globalz = field_mul(ai.z, C);
+
+    FieldElement zs = zr[table_size - 1];
+    for (int idx = table_size - 2; idx >= 0; --idx) {
+        if (idx != table_size - 2) {
+            zs = field_mul(zs, zr[idx + 1]);
+        }
+        FieldElement zs2 = field_sqr(zs);
+        FieldElement zs3 = field_mul(zs2, zs);
+        tbl[idx].x = field_mul(tbl[idx].x, zs2);
+        tbl[idx].y = field_mul(tbl[idx].y, zs3);
+    }
+}
+
+// =============================================================================
 // GLV Endomorphism (Jacobian version)
 // =============================================================================
 
@@ -571,42 +723,86 @@ inline void glv_decompose(thread const Scalar256 &k,
 }
 
 // GLV-accelerated scalar multiplication: k*P
-// Uses interleaved binary w/ mixed additions for ~30% fewer doublings
+// Uses wNAF w=4 with z-ratio precomputed tables and Shamir's interleaved
+// evaluation. Endomorphism table computed on-the-fly to reduce register pressure.
+// Thread-local: 4 AffinePoints (256B) + 2 char[130] (260B) = ~850B.
 inline JacobianPoint scalar_mul_glv(thread const AffinePoint &base,
                                      thread const Scalar256 &k) {
     if (scalar256_is_zero(k)) return point_at_infinity();
 
+    // Phase 1: GLV decomposition
     Scalar256 k1, k2;
     int k1_neg, k2_neg;
     glv_decompose(k, k1, k2, k1_neg, k2_neg);
 
-    // Build base P, negate if k1 is negative
+    // Phase 2: Prepare base point
     AffinePoint P = base;
     if (k1_neg) P.y = field_negate(P.y);
 
-    // Build phi(P) = (beta*x, (+/-)y)
+    // Phase 3: Build precomputed table [1P, 3P, 5P, 7P] via z-ratio (w=4)
+    AffinePoint tbl[4];
+    FieldElement globalz;
+    build_wnaf_table_zr(P, tbl, 4, globalz);
+
+    // Phase 4: wNAF encode both half-scalars (char arrays for minimal stack)
+    const int WNAF_W = 4;
+    const int WNAF_LEN = 130;
+    char wnaf1[WNAF_LEN], wnaf2[WNAF_LEN];
+    wnaf_encode(k1, WNAF_W, wnaf1, WNAF_LEN);
+    wnaf_encode(k2, WNAF_W, wnaf2, WNAF_LEN);
+
+    // Precompute beta for on-the-fly endomorphism: phi(x,y) = (beta*x, +-y)
     FieldElement beta;
     for (int i = 0; i < 8; i++) beta.limbs[i] = BETA_LIMBS[i];
-    AffinePoint phiP;
-    phiP.x = field_mul(P.x, beta);
-    phiP.y = (k1_neg != k2_neg) ? field_negate(P.y) : P.y;
+    int flip_y = (k1_neg != k2_neg) ? 1 : 0;
 
-    // Find max bit length
-    int bl1 = scalar256_bitlen(k1);
-    int bl2 = scalar256_bitlen(k2);
-    int max_bit = (bl1 > bl2) ? bl1 : bl2;
-
-    // Interleaved binary double-and-add with mixed additions
+    // Phase 5: Shamir's interleaved wNAF evaluation
     JacobianPoint R = point_at_infinity();
-    for (int i = max_bit - 1; i >= 0; --i) {
+
+    for (int i = WNAF_LEN - 1; i >= 0; --i) {
         if (R.infinity == 0) R = jacobian_double(R);
 
-        uint b1 = (k1.limbs[i >> 5] >> (i & 31)) & 1u;
-        uint b2 = (k2.limbs[i >> 5] >> (i & 31)) & 1u;
+        // k1 digit: lookup from precomputed table
+        int d1 = wnaf1[i];
+        if (d1 != 0) {
+            int idx = ((d1 > 0) ? d1 : -d1);
+            idx = (idx - 1) >> 1;
+            AffinePoint pt = tbl[idx];
+            if (d1 < 0) pt.y = field_negate(pt.y);
 
-        if (b1) R = jacobian_add_mixed(R, P);
-        if (b2) R = jacobian_add_mixed(R, phiP);
+            if (R.infinity != 0) {
+                R.x = pt.x; R.y = pt.y;
+                R.z = field_one(); R.infinity = 0;
+            } else {
+                R = jacobian_add_mixed(R, pt);
+            }
+        }
+
+        // k2 digit: apply endomorphism on-the-fly (1 field_mul per non-zero digit)
+        int d2 = wnaf2[i];
+        if (d2 != 0) {
+            int idx = ((d2 > 0) ? d2 : -d2);
+            idx = (idx - 1) >> 1;
+            AffinePoint pt;
+            pt.x = field_mul(tbl[idx].x, beta);
+            pt.y = tbl[idx].y;
+            if (flip_y) pt.y = field_negate(pt.y);
+            if (d2 < 0) pt.y = field_negate(pt.y);
+
+            if (R.infinity != 0) {
+                R.x = pt.x; R.y = pt.y;
+                R.z = field_one(); R.infinity = 0;
+            } else {
+                R = jacobian_add_mixed(R, pt);
+            }
+        }
     }
+
+    // Phase 6: Apply globalz correction
+    if (R.infinity == 0) {
+        R.z = field_mul(R.z, globalz);
+    }
+
     return R;
 }
 
