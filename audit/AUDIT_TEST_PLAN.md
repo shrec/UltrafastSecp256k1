@@ -1,5 +1,12 @@
 # Audit Test Plan -- UltrafastSecp256k1 v3.14.0
 
+> **Historical Report -- Snapshot from v3.14.0**
+> This plan describes test categories as of v3.14.0. Since then:
+> ct-verif and valgrind-ct are active and blocking in CI,
+> GPU audit runners (OpenCL, Metal) exist, and additional protocol
+> tests (FROST KAT, adversarial protocol) have been added.
+> See `docs/TEST_MATRIX.md` for the current test map.
+
 > **Single source of truth** for what the audit tests, how it tests, and where evidence lives.
 
 ---
@@ -194,7 +201,7 @@ The C++ `unified_audit_runner` binary covers **E, F, G(internal), H(deterministi
 | Gap | Reason | Mitigation |
 |-----|--------|------------|
 | Physical power analysis / EM | Requires lab equipment | Code review + CT layer design |
-| Formal CT verification (ct-verif) | Tool integration not yet done | dudect + disasm scan + Valgrind CT |
+| Deterministic CT verification (`ct-verif`) | Integrated via workflow + blocking CI gate | `ct-verif` LLVM + dudect + disasm scan + Valgrind CT |
 | Quantum adversary | secp256k1 is not post-quantum | Document as known limitation |
 | OS-level memory disclosure | Caller responsibility | SECURITY.md guidance |
 

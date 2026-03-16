@@ -64,6 +64,7 @@ fi
 TS="$(date +%Y%m%d-%H%M%S)"
 OUTPUT_DIR="$PROJECT_ROOT/audit-evidence-$TS"
 mkdir -p "$OUTPUT_DIR/tool_evidence"
+mkdir -p "$OUTPUT_DIR/ct_evidence"
 
 echo "================================================================"
 echo "  Audit Evidence Package Generator"
@@ -186,7 +187,110 @@ fi
 echo "Branch: $GIT_BRANCH" > "$OUTPUT_DIR/tool_evidence/git_info.txt"
 echo "Commit: $GIT_HASH" >> "$OUTPUT_DIR/tool_evidence/git_info.txt"
 
-# 4f. Auditor README
+# 4f. CT evidence collection
+echo "  Collecting CT evidence artifacts..."
+
+# ct-verif results (from CI artifacts or local run)
+CT_EVIDENCE_DIR="$OUTPUT_DIR/ct_evidence"
+for src in \
+    "$PROJECT_ROOT/artifacts/ct/ct_verif.log" \
+    "$PROJECT_ROOT/ct_verif.log" \
+    "$FULL_BUILD_DIR/ct_verif.log"; do
+    if [ -f "$src" ]; then
+        cp "$src" "$CT_EVIDENCE_DIR/ct_verif.log"
+        echo "  [+] ct_verif.log"
+        break
+    fi
+done
+for src in \
+    "$PROJECT_ROOT/artifacts/ct/ct_verif_summary.json" \
+    "$PROJECT_ROOT/ct_verif_summary.json" \
+    "$FULL_BUILD_DIR/ct_verif_summary.json"; do
+    if [ -f "$src" ]; then
+        cp "$src" "$CT_EVIDENCE_DIR/ct_verif_summary.json"
+        echo "  [+] ct_verif_summary.json"
+        break
+    fi
+done
+
+# valgrind-ct results
+for src in \
+    "$PROJECT_ROOT/artifacts/ct/valgrind_ct.log" \
+    "$PROJECT_ROOT/valgrind_ct.log" \
+    "$FULL_BUILD_DIR/valgrind_ct.log"; do
+    if [ -f "$src" ]; then
+        cp "$src" "$CT_EVIDENCE_DIR/valgrind_ct.log"
+        echo "  [+] valgrind_ct.log"
+        break
+    fi
+done
+for src in \
+    "$PROJECT_ROOT/artifacts/ct/valgrind_ct_report.json" \
+    "$PROJECT_ROOT/valgrind_ct_report.json" \
+    "$FULL_BUILD_DIR/valgrind_ct_report.json"; do
+    if [ -f "$src" ]; then
+        cp "$src" "$CT_EVIDENCE_DIR/valgrind_ct_report.json"
+        echo "  [+] valgrind_ct_report.json"
+        break
+    fi
+done
+
+# Disasm branch scan
+for src in \
+    "$PROJECT_ROOT/artifacts/ct/disasm_branch_scan.json" \
+    "$PROJECT_ROOT/artifacts/disasm/disasm_branch_scan.json" \
+    "$FULL_BUILD_DIR/disasm_branch_scan.json"; do
+    if [ -f "$src" ]; then
+        cp "$src" "$CT_EVIDENCE_DIR/disasm_branch_scan.json"
+        echo "  [+] disasm_branch_scan.json"
+        break
+    fi
+done
+
+# Try running disasm scan inline if not already collected
+if [ ! -f "$CT_EVIDENCE_DIR/disasm_branch_scan.json" ]; then
+    CT_DISASM_SCRIPT="$PROJECT_ROOT/scripts/verify_ct_disasm.sh"
+    if [ -x "$CT_DISASM_SCRIPT" ] && [ -n "$RUNNER" ]; then
+        echo "  Running CT disasm scan inline..."
+        bash "$CT_DISASM_SCRIPT" "$RUNNER" --json "$CT_EVIDENCE_DIR/disasm_branch_scan.json" \
+            > "$CT_EVIDENCE_DIR/disasm_branch_scan.txt" 2>&1 || true
+        if [ -f "$CT_EVIDENCE_DIR/disasm_branch_scan.json" ]; then
+            echo "  [+] disasm_branch_scan.json (generated)"
+        fi
+    fi
+fi
+
+# dudect results
+for src in \
+    "$PROJECT_ROOT/artifacts/ct/dudect_smoke.log" \
+    "$PROJECT_ROOT/dudect_smoke.log" \
+    "$FULL_BUILD_DIR/dudect_smoke.log"; do
+    if [ -f "$src" ]; then
+        cp "$src" "$CT_EVIDENCE_DIR/dudect_smoke.log"
+        echo "  [+] dudect_smoke.log"
+        break
+    fi
+done
+for src in \
+    "$PROJECT_ROOT/artifacts/ct/dudect_full.log" \
+    "$PROJECT_ROOT/dudect_full.log" \
+    "$FULL_BUILD_DIR/dudect_full.log"; do
+    if [ -f "$src" ]; then
+        cp "$src" "$CT_EVIDENCE_DIR/dudect_full.log"
+        echo "  [+] dudect_full.log"
+        break
+    fi
+done
+
+# Summary of what was collected
+CT_COUNT=$(find "$CT_EVIDENCE_DIR" -type f 2>/dev/null | wc -l)
+if [ "$CT_COUNT" -gt 0 ]; then
+    echo "  CT evidence: $CT_COUNT artifact(s) collected"
+else
+    echo "  CT evidence: none found locally (check CI artifacts)"
+fi
+
+# 4g. Auditor README
 cat > "$OUTPUT_DIR/README.txt" <<'EOREADME'
 ================================================================
   UltrafastSecp256k1 -- Audit Evidence Package
@@ -204,6 +308,17 @@ CONTENTS:
     cmake_cache_summary.txt  CMake build options
     ctest_results.xml        CTest XML results (if run)
     git_info.txt             Git branch + commit
+  ct_evidence/
+    ct_verif.log             Deterministic CT verification output (ct-verif)
+    ct_verif_summary.json    CT verification structured results
+    valgrind_ct.log          Valgrind CT memcheck output (ctgrind mode)
+    valgrind_ct_report.json  Valgrind CT structured results
+    disasm_branch_scan.json  Disassembly branch analysis of CT functions
+    dudect_smoke.log         Statistical timing test (dudect, smoke run)
+    dudect_full.log          Statistical timing test (dudect, full run)
+
+Note: ct_evidence/ files are present when available from local or CI runs.
+If empty, check CI artifacts at the URLs listed below.
 
 AUDIT SECTIONS (8 categories):
   1. Mathematical Invariants    -- Fp, Zn, group laws (13 modules)
@@ -217,20 +332,35 @@ AUDIT SECTIONS (8 categories):
 
 TOTAL: 47 test modules + 1 library selftest = 48 checks
 
+CT VERIFICATION STACK:
+  Layer 1: Statistical timing leakage testing (dudect)
+    - Welch t-test, |t| > 4.5 = leak. Advisory on shared runners.
+  Layer 2: Deterministic CT verification (ct-verif + valgrind-ct)
+    - ct-verif: LLVM-based taint tracking, blocking in CI
+    - valgrind-ct: ctgrind-mode memcheck, blocking in CI
+  Layer 3: Disassembly branch scan
+    - Checks compiled CT functions for conditional branches on secrets
+  Layer 4: Machine-checked proof frameworks
+    - Not currently applied (Vale/Jasmin/Coq/Fiat-Crypto)
+
 HOW TO VERIFY:
   1. Review audit_report.json for structured pass/fail data
   2. Confirm all 8 sections show "status": "PASS"
-  3. Verify platform/compiler info matches expected target
-  4. Check build_info.json for reproducible build parameters
+  3. Check ct_evidence/ for deterministic CT verification results
+  4. Verify platform/compiler info matches expected target
+  5. Check build_info.json for reproducible build parameters
 
 EXTERNAL TOOL EVIDENCE (collected separately by CI):
-  - CodeQL:      .github/workflows/codeql.yml     -> Security tab
+  - ct-verif:    .github/workflows/ct-verif.yml    -> Actions artifacts
+  - valgrind-ct: .github/workflows/ct-verif.yml    -> Actions artifacts
+  - CodeQL:      .github/workflows/codeql.yml      -> Security tab
   - Cppcheck:    .github/workflows/cppcheck.yml    -> Security tab
   - Scorecard:   .github/workflows/scorecard.yml   -> Security tab
   - SonarCloud:  .github/workflows/sonarcloud.yml  -> sonarcloud.io
   - ClusterFuzz: .github/workflows/cflite.yml      -> PR checks
   - Mutation:    .github/workflows/mutation.yml     -> Weekly run
   - Clang-Tidy:  .github/workflows/clang-tidy.yml  -> Security tab
+  - GPU audit:   .github/workflows/gpu-selfhosted.yml -> Self-hosted runner
 ================================================================
 EOREADME
 

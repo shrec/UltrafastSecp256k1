@@ -1,5 +1,10 @@
 # Local Docker CI Parity -- Linux
 
+> **Historical Report -- Snapshot from 2026-03-03**
+> This report mapped local Docker CI coverage as of 2026-03-03.
+> Some gaps listed below (e.g., ct-verif) have since been addressed
+> in `docker/run_ci.sh`. See current CI enforcement docs for up-to-date status.
+
 **Date:** 2026-03-03
 **Purpose:** Map GitHub Actions CI jobs to local Docker CI coverage for pre-merge validation.
 

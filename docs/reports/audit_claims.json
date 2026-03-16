@@ -1,0 +1,129 @@
+{
+  "_meta": {
+    "schema_version": "1.0.0",
+    "library": "UltrafastSecp256k1",
+    "library_version": "3.22.0",
+    "generated_by": "manual",
+    "description": "Machine-readable summary of audit assurance layers"
+  },
+  "ct_evidence_layers": [
+    {
+      "id": "dudect",
+      "name": "Statistical timing leakage testing",
+      "tool": "dudect (Welch t-test)",
+      "status": "active",
+      "blocking": false,
+      "ci_workflow": ".github/workflows/ci.yml",
+      "notes": "Advisory -- timing noise on shared CI runners may mask subtle leaks. |t| > 4.5 = timing leak."
+    },
+    {
+      "id": "ct-verif",
+      "name": "Deterministic CT verification",
+      "tool": "ct-verif (LLVM-based taint tracking)",
+      "status": "active",
+      "blocking": true,
+      "ci_workflow": ".github/workflows/ct-verif.yml",
+      "notes": "LLVM-pass analysis: marks secret inputs as tainted, verifies no tainted value reaches a branch or memory index."
+    },
+    {
+      "id": "valgrind-ct",
+      "name": "Deterministic CT verification",
+      "tool": "Valgrind ctgrind mode",
+      "status": "active",
+      "blocking": true,
+      "ci_workflow": ".github/workflows/ct-verif.yml",
+      "notes": "Uses VALGRIND_MAKE_MEM_UNDEFINED on secret inputs, checks for conditional jumps on undefined data."
+    },
+    {
+      "id": "disasm-scan",
+      "name": "Disassembly branch scan",
+      "tool": "scripts/verify_ct_disasm.sh",
+      "status": "active",
+      "blocking": false,
+      "ci_workflow": null,
+      "notes": "Checks compiled CT functions for conditional branches on secret-dependent values."
+    },
+    {
+      "id": "machine-checked-proofs",
+      "name": "Machine-checked proof frameworks",
+      "tool": null,
+      "status": "not_applied",
+      "blocking": false,
+      "ci_workflow": null,
+      "notes": "Vale/Jasmin/Coq/Fiat-Crypto generated proofs not currently applied."
+    }
+  ],
+  "blocking_workflows": [
+    {
+      "name": "CI (build + test)",
+      "workflow": ".github/workflows/ci.yml",
+      "description": "Linux gcc/clang Release+Debug, macOS, Windows, ARM64, WASM, RISC-V"
+    },
+    {
+      "name": "ct-verif + valgrind-ct",
+      "workflow": ".github/workflows/ct-verif.yml",
+      "description": "Deterministic CT verification, blocks merge on failure"
+    },
+    {
+      "name": "CodeQL",
+      "workflow": ".github/workflows/codeql.yml",
+      "description": "GitHub code scanning for C++ vulnerabilities"
+    },
+    {
+      "name": "Cppcheck",
+      "workflow": ".github/workflows/cppcheck.yml",
+      "description": "Static analysis, uploaded to code scanning"
+    },
+    {
+      "name": "Clang-Tidy",
+      "workflow": ".github/workflows/clang-tidy.yml",
+      "description": "30+ clang-tidy checks"
+    }
+  ],
+  "advisory_workflows": [
+    {
+      "name": "SonarCloud",
+      "workflow": ".github/workflows/sonarcloud.yml",
+      "description": "Quality gate (coverage, duplication, issues)"
+    },
+    {
+      "name": "OSSF Scorecard",
+      "workflow": ".github/workflows/scorecard.yml",
+      "description": "Supply chain security scoring"
+    },
+    {
+      "name": "ClusterFuzzLite",
+      "workflow": ".github/workflows/cflite.yml",
+      "description": "OSS-Fuzz integration, runs on PRs"
+    },
+    {
+      "name": "Mutation Testing",
+      "workflow": ".github/workflows/mutation.yml",
+      "description": "Weekly mutation testing"
+    },
+    {
+      "name": "GPU Self-Hosted",
+      "workflow": ".github/workflows/gpu-selfhosted.yml",
+      "description": "Real GPU hardware tests (CUDA RTX 5060 Ti)"
+    }
+  ],
+  "audit_runner": {
+    "binary": "unified_audit_runner",
+    "source": "audit/unified_audit_runner.cpp",
+    "sections": 8,
+    "modules": 49,
+    "checks": "641,194+"
+  },
+  "gpu_audit_runners": [
+    {
+      "backend": "OpenCL",
+      "binary": "opencl_audit_runner",
+      "modules": 27
+    },
+    {
+      "backend": "Metal",
+      "binary": "metal_audit_runner",
+      "modules": 27
+    }
+  ]
+}

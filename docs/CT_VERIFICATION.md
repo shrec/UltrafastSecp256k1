@@ -410,4 +410,4 @@ FROST and MuSig2 have NOT been CT-audited:
 
 ---
 
-*UltrafastSecp256k1 v3.16.0 -- CT Verification*
+*UltrafastSecp256k1 v3.22.0 -- CT Verification*
