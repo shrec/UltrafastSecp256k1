@@ -93,7 +93,8 @@ $(document).ready(function(){initNavTree('index.html',''); initResizable(); });
   <div class="headertitle"><div class="title">UltrafastSecp256k1 &ndash; High-Performance <a class="el" href="namespacesecp256k1.html">secp256k1</a> Engine for CPU, GPU, Mobile, Embedded, and Web </div></div>
 </div><!--header-->
 <div class="contents">
-<div class="textblock"><p><a class="anchor" id="md_README"></a> <b>Zero-dependency, multi-backend <a class="el" href="namespacesecp256k1.html">secp256k1</a> cryptography engine</b> &ndash; built independently from scratch for Bitcoin, Ethereum, Silent Payments, threshold signatures, embedded systems, and GPU-scale workloads. UltrafastSecp256k1 delivers GPU-accelerated ECDSA and Schnorr, constant-time CPU signing paths, and 12+ platform targets including CUDA, Metal, OpenCL, ROCm, WebAssembly, RISC-V, ESP32, and STM32.</p>
+<div class="textblock"><p><a class="anchor" id="md_README"></a> <a href="https://github.com/shrec/UltrafastSecp256k1/actions/workflows/ci.yml"><img src="https://github.com/shrec/UltrafastSecp256k1/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI" style="pointer-events: none;" class="inline"/></a> <a href="https://github.com/shrec/UltrafastSecp256k1/actions/workflows/ct-verif.yml"><img src="https://github.com/shrec/UltrafastSecp256k1/actions/workflows/ct-verif.yml/badge.svg?branch=main" alt="ct-verif" style="pointer-events: none;" class="inline"/></a> <a href="https://github.com/shrec/UltrafastSecp256k1/actions/workflows/codeql.yml"><img src="https://github.com/shrec/UltrafastSecp256k1/actions/workflows/codeql.yml/badge.svg?branch=main" alt="CodeQL" style="pointer-events: none;" class="inline"/></a> <a href="https://securityscorecards.dev/viewer/?uri=github.com/shrec/UltrafastSecp256k1"><img src="https://api.securityscorecards.dev/projects/github.com/shrec/UltrafastSecp256k1/badge" alt="OSSF Scorecard" class="inline"/></a> <a href="https://github.com/shrec/UltrafastSecp256k1/actions/workflows/gpu-selfhosted.yml"><img src="https://github.com/shrec/UltrafastSecp256k1/actions/workflows/gpu-selfhosted.yml/badge.svg" alt="GPU Self-Hosted" style="pointer-events: none;" class="inline"/></a></p>
+<p><b>Zero-dependency, multi-backend <a class="el" href="namespacesecp256k1.html">secp256k1</a> cryptography engine</b> &ndash; built independently from scratch for Bitcoin, Ethereum, Silent Payments, threshold signatures, embedded systems, and GPU-scale workloads. UltrafastSecp256k1 delivers GPU-accelerated ECDSA and Schnorr, constant-time CPU signing paths, and 12+ platform targets including CUDA, Metal, OpenCL, ROCm, WebAssembly, RISC-V, ESP32, and STM32.</p>
 <blockquote class="doxtable">
 <p>&zwj;<b>4.88 M ECDSA signs/s</b> * <b>2.44 M ECDSA verifies/s</b> * <b>3.66 M Schnorr signs/s</b> * <b>2.82 M Schnorr verifies/s</b> &ndash; single GPU (RTX 5060 Ti, hybrid GPU execution model) </p>
 </blockquote>
@@ -253,7 +254,7 @@ Seeking Sponsors – Audit, Bug Bounty &amp; Development</h1>
 <li><b>Platform ports</b> &ndash; embedded (ESP32, STM32), mobile (iOS, Android), WASM</li>
 <li><b>Protocol features</b> &ndash; MuSig2, FROST threshold signatures, Taproot, BIP-352 Silent Payments</li>
 <li><b>Multi-coin support</b> &ndash; 27+ blockchain address formats and signing</li>
-<li><b>Formal verification</b> &ndash; Fiat-Crypto integration, ct-verif, Cryptol models</li>
+<li><b>Formal verification</b> &ndash; Fiat-Crypto integration, Cryptol models (ct-verif and valgrind-ct already active in CI)</li>
 <li><b>CI/CD infrastructure</b> &ndash; cross-platform testing, performance regression gates, fuzzing</li>
 </ul>
 <h2><a class="anchor" id="autotoc_md33"></a>
@@ -604,9 +605,9 @@ CT Evidence &amp; Methodology</h2>
 <tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone"><b>ASan + UBSan CI</b>   </td><td class="markdownTableBodyNone">Every push &ndash; catches undefined behavior in CT paths   </td><td class="markdownTableBodyNone">[OK] CI    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone"><b>Timing tests (dudect)</b>   </td><td class="markdownTableBodyNone">CPU field/scalar ops   </td><td class="markdownTableBodyNone">🔜 Planned (see roadmap)    </td></tr>
+<td class="markdownTableBodyNone"><b>Timing tests (dudect)</b>   </td><td class="markdownTableBodyNone">CPU field/scalar ops   </td><td class="markdownTableBodyNone">[OK] Implemented in CI + nightly + native ARM64    </td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone"><b>Formal CT verification</b>   </td><td class="markdownTableBodyNone">Fiat-Crypto style   </td><td class="markdownTableBodyNone">🔜 Planned   </td></tr>
+<td class="markdownTableBodyNone"><b>Deterministic CT verification</b>   </td><td class="markdownTableBodyNone"><code>ct-verif</code> LLVM + Valgrind CT   </td><td class="markdownTableBodyNone">[OK] Implemented   </td></tr>
 </table>
 <p><b>Assumptions:</b> CT guarantees depend on compiler not introducing secret-dependent branches during optimization. Builds use <code>-O2</code> with Clang; MSVC may require additional flags. Micro-architectural side channels (Spectre, power analysis) are outside current scope &ndash; see THREAT_MODEL.md.</p>
 <hr  />
