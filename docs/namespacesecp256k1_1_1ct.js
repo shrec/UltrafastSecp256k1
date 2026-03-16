@@ -41,6 +41,8 @@ var namespacesecp256k1_1_1ct =
     [ "ecdsa_sign_hedged", "namespacesecp256k1_1_1ct.html#ab0277d12eaf6e6932ffebc346fc4d398", null ],
     [ "ecdsa_sign_hedged_verified", "namespacesecp256k1_1_1ct.html#a0d3b966e5249805900fd671a94853d4a", null ],
     [ "ecdsa_sign_hedged_verified", "namespacesecp256k1_1_1ct.html#adda2945679a697d5625e602f9c88a463", null ],
+    [ "ecdsa_sign_recoverable", "namespacesecp256k1_1_1ct.html#a709c2721b45e253fef4881c3c610a3d4", null ],
+    [ "ecdsa_sign_recoverable", "namespacesecp256k1_1_1ct.html#add9f306a8d8e6ac77047e3e11b16610e", null ],
     [ "ecdsa_sign_verified", "namespacesecp256k1_1_1ct.html#a28cf60d457d344b3578d913817c9fe25", null ],
     [ "ecdsa_sign_verified", "namespacesecp256k1_1_1ct.html#ac398de90a4459834cac6f78e28a798a7", null ],
     [ "eq_mask", "namespacesecp256k1_1_1ct.html#acbdbc65cfa2b7d46a7132edafd449be8", null ],

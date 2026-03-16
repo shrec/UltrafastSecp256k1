@@ -1,5 +1,9 @@
 var NAVTREEINDEX12 =
 {
+"ufsecp__gpu_8h.html#adb6658422d5bbadc42f117da3ccb07cf":[4,0,1,1,2,5],
+"ufsecp__gpu_8h.html#aea45bf61d6b711aef8020b4370ca6cd9":[4,0,1,1,2,16],
+"ufsecp__gpu_8h.html#aed4d2dedefd4171b93acc8fcf3bc00a0":[4,0,1,1,2,18],
+"ufsecp__gpu_8h.html#af909456e9401661c0ea12a46fbd14350":[4,0,1,1,2,8],
 "ufsecp__gpu_8h.html#aff4a1309c80dd5ee8afaf1b86957c0af":[4,0,1,1,2,12],
 "ufsecp__gpu_8h_source.html":[4,0,1,1,2],
 "ufsecp__gpu__impl_8cpp.html":[4,0,1,1,3],
