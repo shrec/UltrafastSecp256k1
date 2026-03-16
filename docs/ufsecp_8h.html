@@ -1564,7 +1564,7 @@ Functions</h2></td></tr>
 </div><div class="memdoc">
 <p>Bitcoin message hash (double SHA-256 with prefix). </p>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l02790">2790</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l02821">2821</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
 
 <p class="reference">References <a class="el" href="namespacesecp256k1_1_1coins.html#a9bff9e5f911b19fbf025a91b7a5785fc">secp256k1::coins::bitcoin_message_hash()</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, and <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>.</p>
 
@@ -1621,7 +1621,7 @@ Functions</h2></td></tr>
 </div><div class="memdoc">
 <p>Bitcoin message signing (BIP-137). base64_out: buffer for base64-encoded signature. base64_len: in = buffer size, out = strlen. </p>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l02754">2754</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l02785">2785</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
 
 <p class="reference">References <a class="el" href="namespacesecp256k1_1_1coins.html#a41cfc241387d7265fec2220b32b642c6">secp256k1::coins::bitcoin_sig_to_base64()</a>, <a class="el" href="namespacesecp256k1_1_1coins.html#a8aaa43a6c3bbd38f750ee9ca9751fba3">secp256k1::coins::bitcoin_sign_message()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00075">ctx_clear_err()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00080">ctx_set_err()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00104">scalar_parse_strict_nonzero()</a>, <a class="el" href="secure__erase_8hpp_source.html#l00018">secp256k1::detail::secure_erase()</a>, <a class="el" href="ufsecp__error_8h_source.html#l00026">UFSECP_ERR_BAD_KEY</a>, <a class="el" href="ufsecp__error_8h_source.html#l00034">UFSECP_ERR_BUF_TOO_SMALL</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, and <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>.</p>
 
@@ -1672,7 +1672,7 @@ Functions</h2></td></tr>
 </div><div class="memdoc">
 <p>Bitcoin message verify. Returns UFSECP_OK if signature is valid. </p>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l02773">2773</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l02804">2804</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
 
 <p class="reference">References <a class="el" href="namespacesecp256k1_1_1coins.html#a41edb818f96017b16ced8a1a365b5db3">secp256k1::coins::bitcoin_sig_from_base64()</a>, <a class="el" href="namespacesecp256k1_1_1coins.html#a08f9922a9aea1faad6df86c6c55d80a3">secp256k1::coins::bitcoin_verify_message()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00075">ctx_clear_err()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00080">ctx_set_err()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00122">point_from_compressed()</a>, <a class="el" href="ufsecp__error_8h_source.html#l00027">UFSECP_ERR_BAD_PUBKEY</a>, <a class="el" href="ufsecp__error_8h_source.html#l00028">UFSECP_ERR_BAD_SIG</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, <a class="el" href="ufsecp__error_8h_source.html#l00030">UFSECP_ERR_VERIFY_FAIL</a>, and <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>.</p>
 
@@ -1729,9 +1729,9 @@ Functions</h2></td></tr>
 </div><div class="memdoc">
 <p>Get default address for a coin from a compressed public key. coin_type: BIP-44 coin type index. addr_out: buffer for NUL-terminated address. addr_len: in = buffer size, out = strlen. </p>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l02664">2664</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l02695">2695</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
 
-<p class="reference">References <a class="el" href="namespacesecp256k1_1_1coins.html#a62aaaf332ea9d266c4daf33d9695fda5">secp256k1::coins::coin_address()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00075">ctx_clear_err()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00080">ctx_set_err()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l02660">find_coin()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00122">point_from_compressed()</a>, <a class="el" href="ufsecp__error_8h_source.html#l00029">UFSECP_ERR_BAD_INPUT</a>, <a class="el" href="ufsecp__error_8h_source.html#l00027">UFSECP_ERR_BAD_PUBKEY</a>, <a class="el" href="ufsecp__error_8h_source.html#l00034">UFSECP_ERR_BUF_TOO_SMALL</a>, <a class="el" href="ufsecp__error_8h_source.html#l00033">UFSECP_ERR_INTERNAL</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, and <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>.</p>
+<p class="reference">References <a class="el" href="namespacesecp256k1_1_1coins.html#a62aaaf332ea9d266c4daf33d9695fda5">secp256k1::coins::coin_address()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00075">ctx_clear_err()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00080">ctx_set_err()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l02691">find_coin()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00122">point_from_compressed()</a>, <a class="el" href="ufsecp__error_8h_source.html#l00029">UFSECP_ERR_BAD_INPUT</a>, <a class="el" href="ufsecp__error_8h_source.html#l00027">UFSECP_ERR_BAD_PUBKEY</a>, <a class="el" href="ufsecp__error_8h_source.html#l00034">UFSECP_ERR_BUF_TOO_SMALL</a>, <a class="el" href="ufsecp__error_8h_source.html#l00033">UFSECP_ERR_INTERNAL</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, and <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>.</p>
 
 </div>
 </div>
@@ -1822,9 +1822,9 @@ Functions</h2></td></tr>
 </div><div class="memdoc">
 <p>Derive full key from seed for a specific coin. Derives using best_purpose for the coin. privkey32_out, pubkey33_out: optional (NULL to skip). </p>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l02687">2687</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l02718">2718</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
 
-<p class="reference">References <a class="el" href="namespacesecp256k1.html#a205c6f3c059c9be0b5f757886aa30483">secp256k1::bip32_master_key()</a>, <a class="el" href="namespacesecp256k1_1_1coins.html#a62aaaf332ea9d266c4daf33d9695fda5">secp256k1::coins::coin_address()</a>, <a class="el" href="namespacesecp256k1_1_1coins.html#aff849301f019d7e644d2cdcac680a2ff">secp256k1::coins::coin_derive_key()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00075">ctx_clear_err()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00080">ctx_set_err()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l02660">find_coin()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00176">point_to_compressed()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00117">scalar_to_bytes()</a>, <a class="el" href="secure__erase_8hpp_source.html#l00018">secp256k1::detail::secure_erase()</a>, <a class="el" href="ufsecp__error_8h_source.html#l00029">UFSECP_ERR_BAD_INPUT</a>, <a class="el" href="ufsecp__error_8h_source.html#l00034">UFSECP_ERR_BUF_TOO_SMALL</a>, <a class="el" href="ufsecp__error_8h_source.html#l00033">UFSECP_ERR_INTERNAL</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, and <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>.</p>
+<p class="reference">References <a class="el" href="namespacesecp256k1.html#a205c6f3c059c9be0b5f757886aa30483">secp256k1::bip32_master_key()</a>, <a class="el" href="namespacesecp256k1_1_1coins.html#a62aaaf332ea9d266c4daf33d9695fda5">secp256k1::coins::coin_address()</a>, <a class="el" href="namespacesecp256k1_1_1coins.html#aff849301f019d7e644d2cdcac680a2ff">secp256k1::coins::coin_derive_key()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00075">ctx_clear_err()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00080">ctx_set_err()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l02691">find_coin()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00176">point_to_compressed()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00117">scalar_to_bytes()</a>, <a class="el" href="secure__erase_8hpp_source.html#l00018">secp256k1::detail::secure_erase()</a>, <a class="el" href="ufsecp__error_8h_source.html#l00029">UFSECP_ERR_BAD_INPUT</a>, <a class="el" href="ufsecp__error_8h_source.html#l00034">UFSECP_ERR_BUF_TOO_SMALL</a>, <a class="el" href="ufsecp__error_8h_source.html#l00033">UFSECP_ERR_INTERNAL</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, and <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>.</p>
 
 </div>
 </div>
@@ -1879,9 +1879,9 @@ Functions</h2></td></tr>
 </div><div class="memdoc">
 <p>Encode WIF for any supported coin. </p>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l02731">2731</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l02762">2762</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
 
-<p class="reference">References <a class="el" href="namespacesecp256k1_1_1coins.html#a2d1564e3510dbf12225998b61ff5c1a0">secp256k1::coins::coin_wif_encode()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00075">ctx_clear_err()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00080">ctx_set_err()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l02660">find_coin()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00104">scalar_parse_strict_nonzero()</a>, <a class="el" href="secure__erase_8hpp_source.html#l00018">secp256k1::detail::secure_erase()</a>, <a class="el" href="ufsecp__error_8h_source.html#l00029">UFSECP_ERR_BAD_INPUT</a>, <a class="el" href="ufsecp__error_8h_source.html#l00026">UFSECP_ERR_BAD_KEY</a>, <a class="el" href="ufsecp__error_8h_source.html#l00034">UFSECP_ERR_BUF_TOO_SMALL</a>, <a class="el" href="ufsecp__error_8h_source.html#l00033">UFSECP_ERR_INTERNAL</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, and <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>.</p>
+<p class="reference">References <a class="el" href="namespacesecp256k1_1_1coins.html#a2d1564e3510dbf12225998b61ff5c1a0">secp256k1::coins::coin_wif_encode()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00075">ctx_clear_err()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00080">ctx_set_err()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l02691">find_coin()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00104">scalar_parse_strict_nonzero()</a>, <a class="el" href="secure__erase_8hpp_source.html#l00018">secp256k1::detail::secure_erase()</a>, <a class="el" href="ufsecp__error_8h_source.html#l00029">UFSECP_ERR_BAD_INPUT</a>, <a class="el" href="ufsecp__error_8h_source.html#l00026">UFSECP_ERR_BAD_KEY</a>, <a class="el" href="ufsecp__error_8h_source.html#l00034">UFSECP_ERR_BUF_TOO_SMALL</a>, <a class="el" href="ufsecp__error_8h_source.html#l00033">UFSECP_ERR_INTERNAL</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, and <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>.</p>
 
 </div>
 </div>
@@ -2163,7 +2163,7 @@ Functions</h2></td></tr>
 </div><div class="memdoc">
 <p>Adapt ECDSA pre-signature into valid signature. </p>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l02284">2284</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l02315">2315</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
 
 <p class="reference">References <a class="el" href="ufsecp__impl_8cpp_source.html#l00075">ctx_clear_err()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00080">ctx_set_err()</a>, <a class="el" href="namespacesecp256k1.html#aa75d899fe72d1327f2d89d12a961ba5d">secp256k1::ecdsa_adaptor_adapt()</a>, <a class="el" href="point_8hpp_source.html#l00087">secp256k1::fast::Point::is_infinity()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00122">point_from_compressed()</a>, <a class="el" href="adaptor_8hpp_source.html#l00078">secp256k1::ECDSAAdaptorSig::r</a>, <a class="el" href="adaptor_8hpp_source.html#l00076">secp256k1::ECDSAAdaptorSig::R_hat</a>, <a class="el" href="adaptor_8hpp_source.html#l00077">secp256k1::ECDSAAdaptorSig::s_hat</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00111">scalar_parse_strict()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00104">scalar_parse_strict_nonzero()</a>, <a class="el" href="secure__erase_8hpp_source.html#l00018">secp256k1::detail::secure_erase()</a>, <a class="el" href="ufsecp__error_8h_source.html#l00029">UFSECP_ERR_BAD_INPUT</a>, <a class="el" href="ufsecp__error_8h_source.html#l00028">UFSECP_ERR_BAD_SIG</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, and <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>.</p>
 
@@ -2208,7 +2208,7 @@ Functions</h2></td></tr>
 </div><div class="memdoc">
 <p>Extract adaptor secret from ECDSA pre-sig + completed sig. </p>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l02314">2314</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l02345">2345</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
 
 <p class="reference">References <a class="el" href="ufsecp__impl_8cpp_source.html#l00075">ctx_clear_err()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00080">ctx_set_err()</a>, <a class="el" href="namespacesecp256k1.html#aa822de77c4daffb35bf7581982912615">secp256k1::ecdsa_adaptor_extract()</a>, <a class="el" href="point_8hpp_source.html#l00087">secp256k1::fast::Point::is_infinity()</a>, <a class="el" href="structsecp256k1_1_1ECDSASignature.html#a7f1dc966ca60a9c54d885b2b5ace36eb">secp256k1::ECDSASignature::parse_compact_strict()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00122">point_from_compressed()</a>, <a class="el" href="adaptor_8hpp_source.html#l00078">secp256k1::ECDSAAdaptorSig::r</a>, <a class="el" href="adaptor_8hpp_source.html#l00076">secp256k1::ECDSAAdaptorSig::R_hat</a>, <a class="el" href="adaptor_8hpp_source.html#l00077">secp256k1::ECDSAAdaptorSig::s_hat</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00111">scalar_parse_strict()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00117">scalar_to_bytes()</a>, <a class="el" href="secure__erase_8hpp_source.html#l00018">secp256k1::detail::secure_erase()</a>, <a class="el" href="ufsecp__error_8h_source.html#l00028">UFSECP_ERR_BAD_SIG</a>, <a class="el" href="ufsecp__error_8h_source.html#l00033">UFSECP_ERR_INTERNAL</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, and <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>.</p>
 
@@ -2259,7 +2259,7 @@ Functions</h2></td></tr>
 </div><div class="memdoc">
 <p>ECDSA adaptor pre-sign. </p>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l02219">2219</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l02250">2250</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
 
 <p class="reference">References <a class="el" href="ufsecp__impl_8cpp_source.html#l00075">ctx_clear_err()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00080">ctx_set_err()</a>, <a class="el" href="namespacesecp256k1.html#a907143e231f320952b90c9c78c4d7200">secp256k1::ecdsa_adaptor_sign()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00122">point_from_compressed()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00104">scalar_parse_strict_nonzero()</a>, <a class="el" href="secure__erase_8hpp_source.html#l00018">secp256k1::detail::secure_erase()</a>, <a class="el" href="ufsecp_8h_source.html#l00663">UFSECP_ECDSA_ADAPTOR_SIG_LEN</a>, <a class="el" href="ufsecp__error_8h_source.html#l00026">UFSECP_ERR_BAD_KEY</a>, <a class="el" href="ufsecp__error_8h_source.html#l00027">UFSECP_ERR_BAD_PUBKEY</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, and <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>.</p>
 
@@ -2310,7 +2310,7 @@ Functions</h2></td></tr>
 </div><div class="memdoc">
 <p>Verify ECDSA adaptor pre-signature. </p>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l02249">2249</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l02280">2280</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
 
 <p class="reference">References <a class="el" href="ufsecp__impl_8cpp_source.html#l00075">ctx_clear_err()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00080">ctx_set_err()</a>, <a class="el" href="namespacesecp256k1.html#aeab45a541233797ebd0b1651a1bbb2d7">secp256k1::ecdsa_adaptor_verify()</a>, <a class="el" href="point_8hpp_source.html#l00087">secp256k1::fast::Point::is_infinity()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00122">point_from_compressed()</a>, <a class="el" href="adaptor_8hpp_source.html#l00078">secp256k1::ECDSAAdaptorSig::r</a>, <a class="el" href="adaptor_8hpp_source.html#l00076">secp256k1::ECDSAAdaptorSig::R_hat</a>, <a class="el" href="adaptor_8hpp_source.html#l00077">secp256k1::ECDSAAdaptorSig::s_hat</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00111">scalar_parse_strict()</a>, <a class="el" href="ufsecp__error_8h_source.html#l00027">UFSECP_ERR_BAD_PUBKEY</a>, <a class="el" href="ufsecp__error_8h_source.html#l00028">UFSECP_ERR_BAD_SIG</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, <a class="el" href="ufsecp__error_8h_source.html#l00030">UFSECP_ERR_VERIFY_FAIL</a>, and <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>.</p>
 
@@ -2784,7 +2784,7 @@ Functions</h2></td></tr>
 </div><div class="memdoc">
 <p>ECIES decrypt: decrypt an ECIES envelope with a private key. privkey: 32-byte private key. envelope, envelope_len: encrypted envelope. plaintext_out: buffer for decrypted plaintext (min envelope_len - 81). plaintext_len: in = buffer size, out = actual plaintext size. </p>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l02980">2980</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l03029">3029</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
 
 <p class="reference">References <a class="el" href="ufsecp__impl_8cpp_source.html#l00075">ctx_clear_err()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00080">ctx_set_err()</a>, <a class="el" href="namespacesecp256k1.html#a169c1c3d7696ea890cebdedfa79619f0">secp256k1::ecies_decrypt()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00104">scalar_parse_strict_nonzero()</a>, <a class="el" href="secure__erase_8hpp_source.html#l00018">secp256k1::detail::secure_erase()</a>, <a class="el" href="ufsecp_8h_source.html#l00954">UFSECP_ECIES_OVERHEAD</a>, <a class="el" href="ufsecp__error_8h_source.html#l00029">UFSECP_ERR_BAD_INPUT</a>, <a class="el" href="ufsecp__error_8h_source.html#l00026">UFSECP_ERR_BAD_KEY</a>, <a class="el" href="ufsecp__error_8h_source.html#l00034">UFSECP_ERR_BUF_TOO_SMALL</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, <a class="el" href="ufsecp__error_8h_source.html#l00030">UFSECP_ERR_VERIFY_FAIL</a>, and <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>.</p>
 
@@ -2841,7 +2841,7 @@ Functions</h2></td></tr>
 </div><div class="memdoc">
 <p>ECIES encrypt: encrypt plaintext for a recipient's public key. recipient_pubkey33: 33-byte compressed public key. plaintext, plaintext_len: message to encrypt. envelope_out: buffer for encrypted envelope (min plaintext_len + 81). envelope_len: in = buffer size, out = actual envelope size. </p>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l02948">2948</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l02993">2993</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
 
 <p class="reference">References <a class="el" href="ufsecp__impl_8cpp_source.html#l00075">ctx_clear_err()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00080">ctx_set_err()</a>, <a class="el" href="namespacesecp256k1.html#af718e31c07d8f7c9be36ba4324d4817f">secp256k1::ecies_encrypt()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00122">point_from_compressed()</a>, <a class="el" href="ufsecp_8h_source.html#l00954">UFSECP_ECIES_OVERHEAD</a>, <a class="el" href="ufsecp__error_8h_source.html#l00029">UFSECP_ERR_BAD_INPUT</a>, <a class="el" href="ufsecp__error_8h_source.html#l00027">UFSECP_ERR_BAD_PUBKEY</a>, <a class="el" href="ufsecp__error_8h_source.html#l00034">UFSECP_ERR_BUF_TOO_SMALL</a>, <a class="el" href="ufsecp__error_8h_source.html#l00033">UFSECP_ERR_INTERNAL</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, and <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>.</p>
 
@@ -2910,7 +2910,7 @@ Functions</h2></td></tr>
 </div><div class="memdoc">
 <p>Aggregate FROST partial signatures into final Schnorr signature. </p>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l02050">2050</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l02075">2075</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
 
 <p class="reference">References <a class="el" href="ufsecp__impl_8cpp_source.html#l00075">ctx_clear_err()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00080">ctx_set_err()</a>, <a class="el" href="namespacesecp256k1.html#a0783bb6cc6d40ee3d07892c6b606c21d">secp256k1::frost_aggregate()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00122">point_from_compressed()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00111">scalar_parse_strict()</a>, <a class="el" href="ufsecp__error_8h_source.html#l00029">UFSECP_ERR_BAD_INPUT</a>, <a class="el" href="ufsecp__error_8h_source.html#l00026">UFSECP_ERR_BAD_KEY</a>, <a class="el" href="ufsecp__error_8h_source.html#l00028">UFSECP_ERR_BAD_SIG</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, <a class="el" href="ufsecp_8h_source.html#l00602">UFSECP_FROST_NONCE_COMMIT_LEN</a>, and <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>.</p>
 
@@ -2985,7 +2985,7 @@ Functions</h2></td></tr>
 </div><div class="memdoc">
 <p>FROST key generation phase 1: produce commitment + shares. commits_out: commitment blob. shares_out: n shares of UFSECP_FROST_SHARE_LEN each. </p>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l01805">1805</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l01819">1819</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
 
 <p class="reference">References <a class="el" href="ufsecp__impl_8cpp_source.html#l00075">ctx_clear_err()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00080">ctx_set_err()</a>, <a class="el" href="namespacesecp256k1.html#a799903aca6c37f859aa9782a6b4a3267">secp256k1::frost_keygen_begin()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00176">point_to_compressed()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00117">scalar_to_bytes()</a>, <a class="el" href="secure__erase_8hpp_source.html#l00018">secp256k1::detail::secure_erase()</a>, <a class="el" href="ufsecp__error_8h_source.html#l00029">UFSECP_ERR_BAD_INPUT</a>, <a class="el" href="ufsecp__error_8h_source.html#l00034">UFSECP_ERR_BUF_TOO_SMALL</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, <a class="el" href="ufsecp_8h_source.html#l00599">UFSECP_FROST_SHARE_LEN</a>, and <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>.</p>
 
@@ -3060,7 +3060,7 @@ Functions</h2></td></tr>
 </div><div class="memdoc">
 <p>FROST key generation phase 2: finalise key package. </p>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l01850">1850</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l01865">1865</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
 
 <p class="reference">References <a class="el" href="frost_8hpp_source.html#l00051">secp256k1::FrostCommitment::coeffs</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00075">ctx_clear_err()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00080">ctx_set_err()</a>, <a class="el" href="frost_8hpp_source.html#l00050">secp256k1::FrostCommitment::from</a>, <a class="el" href="namespacesecp256k1.html#a0c50436c571f4ffc30510e2eb8ace6d1">secp256k1::frost_keygen_finalize()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00122">point_from_compressed()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00176">point_to_compressed()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00111">scalar_parse_strict()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00117">scalar_to_bytes()</a>, <a class="el" href="secure__erase_8hpp_source.html#l00018">secp256k1::detail::secure_erase()</a>, <a class="el" href="ufsecp__error_8h_source.html#l00029">UFSECP_ERR_BAD_INPUT</a>, <a class="el" href="ufsecp__error_8h_source.html#l00033">UFSECP_ERR_INTERNAL</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, <a class="el" href="ufsecp_8h_source.html#l00600">UFSECP_FROST_KEYPKG_LEN</a>, <a class="el" href="ufsecp_8h_source.html#l00599">UFSECP_FROST_SHARE_LEN</a>, and <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>.</p>
 
@@ -3123,7 +3123,7 @@ Functions</h2></td></tr>
 </div><div class="memdoc">
 <p>Produce FROST partial signature. </p>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l01941">1941</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l01961">1961</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
 
 <p class="reference">References <a class="el" href="frost_8hpp_source.html#l00067">secp256k1::FrostNonce::binding_nonce</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00075">ctx_clear_err()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00080">ctx_set_err()</a>, <a class="el" href="namespacesecp256k1.html#a191f706a7876e9957bda97aa2c3ff1d2">secp256k1::frost_sign()</a>, <a class="el" href="frost_8hpp_source.html#l00059">secp256k1::FrostKeyPackage::group_public_key</a>, <a class="el" href="frost_8hpp_source.html#l00066">secp256k1::FrostNonce::hiding_nonce</a>, <a class="el" href="frost_8hpp_source.html#l00056">secp256k1::FrostKeyPackage::id</a>, <a class="el" href="point_8hpp_source.html#l00087">secp256k1::fast::Point::is_infinity()</a>, <a class="el" href="frost_8hpp_source.html#l00061">secp256k1::FrostKeyPackage::num_participants</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00122">point_from_compressed()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00111">scalar_parse_strict()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00117">scalar_to_bytes()</a>, <a class="el" href="secure__erase_8hpp_source.html#l00018">secp256k1::detail::secure_erase()</a>, <a class="el" href="frost_8hpp_source.html#l00057">secp256k1::FrostKeyPackage::signing_share</a>, <a class="el" href="frost_8hpp_source.html#l00060">secp256k1::FrostKeyPackage::threshold</a>, <a class="el" href="ufsecp__error_8h_source.html#l00029">UFSECP_ERR_BAD_INPUT</a>, <a class="el" href="ufsecp__error_8h_source.html#l00026">UFSECP_ERR_BAD_KEY</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, <a class="el" href="ufsecp_8h_source.html#l00602">UFSECP_FROST_NONCE_COMMIT_LEN</a>, <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>, and <a class="el" href="frost_8hpp_source.html#l00058">secp256k1::FrostKeyPackage::verification_share</a>.</p>
 
@@ -3174,7 +3174,7 @@ Functions</h2></td></tr>
 </div><div class="memdoc">
 <p>Generate FROST signing nonce. </p>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l01913">1913</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l01933">1933</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
 
 <p class="reference">References <a class="el" href="ufsecp__impl_8cpp_source.html#l00075">ctx_clear_err()</a>, <a class="el" href="namespacesecp256k1.html#ad496d2f71ae2565cd6cbe2ffc721e838">secp256k1::frost_sign_nonce_gen()</a>, <a class="el" href="secure__erase_8hpp_source.html#l00018">secp256k1::detail::secure_erase()</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, and <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>.</p>
 
@@ -3237,7 +3237,7 @@ Functions</h2></td></tr>
 </div><div class="memdoc">
 <p>Verify FROST partial signature. verification_share33: 33-byte compressed signer verification share Y_i. </p>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l01999">1999</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l02022">2022</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
 
 <p class="reference">References <a class="el" href="ufsecp__impl_8cpp_source.html#l00075">ctx_clear_err()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00080">ctx_set_err()</a>, <a class="el" href="namespacesecp256k1.html#a4f2f9f284b70ca6ea7fe03e84fd8438e">secp256k1::frost_verify_partial()</a>, <a class="el" href="frost_8hpp_source.html#l00079">secp256k1::FrostPartialSig::id</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00122">point_from_compressed()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00111">scalar_parse_strict()</a>, <a class="el" href="ufsecp__error_8h_source.html#l00029">UFSECP_ERR_BAD_INPUT</a>, <a class="el" href="ufsecp__error_8h_source.html#l00027">UFSECP_ERR_BAD_PUBKEY</a>, <a class="el" href="ufsecp__error_8h_source.html#l00028">UFSECP_ERR_BAD_SIG</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, <a class="el" href="ufsecp__error_8h_source.html#l00030">UFSECP_ERR_VERIFY_FAIL</a>, <a class="el" href="ufsecp_8h_source.html#l00602">UFSECP_FROST_NONCE_COMMIT_LEN</a>, <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>, and <a class="el" href="frost_8hpp_source.html#l00080">secp256k1::FrostPartialSig::z_i</a>.</p>
 
@@ -3589,7 +3589,7 @@ Functions</h2></td></tr>
 </div><div class="memdoc">
 <p>Aggregate partial signatures into a final BIP-340 Schnorr signature. </p>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l01774">1774</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l01786">1786</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
 
 <p class="reference">References <a class="el" href="musig2_8hpp_source.html#l00092">secp256k1::MuSig2Session::b</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00075">ctx_clear_err()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00080">ctx_set_err()</a>, <a class="el" href="musig2_8hpp_source.html#l00093">secp256k1::MuSig2Session::e</a>, <a class="el" href="point_8hpp_source.html#l00087">secp256k1::fast::Point::is_infinity()</a>, <a class="el" href="namespacesecp256k1.html#aef846e4a35cbf41f7492bfef7df8cd51">secp256k1::musig2_partial_sig_agg()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00122">point_from_compressed()</a>, <a class="el" href="musig2_8hpp_source.html#l00091">secp256k1::MuSig2Session::R</a>, <a class="el" href="musig2_8hpp_source.html#l00094">secp256k1::MuSig2Session::R_negated</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00111">scalar_parse_strict()</a>, <a class="el" href="ufsecp__error_8h_source.html#l00029">UFSECP_ERR_BAD_INPUT</a>, <a class="el" href="ufsecp__error_8h_source.html#l00028">UFSECP_ERR_BAD_SIG</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, and <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>.</p>
 
@@ -3715,7 +3715,7 @@ Functions</h2></td></tr>
 </div><div class="memdoc">
 <p>Verify a partial signature. </p>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l01729">1729</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l01735">1735</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
 
 <p class="reference">References <a class="el" href="musig2_8hpp_source.html#l00092">secp256k1::MuSig2Session::b</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00075">ctx_clear_err()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00080">ctx_set_err()</a>, <a class="el" href="structsecp256k1_1_1MuSig2PubNonce.html#a46aab0cf4cb3d6a55eb5b77a6808ef02">secp256k1::MuSig2PubNonce::deserialize()</a>, <a class="el" href="musig2_8hpp_source.html#l00093">secp256k1::MuSig2Session::e</a>, <a class="el" href="point_8hpp_source.html#l00087">secp256k1::fast::Point::is_infinity()</a>, <a class="el" href="musig2_8hpp_source.html#l00038">secp256k1::MuSig2KeyAggCtx::key_coefficients</a>, <a class="el" href="namespacesecp256k1.html#ac70c7095aa9d4247c147e9fb52e10af4">secp256k1::musig2_partial_verify()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00122">point_from_compressed()</a>, <a class="el" href="musig2_8hpp_source.html#l00036">secp256k1::MuSig2KeyAggCtx::Q</a>, <a class="el" href="musig2_8hpp_source.html#l00039">secp256k1::MuSig2KeyAggCtx::Q_negated</a>, <a class="el" href="musig2_8hpp_source.html#l00037">secp256k1::MuSig2KeyAggCtx::Q_x</a>, <a class="el" href="musig2_8hpp_source.html#l00091">secp256k1::MuSig2Session::R</a>, <a class="el" href="musig2_8hpp_source.html#l00094">secp256k1::MuSig2Session::R_negated</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00111">scalar_parse_strict()</a>, <a class="el" href="classsecp256k1_1_1fast_1_1Point.html#ae73f22dc5f207017b4b34b8abbb79b58">secp256k1::fast::Point::to_compressed()</a>, <a class="el" href="ufsecp__error_8h_source.html#l00029">UFSECP_ERR_BAD_INPUT</a>, <a class="el" href="ufsecp__error_8h_source.html#l00026">UFSECP_ERR_BAD_KEY</a>, <a class="el" href="ufsecp__error_8h_source.html#l00028">UFSECP_ERR_BAD_SIG</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, <a class="el" href="ufsecp__error_8h_source.html#l00030">UFSECP_ERR_VERIFY_FAIL</a>, <a class="el" href="ufsecp_8h_source.html#l00530">UFSECP_MUSIG2_KEYAGG_LEN</a>, and <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>.</p>
 
@@ -3823,7 +3823,7 @@ Functions</h2></td></tr>
 </div><div class="memdoc">
 <p>Compute blinding sum: sum(in) - sum(out). blinds: all blindings contiguous (32 bytes each), first n_in are inputs. </p>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l02414">2414</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l02445">2445</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
 
 <p class="reference">References <a class="el" href="ufsecp__impl_8cpp_source.html#l00075">ctx_clear_err()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00080">ctx_set_err()</a>, <a class="el" href="namespacesecp256k1.html#a92645e9b5a632e94fcb67a4c8e6c568e">secp256k1::pedersen_blind_sum()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00111">scalar_parse_strict()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00117">scalar_to_bytes()</a>, <a class="el" href="ufsecp__error_8h_source.html#l00029">UFSECP_ERR_BAD_INPUT</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, and <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>.</p>
 
@@ -3868,7 +3868,7 @@ Functions</h2></td></tr>
 </div><div class="memdoc">
 <p>Pedersen commitment: C = value * H + blinding * G. commitment33_out: 33-byte compressed point. </p>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l02351">2351</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l02382">2382</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
 
 <p class="reference">References <a class="el" href="ufsecp__impl_8cpp_source.html#l00075">ctx_clear_err()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00080">ctx_set_err()</a>, <a class="el" href="namespacesecp256k1.html#aa164bf7961c4c98e33564df8f56363e2">secp256k1::pedersen_commit()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00111">scalar_parse_strict()</a>, <a class="el" href="ufsecp__error_8h_source.html#l00029">UFSECP_ERR_BAD_INPUT</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, and <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>.</p>
 
@@ -3919,7 +3919,7 @@ Functions</h2></td></tr>
 </div><div class="memdoc">
 <p>Switch commitment: C = value*H + blinding*G + switch_blind*J. </p>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l02438">2438</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l02469">2469</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
 
 <p class="reference">References <a class="el" href="ufsecp__impl_8cpp_source.html#l00075">ctx_clear_err()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00080">ctx_set_err()</a>, <a class="el" href="namespacesecp256k1.html#a1c348fae3b31230c8c7e364fa39bd206">secp256k1::pedersen_switch_commit()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00111">scalar_parse_strict()</a>, <a class="el" href="ufsecp__error_8h_source.html#l00029">UFSECP_ERR_BAD_INPUT</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, and <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>.</p>
 
@@ -3964,7 +3964,7 @@ Functions</h2></td></tr>
 </div><div class="memdoc">
 <p>Verify Pedersen commitment. </p>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l02368">2368</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l02399">2399</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
 
 <p class="reference">References <a class="el" href="ufsecp__impl_8cpp_source.html#l00075">ctx_clear_err()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00080">ctx_set_err()</a>, <a class="el" href="namespacesecp256k1.html#a90ce24eb3d14058f1365f87dbb51b8ae">secp256k1::pedersen_verify()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00122">point_from_compressed()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00111">scalar_parse_strict()</a>, <a class="el" href="ufsecp__error_8h_source.html#l00029">UFSECP_ERR_BAD_INPUT</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, <a class="el" href="ufsecp__error_8h_source.html#l00030">UFSECP_ERR_VERIFY_FAIL</a>, and <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>.</p>
 
@@ -4015,7 +4015,7 @@ Functions</h2></td></tr>
 </div><div class="memdoc">
 <p>Verify that sum of positive commitments equals sum of negative commitments. pos/neg: arrays of 33-byte compressed commitments. </p>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l02389">2389</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l02420">2420</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
 
 <p class="reference">References <a class="el" href="ufsecp__impl_8cpp_source.html#l00075">ctx_clear_err()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00080">ctx_set_err()</a>, <a class="el" href="namespacesecp256k1.html#a3cb1d2501e54a3918bba6083b8372e3c">secp256k1::pedersen_verify_sum()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00122">point_from_compressed()</a>, <a class="el" href="ufsecp__error_8h_source.html#l00029">UFSECP_ERR_BAD_INPUT</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, <a class="el" href="ufsecp__error_8h_source.html#l00030">UFSECP_ERR_VERIFY_FAIL</a>, and <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>.</p>
 
@@ -4441,7 +4441,7 @@ Functions</h2></td></tr>
 </div><div class="memdoc">
 <p>Adapt a Schnorr pre-signature into a valid signature. </p>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l02163">2163</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l02192">2192</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
 
 <p class="reference">References <a class="el" href="ufsecp__impl_8cpp_source.html#l00075">ctx_clear_err()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00080">ctx_set_err()</a>, <a class="el" href="point_8hpp_source.html#l00087">secp256k1::fast::Point::is_infinity()</a>, <a class="el" href="adaptor_8hpp_source.html#l00038">secp256k1::SchnorrAdaptorSig::needs_negation</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00122">point_from_compressed()</a>, <a class="el" href="adaptor_8hpp_source.html#l00036">secp256k1::SchnorrAdaptorSig::R_hat</a>, <a class="el" href="adaptor_8hpp_source.html#l00037">secp256k1::SchnorrAdaptorSig::s_hat</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00111">scalar_parse_strict()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00104">scalar_parse_strict_nonzero()</a>, <a class="el" href="namespacesecp256k1.html#aca3fcc00217558fefea26e15f3fd74ab">secp256k1::schnorr_adaptor_adapt()</a>, <a class="el" href="secure__erase_8hpp_source.html#l00018">secp256k1::detail::secure_erase()</a>, <a class="el" href="ufsecp__error_8h_source.html#l00029">UFSECP_ERR_BAD_INPUT</a>, <a class="el" href="ufsecp__error_8h_source.html#l00028">UFSECP_ERR_BAD_SIG</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, and <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>.</p>
 
@@ -4486,7 +4486,7 @@ Functions</h2></td></tr>
 </div><div class="memdoc">
 <p>Extract adaptor secret from pre-signature + completed signature. </p>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l02190">2190</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l02220">2220</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
 
 <p class="reference">References <a class="el" href="ufsecp__impl_8cpp_source.html#l00075">ctx_clear_err()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00080">ctx_set_err()</a>, <a class="el" href="point_8hpp_source.html#l00087">secp256k1::fast::Point::is_infinity()</a>, <a class="el" href="adaptor_8hpp_source.html#l00038">secp256k1::SchnorrAdaptorSig::needs_negation</a>, <a class="el" href="structsecp256k1_1_1SchnorrSignature.html#aa415247dfe6be661c4fcfa6492361d4b">secp256k1::SchnorrSignature::parse_strict()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00122">point_from_compressed()</a>, <a class="el" href="adaptor_8hpp_source.html#l00036">secp256k1::SchnorrAdaptorSig::R_hat</a>, <a class="el" href="adaptor_8hpp_source.html#l00037">secp256k1::SchnorrAdaptorSig::s_hat</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00111">scalar_parse_strict()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00117">scalar_to_bytes()</a>, <a class="el" href="namespacesecp256k1.html#ac27a9a9d010fc747969b71f6db6c89a2">secp256k1::schnorr_adaptor_extract()</a>, <a class="el" href="secure__erase_8hpp_source.html#l00018">secp256k1::detail::secure_erase()</a>, <a class="el" href="ufsecp__error_8h_source.html#l00028">UFSECP_ERR_BAD_SIG</a>, <a class="el" href="ufsecp__error_8h_source.html#l00033">UFSECP_ERR_INTERNAL</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, and <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>.</p>
 
@@ -4543,7 +4543,7 @@ Functions</h2></td></tr>
 </div><div class="memdoc">
 <p>BIP-340 Schnorr adaptor pre-sign. adaptor_point: 33-byte compressed. </p>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l02098">2098</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l02125">2125</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
 
 <p class="reference">References <a class="el" href="ufsecp__impl_8cpp_source.html#l00075">ctx_clear_err()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00080">ctx_set_err()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00122">point_from_compressed()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00104">scalar_parse_strict_nonzero()</a>, <a class="el" href="namespacesecp256k1.html#a88f5abd08ec36d7b60c71dcb35494685">secp256k1::schnorr_adaptor_sign()</a>, <a class="el" href="secure__erase_8hpp_source.html#l00018">secp256k1::detail::secure_erase()</a>, <a class="el" href="ufsecp__error_8h_source.html#l00026">UFSECP_ERR_BAD_KEY</a>, <a class="el" href="ufsecp__error_8h_source.html#l00027">UFSECP_ERR_BAD_PUBKEY</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, and <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>.</p>
 
@@ -4594,7 +4594,7 @@ Functions</h2></td></tr>
 </div><div class="memdoc">
 <p>Verify Schnorr adaptor pre-signature. </p>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l02129">2129</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l02156">2156</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
 
 <p class="reference">References <a class="el" href="ufsecp__impl_8cpp_source.html#l00075">ctx_clear_err()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00080">ctx_set_err()</a>, <a class="el" href="point_8hpp_source.html#l00087">secp256k1::fast::Point::is_infinity()</a>, <a class="el" href="adaptor_8hpp_source.html#l00038">secp256k1::SchnorrAdaptorSig::needs_negation</a>, <a class="el" href="classsecp256k1_1_1fast_1_1FieldElement.html#a3a1a9ac9368da1c0f2827465f79cad6f">secp256k1::fast::FieldElement::parse_bytes_strict()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00122">point_from_compressed()</a>, <a class="el" href="adaptor_8hpp_source.html#l00036">secp256k1::SchnorrAdaptorSig::R_hat</a>, <a class="el" href="adaptor_8hpp_source.html#l00037">secp256k1::SchnorrAdaptorSig::s_hat</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00111">scalar_parse_strict()</a>, <a class="el" href="namespacesecp256k1.html#a88abfd05258117363c779f5d24acb443">secp256k1::schnorr_adaptor_verify()</a>, <a class="el" href="ufsecp__error_8h_source.html#l00027">UFSECP_ERR_BAD_PUBKEY</a>, <a class="el" href="ufsecp__error_8h_source.html#l00028">UFSECP_ERR_BAD_SIG</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, <a class="el" href="ufsecp__error_8h_source.html#l00030">UFSECP_ERR_VERIFY_FAIL</a>, and <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>.</p>
 
@@ -5173,7 +5173,7 @@ Functions</h2></td></tr>
 </div><div class="memdoc">
 <p>Generate a Silent Payment address from scan and spend private keys. scan_privkey: 32-byte scan private key. spend_privkey: 32-byte spend private key. scan_pubkey33_out: 33-byte compressed scan public key (B_scan). spend_pubkey33_out: 33-byte compressed spend public key (B_spend). addr_out: buffer for bech32m-encoded address (min 128 bytes). addr_len: in = buffer size, out = strlen (excl. NUL). </p>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l02802">2802</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l02833">2833</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
 
 <p class="reference">References <a class="el" href="ufsecp__impl_8cpp_source.html#l00075">ctx_clear_err()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00080">ctx_set_err()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00104">scalar_parse_strict_nonzero()</a>, <a class="el" href="secure__erase_8hpp_source.html#l00018">secp256k1::detail::secure_erase()</a>, <a class="el" href="namespacesecp256k1.html#afa0a68be87c65148c94371f0abd5a7fd">secp256k1::silent_payment_address()</a>, <a class="el" href="ufsecp__error_8h_source.html#l00026">UFSECP_ERR_BAD_KEY</a>, <a class="el" href="ufsecp__error_8h_source.html#l00034">UFSECP_ERR_BUF_TOO_SMALL</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, and <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>.</p>
 
@@ -5242,7 +5242,7 @@ Functions</h2></td></tr>
 </div><div class="memdoc">
 <p>Create a Silent Payment output (sender side). Computes the tweaked output pubkey for the recipient. input_privkeys: array of 32-byte private keys (N keys, one per input). n_inputs: number of input private keys. scan_pubkey33: 33-byte recipient scan pubkey (B_scan). spend_pubkey33: 33-byte recipient spend pubkey (B_spend). k: output index (for multiple outputs to same recipient). output_pubkey33_out: 33-byte compressed tweaked output pubkey. tweak32_out: 32-byte tweak scalar (optional, may be NULL). </p>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l02837">2837</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l02872">2872</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
 
 <p class="reference">References <a class="el" href="ufsecp__impl_8cpp_source.html#l00075">ctx_clear_err()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00080">ctx_set_err()</a>, <a class="el" href="point_8hpp_source.html#l00087">secp256k1::fast::Point::is_infinity()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00122">point_from_compressed()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00104">scalar_parse_strict_nonzero()</a>, <a class="el" href="address_8hpp_source.html#l00149">secp256k1::SilentPaymentAddress::scan_pubkey</a>, <a class="el" href="secure__erase_8hpp_source.html#l00018">secp256k1::detail::secure_erase()</a>, <a class="el" href="namespacesecp256k1.html#a49f25551091dee5851c2c0bc742e18b6">secp256k1::silent_payment_create_output()</a>, <a class="el" href="address_8hpp_source.html#l00150">secp256k1::SilentPaymentAddress::spend_pubkey</a>, <a class="el" href="ufsecp__error_8h_source.html#l00031">UFSECP_ERR_ARITH</a>, <a class="el" href="ufsecp__error_8h_source.html#l00026">UFSECP_ERR_BAD_KEY</a>, <a class="el" href="ufsecp__error_8h_source.html#l00027">UFSECP_ERR_BAD_PUBKEY</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, and <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>.</p>
 
@@ -5323,7 +5323,7 @@ Functions</h2></td></tr>
 </div><div class="memdoc">
 <p>Scan for Silent Payment outputs (receiver side). scan_privkey: 32-byte scan private key. spend_privkey: 32-byte spend private key. input_pubkeys33: array of 33-byte compressed pubkeys (sender inputs). n_input_pubkeys: number of input pubkeys. output_xonly32: array of 32-byte x-only output pubkeys to check. n_outputs: number of output pubkeys. found_indices_out: array to receive indices of matched outputs. found_privkeys_out: array to receive 32-byte spending private keys (one per match). n_found: in = array capacity, out = number of matches found. </p>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l02884">2884</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l02924">2924</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
 
 <p class="reference">References <a class="el" href="ufsecp__impl_8cpp_source.html#l00075">ctx_clear_err()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00080">ctx_set_err()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00122">point_from_compressed()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00104">scalar_parse_strict_nonzero()</a>, <a class="el" href="secure__erase_8hpp_source.html#l00018">secp256k1::detail::secure_erase()</a>, <a class="el" href="namespacesecp256k1.html#ac85046a194c79dec3e7691ad8cf0a636">secp256k1::silent_payment_scan()</a>, <a class="el" href="ufsecp__error_8h_source.html#l00029">UFSECP_ERR_BAD_INPUT</a>, <a class="el" href="ufsecp__error_8h_source.html#l00026">UFSECP_ERR_BAD_KEY</a>, <a class="el" href="ufsecp__error_8h_source.html#l00027">UFSECP_ERR_BAD_PUBKEY</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, and <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>.</p>
 
@@ -5698,7 +5698,7 @@ Functions</h2></td></tr>
 </div><div class="memdoc">
 <p>DLEQ proof: prove that P/G == Q/H (same discrete log). G, H, P, Q: 33-byte compressed points. </p>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l02509">2509</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l02540">2540</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
 
 <p class="reference">References <a class="el" href="ufsecp__impl_8cpp_source.html#l00075">ctx_clear_err()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00080">ctx_set_err()</a>, <a class="el" href="namespacesecp256k1_1_1zk.html#a9705abaabe6408859c60ebdf8f2bfb69">secp256k1::zk::dleq_prove()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00122">point_from_compressed()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00104">scalar_parse_strict_nonzero()</a>, <a class="el" href="secure__erase_8hpp_source.html#l00018">secp256k1::detail::secure_erase()</a>, <a class="el" href="ufsecp__error_8h_source.html#l00026">UFSECP_ERR_BAD_KEY</a>, <a class="el" href="ufsecp__error_8h_source.html#l00027">UFSECP_ERR_BAD_PUBKEY</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>, and <a class="el" href="ufsecp_8h_source.html#l00773">UFSECP_ZK_DLEQ_PROOF_LEN</a>.</p>
 
@@ -5755,7 +5755,7 @@ Functions</h2></td></tr>
 </div><div class="memdoc">
 <p>Verify DLEQ proof. </p>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l02538">2538</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l02569">2569</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
 
 <p class="reference">References <a class="el" href="ufsecp__impl_8cpp_source.html#l00075">ctx_clear_err()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00080">ctx_set_err()</a>, <a class="el" href="structsecp256k1_1_1zk_1_1DLEQProof.html#a907f1ac8eb67045378bd8b442b54e63c">secp256k1::zk::DLEQProof::deserialize()</a>, <a class="el" href="namespacesecp256k1_1_1zk.html#a9e1bdd97b67d99f19dd0231b704c150e">secp256k1::zk::dleq_verify()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00122">point_from_compressed()</a>, <a class="el" href="ufsecp__error_8h_source.html#l00029">UFSECP_ERR_BAD_INPUT</a>, <a class="el" href="ufsecp__error_8h_source.html#l00027">UFSECP_ERR_BAD_PUBKEY</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, <a class="el" href="ufsecp__error_8h_source.html#l00030">UFSECP_ERR_VERIFY_FAIL</a>, and <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>.</p>
 
@@ -5812,7 +5812,7 @@ Functions</h2></td></tr>
 </div><div class="memdoc">
 <p>Knowledge proof: prove knowledge of discrete log. </p>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l02463">2463</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l02494">2494</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
 
 <p class="reference">References <a class="el" href="ufsecp__impl_8cpp_source.html#l00075">ctx_clear_err()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00080">ctx_set_err()</a>, <a class="el" href="namespacesecp256k1_1_1zk.html#aae63adf5fc56261c1fedc19ee9b4cf0d">secp256k1::zk::knowledge_prove()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00122">point_from_compressed()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00104">scalar_parse_strict_nonzero()</a>, <a class="el" href="secure__erase_8hpp_source.html#l00018">secp256k1::detail::secure_erase()</a>, <a class="el" href="ufsecp__error_8h_source.html#l00026">UFSECP_ERR_BAD_KEY</a>, <a class="el" href="ufsecp__error_8h_source.html#l00027">UFSECP_ERR_BAD_PUBKEY</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>, and <a class="el" href="ufsecp_8h_source.html#l00772">UFSECP_ZK_KNOWLEDGE_PROOF_LEN</a>.</p>
 
@@ -5857,7 +5857,7 @@ Functions</h2></td></tr>
 </div><div class="memdoc">
 <p>Verify knowledge proof. </p>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l02489">2489</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l02520">2520</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
 
 <p class="reference">References <a class="el" href="ufsecp__impl_8cpp_source.html#l00075">ctx_clear_err()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00080">ctx_set_err()</a>, <a class="el" href="structsecp256k1_1_1zk_1_1KnowledgeProof.html#ae32c8d955e72832006f76e02b6e63651">secp256k1::zk::KnowledgeProof::deserialize()</a>, <a class="el" href="namespacesecp256k1_1_1zk.html#acf6683ecafd1e1aea492760b341fc463">secp256k1::zk::knowledge_verify()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00122">point_from_compressed()</a>, <a class="el" href="ufsecp__error_8h_source.html#l00029">UFSECP_ERR_BAD_INPUT</a>, <a class="el" href="ufsecp__error_8h_source.html#l00027">UFSECP_ERR_BAD_PUBKEY</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, <a class="el" href="ufsecp__error_8h_source.html#l00030">UFSECP_ERR_VERIFY_FAIL</a>, and <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>.</p>
 
@@ -5920,7 +5920,7 @@ Functions</h2></td></tr>
 </div><div class="memdoc">
 <p>Bulletproof range proof: prove commitment hides value in [0, 2^64). proof_len: in = buffer size, out = actual proof size. </p>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l02560">2560</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l02591">2591</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
 
 <p class="reference">References <a class="el" href="ufsecp__impl_8cpp_source.html#l00075">ctx_clear_err()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00080">ctx_set_err()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00122">point_from_compressed()</a>, <a class="el" href="namespacesecp256k1_1_1zk.html#a45ddc0b34c1453e6676304295f9c470e">secp256k1::zk::range_prove()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00111">scalar_parse_strict()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00117">scalar_to_bytes()</a>, <a class="el" href="ufsecp__error_8h_source.html#l00029">UFSECP_ERR_BAD_INPUT</a>, <a class="el" href="ufsecp__error_8h_source.html#l00034">UFSECP_ERR_BUF_TOO_SMALL</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, and <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>.</p>
 
@@ -5965,7 +5965,7 @@ Functions</h2></td></tr>
 </div><div class="memdoc">
 <p>Verify Bulletproof range proof. </p>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l02606">2606</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp__impl_8cpp_source.html#l02637">2637</a> of file <a class="el" href="ufsecp__impl_8cpp_source.html">ufsecp_impl.cpp</a>.</p>
 
 <p class="reference">References <a class="el" href="zk_8hpp_source.html#l00146">secp256k1::zk::RangeProof::A</a>, <a class="el" href="zk_8hpp_source.html#l00163">secp256k1::zk::RangeProof::a</a>, <a class="el" href="zk_8hpp_source.html#l00164">secp256k1::zk::RangeProof::b</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00075">ctx_clear_err()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00080">ctx_set_err()</a>, <a class="el" href="zk_8hpp_source.html#l00159">secp256k1::zk::RangeProof::L</a>, <a class="el" href="zk_8hpp_source.html#l00155">secp256k1::zk::RangeProof::mu</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00122">point_from_compressed()</a>, <a class="el" href="zk_8hpp_source.html#l00160">secp256k1::zk::RangeProof::R</a>, <a class="el" href="namespacesecp256k1_1_1zk.html#a4f1639e44cdf20af3335e5ad784d6adf">secp256k1::zk::range_verify()</a>, <a class="el" href="zk_8hpp_source.html#l00147">secp256k1::zk::RangeProof::S</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00111">scalar_parse_strict()</a>, <a class="el" href="zk_8hpp_source.html#l00150">secp256k1::zk::RangeProof::T1</a>, <a class="el" href="zk_8hpp_source.html#l00151">secp256k1::zk::RangeProof::T2</a>, <a class="el" href="zk_8hpp_source.html#l00156">secp256k1::zk::RangeProof::t_hat</a>, <a class="el" href="zk_8hpp_source.html#l00154">secp256k1::zk::RangeProof::tau_x</a>, <a class="el" href="ufsecp__error_8h_source.html#l00029">UFSECP_ERR_BAD_INPUT</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, <a class="el" href="ufsecp__error_8h_source.html#l00030">UFSECP_ERR_VERIFY_FAIL</a>, and <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>.</p>
 
