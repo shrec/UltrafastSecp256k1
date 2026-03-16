@@ -4,14 +4,16 @@ preflight.py  --  Pre-commit quality gate for UltrafastSecp256k1
 
 Validates that changes follow the project's non-negotiable rules:
   1. Security invariants: CT files retain all secure_erase/value_barrier calls
-  2. Doc-code pairing: code changes have matching doc updates
+  2. Narrative drift: audit docs don't claim CT layers are missing when active
   3. Test coverage gaps: source files with no test coverage
   4. Graph freshness: DB vs filesystem consistency
-  5. ABI surface check: new/removed ufsecp_* functions detected
+  5. Doc-code pairing: code changes have matching doc updates
+  6. ABI surface check: new/removed ufsecp_* functions detected
 
 Usage:
     python3 scripts/preflight.py                    # full check
     python3 scripts/preflight.py --security         # security only
+    python3 scripts/preflight.py --drift            # narrative drift only
     python3 scripts/preflight.py --coverage         # coverage gaps only
     python3 scripts/preflight.py --freshness        # graph freshness only
     python3 scripts/preflight.py --changed          # check git-changed files
@@ -96,6 +98,58 @@ def check_security_invariants():
             issues.append(f"  {CYAN}NEW{RESET}  {src_file}: {pat_name} {exp_cnt} -> {count} (+{count - exp_cnt}, rebuild graph)")
 
     conn.close()
+    return issues
+
+# ---------------------------------------------------------------------------
+# 1b. Narrative Drift Detection
+# ---------------------------------------------------------------------------
+STALE_PHRASES = [
+    # (regex_pattern, description, files_to_check)
+    (r'(?i)\bno\s+formal\s+(ct\s+)?verification\b',
+     'Claims no formal CT verification -- ct-verif and valgrind-ct are active in CI',
+     ['docs/AUDIT_READINESS_REPORT_v1.md', 'audit/AUDIT_TEST_PLAN.md']),
+    (r'(?i)\btool\s+integration\s+not\s+yet\s+done\b',
+     'Claims tool integration not done -- tools are integrated',
+     ['docs/AUDIT_READINESS_REPORT_v1.md', 'audit/AUDIT_TEST_PLAN.md',
+      'docs/TEST_MATRIX.md']),
+    (r'(?i)\bno\s+formal\s+verification\s+applied\b',
+     'Claims no formal verification applied -- ct-verif is running and blocking',
+     ['audit/run_full_audit.sh', 'audit/run_full_audit.ps1']),
+    (r'(?i)\bno\s+multi-uarch\b',
+     'Claims no multi-uarch support -- cross-platform KAT and CI exist',
+     ['docs/AUDIT_READINESS_REPORT_v1.md']),
+    (r'(?i)\bgpu\s+equivalence\s+planned\b',
+     'Claims GPU equivalence only planned -- GPU audit runners exist',
+     ['docs/AUDIT_READINESS_REPORT_v1.md']),
+]
+
+# Files that are marked historical are exempt from drift checks
+HISTORICAL_EXEMPT_MARKER = re.compile(
+    r'(?i)(historical\s+report|superseded\s+by|snapshot\s+from\s+v\d)',
+)
+
+def check_narrative_drift():
+    """Detect stale CT/audit phrases in narrative docs."""
+    issues = []
+    for pattern_str, description, target_files in STALE_PHRASES:
+        pat = re.compile(pattern_str)
+        for rel_path in target_files:
+            filepath = LIB_ROOT / rel_path
+            if not filepath.exists():
+                continue
+            try:
+                with open(filepath, 'r', errors='replace') as f:
+                    content = f.read()
+            except Exception:
+                continue
+            # Skip files explicitly marked as historical
+            if HISTORICAL_EXEMPT_MARKER.search(content[:500]):
+                continue
+            for i, line in enumerate(content.splitlines(), 1):
+                if pat.search(line):
+                    issues.append(
+                        f"  {YELLOW}DRIFT{RESET} {rel_path}:{i} -- {description}"
+                    )
     return issues
 
 # ---------------------------------------------------------------------------
@@ -333,7 +387,7 @@ def run_all(args):
 
     # Security
     if mode in ('--all', '--security'):
-        print(f"{BOLD}[1/5] Security Invariants{RESET}")
+        print(f"{BOLD}[1/6] Security Invariants{RESET}")
         issues = check_security_invariants()
         if issues:
             for i in issues:
@@ -346,9 +400,21 @@ def run_all(args):
         else:
             print(f"  {GREEN}[OK] All security patterns preserved{RESET}\n")
 
+    # Narrative drift
+    if mode in ('--all', '--drift'):
+        print(f"{BOLD}[2/6] Narrative Drift Detection{RESET}")
+        drift_issues = check_narrative_drift()
+        if drift_issues:
+            for i in drift_issues:
+                print(i)
+            total_issues += len(drift_issues)
+            print(f"  {YELLOW}{len(drift_issues)} stale narrative phrase(s){RESET}\n")
+        else:
+            print(f"  {GREEN}[OK] No stale CT/audit narrative detected{RESET}\n")
+
     # Coverage
     if mode in ('--all', '--coverage'):
-        print(f"{BOLD}[2/5] Test Coverage Gaps{RESET}")
+        print(f"{BOLD}[3/6] Test Coverage Gaps{RESET}")
         gaps = check_coverage_gaps()
         if gaps:
             for path, lines in sorted(gaps, key=lambda x: -x[1])[:20]:
@@ -360,7 +426,7 @@ def run_all(args):
 
     # Freshness
     if mode in ('--all', '--freshness'):
-        print(f"{BOLD}[3/5] Graph Freshness{RESET}")
+        print(f"{BOLD}[4/6] Graph Freshness{RESET}")
         stale, built = check_freshness()
         if stale:
             for kind, path, lines in stale[:15]:
@@ -374,7 +440,7 @@ def run_all(args):
 
     # Changed files
     if mode in ('--all', '--changed'):
-        print(f"{BOLD}[4/5] Changed Files Impact{RESET}")
+        print(f"{BOLD}[5/6] Changed Files Impact{RESET}")
         changed = get_changed_files()
         if changed:
             print(f"  {len(changed)} files changed vs HEAD:")
@@ -405,7 +471,7 @@ def run_all(args):
 
     # ABI
     if mode in ('--all', '--abi'):
-        print(f"{BOLD}[5/5] ABI Surface{RESET}")
+        print(f"{BOLD}[6/6] ABI Surface{RESET}")
         added, removed = check_abi_surface()
         if added:
             print(f"  {CYAN}NEW functions (not in graph):{RESET}")

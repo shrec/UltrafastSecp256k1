@@ -630,7 +630,7 @@ EOF
 ### Known Limitations
 
 - No external lab power analysis / EM emanation testing
-- No formal verification (ct-verif, Vale) applied
+- No machine-checked proof framework (Vale/Jasmin/Coq/Fiat-Crypto generated proofs) applied
 - GPU CT guarantees not provided (by design)
 - Physical fault injection not tested
 
@@ -648,9 +648,13 @@ See `artifacts/ctest/` for full CTest and unified runner results.
 
 ### CT / Side-Channel
 
-- dudect timing tests included in unified runner (ct_sidechannel smoke)
-- Disassembly branch scan: `artifacts/disasm/disasm_branch_scan.json`
-- Valgrind CT check: run `scripts/valgrind_ct_check.sh` separately
+CT verification uses a layered approach:
+
+- **Statistical timing leakage testing (dudect)**: included in unified runner (ct_sidechannel smoke). Advisory -- timing noise on shared runners may mask subtle leaks.
+- **Deterministic CT verification (ct-verif)**: LLVM-based taint tracking via `.github/workflows/ct-verif.yml`. Blocking in CI.
+- **Deterministic CT verification (valgrind-ct)**: ctgrind-mode memcheck via `.github/workflows/ct-verif.yml`. Blocking in CI.
+- **Disassembly branch scan**: `artifacts/disasm/disasm_branch_scan.json` -- checks compiled CT functions for conditional branches on secrets.
+- **Machine-checked proofs**: Not currently applied (Vale/Jasmin/Coq/Fiat-Crypto).
 
 EOF
 
@@ -676,12 +680,12 @@ EOF
 
 | Threat (from THREAT_MODEL.md) | Test Coverage | Evidence |
 |-------------------------------|---------------|----------|
-| A1: Timing Side Channels | CT tests, dudect, disasm scan | unified runner (ct_analysis section) |
+| A1: Timing Side Channels | CT tests, dudect, ct-verif, valgrind-ct, disasm scan | unified runner (ct_analysis) + CI (ct-verif.yml) |
 | A2: Nonce Attacks | RFC6979 KAT, BIP-340 vectors | unified runner (standard_vectors) |
 | A3: Arithmetic Errors | Field/scalar/point audit, property tests | unified runner (math_invariants) |
 | A4: Memory Safety | ASan/UBSan, fault injection | sanitizer build + fault_injection test |
 | A5: Supply Chain | SBOM, provenance, dependency scan | artifacts/ |
-| A6: GPU-Specific | GPU tests (if enabled) | separate GPU audit |
+| A6: GPU-Specific | GPU tests (CUDA, OpenCL, Metal) | CI: gpu-selfhosted.yml + opencl/metal audit runners |
 
 ### Not Covered
 
@@ -707,6 +711,9 @@ EOF
 | CTest output | `artifacts/ctest/ctest_output.txt` |
 | CTest results | `artifacts/ctest/results.json` |
 | CT disasm scan | `artifacts/disasm/disasm_branch_scan.json` |
+| ct-verif log | CI: `.github/workflows/ct-verif.yml` artifacts |
+| valgrind-ct log | CI: `.github/workflows/ct-verif.yml` artifacts |
+| GPU audit | CI: `.github/workflows/gpu-selfhosted.yml` artifacts |
 | ABI report | `artifacts/abi_report.json` |
 | Bindings parity | `artifacts/bindings/parity_matrix.json` |
 | Benchmark output | `artifacts/benchmark/benchmark_output.txt` |

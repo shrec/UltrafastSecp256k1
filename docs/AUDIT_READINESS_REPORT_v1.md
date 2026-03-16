@@ -1,5 +1,12 @@
 # Verification Transparency Report -- v3.14.0
 
+> **Historical Report -- Snapshot from v3.14.0**
+> This report describes the audit state as of v3.14.0 (2026-02-25).
+> Superseded by current CI enforcement (v3.22.0+): ct-verif and valgrind-ct
+> are now active and blocking in CI, GPU audit runners exist, and
+> cross-platform KAT covers multiple architectures.
+> See `docs/CT_VERIFICATION.md` and `docs/SECURITY_CLAIMS.md` for current state.
+
 **Status: NOT externally audited.**  
 **Verification artifacts published for independent review.**
 
@@ -139,7 +146,7 @@ Ideal: 1.0. Concern threshold: 1.2. Result is within acceptable bounds.
 ### Limitations
 
 - Architecture tested: x86-64 (CI runner). Other uarch may differ.
-- No formal verification (ct-verif, Vale) applied.
+- No machine-checked proof framework (Vale/Jasmin/Coq/Fiat-Crypto generated proofs) applied.
 - Compiler may introduce secret-dependent branches at optimization levels.
 - GPU backends are **NOT constant-time** by design.
 

@@ -73,6 +73,7 @@ $ts = Get-Date -Format "yyyyMMdd-HHmmss"
 $OutputDir = Join-Path $ProjectRoot "audit-evidence-$ts"
 New-Item -ItemType Directory -Force -Path $OutputDir | Out-Null
 New-Item -ItemType Directory -Force -Path "$OutputDir/tool_evidence" | Out-Null
+New-Item -ItemType Directory -Force -Path "$OutputDir/ct_evidence" | Out-Null
 
 Write-Host "================================================================"
 Write-Host "  Audit Evidence Package Generator"
@@ -211,7 +212,43 @@ $gitBranch = git -C $ProjectRoot rev-parse --abbrev-ref HEAD 2>$null
 $gitInfo = "Branch: $gitBranch`nCommit: $gitHash`n"
 $gitInfo | Set-Content "$OutputDir/tool_evidence/git_info.txt"
 
-# 4f. Auditor README
+# 4f. CT evidence collection
+Write-Host "  Collecting CT evidence artifacts..."
+$ctDir = "$OutputDir/ct_evidence"
+$ctArtifacts = @(
+    @{ Name = "ct_verif.log";             Candidates = @("artifacts/ct/ct_verif.log", "ct_verif.log") },
+    @{ Name = "ct_verif_summary.json";    Candidates = @("artifacts/ct/ct_verif_summary.json", "ct_verif_summary.json") },
+    @{ Name = "valgrind_ct.log";          Candidates = @("artifacts/ct/valgrind_ct.log", "valgrind_ct.log") },
+    @{ Name = "valgrind_ct_report.json";  Candidates = @("artifacts/ct/valgrind_ct_report.json", "valgrind_ct_report.json") },
+    @{ Name = "disasm_branch_scan.json";  Candidates = @("artifacts/ct/disasm_branch_scan.json", "artifacts/disasm/disasm_branch_scan.json") },
+    @{ Name = "dudect_smoke.log";         Candidates = @("artifacts/ct/dudect_smoke.log", "dudect_smoke.log") },
+    @{ Name = "dudect_full.log";          Candidates = @("artifacts/ct/dudect_full.log", "dudect_full.log") }
+)
+$ctCount = 0
+foreach ($art in $ctArtifacts) {
+    foreach ($cand in $art.Candidates) {
+        $full = Join-Path $ProjectRoot $cand
+        $buildCand = Join-Path $FullBuildDir $art.Name
+        if (Test-Path $full) {
+            Copy-Item $full "$ctDir/$($art.Name)"
+            Write-Host "  [+] $($art.Name)"
+            $ctCount++
+            break
+        } elseif (Test-Path $buildCand) {
+            Copy-Item $buildCand "$ctDir/$($art.Name)"
+            Write-Host "  [+] $($art.Name)"
+            $ctCount++
+            break
+        }
+    }
+}
+if ($ctCount -gt 0) {
+    Write-Host "  CT evidence: $ctCount artifact(s) collected"
+} else {
+    Write-Host "  CT evidence: none found locally (check CI artifacts)"
+}
+
+# 4g. Auditor README
 @"
 ================================================================
   UltrafastSecp256k1 -- Audit Evidence Package
@@ -230,6 +267,17 @@ CONTENTS:
     cmake_cache_summary.txt  CMake build options
     ctest_results.xml        CTest XML results (if run)
     git_info.txt             Git branch + commit
+  ct_evidence/
+    ct_verif.log             Deterministic CT verification output (ct-verif)
+    ct_verif_summary.json    CT verification structured results
+    valgrind_ct.log          Valgrind CT memcheck output (ctgrind mode)
+    valgrind_ct_report.json  Valgrind CT structured results
+    disasm_branch_scan.json  Disassembly branch analysis of CT functions
+    dudect_smoke.log         Statistical timing test (dudect, smoke run)
+    dudect_full.log          Statistical timing test (dudect, full run)
+
+Note: ct_evidence/ files are present when available from local or CI runs.
+If empty, check CI artifacts at the URLs listed below.
 
 AUDIT SECTIONS (8 categories):
   1. Mathematical Invariants    -- Fp, Zn, group laws (13 modules)
@@ -243,22 +291,35 @@ AUDIT SECTIONS (8 categories):
 
 TOTAL: 47 test modules + 1 library selftest = 48 checks
 
+CT VERIFICATION STACK:
+  Layer 1: Statistical timing leakage testing (dudect)
+    - Welch t-test, |t| > 4.5 = leak. Advisory on shared runners.
+  Layer 2: Deterministic CT verification (ct-verif + valgrind-ct)
+    - ct-verif: LLVM-based taint tracking, blocking in CI
+    - valgrind-ct: ctgrind-mode memcheck, blocking in CI
+  Layer 3: Disassembly branch scan
+    - Checks compiled CT functions for conditional branches on secrets
+  Layer 4: Machine-checked proof frameworks
+    - Not currently applied (Vale/Jasmin/Coq/Fiat-Crypto)
+
 HOW TO VERIFY:
   1. Review audit_report.json for structured pass/fail data
   2. Confirm all 8 sections show "status": "PASS"
-  3. Verify platform/compiler info matches expected target
-  4. Check build_info.json for reproducible build parameters
-  5. Cross-reference with CI artifacts at:
-     https://github.com/shrec/UltrafastSecp256k1/actions/workflows/audit-report.yml
+  3. Check ct_evidence/ for deterministic CT verification results
+  4. Verify platform/compiler info matches expected target
+  5. Check build_info.json for reproducible build parameters
 
 EXTERNAL TOOL EVIDENCE (collected separately by CI):
-  - CodeQL:      .github/workflows/codeql.yml     -> Security tab
+  - ct-verif:    .github/workflows/ct-verif.yml    -> Actions artifacts
+  - valgrind-ct: .github/workflows/ct-verif.yml    -> Actions artifacts
+  - CodeQL:      .github/workflows/codeql.yml      -> Security tab
   - Cppcheck:    .github/workflows/cppcheck.yml    -> Security tab
   - Scorecard:   .github/workflows/scorecard.yml   -> Security tab
   - SonarCloud:  .github/workflows/sonarcloud.yml  -> sonarcloud.io
   - ClusterFuzz: .github/workflows/cflite.yml      -> PR checks
   - Mutation:    .github/workflows/mutation.yml     -> Weekly run
   - Clang-Tidy:  .github/workflows/clang-tidy.yml  -> Security tab
+  - GPU audit:   .github/workflows/gpu-selfhosted.yml -> Self-hosted runner
 ================================================================
 "@ | Set-Content "$OutputDir/README.txt"
 

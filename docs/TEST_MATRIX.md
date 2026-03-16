@@ -184,14 +184,18 @@
 
 ### CT Layer
 
-| Function | audit_ct | test_ct | dudect | Formal |
-|----------|:--------:|:-------:|:------:|:------:|
-| `ct::field_mul` | [OK] | [OK] | [OK] | [FAIL] |
-| `ct::field_inv` | [OK] | [OK] | [OK] | [FAIL] |
-| `ct::scalar_mul` | [OK] | [OK] | [OK] | [FAIL] |
-| `ct::generator_mul` | [OK] | [OK] | [OK] | [FAIL] |
-| `ct::point_add_complete` | [OK] | [OK] | [OK] | [FAIL] |
-| `ct::point_dbl` | [OK] | [OK] | -- | [FAIL] |
+CT functions are verified by a layered approach: equivalence tests (`audit_ct`, `test_ct`),
+statistical timing tests (`dudect`), and deterministic CT verification (`ct-verif` + `valgrind-ct` in CI).
+Machine-checked proofs (Fiat-Crypto/Vale/Jasmin) are not yet applied.
+
+| Function | audit_ct | test_ct | dudect | ct-verif | Machine-Checked Proof |
+|----------|:--------:|:-------:|:------:|:--------:|:---------------------:|
+| `ct::field_mul` | [OK] | [OK] | [OK] | [OK] | -- |
+| `ct::field_inv` | [OK] | [OK] | [OK] | [OK] | -- |
+| `ct::scalar_mul` | [OK] | [OK] | [OK] | [OK] | -- |
+| `ct::generator_mul` | [OK] | [OK] | [OK] | [OK] | -- |
+| `ct::point_add_complete` | [OK] | [OK] | [OK] | [OK] | -- |
+| `ct::point_dbl` | [OK] | [OK] | -- | [OK] | -- |
 
 ### Protocols (Experimental)
 
@@ -224,7 +228,7 @@
 
 | Gap | Impact | Blocked By |
 |-----|--------|------------|
-| **Formal verification** | CT properties unverified mathematically | Fiat-Crypto/ct-verif integration needed |
+| **Machine-checked proofs** | CT/math properties not proven in Coq/Jasmin/Vale-style frameworks | Separate proof-bearing core or generated arithmetic path needed |
 | **Cross-ABI tests** | Cannot verify FFI correctness across calling conventions | Need multi-compiler test matrix |
 
 ### Medium Priority

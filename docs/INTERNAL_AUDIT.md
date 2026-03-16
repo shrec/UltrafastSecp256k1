@@ -266,7 +266,7 @@ team and automated CI infrastructure.
 - **Smoke mode**: Every push/PR (DUDECT_SMOKE, threshold t=25.0)
 - **Full mode**: Nightly (30 minutes, threshold t=4.5)
 
-**Limitation**: dudect tests timing on the CI runner's CPU (x86-64). Other microarchitectures (ARM, RISC-V, Apple Silicon) may exhibit different behavior. No formal verification (ct-verif, Vale) has been applied.
+**Limitation**: dudect tests timing on the CI runner's CPU (x86-64). Other microarchitectures (ARM, RISC-V, Apple Silicon) may exhibit different behavior. Deterministic CT verification exists (`ct-verif`, Valgrind CT), but no machine-checked proof framework (Vale/Jasmin/Coq/Fiat-Crypto generated proofs) has been applied.
 
 ### 5.3 CT Timing Ratio
 
