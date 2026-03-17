@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1773716335610,
+  "lastUpdate": 1773787350698,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "Perf Regression Gate": [
@@ -25775,6 +25775,515 @@ window.BENCHMARK_DATA = {
           {
             "name": "Bulletproof range_verify (64b)",
             "value": 4624405.2,
+            "unit": "ns"
+          },
+          {
+            "name": "Harness",
+            "value": 3000000000,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "Vano Chkheidze",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "89891221eeee35a683847a7d8600aa65aa2678b5",
+          "message": "perf: batch ops 17-67x faster via all-affine fast path; pippenger touched-bucket + window tuning (#169)\n\n* perf: batch ops 17-67x faster via all-affine fast path; pippenger touched-bucket + window tuning\n\n## Performance (N=64 batch, LTO Release build)\n- batch_normalize /pt:      144.7 ns → 8.2 ns  (17.6x faster)\n- batch_to_compressed /pt:  134.6 ns → 2.0 ns  (67x faster)\n- batch_x_only_bytes /pt:    97.4 ns → 1.9 ns  (51x faster)\n- scalar_mul (k*P):          17012 ns → 17155 ns (no regression)\n\n## Changes\n\n### cpu/src/point.cpp\n- batch_normalize: all-affine fast path — when all z_one_==true, skip batch\n  inversion and read x_/y_ directly\n- batch_to_compressed: same fast path + parity via limbs()[0] (avoids\n  full serialization just for one bit)\n- batch_x_only_bytes: same fast path using store_b32_prenorm / to_bytes()\n\n### cpu/src/pippenger.cpp\n- Window thresholds retuned: n<=72→c=5, n<=384→c=6, n<=768→c=7, etc.\n  (was n<=32→c=5, n<=64→c=6)\n- Strauss/Pippenger crossover: n<48 (was n<=64) — avoids Pippenger\n  overhead for small MSM sizes\n- Stack allocation for buckets/touched/used (STACK_BUCKETS=256): eliminates\n  heap alloc for common window sizes; unique_ptr fallback for larger\n- Pre-extracted digits: all n*num_windows digits in a flat u16[] before\n  main loop — avoids redundant extract_window_bits calls\n- all_affine scatter: uses add_mixed52_inplace/from_affine52 instead of\n  full Jacobian add\n- touched[] tracking: only reset touched buckets (O(k) not O(2^c))\n- max_touched_digit: aggregate loop starts from highest used bucket\n\n### cpu/src/batch_add_affine.cpp\n- PrecomputeBuffers struct: stack arrays for count<=64, heap fallback\n- y-parity via limbs()[0] instead of to_bytes()[31]\n\n## Tests\n- test_point_edge_cases_standalone: 53/53 PASS\n- test_ecc_properties_standalone: 89/89 PASS\n- test_edge_cases_standalone: 60/60 PASS\n- test_comprehensive_standalone: 12023/12023 PASS\n- test_batch_add_affine_standalone: 548/548 PASS\n\n* fix: precompute_point_multiples stack alloc; ASan timeout 300→600s -j4\n\n- cpu/src/batch_add_affine.cpp: precompute_point_multiples now uses\n  PrecomputeBuffers (same pattern as precompute_g_multiples from PR #169)\n  Eliminates 3 heap allocations per b*P table build for count <= 64\n  (stack fallback path, avoids malloc/free overhead)\n\n- docker/run_ci.sh: fix ASan+UBSan flaky timeout (root cause: selftest\n  ~159s normally → 300-480s under ASan + CPU contention from -j$NPROC)\n  Fix: --timeout 600 and cap parallelism at min(4, NPROC) for asan job\n\n* perf: keep schnorr batch verify on fast path through N=64\n\nCurrent measurements still show the randomized MSM path losing to\nper-signature schnorr_verify at N=64, even after earlier MSM work.\n\nKeep batches through 64 entries on the existing GLV Strauss + fixed-base\npath and defer the MSM path to larger batches, matching the measured\ncrossover on this machine.\n\n* perf: reduce schnorr batch setup passes\n\nBuild the non-generator MSM inputs in one pass during large-batch\nSchnorr verification instead of materializing temporary weights,\nchallenges, and lifted-point vectors and then refilling scalars/points.\n\nThis cuts setup memory traffic and improved a local N=128 large-batch\nharness by about 5% in the one-shot path.\n\nAlso add an audit case for malformed x-only pubkeys with the same xor\nfingerprint as a valid one so future lift-caching changes keep the batch\npath robust under collisions and repeated invalid inputs.\n\n* bench: add larger batch verify sizes\n\nExtend the unified benchmark to measure Schnorr and ECDSA batch\nverification at N=128 and N=192 in addition to 4/16/64.\n\nScale iteration counts for the larger sizes so the benchmark stays\npractical while exposing the real crossover behavior of the large-batch\npath.\n\n* perf: retune schnorr batch crossover\n\nKeep Schnorr batch verification on the per-signature GLV Strauss path\nthrough N=128, and switch to the randomized MSM path above that.\n\nCurrent official benchmark data on this CPU shows the public batch path\nis still slower than individual verification at 64 and 128 entries, while\n192 entries is close enough to justify keeping the large-batch path active\nthere for further tuning.\n\n* perf: cache repeated x-only pubkeys in large schnorr batches\n\nLarge Schnorr batches in the official benchmark reuse x-only pubkeys from\na 64-entry pool, so avoid re-lifting the same pubkey multiple times inside\none batch. Reuse parsed SchnorrXonlyPubkey points for duplicates and stream\nchallenge hashing directly instead of building a temporary 96-byte buffer.\n\nThis keeps 64/128 on the per-signature path and improves the N=192 batch\npath enough to beat individual verification again on the current CPU.\n\nAlso add audit coverage for batches that intentionally reuse the same\nx-only pubkey across many signatures.\n\n* perf: trim field batch inversion scratch overhead\n\nUse indexed scratch storage in fe_batch_inverse instead of push_back on the\nhot path, and route small batches through a fixed stack scratch buffer.\n\nThis keeps the change local to field inversion while shaving overhead from\nruntime callers that use small and medium Montgomery batch inversions.\n\n* Add cached schnorr batch path and preflight coverage fixes\n\n* Benchmark cached schnorr batch verification\n\n* Reuse scratch buffers in schnorr batch verify\n\n* Cache x-only lifts in schnorr parse path\n\n* Trim schnorr batch seed serialization overhead\n\n* Tune schnorr batch cutoff for N=128\n\n* Reuse SHA256 base for schnorr batch weights\n\n* Harden ECIES zero-ephemeral cleanup\n\n* harden ABI secret cleanup paths\n\n* harden wallet seed-to-address cleanup\n\n* optimize coin HD fixed-path derivation\n\n* optimize silent payment scan invariants\n\n* optimize OpenCL generator nibble lookup\n\n* optimize OpenCL GLV generator phi table\n\n* Optimize CUDA BIP352 benchmark and enrich project graph\n\n---------\n\nCo-authored-by: shrec <shrec@users.noreply.github.com>",
+          "timestamp": "2026-03-18T02:38:10+04:00",
+          "tree_id": "bf0e8dfb6cd2a39f7a0b36e9386c37b31f8ecad9",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/89891221eeee35a683847a7d8600aa65aa2678b5"
+        },
+        "date": 1773787348025,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "field_inv",
+            "value": 1021.7,
+            "unit": "ns"
+          },
+          {
+            "name": "scalar_inv",
+            "value": 1333.3,
+            "unit": "ns"
+          },
+          {
+            "name": "pubkey_create (k*G)",
+            "value": 7916.2,
+            "unit": "ns"
+          },
+          {
+            "name": "scalar_mul (k*P)",
+            "value": 33005.3,
+            "unit": "ns"
+          },
+          {
+            "name": "scalar_mul_with_plan",
+            "value": 32714.4,
+            "unit": "ns"
+          },
+          {
+            "name": "dual_mul (a*G + b*P)",
+            "value": 36245.4,
+            "unit": "ns"
+          },
+          {
+            "name": "point_add (affine+affine)",
+            "value": 1286.1,
+            "unit": "ns"
+          },
+          {
+            "name": "point_add (J+A mixed)",
+            "value": 242,
+            "unit": "ns"
+          },
+          {
+            "name": "point_dbl",
+            "value": 144.4,
+            "unit": "ns"
+          },
+          {
+            "name": "next_inplace (+=G)",
+            "value": 252.9,
+            "unit": "ns"
+          },
+          {
+            "name": "KPlan::from_scalar(w=4)",
+            "value": 2670.4,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_sign",
+            "value": 10690.7,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_sign_verified",
+            "value": 66665.7,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_verify",
+            "value": 38540.2,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_keypair_create",
+            "value": 10475.5,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_sign",
+            "value": 8467.8,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_sign_verified",
+            "value": 48516.9,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_verify (cached xonly)",
+            "value": 38514.2,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_verify (raw bytes)",
+            "value": 39621.4,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_batch_verify(N=4)",
+            "value": 148846.4,
+            "unit": "ns"
+          },
+          {
+            "name": "-> per-sig amortized (N=4)",
+            "value": 37211.6,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_batch_verify(cached,N=4)",
+            "value": 149101.8,
+            "unit": "ns"
+          },
+          {
+            "name": "-> per-sig cached (N=4)",
+            "value": 37275.5,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_batch_verify(N=16)",
+            "value": 609803.5,
+            "unit": "ns"
+          },
+          {
+            "name": "-> per-sig amortized (N=16)",
+            "value": 38112.7,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_batch_verify(cached,N=16)",
+            "value": 595889.2,
+            "unit": "ns"
+          },
+          {
+            "name": "-> per-sig cached (N=16)",
+            "value": 37243.1,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_batch_verify(N=64)",
+            "value": 2545158.4,
+            "unit": "ns"
+          },
+          {
+            "name": "-> per-sig amortized (N=64)",
+            "value": 39768.1,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_batch_verify(cached,N=64)",
+            "value": 2458808.6,
+            "unit": "ns"
+          },
+          {
+            "name": "-> per-sig cached (N=64)",
+            "value": 38418.9,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_batch_verify(N=128)",
+            "value": 4681710.1,
+            "unit": "ns"
+          },
+          {
+            "name": "-> per-sig amortized (N=128)",
+            "value": 36575.9,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_batch_verify(cached,N=128)",
+            "value": 4598941.7,
+            "unit": "ns"
+          },
+          {
+            "name": "-> per-sig cached (N=128)",
+            "value": 35929.2,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_batch_verify(N=192)",
+            "value": 6299901.6,
+            "unit": "ns"
+          },
+          {
+            "name": "-> per-sig amortized (N=192)",
+            "value": 32812,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_batch_verify(cached,N=192)",
+            "value": 6217608.6,
+            "unit": "ns"
+          },
+          {
+            "name": "-> per-sig cached (N=192)",
+            "value": 32383.4,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_batch_verify(N=4)",
+            "value": 144800.6,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_batch_verify(N=16)",
+            "value": 581964.9,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_batch_verify(N=64)",
+            "value": 2332664.6,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_batch_verify(N=128)",
+            "value": 4657166.8,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_batch_verify(N=192)",
+            "value": 6979130,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::scalar_inverse (SafeGCD)",
+            "value": 1856.7,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::generator_mul (k*G)",
+            "value": 17484.3,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::scalar_mul (k*P)",
+            "value": 39174.8,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::point_dbl",
+            "value": 142.8,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::point_add_complete (11M+6S)",
+            "value": 400.6,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::point_add_mixed_complete (7M+5S)",
+            "value": 276.3,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::point_add_mixed_unified (7M+5S)",
+            "value": 271.9,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::ecdsa_sign",
+            "value": 22048.4,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::ecdsa_sign_verified",
+            "value": 78163.3,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::schnorr_sign",
+            "value": 19505.2,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::schnorr_sign_verified",
+            "value": 59613.6,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::schnorr_keypair_create",
+            "value": 19173.7,
+            "unit": "ns"
+          },
+          {
+            "name": "keccak256 (32B)",
+            "value": 434.5,
+            "unit": "ns"
+          },
+          {
+            "name": "ethereum_address",
+            "value": 432.8,
+            "unit": "ns"
+          },
+          {
+            "name": "eip191_hash",
+            "value": 431.3,
+            "unit": "ns"
+          },
+          {
+            "name": "eth_sign_hash",
+            "value": 10653.8,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_sign_recoverable",
+            "value": 10495.6,
+            "unit": "ns"
+          },
+          {
+            "name": "ecrecover",
+            "value": 48245.1,
+            "unit": "ns"
+          },
+          {
+            "name": "eth_personal_sign",
+            "value": 11153,
+            "unit": "ns"
+          },
+          {
+            "name": "ethereum_address_eip55",
+            "value": 971,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdh_compute (SHA256 shared secret)",
+            "value": 40922.7,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdh_compute_raw (x-only shared)",
+            "value": 40563,
+            "unit": "ns"
+          },
+          {
+            "name": "taproot_output_key (BIP-341 key path)",
+            "value": 16351.3,
+            "unit": "ns"
+          },
+          {
+            "name": "taproot_tweak_privkey (BIP-341)",
+            "value": 19967.5,
+            "unit": "ns"
+          },
+          {
+            "name": "bip32_master_key (64B seed)",
+            "value": 1317.7,
+            "unit": "ns"
+          },
+          {
+            "name": "bip32_coin_derive_key (BTC m/84'/0'/0'/0/0)",
+            "value": 139806.7,
+            "unit": "ns"
+          },
+          {
+            "name": "coin_address_from_seed (BTC end-to-end)",
+            "value": 160969.3,
+            "unit": "ns"
+          },
+          {
+            "name": "coin_address_from_seed (ETH end-to-end)",
+            "value": 160980.5,
+            "unit": "ns"
+          },
+          {
+            "name": "silent_payment_create_output",
+            "value": 49069.6,
+            "unit": "ns"
+          },
+          {
+            "name": "silent_payment_scan (single output set)",
+            "value": 67392.8,
+            "unit": "ns"
+          },
+          {
+            "name": "field_inv_var",
+            "value": 1133.7,
+            "unit": "ns"
+          },
+          {
+            "name": "scalar_inverse (CT)",
+            "value": 1844.1,
+            "unit": "ns"
+          },
+          {
+            "name": "scalar_inverse_var",
+            "value": 1160.4,
+            "unit": "ns"
+          },
+          {
+            "name": "point_dbl (gej_double_var)",
+            "value": 149,
+            "unit": "ns"
+          },
+          {
+            "name": "point_add (gej_add_ge_var)",
+            "value": 245.3,
+            "unit": "ns"
+          },
+          {
+            "name": "ecmult (a*P + b*G, Strauss)",
+            "value": 37189.4,
+            "unit": "ns"
+          },
+          {
+            "name": "ecmult_gen (k*G, comb)",
+            "value": 18362.8,
+            "unit": "ns"
+          },
+          {
+            "name": "generator_mul (ec_pubkey_create)",
+            "value": 20307.8,
+            "unit": "ns"
+          },
+          {
+            "name": "scalar_mul_P (k*P, tweak_mul)",
+            "value": 35513.2,
+            "unit": "ns"
+          },
+          {
+            "name": "point_add (pubkey_combine)",
+            "value": 2570.6,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_sign (BIP-340)",
+            "value": 21814.2,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_verify (BIP-340)",
+            "value": 39775.1,
+            "unit": "ns"
+          },
+          {
+            "name": "generator_mul (EC_POINT_mul k*G)",
+            "value": 391503.2,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_sign (ECDSA_do_sign)",
+            "value": 416878.9,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_verify (ECDSA_do_verify)",
+            "value": 374879.6,
+            "unit": "ns"
+          },
+          {
+            "name": "Pedersen commit",
+            "value": 57131.4,
+            "unit": "ns"
+          },
+          {
+            "name": "Knowledge prove (sigma)",
+            "value": 41793.8,
+            "unit": "ns"
+          },
+          {
+            "name": "Knowledge verify",
+            "value": 40674.3,
+            "unit": "ns"
+          },
+          {
+            "name": "DLEQ prove",
+            "value": 81076.1,
+            "unit": "ns"
+          },
+          {
+            "name": "DLEQ verify",
+            "value": 107392.1,
+            "unit": "ns"
+          },
+          {
+            "name": "Bulletproof range_prove (64b)",
+            "value": 24420224.1,
+            "unit": "ns"
+          },
+          {
+            "name": "Bulletproof range_verify (64b)",
+            "value": 2965860.1,
             "unit": "ns"
           },
           {
