@@ -159,10 +159,10 @@ bool schnorr_batch_verify_impl(const Entry* entries, std::size_t n,
     }
     auto batch_seed = seed_ctx.finalize();
 
-        std::size_t const msm_n = 2 * n;
-        auto& scratch = schnorr_batch_scratch(msm_n);
-        Scalar* const scalars = scratch.scalars.data();
-        Point* const points = scratch.points.data();
+    std::size_t const msm_n = 2 * n;
+    auto& scratch = schnorr_batch_scratch(msm_n);
+    Scalar* const scalars = scratch.scalars.data();
+    Point* const points = scratch.points.data();
 
     Scalar g_coeff = Scalar::zero();
 
@@ -194,7 +194,7 @@ bool schnorr_batch_verify_impl(const Entry* entries, std::size_t n,
     }
 
     auto G_term = Point::generator().scalar_mul(g_coeff);
-        auto rest = msm(scalars, points, msm_n);
+    auto rest = msm(scalars, points, msm_n);
     auto result = G_term.add(rest);
     return result.is_infinity();
 }
