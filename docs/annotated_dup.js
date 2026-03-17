@@ -81,6 +81,7 @@ var annotated_dup =
       [ "RecoverableSignature", "structsecp256k1_1_1RecoverableSignature.html", "structsecp256k1_1_1RecoverableSignature" ],
       [ "ScalarData", "structsecp256k1_1_1ScalarData.html", "structsecp256k1_1_1ScalarData" ],
       [ "SchnorrAdaptorSig", "structsecp256k1_1_1SchnorrAdaptorSig.html", "structsecp256k1_1_1SchnorrAdaptorSig" ],
+      [ "SchnorrBatchCachedEntry", "structsecp256k1_1_1SchnorrBatchCachedEntry.html", "structsecp256k1_1_1SchnorrBatchCachedEntry" ],
       [ "SchnorrBatchEntry", "structsecp256k1_1_1SchnorrBatchEntry.html", "structsecp256k1_1_1SchnorrBatchEntry" ],
       [ "SchnorrKeypair", "structsecp256k1_1_1SchnorrKeypair.html", "structsecp256k1_1_1SchnorrKeypair" ],
       [ "SchnorrSignature", "structsecp256k1_1_1SchnorrSignature.html", "structsecp256k1_1_1SchnorrSignature" ],
@@ -90,6 +91,7 @@ var annotated_dup =
       [ "SilentPaymentAddress", "structsecp256k1_1_1SilentPaymentAddress.html", "structsecp256k1_1_1SilentPaymentAddress" ],
       [ "WIFDecodeResult", "structsecp256k1_1_1WIFDecodeResult.html", "structsecp256k1_1_1WIFDecodeResult" ]
     ] ],
+    [ "SecureEraseGuard", "classSecureEraseGuard.html", "classSecureEraseGuard" ],
     [ "ufsecp_bip32_key", "structufsecp__bip32__key.html", "structufsecp__bip32__key" ],
     [ "ufsecp_ctx", "structufsecp__ctx.html", "structufsecp__ctx" ],
     [ "ufsecp_gpu_ctx", "structufsecp__gpu__ctx.html", "structufsecp__gpu__ctx" ],

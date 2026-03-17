@@ -31,5 +31,6 @@ var classsecp256k1_1_1fast_1_1Scalar =
     [ "to_hex", "classsecp256k1_1_1fast_1_1Scalar.html#a81d018cd3358b1b9060597c8a7eda90f", null ],
     [ "to_naf", "classsecp256k1_1_1fast_1_1Scalar.html#a094e24dbc405761667e226293a695cf6", null ],
     [ "to_wnaf", "classsecp256k1_1_1fast_1_1Scalar.html#a311dcc1e0261dc8260e7570a41842a47", null ],
+    [ "write_bytes", "classsecp256k1_1_1fast_1_1Scalar.html#afe61b6a7cc507dc69b112074b9264e6c", null ],
     [ "zero", "classsecp256k1_1_1fast_1_1Scalar.html#a4b9434e5b857b07eb94318d131396dce", null ]
 ];

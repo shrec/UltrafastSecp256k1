@@ -5,7 +5,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=11"/>
 <meta name="generator" content="Doxygen 1.9.8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>UltrafastSecp256k1: secp256k1::MuSig2SecNonce Struct Reference</title>
+<title>UltrafastSecp256k1: secp256k1::SchnorrBatchCachedEntry Struct Reference</title>
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
 <script type="text/javascript" src="dynsections.js"></script>
@@ -64,7 +64,7 @@ $(function() {
 </div>
 <script type="text/javascript">
 /* @license magnet:?xt=urn:btih:d3d9a9a6595521f9666a5e94cc830dab83b65699&amp;dn=expat.txt MIT */
-$(document).ready(function(){initNavTree('structsecp256k1_1_1MuSig2SecNonce.html',''); initResizable(); });
+$(document).ready(function(){initNavTree('structsecp256k1_1_1SchnorrBatchCachedEntry.html',''); initResizable(); });
 /* @license-end */
 </script>
 <div id="doc-content">
@@ -92,69 +92,83 @@ $(document).ready(function(){initNavTree('structsecp256k1_1_1MuSig2SecNonce.html
 <div class="header">
   <div class="summary">
 <a href="#pub-attribs">Public Attributes</a> &#124;
-<a href="structsecp256k1_1_1MuSig2SecNonce-members.html">List of all members</a>  </div>
-  <div class="headertitle"><div class="title">secp256k1::MuSig2SecNonce Struct Reference</div></div>
+<a href="structsecp256k1_1_1SchnorrBatchCachedEntry-members.html">List of all members</a>  </div>
+  <div class="headertitle"><div class="title">secp256k1::SchnorrBatchCachedEntry Struct Reference</div></div>
 </div><!--header-->
 <div class="contents">
 
-<p><code>#include &lt;<a class="el" href="musig2_8hpp_source.html">musig2.hpp</a>&gt;</code></p>
+<p><code>#include &lt;<a class="el" href="batch__verify_8hpp_source.html">batch_verify.hpp</a>&gt;</code></p>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-attribs" name="pub-attribs"></a>
 Public Attributes</h2></td></tr>
-<tr class="memitem:af381a9343fd7a018eb667ee1e495a0aa" id="r_af381a9343fd7a018eb667ee1e495a0aa"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">fast::Scalar</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structsecp256k1_1_1MuSig2SecNonce.html#af381a9343fd7a018eb667ee1e495a0aa">k1</a></td></tr>
-<tr class="separator:af381a9343fd7a018eb667ee1e495a0aa"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aad1aaf8e37fc3df4209a07053c327c39" id="r_aad1aaf8e37fc3df4209a07053c327c39"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">fast::Scalar</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structsecp256k1_1_1MuSig2SecNonce.html#aad1aaf8e37fc3df4209a07053c327c39">k2</a></td></tr>
-<tr class="separator:aad1aaf8e37fc3df4209a07053c327c39"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a891abd1216268a782613237cdd42d4fd" id="r_a891abd1216268a782613237cdd42d4fd"><td class="memItemLeft" align="right" valign="top">const <a class="el" href="structsecp256k1_1_1SchnorrXonlyPubkey.html">SchnorrXonlyPubkey</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structsecp256k1_1_1SchnorrBatchCachedEntry.html#a891abd1216268a782613237cdd42d4fd">pubkey</a></td></tr>
+<tr class="separator:a891abd1216268a782613237cdd42d4fd"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a0da26710db4a6d70584408172c492e90" id="r_a0da26710db4a6d70584408172c492e90"><td class="memItemLeft" align="right" valign="top">std::array&lt; std::uint8_t, 32 &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structsecp256k1_1_1SchnorrBatchCachedEntry.html#a0da26710db4a6d70584408172c492e90">message</a></td></tr>
+<tr class="separator:a0da26710db4a6d70584408172c492e90"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a460ca9a55b0b7ffcfad4cfb8c0ffc34f" id="r_a460ca9a55b0b7ffcfad4cfb8c0ffc34f"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structsecp256k1_1_1SchnorrSignature.html">SchnorrSignature</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structsecp256k1_1_1SchnorrBatchCachedEntry.html#a460ca9a55b0b7ffcfad4cfb8c0ffc34f">signature</a></td></tr>
+<tr class="separator:a460ca9a55b0b7ffcfad4cfb8c0ffc34f"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock">
-<p class="definition">Definition at line <a class="el" href="musig2_8hpp_source.html#l00049">49</a> of file <a class="el" href="musig2_8hpp_source.html">musig2.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="batch__verify_8hpp_source.html#l00043">43</a> of file <a class="el" href="batch__verify_8hpp_source.html">batch_verify.hpp</a>.</p>
 </div><h2 class="groupheader">Member Data Documentation</h2>
-<a id="af381a9343fd7a018eb667ee1e495a0aa" name="af381a9343fd7a018eb667ee1e495a0aa"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#af381a9343fd7a018eb667ee1e495a0aa">&#9670;&#160;</a></span>k1</h2>
+<a id="a0da26710db4a6d70584408172c492e90" name="a0da26710db4a6d70584408172c492e90"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a0da26710db4a6d70584408172c492e90">&#9670;&#160;</a></span>message</h2>
 
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname"><a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">fast::Scalar</a> secp256k1::MuSig2SecNonce::k1</td>
+          <td class="memname">std::array&lt;std::uint8_t, 32&gt; secp256k1::SchnorrBatchCachedEntry::message</td>
         </tr>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="musig2_8hpp_source.html#l00050">50</a> of file <a class="el" href="musig2_8hpp_source.html">musig2.hpp</a>.</p>
-
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l01749">ufsecp_musig2_partial_sign()</a>.</p>
+<p class="definition">Definition at line <a class="el" href="batch__verify_8hpp_source.html#l00045">45</a> of file <a class="el" href="batch__verify_8hpp_source.html">batch_verify.hpp</a>.</p>
 
 </div>
 </div>
-<a id="aad1aaf8e37fc3df4209a07053c327c39" name="aad1aaf8e37fc3df4209a07053c327c39"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#aad1aaf8e37fc3df4209a07053c327c39">&#9670;&#160;</a></span>k2</h2>
+<a id="a891abd1216268a782613237cdd42d4fd" name="a891abd1216268a782613237cdd42d4fd"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a891abd1216268a782613237cdd42d4fd">&#9670;&#160;</a></span>pubkey</h2>
 
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname"><a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">fast::Scalar</a> secp256k1::MuSig2SecNonce::k2</td>
+          <td class="memname">const <a class="el" href="structsecp256k1_1_1SchnorrXonlyPubkey.html">SchnorrXonlyPubkey</a>* secp256k1::SchnorrBatchCachedEntry::pubkey</td>
         </tr>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="musig2_8hpp_source.html#l00051">51</a> of file <a class="el" href="musig2_8hpp_source.html">musig2.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="batch__verify_8hpp_source.html#l00044">44</a> of file <a class="el" href="batch__verify_8hpp_source.html">batch_verify.hpp</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l01749">ufsecp_musig2_partial_sign()</a>.</p>
+</div>
+</div>
+<a id="a460ca9a55b0b7ffcfad4cfb8c0ffc34f" name="a460ca9a55b0b7ffcfad4cfb8c0ffc34f"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a460ca9a55b0b7ffcfad4cfb8c0ffc34f">&#9670;&#160;</a></span>signature</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="structsecp256k1_1_1SchnorrSignature.html">SchnorrSignature</a> secp256k1::SchnorrBatchCachedEntry::signature</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p class="definition">Definition at line <a class="el" href="batch__verify_8hpp_source.html#l00046">46</a> of file <a class="el" href="batch__verify_8hpp_source.html">batch_verify.hpp</a>.</p>
 
 </div>
 </div>
 <hr/>The documentation for this struct was generated from the following file:<ul>
-<li>cpu/include/secp256k1/<a class="el" href="musig2_8hpp_source.html">musig2.hpp</a></li>
+<li>cpu/include/secp256k1/<a class="el" href="batch__verify_8hpp_source.html">batch_verify.hpp</a></li>
 </ul>
 </div><!-- contents -->
 </div><!-- doc-content -->
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
-    <li class="navelem"><a class="el" href="namespacesecp256k1.html">secp256k1</a></li><li class="navelem"><a class="el" href="structsecp256k1_1_1MuSig2SecNonce.html">MuSig2SecNonce</a></li>
+    <li class="navelem"><a class="el" href="namespacesecp256k1.html">secp256k1</a></li><li class="navelem"><a class="el" href="structsecp256k1_1_1SchnorrBatchCachedEntry.html">SchnorrBatchCachedEntry</a></li>
     <li class="footer">Generated by <a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.9.8 </li>
   </ul>
 </div>

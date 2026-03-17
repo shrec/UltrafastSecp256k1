@@ -1,11 +1,11 @@
 var searchData=
 [
   ['h_0',['H',['../structsecp256k1_1_1zk_1_1GeneratorVectors.html#a103fb56ae07e4826c0706df3b200d274',1,'secp256k1::zk::GeneratorVectors']]],
-  ['h_20product_20serial_20inversion_1',['GPU Pattern: H-Product Serial Inversion',['../index.html#autotoc_md79',1,'']]],
+  ['h_20product_20serial_20inversion_1',['GPU Pattern: H-Product Serial Inversion',['../index.html#autotoc_md80',1,'']]],
   ['half_2',['half',['../structsecp256k1_1_1fast_1_1FieldElement26.html#a6d42bcbf1c71e5a8e85186218851cef5',1,'secp256k1::fast::FieldElement26::half()'],['../structsecp256k1_1_1fast_1_1FieldElement52.html#aa23fbd8f65ff50426f0cd240733f18c5',1,'secp256k1::fast::FieldElement52::half() const noexcept']]],
   ['half_5fassign_3',['half_assign',['../structsecp256k1_1_1fast_1_1FieldElement52.html#a153b88a6790e92e5df0c1c3926565478',1,'secp256k1::fast::FieldElement52']]],
-  ['hardened_20profile_20tt_20ct_3a_3a_20tt_20namespace_4',['CT / Hardened Profile (&lt;tt&gt;ct::&lt;/tt&gt; namespace)',['../index.html#autotoc_md101',1,'']]],
-  ['hardware_20compatibility_5',['Hardware Compatibility',['../index.html#autotoc_md107',1,'']]],
+  ['hardened_20profile_20tt_20ct_3a_3a_20tt_20namespace_4',['CT / Hardened Profile (&lt;tt&gt;ct::&lt;/tt&gt; namespace)',['../index.html#autotoc_md102',1,'']]],
+  ['hardware_20compatibility_5',['Hardware Compatibility',['../index.html#autotoc_md108',1,'']]],
   ['harness_6',['harness',['../classbench_1_1Harness.html#a155ee068739e416d4cd3e3810ce6a276',1,'bench::Harness::Harness()=default'],['../classbench_1_1Harness.html#a5770fda8d615155c93311e76e54c8aa8',1,'bench::Harness::Harness(int warmup, std::size_t p)'],['../classbench_1_1Harness.html',1,'bench::Harness']]],
   ['has_5fadx_5fsupport_7',['has_adx_support',['../namespacesecp256k1_1_1fast.html#ade123a28fb68bbc8b622687d7d44c770',1,'secp256k1::fast']]],
   ['has_5fbmi2_5fsupport_8',['has_bmi2_support',['../namespacesecp256k1_1_1fast.html#a2bd3922bd58f8a6d328d28d52003c3a1',1,'secp256k1::fast']]],
@@ -23,9 +23,9 @@ var searchData=
   ['hiding_5fnonce_20',['hiding_nonce',['../structsecp256k1_1_1FrostNonce.html#a4a652ad109334d5d0a99841d214e9447',1,'secp256k1::FrostNonce']]],
   ['hiding_5fpoint_21',['hiding_point',['../structsecp256k1_1_1FrostNonceCommitment.html#a74c06e716b1b9d46c136236682717be5',1,'secp256k1::FrostNonceCommitment']]],
   ['high_20performance_20secp256k1_20engine_20for_20cpu_20gpu_20mobile_20embedded_20and_20web_22',['UltrafastSecp256k1 &amp;ndash; High-Performance secp256k1 Engine for CPU, GPU, Mobile, Embedded, and Web',['../index.html',1,'']]],
-  ['highlights_23',['Highlights',['../index.html#autotoc_md21',1,'']]],
+  ['highlights_23',['Highlights',['../index.html#autotoc_md22',1,'']]],
   ['hmac_5fsha512_24',['hmac_sha512',['../namespacesecp256k1.html#a5b674e02b3a37bc4c91097ac1502b980',1,'secp256k1']]],
   ['horizen_25',['Horizen',['../namespacesecp256k1_1_1coins.html#a1854f765e4e0cd90d8d1fa8e878acaf6',1,'secp256k1::coins']]],
-  ['how_20to_20sponsor_26',['How to Sponsor',['../index.html#autotoc_md33',1,'']]],
+  ['how_20to_20sponsor_26',['How to Sponsor',['../index.html#autotoc_md34',1,'']]],
   ['hrp_27',['hrp',['../structsecp256k1_1_1Bech32DecodeResult.html#a91d8ad4c2f74a060dd9e7ecb658f7219',1,'secp256k1::Bech32DecodeResult']]]
 ];

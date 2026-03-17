@@ -112,6 +112,8 @@ Public Member Functions</h2></td></tr>
 <tr class="separator:a47e9c6952c4339c3070d779d3fdafcc8"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a14b30457db78ed6df793a75f240fbc61" id="r_a14b30457db78ed6df793a75f240fbc61"><td class="memItemLeft" align="right" valign="top">std::array&lt; std::uint8_t, 32 &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html#a14b30457db78ed6df793a75f240fbc61">to_bytes</a> () const</td></tr>
 <tr class="separator:a14b30457db78ed6df793a75f240fbc61"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:afe61b6a7cc507dc69b112074b9264e6c" id="r_afe61b6a7cc507dc69b112074b9264e6c"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html#afe61b6a7cc507dc69b112074b9264e6c">write_bytes</a> (std::uint8_t *out32) const noexcept</td></tr>
+<tr class="separator:afe61b6a7cc507dc69b112074b9264e6c"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a81d018cd3358b1b9060597c8a7eda90f" id="r_a81d018cd3358b1b9060597c8a7eda90f"><td class="memItemLeft" align="right" valign="top">std::string&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html#a81d018cd3358b1b9060597c8a7eda90f">to_hex</a> () const</td></tr>
 <tr class="separator:a81d018cd3358b1b9060597c8a7eda90f"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a52988cdd890977cdd51f7bfdac076deb" id="r_a52988cdd890977cdd51f7bfdac076deb"><td class="memItemLeft" align="right" valign="top">const <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html#a6813aa404ba9f4fcd40265bb8cf4370f">limbs_type</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html#a52988cdd890977cdd51f7bfdac076deb">limbs</a> () const noexcept</td></tr>
@@ -254,7 +256,7 @@ Static Public Member Functions</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="scalar_8hpp_source.html#l00068">68</a> of file <a class="el" href="scalar_8hpp_source.html">scalar.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="scalar_8hpp_source.html#l00069">69</a> of file <a class="el" href="scalar_8hpp_source.html">scalar.hpp</a>.</p>
 
 </div>
 </div>
@@ -334,7 +336,7 @@ Static Public Member Functions</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="scalar_8hpp_source.html#l00073">73</a> of file <a class="el" href="scalar_8hpp_source.html">scalar.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="scalar_8hpp_source.html#l00074">74</a> of file <a class="el" href="scalar_8hpp_source.html">scalar.hpp</a>.</p>
 
 <p class="reference">References <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html#a8606a2124864679f0fc72388e1c1d0f1">from_limbs()</a>.</p>
 
@@ -390,7 +392,7 @@ Static Public Member Functions</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="scalar_8hpp_source.html#l00073">from_data()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="scalar_8hpp_source.html#l00074">from_data()</a>.</p>
 
 </div>
 </div>
@@ -512,7 +514,7 @@ Static Public Member Functions</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="scalar_8hpp_source.html#l00043">43</a> of file <a class="el" href="scalar_8hpp_source.html">scalar.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="scalar_8hpp_source.html#l00044">44</a> of file <a class="el" href="scalar_8hpp_source.html">scalar.hpp</a>.</p>
 
 </div>
 </div>
@@ -531,7 +533,7 @@ Static Public Member Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00292">ufsecp_seckey_negate()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00315">ufsecp_seckey_negate()</a>.</p>
 
 </div>
 </div>
@@ -838,7 +840,7 @@ Static Public Member Functions</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="private__key_8hpp_source.html#l00044">secp256k1::PrivateKey::from_bytes()</a>, <a class="el" href="private__key_8hpp_source.html#l00040">secp256k1::PrivateKey::from_bytes()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00104">scalar_parse_strict_nonzero()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00556">ufsecp_ecdsa_sig_from_der()</a>, and <a class="el" href="ufsecp__impl_8cpp_source.html#l00279">ufsecp_seckey_verify()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="private__key_8hpp_source.html#l00044">secp256k1::PrivateKey::from_bytes()</a>, <a class="el" href="private__key_8hpp_source.html#l00040">secp256k1::PrivateKey::from_bytes()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00104">scalar_parse_strict_nonzero()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00579">ufsecp_ecdsa_sig_from_der()</a>, and <a class="el" href="ufsecp__impl_8cpp_source.html#l00302">ufsecp_seckey_verify()</a>.</p>
 
 </div>
 </div>
@@ -909,6 +911,32 @@ Static Public Member Functions</h2></td></tr>
           <td> const</td>
         </tr>
       </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="afe61b6a7cc507dc69b112074b9264e6c" name="afe61b6a7cc507dc69b112074b9264e6c"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#afe61b6a7cc507dc69b112074b9264e6c">&#9670;&#160;</a></span>write_bytes()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void secp256k1::fast::Scalar::write_bytes </td>
+          <td>(</td>
+          <td class="paramtype">std::uint8_t *&#160;</td>
+          <td class="paramname"><em>out32</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
 </div><div class="memdoc">
 
 </div>

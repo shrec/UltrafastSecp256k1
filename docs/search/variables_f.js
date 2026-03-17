@@ -6,7 +6,7 @@ var searchData=
   ['p2pkh_5fversion_3',['p2pkh_version',['../structsecp256k1_1_1coins_1_1CoinParams.html#a0a1b7a27aeb6e2b82e1fdd1443596782',1,'secp256k1::coins::CoinParams']]],
   ['p2pkh_5fversion_5ftest_4',['p2pkh_version_test',['../structsecp256k1_1_1coins_1_1CoinParams.html#aa1bc7b038b0f9034e257f2ae5b7d797e',1,'secp256k1::coins::CoinParams']]],
   ['p2sh_5fversion_5',['p2sh_version',['../structsecp256k1_1_1coins_1_1CoinParams.html#ad40cd72203bcb96a7cb86738e58bfb90',1,'secp256k1::coins::CoinParams']]],
-  ['p3_6',['p3',['../namespacesecp256k1_1_1fast_1_1fe52__constants.html#a9eac05a57e600d3c0a09bd2d63d0813f',1,'secp256k1::fast::fe52_constants::P3'],['../namespacesecp256k1_1_1fast_1_1fe26__constants.html#ab6a10014e14dc08ae370c5399813a160',1,'secp256k1::fast::fe26_constants::P3']]],
+  ['p3_6',['p3',['../namespacesecp256k1_1_1fast_1_1fe26__constants.html#ab6a10014e14dc08ae370c5399813a160',1,'secp256k1::fast::fe26_constants::P3'],['../namespacesecp256k1_1_1fast_1_1fe52__constants.html#a9eac05a57e600d3c0a09bd2d63d0813f',1,'secp256k1::fast::fe52_constants::P3']]],
   ['p4_7',['p4',['../namespacesecp256k1_1_1fast_1_1fe26__constants.html#a2bff671448bdd22c99e9e3a06eda21de',1,'secp256k1::fast::fe26_constants::P4'],['../namespacesecp256k1_1_1fast_1_1fe52__constants.html#a7aa11f62b64299616aa4b785bfc6ae26',1,'secp256k1::fast::fe52_constants::P4']]],
   ['p5_8',['P5',['../namespacesecp256k1_1_1fast_1_1fe26__constants.html#a3e83d9684551dbf7c3d989d794f322f6',1,'secp256k1::fast::fe26_constants']]],
   ['p6_9',['P6',['../namespacesecp256k1_1_1fast_1_1fe26__constants.html#ad7c7373e7ecaadd19fbeee8735ac6c73',1,'secp256k1::fast::fe26_constants']]],
@@ -27,7 +27,8 @@ var searchData=
   ['progress_5fcallback_24',['progress_callback',['../structsecp256k1_1_1fast_1_1FixedBaseConfig.html#aa1f806b046e9491e03a6063c556891e3',1,'secp256k1::fast::FixedBaseConfig']]],
   ['pub_25',['pub',['../structsecp256k1_1_1coins_1_1wallet_1_1WalletKey.html#a58792041b6140720ef47cd6099781c6c',1,'secp256k1::coins::wallet::WalletKey']]],
   ['pub_5fprefix_26',['pub_prefix',['../structsecp256k1_1_1ExtendedKey.html#aff761f7bc981243505d1a340480d6af6',1,'secp256k1::ExtendedKey']]],
-  ['pubkey_5fx_27',['pubkey_x',['../structsecp256k1_1_1SchnorrBatchEntry.html#acd36cca81dba3bdbe3005828be899b7e',1,'secp256k1::SchnorrBatchEntry']]],
-  ['public_5fkey_28',['public_key',['../structsecp256k1_1_1coins_1_1CoinKeyPair.html#af85e18af8963ed680ebec91c211731a9',1,'secp256k1::coins::CoinKeyPair::public_key'],['../structsecp256k1_1_1ECDSABatchEntry.html#a77503c972c1c25b7396110c47cf810ad',1,'secp256k1::ECDSABatchEntry::public_key']]],
-  ['px_29',['px',['../structsecp256k1_1_1SchnorrKeypair.html#a7eefdd9e21715b60f6fffa47ea99df81',1,'secp256k1::SchnorrKeypair']]]
+  ['pubkey_27',['pubkey',['../structsecp256k1_1_1SchnorrBatchCachedEntry.html#a891abd1216268a782613237cdd42d4fd',1,'secp256k1::SchnorrBatchCachedEntry']]],
+  ['pubkey_5fx_28',['pubkey_x',['../structsecp256k1_1_1SchnorrBatchEntry.html#acd36cca81dba3bdbe3005828be899b7e',1,'secp256k1::SchnorrBatchEntry']]],
+  ['public_5fkey_29',['public_key',['../structsecp256k1_1_1coins_1_1CoinKeyPair.html#af85e18af8963ed680ebec91c211731a9',1,'secp256k1::coins::CoinKeyPair::public_key'],['../structsecp256k1_1_1ECDSABatchEntry.html#a77503c972c1c25b7396110c47cf810ad',1,'secp256k1::ECDSABatchEntry::public_key']]],
+  ['px_30',['px',['../structsecp256k1_1_1SchnorrKeypair.html#a7eefdd9e21715b60f6fffa47ea99df81',1,'secp256k1::SchnorrKeypair']]]
 ];

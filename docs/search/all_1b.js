@@ -1,8 +1,8 @@
 var searchData=
 [
-  ['ubuntu_0',['Linux (APT &amp;ndash; Debian / Ubuntu)',['../index.html#autotoc_md45',1,'']]],
+  ['ubuntu_0',['Linux (APT &amp;ndash; Debian / Ubuntu)',['../index.html#autotoc_md46',1,'']]],
   ['ufsecp_20tt_20c_20abi_1',['Supported Guarantees &amp;ndash; &lt;tt&gt;ufsecp&lt;/tt&gt; C ABI',['../md_include_2ufsecp_2SUPPORTED__GUARANTEES.html',1,'']]],
-  ['ufsecp_20tt_20ndash_20ffi_20bindings_2',['secp256k1 Stable C ABI (&lt;tt&gt;ufsecp&lt;/tt&gt;) &amp;ndash; FFI Bindings',['../index.html#autotoc_md81',1,'']]],
+  ['ufsecp_20tt_20ndash_20ffi_20bindings_2',['secp256k1 Stable C ABI (&lt;tt&gt;ufsecp&lt;/tt&gt;) &amp;ndash; FFI Bindings',['../index.html#autotoc_md82',1,'']]],
   ['ufsecp_2eh_3',['ufsecp.h',['../ufsecp_8h.html',1,'']]],
   ['ufsecp_5fabi_5fversion_4',['ufsecp_abi_version',['../ufsecp__impl_8cpp.html#ada009081ae04d5e549373c33a2b3f6f5',1,'ufsecp_abi_version(void):&#160;ufsecp_impl.cpp'],['../ufsecp__version_8h.html#ad27d2519d10da3a7e8e22d62be35facc',1,'ufsecp_abi_version(void):&#160;ufsecp_impl.cpp'],['../ufsecp__version_8h.html#ab2da3f29bf4348b5e781f4e9bbefc26a',1,'UFSECP_ABI_VERSION:&#160;ufsecp_version.h']]],
   ['ufsecp_5faddr_5fp2pkh_5',['ufsecp_addr_p2pkh',['../ufsecp__impl_8cpp.html#a58b2fc125d1d17fe0af66ec8db778d70',1,'ufsecp_addr_p2pkh(ufsecp_ctx *ctx, const uint8_t pubkey33[33], int network, char *addr_out, size_t *addr_len):&#160;ufsecp_impl.cpp'],['../ufsecp_8h.html#abfd9b7676ab89d3f1867ae85ccdfb812',1,'ufsecp_addr_p2pkh(ufsecp_ctx *ctx, const uint8_t pubkey33[33], int network, char *addr_out, size_t *addr_len):&#160;ufsecp_impl.cpp']]],
@@ -203,9 +203,9 @@ var searchData=
   ['ultrafastsecp256k1_20ndash_20high_20performance_20secp256k1_20engine_20for_20cpu_20gpu_20mobile_20embedded_20and_20web_200',['UltrafastSecp256k1 &amp;ndash; High-Performance secp256k1 Engine for CPU, GPU, Mobile, Embedded, and Web',['../index.html',1,'']]],
   ['ultrafastsecp256k1_2ehpp_201',['UltrafastSecp256k1.hpp',['../UltrafastSecp256k1_8hpp.html',1,'']]],
   ['update_202',['update',['../classsecp256k1_1_1SHA512.html#ad4f7ccc0d4d406c3036927e19aaddbd2',1,'secp256k1::SHA512::update()'],['../classsecp256k1_1_1SHA256.html#af6810cfc0f70a3b1e7800712c76d2ea2',1,'secp256k1::SHA256::update()'],['../structsecp256k1_1_1coins_1_1Keccak256State.html#afad88379d6ee32e366173b3b3ec1fe16',1,'secp256k1::coins::Keccak256State::update()']]],
-  ['use_20cases_203',['use cases',['../index.html#autotoc_md85',1,'secp256k1 Use Cases'],['../index.html#autotoc_md25',1,'Use Cases']]],
-  ['use_20in_20your_20cmake_20project_204',['Use in your CMake project',['../index.html#autotoc_md49',1,'']]],
-  ['use_20with_20pkg_20config_205',['Use with pkg-config',['../index.html#autotoc_md50',1,'']]],
+  ['use_20cases_203',['use cases',['../index.html#autotoc_md86',1,'secp256k1 Use Cases'],['../index.html#autotoc_md26',1,'Use Cases']]],
+  ['use_20in_20your_20cmake_20project_204',['Use in your CMake project',['../index.html#autotoc_md50',1,'']]],
+  ['use_20with_20pkg_20config_205',['Use with pkg-config',['../index.html#autotoc_md51',1,'']]],
   ['use_5fcache_206',['use_cache',['../structsecp256k1_1_1fast_1_1FixedBaseConfig.html#a73eed9dd707ca3b92dfd9ca88b8895bb',1,'secp256k1::fast::FixedBaseConfig']]],
   ['use_5fcomb_207',['use_comb',['../structsecp256k1_1_1fast_1_1FixedBaseConfig.html#ae77dbdbb7586dfea049fe3c0d9a5b687',1,'secp256k1::fast::FixedBaseConfig']]],
   ['use_5fjsf_208',['use_jsf',['../structsecp256k1_1_1fast_1_1FixedBaseConfig.html#a6b509bb7aefcf93b39db386f9e0c4d67',1,'secp256k1::fast::FixedBaseConfig']]],

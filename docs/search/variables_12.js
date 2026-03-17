@@ -8,7 +8,7 @@ var searchData=
   ['seed_5',['seed',['../structsecp256k1_1_1fast_1_1SelftestReport.html#ab8225876190f4aaeb3c743e50ba101ac',1,'secp256k1::fast::SelftestReport']]],
   ['selftest_5fok_6',['selftest_ok',['../structufsecp__ctx.html#a7a5bbcd8d4db5b68eff117f7259e1ed4',1,'ufsecp_ctx']]],
   ['sig_7',['sig',['../structsecp256k1_1_1coins_1_1BitcoinSigDecodeResult.html#a234d00960796cad398e97718cb19c0c4',1,'secp256k1::coins::BitcoinSigDecodeResult::sig'],['../structsecp256k1_1_1RecoverableSignature.html#a9921e3ae1c219fe244b1fdae4747397f',1,'secp256k1::RecoverableSignature::sig']]],
-  ['signature_8',['signature',['../structsecp256k1_1_1SchnorrBatchEntry.html#af5d3f9cd160f75c8a547fd01590079d3',1,'secp256k1::SchnorrBatchEntry::signature'],['../structsecp256k1_1_1ECDSABatchEntry.html#ab1879a48f24a6cefc5044d15b495725c',1,'secp256k1::ECDSABatchEntry::signature']]],
+  ['signature_8',['signature',['../structsecp256k1_1_1SchnorrBatchEntry.html#af5d3f9cd160f75c8a547fd01590079d3',1,'secp256k1::SchnorrBatchEntry::signature'],['../structsecp256k1_1_1SchnorrBatchCachedEntry.html#a460ca9a55b0b7ffcfad4cfb8c0ffc34f',1,'secp256k1::SchnorrBatchCachedEntry::signature'],['../structsecp256k1_1_1ECDSABatchEntry.html#ab1879a48f24a6cefc5044d15b495725c',1,'secp256k1::ECDSABatchEntry::signature']]],
   ['signing_5fshare_9',['signing_share',['../structsecp256k1_1_1FrostKeyPackage.html#af32aab49b64a8bf48162ece801dedfb9',1,'secp256k1::FrostKeyPackage']]],
   ['skipped_10',['skipped',['../structsecp256k1_1_1test_1_1TestCounters.html#a52f953b37ecff9d83ad76b48fa15e13d',1,'secp256k1::test::TestCounters']]],
   ['spend_5fpubkey_11',['spend_pubkey',['../structsecp256k1_1_1SilentPaymentAddress.html#a7c62efffa84abb29d300824fa284ddf4',1,'secp256k1::SilentPaymentAddress']]],

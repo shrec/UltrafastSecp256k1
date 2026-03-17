@@ -10,7 +10,7 @@ var searchData=
   ['max_5fwindows_5fto_5fload_7',['max_windows_to_load',['../structsecp256k1_1_1fast_1_1FixedBaseConfig.html#ac2d2100e410f8454de0bc2bd16c455c3',1,'secp256k1::fast::FixedBaseConfig']]],
   ['mean_5fns_8',['mean_ns',['../structbench_1_1Stats.html#aa9a8a9de794b384f208668eeb50fc468',1,'bench::Stats']]],
   ['median_5fns_9',['median_ns',['../structbench_1_1Stats.html#a77fdebbb7965b0b3f51e3cda88f0aba4',1,'bench::Stats']]],
-  ['message_10',['message',['../structsecp256k1_1_1SchnorrBatchEntry.html#aaf920755c5fadadc7d7a6c4f53bcc3a6',1,'secp256k1::SchnorrBatchEntry']]],
+  ['message_10',['message',['../structsecp256k1_1_1SchnorrBatchEntry.html#aaf920755c5fadadc7d7a6c4f53bcc3a6',1,'secp256k1::SchnorrBatchEntry::message'],['../structsecp256k1_1_1SchnorrBatchCachedEntry.html#a0da26710db4a6d70584408172c492e90',1,'secp256k1::SchnorrBatchCachedEntry::message']]],
   ['min_5fns_11',['min_ns',['../structbench_1_1Stats.html#ac24571992ceb4cfeda039a9a76fa14f6',1,'bench::Stats']]],
   ['minus_5fb1_12',['MINUS_B1',['../namespacesecp256k1_1_1fast_1_1glv__constants.html#a08bcc168109784e84eb68b5e752d3442',1,'secp256k1::fast::glv_constants']]],
   ['mode_13',['mode',['../structsecp256k1_1_1fast_1_1SelftestReport.html#a01e6efb46ffde2d9ab9125b0881cd6b5',1,'secp256k1::fast::SelftestReport']]],

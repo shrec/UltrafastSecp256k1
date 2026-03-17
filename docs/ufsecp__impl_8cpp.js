@@ -1,6 +1,7 @@
 var ufsecp__impl_8cpp =
 [
     [ "ufsecp_ctx", "structufsecp__ctx.html", "structufsecp__ctx" ],
+    [ "SecureEraseGuard< T >", "classSecureEraseGuard.html", "classSecureEraseGuard" ],
     [ "UFSECP_BUILDING", "ufsecp__impl_8cpp.html#a10014c6c86107f3f1e94ce97bb7f24d3", null ],
     [ "FE", "ufsecp__impl_8cpp.html#a1a4f34259900c8b62d71525d5eb01070", null ],
     [ "Point", "ufsecp__impl_8cpp.html#a60051d6ae89015e67ae01b3c4417ceab", null ],
@@ -17,6 +18,7 @@ var ufsecp__impl_8cpp =
     [ "scalar_parse_strict", "ufsecp__impl_8cpp.html#a164141c5fd4b9c09f9bed45bbfd4b84d", null ],
     [ "scalar_parse_strict_nonzero", "ufsecp__impl_8cpp.html#a1206c3d0c7ab3b6be6c28b101c29d164", null ],
     [ "scalar_to_bytes", "ufsecp__impl_8cpp.html#a7d6ddee51b60373c9dcc4f3802956ac0", null ],
+    [ "secure_erase_scalar_vector", "ufsecp__impl_8cpp.html#a83c8dd19422f138951f954b30241773e", null ],
     [ "to_network", "ufsecp__impl_8cpp.html#a8542808906dd739b22096924118aa527", null ],
     [ "ufsecp_abi_version", "ufsecp__impl_8cpp.html#ada009081ae04d5e549373c33a2b3f6f5", null ],
     [ "ufsecp_addr_p2pkh", "ufsecp__impl_8cpp.html#a58b2fc125d1d17fe0af66ec8db778d70", null ],
