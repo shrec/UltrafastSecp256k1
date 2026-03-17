@@ -6,8 +6,32 @@
 
 #include "secp256k1/coins/coin_hd.hpp"
 #include "secp256k1/coins/coin_address.hpp"
+#include "secp256k1/detail/secure_erase.hpp"
 
 namespace secp256k1::coins {
+
+namespace {
+
+void secure_erase_extended_key(ExtendedKey& key) noexcept {
+    detail::secure_erase(key.key.data(), key.key.size());
+    detail::secure_erase(key.chain_code.data(), key.chain_code.size());
+    key.parent_fingerprint.fill(0);
+    key.depth = 0;
+    key.child_number = 0;
+    key.is_private = false;
+    key.pub_prefix = 0;
+}
+
+class ExtendedKeyEraseGuard {
+public:
+    explicit ExtendedKeyEraseGuard(ExtendedKey& key) noexcept : key_(key) {}
+    ~ExtendedKeyEraseGuard() { secure_erase_extended_key(key_); }
+
+private:
+    ExtendedKey& key_;
+};
+
+} // namespace
 
 // -- Purpose Selection --------------------------------------------------------
 
@@ -72,10 +96,12 @@ coin_address_from_seed(const std::uint8_t* seed, std::size_t seed_len,
                        std::uint32_t address_index) {
     // Step 1: Master key from seed
     auto [master, master_ok] = bip32_master_key(seed, seed_len);
+    ExtendedKeyEraseGuard master_guard(master);
     if (!master_ok) return {{}, false};
     
     // Step 2: Derive coin-specific child
     auto [child, child_ok] = coin_derive_key(master, coin, account, false, address_index);
+    ExtendedKeyEraseGuard child_guard(child);
     if (!child_ok) return {{}, false};
     
     // Step 3: Generate address

@@ -78,6 +78,13 @@ Erases: `shared_x` (ECDH raw), `kdf` (64B enc+mac keys), `eph_privkey`, `eph_byt
 
 Erases: entropy buffers after mnemonic generation and seed derivation.
 
+### Wallet convenience (`cpu/src/coin_hd.cpp`) -- guarded cleanup
+
+`coin_address_from_seed` now erases transient master and child `ExtendedKey`
+material before returning, so seed-derived private key bytes and chain codes do
+not remain live in the convenience path after address generation or derivation
+failure.
+
 ### ECDH (`cpu/src/ecdh.cpp`) -- 2 calls
 
 Erases: compressed point representation, `x_bytes` after shared secret derivation.
