@@ -103,7 +103,7 @@ static void test_from_private_key_valid() {
 static void test_from_private_key_zero() {
     TEST("from_private_key: zero key rejected");
     uint8_t priv[32] = {};
-    auto [key, ok] = from_private_key(priv);
+    const auto ok = from_private_key(priv).second;
     ASSERT_TRUE(!ok, "should fail for zero");
     PASS();
 }

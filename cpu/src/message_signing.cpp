@@ -156,15 +156,15 @@ static bool base64_decode(const std::string& b64, std::uint8_t* out, std::size_t
     for (std::size_t i = 0; i < b64.size(); i += 4) {
         const int a = base64_char_value(b64[i]);
         const int b = base64_char_value(b64[i + 1]);
-        int c = (b64[i + 2] == '=') ? 0 : base64_char_value(b64[i + 2]);
-        int d = (b64[i + 3] == '=') ? 0 : base64_char_value(b64[i + 3]);
+        const int c = (b64[i + 2] == '=') ? 0 : base64_char_value(b64[i + 2]);
+        const int d = (b64[i + 3] == '=') ? 0 : base64_char_value(b64[i + 3]);
 
         if (a < 0 || b < 0 || c < 0 || d < 0) return false;
 
-        std::uint32_t triple = (static_cast<std::uint32_t>(a) << 18) |
-                               (static_cast<std::uint32_t>(b) << 12) |
-                               (static_cast<std::uint32_t>(c) << 6) |
-                               static_cast<std::uint32_t>(d);
+        const std::uint32_t triple = (static_cast<std::uint32_t>(a) << 18) |
+                                     (static_cast<std::uint32_t>(b) << 12) |
+                                     (static_cast<std::uint32_t>(c) << 6) |
+                                     static_cast<std::uint32_t>(d);
 
         if (out_idx < expected_len) out[out_idx++] = static_cast<std::uint8_t>((triple >> 16) & 0xFF);
         if (out_idx < expected_len) out[out_idx++] = static_cast<std::uint8_t>((triple >> 8) & 0xFF);
@@ -195,10 +195,10 @@ BitcoinSigDecodeResult bitcoin_sig_from_base64(const std::string& base64_str) {
     std::uint8_t buf[65];
     if (!base64_decode(base64_str, buf, 65)) return result;
 
-    std::uint8_t header = buf[0];
+    const std::uint8_t header = buf[0];
     if (header < 27 || header > 34) return result;
 
-    int flag = header - 27;
+    const int flag = header - 27;
     result.recid = flag & 3;
     result.compressed = (flag & 4) != 0;
 

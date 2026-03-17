@@ -337,9 +337,9 @@ RecoverableSignature ecdsa_sign_recoverable(
     if (s.is_zero()) return {{Scalar::zero(), Scalar::zero()}, 0};
 
     // CT low-S normalization (branchless).
-    ECDSASignature pre_sig{r, s};
+    const ECDSASignature pre_sig{r, s};
     bool const was_high = !pre_sig.is_low_s();
-    ECDSASignature sig = ct::ct_normalize_low_s(pre_sig);
+    const ECDSASignature sig = ct::ct_normalize_low_s(pre_sig);
     // Negating s flips the R.y parity bit in the recovery ID.
     if (was_high) recid ^= 1;
 

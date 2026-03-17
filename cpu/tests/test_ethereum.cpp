@@ -269,13 +269,13 @@ static void test_ecrecover() {
     // ecrecover with invalid r=0 should fail
     TEST("ecrecover invalid r=0");
     const std::array<uint8_t, 32> zero{};
-    auto [_, ok4] = ecrecover(hash, zero, sig.s, sig.v);
+    const auto ok4 = ecrecover(hash, zero, sig.s, sig.v).second;
     ASSERT_TRUE(!ok4, "ecrecover with r=0 should fail");
     PASS();
 
     // ecrecover with invalid s=0 should fail
     TEST("ecrecover invalid s=0");
-    auto [_2, ok5] = ecrecover(hash, sig.r, zero, sig.v);
+    const auto ok5 = ecrecover(hash, sig.r, zero, sig.v).second;
     ASSERT_TRUE(!ok5, "ecrecover with s=0 should fail");
     PASS();
 }

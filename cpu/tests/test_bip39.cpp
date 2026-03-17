@@ -312,9 +312,9 @@ static void test_random_generation() {
     CHECK(bip39_validate(m24), "random 24-word validates");
 
     // Invalid sizes rejected
-    auto [bad1, ok_bad1] = bip39_generate(15);
+    const auto ok_bad1 = bip39_generate(15).second;
     CHECK(!ok_bad1, "15-byte entropy rejected");
-    auto [bad2, ok_bad2] = bip39_generate(33);
+    const auto ok_bad2 = bip39_generate(33).second;
     CHECK(!ok_bad2, "33-byte entropy rejected");
 }
 
