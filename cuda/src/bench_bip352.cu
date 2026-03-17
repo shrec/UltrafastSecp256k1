@@ -40,6 +40,7 @@
 #include <algorithm>
 #include <cmath>
 #include <functional>
+#include <initializer_list>
 
 using CpuPoint  = secp256k1::fast::Point;
 using CpuScalar = secp256k1::fast::Scalar;
@@ -54,6 +55,8 @@ static constexpr int BENCH_WARMUP  = 3;
 static constexpr int BENCH_PASSES  = 11;
 static constexpr int DETAIL_N      = 1000;
 static constexpr int GPU_TPB       = 256;
+static constexpr int SCAN_WNAF_W   = 5;
+static constexpr int SCAN_WNAF_MAXLEN = 130;
 
 // ============================================================================
 // Test vector constants (identical to bench_bip352/common.h)
@@ -213,27 +216,39 @@ static CpuPoint CpuPointFromCompressed(const uint8_t* pub33) {
 // GPU device: tagged SHA-256 for BIP-352/SharedSecret
 // ============================================================================
 
-// Pre-computed tag hash: SHA256("BIP0352/SharedSecret")
-// Both copies are concatenated in the midstate prefix.
-__device__ inline void bip352_tagged_sha256(
+struct BIP352TagMidstate {
+    uint32_t h[8];
+};
+
+struct BIP352ScanKeyWnaf {
+    int8_t wnaf1[SCAN_WNAF_MAXLEN];
+    int8_t wnaf2[SCAN_WNAF_MAXLEN];
+    uint8_t k1_neg;
+    uint8_t flip_phi;
+};
+
+__constant__ const BIP352TagMidstate BIP352_SHAREDSECRET_MIDSTATE = {{
+    0x88831537U, 0x5127079bU, 0x69c2137bU, 0xab0303e6U,
+    0x98fa21faU, 0x4a888523U, 0xbd99daabU, 0xf25e5e0aU
+}};
+
+__constant__ BIP352ScanKeyWnaf BIP352_SCANKEY_WNAF;
+__constant__ secp256k1::cuda::AffinePoint BIP352_SPEND_AFFINE;
+__device__ BIP352ScanKeyWnaf g_scankey_wnaf_tmp;
+
+// Precomputed SHA256 midstate after processing
+// SHA256("BIP0352/SharedSecret") || SHA256("BIP0352/SharedSecret").
+// This skips the fixed tag hashing and first compression for every thread.
+__device__ __forceinline__ void bip352_tagged_sha256(
     const uint8_t* ser, int ser_len,
     uint8_t out[32])
 {
     using namespace secp256k1::cuda;
 
-    // Compute SHA256("BIP0352/SharedSecret")
-    const uint8_t tag[] = "BIP0352/SharedSecret";
-    uint8_t tag_hash[32];
-    {
-        SHA256Ctx tc; sha256_init(&tc);
-        sha256_update(&tc, tag, 20);
-        sha256_final(&tc, tag_hash);
-    }
-
-    // tagged_hash = SHA256(tag_hash || tag_hash || ser)
-    SHA256Ctx ctx; sha256_init(&ctx);
-    sha256_update(&ctx, tag_hash, 32);
-    sha256_update(&ctx, tag_hash, 32);
+    SHA256Ctx ctx;
+    for (int i = 0; i < 8; i++) ctx.h[i] = BIP352_SHAREDSECRET_MIDSTATE.h[i];
+    ctx.buf_len = 0;
+    ctx.total = 64;  // already processed tag_hash || tag_hash
     sha256_update(&ctx, ser, ser_len);
     sha256_final(&ctx, out);
 }
@@ -241,6 +256,29 @@ __device__ inline void bip352_tagged_sha256(
 // ============================================================================
 // GPU Kernel: Full BIP-352 pipeline (1 thread per tweak point)
 // ============================================================================
+__device__ inline void scalar_mul_fixed_scan(
+    const secp256k1::cuda::JacobianPoint* p,
+    secp256k1::cuda::JacobianPoint* r);
+__device__ __forceinline__ int64_t point_prefix64(
+    const secp256k1::cuda::JacobianPoint* p);
+__device__ __forceinline__ void bip352_shared_secret_input(
+    const secp256k1::cuda::JacobianPoint* p,
+    uint8_t ser[37]);
+
+__device__ __forceinline__ void bip352_shared_secret_input(
+    const secp256k1::cuda::JacobianPoint* p,
+    uint8_t ser[37])
+{
+    using namespace secp256k1::cuda;
+    bool y_is_odd = false;
+    point_x_bytes_and_parity(p, ser + 1, &y_is_odd);
+    ser[0] = y_is_odd ? 0x03 : 0x02;
+    ser[33] = 0;
+    ser[34] = 0;
+    ser[35] = 0;
+    ser[36] = 0;
+}
+
 __global__ void bip352_pipeline_kernel(
     const secp256k1::cuda::JacobianPoint* __restrict__ tweak_points,
     const secp256k1::cuda::Scalar* __restrict__ scan_key,
@@ -254,16 +292,15 @@ __global__ void bip352_pipeline_kernel(
 
     // 1. k*P -- scalar multiply tweak point by scan key
     JacobianPoint shared;
-    scalar_mul_glv(&tweak_points[idx], scan_key, &shared);
+    (void)scan_key;
+    (void)spend_point;
+    scalar_mul_fixed_scan(&tweak_points[idx], &shared);
 
-    // 2. Serialize to compressed
-    uint8_t comp[33];
-    point_to_compressed(&shared, comp);
+    // 2. Serialize directly into the tagged-hash input buffer.
+    uint8_t ser[37];
+    bip352_shared_secret_input(&shared, ser);
 
     // 3. Tagged SHA-256 (BIP0352/SharedSecret)
-    uint8_t ser[37];
-    for (int i = 0; i < 33; i++) ser[i] = comp[i];
-    ser[33] = 0; ser[34] = 0; ser[35] = 0; ser[36] = 0;
     uint8_t hash[32];
     bip352_tagged_sha256(ser, 37, hash);
 
@@ -275,15 +312,10 @@ __global__ void bip352_pipeline_kernel(
 
     // 5. Point addition -- spend + output
     JacobianPoint cand;
-    jacobian_add(&(*spend_point), &out, &cand);
+    jacobian_add_mixed(&out, &BIP352_SPEND_AFFINE, &cand);
 
-    // 6. Serialize + extract prefix
-    uint8_t cc[33];
-    point_to_compressed(&cand, cc);
-
-    int64_t prefix = 0;
-    for (int i = 0; i < 8; i++) prefix = (prefix << 8) | cc[1 + i];
-    prefixes[idx] = prefix;
+    // 6. Extract X prefix directly; the full compressed candidate is not needed here.
+    prefixes[idx] = point_prefix64(&cand);
 }
 
 // ============================================================================
@@ -296,7 +328,8 @@ __global__ void kernel_scalar_mul(
 {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx >= n) return;
-    secp256k1::cuda::scalar_mul_glv(&pts[idx], key, &out[idx]);
+    (void)key;
+    scalar_mul_fixed_scan(&pts[idx], &out[idx]);
 }
 
 __global__ void kernel_to_compressed(
@@ -338,7 +371,8 @@ __global__ void kernel_point_add(
 {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx >= n) return;
-    secp256k1::cuda::jacobian_add(spend, &output_pts[idx], &cands[idx]);
+    (void)spend;
+    secp256k1::cuda::jacobian_add_mixed(&output_pts[idx], &BIP352_SPEND_AFFINE, &cands[idx]);
 }
 
 // Forward declarations -- defined at file bottom (nvcc requires file-scope __global__)
@@ -348,6 +382,8 @@ __global__ void decompress_points_kernel(
     int n);
 __global__ void compute_lut_base_points(
     secp256k1::cuda::AffinePoint* bases);
+__global__ void init_scankey_wnaf_kernel(
+    const secp256k1::cuda::Scalar* __restrict__ scan_key);
 __global__ void gen_lut_build_kernel(
     const secp256k1::cuda::AffinePoint* __restrict__ bases,
     secp256k1::cuda::JacobianPoint* __restrict__ jac_buf,
@@ -443,15 +479,84 @@ static double cpu_bench(int iters, int passes, int warmup,
 template<typename KernelFunc>
 static double gpu_bench(int batch, int passes, int warmup, KernelFunc&& kfn) {
     CudaTimer timer;
-    for (int w = 0; w < warmup; ++w) { kfn(); CUDA_CHECK(cudaDeviceSynchronize()); }
+    for (int w = 0; w < warmup; ++w) {
+        kfn();
+        CUDA_CHECK(cudaPeekAtLastError());
+        CUDA_CHECK(cudaDeviceSynchronize());
+    }
     std::vector<double> samples;
     for (int p = 0; p < passes; ++p) {
         timer.start();
         kfn();
+        CUDA_CHECK(cudaPeekAtLastError());
         float ms = timer.stop();
         samples.push_back((ms * 1e6) / batch);
     }
     return median_iqr(samples);
+}
+
+template<typename KernelLauncher>
+static int autotune_gpu_tpb(
+    const char* label,
+    int batch,
+    int max_threads_per_block,
+    std::initializer_list<int> candidates,
+    KernelLauncher&& launcher) {
+    CudaTimer timer;
+    int best_tpb = 0;
+    double best_ns = 0.0;
+
+    printf("Autotuning %s block size...\n", label);
+    for (int tpb : candidates) {
+        if (tpb <= 0 || tpb > max_threads_per_block) continue;
+        int blocks = (batch + tpb - 1) / tpb;
+        bool launch_ok = true;
+        for (int w = 0; w < 2; ++w) {
+            launcher(blocks, tpb);
+            cudaError_t launch_err = cudaPeekAtLastError();
+            if (launch_err != cudaSuccess) {
+                printf("  tpb=%3d -> rejected (%s)\n", tpb, cudaGetErrorString(launch_err));
+                (void)cudaGetLastError();
+                launch_ok = false;
+                break;
+            }
+            CUDA_CHECK(cudaDeviceSynchronize());
+        }
+        if (!launch_ok) continue;
+        std::vector<double> samples;
+        samples.reserve(5);
+        constexpr int sample_repeats = 20;
+        for (int p = 0; p < 5; ++p) {
+            timer.start();
+            for (int rep = 0; rep < sample_repeats; ++rep) {
+                launcher(blocks, tpb);
+            }
+            cudaError_t launch_err = cudaPeekAtLastError();
+            if (launch_err != cudaSuccess) {
+                printf("  tpb=%3d -> rejected (%s)\n", tpb, cudaGetErrorString(launch_err));
+                (void)cudaGetLastError();
+                launch_ok = false;
+                break;
+            }
+            float ms = timer.stop();
+            samples.push_back((ms * 1e6) / (batch * sample_repeats));
+        }
+        if (!launch_ok) continue;
+        double ns = median_iqr(samples);
+        if (!std::isfinite(ns) || ns < 1.0) {
+            printf("  tpb=%3d -> rejected (%.3f ns/op, unstable)\n", tpb, ns);
+            continue;
+        }
+        printf("  tpb=%3d -> %8.1f ns/op\n", tpb, ns);
+        if (best_tpb == 0 || ns < best_ns) {
+            best_tpb = tpb;
+            best_ns = ns;
+        }
+    }
+
+    if (best_tpb == 0) best_tpb = std::min(GPU_TPB, max_threads_per_block);
+    printf("  selected tpb=%d for %s\n\n", best_tpb, label);
+    return best_tpb;
 }
 
 // ============================================================================
@@ -597,9 +702,17 @@ int main() {
     }
     CUDA_CHECK(cudaMalloc(&d_scan_key, sizeof(secp256k1::cuda::Scalar)));
     CUDA_CHECK(cudaMemcpy(d_scan_key, &h_scan_key, sizeof(secp256k1::cuda::Scalar), cudaMemcpyHostToDevice));
+    {
+        BIP352ScanKeyWnaf h_scankey_wnaf;
+        init_scankey_wnaf_kernel<<<1, 1>>>(d_scan_key);
+        CUDA_CHECK(cudaDeviceSynchronize());
+        CUDA_CHECK(cudaMemcpyFromSymbol(&h_scankey_wnaf, g_scankey_wnaf_tmp, sizeof(h_scankey_wnaf)));
+        CUDA_CHECK(cudaMemcpyToSymbol(BIP352_SCANKEY_WNAF, &h_scankey_wnaf, sizeof(h_scankey_wnaf)));
+    }
 
     // Upload spend pubkey
     secp256k1::cuda::JacobianPoint h_spend;
+    secp256k1::cuda::AffinePoint h_spend_affine;
     secp256k1::cuda::JacobianPoint* d_spend;
     // Decompress spend pubkey on GPU
     {
@@ -614,8 +727,11 @@ int main() {
         CUDA_CHECK(cudaFree(d_spend_comp));
         CUDA_CHECK(cudaFree(d_spend_tmp));
     }
+    h_spend_affine.x = h_spend.x;
+    h_spend_affine.y = h_spend.y;
     CUDA_CHECK(cudaMalloc(&d_spend, sizeof(secp256k1::cuda::JacobianPoint)));
     CUDA_CHECK(cudaMemcpy(d_spend, &h_spend, sizeof(secp256k1::cuda::JacobianPoint), cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpyToSymbol(BIP352_SPEND_AFFINE, &h_spend_affine, sizeof(h_spend_affine)));
 
     // Allocate output
     int64_t* d_prefixes;
@@ -662,6 +778,21 @@ int main() {
         CUDA_CHECK(cudaFree(d_bases));
     }
     printf("Done.\n\n");
+
+    const int gpu_tpb_glv = autotune_gpu_tpb(
+        "GPU pipeline (GLV)", BENCH_N, prop.maxThreadsPerBlock,
+        {128, 256, 384, 512},
+        [&](int blocks, int tpb) {
+            bip352_pipeline_kernel<<<blocks, tpb>>>(
+                d_tweaks, d_scan_key, d_spend, d_prefixes, BENCH_N);
+        });
+    const int gpu_tpb_lut = autotune_gpu_tpb(
+        "GPU pipeline (LUT)", BENCH_N, prop.maxThreadsPerBlock,
+        {128, 256, 384, 512},
+        [&](int blocks, int tpb) {
+            bip352_pipeline_kernel_lut<<<blocks, tpb>>>(
+                d_tweaks, d_scan_key, d_spend, d_gen_lut, d_prefixes, BENCH_N);
+        });
 
     // ================================================================
     // Phase 4: Full Pipeline Benchmark -- CPU
@@ -725,18 +856,18 @@ int main() {
     printf("\n--- GPU (CUDA, GLV) ---\n");
 
     CudaTimer timer;
-    int blocks = (BENCH_N + GPU_TPB - 1) / GPU_TPB;
+    int glv_blocks = (BENCH_N + gpu_tpb_glv - 1) / gpu_tpb_glv;
 
     // Warmup
     for (int w = 0; w < BENCH_WARMUP; ++w) {
-        bip352_pipeline_kernel<<<blocks, GPU_TPB>>>(d_tweaks, d_scan_key, d_spend, d_prefixes, BENCH_N);
+        bip352_pipeline_kernel<<<glv_blocks, gpu_tpb_glv>>>(d_tweaks, d_scan_key, d_spend, d_prefixes, BENCH_N);
         CUDA_CHECK(cudaDeviceSynchronize());
     }
 
     std::vector<double> gpu_times(BENCH_PASSES);
     for (int p = 0; p < BENCH_PASSES; ++p) {
         timer.start();
-        bip352_pipeline_kernel<<<blocks, GPU_TPB>>>(d_tweaks, d_scan_key, d_spend, d_prefixes, BENCH_N);
+        bip352_pipeline_kernel<<<glv_blocks, gpu_tpb_glv>>>(d_tweaks, d_scan_key, d_spend, d_prefixes, BENCH_N);
         float ms = timer.stop();
         gpu_times[p] = ms;
         printf("  pass %2d: %8.3f ms\n", p + 1, ms);
@@ -759,10 +890,11 @@ int main() {
     // Phase 5.5: Full Pipeline Benchmark -- GPU + LUT
     // ================================================================
     printf("\n--- GPU + LUT (16x64K precomputed table for k*G) ---\n");
+    int lut_blocks = (BENCH_N + gpu_tpb_lut - 1) / gpu_tpb_lut;
 
     // Warmup
     for (int w = 0; w < BENCH_WARMUP; ++w) {
-        bip352_pipeline_kernel_lut<<<blocks, GPU_TPB>>>(
+        bip352_pipeline_kernel_lut<<<lut_blocks, gpu_tpb_lut>>>(
             d_tweaks, d_scan_key, d_spend, d_gen_lut, d_prefixes, BENCH_N);
         CUDA_CHECK(cudaDeviceSynchronize());
     }
@@ -770,7 +902,7 @@ int main() {
     std::vector<double> gpu_lut_times(BENCH_PASSES);
     for (int p = 0; p < BENCH_PASSES; ++p) {
         timer.start();
-        bip352_pipeline_kernel_lut<<<blocks, GPU_TPB>>>(
+        bip352_pipeline_kernel_lut<<<lut_blocks, gpu_tpb_lut>>>(
             d_tweaks, d_scan_key, d_spend, d_gen_lut, d_prefixes, BENCH_N);
         float ms = timer.stop();
         gpu_lut_times[p] = ms;
@@ -1010,6 +1142,115 @@ int main() {
 // ============================================================================
 // Named kernel for point decompression (nvcc requires file-scope kernels)
 // ============================================================================
+__device__ inline void scalar_mul_fixed_scan(
+    const secp256k1::cuda::JacobianPoint* p,
+    secp256k1::cuda::JacobianPoint* r)
+{
+    using namespace secp256k1::cuda;
+
+    AffinePoint base;
+    if (p->z.limbs[0] == 1 && p->z.limbs[1] == 0 && p->z.limbs[2] == 0 && p->z.limbs[3] == 0) {
+        base.x = p->x;
+        base.y = p->y;
+    } else {
+        FieldElement z_inv, z_inv2, z_inv3;
+        field_inv(&p->z, &z_inv);
+        field_sqr(&z_inv, &z_inv2);
+        field_mul(&z_inv2, &z_inv, &z_inv3);
+        field_mul(&p->x, &z_inv2, &base.x);
+        field_mul(&p->y, &z_inv3, &base.y);
+    }
+
+    if (BIP352_SCANKEY_WNAF.k1_neg) {
+        field_negate(&base.y, &base.y);
+    }
+
+    constexpr int TABLE_SIZE = (1 << (SCAN_WNAF_W - 2));
+    AffinePoint tbl_P[TABLE_SIZE];
+    FieldElement globalz;
+    build_wnaf_table_zr(&base, tbl_P, TABLE_SIZE, &globalz);
+
+    AffinePoint tbl_phiP[TABLE_SIZE];
+    derive_endo_table(tbl_P, tbl_phiP, TABLE_SIZE, BIP352_SCANKEY_WNAF.flip_phi != 0);
+
+    r->infinity = true;
+    field_set_zero(&r->x);
+    field_set_one(&r->y);
+    field_set_zero(&r->z);
+
+    #pragma unroll 1
+    for (int i = SCAN_WNAF_MAXLEN - 1; i >= 0; --i) {
+        if (!r->infinity) {
+            jacobian_double(r, r);
+        }
+
+        int8_t d1 = BIP352_SCANKEY_WNAF.wnaf1[i];
+        if (d1 != 0) {
+            int table_idx = ((d1 > 0) ? d1 : -d1);
+            table_idx = (table_idx - 1) >> 1;
+            AffinePoint pt = tbl_P[table_idx];
+            if (d1 < 0) field_negate(&pt.y, &pt.y);
+
+            if (r->infinity) {
+                r->x = pt.x;
+                r->y = pt.y;
+                field_set_one(&r->z);
+                r->infinity = false;
+            } else {
+                jacobian_add_mixed(r, &pt, r);
+            }
+        }
+
+        int8_t d2 = BIP352_SCANKEY_WNAF.wnaf2[i];
+        if (d2 != 0) {
+            int table_idx = ((d2 > 0) ? d2 : -d2);
+            table_idx = (table_idx - 1) >> 1;
+            AffinePoint pt = tbl_phiP[table_idx];
+            if (d2 < 0) field_negate(&pt.y, &pt.y);
+
+            if (r->infinity) {
+                r->x = pt.x;
+                r->y = pt.y;
+                field_set_one(&r->z);
+                r->infinity = false;
+            } else {
+                jacobian_add_mixed(r, &pt, r);
+            }
+        }
+    }
+
+    if (!r->infinity) {
+        FieldElement tmp;
+        field_mul(&r->z, &globalz, &tmp);
+        r->z = tmp;
+    }
+}
+
+__device__ __forceinline__ int64_t point_prefix64(
+    const secp256k1::cuda::JacobianPoint* p)
+{
+    using namespace secp256k1::cuda;
+
+    if (p->infinity) return 0;
+
+    FieldElement ax;
+    if (p->z.limbs[0] == 1 && p->z.limbs[1] == 0 && p->z.limbs[2] == 0 && p->z.limbs[3] == 0) {
+        ax = p->x;
+    } else {
+        FieldElement z_inv, z_inv2;
+        field_inv(&p->z, &z_inv);
+        field_sqr(&z_inv, &z_inv2);
+        field_mul(&p->x, &z_inv2, &ax);
+    }
+
+    uint8_t x_bytes[32];
+    field_to_bytes(&ax, x_bytes);
+
+    int64_t prefix = 0;
+    for (int i = 0; i < 8; i++) prefix = (prefix << 8) | x_bytes[i];
+    return prefix;
+}
+
 __global__ void decompress_points_kernel(
     const uint8_t* __restrict__ comp,
     secp256k1::cuda::JacobianPoint* __restrict__ pts,
@@ -1018,6 +1259,23 @@ __global__ void decompress_points_kernel(
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx >= n) return;
     secp256k1::cuda::point_from_compressed(comp + idx * 33, &pts[idx]);
+}
+
+__global__ void init_scankey_wnaf_kernel(
+    const secp256k1::cuda::Scalar* __restrict__ scan_key)
+{
+    using namespace secp256k1::cuda;
+    if (blockIdx.x != 0 || threadIdx.x != 0) return;
+
+    GLVDecomposition decomp = glv_decompose(scan_key);
+    for (int i = 0; i < SCAN_WNAF_MAXLEN; ++i) {
+        g_scankey_wnaf_tmp.wnaf1[i] = 0;
+        g_scankey_wnaf_tmp.wnaf2[i] = 0;
+    }
+    wnaf_encode(&decomp.k1, SCAN_WNAF_W, g_scankey_wnaf_tmp.wnaf1, SCAN_WNAF_MAXLEN);
+    wnaf_encode(&decomp.k2, SCAN_WNAF_W, g_scankey_wnaf_tmp.wnaf2, SCAN_WNAF_MAXLEN);
+    g_scankey_wnaf_tmp.k1_neg = decomp.k1_neg ? 1 : 0;
+    g_scankey_wnaf_tmp.flip_phi = (decomp.k1_neg != decomp.k2_neg) ? 1 : 0;
 }
 
 // ============================================================================
@@ -1229,16 +1487,15 @@ __global__ void bip352_pipeline_kernel_lut(
 
     // 1. k*P
     JacobianPoint shared;
-    scalar_mul_glv(&tweak_points[idx], scan_key, &shared);
+    (void)scan_key;
+    (void)spend_point;
+    scalar_mul_fixed_scan(&tweak_points[idx], &shared);
 
-    // 2. Serialize
-    uint8_t comp[33];
-    point_to_compressed(&shared, comp);
+    // 2. Serialize directly into the tagged-hash input buffer.
+    uint8_t ser[37];
+    bip352_shared_secret_input(&shared, ser);
 
     // 3. Tagged SHA-256
-    uint8_t ser[37];
-    for (int i = 0; i < 33; i++) ser[i] = comp[i];
-    ser[33] = 0; ser[34] = 0; ser[35] = 0; ser[36] = 0;
     uint8_t hash[32];
     bip352_tagged_sha256(ser, 37, hash);
 
@@ -1250,14 +1507,10 @@ __global__ void bip352_pipeline_kernel_lut(
 
     // 5. Point add
     JacobianPoint cand;
-    jacobian_add(&(*spend_point), &out, &cand);
+    jacobian_add_mixed(&out, &BIP352_SPEND_AFFINE, &cand);
 
-    // 6. Serialize + prefix
-    uint8_t cc[33];
-    point_to_compressed(&cand, cc);
-    int64_t prefix = 0;
-    for (int i = 0; i < 8; i++) prefix = (prefix << 8) | cc[1 + i];
-    prefixes[idx] = prefix;
+    // 6. Extract X prefix directly; the full compressed candidate is not needed here.
+    prefixes[idx] = point_prefix64(&cand);
 }
 
 // k*G detail kernel using LUT

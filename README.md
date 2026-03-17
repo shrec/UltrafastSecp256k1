@@ -25,6 +25,38 @@
 
 **Quick links:** [Discord](https://discord.gg/E4BK8SeMYU) * [Benchmarks](docs/BENCHMARKS.md) * [Build Guide](docs/BUILDING.md) * [API Reference](docs/API_REFERENCE.md) * [Security Policy](SECURITY.md) * [Threat Model](THREAT_MODEL.md) * [Porting Guide](PORTING.md) * [**Sponsor**](https://github.com/sponsors/shrec)
 
+## Project Graph
+
+The library includes a SQLite project graph at `.project_graph.db` for metadata-first navigation. The intended workflow is `graph -> symbol/file summary -> exact slice -> code`, so AI agents and humans can reason on compact structure first and only open raw code when a specific slice is needed.
+
+```bash
+python3 scripts/build_project_graph.py --rebuild
+python3 scripts/query_graph.py summary
+python3 scripts/query_graph.py context cuda/src/bench_bip352.cu
+python3 scripts/query_graph.py slice scalar_mul_glv52
+python3 scripts/query_graph.py semantic scalar_mul_glv52
+python3 scripts/query_graph.py hot 12
+python3 scripts/query_graph.py risk 12
+python3 scripts/query_graph.py candidates 12
+python3 scripts/query_graph.py bottlenecks 12
+python3 scripts/query_graph.py tasks 12
+python3 scripts/query_graph.py score scalar_mul_glv52
+```
+
+Useful modes:
+
+- `context <file>`: compact file summary, deps, reverse deps, tests, routing, and indexed symbol ranges.
+- `slice <symbol>`: signature + exact line range + callers/callees for symbol slicing.
+- `semantic <symbol>`: low-token semantic summary without raw code.
+- `hot [limit]`: hot-path symbols for performance work.
+- `risk [limit]`: higher-risk symbols for review or audit.
+- `candidates [limit]`: hot, batchable, GPU-friendly optimization targets.
+- `bottlenecks [limit]`: derived hotspot queue using hotness, complexity, fan-in, GPU-fit, and audit-gap scoring.
+- `tasks [limit]`: prebuilt AI task queue for optimize, CT review, and audit expansion work.
+- `score <symbol>`: full derived analysis scorecard for a symbol slice.
+
+The graph also records build metadata for drift control: schema version, extractor version, and the git revision used for the build.
+
 ---
 
 [![GitHub stars](https://img.shields.io/github/stars/shrec/UltrafastSecp256k1?style=flat-square&logo=github&label=Stars)](https://github.com/shrec/UltrafastSecp256k1/stargazers)

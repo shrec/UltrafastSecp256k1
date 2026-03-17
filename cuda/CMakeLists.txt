@@ -121,7 +121,7 @@ if(TARGET fastsecp256k1)
         ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/include
     )
     target_link_libraries(gpu_audit_runner PRIVATE
-        $<TARGET_FILE:fastsecp256k1>
+        fastsecp256k1
     )
     target_compile_definitions(gpu_audit_runner PRIVATE HAVE_CPU_LIB=1)
     set_target_properties(gpu_audit_runner PROPERTIES INTERPROCEDURAL_OPTIMIZATION FALSE)
@@ -168,17 +168,15 @@ else()
     )
 endif()
 # Link both GPU and CPU libraries for side-by-side comparison.
-# CUDA/LTO gotcha: nvcc bundles GCC 12 as its host linker, but fastsecp256k1.a
-# is compiled with host GCC 14 + LTO (fat objects with LTO v14.0 bytecodes).
-# GCC 12 cannot process v14.0 LTO bytecodes -> fatal error.
-# Solution: link the archive directly (bypassing INTERFACE -flto propagation)
-# AND pass -fno-lto to tell GCC 12 to use regular object code from the fat archive.
+# The CPU target suppresses INTERFACE LTO propagation when CUDA is enabled, so
+# linking the target directly keeps build dependencies correct and still lets
+# nvcc's host linker consume the fat archive with -fno-lto.
 target_link_libraries(bench_compare PRIVATE secp256k1_cuda_lib)
 target_include_directories(bench_compare PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/include
 )
 target_link_libraries(bench_compare PRIVATE
-    $<TARGET_FILE:fastsecp256k1>
+    fastsecp256k1
 )
 set_target_properties(bench_compare PROPERTIES INTERPROCEDURAL_OPTIMIZATION FALSE)
 target_link_options(bench_compare PRIVATE -fno-lto)
@@ -206,7 +204,7 @@ target_include_directories(bench_bip352 PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/include
 )
 target_link_libraries(bench_bip352 PRIVATE
-    $<TARGET_FILE:fastsecp256k1>
+    fastsecp256k1
 )
 set_target_properties(bench_bip352 PROPERTIES INTERPROCEDURAL_OPTIMIZATION FALSE)
 target_link_options(bench_bip352 PRIVATE -fno-lto)
