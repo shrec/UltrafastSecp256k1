@@ -1950,6 +1950,15 @@ ufsecp_ctx_destroy(ctx);
 | `ufsecp_ecdh_xonly` | `(ctx, privkey, pubkey33, secret32_out) -> error_t` | SHA256(x-coordinate) |
 | `ufsecp_ecdh_raw` | `(ctx, privkey, pubkey33, secret32_out) -> error_t` | Raw x-coordinate (no hash) |
 
+### ECIES
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `ufsecp_ecies_encrypt` | `(ctx, pubkey33, plaintext, plaintext_len, envelope_out, envelope_len*) -> error_t` | Ephemeral ECDH + AES-256-CTR + HMAC-SHA256 envelope |
+| `ufsecp_ecies_decrypt` | `(ctx, privkey, envelope, envelope_len, plaintext_out, plaintext_len*) -> error_t` | Verify-and-decrypt ECIES envelope |
+
+Hardening note: the implementation fail-closes if the generated ephemeral scalar is zero and erases the generated ephemeral secret bytes before returning.
+
 <a id="c-abi-hashing"></a>
 ### Hashing
 

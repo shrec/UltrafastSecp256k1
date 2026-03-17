@@ -271,8 +271,9 @@ Each row in this matrix links:
 | **EC6** | ABI prefix rejection: 6 bad prefixes x 5 endpoints -> consistent ERR | `include/ufsecp/ufsecp_impl.cpp` | 30 ABI boundary checks | `test_ecies_regression.cpp` -> `test_abi_prefix_rejection()` | [OK] |
 | **EC7** | Pubkey parser consistency: malformed x-coords -> same error across all parsers | `include/ufsecp/ufsecp_impl.cpp` | 3 malformed coords x 3 functions | `test_ecies_regression.cpp` -> `test_pubkey_parser_consistency()` | [OK] |
 | **EC8** | RNG fail-closed: blocked `getrandom` -> process SIGABRT (no silent fallback) | `cpu/src/random.cpp` | fork + seccomp filter (Linux x86-64) | `test_ecies_regression.cpp` -> `test_rng_fail_closed()` | [OK] |
+| **EC9** | Zero-ephemeral fail-closed branch erases generated secret bytes before return | `cpu/src/ecies.cpp` | Code-path hardening review of `secure_erase(eph_bytes, ...)` before early exit | `cpu/src/ecies.cpp` -> `ecies_encrypt()` | [OK] |
 
-**ECIES Subtotal: 8/8 [OK]**
+**ECIES Subtotal: 9/9 [OK]**
 
 ---
 

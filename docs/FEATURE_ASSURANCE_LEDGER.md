@@ -402,7 +402,7 @@
 - (F) ABI prefix rejection: 6 bad prefixes x 5 ABI endpoints = 30 checks
 - (G) Pubkey parser consistency: 3 malformed x-coords -> consistent `BAD_PUBKEY` across `pubkey_parse`, `ecdh`, `ecies_encrypt`
 - (H) RNG fail-closed: fork + seccomp blocks `getrandom` -> process must SIGABRT (Linux x86-64 only)
-**Zeroization:** Extensive -- 14+ `secure_erase` calls in `cpu/src/ecies.cpp` covering ephemeral key, shared secret, KDF output, AES keystream, HMAC pads
+**Zeroization:** Extensive -- 14+ `secure_erase` calls in `cpu/src/ecies.cpp` covering the ephemeral secret on both success and zero-ephemeral early return, plus shared secret, KDF output, AES keystream, and HMAC pads
 
 ---
 
