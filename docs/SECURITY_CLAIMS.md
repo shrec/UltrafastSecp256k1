@@ -50,6 +50,11 @@ FAST == CT equivalence is verified in every CI run:
 - `test_ct` — arithmetic, scalar mul, generator mul, ECDSA sign, Schnorr sign
 - `test_ct_equivalence` — property-based (random + edge vectors)
 
+Preflight coverage reporting is graph-driven. The project graph builder records
+coverage from direct CTest targets and from selected unified-audit modules for
+public-data code paths such as batch verification, recovery, taproot, address,
+and multiscalar logic.
+
 ---
 
 ## 2. Developer Guidance: When to Use FAST vs CT

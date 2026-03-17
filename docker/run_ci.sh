@@ -169,10 +169,14 @@ job_sanitizers_asan() {
         -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer" \
         -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined" || return 1
     cmake --build "$bd" -j"$NPROC" || return 1
+    # ASan tests are CPU-heavy; cap parallelism at 4 to avoid contention
+    # and raise per-test timeout to 600s (ASan overhead ~2-3x vs Release).
+    local asan_j
+    asan_j=$(( NPROC < 4 ? NPROC : 4 ))
     ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 \
     UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1 \
-    ctest --test-dir "$bd" --output-on-failure -j"$NPROC" \
-        -E "^(ct_sidechannel|unified_audit)" --timeout 300
+    ctest --test-dir "$bd" --output-on-failure -j"$asan_j" \
+        -E "^(ct_sidechannel|unified_audit)" --timeout 600
 }
 
 job_sanitizers_tsan() {

@@ -38,10 +38,14 @@ Every function that touches secrets erases them on all exit paths:
 | BIP-32 derivation | `ek.key`, `ek.chain_code`, child keys | `ufsecp_bip32_master`, `_derive`, `_derive_path`, `_privkey` |
 | ECDH | `sk`, shared secret | `ufsecp_ecdh`, `_xonly`, `_raw` |
 | Key tweaks | `sk`, `tw`, `result` | `ufsecp_seckey_tweak_add`, `_tweak_mul`, `_negate` |
-| MuSig2 | `sk`, `sn` (sec nonce), secnonce buffer | `ufsecp_musig2_nonce_gen`, `_partial_sign` |
+| MuSig2 | `sk`, `sn` (sec nonce), local `k1`/`k2`, secnonce buffer | `ufsecp_musig2_nonce_gen`, `_partial_sign` |
 | FROST | `signing_share`, `hiding_nonce`, `binding_nonce`, `seed_arr`, `h`, `b` | `ufsecp_frost_keygen_begin`, `_keygen_finalize`, `_sign_nonce_gen`, `_sign` |
-| Silent Payments | `scan_sk`, `spend_sk` | `ufsecp_silent_payment_*` |
+| Adaptor signing | `sk` | `ufsecp_schnorr_adaptor_sign`, `ufsecp_ecdsa_adaptor_sign` |
+| Silent Payments | `scan_sk`, `spend_sk`, sender `privkeys`, output `tweak` | `ufsecp_silent_payment_*` |
 | ECIES | `privkey` | `ufsecp_ecies_decrypt` |
+| Zero-knowledge proving | proof secret / blinding scalars | `ufsecp_zk_knowledge_prove`, `_dleq_prove`, `_range_prove` |
+| Taproot tweak | `sk`, tweaked secret | `ufsecp_taproot_tweak_seckey` |
+| BIP-32 pubkey extraction | transient `ek.key`, `ek.chain_code` | `ufsecp_bip32_pubkey` |
 | Ethereum | `sk` | `ufsecp_eth_sign` |
 
 ### ECDSA Fast Path (`cpu/src/ecdsa.cpp`) -- ~18 calls
@@ -74,6 +78,13 @@ Erases: `shared_x` (ECDH raw), `kdf` (64B enc+mac keys), `eph_privkey`, `eph_byt
 
 Erases: entropy buffers after mnemonic generation and seed derivation.
 
+### Wallet convenience (`cpu/src/coin_hd.cpp`) -- guarded cleanup
+
+`coin_address_from_seed` now erases transient master and child `ExtendedKey`
+material before returning, so seed-derived private key bytes and chain codes do
+not remain live in the convenience path after address generation or derivation
+failure.
+
 ### ECDH (`cpu/src/ecdh.cpp`) -- 2 calls
 
 Erases: compressed point representation, `x_bytes` after shared secret derivation.
@@ -104,7 +115,7 @@ Erases: compressed point representation, `x_bytes` after shared secret derivatio
 
 1. **Defense in depth**: Both the internal function AND the C ABI wrapper erase secrets. Double erase is intentional -- the internal function erases its locals, and the wrapper erases its parsed copies.
 
-2. **All exit paths**: Early returns (validation failures) happen before secret material is computed, so no cleanup is needed on those paths.
+2. **All exit paths**: When public-input validation happens after parsing a secret, the C ABI wrapper still erases the parsed secret before returning. This covers fail-closed paths such as ECDH invalid pubkeys, adaptor invalid points, MuSig2/FROST malformed session data, silent-payment recipient/input parse failures, and Taproot zero-tweak rejection.
 
 3. **Stack vs heap**: Stack secrets use `secure_erase(&var, sizeof(var))`. Heap secrets (FROST coefficients vector) iterate and erase each element.
 

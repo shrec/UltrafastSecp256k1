@@ -46,6 +46,30 @@ def get_conn():
     conn.row_factory = sqlite3.Row
     return conn
 
+
+def parse_limit_arg(arg: str, default: int = 15):
+    try:
+        return max(1, int(arg.strip()))
+    except Exception:
+        return default
+
+
+def find_symbol_rows(conn, name: str):
+    exact = conn.execute(
+        """SELECT * FROM symbol_metadata
+           WHERE symbol_name = ? OR symbol_name = ?
+           ORDER BY review_priority DESC, file_path, start_line""",
+        (name, name.split('::')[-1])
+    ).fetchall()
+    if exact:
+        return exact
+    return conn.execute(
+        """SELECT * FROM symbol_metadata
+           WHERE symbol_name LIKE ? OR file_path LIKE ? OR summary LIKE ?
+           ORDER BY review_priority DESC, file_path, start_line""",
+        (f'%{name}%', f'%{name}%', f'%{name}%')
+    ).fetchall()
+
 def cmd_search(query: str):
     """Full-text search across files, functions, docs, methods, and routing."""
     conn = get_conn()
@@ -275,9 +299,13 @@ def cmd_summary():
     stats = json.loads(conn.execute("SELECT value FROM meta WHERE key='stats'").fetchone()['value'])
     built = conn.execute("SELECT value FROM meta WHERE key='built_at'").fetchone()['value']
     version = conn.execute("SELECT value FROM meta WHERE key='version'").fetchone()['value']
+    schema_version = conn.execute("SELECT value FROM meta WHERE key='schema_version'").fetchone()['value']
+    extractor_version = conn.execute("SELECT value FROM meta WHERE key='extractor_version'").fetchone()['value']
+    revision = conn.execute("SELECT value FROM meta WHERE key='graph_build_revision'").fetchone()['value']
     
     print(f"=== Project Knowledge Graph v{version} ===")
     print(f"  Built: {built}")
+    print(f"  Schema: {schema_version}  Extractor: {extractor_version}  Revision: {revision}")
     print(f"  Database: {DB_PATH} ({DB_PATH.stat().st_size / 1024:.0f} KB)\n")
     
     total = sum(stats.values())
@@ -292,6 +320,10 @@ def cmd_summary():
     print(f"\nTOP 10 SUBSYSTEMS:")
     for r in conn.execute("SELECT * FROM v_subsystem_files LIMIT 10").fetchall():
         print(f"  {r['subsystem']:15s} {r['file_count']:3d} files  {r['total_lines']:6d} lines")
+    if 'analysis_scores' in stats:
+        top = conn.execute("SELECT COUNT(*) AS cnt FROM analysis_scores WHERE overall_priority >= 30").fetchone()['cnt']
+        tasks = conn.execute("SELECT COUNT(*) AS cnt FROM ai_tasks WHERE status='pending'").fetchone()['cnt']
+        print(f"\nANALYSIS: {top} high-priority symbols, {tasks} pending AI tasks")
     conn.close()
 
 def cmd_sql(query: str):
@@ -563,6 +595,202 @@ def cmd_preflight(mode: str = None):
         args.append(mode)
     subprocess.run(args)
 
+
+def cmd_semantic(name: str):
+    """Metadata-first symbol summary without raw code."""
+    conn = get_conn()
+    rows = find_symbol_rows(conn, name)
+    if not rows:
+        print(f"Symbol not found: {name}")
+        conn.close()
+        return
+    row = rows[0]
+    tags = json.loads(row['semantic_tags']) if row['semantic_tags'] else []
+    print(f"SYMBOL: {row['symbol_name']}")
+    print(f"  file: {row['file_path']}:{row['start_line']}-{row['end_line']}")
+    print(f"  class: {row['class_name'] or '-'}")
+    print(f"  risk: {row['risk_level']}  priority={row['review_priority']}")
+    print(f"  hot_path={row['hot_path']}  ct_sensitive={row['ct_sensitive']}  batchable={row['batchable']}  gpu_candidate={row['gpu_candidate']}")
+    print(f"  summary: {row['summary']}")
+    print(f"  tags: {', '.join(tags) if tags else '-'}")
+    call_ctx = conn.execute(
+        "SELECT callers, callees, caller_count, callee_count FROM v_symbol_call_context WHERE symbol_name=? AND file_path=?",
+        (row['symbol_name'], row['file_path'])
+    ).fetchone()
+    if call_ctx:
+        print(f"  callers({call_ctx['caller_count']}): {call_ctx['callers'] or '-'}")
+        print(f"  callees({call_ctx['callee_count']}): {call_ctx['callees'] or '-'}")
+    conn.close()
+
+
+def cmd_slice(name: str):
+    """Signature + exact line slice + call context for token-efficient retrieval."""
+    conn = get_conn()
+    rows = find_symbol_rows(conn, name)
+    if not rows:
+        print(f"Symbol not found: {name}")
+        conn.close()
+        return
+    row = rows[0]
+    span = row['end_line'] - row['start_line'] + 1
+    print(f"SLICE: {row['symbol_name']}")
+    print(f"  file: {row['file_path']}")
+    print(f"  lines: {row['start_line']}-{row['end_line']} ({span} lines)")
+    print(f"  signature: {row['signature'] or '(signature unavailable)'}")
+    print(f"  summary: {row['summary']}")
+    call_ctx = conn.execute(
+        "SELECT callers, callees FROM v_symbol_call_context WHERE symbol_name=? AND file_path=?",
+        (row['symbol_name'], row['file_path'])
+    ).fetchone()
+    if call_ctx:
+        print(f"  callers: {call_ctx['callers'] or '-'}")
+        print(f"  callees: {call_ctx['callees'] or '-'}")
+    print("  retrieval_hint: read only the slice lines first; open dependent symbols only if needed")
+    conn.close()
+
+
+def cmd_hot(limit_arg: str = None):
+    """Top hot-path symbols for performance-focused reasoning."""
+    conn = get_conn()
+    limit = parse_limit_arg(limit_arg or '15')
+    rows = conn.execute(
+        """SELECT symbol_name, file_path, summary, review_priority, risk_level
+           FROM symbol_metadata
+           WHERE hot_path=1
+           ORDER BY review_priority DESC, file_path, start_line
+           LIMIT ?""",
+        (limit,)
+    ).fetchall()
+    print(f"=== Hot Symbols ({len(rows)}) ===\n")
+    for row in rows:
+        print(f"  {row['symbol_name']:30s} [{row['risk_level']:6s}] p={row['review_priority']:2d}  {row['file_path']}")
+        print(f"    {row['summary']}")
+    conn.close()
+
+
+def cmd_risk(limit_arg: str = None):
+    """High-risk symbols first, with semantic context."""
+    conn = get_conn()
+    limit = parse_limit_arg(limit_arg or '15')
+    rows = conn.execute(
+        """SELECT symbol_name, file_path, summary, risk_level, review_priority, ct_sensitive
+           FROM symbol_metadata
+           ORDER BY CASE risk_level WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END,
+                    review_priority DESC, file_path, start_line
+           LIMIT ?""",
+        (limit,)
+    ).fetchall()
+    print(f"=== Risk Queue ({len(rows)}) ===\n")
+    for row in rows:
+        ct = ' ct' if row['ct_sensitive'] else ''
+        print(f"  {row['symbol_name']:30s} [{row['risk_level']}{ct}] p={row['review_priority']:2d}  {row['file_path']}")
+        print(f"    {row['summary']}")
+    conn.close()
+
+
+def cmd_candidates(limit_arg: str = None):
+    """Optimization candidates: hot + batchable/GPU-friendly symbols."""
+    conn = get_conn()
+    limit = parse_limit_arg(limit_arg or '15')
+    rows = conn.execute(
+        """SELECT symbol_name, file_path, summary, risk_level, review_priority,
+                  batchable, gpu_candidate, ct_sensitive
+           FROM v_optimization_candidates
+           LIMIT ?""",
+        (limit,)
+    ).fetchall()
+    print(f"=== Optimization Candidates ({len(rows)}) ===\n")
+    for row in rows:
+        flags = []
+        if row['batchable']:
+            flags.append('batchable')
+        if row['gpu_candidate']:
+            flags.append('gpu')
+        if row['ct_sensitive']:
+            flags.append('ct')
+        flag_str = ', '.join(flags) if flags else '-'
+        print(f"  {row['symbol_name']:30s} [{row['risk_level']:6s}] p={row['review_priority']:2d}  {flag_str}")
+        print(f"    {row['file_path']} :: {row['summary']}")
+    conn.close()
+
+
+def cmd_bottlenecks(limit_arg: str = None):
+    """Top proactive bottleneck candidates ranked from derived analysis."""
+    conn = get_conn()
+    limit = parse_limit_arg(limit_arg or '15')
+    rows = conn.execute(
+        """SELECT symbol_name, file_path, start_line, hotness_score, complexity_score, fanin_score,
+                  gpu_score, ct_risk_score, audit_gap_score, overall_priority, summary, reasons
+           FROM v_bottleneck_queue
+           LIMIT ?""",
+        (limit,)
+    ).fetchall()
+    print(f"=== Bottleneck Queue ({len(rows)}) ===\n")
+    for row in rows:
+        reasons = json.loads(row['reasons']) if row['reasons'] else []
+        print(
+            f"  {row['symbol_name']:30s} p={row['overall_priority']:3d} hot={row['hotness_score']:2d} "
+            f"cx={row['complexity_score']:2d} in={row['fanin_score']:2d} gpu={row['gpu_score']:2d} "
+            f"ct={row['ct_risk_score']:2d} gap={row['audit_gap_score']:2d}"
+        )
+        print(f"    {row['file_path']}:{row['start_line']} :: {row['summary']}")
+        print(f"    reasons: {', '.join(reasons) if reasons else '-'}")
+    conn.close()
+
+
+def cmd_tasks(limit_arg: str = None):
+    """Show the prebuilt AI task queue derived from graph analysis."""
+    conn = get_conn()
+    limit = parse_limit_arg(limit_arg or '15')
+    rows = conn.execute(
+          """SELECT task_type, symbol_name, file_path, start_line, priority, status, reasons
+           FROM v_ai_task_queue
+           LIMIT ?""",
+        (limit,)
+    ).fetchall()
+    print(f"=== AI Task Queue ({len(rows)}) ===\n")
+    for row in rows:
+        reasons = json.loads(row['reasons']) if row['reasons'] else []
+        print(f"  {row['task_type']:12s} {row['symbol_name']:28s} p={row['priority']:3d} [{row['status']}]")
+        print(f"    {row['file_path']}:{row['start_line']}")
+        print(f"    reasons: {', '.join(reasons) if reasons else '-'}")
+    conn.close()
+
+
+def cmd_score(name: str):
+    """Show full derived analysis scores for a symbol."""
+    conn = get_conn()
+    rows = find_symbol_rows(conn, name)
+    if not rows:
+        print(f"Symbol not found: {name}")
+        conn.close()
+        return
+    row = rows[0]
+    score = conn.execute(
+        """SELECT * FROM analysis_scores WHERE symbol_name=? AND file_path=? AND start_line=?""",
+        (row['symbol_name'], row['file_path'], row['start_line'])
+    ).fetchone()
+    if not score:
+        print(f"No analysis scores found for: {row['symbol_name']}")
+        conn.close()
+        return
+    reasons = json.loads(score['reasons']) if score['reasons'] else []
+    print(f"SCORE: {row['symbol_name']}")
+    print(f"  file: {row['file_path']}:{row['start_line']}-{row['end_line']}")
+    print(f"  hotness={score['hotness_score']} complexity={score['complexity_score']} fanin={score['fanin_score']} fanout={score['fanout_score']}")
+    print(f"  optimization={score['optimization_score']} gpu={score['gpu_score']} ct_risk={score['ct_risk_score']} audit_gap={score['audit_gap_score']}")
+    print(f"  perf_priority={score['perf_priority']} safe_priority={score['safe_priority']} overall={score['overall_priority']}")
+    print(f"  reasons: {', '.join(reasons) if reasons else '-'}")
+    tasks = conn.execute(
+        """SELECT task_type, priority, status FROM ai_tasks WHERE symbol_name=? AND file_path=? AND start_line=? ORDER BY priority DESC""",
+        (row['symbol_name'], row['file_path'], row['start_line'])
+    ).fetchall()
+    if tasks:
+        print("  tasks:")
+        for task in tasks:
+            print(f"    {task['task_type']} p={task['priority']} [{task['status']}]")
+    conn.close()
+
 COMMANDS = {
     'search': ('search <query>', cmd_search),
     'file': ('file <path>', cmd_file),
@@ -585,6 +813,14 @@ COMMANDS = {
     'impact': ('impact <file>', cmd_impact),
     'gaps': ('gaps', cmd_gaps),
     'context': ('context <file>', cmd_context),
+    'slice': ('slice <symbol>', cmd_slice),
+    'semantic': ('semantic <symbol>', cmd_semantic),
+    'hot': ('hot [limit]', cmd_hot),
+    'risk': ('risk [limit]', cmd_risk),
+    'candidates': ('candidates [limit]', cmd_candidates),
+    'bottlenecks': ('bottlenecks [limit]', cmd_bottlenecks),
+    'tasks': ('tasks [limit]', cmd_tasks),
+    'score': ('score <symbol>', cmd_score),
     'preflight': ('preflight [--security|--coverage|--abi]', cmd_preflight),
 }
 
@@ -599,8 +835,12 @@ if __name__ == '__main__':
     cmd_name = sys.argv[1]
     args = ' '.join(sys.argv[2:]) if len(sys.argv) > 2 else None
     handler = COMMANDS[cmd_name][1]
-    
+
+    optional_arg_cmds = {'summary', 'gaps', 'hot', 'risk', 'candidates', 'bottlenecks', 'tasks'}
+
     if args:
         handler(args)
+    elif cmd_name in optional_arg_cmds:
+        handler()
     else:
         handler()

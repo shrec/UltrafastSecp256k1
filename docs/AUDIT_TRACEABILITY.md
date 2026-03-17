@@ -271,8 +271,9 @@ Each row in this matrix links:
 | **EC6** | ABI prefix rejection: 6 bad prefixes x 5 endpoints -> consistent ERR | `include/ufsecp/ufsecp_impl.cpp` | 30 ABI boundary checks | `test_ecies_regression.cpp` -> `test_abi_prefix_rejection()` | [OK] |
 | **EC7** | Pubkey parser consistency: malformed x-coords -> same error across all parsers | `include/ufsecp/ufsecp_impl.cpp` | 3 malformed coords x 3 functions | `test_ecies_regression.cpp` -> `test_pubkey_parser_consistency()` | [OK] |
 | **EC8** | RNG fail-closed: blocked `getrandom` -> process SIGABRT (no silent fallback) | `cpu/src/random.cpp` | fork + seccomp filter (Linux x86-64) | `test_ecies_regression.cpp` -> `test_rng_fail_closed()` | [OK] |
+| **EC9** | Zero-ephemeral fail-closed branch erases generated secret bytes before return | `cpu/src/ecies.cpp` | Code-path hardening review of `secure_erase(eph_bytes, ...)` before early exit | `cpu/src/ecies.cpp` -> `ecies_encrypt()` | [OK] |
 
-**ECIES Subtotal: 8/8 [OK]**
+**ECIES Subtotal: 9/9 [OK]**
 
 ---
 
@@ -329,6 +330,7 @@ All core arithmetic operations are tested on boundary values:
 | Message bit-flip | 1-bit change in msg -> verify fails | `audit_security.cpp` -> `test_message_bitflip()` |
 | Nonce determinism | Same (msg, sk) -> same nonce | `audit_security.cpp` -> `test_nonce_determinism()` |
 | Zeroization | Secret memory zeroed after use | `audit_security.cpp` -> `test_zeroization()` |
+| ABI fail-closed cleanup | Secret-bearing ABI locals are erased even when later public/session inputs are rejected | `test_adversarial_protocol.cpp` (invalid adaptor points, malformed FROST/MuSig2/silent-payment hostile inputs) + `test_ecies_regression.cpp` prefix rejection; code-path review in `ufsecp_impl.cpp` |
 | MuSig2 rogue-key | 0xFF / zero / duplicate xonly keys | `test_adversarial_protocol.cpp` A.4 |
 | MuSig2 transcript mutation | Corrupt keyagg blob between steps | `test_adversarial_protocol.cpp` A.5 |
 | MuSig2 signer ordering | Wrong signer index | `test_adversarial_protocol.cpp` A.6 |

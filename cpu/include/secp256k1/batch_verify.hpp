@@ -40,6 +40,12 @@ struct SchnorrBatchEntry {
     SchnorrSignature signature;              // (r, s)
 };
 
+struct SchnorrBatchCachedEntry {
+    const SchnorrXonlyPubkey* pubkey;        // Parsed x-only pubkey; must outlive the batch call
+    std::array<std::uint8_t, 32> message;    // 32-byte message
+    SchnorrSignature signature;              // (r, s)
+};
+
 // Verify a batch of Schnorr signatures.
 // Returns true if ALL signatures are valid.
 // Uses random linear combination for efficiency.
@@ -47,6 +53,8 @@ struct SchnorrBatchEntry {
 // Performance: ~2-3x faster than N individual schnorr_verify() calls.
 bool schnorr_batch_verify(const SchnorrBatchEntry* entries, std::size_t n);
 bool schnorr_batch_verify(const std::vector<SchnorrBatchEntry>& entries);
+bool schnorr_batch_verify(const SchnorrBatchCachedEntry* entries, std::size_t n);
+bool schnorr_batch_verify(const std::vector<SchnorrBatchCachedEntry>& entries);
 
 // -- ECDSA Batch Verification -------------------------------------------------
 
@@ -70,6 +78,9 @@ bool ecdsa_batch_verify(const std::vector<ECDSABatchEntry>& entries);
 // Returns indices of invalid entries.
 std::vector<std::size_t> schnorr_batch_identify_invalid(
     const SchnorrBatchEntry* entries, std::size_t n);
+
+std::vector<std::size_t> schnorr_batch_identify_invalid(
+    const SchnorrBatchCachedEntry* entries, std::size_t n);
 
 std::vector<std::size_t> ecdsa_batch_identify_invalid(
     const ECDSABatchEntry* entries, std::size_t n);

@@ -101,6 +101,32 @@ static void test_batch_add_x_correctness() {
     (void)std::printf("  Verified %zu batch additions\n", BATCH);
 }
 
+static void test_batch_add_x_convenience() {
+    (void)std::printf("[BatchAffine] batch_add_affine_x convenience wrapper...\n");
+
+    constexpr std::size_t BATCH = 16;
+    auto g_table = precompute_g_multiples(BATCH);
+
+    Scalar const s77 = Scalar::from_uint64(77);
+    Point const P = scalar_mul_generator(s77);
+    FieldElement const base_x = P.x();
+    FieldElement const base_y = P.y();
+
+    std::vector<FieldElement> out_x(BATCH);
+    batch_add_affine_x(base_x, base_y, g_table.data(), out_x.data(), BATCH);
+
+    for (std::size_t i = 0; i < BATCH; ++i) {
+        Scalar const s = Scalar::from_uint64(77 + i + 1);
+        Point const expected = scalar_mul_generator(s);
+
+        char label[80];
+        (void)std::snprintf(label, sizeof(label),
+                            "convenience[%zu] == %zuG (x-coord)",
+                            i, 77 + i + 1);
+        check(out_x[i] == expected.x(), label);
+    }
+}
+
 // -- Test 3: batch_add_affine_xy correctness ---------------------------------
 
 static void test_batch_add_xy_correctness() {
@@ -338,6 +364,7 @@ int test_batch_add_affine_run() {
     test_empty();
     test_precompute_g_multiples();
     test_batch_add_x_correctness();
+    test_batch_add_x_convenience();
     test_batch_add_xy_correctness();
     test_bidirectional();
     test_parity();

@@ -39,6 +39,7 @@ public:
     static Scalar from_hex(const std::string& hex);
 
     std::array<std::uint8_t, 32> to_bytes() const;
+    void write_bytes(std::uint8_t* out32) const noexcept;
     std::string to_hex() const;
     const limbs_type& limbs() const noexcept { return limbs_; }
 

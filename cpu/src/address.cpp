@@ -708,12 +708,12 @@ silent_payment_scan(const Scalar& scan_privkey,
 
     // Shared secret: S = b_scan * A_sum
     Point const S = ct::scalar_mul(A_sum, scan_privkey);
+    auto const S_comp = S.to_compressed();
+    Point const B_spend = ct::generator_mul(spend_privkey);
 
     // Check each output
     for (std::uint32_t k = 0; k < static_cast<std::uint32_t>(output_pubkeys.size()); ++k) {
         // t_k = tagged_hash("BIP0352/SharedSecret", ser(S) || ser32(k))
-        auto S_comp = S.to_compressed();
-
         SHA256 h;
         auto tag_hash = SHA256::hash(reinterpret_cast<const std::uint8_t*>("BIP0352/SharedSecret"), 20);
         h.update(tag_hash.data(), 32);
@@ -728,7 +728,6 @@ silent_payment_scan(const Scalar& scan_privkey,
         Scalar const t_k = Scalar::from_bytes(t_hash);
 
         // Expected output: P = B_spend + t_k * G
-        Point const B_spend = ct::generator_mul(spend_privkey);
         Point const expected = B_spend.add(Point::generator().scalar_mul(t_k));
         auto expected_x = expected.x().to_bytes();
 

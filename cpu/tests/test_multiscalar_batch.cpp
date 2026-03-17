@@ -163,11 +163,47 @@ static void test_schnorr_batch_verify() {
           "Schnorr batch identify: correctly finds sig #2");
 
     // Empty batch
-    CHECK(schnorr_batch_verify(nullptr, 0), "Schnorr batch: empty = true");
+        CHECK(schnorr_batch_verify(static_cast<const SchnorrBatchEntry*>(nullptr), 0),
+            "Schnorr batch: empty = true");
 
     // Single entry
     std::vector<SchnorrBatchEntry> const single = {entries[0]};
     CHECK(schnorr_batch_verify(single), "Schnorr batch: single entry pass");
+
+        std::vector<SchnorrXonlyPubkey> cached_pubkeys(N);
+        std::vector<SchnorrBatchCachedEntry> cached_entries(N);
+        bool cache_parse_ok = true;
+        for (std::size_t i = 0; i < N; ++i) {
+          if (!schnorr_xonly_pubkey_parse(cached_pubkeys[i], entries[i].pubkey_x)) {
+            cache_parse_ok = false;
+            break;
+          }
+          cached_entries[i] = {&cached_pubkeys[i], entries[i].message,
+                         entries[i].signature};
+        }
+        CHECK(cache_parse_ok, "Schnorr batch cached: parse x-only pubkeys");
+        CHECK(schnorr_batch_verify(cached_entries),
+            "Schnorr batch cached: valid signatures pass");
+
+        auto cached_corrupted = cached_entries;
+        cached_corrupted[2].signature.s = cached_corrupted[2].signature.s + Scalar::one();
+        CHECK(!schnorr_batch_verify(cached_corrupted),
+            "Schnorr batch cached: corrupted sig #2 detected");
+
+        auto cached_invalid = schnorr_batch_identify_invalid(
+          cached_corrupted.data(), cached_corrupted.size());
+        CHECK(cached_invalid.size() == 1 && cached_invalid[0] == 2,
+            "Schnorr batch cached identify: correctly finds sig #2");
+
+        auto cached_missing = cached_entries;
+        cached_missing[1].pubkey = nullptr;
+        CHECK(!schnorr_batch_verify(cached_missing),
+            "Schnorr batch cached: null pubkey rejected");
+
+        auto cached_missing_invalid = schnorr_batch_identify_invalid(
+          cached_missing.data(), cached_missing.size());
+        CHECK(cached_missing_invalid.size() == 1 && cached_missing_invalid[0] == 1,
+            "Schnorr batch cached identify: null pubkey reported invalid");
 }
 
 // -- ECDSA Batch Verification -------------------------------------------------

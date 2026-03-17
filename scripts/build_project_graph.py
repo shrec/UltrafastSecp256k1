@@ -276,6 +276,72 @@ CREATE TABLE IF NOT EXISTS function_index (
     UNIQUE(file_path, name, start_line)
 );
 
+-- AI-first symbol metadata: semantic compression for low-token reasoning
+CREATE TABLE IF NOT EXISTS symbol_metadata (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    symbol_name     TEXT NOT NULL,
+    file_path       TEXT NOT NULL,
+    class_name      TEXT,
+    signature       TEXT,
+    start_line      INTEGER NOT NULL,
+    end_line        INTEGER NOT NULL,
+    summary         TEXT NOT NULL,
+    semantic_tags   TEXT NOT NULL,          -- JSON array
+    hot_path        INTEGER NOT NULL DEFAULT 0,
+    ct_sensitive    INTEGER NOT NULL DEFAULT 0,
+    batchable       INTEGER NOT NULL DEFAULT 0,
+    gpu_candidate   INTEGER NOT NULL DEFAULT 0,
+    risk_level      TEXT NOT NULL DEFAULT 'low',
+    review_priority INTEGER NOT NULL DEFAULT 0,
+    UNIQUE(file_path, symbol_name, start_line)
+);
+
+-- Lightweight call graph between indexed functions, extracted heuristically
+CREATE TABLE IF NOT EXISTS call_edges (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    caller_name TEXT NOT NULL,
+    caller_file TEXT NOT NULL,
+    callee_name TEXT NOT NULL,
+    callee_file TEXT,
+    UNIQUE(caller_name, caller_file, callee_name)
+);
+
+-- Derived analysis scores for proactive bottleneck discovery and review ranking
+CREATE TABLE IF NOT EXISTS analysis_scores (
+    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    symbol_name         TEXT NOT NULL,
+    file_path           TEXT NOT NULL,
+    start_line          INTEGER NOT NULL,
+    hotness_score       INTEGER NOT NULL DEFAULT 0,
+    complexity_score    INTEGER NOT NULL DEFAULT 0,
+    fanin_score         INTEGER NOT NULL DEFAULT 0,
+    fanout_score        INTEGER NOT NULL DEFAULT 0,
+    optimization_score  INTEGER NOT NULL DEFAULT 0,
+    gpu_score           INTEGER NOT NULL DEFAULT 0,
+    ct_risk_score       INTEGER NOT NULL DEFAULT 0,
+    audit_gap_score     INTEGER NOT NULL DEFAULT 0,
+    perf_priority       INTEGER NOT NULL DEFAULT 0,
+    safe_priority       INTEGER NOT NULL DEFAULT 0,
+    overall_priority    INTEGER NOT NULL DEFAULT 0,
+    reasons             TEXT NOT NULL,
+    UNIQUE(symbol_name, file_path, start_line)
+);
+
+-- Prebuilt AI task queue derived from graph analysis
+CREATE TABLE IF NOT EXISTS ai_tasks (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    task_type     TEXT NOT NULL,
+    symbol_name   TEXT NOT NULL,
+    file_path     TEXT NOT NULL,
+    start_line    INTEGER NOT NULL,
+    prompt        TEXT NOT NULL,
+    status        TEXT NOT NULL DEFAULT 'pending',
+    priority      INTEGER NOT NULL DEFAULT 0,
+    created_at    TEXT NOT NULL,
+    reasons       TEXT NOT NULL,
+    UNIQUE(task_type, symbol_name, file_path, start_line)
+);
+
 -- FTS5 full-text search on key tables
 CREATE VIRTUAL TABLE IF NOT EXISTS fts_files USING fts5(
     path, category, subsystem, layer, content=source_files, content_rowid=id
@@ -294,12 +360,48 @@ CREATE TRIGGER IF NOT EXISTS source_files_ai AFTER INSERT ON source_files BEGIN
     INSERT INTO fts_files(rowid, path, category, subsystem, layer) VALUES (new.id, new.path, new.category, new.subsystem, new.layer);
 END;
 
+CREATE TRIGGER IF NOT EXISTS source_files_ad AFTER DELETE ON source_files BEGIN
+    INSERT INTO fts_files(fts_files, rowid, path, category, subsystem, layer)
+    VALUES('delete', old.id, old.path, old.category, old.subsystem, old.layer);
+END;
+
+CREATE TRIGGER IF NOT EXISTS source_files_au AFTER UPDATE ON source_files BEGIN
+    INSERT INTO fts_files(fts_files, rowid, path, category, subsystem, layer)
+    VALUES('delete', old.id, old.path, old.category, old.subsystem, old.layer);
+    INSERT INTO fts_files(rowid, path, category, subsystem, layer)
+    VALUES (new.id, new.path, new.category, new.subsystem, new.layer);
+END;
+
 CREATE TRIGGER IF NOT EXISTS c_abi_functions_ai AFTER INSERT ON c_abi_functions BEGIN
     INSERT INTO fts_functions(rowid, name, category, signature, layer) VALUES (new.id, new.name, new.category, new.signature, new.layer);
 END;
 
+CREATE TRIGGER IF NOT EXISTS c_abi_functions_ad AFTER DELETE ON c_abi_functions BEGIN
+    INSERT INTO fts_functions(fts_functions, rowid, name, category, signature, layer)
+    VALUES('delete', old.id, old.name, old.category, old.signature, old.layer);
+END;
+
+CREATE TRIGGER IF NOT EXISTS c_abi_functions_au AFTER UPDATE ON c_abi_functions BEGIN
+    INSERT INTO fts_functions(fts_functions, rowid, name, category, signature, layer)
+    VALUES('delete', old.id, old.name, old.category, old.signature, old.layer);
+    INSERT INTO fts_functions(rowid, name, category, signature, layer)
+    VALUES (new.id, new.name, new.category, new.signature, new.layer);
+END;
+
 CREATE TRIGGER IF NOT EXISTS docs_ai AFTER INSERT ON docs BEGIN
     INSERT INTO fts_docs(rowid, path, title, category, topics) VALUES (new.id, new.path, new.title, new.category, new.topics);
+END;
+
+CREATE TRIGGER IF NOT EXISTS docs_ad AFTER DELETE ON docs BEGIN
+    INSERT INTO fts_docs(fts_docs, rowid, path, title, category, topics)
+    VALUES('delete', old.id, old.path, old.title, old.category, old.topics);
+END;
+
+CREATE TRIGGER IF NOT EXISTS docs_au AFTER UPDATE ON docs BEGIN
+    INSERT INTO fts_docs(fts_docs, rowid, path, title, category, topics)
+    VALUES('delete', old.id, old.path, old.title, old.category, old.topics);
+    INSERT INTO fts_docs(rowid, path, title, category, topics)
+    VALUES (new.id, new.path, new.title, new.category, new.topics);
 END;
 
 -- FTS5 on methods (search by class, method name, signature)
@@ -309,6 +411,16 @@ CREATE VIRTUAL TABLE IF NOT EXISTS fts_methods USING fts5(
 CREATE TRIGGER IF NOT EXISTS cpp_methods_ai AFTER INSERT ON cpp_methods BEGIN
     INSERT INTO fts_methods(rowid, class_name, method, signature, layer) VALUES (new.id, new.class_name, new.method, new.signature, new.layer);
 END;
+CREATE TRIGGER IF NOT EXISTS cpp_methods_ad AFTER DELETE ON cpp_methods BEGIN
+    INSERT INTO fts_methods(fts_methods, rowid, class_name, method, signature, layer)
+    VALUES('delete', old.id, old.class_name, old.method, old.signature, old.layer);
+END;
+CREATE TRIGGER IF NOT EXISTS cpp_methods_au AFTER UPDATE ON cpp_methods BEGIN
+    INSERT INTO fts_methods(fts_methods, rowid, class_name, method, signature, layer)
+    VALUES('delete', old.id, old.class_name, old.method, old.signature, old.layer);
+    INSERT INTO fts_methods(rowid, class_name, method, signature, layer)
+    VALUES (new.id, new.class_name, new.method, new.signature, new.layer);
+END;
 
 -- FTS5 on ABI routing (search by function name, internal call, layer)
 CREATE VIRTUAL TABLE IF NOT EXISTS fts_routing USING fts5(
@@ -316,6 +428,16 @@ CREATE VIRTUAL TABLE IF NOT EXISTS fts_routing USING fts5(
 );
 CREATE TRIGGER IF NOT EXISTS abi_routing_ai AFTER INSERT ON abi_routing BEGIN
     INSERT INTO fts_routing(rowid, abi_function, internal_call, layer) VALUES (new.id, new.abi_function, new.internal_call, new.layer);
+END;
+CREATE TRIGGER IF NOT EXISTS abi_routing_ad AFTER DELETE ON abi_routing BEGIN
+    INSERT INTO fts_routing(fts_routing, rowid, abi_function, internal_call, layer)
+    VALUES('delete', old.id, old.abi_function, old.internal_call, old.layer);
+END;
+CREATE TRIGGER IF NOT EXISTS abi_routing_au AFTER UPDATE ON abi_routing BEGIN
+    INSERT INTO fts_routing(fts_routing, rowid, abi_function, internal_call, layer)
+    VALUES('delete', old.id, old.abi_function, old.internal_call, old.layer);
+    INSERT INTO fts_routing(rowid, abi_function, internal_call, layer)
+    VALUES (new.id, new.abi_function, new.internal_call, new.layer);
 END;
 
 -- Useful views
@@ -406,6 +528,51 @@ CREATE VIEW IF NOT EXISTS v_abi_security AS
   FROM abi_routing ar
   WHERE ar.layer = 'ct'
   ORDER BY ar.abi_function;
+
+CREATE VIEW IF NOT EXISTS v_symbol_call_context AS
+    SELECT sm.symbol_name, sm.file_path,
+                 COALESCE((SELECT GROUP_CONCAT(DISTINCT ce.callee_name)
+                                     FROM call_edges ce
+                                     WHERE ce.caller_name = sm.symbol_name AND ce.caller_file = sm.file_path), '') AS callees,
+                 COALESCE((SELECT GROUP_CONCAT(DISTINCT ce.caller_name)
+                                     FROM call_edges ce
+                                     WHERE ce.callee_name = sm.symbol_name AND (ce.callee_file = sm.file_path OR ce.callee_file IS NULL)), '') AS callers,
+                 (SELECT COUNT(*) FROM call_edges ce WHERE ce.caller_name = sm.symbol_name AND ce.caller_file = sm.file_path) AS callee_count,
+                 (SELECT COUNT(*) FROM call_edges ce WHERE ce.callee_name = sm.symbol_name AND (ce.callee_file = sm.file_path OR ce.callee_file IS NULL)) AS caller_count
+    FROM symbol_metadata sm;
+
+CREATE VIEW IF NOT EXISTS v_symbol_review_queue AS
+    SELECT sm.symbol_name, sm.file_path, sm.summary, sm.risk_level, sm.review_priority,
+                 sm.hot_path, sm.ct_sensitive, sm.batchable, sm.gpu_candidate,
+                 vc.caller_count, vc.callee_count
+    FROM symbol_metadata sm
+    JOIN v_symbol_call_context vc
+        ON vc.symbol_name = sm.symbol_name AND vc.file_path = sm.file_path
+    ORDER BY sm.review_priority DESC, vc.caller_count DESC, sm.file_path, sm.start_line;
+
+CREATE VIEW IF NOT EXISTS v_optimization_candidates AS
+    SELECT symbol_name, file_path, summary, review_priority,
+                 hot_path, batchable, gpu_candidate, ct_sensitive, risk_level
+    FROM symbol_metadata
+    WHERE hot_path = 1 AND (batchable = 1 OR gpu_candidate = 1)
+    ORDER BY ct_sensitive ASC, risk_level ASC, review_priority DESC, file_path, start_line;
+
+CREATE VIEW IF NOT EXISTS v_bottleneck_queue AS
+    SELECT a.symbol_name, a.file_path, a.start_line,
+                 a.hotness_score, a.complexity_score, a.fanin_score, a.fanout_score,
+                 a.optimization_score, a.gpu_score, a.ct_risk_score, a.audit_gap_score,
+                 a.perf_priority, a.safe_priority, a.overall_priority,
+                 a.reasons, sm.summary, sm.risk_level, sm.hot_path, sm.ct_sensitive,
+                 sm.batchable, sm.gpu_candidate
+    FROM analysis_scores a
+    LEFT JOIN symbol_metadata sm
+        ON sm.symbol_name = a.symbol_name AND sm.file_path = a.file_path AND sm.start_line = a.start_line
+    ORDER BY a.overall_priority DESC, a.hotness_score DESC, a.gpu_score DESC, a.file_path;
+
+CREATE VIEW IF NOT EXISTS v_ai_task_queue AS
+    SELECT task_type, symbol_name, file_path, start_line, prompt, status, priority, created_at, reasons
+    FROM ai_tasks
+    ORDER BY status ASC, priority DESC, created_at DESC, file_path;
 """
 
 # ---------------------------------------------------------------------------
@@ -1047,8 +1214,28 @@ def populate_edges(cur: sqlite3.Cursor):
         'field_52': ['cpu/src/field_52.cpp', 'cpu/src/field.cpp'],
         'field_26': ['cpu/src/field_26.cpp'],
         'selftest': ['cpu/src/selftest.cpp'],
-        'comprehensive': ['cpu/src/ecdsa.cpp', 'cpu/src/schnorr.cpp', 'cpu/src/point.cpp'],
-        'exhaustive': ['cpu/src/field.cpp', 'cpu/src/scalar.cpp', 'cpu/src/point.cpp'],
+        'comprehensive': [
+            'cpu/src/ecdsa.cpp',
+            'cpu/src/schnorr.cpp',
+            'cpu/src/point.cpp',
+            'cpu/src/glv.cpp',
+            'cpu/src/batch_verify.cpp',
+            'cpu/src/multiscalar.cpp',
+            'cpu/src/pippenger.cpp',
+            'cpu/src/ecmult_gen_comb.cpp',
+            'cpu/src/precompute.cpp',
+            'cpu/src/recovery.cpp',
+            'cpu/src/field_asm.cpp',
+            'cpu/src/field_asm_arm64.cpp',
+            'cpu/src/field_asm_riscv64.cpp',
+        ],
+        'exhaustive': [
+            'cpu/src/field.cpp',
+            'cpu/src/scalar.cpp',
+            'cpu/src/point.cpp',
+            'cpu/src/pippenger.cpp',
+            'cpu/src/ecmult_gen_comb.cpp',
+        ],
         'bip340_vectors': ['cpu/src/schnorr.cpp'],
         'bip340_strict': ['cpu/src/schnorr.cpp'],
         'bip32_vectors': ['cpu/src/bip32.cpp'],
@@ -1057,7 +1244,7 @@ def populate_edges(cur: sqlite3.Cursor):
         'ecc_properties': ['cpu/src/point.cpp', 'cpu/src/scalar.cpp'],
         'ethereum': ['cpu/src/ethereum.cpp', 'cpu/src/eth_signing.cpp', 'cpu/src/keccak256.cpp'],
         'zk_proofs': ['cpu/src/zk.cpp', 'cpu/src/pedersen.cpp'],
-        'wallet': ['cpu/src/wallet.cpp', 'cpu/src/coin_address.cpp'],
+        'wallet': ['cpu/src/wallet.cpp', 'cpu/src/coin_address.cpp', 'cpu/src/message_signing.cpp'],
         'ct_equivalence': ['cpu/src/ct_field.cpp', 'cpu/src/ct_scalar.cpp', 'cpu/src/ct_point.cpp', 'cpu/src/ct_sign.cpp'],
         'ct_sidechannel': ['cpu/src/ct_sign.cpp', 'cpu/src/ct_point.cpp'],
         'adversarial_protocol': ['cpu/src/musig2.cpp', 'cpu/src/frost.cpp', 'cpu/src/adaptor.cpp', 'cpu/src/ecdsa.cpp'],
@@ -1068,6 +1255,8 @@ def populate_edges(cur: sqlite3.Cursor):
         'wycheproof_ecdh': ['cpu/src/ecdh.cpp'],
         'fault_injection': ['cpu/src/ecdsa.cpp', 'cpu/src/schnorr.cpp'],
         'batch_add_affine': ['cpu/src/batch_add_affine.cpp'],
+        'hash_accel': ['cpu/src/hash_accel.cpp'],
+        'edge_cases': ['cpu/src/precompute.cpp'],
     }
     for test, files in test_coverage.items():
         for f in files:
@@ -1075,6 +1264,24 @@ def populate_edges(cur: sqlite3.Cursor):
                 (src_type, src_id, dst_type, dst_id, relation)
                 VALUES (?,?,?,?,?)""",
                 ('test_target', test, 'source_file', f, 'covers'))
+            count += 1
+
+    # Unified-audit module -> source file coverage edges.
+    # These are real executed modules inside unified_audit_runner, even when
+    # they are not individual CTest entries.
+    audit_coverage = {
+        'multiscalar': ['cpu/src/multiscalar.cpp', 'cpu/src/batch_verify.cpp'],
+        'ecdh_recovery': ['cpu/src/recovery.cpp', 'cpu/src/taproot.cpp'],
+        'v4_features': ['cpu/src/address.cpp'],
+        'coins': ['cpu/src/coin_hd.cpp', 'cpu/src/address.cpp', 'cpu/src/taproot.cpp'],
+        'ethereum': ['cpu/src/address.cpp'],
+    }
+    for module, files in audit_coverage.items():
+        for f in files:
+            cur.execute("""INSERT OR IGNORE INTO edges
+                (src_type, src_id, dst_type, dst_id, relation)
+                VALUES (?,?,?,?,?)""",
+                ('audit_module', module, 'source_file', f, 'covers'))
             count += 1
     
     # C ABI -> source implementation edges
@@ -1782,6 +1989,393 @@ def populate_function_index(cur):
     return count
 
 
+CALL_SKIP_TOKENS = {
+    'if', 'for', 'while', 'switch', 'return', 'sizeof', 'alignof', 'alignas',
+    'catch', 'try', 'new', 'delete', 'static_cast', 'reinterpret_cast',
+    'const_cast', 'dynamic_cast', 'decltype', 'noexcept', 'assert', 'printf',
+    'fprintf', 'snprintf', 'memcpy', 'memset', 'memcmp'
+}
+
+HOT_SUBSYSTEMS = {
+    'field', 'scalar', 'point', 'glv', 'hash', 'multiscalar', 'batch',
+    'precompute', 'ecdsa', 'schnorr', 'musig2', 'frost', 'taproot', 'zk'
+}
+
+GPU_HINT_SUBSYSTEMS = {'field', 'scalar', 'point', 'hash', 'batch', 'multiscalar', 'precompute', 'glv'}
+
+TASK_CREATED_AT = datetime.now(timezone.utc).isoformat()
+
+
+def _extract_signature(lines, start_line, max_lines=6):
+    parts = []
+    for idx in range(start_line - 1, min(len(lines), start_line - 1 + max_lines)):
+        piece = lines[idx].strip()
+        if not piece:
+            continue
+        parts.append(piece)
+        if '{' in piece:
+            break
+    sig = ' '.join(parts)
+    sig = sig.split('{', 1)[0].strip()
+    return re.sub(r'\s+', ' ', sig)
+
+
+def _symbol_flags(symbol_name, file_path, subsystem, layer, category, sec_count, span):
+    lname = symbol_name.lower()
+    tags = []
+    if subsystem:
+        tags.append(subsystem)
+    if layer:
+        tags.append(layer)
+    if category:
+        tags.append(category)
+
+    hot_path = int(
+        subsystem in HOT_SUBSYSTEMS
+        or any(tok in lname for tok in ('mul', 'verify', 'sign', 'hash', 'batch', 'double', 'normalize', 'invert', 'recover'))
+        or ('cuda/' in file_path or 'opencl/' in file_path or 'metal/' in file_path)
+    )
+    ct_sensitive = int(layer == 'ct' or sec_count > 0 or any(tok in lname for tok in ('nonce', 'seckey', 'decrypt', 'ecdh')))
+    batchable = int(any(tok in lname for tok in ('batch', 'multi', 'pippenger', 'normalize', 'verify', 'hash')))
+    gpu_candidate = int((subsystem in GPU_HINT_SUBSYSTEMS or any(tok in lname for tok in ('mul', 'hash', 'batch', 'normalize', 'serialize')))
+                        and layer in ('fast', 'gpu'))
+
+    if ct_sensitive or category == 'abi' or any(tok in lname for tok in ('sign', 'decrypt', 'derive', 'tweak')):
+        risk_level = 'high'
+    elif hot_path or span > 120 or layer == 'gpu':
+        risk_level = 'medium'
+    else:
+        risk_level = 'low'
+
+    review_priority = hot_path * 3 + ct_sensitive * 4 + batchable * 2 + gpu_candidate * 2 + (2 if risk_level == 'high' else 1 if risk_level == 'medium' else 0)
+
+    if hot_path:
+        tags.append('hot_path')
+    if ct_sensitive:
+        tags.append('ct_sensitive')
+    if batchable:
+        tags.append('batchable')
+    if gpu_candidate:
+        tags.append('gpu_candidate')
+
+    seen = []
+    for tag in tags:
+        if tag and tag not in seen:
+            seen.append(tag)
+    return hot_path, ct_sensitive, batchable, gpu_candidate, risk_level, review_priority, seen
+
+
+def _symbol_summary(symbol_name, file_path, subsystem, layer, hot_path, ct_sensitive, gpu_candidate, batchable):
+    parts = []
+    if layer == 'ct':
+        parts.append('Constant-time')
+    elif layer == 'gpu':
+        parts.append('GPU')
+    else:
+        parts.append('Fast-path')
+    if subsystem:
+        parts.append(subsystem)
+    parts.append(f'symbol {symbol_name}')
+    if hot_path:
+        parts.append('hot path')
+    if ct_sensitive:
+        parts.append('secret-sensitive')
+    if batchable:
+        parts.append('batch-friendly')
+    if gpu_candidate:
+        parts.append('GPU candidate')
+    return ', '.join(parts[:2]) + ' - ' + ', '.join(parts[2:])
+
+
+def _clamp_score(value, lower=0, upper=15):
+    return max(lower, min(upper, int(value)))
+
+
+def _count_keyword_hits(text, keywords):
+    return sum(text.count(keyword) for keyword in keywords)
+
+
+def _analysis_reasons(symbol_name, metrics, flags):
+    reasons = []
+    if metrics['line_span'] >= 80:
+        reasons.append('large_function')
+    if metrics['loop_count'] >= 2:
+        reasons.append('loop_heavy')
+    if metrics['fanin_score'] >= 6:
+        reasons.append('high_fanin')
+    if metrics['fanout_score'] >= 6:
+        reasons.append('high_fanout')
+    if flags['hot_path']:
+        reasons.append('metadata_hot_path')
+    if flags['batchable']:
+        reasons.append('batchable_workload')
+    if flags['gpu_candidate']:
+        reasons.append('gpu_candidate')
+    if flags['ct_sensitive']:
+        reasons.append('ct_sensitive')
+    if metrics['audit_gap_score'] >= 4:
+        reasons.append('weak_audit_signal')
+    if any(tok in symbol_name.lower() for tok in ('mul', 'batch', 'verify', 'scan', 'hash', 'point')):
+        reasons.append('perf_named_symbol')
+    return reasons or ['general_review_target']
+
+
+def _build_task_prompt(task_type, symbol_name, file_path, reasons, summary):
+    focus = {
+        'optimize': 'Analyze this symbol as a performance bottleneck. Focus on loop structure, arithmetic intensity, memory layout, batching, and safe acceleration opportunities.',
+        'ct_review': 'Review this symbol for constant-time and secret-dependent behavior. Focus on branches, memory access patterns, parser strictness, and zeroization-sensitive flows.',
+        'audit_expand': 'Analyze this symbol for missing coverage and propose the smallest high-value regression, fuzz, or audit additions.'
+    }[task_type]
+    return (
+        f"Target: {symbol_name} in {file_path}. "
+        f"Summary: {summary}. "
+        f"Reasons: {', '.join(reasons)}. "
+        f"{focus}"
+    )
+
+
+def current_git_revision():
+    try:
+        git_entry = LIB_ROOT / '.git'
+        git_dir = git_entry
+        if git_entry.is_file():
+            content = git_entry.read_text(encoding='utf-8').strip()
+            if content.startswith('gitdir: '):
+                git_dir = (LIB_ROOT / content.split(': ', 1)[1]).resolve()
+        head = (git_dir / 'HEAD').read_text(encoding='utf-8').strip()
+        if head.startswith('ref: '):
+            ref_path = git_dir / head.split(' ', 1)[1]
+            if ref_path.exists():
+                return ref_path.read_text(encoding='utf-8').strip()[:16]
+        return head[:16]
+    except Exception:
+        return 'unknown'
+
+
+def populate_call_edges(cur):
+    symbol_rows = cur.execute("SELECT file_path, name, class_name, start_line, end_line FROM function_index ORDER BY file_path, start_line").fetchall()
+    by_name = {}
+    file_cache = {}
+    for row in symbol_rows:
+        by_name.setdefault(row[1], []).append(row)
+
+    call_pattern = re.compile(r'\b([A-Za-z_]\w*(?:::\w+)*)\s*\(')
+    count = 0
+    for row in symbol_rows:
+        file_path = row[0]
+        if file_path not in file_cache:
+            try:
+                file_cache[file_path] = (LIB_ROOT / file_path).read_text(encoding='utf-8', errors='replace').split('\n')
+            except Exception:
+                file_cache[file_path] = []
+        lines = file_cache[file_path]
+        body = '\n'.join(lines[row[3] - 1:row[4]])
+        seen = set()
+        for match in call_pattern.finditer(body):
+            token = match.group(1)
+            simple = token.rsplit('::', 1)[-1]
+            if simple in CALL_SKIP_TOKENS or simple == row[1] or simple in seen:
+                continue
+            candidates = by_name.get(simple)
+            if not candidates:
+                continue
+            preferred = next((c for c in candidates if c[0] == file_path), candidates[0])
+            cur.execute(
+                """INSERT OR IGNORE INTO call_edges (caller_name, caller_file, callee_name, callee_file)
+                   VALUES (?,?,?,?)""",
+                (row[1], file_path, simple, preferred[0])
+            )
+            seen.add(simple)
+            count += 1
+    return count
+
+
+def populate_symbol_metadata(cur):
+    rows = cur.execute(
+        """SELECT fi.file_path, fi.name, fi.class_name, fi.start_line, fi.end_line,
+                  sf.subsystem, sf.layer, sf.category
+           FROM function_index fi
+           JOIN source_files sf ON sf.path = fi.file_path
+           ORDER BY fi.file_path, fi.start_line"""
+    ).fetchall()
+    file_cache = {}
+    count = 0
+    for row in rows:
+        file_path = row[0]
+        if file_path not in file_cache:
+            try:
+                file_cache[file_path] = (LIB_ROOT / file_path).read_text(encoding='utf-8', errors='replace').split('\n')
+            except Exception:
+                file_cache[file_path] = []
+        lines = file_cache[file_path]
+        signature = _extract_signature(lines, row[3])
+        sec_count = cur.execute("SELECT COUNT(*) FROM security_patterns WHERE source_file=?", (file_path,)).fetchone()[0]
+        span = row[4] - row[3] + 1
+        hot_path, ct_sensitive, batchable, gpu_candidate, risk_level, review_priority, tags = _symbol_flags(
+            row[1], file_path, row[5], row[6], row[7], sec_count, span
+        )
+        summary = _symbol_summary(row[1], file_path, row[5], row[6], hot_path, ct_sensitive, gpu_candidate, batchable)
+        cur.execute(
+            """INSERT OR IGNORE INTO symbol_metadata
+               (symbol_name, file_path, class_name, signature, start_line, end_line,
+                summary, semantic_tags, hot_path, ct_sensitive, batchable, gpu_candidate,
+                risk_level, review_priority)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (
+                row[1], file_path, row[2], signature, row[3], row[4],
+                summary, json.dumps(tags), hot_path, ct_sensitive, batchable, gpu_candidate,
+                risk_level, review_priority
+            )
+        )
+        count += 1
+    return count
+
+
+def populate_analysis_scores(cur):
+    rows = cur.execute(
+        """SELECT sm.symbol_name, sm.file_path, sm.summary, sm.hot_path, sm.ct_sensitive,
+                  sm.batchable, sm.gpu_candidate, sm.review_priority, sm.risk_level,
+                  sm.start_line, sm.end_line
+           FROM symbol_metadata sm
+           ORDER BY sm.file_path, sm.start_line"""
+    ).fetchall()
+    file_cache = {}
+    count = 0
+    for row in rows:
+        symbol_name = row[0]
+        file_path = row[1]
+        start_line = row[9]
+        if file_path not in file_cache:
+            try:
+                file_cache[file_path] = (LIB_ROOT / file_path).read_text(encoding='utf-8', errors='replace').split('\n')
+            except Exception:
+                file_cache[file_path] = []
+        lines = file_cache[file_path]
+        body_lines = lines[row[9] - 1:row[10]]
+        body = '\n'.join(body_lines)
+        line_span = row[10] - row[9] + 1
+        loop_count = _count_keyword_hits(body, ('for (', 'for(', 'while (', 'while('))
+        branch_count = _count_keyword_hits(body, ('if (', 'if(', 'switch (', 'switch(', '?'))
+        nesting_proxy = sum(line.count('{') for line in body_lines) - 1
+        caller_count = cur.execute(
+            "SELECT COUNT(*) FROM call_edges WHERE callee_name=? AND (callee_file=? OR callee_file IS NULL)",
+            (symbol_name, file_path)
+        ).fetchone()[0]
+        callee_count = cur.execute(
+            "SELECT COUNT(*) FROM call_edges WHERE caller_name=? AND caller_file=?",
+            (symbol_name, file_path)
+        ).fetchone()[0]
+        coverage_count = cur.execute(
+            "SELECT COUNT(*) FROM edges WHERE dst_type='source_file' AND dst_id=? AND relation='covers'",
+            (file_path,)
+        ).fetchone()[0]
+        sec_count = cur.execute(
+            "SELECT COUNT(*) FROM security_patterns WHERE source_file=?",
+            (file_path,)
+        ).fetchone()[0]
+
+        hotness_score = _clamp_score(
+            (3 if row[3] else 0)
+            + min(5, caller_count)
+            + min(4, loop_count * 2)
+            + (3 if any(tok in symbol_name.lower() for tok in ('mul', 'verify', 'scan', 'hash', 'point', 'field')) else 0)
+            + (2 if line_span >= 80 else 1 if line_span >= 40 else 0)
+        )
+        complexity_score = _clamp_score(branch_count + loop_count * 2 + max(0, nesting_proxy))
+        fanin_score = _clamp_score(caller_count)
+        fanout_score = _clamp_score(callee_count)
+        optimization_score = _clamp_score(
+            hotness_score
+            + (3 if row[5] else 0)
+            + (2 if row[6] else 0)
+            + (2 if callee_count >= 4 else 0)
+            - (2 if row[8] == 'high' else 1 if row[8] == 'medium' else 0)
+        )
+        gpu_score = _clamp_score(
+            (4 if row[6] else 0)
+            + (3 if row[5] else 0)
+            + min(3, loop_count)
+            + (2 if caller_count >= 3 else 0)
+            - (1 if row[4] else 0)
+        )
+        ct_risk_score = _clamp_score(
+            (5 if row[4] else 0)
+            + (2 if complexity_score >= 8 else 0)
+            + (2 if sec_count == 0 and row[4] else 0)
+            + (1 if any(tok in symbol_name.lower() for tok in ('nonce', 'seckey', 'decrypt', 'derive', 'tweak')) else 0)
+        )
+        audit_gap_score = _clamp_score(
+            (4 if coverage_count == 0 else 2 if coverage_count == 1 else 0)
+            + (2 if row[3] else 0)
+            + (2 if row[4] else 0)
+            + (1 if sec_count == 0 else 0)
+        )
+        perf_priority = _clamp_score(hotness_score * 2 + gpu_score + optimization_score, upper=100)
+        safe_priority = _clamp_score(ct_risk_score * 2 + audit_gap_score + complexity_score, upper=100)
+        overall_priority = max(0, hotness_score * 4 + fanin_score * 2 + gpu_score * 3 + audit_gap_score * 3 - ct_risk_score * 2)
+        metrics = {
+            'line_span': line_span,
+            'loop_count': loop_count,
+            'fanin_score': fanin_score,
+            'fanout_score': fanout_score,
+            'audit_gap_score': audit_gap_score,
+        }
+        flags = {
+            'hot_path': row[3],
+            'ct_sensitive': row[4],
+            'batchable': row[5],
+            'gpu_candidate': row[6],
+        }
+        reasons = _analysis_reasons(symbol_name, metrics, flags)
+        cur.execute(
+            """INSERT OR IGNORE INTO analysis_scores
+               (symbol_name, file_path, start_line, hotness_score, complexity_score, fanin_score, fanout_score,
+                optimization_score, gpu_score, ct_risk_score, audit_gap_score,
+                perf_priority, safe_priority, overall_priority, reasons)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (
+                symbol_name, file_path, start_line, hotness_score, complexity_score, fanin_score, fanout_score,
+                optimization_score, gpu_score, ct_risk_score, audit_gap_score,
+                perf_priority, safe_priority, overall_priority, json.dumps(reasons)
+            )
+        )
+        count += 1
+    return count
+
+
+def populate_ai_tasks(cur):
+    rows = cur.execute(
+     """SELECT a.symbol_name, a.file_path, a.start_line, a.hotness_score, a.gpu_score, a.ct_risk_score,
+            a.audit_gap_score, a.overall_priority, a.reasons, sm.summary,
+                  sm.ct_sensitive, sm.gpu_candidate, sm.batchable
+           FROM analysis_scores a
+        JOIN symbol_metadata sm ON sm.symbol_name = a.symbol_name AND sm.file_path = a.file_path AND sm.start_line = a.start_line
+           ORDER BY a.overall_priority DESC, a.hotness_score DESC, a.file_path
+           LIMIT 40"""
+    ).fetchall()
+    count = 0
+    for row in rows:
+        reasons = json.loads(row[8]) if row[8] else []
+        task_types = []
+        if row[3] >= 7 and (row[11] or row[12]):
+            task_types.append('optimize')
+        if row[10] and row[5] >= 5:
+            task_types.append('ct_review')
+        if row[6] >= 4:
+            task_types.append('audit_expand')
+        for task_type in task_types:
+            prompt = _build_task_prompt(task_type, row[0], row[1], reasons, row[9])
+            priority = row[7] + (4 if task_type == 'ct_review' else 2 if task_type == 'optimize' else 1)
+            cur.execute(
+                """INSERT OR IGNORE INTO ai_tasks
+                   (task_type, symbol_name, file_path, start_line, prompt, status, priority, created_at, reasons)
+                   VALUES (?,?,?,?,?,?,?,?,?)""",
+                (task_type, row[0], row[1], row[2], prompt, 'pending', priority, TASK_CREATED_AT, json.dumps(reasons))
+            )
+            count += 1
+    return count
+
+
 # ---------------------------------------------------------------------------
 # MAIN
 # ---------------------------------------------------------------------------
@@ -1802,7 +2396,9 @@ def build_graph(rebuild=False):
     cur.execute("INSERT OR REPLACE INTO meta VALUES ('built_at', ?)", (now,))
     cur.execute("INSERT OR REPLACE INTO meta VALUES ('lib_root', ?)", (str(LIB_ROOT),))
     cur.execute("INSERT OR REPLACE INTO meta VALUES ('version', '3.22.0')", ())
-    cur.execute("INSERT OR REPLACE INTO meta VALUES ('schema_version', '1')", ())
+    cur.execute("INSERT OR REPLACE INTO meta VALUES ('schema_version', '3')", ())
+    cur.execute("INSERT OR REPLACE INTO meta VALUES ('extractor_version', '2026.03.17.1')", ())
+    cur.execute("INSERT OR REPLACE INTO meta VALUES ('graph_build_revision', ?)", (current_git_revision(),))
     
     stats = {}
     stats['source_files'] = populate_source_files(cur)
@@ -1826,6 +2422,10 @@ def build_graph(rebuild=False):
     stats['macros'] = populate_macros(cur)
     stats['file_summaries'] = populate_file_summaries(cur)
     stats['function_index'] = populate_function_index(cur)
+    stats['call_edges'] = populate_call_edges(cur)
+    stats['symbol_metadata'] = populate_symbol_metadata(cur)
+    stats['analysis_scores'] = populate_analysis_scores(cur)
+    stats['ai_tasks'] = populate_ai_tasks(cur)
     stats['edges'] = populate_edges(cur)
     
     cur.execute("INSERT OR REPLACE INTO meta VALUES ('stats', ?)", (json.dumps(stats),))

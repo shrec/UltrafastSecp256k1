@@ -18,6 +18,7 @@ using secp256k1::detail::sub64;
 
 using limbs4 = FieldElement::limbs_type;
 using wide8 = std::array<std::uint64_t, 8>;
+constexpr std::size_t kSmallBatchInverseScratch = 64;
 
 #if defined(_MSC_VER) && !defined(__clang__)
 
@@ -3408,6 +3409,30 @@ FieldElement fe_inverse_strauss(const FieldElement& value) {
 //
 // Cost: 3N multiplications + 1 inversion (vs N inversions)
 // For N=8: ~8 us vs ~28 us (3.5x faster!)
+static inline void fe_batch_inverse_with_scratch(FieldElement* elements,
+                                                 size_t count,
+                                                 FieldElement* scratch) {
+    // Step 1: Compute cumulative products
+    // products[i] = elements[0] * elements[1] * ... * elements[i]
+    scratch[0] = elements[0];
+    for (size_t i = 1; i < count; ++i) {
+        scratch[i] = scratch[i - 1] * elements[i];
+    }
+
+    // Step 2: Invert the final product (only 1 expensive inverse!)
+    FieldElement inv = scratch[count - 1].inverse();
+
+    // Step 3: Work backwards to compute individual inverses
+    for (size_t i = count - 1; i > 0; --i) {
+        FieldElement const original = elements[i];
+        elements[i] = inv * scratch[i - 1];
+        inv = inv * original;
+    }
+
+    // Handle first element separately (no products[i-1])
+    elements[0] = inv;
+}
+
 SECP256K1_HOT_FUNCTION
 void fe_batch_inverse(FieldElement* elements, size_t count, std::vector<FieldElement>& scratch) {
     if (count == 0) return;
@@ -3415,42 +3440,32 @@ void fe_batch_inverse(FieldElement* elements, size_t count, std::vector<FieldEle
         elements[0] = elements[0].inverse();
         return;
     }
-    
-    // Use provided scratch buffer
-    scratch.clear();
-    // Ensure capacity without reallocation if possible
-    if (scratch.capacity() < count) {
-        scratch.reserve(count);
+
+    // Ensure storage exists and write products by index to avoid repeated
+    // push_back bookkeeping on this hot path.
+    if (scratch.size() < count) {
+        scratch.resize(count);
     }
-    
-    // Step 1: Compute cumulative products
-    // products[i] = elements[0] * elements[1] * ... * elements[i]
-    scratch.push_back(elements[0]);
-    for (size_t i = 1; i < count; i++) {
-        scratch.push_back(scratch[i-1] * elements[i]);
-    }
-    
-    // Step 2: Invert the final product (only 1 expensive inverse!)
-    FieldElement inv = scratch[count - 1].inverse();
-    
-    // Step 3: Work backwards to compute individual inverses
-    for (size_t i = count - 1; i > 0; i--) {
-        // Save original value before overwriting
-        FieldElement const original = elements[i];
-        // elements[i]^-1 = inv * products[i-1]
-        elements[i] = inv * scratch[i - 1];
-        // Update inv for next iteration using ORIGINAL value
-        inv = inv * original;
-    }
-    
-    // Handle first element separately (no products[i-1])
-    elements[0] = inv;
+    fe_batch_inverse_with_scratch(elements, count, scratch.data());
 }
 
 SECP256K1_HOT_FUNCTION
 void fe_batch_inverse(FieldElement* elements, size_t count) {
-    std::vector<FieldElement> scratch;
-    fe_batch_inverse(elements, count, scratch);
+    if (count <= 1) {
+        if (count == 1) {
+            elements[0] = elements[0].inverse();
+        }
+        return;
+    }
+
+    if (count <= kSmallBatchInverseScratch) {
+        std::array<FieldElement, kSmallBatchInverseScratch> scratch{};
+        fe_batch_inverse_with_scratch(elements, count, scratch.data());
+        return;
+    }
+
+    std::vector<FieldElement> scratch(count);
+    fe_batch_inverse_with_scratch(elements, count, scratch.data());
 }
 
 } // namespace secp256k1::fast

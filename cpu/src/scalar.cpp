@@ -204,11 +204,15 @@ bool Scalar::parse_bytes_strict_nonzero(const std::array<std::uint8_t, 32>& byte
 
 std::array<std::uint8_t, 32> Scalar::to_bytes() const {
     std::array<std::uint8_t, 32> out{};
-    store_be64(out.data(),      limbs_[3]);
-    store_be64(out.data() + 8,  limbs_[2]);
-    store_be64(out.data() + 16, limbs_[1]);
-    store_be64(out.data() + 24, limbs_[0]);
+    write_bytes(out.data());
     return out;
+}
+
+void Scalar::write_bytes(std::uint8_t* out32) const noexcept {
+    store_be64(out32,      limbs_[3]);
+    store_be64(out32 + 8,  limbs_[2]);
+    store_be64(out32 + 16, limbs_[1]);
+    store_be64(out32 + 24, limbs_[0]);
 }
 
 std::string Scalar::to_hex() const {

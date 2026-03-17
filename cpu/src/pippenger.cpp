@@ -16,6 +16,7 @@
 #include "secp256k1/multiscalar.hpp"
 #include <algorithm>
 #include <cstring>
+#include <memory>
 
 namespace secp256k1 {
 
@@ -23,23 +24,27 @@ using fast::Scalar;
 using fast::Point;
 
 // -- Optimal Window Width -----------------------------------------------------
-// Minimizes total cost ~= floor(256/c) * (n + 2^c)
-// Standard heuristic: c ~= max(1, floor(log2(n)))
+// Empirical CPU heuristic after affine fast-path + touched-bucket optimizations.
+// Measured crossover bands on current x86-64 path:
+//   n=48..72   -> c=5
+//   n=80..384  -> c=6
+//   n=512      -> c=7
+//   n=1024     -> c=8
+// Larger bands stay conservative and can be retuned again with hardware data.
 
 unsigned pippenger_optimal_window(std::size_t n) {
     if (n <= 1)    return 1;
     if (n <= 4)    return 2;
     if (n <= 8)    return 3;
     if (n <= 16)   return 4;
-    if (n <= 32)   return 5;
-    if (n <= 64)   return 6;
-    if (n <= 128)  return 7;
-    if (n <= 256)  return 8;
-    if (n <= 512)  return 9;
-    if (n <= 1024) return 10;
-    if (n <= 4096) return 12;
-    if (n <= 65536) return 14;
-    return 16;
+    if (n <= 72)   return 5;
+    if (n <= 384)  return 6;
+    if (n <= 768)  return 7;
+    if (n <= 2048) return 8;
+    if (n <= 8192) return 9;
+    if (n <= 32768) return 10;
+    if (n <= 131072) return 12;
+    return 14;
 }
 
 // -- Extract c-bit digit at position `bit_offset` from scalar -----------------
@@ -70,8 +75,9 @@ Point pippenger_msm(const Scalar* scalars,
     if (n == 0) return Point::infinity();
     if (n == 1) return points[0].scalar_mul(scalars[0]);
 
-    // For small n, fall back to Strauss (lower constant factor)
-    if (n <= 64) {
+    // For small n, fall back to Strauss (lower constant factor).
+    // Empirical crossover on the current CPU path is around n ~= 48.
+    if (n < 48) {
         return multi_scalar_mul(scalars, points, n);
     }
 
@@ -79,16 +85,55 @@ Point pippenger_msm(const Scalar* scalars,
     std::size_t const num_buckets = static_cast<std::size_t>(1) << c; // 2^c
     unsigned const num_windows = (256 + c - 1) / c;                   // ceil(256/c)
 
-    // Pre-allocate bucket array (reused per window)
-    std::vector<Point> buckets(num_buckets);
+    // Pre-allocate bucket array (reused per window); keep common sizes on stack.
+    constexpr std::size_t STACK_BUCKETS = 256;
+    Point stack_buckets[STACK_BUCKETS];
+    std::unique_ptr<Point[]> heap_buckets;
+    Point* buckets = stack_buckets;
+    if (num_buckets > STACK_BUCKETS) {
+        heap_buckets = std::make_unique<Point[]>(num_buckets);
+        buckets = heap_buckets.get();
+    }
+    // touched[] and used[] track which buckets are non-empty this window,
+    // so we can reset only those (avoids O(2^c) clear per window).
+    std::size_t touched_stack[STACK_BUCKETS];
+    std::unique_ptr<std::size_t[]> touched_heap;
+    std::size_t* touched = touched_stack;
+    if (num_buckets > STACK_BUCKETS) {
+        touched_heap = std::make_unique<std::size_t[]>(num_buckets);
+        touched = touched_heap.get();
+    }
+    std::uint8_t used_stack[STACK_BUCKETS];
+    std::unique_ptr<std::uint8_t[]> used_heap;
+    std::uint8_t* used = used_stack;
+    if (num_buckets > STACK_BUCKETS) {
+        used_heap = std::make_unique<std::uint8_t[]>(num_buckets);
+        used = used_heap.get();
+    }
+    std::memset(used, 0, num_buckets * sizeof(std::uint8_t));
+
+    // Pre-extract all digits to avoid per-window scalar bit extraction.
+    std::unique_ptr<std::uint16_t[]> digits =
+        std::make_unique<std::uint16_t[]>(n * static_cast<std::size_t>(num_windows));
+    for (std::size_t i = 0; i < n; ++i) {
+        for (unsigned w = 0; w < num_windows; ++w) {
+            digits[i * static_cast<std::size_t>(num_windows) + w] =
+                static_cast<std::uint16_t>(extract_digit(scalars[i], w * c, c));
+        }
+    }
+    bool all_affine = true;
+    for (std::size_t i = 0; i < n; ++i) {
+        if (!points[i].is_infinity() && !points[i].is_normalized()) {
+            all_affine = false;
+            break;
+        }
+    }
 
     // Result accumulator
     Point result = Point::infinity();
 
     // Process windows from MSB to LSB
     for (int w = static_cast<int>(num_windows) - 1; w >= 0; --w) {
-        unsigned const bit_offset = static_cast<unsigned>(w) * c;
-
         // If not the first window, shift result left by c bits
         if (w < static_cast<int>(num_windows) - 1) {
             for (unsigned shift = 0; shift < c; ++shift) {
@@ -96,16 +141,46 @@ Point pippenger_msm(const Scalar* scalars,
             }
         }
 
-        // Clear buckets
-        for (std::size_t b = 0; b < num_buckets; ++b) {
-            buckets[b] = Point::infinity();
-        }
+        std::size_t touched_count = 0;
+        std::size_t max_touched_digit = 0;
 
         // -- Scatter: distribute points into buckets --
-        for (std::size_t i = 0; i < n; ++i) {
-            uint32_t const digit = extract_digit(scalars[i], bit_offset, c);
-            if (digit == 0) continue;  // bucket[0] is unused (identity)
-            buckets[digit] = buckets[digit].add(points[i]);
+        if (all_affine) {
+            for (std::size_t i = 0; i < n; ++i) {
+                std::uint32_t const digit = digits[i * static_cast<std::size_t>(num_windows) +
+                                                          static_cast<std::size_t>(w)];
+                if (digit == 0 || points[i].is_infinity()) continue;
+                if (!used[digit]) {
+                    used[digit] = 1;
+                    touched[touched_count++] = static_cast<std::size_t>(digit);
+                    max_touched_digit = std::max(max_touched_digit, static_cast<std::size_t>(digit));
+#if defined(SECP256K1_FAST_52BIT)
+                    buckets[digit] = Point::from_affine52(points[i].X52(), points[i].Y52());
+#else
+                    buckets[digit] = Point::from_affine(points[i].X(), points[i].Y());
+#endif
+                    continue;
+                }
+#if defined(SECP256K1_FAST_52BIT)
+                buckets[digit].add_mixed52_inplace(points[i].X52(), points[i].Y52());
+#else
+                buckets[digit].add_mixed_inplace(points[i].X(), points[i].Y());
+#endif
+            }
+        } else {
+            for (std::size_t i = 0; i < n; ++i) {
+                std::uint32_t const digit = digits[i * static_cast<std::size_t>(num_windows) +
+                                                          static_cast<std::size_t>(w)];
+                if (digit == 0) continue;  // bucket[0] is unused (identity)
+                if (!used[digit]) {
+                    used[digit] = 1;
+                    touched[touched_count++] = static_cast<std::size_t>(digit);
+                    max_touched_digit = std::max(max_touched_digit, static_cast<std::size_t>(digit));
+                    buckets[digit] = points[i];
+                    continue;
+                }
+                buckets[digit].add_inplace(points[i]);
+            }
         }
 
         // -- Aggregate buckets (running-sum trick) --
@@ -116,13 +191,19 @@ Point pippenger_msm(const Scalar* scalars,
         Point running_sum = Point::infinity();
         Point partial_sum = Point::infinity();
 
-        for (std::size_t b = num_buckets - 1; b >= 1; --b) {
-            running_sum = running_sum.add(buckets[b]);
-            partial_sum = partial_sum.add(running_sum);
+        for (std::size_t b = max_touched_digit; b >= 1; --b) {
+            running_sum.add_inplace(buckets[b]);
+            partial_sum.add_inplace(running_sum);
         }
 
         // Combine this window's contribution
-        result = result.add(partial_sum);
+        result.add_inplace(partial_sum);
+
+        // Reset only touched buckets (O(touched) instead of O(2^c))
+        for (std::size_t i = 0; i < touched_count; ++i) {
+            buckets[touched[i]] = Point::infinity();
+            used[touched[i]] = 0;
+        }
     }
 
     return result;
@@ -145,13 +226,13 @@ Point pippenger_msm(const std::vector<Scalar>& scalars,
 }
 
 // -- Unified MSM (auto-select) ------------------------------------------------
-// Strauss <= 64 points, Pippenger > 64
-// Pippenger crossover is ~33 points; using 64 for safety margin.
+// Strauss for very small MSMs, Pippenger from n >= 48.
+// Current crossover on the optimized CPU path is ~48 points.
 // N=64 Schnorr batch -> 128 points in MSM -> Pippenger path.
 Point msm(const Scalar* scalars,
           const Point* points,
           std::size_t n) {
-    if (n <= 64) {
+    if (n < 48) {
         return multi_scalar_mul(scalars, points, n);
     }
     return pippenger_msm(scalars, points, n);

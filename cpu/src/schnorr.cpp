@@ -422,8 +422,8 @@ bool schnorr_xonly_pubkey_parse(SchnorrXonlyPubkey& out,
     parse_be32_to_le64(pubkey_x32, xL);
     if (!limbs_lt_p(xL)) return false;
 
-    const auto P = lift_x_from_limbs(xL);
-    if (P.is_infinity()) return false;
+    Point P = Point::infinity();
+    if (!lift_x_cached(pubkey_x32, xL, P)) return false;
     out.point = P;
     std::memcpy(out.x_bytes.data(), pubkey_x32, 32);
     return true;

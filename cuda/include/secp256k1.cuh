@@ -3569,6 +3569,24 @@ __device__ inline void field_to_bytes(const FieldElement* fe, uint8_t bytes[32])
     }
 }
 
+// Return whether a field element is odd after normalization mod p.
+__device__ __forceinline__ bool field_is_odd(const FieldElement* fe) {
+    constexpr uint64_t P[4] = {
+        0xFFFFFFFEFFFFFC2FULL, 0xFFFFFFFFFFFFFFFFULL,
+        0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL
+    };
+    uint64_t tmp[4];
+    uint64_t borrow = 0;
+    for (int i = 0; i < 4; i++) {
+        unsigned __int128 diff = (unsigned __int128)fe->limbs[i] - P[i] - borrow;
+        tmp[i] = (uint64_t)diff;
+        borrow = (uint64_t)(-(int64_t)(diff >> 64));
+    }
+    uint64_t mask = -(uint64_t)(borrow == 0);
+    uint64_t norm0 = (tmp[0] & mask) | (fe->limbs[0] & ~mask);
+    return (norm0 & 1ULL) != 0;
+}
+
 #endif
 
 // ============================================================================
@@ -3732,9 +3750,7 @@ __device__ inline bool point_has_even_y(const JacobianPoint* p) {
     if (p->infinity) return false;
     FieldElement ax, ay;
     jacobian_to_affine(p, &ax, &ay);
-    uint8_t y_bytes[32];
-    field_to_bytes(&ay, y_bytes);
-    return (y_bytes[31] & 1) == 0;
+    return !field_is_odd(&ay);
 }
 
 // -- Point: to_compressed (33 bytes: 0x02/0x03 || x) ------------------------
@@ -3742,9 +3758,7 @@ __device__ inline bool point_to_compressed(const JacobianPoint* p, uint8_t out[3
     if (p->infinity) return false;
     FieldElement ax, ay;
     jacobian_to_affine(p, &ax, &ay);
-    uint8_t y_bytes[32];
-    field_to_bytes(&ay, y_bytes);
-    out[0] = (y_bytes[31] & 1) ? 0x03 : 0x02;
+    out[0] = field_is_odd(&ay) ? 0x03 : 0x02;
     field_to_bytes(&ax, out + 1);
     return true;
 }
@@ -3855,9 +3869,7 @@ __device__ inline bool point_x_bytes_and_parity(const JacobianPoint* p,
     FieldElement ax, ay;
     jacobian_to_affine(p, &ax, &ay);
     field_to_bytes(&ax, x_out);
-    uint8_t y_bytes[32];
-    field_to_bytes(&ay, y_bytes);
-    *y_is_odd = (y_bytes[31] & 1) != 0;
+    *y_is_odd = field_is_odd(&ay);
     return true;
 }
 

@@ -17,6 +17,11 @@ The FAST layer (`secp256k1::fast::` on CPU, `secp256k1::cuda::` on GPU) is expli
 
 **Principle**: Any operation that touches secret data (private keys, nonces, intermediate scalars) MUST use `ct::` functions. The default `fast::` namespace is allowed only when all inputs are public.
 
+The repository preflight also consumes graph-linked coverage metadata from
+`scripts/build_project_graph.py`. That metadata records both standalone CTest
+coverage and selected unified-audit module coverage for core files; it is used
+for coverage-gap reporting and does not replace the executable CT tests.
+
 ---
 
 ## CT Layer Architecture

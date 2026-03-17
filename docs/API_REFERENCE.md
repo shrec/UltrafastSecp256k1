@@ -1950,6 +1950,15 @@ ufsecp_ctx_destroy(ctx);
 | `ufsecp_ecdh_xonly` | `(ctx, privkey, pubkey33, secret32_out) -> error_t` | SHA256(x-coordinate) |
 | `ufsecp_ecdh_raw` | `(ctx, privkey, pubkey33, secret32_out) -> error_t` | Raw x-coordinate (no hash) |
 
+### ECIES
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `ufsecp_ecies_encrypt` | `(ctx, pubkey33, plaintext, plaintext_len, envelope_out, envelope_len*) -> error_t` | Ephemeral ECDH + AES-256-CTR + HMAC-SHA256 envelope |
+| `ufsecp_ecies_decrypt` | `(ctx, privkey, envelope, envelope_len, plaintext_out, plaintext_len*) -> error_t` | Verify-and-decrypt ECIES envelope |
+
+Hardening note: the implementation fail-closes if the generated ephemeral scalar is zero and erases the generated ephemeral secret bytes before returning.
+
 <a id="c-abi-hashing"></a>
 ### Hashing
 
@@ -1985,6 +1994,8 @@ Opaque key type: `ufsecp_bip32_key` (82 bytes, contains 78-byte serialised key +
 | `ufsecp_bip32_derive_path` | `(ctx, master*, path_str, key_out*) -> error_t` | Full path, e.g. "m/44'/0'/0'/0/0" |
 | `ufsecp_bip32_privkey` | `(ctx, key*, privkey32_out) -> error_t` | Extract 32-byte private key |
 | `ufsecp_bip32_pubkey` | `(ctx, key*, pubkey33_out) -> error_t` | Extract 33-byte compressed public key |
+
+Hardening note: when `ufsecp_bip32_pubkey()` is called on an xprv-backed key, the wrapper erases transient extended-key secret material after deriving the compressed public key.
 
 <a id="c-abi-taproot"></a>
 ### Taproot / BIP-341
@@ -2042,6 +2053,8 @@ Size constants: `UFSECP_MUSIG2_PUBNONCE_LEN` (66), `UFSECP_MUSIG2_AGGNONCE_LEN` 
 | `ufsecp_musig2_partial_verify` | `(ctx, partial_sig32, pubnonce, pubkey32, keyagg, session, signer_idx) -> error_t` | Verify partial signature |
 | `ufsecp_musig2_partial_sig_agg` | `(ctx, partial_sigs, n, session, sig64_out) -> error_t` | Aggregate partials to final BIP-340 sig |
 
+Hardening note: `ufsecp_musig2_partial_sign()` erases parsed signing key and local nonce state even when malformed key/session blobs cause an early return.
+
 <a id="c-abi-frost"></a>
 ### FROST Threshold Signatures
 
@@ -2055,6 +2068,8 @@ Size constants: `UFSECP_FROST_SHARE_LEN` (36), `UFSECP_FROST_KEYPKG_LEN` (141), 
 | `ufsecp_frost_sign` | `(ctx, keypkg, nonce, msg32, nonce_commits, n_signers, partial_sig_out[36]) -> error_t` | Produce partial signature |
 | `ufsecp_frost_verify_partial` | `(ctx, partial_sig[36], verification_share33[33], nonce_commits, n_signers, msg32, group_pubkey32) -> error_t` | Verify partial signature |
 | `ufsecp_frost_aggregate` | `(ctx, partial_sigs, n, nonce_commits, n_signers, group_pubkey32, msg32, sig64_out) -> error_t` | Aggregate to final Schnorr sig |
+
+Hardening note: `ufsecp_frost_sign()` erases parsed signing shares and nonce scalars on both success and malformed-input fail-closed exits.
 
 <a id="c-abi-adaptor"></a>
 ### Adaptor Signatures
@@ -2078,6 +2093,8 @@ Size constants: `UFSECP_SCHNORR_ADAPTOR_SIG_LEN` (97), `UFSECP_ECDSA_ADAPTOR_SIG
 | `ufsecp_ecdsa_adaptor_verify` | `(ctx, pre_sig[130], pubkey33, msg32, adaptor33) -> error_t` | Verify pre-signature |
 | `ufsecp_ecdsa_adaptor_adapt` | `(ctx, pre_sig[130], secret[32], sig64_out) -> error_t` | Adapt to valid signature |
 | `ufsecp_ecdsa_adaptor_extract` | `(ctx, pre_sig[130], sig64, secret32_out) -> error_t` | Extract adaptor secret |
+
+Hardening note: both adaptor signing entry points erase the parsed private key before returning on invalid adaptor-point inputs.
 
 <a id="c-abi-pedersen"></a>
 ### Pedersen Commitments

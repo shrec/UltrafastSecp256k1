@@ -2956,6 +2956,32 @@ void Point::batch_normalize(const Point* points, size_t n,
         static_cast<size_t>(std::numeric_limits<std::ptrdiff_t>::max()) / sizeof(FieldElement);
     if (SECP256K1_UNLIKELY(n > kMaxAllocElems)) return;
 
+    // Fast path: all points already affine (z == 1) -- skip the batch inversion.
+    bool all_affine = true;
+    for (size_t i = 0; i < n; ++i) {
+        if (!points[i].is_infinity() && !points[i].z_one_) {
+            all_affine = false;
+            break;
+        }
+    }
+    if (all_affine) {
+        for (size_t i = 0; i < n; ++i) {
+            if (points[i].is_infinity()) {
+                out_x[i] = FieldElement::zero();
+                out_y[i] = FieldElement::zero();
+                continue;
+            }
+#if defined(SECP256K1_FAST_52BIT)
+            out_x[i] = points[i].x_.to_fe();
+            out_y[i] = points[i].y_.to_fe();
+#else
+            out_x[i] = points[i].x_;
+            out_y[i] = points[i].y_;
+#endif
+        }
+        return;
+    }
+
     constexpr size_t STACK_LIMIT = 256;
     FieldElement stack_z_inv[STACK_LIMIT];
     std::unique_ptr<FieldElement[]> heap_z_inv;
@@ -2995,6 +3021,32 @@ void Point::batch_to_compressed(const Point* points, size_t n,
         static_cast<size_t>(std::numeric_limits<std::ptrdiff_t>::max()) / sizeof(FieldElement);
     if (SECP256K1_UNLIKELY(n > kMaxAllocElems)) return;
 
+    // Fast path: all points already affine -- no inversion needed.
+    bool all_affine = true;
+    for (size_t i = 0; i < n; ++i) {
+        if (!points[i].is_infinity() && !points[i].z_one_) {
+            all_affine = false;
+            break;
+        }
+    }
+    if (all_affine) {
+        for (size_t i = 0; i < n; ++i) {
+            if (points[i].is_infinity()) {
+                out[i].fill(0);
+                continue;
+            }
+#if defined(SECP256K1_FAST_52BIT)
+            out[i][0] = (points[i].y_.n[0] & 1U) ? 0x03 : 0x02;
+            points[i].x_.store_b32_prenorm(out[i].data() + 1);
+#else
+            out[i][0] = (points[i].y_.limbs()[0] & 1U) ? 0x03 : 0x02;
+            auto x_bytes = points[i].x_.to_bytes();
+            std::copy(x_bytes.begin(), x_bytes.end(), out[i].begin() + 1);
+#endif
+        }
+        return;
+    }
+
     constexpr size_t STACK_LIMIT = 256;
     FieldElement stack_x[STACK_LIMIT], stack_y[STACK_LIMIT];
     std::unique_ptr<FieldElement[]> heap_x, heap_y;
@@ -3017,8 +3069,7 @@ void Point::batch_to_compressed(const Point* points, size_t n,
             continue;
         }
         auto x_bytes = aff_x[i].to_bytes();
-        auto y_bytes = aff_y[i].to_bytes();
-        out[i][0] = (y_bytes[31] & 1U) ? 0x03 : 0x02;
+        out[i][0] = (aff_y[i].limbs()[0] & 1U) ? 0x03 : 0x02;
         std::copy(x_bytes.begin(), x_bytes.end(), out[i].begin() + 1);
     }
 }
@@ -3032,6 +3083,29 @@ void Point::batch_x_only_bytes(const Point* points, size_t n,
     constexpr size_t kMaxAllocElems =
         static_cast<size_t>(std::numeric_limits<std::ptrdiff_t>::max()) / sizeof(FieldElement);
     if (SECP256K1_UNLIKELY(n > kMaxAllocElems)) return;
+
+    // Fast path: all points already affine.
+    bool all_affine = true;
+    for (size_t i = 0; i < n; ++i) {
+        if (!points[i].is_infinity() && !points[i].z_one_) {
+            all_affine = false;
+            break;
+        }
+    }
+    if (all_affine) {
+        for (size_t i = 0; i < n; ++i) {
+            if (points[i].is_infinity()) {
+                out[i].fill(0);
+                continue;
+            }
+#if defined(SECP256K1_FAST_52BIT)
+            points[i].x_.store_b32_prenorm(out[i].data());
+#else
+            out[i] = points[i].x_.to_bytes();
+#endif
+        }
+        return;
+    }
 
     constexpr size_t STACK_LIMIT = 256;
     FieldElement stack_z_inv[STACK_LIMIT];
