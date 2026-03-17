@@ -1080,27 +1080,24 @@ inline void scalar_mul_glv_cl(JacobianPoint* r, const Scalar* k, const AffinePoi
 
 inline void get_generator(AffinePoint* g) { g->x.limbs[0]=GX0; g->x.limbs[1]=GX1; g->x.limbs[2]=GX2; g->x.limbs[3]=GX3; g->y.limbs[0]=GY0; g->y.limbs[1]=GY1; g->y.limbs[2]=GY2; g->y.limbs[3]=GY3; }
 
-// Precomputed generator multiples: get_gen_entry(pt, idx) returns (idx+1)*G
-// Using inline function instead of __constant array for OpenCL compiler compatibility
-inline void get_gen_entry(AffinePoint* pt, int idx) {
-    switch(idx) {
-    case 0: pt->x.limbs[0]=0x59f2815b16f81798UL;pt->x.limbs[1]=0x029bfcdb2dce28d9UL;pt->x.limbs[2]=0x55a06295ce870b07UL;pt->x.limbs[3]=0x79be667ef9dcbbacUL;pt->y.limbs[0]=0x9c47d08ffb10d4b8UL;pt->y.limbs[1]=0xfd17b448a6855419UL;pt->y.limbs[2]=0x5da4fbfc0e1108a8UL;pt->y.limbs[3]=0x483ada7726a3c465UL;break;
-    case 1: pt->x.limbs[0]=0xabac09b95c709ee5UL;pt->x.limbs[1]=0x5c778e4b8cef3ca7UL;pt->x.limbs[2]=0x3045406e95c07cd8UL;pt->x.limbs[3]=0xc6047f9441ed7d6dUL;pt->y.limbs[0]=0x236431a950cfe52aUL;pt->y.limbs[1]=0xf7f632653266d0e1UL;pt->y.limbs[2]=0xa3c58419466ceaeeUL;pt->y.limbs[3]=0x1ae168fea63dc339UL;break;
-    case 2: pt->x.limbs[0]=0x8601f113bce036f9UL;pt->x.limbs[1]=0xb531c845836f99b0UL;pt->x.limbs[2]=0x49344f85f89d5229UL;pt->x.limbs[3]=0xf9308a019258c310UL;pt->y.limbs[0]=0x6cb9fd7584b8e672UL;pt->y.limbs[1]=0x6500a99934c2231bUL;pt->y.limbs[2]=0x0fe337e62a37f356UL;pt->y.limbs[3]=0x388f7b0f632de814UL;break;
-    case 3: pt->x.limbs[0]=0x74fa94abe8c4cd13UL;pt->x.limbs[1]=0xcc6c13900ee07584UL;pt->x.limbs[2]=0x581e4904930b1404UL;pt->x.limbs[3]=0xe493dbf1c10d80f3UL;pt->y.limbs[0]=0xcfe97bdc47739922UL;pt->y.limbs[1]=0xd967ae33bfbdfe40UL;pt->y.limbs[2]=0x5642e2098ea51448UL;pt->y.limbs[3]=0x51ed993ea0d455b7UL;break;
-    case 4: pt->x.limbs[0]=0xcba8d569b240efe4UL;pt->x.limbs[1]=0xe88b84bddc619ab7UL;pt->x.limbs[2]=0x55b4a7250a5c5128UL;pt->x.limbs[3]=0x2f8bde4d1a072093UL;pt->y.limbs[0]=0xdca87d3aa6ac62d6UL;pt->y.limbs[1]=0xf788271bab0d6840UL;pt->y.limbs[2]=0xd4dba9dda6c9c426UL;pt->y.limbs[3]=0xd8ac222636e5e3d6UL;break;
-    case 5: pt->x.limbs[0]=0x2f057a1460297556UL;pt->x.limbs[1]=0x82f6472f8568a18bUL;pt->x.limbs[2]=0x20453a14355235d3UL;pt->x.limbs[3]=0xfff97bd5755eeea4UL;pt->y.limbs[0]=0x3c870c36b075f297UL;pt->y.limbs[1]=0xde80f0f6518fe4a0UL;pt->y.limbs[2]=0xf3be96017f45c560UL;pt->y.limbs[3]=0xae12777aacfbb620UL;break;
-    case 6: pt->x.limbs[0]=0xe92bddedcac4f9bcUL;pt->x.limbs[1]=0x3d419b7e0330e39cUL;pt->x.limbs[2]=0xa398f365f2ea7a0eUL;pt->x.limbs[3]=0x5cbdf0646e5db4eaUL;pt->y.limbs[0]=0xa5082628087264daUL;pt->y.limbs[1]=0xa813d0b813fde7b5UL;pt->y.limbs[2]=0xa3178d6d861a54dbUL;pt->y.limbs[3]=0x6aebca40ba255960UL;break;
-    case 7: pt->x.limbs[0]=0x67784ef3e10a2a01UL;pt->x.limbs[1]=0x0a1bdd05e5af888aUL;pt->x.limbs[2]=0xaff3843fb70f3c2fUL;pt->x.limbs[3]=0x2f01e5e15cca351dUL;pt->y.limbs[0]=0xb5da2cb76cbde904UL;pt->y.limbs[1]=0xc2e213d6ba5b7617UL;pt->y.limbs[2]=0x293d082a132d13b4UL;pt->y.limbs[3]=0x5c4da8a741539949UL;break;
-    case 8: pt->x.limbs[0]=0xc35f110dfc27ccbeUL;pt->x.limbs[1]=0xe09796974c57e714UL;pt->x.limbs[2]=0x09ad178a9f559abdUL;pt->x.limbs[3]=0xacd484e2f0c7f653UL;pt->y.limbs[0]=0x05cc262ac64f9c37UL;pt->y.limbs[1]=0xadd888a4375f8e0fUL;pt->y.limbs[2]=0x64380971763b61e9UL;pt->y.limbs[3]=0xcc338921b0a7d9fdUL;break;
-    case 9: pt->x.limbs[0]=0x52a68e2a47e247c7UL;pt->x.limbs[1]=0x3442d49b1943c2b7UL;pt->x.limbs[2]=0x35477c7b1ae6ae5dUL;pt->x.limbs[3]=0xa0434d9e47f3c862UL;pt->y.limbs[0]=0x3cbee53b037368d7UL;pt->y.limbs[1]=0x6f794c2ed877a159UL;pt->y.limbs[2]=0xa3b6c7e693a24c69UL;pt->y.limbs[3]=0x893aba425419bc27UL;break;
-    case 10: pt->x.limbs[0]=0xbbec17895da008cbUL;pt->x.limbs[1]=0x5649980be5c17891UL;pt->x.limbs[2]=0x5ef4246b70c65aacUL;pt->x.limbs[3]=0x774ae7f858a9411eUL;pt->y.limbs[0]=0x301d74c9c953c61bUL;pt->y.limbs[1]=0x372db1e2dff9d6a8UL;pt->y.limbs[2]=0x0243dd56d7b7b365UL;pt->y.limbs[3]=0xd984a032eb6b5e19UL;break;
-    case 11: pt->x.limbs[0]=0xc5b0f47070afe85aUL;pt->x.limbs[1]=0x687cf4419620095bUL;pt->x.limbs[2]=0x15c38f004d734633UL;pt->x.limbs[3]=0xd01115d548e7561bUL;pt->y.limbs[0]=0x6b051b13f4062327UL;pt->y.limbs[1]=0x79238c5dd9a86d52UL;pt->y.limbs[2]=0xa8b64537e17bd815UL;pt->y.limbs[3]=0xa9f34ffdc815e0d7UL;break;
-    case 12: pt->x.limbs[0]=0xdeeddf8f19405aa8UL;pt->x.limbs[1]=0xb075fbc6610e58cdUL;pt->x.limbs[2]=0xc7d1d205c3748651UL;pt->x.limbs[3]=0xf28773c2d975288bUL;pt->y.limbs[0]=0x29b5cb52db03ed81UL;pt->y.limbs[1]=0x3a1a06da521fa91fUL;pt->y.limbs[2]=0x758212eb65cdaf47UL;pt->y.limbs[3]=0x0ab0902e8d880a89UL;break;
-    case 13: pt->x.limbs[0]=0xe49b241a60e823e4UL;pt->x.limbs[1]=0x26aa7b63678949e6UL;pt->x.limbs[2]=0xfd64e67f07d38e32UL;pt->x.limbs[3]=0x499fdf9e895e719cUL;pt->y.limbs[0]=0xc65f40d403a13f5bUL;pt->y.limbs[1]=0x464279c27a3f95bcUL;pt->y.limbs[2]=0x90f044e4a7b3d464UL;pt->y.limbs[3]=0xcac2f6c4b54e8551UL;break;
-    default: pt->x.limbs[0]=0x44adbcf8e27e080eUL;pt->x.limbs[1]=0x31e5946f3c85f79eUL;pt->x.limbs[2]=0x5a465ae3095ff411UL;pt->x.limbs[3]=0xd7924d4f7d43ea96UL;pt->y.limbs[0]=0xc504dc9ff6a26b58UL;pt->y.limbs[1]=0xea40af2bd896d3a5UL;pt->y.limbs[2]=0x83842ec228cc6defUL;pt->y.limbs[3]=0x581e2872a86c72a6UL;break;
-    }
-}
+__constant AffinePoint GENERATOR_TABLE_NIBBLE[16] = {
+    {{{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},{{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}}},
+    {{{0x59f2815b16f81798UL,0x029bfcdb2dce28d9UL,0x55a06295ce870b07UL,0x79be667ef9dcbbacUL}},{{0x9c47d08ffb10d4b8UL,0xfd17b448a6855419UL,0x5da4fbfc0e1108a8UL,0x483ada7726a3c465UL}}},
+    {{{0xabac09b95c709ee5UL,0x5c778e4b8cef3ca7UL,0x3045406e95c07cd8UL,0xc6047f9441ed7d6dUL}},{{0x236431a950cfe52aUL,0xf7f632653266d0e1UL,0xa3c58419466ceaeeUL,0x1ae168fea63dc339UL}}},
+    {{{0x8601f113bce036f9UL,0xb531c845836f99b0UL,0x49344f85f89d5229UL,0xf9308a019258c310UL}},{{0x6cb9fd7584b8e672UL,0x6500a99934c2231bUL,0x0fe337e62a37f356UL,0x388f7b0f632de814UL}}},
+    {{{0x74fa94abe8c4cd13UL,0xcc6c13900ee07584UL,0x581e4904930b1404UL,0xe493dbf1c10d80f3UL}},{{0xcfe97bdc47739922UL,0xd967ae33bfbdfe40UL,0x5642e2098ea51448UL,0x51ed993ea0d455b7UL}}},
+    {{{0xcba8d569b240efe4UL,0xe88b84bddc619ab7UL,0x55b4a7250a5c5128UL,0x2f8bde4d1a072093UL}},{{0xdca87d3aa6ac62d6UL,0xf788271bab0d6840UL,0xd4dba9dda6c9c426UL,0xd8ac222636e5e3d6UL}}},
+    {{{0x2f057a1460297556UL,0x82f6472f8568a18bUL,0x20453a14355235d3UL,0xfff97bd5755eeea4UL}},{{0x3c870c36b075f297UL,0xde80f0f6518fe4a0UL,0xf3be96017f45c560UL,0xae12777aacfbb620UL}}},
+    {{{0xe92bddedcac4f9bcUL,0x3d419b7e0330e39cUL,0xa398f365f2ea7a0eUL,0x5cbdf0646e5db4eaUL}},{{0xa5082628087264daUL,0xa813d0b813fde7b5UL,0xa3178d6d861a54dbUL,0x6aebca40ba255960UL}}},
+    {{{0x67784ef3e10a2a01UL,0x0a1bdd05e5af888aUL,0xaff3843fb70f3c2fUL,0x2f01e5e15cca351dUL}},{{0xb5da2cb76cbde904UL,0xc2e213d6ba5b7617UL,0x293d082a132d13b4UL,0x5c4da8a741539949UL}}},
+    {{{0xc35f110dfc27ccbeUL,0xe09796974c57e714UL,0x09ad178a9f559abdUL,0xacd484e2f0c7f653UL}},{{0x05cc262ac64f9c37UL,0xadd888a4375f8e0fUL,0x64380971763b61e9UL,0xcc338921b0a7d9fdUL}}},
+    {{{0x52a68e2a47e247c7UL,0x3442d49b1943c2b7UL,0x35477c7b1ae6ae5dUL,0xa0434d9e47f3c862UL}},{{0x3cbee53b037368d7UL,0x6f794c2ed877a159UL,0xa3b6c7e693a24c69UL,0x893aba425419bc27UL}}},
+    {{{0xbbec17895da008cbUL,0x5649980be5c17891UL,0x5ef4246b70c65aacUL,0x774ae7f858a9411eUL}},{{0x301d74c9c953c61bUL,0x372db1e2dff9d6a8UL,0x0243dd56d7b7b365UL,0xd984a032eb6b5e19UL}}},
+    {{{0xc5b0f47070afe85aUL,0x687cf4419620095bUL,0x15c38f004d734633UL,0xd01115d548e7561bUL}},{{0x6b051b13f4062327UL,0x79238c5dd9a86d52UL,0xa8b64537e17bd815UL,0xa9f34ffdc815e0d7UL}}},
+    {{{0xdeeddf8f19405aa8UL,0xb075fbc6610e58cdUL,0xc7d1d205c3748651UL,0xf28773c2d975288bUL}},{{0x29b5cb52db03ed81UL,0x3a1a06da521fa91fUL,0x758212eb65cdaf47UL,0x0ab0902e8d880a89UL}}},
+    {{{0xe49b241a60e823e4UL,0x26aa7b63678949e6UL,0xfd64e67f07d38e32UL,0x499fdf9e895e719cUL}},{{0xc65f40d403a13f5bUL,0x464279c27a3f95bcUL,0x90f044e4a7b3d464UL,0xcac2f6c4b54e8551UL}}},
+    {{{0x44adbcf8e27e080eUL,0x31e5946f3c85f79eUL,0x5a465ae3095ff411UL,0xd7924d4f7d43ea96UL}},{{0xc504dc9ff6a26b58UL,0xea40af2bd896d3a5UL,0x83842ec228cc6defUL,0x581e2872a86c72a6UL}}}
+};
 
 inline int get_window_4bit(const Scalar* s, int pos) {
     int bp = pos * 4, li = bp >> 6, sh = bp & 63;
@@ -1136,13 +1133,13 @@ __kernel void scalar_mul_generator(__global const Scalar* scalars, __global Jaco
         }
         int w1 = get_window_4bit(&k1, w);
         if (w1) {
-            AffinePoint pt; get_gen_entry(&pt, w1 - 1);
+            AffinePoint pt = GENERATOR_TABLE_NIBBLE[w1];
             if (k1_neg) field_neg_impl(&pt.y, &pt.y);
             point_add_mixed_impl(&R, &R, &pt);
         }
         int w2 = get_window_4bit(&k2, w);
         if (w2) {
-            AffinePoint pt; get_gen_entry(&pt, w2 - 1);
+            AffinePoint pt = GENERATOR_TABLE_NIBBLE[w2];
             field_mul_impl(&pt.x, &pt.x, &beta);
             if (k2_neg) field_neg_impl(&pt.y, &pt.y);
             point_add_mixed_impl(&R, &R, &pt);
