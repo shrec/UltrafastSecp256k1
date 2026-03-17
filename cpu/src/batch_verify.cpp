@@ -151,6 +151,8 @@ bool schnorr_batch_verify(const SchnorrBatchEntry* entries, std::size_t n) {
     // Scalars: [-a_0*e_0, ..., -a_{n-1}*e_{n-1}, -a_0, ..., -a_{n-1}]
     std::vector<Scalar> scalars(2 * n);
     std::vector<Point> points(2 * n);
+    std::vector<SchnorrXonlyPubkey> pubkey_cache;
+    pubkey_cache.reserve((n < 64) ? n : 64);
 
     // G coefficient: sum(a_i * s_i)
     Scalar g_coeff = Scalar::zero();
@@ -164,19 +166,34 @@ bool schnorr_batch_verify(const SchnorrBatchEntry* entries, std::size_t n) {
         auto [r_ok, R_pt] = lift_x(entries[i].signature.r);
         if (!r_ok) return false; // invalid R, batch fails
 
-        // Lift pubkey from x-only
-        auto [p_ok, P_pt] = lift_x(entries[i].pubkey_x);
-        if (!p_ok) return false;
+        // Pubkeys often repeat across large batches. Cache lifted x-only
+        // pubkeys within the batch so duplicate keys don't re-run sqrt.
+        Point P_pt = Point::infinity();
+        bool p_ok = false;
+        for (const auto& cached : pubkey_cache) {
+            if (cached.x_bytes == entries[i].pubkey_x) {
+                P_pt = cached.point;
+                p_ok = true;
+                break;
+            }
+        }
+        if (!p_ok) {
+            SchnorrXonlyPubkey parsed;
+            if (!schnorr_xonly_pubkey_parse(parsed, entries[i].pubkey_x)) {
+                return false;
+            }
+            P_pt = parsed.point;
+            pubkey_cache.push_back(parsed);
+        }
 
         // e_i = tagged_hash("BIP0340/challenge", R.x || pubkey_x || msg)
-        // Uses precomputed midstate: avoids re-hashing tag on every iteration
-        // (saves 2 SHA256 compress calls per signature vs generic tagged_hash)
-        uint8_t challenge_input[96];
-        std::memcpy(challenge_input, entries[i].signature.r.data(), 32);
-        std::memcpy(challenge_input + 32, entries[i].pubkey_x.data(), 32);
-        std::memcpy(challenge_input + 64, entries[i].message.data(), 32);
-        auto e_hash = detail::cached_tagged_hash(
-            detail::g_challenge_midstate, challenge_input, 96);
+        // Uses precomputed midstate and streams directly from source buffers,
+        // avoiding the temporary 96-byte memcpy bundle per signature.
+        SHA256 challenge_ctx = detail::g_challenge_midstate;
+        challenge_ctx.update(entries[i].signature.r.data(), 32);
+        challenge_ctx.update(entries[i].pubkey_x.data(), 32);
+        challenge_ctx.update(entries[i].message.data(), 32);
+        auto e_hash = challenge_ctx.finalize();
         Scalar const challenge = Scalar::from_bytes(e_hash);
 
         // Accumulate G coefficient: sum(a_i * s_i)

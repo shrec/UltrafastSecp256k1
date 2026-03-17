@@ -166,6 +166,25 @@ static void test_schnorr_batch_verify() {
         CHECK(secp256k1::schnorr_batch_verify(single), "single entry -> true");
     }
 
+    // Repeated pubkey edge case: a batch with the same x-only pubkey reused
+    // across many signatures must still verify correctly.
+    {
+        std::vector<secp256k1::SchnorrBatchEntry> repeated_pk;
+        repeated_pk.reserve(8);
+        auto sk = random_scalar();
+        auto pkx = secp256k1::schnorr_pubkey(sk);
+        std::array<uint8_t, 32> const aux{};
+        for (int i = 0; i < 8; ++i) {
+            std::array<uint8_t, 32> msg{};
+            uint64_t v = rng();
+            std::memcpy(msg.data(), &v, 8);
+            auto sig = secp256k1::schnorr_sign(sk, msg, aux);
+            repeated_pk.push_back({pkx, msg, sig});
+        }
+        CHECK(secp256k1::schnorr_batch_verify(repeated_pk),
+              "repeated x-only pubkey batch -> true");
+    }
+
     // Edge case: a malformed x-only pubkey with the same simple xor fingerprint
     // as a valid one must still be rejected, and must not affect later valid
     // batches if batch setup logic starts memoizing x-only lifts.
