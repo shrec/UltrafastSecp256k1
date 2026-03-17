@@ -1348,8 +1348,8 @@ int main(int argc, char** argv) {
 
     {
         // Build batch entries from the existing pool
-        constexpr int BATCH_SIZES[] = {4, 16, 64};
-        constexpr int N_BATCH_SIZES = 3;
+        constexpr int BATCH_SIZES[] = {4, 16, 64, 128, 192};
+        constexpr int N_BATCH_SIZES = 5;
 
         // -- Schnorr Batch Verify --
         for (int bi = 0; bi < N_BATCH_SIZES; ++bi) {
@@ -1370,7 +1370,9 @@ int main(int argc, char** argv) {
             }
 
             // Bench: fewer iterations for larger batches
-            const int iters = batch_n <= 16 ? 200 : 100;
+            const int iters = batch_n <= 16 ? 200 :
+                              batch_n <= 64 ? 100 :
+                              batch_n <= 128 ? 40 : 25;
             const double batch_ns = bench_ns([&]() {
                 bool ok = schnorr_batch_verify(schnorr_batch);
                 bench::DoNotOptimize(ok);
@@ -1409,7 +1411,9 @@ int main(int argc, char** argv) {
                 printf("[!] ecdsa_batch_verify(%d) FAILED correctness check\n", batch_n);
             }
 
-            const int iters = batch_n <= 16 ? 200 : 100;
+            const int iters = batch_n <= 16 ? 200 :
+                              batch_n <= 64 ? 100 :
+                              batch_n <= 128 ? 40 : 25;
             const double batch_ns = bench_ns([&]() {
                 bool ok = ecdsa_batch_verify(ecdsa_batch);
                 bench::DoNotOptimize(ok);
