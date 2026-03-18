@@ -680,6 +680,25 @@ inline void scalar_mul_generator_windowed_impl(JacobianPoint* r, const Scalar* k
     }
 }
 
+// Generator multiplication via precomputed LUT in __global memory.
+// lut: 16 slices x 65536 AffinePoints. lut[win*65536+idx] = idx * 2^(16*win) * G.
+// 15 mixed additions, 0 doublings.
+inline void scalar_mul_generator_lut_impl(JacobianPoint* r, const Scalar* k,
+                                          __global const AffinePoint* lut) {
+    point_set_infinity(r);
+    for (int win = 0; win < 16; win++) {
+        uint idx = (uint)((k->limbs[win >> 2] >> ((win & 3) * 16)) & 0xFFFFUL);
+        if (idx != 0) {
+            AffinePoint pt = lut[(uint)win * 65536 + idx];
+            if (point_is_infinity(r)) {
+                point_from_affine(r, &pt);
+            } else {
+                point_add_mixed_impl(r, r, &pt);
+            }
+        }
+    }
+}
+
 // =============================================================================
 // LAYER 3: SHA-256 Streaming + HMAC + RFC 6979
 // =============================================================================

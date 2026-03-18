@@ -316,6 +316,67 @@ inline void point_add_mixed_impl(JacobianPoint* r, const JacobianPoint* p, const
     r->infinity = 0;
 }
 
+// Mixed Jacobian+affine addition with H output for batch inversion.
+// h_out receives H = U2 - X1 (the Z-coordinate ratio).
+// For degenerate cases (infinity, doubling, negation), h_out = ONE.
+inline void point_add_mixed_h_impl(JacobianPoint* r, const JacobianPoint* p,
+                                   const AffinePoint* q, FieldElement* h_out) {
+    h_out->limbs[0] = 1UL; h_out->limbs[1] = 0; h_out->limbs[2] = 0; h_out->limbs[3] = 0;
+
+    if (point_is_infinity(p)) {
+        point_from_affine(r, q);
+        return;
+    }
+
+    FieldElement Z1Z1, U2, S2, H, HH, I, J, rr, V, X3, Y3, Z3, t1, t2;
+
+    field_sqr_impl(&Z1Z1, &p->z);
+    field_mul_impl(&U2, &q->x, &Z1Z1);
+    field_mul_impl(&t1, &q->y, &p->z);
+    field_mul_impl(&S2, &t1, &Z1Z1);
+
+    field_sub_impl(&H, &U2, &p->x);
+
+    if ((H.limbs[0] | H.limbs[1] | H.limbs[2] | H.limbs[3]) == 0) {
+        field_sub_impl(&t1, &S2, &p->y);
+        if ((t1.limbs[0] | t1.limbs[1] | t1.limbs[2] | t1.limbs[3]) == 0) {
+            point_double_impl(r, p);
+            return;
+        }
+        point_set_infinity(r);
+        return;
+    }
+
+    // Z3 = (Z1+H)^2 - Z1Z1 - HH = 2*Z1*H, so Z-ratio is 2*H
+    field_add_impl(h_out, &H, &H);
+
+    field_sqr_impl(&HH, &H);
+    field_add_impl(&I, &HH, &HH);
+    field_add_impl(&I, &I, &I);
+    field_mul_impl(&J, &H, &I);
+    field_sub_impl(&rr, &S2, &p->y);
+    field_add_impl(&rr, &rr, &rr);
+    field_mul_impl(&V, &p->x, &I);
+
+    field_sqr_impl(&X3, &rr);
+    field_sub_impl(&X3, &X3, &J);
+    field_add_impl(&t1, &V, &V);
+    field_sub_impl(&X3, &X3, &t1);
+
+    field_sub_impl(&t1, &V, &X3);
+    field_mul_impl(&Y3, &rr, &t1);
+    field_mul_impl(&t2, &p->y, &J);
+    field_add_impl(&t2, &t2, &t2);
+    field_sub_impl(&Y3, &Y3, &t2);
+
+    field_add_impl(&t1, &p->z, &H);
+    field_sqr_impl(&Z3, &t1);
+    field_sub_impl(&Z3, &Z3, &Z1Z1);
+    field_sub_impl(&Z3, &Z3, &HH);
+
+    r->x = X3; r->y = Y3; r->z = Z3; r->infinity = 0;
+}
+
 // =============================================================================
 // Scalar Utilities for wNAF
 // =============================================================================
