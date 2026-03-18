@@ -813,6 +813,48 @@ inline JacobianPoint scalar_mul_glv(device const AffinePoint &base,
     return scalar_mul_glv(local_base, k);
 }
 
+// =============================================================================
+// Generator multiplication via precomputed LUT (16 x 65536 AffinePoints)
+// =============================================================================
+// lut[win * 65536 + idx] = idx * (2^(16*win)) * G
+// Split scalar into 16 x 16-bit windows, index each slice, accumulate.
+// Cost: 15 mixed additions, 0 doublings.
+// Matching CUDA scalar_mul_generator_lut in secp256k1.cuh.
+
+#define GEN_LUT_WINDOW_BITS 16
+#define GEN_LUT_ENTRIES     65536
+#define GEN_LUT_WINDOWS     16
+
+inline JacobianPoint scalar_mul_generator_lut(
+    thread const Scalar256 &k,
+    device const AffinePoint *lut)
+{
+    JacobianPoint r = point_at_infinity();
+
+    for (int win = 0; win < GEN_LUT_WINDOWS; win++) {
+        // Scalar256 has uint[8] limbs (32-bit LE). Each window is 16 bits.
+        int limb_idx = win / 2;
+        int shift = (win & 1) * 16;
+        uint idx = (k.limbs[limb_idx] >> shift) & 0xFFFFu;
+
+        if (idx != 0) {
+            AffinePoint pt = lut[win * GEN_LUT_ENTRIES + idx];
+            if (r.infinity != 0) {
+                r.x = pt.x; r.y = pt.y;
+                r.z = field_one(); r.infinity = 0;
+            } else {
+                r = jacobian_add_mixed(r, pt);
+            }
+        }
+    }
+
+    if (r.infinity != 0) {
+        r.x = field_zero(); r.y = field_one(); r.z = field_zero();
+    }
+
+    return r;
+}
+
 // Precomputed generator multiplication (4-bit window)
 inline JacobianPoint scalar_mul_generator_windowed(thread const Scalar256 &k) {
     AffinePoint G = generator_affine();
