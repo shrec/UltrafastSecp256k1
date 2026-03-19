@@ -37,13 +37,58 @@ CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 BOLD='\033[1m'
 
-SRC="/src"
+# Auto-detect source dir: /src in Docker, otherwise derive from script location
+if [ -d "/src/cpu" ]; then
+    SRC="/src"
+else
+    SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+fi
 NPROC=$(nproc)
 RESULTS=()
 FAILED=0
 # Build dirs go to /tmp to avoid Windows NTFS write overhead.
 # Second+ builds reuse ccache — rebuild of unchanged code takes seconds.
 BUILD_BASE="/tmp/build-local-ci"
+
+# -- Auto-detect compilers ----------------------------------------------------
+# GCC: prefer gcc-13, fall back to gcc
+if command -v gcc-13 &>/dev/null; then
+    GCC_CC=gcc-13; GCC_CXX=g++-13
+elif command -v gcc &>/dev/null; then
+    GCC_CC=gcc; GCC_CXX=g++
+    echo -e "${YELLOW}warning: gcc-13 not found, using $(gcc --version | head -1)${NC}"
+else
+    GCC_CC=""; GCC_CXX=""
+    echo -e "${YELLOW}warning: no gcc found — GCC jobs will be skipped${NC}"
+fi
+
+# Clang: prefer 17, then 18, 19, 20, 21, then unversioned
+CLANG_CC="" CLANG_CXX=""
+for v in 17 18 19 20 21; do
+    if command -v "clang-$v" &>/dev/null; then
+        CLANG_CC="clang-$v"; CLANG_CXX="clang++-$v"; break
+    fi
+done
+if [ -z "$CLANG_CC" ] && command -v clang &>/dev/null; then
+    CLANG_CC=clang; CLANG_CXX=clang++
+fi
+if [ -z "$CLANG_CC" ]; then
+    echo -e "${YELLOW}warning: no clang found — Clang jobs will be skipped${NC}"
+else
+    echo -e "${BOLD}Clang:${NC} $CLANG_CC ($($CLANG_CC --version 2>/dev/null | head -1))"
+fi
+
+# LLVM tools: derive version suffix from detected clang
+LLVM_SUFFIX=""
+if [ -n "$CLANG_CC" ]; then
+    _ver="${CLANG_CC#clang-}"  # e.g. "18" from "clang-18", or "clang" if unversioned
+    if [ "$_ver" != "$CLANG_CC" ] && [ -n "$_ver" ]; then
+        LLVM_SUFFIX="-$_ver"
+    fi
+fi
+LLVM_PROFDATA="llvm-profdata${LLVM_SUFFIX}"
+LLVM_COV="llvm-cov${LLVM_SUFFIX}"
+CLANG_TIDY="clang-tidy${LLVM_SUFFIX}"
 
 # -- ccache stats (if available) ----------------------------------------------
 if command -v ccache &>/dev/null && [ -d "${CCACHE_DIR:-/ccache}" ]; then
@@ -78,12 +123,13 @@ fail() {
 # Mirrors: security-audit.yml / compiler-warnings
 # -----------------------------------------------------------------------------
 job_werror() {
-    banner "werror: Build -Werror -Wall -Wextra (GCC-13, Release)"
+    if [ -z "$GCC_CXX" ]; then fail "werror: gcc not found"; return; fi
+    banner "werror: Build -Werror -Wall -Wextra ($GCC_CXX, Release)"
     local build_dir="${BUILD_BASE}-werror"
 
     cmake -S "$SRC" -B "$build_dir" -G Ninja \
         -DCMAKE_BUILD_TYPE=Release \
-        -DCMAKE_CXX_COMPILER=g++-13 \
+        -DCMAKE_CXX_COMPILER="$GCC_CXX" \
         -DCMAKE_CXX_FLAGS="-Werror -Wall -Wextra -Wpedantic -Wconversion -Wshadow" \
         -DSECP256K1_BUILD_TESTS=ON
 
@@ -99,13 +145,14 @@ job_werror() {
 # Mirrors: ci.yml/sanitizers (asan) + security-audit.yml/sanitizers
 # -----------------------------------------------------------------------------
 job_asan() {
-    banner "asan: ASan + UBSan (Clang-17, Debug)"
+    if [ -z "$CLANG_CC" ]; then fail "asan: clang not found"; return; fi
+    banner "asan: ASan + UBSan ($CLANG_CC, Debug)"
     local build_dir="${BUILD_BASE}-asan"
 
     cmake -S "$SRC" -B "$build_dir" -G Ninja \
         -DCMAKE_BUILD_TYPE=Debug \
-        -DCMAKE_C_COMPILER=clang-17 \
-        -DCMAKE_CXX_COMPILER=clang++-17 \
+        -DCMAKE_C_COMPILER="$CLANG_CC" \
+        -DCMAKE_CXX_COMPILER="$CLANG_CXX" \
         "-DCMAKE_C_FLAGS=-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer" \
         "-DCMAKE_CXX_FLAGS=-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer" \
         "-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address,undefined" \
@@ -131,13 +178,14 @@ job_asan() {
 # Mirrors: ci.yml/sanitizers (tsan)
 # -----------------------------------------------------------------------------
 job_tsan() {
-    banner "tsan: TSan (Clang-17, Debug)"
+    if [ -z "$CLANG_CC" ]; then fail "tsan: clang not found"; return; fi
+    banner "tsan: TSan ($CLANG_CC, Debug)"
     local build_dir="${BUILD_BASE}-tsan"
 
     cmake -S "$SRC" -B "$build_dir" -G Ninja \
         -DCMAKE_BUILD_TYPE=Debug \
-        -DCMAKE_C_COMPILER=clang-17 \
-        -DCMAKE_CXX_COMPILER=clang++-17 \
+        -DCMAKE_C_COMPILER="$CLANG_CC" \
+        -DCMAKE_CXX_COMPILER="$CLANG_CXX" \
         "-DCMAKE_C_FLAGS=-fsanitize=thread -fno-omit-frame-pointer" \
         "-DCMAKE_CXX_FLAGS=-fsanitize=thread -fno-omit-frame-pointer" \
         "-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=thread" \
@@ -161,12 +209,13 @@ job_tsan() {
 # Mirrors: security-audit.yml / valgrind
 # -----------------------------------------------------------------------------
 job_valgrind() {
-    banner "valgrind: Valgrind Memcheck (GCC-13, Debug)"
+    if [ -z "$GCC_CXX" ]; then fail "valgrind: gcc not found"; return; fi
+    banner "valgrind: Valgrind Memcheck ($GCC_CXX, Debug)"
     local build_dir="${BUILD_BASE}-valgrind"
 
     cmake -S "$SRC" -B "$build_dir" -G Ninja \
         -DCMAKE_BUILD_TYPE=Debug \
-        -DCMAKE_CXX_COMPILER=g++-13 \
+        -DCMAKE_CXX_COMPILER="$GCC_CXX" \
         -DSECP256K1_BUILD_TESTS=ON
 
     cmake --build "$build_dir" -j"$NPROC"
@@ -207,12 +256,13 @@ job_valgrind() {
 # Mirrors: security-audit.yml / dudect
 # -----------------------------------------------------------------------------
 job_dudect() {
-    banner "dudect: Timing Analysis smoke test (GCC-13, Release)"
+    if [ -z "$GCC_CXX" ]; then fail "dudect: gcc not found"; return; fi
+    banner "dudect: Timing Analysis smoke test ($GCC_CXX, Release)"
     local build_dir="${BUILD_BASE}-dudect"
 
     cmake -S "$SRC" -B "$build_dir" -G Ninja \
         -DCMAKE_BUILD_TYPE=Release \
-        -DCMAKE_CXX_COMPILER=g++-13 \
+        -DCMAKE_CXX_COMPILER="$GCC_CXX" \
         -DSECP256K1_BUILD_TESTS=ON
 
     cmake --build "$build_dir" --target test_ct_sidechannel_standalone -j"$NPROC"
@@ -237,13 +287,14 @@ job_dudect() {
 # Mirrors: ci.yml / coverage
 # -----------------------------------------------------------------------------
 job_coverage() {
-    banner "coverage: LLVM coverage → HTML (Clang-17, Debug)"
+    if [ -z "$CLANG_CC" ]; then fail "coverage: clang not found"; return; fi
+    banner "coverage: LLVM coverage → HTML ($CLANG_CC, Debug)"
     local build_dir="${BUILD_BASE}-coverage"
 
     cmake -S "$SRC" -B "$build_dir" -G Ninja \
         -DCMAKE_BUILD_TYPE=Debug \
-        -DCMAKE_C_COMPILER=clang-17 \
-        -DCMAKE_CXX_COMPILER=clang++-17 \
+        -DCMAKE_C_COMPILER="$CLANG_CC" \
+        -DCMAKE_CXX_COMPILER="$CLANG_CXX" \
         -DSECP256K1_BUILD_TESTS=ON \
         -DSECP256K1_BUILD_BENCH=OFF \
         -DSECP256K1_BUILD_FUZZ_TESTS=ON \
@@ -261,12 +312,12 @@ job_coverage() {
 
     # Merge profiles
     find "$build_dir" -name '*.profraw' -print0 \
-        | xargs -0 llvm-profdata-17 merge -sparse -o "$build_dir/merged.profdata"
+        | xargs -0 "$LLVM_PROFDATA" merge -sparse -o "$build_dir/merged.profdata"
 
     # Find all instrumented objects
     local objects=""
     for bin in $(find "$build_dir" -type f -executable); do
-        if llvm-cov-17 show --instr-profile="$build_dir/merged.profdata" "$bin" >/dev/null 2>&1; then
+        if "$LLVM_COV" show --instr-profile="$build_dir/merged.profdata" "$bin" >/dev/null 2>&1; then
             objects="$objects -object=$bin"
         fi
     done
@@ -278,7 +329,7 @@ job_coverage() {
 
     # Generate lcov + HTML report
     # shellcheck disable=SC2086
-    llvm-cov-17 export \
+    "$LLVM_COV" export \
         --format=lcov \
         --instr-profile="$build_dir/merged.profdata" \
         $objects \
@@ -286,7 +337,7 @@ job_coverage() {
         > "$build_dir/coverage.lcov"
 
     # shellcheck disable=SC2086
-    llvm-cov-17 show \
+    "$LLVM_COV" show \
         --format=html \
         --instr-profile="$build_dir/merged.profdata" \
         $objects \
@@ -297,7 +348,7 @@ job_coverage() {
     echo ""
     echo -e "${BOLD}Coverage summary:${NC}"
     # shellcheck disable=SC2086
-    llvm-cov-17 report \
+    "$LLVM_COV" report \
         --instr-profile="$build_dir/merged.profdata" \
         $objects \
         --ignore-filename-regex='(tests/|bench/|examples/|/usr/)' \
@@ -321,13 +372,14 @@ job_coverage() {
 # Mirrors: clang-tidy.yml
 # -----------------------------------------------------------------------------
 job_clang_tidy() {
-    banner "clang-tidy: Static analysis (Clang-17)"
+    if [ -z "$CLANG_CC" ]; then fail "clang-tidy: clang not found"; return; fi
+    banner "clang-tidy: Static analysis ($CLANG_CC)"
     local build_dir="${BUILD_BASE}-tidy"
 
     cmake -S "$SRC" -B "$build_dir" -G Ninja \
         -DCMAKE_BUILD_TYPE=Release \
-        -DCMAKE_C_COMPILER=clang-17 \
-        -DCMAKE_CXX_COMPILER=clang++-17 \
+        -DCMAKE_C_COMPILER="$CLANG_CC" \
+        -DCMAKE_CXX_COMPILER="$CLANG_CXX" \
         -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
         -DSECP256K1_BUILD_TESTS=ON \
         -DSECP256K1_BUILD_BENCH=ON \
@@ -342,7 +394,7 @@ job_clang_tidy() {
         | grep -E '\.(cpp|cc|cxx)$' \
         | sort -u \
         | xargs -P "$NPROC" -n 4 \
-            clang-tidy-17 -p "$build_dir" --warnings-as-errors='' --quiet 2>&1 \
+            "$CLANG_TIDY" -p "$build_dir" --warnings-as-errors='' --quiet 2>&1 \
         | tee "$output_file"
 
     local count=0
@@ -368,17 +420,21 @@ job_clang_tidy() {
 # -----------------------------------------------------------------------------
 job_ci() {
     local all_pass=1
+    local compilers=()
+    if [ -n "$GCC_CC" ]; then compilers+=(gcc); fi
+    if [ -n "$CLANG_CC" ]; then compilers+=(clang); fi
+    if [ ${#compilers[@]} -eq 0 ]; then fail "ci: no compilers found"; return; fi
 
-    for compiler in gcc-13 clang-17; do
+    for compiler in "${compilers[@]}"; do
         for build_type in Release Debug; do
-            banner "ci: $compiler / $build_type"
-            local build_dir="${BUILD_BASE}-ci-${compiler}-${build_type}"
-            local cc cxx
-            if [ "$compiler" = "gcc-13" ]; then
-                cc=gcc-13; cxx=g++-13
+            local cc cxx label
+            if [ "$compiler" = "gcc" ]; then
+                cc="$GCC_CC"; cxx="$GCC_CXX"; label="$GCC_CC"
             else
-                cc=clang-17; cxx=clang++-17
+                cc="$CLANG_CC"; cxx="$CLANG_CXX"; label="$CLANG_CC"
             fi
+            banner "ci: $label / $build_type"
+            local build_dir="${BUILD_BASE}-ci-${label}-${build_type}"
 
             cmake -S "$SRC" -B "$build_dir" -G Ninja \
                 -DCMAKE_BUILD_TYPE="$build_type" \
@@ -414,12 +470,13 @@ job_ci() {
 # Mirrors: audit-report.yml / linux-gcc
 # -----------------------------------------------------------------------------
 job_audit() {
-    banner "audit: unified_audit_runner — 641,194 checks (GCC-13, Release)"
+    if [ -z "$GCC_CXX" ]; then fail "audit: gcc not found"; return; fi
+    banner "audit: unified_audit_runner — 641,194 checks ($GCC_CXX, Release)"
     local build_dir="${BUILD_BASE}-audit"
 
     cmake -S "$SRC" -B "$build_dir" -G Ninja \
         -DCMAKE_BUILD_TYPE=Release \
-        -DCMAKE_CXX_COMPILER=g++-13 \
+        -DCMAKE_CXX_COMPILER="$GCC_CXX" \
         -DBUILD_TESTING=ON \
         -DSECP256K1_BUILD_PROTOCOL_TESTS=ON \
         -DSECP256K1_BUILD_FUZZ_TESTS=ON
@@ -500,12 +557,13 @@ job_cppcheck() {
 # Note: Docker adds noise; use GH CI for regression detection against baseline.
 # -----------------------------------------------------------------------------
 job_bench() {
-    banner "bench: Performance snapshot (GCC-13, Release)"
+    if [ -z "$GCC_CXX" ]; then fail "bench: gcc not found"; return; fi
+    banner "bench: Performance snapshot ($GCC_CXX, Release)"
     local build_dir="${BUILD_BASE}-bench"
 
     cmake -S "$SRC" -B "$build_dir" -G Ninja \
         -DCMAKE_BUILD_TYPE=Release \
-        -DCMAKE_CXX_COMPILER=g++-13 \
+        -DCMAKE_CXX_COMPILER="$GCC_CXX" \
         -DBUILD_TESTING=ON \
         -DSECP256K1_USE_ASM=ON
 
@@ -621,11 +679,11 @@ main() {
             --list)
                 echo "Available jobs:"
                 echo "  werror      Build -Werror -Wall -Wextra    (security-audit.yml)"
-                echo "  ci          GCC-13+Clang-17 Release+Debug  (ci.yml)"
-                echo "  asan        ASan + UBSan, Clang-17         (ci.yml + security-audit.yml)"
-                echo "  tsan        TSan, Clang-17                 (ci.yml)"
+                echo "  ci          GCC+Clang Release+Debug       (ci.yml)"
+                echo "  asan        ASan + UBSan, Clang            (ci.yml + security-audit.yml)"
+                echo "  tsan        TSan, Clang                    (ci.yml)"
                 echo "  audit       unified_audit_runner 641K chk  (audit-report.yml)"
-                echo "  clang-tidy  clang-tidy-17 static analysis  (clang-tidy.yml)"
+                echo "  clang-tidy  clang-tidy static analysis     (clang-tidy.yml)"
                 echo "  cppcheck    Cppcheck static analysis       (cppcheck.yml)"
                 echo "  coverage    LLVM coverage → HTML           (ci.yml/coverage)"
                 echo "  valgrind    Valgrind memcheck              (security-audit.yml)"

@@ -9972,10 +9972,17 @@ def main():
     cmd = sys.argv[1].lower()
 
     if cmd == "build":
-        if "--incremental" in sys.argv or "-i" in sys.argv:
-            build_incremental()
-        else:
-            build()
+        best_effort = "--best-effort" in sys.argv
+        try:
+            if "--incremental" in sys.argv or "-i" in sys.argv:
+                build_incremental()
+            else:
+                build()
+        except Exception as exc:
+            if best_effort:
+                print(f"[!] Source graph build failed (non-fatal): {exc}")
+            else:
+                raise
     elif cmd == "find" and len(sys.argv) > 2:
         find_cmd(" ".join(sys.argv[2:]))
     elif cmd == "singleton" and len(sys.argv) > 2:

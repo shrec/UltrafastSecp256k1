@@ -352,7 +352,7 @@ set(UFSECP_SOURCE_GRAPH_TOOL "${CMAKE_CURRENT_SOURCE_DIR}/tools/source_graph_kit
 if(UFSECP_REFRESH_SOURCE_GRAPH)
     if(Python3_Interpreter_FOUND AND EXISTS "${UFSECP_SOURCE_GRAPH_TOOL}")
         add_custom_target(ufsecp_source_graph_refresh ALL
-            COMMAND "${Python3_EXECUTABLE}" "${UFSECP_SOURCE_GRAPH_TOOL}" build -i
+            COMMAND "${Python3_EXECUTABLE}" "${UFSECP_SOURCE_GRAPH_TOOL}" build -i --best-effort
             WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
             COMMENT "Refreshing UltrafastSecp256k1 source graph incrementally"
             USES_TERMINAL
