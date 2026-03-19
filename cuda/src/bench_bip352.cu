@@ -50,9 +50,12 @@ using CpuKPlan  = secp256k1::fast::KPlan;
 // ============================================================================
 // Configuration
 // ============================================================================
-static constexpr int BENCH_N       = 500000;
-static constexpr int BENCH_WARMUP  = 3;
-static constexpr int BENCH_PASSES  = 11;
+static constexpr int BENCH_N            = 500000;
+static constexpr int BENCH_WARMUP       = 3;
+static constexpr int BENCH_PASSES       = 11;
+// Extra passes to ramp GPU back from idle P-state after long CPU-only sections.
+// 3 passes (~290 ms) is insufficient; 15 passes (~1.5 s) stabilises the boost clock.
+static constexpr int BENCH_CLOCK_WARMUP = 15;
 static constexpr int DETAIL_N      = 1000;
 static constexpr int GPU_TPB       = 256;
 static constexpr int SCAN_WNAF_W   = 5;
@@ -407,6 +410,24 @@ __global__ void bip352_pipeline_kernel_lut(
     const secp256k1::cuda::JacobianPoint* __restrict__ tweak_points,
     const secp256k1::cuda::Scalar* __restrict__ scan_key,
     const secp256k1::cuda::JacobianPoint* __restrict__ spend_point,
+    const secp256k1::cuda::AffinePoint* __restrict__ gen_lut,
+    int64_t* __restrict__ prefixes,
+    int n);
+
+// Precompute per-tweak wNAF tables (tbl_P, tbl_phiP, globalz) into global memory.
+// Stored transposed [TABLE_SIZE][N] so warp reads within a slot are coalesced.
+__global__ void precompute_tweak_tables_kernel(
+    const secp256k1::cuda::JacobianPoint* __restrict__ tweak_points,
+    secp256k1::cuda::AffinePoint* __restrict__ tables_P,
+    secp256k1::cuda::AffinePoint* __restrict__ tables_phiP,
+    secp256k1::cuda::FieldElement* __restrict__ globalz_buf,
+    int n);
+
+// LUT pipeline using precomputed per-tweak tables (no local table build).
+__global__ void bip352_pipeline_kernel_lut_pretbl(
+    const secp256k1::cuda::AffinePoint* __restrict__ tables_P,
+    const secp256k1::cuda::AffinePoint* __restrict__ tables_phiP,
+    const secp256k1::cuda::FieldElement* __restrict__ globalz_buf,
     const secp256k1::cuda::AffinePoint* __restrict__ gen_lut,
     int64_t* __restrict__ prefixes,
     int n);
@@ -777,7 +798,31 @@ int main() {
         CUDA_CHECK(cudaFree(d_h_buf));
         CUDA_CHECK(cudaFree(d_bases));
     }
-    printf("Done.\n\n");
+    printf("Done.\n");
+
+    // ================================================================
+    // Phase 3.6: Precompute per-tweak wNAF tables
+    // ================================================================
+    constexpr int TABLE_SIZE = (1 << (SCAN_WNAF_W - 2));
+    secp256k1::cuda::AffinePoint* d_tables_P    = nullptr;
+    secp256k1::cuda::AffinePoint* d_tables_phiP = nullptr;
+    secp256k1::cuda::FieldElement* d_globalz    = nullptr;
+    {
+        size_t tbl_sz = (size_t)TABLE_SIZE * BENCH_N * sizeof(secp256k1::cuda::AffinePoint);
+        size_t gz_sz  = (size_t)BENCH_N    * sizeof(secp256k1::cuda::FieldElement);
+        CUDA_CHECK(cudaMalloc(&d_tables_P,    tbl_sz));
+        CUDA_CHECK(cudaMalloc(&d_tables_phiP, tbl_sz));
+        CUDA_CHECK(cudaMalloc(&d_globalz,     gz_sz));
+        printf("Precomputing tweak wNAF tables (%.0f MB total)...\n",
+               (2.0 * tbl_sz + gz_sz) / 1e6);
+        int ptpb    = 256;
+        int pblocks = (BENCH_N + ptpb - 1) / ptpb;
+        precompute_tweak_tables_kernel<<<pblocks, ptpb>>>(
+            d_tweaks, d_tables_P, d_tables_phiP, d_globalz, BENCH_N);
+        CUDA_CHECK(cudaDeviceSynchronize());
+        printf("Done.\n");
+    }
+    printf("\n");
 
     const int gpu_tpb_glv = autotune_gpu_tpb(
         "GPU pipeline (GLV)", BENCH_N, prop.maxThreadsPerBlock,
@@ -858,7 +903,12 @@ int main() {
     CudaTimer timer;
     int glv_blocks = (BENCH_N + gpu_tpb_glv - 1) / gpu_tpb_glv;
 
-    // Warmup
+    // Extended warmup: GPU clock drops to idle P-state during Phase 4 (long CPU section).
+    for (int w = 0; w < BENCH_CLOCK_WARMUP; ++w) {
+        bip352_pipeline_kernel<<<glv_blocks, gpu_tpb_glv>>>(d_tweaks, d_scan_key, d_spend, d_prefixes, BENCH_N);
+        CUDA_CHECK(cudaDeviceSynchronize());
+    }
+    // Standard measurement warmup
     for (int w = 0; w < BENCH_WARMUP; ++w) {
         bip352_pipeline_kernel<<<glv_blocks, gpu_tpb_glv>>>(d_tweaks, d_scan_key, d_spend, d_prefixes, BENCH_N);
         CUDA_CHECK(cudaDeviceSynchronize());
@@ -892,7 +942,7 @@ int main() {
     printf("\n--- GPU + LUT (16x64K precomputed table for k*G) ---\n");
     int lut_blocks = (BENCH_N + gpu_tpb_lut - 1) / gpu_tpb_lut;
 
-    // Warmup
+    // Standard warmup only — GPU clock is already at boost from GLV section above.
     for (int w = 0; w < BENCH_WARMUP; ++w) {
         bip352_pipeline_kernel_lut<<<lut_blocks, gpu_tpb_lut>>>(
             d_tweaks, d_scan_key, d_spend, d_gen_lut, d_prefixes, BENCH_N);
@@ -926,11 +976,11 @@ int main() {
     // ================================================================
     printf("\n=== Full Pipeline Comparison ===\n");
     double pipeline_ratio = cpu_ns_op / gpu_ns_op;
-    double lut_ratio = cpu_ns_op / gpu_lut_ns_op;
-    double lut_vs_gpu = gpu_ns_op / gpu_lut_ns_op;
-    printf("  CPU:         %10.1f ns/op\n", cpu_ns_op);
-    printf("  GPU (w=4):   %10.1f ns/op  (%.2fx vs CPU)\n", gpu_ns_op, pipeline_ratio);
-    printf("  GPU+LUT:     %10.1f ns/op  (%.2fx vs CPU, %.2fx vs GPU w=4)\n",
+    double lut_ratio      = cpu_ns_op / gpu_lut_ns_op;
+    double lut_vs_gpu     = gpu_ns_op / gpu_lut_ns_op;
+    printf("  CPU:            %10.1f ns/op\n", cpu_ns_op);
+    printf("  GPU (w=4):      %10.1f ns/op  (%.2fx vs CPU)\n", gpu_ns_op, pipeline_ratio);
+    printf("  GPU+LUT:        %10.1f ns/op  (%.2fx vs CPU, %.2fx vs GPU w=4)\n",
            gpu_lut_ns_op, lut_ratio, lut_vs_gpu);
 
     bool prefixes_match = (cpu_validation == gpu_validation) && (cpu_validation == gpu_lut_validation);
@@ -1135,6 +1185,9 @@ int main() {
     CUDA_CHECK(cudaFree(d_output_pts));
     CUDA_CHECK(cudaFree(d_candidates));
     CUDA_CHECK(cudaFree(d_gen_lut));
+    CUDA_CHECK(cudaFree(d_tables_P));
+    CUDA_CHECK(cudaFree(d_tables_phiP));
+    CUDA_CHECK(cudaFree(d_globalz));
 
     return 0;
 }
@@ -1510,6 +1563,165 @@ __global__ void bip352_pipeline_kernel_lut(
     jacobian_add_mixed(&out, &BIP352_SPEND_AFFINE, &cand);
 
     // 6. Extract X prefix directly; the full compressed candidate is not needed here.
+    prefixes[idx] = point_prefix64(&cand);
+}
+
+// ============================================================================
+// Precomputed-table kernels
+// ============================================================================
+
+// Pass 1: build per-tweak wNAF tables into transposed global memory.
+// Layout: tables_P[slot * n + idx], tables_phiP[slot * n + idx], globalz_buf[idx].
+// Transposed so that during the wNAF loop (where all threads share the same slot
+// from constant-memory BIP352_SCANKEY_WNAF) reads are fully coalesced.
+__global__ void precompute_tweak_tables_kernel(
+    const secp256k1::cuda::JacobianPoint* __restrict__ tweak_points,
+    secp256k1::cuda::AffinePoint* __restrict__ tables_P,
+    secp256k1::cuda::AffinePoint* __restrict__ tables_phiP,
+    secp256k1::cuda::FieldElement* __restrict__ globalz_buf,
+    int n)
+{
+    using namespace secp256k1::cuda;
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= n) return;
+
+    // Normalise input point (should already be z=1 from decompression).
+    const JacobianPoint* p = &tweak_points[idx];
+    AffinePoint base;
+    if (p->z.limbs[0] == 1 && p->z.limbs[1] == 0 &&
+        p->z.limbs[2] == 0 && p->z.limbs[3] == 0) {
+        base.x = p->x;
+        base.y = p->y;
+    } else {
+        FieldElement z_inv, z_inv2, z_inv3;
+        field_inv(&p->z, &z_inv);
+        field_sqr(&z_inv, &z_inv2);
+        field_mul(&z_inv2, &z_inv, &z_inv3);
+        field_mul(&p->x, &z_inv2, &base.x);
+        field_mul(&p->y, &z_inv3, &base.y);
+    }
+
+    if (BIP352_SCANKEY_WNAF.k1_neg) {
+        field_negate(&base.y, &base.y);
+    }
+
+    constexpr int TS = (1 << (SCAN_WNAF_W - 2));
+    AffinePoint tbl_P[TS];
+    FieldElement globalz;
+    build_wnaf_table_zr(&base, tbl_P, TS, &globalz);
+
+    AffinePoint tbl_phiP[TS];
+    derive_endo_table(tbl_P, tbl_phiP, TS, BIP352_SCANKEY_WNAF.flip_phi != 0);
+
+    // Write transposed: tables_P[slot * n + idx]
+    for (int s = 0; s < TS; ++s) {
+        tables_P[   s * n + idx] = tbl_P[s];
+        tables_phiP[s * n + idx] = tbl_phiP[s];
+    }
+    globalz_buf[idx] = globalz;
+}
+
+// wNAF scalar-mul using precomputed tables from global memory.
+// All threads share the same wNAF digits (constant memory) => same slot per step
+// => reads tables_P[slot * n + idx] are fully coalesced across the warp.
+__device__ inline void scalar_mul_fixed_scan_pretbl(
+    int idx,
+    const secp256k1::cuda::AffinePoint* __restrict__ tables_P,
+    const secp256k1::cuda::AffinePoint* __restrict__ tables_phiP,
+    const secp256k1::cuda::FieldElement* __restrict__ globalz_buf,
+    int n,
+    secp256k1::cuda::JacobianPoint* r)
+{
+    using namespace secp256k1::cuda;
+
+    FieldElement globalz = globalz_buf[idx];
+
+    r->infinity = true;
+    field_set_zero(&r->x);
+    field_set_one(&r->y);
+    field_set_zero(&r->z);
+
+    #pragma unroll 1
+    for (int i = SCAN_WNAF_MAXLEN - 1; i >= 0; --i) {
+        if (!r->infinity) {
+            jacobian_double(r, r);
+        }
+
+        int8_t d1 = BIP352_SCANKEY_WNAF.wnaf1[i];
+        if (d1 != 0) {
+            int slot = ((d1 > 0) ? d1 : -d1);
+            slot = (slot - 1) >> 1;
+            // Coalesced: slot identical for all threads in warp (shared scan key).
+            AffinePoint pt = tables_P[slot * n + idx];
+            if (d1 < 0) field_negate(&pt.y, &pt.y);
+
+            if (r->infinity) {
+                r->x = pt.x; r->y = pt.y;
+                field_set_one(&r->z); r->infinity = false;
+            } else {
+                jacobian_add_mixed(r, &pt, r);
+            }
+        }
+
+        int8_t d2 = BIP352_SCANKEY_WNAF.wnaf2[i];
+        if (d2 != 0) {
+            int slot = ((d2 > 0) ? d2 : -d2);
+            slot = (slot - 1) >> 1;
+            AffinePoint pt = tables_phiP[slot * n + idx];
+            if (d2 < 0) field_negate(&pt.y, &pt.y);
+
+            if (r->infinity) {
+                r->x = pt.x; r->y = pt.y;
+                field_set_one(&r->z); r->infinity = false;
+            } else {
+                jacobian_add_mixed(r, &pt, r);
+            }
+        }
+    }
+
+    if (!r->infinity) {
+        FieldElement tmp;
+        field_mul(&r->z, &globalz, &tmp);
+        r->z = tmp;
+    }
+}
+
+// Pass 2: full pipeline using precomputed per-tweak tables.
+__global__ void bip352_pipeline_kernel_lut_pretbl(
+    const secp256k1::cuda::AffinePoint* __restrict__ tables_P,
+    const secp256k1::cuda::AffinePoint* __restrict__ tables_phiP,
+    const secp256k1::cuda::FieldElement* __restrict__ globalz_buf,
+    const secp256k1::cuda::AffinePoint* __restrict__ gen_lut,
+    int64_t* __restrict__ prefixes,
+    int n)
+{
+    using namespace secp256k1::cuda;
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= n) return;
+
+    // 1. k*P via precomputed tables (no local table build, no register spill for tables).
+    JacobianPoint shared;
+    scalar_mul_fixed_scan_pretbl(idx, tables_P, tables_phiP, globalz_buf, n, &shared);
+
+    // 2. Serialize into tagged-hash input buffer.
+    uint8_t ser[37];
+    bip352_shared_secret_input(&shared, ser);
+
+    // 3. Tagged SHA-256.
+    uint8_t hash[32];
+    bip352_tagged_sha256(ser, 37, hash);
+
+    // 4. k*G via LUT.
+    Scalar hs;
+    scalar_from_bytes(hash, &hs);
+    JacobianPoint out;
+    scalar_mul_generator_lut(&hs, gen_lut, &out);
+
+    // 5. Point add.
+    JacobianPoint cand;
+    jacobian_add_mixed(&out, &BIP352_SPEND_AFFINE, &cand);
+
+    // 6. Extract X prefix.
     prefixes[idx] = point_prefix64(&cand);
 }
 
