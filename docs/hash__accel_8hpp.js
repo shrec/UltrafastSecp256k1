@@ -2,6 +2,7 @@ var hash__accel_8hpp =
 [
     [ "HashTier", "hash__accel_8hpp.html#a4caba186460712ebd064679ef90b2685", [
       [ "SCALAR", "hash__accel_8hpp.html#a4caba186460712ebd064679ef90b2685a8f3d9a4b6a7b7f2c7afa61ca113d0db9", null ],
+      [ "ARM_SHA2", "hash__accel_8hpp.html#a4caba186460712ebd064679ef90b2685adf77630b7376a1d67b7c42215a6a9ed6", null ],
       [ "SHA_NI", "hash__accel_8hpp.html#a4caba186460712ebd064679ef90b2685af9b74ec03cab38f5abf983914ee525fc", null ],
       [ "AVX2", "hash__accel_8hpp.html#a4caba186460712ebd064679ef90b2685aee6ecd3e091cdefd02e783f9b9869388", null ],
       [ "AVX512", "hash__accel_8hpp.html#a4caba186460712ebd064679ef90b2685a5f8acb5068c8c8db7b2a4069bd17d9fd", null ]

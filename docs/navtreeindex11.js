@@ -1,15 +1,17 @@
 var NAVTREEINDEX11 =
 {
+"structsecp256k1_1_1zk_1_1RangeProof.html#a5ccd5004c01df52eaa751bc9190ceb4f":[3,0,1,4,3,6],
+"structsecp256k1_1_1zk_1_1RangeProof.html#a5ccd5004c01df52eaa751bc9190ceb4f":[2,0,1,6,3,6],
 "structsecp256k1_1_1zk_1_1RangeProof.html#a613299316a1e6b2a14fdf5f6abd5c93b":[2,0,1,6,3,10],
 "structsecp256k1_1_1zk_1_1RangeProof.html#a613299316a1e6b2a14fdf5f6abd5c93b":[3,0,1,4,3,10],
 "structsecp256k1_1_1zk_1_1RangeProof.html#a713bc16038956b62bef29378d71be903":[2,0,1,6,3,5],
 "structsecp256k1_1_1zk_1_1RangeProof.html#a713bc16038956b62bef29378d71be903":[3,0,1,4,3,5],
-"structsecp256k1_1_1zk_1_1RangeProof.html#a918dd41f14e28dda00365e320c45d9c2":[2,0,1,6,3,2],
 "structsecp256k1_1_1zk_1_1RangeProof.html#a918dd41f14e28dda00365e320c45d9c2":[3,0,1,4,3,2],
-"structsecp256k1_1_1zk_1_1RangeProof.html#ad4f9a84d56418d88a5779bbb40b3e06c":[3,0,1,4,3,4],
+"structsecp256k1_1_1zk_1_1RangeProof.html#a918dd41f14e28dda00365e320c45d9c2":[2,0,1,6,3,2],
 "structsecp256k1_1_1zk_1_1RangeProof.html#ad4f9a84d56418d88a5779bbb40b3e06c":[2,0,1,6,3,4],
-"structsecp256k1_1_1zk_1_1RangeProof.html#adb58d51fa418cf8800a4a037f68a1b73":[2,0,1,6,3,9],
+"structsecp256k1_1_1zk_1_1RangeProof.html#ad4f9a84d56418d88a5779bbb40b3e06c":[3,0,1,4,3,4],
 "structsecp256k1_1_1zk_1_1RangeProof.html#adb58d51fa418cf8800a4a037f68a1b73":[3,0,1,4,3,9],
+"structsecp256k1_1_1zk_1_1RangeProof.html#adb58d51fa418cf8800a4a037f68a1b73":[2,0,1,6,3,9],
 "structsecp256k1_1_1zk_1_1RangeProof.html#aec1b17f8cf4040364e3dd99aef89f444":[3,0,1,4,3,3],
 "structsecp256k1_1_1zk_1_1RangeProof.html#aec1b17f8cf4040364e3dd99aef89f444":[2,0,1,6,3,3],
 "structufsecp__bip32__key.html":[3,0,3],
@@ -247,7 +249,5 @@ var NAVTREEINDEX11 =
 "ufsecp__error_8h.html#ac2376447e7c650dca9ce481cf248298f":[4,0,1,1,1,0],
 "ufsecp__error_8h.html#ace9807a2d7e727c5d4dc3f8473118c9b":[4,0,1,1,1,11],
 "ufsecp__error_8h.html#ad41f8c3c3d95e44fb99fb509f703f1ed":[4,0,1,1,1,2],
-"ufsecp__error_8h_source.html":[4,0,1,1,1],
-"ufsecp__gpu_8h.html":[4,0,1,1,2],
-"ufsecp__gpu_8h.html#a0772ddf98a0169f3bd8003f5a6777937":[4,0,1,1,2,25]
+"ufsecp__error_8h_source.html":[4,0,1,1,1]
 };

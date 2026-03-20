@@ -1,5 +1,6 @@
 var NAVTREEINDEX6 =
 {
+"namespacesecp256k1_1_1fast.html#a071025ee92c70f7c2e970a9f8f7a3055":[2,0,1,3,132],
 "namespacesecp256k1_1_1fast.html#a0e0ce5c3b500e561fa323a75e951f3b5":[2,0,1,3,140],
 "namespacesecp256k1_1_1fast.html#a0eaa920ca64c359d03cc376492e70cab":[2,0,1,3,25],
 "namespacesecp256k1_1_1fast.html#a0eaa920ca64c359d03cc376492e70caba0220c35e8e7b548084256c53654d0a59":[2,0,1,3,25,2],
@@ -193,10 +194,11 @@ var NAVTREEINDEX6 =
 "namespacesecp256k1_1_1hash.html#a3d4089b6fd7a1b017850b299d1532e07":[2,0,1,4,14],
 "namespacesecp256k1_1_1hash.html#a45ddaa3ca6297a3934dd19c92f45e866":[2,0,1,4,9],
 "namespacesecp256k1_1_1hash.html#a4caba186460712ebd064679ef90b2685":[2,0,1,4,1],
-"namespacesecp256k1_1_1hash.html#a4caba186460712ebd064679ef90b2685a5f8acb5068c8c8db7b2a4069bd17d9fd":[2,0,1,4,1,3],
+"namespacesecp256k1_1_1hash.html#a4caba186460712ebd064679ef90b2685a5f8acb5068c8c8db7b2a4069bd17d9fd":[2,0,1,4,1,4],
 "namespacesecp256k1_1_1hash.html#a4caba186460712ebd064679ef90b2685a8f3d9a4b6a7b7f2c7afa61ca113d0db9":[2,0,1,4,1,0],
-"namespacesecp256k1_1_1hash.html#a4caba186460712ebd064679ef90b2685aee6ecd3e091cdefd02e783f9b9869388":[2,0,1,4,1,2],
-"namespacesecp256k1_1_1hash.html#a4caba186460712ebd064679ef90b2685af9b74ec03cab38f5abf983914ee525fc":[2,0,1,4,1,1],
+"namespacesecp256k1_1_1hash.html#a4caba186460712ebd064679ef90b2685adf77630b7376a1d67b7c42215a6a9ed6":[2,0,1,4,1,1],
+"namespacesecp256k1_1_1hash.html#a4caba186460712ebd064679ef90b2685aee6ecd3e091cdefd02e783f9b9869388":[2,0,1,4,1,3],
+"namespacesecp256k1_1_1hash.html#a4caba186460712ebd064679ef90b2685af9b74ec03cab38f5abf983914ee525fc":[2,0,1,4,1,2],
 "namespacesecp256k1_1_1hash.html#a54adce0e32313060c0c7c72b353e91e3":[2,0,1,4,6],
 "namespacesecp256k1_1_1hash.html#aa6787a03bd05e16254c43a777dce5efd":[2,0,1,4,12],
 "namespacesecp256k1_1_1hash.html#aa9baa48a38bbe07a5b3a664e5767bc92":[2,0,1,4,13],
@@ -247,7 +249,5 @@ var NAVTREEINDEX6 =
 "namespacesecp256k1_1_1test.html#a67d5ad2842e24c72d6e79f845fb96335abd9eafa5b16a0ff9368d82a127637d83":[2,0,1,5,1,14],
 "namespacesecp256k1_1_1test.html#a67d5ad2842e24c72d6e79f845fb96335ac18559e71bd354bd7bef229d57fbcabe":[2,0,1,5,1,19],
 "namespacesecp256k1_1_1test.html#a67d5ad2842e24c72d6e79f845fb96335ac8e42f0e92dc22261080902b7b41150d":[2,0,1,5,1,26],
-"namespacesecp256k1_1_1test.html#a67d5ad2842e24c72d6e79f845fb96335ad5d0f5f57639d8bb6e3d99327ebdb108":[2,0,1,5,1,21],
-"namespacesecp256k1_1_1test.html#a67d5ad2842e24c72d6e79f845fb96335ad8afbc541b39d23648c823057cffe3a5":[2,0,1,5,1,28],
-"namespacesecp256k1_1_1test.html#a67d5ad2842e24c72d6e79f845fb96335ad9d4cd43881805273c4e98b2ec37c247":[2,0,1,5,1,10]
+"namespacesecp256k1_1_1test.html#a67d5ad2842e24c72d6e79f845fb96335ad5d0f5f57639d8bb6e3d99327ebdb108":[2,0,1,5,1,21]
 };

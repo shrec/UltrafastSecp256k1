@@ -79,15 +79,15 @@ var NAVTREEINDEX =
 "classsecp256k1_1_1fast_1_1FieldElement.html#ac358f67b6dade36b92ca3cd3807e32d5",
 "coin__params_8hpp.html#af1a6b40521b40c747c2892c55c28424e",
 "field__52_8hpp.html#a93eea5d396c98be6f7d85cbf37e429ed",
-"index.html#autotoc_md28",
-"namespacesecp256k1.html#abc87f00cdfb554df7b96ba8b1f0d849a",
-"namespacesecp256k1_1_1fast.html#a0e0ce5c3b500e561fa323a75e951f3b5",
-"namespacesecp256k1_1_1test.html#a67d5ad2842e24c72d6e79f845fb96335ae18047d39a29dc3870c890ee4bdfe679",
-"structsecp256k1_1_1ECDSABatchEntry.html#ab1879a48f24a6cefc5044d15b495725c",
-"structsecp256k1_1_1WIFDecodeResult.html#acce7e81686cddff3bcd3cd581bf350a7",
-"structsecp256k1_1_1fast_1_1FieldElement52.html#aa8732797f4aa37f4fd7705b5f3011520",
-"structsecp256k1_1_1zk_1_1RangeProof.html#a613299316a1e6b2a14fdf5f6abd5c93b",
-"ufsecp__gpu_8h.html#a07a61b9642d6823039c5ffcf9c297faf"
+"index.html#autotoc_md27",
+"namespacesecp256k1.html#abb1dcf4c6e179a641d94b1cc87cfdb54",
+"namespacesecp256k1_1_1fast.html#a071025ee92c70f7c2e970a9f8f7a3055",
+"namespacesecp256k1_1_1test.html#a67d5ad2842e24c72d6e79f845fb96335ad8afbc541b39d23648c823057cffe3a5",
+"structsecp256k1_1_1ECDSABatchEntry.html#a7f93edf3342a38fe845061a078456c69",
+"structsecp256k1_1_1WIFDecodeResult.html#a4e6eafd2a2b9580f38292f1bbd7e158c",
+"structsecp256k1_1_1fast_1_1FieldElement52.html#aa23fbd8f65ff50426f0cd240733f18c5",
+"structsecp256k1_1_1zk_1_1RangeProof.html#a5ccd5004c01df52eaa751bc9190ceb4f",
+"ufsecp__gpu_8h.html"
 ];
 
 var SYNCONMSG = 'click to disable panel synchronisation';

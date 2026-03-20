@@ -6,6 +6,7 @@ var searchData=
   ['allfield_3',['AllField',['../namespacesecp256k1_1_1test.html#a67d5ad2842e24c72d6e79f845fb96335a41db319fc50b53548e50c330568909d7',1,'secp256k1::test']]],
   ['allpoint_4',['AllPoint',['../namespacesecp256k1_1_1test.html#a67d5ad2842e24c72d6e79f845fb96335a62f7d36102de216c257a561c9a131624',1,'secp256k1::test']]],
   ['allscalar_5',['AllScalar',['../namespacesecp256k1_1_1test.html#a67d5ad2842e24c72d6e79f845fb96335aaaff9767f330cf9b07aadc24b18164c4',1,'secp256k1::test']]],
-  ['avx2_6',['AVX2',['../namespacesecp256k1_1_1hash.html#a4caba186460712ebd064679ef90b2685aee6ecd3e091cdefd02e783f9b9869388',1,'secp256k1::hash']]],
-  ['avx512_7',['AVX512',['../namespacesecp256k1_1_1hash.html#a4caba186460712ebd064679ef90b2685a5f8acb5068c8c8db7b2a4069bd17d9fd',1,'secp256k1::hash']]]
+  ['arm_5fsha2_6',['ARM_SHA2',['../namespacesecp256k1_1_1hash.html#a4caba186460712ebd064679ef90b2685adf77630b7376a1d67b7c42215a6a9ed6',1,'secp256k1::hash']]],
+  ['avx2_7',['AVX2',['../namespacesecp256k1_1_1hash.html#a4caba186460712ebd064679ef90b2685aee6ecd3e091cdefd02e783f9b9869388',1,'secp256k1::hash']]],
+  ['avx512_8',['AVX512',['../namespacesecp256k1_1_1hash.html#a4caba186460712ebd064679ef90b2685a5f8acb5068c8c8db7b2a4069bd17d9fd',1,'secp256k1::hash']]]
 ];

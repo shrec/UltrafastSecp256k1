@@ -1,5 +1,6 @@
 var NAVTREEINDEX5 =
 {
+"namespacesecp256k1.html#abb1dcf4c6e179a641d94b1cc87cfdb54":[2,0,1,62],
 "namespacesecp256k1.html#abc87f00cdfb554df7b96ba8b1f0d849a":[2,0,1,110],
 "namespacesecp256k1.html#abdafefa1bbce97d2a9de0b9f5ea112c3":[2,0,1,141],
 "namespacesecp256k1.html#abe2d6bd72a50960213d7e93220f4044b":[2,0,1,146],
@@ -248,6 +249,5 @@ var NAVTREEINDEX5 =
 "namespacesecp256k1_1_1fast.html":[2,0,1,3],
 "namespacesecp256k1_1_1fast.html#a0272f9fbabc1a3d20ceaa8bdb5aba8fd":[2,0,1,3,46],
 "namespacesecp256k1_1_1fast.html#a040c0a200ea7eab845619f0870c6924c":[2,0,1,3,79],
-"namespacesecp256k1_1_1fast.html#a06224dcce448112e6919303329c43122":[2,0,1,3,92],
-"namespacesecp256k1_1_1fast.html#a071025ee92c70f7c2e970a9f8f7a3055":[2,0,1,3,132]
+"namespacesecp256k1_1_1fast.html#a06224dcce448112e6919303329c43122":[2,0,1,3,92]
 };

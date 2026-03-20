@@ -1,5 +1,6 @@
 var NAVTREEINDEX4 =
 {
+"index.html#autotoc_md27":[0,6],
 "index.html#autotoc_md28":[0,7],
 "index.html#autotoc_md30":[0,8],
 "index.html#autotoc_md31":[0,8,1],
@@ -248,6 +249,5 @@ var NAVTREEINDEX4 =
 "namespacesecp256k1.html#ab69bb17fffa81e4e0fa7f89eb36ea5aa":[2,0,1,88],
 "namespacesecp256k1.html#ab71d81a28b742b2ab97647f10dc2b711":[2,0,1,74],
 "namespacesecp256k1.html#ab83d6da7a92a0bc4047f10a753c23cb3":[2,0,1,164],
-"namespacesecp256k1.html#aba2114c138c6391628bf872e04853872":[2,0,1,137],
-"namespacesecp256k1.html#abb1dcf4c6e179a641d94b1cc87cfdb54":[2,0,1,62]
+"namespacesecp256k1.html#aba2114c138c6391628bf872e04853872":[2,0,1,137]
 };
