@@ -275,7 +275,7 @@ __global__ void bip352_pipeline_kernel(
 
     // 5. Point addition -- spend + output
     JacobianPoint cand;
-    jacobian_add(&(*spend_point), &out, &cand);
+    jacobian_add_mixed_unchecked(&out, &BIP352_SPEND_AFFINE, &cand);
 
     // 6. Serialize + extract prefix
     uint8_t cc[33];
@@ -1010,6 +1010,113 @@ int main() {
 // ============================================================================
 // Named kernel for point decompression (nvcc requires file-scope kernels)
 // ============================================================================
+__device__ inline void scalar_mul_fixed_scan(
+{
+    using namespace secp256k1::cuda;
+
+    AffinePoint base;
+    if (p->z.limbs[0] == 1 && p->z.limbs[1] == 0 && p->z.limbs[2] == 0 && p->z.limbs[3] == 0) {
+        base.x = p->x;
+        base.y = p->y;
+    } else {
+        FieldElement z_inv, z_inv2, z_inv3;
+        field_inv(&p->z, &z_inv);
+        field_sqr(&z_inv, &z_inv2);
+        field_mul(&z_inv2, &z_inv, &z_inv3);
+        field_mul(&p->x, &z_inv2, &base.x);
+        field_mul(&p->y, &z_inv3, &base.y);
+    }
+
+    if (BIP352_SCANKEY_WNAF.k1_neg) {
+        field_negate(&base.y, &base.y);
+    }
+
+    constexpr int TABLE_SIZE = (1 << (SCAN_WNAF_W - 2));
+    AffinePoint tbl_P[TABLE_SIZE];
+    FieldElement globalz;
+    build_wnaf_table_zr(&base, tbl_P, TABLE_SIZE, &globalz);
+
+    AffinePoint tbl_phiP[TABLE_SIZE];
+    derive_endo_table(tbl_P, tbl_phiP, TABLE_SIZE, BIP352_SCANKEY_WNAF.flip_phi != 0);
+
+    r->infinity = true;
+    field_set_zero(&r->x);
+    field_set_one(&r->y);
+    field_set_zero(&r->z);
+
+    #pragma unroll 1
+    for (int i = SCAN_WNAF_MAXLEN - 1; i >= 0; --i) {
+        if (!r->infinity) {
+            jacobian_double_unchecked(r, r);
+        }
+
+        int8_t d1 = BIP352_SCANKEY_WNAF.wnaf1[i];
+        if (d1 != 0) {
+            int table_idx = ((d1 > 0) ? d1 : -d1);
+            table_idx = (table_idx - 1) >> 1;
+            AffinePoint pt = tbl_P[table_idx];
+            if (d1 < 0) field_negate(&pt.y, &pt.y);
+
+            if (r->infinity) {
+                r->x = pt.x;
+                r->y = pt.y;
+                field_set_one(&r->z);
+                r->infinity = false;
+            } else {
+                jacobian_add_mixed_unchecked(r, &pt, r);
+            }
+        }
+
+        int8_t d2 = BIP352_SCANKEY_WNAF.wnaf2[i];
+        if (d2 != 0) {
+            int table_idx = ((d2 > 0) ? d2 : -d2);
+            table_idx = (table_idx - 1) >> 1;
+            AffinePoint pt = tbl_phiP[table_idx];
+            if (d2 < 0) field_negate(&pt.y, &pt.y);
+
+            if (r->infinity) {
+                r->x = pt.x;
+                r->y = pt.y;
+                field_set_one(&r->z);
+                r->infinity = false;
+            } else {
+                jacobian_add_mixed_unchecked(r, &pt, r);
+            }
+        }
+    }
+
+    if (!r->infinity) {
+        FieldElement tmp;
+        field_mul(&r->z, &globalz, &tmp);
+        r->z = tmp;
+    }
+}
+
+__device__ __forceinline__ int64_t point_prefix64(
+    const secp256k1::cuda::JacobianPoint* p)
+{
+    using namespace secp256k1::cuda;
+
+    if (p->infinity) return 0;
+
+    FieldElement ax;
+    if (p->z.limbs[0] == 1 && p->z.limbs[1] == 0 && p->z.limbs[2] == 0 && p->z.limbs[3] == 0) {
+        ax = p->x;
+    } else {
+        FieldElement z_inv, z_inv2;
+        field_inv(&p->z, &z_inv);
+        field_sqr(&z_inv, &z_inv2);
+        field_mul(&p->x, &z_inv2, &ax);
+    }
+
+    uint8_t x_bytes[32];
+    field_to_bytes(&ax, x_bytes);
+
+    int64_t prefix = 0;
+    for (int i = 0; i < 8; i++) prefix = (prefix << 8) | x_bytes[i];
+    return prefix;
+}
+
 __global__ void decompress_points_kernel(
     const uint8_t* __restrict__ comp,
     secp256k1::cuda::JacobianPoint* __restrict__ pts,
@@ -1250,14 +1357,169 @@ __global__ void bip352_pipeline_kernel_lut(
 
     // 5. Point add
     JacobianPoint cand;
-    jacobian_add(&(*spend_point), &out, &cand);
+    jacobian_add_mixed_unchecked(&out, &BIP352_SPEND_AFFINE, &cand);
 
-    // 6. Serialize + prefix
-    uint8_t cc[33];
-    point_to_compressed(&cand, cc);
-    int64_t prefix = 0;
-    for (int i = 0; i < 8; i++) prefix = (prefix << 8) | cc[1 + i];
-    prefixes[idx] = prefix;
+    // 6. Extract X prefix directly; the full compressed candidate is not needed here.
+    prefixes[idx] = point_prefix64(&cand);
+}
+
+// ============================================================================
+// Precomputed-table kernels
+// ============================================================================
+
+// Pass 1: build per-tweak wNAF tables into transposed global memory.
+// Layout: tables_P[slot * n + idx], tables_phiP[slot * n + idx], globalz_buf[idx].
+// Transposed so that during the wNAF loop (where all threads share the same slot
+// from constant-memory BIP352_SCANKEY_WNAF) reads are fully coalesced.
+__global__ void precompute_tweak_tables_kernel(
+    const secp256k1::cuda::JacobianPoint* __restrict__ tweak_points,
+    secp256k1::cuda::AffinePoint* __restrict__ tables_P,
+    secp256k1::cuda::AffinePoint* __restrict__ tables_phiP,
+    secp256k1::cuda::FieldElement* __restrict__ globalz_buf,
+    int n)
+{
+    using namespace secp256k1::cuda;
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= n) return;
+
+    // Normalise input point (should already be z=1 from decompression).
+    const JacobianPoint* p = &tweak_points[idx];
+    AffinePoint base;
+    if (p->z.limbs[0] == 1 && p->z.limbs[1] == 0 &&
+        p->z.limbs[2] == 0 && p->z.limbs[3] == 0) {
+        base.x = p->x;
+        base.y = p->y;
+    } else {
+        FieldElement z_inv, z_inv2, z_inv3;
+        field_inv(&p->z, &z_inv);
+        field_sqr(&z_inv, &z_inv2);
+        field_mul(&z_inv2, &z_inv, &z_inv3);
+        field_mul(&p->x, &z_inv2, &base.x);
+        field_mul(&p->y, &z_inv3, &base.y);
+    }
+
+    if (BIP352_SCANKEY_WNAF.k1_neg) {
+        field_negate(&base.y, &base.y);
+    }
+
+    constexpr int TS = (1 << (SCAN_WNAF_W - 2));
+    AffinePoint tbl_P[TS];
+    FieldElement globalz;
+    build_wnaf_table_zr(&base, tbl_P, TS, &globalz);
+
+    AffinePoint tbl_phiP[TS];
+    derive_endo_table(tbl_P, tbl_phiP, TS, BIP352_SCANKEY_WNAF.flip_phi != 0);
+
+    // Write transposed: tables_P[slot * n + idx]
+    for (int s = 0; s < TS; ++s) {
+        tables_P[   s * n + idx] = tbl_P[s];
+        tables_phiP[s * n + idx] = tbl_phiP[s];
+    }
+    globalz_buf[idx] = globalz;
+}
+
+// wNAF scalar-mul using precomputed tables from global memory.
+// All threads share the same wNAF digits (constant memory) => same slot per step
+// => reads tables_P[slot * n + idx] are fully coalesced across the warp.
+__device__ inline void scalar_mul_fixed_scan_pretbl(
+    int idx,
+    const secp256k1::cuda::AffinePoint* __restrict__ tables_P,
+    const secp256k1::cuda::AffinePoint* __restrict__ tables_phiP,
+    const secp256k1::cuda::FieldElement* __restrict__ globalz_buf,
+    int n,
+    secp256k1::cuda::JacobianPoint* r)
+{
+    using namespace secp256k1::cuda;
+
+    FieldElement globalz = globalz_buf[idx];
+
+    r->infinity = true;
+    field_set_zero(&r->x);
+    field_set_one(&r->y);
+    field_set_zero(&r->z);
+
+    #pragma unroll 1
+    for (int i = SCAN_WNAF_MAXLEN - 1; i >= 0; --i) {
+        if (!r->infinity) {
+            jacobian_double_unchecked(r, r);
+        }
+
+        int8_t d1 = BIP352_SCANKEY_WNAF.wnaf1[i];
+        if (d1 != 0) {
+            int slot = ((d1 > 0) ? d1 : -d1);
+            slot = (slot - 1) >> 1;
+            // Coalesced: slot identical for all threads in warp (shared scan key).
+            AffinePoint pt = tables_P[slot * n + idx];
+            if (d1 < 0) field_negate(&pt.y, &pt.y);
+
+            if (r->infinity) {
+                r->x = pt.x; r->y = pt.y;
+                field_set_one(&r->z); r->infinity = false;
+            } else {
+                jacobian_add_mixed_unchecked(r, &pt, r);
+            }
+        }
+
+        int8_t d2 = BIP352_SCANKEY_WNAF.wnaf2[i];
+        if (d2 != 0) {
+            int slot = ((d2 > 0) ? d2 : -d2);
+            slot = (slot - 1) >> 1;
+            AffinePoint pt = tables_phiP[slot * n + idx];
+            if (d2 < 0) field_negate(&pt.y, &pt.y);
+
+            if (r->infinity) {
+                r->x = pt.x; r->y = pt.y;
+                field_set_one(&r->z); r->infinity = false;
+            } else {
+                jacobian_add_mixed_unchecked(r, &pt, r);
+            }
+        }
+    }
+
+    if (!r->infinity) {
+        FieldElement tmp;
+        field_mul(&r->z, &globalz, &tmp);
+        r->z = tmp;
+    }
+}
+
+// Pass 2: full pipeline using precomputed per-tweak tables.
+__global__ void bip352_pipeline_kernel_lut_pretbl(
+    const secp256k1::cuda::AffinePoint* __restrict__ tables_P,
+    const secp256k1::cuda::AffinePoint* __restrict__ tables_phiP,
+    const secp256k1::cuda::FieldElement* __restrict__ globalz_buf,
+    const secp256k1::cuda::AffinePoint* __restrict__ gen_lut,
+    int64_t* __restrict__ prefixes,
+    int n)
+{
+    using namespace secp256k1::cuda;
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= n) return;
+
+    // 1. k*P via precomputed tables (no local table build, no register spill for tables).
+    JacobianPoint shared;
+    scalar_mul_fixed_scan_pretbl(idx, tables_P, tables_phiP, globalz_buf, n, &shared);
+
+    // 2. Serialize into tagged-hash input buffer.
+    uint8_t ser[37];
+    bip352_shared_secret_input(&shared, ser);
+
+    // 3. Tagged SHA-256.
+    uint8_t hash[32];
+    bip352_tagged_sha256(ser, 37, hash);
+
+    // 4. k*G via LUT.
+    Scalar hs;
+    scalar_from_bytes(hash, &hs);
+    JacobianPoint out;
+    scalar_mul_generator_lut(&hs, gen_lut, &out);
+
+    // 5. Point add.
+    JacobianPoint cand;
+    jacobian_add_mixed_unchecked(&out, &BIP352_SPEND_AFFINE, &cand);
+
+    // 6. Extract X prefix.
+    prefixes[idx] = point_prefix64(&cand);
 }
 
 // k*G detail kernel using LUT

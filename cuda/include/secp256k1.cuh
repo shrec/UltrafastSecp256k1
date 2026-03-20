@@ -1467,6 +1467,42 @@ __device__ inline void jacobian_double(const JacobianPoint* p, JacobianPoint* r)
     r->infinity = false;
 }
 
+// Unchecked doubling: skips infinity and Y==0 checks.
+// Precondition: p is a valid, non-infinity point with Y != 0.
+__device__ inline void jacobian_double_unchecked(const JacobianPoint* p, JacobianPoint* r) {
+    FieldElement S, M, X3, Y3, Z3, YY, YYYY, t1;
+
+    field_sqr(&p->y, &YY);
+
+    field_mul(&p->x, &YY, &S);
+    field_add(&S, &S, &S);
+    field_add(&S, &S, &S);
+
+    field_sqr(&p->x, &M);
+    field_add(&M, &M, &t1);
+    field_add(&M, &t1, &M);
+
+    field_sqr(&M, &X3);
+    field_add(&S, &S, &t1);
+    field_sub(&X3, &t1, &X3);
+
+    field_sqr(&YY, &YYYY);
+
+    field_add(&YYYY, &YYYY, &t1);
+    field_add(&t1, &t1, &t1);
+    field_add(&t1, &t1, &t1);
+    field_sub(&S, &X3, &S);
+    field_mul(&M, &S, &Y3);
+    field_sub(&Y3, &t1, &Y3);
+
+    field_mul(&p->y, &p->z, &Z3);
+    field_add(&Z3, &Z3, &Z3);
+
+    r->x = X3;
+    r->y = Y3;
+    r->z = Z3;
+}
+
 // Mixed addition: P (Jacobian) + Q (Affine) -> Result (Jacobian)
 // All computation in local registers, single output write at end
 __device__ inline void jacobian_add_mixed(const JacobianPoint* p, const AffinePoint* q, JacobianPoint* r) {
@@ -1547,6 +1583,62 @@ __device__ inline void jacobian_add_mixed(const JacobianPoint* p, const AffinePo
     r->y = Y3;
     r->z = Z3;
     r->infinity = false;
+}
+
+// Unchecked mixed addition: skips p->infinity check.
+// Precondition: p is a valid, non-infinity Jacobian point.
+// Keeps the h==0 (P==Q) check for algebraic completeness.
+__device__ inline void jacobian_add_mixed_unchecked(const JacobianPoint* p, const AffinePoint* q, JacobianPoint* r) {
+    FieldElement z1z1, u2, s2, h, hh, i, j, rr, v;
+    FieldElement X3, Y3, Z3, t1, t2;
+
+    field_sqr(&p->z, &z1z1);
+    field_mul(&q->x, &z1z1, &u2);
+
+    field_mul(&p->z, &z1z1, &t1);
+    field_mul(&q->y, &t1, &s2);
+
+    field_sub(&u2, &p->x, &h);
+
+    if (field_is_zero(&h)) {
+        field_sub(&s2, &p->y, &t1);
+        if (field_is_zero(&t1)) {
+            jacobian_double_unchecked(p, r);
+            return;
+        }
+        r->infinity = true;
+        return;
+    }
+
+    field_sqr(&h, &hh);
+    field_add(&hh, &hh, &i);
+    field_add(&i, &i, &i);
+    field_mul(&h, &i, &j);
+
+    field_sub(&s2, &p->y, &t1);
+    field_add(&t1, &t1, &rr);
+
+    field_mul(&p->x, &i, &v);
+
+    field_sqr(&rr, &X3);
+    field_sub(&X3, &j, &X3);
+    field_add(&v, &v, &t1);
+    field_sub(&X3, &t1, &X3);
+
+    field_sub(&v, &X3, &t1);
+    field_mul(&rr, &t1, &Y3);
+    field_mul(&p->y, &j, &t2);
+    field_add(&t2, &t2, &t2);
+    field_sub(&Y3, &t2, &Y3);
+
+    field_add(&p->z, &h, &t1);
+    field_sqr(&t1, &Z3);
+    field_sub(&Z3, &z1z1, &Z3);
+    field_sub(&Z3, &hh, &Z3);
+
+    r->x = X3;
+    r->y = Y3;
+    r->z = Z3;
 }
 
 // Using madd-2004-hmv formula (8M + 3S) - original baseline

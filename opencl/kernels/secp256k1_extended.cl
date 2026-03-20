@@ -564,6 +564,249 @@ inline void glv_decompose_impl(const Scalar* k, Scalar* k1, Scalar* k2,
 // GLV-accelerated scalar multiplication: k*P using Shamir's trick
 // with endomorphism phi(P) = (beta*x, y) where phi corresponds to lambda.
 // Uses interleaved wNAF w=5 for both half-scalars k1, k2.
+inline void build_wnaf_table_zr_impl(const AffinePoint* base, AffinePoint table[8],
+                                     FieldElement* globalz) {
+    JacobianPoint base_jac;
+    point_from_affine(&base_jac, base);
+
+    JacobianPoint doubled;
+    point_double_impl(&doubled, &base_jac);
+
+    FieldElement c = doubled.z;
+    FieldElement c2, c3;
+    field_sqr_impl(&c2, &c);
+    field_mul_impl(&c3, &c2, &c);
+
+    AffinePoint doubled_affine;
+    doubled_affine.x = doubled.x;
+    doubled_affine.y = doubled.y;
+
+    JacobianPoint accum;
+    field_mul_impl(&accum.x, &base->x, &c2);
+    field_mul_impl(&accum.y, &base->y, &c3);
+    accum.z.limbs[0] = 1UL;
+    accum.z.limbs[1] = 0UL;
+    accum.z.limbs[2] = 0UL;
+    accum.z.limbs[3] = 0UL;
+    accum.infinity = 0;
+
+    table[0].x = accum.x;
+    table[0].y = accum.y;
+
+    FieldElement zr[8];
+    zr[0] = c;
+
+    for (int i = 1; i < 8; ++i) {
+        FieldElement h;
+        point_add_mixed_h_impl(&accum, &accum, &doubled_affine, &h);
+        table[i].x = accum.x;
+        table[i].y = accum.y;
+        zr[i] = h;
+    }
+
+    field_mul_impl(globalz, &accum.z, &c);
+
+    FieldElement zs = zr[7];
+    for (int idx = 6; idx >= 0; --idx) {
+        if (idx != 6) {
+            FieldElement tmp;
+            field_mul_impl(&tmp, &zs, &zr[idx + 1]);
+            zs = tmp;
+        }
+
+        FieldElement zs2, zs3;
+        field_sqr_impl(&zs2, &zs);
+        field_mul_impl(&zs3, &zs2, &zs);
+
+        FieldElement tx, ty;
+        field_mul_impl(&tx, &table[idx].x, &zs2);
+        field_mul_impl(&ty, &table[idx].y, &zs3);
+        table[idx].x = tx;
+        table[idx].y = ty;
+    }
+}
+
+inline void derive_endo_table_impl(const AffinePoint table[8], AffinePoint endo_table[8],
+                                   int negate_y) {
+    FieldElement beta;
+    beta.limbs[0] = GLV_BETA0; beta.limbs[1] = GLV_BETA1;
+    beta.limbs[2] = GLV_BETA2; beta.limbs[3] = GLV_BETA3;
+
+    for (int i = 0; i < 8; ++i) {
+        field_mul_impl(&endo_table[i].x, &table[i].x, &beta);
+        if (negate_y) {
+            field_negate_impl(&endo_table[i].y, &table[i].y);
+        } else {
+            endo_table[i].y = table[i].y;
+        }
+    }
+}
+
+// =============================================================================
+// Shamir's trick double-scalar multiplication with 4-scalar GLV decomposition.
+// Computes r = a*P + b*Q  (both P and Q are affine inputs).
+// Uses a 16-entry precomputed affine table + a single batch field_inv (Montgomery
+// trick for 11 intermediate Z values). Main loop iterates ~129 half-width bits.
+// Expected cost vs two separate scalar_mul_glv_impl calls:
+//   2×(~130 D + ~65 MA) + 1 J+J = ~260 D + ~131 MA
+//   Shamir: ~1 field_inv + ~129 D + ~120 MA  → saves ~130 doubles
+// =============================================================================
+inline void shamir_double_mul_glv_impl(
+    const AffinePoint* P, const Scalar* a,
+    const AffinePoint* Q, const Scalar* b,
+    JacobianPoint* r)
+{
+    // Degenerate fallback: one or both scalars zero
+    if (scalar_is_zero(a) && scalar_is_zero(b)) {
+        point_set_infinity(r); return;
+    }
+    if (scalar_is_zero(a)) { scalar_mul_glv_impl(r, b, Q); return; }
+    if (scalar_is_zero(b)) { scalar_mul_glv_impl(r, a, P); return; }
+
+    // GLV decompose both scalars: a → (a1,a2), b → (b1,b2), each ~128 bits
+    Scalar a1, a2, b1, b2;
+    int a1_neg, a2_neg, b1_neg, b2_neg;
+    glv_decompose_impl(a, &a1, &a2, &a1_neg, &a2_neg);
+    glv_decompose_impl(b, &b1, &b2, &b1_neg, &b2_neg);
+
+    // Build 4 signed base affine points:
+    //   pts[0] = ±P        (for a1)  pts[1] = ±endo(P) (for a2)
+    //   pts[2] = ±Q        (for b1)  pts[3] = ±endo(Q) (for b2)
+    AffinePoint pts[4];
+    FieldElement beta;
+    beta.limbs[0] = GLV_BETA0; beta.limbs[1] = GLV_BETA1;
+    beta.limbs[2] = GLV_BETA2; beta.limbs[3] = GLV_BETA3;
+
+    pts[0] = *P;
+    if (a1_neg) field_negate_impl(&pts[0].y, &pts[0].y);
+    field_mul_impl(&pts[1].x, &P->x, &beta);
+    pts[1].y = P->y;
+    if (a2_neg) field_negate_impl(&pts[1].y, &pts[1].y);
+
+    pts[2] = *Q;
+    if (b1_neg) field_negate_impl(&pts[2].y, &pts[2].y);
+    field_mul_impl(&pts[3].x, &Q->x, &beta);
+    pts[3].y = Q->y;
+    if (b2_neg) field_negate_impl(&pts[3].y, &pts[3].y);
+
+    // Precompute 15 non-zero combos into a 16-entry affine table.
+    // Index encoding: bit0=a1, bit1=a2, bit2=b1, bit3=b2.
+    AffinePoint table[16];
+    table[1]  = pts[0];   // P1
+    table[2]  = pts[1];   // P2
+    table[4]  = pts[2];   // Q1
+    table[8]  = pts[3];   // Q2
+
+    // Compute 11 pairwise/triple/quad combos as Jacobian points
+    JacobianPoint jc[11];
+    JacobianPoint tmp_j;
+
+    point_from_affine(&tmp_j, &pts[0]);
+    point_add_mixed_impl(&jc[0], &tmp_j, &pts[1]);  // P1+P2  → table[3]
+    point_from_affine(&tmp_j, &pts[0]);
+    point_add_mixed_impl(&jc[1], &tmp_j, &pts[2]);  // P1+Q1  → table[5]
+    point_from_affine(&tmp_j, &pts[1]);
+    point_add_mixed_impl(&jc[2], &tmp_j, &pts[2]);  // P2+Q1  → table[6]
+    point_from_affine(&tmp_j, &pts[0]);
+    point_add_mixed_impl(&jc[3], &tmp_j, &pts[3]);  // P1+Q2  → table[9]
+    point_from_affine(&tmp_j, &pts[1]);
+    point_add_mixed_impl(&jc[4], &tmp_j, &pts[3]);  // P2+Q2  → table[10]
+    point_from_affine(&tmp_j, &pts[2]);
+    point_add_mixed_impl(&jc[5], &tmp_j, &pts[3]);  // Q1+Q2  → table[12]
+
+    point_add_mixed_impl(&jc[6],  &jc[0], &pts[2]);  // P1+P2+Q1   → table[7]
+    point_add_mixed_impl(&jc[7],  &jc[0], &pts[3]);  // P1+P2+Q2   → table[11]
+    point_add_mixed_impl(&jc[8],  &jc[1], &pts[3]);  // P1+Q1+Q2   → table[13]
+    point_add_mixed_impl(&jc[9],  &jc[2], &pts[3]);  // P2+Q1+Q2   → table[14]
+    point_add_mixed_impl(&jc[10], &jc[6], &pts[3]);  // P1+P2+Q1+Q2→ table[15]
+
+    // Safety: check for degenerate (infinity) combo -- fallback if any
+    int has_degen = 0;
+    for (int i = 0; i < 11; i++) {
+        if (point_is_infinity(&jc[i])) { has_degen = 1; break; }
+    }
+
+    if (has_degen) {
+        // Fallback: 4-point binary accumulation (no batch inversion needed)
+        int max_len = scalar_bitlen_impl(&a1);
+        int l2 = scalar_bitlen_impl(&a2); if (l2 > max_len) max_len = l2;
+        int l3 = scalar_bitlen_impl(&b1); if (l3 > max_len) max_len = l3;
+        int l4 = scalar_bitlen_impl(&b2); if (l4 > max_len) max_len = l4;
+
+        point_set_infinity(r);
+        for (int i = max_len - 1; i >= 0; --i) {
+            if (!point_is_infinity(r)) point_double_impl(r, r);
+            if (scalar_bit(&a1, i)) {
+                if (point_is_infinity(r)) point_from_affine(r, &pts[0]);
+                else point_add_mixed_impl(r, r, &pts[0]);
+            }
+            if (scalar_bit(&a2, i)) {
+                if (point_is_infinity(r)) point_from_affine(r, &pts[1]);
+                else point_add_mixed_impl(r, r, &pts[1]);
+            }
+            if (scalar_bit(&b1, i)) {
+                if (point_is_infinity(r)) point_from_affine(r, &pts[2]);
+                else point_add_mixed_impl(r, r, &pts[2]);
+            }
+            if (scalar_bit(&b2, i)) {
+                if (point_is_infinity(r)) point_from_affine(r, &pts[3]);
+                else point_add_mixed_impl(r, r, &pts[3]);
+            }
+        }
+        return;
+    }
+
+    // Batch inversion: Montgomery's trick — 1 field_inv for 11 Z values
+    FieldElement prefix[11];
+    prefix[0] = jc[0].z;
+    for (int i = 1; i < 11; i++) {
+        field_mul_impl(&prefix[i], &prefix[i-1], &jc[i].z);
+    }
+
+    FieldElement inv_prod;
+    field_inv_impl(&inv_prod, &prefix[10]);
+
+    FieldElement z_inv[11];
+    for (int i = 10; i > 0; --i) {
+        field_mul_impl(&z_inv[i], &inv_prod, &prefix[i-1]);
+        FieldElement tmp;
+        field_mul_impl(&tmp, &inv_prod, &jc[i].z);
+        inv_prod = tmp;
+    }
+    z_inv[0] = inv_prod;
+
+    // Convert combo Jacobian points to affine and store in table
+    const int tbl_map[11] = {3, 5, 6, 9, 10, 12, 7, 11, 13, 14, 15};
+    for (int i = 0; i < 11; i++) {
+        FieldElement zi2, zi3;
+        field_sqr_impl(&zi2, &z_inv[i]);
+        field_mul_impl(&zi3, &zi2, &z_inv[i]);
+        field_mul_impl(&table[tbl_map[i]].x, &jc[i].x, &zi2);
+        field_mul_impl(&table[tbl_map[i]].y, &jc[i].y, &zi3);
+    }
+
+    // Main loop: ~129 half-width bits, 4-bit index → 16-entry table lookup
+    int max_len = scalar_bitlen_impl(&a1);
+    int l2 = scalar_bitlen_impl(&a2); if (l2 > max_len) max_len = l2;
+    int l3 = scalar_bitlen_impl(&b1); if (l3 > max_len) max_len = l3;
+    int l4 = scalar_bitlen_impl(&b2); if (l4 > max_len) max_len = l4;
+
+    point_set_infinity(r);
+    for (int i = max_len - 1; i >= 0; --i) {
+        if (!point_is_infinity(r)) point_double_impl(r, r);
+
+        int idx = scalar_bit(&a1, i)
+                | (scalar_bit(&a2, i) << 1)
+                | (scalar_bit(&b1, i) << 2)
+                | (scalar_bit(&b2, i) << 3);
+
+        if (idx != 0) {
+            if (point_is_infinity(r)) point_from_affine(r, &table[idx]);
+            else                      point_add_mixed_impl(r, r, &table[idx]);
+        }
+    }
+}
+
 inline void scalar_mul_glv_impl(JacobianPoint* r, const Scalar* k, const AffinePoint* p) {
     Scalar k1, k2;
     int k1_neg, k2_neg;
@@ -901,24 +1144,24 @@ inline int ecdsa_verify_impl(const uchar msg_hash[32], const JacobianPoint* pubk
     scalar_mul_mod_n_impl(&sig->r, &s_inv, &u2);
 
     AffinePoint G; get_generator(&G);
-    JacobianPoint u1G, u2Q;
-    scalar_mul_impl(&u1G, &u1, &G);
 
-    // Convert pubkey to affine for scalar_mul_impl
-    FieldElement pz_inv, pz_inv2, pz_inv3, px_aff, py_aff;
-    field_inv_impl(&pz_inv, &pubkey->z);
-    field_sqr_impl(&pz_inv2, &pz_inv);
-    field_mul_impl(&pz_inv3, &pz_inv2, &pz_inv);
-    field_mul_impl(&px_aff, &pubkey->x, &pz_inv2);
-    field_mul_impl(&py_aff, &pubkey->y, &pz_inv3);
-
+    // Convert pubkey to affine: fast-path when Z==1 (common case)
     AffinePoint pub_aff;
-    pub_aff.x = px_aff; pub_aff.y = py_aff;
+    if (pubkey->z.limbs[0] == 1 && pubkey->z.limbs[1] == 0 &&
+        pubkey->z.limbs[2] == 0 && pubkey->z.limbs[3] == 0) {
+        pub_aff.x = pubkey->x; pub_aff.y = pubkey->y;
+    } else {
+        FieldElement pz_inv, pz_inv2, pz_inv3;
+        field_inv_impl(&pz_inv, &pubkey->z);
+        field_sqr_impl(&pz_inv2, &pz_inv);
+        field_mul_impl(&pz_inv3, &pz_inv2, &pz_inv);
+        field_mul_impl(&pub_aff.x, &pubkey->x, &pz_inv2);
+        field_mul_impl(&pub_aff.y, &pubkey->y, &pz_inv3);
+    }
 
-    scalar_mul_impl(&u2Q, &u2, &pub_aff);
-
+    // R = u1*G + u2*Q  using Shamir's trick (one interleaved loop)
     JacobianPoint R;
-    point_add_impl(&R, &u1G, &u2Q);
+    shamir_double_mul_glv_impl(&G, &u1, &pub_aff, &u2, &R);
     if (point_is_infinity(&R)) return 0;
 
     // Check R.x mod n == r
@@ -1142,26 +1385,18 @@ inline int schnorr_verify_impl(const uchar pubkey_x[32], const uchar msg[32],
     Scalar e;
     scalar_from_bytes_impl(e_hash, &e);
 
-    // R = s*G - e*P
+    // R = s*G - e*P  using Shamir's trick (one interleaved loop, saves ~130 doubles)
     AffinePoint G; get_generator(&G);
-    JacobianPoint sG, eP;
-    scalar_mul_glv_impl(&sG, &sig->s, &G);
 
-    // Convert P to affine for scalar_mul_impl
-    FieldElement pz_inv, pz_inv2, pz_inv3, px_aff, py_aff;
-    field_inv_impl(&pz_inv, &P.z);
-    field_sqr_impl(&pz_inv2, &pz_inv);
-    field_mul_impl(&pz_inv3, &pz_inv2, &pz_inv);
-    field_mul_impl(&px_aff, &P.x, &pz_inv2);
-    field_mul_impl(&py_aff, &P.y, &pz_inv3);
-    AffinePoint p_aff; p_aff.x = px_aff; p_aff.y = py_aff;
+    // lift_x_impl returns Z=1, so P is already affine -- no field_inv needed
+    AffinePoint p_aff; p_aff.x = P.x; p_aff.y = P.y;
 
-    scalar_mul_glv_impl(&eP, &e, &p_aff);
-
-    point_negate_y(&eP);
+    // Negate e for: R = s*G + (-e)*P
+    Scalar neg_e;
+    scalar_negate_impl(&e, &neg_e);
 
     JacobianPoint Rpt;
-    point_add_impl(&Rpt, &sG, &eP);
+    shamir_double_mul_glv_impl(&G, &sig->s, &p_aff, &neg_e, &Rpt);
     if (point_is_infinity(&Rpt)) return 0;
 
     FieldElement rz_inv, rz_inv2, rz_inv3, rx_aff, ry_aff;

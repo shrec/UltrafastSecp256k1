@@ -57,26 +57,26 @@ typedef struct {
 // Point Utilities
 // =============================================================================
 
-inline void point_set_infinity(JacobianPoint* p) {
+FORCE_INLINE void point_set_infinity(JacobianPoint* p) {
     p->x.limbs[0] = 0; p->x.limbs[1] = 0; p->x.limbs[2] = 0; p->x.limbs[3] = 0;
     p->y.limbs[0] = 1; p->y.limbs[1] = 0; p->y.limbs[2] = 0; p->y.limbs[3] = 0;
     p->z.limbs[0] = 0; p->z.limbs[1] = 0; p->z.limbs[2] = 0; p->z.limbs[3] = 0;
     p->infinity = 1;
 }
 
-inline int point_is_infinity(const JacobianPoint* p) {
+FORCE_INLINE int point_is_infinity(const JacobianPoint* p) {
     return p->infinity ||
            ((p->z.limbs[0] | p->z.limbs[1] | p->z.limbs[2] | p->z.limbs[3]) == 0);
 }
 
-inline void point_from_affine(JacobianPoint* j, const AffinePoint* a) {
+FORCE_INLINE void point_from_affine(JacobianPoint* j, const AffinePoint* a) {
     j->x = a->x;
     j->y = a->y;
     j->z.limbs[0] = 1; j->z.limbs[1] = 0; j->z.limbs[2] = 0; j->z.limbs[3] = 0;
     j->infinity = 0;
 }
 
-inline void get_generator(AffinePoint* g) {
+FORCE_INLINE void get_generator(AffinePoint* g) {
     g->x.limbs[0] = SECP256K1_GX0;
     g->x.limbs[1] = SECP256K1_GX1;
     g->x.limbs[2] = SECP256K1_GX2;
@@ -93,7 +93,7 @@ inline void get_generator(AffinePoint* g) {
 // Using standard doubling formula for a = 0 curves (secp256k1)
 // =============================================================================
 
-inline void point_double_impl(JacobianPoint* r, const JacobianPoint* p) {
+FORCE_INLINE void point_double_impl(JacobianPoint* r, const JacobianPoint* p) {
     if (point_is_infinity(p)) {
         point_set_infinity(r);
         return;
@@ -147,7 +147,97 @@ inline void point_double_impl(JacobianPoint* r, const JacobianPoint* p) {
 // Complete addition formula
 // =============================================================================
 
-inline void point_add_impl(JacobianPoint* r, const JacobianPoint* p, const JacobianPoint* q) {
+// Unchecked doubling: skips infinity and Y==0 checks.
+// Precondition: p is a valid, non-infinity point with Y != 0.
+FORCE_INLINE void point_double_unchecked(JacobianPoint* r, const JacobianPoint* p) {
+    FieldElement S, M, X3, Y3, Z3, YY, YYYY, t1, t2;
+
+    field_sqr_impl(&YY, &p->y);
+    field_mul_impl(&S, &p->x, &YY);
+    field_add_impl(&S, &S, &S);
+    field_add_impl(&S, &S, &S);
+
+    field_sqr_impl(&M, &p->x);
+    field_add_impl(&t1, &M, &M);
+    field_add_impl(&M, &M, &t1);
+
+    field_sqr_impl(&X3, &M);
+    field_add_impl(&t1, &S, &S);
+    field_sub_impl(&X3, &X3, &t1);
+
+    field_sqr_impl(&YYYY, &YY);
+    field_add_impl(&t1, &YYYY, &YYYY);
+    field_add_impl(&t1, &t1, &t1);
+    field_add_impl(&t1, &t1, &t1);
+    field_sub_impl(&t2, &S, &X3);
+    field_mul_impl(&Y3, &M, &t2);
+    field_sub_impl(&Y3, &Y3, &t1);
+
+    field_mul_impl(&Z3, &p->y, &p->z);
+    field_add_impl(&Z3, &Z3, &Z3);
+
+    r->x = X3;
+    r->y = Y3;
+    r->z = Z3;
+}
+
+// Unchecked mixed addition: skips p->infinity check.
+// Precondition: p is a valid, non-infinity Jacobian point.
+// Keeps the H==0 check for algebraic completeness.
+FORCE_INLINE void point_add_mixed_unchecked(JacobianPoint* r, const JacobianPoint* p, const AffinePoint* q) {
+    FieldElement Z1Z1, U2, S2, H, HH, I, J, rr, V, X3, Y3, Z3, t1, t2;
+
+    field_sqr_impl(&Z1Z1, &p->z);
+    field_mul_impl(&U2, &q->x, &Z1Z1);
+    field_mul_impl(&t1, &q->y, &p->z);
+    field_mul_impl(&S2, &t1, &Z1Z1);
+    field_sub_impl(&H, &U2, &p->x);
+
+    if ((H.limbs[0] | H.limbs[1] | H.limbs[2] | H.limbs[3]) == 0) {
+        field_sub_impl(&t1, &S2, &p->y);
+        if ((t1.limbs[0] | t1.limbs[1] | t1.limbs[2] | t1.limbs[3]) == 0) {
+            point_double_unchecked(r, p);
+            return;
+        }
+        point_set_infinity(r);
+        return;
+    }
+
+    field_sqr_impl(&HH, &H);
+    field_add_impl(&I, &HH, &HH);
+    field_add_impl(&I, &I, &I);
+    field_mul_impl(&J, &H, &I);
+    field_sub_impl(&rr, &S2, &p->y);
+    field_add_impl(&rr, &rr, &rr);
+    field_mul_impl(&V, &p->x, &I);
+
+    field_sqr_impl(&X3, &rr);
+    field_sub_impl(&X3, &X3, &J);
+    field_add_impl(&t1, &V, &V);
+    field_sub_impl(&X3, &X3, &t1);
+
+    field_sub_impl(&t1, &V, &X3);
+    field_mul_impl(&Y3, &rr, &t1);
+    field_mul_impl(&t2, &p->y, &J);
+    field_add_impl(&t2, &t2, &t2);
+    field_sub_impl(&Y3, &Y3, &t2);
+
+    field_add_impl(&t1, &p->z, &H);
+    field_sqr_impl(&Z3, &t1);
+    field_sub_impl(&Z3, &Z3, &Z1Z1);
+    field_sub_impl(&Z3, &Z3, &HH);
+
+    r->x = X3;
+    r->y = Y3;
+    r->z = Z3;
+}
+
+// =============================================================================
+// Point Addition: R = P + Q (Jacobian + Jacobian)
+// Complete addition formula
+// =============================================================================
+
+FORCE_INLINE void point_add_impl(JacobianPoint* r, const JacobianPoint* p, const JacobianPoint* q) {
     // Handle infinity cases
     if (point_is_infinity(p)) {
         *r = *q;
@@ -242,7 +332,7 @@ inline void point_add_impl(JacobianPoint* r, const JacobianPoint* p, const Jacob
 // More efficient when one point is affine (Z = 1)
 // =============================================================================
 
-inline void point_add_mixed_impl(JacobianPoint* r, const JacobianPoint* p, const AffinePoint* q) {
+FORCE_INLINE void point_add_mixed_impl(JacobianPoint* r, const JacobianPoint* p, const AffinePoint* q) {
     if (point_is_infinity(p)) {
         point_from_affine(r, q);
         return;
@@ -316,21 +406,82 @@ inline void point_add_mixed_impl(JacobianPoint* r, const JacobianPoint* p, const
     r->infinity = 0;
 }
 
+// Mixed Jacobian+affine addition with H output for batch inversion.
+// h_out receives H = U2 - X1 (the Z-coordinate ratio).
+// For degenerate cases (infinity, doubling, negation), h_out = ONE.
+FORCE_INLINE void point_add_mixed_h_impl(JacobianPoint* r, const JacobianPoint* p,
+                                   const AffinePoint* q, FieldElement* h_out) {
+    h_out->limbs[0] = 1UL; h_out->limbs[1] = 0; h_out->limbs[2] = 0; h_out->limbs[3] = 0;
+
+    if (point_is_infinity(p)) {
+        point_from_affine(r, q);
+        return;
+    }
+
+    FieldElement Z1Z1, U2, S2, H, HH, I, J, rr, V, X3, Y3, Z3, t1, t2;
+
+    field_sqr_impl(&Z1Z1, &p->z);
+    field_mul_impl(&U2, &q->x, &Z1Z1);
+    field_mul_impl(&t1, &q->y, &p->z);
+    field_mul_impl(&S2, &t1, &Z1Z1);
+
+    field_sub_impl(&H, &U2, &p->x);
+
+    if ((H.limbs[0] | H.limbs[1] | H.limbs[2] | H.limbs[3]) == 0) {
+        field_sub_impl(&t1, &S2, &p->y);
+        if ((t1.limbs[0] | t1.limbs[1] | t1.limbs[2] | t1.limbs[3]) == 0) {
+            point_double_impl(r, p);
+            return;
+        }
+        point_set_infinity(r);
+        return;
+    }
+
+    // Z3 = (Z1+H)^2 - Z1Z1 - HH = 2*Z1*H, so Z-ratio is 2*H
+    field_add_impl(h_out, &H, &H);
+
+    field_sqr_impl(&HH, &H);
+    field_add_impl(&I, &HH, &HH);
+    field_add_impl(&I, &I, &I);
+    field_mul_impl(&J, &H, &I);
+    field_sub_impl(&rr, &S2, &p->y);
+    field_add_impl(&rr, &rr, &rr);
+    field_mul_impl(&V, &p->x, &I);
+
+    field_sqr_impl(&X3, &rr);
+    field_sub_impl(&X3, &X3, &J);
+    field_add_impl(&t1, &V, &V);
+    field_sub_impl(&X3, &X3, &t1);
+
+    field_sub_impl(&t1, &V, &X3);
+    field_mul_impl(&Y3, &rr, &t1);
+    field_mul_impl(&t2, &p->y, &J);
+    field_add_impl(&t2, &t2, &t2);
+    field_sub_impl(&Y3, &Y3, &t2);
+
+    field_add_impl(&t1, &p->z, &H);
+    field_sqr_impl(&Z3, &t1);
+    field_sub_impl(&Z3, &Z3, &Z1Z1);
+    field_sub_impl(&Z3, &Z3, &HH);
+
+    r->x = X3; r->y = Y3; r->z = Z3; r->infinity = 0;
+}
+
 // =============================================================================
 // Scalar Utilities for wNAF
 // =============================================================================
 
-inline int scalar_is_zero(const Scalar* k) {
+FORCE_INLINE int scalar_is_zero(const Scalar* k) {
     return (k->limbs[0] | k->limbs[1] | k->limbs[2] | k->limbs[3]) == 0;
 }
 
-inline int scalar_bit(const Scalar* k, int pos) {
+FORCE_INLINE int scalar_bit(const Scalar* k, int pos) {
     int limb = pos / 64;
     int bit = pos % 64;
     return (int)((k->limbs[limb] >> bit) & 1UL);
 }
 
-inline void scalar_sub_u64(Scalar* a, ulong val, Scalar* r) {
+FORCE_INLINE void scalar_sub_u64(Scalar* a, ulong val, Scalar* r) {
     *r = *a;
     ulong old = r->limbs[0];
     r->limbs[0] -= val;
@@ -342,7 +493,7 @@ inline void scalar_sub_u64(Scalar* a, ulong val, Scalar* r) {
     }
 }
 
-inline void scalar_add_u64(Scalar* a, ulong val, Scalar* r) {
+FORCE_INLINE void scalar_add_u64(Scalar* a, ulong val, Scalar* r) {
     *r = *a;
     ulong old = r->limbs[0];
     r->limbs[0] += val;
@@ -405,7 +556,7 @@ inline int scalar_to_wnaf(const Scalar* k, int wnaf[260]) {
 }
 
 // Negate Y coordinate of Jacobian point
-inline void point_negate_y(JacobianPoint* p) {
+FORCE_INLINE void point_negate_y(JacobianPoint* p) {
     FieldElement zero;
     zero.limbs[0] = 0; zero.limbs[1] = 0;
     zero.limbs[2] = 0; zero.limbs[3] = 0;
@@ -417,7 +568,7 @@ inline void point_negate_y(JacobianPoint* p) {
 // wNAF (window width 5) — matches CUDA's scalar_mul
 // =============================================================================
 
-inline void scalar_mul_impl(JacobianPoint* r, const Scalar* k, const AffinePoint* p) {
+FORCE_INLINE void scalar_mul_impl(JacobianPoint* r, const Scalar* k, const AffinePoint* p) {
     // Check for zero scalar
     if (scalar_is_zero(k)) {
         point_set_infinity(r);
@@ -448,7 +599,7 @@ inline void scalar_mul_impl(JacobianPoint* r, const Scalar* k, const AffinePoint
     // Process wNAF from MSB to LSB
     for (int i = wnaf_len - 1; i >= 0; --i) {
         point_double_impl(r, r);
-        
+
         digit = wnaf[i];
         if (digit > 0) {
             idx = (digit - 1) / 2;
@@ -466,7 +617,7 @@ inline void scalar_mul_impl(JacobianPoint* r, const Scalar* k, const AffinePoint
 // Scalar Multiplication with Generator: R = k * G
 // =============================================================================
 
-inline void scalar_mul_generator_impl(JacobianPoint* r, const Scalar* k) {
+FORCE_INLINE void scalar_mul_generator_impl(JacobianPoint* r, const Scalar* k) {
     AffinePoint G;
     get_generator(&G);
     scalar_mul_impl(r, k, &G);

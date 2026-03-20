@@ -19,11 +19,25 @@
 #define SECP256K1_K 0x1000003D1UL
 
 // =============================================================================
+// Forced Inlining
+// =============================================================================
+// NVIDIA's OpenCL compiler (nvoc) treats 'inline' as advisory.
+// __attribute__((always_inline)) forces inlining of the entire field arithmetic
+// call chain (field_mul → comba → reduce), matching CUDA's __forceinline__.
+#ifdef __NV_CL_C_VERSION
+  #define FORCE_INLINE __attribute__((always_inline)) inline
+  #define FORCE_INLINE_STATIC __attribute__((always_inline)) static inline
+#else
+  #define FORCE_INLINE inline
+  #define FORCE_INLINE_STATIC static inline
+#endif
+
+// =============================================================================
 // 64-bit Multiplication Helpers
 // =============================================================================
 
 // Multiply two 64-bit numbers, get 128-bit result as (hi, lo)
-inline ulong2 mul64_full(ulong a, ulong b) {
+FORCE_INLINE ulong2 mul64_full(ulong a, ulong b) {
     // Use OpenCL's mul_hi for high part
     ulong lo = a * b;
     ulong hi = mul_hi(a, b);
@@ -31,7 +45,7 @@ inline ulong2 mul64_full(ulong a, ulong b) {
 }
 
 // Add with carry: result = a + b + carry_in, returns new carry
-inline ulong add_with_carry(ulong a, ulong b, ulong carry_in, ulong* carry_out) {
+FORCE_INLINE ulong add_with_carry(ulong a, ulong b, ulong carry_in, ulong* carry_out) {
     ulong sum = a + b;
     ulong c1 = (sum < a) ? 1UL : 0UL;
     sum += carry_in;
@@ -41,7 +55,7 @@ inline ulong add_with_carry(ulong a, ulong b, ulong carry_in, ulong* carry_out) 
 }
 
 // Subtract with borrow: result = a - b - borrow_in, returns new borrow
-inline ulong sub_with_borrow(ulong a, ulong b, ulong borrow_in, ulong* borrow_out) {
+FORCE_INLINE ulong sub_with_borrow(ulong a, ulong b, ulong borrow_in, ulong* borrow_out) {
     ulong diff = a - b;
     ulong b1 = (a < b) ? 1UL : 0UL;
     ulong temp = diff;
@@ -117,10 +131,11 @@ typedef struct {
 // Produces uint[16] raw output (little-endian 32-bit limbs of 512-bit product).
 // Mirrors CUDA's mul_256_comba32 from secp256k1_32_hybrid_final.cuh.
 // ----------------------------------------------------------------------------
-static inline void mul_256_comba32_ocl(
+FORCE_INLINE_STATIC void mul_256_comba32_ocl(
     const FieldElement* a, const FieldElement* b, uint t32[16]
 ) {
     uint a32[8], b32[8];
+    #pragma unroll
     for (int i = 0; i < 4; i++) {
         a32[2*i]   = (uint)(a->limbs[i]);
         a32[2*i+1] = (uint)(a->limbs[i] >> 32);
@@ -177,8 +192,9 @@ static inline void mul_256_comba32_ocl(
 
 // 32-bit Comba squaring: ~40% fewer multiplications (symmetry exploitation).
 // Mirrors CUDA's sqr_256_comba32 from secp256k1_32_hybrid_final.cuh.
-static inline void sqr_256_comba32_ocl(const FieldElement* a, uint t32[16]) {
+FORCE_INLINE_STATIC void sqr_256_comba32_ocl(const FieldElement* a, uint t32[16]) {
     uint a32[8];
+    #pragma unroll
     for (int i = 0; i < 4; i++) {
         a32[2*i]   = (uint)(a->limbs[i]);
         a32[2*i+1] = (uint)(a->limbs[i] >> 32);
@@ -237,7 +253,7 @@ static inline void sqr_256_comba32_ocl(const FieldElement* a, uint t32[16]) {
 // Phase 2: T_lo[0..7] += result (32-bit carry chain)
 // Phase 3+4: pack to 64-bit, fold overflow, conditional P-subtract (64-bit PTX)
 // Mirrors CUDA's reduce_512_to_256_32 from secp256k1_32_hybrid_final.cuh.
-static inline void reduce_512_to_256_32_ocl(uint t32[16], FieldElement* r) {
+FORCE_INLINE_STATIC void reduce_512_to_256_32_ocl(uint t32[16], FieldElement* r) {
     uint t0=t32[0], t1=t32[1], t2=t32[2], t3=t32[3];
     uint t4=t32[4], t5=t32[5], t6=t32[6], t7=t32[7];
     const uint t8 =t32[8],  t9 =t32[9],  t10=t32[10], t11=t32[11];
@@ -387,7 +403,7 @@ static inline void reduce_512_to_256_32_ocl(uint t32[16], FieldElement* r) {
 // So 2^256 ≡ K (mod p), meaning we can reduce by replacing high bits with K*high
 // =============================================================================
 
-inline void field_reduce(FieldElement* r, const ulong* a8) {
+FORCE_INLINE void field_reduce(FieldElement* r, const ulong* a8) {
     // a8 is 512-bit number (8 limbs), reduce to 256-bit mod p
     // Since p = 2^256 - K, we have: a mod p = a_low + K * a_high (mod p)
 
@@ -472,7 +488,38 @@ inline void field_reduce(FieldElement* r, const ulong* a8) {
 // Field Addition: r = (a + b) mod p
 // =============================================================================
 
-inline void field_add_impl(FieldElement* r, const FieldElement* a, const FieldElement* b) {
+FORCE_INLINE void field_add_impl(FieldElement* r, const FieldElement* a, const FieldElement* b) {
+#ifdef __NV_CL_C_VERSION
+    // Level 2: native add.cc/addc carry chains (no comparison-based carry)
+    ulong s0, s1, s2, s3, carry;
+    __asm volatile(
+        "add.cc.u64  %0, %5, %9;\n\t"
+        "addc.cc.u64 %1, %6, %10;\n\t"
+        "addc.cc.u64 %2, %7, %11;\n\t"
+        "addc.cc.u64 %3, %8, %12;\n\t"
+        "addc.u64    %4, 0, 0;\n\t"
+        : "=l"(s0),"=l"(s1),"=l"(s2),"=l"(s3),"=l"(carry)
+        : "l"(a->limbs[0]),"l"(a->limbs[1]),"l"(a->limbs[2]),"l"(a->limbs[3]),
+          "l"(b->limbs[0]),"l"(b->limbs[1]),"l"(b->limbs[2]),"l"(b->limbs[3])
+    );
+    ulong d0, d1, d2, d3, borrow;
+    __asm volatile(
+        "sub.cc.u64  %0, %5, %9;\n\t"
+        "subc.cc.u64 %1, %6, %10;\n\t"
+        "subc.cc.u64 %2, %7, %11;\n\t"
+        "subc.cc.u64 %3, %8, %12;\n\t"
+        "subc.u64    %4, 0, 0;\n\t"
+        : "=l"(d0),"=l"(d1),"=l"(d2),"=l"(d3),"=l"(borrow)
+        : "l"(s0),"l"(s1),"l"(s2),"l"(s3),
+          "l"(SECP256K1_P0),"l"(SECP256K1_P1),"l"(SECP256K1_P2),"l"(SECP256K1_P3)
+    );
+    // use diff if: no borrow (s >= P) OR carry from add (sum overflowed 2^256)
+    ulong mask = ~borrow | (0UL - carry);
+    r->limbs[0] = (d0 & mask) | (s0 & ~mask);
+    r->limbs[1] = (d1 & mask) | (s1 & ~mask);
+    r->limbs[2] = (d2 & mask) | (s2 & ~mask);
+    r->limbs[3] = (d3 & mask) | (s3 & ~mask);
+#else
     ulong carry = 0;
     ulong sum[4];
 
@@ -499,13 +546,41 @@ inline void field_add_impl(FieldElement* r, const FieldElement* a, const FieldEl
     r->limbs[1] = (diff[1] & mask) | (sum[1] & ~mask);
     r->limbs[2] = (diff[2] & mask) | (sum[2] & ~mask);
     r->limbs[3] = (diff[3] & mask) | (sum[3] & ~mask);
+#endif
 }
 
 // =============================================================================
 // Field Subtraction: r = (a - b) mod p
 // =============================================================================
 
-inline void field_sub_impl(FieldElement* r, const FieldElement* a, const FieldElement* b) {
+FORCE_INLINE void field_sub_impl(FieldElement* r, const FieldElement* a, const FieldElement* b) {
+#ifdef __NV_CL_C_VERSION
+    // Level 2: native sub.cc/subc + add.cc/addc carry chains
+    ulong d0, d1, d2, d3, borrow;
+    __asm volatile(
+        "sub.cc.u64  %0, %5, %9;\n\t"
+        "subc.cc.u64 %1, %6, %10;\n\t"
+        "subc.cc.u64 %2, %7, %11;\n\t"
+        "subc.cc.u64 %3, %8, %12;\n\t"
+        "subc.u64    %4, 0, 0;\n\t"
+        : "=l"(d0),"=l"(d1),"=l"(d2),"=l"(d3),"=l"(borrow)
+        : "l"(a->limbs[0]),"l"(a->limbs[1]),"l"(a->limbs[2]),"l"(a->limbs[3]),
+          "l"(b->limbs[0]),"l"(b->limbs[1]),"l"(b->limbs[2]),"l"(b->limbs[3])
+    );
+    // borrow = 0xFFFF...FFFF if a < b (underflow), 0 otherwise
+    ulong p0 = SECP256K1_P0 & borrow;
+    ulong p1 = SECP256K1_P1 & borrow;
+    ulong p2 = SECP256K1_P2 & borrow;
+    ulong p3 = SECP256K1_P3 & borrow;
+    __asm volatile(
+        "add.cc.u64  %0, %4, %8;\n\t"
+        "addc.cc.u64 %1, %5, %9;\n\t"
+        "addc.cc.u64 %2, %6, %10;\n\t"
+        "addc.u64    %3, %7, %11;\n\t"
+        : "=l"(r->limbs[0]),"=l"(r->limbs[1]),"=l"(r->limbs[2]),"=l"(r->limbs[3])
+        : "l"(d0),"l"(d1),"l"(d2),"l"(d3), "l"(p0),"l"(p1),"l"(p2),"l"(p3)
+    );
+#else
     ulong borrow = 0;
     ulong diff[4];
 
@@ -529,6 +604,7 @@ inline void field_sub_impl(FieldElement* r, const FieldElement* a, const FieldEl
     r->limbs[1] = adj[1];
     r->limbs[2] = adj[2];
     r->limbs[3] = adj[3];
+#endif
 }
 
 // =============================================================================
@@ -536,7 +612,7 @@ inline void field_sub_impl(FieldElement* r, const FieldElement* a, const FieldEl
 // =============================================================================
 
 // Helper: add 128-bit product (hi:lo) into 3-register accumulator (c2:c1:c0)
-inline void muladd(ulong lo, ulong hi, ulong* c0, ulong* c1, ulong* c2) {
+FORCE_INLINE void muladd(ulong lo, ulong hi, ulong* c0, ulong* c1, ulong* c2) {
     ulong carry;
     *c0 = add_with_carry(*c0, lo, 0, &carry);
     *c1 = add_with_carry(*c1, hi, carry, &carry);
@@ -544,12 +620,18 @@ inline void muladd(ulong lo, ulong hi, ulong* c0, ulong* c1, ulong* c2) {
 }
 
 // Helper: add 128-bit product (hi:lo) doubled into accumulator
-inline void muladd2(ulong lo, ulong hi, ulong* c0, ulong* c1, ulong* c2) {
+FORCE_INLINE void muladd2(ulong lo, ulong hi, ulong* c0, ulong* c1, ulong* c2) {
     muladd(lo, hi, c0, c1, c2);
     muladd(lo, hi, c0, c1, c2);
 }
 
-inline void field_mul_impl(FieldElement* r, const FieldElement* a, const FieldElement* b) {
+FORCE_INLINE void field_mul_impl(FieldElement* r, const FieldElement* a, const FieldElement* b) {
+#ifdef __NV_CL_C_VERSION
+    // Level 3: 32-bit hybrid Comba + 32-bit reduction (INT32 throughput 32x > INT64)
+    uint t32[16];
+    mul_256_comba32_ocl(a, b, t32);
+    reduce_512_to_256_32_ocl(t32, r);
+#else
     ulong a0 = a->limbs[0], a1 = a->limbs[1], a2 = a->limbs[2], a3 = a->limbs[3];
     ulong b0 = b->limbs[0], b1 = b->limbs[1], b2 = b->limbs[2], b3 = b->limbs[3];
     ulong product[8];
@@ -596,6 +678,7 @@ inline void field_mul_impl(FieldElement* r, const FieldElement* a, const FieldEl
     product[7] = c1;
 
     field_reduce(r, product);
+#endif
 }
 
 // =============================================================================
@@ -604,17 +687,23 @@ inline void field_mul_impl(FieldElement* r, const FieldElement* a, const FieldEl
 // =============================================================================
 
 // Forward declaration for field_sqr_n_impl
-inline void field_sqr_impl(FieldElement* r, const FieldElement* a);
+FORCE_INLINE void field_sqr_impl(FieldElement* r, const FieldElement* a);
 
 // Repeated squaring helper: r = r^(2^n) — in-place
-inline void field_sqr_n_impl(FieldElement* r, int n) {
+FORCE_INLINE void field_sqr_n_impl(FieldElement* r, int n) {
     for (int i = 0; i < n; i++) {
         FieldElement tmp = *r;
         field_sqr_impl(r, &tmp);
     }
 }
 
-inline void field_sqr_impl(FieldElement* r, const FieldElement* a) {
+FORCE_INLINE void field_sqr_impl(FieldElement* r, const FieldElement* a) {
+#ifdef __NV_CL_C_VERSION
+    // Level 3: 32-bit hybrid squaring (40% fewer multiplications + INT32 throughput)
+    uint t32[16];
+    sqr_256_comba32_ocl(a, t32);
+    reduce_512_to_256_32_ocl(t32, r);
+#else
     ulong a0 = a->limbs[0], a1 = a->limbs[1], a2 = a->limbs[2], a3 = a->limbs[3];
     ulong product[8];
     ulong c0, c1, c2;
@@ -654,13 +743,14 @@ inline void field_sqr_impl(FieldElement* r, const FieldElement* a) {
     product[7] = c1;
 
     field_reduce(r, product);
+#endif
 }
 
 // =============================================================================
 // Field Negation: r = -a mod p = p - a
 // =============================================================================
 
-inline void field_neg_impl(FieldElement* r, const FieldElement* a) {
+FORCE_INLINE void field_neg_impl(FieldElement* r, const FieldElement* a) {
     // Check if a is zero
     ulong is_zero = ((a->limbs[0] | a->limbs[1] | a->limbs[2] | a->limbs[3]) == 0) ? 1UL : 0UL;
 
@@ -685,7 +775,7 @@ inline void field_neg_impl(FieldElement* r, const FieldElement* a) {
 // p-2 = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2D
 // =============================================================================
 
-inline void field_inv_impl(FieldElement* r, const FieldElement* a) {
+FORCE_INLINE void field_inv_impl(FieldElement* r, const FieldElement* a) {
     FieldElement x2, x3, x6, x12, x24, x48, x96, x192, x7, x31, x223;
     FieldElement x5, x11, x22;
     FieldElement t;
