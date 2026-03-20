@@ -1,5 +1,9 @@
 var NAVTREEINDEX8 =
 {
+"structsecp256k1_1_1ECDSABatchEntry.html":[2,0,1,12],
+"structsecp256k1_1_1ECDSABatchEntry.html":[3,0,1,10],
+"structsecp256k1_1_1ECDSABatchEntry.html#a77503c972c1c25b7396110c47cf810ad":[2,0,1,12,1],
+"structsecp256k1_1_1ECDSABatchEntry.html#a77503c972c1c25b7396110c47cf810ad":[3,0,1,10,1],
 "structsecp256k1_1_1ECDSABatchEntry.html#a7f93edf3342a38fe845061a078456c69":[3,0,1,10,0],
 "structsecp256k1_1_1ECDSABatchEntry.html#a7f93edf3342a38fe845061a078456c69":[2,0,1,12,0],
 "structsecp256k1_1_1ECDSABatchEntry.html#ab1879a48f24a6cefc5044d15b495725c":[2,0,1,12,2],
@@ -245,9 +249,5 @@ var NAVTREEINDEX8 =
 "structsecp256k1_1_1SilentPaymentAddress.html#a2bf9b841ae397667db212ea12d54baeb":[2,0,1,41,0],
 "structsecp256k1_1_1SilentPaymentAddress.html#a2bf9b841ae397667db212ea12d54baeb":[3,0,1,39,0],
 "structsecp256k1_1_1SilentPaymentAddress.html#a7c62efffa84abb29d300824fa284ddf4":[3,0,1,39,2],
-"structsecp256k1_1_1SilentPaymentAddress.html#a7c62efffa84abb29d300824fa284ddf4":[2,0,1,41,2],
-"structsecp256k1_1_1WIFDecodeResult.html":[2,0,1,42],
-"structsecp256k1_1_1WIFDecodeResult.html":[3,0,1,40],
-"structsecp256k1_1_1WIFDecodeResult.html#a1cb361831192e9d20c2f7acfe4c8a15e":[2,0,1,42,2],
-"structsecp256k1_1_1WIFDecodeResult.html#a1cb361831192e9d20c2f7acfe4c8a15e":[3,0,1,40,2]
+"structsecp256k1_1_1SilentPaymentAddress.html#a7c62efffa84abb29d300824fa284ddf4":[2,0,1,41,2]
 };
