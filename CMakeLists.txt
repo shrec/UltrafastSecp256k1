@@ -6,6 +6,11 @@ cmake_minimum_required(VERSION 3.18)
 file(READ "${CMAKE_CURRENT_SOURCE_DIR}/VERSION.txt" _version_raw)
 string(STRIP "${_version_raw}" UFSECP_VERSION)
 
+# Ensure 3-component semver (CMake needs MAJOR.MINOR.PATCH)
+if(NOT UFSECP_VERSION MATCHES "^[0-9]+\\.[0-9]+\\.[0-9]+")
+    string(APPEND UFSECP_VERSION ".0")
+endif()
+
 project(UltrafastSecp256k1
     VERSION ${UFSECP_VERSION}
     DESCRIPTION "Ultra high-performance secp256k1 elliptic curve cryptography library"
@@ -171,6 +176,10 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     # Clang treats __int128 as a built-in type and does not warn.
     if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
         add_compile_options($<$<COMPILE_LANGUAGE:C,CXX>:-Wno-pedantic>)
+    endif()
+    # macOS SDK headers (CFBase.h) trigger -Welaborated-enum-base with -Wpedantic
+    if(APPLE)
+        add_compile_options($<$<COMPILE_LANGUAGE:C,CXX>:-Wno-elaborated-enum-base>)
     endif()
 elseif(MSVC)
     add_compile_options(
