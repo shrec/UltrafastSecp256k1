@@ -2059,12 +2059,14 @@ static GpuDeviceInfo detect_gpu(int device_id) {
         info.backend = "CUDA";
         return info;
     }
+    int clockKhz = 0;
+    cudaDeviceGetAttribute(&clockKhz, cudaDevAttrClockRate, device_id);
     info.name = prop.name;
     char buf[32];
     (void)std::snprintf(buf, sizeof(buf), "%d.%d", prop.major, prop.minor);
     info.compute_cap = buf;
     info.sm_count = prop.multiProcessorCount;
-    info.clock_mhz = prop.clockRate / 1000;
+    info.clock_mhz = clockKhz / 1000;
     info.memory_mb = prop.totalGlobalMem / (1024 * 1024);
     info.memory_bus_width = prop.memoryBusWidth;
 

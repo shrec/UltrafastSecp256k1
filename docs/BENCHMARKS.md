@@ -18,6 +18,7 @@ Benchmark results for UltrafastSecp256k1 across all supported platforms.
 | ESP32 (LX6, 240 MHz) | 6,993 ns | 6,203 us | -- | -- | -- | -- |
 | STM32F103 (CM3, 72 MHz) | 15,331 ns | 37,982 us | -- | -- | -- | -- |
 | CUDA (RTX 5060 Ti) | 0.2 ns | 217.7 ns | 225.8 ns | -- | **263.7 ns** | -- |
+| CUDA (RTX 5070 Ti) | 5.8 ns | 92.1 ns | 101.4 ns | 122.8 ns | -- | -- |
 | OpenCL (RTX 5060 Ti) | 0.2 ns | 295.1 ns | -- | -- | -- | -- |
 | Metal (Apple M3 Pro) | 1.9 ns | 3.00 us | 2.94 us | -- | -- | -- |
 
@@ -242,6 +243,35 @@ Summary: `53/54 modules passed -- ALL PASSED (1 advisory warnings)`.
 | Pedersen Commit | 29,718 ns | 66.0 ns | **450x** |
 | Range Prove (64-bit) | 13,618,693 ns | 3,711,570 ns | **3.7x** |
 | Range Verify (64-bit) | 2,669,843 ns | 764,649 ns | **3.5x** |
+
+---
+
+## CUDA Benchmarks — RTX 5070 Ti (Community)
+
+**Hardware:** NVIDIA GeForce RTX 5070 Ti (Blackwell)  
+**Build:** `cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DSECP256K1_BUILD_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES=native`  
+**Tested:** 2026-03-21, 45 tests passed  
+**Note:** Requires `CMAKE_CUDA_SEPARABLE_COMPILATION=ON` (now set automatically in `cuda/CMakeLists.txt`; also baked into all CUDA presets).
+
+| Operation | Time/Op | Throughput |
+|-----------|---------|------------|
+| Field Mul | 5.8 ns | 173.43 M/s |
+| Field Add | 2.5 ns | 408.04 M/s |
+| Field Inverse | 5.2 ns | 191.55 M/s |
+| Point Add | 9.9 ns | 100.89 M/s |
+| Point Double | 5.5 ns | 181.70 M/s |
+| Scalar Mul (Pk) | 101.4 ns | 9.86 M/s |
+| Generator Mul (Gk) | 92.1 ns | 10.86 M/s |
+| Affine Add (2M+1S+inv) | 0.1 ns | 8,388.29 M/s |
+| Affine Lambda (2M+1S) | 0.2 ns | 4,117.82 M/s |
+| Affine X-Only (1M+1S) | 0.1 ns | 8,354.07 M/s |
+| Batch Inv (Montgomery) | 5.8 ns | 173.21 M/s |
+| Jac->Affine (per-pt) | 14.4 ns | 69.34 M/s |
+| ECDSA Sign | 105.3 ns | 9.49 M/s |
+| ECDSA Verify | 122.8 ns | 8.14 M/s |
+| ECDSA Sign+Recid | 155.8 ns | 6.42 M/s |
+| Schnorr Sign | 137.7 ns | 7.26 M/s |
+| Schnorr Verify | 92.7 ns | 10.79 M/s |
 
 ---
 

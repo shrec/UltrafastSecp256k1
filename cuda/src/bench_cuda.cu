@@ -1304,6 +1304,9 @@ BenchResult bench_ecdsa_sign_recoverable(const BenchConfig& cfg) {
 void print_device_info() {
     cudaDeviceProp prop;
     CUDA_CHECK(cudaGetDeviceProperties(&prop, 0));
+    int clockKhz = 0, memClockKhz = 0;
+    cudaDeviceGetAttribute(&clockKhz, cudaDevAttrClockRate, 0);
+    cudaDeviceGetAttribute(&memClockKhz, cudaDevAttrMemoryClockRate, 0);
 
     std::cout << "============================================================\n";
     std::cout << "  Secp256k1 CUDA Benchmark\n";
@@ -1313,9 +1316,9 @@ void print_device_info() {
     std::cout << "  Device:         " << prop.name << "\n";
     std::cout << "  Compute:        " << prop.major << "." << prop.minor << "\n";
     std::cout << "  SM Count:       " << prop.multiProcessorCount << "\n";
-    std::cout << "  Clock:          " << prop.clockRate / 1000 << " MHz\n";
+    std::cout << "  Clock:          " << clockKhz / 1000 << " MHz\n";
     std::cout << "  Memory:         " << prop.totalGlobalMem / (1024*1024) << " MB\n";
-    std::cout << "  Memory Clock:   " << prop.memoryClockRate / 1000 << " MHz\n";
+    std::cout << "  Memory Clock:   " << memClockKhz / 1000 << " MHz\n";
     std::cout << "  Memory Bus:     " << prop.memoryBusWidth << " bit\n";
     std::cout << "\n";
 }

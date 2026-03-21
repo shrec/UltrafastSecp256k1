@@ -910,10 +910,12 @@ static BenchResult bench_ct_schnorr_sign_impl(const BenchConfig& cfg) {
 static void fill_gpu_info(BenchReport& rpt, int device_id) {
     cudaDeviceProp prop;
     CUDA_CHECK(cudaGetDeviceProperties(&prop, device_id));
+    int clockKhz = 0;
+    cudaDeviceGetAttribute(&clockKhz, cudaDevAttrClockRate, device_id);
     std::snprintf(rpt.gpu_name, sizeof(rpt.gpu_name), "%s", prop.name);
     std::snprintf(rpt.compute_cap, sizeof(rpt.compute_cap), "%d.%d", prop.major, prop.minor);
     rpt.sm_count = prop.multiProcessorCount;
-    rpt.clock_mhz = prop.clockRate / 1000;
+    rpt.clock_mhz = clockKhz / 1000;
     rpt.memory_mb = prop.totalGlobalMem / (1024 * 1024);
 
     int driver_ver = 0;
@@ -1075,6 +1077,8 @@ int main(int argc, char** argv) {
     // Print header
     cudaDeviceProp prop;
     CUDA_CHECK(cudaGetDeviceProperties(&prop, cfg.device_id));
+    int clockKhz = 0;
+    cudaDeviceGetAttribute(&clockKhz, cudaDevAttrClockRate, cfg.device_id);
 
     std::printf("================================================================\n");
     std::printf("  UltrafastSecp256k1 -- GPU Unified Benchmark\n");
@@ -1082,7 +1086,7 @@ int main(int argc, char** argv) {
     std::printf("  GPU:          %s\n", prop.name);
     std::printf("  Compute:      %d.%d\n", prop.major, prop.minor);
     std::printf("  SM Count:     %d\n", prop.multiProcessorCount);
-    std::printf("  Clock:        %d MHz\n", prop.clockRate / 1000);
+    std::printf("  Clock:        %d MHz\n", clockKhz / 1000);
     std::printf("  Memory:       %zu MB\n", prop.totalGlobalMem / (1024*1024));
     std::printf("  Memory Bus:   %d bit\n", prop.memoryBusWidth);
 

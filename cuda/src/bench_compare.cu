@@ -1212,7 +1212,8 @@ static double gpu_pipeline_schnorr(const CompareConfig& cfg) {
 // ============================================================================
 static void write_json_report(const char* path,
                                const std::vector<CompareEntry>& entries,
-                               const cudaDeviceProp& prop) {
+                               const cudaDeviceProp& prop,
+                               int clock_mhz) {
     FILE* f = std::fopen(path, "w");
     if (!f) {
         std::fprintf(stderr, "Failed to open %s for writing\n", path);
@@ -1226,7 +1227,7 @@ static void write_json_report(const char* path,
     std::fprintf(f, "    \"name\": \"%s\",\n", prop.name);
     std::fprintf(f, "    \"compute_capability\": \"%d.%d\",\n", prop.major, prop.minor);
     std::fprintf(f, "    \"sm_count\": %d,\n", prop.multiProcessorCount);
-    std::fprintf(f, "    \"clock_mhz\": %d,\n", prop.clockRate / 1000);
+    std::fprintf(f, "    \"clock_mhz\": %d,\n", clock_mhz);
     std::fprintf(f, "    \"memory_mb\": %zu\n", prop.totalGlobalMem / (1024 * 1024));
     std::fprintf(f, "  },\n");
     std::fprintf(f, "  \"results\": [\n");
@@ -1306,6 +1307,8 @@ int main(int argc, char** argv) {
     cudaDeviceProp prop;
     CUDA_CHECK(cudaGetDeviceProperties(&prop, 0));
     CUDA_CHECK(cudaSetDevice(0));
+    int clockKhz = 0;
+    cudaDeviceGetAttribute(&clockKhz, cudaDevAttrClockRate, 0);
 
     // Header
     std::printf("================================================================\n");
@@ -1314,7 +1317,7 @@ int main(int argc, char** argv) {
     std::printf("  Library:  %s\n", SECP256K1_VERSION_STRING);
     std::printf("  GPU:      %s (SM %d.%d, %d SMs, %d MHz)\n",
                 prop.name, prop.major, prop.minor,
-                prop.multiProcessorCount, prop.clockRate / 1000);
+                prop.multiProcessorCount, clockKhz / 1000);
     std::printf("  VRAM:     %zu MB\n", prop.totalGlobalMem / (1024 * 1024));
     std::printf("  CPU N:    %d ops/pass    GPU N: %d ops/batch\n", cfg.cpu_n, cfg.gpu_n);
     std::printf("  Passes:   %d (median)    Warmup: %d\n", cfg.passes, cfg.warmup);
@@ -1531,7 +1534,7 @@ int main(int argc, char** argv) {
 
     // JSON output
     if (!cfg.json_path.empty()) {
-        write_json_report(cfg.json_path.c_str(), results, prop);
+        write_json_report(cfg.json_path.c_str(), results, prop, clockKhz / 1000);
         std::printf("JSON report: %s\n", cfg.json_path.c_str());
     }
 

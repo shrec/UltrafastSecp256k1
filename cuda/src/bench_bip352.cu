@@ -478,13 +478,15 @@ int main() {
     // ---- GPU device info ----
     cudaDeviceProp prop;
     CUDA_CHECK(cudaGetDeviceProperties(&prop, 0));
+    int clockKhz = 0;
+    cudaDeviceGetAttribute(&clockKhz, cudaDevAttrClockRate, 0);
 
     printf("============================================================\n");
     printf("  BIP-352 Silent Payments Pipeline: CPU vs GPU\n");
     printf("============================================================\n");
     printf("  GPU: %s (SM %d.%d, %d SMs, %d MHz)\n",
            prop.name, prop.major, prop.minor,
-           prop.multiProcessorCount, prop.clockRate / 1000);
+           prop.multiProcessorCount, clockKhz / 1000);
     printf("  N = %d tweak points, %d passes (median)\n", BENCH_N, BENCH_PASSES);
     printf("  Detail breakdown: %d ops per step\n\n", DETAIL_N);
 

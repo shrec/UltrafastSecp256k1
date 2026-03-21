@@ -21,6 +21,11 @@ if(_GPU_LANG STREQUAL "CUDA")
     if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES OR CMAKE_CUDA_ARCHITECTURES STREQUAL "" OR CMAKE_CUDA_ARCHITECTURES STREQUAL "OFF")
         set(CMAKE_CUDA_ARCHITECTURES 89)
     endif()
+    # Required for device-code linking when secp256k1_cuda_lib uses separable
+    # compilation. Without this, executables that link the static lib get
+    # undefined references to __cudaRegisterLinkedBinary_* at link time
+    # (CUDA 12+ / Blackwell / Ada and later architectures).
+    set(CMAKE_CUDA_SEPARABLE_COMPILATION ON)
 endif()
 set(CMAKE_CXX_STANDARD 17)
 
