@@ -36,9 +36,14 @@ static int g_pass = 0, g_fail = 0;
 
 static void hex_to_bytes(const char* hex, uint8_t* out, int len) {
     for (int i = 0; i < len; ++i) {
-        unsigned byte = 0;
-        if (std::sscanf(hex + static_cast<size_t>(i) * 2, "%02x", &byte) != 1) byte = 0;
-        out[i] = static_cast<uint8_t>(byte);
+        char pair[3] = {
+            hex[static_cast<size_t>(i) * 2],
+            hex[static_cast<size_t>(i) * 2 + 1],
+            '\0'
+        };
+        char* endptr = nullptr;
+        const unsigned long val = std::strtoul(pair, &endptr, 16);
+        out[i] = (endptr == pair + 2) ? static_cast<uint8_t>(val) : 0;
     }
 }
 
@@ -102,12 +107,12 @@ static void test_musig2_nonce_reuse() {
 
     // First sign -- should succeed
     uint8_t psig1[32];
-    ufsecp_error_t rc1 = ufsecp_musig2_partial_sign(ctx, secnonce1, priv1, keyagg, session, 0, psig1);
+    const ufsecp_error_t rc1 = ufsecp_musig2_partial_sign(ctx, secnonce1, priv1, keyagg, session, 0, psig1);
     CHECK_OK(rc1, "first partial_sign should succeed");
 
     // Second sign with SAME secnonce -- should fail (nonce was consumed)
     uint8_t psig1_dup[32];
-    ufsecp_error_t rc2 = ufsecp_musig2_partial_sign(ctx, secnonce1, priv1, keyagg, session, 0, psig1_dup);
+    const ufsecp_error_t rc2 = ufsecp_musig2_partial_sign(ctx, secnonce1, priv1, keyagg, session, 0, psig1_dup);
     CHECK(rc2 != UFSECP_OK, "reuse of consumed secnonce must fail");
 
     ufsecp_ctx_destroy(ctx);
@@ -177,7 +182,7 @@ static void test_musig2_partial_sig_replay() {
     ufsecp_musig2_start_sign_session(ctx, aggnonce2, keyagg, msg2, session2);
 
     // Replay: verify psig1 (from session1) under session2 -- must fail
-    ufsecp_error_t rc = ufsecp_musig2_partial_verify(ctx, psig1, pn1b, xonly1,
+    const ufsecp_error_t rc = ufsecp_musig2_partial_verify(ctx, psig1, pn1b, xonly1,
                                                       keyagg, session2, 0);
     CHECK(rc != UFSECP_OK, "replayed partial sig from session1 rejected in session2");
 
@@ -192,7 +197,7 @@ static void test_musig2_partial_sig_replay() {
     ufsecp_musig2_partial_sig_agg(ctx, psigs_mixed, 2, session2, final_sig);
 
     // Aggregated sig with replayed partial should NOT verify
-    ufsecp_error_t vrc = ufsecp_schnorr_verify(ctx, msg2, final_sig, agg_pub);
+    const ufsecp_error_t vrc = ufsecp_schnorr_verify(ctx, msg2, final_sig, agg_pub);
     CHECK(vrc != UFSECP_OK, "aggregated sig with replayed partial is invalid");
 
     ufsecp_ctx_destroy(ctx);
@@ -620,7 +625,7 @@ static void test_frost_below_threshold() {
         for (uint32_t j = 0; j < 3; ++j) {
             // Share j->i is at offset i*UFSECP_FROST_SHARE_LEN in shares[j]
             std::memcpy(recv_shares + recv_len,
-                        shares[j] + i * UFSECP_FROST_SHARE_LEN,
+                        shares[j] + static_cast<size_t>(i) * UFSECP_FROST_SHARE_LEN,
                         UFSECP_FROST_SHARE_LEN);
             recv_len += UFSECP_FROST_SHARE_LEN;
         }
@@ -647,14 +652,14 @@ static void test_frost_below_threshold() {
 
     // Try to produce partial sig with n_signers=1 (but threshold=2)
     uint8_t psig1[36];
-    ufsecp_error_t rc = ufsecp_frost_sign(ctx, keypkgs[0], nonce1, msg32,
+    const ufsecp_error_t rc = ufsecp_frost_sign(ctx, keypkgs[0], nonce1, msg32,
                                            ncommit1, 1, psig1);
 
     // Even if partial_sign succeeds, aggregation with 1 signer should produce
     // a signature that does NOT verify as valid Schnorr
     if (rc == UFSECP_OK) {
         uint8_t final_sig[64];
-        ufsecp_error_t arc = ufsecp_frost_aggregate(ctx, psig1, 1,
+        const ufsecp_error_t arc = ufsecp_frost_aggregate(ctx, psig1, 1,
                                                      ncommit1, 1,
                                                      group_pub, msg32, final_sig);
         if (arc == UFSECP_OK) {
@@ -704,7 +709,7 @@ static void test_frost_malformed_commitment() {
         uint8_t recv_shares[512]; size_t recv_len = 0;
         for (uint32_t j = 0; j < 3; ++j) {
             std::memcpy(recv_shares + recv_len,
-                        shares[j] + i * UFSECP_FROST_SHARE_LEN,
+                        shares[j] + static_cast<size_t>(i) * UFSECP_FROST_SHARE_LEN,
                         UFSECP_FROST_SHARE_LEN);
             recv_len += UFSECP_FROST_SHARE_LEN;
         }
@@ -737,7 +742,7 @@ static void test_frost_malformed_commitment() {
 
     // Signer 1 tries to sign with the corrupted ncommit set
     uint8_t psig1[36];
-    ufsecp_error_t rc = ufsecp_frost_sign(ctx, keypkgs[0], nonce1, msg32,
+    const ufsecp_error_t rc = ufsecp_frost_sign(ctx, keypkgs[0], nonce1, msg32,
                                            ncommits_bad, 2, psig1);
     // Either sign fails or the aggregated result won't verify
     if (rc == UFSECP_OK) {
@@ -749,7 +754,7 @@ static void test_frost_malformed_commitment() {
         std::memcpy(psigs_all, psig1, 36);
         std::memcpy(psigs_all + 36, psig2, 36);
         uint8_t final_sig[64];
-        ufsecp_error_t arc = ufsecp_frost_aggregate(ctx, psigs_all, 2,
+        const ufsecp_error_t arc = ufsecp_frost_aggregate(ctx, psigs_all, 2,
                                                      ncommits_bad, 2,
                                                      group_pub, msg32, final_sig);
         if (arc == UFSECP_OK) {
@@ -777,7 +782,8 @@ static void test_frost_hostile_args() {
     uint8_t nonce[UFSECP_FROST_NONCE_LEN] = {};
     uint8_t ncommit[UFSECP_FROST_NONCE_COMMIT_LEN] = {};
     uint8_t psig[36] = {};
-    size_t commits_len = sizeof(buf), shares_len = sizeof(buf);
+    size_t commits_len = sizeof(buf);
+    size_t shares_len  = commits_len;
 
     // keygen_begin: null ctx
     CHECK(ufsecp_frost_keygen_begin(nullptr, 1, 2, 3, buf,
@@ -1371,7 +1377,7 @@ static void test_sp_duplicate_sender_keys() {
 
     uint8_t out[33], tweak[32];
     // Should either reject or handle gracefully (no crash)
-    ufsecp_error_t rc = ufsecp_silent_payment_create_output(ctx, dup_privs, 2,
+    const ufsecp_error_t rc = ufsecp_silent_payment_create_output(ctx, dup_privs, 2,
           sp_scan33, sp_spend33, 0, out, tweak);
     // We just verify no crash; the result should differ from single-key output
     uint8_t out_single[33], tweak_single[32];
@@ -1481,7 +1487,7 @@ static void test_ecdsa_adaptor_round_trip() {
     CHECK_OK(ufsecp_pubkey_create(ctx, extracted, ext_point), "pubkey from extracted");
     uint8_t neg_point[33];
     CHECK_OK(ufsecp_pubkey_negate(ctx, ext_point, neg_point), "negate extracted");
-    bool match = (std::memcmp(ext_point, adaptor_point, 33) == 0) ||
+    const bool match = (std::memcmp(ext_point, adaptor_point, 33) == 0) ||
                  (std::memcmp(neg_point, adaptor_point, 33) == 0);
     CHECK(match, "extracted adaptor secret matches original (or negation)");
 
@@ -1557,7 +1563,7 @@ static void test_ecdsa_adaptor_wrong_point() {
     uint8_t wrong_point[33];
     ufsecp_pubkey_create(ctx, wrong_secret, wrong_point);
 
-    ufsecp_error_t rc = ufsecp_ecdsa_adaptor_verify(ctx, pre_sig, pub33, msg32, wrong_point);
+    const ufsecp_error_t rc = ufsecp_ecdsa_adaptor_verify(ctx, pre_sig, pub33, msg32, wrong_point);
     CHECK(rc != UFSECP_OK, "ecdsa_adaptor_verify rejects wrong adaptor point");
 
     ufsecp_ctx_destroy(ctx);
@@ -1741,7 +1747,7 @@ static void test_schnorr_adaptor_wrong_point() {
     uint8_t wrong_point[33];
     ufsecp_pubkey_create(ctx, wrong_secret, wrong_point);
 
-    ufsecp_error_t rc = ufsecp_schnorr_adaptor_verify(ctx, pre_sig, xonly, msg32, wrong_point);
+    const ufsecp_error_t rc = ufsecp_schnorr_adaptor_verify(ctx, pre_sig, xonly, msg32, wrong_point);
     CHECK(rc != UFSECP_OK, "schnorr_adaptor_verify rejects wrong adaptor point");
 
     ufsecp_ctx_destroy(ctx);
@@ -1774,11 +1780,11 @@ static void test_schnorr_adaptor_wrong_secret() {
     uint8_t wrong_secret[32] = {};
     wrong_secret[31] = 5;
     uint8_t bad_sig[64];
-    ufsecp_error_t rc = ufsecp_schnorr_adaptor_adapt(ctx, pre_sig, wrong_secret, bad_sig);
+    const ufsecp_error_t rc = ufsecp_schnorr_adaptor_adapt(ctx, pre_sig, wrong_secret, bad_sig);
 
     if (rc == UFSECP_OK) {
         // Adapted with wrong secret should produce invalid Schnorr sig
-        ufsecp_error_t vrc = ufsecp_schnorr_verify(ctx, msg32, bad_sig, xonly);
+        const ufsecp_error_t vrc = ufsecp_schnorr_verify(ctx, msg32, bad_sig, xonly);
         CHECK(vrc != UFSECP_OK, "schnorr sig adapted with wrong secret must not verify");
     } else {
         CHECK(true, "adapt with wrong secret correctly rejected");
@@ -2129,8 +2135,8 @@ static void test_hostile_taproot() {
     ufsecp_ctx_create(&ctx);
 
     uint8_t buf[64] = {};
-    uint8_t out[32];
-    int parity;
+    uint8_t out[32] = {};
+    int parity = 0;
 
     // output_key: null ctx
     CHECK(ufsecp_taproot_output_key(nullptr, buf, buf, out, &parity) != UFSECP_OK,
@@ -2267,7 +2273,7 @@ static void test_hostile_wif() {
 
     char wif[64]; size_t wif_len = sizeof(wif);
     uint8_t priv[32] = {};
-    int compressed_out, network_out;
+    int compressed_out = 0, network_out = 0;
 
     // wif_encode: null ctx
     CHECK(ufsecp_wif_encode(nullptr, priv, 1, 0, wif, &wif_len) != UFSECP_OK,
@@ -2400,7 +2406,7 @@ static void test_hostile_multi_coin() {
     ufsecp_ctx_create(&ctx);
 
     char addr[128]; size_t addr_len = sizeof(addr);
-    uint8_t priv[32] = {};
+    uint8_t priv[33] = {};
 
     // coin_address: null ctx
     CHECK(ufsecp_coin_address(nullptr, priv, 0, 0, addr, &addr_len) != UFSECP_OK,
@@ -2435,7 +2441,7 @@ static void test_hostile_ethereum() {
     // eth_address: null ctx
     CHECK(ufsecp_eth_address(nullptr, buf, out) != UFSECP_OK, "eth_address null ctx");
     // eth_sign: null ctx
-    uint8_t r[32], s[32]; uint64_t v;
+    uint8_t r[32] = {}, s[32] = {}; uint64_t v = 0;
     CHECK(ufsecp_eth_sign(nullptr, buf, buf, r, s, &v, 1) != UFSECP_OK, "eth_sign null ctx");
     // eth_ecrecover: null ctx
     uint8_t addr20[20];

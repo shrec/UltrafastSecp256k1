@@ -67,11 +67,11 @@ static void get_pubkey(ufsecp_ctx* ctx, const uint8_t privkey[32], uint8_t pubke
 // Create a valid ECIES envelope for subsequent tamper tests
 static std::vector<uint8_t> make_valid_envelope(ufsecp_ctx* ctx, const uint8_t pubkey33[33]) {
     const uint8_t plaintext[] = "ECIES regression test payload";
-    size_t pt_len = sizeof(plaintext) - 1; // exclude null
+    const size_t pt_len = sizeof(plaintext) - 1; // exclude null
     size_t env_len = pt_len + UFSECP_ECIES_OVERHEAD;
     std::vector<uint8_t> envelope(env_len);
 
-    ufsecp_error_t err = ufsecp_ecies_encrypt(ctx, pubkey33, plaintext, pt_len,
+    const ufsecp_error_t err = ufsecp_ecies_encrypt(ctx, pubkey33, plaintext, pt_len,
                                                envelope.data(), &env_len);
     if (err != UFSECP_OK) envelope.clear();
     return envelope;
@@ -93,7 +93,7 @@ static void test_ecies_parity_tamper(ufsecp_ctx* ctx) {
     {
         size_t pt_len = envelope.size() - UFSECP_ECIES_OVERHEAD;
         std::vector<uint8_t> pt_out(pt_len);
-        ufsecp_error_t err = ufsecp_ecies_decrypt(ctx, TEST_PRIVKEY,
+        const ufsecp_error_t err = ufsecp_ecies_decrypt(ctx, TEST_PRIVKEY,
             envelope.data(), envelope.size(), pt_out.data(), &pt_len);
         CHECK(err == UFSECP_OK, "untampered decrypt OK");
     }
@@ -105,7 +105,7 @@ static void test_ecies_parity_tamper(ufsecp_ctx* ctx) {
     {
         size_t pt_len = tampered.size() - UFSECP_ECIES_OVERHEAD;
         std::vector<uint8_t> pt_out(pt_len);
-        ufsecp_error_t err = ufsecp_ecies_decrypt(ctx, TEST_PRIVKEY,
+        const ufsecp_error_t err = ufsecp_ecies_decrypt(ctx, TEST_PRIVKEY,
             tampered.data(), tampered.size(), pt_out.data(), &pt_len);
         CHECK(err != UFSECP_OK, "parity-flipped ephemeral pubkey -> decrypt fails");
     }
@@ -124,16 +124,16 @@ static void test_ecies_invalid_prefix(ufsecp_ctx* ctx) {
     CHECK(!envelope.empty(), "valid envelope created for prefix test");
 
     const uint8_t bad_prefixes[] = {0x00, 0x04, 0xFF};
-    for (uint8_t prefix : bad_prefixes) {
+    for (const uint8_t prefix : bad_prefixes) {
         auto tampered = envelope;
         tampered[0] = prefix;
 
         size_t pt_len = tampered.size() - UFSECP_ECIES_OVERHEAD;
         std::vector<uint8_t> pt_out(pt_len);
-        ufsecp_error_t err = ufsecp_ecies_decrypt(ctx, TEST_PRIVKEY,
+        const ufsecp_error_t err = ufsecp_ecies_decrypt(ctx, TEST_PRIVKEY,
             tampered.data(), tampered.size(), pt_out.data(), &pt_len);
         char msg[64];
-        std::snprintf(msg, sizeof(msg), "prefix 0x%02X -> decrypt fails", prefix);
+        (void)std::snprintf(msg, sizeof(msg), "prefix 0x%02X -> decrypt fails", prefix);
         CHECK(err != UFSECP_OK, msg);
     }
 }
@@ -150,7 +150,7 @@ static void test_ecies_truncated_envelope(ufsecp_ctx* ctx) {
     // Put a valid-looking compressed prefix to avoid prefix rejection before length check
     junk[0] = 0x02;
 
-    for (size_t sz : truncated_sizes) {
+    for (const size_t sz : truncated_sizes) {
         size_t pt_len = 256;
         uint8_t pt_out[256];
         ufsecp_error_t err = ufsecp_ecies_decrypt(ctx, TEST_PRIVKEY,
