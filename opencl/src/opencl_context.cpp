@@ -2268,20 +2268,6 @@ void Context::batch_scalar_mul_generator(const Scalar* scalars, JacobianPoint* r
     clSetKernelArg(impl_->kernel_scalar_mul_generator, 1, sizeof(cl_mem), &impl_->cache_smg_results);
     clSetKernelArg(impl_->kernel_scalar_mul_generator, 2, sizeof(cl_uint), &cnt);
 
-    // Calculate work group size
-    std::size_t local_size = impl_->config.local_work_size;
-    if (local_size == 0 || local_size > impl_->device_info.max_work_group_size) {
-        local_size = std::min(static_cast<std::size_t>(256), impl_->device_info.max_work_group_size);
-    }
-
-    clEnqueueWriteBuffer(impl_->queue, impl_->cache_smg_scalars, CL_FALSE, 0,
-                         count * sizeof(Scalar), scalars, 0, nullptr, nullptr);
-
-    cl_uint cnt = static_cast<cl_uint>(count);
-    clSetKernelArg(impl_->kernel_scalar_mul_generator, 0, sizeof(cl_mem), &impl_->cache_smg_scalars);
-    clSetKernelArg(impl_->kernel_scalar_mul_generator, 1, sizeof(cl_mem), &impl_->cache_smg_results);
-    clSetKernelArg(impl_->kernel_scalar_mul_generator, 2, sizeof(cl_uint), &cnt);
-
     std::size_t local_size, global_size;
     compute_scalar_mul_work_sizes(count, impl_->config.local_work_size,
                                   128,

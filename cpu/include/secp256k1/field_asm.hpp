@@ -86,10 +86,6 @@ FieldElement field_negate_riscv(const FieldElement& a);
 // ~9 multiplications vs 10 in standard, may be faster for some CPUs
 FieldElement field_square_karatsuba(const FieldElement& a);
 
-// Square using Toom-Cook-3 algorithm (3-way split)
-// Theoretical best complexity but high overhead for 256-bit
-FieldElement field_square_toomcook(const FieldElement& a);
-
 // Add two field elements (already fast, but optimize with ADCX)
 // Expected: ~5-8 ns (vs current ~15-20 ns)
 FieldElement field_add_bmi2(const FieldElement& a, const FieldElement& b);
@@ -226,14 +222,6 @@ void square_4_bmi2(
 // Karatsuba squaring algorithm (recursive decomposition)
 // ~9 multiplications vs 10 in standard approach
 void square_4_karatsuba(
-    const uint64_t a[4],
-    uint64_t result[8]
-);
-
-// Toom-Cook-3 squaring algorithm (3-way split)
-// Theoretical ~5 multiplications but high addition overhead
-// Best for 512+ bit numbers
-void square_4_toomcook(
     const uint64_t a[4],
     uint64_t result[8]
 );

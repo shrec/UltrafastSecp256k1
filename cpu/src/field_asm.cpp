@@ -403,32 +403,6 @@ void square_4_karatsuba(const uint64_t a[4], uint64_t result[8]) {
 }
 
 // ===================================================================
-// Toom-Cook-3 Squaring Algorithm for 256-bit
-// Complexity: ~5 multiplications vs 10 in standard (theoretical best!)
-// Strategy: Split into 3 parts, evaluate at 5 points, interpolate
-// Note: High addition overhead, best for larger numbers (512+ bits)
-// ===================================================================
-
-void square_4_toomcook(const uint64_t a[4], uint64_t result[8]) {
-    // Toom-Cook-3 squaring for 256-bit
-    // Split a into 3 parts (each ~85 bits, but we use limb boundaries)
-    // a = a0 + a1*B + a2*B^2 where B = 2^85 (approximated with limbs)
-    
-    // For simplicity with 4 limbs, use uneven split:
-    // a0 = a[0] (64 bits)
-    // a1 = a[1] + a[2]_low (128 bits approx)
-    // a2 = a[2]_high + a[3] (128 bits approx)
-    
-    // This implementation would be very complex for marginal gains
-    // on 256-bit numbers. Toom-Cook shines at 1024+ bits.
-    // For now, fall back to standard approach
-    
-    // TODO: Implement full Toom-Cook-3 (requires careful limb splitting)
-    // Current: Use standard approach as placeholder
-    square_4_bmi2(a, result);
-}
-
-// ===================================================================
 // Optimized squaring - FULLY UNROLLED BMI2
 // Strategy: Compute cross-products and add twice (best for BMI2 carry chains)
 // Note: Montgomery "shift-left" approach tested but was SLOWER due to:
@@ -728,27 +702,6 @@ FieldElement field_square_karatsuba(const FieldElement& a) {
     
     // Karatsuba squaring
     detail::square_4_karatsuba(a_limbs, result);
-    
-    // Reduce
-    #if defined(SECP256K1_HAS_ASM) && defined(__GNUC__) && defined(__x86_64__)
-        reduce_4_asm(result);
-    #else
-        detail::montgomery_reduce_bmi2(result);
-    #endif
-    
-    FieldElement out;
-    std::memcpy(&out, result, 32);
-    
-    return out;
-}
-
-FieldElement field_square_toomcook(const FieldElement& a) {
-    uint64_t a_limbs[4], result[8];
-    
-    std::memcpy(a_limbs, &a, sizeof(a_limbs));
-    
-    // Toom-Cook squaring
-    detail::square_4_toomcook(a_limbs, result);
     
     // Reduce
     #if defined(SECP256K1_HAS_ASM) && defined(__GNUC__) && defined(__x86_64__)
