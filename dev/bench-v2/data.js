@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1773972973874,
+  "lastUpdate": 1774100705510,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "UltrafastSecp256k1 Performance": [
@@ -75168,6 +75168,450 @@ window.BENCHMARK_DATA = {
           {
             "name": "Bulletproof range_verify (64b)",
             "value": 2962444.1,
+            "unit": "ns"
+          },
+          {
+            "name": "Harness",
+            "value": 3000000000,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "Vano Chkheidze",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "958bfe3410c94e6d31d32bcaa0fa6b10853fb009",
+          "message": "perf/feat/fix: INT64 elimination, Shamir GLV, ZK Shamir, bench ZK, musig2 fix (#179)\n\n* perf(gpu): eliminate INT64 multiply from reduction and GLV paths\n\nPhase 3 overflow fold (field_mul/field_sqr reduction):\n- Replace mul.lo.u64/mul.hi.u64 with pure 32-bit decomposition\n- Decompose extra * K_MOD as extra*977 + extra<<32 using mul.lo/hi.u32\n- Applied to both CUDA (secp256k1_32_hybrid_final.cuh) and OpenCL\n  (secp256k1_field.cl)\n\nGLV mul_shift_384 (scalar decomposition):\n- Replace 16x mul64 (INT64) schoolbook with 8x8 32-bit Comba\n- 64 mul.lo/hi.u32 pairs vs 32 mul.lo/hi.u64 instructions\n- Applied to CUDA (secp256k1.cuh) and OpenCL (opencl_context.cpp)\n- Non-NVIDIA (HIP/ROCm) retains portable 64-bit fallback\n\nOn consumer NVIDIA GPUs (Turing/Ampere/Ada/Blackwell), INT32 multiply\nthroughput is 64x higher than INT64 (128 vs 2 ops/SM/clock).\n\nMSVC C2026 fix (issue #178):\n- Split kernel_parts[] Part 3 into Part 3 + Part 4 at affine boundary\n- Max segment: 19 KB (well under 65535-byte MSVC limit)\n\nTested: CUDA 52/52 PASS, GPU audit 45/45 AUDIT-READY\n        OpenCL ALL TESTS PASSED, audit 29/29 AUDIT-READY\n\n* perf: Shamir double-mul + GLV verify path optimization\n\nOpenCL:\n- Add shamir_double_mul_glv_impl: 4-scalar GLV Shamir trick with\n  16-entry precomputed affine table + Montgomery batch field_inv.\n  Computes a*P + b*Q in ~129 iterations vs 2×~130 individually.\n  Saves ~130 point doubles per Schnorr/ECDSA verify call.\n- schnorr_verify_impl: use shamir_double_mul_glv_impl for s*G - e*P\n  (was: 2× scalar_mul_glv_impl + point_add_impl)\n- ecdsa_verify_impl: use shamir_double_mul_glv_impl for u1*G + u2*Q\n  (was: 2× scalar_mul_impl (non-GLV) + point_add_impl)\n- schnorr_verify_impl: remove redundant Jacobian→Affine conversion\n  of lift_x result (Z=1 guaranteed, direct x/y copy)\n- ecdsa_verify_impl: Z=1 fast-path skips field_inv for affine pubkey\n- secp256k1_field.cl: FORCE_INLINE + #pragma unroll hot path\n- secp256k1_point.cl: FORCE_INLINE + unchecked double variant\n- secp256k1_bip352.cl: FORCE_INLINE + __constant spend_point\n\nCUDA:\n- secp256k1.cuh: jacobian_double_unchecked/add_mixed_unchecked\n- bench_bip352.cu: use unchecked variants in hot path\n\ntools:\n- source_graph.py: index .cl/.cu/.cuh files (Function Index 6127)\n\nAudit: 29/29 PASS (AUDIT-READY)\n\n* feat: ZK Shamir optimization + audit tests + forward decl fix\n\n- zk_knowledge_verify: 2x scalar_mul -> shamir_double_mul_glv (no field_inv)\n- zk_dleq_verify: 4x scalar_mul -> 2x shamir_double_mul_glv\n- secp256k1_extended.cl: add forward decl for scalar_mul_glv_impl\n  (NVIDIA OpenCL treats implicit declarations as errors; shamir_double_mul_glv_impl\n  uses scalar_mul_glv_impl as degenerate fallback but definition appears later)\n- secp256k1_zk.cl: fix prove API (scalar_mul_impl -> scalar_mul_glv_impl),\n  fix ctx.total -> ctx.total_len, add __constant ZKTagMidstate variant,\n  fix __global AffinePoint* params, disable Bulletproof section (#if 0)\n- opencl_audit_runner: Section 10 ZK Proofs (knowledge + DLEQ roundtrip tests)\n- bench_opencl: sign/verify benchmark section (ECDSA/Schnorr)\n\nAudit: 31/34 PASS (3 BIP-352 SKIP, all 10 sections pass)\n\n* bench: add ZK prove/verify benchmark section\n\nKnowledge prove: 277.8 ns/op (3.60 M/s)\nKnowledge verify: 186.6 ns/op (5.36 M/s) -- Shamir opt (was ~2x scalar_mul)\nDLEQ prove: 537.2 ns/op (1.86 M/s)\nDLEQ verify: 369.1 ns/op (2.71 M/s) -- 2x Shamir opt (was ~4x scalar_mul)\n\nBatch=8192 on RTX 5060 Ti, kernel-only timing.\nFor reference: Schnorr verify=165.7ns, ECDSA verify=228.6ns.\n\n* feat: CUDA ZK Shamir double-mul GLV optimization\n\n- knowledge_verify_device: 2x scalar_mul + add → shamir_double_mul_glv\n  (s*G - e*P == R, Jacobian cross-multiply with Z=1 simplification for R)\n- dleq_verify_device: 4x scalar_mul + 2x add → 2x shamir_double_mul_glv\n  (R1 = s*G - e*P, R2 = s*H - e*Q using negated challenge scalar)\n- Mirrors OpenCL ZK optimization from commit 44cde9a7\n- CPU ZK test: 24/24 PASS, GPU audit: 43/43 PASS\n\n* fix: musig2_bip327_vectors int->size_t sign-conversion + audit label\n\n- Cast signer_index argument i to std::size_t in musig2_partial_sign\n  and musig2_partial_verify calls (3-of-3 sign loop and n-of-n bench\n  loop) to silence -Wconversion; prevents 'Not Run' in Clang -Werror\n  builds where the binary fails to compile\n- Change Q_x array-index loop var from int to std::size_t (consistent)\n- Add protocol tests (musig2_frost, musig2_frost_advanced, frost_kat,\n  musig2_bip327_vectors) to LABELS 'audit' inside\n  if(SECP256K1_BUILD_PROTOCOL_TESTS) guard\n\n* docs: update ESP32-S3/P4/C6 benchmarks with real measured baselines (2026-03-21)\n\n- ESP32-S3 @ 240 MHz: ecdsa_verify=18.7ms/54ops/s, 1.70x vs libsecp\n- ESP32-P4 @ 360 MHz: ecdsa_verify=7.53ms/133ops/s, 0.99x vs libsecp\n- ESP32-C6 @ 160 MHz: ecdsa_verify=18.96ms/53ops/s, ecdsa_sign 1.67x vs libsecp\n- Add full operation tables (field/scalar/point/sign/verify/batch/ct)\n- Add cross-platform comparison with P4 and C6 columns\n- ESP-IDF v5.4, GCC 14.2.0, median-of-3 measurement\n\n* fix: address Copilot PR review comments (#179)\n\n- cuda/bench_bip352.cu: fix scalar_mul_fixed_scan missing parameter list\n- cuda/secp256k1.cuh: jacobian_double_unchecked sets r->infinity = false\n- opencl/secp256k1_point.cl: point_double_unchecked sets r->infinity = 0\n- opencl/secp256k1_zk.cl: add point_is_infinity guards before field_inv in\n  zk_knowledge_prove_impl and zk_knowledge_verify_impl (base + pubkey)\n- opencl/bench_opencl.cpp: validate clCreateKernel handles in sig+ZK sections,\n  release partial kernels on failure; fix clGetContextInfo->clGetCommandQueueInfo\n  in both sections\n- opencl/opencl_audit_runner.cpp: fix clGetContextInfo->clGetCommandQueueInfo\n  in both init() methods\n\n* fix(cuda): support CUDA 13+ / Blackwell compilation\n\n- Replace deprecated prop.clockRate / prop.memoryClockRate fields (removed\n  in CUDA 13.0) with cudaDeviceGetAttribute(cudaDevAttrClockRate /\n  cudaDevAttrMemoryClockRate) in all six affected files:\n  bench_bip352.cu, bench_compare.cu, bench_cuda.cu, gpu_audit_runner.cu,\n  gpu_bench_unified.cu (prop.clockRate x2 + prop.memoryClockRate)\n- Set CMAKE_CUDA_SEPARABLE_COMPILATION ON in cuda/CMakeLists.txt to fix\n  __cudaRegisterLinkedBinary undefined-reference link errors when building\n  executables that link secp256k1_cuda_lib with separable device code\n- Update CMakePresets: all CUDA presets now include\n  CMAKE_CUDA_SEPARABLE_COMPILATION=ON and use CMAKE_CUDA_ARCHITECTURES=native\n  (except the explicit 5060Ti preset which keeps sm_89)\n- docs: add community RTX 5070 Ti benchmark results (45 tests passed,\n  2026-03-21) and note the SEPARABLE_COMPILATION requirement\n\n* build: add arm64-cross and riscv64-cross CMake presets\n\nBoth cross-toolchains (aarch64-linux-gnu-gcc, riscv64-linux-gnu-gcc) are\nconfirmed to produce clean Release builds with bench_unified + test suite:\n  ARM64:   ELF 64-bit AArch64 (armv8-a), bench_unified + run_selftest\n  RISC-V:  ELF 64-bit rv64gc_zba_zbb + lp64d, bench_unified + run_selftest\n\nUsage:\n  cmake --preset arm64-cross  -S libs/UltrafastSecp256k1 -B build-arm64\n  cmake --preset riscv64-cross -S libs/UltrafastSecp256k1 -B build-riscv64\n\n---------\n\nCo-authored-by: shrec <shrec@users.noreply.github.com>",
+          "timestamp": "2026-03-21T17:41:10+04:00",
+          "tree_id": "f66c3ba7e165168735df5276f2348745cf73dcc5",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/958bfe3410c94e6d31d32bcaa0fa6b10853fb009"
+        },
+        "date": 1774100700277,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "field_inv",
+            "value": 1053.3,
+            "unit": "ns"
+          },
+          {
+            "name": "scalar_inv",
+            "value": 1335.8,
+            "unit": "ns"
+          },
+          {
+            "name": "pubkey_create (k*G)",
+            "value": 7762.2,
+            "unit": "ns"
+          },
+          {
+            "name": "scalar_mul (k*P)",
+            "value": 32899.4,
+            "unit": "ns"
+          },
+          {
+            "name": "scalar_mul_with_plan",
+            "value": 32378.1,
+            "unit": "ns"
+          },
+          {
+            "name": "dual_mul (a*G + b*P)",
+            "value": 37371.2,
+            "unit": "ns"
+          },
+          {
+            "name": "point_add (affine+affine)",
+            "value": 1303.8,
+            "unit": "ns"
+          },
+          {
+            "name": "point_add (J+A mixed)",
+            "value": 241.8,
+            "unit": "ns"
+          },
+          {
+            "name": "point_dbl",
+            "value": 143.9,
+            "unit": "ns"
+          },
+          {
+            "name": "batch_normalize /pt (N=64)",
+            "value": 187.6,
+            "unit": "ns"
+          },
+          {
+            "name": "next_inplace (+=G)",
+            "value": 254.8,
+            "unit": "ns"
+          },
+          {
+            "name": "KPlan::from_scalar(w=4)",
+            "value": 2722.1,
+            "unit": "ns"
+          },
+          {
+            "name": "batch_to_compressed /pt (N=64)",
+            "value": 197.4,
+            "unit": "ns"
+          },
+          {
+            "name": "batch_x_only_bytes /pt (N=64)",
+            "value": 149.2,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_sign",
+            "value": 10503.2,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_sign_verified",
+            "value": 66610.7,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_verify",
+            "value": 37905.8,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_keypair_create",
+            "value": 7777.3,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_sign",
+            "value": 8330.5,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_sign_verified",
+            "value": 48473.2,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_verify (cached xonly)",
+            "value": 38421.8,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_verify (raw bytes)",
+            "value": 39717.4,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_batch_verify(N=4)",
+            "value": 148813.4,
+            "unit": "ns"
+          },
+          {
+            "name": "-> per-sig amortized (N=4)",
+            "value": 37203.3,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_batch_verify(N=16)",
+            "value": 604865,
+            "unit": "ns"
+          },
+          {
+            "name": "-> per-sig amortized (N=16)",
+            "value": 37804.1,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_batch_verify(N=64)",
+            "value": 3986241.7,
+            "unit": "ns"
+          },
+          {
+            "name": "-> per-sig amortized (N=64)",
+            "value": 62285,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_batch_verify(N=4)",
+            "value": 144988.3,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_batch_verify(N=16)",
+            "value": 580887.6,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_batch_verify(N=64)",
+            "value": 2332166.6,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::scalar_inverse (SafeGCD)",
+            "value": 1875.4,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::generator_mul (k*G)",
+            "value": 17465,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::scalar_mul (k*P)",
+            "value": 39127.6,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::point_dbl",
+            "value": 144.3,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::point_add_complete (11M+6S)",
+            "value": 400.9,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::point_add_mixed_complete (7M+5S)",
+            "value": 275.7,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::point_add_mixed_unified (7M+5S)",
+            "value": 272.5,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::ecdsa_sign",
+            "value": 21928.1,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::ecdsa_sign_verified",
+            "value": 78104.7,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::schnorr_sign",
+            "value": 19320.9,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::schnorr_sign_verified",
+            "value": 59636.8,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::schnorr_keypair_create",
+            "value": 18926.6,
+            "unit": "ns"
+          },
+          {
+            "name": "keccak256 (32B)",
+            "value": 437.6,
+            "unit": "ns"
+          },
+          {
+            "name": "ethereum_address",
+            "value": 439.7,
+            "unit": "ns"
+          },
+          {
+            "name": "eip191_hash",
+            "value": 439.8,
+            "unit": "ns"
+          },
+          {
+            "name": "eth_sign_hash",
+            "value": 10543.4,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_sign_recoverable",
+            "value": 10475.7,
+            "unit": "ns"
+          },
+          {
+            "name": "ecrecover",
+            "value": 47561.8,
+            "unit": "ns"
+          },
+          {
+            "name": "eth_personal_sign",
+            "value": 11008.3,
+            "unit": "ns"
+          },
+          {
+            "name": "ethereum_address_eip55",
+            "value": 985.7,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdh_compute (SHA256 shared secret)",
+            "value": 40626.1,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdh_compute_raw (x-only shared)",
+            "value": 40449.3,
+            "unit": "ns"
+          },
+          {
+            "name": "taproot_output_key (BIP-341 key path)",
+            "value": 16413.8,
+            "unit": "ns"
+          },
+          {
+            "name": "taproot_tweak_privkey (BIP-341)",
+            "value": 19973.8,
+            "unit": "ns"
+          },
+          {
+            "name": "bip32_master_key (64B seed)",
+            "value": 1309.4,
+            "unit": "ns"
+          },
+          {
+            "name": "bip32_coin_derive_key (BTC m/84'/0'/0'/0/0)",
+            "value": 139773.4,
+            "unit": "ns"
+          },
+          {
+            "name": "coin_address_from_seed (BTC end-to-end)",
+            "value": 160876.6,
+            "unit": "ns"
+          },
+          {
+            "name": "coin_address_from_seed (ETH end-to-end)",
+            "value": 161020.4,
+            "unit": "ns"
+          },
+          {
+            "name": "silent_payment_create_output",
+            "value": 48434.7,
+            "unit": "ns"
+          },
+          {
+            "name": "silent_payment_scan (single output set)",
+            "value": 67463.4,
+            "unit": "ns"
+          },
+          {
+            "name": "field_inv_var",
+            "value": 1133.4,
+            "unit": "ns"
+          },
+          {
+            "name": "scalar_inverse (CT)",
+            "value": 1849,
+            "unit": "ns"
+          },
+          {
+            "name": "scalar_inverse_var",
+            "value": 1164.1,
+            "unit": "ns"
+          },
+          {
+            "name": "point_dbl (gej_double_var)",
+            "value": 149,
+            "unit": "ns"
+          },
+          {
+            "name": "point_add (gej_add_ge_var)",
+            "value": 246.6,
+            "unit": "ns"
+          },
+          {
+            "name": "ecmult (a*P + b*G, Strauss)",
+            "value": 37106.6,
+            "unit": "ns"
+          },
+          {
+            "name": "ecmult_gen (k*G, comb)",
+            "value": 18411.9,
+            "unit": "ns"
+          },
+          {
+            "name": "generator_mul (ec_pubkey_create)",
+            "value": 20323,
+            "unit": "ns"
+          },
+          {
+            "name": "scalar_mul_P (k*P, tweak_mul)",
+            "value": 34487.9,
+            "unit": "ns"
+          },
+          {
+            "name": "point_add (pubkey_combine)",
+            "value": 2546.6,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_sign (BIP-340)",
+            "value": 21869.9,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_verify (BIP-340)",
+            "value": 39522.2,
+            "unit": "ns"
+          },
+          {
+            "name": "generator_mul (EC_POINT_mul k*G)",
+            "value": 392527.3,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_sign (ECDSA_do_sign)",
+            "value": 414468.3,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_verify (ECDSA_do_verify)",
+            "value": 375035.7,
+            "unit": "ns"
+          },
+          {
+            "name": "Pedersen commit",
+            "value": 57104.8,
+            "unit": "ns"
+          },
+          {
+            "name": "Knowledge prove (sigma)",
+            "value": 41789.1,
+            "unit": "ns"
+          },
+          {
+            "name": "Knowledge verify",
+            "value": 40738.1,
+            "unit": "ns"
+          },
+          {
+            "name": "DLEQ prove",
+            "value": 81015.1,
+            "unit": "ns"
+          },
+          {
+            "name": "DLEQ verify",
+            "value": 107569.7,
+            "unit": "ns"
+          },
+          {
+            "name": "Bulletproof range_prove (64b)",
+            "value": 24382626.6,
+            "unit": "ns"
+          },
+          {
+            "name": "Bulletproof range_verify (64b)",
+            "value": 4924456.6,
             "unit": "ns"
           },
           {
