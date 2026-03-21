@@ -644,10 +644,11 @@ int main(int argc, char** argv) {
     std::printf("  validation prefix: 0x%016llx\n", static_cast<unsigned long long>(ocl_validation));
     // CUDA reference: bench_bip352 on RTX 5060 Ti (SM 12.0, 36 SMs).
     // Measured with BENCH_CLOCK_WARMUP=15, batch=500K, CUDA_SEPARABLE_COMPILATION=OFF,
-    // unchecked ops in all scalar mul inner loops (commits 9bfe1b21, 806b1602).
-    // GLV tpb=384: 179.1 ns/op (5.58 M/s).  LUT tpb=384: 95.2 ns/op (10.50 M/s).
+    // unchecked ops in all scalar mul inner loops, BENCH_MULTI=20 (amortised dispatch).
+    // Commits: 9bfe1b21, 806b1602, + full-bench multi-launch fix.
+    // GLV tpb=384: 179.1 ns/op (5.58 M/s).  LUT tpb=384: 90.6 ns/op (11.04 M/s).
     constexpr double CUDA_GLV_NS = 179.1;
-    constexpr double CUDA_LUT_NS = 95.2;
+    constexpr double CUDA_LUT_NS = 90.6;
     double cuda_ref = use_lut ? CUDA_LUT_NS : CUDA_GLV_NS;
     std::printf("  CUDA reference:    %.1f ns/op (%.2f M/s) [%s]\n",
                 cuda_ref, 1e9 / cuda_ref / 1e6, use_lut ? "LUT" : "GLV");

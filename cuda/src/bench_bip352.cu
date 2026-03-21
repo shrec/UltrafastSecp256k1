@@ -967,13 +967,15 @@ int main() {
         CUDA_CHECK(cudaDeviceSynchronize());
     }
 
+    constexpr int BENCH_MULTI = 20;
     std::vector<double> gpu_times(BENCH_PASSES);
     for (int p = 0; p < BENCH_PASSES; ++p) {
         timer.start();
-        bip352_pipeline_kernel<<<glv_blocks, gpu_tpb_glv>>>(d_tweaks, d_scan_key, d_spend, d_prefixes, BENCH_N);
+        for (int r = 0; r < BENCH_MULTI; ++r)
+            bip352_pipeline_kernel<<<glv_blocks, gpu_tpb_glv>>>(d_tweaks, d_scan_key, d_spend, d_prefixes, BENCH_N);
         float ms = timer.stop();
-        gpu_times[p] = ms;
-        printf("  pass %2d: %8.3f ms\n", p + 1, ms);
+        gpu_times[p] = (double)ms / BENCH_MULTI;
+        printf("  pass %2d: %8.3f ms\n", p + 1, (double)ms / BENCH_MULTI);
     }
 
     // Get validation prefix
@@ -1005,11 +1007,12 @@ int main() {
     std::vector<double> gpu_lut_times(BENCH_PASSES);
     for (int p = 0; p < BENCH_PASSES; ++p) {
         timer.start();
-        bip352_pipeline_kernel_lut<<<lut_blocks, gpu_tpb_lut>>>(
-            d_tweaks, d_scan_key, d_spend, d_gen_lut, d_prefixes, BENCH_N);
+        for (int r = 0; r < BENCH_MULTI; ++r)
+            bip352_pipeline_kernel_lut<<<lut_blocks, gpu_tpb_lut>>>(
+                d_tweaks, d_scan_key, d_spend, d_gen_lut, d_prefixes, BENCH_N);
         float ms = timer.stop();
-        gpu_lut_times[p] = ms;
-        printf("  pass %2d: %8.3f ms\n", p + 1, ms);
+        gpu_lut_times[p] = (double)ms / BENCH_MULTI;
+        printf("  pass %2d: %8.3f ms\n", p + 1, (double)ms / BENCH_MULTI);
     }
 
     // Get validation prefix from LUT pipeline
