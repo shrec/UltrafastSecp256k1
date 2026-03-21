@@ -77,6 +77,36 @@
             }
         },
         {
+            "name": "arm64-cross",
+            "displayName": "ARM64 Cross (Linux → AArch64)",
+            "description": "Cross-compile CPU-only release for AArch64/ARM64 using aarch64-linux-gnu-gcc",
+            "inherits": "base",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/../../cmake/arm64-toolchain.cmake",
+                "SECP256K1_BUILD_CPU": "ON",
+                "SECP256K1_BUILD_CUDA": "OFF",
+                "SECP256K1_BUILD_OPENCL": "OFF",
+                "SECP256K1_BUILD_TESTS": "ON",
+                "SECP256K1_BUILD_BENCH": "ON"
+            }
+        },
+        {
+            "name": "riscv64-cross",
+            "displayName": "RISC-V 64 Cross (Linux → rv64gc)",
+            "description": "Cross-compile CPU-only release for RISC-V 64-bit (rv64gc_zba_zbb) using riscv64-linux-gnu-gcc",
+            "inherits": "base",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/../../cmake/riscv64-toolchain.cmake",
+                "SECP256K1_BUILD_CPU": "ON",
+                "SECP256K1_BUILD_CUDA": "OFF",
+                "SECP256K1_BUILD_OPENCL": "OFF",
+                "SECP256K1_BUILD_TESTS": "ON",
+                "SECP256K1_BUILD_BENCH": "ON"
+            }
+        },
+        {
             "name": "cuda-release",
             "displayName": "CUDA Release (Linux)",
             "description": "CPU + CUDA GPU optimized build for Linux",
