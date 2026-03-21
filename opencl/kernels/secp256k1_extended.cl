@@ -570,7 +570,7 @@ inline void build_wnaf_table_zr_impl(const AffinePoint* base, AffinePoint table[
     point_from_affine(&base_jac, base);
 
     JacobianPoint doubled;
-    point_double_impl(&doubled, &base_jac);
+    point_double_unchecked(&doubled, &base_jac);
 
     FieldElement c = doubled.z;
     FieldElement c2, c3;
@@ -740,22 +740,22 @@ inline void shamir_double_mul_glv_impl(
 
         point_set_infinity(r);
         for (int i = max_len - 1; i >= 0; --i) {
-            if (!point_is_infinity(r)) point_double_impl(r, r);
+            if (!point_is_infinity(r)) point_double_unchecked(r, r);
             if (scalar_bit(&a1, i)) {
                 if (point_is_infinity(r)) point_from_affine(r, &pts[0]);
-                else point_add_mixed_impl(r, r, &pts[0]);
+                else point_add_mixed_unchecked(r, r, &pts[0]);
             }
             if (scalar_bit(&a2, i)) {
                 if (point_is_infinity(r)) point_from_affine(r, &pts[1]);
-                else point_add_mixed_impl(r, r, &pts[1]);
+                else point_add_mixed_unchecked(r, r, &pts[1]);
             }
             if (scalar_bit(&b1, i)) {
                 if (point_is_infinity(r)) point_from_affine(r, &pts[2]);
-                else point_add_mixed_impl(r, r, &pts[2]);
+                else point_add_mixed_unchecked(r, r, &pts[2]);
             }
             if (scalar_bit(&b2, i)) {
                 if (point_is_infinity(r)) point_from_affine(r, &pts[3]);
-                else point_add_mixed_impl(r, r, &pts[3]);
+                else point_add_mixed_unchecked(r, r, &pts[3]);
             }
         }
         return;
@@ -798,7 +798,7 @@ inline void shamir_double_mul_glv_impl(
 
     point_set_infinity(r);
     for (int i = max_len - 1; i >= 0; --i) {
-        if (!point_is_infinity(r)) point_double_impl(r, r);
+        if (!point_is_infinity(r)) point_double_unchecked(r, r);
 
         int idx = scalar_bit(&a1, i)
                 | (scalar_bit(&a2, i) << 1)
@@ -807,7 +807,7 @@ inline void shamir_double_mul_glv_impl(
 
         if (idx != 0) {
             if (point_is_infinity(r)) point_from_affine(r, &table[idx]);
-            else                      point_add_mixed_impl(r, r, &table[idx]);
+            else                      point_add_mixed_unchecked(r, r, &table[idx]);
         }
     }
 }
@@ -837,7 +837,7 @@ inline void scalar_mul_glv_impl(JacobianPoint* r, const Scalar* k, const AffineP
     // Shamir interleaved loop
     point_set_infinity(r);
     for (int i = 129; i >= 0; --i) {
-        if (!point_is_infinity(r)) point_double_impl(r, r);
+        if (!point_is_infinity(r)) point_double_unchecked(r, r);
 
         int d1 = wnaf1[i];
         if (d1 != 0) {
@@ -845,7 +845,7 @@ inline void scalar_mul_glv_impl(JacobianPoint* r, const Scalar* k, const AffineP
             AffinePoint pt = table[idx];
             if (d1 < 0) field_negate_impl(&pt.y, &pt.y);
             if (point_is_infinity(r)) { point_from_affine(r, &pt); }
-            else { point_add_mixed_impl(r, r, &pt); }
+            else { point_add_mixed_unchecked(r, r, &pt); }
         }
 
         int d2 = wnaf2[i];
@@ -854,7 +854,7 @@ inline void scalar_mul_glv_impl(JacobianPoint* r, const Scalar* k, const AffineP
             AffinePoint pt = endo_table[idx];
             if (d2 < 0) field_negate_impl(&pt.y, &pt.y);
             if (point_is_infinity(r)) { point_from_affine(r, &pt); }
-            else { point_add_mixed_impl(r, r, &pt); }
+            else { point_add_mixed_unchecked(r, r, &pt); }
         }
     }
 
@@ -958,7 +958,7 @@ inline void build_wnaf_table_zr_impl(const AffinePoint* base, AffinePoint table[
     point_from_affine(&base_jac, base);
 
     JacobianPoint doubled;
-    point_double_impl(&doubled, &base_jac);
+    point_double_unchecked(&doubled, &base_jac);
 
     FieldElement c = doubled.z;
     FieldElement c2, c3;
@@ -1055,7 +1055,7 @@ inline void scalar_mul_glv_impl(JacobianPoint* r, const Scalar* k, const AffineP
     // Shamir interleaved loop
     point_set_infinity(r);
     for (int i = 129; i >= 0; --i) {
-        if (!point_is_infinity(r)) point_double_impl(r, r);
+        if (!point_is_infinity(r)) point_double_unchecked(r, r);
 
         int d1 = wnaf1[i];
         if (d1 != 0) {
@@ -1063,7 +1063,7 @@ inline void scalar_mul_glv_impl(JacobianPoint* r, const Scalar* k, const AffineP
             AffinePoint pt = table[idx];
             if (d1 < 0) field_negate_impl(&pt.y, &pt.y);
             if (point_is_infinity(r)) { point_from_affine(r, &pt); }
-            else { point_add_mixed_impl(r, r, &pt); }
+            else { point_add_mixed_unchecked(r, r, &pt); }
         }
 
         int d2 = wnaf2[i];
@@ -1072,7 +1072,7 @@ inline void scalar_mul_glv_impl(JacobianPoint* r, const Scalar* k, const AffineP
             AffinePoint pt = endo_table[idx];
             if (d2 < 0) field_negate_impl(&pt.y, &pt.y);
             if (point_is_infinity(r)) { point_from_affine(r, &pt); }
-            else { point_add_mixed_impl(r, r, &pt); }
+            else { point_add_mixed_unchecked(r, r, &pt); }
         }
     }
 
@@ -1162,10 +1162,10 @@ inline void scalar_mul_generator_windowed_impl(JacobianPoint* r, const Scalar* k
             uint idx = (uint)((w >> (nib * 4)) & 0xFUL);
 
             if (started) {
-                point_double_impl(r, r);
-                point_double_impl(r, r);
-                point_double_impl(r, r);
-                point_double_impl(r, r);
+                point_double_unchecked(r, r);
+                point_double_unchecked(r, r);
+                point_double_unchecked(r, r);
+                point_double_unchecked(r, r);
             }
 
             if (idx != 0) {
@@ -1173,7 +1173,7 @@ inline void scalar_mul_generator_windowed_impl(JacobianPoint* r, const Scalar* k
                     point_from_affine(r, &table[idx]);
                     started = 1;
                 } else {
-                    point_add_mixed_impl(r, r, &table[idx]);
+                    point_add_mixed_unchecked(r, r, &table[idx]);
                 }
             }
         }
@@ -1193,7 +1193,7 @@ inline void scalar_mul_generator_lut_impl(JacobianPoint* r, const Scalar* k,
             if (point_is_infinity(r)) {
                 point_from_affine(r, &pt);
             } else {
-                point_add_mixed_impl(r, r, &pt);
+                point_add_mixed_unchecked(r, r, &pt);
             }
         }
     }
