@@ -1,4 +1,4 @@
-# UltrafastSecp256k1 -- High-Performance secp256k1 Engine for CPU, GPU, Mobile, Embedded, and Web
+# UltrafastSecp256k1 — GPU-Accelerated secp256k1 · ECDSA · Schnorr · FROST · BIP-340 · BIP-352 · CUDA · OpenCL · Metal · ARM64 · RISC-V · WASM
 
 [![CI](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/ci.yml)
 [![ct-verif](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/ct-verif.yml/badge.svg?branch=main)](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/ct-verif.yml)
@@ -6,13 +6,29 @@
 [![OSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/shrec/UltrafastSecp256k1/badge)](https://securityscorecards.dev/viewer/?uri=github.com/shrec/UltrafastSecp256k1)
 [![GPU Self-Hosted](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/gpu-selfhosted.yml/badge.svg)](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/gpu-selfhosted.yml)
 
-**Zero-dependency, multi-backend secp256k1 cryptography engine** -- built independently from scratch for Bitcoin, Ethereum, Silent Payments, threshold signatures, embedded systems, and GPU-scale workloads. UltrafastSecp256k1 delivers GPU-accelerated ECDSA and Schnorr, constant-time CPU signing paths, and 12+ platform targets including CUDA, Metal, OpenCL, ROCm, WebAssembly, RISC-V, ESP32, and STM32.
+**Zero-dependency, multi-backend secp256k1 cryptography engine** — built independently from scratch for Bitcoin, Ethereum, Silent Payments, threshold signatures (FROST, MuSig2), embedded IoT systems, and GPU-scale batch workloads. UltrafastSecp256k1 delivers GPU-accelerated ECDSA, Schnorr signing/verification, and **world-first open-source GPU FROST partial verification**, constant-time CPU signing paths, HD key derivation (BIP-32/44), Taproot (BIP-340/341), ZK range proofs, and 12+ platform targets including CUDA, Metal, OpenCL, ROCm, WebAssembly, RISC-V, ESP32, and STM32.
 
-> **11.00 M BIP352 scans/s** * **4.88 M ECDSA signs/s** * **2.44 M ECDSA verifies/s** * **3.66 M Schnorr signs/s** * **2.82 M Schnorr verifies/s** -- single GPU (RTX 5060 Ti, hybrid GPU execution model)
+> **Keywords:** secp256k1 GPU · ECDSA batch verify · Schnorr BIP-340 · FROST threshold signatures · MuSig2 · Bitcoin cryptography · CUDA secp256k1 · OpenCL ECC · BIP-352 Silent Payments · constant-time cryptography · embedded ECC · WebAssembly crypto
+
+> **11.00 M BIP352 scans/s** · **4.88 M ECDSA signs/s** · **4.05 M ECDSA verifies/s** · **3.66 M Schnorr signs/s** · **5.38 M Schnorr verifies/s** · **1.34 M FROST partial verifies/s** · **97.2 M point compressions/s** — single GPU (RTX 5060 Ti SM 12.0)
+
+### Recent Performance Milestones (March 2026)
+
+All measurements: RTX 5060 Ti (SM 12.0, CUDA 12), batch=16 384, kernel-only throughput.
+
+| Operation | Previous | **Now** | Δ |
+|-----------|----------|---------|---|
+| ECDSA Verify (GPU) | 410.1 ns / 2.44 M/s | **246.7 ns / 4.05 M/s** | **+66 % throughput** |
+| Schnorr Verify (GPU) | 354.6 ns / 2.82 M/s | **185.9 ns / 5.38 M/s** | **+91 % throughput** |
+| FROST Partial Verify (GPU) | — | **748.9 ns / 1.34 M/s** | ⭐ New — first open-source GPU FROST |
+| Batch Jacobian → Compressed | — | **10.3 ns / 97.2 M/s** | ⭐ New kernel |
+| BIP-352 Silent Payments (GPU LUT) | 179.2 ns / 5.58 M/s | **91.0 ns / 11.00 M/s** | **+97 % throughput** |
+
+> The ECDSA and Schnorr verify speedups come from the Shamir+GLV double-scalar multiplication, INT32 field arithmetic, and warp-level reduction pipeline. FROST partial verify is now callable via the stable C ABI as [`ufsecp_gpu_frost_verify_partial_batch()`](#gpu-c-abi--ufsecp_gpu).
 
 ### Why UltrafastSecp256k1?
 
-- **Fastest open-source GPU signatures** -- no other library provides secp256k1 ECDSA + Schnorr sign/verify on CUDA; OpenCL covers full ECC + ECDSA/Schnorr verify, Metal provides discovery/lifecycle ([reproducible benchmark suite and raw logs](docs/BENCHMARKS.md))
+- **Fastest open-source GPU signatures** -- no other library provides secp256k1 ECDSA + Schnorr sign/verify **and GPU FROST partial verification** on CUDA; OpenCL covers full ECC + ECDSA/Schnorr verify, Metal provides discovery/lifecycle ([reproducible benchmark suite and raw logs](docs/BENCHMARKS.md))
 - **High-performance CPU secp256k1 engine** -- optimized generator multiply, scalar multiply, hashing, and serialization pipelines across x86-64, ARM64, RISC-V, and embedded targets ([see bench_unified ratio table](docs/BENCHMARKS.md))
 - **BIP-352 Silent Payments at 11.00 M/s** -- the full 7-stage GPU pipeline (k×P → hash → k×G → add → match) runs at 91.0 ns/op on CUDA, **267× faster** than single-threaded CPU ([GPU bench](docs/BENCHMARKS.md), [standalone CPU benchmark by @craigraw](https://github.com/craigraw/bench_bip352))
 - **Built for modern secp256k1 workloads** -- signing, verification, wallet derivation, threshold protocols, adaptor signatures, ZK primitives, address generation, and large-scale public-key pipelines in one engine
@@ -88,7 +104,7 @@
 
 - **BIP-352 GPU pipeline at 11.00 M/s** -- full silent payment scanning pipeline on CUDA (91.0 ns/op), 267× faster than CPU
 - **GPU-accelerated secp256k1** -- ECDSA + Schnorr sign/verify on CUDA; ECDSA + Schnorr verify + core ECC on OpenCL; Metal experimental
-- **GPU C ABI (`ufsecp_gpu`)** -- 16-function stable FFI for GPU batch ops across CUDA, OpenCL, and Metal (6/6 ops on CUDA & OpenCL)
+- **GPU C ABI (`ufsecp_gpu`)** -- 17-function stable FFI for GPU batch ops across CUDA, OpenCL, and Metal (7 ops on CUDA incl. FROST partial verify; 6/7 on OpenCL)
 - **Zero-Knowledge cryptographic layer** -- Pedersen commitments, DLEQ proofs, Bulletproof range proofs, Ethereum-compatible Keccak-256
 - **17–67× faster batch operations** -- all-affine Pippenger with touched-bucket optimization
 - **Multi-language bindings** -- Python, Node.js, Rust, Go, C#, Java, Swift, PHP, Ruby, Dart
@@ -170,13 +186,15 @@
 
 **RTX 5060 Ti (CUDA 12, kernel throughput)**
 
-| Metric | Value |
-|--------|-------|
-| ECC operations (field/point) | ~2.3 B ops/sec |
-| ECDSA sign | 4.88 M sigs/sec |
-| ECDSA verify | 2.44 M verifies/sec |
-| Schnorr sign (BIP-340) | 3.66 M sigs/sec |
-| Schnorr verify (BIP-340) | 2.82 M verifies/sec |
+| Metric | Value | Notes |
+|--------|-------|-------|
+| ECC operations (field/point) | ~2.3 B ops/sec | kernel-only |
+| ECDSA sign | **4.88 M sigs/sec** | RFC 6979, low-S |
+| ECDSA verify | **4.05 M verifies/sec** | Shamir+GLV (+66% vs prev) |
+| Schnorr sign (BIP-340) | **3.66 M sigs/sec** | BIP-340 tagged hash |
+| Schnorr verify (BIP-340) | **5.38 M verifies/sec** | BIP-340+GLV (+91% vs prev) |
+| FROST partial verify | **1.34 M verifies/sec** | ⭐ New — first open-source GPU FROST |
+| Batch point compress (J→SEC1) | **97.2 M pts/sec** | New kernel |
 
 ## Architecture
 
@@ -323,7 +341,7 @@ Features are organized into **maturity tiers** (see [SUPPORTED_GUARANTEES.md](in
 | **2 -- Protocol** | BIP-352 | Silent Payments scanning pipeline (CPU + GPU) | [OK] |
 | **2 -- Protocol** | ECIES | Elliptic curve integrated encryption | [OK] |
 | -- | GPU | CUDA, Metal, OpenCL, ROCm kernels | [OK] |
-| -- | GPU C ABI | `ufsecp_gpu` -- 6 batch ops across 3 backends (16 FFI functions) | [OK] |
+| -- | GPU C ABI | `ufsecp_gpu` -- 7 batch ops across 3 backends (17 FFI functions, incl. FROST) | [OK] |
 | -- | Platforms | x64, ARM64, RISC-V, ESP32, STM32, WASM, iOS, Android | [OK] |
 
 > **Tier 1** = battle-tested core crypto with stable API. **Tier 2** = protocol-level features, API may evolve. **Tier 3** = convenience utilities.
@@ -517,10 +535,10 @@ g++ myapp.cpp $(pkg-config --cflags --libs ufsecp) -o myapp
 
 UltrafastSecp256k1 is the **only open-source library** that provides full secp256k1 ECDSA + Schnorr sign/verify on GPU across four backends (as of February 2026; if you know of another, [please let us know](https://github.com/shrec/UltrafastSecp256k1/issues)):
 
-| Backend | Hardware | kG/s | ECDSA Sign | ECDSA Verify | Schnorr Sign | Schnorr Verify |
-|---------|----------|------|------------|--------------|--------------|----------------|
-| **CUDA** | RTX 5060 Ti | 4.59 M/s | 4.88 M/s | 2.44 M/s | 3.66 M/s | 2.82 M/s |
-| **OpenCL** | RTX 5060 Ti | 3.86 M/s | -- | 2.44 M/s* | -- | 2.82 M/s* |
+| Backend | Hardware | kG/s | ECDSA Sign | ECDSA Verify | Schnorr Sign | Schnorr Verify | FROST Verify |
+|---------|----------|------|------------|--------------|--------------|----------------|-------------|
+| **CUDA** | RTX 5060 Ti | 4.59 M/s | 4.88 M/s | **4.05 M/s** | 3.66 M/s | **5.38 M/s** | **1.34 M/s** |
+| **OpenCL** | RTX 5060 Ti | 3.86 M/s | -- | 2.44 M/s* | -- | 2.82 M/s* | — |
 | **Metal** | Apple M3 Pro | 0.33 M/s | -- | -- | -- | -- |
 | **ROCm (HIP)** | AMD GPUs | Portable | -- | -- | -- | -- |
 
@@ -542,13 +560,14 @@ UltrafastSecp256k1 is the **only open-source library** that provides full secp25
 
 ### GPU Signature Operations (ECDSA + Schnorr)
 
-| Operation | Time/Op | Throughput | Protocol |
-|-----------|---------|------------|----------|
-| **ECDSA Sign** | **204.8 ns** | **4.88 M/s** | RFC 6979 + low-S |
-| **ECDSA Verify** | **410.1 ns** | **2.44 M/s** | Shamir + GLV |
-| **ECDSA Sign+Recid** | **311.5 ns** | **3.21 M/s** | Recoverable (EIP-155) |
-| **Schnorr Sign** | **273.4 ns** | **3.66 M/s** | BIP-340 |
-| **Schnorr Verify** | **354.6 ns** | **2.82 M/s** | BIP-340 + GLV |
+| Operation | Time/Op | Throughput | Protocol | Δ vs prev |
+|-----------|---------|------------|----------|----------|
+| **ECDSA Sign** | **204.8 ns** | **4.88 M/s** | RFC 6979 + low-S | — |
+| **ECDSA Verify** | **246.7 ns** | **4.05 M/s** | Shamir + GLV | **+66%** |
+| **ECDSA Sign+Recid** | **311.5 ns** | **3.21 M/s** | Recoverable (EIP-155) | — |
+| **Schnorr Sign** | **273.4 ns** | **3.66 M/s** | BIP-340 | — |
+| **Schnorr Verify** | **185.9 ns** | **5.38 M/s** | BIP-340 + GLV | **+91%** |
+| **FROST Partial Verify** | **748.9 ns** | **1.34 M/s** | t-of-n threshold | ⭐ New |
 
 ### CUDA vs OpenCL Comparison (RTX 5060 Ti)
 
