@@ -750,6 +750,12 @@ if(BUILD_TESTING)
     add_executable(bench_kP tests/bench_kP.cpp)
     target_link_libraries(bench_kP PRIVATE ${SECP256K1_LIB_NAME})
 
+    # BIP-324 benchmark (ChaCha20-Poly1305, HKDF, ElligatorSwift, session)
+    if(SECP256K1_BUILD_BIP324)
+        add_executable(bench_bip324 bench/bench_bip324.cpp)
+        target_link_libraries(bench_bip324 PRIVATE ${SECP256K1_LIB_NAME})
+    endif()
+
     # Unified Apple-to-Apple Benchmark (cross-platform, single binary)
     # Requires libsecp256k1 source for side-by-side comparison
     # CI can override: -DLIBSECP_SRC_DIR=/path/to/secp256k1/src
