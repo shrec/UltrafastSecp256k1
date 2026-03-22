@@ -13,32 +13,35 @@ It is intended as an engineering checklist, not a marketing page.
 
 ---
 
-## C ABI First-Wave Ops -- Per-Backend Status
+## C ABI Ops -- Per-Backend Status
 
-The C ABI layer (`ufsecp_gpu.h`) exposes 6 batch operations. Backend support varies.
-Operations returning `UFSECP_ERR_GPU_UNSUPPORTED` (104) gracefully decline.
+The C ABI layer (`ufsecp_gpu.h`) currently exposes 8 backend-neutral GPU batch
+operations. Backend support varies, and operations returning
+`UFSECP_ERR_GPU_UNSUPPORTED` (104) gracefully decline.
 
 | Operation | CUDA | OpenCL | Metal | Data Class |
 |-----------|------|--------|-------|------------|
-| `generator_mul_batch` | implemented | implemented | unsupported | PUBLIC |
-| `ecdsa_verify_batch` | implemented | unsupported in unified C ABI | unsupported | PUBLIC |
-| `schnorr_verify_batch` | implemented | unsupported in unified C ABI | unsupported | PUBLIC |
-| `ecdh_batch` | implemented | implemented | unsupported | SECRET |
-| `hash160_pubkey_batch` | implemented | implemented | unsupported | PUBLIC |
-| `msm` | implemented | implemented | unsupported | PUBLIC |
-| **Total (unified GPU C ABI)** | **6/6** | **4/6** | **0/6** | |
+| `generator_mul_batch` | implemented | implemented | implemented | PUBLIC |
+| `ecdsa_verify_batch` | implemented | implemented | implemented | PUBLIC |
+| `schnorr_verify_batch` | implemented | implemented | implemented | PUBLIC |
+| `ecdh_batch` | implemented | implemented | implemented | SECRET |
+| `hash160_pubkey_batch` | implemented | implemented | implemented | PUBLIC |
+| `msm` | implemented | implemented | implemented | PUBLIC |
+| `frost_verify_partial_batch` | implemented | implemented | implemented | PUBLIC |
+| `ecrecover_batch` | implemented | temporary stub (`UFSECP_ERR_GPU_UNSUPPORTED`) | temporary stub (`UFSECP_ERR_GPU_UNSUPPORTED`) | PUBLIC |
+| **Total (unified GPU C ABI)** | **8/8** | **7/8** | **7/8** | |
 
 ### Expansion Roadmap
 
-- **OpenCL next in the unified GPU C ABI**: ecdsa_verify_batch, schnorr_verify_batch (the native OpenCL backend already has broader coverage; the remaining work is wiring those verify paths cleanly through the shared host ABI layer)
-- **Metal**: experimental / discovery-only until MSL kernel pipeline is wired from CMake
+- **OpenCL next in the unified GPU C ABI**: `ecrecover_batch` (the native OpenCL backend already has the recovery device function; the remaining work is wiring a batch kernel through the shared host ABI layer)
+- **Metal next in the unified GPU C ABI**: `ecrecover_batch` shader/kernel parity
 
 ### C ABI Test Coverage
 
 | Test | Scope | Guard |
 |------|-------|-------|
 | `gpu_abi_gate` | ABI surface, error codes, discovery, lifecycle, NULL handling | GPU host + ufsecp |
-| `gpu_ops_equivalence` | GPU vs CPU reference for all 6 ops (skips UNSUPPORTED) | GPU host + ufsecp |
+| `gpu_ops_equivalence` | GPU vs CPU reference for supported ops (skips `UFSECP_ERR_GPU_UNSUPPORTED`) | GPU host + ufsecp |
 | `gpu_host_api_negative` | NULL ptrs, count=0, invalid backend/device, error strings | GPU host + ufsecp |
 | `gpu_backend_matrix` | Backend enumeration, device info, per-backend op probing | GPU host + ufsecp |
 

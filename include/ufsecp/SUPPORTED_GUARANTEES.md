@@ -22,12 +22,14 @@ a new `UFSECP_ABI_VERSION`.
 | **Deterministic nonce** | ECDSA uses RFC 6979 (HMAC-DRBG / SHA-256). |
 | **Low-S** | `ufsecp_ecdsa_sign()` always normalises to low-S (BIP-62). |
 | **BIP-340** | Schnorr follows BIP-340 byte-for-byte. |
+| **Batch signing ABI** | `ufsecp_ecdsa_sign_batch()` and `ufsecp_schnorr_sign_batch()` repeat the stable 32-byte input / 64-byte output item layout over `count` contiguous entries. |
 | **SHA-256** | FIPS 180-4 correct; hardware acceleration (SHA-NI, ARMv8-SHA2) used when detected at runtime. |
 | **ECDH** | Three modes: compressed-hash, x-only-hash, raw x-coordinate. |
 | **BIP-32** | Full HD derivation: master from seed, normal/hardened child, full path string. |
 | **Taproot** | BIP-341 output key, key-path tweak, commitment verification. |
 | **Addresses** | P2PKH, P2WPKH (Bech32), P2TR (Bech32m). |
 | **WIF** | Encode/decode, mainnet/testnet, compressed/uncompressed. |
+| **GPU C ABI** | `ufsecp_gpu.h` is a stable opaque-handle C ABI. Backend availability is runtime-discovered and unsupported operations must return `UFSECP_ERR_GPU_UNSUPPORTED`. |
 
 ### Thread safety
 
@@ -52,7 +54,6 @@ behalf of the caller except during `ufsecp_ctx_create` /
 | Adaptor signatures | API may change |
 | Pedersen commitments | API may change |
 | Multi-coin address derivation | API may change |
-| GPU batch operations | Separate library, no C ABI promise |
 
 These will graduate to Tier 1 once their API surface is frozen and a
 test harness covers all edge cases.

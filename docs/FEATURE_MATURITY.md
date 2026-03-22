@@ -126,12 +126,14 @@ Each feature is rated by: implementation status, threat model coverage, test vec
 
 | Feature | Status | Threat Model | Test Vectors | Fuzzed | GPU | Secret-Safe | Tier |
 |---------|--------|-------------|-------------|--------|-----|-------------|------|
-| 16 ufsecp_gpu_* functions | Y | NULL ctx/args, invalid backend, bad device | 39 assertions (gpu_abi_gate) | - | All backends | ECDH marked SECRET-BEARING | Hardened |
+| 18 ufsecp_gpu_* functions | Y | NULL ctx/args, invalid backend, bad device, unsupported op | gpu_abi_gate + gpu_backend_matrix | - | CUDA/OpenCL/Metal | ECDH marked SECRET-BEARING | Hardened |
 | GPU error codes (100-106) | Y | Unknown code mapping | error_str coverage | - | N/A | N/A | Production |
 | Backend discovery (3 backends) | Y | No device present | Enumerate + probe | - | CUDA/OpenCL/Metal | N/A | Production |
 | generator_mul_batch | Y | NULL buffers, count=0 | 1*G == G equivalence | - | OpenCL+CUDA | N/A (public) | Hardened |
 | Batch verify (ECDSA/Schnorr) | Y | - | - | - | CUDA only | N/A (public) | Experimental |
 | ECDH/Hash160/MSM batch | Y | - | - | - | Partial | ECDH secret-bearing | Experimental |
+| FROST partial verify GPU ABI | Y | Malformed commitments, unsupported backend | Protocol vectors + backend probing | - | Y (all 3) | N/A (public) | Production |
+| ecrecover_batch GPU ABI | Y | Invalid recid, malformed compact sig, unsupported backend | Backend probing | - | CUDA; OpenCL/Metal temporary stub | N/A (public) | Experimental |
 
 ---
 

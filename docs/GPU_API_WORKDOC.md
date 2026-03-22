@@ -145,6 +145,15 @@ Required first wave:
 
 These six are enough to turn the current engine into a serious interop layer.
 
+Current implementation status after the stable ABI rollout:
+- The stable GPU C ABI now also exposes `ufsecp_gpu_frost_verify_partial_batch`
+    and `ufsecp_gpu_ecrecover_batch`.
+- `ufsecp_gpu_ecrecover_batch` is fully implemented on CUDA and currently returns
+    `UFSECP_ERR_GPU_UNSUPPORTED` on OpenCL and Metal via documented temporary stubs.
+- CPU constant-time batch signing lives in `ufsecp.h` as
+    `ufsecp_ecdsa_sign_batch` and `ufsecp_schnorr_sign_batch`; these are not GPU
+    APIs because private keys do not leave the host CT layer.
+
 ## What Each GPU ABI Function Must Guarantee
 
 Each function must:
@@ -287,6 +296,8 @@ Prepare for Rust by making Layer 3 clean enough that a future raw crate can expo
 - `ufsecp_gpu_ecdh_batch`
 - `ufsecp_gpu_hash160_pubkey_batch`
 - `ufsecp_gpu_msm`
+- `ufsecp_gpu_frost_verify_partial_batch`
+- `ufsecp_gpu_ecrecover_batch`
 
 If you add Rust changes, keep them limited to raw FFI declarations only.
 

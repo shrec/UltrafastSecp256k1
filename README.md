@@ -104,7 +104,7 @@ All measurements: RTX 5060 Ti (SM 12.0, CUDA 12), batch=16 384, kernel-only thro
 
 - **BIP-352 GPU pipeline at 11.00 M/s** -- full silent payment scanning pipeline on CUDA (91.0 ns/op), 267× faster than CPU
 - **GPU-accelerated secp256k1** -- ECDSA + Schnorr sign/verify on CUDA; ECDSA + Schnorr verify + core ECC on OpenCL; Metal experimental
-- **GPU C ABI (`ufsecp_gpu`)** -- 17-function stable FFI for GPU batch ops across CUDA, OpenCL, and Metal (7 ops on CUDA incl. FROST partial verify; 6/7 on OpenCL)
+- **GPU C ABI (`ufsecp_gpu`)** -- stable FFI for GPU batch ops across CUDA, OpenCL, and Metal (8 ops total; CUDA 8/8, OpenCL 7/8, Metal 7/8 with documented temporary `ecrecover_batch` stubs)
 - **Zero-Knowledge cryptographic layer** -- Pedersen commitments, DLEQ proofs, Bulletproof range proofs, Ethereum-compatible Keccak-256
 - **17–67× faster batch operations** -- all-affine Pippenger with touched-bucket optimization
 - **Multi-language bindings** -- Python, Node.js, Rust, Go, C#, Java, Swift, PHP, Ruby, Dart
@@ -868,22 +868,24 @@ ufsecp_ctx_destroy(ctx);
 
 ### GPU C ABI (`ufsecp_gpu`)
 
-Starting with **v3.3.0**, the GPU layer is fully accessible from any FFI language via `ufsecp_gpu.h` (16 functions):
+Starting with **v3.3.0**, the GPU layer is fully accessible from any FFI language via `ufsecp_gpu.h`:
 
 | Category | Functions |
 |----------|-----------|
 | **Discovery** | `gpu_backend_count`, `gpu_backend_name`, `gpu_is_available`, `gpu_device_count`, `gpu_device_info` |
-| **Lifecycle** | `gpu_ctx_create`, `gpu_ctx_destroy`, `gpu_last_error`, `gpu_last_error_msg` |
-| **Batch Ops** | `gpu_generator_mul_batch`, `gpu_ecdsa_verify_batch`, `gpu_schnorr_verify_batch`, `gpu_ecdh_batch`, `gpu_hash160_pubkey_batch`, `gpu_msm` |
+| **Lifecycle** | `gpu_ctx_create`, `gpu_ctx_destroy`, `gpu_last_error`, `gpu_last_error_msg`, `gpu_error_str` |
+| **Batch Ops** | `gpu_generator_mul_batch`, `gpu_ecdsa_verify_batch`, `gpu_schnorr_verify_batch`, `gpu_ecdh_batch`, `gpu_hash160_pubkey_batch`, `gpu_msm`, `gpu_frost_verify_partial_batch`, `gpu_ecrecover_batch` |
 
 | Batch Operation | CUDA | OpenCL | Metal |
 |----------------|------|--------|-------|
-| `generator_mul_batch` | [OK] | [OK] | -- |
-| `ecdsa_verify_batch` | [OK] | [OK] | -- |
-| `schnorr_verify_batch` | [OK] | [OK] | -- |
-| `ecdh_batch` | [OK] | [OK] | -- |
-| `hash160_pubkey_batch` | [OK] | [OK] | -- |
-| `msm` | [OK] | [OK] | -- |
+| `generator_mul_batch` | [OK] | [OK] | [OK] |
+| `ecdsa_verify_batch` | [OK] | [OK] | [OK] |
+| `schnorr_verify_batch` | [OK] | [OK] | [OK] |
+| `ecdh_batch` | [OK] | [OK] | [OK] |
+| `hash160_pubkey_batch` | [OK] | [OK] | [OK] |
+| `msm` | [OK] | [OK] | [OK] |
+| `frost_verify_partial_batch` | [OK] | [OK] | [OK] |
+| `ecrecover_batch` | [OK] | [..] temporary stub | [..] temporary stub |
 
 See [ufsecp_gpu.h](include/ufsecp/ufsecp_gpu.h) and [GPU Validation Matrix](docs/GPU_VALIDATION_MATRIX.md) for details.
 
@@ -893,8 +895,8 @@ See [ufsecp_gpu.h](include/ufsecp/ufsecp_gpu.h) and [GPU Validation Matrix](docs
 |----------|-----------|
 | **Context** | `ctx_create`, `ctx_destroy`, `selftest`, `last_error` |
 | **Keys** | `keygen`, `seckey_verify`, `pubkey_create`, `pubkey_parse`, `pubkey_serialize` |
-| **ECDSA** | `ecdsa_sign`, `ecdsa_verify`, `ecdsa_sign_der`, `ecdsa_verify_der`, `ecdsa_recover` |
-| **Schnorr** | `schnorr_sign`, `schnorr_verify` |
+| **ECDSA** | `ecdsa_sign`, `ecdsa_sign_batch`, `ecdsa_verify`, `ecdsa_sign_der`, `ecdsa_verify_der`, `ecdsa_recover` |
+| **Schnorr** | `schnorr_sign`, `schnorr_sign_batch`, `schnorr_verify` |
 | **SHA-256** | `sha256` (SHA-NI accelerated) |
 | **ECDH** | `ecdh_compressed`, `ecdh_xonly`, `ecdh_raw` |
 | **BIP-32** | `bip32_from_seed`, `bip32_derive_child`, `bip32_serialize` |
@@ -1139,11 +1141,11 @@ All EVM chains (ETH, BNB, MATIC, AVAX, FTM, ARB, OP) share the same address form
 | **Desktop CPU** | ARM64 (Apple Silicon, Ampere) | CPU | [OK] Stable |
 | **Desktop CPU** | RISC-V RV64GC | CPU | [OK] Stable |
 | **Raspberry Pi** | ARM64 (BCM2710, Zero 2 W) | CPU | [..] Testing |
-| **NVIDIA GPU** | RTX / GTX / Tesla (sm_50+) | CUDA 12+ | [OK] Stable (6/6 C ABI ops) |
-| **AMD GPU** | RDNA / CDNA | OpenCL | [OK] Full (6/6 C ABI ops) |
+| **NVIDIA GPU** | RTX / GTX / Tesla (sm_50+) | CUDA 12+ | [OK] Stable (8/8 GPU C ABI ops) |
+| **AMD GPU** | RDNA / CDNA | OpenCL | [OK] Broad (7/8 GPU C ABI ops; `ecrecover_batch` pending) |
 | **AMD GPU** | RDNA / CDNA | ROCm/HIP | [!] Beta |
-| **Apple GPU** | Apple Silicon (M1/M2/M3/M4) | Metal | [..] Experimental (discovery/lifecycle only) |
-| **Any GPU** | OpenCL 1.2+ compatible | OpenCL | [OK] Full (6/6 C ABI ops) |
+| **Apple GPU** | Apple Silicon (M1/M2/M3/M4) | Metal | [..] Experimental (7/8 GPU C ABI ops; `ecrecover_batch` pending) |
+| **Any GPU** | OpenCL 1.2+ compatible | OpenCL | [OK] Broad (7/8 GPU C ABI ops; `ecrecover_batch` pending) |
 | **ESP32-S3** | Xtensa LX7 @ 240 MHz | CPU | [OK] Tested |
 | **ESP32-P4** | RISC-V @ 400 MHz | CPU | [OK] Supported |
 | **ESP32-C6** | RISC-V (single-core) | CPU | [OK] Supported |
@@ -1152,7 +1154,7 @@ All EVM chains (ETH, BNB, MATIC, AVAX, FTM, ARB, OP) share the same address form
 | **Android** | ARM64 (NDK r27c) | CPU | [OK] Stable |
 | **iOS** | ARM64 (Xcode) | CPU | [OK] Stable |
 
-> **GPU C ABI ops**: generator_mul_batch, ecdsa_verify_batch, schnorr_verify_batch, ecdh_batch, hash160_batch, msm. See [GPU Validation Matrix](docs/GPU_VALIDATION_MATRIX.md) for per-backend details.
+> **GPU C ABI ops**: generator_mul_batch, ecdsa_verify_batch, schnorr_verify_batch, ecdh_batch, hash160_pubkey_batch, msm, frost_verify_partial_batch, ecrecover_batch. See [GPU Validation Matrix](docs/GPU_VALIDATION_MATRIX.md) for per-backend details.
 
 ### Embedded Targets
 
@@ -1381,7 +1383,7 @@ cosign verify-blob SHA256SUMS \
 | [API Reference](docs/API_REFERENCE.md) | Full C++ and C ABI reference |
 | [Build Guide](docs/BUILDING.md) | Detailed build instructions for all platforms |
 | [Benchmarks](docs/BENCHMARKS.md) | Complete benchmark results and methodology |
-| [GPU API](include/ufsecp/ufsecp_gpu.h) | GPU C ABI header (16 functions, 3 backends) |
+| [GPU API](include/ufsecp/ufsecp_gpu.h) | GPU C ABI header (18 functions, 8 ops, 3 backends) |
 | [GPU Validation Matrix](docs/GPU_VALIDATION_MATRIX.md) | Per-backend op coverage and validation status |
 | [Feature Maturity](docs/FEATURE_MATURITY.md) | Per-feature GPU/CT/fuzz/tier status table |
 | [Supported Guarantees](include/ufsecp/SUPPORTED_GUARANTEES.md) | ABI stability tiers and commitment levels |

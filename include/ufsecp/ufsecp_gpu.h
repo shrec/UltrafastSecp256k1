@@ -17,16 +17,14 @@
  *
  * ## Feature maturity
  *
- *   This header defines the first-wave GPU API surface. Backend support
+ *   This header defines the stable GPU API surface. Backend support
  *   per-operation varies:
  *
- *     CUDA   -- all 6 first-wave ops implemented
- *     OpenCL -- the native backend itself has broader coverage, but this
- *               first-wave unified C ABI currently exposes 4/6 ops
- *               (generator_mul, ecdh, hash160, msm); ECDSA/Schnorr verify
- *               return UNSUPPORTED here until the extended verify kernels are
- *               wired through the shared host ABI layer
- *     Metal  -- device discovery / lifecycle only; all ops return UNSUPPORTED
+ *     CUDA   -- all 8 GPU ops implemented
+ *     OpenCL -- 7/8 GPU ops implemented; `ecrecover_batch` currently returns
+ *               UNSUPPORTED via a documented temporary stub
+ *     Metal  -- 7/8 GPU ops implemented; `ecrecover_batch` currently returns
+ *               UNSUPPORTED via a documented temporary stub
  *
  *   Operations that a backend does not implement return
  *   UFSECP_ERR_GPU_UNSUPPORTED (104). Callers MUST handle this gracefully.

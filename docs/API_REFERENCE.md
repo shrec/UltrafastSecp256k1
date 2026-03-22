@@ -1926,6 +1926,7 @@ ufsecp_ctx_destroy(ctx);
 |----------|-----------|-------------|
 | `ufsecp_ecdsa_sign` | `(ctx, msg32[32], privkey[32], sig64_out[64]) -> error_t` | Sign (RFC 6979, low-S) |
 | `ufsecp_ecdsa_sign_verified` | `(ctx, msg32[32], privkey[32], sig64_out[64]) -> error_t` | Sign + verify (fault resistance) |
+| `ufsecp_ecdsa_sign_batch` | `(ctx, n, msgs32[], privkeys32[], sigs64_out[]) -> error_t` | CPU CT batch sign; repeats stable 32/32/64-byte item layout per entry |
 | `ufsecp_ecdsa_verify` | `(ctx, msg32[32], sig64[64], pubkey33[33]) -> error_t` | Verify compact signature |
 | `ufsecp_ecdsa_sig_to_der` | `(ctx, sig64[64], der_out, der_len*) -> error_t` | Compact to DER encoding |
 | `ufsecp_ecdsa_sig_from_der` | `(ctx, der, der_len, sig64_out[64]) -> error_t` | DER to compact encoding |
@@ -1939,6 +1940,7 @@ ufsecp_ctx_destroy(ctx);
 |----------|-----------|-------------|
 | `ufsecp_schnorr_sign` | `(ctx, msg32, privkey, aux_rand[32], sig64_out) -> error_t` | BIP-340 sign (aux_rand=zeros for deterministic) |
 | `ufsecp_schnorr_sign_verified` | `(ctx, msg32, privkey, aux_rand, sig64_out) -> error_t` | Sign + verify (fault resistance) |
+| `ufsecp_schnorr_sign_batch` | `(ctx, n, msgs32[], privkeys32[], aux_rands32[]?, sigs64_out[]) -> error_t` | CPU CT batch sign; `aux_rands32 == NULL` means all-zero aux for every entry |
 | `ufsecp_schnorr_verify` | `(ctx, msg32, sig64, pubkey_x[32]) -> error_t` | Verify BIP-340 signature |
 
 <a id="c-abi-ecdh"></a>
@@ -2159,7 +2161,7 @@ Backend-neutral GPU acceleration surface. All functions use opaque `ufsecp_gpu_c
 | `ufsecp_gpu_last_error_msg` | `(ctx*) -> const char*` | Last error message string |
 | `ufsecp_gpu_error_str` | `(code) -> const char*` | Error code to string (CPU + GPU codes) |
 
-#### Batch Operations (First Wave)
+#### Batch Operations and Extensions
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
@@ -2169,6 +2171,8 @@ Backend-neutral GPU acceleration surface. All functions use opaque `ufsecp_gpu_c
 | `ufsecp_gpu_ecdh_batch` | `(ctx, privkeys32[], pubs33[], n, secrets32_out[]) -> error_t` | ECDH shared secrets (SECRET-BEARING) |
 | `ufsecp_gpu_hash160_pubkey_batch` | `(ctx, pubs33[], n, hashes20_out[]) -> error_t` | SHA-256 + RIPEMD-160 of pubkeys |
 | `ufsecp_gpu_msm` | `(ctx, scalars32[], points33[], n, result33_out) -> error_t` | Multi-scalar multiplication |
+| `ufsecp_gpu_frost_verify_partial_batch` | `(ctx, z_i32[], D_i33[], E_i33[], Y_i33[], rho_i32[], lambda_ie32[], negate_R[], negate_key[], n, results_out[]) -> error_t` | Batch FROST partial verification |
+| `ufsecp_gpu_ecrecover_batch` | `(ctx, msgs32[], sigs64[], recids[], n, pubkeys33_out[], valid_out[]) -> error_t` | Batch public-key recovery from recoverable ECDSA signatures |
 
 ---
 

@@ -45,8 +45,9 @@ Y = implemented + tested in audit runner, K = kernel/shader exists (not in audit
 | Schnorr sign (BIP-340) | Y | Y | Y | Y | |
 | Schnorr verify (BIP-340) | Y | Y | Y | Y | |
 | BIP-340 midstate optimization | Y | Y | Y | Y | Precomputed SHA-256 midstates |
-| Batch ECDSA verify | Y | Y | - | Y | Metal: kernel 10. OpenCL: not yet. |
-| Batch Schnorr verify | Y | Y | - | Y | Metal: kernel 12. OpenCL: not yet. |
+| Batch ECDSA verify | Y | Y | Y | Y | Exposed through `ufsecp_gpu_ecdsa_verify_batch` |
+| Batch Schnorr verify | Y | Y | Y | Y | Exposed through `ufsecp_gpu_schnorr_verify_batch` |
+| Batch ECDSA recovery (`ecrecover_batch`) | Y (host loop) | Y | - | - | OpenCL/Metal currently return documented temporary stubs in the stable GPU ABI |
 | **Hashing** | | | | | |
 | SHA-256 | Y | Y | Y | Y | |
 | Hash160 (RIPEMD160(SHA256)) | Y | Y | Y | Y | |
@@ -138,12 +139,12 @@ Y = implemented + tested in audit runner, K = kernel/shader exists (not in audit
 
 | # | Gap | Backends | Severity | Notes |
 |---|-----|----------|----------|-------|
-| 1 | Batch ECDSA/Schnorr verify | OpenCL missing | Low | Search workload; Metal + CUDA have it |
+| 1 | `ecrecover_batch` parity | OpenCL, Metal | Low | Stable GPU ABI exists; both backends currently return documented temporary stubs |
 | 2 | CT audit modules | OpenCL, Metal | Low | Kernel files exist but audit runner doesn't exercise them |
 | 3 | Differential CPU-GPU | OpenCL (1 of 3), Metal (1 of 3) | Low | Only scalar mul differential, not field/ECDSA |
 | 4 | Memory safety tests | OpenCL, Metal | Informational | CUDA-specific (device alloc/error state) |
 
-All gaps are **non-blocking** for release. Core cryptographic operations (sign, verify, key derivation, hashing) have full parity across all three GPU backends.
+All gaps are **non-blocking** for release. Core verify, MSM, ECDH, Hash160, and FROST partial verification paths are available through the stable GPU ABI across all three GPU backends; the remaining functional parity gap is `ecrecover_batch` on OpenCL and Metal.
 
 ---
 

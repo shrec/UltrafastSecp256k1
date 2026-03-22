@@ -462,7 +462,7 @@
 
 ---
 
-## 26. GPU C ABI (`ufsecp_gpu_*`) -- 16 functions
+## 26. GPU C ABI (`ufsecp_gpu_*`) -- 18 functions
 
 Backend-neutral GPU acceleration surface (`ufsecp_gpu.h`). Separate opaque context (`ufsecp_gpu_ctx*`).
 
@@ -485,12 +485,14 @@ Backend-neutral GPU acceleration surface (`ufsecp_gpu.h`). Separate opaque conte
 
 | Function | OpenCL | CUDA | Metal | Equivalence Test | Notes |
 |----------|--------|------|-------|-----------------|-------|
-| `ufsecp_gpu_generator_mul_batch` | Y | Y | - | Y (1*G == G) | Scalar→compressed pubkey |
-| `ufsecp_gpu_ecdsa_verify_batch` | - | Y | - | - | Batch ECDSA verify |
-| `ufsecp_gpu_schnorr_verify_batch` | - | Y | - | - | BIP-340 batch verify |
-| `ufsecp_gpu_ecdh_batch` | - | - | - | - | SECRET-BEARING |
-| `ufsecp_gpu_hash160_pubkey_batch` | - | Y | - | - | SHA-256+RIPEMD-160 |
-| `ufsecp_gpu_msm` | - | - | - | - | Multi-scalar multiplication |
+| `ufsecp_gpu_generator_mul_batch` | Y | Y | Y | Y (1*G == G) | Scalar→compressed pubkey |
+| `ufsecp_gpu_ecdsa_verify_batch` | Y | Y | Y | - | Batch ECDSA verify |
+| `ufsecp_gpu_schnorr_verify_batch` | Y | Y | Y | - | BIP-340 batch verify |
+| `ufsecp_gpu_ecdh_batch` | Y | Y | Y | - | SECRET-BEARING |
+| `ufsecp_gpu_hash160_pubkey_batch` | Y | Y | Y | - | SHA-256+RIPEMD-160 |
+| `ufsecp_gpu_msm` | Y | Y | Y | - | Multi-scalar multiplication |
+| `ufsecp_gpu_frost_verify_partial_batch` | Y | Y | Y | - | Batch FROST partial verification |
+| `ufsecp_gpu_ecrecover_batch` | temporary stub | Y | temporary stub | - | Recover compressed pubkeys from recoverable ECDSA sigs |
 
 **Test file:** `audit/test_gpu_abi_gate.cpp` (39 assertions)
 
