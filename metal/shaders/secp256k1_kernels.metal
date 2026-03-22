@@ -31,6 +31,7 @@
 #include "secp256k1_extended.h"
 #include "secp256k1_hash160.h"
 #include "secp256k1_zk.h"
+#include "secp256k1_bip324.h"
 
 using namespace metal;
 
@@ -1177,5 +1178,87 @@ kernel void frost_verify_partial_batch(
 
     /* Compare */
     results[tid] = frost_jac_equal(lhs, rhs) ? 1u : 0u;
+}
+
+// =============================================================================
+// BIP-324 Kernels — Batch ChaCha20-Poly1305 AEAD
+// =============================================================================
+
+// Kernel: batch ChaCha20 block (throughput ceiling)
+kernel void kernel_bip324_chacha20_block_batch(
+    device const uchar* keys    [[buffer(0)]],   // N * 32
+    device const uchar* nonces  [[buffer(1)]],   // N * 12
+    device uchar*       out     [[buffer(2)]],   // N * 64
+    constant uint&      count   [[buffer(3)]],
+    uint tid [[thread_position_in_grid]]
+) {
+    if (tid >= count) return;
+
+    uint state[16];
+    bip324_chacha20_setup(state, keys + tid * 32, nonces + tid * 12, 0);
+
+    uchar block[64];
+    bip324_chacha20_block(state, block);
+
+    for (int i = 0; i < 64; ++i)
+        out[tid * 64 + i] = block[i];
+}
+
+// Kernel: batch AEAD encrypt
+kernel void kernel_bip324_aead_encrypt(
+    device const uchar* keys        [[buffer(0)]],   // N * 32
+    device const uchar* nonces      [[buffer(1)]],   // N * 12
+    device const uchar* plaintexts  [[buffer(2)]],   // N * max_payload
+    device const uint*  sizes       [[buffer(3)]],   // N payload sizes
+    device uchar*       wire_out    [[buffer(4)]],   // N * (max_payload + 19)
+    constant uint&      max_payload [[buffer(5)]],
+    constant uint&      count       [[buffer(6)]],
+    uint tid [[thread_position_in_grid]]
+) {
+    if (tid >= count) return;
+
+    uint payload_sz = sizes[tid];
+    device const uchar* key   = keys + tid * 32;
+    device const uchar* nonce = nonces + tid * 12;
+    device const uchar* pt    = plaintexts + (ulong)tid * max_payload;
+
+    ulong wire_stride = max_payload + BIP324_OVERHEAD;
+    device uchar* wire = wire_out + (ulong)tid * wire_stride;
+
+    // BIP-324: 3-byte LE length header (simplified for benchmark)
+    wire[0] = (uchar)(payload_sz);
+    wire[1] = (uchar)(payload_sz >> 8);
+    wire[2] = (uchar)(payload_sz >> 16);
+
+    bip324_aead_encrypt(key, nonce, pt, payload_sz,
+                        wire + 3, wire + 3 + payload_sz);
+}
+
+// Kernel: batch AEAD decrypt
+kernel void kernel_bip324_aead_decrypt(
+    device const uchar* keys         [[buffer(0)]],
+    device const uchar* nonces       [[buffer(1)]],
+    device const uchar* wire_in      [[buffer(2)]],   // N * (max_payload + 19)
+    device const uint*  sizes        [[buffer(3)]],
+    device uchar*       plaintext_out[[buffer(4)]],   // N * max_payload
+    device uint*        ok           [[buffer(5)]],   // N success flags
+    constant uint&      max_payload  [[buffer(6)]],
+    constant uint&      count        [[buffer(7)]],
+    uint tid [[thread_position_in_grid]]
+) {
+    if (tid >= count) return;
+
+    uint payload_sz = sizes[tid];
+    device const uchar* key   = keys + tid * 32;
+    device const uchar* nonce = nonces + tid * 12;
+
+    ulong wire_stride = max_payload + BIP324_OVERHEAD;
+    device const uchar* wire = wire_in + (ulong)tid * wire_stride;
+    device uchar* pt_out = plaintext_out + (ulong)tid * max_payload;
+
+    device const uchar* ct  = wire + 3;
+    device const uchar* tag = wire + 3 + payload_sz;
+
+    ok[tid] = bip324_aead_decrypt(key, nonce, ct, payload_sz, tag, pt_out) ? 1u : 0u;
 }
 

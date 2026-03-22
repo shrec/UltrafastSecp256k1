@@ -149,6 +149,7 @@ set(KERNEL_FILE_5 "${CMAKE_CURRENT_SOURCE_DIR}/kernels/secp256k1_extended.cl")
 set(KERNEL_FILE_6 "${CMAKE_CURRENT_SOURCE_DIR}/kernels/secp256k1_hash160.cl")
 set(KERNEL_FILE_7 "${CMAKE_CURRENT_SOURCE_DIR}/kernels/secp256k1_ecdh.cl")
 set(KERNEL_FILE_8 "${CMAKE_CURRENT_SOURCE_DIR}/kernels/secp256k1_bip352.cl")
+set(KERNEL_FILE_9 "${CMAKE_CURRENT_SOURCE_DIR}/kernels/secp256k1_bip324.cl")
 
 set(KERNEL_FILES_LIST
     ${KERNEL_FILE_1}
@@ -159,6 +160,7 @@ set(KERNEL_FILES_LIST
     ${KERNEL_FILE_6}
     ${KERNEL_FILE_7}
     ${KERNEL_FILE_8}
+    ${KERNEL_FILE_9}
 )
 
 set(KERNEL_HEADER "${CMAKE_CURRENT_BINARY_DIR}/include/secp256k1_kernels_embedded.hpp")
