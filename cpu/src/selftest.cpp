@@ -691,7 +691,7 @@ static bool run_external_vectors(bool verbose) {
             Point const r = scalar_mul_generator(k);
             std::string const rx = r.x().to_hex();
             std::string const ry = r.y().to_hex();
-            if (!hex_equal(rx, parts[2].c_str()) || !hex_equal(ry, parts[3].c_str())) {
+            if (!hex_equal(rx, parts[2]) || !hex_equal(ry, parts[3])) {
                 fail_line();
             }
         } else if (kind == "ADD" || kind == "SUB") {
@@ -707,7 +707,7 @@ static bool run_external_vectors(bool verbose) {
             Point const R = (kind == "ADD") ? pt1.add(pt2) : pt1.add(pt2.negate());
             std::string const rx = R.x().to_hex();
             std::string const ry = R.y().to_hex();
-            if (!hex_equal(rx, parts[5].c_str()) || !hex_equal(ry, parts[6].c_str())) {
+            if (!hex_equal(rx, parts[5]) || !hex_equal(ry, parts[6])) {
                 fail_line();
             }
         } else {

@@ -3683,14 +3683,16 @@ ufsecp_error_t ufsecp_coin_derive_from_seed(
     if (!bip32_result.second) {
         return ctx_set_err(ctx, UFSECP_ERR_INTERNAL, "BIP-32 master key failed");
     }
-    auto master = std::move(bip32_result.first);
+    auto master = bip32_result.first;
     const auto cleanup_keys = [&]() {
         secp256k1::detail::secure_erase(master.key.data(), master.key.size());
         secp256k1::detail::secure_erase(master.chain_code.data(), master.chain_code.size());
     };
     /* Derive coin key */
-    auto [key, d_ok] = secp256k1::coins::coin_derive_key(
+    auto derived = secp256k1::coins::coin_derive_key(
         master, *coin, account, change != 0, index);
+    auto key = derived.first;
+    bool const d_ok = derived.second;
     if (!d_ok) {
         cleanup_keys();
         return ctx_set_err(ctx, UFSECP_ERR_INTERNAL, "coin key derivation failed");
