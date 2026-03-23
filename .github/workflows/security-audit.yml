@@ -212,7 +212,7 @@ jobs:
           # timeouts under MSan overhead (~10-20x). These tests are verified
           # under ASan+UBSan and Valgrind instead.
           ctest --test-dir build --output-on-failure -j"$(nproc)" \
-            -E "^(ct_sidechannel|selftest|unified_audit|differential|fault_injection|fiat_crypto_vectors|debug_invariants|carry_propagation|batch_randomness|wycheproof_ecdsa|wycheproof_ecdh|cross_platform_kat|audit_fuzz|ct_verif_formal|ecies_regression|adversarial_protocol|secp256k1_spec|c_abi_negative|audit_secure_erase|kat_all_operations|parse_strictness|nonce_uniqueness)" --timeout 7200
+            -E "^(ct_sidechannel|selftest|unified_audit|differential|fault_injection|fiat_crypto_vectors|debug_invariants|carry_propagation|batch_randomness|wycheproof_ecdsa|wycheproof_ecdh|cross_platform_kat|audit_fuzz|ct_verif_formal|ecies_regression|adversarial_protocol|secp256k1_spec|c_abi_negative|audit_secure_erase|kat_all_operations|parse_strictness|nonce_uniqueness|audit_invariants|c_abi_thread_stress)" --timeout 7200
 
   # ── Thread Sanitizer (data races) ───────────────────────────────────────
   tsan:

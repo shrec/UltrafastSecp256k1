@@ -973,7 +973,9 @@ static void test_frost_malformed_commitment() {
     // Either sign fails or the aggregated result won't verify
     if (rc == UFSECP_OK) {
         // If signer 1 signs, signer 2 also tries with corrupted commits
-        uint8_t psig2[36];
+        // Zero-initialize: sign may fail on the corrupted hiding point, leaving
+        // psig2 unwritten; copying it into psigs_all without init triggers Valgrind.
+        uint8_t psig2[36] = {};
         ufsecp_frost_sign(ctx, keypkgs[1], nonce2, msg32, ncommits_bad, 2, psig2);
 
         uint8_t psigs_all[72];
@@ -1270,7 +1272,9 @@ static void test_frost_malicious_coordinator() {
     std::memcpy(ncommits_evil + UFSECP_FROST_NONCE_COMMIT_LEN, nc1, UFSECP_FROST_NONCE_COMMIT_LEN);
 
     // Each signer signs with different commitment views
-    uint8_t psig1[36], psig2[36];
+    // Zero-initialize to avoid Valgrind uninit-value warnings when sign fails on
+    // an adversarial input and the output buffer is later compared or aggregated.
+    uint8_t psig1[36] = {}, psig2[36] = {};
     ufsecp_frost_sign(ctx, keypkgs[0], nonce1, msg32, ncommits_good, 2, psig1);
     ufsecp_frost_sign(ctx, keypkgs[1], nonce2, msg32, ncommits_evil, 2, psig2);
 
