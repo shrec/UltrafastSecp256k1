@@ -1,0 +1,184 @@
+{
+  "report_type": "industrial_self_audit",
+  "library": "UltrafastSecp256k1",
+  "library_version": "3.4.0",
+  "git_hash": "19085b5a",
+  "audit_framework_version": "2.0.0",
+  "timestamp": "2026-03-23T14:06:21",
+  "platform": {
+    "os": "Windows",
+    "arch": "x86-64",
+    "compiler": "MSVC 1944",
+    "build_type": "Release"
+  },
+  "summary": {
+    "total_modules": 69,
+    "passed": 69,
+    "failed": 0,
+    "advisory_warnings": 0,
+    "all_passed": true,
+    "total_time_ms": 133347.7,
+    "audit_verdict": "AUDIT-READY"
+  },
+  "selftest": {
+    "passed": true,
+    "time_ms": 7380.5
+  },
+  "sections": [
+    {
+      "id": "math_invariants",
+      "title": "Mathematical Invariants (Fp, Zn, Group Laws)",
+      "total": 14,
+      "passed": 14,
+      "failed": 0,
+      "time_ms": 5671.2,
+      "status": "PASS",
+      "modules": [
+        { "id": "secp256k1_spec", "name": "SEC2 v2.0 curve constant oracle", "passed": true, "advisory": false, "time_ms": 0.1 },
+        { "id": "audit_invariants", "name": "Post-op invariant monitor (on-curve/normalized)", "passed": true, "advisory": false, "time_ms": 157.2 },
+        { "id": "audit_field", "name": "Field Fp deep audit (add/mul/inv/sqrt/batch)", "passed": true, "advisory": false, "time_ms": 315.5 },
+        { "id": "audit_scalar", "name": "Scalar Zn deep audit (mod/GLV/edge/inv)", "passed": true, "advisory": false, "time_ms": 66.8 },
+        { "id": "audit_point", "name": "Point ops deep audit (Jac/affine/sigs)", "passed": true, "advisory": false, "time_ms": 1838.7 },
+        { "id": "mul", "name": "Field & scalar arithmetic", "passed": true, "advisory": false, "time_ms": 3.1 },
+        { "id": "arith_correct", "name": "Arithmetic correctness", "passed": true, "advisory": false, "time_ms": 7.0 },
+        { "id": "scalar_mul", "name": "Scalar multiplication", "passed": true, "advisory": false, "time_ms": 2920.0 },
+        { "id": "exhaustive", "name": "Exhaustive algebraic verification", "passed": true, "advisory": false, "time_ms": 46.6 },
+        { "id": "comprehensive", "name": "Comprehensive 500+ suite", "passed": true, "advisory": false, "time_ms": 77.3 },
+        { "id": "ecc_properties", "name": "ECC property-based invariants", "passed": true, "advisory": false, "time_ms": 13.8 },
+        { "id": "batch_add", "name": "Affine batch addition", "passed": true, "advisory": false, "time_ms": 222.9 },
+        { "id": "carry_propagation", "name": "Carry chain stress (limb boundary)", "passed": true, "advisory": false, "time_ms": 1.2 },
+        { "id": "field_26", "name": "FieldElement26 (10x26) vs 4x64", "passed": true, "advisory": false, "time_ms": 1.2 }
+      ]
+    },
+    {
+      "id": "ct_analysis",
+      "title": "Constant-Time & Side-Channel Analysis",
+      "total": 6,
+      "passed": 6,
+      "failed": 0,
+      "time_ms": 323.2,
+      "status": "PASS",
+      "modules": [
+        { "id": "audit_ct", "name": "CT deep audit (masks/cmov/cswap/timing)", "passed": true, "advisory": false, "time_ms": 175.7 },
+        { "id": "ct", "name": "Constant-time layer", "passed": true, "advisory": false, "time_ms": 4.5 },
+        { "id": "ct_equivalence", "name": "FAST == CT equivalence", "passed": true, "advisory": false, "time_ms": 36.1 },
+        { "id": "ct_sidechannel", "name": "Side-channel dudect (smoke)", "passed": true, "advisory": true, "time_ms": 88.8 },
+        { "id": "ct_verif_formal", "name": "Formal CT verification (ctgrind/MSAN)", "passed": true, "advisory": false, "time_ms": 3.4 },
+        { "id": "diag_scalar_mul", "name": "CT scalar_mul vs fast (diagnostic)", "passed": true, "advisory": false, "time_ms": 14.8 }
+      ]
+    },
+    {
+      "id": "differential",
+      "title": "Differential & Cross-Library Testing",
+      "total": 4,
+      "passed": 4,
+      "failed": 0,
+      "time_ms": 867.3,
+      "status": "PASS",
+      "modules": [
+        { "id": "differential", "name": "Differential correctness", "passed": true, "advisory": false, "time_ms": 864.0 },
+        { "id": "fiat_crypto", "name": "Fiat-Crypto reference vectors", "passed": true, "advisory": false, "time_ms": 1.6 },
+        { "id": "fiat_crypto_link", "name": "Fiat-Crypto direct linkage (100%% parity)", "passed": true, "advisory": false, "time_ms": 0.1 },
+        { "id": "cross_platform_kat", "name": "Cross-platform KAT", "passed": true, "advisory": false, "time_ms": 1.5 }
+      ]
+    },
+    {
+      "id": "standard_vectors",
+      "title": "Standard Test Vectors (BIP-340, RFC-6979, BIP-32)",
+      "total": 9,
+      "passed": 9,
+      "failed": 0,
+      "time_ms": 125.9,
+      "status": "PASS",
+      "modules": [
+        { "id": "bip340_vectors", "name": "BIP-340 official vectors", "passed": true, "advisory": false, "time_ms": 4.8 },
+        { "id": "bip340_strict", "name": "BIP-340 strict encoding (non-canonical)", "passed": true, "advisory": false, "time_ms": 2.7 },
+        { "id": "bip32_vectors", "name": "BIP-32 official vectors TV1-5", "passed": true, "advisory": false, "time_ms": 9.0 },
+        { "id": "rfc6979_vectors", "name": "RFC 6979 ECDSA vectors", "passed": true, "advisory": false, "time_ms": 4.5 },
+        { "id": "frost_kat", "name": "FROST reference KAT vectors", "passed": true, "advisory": false, "time_ms": 71.2 },
+        { "id": "musig2_bip327", "name": "MuSig2 BIP-327 reference vectors", "passed": true, "advisory": false, "time_ms": 16.3 },
+        { "id": "wycheproof_ecdsa", "name": "Wycheproof ECDSA secp256k1 vectors", "passed": true, "advisory": false, "time_ms": 10.9 },
+        { "id": "wycheproof_ecdh", "name": "Wycheproof ECDH secp256k1 vectors", "passed": true, "advisory": false, "time_ms": 2.6 },
+        { "id": "kat_all_ops", "name": "KAT: ECDH/WIF/P2PKH/P2WPKH/P2TR/hash/arith", "passed": true, "advisory": false, "time_ms": 3.8 }
+      ]
+    },
+    {
+      "id": "fuzzing",
+      "title": "Fuzzing & Adversarial Attack Resilience",
+      "total": 6,
+      "passed": 6,
+      "failed": 0,
+      "time_ms": 27762.7,
+      "status": "PASS",
+      "modules": [
+        { "id": "audit_fuzz", "name": "Adversarial fuzz (malform/edge)", "passed": true, "advisory": false, "time_ms": 580.7 },
+        { "id": "fuzz_parsers", "name": "Parser fuzz (DER/Schnorr/Pubkey)", "passed": true, "advisory": false, "time_ms": 21950.1 },
+        { "id": "fuzz_addr_bip32", "name": "Address/BIP32/FFI boundary fuzz", "passed": true, "advisory": false, "time_ms": 4821.6 },
+        { "id": "fault_injection", "name": "Fault injection simulation", "passed": true, "advisory": false, "time_ms": 245.9 },
+        { "id": "adversarial_proto", "name": "Adversarial protocol & FFI hostile-caller", "passed": true, "advisory": false, "time_ms": 162.0 },
+        { "id": "ecies_regression", "name": "ECIES regression + C ABI prefix enforce", "passed": true, "advisory": false, "time_ms": 2.5 }
+      ]
+    },
+    {
+      "id": "protocol_security",
+      "title": "Protocol Security (ECDSA, Schnorr, MuSig2, FROST)",
+      "total": 13,
+      "passed": 13,
+      "failed": 0,
+      "time_ms": 9274.6,
+      "status": "PASS",
+      "modules": [
+        { "id": "ecdsa_schnorr", "name": "ECDSA + Schnorr", "passed": true, "advisory": false, "time_ms": 3.1 },
+        { "id": "bip32", "name": "BIP-32 HD derivation", "passed": true, "advisory": false, "time_ms": 2.7 },
+        { "id": "bip39", "name": "BIP-39 mnemonic seed phrases", "passed": true, "advisory": false, "time_ms": 15.0 },
+        { "id": "musig2", "name": "MuSig2", "passed": true, "advisory": false, "time_ms": 6.6 },
+        { "id": "ecdh_recovery", "name": "ECDH + recovery + taproot", "passed": true, "advisory": false, "time_ms": 6.5 },
+        { "id": "v4_features", "name": "v4 (Pedersen/FROST/etc)", "passed": true, "advisory": false, "time_ms": 13.8 },
+        { "id": "coins", "name": "Coins layer", "passed": true, "advisory": false, "time_ms": 6.8 },
+        { "id": "musig2_frost", "name": "MuSig2 + FROST protocol suite", "passed": true, "advisory": false, "time_ms": 558.2 },
+        { "id": "musig2_frost_adv", "name": "MuSig2 + FROST advanced/adversar", "passed": true, "advisory": false, "time_ms": 190.1 },
+        { "id": "audit_integration", "name": "Integration (ECDH/batch/cross-proto)", "passed": true, "advisory": false, "time_ms": 2630.6 },
+        { "id": "batch_randomness", "name": "Batch verify weight randomness audit", "passed": true, "advisory": false, "time_ms": 2.8 },
+        { "id": "audit_zk", "name": "ZK proofs (knowledge/DLEQ/Bulletproof range)", "passed": true, "advisory": false, "time_ms": 5832.6 },
+        { "id": "ethereum", "name": "Ethereum signing layer (EIP-191/155/ecrecover)", "passed": true, "advisory": false, "time_ms": 5.9 }
+      ]
+    },
+    {
+      "id": "memory_safety",
+      "title": "ABI & Memory Safety (zeroization, hardening)",
+      "total": 12,
+      "passed": 12,
+      "failed": 0,
+      "time_ms": 81381.8,
+      "status": "PASS",
+      "modules": [
+        { "id": "audit_security", "name": "Security hardening (zero/bitflip/nonce)", "passed": true, "advisory": false, "time_ms": 81276.9 },
+        { "id": "debug_invariants", "name": "Debug invariant assertions", "passed": true, "advisory": false, "time_ms": 1.3 },
+        { "id": "abi_gate", "name": "ABI version gate (compile-time)", "passed": true, "advisory": false, "time_ms": 0.1 },
+        { "id": "ffi_round_trip", "name": "Cross-ABI/FFI round-trip (ufsecp C API)", "passed": true, "advisory": false, "time_ms": 16.8 },
+        { "id": "c_abi_negative", "name": "C ABI null/bad-key/bad-sig contract tests", "passed": true, "advisory": false, "time_ms": 2.0 },
+        { "id": "c_abi_thread_stress", "name": "C ABI thread stress (one ctx per thread)", "passed": true, "advisory": false, "time_ms": 70.6 },
+        { "id": "secure_erase", "name": "Secure memory erasure (volatile readback)", "passed": true, "advisory": false, "time_ms": 2.1 },
+        { "id": "ct_namespace", "name": "CT namespace discipline (source-level scan)", "passed": true, "advisory": false, "time_ms": 1.7 },
+        { "id": "nonce_uniqueness", "name": "RFC 6979 nonce determinism + uniqueness", "passed": true, "advisory": false, "time_ms": 7.8 },
+        { "id": "parse_strictness", "name": "Public parse path strictness (malformed inputs)", "passed": true, "advisory": false, "time_ms": 1.3 },
+        { "id": "gpu_api_negative", "name": "GPU C ABI null/invalid-backend/error paths", "passed": true, "advisory": false, "time_ms": 0.7 },
+        { "id": "gpu_abi_gate", "name": "GPU ABI discovery, lifecycle, ops-if-avail", "passed": true, "advisory": false, "time_ms": 0.5 }
+      ]
+    },
+    {
+      "id": "performance",
+      "title": "Performance Validation & Regression",
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "time_ms": 541.6,
+      "status": "PASS",
+      "modules": [
+        { "id": "hash_accel", "name": "Accelerated hashing", "passed": true, "advisory": false, "time_ms": 531.8 },
+        { "id": "multiscalar", "name": "Multi-scalar & batch verify", "passed": true, "advisory": false, "time_ms": 9.3 },
+        { "id": "audit_perf", "name": "Performance smoke (sign/verify roundtrip)", "passed": true, "advisory": false, "time_ms": 0.4 }
+      ]
+    }
+  ]
+}
