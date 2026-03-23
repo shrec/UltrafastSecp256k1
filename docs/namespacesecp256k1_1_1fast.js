@@ -8,8 +8,7 @@ var namespacesecp256k1_1_1fast =
       [ "mul_4x4_bmi2", "namespacesecp256k1_1_1fast_1_1detail.html#a75aa3de4c2b92de5a96478083ac88188", null ],
       [ "mulx64", "namespacesecp256k1_1_1fast_1_1detail.html#abd0a8a75651b2b16f166e31ee5953a4a", null ],
       [ "square_4_bmi2", "namespacesecp256k1_1_1fast_1_1detail.html#ae5c58c9fa3993c6f9c430453bcae7637", null ],
-      [ "square_4_karatsuba", "namespacesecp256k1_1_1fast_1_1detail.html#a286de01983e02331e2fdc6a9c35dc1db", null ],
-      [ "square_4_toomcook", "namespacesecp256k1_1_1fast_1_1detail.html#a268d0c5a82009f8143b8d7bf5dbef111", null ]
+      [ "square_4_karatsuba", "namespacesecp256k1_1_1fast_1_1detail.html#a286de01983e02331e2fdc6a9c35dc1db", null ]
     ] ],
     [ "fe26_constants", "namespacesecp256k1_1_1fast_1_1fe26__constants.html", [
       [ "M22", "namespacesecp256k1_1_1fast_1_1fe26__constants.html#a5363f3e95452d2d501b333c9c0c89783", null ],
@@ -146,7 +145,6 @@ var namespacesecp256k1_1_1fast =
     [ "field_select", "namespacesecp256k1_1_1fast.html#a7aafb9d9ac696c38272bda46a769f3e2", null ],
     [ "field_square_bmi2", "namespacesecp256k1_1_1fast.html#a7f5966ff2a3165e9a4c7896363659b3d", null ],
     [ "field_square_karatsuba", "namespacesecp256k1_1_1fast.html#a8954eaa9b91ee2c6e2ad4af34a9f553d", null ],
-    [ "field_square_toomcook", "namespacesecp256k1_1_1fast.html#a5aeeb0cf91ec394b7b7890794849c0e7", null ],
     [ "fixed_base_ready", "namespacesecp256k1_1_1fast.html#a4e14e3dabefd70e6b0c5ec91f5926756", null ],
     [ "from_optimal", "namespacesecp256k1_1_1fast.html#a71a5591636949c2011f46b872dc0c0e4", null ],
     [ "glv_decompose", "namespacesecp256k1_1_1fast.html#a4e566678d95ce5c9074d2b7a3a8e82ef", null ],

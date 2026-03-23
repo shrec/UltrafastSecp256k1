@@ -25,7 +25,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.3.0</span>
+   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.4.0</span>
    </div>
    <div id="projectbrief">Ultra high-performance secp256k1 elliptic curve cryptography library</div>
   </td>
@@ -216,7 +216,7 @@ $(document).ready(function(){initNavTree('address_8hpp_source.html',''); initRes
 <div class="line"><a id="l00110" name="l00110"></a><span class="lineno">  110</span>                         <a class="code hl_enumeration" href="namespacesecp256k1.html#a4fc755caaebc0d236e4b1e209a0389ad">Network</a> net = <a class="code hl_enumvalue" href="namespacesecp256k1.html#a4fc755caaebc0d236e4b1e209a0389ada953c0a0c67e864d0f080b5e705f45a81">Network::Mainnet</a>);</div>
 <div class="line"><a id="l00111" name="l00111"></a><span class="lineno">  111</span> </div>
 <div class="line"><a id="l00112" name="l00112"></a><span class="lineno">  112</span><span class="comment">// P2WSH address from a 32-byte witness script hash (SegWit v0)</span></div>
-<div class="line"><a id="l00113" name="l00113"></a><span class="lineno"><a class="line" href="namespacesecp256k1.html#a344af7dbd177542379bd62638547df5c">  113</a></span>std::string <a class="code hl_function" href="namespacesecp256k1.html#a344af7dbd177542379bd62638547df5c">address_p2wsh</a>(<span class="keyword">const</span> std::array&lt;std::uint8_t, 32&gt;&amp; witness_script_hash,</div>
+<div class="line"><a id="l00113" name="l00113"></a><span class="lineno"><a class="line" href="namespacesecp256k1.html#a344af7dbd177542379bd62638547df5c">  113</a></span>std::string <a class="code hl_function" href="namespacesecp256k1.html#a344af7dbd177542379bd62638547df5c">address_p2wsh</a>(<span class="keyword">const</span> std::array&lt;std::uint8_t, 32&gt;&amp; <a class="code hl_function" href="namespacesecp256k1.html#a6dd7b59d00c5dcfb67b1e8fa78cb1e87">witness_script_hash</a>,</div>
 <div class="line"><a id="l00114" name="l00114"></a><span class="lineno">  114</span>                          <a class="code hl_enumeration" href="namespacesecp256k1.html#a4fc755caaebc0d236e4b1e209a0389ad">Network</a> net = <a class="code hl_enumvalue" href="namespacesecp256k1.html#a4fc755caaebc0d236e4b1e209a0389ada953c0a0c67e864d0f080b5e705f45a81">Network::Mainnet</a>);</div>
 <div class="line"><a id="l00115" name="l00115"></a><span class="lineno">  115</span> </div>
 <div class="line"><a id="l00116" name="l00116"></a><span class="lineno">  116</span><span class="comment">// -- CashAddr (Bitcoin Cash BIP-0185) -----------------------------------------</span></div>
@@ -312,6 +312,7 @@ $(document).ready(function(){initNavTree('address_8hpp_source.html',''); initRes
 <div class="ttc" id="anamespacesecp256k1_html_a5621916f74675f9d511a4c0b5f33a455"><div class="ttname"><a href="namespacesecp256k1.html#a5621916f74675f9d511a4c0b5f33a455">secp256k1::base58check_decode</a></div><div class="ttdeci">std::pair&lt; std::vector&lt; std::uint8_t &gt;, bool &gt; base58check_decode(const std::string &amp;encoded)</div></div>
 <div class="ttc" id="anamespacesecp256k1_html_a573478fd6142708539156bd670d3e18d"><div class="ttname"><a href="namespacesecp256k1.html#a573478fd6142708539156bd670d3e18d">secp256k1::wif_decode</a></div><div class="ttdeci">WIFDecodeResult wif_decode(const std::string &amp;wif)</div></div>
 <div class="ttc" id="anamespacesecp256k1_html_a60845c5582c3d501cc42d8f3ec7c4b9f"><div class="ttname"><a href="namespacesecp256k1.html#a60845c5582c3d501cc42d8f3ec7c4b9f">secp256k1::hash160</a></div><div class="ttdeci">std::array&lt; std::uint8_t, 20 &gt; hash160(const std::uint8_t *data, std::size_t len)</div></div>
+<div class="ttc" id="anamespacesecp256k1_html_a6dd7b59d00c5dcfb67b1e8fa78cb1e87"><div class="ttname"><a href="namespacesecp256k1.html#a6dd7b59d00c5dcfb67b1e8fa78cb1e87">secp256k1::witness_script_hash</a></div><div class="ttdeci">std::array&lt; std::uint8_t, 32 &gt; witness_script_hash(const std::uint8_t *script, std::size_t script_len) noexcept</div></div>
 <div class="ttc" id="anamespacesecp256k1_html_a6dfad5fbaf4f7381e377423c2ab2a1e9"><div class="ttname"><a href="namespacesecp256k1.html#a6dfad5fbaf4f7381e377423c2ab2a1e9">secp256k1::address_p2wpkh</a></div><div class="ttdeci">std::string address_p2wpkh(const fast::Point &amp;pubkey, Network net=Network::Mainnet)</div></div>
 <div class="ttc" id="anamespacesecp256k1_html_a7c2049a86d738a492e748f7f0e16ce4a"><div class="ttname"><a href="namespacesecp256k1.html#a7c2049a86d738a492e748f7f0e16ce4a">secp256k1::address_p2pkh</a></div><div class="ttdeci">std::string address_p2pkh(const fast::Point &amp;pubkey, Network net=Network::Mainnet)</div></div>
 <div class="ttc" id="anamespacesecp256k1_html_a96716096c393724a5a60d2faf1eff530"><div class="ttname"><a href="namespacesecp256k1.html#a96716096c393724a5a60d2faf1eff530">secp256k1::bech32_encode</a></div><div class="ttdeci">std::string bech32_encode(const std::string &amp;hrp, std::uint8_t witness_version, const std::uint8_t *witness_program, std::size_t prog_len)</div></div>

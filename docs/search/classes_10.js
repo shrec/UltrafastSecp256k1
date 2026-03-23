@@ -1,5 +1,7 @@
 var searchData=
 [
-  ['walletkey_0',['WalletKey',['../structsecp256k1_1_1coins_1_1wallet_1_1WalletKey.html',1,'secp256k1::coins::wallet']]],
-  ['wifdecoderesult_1',['WIFDecodeResult',['../structsecp256k1_1_1WIFDecodeResult.html',1,'secp256k1']]]
+  ['ufsecp_5fbip32_5fkey_0',['ufsecp_bip32_key',['../structufsecp__bip32__key.html',1,'']]],
+  ['ufsecp_5fctx_1',['ufsecp_ctx',['../structufsecp__ctx.html',1,'']]],
+  ['ufsecp_5fgpu_5fctx_2',['ufsecp_gpu_ctx',['../structufsecp__gpu__ctx.html',1,'']]],
+  ['ufsecp_5fgpu_5fdevice_5finfo_5ft_3',['ufsecp_gpu_device_info_t',['../structufsecp__gpu__device__info__t.html',1,'']]]
 ];

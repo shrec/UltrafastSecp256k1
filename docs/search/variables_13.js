@@ -8,5 +8,7 @@ var searchData=
   ['threshold_5',['threshold',['../structsecp256k1_1_1FrostKeyPackage.html#a2f1e4f7e004ddb87ae87382854456f41',1,'secp256k1::FrostKeyPackage']]],
   ['ticker_6',['ticker',['../structsecp256k1_1_1coins_1_1CoinParams.html#a7f53ab8e1bb63eb3627fcac25603b879',1,'secp256k1::coins::CoinParams']]],
   ['total_7',['total',['../structsecp256k1_1_1fast_1_1SelftestReport.html#ae9ec4cb1a1aaa4a60b80ea442c8eb417',1,'secp256k1::fast::SelftestReport']]],
-  ['tron_8',['Tron',['../namespacesecp256k1_1_1coins.html#ac85c6599d9dda16b046b00cfa0cf97e2',1,'secp256k1::coins']]]
+  ['tron_8',['Tron',['../namespacesecp256k1_1_1coins.html#ac85c6599d9dda16b046b00cfa0cf97e2',1,'secp256k1::coins']]],
+  ['txid_9',['txid',['../structsecp256k1_1_1Outpoint.html#aec19225c5251863fd38ceb2791bb6f44',1,'secp256k1::Outpoint']]],
+  ['type_10',['type',['../structsecp256k1_1_1WitnessProgram.html#aff54ef39ec2018835e129a5f693fb5df',1,'secp256k1::WitnessProgram']]]
 ];

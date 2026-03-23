@@ -1,7 +1,9 @@
 var searchData=
 [
-  ['ufsecp_5fbip32_5fkey_0',['ufsecp_bip32_key',['../structufsecp__bip32__key.html',1,'']]],
-  ['ufsecp_5fctx_1',['ufsecp_ctx',['../structufsecp__ctx.html',1,'']]],
-  ['ufsecp_5fgpu_5fctx_2',['ufsecp_gpu_ctx',['../structufsecp__gpu__ctx.html',1,'']]],
-  ['ufsecp_5fgpu_5fdevice_5finfo_5ft_3',['ufsecp_gpu_device_info_t',['../structufsecp__gpu__device__info__t.html',1,'']]]
+  ['tapsighashtxdata_0',['TapSighashTxData',['../structsecp256k1_1_1TapSighashTxData.html',1,'secp256k1']]],
+  ['testcounters_1',['TestCounters',['../structsecp256k1_1_1test_1_1TestCounters.html',1,'secp256k1::test']]],
+  ['timer_2',['Timer',['../structbench_1_1Timer.html',1,'bench']]],
+  ['txinput_3',['TxInput',['../structsecp256k1_1_1TxInput.html',1,'secp256k1']]],
+  ['txout_4',['TxOut',['../structsecp256k1_1_1TxOut.html',1,'secp256k1']]],
+  ['txoutput_5',['TxOutput',['../structsecp256k1_1_1TxOutput.html',1,'secp256k1']]]
 ];

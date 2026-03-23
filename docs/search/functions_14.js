@@ -3,8 +3,12 @@ var searchData=
   ['wif_5fdecode_0',['wif_decode',['../namespacesecp256k1.html#a573478fd6142708539156bd670d3e18d',1,'secp256k1']]],
   ['wif_5fencode_1',['wif_encode',['../namespacesecp256k1.html#abf0a498d216f2463f9dcf7ad27624674',1,'secp256k1']]],
   ['with_5fgenerator_2',['with_generator',['../structsecp256k1_1_1CurveContext.html#a892fd7c055546f3030833fc59e1d4241',1,'secp256k1::CurveContext']]],
-  ['wrap_3',['wrap',['../classsecp256k1_1_1PrivateKey.html#af3b07cf717bff151fce36c82e5c2424c',1,'secp256k1::PrivateKey']]],
-  ['write_5fbytes_4',['write_bytes',['../classsecp256k1_1_1fast_1_1Scalar.html#afe61b6a7cc507dc69b112074b9264e6c',1,'secp256k1::fast::Scalar']]],
-  ['write_5fdefault_5ffixed_5fbase_5fconfig_5',['write_default_fixed_base_config',['../namespacesecp256k1_1_1fast.html#ad46b0efc0be626bdc377dac50575e78b',1,'secp256k1::fast']]],
-  ['write_5ffixed_5fbase_5fconfig_6',['write_fixed_base_config',['../namespacesecp256k1_1_1fast.html#a1b9571a65741f1fa9c91244b0d36cb21',1,'secp256k1::fast']]]
+  ['witness_5fcommitment_3',['witness_commitment',['../namespacesecp256k1.html#a5d8625bb775f71ce301a555d019d8a4d',1,'secp256k1']]],
+  ['witness_5fscript_5fhash_4',['witness_script_hash',['../namespacesecp256k1.html#a6dd7b59d00c5dcfb67b1e8fa78cb1e87',1,'secp256k1']]],
+  ['witness_5fserialize_5',['witness_serialize',['../namespacesecp256k1.html#aef2b8390ada627c2735acd9e8d234795',1,'secp256k1']]],
+  ['witness_5fweight_6',['witness_weight',['../namespacesecp256k1.html#a52965cd787e05ebbb5d7320a01394e0a',1,'secp256k1']]],
+  ['wrap_7',['wrap',['../classsecp256k1_1_1PrivateKey.html#af3b07cf717bff151fce36c82e5c2424c',1,'secp256k1::PrivateKey']]],
+  ['write_5fbytes_8',['write_bytes',['../classsecp256k1_1_1fast_1_1Scalar.html#afe61b6a7cc507dc69b112074b9264e6c',1,'secp256k1::fast::Scalar']]],
+  ['write_5fdefault_5ffixed_5fbase_5fconfig_9',['write_default_fixed_base_config',['../namespacesecp256k1_1_1fast.html#ad46b0efc0be626bdc377dac50575e78b',1,'secp256k1::fast']]],
+  ['write_5ffixed_5fbase_5fconfig_10',['write_fixed_base_config',['../namespacesecp256k1_1_1fast.html#a1b9571a65741f1fa9c91244b0d36cb21',1,'secp256k1::fast']]]
 ];

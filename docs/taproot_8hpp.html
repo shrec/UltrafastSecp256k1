@@ -25,7 +25,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.3.0</span>
+   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.4.0</span>
    </div>
    <div id="projectbrief">Ultra high-performance secp256k1 elliptic curve cryptography library</div>
   </td>
@@ -91,6 +91,7 @@ $(document).ready(function(){initNavTree('taproot_8hpp.html',''); initResizable(
 
 <div class="header">
   <div class="summary">
+<a href="#nested-classes">Classes</a> &#124;
 <a href="#namespaces">Namespaces</a> &#124;
 <a href="#func-members">Functions</a>  </div>
   <div class="headertitle"><div class="title">taproot.hpp File Reference</div></div>
@@ -105,6 +106,11 @@ $(document).ready(function(){initNavTree('taproot_8hpp.html',''); initResizable(
 </div>
 <p><a href="taproot_8hpp_source.html">Go to the source code of this file.</a></p>
 <table class="memberdecls">
+<tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="nested-classes" name="nested-classes"></a>
+Classes</h2></td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structsecp256k1_1_1TapSighashTxData.html">secp256k1::TapSighashTxData</a></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+</table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="namespaces" name="namespaces"></a>
 Namespaces</h2></td></tr>
 <tr class="memitem:namespacesecp256k1" id="r_namespacesecp256k1"><td class="memItemLeft" align="right" valign="top">namespace &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html">secp256k1</a></td></tr>
@@ -128,6 +134,10 @@ Functions</h2></td></tr>
 <tr class="separator:a60267d721ac6b3c5dd98b57927eba4d5"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ae3b8242af899d26ef4ac7e414196be12" id="r_ae3b8242af899d26ef4ac7e414196be12"><td class="memItemLeft" align="right" valign="top">std::array&lt; std::uint8_t, 32 &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#ae3b8242af899d26ef4ac7e414196be12">secp256k1::taproot_merkle_root</a> (const std::vector&lt; std::array&lt; std::uint8_t, 32 &gt; &gt; &amp;leaf_hashes)</td></tr>
 <tr class="separator:ae3b8242af899d26ef4ac7e414196be12"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a62c0f22f83f86b943d29fb2f0e326477" id="r_a62c0f22f83f86b943d29fb2f0e326477"><td class="memItemLeft" align="right" valign="top">std::array&lt; std::uint8_t, 32 &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#a62c0f22f83f86b943d29fb2f0e326477">secp256k1::tapscript_sighash</a> (const <a class="el" href="structsecp256k1_1_1TapSighashTxData.html">TapSighashTxData</a> &amp;tx_data, std::size_t input_index, std::uint8_t hash_type, const std::array&lt; std::uint8_t, 32 &gt; &amp;tapleaf_hash, std::uint8_t key_version, std::uint32_t code_separator_pos, const std::uint8_t *annex=nullptr, std::size_t annex_len=0) noexcept</td></tr>
+<tr class="separator:a62c0f22f83f86b943d29fb2f0e326477"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a4120ca7daea32aa7afeed02b3306aeb5" id="r_a4120ca7daea32aa7afeed02b3306aeb5"><td class="memItemLeft" align="right" valign="top">std::array&lt; std::uint8_t, 32 &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#a4120ca7daea32aa7afeed02b3306aeb5">secp256k1::taproot_keypath_sighash</a> (const <a class="el" href="structsecp256k1_1_1TapSighashTxData.html">TapSighashTxData</a> &amp;tx_data, std::size_t input_index, std::uint8_t hash_type, const std::uint8_t *annex=nullptr, std::size_t annex_len=0) noexcept</td></tr>
+<tr class="separator:a4120ca7daea32aa7afeed02b3306aeb5"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 </div><!-- contents -->
 </div><!-- doc-content -->

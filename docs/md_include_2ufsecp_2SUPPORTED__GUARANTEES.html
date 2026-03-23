@@ -25,7 +25,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.3.0</span>
+   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.4.0</span>
    </div>
    <div id="projectbrief">Ultra high-performance secp256k1 elliptic curve cryptography library</div>
   </td>
@@ -94,7 +94,7 @@ $(document).ready(function(){initNavTree('md_include_2ufsecp_2SUPPORTED__GUARANT
 </div><!--header-->
 <div class="contents">
 <div class="textblock"><p><a class="anchor" id="autotoc_md0"></a> </p><blockquote class="doxtable">
-<p>&zwj;<b>Version</b>: 3.3.0 (ABI 1) <b>Date</b>: 2026-02-19 </p>
+<p>&zwj;<b>Version</b>: 3.4.0 (ABI 1) <b>Date</b>: 2026-03-23 </p>
 </blockquote>
 <p>This document defines what the <code>ufsecp_*</code> C ABI promises and where the boundary lies.</p>
 <hr  />
@@ -119,17 +119,21 @@ Tier 1 – Stable (ABI &gt;= 1)</h1>
 <tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone"><b>BIP-340</b>   </td><td class="markdownTableBodyNone">Schnorr follows BIP-340 byte-for-byte.    </td></tr>
 <tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone"><b>Batch signing ABI</b>   </td><td class="markdownTableBodyNone"><code><a class="el" href="ufsecp_8h.html#adca4a098e1e84f4ea547389df402dcb4">ufsecp_ecdsa_sign_batch()</a></code> and <code><a class="el" href="ufsecp_8h.html#a9c41cd84b6ceeb452e4eb41ace207aa2">ufsecp_schnorr_sign_batch()</a></code> repeat the stable 32-byte input / 64-byte output item layout over <code>count</code> contiguous entries.    </td></tr>
+<tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone"><b>SHA-256</b>   </td><td class="markdownTableBodyNone">FIPS 180-4 correct; hardware acceleration (SHA-NI, ARMv8-SHA2) used when detected at runtime.    </td></tr>
-<tr class="markdownTableRowOdd">
+<tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone"><b>ECDH</b>   </td><td class="markdownTableBodyNone">Three modes: compressed-hash, x-only-hash, raw x-coordinate.    </td></tr>
-<tr class="markdownTableRowEven">
+<tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone"><b>BIP-32</b>   </td><td class="markdownTableBodyNone">Full HD derivation: master from seed, normal/hardened child, full path string.    </td></tr>
-<tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone"><b>Taproot</b>   </td><td class="markdownTableBodyNone">BIP-341 output key, key-path tweak, commitment verification.    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone"><b>Addresses</b>   </td><td class="markdownTableBodyNone">P2PKH, P2WPKH (Bech32), P2TR (Bech32m).    </td></tr>
+<td class="markdownTableBodyNone"><b>Taproot</b>   </td><td class="markdownTableBodyNone">BIP-341 output key, key-path tweak, commitment verification.    </td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone"><b>WIF</b>   </td><td class="markdownTableBodyNone">Encode/decode, mainnet/testnet, compressed/uncompressed.   </td></tr>
+<td class="markdownTableBodyNone"><b>Addresses</b>   </td><td class="markdownTableBodyNone">P2PKH, P2WPKH (Bech32), P2TR (Bech32m).    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone"><b>WIF</b>   </td><td class="markdownTableBodyNone">Encode/decode, mainnet/testnet, compressed/uncompressed.    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone"><b>GPU C ABI</b>   </td><td class="markdownTableBodyNone"><code><a class="el" href="ufsecp__gpu_8h.html">ufsecp_gpu.h</a></code> is a stable opaque-handle C ABI. Backend availability is runtime-discovered and unsupported operations must return <code>UFSECP_ERR_GPU_UNSUPPORTED</code>.   </td></tr>
 </table>
 <h2><a class="anchor" id="autotoc_md3"></a>
 Thread safety</h2>
@@ -152,9 +156,7 @@ Tier 2 – Experimental (no ABI promise)</h1>
 <tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone">Pedersen commitments   </td><td class="markdownTableBodyNone">API may change    </td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone">Multi-coin address derivation   </td><td class="markdownTableBodyNone">API may change    </td></tr>
-<tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone">GPU batch operations   </td><td class="markdownTableBodyNone">Separate library, no C ABI promise   </td></tr>
+<td class="markdownTableBodyNone">Multi-coin address derivation   </td><td class="markdownTableBodyNone">API may change   </td></tr>
 </table>
 <p>These will graduate to Tier 1 once their API surface is frozen and a test harness covers all edge cases.</p>
 <blockquote class="doxtable">
@@ -215,7 +217,7 @@ Versioning Rules</h1>
 <div class="fragment"><div class="line"><span class="keywordflow">if</span> (<a class="code hl_function" href="ufsecp__impl_8cpp.html#ada009081ae04d5e549373c33a2b3f6f5">ufsecp_abi_version</a>() != <a class="code hl_define" href="ufsecp__version_8h.html#ab2da3f29bf4348b5e781f4e9bbefc26a">UFSECP_ABI_VERSION</a>) {</div>
 <div class="line">    <span class="comment">/* linked library is incompatible */</span></div>
 <div class="line">}</div>
-<div class="ttc" id="aufsecp__impl_8cpp_html_ada009081ae04d5e549373c33a2b3f6f5"><div class="ttname"><a href="ufsecp__impl_8cpp.html#ada009081ae04d5e549373c33a2b3f6f5">ufsecp_abi_version</a></div><div class="ttdeci">unsigned int ufsecp_abi_version(void)</div><div class="ttdef"><b>Definition</b> <a href="ufsecp__impl_8cpp_source.html#l00217">ufsecp_impl.cpp:217</a></div></div>
+<div class="ttc" id="aufsecp__impl_8cpp_html_ada009081ae04d5e549373c33a2b3f6f5"><div class="ttname"><a href="ufsecp__impl_8cpp.html#ada009081ae04d5e549373c33a2b3f6f5">ufsecp_abi_version</a></div><div class="ttdeci">unsigned int ufsecp_abi_version(void)</div><div class="ttdef"><b>Definition</b> <a href="ufsecp__impl_8cpp_source.html#l00317">ufsecp_impl.cpp:317</a></div></div>
 <div class="ttc" id="aufsecp__version_8h_html_ab2da3f29bf4348b5e781f4e9bbefc26a"><div class="ttname"><a href="ufsecp__version_8h.html#ab2da3f29bf4348b5e781f4e9bbefc26a">UFSECP_ABI_VERSION</a></div><div class="ttdeci">#define UFSECP_ABI_VERSION</div><div class="ttdef"><b>Definition</b> <a href="ufsecp__version_8h_source.html#l00038">ufsecp_version.h:38</a></div></div>
 </div><!-- fragment --><hr  />
 <h1><a class="anchor" id="autotoc_md15"></a>
