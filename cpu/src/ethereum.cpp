@@ -74,7 +74,7 @@ bool eip55_verify(const std::string& addr) {
         hex += 2;
     }
     
-    if (std::strlen(hex) != 40) return false;
+    if (static_cast<std::size_t>(addr.c_str() + addr.size() - hex) != 40) return false;
     
     // Get lowercase version
     char lower[40];

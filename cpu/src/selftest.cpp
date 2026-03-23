@@ -10,7 +10,7 @@
 #include "secp256k1/precompute.hpp"
 #endif
 #include "secp256k1/glv.hpp"
-#include <cstring>
+#include <string_view>
 #include <vector>
 #include <array>
 
@@ -116,8 +116,8 @@ static const TestVector TEST_VECTORS[] = {
 };
 
 // Helper: Compare hex strings (case-insensitive)
-static bool hex_equal(const std::string& a, const char* b) {
-    if (a.length() != strlen(b)) return false;
+static bool hex_equal(const std::string& a, std::string_view b) {
+    if (a.length() != b.length()) return false;
     for (size_t i = 0; i < a.length(); i++) {
         char ca = a[i];
         char cb = b[i];

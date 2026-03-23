@@ -20,11 +20,12 @@ using fast::Scalar;
 // -- Internal Helpers ---------------------------------------------------------
 
 // Deterministic scalar from seed + context
+template<std::size_t N>
 static Scalar derive_scalar(const std::uint8_t* seed, std::size_t seed_len,
-                             const char* context, std::uint32_t index) {
+                             const char (&context)[N], std::uint32_t index) {
     SHA256 h;
     h.update(seed, seed_len);
-    h.update(context, std::strlen(context));
+    h.update(context, N - 1);
     // Index as big-endian 4 bytes
     std::uint8_t idx_be[4] = {
         std::uint8_t(index >> 24), std::uint8_t(index >> 16),
@@ -52,8 +53,8 @@ static Scalar compute_binding_factor(const Point& group_key,
                                        const std::vector<FrostNonceCommitment>& nonce_commitments,
                                        const std::array<std::uint8_t, 32>& msg) {
     SHA256 h;
-    const char* tag = "FROST_binding";
-    auto tag_hash = SHA256::hash(reinterpret_cast<const std::uint8_t*>(tag), std::strlen(tag));
+    constexpr char tag[] = "FROST_binding";
+    auto tag_hash = SHA256::hash(reinterpret_cast<const std::uint8_t*>(tag), sizeof(tag) - 1);
     h.update(tag_hash.data(), 32);
     h.update(tag_hash.data(), 32);
 

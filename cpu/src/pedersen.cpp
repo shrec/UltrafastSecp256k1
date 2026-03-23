@@ -55,8 +55,8 @@ const Point& pedersen_generator_H() {
     static const Point H = []() {
         // H = lift_x(SHA256("Pedersen_generator_H"))
         SHA256 hasher;
-        const char* tag = "Pedersen_generator_H";
-        hasher.update(tag, std::strlen(tag));
+        constexpr char tag[] = "Pedersen_generator_H";
+        hasher.update(tag, sizeof(tag) - 1);
         auto hash = hasher.finalize();
         FieldElement const x = FieldElement::from_bytes(hash);
         return lift_x_even(x);
@@ -68,8 +68,8 @@ const Point& pedersen_generator_J() {
     static const Point J = []() {
         // J = lift_x(SHA256("Pedersen_switch_J"))
         SHA256 hasher;
-        const char* tag = "Pedersen_switch_J";
-        hasher.update(tag, std::strlen(tag));
+        constexpr char tag[] = "Pedersen_switch_J";
+        hasher.update(tag, sizeof(tag) - 1);
         auto hash = hasher.finalize();
         FieldElement const x = FieldElement::from_bytes(hash);
         return lift_x_even(x);

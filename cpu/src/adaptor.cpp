@@ -31,8 +31,8 @@ static Scalar adaptor_nonce(const Scalar& privkey,
     if (aux && aux_len > 0) {
         h.update(aux, aux_len);
     }
-    const char* domain = "adaptor_nonce_v1";
-    h.update(domain, std::strlen(domain));
+    constexpr char domain[] = "adaptor_nonce_v1";
+    h.update(domain, sizeof(domain) - 1);
     auto hash = h.finalize();
     Scalar k = Scalar::from_bytes(hash);
     // Ensure non-zero

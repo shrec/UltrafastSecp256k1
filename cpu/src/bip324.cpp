@@ -209,28 +209,28 @@ bool Bip324Session::complete_handshake(const std::uint8_t peer_encoding[64]) noe
     if (all_zero) return false;
 
     // 2. Derive PRK via HKDF-Extract
-    const char* salt = "bitcoin_v2_shared_secret";
+    constexpr char salt[] = "bitcoin_v2_shared_secret";
     auto prk = hkdf_sha256_extract(
-        reinterpret_cast<const std::uint8_t*>(salt), std::strlen(salt),
+        reinterpret_cast<const std::uint8_t*>(salt), sizeof(salt) - 1,
         shared_secret.data(), shared_secret.size());
 
     // 3. Derive directional keys via HKDF-Expand
     std::uint8_t initiator_key[32], responder_key[32];
 
-    const char* init_info = "initiator_L";
-    const char* resp_info = "responder_L";
+    constexpr char init_info[] = "initiator_L";
+    constexpr char resp_info[] = "responder_L";
 
     hkdf_sha256_expand(prk.data(),
-                        reinterpret_cast<const std::uint8_t*>(init_info), std::strlen(init_info),
+                        reinterpret_cast<const std::uint8_t*>(init_info), sizeof(init_info) - 1,
                         initiator_key, 32);
     hkdf_sha256_expand(prk.data(),
-                        reinterpret_cast<const std::uint8_t*>(resp_info), std::strlen(resp_info),
+                        reinterpret_cast<const std::uint8_t*>(resp_info), sizeof(resp_info) - 1,
                         responder_key, 32);
 
     // 4. Derive session ID
-    const char* sid_info = "session_id";
+    constexpr char sid_info[] = "session_id";
     hkdf_sha256_expand(prk.data(),
-                        reinterpret_cast<const std::uint8_t*>(sid_info), std::strlen(sid_info),
+                        reinterpret_cast<const std::uint8_t*>(sid_info), sizeof(sid_info) - 1,
                         session_id_.data(), 32);
 
     // 5. Assign send/recv keys based on role

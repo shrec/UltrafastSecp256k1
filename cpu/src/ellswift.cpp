@@ -444,8 +444,8 @@ std::array<std::uint8_t, 32> ellswift_xdh(
     // This is the tagged hash: SHA256_tagged("bip324_ellswift_xonly_ecdh", ell_a || ell_b || x)
 
     // Compute the tag hash
-    const char* tag_str = "bip324_ellswift_xonly_ecdh";
-    auto tag_hash = SHA256::hash(tag_str, std::strlen(tag_str));
+    constexpr char tag_str[] = "bip324_ellswift_xonly_ecdh";
+    auto tag_hash = SHA256::hash(tag_str, sizeof(tag_str) - 1);
 
     // Tagged hash: SHA256(tag_hash || tag_hash || ell_a || ell_b || ecdh_x)
     SHA256 hasher;
