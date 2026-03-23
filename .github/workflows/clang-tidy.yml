@@ -67,6 +67,7 @@ jobs:
 
       - name: Run clang-tidy
         run: |
+          : > clang-tidy-output.txt
           # Only analyse C++ source files that CMake actually compiles
           # Filter out .S assembly files (clang-tidy cannot process them)
           jq -r '.[].file' build/compile_commands.json \
@@ -84,6 +85,7 @@ jobs:
       - name: Convert clang-tidy output to SARIF
         if: always()
         run: |
+          test -f clang-tidy-output.txt || : > clang-tidy-output.txt
           python3 -c "
           import json, re, sys
 

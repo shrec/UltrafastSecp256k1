@@ -123,6 +123,7 @@ static void test_musig2_nonce_reuse() {
 }
 
 // G.22: Oversized BIP324 payload lengths must be rejected before size arithmetic overflows.
+#ifdef SECP256K1_BIP324
 static void test_hostile_bip324_lengths() {
     (void)std::printf("  [G.22] FFI hostile: BIP324 payload lengths\n");
 
@@ -155,6 +156,7 @@ static void test_hostile_bip324_lengths() {
     ufsecp_bip324_destroy(responder);
     ufsecp_ctx_destroy(ctx);
 }
+#endif
 
 // A.2: Partial sig replay -- sign for msg1, try to verify for msg2
 static void test_musig2_partial_sig_replay() {
@@ -3326,7 +3328,9 @@ int test_adversarial_protocol_run() {
     test_ffi_overlapping_buffers();
     test_ffi_malformed_counts();
     test_ffi_invalid_enums();
+#ifdef SECP256K1_BIP324
     test_hostile_bip324_lengths();
+#endif
 #ifdef SECP256K1_BUILD_ETHEREUM
     test_hostile_ethereum();
 #endif
