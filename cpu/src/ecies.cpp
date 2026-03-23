@@ -236,6 +236,7 @@ hmac_sha256(const std::uint8_t* key, std::size_t key_len,
     secp256k1::detail::secure_erase(k_pad, sizeof(k_pad));
     secp256k1::detail::secure_erase(ipad, sizeof(ipad));
     secp256k1::detail::secure_erase(opad, sizeof(opad));
+    secp256k1::detail::secure_erase(inner_hash.data(), inner_hash.size());
 
     return outer.finalize();
 }

@@ -348,6 +348,7 @@ RecoverableSignature ecdsa_sign_recoverable(
     secure_erase(&k_inv, sizeof(k_inv));
     secure_erase(&z,     sizeof(z));
     secure_erase(&s,     sizeof(s));
+    secure_erase(const_cast<ECDSASignature*>(&pre_sig), sizeof(pre_sig));
 
     return {sig, recid};
 }

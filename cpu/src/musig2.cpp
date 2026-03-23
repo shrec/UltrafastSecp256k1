@@ -193,6 +193,8 @@ std::pair<MuSig2SecNonce, MuSig2PubNonce> musig2_nonce_gen(
         nonce_input[128] = 0x01;
         auto k1_hash = tagged_hash("MuSig/nonce", nonce_input, 129);
         sec.k1 = Scalar::from_bytes(k1_hash);
+        secure_erase(nonce_input, sizeof(nonce_input));
+        secure_erase(k1_hash.data(), k1_hash.size());
     }
 
     // k2 = tagged_hash("MuSig/nonce", t || pub_key || agg_pub_key || msg || 0x02)
@@ -205,6 +207,8 @@ std::pair<MuSig2SecNonce, MuSig2PubNonce> musig2_nonce_gen(
         nonce_input[128] = 0x02;
         auto k2_hash = tagged_hash("MuSig/nonce", nonce_input, 129);
         sec.k2 = Scalar::from_bytes(k2_hash);
+        secure_erase(nonce_input, sizeof(nonce_input));
+        secure_erase(k2_hash.data(), k2_hash.size());
     }
 
     // Zeroize secret key material now that nonces are derived
@@ -305,6 +309,11 @@ Scalar musig2_partial_sign(
     const MuSig2KeyAggCtx& key_agg_ctx,
     const MuSig2Session& session,
     std::size_t signer_index) {
+
+    // Bounds check: signer_index must be valid for the key_coefficients vector
+    if (signer_index >= key_agg_ctx.key_coefficients.size()) {
+        return Scalar::zero();
+    }
 
     // k = k1 + b * k2
     Scalar k = sec_nonce.k1 + session.b * sec_nonce.k2;

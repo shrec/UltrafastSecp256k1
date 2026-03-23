@@ -7,6 +7,7 @@
 #include "secp256k1/schnorr.hpp"
 #include "secp256k1/field.hpp"
 #include "secp256k1/ct/point.hpp"
+#include "secp256k1/detail/secure_erase.hpp"
 #include <algorithm>
 #include <cstring>
 
@@ -576,7 +577,10 @@ std::string wif_encode(const Scalar& private_key, bool compressed, Network net) 
     std::memcpy(payload.data() + 1, key_bytes.data(), 32);
     if (compressed) payload[33] = 0x01;
 
-    return base58check_encode(payload.data(), payload_len);
+    auto result = base58check_encode(payload.data(), payload_len);
+    detail::secure_erase(key_bytes.data(), key_bytes.size());
+    detail::secure_erase(payload.data(), payload.size());
+    return result;
 }
 
 WIFDecodeResult wif_decode(const std::string& wif) {
@@ -602,6 +606,8 @@ WIFDecodeResult wif_decode(const std::string& wif) {
     std::array<std::uint8_t, 32> key_bytes;
     std::memcpy(key_bytes.data(), data.data() + 1, 32);
     result.key = Scalar::from_bytes(key_bytes);
+    detail::secure_erase(key_bytes.data(), key_bytes.size());
+    detail::secure_erase(data.data(), data.size());
     result.valid = true;
     return result;
 }
@@ -689,6 +695,10 @@ silent_payment_create_output(const std::vector<Scalar>& input_privkeys,
 
     // Output key: P_output = B_spend + t_k * G
     Point const P_output = recipient.spend_pubkey.add(Point::generator().scalar_mul(t_k));
+
+    // Erase secret-derived material: aggregate private key and shared secret
+    detail::secure_erase(&a_sum, sizeof(a_sum));
+    detail::secure_erase(S_comp.data(), S_comp.size());
 
     return {P_output, t_k};
 }

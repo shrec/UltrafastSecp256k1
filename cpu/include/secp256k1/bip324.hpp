@@ -25,6 +25,7 @@
 #include <array>
 #include <cstdint>
 #include <cstddef>
+#include <cstring>
 #include <vector>
 #include "secp256k1/scalar.hpp"
 
@@ -35,6 +36,11 @@ namespace secp256k1 {
 class Bip324Cipher {
 public:
     Bip324Cipher() noexcept = default;
+    ~Bip324Cipher() noexcept {
+        // Volatile write to prevent dead-store elimination
+        volatile std::uint8_t* p = key_;
+        for (std::size_t i = 0; i < 32; ++i) p[i] = 0;
+    }
 
     // Initialize with a 32-byte key for this direction
     void init(const std::uint8_t key[32]) noexcept;
@@ -77,6 +83,12 @@ public:
 
     // Initialize with a specific private key (for testing / deterministic use)
     Bip324Session(bool initiator, const std::uint8_t privkey[32]) noexcept;
+
+    ~Bip324Session() noexcept {
+        // Erase private key material on destruction
+        volatile std::uint8_t* p = privkey_.data();
+        for (std::size_t i = 0; i < 32; ++i) p[i] = 0;
+    }
 
     // Get our 64-byte ElligatorSwift-encoded public key to send to peer
     const std::array<std::uint8_t, 64>& our_ellswift_encoding() const noexcept {

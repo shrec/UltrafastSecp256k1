@@ -33,7 +33,9 @@ static Scalar derive_scalar(const std::uint8_t* seed, std::size_t seed_len,
     };
     h.update(idx_be, 4);
     auto hash = h.finalize();
-    return Scalar::from_bytes(hash);
+    auto result = Scalar::from_bytes(hash);
+    secure_erase(hash.data(), hash.size());
+    return result;
 }
 
 // Evaluate polynomial f(x) = a_0 + a_1*x + a_2*x^2 + ... at x

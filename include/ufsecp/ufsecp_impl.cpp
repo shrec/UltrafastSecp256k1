@@ -2041,6 +2041,7 @@ ufsecp_error_t ufsecp_bip39_to_seed(ufsecp_ctx* ctx,
         return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "invalid mnemonic");
     }
     std::memcpy(seed64_out, seed.data(), 64);
+    secp256k1::detail::secure_erase(seed.data(), seed.size());
     return UFSECP_OK;
 }
 
@@ -2311,6 +2312,8 @@ ufsecp_error_t ufsecp_musig2_nonce_gen(ufsecp_ctx* ctx,
     auto k2_bytes = sec.k2.to_bytes();
     std::memcpy(secnonce_out, k1_bytes.data(), 32);
     std::memcpy(secnonce_out + 32, k2_bytes.data(), 32);
+    secp256k1::detail::secure_erase(k1_bytes.data(), k1_bytes.size());
+    secp256k1::detail::secure_erase(k2_bytes.data(), k2_bytes.size());
     /* Public nonce: R1(33) || R2(33) */
     auto pn = pub.serialize();
     std::memcpy(pubnonce_out, pn.data(), 66);
@@ -2803,31 +2806,45 @@ ufsecp_error_t ufsecp_frost_sign(
     std::memcpy(msg_arr.data(), msg32, 32);
     std::vector<secp256k1::FrostNonceCommitment> ncs(n_signers);
     size_t self_commitment_count = 0;
+    ufsecp_error_t nc_err = UFSECP_OK;
     for (size_t i = 0; i < n_signers; ++i) {
         const uint8_t* nc = nonce_commits + i * UFSECP_FROST_NONCE_COMMIT_LEN;
         std::memcpy(&ncs[i].id, nc, 4);
         if (ncs[i].id == 0 || ncs[i].id > kp.num_participants) {
-            return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "invalid nonce commitment signer");
+            nc_err = ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "invalid nonce commitment signer");
+            break;
         }
         for (size_t j = 0; j < i; ++j) {
             if (ncs[j].id == ncs[i].id) {
-                return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "duplicate nonce commitment signer");
+                nc_err = ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "duplicate nonce commitment signer");
+                break;
             }
         }
+        if (nc_err != UFSECP_OK) break;
         if (ncs[i].id == kp.id) {
             ++self_commitment_count;
         }
         ncs[i].hiding_point = point_from_compressed(nc + 4);
         if (ncs[i].hiding_point.is_infinity()) {
-            return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "invalid hiding nonce point");
+            nc_err = ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "invalid hiding nonce point");
+            break;
         }
         ncs[i].binding_point = point_from_compressed(nc + 37);
         if (ncs[i].binding_point.is_infinity()) {
-            return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "invalid binding nonce point");
+            nc_err = ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "invalid binding nonce point");
+            break;
         }
     }
-    if (self_commitment_count != 1) {
-        return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "missing signer nonce commitment");
+    if (nc_err == UFSECP_OK && self_commitment_count != 1) {
+        nc_err = ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "missing signer nonce commitment");
+    }
+    if (nc_err != UFSECP_OK) {
+        secp256k1::detail::secure_erase(&kp.signing_share, sizeof(kp.signing_share));
+        secp256k1::detail::secure_erase(&fn.hiding_nonce, sizeof(fn.hiding_nonce));
+        secp256k1::detail::secure_erase(&fn.binding_nonce, sizeof(fn.binding_nonce));
+        secp256k1::detail::secure_erase(&h, sizeof(h));
+        secp256k1::detail::secure_erase(&b, sizeof(b));
+        return nc_err;
     }
     auto psig = secp256k1::frost_sign(kp, fn, msg_arr, ncs);
     secp256k1::detail::secure_erase(&kp.signing_share, sizeof(kp.signing_share));
@@ -3950,7 +3967,13 @@ ufsecp_error_t ufsecp_silent_payment_scan(
         if (found_privkeys_out) {
             auto key_bytes = results[i].second.to_bytes();
             std::memcpy(found_privkeys_out + i * 32, key_bytes.data(), 32);
+            secp256k1::detail::secure_erase(key_bytes.data(), key_bytes.size());
         }
+    }
+
+    // Erase result private keys from heap before vector destruction
+    for (auto& r : results) {
+        secp256k1::detail::secure_erase(&r.second, sizeof(r.second));
     }
 
     cleanup();

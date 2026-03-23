@@ -129,6 +129,8 @@ bool hkdf_sha256_expand(
     }
 
     detail::secure_erase(t, sizeof(t));
+    detail::secure_erase(&ipad_base, sizeof(ipad_base));
+    detail::secure_erase(&opad_base, sizeof(opad_base));
     return true;
 }
 
