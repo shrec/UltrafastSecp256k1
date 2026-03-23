@@ -575,6 +575,11 @@ add_executable(unified_audit_runner
     test_parse_strictness.cpp
     # -- ufsecp FFI implementation (needed by fuzz_parsers + fuzz_address) --
     ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp
+    # -- ufsecp GPU ABI implementation + tests (null-guard paths work without hardware) --
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_gpu_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/src/gpu_registry.cpp
+    test_gpu_host_api_negative.cpp
+    test_gpu_abi_gate.cpp
     # -- field representation tests --
     ${CPU_TESTS_DIR}/test_field_26.cpp
     # -- diagnostics --
@@ -593,6 +598,7 @@ target_include_directories(unified_audit_runner PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
     ${CMAKE_CURRENT_BINARY_DIR}/../include   # for generated version.hpp
     ${CMAKE_BINARY_DIR}/include              # fallback for version.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/include  # for gpu_backend.hpp (gpu_registry.cpp)
 )
 # Inject git hash at compile time (short hash, 8 chars)
 execute_process(

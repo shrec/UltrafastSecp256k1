@@ -102,13 +102,26 @@ shallow batch-verify paths. All gaps are closed by `test_i1_*`–`test_i5_*` in
 
 ---
 
+## Section J: GPU C ABI (v3.24+)
+
+`test_gpu_host_api_negative.cpp` and `test_gpu_abi_gate.cpp` cover all 18
+`ufsecp_gpu_*` functions without requiring GPU hardware. Both files are integrated
+into the unified audit runner (modules `gpu_api_negative` and `gpu_abi_gate`).
+
+| Test File | Checks | Coverage |
+|-----------|--------|----------|
+| `test_gpu_host_api_negative` | 38 | NULL ctx for all batch ops; NULL ctx_out / info_out; ctx_create with backend 0/99/255; is_available/device_count for invalid backend; count=0 no-ops; NULL buffers + count>0; invalid device index; GPU error strings (7 codes); backend name edge cases (0, 99, 0xFFFFFFFF) |
+| `test_gpu_abi_gate` | 28 | Backend count/ids/names (CUDA/OpenCL/Metal/none/invalid); device_info null guard + invalid backend + available device; ctx_create null/invalid/valid lifecycle; ctx_destroy(nullptr) no-crash; last_error/last_error_msg(nullptr); NULL buffer batch ops; error_str(OK/UNAVAILABLE/UNSUPPORTED/999); GPU ops if available (1*G smoke, count=0, NULL-scalar failure) |
+
+---
+
 ## Guarantee
 
 Every `ufsecp_*` function is tested with at least:
 1. Valid inputs (FFI round-trip)
 2. NULL context (G.1)
 3. NULL critical pointers (G.2, G.3)
-4. Malformed domain-specific input (G.4-G.20 / H.1-H.12 / I.1-I.5, per function category)
+4. Malformed domain-specific input (G.4-G.20 / H.1-H.12 / I.1-I.5 / J.1-J.2, per function category)
 
 **Mandatory edge-case rule for new ABI functions** (enforced since v3.22):
 Every new `ufsecp_*` function MUST be covered by all four checks below before

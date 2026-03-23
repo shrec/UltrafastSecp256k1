@@ -114,6 +114,12 @@ int test_adversarial_protocol_run();
 int test_ecies_regression_run();
 
 // ============================================================================
+// Forward declarations -- GPU ABI tests (no hardware required for null-guard paths)
+// ============================================================================
+int test_gpu_host_api_negative_run(); // NULL guards, invalid backend/device, error strings
+int test_gpu_abi_gate_run();          // Discovery, lifecycle, ops-if-available
+
+// ============================================================================
 // Forward declarations -- adversarial / fuzz tests
 // ============================================================================
 int test_audit_fuzz_run();
@@ -329,6 +335,8 @@ static const AuditModule ALL_MODULES[] = {
     { "parse_strictness",  "Public parse path strictness (malformed inputs)","memory_safety", test_parse_strictness_run, false },
     { "adversarial_proto", "Adversarial protocol & FFI hostile-caller",   "fuzzing",         test_adversarial_protocol_run, false },
     { "ecies_regression",  "ECIES regression + C ABI prefix enforce",   "fuzzing",         test_ecies_regression_run, false },
+    { "gpu_api_negative",  "GPU C ABI null/invalid-backend/error paths", "memory_safety",   test_gpu_host_api_negative_run, false },
+    { "gpu_abi_gate",      "GPU ABI discovery, lifecycle, ops-if-avail", "memory_safety",   test_gpu_abi_gate_run, false },
 
     // ===================================================================
     // Section 8: Performance Validation & Regression

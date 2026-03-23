@@ -293,7 +293,8 @@ static void test_backend_names() {
 
 /* ============================================================================ */
 
-int main() {
+int test_gpu_host_api_negative_run() {
+    g_pass = 0; g_fail = 0;
     std::printf("=== GPU Host API Negative Test ===\n\n");
 
     /* Tests that don't need a context */
@@ -325,3 +326,7 @@ int main() {
     std::printf("\n=== Results: %d passed, %d failed ===\n", g_pass, g_fail);
     return g_fail > 0 ? 1 : 0;
 }
+
+#ifndef UNIFIED_AUDIT_RUNNER
+int main() { return test_gpu_host_api_negative_run(); }
+#endif

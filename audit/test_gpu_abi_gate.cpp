@@ -234,7 +234,8 @@ static void test_gpu_ops_if_available() {
     CHECK(1, "ctx_destroy succeeds");
 }
 
-int main() {
+int test_gpu_abi_gate_run() {
+    g_pass = 0; g_fail = 0;
     std::printf("=== GPU ABI Gate Test ===\n\n");
 
     test_backend_discovery();
@@ -247,3 +248,7 @@ int main() {
     std::printf("\n=== Results: %d passed, %d failed ===\n", g_pass, g_fail);
     return g_fail > 0 ? 1 : 0;
 }
+
+#ifndef UNIFIED_AUDIT_RUNNER
+int main() { return test_gpu_abi_gate_run(); }
+#endif

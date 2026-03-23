@@ -215,6 +215,19 @@ must be tested end-to-end.
 
 ---
 
+### P. GPU C ABI Hostile-Caller Coverage (v3.24+)
+
+The GPU C ABI (`ufsecp_gpu_*`, 18 functions) now has full null-guard and
+error-path coverage integrated into the unified audit runner without requiring
+GPU hardware.
+
+| ID  | Test file                            | Checks | Key invariants |
+|-----|--------------------------------------|--------|----------------|
+| P.1 | `test_gpu_host_api_negative.cpp`     | 38     | NULL ctx batch ops; NULL ctx_out/info_out; invalid backend (0/99/255); is_available/device_count for invalid backend; count=0 no-ops; NULL buffers + count>0; invalid device index; GPU error strings (7 codes); backend names |
+| P.2 | `test_gpu_abi_gate.cpp`              | 28     | Backend count/ids/names; device_info null+invalid+valid; ctx_create/destroy lifecycle; last_error/msg(NULL); NULL buffer batch ops; error_str all codes; 1*G smoke if GPU available; count=0 no-op; NULL-scalar failure |
+
+---
+
 ## Unified Audit Runner -- 8-Section Internal Mapping
 
 The C++ `unified_audit_runner` binary covers **E, F, G(internal), H(deterministic), I(dudect+CT), J(ABI gate), L(smoke)** in a single executable.
@@ -227,7 +240,7 @@ The C++ `unified_audit_runner` binary covers **E, F, G(internal), H(deterministi
 | 4 | `standard_vectors` | bip340_vectors, bip32_vectors, rfc6979_vectors, frost_kat |
 | 5 | `fuzzing` | audit_fuzz, fuzz_parsers, fuzz_addr_bip32, fault_injection |
 | 6 | `protocol_security` | ecdsa_schnorr, bip32, musig2, ecdh_recovery, v4_features, coins, musig2_frost, musig2_frost_adv, audit_integration |
-| 7 | `memory_safety` | audit_security, debug_invariants, abi_gate |
+| 7 | `memory_safety` | audit_security, debug_invariants, abi_gate, gpu_api_negative, gpu_abi_gate |
 | 8 | `performance` | hash_accel, simd_batch, multiscalar, audit_perf |
 
 ---
@@ -241,7 +254,7 @@ The C++ `unified_audit_runner` binary covers **E, F, G(internal), H(deterministi
 | A3: Arithmetic Errors | CRITICAL | E.1a, E.4, F.1-F.5, G.1-G.4 | `audit_report.json` (math_invariants, differential) |
 | A4: Memory Safety | CRITICAL | D.1-D.5, H.1-H.4, J.3 | `artifacts/sanitizers/`, `audit_report.json` (fuzzing) |
 | A5: Supply Chain | HIGH | A.3, B.1-B.3, A.4 | `artifacts/sbom.cdx.json`, `artifacts/SHA256SUMS.txt` |
-| A6: GPU-Specific | HIGH | Separate GPU audit | -- |
+| A6: GPU-Specific | HIGH | P.1 (`test_gpu_host_api_negative`), P.2 (`test_gpu_abi_gate`) — null/invalid-backend/error-path paths; kernel-level ops audit in GPU backend test suites |
 
 ### Not Covered by Automated Tests
 

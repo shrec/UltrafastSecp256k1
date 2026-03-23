@@ -51,7 +51,7 @@
 | `test_frost_kat.cpp` | -- | FROST t-of-n threshold signing known-answer tests |
 | `test_wycheproof_ecdsa.cpp` | -- | Wycheproof ECDSA: Google Project Wycheproof test vectors |
 | `test_wycheproof_ecdh.cpp` | -- | Wycheproof ECDH: Google Project Wycheproof test vectors |
-| `unified_audit_runner.cpp` | 49 modules | Unified audit: all 49 audit modules in single binary |
+| `unified_audit_runner.cpp` | 70 modules | Unified audit: all 70 audit modules in single binary (includes GPU null-guard paths) |
 
 ### CPU Unit Tests (`cpu/tests/`)
 
