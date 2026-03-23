@@ -8,6 +8,7 @@
 #include "secp256k1/field.hpp"
 #include "secp256k1/ct/point.hpp"
 #include "secp256k1/pippenger.hpp"
+#include "secp256k1/detail/secure_erase.hpp"
 #include <cstring>
 
 namespace secp256k1 {
@@ -53,6 +54,9 @@ Scalar derive_nonce(const Scalar& secret, const Point& point,
     std::memcpy(buf + 97, aux32, 32);
 
     auto hash = detail::cached_tagged_hash(g_nonce_midstate, buf, sizeof(buf));
+    detail::secure_erase(sec_bytes.data(), sec_bytes.size());
+    detail::secure_erase(masked, sizeof(masked));
+    detail::secure_erase(buf, sizeof(buf));
     return Scalar::from_bytes(hash);
 }
 
@@ -156,6 +160,9 @@ KnowledgeProof knowledge_prove_base(const Scalar& secret,
     // s = k + e * secret (constant-time: both k and secret are secrets)
     Scalar const s = k_eff + e * secret;
 
+    detail::secure_erase(const_cast<Scalar*>(&k), sizeof(k));
+    detail::secure_erase(&k_eff, sizeof(k_eff));
+
     return KnowledgeProof{rx, s};
 }
 
@@ -249,6 +256,8 @@ DLEQProof dleq_prove(const Scalar& secret,
 
     // s = k + e * secret (constant-time)
     Scalar const s = k + e * secret;
+
+    detail::secure_erase(const_cast<Scalar*>(&k), sizeof(k));
 
     return DLEQProof{e, s};
 }
@@ -568,6 +577,17 @@ RangeProof range_prove(std::uint64_t value,
 
     proof.a = a_vec[0];
     proof.b = b_vec[0];
+
+    // Erase secret state from stack
+    detail::secure_erase(a_L, sizeof(a_L));
+    detail::secure_erase(a_R, sizeof(a_R));
+    detail::secure_erase(s_L, sizeof(s_L));
+    detail::secure_erase(s_R, sizeof(s_R));
+    detail::secure_erase(l_x, sizeof(l_x));
+    detail::secure_erase(r_x, sizeof(r_x));
+    detail::secure_erase(a_vec, sizeof(a_vec));
+    detail::secure_erase(b_vec, sizeof(b_vec));
+    detail::secure_erase(alpha_bytes.data(), alpha_bytes.size());
 
     return proof;
 }

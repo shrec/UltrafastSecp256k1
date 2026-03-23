@@ -3,6 +3,7 @@
 #include "secp256k1/sha256.hpp"
 #include "secp256k1/ct/point.hpp"
 #include "secp256k1/ct/scalar.hpp"
+#include "secp256k1/detail/secure_erase.hpp"
 #include <cstring>
 #include <algorithm>
 
@@ -18,6 +19,9 @@ std::array<uint8_t, 32> taproot_tweak_hash(
     const std::array<uint8_t, 32>& internal_key_x,
     const uint8_t* merkle_root,
     std::size_t merkle_root_len) {
+
+    // merkle_root is either absent (0) or exactly 32 bytes
+    if (merkle_root_len > 32) return {};
 
     // Concatenate: internal_key_x [|| merkle_root]
     std::size_t const total = 32 + merkle_root_len;
@@ -179,6 +183,9 @@ Scalar taproot_tweak_privkey(
 
     // Tweaked private key = d + t
     auto tweaked = d + t;
+
+    detail::secure_erase(&d, sizeof(d));
+
     if (tweaked.is_zero()) return Scalar::zero();
 
     return tweaked;
@@ -365,6 +372,9 @@ static std::array<uint8_t, 32> tap_sighash_common(
     uint8_t ext_flag,
     const uint8_t* ext_data, std::size_t ext_len,
     const uint8_t* annex, std::size_t annex_len) noexcept {
+
+    // Bounds check: input_index must be within tx inputs
+    if (input_index >= tx_data.input_count) return {};
 
     uint8_t const output_type = (hash_type == 0x00) ? 0x01 : (hash_type & 0x03);
     bool const anyone = (hash_type & 0x80) != 0;

@@ -9,6 +9,7 @@
 #include "secp256k1/coins/message_signing.hpp"
 #include "secp256k1/context.hpp"
 #include "secp256k1/recovery.hpp"
+#include "secp256k1/detail/secure_erase.hpp"
 #include <cstring>
 
 #if defined(SECP256K1_BUILD_ETHEREUM)
@@ -97,12 +98,16 @@ std::string export_private_key(const CoinParams& coin, const WalletKey& key,
     if (coin.features.uses_evm) {
         // EVM: 0x-prefixed hex
         auto bytes = key.priv.to_bytes();
-        return to_hex(bytes.data(), 32, true);
+        auto result = to_hex(bytes.data(), 32, true);
+        detail::secure_erase(bytes.data(), bytes.size());
+        return result;
     }
     if (coin.default_encoding == AddressEncoding::TRON_BASE58) {
         // Tron: raw hex (no 0x prefix)
         auto bytes = key.priv.to_bytes();
-        return to_hex(bytes.data(), 32, false);
+        auto result = to_hex(bytes.data(), 32, false);
+        detail::secure_erase(bytes.data(), bytes.size());
+        return result;
     }
     // Bitcoin-family: WIF
     return coin_wif_encode(key.priv, coin, true, testnet);

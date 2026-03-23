@@ -6,6 +6,7 @@
 #include "secp256k1/sha256.hpp"
 #include "secp256k1/sha512.hpp"
 #include "secp256k1/ct/point.hpp"
+#include "secp256k1/detail/secure_erase.hpp"
 #include <cstring>
 #include <cctype>
 
@@ -43,7 +44,11 @@ std::array<std::uint8_t, 64> hmac_sha512(const uint8_t* key, std::size_t key_len
     SHA512 outer;
     outer.update(opad, 128);
     outer.update(inner_hash.data(), 64);
-    return outer.finalize();
+    auto result = outer.finalize();
+    detail::secure_erase(k_buf, sizeof(k_buf));
+    detail::secure_erase(ipad, sizeof(ipad));
+    detail::secure_erase(opad, sizeof(opad));
+    return result;
 }
 
 // -- RIPEMD-160 (minimal) -----------------------------------------------------
@@ -338,6 +343,8 @@ std::pair<ExtendedKey, bool> ExtendedKey::derive_child(uint32_t index) const {
     // Both hardened (0x00||key||index) and normal (pubkey||index) are 37 bytes
     auto I = hmac_sha512(chain_code.data(), 32, data, 37);
 
+    detail::secure_erase(data, sizeof(data));
+
     std::array<uint8_t, 32> IL{}, IR{};
     std::memcpy(IL.data(), I.data(), 32);
     std::memcpy(IR.data(), I.data() + 32, 32);
@@ -358,7 +365,11 @@ std::pair<ExtendedKey, bool> ExtendedKey::derive_child(uint32_t index) const {
         // child_key = (IL + parent_key) mod n
         auto parent_scalar = Scalar::from_bytes(key);
         auto child_scalar = il_scalar + parent_scalar;
-        if (child_scalar.is_zero()) return {ExtendedKey{}, false};
+        if (child_scalar.is_zero()) {
+            detail::secure_erase(I.data(), I.size());
+            detail::secure_erase(IL.data(), IL.size());
+            return {ExtendedKey{}, false};
+        }
         child.key = child_scalar.to_bytes();
         child.is_private = true;
     } else {
@@ -366,12 +377,19 @@ std::pair<ExtendedKey, bool> ExtendedKey::derive_child(uint32_t index) const {
         auto IL_point = Point::generator().scalar_mul(il_scalar);
         auto parent_point = public_key();
         auto child_point = IL_point.add(parent_point);
-        if (child_point.is_infinity()) return {ExtendedKey{}, false};
+        if (child_point.is_infinity()) {
+            detail::secure_erase(I.data(), I.size());
+            detail::secure_erase(IL.data(), IL.size());
+            return {ExtendedKey{}, false};
+        }
         auto compressed = child_point.to_compressed();
         child.pub_prefix = compressed[0];
         child.key = child_point.x().to_bytes();
         child.is_private = false;
     }
+
+    detail::secure_erase(I.data(), I.size());
+    detail::secure_erase(IL.data(), IL.size());
 
     return {child, true};
 }
@@ -402,6 +420,9 @@ std::pair<ExtendedKey, bool> bip32_master_key(const uint8_t* seed, std::size_t s
     ext.child_number = 0;
     ext.parent_fingerprint = {0, 0, 0, 0};
     ext.is_private = true;
+
+    detail::secure_erase(I.data(), I.size());
+    detail::secure_erase(IL.data(), IL.size());
 
     return {ext, true};
 }
