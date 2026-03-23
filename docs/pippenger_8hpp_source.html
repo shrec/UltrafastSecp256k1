@@ -109,7 +109,7 @@ $(document).ready(function(){initNavTree('pippenger_8hpp_source.html',''); initR
 <div class="line"><a id="l00009" name="l00009"></a><span class="lineno">    9</span><span class="comment">// Computes: R = s_1*P_1 + s_2*P_2 + ... + s_n*P_n</span></div>
 <div class="line"><a id="l00010" name="l00010"></a><span class="lineno">   10</span><span class="comment">//</span></div>
 <div class="line"><a id="l00011" name="l00011"></a><span class="lineno">   11</span><span class="comment">// Algorithm (bucket method, a.k.a. Pippenger):</span></div>
-<div class="line"><a id="l00012" name="l00012"></a><span class="lineno">   12</span><span class="comment">//   1. Choose window width c = floor(log2(n)) (adaptive).</span></div>
+<div class="line"><a id="l00012" name="l00012"></a><span class="lineno">   12</span><span class="comment">//   1. Choose window width c from an empirically tuned CPU heuristic.</span></div>
 <div class="line"><a id="l00013" name="l00013"></a><span class="lineno">   13</span><span class="comment">//   2. Represent each scalar s in base-2^c digits.</span></div>
 <div class="line"><a id="l00014" name="l00014"></a><span class="lineno">   14</span><span class="comment">//   3. For each digit position j (from MSB to LSB):</span></div>
 <div class="line"><a id="l00015" name="l00015"></a><span class="lineno">   15</span><span class="comment">//      a. Scatter: place P into bucket[digit_j(s)] for all i.</span></div>
@@ -118,11 +118,11 @@ $(document).ready(function(){initNavTree('pippenger_8hpp_source.html',''); initR
 <div class="line"><a id="l00018" name="l00018"></a><span class="lineno">   18</span><span class="comment">//      c. Combine: R = R*2^c + Sum</span></div>
 <div class="line"><a id="l00019" name="l00019"></a><span class="lineno">   19</span><span class="comment">//</span></div>
 <div class="line"><a id="l00020" name="l00020"></a><span class="lineno">   20</span><span class="comment">// Complexity: O(n/c + 2^c + 256*dbl) vs Strauss O(256 + n*2^(w-1))</span></div>
-<div class="line"><a id="l00021" name="l00021"></a><span class="lineno">   21</span><span class="comment">// Crossover: Pippenger wins for n &gt; ~128 (verified empirically).</span></div>
+<div class="line"><a id="l00021" name="l00021"></a><span class="lineno">   21</span><span class="comment">// Current CPU crossover: Pippenger wins around n ~= 48.</span></div>
 <div class="line"><a id="l00022" name="l00022"></a><span class="lineno">   22</span><span class="comment">//</span></div>
 <div class="line"><a id="l00023" name="l00023"></a><span class="lineno">   23</span><span class="comment">// This implementation:</span></div>
 <div class="line"><a id="l00024" name="l00024"></a><span class="lineno">   24</span><span class="comment">//   - Pre-allocates all buckets in a single flat array (no heap per iteration)</span></div>
-<div class="line"><a id="l00025" name="l00025"></a><span class="lineno">   25</span><span class="comment">//   - Supports signed digits (2NAF-style) for halved bucket count</span></div>
+<div class="line"><a id="l00025" name="l00025"></a><span class="lineno">   25</span><span class="comment">//   - Uses predecoded digits and bucket reuse on the optimized CPU path</span></div>
 <div class="line"><a id="l00026" name="l00026"></a><span class="lineno">   26</span><span class="comment">//   - Falls back to Strauss for small n</span></div>
 <div class="line"><a id="l00027" name="l00027"></a><span class="lineno">   27</span><span class="comment">//</span></div>
 <div class="line"><a id="l00028" name="l00028"></a><span class="lineno">   28</span><span class="comment">// Reference: Bernstein, Doumen, Lange, Oosterwijk (2012),</span></div>
@@ -146,7 +146,7 @@ $(document).ready(function(){initNavTree('pippenger_8hpp_source.html',''); initR
 <div class="line"><a id="l00046" name="l00046"></a><span class="lineno">   46</span><span class="comment">//   points   - array of n points</span></div>
 <div class="line"><a id="l00047" name="l00047"></a><span class="lineno">   47</span><span class="comment">//   n        - number of scalar-point pairs</span></div>
 <div class="line"><a id="l00048" name="l00048"></a><span class="lineno">   48</span><span class="comment">//</span></div>
-<div class="line"><a id="l00049" name="l00049"></a><span class="lineno">   49</span><span class="comment">// Performance: O(n/c + 2^c) per window, c ~= log2(n).</span></div>
+<div class="line"><a id="l00049" name="l00049"></a><span class="lineno">   49</span><span class="comment">// Performance: O(n/c + 2^c) per window, with c chosen from measured bands.</span></div>
 <div class="line"><a id="l00050" name="l00050"></a><span class="lineno">   50</span><span class="comment">//   n=256:   ~4x faster than Strauss</span></div>
 <div class="line"><a id="l00051" name="l00051"></a><span class="lineno">   51</span><span class="comment">//   n=1024:  ~8x faster than Strauss</span></div>
 <div class="line"><a id="l00052" name="l00052"></a><span class="lineno">   52</span><span class="comment">//   n=4096:  ~12x faster than Strauss</span></div>
@@ -161,11 +161,11 @@ $(document).ready(function(){initNavTree('pippenger_8hpp_source.html',''); initR
 <div class="line"><a id="l00061" name="l00061"></a><span class="lineno">   61</span> </div>
 <div class="line"><a id="l00062" name="l00062"></a><span class="lineno">   62</span><span class="comment">// -- Optimal Window Width -----------------------------------------------------</span></div>
 <div class="line"><a id="l00063" name="l00063"></a><span class="lineno">   63</span><span class="comment">// Returns the optimal bucket window width c for n points.</span></div>
-<div class="line"><a id="l00064" name="l00064"></a><span class="lineno">   64</span><span class="comment">// Minimizes: floor(256/c) * (n + 2^c) total point operations.</span></div>
+<div class="line"><a id="l00064" name="l00064"></a><span class="lineno">   64</span><span class="comment">// Uses measured CPU bands, not just the textbook floor(log2(n)) heuristic.</span></div>
 <div class="line"><a id="l00065" name="l00065"></a><span class="lineno"><a class="line" href="namespacesecp256k1.html#a2decdd21aabdcb47b80e43e74208bd47">   65</a></span><span class="keywordtype">unsigned</span> <a class="code hl_function" href="namespacesecp256k1.html#a2decdd21aabdcb47b80e43e74208bd47">pippenger_optimal_window</a>(std::size_t n);</div>
 <div class="line"><a id="l00066" name="l00066"></a><span class="lineno">   66</span> </div>
 <div class="line"><a id="l00067" name="l00067"></a><span class="lineno">   67</span><span class="comment">// -- Unified MSM (auto-selects best algorithm) --------------------------------</span></div>
-<div class="line"><a id="l00068" name="l00068"></a><span class="lineno">   68</span><span class="comment">// Automatically picks Strauss (n &lt;= 128) or Pippenger (n &gt; 128).</span></div>
+<div class="line"><a id="l00068" name="l00068"></a><span class="lineno">   68</span><span class="comment">// Automatically picks Strauss for very small MSMs and Pippenger from n &gt;= 48.</span></div>
 <div class="line"><a id="l00069" name="l00069"></a><span class="lineno"><a class="line" href="namespacesecp256k1.html#a5c035fd3478f23b2eb5281e4a765ab84">   69</a></span><a class="code hl_class" href="classsecp256k1_1_1fast_1_1Point.html">fast::Point</a> <a class="code hl_function" href="namespacesecp256k1.html#a5c035fd3478f23b2eb5281e4a765ab84">msm</a>(<span class="keyword">const</span> <a class="code hl_class" href="classsecp256k1_1_1fast_1_1Scalar.html">fast::Scalar</a>* scalars,</div>
 <div class="line"><a id="l00070" name="l00070"></a><span class="lineno">   70</span>                <span class="keyword">const</span> <a class="code hl_class" href="classsecp256k1_1_1fast_1_1Point.html">fast::Point</a>* points,</div>
 <div class="line"><a id="l00071" name="l00071"></a><span class="lineno">   71</span>                std::size_t n);</div>
