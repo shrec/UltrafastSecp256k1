@@ -636,7 +636,7 @@ void montgomery_reduce_bmi2(uint64_t result[8]) {
         uint8_t borrow = 0;
         for (size_t i = 0; i < 4; ++i) {
             uint64_t const diff = reduced[i] - p[i] - borrow;
-            borrow = (reduced[i] < p[i] + borrow) ? 1 : 0;
+            borrow = (reduced[i] < p[i] || (reduced[i] == p[i] && borrow)) ? 1 : 0;
             reduced[i] = diff;
         }
     }
@@ -778,7 +778,7 @@ FieldElement field_negate_bmi2(const FieldElement& a) {
     uint8_t borrow = 0;
     for (int i = 0; i < 4; ++i) {
         uint64_t const diff = p[i] - a_limbs[i] - borrow;
-        borrow = (p[i] < a_limbs[i] + borrow) ? 1 : 0;
+        borrow = (p[i] < a_limbs[i] || (p[i] == a_limbs[i] && borrow)) ? 1 : 0;
         result[i] = diff;
     }
     

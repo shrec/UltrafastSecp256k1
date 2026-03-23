@@ -106,6 +106,9 @@ ecrecover(const std::array<std::uint8_t, 32>& msg_hash,
 
     // Extract recovery ID from v
     int const recid = eip155_recid(v);
+    if (recid < 0 || recid > 3) {
+        return {{}, false};
+    }
 
     // Recover public key (fast path -- public data, no secret)
     auto [pubkey, ok] = secp256k1::ecdsa_recover(msg_hash, sig, recid);

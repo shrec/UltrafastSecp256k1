@@ -696,9 +696,10 @@ silent_payment_create_output(const std::vector<Scalar>& input_privkeys,
     // Output key: P_output = B_spend + t_k * G
     Point const P_output = recipient.spend_pubkey.add(Point::generator().scalar_mul(t_k));
 
-    // Erase secret-derived material: aggregate private key and shared secret
+    // Erase secret-derived material: aggregate private key, shared secret, tagged hash
     detail::secure_erase(&a_sum, sizeof(a_sum));
     detail::secure_erase(S_comp.data(), S_comp.size());
+    detail::secure_erase(t_hash.data(), t_hash.size());
 
     return {P_output, t_k};
 }
@@ -747,7 +748,13 @@ silent_payment_scan(const Scalar& scan_privkey,
             Scalar const d = spend_privkey + t_k;
             results.push_back({k, d});
         }
+
+        // Erase secret-derived per-iteration temporaries
+        detail::secure_erase(t_hash.data(), t_hash.size());
     }
+
+    // Erase shared secret material
+    detail::secure_erase(const_cast<std::array<std::uint8_t, 33>*>(&S_comp)->data(), S_comp.size());
 
     return results;
 }

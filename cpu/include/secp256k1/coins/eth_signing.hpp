@@ -47,6 +47,9 @@ inline std::uint64_t eip155_v(int recid, std::uint64_t chain_id) {
 // Legacy: recid = v - 27
 // EIP-155: recid = (v - 35) % 2  (works for v >= 35)
 inline int eip155_recid(std::uint64_t v) {
+    if (v < 27) {
+        return -1;  // Invalid v value
+    }
     if (v <= 28) {
         return static_cast<int>(v - 27);
     }

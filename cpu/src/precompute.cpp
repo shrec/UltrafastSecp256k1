@@ -325,6 +325,14 @@ SECP256K1_INLINE void batch_inverse(std::vector<FieldElement>& inputs) {
         return;
     }
     
+    // Replace zero elements with one to avoid corrupting the Montgomery product.
+    // Their inverse (of one) will be harmless; callers must handle zero separately.
+    for (size_t i = 0; i < n; ++i) {
+        if (inputs[i] == FieldElement::zero()) {
+            inputs[i] = FieldElement::one();
+        }
+    }
+
     // Step 1: Compute products: prod[i] = inputs[0] x inputs[1] x ... x inputs[i]
     std::vector<FieldElement> products;
     products.reserve(n);

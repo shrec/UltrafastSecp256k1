@@ -55,6 +55,7 @@ std::array<std::uint8_t, 32> hmac_sha256(
     detail::secure_erase(k_buf, sizeof(k_buf));
     detail::secure_erase(ipad, sizeof(ipad));
     detail::secure_erase(opad, sizeof(opad));
+    detail::secure_erase(inner_hash.data(), inner_hash.size());
 
     return result;
 }
@@ -126,6 +127,10 @@ bool hkdf_sha256_expand(
         std::size_t const copy = std::min<std::size_t>(32, out_len - offset);
         std::memcpy(out + offset, t, copy);
         offset += copy;
+
+        // Erase per-iteration HMAC intermediates
+        detail::secure_erase(inner_hash.data(), inner_hash.size());
+        detail::secure_erase(ti.data(), ti.size());
     }
 
     detail::secure_erase(t, sizeof(t));
