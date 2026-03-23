@@ -197,6 +197,22 @@ the following before an audit release:
 | N.11 | `test_h11_segwit()` | `ufsecp_is_witness_program`, `ufsecp_parse_witness_program`, `ufsecp_p2wpkh_spk`, `ufsecp_p2wsh_spk`, `ufsecp_p2tr_spk`, `ufsecp_witness_script_hash` | NULL guards, format correctness (OP_0/OP_1 + push), non-witness rejection |
 | N.12 | `test_h12_taproot_sighash()` | `ufsecp_taproot_keypath_sighash`, `ufsecp_tapscript_sighash` | NULL guards, count=0, OOB input_index, NULL tapleaf_hash, determinism |
 
+### O. Remaining ABI Surface — Zero-Coverage Functions (v3.23+)
+
+**Mandatory rule (extends §N):** Every function added since the last audit must
+be tested with all-NULL-argument inputs, every required argument individually
+NULL, at least one invalid-value input, and at least one valid round-trip that
+confirms correct output. Functions that form a sign→verify or sign→recover pair
+must be tested end-to-end.
+
+| ID  | Test function                          | Functions covered | Key invariants |
+|-----|----------------------------------------|-------------------|----------------|
+| O.1 | `test_i1_ctx_clone_and_last_error_msg()` | `ufsecp_ctx_clone`, `ufsecp_last_error_msg`, `ufsecp_last_error` | NULL src/dst rejected; clone is independent; last_error_msg non-null after error |
+| O.2 | `test_i2_pubkey_parse_and_uncompressed()` | `ufsecp_pubkey_parse`, `ufsecp_pubkey_create_uncompressed` | NULL guards; invalid prefix/length rejected; uncompressed has 0x04 prefix; parse normalises to compressed; round-trip |
+| O.3 | `test_i3_ecdsa_recoverable_roundtrip()` | `ufsecp_ecdsa_sign_recoverable`, `ufsecp_ecdsa_recover` | NULL guards; zero privkey rejected; recid in [0,3]; recovered pubkey matches original; wrong recid produces different key |
+| O.4 | `test_i4_sign_verified()` | `ufsecp_ecdsa_sign_verified`, `ufsecp_schnorr_sign_verified` | NULL guards; zero privkey rejected; outputs verify correctly via `ufsecp_ecdsa_verify` / `ufsecp_schnorr_verify` |
+| O.5 | `test_i5_batch_verify_deep()` | `ufsecp_schnorr_batch_verify`, `ufsecp_ecdsa_batch_verify`, `ufsecp_schnorr_batch_identify_invalid`, `ufsecp_ecdsa_batch_identify_invalid` | Valid entry verifies; tampered sig fails; identify_invalid returns correct index; count=0 vacuously OK |
+
 ---
 
 ## Unified Audit Runner -- 8-Section Internal Mapping

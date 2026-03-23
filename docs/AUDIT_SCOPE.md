@@ -140,6 +140,7 @@ An independent security audit is requested to verify correctness, identify vulne
 | `test_fuzz_address_bip32_ffi` | 73,959 | Address/BIP32/FFI boundary fuzz |
 | libFuzzer harnesses | ∞ | Continuous fuzz for field/scalar/point |
 | `test_adversarial_protocol` (§H) | 100+ | New ABI surface edge cases: AEAD, ECIES, EllSwift, ETH, Pedersen switch, Schnorr adaptor, batch sign, BIP-143/144, SegWit, Taproot sighash |
+| `test_adversarial_protocol` (§I) | 77 | Remaining ABI surface: `ctx_clone`, `last_error_msg`, `pubkey_parse`, `pubkey_create_uncompressed`, `ecdsa_sign_recoverable`, `ecdsa_recover`, `ecdsa_sign_verified`, `schnorr_sign_verified`, deep batch verify |
 
 ### Mandatory Edge-Case Coverage Rule (enforced since v3.22)
 
@@ -152,7 +153,7 @@ before it is considered covered for audit purposes:
    authentication tag, OOB index, etc. must return a non-`UFSECP_OK` code
 4. **Success smoke** — at least one valid call demonstrates a correct round-trip or output
 
-Evidence for these checks lives in `audit/test_adversarial_protocol.cpp` (§G and §H)
+Evidence for these checks lives in `audit/test_adversarial_protocol.cpp` (§G, §H, and §I)
 and is mapped in `docs/FFI_HOSTILE_CALLER.md` and `audit/AUDIT_TEST_PLAN.md` (§N).
 
 ### Reproduction Commands

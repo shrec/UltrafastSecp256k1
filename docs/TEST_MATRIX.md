@@ -12,7 +12,7 @@
 | **Audit suite checks** | 641,194+ | [OK] 0 failures |
 | **Fuzz harnesses** | 3 | [OK] Active |
 | **ECIES regression** | 85 | [OK] All passing |
-| **Adversarial protocol** | 101 functions, 286+ checks | [OK] Active |
+| **Adversarial protocol** | 114 functions, 360+ checks | [OK] Active |
 | **Side-channel (dudect)** | 1 | [OK] Active |
 | **Benchmark suites** | 4+ | [OK] Active |
 | **Platform-specific** | 5+ | [OK] Per-platform |
@@ -36,7 +36,7 @@
 | `test_ct_sidechannel.cpp` | -- | dudect timing: Welch t-test for side-channel leakage |
 | `differential_test.cpp` | -- | Cross-implementation comparison |
 | `test_ecies_regression.cpp` | 85 | ECIES hardening: parity tamper, invalid prefix, truncated envelope, tamper matrix, KAT, ABI prefix rejection, pubkey parser consistency, RNG fail-closed |
-| `test_adversarial_protocol.cpp` | 101 functions, 286+ checks | Adversarial protocol: MuSig2 (nonce reuse/replay, rogue-key, transcript mutation, signer ordering, malicious aggregator), FROST (below-threshold, malformed commitment, malicious coordinator, duplicate nonce), Silent Payments, ECDSA adaptor (round-trip, transcript mismatch, extraction misuse), Schnorr adaptor, DLEQ (malformed proof, wrong generators), BIP-32, FFI hostile-caller (null args, undersized buffers, overlapping buffers, malformed counts), **New ABI edge cases H.1-H.12** (ctx_size, AEAD, ECIES, EllSwift, ETH address, Pedersen switch, Schnorr adaptor extract, batch sign, BIP-143, BIP-144, SegWit, Taproot sighash) |
+| `test_adversarial_protocol.cpp` | 114 functions, 360+ checks | Adversarial protocol: MuSig2 (nonce reuse/replay, rogue-key, transcript mutation, signer ordering, malicious aggregator), FROST (below-threshold, malformed commitment, malicious coordinator, duplicate nonce), Silent Payments, ECDSA adaptor (round-trip, transcript mismatch, extraction misuse), Schnorr adaptor, DLEQ (malformed proof, wrong generators), BIP-32, FFI hostile-caller (null args, undersized buffers, overlapping buffers, malformed counts), **New ABI edge cases H.1-H.12** (ctx_size, AEAD, ECIES, EllSwift, ETH address, Pedersen switch, Schnorr adaptor extract, batch sign, BIP-143, BIP-144, SegWit, Taproot sighash), **Remaining ABI surface I.1-I.5** (ctx_clone, last_error_msg, pubkey_parse, pubkey_create_uncompressed, ecdsa_sign_recoverable, ecdsa_recover, ecdsa_sign_verified, schnorr_sign_verified, batch verify deep) |
 | `test_fuzz_parsers.cpp` | 10K/suite | Parser fuzz: DER, Schnorr sig, compressed/uncompressed pubkey round-trip |
 | `test_fuzz_address_bip32_ffi.cpp` | 10K/suite | Address/BIP-32/FFI fuzz: P2PKH/P2WPKH/P2TR/WIF, BIP-32 paths, BIP-39, coin derivation, FFI boundaries |
 | `bench_ct_vs_libsecp.cpp` | -- | Performance comparison with libsecp256k1 |
@@ -333,6 +333,18 @@ qemu-riscv64 -L /usr/riscv64-linux-gnu ./build-riscv64/cpu/test_bip324_standalon
 qemu-riscv64 -L /usr/riscv64-linux-gnu ./build-riscv64/cpu/bench_kP
 qemu-riscv64 -L /usr/riscv64-linux-gnu ./build-riscv64/cpu/bench_bip324
 ```
+
+---
+
+## Remaining ABI Surface Edge-Case Coverage (v3.23+ §I/§O)
+
+| ID  | Functions | NULL args | Invalid inputs | Valid round-trip |
+|-----|-----------|-----------|----------------|------------------|
+| I.1 | `ufsecp_ctx_clone`, `ufsecp_last_error_msg`, `ufsecp_last_error` | [OK] | [OK] (error state) | [OK] (independent clone) |
+| I.2 | `ufsecp_pubkey_parse`, `ufsecp_pubkey_create_uncompressed` | [OK] | [OK] (bad len, bad prefix, zero key) | [OK] (uncompressed→compressed normalisation) |
+| I.3 | `ufsecp_ecdsa_sign_recoverable`, `ufsecp_ecdsa_recover` | [OK] | [OK] (zero key, bad recid) | [OK] (recovered pubkey matches original) |
+| I.4 | `ufsecp_ecdsa_sign_verified`, `ufsecp_schnorr_sign_verified` | [OK] | [OK] (zero key) | [OK] (outputs verify via _verify counterpart) |
+| I.5 | `ufsecp_schnorr_batch_verify`, `ufsecp_ecdsa_batch_verify`, `ufsecp_schnorr_batch_identify_invalid`, `ufsecp_ecdsa_batch_identify_invalid` | [OK] | [OK] (tampered sig) | [OK] (valid entry verifies; identify_invalid returns correct index) |
 
 ---
 

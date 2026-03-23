@@ -4152,6 +4152,351 @@ static void test_h12_taproot_sighash() {
 }
 
 // ============================================================================
+// ============================================================================
+// I. Remaining ABI Surface (v3.23+)  — 8 functions with zero prior coverage
+// ============================================================================
+
+// I.1: ctx_clone + last_error_msg -------------------------------------------
+static void test_i1_ctx_clone_and_last_error_msg() {
+    (void)std::printf("  [I.1] ctx_clone + last_error_msg edge cases\n");
+    ufsecp_ctx* ctx = nullptr;
+    ufsecp_ctx_create(&ctx);
+    if (!ctx) { CHECK(false, "I.1: ctx_create"); return; }
+
+    // last_error_msg on fresh ctx must return a non-null string
+    const char* msg0 = ufsecp_last_error_msg(ctx);
+    CHECK(msg0 != nullptr, "I.1a: last_error_msg on fresh ctx is non-null");
+
+    // Force an error by passing a zero private key; then read back message
+    uint8_t zero32[32] = {0};
+    uint8_t out33[33];
+    (void)ufsecp_pubkey_create(ctx, zero32, out33); // will fail
+    const char* msg1 = ufsecp_last_error_msg(ctx);
+    CHECK(msg1 != nullptr, "I.1b: last_error_msg after error is non-null");
+    CHECK(ufsecp_last_error(ctx) != UFSECP_OK,
+          "I.1c: last_error returns non-zero after error");
+
+    // last_error_msg(nullptr) must not crash (return null or empty)
+    const char* msg_null = ufsecp_last_error_msg(nullptr);
+    // We only assert it doesn't crash; null or "" are both acceptable
+    (void)msg_null;
+
+    // ctx_clone NULL src must fail
+    ufsecp_ctx* cloned = nullptr;
+    CHECK_ERR(ufsecp_ctx_clone(nullptr, &cloned),
+              "I.1d: ctx_clone NULL src rejected");
+    CHECK(cloned == nullptr, "I.1e: ctx_clone NULL src leaves output null");
+
+    // ctx_clone NULL output pointer must fail
+    CHECK_ERR(ufsecp_ctx_clone(ctx, nullptr),
+              "I.1f: ctx_clone NULL ctx_out rejected");
+
+    // Valid clone
+    CHECK_OK(ufsecp_ctx_clone(ctx, &cloned),
+             "I.1g: ctx_clone valid ctx OK");
+    CHECK(cloned != nullptr, "I.1h: ctx_clone produces non-null output");
+    CHECK(cloned != ctx,    "I.1i: ctx_clone produces distinct pointer");
+
+    // Cloned context should be independently usable
+    uint8_t priv1[32] = {1};
+    uint8_t pub33a[33], pub33b[33];
+    CHECK_OK(ufsecp_pubkey_create(ctx,    priv1, pub33a),
+             "I.1j: original ctx still works after clone");
+    CHECK_OK(ufsecp_pubkey_create(cloned, priv1, pub33b),
+             "I.1k: cloned ctx works independently");
+    CHECK(std::memcmp(pub33a, pub33b, 33) == 0,
+          "I.1l: original and cloned ctx produce identical results");
+
+    ufsecp_ctx_destroy(cloned);
+    ufsecp_ctx_destroy(ctx);
+}
+
+// I.2: pubkey_parse + pubkey_create_uncompressed ----------------------------
+static void test_i2_pubkey_parse_and_uncompressed() {
+    (void)std::printf("  [I.2] pubkey_parse + pubkey_create_uncompressed edge cases\n");
+    ufsecp_ctx* ctx = nullptr;
+    ufsecp_ctx_create(&ctx);
+    if (!ctx) { CHECK(false, "I.2: ctx_create"); return; }
+
+    uint8_t priv1[32] = {1};
+    uint8_t pub33[33];
+    uint8_t pub65[65];
+    uint8_t parsed33[33];
+
+    // pubkey_create_uncompressed NULL ctx
+    CHECK_ERR(ufsecp_pubkey_create_uncompressed(nullptr, priv1, pub65),
+              "I.2a: pubkey_create_uncompressed NULL ctx rejected");
+    // pubkey_create_uncompressed NULL privkey
+    CHECK_ERR(ufsecp_pubkey_create_uncompressed(ctx, nullptr, pub65),
+              "I.2b: pubkey_create_uncompressed NULL privkey rejected");
+    // pubkey_create_uncompressed NULL output
+    CHECK_ERR(ufsecp_pubkey_create_uncompressed(ctx, priv1, nullptr),
+              "I.2c: pubkey_create_uncompressed NULL output rejected");
+    // Zero privkey must be rejected
+    uint8_t zero32[32] = {0};
+    CHECK_ERR(ufsecp_pubkey_create_uncompressed(ctx, zero32, pub65),
+              "I.2d: pubkey_create_uncompressed zero privkey rejected");
+    // Valid call
+    CHECK_OK(ufsecp_pubkey_create_uncompressed(ctx, priv1, pub65),
+             "I.2e: pubkey_create_uncompressed valid OK");
+    CHECK(pub65[0] == 0x04, "I.2f: uncompressed pubkey starts with 0x04");
+
+    // pubkey_parse NULL ctx
+    CHECK_ERR(ufsecp_pubkey_parse(nullptr, pub65, 65, parsed33),
+              "I.2g: pubkey_parse NULL ctx rejected");
+    // pubkey_parse NULL input
+    CHECK_ERR(ufsecp_pubkey_parse(ctx, nullptr, 65, parsed33),
+              "I.2h: pubkey_parse NULL input rejected");
+    // pubkey_parse NULL output
+    CHECK_ERR(ufsecp_pubkey_parse(ctx, pub65, 65, nullptr),
+              "I.2i: pubkey_parse NULL output rejected");
+    // Wrong length (e.g. 32 bytes)
+    CHECK_ERR(ufsecp_pubkey_parse(ctx, pub65, 32, parsed33),
+              "I.2j: pubkey_parse wrong length=32 rejected");
+    // Wrong prefix (0x00)
+    uint8_t bad_prefix[33] = {0};
+    CHECK_ERR(ufsecp_pubkey_parse(ctx, bad_prefix, 33, parsed33),
+              "I.2k: pubkey_parse 0x00 prefix rejected");
+    // Parse valid 65-byte uncompressed → must normalise to compressed
+    CHECK_OK(ufsecp_pubkey_parse(ctx, pub65, 65, parsed33),
+             "I.2l: pubkey_parse valid uncompressed OK");
+    CHECK(parsed33[0] == 0x02 || parsed33[0] == 0x03,
+          "I.2m: pubkey_parse normalises to compressed (0x02/0x03)");
+
+    // Round-trip: compressed pubkey parsed → same as original
+    CHECK_OK(ufsecp_pubkey_create(ctx, priv1, pub33),
+             "I.2n: pubkey_create for round-trip");
+    uint8_t rt33[33];
+    CHECK_OK(ufsecp_pubkey_parse(ctx, pub33, 33, rt33),
+             "I.2o: pubkey_parse valid compressed OK");
+    CHECK(std::memcmp(pub33, rt33, 33) == 0,
+          "I.2p: pubkey_parse compressed round-trip matches");
+
+    ufsecp_ctx_destroy(ctx);
+}
+
+// I.3: ecdsa_sign_recoverable + ecdsa_recover round-trip ----------------------
+static void test_i3_ecdsa_recoverable_roundtrip() {
+    (void)std::printf("  [I.3] ecdsa_sign_recoverable + ecdsa_recover round-trip\n");
+    ufsecp_ctx* ctx = nullptr;
+    ufsecp_ctx_create(&ctx);
+    if (!ctx) { CHECK(false, "I.3: ctx_create"); return; }
+
+    uint8_t priv[32] = {0x11,0x22,0x33,0x44,0x55,0x66,0x77,0x88,
+                        0x99,0xaa,0xbb,0xcc,0xdd,0xee,0xff,0x00,
+                        0x11,0x22,0x33,0x44,0x55,0x66,0x77,0x88,
+                        0x99,0xaa,0xbb,0xcc,0xdd,0xee,0xff,0x01};
+    uint8_t msg32[32] = {0xde,0xad,0xbe,0xef,0xca,0xfe,0xba,0xbe,
+                         0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
+                         0x10,0x20,0x30,0x40,0x50,0x60,0x70,0x80,
+                         0x90,0xa0,0xb0,0xc0,0xd0,0xe0,0xf0,0xff};
+    uint8_t sig64[64];
+    int recid = -1;
+    uint8_t zero32[32] = {0};
+
+    // NULL guards: sign_recoverable
+    CHECK_ERR(ufsecp_ecdsa_sign_recoverable(nullptr, msg32, priv, sig64, &recid),
+              "I.3a: sign_recoverable NULL ctx rejected");
+    CHECK_ERR(ufsecp_ecdsa_sign_recoverable(ctx, nullptr, priv, sig64, &recid),
+              "I.3b: sign_recoverable NULL msg rejected");
+    CHECK_ERR(ufsecp_ecdsa_sign_recoverable(ctx, msg32, nullptr, sig64, &recid),
+              "I.3c: sign_recoverable NULL privkey rejected");
+    CHECK_ERR(ufsecp_ecdsa_sign_recoverable(ctx, msg32, priv, nullptr, &recid),
+              "I.3d: sign_recoverable NULL sig_out rejected");
+    // NULL recid_out is NOT allowed – it is required
+    CHECK_ERR(ufsecp_ecdsa_sign_recoverable(ctx, msg32, priv, sig64, nullptr),
+              "I.3e: sign_recoverable NULL recid_out rejected");
+    // Zero privkey rejected
+    CHECK_ERR(ufsecp_ecdsa_sign_recoverable(ctx, msg32, zero32, sig64, &recid),
+              "I.3f: sign_recoverable zero privkey rejected");
+
+    // Valid recoverable sign
+    CHECK_OK(ufsecp_ecdsa_sign_recoverable(ctx, msg32, priv, sig64, &recid),
+             "I.3g: sign_recoverable valid OK");
+    CHECK(recid == 0 || recid == 1 || recid == 2 || recid == 3,
+          "I.3h: recid is in [0,3]");
+
+    // NULL guards: recover
+    uint8_t recovered33[33];
+    CHECK_ERR(ufsecp_ecdsa_recover(nullptr, msg32, sig64, recid, recovered33),
+              "I.3i: ecdsa_recover NULL ctx rejected");
+    CHECK_ERR(ufsecp_ecdsa_recover(ctx, nullptr, sig64, recid, recovered33),
+              "I.3j: ecdsa_recover NULL msg rejected");
+    CHECK_ERR(ufsecp_ecdsa_recover(ctx, msg32, nullptr, recid, recovered33),
+              "I.3k: ecdsa_recover NULL sig rejected");
+    CHECK_ERR(ufsecp_ecdsa_recover(ctx, msg32, sig64, recid, nullptr),
+              "I.3l: ecdsa_recover NULL output rejected");
+    // Invalid recid values
+    CHECK_ERR(ufsecp_ecdsa_recover(ctx, msg32, sig64, -1, recovered33),
+              "I.3m: ecdsa_recover recid=-1 rejected");
+    CHECK_ERR(ufsecp_ecdsa_recover(ctx, msg32, sig64, 4, recovered33),
+              "I.3n: ecdsa_recover recid=4 rejected");
+
+    // Valid recover – recovered key must match original pubkey
+    uint8_t expected33[33];
+    CHECK_OK(ufsecp_pubkey_create(ctx, priv, expected33),
+             "I.3o: pubkey_create for recovery comparison");
+    CHECK_OK(ufsecp_ecdsa_recover(ctx, msg32, sig64, recid, recovered33),
+             "I.3p: ecdsa_recover valid OK");
+    CHECK(std::memcmp(recovered33, expected33, 33) == 0,
+          "I.3q: recovered pubkey matches original");
+
+    // Wrong recid produces wrong or rejected key
+    int wrong_recid = (recid + 1) % 4;
+    ufsecp_error_t rc_bad = ufsecp_ecdsa_recover(ctx, msg32, sig64, wrong_recid, recovered33);
+    if (rc_bad == UFSECP_OK) {
+        CHECK(std::memcmp(recovered33, expected33, 33) != 0,
+              "I.3r: wrong recid does not recover original pubkey");
+    }
+    // (It's valid for wrong recid to either fail or produce a different key)
+
+    ufsecp_ctx_destroy(ctx);
+}
+
+// I.4: ecdsa_sign_verified + schnorr_sign_verified ---------------------------
+static void test_i4_sign_verified() {
+    (void)std::printf("  [I.4] ecdsa_sign_verified + schnorr_sign_verified edge cases\n");
+    ufsecp_ctx* ctx = nullptr;
+    ufsecp_ctx_create(&ctx);
+    if (!ctx) { CHECK(false, "I.4: ctx_create"); return; }
+
+    uint8_t priv[32] = {0x02};
+    uint8_t zero32[32] = {0};
+    uint8_t msg32[32] = {0xab};
+    uint8_t sig64[64];
+
+    // ecdsa_sign_verified NULL guards
+    CHECK_ERR(ufsecp_ecdsa_sign_verified(nullptr, msg32, priv, sig64),
+              "I.4a: ecdsa_sign_verified NULL ctx rejected");
+    CHECK_ERR(ufsecp_ecdsa_sign_verified(ctx, nullptr, priv, sig64),
+              "I.4b: ecdsa_sign_verified NULL msg rejected");
+    CHECK_ERR(ufsecp_ecdsa_sign_verified(ctx, msg32, nullptr, sig64),
+              "I.4c: ecdsa_sign_verified NULL privkey rejected");
+    CHECK_ERR(ufsecp_ecdsa_sign_verified(ctx, msg32, priv, nullptr),
+              "I.4d: ecdsa_sign_verified NULL sig_out rejected");
+    CHECK_ERR(ufsecp_ecdsa_sign_verified(ctx, msg32, zero32, sig64),
+              "I.4e: ecdsa_sign_verified zero privkey rejected");
+
+    // Valid ecdsa_sign_verified – signature must verify
+    CHECK_OK(ufsecp_ecdsa_sign_verified(ctx, msg32, priv, sig64),
+             "I.4f: ecdsa_sign_verified valid OK");
+    uint8_t pub33[33];
+    CHECK_OK(ufsecp_pubkey_create(ctx, priv, pub33),
+             "I.4g: pubkey for verify");
+    CHECK_OK(ufsecp_ecdsa_verify(ctx, msg32, sig64, pub33),
+             "I.4h: ecdsa_sign_verified output verifies correctly");
+
+    // schnorr_sign_verified NULL guards
+    uint8_t aux32[32] = {0};
+    CHECK_ERR(ufsecp_schnorr_sign_verified(nullptr, msg32, priv, aux32, sig64),
+              "I.4i: schnorr_sign_verified NULL ctx rejected");
+    CHECK_ERR(ufsecp_schnorr_sign_verified(ctx, nullptr, priv, aux32, sig64),
+              "I.4j: schnorr_sign_verified NULL msg rejected");
+    CHECK_ERR(ufsecp_schnorr_sign_verified(ctx, msg32, nullptr, aux32, sig64),
+              "I.4k: schnorr_sign_verified NULL privkey rejected");
+    CHECK_ERR(ufsecp_schnorr_sign_verified(ctx, msg32, priv, aux32, nullptr),
+              "I.4l: schnorr_sign_verified NULL sig_out rejected");
+    CHECK_ERR(ufsecp_schnorr_sign_verified(ctx, msg32, zero32, aux32, sig64),
+              "I.4m: schnorr_sign_verified zero privkey rejected");
+
+    // Valid schnorr_sign_verified – signature must verify
+    CHECK_OK(ufsecp_schnorr_sign_verified(ctx, msg32, priv, aux32, sig64),
+             "I.4n: schnorr_sign_verified valid OK");
+    uint8_t xonly32[32];
+    CHECK_OK(ufsecp_pubkey_xonly(ctx, priv, xonly32),
+             "I.4o: pubkey_xonly for schnorr verify");
+    CHECK_OK(ufsecp_schnorr_verify(ctx, msg32, sig64, xonly32),
+             "I.4p: schnorr_sign_verified output verifies correctly");
+
+    ufsecp_ctx_destroy(ctx);
+}
+
+// I.5: Batch verify deep (beyond null-ctx check) ----------------------------
+static void test_i5_batch_verify_deep() {
+    (void)std::printf("  [I.5] Batch verify deep edge cases\n");
+    ufsecp_ctx* ctx = nullptr;
+    ufsecp_ctx_create(&ctx);
+    if (!ctx) { CHECK(false, "I.5: ctx_create"); return; }
+
+    uint8_t priv[32] = {0x07};
+    uint8_t msg32[32] = {0x55};
+    uint8_t sig64[64];
+    uint8_t pub33[33];
+    uint8_t xonly32[32];
+
+    CHECK_OK(ufsecp_pubkey_create(ctx, priv, pub33),  "I.5: pubkey_create");
+    CHECK_OK(ufsecp_pubkey_xonly(ctx, priv, xonly32),  "I.5: pubkey_xonly");
+
+    // --- Schnorr batch verify -----------------------------------------------
+    uint8_t schnorr_aux[32] = {0};
+    CHECK_OK(ufsecp_schnorr_sign(ctx, msg32, priv, schnorr_aux, sig64),
+             "I.5a: schnorr sign for batch");
+
+    // Build one valid Schnorr entry: [32 xonly | 32 msg | 64 sig] = 128 bytes
+    uint8_t schnorr_entry[128];
+    std::memcpy(schnorr_entry,      xonly32, 32);
+    std::memcpy(schnorr_entry + 32, msg32,   32);
+    std::memcpy(schnorr_entry + 64, sig64,   64);
+
+    CHECK_OK(ufsecp_schnorr_batch_verify(ctx, schnorr_entry, 1),
+             "I.5b: schnorr_batch_verify 1 valid entry OK");
+
+    // Tamper one byte of the signature → must fail
+    uint8_t tampered_schnorr[128];
+    std::memcpy(tampered_schnorr, schnorr_entry, 128);
+    tampered_schnorr[64] ^= 0xff;
+    CHECK_ERR(ufsecp_schnorr_batch_verify(ctx, tampered_schnorr, 1),
+              "I.5c: schnorr_batch_verify tampered sig fails");
+
+    // batch_identify_invalid finds the bad index
+    size_t inv_out[2] = {99, 99};
+    size_t inv_count = 2;
+    CHECK_OK(ufsecp_schnorr_batch_identify_invalid(
+                 ctx, tampered_schnorr, 1, inv_out, &inv_count),
+             "I.5d: schnorr_batch_identify_invalid OK");
+    CHECK(inv_count == 1, "I.5e: schnorr_batch_identify_invalid count=1");
+    CHECK(inv_out[0] == 0, "I.5f: schnorr_batch_identify_invalid index=0");
+
+    // --- ECDSA batch verify -------------------------------------------------
+    CHECK_OK(ufsecp_ecdsa_sign(ctx, msg32, priv, sig64),
+             "I.5g: ecdsa sign for batch");
+
+    // Build one valid ECDSA entry: [32 msg | 33 pub | 64 sig] = 129 bytes
+    uint8_t ecdsa_entry[129];
+    std::memcpy(ecdsa_entry,      msg32,  32);
+    std::memcpy(ecdsa_entry + 32, pub33,  33);
+    std::memcpy(ecdsa_entry + 65, sig64,  64);
+
+    CHECK_OK(ufsecp_ecdsa_batch_verify(ctx, ecdsa_entry, 1),
+             "I.5h: ecdsa_batch_verify 1 valid entry OK");
+
+    // Tamper → must fail
+    uint8_t tampered_ecdsa[129];
+    std::memcpy(tampered_ecdsa, ecdsa_entry, 129);
+    tampered_ecdsa[65] ^= 0xff;
+    CHECK_ERR(ufsecp_ecdsa_batch_verify(ctx, tampered_ecdsa, 1),
+              "I.5i: ecdsa_batch_verify tampered sig fails");
+
+    // batch_identify_invalid finds the bad index
+    inv_out[0] = inv_out[1] = 99;
+    inv_count = 2;
+    CHECK_OK(ufsecp_ecdsa_batch_identify_invalid(
+                 ctx, tampered_ecdsa, 1, inv_out, &inv_count),
+             "I.5j: ecdsa_batch_identify_invalid OK");
+    CHECK(inv_count == 1, "I.5k: ecdsa_batch_identify_invalid count=1");
+    CHECK(inv_out[0] == 0, "I.5l: ecdsa_batch_identify_invalid index=0");
+
+    // count=0 edge cases (entries pointer must be non-null even for n=0)
+    static const uint8_t kDummyEntry[1] = {0};
+    CHECK_OK(ufsecp_schnorr_batch_verify(ctx, kDummyEntry, 0),
+             "I.5m: schnorr_batch_verify count=0 vacuously OK");
+    CHECK_OK(ufsecp_ecdsa_batch_verify(ctx, kDummyEntry, 0),
+             "I.5n: ecdsa_batch_verify count=0 vacuously OK");
+
+    ufsecp_ctx_destroy(ctx);
+}
+
+// ============================================================================
 // Entry Point
 // ============================================================================
 
@@ -4261,6 +4606,13 @@ int test_adversarial_protocol_run() {
     test_h10_bip144();
     test_h11_segwit();
     test_h12_taproot_sighash();
+
+    // I. Remaining ABI surface – 8 functions with zero prior coverage (v3.23+)
+    test_i1_ctx_clone_and_last_error_msg();
+    test_i2_pubkey_parse_and_uncompressed();
+    test_i3_ecdsa_recoverable_roundtrip();
+    test_i4_sign_verified();
+    test_i5_batch_verify_deep();
 
     (void)std::printf("\n--- Adversarial Summary: %d passed, %d failed ---\n\n",
                       g_pass, g_fail);

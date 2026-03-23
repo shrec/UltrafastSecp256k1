@@ -86,13 +86,29 @@ All gaps are closed by `test_h1_*`–`test_h12_*` in `test_adversarial_protocol.
 
 ---
 
+## Section I: Remaining ABI Surface (v3.23+)
+
+A second gap analysis found 8 `ufsecp_*` functions with zero edge-case coverage, plus
+shallow batch-verify paths. All gaps are closed by `test_i1_*`–`test_i5_*` in
+`test_adversarial_protocol.cpp`.
+
+| Test ID | Functions | Coverage |
+|---------|-----------|----------|
+| I.1 | `ufsecp_ctx_clone`, `ufsecp_last_error_msg` | NULL guards, independent clone (results match), error state propagation |
+| I.2 | `ufsecp_pubkey_parse`, `ufsecp_pubkey_create_uncompressed` | NULL guards, bad prefix/length, 0x04 output format, compressed round-trip |
+| I.3 | `ufsecp_ecdsa_sign_recoverable`, `ufsecp_ecdsa_recover` | NULL guards (all 4 args), recid in [0,3], recovery round-trip, invalid recid rejection |
+| I.4 | `ufsecp_ecdsa_sign_verified`, `ufsecp_schnorr_sign_verified` | NULL guards, zero privkey, output verified via ecdsa_verify / schnorr_verify |
+| I.5 | `ufsecp_schnorr_batch_verify`, `ufsecp_ecdsa_batch_verify`, `ufsecp_batch_identify_invalid` | Valid entry passes, tampered sig fails, identify_invalid returns correct index, count=0 vacuously OK |
+
+---
+
 ## Guarantee
 
 Every `ufsecp_*` function is tested with at least:
 1. Valid inputs (FFI round-trip)
 2. NULL context (G.1)
 3. NULL critical pointers (G.2, G.3)
-4. Malformed domain-specific input (G.4-G.20 / H.1-H.12, per function category)
+4. Malformed domain-specific input (G.4-G.20 / H.1-H.12 / I.1-I.5, per function category)
 
 **Mandatory edge-case rule for new ABI functions** (enforced since v3.22):
 Every new `ufsecp_*` function MUST be covered by all four checks below before

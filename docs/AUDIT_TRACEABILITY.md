@@ -484,6 +484,56 @@ Backend-specific internal audit runners:
 
 ---
 
-*Generated: 2026-06-12*
+## Remaining ABI Surface (§I / §O, v3.23+)
+
+Eight functions with zero prior coverage: `ctx_clone`, `last_error_msg`, `last_error`,
+`pubkey_parse`, `pubkey_create_uncompressed`, `ecdsa_sign_recoverable`, `ecdsa_recover`,
+`ecdsa_sign_verified`, `schnorr_sign_verified`, plus deep batch-verify coverage for
+`schnorr_batch_verify`, `ecdsa_batch_verify`, `schnorr_batch_identify_invalid`,
+`ecdsa_batch_identify_invalid`.
+
+| ID | Invariant | Function(s) | Class | Test | Status |
+|----|-----------|-------------|-------|------|--------|
+| **I1a** | `ctx_clone(nullptr, &out)` → `ERR_NULL_ARG` | `ufsecp_ctx_clone` | NULL injection | `test_i1_ctx_clone_and_last_error_msg()` | [OK] |
+| **I1b** | `ctx_clone(ctx, nullptr)` → `ERR_NULL_ARG` | `ufsecp_ctx_clone` | NULL injection | `test_i1_ctx_clone_and_last_error_msg()` | [OK] |
+| **I1c** | `ctx_clone(valid, &out)` produces independent non-null ctx | `ufsecp_ctx_clone` | Valid call | `test_i1_ctx_clone_and_last_error_msg()` | [OK] |
+| **I1d** | `last_error_msg` on fresh ctx is non-null | `ufsecp_last_error_msg` | State probe | `test_i1_ctx_clone_and_last_error_msg()` | [OK] |
+| **I1e** | `last_error_msg` + `last_error` non-zero after forced error | `ufsecp_last_error_msg`, `ufsecp_last_error` | Error path | `test_i1_ctx_clone_and_last_error_msg()` | [OK] |
+| **I1f** | Cloned ctx produces identical output to original | `ufsecp_ctx_clone` | Functional | `test_i1_ctx_clone_and_last_error_msg()` | [OK] |
+| **I2a** | `pubkey_create_uncompressed` NULL ctx/privkey/output → error | `ufsecp_pubkey_create_uncompressed` | NULL injection | `test_i2_pubkey_parse_and_uncompressed()` | [OK] |
+| **I2b** | `pubkey_create_uncompressed` zero privkey rejected | `ufsecp_pubkey_create_uncompressed` | Zero key | `test_i2_pubkey_parse_and_uncompressed()` | [OK] |
+| **I2c** | `pubkey_create_uncompressed` output starts with 0x04 | `ufsecp_pubkey_create_uncompressed` | Format check | `test_i2_pubkey_parse_and_uncompressed()` | [OK] |
+| **I2d** | `pubkey_parse` NULL ctx/input/output → error | `ufsecp_pubkey_parse` | NULL injection | `test_i2_pubkey_parse_and_uncompressed()` | [OK] |
+| **I2e** | `pubkey_parse` wrong length (32) → error | `ufsecp_pubkey_parse` | Bad length | `test_i2_pubkey_parse_and_uncompressed()` | [OK] |
+| **I2f** | `pubkey_parse` 0x00 prefix → error | `ufsecp_pubkey_parse` | Bad prefix | `test_i2_pubkey_parse_and_uncompressed()` | [OK] |
+| **I2g** | `pubkey_parse` uncompressed (65B) → normalised to compressed | `ufsecp_pubkey_parse` | Normalisation | `test_i2_pubkey_parse_and_uncompressed()` | [OK] |
+| **I2h** | `pubkey_parse` compressed round-trip identical | `ufsecp_pubkey_parse` | Round-trip | `test_i2_pubkey_parse_and_uncompressed()` | [OK] |
+| **I3a** | `sign_recoverable` NULL ctx/msg/privkey/sig → error | `ufsecp_ecdsa_sign_recoverable` | NULL injection | `test_i3_ecdsa_recoverable_roundtrip()` | [OK] |
+| **I3b** | `sign_recoverable` NULL recid_out rejected | `ufsecp_ecdsa_sign_recoverable` | NULL injection | `test_i3_ecdsa_recoverable_roundtrip()` | [OK] |
+| **I3c** | `sign_recoverable` zero privkey rejected | `ufsecp_ecdsa_sign_recoverable` | Zero key | `test_i3_ecdsa_recoverable_roundtrip()` | [OK] |
+| **I3d** | recid output is in [0, 3] | `ufsecp_ecdsa_sign_recoverable` | Range check | `test_i3_ecdsa_recoverable_roundtrip()` | [OK] |
+| **I3e** | `ecdsa_recover` NULL ctx/msg/sig/output → error | `ufsecp_ecdsa_recover` | NULL injection | `test_i3_ecdsa_recoverable_roundtrip()` | [OK] |
+| **I3f** | `ecdsa_recover` invalid recid (-1, 4) rejected | `ufsecp_ecdsa_recover` | Bad recid | `test_i3_ecdsa_recoverable_roundtrip()` | [OK] |
+| **I3g** | Recovered pubkey matches original on correct recid | `ufsecp_ecdsa_recover` | Round-trip | `test_i3_ecdsa_recoverable_roundtrip()` | [OK] |
+| **I3h** | Wrong recid produces different pubkey (or error) | `ufsecp_ecdsa_recover` | Non-malleability | `test_i3_ecdsa_recoverable_roundtrip()` | [OK] |
+| **I4a** | `ecdsa_sign_verified` NULL all args → error | `ufsecp_ecdsa_sign_verified` | NULL injection | `test_i4_sign_verified()` | [OK] |
+| **I4b** | `ecdsa_sign_verified` zero privkey rejected | `ufsecp_ecdsa_sign_verified` | Zero key | `test_i4_sign_verified()` | [OK] |
+| **I4c** | `ecdsa_sign_verified` output verifies with `ecdsa_verify` | `ufsecp_ecdsa_sign_verified` | Round-trip | `test_i4_sign_verified()` | [OK] |
+| **I4d** | `schnorr_sign_verified` NULL all args → error | `ufsecp_schnorr_sign_verified` | NULL injection | `test_i4_sign_verified()` | [OK] |
+| **I4e** | `schnorr_sign_verified` zero privkey rejected | `ufsecp_schnorr_sign_verified` | Zero key | `test_i4_sign_verified()` | [OK] |
+| **I4f** | `schnorr_sign_verified` output verifies with `schnorr_verify` | `ufsecp_schnorr_sign_verified` | Round-trip | `test_i4_sign_verified()` | [OK] |
+| **I5a** | `schnorr_batch_verify` 1 valid entry → OK | `ufsecp_schnorr_batch_verify` | Valid path | `test_i5_batch_verify_deep()` | [OK] |
+| **I5b** | `schnorr_batch_verify` tampered sig → error | `ufsecp_schnorr_batch_verify` | Tampered sig | `test_i5_batch_verify_deep()` | [OK] |
+| **I5c** | `schnorr_batch_identify_invalid` finds index 0 for tampered entry | `ufsecp_schnorr_batch_identify_invalid` | Index tracking | `test_i5_batch_verify_deep()` | [OK] |
+| **I5d** | `ecdsa_batch_verify` 1 valid entry → OK | `ufsecp_ecdsa_batch_verify` | Valid path | `test_i5_batch_verify_deep()` | [OK] |
+| **I5e** | `ecdsa_batch_verify` tampered sig → error | `ufsecp_ecdsa_batch_verify` | Tampered sig | `test_i5_batch_verify_deep()` | [OK] |
+| **I5f** | `ecdsa_batch_identify_invalid` finds index 0 for tampered entry | `ufsecp_ecdsa_batch_identify_invalid` | Index tracking | `test_i5_batch_verify_deep()` | [OK] |
+| **I5g** | Batch verify count=0 is vacuously OK | `ufsecp_schnorr_batch_verify`, `ufsecp_ecdsa_batch_verify` | Empty input | `test_i5_batch_verify_deep()` | [OK] |
+
+**I Subtotal: 35/35 [OK]**
+
+---
+
+*Generated: 2026-03-23*
 *Invariant source: [INVARIANTS.md](INVARIANTS.md)*
 *This document is auto-updatable via `scripts/generate_traceability.sh`*
