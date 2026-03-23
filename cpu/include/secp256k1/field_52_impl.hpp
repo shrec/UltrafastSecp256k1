@@ -78,29 +78,6 @@ extern "C" {
   #endif
 #endif // SECP256K1_HAS_ASM && x86-64
 
-// -- 4x64 assembly bridge for boundary-level FE52 optimizations ---------------
-// Provides access to 4x64 ADCX/ADOX field_mul/sqr assembly from FE52 code.
-// Used for pure sqr/mul chains (inverse, sqrt) where conversion at boundaries
-// is negligible (~6ns) compared to per-op savings (~2ns x 269 ops = ~538ns).
-// NOT used per-mul/sqr (GPU-style hybrid: same pointer, no conversion).
-// Requires: SECP256K1_HAS_ASM + x86-64 (4x64 assembly always linked)
-#if defined(SECP256K1_HAS_ASM) && (defined(__x86_64__) || defined(_M_X64))
-  #define SECP256K1_HYBRID_4X64_ACTIVE 1
-  #if defined(_WIN32)
-    extern "C" __attribute__((sysv_abi)) void field_mul_full_asm(
-        const std::uint64_t* a, const std::uint64_t* b, std::uint64_t* result);
-    extern "C" __attribute__((sysv_abi)) void field_sqr_full_asm(
-        const std::uint64_t* a, std::uint64_t* result);
-  #else
-    extern "C" {
-        void field_mul_full_asm(
-            const std::uint64_t* a, const std::uint64_t* b, std::uint64_t* result);
-        void field_sqr_full_asm(
-            const std::uint64_t* a, std::uint64_t* result);
-    }
-  #endif
-#endif // SECP256K1_HAS_ASM && x86-64
-
 // Force-inline attribute -- ensures zero call overhead for field ops.
 // The compiler generates MULX assembly automatically with -mbmi2.
 #if defined(__GNUC__) || defined(__clang__)

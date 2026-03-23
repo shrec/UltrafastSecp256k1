@@ -2269,13 +2269,21 @@ void Context::batch_scalar_mul_generator(const Scalar* scalars, JacobianPoint* r
         if (impl_->cache_smg_results) clReleaseMemObject(impl_->cache_smg_results);
         impl_->cache_smg_scalars = clCreateBuffer(impl_->context, CL_MEM_READ_ONLY,
                                                    count * sizeof(Scalar), nullptr, &err);
+        if (!impl_->cache_smg_scalars) {
+            impl_->cache_smg_results = nullptr; impl_->cache_smg_count = 0; return;
+        }
         impl_->cache_smg_results = clCreateBuffer(impl_->context, CL_MEM_WRITE_ONLY,
                                                    count * sizeof(JacobianPoint), nullptr, &err);
+        if (!impl_->cache_smg_results) {
+            clReleaseMemObject(impl_->cache_smg_scalars);
+            impl_->cache_smg_scalars = nullptr; impl_->cache_smg_count = 0; return;
+        }
         impl_->cache_smg_count = count;
     }
 
-    clEnqueueWriteBuffer(impl_->queue, impl_->cache_smg_scalars, CL_FALSE, 0,
-                         count * sizeof(Scalar), scalars, 0, nullptr, nullptr);
+    if (clEnqueueWriteBuffer(impl_->queue, impl_->cache_smg_scalars, CL_FALSE, 0,
+                             count * sizeof(Scalar), scalars, 0, nullptr, nullptr) != CL_SUCCESS)
+        return;
 
     cl_uint cnt = static_cast<cl_uint>(count);
     clSetKernelArg(impl_->kernel_scalar_mul_generator, 0, sizeof(cl_mem), &impl_->cache_smg_scalars);
@@ -2288,8 +2296,9 @@ void Context::batch_scalar_mul_generator(const Scalar* scalars, JacobianPoint* r
                                   impl_->device_info.max_work_group_size,
                                   local_size, global_size);
 
-    clEnqueueNDRangeKernel(impl_->queue, impl_->kernel_scalar_mul_generator, 1, nullptr,
-                           &global_size, &local_size, 0, nullptr, nullptr);
+    if (clEnqueueNDRangeKernel(impl_->queue, impl_->kernel_scalar_mul_generator, 1, nullptr,
+                               &global_size, &local_size, 0, nullptr, nullptr) != CL_SUCCESS)
+        return;
     clEnqueueReadBuffer(impl_->queue, impl_->cache_smg_results, CL_TRUE, 0,
                         count * sizeof(JacobianPoint), results, 0, nullptr, nullptr);
 }
@@ -2303,21 +2312,29 @@ void Context::batch_scalar_mul(const Scalar* scalars, const AffinePoint* points,
     // Grow-only cached buffers
     if (count > impl_->cache_sm_count) {
         if (impl_->cache_sm_scalars) clReleaseMemObject(impl_->cache_sm_scalars);
-        if (impl_->cache_sm_points) clReleaseMemObject(impl_->cache_sm_points);
+        if (impl_->cache_sm_points)  clReleaseMemObject(impl_->cache_sm_points);
         if (impl_->cache_sm_results) clReleaseMemObject(impl_->cache_sm_results);
         impl_->cache_sm_scalars = clCreateBuffer(impl_->context, CL_MEM_READ_ONLY,
                                                   count * sizeof(Scalar), nullptr, &err);
-        impl_->cache_sm_points = clCreateBuffer(impl_->context, CL_MEM_READ_ONLY,
-                                                 count * sizeof(AffinePoint), nullptr, &err);
+        impl_->cache_sm_points  = clCreateBuffer(impl_->context, CL_MEM_READ_ONLY,
+                                                  count * sizeof(AffinePoint), nullptr, &err);
         impl_->cache_sm_results = clCreateBuffer(impl_->context, CL_MEM_WRITE_ONLY,
                                                   count * sizeof(JacobianPoint), nullptr, &err);
+        if (!impl_->cache_sm_scalars || !impl_->cache_sm_points || !impl_->cache_sm_results) {
+            if (impl_->cache_sm_scalars)  { clReleaseMemObject(impl_->cache_sm_scalars);  impl_->cache_sm_scalars  = nullptr; }
+            if (impl_->cache_sm_points)   { clReleaseMemObject(impl_->cache_sm_points);   impl_->cache_sm_points   = nullptr; }
+            if (impl_->cache_sm_results)  { clReleaseMemObject(impl_->cache_sm_results);  impl_->cache_sm_results  = nullptr; }
+            impl_->cache_sm_count = 0; return;
+        }
         impl_->cache_sm_count = count;
     }
 
-    clEnqueueWriteBuffer(impl_->queue, impl_->cache_sm_points, CL_TRUE, 0,
-                         count * sizeof(AffinePoint), points, 0, nullptr, nullptr);
-    clEnqueueWriteBuffer(impl_->queue, impl_->cache_sm_scalars, CL_FALSE, 0,
-                         count * sizeof(Scalar), scalars, 0, nullptr, nullptr);
+    if (clEnqueueWriteBuffer(impl_->queue, impl_->cache_sm_points, CL_TRUE, 0,
+                             count * sizeof(AffinePoint), points, 0, nullptr, nullptr) != CL_SUCCESS)
+        return;
+    if (clEnqueueWriteBuffer(impl_->queue, impl_->cache_sm_scalars, CL_FALSE, 0,
+                             count * sizeof(Scalar), scalars, 0, nullptr, nullptr) != CL_SUCCESS)
+        return;
     clFlush(impl_->queue);
 
     cl_uint cnt = static_cast<cl_uint>(count);
@@ -2332,8 +2349,9 @@ void Context::batch_scalar_mul(const Scalar* scalars, const AffinePoint* points,
                                   impl_->device_info.max_work_group_size,
                                   local_size, global_size);
 
-    clEnqueueNDRangeKernel(impl_->queue, impl_->kernel_scalar_mul, 1, nullptr,
-                           &global_size, &local_size, 0, nullptr, nullptr);
+    if (clEnqueueNDRangeKernel(impl_->queue, impl_->kernel_scalar_mul, 1, nullptr,
+                               &global_size, &local_size, 0, nullptr, nullptr) != CL_SUCCESS)
+        return;
     clEnqueueReadBuffer(impl_->queue, impl_->cache_sm_results, CL_TRUE, 0,
                         count * sizeof(JacobianPoint), results, 0, nullptr, nullptr);
 }
@@ -2345,17 +2363,23 @@ void Context::batch_field_inv(const FieldElement* inputs, FieldElement* outputs,
 
     // Grow-only cached buffers
     if (count > impl_->cache_fi_count) {
-        if (impl_->cache_fi_input) clReleaseMemObject(impl_->cache_fi_input);
+        if (impl_->cache_fi_input)  clReleaseMemObject(impl_->cache_fi_input);
         if (impl_->cache_fi_output) clReleaseMemObject(impl_->cache_fi_output);
         impl_->cache_fi_input = clCreateBuffer(impl_->context, CL_MEM_READ_ONLY,
                                                 count * sizeof(FieldElement), nullptr, &err);
         impl_->cache_fi_output = clCreateBuffer(impl_->context, CL_MEM_WRITE_ONLY,
                                                  count * sizeof(FieldElement), nullptr, &err);
+        if (!impl_->cache_fi_input || !impl_->cache_fi_output) {
+            if (impl_->cache_fi_input)  { clReleaseMemObject(impl_->cache_fi_input);  impl_->cache_fi_input  = nullptr; }
+            if (impl_->cache_fi_output) { clReleaseMemObject(impl_->cache_fi_output); impl_->cache_fi_output = nullptr; }
+            impl_->cache_fi_count = 0; return;
+        }
         impl_->cache_fi_count = count;
     }
 
-    clEnqueueWriteBuffer(impl_->queue, impl_->cache_fi_input, CL_FALSE, 0,
-                         count * sizeof(FieldElement), inputs, 0, nullptr, nullptr);
+    if (clEnqueueWriteBuffer(impl_->queue, impl_->cache_fi_input, CL_FALSE, 0,
+                             count * sizeof(FieldElement), inputs, 0, nullptr, nullptr) != CL_SUCCESS)
+        return;
 
     cl_uint cnt = static_cast<cl_uint>(count);
     clSetKernelArg(impl_->kernel_field_inv, 0, sizeof(cl_mem), &impl_->cache_fi_input);
@@ -2365,8 +2389,9 @@ void Context::batch_field_inv(const FieldElement* inputs, FieldElement* outputs,
     std::size_t local_size = std::min(static_cast<std::size_t>(256), impl_->device_info.max_work_group_size);
     std::size_t global_size = ((count + local_size - 1) / local_size) * local_size;
 
-    clEnqueueNDRangeKernel(impl_->queue, impl_->kernel_field_inv, 1, nullptr,
-                           &global_size, &local_size, 0, nullptr, nullptr);
+    if (clEnqueueNDRangeKernel(impl_->queue, impl_->kernel_field_inv, 1, nullptr,
+                               &global_size, &local_size, 0, nullptr, nullptr) != CL_SUCCESS)
+        return;
     clEnqueueReadBuffer(impl_->queue, impl_->cache_fi_output, CL_TRUE, 0,
                         count * sizeof(FieldElement), outputs, 0, nullptr, nullptr);
 }
@@ -2379,17 +2404,23 @@ void Context::batch_jacobian_to_affine(const JacobianPoint* jacobians, AffinePoi
 
     // Grow-only cached buffers
     if (count > impl_->cache_j2a_count) {
-        if (impl_->cache_j2a_input) clReleaseMemObject(impl_->cache_j2a_input);
+        if (impl_->cache_j2a_input)  clReleaseMemObject(impl_->cache_j2a_input);
         if (impl_->cache_j2a_output) clReleaseMemObject(impl_->cache_j2a_output);
         impl_->cache_j2a_input = clCreateBuffer(impl_->context, CL_MEM_READ_ONLY,
                                                   count * sizeof(JacobianPoint), nullptr, &err);
         impl_->cache_j2a_output = clCreateBuffer(impl_->context, CL_MEM_WRITE_ONLY,
                                                    count * sizeof(AffinePoint), nullptr, &err);
+        if (!impl_->cache_j2a_input || !impl_->cache_j2a_output) {
+            if (impl_->cache_j2a_input)  { clReleaseMemObject(impl_->cache_j2a_input);  impl_->cache_j2a_input  = nullptr; }
+            if (impl_->cache_j2a_output) { clReleaseMemObject(impl_->cache_j2a_output); impl_->cache_j2a_output = nullptr; }
+            impl_->cache_j2a_count = 0; return;
+        }
         impl_->cache_j2a_count = count;
     }
 
-    clEnqueueWriteBuffer(impl_->queue, impl_->cache_j2a_input, CL_FALSE, 0,
-                         count * sizeof(JacobianPoint), jacobians, 0, nullptr, nullptr);
+    if (clEnqueueWriteBuffer(impl_->queue, impl_->cache_j2a_input, CL_FALSE, 0,
+                             count * sizeof(JacobianPoint), jacobians, 0, nullptr, nullptr) != CL_SUCCESS)
+        return;
 
     cl_uint cnt = static_cast<cl_uint>(count);
     clSetKernelArg(impl_->kernel_batch_jacobian_to_affine, 0, sizeof(cl_mem), &impl_->cache_j2a_input);
@@ -2399,8 +2430,9 @@ void Context::batch_jacobian_to_affine(const JacobianPoint* jacobians, AffinePoi
     std::size_t local_size = std::min(static_cast<std::size_t>(256), impl_->device_info.max_work_group_size);
     std::size_t global_size = ((count + local_size - 1) / local_size) * local_size;
 
-    clEnqueueNDRangeKernel(impl_->queue, impl_->kernel_batch_jacobian_to_affine, 1, nullptr,
-                           &global_size, &local_size, 0, nullptr, nullptr);
+    if (clEnqueueNDRangeKernel(impl_->queue, impl_->kernel_batch_jacobian_to_affine, 1, nullptr,
+                               &global_size, &local_size, 0, nullptr, nullptr) != CL_SUCCESS)
+        return;
     clEnqueueReadBuffer(impl_->queue, impl_->cache_j2a_output, CL_TRUE, 0,
                         count * sizeof(AffinePoint), affines, 0, nullptr, nullptr);
 }

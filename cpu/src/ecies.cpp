@@ -56,7 +56,7 @@ static Point decompress_point(const std::uint8_t data[33]) {
 }
 
 // ============================================================================
-// AES-256 core (software, constant-time S-box via algebraic decomposition)
+// AES-256 core (software, constant-time S-box via full-table scan)
 // ============================================================================
 
 namespace {
@@ -86,6 +86,21 @@ constexpr std::uint8_t RCON[11] = {
     0x00, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36
 };
 
+// Constant-time S-box lookup via full-table scan.
+// Iterates over all 256 entries and selects the entry at index `x` using only
+// bitwise masking — no branch or data-dependent memory access pattern.
+// This prevents cache-timing attacks on shared hardware (CVE class: AES S-box).
+inline std::uint8_t sbox_lookup(std::uint8_t x) noexcept {
+    std::uint8_t result = 0;
+    for (int i = 0; i < 256; ++i) {
+        // mask is 0xFF when i == x, 0x00 otherwise — no branches
+        std::uint8_t mask = static_cast<std::uint8_t>(
+            -static_cast<int8_t>(static_cast<uint8_t>(i) == x));
+        result |= static_cast<std::uint8_t>(SBOX[i] & mask);
+    }
+    return result;
+}
+
 // xtime: multiply by x in GF(2^8)
 inline std::uint8_t xtime(std::uint8_t a) {
     return static_cast<std::uint8_t>((a << 1) ^ (((a >> 7) & 1) * 0x1b));
@@ -104,12 +119,12 @@ struct AES256 {
 
             if (i % 8 == 0) {
                 std::uint8_t const t = tmp[0];
-                tmp[0] = SBOX[tmp[1]] ^ RCON[i / 8];
-                tmp[1] = SBOX[tmp[2]];
-                tmp[2] = SBOX[tmp[3]];
-                tmp[3] = SBOX[t];
+                tmp[0] = sbox_lookup(tmp[1]) ^ RCON[i / 8];
+                tmp[1] = sbox_lookup(tmp[2]);
+                tmp[2] = sbox_lookup(tmp[3]);
+                tmp[3] = sbox_lookup(t);
             } else if (i % 8 == 4) {
-                for (int j = 0; j < 4; ++j) tmp[j] = SBOX[tmp[j]];
+                for (int j = 0; j < 4; ++j) tmp[j] = sbox_lookup(tmp[j]);
             }
 
             for (int j = 0; j < 4; ++j) {
@@ -133,8 +148,8 @@ struct AES256 {
         for (int i = 0; i < 16; ++i) state[i] ^= round_keys[0][i];
 
         for (int round = 1; round <= 14; ++round) {
-            // SubBytes
-            for (int i = 0; i < 16; ++i) state[i] = SBOX[state[i]];
+            // SubBytes (constant-time: full table scan, no cache-timing leak)
+            for (int i = 0; i < 16; ++i) state[i] = sbox_lookup(state[i]);
 
             // ShiftRows
             std::uint8_t t = 0;
@@ -304,6 +319,15 @@ ecies_encrypt(const Point& recipient_pubkey,
 
     // 2. ECDH: shared_x = (eph_priv * recipient_pub).x
     auto shared_x = ecdh_compute_raw(eph_privkey, recipient_pubkey);
+
+    // Guard: all-zero result means the ECDH point was at infinity (degenerate pubkey)
+    bool shared_all_zero = true;
+    for (std::size_t i = 0; i < 32; ++i) shared_all_zero &= (shared_x[i] == 0);
+    if (shared_all_zero) {
+        secp256k1::detail::secure_erase(eph_bytes, sizeof(eph_bytes));
+        secp256k1::detail::secure_erase(&eph_privkey, sizeof(eph_privkey));
+        return {};
+    }
 
     // 3. Key derivation: SHA-512(shared_x) -> enc_key(32) || mac_key(32)
     auto kdf = SHA512::hash(shared_x.data(), 32);

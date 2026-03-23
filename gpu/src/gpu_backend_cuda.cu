@@ -14,6 +14,9 @@
 #include <cstdio>
 #include <vector>
 
+/* -- Secure erase for private key zeroization ------------------------------ */
+#include "secp256k1/detail/secure_erase.hpp"
+
 /* -- CUDA runtime ---------------------------------------------------------- */
 #include <cuda_runtime.h>
 
@@ -444,6 +447,10 @@ public:
             if (!h_ok[i]) std::memset(out_secrets32 + i * 32, 0, 32);
         }
         delete[] h_ok;
+
+        /* Zeroize private keys on device and host before freeing */
+        cudaMemset(d_keys, 0, count * sizeof(Scalar));
+        secp256k1::detail::secure_erase(h_keys.data(), h_keys.size() * sizeof(Scalar));
 
         cudaFree(d_ok);
         cudaFree(d_out);
