@@ -2761,6 +2761,9 @@ ufsecp_error_t ufsecp_frost_verify_partial(
     }
     secp256k1::FrostPartialSig psig;
     std::memcpy(&psig.id, partial_sig, 4);
+    if (psig.id == 0) {
+        return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "partial_sig.id must be non-zero");
+    }
     Scalar z;
     if (!scalar_parse_strict(partial_sig + 4, z)) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_SIG, "invalid partial sig scalar");
@@ -2772,10 +2775,18 @@ ufsecp_error_t ufsecp_frost_verify_partial(
     }
     std::vector<secp256k1::FrostNonceCommitment> ncs(n_signers);
     secp256k1::FrostNonceCommitment signer_commit{};
-    bool found_signer = false;
+    size_t signer_matches = 0;
     for (size_t i = 0; i < n_signers; ++i) {
         const uint8_t* nc = nonce_commits + i * UFSECP_FROST_NONCE_COMMIT_LEN;
         std::memcpy(&ncs[i].id, nc, 4);
+        if (ncs[i].id == 0) {
+            return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "nonce commitment signer IDs must be non-zero");
+        }
+        for (size_t j = 0; j < i; ++j) {
+            if (ncs[j].id == ncs[i].id) {
+                return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "duplicate nonce commitment signer IDs");
+            }
+        }
         ncs[i].hiding_point = point_from_compressed(nc + 4);
         if (ncs[i].hiding_point.is_infinity()) {
             return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "invalid hiding nonce point");
@@ -2786,11 +2797,13 @@ ufsecp_error_t ufsecp_frost_verify_partial(
         }
         if (ncs[i].id == psig.id) {
             signer_commit = ncs[i];
-            found_signer = true;
+            ++signer_matches;
         }
     }
-    if (!found_signer) {
-        return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "partial_sig.id not found in nonce_commits");
+    if (signer_matches != 1) {
+        return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT,
+            signer_matches == 0 ? "partial_sig.id not found in nonce_commits"
+                                : "partial_sig.id must appear exactly once in nonce_commits");
     }
     auto gp = point_from_compressed(group_pubkey33);
     if (gp.is_infinity()) {

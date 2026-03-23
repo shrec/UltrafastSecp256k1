@@ -1327,9 +1327,99 @@ static void test_frost_sign_rejects_malformed_nonce_signers() {
     ufsecp_ctx_destroy(ctx);
 }
 
-// B.5c: Aggregate must reject malformed partial/nonces signer sets at the ABI boundary.
+// B.5c: verify_partial must reject malformed nonce signer metadata at the ABI boundary.
+static void test_frost_verify_partial_rejects_malformed_signer_sets() {
+    (void)std::printf("  [B.5c] FROST: verify_partial rejects malformed signer sets\n");
+
+    ufsecp_ctx* ctx = nullptr;
+    ufsecp_ctx_create(&ctx);
+
+    const uint32_t threshold = 2, n_parts = 3;
+    uint8_t seeds[3][32];
+    for (uint32_t i = 0; i < 3; ++i) {
+        std::memset(seeds[i], 0, 32);
+        seeds[i][31] = static_cast<uint8_t>(i + 95);
+    }
+    uint8_t commits_buf[3][512]; size_t commits_len[3];
+    uint8_t shares_buf[3][512];  size_t shares_len[3];
+    for (uint32_t i = 0; i < 3; ++i) {
+        commits_len[i] = sizeof(commits_buf[i]);
+        shares_len[i] = sizeof(shares_buf[i]);
+        CHECK_OK(ufsecp_frost_keygen_begin(ctx, i + 1, threshold, n_parts,
+                 seeds[i], commits_buf[i], &commits_len[i],
+                 shares_buf[i], &shares_len[i]),
+                 "frost keygen_begin for verify_partial signer-set test");
+    }
+
+    uint8_t all_commits[2048]; size_t total_commits_len = 0;
+    for (uint32_t i = 0; i < 3; ++i) {
+        std::memcpy(all_commits + total_commits_len, commits_buf[i], commits_len[i]);
+        total_commits_len += commits_len[i];
+    }
+
+    uint8_t keypkgs[3][UFSECP_FROST_KEYPKG_LEN];
+    for (uint32_t i = 0; i < 3; ++i) {
+        uint8_t recv_shares[512]; size_t recv_len = 0;
+        for (uint32_t j = 0; j < 3; ++j) {
+            std::memcpy(recv_shares + recv_len,
+                        shares_buf[j] + static_cast<size_t>(i) * UFSECP_FROST_SHARE_LEN,
+                        UFSECP_FROST_SHARE_LEN);
+            recv_len += UFSECP_FROST_SHARE_LEN;
+        }
+        CHECK_OK(ufsecp_frost_keygen_finalize(ctx, i + 1,
+                 all_commits, total_commits_len,
+                 recv_shares, recv_len,
+                 threshold, n_parts, keypkgs[i]),
+                 "frost keygen_finalize for verify_partial signer-set test");
+    }
+
+    uint8_t msg32[32];
+    hex_to_bytes(MSG_HEX, msg32, 32);
+
+    uint8_t nonce1[UFSECP_FROST_NONCE_LEN], nc1[UFSECP_FROST_NONCE_COMMIT_LEN];
+    uint8_t nonce2[UFSECP_FROST_NONCE_LEN], nc2[UFSECP_FROST_NONCE_COMMIT_LEN];
+    uint8_t seed1[32] = {1};
+    uint8_t seed2[32] = {2};
+    CHECK_OK(ufsecp_frost_sign_nonce_gen(ctx, 1, seed1, nonce1, nc1),
+             "nonce_gen signer 1 for verify_partial signer-set test");
+    CHECK_OK(ufsecp_frost_sign_nonce_gen(ctx, 2, seed2, nonce2, nc2),
+             "nonce_gen signer 2 for verify_partial signer-set test");
+
+    uint8_t nonce_commits_good[2 * UFSECP_FROST_NONCE_COMMIT_LEN];
+    std::memcpy(nonce_commits_good, nc1, UFSECP_FROST_NONCE_COMMIT_LEN);
+    std::memcpy(nonce_commits_good + UFSECP_FROST_NONCE_COMMIT_LEN, nc2, UFSECP_FROST_NONCE_COMMIT_LEN);
+
+    uint8_t psig1[36];
+    CHECK_OK(ufsecp_frost_sign(ctx, keypkgs[0], nonce1, msg32, nonce_commits_good, 2, psig1),
+             "signer 1 partial for verify_partial signer-set test");
+    CHECK_OK(ufsecp_frost_verify_partial(ctx, psig1, keypkgs[0] + 44, nonce_commits_good, 2, msg32, keypkgs[0] + 77),
+             "verify_partial accepts valid signer-set transcript");
+
+    uint8_t zero_nonce_id[2 * UFSECP_FROST_NONCE_COMMIT_LEN];
+    std::memcpy(zero_nonce_id, nonce_commits_good, sizeof(zero_nonce_id));
+    uint32_t zero_id = 0;
+    std::memcpy(zero_nonce_id + UFSECP_FROST_NONCE_COMMIT_LEN, &zero_id, 4);
+    CHECK(ufsecp_frost_verify_partial(ctx, psig1, keypkgs[0] + 44, zero_nonce_id, 2, msg32, keypkgs[0] + 77) != UFSECP_OK,
+          "verify_partial rejects zero nonce commitment signer IDs");
+
+    uint8_t duplicate_nonce_ids[2 * UFSECP_FROST_NONCE_COMMIT_LEN];
+    std::memcpy(duplicate_nonce_ids, nc1, UFSECP_FROST_NONCE_COMMIT_LEN);
+    std::memcpy(duplicate_nonce_ids + UFSECP_FROST_NONCE_COMMIT_LEN, nc1, UFSECP_FROST_NONCE_COMMIT_LEN);
+    CHECK(ufsecp_frost_verify_partial(ctx, psig1, keypkgs[0] + 44, duplicate_nonce_ids, 2, msg32, keypkgs[0] + 77) != UFSECP_OK,
+          "verify_partial rejects duplicate nonce commitment signer IDs");
+
+    uint8_t zero_psig[36];
+    std::memcpy(zero_psig, psig1, sizeof(zero_psig));
+    std::memcpy(zero_psig, &zero_id, 4);
+    CHECK(ufsecp_frost_verify_partial(ctx, zero_psig, keypkgs[0] + 44, nonce_commits_good, 2, msg32, keypkgs[0] + 77) != UFSECP_OK,
+          "verify_partial rejects zero partial signer ID");
+
+    ufsecp_ctx_destroy(ctx);
+}
+
+// B.5d: Aggregate must reject malformed partial/nonces signer sets at the ABI boundary.
 static void test_frost_aggregate_rejects_malformed_signer_sets() {
-    (void)std::printf("  [B.5c] FROST: aggregate rejects malformed signer sets\n");
+    (void)std::printf("  [B.5d] FROST: aggregate rejects malformed signer sets\n");
 
     ufsecp_ctx* ctx = nullptr;
     ufsecp_ctx_create(&ctx);
@@ -3276,6 +3366,7 @@ int test_adversarial_protocol_run() {
     test_frost_malicious_coordinator();
     test_frost_duplicate_nonce();
     test_frost_sign_rejects_malformed_nonce_signers();
+    test_frost_verify_partial_rejects_malformed_signer_sets();
     test_frost_aggregate_rejects_malformed_signer_sets();
     test_frost_participant_identity_mismatch();
     test_frost_stale_commitment_replay();

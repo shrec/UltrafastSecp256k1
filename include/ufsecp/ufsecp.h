@@ -851,7 +851,10 @@ UFSECP_API ufsecp_error_t ufsecp_frost_sign(
 /** Verify FROST partial signature.
  *  verification_share33: 33-byte compressed signer verification share Y_i.
  *  nonce_commits must contain exactly n_signers records of
- *  UFSECP_FROST_NONCE_COMMIT_LEN bytes and n_signers must be non-zero. */
+ *  UFSECP_FROST_NONCE_COMMIT_LEN bytes and n_signers must be non-zero.
+ *  partial_sig[0..3] and all nonce commitment signer IDs must be non-zero and
+ *  unique, and partial_sig's signer ID must appear exactly once in
+ *  nonce_commits. */
 UFSECP_API ufsecp_error_t ufsecp_frost_verify_partial(
     ufsecp_ctx* ctx,
     const uint8_t partial_sig[36],
