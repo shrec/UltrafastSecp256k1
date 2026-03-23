@@ -4152,7 +4152,7 @@ ufsecp_error_t ufsecp_aead_chacha20_poly1305_decrypt(
 
     bool ok = secp256k1::aead_chacha20_poly1305_decrypt(
         key, nonce, aad, aad_len, ciphertext, ciphertext_len, tag, out);
-    return ok ? UFSECP_OK : UFSECP_ERR_INTERNAL;
+    return ok ? UFSECP_OK : UFSECP_ERR_VERIFY_FAIL;
 }
 
 ufsecp_error_t ufsecp_ellswift_create(

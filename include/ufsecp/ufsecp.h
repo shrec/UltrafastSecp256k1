@@ -1276,7 +1276,7 @@ UFSECP_API ufsecp_error_t ufsecp_aead_chacha20_poly1305_encrypt(
     uint8_t* out, uint8_t tag[16]);
 
 /** ChaCha20-Poly1305 AEAD decrypt (standalone).
- *  Returns UFSECP_OK if tag is valid, UFSECP_ERROR on authentication failure. */
+ *  Returns UFSECP_OK if tag is valid, UFSECP_ERR_VERIFY_FAIL on authentication failure. */
 UFSECP_API ufsecp_error_t ufsecp_aead_chacha20_poly1305_decrypt(
     const uint8_t key[32], const uint8_t nonce[12],
     const uint8_t* aad, size_t aad_len,

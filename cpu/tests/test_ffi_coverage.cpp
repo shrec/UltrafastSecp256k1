@@ -165,7 +165,16 @@ static void test_aead_roundtrip() {
     err = ufsecp_aead_chacha20_poly1305_decrypt(
         key, nonce, aad, sizeof(aad) - 1,
         ciphertext, pt_len, tag, recovered);
-    CHECK(err != UFSECP_OK, "aead_decrypt rejects tampered ciphertext");
+    CHECK(err == UFSECP_ERR_VERIFY_FAIL, "aead_decrypt maps tampered ciphertext to verify failure");
+
+    ciphertext[0] ^= 0xFF;
+    std::uint8_t bad_tag[16] = {};
+    std::memcpy(bad_tag, tag, sizeof(tag));
+    bad_tag[15] ^= 0x01;
+    err = ufsecp_aead_chacha20_poly1305_decrypt(
+        key, nonce, aad, sizeof(aad) - 1,
+        ciphertext, pt_len, bad_tag, recovered);
+    CHECK(err == UFSECP_ERR_VERIFY_FAIL, "aead_decrypt maps tampered tag to verify failure");
 }
 
 // ============================================================================
