@@ -174,6 +174,21 @@ struct Context::Impl {
     std::size_t cache_j2a_count = 0;
 
     ~Impl() {
+        // Zero scalar caches before release to prevent secret key leakage
+        // in GPU memory (grow-only buffers may retain ECDH private keys)
+        if (queue && cache_smg_scalars && cache_smg_count > 0) {
+            cl_uchar zero = 0;
+            clEnqueueFillBuffer(queue, cache_smg_scalars, &zero, 1, 0,
+                                cache_smg_count * sizeof(Scalar), 0, nullptr, nullptr);
+            clFinish(queue);
+        }
+        if (queue && cache_sm_scalars && cache_sm_count > 0) {
+            cl_uchar zero = 0;
+            clEnqueueFillBuffer(queue, cache_sm_scalars, &zero, 1, 0,
+                                cache_sm_count * sizeof(Scalar), 0, nullptr, nullptr);
+            clFinish(queue);
+        }
+
         // Release cached buffers
         if (cache_smg_scalars) clReleaseMemObject(cache_smg_scalars);
         if (cache_smg_results) clReleaseMemObject(cache_smg_results);
@@ -1300,7 +1315,8 @@ inline void scalar_mul_glv_cl(JacobianPoint* r, const Scalar* k, const AffinePoi
 
     point_set_infinity(r);
     for (int i = 129; i >= 0; --i) {
-        if (!point_is_infinity(r)) point_double_impl(r, r);
+        // Always double; point_double_impl handles infinity correctly.
+        point_double_impl(r, r);
 
         int d1 = wnaf1[i];
         if (d1 != 0) {
@@ -1381,18 +1397,16 @@ inline void scalar_mul_generator_glv_impl(JacobianPoint* r, const Scalar* k) {
     beta.limbs[0]=GLV_BETA0; beta.limbs[1]=GLV_BETA1;
     beta.limbs[2]=GLV_BETA2; beta.limbs[3]=GLV_BETA3;
 
-    // Compute actual number of 4-bit windows needed
-    int bl1 = scalar_bitlen_cl(&k1);
-    int bl2 = scalar_bitlen_cl(&k2);
-    int max_bits = (bl1 > bl2) ? bl1 : bl2;
-    int num_windows = (max_bits + 3) / 4;
+    // Fixed constant iteration count: always 32 windows for 128-bit
+    // GLV-decomposed half-scalars. Prevents timing side-channel that
+    // would leak scalar magnitude via variable GPU kernel duration.
+    const int num_windows = 32;
 
     point_set_infinity(r);
     for (int w = num_windows - 1; w >= 0; --w) {
-        if (!point_is_infinity(r)) {
-            point_double_impl(r, r); point_double_impl(r, r);
-            point_double_impl(r, r); point_double_impl(r, r);
-        }
+        // Always quadruple-double; point_double_impl handles infinity correctly.
+        point_double_impl(r, r); point_double_impl(r, r);
+        point_double_impl(r, r); point_double_impl(r, r);
         int w1 = get_window_4bit(&k1, w);
         if (w1) {
             AffinePoint pt; get_gen_entry(&pt, w1 - 1);
@@ -1720,7 +1734,7 @@ bool Context::Impl::build_program() {
     }
 
     // Build options
-    std::string build_options = "-cl-std=CL1.2 -cl-fast-relaxed-math -cl-mad-enable";
+    std::string build_options = "-cl-std=CL1.2 -cl-mad-enable";
 
     // NVIDIA-specific optimization flags
     if (device_info.is_nvidia) {
