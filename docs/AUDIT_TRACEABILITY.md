@@ -435,6 +435,55 @@ Backend-specific internal audit runners:
 
 ---
 
-*Generated: 2026-02-25*
+## New ABI Surface Edge Cases (§H / §N, v3.22+)
+
+> Gap analysis (v3.22) found 26 `ufsecp_*` functions with no dedicated
+> edge-case coverage. All gaps are closed by the test functions below, wired
+> into `test_adversarial_protocol_run()`.
+> Source: `audit/test_adversarial_protocol.cpp`
+
+| ID | Claim | ABI functions | Validation method | Test location | Status |
+|----|-------|---------------|-------------------|---------------|--------|
+| **H1** | `ufsecp_ctx_size()` returns > 0 | `ufsecp_ctx_size` | Direct check | `test_h1_ctx_size()` | [OK] |
+| **H2a** | AEAD encrypt/decrypt NULL args → `ERR_NULL_ARG` | `ufsecp_aead_chacha20_encrypt`, `ufsecp_aead_chacha20_decrypt` | NULL injection | `test_h2_aead()` | [OK] |
+| **H2b** | AEAD bad authentication tag rejected | `ufsecp_aead_chacha20_decrypt` | Tampered ciphertext | `test_h2_aead()` | [OK] |
+| **H2c** | AEAD wrong nonce rejected | `ufsecp_aead_chacha20_decrypt` | Modified nonce | `test_h2_aead()` | [OK] |
+| **H2d** | AEAD zero-length plaintext roundtrip succeeds | `ufsecp_aead_chacha20_encrypt`, `ufsecp_aead_chapha20_decrypt` | Smoke | `test_h2_aead()` | [OK] |
+| **H3a** | ECIES NULL args → `ERR_NULL_ARG` | `ufsecp_ecies_encrypt`, `ufsecp_ecies_decrypt` | NULL injection | `test_h3_ecies()` | [OK] |
+| **H3b** | ECIES off-curve pubkey rejected | `ufsecp_ecies_encrypt` | Invalid point | `test_h3_ecies()` | [OK] |
+| **H3c** | ECIES tampered envelope rejected | `ufsecp_ecies_decrypt` | Byte flip | `test_h3_ecies()` | [OK] |
+| **H4a** | EllSwift NULL args → `ERR_NULL_ARG` | `ufsecp_ellswift_create`, `ufsecp_ellswift_xdh` | NULL injection | `test_h4_ellswift()` | [OK] |
+| **H4b** | EllSwift zero privkey rejected | `ufsecp_ellswift_create` | Zero scalar | `test_h4_ellswift()` | [OK] |
+| **H4c** | EllSwift symmetric shared secret | `ufsecp_ellswift_xdh` | A-to-B == B-to-A | `test_h4_ellswift()` | [OK] |
+| **H5a** | ETH checksummed NULL args → error | `ufsecp_eth_address_checksummed` | NULL injection | `test_h5_eth_edge()` | [OK] |
+| **H5b** | ETH checksummed undersized buffer → `ERR_BUF_TOO_SMALL` | `ufsecp_eth_address_checksummed` | Short buffer | `test_h5_eth_edge()` | [OK] |
+| **H5c** | ETH personal_hash NULL args → error | `ufsecp_eth_personal_hash` | NULL injection | `test_h5_eth_edge()` | [OK] |
+| **H6a** | Pedersen switch_commit NULL args → `ERR_NULL_ARG` | `ufsecp_pedersen_switch_commit` | NULL injection | `test_h6_pedersen_switch()` | [OK] |
+| **H6b** | Pedersen switch_commit output is valid point (prefix 0x02/0x03) | `ufsecp_pedersen_switch_commit` | Prefix byte check | `test_h6_pedersen_switch()` | [OK] |
+| **H7a** | Schnorr adaptor extract NULL args → `ERR_NULL_ARG` | `ufsecp_schnorr_adaptor_extract` | NULL injection | `test_h7_schnorr_adaptor_extract()` | [OK] |
+| **H7b** | Schnorr adaptor extract zero inputs rejected | `ufsecp_schnorr_adaptor_extract` | Zero bytes | `test_h7_schnorr_adaptor_extract()` | [OK] |
+| **H8a** | `ecdsa_sign_batch` NULL args → error | `ufsecp_ecdsa_sign_batch` | NULL injection | `test_h8_batch_sign()` | [OK] |
+| **H8b** | `schnorr_sign_batch` NULL args → error | `ufsecp_schnorr_sign_batch` | NULL injection | `test_h8_batch_sign()` | [OK] |
+| **H8c** | Batch sign count=0 → error | `ufsecp_ecdsa_sign_batch`, `ufsecp_schnorr_sign_batch` | Zero count | `test_h8_batch_sign()` | [OK] |
+| **H9a** | BIP-143 sighash NULL args → `ERR_NULL_ARG` | `ufsecp_bip143_sighash` | NULL injection | `test_h9_bip143()` | [OK] |
+| **H9b** | P2WPKH script_code has OP_DUP OP_HASH160 PUSH20 format | `ufsecp_bip143_p2wpkh_script_code` | Byte pattern check | `test_h9_bip143()` | [OK] |
+| **H10a** | BIP-144 txid/wtxid NULL args → `ERR_NULL_ARG` | `ufsecp_bip144_txid`, `ufsecp_bip144_wtxid` | NULL injection | `test_h10_bip144()` | [OK] |
+| **H10b** | BIP-144 witness_commitment is deterministic | `ufsecp_bip144_witness_commitment` | Two-call equality | `test_h10_bip144()` | [OK] |
+| **H11a** | is_witness_program: short/non-witness → 0 | `ufsecp_is_witness_program` | Short + P2PKH input | `test_h11_segwit()` | [OK] |
+| **H11b** | parse_witness_program: non-witness → error | `ufsecp_parse_witness_program` | P2PKH script | `test_h11_segwit()` | [OK] |
+| **H11c** | `ufsecp_p2wpkh_spk` output: OP_0 + PUSH20 (22 bytes) | `ufsecp_p2wpkh_spk` | Length + opcode check | `test_h11_segwit()` | [OK] |
+| **H11d** | `ufsecp_p2wsh_spk` output: OP_0 + PUSH32 (34 bytes) | `ufsecp_p2wsh_spk` | Length + opcode check | `test_h11_segwit()` | [OK] |
+| **H11e** | `ufsecp_p2tr_spk` output: OP_1 + PUSH32 (34 bytes) | `ufsecp_p2tr_spk` | Length + opcode check | `test_h11_segwit()` | [OK] |
+| **H12a** | Taproot keypath sighash NULL ctx/prevouts → `ERR_NULL_ARG` | `ufsecp_taproot_keypath_sighash` | NULL injection | `test_h12_taproot_sighash()` | [OK] |
+| **H12b** | Taproot keypath sighash count=0 → error | `ufsecp_taproot_keypath_sighash` | Zero count | `test_h12_taproot_sighash()` | [OK] |
+| **H12c** | Taproot keypath sighash OOB input_index → error | `ufsecp_taproot_keypath_sighash` | index >= count | `test_h12_taproot_sighash()` | [OK] |
+| **H12d** | Tapscript sighash NULL tapleaf_hash → `ERR_NULL_ARG` | `ufsecp_tapscript_sighash` | NULL injection | `test_h12_taproot_sighash()` | [OK] |
+| **H12e** | Taproot sighash is deterministic | `ufsecp_taproot_keypath_sighash` | Two-call equality | `test_h12_taproot_sighash()` | [OK] |
+
+**H Subtotal: 35/35 [OK]**
+
+---
+
+*Generated: 2026-06-12*
 *Invariant source: [INVARIANTS.md](INVARIANTS.md)*
 *This document is auto-updatable via `scripts/generate_traceability.sh`*

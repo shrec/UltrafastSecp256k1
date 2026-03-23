@@ -139,6 +139,21 @@ An independent security audit is requested to verify correctness, identify vulne
 | `test_fuzz_parsers` | 580K | DER/Schnorr/Pubkey parser fuzz |
 | `test_fuzz_address_bip32_ffi` | 73,959 | Address/BIP32/FFI boundary fuzz |
 | libFuzzer harnesses | ∞ | Continuous fuzz for field/scalar/point |
+| `test_adversarial_protocol` (§H) | 100+ | New ABI surface edge cases: AEAD, ECIES, EllSwift, ETH, Pedersen switch, Schnorr adaptor, batch sign, BIP-143/144, SegWit, Taproot sighash |
+
+### Mandatory Edge-Case Coverage Rule (enforced since v3.22)
+
+Every publicly exported `ufsecp_*` function MUST satisfy all four checks below
+before it is considered covered for audit purposes:
+
+1. **NULL rejection** — every pointer parameter returns `UFSECP_ERR_NULL_ARG`
+2. **Zero-count / zero-length / zero-key rejection** — where the contract prohibits empty inputs
+3. **Invalid-content rejection** — bad prefix, off-curve key, truncated ciphertext, wrong
+   authentication tag, OOB index, etc. must return a non-`UFSECP_OK` code
+4. **Success smoke** — at least one valid call demonstrates a correct round-trip or output
+
+Evidence for these checks lives in `audit/test_adversarial_protocol.cpp` (§G and §H)
+and is mapped in `docs/FFI_HOSTILE_CALLER.md` and `audit/AUDIT_TEST_PLAN.md` (§N).
 
 ### Reproduction Commands
 

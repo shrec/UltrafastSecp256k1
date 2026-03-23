@@ -166,6 +166,37 @@ Output: `audit-output-<timestamp>/audit_report.md` + `artifacts/`
 | M.3 | THREAT_MODEL.md present and current | `run_full_audit` |
 | M.4 | AUDIT_GUIDE.md present | `run_full_audit` |
 
+### N. New ABI Surface Edge Cases (v3.22+)
+
+> **Added**: Gap analysis found 26 `ufsecp_*` functions reachable from the public
+> C ABI with no dedicated edge-case coverage. Section N closes that gap.
+> All tests live in `audit/test_adversarial_protocol.cpp`, functions `test_h1_*`
+> through `test_h12_*`, wired into `test_adversarial_protocol_run()`.
+
+**Mandatory edge-case rule** — every ABI function MUST be covered by all four of
+the following before an audit release:
+
+1. NULL rejection for every pointer parameter (`UFSECP_ERR_NULL_ARG`)
+2. Zero-count / zero-length / zero-key rejection where the contract requires it
+3. Invalid-content rejection (bad prefix, off-curve point, truncated ciphertext,
+   wrong tag, OOB index, etc.) returning a non-`UFSECP_OK` code
+4. A success smoke test demonstrating at least one valid round-trip or output
+
+| # | Test function | ABI functions covered | Checks |
+|---|---------------|-----------------------|--------|
+| N.1 | `test_h1_ctx_size()` | `ufsecp_ctx_size` | positive result |
+| N.2 | `test_h2_aead()` | `ufsecp_aead_chacha20_encrypt`, `ufsecp_aead_chacha20_decrypt` | NULL guards, bad-tag auth failure, wrong-nonce rejection, zero-length roundtrip |
+| N.3 | `test_h3_ecies()` | `ufsecp_ecies_encrypt`, `ufsecp_ecies_decrypt` | NULL guards, off-curve pubkey, tampered envelope, length check |
+| N.4 | `test_h4_ellswift()` | `ufsecp_ellswift_create`, `ufsecp_ellswift_xdh` | NULL guards, zero privkey, symmetric shared secret; guarded by `SECP256K1_BIP324` |
+| N.5 | `test_h5_eth_edge()` | `ufsecp_eth_address_checksummed`, `ufsecp_eth_personal_hash` | NULL guards, undersized buffer; guarded by `SECP256K1_BUILD_ETHEREUM` |
+| N.6 | `test_h6_pedersen_switch()` | `ufsecp_pedersen_switch_commit` | NULL guards, valid prefix byte (0x02/0x03) |
+| N.7 | `test_h7_schnorr_adaptor_extract()` | `ufsecp_schnorr_adaptor_extract` | NULL guards, zero inputs rejected |
+| N.8 | `test_h8_batch_sign()` | `ufsecp_ecdsa_sign_batch`, `ufsecp_schnorr_sign_batch` | NULL ctx/msgs/keys/output, count=0 rejection |
+| N.9 | `test_h9_bip143()` | `ufsecp_bip143_sighash`, `ufsecp_bip143_p2wpkh_script_code` | NULL guards, OP_DUP OP_HASH160 PUSH20 format |
+| N.10 | `test_h10_bip144()` | `ufsecp_bip144_txid`, `ufsecp_bip144_wtxid`, `ufsecp_bip144_witness_commitment` | NULL guards, determinism |
+| N.11 | `test_h11_segwit()` | `ufsecp_is_witness_program`, `ufsecp_parse_witness_program`, `ufsecp_p2wpkh_spk`, `ufsecp_p2wsh_spk`, `ufsecp_p2tr_spk`, `ufsecp_witness_script_hash` | NULL guards, format correctness (OP_0/OP_1 + push), non-witness rejection |
+| N.12 | `test_h12_taproot_sighash()` | `ufsecp_taproot_keypath_sighash`, `ufsecp_tapscript_sighash` | NULL guards, count=0, OOB input_index, NULL tapleaf_hash, determinism |
+
 ---
 
 ## Unified Audit Runner -- 8-Section Internal Mapping

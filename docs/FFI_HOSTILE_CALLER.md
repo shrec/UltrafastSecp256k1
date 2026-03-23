@@ -1,8 +1,10 @@
 # FFI Hostile-Caller Coverage
 
-**Last updated**: 2026-03-15 | **Version**: 3.22.0
+**Last updated**: 2026-06-12 | **Version**: 3.22.0
 
-Documents the hostile-caller test coverage for the C ABI (`ufsecp_*` functions). All tests are in `audit/test_adversarial_protocol.cpp`, section G (FFI Hostile-Caller).
+Documents the hostile-caller test coverage for the C ABI (`ufsecp_*` functions). All tests are in `audit/test_adversarial_protocol.cpp`:
+- Section G (FFI Hostile-Caller) — original 97-function coverage
+- Section H (New ABI Surface Edge Cases) — 26 additional functions added in v3.22+
 
 ---
 
@@ -62,12 +64,42 @@ Documents the hostile-caller test coverage for the C ABI (`ufsecp_*` functions).
 
 ---
 
+## Section H: New ABI Surface Edge Cases (v3.22+)
+
+A gap analysis found 26 `ufsecp_*` functions with no dedicated edge-case tests.
+All gaps are closed by `test_h1_*`–`test_h12_*` in `test_adversarial_protocol.cpp`.
+
+| Test ID | Functions | Coverage |
+|---------|-----------|----------|
+| H.1 | `ufsecp_ctx_size` | positive-size smoke |
+| H.2 | `ufsecp_aead_chacha20_encrypt/decrypt` | NULL guards, bad-tag, wrong-nonce, zero-length roundtrip |
+| H.3 | `ufsecp_ecies_encrypt/decrypt` | NULL guards, off-curve pubkey, tampered envelope |
+| H.4 | `ufsecp_ellswift_create/xdh` | NULL guards, zero privkey, symmetric shared secret |
+| H.5 | `ufsecp_eth_address_checksummed`, `ufsecp_eth_personal_hash` | NULL guards, undersized buffer |
+| H.6 | `ufsecp_pedersen_switch_commit` | NULL guards, prefix byte validation |
+| H.7 | `ufsecp_schnorr_adaptor_extract` | NULL guards, zero inputs |
+| H.8 | `ufsecp_ecdsa_sign_batch`, `ufsecp_schnorr_sign_batch` | NULL ctx/msgs/keys/output, count=0 |
+| H.9 | `ufsecp_bip143_sighash`, `ufsecp_bip143_p2wpkh_script_code` | NULL guards, OP_DUP OP_HASH160 PUSH20 format |
+| H.10 | `ufsecp_bip144_txid/wtxid/witness_commitment` | NULL guards, determinism |
+| H.11 | `ufsecp_is_witness_program`, `ufsecp_parse_witness_program`, `ufsecp_p2wpkh/p2wsh/p2tr_spk`, `ufsecp_witness_script_hash` | NULL guards, format correctness, non-witness rejection |
+| H.12 | `ufsecp_taproot_keypath_sighash`, `ufsecp_tapscript_sighash` | NULL guards, count=0, OOB index, determinism |
+
+---
+
 ## Guarantee
 
 Every `ufsecp_*` function is tested with at least:
 1. Valid inputs (FFI round-trip)
 2. NULL context (G.1)
 3. NULL critical pointers (G.2, G.3)
-4. Malformed domain-specific input (G.4-G.20, per function category)
+4. Malformed domain-specific input (G.4-G.20 / H.1-H.12, per function category)
+
+**Mandatory edge-case rule for new ABI functions** (enforced since v3.22):
+Every new `ufsecp_*` function MUST be covered by all four checks below before
+an audit release commits it to the coverage matrix:
+1. NULL rejection for every pointer parameter
+2. Zero-count / zero-length / zero-key rejection where the contract requires it
+3. Invalid-content rejection (bad prefix, off-curve, truncated, wrong tag, OOB index)
+4. A success smoke test with valid inputs
 
 No function can crash, hang, or leak memory on any hostile input. All reject with the appropriate `ufsecp_error_t` and leave output buffers untouched.

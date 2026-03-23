@@ -294,7 +294,10 @@ ecies_encrypt(const Point& recipient_pubkey,
     std::uint8_t eph_bytes[32];
     csprng_fill(eph_bytes, 32);
     Scalar eph_privkey = Scalar::from_bytes(eph_bytes);
-    if (eph_privkey.is_zero()) return {};
+    if (eph_privkey.is_zero()) {
+        secp256k1::detail::secure_erase(eph_bytes, sizeof(eph_bytes));
+        return {};
+    }
 
     Point const eph_pubkey = ct::generator_mul(eph_privkey);
 

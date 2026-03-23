@@ -12,7 +12,7 @@
 | **Audit suite checks** | 641,194+ | [OK] 0 failures |
 | **Fuzz harnesses** | 3 | [OK] Active |
 | **ECIES regression** | 85 | [OK] All passing |
-| **Adversarial protocol** | 89 functions, 186 checks | [OK] Active |
+| **Adversarial protocol** | 101 functions, 286+ checks | [OK] Active |
 | **Side-channel (dudect)** | 1 | [OK] Active |
 | **Benchmark suites** | 4+ | [OK] Active |
 | **Platform-specific** | 5+ | [OK] Per-platform |
@@ -36,7 +36,7 @@
 | `test_ct_sidechannel.cpp` | -- | dudect timing: Welch t-test for side-channel leakage |
 | `differential_test.cpp` | -- | Cross-implementation comparison |
 | `test_ecies_regression.cpp` | 85 | ECIES hardening: parity tamper, invalid prefix, truncated envelope, tamper matrix, KAT, ABI prefix rejection, pubkey parser consistency, RNG fail-closed |
-| `test_adversarial_protocol.cpp` | 89 functions, 186 checks | Adversarial protocol: MuSig2 (nonce reuse/replay, rogue-key, transcript mutation, signer ordering, malicious aggregator), FROST (below-threshold, malformed commitment, malicious coordinator, duplicate nonce), Silent Payments, ECDSA adaptor (round-trip, transcript mismatch, extraction misuse), Schnorr adaptor, DLEQ (malformed proof, wrong generators), BIP-32, FFI hostile-caller (null args, undersized buffers, overlapping buffers, malformed counts) |
+| `test_adversarial_protocol.cpp` | 101 functions, 286+ checks | Adversarial protocol: MuSig2 (nonce reuse/replay, rogue-key, transcript mutation, signer ordering, malicious aggregator), FROST (below-threshold, malformed commitment, malicious coordinator, duplicate nonce), Silent Payments, ECDSA adaptor (round-trip, transcript mismatch, extraction misuse), Schnorr adaptor, DLEQ (malformed proof, wrong generators), BIP-32, FFI hostile-caller (null args, undersized buffers, overlapping buffers, malformed counts), **New ABI edge cases H.1-H.12** (ctx_size, AEAD, ECIES, EllSwift, ETH address, Pedersen switch, Schnorr adaptor extract, batch sign, BIP-143, BIP-144, SegWit, Taproot sighash) |
 | `test_fuzz_parsers.cpp` | 10K/suite | Parser fuzz: DER, Schnorr sig, compressed/uncompressed pubkey round-trip |
 | `test_fuzz_address_bip32_ffi.cpp` | 10K/suite | Address/BIP-32/FFI fuzz: P2PKH/P2WPKH/P2TR/WIF, BIP-32 paths, BIP-39, coin derivation, FFI boundaries |
 | `bench_ct_vs_libsecp.cpp` | -- | Performance comparison with libsecp256k1 |
@@ -219,6 +219,29 @@ Machine-checked proofs (Fiat-Crypto/Vale/Jasmin) are not yet applied.
 | Ethereum signing | `test_ethereum.cpp` | [OK] | EIP-155/-191, ecrecover, multi-chain |
 | ECDH | `test_ecdh_recovery_taproot.cpp` | [OK] | -- |
 | Key recovery | `test_ecdh_recovery_taproot.cpp` | [OK] | -- |
+
+---
+
+## New ABI Surface Edge-Case Coverage (v3.22+ §N)
+
+> Gap analysis found 26 `ufsecp_*` functions with no dedicated edge-case tests.
+> All gaps are closed by `test_h1_*`–`test_h12_*` in
+> `audit/test_adversarial_protocol.cpp`.
+
+| Test ID | ABI functions | NULL | Zero-count/len | Invalid content | Smoke |
+|---------|---------------|:----:|:--------------:|:---------------:|:-----:|
+| H.1 | `ufsecp_ctx_size` | -- | -- | -- | [OK] |
+| H.2 | `ufsecp_aead_chacha20_encrypt`, `ufsecp_aead_chacha20_decrypt` | [OK] | [OK] | [OK] (bad-tag, wrong-nonce) | [OK] |
+| H.3 | `ufsecp_ecies_encrypt`, `ufsecp_ecies_decrypt` | [OK] | -- | [OK] (off-curve, tampered) | [OK] |
+| H.4 | `ufsecp_ellswift_create`, `ufsecp_ellswift_xdh` | [OK] | -- | [OK] (zero key) | [OK] |
+| H.5 | `ufsecp_eth_address_checksummed`, `ufsecp_eth_personal_hash` | [OK] | [OK] | -- | [OK] |
+| H.6 | `ufsecp_pedersen_switch_commit` | [OK] | -- | -- | [OK] |
+| H.7 | `ufsecp_schnorr_adaptor_extract` | [OK] | -- | [OK] (zero inputs) | -- |
+| H.8 | `ufsecp_ecdsa_sign_batch`, `ufsecp_schnorr_sign_batch` | [OK] | [OK] | -- | -- |
+| H.9 | `ufsecp_bip143_sighash`, `ufsecp_bip143_p2wpkh_script_code` | [OK] | -- | -- | [OK] |
+| H.10 | `ufsecp_bip144_txid`, `ufsecp_bip144_wtxid`, `ufsecp_bip144_witness_commitment` | [OK] | -- | -- | [OK] |
+| H.11 | `ufsecp_is_witness_program`, `ufsecp_parse_witness_program`, `ufsecp_p2wpkh_spk`, `ufsecp_p2wsh_spk`, `ufsecp_p2tr_spk`, `ufsecp_witness_script_hash` | [OK] | -- | [OK] (non-witness) | [OK] |
+| H.12 | `ufsecp_taproot_keypath_sighash`, `ufsecp_tapscript_sighash` | [OK] | [OK] | [OK] (OOB index) | [OK] |
 
 ---
 

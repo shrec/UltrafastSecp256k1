@@ -32,7 +32,8 @@
 static int g_pass = 0, g_fail = 0;
 #include "audit_check.hpp"
 
-#define CHECK_OK(expr, msg) CHECK((expr) == UFSECP_OK, msg)
+#define CHECK_OK(expr, msg)  CHECK((expr) == UFSECP_OK, msg)
+#define CHECK_ERR(expr, msg) CHECK((expr) != UFSECP_OK, msg)
 
 static void hex_to_bytes(const char* hex, uint8_t* out, int len) {
     for (int i = 0; i < len; ++i) {
@@ -3478,6 +3479,679 @@ static void test_ffi_invalid_enums() {
 
 
 // ============================================================================
+// ============================================================================
+// H. Edge Cases -- New ABI Surface (26 functions with no prior coverage)
+// ============================================================================
+// MANDATORY RULE (see AUDIT_TEST_PLAN.md §M.1):
+//   Every ABI function MUST have at minimum:
+//     1. NULL rejection for every pointer parameter
+//     2. Zero-count / zero-length rejection where applicable
+//     3. Invalid-content rejection (bad key, bad tag, truncated input, etc.)
+//     4. A success smoke test with valid inputs
+// ============================================================================
+
+// H.1: ufsecp_ctx_size -------------------------------------------------------
+static void test_h1_ctx_size() {
+    (void)std::printf("  [H.1] ctx_size edge cases\n");
+    const size_t sz = ufsecp_ctx_size();
+    CHECK(sz > 0,               "H.1a: ctx_size() > 0");
+    CHECK(sz >= sizeof(void*),  "H.1b: ctx_size() >= pointer size");
+}
+
+#ifdef SECP256K1_BIP324
+// H.2: AEAD ChaCha20-Poly1305 ------------------------------------------------
+static void test_h2_aead() {
+    (void)std::printf("  [H.2] AEAD ChaCha20-Poly1305 edge cases\n");
+    static const uint8_t key32[32]  = {0x01};
+    static const uint8_t nonce12[12] = {0x02};
+    static const uint8_t pt[4]      = {0x61, 0x62, 0x63, 0x64};
+    uint8_t ct[4], tag16[16], pt_out[4];
+
+    // --- encrypt NULL guards ---
+    CHECK_ERR(ufsecp_aead_chacha20_poly1305_encrypt(nullptr, nonce12, nullptr, 0, pt, 4, ct, tag16),
+              "H.2a: aead_encrypt NULL key rejected");
+    CHECK_ERR(ufsecp_aead_chacha20_poly1305_encrypt(key32, nullptr, nullptr, 0, pt, 4, ct, tag16),
+              "H.2b: aead_encrypt NULL nonce rejected");
+    CHECK_ERR(ufsecp_aead_chacha20_poly1305_encrypt(key32, nonce12, nullptr, 0, nullptr, 4, ct, tag16),
+              "H.2c: aead_encrypt NULL plaintext non-zero len rejected");
+    CHECK_ERR(ufsecp_aead_chacha20_poly1305_encrypt(key32, nonce12, nullptr, 0, pt, 4, nullptr, tag16),
+              "H.2d: aead_encrypt NULL ciphertext output rejected");
+    CHECK_ERR(ufsecp_aead_chacha20_poly1305_encrypt(key32, nonce12, nullptr, 0, pt, 4, ct, nullptr),
+              "H.2e: aead_encrypt NULL tag output rejected");
+    // NULL aad with aad_len > 0
+    CHECK_ERR(ufsecp_aead_chacha20_poly1305_encrypt(key32, nonce12, nullptr, 3, pt, 4, ct, tag16),
+              "H.2f: aead_encrypt NULL aad non-zero aad_len rejected");
+    // --- valid encrypt ---
+    CHECK_OK(ufsecp_aead_chacha20_poly1305_encrypt(key32, nonce12, nullptr, 0, pt, 4, ct, tag16),
+             "H.2g: aead_encrypt succeeds");
+
+    // --- decrypt NULL guards ---
+    CHECK_ERR(ufsecp_aead_chacha20_poly1305_decrypt(nullptr, nonce12, nullptr, 0, ct, 4, tag16, pt_out),
+              "H.2h: aead_decrypt NULL key rejected");
+    CHECK_ERR(ufsecp_aead_chacha20_poly1305_decrypt(key32, nullptr, nullptr, 0, ct, 4, tag16, pt_out),
+              "H.2i: aead_decrypt NULL nonce rejected");
+    CHECK_ERR(ufsecp_aead_chacha20_poly1305_decrypt(key32, nonce12, nullptr, 0, nullptr, 4, tag16, pt_out),
+              "H.2j: aead_decrypt NULL ciphertext non-zero len rejected");
+    CHECK_ERR(ufsecp_aead_chacha20_poly1305_decrypt(key32, nonce12, nullptr, 0, ct, 4, nullptr, pt_out),
+              "H.2k: aead_decrypt NULL tag rejected");
+    CHECK_ERR(ufsecp_aead_chacha20_poly1305_decrypt(key32, nonce12, nullptr, 0, ct, 4, tag16, nullptr),
+              "H.2l: aead_decrypt NULL output rejected");
+    // NULL aad with aad_len > 0
+    CHECK_ERR(ufsecp_aead_chacha20_poly1305_decrypt(key32, nonce12, nullptr, 3, ct, 4, tag16, pt_out),
+              "H.2m: aead_decrypt NULL aad non-zero aad_len rejected");
+    // --- valid round-trip ---
+    CHECK_OK(ufsecp_aead_chacha20_poly1305_decrypt(key32, nonce12, nullptr, 0, ct, 4, tag16, pt_out),
+             "H.2n: aead_decrypt round-trip OK");
+    CHECK(memcmp(pt_out, pt, 4) == 0, "H.2o: aead_decrypt plaintext matches");
+    // --- corrupted tag must fail authentication ---
+    uint8_t bad_tag[16];
+    memcpy(bad_tag, tag16, 16);
+    bad_tag[0] ^= 0xFF;
+    CHECK_ERR(ufsecp_aead_chacha20_poly1305_decrypt(key32, nonce12, nullptr, 0, ct, 4, bad_tag, pt_out),
+              "H.2p: aead_decrypt corrupted tag rejected");
+    // --- wrong nonce must fail authentication ---
+    static const uint8_t bad_nonce12[12] = {0x99};
+    CHECK_ERR(ufsecp_aead_chacha20_poly1305_decrypt(key32, bad_nonce12, nullptr, 0, ct, 4, tag16, pt_out),
+              "H.2q: aead_decrypt wrong nonce rejected");
+    // --- zero-length plaintext encrypt/decrypt round-trip ---
+    uint8_t ztag[16];
+    CHECK_OK(ufsecp_aead_chacha20_poly1305_encrypt(key32, nonce12, nullptr, 0, nullptr, 0, nullptr, ztag),
+             "H.2r: aead_encrypt zero-len plaintext OK");
+    CHECK_OK(ufsecp_aead_chacha20_poly1305_decrypt(key32, nonce12, nullptr, 0, nullptr, 0, ztag, nullptr),
+             "H.2s: aead_decrypt zero-len ciphertext OK");
+}
+#endif /* SECP256K1_BIP324 */
+
+// H.3: ECIES encrypt/decrypt -------------------------------------------------
+static void test_h3_ecies() {
+    (void)std::printf("  [H.3] ECIES edge cases\n");
+    ufsecp_ctx* ctx = nullptr;
+    CHECK_OK(ufsecp_ctx_create(&ctx), "H.3: ctx_create OK");
+    if (!ctx) return;
+
+    static const uint8_t privkey[32] = {
+        0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,
+        0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,
+        0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,
+        0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01
+    };
+    uint8_t pubkey[33];
+    (void)ufsecp_pubkey_create(ctx, privkey, pubkey);
+
+    static const uint8_t pt[5] = {1, 2, 3, 4, 5};
+    uint8_t env[5 + UFSECP_ECIES_OVERHEAD + 4];
+    size_t env_len = sizeof(env);
+
+    // --- encrypt NULL guards ---
+    CHECK_ERR(ufsecp_ecies_encrypt(nullptr, pubkey, pt, 5, env, &env_len),
+              "H.3a: ecies_encrypt NULL ctx rejected");
+    CHECK_ERR(ufsecp_ecies_encrypt(ctx, nullptr, pt, 5, env, &env_len),
+              "H.3b: ecies_encrypt NULL pubkey rejected");
+    CHECK_ERR(ufsecp_ecies_encrypt(ctx, pubkey, nullptr, 5, env, &env_len),
+              "H.3c: ecies_encrypt NULL plaintext non-zero len rejected");
+    CHECK_ERR(ufsecp_ecies_encrypt(ctx, pubkey, pt, 5, nullptr, &env_len),
+              "H.3d: ecies_encrypt NULL output rejected");
+    CHECK_ERR(ufsecp_ecies_encrypt(ctx, pubkey, pt, 5, env, nullptr),
+              "H.3e: ecies_encrypt NULL env_len rejected");
+    // --- invalid pubkey (all zeros) ---
+    static const uint8_t zero_pk[33] = {0x02};  // 0x02 prefix but x=0 → off curve
+    CHECK_ERR(ufsecp_ecies_encrypt(ctx, zero_pk, pt, 5, env, &env_len),
+              "H.3f: ecies_encrypt bad pubkey rejected");
+    // --- valid encrypt ---
+    env_len = sizeof(env);
+    CHECK_OK(ufsecp_ecies_encrypt(ctx, pubkey, pt, 5, env, &env_len),
+             "H.3g: ecies_encrypt valid succeeds");
+    CHECK(env_len == 5u + UFSECP_ECIES_OVERHEAD, "H.3h: ecies envelope is pt_len + overhead");
+
+    // --- decrypt NULL guards ---
+    uint8_t dec[5];
+    size_t dec_len = sizeof(dec);
+    CHECK_ERR(ufsecp_ecies_decrypt(nullptr, privkey, env, env_len, dec, &dec_len),
+              "H.3i: ecies_decrypt NULL ctx rejected");
+    CHECK_ERR(ufsecp_ecies_decrypt(ctx, nullptr, env, env_len, dec, &dec_len),
+              "H.3j: ecies_decrypt NULL privkey rejected");
+    CHECK_ERR(ufsecp_ecies_decrypt(ctx, privkey, nullptr, env_len, dec, &dec_len),
+              "H.3k: ecies_decrypt NULL envelope rejected");
+    CHECK_ERR(ufsecp_ecies_decrypt(ctx, privkey, env, 0, dec, &dec_len),
+              "H.3l: ecies_decrypt zero envelope len rejected");
+    CHECK_ERR(ufsecp_ecies_decrypt(ctx, privkey, env, UFSECP_ECIES_OVERHEAD - 1, dec, &dec_len),
+              "H.3m: ecies_decrypt envelope shorter than overhead rejected");
+    CHECK_ERR(ufsecp_ecies_decrypt(ctx, privkey, env, env_len, nullptr, &dec_len),
+              "H.3n: ecies_decrypt NULL output rejected");
+    CHECK_ERR(ufsecp_ecies_decrypt(ctx, privkey, env, env_len, dec, nullptr),
+              "H.3o: ecies_decrypt NULL dec_len rejected");
+    // --- tampered envelope (flip last byte → HMAC fail) ---
+    uint8_t bad_env[5 + UFSECP_ECIES_OVERHEAD + 4];
+    memcpy(bad_env, env, env_len);
+    bad_env[env_len - 1] ^= 0xFF;
+    dec_len = sizeof(dec);
+    CHECK_ERR(ufsecp_ecies_decrypt(ctx, privkey, bad_env, env_len, dec, &dec_len),
+              "H.3p: ecies_decrypt tampered envelope rejected");
+    // --- valid round-trip ---
+    dec_len = sizeof(dec);
+    CHECK_OK(ufsecp_ecies_decrypt(ctx, privkey, env, env_len, dec, &dec_len),
+             "H.3q: ecies_decrypt valid round-trip OK");
+    CHECK(dec_len == 5 && memcmp(dec, pt, 5) == 0, "H.3r: ecies_decrypt plaintext matches");
+
+    ufsecp_ctx_destroy(ctx);
+}
+
+// H.4: EllSwift create / xdh (BIP-324) ---------------------------------------
+#ifdef SECP256K1_BIP324
+static void test_h4_ellswift() {
+    (void)std::printf("  [H.4] EllSwift edge cases (BIP-324)\n");
+    ufsecp_ctx* ctx = nullptr;
+    ufsecp_ctx_create(&ctx);
+    if (!ctx) { CHECK(false, "H.4: ctx_create"); return; }
+
+    static const uint8_t priv1[32] = {1};
+    static const uint8_t priv2[32] = {2};
+    static const uint8_t zero32[32] = {0};
+    uint8_t enc_a[64], enc_b[64], sec1[32], sec2[32];
+
+    // --- create NULL guards ---
+    CHECK_ERR(ufsecp_ellswift_create(nullptr, priv1, enc_a),
+              "H.4a: ellswift_create NULL ctx rejected");
+    CHECK_ERR(ufsecp_ellswift_create(ctx, nullptr, enc_a),
+              "H.4b: ellswift_create NULL privkey rejected");
+    CHECK_ERR(ufsecp_ellswift_create(ctx, priv1, nullptr),
+              "H.4c: ellswift_create NULL output rejected");
+    // --- zero privkey must be rejected ---
+    CHECK_ERR(ufsecp_ellswift_create(ctx, zero32, enc_a),
+              "H.4d: ellswift_create zero privkey rejected");
+    // --- valid create ---
+    CHECK_OK(ufsecp_ellswift_create(ctx, priv1, enc_a), "H.4e: ellswift_create priv1 OK");
+    CHECK_OK(ufsecp_ellswift_create(ctx, priv2, enc_b), "H.4f: ellswift_create priv2 OK");
+
+    // --- xdh NULL guards ---
+    CHECK_ERR(ufsecp_ellswift_xdh(nullptr, enc_a, enc_b, priv1, 1, sec1),
+              "H.4g: ellswift_xdh NULL ctx rejected");
+    CHECK_ERR(ufsecp_ellswift_xdh(ctx, nullptr, enc_b, priv1, 1, sec1),
+              "H.4h: ellswift_xdh NULL ell_a rejected");
+    CHECK_ERR(ufsecp_ellswift_xdh(ctx, enc_a, nullptr, priv1, 1, sec1),
+              "H.4i: ellswift_xdh NULL ell_b rejected");
+    CHECK_ERR(ufsecp_ellswift_xdh(ctx, enc_a, enc_b, nullptr, 1, sec1),
+              "H.4j: ellswift_xdh NULL privkey rejected");
+    CHECK_ERR(ufsecp_ellswift_xdh(ctx, enc_a, enc_b, priv1, 1, nullptr),
+              "H.4k: ellswift_xdh NULL output rejected");
+    // --- zero privkey must be rejected ---
+    CHECK_ERR(ufsecp_ellswift_xdh(ctx, enc_a, enc_b, zero32, 1, sec1),
+              "H.4l: ellswift_xdh zero privkey rejected");
+    // --- symmetric: initiator and responder produce the same secret ---
+    CHECK_OK(ufsecp_ellswift_xdh(ctx, enc_a, enc_b, priv1, 1, sec1),
+             "H.4m: ellswift_xdh initiator OK");
+    CHECK_OK(ufsecp_ellswift_xdh(ctx, enc_a, enc_b, priv2, 0, sec2),
+             "H.4n: ellswift_xdh responder OK");
+    CHECK(memcmp(sec1, sec2, 32) == 0, "H.4o: ellswift_xdh shared secrets match");
+
+    ufsecp_ctx_destroy(ctx);
+}
+#endif /* SECP256K1_BIP324 */
+
+// H.5: ETH checksummed address + personal_hash (Ethereum) --------------------
+#ifdef SECP256K1_BUILD_ETHEREUM
+static void test_h5_eth_edge() {
+    (void)std::printf("  [H.5] ETH checksummed + personal_hash edge cases\n");
+    ufsecp_ctx* ctx = nullptr;
+    ufsecp_ctx_create(&ctx);
+    if (!ctx) { CHECK(false, "H.5: ctx_create"); return; }
+
+    static const uint8_t priv[32] = {1};
+    uint8_t pub33[33];
+    (void)ufsecp_pubkey_create(ctx, priv, pub33);
+
+    char addr[45] = {0};
+    size_t addr_len = sizeof(addr);
+
+    // --- eth_address_checksummed NULL guards ---
+    CHECK_ERR(ufsecp_eth_address_checksummed(nullptr, pub33, addr, &addr_len),
+              "H.5a: eth_address_checksummed NULL ctx rejected");
+    CHECK_ERR(ufsecp_eth_address_checksummed(ctx, nullptr, addr, &addr_len),
+              "H.5b: eth_address_checksummed NULL pubkey rejected");
+    CHECK_ERR(ufsecp_eth_address_checksummed(ctx, pub33, nullptr, &addr_len),
+              "H.5c: eth_address_checksummed NULL addr_out rejected");
+    CHECK_ERR(ufsecp_eth_address_checksummed(ctx, pub33, addr, nullptr),
+              "H.5d: eth_address_checksummed NULL addr_len rejected");
+    // --- undersized output buffer (< 43) ---
+    size_t tiny = 5;
+    CHECK_ERR(ufsecp_eth_address_checksummed(ctx, pub33, addr, &tiny),
+              "H.5e: eth_address_checksummed undersized buffer rejected");
+    // --- valid call: format must be 0x + 40 hex ---
+    addr_len = sizeof(addr);
+    CHECK_OK(ufsecp_eth_address_checksummed(ctx, pub33, addr, &addr_len),
+             "H.5f: eth_address_checksummed OK");
+    CHECK(addr_len == 42 && addr[0] == '0' && addr[1] == 'x',
+          "H.5g: eth_address_checksummed returns '0x...' 42-char string");
+
+    // --- eth_personal_hash NULL guards ---
+    static const uint8_t msg[4] = {1, 2, 3, 4};
+    uint8_t hash[32];
+    CHECK_ERR(ufsecp_eth_personal_hash(nullptr, 4, hash),
+              "H.5h: eth_personal_hash NULL msg non-zero len rejected");
+    CHECK_ERR(ufsecp_eth_personal_hash(msg, 4, nullptr),
+              "H.5i: eth_personal_hash NULL output rejected");
+    // --- empty message is valid ---
+    CHECK_OK(ufsecp_eth_personal_hash(nullptr, 0, hash),
+             "H.5j: eth_personal_hash empty message OK");
+    // --- normal use ---
+    CHECK_OK(ufsecp_eth_personal_hash(msg, 4, hash),
+             "H.5k: eth_personal_hash OK");
+
+    ufsecp_ctx_destroy(ctx);
+}
+#endif /* SECP256K1_BUILD_ETHEREUM */
+
+// H.6: Pedersen switch commit ------------------------------------------------
+static void test_h6_pedersen_switch() {
+    (void)std::printf("  [H.6] Pedersen switch commit edge cases\n");
+    ufsecp_ctx* ctx = nullptr;
+    ufsecp_ctx_create(&ctx);
+    if (!ctx) { CHECK(false, "H.6: ctx_create"); return; }
+
+    static const uint8_t val[32]    = {1};
+    static const uint8_t blind[32]  = {2};
+    static const uint8_t sw[32]     = {3};
+    uint8_t commit33[33];
+
+    CHECK_ERR(ufsecp_pedersen_switch_commit(nullptr, val, blind, sw, commit33),
+              "H.6a: switch_commit NULL ctx rejected");
+    CHECK_ERR(ufsecp_pedersen_switch_commit(ctx, nullptr, blind, sw, commit33),
+              "H.6b: switch_commit NULL value rejected");
+    CHECK_ERR(ufsecp_pedersen_switch_commit(ctx, val, nullptr, sw, commit33),
+              "H.6c: switch_commit NULL blinding rejected");
+    CHECK_ERR(ufsecp_pedersen_switch_commit(ctx, val, blind, nullptr, commit33),
+              "H.6d: switch_commit NULL switch_blind rejected");
+    CHECK_ERR(ufsecp_pedersen_switch_commit(ctx, val, blind, sw, nullptr),
+              "H.6e: switch_commit NULL output rejected");
+    CHECK_OK(ufsecp_pedersen_switch_commit(ctx, val, blind, sw, commit33),
+             "H.6f: switch_commit valid OK");
+    CHECK(commit33[0] == 0x02 || commit33[0] == 0x03,
+          "H.6g: switch_commit output is compressed point (0x02/0x03 prefix)");
+
+    ufsecp_ctx_destroy(ctx);
+}
+
+// H.7: Schnorr adaptor extract -----------------------------------------------
+// Signature: ufsecp_schnorr_adaptor_extract(ctx, pre_sig, sig64, secret32_out)
+static void test_h7_schnorr_adaptor_extract() {
+    (void)std::printf("  [H.7] Schnorr adaptor extract edge cases\n");
+    ufsecp_ctx* ctx = nullptr;
+    ufsecp_ctx_create(&ctx);
+    if (!ctx) { CHECK(false, "H.7: ctx_create"); return; }
+
+    uint8_t pre_sig[UFSECP_SCHNORR_ADAPTOR_SIG_LEN] = {0};
+    uint8_t sig64[64]   = {0};
+    uint8_t secret32[32] = {0};
+
+    // NULL guards (4-arg version: ctx, pre_sig, sig64, secret32_out)
+    CHECK_ERR(ufsecp_schnorr_adaptor_extract(nullptr, pre_sig, sig64, secret32),
+              "H.7a: schnorr_adaptor_extract NULL ctx rejected");
+    CHECK_ERR(ufsecp_schnorr_adaptor_extract(ctx, nullptr, sig64, secret32),
+              "H.7b: schnorr_adaptor_extract NULL pre_sig rejected");
+    CHECK_ERR(ufsecp_schnorr_adaptor_extract(ctx, pre_sig, nullptr, secret32),
+              "H.7c: schnorr_adaptor_extract NULL sig64 rejected");
+    CHECK_ERR(ufsecp_schnorr_adaptor_extract(ctx, pre_sig, sig64, nullptr),
+              "H.7d: schnorr_adaptor_extract NULL output rejected");
+    // All-zero inputs are cryptographically invalid -> must be rejected
+    CHECK_ERR(ufsecp_schnorr_adaptor_extract(ctx, pre_sig, sig64, secret32),
+              "H.7e: schnorr_adaptor_extract zero/invalid inputs rejected");
+
+    ufsecp_ctx_destroy(ctx);
+}
+
+// H.8: Batch sign (ECDSA + Schnorr) ------------------------------------------
+static void test_h8_batch_sign() {
+    (void)std::printf("  [H.8] Batch sign edge cases\n");
+    ufsecp_ctx* ctx = nullptr;
+    ufsecp_ctx_create(&ctx);
+    if (!ctx) { CHECK(false, "H.8: ctx_create"); return; }
+
+    static const uint8_t msg32[32]  = {0xAA};
+    static const uint8_t priv32[32] = {1};
+    uint8_t sig64[64];
+
+    // ecdsa_sign_batch --------------------------------------------------------
+    CHECK_ERR(ufsecp_ecdsa_sign_batch(nullptr, 1, msg32, priv32, sig64),
+              "H.8a: ecdsa_sign_batch NULL ctx rejected");
+    CHECK_OK(ufsecp_ecdsa_sign_batch(ctx, 0, msg32, priv32, sig64),
+             "H.8b: ecdsa_sign_batch count=0 is valid no-op");
+    CHECK_ERR(ufsecp_ecdsa_sign_batch(ctx, 1, nullptr, priv32, sig64),
+              "H.8c: ecdsa_sign_batch NULL msgs rejected");
+    CHECK_ERR(ufsecp_ecdsa_sign_batch(ctx, 1, msg32, nullptr, sig64),
+              "H.8d: ecdsa_sign_batch NULL privkeys rejected");
+    CHECK_ERR(ufsecp_ecdsa_sign_batch(ctx, 1, msg32, priv32, nullptr),
+              "H.8e: ecdsa_sign_batch NULL output rejected");
+    CHECK_OK(ufsecp_ecdsa_sign_batch(ctx, 1, msg32, priv32, sig64),
+             "H.8f: ecdsa_sign_batch count=1 valid OK");
+
+    // schnorr_sign_batch ------------------------------------------------------
+    CHECK_ERR(ufsecp_schnorr_sign_batch(nullptr, 1, msg32, priv32, nullptr, sig64),
+              "H.8g: schnorr_sign_batch NULL ctx rejected");
+    CHECK_OK(ufsecp_schnorr_sign_batch(ctx, 0, msg32, priv32, nullptr, sig64),
+             "H.8h: schnorr_sign_batch count=0 is valid no-op");
+    CHECK_ERR(ufsecp_schnorr_sign_batch(ctx, 1, nullptr, priv32, nullptr, sig64),
+              "H.8i: schnorr_sign_batch NULL msgs rejected");
+    CHECK_ERR(ufsecp_schnorr_sign_batch(ctx, 1, msg32, nullptr, nullptr, sig64),
+              "H.8j: schnorr_sign_batch NULL privkeys rejected");
+    CHECK_ERR(ufsecp_schnorr_sign_batch(ctx, 1, msg32, priv32, nullptr, nullptr),
+              "H.8k: schnorr_sign_batch NULL output rejected");
+    CHECK_OK(ufsecp_schnorr_sign_batch(ctx, 1, msg32, priv32, nullptr, sig64),
+             "H.8l: schnorr_sign_batch count=1 valid OK (null aux_rands)");
+
+    ufsecp_ctx_destroy(ctx);
+}
+
+// H.9: BIP-143 sighash + p2wpkh_script_code ----------------------------------
+static void test_h9_bip143() {
+    (void)std::printf("  [H.9] BIP-143 edge cases\n");
+    ufsecp_ctx* ctx = nullptr;
+    ufsecp_ctx_create(&ctx);
+    if (!ctx) { CHECK(false, "H.9: ctx_create"); return; }
+
+    static const uint8_t z32[32]   = {0};
+    // Minimal valid P2WPKH scriptCode: OP_DUP OP_HASH160 PUSH20 <20 bytes> OP_EQUALVERIFY OP_CHECKSIG
+    static const uint8_t sc[25] = {
+        0x76, 0xa9, 0x14,
+        0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+        0x88, 0xac
+    };
+    uint8_t sighash[32];
+
+    // --- bip143_sighash NULL guards ---
+    CHECK_ERR(ufsecp_bip143_sighash(nullptr, 1, z32, z32, z32, 0, sc, 25, 100000, 0xFFFFFFFF, z32, 0, 1, sighash),
+              "H.9a: bip143_sighash NULL ctx rejected");
+    CHECK_ERR(ufsecp_bip143_sighash(ctx, 1, nullptr, z32, z32, 0, sc, 25, 100000, 0xFFFFFFFF, z32, 0, 1, sighash),
+              "H.9b: bip143_sighash NULL hash_prevouts rejected");
+    CHECK_ERR(ufsecp_bip143_sighash(ctx, 1, z32, nullptr, z32, 0, sc, 25, 100000, 0xFFFFFFFF, z32, 0, 1, sighash),
+              "H.9c: bip143_sighash NULL hash_sequence rejected");
+    CHECK_ERR(ufsecp_bip143_sighash(ctx, 1, z32, z32, nullptr, 0, sc, 25, 100000, 0xFFFFFFFF, z32, 0, 1, sighash),
+              "H.9d: bip143_sighash NULL outpoint_txid rejected");
+    CHECK_ERR(ufsecp_bip143_sighash(ctx, 1, z32, z32, z32, 0, nullptr, 1, 100000, 0xFFFFFFFF, z32, 0, 1, sighash),
+              "H.9e: bip143_sighash NULL script_code non-zero len rejected");
+    CHECK_ERR(ufsecp_bip143_sighash(ctx, 1, z32, z32, z32, 0, sc, 25, 100000, 0xFFFFFFFF, nullptr, 0, 1, sighash),
+              "H.9f: bip143_sighash NULL hash_outputs rejected");
+    CHECK_ERR(ufsecp_bip143_sighash(ctx, 1, z32, z32, z32, 0, sc, 25, 100000, 0xFFFFFFFF, z32, 0, 1, nullptr),
+              "H.9g: bip143_sighash NULL sighash_out rejected");
+    // --- valid call ---
+    CHECK_OK(ufsecp_bip143_sighash(ctx, 1, z32, z32, z32, 0, sc, 25, 100000, 0xFFFFFFFF, z32, 0, 1, sighash),
+             "H.9h: bip143_sighash valid OK");
+
+    // --- p2wpkh_script_code NULL guards ---
+    static const uint8_t pkh20[20] = {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20};
+    uint8_t sc_out[25];
+    CHECK_ERR(ufsecp_bip143_p2wpkh_script_code(nullptr, sc_out),
+              "H.9i: p2wpkh_script_code NULL hash rejected");
+    CHECK_ERR(ufsecp_bip143_p2wpkh_script_code(pkh20, nullptr),
+              "H.9j: p2wpkh_script_code NULL output rejected");
+    CHECK_OK(ufsecp_bip143_p2wpkh_script_code(pkh20, sc_out),
+             "H.9k: p2wpkh_script_code valid OK");
+    CHECK(sc_out[0] == 0x76 && sc_out[1] == 0xa9 && sc_out[2] == 0x14,
+          "H.9l: p2wpkh_script_code starts OP_DUP OP_HASH160 PUSH20");
+
+    ufsecp_ctx_destroy(ctx);
+}
+
+// H.10: BIP-144 txid / wtxid / witness_commitment ----------------------------
+static void test_h10_bip144() {
+    (void)std::printf("  [H.10] BIP-144 edge cases\n");
+    ufsecp_ctx* ctx = nullptr;
+    ufsecp_ctx_create(&ctx);
+    if (!ctx) { CHECK(false, "H.10: ctx_create"); return; }
+
+    // Minimal raw tx bytes (intentionally invalid for hash tests;
+    // we only need to reach the hashing code under valid-args tests)
+    static const uint8_t fake_tx[10] = {0x01,0,0,0, 0,1, 0,0,0,0};
+    uint8_t txid[32], wtxid[32];
+
+    // --- bip144_txid NULL guards ---
+    CHECK_ERR(ufsecp_bip144_txid(nullptr, fake_tx, sizeof(fake_tx), txid),
+              "H.10a: bip144_txid NULL ctx rejected");
+    CHECK_ERR(ufsecp_bip144_txid(ctx, nullptr, sizeof(fake_tx), txid),
+              "H.10b: bip144_txid NULL tx rejected");
+    CHECK_ERR(ufsecp_bip144_txid(ctx, fake_tx, 0, txid),
+              "H.10c: bip144_txid zero len rejected");
+    CHECK_ERR(ufsecp_bip144_txid(ctx, fake_tx, sizeof(fake_tx), nullptr),
+              "H.10d: bip144_txid NULL output rejected");
+
+    // --- bip144_wtxid NULL guards ---
+    CHECK_ERR(ufsecp_bip144_wtxid(nullptr, fake_tx, sizeof(fake_tx), wtxid),
+              "H.10e: bip144_wtxid NULL ctx rejected");
+    CHECK_ERR(ufsecp_bip144_wtxid(ctx, nullptr, sizeof(fake_tx), wtxid),
+              "H.10f: bip144_wtxid NULL tx rejected");
+    CHECK_ERR(ufsecp_bip144_wtxid(ctx, fake_tx, 0, wtxid),
+              "H.10g: bip144_wtxid zero len rejected");
+    CHECK_ERR(ufsecp_bip144_wtxid(ctx, fake_tx, sizeof(fake_tx), nullptr),
+              "H.10h: bip144_wtxid NULL output rejected");
+
+    // --- witness_commitment NULL guards (no ctx) ---
+    static const uint8_t root32[32]  = {1};
+    static const uint8_t nonce32[32] = {2};
+    uint8_t commit[32];
+    CHECK_ERR(ufsecp_bip144_witness_commitment(nullptr, nonce32, commit),
+              "H.10i: witness_commitment NULL root rejected");
+    CHECK_ERR(ufsecp_bip144_witness_commitment(root32, nullptr, commit),
+              "H.10j: witness_commitment NULL nonce rejected");
+    CHECK_ERR(ufsecp_bip144_witness_commitment(root32, nonce32, nullptr),
+              "H.10k: witness_commitment NULL output rejected");
+    // --- valid witness_commitment ---
+    CHECK_OK(ufsecp_bip144_witness_commitment(root32, nonce32, commit),
+             "H.10l: witness_commitment valid OK");
+    // Ensure deterministic: same inputs → same output
+    uint8_t commit2[32];
+    (void)ufsecp_bip144_witness_commitment(root32, nonce32, commit2);
+    CHECK(memcmp(commit, commit2, 32) == 0,
+          "H.10m: witness_commitment is deterministic");
+
+    ufsecp_ctx_destroy(ctx);
+}
+
+// H.11: SegWit helpers -------------------------------------------------------
+static void test_h11_segwit() {
+    (void)std::printf("  [H.11] SegWit edge cases\n");
+
+    // is_witness_program: NULL + 0 → 0 (not a witness program, no crash)
+    CHECK(ufsecp_segwit_is_witness_program(nullptr, 0) == 0,
+          "H.11a: is_witness_program(NULL,0) returns 0");
+    // Too short (< 4 bytes minimum)
+    static const uint8_t short3[3] = {0x00, 0x01, 0xAA};
+    CHECK(ufsecp_segwit_is_witness_program(short3, 3) == 0,
+          "H.11b: is_witness_program too short returns 0");
+    // Non-witness P2PKH → 0
+    static const uint8_t p2pkh[25] = {0x76,0xa9,0x14,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0x88,0xac};
+    CHECK(ufsecp_segwit_is_witness_program(p2pkh, 25) == 0,
+          "H.11c: is_witness_program P2PKH returns 0");
+
+    // Build P2WPKH spk to use as valid witness program
+    static const uint8_t zero20[20] = {0};
+    uint8_t p2wpkh_spk[22];
+    (void)ufsecp_segwit_p2wpkh_spk(zero20, p2wpkh_spk);
+    CHECK(ufsecp_segwit_is_witness_program(p2wpkh_spk, 22) == 1,
+          "H.11d: is_witness_program valid P2WPKH returns 1");
+
+    // parse_program NULL guards
+    int ver = -1;
+    uint8_t prog[40];
+    size_t prog_len = sizeof(prog);
+    CHECK_ERR(ufsecp_segwit_parse_program(nullptr, 22, &ver, prog, &prog_len),
+              "H.11e: parse_program NULL script rejected");
+    CHECK_ERR(ufsecp_segwit_parse_program(p2wpkh_spk, 0, &ver, prog, &prog_len),
+              "H.11f: parse_program zero len rejected");
+    CHECK_ERR(ufsecp_segwit_parse_program(p2wpkh_spk, 22, nullptr, prog, &prog_len),
+              "H.11g: parse_program NULL version_out rejected");
+    CHECK_ERR(ufsecp_segwit_parse_program(p2wpkh_spk, 22, &ver, nullptr, &prog_len),
+              "H.11h: parse_program NULL program_out rejected");
+    CHECK_ERR(ufsecp_segwit_parse_program(p2wpkh_spk, 22, &ver, prog, nullptr),
+              "H.11i: parse_program NULL prog_len_out rejected");
+    // Non-witness script → error
+    prog_len = sizeof(prog);
+    CHECK_ERR(ufsecp_segwit_parse_program(p2pkh, 25, &ver, prog, &prog_len),
+              "H.11j: parse_program non-witness script returns error");
+    // Valid P2WPKH parse
+    prog_len = sizeof(prog);
+    CHECK_OK(ufsecp_segwit_parse_program(p2wpkh_spk, 22, &ver, prog, &prog_len),
+             "H.11k: parse_program P2WPKH OK");
+    CHECK(ver == 0 && prog_len == 20,
+          "H.11l: parse_program P2WPKH → version=0, program_len=20");
+
+    // p2wpkh_spk NULL guards
+    uint8_t spk22[22];
+    CHECK_ERR(ufsecp_segwit_p2wpkh_spk(nullptr, spk22),
+              "H.11m: p2wpkh_spk NULL hash rejected");
+    CHECK_ERR(ufsecp_segwit_p2wpkh_spk(zero20, nullptr),
+              "H.11n: p2wpkh_spk NULL output rejected");
+    CHECK_OK(ufsecp_segwit_p2wpkh_spk(zero20, spk22),
+             "H.11o: p2wpkh_spk valid OK");
+    CHECK(spk22[0] == 0x00 && spk22[1] == 0x14,
+          "H.11p: p2wpkh_spk starts OP_0 PUSH20");
+
+    // p2wsh_spk NULL guards
+    static const uint8_t zero32[32] = {0};
+    uint8_t spk34a[34];
+    CHECK_ERR(ufsecp_segwit_p2wsh_spk(nullptr, spk34a),
+              "H.11q: p2wsh_spk NULL hash rejected");
+    CHECK_ERR(ufsecp_segwit_p2wsh_spk(zero32, nullptr),
+              "H.11r: p2wsh_spk NULL output rejected");
+    CHECK_OK(ufsecp_segwit_p2wsh_spk(zero32, spk34a),
+             "H.11s: p2wsh_spk valid OK");
+    CHECK(spk34a[0] == 0x00 && spk34a[1] == 0x20,
+          "H.11t: p2wsh_spk starts OP_0 PUSH32");
+
+    // p2tr_spk NULL guards
+    uint8_t spk34b[34];
+    CHECK_ERR(ufsecp_segwit_p2tr_spk(nullptr, spk34b),
+              "H.11u: p2tr_spk NULL key rejected");
+    CHECK_ERR(ufsecp_segwit_p2tr_spk(zero32, nullptr),
+              "H.11v: p2tr_spk NULL output rejected");
+    CHECK_OK(ufsecp_segwit_p2tr_spk(zero32, spk34b),
+             "H.11w: p2tr_spk valid OK");
+    CHECK(spk34b[0] == 0x51 && spk34b[1] == 0x20,
+          "H.11x: p2tr_spk starts OP_1 PUSH32");
+
+    // witness_script_hash NULL guards
+    uint8_t hash32[32];
+    CHECK_ERR(ufsecp_segwit_witness_script_hash(nullptr, 1, hash32),
+              "H.11y: witness_script_hash NULL script non-zero len rejected");
+    CHECK_ERR(ufsecp_segwit_witness_script_hash(p2pkh, 25, nullptr),
+              "H.11z: witness_script_hash NULL output rejected");
+    // NULL script with len=0 (empty script) is valid
+    CHECK_OK(ufsecp_segwit_witness_script_hash(nullptr, 0, hash32),
+             "H.11za: witness_script_hash empty script OK");
+    CHECK_OK(ufsecp_segwit_witness_script_hash(p2pkh, 25, hash32),
+             "H.11zb: witness_script_hash non-empty script OK");
+    // Deterministic
+    uint8_t hash32b[32];
+    (void)ufsecp_segwit_witness_script_hash(p2pkh, 25, hash32b);
+    CHECK(memcmp(hash32, hash32b, 32) == 0,
+          "H.11zc: witness_script_hash is deterministic");
+}
+
+// H.12: Taproot keypath sighash + tapscript sighash --------------------------
+static void test_h12_taproot_sighash() {
+    (void)std::printf("  [H.12] Taproot/Tapscript sighash edge cases\n");
+    ufsecp_ctx* ctx = nullptr;
+    ufsecp_ctx_create(&ctx);
+    if (!ctx) { CHECK(false, "H.12: ctx_create"); return; }
+
+    // 1 input, 1 output P2TR
+    static const uint8_t txid32[32]  = {1};
+    static const uint32_t vout       = 0;
+    static const uint64_t amount     = 100000;
+    static const uint32_t seq        = 0xFFFFFFFF;
+    static const uint8_t spk[34]     = {0x51, 0x20, 1,2,3,4,5,6,7,8,9,10,11,12,
+                                         13,14,15,16,17,18,19,20,21,22,23,24,25,
+                                         26,27,28,29,30,31,32};
+    const uint8_t* spk_ptr           = spk;
+    const size_t   spk_len           = 34;
+    static const uint64_t out_val    = 90000;
+    static const uint8_t out_spk[34] = {0x51, 0x20, 0};
+    const uint8_t* out_spk_ptr       = out_spk;
+    const size_t   out_spk_len       = 34;
+    uint8_t sighash[32];
+
+    // --- taproot_keypath_sighash NULL/bounds guards ---
+    CHECK_ERR(ufsecp_taproot_keypath_sighash(nullptr, 2, 0, 1,
+              txid32, &vout, &amount, &seq, &spk_ptr, &spk_len,
+              1, &out_val, &out_spk_ptr, &out_spk_len,
+              0, 0x00, nullptr, 0, sighash),
+              "H.12a: taproot_keypath_sighash NULL ctx rejected");
+    CHECK_ERR(ufsecp_taproot_keypath_sighash(ctx, 2, 0, 1,
+              nullptr, &vout, &amount, &seq, &spk_ptr, &spk_len,
+              1, &out_val, &out_spk_ptr, &out_spk_len,
+              0, 0x00, nullptr, 0, sighash),
+              "H.12b: taproot_keypath_sighash NULL prevout_txids rejected");
+    // input_count = 0 → input_index(0) >= input_count(0) → ERR_BAD_INPUT
+    CHECK_ERR(ufsecp_taproot_keypath_sighash(ctx, 2, 0, 0,
+              txid32, &vout, &amount, &seq, &spk_ptr, &spk_len,
+              1, &out_val, &out_spk_ptr, &out_spk_len,
+              0, 0x00, nullptr, 0, sighash),
+              "H.12c: taproot_keypath_sighash input_count=0 rejected");
+    // input_index >= input_count (out of bounds)
+    CHECK_ERR(ufsecp_taproot_keypath_sighash(ctx, 2, 0, 1,
+              txid32, &vout, &amount, &seq, &spk_ptr, &spk_len,
+              1, &out_val, &out_spk_ptr, &out_spk_len,
+              1, 0x00, nullptr, 0, sighash),
+              "H.12d: taproot_keypath_sighash input_index OOB rejected");
+    CHECK_ERR(ufsecp_taproot_keypath_sighash(ctx, 2, 0, 1,
+              txid32, &vout, &amount, &seq, &spk_ptr, &spk_len,
+              1, &out_val, &out_spk_ptr, &out_spk_len,
+              0, 0x00, nullptr, 0, nullptr),
+              "H.12e: taproot_keypath_sighash NULL sighash_out rejected");
+    // Valid call
+    CHECK_OK(ufsecp_taproot_keypath_sighash(ctx, 2, 0, 1,
+             txid32, &vout, &amount, &seq, &spk_ptr, &spk_len,
+             1, &out_val, &out_spk_ptr, &out_spk_len,
+             0, 0x00, nullptr, 0, sighash),
+             "H.12f: taproot_keypath_sighash valid OK");
+    // Deterministic
+    uint8_t sighash2[32];
+    (void)ufsecp_taproot_keypath_sighash(ctx, 2, 0, 1,
+         txid32, &vout, &amount, &seq, &spk_ptr, &spk_len,
+         1, &out_val, &out_spk_ptr, &out_spk_len,
+         0, 0x00, nullptr, 0, sighash2);
+    CHECK(memcmp(sighash, sighash2, 32) == 0,
+          "H.12g: taproot_keypath_sighash is deterministic");
+
+    // --- tapscript_sighash NULL/bounds guards ---
+    static const uint8_t leaf_hash[32] = {0xAB};
+    CHECK_ERR(ufsecp_tapscript_sighash(nullptr, 2, 0, 1,
+              txid32, &vout, &amount, &seq, &spk_ptr, &spk_len,
+              1, &out_val, &out_spk_ptr, &out_spk_len,
+              0, 0x00, leaf_hash, 0xC0, 0xFFFFFFFF, nullptr, 0, sighash),
+              "H.12h: tapscript_sighash NULL ctx rejected");
+    CHECK_ERR(ufsecp_tapscript_sighash(ctx, 2, 0, 1,
+              nullptr, &vout, &amount, &seq, &spk_ptr, &spk_len,
+              1, &out_val, &out_spk_ptr, &out_spk_len,
+              0, 0x00, leaf_hash, 0xC0, 0xFFFFFFFF, nullptr, 0, sighash),
+              "H.12i: tapscript_sighash NULL prevout_txids rejected");
+    // input_index OOB
+    CHECK_ERR(ufsecp_tapscript_sighash(ctx, 2, 0, 1,
+              txid32, &vout, &amount, &seq, &spk_ptr, &spk_len,
+              1, &out_val, &out_spk_ptr, &out_spk_len,
+              5, 0x00, leaf_hash, 0xC0, 0xFFFFFFFF, nullptr, 0, sighash),
+              "H.12j: tapscript_sighash input_index OOB rejected");
+    // NULL tapleaf_hash
+    CHECK_ERR(ufsecp_tapscript_sighash(ctx, 2, 0, 1,
+              txid32, &vout, &amount, &seq, &spk_ptr, &spk_len,
+              1, &out_val, &out_spk_ptr, &out_spk_len,
+              0, 0x00, nullptr, 0xC0, 0xFFFFFFFF, nullptr, 0, sighash),
+              "H.12k: tapscript_sighash NULL tapleaf_hash rejected");
+    // NULL output
+    CHECK_ERR(ufsecp_tapscript_sighash(ctx, 2, 0, 1,
+              txid32, &vout, &amount, &seq, &spk_ptr, &spk_len,
+              1, &out_val, &out_spk_ptr, &out_spk_len,
+              0, 0x00, leaf_hash, 0xC0, 0xFFFFFFFF, nullptr, 0, nullptr),
+              "H.12l: tapscript_sighash NULL output rejected");
+    // Valid call
+    CHECK_OK(ufsecp_tapscript_sighash(ctx, 2, 0, 1,
+             txid32, &vout, &amount, &seq, &spk_ptr, &spk_len,
+             1, &out_val, &out_spk_ptr, &out_spk_len,
+             0, 0x00, leaf_hash, 0xC0, 0xFFFFFFFF, nullptr, 0, sighash),
+             "H.12m: tapscript_sighash valid OK");
+
+    ufsecp_ctx_destroy(ctx);
+}
+
+// ============================================================================
 // Entry Point
 // ============================================================================
 
@@ -3567,6 +4241,26 @@ int test_adversarial_protocol_run() {
 #ifdef SECP256K1_BUILD_ETHEREUM
     test_hostile_ethereum();
 #endif
+
+    // H. New ABI surface edge cases (26 previously uncovered functions, v3.22+)
+    test_h1_ctx_size();
+#ifdef SECP256K1_BIP324
+    test_h2_aead();
+#endif
+    test_h3_ecies();
+#ifdef SECP256K1_BIP324
+    test_h4_ellswift();
+#endif
+#ifdef SECP256K1_BUILD_ETHEREUM
+    test_h5_eth_edge();
+#endif
+    test_h6_pedersen_switch();
+    test_h7_schnorr_adaptor_extract();
+    test_h8_batch_sign();
+    test_h9_bip143();
+    test_h10_bip144();
+    test_h11_segwit();
+    test_h12_taproot_sighash();
 
     (void)std::printf("\n--- Adversarial Summary: %d passed, %d failed ---\n\n",
                       g_pass, g_fail);

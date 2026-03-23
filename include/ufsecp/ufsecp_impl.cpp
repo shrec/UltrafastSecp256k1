@@ -1584,10 +1584,10 @@ static bool skip_compact_bytes(const uint8_t* buf, size_t len, size_t& offset) {
 }
 
 ufsecp_error_t ufsecp_bip144_txid(
-    ufsecp_ctx* /*ctx*/,
+    ufsecp_ctx* ctx,
     const uint8_t* raw_tx, size_t raw_tx_len,
     uint8_t txid_out[32]) {
-    if (!raw_tx || !txid_out) return UFSECP_ERR_NULL_ARG;
+    if (!ctx || !raw_tx || !txid_out) return UFSECP_ERR_NULL_ARG;
     if (raw_tx_len < 10) return UFSECP_ERR_BAD_INPUT;
 
     // Detect witness flag: version(4) + marker(0x00) + flag(0x01)
@@ -1652,10 +1652,10 @@ ufsecp_error_t ufsecp_bip144_txid(
 }
 
 ufsecp_error_t ufsecp_bip144_wtxid(
-    ufsecp_ctx* /*ctx*/,
+    ufsecp_ctx* ctx,
     const uint8_t* raw_tx, size_t raw_tx_len,
     uint8_t wtxid_out[32]) {
-    if (!raw_tx || !wtxid_out) return UFSECP_ERR_NULL_ARG;
+    if (!ctx || !raw_tx || !wtxid_out) return UFSECP_ERR_NULL_ARG;
     if (raw_tx_len < 10) return UFSECP_ERR_BAD_INPUT;
 
     // wtxid = double-SHA256 of the full witness-serialized tx
@@ -1743,7 +1743,8 @@ ufsecp_error_t ufsecp_segwit_p2tr_spk(
 ufsecp_error_t ufsecp_segwit_witness_script_hash(
     const uint8_t* script, size_t script_len,
     uint8_t hash_out[32]) {
-    if (!script || !hash_out) return UFSECP_ERR_NULL_ARG;
+    // Allow (nullptr, 0) as a valid empty-script input; only reject null when len > 0
+    if ((!script && script_len > 0) || !hash_out) return UFSECP_ERR_NULL_ARG;
 
     auto h = secp256k1::witness_script_hash(script, script_len);
     std::memcpy(hash_out, h.data(), 32);
