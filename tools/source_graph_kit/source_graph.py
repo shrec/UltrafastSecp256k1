@@ -2060,6 +2060,59 @@ CREATE TABLE IF NOT EXISTS decisions (
 CREATE INDEX IF NOT EXISTS idx_decisions_file ON decisions(file);
 CREATE INDEX IF NOT EXISTS idx_decisions_status ON decisions(status);
 CREATE INDEX IF NOT EXISTS idx_decisions_tags ON decisions(tags);
+
+-- ============================================================
+-- DATAFLOW GRAPH (type-level data flow: Scalar→Point→Sig etc.)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS dataflow_edges (
+    id INTEGER PRIMARY KEY,
+    from_type TEXT NOT NULL,
+    to_type TEXT NOT NULL,
+    via_function TEXT NOT NULL,
+    via_file TEXT NOT NULL,
+    project TEXT,
+    flow_kind TEXT DEFAULT 'transform',  -- transform | consume | produce | alias
+    confidence INTEGER DEFAULT 50,
+    UNIQUE(from_type, to_type, via_function, via_file)
+);
+CREATE INDEX IF NOT EXISTS idx_dataflow_from  ON dataflow_edges(from_type);
+CREATE INDEX IF NOT EXISTS idx_dataflow_to    ON dataflow_edges(to_type);
+CREATE INDEX IF NOT EXISTS idx_dataflow_func  ON dataflow_edges(via_function);
+
+-- ============================================================
+-- INVARIANTS (assert / precondition / postcondition / comment constraints)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS invariants (
+    id INTEGER PRIMARY KEY,
+    symbol_name TEXT NOT NULL,
+    file TEXT NOT NULL,
+    line INTEGER NOT NULL,
+    invariant_text TEXT NOT NULL,
+    invariant_type TEXT NOT NULL,  -- assert|static_assert|precondition|comment_constraint|postcondition
+    severity TEXT DEFAULT 'info',  -- info|warning|critical
+    confidence INTEGER DEFAULT 60,
+    related_type TEXT              -- which data type this constrains, e.g. "Scalar"
+);
+CREATE INDEX IF NOT EXISTS idx_invariants_symbol ON invariants(symbol_name);
+CREATE INDEX IF NOT EXISTS idx_invariants_file   ON invariants(file);
+CREATE INDEX IF NOT EXISTS idx_invariants_type   ON invariants(invariant_type);
+CREATE INDEX IF NOT EXISTS idx_invariants_rtype  ON invariants(related_type);
+
+-- ============================================================
+-- BACKEND MAP (CPU ↔ CUDA ↔ OpenCL ↔ Metal parity tracking)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS backend_map (
+    id INTEGER PRIMARY KEY,
+    operation_name TEXT NOT NULL UNIQUE,
+    cpu_symbol TEXT, cpu_file TEXT,
+    cuda_symbol TEXT, cuda_file TEXT,
+    opencl_symbol TEXT, opencl_file TEXT,
+    metal_symbol TEXT, metal_file TEXT,
+    parity_status TEXT DEFAULT 'unknown',  -- full|partial|cpu-only|missing-metal|missing-opencl|missing-cuda
+    notes TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_backend_map_op     ON backend_map(operation_name);
+CREATE INDEX IF NOT EXISTS idx_backend_map_parity ON backend_map(parity_status);
 """
 
 
@@ -6101,6 +6154,297 @@ def _bprint(msg):
     if not _QUIET:
         print(msg)
 
+# ============================================================
+# SCANNER: DATAFLOW GRAPH
+# ============================================================
+
+# secp256k1-specific type vocabulary (ordered from primitive → complex)
+_SECP256K1_TYPES = [
+    "uint8_t", "uint32_t", "uint64_t",
+    "Scalar", "FieldElement", "FieldElem", "fe",
+    "Point", "GroupElement", "ge", "gej",
+    "ECDSASignature", "SchnorrSignature", "RecoverableSignature",
+    "Scalar", "PrivateKey", "PublicKey", "SecretKey",
+    "SchnorrKeypair", "SchnorrXonlyPubkey",
+    "MuSig2State", "FROSTShare", "FROSTSignature",
+    "SHA256", "SHA512", "HMACSHA256", "HMACSHA512",
+    "ECIESMessage", "PedersenCommitment",
+    "array", "vector", "span",
+]
+
+_TYPE_NORMALIZE_RE = re.compile(
+    r'\b(fast::)?(secp256k1::(?:fast::)?)?'
+    r'(Scalar|FieldElement|FieldElem|Point|ECDSASignature|SchnorrSignature|'
+    r'RecoverableSignature|PrivateKey|PublicKey|SecretKey|SchnorrKeypair|'
+    r'SchnorrXonlyPubkey|MuSig2State|FROSTShare|FROSTSignature|'
+    r'SHA256|SHA512|HMAC|ECIESMessage|PedersenCommitment|GroupElement)\b'
+)
+
+def _extract_types_from_signature(sig_text):
+    """Return list of normalized type names mentioned in a function signature."""
+    found = []
+    for m in _TYPE_NORMALIZE_RE.finditer(sig_text or ""):
+        t = m.group(3)
+        if t and t not in found:
+            found.append(t)
+    return found
+
+
+def scan_dataflow(conn):
+    """Build type-level dataflow graph: which types flow into and out of each function."""
+    rows = conn.execute(
+        "SELECT fi.file, fi.function_name, fi.class_name, fi.project, "
+        "COALESCE(fs.params, fi.signature) AS params_text, "
+        "COALESCE(fs.return_type, '') AS return_type "
+        "FROM function_index fi "
+        "LEFT JOIN function_summaries fs ON fs.file = fi.file AND fs.function_name = fi.function_name AND fs.start_line = fi.start_line "
+        "ORDER BY fi.file, fi.start_line"
+    ).fetchall()
+
+    inserted = 0
+    for row in rows:
+        func = row["function_name"]
+        ffile = row["file"]
+        proj = row["project"] or ""
+        params_text = row["params_text"] or ""
+        return_type = row["return_type"] or ""
+
+        param_types = _extract_types_from_signature(params_text)
+        ret_types   = _extract_types_from_signature(return_type)
+
+        # Build edges: param_type → return_type  via this function
+        for pt in param_types:
+            for rt in ret_types:
+                if pt == rt:
+                    kind = "alias"
+                else:
+                    kind = "transform"
+                try:
+                    conn.execute(
+                        "INSERT OR IGNORE INTO dataflow_edges "
+                        "(from_type, to_type, via_function, via_file, project, flow_kind, confidence) "
+                        "VALUES (?,?,?,?,?,?,?)",
+                        (pt, rt, func, ffile, proj, kind, 70)
+                    )
+                    inserted += 1
+                except Exception:
+                    pass
+
+        # Also record single-type "produce" (function produces this type from primitives)
+        for rt in ret_types:
+            if not param_types:
+                try:
+                    conn.execute(
+                        "INSERT OR IGNORE INTO dataflow_edges "
+                        "(from_type, to_type, via_function, via_file, project, flow_kind, confidence) "
+                        "VALUES (?,?,?,?,?,?,?)",
+                        ("(input)", rt, func, ffile, proj, "produce", 50)
+                    )
+                    inserted += 1
+                except Exception:
+                    pass
+
+    conn.commit()
+    if not _QUIET:
+        print(f"  [dataflow] {inserted} flow edges from {len(rows)} functions")
+
+
+# ============================================================
+# SCANNER: INVARIANTS
+# ============================================================
+
+_INVARIANT_PATTERNS = [
+    # C assert / SECP256K1_ASSERT / custom ASSERT macros
+    (re.compile(r'\b(?:assert|ASSERT|SECP256K1_ASSERT|VERIFY_CHECK|CHECK)\s*\(([^;]{1,200})\)'), "assert", "critical"),
+    # static_assert
+    (re.compile(r'\bstatic_assert\s*\(([^,;]{1,200})'), "static_assert", "info"),
+    # REQUIRES / EXPECTS macros (GSL-style)
+    (re.compile(r'\b(?:REQUIRES|EXPECTS|ENSURES|GUARANTEE)\s*\(([^;]{1,200})\)'), "precondition", "warning"),
+    # CT_VERIFY / constant-time guards
+    (re.compile(r'\b(?:CT_VERIFY|SECP256K1_DECLASSIFY|VALGRIND_MAKE_MEM_DEFINED)\s*\(([^;]{1,120})\)'), "ct_guard", "critical"),
+]
+
+# Comment invariant keywords: lines starting with // containing these trigger a "comment_constraint"
+_COMMENT_INVARIANT_RE = re.compile(
+    r'//.*\b(must|never|require[sd]?|precondition|postcondition|invariant|guaranteed|MUST|NEVER|assert)\b'
+    r'(?::?\s*)([^/\n]{0,120})',
+    re.IGNORECASE
+)
+
+# Types that comment invariants frequently constrain
+_CONSTRAINT_TYPE_RE = re.compile(
+    r'\b(Scalar|FieldElement|Point|ECDSASignature|SchnorrSignature|RecoverableSignature|'
+    r'PrivateKey|PublicKey|nonce|hash|recid|r|s|k)\b'
+)
+
+
+def scan_invariants(conn):
+    """Extract assert/precondition/comment constraints from function bodies."""
+    rows = conn.execute(
+        "SELECT fb.file, fb.function_name, fb.class_name, fb.start_line, fb.body, fb.project "
+        "FROM function_bodies fb ORDER BY fb.file, fb.start_line"
+    ).fetchall()
+
+    inserted = 0
+    for row in rows:
+        fname = row["function_name"]
+        ffile = row["file"]
+        start = row["start_line"] or 0
+        body = row["body"] or ""
+        lines = body.splitlines()
+
+        for lineno, line in enumerate(lines, start=start):
+            # Structural invariant patterns
+            for pat, inv_type, severity in _INVARIANT_PATTERNS:
+                for m in pat.finditer(line):
+                    text = m.group(1).strip()[:240]
+                    # Detect which type this constrains
+                    tm = _CONSTRAINT_TYPE_RE.search(text)
+                    related = tm.group(1) if tm else None
+                    try:
+                        conn.execute(
+                            "INSERT INTO invariants "
+                            "(symbol_name, file, line, invariant_text, invariant_type, severity, confidence, related_type) "
+                            "VALUES (?,?,?,?,?,?,?,?)",
+                            (fname, ffile, lineno, text, inv_type, severity, 75, related)
+                        )
+                        inserted += 1
+                    except Exception:
+                        pass
+
+            # Comment constraints
+            cm = _COMMENT_INVARIANT_RE.search(line)
+            if cm:
+                text = (cm.group(1) + ": " + cm.group(2)).strip()[:240]
+                tm = _CONSTRAINT_TYPE_RE.search(text)
+                related = tm.group(1) if tm else None
+                try:
+                    conn.execute(
+                        "INSERT INTO invariants "
+                        "(symbol_name, file, line, invariant_text, invariant_type, severity, confidence, related_type) "
+                        "VALUES (?,?,?,?,?,?,?,?)",
+                        (fname, ffile, lineno, text, "comment_constraint", "info", 50, related)
+                    )
+                    inserted += 1
+                except Exception:
+                    pass
+
+    conn.commit()
+    if not _QUIET:
+        print(f"  [invariants] {inserted} invariant entries from {len(rows)} function bodies")
+
+
+# ============================================================
+# SCANNER: BACKEND MAP (CPU ↔ CUDA ↔ OpenCL ↔ Metal)
+# ============================================================
+
+# Backend directory patterns relative to project root
+_BACKEND_DIRS = {
+    "cpu":    ["cpu/src", "cpu/include"],
+    "cuda":   ["gpu/src", "gpu/include", "gpu/kernels"],
+    "opencl": ["opencl", "opencl/kernels", "opencl/src"],
+    "metal":  ["metal", "metal/src", "metal/kernels"],
+}
+
+# Normalize function names for cross-backend matching:
+# strip backend prefixes, lower-case, remove _impl/_kernel/_cl/_cu
+_BACKEND_NORM_RE = re.compile(
+    r'^(?:ufsecp_gpu_|ufsecp_|secp256k1_|secp256k1::|ct::|fast::)?'
+    r'(.*?)(?:_impl|_kernel|_cl|_cu|_metal|_host|_dispatch)?$',
+    re.IGNORECASE
+)
+
+def _normalize_op(name):
+    m = _BACKEND_NORM_RE.match(name or "")
+    return m.group(1).lower() if m else (name or "").lower()
+
+
+def scan_backend_map(conn):
+    """Match CPU/CUDA/OpenCL/Metal functions by normalized operation name."""
+    # Gather all functions per backend bucket
+    all_funcs = conn.execute(
+        "SELECT file, function_name, project FROM function_index ORDER BY file"
+    ).fetchall()
+
+    backend_funcs = {"cpu": {}, "cuda": {}, "opencl": {}, "metal": {}}
+
+    for row in all_funcs:
+        f = row["file"].replace("\\", "/")
+        fn = row["function_name"]
+        # Classify by path prefix
+        for backend, dirs in _BACKEND_DIRS.items():
+            if any(f.startswith(d) or f"/{d}/" in f or f"\\{d}\\" in f for d in dirs):
+                norm = _normalize_op(fn)
+                if norm and len(norm) > 3:
+                    if norm not in backend_funcs[backend]:
+                        backend_funcs[backend][norm] = (fn, f)
+                break
+        # Also classify by file extension / keyword
+        if f.endswith(".cu") or f.endswith(".cuh"):
+            norm = _normalize_op(fn)
+            if norm and len(norm) > 3:
+                backend_funcs["cuda"].setdefault(norm, (fn, f))
+        elif f.endswith(".cl"):
+            norm = _normalize_op(fn)
+            if norm and len(norm) > 3:
+                backend_funcs["opencl"].setdefault(norm, (fn, f))
+        elif f.endswith(".metal"):
+            norm = _normalize_op(fn)
+            if norm and len(norm) > 3:
+                backend_funcs["metal"].setdefault(norm, (fn, f))
+
+    # Union of all known operations
+    all_ops = set()
+    for bd in backend_funcs.values():
+        all_ops.update(bd.keys())
+
+    inserted = 0
+    for op in sorted(all_ops):
+        cpu    = backend_funcs["cpu"].get(op)
+        cuda   = backend_funcs["cuda"].get(op)
+        opencl = backend_funcs["opencl"].get(op)
+        metal  = backend_funcs["metal"].get(op)
+
+        present = sum(1 for x in [cpu, cuda, opencl, metal] if x)
+        if present == 4:
+            parity = "full"
+        elif cpu and not cuda and not opencl and not metal:
+            parity = "cpu-only"
+        elif present == 1:
+            parity = "single-backend"
+        elif not metal and (cuda or opencl):
+            parity = "missing-metal"
+        elif not opencl and (cuda or metal):
+            parity = "missing-opencl"
+        elif not cuda and (opencl or metal):
+            parity = "missing-cuda"
+        else:
+            parity = "partial"
+
+        try:
+            conn.execute(
+                "INSERT OR REPLACE INTO backend_map "
+                "(operation_name, cpu_symbol, cpu_file, cuda_symbol, cuda_file, "
+                "opencl_symbol, opencl_file, metal_symbol, metal_file, parity_status) "
+                "VALUES (?,?,?,?,?,?,?,?,?,?)",
+                (
+                    op,
+                    cpu[0] if cpu else None,    cpu[1] if cpu else None,
+                    cuda[0] if cuda else None,   cuda[1] if cuda else None,
+                    opencl[0] if opencl else None, opencl[1] if opencl else None,
+                    metal[0] if metal else None,  metal[1] if metal else None,
+                    parity,
+                )
+            )
+            inserted += 1
+        except Exception:
+            pass
+
+    conn.commit()
+    if not _QUIET:
+        print(f"  [backend_map] {inserted} operations mapped across backends")
+
+
 def build():
     """Build the complete source graph database."""
     _bprint("[*] Creating database...")
@@ -6245,6 +6589,15 @@ def build():
     print("[*] Building full-text search index...")
     build_fts_index(conn)
 
+    print("[*] Building type-level dataflow graph...")
+    scan_dataflow(conn)
+
+    print("[*] Extracting invariants (assert/precondition/comment)...")
+    scan_invariants(conn)
+
+    print("[*] Mapping CPU/CUDA/OpenCL/Metal backend parity...")
+    scan_backend_map(conn)
+
     print("[*] Updating file hashes...")
     _update_file_hashes(conn)
 
@@ -6333,6 +6686,9 @@ def _full_build_with_preserve():
     scan_function_index(conn)
     scan_edges(conn)
     scan_call_edges(conn)
+    scan_dataflow(conn)
+    scan_invariants(conn)
+    scan_backend_map(conn)
 
     _rebuild_aggregation_tables(conn)
     _update_file_hashes(conn)
@@ -6353,6 +6709,7 @@ def _rebuild_aggregation_tables(conn):
         "audit_coverage", "history_metrics", "review_queue", "ownership_metrics",
         "test_function_map", "symbol_metadata", "analysis_scores",
         "symbol_audit_coverage", "ai_tasks", "edges",
+        "dataflow_edges", "invariants", "backend_map",
     ]
     tables = {r[0] for r in conn.execute(
         "SELECT name FROM sqlite_master WHERE type='table'"
@@ -6377,6 +6734,9 @@ def _rebuild_aggregation_tables(conn):
     scan_symbol_audit_coverage(conn)
     scan_ai_tasks(conn)
     build_fts_index(conn)
+    scan_dataflow(conn)
+    scan_invariants(conn)
+    scan_backend_map(conn)
 
 
 def _compute_changed_files(conn):
@@ -8977,6 +9337,368 @@ def bottlenecks_cmd(term=None):
     )
 
 
+# ============================================================
+# COMMAND: dataflow  — Type-level data flow graph
+# ============================================================
+
+def dataflow_cmd(term=None):
+    """Show how data types transform through the codebase.
+    Usage: dataflow [type]  — e.g. dataflow Scalar, dataflow ECDSASignature
+    Shows: which functions transform FROM or TO this type, and full type chain."""
+    conn = get_conn()
+    if term:
+        pattern = f"%{term}%"
+        # Show edges where this type is source OR destination
+        rows = conn.execute(
+            "SELECT from_type, to_type, via_function, via_file, flow_kind, confidence "
+            "FROM dataflow_edges "
+            "WHERE from_type LIKE ? OR to_type LIKE ? "
+            "ORDER BY confidence DESC, from_type, to_type LIMIT 80",
+            (pattern, pattern)
+        ).fetchall()
+        print(f"\n  Dataflow edges for type '{term}':")
+        print_table(rows, ["from_type", "to_type", "via_function", "via_file", "flow_kind", "confidence"])
+
+        # Show downstream chain: what does 'term' eventually produce?
+        visited = set()
+        chain = [(term, 0)]
+        frontier = [term]
+        print(f"\n  Downstream type chain from '{term}' (depth ≤ 6):")
+        for _depth in range(6):
+            if not frontier:
+                break
+            placeholders = ",".join("?" * len(frontier))
+            nexts = conn.execute(
+                f"SELECT DISTINCT to_type, via_function FROM dataflow_edges "
+                f"WHERE from_type IN ({placeholders}) AND to_type != from_type",
+                frontier
+            ).fetchall()
+            new_frontier = []
+            for r in nexts:
+                if r["to_type"] not in visited:
+                    visited.add(r["to_type"])
+                    new_frontier.append(r["to_type"])
+                    chain.append((r["to_type"], _depth + 1))
+            frontier = new_frontier
+        for t, depth in chain[1:]:
+            print(f"    {'  ' * depth}→ {t}")
+    else:
+        # Show type-flow summary: most-connected types
+        rows = conn.execute(
+            "SELECT from_type, COUNT(*) as out_degree FROM dataflow_edges GROUP BY from_type "
+            "UNION ALL "
+            "SELECT to_type, COUNT(*) as in_degree FROM dataflow_edges GROUP BY to_type "
+            "ORDER BY 2 DESC LIMIT 40"
+        ).fetchall()
+        print("\n  Type connectivity (top 40):")
+        print_table(rows, ["from_type", "out_degree"])
+
+
+# ============================================================
+# COMMAND: invariants  — Show invariants for a symbol / type
+# ============================================================
+
+def invariants_cmd(term=None):
+    """Show invariants (assert/precondition/comment) for a function or type.
+    Usage: invariants [term]  — term can be function name or type name"""
+    conn = get_conn()
+    if term:
+        pattern = f"%{term}%"
+        rows = conn.execute(
+            "SELECT symbol_name, file, line, invariant_type, severity, invariant_text, related_type, confidence "
+            "FROM invariants "
+            "WHERE symbol_name LIKE ? OR invariant_text LIKE ? OR related_type LIKE ? "
+            "ORDER BY severity DESC, confidence DESC, file, line LIMIT 100",
+            (pattern, pattern, pattern)
+        ).fetchall()
+        title = f"'{term}'"
+    else:
+        rows = conn.execute(
+            "SELECT symbol_name, file, line, invariant_type, severity, invariant_text, related_type, confidence "
+            "FROM invariants ORDER BY severity DESC, confidence DESC, file LIMIT 80"
+        ).fetchall()
+        title = "all (top 80 by severity)"
+    print(f"\n  Invariants for {title}:")
+    print_table(rows, ["symbol_name", "file", "line", "invariant_type", "severity", "invariant_text", "related_type", "confidence"])
+
+
+# ============================================================
+# COMMAND: invcheck  — Find functions with invariant-sensitive types but no checks
+# ============================================================
+
+def invcheck_cmd(term=None):
+    """Find functions that handle invariant-sensitive types but have no corresponding assert.
+    Usage: invcheck [file_pattern]
+    Threat model: missing normalization / precondition check → potential exploit path."""
+    conn = get_conn()
+
+    # Which types have known invariants?
+    typed_invariants = conn.execute(
+        "SELECT DISTINCT related_type FROM invariants WHERE related_type IS NOT NULL"
+    ).fetchall()
+    sensitive_types = {r["related_type"] for r in typed_invariants}
+
+    if not sensitive_types:
+        print("  [invcheck] No typed invariants indexed yet. Run 'build -i' first.")
+        return
+
+    # Functions that handle sensitive types (from dataflow) but have NO assert in their body
+    has_assert = {
+        r["symbol_name"]
+        for r in conn.execute(
+            "SELECT DISTINCT symbol_name FROM invariants WHERE invariant_type IN ('assert','precondition','ct_guard')"
+        ).fetchall()
+    }
+
+    # Functions that consume sensitive types (from dataflow_edges)
+    placeholders = ",".join("?" * len(sensitive_types))
+    sensitive_consumers = conn.execute(
+        f"SELECT DISTINCT via_function, via_file FROM dataflow_edges "
+        f"WHERE from_type IN ({placeholders}) ORDER BY via_file, via_function",
+        list(sensitive_types)
+    ).fetchall()
+
+    risky = []
+    for r in sensitive_consumers:
+        fname = r["via_function"]
+        ffile = r["via_file"]
+        if term and term.lower() not in ffile.lower() and term.lower() not in fname.lower():
+            continue
+        if fname not in has_assert:
+            risky.append({"function": fname, "file": ffile, "risk": "no-assert-for-sensitive-type"})
+
+    print(f"\n  [invcheck] Functions handling sensitive types ({', '.join(sorted(sensitive_types)[:6])}...) with NO assert:")
+    print(f"  Found {len(risky)} potential gaps:\n")
+    for r in risky[:60]:
+        print(f"    {r['function']:<40}  {r['file']}")
+
+
+# ============================================================
+# COMMAND: backendmap  — CPU/CUDA/OpenCL/Metal parity view
+# ============================================================
+
+def backendmap_cmd(term=None):
+    """Show cross-backend operation mapping.
+    Usage: backendmap [operation]  — show one op; no arg = show all gaps
+    Flags partial parity: missing CUDA, OpenCL, or Metal implementations."""
+    conn = get_conn()
+    if term:
+        pattern = f"%{term}%"
+        rows = conn.execute(
+            "SELECT operation_name, cpu_symbol, cpu_file, cuda_symbol, cuda_file, "
+            "opencl_symbol, opencl_file, metal_symbol, metal_file, parity_status, notes "
+            "FROM backend_map WHERE operation_name LIKE ? OR cpu_symbol LIKE ? "
+            "ORDER BY parity_status, operation_name LIMIT 40",
+            (pattern, pattern)
+        ).fetchall()
+        title = f"'{term}'"
+    else:
+        # Show gaps: anything not 'full' or 'cpu-only'
+        rows = conn.execute(
+            "SELECT operation_name, cpu_symbol, cpu_file, cuda_symbol, cuda_file, "
+            "opencl_symbol, opencl_file, metal_symbol, metal_file, parity_status "
+            "FROM backend_map WHERE parity_status NOT IN ('full','cpu-only','single-backend') "
+            "ORDER BY parity_status, operation_name LIMIT 80"
+        ).fetchall()
+        title = "parity gaps"
+        # Also print summary counts
+        counts = conn.execute(
+            "SELECT parity_status, COUNT(*) as n FROM backend_map GROUP BY parity_status ORDER BY n DESC"
+        ).fetchall()
+        print("\n  Backend parity summary:")
+        for c in counts:
+            print(f"    {c['parity_status']:<20} {c['n']:>5}")
+
+    print(f"\n  Backend map for {title}:")
+    print_table(rows, [
+        "operation_name", "cpu_symbol", "cuda_symbol", "opencl_symbol", "metal_symbol", "parity_status"
+    ])
+
+
+# ============================================================
+# COMMAND: exploitpath  — Traverse call graph for exploit opportunities
+# ============================================================
+
+def exploitpath_cmd(term=None):
+    """Traverse the call graph from an entry point looking for exploit opportunities.
+    Usage: exploitpath [entry_function_or_file]
+    Heuristics:
+      - Parser boundary (input from untrusted source)
+      - Missing normalization (handles Scalar/Point but no assert)
+      - CT violation candidates (high-risk CT path without CT guard)
+      - Invariant-constrained types passed to unchecked callees
+    """
+    conn = get_conn()
+
+    # Step 1: identify entry points
+    if term:
+        pattern = f"%{term}%"
+        entries = conn.execute(
+            "SELECT DISTINCT caller_symbol, caller_file FROM call_edges "
+            "WHERE caller_symbol LIKE ? OR caller_file LIKE ? "
+            "UNION "
+            "SELECT DISTINCT symbol_name, file_path FROM symbol_metadata "
+            "WHERE symbol_name LIKE ? OR file_path LIKE ? "
+            "LIMIT 20",
+            (pattern, pattern, pattern, pattern)
+        ).fetchall()
+    else:
+        # Default: start from parser/boundary functions
+        entries = conn.execute(
+            "SELECT DISTINCT caller_symbol, caller_file FROM call_edges "
+            "WHERE caller_file LIKE '%parse%' OR caller_file LIKE '%abi%' "
+            "   OR caller_symbol LIKE '%parse%' OR caller_symbol LIKE '%verify%' "
+            "LIMIT 20"
+        ).fetchall()
+
+    if not entries:
+        print("  [exploitpath] No entry points found. Try: exploitpath ecdsa_sign")
+        return
+
+    # Step 2: load risk signals
+    no_assert_set = set()
+    for r in conn.execute(
+        "SELECT DISTINCT via_function FROM dataflow_edges de "
+        "WHERE NOT EXISTS ("
+        "  SELECT 1 FROM invariants inv WHERE inv.symbol_name = de.via_function "
+        "  AND inv.invariant_type IN ('assert','precondition','ct_guard')"
+        ")"
+    ).fetchall():
+        no_assert_set.add(r["via_function"])
+
+    ct_sensitive_set = set()
+    for r in conn.execute(
+        "SELECT DISTINCT symbol_name FROM symbol_metadata WHERE ct_sensitive = 1"
+    ).fetchall():
+        ct_sensitive_set.add(r["symbol_name"])
+
+    # Step 3: BFS along call edges, flag risky nodes
+    visited = set()
+    queue = [(e["caller_symbol"], e["caller_file"], 0) for e in entries[:5]]
+    findings = []
+
+    while queue:
+        sym, ffile, depth = queue.pop(0)
+        if sym in visited or depth > 8:
+            continue
+        visited.add(sym)
+
+        risks = []
+        if sym in no_assert_set:
+            risks.append("no-invariant-check")
+        if sym in ct_sensitive_set:
+            risks.append("ct-sensitive")
+        if "parse" in sym.lower() or "from_bytes" in sym.lower():
+            risks.append("parser-boundary")
+        if "verify" not in sym.lower() and ("sign" in sym.lower() or "scalar_mul" in sym.lower()):
+            risks.append("signing-path")
+
+        if risks:
+            findings.append({
+                "depth": depth,
+                "symbol": sym,
+                "file": ffile,
+                "risks": "|".join(risks)
+            })
+
+        # Expand callees
+        callees = conn.execute(
+            "SELECT callee_symbol, callee_file FROM call_edges "
+            "WHERE caller_symbol = ? AND caller_file = ? "
+            "ORDER BY confidence DESC, call_count DESC LIMIT 8",
+            (sym, ffile)
+        ).fetchall()
+        for c in callees:
+            if c["callee_symbol"] not in visited:
+                queue.append((c["callee_symbol"], c["callee_file"], depth + 1))
+
+    print(f"\n  [exploitpath] Entry: '{term or 'parser/abi boundary'}' — {len(findings)} risky nodes found:\n")
+    findings.sort(key=lambda x: (x["depth"], x["file"]))
+    for f in findings[:60]:
+        depth_indent = "  " * f["depth"]
+        print(f"    [{f['depth']}]{depth_indent} {f['symbol']:<45} {f['risks']}")
+        print(f"         {' ' * (f['depth'] * 2)} → {f['file']}")
+
+
+# ============================================================
+# COMMAND: hotpath  — Full hot call chain from entry to leaf
+# ============================================================
+
+def hotpath_cmd(term=None):
+    """Show the hot call chain rooted at a function or symbol.
+    Usage: hotpath [function_or_type]
+    Combines: call_graph depth + hot_path flag + call_count to show critical paths."""
+    conn = get_conn()
+
+    if not term:
+        # Default: top hot symbols as roots
+        roots = conn.execute(
+            "SELECT symbol_name, file_path, hot_path, caller_count, callee_count "
+            "FROM symbol_metadata WHERE hot_path = 1 "
+            "ORDER BY caller_count DESC LIMIT 10"
+        ).fetchall()
+        print("\n  Top hot path roots (use 'hotpath <symbol>' to expand):")
+        print_table(roots, ["symbol_name", "file_path", "hot_path", "caller_count", "callee_count"])
+        return
+
+    pattern = f"%{term}%"
+    # Find matching symbols
+    start_rows = conn.execute(
+        "SELECT DISTINCT caller_symbol, caller_file FROM call_edges "
+        "WHERE caller_symbol LIKE ? OR caller_file LIKE ? LIMIT 5",
+        (pattern, pattern)
+    ).fetchall()
+
+    if not start_rows:
+        print(f"  [hotpath] No call edges found for '{term}'")
+        return
+
+    # BFS down call graph, tracking cumulative call_count product
+    visited = set()
+    paths = []
+
+    def _dfs(sym, ffile, depth, path_so_far, cum_calls):
+        if sym in visited or depth > 10:
+            return
+        visited.add(sym)
+        hot = conn.execute(
+            "SELECT hot_path, caller_count FROM symbol_metadata WHERE symbol_name = ? AND file_path = ? LIMIT 1",
+            (sym, ffile)
+        ).fetchone()
+        is_hot = hot["hot_path"] if hot else 0
+        path_so_far = path_so_far + [(sym, ffile, depth, cum_calls, is_hot)]
+
+        callees = conn.execute(
+            "SELECT callee_symbol, callee_file, call_count FROM call_edges "
+            "WHERE caller_symbol = ? AND caller_file = ? ORDER BY call_count DESC LIMIT 6",
+            (sym, ffile)
+        ).fetchall()
+        if not callees:
+            paths.append(path_so_far)
+        else:
+            for c in callees:
+                _dfs(c["callee_symbol"], c["callee_file"], depth + 1, path_so_far, cum_calls * (c["call_count"] or 1))
+
+    for r in start_rows[:3]:
+        visited.clear()
+        _dfs(r["caller_symbol"], r["caller_file"], 0, [], 1)
+
+    if not paths:
+        print(f"  [hotpath] No paths found from '{term}'")
+        return
+
+    # Sort paths by cumulative call count descending
+    paths.sort(key=lambda p: -max(node[3] for node in p))
+
+    print(f"\n  Hot call chains from '{term}' (top {min(5, len(paths))}):\n")
+    for path in paths[:5]:
+        print("  — Chain:")
+        for sym, ffile, depth, cum, is_hot in path:
+            hot_marker = " ★HOT" if is_hot else ""
+            print(f"    {'  ' * depth}{sym}{hot_marker}  (cum_calls={cum})  {ffile}")
+        print()
+
+
 def auditmap_cmd(term=None):
     conn = get_conn()
     params = []
@@ -10362,6 +11084,18 @@ def main():
         init_cmd()
     elif cmd == "export-config":
         export_config_cmd()
+    elif cmd == "dataflow":
+        dataflow_cmd(" ".join(sys.argv[2:]) if len(sys.argv) > 2 else None)
+    elif cmd == "invariants":
+        invariants_cmd(" ".join(sys.argv[2:]) if len(sys.argv) > 2 else None)
+    elif cmd == "invcheck":
+        invcheck_cmd(" ".join(sys.argv[2:]) if len(sys.argv) > 2 else None)
+    elif cmd == "backendmap":
+        backendmap_cmd(" ".join(sys.argv[2:]) if len(sys.argv) > 2 else None)
+    elif cmd == "exploitpath":
+        exploitpath_cmd(" ".join(sys.argv[2:]) if len(sys.argv) > 2 else None)
+    elif cmd == "hotpath":
+        hotpath_cmd(" ".join(sys.argv[2:]) if len(sys.argv) > 2 else None)
     else:
         print(__doc__)
 
