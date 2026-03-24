@@ -734,6 +734,20 @@ target_compile_definitions(test_exploit_address_encoding_standalone PRIVATE STAN
 add_test(NAME exploit_address_encoding COMMAND test_exploit_address_encoding_standalone)
 set_tests_properties(exploit_address_encoding PROPERTIES TIMEOUT 60 LABELS "audit;exploit;address;bip352")
 
+# -- CT vs FAST layer output divergence (fills audit gap from 2026-03-24) ---
+add_executable(test_exploit_ct_systematic_standalone test_exploit_ct_systematic.cpp)
+audit_target_defaults(test_exploit_ct_systematic_standalone)
+target_compile_definitions(test_exploit_ct_systematic_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_ct_systematic COMMAND test_exploit_ct_systematic_standalone)
+set_tests_properties(exploit_ct_systematic PROPERTIES TIMEOUT 60 LABELS "audit;exploit;ct")
+
+# -- Backend divergence: recoverable sig, tamper detection, batch mixing ----
+add_executable(test_exploit_backend_divergence_standalone test_exploit_backend_divergence.cpp)
+audit_target_defaults(test_exploit_backend_divergence_standalone)
+target_compile_definitions(test_exploit_backend_divergence_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_backend_divergence COMMAND test_exploit_backend_divergence_standalone)
+set_tests_properties(exploit_backend_divergence PROPERTIES TIMEOUT 60 LABELS "audit;exploit;ct;backend")
+
 # -- ECIES regression + C ABI prefix enforcement ----------------------------
 add_executable(test_ecies_regression_standalone test_ecies_regression.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
@@ -1105,6 +1119,7 @@ set_tests_properties(
     exploit_ecies_roundtrip exploit_ecdh_variants exploit_glv_endomorphism
     exploit_sha_kat exploit_bip144_serialization
     exploit_musig2_key_agg exploit_bip32_derivation
+    exploit_ct_systematic exploit_backend_divergence
     PROPERTIES LABELS "audit"
 )
 if(SECP256K1_BUILD_PROTOCOL_TESTS)
