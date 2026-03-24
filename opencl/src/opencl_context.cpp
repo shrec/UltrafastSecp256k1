@@ -1499,8 +1499,8 @@ inline void affine_add_impl(AffinePoint* r,
 
     // OCL-H-03: detect H == 0 (P.x == Q.x); field_inv(0) = 0 via Fermat LT,
     // which produces wrong X3/Y3.  Mask out the result to (0,0) when degenerate.
-    uint64_t h_all = h.limbs[0] | h.limbs[1] | h.limbs[2] | h.limbs[3];
-    uint64_t h_nonzero_mask = (h_all != 0ULL) ? ~UINT64_C(0) : UINT64_C(0);
+    ulong h_all = h.limbs[0] | h.limbs[1] | h.limbs[2] | h.limbs[3];
+    ulong h_nonzero_mask = (h_all != 0UL) ? ~0UL : 0UL;
 
     field_inv_impl(&t, &h);
     field_mul_impl(&lam, &rr, &t);
