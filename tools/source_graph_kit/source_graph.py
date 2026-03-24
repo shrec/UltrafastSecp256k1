@@ -138,12 +138,37 @@ RESEARCH_DIR = REPO_ROOT / "ReversingResearch"
 # Active language adapter — set by load_config()
 LANG_ADAPTER = None  # type: LanguageAdapter
 _NON_RECURSIVE_SOURCE_DIRS = set()
+# Subdirectory name components to skip during rglob (e.g. node_modules, CMakeFiles)
+EXCLUDE_SUBDIR_NAMES: set = set()
 _ORIGINAL_PATH_RGLOB = Path.rglob
 
 
 def _path_rglob_with_source_dir_policy(self, pattern):
     if str(self.resolve()) in _NON_RECURSIVE_SOURCE_DIRS:
         return self.glob(pattern)
+    if EXCLUDE_SUBDIR_NAMES:
+        # Yield only files where no parent component matches an excluded name
+        def _filtered():
+            for p in _ORIGINAL_PATH_RGLOB(self, pattern):
+                try:
+                    parts = p.relative_to(self).parts[:-1]  # parent dir components
+                except ValueError:
+                    yield p
+                    continue
+                skip = False
+                for part in parts:
+                    if part in EXCLUDE_SUBDIR_NAMES:
+                        skip = True
+                        break
+                    for excl in EXCLUDE_SUBDIR_NAMES:
+                        if excl.endswith('*') and part.startswith(excl[:-1]):
+                            skip = True
+                            break
+                    if skip:
+                        break
+                if not skip:
+                    yield p
+        return _filtered()
     return _ORIGINAL_PATH_RGLOB(self, pattern)
 
 
@@ -2280,7 +2305,7 @@ def load_config():
     global CATEGORY_RULES, EXTERNAL_PATHS, SEED_DATA, CONFIG_PATH
     global GAME_DIR, COMMON_DIR, RUNTIME_DATA_ROOT, RESEARCH_DIR
     global LANG_ADAPTER
-    global _NON_RECURSIVE_SOURCE_DIRS
+    global _NON_RECURSIVE_SOURCE_DIRS, EXCLUDE_SUBDIR_NAMES
 
     config_path = _find_config_file()
     CONFIG_PATH = config_path
@@ -2298,6 +2323,9 @@ def load_config():
     LANG_ADAPTER = get_adapter(language)
     if not _QUIET:
         print(f"[*] Language: {LANG_ADAPTER.name} ({language})")
+
+    # Excluded subdirectory name components
+    EXCLUDE_SUBDIR_NAMES = set(cfg.get("project", {}).get("exclude_subdir_names", []))
 
     # Source directories
     SOURCE_DIRS = []

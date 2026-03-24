@@ -1,6 +1,25 @@
 [project]
 name = "UltrafastSecp256k1"
 language = "cpp"
+# Subdirectory name components to skip during file-tree scanning.
+# Wildcard suffix '*' matches any dir whose name starts with that prefix.
+exclude_subdir_names = [
+  "node_modules",
+  "__pycache__",
+  "CMakeFiles",
+  ".git",
+  "build_bench*",
+  "build_rel*",
+  "build_opencl*",
+  "build_ufsecp*",
+  "build-arm64*",
+  "build-cuda*",
+  "build-riscv*",
+  "Testing",
+  "target",
+  "dist",
+  ".pytest_cache",
+]
 
 [[source_dirs]]
 label = "cpu"
