@@ -626,6 +626,18 @@ target_compile_definitions(test_exploit_pippenger_msm_standalone PRIVATE STANDAL
 add_test(NAME exploit_pippenger_msm COMMAND test_exploit_pippenger_msm_standalone)
 set_tests_properties(exploit_pippenger_msm PROPERTIES TIMEOUT 120 LABELS "audit;exploit;msm")
 
+add_executable(test_exploit_recovery_extended_standalone test_exploit_recovery_extended.cpp)
+audit_target_defaults(test_exploit_recovery_extended_standalone)
+target_compile_definitions(test_exploit_recovery_extended_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_recovery_extended COMMAND test_exploit_recovery_extended_standalone)
+set_tests_properties(exploit_recovery_extended PROPERTIES TIMEOUT 60 LABELS "audit;exploit;ecdsa")
+
+add_executable(test_exploit_batch_verify_correctness_standalone test_exploit_batch_verify_correctness.cpp)
+audit_target_defaults(test_exploit_batch_verify_correctness_standalone)
+target_compile_definitions(test_exploit_batch_verify_correctness_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_batch_verify_correctness COMMAND test_exploit_batch_verify_correctness_standalone)
+set_tests_properties(exploit_batch_verify_correctness PROPERTIES TIMEOUT 120 LABELS "audit;exploit;batch")
+
 # -- ECIES regression + C ABI prefix enforcement ----------------------------
 add_executable(test_ecies_regression_standalone test_ecies_regression.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
