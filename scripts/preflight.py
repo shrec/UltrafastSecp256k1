@@ -86,6 +86,14 @@ def check_security_invariants():
         try:
             with open(filepath, 'r', errors='replace') as f:
                 for line in f:
+                    stripped = line.strip()
+                    # Skip comment-only lines for erase/barrier patterns,
+                    # matching build_project_graph.py scanning logic.
+                    # CLASSIFY/DECLASSIFY are exempt — the graph builder keeps
+                    # those even in comment lines (macro definition context).
+                    if pat_name in ('secure_erase', 'value_barrier'):
+                        if stripped.startswith('//') or stripped.startswith('#include'):
+                            continue
                     if pat_re.search(line):
                         count += 1
         except Exception:
@@ -273,7 +281,11 @@ def check_doc_pairing(changed_files):
                     missing.append((code_file, doc))
 
     # Check CT layer changes
-    ct_changed = [f for f in changed_files if 'ct_' in f or '/ct/' in f]
+    # Match only actual CT source files (filename starts with ct_), not paths
+    # that happen to contain the substring "ct_" (e.g. "project_graph.py")
+    ct_changed = [f for f in changed_files
+                  if (Path(f).name.startswith('ct_') and Path(f).suffix in ('.cpp', '.hpp', '.h'))
+                  or '/ct/' in f]
     if ct_changed:
         ct_docs = ['docs/CT_VERIFICATION.md', 'docs/SECURITY_CLAIMS.md']
         for doc in ct_docs:
@@ -299,7 +311,7 @@ def check_abi_surface():
     # Scan actual headers (ufsecp.h + ufsecp_version.h)
     actual = set()
     fn_re = re.compile(r'UFSECP_API\s+.*?(ufsecp_\w+)\s*\(')
-    for hdr_name in ('ufsecp.h', 'ufsecp_version.h'):
+    for hdr_name in ('ufsecp.h', 'ufsecp_gpu.h', 'ufsecp_version.h'):
         header = LIB_ROOT / 'include' / 'ufsecp' / hdr_name
         if header.exists():
             with open(header, 'r', errors='replace') as f:

@@ -124,6 +124,95 @@ public:
         size_t count,
         uint8_t* out_pubkeys33,      ///< count * 33 bytes (compressed pubkeys, zeros if failed)
         uint8_t* out_valid) = 0;     ///< count bytes (1 = recovered, 0 = failed)
+
+    /* -- ZK proof batch operations ----------------------------------------- */
+
+    /** Batch Schnorr knowledge-proof verification.
+     *  Each proof is 64 bytes: rx[32] || s[32].
+     *  Verifies s*G == R + e*P where e = H("ZK/knowledge" || rx || P || G || msg). */
+    virtual GpuError zk_knowledge_verify_batch(
+        const uint8_t* proofs64,     ///< count * 64 bytes (rx[32] || s[32])
+        const uint8_t* pubkeys65,    ///< count * 65 bytes (uncompressed affine: 04 || x[32] || y[32])
+        const uint8_t* messages32,   ///< count * 32 bytes
+        size_t count,
+        uint8_t* out_results)        ///< count bytes (1 = valid, 0 = invalid)
+    {
+        (void)proofs64; (void)pubkeys65; (void)messages32;
+        (void)count; (void)out_results;
+        return GpuError::Unsupported;
+    }
+
+    /** Batch DLEQ proof verification.
+     *  Each proof is 64 bytes: e[32] || s[32].
+     *  Verifies log_G(P) == log_H(Q) via Chaum–Pedersen. */
+    virtual GpuError zk_dleq_verify_batch(
+        const uint8_t* proofs64,     ///< count * 64 bytes (e[32] || s[32])
+        const uint8_t* G_pts65,      ///< count * 65 bytes (uncompressed affine)
+        const uint8_t* H_pts65,      ///< count * 65 bytes
+        const uint8_t* P_pts65,      ///< count * 65 bytes
+        const uint8_t* Q_pts65,      ///< count * 65 bytes
+        size_t count,
+        uint8_t* out_results)        ///< count bytes
+    {
+        (void)proofs64; (void)G_pts65; (void)H_pts65;
+        (void)P_pts65; (void)Q_pts65; (void)count; (void)out_results;
+        return GpuError::Unsupported;
+    }
+
+    /** Batch Bulletproof polynomial-check verification.
+     *  Each proof contains A, S, T1, T2 (4 affine points) + tau_x, t_hat (2 scalars).
+     *  Total per proof: 4*65 + 2*32 = 324 bytes.
+     *  Each commitment is 65 bytes (uncompressed affine). */
+    virtual GpuError bulletproof_verify_batch(
+        const uint8_t* proofs324,        ///< count * 324 bytes
+        const uint8_t* commitments65,    ///< count * 65 bytes
+        const uint8_t* H_generator65,    ///< 65 bytes (Pedersen H generator)
+        size_t count,
+        uint8_t* out_results)            ///< count bytes
+    {
+        (void)proofs324; (void)commitments65; (void)H_generator65;
+        (void)count; (void)out_results;
+        return GpuError::Unsupported;
+    }
+
+    /* -- BIP-324 transport batch operations -------------------------------- */
+
+    /** Batch BIP-324 AEAD encrypt.
+     *  Each packet has its own key, nonce, and payload.
+     *  Wire output per packet: 3-byte header + ciphertext + 16-byte tag.
+     *  Stride = max_payload + 19 bytes. */
+    virtual GpuError bip324_aead_encrypt_batch(
+        const uint8_t*  keys32,      ///< count * 32 bytes
+        const uint8_t*  nonces12,    ///< count * 12 bytes
+        const uint8_t*  plaintexts,  ///< count * max_payload bytes
+        const uint32_t* sizes,       ///< count payload sizes
+        uint32_t max_payload,
+        size_t count,
+        uint8_t* wire_out)           ///< count * (max_payload + 19) bytes
+    {
+        (void)keys32; (void)nonces12; (void)plaintexts;
+        (void)sizes; (void)max_payload; (void)count; (void)wire_out;
+        return GpuError::Unsupported;
+    }
+
+    /** Batch BIP-324 AEAD decrypt.
+     *  Verifies tag and decrypts.
+     *  Wire input stride: max_payload + 19 bytes. */
+    virtual GpuError bip324_aead_decrypt_batch(
+        const uint8_t*  keys32,      ///< count * 32 bytes
+        const uint8_t*  nonces12,    ///< count * 12 bytes
+        const uint8_t*  wire_in,     ///< count * (max_payload + 19) bytes
+        const uint32_t* sizes,       ///< count payload sizes
+        uint32_t max_payload,
+        size_t count,
+        uint8_t*  plaintext_out,     ///< count * max_payload bytes
+        uint8_t*  out_valid)         ///< count bytes (1 = ok, 0 = tag mismatch)
+    {
+        (void)keys32; (void)nonces12; (void)wire_in;
+        (void)sizes; (void)max_payload; (void)count;
+        (void)plaintext_out; (void)out_valid;
+        return GpuError::Unsupported;
+    }
 };
 
 /* -- Backend registry ------------------------------------------------------ */

@@ -256,6 +256,84 @@ __device__ __forceinline__ void bip352_tagged_sha256(
     sha256_final(&ctx, out);
 }
 
+// Specialized SHA-256 for the BIP-352 tagged hash with exactly 37-byte ser input.
+// Starting from BIP352_SHAREDSECRET_MIDSTATE, processes the single final 64-byte
+// block with an on-the-fly w[16] rolling schedule — no SHA256Ctx heap/stack use.
+// Saves ~300 bytes of per-thread local memory vs the general bip352_tagged_sha256.
+__device__ __forceinline__ void bip352_tagged_sha256_ser37(
+    const uint8_t ser[37],
+    uint8_t out[32])
+{
+    using namespace secp256k1::cuda;
+
+    // Working state initialised from precomputed tagged midstate.
+    uint32_t a  = BIP352_SHAREDSECRET_MIDSTATE.h[0];
+    uint32_t b  = BIP352_SHAREDSECRET_MIDSTATE.h[1];
+    uint32_t c  = BIP352_SHAREDSECRET_MIDSTATE.h[2];
+    uint32_t d  = BIP352_SHAREDSECRET_MIDSTATE.h[3];
+    uint32_t e  = BIP352_SHAREDSECRET_MIDSTATE.h[4];
+    uint32_t f  = BIP352_SHAREDSECRET_MIDSTATE.h[5];
+    uint32_t g  = BIP352_SHAREDSECRET_MIDSTATE.h[6];
+    uint32_t hh = BIP352_SHAREDSECRET_MIDSTATE.h[7];
+
+    // Build w[16] for the single final 64-byte block:
+    //   bytes  0-36: ser[0..36]
+    //   byte  37:    0x80  (SHA-256 padding)
+    //   bytes 38-55: 0x00
+    //   bytes 56-63: 808 big-endian  (= (64+37)*8 bits = 0x0000000000000328)
+    uint32_t w[16];
+    #pragma unroll
+    for (int k = 0; k < 9; k++) {
+        w[k] = ((uint32_t)ser[k*4  ] << 24) | ((uint32_t)ser[k*4+1] << 16)
+             | ((uint32_t)ser[k*4+2] <<  8) |  (uint32_t)ser[k*4+3];
+    }
+    w[9]  = ((uint32_t)ser[36] << 24) | 0x00800000u; // ser[36] | pad | 0 | 0
+    w[10] = w[11] = w[12] = w[13] = w[14] = 0u;
+    w[15] = 0x00000328u; // 808 = 0x328 (low 32 bits of bit-length)
+
+    // 64 rounds: first 16 use w[] directly; rounds 16-63 update w[] on-the-fly.
+    #define BSHA_ROUND(wi_) do { \
+        uint32_t S1_  = sha256_rotr(e,6)^sha256_rotr(e,11)^sha256_rotr(e,25); \
+        uint32_t ch_  = (e&f)^(~e&g); \
+        uint32_t t1_  = hh + S1_ + ch_ + SHA256_K[i_] + (wi_); \
+        uint32_t S0_  = sha256_rotr(a,2)^sha256_rotr(a,13)^sha256_rotr(a,22); \
+        uint32_t maj_ = (a&b)^(a&c)^(b&c); \
+        uint32_t t2_  = S0_ + maj_; \
+        hh=g; g=f; f=e; e=d+t1_; d=c; c=b; b=a; a=t1_+t2_; \
+    } while(0)
+
+    int i_;
+    #pragma unroll 1
+    for (i_ = 0; i_ < 16; i_++) { BSHA_ROUND(w[i_]); }
+    #pragma unroll 1
+    for (; i_ < 64; i_++) {
+        int j = i_ & 15;
+        uint32_t s0 = sha256_rotr(w[(j+1)&15], 7) ^ sha256_rotr(w[(j+1)&15], 18) ^ (w[(j+1)&15] >> 3);
+        uint32_t s1 = sha256_rotr(w[(j+14)&15],17) ^ sha256_rotr(w[(j+14)&15], 19) ^ (w[(j+14)&15] >> 10);
+        w[j] += s0 + w[(j+9)&15] + s1;
+        BSHA_ROUND(w[j]);
+    }
+    #undef BSHA_ROUND
+
+    // Davies-Meyer: add compressed working values back to initial state.
+    a  += BIP352_SHAREDSECRET_MIDSTATE.h[0];
+    b  += BIP352_SHAREDSECRET_MIDSTATE.h[1];
+    c  += BIP352_SHAREDSECRET_MIDSTATE.h[2];
+    d  += BIP352_SHAREDSECRET_MIDSTATE.h[3];
+    e  += BIP352_SHAREDSECRET_MIDSTATE.h[4];
+    f  += BIP352_SHAREDSECRET_MIDSTATE.h[5];
+    g  += BIP352_SHAREDSECRET_MIDSTATE.h[6];
+    hh += BIP352_SHAREDSECRET_MIDSTATE.h[7];
+
+    // Write output big-endian.
+    #define WR32BE(arr, off, v) \
+        (arr)[(off)+0]=(uint8_t)((v)>>24); (arr)[(off)+1]=(uint8_t)((v)>>16); \
+        (arr)[(off)+2]=(uint8_t)((v)>> 8); (arr)[(off)+3]=(uint8_t)(v)
+    WR32BE(out,  0, a); WR32BE(out,  4, b); WR32BE(out,  8, c); WR32BE(out, 12, d);
+    WR32BE(out, 16, e); WR32BE(out, 20, f); WR32BE(out, 24, g); WR32BE(out, 28, hh);
+    #undef WR32BE
+}
+
 // ============================================================================
 // GPU Kernel: Full BIP-352 pipeline (1 thread per tweak point)
 // ============================================================================
@@ -428,6 +506,30 @@ __global__ void bip352_pipeline_kernel_lut_pretbl(
     const secp256k1::cuda::AffinePoint* __restrict__ tables_P,
     const secp256k1::cuda::AffinePoint* __restrict__ tables_phiP,
     const secp256k1::cuda::FieldElement* __restrict__ globalz_buf,
+    const secp256k1::cuda::AffinePoint* __restrict__ gen_lut,
+    int64_t* __restrict__ prefixes,
+    int n);
+
+// Pretbl + SHA-256 w[16] schedule (no SHA256Ctx, ~300 B less stack spill).
+__global__ void bip352_pipeline_kernel_lut_pretbl_sha256opt(
+    const secp256k1::cuda::AffinePoint* __restrict__ tables_P,
+    const secp256k1::cuda::AffinePoint* __restrict__ tables_phiP,
+    const secp256k1::cuda::FieldElement* __restrict__ globalz_buf,
+    const secp256k1::cuda::AffinePoint* __restrict__ gen_lut,
+    int64_t* __restrict__ prefixes,
+    int n);
+
+// Precompute serialized shared-secret bytes (k*P result compressed) per tweak.
+__global__ void precompute_ser_kernel(
+    const secp256k1::cuda::AffinePoint* __restrict__ tables_P,
+    const secp256k1::cuda::AffinePoint* __restrict__ tables_phiP,
+    const secp256k1::cuda::FieldElement* __restrict__ globalz_buf,
+    uint8_t* __restrict__ ser_buf,
+    int n);
+
+// Pre-serialized pipeline: loads precomputed ser, skips k*P + 1st field_inv.
+__global__ void bip352_pipeline_kernel_lut_preser(
+    const uint8_t* __restrict__ ser_buf,
     const secp256k1::cuda::AffinePoint* __restrict__ gen_lut,
     int64_t* __restrict__ prefixes,
     int n);
@@ -862,6 +964,26 @@ int main() {
     }
     printf("\n");
 
+    // ================================================================
+    // Phase 3.7: Precompute serialized shared-secret bytes (k*P compressed).
+    // Re-uses the wNAF tables from Phase 3.6.  Eliminates k*P scalar-mul and
+    // the first field_inv from the hot pipeline in the preser kernel variant.
+    // ================================================================
+    uint8_t* d_ser_buf = nullptr;
+    {
+        size_t ser_sz = (size_t)BENCH_N * 37;
+        CUDA_CHECK(cudaMalloc(&d_ser_buf, ser_sz));
+        printf("Precomputing serialized shared-secret bytes (%.1f MB)...\n",
+               (double)ser_sz / 1e6);
+        int sb_tpb    = 256;
+        int sb_blocks = (BENCH_N + sb_tpb - 1) / sb_tpb;
+        precompute_ser_kernel<<<sb_blocks, sb_tpb>>>(
+            d_tables_P, d_tables_phiP, d_globalz, d_ser_buf, BENCH_N);
+        CUDA_CHECK(cudaDeviceSynchronize());
+        printf("Done.\n");
+    }
+    printf("\n");
+
     // GPU pre-warmup: LUT build + wNAF precompute are brief (~500 ms total) and
     // are not enough to bring the GPU from idle P-state to sustained boost clock.
     // Run BENCH_CLOCK_WARMUP full-batch pipeline passes before autotuning so that
@@ -890,6 +1012,31 @@ int main() {
         [&](int blocks, int tpb) {
             bip352_pipeline_kernel_lut<<<blocks, tpb>>>(
                 d_tweaks, d_scan_key, d_spend, d_gen_lut, d_prefixes, BENCH_N);
+        });
+    // pretbl variant: precomputed per-tweak tables in global mem, coalesced reads.
+    // REG:203 so max tpb = floor(65536/203/32)*32 = 320.
+    const int gpu_tpb_pretbl = autotune_gpu_tpb(
+        "GPU pipeline (LUT+pretbl)", BENCH_N, prop.maxThreadsPerBlock,
+        {64, 128, 192, 256, 320},
+        [&](int blocks, int tpb) {
+            bip352_pipeline_kernel_lut_pretbl<<<blocks, tpb>>>(
+                d_tables_P, d_tables_phiP, d_globalz, d_gen_lut, d_prefixes, BENCH_N);
+        });
+    // sha256opt: same as pretbl but avoids SHA256Ctx and w[64] stack spill.
+    const int gpu_tpb_sha256opt = autotune_gpu_tpb(
+        "GPU pipeline (LUT+pretbl+sha256opt)", BENCH_N, prop.maxThreadsPerBlock,
+        {64, 128, 192, 256, 320},
+        [&](int blocks, int tpb) {
+            bip352_pipeline_kernel_lut_pretbl_sha256opt<<<blocks, tpb>>>(
+                d_tables_P, d_tables_phiP, d_globalz, d_gen_lut, d_prefixes, BENCH_N);
+        });
+    // preser: loads precomputed ser, skips k*P + 1st field_inv entirely.
+    const int gpu_tpb_preser = autotune_gpu_tpb(
+        "GPU pipeline (LUT+preser)", BENCH_N, prop.maxThreadsPerBlock,
+        {64, 128, 192, 256, 384, 512},
+        [&](int blocks, int tpb) {
+            bip352_pipeline_kernel_lut_preser<<<blocks, tpb>>>(
+                d_ser_buf, d_gen_lut, d_prefixes, BENCH_N);
         });
 
     // ================================================================
@@ -1033,23 +1180,159 @@ int main() {
     printf("  validation prefix: 0x%016lx\n", (unsigned long)gpu_lut_validation);
 
     // ================================================================
+    // Phase 5.6: Full Pipeline Benchmark -- GPU + LUT + Pretbl
+    // ================================================================
+    printf("\n--- GPU + LUT + Pretbl (precomputed per-tweak wNAF tables, coalesced reads) ---\n");
+    int pretbl_blocks = (BENCH_N + gpu_tpb_pretbl - 1) / gpu_tpb_pretbl;
+
+    for (int w = 0; w < BENCH_CLOCK_WARMUP; ++w) {
+        bip352_pipeline_kernel_lut_pretbl<<<pretbl_blocks, gpu_tpb_pretbl>>>(
+            d_tables_P, d_tables_phiP, d_globalz, d_gen_lut, d_prefixes, BENCH_N);
+        CUDA_CHECK(cudaDeviceSynchronize());
+    }
+    for (int w = 0; w < BENCH_WARMUP; ++w) {
+        bip352_pipeline_kernel_lut_pretbl<<<pretbl_blocks, gpu_tpb_pretbl>>>(
+            d_tables_P, d_tables_phiP, d_globalz, d_gen_lut, d_prefixes, BENCH_N);
+        CUDA_CHECK(cudaDeviceSynchronize());
+    }
+
+    std::vector<double> gpu_pretbl_times(BENCH_PASSES);
+    for (int p = 0; p < BENCH_PASSES; ++p) {
+        timer.start();
+        for (int r = 0; r < BENCH_MULTI; ++r)
+            bip352_pipeline_kernel_lut_pretbl<<<pretbl_blocks, gpu_tpb_pretbl>>>(
+                d_tables_P, d_tables_phiP, d_globalz, d_gen_lut, d_prefixes, BENCH_N);
+        float ms = timer.stop();
+        gpu_pretbl_times[p] = (double)ms / BENCH_MULTI;
+        printf("  pass %2d: %8.3f ms\n", p + 1, (double)ms / BENCH_MULTI);
+    }
+
+    CUDA_CHECK(cudaMemcpy(h_prefixes.data(), d_prefixes, BENCH_N * sizeof(int64_t), cudaMemcpyDeviceToHost));
+    int64_t gpu_pretbl_validation = h_prefixes[BENCH_N - 1];
+
+    std::sort(gpu_pretbl_times.begin(), gpu_pretbl_times.end());
+    double gpu_pretbl_median = gpu_pretbl_times[BENCH_PASSES / 2];
+    double gpu_pretbl_ns_op  = gpu_pretbl_median * 1e6 / BENCH_N;
+
+    printf("\n  GPU+LUT+Pretbl: %.3f ms / %d ops = %.1f ns/op (%.1f us/op)\n",
+           gpu_pretbl_median, BENCH_N, gpu_pretbl_ns_op, gpu_pretbl_ns_op / 1000.0);
+    printf("  validation prefix: 0x%016lx\n", (unsigned long)gpu_pretbl_validation);
+
+    // ================================================================
+    // Phase 5.7: Full Pipeline Benchmark -- GPU + LUT + Pretbl + SHA256opt
+    // ================================================================
+    printf("\n--- GPU + LUT + Pretbl + SHA256opt (w[16] schedule, ~300 B less stack) ---\n");
+    int sha256opt_blocks = (BENCH_N + gpu_tpb_sha256opt - 1) / gpu_tpb_sha256opt;
+
+    for (int w = 0; w < BENCH_CLOCK_WARMUP; ++w) {
+        bip352_pipeline_kernel_lut_pretbl_sha256opt<<<sha256opt_blocks, gpu_tpb_sha256opt>>>(
+            d_tables_P, d_tables_phiP, d_globalz, d_gen_lut, d_prefixes, BENCH_N);
+        CUDA_CHECK(cudaDeviceSynchronize());
+    }
+    for (int w = 0; w < BENCH_WARMUP; ++w) {
+        bip352_pipeline_kernel_lut_pretbl_sha256opt<<<sha256opt_blocks, gpu_tpb_sha256opt>>>(
+            d_tables_P, d_tables_phiP, d_globalz, d_gen_lut, d_prefixes, BENCH_N);
+        CUDA_CHECK(cudaDeviceSynchronize());
+    }
+
+    std::vector<double> gpu_sha256opt_times(BENCH_PASSES);
+    for (int p = 0; p < BENCH_PASSES; ++p) {
+        timer.start();
+        for (int r = 0; r < BENCH_MULTI; ++r)
+            bip352_pipeline_kernel_lut_pretbl_sha256opt<<<sha256opt_blocks, gpu_tpb_sha256opt>>>(
+                d_tables_P, d_tables_phiP, d_globalz, d_gen_lut, d_prefixes, BENCH_N);
+        float ms = timer.stop();
+        gpu_sha256opt_times[p] = (double)ms / BENCH_MULTI;
+        printf("  pass %2d: %8.3f ms\n", p + 1, (double)ms / BENCH_MULTI);
+    }
+
+    CUDA_CHECK(cudaMemcpy(h_prefixes.data(), d_prefixes, BENCH_N * sizeof(int64_t), cudaMemcpyDeviceToHost));
+    int64_t gpu_sha256opt_validation = h_prefixes[BENCH_N - 1];
+
+    std::sort(gpu_sha256opt_times.begin(), gpu_sha256opt_times.end());
+    double gpu_sha256opt_median = gpu_sha256opt_times[BENCH_PASSES / 2];
+    double gpu_sha256opt_ns_op  = gpu_sha256opt_median * 1e6 / BENCH_N;
+
+    printf("\n  GPU+SHA256opt: %.3f ms / %d ops = %.1f ns/op (%.1f us/op)\n",
+           gpu_sha256opt_median, BENCH_N, gpu_sha256opt_ns_op, gpu_sha256opt_ns_op / 1000.0);
+    printf("  validation prefix: 0x%016lx\n", (unsigned long)gpu_sha256opt_validation);
+
+    // ================================================================
+    // Phase 5.8: Full Pipeline Benchmark -- GPU + LUT + PreSer
+    // ================================================================
+    printf("\n--- GPU + LUT + PreSer (precomputed ser, skips k*P + 1st field_inv) ---\n");
+    int preser_blocks = (BENCH_N + gpu_tpb_preser - 1) / gpu_tpb_preser;
+
+    for (int w = 0; w < BENCH_CLOCK_WARMUP; ++w) {
+        bip352_pipeline_kernel_lut_preser<<<preser_blocks, gpu_tpb_preser>>>(
+            d_ser_buf, d_gen_lut, d_prefixes, BENCH_N);
+        CUDA_CHECK(cudaDeviceSynchronize());
+    }
+    for (int w = 0; w < BENCH_WARMUP; ++w) {
+        bip352_pipeline_kernel_lut_preser<<<preser_blocks, gpu_tpb_preser>>>(
+            d_ser_buf, d_gen_lut, d_prefixes, BENCH_N);
+        CUDA_CHECK(cudaDeviceSynchronize());
+    }
+
+    std::vector<double> gpu_preser_times(BENCH_PASSES);
+    for (int p = 0; p < BENCH_PASSES; ++p) {
+        timer.start();
+        for (int r = 0; r < BENCH_MULTI; ++r)
+            bip352_pipeline_kernel_lut_preser<<<preser_blocks, gpu_tpb_preser>>>(
+                d_ser_buf, d_gen_lut, d_prefixes, BENCH_N);
+        float ms = timer.stop();
+        gpu_preser_times[p] = (double)ms / BENCH_MULTI;
+        printf("  pass %2d: %8.3f ms\n", p + 1, (double)ms / BENCH_MULTI);
+    }
+
+    CUDA_CHECK(cudaMemcpy(h_prefixes.data(), d_prefixes, BENCH_N * sizeof(int64_t), cudaMemcpyDeviceToHost));
+    int64_t gpu_preser_validation = h_prefixes[BENCH_N - 1];
+
+    std::sort(gpu_preser_times.begin(), gpu_preser_times.end());
+    double gpu_preser_median = gpu_preser_times[BENCH_PASSES / 2];
+    double gpu_preser_ns_op  = gpu_preser_median * 1e6 / BENCH_N;
+
+    printf("\n  GPU+PreSer: %.3f ms / %d ops = %.1f ns/op (%.1f us/op)\n",
+           gpu_preser_median, BENCH_N, gpu_preser_ns_op, gpu_preser_ns_op / 1000.0);
+    printf("  validation prefix: 0x%016lx\n", (unsigned long)gpu_preser_validation);
+
+    // ================================================================
     // Phase 6: Comparison summary
     // ================================================================
     printf("\n=== Full Pipeline Comparison ===\n");
-    double pipeline_ratio = cpu_ns_op / gpu_ns_op;
-    double lut_ratio      = cpu_ns_op / gpu_lut_ns_op;
-    double lut_vs_gpu     = gpu_ns_op / gpu_lut_ns_op;
-    printf("  CPU:            %10.1f ns/op\n", cpu_ns_op);
-    printf("  GPU (w=4):      %10.1f ns/op  (%.2fx vs CPU)\n", gpu_ns_op, pipeline_ratio);
-    printf("  GPU+LUT:        %10.1f ns/op  (%.2fx vs CPU, %.2fx vs GPU w=4)\n",
+    double pipeline_ratio      = cpu_ns_op / gpu_ns_op;
+    double lut_ratio           = cpu_ns_op / gpu_lut_ns_op;
+    double lut_vs_gpu          = gpu_ns_op / gpu_lut_ns_op;
+    double pretbl_ratio        = cpu_ns_op / gpu_pretbl_ns_op;
+    double pretbl_vs_lut       = gpu_lut_ns_op / gpu_pretbl_ns_op;
+    double sha256opt_ratio     = cpu_ns_op / gpu_sha256opt_ns_op;
+    double sha256opt_vs_pretbl = gpu_pretbl_ns_op / gpu_sha256opt_ns_op;
+    double preser_ratio        = cpu_ns_op / gpu_preser_ns_op;
+    double preser_vs_pretbl    = gpu_pretbl_ns_op / gpu_preser_ns_op;
+    printf("  CPU:                          %10.1f ns/op\n", cpu_ns_op);
+    printf("  GPU (w=4):                    %10.1f ns/op  (%.2fx vs CPU)\n", gpu_ns_op, pipeline_ratio);
+    printf("  GPU+LUT:                      %10.1f ns/op  (%.2fx vs CPU, %.2fx vs GPU w=4)\n",
            gpu_lut_ns_op, lut_ratio, lut_vs_gpu);
+    printf("  GPU+LUT+Pretbl:               %10.1f ns/op  (%.2fx vs CPU, %.2fx vs GPU+LUT)\n",
+           gpu_pretbl_ns_op, pretbl_ratio, pretbl_vs_lut);
+    printf("  GPU+LUT+Pretbl+SHA256opt:     %10.1f ns/op  (%.2fx vs CPU, %.2fx vs Pretbl)\n",
+           gpu_sha256opt_ns_op, sha256opt_ratio, sha256opt_vs_pretbl);
+    printf("  GPU+LUT+PreSer:               %10.1f ns/op  (%.2fx vs CPU, %.2fx vs Pretbl)\n",
+           gpu_preser_ns_op, preser_ratio, preser_vs_pretbl);
 
-    bool prefixes_match = (cpu_validation == gpu_validation) && (cpu_validation == gpu_lut_validation);
+    bool prefixes_match = (cpu_validation == gpu_validation) &&
+                          (cpu_validation == gpu_lut_validation) &&
+                          (cpu_validation == gpu_pretbl_validation) &&
+                          (cpu_validation == gpu_sha256opt_validation) &&
+                          (cpu_validation == gpu_preser_validation);
     printf("  Validation: %s\n",
            prefixes_match ? "[OK] ALL MATCH" : "[FAIL] MISMATCH");
     printf("    CPU=0x%016lx  GPU=0x%016lx  LUT=0x%016lx\n",
            (unsigned long)cpu_validation, (unsigned long)gpu_validation,
            (unsigned long)gpu_lut_validation);
+    printf("    PRETBL=0x%016lx  SHA256OPT=0x%016lx  PRESER=0x%016lx\n",
+           (unsigned long)gpu_pretbl_validation, (unsigned long)gpu_sha256opt_validation,
+           (unsigned long)gpu_preser_validation);
 
     // ================================================================
     // Phase 7: Per-operation breakdown
@@ -1214,6 +1497,18 @@ int main() {
            (lut_ratio >= 1.0) ? lut_ratio : 1.0 / lut_ratio,
            (lut_ratio >= 1.0) ? "GPU" : "CPU");
 
+    printf("  %-40s %10.1f %12.1f %6.2fx %s\n",
+           "Full pipeline (SHA256opt)",
+           cpu_ns_op, gpu_sha256opt_ns_op,
+           (sha256opt_ratio >= 1.0) ? sha256opt_ratio : 1.0 / sha256opt_ratio,
+           (sha256opt_ratio >= 1.0) ? "GPU" : "CPU");
+
+    printf("  %-40s %10.1f %12.1f %6.2fx %s\n",
+           "Full pipeline (preser)",
+           cpu_ns_op, gpu_preser_ns_op,
+           (preser_ratio >= 1.0) ? preser_ratio : 1.0 / preser_ratio,
+           (preser_ratio >= 1.0) ? "GPU" : "CPU");
+
     printf("\n  k*G speedup: w=4 -> w=8: %.2fx, w=4 -> LUT: %.2fx\n",
            gpu_kG / gpu_kG_w8, gpu_kG / gpu_kG_lut);
 
@@ -1249,6 +1544,7 @@ int main() {
     CUDA_CHECK(cudaFree(d_tables_P));
     CUDA_CHECK(cudaFree(d_tables_phiP));
     CUDA_CHECK(cudaFree(d_globalz));
+    CUDA_CHECK(cudaFree(d_ser_buf));
 
     return 0;
 }
@@ -1781,6 +2077,100 @@ __global__ void bip352_pipeline_kernel_lut_pretbl(
     jacobian_add_mixed_unchecked(&out, &BIP352_SPEND_AFFINE, &cand);
 
     // 6. Extract X prefix.
+    prefixes[idx] = point_prefix64(&cand);
+}
+
+// ============================================================================
+// SHA-256-optimised pretbl variant: w[16] on-the-fly schedule, no SHA256Ctx.
+// ============================================================================
+__global__ void bip352_pipeline_kernel_lut_pretbl_sha256opt(
+    const secp256k1::cuda::AffinePoint* __restrict__ tables_P,
+    const secp256k1::cuda::AffinePoint* __restrict__ tables_phiP,
+    const secp256k1::cuda::FieldElement* __restrict__ globalz_buf,
+    const secp256k1::cuda::AffinePoint* __restrict__ gen_lut,
+    int64_t* __restrict__ prefixes,
+    int n)
+{
+    using namespace secp256k1::cuda;
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= n) return;
+
+    JacobianPoint shared;
+    scalar_mul_fixed_scan_pretbl(idx, tables_P, tables_phiP, globalz_buf, n, &shared);
+
+    uint8_t ser[37];
+    bip352_shared_secret_input(&shared, ser);
+
+    // Use specialised SHA-256 that avoids SHA256Ctx and w[64] stack spill.
+    uint8_t hash[32];
+    bip352_tagged_sha256_ser37(ser, hash);
+
+    Scalar hs;
+    scalar_from_bytes(hash, &hs);
+    JacobianPoint out;
+    scalar_mul_generator_lut(&hs, gen_lut, &out);
+
+    JacobianPoint cand;
+    jacobian_add_mixed_unchecked(&out, &BIP352_SPEND_AFFINE, &cand);
+
+    prefixes[idx] = point_prefix64(&cand);
+}
+
+// ============================================================================
+// Precompute per-tweak serialized shared-secret bytes (k*P compressed).
+// Uses pretbl tables already in global memory; runs once before benchmarking.
+// ============================================================================
+__global__ void precompute_ser_kernel(
+    const secp256k1::cuda::AffinePoint* __restrict__ tables_P,
+    const secp256k1::cuda::AffinePoint* __restrict__ tables_phiP,
+    const secp256k1::cuda::FieldElement* __restrict__ globalz_buf,
+    uint8_t* __restrict__ ser_buf,
+    int n)
+{
+    using namespace secp256k1::cuda;
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= n) return;
+
+    JacobianPoint shared;
+    scalar_mul_fixed_scan_pretbl(idx, tables_P, tables_phiP, globalz_buf, n, &shared);
+
+    uint8_t ser[37];
+    bip352_shared_secret_input(&shared, ser);
+
+    uint8_t* dst = ser_buf + (size_t)idx * 37;
+    for (int j = 0; j < 37; j++) dst[j] = ser[j];
+}
+
+// ============================================================================
+// Pre-serialized pipeline: loads precomputed ser, eliminates k*P + 1st field_inv.
+// ============================================================================
+__global__ void bip352_pipeline_kernel_lut_preser(
+    const uint8_t* __restrict__ ser_buf,
+    const secp256k1::cuda::AffinePoint* __restrict__ gen_lut,
+    int64_t* __restrict__ prefixes,
+    int n)
+{
+    using namespace secp256k1::cuda;
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= n) return;
+
+    // Load precomputed compressed shared-secret bytes (37-byte stride).
+    uint8_t ser[37];
+    const uint8_t* src = ser_buf + (size_t)idx * 37;
+    for (int j = 0; j < 37; j++) ser[j] = src[j];
+
+    // Tagged SHA-256 (specialised w[16] version).
+    uint8_t hash[32];
+    bip352_tagged_sha256_ser37(ser, hash);
+
+    Scalar hs;
+    scalar_from_bytes(hash, &hs);
+    JacobianPoint out;
+    scalar_mul_generator_lut(&hs, gen_lut, &out);
+
+    JacobianPoint cand;
+    jacobian_add_mixed_unchecked(&out, &BIP352_SPEND_AFFINE, &cand);
+
     prefixes[idx] = point_prefix64(&cand);
 }
 

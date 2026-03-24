@@ -100,6 +100,8 @@ void pbkdf2_hmac_sha512(const uint8_t* password, size_t password_len,
 
         const size_t to_copy = std::min<size_t>(64, output_len - offset);
         std::memcpy(output + offset, result.data(), to_copy);
+        detail::secure_erase(result.data(), result.size());
+        detail::secure_erase(u.data(), u.size());
         offset += to_copy;
         ++block_num;
     }
@@ -185,7 +187,10 @@ bool bip39_validate(const std::string& mnemonic) {
     std::vector<int> indices(words.size());
     for (size_t i = 0; i < words.size(); ++i) {
         indices[i] = word_index(words[i].c_str());
-        if (indices[i] < 0) return false;
+        if (indices[i] < 0) {
+            detail::secure_erase(indices.data(), indices.size() * sizeof(int));
+            return false;
+        }
     }
 
     // Reconstruct entropy + checksum bits
@@ -221,6 +226,7 @@ bool bip39_validate(const std::string& mnemonic) {
     const uint8_t actual_cs = checksum_byte >> (8 - checksum_bits);
 
     detail::secure_erase(entropy, sizeof(entropy));
+    detail::secure_erase(indices.data(), indices.size() * sizeof(int));
     return expected_cs == actual_cs;
 }
 
@@ -245,6 +251,8 @@ bip39_mnemonic_to_seed(const std::string& mnemonic,
         2048,
         seed.data(), 64);
 
+    detail::secure_erase(salt_str.data(), salt_str.size());
+
     return {seed, true};
 }
 
@@ -263,7 +271,10 @@ bip39_mnemonic_to_entropy(const std::string& mnemonic) {
     std::vector<int> indices(words.size());
     for (size_t i = 0; i < words.size(); ++i) {
         indices[i] = word_index(words[i].c_str());
-        if (indices[i] < 0) return {ent, false};
+        if (indices[i] < 0) {
+            detail::secure_erase(indices.data(), indices.size() * sizeof(int));
+            return {ent, false};
+        }
     }
 
     const size_t total_bits = words.size() * 11;
@@ -299,12 +310,14 @@ bip39_mnemonic_to_entropy(const std::string& mnemonic) {
 
     if (expected_cs != actual_cs) {
         detail::secure_erase(entropy, sizeof(entropy));
+        detail::secure_erase(indices.data(), indices.size() * sizeof(int));
         return {ent, false};
     }
 
     std::memcpy(ent.data.data(), entropy, entropy_bytes);
     ent.length = entropy_bytes;
     detail::secure_erase(entropy, sizeof(entropy));
+    detail::secure_erase(indices.data(), indices.size() * sizeof(int));
 
     return {ent, true};
 }

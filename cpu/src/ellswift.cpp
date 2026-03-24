@@ -23,6 +23,7 @@
 #include "secp256k1/sha256.hpp"
 #include "secp256k1/hkdf.hpp"
 #include "secp256k1/ecdh.hpp"
+#include "secp256k1/ct/point.hpp"
 #include "secp256k1/detail/secure_erase.hpp"
 #include <cstring>
 
@@ -363,8 +364,8 @@ FieldElement ellswift_decode(const std::uint8_t encoding[64]) noexcept {
 }
 
 std::array<std::uint8_t, 64> ellswift_create(const Scalar& privkey) noexcept {
-    // Compute the public key's x-coordinate
-    auto pub = Point::generator().scalar_mul(privkey);
+    // Compute the public key's x-coordinate (constant-time: privkey is secret)
+    auto pub = ct::generator_mul(privkey);
     auto x = pub.x();
 
     std::array<std::uint8_t, 64> result{};
@@ -431,7 +432,8 @@ std::array<std::uint8_t, 32> ellswift_xdh(
     }
 
     // 3. ECDH: shared_secret = SHA256(tag || tag || ell_a || ell_b || x(privkey * their_point))
-    auto ecdh_point = their_point.scalar_mul(our_privkey);
+    // Constant-time: our_privkey is secret
+    auto ecdh_point = ct::scalar_mul(their_point, our_privkey);
     if (ecdh_point.is_infinity()) {
         return std::array<std::uint8_t, 32>{};
     }
@@ -457,6 +459,7 @@ std::array<std::uint8_t, 32> ellswift_xdh(
     auto shared_secret = hasher.finalize();
 
     detail::secure_erase(ecdh_x.data(), 32);
+    detail::secure_erase(&ecdh_point, sizeof(ecdh_point));
 
     return shared_secret;
 }

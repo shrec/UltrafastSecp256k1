@@ -316,19 +316,25 @@ RecoverableSignature ecdsa_sign_recoverable(
     if (r.is_zero()) return {{Scalar::zero(), Scalar::zero()}, 0};
 
     // Recovery ID bit 0: parity of R.y
-    // Extract from normalized limbs[0] -- avoids full serialization and does
-    // not branch on the secret nonce.
-    int recid = 0;
-    if ((R.y().limbs()[0] & 1u) != 0) recid |= 1;
+    // Branchless: mask LSB directly -- no conditional branch on the secret nonce.
+    int recid = static_cast<int>(R.y().limbs()[0] & 1u);
 
     // Recovery ID bit 1: whether R.x >= n (R.x overflowed the curve order).
-    // Probability ~2^{-128}; byte-by-byte comparison of public r_bytes vs ORDER.
-    bool overflow = false;
-    for (std::size_t i = 0; i < 32; ++i) {
-        if (r_bytes[i] < ORDER_BYTES[i]) break;
-        if (r_bytes[i] > ORDER_BYTES[i]) { overflow = true; break; }
+    // CT: compare r_bytes vs ORDER_BYTES without early-exit branches that would
+    // leak the nonce via timing.  Uses branchless byte-by-byte MSB detection;
+    // the final OR is also branchless (no conditional on the secret-derived gt).
+    {
+        unsigned gt = 0u, eq_run = 1u;
+        for (int i = 0; i < 32; ++i) {
+            unsigned const rb = static_cast<unsigned>(r_bytes[i]);
+            unsigned const ob = static_cast<unsigned>(ORDER_BYTES[i]);
+            unsigned const byte_gt = ((ob - rb) >> 31) & 1u;  // 1 iff rb > ob
+            unsigned const byte_lt = ((rb - ob) >> 31) & 1u;  // 1 iff rb < ob
+            gt     = gt | (eq_run & byte_gt);
+            eq_run = eq_run & (1u - byte_gt) & (1u - byte_lt);
+        }
+        recid |= static_cast<int>(gt) << 1;  // branchless set of overflow bit
     }
-    if (overflow) recid |= 2;
 
     // s = k^{-1} * (z + r * d) mod n
     // CT inverse: SafeGCD Bernstein-Yang divsteps-59, constant-time.
@@ -348,6 +354,7 @@ RecoverableSignature ecdsa_sign_recoverable(
     secure_erase(&k_inv, sizeof(k_inv));
     secure_erase(&z,     sizeof(z));
     secure_erase(&s,     sizeof(s));
+    secure_erase(const_cast<ECDSASignature*>(&pre_sig), sizeof(pre_sig));
 
     return {sig, recid};
 }

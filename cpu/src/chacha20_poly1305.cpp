@@ -274,6 +274,7 @@ struct Poly1305State {
     }
 
     void block(const std::uint8_t* msg, std::size_t len) noexcept {
+        if (len > 16) len = 16; // defensive clamp
         std::uint8_t buf[17]{};
         std::memcpy(buf, msg, len);
         buf[len] = 1;
@@ -365,6 +366,7 @@ struct Poly1305State {
     }
 
     void block(const std::uint8_t* msg, std::size_t len) noexcept {
+        if (len > 16) len = 16; // defensive clamp
         std::uint8_t buf[17]{};
         std::memcpy(buf, msg, len);
         buf[len] = 1;
@@ -517,36 +519,34 @@ namespace {
 void aead_poly1305_pad_and_mac(Poly1305State& st,
                                 const std::uint8_t* aad, std::size_t aad_len,
                                 const std::uint8_t* ct, std::size_t ct_len) noexcept {
-    // Process AAD
+    // Process AAD in full 16-byte blocks
     std::size_t off = 0;
     while (off + 16 <= aad_len) {
         st.block(aad + off, 16);
         off += 16;
     }
+    // Pad last partial AAD block to 16 bytes (RFC 8439 pad16).
+    // The padding zeros are part of the mac_data stream and must be
+    // processed in the same Poly1305 block as the trailing AAD bytes,
+    // NOT as a separate block (a separate block would get its own
+    // hibit marker and produce a wrong MAC).
     if (off < aad_len) {
-        st.block(aad + off, aad_len - off);
-    }
-    // Pad AAD to 16-byte boundary
-    std::size_t aad_pad = (16 - (aad_len % 16)) % 16;
-    if (aad_pad > 0) {
-        std::uint8_t zeros[16]{};
-        st.block(zeros, aad_pad);
+        std::uint8_t padded[16]{};
+        std::memcpy(padded, aad + off, aad_len - off);
+        st.block(padded, 16);
     }
 
-    // Process ciphertext
+    // Process ciphertext in full 16-byte blocks
     off = 0;
     while (off + 16 <= ct_len) {
         st.block(ct + off, 16);
         off += 16;
     }
+    // Pad last partial ciphertext block to 16 bytes (RFC 8439 pad16)
     if (off < ct_len) {
-        st.block(ct + off, ct_len - off);
-    }
-    // Pad ciphertext to 16-byte boundary
-    std::size_t ct_pad = (16 - (ct_len % 16)) % 16;
-    if (ct_pad > 0) {
-        std::uint8_t zeros[16]{};
-        st.block(zeros, ct_pad);
+        std::uint8_t padded[16]{};
+        std::memcpy(padded, ct + off, ct_len - off);
+        st.block(padded, 16);
     }
 
     // Append lengths as two 64-bit little-endian values

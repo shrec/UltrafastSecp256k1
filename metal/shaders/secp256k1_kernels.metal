@@ -788,8 +788,9 @@ kernel void zk_knowledge_verify_batch(
     for (int i = 0; i < 32; ++i) s_bytes[i] = proof_s_in[tid * 32 + i];
     proof.s = scalar_from_bytes(s_bytes);
 
-    Scalar256 pk_scalar = scalar_from_bytes(pubkeys + tid * 32);
-    JacobianPoint pk = scalar_mul_generator_windowed(pk_scalar);
+    // pubkeys contains 32-byte x-coordinates; use lift_x to recover the full point.
+    JacobianPoint pk;
+    lift_x(pubkeys + tid * 32, pk);
 
     uchar msg[32];
     for (int i = 0; i < 32; ++i) msg[i] = messages[tid * 32 + i];

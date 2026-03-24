@@ -106,8 +106,10 @@ MuSig2Session musig2_start_sign_session(
 // Produce a partial signature.
 // s_i = k1 + b*k2 + e * a_i * d_i  (mod n)
 // where d_i is adjusted for Q/R negation.
+// sec_nonce is CONSUMED — both k1 and k2 are zeroized before return
+// to enforce single-use (M-03 nonce-reuse prevention).
 fast::Scalar musig2_partial_sign(
-    const MuSig2SecNonce& sec_nonce,
+    MuSig2SecNonce& sec_nonce,
     const fast::Scalar& secret_key,
     const MuSig2KeyAggCtx& key_agg_ctx,
     const MuSig2Session& session,

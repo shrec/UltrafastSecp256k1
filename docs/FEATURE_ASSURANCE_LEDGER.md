@@ -462,7 +462,7 @@
 
 ---
 
-## 26. GPU C ABI (`ufsecp_gpu_*`) -- 18 functions
+## 26. GPU C ABI (`ufsecp_gpu_*`) -- 23 functions
 
 Backend-neutral GPU acceleration surface (`ufsecp_gpu.h`). Separate opaque context (`ufsecp_gpu_ctx*`).
 
@@ -493,6 +493,11 @@ Backend-neutral GPU acceleration surface (`ufsecp_gpu.h`). Separate opaque conte
 | `ufsecp_gpu_msm` | Y | Y | Y | - | Multi-scalar multiplication |
 | `ufsecp_gpu_frost_verify_partial_batch` | Y | Y | Y | - | Batch FROST partial verification |
 | `ufsecp_gpu_ecrecover_batch` | Y | Y | Y | - | Recover compressed pubkeys from recoverable ECDSA sigs |
+| `ufsecp_gpu_zk_knowledge_verify_batch` | - | - | - | CUDA only | Batch ZK knowledge proof verification |
+| `ufsecp_gpu_zk_dleq_verify_batch` | - | - | - | CUDA only | Batch DLEQ proof verification |
+| `ufsecp_gpu_bulletproof_verify_batch` | - | - | - | CUDA only | Batch Bulletproof range proof verification |
+| `ufsecp_gpu_bip324_aead_encrypt_batch` | - | - | - | CUDA only | Batch BIP-324 AEAD encrypt |
+| `ufsecp_gpu_bip324_aead_decrypt_batch` | - | - | - | CUDA only | Batch BIP-324 AEAD decrypt |
 
 **Test file:** `audit/test_gpu_abi_gate.cpp` (39 assertions)
 
@@ -562,9 +567,9 @@ Files with `secure_erase` for secret data cleanup:
 ### Coverage Gaps (items for future work)
 
 1. ~~**ECIES:** No fuzz or adversarial testing (only FFI round-trip)~~ **RESOLVED** -- `test_ecies_regression.cpp` (85 tests: parity tamper, invalid prefix, truncated envelope, tamper matrix, KAT, ABI prefix rejection, pubkey parser consistency, RNG fail-closed)
-2. **ZK range proofs:** No adversarial/malformed proof testing
-3. **Pedersen switch commit:** No adversarial testing
-4. **Ethereum functions:** No differential testing against reference (e.g., ethers.js)
-5. **GPU sign (CUDA-only):** ECDSA/Schnorr signing only on CUDA, not on OpenCL/Metal
-6. **Batch verify GPU:** Only CUDA has batch verify kernels; OpenCL/Metal missing
-7. **Parser fuzzing for advanced protocols:** MuSig2/FROST/adaptor have null-arg testing but no random-byte fuzz
+2. ~~**ZK range proofs:** No adversarial/malformed proof testing~~ **RESOLVED** -- `test_exploit_zk_adversarial.cpp` (14 tests: garbage bytes, all-zero proof, scalar overflow, truncated data, identity pubkey, identity generator, degenerate G==H DLEQ, wrong commitment, overflow e, 64-byte-flip sensitivity)
+3. ~~**Pedersen switch commit:** No adversarial testing~~ **RESOLVED** -- `test_exploit_pedersen_adversarial.cpp` (12 tests: switch roundtrip, zero-blind equivalence, switch binding, zero-commit identity, negation cancellation, imbalanced verify_sum, blind_sum subtraction, switch-as-normal rejection, double-spend detection, generator J independence)
+4. ~~**Ethereum functions:** No differential testing against reference (e.g., ethers.js)~~ **RESOLVED** -- `audit/test_exploit_ethereum_differential.cpp` (10 tests, 15 sub-checks: address derivation go-ethereum KAT, privkey=1 canonical address, ecrecover vs ADDR_GOETH with go-ethereum test msg, EIP-191 hash vs web3.py, sign+ecrecover roundtrip, EIP-155 v encoding, eth_personal_sign roundtrip, tamper detection, keccak256("abc") go-ethereum KAT, anti-collision)
+5. ~~**GPU sign (CUDA-only):** ECDSA/Schnorr signing only on CUDA, not on OpenCL/Metal~~ **PARTIALLY RESOLVED** -- OpenCL: wired `zk_knowledge_verify_batch`, `zk_dleq_verify_batch`, `bip324_aead_encrypt_batch`, `bip324_aead_decrypt_batch` (4 new kernels); `bulletproof_verify_batch` has PARITY-EXCEPTION (no OpenCL WNAF multi-scalar). Metal: stubs documented with PARITY-EXCEPTION/TODO markers pointing to OpenCL path. See `docs/BACKEND_ASSURANCE_MATRIX.md`.
+6. ~~**Batch verify GPU:** Only CUDA has batch verify kernels; OpenCL/Metal missing~~ **PARTIALLY RESOLVED** -- see Gap #5 above; CUDA+OpenCL now have 4 matching ZK/BIP-324 batch ops. Bulletproof batch on OpenCL/Metal remains PARITY-EXCEPTION.
+7. ~~**Parser fuzzing for advanced protocols:** MuSig2/FROST/adaptor have null-arg testing but no random-byte fuzz~~ **RESOLVED** -- `audit/test_fuzz_musig2_frost.cpp` (15 tests, 16 sub-checks: musig2 key_agg/nonce_agg/partial_verify/partial_sig_agg random inputs, FROST keygen_finalize/sign/verify_partial/aggregate random inputs, schnorr+ecdsa adaptor random inputs, boundary n_signers=0 → must error). Also added ClusterFuzzLite harnesses: `cpu/fuzz/fuzz_ecdsa.cpp` (ECDSA sign/verify invariants) and `cpu/fuzz/fuzz_schnorr.cpp` (BIP-340 Schnorr invariants) — total ClusterFuzzLite targets now 5.

@@ -313,6 +313,14 @@ bool ecdsa_batch_verify(const ECDSABatchEntry* entries, std::size_t n) {
     // Instead, we batch the scalar multiplications but still check each x-coord.
     // Optimization: use Shamir's trick per-signature (already 2x faster than naive).
 
+    // Pre-validate all entries before batch inversion to avoid
+    // corrupting the Montgomery product with a zero s value.
+    for (std::size_t i = 0; i < n; ++i) {
+        if (entries[i].signature.r.is_zero() || entries[i].signature.s.is_zero()) {
+            return false;
+        }
+    }
+
     // Pre-compute all s_inverse values
     // Batch inversion: compute all s^{-1} with Montgomery's trick
     std::vector<Scalar> s_inv(n);
@@ -348,10 +356,6 @@ bool ecdsa_batch_verify(const ECDSABatchEntry* entries, std::size_t n) {
     // this is near-optimal for standard ECDSA without recovery parameter.
 
     for (std::size_t i = 0; i < n; ++i) {
-        if (entries[i].signature.r.is_zero() || entries[i].signature.s.is_zero()) {
-            return false;
-        }
-
         auto z = Scalar::from_bytes(entries[i].msg_hash);
         auto u1 = z * s_inv[i];
         auto u2 = entries[i].signature.r * s_inv[i];

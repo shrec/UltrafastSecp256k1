@@ -297,9 +297,9 @@ __device__ inline bool ecdsa_sign(
     rfc6979_nonce(private_key, msg_hash, &k);
     if (scalar_is_zero(&k)) return false;
 
-    // R = k * G  (use precomputed constant table for generator)
+    // R = k * G  (CT: branchless, no warp divergence, nonce bits not leaked)
     JacobianPoint R;
-    scalar_mul_generator_w8(&k, &R);
+    scalar_mul_generator_ct_glv(&k, &R);
     if (R.infinity) return false;
 
     // Convert R to affine x-coordinate
@@ -462,9 +462,9 @@ __device__ inline bool ecdsa_sign_verified(
 {
     if (!ecdsa_sign(msg_hash, private_key, sig)) return false;
 
-    // Compute public key for verification
+    // Compute public key for verification (CT: private_key is secret)
     JacobianPoint pubkey;
-    scalar_mul_generator_w8(private_key, &pubkey);
+    scalar_mul_generator_ct_glv(private_key, &pubkey);
 
     return ecdsa_verify(msg_hash, &pubkey, sig);
 }
@@ -536,7 +536,7 @@ __device__ inline bool ecdsa_sign_hedged(
     if (scalar_is_zero(&k)) return false;
 
     JacobianPoint R;
-    scalar_mul_generator_w8(&k, &R);
+    scalar_mul_generator_ct_glv(&k, &R);  // CT+GLV: nonce bits not leaked, ~35% faster
     if (R.infinity) return false;
 
     FieldElement z_inv, z_inv2, x_affine;
@@ -593,7 +593,7 @@ __device__ inline bool ecdsa_sign_hedged_verified(
 {
     if (!ecdsa_sign_hedged(msg_hash, private_key, aux_rand, sig)) return false;
     JacobianPoint pubkey;
-    scalar_mul_generator_w8(private_key, &pubkey);
+    scalar_mul_generator_ct_glv(private_key, &pubkey);  // CT+GLV: private_key is secret
     return ecdsa_verify(msg_hash, &pubkey, sig);
 }
 

@@ -3,6 +3,7 @@
 #include "secp256k1/sha256.hpp"
 #include "secp256k1/ct/point.hpp"
 #include "secp256k1/ct/scalar.hpp"
+#include "secp256k1/detail/secure_erase.hpp"
 #include <cstring>
 #include <algorithm>
 
@@ -18,6 +19,9 @@ std::array<uint8_t, 32> taproot_tweak_hash(
     const std::array<uint8_t, 32>& internal_key_x,
     const uint8_t* merkle_root,
     std::size_t merkle_root_len) {
+
+    // merkle_root is either absent (0) or exactly 32 bytes
+    if (merkle_root_len > 32) return {};
 
     // Concatenate: internal_key_x [|| merkle_root]
     std::size_t const total = 32 + merkle_root_len;
@@ -179,6 +183,9 @@ Scalar taproot_tweak_privkey(
 
     // Tweaked private key = d + t
     auto tweaked = d + t;
+
+    detail::secure_erase(&d, sizeof(d));
+
     if (tweaked.is_zero()) return Scalar::zero();
 
     return tweaked;
@@ -346,6 +353,15 @@ static std::array<uint8_t, 32> tap_sha_outputs(const TapSighashTxData& tx) {
     return ctx.finalize();
 }
 
+// Precomputed SHA256("TapSighash") — avoids recomputing on every sighash call.
+// echo -n "TapSighash" | sha256sum → f40a48df...e4a031
+static constexpr std::array<uint8_t, 32> TAP_SIGHASH_TAG = {
+    0xf4, 0x0a, 0x48, 0xdf, 0x4b, 0x2a, 0x70, 0xc8,
+    0xb4, 0x92, 0x4b, 0xf2, 0x65, 0x46, 0x61, 0xed,
+    0x3d, 0x95, 0xfd, 0x66, 0xa3, 0x13, 0xeb, 0x87,
+    0x23, 0x75, 0x97, 0xc6, 0x28, 0xe4, 0xa0, 0x31
+};
+
 // Internal: build BIP-341 common signature message and return tagged hash.
 // ext_flag: 0x00 for key path, 0x01 for tapscript
 // Extension data is appended by the caller via ext_data/ext_len.
@@ -357,14 +373,16 @@ static std::array<uint8_t, 32> tap_sighash_common(
     const uint8_t* ext_data, std::size_t ext_len,
     const uint8_t* annex, std::size_t annex_len) noexcept {
 
+    // Bounds check: input_index must be within tx inputs
+    if (input_index >= tx_data.input_count) return {};
+
     uint8_t const output_type = (hash_type == 0x00) ? 0x01 : (hash_type & 0x03);
     bool const anyone = (hash_type & 0x80) != 0;
 
-    // Tagged hash with "TapSighash"
-    auto tag_hash = SHA256::hash("TapSighash", 10);
+    // Tagged hash with precomputed SHA256("TapSighash")
     SHA256 ctx;
-    ctx.update(tag_hash.data(), 32);
-    ctx.update(tag_hash.data(), 32);
+    ctx.update(TAP_SIGHASH_TAG.data(), 32);
+    ctx.update(TAP_SIGHASH_TAG.data(), 32);
 
     // Epoch (0x00)
     uint8_t epoch = 0x00;

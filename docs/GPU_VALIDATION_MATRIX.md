@@ -15,7 +15,7 @@ It is intended as an engineering checklist, not a marketing page.
 
 ## C ABI Ops -- Per-Backend Status
 
-The C ABI layer (`ufsecp_gpu.h`) currently exposes 8 backend-neutral GPU batch
+The C ABI layer (`ufsecp_gpu.h`) currently exposes 13 backend-neutral GPU batch
 operations. Backend support varies, and operations returning
 `UFSECP_ERR_GPU_UNSUPPORTED` (104) gracefully decline.
 
@@ -29,11 +29,18 @@ operations. Backend support varies, and operations returning
 | `msm` | implemented | implemented | implemented | PUBLIC |
 | `frost_verify_partial_batch` | implemented | implemented | implemented | PUBLIC |
 | `ecrecover_batch` | implemented | implemented | implemented | PUBLIC |
-| **Total (unified GPU C ABI)** | **8/8** | **8/8** | **8/8** | |
+| `zk_knowledge_verify_batch` | implemented | stub | stub | PUBLIC |
+| `zk_dleq_verify_batch` | implemented | stub | stub | PUBLIC |
+| `bulletproof_verify_batch` | implemented | stub | stub | PUBLIC |
+| `bip324_aead_encrypt_batch` | implemented | stub | stub | PUBLIC |
+| `bip324_aead_decrypt_batch` | implemented | stub | stub | SECRET |
+| **Total (unified GPU C ABI)** | **13/13** | **8/13** | **8/13** | |
 
 ### Expansion Roadmap
 
-- Unified 8/8 GPU C ABI parity is now closed across CUDA, OpenCL, and Metal.
+- Unified 8/8 core GPU C ABI parity is closed across CUDA, OpenCL, and Metal.
+- 5 new ZK/BIP-324 batch ops (CUDA-first): OpenCL and Metal stubs with `TODO(parity)` tracking.
+- Target: 13/13 parity across all three backends.
 
 ### C ABI Test Coverage
 

@@ -18,6 +18,9 @@ namespace secp256k1 {
 
 // Forward declare: implemented in hash_accel.cpp, dispatches to SHA-NI or scalar
 namespace detail {
+#if defined(__GNUC__) || defined(__clang__)
+    __attribute__((hot))
+#endif
     void sha256_compress_dispatch(const std::uint8_t block[64],
                                   std::uint32_t state[8]) noexcept;
 }

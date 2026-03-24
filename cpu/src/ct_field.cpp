@@ -102,8 +102,19 @@ FieldElement field_normalize(const FieldElement& a) noexcept {
 }
 
 FieldElement field_add(const FieldElement& a, const FieldElement& b) noexcept {
+    // Prevent LTO/compiler from propagating a known-constant b (e.g. fe_zero)
+    // into add256 as all-zero limbs, which would shorten the carry chain at
+    // compile time and create measurable timing differences.
+    // "+r" on the pointer with "memory" clobber forces a fresh load of b's limbs
+    // while still allowing the SIMD vectorized path in add256.
     std::uint64_t r[4];
-    std::uint64_t const carry = add256(r, a.limbs().data(), b.limbs().data());
+    const uint64_t* b_ptr = b.limbs().data();
+    const uint64_t* a_ptr = a.limbs().data();
+#if defined(__GNUC__) || defined(__clang__)
+    asm volatile("" : "+r"(b_ptr) : : "memory");
+    asm volatile("" : "+r"(a_ptr) : : "memory");
+#endif
+    std::uint64_t const carry = add256(r, a_ptr, b_ptr);
 
     // If carry OR r >= p, subtract p
     // First subtract p unconditionally
@@ -146,7 +157,17 @@ FieldElement field_mul(const FieldElement& a, const FieldElement& b) noexcept {
     // FE52 5x52 multiply with integrated reduction -- best codegen on
     // x86-64 (BMI2), ARM64, and RISC-V (dedicated asm: fe52_mul_inner_riscv64).
     using FE52 = secp256k1::fast::FieldElement52;
-    return (FE52::from_fe(a) * FE52::from_fe(b)).to_fe();
+    // Barrier both FE52 limb arrays to prevent compiler constant-propagation
+    // of known inputs (e.g. fe_one * x) into the multiply inner kernel.
+    FE52 fa = FE52::from_fe(a); // NOLINT(misc-const-correctness)
+    FE52 fb = FE52::from_fe(b); // NOLINT(misc-const-correctness)
+#if defined(__GNUC__) || defined(__clang__)
+    asm volatile("" : "+r"(fa.n[0]), "+r"(fa.n[1]), "+r"(fa.n[2]),
+                      "+r"(fa.n[3]), "+r"(fa.n[4]));
+    asm volatile("" : "+r"(fb.n[0]), "+r"(fb.n[1]), "+r"(fb.n[2]),
+                      "+r"(fb.n[3]), "+r"(fb.n[4]));
+#endif
+    return (fa * fb).to_fe();
 #else
     // MSVC / ESP32: 4x64 Comba with separate reduction.
     return a * b;
@@ -158,16 +179,14 @@ FieldElement field_sqr(const FieldElement& a) noexcept {
     // FE52 5x52 square with integrated reduction -- best codegen on
     // x86-64 (BMI2), ARM64, and RISC-V (dedicated asm: fe52_sqr_inner_riscv64).
     using FE52 = secp256k1::fast::FieldElement52;
-#if defined(__riscv)
-    // RISC-V U74: barrier the FE52 limbs before squaring to prevent
-    // the compiler from propagating known-limb patterns (e.g. fe_one)
-    // into the square kernel (differentiating edge-case vs random).
-    // Register-only -- no "memory" clobber (see value_barrier comment).
+    // Barrier all FE52 limbs to prevent the compiler from propagating
+    // known-limb patterns (e.g. fe_one, fe_zero) into the square kernel,
+    // which would create measurable timing differences vs random inputs.
+    // Applied on all platforms (RISC-V, x86-64, ARM64) for uniform CT behavior.
     FE52 tmp = FE52::from_fe(a);  // NOLINT(misc-const-correctness) -- +r clobber
+#if defined(__GNUC__) || defined(__clang__)
     asm volatile("" : "+r"(tmp.n[0]), "+r"(tmp.n[1]), "+r"(tmp.n[2]),
                       "+r"(tmp.n[3]), "+r"(tmp.n[4]));
-#else
-    const FE52 tmp = FE52::from_fe(a);
 #endif
     return tmp.square().to_fe();
 #else

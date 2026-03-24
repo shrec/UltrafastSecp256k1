@@ -595,9 +595,6 @@ __kernel void zk_dleq_verify_batch(
 // =============================================================================
 // 3. Bulletproof Range Proof (64-bit)
 // =============================================================================
-// Note: Bulletproof section requires OpenCL address-space fixes before enabling.
-// Knowledge and DLEQ proofs above are fully functional.
-#if 0  // Bulletproof: pending address-space fixes for __global/__private params
 // Full Bulletproof range proof verification on OpenCL.
 // Ported from CUDA implementation (commit 02ac59d).
 //
@@ -937,8 +934,8 @@ inline int range_verify_full_impl(
     const RangeProofGPU* proof,
     const AffinePoint* commitment,
     const AffinePoint* H_gen,
-    const AffinePoint* bp_G,     // 64 G_i generators
-    const AffinePoint* bp_H,     // 64 H_i generators
+    __global const AffinePoint* bp_G,   // 64 G_i generators (__global: too large for private)
+    __global const AffinePoint* bp_H,   // 64 H_i generators (__global: too large for private)
     const ZKTagMidstate* bp_ip_midstate)
 {
     // ---- Fiat-Shamir: recompute y, z, x ----
@@ -1154,8 +1151,10 @@ inline int range_verify_full_impl(
         scalar_mul_mod_n_impl(&proof->a, &s_coeff[i], &a_si);
         scalar_sub_mod_n_impl(&neg_z, &a_si, &g_coeff);
 
+        /* Copy generator point from __global to __private before scalar_mul_impl */
+        AffinePoint g_pt = bp_G[i];
         JacobianPoint g_term;
-        scalar_mul_impl(&g_term, &g_coeff, &bp_G[i]);
+        scalar_mul_impl(&g_term, &g_coeff, &g_pt);
         point_add_impl(&msm_acc, &msm_acc, &g_term);
 
         // H_i: (z + z2*2^i*y_inv^i) - b*s_inv[i]*y_inv^i
@@ -1169,8 +1168,10 @@ inline int range_verify_full_impl(
         scalar_mul_mod_n_impl(&b_si, &y_inv_powers[i], &b_si_yi);
         scalar_sub_mod_n_impl(&h_pcheck, &b_si_yi, &h_coeff);
 
+        /* Copy generator point from __global to __private before scalar_mul_impl */
+        AffinePoint h_pt = bp_H[i];
         JacobianPoint h_term;
-        scalar_mul_impl(&h_term, &h_coeff, &bp_H[i]);
+        scalar_mul_impl(&h_term, &h_coeff, &h_pt);
         point_add_impl(&msm_acc, &msm_acc, &h_term);
     }
 
@@ -1478,4 +1479,3 @@ __kernel void pedersen_verify_sum(
         if (z_bytes[i] != 0) z_zero = 0;
     *result = (sum.infinity || z_zero);
 }
-#endif  // Bulletproof: pending address-space fixes

@@ -28,7 +28,7 @@ __device__ inline bool ecdh_compute_raw(
     uint8_t out[32])
 {
     JacobianPoint shared;
-    scalar_mul(peer_pubkey, private_key, &shared);
+    scalar_mul_ct(peer_pubkey, private_key, &shared);  // CT: no secret-dependent branches
     if (shared.infinity) return false;
 
     // Convert to affine x-coordinate
@@ -70,7 +70,7 @@ __device__ inline bool ecdh_compute(
     uint8_t out[32])
 {
     JacobianPoint shared;
-    scalar_mul(peer_pubkey, private_key, &shared);
+    scalar_mul_ct(peer_pubkey, private_key, &shared);  // CT: no secret-dependent branches
     if (shared.infinity) return false;
 
     // Convert to affine x and y

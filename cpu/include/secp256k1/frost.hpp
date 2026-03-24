@@ -115,12 +115,13 @@ frost_sign_nonce_gen(ParticipantId participant_id,
 
 // Compute partial signature
 // key_pkg: this signer's key package
-// nonce: this signer's secret nonce
+// nonce: this signer's secret nonce — CONSUMED (both scalars are zeroized
+//        before this function returns to enforce single-use)
 // msg: 32-byte message to sign
 // nonce_commitments: all participating signers' nonce commitments
 FrostPartialSig
 frost_sign(const FrostKeyPackage& key_pkg,
-           const FrostNonce& nonce,
+           FrostNonce& nonce,
            const std::array<std::uint8_t, 32>& msg,
            const std::vector<FrostNonceCommitment>& nonce_commitments);
 

@@ -245,14 +245,45 @@ The C++ `unified_audit_runner` binary covers **E, F, G(internal), H(deterministi
 
 ---
 
+### Q. Exploit PoC Test Suite (`audit/test_exploit_*.cpp`)
+
+78 standalone exploit-style tests that actively attempt to break the library.
+Each test compiles and runs independently, verifying attack scenarios fail and security properties hold.
+
+| Category | Tests | Key Attacks / Properties |
+|----------|-------|--------------------------|
+| ECDSA / Signature | 7 | BIP-62 malleability, RFC 6979 KAT, recovery edge cases, ECDH degenerate |
+| Schnorr / BIP-340 / Batch | 5 | BIP-340 KAT, batch soundness, forge detection |
+| GLV / ECC Math | 11 | GLV decomposition, Pippenger MSM, multiscalar, point/scalar invariants |
+| BIP-32 / BIP-39 / HD Keys | 7 | Depth overflow, path overflow, hardened isolation, xpub guard |
+| MuSig2 / FROST | 11 | Nonce reuse, rogue-key, Byzantine participant, DKG, Lagrange duplicate, index-zero |
+| Adaptor Signatures / ZK | 4 | Adaptor parity, Pedersen homomorphism, ZK proof properties |
+| Crypto Primitives / AEAD | 11 | ChaCha20-Poly1305 MAC bypass, nonce reuse, SHA/Keccak/RIPEMD/HKDF KATs |
+| ECIES | 3 | Authentication forgery, encryption correctness, roundtrip |
+| Bitcoin / Protocol BIPs | 6 | BIP-143 sighash, BIP-144 serialization, BIP-324 session, SegWit, Taproot |
+| Address / Wallet / Signing | 6 | Address encoding, private key, Ethereum signing, Bitcoin message signing |
+| Constant-Time / Security | 3 | CT key recovery, systematic CT verification, backend divergence |
+| ElligatorSwift | 2 | ElligatorSwift encoding, ElligatorSwift ECDH |
+| Self-Test / Recovery | 2 | Self-test API, extended recovery |
+| Batch Verify | 1 | Batch verify math correctness |
+| **Total** | **78** | **0 failures** |
+
+Run all exploit tests:
+```bash
+cmake --build build-audit -j
+ctest --test-dir build-audit -R "exploit" --output-on-failure
+```
+
+---
+
 ## Threat Model -> Test Traceability
 
 | THREAT_MODEL.md Attack | Risk | Tests Covering It | Evidence Location |
 |------------------------|------|-------------------|-------------------|
-| A1: Timing Side Channels | HIGH | I.1 (disasm), I.2 (dudect), I.4 (audit_ct), I.5 (CT==FAST), F.6 | `artifacts/disasm/`, `audit_report.json` (ct_analysis) |
-| A2: Nonce Attacks | CRITICAL | E.1b (RFC6979), E.1c (BIP-340), F.6 (CT equivalence) | `audit_report.json` (standard_vectors) |
-| A3: Arithmetic Errors | CRITICAL | E.1a, E.4, F.1-F.5, G.1-G.4 | `audit_report.json` (math_invariants, differential) |
-| A4: Memory Safety | CRITICAL | D.1-D.5, H.1-H.4, J.3 | `artifacts/sanitizers/`, `audit_report.json` (fuzzing) |
+| A1: Timing Side Channels | HIGH | I.1 (disasm), I.2 (dudect), I.4 (audit_ct), I.5 (CT==FAST), F.6, Q (ct_systematic, ct_recov, backend_divergence) | `artifacts/disasm/`, `audit_report.json` (ct_analysis) |
+| A2: Nonce Attacks | CRITICAL | E.1b (RFC6979), E.1c (BIP-340), F.6 (CT equivalence), Q (musig2_nonce_reuse, chacha20_nonce_reuse, ecdsa_rfc6979_kat) | `audit_report.json` (standard_vectors) |
+| A3: Arithmetic Errors | CRITICAL | E.1a, E.4, F.1-F.5, G.1-G.4, Q (glv_kat, glv_endomorphism, field_arithmetic, scalar_*, point_*, pippenger_msm) | `audit_report.json` (math_invariants, differential) |
+| A4: Memory Safety | CRITICAL | D.1-D.5, H.1-H.4, J.3, Q (aead_integrity, ecies_*, ecdh_degenerate) | `artifacts/sanitizers/`, `audit_report.json` (fuzzing) |
 | A5: Supply Chain | HIGH | A.3, B.1-B.3, A.4 | `artifacts/sbom.cdx.json`, `artifacts/SHA256SUMS.txt` |
 | A6: GPU-Specific | HIGH | P.1 (`test_gpu_host_api_negative`), P.2 (`test_gpu_abi_gate`) — null/invalid-backend/error-path paths; kernel-level ops audit in GPU backend test suites |
 

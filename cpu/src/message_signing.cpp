@@ -7,6 +7,7 @@
 #include "secp256k1/recovery.hpp"
 #include "secp256k1/ct/sign.hpp"
 #include "secp256k1/hash_accel.hpp"
+#include "secp256k1/detail/secure_erase.hpp"
 #include <cstring>
 
 namespace secp256k1::coins {
@@ -82,7 +83,15 @@ std::array<std::uint8_t, 32> bitcoin_message_hash(const std::uint8_t* msg,
     auto hash1 = sha256(buf, total);
     auto hash2 = sha256(hash1.data(), 32);
 
-    if (buf != stack_buf) delete[] buf;
+    // Erase intermediate hash and message buffer so sensitive content does not
+    // linger in heap or stack memory after this function returns.
+    secp256k1::detail::secure_erase(hash1.data(), hash1.size());
+    if (buf != stack_buf) {
+        secp256k1::detail::secure_erase(buf, total);
+        delete[] buf;
+    } else {
+        secp256k1::detail::secure_erase(stack_buf, STACK_MAX);
+    }
 
     return hash2;
 }

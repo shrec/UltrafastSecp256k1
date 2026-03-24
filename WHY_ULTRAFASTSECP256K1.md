@@ -20,6 +20,7 @@ it was designed in parallel with the cryptographic implementation, as a first-cl
 | Scalar arithmetic (ℤ_n) | Reduction mod n, overflow, GLV decomposition, negation, edge cases (0, 1, n−1) | 93,215 |
 | Point operations | Infinity handling, Jacobian↔Affine round-trip, scalar multiplication, 100K stress | 116,124 |
 | Constant-time layer | No secret-dependent branches, no secret-dependent memory access, formal CT verification | 120,652 |
+| Exploit PoC tests | 78 dedicated adversarial PoC tests across 14 attack categories (`audit/test_exploit_*.cpp`) | 78 test files, 0 failures |
 | Fuzz / adversarial | libFuzzer harnesses + 530K deterministic corpus adversarial checks | ~530,000+ |
 | Wycheproof vectors | Google's cryptographic test vectors for ECDSA and ECDH | Hundreds of vectors |
 | Fiat-Crypto linkage | Cross-validates field arithmetic against formally-verified Fiat-Crypto reference | Full suite |
@@ -29,8 +30,10 @@ it was designed in parallel with the cryptographic implementation, as a first-cl
 | Performance regression | Automated micro-benchmark gate — fails CI if throughput regresses | Every push |
 | **Nightly differential** | Random round-trip differential tests against reference implementations | **~1,300,000+/night** |
 | **Total (audit runner)** | **unified_audit_runner** across 55 modules plus standalone audit surfaces | **~1,000,000+** |
+| **Total (exploit PoC tests)** | **78 exploit-style PoC tests** across 14 attack categories, all in `audit/test_exploit_*.cpp` | **78 tests, 0 failures** |
 
 All 55 audit modules across all tested platforms return **AUDIT-READY**. Zero failures.
+All 78 exploit PoC tests pass. Zero failures across all 14 attack categories.
 
 ### Self-Audit Documents
 

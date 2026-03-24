@@ -2173,6 +2173,11 @@ Backend-neutral GPU acceleration surface. All functions use opaque `ufsecp_gpu_c
 | `ufsecp_gpu_msm` | `(ctx, scalars32[], points33[], n, result33_out) -> error_t` | Multi-scalar multiplication |
 | `ufsecp_gpu_frost_verify_partial_batch` | `(ctx, z_i32[], D_i33[], E_i33[], Y_i33[], rho_i32[], lambda_ie32[], negate_R[], negate_key[], n, results_out[]) -> error_t` | Batch FROST partial verification |
 | `ufsecp_gpu_ecrecover_batch` | `(ctx, msgs32[], sigs64[], recids[], n, pubkeys33_out[], valid_out[]) -> error_t` | Batch public-key recovery from recoverable ECDSA signatures |
+| `ufsecp_gpu_zk_knowledge_verify_batch` | `(ctx, proofs64[], pubkeys65[], msgs32[], n, results[]) -> error_t` | Batch ZK knowledge proof verification (PUBLIC) |
+| `ufsecp_gpu_zk_dleq_verify_batch` | `(ctx, proofs64[], G65[], H65[], P65[], Q65[], n, results[]) -> error_t` | Batch DLEQ proof verification (PUBLIC) |
+| `ufsecp_gpu_bulletproof_verify_batch` | `(ctx, proofs324[], commits65[], H65, n, results[]) -> error_t` | Batch Bulletproof range proof verification (PUBLIC) |
+| `ufsecp_gpu_bip324_aead_encrypt_batch` | `(ctx, keys32[], nonces12[], plain[], sizes[], max_payload, n, wire_out[]) -> error_t` | Batch BIP-324 ChaCha20-Poly1305 AEAD encrypt (PUBLIC) |
+| `ufsecp_gpu_bip324_aead_decrypt_batch` | `(ctx, keys32[], nonces12[], wire[], sizes[], max_payload, n, plain_out[], valid[]) -> error_t` | Batch BIP-324 ChaCha20-Poly1305 AEAD decrypt (SECRET) |
 
 ---
 

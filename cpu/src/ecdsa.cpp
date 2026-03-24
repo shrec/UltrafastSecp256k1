@@ -333,6 +333,7 @@ Scalar rfc6979_nonce(const Scalar& private_key,
             secure_erase(K, sizeof(K));
             secure_erase(x_bytes.data(), x_bytes.size());
             secure_erase(buf97, sizeof(buf97));
+            secure_erase(&hmac, sizeof(hmac));
             return candidate;
         }
 
@@ -341,6 +342,7 @@ Scalar rfc6979_nonce(const Scalar& private_key,
         std::memcpy(buf33, V, 32);
         buf33[32] = 0x00;
         hmac.compute_short(buf33, 33, K);
+        secure_erase(buf33, sizeof(buf33));
         hmac.init_key32(K);
         hmac.compute_short(V, 32, V);
     }
@@ -350,6 +352,7 @@ Scalar rfc6979_nonce(const Scalar& private_key,
     secure_erase(K, sizeof(K));
     secure_erase(x_bytes.data(), x_bytes.size());
     secure_erase(buf97, sizeof(buf97));
+    secure_erase(&hmac, sizeof(hmac));
     return Scalar::zero();
 }
 
@@ -410,12 +413,14 @@ Scalar rfc6979_nonce_hedged(const Scalar& private_key,
             secure_erase(K, sizeof(K));
             secure_erase(x_bytes.data(), x_bytes.size());
             secure_erase(buf129, sizeof(buf129));
+            secure_erase(&hmac, sizeof(hmac));
             return candidate;
         }
         uint8_t buf33[33];
         std::memcpy(buf33, V, 32);
         buf33[32] = 0x00;
         hmac.compute_short(buf33, 33, K);
+        secure_erase(buf33, sizeof(buf33));
         hmac.init_key32(K);
         hmac.compute_short(V, 32, V);
     }
@@ -424,6 +429,7 @@ Scalar rfc6979_nonce_hedged(const Scalar& private_key,
     secure_erase(K, sizeof(K));
     secure_erase(x_bytes.data(), x_bytes.size());
     secure_erase(buf129, sizeof(buf129));
+    secure_erase(&hmac, sizeof(hmac));
     return Scalar::zero();
 }
 

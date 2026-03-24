@@ -174,6 +174,21 @@ struct Context::Impl {
     std::size_t cache_j2a_count = 0;
 
     ~Impl() {
+        // Zero scalar caches before release to prevent secret key leakage
+        // in GPU memory (grow-only buffers may retain ECDH private keys)
+        if (queue && cache_smg_scalars && cache_smg_count > 0) {
+            cl_uchar zero = 0;
+            clEnqueueFillBuffer(queue, cache_smg_scalars, &zero, 1, 0,
+                                cache_smg_count * sizeof(Scalar), 0, nullptr, nullptr);
+            clFinish(queue);
+        }
+        if (queue && cache_sm_scalars && cache_sm_count > 0) {
+            cl_uchar zero = 0;
+            clEnqueueFillBuffer(queue, cache_sm_scalars, &zero, 1, 0,
+                                cache_sm_count * sizeof(Scalar), 0, nullptr, nullptr);
+            clFinish(queue);
+        }
+
         // Release cached buffers
         if (cache_smg_scalars) clReleaseMemObject(cache_smg_scalars);
         if (cache_smg_results) clReleaseMemObject(cache_smg_results);
@@ -339,14 +354,14 @@ bool Context::Impl::init(const DeviceConfig& cfg) {
     }
 
     // Create context
-    std::cerr << "[DEBUG] Creating OpenCL context for device: " << device_info.name << std::endl;
+    if (cfg.verbose) std::cerr << "[DEBUG] Creating OpenCL context for device: " << device_info.name << std::endl;
     context = clCreateContext(nullptr, 1, &device, nullptr, nullptr, &err);
     if (err != CL_SUCCESS) {
         last_error = std::string("Failed to create OpenCL context: ") + cl_error_string(err);
-        std::cerr << "[DEBUG] " << last_error << std::endl;
+        if (cfg.verbose) std::cerr << "[DEBUG] " << last_error << std::endl;
         return false;
     }
-    std::cerr << "[DEBUG] Context created successfully" << std::endl;
+    if (cfg.verbose) std::cerr << "[DEBUG] Context created successfully" << std::endl;
 
     // Create command queue with profiling enabled
 #ifdef CL_VERSION_2_0
@@ -361,24 +376,24 @@ bool Context::Impl::init(const DeviceConfig& cfg) {
 
     if (err != CL_SUCCESS) {
         last_error = std::string("Failed to create command queue: ") + cl_error_string(err);
-        std::cerr << "[DEBUG] " << last_error << std::endl;
+        if (cfg.verbose) std::cerr << "[DEBUG] " << last_error << std::endl;
         return false;
     }
-    std::cerr << "[DEBUG] Command queue created successfully" << std::endl;
+    if (cfg.verbose) std::cerr << "[DEBUG] Command queue created successfully" << std::endl;
 
     // Build program
     if (!build_program()) {
-        std::cerr << "[DEBUG] build_program failed: " << last_error << std::endl;
+        if (cfg.verbose) std::cerr << "[DEBUG] build_program failed: " << last_error << std::endl;
         return false;
     }
-    std::cerr << "[DEBUG] Program built successfully" << std::endl;
+    if (cfg.verbose) std::cerr << "[DEBUG] Program built successfully" << std::endl;
 
     // Create kernels
     if (!create_kernels()) {
-        std::cerr << "[DEBUG] create_kernels failed: " << last_error << std::endl;
+        if (cfg.verbose) std::cerr << "[DEBUG] create_kernels failed: " << last_error << std::endl;
         return false;
     }
-    std::cerr << "[DEBUG] Kernels created successfully" << std::endl;
+    if (cfg.verbose) std::cerr << "[DEBUG] Kernels created successfully" << std::endl;
 
     return true;
 }
@@ -1300,7 +1315,8 @@ inline void scalar_mul_glv_cl(JacobianPoint* r, const Scalar* k, const AffinePoi
 
     point_set_infinity(r);
     for (int i = 129; i >= 0; --i) {
-        if (!point_is_infinity(r)) point_double_impl(r, r);
+        // Always double; point_double_impl handles infinity correctly.
+        point_double_impl(r, r);
 
         int d1 = wnaf1[i];
         if (d1 != 0) {
@@ -1381,18 +1397,16 @@ inline void scalar_mul_generator_glv_impl(JacobianPoint* r, const Scalar* k) {
     beta.limbs[0]=GLV_BETA0; beta.limbs[1]=GLV_BETA1;
     beta.limbs[2]=GLV_BETA2; beta.limbs[3]=GLV_BETA3;
 
-    // Compute actual number of 4-bit windows needed
-    int bl1 = scalar_bitlen_cl(&k1);
-    int bl2 = scalar_bitlen_cl(&k2);
-    int max_bits = (bl1 > bl2) ? bl1 : bl2;
-    int num_windows = (max_bits + 3) / 4;
+    // Fixed constant iteration count: always 32 windows for 128-bit
+    // GLV-decomposed half-scalars. Prevents timing side-channel that
+    // would leak scalar magnitude via variable GPU kernel duration.
+    const int num_windows = 32;
 
     point_set_infinity(r);
     for (int w = num_windows - 1; w >= 0; --w) {
-        if (!point_is_infinity(r)) {
-            point_double_impl(r, r); point_double_impl(r, r);
-            point_double_impl(r, r); point_double_impl(r, r);
-        }
+        // Always quadruple-double; point_double_impl handles infinity correctly.
+        point_double_impl(r, r); point_double_impl(r, r);
+        point_double_impl(r, r); point_double_impl(r, r);
         int w1 = get_window_4bit(&k1, w);
         if (w1) {
             AffinePoint pt; get_gen_entry(&pt, w1 - 1);
@@ -1474,12 +1488,20 @@ R"KERNEL(
 // ---- Affine point addition kernels ----
 
 // affine_add_impl: P + Q -> R, all affine (2M + 1S + inv)
+// OCL-H-03: branchlessly handles H == 0 (P.x == Q.x degenerate case);
+// returns (0,0) identity sentinel when H == 0 instead of wrong garbage values.
 inline void affine_add_impl(AffinePoint* r,
                              const FieldElement* px, const FieldElement* py,
                              const FieldElement* qx, const FieldElement* qy) {
     FieldElement h, rr, t, lam;
     field_sub_impl(&h, qx, px);
     field_sub_impl(&rr, qy, py);
+
+    // OCL-H-03: detect H == 0 (P.x == Q.x); field_inv(0) = 0 via Fermat LT,
+    // which produces wrong X3/Y3.  Mask out the result to (0,0) when degenerate.
+    ulong h_all = h.limbs[0] | h.limbs[1] | h.limbs[2] | h.limbs[3];
+    ulong h_nonzero_mask = (h_all != 0UL) ? ~0UL : 0UL;
+
     field_inv_impl(&t, &h);
     field_mul_impl(&lam, &rr, &t);
     field_sqr_impl(&r->x, &lam);
@@ -1488,6 +1510,12 @@ inline void affine_add_impl(AffinePoint* r,
     field_sub_impl(&r->y, px, &r->x);
     field_mul_impl(&r->y, &lam, &r->y);
     field_sub_impl(&r->y, &r->y, py);
+
+    // Zero out result when H was 0 (identity sentinel)
+    r->x.limbs[0] &= h_nonzero_mask; r->x.limbs[1] &= h_nonzero_mask;
+    r->x.limbs[2] &= h_nonzero_mask; r->x.limbs[3] &= h_nonzero_mask;
+    r->y.limbs[0] &= h_nonzero_mask; r->y.limbs[1] &= h_nonzero_mask;
+    r->y.limbs[2] &= h_nonzero_mask; r->y.limbs[3] &= h_nonzero_mask;
 }
 
 // affine_add_lambda_impl: with pre-inverted H (2M + 1S)
@@ -1720,7 +1748,7 @@ bool Context::Impl::build_program() {
     }
 
     // Build options
-    std::string build_options = "-cl-std=CL1.2 -cl-fast-relaxed-math -cl-mad-enable";
+    std::string build_options = "-cl-std=CL1.2 -cl-mad-enable";
 
     // NVIDIA-specific optimization flags
     if (device_info.is_nvidia) {
@@ -2255,13 +2283,21 @@ void Context::batch_scalar_mul_generator(const Scalar* scalars, JacobianPoint* r
         if (impl_->cache_smg_results) clReleaseMemObject(impl_->cache_smg_results);
         impl_->cache_smg_scalars = clCreateBuffer(impl_->context, CL_MEM_READ_ONLY,
                                                    count * sizeof(Scalar), nullptr, &err);
+        if (!impl_->cache_smg_scalars) {
+            impl_->cache_smg_results = nullptr; impl_->cache_smg_count = 0; return;
+        }
         impl_->cache_smg_results = clCreateBuffer(impl_->context, CL_MEM_WRITE_ONLY,
                                                    count * sizeof(JacobianPoint), nullptr, &err);
+        if (!impl_->cache_smg_results) {
+            clReleaseMemObject(impl_->cache_smg_scalars);
+            impl_->cache_smg_scalars = nullptr; impl_->cache_smg_count = 0; return;
+        }
         impl_->cache_smg_count = count;
     }
 
-    clEnqueueWriteBuffer(impl_->queue, impl_->cache_smg_scalars, CL_FALSE, 0,
-                         count * sizeof(Scalar), scalars, 0, nullptr, nullptr);
+    if (clEnqueueWriteBuffer(impl_->queue, impl_->cache_smg_scalars, CL_FALSE, 0,
+                             count * sizeof(Scalar), scalars, 0, nullptr, nullptr) != CL_SUCCESS)
+        return;
 
     cl_uint cnt = static_cast<cl_uint>(count);
     clSetKernelArg(impl_->kernel_scalar_mul_generator, 0, sizeof(cl_mem), &impl_->cache_smg_scalars);
@@ -2274,8 +2310,9 @@ void Context::batch_scalar_mul_generator(const Scalar* scalars, JacobianPoint* r
                                   impl_->device_info.max_work_group_size,
                                   local_size, global_size);
 
-    clEnqueueNDRangeKernel(impl_->queue, impl_->kernel_scalar_mul_generator, 1, nullptr,
-                           &global_size, &local_size, 0, nullptr, nullptr);
+    if (clEnqueueNDRangeKernel(impl_->queue, impl_->kernel_scalar_mul_generator, 1, nullptr,
+                               &global_size, &local_size, 0, nullptr, nullptr) != CL_SUCCESS)
+        return;
     clEnqueueReadBuffer(impl_->queue, impl_->cache_smg_results, CL_TRUE, 0,
                         count * sizeof(JacobianPoint), results, 0, nullptr, nullptr);
 }
@@ -2289,21 +2326,29 @@ void Context::batch_scalar_mul(const Scalar* scalars, const AffinePoint* points,
     // Grow-only cached buffers
     if (count > impl_->cache_sm_count) {
         if (impl_->cache_sm_scalars) clReleaseMemObject(impl_->cache_sm_scalars);
-        if (impl_->cache_sm_points) clReleaseMemObject(impl_->cache_sm_points);
+        if (impl_->cache_sm_points)  clReleaseMemObject(impl_->cache_sm_points);
         if (impl_->cache_sm_results) clReleaseMemObject(impl_->cache_sm_results);
         impl_->cache_sm_scalars = clCreateBuffer(impl_->context, CL_MEM_READ_ONLY,
                                                   count * sizeof(Scalar), nullptr, &err);
-        impl_->cache_sm_points = clCreateBuffer(impl_->context, CL_MEM_READ_ONLY,
-                                                 count * sizeof(AffinePoint), nullptr, &err);
+        impl_->cache_sm_points  = clCreateBuffer(impl_->context, CL_MEM_READ_ONLY,
+                                                  count * sizeof(AffinePoint), nullptr, &err);
         impl_->cache_sm_results = clCreateBuffer(impl_->context, CL_MEM_WRITE_ONLY,
                                                   count * sizeof(JacobianPoint), nullptr, &err);
+        if (!impl_->cache_sm_scalars || !impl_->cache_sm_points || !impl_->cache_sm_results) {
+            if (impl_->cache_sm_scalars)  { clReleaseMemObject(impl_->cache_sm_scalars);  impl_->cache_sm_scalars  = nullptr; }
+            if (impl_->cache_sm_points)   { clReleaseMemObject(impl_->cache_sm_points);   impl_->cache_sm_points   = nullptr; }
+            if (impl_->cache_sm_results)  { clReleaseMemObject(impl_->cache_sm_results);  impl_->cache_sm_results  = nullptr; }
+            impl_->cache_sm_count = 0; return;
+        }
         impl_->cache_sm_count = count;
     }
 
-    clEnqueueWriteBuffer(impl_->queue, impl_->cache_sm_points, CL_TRUE, 0,
-                         count * sizeof(AffinePoint), points, 0, nullptr, nullptr);
-    clEnqueueWriteBuffer(impl_->queue, impl_->cache_sm_scalars, CL_FALSE, 0,
-                         count * sizeof(Scalar), scalars, 0, nullptr, nullptr);
+    if (clEnqueueWriteBuffer(impl_->queue, impl_->cache_sm_points, CL_TRUE, 0,
+                             count * sizeof(AffinePoint), points, 0, nullptr, nullptr) != CL_SUCCESS)
+        return;
+    if (clEnqueueWriteBuffer(impl_->queue, impl_->cache_sm_scalars, CL_FALSE, 0,
+                             count * sizeof(Scalar), scalars, 0, nullptr, nullptr) != CL_SUCCESS)
+        return;
     clFlush(impl_->queue);
 
     cl_uint cnt = static_cast<cl_uint>(count);
@@ -2318,8 +2363,9 @@ void Context::batch_scalar_mul(const Scalar* scalars, const AffinePoint* points,
                                   impl_->device_info.max_work_group_size,
                                   local_size, global_size);
 
-    clEnqueueNDRangeKernel(impl_->queue, impl_->kernel_scalar_mul, 1, nullptr,
-                           &global_size, &local_size, 0, nullptr, nullptr);
+    if (clEnqueueNDRangeKernel(impl_->queue, impl_->kernel_scalar_mul, 1, nullptr,
+                               &global_size, &local_size, 0, nullptr, nullptr) != CL_SUCCESS)
+        return;
     clEnqueueReadBuffer(impl_->queue, impl_->cache_sm_results, CL_TRUE, 0,
                         count * sizeof(JacobianPoint), results, 0, nullptr, nullptr);
 }
@@ -2331,17 +2377,23 @@ void Context::batch_field_inv(const FieldElement* inputs, FieldElement* outputs,
 
     // Grow-only cached buffers
     if (count > impl_->cache_fi_count) {
-        if (impl_->cache_fi_input) clReleaseMemObject(impl_->cache_fi_input);
+        if (impl_->cache_fi_input)  clReleaseMemObject(impl_->cache_fi_input);
         if (impl_->cache_fi_output) clReleaseMemObject(impl_->cache_fi_output);
         impl_->cache_fi_input = clCreateBuffer(impl_->context, CL_MEM_READ_ONLY,
                                                 count * sizeof(FieldElement), nullptr, &err);
         impl_->cache_fi_output = clCreateBuffer(impl_->context, CL_MEM_WRITE_ONLY,
                                                  count * sizeof(FieldElement), nullptr, &err);
+        if (!impl_->cache_fi_input || !impl_->cache_fi_output) {
+            if (impl_->cache_fi_input)  { clReleaseMemObject(impl_->cache_fi_input);  impl_->cache_fi_input  = nullptr; }
+            if (impl_->cache_fi_output) { clReleaseMemObject(impl_->cache_fi_output); impl_->cache_fi_output = nullptr; }
+            impl_->cache_fi_count = 0; return;
+        }
         impl_->cache_fi_count = count;
     }
 
-    clEnqueueWriteBuffer(impl_->queue, impl_->cache_fi_input, CL_FALSE, 0,
-                         count * sizeof(FieldElement), inputs, 0, nullptr, nullptr);
+    if (clEnqueueWriteBuffer(impl_->queue, impl_->cache_fi_input, CL_FALSE, 0,
+                             count * sizeof(FieldElement), inputs, 0, nullptr, nullptr) != CL_SUCCESS)
+        return;
 
     cl_uint cnt = static_cast<cl_uint>(count);
     clSetKernelArg(impl_->kernel_field_inv, 0, sizeof(cl_mem), &impl_->cache_fi_input);
@@ -2351,30 +2403,38 @@ void Context::batch_field_inv(const FieldElement* inputs, FieldElement* outputs,
     std::size_t local_size = std::min(static_cast<std::size_t>(256), impl_->device_info.max_work_group_size);
     std::size_t global_size = ((count + local_size - 1) / local_size) * local_size;
 
-    clEnqueueNDRangeKernel(impl_->queue, impl_->kernel_field_inv, 1, nullptr,
-                           &global_size, &local_size, 0, nullptr, nullptr);
+    if (clEnqueueNDRangeKernel(impl_->queue, impl_->kernel_field_inv, 1, nullptr,
+                               &global_size, &local_size, 0, nullptr, nullptr) != CL_SUCCESS)
+        return;
     clEnqueueReadBuffer(impl_->queue, impl_->cache_fi_output, CL_TRUE, 0,
                         count * sizeof(FieldElement), outputs, 0, nullptr, nullptr);
 }
 
 void Context::batch_jacobian_to_affine(const JacobianPoint* jacobians, AffinePoint* affines, std::size_t count) {
     if (count == 0) return;
+    if (!impl_->kernel_batch_jacobian_to_affine) return;
 
     cl_int err;
 
     // Grow-only cached buffers
     if (count > impl_->cache_j2a_count) {
-        if (impl_->cache_j2a_input) clReleaseMemObject(impl_->cache_j2a_input);
+        if (impl_->cache_j2a_input)  clReleaseMemObject(impl_->cache_j2a_input);
         if (impl_->cache_j2a_output) clReleaseMemObject(impl_->cache_j2a_output);
         impl_->cache_j2a_input = clCreateBuffer(impl_->context, CL_MEM_READ_ONLY,
                                                   count * sizeof(JacobianPoint), nullptr, &err);
         impl_->cache_j2a_output = clCreateBuffer(impl_->context, CL_MEM_WRITE_ONLY,
                                                    count * sizeof(AffinePoint), nullptr, &err);
+        if (!impl_->cache_j2a_input || !impl_->cache_j2a_output) {
+            if (impl_->cache_j2a_input)  { clReleaseMemObject(impl_->cache_j2a_input);  impl_->cache_j2a_input  = nullptr; }
+            if (impl_->cache_j2a_output) { clReleaseMemObject(impl_->cache_j2a_output); impl_->cache_j2a_output = nullptr; }
+            impl_->cache_j2a_count = 0; return;
+        }
         impl_->cache_j2a_count = count;
     }
 
-    clEnqueueWriteBuffer(impl_->queue, impl_->cache_j2a_input, CL_FALSE, 0,
-                         count * sizeof(JacobianPoint), jacobians, 0, nullptr, nullptr);
+    if (clEnqueueWriteBuffer(impl_->queue, impl_->cache_j2a_input, CL_FALSE, 0,
+                             count * sizeof(JacobianPoint), jacobians, 0, nullptr, nullptr) != CL_SUCCESS)
+        return;
 
     cl_uint cnt = static_cast<cl_uint>(count);
     clSetKernelArg(impl_->kernel_batch_jacobian_to_affine, 0, sizeof(cl_mem), &impl_->cache_j2a_input);
@@ -2384,8 +2444,9 @@ void Context::batch_jacobian_to_affine(const JacobianPoint* jacobians, AffinePoi
     std::size_t local_size = std::min(static_cast<std::size_t>(256), impl_->device_info.max_work_group_size);
     std::size_t global_size = ((count + local_size - 1) / local_size) * local_size;
 
-    clEnqueueNDRangeKernel(impl_->queue, impl_->kernel_batch_jacobian_to_affine, 1, nullptr,
-                           &global_size, &local_size, 0, nullptr, nullptr);
+    if (clEnqueueNDRangeKernel(impl_->queue, impl_->kernel_batch_jacobian_to_affine, 1, nullptr,
+                               &global_size, &local_size, 0, nullptr, nullptr) != CL_SUCCESS)
+        return;
     clEnqueueReadBuffer(impl_->queue, impl_->cache_j2a_output, CL_TRUE, 0,
                         count * sizeof(AffinePoint), affines, 0, nullptr, nullptr);
 }

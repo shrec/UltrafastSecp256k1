@@ -21,8 +21,11 @@
 
 // ---------------------------------------------------------------------------
 // affine_add_impl: P + Q → R, all affine (2M + 1S total)
-// Caller must ensure P.x ≠ Q.x (no doubling, no identity).
-// For batch pipelines where all points are distinct by construction.
+// Handles degenerate cases (OCL-H-03):
+//   - P == -Q (P.x == Q.x, P.y != Q.y): returns (0,0) as identity sentinel
+//   - P == Q  (P.x == Q.x, P.y == Q.y): returns (0,0) — caller should use
+//     doubling formula; this path is negligible in batch GPU search pipelines
+// For non-degenerate inputs, full 2M+1S affine addition as described above.
 // ---------------------------------------------------------------------------
 inline void affine_add_impl(AffinePoint* r,
                              const FieldElement* px, const FieldElement* py,
@@ -31,7 +34,13 @@ inline void affine_add_impl(AffinePoint* r,
 
     field_sub_impl(&h, qx, px);       // H = Q.x - P.x
     field_sub_impl(&rr, qy, py);      // rr = Q.y - P.y
-    field_inv_impl(&t, &h);           // t = H^{-1} (expensive)
+
+    // OCL-H-03: branchless check for H == 0 (P.x == Q.x degenerate case)
+    ulong h_all = h.limbs[0] | h.limbs[1] | h.limbs[2] | h.limbs[3];
+    // h_nonzero_mask = ~0UL when H != 0, 0UL when H == 0  (GPU: conditional move)
+    ulong h_nonzero_mask = (h_all != 0UL) ? ~0UL : 0UL;
+
+    field_inv_impl(&t, &h);           // t = H^{-1}  (returns 0 if H == 0, per Fermat)
     field_mul_impl(&lam, &rr, &t);    // λ = rr / H                     [1M]
 
     field_sqr_impl(&r->x, &lam);     // X3 = λ²                        [1S]
@@ -41,6 +50,16 @@ inline void affine_add_impl(AffinePoint* r,
     field_sub_impl(&r->y, px, &r->x); // t = P.x - X3
     field_mul_impl(&r->y, &lam, &r->y); // Y3 = λ·(P.x - X3)           [1M]
     field_sub_impl(&r->y, &r->y, py); // Y3 -= P.y
+
+    // If H was 0, zero out the result (identity sentinel) instead of garbage
+    r->x.limbs[0] &= h_nonzero_mask;
+    r->x.limbs[1] &= h_nonzero_mask;
+    r->x.limbs[2] &= h_nonzero_mask;
+    r->x.limbs[3] &= h_nonzero_mask;
+    r->y.limbs[0] &= h_nonzero_mask;
+    r->y.limbs[1] &= h_nonzero_mask;
+    r->y.limbs[2] &= h_nonzero_mask;
+    r->y.limbs[3] &= h_nonzero_mask;
 }
 
 // ---------------------------------------------------------------------------

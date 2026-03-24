@@ -147,10 +147,10 @@ static void test_key_agg_known_keys() {
 }
 
 // ============================================================================
-// Test 2: Key Aggregation -- Ordering sensitivity (BIP-327 mandates this)
+// Test 2: Key Aggregation -- Order independence (canonical sort fixes this)
 // ============================================================================
 static void test_key_agg_ordering() {
-    (void)std::printf("[2] MuSig2 BIP-327: Key aggregation ordering sensitivity\n");
+    (void)std::printf("[2] MuSig2 BIP-327: Key aggregation order independence (canonical sort)\n");
 
     Scalar const s1 = Scalar::from_bytes(hex32(SK1_HEX));
     Scalar const s2 = Scalar::from_bytes(hex32(SK2_HEX));
@@ -160,21 +160,21 @@ static void test_key_agg_ordering() {
     auto pk2 = xonly_pubkey(s2);
     auto pk3 = xonly_pubkey(s3);
 
-    // BIP-327: L = hash(pk1 || pk2 || ...) depends on ordering
+    // Canonical sort: musig2_key_agg sorts keys internally, so order doesn't matter
     const std::vector<std::array<uint8_t, 32>> fwd = {pk1, pk2, pk3};
     const std::vector<std::array<uint8_t, 32>> rev = {pk3, pk2, pk1};
 
     auto ctx_fwd = secp256k1::musig2_key_agg(fwd);
     auto ctx_rev = secp256k1::musig2_key_agg(rev);
 
-    CHECK(ctx_fwd.Q_x != ctx_rev.Q_x,
-          "different key order -> different agg key");
+    CHECK(ctx_fwd.Q_x == ctx_rev.Q_x,
+          "canonical sort: rev order gives same agg key");
 
-    // Swap just two keys
+    // Swap just two keys -- should still yield same result with canonical sort
     const std::vector<std::array<uint8_t, 32>> swap12 = {pk2, pk1, pk3};
     auto ctx_swap = secp256k1::musig2_key_agg(swap12);
-    CHECK(ctx_fwd.Q_x != ctx_swap.Q_x,
-          "swap(1,2) -> different agg key");
+    CHECK(ctx_fwd.Q_x == ctx_swap.Q_x,
+          "canonical sort: swap(1,2) gives same agg key");
 }
 
 // ============================================================================

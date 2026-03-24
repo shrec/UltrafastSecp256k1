@@ -33,6 +33,7 @@ struct Keccak256State {
     std::size_t   buf_pos;       // Current position in buffer
     
     Keccak256State();
+    ~Keccak256State();
     
     // Absorb data
     void update(const std::uint8_t* data, std::size_t len);

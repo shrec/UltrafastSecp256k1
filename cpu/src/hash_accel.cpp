@@ -891,6 +891,9 @@ void hash160_33_batch(
 
 namespace secp256k1::detail {
 
+#if defined(__GNUC__) || defined(__clang__)
+__attribute__((hot))
+#endif
 void sha256_compress_dispatch(const std::uint8_t block[64],
                               std::uint32_t state[8]) noexcept {
 #if defined(SECP256K1_ARM64_TARGET) && defined(__ARM_FEATURE_SHA2)

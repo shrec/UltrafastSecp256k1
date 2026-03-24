@@ -9,6 +9,7 @@
 
 #include "secp256k1/ecmult_gen_comb.hpp"
 #include "secp256k1/ct/ops.hpp"
+#include "secp256k1/sha256.hpp"
 #include <cstring>
 #include <fstream>
 #include <mutex>
@@ -191,14 +192,22 @@ bool CombGenContext::save_cache(const std::string& path) const {
     f.write(reinterpret_cast<const char*>(&count), sizeof(count));
 
     // Table data
+    SHA256 hasher;
     for (const auto& entry : table_) {
         uint8_t inf = entry.infinity ? 1 : 0;
         f.write(reinterpret_cast<const char*>(&inf), 1);
+        hasher.update(&inf, 1);
         auto xb = entry.x.to_bytes();
         auto yb = entry.y.to_bytes();
         f.write(reinterpret_cast<const char*>(xb.data()), 32);
         f.write(reinterpret_cast<const char*>(yb.data()), 32);
+        hasher.update(xb.data(), 32);
+        hasher.update(yb.data(), 32);
     }
+
+    // Write SHA256 integrity checksum
+    auto checksum = hasher.finalize();
+    f.write(reinterpret_cast<const char*>(checksum.data()), 32);
 
     return f.good();
 }
@@ -220,18 +229,39 @@ bool CombGenContext::load_cache(const std::string& path) {
     num_combs_ = 1;
     table_.resize(count);
 
+    SHA256 hasher;
     for (uint32_t i = 0; i < count; ++i) {
         uint8_t inf = 0;
         f.read(reinterpret_cast<char*>(&inf), 1);
+        hasher.update(&inf, 1);
         table_[i].infinity = (inf != 0);
         std::array<uint8_t, 32> xb{}, yb{};
         f.read(reinterpret_cast<char*>(xb.data()), 32);
         f.read(reinterpret_cast<char*>(yb.data()), 32);
+        hasher.update(xb.data(), 32);
+        hasher.update(yb.data(), 32);
         table_[i].x = FieldElement::from_bytes(xb);
         table_[i].y = FieldElement::from_bytes(yb);
     }
 
-    return f.good();
+    if (!f.good()) return false;
+
+    // Verify SHA256 integrity checksum
+    std::array<uint8_t, 32> stored_checksum{};
+    f.read(reinterpret_cast<char*>(stored_checksum.data()), 32);
+    if (!f.good()) {
+        // Legacy cache without checksum — reject for safety
+        table_.clear();
+        return false;
+    }
+
+    auto computed_checksum = hasher.finalize();
+    if (stored_checksum != computed_checksum) {
+        table_.clear();
+        return false;
+    }
+
+    return true;
 }
 
 // -- Global singleton ---------------------------------------------------------

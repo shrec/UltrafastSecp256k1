@@ -23,9 +23,14 @@ using fast::Scalar;
 template<std::size_t N>
 static Scalar derive_scalar(const std::uint8_t* seed, std::size_t seed_len,
                              const char (&context)[N], std::uint32_t index) {
+    // BIP-340 tagged hash: SHA256(SHA256(tag) || SHA256(tag) || msg)
+    // The double-tag prefix provides domain separation and prevents cross-
+    // protocol hash collisions when the same seed is used in another context.
     SHA256 h;
+    auto tag_hash = SHA256::hash(context, N - 1);
+    h.update(tag_hash.data(), 32);
+    h.update(tag_hash.data(), 32);
     h.update(seed, seed_len);
-    h.update(context, N - 1);
     // Index as big-endian 4 bytes
     std::uint8_t idx_be[4] = {
         std::uint8_t(index >> 24), std::uint8_t(index >> 16),
@@ -33,7 +38,9 @@ static Scalar derive_scalar(const std::uint8_t* seed, std::size_t seed_len,
     };
     h.update(idx_be, 4);
     auto hash = h.finalize();
-    return Scalar::from_bytes(hash);
+    auto result = Scalar::from_bytes(hash);
+    secure_erase(hash.data(), hash.size());
+    return result;
 }
 
 // Evaluate polynomial f(x) = a_0 + a_1*x + a_2*x^2 + ... at x
@@ -138,6 +145,12 @@ frost_keygen_begin(ParticipantId participant_id,
                    std::uint32_t threshold,
                    std::uint32_t num_participants,
                    const std::array<std::uint8_t, 32>& secret_seed) {
+    // Validate inputs: participant IDs are 1-based; threshold must fit.
+    if (participant_id == 0 || threshold == 0 ||
+        num_participants == 0 || threshold > num_participants) {
+        return {{}, {}};
+    }
+
     // Generate random polynomial of degree (t-1):
     // f_i(x) = a_{i,0} + a_{i,1}*x + ... + a_{i,t-1}*x^{t-1}
     std::vector<Scalar> coeffs(threshold);
@@ -249,7 +262,7 @@ frost_sign_nonce_gen(ParticipantId participant_id,
 
 FrostPartialSig
 frost_sign(const FrostKeyPackage& key_pkg,
-           const FrostNonce& nonce,
+           FrostNonce& nonce,
            const std::array<std::uint8_t, 32>& msg,
            const std::vector<FrostNonceCommitment>& nonce_commitments) {
     // Collect signer IDs
@@ -313,10 +326,13 @@ frost_sign(const FrostKeyPackage& key_pkg,
 
     Scalar const z_i = d + (my_binding * ei) + (lambda_i * s_i * e);
 
-    // Erase secret nonces and signing share from stack.
+    // Erase secret nonces and signing share from stack, then consume the
+    // caller's nonce to enforce single-use (H-01 nonce-reuse prevention).
     secure_erase(&d,   sizeof(d));
     secure_erase(&ei,  sizeof(ei));
     secure_erase(&s_i, sizeof(s_i));
+    secure_erase(&nonce.hiding_nonce,  sizeof(nonce.hiding_nonce));
+    secure_erase(&nonce.binding_nonce, sizeof(nonce.binding_nonce));
 
     return FrostPartialSig{key_pkg.id, z_i};
 }

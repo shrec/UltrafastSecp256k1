@@ -755,6 +755,18 @@ static void test_rfc9591_invariants() {
     auto [nV1, ncV1] = secp256k1::frost_sign_nonce_gen(1, nseedV1);
     auto [nV2, ncV2] = secp256k1::frost_sign_nonce_gen(2, nseedV2);
 
+    // -- Invariant 7: Nonce commitment consistency (checked before sign
+    //    consumes the nonces, per H-01 single-use enforcement) --
+    // D_i == d_i * G, E_i == e_i * G
+    CHECK(points_equal(Point::generator().scalar_mul(nV1.hiding_nonce), ncV1.hiding_point),
+          "RFC9591: D_1 == d_1 * G");
+    CHECK(points_equal(Point::generator().scalar_mul(nV1.binding_nonce), ncV1.binding_point),
+          "RFC9591: E_1 == e_1 * G");
+    CHECK(points_equal(Point::generator().scalar_mul(nV2.hiding_nonce), ncV2.hiding_point),
+          "RFC9591: D_2 == d_2 * G");
+    CHECK(points_equal(Point::generator().scalar_mul(nV2.binding_nonce), ncV2.binding_point),
+          "RFC9591: E_2 == e_2 * G");
+
     std::vector<secp256k1::FrostNonceCommitment> const ncV = {ncV1, ncV2};
     auto psV1 = secp256k1::frost_sign(kp1, nV1, msg, ncV);
     auto psV2 = secp256k1::frost_sign(kp2, nV2, msg, ncV);
@@ -777,17 +789,6 @@ static void test_rfc9591_invariants() {
     const bool pv_wrong = secp256k1::frost_verify_partial(psV2, ncV2,
                      kp1.verification_share, msg, ncV, kp1.group_public_key);
     CHECK(!pv_wrong, "RFC9591: wrong verification share -> partial verify fails");
-
-    // -- Invariant 7: Nonce commitment consistency --
-    // D_i == d_i * G, E_i == e_i * G
-    CHECK(points_equal(Point::generator().scalar_mul(nV1.hiding_nonce), ncV1.hiding_point),
-          "RFC9591: D_1 == d_1 * G");
-    CHECK(points_equal(Point::generator().scalar_mul(nV1.binding_nonce), ncV1.binding_point),
-          "RFC9591: E_1 == e_1 * G");
-    CHECK(points_equal(Point::generator().scalar_mul(nV2.hiding_nonce), ncV2.hiding_point),
-          "RFC9591: D_2 == d_2 * G");
-    CHECK(points_equal(Point::generator().scalar_mul(nV2.binding_nonce), ncV2.binding_point),
-          "RFC9591: E_2 == e_2 * G");
 }
 
 // ===============================================================================

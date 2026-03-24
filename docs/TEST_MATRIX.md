@@ -10,6 +10,7 @@
 |----------|-------|--------|
 | **CTest targets** | 41 | [OK] All passing |
 | **Audit suite checks** | 641,194+ | [OK] 0 failures |
+| **Exploit PoC test files** | **78 tests, 14 categories** | [OK] 0 failures |
 | **Fuzz harnesses** | 3 | [OK] Active |
 | **ECIES regression** | 85 | [OK] All passing |
 | **Adversarial protocol** | 114 functions, 360+ checks | [OK] Active |
@@ -332,6 +333,101 @@ qemu-riscv64 -L /usr/riscv64-linux-gnu ./build-riscv64/cpu/run_selftest smoke
 qemu-riscv64 -L /usr/riscv64-linux-gnu ./build-riscv64/cpu/test_bip324_standalone
 qemu-riscv64 -L /usr/riscv64-linux-gnu ./build-riscv64/cpu/bench_kP
 qemu-riscv64 -L /usr/riscv64-linux-gnu ./build-riscv64/cpu/bench_bip324
+```
+
+---
+
+## Exploit PoC Test Suite (`audit/test_exploit_*.cpp`)
+
+78 standalone exploit-style tests that actively try to break the library.
+Each test compiles as a separate binary and verifies that attacks fail, edge cases are handled, and security invariants hold under adversarial inputs.
+
+| Category | File(s) | Attack / Property Verified |
+|----------|---------|---------------------------|
+| ECDSA / Signature | `test_exploit_ecdsa_malleability` | BIP-62 low-s enforcement, high-s rejection, `normalize()`, strict parser |
+| ECDSA / Signature | `test_exploit_ecdsa_edge_cases` | Zero and boundary inputs |
+| ECDSA / Signature | `test_exploit_ecdsa_recovery` | Key recovery edge cases |
+| ECDSA / Signature | `test_exploit_ecdsa_rfc6979_kat` | RFC 6979 deterministic nonce KAT |
+| ECDH | `test_exploit_ecdh` | ECDH correctness |
+| ECDH | `test_exploit_ecdh_degenerate` | Degenerate ECDH inputs |
+| ECDH | `test_exploit_ecdh_variants` | ECDH variants |
+| Schnorr / BIP-340 | `test_exploit_schnorr_edge_cases` | Schnorr edge cases |
+| Schnorr / BIP-340 | `test_exploit_schnorr_bip340_kat` | BIP-340 known-answer tests |
+| Batch Schnorr | `test_exploit_batch_schnorr` | Basic batch Schnorr verification |
+| Batch Schnorr | `test_exploit_batch_schnorr_forge` | Forge detection, `identify_invalid` accuracy |
+| Batch Schnorr | `test_exploit_batch_soundness` | Batch soundness properties |
+| GLV / Math | `test_exploit_glv_endomorphism` | Endomorphism properties |
+| GLV / Math | `test_exploit_glv_kat` | GLV ±k₁±k₂λ≡k, φ(G)=λG, φ²+φ+1=0 decomposition KAT |
+| GLV / Math | `test_exploit_field_arithmetic` | Field element arithmetic |
+| GLV / Math | `test_exploit_scalar_group_order` | Scalar group-order properties |
+| GLV / Math | `test_exploit_scalar_invariants` | Scalar invariants |
+| GLV / Math | `test_exploit_scalar_systematic` | Systematic scalar coverage |
+| GLV / Math | `test_exploit_point_group_law` | Point group law |
+| GLV / Math | `test_exploit_point_serialization` | Point serialization |
+| GLV / Math | `test_exploit_multiscalar` | Multi-scalar multiplication |
+| GLV / Math | `test_exploit_pippenger_msm` | Pippenger MSM |
+| Batch Verify | `test_exploit_batch_verify_correctness` | Batch verify math |
+| BIP-32 / HD | `test_exploit_bip32_depth` | Depth overflow |
+| BIP-32 / HD | `test_exploit_bip32_derivation` | Derivation correctness |
+| BIP-32 / HD | `test_exploit_bip32_path_overflow` | Path overflow attack |
+| BIP-32 / HD | `test_exploit_bip32_ckd_hardened` | Hardened isolation, xpub guard, fingerprint |
+| BIP-39 | `test_exploit_bip39_entropy` | Entropy edge cases |
+| BIP-39 | `test_exploit_bip39_mnemonic` | Mnemonic generation and parsing |
+| HD Derivation | `test_exploit_coin_hd_derivation` | HD derivation paths per coin type |
+| MuSig2 | `test_exploit_musig2` | MuSig2 protocol |
+| MuSig2 | `test_exploit_musig2_key_agg` | Key aggregation |
+| MuSig2 | `test_exploit_musig2_nonce_reuse` | Nonce reuse attack |
+| MuSig2 | `test_exploit_musig2_ordering` | Key ordering independence |
+| FROST | `test_exploit_frost_byzantine` | Byzantine participant |
+| FROST | `test_exploit_frost_dkg` | Distributed key generation |
+| FROST | `test_exploit_frost_index` | Participant index handling |
+| FROST | `test_exploit_frost_lagrange_duplicate` | Duplicate Lagrange coefficients |
+| FROST | `test_exploit_frost_participant_zero` | Index-zero participant |
+| FROST | `test_exploit_frost_signing` | FROST signing protocol |
+| FROST | `test_exploit_frost_threshold_degenerate` | Degenerate threshold |
+| Adaptor / ZK | `test_exploit_adaptor_extended` | Extended adaptor attacks |
+| Adaptor / ZK | `test_exploit_adaptor_parity` | Adaptor parity handling |
+| Adaptor / ZK | `test_exploit_zk_proofs` | ZK proof properties |
+| Adaptor / ZK | `test_exploit_pedersen_homomorphism` | Pedersen commitment homomorphism |
+| AEAD / ChaCha20 | `test_exploit_aead_integrity` | ChaCha20-Poly1305 MAC bypass, nonce reuse, zeroed output on failure |
+| AEAD / ChaCha20 | `test_exploit_chacha20_kat` | ChaCha20 known-answer tests |
+| AEAD / ChaCha20 | `test_exploit_chacha20_nonce_reuse` | Nonce reuse hazard |
+| AEAD / ChaCha20 | `test_exploit_chacha20_poly1305` | AEAD roundtrip |
+| HKDF | `test_exploit_hkdf_kat` | HKDF known-answer tests |
+| HKDF | `test_exploit_hkdf_security` | HKDF security properties |
+| Hash primitives | `test_exploit_keccak256_kat` | Keccak-256 KAT |
+| Hash primitives | `test_exploit_ripemd160_kat` | RIPEMD-160 KAT |
+| Hash primitives | `test_exploit_sha256_kat` | SHA-256 KAT |
+| Hash primitives | `test_exploit_sha512_kat` | SHA-512 KAT |
+| Hash primitives | `test_exploit_sha_kat` | SHA family KAT |
+| ECIES | `test_exploit_ecies_auth` | ECIES authentication |
+| ECIES | `test_exploit_ecies_encryption` | ECIES encryption |
+| ECIES | `test_exploit_ecies_roundtrip` | ECIES roundtrip |
+| Protocol BIPs | `test_exploit_bip143_sighash` | BIP-143 sighash |
+| Protocol BIPs | `test_exploit_bip144_serialization` | BIP-144 serialization |
+| Protocol BIPs | `test_exploit_bip324_session` | BIP-324 encrypted P2P session |
+| Protocol BIPs | `test_exploit_segwit_encoding` | SegWit address encoding |
+| Protocol BIPs | `test_exploit_taproot_scripts` | Taproot script path |
+| Protocol BIPs | `test_exploit_taproot_tweak` | Taproot key tweak |
+| Address / Wallet | `test_exploit_address_encoding` | Address encoding |
+| Address / Wallet | `test_exploit_address_generation` | Address generation |
+| Address / Wallet | `test_exploit_wallet_api` | Wallet API |
+| Address / Wallet | `test_exploit_private_key` | Private key handling |
+| Address / Wallet | `test_exploit_eth_signing` | Ethereum signing |
+| Address / Wallet | `test_exploit_bitcoin_message_signing` | Bitcoin message signing |
+| Constant-Time | `test_exploit_ct_recov` | CT key recovery |
+| Constant-Time | `test_exploit_ct_systematic` | Systematic CT verification |
+| Constant-Time | `test_exploit_backend_divergence` | Backend divergence detection |
+| ElligatorSwift | `test_exploit_ellswift` | ElligatorSwift encoding correctness |
+| ElligatorSwift | `test_exploit_ellswift_ecdh` | ElligatorSwift ECDH |
+| Self-Test / API | `test_exploit_selftest_api` | Self-test API |
+| Recovery | `test_exploit_recovery_extended` | Extended recovery edge cases |
+
+Build and run all exploit tests:
+```bash
+cmake -S . -B build-audit -G Ninja -DCMAKE_BUILD_TYPE=Release -DSECP256K1_BUILD_TESTS=ON
+cmake --build build-audit -j
+ctest --test-dir build-audit -R "exploit" --output-on-failure
 ```
 
 ---

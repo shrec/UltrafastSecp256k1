@@ -155,10 +155,15 @@ static void test_musig2_rogue_key_resistance() {
     std::printf("    %d checks OK\n\n", g_pass);
 }
 
-// Verify key coefficient is different for same key in different groups
+// Verify key aggregation binds to the full group
+// After canonical sort, the BIP-327 "second unique key in sorted order"
+// optimization assigns coeff=1 to a deterministic key per group.  If pk_a
+// happens to be "second unique" in BOTH groups, both coefficients equal 1
+// (same by design -- not a bug).  The real security property is that
+// different group compositions produce different aggregate keys (Q_x).
 
 static void test_musig2_key_coefficient_binding() {
-    std::printf("[2] MuSig2: Key Coefficient Depends on Full Group\n");
+    std::printf("[2] MuSig2: Key Aggregation Binds to Full Group\n");
 
     std::mt19937_64 rng(0xC0EFF1C1);  // NOLINT(cert-msc32-c,cert-msc51-cpp)
     const int N = 10;
@@ -176,12 +181,28 @@ static void test_musig2_key_coefficient_binding() {
         // Group 2: {A, C}
         auto ctx_ac = secp256k1::musig2_key_agg({pk_a, pk_c});
 
-        // A's coefficient should be different in different groups
-        // (because L = hash(all keys) differs)
+        // Primary security property: different group compositions → different
+        // aggregate keys.  This is always true because L = hash(all sorted keys)
+        // changes when group members change (pk_b ≠ pk_c → L_ab ≠ L_ac).
+        CHECK(ctx_ab.Q_x != ctx_ac.Q_x,
+              "same key in different groups -> different aggregate key");
+
+        // Supplementary: if pk_a's coefficient is hash-based in both groups
+        // (not the coeff=1 second-unique shortcut), the coefficients must differ
+        // because L differs.  Skip when both groups assign the coeff=1 shortcut
+        // to pk_a -- that is expected canonical-sort behavior, not a failure.
         auto coeff_a_in_ab = ctx_ab.key_coefficients[0].to_bytes();
         auto coeff_a_in_ac = ctx_ac.key_coefficients[0].to_bytes();
-        CHECK(coeff_a_in_ab != coeff_a_in_ac,
-              "same key gets different coeff in different groups");
+        static const std::array<uint8_t, 32> SCALAR_ONE = {
+            0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
+            0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,1
+        };
+        bool const shortcut_ab = (coeff_a_in_ab == SCALAR_ONE);
+        bool const shortcut_ac = (coeff_a_in_ac == SCALAR_ONE);
+        if (!shortcut_ab || !shortcut_ac) {
+            CHECK(coeff_a_in_ab != coeff_a_in_ac,
+                  "same key gets different coeff in different groups");
+        }
     }
 
     std::printf("    %d checks OK\n\n", g_pass);

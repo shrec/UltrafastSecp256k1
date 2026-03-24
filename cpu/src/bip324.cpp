@@ -95,6 +95,12 @@ std::vector<std::uint8_t> Bip324Cipher::encrypt(
     const std::uint8_t* aad, std::size_t aad_len,
     const std::uint8_t* plaintext, std::size_t plaintext_len) noexcept {
 
+    // BIP-324 length field is 3 bytes: reject plaintext > 0xFFFFFF
+    if (plaintext_len > 0xFFFFFF) return {};
+
+    // Overflow guard: 3 + plaintext_len + 16 must not wrap
+    if (plaintext_len > SIZE_MAX - 19) return {};
+
     // Output: [3-byte encrypted length] [encrypted payload] [16-byte tag]
     std::size_t const ct_len = 3 + plaintext_len;
     std::vector<std::uint8_t> output(ct_len + 16);
@@ -178,6 +184,7 @@ Bip324Session::Bip324Session(bool initiator) noexcept
     csprng_fill(privkey_.data(), 32);
     auto sk = fast::Scalar::from_bytes(privkey_);
     our_encoding_ = ellswift_create(sk);
+    detail::secure_erase(&sk, sizeof(sk));
 }
 
 Bip324Session::Bip324Session(bool initiator, const std::uint8_t privkey[32]) noexcept
@@ -185,6 +192,7 @@ Bip324Session::Bip324Session(bool initiator, const std::uint8_t privkey[32]) noe
     std::memcpy(privkey_.data(), privkey, 32);
     auto sk = fast::Scalar::from_bytes(privkey_);
     our_encoding_ = ellswift_create(sk);
+    detail::secure_erase(&sk, sizeof(sk));
 }
 
 bool Bip324Session::complete_handshake(const std::uint8_t peer_encoding[64]) noexcept {
@@ -247,6 +255,7 @@ bool Bip324Session::complete_handshake(const std::uint8_t peer_encoding[64]) noe
     detail::secure_erase(prk.data(), prk.size());
     detail::secure_erase(initiator_key, sizeof(initiator_key));
     detail::secure_erase(responder_key, sizeof(responder_key));
+    detail::secure_erase(&sk, sizeof(sk));
 
     established_ = true;
     return true;

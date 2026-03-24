@@ -733,6 +733,278 @@ public:
         return GpuError::Ok;
     }
 
+    /* -- ZK / BIP-324 batch operations (Metal via secp256k1_kernels.metal) -- */
+
+    GpuError zk_knowledge_verify_batch(
+        const uint8_t* proofs64, const uint8_t* pubkeys65,
+        const uint8_t* messages32, size_t count,
+        uint8_t* out_results) override
+    {
+        if (!is_ready()) return set_error(GpuError::Device, "context not initialised");
+        if (count == 0) { clear_error(); return GpuError::Ok; }
+        if (!proofs64 || !pubkeys65 || !messages32 || !out_results)
+            return set_error(GpuError::NullArg, "NULL buffer");
+
+        auto err = ensure_library();
+        if (err != GpuError::Ok) return err;
+
+        /* Split proof_rx (32 B) and proof_s (32 B) from interleaved 64-byte proofs */
+        std::vector<uint8_t> h_rx(count * 32), h_s(count * 32);
+        for (size_t i = 0; i < count; ++i) {
+            std::memcpy(h_rx.data() + i * 32, proofs64 + i * 64,      32);
+            std::memcpy(h_s.data()  + i * 32, proofs64 + i * 64 + 32, 32);
+        }
+
+        /* Extract x-coordinates from 65-byte uncompressed pubkeys (04 || x32 || y32) */
+        std::vector<uint8_t> h_pks(count * 32);
+        for (size_t i = 0; i < count; ++i)
+            std::memcpy(h_pks.data() + i * 32, pubkeys65 + i * 65 + 1, 32);
+
+        auto buf_rx   = runtime_->alloc_buffer_shared(count * 32);
+        std::memcpy(buf_rx.contents(), h_rx.data(), count * 32);
+        auto buf_s    = runtime_->alloc_buffer_shared(count * 32);
+        std::memcpy(buf_s.contents(), h_s.data(), count * 32);
+        auto buf_pks  = runtime_->alloc_buffer_shared(count * 32);
+        std::memcpy(buf_pks.contents(), h_pks.data(), count * 32);
+        auto buf_msgs = runtime_->alloc_buffer_shared(count * 32);
+        std::memcpy(buf_msgs.contents(), messages32, count * 32);
+        auto buf_res  = runtime_->alloc_buffer_shared(count * sizeof(uint32_t));
+        uint32_t n32  = (uint32_t)count;
+        auto buf_n    = runtime_->alloc_buffer_shared(sizeof(uint32_t));
+        std::memcpy(buf_n.contents(), &n32, sizeof(n32));
+
+        auto pipe = runtime_->make_pipeline("zk_knowledge_verify_batch");
+        runtime_->dispatch_sync(pipe, (uint32_t)count, 64u,
+                                {&buf_rx, &buf_s, &buf_pks, &buf_msgs, &buf_res, &buf_n});
+
+        const auto* res = static_cast<const uint32_t*>(buf_res.contents());
+        for (size_t i = 0; i < count; ++i)
+            out_results[i] = res[i] ? 1 : 0;
+
+        clear_error();
+        return GpuError::Ok;
+    }
+
+    GpuError zk_dleq_verify_batch(
+        const uint8_t* proofs64,
+        const uint8_t* G_pts65, const uint8_t* H_pts65,
+        const uint8_t* P_pts65, const uint8_t* Q_pts65,
+        size_t count, uint8_t* out_results) override
+    {
+        if (!is_ready()) return set_error(GpuError::Device, "context not initialised");
+        if (count == 0) { clear_error(); return GpuError::Ok; }
+        if (!proofs64 || !G_pts65 || !H_pts65 || !P_pts65 || !Q_pts65 || !out_results)
+            return set_error(GpuError::NullArg, "NULL buffer");
+
+        auto err = ensure_library();
+        if (err != GpuError::Ok) return err;
+
+        /* Split e[32] || s[32] from proof */
+        std::vector<uint8_t> h_e(count * 32), h_s(count * 32);
+        for (size_t i = 0; i < count; ++i) {
+            std::memcpy(h_e.data() + i * 32, proofs64 + i * 64,      32);
+            std::memcpy(h_s.data() + i * 32, proofs64 + i * 64 + 32, 32);
+        }
+
+        /* Metal kernel uses hardcoded G and tag-derived H; pass P and Q as x-coords */
+        /* G_pts65 and H_pts65 are intentionally unused by this kernel path. */
+        (void)G_pts65; (void)H_pts65;
+        std::vector<uint8_t> h_P(count * 32), h_Q(count * 32);
+        for (size_t i = 0; i < count; ++i) {
+            std::memcpy(h_P.data() + i * 32, P_pts65 + i * 65 + 1, 32);
+            std::memcpy(h_Q.data() + i * 32, Q_pts65 + i * 65 + 1, 32);
+        }
+
+        auto buf_e   = runtime_->alloc_buffer_shared(count * 32);
+        std::memcpy(buf_e.contents(), h_e.data(), count * 32);
+        auto buf_s   = runtime_->alloc_buffer_shared(count * 32);
+        std::memcpy(buf_s.contents(), h_s.data(), count * 32);
+        auto buf_P   = runtime_->alloc_buffer_shared(count * 32);
+        std::memcpy(buf_P.contents(), h_P.data(), count * 32);
+        auto buf_Q   = runtime_->alloc_buffer_shared(count * 32);
+        std::memcpy(buf_Q.contents(), h_Q.data(), count * 32);
+        auto buf_res = runtime_->alloc_buffer_shared(count * sizeof(uint32_t));
+        uint32_t n32 = (uint32_t)count;
+        auto buf_n   = runtime_->alloc_buffer_shared(sizeof(uint32_t));
+        std::memcpy(buf_n.contents(), &n32, sizeof(n32));
+
+        auto pipe = runtime_->make_pipeline("zk_dleq_verify_batch");
+        runtime_->dispatch_sync(pipe, (uint32_t)count, 64u,
+                                {&buf_e, &buf_s, &buf_P, &buf_Q, &buf_res, &buf_n});
+
+        const auto* res = static_cast<const uint32_t*>(buf_res.contents());
+        for (size_t i = 0; i < count; ++i)
+            out_results[i] = res[i] ? 1 : 0;
+
+        clear_error();
+        return GpuError::Ok;
+    }
+
+    GpuError bulletproof_verify_batch(
+        const uint8_t* proofs324, const uint8_t* commitments65,
+        const uint8_t* H_generator65, size_t count,
+        uint8_t* out_results) override
+    {
+        if (!is_ready()) return set_error(GpuError::Device, "context not initialised");
+        if (count == 0) { clear_error(); return GpuError::Ok; }
+        if (!proofs324 || !commitments65 || !H_generator65 || !out_results)
+            return set_error(GpuError::NullArg, "NULL buffer");
+
+        auto err = ensure_library();
+        if (err != GpuError::Ok) return err;
+
+        /* Convert big-endian 32 bytes → MetalFieldElem (same format as scalar). */
+        auto be32_to_metal_fe = [](const uint8_t be[32]) -> MetalFieldElem {
+            MetalFieldElem fe;
+            for (int i = 0; i < 8; i++) {
+                int base = (7 - i) * 4;
+                fe.limbs[i] = ((uint32_t)be[base]   << 24) |
+                              ((uint32_t)be[base+1]  << 16) |
+                              ((uint32_t)be[base+2]  << 8)  |
+                              ((uint32_t)be[base+3]);
+            }
+            return fe;
+        };
+
+        /* Parse uncompressed point (65 bytes: 04 || x[32] || y[32]) → MetalAffinePoint */
+        auto parse_pt65 = [&be32_to_metal_fe](const uint8_t pt65[65]) -> MetalAffinePoint {
+            return { be32_to_metal_fe(pt65 + 1), be32_to_metal_fe(pt65 + 33) };
+        };
+
+        /* Build GPU-layout RangeProofPolyGPU structs (320 bytes each):
+         *   4 x MetalAffinePoint (A, S, T1, T2) + 2 x MetalScalar256 (tau_x, t_hat)
+         * Wire format per proof (324 bytes): 4 x 65-byte uncompressed + 2 x 32-byte scalars */
+        struct RangeProofPolyMetal {
+            MetalAffinePoint A, S, T1, T2;
+            MetalScalar256 tau_x, t_hat;
+        };
+        static_assert(sizeof(RangeProofPolyMetal) == 320, "struct layout mismatch");
+
+        auto buf_proofs = runtime_->alloc_buffer_shared(count * sizeof(RangeProofPolyMetal));
+        auto* proofs_out = static_cast<RangeProofPolyMetal*>(buf_proofs.contents());
+        for (size_t i = 0; i < count; ++i) {
+            const uint8_t* p = proofs324 + i * 324;
+            proofs_out[i].A    = parse_pt65(p);
+            proofs_out[i].S    = parse_pt65(p + 65);
+            proofs_out[i].T1   = parse_pt65(p + 130);
+            proofs_out[i].T2   = parse_pt65(p + 195);
+            proofs_out[i].tau_x = be32_to_metal_scalar(p + 260);
+            proofs_out[i].t_hat = be32_to_metal_scalar(p + 292);
+        }
+
+        auto buf_commits = runtime_->alloc_buffer_shared(count * sizeof(MetalAffinePoint));
+        auto* commits_out = static_cast<MetalAffinePoint*>(buf_commits.contents());
+        for (size_t i = 0; i < count; ++i)
+            commits_out[i] = parse_pt65(commitments65 + i * 65);
+
+        auto buf_hgen = runtime_->alloc_buffer_shared(sizeof(MetalAffinePoint));
+        *static_cast<MetalAffinePoint*>(buf_hgen.contents()) = parse_pt65(H_generator65);
+
+        auto buf_res = runtime_->alloc_buffer_shared(count * sizeof(uint32_t));
+        uint32_t n32 = (uint32_t)count;
+        auto buf_n   = runtime_->alloc_buffer_shared(sizeof(uint32_t));
+        std::memcpy(buf_n.contents(), &n32, sizeof(n32));
+
+        auto pipe = runtime_->make_pipeline("range_proof_poly_batch");
+        runtime_->dispatch_sync(pipe, (uint32_t)count, 64u,
+                                {&buf_proofs, &buf_commits, &buf_hgen, &buf_res, &buf_n});
+
+        const auto* res = static_cast<const uint32_t*>(buf_res.contents());
+        for (size_t i = 0; i < count; ++i)
+            out_results[i] = res[i] ? 1 : 0;
+
+        clear_error();
+        return GpuError::Ok;
+    }
+
+    GpuError bip324_aead_encrypt_batch(
+        const uint8_t* keys32, const uint8_t* nonces12,
+        const uint8_t* plaintexts, const uint32_t* sizes,
+        uint32_t max_payload, size_t count, uint8_t* wire_out) override
+    {
+        if (!is_ready()) return set_error(GpuError::Device, "context not initialised");
+        if (count == 0) { clear_error(); return GpuError::Ok; }
+        if (!keys32 || !nonces12 || !plaintexts || !sizes || !wire_out)
+            return set_error(GpuError::NullArg, "NULL buffer");
+
+        auto err = ensure_library();
+        if (err != GpuError::Ok) return err;
+
+        const size_t wire_stride = (size_t)max_payload + 19u; /* BIP324_OVERHEAD = 3 hdr + 16 tag */
+
+        auto buf_keys   = runtime_->alloc_buffer_shared(count * 32);
+        std::memcpy(buf_keys.contents(), keys32, count * 32);
+        auto buf_nonces = runtime_->alloc_buffer_shared(count * 12);
+        std::memcpy(buf_nonces.contents(), nonces12, count * 12);
+        auto buf_pt     = runtime_->alloc_buffer_shared((size_t)max_payload * count);
+        std::memcpy(buf_pt.contents(), plaintexts, (size_t)max_payload * count);
+        auto buf_sizes  = runtime_->alloc_buffer_shared(sizeof(uint32_t) * count);
+        std::memcpy(buf_sizes.contents(), sizes, sizeof(uint32_t) * count);
+        auto buf_wire   = runtime_->alloc_buffer_shared(wire_stride * count);
+
+        auto buf_max    = runtime_->alloc_buffer_shared(sizeof(uint32_t));
+        std::memcpy(buf_max.contents(), &max_payload, sizeof(max_payload));
+        uint32_t n32    = (uint32_t)count;
+        auto buf_n      = runtime_->alloc_buffer_shared(sizeof(uint32_t));
+        std::memcpy(buf_n.contents(), &n32, sizeof(n32));
+
+        auto pipe = runtime_->make_pipeline("kernel_bip324_aead_encrypt");
+        runtime_->dispatch_sync(pipe, (uint32_t)count, 64u,
+                                {&buf_keys, &buf_nonces, &buf_pt, &buf_sizes,
+                                 &buf_wire, &buf_max, &buf_n});
+
+        std::memcpy(wire_out, buf_wire.contents(), wire_stride * count);
+        clear_error();
+        return GpuError::Ok;
+    }
+
+    GpuError bip324_aead_decrypt_batch(
+        const uint8_t* keys32, const uint8_t* nonces12,
+        const uint8_t* wire_in, const uint32_t* sizes,
+        uint32_t max_payload, size_t count,
+        uint8_t* plaintext_out, uint8_t* out_valid) override
+    {
+        if (!is_ready()) return set_error(GpuError::Device, "context not initialised");
+        if (count == 0) { clear_error(); return GpuError::Ok; }
+        if (!keys32 || !nonces12 || !wire_in || !sizes || !plaintext_out || !out_valid)
+            return set_error(GpuError::NullArg, "NULL buffer");
+
+        auto err = ensure_library();
+        if (err != GpuError::Ok) return err;
+
+        const size_t wire_stride = (size_t)max_payload + 19u;
+
+        auto buf_keys    = runtime_->alloc_buffer_shared(count * 32);
+        std::memcpy(buf_keys.contents(), keys32, count * 32);
+        auto buf_nonces  = runtime_->alloc_buffer_shared(count * 12);
+        std::memcpy(buf_nonces.contents(), nonces12, count * 12);
+        auto buf_wire_in = runtime_->alloc_buffer_shared(wire_stride * count);
+        std::memcpy(buf_wire_in.contents(), wire_in, wire_stride * count);
+        auto buf_sizes   = runtime_->alloc_buffer_shared(sizeof(uint32_t) * count);
+        std::memcpy(buf_sizes.contents(), sizes, sizeof(uint32_t) * count);
+        auto buf_pt_out  = runtime_->alloc_buffer_shared((size_t)max_payload * count);
+        auto buf_ok      = runtime_->alloc_buffer_shared(sizeof(uint32_t) * count);
+
+        auto buf_max     = runtime_->alloc_buffer_shared(sizeof(uint32_t));
+        std::memcpy(buf_max.contents(), &max_payload, sizeof(max_payload));
+        uint32_t n32     = (uint32_t)count;
+        auto buf_n       = runtime_->alloc_buffer_shared(sizeof(uint32_t));
+        std::memcpy(buf_n.contents(), &n32, sizeof(n32));
+
+        auto pipe = runtime_->make_pipeline("kernel_bip324_aead_decrypt");
+        runtime_->dispatch_sync(pipe, (uint32_t)count, 64u,
+                                {&buf_keys, &buf_nonces, &buf_wire_in, &buf_sizes,
+                                 &buf_pt_out, &buf_ok, &buf_max, &buf_n});
+
+        std::memcpy(plaintext_out, buf_pt_out.contents(), (size_t)max_payload * count);
+        const auto* ok_vals = static_cast<const uint32_t*>(buf_ok.contents());
+        for (size_t i = 0; i < count; ++i)
+            out_valid[i] = ok_vals[i] ? 1 : 0;
+
+        clear_error();
+        return GpuError::Ok;
+    }
+
 private:
     std::unique_ptr<secp256k1::metal::MetalRuntime> runtime_;
     bool lib_init_attempted_ = false;

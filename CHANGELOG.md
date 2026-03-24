@@ -5,9 +5,28 @@ All notable changes to UltrafastSecp256k1 are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [3.4.0] - 2026-03-23
+## [Unreleased]
 
-> Full ABI audit coverage: 155 `ufsecp_*` + 18 `ufsecp_gpu_*` functions, 70-module unified runner (AUDIT-READY), GPU C ABI null-guard path integration.
+### Security / Audit
+- **Ethereum differential KAT** (`audit/test_exploit_ethereum_differential.cpp`) — 10 tests, 15 sub-checks against go-ethereum, web3.py, and ethers.js reference vectors: address derivation (go-ethereum testKey KAT), privkey=1 canonical address, ecrecover with go-ethereum test message hash, EIP-191 hash vs web3.py, sign+ecrecover roundtrip, EIP-155 v encoding, eth_personal_sign roundtrip, tamper detection, keccak256("abc") KAT, anti-collision. Closes assurance gap **#4**.
+- **MuSig2/FROST/adaptor parser robustness fuzz** (`audit/test_fuzz_musig2_frost.cpp`) — 15 tests, 16 sub-checks: musig2 key_agg/nonce_agg/partial_verify/partial_sig_agg with random inputs (5000/3000/2000 rounds each), FROST keygen_finalize/sign/verify_partial/aggregate random inputs, schnorr+ecdsa adaptor random inputs, boundary test (n_signers=0 → must error). Closes assurance gap **#7**.
+- **ClusterFuzzLite expanded to 5 targets**: added `cpu/fuzz/fuzz_ecdsa.cpp` (ECDSA sign→verify invariant, wrong-msg false-positive check, parse_compact_strict robustness) and `cpu/fuzz/fuzz_schnorr.cpp` (BIP-340 sign→verify, adversarial from_bytes verify, wrong-msg check).
+
+### GPU Backend
+- **Bulletproof parity (OpenCL + Metal)**: resolved the last remaining PARITY-EXCEPTION. OpenCL: removed `#if 0` guard in `secp256k1_zk.cl`; fixed `range_verify_full_impl` address-space qualifiers (`__global const AffinePoint*` for `bp_G`/`bp_H`, with per-iteration private copy before `scalar_mul_impl`); wired `bulletproof_verify_batch` host dispatch via `range_proof_poly_batch` kernel (matches CUDA poly-check behavior). Metal: wired `bulletproof_verify_batch` host dispatch via `range_proof_poly_batch` kernel; host converts 324-byte proof wire format to `RangeProofPolyMetal` GPU structs. Full CUDA ↔ OpenCL ↔ Metal parity — zero `Unsupported` stubs remaining.
+- **OpenCL parity**: wired `zk_knowledge_verify_batch`, `zk_dleq_verify_batch`, `bip324_aead_encrypt_batch`, `bip324_aead_decrypt_batch` in `gpu_backend_opencl.cpp` — 4 new kernels matching CUDA surface.
+- **Metal parity**: wired `zk_knowledge_verify_batch`, `zk_dleq_verify_batch`, `bip324_aead_encrypt_batch`, `bip324_aead_decrypt_batch` in `gpu_backend_metal.mm` — all four Metal kernels were already present in `secp256k1_kernels.metal`; dispatch code now connected. Also fixed `zk_knowledge_verify_batch` Metal kernel: was incorrectly treating pubkey buffer as a scalar (scalar×G); corrected to `lift_x` to recover the full point from x-coordinate.
+- **CUDA 13 compatibility**: replaced deprecated `cudaDeviceProp::clockRate` / `::memoryClockRate` fields (removed in CUDA 13) with `cudaDeviceGetAttribute(cudaDevAttrClockRate/MemoryClockRate)` under `#if CUDART_VERSION >= 13000` guard. Backward-compatible with CUDA 12. Reported by @craigraw compiling with CUDA 13 on RTX 5080.
+
+
+
+> Full ABI audit coverage: 155 `ufsecp_*` + 23 `ufsecp_gpu_*` functions, 70-module unified runner (AUDIT-READY), GPU C ABI null-guard path integration.
+
+### Added
+
+- **ZK adversarial exploit test** (`test_exploit_zk_adversarial.cpp`) — 14 tests covering malformed/forged ZK proof inputs: garbage bytes, all-zero proof, scalar overflow (s ≥ n), truncated data, identity pubkey, identity generator, degenerate G==H DLEQ, wrong commitment for range proof, DLEQ overflow e, exhaustive 64-byte-flip sensitivity. Closes audit coverage gap #2.
+- **Pedersen adversarial exploit test** (`test_exploit_pedersen_adversarial.cpp`) — 12 tests covering switch commitment security and adversarial balance attacks: switch roundtrip, zero-blind equivalence, switch binding, zero-commit→identity, negation cancellation, imbalanced verify_sum (theft detection), blind_sum subtraction, switch-as-normal rejection, double-spend detection, generator J independence. Closes audit coverage gap #3.
+- **Cross-library differential test** (`test_cross_libsecp256k1`) wired into audit label set (`audit;exploit;differential;libsecp`) so it participates in the unified audit runner when `SECP256K1_BUILD_CROSS_TESTS=ON`.
 
 ### Fixed
 
@@ -46,6 +65,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   64 inversions). 1.93x speedup (5,079 -> 2,634 us).
 - **GPU ZK kernels** -- Pedersen commitment (`pedersen.cuh`) and ZK proof primitives (`zk.cuh`)
   for CUDA backend.
+- **GPU ZK + BIP-324 C ABI** -- 5 new `ufsecp_gpu_*` batch operations wired through the full
+  GpuBackend → C ABI stack: `zk_knowledge_verify_batch`, `zk_dleq_verify_batch`,
+  `bulletproof_verify_batch`, `bip324_aead_encrypt_batch`, `bip324_aead_decrypt_batch`.
+  CUDA fully implemented; OpenCL/Metal stubs with `TODO(parity)`. Shared BIP-324 device
+  code extracted to `cuda/include/bip324.cuh` (ChaCha20-Poly1305 AEAD).
+  GPU C ABI total: 8 → 13 backend-neutral batch operations.
 - **GPU CT ZK proving** (`ct_zk.cuh`) -- constant-time knowledge proof and DLEQ proof
   on CUDA, using the full CT scalar multiplication layer. Deterministic nonce derivation
   with SHA-256 tagged hash and XOR hedging. Batch kernels for both operations.

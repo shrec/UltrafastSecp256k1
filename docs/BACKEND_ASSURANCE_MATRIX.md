@@ -19,6 +19,11 @@
 | Keccak-256 | Y | - | Y | Y | Y |
 | Pedersen commitment | Y | Y | Y | Y | Y |
 | ZK proofs | Y | Y | Y | Y | Y |
+| ZK knowledge verify batch | - | - | Y | Y | Y |
+| ZK DLEQ verify batch | - | - | Y | Y | Y |
+| Bulletproof verify batch | - | - | Y | Y | Y |
+| BIP-324 AEAD encrypt batch | - | - | Y | Y | Y |
+| BIP-324 AEAD decrypt batch | - | - | Y | Y | Y |
 | Multi-scalar mul | Y | - | Y | Y | Y |
 | CT field ops | - | Y | Y | Y | Y |
 | CT scalar ops | - | Y | Y | Y | Y |
@@ -39,7 +44,14 @@
 
 | Operation | Backend | Tracking note |
 |-----------|---------|---------------|
-| *(none — all parity gaps resolved)* | - | - |
+| *(none — all parity gaps resolved)* | — | — |
+
+> All ZK and BIP-324 batch operations, including `bulletproof_verify_batch`, are now
+> **fully implemented on all three GPU backends** (CUDA, OpenCL, Metal).
+> OpenCL kernel `#if 0` guard removed; address-space qualifier fix applied to
+> `range_verify_full_impl` (added `__global` to `bp_G`/`bp_H`, local copy in loop).
+> Metal host dispatch wired via `range_proof_poly_batch` kernel.
+> Resolved 2026-03-24.
 
 ### Current permanent exceptions
 

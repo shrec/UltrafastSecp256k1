@@ -61,6 +61,12 @@ Y = implemented + tested in audit runner, K = kernel/shader exists (not in audit
 | ZK proofs (knowledge, DLEQ) | Y | Y | Y | Y | |
 | Bulletproof range proof verify | Y | Y | Y | Y | |
 | Bulletproof generator table | Y | Y | Y | Y | |
+| **GPU Batch Ops (C ABI)** | | | | | |
+| ZK knowledge verify batch | Y (host) | Y | - | - | `ufsecp_gpu_zk_knowledge_verify_batch` |
+| ZK DLEQ verify batch | Y (host) | Y | - | - | `ufsecp_gpu_zk_dleq_verify_batch` |
+| Bulletproof verify batch | Y (host) | Y | - | - | `ufsecp_gpu_bulletproof_verify_batch` |
+| BIP-324 AEAD encrypt batch | Y (host) | Y | - | - | `ufsecp_gpu_bip324_aead_encrypt_batch` |
+| BIP-324 AEAD decrypt batch | Y (host) | Y | - | - | `ufsecp_gpu_bip324_aead_decrypt_batch` |
 | **Constant-Time Layer** | | | | | |
 | CT field ops | Y | Y | K | K | OCL/Metal: kernel files exist, not in audit |
 | CT scalar ops | Y | Y | K | K | Same |
@@ -144,6 +150,8 @@ Y = implemented + tested in audit runner, K = kernel/shader exists (not in audit
 | 3 | Memory safety tests | OpenCL, Metal | Informational | CUDA-specific (device alloc/error state) |
 
 All remaining gaps are **non-blocking** for release. The stable GPU ABI now exposes full functional parity for generator mul, ECDSA verify, Schnorr verify, ECDH, Hash160, MSM, FROST partial verification, and `ecrecover_batch` across CUDA, OpenCL, and Metal.
+
+**New in 3.4.0:** 5 additional GPU batch operations (`zk_knowledge_verify_batch`, `zk_dleq_verify_batch`, `bulletproof_verify_batch`, `bip324_aead_encrypt_batch`, `bip324_aead_decrypt_batch`) are fully implemented on CUDA; OpenCL and Metal have explicit stubs with `TODO(parity)` tracking.
 
 ---
 

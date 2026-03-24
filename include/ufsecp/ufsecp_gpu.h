@@ -321,6 +321,144 @@ UFSECP_API ufsecp_error_t ufsecp_gpu_ecrecover_batch(
  *  ufsecp_error_str for CPU error codes). */
 UFSECP_API const char* ufsecp_gpu_error_str(ufsecp_error_t err);
 
+/* ============================================================================
+ * ZK proof batch operations (GPU)
+ * ============================================================================ */
+
+/** Batch Schnorr knowledge-proof verification on GPU.
+ *
+ *  Verifies s*G == R + e*P where e = H("ZK/knowledge" || rx || P || G || msg).
+ *  Each proof is 64 bytes: rx[32] || s[32] (big-endian).
+ *  Each pubkey is 65 bytes: 04 || x[32] || y[32] (uncompressed affine).
+ *
+ *  PUBLIC-DATA operation.
+ *
+ *  @param ctx           GPU context.
+ *  @param proofs64      Input: count * 64 bytes.
+ *  @param pubkeys65     Input: count * 65 bytes (04 prefix).
+ *  @param messages32    Input: count * 32 bytes.
+ *  @param count         Number of proofs.
+ *  @param out_results   Output: count bytes (1 = valid, 0 = invalid).
+ *  @return UFSECP_OK if batch processed; UFSECP_ERR_GPU_UNSUPPORTED if
+ *          backend does not support this operation. */
+UFSECP_API ufsecp_error_t ufsecp_gpu_zk_knowledge_verify_batch(
+    ufsecp_gpu_ctx* ctx,
+    const uint8_t* proofs64,
+    const uint8_t* pubkeys65,
+    const uint8_t* messages32,
+    size_t count,
+    uint8_t* out_results);
+
+/** Batch DLEQ proof verification on GPU.
+ *
+ *  Verifies log_G(P) == log_H(Q) via Chaum–Pedersen protocol.
+ *  Each proof is 64 bytes: e[32] || s[32] (big-endian).
+ *  Each point is 65 bytes: 04 || x[32] || y[32] (uncompressed affine).
+ *
+ *  PUBLIC-DATA operation.
+ *
+ *  @param ctx           GPU context.
+ *  @param proofs64      Input: count * 64 bytes.
+ *  @param G_pts65       Input: count * 65 bytes (base point G per proof).
+ *  @param H_pts65       Input: count * 65 bytes (base point H per proof).
+ *  @param P_pts65       Input: count * 65 bytes (public key P per proof).
+ *  @param Q_pts65       Input: count * 65 bytes (public key Q per proof).
+ *  @param count         Number of proofs.
+ *  @param out_results   Output: count bytes (1 = valid, 0 = invalid).
+ *  @return UFSECP_OK if batch processed; UFSECP_ERR_GPU_UNSUPPORTED if
+ *          backend does not support this operation. */
+UFSECP_API ufsecp_error_t ufsecp_gpu_zk_dleq_verify_batch(
+    ufsecp_gpu_ctx* ctx,
+    const uint8_t* proofs64,
+    const uint8_t* G_pts65,
+    const uint8_t* H_pts65,
+    const uint8_t* P_pts65,
+    const uint8_t* Q_pts65,
+    size_t count,
+    uint8_t* out_results);
+
+/** Batch Bulletproof polynomial-check verification on GPU.
+ *
+ *  Verifies the polynomial commitment portion of a Bulletproof range proof.
+ *  Each proof is 324 bytes: A[65] || S[65] || T1[65] || T2[65] || tau_x[32] || t_hat[32].
+ *  Points use 65-byte uncompressed format (04 prefix).
+ *
+ *  PUBLIC-DATA operation.
+ *
+ *  @param ctx             GPU context.
+ *  @param proofs324       Input: count * 324 bytes.
+ *  @param commitments65   Input: count * 65 bytes (Pedersen commitments).
+ *  @param H_generator65   Input: 65 bytes (Pedersen generator H).
+ *  @param count           Number of proofs.
+ *  @param out_results     Output: count bytes (1 = valid, 0 = invalid).
+ *  @return UFSECP_OK if batch processed; UFSECP_ERR_GPU_UNSUPPORTED if
+ *          backend does not support this operation. */
+UFSECP_API ufsecp_error_t ufsecp_gpu_bulletproof_verify_batch(
+    ufsecp_gpu_ctx* ctx,
+    const uint8_t* proofs324,
+    const uint8_t* commitments65,
+    const uint8_t* H_generator65,
+    size_t count,
+    uint8_t* out_results);
+
+/* ============================================================================
+ * BIP-324 transport batch operations (GPU)
+ * ============================================================================ */
+
+/** Batch BIP-324 AEAD encrypt on GPU.
+ *
+ *  Each thread processes one independent packet with its own key, nonce, and
+ *  payload.  Wire format per packet: [3B length header] [ciphertext] [16B tag].
+ *  Output stride per packet: max_payload + 19 bytes.
+ *
+ *  SECRET-BEARING operation. Keys are uploaded to device memory.
+ *
+ *  @param ctx           GPU context.
+ *  @param keys32        Input: count * 32 bytes (ChaCha20-Poly1305 keys).
+ *  @param nonces12      Input: count * 12 bytes.
+ *  @param plaintexts    Input: count * max_payload bytes (contiguous).
+ *  @param sizes         Input: count uint32_t (actual payload size per packet).
+ *  @param max_payload   Maximum payload size (all payloads padded to this).
+ *  @param count         Number of packets.
+ *  @param wire_out      Output: count * (max_payload + 19) bytes.
+ *  @return UFSECP_OK on success. */
+UFSECP_API ufsecp_error_t ufsecp_gpu_bip324_aead_encrypt_batch(
+    ufsecp_gpu_ctx* ctx,
+    const uint8_t*  keys32,
+    const uint8_t*  nonces12,
+    const uint8_t*  plaintexts,
+    const uint32_t* sizes,
+    uint32_t max_payload,
+    size_t count,
+    uint8_t* wire_out);
+
+/** Batch BIP-324 AEAD decrypt on GPU.
+ *
+ *  Verifies Poly1305 tag and decrypts.  Wire input stride: max_payload + 19.
+ *
+ *  SECRET-BEARING operation. Keys are uploaded to device memory.
+ *
+ *  @param ctx           GPU context.
+ *  @param keys32        Input: count * 32 bytes.
+ *  @param nonces12      Input: count * 12 bytes.
+ *  @param wire_in       Input: count * (max_payload + 19) bytes.
+ *  @param sizes         Input: count uint32_t (payload sizes).
+ *  @param max_payload   Maximum payload size.
+ *  @param count         Number of packets.
+ *  @param plaintext_out Output: count * max_payload bytes.
+ *  @param out_valid     Output: count bytes (1 = ok, 0 = tag mismatch).
+ *  @return UFSECP_OK on success. */
+UFSECP_API ufsecp_error_t ufsecp_gpu_bip324_aead_decrypt_batch(
+    ufsecp_gpu_ctx* ctx,
+    const uint8_t*  keys32,
+    const uint8_t*  nonces12,
+    const uint8_t*  wire_in,
+    const uint32_t* sizes,
+    uint32_t max_payload,
+    size_t count,
+    uint8_t*  plaintext_out,
+    uint8_t*  out_valid);
+
 #ifdef __cplusplus
 }
 #endif

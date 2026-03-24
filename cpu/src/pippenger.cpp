@@ -85,8 +85,11 @@ Point pippenger_msm(const Scalar* scalars,
     std::size_t const num_buckets = static_cast<std::size_t>(1) << c; // 2^c
     unsigned const num_windows = (256 + c - 1) / c;                   // ceil(256/c)
 
-    // Pre-allocate bucket array (reused per window); keep common sizes on stack.
-    constexpr std::size_t STACK_BUCKETS = 256;
+    // Pre-allocate bucket array (reused per window).
+    // Keep small window sizes (c<=6, 64 buckets) on stack; larger windows go to
+    // heap to cap stack usage at ~7 KB for the bucket array (M-05: avoid large
+    // stack frames -- 256-bucket stack path was ~26-35 KB depending on Point size).
+    constexpr std::size_t STACK_BUCKETS = 64;
     Point stack_buckets[STACK_BUCKETS];
     std::unique_ptr<Point[]> heap_buckets;
     Point* buckets = stack_buckets;

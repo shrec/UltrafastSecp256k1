@@ -8,6 +8,7 @@
 #include "secp256k1/ecdsa.hpp"
 #include "secp256k1/ct/point.hpp"
 #include "secp256k1/ct/scalar.hpp"
+#include "secp256k1/detail/secure_erase.hpp"
 #include <cstring>
 
 namespace secp256k1 {
@@ -40,6 +41,8 @@ static Scalar adaptor_nonce(const Scalar& privkey,
         hash[31] ^= 1;
         k = Scalar::from_bytes(hash);
     }
+    detail::secure_erase(sk_bytes.data(), sk_bytes.size());
+    detail::secure_erase(hash.data(), hash.size());
     return k;
 }
 
@@ -95,6 +98,8 @@ schnorr_adaptor_sign(const Scalar& private_key,
     // s = k + e * sk (BIP-340: s = k + e*d, but partial -- missing adaptor secret t)
     Scalar const s_hat = k + (e * sk);
 
+    detail::secure_erase(const_cast<Scalar*>(&k), sizeof(k));
+    detail::secure_erase(&sk, sizeof(sk));
     return SchnorrAdaptorSig{R_hat, s_hat, needs_neg};
 }
 
@@ -142,13 +147,15 @@ SchnorrSignature
 schnorr_adaptor_adapt(const SchnorrAdaptorSig& pre_sig,
                       const Scalar& adaptor_secret) {
     // Adjust t based on nonce negation during signing
-    Scalar const t = pre_sig.needs_negation ? adaptor_secret.negate() : adaptor_secret;
+    Scalar t = pre_sig.needs_negation ? adaptor_secret.negate() : adaptor_secret;
 
     // R = R^ + t_adj*G (should have even y since we ensured it during signing)
     Point const R = pre_sig.R_hat.add(ct::generator_mul(t));
 
     // s = s + t
     Scalar const s = pre_sig.s_hat + t;
+
+    detail::secure_erase(&t, sizeof(t));
 
     SchnorrSignature sig;
     sig.r = R.x().to_bytes();
@@ -199,9 +206,8 @@ ecdsa_adaptor_sign(const Scalar& private_key,
     Scalar const k_inv = k.inverse();
     Scalar const s_hat = k_inv * (z + r * private_key);
 
-    // Low-S normalization
-    // Check: s_hat vs n - s_hat 
-    // (we'll normalize at adapt time)
+    detail::secure_erase(const_cast<Scalar*>(&k), sizeof(k));
+    detail::secure_erase(const_cast<Scalar*>(&k_inv), sizeof(k_inv));
 
     return ECDSAAdaptorSig{R_hat, s_hat, r};
 }
@@ -251,8 +257,10 @@ ecdsa_adaptor_adapt(const ECDSAAdaptorSig& pre_sig,
     // Alternative (simpler) ECDSA adaptor:
     // s_hat is the "encrypted" signature value
     // s = s_hat * t^-^1  (multiplicative adaptor for ECDSA)
-    Scalar const t_inv = adaptor_secret.inverse();
+    Scalar t_inv = adaptor_secret.inverse();
     Scalar const s = pre_sig.s_hat * t_inv;
+
+    detail::secure_erase(&t_inv, sizeof(t_inv));
 
     ECDSASignature sig;
     sig.r = pre_sig.r;

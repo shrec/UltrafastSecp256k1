@@ -1169,7 +1169,12 @@ int main() {
     std::printf("================================================================\n");
     std::printf("  GPU:           %s\n", prop.name);
     std::printf("  SMs:           %d\n", prop.multiProcessorCount);
+#if CUDART_VERSION >= 13000
+    { int _clk = 0; cudaDeviceGetAttribute(&_clk, cudaDevAttrClockRate, 0);
+      std::printf("  Clock:         %d MHz\n", _clk / 1000); }
+#else
     std::printf("  Clock:         %d MHz\n", prop.clockRate / 1000);
+#endif
     std::printf("  Memory:        %zu MB\n", prop.totalGlobalMem / (1024 * 1024));
     std::printf("  Compute:       sm_%d%d\n", prop.major, prop.minor);
     std::printf("================================================================\n\n");

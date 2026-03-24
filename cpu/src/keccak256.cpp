@@ -8,6 +8,7 @@
 // ============================================================================
 
 #include "secp256k1/coins/keccak256.hpp"
+#include "secp256k1/detail/secure_erase.hpp"
 #include <cstring>
 
 namespace secp256k1::coins {
@@ -92,6 +93,12 @@ static void keccak_f1600(std::uint64_t state[25]) {
 Keccak256State::Keccak256State() : buf_pos(0) {
     std::memset(state, 0, sizeof(state));
     std::memset(buf, 0, sizeof(buf));
+}
+
+Keccak256State::~Keccak256State() {
+    detail::secure_erase(state, sizeof(state));
+    detail::secure_erase(buf, sizeof(buf));
+    buf_pos = 0;
 }
 
 void Keccak256State::update(const std::uint8_t* data, std::size_t len) {

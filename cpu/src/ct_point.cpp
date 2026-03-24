@@ -1212,26 +1212,40 @@ Point scalar_mul(const Point& p, const Scalar& k) noexcept {
     //  marginally exceeds 2^128, producing 256-bit garbage.)
     auto make_v = [](const Scalar& k_abs, std::uint64_t k_neg) noexcept -> Scalar {
         auto L = k_abs.limbs(); // copy: 4 x uint64_t, little-endian
-        if (k_neg) {
-            // v = 2^128 - k_abs  (integer subtraction, result >= 0)
-            std::uint64_t borrow = 0;
-            std::uint64_t diff = 0;
-            // limb 0: 0 - L[0]
-            diff = 0 - L[0]; borrow = (L[0] != 0) ? 1 : 0; L[0] = diff;
-            // limb 1: 0 - L[1] - borrow
-            diff = 0 - L[1] - borrow; borrow = (L[1] | borrow) ? 1 : 0; L[1] = diff;
-            // limb 2: 1 - L[2] - borrow  (the 2^128 bit)
-            diff = 1 - L[2] - borrow; borrow = (L[2] + borrow > 1) ? 1 : 0; L[2] = diff;
-            // limb 3: 0 - borrow
-            L[3] = 0 - borrow;
-        } else {
-            // v = k_abs + 2^128  (integer addition)
-            std::uint64_t carry = 0;
-            std::uint64_t const sum = L[2] + 1;
-            carry = static_cast<std::uint64_t>(sum < L[2]);
-            L[2] = sum;
-            L[3] += carry;
-        }
+
+        // Branchless: compute both paths and select via mask
+        // neg_mask is all-ones if k_neg, all-zeros otherwise
+        std::uint64_t const neg_mask = -static_cast<std::uint64_t>(k_neg != 0);
+        std::uint64_t const pos_mask = ~neg_mask;
+
+        // Negative path: v = 2^128 - k_abs (integer subtraction)
+        std::uint64_t nL[4];
+        std::uint64_t borrow = 0;
+        std::uint64_t diff;
+        // limb 0: 0 - L[0]
+        diff = 0 - L[0]; borrow = (L[0] != 0) ? 1 : 0; nL[0] = diff;
+        // limb 1: 0 - L[1] - borrow
+        diff = 0 - L[1] - borrow; borrow = (L[1] | borrow) ? 1 : 0; nL[1] = diff;
+        // limb 2: 1 - L[2] - borrow (the 2^128 bit)
+        diff = 1 - L[2] - borrow; borrow = (L[2] + borrow > 1) ? 1 : 0; nL[2] = diff;
+        // limb 3: 0 - borrow
+        nL[3] = 0 - borrow;
+
+        // Positive path: v = k_abs + 2^128 (integer addition)
+        std::uint64_t pL[4];
+        pL[0] = L[0];
+        pL[1] = L[1];
+        std::uint64_t const sum = L[2] + 1;
+        std::uint64_t const carry = static_cast<std::uint64_t>(sum < L[2]);
+        pL[2] = sum;
+        pL[3] = L[3] + carry;
+
+        // Select: result = (neg_mask & nL) | (pos_mask & pL)
+        L[0] = (neg_mask & nL[0]) | (pos_mask & pL[0]);
+        L[1] = (neg_mask & nL[1]) | (pos_mask & pL[1]);
+        L[2] = (neg_mask & nL[2]) | (pos_mask & pL[2]);
+        L[3] = (neg_mask & nL[3]) | (pos_mask & pL[3]);
+
         return Scalar::from_limbs(L);
     };
 

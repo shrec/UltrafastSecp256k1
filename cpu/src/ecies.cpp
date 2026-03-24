@@ -3,7 +3,9 @@
 // ============================================================================
 // Envelope: [33B ephemeral pubkey][16B IV][N bytes AES-256-CTR ciphertext][32B HMAC-SHA256]
 //
-// Key derivation: SHA-512(ECDH_raw_x) -> enc_key (32B) || mac_key (32B)
+// Key derivation: HKDF-SHA256(IKM=ECDH_raw_x, salt="secp256k1-ecies-v1",
+//                             info=ephemeral_pubkey_compressed[33])
+//               -> enc_key (32B) || mac_key (32B)
 // Encryption: AES-256-CTR (software, no OpenSSL dependency)
 // Authentication: HMAC-SHA256(mac_key, ephemeral_pubkey || IV || ciphertext)
 // ============================================================================
@@ -11,7 +13,7 @@
 #include "secp256k1/ecies.hpp"
 #include "secp256k1/ecdh.hpp"
 #include "secp256k1/sha256.hpp"
-#include "secp256k1/sha512.hpp"
+#include "secp256k1/hkdf.hpp"
 #include "secp256k1/ct/point.hpp"
 #include "secp256k1/detail/secure_erase.hpp"
 #include "secp256k1/field.hpp"
@@ -25,7 +27,7 @@
 #elif defined(__APPLE__)
 #  include <Security/SecRandom.h>
 #elif defined(__ANDROID__)
-#  include <cstdio>   // fopen/fread for /dev/urandom
+#  include <stdlib.h>  // arc4random_buf (available Android API 12+)
 #elif defined(__linux__) || defined(__FreeBSD__) || defined(__OpenBSD__)
 #  include <sys/random.h>
 #else
@@ -56,7 +58,7 @@ static Point decompress_point(const std::uint8_t data[33]) {
 }
 
 // ============================================================================
-// AES-256 core (software, constant-time S-box via algebraic decomposition)
+// AES-256 core (software, constant-time S-box via full-table scan)
 // ============================================================================
 
 namespace {
@@ -86,6 +88,21 @@ constexpr std::uint8_t RCON[11] = {
     0x00, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36
 };
 
+// Constant-time S-box lookup via full-table scan.
+// Iterates over all 256 entries and selects the entry at index `x` using only
+// bitwise masking — no branch or data-dependent memory access pattern.
+// This prevents cache-timing attacks on shared hardware (CVE class: AES S-box).
+inline std::uint8_t sbox_lookup(std::uint8_t x) noexcept {
+    std::uint8_t result = 0;
+    for (int i = 0; i < 256; ++i) {
+        // mask is 0xFF when i == x, 0x00 otherwise — no branches
+        std::uint8_t mask = static_cast<std::uint8_t>(
+            -static_cast<int8_t>(static_cast<uint8_t>(i) == x));
+        result |= static_cast<std::uint8_t>(SBOX[i] & mask);
+    }
+    return result;
+}
+
 // xtime: multiply by x in GF(2^8)
 inline std::uint8_t xtime(std::uint8_t a) {
     return static_cast<std::uint8_t>((a << 1) ^ (((a >> 7) & 1) * 0x1b));
@@ -104,12 +121,12 @@ struct AES256 {
 
             if (i % 8 == 0) {
                 std::uint8_t const t = tmp[0];
-                tmp[0] = SBOX[tmp[1]] ^ RCON[i / 8];
-                tmp[1] = SBOX[tmp[2]];
-                tmp[2] = SBOX[tmp[3]];
-                tmp[3] = SBOX[t];
+                tmp[0] = sbox_lookup(tmp[1]) ^ RCON[i / 8];
+                tmp[1] = sbox_lookup(tmp[2]);
+                tmp[2] = sbox_lookup(tmp[3]);
+                tmp[3] = sbox_lookup(t);
             } else if (i % 8 == 4) {
-                for (int j = 0; j < 4; ++j) tmp[j] = SBOX[tmp[j]];
+                for (int j = 0; j < 4; ++j) tmp[j] = sbox_lookup(tmp[j]);
             }
 
             for (int j = 0; j < 4; ++j) {
@@ -133,8 +150,8 @@ struct AES256 {
         for (int i = 0; i < 16; ++i) state[i] ^= round_keys[0][i];
 
         for (int round = 1; round <= 14; ++round) {
-            // SubBytes
-            for (int i = 0; i < 16; ++i) state[i] = SBOX[state[i]];
+            // SubBytes (constant-time: full table scan, no cache-timing leak)
+            for (int i = 0; i < 16; ++i) state[i] = sbox_lookup(state[i]);
 
             // ShiftRows
             std::uint8_t t = 0;
@@ -202,43 +219,6 @@ void aes256_ctr(const std::uint8_t key[32],
     secp256k1::detail::secure_erase(keystream, sizeof(keystream));
 }
 
-// HMAC-SHA256
-std::array<std::uint8_t, 32>
-hmac_sha256(const std::uint8_t* key, std::size_t key_len,
-            const std::uint8_t* data, std::size_t data_len) {
-    std::uint8_t k_pad[64];
-    std::memset(k_pad, 0, 64);
-
-    if (key_len > 64) {
-        auto h = SHA256::hash(key, key_len);
-        std::memcpy(k_pad, h.data(), 32);
-    } else {
-        std::memcpy(k_pad, key, key_len);
-    }
-
-    // ipad
-    std::uint8_t ipad[64];
-    for (int i = 0; i < 64; ++i) ipad[i] = k_pad[i] ^ 0x36;
-
-    SHA256 inner;
-    inner.update(ipad, 64);
-    inner.update(data, data_len);
-    auto inner_hash = inner.finalize();
-
-    // opad
-    std::uint8_t opad[64];
-    for (int i = 0; i < 64; ++i) opad[i] = k_pad[i] ^ 0x5c;
-
-    SHA256 outer;
-    outer.update(opad, 64);
-    outer.update(inner_hash.data(), 32);
-
-    secp256k1::detail::secure_erase(k_pad, sizeof(k_pad));
-    secp256k1::detail::secure_erase(ipad, sizeof(ipad));
-    secp256k1::detail::secure_erase(opad, sizeof(opad));
-
-    return outer.finalize();
-}
 
 // CSPRNG fill -- OS-level cryptographic randomness, fail-closed
 void csprng_fill(std::uint8_t* buf, std::size_t len) {
@@ -250,11 +230,10 @@ void csprng_fill(std::uint8_t* buf, std::size_t len) {
     if (SecRandomCopyBytes(kSecRandomDefault, len, buf) != errSecSuccess)
         std::abort();
 #elif defined(__ANDROID__)
-    // Android: /dev/urandom (getrandom requires API 28+, CI targets API 24)
-    FILE* f = std::fopen("/dev/urandom", "rb");
-    if (!f) std::abort();
-    if (std::fread(buf, 1, len, f) != len) { std::fclose(f); std::abort(); }
-    std::fclose(f);
+    // arc4random_buf is available from Android API 12+ and blocks until the
+    // kernel entropy pool is fully seeded.  Unlike /dev/urandom, it will not
+    // return predictable bytes during early boot before entropy is available.
+    arc4random_buf(buf, len);
 #elif defined(__linux__) || defined(__FreeBSD__) || defined(__OpenBSD__)
     // getrandom(2): blocks until entropy available, no EINTR on < 256 bytes
     std::size_t filled = 0;
@@ -304,9 +283,30 @@ ecies_encrypt(const Point& recipient_pubkey,
     // 2. ECDH: shared_x = (eph_priv * recipient_pub).x
     auto shared_x = ecdh_compute_raw(eph_privkey, recipient_pubkey);
 
-    // 3. Key derivation: SHA-512(shared_x) -> enc_key(32) || mac_key(32)
-    auto kdf = SHA512::hash(shared_x.data(), 32);
+    // Guard: all-zero result means the ECDH point was at infinity (degenerate pubkey)
+    bool shared_all_zero = true;
+    for (std::size_t i = 0; i < 32; ++i) shared_all_zero &= (shared_x[i] == 0);
+    if (shared_all_zero) {
+        secp256k1::detail::secure_erase(eph_bytes, sizeof(eph_bytes));
+        secp256k1::detail::secure_erase(&eph_privkey, sizeof(eph_privkey));
+        return {};
+    }
+
+    // Compress ephemeral pubkey now -- used as HKDF info (context binding) and HMAC input.
+    auto eph_comp = eph_pubkey.to_compressed();
+
+    // 3. HKDF-SHA256 key derivation with domain separation and context binding.
+    //    IKM  = ECDH shared secret (x-coordinate)
+    //    salt = fixed domain tag preventing cross-protocol KDF collisions
+    //    info = ephemeral pubkey compressed (binds derived keys to this session)
+    //    OKM  = enc_key (32B) || mac_key (32B)
+    static constexpr std::uint8_t kdf_salt[] = "secp256k1-ecies-v1";
+    auto prk = hkdf_sha256_extract(kdf_salt, sizeof(kdf_salt) - 1,
+                                   shared_x.data(), 32);
     secp256k1::detail::secure_erase(shared_x.data(), 32);
+    std::array<std::uint8_t, 64> kdf{};
+    hkdf_sha256_expand(prk.data(), eph_comp.data(), 33, kdf.data(), 64);
+    secp256k1::detail::secure_erase(prk.data(), 32);
     const std::uint8_t* enc_key = kdf.data();
     const std::uint8_t* mac_key = kdf.data() + 32;
 
@@ -320,7 +320,7 @@ ecies_encrypt(const Point& recipient_pubkey,
 
     // 6. HMAC-SHA256(mac_key, ephemeral_pubkey || iv || ciphertext)
     //    Covers the entire envelope prefix to prevent parity-byte malleability
-    auto eph_comp = eph_pubkey.to_compressed();
+    // (eph_comp already computed above for HKDF info)
     std::vector<std::uint8_t> hmac_data(33 + 16 + plaintext_len);
     std::memcpy(hmac_data.data(), eph_comp.data(), 33);
     std::memcpy(hmac_data.data() + 33, iv, 16);
@@ -364,9 +364,15 @@ ecies_decrypt(const Scalar& privkey,
     // 3. ECDH
     auto shared_x = ecdh_compute_raw(privkey, eph_pubkey);
 
-    // 4. KDF: SHA-512(shared_x)
-    auto kdf = SHA512::hash(shared_x.data(), 32);
+    // 4. HKDF-SHA256 key derivation -- must match encrypt exactly.
+    //    info = ephemeral pubkey bytes as received in the envelope.
+    static constexpr std::uint8_t kdf_salt[] = "secp256k1-ecies-v1";
+    auto prk = hkdf_sha256_extract(kdf_salt, sizeof(kdf_salt) - 1,
+                                   shared_x.data(), 32);
     secp256k1::detail::secure_erase(shared_x.data(), 32);
+    std::array<std::uint8_t, 64> kdf{};
+    hkdf_sha256_expand(prk.data(), envelope, 33, kdf.data(), 64);
+    secp256k1::detail::secure_erase(prk.data(), 32);
     const std::uint8_t* enc_key = kdf.data();
     const std::uint8_t* mac_key = kdf.data() + 32;
 

@@ -103,10 +103,10 @@ static void test_musig2_key_agg_determinism() {
     std::printf("    %d checks OK\n\n", g_pass);
 }
 
-// -- Test 2: Key Aggregation -- Ordering Matters ------------------------------
+// -- Test 2: Key Aggregation -- Order Independence (canonical sort) -----------
 
 static void test_musig2_key_agg_ordering() {
-    std::printf("[2] MuSig2 Key Aggregation: Ordering Matters\n");
+    std::printf("[2] MuSig2 Key Aggregation: Order Independence (canonical sort)\n");
 
     std::mt19937_64 rng(0xCAFEBABE);  // NOLINT(cert-msc32-c,cert-msc51-cpp)
     const int N = 20;
@@ -125,11 +125,10 @@ for (int i = 0; i < 3; ++i) {
         std::reverse(pks_rev.begin(), pks_rev.end());
         auto ctx_rev = secp256k1::musig2_key_agg(pks_rev);
 
-        // Different ordering should (generally) give different agg key
-        // because L = hash of concatenated keys in order
+        // Canonical sort: musig2_key_agg sorts keys internally, so forward and
+        // reversed order must produce the same aggregate key.
         bool const same = (ctx_fwd.Q_x == ctx_rev.Q_x);
-        // It's theoretically possible but astronomically unlikely
-        CHECK(!same, "different ordering -> different agg key");
+        CHECK(same, "canonical sort: key aggregation is order-independent");
     }
 
     std::printf("    %d checks OK\n\n", g_pass);

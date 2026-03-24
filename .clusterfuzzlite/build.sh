@@ -57,6 +57,18 @@ $CXX $CXXFLAGS -std=c++20 -O2 -I "$INC" \
     $LIB_FUZZING_ENGINE "$LIB" \
     -o "$OUT/fuzz_point"
 
+# fuzz_ecdsa: ECDSA sign/verify invariants (64 bytes: 32 privkey + 32 msg)
+$CXX $CXXFLAGS -std=c++20 -O2 -I "$INC" \
+    cpu/fuzz/fuzz_ecdsa.cpp \
+    $LIB_FUZZING_ENGINE "$LIB" \
+    -o "$OUT/fuzz_ecdsa"
+
+# fuzz_schnorr: BIP-340 Schnorr sign/verify invariants (96 bytes: 32 key + 32 msg + 32 aux)
+$CXX $CXXFLAGS -std=c++20 -O2 -I "$INC" \
+    cpu/fuzz/fuzz_schnorr.cpp \
+    $LIB_FUZZING_ENGINE "$LIB" \
+    -o "$OUT/fuzz_schnorr"
+
 # -- Step 3: Copy seed corpora (zip per target) -----------------------------
 if [ -d "cpu/fuzz/corpus/fuzz_field" ]; then
     zip -j "$OUT/fuzz_field_seed_corpus.zip" cpu/fuzz/corpus/fuzz_field/* 2>/dev/null || true
@@ -66,6 +78,12 @@ if [ -d "cpu/fuzz/corpus/fuzz_scalar" ]; then
 fi
 if [ -d "cpu/fuzz/corpus/fuzz_point" ]; then
     zip -j "$OUT/fuzz_point_seed_corpus.zip" cpu/fuzz/corpus/fuzz_point/* 2>/dev/null || true
+fi
+if [ -d "cpu/fuzz/corpus/fuzz_ecdsa" ]; then
+    zip -j "$OUT/fuzz_ecdsa_seed_corpus.zip" cpu/fuzz/corpus/fuzz_ecdsa/* 2>/dev/null || true
+fi
+if [ -d "cpu/fuzz/corpus/fuzz_schnorr" ]; then
+    zip -j "$OUT/fuzz_schnorr_seed_corpus.zip" cpu/fuzz/corpus/fuzz_schnorr/* 2>/dev/null || true
 fi
 
 # -- Step 4: Copy fuzzer options (max_len limits) ----------------------------
@@ -79,4 +97,12 @@ echo "[libfuzzer]"  > "$OUT/fuzz_point.options"
 echo "max_len = 32" >> "$OUT/fuzz_point.options"
 echo "timeout = 120" >> "$OUT/fuzz_point.options"
 
-echo "[OK] Built 3 fuzz targets: fuzz_field, fuzz_scalar, fuzz_point"
+echo "[libfuzzer]"   > "$OUT/fuzz_ecdsa.options"
+echo "max_len = 128" >> "$OUT/fuzz_ecdsa.options"
+echo "timeout = 120" >> "$OUT/fuzz_ecdsa.options"
+
+echo "[libfuzzer]"   > "$OUT/fuzz_schnorr.options"
+echo "max_len = 160" >> "$OUT/fuzz_schnorr.options"
+echo "timeout = 120" >> "$OUT/fuzz_schnorr.options"
+
+echo "[OK] Built 5 fuzz targets: fuzz_field, fuzz_scalar, fuzz_point, fuzz_ecdsa, fuzz_schnorr"

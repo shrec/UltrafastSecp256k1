@@ -754,7 +754,8 @@ def classify_file(rel_path: str):
             break
     
     # Layer
-    if 'ct/' in p or 'ct_' in basename:
+    # Use startswith to avoid false matches like "project_" containing "ct_"
+    if 'ct/' in p or basename.startswith('ct_'):
         layer = 'ct'
     elif cat in ('cuda', 'opencl', 'metal'):
         layer = 'gpu'
@@ -787,7 +788,7 @@ def categorize_abi_func(name: str):
     """Categorize a ufsecp_* function name."""
     n = name.replace('ufsecp_', '')
     categories = {
-        'ctx': 'context', 'seckey': 'seckey', 'pubkey': 'pubkey',
+        'gpu': 'gpu', 'ctx': 'context', 'seckey': 'seckey', 'pubkey': 'pubkey',
         'ecdsa': 'ecdsa', 'schnorr': 'schnorr', 'ecdh': 'ecdh',
         'sha256': 'hash', 'sha512': 'hash', 'hash160': 'hash',
         'tagged_hash': 'hash', 'keccak256': 'ethereum',
@@ -856,7 +857,7 @@ def derive_semantic_tags_for_source(path: str, category: str, subsystem: str, la
         if tag in SEMANTIC_TAGS:
             tags[tag] = max(tags.get(tag, 0.0), confidence)
 
-    if layer == 'ct' or 'ct_' in p or '/ct/' in p:
+    if layer == 'ct' or '/ct/' in p or os.path.basename(p).startswith('ct_'):
         add('constant_time', 1.0)
     if category in ('abi', 'binding') or p.startswith('bindings/') or 'ufsecp' in p:
         add('ffi_surface', 0.95)
@@ -1151,9 +1152,10 @@ def populate_source_files(cur: sqlite3.Cursor):
     return count
 
 def populate_abi_functions(cur: sqlite3.Cursor):
-    """Parse ufsecp.h and ufsecp_version.h for all C ABI function declarations."""
+    """Parse ufsecp.h, ufsecp_gpu.h, and ufsecp_version.h for all C ABI function declarations."""
     headers = [
         LIB_ROOT / 'include' / 'ufsecp' / 'ufsecp.h',
+        LIB_ROOT / 'include' / 'ufsecp' / 'ufsecp_gpu.h',
         LIB_ROOT / 'include' / 'ufsecp' / 'ufsecp_version.h',
     ]
     count = 0
@@ -1637,28 +1639,66 @@ def populate_edges(cur: sqlite3.Cursor):
     test_coverage = {
         'field_52': ['cpu/src/field_52.cpp', 'cpu/src/field.cpp'],
         'field_26': ['cpu/src/field_26.cpp'],
-        'selftest': ['cpu/src/selftest.cpp'],
-        'comprehensive': ['cpu/src/ecdsa.cpp', 'cpu/src/schnorr.cpp', 'cpu/src/point.cpp'],
-        'exhaustive': ['cpu/src/field.cpp', 'cpu/src/scalar.cpp', 'cpu/src/point.cpp'],
+        'selftest': ['cpu/src/selftest.cpp', 'cpu/src/precompute.cpp'],
+        'comprehensive': [
+            'cpu/src/ecdsa.cpp', 'cpu/src/schnorr.cpp', 'cpu/src/point.cpp',
+            'cpu/src/glv.cpp', 'cpu/src/ecmult_gen_comb.cpp', 'cpu/src/precompute.cpp',
+        ],
+        'exhaustive': [
+            'cpu/src/field.cpp', 'cpu/src/scalar.cpp', 'cpu/src/point.cpp',
+            'cpu/src/field_asm.cpp', 'cpu/src/field_asm_arm64.cpp',
+            'cpu/src/field_asm_riscv64.cpp',
+        ],
         'bip340_vectors': ['cpu/src/schnorr.cpp'],
         'bip340_strict': ['cpu/src/schnorr.cpp'],
         'bip32_vectors': ['cpu/src/bip32.cpp'],
         'bip39': ['cpu/src/bip39.cpp'],
         'rfc6979_vectors': ['cpu/src/ecdsa.cpp'],
         'ecc_properties': ['cpu/src/point.cpp', 'cpu/src/scalar.cpp'],
-        'ethereum': ['cpu/src/ethereum.cpp', 'cpu/src/eth_signing.cpp', 'cpu/src/keccak256.cpp'],
+        'ethereum': [
+            'cpu/src/ethereum.cpp', 'cpu/src/eth_signing.cpp',
+            'cpu/src/keccak256.cpp', 'cpu/src/message_signing.cpp',
+        ],
         'zk_proofs': ['cpu/src/zk.cpp', 'cpu/src/pedersen.cpp'],
-        'wallet': ['cpu/src/wallet.cpp', 'cpu/src/coin_address.cpp'],
+        'wallet': ['cpu/src/wallet.cpp', 'cpu/src/coin_address.cpp', 'cpu/src/coin_hd.cpp', 'cpu/src/address.cpp'],
         'ct_equivalence': ['cpu/src/ct_field.cpp', 'cpu/src/ct_scalar.cpp', 'cpu/src/ct_point.cpp', 'cpu/src/ct_sign.cpp'],
         'ct_sidechannel': ['cpu/src/ct_sign.cpp', 'cpu/src/ct_point.cpp'],
-        'adversarial_protocol': ['cpu/src/musig2.cpp', 'cpu/src/frost.cpp', 'cpu/src/adaptor.cpp', 'cpu/src/ecdsa.cpp'],
+        'adversarial_protocol': [
+            'cpu/src/musig2.cpp', 'cpu/src/frost.cpp', 'cpu/src/adaptor.cpp',
+            'cpu/src/ecdsa.cpp', 'cpu/src/ecdh.cpp', 'cpu/src/recovery.cpp',
+            # H.2: chacha20-poly1305 AEAD
+            'cpu/src/chacha20_poly1305.cpp',
+            # H.4: ElligatorSwift / EllSwift
+            'cpu/src/ellswift.cpp',
+            # H.9: BIP-143 sighash
+            'cpu/src/bip143.cpp',
+            # H.10: BIP-144 txid / wtxid / witness commitment
+            'cpu/src/bip144.cpp',
+            # H.11: SegWit program helpers
+            'cpu/src/segwit.cpp',
+            # H.12 + K.4-K.5: Taproot keypath / tapscript sighash
+            'cpu/src/taproot.cpp',
+            # K.1-K.3: BIP-324 session protocol
+            'cpu/src/bip324.cpp',
+            # BIP-324 / EllSwift uses HKDF internally
+            'cpu/src/hkdf.cpp',
+            # I.5: batch verify paths
+            'cpu/src/batch_verify.cpp',
+        ],
         'ecies_regression': ['cpu/src/ecies.cpp'],
         'musig2_frost': ['cpu/src/musig2.cpp', 'cpu/src/frost.cpp'],
         'abi_gate': ['include/ufsecp/ufsecp_impl.cpp'],
         'wycheproof_ecdsa': ['cpu/src/ecdsa.cpp'],
         'wycheproof_ecdh': ['cpu/src/ecdh.cpp'],
         'fault_injection': ['cpu/src/ecdsa.cpp', 'cpu/src/schnorr.cpp'],
-        'batch_add_affine': ['cpu/src/batch_add_affine.cpp'],
+        'batch_add_affine': [
+            'cpu/src/batch_add_affine.cpp',
+            'cpu/src/multiscalar.cpp',
+            'cpu/src/pippenger.cpp',
+            'cpu/src/batch_verify.cpp',
+        ],
+        'hash_accel': ['cpu/src/hash_accel.cpp'],
+        'message_signing': ['cpu/src/message_signing.cpp'],
     }
     for test, files in test_coverage.items():
         for f in files:

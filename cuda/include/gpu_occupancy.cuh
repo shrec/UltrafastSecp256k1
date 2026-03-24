@@ -97,8 +97,15 @@ __host__ inline void print_device_info(int device_id = 0) {
     printf("  Warp size:        %d\n", prop.warpSize);
     printf("  Global memory:    %.1f GB\n", prop.totalGlobalMem / (1024.0 * 1024.0 * 1024.0));
     printf("  L2 cache:         %d KB\n", prop.l2CacheSize / 1024);
+#if CUDART_VERSION >= 13000
+    { int _clk = 0; cudaDeviceGetAttribute(&_clk, cudaDevAttrClockRate, device_id);
+      printf("  Clock:            %d MHz\n", _clk / 1000); }
+    { int _mclk = 0; cudaDeviceGetAttribute(&_mclk, cudaDevAttrMemoryClockRate, device_id);
+      printf("  Memory clock:     %d MHz\n", _mclk / 1000); }
+#else
     printf("  Clock:            %d MHz\n", prop.clockRate / 1000);
     printf("  Memory clock:     %d MHz\n", prop.memoryClockRate / 1000);
+#endif
     printf("  Memory bus:       %d-bit\n", prop.memoryBusWidth);
 #elif defined(__HIP_PLATFORM_AMD__)
     hipDeviceProp_t prop{};

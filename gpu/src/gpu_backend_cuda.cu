@@ -14,6 +14,9 @@
 #include <cstdio>
 #include <vector>
 
+/* -- Secure erase for private key zeroization ------------------------------ */
+#include "secp256k1/detail/secure_erase.hpp"
+
 /* -- CUDA runtime ---------------------------------------------------------- */
 #include <cuda_runtime.h>
 
@@ -22,6 +25,8 @@
 #include "ecdh.cuh"
 #include "msm.cuh"
 #include "schnorr.cuh"
+#include "zk.cuh"
+#include "bip324.cuh"
 #include "gpu_compat.h"
 
 /* Host helpers (gpu_cuda_host_helpers.h) no longer needed:
@@ -180,7 +185,13 @@ public:
         std::snprintf(out.name, sizeof(out.name), "%s", prop.name);
         out.global_mem_bytes       = prop.totalGlobalMem;
         out.compute_units          = static_cast<uint32_t>(prop.multiProcessorCount);
+#if CUDART_VERSION >= 13000
+        { int _clk_khz = 0;
+          cudaDeviceGetAttribute(&_clk_khz, cudaDevAttrClockRate, static_cast<int>(device_index));
+          out.max_clock_mhz = static_cast<uint32_t>(_clk_khz / 1000); }
+#else
         out.max_clock_mhz          = static_cast<uint32_t>(prop.clockRate / 1000);
+#endif
         out.max_threads_per_block  = static_cast<uint32_t>(prop.maxThreadsPerBlock);
         out.backend_id             = 1;
         out.device_index           = device_index;
@@ -445,6 +456,10 @@ public:
         }
         delete[] h_ok;
 
+        /* Zeroize private keys on device and host before freeing */
+        cudaMemset(d_keys, 0, count * sizeof(Scalar));
+        secp256k1::detail::secure_erase(h_keys.data(), h_keys.size() * sizeof(Scalar));
+
         cudaFree(d_ok);
         cudaFree(d_out);
         cudaFree(d_pub_ok);
@@ -673,6 +688,311 @@ public:
         cudaFree(d_out33);
         cudaFree(d_res);   cudaFree(d_keys);
         cudaFree(d_recids); cudaFree(d_sigs);  cudaFree(d_msgs);
+        clear_error();
+        return GpuError::Ok;
+    }
+
+    /* -- ZK batch ops ------------------------------------------------------ */
+
+    GpuError zk_knowledge_verify_batch(
+        const uint8_t* proofs64, const uint8_t* pubkeys65,
+        const uint8_t* messages32, size_t count,
+        uint8_t* out_results) override
+    {
+        if (!ready_) return set_error(GpuError::Device, "context not initialised");
+        if (count == 0) { clear_error(); return GpuError::Ok; }
+        if (!proofs64 || !pubkeys65 || !messages32 || !out_results)
+            return set_error(GpuError::NullArg, "NULL buffer");
+
+        /* Convert proofs: 64-byte flat → KnowledgeProofGPU (rx[32] + Scalar) */
+        std::vector<KnowledgeProofGPU> h_proofs(count);
+        for (size_t i = 0; i < count; ++i) {
+            const uint8_t* p = proofs64 + i * 64;
+            std::memcpy(h_proofs[i].rx, p, 32);
+            bytes_to_scalar(p + 32, &h_proofs[i].s);
+        }
+
+        /* Convert pubkeys: 65-byte uncompressed (04 || x[32] || y[32]) → AffinePoint */
+        std::vector<AffinePoint> h_pubs(count);
+        for (size_t i = 0; i < count; ++i) {
+            const uint8_t* pk = pubkeys65 + i * 65;
+            bytes_to_field(pk + 1, &h_pubs[i].x);
+            bytes_to_field(pk + 33, &h_pubs[i].y);
+        }
+
+        KnowledgeProofGPU* d_proofs = nullptr;
+        AffinePoint*       d_pubs   = nullptr;
+        uint8_t*           d_msgs   = nullptr;
+        bool*              d_res    = nullptr;
+
+        CUDA_TRY(cudaMalloc(&d_proofs, count * sizeof(KnowledgeProofGPU)));
+        CUDA_TRY(cudaMalloc(&d_pubs,   count * sizeof(AffinePoint)));
+        CUDA_TRY(cudaMalloc(&d_msgs,   count * 32));
+        CUDA_TRY(cudaMalloc(&d_res,    count * sizeof(bool)));
+
+        CUDA_TRY(cudaMemcpy(d_proofs, h_proofs.data(), count * sizeof(KnowledgeProofGPU), cudaMemcpyHostToDevice));
+        CUDA_TRY(cudaMemcpy(d_pubs,   h_pubs.data(),   count * sizeof(AffinePoint),       cudaMemcpyHostToDevice));
+        CUDA_TRY(cudaMemcpy(d_msgs,   messages32,      count * 32,                        cudaMemcpyHostToDevice));
+
+        int threads = 128;
+        int blocks  = (static_cast<int>(count) + threads - 1) / threads;
+        knowledge_verify_batch_kernel<<<blocks, threads>>>(
+            d_proofs, d_pubs, d_msgs, d_res, static_cast<uint32_t>(count));
+        CUDA_TRY(cudaGetLastError());
+        CUDA_TRY(cudaDeviceSynchronize());
+
+        {
+            bool* h_res_raw = new bool[count];
+            CUDA_TRY(cudaMemcpy(h_res_raw, d_res, count * sizeof(bool), cudaMemcpyDeviceToHost));
+            for (size_t i = 0; i < count; ++i)
+                out_results[i] = h_res_raw[i] ? 1 : 0;
+            delete[] h_res_raw;
+        }
+
+        cudaFree(d_res); cudaFree(d_msgs); cudaFree(d_pubs); cudaFree(d_proofs);
+        clear_error();
+        return GpuError::Ok;
+    }
+
+    GpuError zk_dleq_verify_batch(
+        const uint8_t* proofs64,
+        const uint8_t* G_pts65, const uint8_t* H_pts65,
+        const uint8_t* P_pts65, const uint8_t* Q_pts65,
+        size_t count, uint8_t* out_results) override
+    {
+        if (!ready_) return set_error(GpuError::Device, "context not initialised");
+        if (count == 0) { clear_error(); return GpuError::Ok; }
+        if (!proofs64 || !G_pts65 || !H_pts65 || !P_pts65 || !Q_pts65 || !out_results)
+            return set_error(GpuError::NullArg, "NULL buffer");
+
+        std::vector<DLEQProofGPU> h_proofs(count);
+        std::vector<AffinePoint> h_G(count), h_H(count), h_P(count), h_Q(count);
+        for (size_t i = 0; i < count; ++i) {
+            const uint8_t* p = proofs64 + i * 64;
+            bytes_to_scalar(p,      &h_proofs[i].e);
+            bytes_to_scalar(p + 32, &h_proofs[i].s);
+
+            bytes_to_field(G_pts65 + i * 65 + 1,  &h_G[i].x);
+            bytes_to_field(G_pts65 + i * 65 + 33, &h_G[i].y);
+            bytes_to_field(H_pts65 + i * 65 + 1,  &h_H[i].x);
+            bytes_to_field(H_pts65 + i * 65 + 33, &h_H[i].y);
+            bytes_to_field(P_pts65 + i * 65 + 1,  &h_P[i].x);
+            bytes_to_field(P_pts65 + i * 65 + 33, &h_P[i].y);
+            bytes_to_field(Q_pts65 + i * 65 + 1,  &h_Q[i].x);
+            bytes_to_field(Q_pts65 + i * 65 + 33, &h_Q[i].y);
+        }
+
+        DLEQProofGPU* d_proofs = nullptr;
+        AffinePoint*  d_G = nullptr, *d_H = nullptr, *d_P = nullptr, *d_Q = nullptr;
+        bool*         d_res = nullptr;
+
+        CUDA_TRY(cudaMalloc(&d_proofs, count * sizeof(DLEQProofGPU)));
+        CUDA_TRY(cudaMalloc(&d_G,     count * sizeof(AffinePoint)));
+        CUDA_TRY(cudaMalloc(&d_H,     count * sizeof(AffinePoint)));
+        CUDA_TRY(cudaMalloc(&d_P,     count * sizeof(AffinePoint)));
+        CUDA_TRY(cudaMalloc(&d_Q,     count * sizeof(AffinePoint)));
+        CUDA_TRY(cudaMalloc(&d_res,   count * sizeof(bool)));
+
+        CUDA_TRY(cudaMemcpy(d_proofs, h_proofs.data(), count * sizeof(DLEQProofGPU), cudaMemcpyHostToDevice));
+        CUDA_TRY(cudaMemcpy(d_G, h_G.data(), count * sizeof(AffinePoint), cudaMemcpyHostToDevice));
+        CUDA_TRY(cudaMemcpy(d_H, h_H.data(), count * sizeof(AffinePoint), cudaMemcpyHostToDevice));
+        CUDA_TRY(cudaMemcpy(d_P, h_P.data(), count * sizeof(AffinePoint), cudaMemcpyHostToDevice));
+        CUDA_TRY(cudaMemcpy(d_Q, h_Q.data(), count * sizeof(AffinePoint), cudaMemcpyHostToDevice));
+
+        int threads = 128;
+        int blocks  = (static_cast<int>(count) + threads - 1) / threads;
+        dleq_verify_batch_kernel<<<blocks, threads>>>(
+            d_proofs, d_G, d_H, d_P, d_Q, d_res, static_cast<uint32_t>(count));
+        CUDA_TRY(cudaGetLastError());
+        CUDA_TRY(cudaDeviceSynchronize());
+
+        {
+            bool* h_res_raw = new bool[count];
+            CUDA_TRY(cudaMemcpy(h_res_raw, d_res, count * sizeof(bool), cudaMemcpyDeviceToHost));
+            for (size_t i = 0; i < count; ++i)
+                out_results[i] = h_res_raw[i] ? 1 : 0;
+            delete[] h_res_raw;
+        }
+
+        cudaFree(d_res);
+        cudaFree(d_Q); cudaFree(d_P); cudaFree(d_H); cudaFree(d_G);
+        cudaFree(d_proofs);
+        clear_error();
+        return GpuError::Ok;
+    }
+
+    GpuError bulletproof_verify_batch(
+        const uint8_t* proofs324, const uint8_t* commitments65,
+        const uint8_t* H_generator65, size_t count,
+        uint8_t* out_results) override
+    {
+        if (!ready_) return set_error(GpuError::Device, "context not initialised");
+        if (count == 0) { clear_error(); return GpuError::Ok; }
+        if (!proofs324 || !commitments65 || !H_generator65 || !out_results)
+            return set_error(GpuError::NullArg, "NULL buffer");
+
+        /* Parse proofs: 4 affine points (A,S,T1,T2) + 2 scalars (tau_x, t_hat)
+         * Layout per proof (324 bytes): 4 × 65-byte uncompressed points + 2 × 32-byte scalars
+         * Point format: 04 || x[32] || y[32] */
+        std::vector<RangeProofPolyGPU> h_proofs(count);
+        for (size_t i = 0; i < count; ++i) {
+            const uint8_t* p = proofs324 + i * 324;
+            bytes_to_field(p + 1,   &h_proofs[i].A.x);   /* A at offset 0 */
+            bytes_to_field(p + 33,  &h_proofs[i].A.y);
+            bytes_to_field(p + 66,  &h_proofs[i].S.x);   /* S at offset 65 */
+            bytes_to_field(p + 98,  &h_proofs[i].S.y);
+            bytes_to_field(p + 131, &h_proofs[i].T1.x);  /* T1 at offset 130 */
+            bytes_to_field(p + 163, &h_proofs[i].T1.y);
+            bytes_to_field(p + 196, &h_proofs[i].T2.x);  /* T2 at offset 195 */
+            bytes_to_field(p + 228, &h_proofs[i].T2.y);
+            bytes_to_scalar(p + 260, &h_proofs[i].tau_x); /* tau_x at offset 260 */
+            bytes_to_scalar(p + 292, &h_proofs[i].t_hat); /* t_hat at offset 292 */
+        }
+
+        std::vector<AffinePoint> h_commits(count);
+        for (size_t i = 0; i < count; ++i) {
+            const uint8_t* c = commitments65 + i * 65;
+            bytes_to_field(c + 1,  &h_commits[i].x);
+            bytes_to_field(c + 33, &h_commits[i].y);
+        }
+
+        AffinePoint h_gen;
+        bytes_to_field(H_generator65 + 1,  &h_gen.x);
+        bytes_to_field(H_generator65 + 33, &h_gen.y);
+
+        RangeProofPolyGPU* d_proofs   = nullptr;
+        AffinePoint*       d_commits  = nullptr;
+        AffinePoint*       d_hgen     = nullptr;
+        bool*              d_res      = nullptr;
+
+        CUDA_TRY(cudaMalloc(&d_proofs,  count * sizeof(RangeProofPolyGPU)));
+        CUDA_TRY(cudaMalloc(&d_commits, count * sizeof(AffinePoint)));
+        CUDA_TRY(cudaMalloc(&d_hgen,    sizeof(AffinePoint)));
+        CUDA_TRY(cudaMalloc(&d_res,     count * sizeof(bool)));
+
+        CUDA_TRY(cudaMemcpy(d_proofs,  h_proofs.data(),  count * sizeof(RangeProofPolyGPU), cudaMemcpyHostToDevice));
+        CUDA_TRY(cudaMemcpy(d_commits, h_commits.data(), count * sizeof(AffinePoint),       cudaMemcpyHostToDevice));
+        CUDA_TRY(cudaMemcpy(d_hgen,    &h_gen,           sizeof(AffinePoint),                cudaMemcpyHostToDevice));
+
+        int threads = 128;
+        int blocks  = (static_cast<int>(count) + threads - 1) / threads;
+        range_proof_poly_batch_kernel<<<blocks, threads>>>(
+            d_proofs, d_commits, d_hgen, d_res, static_cast<uint32_t>(count));
+        CUDA_TRY(cudaGetLastError());
+        CUDA_TRY(cudaDeviceSynchronize());
+
+        {
+            bool* h_res_raw = new bool[count];
+            CUDA_TRY(cudaMemcpy(h_res_raw, d_res, count * sizeof(bool), cudaMemcpyDeviceToHost));
+            for (size_t i = 0; i < count; ++i)
+                out_results[i] = h_res_raw[i] ? 1 : 0;
+            delete[] h_res_raw;
+        }
+
+        cudaFree(d_res); cudaFree(d_hgen); cudaFree(d_commits); cudaFree(d_proofs);
+        clear_error();
+        return GpuError::Ok;
+    }
+
+    /* -- BIP-324 batch ops ------------------------------------------------- */
+
+    GpuError bip324_aead_encrypt_batch(
+        const uint8_t* keys32, const uint8_t* nonces12,
+        const uint8_t* plaintexts, const uint32_t* sizes,
+        uint32_t max_payload, size_t count,
+        uint8_t* wire_out) override
+    {
+        if (!ready_) return set_error(GpuError::Device, "context not initialised");
+        if (count == 0) { clear_error(); return GpuError::Ok; }
+        if (!keys32 || !nonces12 || !plaintexts || !sizes || !wire_out)
+            return set_error(GpuError::NullArg, "NULL buffer");
+
+        const size_t wire_stride = max_payload + 19;
+
+        uint8_t*    d_keys = nullptr;
+        uint8_t*    d_nonces = nullptr;
+        uint8_t*    d_pt = nullptr;
+        uint32_t*   d_sizes = nullptr;
+        uint8_t*    d_wire = nullptr;
+
+        CUDA_TRY(cudaMalloc(&d_keys,   count * 32));
+        CUDA_TRY(cudaMalloc(&d_nonces, count * 12));
+        CUDA_TRY(cudaMalloc(&d_pt,     count * max_payload));
+        CUDA_TRY(cudaMalloc(&d_sizes,  count * sizeof(uint32_t)));
+        CUDA_TRY(cudaMalloc(&d_wire,   count * wire_stride));
+
+        CUDA_TRY(cudaMemcpy(d_keys,   keys32,     count * 32,               cudaMemcpyHostToDevice));
+        CUDA_TRY(cudaMemcpy(d_nonces, nonces12,   count * 12,               cudaMemcpyHostToDevice));
+        CUDA_TRY(cudaMemcpy(d_pt,     plaintexts, count * max_payload,      cudaMemcpyHostToDevice));
+        CUDA_TRY(cudaMemcpy(d_sizes,  sizes,      count * sizeof(uint32_t), cudaMemcpyHostToDevice));
+
+        int threads = 128;
+        int blocks  = (static_cast<int>(count) + threads - 1) / threads;
+        secp256k1::cuda::bip324::bip324_aead_encrypt_kernel<<<blocks, threads>>>(
+            d_keys, d_nonces, d_pt, d_sizes, d_wire,
+            max_payload, static_cast<int>(count));
+        CUDA_TRY(cudaGetLastError());
+        CUDA_TRY(cudaDeviceSynchronize());
+
+        CUDA_TRY(cudaMemcpy(wire_out, d_wire, count * wire_stride, cudaMemcpyDeviceToHost));
+
+        cudaFree(d_wire); cudaFree(d_sizes); cudaFree(d_pt);
+        cudaFree(d_nonces); cudaFree(d_keys);
+        clear_error();
+        return GpuError::Ok;
+    }
+
+    GpuError bip324_aead_decrypt_batch(
+        const uint8_t* keys32, const uint8_t* nonces12,
+        const uint8_t* wire_in, const uint32_t* sizes,
+        uint32_t max_payload, size_t count,
+        uint8_t* plaintext_out, uint8_t* out_valid) override
+    {
+        if (!ready_) return set_error(GpuError::Device, "context not initialised");
+        if (count == 0) { clear_error(); return GpuError::Ok; }
+        if (!keys32 || !nonces12 || !wire_in || !sizes || !plaintext_out || !out_valid)
+            return set_error(GpuError::NullArg, "NULL buffer");
+
+        const size_t wire_stride = max_payload + 19;
+
+        uint8_t*    d_keys = nullptr;
+        uint8_t*    d_nonces = nullptr;
+        uint8_t*    d_wire = nullptr;
+        uint32_t*   d_sizes = nullptr;
+        uint8_t*    d_pt = nullptr;
+        uint32_t*   d_ok = nullptr;
+
+        CUDA_TRY(cudaMalloc(&d_keys,   count * 32));
+        CUDA_TRY(cudaMalloc(&d_nonces, count * 12));
+        CUDA_TRY(cudaMalloc(&d_wire,   count * wire_stride));
+        CUDA_TRY(cudaMalloc(&d_sizes,  count * sizeof(uint32_t)));
+        CUDA_TRY(cudaMalloc(&d_pt,     count * max_payload));
+        CUDA_TRY(cudaMalloc(&d_ok,     count * sizeof(uint32_t)));
+
+        CUDA_TRY(cudaMemcpy(d_keys,   keys32,   count * 32,               cudaMemcpyHostToDevice));
+        CUDA_TRY(cudaMemcpy(d_nonces, nonces12, count * 12,               cudaMemcpyHostToDevice));
+        CUDA_TRY(cudaMemcpy(d_wire,   wire_in,  count * wire_stride,      cudaMemcpyHostToDevice));
+        CUDA_TRY(cudaMemcpy(d_sizes,  sizes,    count * sizeof(uint32_t), cudaMemcpyHostToDevice));
+
+        int threads = 128;
+        int blocks  = (static_cast<int>(count) + threads - 1) / threads;
+        secp256k1::cuda::bip324::bip324_aead_decrypt_kernel<<<blocks, threads>>>(
+            d_keys, d_nonces, d_wire, d_sizes, d_pt, d_ok,
+            max_payload, static_cast<int>(count));
+        CUDA_TRY(cudaGetLastError());
+        CUDA_TRY(cudaDeviceSynchronize());
+
+        CUDA_TRY(cudaMemcpy(plaintext_out, d_pt, count * max_payload, cudaMemcpyDeviceToHost));
+
+        {
+            std::vector<uint32_t> h_ok(count);
+            CUDA_TRY(cudaMemcpy(h_ok.data(), d_ok, count * sizeof(uint32_t), cudaMemcpyDeviceToHost));
+            for (size_t i = 0; i < count; ++i)
+                out_valid[i] = h_ok[i] ? 1 : 0;
+        }
+
+        cudaFree(d_ok); cudaFree(d_pt); cudaFree(d_sizes);
+        cudaFree(d_wire); cudaFree(d_nonces); cudaFree(d_keys);
         clear_error();
         return GpuError::Ok;
     }

@@ -1,6 +1,6 @@
 # FFI Hostile-Caller Coverage
 
-**Last updated**: 2026-06-12 | **Version**: 3.22.0
+**Last updated**: 2026-03-23 | **Version**: 3.4.0
 
 Documents the hostile-caller test coverage for the C ABI (`ufsecp_*` functions). All tests are in `audit/test_adversarial_protocol.cpp`:
 - Section G (FFI Hostile-Caller) — original 97-function coverage
@@ -72,7 +72,7 @@ All gaps are closed by `test_h1_*`–`test_h12_*` in `test_adversarial_protocol.
 | Test ID | Functions | Coverage |
 |---------|-----------|----------|
 | H.1 | `ufsecp_ctx_size` | positive-size smoke |
-| H.2 | `ufsecp_aead_chacha20_encrypt/decrypt` | NULL guards, bad-tag, wrong-nonce, zero-length roundtrip |
+| H.2 | `ufsecp_aead_chacha20_poly1305_encrypt`, `ufsecp_aead_chacha20_poly1305_decrypt` | NULL guards, bad-tag, wrong-nonce, zero-length roundtrip |
 | H.3 | `ufsecp_ecies_encrypt/decrypt` | NULL guards, off-curve pubkey, tampered envelope |
 | H.4 | `ufsecp_ellswift_create/xdh` | NULL guards, zero privkey, symmetric shared secret |
 | H.5 | `ufsecp_eth_address_checksummed`, `ufsecp_eth_personal_hash` | NULL guards, undersized buffer |
@@ -81,7 +81,7 @@ All gaps are closed by `test_h1_*`–`test_h12_*` in `test_adversarial_protocol.
 | H.8 | `ufsecp_ecdsa_sign_batch`, `ufsecp_schnorr_sign_batch` | NULL ctx/msgs/keys/output, count=0 |
 | H.9 | `ufsecp_bip143_sighash`, `ufsecp_bip143_p2wpkh_script_code` | NULL guards, OP_DUP OP_HASH160 PUSH20 format |
 | H.10 | `ufsecp_bip144_txid/wtxid/witness_commitment` | NULL guards, determinism |
-| H.11 | `ufsecp_is_witness_program`, `ufsecp_parse_witness_program`, `ufsecp_p2wpkh/p2wsh/p2tr_spk`, `ufsecp_witness_script_hash` | NULL guards, format correctness, non-witness rejection |
+| H.11 | `ufsecp_segwit_is_witness_program`, `ufsecp_segwit_parse_program`, `ufsecp_segwit_p2wpkh_spk`, `ufsecp_segwit_p2wsh_spk`, `ufsecp_segwit_p2tr_spk`, `ufsecp_segwit_witness_script_hash` | NULL guards, format correctness, non-witness rejection |
 | H.12 | `ufsecp_taproot_keypath_sighash`, `ufsecp_tapscript_sighash` | NULL guards, count=0, OOB index, determinism |
 
 ---

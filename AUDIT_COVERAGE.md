@@ -14,6 +14,7 @@
 |----------------------|---------------------------------------------|
 | Audit Sections       | 8                                           |
 | Audit Modules        | 56 (55 + dedicated C ABI thread stress) |
+| **Exploit PoC Tests** | **78 tests across 14 attack categories** (`audit/test_exploit_*.cpp`) |
 | Audit assertions     | ~1,000,000+ (parser fuzz 530K, CT deep 120K, field Fp 264K, ZK ~1.5K, ...) |
 | Nightly differential | ~1,300,000+ additional random checks (daily) |
 | CI Workflows         | 23 GitHub Actions workflows                 |

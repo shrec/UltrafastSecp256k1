@@ -2677,10 +2677,22 @@ int main(int argc, char** argv) {
             bench::DoNotOptimize(nc);
         }, N_SIGN);
 
-        u_frost_sign_partial = bench_ns([&]{
-            auto ps = frost_sign(kp1, nonce1, msghashes[0], ncomms);
-            bench::DoNotOptimize(ps);
-        }, N_SIGN);
+        // Pre-generate a fresh nonce per iteration so the bench does not
+        // reuse a consumed (zeroed) nonce — which would violate H-01 and
+        // produce wrong timing due to hitting the zero-check paths.
+        {
+            std::vector<FrostNonce> bench_nonces(static_cast<std::size_t>(N_SIGN));
+            for (int i = 0; i < N_SIGN; ++i) {
+                auto tseed = make_hash(0xBEEF0000ULL + static_cast<std::uint64_t>(i));
+                bench_nonces[static_cast<std::size_t>(i)] = frost_sign_nonce_gen(1, tseed).first;
+            }
+            int bn_i = 0;
+            u_frost_sign_partial = bench_ns([&]{
+                auto ps = frost_sign(kp1, bench_nonces[static_cast<std::size_t>(bn_i++)],
+                                     msghashes[0], ncomms);
+                bench::DoNotOptimize(ps);
+            }, N_SIGN);
+        }
 
         u_frost_verify_partial = bench_ns([&]{
             bool ok = frost_verify_partial(psig1, ncomm1, kp1.verification_share,
@@ -2735,10 +2747,22 @@ int main(int argc, char** argv) {
             bench::DoNotOptimize(pn);
         }, N_SIGN);
 
-        u_musig2_partial_sign = bench_ns([&]{
-            auto s = musig2_partial_sign(snonce1, privkeys[0], key_agg, session, 0);
-            bench::DoNotOptimize(s);
-        }, N_SIGN);
+        // Pre-generate a nonce pool for partial_sign bench (M-03 single-use)
+        {
+            std::vector<MuSig2SecNonce> m2_nonce_pool(static_cast<std::size_t>(N_SIGN));
+            for (int i = 0; i < N_SIGN; ++i) {
+                auto tseed = make_hash(0xBEEFC000ULL + static_cast<std::uint64_t>(i));
+                m2_nonce_pool[static_cast<std::size_t>(i)] =
+                    musig2_nonce_gen(privkeys[0], pk1_x, key_agg.Q_x, msghashes[0],
+                                     tseed.data()).first;
+            }
+            int m2_i = 0;
+            u_musig2_partial_sign = bench_ns([&]{
+                auto s = musig2_partial_sign(m2_nonce_pool[static_cast<std::size_t>(m2_i++)],
+                                             privkeys[0], key_agg, session, 0);
+                bench::DoNotOptimize(s);
+            }, N_SIGN);
+        }
 
         u_musig2_partial_verify = bench_ns([&]{
             bool ok = musig2_partial_verify(ps1, pnonce1, pk1_x, key_agg, session, 0);

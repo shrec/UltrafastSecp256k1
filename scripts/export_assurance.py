@@ -58,7 +58,7 @@ def export_subsystem_summary(conn):
 
 
 def export_api_coverage(conn):
-    """ABI functions with routing and test coverage edges."""
+    """ABI functions with routing and test coverage from function_test_map."""
     fns = conn.execute("""
         SELECT a.name, a.category, a.layer,
                r.internal_call, r.layer as route_layer
@@ -67,22 +67,34 @@ def export_api_coverage(conn):
         ORDER BY a.category, a.name
     """).fetchall()
 
+    # Pre-fetch all test mappings in one query
+    ftm_rows = conn.execute("""
+        SELECT function_name, test_target, coverage_type
+        FROM function_test_map
+        ORDER BY function_name, test_target
+    """).fetchall()
+    ftm = {}
+    for r in ftm_rows:
+        fn = r['function_name']
+        if fn not in ftm:
+            ftm[fn] = []
+        ftm[fn].append({
+            'test': r['test_target'],
+            'type': r['coverage_type'],
+        })
+
     result = []
     for f in fns:
-        # Find test edges
-        tests = conn.execute("""
-            SELECT src_id FROM edges
-            WHERE dst_id LIKE ? AND relation='covers'
-        """, (f'%{f["name"]}%',)).fetchall()
-        test_names = [t['src_id'] for t in tests]
+        name = f['name']
+        coverage = ftm.get(name, [])
 
         result.append({
-            'function': f['name'],
+            'function': name,
             'category': f['category'],
             'layer': f['layer'],
             'route_layer': f['route_layer'],
             'internal_call': f['internal_call'],
-            'test_coverage': test_names,
+            'test_coverage': coverage,
         })
     return result
 
@@ -170,6 +182,10 @@ def export_semantic_tags(conn):
 
 def export_symbol_reasoning(conn):
     """Reasoning-oriented symbol inventory for optimization and audit workflows."""
+    try:
+        conn.execute("SELECT 1 FROM v_symbol_reasoning LIMIT 1")
+    except Exception:
+        return {'summary': [], 'optimization_candidates': [], 'risk_hotspots': []}
     summary = conn.execute("""
         SELECT category, backend, COUNT(*) AS symbols,
                AVG(risk_score) AS avg_risk,

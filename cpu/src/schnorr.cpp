@@ -5,6 +5,7 @@
 #include "secp256k1/config.hpp"    // SECP256K1_FAST_52BIT
 #include "secp256k1/field_52.hpp"
 #include "secp256k1/debug_invariants.hpp"
+#include "secp256k1/detail/secure_erase.hpp"
 #include <cstring>
 #include <string_view>
 #if defined(_MSC_VER)
@@ -309,6 +310,17 @@ SchnorrSignature schnorr_sign(const SchnorrKeypair& kp,
     SchnorrSignature sig{};
     sig.r = rx;
     sig.s = k + e * kp.d;
+
+    // Erase all secret-derived stack buffers (matches ct::schnorr_sign cleanup)
+    detail::secure_erase(d_bytes.data(), d_bytes.size());
+    detail::secure_erase(t_hash.data(), t_hash.size());
+    detail::secure_erase(t, sizeof(t));
+    detail::secure_erase(nonce_input, sizeof(nonce_input));
+    detail::secure_erase(rand_hash.data(), rand_hash.size());
+    detail::secure_erase(challenge_input, sizeof(challenge_input));
+    detail::secure_erase(&k_prime, sizeof(k_prime));
+    detail::secure_erase(&k, sizeof(k));
+
     return sig;
 }
 
