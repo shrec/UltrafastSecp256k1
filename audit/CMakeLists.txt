@@ -602,6 +602,18 @@ target_compile_definitions(test_exploit_chacha20_poly1305_standalone PRIVATE STA
 add_test(NAME exploit_chacha20_poly1305 COMMAND test_exploit_chacha20_poly1305_standalone)
 set_tests_properties(exploit_chacha20_poly1305 PROPERTIES TIMEOUT 60 LABELS "audit;exploit;aead")
 
+add_executable(test_exploit_field_arithmetic_standalone test_exploit_field_arithmetic.cpp)
+audit_target_defaults(test_exploit_field_arithmetic_standalone)
+target_compile_definitions(test_exploit_field_arithmetic_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_field_arithmetic COMMAND test_exploit_field_arithmetic_standalone)
+set_tests_properties(exploit_field_arithmetic PROPERTIES TIMEOUT 60 LABELS "audit;exploit;field")
+
+add_executable(test_exploit_selftest_api_standalone test_exploit_selftest_api.cpp)
+audit_target_defaults(test_exploit_selftest_api_standalone)
+target_compile_definitions(test_exploit_selftest_api_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_selftest_api COMMAND test_exploit_selftest_api_standalone)
+set_tests_properties(exploit_selftest_api PROPERTIES TIMEOUT 120 LABELS "audit;exploit;selftest")
+
 # -- ECIES regression + C ABI prefix enforcement ----------------------------
 add_executable(test_ecies_regression_standalone test_ecies_regression.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
