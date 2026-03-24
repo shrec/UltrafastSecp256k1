@@ -536,6 +536,18 @@ target_compile_definitions(test_exploit_segwit_encoding_standalone PRIVATE STAND
 add_test(NAME exploit_segwit_encoding COMMAND test_exploit_segwit_encoding_standalone)
 set_tests_properties(exploit_segwit_encoding PROPERTIES TIMEOUT 60 LABELS "audit;exploit;segwit")
 
+add_executable(test_exploit_private_key_standalone test_exploit_private_key.cpp)
+audit_target_defaults(test_exploit_private_key_standalone)
+target_compile_definitions(test_exploit_private_key_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_private_key COMMAND test_exploit_private_key_standalone)
+set_tests_properties(exploit_private_key PROPERTIES TIMEOUT 60 LABELS "audit;exploit;privkey")
+
+add_executable(test_exploit_bip143_sighash_standalone test_exploit_bip143_sighash.cpp)
+audit_target_defaults(test_exploit_bip143_sighash_standalone)
+target_compile_definitions(test_exploit_bip143_sighash_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_bip143_sighash COMMAND test_exploit_bip143_sighash_standalone)
+set_tests_properties(exploit_bip143_sighash PROPERTIES TIMEOUT 60 LABELS "audit;exploit;bip143")
+
 # -- ECIES regression + C ABI prefix enforcement ----------------------------
 add_executable(test_ecies_regression_standalone test_ecies_regression.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
@@ -903,7 +915,7 @@ set_tests_properties(
     exploit_frost_signing exploit_bip39_entropy exploit_ellswift
     exploit_address_generation exploit_bip324_session exploit_multiscalar
     exploit_pedersen_homomorphism exploit_hkdf_security exploit_batch_schnorr
-    exploit_segwit_encoding
+    exploit_segwit_encoding exploit_private_key exploit_bip143_sighash
     PROPERTIES LABELS "audit"
 )
 if(SECP256K1_BUILD_PROTOCOL_TESTS)
