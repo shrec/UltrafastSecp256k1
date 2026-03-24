@@ -644,6 +644,12 @@ target_compile_definitions(test_exploit_eth_signing_standalone PRIVATE STANDALON
 add_test(NAME exploit_eth_signing COMMAND test_exploit_eth_signing_standalone)
 set_tests_properties(exploit_eth_signing PROPERTIES TIMEOUT 60 LABELS "audit;exploit;ethereum")
 
+add_executable(test_exploit_bitcoin_message_signing_standalone test_exploit_bitcoin_message_signing.cpp)
+audit_target_defaults(test_exploit_bitcoin_message_signing_standalone)
+target_compile_definitions(test_exploit_bitcoin_message_signing_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_bitcoin_message_signing COMMAND test_exploit_bitcoin_message_signing_standalone)
+set_tests_properties(exploit_bitcoin_message_signing PROPERTIES TIMEOUT 60 LABELS "audit;exploit;bitcoin")
+
 # -- ECIES regression + C ABI prefix enforcement ----------------------------
 add_executable(test_ecies_regression_standalone test_ecies_regression.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
