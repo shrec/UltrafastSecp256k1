@@ -1,6 +1,7 @@
 var classsecp256k1_1_1Bip324Cipher =
 [
     [ "Bip324Cipher", "classsecp256k1_1_1Bip324Cipher.html#a04655b22da1eba88801fe9b9142b81ff", null ],
+    [ "~Bip324Cipher", "classsecp256k1_1_1Bip324Cipher.html#ac252e665057b78291cb70b4b6bdbe04f", null ],
     [ "decrypt", "classsecp256k1_1_1Bip324Cipher.html#af2d794c0d2b347415fc9d162806f6739", null ],
     [ "encrypt", "classsecp256k1_1_1Bip324Cipher.html#ab587a6902896b526d7b10b1f2eb59320", null ],
     [ "init", "classsecp256k1_1_1Bip324Cipher.html#ad770841e0204e1b9d091a2cd9a67b39e", null ],

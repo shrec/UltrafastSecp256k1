@@ -15,6 +15,9 @@ var ufsecp__gpu_8h =
     [ "ufsecp_gpu_ctx", "ufsecp__gpu_8h.html#aff4a1309c80dd5ee8afaf1b86957c0af", null ],
     [ "ufsecp_gpu_backend_count", "ufsecp__gpu_8h.html#a92093e7063b18ca6d2444710749ebfca", null ],
     [ "ufsecp_gpu_backend_name", "ufsecp__gpu_8h.html#aab2e33e35ef056c9465ef4d6bbcbb064", null ],
+    [ "ufsecp_gpu_bip324_aead_decrypt_batch", "ufsecp__gpu_8h.html#a3b6b86e9356ff43601374f139f255a9a", null ],
+    [ "ufsecp_gpu_bip324_aead_encrypt_batch", "ufsecp__gpu_8h.html#a33f130b48e6897626ad7ec5d1f7d1d14", null ],
+    [ "ufsecp_gpu_bulletproof_verify_batch", "ufsecp__gpu_8h.html#ada82c30cf1192147d6a7b477b0783861", null ],
     [ "ufsecp_gpu_ctx_create", "ufsecp__gpu_8h.html#a9c3ef1350ae34168cdc9d106dcaa2953", null ],
     [ "ufsecp_gpu_ctx_destroy", "ufsecp__gpu_8h.html#aea45bf61d6b711aef8020b4370ca6cd9", null ],
     [ "ufsecp_gpu_device_count", "ufsecp__gpu_8h.html#aba1c12b966eae74bed39a5b49b057668", null ],
@@ -30,5 +33,7 @@ var ufsecp__gpu_8h =
     [ "ufsecp_gpu_last_error", "ufsecp__gpu_8h.html#a0772ddf98a0169f3bd8003f5a6777937", null ],
     [ "ufsecp_gpu_last_error_msg", "ufsecp__gpu_8h.html#a51291998309ef26c2440bbdfdfb6b192", null ],
     [ "ufsecp_gpu_msm", "ufsecp__gpu_8h.html#ad8d9171accac74b32a20357abf3aad90", null ],
-    [ "ufsecp_gpu_schnorr_verify_batch", "ufsecp__gpu_8h.html#aabe6ae7c057e0fef10c83042ae2d0270", null ]
+    [ "ufsecp_gpu_schnorr_verify_batch", "ufsecp__gpu_8h.html#aabe6ae7c057e0fef10c83042ae2d0270", null ],
+    [ "ufsecp_gpu_zk_dleq_verify_batch", "ufsecp__gpu_8h.html#aa92f60bf02bf4aefe4e7d6a53cf4525e", null ],
+    [ "ufsecp_gpu_zk_knowledge_verify_batch", "ufsecp__gpu_8h.html#a2d89559f9a891af062b1603d5015886c", null ]
 ];

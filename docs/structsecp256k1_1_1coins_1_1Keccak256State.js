@@ -1,6 +1,7 @@
 var structsecp256k1_1_1coins_1_1Keccak256State =
 [
     [ "Keccak256State", "structsecp256k1_1_1coins_1_1Keccak256State.html#a09471ed7e7e33b6c57fd47f9015852ea", null ],
+    [ "~Keccak256State", "structsecp256k1_1_1coins_1_1Keccak256State.html#a6ee1904d8ec7da3e871c29985afddab9", null ],
     [ "finalize", "structsecp256k1_1_1coins_1_1Keccak256State.html#a95fb0fbe8cbb37c76896fd1a4fc7a96c", null ],
     [ "update", "structsecp256k1_1_1coins_1_1Keccak256State.html#afad88379d6ee32e366173b3b3ec1fe16", null ],
     [ "buf", "structsecp256k1_1_1coins_1_1Keccak256State.html#ab4b13479b11af716069bb9e4a8ab3418", null ],

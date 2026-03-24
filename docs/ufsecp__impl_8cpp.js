@@ -3,6 +3,7 @@ var ufsecp__impl_8cpp =
     [ "ufsecp_ctx", "structufsecp__ctx.html", "structufsecp__ctx" ],
     [ "SecureEraseGuard< T >", "classSecureEraseGuard.html", "classSecureEraseGuard" ],
     [ "UFSECP_BUILDING", "ufsecp__impl_8cpp.html#a10014c6c86107f3f1e94ce97bb7f24d3", null ],
+    [ "UFSECP_CATCH_RETURN", "ufsecp__impl_8cpp.html#aac0595b332295aaffa652f2e799ad74b", null ],
     [ "FE", "ufsecp__impl_8cpp.html#a1a4f34259900c8b62d71525d5eb01070", null ],
     [ "Point", "ufsecp__impl_8cpp.html#a60051d6ae89015e67ae01b3c4417ceab", null ],
     [ "Scalar", "ufsecp__impl_8cpp.html#a6b6c3355b4110fca964a6d272c527bf0", null ],

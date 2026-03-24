@@ -1,5 +1,15 @@
 var NAVTREEINDEX12 =
 {
+"structsecp256k1_1_1zk_1_1RangeProof.html#a4a8b454aa92afb02640b279ecec509b5":[3,0,1,4,3,7],
+"structsecp256k1_1_1zk_1_1RangeProof.html#a4a8b454aa92afb02640b279ecec509b5":[2,0,1,6,3,7],
+"structsecp256k1_1_1zk_1_1RangeProof.html#a5ccd5004c01df52eaa751bc9190ceb4f":[3,0,1,4,3,6],
+"structsecp256k1_1_1zk_1_1RangeProof.html#a5ccd5004c01df52eaa751bc9190ceb4f":[2,0,1,6,3,6],
+"structsecp256k1_1_1zk_1_1RangeProof.html#a613299316a1e6b2a14fdf5f6abd5c93b":[3,0,1,4,3,10],
+"structsecp256k1_1_1zk_1_1RangeProof.html#a613299316a1e6b2a14fdf5f6abd5c93b":[2,0,1,6,3,10],
+"structsecp256k1_1_1zk_1_1RangeProof.html#a713bc16038956b62bef29378d71be903":[2,0,1,6,3,5],
+"structsecp256k1_1_1zk_1_1RangeProof.html#a713bc16038956b62bef29378d71be903":[3,0,1,4,3,5],
+"structsecp256k1_1_1zk_1_1RangeProof.html#a918dd41f14e28dda00365e320c45d9c2":[3,0,1,4,3,2],
+"structsecp256k1_1_1zk_1_1RangeProof.html#a918dd41f14e28dda00365e320c45d9c2":[2,0,1,6,3,2],
 "structsecp256k1_1_1zk_1_1RangeProof.html#ad4f9a84d56418d88a5779bbb40b3e06c":[2,0,1,6,3,4],
 "structsecp256k1_1_1zk_1_1RangeProof.html#ad4f9a84d56418d88a5779bbb40b3e06c":[3,0,1,4,3,4],
 "structsecp256k1_1_1zk_1_1RangeProof.html#adb58d51fa418cf8800a4a037f68a1b73":[2,0,1,6,3,9],
@@ -239,15 +249,5 @@ var NAVTREEINDEX12 =
 "ufsecp_8h.html#aedadf8a44d76d0bd52c5e94ec6ebdfbf":[4,0,1,1,0,38],
 "ufsecp_8h.html#aee96b54f09b9983e87fb09bec1e22479":[4,0,1,1,0,4],
 "ufsecp_8h.html#af4f779d1a0a10f9cd65de87b07588daa":[4,0,1,1,0,103],
-"ufsecp_8h.html#af69d4112faac5f9ce587f04010cbcc36":[4,0,1,1,0,107],
-"ufsecp_8h.html#afa379325da397241df1573c63f50f4ad":[4,0,1,1,0,50],
-"ufsecp_8h.html#afc450216435b131ee36ee3553a49f15c":[4,0,1,1,0,9],
-"ufsecp_8h.html#afd52a6cbdc6d91406ba5314997d7b596":[4,0,1,1,0,114],
-"ufsecp_8h_source.html":[4,0,1,1,0],
-"ufsecp__error_8h.html":[4,0,1,1,1],
-"ufsecp__error_8h.html#a10160096e5ad28390a45f068596729f0":[4,0,1,1,1,6],
-"ufsecp__error_8h.html#a196c448c06d5716c47e6405cadee4a3b":[4,0,1,1,1,3],
-"ufsecp__error_8h.html#a203ff77a4225787602826f5b175c00f3":[4,0,1,1,1,7],
-"ufsecp__error_8h.html#a2d559d368d908b3e77dce54a14eb2496":[4,0,1,1,1,9],
-"ufsecp__error_8h.html#a4d1412fd84b54474e2e24a14ad735403":[4,0,1,1,1,8]
+"ufsecp_8h.html#af69d4112faac5f9ce587f04010cbcc36":[4,0,1,1,0,107]
 };

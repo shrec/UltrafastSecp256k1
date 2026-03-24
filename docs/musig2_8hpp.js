@@ -9,7 +9,7 @@ var musig2_8hpp =
     [ "musig2_nonce_agg", "musig2_8hpp.html#a1e657aa17dd7fac020caf840c95a66c7", null ],
     [ "musig2_nonce_gen", "musig2_8hpp.html#ad06f70571037fd7994ef18cd9af9c223", null ],
     [ "musig2_partial_sig_agg", "musig2_8hpp.html#aef846e4a35cbf41f7492bfef7df8cd51", null ],
-    [ "musig2_partial_sign", "musig2_8hpp.html#ae24a3bc41b1a6cb5168bb8084c908b83", null ],
+    [ "musig2_partial_sign", "musig2_8hpp.html#a3060f18aa9eda0c3398f9166e19971e9", null ],
     [ "musig2_partial_verify", "musig2_8hpp.html#ac70c7095aa9d4247c147e9fb52e10af4", null ],
     [ "musig2_start_sign_session", "musig2_8hpp.html#aac69418e53d08dfb473069cf133dac78", null ]
 ];

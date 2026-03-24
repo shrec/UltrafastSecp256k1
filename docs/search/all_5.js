@@ -1,7 +1,7 @@
 var searchData=
 [
-  ['60_20second_20quickstart_0',['60-Second Quickstart',['../index.html#autotoc_md51',1,'']]],
-  ['64_20clang_2019_20avx2_20release_1',['CPU Signature Benchmarks (x86-64, Clang 19, AVX2, Release)',['../index.html#autotoc_md70',1,'']]],
-  ['64_20vs_20arm64_20vs_20risc_20v_2',['CPU: x86-64 vs ARM64 vs RISC-V',['../index.html#autotoc_md78',1,'']]],
-  ['6979_3',['secp256k1 ECDSA &amp; Schnorr Signatures (BIP-340, RFC 6979)',['../index.html#autotoc_md69',1,'']]]
+  ['60_20second_20quickstart_0',['60-Second Quickstart',['../index.html#autotoc_md53',1,'']]],
+  ['64_20clang_2019_20avx2_20release_1',['CPU Signature Benchmarks (x86-64, Clang 19, AVX2, Release)',['../index.html#autotoc_md72',1,'']]],
+  ['64_20vs_20arm64_20vs_20risc_20v_2',['CPU: x86-64 vs ARM64 vs RISC-V',['../index.html#autotoc_md80',1,'']]],
+  ['6979_3',['secp256k1 ECDSA &amp; Schnorr Signatures (BIP-340, RFC 6979)',['../index.html#autotoc_md71',1,'']]]
 ];

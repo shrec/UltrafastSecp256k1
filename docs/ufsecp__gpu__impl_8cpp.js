@@ -2,9 +2,13 @@ var ufsecp__gpu__impl_8cpp =
 [
     [ "ufsecp_gpu_ctx", "structufsecp__gpu__ctx.html", "structufsecp__gpu__ctx" ],
     [ "UFSECP_BUILDING", "ufsecp__gpu__impl_8cpp.html#a10014c6c86107f3f1e94ce97bb7f24d3", null ],
+    [ "UFSECP_GPU_CATCH", "ufsecp__gpu__impl_8cpp.html#a31e81e7684ca7864b8f8860d12e36699", null ],
     [ "to_abi_error", "ufsecp__gpu__impl_8cpp.html#a9fd6add0d5ed8c52b174ee82ead4610f", null ],
     [ "ufsecp_gpu_backend_count", "ufsecp__gpu__impl_8cpp.html#acdc01b54aae4ff1ca519b6e7e61eaf3e", null ],
     [ "ufsecp_gpu_backend_name", "ufsecp__gpu__impl_8cpp.html#aa37feb19bd31cef65f0191f95c3ffc1a", null ],
+    [ "ufsecp_gpu_bip324_aead_decrypt_batch", "ufsecp__gpu__impl_8cpp.html#a7b2196a2abe2f9b0810b0f18c48371e8", null ],
+    [ "ufsecp_gpu_bip324_aead_encrypt_batch", "ufsecp__gpu__impl_8cpp.html#a8f76ce25c04203aababfd45655609d67", null ],
+    [ "ufsecp_gpu_bulletproof_verify_batch", "ufsecp__gpu__impl_8cpp.html#aa38087f0e51318246bd5e1ed0024f9c3", null ],
     [ "ufsecp_gpu_ctx_create", "ufsecp__gpu__impl_8cpp.html#a13536313ee08bbeb51ca6b4ddede6ba9", null ],
     [ "ufsecp_gpu_ctx_destroy", "ufsecp__gpu__impl_8cpp.html#af5c63d0653e16df5d94c4782a9adb68b", null ],
     [ "ufsecp_gpu_device_count", "ufsecp__gpu__impl_8cpp.html#ab28a10d1863cc2cff019a775d0d7a6fb", null ],
@@ -20,5 +24,8 @@ var ufsecp__gpu__impl_8cpp =
     [ "ufsecp_gpu_last_error", "ufsecp__gpu__impl_8cpp.html#a3abaccb3f00f323df01a47cf1a33e58b", null ],
     [ "ufsecp_gpu_last_error_msg", "ufsecp__gpu__impl_8cpp.html#acf9287c98a14ac9c58dd3f26b69790bd", null ],
     [ "ufsecp_gpu_msm", "ufsecp__gpu__impl_8cpp.html#ac6ebdc426a851bbc0b2f5ee3635202e0", null ],
-    [ "ufsecp_gpu_schnorr_verify_batch", "ufsecp__gpu__impl_8cpp.html#a021bbbe926cbb9be226a63b3875c6737", null ]
+    [ "ufsecp_gpu_schnorr_verify_batch", "ufsecp__gpu__impl_8cpp.html#a021bbbe926cbb9be226a63b3875c6737", null ],
+    [ "ufsecp_gpu_zk_dleq_verify_batch", "ufsecp__gpu__impl_8cpp.html#a122f5fab4426961660211e0b63eee5b4", null ],
+    [ "ufsecp_gpu_zk_knowledge_verify_batch", "ufsecp__gpu__impl_8cpp.html#aaba1cd13bed078711f62d61095f08251", null ],
+    [ "kMaxGpuBatchN", "ufsecp__gpu__impl_8cpp.html#a2bd0e0421252f49615cf058e11101f6b", null ]
 ];

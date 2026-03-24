@@ -1,5 +1,13 @@
 var NAVTREEINDEX6 =
 {
+"namespacesecp256k1_1_1coins.html#aca8eaf4780da4eba71b217a62f129103":[2,0,1,0,54],
+"namespacesecp256k1_1_1coins.html#acf4e38367cdb5f0cb33b7d6d1dca7de7":[2,0,1,0,51],
+"namespacesecp256k1_1_1coins.html#acf8c0e19f7a593f071534a122b2b236a":[2,0,1,0,33],
+"namespacesecp256k1_1_1coins.html#ad161d866561cfc0413329d61f08b9b5b":[2,0,1,0,68],
+"namespacesecp256k1_1_1coins.html#ad4a6bedd62cdee8e37ca99ab6dd8a1b4":[2,0,1,0,62],
+"namespacesecp256k1_1_1coins.html#adfe5edc92ec4b473f1a0a464817b59a6":[2,0,1,0,18],
+"namespacesecp256k1_1_1coins.html#ae0b2bacced0f77a15da9fa30ea9f24dd":[2,0,1,0,25],
+"namespacesecp256k1_1_1coins.html#ae23fd2c01c7fdd7613299ffdac732d42":[2,0,1,0,46],
 "namespacesecp256k1_1_1coins.html#ae9978405d4dfef91cc06d90518d512d5":[2,0,1,0,76],
 "namespacesecp256k1_1_1coins.html#aecc44da6ab8152f3cbd0ceafd9f258a4":[2,0,1,0,45],
 "namespacesecp256k1_1_1coins.html#aeff28fb4c71738b9baf242f7828122b4":[2,0,1,0,48],
@@ -241,13 +249,5 @@ var NAVTREEINDEX6 =
 "namespacesecp256k1_1_1fast.html#aaea2830131b855a1dc9e3820005688bb":[2,0,1,3,42],
 "namespacesecp256k1_1_1fast.html#aaea6cee421dfa54732da9899bea063b3":[2,0,1,3,132],
 "namespacesecp256k1_1_1fast.html#aaf180accadaa322d54fb218f9b565229":[2,0,1,3,109],
-"namespacesecp256k1_1_1fast.html#ab237a01755439311897a03306549f78e":[2,0,1,3,121],
-"namespacesecp256k1_1_1fast.html#ab4a40a44d316fd9c0a4ec6635bb16a0e":[2,0,1,3,27],
-"namespacesecp256k1_1_1fast.html#ab9598b1d02d3fb8bade3095f709d4485":[2,0,1,3,116],
-"namespacesecp256k1_1_1fast.html#abb486389b82ab227c311dc3574ca6a11":[2,0,1,3,155],
-"namespacesecp256k1_1_1fast.html#abb5647a06f57b62181db6746aa97ff72":[2,0,1,3,142],
-"namespacesecp256k1_1_1fast.html#abfc131aa3b358c8e21b96d0b98ac7a2d":[2,0,1,3,57],
-"namespacesecp256k1_1_1fast.html#ac077839f3cd4edb76742bd262e204772":[2,0,1,3,161],
-"namespacesecp256k1_1_1fast.html#ac1290968c6448aa57bf2c88647791598":[2,0,1,3,53],
-"namespacesecp256k1_1_1fast.html#ac1d3a041dfc2c325e73a34e5d3a40ea7":[2,0,1,3,81]
+"namespacesecp256k1_1_1fast.html#ab237a01755439311897a03306549f78e":[2,0,1,3,121]
 };

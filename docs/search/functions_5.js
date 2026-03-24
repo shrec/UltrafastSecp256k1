@@ -90,7 +90,7 @@ var searchData=
   ['frost_5fkeygen_5fbegin_87',['frost_keygen_begin',['../namespacesecp256k1.html#a799903aca6c37f859aa9782a6b4a3267',1,'secp256k1']]],
   ['frost_5fkeygen_5ffinalize_88',['frost_keygen_finalize',['../namespacesecp256k1.html#a0c50436c571f4ffc30510e2eb8ace6d1',1,'secp256k1']]],
   ['frost_5flagrange_5fcoefficient_89',['frost_lagrange_coefficient',['../namespacesecp256k1.html#a6e01ed9d27e15fea43501e5c84893a2e',1,'secp256k1']]],
-  ['frost_5fsign_90',['frost_sign',['../namespacesecp256k1.html#a191f706a7876e9957bda97aa2c3ff1d2',1,'secp256k1']]],
+  ['frost_5fsign_90',['frost_sign',['../namespacesecp256k1.html#adaa2c960d6f8828c3d5774cd70f10b24',1,'secp256k1']]],
   ['frost_5fsign_5fnonce_5fgen_91',['frost_sign_nonce_gen',['../namespacesecp256k1.html#ad496d2f71ae2565cd6cbe2ffc721e838',1,'secp256k1']]],
   ['frost_5fverify_5fpartial_92',['frost_verify_partial',['../namespacesecp256k1.html#a4f2f9f284b70ca6ea7fe03e84fd8438e',1,'secp256k1']]]
 ];

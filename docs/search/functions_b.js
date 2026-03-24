@@ -16,7 +16,7 @@ var searchData=
   ['musig2_5fnonce_5fagg_13',['musig2_nonce_agg',['../namespacesecp256k1.html#a1e657aa17dd7fac020caf840c95a66c7',1,'secp256k1']]],
   ['musig2_5fnonce_5fgen_14',['musig2_nonce_gen',['../namespacesecp256k1.html#ad06f70571037fd7994ef18cd9af9c223',1,'secp256k1']]],
   ['musig2_5fpartial_5fsig_5fagg_15',['musig2_partial_sig_agg',['../namespacesecp256k1.html#aef846e4a35cbf41f7492bfef7df8cd51',1,'secp256k1']]],
-  ['musig2_5fpartial_5fsign_16',['musig2_partial_sign',['../namespacesecp256k1.html#ae24a3bc41b1a6cb5168bb8084c908b83',1,'secp256k1']]],
+  ['musig2_5fpartial_5fsign_16',['musig2_partial_sign',['../namespacesecp256k1.html#a3060f18aa9eda0c3398f9166e19971e9',1,'secp256k1']]],
   ['musig2_5fpartial_5fverify_17',['musig2_partial_verify',['../namespacesecp256k1.html#ac70c7095aa9d4247c147e9fb52e10af4',1,'secp256k1']]],
   ['musig2_5fstart_5fsign_5fsession_18',['musig2_start_sign_session',['../namespacesecp256k1.html#aac69418e53d08dfb473069cf133dac78',1,'secp256k1']]]
 ];
