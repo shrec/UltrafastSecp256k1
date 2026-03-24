@@ -63,6 +63,35 @@ These values are mainly intended as workflow reference points. For publishable
 cross-machine comparisons, use the full pinned benchmark methodology and JSON
 artifacts from `bench_unified`.
 
+### x86-64 Full Rerun (2026-03-24, post-exploit-fix audit)
+
+Run after 60-exploit-PoC audit (commit `8b25d420`). No regression detected.  
+**Machine:** Intel Core i5-14400F · Linux · Clang 19.1.7 · TSC 2.501 GHz  
+**Harness:** `bench_unified` — 3 s warmup, 11 passes, IQR trimmed, median  
+
+| Operation | Ultra (ns/op) | libsecp (ns/op) | Ratio |
+|-----------|:---:|:---:|:---:|
+| field_mul | 10.1 | 11.0 | **1.09×** |
+| field_sqr | 9.0 | 8.6 | 0.97× |
+| field_inv | 746.6 | 775.2 | 1.04× |
+| scalar_mul | 16.0 | 19.9 | **1.25×** |
+| scalar_inv (CT) | 776.2 | 1466.1 | **1.89×** |
+| pubkey_create (k·G) | 5906 | 13102 | **2.22×** |
+| ecmult (a·P+b·G) | 19429 | 19071 | 0.98× |
+| compressed serialize | 2.9 | 12.7 | **4.34×** |
+| **ECDSA sign** | **7825** | 16314 | **2.08×** |
+| **Schnorr sign** | **6258** | 12467 | **1.99×** |
+| ECDSA verify | 20218 | 20507 | 1.01× |
+| Schnorr verify (cached) | 20741 | 20459 | 0.99× |
+| CT ECDSA sign | 12259 | 16314 | **1.33×** |
+| CT Schnorr sign | 10411 | 12467 | **1.20×** |
+| ecdsa_sign_recoverable | 7355 | 16211 | **2.20×** |
+| ecrecover | 26801 | 24472 | 0.91× |
+| SHA256 (tagged_hash) | 62.7 | — | — |
+| Schnorr batch N=64 | 144876 total | — | — |
+
+No regressions vs previous rerun (2026-03-17). All 70/70 audit modules pass.
+
 ### x86-64 Batch Verify Rerun (2026-03-17)
 
 A retained low-risk x86 CPU improvement was keeping the Schnorr batch pubkey cache
