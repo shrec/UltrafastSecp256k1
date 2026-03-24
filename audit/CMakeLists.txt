@@ -797,6 +797,41 @@ target_compile_definitions(test_exploit_scalar_systematic_standalone PRIVATE STA
 add_test(NAME exploit_scalar_systematic COMMAND test_exploit_scalar_systematic_standalone)
 set_tests_properties(exploit_scalar_systematic PROPERTIES TIMEOUT 60 LABELS "audit;exploit;scalar;group")
 
+# -- PoC: ECDSA malleability — low-s canonicalization, BIP-62/BIP-146
+add_executable(test_exploit_ecdsa_malleability_standalone test_exploit_ecdsa_malleability.cpp)
+audit_target_defaults(test_exploit_ecdsa_malleability_standalone)
+target_compile_definitions(test_exploit_ecdsa_malleability_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_ecdsa_malleability COMMAND test_exploit_ecdsa_malleability_standalone)
+set_tests_properties(exploit_ecdsa_malleability PROPERTIES TIMEOUT 60 LABELS "audit;exploit;ecdsa;malleability")
+
+# -- PoC: GLV decomposition KAT — endomorphism and scalar-mul parity
+add_executable(test_exploit_glv_kat_standalone test_exploit_glv_kat.cpp)
+audit_target_defaults(test_exploit_glv_kat_standalone)
+target_compile_definitions(test_exploit_glv_kat_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_glv_kat COMMAND test_exploit_glv_kat_standalone)
+set_tests_properties(exploit_glv_kat PROPERTIES TIMEOUT 60 LABELS "audit;exploit;glv;kat")
+
+# -- PoC: AEAD ChaCha20-Poly1305 integrity — MAC bypass and nonce reuse
+add_executable(test_exploit_aead_integrity_standalone test_exploit_aead_integrity.cpp)
+audit_target_defaults(test_exploit_aead_integrity_standalone)
+target_compile_definitions(test_exploit_aead_integrity_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_aead_integrity COMMAND test_exploit_aead_integrity_standalone)
+set_tests_properties(exploit_aead_integrity PROPERTIES TIMEOUT 60 LABELS "audit;exploit;aead;integrity")
+
+# -- PoC: Schnorr batch forge — single-bad-sig detection and identify_invalid
+add_executable(test_exploit_batch_schnorr_forge_standalone test_exploit_batch_schnorr_forge.cpp)
+audit_target_defaults(test_exploit_batch_schnorr_forge_standalone)
+target_compile_definitions(test_exploit_batch_schnorr_forge_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_batch_schnorr_forge COMMAND test_exploit_batch_schnorr_forge_standalone)
+set_tests_properties(exploit_batch_schnorr_forge PROPERTIES TIMEOUT 60 LABELS "audit;exploit;schnorr;batch")
+
+# -- PoC: BIP-32 hardened derivation edge cases — isolation and xpub guard
+add_executable(test_exploit_bip32_ckd_hardened_standalone test_exploit_bip32_ckd_hardened.cpp)
+audit_target_defaults(test_exploit_bip32_ckd_hardened_standalone)
+target_compile_definitions(test_exploit_bip32_ckd_hardened_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_bip32_ckd_hardened COMMAND test_exploit_bip32_ckd_hardened_standalone)
+set_tests_properties(exploit_bip32_ckd_hardened PROPERTIES TIMEOUT 60 LABELS "audit;exploit;bip32;hardened")
+
 # -- ECIES regression + C ABI prefix enforcement ----------------------------
 add_executable(test_ecies_regression_standalone test_ecies_regression.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
@@ -1172,6 +1207,8 @@ set_tests_properties(
     exploit_schnorr_bip340_kat exploit_ripemd160_kat exploit_chacha20_kat
     exploit_point_serialization exploit_ecdsa_rfc6979_kat
     exploit_frost_byzantine exploit_scalar_systematic
+    exploit_ecdsa_malleability exploit_glv_kat exploit_aead_integrity
+    exploit_batch_schnorr_forge exploit_bip32_ckd_hardened
     PROPERTIES LABELS "audit"
 )
 if(SECP256K1_BUILD_PROTOCOL_TESTS)
