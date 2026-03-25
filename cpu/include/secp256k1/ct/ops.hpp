@@ -53,6 +53,12 @@
     #define SECP256K1_DECLASSIFY(ptr, len) ((void)(ptr), (void)(len))
 #endif
 
+#if defined(__GNUC__) || defined(__clang__)
+    #define SECP256K1_CT_NO_STACK_PROTECTOR __attribute__((no_stack_protector))
+#else
+    #define SECP256K1_CT_NO_STACK_PROTECTOR
+#endif
+
 namespace secp256k1::ct {
 
 // --- Compiler barrier --------------------------------------------------------
@@ -98,7 +104,7 @@ namespace secp256k1::ct {
 // --- Mask generation ---------------------------------------------------------
 
 // Returns 0xFFFFFFFFFFFFFFFF if v == 0, else 0x0000000000000000
-inline std::uint64_t is_zero_mask(std::uint64_t v) noexcept {
+inline SECP256K1_CT_NO_STACK_PROTECTOR std::uint64_t is_zero_mask(std::uint64_t v) noexcept {
 #if defined(__riscv) && (__riscv_xlen == 64)
     // RISC-V: seqz + neg produces fully branchless is-zero mask.
     //   seqz tmp, v   ->  tmp = (v == 0) ? 1 : 0
@@ -134,7 +140,7 @@ inline std::uint64_t eq_mask(std::uint64_t a, std::uint64_t b) noexcept {
 }
 
 // Returns 0xFFFFFFFFFFFFFFFF if flag is true (nonzero), else 0
-inline std::uint64_t bool_to_mask(bool flag) noexcept {
+inline SECP256K1_CT_NO_STACK_PROTECTOR std::uint64_t bool_to_mask(bool flag) noexcept {
     auto v = static_cast<std::uint64_t>(flag);
     value_barrier(v);
     std::uint64_t mask = 0ULL - v;
@@ -178,11 +184,21 @@ inline void cmov256(std::uint64_t dst[4], const std::uint64_t src[4],
 
 inline void cswap256(std::uint64_t a[4], std::uint64_t b[4],
                      std::uint64_t mask) noexcept {
-    for (int i = 0; i < 4; ++i) {
-        std::uint64_t const diff = (a[i] ^ b[i]) & mask;
-        a[i] ^= diff;
-        b[i] ^= diff;
-    }
+    std::uint64_t const diff0 = (a[0] ^ b[0]) & mask;
+    a[0] ^= diff0;
+    b[0] ^= diff0;
+
+    std::uint64_t const diff1 = (a[1] ^ b[1]) & mask;
+    a[1] ^= diff1;
+    b[1] ^= diff1;
+
+    std::uint64_t const diff2 = (a[2] ^ b[2]) & mask;
+    a[2] ^= diff2;
+    b[2] ^= diff2;
+
+    std::uint64_t const diff3 = (a[3] ^ b[3]) & mask;
+    a[3] ^= diff3;
+    b[3] ^= diff3;
 }
 
 // --- Constant-time select ----------------------------------------------------
@@ -232,5 +248,7 @@ inline void ct_lookup_256(const std::uint64_t table[][4], std::size_t count,
 }
 
 } // namespace secp256k1::ct
+
+#undef SECP256K1_CT_NO_STACK_PROTECTOR
 
 #endif // SECP256K1_CT_OPS_HPP

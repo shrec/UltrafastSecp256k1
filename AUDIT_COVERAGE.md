@@ -27,6 +27,21 @@
 | Real failures        | 0                                           |
 | Platforms tested     | X64, ARM64, RISC-V, macOS, Windows, iOS, Android, WASM, ROCm |
 
+## Coverage Interpretation
+
+This document should not be read as a claim that raw module counts or raw
+assertion counts alone are enough to eliminate every possible defect.
+
+The intended standard is stronger:
+
+1. Major failure classes should each map to one or more deterministic audit surfaces.
+2. Gaps should be named explicitly instead of hidden behind aggregate numbers.
+3. New subsystems should extend the class-coverage map, not only the assertion total.
+
+In practice, the self-audit target is near-total coverage of known problem
+classes with explicit residual-risk accounting for anything not yet converted
+into a deterministic check.
+
 ---
 
 ## Section 1/8: Mathematical Invariants (Fp, Zn, Group Laws) -- 15/15 PASS

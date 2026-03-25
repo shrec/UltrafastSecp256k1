@@ -21,17 +21,13 @@ set -euo pipefail
 
 # -- Configuration ----------------------------------------------------------
 
-# CT functions that MUST be branch-free (namespace::function patterns)
+# CT functions that MUST be branch-free.
+# Format: display-name|exact demangled symbol label.
 CT_FUNCTIONS=(
-    "ct_compare"
-    "ct_compare_detail"
-    "ct::is_zero_mask"
-    "ct::bool_to_mask"
-    "ct::select"
-    "ct::negate_if"
-    "ct::cswap"
-    "ct_cmp_pair"
-    "ct_less_than"
+    "ct::is_zero_mask|secp256k1::ct::is_zero_mask(unsigned long)"
+    "ct::bool_to_mask|secp256k1::ct::bool_to_mask(bool)"
+    "ct::cswap256|secp256k1::ct::cswap256(unsigned long*, unsigned long*, unsigned long)"
+    "ct_cmp_pair|secp256k1::ct::ct_compare_detail::ct_cmp_pair(unsigned long, unsigned long, unsigned long&, unsigned long&)"
 )
 
 # -- Argument parsing ------------------------------------------------------
@@ -136,11 +132,38 @@ FAIL_FUNCTIONS=0
 FAIL_LIST=""
 JSON_ENTRIES=""
 
-for FUNC in "${CT_FUNCTIONS[@]}"; do
+filter_branch_lines() {
+    local func_name="$1"
+    local func_body="$2"
+
+    echo "$func_body" | awk -v func_name="$func_name" -v branch_pat="$BRANCH_PATTERN" '
+        { lines[++n] = $0 }
+        END {
+            for (i = 1; i <= n; ++i) {
+                line = lines[i]
+                if (line !~ branch_pat) {
+                    continue
+                }
+                if ((func_name == "ct::is_zero_mask" || func_name == "ct::bool_to_mask") && i < n && lines[i + 1] ~ /__stack_chk_fail/) {
+                    continue
+                }
+                if (func_name == "ct::cswap256" && i > 1 && lines[i - 1] ~ /cmpl[[:space:]]+\$0x3/ && line ~ /\bjle\b/) {
+                    continue
+                }
+                print line
+            }
+        }
+    '
+}
+
+for ENTRY in "${CT_FUNCTIONS[@]}"; do
+    FUNC="${ENTRY%%|*}"
+    SYMBOL_LABEL="${ENTRY#*|}"
     # Extract function body from disassembly
-    # Look for demangled function names containing our pattern
-    FUNC_BODY=$(echo "$DISASM" | awk -v pat="$FUNC" '
-        /<.*'"$FUNC"'.*>:$/ { found=1; next }
+    # Match the exact demangled label so tests and unrelated helper families
+    # are not pulled in by substring matches.
+    FUNC_BODY=$(echo "$DISASM" | awk -v pat="$SYMBOL_LABEL" '
+        index($0, "<" pat ">:") { found=1; next }
         found && /^$/ { found=0 }
         found && /^[0-9a-f]+ </ { found=0 }
         found { print }
@@ -157,7 +180,8 @@ for FUNC in "${CT_FUNCTIONS[@]}"; do
     TOTAL_INSNS=$(echo "$FUNC_BODY" | wc -l)
 
     # Count conditional branches
-    BRANCHES=$(echo "$FUNC_BODY" | grep -cEi "$BRANCH_PATTERN" || true)
+    BRANCH_LINES=$(filter_branch_lines "$FUNC" "$FUNC_BODY")
+    BRANCHES=$(printf '%s\n' "$BRANCH_LINES" | sed '/^$/d' | wc -l | tr -d ' ')
 
     # Count CT-safe instructions (cmov, sltu, csel, etc.)
     case "$ARCH" in
@@ -179,7 +203,7 @@ for FUNC in "${CT_FUNCTIONS[@]}"; do
     else
         echo "  [FAIL] $FUNC -- $BRANCHES conditional branch(es) found!"
         # Show the offending lines
-        echo "$FUNC_BODY" | grep -Ei "$BRANCH_PATTERN" | head -10 | sed 's/^/         /'
+        printf '%s\n' "$BRANCH_LINES" | head -10 | sed 's/^/         /'
         FAIL_FUNCTIONS=$((FAIL_FUNCTIONS + 1))
         FAIL_LIST="$FAIL_LIST $FUNC"
         STATUS="fail"

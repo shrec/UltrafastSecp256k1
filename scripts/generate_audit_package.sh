@@ -189,105 +189,16 @@ echo "Commit: $GIT_HASH" >> "$OUTPUT_DIR/tool_evidence/git_info.txt"
 
 # 4f. CT evidence collection
 echo "  Collecting CT evidence artifacts..."
-
-# ct-verif results (from CI artifacts or local run)
 CT_EVIDENCE_DIR="$OUTPUT_DIR/ct_evidence"
-for src in \
-    "$PROJECT_ROOT/artifacts/ct/ct_verif.log" \
-    "$PROJECT_ROOT/ct_verif.log" \
-    "$FULL_BUILD_DIR/ct_verif.log"; do
-    if [ -f "$src" ]; then
-        cp "$src" "$CT_EVIDENCE_DIR/ct_verif.log"
-        echo "  [+] ct_verif.log"
-        break
-    fi
-done
-for src in \
-    "$PROJECT_ROOT/artifacts/ct/ct_verif_summary.json" \
-    "$PROJECT_ROOT/ct_verif_summary.json" \
-    "$FULL_BUILD_DIR/ct_verif_summary.json"; do
-    if [ -f "$src" ]; then
-        cp "$src" "$CT_EVIDENCE_DIR/ct_verif_summary.json"
-        echo "  [+] ct_verif_summary.json"
-        break
-    fi
-done
-
-# valgrind-ct results
-for src in \
-    "$PROJECT_ROOT/artifacts/ct/valgrind_ct.log" \
-    "$PROJECT_ROOT/valgrind_ct.log" \
-    "$FULL_BUILD_DIR/valgrind_ct.log"; do
-    if [ -f "$src" ]; then
-        cp "$src" "$CT_EVIDENCE_DIR/valgrind_ct.log"
-        echo "  [+] valgrind_ct.log"
-        break
-    fi
-done
-for src in \
-    "$PROJECT_ROOT/artifacts/ct/valgrind_ct_report.json" \
-    "$PROJECT_ROOT/valgrind_ct_report.json" \
-    "$FULL_BUILD_DIR/valgrind_ct_report.json"; do
-    if [ -f "$src" ]; then
-        cp "$src" "$CT_EVIDENCE_DIR/valgrind_ct_report.json"
-        echo "  [+] valgrind_ct_report.json"
-        break
-    fi
-done
-
-# Disasm branch scan
-for src in \
-    "$PROJECT_ROOT/artifacts/ct/disasm_branch_scan.json" \
-    "$PROJECT_ROOT/artifacts/disasm/disasm_branch_scan.json" \
-    "$FULL_BUILD_DIR/disasm_branch_scan.json"; do
-    if [ -f "$src" ]; then
-        cp "$src" "$CT_EVIDENCE_DIR/disasm_branch_scan.json"
-        echo "  [+] disasm_branch_scan.json"
-        break
-    fi
-done
-
-# Try running disasm scan inline if not already collected
-if [ ! -f "$CT_EVIDENCE_DIR/disasm_branch_scan.json" ]; then
-    CT_DISASM_SCRIPT="$PROJECT_ROOT/scripts/verify_ct_disasm.sh"
-    if [ -x "$CT_DISASM_SCRIPT" ] && [ -n "$RUNNER" ]; then
-        echo "  Running CT disasm scan inline..."
-        bash "$CT_DISASM_SCRIPT" "$RUNNER" --json "$CT_EVIDENCE_DIR/disasm_branch_scan.json" \
-            > "$CT_EVIDENCE_DIR/disasm_branch_scan.txt" 2>&1 || true
-        if [ -f "$CT_EVIDENCE_DIR/disasm_branch_scan.json" ]; then
-            echo "  [+] disasm_branch_scan.json (generated)"
-        fi
-    fi
-fi
-
-# dudect results
-for src in \
-    "$PROJECT_ROOT/artifacts/ct/dudect_smoke.log" \
-    "$PROJECT_ROOT/dudect_smoke.log" \
-    "$FULL_BUILD_DIR/dudect_smoke.log"; do
-    if [ -f "$src" ]; then
-        cp "$src" "$CT_EVIDENCE_DIR/dudect_smoke.log"
-        echo "  [+] dudect_smoke.log"
-        break
-    fi
-done
-for src in \
-    "$PROJECT_ROOT/artifacts/ct/dudect_full.log" \
-    "$PROJECT_ROOT/dudect_full.log" \
-    "$FULL_BUILD_DIR/dudect_full.log"; do
-    if [ -f "$src" ]; then
-        cp "$src" "$CT_EVIDENCE_DIR/dudect_full.log"
-        echo "  [+] dudect_full.log"
-        break
-    fi
-done
-
-# Summary of what was collected
-CT_COUNT=$(find "$CT_EVIDENCE_DIR" -type f 2>/dev/null | wc -l)
-if [ "$CT_COUNT" -gt 0 ]; then
-    echo "  CT evidence: $CT_COUNT artifact(s) collected"
+if python3 "$PROJECT_ROOT/scripts/collect_ct_evidence.py" \
+    --repo-root "$PROJECT_ROOT" \
+    --build-dir "$FULL_BUILD_DIR" \
+    --output-dir "$CT_EVIDENCE_DIR" \
+    --runner-binary "$RUNNER"; then
+    CT_COUNT=$(find "$CT_EVIDENCE_DIR" -type f 2>/dev/null | wc -l)
+    echo "  CT evidence: $CT_COUNT artifact(s) normalized"
 else
-    echo "  CT evidence: none found locally (check CI artifacts)"
+    echo "  [!] CT evidence normalization failed"
 fi
 
 # 4g. Auditor README
@@ -316,6 +227,8 @@ CONTENTS:
     disasm_branch_scan.json  Disassembly branch analysis of CT functions
     dudect_smoke.log         Statistical timing test (dudect, smoke run)
     dudect_full.log          Statistical timing test (dudect, full run)
+        ct_evidence_summary.json Aggregate CT evidence posture and residual gaps
+        ct_evidence_summary.txt  Human-readable CT evidence summary
 
 Note: ct_evidence/ files are present when available from local or CI runs.
 If empty, check CI artifacts at the URLs listed below.

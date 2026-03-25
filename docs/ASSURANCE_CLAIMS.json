@@ -1,0 +1,218 @@
+{
+  "schema_version": 1,
+  "updated_at": "2026-03-24",
+  "source": "docs/ASSURANCE_LEDGER.md",
+  "claims": [
+    {
+      "claim_id": "A-001",
+      "area": "CT signing",
+      "claim": "Secret-bearing production signing routes through the CPU constant-time layer",
+      "scope": "CPU signing and key-derivation paths; excludes public-data fast paths",
+      "primary_evidence": [
+        "SECURITY.md",
+        "docs/BACKEND_ASSURANCE_MATRIX.md",
+        "cpu/src/ct_sign.cpp"
+      ],
+      "enforcing_workflows": [
+        "ct-verif.yml",
+        "ct-arm64.yml",
+        "valgrind-ct.yml"
+      ],
+      "artifacts": [
+        "ct logs",
+        "dudect outputs",
+        "Valgrind CT traces"
+      ],
+      "verification_cadence": "Every push + nightly",
+      "current_status": "Active",
+      "stale_risk": "Medium",
+      "owner_surface": [
+        "cpu/src/ct_*",
+        "SECURITY.md",
+        "docs/BACKEND_ASSURANCE_MATRIX.md"
+      ]
+    },
+    {
+      "claim_id": "A-002",
+      "area": "GPU ABI",
+      "claim": "Stable public GPU C ABI exposes 13 backend-neutral batch operations",
+      "scope": "Public host ABI only; excludes benchmark-only kernels and internal experiments",
+      "primary_evidence": [
+        "include/ufsecp/ufsecp_gpu.h",
+        "docs/BACKEND_ASSURANCE_MATRIX.md"
+      ],
+      "enforcing_workflows": [
+        "gpu-selfhosted.yml",
+        "backend audit runners",
+        "GPU equivalence tests"
+      ],
+      "artifacts": [
+        "GPU host API test logs",
+        "backend matrix outputs"
+      ],
+      "verification_cadence": "Per GPU-enabled validation run",
+      "current_status": "Active",
+      "stale_risk": "Medium",
+      "owner_surface": [
+        "include/ufsecp/ufsecp_gpu.h",
+        "gpu/src/*",
+        "docs/BACKEND_ASSURANCE_MATRIX.md"
+      ]
+    },
+    {
+      "claim_id": "A-003",
+      "area": "GPU parity",
+      "claim": "CUDA, OpenCL, and Metal implement the stable public GPU surface",
+      "scope": "Public 13-op GPU ABI; not a statement about every experimental kernel",
+      "primary_evidence": [
+        "include/ufsecp/ufsecp_gpu.h",
+        "docs/BACKEND_ASSURANCE_MATRIX.md",
+        "backend adapters"
+      ],
+      "enforcing_workflows": [
+        "GPU backend matrix tests",
+        "backend audit runners"
+      ],
+      "artifacts": [
+        "backend audit logs"
+      ],
+      "verification_cadence": "Per GPU-enabled validation run",
+      "current_status": "Active",
+      "stale_risk": "Medium",
+      "owner_surface": [
+        "gpu/src/*",
+        "metal/*",
+        "opencl/*",
+        "docs/BACKEND_ASSURANCE_MATRIX.md"
+      ]
+    },
+    {
+      "claim_id": "A-004",
+      "area": "Bench reproducibility",
+      "claim": "Published benchmark numbers are tied to documented harnesses, versions, and raw logs",
+      "scope": "Bench docs and dashboard; not every local experiment is publishable",
+      "primary_evidence": [
+        "docs/BENCHMARKS.md",
+        ".github/workflows/benchmark.yml"
+      ],
+      "enforcing_workflows": [
+        "benchmark.yml",
+        "bench-regression.yml"
+      ],
+      "artifacts": [
+        "Parsed benchmark JSON",
+        "raw output logs",
+        "dashboard history"
+      ],
+      "verification_cadence": "Push to dev/main + PR gate + manual reruns",
+      "current_status": "Active",
+      "stale_risk": "Medium",
+      "owner_surface": [
+        "docs/BENCHMARKS.md",
+        ".github/workflows/benchmark.yml",
+        ".github/workflows/bench-regression.yml"
+      ]
+    },
+    {
+      "claim_id": "A-005",
+      "area": "Exploit audit surface",
+      "claim": "Exploit-style PoC tests are part of the core assurance story",
+      "scope": "audit/test_exploit_*.cpp suite and related docs",
+      "primary_evidence": [
+        "audit/",
+        "README.md",
+        "WHY_ULTRAFASTSECP256K1.md"
+      ],
+      "enforcing_workflows": [
+        "security-audit.yml",
+        "standalone audit builds"
+      ],
+      "artifacts": [
+        "Test binaries",
+        "CTest logs",
+        "unified audit outputs"
+      ],
+      "verification_cadence": "Every push + manual audit runs",
+      "current_status": "Active",
+      "stale_risk": "Medium",
+      "owner_surface": [
+        "audit/",
+        "README.md",
+        "WHY_ULTRAFASTSECP256K1.md"
+      ]
+    },
+    {
+      "claim_id": "A-006",
+      "area": "Source graph review",
+      "claim": "Repository graph is part of the audit workflow for scoping, impact tracing, and stale-claim detection",
+      "scope": "Review workflow and tooling; not a proof of correctness by itself",
+      "primary_evidence": [
+        "tools/source_graph_kit/source_graph.py",
+        "AUDIT_GUIDE.md"
+      ],
+      "enforcing_workflows": [
+        "Preflight/review process",
+        "graph rebuild discipline"
+      ],
+      "artifacts": [
+        "source_graph.db",
+        "graph manifests",
+        "query outputs"
+      ],
+      "verification_cadence": "Every substantial review or graph rebuild",
+      "current_status": "Active",
+      "stale_risk": "Medium",
+      "owner_surface": [
+        "tools/source_graph_kit/",
+        "AUDIT_GUIDE.md",
+        "repo instructions"
+      ]
+    },
+    {
+      "claim_id": "A-007",
+      "area": "Self-audit transparency",
+      "claim": "Public assurance claims are backed by rerunnable artifacts rather than trust-only prose",
+      "scope": "Docs, audit reports, and CI outputs",
+      "primary_evidence": [
+        "AUDIT_GUIDE.md",
+        "SECURITY.md",
+        "WHY_ULTRAFASTSECP256K1.md"
+      ],
+      "enforcing_workflows": [
+        "CI",
+        "document maintenance"
+      ],
+      "artifacts": [
+        "Audit reports",
+        "workflow artifacts",
+        "traceability docs"
+      ],
+      "verification_cadence": "Continuous",
+      "current_status": "Active",
+      "stale_risk": "Medium",
+      "owner_surface": [
+        "Docs",
+        "CI workflows"
+      ]
+    },
+    {
+      "claim_id": "A-008",
+      "area": "ROCm/HIP status",
+      "claim": "ROCm/HIP is an early-development compatibility path, not yet a hardware-validated assurance target",
+      "scope": "Portability layer and planned support only",
+      "primary_evidence": [
+        "README.md",
+        "docs/BACKEND_ASSURANCE_MATRIX.md"
+      ],
+      "enforcing_workflows": [],
+      "artifacts": [],
+      "verification_cadence": "Manual until hardware-backed validation exists",
+      "current_status": "Planned",
+      "stale_risk": "High",
+      "owner_surface": [
+        "GPU portability layer",
+        "public docs"
+      ]
+    }
+  ]
+}

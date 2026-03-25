@@ -43,13 +43,14 @@ __device__ inline void affine_to_compressed(
     // Extract Y parity from normalized limbs[0] bit 0 -- avoids full field_to_bytes(y)
     // Normalize Y mod p: try y - p, if no borrow then y >= p so use y - p
     constexpr uint64_t P0 = 0xFFFFFFFEFFFFFC2FULL;
-    uint64_t borrow = 0;
-    unsigned __int128 d0 = (unsigned __int128)y->limbs[0] - P0;
-    uint64_t r0 = (uint64_t)d0;
-    borrow = (uint64_t)(-(int64_t)(d0 >> 64));
+    uint64_t borrow = (y->limbs[0] < P0) ? 1ULL : 0ULL;
+    uint64_t r0 = y->limbs[0] - P0;
     for (int i = 1; i < 4; i++) {
-        unsigned __int128 di = (unsigned __int128)y->limbs[i] - 0xFFFFFFFFFFFFFFFFULL - borrow;
-        borrow = (uint64_t)(-(int64_t)(di >> 64));
+        const uint64_t diff = y->limbs[i] - 0xFFFFFFFFFFFFFFFFULL;
+        const uint64_t borrow0 = (y->limbs[i] < 0xFFFFFFFFFFFFFFFFULL) ? 1ULL : 0ULL;
+        const uint64_t result = diff - borrow;
+        borrow = borrow0 | ((diff < borrow) ? 1ULL : 0ULL);
+        (void)result;
     }
     // If borrow==0, y >= p, use reduced r0; otherwise use original limbs[0]
     uint64_t use_reduced = -(uint64_t)(borrow == 0); // branchless mask

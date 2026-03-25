@@ -2,6 +2,8 @@
 
 Unified view of GPU backend validation coverage in UltrafastSecp256k1.
 
+The machine-readable companion for backend status, publishability, and artifact requirements is `docs/GPU_BACKEND_EVIDENCE.json`. When this document and the JSON diverge, treat the JSON as the enforcement source.
+
 This document answers four practical questions for each backend:
 
 1. Do we have correctness tests?
@@ -16,8 +18,10 @@ It is intended as an engineering checklist, not a marketing page.
 ## C ABI Ops -- Per-Backend Status
 
 The C ABI layer (`ufsecp_gpu.h`) currently exposes 13 backend-neutral GPU batch
-operations. Backend support varies, and operations returning
-`UFSECP_ERR_GPU_UNSUPPORTED` (104) gracefully decline.
+operations. CUDA, OpenCL, and Metal all implement that stable public surface.
+`UFSECP_ERR_GPU_UNSUPPORTED` (104) remains part of the ABI for unsupported
+backend selection, missing device/runtime capability, or invalid execution
+context, not as a standing parity gap for the stable 13-op surface.
 
 | Operation | CUDA | OpenCL | Metal | Data Class |
 |-----------|------|--------|-------|------------|
@@ -29,25 +33,25 @@ operations. Backend support varies, and operations returning
 | `msm` | implemented | implemented | implemented | PUBLIC |
 | `frost_verify_partial_batch` | implemented | implemented | implemented | PUBLIC |
 | `ecrecover_batch` | implemented | implemented | implemented | PUBLIC |
-| `zk_knowledge_verify_batch` | implemented | stub | stub | PUBLIC |
-| `zk_dleq_verify_batch` | implemented | stub | stub | PUBLIC |
-| `bulletproof_verify_batch` | implemented | stub | stub | PUBLIC |
-| `bip324_aead_encrypt_batch` | implemented | stub | stub | PUBLIC |
-| `bip324_aead_decrypt_batch` | implemented | stub | stub | SECRET |
-| **Total (unified GPU C ABI)** | **13/13** | **8/13** | **8/13** | |
+| `zk_knowledge_verify_batch` | implemented | implemented | implemented | PUBLIC |
+| `zk_dleq_verify_batch` | implemented | implemented | implemented | PUBLIC |
+| `bulletproof_verify_batch` | implemented | implemented | implemented | PUBLIC |
+| `bip324_aead_encrypt_batch` | implemented | implemented | implemented | PUBLIC |
+| `bip324_aead_decrypt_batch` | implemented | implemented | implemented | SECRET |
+| **Total (unified GPU C ABI)** | **13/13** | **13/13** | **13/13** | |
 
 ### Expansion Roadmap
 
-- Unified 8/8 core GPU C ABI parity is closed across CUDA, OpenCL, and Metal.
-- 5 new ZK/BIP-324 batch ops (CUDA-first): OpenCL and Metal stubs with `TODO(parity)` tracking.
-- Target: 13/13 parity across all three backends.
+- Unified 13/13 GPU C ABI parity is closed across CUDA, OpenCL, and Metal.
+- The five ZK/BIP-324 batch ops are implemented on all three backends and exposed through the stable C ABI.
+- Remaining GPU governance work is no longer backend parity; it is hardware-backed publishability, artifact retention, and cross-device reproducibility.
 
 ### C ABI Test Coverage
 
 | Test | Scope | Guard |
 |------|-------|-------|
 | `gpu_abi_gate` | ABI surface, error codes, discovery, lifecycle, NULL handling | GPU host + ufsecp |
-| `gpu_ops_equivalence` | GPU vs CPU reference for supported ops (skips `UFSECP_ERR_GPU_UNSUPPORTED`) | GPU host + ufsecp |
+| `gpu_ops_equivalence` | GPU vs CPU reference for the stable public op surface; unsupported paths remain negative-test coverage | GPU host + ufsecp |
 | `gpu_host_api_negative` | NULL ptrs, count=0, invalid backend/device, error strings | GPU host + ufsecp |
 | `gpu_backend_matrix` | Backend enumeration, device info, per-backend op probing | GPU host + ufsecp |
 
@@ -56,9 +60,10 @@ operations. Backend support varies, and operations returning
 | Environment | CUDA | OpenCL | Metal | Tests |
 |-------------|------|--------|-------|-------|
 | **Local (dev machine)** | [OK] RTX 5060 Ti | [OK] RTX 5060 Ti | N/A (Linux) | All 49 tests pass including gpu_abi_gate, gpu_ops_equivalence, gpu_host_api_negative, gpu_backend_matrix |
+| **Local Docker parity** | [OK]* host GPU passthrough | [OK]* host OpenCL/runtime passthrough | N/A (Linux) | Same Linux CI toolchain via `docker-compose.ci.yml` / `Dockerfile.local-ci`; GPU slices remain host-hardware dependent |
 | **GitHub Actions CI** | N/A (no GPU runners) | N/A (no GPU runners) | [OK] macOS (lifecycle) | Metal discovery + lifecycle via macOS job |
 
-> **Note**: GitHub Actions standard runners do not have NVIDIA GPUs or OpenCL devices. CUDA and OpenCL tests are validated locally on developer machines with GPU hardware. Self-hosted GPU runners are planned for future CI coverage.
+> **Note**: GitHub Actions standard runners do not have NVIDIA GPUs or OpenCL devices, but that is not the only reproducible Linux path. The repository ships a containerized local CI stack in `Dockerfile.local-ci`, `docker-compose.ci.yml`, and `docs/LOCAL_CI.md`, so contributors can reproduce the same Linux toolchain in Docker on their own machines. GPU validation still requires the host GPU driver/runtime stack and appropriate device passthrough into the container or local process.
 
 ---
 
@@ -67,11 +72,18 @@ operations. Backend support varies, and operations returning
 | Backend | Correctness Tests | Unified Audit | Unified Bench | Host / Integration | Notes |
 |--------|-------------------|---------------|---------------|--------------------|-------|
 | CUDA | [OK] | [OK] | [OK] | [OK] | Strongest GPU validation path today |
-| ROCm/HIP | [!] Planned / Source-Shared | [!] Planned / Source-Shared | [!] Planned / Source-Shared | [!] Planned / Source-Shared | Shares CUDA/HIP code path, but not yet validated on real AMD hardware |
+| ROCm/HIP | [!] Planned / Source-Shared | [!] Planned / Source-Shared | [!] Planned / Source-Shared | [!] Planned / Source-Shared | Optional future backend expansion; current absence of AMD hardware does not invalidate existing audited backends |
 | OpenCL | [OK] | [OK] | [OK] | [OK] | Good coverage, entry points are more distributed |
 | Metal | [OK] | [OK] | [OK] | [OK] | Good coverage on Apple platforms |
 
 ROCm/HIP reuses the CUDA/HIP source tree and runners, but real AMD GPU validation is still pending.
+
+That pending state is intentionally non-blocking for current audit validity.
+CPU, CUDA, OpenCL, and Metal assurance claims remain grounded in their own
+existing evidence paths; ROCm/HIP only becomes relevant once the project
+chooses to publish real AMD-backed claims.
+
+This status is intentionally fail-closed in `docs/GPU_BACKEND_EVIDENCE.json`: ROCm/HIP remains non-publishable until AMD hardware-backed benchmark and audit artifacts exist.
 
 ---
 
@@ -108,6 +120,8 @@ ROCm/HIP reuses the CUDA/HIP source tree and runners, but real AMD GPU validatio
 
 CUDA is the most unified backend today. If someone asks, "Which GPU backend has the cleanest validation story?" the answer is CUDA.
 
+For Linux reproducibility, that story is not limited to the original developer workstation: the same local CI environment can be recreated through the repo's Docker-based local parity infrastructure, then paired with host GPU access for CUDA/OpenCL runs.
+
 ### Remaining Engineering Gaps
 
 - ROCm/HIP should not be treated as validated until tested on real AMD hardware.
@@ -139,7 +153,9 @@ CUDA is the most unified backend today. If someone asks, "Which GPU backend has 
 
 ### Current Strength
 
-OpenCL has broad native validation coverage already and is stronger than it may first appear from the unified GPU C ABI table alone.
+OpenCL has broad native validation coverage already and now matches CUDA and Metal on the stable public GPU C ABI surface.
+
+The repo's local Docker parity environment also helps standardize the Linux-side toolchain for OpenCL validation; the remaining variable is the host OpenCL ICD/device stack, not the surrounding build/test container.
 
 ### Remaining Engineering Gaps
 
@@ -194,6 +210,32 @@ Use this checklist before calling a GPU backend "fully validated" for a release 
 - [ ] Driver/toolkit version is recorded
 - [ ] JSON + TXT reports are archived
 
+## ROCm/HIP Promotion Checklist
+
+ROCm/HIP is source-shared with the CUDA/HIP portability layer, but it is not
+promoted by source compatibility alone. Promotion from `planned` to
+`validated` and `publishable: true` requires all of the following on real AMD
+hardware:
+
+1. `docs/GPU_BACKEND_EVIDENCE.json` is updated so `rocm-hip` becomes `validated`, `hardware_backed: true`, and `publishable: true` in the same change.
+2. Benchmark artifacts exist in both JSON and text form for the recorded AMD device.
+3. Audit runner output exists for the same hardware and is reproducible from the recorded command path.
+4. Driver/runtime metadata is archived, including ROCm driver version and AMD device model.
+5. Any published numbers identify the exact device class and do not reuse CUDA labels or NVIDIA-only evidence.
+6. `python3 scripts/preflight.py --gpu-evidence` and `python3 scripts/validate_assurance.py` pass after the evidence update.
+
+Until those conditions are met, ROCm/HIP remains deliberately fail-closed for
+public benchmark and validation claims. This is a containment rule for future
+AMD-specific claims, not a defect in the validity of the current audit and
+validation surfaces.
+
+This checklist is enforceable through:
+
+```bash
+python3 scripts/preflight.py --gpu-evidence
+python3 scripts/validate_assurance.py
+```
+
 ---
 
 ## Practical Reading
@@ -202,4 +244,4 @@ If the goal is day-to-day engineering confidence:
 
 - Start with CUDA as the reference GPU backend.
 - Treat OpenCL and Metal as validated but separately operationalized backends.
-- Treat ROCm/HIP as source-compatible with CUDA, but require AMD hardware evidence for each serious release.
+- Treat ROCm/HIP as source-compatible with CUDA, but not promotion-eligible until the AMD hardware-backed checklist above is complete.

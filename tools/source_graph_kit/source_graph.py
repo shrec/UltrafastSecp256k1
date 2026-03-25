@@ -7241,14 +7241,18 @@ class SymbolGraphView:
             if term_lower in name_lower or term_lower in file_lower:
                 if core_only and not _is_core_file(node.sid.file):
                     continue
-                # Proximity bonus: exact match > prefix > contains
-                if name_lower == term_lower:
-                    proximity = 100
-                elif name_lower.startswith(term_lower) or name_lower.endswith(term_lower):
-                    proximity = 50
-                else:
-                    proximity = 10
-                score = proximity + node.composite_score("explore")
+                score = _symbol_match_score(node.sid.name, node.sid.file, term) + node.composite_score("explore")
+                score -= _file_focus_penalty(node.sid.file) * 8
+                candidates.append((score, node))
+        if not candidates:
+            candidate_files = _select_candidate_files(self._conn, term, limit=max(limit, 6), core_only=core_only)
+            for node in self._nodes.values():
+                if node.sid.file not in candidate_files:
+                    continue
+                if core_only and not _is_core_file(node.sid.file):
+                    continue
+                score = _symbol_match_score(node.sid.name, node.sid.file, term) + node.composite_score("explore") + 60
+                score -= _file_focus_penalty(node.sid.file) * 8
                 candidates.append((score, node))
         candidates.sort(key=lambda x: x[0], reverse=True)
         return [n for _, n in candidates[:limit]]
@@ -7260,8 +7264,11 @@ class SymbolGraphView:
         """
         seeds = self.find_seeds(term, limit=6, core_only=core_only)
         if not seeds:
-            return {"target": term, "suspects": [], "hot_functions": [], "relevant_files": [],
-                    "risks": [], "constraints": [], "recommended_next_steps": []}
+            fallback_files = _select_candidate_files(self._conn, term, limit=6, core_only=core_only)
+            return {"target": term, "suspects": [], "hot_functions": [],
+                "risks": [], "constraints": [],
+                "recommended_next_steps": ([f"context {fallback_files[0]}"] if fallback_files else []),
+                "relevant_files": fallback_files}
 
         seed_keys = [s.sid.key() for s in seeds]
         # 1-hop neighbors
@@ -7787,9 +7794,107 @@ def _build_neighbor_file_scores(conn, candidate_files, limit=12):
     return ranked[:limit]
 
 
+def _focus_term_variants(term):
+    raw = (term or "").strip().replace("\\", "/")
+    lowered = raw.lower()
+    basename = lowered.rsplit("/", 1)[-1]
+    stem = basename.rsplit(".", 1)[0]
+    path_parts = [part for part in lowered.split("/") if part]
+    token_pool = set()
+    for value in (lowered, basename, stem):
+        for token in re.split(r"[^a-z0-9]+", value):
+            if token:
+                token_pool.add(token)
+    return {
+        "raw": raw,
+        "lowered": lowered,
+        "basename": basename,
+        "stem": stem,
+        "path_parts": path_parts,
+        "tokens": sorted(token_pool),
+    }
+
+
+def _file_match_rank(file_name, term):
+    if not file_name:
+        return 100
+    variants = _focus_term_variants(term)
+    file_lower = file_name.lower()
+    basename = os.path.basename(file_lower)
+    stem = basename.rsplit(".", 1)[0]
+    path_parts = [part for part in file_lower.split("/") if part]
+    file_tokens = set(token for token in re.split(r"[^a-z0-9]+", file_lower) if token)
+
+    if variants["lowered"] and file_lower == variants["lowered"]:
+        return 0
+    if variants["basename"] and basename == variants["basename"]:
+        return 1
+    if variants["stem"] and stem == variants["stem"]:
+        return 2
+    if variants["lowered"] and (file_lower.endswith("/" + variants["lowered"]) or file_lower.startswith(variants["lowered"] + "/")):
+        return 3
+    if variants["basename"] and variants["basename"] in path_parts:
+        return 4
+    if variants["path_parts"] and len(variants["path_parts"]) > 1:
+        matched_parts = sum(1 for part in variants["path_parts"] if part in path_parts)
+        if matched_parts == len(variants["path_parts"]):
+            return 5
+        if matched_parts:
+            return 6
+    if variants["tokens"]:
+        matched_tokens = sum(1 for token in variants["tokens"] if token in file_tokens)
+        if matched_tokens == len(variants["tokens"]):
+            return 7
+        if matched_tokens:
+            return 8
+    if variants["lowered"] and variants["lowered"] in file_lower:
+        return 9
+    return 10
+
+
+def _symbol_match_score(symbol_name, file_name, term):
+    variants = _focus_term_variants(term)
+    symbol_lower = (symbol_name or "").lower()
+    file_lower = (file_name or "").lower()
+    basename = os.path.basename(file_lower)
+    score = 0
+
+    if variants["lowered"]:
+        if symbol_lower == variants["lowered"]:
+            score += 160
+        elif symbol_lower.startswith(variants["lowered"]) or symbol_lower.endswith(variants["lowered"]):
+            score += 90
+        elif variants["lowered"] in symbol_lower:
+            score += 35
+
+        if file_lower == variants["lowered"]:
+            score += 180
+        elif basename == variants["basename"]:
+            score += 140
+        elif file_lower.endswith("/" + variants["lowered"]):
+            score += 120
+        elif variants["lowered"] in file_lower:
+            score += 40
+
+    symbol_tokens = set(token for token in re.split(r"[^a-z0-9]+", symbol_lower) if token)
+    file_tokens = set(token for token in re.split(r"[^a-z0-9]+", file_lower) if token)
+    shared_symbol = sum(1 for token in variants["tokens"] if token in symbol_tokens)
+    shared_file = sum(1 for token in variants["tokens"] if token in file_tokens)
+    score += shared_symbol * 20
+    score += shared_file * 12
+    return score
+
+
 def _file_focus_penalty(file_name):
     if not file_name:
         return 100
+    lowered = file_name.lower()
+    if lowered.startswith(("build/", "build_", "build-", "cmakefiles/", "testing/")):
+        return 40
+    if "/cmakefiles/" in lowered or lowered.endswith(("/compile_commands.json", ".pb.cc", ".pb.h", ".generated.h", ".generated.cpp")):
+        return 35
+    if lowered.startswith(("dist/", "out/", "node_modules/", ".git/")):
+        return 30
     if file_name.startswith(("src/", "include/", "ufsecp/", "cpu/", "gpu/", "opencl/")):
         return 0
     if file_name.startswith(("apps/", "examples/", "benchmarks/")):
@@ -7809,6 +7914,8 @@ def _is_core_file(file_name):
 
 def _select_candidate_files(conn, term, limit=12, core_only=False):
     candidate_files = _collect_candidate_files(conn, term, limit=max(limit * 2, 12 if core_only else limit))
+    if any(_file_focus_penalty(file_name) < 30 for file_name in candidate_files):
+        candidate_files = [file_name for file_name in candidate_files if _file_focus_penalty(file_name) < 30]
     if not core_only:
         return candidate_files[:limit]
     core_files = [file_name for file_name in candidate_files if _is_core_file(file_name)]
@@ -7846,6 +7953,7 @@ def _sql_in(values):
 def _collect_candidate_files(conn, term, limit=12):
     pattern = f"%{term}%"
     queries = [
+        ("SELECT DISTINCT path AS file FROM files WHERE path LIKE ? LIMIT 12", (pattern,)),
         ("SELECT DISTINCT file FROM function_index WHERE function_name LIKE ? OR class_name LIKE ? OR file LIKE ? LIMIT 12", (pattern, pattern, pattern)),
         ("SELECT DISTINCT cpp_file AS file FROM classes WHERE name LIKE ? OR cpp_file LIKE ? LIMIT 8", (pattern, pattern)),
         ("SELECT DISTINCT header AS file FROM classes WHERE name LIKE ? OR header LIKE ? LIMIT 8", (pattern, pattern)),
@@ -7863,10 +7971,33 @@ def _collect_candidate_files(conn, term, limit=12):
             if not file_name or file_name in seen:
                 continue
             seen.add(file_name)
-            direct_penalty = 0 if term.lower() in file_name.lower() else 1
-            results.append((direct_penalty, query_rank, _file_focus_penalty(file_name), file_name))
-    ranked = sorted(results, key=lambda item: (item[0], item[1], item[2], item[3]))
-    return [file_name for _, _, _, file_name in ranked[:limit]]
+            match_rank = _file_match_rank(file_name, term)
+            has_directory = 0 if "/" in file_name else 1
+            results.append((match_rank, query_rank, _file_focus_penalty(file_name), has_directory, len(file_name), file_name))
+    ranked = sorted(results, key=lambda item: (item[0], item[1], item[2], item[3], item[4], item[5]))
+    ranked_files = [file_name for _, _, _, _, _, file_name in ranked]
+    indexed_paths = set()
+    if ranked_files:
+        placeholders = _sql_in(ranked_files)
+        indexed_rows = conn.execute(
+            f"SELECT path FROM files WHERE path IN ({placeholders})",
+            ranked_files,
+        ).fetchall()
+        indexed_paths = {row["path"] for row in indexed_rows}
+    directory_basenames = {
+        os.path.basename(file_name)
+        for file_name in ranked_files
+        if "/" in file_name
+    }
+    selected = []
+    for file_name in ranked_files:
+        basename = os.path.basename(file_name)
+        if "/" not in file_name and basename in directory_basenames and file_name not in indexed_paths:
+            continue
+        selected.append(file_name)
+        if len(selected) >= limit:
+            break
+    return selected
 
 
 def where_cmd(name):

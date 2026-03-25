@@ -211,16 +211,64 @@ __constant__ static const uint64_t GENERATOR_Y[4] = {
 __global__ void hash160_pubkey_kernel(const uint8_t* pubkeys, int pubkey_len, uint8_t* out_hashes, int count);
 
 // Helper functions for 128-bit arithmetic
+#if defined(__SIZEOF_INT128__)
+#define SECP256K1_CUDA_HAS_NATIVE_UINT128 1
+#else
+#define SECP256K1_CUDA_HAS_NATIVE_UINT128 0
+#endif
+
+__device__ __forceinline__ void mul64_portable(uint64_t a, uint64_t b, uint64_t& lo, uint64_t& hi) {
+#if SECP256K1_CUDA_HAS_NATIVE_UINT128
+    unsigned __int128 product = static_cast<unsigned __int128>(a) * b;
+    lo = static_cast<uint64_t>(product);
+    hi = static_cast<uint64_t>(product >> 64);
+#else
+    const uint64_t a_lo = static_cast<uint32_t>(a);
+    const uint64_t a_hi = a >> 32;
+    const uint64_t b_lo = static_cast<uint32_t>(b);
+    const uint64_t b_hi = b >> 32;
+    const uint64_t p0 = a_lo * b_lo;
+    const uint64_t p1 = a_lo * b_hi;
+    const uint64_t p2 = a_hi * b_lo;
+    const uint64_t p3 = a_hi * b_hi;
+    const uint64_t middle = (p0 >> 32) + static_cast<uint32_t>(p1) + static_cast<uint32_t>(p2);
+
+    lo = (p0 & 0xFFFFFFFFULL) | (middle << 32);
+    hi = p3 + (p1 >> 32) + (p2 >> 32) + (middle >> 32);
+#endif
+}
+
 __device__ __forceinline__ uint64_t add_cc(uint64_t a, uint64_t b, uint64_t& carry) {
-    unsigned __int128 sum = (unsigned __int128)a + b + carry;
-    carry = (uint64_t)(sum >> 64);
-    return (uint64_t)sum;
+    const uint64_t sum = a + b;
+    const uint64_t carry0 = (sum < a) ? 1ULL : 0ULL;
+    const uint64_t result = sum + carry;
+    const uint64_t carry1 = (result < sum) ? 1ULL : 0ULL;
+    carry = carry0 | carry1;
+    return result;
 }
 
 __device__ __forceinline__ uint64_t sub_cc(uint64_t a, uint64_t b, uint64_t& borrow) {
-    unsigned __int128 diff = (unsigned __int128)a - b - borrow;
-    borrow = (uint64_t)((diff >> 127) & 1);
-    return (uint64_t)diff;
+    const uint64_t diff = a - b;
+    const uint64_t borrow0 = (a < b) ? 1ULL : 0ULL;
+    const uint64_t result = diff - borrow;
+    const uint64_t borrow1 = (diff < borrow) ? 1ULL : 0ULL;
+    borrow = borrow0 | borrow1;
+    return result;
+}
+
+__device__ __forceinline__ uint64_t muladd64(uint64_t a, uint64_t b, uint64_t add, uint64_t& carry) {
+    uint64_t lo;
+    uint64_t hi;
+    uint64_t step_carry = 0;
+    mul64_portable(a, b, lo, hi);
+    lo = add_cc(lo, add, step_carry);
+    hi += step_carry;
+    step_carry = 0;
+    lo = add_cc(lo, carry, step_carry);
+    hi += step_carry;
+    carry = hi;
+    return lo;
+}
 }
 
 // Forward decls used by Montgomery helpers.
@@ -400,7 +448,7 @@ __device__ __forceinline__ void mont_reduce_512(const uint64_t t_in[8], FieldEle
 
     // Iteration 0
     m = t0 * N0_INV;
-    { unsigned __int128 _mp = (unsigned __int128)m * 977; m_977_lo = (uint64_t)_mp; m_977_hi = (uint64_t)(_mp >> 64); }
+    mul64_portable(m, 977, m_977_lo, m_977_hi);
     x0 = m_977_lo + (m << 32);
     c_x = (x0 < m_977_lo);
     x1 = m_977_hi + (m >> 32) + c_x;
@@ -420,7 +468,7 @@ __device__ __forceinline__ void mont_reduce_512(const uint64_t t_in[8], FieldEle
 
     // Iteration 1
     m = t1 * N0_INV;
-    { unsigned __int128 _mp = (unsigned __int128)m * 977; m_977_lo = (uint64_t)_mp; m_977_hi = (uint64_t)(_mp >> 64); }
+    mul64_portable(m, 977, m_977_lo, m_977_hi);
     x0 = m_977_lo + (m << 32);
     c_x = (x0 < m_977_lo);
     x1 = m_977_hi + (m >> 32) + c_x;
@@ -438,7 +486,7 @@ __device__ __forceinline__ void mont_reduce_512(const uint64_t t_in[8], FieldEle
 
     // Iteration 2
     m = t2 * N0_INV;
-    { unsigned __int128 _mp = (unsigned __int128)m * 977; m_977_lo = (uint64_t)_mp; m_977_hi = (uint64_t)(_mp >> 64); }
+    mul64_portable(m, 977, m_977_lo, m_977_hi);
     x0 = m_977_lo + (m << 32);
     c_x = (x0 < m_977_lo);
     x1 = m_977_hi + (m >> 32) + c_x;
@@ -456,7 +504,7 @@ __device__ __forceinline__ void mont_reduce_512(const uint64_t t_in[8], FieldEle
 
     // Iteration 3
     m = t3 * N0_INV;
-    { unsigned __int128 _mp = (unsigned __int128)m * 977; m_977_lo = (uint64_t)_mp; m_977_hi = (uint64_t)(_mp >> 64); }
+    mul64_portable(m, 977, m_977_lo, m_977_hi);
     x0 = m_977_lo + (m << 32);
     c_x = (x0 < m_977_lo);
     x1 = m_977_hi + (m >> 32) + c_x;
@@ -506,11 +554,9 @@ __device__ __forceinline__ void mul64(uint64_t a, uint64_t b, uint64_t& lo, uint
     );
 }
 #else
-// Portable __int128 fallback for HIP/ROCm
+// Portable wide-multiply fallback for HIP/ROCm and MSVC host parsing.
 __device__ __forceinline__ void mul64(uint64_t a, uint64_t b, uint64_t& lo, uint64_t& hi) {
-    unsigned __int128 product = (unsigned __int128)a * b;
-    lo = (uint64_t)product;
-    hi = (uint64_t)(product >> 64);
+    mul64_portable(a, b, lo, hi);
 }
 #endif
 
@@ -1111,13 +1157,11 @@ __device__ inline void field_negate(const FieldElement* a, FieldElement* r) {
 __device__ inline void field_mul_small(const FieldElement* a, uint32_t small, FieldElement* r) {
     // Simple approach: multiply and reduce
     // For small constants, this is faster than full field_mul
-    __uint128_t carry = 0;
+    uint64_t carry = 0;
     uint64_t tmp[4];
     
     for (int i = 0; i < 4; i++) {
-        __uint128_t prod = (__uint128_t)a->limbs[i] * small + carry;
-        tmp[i] = (uint64_t)prod;
-        carry = prod >> 64;
+        tmp[i] = muladd64(a->limbs[i], static_cast<uint64_t>(small), 0, carry);
     }
     
     // Now we have a 320-bit number: tmp[0..3] + carry * 2^256
@@ -1125,29 +1169,26 @@ __device__ inline void field_mul_small(const FieldElement* a, uint32_t small, Fi
     // Since P = 2^256 - 0x1000003d1, we have 2^256 == 0x1000003d1 (mod P)
     // So carry * 2^256 == carry * 0x1000003d1
     
-    uint64_t c = (uint64_t)carry;
+    uint64_t c = carry;
     if (c > 0) {
         // carry * 0x1000003d1 = carry * (2^32 + 0x3d1) = carry << 32 + carry * 977
-        __uint128_t reduction = (__uint128_t)c * 0x1000003d1ULL;
-        
-        __uint128_t sum = (__uint128_t)tmp[0] + (uint64_t)reduction;
-        r->limbs[0] = (uint64_t)sum;
-        
-        sum = (__uint128_t)tmp[1] + (reduction >> 64) + (sum >> 64);
-        r->limbs[1] = (uint64_t)sum;
-        
-        sum = (__uint128_t)tmp[2] + (sum >> 64);
-        r->limbs[2] = (uint64_t)sum;
-        
-        sum = (__uint128_t)tmp[3] + (sum >> 64);
-        r->limbs[3] = (uint64_t)sum;
-        
-        // Final carry (very rare for small constants)
-        if (sum >> 64) {
-            __uint128_t final_red = (sum >> 64) * 0x1000003d1ULL;
-            sum = (__uint128_t)r->limbs[0] + (uint64_t)final_red;
-            r->limbs[0] = (uint64_t)sum;
-            r->limbs[1] += (sum >> 64);
+        uint64_t reduction_hi = 0;
+        const uint64_t reduction_lo = muladd64(c, 0x1000003d1ULL, 0, reduction_hi);
+        uint64_t sum_carry = 0;
+
+        r->limbs[0] = add_cc(tmp[0], reduction_lo, sum_carry);
+        r->limbs[1] = add_cc(tmp[1], reduction_hi, sum_carry);
+        r->limbs[2] = add_cc(tmp[2], 0, sum_carry);
+        r->limbs[3] = add_cc(tmp[3], 0, sum_carry);
+
+        if (sum_carry) {
+            uint64_t final_hi = 0;
+            const uint64_t final_lo = muladd64(sum_carry, 0x1000003d1ULL, 0, final_hi);
+            sum_carry = 0;
+            r->limbs[0] = add_cc(r->limbs[0], final_lo, sum_carry);
+            r->limbs[1] = add_cc(r->limbs[1], final_hi, sum_carry);
+            r->limbs[2] = add_cc(r->limbs[2], 0, sum_carry);
+            r->limbs[3] = add_cc(r->limbs[3], 0, sum_carry);
         }
     } else {
         r->limbs[0] = tmp[0];
@@ -1273,24 +1314,12 @@ __device__ __forceinline__ void reduce_512_to_256(uint64_t t[8], FieldElement* r
     uint64_t t4 = t[4], t5 = t[5], t6 = t[6], t7 = t[7];
 
     // 1. Compute A = T_hi * K_MOD using __int128
-    unsigned __int128 prod;
-    uint64_t carry_p;
-
-    prod = (unsigned __int128)t4 * K_MOD;
-    uint64_t a0 = (uint64_t)prod;
-    carry_p = (uint64_t)(prod >> 64);
-
-    prod = (unsigned __int128)t5 * K_MOD + carry_p;
-    uint64_t a1 = (uint64_t)prod;
-    carry_p = (uint64_t)(prod >> 64);
-
-    prod = (unsigned __int128)t6 * K_MOD + carry_p;
-    uint64_t a2 = (uint64_t)prod;
-    carry_p = (uint64_t)(prod >> 64);
-
-    prod = (unsigned __int128)t7 * K_MOD + carry_p;
-    uint64_t a3 = (uint64_t)prod;
-    uint64_t a4 = (uint64_t)(prod >> 64);
+    uint64_t carry_p = 0;
+    const uint64_t a0 = muladd64(t4, K_MOD, 0, carry_p);
+    const uint64_t a1 = muladd64(t5, K_MOD, 0, carry_p);
+    const uint64_t a2 = muladd64(t6, K_MOD, 0, carry_p);
+    const uint64_t a3 = muladd64(t7, K_MOD, 0, carry_p);
+    const uint64_t a4 = carry_p;
 
     // 2. Add A[0..3] to T_lo
     uint64_t carry = 0;
@@ -1301,9 +1330,8 @@ __device__ __forceinline__ void reduce_512_to_256(uint64_t t[8], FieldElement* r
 
     // 3. Reduce overflow: extra = a4 + carry
     uint64_t extra = a4 + carry;
-    unsigned __int128 ek = (unsigned __int128)extra * K_MOD;
-    uint64_t ek_lo = (uint64_t)ek;
-    uint64_t ek_hi = (uint64_t)(ek >> 64);
+    uint64_t ek_hi = 0;
+    const uint64_t ek_lo = muladd64(extra, K_MOD, 0, ek_hi);
 
     carry = 0;
     t0 = add_cc(t0, ek_lo, carry);
@@ -2816,9 +2844,9 @@ __device__ inline int scalar_to_wnaf4(const Scalar* k, int8_t* out) {
                 // add |d| to k
                 uint64_t carry = (uint64_t)(-d);
                 for (int i = 0; i < 5; i++) {
-                    unsigned __int128 s = (unsigned __int128)limbs[i] + carry;
-                    limbs[i] = (uint64_t)s;
-                    carry = (uint64_t)(s >> 64);
+                    uint64_t limb_carry = 0;
+                    limbs[i] = add_cc(limbs[i], carry, limb_carry);
+                    carry = limb_carry;
                     if (!carry) break;
                 }
             }
@@ -4001,9 +4029,7 @@ __device__ inline void scalar_from_bytes(const uint8_t bytes[32], Scalar* r) {
     uint64_t borrow = 0;
     uint64_t tmp[4];
     for (int i = 0; i < 4; i++) {
-        unsigned __int128 diff = (unsigned __int128)r->limbs[i] - ORDER[i] - borrow;
-        tmp[i] = (uint64_t)diff;
-        borrow = (uint64_t)(-(int64_t)(diff >> 64));
+        tmp[i] = sub_cc(r->limbs[i], ORDER[i], borrow);
     }
     uint64_t mask = -(uint64_t)(borrow == 0);
     for (int i = 0; i < 4; i++) {
@@ -4030,9 +4056,7 @@ __device__ inline void field_to_bytes(const FieldElement* fe, uint8_t bytes[32])
     uint64_t tmp[4];
     uint64_t borrow = 0;
     for (int i = 0; i < 4; i++) {
-        unsigned __int128 diff = (unsigned __int128)fe->limbs[i] - P[i] - borrow;
-        tmp[i] = (uint64_t)diff;
-        borrow = (uint64_t)(-(int64_t)(diff >> 64));
+        tmp[i] = sub_cc(fe->limbs[i], P[i], borrow);
     }
     uint64_t mask = -(uint64_t)(borrow == 0);
     uint64_t norm[4];
@@ -4056,9 +4080,7 @@ __device__ __forceinline__ bool field_is_odd(const FieldElement* fe) {
     uint64_t tmp[4];
     uint64_t borrow = 0;
     for (int i = 0; i < 4; i++) {
-        unsigned __int128 diff = (unsigned __int128)fe->limbs[i] - P[i] - borrow;
-        tmp[i] = (uint64_t)diff;
-        borrow = (uint64_t)(-(int64_t)(diff >> 64));
+        tmp[i] = sub_cc(fe->limbs[i], P[i], borrow);
     }
     uint64_t mask = -(uint64_t)(borrow == 0);
     uint64_t norm0 = (tmp[0] & mask) | (fe->limbs[0] & ~mask);
@@ -4089,8 +4111,7 @@ __device__ inline bool field_from_bytes_strict(const uint8_t bytes[32], FieldEle
     // Check r < p by trying r - p; if no borrow, r >= p => invalid
     uint64_t borrow = 0;
     for (int i = 0; i < 4; i++) {
-        unsigned __int128 diff = (unsigned __int128)r->limbs[i] - MODULUS[i] - borrow;
-        borrow = (uint64_t)(-(int64_t)(diff >> 64));
+        (void)sub_cc(r->limbs[i], MODULUS[i], borrow);
     }
     return borrow != 0;  // valid iff r < p (borrow occurred)
 }
@@ -4112,9 +4133,7 @@ __device__ inline void field_half(const FieldElement* a, FieldElement* r) {
     uint64_t tmp[4];
     uint64_t mask = -(uint64_t)odd;  // all-1s if odd, all-0s if even
     for (int i = 0; i < 4; i++) {
-        unsigned __int128 sum = (unsigned __int128)a->limbs[i] + (MODULUS[i] & mask) + carry;
-        tmp[i] = (uint64_t)sum;
-        carry = (uint64_t)(sum >> 64);
+        tmp[i] = add_cc(a->limbs[i], (MODULUS[i] & mask), carry);
     }
     // Right-shift by 1
     r->limbs[0] = (tmp[0] >> 1) | (tmp[1] << 63);
@@ -4176,9 +4195,7 @@ __device__ inline void scalar_half(const Scalar* a, Scalar* r) {
     uint64_t tmp[4];
     uint64_t mask = -(uint64_t)odd;
     for (int i = 0; i < 4; i++) {
-        unsigned __int128 sum = (unsigned __int128)a->limbs[i] + (ORDER[i] & mask) + carry;
-        tmp[i] = (uint64_t)sum;
-        carry = (uint64_t)(sum >> 64);
+        tmp[i] = add_cc(a->limbs[i], (ORDER[i] & mask), carry);
     }
     r->limbs[0] = (tmp[0] >> 1) | (tmp[1] << 63);
     r->limbs[1] = (tmp[1] >> 1) | (tmp[2] << 63);

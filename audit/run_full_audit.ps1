@@ -72,6 +72,7 @@ foreach ($d in @(
     "$ArtifactsDir/ctest"
     "$ArtifactsDir/bindings"
     "$ArtifactsDir/benchmark"
+    "$ArtifactsDir/ct"
     "$ArtifactsDir/disasm"
     "$ArtifactsDir/fuzz"
 )) {
@@ -185,6 +186,137 @@ function Get-ToolchainFingerprint {
     try { $fp["cppcheck"] = (cppcheck --version 2>$null).Trim() } catch { $fp["cppcheck"] = "not found" }
 
     return $fp
+}
+
+function Get-AuditBinary {
+    param([string]$BinaryName)
+
+    return Get-ChildItem -Path $BuildDir -Recurse -Filter $BinaryName -File 2>$null |
+        Where-Object { $_.Extension -in @('.exe', '') } |
+        Select-Object -First 1
+}
+
+function Invoke-CtBinaryCapture {
+    param(
+        [string]$BinaryName,
+        [string]$LogPath,
+        [string]$Label,
+        [string]$Severity = "Med"
+    )
+
+    $binary = Get-AuditBinary -BinaryName $BinaryName
+    if (-not $binary) {
+        Write-SubStep "$Label: binary not found ($BinaryName)" "WARN"
+        return $false
+    }
+
+    Write-SubStep "Running $Label..." "..."
+    $output = & $binary.FullName 2>&1
+    $exitCode = $LASTEXITCODE
+    $output | Out-File $LogPath -Encoding utf8
+
+    if ($exitCode -eq 0) {
+        Write-SubStep "$Label: completed" "PASS"
+        return $true
+    }
+
+    Write-SubStep "$Label: reported failures" "WARN"
+    Add-Finding $Severity "Side-Channel" "$Label reported failures" $LogPath "Inspect $BinaryName output"
+    return $false
+}
+
+function Invoke-CtEvidenceNormalization {
+    param([string]$RunnerBinary)
+
+    $collector = Join-Path $RootDir "scripts/collect_ct_evidence.py"
+    $pythonCmd = Get-Command python3 -ErrorAction SilentlyContinue
+    if (-not $pythonCmd) {
+        $pythonCmd = Get-Command python -ErrorAction SilentlyContinue
+    }
+
+    if (-not $pythonCmd -or -not (Test-Path $collector)) {
+        Write-SubStep "CT evidence normalization skipped (python or collector missing)" "WARN"
+        return
+    }
+
+    Write-SubStep "Normalizing CT evidence..." "..."
+    $collectorLog = Join-Path $ArtifactsDir "ct/ct_evidence_collection.log"
+    $collectorOut = & $pythonCmd.Source $collector --build-dir $BuildDir --output-dir "$ArtifactsDir/ct" --runner-binary $RunnerBinary 2>&1
+    $collectorExit = $LASTEXITCODE
+    $collectorOut | Out-File $collectorLog -Encoding utf8
+
+    if ($collectorExit -eq 0) {
+        Write-SubStep "CT evidence normalized" "PASS"
+    } else {
+        Write-SubStep "CT evidence normalization reported issues" "WARN"
+        Add-Finding "Med" "Side-Channel" "CT evidence normalization reported issues" $collectorLog "Inspect CT normalization output"
+    }
+}
+
+function Invoke-CtVerifCapture {
+    param([string]$CtDir)
+
+    $binary = Get-AuditBinary -BinaryName "test_ct_verif_formal_standalone*"
+    if (-not $binary) {
+        Write-SubStep "ct-verif formal: binary not found" "WARN"
+        return $false
+    }
+
+    Write-SubStep "Running ct-verif formal standalone..." "..."
+    $logPath = Join-Path $CtDir "ct_verif.log"
+    $output = & $binary.FullName 2>&1
+    $exitCode = $LASTEXITCODE
+    $output | Out-File $logPath -Encoding utf8
+
+    if ($exitCode -eq 0) {
+        Write-SubStep "ct-verif formal standalone: completed" "PASS"
+        return $true
+    }
+
+    Write-SubStep "ct-verif formal standalone: reported failures" "WARN"
+    Add-Finding "Med" "Side-Channel" "ct-verif formal standalone reported failures" $logPath "Inspect ct-verif standalone output"
+    return $false
+}
+
+function Invoke-ValgrindCtCapture {
+    param([string]$CtDir)
+
+    $bashCmd = Get-Command bash -ErrorAction SilentlyContinue
+    $valgrindCmd = Get-Command valgrind -ErrorAction SilentlyContinue
+    $scriptPath = Join-Path $RootDir "scripts/valgrind_ct_check.sh"
+    $reportDir = Join-Path $BuildDir "valgrind-ct/valgrind_reports"
+
+    if (-not $bashCmd -or -not $valgrindCmd -or -not (Test-Path $scriptPath)) {
+        Write-SubStep "valgrind-ct: required local tools not available" "SKIP"
+        return $false
+    }
+
+    Write-SubStep "Running valgrind-ct analysis..." "..."
+    $stdoutLog = Join-Path $CtDir "valgrind_ct.stdout.log"
+    $output = & $bashCmd.Source $scriptPath "$BuildDir/valgrind-ct" 2>&1
+    $exitCode = $LASTEXITCODE
+    $output | Out-File $stdoutLog -Encoding utf8
+
+    foreach ($name in @("valgrind_ct.log", "valgrind_ct_report.json")) {
+        $src = Join-Path $reportDir $name
+        $dst = Join-Path $CtDir $name
+        if (Test-Path $src) {
+            Copy-Item $src $dst -Force
+        }
+    }
+
+    if (Test-Path (Join-Path $CtDir "valgrind_ct.log")) {
+        if ($exitCode -eq 0) {
+            Write-SubStep "valgrind-ct artifacts captured" "PASS"
+        } else {
+            Write-SubStep "valgrind-ct analysis reported issues" "WARN"
+            Add-Finding "Med" "Side-Channel" "valgrind-ct analysis reported issues" $stdoutLog "Inspect valgrind-ct output"
+        }
+        return $true
+    }
+
+    Write-SubStep "valgrind-ct artifacts not produced" "WARN"
+    return $false
 }
 
 # ========================================================================
@@ -613,6 +745,58 @@ function Run-CategoriesEI {
 }
 
 # ========================================================================
+# I.extra -- CT Artifact Materialization
+# ========================================================================
+function Run-CategoryIExtra {
+    Write-Section "I.extra -- CT Artifact Materialization"
+    $sw = [System.Diagnostics.Stopwatch]::StartNew()
+
+    $ctDir = Join-Path $ArtifactsDir "ct"
+    $legacyDisasmDir = Join-Path $ArtifactsDir "disasm"
+    $runner = Get-AuditBinary -BinaryName "unified_audit_runner*"
+    $bashCmd = Get-Command bash -ErrorAction SilentlyContinue
+    $ctScript = Join-Path $RootDir "scripts/verify_ct_disasm.sh"
+
+    if ($runner -and $bashCmd -and (Test-Path $ctScript)) {
+        Write-SubStep "Running CT disassembly scan..." "..."
+        $ctJson = Join-Path $ctDir "disasm_branch_scan.json"
+        $ctTxt = Join-Path $ctDir "disasm_branch_scan.txt"
+        $disasmOut = & $bashCmd.Source $ctScript $runner.FullName --json $ctJson 2>&1
+        $disasmExit = $LASTEXITCODE
+        $disasmOut | Out-File $ctTxt -Encoding utf8
+
+        if ($disasmExit -ne 0) {
+            Write-SubStep "CT disasm scan found branches" "WARN"
+            Add-Finding "Med" "Side-Channel" "CT disassembly scan found conditional branches in CT functions" $ctTxt "Inspect CT disassembly output"
+        } else {
+            Write-SubStep "CT disasm scan completed" "PASS"
+        }
+
+        foreach ($name in @("disasm_branch_scan.json", "disasm_branch_scan.txt")) {
+            $src = Join-Path $ctDir $name
+            $dst = Join-Path $legacyDisasmDir $name
+            if (Test-Path $src) {
+                Copy-Item $src $dst -Force
+            }
+        }
+    } else {
+        Write-SubStep "CT disasm script or binary not found" "SKIP"
+    }
+
+    [void](Invoke-CtBinaryCapture -BinaryName "test_ct_sidechannel_smoke*" -LogPath (Join-Path $ctDir "dudect_smoke.log") -Label "dudect smoke")
+    [void](Invoke-CtBinaryCapture -BinaryName "test_ct_sidechannel_standalone*" -LogPath (Join-Path $ctDir "dudect_full.log") -Label "dudect full")
+    [void](Invoke-CtVerifCapture -CtDir $ctDir)
+    [void](Invoke-ValgrindCtCapture -CtDir $ctDir)
+
+    if ($runner) {
+        Invoke-CtEvidenceNormalization -RunnerBinary $runner.FullName
+    }
+
+    $sw.Stop()
+    Add-CategoryResult "I.extra" "PASS" "CT Artifact Materialization" $sw.ElapsedMilliseconds
+}
+
+# ========================================================================
 # J. ABI / API Stability
 # ========================================================================
 function Run-CategoryJ {
@@ -939,7 +1123,8 @@ function Generate-AuditReportMd {
     [void]$sb.AppendLine("- **Statistical timing leakage testing (dudect)**: included in unified runner (ct_sidechannel smoke). Advisory -- timing noise on shared runners may mask subtle leaks.")
     [void]$sb.AppendLine("- **Deterministic CT verification (ct-verif)**: LLVM-based taint tracking via ``.github/workflows/ct-verif.yml``. Blocking in CI.")
     [void]$sb.AppendLine("- **Deterministic CT verification (valgrind-ct)**: ctgrind-mode memcheck via ``.github/workflows/ct-verif.yml``. Blocking in CI.")
-    [void]$sb.AppendLine("- **Disassembly branch scan**: ``artifacts/disasm/disasm_branch_scan.json`` -- checks compiled CT functions for conditional branches on secrets.")
+    [void]$sb.AppendLine("- **Disassembly branch scan**: ``artifacts/ct/disasm_branch_scan.json`` -- checks compiled CT functions for conditional branches on secrets.")
+    [void]$sb.AppendLine("- **Canonical CT evidence summary**: ``artifacts/ct/ct_evidence_summary.json`` -- normalized view of deterministic and statistical CT evidence collected during this run.")
     [void]$sb.AppendLine("- **Machine-checked proofs**: Not currently applied (Vale/Jasmin/Coq/Fiat-Crypto).")
     [void]$sb.AppendLine("")
 
@@ -1027,7 +1212,11 @@ function Generate-AuditReportMd {
     [void]$sb.AppendLine("| CTest results | ``artifacts/ctest/results.json`` |")
     [void]$sb.AppendLine("| CTest output | ``artifacts/ctest/ctest_output.txt`` |")
     [void]$sb.AppendLine("| ABI report | ``artifacts/abi_report.json`` |")
-    [void]$sb.AppendLine("| CT disasm scan | ``artifacts/disasm/disasm_branch_scan.json`` |")
+    [void]$sb.AppendLine("| CT disasm scan | ``artifacts/ct/disasm_branch_scan.json`` |")
+    [void]$sb.AppendLine("| CT evidence summary | ``artifacts/ct/ct_evidence_summary.json`` |")
+    [void]$sb.AppendLine("| CT evidence text summary | ``artifacts/ct/ct_evidence_summary.txt`` |")
+    [void]$sb.AppendLine("| dudect smoke log | ``artifacts/ct/dudect_smoke.log`` |")
+    [void]$sb.AppendLine("| dudect full log | ``artifacts/ct/dudect_full.log`` |")
     [void]$sb.AppendLine("| ct-verif log | CI: ``.github/workflows/ct-verif.yml`` artifacts |")
     [void]$sb.AppendLine("| valgrind-ct log | CI: ``.github/workflows/ct-verif.yml`` artifacts |")
     [void]$sb.AppendLine("| GPU audit | CI: ``.github/workflows/gpu-selfhosted.yml`` artifacts |")
@@ -1066,6 +1255,7 @@ Run-CategoryB
 Run-CategoryC
 Run-CategoryD
 Run-CategoriesEI
+Run-CategoryIExtra
 Run-CategoryJ
 Run-CategoryK
 Run-CategoryL

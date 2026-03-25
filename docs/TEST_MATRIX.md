@@ -113,6 +113,26 @@
 | `audit/test_gpu_host_api_negative.cpp` | GPU (all) | `gpu_host_api_negative`: NULL ptrs, count=0 no-ops, invalid backend/device, error strings |
 | `audit/test_gpu_backend_matrix.cpp` | GPU (all) | `gpu_backend_matrix`: backend enumeration, device info sanity, per-backend op probing |
 
+### Additional CTest Targets
+
+These standalone CTest entries are part of the active validation surface and are tracked explicitly here so the documented matrix matches the real runner surface.
+
+| CTest target | Scope | Notes |
+|-------------|-------|-------|
+| `audit_invariants` | CPU audit | Algebraic and serialization invariant checks across core arithmetic and point paths |
+| `audit_secure_erase` | Security audit | Verifies zeroization / secure erase behavior remains wired and callable |
+| `bip141_143_144` | Bitcoin protocol | SegWit serialization and BIP-141/BIP-143/BIP-144 correctness coverage |
+| `bip342` | Bitcoin protocol | Taproot / Tapscript BIP-342 correctness coverage |
+| `c_abi_negative` | C ABI hostile-caller | Negative-path checks for invalid inputs, malformed pointers, and fail-closed behavior |
+| `c_abi_thread_stress` | C ABI concurrency | Threaded stress coverage for public ABI entry points |
+| `exploit_ecdsa_der_confusion` | Exploit PoC | Ensures DER parser behavior rejects non-canonical or ambiguous encodings |
+| `exploit_frost_commitment_reuse` | Exploit PoC | Adversarial FROST nonce/commitment reuse regression coverage |
+| `exploit_pedersen_adversarial` | Exploit PoC | Adversarial Pedersen commitment misuse/regression coverage |
+| `ffi_coverage` | FFI surface | Coverage-oriented validation for public foreign-function interface paths |
+| `kat_all_operations` | Known-answer tests | Broad deterministic vectors across exposed operations |
+| `nonce_uniqueness` | Security audit | Nonce uniqueness and replay-resistance regression coverage |
+| `secp256k1_spec` | Spec conformance | Specification-oriented secp256k1 behavior checks |
+
 ---
 
 ## API Function -> Test Coverage Map

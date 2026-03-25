@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "updated_at": "2026-03-25",
+  "events": [
+    {
+      "event_id": "ai-review-20260325-a008-doc-drift",
+      "reviewed_at": "2026-03-25T00:00:00Z",
+      "review_mode": "documentation-skeptic",
+      "finding_class": "docs-drift",
+      "status": "accepted",
+      "target": "A-008 ROCm/HIP claim evidence",
+      "summary": "A stale assurance claim referenced a nonexistent include/gpu_compat.h path instead of current public evidence surfaces.",
+      "reproduced": true,
+      "repository_evidence": [
+        "docs/ASSURANCE_LEDGER.md",
+        "docs/ASSURANCE_CLAIMS.json",
+        "docs/BACKEND_ASSURANCE_MATRIX.md",
+        "README.md"
+      ],
+      "resulting_changes": [
+        "docs/ASSURANCE_LEDGER.md",
+        "docs/ASSURANCE_CLAIMS.json",
+        "scripts/validate_assurance.py",
+        "scripts/preflight.py"
+      ],
+      "notes": "Converted into a graph-backed stale-claim preflight gate and a truth-aligned evidence fix."
+    },
+    {
+      "event_id": "ai-review-20260325-feature-ledger-parity",
+      "reviewed_at": "2026-03-25T00:00:00Z",
+      "review_mode": "auditor",
+      "finding_class": "coverage-gap",
+      "status": "accepted",
+      "target": "FEATURE_ASSURANCE_LEDGER API parity",
+      "summary": "FEATURE_ASSURANCE_LEDGER.md was missing 24 exported UFSECP_API functions compared with the public headers.",
+      "reproduced": true,
+      "repository_evidence": [
+        "docs/FEATURE_ASSURANCE_LEDGER.md",
+        "include/ufsecp/ufsecp.h",
+        "include/ufsecp/ufsecp_gpu.h",
+        "scripts/validate_assurance.py"
+      ],
+      "resulting_changes": [
+        "docs/FEATURE_ASSURANCE_LEDGER.md"
+      ],
+      "notes": "Ledger parity is now 158/158 with no missing or extra entries in validate_assurance.py output."
+    },
+    {
+      "event_id": "ai-review-20260325-ci-frost-adaptor",
+      "reviewed_at": "2026-03-25T00:00:00Z",
+      "review_mode": "auditor",
+      "finding_class": "bug",
+      "status": "accepted",
+      "target": "Local CI FROST/adaptor regression cluster",
+      "summary": "Local CI failures were traced to stale FROST exploit PoCs plus inconsistent ECDSA adaptor semantics, then converted into deterministic regressions and a code fix.",
+      "reproduced": true,
+      "repository_evidence": [
+        "cpu/src/frost.cpp",
+        "cpu/src/adaptor.cpp",
+        "audit/test_exploit_frost_index.cpp",
+        "audit/test_exploit_frost_participant_zero.cpp",
+        "audit/test_exploit_frost_lagrange_duplicate.cpp",
+        "audit/test_exploit_adaptor_extended.cpp"
+      ],
+      "resulting_changes": [
+        "cpu/src/frost.cpp",
+        "cpu/src/adaptor.cpp",
+        "audit/test_exploit_frost_index.cpp",
+        "audit/test_exploit_frost_participant_zero.cpp",
+        "audit/test_exploit_frost_lagrange_duplicate.cpp"
+      ],
+      "notes": "Validated by full build/copilot-ci ctest pass after the fixes and regression rewrites."
+    },
+    {
+      "event_id": "ai-review-20260325-gpu-parity-docs",
+      "reviewed_at": "2026-03-25T00:00:00Z",
+      "review_mode": "documentation-skeptic",
+      "finding_class": "docs-drift",
+      "status": "accepted",
+      "target": "GPU parity and ROCm/HIP promotion narrative",
+      "summary": "GPU docs contradicted each other about whether the five ZK/BIP-324 batch ops were still CUDA-only stubs, and the ROCm/HIP promotion rule was too implicit for a fail-closed assurance model.",
+      "reproduced": true,
+      "repository_evidence": [
+        "docs/GPU_VALIDATION_MATRIX.md",
+        "docs/BACKEND_ASSURANCE_MATRIX.md",
+        "docs/GPU_BACKEND_EVIDENCE.json",
+        "docs/BENCHMARK_POLICY.md",
+        "src/gpu_backend_opencl.cpp",
+        "src/gpu_backend_metal.mm"
+      ],
+      "resulting_changes": [
+        "docs/GPU_VALIDATION_MATRIX.md",
+        "docs/BENCHMARK_POLICY.md",
+        "docs/BACKEND_ASSURANCE_MATRIX.md",
+        "docs/FORTRESS_ROADMAP.md"
+      ],
+      "notes": "Resolved by aligning the human-facing matrices to the graph-confirmed 13/13 CUDA/OpenCL/Metal stable GPU C ABI surface and documenting ROCm/HIP as hardware-evidence-only for promotion."
+    }
+  ]
+}

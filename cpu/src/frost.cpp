@@ -43,6 +43,39 @@ static Scalar derive_scalar(const std::uint8_t* seed, std::size_t seed_len,
     return result;
 }
 
+template<std::size_t N>
+static Scalar derive_scalar_pair(const std::uint8_t* seed, std::size_t seed_len,
+                                 const char (&context)[N],
+                                 std::uint32_t participant_id,
+                                 std::uint32_t coeff_index) {
+    SHA256 h;
+    auto tag_hash = SHA256::hash(context, N - 1);
+    h.update(tag_hash.data(), 32);
+    h.update(tag_hash.data(), 32);
+    h.update(seed, seed_len);
+
+    std::uint8_t idx_be[8] = {
+        std::uint8_t(participant_id >> 24), std::uint8_t(participant_id >> 16),
+        std::uint8_t(participant_id >> 8), std::uint8_t(participant_id),
+        std::uint8_t(coeff_index >> 24), std::uint8_t(coeff_index >> 16),
+        std::uint8_t(coeff_index >> 8), std::uint8_t(coeff_index)
+    };
+    h.update(idx_be, sizeof(idx_be));
+
+    auto hash = h.finalize();
+    auto result = Scalar::from_bytes(hash);
+    secure_erase(hash.data(), hash.size());
+    return result;
+}
+
+static bool valid_unique_participant_ids(const std::vector<ParticipantId>& ids) {
+    if (ids.empty()) return false;
+    std::vector<ParticipantId> sorted = ids;
+    std::sort(sorted.begin(), sorted.end());
+    if (sorted.front() == 0) return false;
+    return std::adjacent_find(sorted.begin(), sorted.end()) == sorted.end();
+}
+
 // Evaluate polynomial f(x) = a_0 + a_1*x + a_2*x^2 + ... at x
 static Scalar poly_eval(const std::vector<Scalar>& coeffs, const Scalar& x) {
     // Horner's method
@@ -123,6 +156,11 @@ static Scalar compute_challenge(const Point& R, const Point& group_key,
 
 Scalar frost_lagrange_coefficient(ParticipantId i,
                                    const std::vector<ParticipantId>& signer_ids) {
+    if (i == 0 || !valid_unique_participant_ids(signer_ids) ||
+        std::find(signer_ids.begin(), signer_ids.end(), i) == signer_ids.end()) {
+        return Scalar::zero();
+    }
+
     Scalar num = Scalar::one();
     Scalar den = Scalar::one();
 
@@ -155,8 +193,8 @@ frost_keygen_begin(ParticipantId participant_id,
     // f_i(x) = a_{i,0} + a_{i,1}*x + ... + a_{i,t-1}*x^{t-1}
     std::vector<Scalar> coeffs(threshold);
     for (std::uint32_t j = 0; j < threshold; ++j) {
-        coeffs[j] = derive_scalar(secret_seed.data(), 32, "FROST_keygen_poly", 
-                                   participant_id * 1000 + j);
+        coeffs[j] = derive_scalar_pair(secret_seed.data(), 32, "FROST_keygen_poly",
+                                       participant_id, j);
     }
 
     // Commitment: A_{i,j} = a_{i,j} * G
@@ -193,6 +231,36 @@ frost_keygen_finalize(ParticipantId participant_id,
     pkg.id = participant_id;
     pkg.threshold = threshold;
     pkg.num_participants = num_participants;
+
+    if (participant_id == 0 || threshold == 0 || num_participants == 0 ||
+        threshold > num_participants || commitments.size() != num_participants ||
+        received_shares.size() != num_participants) {
+        return {pkg, false};
+    }
+
+    std::vector<ParticipantId> seen_commit_ids;
+    seen_commit_ids.reserve(commitments.size());
+    for (const auto& commitment : commitments) {
+        if (commitment.from == 0 || commitment.coeffs.size() != threshold) {
+            return {pkg, false};
+        }
+        seen_commit_ids.push_back(commitment.from);
+    }
+    if (!valid_unique_participant_ids(seen_commit_ids)) {
+        return {pkg, false};
+    }
+
+    std::vector<ParticipantId> seen_share_ids;
+    seen_share_ids.reserve(received_shares.size());
+    for (const auto& share : received_shares) {
+        if (share.from == 0 || share.id != participant_id) {
+            return {pkg, false};
+        }
+        seen_share_ids.push_back(share.from);
+    }
+    if (!valid_unique_participant_ids(seen_share_ids)) {
+        return {pkg, false};
+    }
 
     // Verify each received share against its sender's commitment
     Scalar const x_i = Scalar::from_uint64(participant_id);
@@ -270,6 +338,11 @@ frost_sign(const FrostKeyPackage& key_pkg,
     signer_ids.reserve(nonce_commitments.size());
     for (const auto& nc : nonce_commitments) {
         signer_ids.push_back(nc.id);
+    }
+    if (!valid_unique_participant_ids(signer_ids)) {
+        secure_erase(&nonce.hiding_nonce, sizeof(nonce.hiding_nonce));
+        secure_erase(&nonce.binding_nonce, sizeof(nonce.binding_nonce));
+        return FrostPartialSig{key_pkg.id, Scalar::zero()};
     }
 
     // Compute binding factors for all signers
@@ -349,6 +422,9 @@ bool frost_verify_partial(const FrostPartialSig& partial_sig,
     for (const auto& nc : nonce_commitments) {
         signer_ids.push_back(nc.id);
     }
+    if (!valid_unique_participant_ids(signer_ids) || partial_sig.id == 0) {
+        return false;
+    }
 
     // Compute binding factors
     std::vector<Scalar> binding_factors;
@@ -404,6 +480,15 @@ frost_aggregate(const std::vector<FrostPartialSig>& partial_sigs,
                 const std::vector<FrostNonceCommitment>& nonce_commitments,
                 const Point& group_public_key,
                 const std::array<std::uint8_t, 32>& msg) {
+    std::vector<ParticipantId> signer_ids;
+    signer_ids.reserve(nonce_commitments.size());
+    for (const auto& nc : nonce_commitments) {
+        signer_ids.push_back(nc.id);
+    }
+    if (!valid_unique_participant_ids(signer_ids)) {
+        return SchnorrSignature{{}, Scalar::zero()};
+    }
+
     // Compute binding factors
     std::vector<Scalar> binding_factors;
     binding_factors.reserve(nonce_commitments.size());

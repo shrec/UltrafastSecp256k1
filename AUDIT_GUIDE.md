@@ -8,6 +8,7 @@
 > The project is open to external audit and keeps the repository audit-ready,
 > but it does not wait for a formal third-party engagement before improving assurance.
 > Internal audit and verification are expected to run continuously on every build and every commit.
+> The intended model is not "trust the report" but "rerun the evidence".
 
 ---
 
@@ -25,6 +26,12 @@
 | **API reference** | [docs/API_REFERENCE.md](docs/API_REFERENCE.md) |
 | **Coding standards** | [docs/CODING_STANDARDS.md](docs/CODING_STANDARDS.md) |
 | **Build instructions** | [docs/BUILDING.md](docs/BUILDING.md) |
+| **Repository graph** | `tools/source_graph_kit/source_graph.py` + `tools/source_graph_kit/source_graph.db` |
+| **Assurance ledger** | [docs/ASSURANCE_LEDGER.md](docs/ASSURANCE_LEDGER.md) -- canonical claims `A-001` through `A-008` |
+| **AI audit protocol** | [docs/AI_AUDIT_PROTOCOL.md](docs/AI_AUDIT_PROTOCOL.md) |
+| **AI review-event log** | [docs/AI_REVIEW_EVENTS.json](docs/AI_REVIEW_EVENTS.json) |
+| **Fortress roadmap** | [docs/FORTRESS_ROADMAP.md](docs/FORTRESS_ROADMAP.md) |
+| **External audit automation** | [docs/EXTERNAL_AUDIT_AUTOMATION.md](docs/EXTERNAL_AUDIT_AUTOMATION.md) |
 
 ---
 
@@ -51,6 +58,38 @@ ctest --test-dir build-san --output-on-failure
 # Valgrind (Linux)
 ctest --test-dir build -T memcheck
 ```
+
+The repository also includes a SQLite-backed source graph used for audit scoping,
+impact tracing, and fast reviewer navigation. This is part of the assurance model:
+it makes the codebase easier to audit repeatedly, not just easier to browse once.
+
+If you want the repository to prepare the standard auditor bundle for you, run:
+
+```bash
+bash scripts/external_audit_prep.sh
+```
+
+For a fuller evidence package including unified audit runner output:
+
+```bash
+bash scripts/external_audit_prep.sh --with-package --build-dir build-audit
+```
+
+```bash
+python3 tools/source_graph_kit/source_graph.py summary
+python3 tools/source_graph_kit/source_graph.py focus ecdsa_sign 24 --core
+python3 tools/source_graph_kit/source_graph.py context cpu/src/ecdsa.cpp
+python3 tools/source_graph_kit/source_graph.py impact include/ufsecp/ufsecp_gpu.h
+```
+
+The AI-assisted review track is also machine-recorded. Review outcomes that are accepted,
+rejected, or left unconfirmed are logged in `docs/AI_REVIEW_EVENTS.json`, and the schema
+is enforced by `python3 scripts/preflight.py --ai-review`.
+
+For top-level trust claims, start from the ledger IDs before reading the prose surfaces:
+`A-001` CPU CT routing, `A-002` stable GPU ABI, `A-003` GPU parity, `A-004` benchmark reproducibility,
+`A-005` exploit-audit surface, `A-006` graph-assisted review, `A-007` self-audit transparency,
+and `A-008` ROCm/HIP status discipline.
 
 ---
 

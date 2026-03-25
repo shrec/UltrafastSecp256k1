@@ -12,24 +12,27 @@
  *   4. No internal GPU types leak -- all I/O is `uint8_t[]` with fixed strides.
  *   5. Thread safety: each gpu_ctx is single-thread. Create one per thread or
  *      protect externally.
- *   6. On the stable public GPU C ABI declared in this header, all operations
- *      are PUBLIC-DATA ONLY except ECDH. ECDH is secret-bearing and documented
- *      as such.
+ *   6. On the stable public GPU C ABI declared in this header, most operations
+ *      are PUBLIC-DATA ONLY. ECDH and BIP-324 AEAD encrypt/decrypt are
+ *      secret-bearing and documented as such.
  *
  * ## Feature maturity
  *
- *   This header defines the stable GPU API surface. Backend support
- *   per-operation varies. Internal kernels, benchmarks, or backend test code
- *   may cover broader primitives; that does not by itself make those
- *   primitives part of the stable secret-bearing GPU ABI.
+ *   This header defines the stable GPU API surface. The stable batch-op
+ *   surface currently includes 13 backend-neutral operations: 8 core ops
+ *   (generator_mul, ECDSA verify, Schnorr verify, ECDH, Hash160, MSM,
+ *   FROST partial verify, ecrecover) plus 5 extended ZK/BIP-324 ops.
+ *   Internal kernels, benchmarks, or backend test code may cover broader
+ *   primitives; that does not by itself make those primitives part of the
+ *   stable production GPU ABI.
  *
- *     CUDA   -- all 8 GPU ops implemented
- *     OpenCL -- all 8 GPU ops implemented
- *     Metal  -- all 8 GPU ops implemented
+ *     CUDA   -- all 13 stable GPU batch ops implemented
+ *     OpenCL -- all 13 stable GPU batch ops implemented
+ *     Metal  -- all 13 stable GPU batch ops implemented
  *
  *   Operations that a backend does not implement return
  *   UFSECP_ERR_GPU_UNSUPPORTED (104). This is no longer expected for the
- *   stable 8-op GPU C ABI on compiled CUDA/OpenCL/Metal backends.
+ *   stable 13-op GPU C ABI on compiled CUDA/OpenCL/Metal backends.
  *
  *   Guarantees:
  *     - Discovery + lifecycle functions work on all compiled backends.

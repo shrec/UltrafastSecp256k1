@@ -44,11 +44,19 @@ Set `CMAKE_CUDA_ARCHITECTURES` for your GPU:
 # RTX 4090
 -DCMAKE_CUDA_ARCHITECTURES=89
 
-# RTX 5060 Ti / 5090
+# RTX 5060 Ti / 5070 Ti / 5090
 -DCMAKE_CUDA_ARCHITECTURES=120
 
 # Multiple GPUs
 -DCMAKE_CUDA_ARCHITECTURES="86;89;120"
+```
+
+> **Blackwell (RTX 50xx) note:** Add `-DCMAKE_CUDA_SEPARABLE_COMPILATION=ON` when building
+> for RTX 5060 Ti, 5070 Ti, 5090, or any other Blackwell device. This flag is set automatically
+> in `cuda/CMakeLists.txt` and in all CUDA CMake presets; you only need it explicitly if you
+> are invoking CMake without a preset.
+
+```bash
 ```
 
 ---

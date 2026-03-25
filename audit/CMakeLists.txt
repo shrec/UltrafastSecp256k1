@@ -431,6 +431,13 @@ target_compile_definitions(test_exploit_musig2_nonce_reuse_standalone PRIVATE ST
 add_test(NAME exploit_musig2_nonce_reuse COMMAND test_exploit_musig2_nonce_reuse_standalone)
 set_tests_properties(exploit_musig2_nonce_reuse PROPERTIES TIMEOUT 120 LABELS "audit;exploit;musig2")
 
+# -- PoC: MuSig2 transcript fork / coordinator equivocation
+add_executable(test_exploit_musig2_transcript_fork_standalone test_exploit_musig2_transcript_fork.cpp)
+audit_target_defaults(test_exploit_musig2_transcript_fork_standalone)
+target_compile_definitions(test_exploit_musig2_transcript_fork_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_musig2_transcript_fork COMMAND test_exploit_musig2_transcript_fork_standalone)
+set_tests_properties(exploit_musig2_transcript_fork PROPERTIES TIMEOUT 120 LABELS "audit;exploit;musig2")
+
 # -- PoC: Elliptic curve point group law correctness (commutativity, associativity, etc.)
 add_executable(test_exploit_point_group_law_standalone test_exploit_point_group_law.cpp)
 audit_target_defaults(test_exploit_point_group_law_standalone)
@@ -451,6 +458,19 @@ audit_target_defaults(test_exploit_ecdsa_edge_cases_standalone)
 target_compile_definitions(test_exploit_ecdsa_edge_cases_standalone PRIVATE STANDALONE_TEST)
 add_test(NAME exploit_ecdsa_edge_cases COMMAND test_exploit_ecdsa_edge_cases_standalone)
 set_tests_properties(exploit_ecdsa_edge_cases PROPERTIES TIMEOUT 60 LABELS "audit;exploit;ecdsa")
+
+# -- PoC: ECDSA DER canonicality / alternate-encoding confusion
+add_executable(test_exploit_ecdsa_der_confusion_standalone
+    test_exploit_ecdsa_der_confusion.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_ecdsa_der_confusion_standalone)
+target_include_directories(test_exploit_ecdsa_der_confusion_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+)
+target_compile_definitions(test_exploit_ecdsa_der_confusion_standalone PRIVATE UFSECP_BUILDING)
+add_test(NAME exploit_ecdsa_der_confusion COMMAND test_exploit_ecdsa_der_confusion_standalone)
+set_tests_properties(exploit_ecdsa_der_confusion PROPERTIES TIMEOUT 60 LABELS "audit;exploit;ecdsa")
 
 # -- PoC: Taproot key tweak and commitment security
 add_executable(test_exploit_taproot_tweak_standalone test_exploit_taproot_tweak.cpp)
@@ -480,6 +500,13 @@ target_compile_definitions(test_exploit_frost_signing_standalone PRIVATE STANDAL
 add_test(NAME exploit_frost_signing COMMAND test_exploit_frost_signing_standalone)
 set_tests_properties(exploit_frost_signing PROPERTIES TIMEOUT 120 LABELS "audit;exploit;frost")
 
+# -- PoC: FROST stale commitment replay / subset fork
+add_executable(test_exploit_frost_commitment_reuse_standalone test_exploit_frost_commitment_reuse.cpp)
+audit_target_defaults(test_exploit_frost_commitment_reuse_standalone)
+target_compile_definitions(test_exploit_frost_commitment_reuse_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_frost_commitment_reuse COMMAND test_exploit_frost_commitment_reuse_standalone)
+set_tests_properties(exploit_frost_commitment_reuse PROPERTIES TIMEOUT 120 LABELS "audit;exploit;frost")
+
 # -- PoC: BIP-39 mnemonic entropy and checksum security
 add_executable(test_exploit_bip39_entropy_standalone test_exploit_bip39_entropy.cpp)
 audit_target_defaults(test_exploit_bip39_entropy_standalone)
@@ -505,6 +532,18 @@ audit_target_defaults(test_exploit_bip324_session_standalone)
 target_compile_definitions(test_exploit_bip324_session_standalone PRIVATE STANDALONE_TEST)
 add_test(NAME exploit_bip324_session COMMAND test_exploit_bip324_session_standalone)
 set_tests_properties(exploit_bip324_session PROPERTIES TIMEOUT 60 LABELS "audit;exploit;bip324")
+
+add_executable(test_exploit_bip324_transcript_splice_standalone test_exploit_bip324_transcript_splice.cpp)
+audit_target_defaults(test_exploit_bip324_transcript_splice_standalone)
+target_compile_definitions(test_exploit_bip324_transcript_splice_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_bip324_transcript_splice COMMAND test_exploit_bip324_transcript_splice_standalone)
+set_tests_properties(exploit_bip324_transcript_splice PROPERTIES TIMEOUT 60 LABELS "audit;exploit;bip324")
+
+add_executable(test_exploit_bip324_counter_desync_standalone test_exploit_bip324_counter_desync.cpp)
+audit_target_defaults(test_exploit_bip324_counter_desync_standalone)
+target_compile_definitions(test_exploit_bip324_counter_desync_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_bip324_counter_desync COMMAND test_exploit_bip324_counter_desync_standalone)
+set_tests_properties(exploit_bip324_counter_desync PROPERTIES TIMEOUT 60 LABELS "audit;exploit;bip324")
 
 add_executable(test_exploit_multiscalar_standalone test_exploit_multiscalar.cpp)
 audit_target_defaults(test_exploit_multiscalar_standalone)

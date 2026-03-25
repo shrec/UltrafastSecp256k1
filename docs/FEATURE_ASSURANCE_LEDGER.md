@@ -1,8 +1,8 @@
 # Feature Assurance Ledger -- UltrafastSecp256k1
 
-**Generated:** 2026-03-13
+**Generated:** 2026-03-25
 **Scope:** All `UFSECP_API` exported functions + internal library capabilities
-**Total API functions:** 96
+**Total API functions:** 158
 
 ## Legend
 
@@ -462,7 +462,71 @@
 
 ---
 
-## 26. GPU C ABI (`ufsecp_gpu_*`) -- 23 functions
+## 26. AEAD / ChaCha20-Poly1305 (2 functions, conditional: `SECP256K1_BUILD_BIP324`)
+
+| Function | Unit Test | Fuzz | Adversarial | Differential | CT Path | GPU | Ext. Vectors | Zeroization |
+|----------|-----------|------|-------------|--------------|---------|-----|-------------|-------------|
+| `ufsecp_aead_chacha20_poly1305_encrypt` | Y | - | Y | - | N/A | - | N/A | N/A |
+| `ufsecp_aead_chacha20_poly1305_decrypt` | Y | - | Y | - | N/A | - | N/A | N/A |
+
+**Test files:** `tests/test_ffi_coverage.cpp`, `audit/test_adversarial_protocol.cpp`
+**Implementation:** `ufsecp/ufsecp_impl.cpp`, `src/chacha20_poly1305.cpp`
+
+---
+
+## 27. BIP-324 / EllSwift (7 functions, conditional: `SECP256K1_BUILD_BIP324`)
+
+| Function | Unit Test | Fuzz | Adversarial | Differential | CT Path | GPU | Ext. Vectors | Zeroization |
+|----------|-----------|------|-------------|--------------|---------|-----|-------------|-------------|
+| `ufsecp_bip324_create` | Y | - | Y | - | Y | - | N/A | Y |
+| `ufsecp_bip324_destroy` | Y | - | Y (null-safe) | - | Y | - | N/A | Y |
+| `ufsecp_bip324_handshake` | Y | - | Y | - | Y | - | N/A | Y |
+| `ufsecp_bip324_encrypt` | Y | - | Y | - | Y | - | N/A | Y |
+| `ufsecp_bip324_decrypt` | Y | - | Y | - | Y | - | N/A | Y |
+| `ufsecp_ellswift_create` | P | - | Y | - | Y | - | N/A | Y |
+| `ufsecp_ellswift_xdh` | P | - | Y | - | Y | - | N/A | Y |
+
+**Test files:** `tests/test_ffi_coverage.cpp`, `audit/test_adversarial_protocol.cpp`, `audit/test_exploit_bip324_transcript_splice.cpp`, `audit/test_exploit_bip324_counter_desync.cpp`
+**Implementation:** `ufsecp/ufsecp_impl.cpp`, `include/secp256k1/bip324.hpp`
+
+---
+
+## 28. Bitcoin Serialization / SegWit / Sighash (13 functions)
+
+| Function | Unit Test | Fuzz | Adversarial | Differential | CT Path | GPU | Ext. Vectors | Zeroization |
+|----------|-----------|------|-------------|--------------|---------|-----|-------------|-------------|
+| `ufsecp_bip143_p2wpkh_script_code` | Y | - | Y | - | N/A | - | N/A | N/A |
+| `ufsecp_bip143_sighash` | Y | - | Y | - | N/A | - | N/A | N/A |
+| `ufsecp_bip144_txid` | Y | - | Y | - | N/A | - | N/A | N/A |
+| `ufsecp_bip144_witness_commitment` | Y | - | Y | - | N/A | - | N/A | N/A |
+| `ufsecp_bip144_wtxid` | Y | - | Y | - | N/A | - | N/A | N/A |
+| `ufsecp_segwit_is_witness_program` | Y | - | Y | - | N/A | - | N/A | N/A |
+| `ufsecp_segwit_p2tr_spk` | Y | - | Y | - | N/A | - | N/A | N/A |
+| `ufsecp_segwit_p2wpkh_spk` | Y | - | Y | - | N/A | - | N/A | N/A |
+| `ufsecp_segwit_p2wsh_spk` | Y | - | Y | - | N/A | - | N/A | N/A |
+| `ufsecp_segwit_parse_program` | Y | - | Y | - | N/A | - | N/A | N/A |
+| `ufsecp_segwit_witness_script_hash` | Y | - | Y | - | N/A | - | N/A | N/A |
+| `ufsecp_taproot_keypath_sighash` | P | - | Y | - | N/A | - | Y (BIP-341) | N/A |
+| `ufsecp_tapscript_sighash` | P | - | Y | - | N/A | - | Y (BIP-341) | N/A |
+
+**Test files:** `audit/test_adversarial_protocol.cpp`, `tests/test_ffi_coverage.cpp`
+**Implementation:** `ufsecp/ufsecp_impl.cpp`, `src/bip143.cpp`
+
+---
+
+## 29. Batch Signing (2 functions)
+
+| Function | Unit Test | Fuzz | Adversarial | Differential | CT Path | GPU | Ext. Vectors | Zeroization |
+|----------|-----------|------|-------------|--------------|---------|-----|-------------|-------------|
+| `ufsecp_ecdsa_sign_batch` | P | - | Y | - | Y | - | N/A | Y |
+| `ufsecp_schnorr_sign_batch` | P | - | Y | - | Y | - | N/A | Y |
+
+**Test files:** `audit/test_adversarial_protocol.cpp`
+**Implementation:** `ufsecp/ufsecp_impl.cpp`
+
+---
+
+## 30. GPU C ABI (`ufsecp_gpu_*`) -- 23 functions
 
 Backend-neutral GPU acceleration surface (`ufsecp_gpu.h`). Separate opaque context (`ufsecp_gpu_ctx*`).
 

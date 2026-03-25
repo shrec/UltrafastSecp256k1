@@ -46,6 +46,22 @@ static Scalar adaptor_nonce(const Scalar& privkey,
     return k;
 }
 
+static Scalar ecdsa_adaptor_binding(const Point& adaptor_point) {
+    SHA256 h;
+    auto adaptor_bytes = adaptor_point.to_compressed();
+    constexpr char domain[] = "ecdsa_adaptor_bind_v1";
+    h.update(reinterpret_cast<const std::uint8_t*>(domain), sizeof(domain) - 1);
+    h.update(adaptor_bytes.data(), adaptor_bytes.size());
+    auto hash = h.finalize();
+    Scalar binding = Scalar::from_bytes(hash);
+    if (binding.is_zero()) {
+        hash[31] ^= 1;
+        binding = Scalar::from_bytes(hash);
+    }
+    detail::secure_erase(hash.data(), hash.size());
+    return binding;
+}
+
 // -- Schnorr Adaptor Signatures -----------------------------------------------
 
 SchnorrAdaptorSig
@@ -187,11 +203,16 @@ ecdsa_adaptor_sign(const Scalar& private_key,
     // Generate nonce
     Scalar const k = adaptor_nonce(private_key, msg_hash.data(), 32, adaptor_point, nullptr, 0);
 
-    // R^ = k * G
-    Point const R_hat = Point::generator().scalar_mul(k);
+    Scalar const binding = ecdsa_adaptor_binding(adaptor_point);
+    Point const base_nonce = Point::generator().scalar_mul(k);
+    Point const binding_point = ct::generator_mul(binding);
 
-    // R = R^ + T
-    Point const R = R_hat.add(adaptor_point);
+    // Bind the pre-signature to the advertised adaptor point without
+    // changing the scalar k used for adaptation/extraction.
+    Point const R_hat = base_nonce.add(binding_point);
+
+    // R = k * T = (k*t) * G.
+    Point const R = adaptor_point.scalar_mul(k);
 
     // r = R.x mod n
     auto R_x_bytes = R.x().to_bytes();
@@ -208,6 +229,7 @@ ecdsa_adaptor_sign(const Scalar& private_key,
 
     detail::secure_erase(const_cast<Scalar*>(&k), sizeof(k));
     detail::secure_erase(const_cast<Scalar*>(&k_inv), sizeof(k_inv));
+    detail::secure_erase(const_cast<Scalar*>(&binding), sizeof(binding));
 
     return ECDSAAdaptorSig{R_hat, s_hat, r};
 }
@@ -218,14 +240,6 @@ bool ecdsa_adaptor_verify(const ECDSAAdaptorSig& pre_sig,
                           const Point& adaptor_point) {
     if (pre_sig.r.is_zero() || pre_sig.s_hat.is_zero()) return false;
 
-    // R = R^ + T
-    Point const R = pre_sig.R_hat.add(adaptor_point);
-
-    // Verify r == R.x mod n
-    auto R_x_bytes = R.x().to_bytes();
-    Scalar const r_check = Scalar::from_bytes(R_x_bytes);
-    if (r_check != pre_sig.r) return false;
-
     // Verify: s*R^ == z*G + r*P (rearranged ECDSA equation)
     Scalar const z = Scalar::from_bytes(msg_hash);
     Scalar const s_inv = pre_sig.s_hat.inverse();
@@ -234,11 +248,11 @@ bool ecdsa_adaptor_verify(const ECDSAAdaptorSig& pre_sig,
     Point const u2P = public_key.scalar_mul(pre_sig.r * s_inv);
     Point const R_check = u1G.add(u2P);
 
-    // R_check should equal R^ (not R^+T, since we used the adapted r)
-    // Actually for ECDSA adaptor: we check that k*G = R^
-    // The equation s = k^-^1*(z + r*x) means k = s^-^1*(z + r*x)
-    // So R^ = s^-^1*(z + r*x)*G = s^-^1*z*G + s^-^1*r*P
-    auto r_hat_c = pre_sig.R_hat.to_compressed();
+    Scalar const binding = ecdsa_adaptor_binding(adaptor_point);
+    Point const binding_point = ct::generator_mul(binding);
+    Point const base_nonce = pre_sig.R_hat.add(binding_point.negate());
+
+    auto r_hat_c = base_nonce.to_compressed();
     auto r_chk_c = R_check.to_compressed();
     return r_hat_c == r_chk_c;
 }
@@ -246,17 +260,6 @@ bool ecdsa_adaptor_verify(const ECDSAAdaptorSig& pre_sig,
 ECDSASignature
 ecdsa_adaptor_adapt(const ECDSAAdaptorSig& pre_sig,
                     const Scalar& adaptor_secret) {
-    // For ECDSA adaptor: final signature uses the adapted s
-    // The nonce was k, and the adaptor adds t:
-    // effective_k = k + t
-    // s = effective_k^-^1 * (z + r*x)
-    // But we have s = k^-^1 * (z + r*x)
-    // We need to adjust: s = s * k / (k + t)
-    // This requires knowing k, which we don't have directly.
-    //
-    // Alternative (simpler) ECDSA adaptor:
-    // s_hat is the "encrypted" signature value
-    // s = s_hat * t^-^1  (multiplicative adaptor for ECDSA)
     Scalar t_inv = adaptor_secret.inverse();
     Scalar const s = pre_sig.s_hat * t_inv;
 
@@ -265,7 +268,7 @@ ecdsa_adaptor_adapt(const ECDSAAdaptorSig& pre_sig,
     ECDSASignature sig;
     sig.r = pre_sig.r;
     sig.s = s;
-    return sig.normalize();
+    return sig;
 }
 
 std::pair<Scalar, bool>

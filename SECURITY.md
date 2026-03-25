@@ -56,8 +56,14 @@ It is provided for research, educational, and experimental purposes.
 > The project prioritizes transparent audit artifacts, reproducible commands,
 > public traceability documents, and CI-backed verification that other engineers
 > can independently rerun without waiting for a formal audit engagement.
+> The model is deliberately Bitcoin-style: don't trust, verify.
+> That includes graph-backed code navigation, continuously expanding adversarial
+> tests, and frequent external-style review passes that feed new edge cases back
+> into the reproducible audit framework.
 > External review is welcome, and the repository is prepared so outside auditors can step in at any time.
 > Meanwhile, the internal goal is to keep assurance work active, continuous, and verifiable in the open on every build and every commit.
+
+Claim references for this section: CPU CT signing discipline `A-001`, exploit-audit surface `A-005`, graph-assisted review `A-006`, open self-audit transparency `A-007`, and ROCm/HIP status discipline `A-008` in [docs/ASSURANCE_LEDGER.md](docs/ASSURANCE_LEDGER.md).
 
 ### Audit Documentation
 
@@ -97,7 +103,7 @@ The following automated security measures are in place:
 - **Valgrind CT taint analysis** -- MAKE_MEM_UNDEFINED + --track-origins secret-dependent branch detection
 - **MuSig2/FROST dudect** -- protocol-level timing analysis (partial_sign, frost_sign, Lagrange)
 - **SARIF audit output** -- `--sarif` flag for GitHub Code Scanning integration
-- **Perf regression gate** -- per-commit benchmark check, fails on >20% regression
+- **Perf regression gate** -- per-push/PR benchmark gate, fails on material regressions (>50% slower on the shared-runner threshold used in CI)
 
 ### Planned Security Improvements
 
@@ -138,12 +144,12 @@ See [THREAT_MODEL.md](THREAT_MODEL.md) for a layer-by-layer risk assessment.
 | Schnorr (BIP-340) | Stable | Tagged hashing, input validation |
 | Constant-time layer (`ct::`) | Stable | No secret-dependent branches; ~5-7x penalty |
 | Batch inverse / multi-scalar | Stable | Sweep-tested up to 8192 elements |
-| GPU backends (CUDA, ROCm, OpenCL, Metal) | Beta | Functional, not constant-time |
+| GPU backends (CUDA, OpenCL, Metal; ROCm/HIP build path) | Beta | Functional, not constant-time |
 | MuSig2 / FROST / Adaptor | Experimental | API may change |
 | Pedersen Commitments | Experimental | API may change |
 | Taproot (BIP-341) | Experimental | API may change |
 | HD Derivation (BIP-32/44) | Experimental | API may change |
-| 27-Coin Address Dispatch | Experimental | API may change |
+| Multi-coin address dispatch | Experimental | API may change |
 
 ---
 

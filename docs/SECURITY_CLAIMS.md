@@ -2,6 +2,23 @@
 
 **UltrafastSecp256k1 v3.22.0** -- FAST / CT Dual-Layer Architecture (CPU + GPU)
 
+## Operating Assumption
+
+This document is written for owner-grade deployment standards, not just
+third-party evaluation.
+
+The working question is not "will outsiders trust this?" The working question
+is "if this engine had to satisfy the same standard we would demand for
+protecting large assets, what claims would we require before accepting that
+risk?"
+
+That means:
+
+1. Claims should be conservative.
+2. Residual risks should be explicit.
+3. Secret-bearing paths should be judged more harshly than public-data paths.
+4. Experimental features should be treated as opt-in risk, not silently upgraded to production trust.
+
 ---
 
 ## 1. Semantic Equivalence Contract

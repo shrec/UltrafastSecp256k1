@@ -261,17 +261,19 @@ __device__ inline bool schnorr_sign(
     // s = k + ed mod n (addition with reduction)
     uint64_t carry = 0;
     for (int i = 0; i < 4; i++) {
-        unsigned __int128 sum = (unsigned __int128)k.limbs[i] + ed.limbs[i] + carry;
-        sig->s.limbs[i] = (uint64_t)sum;
-        carry = (uint64_t)(sum >> 64);
+        const uint64_t sum = k.limbs[i] + ed.limbs[i];
+        const uint64_t carry0 = (sum < k.limbs[i]) ? 1ULL : 0ULL;
+        sig->s.limbs[i] = sum + carry;
+        carry = carry0 | ((sig->s.limbs[i] < sum) ? 1ULL : 0ULL);
     }
     // Reduce mod n
     uint64_t borrow = 0;
     uint64_t tmp[4];
     for (int i = 0; i < 4; i++) {
-        unsigned __int128 diff = (unsigned __int128)sig->s.limbs[i] - ORDER[i] - borrow;
-        tmp[i] = (uint64_t)diff;
-        borrow = (uint64_t)(-(int64_t)(diff >> 64));
+        const uint64_t diff = sig->s.limbs[i] - ORDER[i];
+        const uint64_t borrow0 = (sig->s.limbs[i] < ORDER[i]) ? 1ULL : 0ULL;
+        tmp[i] = diff - borrow;
+        borrow = borrow0 | ((diff < borrow) ? 1ULL : 0ULL);
     }
     uint64_t mask = -(uint64_t)(borrow == 0 || carry);
     for (int i = 0; i < 4; i++) {
@@ -463,16 +465,18 @@ __device__ inline bool schnorr_sign_with_keypair(
 
     uint64_t carry = 0;
     for (int i = 0; i < 4; i++) {
-        unsigned __int128 sum = (unsigned __int128)k.limbs[i] + ed.limbs[i] + carry;
-        sig->s.limbs[i] = (uint64_t)sum;
-        carry = (uint64_t)(sum >> 64);
+        const uint64_t sum = k.limbs[i] + ed.limbs[i];
+        const uint64_t carry0 = (sum < k.limbs[i]) ? 1ULL : 0ULL;
+        sig->s.limbs[i] = sum + carry;
+        carry = carry0 | ((sig->s.limbs[i] < sum) ? 1ULL : 0ULL);
     }
     uint64_t borrow = 0;
     uint64_t tmp[4];
     for (int i = 0; i < 4; i++) {
-        unsigned __int128 diff = (unsigned __int128)sig->s.limbs[i] - ORDER[i] - borrow;
-        tmp[i] = (uint64_t)diff;
-        borrow = (uint64_t)(-(int64_t)(diff >> 64));
+        const uint64_t diff = sig->s.limbs[i] - ORDER[i];
+        const uint64_t borrow0 = (sig->s.limbs[i] < ORDER[i]) ? 1ULL : 0ULL;
+        tmp[i] = diff - borrow;
+        borrow = borrow0 | ((diff < borrow) ? 1ULL : 0ULL);
     }
     uint64_t mask = -(uint64_t)(borrow == 0 || carry);
     for (int i = 0; i < 4; i++)

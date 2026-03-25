@@ -440,15 +440,15 @@ std::pair<ExtendedKey, bool> bip32_derive_path(const ExtendedKey& master,
                                                 const std::string& path) {
     // Format: "m/44'/0'/0'/0/0"
     if (path.empty() || path[0] != 'm') return {ExtendedKey{}, false};
+    if (path.size() == 1) return {master, true};
 
     ExtendedKey current = master;
     std::size_t pos = 1; // skip 'm'
 
     while (pos < path.size()) {
-        if (path[pos] == '/') {
-            ++pos;
-            continue;
-        }
+        if (path[pos] != '/') return {ExtendedKey{}, false};
+        ++pos;
+        if (pos >= path.size()) return {ExtendedKey{}, false};
 
         // Parse number with overflow detection
         uint64_t index64 = 0;
@@ -468,6 +468,7 @@ std::pair<ExtendedKey, bool> bip32_derive_path(const ExtendedKey& master,
             hardened = true;
             ++pos;
         }
+        if (pos < path.size() && path[pos] != '/') return {ExtendedKey{}, false};
 
         uint32_t const child_index = hardened ? (index | 0x80000000u) : index;
         auto [child, ok] = current.derive_child(child_index);

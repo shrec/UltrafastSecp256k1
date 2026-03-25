@@ -12,6 +12,20 @@ UltrafastSecp256k1 ships fast code **and then systematically tries to break it**
 The internal self-audit system is not a layer of unit tests bolted on after the fact —
 it was designed in parallel with the cryptographic implementation, as a first-class engineering artifact.
 
+The underlying philosophy is Bitcoin-style: **don't trust, verify**. The project does
+not center its trust model on a one-time PDF artifact written by someone else at a
+fixed moment in the past. Instead, it tries to make assurance **continuously rerunnable**:
+every important claim should be tied to code, tests, CI artifacts, benchmark logs, or
+traceable documentation that another engineer can reproduce on demand.
+
+This is why the audit framework keeps expanding with the codebase. The repository ships
+not only tests, but also reviewer-facing infrastructure: structured audit artifacts,
+threat-model docs, adversarial exploit tests, differential checks, and a repo-local
+SQLite source graph that makes the codebase searchable as an audit surface rather than
+just a pile of files.
+
+These top-level differentiators are claim-keyed in the ledger: exploit-audit surface `A-005`, graph-assisted review `A-006`, self-audit transparency `A-007`, and benchmark reproducibility `A-004` in [docs/ASSURANCE_LEDGER.md](docs/ASSURANCE_LEDGER.md).
+
 ### What the Audit Infrastructure Covers
 
 | Area | What is Tested | Assertion Count |
@@ -20,7 +34,7 @@ it was designed in parallel with the cryptographic implementation, as a first-cl
 | Scalar arithmetic (ℤ_n) | Reduction mod n, overflow, GLV decomposition, negation, edge cases (0, 1, n−1) | 93,215 |
 | Point operations | Infinity handling, Jacobian↔Affine round-trip, scalar multiplication, 100K stress | 116,124 |
 | Constant-time layer | No secret-dependent branches, no secret-dependent memory access, formal CT verification | 120,652 |
-| Exploit PoC tests | 78 dedicated adversarial PoC tests across 14 attack categories (`audit/test_exploit_*.cpp`) | 78 test files, 0 failures |
+| Exploit PoC tests | 86 dedicated adversarial PoC tests across 14 coverage areas (`audit/test_exploit_*.cpp`) | 86 test files, 0 failures |
 | Fuzz / adversarial | libFuzzer harnesses + 530K deterministic corpus adversarial checks | ~530,000+ |
 | Wycheproof vectors | Google's cryptographic test vectors for ECDSA and ECDH | Hundreds of vectors |
 | Fiat-Crypto linkage | Cross-validates field arithmetic against formally-verified Fiat-Crypto reference | Full suite |
@@ -30,10 +44,10 @@ it was designed in parallel with the cryptographic implementation, as a first-cl
 | Performance regression | Automated micro-benchmark gate — fails CI if throughput regresses | Every push |
 | **Nightly differential** | Random round-trip differential tests against reference implementations | **~1,300,000+/night** |
 | **Total (audit runner)** | **unified_audit_runner** across 55 modules plus standalone audit surfaces | **~1,000,000+** |
-| **Total (exploit PoC tests)** | **78 exploit-style PoC tests** across 14 attack categories, all in `audit/test_exploit_*.cpp` | **78 tests, 0 failures** |
+| **Total (exploit PoC tests)** | **86 exploit-style PoC tests** across 14 coverage areas, all in `audit/test_exploit_*.cpp` | **86 tests, 0 failures** |
 
 All 55 audit modules across all tested platforms return **AUDIT-READY**. Zero failures.
-All 78 exploit PoC tests pass. Zero failures across all 14 attack categories.
+All 86 exploit PoC tests pass. Zero failures across all 14 coverage areas.
 
 ### Self-Audit Documents
 
@@ -47,29 +61,40 @@ All 78 exploit PoC tests pass. Zero failures across all 14 attack categories.
 | [docs/CT_VERIFICATION.md](docs/CT_VERIFICATION.md) | Constant-time formal verification evidence and methodology |
 | [audit/AUDIT_TEST_PLAN.md](audit/AUDIT_TEST_PLAN.md) | Detailed test plan covering all 8 audit sections |
 | [audit/platform-reports/](audit/platform-reports/) | Per-platform audit run results and logs |
+| [tools/source_graph_kit/source_graph.py](tools/source_graph_kit/source_graph.py) | SQLite-backed repository graph for fast impact tracing, audit scoping, and reproducible review |
+| [docs/ASSURANCE_LEDGER.md](docs/ASSURANCE_LEDGER.md) | Canonical claim-to-evidence ledger for public trust statements |
+| [docs/AI_AUDIT_PROTOCOL.md](docs/AI_AUDIT_PROTOCOL.md) | Formal protocol for AI-assisted auditor/attacker review loops |
+| [docs/FORTRESS_ROADMAP.md](docs/FORTRESS_ROADMAP.md) | Gap-closing roadmap for fortress-grade self-audit |
 
 ---
 
-## 2. CI/CD Pipeline — 23 Automated Workflows
+## 2. CI/CD Pipeline — 24 Automated Workflows
 
 The continuous integration pipeline is not a basic build-and-test gate.
-It is a multi-layer quality enforcement system with 23 GitHub Actions workflows
+It is a multi-layer quality enforcement system with 24 GitHub Actions workflows
 covering security, correctness, performance, supply chain, and formal analysis.
 
-### Workflow Index
+It is also only one part of the assurance model. The repository is routinely reviewed
+through external-style passes as if by auditors, attackers, and bug bounty hunters,
+including LLM-assisted review loops that help surface edge cases, exploit ideas, and
+documentation gaps. Those passes are not treated as magic or as a replacement for
+deterministic tests; they are useful because they feed new cases back into the same
+reproducible audit framework.
+
+### Workflow Index (selected)
 
 | Workflow | What It Does | Trigger |
 |----------|-------------|---------|
 | `ci.yml` | Core build + full test suite across 17 configurations × 7 architectures × 5 OSes | Every push / PR |
 | `preflight.yml` | Fast pre-merge smoke check — blocks merge on basic failures | Every PR |
 | `nightly.yml` | Nightly stress: 1.3M+ differential checks, extended fuzz, full sanitizer run | Nightly |
-| `security-audit.yml` | Runs the full `unified_audit_runner` (46 modules, ~1M assertions) | Every push |
+| `security-audit.yml` | Runs the full `unified_audit_runner` (55 modules, ~1M assertions) plus sanitizer and warning gates | Every push |
 | `audit-report.yml` | Generates and archives structured audit report artifacts | On release / manual |
 | `ct-arm64.yml` | Constant-time verification on native ARM64 hardware | Every push |
 | `ct-verif.yml` | Formal constant-time verification pass | Every push |
 | `valgrind-ct.yml` | Valgrind memcheck + CT analysis on Linux x64 | Every push |
 | `bench-regression.yml` | Performance regression gate — CI fails if throughput drops | Every push |
-| `benchmark.yml` | Full benchmark suite — results published to live dashboard | On push to main |
+| `benchmark.yml` | Full benchmark suite — results published to live dashboard | On push to dev/main |
 | `codeql.yml` | GitHub CodeQL static analysis (C++) | Every push |
 | `clang-tidy.yml` | Clang-Tidy lint pass with project-specific rules | Every push |
 | `cppcheck.yml` | CPPCheck static analysis | Every push |
@@ -152,25 +177,26 @@ Every benchmark number in this project is:
 - Produced by a pinned compiler version with exact flags documented
 - Reproducible via a published command in [docs/BENCHMARKS.md](docs/BENCHMARKS.md)
 - Gated by an automated performance regression check in CI (`bench-regression.yml`)
-- Published to a [live dashboard](https://shrec.github.io/UltrafastSecp256k1/dev/bench/) on every push to main
+- Published to a [live dashboard](https://shrec.github.io/UltrafastSecp256k1/dev/bench/) on pushes to dev/main
 
 **Sample verified numbers (RTX 5060 Ti, CUDA 12):**
 
 | Operation | Throughput |
 |-----------|-----------|
 | ECDSA sign | 4.88 M/s |
-| ECDSA verify | 2.44 M/s |
+| ECDSA verify | 4.05 M/s |
 | Schnorr sign (BIP-340) | 3.66 M/s |
-| Schnorr verify (BIP-340) | 2.82 M/s |
+| Schnorr verify (BIP-340) | 5.38 M/s |
+| FROST partial verify | 1.34 M/s |
 
-**Sample verified numbers (x86-64, Clang 21.1.0, `-Ofast`):**
+**Sample verified numbers (x86-64 rerun, i5-14400F, Clang 19):**
 
 | Operation | Latency |
 |-----------|---------|
-| Generator multiplication (kG) | 8 µs |
-| Scalar multiplication (kP) | 25 µs |
-| Field multiplication | 20 ns |
-| Field squaring | 16 ns |
+| Generator multiplication (kG) | 5.9 µs |
+| Scalar multiplication (kP) | 16.0 µs |
+| ECDSA sign | 7.8 µs |
+| ECDSA verify | 20.2 µs |
 
 ---
 
@@ -179,20 +205,20 @@ Every benchmark number in this project is:
 UltrafastSecp256k1 has **not yet undergone a paid third-party professional audit**.
 That is a factual status note, not the center of the project's security philosophy.
 The project is open to external audit and continuously prepares evidence so outside reviewers can audit it at any time.
-At the same time, it does not wait for a third party to begin strengthening correctness and security.
+At the same time, it does not wait for a third party to begin strengthening correctness and security, and it does not outsource trust to a single PDF milestone.
 
 However, "not externally audited" does **not** mean "unverified." The internal quality infrastructure described in this document represents a systematic, multi-layer correctness assurance program that most open-source cryptographic libraries do not have:
 
 - Over **1,000,000 internal audit assertions** executed on every build
-- **23 CI/CD workflows** enforcing correctness, security, and performance on every commit
+- **24 CI/CD workflows** enforcing correctness, security, and performance on every push/PR plus scheduled assurance runs
 - **Formal constant-time verification** on two independent platforms
 - **Supply-chain hardening** at the OpenSSF standard
 - **Nightly differential testing** at 1.3M+ additional random checks per night
 
 The honest summary:
 > This library does **not** rely on a paid-audit badge as its primary trust story.
-> It **does** rely on open self-audit, reproducible evidence, and reviewer-friendly verification so anyone can inspect and challenge the implementation.
-> External audit is welcomed, but assurance work already happens continuously through internal audit on every build and every commit.
+> It **does** rely on open self-audit, reproducible evidence, graph-assisted review, and reviewer-friendly verification so anyone can inspect and challenge the implementation.
+> External audit is welcomed, but assurance work already happens continuously through internal audit on every build, every push/PR gate, and every nightly extended run.
 
 ---
 

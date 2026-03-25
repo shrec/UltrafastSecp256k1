@@ -17,7 +17,7 @@ These workflows MUST pass before code merges to `main` or `dev`.
 | `cppcheck.yml` | push/PR (all paths) | Required status check (cppcheck) on dev | ACTIVE |
 | `ct-verif.yml` | push/PR main,dev | Required status check (ct-verif) on dev | ACTIVE |
 | `security-audit.yml` | push/PR, weekly | Required status check (asan+ubsan, werror) on dev | ACTIVE |
-| `bench-regression.yml` | push main/dev, PR main | `fail-on-alert: true` (200% threshold) | ACTIVE |
+| `bench-regression.yml` | push main/dev, PR main | `fail-on-alert: true` (150% threshold) | ACTIVE |
 | `codeql.yml` | push/PR, weekly | Required status check (codeql) on dev | ACTIVE |
 
 ### Enforcement Details
@@ -64,8 +64,9 @@ The verdict job is **fail-closed**: it aggregates JSON reports from 3 platforms 
 | `release.yml` | Tags, manual | Multi-platform release artifacts |
 | `packaging.yml` | Release tags | .deb/.rpm packaging |
 | `benchmark.yml` | push | gh-pages performance tracking |
-| `docs.yml` | push main | Doxygen to GitHub Pages |
+| `docs.yml` | push | Doxygen to GitHub Pages |
 | `bindings.yml` | push/PR | 12-language compile check |
+| `auditor-prep.yml` | manual | Auditor-facing evidence bundle artifact |
 
 ---
 
@@ -103,6 +104,36 @@ Tests that may produce non-deterministic results on shared/virtualized CI runner
 |------|-------|--------|
 | `ct_sidechannel` | Statistical timing (dudect, 600s) | Advisory on shared CI, strict on dedicated hardware |
 | `ct_sidechannel_smoke` | Statistical timing (120s, CI-safe subset) | Advisory on shared CI |
-| Benchmark regression | CPU frequency scaling, neighbor noise | 200% threshold (generous) on shared runners |
+| Benchmark regression | CPU frequency scaling, neighbor noise | 150% threshold (generous) on shared runners |
+
+---
+
+## Assurance Expansion In Progress
+
+The following assurance-system hardening work is now tracked in-repo:
+
+| Artifact | Purpose |
+|----------|---------|
+| `docs/ASSURANCE_LEDGER.md` | Canonical claim-to-evidence map |
+| `docs/AI_AUDIT_PROTOCOL.md` | Governs AI-assisted adversarial review |
+| `docs/AI_REVIEW_EVENTS.json` | Machine-readable record of accepted/rejected AI review findings |
+| `docs/GPU_BACKEND_EVIDENCE.json` | Machine-readable GPU backend status, publishability, and artifact requirements |
+| `docs/FORTRESS_ROADMAP.md` | Tracks the remaining fortress-grade assurance gap |
 
 All other tests are deterministic and must always pass.
+
+The AI review-event log is enforced locally through:
+
+- `python3 scripts/preflight.py --ai-review`
+
+and schema-validated through:
+
+- `python3 scripts/validate_assurance.py`
+
+GPU backend publishability is enforced locally through:
+
+- `python3 scripts/preflight.py --gpu-evidence`
+
+and schema/policy-validated through:
+
+- `python3 scripts/validate_assurance.py`

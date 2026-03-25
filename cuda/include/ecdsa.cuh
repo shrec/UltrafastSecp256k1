@@ -327,17 +327,13 @@ __device__ inline bool ecdsa_sign(
     {
         uint64_t carry = 0;
         for (int i = 0; i < 4; i++) {
-            unsigned __int128 sum = (unsigned __int128)z.limbs[i] + rd.limbs[i] + carry;
-            z_plus_rd.limbs[i] = (uint64_t)sum;
-            carry = (uint64_t)(sum >> 64);
+            z_plus_rd.limbs[i] = add_cc(z.limbs[i], rd.limbs[i], carry);
         }
         // Reduce mod n
         uint64_t borrow = 0;
         uint64_t tmp[4];
         for (int i = 0; i < 4; i++) {
-            unsigned __int128 diff = (unsigned __int128)z_plus_rd.limbs[i] - ORDER[i] - borrow;
-            tmp[i] = (uint64_t)diff;
-            borrow = (uint64_t)(-(int64_t)(diff >> 64));
+            tmp[i] = sub_cc(z_plus_rd.limbs[i], ORDER[i], borrow);
         }
         uint64_t mask = -(uint64_t)(borrow == 0);
         for (int i = 0; i < 4; i++) {
@@ -348,9 +344,7 @@ __device__ inline bool ecdsa_sign(
             // z_plus_rd -= n (use tmp result from above but with carry absorbed)
             borrow = 0;
             for (int i = 0; i < 4; i++) {
-                unsigned __int128 diff = (unsigned __int128)z_plus_rd.limbs[i] - ORDER[i] - borrow;
-                z_plus_rd.limbs[i] = (uint64_t)diff;
-                borrow = (uint64_t)(-(int64_t)(diff >> 64));
+                z_plus_rd.limbs[i] = sub_cc(z_plus_rd.limbs[i], ORDER[i], borrow);
             }
         }
     }
@@ -559,16 +553,12 @@ __device__ inline bool ecdsa_sign_hedged(
     {
         uint64_t carry = 0;
         for (int i = 0; i < 4; i++) {
-            unsigned __int128 sum = (unsigned __int128)z.limbs[i] + rd.limbs[i] + carry;
-            z_plus_rd.limbs[i] = (uint64_t)sum;
-            carry = (uint64_t)(sum >> 64);
+            z_plus_rd.limbs[i] = add_cc(z.limbs[i], rd.limbs[i], carry);
         }
         uint64_t borrow = 0;
         uint64_t tmp[4];
         for (int i = 0; i < 4; i++) {
-            unsigned __int128 diff = (unsigned __int128)z_plus_rd.limbs[i] - ORDER[i] - borrow;
-            tmp[i] = (uint64_t)diff;
-            borrow = (uint64_t)(-(int64_t)(diff >> 64));
+            tmp[i] = sub_cc(z_plus_rd.limbs[i], ORDER[i], borrow);
         }
         uint64_t mask = -(uint64_t)(borrow == 0 || carry);
         for (int i = 0; i < 4; i++)

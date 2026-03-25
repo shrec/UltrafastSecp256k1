@@ -149,17 +149,19 @@ __device__ inline bool ecdsa_sign_recoverable(
     Scalar z_plus_rd;
     uint64_t carry = 0;
     for (int i = 0; i < 4; i++) {
-        unsigned __int128 sum = (unsigned __int128)z.limbs[i] + rd.limbs[i] + carry;
-        z_plus_rd.limbs[i] = (uint64_t)sum;
-        carry = (uint64_t)(sum >> 64);
+        const uint64_t sum = z.limbs[i] + rd.limbs[i];
+        const uint64_t carry0 = (sum < z.limbs[i]) ? 1ULL : 0ULL;
+        z_plus_rd.limbs[i] = sum + carry;
+        carry = carry0 | ((z_plus_rd.limbs[i] < sum) ? 1ULL : 0ULL);
     }
     {
         uint64_t borrow = 0;
         uint64_t tmp[4];
         for (int i = 0; i < 4; i++) {
-            unsigned __int128 diff = (unsigned __int128)z_plus_rd.limbs[i] - ORDER[i] - borrow;
-            tmp[i] = (uint64_t)diff;
-            borrow = (uint64_t)(-(int64_t)(diff >> 64));
+            const uint64_t diff = z_plus_rd.limbs[i] - ORDER[i];
+            const uint64_t borrow0 = (z_plus_rd.limbs[i] < ORDER[i]) ? 1ULL : 0ULL;
+            tmp[i] = diff - borrow;
+            borrow = borrow0 | ((diff < borrow) ? 1ULL : 0ULL);
         }
         uint64_t mask = -(uint64_t)(borrow == 0 || carry);
         for (int i = 0; i < 4; i++) {

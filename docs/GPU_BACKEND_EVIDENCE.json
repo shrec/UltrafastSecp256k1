@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "updated_at": "2026-03-25",
+  "backends": [
+    {
+      "backend": "cuda",
+      "status": "validated",
+      "hardware_backed": true,
+      "publishable": true,
+      "device_class": "NVIDIA GPU",
+      "required_artifacts": [
+        "benchmark_json",
+        "benchmark_text",
+        "audit_log",
+        "driver_version"
+      ],
+      "artifact_notes": [
+        "Real-device benchmark artifacts must be archived with GPU model and driver version.",
+        "Audit runner output must be rerunnable on the recorded device class."
+      ]
+    },
+    {
+      "backend": "opencl",
+      "status": "validated",
+      "hardware_backed": true,
+      "publishable": true,
+      "device_class": "OpenCL-capable GPU",
+      "required_artifacts": [
+        "benchmark_json",
+        "benchmark_text",
+        "audit_log",
+        "platform_vendor"
+      ],
+      "artifact_notes": [
+        "Cross-vendor OpenCL evidence should record vendor and platform version.",
+        "Published numbers should distinguish NVIDIA, AMD, and Intel OpenCL where applicable."
+      ]
+    },
+    {
+      "backend": "metal",
+      "status": "validated",
+      "hardware_backed": true,
+      "publishable": true,
+      "device_class": "Apple GPU",
+      "required_artifacts": [
+        "benchmark_json",
+        "benchmark_text",
+        "audit_log",
+        "macos_version"
+      ],
+      "artifact_notes": [
+        "Published Metal numbers should record Apple GPU family or device model.",
+        "Lifecycle-only CI does not replace real-device benchmark artifacts."
+      ]
+    },
+    {
+      "backend": "rocm-hip",
+      "status": "planned",
+      "hardware_backed": false,
+      "publishable": false,
+      "device_class": "AMD GPU",
+      "required_artifacts": [
+        "benchmark_json",
+        "benchmark_text",
+        "audit_log",
+        "driver_version",
+        "device_model"
+      ],
+      "artifact_notes": [
+        "ROCm/HIP must stay non-publishable until real AMD hardware evidence exists.",
+        "Promotion requires benchmark and audit artifacts produced on AMD hardware, not source compatibility alone."
+      ]
+    }
+  ]
+}

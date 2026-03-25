@@ -2049,6 +2049,12 @@ Size constants: `UFSECP_MUSIG2_PUBNONCE_LEN` (66), `UFSECP_MUSIG2_AGGNONCE_LEN` 
 
 Size constants: `UFSECP_FROST_SHARE_LEN` (36), `UFSECP_FROST_KEYPKG_LEN` (141), `UFSECP_FROST_NONCE_LEN` (64), `UFSECP_FROST_NONCE_COMMIT_LEN` (70).
 
+Input invariants enforced by the current implementation:
+
+- participant IDs are 1-based; `id == 0` is rejected during keygen/finalize and yields a zero Lagrange coefficient
+- signer/commitment/share sender sets must be unique; duplicate signer IDs are treated as invalid and fail closed
+- FROST keygen polynomial coefficients are derived from the pair `(participant_id, coeff_index)` rather than the old arithmetic `id*1000+j` scheme, preventing cross-participant coefficient collisions
+
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `ufsecp_frost_keygen_begin` | `(ctx, id, threshold, n, seed, commits_out, commits_len*, shares_out, shares_len*) -> error_t` | Key generation phase 1 |
@@ -2062,6 +2068,12 @@ Size constants: `UFSECP_FROST_SHARE_LEN` (36), `UFSECP_FROST_KEYPKG_LEN` (141), 
 ### Adaptor Signatures
 
 Size constants: `UFSECP_SCHNORR_ADAPTOR_SIG_LEN` (97), `UFSECP_ECDSA_ADAPTOR_SIG_LEN` (130).
+
+Current adaptor invariants:
+
+- Schnorr adaptor signatures remain bound to the supplied adaptor point through the challenge computed over `R^ + T`
+- ECDSA adaptor signatures use a multiplicative adapt/extract flow: `adapt` divides out the adaptor secret and `extract` recovers the same secret from `(pre_sig, sig)`
+- ECDSA adaptor verification is adaptor-point bound; verifying the same pre-signature against the wrong adaptor point fails
 
 **Schnorr Adaptor:**
 

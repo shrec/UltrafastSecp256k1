@@ -346,9 +346,10 @@ __device__ inline bool bip32_derive_child(
         uint64_t borrow = 0;
         uint64_t tmp[4];
         for (int i = 0; i < 4; i++) {
-            unsigned __int128 diff = (unsigned __int128)child_key.limbs[i] - ORDER[i] - borrow;
-            tmp[i] = (uint64_t)diff;
-            borrow = (uint64_t)(-(int64_t)(diff >> 64));
+            const uint64_t diff = child_key.limbs[i] - ORDER[i];
+            const uint64_t borrow0 = (child_key.limbs[i] < ORDER[i]) ? 1ULL : 0ULL;
+            tmp[i] = diff - borrow;
+            borrow = borrow0 | ((diff < borrow) ? 1ULL : 0ULL);
         }
         if (borrow == 0) {
             for (int i = 0; i < 4; i++) child_key.limbs[i] = tmp[i];

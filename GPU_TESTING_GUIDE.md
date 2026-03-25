@@ -9,6 +9,12 @@
 > internal kernel listed here as a supported secret-bearing public interface.
 > For security decisions, the stable ABI contract in `ufsecp_gpu.h` is the
 > source of truth.
+>
+> Reproducibility note: Linux contributors are not limited to ad-hoc host setups.
+> The repository also ships `docker-compose.ci.yml`, `Dockerfile.local-ci`, and
+> `docs/LOCAL_CI.md` so the surrounding build/test environment can be recreated
+> in Docker. GPU execution still requires host driver/runtime support and device
+> passthrough into that local environment.
 
 ---
 

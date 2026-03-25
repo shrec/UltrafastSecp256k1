@@ -16,10 +16,14 @@ Usage:
     python3 scripts/preflight.py --drift            # narrative drift only
     python3 scripts/preflight.py --coverage         # coverage gaps only
     python3 scripts/preflight.py --freshness        # graph freshness only
+    python3 scripts/preflight.py --claims           # graph-backed assurance claim checks
+    python3 scripts/preflight.py --ai-review        # AI review-event log checks
+    python3 scripts/preflight.py --gpu-evidence     # GPU backend evidence / publishability checks
     python3 scripts/preflight.py --changed          # check git-changed files
     python3 scripts/preflight.py --abi              # ABI surface check
 """
 
+import json
 import sqlite3
 import os
 import re
@@ -40,6 +44,8 @@ CYAN = '\033[96m'
 BOLD = '\033[1m'
 RESET = '\033[0m'
 
+_VALIDATE_ASSURANCE_CACHE = None
+
 def get_conn():
     if not DB_PATH.exists():
         print(f"{RED}ERROR: Graph DB not found at {DB_PATH}{RESET}")
@@ -48,6 +54,35 @@ def get_conn():
     conn = sqlite3.connect(str(DB_PATH))
     conn.row_factory = sqlite3.Row
     return conn
+
+
+def get_validate_assurance_payload():
+    """Run validate_assurance once and cache the parsed JSON payload."""
+    global _VALIDATE_ASSURANCE_CACHE
+    if _VALIDATE_ASSURANCE_CACHE is not None:
+        return _VALIDATE_ASSURANCE_CACHE
+
+    validator = SCRIPT_DIR / 'validate_assurance.py'
+    try:
+        result = subprocess.run(
+            ['python3', str(validator), '--json'],
+            capture_output=True, text=True, cwd=str(LIB_ROOT), check=False,
+        )
+    except Exception as exc:
+        _VALIDATE_ASSURANCE_CACHE = {'error': f"could not execute validate_assurance.py: {exc}"}
+        return _VALIDATE_ASSURANCE_CACHE
+
+    if result.returncode not in (0, 1):
+        _VALIDATE_ASSURANCE_CACHE = {
+            'error': result.stderr.strip() or result.stdout.strip() or 'validate_assurance.py failed',
+        }
+        return _VALIDATE_ASSURANCE_CACHE
+
+    try:
+        _VALIDATE_ASSURANCE_CACHE = {'payload': json.loads(result.stdout)}
+    except json.JSONDecodeError as exc:
+        _VALIDATE_ASSURANCE_CACHE = {'error': f'invalid JSON from validate_assurance.py: {exc}'}
+    return _VALIDATE_ASSURANCE_CACHE
 
 # ---------------------------------------------------------------------------
 # 1. Security Invariant Check
@@ -267,6 +302,8 @@ DOC_PAIRS = {
     'cpu/include/secp256k1/point.hpp': ['docs/API_REFERENCE.md'],
     # Release workflow
     '.github/workflows/release.yml':   ['docs/LOCAL_CI.md'],
+    '.github/workflows/auditor-prep.yml': ['docs/EXTERNAL_AUDIT_AUTOMATION.md', 'AUDIT_GUIDE.md'],
+    'scripts/external_audit_prep.sh': ['docs/EXTERNAL_AUDIT_AUTOMATION.md', 'AUDIT_GUIDE.md'],
 }
 
 def check_doc_pairing(changed_files):
@@ -324,6 +361,47 @@ def check_abi_surface():
     removed = known - actual
     conn.close()
     return added, removed
+
+
+# ---------------------------------------------------------------------------
+# 5b. Graph-Driven Assurance Claim Check
+# ---------------------------------------------------------------------------
+def check_claim_surfaces():
+    """Run validate_assurance and extract graph-backed claim-surface issues."""
+    data = get_validate_assurance_payload()
+    if 'error' in data:
+        return [f"  {RED}ERROR{RESET} {data['error']}"]
+
+    payload = data['payload']
+    claim_surface = payload.get('claim_surface', {})
+    issues = []
+    for label in claim_surface.get('missing_surfaces', []):
+        issues.append(f"  {RED}STALE{RESET} {label}")
+    for label in claim_surface.get('unindexed_surfaces', []):
+        issues.append(f"  {YELLOW}UNINDEXED{RESET} {label}")
+    return issues
+
+
+def check_ai_review_log():
+    """Run validate_assurance and extract AI review-event log issues."""
+    data = get_validate_assurance_payload()
+    if 'error' in data:
+        return [f"  {RED}ERROR{RESET} {data['error']}"]
+
+    payload = data['payload']
+    ai_review = payload.get('ai_review_events', {})
+    return [f"  {RED}INVALID{RESET} {label}" for label in ai_review.get('invalid_entries', [])]
+
+
+def check_gpu_backend_evidence():
+    """Run validate_assurance and extract GPU backend evidence issues."""
+    data = get_validate_assurance_payload()
+    if 'error' in data:
+        return [f"  {RED}ERROR{RESET} {data['error']}"]
+
+    payload = data['payload']
+    gpu = payload.get('gpu_backend_evidence', {})
+    return [f"  {RED}INVALID{RESET} {label}" for label in gpu.get('invalid_entries', [])]
 
 # ---------------------------------------------------------------------------
 # 6. Changed Files Analysis
@@ -451,8 +529,45 @@ def run_all(args):
             print(f"  {GREEN}[OK] Graph is fresh (built: {built[:19]}){RESET}\n")
 
     # Changed files
+    if mode in ('--all', '--claims'):
+        print(f"{BOLD}[5/9] Assurance Claim Surfaces{RESET}")
+        claim_issues = check_claim_surfaces()
+        if claim_issues:
+            for issue in claim_issues:
+                print(issue)
+            total_issues += len(claim_issues)
+            exit_code = 1
+            print(f"  {YELLOW}{len(claim_issues)} graph-backed claim surface issue(s){RESET}\n")
+        else:
+            print(f"  {GREEN}[OK] Claim surfaces resolve and are graph-indexed{RESET}\n")
+
+    if mode in ('--all', '--ai-review'):
+        print(f"{BOLD}[6/9] AI Review Event Log{RESET}")
+        ai_review_issues = check_ai_review_log()
+        if ai_review_issues:
+            for issue in ai_review_issues:
+                print(issue)
+            total_issues += len(ai_review_issues)
+            exit_code = 1
+            print(f"  {YELLOW}{len(ai_review_issues)} AI review-event issue(s){RESET}\n")
+        else:
+            print(f"  {GREEN}[OK] AI review-event log is schema-valid{RESET}\n")
+
+    if mode in ('--all', '--gpu-evidence'):
+        print(f"{BOLD}[7/9] GPU Backend Evidence{RESET}")
+        gpu_issues = check_gpu_backend_evidence()
+        if gpu_issues:
+            for issue in gpu_issues:
+                print(issue)
+            total_issues += len(gpu_issues)
+            exit_code = 1
+            print(f"  {YELLOW}{len(gpu_issues)} GPU backend evidence issue(s){RESET}\n")
+        else:
+            print(f"  {GREEN}[OK] GPU backend evidence is fail-closed for publishability and ROCm/HIP promotion{RESET}\n")
+
+    # Changed files
     if mode in ('--all', '--changed'):
-        print(f"{BOLD}[5/6] Changed Files Impact{RESET}")
+        print(f"{BOLD}[8/9] Changed Files Impact{RESET}")
         changed = get_changed_files()
         if changed:
             print(f"  {len(changed)} files changed vs HEAD:")
@@ -483,7 +598,7 @@ def run_all(args):
 
     # ABI
     if mode in ('--all', '--abi'):
-        print(f"{BOLD}[6/6] ABI Surface{RESET}")
+        print(f"{BOLD}[9/9] ABI Surface{RESET}")
         added, removed = check_abi_surface()
         if added:
             print(f"  {CYAN}NEW functions (not in graph):{RESET}")

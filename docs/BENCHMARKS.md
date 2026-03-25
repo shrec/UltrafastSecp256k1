@@ -22,9 +22,10 @@ Benchmark results for UltrafastSecp256k1 across all supported platforms.
 | OpenCL (RTX 5060 Ti) | 0.2 ns | 113.5 ns | 97.7 ns | **230.2 ns** | **258.6 ns** | -- |
 | Metal (Apple M3 Pro) | 1.9 ns | 3.00 us | 2.94 us | -- | -- | -- |
 
-GPU rows use the latest retained local rerun per backend. For OpenCL, the public
-GPU C ABI still covers 4 of the 6 first-wave operations; the missing two are
-batch ECDSA verify and batch Schnorr verify.
+GPU rows use the latest retained local rerun per backend. The stable public GPU
+C ABI now exposes 13 backend-neutral operations, and CUDA, OpenCL, and Metal all
+implement that stable surface. Internal signing kernels and benchmark-only paths
+are tracked separately from the public GPU ABI.
 
 ---
 
@@ -126,11 +127,11 @@ This page keeps the last trustworthy result per platform. When a rerun only prov
 experiment is unstable or not worth shipping, it is recorded here but not promoted as a retained
 default.
 
-OpenCL's current 4/6 C ABI status refers specifically to the generic GPU host ABI in
-`ufsecp_gpu.h`: `generator_mul_batch`, `ecdh_batch`, `hash160_pubkey_batch`, and
-`msm` are implemented on the OpenCL backend, while `ecdsa_verify_batch` and
-`schnorr_verify_batch` currently return `UFSECP_ERR_GPU_UNSUPPORTED` until the
-extended verify kernels are promoted into the backend bridge.
+The stable GPU host ABI in `ufsecp_gpu.h` now covers 13 backend-neutral batch
+operations, and the compiled CUDA, OpenCL, and Metal backends implement that
+stable surface. Internal kernel experiments, signing benchmarks, and backend-only
+test hooks may cover additional primitives beyond the public ABI, but they are
+documented separately from the stable host interface.
 
 ---
 

@@ -77,7 +77,12 @@ BENCH_ALERT_THRESHOLD=130 ./scripts/ci-local.sh bench-regression
 
 ## 5. GPU Audit (Local Only)
 
-The GPU audit cannot run on GitHub CI (no GPU runners). It runs **locally only** on any machine with an NVIDIA GPU and CUDA toolkit.
+The GPU audit cannot run on GitHub CI because hosted runners do not expose the required GPU devices. It is still reproducible through the repository's local infrastructure:
+
+- run the standard Linux parity stack in Docker via `docker-compose.ci.yml` or `Dockerfile.local-ci`
+- then execute the GPU-specific slices on a host that exposes the required CUDA/OpenCL device stack
+
+In other words, GPU validation is not "developer laptop only"; it is locally reproducible for anyone who brings compatible hardware and maps that hardware into the same repo-shipped environment.
 
 ### Prerequisites
 
@@ -142,6 +147,7 @@ Reports are written to the build directory:
 - First run may take ~5 minutes due to PTX JIT compilation (subsequent runs are faster)
 - The `selftest_core` module runs 41+ GPU kernel tests and dominates total runtime
 - `CMAKE_CUDA_ARCHITECTURES="native"` auto-detects your GPU; explicit SM values avoid JIT overhead
+- If you prefer a containerized Linux toolchain, use the repo's Docker local CI environment first and then run the GPU-enabled build on a host/container with GPU passthrough.
 
 ## 6. What is still not reproducible on Linux local Docker
 
@@ -150,5 +156,7 @@ These GitHub jobs need non-Linux or hosted integrations:
 - windows (MSVC)
 - macOS/iOS (Apple toolchain and Metal runtime)
 - CodeQL / Scorecard / dependency-review / other GitHub-native services
+
+GPU-backed Linux validation is reproducible locally, but it still depends on host hardware exposure and cannot be reduced to a pure CPU-only container image.
 
 Use local parity for fast prevention, and keep GitHub CI as final cross-platform confirmation.

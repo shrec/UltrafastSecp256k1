@@ -160,8 +160,6 @@ bool Bip324Cipher::decrypt(
         tag,
         buf.data());
 
-    packet_counter_++;
-
     if (!ok) return false;
 
     std::uint32_t const payload_len = static_cast<std::uint32_t>(buf[0])
@@ -171,6 +169,7 @@ bool Bip324Cipher::decrypt(
     if (payload_len > ct_len - 3) return false;
 
     plaintext_out.assign(buf.begin() + 3, buf.begin() + 3 + payload_len);
+    packet_counter_++;
     return true;
 }
 

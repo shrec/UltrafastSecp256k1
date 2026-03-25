@@ -107,6 +107,14 @@ Expected additional tests in a GPU-enabled build:
 If these tests do not appear, the build is still CPU-only and the GPU host layer
 was not configured into the active build tree.
 
+### Audit / Exploit Targets In Test Builds
+
+When `SECP256K1_BUILD_TESTS=ON`, the generated CTest surface also includes standalone
+audit and exploit binaries registered from the build scripts. Recent additions such
+as transcript-splice, stale-commitment-replay, DER confusion, and hostile-caller
+regression targets are expected to appear automatically in `ctest -N` for audit
+or CI-oriented build trees.
+
 ---
 
 ## Build Options

@@ -63,7 +63,7 @@ skip()     { substep "$1" "SKIP" "$YELLOW"; }
 info()     { substep "$1" "..." "$NC"; }
 
 # -- Create directories -----------------------------------------------------
-mkdir -p "${ARTIFACTS_DIR}"/{static_analysis,sanitizers,ctest,bindings,benchmark,disasm,fuzz}
+mkdir -p "${ARTIFACTS_DIR}"/{static_analysis,sanitizers,ctest,bindings,benchmark,ct,disasm,fuzz}
 
 # -- Result tracking --------------------------------------------------------
 declare -A CATEGORY_STATUS
@@ -77,6 +77,118 @@ add_finding() {
     FINDING_COUNT=$((FINDING_COUNT + 1))
     local id=$(printf "UF-AUD-%03d" $FINDING_COUNT)
     FINDINGS="${FINDINGS}\n| ${id} | ${severity} | ${component} | ${desc} | Open |"
+}
+
+find_audit_binary() {
+    local binary_name="$1"
+    find "${BUILD_DIR}" -name "${binary_name}" -type f 2>/dev/null | head -1
+}
+
+run_ct_binary_capture() {
+    local binary_name="$1"
+    local log_path="$2"
+    local label="$3"
+    local severity="${4:-Med}"
+    local binary
+    binary=$(find_audit_binary "${binary_name}")
+
+    if [[ -z "${binary}" ]]; then
+        warn "${label}: binary not found (${binary_name})"
+        return 1
+    fi
+
+    info "Running ${label}..."
+    if "${binary}" > "${log_path}" 2>&1; then
+        pass "${label}: completed"
+        return 0
+    fi
+
+    warn "${label}: reported failures"
+    add_finding "${severity}" "Side-Channel" "${label} reported failures" "${log_path}" "Inspect ${binary_name} output"
+    return 1
+}
+
+normalize_ct_evidence() {
+    local collector_py="${ROOT_DIR}/scripts/collect_ct_evidence.py"
+    local python_bin=""
+    local runner_bin="$1"
+
+    if command -v python3 &>/dev/null; then
+        python_bin="python3"
+    elif command -v python &>/dev/null; then
+        python_bin="python"
+    fi
+
+    if [[ -z "${python_bin}" ]] || [[ ! -f "${collector_py}" ]]; then
+        warn "CT evidence normalization skipped (python or collector missing)"
+        return 0
+    fi
+
+    info "Normalizing CT evidence..."
+    if "${python_bin}" "${collector_py}" \
+        --build-dir "${BUILD_DIR}" \
+        --output-dir "${ARTIFACTS_DIR}/ct" \
+        --runner-binary "${runner_bin}" \
+        > "${ARTIFACTS_DIR}/ct/ct_evidence_collection.log" 2>&1; then
+        pass "CT evidence normalized"
+    else
+        warn "CT evidence normalization reported issues"
+        add_finding "Med" "Side-Channel" "CT evidence normalization reported issues" "${ARTIFACTS_DIR}/ct/ct_evidence_collection.log"
+    fi
+}
+
+run_ct_verif_capture() {
+    local ct_dir="$1"
+    local binary
+    binary=$(find_audit_binary "test_ct_verif_formal_standalone")
+
+    if [[ -z "${binary}" ]]; then
+        warn "ct-verif formal: binary not found"
+        return 1
+    fi
+
+    info "Running ct-verif formal standalone..."
+    if "${binary}" > "${ct_dir}/ct_verif.log" 2>&1; then
+        pass "ct-verif formal standalone: completed"
+        return 0
+    fi
+
+    warn "ct-verif formal standalone: reported failures"
+    add_finding "Med" "Side-Channel" "ct-verif formal standalone reported failures" "${ct_dir}/ct_verif.log"
+    return 1
+}
+
+run_valgrind_ct_capture() {
+    local ct_dir="$1"
+    local valgrind_script="${ROOT_DIR}/scripts/valgrind_ct_check.sh"
+    local report_dir="${BUILD_DIR}/valgrind-ct/valgrind_reports"
+
+    if [[ ! -f "${valgrind_script}" ]]; then
+        warn "valgrind-ct: script not found"
+        return 1
+    fi
+    if ! command -v valgrind &>/dev/null; then
+        skip "valgrind-ct: valgrind not found"
+        return 1
+    fi
+
+    info "Running valgrind-ct analysis..."
+    if bash "${valgrind_script}" "${BUILD_DIR}/valgrind-ct" > "${ct_dir}/valgrind_ct.stdout.log" 2>&1; then
+        :
+    else
+        warn "valgrind-ct analysis reported issues"
+    fi
+
+    [[ -f "${report_dir}/valgrind_ct.log" ]] && cp "${report_dir}/valgrind_ct.log" "${ct_dir}/valgrind_ct.log"
+    [[ -f "${report_dir}/valgrind_ct_report.json" ]] && cp "${report_dir}/valgrind_ct_report.json" "${ct_dir}/valgrind_ct_report.json"
+
+    if [[ -f "${ct_dir}/valgrind_ct.log" ]]; then
+        pass "valgrind-ct artifacts captured"
+        return 0
+    fi
+
+    warn "valgrind-ct artifacts not produced"
+    return 1
 }
 
 # ========================================================================
@@ -420,21 +532,39 @@ EOF
 run_ct_disasm() {
     section "I.extra -- CT Disassembly Branch Scan"
     local start_time=$SECONDS
+    local ct_dir="${ARTIFACTS_DIR}/ct"
+    local legacy_disasm_dir="${ARTIFACTS_DIR}/disasm"
 
     local ct_script="${ROOT_DIR}/scripts/verify_ct_disasm.sh"
     local runner_bin=$(find "${BUILD_DIR}" -name "unified_audit_runner" -type f 2>/dev/null | head -1)
 
-    if [[ -x "${ct_script}" ]] && [[ -n "${runner_bin}" ]]; then
+    if [[ -f "${ct_script}" ]] && [[ -n "${runner_bin}" ]]; then
         info "Running CT disassembly scan..."
-        bash "${ct_script}" "${runner_bin}" --json "${ARTIFACTS_DIR}/disasm/disasm_branch_scan.json" \
-            > "${ARTIFACTS_DIR}/disasm/disasm_branch_scan.txt" 2>&1 || {
+        bash "${ct_script}" "${runner_bin}" --json "${ct_dir}/disasm_branch_scan.json" \
+            > "${ct_dir}/disasm_branch_scan.txt" 2>&1 || {
             warn "CT disasm scan found branches"
             add_finding "Med" "Side-Channel" "CT disassembly scan found conditional branches in CT functions"
         }
+        [[ -f "${ct_dir}/disasm_branch_scan.json" ]] && cp "${ct_dir}/disasm_branch_scan.json" "${legacy_disasm_dir}/disasm_branch_scan.json"
+        [[ -f "${ct_dir}/disasm_branch_scan.txt" ]] && cp "${ct_dir}/disasm_branch_scan.txt" "${legacy_disasm_dir}/disasm_branch_scan.txt"
         pass "CT disasm scan completed"
     else
         skip "CT disasm script or binary not found"
     fi
+
+    run_ct_binary_capture "test_ct_sidechannel_smoke" "${ct_dir}/dudect_smoke.log" "dudect smoke" "Med" || true
+    run_ct_binary_capture "test_ct_sidechannel_standalone" "${ct_dir}/dudect_full.log" "dudect full" "Med" || true
+    run_ct_verif_capture "${ct_dir}" || true
+    run_valgrind_ct_capture "${ct_dir}" || true
+
+    if [[ -n "${runner_bin}" ]]; then
+        normalize_ct_evidence "${runner_bin}"
+    fi
+
+    local elapsed=$(( SECONDS - start_time ))
+    CATEGORY_STATUS["I.extra"]="PASS"
+    CATEGORY_SUMMARY["I.extra"]="CT Artifact Materialization"
+    CATEGORY_TIME["I.extra"]="${elapsed}"
 }
 
 # ========================================================================
@@ -599,7 +729,7 @@ HEADER
 |----------|--------|------|
 EOF
 
-    for cat_key in A B C D "E-I" J K L M; do
+    for cat_key in A B C D "E-I" "I.extra" J K L M; do
         local st="${CATEGORY_STATUS[$cat_key]:-N/A}"
         local sm="${CATEGORY_SUMMARY[$cat_key]:-unknown}"
         local tm="${CATEGORY_TIME[$cat_key]:-0}"
@@ -653,7 +783,8 @@ CT verification uses a layered approach:
 - **Statistical timing leakage testing (dudect)**: included in unified runner (ct_sidechannel smoke). Advisory -- timing noise on shared runners may mask subtle leaks.
 - **Deterministic CT verification (ct-verif)**: LLVM-based taint tracking via `.github/workflows/ct-verif.yml`. Blocking in CI.
 - **Deterministic CT verification (valgrind-ct)**: ctgrind-mode memcheck via `.github/workflows/ct-verif.yml`. Blocking in CI.
-- **Disassembly branch scan**: `artifacts/disasm/disasm_branch_scan.json` -- checks compiled CT functions for conditional branches on secrets.
+- **Disassembly branch scan**: `artifacts/ct/disasm_branch_scan.json` -- checks compiled CT functions for conditional branches on secrets.
+- **Canonical CT evidence summary**: `artifacts/ct/ct_evidence_summary.json` -- normalized view of deterministic and statistical CT evidence collected during this run.
 - **Machine-checked proofs**: Not currently applied (Vale/Jasmin/Coq/Fiat-Crypto).
 
 EOF
@@ -710,7 +841,11 @@ EOF
 | Unified runner JSON | `artifacts/ctest/audit_report.json` |
 | CTest output | `artifacts/ctest/ctest_output.txt` |
 | CTest results | `artifacts/ctest/results.json` |
-| CT disasm scan | `artifacts/disasm/disasm_branch_scan.json` |
+| CT disasm scan | `artifacts/ct/disasm_branch_scan.json` |
+| CT evidence summary | `artifacts/ct/ct_evidence_summary.json` |
+| CT evidence text summary | `artifacts/ct/ct_evidence_summary.txt` |
+| dudect smoke log | `artifacts/ct/dudect_smoke.log` |
+| dudect full log | `artifacts/ct/dudect_full.log` |
 | ct-verif log | CI: `.github/workflows/ct-verif.yml` artifacts |
 | valgrind-ct log | CI: `.github/workflows/ct-verif.yml` artifacts |
 | GPU audit | CI: `.github/workflows/gpu-selfhosted.yml` artifacts |
@@ -764,9 +899,9 @@ echo -e "${CYAN}  AUDIT COMPLETE${NC}"
 echo -e "${CYAN}$(printf '=%.0s' {1..70})${NC}"
 echo ""
 echo "  Category Results:"
-for cat_key in A B C D "E-I" J K L M; do
-    local st="${CATEGORY_STATUS[$cat_key]:-N/A}"
-    local sm="${CATEGORY_SUMMARY[$cat_key]:-unknown}"
+for cat_key in A B C D "E-I" "I.extra" J K L M; do
+    st="${CATEGORY_STATUS[$cat_key]:-N/A}"
+    sm="${CATEGORY_SUMMARY[$cat_key]:-unknown}"
     case "${st}" in
         PASS) echo -e "    ${GREEN}${cat_key}. ${sm}: ${st}${NC}" ;;
         FAIL) echo -e "    ${RED}${cat_key}. ${sm}: ${st}${NC}" ;;

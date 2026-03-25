@@ -48,6 +48,18 @@ static constexpr std::uint64_t P[4] = {
 
 // --- Internal helpers --------------------------------------------------------
 
+static inline std::uint64_t add_carry_u64(std::uint64_t a,
+                                          std::uint64_t b,
+                                          std::uint64_t sum) noexcept {
+    return ((a & b) | ((a | b) & ~sum)) >> 63;
+}
+
+static inline std::uint64_t sub_borrow_u64(std::uint64_t a,
+                                           std::uint64_t b,
+                                           std::uint64_t diff) noexcept {
+    return (a ^ ((a ^ b) | (diff ^ a))) >> 63;
+}
+
 // CT 256-bit addition with carry out. Returns carry (0 or 1).
 static inline std::uint64_t add256(std::uint64_t r[4],
                                     const std::uint64_t a[4],
@@ -56,11 +68,11 @@ static inline std::uint64_t add256(std::uint64_t r[4],
     for (int i = 0; i < 4; ++i) {
         // r[i] = a[i] + b[i] + carry
         std::uint64_t const sum_lo = a[i] + b[i];
-        auto const c1 = static_cast<std::uint64_t>(sum_lo < a[i]);
+        std::uint64_t const c1 = add_carry_u64(a[i], b[i], sum_lo);
         std::uint64_t const sum = sum_lo + carry;
-        auto const c2 = static_cast<std::uint64_t>(sum < sum_lo);
+        std::uint64_t const c2 = add_carry_u64(sum_lo, carry, sum);
         r[i] = sum;
-        carry = c1 + c2;
+        carry = c1 | c2;
     }
     return carry;
 }
@@ -72,11 +84,11 @@ static inline std::uint64_t sub256(std::uint64_t r[4],
     std::uint64_t borrow = 0;
     for (int i = 0; i < 4; ++i) {
         std::uint64_t const diff = a[i] - b[i];
-        auto const b1 = static_cast<std::uint64_t>(a[i] < b[i]);
+        std::uint64_t const b1 = sub_borrow_u64(a[i], b[i], diff);
         std::uint64_t const result = diff - borrow;
-        auto const b2 = static_cast<std::uint64_t>(diff < borrow);
+        std::uint64_t const b2 = sub_borrow_u64(diff, borrow, result);
         r[i] = result;
-        borrow = b1 + b2;
+        borrow = b1 | b2;
     }
     return borrow;
 }

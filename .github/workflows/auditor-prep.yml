@@ -1,0 +1,69 @@
+name: Auditor Prep
+
+on:
+  workflow_dispatch:
+    inputs:
+      with_package:
+        description: Include full audit evidence package
+        required: false
+        type: boolean
+        default: false
+      build_dir:
+        description: Build directory used for full package generation
+        required: false
+        type: string
+        default: build-audit
+      traceability_build:
+        description: Build directory passed to generate_traceability.sh
+        required: false
+        type: string
+        default: build
+
+permissions:
+  contents: read
+
+concurrency:
+  group: auditor-prep-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  auditor-prep:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Harden the runner
+        uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc # v2.15.1
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: '3.12'
+
+      - name: Install base tooling
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends cmake ninja-build g++-13
+
+      - name: Prepare external audit artifacts
+        run: |
+          args=(
+            --output-dir external-audit-artifacts
+            --traceability-build "${{ inputs.traceability_build }}"
+          )
+          if [[ "${{ inputs.with_package }}" == "true" ]]; then
+            args+=(--with-package --build-dir "${{ inputs.build_dir }}")
+          fi
+          bash scripts/external_audit_prep.sh "${args[@]}"
+
+      - name: Upload external audit artifacts
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: external-audit-artifacts
+          path: external-audit-artifacts/
+          retention-days: 30

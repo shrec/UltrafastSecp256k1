@@ -140,6 +140,20 @@ Checks:
 - Changed files are matched against `DOC_PAIRS` mapping in preflight
 - Missing doc updates are reported as warnings
 
+### P11 — Failure-Class Gap Visibility
+
+> The self-audit failure-class matrix must remain structurally executable.
+> Covered, partial, and deferred classes must be machine-reportable rather than
+> buried in prose.
+
+**Automated gate:** `audit_gap_report.py`
+
+Checks:
+- Every failure-class row has deterministic audit surfaces
+- Partial/deferred rows keep explicit residual-risk notes
+- File-like evidence references resolve inside the repository
+- Strict mode exposes the current owner-grade residual set
+
 ---
 
 ## 3. Severity Levels
@@ -152,7 +166,7 @@ Checks:
 
 ### What blocks a merge:
 
-- Any FAIL from P1–P9
+- Any FAIL from P1–P9 and P11
 - Security pattern loss (P3)
 - ABI surface mismatch (P1)
 - CT routing violation (P4)
@@ -182,6 +196,8 @@ python3 scripts/audit_gate.py --gpu-parity
 python3 scripts/audit_gate.py --test-docs
 python3 scripts/audit_gate.py --routing
 python3 scripts/audit_gate.py --doc-pairing
+python3 scripts/audit_gap_report.py
+python3 scripts/audit_gap_report.py --strict
 
 # JSON output for CI
 python3 scripts/audit_gate.py --json
@@ -197,6 +213,7 @@ python3 scripts/audit_gate.py --json -o audit_gate_report.json
 | Trigger | Required checks |
 |---------|----------------|
 | Before every commit | `audit_gate.py` (full) |
+| During owner-grade assurance review | `audit_gap_report.py` + `audit_gap_report.py --strict` |
 | After adding/removing ABI functions | `--abi-completeness` + rebuild graph |
 | After touching CT layer | `--ct-integrity --security-patterns` |
 | After GPU backend changes | `--gpu-parity` |
@@ -227,6 +244,8 @@ To add a new audit principle:
 | `FEATURE_ASSURANCE_LEDGER.md` | Per-function assurance status |
 | `TEST_MATRIX.md` | Test target inventory |
 | `CT_VERIFICATION.md` | Constant-time verification details |
+| `SELF_AUDIT_FAILURE_MATRIX.md` | Failure-class coverage map + residual-risk inventory |
+| `OWNER_GRADE_AUDIT_TODO.md` | Concrete code-and-tooling backlog for closing owner-grade audit gaps |
 | `SECURITY_CLAIMS.md` | Security guarantees and non-guarantees |
 | `FFI_HOSTILE_CALLER.md` | Hostile-caller resilience analysis |
 | `BACKEND_ASSURANCE_MATRIX.md` | GPU backend parity tracking |
@@ -238,6 +257,7 @@ To add a new audit principle:
 | Date | Change | Impact |
 |------|--------|--------|
 | 2026-03-23 | Initial manifest + `audit_gate.py` | All 10 principles automated |
+| 2026-03-25 | Added `audit_gap_report.py` | Failure-class matrix became executable in normal/strict modes |
 | 2026-03-23 | Fixed `export_assurance.py` test_coverage query | Was using wrong DB table |
 | 2026-03-23 | Fixed graph builder missing `ufsecp_gpu.h` | 18 GPU ABI functions were invisible |
 | 2026-03-23 | Fixed preflight missing `ufsecp_gpu.h` scan | ABI drift detection was incomplete |

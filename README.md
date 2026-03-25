@@ -6,7 +6,7 @@
 [![OSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/shrec/UltrafastSecp256k1/badge)](https://securityscorecards.dev/viewer/?uri=github.com/shrec/UltrafastSecp256k1)
 [![GPU Self-Hosted](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/gpu-selfhosted.yml/badge.svg)](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/gpu-selfhosted.yml)
 
-**Zero-dependency, multi-backend secp256k1 cryptography engine** — built independently from scratch for Bitcoin, Ethereum, Silent Payments, threshold signatures (FROST, MuSig2), embedded IoT systems, and GPU-scale batch workloads. UltrafastSecp256k1 delivers GPU-accelerated ECDSA, Schnorr signing/verification, and **world-first open-source GPU FROST partial verification**, constant-time CPU signing paths, HD key derivation (BIP-32/44), Taproot (BIP-340/341), ZK range proofs, and 12+ platform targets including CUDA, Metal, OpenCL, ROCm, WebAssembly, RISC-V, ESP32, and STM32.
+**Audit-first, high-performance secp256k1 engine for C++ and GPU-scale batch workloads** — built independently from scratch for Bitcoin, Ethereum, Silent Payments, threshold signatures (FROST, MuSig2), embedded systems, and reproducible benchmarking. UltrafastSecp256k1 combines optimized CPU arithmetic, a stable multi-backend GPU C ABI, **world-first open-source GPU FROST partial verification**, constant-time CPU signing paths, HD key derivation (BIP-32/44), Taproot (BIP-340/341), ZK range proofs, and 12+ platform targets including CUDA, OpenCL, Metal, WebAssembly, RISC-V, ESP32, and STM32.
 
 > **Keywords:** secp256k1 GPU · ECDSA batch verify · Schnorr BIP-340 · FROST threshold signatures · MuSig2 · Bitcoin cryptography · CUDA secp256k1 · OpenCL ECC · BIP-352 Silent Payments · constant-time cryptography · embedded ECC · WebAssembly crypto
 
@@ -28,21 +28,25 @@ All measurements: RTX 5060 Ti (SM 12.0, CUDA 12), batch=16 384, kernel-only thro
 
 ### Why UltrafastSecp256k1?
 
-- **Fastest open-source GPU signatures** -- no other library provides secp256k1 ECDSA + Schnorr sign/verify **and GPU FROST partial verification** on CUDA; OpenCL covers full ECC + ECDSA/Schnorr verify, Metal provides discovery/lifecycle ([reproducible benchmark suite and raw logs](docs/BENCHMARKS.md))
+- **Differentiated GPU secp256k1 surface** -- CUDA, OpenCL, and Metal all implement the stable 13-op GPU C ABI, while CUDA also carries the highest-throughput signing and verification kernels plus **GPU FROST partial verification** ([reproducible benchmark suite and raw logs](docs/BENCHMARKS.md))
 - **High-performance CPU secp256k1 engine** -- optimized generator multiply, scalar multiply, hashing, and serialization pipelines across x86-64, ARM64, RISC-V, and embedded targets ([see bench_unified ratio table](docs/BENCHMARKS.md))
 - **BIP-352 Silent Payments at 11.00 M/s** -- the full 7-stage GPU pipeline (k×P → hash → k×G → add → match) runs at 91.0 ns/op on CUDA, **267× faster** than single-threaded CPU ([GPU bench](docs/BENCHMARKS.md), [standalone CPU benchmark by @craigraw](https://github.com/craigraw/bench_bip352))
 - **Built for modern secp256k1 workloads** -- signing, verification, wallet derivation, threshold protocols, adaptor signatures, ZK primitives, address generation, and large-scale public-key pipelines in one engine
 - **Field-tested GPU pipeline** -- the CUDA engine has been stress-tested in live high-throughput workflows over long-running sessions and very large point volumes, not only in short synthetic benchmarks
 - **Zero dependencies** -- pure C++20, no Boost, no OpenSSL, compiles anywhere with a conforming compiler
 - **Dual-layer security** -- variable-time FAST path for throughput, constant-time CT path for secret-key operations
-- **12+ platforms** -- x86-64, ARM64, RISC-V, WASM, iOS, Android, ESP32, STM32, CUDA, Metal, OpenCL, ROCm
-- **Audit-first engineering culture** -- 1,000,000+ internal assertions per build, 55 audit modules, **78 exploit PoC tests across 14 attack categories**, 23 CI/CD workflows, 3 formal constant-time verification pipelines, and 1.3M+ nightly differential tests on every commit — security is a continuous process, not a checkbox
+- **12+ platforms** -- x86-64, ARM64, RISC-V, WASM, iOS, Android, ESP32, STM32, CUDA, Metal, OpenCL, plus an early-development ROCm/HIP compatibility path slated for hardware-backed validation
+- **Audit-first engineering culture** -- 1,000,000+ internal assertions per build, 55 unified audit modules, **86 exploit PoC tests across 14 coverage areas**, 24 GitHub Actions workflows, 3 formal constant-time verification pipelines, 1.3M+ nightly differential checks, and a graph-driven self-audit framework built around reproducibility rather than one-off trust signals
 
 > **Benchmark reproducibility:** All numbers come from pinned compiler/driver/toolkit versions with exact commands and raw logs. See [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md) (methodology) and the [live dashboard](https://shrec.github.io/UltrafastSecp256k1/dev/bench/).
 
-> **Why this library, in depth?** See [WHY_ULTRAFASTSECP256K1.md](WHY_ULTRAFASTSECP256K1.md) for a full breakdown of the audit culture, 23-workflow CI/CD pipeline, formal verification layers, and supply-chain hardening that back these claims.
+> **Why this library, in depth?** See [WHY_ULTRAFASTSECP256K1.md](WHY_ULTRAFASTSECP256K1.md) for a full breakdown of the audit culture, 24-workflow CI/CD pipeline, graph-assisted review model, formal verification layers, and supply-chain hardening that back these claims.
 
-**Quick links:** [Discord](https://discord.gg/sUmW7cc5) * [Benchmarks](docs/BENCHMARKS.md) * [Community Benchmarks](docs/COMMUNITY_BENCHMARKS.md) * [Build Guide](docs/BUILDING.md) * [API Reference](docs/API_REFERENCE.md) * [Binding Usage Standard](docs/BINDINGS_USAGE_STANDARD.md) * [Security Policy](SECURITY.md) * [Threat Model](THREAT_MODEL.md) * [**Why This Library?**](WHY_ULTRAFASTSECP256K1.md) * [Porting Guide](PORTING.md) * [**Sponsor**](https://github.com/sponsors/shrec)
+> **External auditor prep:** Run `bash scripts/external_audit_prep.sh` to produce a reproducible auditor-facing bundle with preflight outputs, assurance export, traceability artifacts, and an optional full audit package.
+
+> **Claim map:** Top-level trust claims are keyed in [docs/ASSURANCE_LEDGER.md](docs/ASSURANCE_LEDGER.md): CPU CT routing `A-001`, stable GPU ABI `A-002`, cross-backend GPU parity `A-003`, benchmark reproducibility `A-004`, exploit-audit surface `A-005`, graph-assisted review `A-006`, open self-audit transparency `A-007`, and ROCm/HIP status discipline `A-008`.
+
+**Quick links:** [Discord](https://discord.gg/sUmW7cc5) * [Benchmarks](docs/BENCHMARKS.md) * [Community Benchmarks](docs/COMMUNITY_BENCHMARKS.md) * [Build Guide](docs/BUILDING.md) * [API Reference](docs/API_REFERENCE.md) * [Binding Usage Standard](docs/BINDINGS_USAGE_STANDARD.md) * [Security Policy](SECURITY.md) * [Threat Model](THREAT_MODEL.md) * [Assurance Ledger](docs/ASSURANCE_LEDGER.md) * [AI Audit Protocol](docs/AI_AUDIT_PROTOCOL.md) * [**Why This Library?**](WHY_ULTRAFASTSECP256K1.md) * [Porting Guide](PORTING.md) * [**Sponsor**](https://github.com/sponsors/shrec)
 
 ---
 
@@ -103,8 +107,8 @@ All measurements: RTX 5060 Ti (SM 12.0, CUDA 12), batch=16 384, kernel-only thro
 ## Highlights
 
 - **BIP-352 GPU pipeline at 11.00 M/s** -- full silent payment scanning pipeline on CUDA (91.0 ns/op), 267× faster than CPU
-- **GPU-accelerated secp256k1** -- ECDSA + Schnorr sign/verify on CUDA; ECDSA + Schnorr verify + core ECC on OpenCL; Metal experimental
-- **GPU C ABI (`ufsecp_gpu`)** -- stable FFI for GPU batch ops across CUDA, OpenCL, and Metal (13 ops total; 8/8 core parity + 5 ZK/BIP-324 CUDA-first ops)
+- **GPU-accelerated secp256k1** -- high-throughput CUDA signing/verification kernels plus cross-backend GPU batch operations on CUDA, OpenCL, and Metal; production secret-bearing signing still routes through the CPU CT layer
+- **GPU C ABI (`ufsecp_gpu`)** -- stable 13-op FFI for GPU batch ops across CUDA, OpenCL, and Metal, with full backend parity on the public surface
 - **Zero-Knowledge cryptographic layer** -- Pedersen commitments, DLEQ proofs, Bulletproof range proofs, Ethereum-compatible Keccak-256
 - **17–67× faster batch operations** -- all-affine Pippenger with touched-bucket optimization
 - **Multi-language bindings** -- Python, Node.js, Rust, Go, C#, Java, Swift, PHP, Ruby, Dart, React Native
@@ -120,14 +124,18 @@ All measurements: RTX 5060 Ti (SM 12.0, CUDA 12), batch=16 384, kernel-only thro
 > UltrafastSecp256k1 ships fast code **and then systematically tries to break it**.
 > The internal self-audit system was designed in parallel with the cryptographic implementation as a first-class engineering artifact — not bolted on afterwards.
 
+The governing idea is Bitcoin-style: **don't trust, verify**. The project does not treat assurance as a PDF milestone that must be waited on before the next improvement. Instead, it treats auditability as an always-on property of the repository: reproducible builds, rerunnable tests, structured artifacts, graph-backed code navigation, and continuous adversarial review that anyone can repeat.
+
+This top-level narrative maps directly to the assurance ledger: CT secret-key routing (`A-001`), exploit-style audit coverage (`A-005`), graph-assisted review (`A-006`), and self-audit transparency (`A-007`).
+
 ### By the Numbers
 
 | Metric | Value |
 |--------|-------|
 | Internal audit assertions per build | **~1,000,000+** |
 | Audit modules (`unified_audit_runner`) | **55 modules, 8 sections, 0 failures** |
-| Exploit PoC test files | **78 tests, 14 attack categories, 0 failures** |
-| CI/CD workflows | **23 GitHub Actions workflows** |
+| Exploit PoC test files | **86 tests, 14 coverage areas, 0 failures** |
+| CI/CD workflows | **24 GitHub Actions workflows** |
 | Build matrix (arch × config × OS) | **7 × 17 × 5 = 595 combinations** |
 | Nightly differential tests | **~1,300,000+ random checks / night** |
 | Constant-time verification pipelines | **3 independent (ct-arm64, ct-verif, Valgrind CT)** |
@@ -163,30 +171,28 @@ All measurements: RTX 5060 Ti (SM 12.0, CUDA 12), batch=16 384, kernel-only thro
 - **Nightly differential testing** runs ~1.3M random round-trips against reference implementations every night
 - All 55 audit modules return `AUDIT-READY` status. Zero failures across all tested platforms.
 
-### Exploit PoC Test Suite (78 Tests, 14 Categories)
+### Exploit PoC Test Suite (86 Tests, 14 Coverage Areas)
 
-In addition to the 55-module `unified_audit_runner`, UltrafastSecp256k1 ships **78 dedicated exploit-style PoC tests** that actively attempt to break the library — covering every major protocol, primitive, and attack surface.
-Each test in `audit/test_exploit_*.cpp` compiles and runs standalone, verifying that attacks fail, edge cases are handled, and security properties hold under adversarial conditions.
+In addition to the 55-module `unified_audit_runner`, UltrafastSecp256k1 ships **86 dedicated exploit-style PoC tests** that actively try to break the library across its highest-risk surfaces. Each `audit/test_exploit_*.cpp` target builds and runs standalone so failures stay easy to attribute and reproduce.
 
-| Category | Tests | Attack Focus |
-|----------|-------|--------------|
-| ECDSA / Signature | 7 | malleability (BIP-62 low-s), RFC 6979 KAT, recovery edge cases, ECDH degenerate inputs |
-| Schnorr / BIP-340 / Batch | 5 | BIP-340 KAT, batch soundness, forge detection in `identify_invalid` |
-| GLV / ECC Math | 11 | endomorphism properties, GLV ±k₁±k₂λ≡k decomposition, Pippenger MSM, multiscalar |
-| BIP-32 / BIP-39 / HD Keys | 7 | depth/path overflow, hardened isolation, xpub guard, fingerprint collision |
-| MuSig2 / FROST | 11 | nonce reuse, rogue-key aggregation, Byzantine participant, DKG, Lagrange duplicate, index-zero |
-| Adaptor Signatures / ZK | 4 | parity attacks, extended adaptor, Pedersen homomorphism, ZK proof properties |
-| Crypto Primitives / AEAD | 11 | ChaCha20-Poly1305 MAC bypass, nonce reuse, HKDF security, SHA/Keccak/RIPEMD KATs |
-| ECIES | 3 | authentication forgery, encryption correctness, roundtrip |
-| Bitcoin / Protocol BIPs | 6 | BIP-143 sighash, BIP-144 serialization, BIP-324 encrypted P2P session, SegWit, Taproot |
-| Address / Wallet / Signing | 6 | address encoding, wallet API, private key handling, Ethereum signing, Bitcoin message signing |
-| Constant-Time / Security | 3 | CT key recovery, systematic CT verification, backend divergence detection |
-| ElligatorSwift | 2 | ElligatorSwift encoding correctness, ElligatorSwift ECDH |
-| Self-Test / Recovery | 2 | self-test API, extended recovery edge cases |
-| Batch Verify | 1 | batch verify correctness math |
-| **Total** | **78** | **0 failures across all categories** |
+| Coverage Area | Representative attack focus |
+|---------------|-----------------------------|
+| ECDSA / Signature | malleability, RFC 6979 KATs, recovery edge cases |
+| Schnorr / BIP-340 / Batch | batch soundness, forged signatures, invalid identification paths |
+| GLV / ECC Math | endomorphism invariants, multiscalar correctness, Pippenger behavior |
+| BIP-32 / BIP-39 / HD Keys | path overflow, hardened isolation, mnemonic and derivation edge cases |
+| MuSig2 / FROST | nonce reuse, transcript fork equivocation, stale commitment replay, rogue-key aggregation, Byzantine participants, DKG and Lagrange edge cases |
+| Adaptor Signatures / ZK | adaptor parity attacks, Pedersen invariants, malformed ZK proofs |
+| Crypto Primitives / AEAD | ChaCha20-Poly1305 integrity, HKDF, SHA/Keccak/RIPEMD KATs |
+| ECIES | authentication forgery, encryption correctness, roundtrip safety |
+| Bitcoin / Protocol BIPs | BIP-143, BIP-144, BIP-324, SegWit, Taproot protocol edge cases |
+| Address / Wallet / Signing | address encoding, wallet API misuse, Ethereum and Bitcoin signing flows |
+| Constant-Time / Security | CT divergence, key-recovery style probes, backend divergence detection |
+| ElligatorSwift | encoding correctness and ECDH roundtrips |
+| Self-Test / Recovery | self-test API behavior and recovery boundary cases |
+| Batch Verify | aggregate verification math correctness |
 
-> All 78 exploit tests live in `audit/test_exploit_*.cpp`. Build with `cmake -S . -B build-audit -G Ninja -DCMAKE_BUILD_TYPE=Release` and run each as a standalone target or via `ctest`.
+> All 86 exploit tests live in `audit/test_exploit_*.cpp`. Build with `cmake -S . -B build-audit -G Ninja -DCMAKE_BUILD_TYPE=Release` and run them standalone or via `ctest`.
 
 ### Self-Audit Document Index
 

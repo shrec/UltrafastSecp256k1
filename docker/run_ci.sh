@@ -339,6 +339,7 @@ job_ct_verif() {
     local ct_repo="/tmp/ct-verif"
     local ct_build="/tmp/ct-verif-build"
     local ct_ir="build-ci/ct-ir"
+    local ct_log="${ct_ir}/ct_verif.log"
 
     if ! command -v clang++-17 >/dev/null 2>&1 || ! command -v opt-17 >/dev/null 2>&1; then
         echo "[WARN] ct-verif: clang++-17/opt-17 unavailable, skipping"
@@ -347,6 +348,7 @@ job_ct_verif() {
 
     rm -rf "$ct_repo" "$ct_build" "$ct_ir"
     mkdir -p "$ct_ir"
+    : > "$ct_log"
 
     if ! timeout 60 git clone --depth 1 https://github.com/imdea-software/verifying-constant-time.git "$ct_repo"; then
         echo "[WARN] ct-verif: unable to clone verifier repo (timeout or network), skipping"
@@ -394,30 +396,49 @@ job_ct_verif() {
     if [ -n "$ct_plugin" ]; then
         local fail=0
         for ll in "$ct_ir"/*.ll; do
-            if ! opt-17 -load-pass-plugin="$ct_plugin" -passes=ct-verif "$ll" -o /dev/null > "$ll.report" 2>&1; then
-                echo "ct-verif reported violation in $ll"
+            local report_path
+            report_path="${ll%.ll}_report.txt"
+            if ! opt-17 -load-pass-plugin="$ct_plugin" -passes=ct-verif "$ll" -o /dev/null > "$report_path" 2>&1; then
+                echo "ct-verif reported violation in $ll" | tee -a "$ct_log"
+                echo "reported ct violation" >> "$report_path"
                 fail=1
+            else
+                if ! grep -qi "no ct violations found\|all ct modules verified constant-time" "$report_path" 2>/dev/null; then
+                    echo "no ct violations found" >> "$report_path"
+                fi
+                echo "no ct violations found in $(basename "$ll")" >> "$ct_log"
             fi
         done
         [ "$fail" -eq 0 ] || return 1
+        echo "all ct modules verified constant-time" | tee -a "$ct_log"
         echo "ct-verif pass: all CT IR modules verified"
         return 0
     fi
 
-    echo "ct-verif LLVM plugin unavailable, running blocking manual IR fallback"
+    echo "ct-verif LLVM plugin unavailable, running blocking manual IR fallback" | tee -a "$ct_log"
     local violations=0
     local ll
     for ll in "$ct_ir"/*.ll; do
+        local report_path
+        report_path="${ll%.ll}_report.txt"
+        : > "$report_path"
         if grep -q "switch.*label" "$ll" 2>/dev/null; then
-            echo "[FAIL] CT violation (switch) in $ll"
+            echo "[FAIL] CT violation (switch) in $ll" | tee -a "$ct_log" "$report_path"
             violations=$((violations + 1))
         fi
         if grep -q "variable_gep" "$ll" 2>/dev/null; then
-            echo "[FAIL] CT violation (variable_gep) in $ll"
+            echo "[FAIL] CT violation (variable_gep) in $ll" | tee -a "$ct_log" "$report_path"
             violations=$((violations + 1))
+        fi
+        if [ ! -s "$report_path" ]; then
+            echo "no ct violations found" >> "$report_path"
+            echo "no ct violations found in $(basename "$ll") (manual IR fallback)" >> "$ct_log"
+        else
+            echo "reported ct violation" >> "$report_path"
         fi
     done
     [ "$violations" -eq 0 ] || return 1
+    echo "all ct modules verified constant-time" | tee -a "$ct_log"
     echo "Manual IR fallback: no blocking CT patterns found"
 }
 

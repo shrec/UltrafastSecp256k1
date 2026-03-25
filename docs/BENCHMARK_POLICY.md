@@ -42,6 +42,37 @@
 
 Shared CI runners have up to ~60% variance due to CPU frequency scaling, neighbor noise, and thermal throttling. A 200% threshold safely catches real regressions (>100% slower) while avoiding false positives from runner variance.
 
+## GPU Claim Governance
+
+GPU benchmark and validation claims are governed by the machine-readable backend registry in `docs/GPU_BACKEND_EVIDENCE.json`.
+
+- Public GPU benchmark claims are only publishable for backends marked `publishable: true`.
+- A backend cannot be publishable unless it is `hardware_backed: true` and carries the required artifact classes.
+- ROCm/HIP must remain fail-closed until real AMD hardware evidence exists; source-sharing with CUDA is not sufficient.
+
+This ROCm/HIP rule is a publishability boundary for future AMD-specific claims.
+It does not invalidate the correctness or audit status of already validated
+backends, and it is not a prerequisite for the current audit program.
+
+ROCm/HIP promotion requirements are strict:
+
+1. Produce `benchmark_json`, `benchmark_text`, `audit_log`, `driver_version`, and `device_model` artifacts on real AMD hardware.
+2. Update `docs/GPU_BACKEND_EVIDENCE.json` in the same change that archives those artifacts.
+3. Keep published benchmark labels backend-accurate; CUDA evidence cannot be relabeled as ROCm/HIP evidence.
+4. Re-run `python3 scripts/preflight.py --gpu-evidence` and `python3 scripts/validate_assurance.py` after the registry change.
+
+If any of those conditions are missing, ROCm/HIP remains non-publishable. That
+state is expected until AMD hardware is available and should be treated as an
+optional future extension, not as a failure of the existing benchmark or audit
+governance model.
+
+Local enforcement:
+
+```bash
+python3 scripts/preflight.py --gpu-evidence
+python3 scripts/validate_assurance.py
+```
+
 ---
 
 ## Execution Profile

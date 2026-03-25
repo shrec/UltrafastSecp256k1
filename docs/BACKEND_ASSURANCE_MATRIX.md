@@ -8,9 +8,9 @@
 
 | Feature | CPU (fast) | CPU (CT) | CUDA | OpenCL | Metal |
 |---------|-----------|----------|------|--------|-------|
-| ECDSA sign | Y | Y (CT) | Y | Y | Y |
+| ECDSA sign | Y | Y (CT) | Y* | Y* | Y* |
 | ECDSA verify | Y | - | Y | Y | Y |
-| Schnorr sign (BIP-340) | Y | Y (CT) | Y | Y | Y |
+| Schnorr sign (BIP-340) | Y | Y (CT) | Y* | Y* | Y* |
 | Schnorr verify | Y | - | Y | Y | Y |
 | Batch verify | Y | - | Y | - | Y |
 | BIP-32 HD derivation | Y | Y | Y | Y | Y |
@@ -35,6 +35,13 @@
 | Key recovery batch (`ecrecover_batch`) | Y | - | Y | Y | Y |
 | ECDSA sign batch (CPU CT) | - | Y | N/A | N/A | N/A |
 | Schnorr sign batch (CPU CT) | - | Y | N/A | N/A | N/A |
+
+`Y*` means the backend has implementation, audit, or benchmark coverage for that
+primitive. Secret-bearing production signing remains governed by the Secret-Use
+Policy below and routes through the CPU CT layer.
+
+The stable public GPU C ABI currently exposes 13 backend-neutral batch
+operations. CUDA, OpenCL, and Metal all implement that stable public surface.
 
 ---
 
@@ -66,7 +73,7 @@
 | Audit Type | CPU | CUDA | OpenCL | Metal |
 |-----------|-----|------|--------|-------|
 | Audit runner binary | `unified_audit_runner` | `gpu_audit_runner` | `opencl_audit_runner` | `metal_audit_runner` |
-| Audit modules | 49 | 27+ | 27 | 27 |
+| Audit runner modules | 49 | 27+ | 27 | 27 |
 | Selftest | Y | Y | Y | Y |
 | CT equivalence | Y | Y (smoke) | Y | Y |
 | Side-channel (dudect) | Y (600s) | - | - | - |
@@ -102,6 +109,23 @@
 | Build option | (always on) | `-DSECP256K1_BUILD_CUDA=ON` | `-DSECP256K1_BUILD_OPENCL=ON` | `-DSECP256K1_BUILD_METAL=ON` |
 | Default architectures | native | `CMAKE_CUDA_ARCHITECTURES=86;89` | all available | Apple Silicon |
 
+ROCm/HIP status: the repository includes an early-development compatibility path
+via the shared CUDA/HIP portability layer, but it is **not yet part of the
+hardware-validated assurance matrix**. Dedicated ROCm coverage will be promoted
+into this matrix once real hardware-backed audit, benchmark, and regression
+validation are available.
+
+This is a future backend-expansion path, not an audit blocker for the existing
+matrix. The validity of the current CPU, CUDA, OpenCL, and Metal assurance
+coverage does not depend on AMD hardware being present today.
+
+ROCm/HIP promotion is governed by `docs/GPU_BACKEND_EVIDENCE.json` and the GPU
+claim policy in `docs/BENCHMARK_POLICY.md`. Promotion requires archived
+benchmark JSON/TXT artifacts, audit output, driver/runtime metadata, and the
+recorded AMD device model from real hardware. CUDA source-sharing is not
+acceptable evidence for ROCm/HIP publishability. Until that optional promotion
+happens, ROCm/HIP simply remains outside the hardware-backed publishable set.
+
 ---
 
 ## Secret-Use Policy
@@ -114,7 +138,7 @@
 | OpenCL | No | Search/batch workloads only; no secret keys on GPU |
 | Metal | No | Search/batch workloads only; no secret keys on GPU |
 
-**Note**: GPU backends have CT kernel implementations for correctness testing (CT smoke tests), but production signing MUST use CPU CT layer. GPU CT kernels exist for verification that the CT implementation produces equivalent results.
+**Note**: GPU backends have CT kernel implementations for correctness testing (CT smoke tests), but production signing MUST use the CPU CT layer. GPU CT kernels exist to verify that device paths match the constant-time CPU implementation; they are not a recommendation to move private-key signing to GPU.
 
 ---
 
