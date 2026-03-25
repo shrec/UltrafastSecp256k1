@@ -43,6 +43,9 @@ jobs:
       - name: Preflight -- Security invariants (hard-fail)
         run: python3 scripts/preflight.py --security
 
+      - name: Preflight -- CUDA/MSVC portability (hard-fail)
+        run: python3 scripts/preflight.py --cuda-msvc
+
       - name: Preflight -- ABI surface (hard-fail)
         run: python3 scripts/preflight.py --abi
 

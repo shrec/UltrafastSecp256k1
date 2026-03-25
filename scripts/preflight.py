@@ -13,6 +13,7 @@ Validates that changes follow the project's non-negotiable rules:
 Usage:
     python3 scripts/preflight.py                    # full check
     python3 scripts/preflight.py --security         # security only
+    python3 scripts/preflight.py --cuda-msvc        # Windows/MSVC CUDA portability only
     python3 scripts/preflight.py --drift            # narrative drift only
     python3 scripts/preflight.py --coverage         # coverage gaps only
     python3 scripts/preflight.py --freshness        # graph freshness only
@@ -45,6 +46,16 @@ BOLD = '\033[1m'
 RESET = '\033[0m'
 
 _VALIDATE_ASSURANCE_CACHE = None
+
+CUDA_MSVC_SENSITIVE_HEADERS = [
+    'cuda/include/secp256k1.cuh',
+    'cuda/include/ecdsa.cuh',
+    'cuda/include/recovery.cuh',
+    'cuda/include/schnorr.cuh',
+    'cuda/include/bip32.cuh',
+    'cuda/include/zk.cuh',
+    'cuda/include/host_helpers.cuh',
+]
 
 def get_conn():
     if not DB_PATH.exists():
@@ -83,6 +94,58 @@ def get_validate_assurance_payload():
     except json.JSONDecodeError as exc:
         _VALIDATE_ASSURANCE_CACHE = {'error': f'invalid JSON from validate_assurance.py: {exc}'}
     return _VALIDATE_ASSURANCE_CACHE
+
+
+def check_cuda_msvc_portability():
+    """Fail if GNU-only 128-bit integers reappear in active MSVC-sensitive CUDA headers."""
+    issues = []
+    pattern = re.compile(r'\b(?:unsigned\s+__int128|__uint128_t)\b')
+
+    for rel_path in CUDA_MSVC_SENSITIVE_HEADERS:
+        path = LIB_ROOT / rel_path
+        if not path.exists():
+            issues.append(f"  {RED}MISSING{RESET} {rel_path}")
+            continue
+
+        try:
+            conditional_stack = []
+            with open(path, 'r', encoding='utf-8', errors='replace') as handle:
+                for line_no, line in enumerate(handle, 1):
+                    stripped = line.strip()
+                    if stripped.startswith('//'):
+                        continue
+                    if stripped.startswith('#if'):
+                        native_only = (
+                            '__SIZEOF_INT128__' in stripped or
+                            'SECP256K1_CUDA_HAS_NATIVE_UINT128' in stripped
+                        )
+                        conditional_stack.append(native_only)
+                        continue
+                    if stripped.startswith('#else'):
+                        if conditional_stack:
+                            conditional_stack[-1] = not conditional_stack[-1]
+                        continue
+                    if stripped.startswith('#elif'):
+                        if conditional_stack:
+                            conditional_stack[-1] = (
+                                '__SIZEOF_INT128__' in stripped or
+                                'SECP256K1_CUDA_HAS_NATIVE_UINT128' in stripped
+                            )
+                        continue
+                    if stripped.startswith('#endif'):
+                        if conditional_stack:
+                            conditional_stack.pop()
+                        continue
+                    if any(conditional_stack):
+                        continue
+                    if pattern.search(line):
+                        issues.append(
+                            f"  {RED}MSVC-BREAK{RESET} {rel_path}:{line_no} -- GNU-only 128-bit integer in active CUDA header"
+                        )
+        except Exception as exc:
+            issues.append(f"  {RED}UNREADABLE{RESET} {rel_path}: {exc}")
+
+    return issues
 
 # ---------------------------------------------------------------------------
 # 1. Security Invariant Check
@@ -490,9 +553,22 @@ def run_all(args):
         else:
             print(f"  {GREEN}[OK] All security patterns preserved{RESET}\n")
 
+    # CUDA / MSVC portability
+    if mode in ('--all', '--cuda-msvc'):
+        print(f"{BOLD}[2/10] CUDA / MSVC Portability{RESET}")
+        cuda_msvc_issues = check_cuda_msvc_portability()
+        if cuda_msvc_issues:
+            for issue in cuda_msvc_issues:
+                print(issue)
+            total_issues += len(cuda_msvc_issues)
+            exit_code = 1
+            print(f"  {RED}{len(cuda_msvc_issues)} Windows/MSVC CUDA portability issue(s){RESET}\n")
+        else:
+            print(f"  {GREEN}[OK] Active CUDA headers are free of GNU-only __int128 usage{RESET}\n")
+
     # Narrative drift
     if mode in ('--all', '--drift'):
-        print(f"{BOLD}[2/6] Narrative Drift Detection{RESET}")
+        print(f"{BOLD}[3/10] Narrative Drift Detection{RESET}")
         drift_issues = check_narrative_drift()
         if drift_issues:
             for i in drift_issues:
@@ -504,7 +580,7 @@ def run_all(args):
 
     # Coverage
     if mode in ('--all', '--coverage'):
-        print(f"{BOLD}[3/6] Test Coverage Gaps{RESET}")
+        print(f"{BOLD}[4/10] Test Coverage Gaps{RESET}")
         gaps = check_coverage_gaps()
         if gaps:
             for path, lines in sorted(gaps, key=lambda x: -x[1])[:20]:
@@ -516,7 +592,7 @@ def run_all(args):
 
     # Freshness
     if mode in ('--all', '--freshness'):
-        print(f"{BOLD}[4/6] Graph Freshness{RESET}")
+        print(f"{BOLD}[5/10] Graph Freshness{RESET}")
         stale, built = check_freshness()
         if stale:
             for kind, path, lines in stale[:15]:
@@ -530,7 +606,7 @@ def run_all(args):
 
     # Changed files
     if mode in ('--all', '--claims'):
-        print(f"{BOLD}[5/9] Assurance Claim Surfaces{RESET}")
+        print(f"{BOLD}[6/10] Assurance Claim Surfaces{RESET}")
         claim_issues = check_claim_surfaces()
         if claim_issues:
             for issue in claim_issues:
@@ -542,7 +618,7 @@ def run_all(args):
             print(f"  {GREEN}[OK] Claim surfaces resolve and are graph-indexed{RESET}\n")
 
     if mode in ('--all', '--ai-review'):
-        print(f"{BOLD}[6/9] AI Review Event Log{RESET}")
+        print(f"{BOLD}[7/10] AI Review Event Log{RESET}")
         ai_review_issues = check_ai_review_log()
         if ai_review_issues:
             for issue in ai_review_issues:
@@ -554,7 +630,7 @@ def run_all(args):
             print(f"  {GREEN}[OK] AI review-event log is schema-valid{RESET}\n")
 
     if mode in ('--all', '--gpu-evidence'):
-        print(f"{BOLD}[7/9] GPU Backend Evidence{RESET}")
+        print(f"{BOLD}[8/10] GPU Backend Evidence{RESET}")
         gpu_issues = check_gpu_backend_evidence()
         if gpu_issues:
             for issue in gpu_issues:
@@ -567,7 +643,7 @@ def run_all(args):
 
     # Changed files
     if mode in ('--all', '--changed'):
-        print(f"{BOLD}[8/9] Changed Files Impact{RESET}")
+        print(f"{BOLD}[9/10] Changed Files Impact{RESET}")
         changed = get_changed_files()
         if changed:
             print(f"  {len(changed)} files changed vs HEAD:")
@@ -598,7 +674,7 @@ def run_all(args):
 
     # ABI
     if mode in ('--all', '--abi'):
-        print(f"{BOLD}[9/9] ABI Surface{RESET}")
+        print(f"{BOLD}[10/10] ABI Surface{RESET}")
         added, removed = check_abi_surface()
         if added:
             print(f"  {CYAN}NEW functions (not in graph):{RESET}")
