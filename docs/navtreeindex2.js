@@ -1,6 +1,6 @@
 var NAVTREEINDEX2 =
 {
-"classsecp256k1_1_1fast_1_1Scalar.html#ae634c2ab98447b45a16a507b6d5b76d3":[2,0,1,3,19,3],
+"classsecp256k1_1_1fast_1_1Scalar.html#ae634c2ab98447b45a16a507b6d5b76d3":[3,0,1,2,14,3],
 "classsecp256k1_1_1fast_1_1Scalar.html#af46d0eadd4c73dc3da4d362e0c82fb8e":[2,0,1,3,19,25],
 "classsecp256k1_1_1fast_1_1Scalar.html#af46d0eadd4c73dc3da4d362e0c82fb8e":[3,0,1,2,14,25],
 "classsecp256k1_1_1fast_1_1Scalar.html#afe61b6a7cc507dc69b112074b9264e6c":[2,0,1,3,19,31],

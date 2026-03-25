@@ -74,7 +74,7 @@ var searchData=
   ['evidence_20methodology_71',['CT Evidence &amp; Methodology',['../index.html#autotoc_md75',1,'']]],
   ['examples_72',['examples',['../index.html#autotoc_md33',1,'Examples'],['../index.html#autotoc_md110',1,'secp256k1 Quick Start (C++ Examples)']]],
   ['experimental_20no_20abi_20promise_73',['Tier 2 &amp;ndash; Experimental (no ABI promise)',['../md_include_2ufsecp_2SUPPORTED__GUARANTEES.html#autotoc_md6',1,'']]],
-  ['exploit_20poc_20test_20suite_2078_20tests_2014_20categories_74',['Exploit PoC Test Suite (78 Tests, 14 Categories)',['../index.html#autotoc_md28',1,'']]],
+  ['exploit_20poc_20test_20suite_2086_20tests_2014_20coverage_20areas_74',['Exploit PoC Test Suite (86 Tests, 14 Coverage Areas)',['../index.html#autotoc_md28',1,'']]],
   ['export_5fprivate_5fkey_75',['export_private_key',['../namespacesecp256k1_1_1coins_1_1wallet.html#a918640ef7ce84018e655e00a9a832524',1,'secp256k1::coins::wallet']]],
   ['export_5fpublic_5fkey_5fhex_76',['export_public_key_hex',['../namespacesecp256k1_1_1coins_1_1wallet.html#a8e215909bafc47a86b4aa59a4c133d55',1,'secp256k1::coins::wallet']]],
   ['exposed_77',['Tier 3 &amp;ndash; Internal (never exposed)',['../md_include_2ufsecp_2SUPPORTED__GUARANTEES.html#autotoc_md8',1,'']]],

@@ -1,5 +1,6 @@
 var NAVTREEINDEX13 =
 {
+"ufsecp_8h.html#af69d4112faac5f9ce587f04010cbcc36":[4,0,1,1,0,107],
 "ufsecp_8h.html#afa379325da397241df1573c63f50f4ad":[4,0,1,1,0,50],
 "ufsecp_8h.html#afc450216435b131ee36ee3553a49f15c":[4,0,1,1,0,9],
 "ufsecp_8h.html#afd52a6cbdc6d91406ba5314997d7b596":[4,0,1,1,0,114],
@@ -248,6 +249,5 @@ var NAVTREEINDEX13 =
 "wallet_8hpp.html#a229f2a01b578ae205e28509b27ffdf9d":[4,0,0,0,0,0,7,10],
 "wallet_8hpp.html#a23b527c5bbfe476ae019d04aaef4344f":[4,0,0,0,0,0,7,9],
 "wallet_8hpp.html#a32d5a1bc3d9d883cac4397ae94c096cb":[4,0,0,0,0,0,7,12],
-"wallet_8hpp.html#a368fb1e877d3943b596aedbf525aae4c":[4,0,0,0,0,0,7,6],
-"wallet_8hpp.html#a53b975a7a3696210c8be62537c488f1d":[4,0,0,0,0,0,7,4]
+"wallet_8hpp.html#a368fb1e877d3943b596aedbf525aae4c":[4,0,0,0,0,0,7,6]
 };

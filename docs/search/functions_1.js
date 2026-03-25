@@ -36,6 +36,6 @@ var searchData=
   ['bitcoin_5fsig_5fto_5fbase64_33',['bitcoin_sig_to_base64',['../namespacesecp256k1_1_1coins.html#a41cfc241387d7265fec2220b32b642c6',1,'secp256k1::coins']]],
   ['bitcoin_5fsign_5fmessage_34',['bitcoin_sign_message',['../namespacesecp256k1_1_1coins.html#a8aaa43a6c3bbd38f750ee9ca9751fba3',1,'secp256k1::coins']]],
   ['bitcoin_5fverify_5fmessage_35',['bitcoin_verify_message',['../namespacesecp256k1_1_1coins.html#a08f9922a9aea1faad6df86c6c55d80a3',1,'secp256k1::coins']]],
-  ['bool_5fto_5fmask_36',['bool_to_mask',['../namespacesecp256k1_1_1ct.html#afeef0db6bdf114f53c2a9a156d551055',1,'secp256k1::ct']]],
+  ['bool_5fto_5fmask_36',['bool_to_mask',['../namespacesecp256k1_1_1ct.html#aa3677f36024ac1630d6ba4082a556bd8',1,'secp256k1::ct']]],
   ['build_5ftap_5ftx_5fdata_37',['build_tap_tx_data',['../ufsecp__impl_8cpp.html#aa617ab50e596efad0fada829188dbe30',1,'ufsecp_impl.cpp']]]
 ];

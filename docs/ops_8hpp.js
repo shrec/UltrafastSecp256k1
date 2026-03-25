@@ -1,8 +1,9 @@
 var ops_8hpp =
 [
     [ "SECP256K1_CLASSIFY", "ops_8hpp.html#a8b0fab70453a2cf85b3d7f3f7e55ba78", null ],
+    [ "SECP256K1_CT_NO_STACK_PROTECTOR", "ops_8hpp.html#a6b2b19597a7b4f54837b907319ce0be9", null ],
     [ "SECP256K1_DECLASSIFY", "ops_8hpp.html#a10028caa63adfa2c6c2ff075a0de6377", null ],
-    [ "bool_to_mask", "ops_8hpp.html#afeef0db6bdf114f53c2a9a156d551055", null ],
+    [ "bool_to_mask", "ops_8hpp.html#aa3677f36024ac1630d6ba4082a556bd8", null ],
     [ "cmov256", "ops_8hpp.html#a64999411c70b8fbc3e914a6969074744", null ],
     [ "cmov64", "ops_8hpp.html#a1e5b7e2fb038f58c50a09666fc9b9315", null ],
     [ "cswap256", "ops_8hpp.html#a1b1727e3ebbe1d3e404615e56f341fe1", null ],
@@ -11,7 +12,7 @@ var ops_8hpp =
     [ "ct_select", "ops_8hpp.html#a3b1d35bc1609e2758499386c0d1ed59e", null ],
     [ "eq_mask", "ops_8hpp.html#acbdbc65cfa2b7d46a7132edafd449be8", null ],
     [ "is_nonzero_mask", "ops_8hpp.html#a51e67ed0c010816389b43cea440a1f60", null ],
-    [ "is_zero_mask", "ops_8hpp.html#af4781ecf28374567287c31f52e96b42e", null ],
+    [ "is_zero_mask", "ops_8hpp.html#ad4bdb019aac5e3d4c267295ad61dd598", null ],
     [ "lt_mask", "ops_8hpp.html#a0a4336fe5228a718d36acf600faae4df", null ],
     [ "value_barrier", "ops_8hpp.html#afd63109c8236d3322af884fe4ada2645", null ],
     [ "value_barrier", "ops_8hpp.html#a85a7d82aa4c208dbbd1f5de6b6f7d8ac", null ]

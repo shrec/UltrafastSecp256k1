@@ -56,7 +56,7 @@ var searchData=
   ['platform_20comparison_53',['secp256k1 Benchmarks &amp;ndash; Cross-Platform Comparison',['../index.html#autotoc_md79',1,'']]],
   ['platform_20support_20matrix_54',['Platform Support Matrix',['../index.html#autotoc_md55',1,'']]],
   ['platforms_55',['Porting to New Platforms',['../index.html#autotoc_md86',1,'']]],
-  ['poc_20test_20suite_2078_20tests_2014_20categories_56',['Exploit PoC Test Suite (78 Tests, 14 Categories)',['../index.html#autotoc_md28',1,'']]],
+  ['poc_20test_20suite_2086_20tests_2014_20coverage_20areas_56',['Exploit PoC Test Suite (86 Tests, 14 Coverage Areas)',['../index.html#autotoc_md28',1,'']]],
   ['point_57',['point',['../classsecp256k1_1_1fast_1_1Point.html',1,'secp256k1::fast::Point'],['../namespacesecp256k1_1_1ct.html#a8e1ae79cac2082af82e69fc1f66a6f0a',1,'secp256k1::ct::Point'],['../ufsecp__impl_8cpp.html#a60051d6ae89015e67ae01b3c4417ceab',1,'Point:&#160;ufsecp_impl.cpp'],['../structsecp256k1_1_1PedersenCommitment.html#aea692ceb3cb7317917b103d5ede41577',1,'secp256k1::PedersenCommitment::point'],['../structsecp256k1_1_1SchnorrXonlyPubkey.html#a70a3b6e258dc7b2af6f7267e42d5e06c',1,'secp256k1::SchnorrXonlyPubkey::point'],['../classsecp256k1_1_1fast_1_1Point.html#ab19e0f8f8713ccf500103a167315896e',1,'secp256k1::fast::Point::Point()']]],
   ['point_20operations_58',['Basic Point Operations',['../index.html#autotoc_md111',1,'']]],
   ['point_2ehpp_59',['point.hpp',['../point_8hpp.html',1,'(Global Namespace)'],['../ct_2point_8hpp.html',1,'(Global Namespace)']]],

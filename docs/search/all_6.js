@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['78_20tests_2014_20categories_0',['Exploit PoC Test Suite (78 Tests, 14 Categories)',['../index.html#autotoc_md28',1,'']]]
+  ['86_20tests_2014_20coverage_20areas_0',['Exploit PoC Test Suite (86 Tests, 14 Coverage Areas)',['../index.html#autotoc_md28',1,'']]]
 ];

@@ -7,7 +7,7 @@ var index =
       [ "By the Numbers", "index.html#autotoc_md25", null ],
       [ "CI/CD Pipeline Highlights", "index.html#autotoc_md26", null ],
       [ "What \"Self-Audit Culture\" Means in Practice", "index.html#autotoc_md27", null ],
-      [ "Exploit PoC Test Suite (78 Tests, 14 Categories)", "index.html#autotoc_md28", null ],
+      [ "Exploit PoC Test Suite (86 Tests, 14 Coverage Areas)", "index.html#autotoc_md28", null ],
       [ "Self-Audit Document Index", "index.html#autotoc_md29", null ]
     ] ],
     [ "</blockquote>", "index.html#autotoc_md30", null ],

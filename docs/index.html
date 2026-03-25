@@ -94,7 +94,7 @@ $(document).ready(function(){initNavTree('index.html',''); initResizable(); });
 </div><!--header-->
 <div class="contents">
 <div class="textblock"><p><a class="anchor" id="md_README"></a> <a href="https://github.com/shrec/UltrafastSecp256k1/actions/workflows/ci.yml"><img src="https://github.com/shrec/UltrafastSecp256k1/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI" style="pointer-events: none;" class="inline"/></a> <a href="https://github.com/shrec/UltrafastSecp256k1/actions/workflows/ct-verif.yml"><img src="https://github.com/shrec/UltrafastSecp256k1/actions/workflows/ct-verif.yml/badge.svg?branch=main" alt="ct-verif" style="pointer-events: none;" class="inline"/></a> <a href="https://github.com/shrec/UltrafastSecp256k1/actions/workflows/codeql.yml"><img src="https://github.com/shrec/UltrafastSecp256k1/actions/workflows/codeql.yml/badge.svg?branch=main" alt="CodeQL" style="pointer-events: none;" class="inline"/></a> <a href="https://securityscorecards.dev/viewer/?uri=github.com/shrec/UltrafastSecp256k1"><img src="https://api.securityscorecards.dev/projects/github.com/shrec/UltrafastSecp256k1/badge" alt="OSSF Scorecard" class="inline"/></a> <a href="https://github.com/shrec/UltrafastSecp256k1/actions/workflows/gpu-selfhosted.yml"><img src="https://github.com/shrec/UltrafastSecp256k1/actions/workflows/gpu-selfhosted.yml/badge.svg" alt="GPU Self-Hosted" style="pointer-events: none;" class="inline"/></a></p>
-<p><b>Zero-dependency, multi-backend <a class="el" href="namespacesecp256k1.html">secp256k1</a> cryptography engine</b> — built independently from scratch for Bitcoin, Ethereum, Silent Payments, threshold signatures (FROST, MuSig2), embedded IoT systems, and GPU-scale batch workloads. UltrafastSecp256k1 delivers GPU-accelerated ECDSA, Schnorr signing/verification, and <b>world-first open-source GPU FROST partial verification</b>, constant-time CPU signing paths, HD key derivation (BIP-32/44), Taproot (BIP-340/341), ZK range proofs, and 12+ platform targets including CUDA, Metal, OpenCL, ROCm, WebAssembly, RISC-V, ESP32, and STM32.</p>
+<p><b>Audit-first, high-performance <a class="el" href="namespacesecp256k1.html">secp256k1</a> engine for C++ and GPU-scale batch workloads</b> — built independently from scratch for Bitcoin, Ethereum, Silent Payments, threshold signatures (FROST, MuSig2), embedded systems, and reproducible benchmarking. UltrafastSecp256k1 combines optimized CPU arithmetic, a stable multi-backend GPU C ABI, <b>world-first open-source GPU FROST partial verification</b>, constant-time CPU signing paths, HD key derivation (BIP-32/44), Taproot (BIP-340/341), ZK range proofs, and 12+ platform targets including CUDA, OpenCL, Metal, WebAssembly, RISC-V, ESP32, and STM32.</p>
 <blockquote class="doxtable">
 <p>&zwj;<b>Keywords:</b> <a class="el" href="namespacesecp256k1.html">secp256k1</a> GPU · ECDSA batch verify · Schnorr BIP-340 · FROST threshold signatures · MuSig2 · Bitcoin cryptography · CUDA <a class="el" href="namespacesecp256k1.html">secp256k1</a> · OpenCL ECC · BIP-352 Silent Payments · constant-time cryptography · embedded ECC · WebAssembly crypto </p>
 </blockquote>
@@ -124,23 +124,29 @@ Recent Performance Milestones (March 2026)</h2>
 <h2><a class="anchor" id="autotoc_md19"></a>
 Why UltrafastSecp256k1?</h2>
 <ul>
-<li><b>Fastest open-source GPU signatures</b> &ndash; no other library provides <a class="el" href="namespacesecp256k1.html">secp256k1</a> ECDSA + Schnorr sign/verify <b>and GPU FROST partial verification</b> on CUDA; OpenCL covers full ECC + ECDSA/Schnorr verify, Metal provides discovery/lifecycle (reproducible benchmark suite and raw logs)</li>
+<li><b>Differentiated GPU <a class="el" href="namespacesecp256k1.html">secp256k1</a> surface</b> &ndash; CUDA, OpenCL, and Metal all implement the stable 13-op GPU C ABI, while CUDA also carries the highest-throughput signing and verification kernels plus <b>GPU FROST partial verification</b> (reproducible benchmark suite and raw logs)</li>
 <li><b>High-performance CPU <a class="el" href="namespacesecp256k1.html">secp256k1</a> engine</b> &ndash; optimized generator multiply, scalar multiply, hashing, and serialization pipelines across x86-64, ARM64, RISC-V, and embedded targets (see bench_unified ratio table)</li>
 <li><b>BIP-352 Silent Payments at 11.00 M/s</b> &ndash; the full 7-stage GPU pipeline (k×P → hash → k×G → add → match) runs at 91.0 ns/op on CUDA, <b>267× faster</b> than single-threaded CPU (GPU bench, <a href="https://github.com/craigraw/bench_bip352">standalone CPU benchmark by @craigraw</a>)</li>
 <li><b>Built for modern <a class="el" href="namespacesecp256k1.html">secp256k1</a> workloads</b> &ndash; signing, verification, wallet derivation, threshold protocols, adaptor signatures, ZK primitives, address generation, and large-scale public-key pipelines in one engine</li>
 <li><b>Field-tested GPU pipeline</b> &ndash; the CUDA engine has been stress-tested in live high-throughput workflows over long-running sessions and very large point volumes, not only in short synthetic benchmarks</li>
 <li><b>Zero dependencies</b> &ndash; pure C++20, no Boost, no OpenSSL, compiles anywhere with a conforming compiler</li>
 <li><b>Dual-layer security</b> &ndash; variable-time FAST path for throughput, constant-time CT path for secret-key operations</li>
-<li><b>12+ platforms</b> &ndash; x86-64, ARM64, RISC-V, WASM, iOS, Android, ESP32, STM32, CUDA, Metal, OpenCL, ROCm</li>
-<li><b>Audit-first engineering culture</b> &ndash; 1,000,000+ internal assertions per build, 55 audit modules, <b>78 exploit PoC tests across 14 attack categories</b>, 23 CI/CD workflows, 3 formal constant-time verification pipelines, and 1.3M+ nightly differential tests on every commit — security is a continuous process, not a checkbox</li>
+<li><b>12+ platforms</b> &ndash; x86-64, ARM64, RISC-V, WASM, iOS, Android, ESP32, STM32, CUDA, Metal, OpenCL, plus an early-development ROCm/HIP compatibility path slated for hardware-backed validation</li>
+<li><b>Audit-first engineering culture</b> &ndash; 1,000,000+ internal assertions per build, 55 unified audit modules, <b>86 exploit PoC tests across 14 coverage areas</b>, 24 GitHub Actions workflows, 3 formal constant-time verification pipelines, 1.3M+ nightly differential checks, and a graph-driven self-audit framework built around reproducibility rather than one-off trust signals</li>
 </ul>
 <blockquote class="doxtable">
 <p>&zwj;<b>Benchmark reproducibility:</b> All numbers come from pinned compiler/driver/toolkit versions with exact commands and raw logs. See `docs/BENCHMARKS.md` (methodology) and the <a href="https://shrec.github.io/UltrafastSecp256k1/dev/bench/">live dashboard</a>. </p>
 </blockquote>
 <blockquote class="doxtable">
-<p>&zwj;<b>Why this library, in depth?</b> See WHY_ULTRAFASTSECP256K1.md for a full breakdown of the audit culture, 23-workflow CI/CD pipeline, formal verification layers, and supply-chain hardening that back these claims. </p>
+<p>&zwj;<b>Why this library, in depth?</b> See WHY_ULTRAFASTSECP256K1.md for a full breakdown of the audit culture, 24-workflow CI/CD pipeline, graph-assisted review model, formal verification layers, and supply-chain hardening that back these claims. </p>
 </blockquote>
-<p><b>Quick links:</b> <a href="https://discord.gg/sUmW7cc5">Discord</a> * Benchmarks * Community Benchmarks * Build Guide * API Reference * Binding Usage Standard * Security Policy * Threat Model * **Why This Library?** * Porting Guide * <a href="https://github.com/sponsors/shrec"><b>Sponsor</b></a></p>
+<blockquote class="doxtable">
+<p>&zwj;<b>External auditor prep:</b> Run <code>bash scripts/external_audit_prep.sh</code> to produce a reproducible auditor-facing bundle with preflight outputs, assurance export, traceability artifacts, and an optional full audit package. </p>
+</blockquote>
+<blockquote class="doxtable">
+<p>&zwj;<b>Claim map:</b> Top-level trust claims are keyed in docs/ASSURANCE_LEDGER.md: CPU CT routing <code>A-001</code>, stable GPU ABI <code>A-002</code>, cross-backend GPU parity <code>A-003</code>, benchmark reproducibility <code>A-004</code>, exploit-audit surface <code>A-005</code>, graph-assisted review <code>A-006</code>, open self-audit transparency <code>A-007</code>, and ROCm/HIP status discipline <code>A-008</code>. </p>
+</blockquote>
+<p><b>Quick links:</b> <a href="https://discord.gg/sUmW7cc5">Discord</a> * Benchmarks * Community Benchmarks * Build Guide * API Reference * Binding Usage Standard * Security Policy * Threat Model * Assurance Ledger * AI Audit Protocol * **Why This Library?** * Porting Guide * <a href="https://github.com/sponsors/shrec"><b>Sponsor</b></a></p>
 <hr  />
 <p><a href="https://github.com/shrec/UltrafastSecp256k1/stargazers"><img src="https://img.shields.io/github/stars/shrec/UltrafastSecp256k1?style=flat-square&amp;logo=github&amp;label=Stars" alt="GitHub stars" class="inline"/></a> <a href="https://github.com/shrec/UltrafastSecp256k1/network/members"><img src="https://img.shields.io/github/forks/shrec/UltrafastSecp256k1?style=flat-square&amp;logo=github&amp;label=Forks" alt="GitHub forks" class="inline"/></a> <a href="https://github.com/shrec/UltrafastSecp256k1/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/shrec/UltrafastSecp256k1/ci.yml?branch=main&amp;label=CI" alt="CI" class="inline"/></a> <a href="https://shrec.github.io/UltrafastSecp256k1/dev/bench/"><img src="https://img.shields.io/github/actions/workflow/status/shrec/UltrafastSecp256k1/benchmark.yml?branch=main&amp;label=Bench" alt="Benchmark" class="inline"/></a> <a href="https://github.com/shrec/UltrafastSecp256k1/releases/latest"><img src="https://img.shields.io/github/v/release/shrec/UltrafastSecp256k1?label=Release" alt="Release" class="inline"/></a> <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT" style="pointer-events: none;" class="inline"/></a> <a href="https://en.cppreference.com/w/cpp/20"><img src="https://img.shields.io/badge/C%2B%2B-20-blue.svg" alt="C++20" style="pointer-events: none;" class="inline"/></a> <a href="https://scorecard.dev/viewer/?uri=github.com/shrec/UltrafastSecp256k1"><img src="https://api.scorecard.dev/projects/github.com/shrec/UltrafastSecp256k1/badge" alt="OpenSSF Scorecard" class="inline"/></a> <a href="https://www.bestpractices.dev/projects/12011"><img src="https://www.bestpractices.dev/projects/12011/badge" alt="OpenSSF Best Practices" class="inline"/></a> <a href="https://github.com/shrec/UltrafastSecp256k1/actions/workflows/codeql.yml"><img src="https://github.com/shrec/UltrafastSecp256k1/actions/workflows/codeql.yml/badge.svg" alt="CodeQL" style="pointer-events: none;" class="inline"/></a> <a href="https://github.com/shrec/UltrafastSecp256k1/actions/workflows/security-audit.yml"><img src="https://github.com/shrec/UltrafastSecp256k1/actions/workflows/security-audit.yml/badge.svg" alt="Security Audit" style="pointer-events: none;" class="inline"/></a> <a href="https://github.com/shrec/UltrafastSecp256k1/actions/workflows/ct-arm64.yml"><img src="https://github.com/shrec/UltrafastSecp256k1/actions/workflows/ct-arm64.yml/badge.svg" alt="CT ARM64" style="pointer-events: none;" class="inline"/></a> <a href="https://github.com/shrec/UltrafastSecp256k1/actions/workflows/ct-verif.yml"><img src="https://github.com/shrec/UltrafastSecp256k1/actions/workflows/ct-verif.yml/badge.svg" alt="CT-Verif" style="pointer-events: none;" class="inline"/></a> <a href="https://github.com/shrec/UltrafastSecp256k1/actions/workflows/valgrind-ct.yml"><img src="https://github.com/shrec/UltrafastSecp256k1/actions/workflows/valgrind-ct.yml/badge.svg" alt="Valgrind CT" style="pointer-events: none;" class="inline"/></a> <a href="https://github.com/shrec/UltrafastSecp256k1/actions/workflows/bench-regression.yml"><img src="https://github.com/shrec/UltrafastSecp256k1/actions/workflows/bench-regression.yml/badge.svg" alt="Perf Gate" style="pointer-events: none;" class="inline"/></a> <a href="https://github.com/shrec/UltrafastSecp256k1/actions/workflows/clang-tidy.yml"><img src="https://github.com/shrec/UltrafastSecp256k1/actions/workflows/clang-tidy.yml/badge.svg" alt="Clang-Tidy" style="pointer-events: none;" class="inline"/></a> <a href="https://sonarcloud.io/summary/overall?id=shrec_UltrafastSecp256k1"><img src="https://sonarcloud.io/api/project_badges/measure?project=shrec_UltrafastSecp256k1&amp;metric=security_rating" alt="SonarCloud" class="inline"/></a> <a href="https://codecov.io/gh/shrec/UltrafastSecp256k1"><img src="https://codecov.io/gh/shrec/UltrafastSecp256k1/graph/badge.svg" alt="codecov" style="pointer-events: none;" class="inline"/></a> <a href="https://discord.gg/E4BK8SeMYU"><img src="https://img.shields.io/badge/Discord-Join%20Us-5865F2?logo=discord&amp;logoColor=white" alt="Discord" class="inline"/></a></p>
 <p><b>Supported Blockchains (secp256k1-based):</b></p>
@@ -152,21 +158,26 @@ Why UltrafastSecp256k1?</h2>
 Highlights</h1>
 <ul>
 <li><b>BIP-352 GPU pipeline at 11.00 M/s</b> &ndash; full silent payment scanning pipeline on CUDA (91.0 ns/op), 267× faster than CPU</li>
-<li><b>GPU-accelerated <a class="el" href="namespacesecp256k1.html">secp256k1</a></b> &ndash; ECDSA + Schnorr sign/verify on CUDA; ECDSA + Schnorr verify + core ECC on OpenCL; Metal experimental</li>
-<li>**GPU C ABI (<code>ufsecp_gpu</code>)** &ndash; stable FFI for GPU batch ops across CUDA, OpenCL, and Metal (13 ops total; 8/8 core parity + 5 ZK/BIP-324 CUDA-first ops)</li>
-<li><b>Zero-Knowledge cryptographic layer</b> &ndash; Pedersen commitments, DLEQ proofs, Bulletproof range proofs, Ethereum-compatible Keccak-256</li>
-<li><b>17–67× faster batch operations</b> &ndash; all-affine Pippenger with touched-bucket optimization</li>
-<li><b>Multi-language bindings</b> &ndash; Python, Node.js, Rust, Go, C#, Java, Swift, PHP, Ruby, Dart, React Native</li>
-<li><b>Embedded device support</b> &ndash; ESP32-S3, ESP32-P4, ESP32-C6, STM32 Cortex-M</li>
-<li><b>Zero-dependency C++20 core</b> &ndash; no Boost, no OpenSSL, compiles anywhere</li>
-<li><b>Massively parallel workloads</b> &ndash; batch signatures, key scanning, address generation at GPU scale</li>
+<li><b>GPU-accelerated <a class="el" href="namespacesecp256k1.html">secp256k1</a></b> &ndash; high-throughput CUDA signing/verification kernels plus cross-backend GPU batch operations on CUDA, OpenCL, and Metal; production secret-bearing signing still routes through the CPU CT layer</li>
+<li><b>GPU C ABI (<code>ufsecp_gpu</code>)** &ndash; stable 13-op FFI for GPU batch ops across CUDA, OpenCL, and Metal, with full backend parity on the public surface</b></li>
+<li><b><b>Zero-Knowledge cryptographic layer</b> &ndash; Pedersen commitments, DLEQ proofs, Bulletproof range proofs, Ethereum-compatible Keccak-256</b></li>
+<li><b><b>17–67× faster batch operations</b> &ndash; all-affine Pippenger with touched-bucket optimization</b></li>
+<li><b><b>Multi-language bindings</b> &ndash; Python, Node.js, Rust, Go, C#, Java, Swift, PHP, Ruby, Dart, React Native</b></li>
+<li><b><b>Embedded device support</b> &ndash; ESP32-S3, ESP32-P4, ESP32-C6, STM32 Cortex-M</b></li>
+<li><b><b>Zero-dependency C++20 core</b> &ndash; no Boost, no OpenSSL, compiles anywhere</b></li>
+<li><b><b>Massively parallel workloads</b> &ndash; batch signatures, key scanning, address generation at GPU scale</b></li>
 </ul>
-<hr  />
+<p><b></p><hr  />
+<p></b></p>
+<p><b></b></p>
 <h1><a class="anchor" id="autotoc_md24"></a>
 Engineering Quality &amp; Self-Audit Culture</h1>
-<blockquote class="doxtable">
+<p><b></b></p>
+<p><b></p><blockquote class="doxtable">
 <p>&zwj;Most high-performance cryptographic libraries ship fast code and trust that it is correct. UltrafastSecp256k1 ships fast code <b>and then systematically tries to break it</b>. The internal self-audit system was designed in parallel with the cryptographic implementation as a first-class engineering artifact — not bolted on afterwards. </p>
 </blockquote>
+<p>The governing idea is Bitcoin-style: **don't trust, verify</b>. The project does not treat assurance as a PDF milestone that must be waited on before the next improvement. Instead, it treats auditability as an always-on property of the repository: reproducible builds, rerunnable tests, structured artifacts, graph-backed code navigation, and continuous adversarial review that anyone can repeat.</p>
+<p>This top-level narrative maps directly to the assurance ledger: CT secret-key routing (<code>A-001</code>), exploit-style audit coverage (<code>A-005</code>), graph-assisted review (<code>A-006</code>), and self-audit transparency (<code>A-007</code>).</p>
 <h2><a class="anchor" id="autotoc_md25"></a>
 By the Numbers</h2>
 <table class="markdownTable">
@@ -177,9 +188,9 @@ By the Numbers</h2>
 <tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone">Audit modules (<code>unified_audit_runner</code>)   </td><td class="markdownTableBodyNone"><b>55 modules, 8 sections, 0 failures</b>    </td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone">Exploit PoC test files   </td><td class="markdownTableBodyNone"><b>78 tests, 14 attack categories, 0 failures</b>    </td></tr>
+<td class="markdownTableBodyNone">Exploit PoC test files   </td><td class="markdownTableBodyNone"><b>86 tests, 14 coverage areas, 0 failures</b>    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone">CI/CD workflows   </td><td class="markdownTableBodyNone"><b>23 GitHub Actions workflows</b>    </td></tr>
+<td class="markdownTableBodyNone">CI/CD workflows   </td><td class="markdownTableBodyNone"><b>24 GitHub Actions workflows</b>    </td></tr>
 <tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone">Build matrix (arch × config × OS)   </td><td class="markdownTableBodyNone"><b>7 × 17 × 5 = 595 combinations</b>    </td></tr>
 <tr class="markdownTableRowEven">
@@ -237,44 +248,42 @@ What "Self-Audit Culture" Means in Practice</h2>
 <li>All 55 audit modules return <code>AUDIT-READY</code> status. Zero failures across all tested platforms.</li>
 </ul>
 <h2><a class="anchor" id="autotoc_md28"></a>
-Exploit PoC Test Suite (78 Tests, 14 Categories)</h2>
-<p>In addition to the 55-module <code>unified_audit_runner</code>, UltrafastSecp256k1 ships <b>78 dedicated exploit-style PoC tests</b> that actively attempt to break the library — covering every major protocol, primitive, and attack surface. Each test in <code>audit/test_exploit_*.cpp</code> compiles and runs standalone, verifying that attacks fail, edge cases are handled, and security properties hold under adversarial conditions.</p>
+Exploit PoC Test Suite (86 Tests, 14 Coverage Areas)</h2>
+<p>In addition to the 55-module <code>unified_audit_runner</code>, UltrafastSecp256k1 ships <b>86 dedicated exploit-style PoC tests</b> that actively try to break the library across its highest-risk surfaces. Each <code>audit/test_exploit_*.cpp</code> target builds and runs standalone so failures stay easy to attribute and reproduce.</p>
 <table class="markdownTable">
 <tr class="markdownTableHead">
-<th class="markdownTableHeadNone">Category   </th><th class="markdownTableHeadNone">Tests   </th><th class="markdownTableHeadNone">Attack Focus    </th></tr>
+<th class="markdownTableHeadNone">Coverage Area   </th><th class="markdownTableHeadNone">Representative attack focus    </th></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone">ECDSA / Signature   </td><td class="markdownTableBodyNone">7   </td><td class="markdownTableBodyNone">malleability (BIP-62 low-s), RFC 6979 KAT, recovery edge cases, ECDH degenerate inputs    </td></tr>
+<td class="markdownTableBodyNone">ECDSA / Signature   </td><td class="markdownTableBodyNone">malleability, RFC 6979 KATs, recovery edge cases    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone">Schnorr / BIP-340 / Batch   </td><td class="markdownTableBodyNone">5   </td><td class="markdownTableBodyNone">BIP-340 KAT, batch soundness, forge detection in <code>identify_invalid</code>    </td></tr>
+<td class="markdownTableBodyNone">Schnorr / BIP-340 / Batch   </td><td class="markdownTableBodyNone">batch soundness, forged signatures, invalid identification paths    </td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone">GLV / ECC Math   </td><td class="markdownTableBodyNone">11   </td><td class="markdownTableBodyNone">endomorphism properties, GLV ±k₁±k₂λ≡k decomposition, Pippenger MSM, multiscalar    </td></tr>
+<td class="markdownTableBodyNone">GLV / ECC Math   </td><td class="markdownTableBodyNone">endomorphism invariants, multiscalar correctness, Pippenger behavior    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone">BIP-32 / BIP-39 / HD Keys   </td><td class="markdownTableBodyNone">7   </td><td class="markdownTableBodyNone">depth/path overflow, hardened isolation, xpub guard, fingerprint collision    </td></tr>
+<td class="markdownTableBodyNone">BIP-32 / BIP-39 / HD Keys   </td><td class="markdownTableBodyNone">path overflow, hardened isolation, mnemonic and derivation edge cases    </td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone">MuSig2 / FROST   </td><td class="markdownTableBodyNone">11   </td><td class="markdownTableBodyNone">nonce reuse, rogue-key aggregation, Byzantine participant, DKG, Lagrange duplicate, index-zero    </td></tr>
+<td class="markdownTableBodyNone">MuSig2 / FROST   </td><td class="markdownTableBodyNone">nonce reuse, transcript fork equivocation, stale commitment replay, rogue-key aggregation, Byzantine participants, DKG and Lagrange edge cases    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone">Adaptor Signatures / ZK   </td><td class="markdownTableBodyNone">4   </td><td class="markdownTableBodyNone">parity attacks, extended adaptor, Pedersen homomorphism, ZK proof properties    </td></tr>
+<td class="markdownTableBodyNone">Adaptor Signatures / ZK   </td><td class="markdownTableBodyNone">adaptor parity attacks, Pedersen invariants, malformed ZK proofs    </td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone">Crypto Primitives / AEAD   </td><td class="markdownTableBodyNone">11   </td><td class="markdownTableBodyNone">ChaCha20-Poly1305 MAC bypass, nonce reuse, HKDF security, SHA/Keccak/RIPEMD KATs    </td></tr>
+<td class="markdownTableBodyNone">Crypto Primitives / AEAD   </td><td class="markdownTableBodyNone">ChaCha20-Poly1305 integrity, HKDF, SHA/Keccak/RIPEMD KATs    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone">ECIES   </td><td class="markdownTableBodyNone">3   </td><td class="markdownTableBodyNone">authentication forgery, encryption correctness, roundtrip    </td></tr>
+<td class="markdownTableBodyNone">ECIES   </td><td class="markdownTableBodyNone">authentication forgery, encryption correctness, roundtrip safety    </td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone">Bitcoin / Protocol BIPs   </td><td class="markdownTableBodyNone">6   </td><td class="markdownTableBodyNone">BIP-143 sighash, BIP-144 serialization, BIP-324 encrypted P2P session, SegWit, Taproot    </td></tr>
+<td class="markdownTableBodyNone">Bitcoin / Protocol BIPs   </td><td class="markdownTableBodyNone">BIP-143, BIP-144, BIP-324, SegWit, Taproot protocol edge cases    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone">Address / Wallet / Signing   </td><td class="markdownTableBodyNone">6   </td><td class="markdownTableBodyNone">address encoding, wallet API, private key handling, Ethereum signing, Bitcoin message signing    </td></tr>
+<td class="markdownTableBodyNone">Address / Wallet / Signing   </td><td class="markdownTableBodyNone">address encoding, wallet API misuse, Ethereum and Bitcoin signing flows    </td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone">Constant-Time / Security   </td><td class="markdownTableBodyNone">3   </td><td class="markdownTableBodyNone">CT key recovery, systematic CT verification, backend divergence detection    </td></tr>
+<td class="markdownTableBodyNone">Constant-Time / Security   </td><td class="markdownTableBodyNone">CT divergence, key-recovery style probes, backend divergence detection    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone">ElligatorSwift   </td><td class="markdownTableBodyNone">2   </td><td class="markdownTableBodyNone">ElligatorSwift encoding correctness, ElligatorSwift ECDH    </td></tr>
+<td class="markdownTableBodyNone">ElligatorSwift   </td><td class="markdownTableBodyNone">encoding correctness and ECDH roundtrips    </td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone">Self-Test / Recovery   </td><td class="markdownTableBodyNone">2   </td><td class="markdownTableBodyNone">self-test API, extended recovery edge cases    </td></tr>
+<td class="markdownTableBodyNone">Self-Test / Recovery   </td><td class="markdownTableBodyNone">self-test API behavior and recovery boundary cases    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone">Batch Verify   </td><td class="markdownTableBodyNone">1   </td><td class="markdownTableBodyNone">batch verify correctness math    </td></tr>
-<tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone"><b>Total</b>   </td><td class="markdownTableBodyNone"><b>78</b>   </td><td class="markdownTableBodyNone"><b>0 failures across all categories</b>   </td></tr>
+<td class="markdownTableBodyNone">Batch Verify   </td><td class="markdownTableBodyNone">aggregate verification math correctness   </td></tr>
 </table>
 <blockquote class="doxtable">
-<p>&zwj;All 78 exploit tests live in <code>audit/test_exploit_*.cpp</code>. Build with <code>cmake -S . -B build-audit -G Ninja -DCMAKE_BUILD_TYPE=Release</code> and run each as a standalone target or via <code>ctest</code>. </p>
+<p>&zwj;All 86 exploit tests live in <code>audit/test_exploit_*.cpp</code>. Build with <code>cmake -S . -B build-audit -G Ninja -DCMAKE_BUILD_TYPE=Release</code> and run them standalone or via <code>ctest</code>. </p>
 </blockquote>
 <h2><a class="anchor" id="autotoc_md29"></a>
 Self-Audit Document Index</h2>

@@ -93,7 +93,7 @@ var searchData=
   ['blockquote_90',['blockquote',['../index.html#autotoc_md93',1,'&lt;/blockquote&gt;'],['../index.html#autotoc_md100',1,'&lt;/blockquote&gt;'],['../index.html#autotoc_md132',1,'&lt;/blockquote&gt;'],['../index.html#autotoc_md52',1,'&lt;/blockquote&gt;'],['../index.html#autotoc_md30',1,'&lt;/blockquote&gt;'],['../index.html#autotoc_md144',1,'&lt;/blockquote&gt;'],['../index.html#autotoc_md35',1,'&lt;/blockquote&gt;'],['../md_include_2ufsecp_2SUPPORTED__GUARANTEES.html#autotoc_md12',1,'&lt;/blockquote&gt;'],['../md_include_2ufsecp_2SUPPORTED__GUARANTEES.html#autotoc_md7',1,'&lt;/blockquote&gt;']]],
   ['bloom_5ffilter_5fpath_91',['bloom_filter_path',['../structsecp256k1_1_1fast_1_1FixedBaseConfig.html#a1bca90c39dd74eb434d629c5f4e99462',1,'secp256k1::fast::FixedBaseConfig']]],
   ['bnbsmartchain_92',['BNBSmartChain',['../namespacesecp256k1_1_1coins.html#a76432ddb4aad2093674906d6ab3de77c',1,'secp256k1::coins']]],
-  ['bool_5fto_5fmask_93',['bool_to_mask',['../namespacesecp256k1_1_1ct.html#afeef0db6bdf114f53c2a9a156d551055',1,'secp256k1::ct']]],
+  ['bool_5fto_5fmask_93',['bool_to_mask',['../namespacesecp256k1_1_1ct.html#aa3677f36024ac1630d6ba4082a556bd8',1,'secp256k1::ct']]],
   ['bounty_20development_94',['Seeking Sponsors &amp;ndash; Bug Bounty &amp; Development',['../index.html#autotoc_md38',1,'']]],
   ['bounty_20program_95',['1. Bug Bounty Program',['../index.html#autotoc_md39',1,'']]],
   ['browser_20node_20js_96',['WASM secp256k1 (Browser &amp; Node.js)',['../index.html#autotoc_md88',1,'']]],
