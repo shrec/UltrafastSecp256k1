@@ -21,6 +21,7 @@ Usage:
     python3 scripts/preflight.py --ai-review        # AI review-event log checks
     python3 scripts/preflight.py --gpu-evidence     # GPU backend evidence / publishability checks
     python3 scripts/preflight.py --changed          # check git-changed files
+    python3 scripts/preflight.py --secret-paths     # fail closed on secret-bearing edits without doc updates
     python3 scripts/preflight.py --abi              # ABI surface check
 """
 
@@ -32,6 +33,8 @@ import sys
 import subprocess
 from pathlib import Path
 from datetime import datetime, timezone
+
+from check_secret_path_changes import build_report as build_secret_path_report
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 LIB_ROOT = SCRIPT_DIR.parent
@@ -336,8 +339,8 @@ def check_freshness():
 # ---------------------------------------------------------------------------
 DOC_PAIRS = {
     # Public API / C ABI
-    'include/ufsecp/ufsecp.h':         ['docs/API_REFERENCE.md', 'docs/USER_GUIDE.md'],
-    'include/ufsecp/ufsecp_impl.cpp':  ['docs/API_REFERENCE.md'],
+    'include/ufsecp/ufsecp.h':         ['docs/API_REFERENCE.md', 'docs/USER_GUIDE.md', 'docs/SECURITY_CLAIMS.md'],
+    'include/ufsecp/ufsecp_impl.cpp':  ['docs/API_REFERENCE.md', 'docs/SECRET_LIFECYCLE.md', 'docs/FFI_HOSTILE_CALLER.md'],
     # Build system
     'CMakeLists.txt':                  ['docs/BUILDING.md', 'README.md'],
     # Benchmark
@@ -345,13 +348,13 @@ DOC_PAIRS = {
     # Audit
     'audit/unified_audit_runner.cpp':  ['docs/TEST_MATRIX.md', 'docs/AUDIT_GUIDE.md'],
     # Protocol implementations
-    'cpu/src/musig2.cpp':              ['docs/API_REFERENCE.md'],
-    'cpu/src/frost.cpp':               ['docs/API_REFERENCE.md'],
+    'cpu/src/musig2.cpp':              ['docs/API_REFERENCE.md', 'docs/SECRET_LIFECYCLE.md'],
+    'cpu/src/frost.cpp':               ['docs/API_REFERENCE.md', 'docs/SECRET_LIFECYCLE.md'],
     'cpu/src/adaptor.cpp':             ['docs/API_REFERENCE.md'],
     'cpu/src/silent_payments.cpp':     ['docs/API_REFERENCE.md'],
     'cpu/src/ecies.cpp':               ['docs/API_REFERENCE.md'],
     # CT layer
-    'cpu/src/ct_sign.cpp':             ['docs/CT_VERIFICATION.md', 'docs/SECURITY_CLAIMS.md'],
+    'cpu/src/ct_sign.cpp':             ['docs/CT_VERIFICATION.md', 'docs/SECURITY_CLAIMS.md', 'docs/SECRET_LIFECYCLE.md'],
     'cpu/src/ct_field.cpp':            ['docs/CT_VERIFICATION.md'],
     'cpu/src/ct_scalar.cpp':           ['docs/CT_VERIFICATION.md'],
     'cpu/src/ct_point.cpp':            ['docs/CT_VERIFICATION.md'],
@@ -487,6 +490,10 @@ def get_changed_files():
     except Exception:
         return []
 
+
+def check_secret_path_changes(changed_files=None):
+    return build_secret_path_report(changed_files or get_changed_files())
+
 def analyze_changed_files(changed):
     """For changed files, show impact via graph."""
     if not changed:
@@ -533,6 +540,7 @@ def run_all(args):
     mode = args[0] if args else '--all'
     exit_code = 0
     total_issues = 0
+    changed = None
 
     print(f"\n{BOLD}{'='*60}{RESET}")
     print(f"{BOLD}  UltrafastSecp256k1 Preflight Check{RESET}")
@@ -540,7 +548,7 @@ def run_all(args):
 
     # Security
     if mode in ('--all', '--security'):
-        print(f"{BOLD}[1/6] Security Invariants{RESET}")
+        print(f"{BOLD}[1/11] Security Invariants{RESET}")
         issues = check_security_invariants()
         if issues:
             for i in issues:
@@ -555,7 +563,7 @@ def run_all(args):
 
     # CUDA / MSVC portability
     if mode in ('--all', '--cuda-msvc'):
-        print(f"{BOLD}[2/10] CUDA / MSVC Portability{RESET}")
+        print(f"{BOLD}[2/11] CUDA / MSVC Portability{RESET}")
         cuda_msvc_issues = check_cuda_msvc_portability()
         if cuda_msvc_issues:
             for issue in cuda_msvc_issues:
@@ -568,7 +576,7 @@ def run_all(args):
 
     # Narrative drift
     if mode in ('--all', '--drift'):
-        print(f"{BOLD}[3/10] Narrative Drift Detection{RESET}")
+        print(f"{BOLD}[3/11] Narrative Drift Detection{RESET}")
         drift_issues = check_narrative_drift()
         if drift_issues:
             for i in drift_issues:
@@ -580,7 +588,7 @@ def run_all(args):
 
     # Coverage
     if mode in ('--all', '--coverage'):
-        print(f"{BOLD}[4/10] Test Coverage Gaps{RESET}")
+        print(f"{BOLD}[4/11] Test Coverage Gaps{RESET}")
         gaps = check_coverage_gaps()
         if gaps:
             for path, lines in sorted(gaps, key=lambda x: -x[1])[:20]:
@@ -592,7 +600,7 @@ def run_all(args):
 
     # Freshness
     if mode in ('--all', '--freshness'):
-        print(f"{BOLD}[5/10] Graph Freshness{RESET}")
+        print(f"{BOLD}[5/11] Graph Freshness{RESET}")
         stale, built = check_freshness()
         if stale:
             for kind, path, lines in stale[:15]:
@@ -606,7 +614,7 @@ def run_all(args):
 
     # Changed files
     if mode in ('--all', '--claims'):
-        print(f"{BOLD}[6/10] Assurance Claim Surfaces{RESET}")
+        print(f"{BOLD}[6/11] Assurance Claim Surfaces{RESET}")
         claim_issues = check_claim_surfaces()
         if claim_issues:
             for issue in claim_issues:
@@ -618,7 +626,7 @@ def run_all(args):
             print(f"  {GREEN}[OK] Claim surfaces resolve and are graph-indexed{RESET}\n")
 
     if mode in ('--all', '--ai-review'):
-        print(f"{BOLD}[7/10] AI Review Event Log{RESET}")
+        print(f"{BOLD}[7/11] AI Review Event Log{RESET}")
         ai_review_issues = check_ai_review_log()
         if ai_review_issues:
             for issue in ai_review_issues:
@@ -630,7 +638,7 @@ def run_all(args):
             print(f"  {GREEN}[OK] AI review-event log is schema-valid{RESET}\n")
 
     if mode in ('--all', '--gpu-evidence'):
-        print(f"{BOLD}[8/10] GPU Backend Evidence{RESET}")
+        print(f"{BOLD}[8/11] GPU Backend Evidence{RESET}")
         gpu_issues = check_gpu_backend_evidence()
         if gpu_issues:
             for issue in gpu_issues:
@@ -643,7 +651,7 @@ def run_all(args):
 
     # Changed files
     if mode in ('--all', '--changed'):
-        print(f"{BOLD}[9/10] Changed Files Impact{RESET}")
+        print(f"{BOLD}[9/11] Changed Files Impact{RESET}")
         changed = get_changed_files()
         if changed:
             print(f"  {len(changed)} files changed vs HEAD:")
@@ -672,9 +680,31 @@ def run_all(args):
         else:
             print(f"  {GREEN}[OK] No uncommitted changes{RESET}\n")
 
+    if mode in ('--all', '--secret-paths'):
+        print(f"{BOLD}[10/11] Secret-Path Change Gate{RESET}")
+        secret_report, secret_fail = check_secret_path_changes(changed)
+        if secret_report['triggered_rules']:
+            for rule in secret_report['triggered_rules']:
+                print(f"  {CYAN}{rule['name']}{RESET}")
+                print(f"    Changed: {', '.join(rule['matches'])}")
+                print(f"    Required docs: {', '.join(rule['required_docs'])}")
+                if rule['missing_docs']:
+                    print(f"    {RED}Missing docs:{RESET} {', '.join(rule['missing_docs'])}")
+                    print(f"    Reason: {rule['reason']}")
+                else:
+                    print(f"    {GREEN}Paired docs updated{RESET}")
+            if secret_fail:
+                total_issues += len(secret_report['blocking_findings'])
+                exit_code = 1
+                print(f"  {RED}{len(secret_report['blocking_findings'])} blocking secret-path change issue(s){RESET}\n")
+            else:
+                print(f"  {GREEN}[OK] Secret-bearing changes have paired evidence updates{RESET}\n")
+        else:
+            print(f"  {GREEN}[OK] No changed secret-bearing paths{RESET}\n")
+
     # ABI
     if mode in ('--all', '--abi'):
-        print(f"{BOLD}[10/10] ABI Surface{RESET}")
+        print(f"{BOLD}[11/11] ABI Surface{RESET}")
         added, removed = check_abi_surface()
         if added:
             print(f"  {CYAN}NEW functions (not in graph):{RESET}")

@@ -151,10 +151,12 @@ Current progress:
 
 ### 4. Secret-Path Change Gate
 
-Need:
+Current progress:
 
-- `scripts/check_secret_path_changes.py`
-- integration into `preflight.py` or `audit_gate.py`
+1. `scripts/check_secret_path_changes.py` now builds a graph-aware secret-path report from changed files, CT-layer files, security-pattern surfaces, and secret-bearing ABI boundaries.
+2. `scripts/preflight.py` now includes a `--secret-paths` mode that fails closed when secret-bearing edits land without the required paired documentation updates.
+3. `scripts/audit_gate.py` now includes a `P0: Secret-Path Change Gate` check and `--secret-paths` mode, so stricter secret-path change control is visible in the main owner-grade audit gate.
+4. The gate requires paired updates to `docs/CT_VERIFICATION.md`, `docs/SECURITY_CLAIMS.md`, `docs/SECRET_LIFECYCLE.md`, and `docs/FFI_HOSTILE_CALLER.md` when the corresponding secret-bearing surfaces change.
 
 What it should do:
 

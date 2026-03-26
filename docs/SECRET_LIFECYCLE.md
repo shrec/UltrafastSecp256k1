@@ -4,6 +4,10 @@
 
 Documents how secret material (private keys, nonces, session state) is handled throughout its lifecycle: creation, use, and destruction.
 
+Secret-lifecycle and zeroization changes are under stricter change control:
+`scripts/check_secret_path_changes.py` requires paired updates to this document
+and `docs/SECURITY_CLAIMS.md` whenever those surfaces change.
+
 ---
 
 ## Zeroization Infrastructure

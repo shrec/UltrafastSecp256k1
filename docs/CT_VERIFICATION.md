@@ -22,6 +22,10 @@ The repository preflight also consumes graph-linked coverage metadata from
 coverage and selected unified-audit module coverage for core files; it is used
 for coverage-gap reporting and does not replace the executable CT tests.
 
+CT secret-bearing implementation changes are under stricter change control:
+`scripts/check_secret_path_changes.py` requires paired updates to this document
+and `docs/SECURITY_CLAIMS.md` whenever CT-layer secret surfaces change.
+
 ---
 
 ## CT Layer Architecture

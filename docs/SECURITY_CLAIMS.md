@@ -18,6 +18,7 @@ That means:
 2. Residual risks should be explicit.
 3. Secret-bearing paths should be judged more harshly than public-data paths.
 4. Experimental features should be treated as opt-in risk, not silently upgraded to production trust.
+5. Secret-bearing code changes must be paired with updates to the matching evidence docs, enforced by `scripts/check_secret_path_changes.py`.
 
 ---
 

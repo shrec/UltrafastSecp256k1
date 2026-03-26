@@ -26,6 +26,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from audit_gap_report import build_report as build_audit_gap_report
+from check_secret_path_changes import build_report as build_secret_path_report
 from generate_abi_negative_tests import build_manifest as build_abi_negative_manifest
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -180,6 +181,32 @@ def check_abi_negative_tests(conn):
         findings.append(('PASS', 'All exported ABI functions satisfy the hostile-caller coverage quartet'))
 
     return 'P0: ABI Hostile-Caller Manifest', findings
+
+
+# ---------------------------------------------------------------------------
+# P0 — Secret-Path Change Gate
+# ---------------------------------------------------------------------------
+def check_secret_path_gate(conn):
+    findings = []
+    report, has_fail = build_secret_path_report()
+
+    if not report.get('changed_files'):
+        findings.append(('PASS', 'No uncommitted changes to evaluate'))
+        return 'P0: Secret-Path Change Gate', findings
+
+    if not report.get('triggered_rules'):
+        findings.append(('PASS', 'No changed secret-bearing paths detected'))
+        return 'P0: Secret-Path Change Gate', findings
+
+    for rule in report.get('triggered_rules', []):
+        findings.append(('INFO', f"{rule['name']}: {', '.join(rule['matches'])}"))
+        if rule.get('missing_docs'):
+            findings.append(('FAIL', f"{rule['name']} missing paired docs: {', '.join(rule['missing_docs'])}"))
+
+    if not has_fail:
+        findings.append(('PASS', 'Secret-bearing changes have paired documentation updates'))
+
+    return 'P0: Secret-Path Change Gate', findings
 
 
 # ---------------------------------------------------------------------------
@@ -553,6 +580,7 @@ def check_doc_pairing(conn):
 CHECK_MAP = {
     '--failure-matrix': check_failure_class_matrix,
     '--abi-negative-tests': check_abi_negative_tests,
+    '--secret-paths': check_secret_path_gate,
     '--abi-completeness': check_abi_completeness,
     '--test-coverage': check_test_coverage,
     '--security-patterns': check_security_patterns,
@@ -568,6 +596,7 @@ CHECK_MAP = {
 ALL_CHECKS = [
     check_failure_class_matrix,
     check_abi_negative_tests,
+    check_secret_path_gate,
     check_abi_completeness,
     check_test_coverage,
     check_security_patterns,
