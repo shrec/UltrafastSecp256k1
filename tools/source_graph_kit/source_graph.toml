@@ -26,10 +26,12 @@ exclude_subdir_names = [
 [[source_dirs]]
 label = "cpu"
 path = "../cpu"
+extensions = ["*.cpp", "*.cc", "*.c", "*.hpp", "*.hh", "*.h", "*.ipp", "*.inl", "*.cu", "*.cuh", "*.cl", "*.metal", "*.mm", "*.txt", "*.cmake"]
 
 [[source_dirs]]
 label = "include"
 path = "../include"
+extensions = ["*.cpp", "*.cc", "*.c", "*.hpp", "*.hh", "*.h", "*.ipp", "*.inl", "*.cu", "*.cuh", "*.cl", "*.metal", "*.mm", "*.txt", "*.cmake"]
 
 [[source_dirs]]
 label = "audit"
@@ -46,31 +48,37 @@ extensions = ["*.md", "*.txt", "*.json", "*.log"]
 label = "cuda"
 path = "../cuda"
 optional = true
+extensions = ["*.cpp", "*.cc", "*.c", "*.hpp", "*.hh", "*.h", "*.ipp", "*.inl", "*.cu", "*.cuh", "*.cl", "*.metal", "*.mm", "*.txt", "*.cmake"]
 
 [[source_dirs]]
 label = "examples"
 path = "../examples"
 optional = true
+extensions = ["*.cpp", "*.cc", "*.c", "*.hpp", "*.hh", "*.h", "*.ipp", "*.inl", "*.cu", "*.cuh", "*.cl", "*.metal", "*.mm", "*.txt", "*.cmake"]
 
 [[source_dirs]]
 label = "gpu"
 path = "../gpu"
 optional = true
+extensions = ["*.cpp", "*.cc", "*.c", "*.hpp", "*.hh", "*.h", "*.ipp", "*.inl", "*.cu", "*.cuh", "*.cl", "*.metal", "*.mm", "*.txt", "*.cmake"]
 
 [[source_dirs]]
 label = "metal"
 path = "../metal"
 optional = true
+extensions = ["*.cpp", "*.cc", "*.c", "*.hpp", "*.hh", "*.h", "*.ipp", "*.inl", "*.cu", "*.cuh", "*.cl", "*.metal", "*.mm", "*.txt", "*.cmake"]
 
 [[source_dirs]]
 label = "opencl"
 path = "../opencl"
 optional = true
+extensions = ["*.cpp", "*.cc", "*.c", "*.hpp", "*.hh", "*.h", "*.ipp", "*.inl", "*.cu", "*.cuh", "*.cl", "*.metal", "*.mm", "*.txt", "*.cmake"]
 
 [[source_dirs]]
 label = "tests"
 path = "../tests"
 optional = true
+extensions = ["*.cpp", "*.cc", "*.c", "*.hpp", "*.hh", "*.h", "*.ipp", "*.inl", "*.cu", "*.cuh", "*.cl", "*.metal", "*.mm", "*.txt", "*.cmake"]
 
 [[source_dirs]]
 label = "docs"
