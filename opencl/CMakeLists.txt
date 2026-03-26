@@ -189,55 +189,57 @@ target_include_directories(secp256k1_opencl PRIVATE
 # Benchmark Executable
 # =============================================================================
 
-# Check if CPU library is available
-if(TARGET fastsecp256k1)
-    set(HAVE_CPU_LIB TRUE)
-else()
-    # Try to find it in parent build
-    find_library(FASTSECP256K1_LIB fastsecp256k1
-        PATHS
-            ${CMAKE_BINARY_DIR}/../cpu
-            ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/build
-            ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/build_rel
-    )
-    if(FASTSECP256K1_LIB)
+if(SECP256K1_BUILD_BENCH)
+    # Check if CPU library is available
+    if(TARGET fastsecp256k1)
         set(HAVE_CPU_LIB TRUE)
     else()
-        set(HAVE_CPU_LIB FALSE)
-        message(STATUS "CPU library not found - benchmark will use OpenCL only")
+        # Try to find it in parent build
+        find_library(FASTSECP256K1_LIB fastsecp256k1
+            PATHS
+                ${CMAKE_BINARY_DIR}/../cpu
+                ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/build
+                ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/build_rel
+        )
+        if(FASTSECP256K1_LIB)
+            set(HAVE_CPU_LIB TRUE)
+        else()
+            set(HAVE_CPU_LIB FALSE)
+            message(STATUS "CPU library not found - benchmark will use OpenCL only")
+        endif()
     endif()
-endif()
 
-add_executable(opencl_benchmark
-    benchmarks/bench_opencl.cpp
-)
+    add_executable(opencl_benchmark
+        benchmarks/bench_opencl.cpp
+    )
 
-if(HAVE_CPU_LIB)
-    target_link_libraries(opencl_benchmark PRIVATE
+    if(HAVE_CPU_LIB)
+        target_link_libraries(opencl_benchmark PRIVATE
+            secp256k1_opencl
+            $<TARGET_NAME_IF_EXISTS:fastsecp256k1>
+            ${FASTSECP256K1_LIB}
+        )
+        target_compile_definitions(opencl_benchmark PRIVATE HAVE_CPU_LIB=1)
+    else()
+        target_link_libraries(opencl_benchmark PRIVATE
+            secp256k1_opencl
+        )
+    endif()
+
+    add_executable(opencl_bip352_benchmark
+        benchmarks/bench_bip352_opencl.cpp
+    )
+
+    target_link_libraries(opencl_bip352_benchmark PRIVATE
         secp256k1_opencl
         $<TARGET_NAME_IF_EXISTS:fastsecp256k1>
         ${FASTSECP256K1_LIB}
     )
-    target_compile_definitions(opencl_benchmark PRIVATE HAVE_CPU_LIB=1)
-else()
-    target_link_libraries(opencl_benchmark PRIVATE
-        secp256k1_opencl
+
+    target_compile_definitions(opencl_bip352_benchmark PRIVATE
+        SECP256K1_OPENCL_KERNEL_DIR="${CMAKE_CURRENT_SOURCE_DIR}/kernels"
     )
 endif()
-
-add_executable(opencl_bip352_benchmark
-    benchmarks/bench_bip352_opencl.cpp
-)
-
-target_link_libraries(opencl_bip352_benchmark PRIVATE
-    secp256k1_opencl
-    $<TARGET_NAME_IF_EXISTS:fastsecp256k1>
-    ${FASTSECP256K1_LIB}
-)
-
-target_compile_definitions(opencl_bip352_benchmark PRIVATE
-    SECP256K1_OPENCL_KERNEL_DIR="${CMAKE_CURRENT_SOURCE_DIR}/kernels"
-)
 
 # =============================================================================
 # Test Executable
