@@ -902,12 +902,8 @@ void sha256_compress_dispatch(const std::uint8_t block[64],
         return;
     }
 #endif
-#ifdef SECP256K1_X86_TARGET
-    if (secp256k1::hash::sha_ni_available()) {
-        secp256k1::hash::shani::sha256_compress(block, state);
-        return;
-    }
-#endif
+    // Streaming SHA-256 correctness is more important than using SHA-NI here.
+    // Fixed-size hot paths still dispatch to SHA-NI via hash::sha256_32/33.
     secp256k1::hash::scalar::sha256_compress(block, state);
 }
 

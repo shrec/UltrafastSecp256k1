@@ -17,6 +17,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
 #include <limits>
 #include <memory>
@@ -2906,12 +2907,16 @@ static void batch_z_inv(const Point* points, size_t n,
                         FieldElement* out_z_inv) {
     // Internal partials buffer (only needed within this function)
     constexpr size_t STACK_LIMIT = 256;
+    constexpr size_t kMaxAllocElems =
+        static_cast<size_t>(std::numeric_limits<std::ptrdiff_t>::max()) / sizeof(FieldElement);
     FieldElement stack_partials[STACK_LIMIT];
     std::unique_ptr<FieldElement[]> heap_partials;
     FieldElement* partials = stack_partials;
     if (n > STACK_LIMIT) {
-        heap_partials = std::make_unique<FieldElement[]>(
-            static_cast<size_t>(static_cast<std::ptrdiff_t>(n)));
+        if (SECP256K1_UNLIKELY(n > kMaxAllocElems)) {
+            std::abort();
+        }
+        heap_partials = std::make_unique<FieldElement[]>(n);
         partials = heap_partials.get();
     }
 

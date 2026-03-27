@@ -468,7 +468,10 @@ target_include_directories(test_exploit_ecdsa_der_confusion_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
     ${CMAKE_BINARY_DIR}/include
 )
-target_compile_definitions(test_exploit_ecdsa_der_confusion_standalone PRIVATE UFSECP_BUILDING)
+target_compile_definitions(test_exploit_ecdsa_der_confusion_standalone PRIVATE
+    UFSECP_BUILDING
+    STANDALONE_TEST
+)
 add_test(NAME exploit_ecdsa_der_confusion COMMAND test_exploit_ecdsa_der_confusion_standalone)
 set_tests_properties(exploit_ecdsa_der_confusion PROPERTIES TIMEOUT 60 LABELS "audit;exploit;ecdsa")
 
