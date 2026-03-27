@@ -37,6 +37,7 @@ Usage:
     python source_graph.py duplicates         # Duplicate code blocks
     python source_graph.py context <file>     # Unified context: summary + functions + deps
     python source_graph.py func <name>        # Find function with line ranges
+    python source_graph.py api <name>         # CPU public API signatures (compact, AI-oriented)
     python source_graph.py body <name>        # Print function source from DB (no file read)
     python source_graph.py bodygrep <text>    # Search string literals inside function bodies (replaces grep)
     python source_graph.py gaps               # Find documentation/coverage gaps
@@ -8686,6 +8687,86 @@ def func_cmd(name):
         print_table(meta, ["symbol_name", "file_path", "hot_path", "ct_sensitive", "batchable", "gpu_candidate", "risk_level", "review_priority", "risk_score", "gain_score"])
 
 
+def api_cmd(name, limit=20):
+    """AI-oriented: show CPU public API signatures for a function/type.
+
+    Focuses on the public API surface (src/ implementations, exclude CT/test).
+    Shows function signatures + related structs in compact form.
+    Designed for minimal token usage when AI agents need API context.
+
+    Usage: source_graph.py api <name> [limit]
+    """
+    conn = get_conn()
+    pattern = f"%{name}%"
+
+    # 1. Function signatures from CPU project (headers + src, exclude CT wrappers)
+    rows = conn.execute(
+        "SELECT function_name, file, signature, start_line "
+        "FROM function_index "
+        "WHERE function_name LIKE ? "
+        "  AND project = 'cpu' "
+        "  AND (file LIKE 'include/secp256k1/%' OR file LIKE 'src/%') "
+        "  AND file NOT LIKE '%ct/%' "
+        "  AND file NOT LIKE '%ct_sign%' "
+        "  AND file NOT LIKE '%ct_point%' "
+        "  AND function_name NOT LIKE 'test_%' "
+        "ORDER BY file, start_line",
+        (pattern,)
+    ).fetchall()
+    # Deduplicate by function name: prefer earliest match (usually .hpp or main .cpp)
+    seen = set()
+    deduped = []
+    for r in rows:
+        key = r['function_name']
+        if key not in seen:
+            seen.add(key)
+            deduped.append(r)
+    rows = deduped[:limit]
+
+    if rows:
+        print(f"\n  === Public API: {name} ===")
+        for r in rows:
+            sig = r['signature'] or ''
+            # Take only first line of signature (before '{')
+            sig_clean = sig.split('{')[0].strip().split('\n')[0].strip()
+            if len(sig_clean) > 120:
+                sig_clean = sig_clean[:117] + '...'
+            print(f"  {r['function_name']}  [{r['file']}:{r['start_line']}]")
+            print(f"    {sig_clean}")
+    else:
+        print(f"\n  No public API matches for '{name}'")
+
+    # 2. Related structs from public headers
+    structs = conn.execute(
+        "SELECT name, file, line FROM structs "
+        "WHERE name LIKE ? AND file LIKE 'include/secp256k1/%' "
+        "ORDER BY file, line",
+        (pattern,)
+    ).fetchall()
+    if structs:
+        print(f"\n  === Related Structs ===")
+        for s in structs:
+            print(f"  {s['name']}  [{s['file']}:{s['line']}]")
+
+    # 3. Also search for the term in struct definitions when function matches
+    # are sparse (e.g. searching for "ECDSASignature" finds the struct)
+    if not rows and not structs:
+        # Fallback: search ALL cpu functions for the term in signature
+        body_rows = conn.execute(
+            "SELECT function_name, file, start_line, signature FROM function_index "
+            "WHERE signature LIKE ? AND project = 'cpu' "
+            "AND function_name NOT LIKE 'test_%' LIMIT 10",
+            (f'%{name}%',)
+        ).fetchall()
+        if body_rows:
+            print(f"\n  === Signatures containing '{name}' ===")
+            for r in body_rows:
+                sig = (r['signature'] or '').split('{')[0].strip().split('\n')[0].strip()
+                print(f"  {r['function_name']}  [{r['file']}:{r['start_line']}]")
+                if sig:
+                    print(f"    {sig[:120]}")
+
+
 def gaps_cmd():
     """Find documentation and coverage gaps in the codebase."""
     conn = get_conn()
@@ -11163,6 +11244,9 @@ def main():
         context_cmd(sys.argv[2])
     elif cmd == "func" and len(sys.argv) > 2:
         func_cmd(sys.argv[2])
+    elif cmd == "api" and len(sys.argv) > 2:
+        lim = int(sys.argv[3]) if len(sys.argv) > 3 else 20
+        api_cmd(sys.argv[2], limit=lim)
     elif cmd == "gaps":
         gaps_cmd()
     elif cmd == "summary":

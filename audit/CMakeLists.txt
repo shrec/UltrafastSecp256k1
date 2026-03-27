@@ -293,7 +293,7 @@ target_compile_definitions(test_ct_verif_formal_standalone PRIVATE STANDALONE_TE
 add_test(NAME ct_verif_formal COMMAND test_ct_verif_formal_standalone)
 set_tests_properties(ct_verif_formal PROPERTIES TIMEOUT 1200)
 
-# -- Fiat-Crypto direct linkage cross-check (Track I5-2) ------------------
+# -- Independent reference linkage cross-check (Track I5-2) ----------------
 add_executable(test_fiat_crypto_linkage_standalone test_fiat_crypto_linkage.cpp)
 audit_target_defaults(test_fiat_crypto_linkage_standalone)
 target_compile_definitions(test_fiat_crypto_linkage_standalone PRIVATE STANDALONE_TEST)
@@ -906,6 +906,76 @@ target_compile_definitions(test_fuzz_musig2_frost_standalone PRIVATE
 add_test(NAME fuzz_musig2_frost COMMAND test_fuzz_musig2_frost_standalone)
 set_tests_properties(fuzz_musig2_frost PROPERTIES TIMEOUT 120 LABELS "audit;fuzz;musig2;frost;adaptor")
 
+# -- PoC: Invalid curve / twist point injection (Tier-1 audit probe) ---------
+add_executable(test_exploit_invalid_curve_twist_standalone test_exploit_invalid_curve_twist.cpp)
+audit_target_defaults(test_exploit_invalid_curve_twist_standalone)
+target_compile_definitions(test_exploit_invalid_curve_twist_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_invalid_curve_twist COMMAND test_exploit_invalid_curve_twist_standalone)
+set_tests_properties(exploit_invalid_curve_twist PROPERTIES TIMEOUT 120 LABELS "audit;exploit;twist;ecdh")
+
+# -- PoC: Schnorr BIP-340 forgery / out-of-range rejection -------------------
+add_executable(test_exploit_schnorr_forgery_vectors_standalone test_exploit_schnorr_forgery_vectors.cpp)
+audit_target_defaults(test_exploit_schnorr_forgery_vectors_standalone)
+target_compile_definitions(test_exploit_schnorr_forgery_vectors_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_schnorr_forgery_vectors COMMAND test_exploit_schnorr_forgery_vectors_standalone)
+set_tests_properties(exploit_schnorr_forgery_vectors PROPERTIES TIMEOUT 120 LABELS "audit;exploit;schnorr;bip340")
+
+# -- PoC: Secret key tweak overflow / cancellation (BIP-32, Taproot) ---------
+add_executable(test_exploit_seckey_tweak_cancel_standalone test_exploit_seckey_tweak_cancel.cpp)
+audit_target_defaults(test_exploit_seckey_tweak_cancel_standalone)
+target_compile_definitions(test_exploit_seckey_tweak_cancel_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_seckey_tweak_cancel COMMAND test_exploit_seckey_tweak_cancel_standalone)
+set_tests_properties(exploit_seckey_tweak_cancel PROPERTIES TIMEOUT 60 LABELS "audit;exploit;tweak;bip32")
+
+# -- PoC: Hedged nonce bias detection (lattice attack surface) ---------------
+add_executable(test_exploit_hedged_nonce_bias_standalone test_exploit_hedged_nonce_bias.cpp)
+audit_target_defaults(test_exploit_hedged_nonce_bias_standalone)
+target_compile_definitions(test_exploit_hedged_nonce_bias_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_hedged_nonce_bias COMMAND test_exploit_hedged_nonce_bias_standalone)
+set_tests_properties(exploit_hedged_nonce_bias PROPERTIES TIMEOUT 120 LABELS "audit;exploit;nonce;lattice")
+
+# -- PoC: ECDSA ecrecover / key recovery confusion ---------------------------
+add_executable(test_exploit_ecrecover_confusion_standalone test_exploit_ecrecover_confusion.cpp)
+audit_target_defaults(test_exploit_ecrecover_confusion_standalone)
+target_compile_definitions(test_exploit_ecrecover_confusion_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_ecrecover_confusion COMMAND test_exploit_ecrecover_confusion_standalone)
+set_tests_properties(exploit_ecrecover_confusion PROPERTIES TIMEOUT 120 LABELS "audit;exploit;ecdsa;recovery")
+
+# -- PoC: Batch verification poisoning (single bad sig detection) ------------
+add_executable(test_exploit_batch_verify_poison_standalone test_exploit_batch_verify_poison.cpp)
+audit_target_defaults(test_exploit_batch_verify_poison_standalone)
+target_compile_definitions(test_exploit_batch_verify_poison_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_batch_verify_poison COMMAND test_exploit_batch_verify_poison_standalone)
+set_tests_properties(exploit_batch_verify_poison PROPERTIES TIMEOUT 120 LABELS "audit;exploit;batch;schnorr")
+
+# -- PoC: Context / precompute lifecycle hostile caller patterns --------------
+add_executable(test_exploit_ctx_lifecycle_hostile_standalone test_exploit_ctx_lifecycle_hostile.cpp)
+audit_target_defaults(test_exploit_ctx_lifecycle_hostile_standalone)
+target_compile_definitions(test_exploit_ctx_lifecycle_hostile_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_ctx_lifecycle_hostile COMMAND test_exploit_ctx_lifecycle_hostile_standalone)
+set_tests_properties(exploit_ctx_lifecycle_hostile PROPERTIES TIMEOUT 60 LABELS "audit;exploit;context;lifecycle")
+
+# -- PoC: DER / signature encoding differential (consensus-critical) ---------
+add_executable(test_exploit_der_parsing_differential_standalone test_exploit_der_parsing_differential.cpp)
+audit_target_defaults(test_exploit_der_parsing_differential_standalone)
+target_compile_definitions(test_exploit_der_parsing_differential_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_der_parsing_differential COMMAND test_exploit_der_parsing_differential_standalone)
+set_tests_properties(exploit_der_parsing_differential PROPERTIES TIMEOUT 60 LABELS "audit;exploit;ecdsa;der")
+
+# -- PoC: GPU/CPU divergence (algebraic consistency cross-check) -------------
+add_executable(test_exploit_gpu_cpu_divergence_standalone test_exploit_gpu_cpu_divergence.cpp)
+audit_target_defaults(test_exploit_gpu_cpu_divergence_standalone)
+target_compile_definitions(test_exploit_gpu_cpu_divergence_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_gpu_cpu_divergence COMMAND test_exploit_gpu_cpu_divergence_standalone)
+set_tests_properties(exploit_gpu_cpu_divergence PROPERTIES TIMEOUT 120 LABELS "audit;exploit;divergence;algebraic")
+
+# -- PoC: Field boundary / carry propagation exhaustive ----------------------
+add_executable(test_exploit_field_boundary_exhaustive_standalone test_exploit_field_boundary_exhaustive.cpp)
+audit_target_defaults(test_exploit_field_boundary_exhaustive_standalone)
+target_compile_definitions(test_exploit_field_boundary_exhaustive_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_field_boundary_exhaustive COMMAND test_exploit_field_boundary_exhaustive_standalone)
+set_tests_properties(exploit_field_boundary_exhaustive PROPERTIES TIMEOUT 120 LABELS "audit;exploit;field;boundary")
+
 # -- ECIES regression + C ABI prefix enforcement ----------------------------
 add_executable(test_ecies_regression_standalone test_ecies_regression.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
@@ -1127,7 +1197,7 @@ add_executable(unified_audit_runner
     test_batch_randomness.cpp
     # -- CT formal verification (Track I5-1) --
     test_ct_verif_formal.cpp
-    # -- Fiat-Crypto direct linkage (Track I5-2) --
+    # -- Independent reference linkage (Track I5-2) --
     test_fiat_crypto_linkage.cpp
     # -- MuSig2 / FROST / adversarial / fuzz --
     test_musig2_frost.cpp
