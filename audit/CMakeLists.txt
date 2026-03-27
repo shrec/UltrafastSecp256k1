@@ -976,6 +976,60 @@ target_compile_definitions(test_exploit_field_boundary_exhaustive_standalone PRI
 add_test(NAME exploit_field_boundary_exhaustive COMMAND test_exploit_field_boundary_exhaustive_standalone)
 set_tests_properties(exploit_field_boundary_exhaustive PROPERTIES TIMEOUT 120 LABELS "audit;exploit;field;boundary")
 
+# -- PoC: Schnorr x-only parity confusion -----------------------------------
+add_executable(test_exploit_schnorr_xonly_parity_confusion_standalone test_exploit_schnorr_xonly_parity_confusion.cpp)
+audit_target_defaults(test_exploit_schnorr_xonly_parity_confusion_standalone)
+target_compile_definitions(test_exploit_schnorr_xonly_parity_confusion_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_schnorr_xonly_parity_confusion COMMAND test_exploit_schnorr_xonly_parity_confusion_standalone)
+set_tests_properties(exploit_schnorr_xonly_parity_confusion PROPERTIES TIMEOUT 60 LABELS "audit;exploit;schnorr;taproot;parity")
+
+# -- PoC: Taproot Merkle path alias -----------------------------------------
+add_executable(test_exploit_taproot_merkle_path_alias_standalone test_exploit_taproot_merkle_path_alias.cpp)
+audit_target_defaults(test_exploit_taproot_merkle_path_alias_standalone)
+target_compile_definitions(test_exploit_taproot_merkle_path_alias_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_taproot_merkle_path_alias COMMAND test_exploit_taproot_merkle_path_alias_standalone)
+set_tests_properties(exploit_taproot_merkle_path_alias PROPERTIES TIMEOUT 60 LABELS "audit;exploit;taproot;merkle")
+
+# -- PoC: FROST binding factor mismatch -------------------------------------
+add_executable(test_exploit_frost_binding_factor_mismatch_standalone test_exploit_frost_binding_factor_mismatch.cpp)
+audit_target_defaults(test_exploit_frost_binding_factor_mismatch_standalone)
+target_compile_definitions(test_exploit_frost_binding_factor_mismatch_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_frost_binding_factor_mismatch COMMAND test_exploit_frost_binding_factor_mismatch_standalone)
+set_tests_properties(exploit_frost_binding_factor_mismatch PROPERTIES TIMEOUT 120 LABELS "audit;exploit;frost;binding")
+
+# -- PoC: BIP-32 parent fingerprint confusion --------------------------------
+add_executable(test_exploit_bip32_parent_fingerprint_confusion_standalone test_exploit_bip32_parent_fingerprint_confusion.cpp)
+audit_target_defaults(test_exploit_bip32_parent_fingerprint_confusion_standalone)
+target_compile_definitions(test_exploit_bip32_parent_fingerprint_confusion_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_bip32_parent_fingerprint_confusion COMMAND test_exploit_bip32_parent_fingerprint_confusion_standalone)
+set_tests_properties(exploit_bip32_parent_fingerprint_confusion PROPERTIES TIMEOUT 60 LABELS "audit;exploit;bip32;fingerprint")
+
+# -- PoC: ECIES envelope confusion ------------------------------------------
+add_executable(test_exploit_ecies_envelope_confusion_standalone test_exploit_ecies_envelope_confusion.cpp)
+audit_target_defaults(test_exploit_ecies_envelope_confusion_standalone)
+target_compile_definitions(test_exploit_ecies_envelope_confusion_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_ecies_envelope_confusion COMMAND test_exploit_ecies_envelope_confusion_standalone)
+set_tests_properties(exploit_ecies_envelope_confusion PROPERTIES TIMEOUT 60 LABELS "audit;exploit;ecies;envelope")
+
+# -- PoC: Wallet cross-domain replay ----------------------------------------
+add_executable(test_exploit_wallet_cross_domain_replay_standalone test_exploit_wallet_cross_domain_replay.cpp)
+audit_target_defaults(test_exploit_wallet_cross_domain_replay_standalone)
+target_compile_definitions(test_exploit_wallet_cross_domain_replay_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_wallet_cross_domain_replay COMMAND test_exploit_wallet_cross_domain_replay_standalone)
+set_tests_properties(exploit_wallet_cross_domain_replay PROPERTIES TIMEOUT 60 LABELS "audit;exploit;wallet;replay;domain")
+
+# -- PoC: GPU host API shape (hostile caller) --------------------------------
+add_executable(test_exploit_gpu_host_api_shape_standalone test_exploit_gpu_host_api_shape.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_gpu_host_api_shape_standalone)
+target_include_directories(test_exploit_gpu_host_api_shape_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+)
+target_compile_definitions(test_exploit_gpu_host_api_shape_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_gpu_host_api_shape COMMAND test_exploit_gpu_host_api_shape_standalone)
+set_tests_properties(exploit_gpu_host_api_shape PROPERTIES TIMEOUT 60 LABELS "audit;exploit;gpu;ffi;hostile")
+
 # -- ECIES regression + C ABI prefix enforcement ----------------------------
 add_executable(test_ecies_regression_standalone test_ecies_regression.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
