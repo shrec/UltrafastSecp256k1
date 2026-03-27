@@ -72,12 +72,14 @@ jobs:
             -DSECP256K1_BUILD_EXAMPLES=ON \
             -DSECP256K1_BUILD_METAL=ON \
             -DSECP256K1_BUILD_FUZZ_TESTS=ON \
-            -DSECP256K1_BUILD_PROTOCOL_TESTS=ON
+            -DSECP256K1_BUILD_PROTOCOL_TESTS=ON \
+            -DSECP256K1_BUILD_CROSS_TESTS=ON
 
       - name: Build
         run: cmake --build build -j$(nproc)
 
       - name: Test
+        # Exclude ct_sidechannel: dudect timing test takes >10 min, runs in dedicated ct-verif workflow
         run: ctest --test-dir build --output-on-failure -j$(nproc) -E "^ct_sidechannel"
 
   # -- Linux ARM64 (cross-compile, aarch64-linux-gnu) -----------------------
