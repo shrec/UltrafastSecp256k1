@@ -1,6 +1,10 @@
 # Test Coverage Matrix
 
-**UltrafastSecp256k1 v3.22.0** -- Comprehensive Test Map for Auditors
+**UltrafastSecp256k1 current repository state** -- Comprehensive Test Map for Auditors
+
+The owner-grade audit bundle and `scripts/validate_assurance.py` are the
+authoritative source for live target counts. When a narrative summary below
+lags behind the generated validation surfaces, prefer the generated counts.
 
 ---
 
@@ -8,7 +12,7 @@
 
 | Category | Tests | Status |
 |----------|-------|--------|
-| **CTest targets** | 71 | [OK] All passing |
+| **CTest targets** | 162 active targets | [OK] Documented in current assurance validation |
 | **Audit suite checks** | 641,194+ | [OK] 0 failures |
 | **Exploit PoC test files** | **78 tests, 14 categories** | [OK] 0 failures |
 | **Fuzz harnesses** | 3 | [OK] Active |

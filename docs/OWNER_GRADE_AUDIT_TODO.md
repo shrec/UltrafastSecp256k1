@@ -12,6 +12,22 @@ Use it together with:
 - `docs/SELF_AUDIT_FAILURE_MATRIX.md`
 - `docs/AUDIT_MANIFEST.md`
 - `docs/ASSURANCE_LEDGER.md`
+- `docs/RESIDUAL_RISK_REGISTER.md`
+- `docs/AUDIT_CHANGELOG.md`
+
+---
+
+## Current Status
+
+Owner-grade closure for the originally started audit issue is complete.
+
+Current verified state:
+
+1. `build/owner_audit/owner_audit_bundle.json` reports `overall_status: ready`.
+2. `scripts/audit_gate.py` passes with no blocking findings.
+3. `docs/SELF_AUDIT_FAILURE_MATRIX.md` has no `Partial` owner-grade blocker rows.
+4. Remaining items in this file are future hardening work, not blockers for
+	closing the current owner-grade audit track.
 
 ---
 
@@ -25,7 +41,7 @@ Use it together with:
 
 ---
 
-## P0 -- Must Write
+## P0 -- Closure Criteria (Completed)
 
 ### 1. Failure-Class Gate Runner
 
