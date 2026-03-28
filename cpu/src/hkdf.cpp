@@ -88,7 +88,7 @@ bool hkdf_sha256_expand(
     const std::uint8_t* info, std::size_t info_len,
     std::uint8_t* out, std::size_t out_len) noexcept {
 
-    if (out_len > 255 * 32) return false;
+    if (out_len > std::size_t{255} * 32U) return false;
 
     // Pre-compute HMAC ipad/opad blocks from PRK (constant across all iterations)
     std::uint8_t ipad[64], opad[64];
