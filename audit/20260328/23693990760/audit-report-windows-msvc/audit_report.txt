@@ -1,0 +1,240 @@
+================================================================
+  UltrafastSecp256k1 -- Industrial Self-Audit Report
+================================================================
+
+Library:    UltrafastSecp256k1 v3.4.0
+Git Hash:   5177e299
+Framework:  Audit Framework v2.0.0
+Timestamp:  2026-03-28T20:58:17
+OS:         Windows
+Arch:       x86-64
+Compiler:   MSVC 1944
+Build:      Release
+
+----------------------------------------------------------------
+  [0] Library Selftest (core KAT)          PASS  (7366 ms)
+----------------------------------------------------------------
+
+================================================================
+  Section 1/8: Mathematical Invariants (Fp, Zn, Group Laws)
+================================================================
+  [ 1] SEC2 v2.0 curve constant oracle               PASS  (976 ms)
+  [ 2] Post-op invariant monitor (on-curve/normalized) PASS  (1152 ms)
+  [ 3] Field Fp deep audit (add/mul/inv/sqrt/batch)  PASS  (315 ms)
+  [ 4] Scalar Zn deep audit (mod/GLV/edge/inv)       PASS  (1156 ms)
+  [ 5] Point ops deep audit (Jac/affine/sigs)        PASS  (3192 ms)
+  [ 6] Field & scalar arithmetic                     PASS  (3 ms)
+  [ 7] Arithmetic correctness                        PASS  (992 ms)
+  [ 8] Scalar multiplication                         PASS  (2915 ms)
+  [ 9] Exhaustive algebraic verification             PASS  (1024 ms)
+  [10] Comprehensive 500+ suite                      PASS  (1058 ms)
+  [11] ECC property-based invariants                 PASS  (1005 ms)
+  [12] Affine batch addition                         PASS  (1204 ms)
+  [13] Carry chain stress (limb boundary)            PASS  (985 ms)
+  [14] FieldElement26 (10x26) vs 4x64                PASS  (1 ms)
+  -------- Section Result: 14/14 passed (15979 ms)
+
+================================================================
+  Section 2/8: Constant-Time & Side-Channel Analysis
+================================================================
+  [15] CT deep audit (masks/cmov/cswap/timing)       PASS  (1159 ms)
+  [16] Constant-time layer                           PASS  (979 ms)
+  [17] FAST == CT equivalence                        PASS  (1015 ms)
+  [18] Side-channel dudect (smoke)                   PASS  (1070 ms)
+  [19] Formal CT verification (ctgrind/MSAN)         PASS  (987 ms)
+  [20] CT scalar_mul vs fast (diagnostic)            PASS  (996 ms)
+  -------- Section Result: 6/6 passed (6207 ms)
+
+================================================================
+  Section 3/8: Differential & Cross-Library Testing
+================================================================
+  [21] Differential correctness                      PASS  (1890 ms)
+  [22] Independent reference golden vectors          PASS  (979 ms)
+  [23] Independent reference linkage (100%% parity)  PASS  (0 ms)
+  [24] Cross-platform KAT                            PASS  (978 ms)
+  -------- Section Result: 4/4 passed (3846 ms)
+
+================================================================
+  Section 4/8: Standard Test Vectors (BIP-340, RFC-6979, BIP-32)
+================================================================
+  [25] BIP-340 official vectors                      PASS  (995 ms)
+  [26] BIP-340 strict encoding (non-canonical)       PASS  (2 ms)
+  [27] BIP-32 official vectors TV1-5                 PASS  (987 ms)
+  [28] RFC 6979 ECDSA vectors                        PASS  (981 ms)
+  [29] FROST reference KAT vectors                   PASS  (1049 ms)
+  [30] MuSig2 BIP-327 reference vectors              PASS  (993 ms)
+  [31] Wycheproof ECDSA secp256k1 vectors            PASS  (1000 ms)
+  [32] Wycheproof ECDH secp256k1 vectors             PASS  (993 ms)
+  [33] KAT: ECDH/WIF/P2PKH/P2WPKH/P2TR/hash/arith    PASS  (1039 ms)
+  -------- Section Result: 9/9 passed (8038 ms)
+
+================================================================
+  Section 5/8: Fuzzing & Adversarial Attack Resilience
+================================================================
+  [34] Adversarial fuzz (malform/edge)               PASS  (1622 ms)
+  [35] Parser fuzz (DER/Schnorr/Pubkey)              PASS  (22733 ms)
+  [36] Address/BIP32/FFI boundary fuzz               PASS  (5940 ms)
+  [37] Fault injection simulation                    PASS  (1237 ms)
+  [38] Adversarial protocol & FFI hostile-caller     PASS  (1328 ms)
+  [39] ECIES regression + C ABI prefix enforce       PASS  (4 ms)
+  -------- Section Result: 6/6 passed (32864 ms)
+
+================================================================
+  Section 6/8: Protocol Security (ECDSA, Schnorr, MuSig2, FROST)
+================================================================
+  [40] ECDSA + Schnorr                               PASS  (982 ms)
+  [41] BIP-32 HD derivation                          PASS  (2 ms)
+  [42] BIP-39 mnemonic seed phrases                  PASS  (16 ms)
+  [43] MuSig2                                        PASS  (989 ms)
+  [44] ECDH + recovery + taproot                     PASS  (1018 ms)
+  [45] v4 (Pedersen/FROST/etc)                       PASS  (990 ms)
+  [46] Coins layer                                   PASS  (985 ms)
+  [47] MuSig2 + FROST protocol suite                 PASS  (1539 ms)
+  [48] MuSig2 + FROST advanced/adversar              PASS  (1176 ms)
+  [49] Integration (ECDH/batch/cross-proto)          PASS  (3919 ms)
+  [50] Batch verify weight randomness audit          PASS  (1135 ms)
+  [51] ZK proofs (knowledge/DLEQ/Bulletproof range)  PASS  (6920 ms)
+  [52] Ethereum signing layer (EIP-191/155/ecrecover) PASS  (1268 ms)
+  -------- Section Result: 13/13 passed (20938 ms)
+
+================================================================
+  Section 7/8: ABI & Memory Safety (zeroization, hardening)
+================================================================
+  [53] Security hardening (zero/bitflip/nonce)       PASS  (82292 ms)
+  [54] Debug invariant assertions                    PASS  (995 ms)
+  [55] ABI version gate (compile-time)               PASS  (0 ms)
+  [56] Cross-ABI/FFI round-trip (ufsecp C API)       PASS  (1086 ms)
+  [57] C ABI null/bad-key/bad-sig contract tests     PASS  (1009 ms)
+  [58] C ABI thread stress (one ctx per thread)      PASS  (1111 ms)
+  [59] Secure memory erasure (volatile readback)     PASS  (2 ms)
+  [60] CT namespace discipline (source-level scan)   PASS  (2 ms)
+  [61] RFC 6979 nonce determinism + uniqueness       PASS  (9 ms)
+  [62] Public parse path strictness (malformed inputs) PASS  (1024 ms)
+  [63] GPU C ABI null/invalid-backend/error paths    PASS  (1 ms)
+  [64] GPU ABI discovery, lifecycle, ops-if-avail    PASS  (1 ms)
+  -------- Section Result: 12/12 passed (87530 ms)
+
+================================================================
+  Section 8/8: Performance Validation & Regression
+================================================================
+  [65] Accelerated hashing                           PASS  (572 ms)
+  [66] Multi-scalar & batch verify                   PASS  (1006 ms)
+  [67] Performance smoke (sign/verify roundtrip)     PASS  (1062 ms)
+  -------- Section Result: 3/3 passed (2640 ms)
+
+================================================================
+  Section 9/8: Exploit PoC Security Probes (106 attack vectors)
+================================================================
+  [68] Adaptor Signature Extended Security           PASS  (1003 ms)
+  [69] Adaptor Signature R.y Parity                  PASS  (1059 ms)
+  [70] Bitcoin Address Encoding Security             PASS  (1012 ms)
+  [71] Bitcoin Address Generation Security           PASS  (1064 ms)
+  [72] AEAD ChaCha20-Poly1305 Integrity              PASS  (3 ms)
+  [73] Backend Divergence Detection                  PASS  (1035 ms)
+  [74] Schnorr Batch Verification Soundness          PASS  (1073 ms)
+  [75] Schnorr Batch Forge Detection                 PASS  (1011 ms)
+  [76] Batch Signature Verification Soundness        PASS  (1044 ms)
+  [77] Schnorr Batch Verify Correctness              PASS  (1029 ms)
+  [78] Batch Verification Poisoning                  PASS  (1022 ms)
+  [79] BIP-143 SegWit v0 Signature Hash              PASS  (3 ms)
+  [80] BIP-144 Witness Tx Serialization              PASS  (4 ms)
+  [81] BIP-324 Counter Desync via Forged Packet      PASS  (3 ms)
+  [82] BIP-324 Encrypted Transport Session           PASS  (6 ms)
+  [83] BIP-324 Transcript Splice / Packet Mix        PASS  (4 ms)
+  [84] BIP-32 Hardened Derivation Edge Cases         PASS  (1038 ms)
+  [85] BIP-32 Depth uint8_t Silent Overflow          PASS  (6 ms)
+  [86] BIP-32 HD Key Derivation                      PASS  (1037 ms)
+  [87] BIP-32 Parent Fingerprint Confusion           PASS  (3 ms)
+  [88] BIP-32 Path Parser Integer Overflow           PASS  (19 ms)
+  [89] BIP-39 Mnemonic Security Properties           PASS  (20 ms)
+  [90] BIP-39 Mnemonic Security Properties           PASS  (28 ms)
+  [91] Bitcoin Message Signing Security              PASS  (1038 ms)
+  [92] ChaCha20-Poly1305 RFC 8439 KAT                PASS  (4 ms)
+  [93] ChaCha20-Poly1305 Nonce Reuse                 PASS  (4 ms)
+  [94] ChaCha20-Poly1305 AEAD (RFC 8439)             PASS  (4 ms)
+  [95] Multi-Coin BIP-44 HD Derivation               PASS  (9 ms)
+  [96] CT vs Fast Signing Equivalence                PASS  (1012 ms)
+  [97] CT ct::ecdsa_sign_recoverable                 PASS  (1180 ms)
+  [98] CT vs FAST Output Divergence                  PASS  (1031 ms)
+  [99] Context / Precompute Lifecycle Abuse          PASS  (4116 ms)
+  [100] DER Parsing Differential                      PASS  (1040 ms)
+  [101] ECDH Key Exchange Security                    PASS  (1006 ms)
+  [102] ECDH Degenerate Input Handling                PASS  (1003 ms)
+  [103] ECDH Variants Security                        PASS  (1007 ms)
+  [104] ECDSA DER Encoding Confusion                  PASS  (1 ms)
+  [105] ECDSA Edge Cases and Normalization            PASS  (1024 ms)
+  [106] ECDSA Signature Malleability                  PASS  (1246 ms)
+  [107] ECDSA Key Recovery Edge Cases                 PASS  (1273 ms)
+  [108] ECDSA RFC 6979 Nonce KAT                      PASS  (1205 ms)
+  [109] ECIES Authentication Bypass                   PASS  (1051 ms)
+  [110] ECIES Encryption Security                     PASS  (1103 ms)
+  [111] ECIES Envelope Confusion                      PASS  (1013 ms)
+  [112] ECIES End-to-End Security                     PASS  (1098 ms)
+  [113] ECDSA ecrecover Key Confusion                 PASS  (1048 ms)
+  [114] ElligatorSwift (BIP-324) Security             PASS  (1006 ms)
+  [115] ElligatorSwift BIP-324 ECDH                   PASS  (1011 ms)
+  [116] Ethereum Differential Test                    PASS  (1043 ms)
+  [117] Ethereum Signing / ecrecover                  PASS  (1032 ms)
+  [118] Field Arithmetic Invariants                   PASS  (4 ms)
+  [119] Field Boundary / Carry Exhaustive             PASS  (1 ms)
+  [120] FROST Binding Factor Mismatch                 PASS  (1081 ms)
+  [121] FROST Byzantine Signer Detection              PASS  (1093 ms)
+  [122] FROST Commitment Reuse                        PASS  (1073 ms)
+  [123] FROST DKG and Threshold Signing               PASS  (1085 ms)
+  [124] FROST Participant Index Edge Cases            PASS  (378 ms)
+  [125] FROST Lagrange Duplicate                      PASS  (1 ms)
+  [126] FROST Participant Zero                        PASS  (1 ms)
+  [127] FROST Threshold Signing E2E                   PASS  (1051 ms)
+  [128] FROST Degenerate Threshold                    PASS  (3 ms)
+  [129] GLV Endomorphism Correctness                  PASS  (1119 ms)
+  [130] GLV Decomposition KAT                         PASS  (1059 ms)
+  [131] GPU/CPU Algebraic Consistency                 PASS  (1095 ms)
+  [132] GPU Host API Hostile Caller                   PASS  (1053 ms)
+  [133] Hedged Signature Nonce Bias                   PASS  (1152 ms)
+  [134] HKDF-SHA256 KAT (RFC 5869)                    PASS  (4 ms)
+  [135] HKDF-SHA256 Security (RFC 5869)               PASS  (3 ms)
+  [136] Invalid Curve / Twist Point Injection         PASS  (4 ms)
+  [137] Keccak-256 KAT Vectors                        PASS  (4 ms)
+  [138] Multi-Scalar Multiplication                   PASS  (1046 ms)
+  [139] MuSig2 Multi-Signature Security               PASS  (1069 ms)
+  [140] MuSig2 Key Aggregation (BIP-327)              PASS  (1058 ms)
+  [141] MuSig2 Nonce Reuse Attack                     PASS  (1057 ms)
+  [142] MuSig2 Key Aggregation Order                  PASS  (21 ms)
+  [143] MuSig2 Transcript Fork                        PASS  (1055 ms)
+  [144] Pedersen Adversarial / Switch-Commit          PASS  (5 ms)
+  [145] Pedersen Commitment Homomorphic               PASS  (6 ms)
+  [146] Pedersen Switch Commitment Misuse             PASS  (9 ms)
+  [147] Pippenger MSM Security                        PASS  (1066 ms)
+  [148] Point Group Law Correctness                   PASS  (1048 ms)
+  [149] Point Serialization Edge Cases                PASS  (1088 ms)
+  [150] PrivateKey Strong Type Security               PASS  (1051 ms)
+  [151] ECDSA Recovery Extended Security              PASS  (1056 ms)
+  [152] RIPEMD-160 KAT + hash160                      PASS  (4 ms)
+  [153] Scalar Group Order Invariants                 PASS  (1060 ms)
+  [154] Scalar Arithmetic Edge Cases                  PASS  (1054 ms)
+  [155] Scalar Arithmetic Systematic                  PASS  (1059 ms)
+  [156] Schnorr BIP-340 Official Vectors              PASS  (1064 ms)
+  [157] Schnorr Signature Edge Cases                  PASS  (1061 ms)
+  [158] Schnorr BIP-340 Forgery Rejection             PASS  (1102 ms)
+  [159] Schnorr X-Only Parity Confusion               PASS  (1061 ms)
+  [160] Secret Key Tweak Cancellation                 PASS  (1126 ms)
+  [161] SegWit Script Encoding Security               PASS  (1047 ms)
+  [162] Selftest API Security                         PASS  (6169 ms)
+  [163] SHA-256 KAT + BIP-340 Tagged Hash             PASS  (3 ms)
+  [164] SHA-512 KAT Vectors                           PASS  (6 ms)
+  [165] SHA-256/512 NIST FIPS 180-4 KAT               PASS  (9 ms)
+  [166] Silent Payment BIP-352 Confusion              PASS  (1053 ms)
+  [167] Taproot Merkle Path Alias                     PASS  (1034 ms)
+  [168] Taproot Script Tree Security                  PASS  (1056 ms)
+  [169] Taproot Key Tweak / Commitment                PASS  (1031 ms)
+  [170] Unified Wallet API Security                   PASS  (1056 ms)
+  [171] Wallet Cross-Domain Replay                    PASS  (1047 ms)
+  [172] ZK Proof Adversarial / Malformed              PASS  (1190 ms)
+  [173] ZK Proof Soundness                            PASS  (1287 ms)
+  -------- Section Result: 106/106 passed (85611 ms)
+
+================================================================
+  AUDIT VERDICT: AUDIT-READY
+  TOTAL: 175/175 modules passed  (272.3 s)
+  Platform: Windows x86-64 | MSVC 1944 | Release
+================================================================
