@@ -2851,6 +2851,10 @@ ufsecp_error_t ufsecp_frost_sign_nonce_gen(
     return UFSECP_OK;
 }
 
+// FROST partial signing bridges the stable C ABI to the internal protocol code:
+// it validates signer-count and key-package invariants up front, decodes the
+// serialized nonce-commit list into typed structures, and then returns the
+// participant-id-prefixed partial signature expected by the public ABI.
 ufsecp_error_t ufsecp_frost_sign(
     ufsecp_ctx* ctx,
     const uint8_t keypkg[UFSECP_FROST_KEYPKG_LEN],
