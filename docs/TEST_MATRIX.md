@@ -12,7 +12,7 @@ lags behind the generated validation surfaces, prefer the generated counts.
 
 | Category | Tests | Status |
 |----------|-------|--------|
-| **CTest targets** | 162 active targets | [OK] Documented in current assurance validation |
+| **CTest targets** | 182 active targets | [OK] Documented in current assurance validation |
 | **Audit suite checks** | 641,194+ | [OK] 0 failures |
 | **Exploit PoC test files** | **78 tests, 14 categories** | [OK] 0 failures |
 | **Fuzz harnesses** | 3 | [OK] Active |
@@ -52,7 +52,7 @@ lags behind the generated validation surfaces, prefer the generated counts.
 | `test_cross_libsecp256k1.cpp` | -- | Cross-implementation: differential test against bitcoin-core/secp256k1 |
 | `test_cross_platform_kat.cpp` | -- | Cross-platform known-answer tests: deterministic outputs across architectures |
 | `test_debug_invariants.cpp` | -- | Debug invariants: internal consistency checks under debug mode |
-| `test_fiat_crypto_linkage.cpp` | -- | Fiat-Crypto linkage: formal arithmetic verification vectors |
+| `test_fiat_crypto_linkage.cpp` | -- | Independent reference linkage: field arithmetic cross-check against schoolbook oracle |
 | `test_frost_kat.cpp` | -- | FROST t-of-n threshold signing known-answer tests |
 | `test_wycheproof_ecdsa.cpp` | -- | Wycheproof ECDSA: Google Project Wycheproof test vectors |
 | `test_wycheproof_ecdh.cpp` | -- | Wycheproof ECDH: Google Project Wycheproof test vectors |
@@ -130,8 +130,21 @@ These standalone CTest entries are part of the active validation surface and are
 | `c_abi_negative` | C ABI hostile-caller | Negative-path checks for invalid inputs, malformed pointers, and fail-closed behavior |
 | `c_abi_thread_stress` | C ABI concurrency | Threaded stress coverage for public ABI entry points |
 | `exploit_ecdsa_der_confusion` | Exploit PoC | Ensures DER parser behavior rejects non-canonical or ambiguous encodings |
+| `exploit_batch_verify_poison` | Exploit PoC | Regression coverage for adversarial batch-verify poisoning and accumulator corruption attempts |
+| `exploit_der_parsing_differential` | Exploit PoC | Differential strictness coverage for ambiguous or non-canonical DER parser behavior |
+| `exploit_ecies_envelope_confusion` | Exploit PoC | Hostile envelope parsing and domain-confusion regression coverage for ECIES inputs |
+| `exploit_ecrecover_confusion` | Exploit PoC | Recovery-path confusion and invalid-recid regression coverage for Ethereum/compact recovery flows |
 | `exploit_frost_commitment_reuse` | Exploit PoC | Adversarial FROST nonce/commitment reuse regression coverage |
+| `exploit_gpu_cpu_divergence` | Exploit PoC | Detects backend divergence between GPU results and CPU reference behavior |
+| `exploit_gpu_host_api_shape` | Exploit PoC | Validates hostile shape/count/path misuse against the public GPU host API |
+| `exploit_hedged_nonce_bias` | Exploit PoC | Regression coverage for biased or malformed hedged-nonce construction |
+| `exploit_invalid_curve_twist` | Exploit PoC | Rejects twist/off-curve inputs that could poison public-key or shared-secret flows |
 | `exploit_pedersen_adversarial` | Exploit PoC | Adversarial Pedersen commitment misuse/regression coverage |
+| `exploit_pedersen_switch_misuse` | Exploit PoC | Switch-commitment misuse and binding-confusion regression coverage |
+| `exploit_schnorr_xonly_parity_confusion` | Exploit PoC | X-only/parity ambiguity regression coverage for Schnorr verification flows |
+| `exploit_seckey_tweak_cancel` | Exploit PoC | Regression coverage for tweak-cancellation edge cases on secret-key arithmetic |
+| `exploit_silent_payment_confusion` | Exploit PoC | Silent payment transcript and domain-confusion regression coverage |
+| `exploit_taproot_merkle_path_alias` | Exploit PoC | Detects aliasing and malformed-merkle-path edge cases in Taproot proof handling |
 | `ffi_coverage` | FFI surface | Coverage-oriented validation for public foreign-function interface paths |
 | `kat_all_operations` | Known-answer tests | Broad deterministic vectors across exposed operations |
 | `nonce_uniqueness` | Security audit | Nonce uniqueness and replay-resistance regression coverage |
@@ -155,8 +168,21 @@ CTest inventory exactly:
 - `diag_scalar_mul`
 - `exploit_bip324_counter_desync`
 - `exploit_bip324_transcript_splice`
+- `exploit_batch_verify_poison`
+- `exploit_der_parsing_differential`
+- `exploit_ecies_envelope_confusion`
+- `exploit_ecrecover_confusion`
 - `exploit_ethereum_differential`
+- `exploit_gpu_cpu_divergence`
+- `exploit_gpu_host_api_shape`
+- `exploit_hedged_nonce_bias`
+- `exploit_invalid_curve_twist`
 - `exploit_musig2_transcript_fork`
+- `exploit_pedersen_switch_misuse`
+- `exploit_schnorr_xonly_parity_confusion`
+- `exploit_seckey_tweak_cancel`
+- `exploit_silent_payment_confusion`
+- `exploit_taproot_merkle_path_alias`
 - `exploit_zk_adversarial`
 - `fault_injection`
 - `fiat_crypto_vectors`

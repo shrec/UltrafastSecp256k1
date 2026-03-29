@@ -4,7 +4,7 @@
 
 | Version | Supported |
 |---------|-----------|
-| 3.22.x  | [OK] Active |
+| 3.50.x  | [OK] Active |
 | 3.21.x  | [OK] Maintained |
 | 3.20.x  | [!] Critical fixes only |
 | < 3.20  | [FAIL] Unsupported |
@@ -99,7 +99,7 @@ The following automated security measures are in place:
 - **dudect timing analysis** -- Welch t-test side-channel detection (1300+ line test suite)
 - **Native ARM64 dudect** -- Apple Silicon (M1) smoke + full statistical analysis on macos-14 runners
 - **ct-verif LLVM pass** -- deterministic compile-time constant-time verification of CT modules
-- **Internal audit suite** -- 31 CTest targets (17 audit-labeled), including fuzz parsers, differential tests, fault injection, CT equivalence, cross-platform KAT, Wycheproof ECDSA/ECDH, Fiat-Crypto linkage, and unified audit runner.
+- **Internal audit suite** -- 182 active CTest targets in the current validation surface, including fuzz parsers, differential tests, fault injection, CT equivalence, cross-platform KAT, Wycheproof ECDSA/ECDH, independent reference linkage, and a 70-module unified audit runner.
 - **Valgrind CT taint analysis** -- MAKE_MEM_UNDEFINED + --track-origins secret-dependent branch detection
 - **MuSig2/FROST dudect** -- protocol-level timing analysis (partial_sign, frost_sign, Lagrange)
 - **SARIF audit output** -- `--sarif` flag for GitHub Code Scanning integration
@@ -118,14 +118,14 @@ The following automated security measures are in place:
 - [x] CT branchless low-S normalization (`ct_normalize_low_s`) -- eliminates timing leak in ECDSA signing
 - [x] CT branchless parity handling in Schnorr signing (`scalar_cneg` + `bool_to_mask`)
 - [x] Complete secret zeroization in CT Schnorr sign (d_bytes, t_hash, rand_hash, k_prime, k)
-- [x] Fiat-Crypto direct linkage test (machine-extracted Coq proofs, 6085 cross-checks)
+- [x] Independent reference linkage test (schoolbook oracle cross-check, 6085 checks) + Fiat-Crypto golden vectors
 - [x] Google Wycheproof ECDSA (89 vectors) + ECDH (36 vectors) integration
 - [x] Valgrind CT taint CI -- secret-dependent branch detection (`.github/workflows/valgrind-ct.yml`)
 - [x] MuSig2/FROST protocol-level dudect -- timing tests for partial_sign, frost_sign, Lagrange
 - [x] SARIF output from audit runner -- `--sarif` CLI flag + GitHub Code Scanning upload
 - [x] Performance regression gate -- per-commit 120% threshold (`.github/workflows/bench-regression.yml`)
-- [ ] FROST / MuSig2 reference test vectors from BIP-327/RFC-9591 implementations
-- [ ] Cross-ABI / FFI correctness tests across calling conventions
+- [x] FROST / MuSig2 reference test vectors from BIP-327/RFC-9591 implementations
+- [x] Cross-ABI / FFI hostile-caller and thread-stress validation across the public C ABI
 
 For production cryptographic systems, prefer audited libraries such as
 [libsecp256k1](https://github.com/bitcoin-core/secp256k1).
