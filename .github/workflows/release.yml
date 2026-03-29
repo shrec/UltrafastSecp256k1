@@ -14,6 +14,8 @@ permissions: read-all
 
 env:
   CMAKE_BUILD_TYPE: Release
+  RELEASE_TAG: ${{ github.event.inputs.tag || github.ref_name }}
+  RELEASE_VERSION: ${{ startsWith(github.event.inputs.tag || github.ref_name, 'v') && format('{0}', github.event.inputs.tag || github.ref_name) || github.ref_name }}
 
 # ----------------------------------------------------------------------------
 # Global: version is always derived from the git tag (e.g. v3.9.0 -> 3.9.0)
@@ -56,6 +58,8 @@ jobs:
           egress-policy: audit
 
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ env.RELEASE_TAG }}
 
       # -- Linux: install compiler --
       - name: Install deps (Linux)
@@ -80,7 +84,7 @@ jobs:
       # NOTE: must use .txt suffix -- plain "VERSION" clashes with C++20
       # <version> header on macOS's case-insensitive filesystem.
       - name: Set version from tag
-        run: echo "${GITHUB_REF_NAME#v}" > VERSION.txt
+        run: echo "${RELEASE_VERSION#v}" > VERSION.txt
         shell: bash
 
       # -- Configure --
@@ -110,7 +114,7 @@ jobs:
       - name: Collect release artifacts
         shell: bash
         run: |
-          PKG_NAME="UltrafastSecp256k1-${{ github.ref_name }}-${{ matrix.name }}"
+          PKG_NAME="UltrafastSecp256k1-${{ env.RELEASE_TAG }}-${{ matrix.name }}"
           mkdir -p "${PKG_NAME}/lib" "${PKG_NAME}/include/ufsecp" "${PKG_NAME}/include/secp256k1"
 
           # ufsecp headers
@@ -169,6 +173,8 @@ jobs:
           egress-policy: audit
 
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ env.RELEASE_TAG }}
 
       - name: Install cross-compiler
         run: |
@@ -176,7 +182,7 @@ jobs:
           sudo apt-get install -y g++-aarch64-linux-gnu ninja-build qemu-user-static
 
       - name: Set version from tag
-        run: echo "${GITHUB_REF_NAME#v}" > VERSION.txt
+        run: echo "${RELEASE_VERSION#v}" > VERSION.txt
 
       - name: Configure
         run: |
@@ -213,7 +219,7 @@ jobs:
 
       - name: Collect release artifacts
         run: |
-          PKG_NAME="UltrafastSecp256k1-${{ github.ref_name }}-linux-arm64"
+          PKG_NAME="UltrafastSecp256k1-${{ env.RELEASE_TAG }}-linux-arm64"
           mkdir -p "${PKG_NAME}/lib" "${PKG_NAME}/include/ufsecp"
 
           cp include/ufsecp/ufsecp.h         "${PKG_NAME}/include/ufsecp/"
@@ -263,6 +269,8 @@ jobs:
           egress-policy: audit
 
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ env.RELEASE_TAG }}
 
       - name: Setup Android NDK
         uses: nttld/setup-ndk@ed92fe6cadad69be94a966a7ee3271275e62f779 # v1
@@ -276,7 +284,7 @@ jobs:
           sudo apt-get install -y ninja-build
 
       - name: Set version from tag
-        run: echo "${GITHUB_REF_NAME#v}" > VERSION.txt
+        run: echo "${RELEASE_VERSION#v}" > VERSION.txt
 
       - name: Configure
         run: |
@@ -292,7 +300,7 @@ jobs:
 
       - name: Collect release artifacts
         run: |
-          PKG_NAME="UltrafastSecp256k1-${{ github.ref_name }}-${{ matrix.name }}"
+          PKG_NAME="UltrafastSecp256k1-${{ env.RELEASE_TAG }}-${{ matrix.name }}"
           mkdir -p "${PKG_NAME}/lib" "${PKG_NAME}/include/ufsecp"
 
           cp include/ufsecp/ufsecp.h         "${PKG_NAME}/include/ufsecp/"
@@ -335,9 +343,11 @@ jobs:
           egress-policy: audit
 
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ env.RELEASE_TAG }}
 
       - name: Set version from tag
-        run: echo "${GITHUB_REF_NAME#v}" > VERSION.txt
+        run: echo "${RELEASE_VERSION#v}" > VERSION.txt
 
       - name: Build XCFramework
         run: |
@@ -346,7 +356,7 @@ jobs:
 
       - name: Collect release artifacts
         run: |
-          PKG_NAME="UltrafastSecp256k1-${{ github.ref_name }}-ios-xcframework"
+          PKG_NAME="UltrafastSecp256k1-${{ env.RELEASE_TAG }}-ios-xcframework"
           mkdir -p "${PKG_NAME}"
 
           # Copy the XCFramework bundle
@@ -384,6 +394,8 @@ jobs:
           egress-policy: audit
 
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ env.RELEASE_TAG }}
 
       - name: Setup Emscripten
         uses: mymindstorm/setup-emsdk@6ab9eb1bda2574c4ddb79809fc9247783eaf9021 # v14
@@ -392,7 +404,7 @@ jobs:
           actions-cache-folder: emsdk-cache
 
       - name: Set version from tag
-        run: echo "${GITHUB_REF_NAME#v}" > VERSION.txt
+        run: echo "${RELEASE_VERSION#v}" > VERSION.txt
 
       - name: Configure
         run: emcmake cmake -S wasm -B build/wasm -DCMAKE_BUILD_TYPE=Release
@@ -418,7 +430,7 @@ jobs:
 
       - name: Collect release artifacts
         run: |
-          PKG_NAME="UltrafastSecp256k1-${{ github.ref_name }}-wasm"
+          PKG_NAME="UltrafastSecp256k1-${{ env.RELEASE_TAG }}-wasm"
           mkdir -p "${PKG_NAME}"
 
           # WASM dist files
@@ -455,6 +467,8 @@ jobs:
           egress-policy: audit
 
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ env.RELEASE_TAG }}
 
       - name: Download desktop artifacts
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -463,7 +477,7 @@ jobs:
 
       - name: Build ufsecp Python wheels
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="${RELEASE_VERSION#v}"
           pip install --require-hashes -r .github/requirements/release-build.txt
           cd bindings/python
 
@@ -485,7 +499,7 @@ jobs:
 
           for PLAT in linux-x64 linux-arm64 macos-arm64 win-x64; do
             WHEEL_PLAT="${WHEEL_TAGS[$PLAT]}"
-            ARTIFACT_DIR="../../native-dist/UltrafastSecp256k1-${{ github.ref_name }}-${PLAT}"
+            ARTIFACT_DIR="../../native-dist/UltrafastSecp256k1-${{ env.RELEASE_TAG }}-${PLAT}"
             echo "=== Packaging wheel for: ${PLAT} (tag: ${WHEEL_PLAT}) ==="
 
             if [ ! -d "$ARTIFACT_DIR" ]; then
@@ -548,6 +562,8 @@ jobs:
           egress-policy: audit
 
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ env.RELEASE_TAG }}
 
       - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
         with:
@@ -560,7 +576,7 @@ jobs:
 
       - name: Build ufsecp npm package
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="${RELEASE_VERSION#v}"
           cd bindings/nodejs
           cp package.ufsecp.json package.json
 
@@ -577,7 +593,7 @@ jobs:
 
           for PLAT in linux-x64 linux-arm64 macos-arm64 win-x64; do
             NPM_DIR="${NPM_PLATS[$PLAT]}"
-            ARTIFACT_DIR="../../native-dist/UltrafastSecp256k1-${{ github.ref_name }}-${PLAT}"
+            ARTIFACT_DIR="../../native-dist/UltrafastSecp256k1-${{ env.RELEASE_TAG }}-${PLAT}"
             echo "=== Copying prebuilds for: ${PLAT} -> prebuilds/${NPM_DIR} ==="
 
             if [ ! -d "$ARTIFACT_DIR" ]; then
@@ -621,7 +637,7 @@ jobs:
         continue-on-error: true
         run: |
           cd bindings/nodejs
-          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="${RELEASE_VERSION#v}"
 
           # GitHub Packages npm requires scoped package name
           # Rewrite name to @shrec/ufsecp for the registry
@@ -660,6 +676,8 @@ jobs:
           egress-policy: audit
 
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ env.RELEASE_TAG }}
 
       - uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7 # v5.2.0
         with:
@@ -674,7 +692,7 @@ jobs:
 
       - name: Prepare NuGet runtimes
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="${RELEASE_VERSION#v}"
           cd bindings/csharp/Ufsecp
 
           # Inject version from git tag
@@ -690,7 +708,7 @@ jobs:
 
           for PLAT in linux-x64 linux-arm64 macos-arm64 win-x64; do
             RID="${RIDS[$PLAT]}"
-            ARTIFACT_DIR="../../../native-dist/UltrafastSecp256k1-${{ github.ref_name }}-${PLAT}"
+            ARTIFACT_DIR="../../../native-dist/UltrafastSecp256k1-${{ env.RELEASE_TAG }}-${PLAT}"
             echo "=== Extracting native libs for RID: ${RID} ==="
 
             if [ ! -d "$ARTIFACT_DIR" ]; then
@@ -762,6 +780,8 @@ jobs:
           egress-policy: audit
 
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ env.RELEASE_TAG }}
 
       - uses: ruby/setup-ruby@c984c1a20bb35a1cbda04477c816cea024418be9 # v1
         with:
@@ -774,7 +794,7 @@ jobs:
 
       - name: Build Ruby gem
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="${RELEASE_VERSION#v}"
           cd bindings/ruby
 
           # Inject version from git tag
@@ -784,7 +804,7 @@ jobs:
 
           # Extract and copy native libs from all desktop platforms
           for PLAT in linux-x64 linux-arm64 macos-arm64 win-x64; do
-            ARTIFACT_DIR="../../native-dist/UltrafastSecp256k1-${{ github.ref_name }}-${PLAT}"
+            ARTIFACT_DIR="../../native-dist/UltrafastSecp256k1-${{ env.RELEASE_TAG }}-${PLAT}"
             echo "=== Extracting native libs for: ${PLAT} ==="
 
             if [ ! -d "$ARTIFACT_DIR" ]; then
@@ -847,6 +867,8 @@ jobs:
           egress-policy: audit
 
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ env.RELEASE_TAG }}
 
       - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
         with:
@@ -861,7 +883,7 @@ jobs:
       - name: Build JNI JAR
         run: |
           cd bindings/java
-          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="${RELEASE_VERSION#v}"
 
           # Build JNI natives directory structure
           for DIR in linux-x64 linux-arm64 win-x64 macos-arm64 android-arm64 android-armv7 android-x64; do
@@ -870,7 +892,7 @@ jobs:
 
           # Copy native libs from platform builds
           for PLAT in linux-x64 linux-arm64 win-x64 macos-arm64 android-arm64 android-armv7 android-x64; do
-            ARTIFACT_DIR="../../native-dist/UltrafastSecp256k1-${{ github.ref_name }}-${PLAT}"
+            ARTIFACT_DIR="../../native-dist/UltrafastSecp256k1-${{ env.RELEASE_TAG }}-${PLAT}"
             echo "=== Extracting for: ${PLAT} ==="
 
             if [ ! -d "$ARTIFACT_DIR" ]; then
@@ -928,7 +950,7 @@ jobs:
       - name: Publish to GitHub Packages (Maven)
         run: |
           cd bindings/java
-          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="${RELEASE_VERSION#v}"
           JAR="ufsecp-${VERSION}.jar"
           GROUP="com.ultrafast"
           ARTIFACT="ufsecp"
@@ -1001,7 +1023,7 @@ jobs:
 
       - name: Build Go package
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="${RELEASE_VERSION#v}"
           PKG="ufsecp-go-${VERSION}"
           mkdir -p "${PKG}/native"
 
@@ -1021,7 +1043,7 @@ jobs:
 
           # Extract native libs per platform
           for PLAT in linux-x64 linux-arm64 macos-arm64 win-x64; do
-            ARTIFACT_DIR="native-dist/UltrafastSecp256k1-${{ github.ref_name }}-${PLAT}"
+            ARTIFACT_DIR="native-dist/UltrafastSecp256k1-${{ env.RELEASE_TAG }}-${PLAT}"
             if [ ! -d "$ARTIFACT_DIR" ]; then
               echo "  SKIP: ${PLAT}"
               continue
@@ -1065,6 +1087,8 @@ jobs:
           egress-policy: audit
 
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ env.RELEASE_TAG }}
 
       - name: Download desktop artifacts
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -1073,7 +1097,7 @@ jobs:
 
       - name: Build Rust package
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="${RELEASE_VERSION#v}"
           PKG="ufsecp-rust-${VERSION}"
           mkdir -p "${PKG}/native"
 
@@ -1094,7 +1118,7 @@ jobs:
 
           # Extract native libs per platform
           for PLAT in linux-x64 linux-arm64 macos-arm64 win-x64; do
-            ARTIFACT_DIR="native-dist/UltrafastSecp256k1-${{ github.ref_name }}-${PLAT}"
+            ARTIFACT_DIR="native-dist/UltrafastSecp256k1-${{ env.RELEASE_TAG }}-${PLAT}"
             if [ ! -d "$ARTIFACT_DIR" ]; then
               echo "  SKIP: ${PLAT}"
               continue
@@ -1138,6 +1162,8 @@ jobs:
           egress-policy: audit
 
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ env.RELEASE_TAG }}
 
       - name: Download all artifacts
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -1146,7 +1172,7 @@ jobs:
 
       - name: Build Dart package
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="${RELEASE_VERSION#v}"
           PKG="ufsecp-dart-${VERSION}"
           mkdir -p "${PKG}/native"
 
@@ -1159,7 +1185,7 @@ jobs:
 
           # Extract native libs: desktop + mobile
           for PLAT in linux-x64 linux-arm64 macos-arm64 win-x64 android-arm64 android-armv7 android-x64; do
-            ARTIFACT_DIR="native-dist/UltrafastSecp256k1-${{ github.ref_name }}-${PLAT}"
+            ARTIFACT_DIR="native-dist/UltrafastSecp256k1-${{ env.RELEASE_TAG }}-${PLAT}"
             if [ ! -d "$ARTIFACT_DIR" ]; then
               echo "  SKIP: ${PLAT}"
               continue
@@ -1179,7 +1205,7 @@ jobs:
           done
 
           # Also include iOS XCFramework if available
-          IOS_DIR="native-dist/UltrafastSecp256k1-${{ github.ref_name }}-ios-xcframework"
+          IOS_DIR="native-dist/UltrafastSecp256k1-${{ env.RELEASE_TAG }}-ios-xcframework"
           if [ -d "$IOS_DIR" ]; then
             mkdir -p "${PKG}/native/ios"
             cp "${IOS_DIR}"/*.tar.gz "${PKG}/native/ios/" 2>/dev/null || true
@@ -1215,6 +1241,8 @@ jobs:
           egress-policy: audit
 
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ env.RELEASE_TAG }}
 
       - name: Download desktop artifacts
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -1223,7 +1251,7 @@ jobs:
 
       - name: Build PHP package
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="${RELEASE_VERSION#v}"
           PKG="ufsecp-php-${VERSION}"
           mkdir -p "${PKG}/native"
 
@@ -1241,7 +1269,7 @@ jobs:
 
           # Extract native libs per platform
           for PLAT in linux-x64 linux-arm64 macos-arm64 win-x64; do
-            ARTIFACT_DIR="native-dist/UltrafastSecp256k1-${{ github.ref_name }}-${PLAT}"
+            ARTIFACT_DIR="native-dist/UltrafastSecp256k1-${{ env.RELEASE_TAG }}-${PLAT}"
             if [ ! -d "$ARTIFACT_DIR" ]; then
               echo "  SKIP: ${PLAT}"
               continue
@@ -1285,6 +1313,8 @@ jobs:
           egress-policy: audit
 
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ env.RELEASE_TAG }}
 
       - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
         with:
@@ -1297,7 +1327,7 @@ jobs:
 
       - name: Build React Native package
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="${RELEASE_VERSION#v}"
           cd bindings/react-native
 
           # Use ufsecp manifest
@@ -1310,7 +1340,7 @@ jobs:
           mkdir -p prebuilds
 
           for PLAT in android-arm64 android-armv7 android-x64; do
-            ARTIFACT_DIR="../../native-dist/UltrafastSecp256k1-${{ github.ref_name }}-${PLAT}"
+            ARTIFACT_DIR="../../native-dist/UltrafastSecp256k1-${{ env.RELEASE_TAG }}-${PLAT}"
             if [ ! -d "$ARTIFACT_DIR" ]; then
               echo "  SKIP: ${PLAT}"
               continue
@@ -1329,7 +1359,7 @@ jobs:
           done
 
           # iOS XCFramework
-          IOS_DIR="../../native-dist/UltrafastSecp256k1-${{ github.ref_name }}-ios-xcframework"
+          IOS_DIR="../../native-dist/UltrafastSecp256k1-${{ env.RELEASE_TAG }}-ios-xcframework"
           if [ -d "$IOS_DIR" ]; then
             mkdir -p prebuilds/ios
             TMPDIR=$(mktemp -d)
@@ -1388,6 +1418,8 @@ jobs:
           egress-policy: audit
 
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ env.RELEASE_TAG }}
 
       - name: Download artifacts
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -1396,7 +1428,7 @@ jobs:
 
       - name: Build Swift package
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="${RELEASE_VERSION#v}"
           PKG="ufsecp-swift-${VERSION}"
           mkdir -p "${PKG}/native"
 
@@ -1413,7 +1445,7 @@ jobs:
           cp include/ufsecp/ufsecp_version.h "${PKG}/Sources/CUfsecp/" 2>/dev/null || true
 
           # macOS native lib
-          MACOS_DIR="native-dist/UltrafastSecp256k1-${{ github.ref_name }}-macos-arm64"
+          MACOS_DIR="native-dist/UltrafastSecp256k1-${{ env.RELEASE_TAG }}-macos-arm64"
           if [ -d "$MACOS_DIR" ]; then
             mkdir -p "${PKG}/native/macos-arm64"
             TMPDIR=$(mktemp -d)
@@ -1426,7 +1458,7 @@ jobs:
           fi
 
           # iOS XCFramework
-          IOS_DIR="native-dist/UltrafastSecp256k1-${{ github.ref_name }}-ios-xcframework"
+          IOS_DIR="native-dist/UltrafastSecp256k1-${{ env.RELEASE_TAG }}-ios-xcframework"
           if [ -d "$IOS_DIR" ]; then
             mkdir -p "${PKG}/native/ios"
             TMPDIR=$(mktemp -d)
@@ -1460,6 +1492,8 @@ jobs:
           egress-policy: audit
 
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ env.RELEASE_TAG }}
 
       - name: Download desktop artifacts
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -1468,7 +1502,7 @@ jobs:
 
       - name: Build C/C++ SDK package
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="${RELEASE_VERSION#v}"
           PKG="ufsecp-c-${VERSION}"
 
           # Copy public C API headers
@@ -1487,7 +1521,7 @@ jobs:
 
           # Extract native libs per platform
           for PLAT in linux-x64 linux-arm64 macos-arm64 win-x64; do
-            ARTIFACT_DIR="native-dist/UltrafastSecp256k1-${{ github.ref_name }}-${PLAT}"
+            ARTIFACT_DIR="native-dist/UltrafastSecp256k1-${{ env.RELEASE_TAG }}-${PLAT}"
             if [ ! -d "$ARTIFACT_DIR" ]; then
               echo "  SKIP: ${PLAT}"
               continue
@@ -1539,6 +1573,7 @@ jobs:
 
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
+          ref: ${{ env.RELEASE_TAG }}
           persist-credentials: false
 
       - name: Download all artifacts
@@ -1550,7 +1585,7 @@ jobs:
         id: notes
         run: |
           # Extract section for this version from CHANGELOG.md
-          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="${RELEASE_VERSION#v}"
           NOTES=$(awk -v ver="$VERSION" '
             /^## \[/ {
               if (found) exit
@@ -1697,7 +1732,7 @@ jobs:
       # -- SBOM generation (CycloneDX) --
       - name: Generate SBOM
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="${RELEASE_VERSION#v}"
           TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
           cat > sbom.cdx.json <<'SBOM_HEREDOC'
           {
@@ -1742,8 +1777,9 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Delete pre-existing release (if any)
+        if: github.event_name != 'workflow_dispatch'
         run: |
-          gh release delete "${{ github.ref_name }}" --yes 2>/dev/null || true
+          gh release delete "${{ env.RELEASE_TAG }}" --yes 2>/dev/null || true
           # Brief pause to let GitHub API propagate the deletion,
           # avoiding 404 on asset update when action-gh-release
           # encounters stale asset metadata from a deleted release.
@@ -1754,11 +1790,11 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@153bb8e04406b158c6c84fc1615b65b24149a1fe # v2
         with:
-          tag_name: ${{ github.ref_name }}
-          name: "UltrafastSecp256k1 ${{ github.ref_name }}"
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: "UltrafastSecp256k1 ${{ env.RELEASE_TAG }}"
           body: ${{ steps.notes.outputs.NOTES }}
           draft: false
-          prerelease: ${{ contains(github.ref_name, '-rc') || contains(github.ref_name, '-beta') || contains(github.ref_name, '-alpha') }}
+          prerelease: ${{ contains(env.RELEASE_TAG, '-rc') || contains(env.RELEASE_TAG, '-beta') || contains(env.RELEASE_TAG, '-alpha') }}
           fail_on_unmatched_files: false
           # NOTE: dist/**/* already includes .sigstore files created by
           # the cosign step -- do NOT add dist/**/*.sigstore separately
@@ -1780,7 +1816,7 @@ jobs:
         if: always()
         env:
           WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_RELEASES }}
-          TAG: ${{ github.ref_name }}
+          TAG: ${{ env.RELEASE_TAG }}
           REPO: ${{ github.repository }}
           STATUS: ${{ job.status }}
         run: |
