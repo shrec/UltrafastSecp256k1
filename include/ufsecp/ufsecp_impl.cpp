@@ -950,6 +950,11 @@ ufsecp_error_t ufsecp_ecdsa_sign_batch(
 {
     if (!ctx || !msgs32 || !privkeys32 || !sigs64_out) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
+    if (count > kMaxBatchN) return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "batch count too large");
+    std::size_t total_msg_bytes, total_sig_bytes;
+    if (!checked_mul_size(count, std::size_t{32}, total_msg_bytes)
+        || !checked_mul_size(count, std::size_t{64}, total_sig_bytes))
+        return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "batch size overflow");
     for (size_t i = 0; i < count; ++i) {
         std::array<uint8_t, 32> msg;
         std::memcpy(msg.data(), msgs32 + i * 32, 32);
@@ -977,6 +982,11 @@ ufsecp_error_t ufsecp_schnorr_sign_batch(
 {
     if (!ctx || !msgs32 || !privkeys32 || !sigs64_out) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
+    if (count > kMaxBatchN) return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "batch count too large");
+    std::size_t total_msg_bytes, total_sig_bytes;
+    if (!checked_mul_size(count, std::size_t{32}, total_msg_bytes)
+        || !checked_mul_size(count, std::size_t{64}, total_sig_bytes))
+        return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "batch size overflow");
 
     static constexpr uint8_t kZeroAux[32] = {};
 
