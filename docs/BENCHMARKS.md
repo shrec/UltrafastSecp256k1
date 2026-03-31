@@ -1248,5 +1248,5 @@ AWS Graviton, AMD EPYC, Intel Xeon Sapphire Rapids, Milk-V Pioneer (C920).
 
 ## Version
 
-UltrafastSecp256k1 v3.16.0  
+UltrafastSecp256k1 v3.50.0  
 Benchmarks updated: 2026-03-02

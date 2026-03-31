@@ -24,6 +24,42 @@ env:
 
 jobs:
   # ==========================================================================
+  # 0) Sync version strings in docs then commit back to dev
+  # ==========================================================================
+  sync-docs:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: dev
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set version from tag
+        run: echo "${RELEASE_VERSION#v}" > VERSION.txt
+        shell: bash
+
+      - name: Sync version strings in docs
+        run: python3 scripts/sync_version_refs.py
+
+      - name: Commit synced docs (if changed)
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if ! git diff --quiet; then
+            git add -A
+            git commit -m "chore: sync version refs to ${RELEASE_VERSION#v} [skip ci]"
+            git push origin dev
+          fi
+        shell: bash
+
+  # ==========================================================================
   # 1) Desktop native binaries (Linux x64, macOS ARM64, Windows x64)
   # ==========================================================================
   build-desktop:

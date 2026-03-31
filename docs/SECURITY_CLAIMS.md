@@ -1,6 +1,6 @@
 # Security Claims & API Contract
 
-**UltrafastSecp256k1 v3.4.0** -- FAST / CT Dual-Layer Architecture (CPU + GPU)
+**UltrafastSecp256k1 v3.50.0** -- FAST / CT Dual-Layer Architecture (CPU + GPU)
 
 ## Operating Assumption
 
@@ -393,4 +393,4 @@ Every release must answer: **"Did the CT scope change?"**
 
 ---
 
-*UltrafastSecp256k1 v3.4.0 -- Security Claims*
+*UltrafastSecp256k1 v3.50.0 -- Security Claims*

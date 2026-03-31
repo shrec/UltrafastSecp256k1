@@ -1,6 +1,6 @@
 # Audit Traceability Matrix
 
-**UltrafastSecp256k1 v3.4.0** -- Evidence-Based Correctness & Security Mapping
+**UltrafastSecp256k1 v3.50.0** -- Evidence-Based Correctness & Security Mapping
 
 > This document maps every mathematical invariant to its implementation code,
 > validation method, and specific test location. It is the primary artifact for
