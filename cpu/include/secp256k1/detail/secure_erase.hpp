@@ -13,7 +13,7 @@
 #include <cstring>
 #include <atomic>
 #if defined(_MSC_VER)
-#  include <wchar.h>  // pulls in memset_s via MSVC CRT
+#  include <windows.h>  // SecureZeroMemory
 #endif
 
 namespace secp256k1::detail {
@@ -22,14 +22,12 @@ inline void secure_erase(void* ptr, std::size_t len) noexcept {
     if (len == 0) return;
 
 #if defined(_MSC_VER)
-    // MSVC /GL + LTCG can eliminate a volatile write loop because LTCG reasons
-    // across TUs. memset_s (C11 §K.3.7.4.1) is explicitly forbidden from being
-    // optimized away by conforming implementations; MSVC honours this.
-    // A volatile loop fallback guards against a hypothetical non-conforming build.
-    if (memset_s(ptr, len, 0, len) != 0) {
-        volatile unsigned char* vp = static_cast<volatile unsigned char*>(ptr);
-        for (std::size_t i = 0; i < len; ++i) { vp[i] = 0; }
-    }
+    // Windows/MSVC provides an explicit secure zero primitive.
+    // It is documented as non-elidable and avoids Annex-K availability issues.
+    SecureZeroMemory(ptr, len);
+#elif defined(__STDC_LIB_EXT1__)
+    // C11 Annex K secure erase when available.
+    (void)memset_s(ptr, len, 0, len);
 #elif defined(__GLIBC__) && (__GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 25))
     // glibc 2.25+: explicit_bzero is guaranteed not to be optimized away.
     explicit_bzero(ptr, len);
