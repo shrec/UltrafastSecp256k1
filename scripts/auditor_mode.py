@@ -95,6 +95,48 @@ REQUIRED_PROBES = [
 ]
 
 
+# Non-blocking, forward-looking probes from recent public research.
+# Missing items here do not mark the audit as blocked, but are surfaced so
+# hardening work stays visible in every auditor-mode report.
+RECOMMENDED_PROBES = [
+    RequiredProbe(
+        key='ladderleak_subbit_nonce',
+        severity='high',
+        rationale='Sub-bit nonce leakage resilience (LadderLeak class).',
+        expected_symbol='test_exploit_ladderleak_subbit_nonce_run',
+        expected_file='audit/test_exploit_ladderleak_subbit_nonce.cpp',
+    ),
+    RequiredProbe(
+        key='minerva_noisy_hnp',
+        severity='high',
+        rationale='Noisy timing-to-HNP robustness (Minerva class).',
+        expected_symbol='test_exploit_minerva_noisy_hnp_run',
+        expected_file='audit/test_exploit_minerva_noisy_hnp.cpp',
+    ),
+    RequiredProbe(
+        key='hertzbleed_dvfs_timing',
+        severity='high',
+        rationale='DVFS frequency-leakage regression surface (Hertzbleed class).',
+        expected_symbol='test_exploit_hertzbleed_dvfs_timing_run',
+        expected_file='audit/test_exploit_hertzbleed_dvfs_timing.cpp',
+    ),
+    RequiredProbe(
+        key='biased_nonce_chain_scan',
+        severity='medium',
+        rationale='Nonce-bias drift detection inspired by chain-scale incidents.',
+        expected_symbol='test_exploit_biased_nonce_chain_scan_run',
+        expected_file='audit/test_exploit_biased_nonce_chain_scan.cpp',
+    ),
+    RequiredProbe(
+        key='kr_ecdsa_buff_binding',
+        severity='medium',
+        rationale='KR-ECDSA address/key-binding misuse resistance (BUFF-oriented).',
+        expected_symbol='test_exploit_kr_ecdsa_buff_binding_run',
+        expected_file='audit/test_exploit_kr_ecdsa_buff_binding.cpp',
+    ),
+]
+
+
 def _parse_registered_symbols(runner_text: str) -> set[str]:
     # Declaration lines: int test_exploit_..._run();
     decls = set(re.findall(r'\bint\s+(test_exploit_[a-zA-Z0-9_]+_run)\s*\(', runner_text))
@@ -124,6 +166,9 @@ def _build_text_summary(report: dict) -> str:
         f"Required vectors: {report['required_count']}",
         f"Covered: {report['covered_count']}",
         f"Missing: {report['missing_count']}",
+        f"Recommended vectors: {report['recommended_count']}",
+        f"Recommended covered: {report['recommended_covered_count']}",
+        f"Recommended missing: {report['recommended_missing_count']}",
         '',
         'Missing high-priority vectors:',
     ]
@@ -139,6 +184,12 @@ def _build_text_summary(report: dict) -> str:
     for item in report['coverage']:
         tag = 'OK' if item['present'] else 'MISSING'
         lines.append(f"  - [{tag}] {item['key']} -> {item['expected_symbol']}")
+
+    lines.extend(['', 'Recommended hardening vectors:'])
+    if report['recommended_coverage']:
+        for item in report['recommended_coverage']:
+            tag = 'OK' if item['present'] else 'TODO'
+            lines.append(f"  - [{tag}] {item['key']} -> {item['expected_symbol']}")
 
     lines.append('')
     return '\n'.join(lines)
@@ -173,6 +224,23 @@ def build_report(strict: bool = False) -> tuple[dict, int]:
             missing.append(item)
 
     missing_critical = [item for item in missing if item['severity'] == 'critical']
+
+    recommended_coverage = []
+    recommended_missing = []
+    for probe in RECOMMENDED_PROBES:
+        present = probe.expected_symbol in symbols
+        item = {
+            'key': probe.key,
+            'severity': probe.severity,
+            'rationale': probe.rationale,
+            'expected_symbol': probe.expected_symbol,
+            'expected_file': probe.expected_file,
+            'present': present,
+        }
+        recommended_coverage.append(item)
+        if not present:
+            recommended_missing.append(item)
+
     status = 'ready' if not missing else 'partial'
     if missing_critical:
         status = 'high-risk-gaps'
@@ -187,8 +255,13 @@ def build_report(strict: bool = False) -> tuple[dict, int]:
         'covered_count': len(REQUIRED_PROBES) - len(missing),
         'missing_count': len(missing),
         'missing_critical_count': len(missing_critical),
+        'recommended_count': len(RECOMMENDED_PROBES),
+        'recommended_covered_count': len(RECOMMENDED_PROBES) - len(recommended_missing),
+        'recommended_missing_count': len(recommended_missing),
         'coverage': coverage,
         'missing': missing,
+        'recommended_coverage': recommended_coverage,
+        'recommended_missing': recommended_missing,
     }
 
     exit_code = 0
