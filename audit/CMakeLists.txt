@@ -1196,17 +1196,29 @@ set_tests_properties(exploit_descriptor_injection PROPERTIES
     TIMEOUT 60 LABELS "audit;exploit;descriptor;bip380")
 
 # -- PoC: Secret key arithmetic (tweak_add/mul, negate, cross-check) --------
-add_executable(test_exploit_seckey_arith_standalone test_exploit_seckey_arith.cpp)
+add_executable(test_exploit_seckey_arith_standalone
+    test_exploit_seckey_arith.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_seckey_arith_standalone)
-target_compile_definitions(test_exploit_seckey_arith_standalone PRIVATE STANDALONE_TEST)
+target_include_directories(test_exploit_seckey_arith_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+)
+target_compile_definitions(test_exploit_seckey_arith_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
 add_test(NAME exploit_seckey_arith COMMAND test_exploit_seckey_arith_standalone)
 set_tests_properties(exploit_seckey_arith PROPERTIES TIMEOUT 60 LABELS "audit;exploit;seckey;tweak")
 
 # -- PoC: Context clone isolation (CLN-1..CLN-6) ----------------------------
-add_executable(test_exploit_ctx_clone_standalone test_exploit_ctx_clone.cpp)
+add_executable(test_exploit_ctx_clone_standalone
+    test_exploit_ctx_clone.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_ctx_clone_standalone)
+target_include_directories(test_exploit_ctx_clone_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+)
 target_link_libraries(test_exploit_ctx_clone_standalone PRIVATE Threads::Threads)
-target_compile_definitions(test_exploit_ctx_clone_standalone PRIVATE STANDALONE_TEST)
+target_compile_definitions(test_exploit_ctx_clone_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
 add_test(NAME exploit_ctx_clone COMMAND test_exploit_ctx_clone_standalone)
 set_tests_properties(exploit_ctx_clone PROPERTIES TIMEOUT 60 LABELS "audit;exploit;context;clone")
 

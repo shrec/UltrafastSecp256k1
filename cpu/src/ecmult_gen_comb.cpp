@@ -272,8 +272,12 @@ bool CombGenContext::load_cache(const std::string& path) {
     // multiplications (signatures, ECDH) without touching private key material.
     for (uint32_t i = 0; i < count; ++i) {
         if (table_[i].infinity) continue;
-        Point pt = Point::from_jacobian_coords(table_[i].x, table_[i].y, FieldElement::one(), false);
-        if (!secp256k1::fast::debug::is_on_curve(pt)) {
+        const FieldElement& x = table_[i].x;
+        const FieldElement& y = table_[i].y;
+        // y^2 == x^3 + 7  (secp256k1 curve equation)
+        FieldElement lhs = y * y;
+        FieldElement rhs = x * x * x + FieldElement::from_uint64(7);
+        if (lhs != rhs) {
             table_.clear();
             return false;
         }
