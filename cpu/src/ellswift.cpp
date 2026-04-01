@@ -324,7 +324,7 @@ FieldElement ellswift_decode(const std::uint8_t encoding[64]) noexcept {
     return xswiftec_fwd(u, t);
 }
 
-std::array<std::uint8_t, 64> ellswift_create(const Scalar& privkey) noexcept {
+std::array<std::uint8_t, 64> ellswift_create(const Scalar& privkey) {
     // Compute the public key's x-coordinate (constant-time: privkey is secret)
     auto pub = ct::generator_mul(privkey);
     auto x = pub.x();

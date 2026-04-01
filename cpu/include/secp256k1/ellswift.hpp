@@ -41,7 +41,7 @@ FieldElement ellswift_decode(const std::uint8_t encoding[64]) noexcept;
 // Create a 64-byte ElligatorSwift encoding from a private key.
 // Generates a uniformly random-looking 64 bytes that encodes privkey * G.
 // Uses OS CSPRNG for the randomness needed by the encoding.
-std::array<std::uint8_t, 64> ellswift_create(const Scalar& privkey) noexcept;
+std::array<std::uint8_t, 64> ellswift_create(const Scalar& privkey);
 
 // -- ElligatorSwift ECDH (BIP-324) --------------------------------------------
 

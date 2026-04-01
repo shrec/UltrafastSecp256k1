@@ -1567,7 +1567,7 @@ typedef struct {
 } ufsecp_desc_key;
 
 /** Parse a descriptor string and derive the key + address type.
- *  descriptor: e.g. "wpkh(xpub.../<0;1>/*)" or "tr(xpub.../0/0)"
+ *  descriptor: e.g. "wpkh(xpub.../<0;1>/[*])" or "tr(xpub.../0/0)"
  *  index: child index to resolve (replaces * wildcard).
  *  key_out: receives the parsed key information.
  *  addr_out: buffer for the derived address (min 128 bytes), or NULL.

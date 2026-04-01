@@ -4774,10 +4774,8 @@ ufsecp_error_t ufsecp_bip322_sign(
         if (*sig_len < 64) {
             return ctx_set_err(ctx, UFSECP_ERR_BUF_TOO_SMALL, "P2TR sig buffer too small (need 64)");
         }
-        uint8_t aux_rand[32]{};
-        std::array<uint8_t, 32> msg_arr, aux_arr;
+        std::array<uint8_t, 32> msg_arr{}, aux_arr{};
         std::memcpy(msg_arr.data(), msg_hash, 32);
-        std::memcpy(aux_arr.data(), aux_rand, 32);
         auto kp = secp256k1::ct::schnorr_keypair_create(sk);
         auto sig = secp256k1::ct::schnorr_sign(kp, msg_arr, aux_arr);
         secp256k1::detail::secure_erase(&sk, sizeof(sk));

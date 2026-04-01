@@ -511,30 +511,54 @@ add_test(NAME exploit_frost_commitment_reuse COMMAND test_exploit_frost_commitme
 set_tests_properties(exploit_frost_commitment_reuse PROPERTIES TIMEOUT 120 LABELS "audit;exploit;frost")
 
 # -- PoC: FROST participant-set malleability (Wagner attack, 2024 research)
-add_executable(test_exploit_frost_participant_set_malleability_standalone test_exploit_frost_participant_set_malleability.cpp)
+add_executable(test_exploit_frost_participant_set_malleability_standalone
+    test_exploit_frost_participant_set_malleability.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_frost_participant_set_malleability_standalone)
-target_compile_definitions(test_exploit_frost_participant_set_malleability_standalone PRIVATE STANDALONE_TEST)
+target_include_directories(test_exploit_frost_participant_set_malleability_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+)
+target_compile_definitions(test_exploit_frost_participant_set_malleability_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
 add_test(NAME exploit_frost_participant_set_malleability COMMAND test_exploit_frost_participant_set_malleability_standalone)
 set_tests_properties(exploit_frost_participant_set_malleability PROPERTIES TIMEOUT 120 LABELS "audit;exploit;frost")
 
 # -- PoC: FROST/MuSig2 constant-time nonce audit (C1 gap)
-add_executable(test_exploit_frost_ct_nonce_standalone test_exploit_frost_ct_nonce.cpp)
+add_executable(test_exploit_frost_ct_nonce_standalone
+    test_exploit_frost_ct_nonce.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_frost_ct_nonce_standalone)
-target_compile_definitions(test_exploit_frost_ct_nonce_standalone PRIVATE STANDALONE_TEST)
+target_include_directories(test_exploit_frost_ct_nonce_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+)
+target_compile_definitions(test_exploit_frost_ct_nonce_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
 add_test(NAME exploit_frost_ct_nonce COMMAND test_exploit_frost_ct_nonce_standalone)
 set_tests_properties(exploit_frost_ct_nonce PROPERTIES TIMEOUT 120 LABELS "audit;exploit;frost;ct")
 
 # -- PoC: Binding-layer invalid-curve attack (CVE-2024-48930 class)
-add_executable(test_exploit_binding_invalid_curve_standalone test_exploit_binding_invalid_curve.cpp)
+add_executable(test_exploit_binding_invalid_curve_standalone
+    test_exploit_binding_invalid_curve.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_binding_invalid_curve_standalone)
-target_compile_definitions(test_exploit_binding_invalid_curve_standalone PRIVATE STANDALONE_TEST)
+target_include_directories(test_exploit_binding_invalid_curve_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+)
+target_compile_definitions(test_exploit_binding_invalid_curve_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
 add_test(NAME exploit_binding_invalid_curve COMMAND test_exploit_binding_invalid_curve_standalone)
 set_tests_properties(exploit_binding_invalid_curve PROPERTIES TIMEOUT 120 LABELS "audit;exploit;binding")
 
 # -- PoC: MuSig2 parallel session cross-signing attack
-add_executable(test_exploit_musig2_parallel_session_cross_standalone test_exploit_musig2_parallel_session_cross.cpp)
+add_executable(test_exploit_musig2_parallel_session_cross_standalone
+    test_exploit_musig2_parallel_session_cross.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_musig2_parallel_session_cross_standalone)
-target_compile_definitions(test_exploit_musig2_parallel_session_cross_standalone PRIVATE STANDALONE_TEST)
+target_include_directories(test_exploit_musig2_parallel_session_cross_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+)
+target_compile_definitions(test_exploit_musig2_parallel_session_cross_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
 add_test(NAME exploit_musig2_parallel_session_cross COMMAND test_exploit_musig2_parallel_session_cross_standalone)
 set_tests_properties(exploit_musig2_parallel_session_cross PROPERTIES TIMEOUT 120 LABELS "audit;exploit;musig2")
 
@@ -847,9 +871,15 @@ add_test(NAME exploit_point_serialization COMMAND test_exploit_point_serializati
 set_tests_properties(exploit_point_serialization PROPERTIES TIMEOUT 60 LABELS "audit;exploit;ec;point")
 
 # -- Point-at-Infinity edge cases (INF-1..INF-28: cancellation, serial, tweak) -
-add_executable(test_infinity_edge_cases_standalone test_infinity_edge_cases.cpp)
+add_executable(test_infinity_edge_cases_standalone
+    test_infinity_edge_cases.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
 audit_target_defaults(test_infinity_edge_cases_standalone)
-target_compile_definitions(test_infinity_edge_cases_standalone PRIVATE STANDALONE_TEST)
+target_include_directories(test_infinity_edge_cases_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+)
+target_compile_definitions(test_infinity_edge_cases_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
 add_test(NAME infinity_edge_cases COMMAND test_infinity_edge_cases_standalone)
 set_tests_properties(infinity_edge_cases PROPERTIES TIMEOUT 60 LABELS "audit;exploit;ec;point;infinity")
 
