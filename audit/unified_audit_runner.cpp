@@ -336,6 +336,20 @@ int test_exploit_batch_sign_run();
 int test_exploit_ecdsa_nonce_reuse_run();
 int test_exploit_cross_scheme_pubkey_run();
 int test_exploit_wif_security_run();
+int test_exploit_buffer_type_confusion_run();
+int test_exploit_differential_libsecp_run();
+int test_exploit_bip352_scan_dos_run();
+int test_exploit_taproot_commitment_adversarial_run();
+int test_exploit_bip352_parity_confusion_run();
+int test_exploit_rfc6979_truncation_bias_run();
+int test_exploit_binding_adversarial_api_run();
+int test_exploit_quantum_exposure_run();
+int test_exploit_ecies_ephemeral_reuse_run();
+int test_exploit_address_prefix_collision_run();
+int test_exploit_binding_invalid_curve_run();
+int test_exploit_frost_ct_nonce_run();
+int test_exploit_frost_participant_set_malleability_run();
+int test_exploit_musig2_parallel_session_cross_run();
 
 // ============================================================================
 // Report section IDs -- 9 audit categories
@@ -620,6 +634,20 @@ static const AuditModule ALL_MODULES[] = {
     { "exploit_ecdsa_nonce_reuse",      "ECDSA Nonce Reuse Key Recovery (NRR-1..8)",   "exploit_poc", test_exploit_ecdsa_nonce_reuse_run, false },
     { "exploit_cross_scheme_pubkey",    "Cross-Scheme Pubkey Consistency (CSP-1..8)",  "exploit_poc", test_exploit_cross_scheme_pubkey_run, false },
     { "exploit_wif_security",           "WIF Key Format Security (WIF-1..10)",         "exploit_poc", test_exploit_wif_security_run, false },
+    { "exploit_buffer_type_confusion",  "Buffer/Type-Confusion (BTC-0..12)",           "exploit_poc", test_exploit_buffer_type_confusion_run, false },
+    { "exploit_differential_libsecp",   "Differential Correctness (DIF-1..10)",        "exploit_poc", test_exploit_differential_libsecp_run, false },
+    { "exploit_bip352_scan_dos",        "BIP-352 Scan DoS Prevention (DOS-0..3)",      "exploit_poc", test_exploit_bip352_scan_dos_run, false },
+    { "exploit_taproot_commit_adv",     "Taproot Commitment Adversarial (TCA-1..5)",   "exploit_poc", test_exploit_taproot_commitment_adversarial_run, false },
+    { "exploit_bip352_parity",          "BIP-352 Parity Confusion (PAR-1..6)",         "exploit_poc", test_exploit_bip352_parity_confusion_run, false },
+    { "exploit_rfc6979_trunc_bias",     "RFC6979 Nonce Truncation Bias (NTB-1..5)",    "exploit_poc", test_exploit_rfc6979_truncation_bias_run, false },
+    { "exploit_binding_adv_api",        "Binding Adversarial API (BAT-1..11)",         "exploit_poc", test_exploit_binding_adversarial_api_run, false },
+    { "exploit_quantum_exposure",       "Quantum Exposure Surface (QEX-1..6)",         "exploit_poc", test_exploit_quantum_exposure_run, false },
+    { "exploit_ecies_ephemeral_reuse",  "ECIES Ephemeral Reuse (EKR-1..4)",            "exploit_poc", test_exploit_ecies_ephemeral_reuse_run, false },
+    { "exploit_addr_prefix_collision",  "Address Prefix Collision (APC-1..6)",         "exploit_poc", test_exploit_address_prefix_collision_run, false },
+    { "exploit_binding_invalid_curve",  "Binding Invalid Curve (BIC)",                 "exploit_poc", test_exploit_binding_invalid_curve_run, false },
+    { "exploit_frost_ct_nonce",         "FROST CT Nonce (FCN)",                        "exploit_poc", test_exploit_frost_ct_nonce_run, false },
+    { "exploit_frost_part_set_mall",    "FROST Participant Set Malleability (FPS)",    "exploit_poc", test_exploit_frost_participant_set_malleability_run, false },
+    { "exploit_musig2_par_session",     "MuSig2 Parallel Session Cross (MPS)",         "exploit_poc", test_exploit_musig2_parallel_session_cross_run, false },
 };
 
 static constexpr int NUM_MODULES = sizeof(ALL_MODULES) / sizeof(ALL_MODULES[0]);
