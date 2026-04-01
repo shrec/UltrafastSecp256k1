@@ -444,6 +444,27 @@ The full 7-stage BIP-352 scanning pipeline runs entirely on-GPU with zero CPU ro
 
 See **[docs/COMMUNITY_BENCHMARKS.md](docs/COMMUNITY_BENCHMARKS.md)** for all hardware results submitted by community members — including RTX 5070 Ti (Blackwell) and a standalone BIP-352 CPU comparison vs libsecp256k1.  Want to add yours? Instructions are in that file.
 
+### Real-world scanning performance (Frigate / Sparrow Wallet)
+
+Independent benchmarks from [Sparrow Wallet's Frigate](https://github.com/sparrowwallet/frigate) — a DuckDB-based Silent Payments scanning pipeline using UltrafastSecp256k1 via [`ufsecp_scan(...)`](https://github.com/sparrowwallet/duckdb-ufsecp-extension). Results produced by Frigate's `benchmark.py` scanning mainnet to block 914,000.
+
+**GPU scanning (full BIP-352 pipeline, 2-year scan, 133M tweaks):**
+
+| Hardware | Backend | Time | Throughput |
+|----------|---------|------|------------|
+| 2× NVIDIA RTX 5090 | CUDA | 3.2 s | ~41.5 M/s |
+| NVIDIA RTX 5080 | CUDA | 7.7 s | ~17.3 M/s |
+| Apple M1 Pro | Metal | 3m 47s | ~584 K/s |
+
+**CPU scanning (full BIP-352 pipeline, 2-year scan, 133M tweaks):**
+
+| Hardware | CPUs | Time | Throughput |
+|----------|------|------|------------|
+| Intel Core Ultra 9 285K | 24 | 3m 50s | ~577 K/s |
+| Apple M1 Pro | 10 | 7m 47s | ~284 K/s |
+
+Source: [Frigate README — Performance](https://github.com/sparrowwallet/frigate/blob/master/README.md#performance)
+
 ### CPU vs libsecp256k1 (standalone external benchmark)
 
 Standalone single-threaded benchmark by [@craigraw](https://github.com/craigraw) ([bench_bip352](https://github.com/craigraw/bench_bip352)) — full results in [docs/COMMUNITY_BENCHMARKS.md](docs/COMMUNITY_BENCHMARKS.md). Thank you for the contribution!

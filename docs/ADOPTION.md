@@ -32,6 +32,20 @@ Independently verified integrations of UltrafastSecp256k1 in third-party project
 - Practical validation of CPU/GPU backend design
 - Published with permission from Craig Raw
 
+### Independent performance results
+
+Frigate's `benchmark.py` scanning mainnet to block 914,000 shows:
+
+| Hardware | Backend | 2-year scan (133M tweaks) | Throughput |
+|----------|---------|--------------------------|------------|
+| 2× NVIDIA RTX 5090 | CUDA | 3.2 s | ~41.5 M/s |
+| NVIDIA RTX 5080 | CUDA | 7.7 s | ~17.3 M/s |
+| Apple M1 Pro | Metal | 3m 47s | ~584 K/s |
+| Intel Core Ultra 9 285K | CPU (24 cores) | 3m 50s | ~577 K/s |
+| Apple M1 Pro | CPU (10 cores) | 7m 47s | ~284 K/s |
+
+Source: [Frigate README — Performance](https://github.com/sparrowwallet/frigate/blob/master/README.md#performance)
+
 ---
 
 ## Ecosystem signals
