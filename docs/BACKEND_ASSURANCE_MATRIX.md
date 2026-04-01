@@ -2,6 +2,30 @@
 
 **UltrafastSecp256k1** -- Feature/correctness coverage by compute backend
 
+> Performance scales across backends. Assurance does not — it must be measured.
+
+## TL;DR
+
+Not all backends have equal assurance. Each is evaluated independently against
+audit coverage, CI enforcement, and benchmark validation.
+
+Backend trust is measured, not assumed.
+
+| Backend | Assurance Level | Notes |
+|---------|----------------|-------|
+| CPU (fast path) | **HIGH** | Full audit coverage, all invariants, CI enforced |
+| CPU (CT path) | **HIGH** | Formal CT verification (LLVM + empirical + Valgrind) |
+| CUDA | **HIGH** | Full GPU ABI audit, benchmark validated, CI enforced |
+| OpenCL | **MEDIUM** | ABI-complete, partial differential coverage |
+| Metal | **MEDIUM** | ABI-complete, CI validated, hardware-level CT unprotected |
+| ROCm/HIP | **EXPERIMENTAL** | ABI partial, hardware-backed validation pending |
+
+## Assurance Levels
+
+- **HIGH** — full audit coverage, CI-enforced, reproducible locally
+- **MEDIUM** — ABI-complete, partial coverage, evolving
+- **EXPERIMENTAL** — limited validation, not recommended for critical paths
+
 ---
 
 ## Feature Matrix

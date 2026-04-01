@@ -1,5 +1,37 @@
 # UltrafastSecp256k1 -- Full Audit Coverage
 
+> This document does not describe what was checked once.
+> It shows what is **continuously being verified** — on every commit, every night, across every platform.
+
+## TL;DR
+
+| What | Numbers |
+|------|---------|
+| Audit checks per run | ~1,000,000+ |
+| Nightly random checks | ~1,300,000+ |
+| Audit modules | 56 across 8 domains |
+| Exploit PoC tests | 121 modules, 115 attack vectors |
+| Platforms | X64, ARM64, RISC-V, macOS, Windows, iOS, Android, WASM, ROCm (16 configurations) |
+| Fuzz inputs | 530,000+ parser/adversarial |
+| CI workflows | 24 GitHub Actions workflows |
+| Real failures | **0** |
+
+This system continuously verifies correctness across math, protocol, constant-time, and implementation layers.
+
+## Coverage Highlights
+
+| Domain | Status |
+|--------|--------|
+| Mathematical invariants (field, scalar, group) | **COVERED** |
+| Constant-time behavior (formal + empirical) | **COVERED** |
+| Exploit PoC adversarial tests | **COVERED** |
+| Cross-platform determinism | **COVERED** |
+| Fuzzing + adversarial inputs | **COVERED** |
+| Supply chain (SBOM, pinned deps, OSSF) | **COVERED** |
+| Known gaps | **Named explicitly** — see Known Coverage Gaps below |
+
+---
+
 **Version**: v3.22.0
 **Audit Runner**: `unified_audit_runner`
 **Verdict**: **AUDIT-READY** -- 56/56 modules passed

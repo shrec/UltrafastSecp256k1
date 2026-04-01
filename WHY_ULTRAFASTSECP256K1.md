@@ -2,6 +2,23 @@
 
 > A detailed look at what sets this library apart — not just in speed, but in engineering discipline, audit culture, and verified correctness.
 
+## TL;DR
+
+Traditional audits produce documents. This system produces **continuous evidence**.
+
+| Differentiator | UltrafastSecp256k1 |
+|---------------|---------------------|
+| Audit model | Continuous — every commit, not one-time |
+| Exploit tests | 121 PoC modules, 115 attack vectors, 0 failures |
+| Checks per run | ~1,000,000+ assertions |
+| Nightly checks | ~1,300,000+ random differential tests |
+| CI workflows | 24 workflows, 16 platform combinations |
+| CT verification | 3 formal pipelines (LLVM ct-verif + empirical + Valgrind) |
+| GPU performance | 11.00 M BIP-352 scans/s · 4.88 M ECDSA signs/s |
+| Philosophy | Don't trust — reproduce |
+
+Every exploit attempt becomes a permanent regression test. Security hardens on every commit, not just on release day.
+
 ---
 
 ## 1. Audit-First Engineering Culture

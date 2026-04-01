@@ -2,6 +2,32 @@
 
 **UltrafastSecp256k1 v3.50.0** -- Evidence-Based Correctness & Security Mapping
 
+> Every security claim in this system is traceable to executable evidence.
+>
+> If a claim cannot be traced to a test, it is not considered valid.
+
+## TL;DR
+
+- All security claims are mapped to specific tests
+- All tests execute in CI on every commit
+- All results are locally reproducible
+
+Security is not asserted — it is traceable.
+
+**Chain:** Claim → Test → Module → Audit Run → Result → CI → Coverage
+
+**Example:**
+
+| Element | Value |
+|---------|-------|
+| Claim | "Scalar multiplication is correct" |
+| Test | `audit/test_scalar_invariants.cpp` |
+| Module | Section 1 / Math Invariants |
+| Result | PASS (~93,215 checks) |
+| Coverage | Included in `unified_audit_runner` |
+
+---
+
 > This document maps every mathematical invariant to its implementation code,
 > validation method, and specific test location. It is the primary artifact for
 > auditors to verify that all claimed guarantees have corresponding evidence.

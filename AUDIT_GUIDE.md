@@ -2,6 +2,44 @@
 
 **UltrafastSecp256k1 v3.50.0** -- Independent Auditor Navigation
 
+> The audit is not a document.
+> It is a reproducible system: clone, build, run, verify.
+>
+> If security cannot be reproduced locally, it is only a claim.
+
+## What this guide enables
+
+- Run the full audit locally in ~5 minutes
+- Reproduce all ~1,000,000+ security checks
+- Validate every public security claim
+- Add new exploit tests to extend coverage
+
+Security here is not described — it is executable.
+
+## Reproducible Audit
+
+This project does not ask you to trust a static report.
+
+You can:
+- clone the repository
+- build locally with standard tools
+- run the full audit (56 modules, ~1M+ checks)
+- reproduce the CI/CD pipeline via GitHub Actions YAML
+
+## Minimal Setup
+
+UltrafastSecp256k1 uses a standard toolchain only:
+
+- **CMake** + **Ninja**
+- **Clang** (or GCC)
+- **CUDA** (optional — for GPU audit targets)
+
+No proprietary environment. No hidden pipeline. No special auditor toolchain.
+
+> If you can compile it, you can verify it.
+
+---
+
 > This document is for auditors. Here you will find everything needed
 > to evaluate the library's security, correctness, and quality.
 >
