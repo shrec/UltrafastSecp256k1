@@ -4869,6 +4869,23 @@ ufsecp_error_t ufsecp_bip322_verify(
 // SipHash-2-4 implementation (for GCS)
 namespace {
 
+/* Portable 64×64→high-64 multiply.
+ * MSVC does not support __int128; use _umul128 on x64 MSVC, and the
+ * GCC/Clang __uint128_t path everywhere else. */
+#if defined(_MSC_VER) && defined(_M_X64)
+#include <intrin.h>
+static inline uint64_t mulhi64(uint64_t a, uint64_t b) {
+    uint64_t hi = 0;
+    _umul128(a, b, &hi);
+    return hi;
+}
+#else
+static inline uint64_t mulhi64(uint64_t a, uint64_t b) {
+    return static_cast<uint64_t>(
+        (static_cast<unsigned __int128>(a) * static_cast<unsigned __int128>(b)) >> 64);
+}
+#endif
+
 static inline uint64_t siphash_rotl64(uint64_t x, int b) {
     return (x << b) | (x >> (64 - b));
 }
@@ -5006,8 +5023,7 @@ ufsecp_error_t ufsecp_gcs_build(
     for (size_t i = 0; i < count; ++i) {
         uint64_t h = siphash24(key, data[i], data_sizes[i]);
         // Reduce modulo N*M using multiplication technique to avoid bias
-        hashed.push_back(static_cast<uint64_t>(
-            (static_cast<unsigned __int128>(h) * static_cast<unsigned __int128>(modulus)) >> 64));
+        hashed.push_back(mulhi64(h, modulus));
     }
 
     if (!gcs_encode(hashed, filter_out, filter_len)) {
@@ -5032,8 +5048,7 @@ ufsecp_error_t ufsecp_gcs_match(
 
     uint64_t const modulus = static_cast<uint64_t>(n_items) * GCS_M;
     uint64_t h = siphash24(key, item, item_len);
-    uint64_t target = static_cast<uint64_t>(
-        (static_cast<unsigned __int128>(h) * static_cast<unsigned __int128>(modulus)) >> 64);
+    uint64_t target = mulhi64(h, modulus);
 
     for (uint64_t v : decoded) {
         if (v == target) return UFSECP_OK;
@@ -5061,8 +5076,7 @@ ufsecp_error_t ufsecp_gcs_match_any(
     uint64_t const modulus = static_cast<uint64_t>(n_items) * GCS_M;
     for (size_t qi = 0; qi < query_count; ++qi) {
         uint64_t h = siphash24(key, query[qi], query_sizes[qi]);
-        uint64_t target = static_cast<uint64_t>(
-            (static_cast<unsigned __int128>(h) * static_cast<unsigned __int128>(modulus)) >> 64);
+        uint64_t target = mulhi64(h, modulus);
         for (uint64_t v : decoded) {
             if (v == target) return UFSECP_OK;
             if (v > target) break;
