@@ -1248,6 +1248,41 @@ target_compile_definitions(test_exploit_batch_sign_standalone PRIVATE STANDALONE
 add_test(NAME exploit_batch_sign COMMAND test_exploit_batch_sign_standalone)
 set_tests_properties(exploit_batch_sign PROPERTIES TIMEOUT 60 LABELS "audit;exploit;schnorr;batch")
 
+# -- PoC: ECDSA nonce reuse key recovery (NRR-1..NRR-8) --------------------
+add_executable(test_exploit_ecdsa_nonce_reuse_standalone
+    test_exploit_ecdsa_nonce_reuse.cpp)
+audit_target_defaults(test_exploit_ecdsa_nonce_reuse_standalone)
+target_link_libraries(test_exploit_ecdsa_nonce_reuse_standalone PRIVATE fastsecp256k1)
+target_compile_definitions(test_exploit_ecdsa_nonce_reuse_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_ecdsa_nonce_reuse COMMAND test_exploit_ecdsa_nonce_reuse_standalone)
+set_tests_properties(exploit_ecdsa_nonce_reuse PROPERTIES TIMEOUT 60 LABELS "audit;exploit;ecdsa;nonce")
+
+# -- PoC: Cross-scheme pubkey consistency (CSP-1..CSP-8) -------------------
+add_executable(test_exploit_cross_scheme_pubkey_standalone
+    test_exploit_cross_scheme_pubkey.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_cross_scheme_pubkey_standalone)
+target_include_directories(test_exploit_cross_scheme_pubkey_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+)
+target_compile_definitions(test_exploit_cross_scheme_pubkey_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_cross_scheme_pubkey COMMAND test_exploit_cross_scheme_pubkey_standalone)
+set_tests_properties(exploit_cross_scheme_pubkey PROPERTIES TIMEOUT 60 LABELS "audit;exploit;pubkey;ecdh;schnorr")
+
+# -- PoC: WIF key format security (WIF-1..WIF-10) -------------------------
+add_executable(test_exploit_wif_security_standalone
+    test_exploit_wif_security.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_wif_security_standalone)
+target_include_directories(test_exploit_wif_security_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+)
+target_compile_definitions(test_exploit_wif_security_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_wif_security COMMAND test_exploit_wif_security_standalone)
+set_tests_properties(exploit_wif_security PROPERTIES TIMEOUT 60 LABELS "audit;exploit;wif;key")
+
 # -- Diagnostic: ct::scalar_mul step-by-step comparison --------------------
 add_executable(diag_scalar_mul ${CPU_TESTS_DIR}/diag_scalar_mul.cpp)
 audit_target_defaults(diag_scalar_mul)
@@ -1624,6 +1659,9 @@ add_executable(unified_audit_runner
     test_exploit_descriptor_injection.cpp
     test_exploit_pubkey_arith.cpp
     test_exploit_batch_sign.cpp
+    test_exploit_ecdsa_nonce_reuse.cpp
+    test_exploit_cross_scheme_pubkey.cpp
+    test_exploit_wif_security.cpp
 )
 # Conditionally add 5x52 field test (requires __uint128_t; skip on MSVC)
 if(NOT (MSVC AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang"))

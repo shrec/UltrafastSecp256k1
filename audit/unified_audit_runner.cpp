@@ -333,6 +333,9 @@ int test_exploit_psbt_input_confusion_run();
 int test_exploit_descriptor_injection_run();
 int test_exploit_pubkey_arith_run();
 int test_exploit_batch_sign_run();
+int test_exploit_ecdsa_nonce_reuse_run();
+int test_exploit_cross_scheme_pubkey_run();
+int test_exploit_wif_security_run();
 
 // ============================================================================
 // Report section IDs -- 9 audit categories
@@ -345,7 +348,7 @@ int test_exploit_batch_sign_run();
 //   6. protocol_security -- Protocol Security (ECDSA, Schnorr, MuSig2, FROST)
 //   7. memory_safety     -- ABI & Memory Safety (sanitizer, zeroization)
 //   8. performance       -- Performance Validation & Regression
-//   9. exploit_poc       -- Exploit PoC Security Probes (112 attack vectors)
+//   9. exploit_poc       -- Exploit PoC Security Probes (115 attack vectors)
 // ============================================================================
 
 struct AuditModule {
@@ -381,7 +384,7 @@ static const SectionInfo SECTIONS[] = {
     { "performance",       "\xe1\x83\x9e\xe1\x83\x94\xe1\x83\xa0\xe1\x83\xa4\xe1\x83\x9d\xe1\x83\xa0\xe1\x83\x9b\xe1\x83\x90\xe1\x83\x9c\xe1\x83\xa1\xe1\x83\x98\xe1\x83\xa1 \xe1\x83\x95\xe1\x83\x90\xe1\x83\x9a\xe1\x83\x98\xe1\x83\x93\xe1\x83\x90\xe1\x83\xaa\xe1\x83\x98\xe1\x83\x90",
                            "Performance Validation & Regression" },
     { "exploit_poc",       "\xe1\x83\x94\xe1\x83\xa5\xe1\x83\xa1\xe1\x83\x9e\xe1\x83\x9a\xe1\x83\x9d\xe1\x83\x98\xe1\x83\xa2 PoC \xe1\x83\xa2\xe1\x83\x94\xe1\x83\xa1\xe1\x83\xa2\xe1\x83\x94\xe1\x83\x91\xe1\x83\x98",
-                           "Exploit PoC Security Probes (112 attack vectors)" },
+                           "Exploit PoC Security Probes (115 attack vectors)" },
 };
 static constexpr int NUM_SECTIONS = sizeof(SECTIONS) / sizeof(SECTIONS[0]);
 
@@ -493,7 +496,7 @@ static const AuditModule ALL_MODULES[] = {
     { "audit_perf",        "Performance smoke (sign/verify roundtrip)",    "performance",    audit_perf_run, false },
 
     // ===================================================================
-    // Section 9: Exploit PoC Security Probes (112 attack vectors)
+    // Section 9: Exploit PoC Security Probes (115 attack vectors)
     // ===================================================================
     { "exploit_adaptor_extended",       "Adaptor Signature Extended Security",          "exploit_poc", test_exploit_adaptor_extended_run, false },
     { "exploit_adaptor_parity",         "Adaptor Signature R.y Parity",                "exploit_poc", test_exploit_adaptor_parity_run, false },
@@ -614,6 +617,9 @@ static const AuditModule ALL_MODULES[] = {
     { "exploit_descriptor_injection",   "Output Descriptor Injection / Type Confusion","exploit_poc", test_exploit_descriptor_injection_run, false },
     { "exploit_pubkey_arith",           "Public Key Arithmetic Security (PUB-1..9)",   "exploit_poc", test_exploit_pubkey_arith_run, false },
     { "exploit_batch_sign",             "Batch Signing Edge-Case Security (BSG-1..9)", "exploit_poc", test_exploit_batch_sign_run, false },
+    { "exploit_ecdsa_nonce_reuse",      "ECDSA Nonce Reuse Key Recovery (NRR-1..8)",   "exploit_poc", test_exploit_ecdsa_nonce_reuse_run, false },
+    { "exploit_cross_scheme_pubkey",    "Cross-Scheme Pubkey Consistency (CSP-1..8)",  "exploit_poc", test_exploit_cross_scheme_pubkey_run, false },
+    { "exploit_wif_security",           "WIF Key Format Security (WIF-1..10)",         "exploit_poc", test_exploit_wif_security_run, false },
 };
 
 static constexpr int NUM_MODULES = sizeof(ALL_MODULES) / sizeof(ALL_MODULES[0]);
