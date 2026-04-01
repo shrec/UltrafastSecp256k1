@@ -1,7 +1,7 @@
-# Audit Test Plan -- UltrafastSecp256k1 v3.14.0
+# Audit Test Plan -- UltrafastSecp256k1 v3.50.0
 
-> **Historical Report -- Snapshot from v3.14.0**
-> This plan describes test categories as of v3.14.0. Since then:
+> **Historical Report -- Snapshot from v3.50.0**
+> This plan describes test categories as of v3.50.0. Since then:
 > ct-verif and valgrind-ct are active and blocking in CI,
 > GPU audit runners (OpenCL, Metal) exist, and additional protocol
 > tests (FROST KAT, adversarial protocol) have been added.
@@ -347,4 +347,4 @@ audit-output-YYYYMMDD-HHMMSS/
 
 ---
 
-*UltrafastSecp256k1 v3.14.0 -- Audit Test Plan*
+*UltrafastSecp256k1 v3.50.0 -- Audit Test Plan*

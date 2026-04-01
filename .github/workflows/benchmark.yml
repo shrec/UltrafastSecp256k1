@@ -86,7 +86,7 @@ jobs:
         mkdir -p /tmp/benchmark_results
         
         # Run unified benchmark and capture output
-        ./build/bench/cpu/bench_unified 2>&1 | tee /tmp/benchmark_results/raw_output.txt
+        ./build/cpu/bench_unified 2>&1 | tee /tmp/benchmark_results/raw_output.txt
         
         # Parse output into benchmark.js-compatible JSON
         python3 .github/scripts/parse_benchmark.py \
@@ -146,7 +146,7 @@ jobs:
     - name: Run benchmark suite
       run: |
         New-Item -Path benchmark_results -ItemType Directory -Force
-        & .\build\bench\cpu\Release\bench_unified.exe --suite core --quick 2>&1 | Tee-Object -FilePath benchmark_results\raw_output.txt
+        & .\build\cpu\Release\bench_unified.exe --suite core --quick 2>&1 | Tee-Object -FilePath benchmark_results\raw_output.txt
 
     - name: Summary
       run: |

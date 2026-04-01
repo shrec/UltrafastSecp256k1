@@ -25,52 +25,13 @@
 #include "secp256k1/detail/secure_erase.hpp"
 #include <cstring>
 
-// OS CSPRNG
-#if defined(_WIN32)
-#  include <windows.h>
-#  include <bcrypt.h>
-#  pragma comment(lib, "bcrypt.lib")
-#elif defined(__APPLE__)
-#  include <Security/SecRandom.h>
-#elif defined(__ANDROID__)
-#  include <cstdio>
-#elif defined(__linux__) || defined(__FreeBSD__) || defined(__OpenBSD__)
-#  include <sys/random.h>
-#else
-#  include <cstdio>
-#endif
+#include "secp256k1/detail/csprng.hpp"
 
 namespace secp256k1 {
 
 namespace {
 
-void csprng_fill(std::uint8_t* buf, std::size_t len) {
-#if defined(_WIN32)
-    NTSTATUS const status = BCryptGenRandom(
-        nullptr, buf, static_cast<ULONG>(len), BCRYPT_USE_SYSTEM_PREFERRED_RNG);
-    if (status != 0) std::abort();
-#elif defined(__APPLE__)
-    if (SecRandomCopyBytes(kSecRandomDefault, len, buf) != errSecSuccess)
-        std::abort();
-#elif defined(__ANDROID__)
-    FILE* f = std::fopen("/dev/urandom", "rb");
-    if (!f) std::abort();
-    if (std::fread(buf, 1, len, f) != len) { std::fclose(f); std::abort(); }
-    std::fclose(f);
-#elif defined(__linux__) || defined(__FreeBSD__) || defined(__OpenBSD__)
-    std::size_t filled = 0;
-    while (filled < len) {
-        ssize_t const r = getrandom(buf + filled, len - filled, 0);
-        if (r <= 0) std::abort();
-        filled += static_cast<std::size_t>(r);
-    }
-#else
-    FILE* f = std::fopen("/dev/urandom", "rb");
-    if (!f) std::abort();
-    if (std::fread(buf, 1, len, f) != len) { std::fclose(f); std::abort(); }
-    std::fclose(f);
-#endif
-}
+using secp256k1::detail::csprng_fill;
 
 } // anonymous namespace
 
