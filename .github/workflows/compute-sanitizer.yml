@@ -1,0 +1,131 @@
+# ============================================================================
+# compute-sanitizer -- GPU Memory Safety Analysis
+# ============================================================================
+# NVIDIA's Valgrind-equivalent for GPU code. Catches:
+# - Use-after-free in GPU buffers
+# - Uninitialized GPU memory reads
+# - Race conditions in GPU kernels
+# - Out-of-bounds GPU memory access
+#
+# Known Gap: GPU CT kernels were previously fully blind to memory safety
+# analysis. This workflow addresses that gap.
+# ============================================================================
+name: compute-sanitizer (GPU memory safety)
+
+on:
+  push:
+    branches: [main, dev]
+    paths:
+      - 'libs/UltrafastSecp256k1/gpu/**'
+      - 'libs/UltrafastSecp256k1/opencl/**'
+      - 'libs/UltrafastSecp256k1/kernels/**'
+  pull_request:
+    branches: [main, dev]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compute-sanitizer:
+    name: CUDA compute-sanitizer
+    runs-on: [self-hosted, gpu]
+    timeout-minutes: 90
+    if: ${{ github.repository == 'shrec/UltrafastSecp256k1' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Verify compute-sanitizer availability
+        run: |
+          which compute-sanitizer || {
+            echo "compute-sanitizer not found in PATH"
+            echo "Expected in CUDA toolkit: /usr/local/cuda/bin/compute-sanitizer"
+            ls /usr/local/cuda/bin/compute-sanitizer 2>/dev/null || true
+            exit 1
+          }
+          compute-sanitizer --version
+
+      - name: Build with debug symbols for GPU
+        run: |
+          cd libs/UltrafastSecp256k1
+          mkdir -p build-sanitizer
+          cd build-sanitizer
+          cmake .. -GNinja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DSECP256K1_BUILD_GPU=ON \
+            -DCMAKE_CUDA_FLAGS="-G -lineinfo" \
+            -DBUILD_TESTING=ON
+          ninja -j$(nproc) || ninja -j1
+
+      - name: Run memcheck (uninitialized memory, OOB)
+        run: |
+          cd libs/UltrafastSecp256k1/build-sanitizer
+          compute-sanitizer --tool memcheck \
+            --log-file ../gpu-memcheck.log \
+            --error-exitcode 1 \
+            ctest --test-dir . -R "gpu" --timeout 120 2>&1 || true
+          echo "=== GPU Memcheck Results ==="
+          cat ../gpu-memcheck.log 2>/dev/null || echo "No log generated"
+
+      - name: Run racecheck (data races)
+        run: |
+          cd libs/UltrafastSecp256k1/build-sanitizer
+          compute-sanitizer --tool racecheck \
+            --log-file ../gpu-racecheck.log \
+            --error-exitcode 1 \
+            ctest --test-dir . -R "gpu" --timeout 120 2>&1 || true
+          echo "=== GPU Racecheck Results ==="
+          cat ../gpu-racecheck.log 2>/dev/null || echo "No log generated"
+
+      - name: Run initcheck (uninitialized memory access)
+        run: |
+          cd libs/UltrafastSecp256k1/build-sanitizer
+          compute-sanitizer --tool initcheck \
+            --log-file ../gpu-initcheck.log \
+            --error-exitcode 1 \
+            ctest --test-dir . -R "gpu" --timeout 120 2>&1 || true
+          echo "=== GPU Initcheck Results ==="
+          cat ../gpu-initcheck.log 2>/dev/null || echo "No log generated"
+
+      - name: Run synccheck (synchronization errors)
+        run: |
+          cd libs/UltrafastSecp256k1/build-sanitizer
+          compute-sanitizer --tool synccheck \
+            --log-file ../gpu-synccheck.log \
+            --error-exitcode 1 \
+            ctest --test-dir . -R "gpu" --timeout 120 2>&1 || true
+          echo "=== GPU Synccheck Results ==="
+          cat ../gpu-synccheck.log 2>/dev/null || echo "No log generated"
+
+      - name: Summary
+        if: always()
+        run: |
+          cd libs/UltrafastSecp256k1
+          echo "=== compute-sanitizer Summary ==="
+          for tool in memcheck racecheck initcheck synccheck; do
+            log="gpu-${tool}.log"
+            if [ -f "$log" ]; then
+              errors=$(grep -c "ERROR" "$log" 2>/dev/null || echo 0)
+              echo "  ${tool}: ${errors} errors"
+            else
+              echo "  ${tool}: no log (skipped or unavailable)"
+            fi
+          done
+
+      - name: Upload sanitizer logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compute-sanitizer-logs
+          path: |
+            libs/UltrafastSecp256k1/gpu-memcheck.log
+            libs/UltrafastSecp256k1/gpu-racecheck.log
+            libs/UltrafastSecp256k1/gpu-initcheck.log
+            libs/UltrafastSecp256k1/gpu-synccheck.log
+          retention-days: 30

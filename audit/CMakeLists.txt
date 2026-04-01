@@ -510,6 +510,34 @@ target_compile_definitions(test_exploit_frost_commitment_reuse_standalone PRIVAT
 add_test(NAME exploit_frost_commitment_reuse COMMAND test_exploit_frost_commitment_reuse_standalone)
 set_tests_properties(exploit_frost_commitment_reuse PROPERTIES TIMEOUT 120 LABELS "audit;exploit;frost")
 
+# -- PoC: FROST participant-set malleability (Wagner attack, 2024 research)
+add_executable(test_exploit_frost_participant_set_malleability_standalone test_exploit_frost_participant_set_malleability.cpp)
+audit_target_defaults(test_exploit_frost_participant_set_malleability_standalone)
+target_compile_definitions(test_exploit_frost_participant_set_malleability_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_frost_participant_set_malleability COMMAND test_exploit_frost_participant_set_malleability_standalone)
+set_tests_properties(exploit_frost_participant_set_malleability PROPERTIES TIMEOUT 120 LABELS "audit;exploit;frost")
+
+# -- PoC: FROST/MuSig2 constant-time nonce audit (C1 gap)
+add_executable(test_exploit_frost_ct_nonce_standalone test_exploit_frost_ct_nonce.cpp)
+audit_target_defaults(test_exploit_frost_ct_nonce_standalone)
+target_compile_definitions(test_exploit_frost_ct_nonce_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_frost_ct_nonce COMMAND test_exploit_frost_ct_nonce_standalone)
+set_tests_properties(exploit_frost_ct_nonce PROPERTIES TIMEOUT 120 LABELS "audit;exploit;frost;ct")
+
+# -- PoC: Binding-layer invalid-curve attack (CVE-2024-48930 class)
+add_executable(test_exploit_binding_invalid_curve_standalone test_exploit_binding_invalid_curve.cpp)
+audit_target_defaults(test_exploit_binding_invalid_curve_standalone)
+target_compile_definitions(test_exploit_binding_invalid_curve_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_binding_invalid_curve COMMAND test_exploit_binding_invalid_curve_standalone)
+set_tests_properties(exploit_binding_invalid_curve PROPERTIES TIMEOUT 120 LABELS "audit;exploit;binding")
+
+# -- PoC: MuSig2 parallel session cross-signing attack
+add_executable(test_exploit_musig2_parallel_session_cross_standalone test_exploit_musig2_parallel_session_cross.cpp)
+audit_target_defaults(test_exploit_musig2_parallel_session_cross_standalone)
+target_compile_definitions(test_exploit_musig2_parallel_session_cross_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_musig2_parallel_session_cross COMMAND test_exploit_musig2_parallel_session_cross_standalone)
+set_tests_properties(exploit_musig2_parallel_session_cross PROPERTIES TIMEOUT 120 LABELS "audit;exploit;musig2")
+
 # -- PoC: BIP-39 mnemonic entropy and checksum security
 add_executable(test_exploit_bip39_entropy_standalone test_exploit_bip39_entropy.cpp)
 audit_target_defaults(test_exploit_bip39_entropy_standalone)
@@ -1283,6 +1311,116 @@ target_compile_definitions(test_exploit_wif_security_standalone PRIVATE STANDALO
 add_test(NAME exploit_wif_security COMMAND test_exploit_wif_security_standalone)
 set_tests_properties(exploit_wif_security PROPERTIES TIMEOUT 60 LABELS "audit;exploit;wif;key")
 
+# -- PoC: Buffer / type-confusion attack vectors (CVE-2024-49364 class, A2 gap)
+add_executable(test_exploit_buffer_type_confusion_standalone
+    test_exploit_buffer_type_confusion.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_buffer_type_confusion_standalone)
+target_include_directories(test_exploit_buffer_type_confusion_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include ${CMAKE_BINARY_DIR}/include)
+target_compile_definitions(test_exploit_buffer_type_confusion_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_buffer_type_confusion COMMAND test_exploit_buffer_type_confusion_standalone)
+set_tests_properties(exploit_buffer_type_confusion PROPERTIES TIMEOUT 60 LABELS "audit;exploit;cve")
+
+# -- PoC: Differential correctness harness (Cryptofuzz++ style, B2 gap)
+add_executable(test_exploit_differential_libsecp_standalone
+    test_exploit_differential_libsecp.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_differential_libsecp_standalone)
+target_include_directories(test_exploit_differential_libsecp_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include ${CMAKE_BINARY_DIR}/include)
+target_compile_definitions(test_exploit_differential_libsecp_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_differential_libsecp COMMAND test_exploit_differential_libsecp_standalone)
+set_tests_properties(exploit_differential_libsecp PROPERTIES TIMEOUT 120 LABELS "audit;exploit;differential")
+
+# -- PoC: BIP-352 scanning DoS prevention (A6 gap)
+add_executable(test_exploit_bip352_scan_dos_standalone
+    test_exploit_bip352_scan_dos.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_bip352_scan_dos_standalone)
+target_include_directories(test_exploit_bip352_scan_dos_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include ${CMAKE_BINARY_DIR}/include)
+target_compile_definitions(test_exploit_bip352_scan_dos_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_bip352_scan_dos COMMAND test_exploit_bip352_scan_dos_standalone)
+set_tests_properties(exploit_bip352_scan_dos PROPERTIES TIMEOUT 120 LABELS "audit;exploit;bip352;dos")
+
+# -- PoC: Taproot commitment adversarial (ePrint 2025/1307, A7 gap)
+add_executable(test_exploit_taproot_commitment_adversarial_standalone
+    test_exploit_taproot_commitment_adversarial.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_taproot_commitment_adversarial_standalone)
+target_include_directories(test_exploit_taproot_commitment_adversarial_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include ${CMAKE_BINARY_DIR}/include)
+target_compile_definitions(test_exploit_taproot_commitment_adversarial_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_taproot_commitment_adversarial COMMAND test_exploit_taproot_commitment_adversarial_standalone)
+set_tests_properties(exploit_taproot_commitment_adversarial PROPERTIES TIMEOUT 60 LABELS "audit;exploit;taproot")
+
+# -- PoC: BIP-352 parity confusion in ECDH (C2 gap)
+add_executable(test_exploit_bip352_parity_confusion_standalone
+    test_exploit_bip352_parity_confusion.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_bip352_parity_confusion_standalone)
+target_include_directories(test_exploit_bip352_parity_confusion_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include ${CMAKE_BINARY_DIR}/include)
+target_compile_definitions(test_exploit_bip352_parity_confusion_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_bip352_parity_confusion COMMAND test_exploit_bip352_parity_confusion_standalone)
+set_tests_properties(exploit_bip352_parity_confusion PROPERTIES TIMEOUT 60 LABELS "audit;exploit;bip352;parity")
+
+# -- PoC: RFC 6979 nonce truncation bias (C5 gap)
+add_executable(test_exploit_rfc6979_truncation_bias_standalone
+    test_exploit_rfc6979_truncation_bias.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_rfc6979_truncation_bias_standalone)
+target_include_directories(test_exploit_rfc6979_truncation_bias_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include ${CMAKE_BINARY_DIR}/include)
+target_compile_definitions(test_exploit_rfc6979_truncation_bias_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_rfc6979_truncation_bias COMMAND test_exploit_rfc6979_truncation_bias_standalone)
+set_tests_properties(exploit_rfc6979_truncation_bias PROPERTIES TIMEOUT 60 LABELS "audit;exploit;rfc6979;nonce")
+
+# -- PoC: Binding adversarial API (D6 gap)
+add_executable(test_exploit_binding_adversarial_api_standalone
+    test_exploit_binding_adversarial_api.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_binding_adversarial_api_standalone)
+target_include_directories(test_exploit_binding_adversarial_api_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include ${CMAKE_BINARY_DIR}/include)
+target_compile_definitions(test_exploit_binding_adversarial_api_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_binding_adversarial_api COMMAND test_exploit_binding_adversarial_api_standalone)
+set_tests_properties(exploit_binding_adversarial_api PROPERTIES TIMEOUT 60 LABELS "audit;exploit;binding;api")
+
+# -- PoC: Quantum exposure surface audit (LOW)
+add_executable(test_exploit_quantum_exposure_standalone
+    test_exploit_quantum_exposure.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_quantum_exposure_standalone)
+target_include_directories(test_exploit_quantum_exposure_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include ${CMAKE_BINARY_DIR}/include)
+target_compile_definitions(test_exploit_quantum_exposure_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_quantum_exposure COMMAND test_exploit_quantum_exposure_standalone)
+set_tests_properties(exploit_quantum_exposure PROPERTIES TIMEOUT 60 LABELS "audit;exploit;quantum")
+
+# -- PoC: ECIES ephemeral key reuse detection (LOW)
+add_executable(test_exploit_ecies_ephemeral_reuse_standalone
+    test_exploit_ecies_ephemeral_reuse.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_ecies_ephemeral_reuse_standalone)
+target_include_directories(test_exploit_ecies_ephemeral_reuse_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include ${CMAKE_BINARY_DIR}/include)
+target_compile_definitions(test_exploit_ecies_ephemeral_reuse_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_ecies_ephemeral_reuse COMMAND test_exploit_ecies_ephemeral_reuse_standalone)
+set_tests_properties(exploit_ecies_ephemeral_reuse PROPERTIES TIMEOUT 60 LABELS "audit;exploit;ecies")
+
+# -- PoC: Address prefix collision resistance (LOW)
+add_executable(test_exploit_address_prefix_collision_standalone
+    test_exploit_address_prefix_collision.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_address_prefix_collision_standalone)
+target_include_directories(test_exploit_address_prefix_collision_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include ${CMAKE_BINARY_DIR}/include)
+target_compile_definitions(test_exploit_address_prefix_collision_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_address_prefix_collision COMMAND test_exploit_address_prefix_collision_standalone)
+set_tests_properties(exploit_address_prefix_collision PROPERTIES TIMEOUT 60 LABELS "audit;exploit;address")
+
 # -- Diagnostic: ct::scalar_mul step-by-step comparison --------------------
 add_executable(diag_scalar_mul ${CPU_TESTS_DIR}/diag_scalar_mul.cpp)
 audit_target_defaults(diag_scalar_mul)
@@ -1595,6 +1733,8 @@ add_executable(unified_audit_runner
     test_exploit_frost_binding_factor_mismatch.cpp
     test_exploit_frost_byzantine.cpp
     test_exploit_frost_commitment_reuse.cpp
+    test_exploit_frost_ct_nonce.cpp
+    test_exploit_frost_participant_set_malleability.cpp
     test_exploit_frost_dkg.cpp
     test_exploit_frost_index.cpp
     test_exploit_frost_lagrange_duplicate.cpp
@@ -1662,6 +1802,19 @@ add_executable(unified_audit_runner
     test_exploit_ecdsa_nonce_reuse.cpp
     test_exploit_cross_scheme_pubkey.cpp
     test_exploit_wif_security.cpp
+    test_exploit_binding_invalid_curve.cpp
+    test_exploit_musig2_parallel_session_cross.cpp
+    # -- Security gap closure tests (A2, B2, A6, A7, C2, C5, D6, LOW) --
+    test_exploit_buffer_type_confusion.cpp
+    test_exploit_differential_libsecp.cpp
+    test_exploit_bip352_scan_dos.cpp
+    test_exploit_taproot_commitment_adversarial.cpp
+    test_exploit_bip352_parity_confusion.cpp
+    test_exploit_rfc6979_truncation_bias.cpp
+    test_exploit_binding_adversarial_api.cpp
+    test_exploit_quantum_exposure.cpp
+    test_exploit_ecies_ephemeral_reuse.cpp
+    test_exploit_address_prefix_collision.cpp
 )
 # Conditionally add 5x52 field test (requires __uint128_t; skip on MSVC)
 if(NOT (MSVC AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
@@ -1776,6 +1929,13 @@ set_tests_properties(
     exploit_zk_adversarial exploit_pedersen_adversarial
     exploit_silent_payment_confusion
     exploit_ct_fast_equivalence exploit_pedersen_switch_misuse
+    exploit_frost_participant_set_malleability exploit_frost_ct_nonce
+    exploit_binding_invalid_curve exploit_musig2_parallel_session_cross
+    exploit_buffer_type_confusion exploit_differential_libsecp
+    exploit_bip352_scan_dos exploit_taproot_commitment_adversarial
+    exploit_bip352_parity_confusion exploit_rfc6979_truncation_bias
+    exploit_binding_adversarial_api exploit_quantum_exposure
+    exploit_ecies_ephemeral_reuse exploit_address_prefix_collision
     PROPERTIES LABELS "audit"
 )
 if(SECP256K1_BUILD_PROTOCOL_TESTS)

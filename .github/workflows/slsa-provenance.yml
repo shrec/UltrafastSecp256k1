@@ -1,0 +1,127 @@
+# ============================================================================
+# SLSA Level 3 Provenance + Cosign Attestation
+# ============================================================================
+# Generates SLSA provenance metadata for release builds and signs
+# artifacts with Sigstore Cosign for supply-chain security.
+# ============================================================================
+name: SLSA Provenance + Cosign
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write       # Sigstore OIDC
+  attestations: write   # GitHub artifact attestations
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build Release Artifacts
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    outputs:
+      hashes: ${{ steps.hash.outputs.hashes }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install build deps
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+              cmake ninja-build g++-14 libssl-dev
+
+      - name: Configure
+        run: |
+          cmake -S libs/UltrafastSecp256k1 \
+                -B build-slsa \
+                -G Ninja \
+                -DCMAKE_BUILD_TYPE=Release \
+                -DCMAKE_C_COMPILER=gcc-14 \
+                -DCMAKE_CXX_COMPILER=g++-14
+
+      - name: Build
+        run: cmake --build build-slsa --parallel
+
+      - name: Package artifacts
+        run: |
+          mkdir -p dist
+          # Copy shared library
+          find build-slsa -name "libufsecp*.so*" -exec cp {} dist/ \;
+          find build-slsa -name "libufsecp*.a" -exec cp {} dist/ \;
+          # Copy headers
+          cp -r libs/UltrafastSecp256k1/include dist/
+
+          cd dist && tar czf ../ufsecp-linux-x64.tar.gz . && cd ..
+
+      - name: Generate subject hashes
+        id: hash
+        run: |
+          HASHES=$(sha256sum ufsecp-linux-x64.tar.gz | base64 -w0)
+          echo "hashes=$HASHES" >> "$GITHUB_OUTPUT"
+
+      - name: Upload build output
+        uses: actions/upload-artifact@v4
+        with:
+          name: ufsecp-linux-x64
+          path: ufsecp-linux-x64.tar.gz
+          retention-days: 30
+
+  provenance:
+    name: SLSA Provenance
+    needs: build
+    permissions:
+      actions: read
+      id-token: write
+      contents: write
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
+    with:
+      base64-subjects: ${{ needs.build.outputs.hashes }}
+      upload-assets: true
+
+  cosign:
+    name: Cosign Attestation
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: ufsecp-linux-x64
+
+      - name: Keyless sign with Cosign
+        run: |
+          cosign sign-blob \
+            --yes \
+            --oidc-issuer https://token.actions.githubusercontent.com \
+            --bundle ufsecp-linux-x64.bundle \
+            ufsecp-linux-x64.tar.gz
+
+      - name: Verify signature
+        run: |
+          cosign verify-blob \
+            --certificate-identity-regexp "github.com/shrec/UltrafastSecp256k1" \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+            --bundle ufsecp-linux-x64.bundle \
+            ufsecp-linux-x64.tar.gz
+
+      - name: Upload attestation bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: cosign-bundle
+          path: ufsecp-linux-x64.bundle
+          retention-days: 90

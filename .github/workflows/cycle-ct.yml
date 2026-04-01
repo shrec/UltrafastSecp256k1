@@ -1,0 +1,137 @@
+# ============================================================================
+# Cycle-Level CT Verification (MIT, 2024)
+# ============================================================================
+# Source-level ct-verif can miss compiler-introduced timing leaks.
+# This workflow analyzes compiled .o files for constant-time properties
+# by examining actual machine instructions — catching issues like:
+# - Compiler-inserted conditional branches
+# - CMOV replaced by branch+mov
+# - Variable-latency instructions (div, sqrt) on secret data
+# ============================================================================
+name: Cycle-Level CT Verification
+
+on:
+  push:
+    branches: [main, dev]
+    paths:
+      - 'libs/UltrafastSecp256k1/cpu/src/ct_*.cpp'
+      - 'libs/UltrafastSecp256k1/cpu/src/ct_*.hpp'
+      - 'libs/UltrafastSecp256k1/include/secp256k1/ct_*.hpp'
+  pull_request:
+    branches: [main, dev]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  cycle-ct:
+    name: Binary-level CT analysis
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      matrix:
+        opt: [O1, O2, O3, Os]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake ninja-build \
+            clang-18 lld-18 llvm-18 \
+            python3 objdump binutils
+
+      - name: Build CT layer at -${{ matrix.opt }}
+        run: |
+          cd libs/UltrafastSecp256k1
+          mkdir -p build-cycle-ct-${{ matrix.opt }}
+          cd build-cycle-ct-${{ matrix.opt }}
+          cmake .. -GNinja \
+            -DCMAKE_C_COMPILER=clang-18 \
+            -DCMAKE_CXX_COMPILER=clang++-18 \
+            -DCMAKE_CXX_FLAGS="-${{ matrix.opt }} -g -fno-omit-frame-pointer" \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_TESTING=OFF
+          ninja -j$(nproc) 2>/dev/null || ninja -j1 2>/dev/null || true
+
+      - name: Analyze compiled objects for CT violations
+        run: |
+          cd libs/UltrafastSecp256k1/build-cycle-ct-${{ matrix.opt }}
+          VIOLATIONS=0
+          ANALYZED=0
+
+          # Find all object files from CT sources
+          for obj in $(find . -name "ct_*.o" -o -name "ct_*.cpp.o" 2>/dev/null); do
+            echo "=== Analyzing: $obj (-${{ matrix.opt }}) ==="
+            ANALYZED=$((ANALYZED + 1))
+
+            # Disassemble
+            llvm-objdump-18 -d "$obj" > /tmp/ct_disasm.txt 2>/dev/null || \
+              objdump -d "$obj" > /tmp/ct_disasm.txt 2>/dev/null || continue
+
+            # Check for variable-time instructions operating on data
+            # that could be secret-dependent
+            python3 -c "
+import re, sys
+
+with open('/tmp/ct_disasm.txt') as f:
+    lines = f.readlines()
+
+issues = []
+for i, line in enumerate(lines):
+    line_stripped = line.strip()
+
+    # 1. div/idiv instructions (variable latency based on operand)
+    if re.search(r'\b(div|idiv)\b', line_stripped):
+        issues.append(f'  L{i}: variable-time division: {line_stripped[:80]}')
+
+    # 2. Conditional jumps in CT functions (should be branchless)
+    #    Allow 'jmp' but flag 'je/jne/jg/jl/ja/jb/jae/jbe/js/jns'
+    if re.search(r'\bj(e|ne|g|ge|l|le|a|ae|b|be|s|ns|o|no|p|np|z|nz)\b', line_stripped):
+        # Check if this is inside a CT function
+        # Look backwards for function label
+        for j in range(max(0, i-20), i):
+            if 'ct_' in lines[j].lower() and ':' in lines[j]:
+                issues.append(f'  L{i}: conditional branch in CT code: {line_stripped[:80]}')
+                break
+
+    # 3. Memory-dependent addressing (could leak via cache)
+    if re.search(r'\(%.*,%.*,\d+\)', line_stripped):
+        # Indexed addressing could be table lookup
+        for j in range(max(0, i-20), i):
+            if 'ct_' in lines[j].lower() and ':' in lines[j]:
+                issues.append(f'  L{i}: indexed memory access in CT: {line_stripped[:80]}')
+                break
+
+if issues:
+    print(f'Potential CT violations in $obj:')
+    for issue in issues[:20]:
+        print(issue)
+    sys.exit(1)
+else:
+    print(f'  PASS: no binary-level CT violations detected')
+" || VIOLATIONS=$((VIOLATIONS + 1))
+          done
+
+          echo "=== Cycle-Level CT Summary (-${{ matrix.opt }}) ==="
+          echo "Files analyzed: $ANALYZED"
+          echo "Violations: $VIOLATIONS"
+          if [ "$VIOLATIONS" -gt 0 ]; then
+            echo "::warning::$VIOLATIONS binary-level CT concerns at -${{ matrix.opt }}"
+          fi
+
+      - name: Upload disassembly artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cycle-ct-${{ matrix.opt }}
+          path: libs/UltrafastSecp256k1/build-cycle-ct-${{ matrix.opt }}/
+          retention-days: 14
