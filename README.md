@@ -17,7 +17,7 @@
 
 > **11.00 M BIP352 scans/s** · **4.88 M ECDSA signs/s** · **4.05 M ECDSA verifies/s** · **3.66 M Schnorr signs/s** · **5.38 M Schnorr verifies/s** · **1.34 M FROST partial verifies/s** · **97.2 M point compressions/s** — single GPU (RTX 5060 Ti SM 12.0)
 
-### Recent Performance Milestones (March 2026)
+## Recent Performance Milestones (March 2026)
 
 All measurements: RTX 5060 Ti (SM 12.0, CUDA 12), batch=16 384, kernel-only throughput.
 
@@ -29,9 +29,9 @@ All measurements: RTX 5060 Ti (SM 12.0, CUDA 12), batch=16 384, kernel-only thro
 | Batch Jacobian → Compressed | — | **10.3 ns / 97.2 M/s** | ⭐ New kernel |
 | BIP-352 Silent Payments (GPU LUT) | 179.2 ns / 5.58 M/s | **91.0 ns / 11.00 M/s** | **+97 % throughput** |
 
-> The ECDSA and Schnorr verify speedups come from the Shamir+GLV double-scalar multiplication, INT32 field arithmetic, and warp-level reduction pipeline. FROST partial verify is now callable via the stable C ABI as [`ufsecp_gpu_frost_verify_partial_batch()`](#gpu-c-abi--ufsecp_gpu).
+> The ECDSA and Schnorr verify speedups come from the Shamir+GLV double-scalar multiplication, INT32 field arithmetic, and warp-level reduction pipeline. FROST partial verify is now callable via the stable C ABI as [`ufsecp_gpu_frost_verify_partial_batch()`](#gpu-c-abi-ufsecp_gpu).
 
-### Why UltrafastSecp256k1?
+## Why UltrafastSecp256k1?
 
 - **Continuous adversarial audit system** -- every exploit attempt becomes a permanent regression test; 1,000,000+ assertions per build, 135 exploit PoC modules across 134 attack vectors, 31 CI workflows, 3 formal CT verification pipelines, 1.3M+ nightly differential checks — security hardens on every commit, not just on release day ([→ how it works](#engineering-quality--self-audit-culture))
 - **Differentiated GPU secp256k1 surface** -- CUDA, OpenCL, and Metal all implement the stable 13-op GPU C ABI, while CUDA also carries the highest-throughput signing and verification kernels plus **GPU FROST partial verification** ([reproducible benchmark suite and raw logs](docs/BENCHMARKS.md))
@@ -1571,7 +1571,7 @@ Extra gratitude to [@0xbitcoiner](https://stacker.news/0xbitcoiner) for the init
 If you find **UltrafastSecp256k1** useful, consider supporting its development!
 
 > **We are actively seeking sponsors for a funded bug bounty program, stronger open audit infrastructure, and ongoing development.**
-> See the [Seeking Sponsors](#seeking-sponsors----audit-bug-bounty--development) section above for details.
+> See the [Seeking Sponsors](#seeking-sponsors----bug-bounty--development) section above for details.
 
 [![Sponsor](https://img.shields.io/badge/Sponsor_This_Project-GitHub_Sponsors-ea4aaa.svg?style=for-the-badge&logo=github)](https://github.com/sponsors/shrec)
 [![Donate with Bitcoin Lightning](https://img.shields.io/badge/Lightning_Sats-shrec@stacker.news-F7931A?style=for-the-badge&logo=bitcoin)](https://stacker.news/shrec)

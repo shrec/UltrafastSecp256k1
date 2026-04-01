@@ -3,6 +3,7 @@
 #include "secp256k1/precompute.hpp"
 #endif
 #include "secp256k1/glv.hpp"
+#include "secp256k1/ct/point.hpp"
 #if defined(__SIZEOF_INT128__) && !defined(__EMSCRIPTEN__)
 #include "secp256k1/field_52.hpp"
 #endif
@@ -3014,7 +3015,14 @@ Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const P
     SECP_ASSERT_ON_CURVE(P);
 #if defined(SECP256K1_USE_4X64_POINT_OPS)
     // 4x64 path: use two separate scalar_muls (each already has GLV+Shamir 4x64)
-    auto aG = Point::generator().scalar_mul(a);
+    Point aG =
+#if defined(_MSC_VER)
+        // MSVC Release can diverge when runtime fixed-base tables are reconfigured.
+        // Keep the generator leg of verify/recover on the proven CT path.
+        ct::generator_mul(a);
+#else
+        Point::generator().scalar_mul(a);
+#endif
     aG.add_inplace(P.scalar_mul(b));
     return aG;
 #else

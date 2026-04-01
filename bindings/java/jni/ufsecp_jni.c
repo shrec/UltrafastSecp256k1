@@ -5,6 +5,7 @@
  */
 
 #include <jni.h>
+#include <stdlib.h>
 #include <string.h>
 #include "ufsecp.h"
 
@@ -37,10 +38,15 @@ static jbyteArray mk(JNIEnv *env, const uint8_t *data, int len) {
     if (r) (*env)->SetByteArrayRegion(env, r, 0, len, (const jbyte*)data);
     return r;
 }
-static jstring mkstr(JNIEnv *env, const char *text) {
-    /* cppcheck-suppress returnDanglingLifetime
-       NewStringUTF copies the provided UTF-8 bytes into a JVM-owned jstring. */
-    return (*env)->NewStringUTF(env, text);
+static jstring mkstr_copy(JNIEnv *env, const char *text) {
+    size_t len = strlen(text);
+    char *copy = (char*)malloc(len + 1);
+    if (!copy) return NULL;
+    memcpy(copy, text, len + 1);
+    jstring out = (*env)->NewStringUTF(env, copy);
+    secure_zero(copy, len + 1);
+    free(copy);
+    return out;
 }
 
 /* ── Context ─────────────────────────────────────────────────────────── */
@@ -202,7 +208,7 @@ JNIEXPORT jstring JNICALL Java_com_ultrafast_ufsecp_Ufsecp_nativeAddrP2pkh(
     unpin(env, pubkey, pk);
     if (throw_on_err(env, rc, "addr_p2pkh")) return NULL;
     addr[alen] = '\0';
-    return mkstr(env, (const char*)addr);
+    return mkstr_copy(env, (const char*)addr);
 }
 
 JNIEXPORT jstring JNICALL Java_com_ultrafast_ufsecp_Ufsecp_nativeAddrP2wpkh(
@@ -215,7 +221,7 @@ JNIEXPORT jstring JNICALL Java_com_ultrafast_ufsecp_Ufsecp_nativeAddrP2wpkh(
     unpin(env, pubkey, pk);
     if (throw_on_err(env, rc, "addr_p2wpkh")) return NULL;
     addr[alen] = '\0';
-    return mkstr(env, (const char*)addr);
+    return mkstr_copy(env, (const char*)addr);
 }
 
 JNIEXPORT jstring JNICALL Java_com_ultrafast_ufsecp_Ufsecp_nativeAddrP2tr(
@@ -228,7 +234,7 @@ JNIEXPORT jstring JNICALL Java_com_ultrafast_ufsecp_Ufsecp_nativeAddrP2tr(
     unpin(env, xonly, pk);
     if (throw_on_err(env, rc, "addr_p2tr")) return NULL;
     addr[alen] = '\0';
-    return mkstr(env, (const char*)addr);
+    return mkstr_copy(env, (const char*)addr);
 }
 
 /* ── WIF ─────────────────────────────────────────────────────────────── */
@@ -247,7 +253,7 @@ JNIEXPORT jstring JNICALL Java_com_ultrafast_ufsecp_Ufsecp_nativeWifEncode(
         return NULL;
     }
     wif[wlen] = '\0';
-    jstring out = mkstr(env, (const char*)wif);
+    jstring out = mkstr_copy(env, (const char*)wif);
     secure_zero(wif, sizeof(wif));
     return out;
 }

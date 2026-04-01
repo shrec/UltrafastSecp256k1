@@ -117,6 +117,16 @@ namespace {
 
 using secp256k1::detail::secure_erase;
 
+static inline Point signing_generator_mul(const Scalar& scalar) {
+#if defined(_MSC_VER)
+    // MSVC Release has shown runtime fixed-base generator divergence for some
+    // scalars after hostile reconfiguration. Keep signing on the proven CT path.
+    return ct::generator_mul(scalar);
+#else
+    return Point::generator().scalar_mul(scalar);
+#endif
+}
+
 // -- SHA-256 IV ---------------------------------------------------------------
 static constexpr std::uint32_t SHA256_IV[8] = {
     0x6a09e667u, 0xbb67ae85u, 0x3c6ef372u, 0xa54ff53au,
@@ -451,7 +461,7 @@ ECDSASignature ecdsa_sign(const std::array<uint8_t, 32>& msg_hash,
 
     if (!k.is_zero()) {
         // R = k * G
-        auto R = Point::generator().scalar_mul(k);
+        auto R = signing_generator_mul(k);
         if (!R.is_infinity()) {
             // r = R.x mod n  (direct FE52→bytes, avoids FieldElement intermediate)
 #if defined(SECP256K1_FAST_52BIT)
@@ -515,7 +525,7 @@ ECDSASignature ecdsa_sign_hedged(const std::array<uint8_t, 32>& msg_hash,
     ECDSASignature result{Scalar::zero(), Scalar::zero()};
 
     if (!k.is_zero()) {
-        auto R = Point::generator().scalar_mul(k);
+        auto R = signing_generator_mul(k);
         if (!R.is_infinity()) {
             auto r_fe = R.x();
             auto r_bytes = r_fe.to_bytes();

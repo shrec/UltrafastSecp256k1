@@ -1,5 +1,6 @@
 #include "secp256k1/recovery.hpp"
 #include "secp256k1/sha256.hpp"
+#include "secp256k1/ct/point.hpp"
 #include <cstring>
 
 namespace secp256k1 {
@@ -43,6 +44,16 @@ static const std::array<uint8_t, 32> SECP256K1_ORDER_BYTES = {
     0xBF,0xD2,0x5E,0x8C, 0xD0,0x36,0x41,0x41
 };
 
+static inline Point signing_generator_mul(const Scalar& scalar) {
+#if defined(_MSC_VER)
+    // Match ECDSA signing fallback so recoverable signatures stay correct when
+    // hostile runtime fixed-base settings are active on MSVC Release builds.
+    return ct::generator_mul(scalar);
+#else
+    return Point::generator().scalar_mul(scalar);
+#endif
+}
+
 // -- Sign with Recovery ID ----------------------------------------------------
 // WARNING: Variable-time path -- uses fast::scalar_mul(k) and fast::inverse(k)
 // on the secret nonce. For side-channel-resistant signing, use ct::ecdsa_sign()
@@ -60,7 +71,7 @@ RecoverableSignature ecdsa_sign_recoverable(
     if (k.is_zero()) return {{Scalar::zero(), Scalar::zero()}, 0};
 
     // R = k * G
-    auto R = Point::generator().scalar_mul(k);
+    auto R = signing_generator_mul(k);
     if (R.is_infinity()) return {{Scalar::zero(), Scalar::zero()}, 0};
 
     // r = R.x mod n

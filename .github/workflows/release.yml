@@ -819,7 +819,7 @@ jobs:
         with:
           ref: ${{ env.RELEASE_TAG }}
 
-      - uses: ruby/setup-ruby@c984c1a20bb35a1cbda04477c816cea024418be9 # v1
+      - uses: ruby/setup-ruby@3ff19f5e2baf30647122352b96108b1fbe250c64 # v1
         with:
           ruby-version: '3.3'
 
@@ -1671,7 +1671,7 @@ jobs:
 
       # -- Cosign keyless signing (Sigstore) --
       - name: Install cosign
-        uses: sigstore/cosign-installer@ba7bc0a3fef59531c69a25acd34668d6d3fe6f22 # v3.8.0
+        uses: sigstore/cosign-installer@cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003 # v3.8.0
 
       - name: Sign release artifacts with cosign
         run: |
