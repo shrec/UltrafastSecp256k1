@@ -35,6 +35,7 @@
 #include "secp256k1/ct/sign.hpp"
 #include "secp256k1/ct/point.hpp"
 #include "secp256k1/detail/secure_erase.hpp"
+#include "secp256k1/detail/arith64.hpp"
 #include "secp256k1/sha256.hpp"
 #include "secp256k1/address.hpp"
 #include "secp256k1/bip32.hpp"
@@ -4870,21 +4871,9 @@ ufsecp_error_t ufsecp_bip322_verify(
 namespace {
 
 /* Portable 64×64→high-64 multiply.
- * MSVC does not support __int128; use _umul128 on x64 MSVC, and the
- * GCC/Clang __uint128_t path everywhere else. */
-#if defined(_MSC_VER) && defined(_M_X64)
-#include <intrin.h>
-static inline uint64_t mulhi64(uint64_t a, uint64_t b) {
-    uint64_t hi = 0;
-    _umul128(a, b, &hi);
-    return hi;
-}
-#else
-static inline uint64_t mulhi64(uint64_t a, uint64_t b) {
-    return static_cast<uint64_t>(
-        (static_cast<unsigned __int128>(a) * static_cast<unsigned __int128>(b)) >> 64);
-}
-#endif
+ * Provided by secp256k1::detail::mulhi64 (arith64.hpp).
+ * Alias it into the anonymous namespace used by the GCS code below. */
+using secp256k1::detail::mulhi64;
 
 static inline uint64_t siphash_rotl64(uint64_t x, int b) {
     return (x << b) | (x >> (64 - b));
