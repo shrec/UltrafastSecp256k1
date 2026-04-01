@@ -2901,7 +2901,38 @@ bool write_fixed_base_config(const std::string& path, const FixedBaseConfig& cfg
     if (!out.is_open()) return false;
     out << "# secp256k1-fast library configuration (auto-tuned)\n";
     out << "# Generated on this machine for best fixed-base performance.\n\n";
-    out << "cache_dir=" << (cfg.cache_dir.empty() ? std::string("F:\\EccTables") : cfg.cache_dir) << "\n";
+    // Resolve cache_dir: prefer explicit value, fall back to OS-aware default
+    std::string resolved_cache_dir = cfg.cache_dir;
+    if (resolved_cache_dir.empty()) {
+#if defined(_WIN32)
+        const char* local_app_data = std::getenv("LOCALAPPDATA");
+        if (local_app_data) {
+            resolved_cache_dir = std::string(local_app_data) + "\\secp256k1";
+        } else {
+            resolved_cache_dir = ".";
+        }
+#elif defined(__APPLE__)
+        const char* home = std::getenv("HOME");
+        if (home) {
+            resolved_cache_dir = std::string(home) + "/Library/Caches/secp256k1";
+        } else {
+            resolved_cache_dir = ".";
+        }
+#else
+        const char* xdg = std::getenv("XDG_CACHE_HOME");
+        if (xdg && xdg[0] != '\0') {
+            resolved_cache_dir = std::string(xdg) + "/secp256k1";
+        } else {
+            const char* home = std::getenv("HOME");
+            if (home) {
+                resolved_cache_dir = std::string(home) + "/.cache/secp256k1";
+            } else {
+                resolved_cache_dir = ".";
+            }
+        }
+#endif
+    }
+    out << "cache_dir=" << resolved_cache_dir << "\n";
     if (!cfg.cache_path.empty()) {
         out << "cache_path=" << cfg.cache_path << "\n";
     }

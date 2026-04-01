@@ -350,6 +350,21 @@ UFSECP_API ufsecp_error_t ufsecp_addr_p2tr(ufsecp_ctx* ctx,
                                            int network,
                                            char* addr_out, size_t* addr_len);
 
+/** P2SH address from arbitrary redeem script.
+ *  addr_len: in = buffer size (min 36), out = strlen (excl. NUL). */
+UFSECP_API ufsecp_error_t ufsecp_addr_p2sh(
+    const uint8_t* redeem_script, size_t redeem_script_len,
+    int network,
+    char* addr_out, size_t* addr_len);
+
+/** P2SH-P2WPKH (WrappedSegWit) address from compressed pubkey.
+ *  addr_len: in = buffer size (min 36), out = strlen (excl. NUL). */
+UFSECP_API ufsecp_error_t ufsecp_addr_p2sh_p2wpkh(
+    ufsecp_ctx* ctx,
+    const uint8_t pubkey33[33],
+    int network,
+    char* addr_out, size_t* addr_len);
+
 /* ===========================================================================
  * WIF (Wallet Import Format)
  * =========================================================================== */
@@ -1364,6 +1379,213 @@ UFSECP_API ufsecp_error_t ufsecp_eth_ecrecover(ufsecp_ctx* ctx,
                                                uint8_t addr20_out[20]);
 
 #endif /* SECP256K1_BUILD_ETHEREUM */
+
+/* ===========================================================================
+ * BIP-85 — Deterministic Entropy from BIP-32 Keychains
+ * =========================================================================== */
+
+/** Derive application entropy from a BIP-32 master xprv.
+ *  path: BIP-85 derivation path string, e.g. "m/83696968'/2'/0'"
+ *  entropy_out: output buffer (caller-supplied, min entropy_len bytes).
+ *  entropy_len: number of entropy bytes to derive (16, 24, or 32).
+ *  Internally: HMAC-SHA512(key="bip-85", data=derived_privkey),
+ *  take first entropy_len bytes. */
+UFSECP_API ufsecp_error_t ufsecp_bip85_entropy(
+    ufsecp_ctx* ctx,
+    const ufsecp_bip32_key* master_xprv,
+    const char* path,
+    uint8_t* entropy_out, size_t entropy_len);
+
+/** Derive a BIP-39 mnemonic using BIP-85.
+ *  words: 12, 18, or 24.
+ *  language_index: 0=English.
+ *  index: child index.
+ *  mnemonic_out: buffer, min 500 bytes. */
+UFSECP_API ufsecp_error_t ufsecp_bip85_bip39(
+    ufsecp_ctx* ctx,
+    const ufsecp_bip32_key* master_xprv,
+    uint32_t words, uint32_t language_index, uint32_t index,
+    char* mnemonic_out, size_t* mnemonic_len);
+
+/* ===========================================================================
+ * BIP-340 Variable-Length Schnorr
+ * =========================================================================== */
+
+/** Sign an arbitrary-length message with BIP-340 Schnorr.
+ *  Internally: msg_hash = tagged_hash("BIP0340/msg", msg, msg_len).
+ *  Use this instead of ufsecp_schnorr_sign when msg is not exactly 32 bytes. */
+UFSECP_API ufsecp_error_t ufsecp_schnorr_sign_msg(
+    ufsecp_ctx* ctx,
+    const uint8_t privkey[32],
+    const uint8_t* msg, size_t msg_len,
+    const uint8_t* aux_rand32,
+    uint8_t sig64_out[64]);
+
+/** Verify Schnorr signature over arbitrary-length message. */
+UFSECP_API ufsecp_error_t ufsecp_schnorr_verify_msg(
+    ufsecp_ctx* ctx,
+    const uint8_t pubkey_x[32],
+    const uint8_t* msg, size_t msg_len,
+    const uint8_t sig64[64]);
+
+/* ===========================================================================
+ * BIP-322 — Generic Message Signing
+ * =========================================================================== */
+
+typedef enum {
+    UFSECP_BIP322_ADDR_P2PKH        = 0,
+    UFSECP_BIP322_ADDR_P2WPKH       = 1,
+    UFSECP_BIP322_ADDR_P2TR         = 2,
+    UFSECP_BIP322_ADDR_P2SH_P2WPKH  = 3,
+} ufsecp_bip322_addr_type;
+
+/** Sign a message using BIP-322 "simple" type.
+ *  privkey: 32-byte private key.
+ *  addr_type: address type (determines signing scheme and sighash).
+ *  sig_out: buffer for the witness/signature bytes (min 128 bytes).
+ *  sig_len: in = buffer size, out = actual bytes written. */
+UFSECP_API ufsecp_error_t ufsecp_bip322_sign(
+    ufsecp_ctx* ctx,
+    const uint8_t privkey[32],
+    ufsecp_bip322_addr_type addr_type,
+    const uint8_t* msg, size_t msg_len,
+    uint8_t* sig_out, size_t* sig_len);
+
+/** Verify a BIP-322 "simple" signature.
+ *  pubkey: 33-byte compressed (P2PKH/P2WPKH/P2SH-P2WPKH) or 32-byte x-only (P2TR).
+ *  pubkey_len: 33 or 32.
+ *  Returns UFSECP_OK if valid. */
+UFSECP_API ufsecp_error_t ufsecp_bip322_verify(
+    ufsecp_ctx* ctx,
+    const uint8_t* pubkey, size_t pubkey_len,
+    ufsecp_bip322_addr_type addr_type,
+    const uint8_t* msg, size_t msg_len,
+    const uint8_t* sig, size_t sig_len);
+
+/* ===========================================================================
+ * BIP-157/158 — Compact Block Filters (Golomb-Coded Set)
+ * =========================================================================== */
+
+/** Build a BIP-158 "basic" GCS filter.
+ *  key: 16-byte SipHash key (from block hash).
+ *  data: array of count variable-length items (each a script or txid).
+ *  data_sizes: array of count sizes for each data item.
+ *  filter_out: output buffer for encoded filter (caller-supplied).
+ *  filter_len: in = buffer size, out = actual bytes written.
+ *  N = count of items, P = 19, M = 784931 (BIP-158 defaults). */
+UFSECP_API ufsecp_error_t ufsecp_gcs_build(
+    const uint8_t key[16],
+    const uint8_t** data, const size_t* data_sizes, size_t count,
+    uint8_t* filter_out, size_t* filter_len);
+
+/** Test if a single item is in the filter.
+ *  Returns UFSECP_OK if item is in filter, UFSECP_ERR_NOT_FOUND if not. */
+UFSECP_API ufsecp_error_t ufsecp_gcs_match(
+    const uint8_t key[16],
+    const uint8_t* filter, size_t filter_len,
+    size_t n_items,
+    const uint8_t* item, size_t item_len);
+
+/** Test if any of the query items is in the filter (OR match).
+ *  Returns UFSECP_OK if any item matches. */
+UFSECP_API ufsecp_error_t ufsecp_gcs_match_any(
+    const uint8_t key[16],
+    const uint8_t* filter, size_t filter_len,
+    size_t n_items,
+    const uint8_t** query, const size_t* query_sizes, size_t query_count);
+
+/* ===========================================================================
+ * BIP-174/370 — PSBT Signing Helpers
+ * =========================================================================== */
+
+/** PSBT input sighash types. */
+#define UFSECP_SIGHASH_ALL          0x01
+#define UFSECP_SIGHASH_NONE         0x02
+#define UFSECP_SIGHASH_SINGLE       0x03
+#define UFSECP_SIGHASH_ANYONECANPAY 0x80
+#define UFSECP_SIGHASH_DEFAULT      0x00  /* BIP-341 Taproot default */
+
+/** Sign a PSBT non-witness input (legacy P2PKH).
+ *  sighash: 32-byte BIP-143 or BIP-341 sighash pre-image digest.
+ *  privkey: signing private key.
+ *  sig_out: DER+sighash_type, min 73 bytes.
+ *  sig_len: in = buffer size, out = actual bytes. */
+UFSECP_API ufsecp_error_t ufsecp_psbt_sign_legacy(
+    ufsecp_ctx* ctx,
+    const uint8_t sighash32[32],
+    const uint8_t privkey[32],
+    uint8_t sighash_type,
+    uint8_t* sig_out, size_t* sig_len);
+
+/** Sign a PSBT SegWit v0 input (P2WPKH or P2WSH).
+ *  Returns compact ECDSA sig (64 bytes) + sighash_type (1 byte) = 65 bytes total. */
+UFSECP_API ufsecp_error_t ufsecp_psbt_sign_segwit(
+    ufsecp_ctx* ctx,
+    const uint8_t sighash32[32],
+    const uint8_t privkey[32],
+    uint8_t sighash_type,
+    uint8_t* sig_out, size_t* sig_len);
+
+/** Sign a PSBT Taproot key-path input (P2TR).
+ *  Returns 64-byte Schnorr sig (+ optional sighash_type byte if not SIGHASH_DEFAULT). */
+UFSECP_API ufsecp_error_t ufsecp_psbt_sign_taproot(
+    ufsecp_ctx* ctx,
+    const uint8_t sighash32[32],
+    const uint8_t privkey[32],
+    uint8_t sighash_type,
+    const uint8_t* aux_rand32,
+    uint8_t* sig_out, size_t* sig_len);
+
+/** Derive the signing key from a BIP-32 xprv + key-path record.
+ *  key_path: e.g. "m/84'/0'/0'/0/0"
+ *  privkey_out: 32-byte derived private key. */
+UFSECP_API ufsecp_error_t ufsecp_psbt_derive_key(
+    ufsecp_ctx* ctx,
+    const ufsecp_bip32_key* master_xprv,
+    const char* key_path,
+    uint8_t privkey_out[32]);
+
+/* ===========================================================================
+ * BIP-380..386 — Output Descriptors (key expression parser)
+ * =========================================================================== */
+
+typedef enum {
+    UFSECP_DESC_PK       = 0,   /**< pk(KEY) — P2PK */
+    UFSECP_DESC_PKH      = 1,   /**< pkh(KEY) — P2PKH */
+    UFSECP_DESC_WPKH     = 2,   /**< wpkh(KEY) — P2WPKH */
+    UFSECP_DESC_TR       = 3,   /**< tr(KEY) — P2TR key-path only */
+    UFSECP_DESC_SH_WPKH  = 4,   /**< sh(wpkh(KEY)) — P2SH-P2WPKH */
+} ufsecp_desc_type;
+
+/** Parsed descriptor result. */
+typedef struct {
+    ufsecp_desc_type type;
+    uint8_t pubkey[33];        /**< Compressed pubkey (or x-only [32] for TR). */
+    uint8_t pubkey_len;        /**< 33 for compressed, 32 for x-only. */
+    int network;               /**< UFSECP_NET_MAINNET or UFSECP_NET_TESTNET. */
+    char path[64];             /**< Derivation path suffix, e.g. "/0/0", or empty. */
+} ufsecp_desc_key;
+
+/** Parse a descriptor string and derive the key + address type.
+ *  descriptor: e.g. "wpkh(xpub.../<0;1>/*)" or "tr(xpub.../0/0)"
+ *  index: child index to resolve (replaces * wildcard).
+ *  key_out: receives the parsed key information.
+ *  addr_out: buffer for the derived address (min 128 bytes), or NULL.
+ *  addr_len: in/out for address buffer. */
+UFSECP_API ufsecp_error_t ufsecp_descriptor_parse(
+    ufsecp_ctx* ctx,
+    const char* descriptor,
+    uint32_t index,
+    ufsecp_desc_key* key_out,
+    char* addr_out, size_t* addr_len);
+
+/** Derive address directly from a descriptor string.
+ *  Convenience wrapper around ufsecp_descriptor_parse. */
+UFSECP_API ufsecp_error_t ufsecp_descriptor_address(
+    ufsecp_ctx* ctx,
+    const char* descriptor,
+    uint32_t index,
+    char* addr_out, size_t* addr_len);
 
 #ifdef __cplusplus
 }

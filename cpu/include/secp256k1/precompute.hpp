@@ -1,12 +1,9 @@
 #ifndef EE840AA6_AA0C_4E9D_B58A_701AC4A267D0
 #define EE840AA6_AA0C_4E9D_B58A_701AC4A267D0
-#ifndef BD3119E8_7C55_43F7_86C0_01D77B1E1134
-#define BD3119E8_7C55_43F7_86C0_01D77B1E1134
 
 #include <cstddef>
 #include <cstdint>
 #include <string>
-#include <cstddef>
 #include <vector>
 
 #include "secp256k1/point.hpp"
@@ -251,8 +248,5 @@ bool save_precompute_cache(const std::string& path);
 bool load_precompute_cache(const std::string& path, unsigned max_windows = 0);
 
 } // namespace secp256k1::fast
-
-#endif /* BD3119E8_7C55_43F7_86C0_01D77B1E1134 */
-
 
 #endif /* EE840AA6_AA0C_4E9D_B58A_701AC4A267D0 */

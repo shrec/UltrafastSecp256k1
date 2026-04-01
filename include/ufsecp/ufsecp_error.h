@@ -32,6 +32,7 @@ typedef int ufsecp_error_t;
 #define UFSECP_ERR_SELFTEST      8   /**< Library self-test failed             */
 #define UFSECP_ERR_INTERNAL      9   /**< Unexpected internal error            */
 #define UFSECP_ERR_BUF_TOO_SMALL 10  /**< Output buffer too small              */
+#define UFSECP_ERR_NOT_FOUND     11  /**< Item not found (e.g. GCS filter match) */
 
 /* -- Error inspection ------------------------------------------------------- */
 

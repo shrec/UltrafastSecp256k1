@@ -241,6 +241,7 @@ int test_exploit_coin_hd_derivation_run();
 int test_exploit_ct_fast_equivalence_run();
 int test_exploit_ct_recov_run();
 int test_exploit_ct_systematic_run();
+int test_exploit_ctx_clone_run();
 int test_exploit_ctx_lifecycle_hostile_run();
 int test_exploit_der_parsing_differential_run();
 int test_exploit_ecdh_run();
@@ -303,6 +304,7 @@ int test_exploit_schnorr_bip340_kat_run();
 int test_exploit_schnorr_edge_cases_run();
 int test_exploit_schnorr_forgery_vectors_run();
 int test_exploit_schnorr_xonly_parity_confusion_run();
+int test_exploit_seckey_arith_run();
 int test_exploit_seckey_tweak_cancel_run();
 int test_exploit_segwit_encoding_run();
 int test_exploit_selftest_api_run();
@@ -341,7 +343,7 @@ int test_exploit_descriptor_injection_run();
 //   6. protocol_security -- Protocol Security (ECDSA, Schnorr, MuSig2, FROST)
 //   7. memory_safety     -- ABI & Memory Safety (sanitizer, zeroization)
 //   8. performance       -- Performance Validation & Regression
-//   9. exploit_poc       -- Exploit PoC Security Probes (108 attack vectors)
+//   9. exploit_poc       -- Exploit PoC Security Probes (110 attack vectors)
 // ============================================================================
 
 struct AuditModule {
@@ -377,7 +379,7 @@ static const SectionInfo SECTIONS[] = {
     { "performance",       "\xe1\x83\x9e\xe1\x83\x94\xe1\x83\xa0\xe1\x83\xa4\xe1\x83\x9d\xe1\x83\xa0\xe1\x83\x9b\xe1\x83\x90\xe1\x83\x9c\xe1\x83\xa1\xe1\x83\x98\xe1\x83\xa1 \xe1\x83\x95\xe1\x83\x90\xe1\x83\x9a\xe1\x83\x98\xe1\x83\x93\xe1\x83\x90\xe1\x83\xaa\xe1\x83\x98\xe1\x83\x90",
                            "Performance Validation & Regression" },
     { "exploit_poc",       "\xe1\x83\x94\xe1\x83\xa5\xe1\x83\xa1\xe1\x83\x9e\xe1\x83\x9a\xe1\x83\x9d\xe1\x83\x98\xe1\x83\xa2 PoC \xe1\x83\xa2\xe1\x83\x94\xe1\x83\xa1\xe1\x83\xa2\xe1\x83\x94\xe1\x83\x91\xe1\x83\x98",
-                           "Exploit PoC Security Probes (108 attack vectors)" },
+                           "Exploit PoC Security Probes (110 attack vectors)" },
 };
 static constexpr int NUM_SECTIONS = sizeof(SECTIONS) / sizeof(SECTIONS[0]);
 
@@ -489,7 +491,7 @@ static const AuditModule ALL_MODULES[] = {
     { "audit_perf",        "Performance smoke (sign/verify roundtrip)",    "performance",    audit_perf_run, false },
 
     // ===================================================================
-    // Section 9: Exploit PoC Security Probes (108 attack vectors)
+    // Section 9: Exploit PoC Security Probes (110 attack vectors)
     // ===================================================================
     { "exploit_adaptor_extended",       "Adaptor Signature Extended Security",          "exploit_poc", test_exploit_adaptor_extended_run, false },
     { "exploit_adaptor_parity",         "Adaptor Signature R.y Parity",                "exploit_poc", test_exploit_adaptor_parity_run, false },
@@ -522,6 +524,7 @@ static const AuditModule ALL_MODULES[] = {
     { "exploit_ct_fast_equiv",          "CT vs Fast Signing Equivalence",              "exploit_poc", test_exploit_ct_fast_equivalence_run, false },
     { "exploit_ct_recov",              "CT ct::ecdsa_sign_recoverable",               "exploit_poc", test_exploit_ct_recov_run, false },
     { "exploit_ct_systematic",          "CT vs FAST Output Divergence",                "exploit_poc", test_exploit_ct_systematic_run, false },
+    { "exploit_ctx_clone",              "Context Clone Isolation Security",            "exploit_poc", test_exploit_ctx_clone_run, false },
     { "exploit_ctx_lifecycle",          "Context / Precompute Lifecycle Abuse",         "exploit_poc", test_exploit_ctx_lifecycle_hostile_run, false },
     { "exploit_der_parse_diff",         "DER Parsing Differential",                    "exploit_poc", test_exploit_der_parsing_differential_run, false },
     { "exploit_ecdh",                   "ECDH Key Exchange Security",                  "exploit_poc", test_exploit_ecdh_run, false },
@@ -584,6 +587,7 @@ static const AuditModule ALL_MODULES[] = {
     { "exploit_schnorr_edge_cases",     "Schnorr Signature Edge Cases",                "exploit_poc", test_exploit_schnorr_edge_cases_run, false },
     { "exploit_schnorr_forgery",        "Schnorr BIP-340 Forgery Rejection",           "exploit_poc", test_exploit_schnorr_forgery_vectors_run, false },
     { "exploit_schnorr_xonly_parity",   "Schnorr X-Only Parity Confusion",             "exploit_poc", test_exploit_schnorr_xonly_parity_confusion_run, false },
+    { "exploit_seckey_arith",           "Secret Key Arithmetic (tweak/negate/cross)",  "exploit_poc", test_exploit_seckey_arith_run, false },
     { "exploit_seckey_tweak_cancel",    "Secret Key Tweak Cancellation",               "exploit_poc", test_exploit_seckey_tweak_cancel_run, false },
     { "exploit_segwit_encoding",        "SegWit Script Encoding Security",             "exploit_poc", test_exploit_segwit_encoding_run, false },
     { "exploit_selftest_api",           "Selftest API Security",                       "exploit_poc", test_exploit_selftest_api_run, false },
@@ -598,6 +602,14 @@ static const AuditModule ALL_MODULES[] = {
     { "exploit_wallet_cross_domain",    "Wallet Cross-Domain Replay",                  "exploit_poc", test_exploit_wallet_cross_domain_replay_run, false },
     { "exploit_zk_adversarial",         "ZK Proof Adversarial / Malformed",            "exploit_poc", test_exploit_zk_adversarial_run, false },
     { "exploit_zk_proofs",              "ZK Proof Soundness",                          "exploit_poc", test_exploit_zk_proofs_run, false },
+    // Feature exploit PoC tests (P2SH, BIP-85, BIP-340 var, BIP-322, GCS, PSBT, Desc)
+    { "exploit_p2sh_addr_confusion",    "P2SH / P2SH-P2WPKH Address Type Confusion",  "exploit_poc", test_exploit_p2sh_address_confusion_run, false },
+    { "exploit_bip85_path_collision",   "BIP-85 Path Collision and Entropy Security",  "exploit_poc", test_exploit_bip85_path_collision_run, false },
+    { "exploit_schnorr_msg_len",        "Schnorr Variable-Length Message Confusion",   "exploit_poc", test_exploit_schnorr_msg_length_confusion_run, false },
+    { "exploit_bip322_type_confusion",  "BIP-322 Generic Message Signing Type Confusion", "exploit_poc", test_exploit_bip322_type_confusion_run, false },
+    { "exploit_gcs_false_positive",     "BIP-158 GCS Filter False Positive Correctness", "exploit_poc", test_exploit_gcs_false_positive_run, false },
+    { "exploit_psbt_input_confusion",   "PSBT Input Type Confusion (BIP-174/370)",     "exploit_poc", test_exploit_psbt_input_confusion_run, false },
+    { "exploit_descriptor_injection",   "Output Descriptor Injection / Type Confusion","exploit_poc", test_exploit_descriptor_injection_run, false },
 };
 
 static constexpr int NUM_MODULES = sizeof(ALL_MODULES) / sizeof(ALL_MODULES[0]);

@@ -1079,6 +1079,137 @@ target_compile_definitions(test_ecies_regression_standalone PRIVATE
 add_test(NAME ecies_regression COMMAND test_ecies_regression_standalone)
 set_tests_properties(ecies_regression PROPERTIES TIMEOUT 600 LABELS "audit")
 
+# ===========================================================================
+# Feature Exploit PoC Standalone Tests (P2SH, BIP-85, BIP-340, BIP-322, GCS, PSBT, Desc)
+# ===========================================================================
+
+# -- PoC: P2SH / P2SH-P2WPKH address type confusion -------------------------
+add_executable(test_exploit_p2sh_address_confusion_standalone
+    test_exploit_p2sh_address_confusion.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_p2sh_address_confusion_standalone)
+target_include_directories(test_exploit_p2sh_address_confusion_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+)
+target_compile_definitions(test_exploit_p2sh_address_confusion_standalone PRIVATE
+    UFSECP_BUILDING STANDALONE_TEST)
+add_test(NAME exploit_p2sh_address_confusion
+    COMMAND test_exploit_p2sh_address_confusion_standalone)
+set_tests_properties(exploit_p2sh_address_confusion PROPERTIES
+    TIMEOUT 60 LABELS "audit;exploit;address;p2sh")
+
+# -- PoC: BIP-85 path collision and entropy security -------------------------
+add_executable(test_exploit_bip85_path_collision_standalone
+    test_exploit_bip85_path_collision.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_bip85_path_collision_standalone)
+target_include_directories(test_exploit_bip85_path_collision_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+)
+target_compile_definitions(test_exploit_bip85_path_collision_standalone PRIVATE
+    UFSECP_BUILDING STANDALONE_TEST)
+add_test(NAME exploit_bip85_path_collision
+    COMMAND test_exploit_bip85_path_collision_standalone)
+set_tests_properties(exploit_bip85_path_collision PROPERTIES
+    TIMEOUT 60 LABELS "audit;exploit;bip85;entropy")
+
+# -- PoC: Schnorr variable-length message length confusion -------------------
+add_executable(test_exploit_schnorr_msg_length_confusion_standalone
+    test_exploit_schnorr_msg_length_confusion.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_schnorr_msg_length_confusion_standalone)
+target_include_directories(test_exploit_schnorr_msg_length_confusion_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+)
+target_compile_definitions(test_exploit_schnorr_msg_length_confusion_standalone PRIVATE
+    UFSECP_BUILDING STANDALONE_TEST)
+add_test(NAME exploit_schnorr_msg_length_confusion
+    COMMAND test_exploit_schnorr_msg_length_confusion_standalone)
+set_tests_properties(exploit_schnorr_msg_length_confusion PROPERTIES
+    TIMEOUT 60 LABELS "audit;exploit;schnorr;bip340")
+
+# -- PoC: BIP-322 generic message signing type confusion ---------------------
+add_executable(test_exploit_bip322_type_confusion_standalone
+    test_exploit_bip322_type_confusion.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_bip322_type_confusion_standalone)
+target_include_directories(test_exploit_bip322_type_confusion_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+)
+target_compile_definitions(test_exploit_bip322_type_confusion_standalone PRIVATE
+    UFSECP_BUILDING STANDALONE_TEST)
+add_test(NAME exploit_bip322_type_confusion
+    COMMAND test_exploit_bip322_type_confusion_standalone)
+set_tests_properties(exploit_bip322_type_confusion PROPERTIES
+    TIMEOUT 60 LABELS "audit;exploit;bip322;signing")
+
+# -- PoC: BIP-158 GCS filter false positive and correctness ------------------
+add_executable(test_exploit_gcs_false_positive_standalone
+    test_exploit_gcs_false_positive.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_gcs_false_positive_standalone)
+target_include_directories(test_exploit_gcs_false_positive_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+)
+target_compile_definitions(test_exploit_gcs_false_positive_standalone PRIVATE
+    UFSECP_BUILDING STANDALONE_TEST)
+add_test(NAME exploit_gcs_false_positive
+    COMMAND test_exploit_gcs_false_positive_standalone)
+set_tests_properties(exploit_gcs_false_positive PROPERTIES
+    TIMEOUT 60 LABELS "audit;exploit;bip158;gcs")
+
+# -- PoC: PSBT input type confusion (BIP-174/370) ----------------------------
+add_executable(test_exploit_psbt_input_confusion_standalone
+    test_exploit_psbt_input_confusion.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_psbt_input_confusion_standalone)
+target_include_directories(test_exploit_psbt_input_confusion_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+)
+target_compile_definitions(test_exploit_psbt_input_confusion_standalone PRIVATE
+    UFSECP_BUILDING STANDALONE_TEST)
+add_test(NAME exploit_psbt_input_confusion
+    COMMAND test_exploit_psbt_input_confusion_standalone)
+set_tests_properties(exploit_psbt_input_confusion PROPERTIES
+    TIMEOUT 60 LABELS "audit;exploit;psbt;bip174")
+
+# -- PoC: Output descriptor injection and type confusion (BIP-380-386) -------
+add_executable(test_exploit_descriptor_injection_standalone
+    test_exploit_descriptor_injection.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_descriptor_injection_standalone)
+target_include_directories(test_exploit_descriptor_injection_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+)
+target_compile_definitions(test_exploit_descriptor_injection_standalone PRIVATE
+    UFSECP_BUILDING STANDALONE_TEST)
+add_test(NAME exploit_descriptor_injection
+    COMMAND test_exploit_descriptor_injection_standalone)
+set_tests_properties(exploit_descriptor_injection PROPERTIES
+    TIMEOUT 60 LABELS "audit;exploit;descriptor;bip380")
+
+# -- PoC: Secret key arithmetic (tweak_add/mul, negate, cross-check) --------
+add_executable(test_exploit_seckey_arith_standalone test_exploit_seckey_arith.cpp)
+audit_target_defaults(test_exploit_seckey_arith_standalone)
+target_compile_definitions(test_exploit_seckey_arith_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_seckey_arith COMMAND test_exploit_seckey_arith_standalone)
+set_tests_properties(exploit_seckey_arith PROPERTIES TIMEOUT 60 LABELS "audit;exploit;seckey;tweak")
+
+# -- PoC: Context clone isolation (CLN-1..CLN-6) ----------------------------
+add_executable(test_exploit_ctx_clone_standalone test_exploit_ctx_clone.cpp)
+audit_target_defaults(test_exploit_ctx_clone_standalone)
+target_link_libraries(test_exploit_ctx_clone_standalone PRIVATE Threads::Threads)
+target_compile_definitions(test_exploit_ctx_clone_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_ctx_clone COMMAND test_exploit_ctx_clone_standalone)
+set_tests_properties(exploit_ctx_clone PROPERTIES TIMEOUT 60 LABELS "audit;exploit;context;clone")
+
 # -- Diagnostic: ct::scalar_mul step-by-step comparison --------------------
 add_executable(diag_scalar_mul ${CPU_TESTS_DIR}/diag_scalar_mul.cpp)
 audit_target_defaults(diag_scalar_mul)
@@ -1335,7 +1466,7 @@ add_executable(unified_audit_runner
     ${CPU_TESTS_DIR}/test_field_26.cpp
     # -- diagnostics --
     ${CPU_TESTS_DIR}/diag_scalar_mul.cpp
-    # -- Exploit PoC tests (106 attack vectors, Section 9) --
+    # -- Exploit PoC tests (110 attack vectors, Section 9) --
     test_exploit_adaptor_extended.cpp
     test_exploit_adaptor_parity.cpp
     test_exploit_address_encoding.cpp
@@ -1443,6 +1574,16 @@ add_executable(unified_audit_runner
     test_exploit_zk_adversarial.cpp
     test_exploit_zk_proofs.cpp
     test_infinity_edge_cases.cpp
+    test_exploit_seckey_arith.cpp
+    test_exploit_ctx_clone.cpp
+    # -- Feature Exploit PoC tests (P2SH, BIP-85, BIP-340 var, BIP-322, GCS, PSBT, Desc)
+    test_exploit_p2sh_address_confusion.cpp
+    test_exploit_bip85_path_collision.cpp
+    test_exploit_schnorr_msg_length_confusion.cpp
+    test_exploit_bip322_type_confusion.cpp
+    test_exploit_gcs_false_positive.cpp
+    test_exploit_psbt_input_confusion.cpp
+    test_exploit_descriptor_injection.cpp
 )
 # Conditionally add 5x52 field test (requires __uint128_t; skip on MSVC)
 if(NOT (MSVC AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
