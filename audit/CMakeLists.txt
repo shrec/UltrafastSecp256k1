@@ -510,6 +510,58 @@ target_compile_definitions(test_exploit_frost_commitment_reuse_standalone PRIVAT
 add_test(NAME exploit_frost_commitment_reuse COMMAND test_exploit_frost_commitment_reuse_standalone)
 set_tests_properties(exploit_frost_commitment_reuse PROPERTIES TIMEOUT 120 LABELS "audit;exploit;frost")
 
+# -- PoC: FROST participant-set malleability (Wagner attack, 2024 research)
+add_executable(test_exploit_frost_participant_set_malleability_standalone
+    test_exploit_frost_participant_set_malleability.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_frost_participant_set_malleability_standalone)
+target_include_directories(test_exploit_frost_participant_set_malleability_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+)
+target_compile_definitions(test_exploit_frost_participant_set_malleability_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_frost_participant_set_malleability COMMAND test_exploit_frost_participant_set_malleability_standalone)
+set_tests_properties(exploit_frost_participant_set_malleability PROPERTIES TIMEOUT 120 LABELS "audit;exploit;frost")
+
+# -- PoC: FROST/MuSig2 constant-time nonce audit (C1 gap)
+add_executable(test_exploit_frost_ct_nonce_standalone
+    test_exploit_frost_ct_nonce.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_frost_ct_nonce_standalone)
+target_include_directories(test_exploit_frost_ct_nonce_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+)
+target_compile_definitions(test_exploit_frost_ct_nonce_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_frost_ct_nonce COMMAND test_exploit_frost_ct_nonce_standalone)
+set_tests_properties(exploit_frost_ct_nonce PROPERTIES TIMEOUT 120 LABELS "audit;exploit;frost;ct")
+
+# -- PoC: Binding-layer invalid-curve attack (CVE-2024-48930 class)
+add_executable(test_exploit_binding_invalid_curve_standalone
+    test_exploit_binding_invalid_curve.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_binding_invalid_curve_standalone)
+target_include_directories(test_exploit_binding_invalid_curve_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+)
+target_compile_definitions(test_exploit_binding_invalid_curve_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_binding_invalid_curve COMMAND test_exploit_binding_invalid_curve_standalone)
+set_tests_properties(exploit_binding_invalid_curve PROPERTIES TIMEOUT 120 LABELS "audit;exploit;binding")
+
+# -- PoC: MuSig2 parallel session cross-signing attack
+add_executable(test_exploit_musig2_parallel_session_cross_standalone
+    test_exploit_musig2_parallel_session_cross.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_musig2_parallel_session_cross_standalone)
+target_include_directories(test_exploit_musig2_parallel_session_cross_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+)
+target_compile_definitions(test_exploit_musig2_parallel_session_cross_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_musig2_parallel_session_cross COMMAND test_exploit_musig2_parallel_session_cross_standalone)
+set_tests_properties(exploit_musig2_parallel_session_cross PROPERTIES TIMEOUT 120 LABELS "audit;exploit;musig2")
+
 # -- PoC: BIP-39 mnemonic entropy and checksum security
 add_executable(test_exploit_bip39_entropy_standalone test_exploit_bip39_entropy.cpp)
 audit_target_defaults(test_exploit_bip39_entropy_standalone)
@@ -818,6 +870,19 @@ target_compile_definitions(test_exploit_point_serialization_standalone PRIVATE S
 add_test(NAME exploit_point_serialization COMMAND test_exploit_point_serialization_standalone)
 set_tests_properties(exploit_point_serialization PROPERTIES TIMEOUT 60 LABELS "audit;exploit;ec;point")
 
+# -- Point-at-Infinity edge cases (INF-1..INF-28: cancellation, serial, tweak) -
+add_executable(test_infinity_edge_cases_standalone
+    test_infinity_edge_cases.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_infinity_edge_cases_standalone)
+target_include_directories(test_infinity_edge_cases_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+)
+target_compile_definitions(test_infinity_edge_cases_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME infinity_edge_cases COMMAND test_infinity_edge_cases_standalone)
+set_tests_properties(infinity_edge_cases PROPERTIES TIMEOUT 900 LABELS "audit;exploit;ec;point;infinity")
+
 # -- ECDSA RFC 6979 KAT (determinism, low-S, wrong-key/msg rejection) --------
 add_executable(test_exploit_ecdsa_rfc6979_kat_standalone test_exploit_ecdsa_rfc6979_kat.cpp)
 audit_target_defaults(test_exploit_ecdsa_rfc6979_kat_standalone)
@@ -1072,6 +1137,419 @@ target_compile_definitions(test_ecies_regression_standalone PRIVATE
 add_test(NAME ecies_regression COMMAND test_ecies_regression_standalone)
 set_tests_properties(ecies_regression PROPERTIES TIMEOUT 600 LABELS "audit")
 
+# ===========================================================================
+# Feature Exploit PoC Standalone Tests (P2SH, BIP-85, BIP-340, BIP-322, GCS, PSBT, Desc)
+# ===========================================================================
+
+# -- PoC: P2SH / P2SH-P2WPKH address type confusion -------------------------
+add_executable(test_exploit_p2sh_address_confusion_standalone
+    test_exploit_p2sh_address_confusion.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_p2sh_address_confusion_standalone)
+target_include_directories(test_exploit_p2sh_address_confusion_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+)
+target_compile_definitions(test_exploit_p2sh_address_confusion_standalone PRIVATE
+    UFSECP_BUILDING STANDALONE_TEST)
+add_test(NAME exploit_p2sh_address_confusion
+    COMMAND test_exploit_p2sh_address_confusion_standalone)
+set_tests_properties(exploit_p2sh_address_confusion PROPERTIES
+    TIMEOUT 60 LABELS "audit;exploit;address;p2sh")
+
+# -- PoC: BIP-85 path collision and entropy security -------------------------
+add_executable(test_exploit_bip85_path_collision_standalone
+    test_exploit_bip85_path_collision.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_bip85_path_collision_standalone)
+target_include_directories(test_exploit_bip85_path_collision_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+)
+target_compile_definitions(test_exploit_bip85_path_collision_standalone PRIVATE
+    UFSECP_BUILDING STANDALONE_TEST)
+add_test(NAME exploit_bip85_path_collision
+    COMMAND test_exploit_bip85_path_collision_standalone)
+set_tests_properties(exploit_bip85_path_collision PROPERTIES
+    TIMEOUT 60 LABELS "audit;exploit;bip85;entropy")
+
+# -- PoC: Schnorr variable-length message length confusion -------------------
+add_executable(test_exploit_schnorr_msg_length_confusion_standalone
+    test_exploit_schnorr_msg_length_confusion.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_schnorr_msg_length_confusion_standalone)
+target_include_directories(test_exploit_schnorr_msg_length_confusion_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+)
+target_compile_definitions(test_exploit_schnorr_msg_length_confusion_standalone PRIVATE
+    UFSECP_BUILDING STANDALONE_TEST)
+add_test(NAME exploit_schnorr_msg_length_confusion
+    COMMAND test_exploit_schnorr_msg_length_confusion_standalone)
+set_tests_properties(exploit_schnorr_msg_length_confusion PROPERTIES
+    TIMEOUT 60 LABELS "audit;exploit;schnorr;bip340")
+
+# -- PoC: BIP-322 generic message signing type confusion ---------------------
+add_executable(test_exploit_bip322_type_confusion_standalone
+    test_exploit_bip322_type_confusion.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_bip322_type_confusion_standalone)
+target_include_directories(test_exploit_bip322_type_confusion_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+)
+target_compile_definitions(test_exploit_bip322_type_confusion_standalone PRIVATE
+    UFSECP_BUILDING STANDALONE_TEST)
+add_test(NAME exploit_bip322_type_confusion
+    COMMAND test_exploit_bip322_type_confusion_standalone)
+set_tests_properties(exploit_bip322_type_confusion PROPERTIES
+    TIMEOUT 60 LABELS "audit;exploit;bip322;signing")
+
+# -- PoC: BIP-158 GCS filter false positive and correctness ------------------
+add_executable(test_exploit_gcs_false_positive_standalone
+    test_exploit_gcs_false_positive.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_gcs_false_positive_standalone)
+target_include_directories(test_exploit_gcs_false_positive_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+)
+target_compile_definitions(test_exploit_gcs_false_positive_standalone PRIVATE
+    UFSECP_BUILDING STANDALONE_TEST)
+add_test(NAME exploit_gcs_false_positive
+    COMMAND test_exploit_gcs_false_positive_standalone)
+set_tests_properties(exploit_gcs_false_positive PROPERTIES
+    TIMEOUT 60 LABELS "audit;exploit;bip158;gcs")
+
+# -- PoC: PSBT input type confusion (BIP-174/370) ----------------------------
+add_executable(test_exploit_psbt_input_confusion_standalone
+    test_exploit_psbt_input_confusion.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_psbt_input_confusion_standalone)
+target_include_directories(test_exploit_psbt_input_confusion_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+)
+target_compile_definitions(test_exploit_psbt_input_confusion_standalone PRIVATE
+    UFSECP_BUILDING STANDALONE_TEST)
+add_test(NAME exploit_psbt_input_confusion
+    COMMAND test_exploit_psbt_input_confusion_standalone)
+set_tests_properties(exploit_psbt_input_confusion PROPERTIES
+    TIMEOUT 60 LABELS "audit;exploit;psbt;bip174")
+
+# -- PoC: Output descriptor injection and type confusion (BIP-380-386) -------
+add_executable(test_exploit_descriptor_injection_standalone
+    test_exploit_descriptor_injection.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_descriptor_injection_standalone)
+target_include_directories(test_exploit_descriptor_injection_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+)
+target_compile_definitions(test_exploit_descriptor_injection_standalone PRIVATE
+    UFSECP_BUILDING STANDALONE_TEST)
+add_test(NAME exploit_descriptor_injection
+    COMMAND test_exploit_descriptor_injection_standalone)
+set_tests_properties(exploit_descriptor_injection PROPERTIES
+    TIMEOUT 60 LABELS "audit;exploit;descriptor;bip380")
+
+# -- PoC: Secret key arithmetic (tweak_add/mul, negate, cross-check) --------
+add_executable(test_exploit_seckey_arith_standalone
+    test_exploit_seckey_arith.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_seckey_arith_standalone)
+target_include_directories(test_exploit_seckey_arith_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+)
+target_compile_definitions(test_exploit_seckey_arith_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_seckey_arith COMMAND test_exploit_seckey_arith_standalone)
+set_tests_properties(exploit_seckey_arith PROPERTIES TIMEOUT 60 LABELS "audit;exploit;seckey;tweak")
+
+# -- PoC: Context clone isolation (CLN-1..CLN-6) ----------------------------
+add_executable(test_exploit_ctx_clone_standalone
+    test_exploit_ctx_clone.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_ctx_clone_standalone)
+target_include_directories(test_exploit_ctx_clone_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+)
+target_link_libraries(test_exploit_ctx_clone_standalone PRIVATE Threads::Threads)
+target_compile_definitions(test_exploit_ctx_clone_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_ctx_clone COMMAND test_exploit_ctx_clone_standalone)
+set_tests_properties(exploit_ctx_clone PROPERTIES TIMEOUT 60 LABELS "audit;exploit;context;clone")
+
+# -- PoC: Public key arithmetic (PUB-1..PUB-9: negate, tweak_add/mul, combine) -
+add_executable(test_exploit_pubkey_arith_standalone
+    test_exploit_pubkey_arith.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_pubkey_arith_standalone)
+target_include_directories(test_exploit_pubkey_arith_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+)
+target_compile_definitions(test_exploit_pubkey_arith_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_pubkey_arith COMMAND test_exploit_pubkey_arith_standalone)
+set_tests_properties(exploit_pubkey_arith PROPERTIES TIMEOUT 60 LABELS "audit;exploit;pubkey;tweak")
+
+# -- PoC: Batch signing edge cases (BSG-1..BSG-9) ----------------------------
+add_executable(test_exploit_batch_sign_standalone
+    test_exploit_batch_sign.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_batch_sign_standalone)
+target_include_directories(test_exploit_batch_sign_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+)
+target_compile_definitions(test_exploit_batch_sign_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_batch_sign COMMAND test_exploit_batch_sign_standalone)
+set_tests_properties(exploit_batch_sign PROPERTIES TIMEOUT 60 LABELS "audit;exploit;schnorr;batch")
+
+# -- PoC: ECDSA nonce reuse key recovery (NRR-1..NRR-8) --------------------
+add_executable(test_exploit_ecdsa_nonce_reuse_standalone
+    test_exploit_ecdsa_nonce_reuse.cpp)
+audit_target_defaults(test_exploit_ecdsa_nonce_reuse_standalone)
+target_link_libraries(test_exploit_ecdsa_nonce_reuse_standalone PRIVATE fastsecp256k1)
+target_compile_definitions(test_exploit_ecdsa_nonce_reuse_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_ecdsa_nonce_reuse COMMAND test_exploit_ecdsa_nonce_reuse_standalone)
+set_tests_properties(exploit_ecdsa_nonce_reuse PROPERTIES TIMEOUT 60 LABELS "audit;exploit;ecdsa;nonce")
+
+# -- PoC: Cross-scheme pubkey consistency (CSP-1..CSP-8) -------------------
+add_executable(test_exploit_cross_scheme_pubkey_standalone
+    test_exploit_cross_scheme_pubkey.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_cross_scheme_pubkey_standalone)
+target_include_directories(test_exploit_cross_scheme_pubkey_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+)
+target_compile_definitions(test_exploit_cross_scheme_pubkey_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_cross_scheme_pubkey COMMAND test_exploit_cross_scheme_pubkey_standalone)
+set_tests_properties(exploit_cross_scheme_pubkey PROPERTIES TIMEOUT 60 LABELS "audit;exploit;pubkey;ecdh;schnorr")
+
+# -- PoC: WIF key format security (WIF-1..WIF-10) -------------------------
+add_executable(test_exploit_wif_security_standalone
+    test_exploit_wif_security.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_wif_security_standalone)
+target_include_directories(test_exploit_wif_security_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+)
+target_compile_definitions(test_exploit_wif_security_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_wif_security COMMAND test_exploit_wif_security_standalone)
+set_tests_properties(exploit_wif_security PROPERTIES TIMEOUT 60 LABELS "audit;exploit;wif;key")
+
+# -- PoC: Buffer / type-confusion attack vectors (CVE-2024-49364 class, A2 gap)
+add_executable(test_exploit_buffer_type_confusion_standalone
+    test_exploit_buffer_type_confusion.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_buffer_type_confusion_standalone)
+target_include_directories(test_exploit_buffer_type_confusion_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include ${CMAKE_BINARY_DIR}/include)
+target_compile_definitions(test_exploit_buffer_type_confusion_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_buffer_type_confusion COMMAND test_exploit_buffer_type_confusion_standalone)
+set_tests_properties(exploit_buffer_type_confusion PROPERTIES TIMEOUT 60 LABELS "audit;exploit;cve")
+
+# -- PoC: Differential correctness harness (Cryptofuzz++ style, B2 gap)
+add_executable(test_exploit_differential_libsecp_standalone
+    test_exploit_differential_libsecp.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_differential_libsecp_standalone)
+target_include_directories(test_exploit_differential_libsecp_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include ${CMAKE_BINARY_DIR}/include)
+target_compile_definitions(test_exploit_differential_libsecp_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_differential_libsecp COMMAND test_exploit_differential_libsecp_standalone)
+set_tests_properties(exploit_differential_libsecp PROPERTIES TIMEOUT 120 LABELS "audit;exploit;differential")
+
+# -- PoC: BIP-352 scanning DoS prevention (A6 gap)
+add_executable(test_exploit_bip352_scan_dos_standalone
+    test_exploit_bip352_scan_dos.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_bip352_scan_dos_standalone)
+target_include_directories(test_exploit_bip352_scan_dos_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include ${CMAKE_BINARY_DIR}/include)
+target_compile_definitions(test_exploit_bip352_scan_dos_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_bip352_scan_dos COMMAND test_exploit_bip352_scan_dos_standalone)
+set_tests_properties(exploit_bip352_scan_dos PROPERTIES TIMEOUT 120 LABELS "audit;exploit;bip352;dos")
+
+# -- PoC: Taproot commitment adversarial (ePrint 2025/1307, A7 gap)
+add_executable(test_exploit_taproot_commitment_adversarial_standalone
+    test_exploit_taproot_commitment_adversarial.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_taproot_commitment_adversarial_standalone)
+target_include_directories(test_exploit_taproot_commitment_adversarial_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include ${CMAKE_BINARY_DIR}/include)
+target_compile_definitions(test_exploit_taproot_commitment_adversarial_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_taproot_commitment_adversarial COMMAND test_exploit_taproot_commitment_adversarial_standalone)
+set_tests_properties(exploit_taproot_commitment_adversarial PROPERTIES TIMEOUT 60 LABELS "audit;exploit;taproot")
+
+# -- PoC: BIP-352 parity confusion in ECDH (C2 gap)
+add_executable(test_exploit_bip352_parity_confusion_standalone
+    test_exploit_bip352_parity_confusion.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_bip352_parity_confusion_standalone)
+target_include_directories(test_exploit_bip352_parity_confusion_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include ${CMAKE_BINARY_DIR}/include)
+target_compile_definitions(test_exploit_bip352_parity_confusion_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_bip352_parity_confusion COMMAND test_exploit_bip352_parity_confusion_standalone)
+set_tests_properties(exploit_bip352_parity_confusion PROPERTIES TIMEOUT 60 LABELS "audit;exploit;bip352;parity")
+
+# -- PoC: RFC 6979 nonce truncation bias (C5 gap)
+add_executable(test_exploit_rfc6979_truncation_bias_standalone
+    test_exploit_rfc6979_truncation_bias.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_rfc6979_truncation_bias_standalone)
+target_include_directories(test_exploit_rfc6979_truncation_bias_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include ${CMAKE_BINARY_DIR}/include)
+target_compile_definitions(test_exploit_rfc6979_truncation_bias_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_rfc6979_truncation_bias COMMAND test_exploit_rfc6979_truncation_bias_standalone)
+set_tests_properties(exploit_rfc6979_truncation_bias PROPERTIES TIMEOUT 60 LABELS "audit;exploit;rfc6979;nonce")
+
+# -- PoC: Binding adversarial API (D6 gap)
+add_executable(test_exploit_binding_adversarial_api_standalone
+    test_exploit_binding_adversarial_api.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_binding_adversarial_api_standalone)
+target_include_directories(test_exploit_binding_adversarial_api_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include ${CMAKE_BINARY_DIR}/include)
+target_compile_definitions(test_exploit_binding_adversarial_api_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_binding_adversarial_api COMMAND test_exploit_binding_adversarial_api_standalone)
+set_tests_properties(exploit_binding_adversarial_api PROPERTIES TIMEOUT 60 LABELS "audit;exploit;binding;api")
+
+# -- PoC: Quantum exposure surface audit (LOW)
+add_executable(test_exploit_quantum_exposure_standalone
+    test_exploit_quantum_exposure.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_quantum_exposure_standalone)
+target_include_directories(test_exploit_quantum_exposure_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include ${CMAKE_BINARY_DIR}/include)
+target_compile_definitions(test_exploit_quantum_exposure_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_quantum_exposure COMMAND test_exploit_quantum_exposure_standalone)
+set_tests_properties(exploit_quantum_exposure PROPERTIES TIMEOUT 60 LABELS "audit;exploit;quantum")
+
+# -- PoC: ECIES ephemeral key reuse detection (LOW)
+add_executable(test_exploit_ecies_ephemeral_reuse_standalone
+    test_exploit_ecies_ephemeral_reuse.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_ecies_ephemeral_reuse_standalone)
+target_include_directories(test_exploit_ecies_ephemeral_reuse_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include ${CMAKE_BINARY_DIR}/include)
+target_compile_definitions(test_exploit_ecies_ephemeral_reuse_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_ecies_ephemeral_reuse COMMAND test_exploit_ecies_ephemeral_reuse_standalone)
+set_tests_properties(exploit_ecies_ephemeral_reuse PROPERTIES TIMEOUT 60 LABELS "audit;exploit;ecies")
+
+# -- PoC: Address prefix collision resistance (LOW)
+add_executable(test_exploit_address_prefix_collision_standalone
+    test_exploit_address_prefix_collision.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_address_prefix_collision_standalone)
+target_include_directories(test_exploit_address_prefix_collision_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include ${CMAKE_BINARY_DIR}/include)
+target_compile_definitions(test_exploit_address_prefix_collision_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_address_prefix_collision COMMAND test_exploit_address_prefix_collision_standalone)
+set_tests_properties(exploit_address_prefix_collision PROPERTIES TIMEOUT 60 LABELS "audit;exploit;address")
+
+# -- PoC: ECDH ZVP/GLV static-key regression surface ------------------------
+add_executable(test_exploit_ecdh_zvp_glv_static_standalone
+    test_exploit_ecdh_zvp_glv_static.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_ecdh_zvp_glv_static_standalone)
+target_include_directories(test_exploit_ecdh_zvp_glv_static_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include ${CMAKE_BINARY_DIR}/include)
+target_compile_definitions(test_exploit_ecdh_zvp_glv_static_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_ecdh_zvp_glv_static COMMAND test_exploit_ecdh_zvp_glv_static_standalone)
+set_tests_properties(exploit_ecdh_zvp_glv_static PROPERTIES TIMEOUT 60 LABELS "audit;exploit;ecdh;zvp;glv")
+
+# -- PoC: FROST adaptive corruption misuse regression -----------------------
+add_executable(test_exploit_frost_adaptive_corruption_standalone
+    test_exploit_frost_adaptive_corruption.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_frost_adaptive_corruption_standalone)
+target_include_directories(test_exploit_frost_adaptive_corruption_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include ${CMAKE_BINARY_DIR}/include)
+target_compile_definitions(test_exploit_frost_adaptive_corruption_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_frost_adaptive_corruption COMMAND test_exploit_frost_adaptive_corruption_standalone)
+set_tests_properties(exploit_frost_adaptive_corruption PROPERTIES TIMEOUT 60 LABELS "audit;exploit;frost;adaptive")
+
+# -- PoC: Deterministic ECDSA fault-injection regression --------------------
+add_executable(test_exploit_ecdsa_fault_injection_standalone
+    test_exploit_ecdsa_fault_injection.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_ecdsa_fault_injection_standalone)
+target_include_directories(test_exploit_ecdsa_fault_injection_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include ${CMAKE_BINARY_DIR}/include)
+target_compile_definitions(test_exploit_ecdsa_fault_injection_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_ecdsa_fault_injection COMMAND test_exploit_ecdsa_fault_injection_standalone)
+set_tests_properties(exploit_ecdsa_fault_injection PROPERTIES TIMEOUT 60 LABELS "audit;exploit;ecdsa;fault")
+
+# -- PoC: Cache side-channel amplification regression -----------------------
+add_executable(test_exploit_cache_sidechannel_amplification_standalone
+    test_exploit_cache_sidechannel_amplification.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_cache_sidechannel_amplification_standalone)
+target_include_directories(test_exploit_cache_sidechannel_amplification_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include ${CMAKE_BINARY_DIR}/include)
+target_compile_definitions(test_exploit_cache_sidechannel_amplification_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_cache_sidechannel_amplification COMMAND test_exploit_cache_sidechannel_amplification_standalone)
+set_tests_properties(exploit_cache_sidechannel_amplification PROPERTIES TIMEOUT 60 LABELS "audit;exploit;ecdsa;sidechannel")
+
+# -- PoC: LadderLeak-style sub-bit nonce leakage regression -----------------
+add_executable(test_exploit_ladderleak_subbit_nonce_standalone
+    test_exploit_ladderleak_subbit_nonce.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_ladderleak_subbit_nonce_standalone)
+target_include_directories(test_exploit_ladderleak_subbit_nonce_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include ${CMAKE_BINARY_DIR}/include)
+target_compile_definitions(test_exploit_ladderleak_subbit_nonce_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_ladderleak_subbit_nonce COMMAND test_exploit_ladderleak_subbit_nonce_standalone)
+set_tests_properties(exploit_ladderleak_subbit_nonce PROPERTIES TIMEOUT 60 LABELS "audit;exploit;ecdsa;nonce;ladderleak")
+
+# -- PoC: Minerva-style noisy HNP leakage regression ------------------------
+add_executable(test_exploit_minerva_noisy_hnp_standalone
+    test_exploit_minerva_noisy_hnp.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_minerva_noisy_hnp_standalone)
+target_include_directories(test_exploit_minerva_noisy_hnp_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include ${CMAKE_BINARY_DIR}/include)
+target_compile_definitions(test_exploit_minerva_noisy_hnp_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_minerva_noisy_hnp COMMAND test_exploit_minerva_noisy_hnp_standalone)
+set_tests_properties(exploit_minerva_noisy_hnp PROPERTIES TIMEOUT 60 LABELS "audit;exploit;ecdsa;nonce;minerva")
+
+# -- PoC: Hertzbleed-style DVFS timing regression ---------------------------
+add_executable(test_exploit_hertzbleed_dvfs_timing_standalone
+    test_exploit_hertzbleed_dvfs_timing.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_hertzbleed_dvfs_timing_standalone)
+target_include_directories(test_exploit_hertzbleed_dvfs_timing_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include ${CMAKE_BINARY_DIR}/include)
+target_compile_definitions(test_exploit_hertzbleed_dvfs_timing_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_hertzbleed_dvfs_timing COMMAND test_exploit_hertzbleed_dvfs_timing_standalone)
+set_tests_properties(exploit_hertzbleed_dvfs_timing PROPERTIES TIMEOUT 60 LABELS "audit;exploit;sidechannel;timing;dvfs")
+
+# -- PoC: Biased nonce chain-scale scan regression --------------------------
+add_executable(test_exploit_biased_nonce_chain_scan_standalone
+    test_exploit_biased_nonce_chain_scan.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_biased_nonce_chain_scan_standalone)
+target_include_directories(test_exploit_biased_nonce_chain_scan_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include ${CMAKE_BINARY_DIR}/include)
+target_compile_definitions(test_exploit_biased_nonce_chain_scan_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_biased_nonce_chain_scan COMMAND test_exploit_biased_nonce_chain_scan_standalone)
+set_tests_properties(exploit_biased_nonce_chain_scan PROPERTIES TIMEOUT 60 LABELS "audit;exploit;ecdsa;nonce;bias")
+
+# -- PoC: KR-ECDSA/BUFF binding regression ----------------------------------
+add_executable(test_exploit_kr_ecdsa_buff_binding_standalone
+    test_exploit_kr_ecdsa_buff_binding.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_kr_ecdsa_buff_binding_standalone)
+target_include_directories(test_exploit_kr_ecdsa_buff_binding_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include ${CMAKE_BINARY_DIR}/include)
+target_compile_definitions(test_exploit_kr_ecdsa_buff_binding_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_kr_ecdsa_buff_binding COMMAND test_exploit_kr_ecdsa_buff_binding_standalone)
+set_tests_properties(exploit_kr_ecdsa_buff_binding PROPERTIES TIMEOUT 60 LABELS "audit;exploit;ecdsa;binding")
+
 # -- Diagnostic: ct::scalar_mul step-by-step comparison --------------------
 add_executable(diag_scalar_mul ${CPU_TESTS_DIR}/diag_scalar_mul.cpp)
 audit_target_defaults(diag_scalar_mul)
@@ -1295,6 +1773,7 @@ add_executable(unified_audit_runner
     audit_fuzz.cpp
     test_fuzz_parsers.cpp
     test_fuzz_address_bip32_ffi.cpp
+    test_fuzz_musig2_frost.cpp
     # -- Deep audit modules --
     audit_field.cpp
     audit_scalar.cpp
@@ -1327,7 +1806,7 @@ add_executable(unified_audit_runner
     ${CPU_TESTS_DIR}/test_field_26.cpp
     # -- diagnostics --
     ${CPU_TESTS_DIR}/diag_scalar_mul.cpp
-    # -- Exploit PoC tests (106 attack vectors, Section 9) --
+    # -- Exploit PoC tests (Section 9) --
     test_exploit_adaptor_extended.cpp
     test_exploit_adaptor_parity.cpp
     test_exploit_address_encoding.cpp
@@ -1383,6 +1862,8 @@ add_executable(unified_audit_runner
     test_exploit_frost_binding_factor_mismatch.cpp
     test_exploit_frost_byzantine.cpp
     test_exploit_frost_commitment_reuse.cpp
+    test_exploit_frost_ct_nonce.cpp
+    test_exploit_frost_participant_set_malleability.cpp
     test_exploit_frost_dkg.cpp
     test_exploit_frost_index.cpp
     test_exploit_frost_lagrange_duplicate.cpp
@@ -1434,6 +1915,44 @@ add_executable(unified_audit_runner
     test_exploit_wallet_cross_domain_replay.cpp
     test_exploit_zk_adversarial.cpp
     test_exploit_zk_proofs.cpp
+    test_infinity_edge_cases.cpp
+    test_exploit_seckey_arith.cpp
+    test_exploit_ctx_clone.cpp
+    # -- Feature Exploit PoC tests (P2SH, BIP-85, BIP-340 var, BIP-322, GCS, PSBT, Desc)
+    test_exploit_p2sh_address_confusion.cpp
+    test_exploit_bip85_path_collision.cpp
+    test_exploit_schnorr_msg_length_confusion.cpp
+    test_exploit_bip322_type_confusion.cpp
+    test_exploit_gcs_false_positive.cpp
+    test_exploit_psbt_input_confusion.cpp
+    test_exploit_descriptor_injection.cpp
+    test_exploit_pubkey_arith.cpp
+    test_exploit_batch_sign.cpp
+    test_exploit_ecdsa_nonce_reuse.cpp
+    test_exploit_cross_scheme_pubkey.cpp
+    test_exploit_wif_security.cpp
+    test_exploit_binding_invalid_curve.cpp
+    test_exploit_musig2_parallel_session_cross.cpp
+    # -- Security gap closure tests (A2, B2, A6, A7, C2, C5, D6, LOW) --
+    test_exploit_buffer_type_confusion.cpp
+    test_exploit_differential_libsecp.cpp
+    test_exploit_bip352_scan_dos.cpp
+    test_exploit_taproot_commitment_adversarial.cpp
+    test_exploit_bip352_parity_confusion.cpp
+    test_exploit_rfc6979_truncation_bias.cpp
+    test_exploit_binding_adversarial_api.cpp
+    test_exploit_quantum_exposure.cpp
+    test_exploit_ecies_ephemeral_reuse.cpp
+    test_exploit_address_prefix_collision.cpp
+    test_exploit_ecdh_zvp_glv_static.cpp
+    test_exploit_frost_adaptive_corruption.cpp
+    test_exploit_ecdsa_fault_injection.cpp
+    test_exploit_cache_sidechannel_amplification.cpp
+    test_exploit_ladderleak_subbit_nonce.cpp
+    test_exploit_minerva_noisy_hnp.cpp
+    test_exploit_hertzbleed_dvfs_timing.cpp
+    test_exploit_biased_nonce_chain_scan.cpp
+    test_exploit_kr_ecdsa_buff_binding.cpp
 )
 # Conditionally add 5x52 field test (requires __uint128_t; skip on MSVC)
 if(NOT (MSVC AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
@@ -1548,6 +2067,18 @@ set_tests_properties(
     exploit_zk_adversarial exploit_pedersen_adversarial
     exploit_silent_payment_confusion
     exploit_ct_fast_equivalence exploit_pedersen_switch_misuse
+    exploit_frost_participant_set_malleability exploit_frost_ct_nonce
+    exploit_binding_invalid_curve exploit_musig2_parallel_session_cross
+    exploit_buffer_type_confusion exploit_differential_libsecp
+    exploit_bip352_scan_dos exploit_taproot_commitment_adversarial
+    exploit_bip352_parity_confusion exploit_rfc6979_truncation_bias
+    exploit_binding_adversarial_api exploit_quantum_exposure
+    exploit_ecies_ephemeral_reuse exploit_address_prefix_collision
+    exploit_ecdh_zvp_glv_static exploit_frost_adaptive_corruption
+    exploit_ecdsa_fault_injection exploit_cache_sidechannel_amplification
+    exploit_ladderleak_subbit_nonce exploit_minerva_noisy_hnp
+    exploit_hertzbleed_dvfs_timing exploit_biased_nonce_chain_scan
+    exploit_kr_ecdsa_buff_binding
     PROPERTIES LABELS "audit"
 )
 if(SECP256K1_BUILD_PROTOCOL_TESTS)

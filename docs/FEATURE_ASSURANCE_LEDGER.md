@@ -585,8 +585,8 @@ Backend-neutral GPU acceleration surface (`ufsecp_gpu.h`). Separate opaque conte
 | **Cross-platform KAT** | `test_cross_platform_kat.cpp` | Known-answer tests across x86/ARM/RISC-V |
 | **ABI gate** | `test_abi_gate.cpp` | ABI version, struct sizes, symbol visibility |
 | **Debug invariants** | `test_debug_invariants.cpp` | Internal assertion coverage |
-| **Fiat-Crypto vectors** | `test_fiat_crypto_vectors.cpp` | Reference field arithmetic from Fiat-Crypto project |
-| **Fiat-Crypto linkage** | `test_fiat_crypto_linkage.cpp` | Formal verification linkage |
+| **Independent reference vectors** | `test_fiat_crypto_vectors.cpp` | Reference field arithmetic golden vectors from Sage |
+| **Independent reference linkage** | `test_fiat_crypto_linkage.cpp` | Field arithmetic cross-check against schoolbook oracle |
 | **CT formal verification** | `test_ct_verif_formal.cpp` | Formal CT property checking |
 | **BIP-327 vectors** | `test_musig2_bip327_vectors.cpp` | Official BIP-327 MuSig2 test vectors |
 | **FROST KAT** | `test_frost_kat.cpp` | FROST known-answer tests |

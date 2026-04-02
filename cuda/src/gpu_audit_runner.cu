@@ -29,7 +29,6 @@
 #include "schnorr.cuh"
 #include "recovery.cuh"
 #include "msm.cuh"
-#include "bloom.cuh"
 #include "hash160.cuh"
 #include "host_helpers.cuh"
 #include "ct/ct_sign.cuh"
@@ -567,13 +566,7 @@ static int audit_batch_inversion() {
     return 0;  // Covered by selftest_core
 }
 
-// Section 3: Bloom filter correctness
-static int audit_bloom_filter() {
-    // Covered by selftest_core which runs test_bloom_filter
-    return 0;
-}
-
-// Section 4: CPU-GPU differential
+// Section 3: CPU-GPU differential
 #ifdef HAVE_CPU_LIB
 
 static int audit_cpu_gpu_differential_gen_mul() {
@@ -1987,7 +1980,6 @@ static const GpuAuditModule GPU_MODULES[] = {
 
     // Section 3: Batch Operations & Advanced
     { "batch_inv",         "Batch inversion (Montgomery trick)",          "batch_advanced", audit_batch_inversion, false },
-    { "bloom_filter",      "Bloom filter correctness",                    "batch_advanced", audit_bloom_filter, false },
     { "batch_ecdsa_ver",   "Batch ECDSA verify (16 sigs)",               "batch_advanced", audit_batch_ecdsa_verify, false },
     { "msm_consistency",   "MSM naive vs expected result",                "batch_advanced", audit_msm_consistency, false },
 

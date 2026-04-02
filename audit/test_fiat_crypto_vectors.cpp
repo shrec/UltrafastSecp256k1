@@ -201,14 +201,12 @@ static const InvVector INV_VECTORS[] = {
         "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2E"
     },
     // 3^(-1) mod p
-    // sage: GF(p)(3)^(-1) = 0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFD97B1
-    // Actually: GF(p)(3)^(-1) * 3 = 1
-    // p = 2^256 - 2^32 - 977, (p+1)/3 if p == 2 mod 3
     // sage: pow(3, -1, 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F)
-    //     = 0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA5555529A
+    //     = 0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA9FFFFFD75
+    // Verify: 3 * 0xAAA...9FFFFFD75 mod p = 1
     {
         "0000000000000000000000000000000000000000000000000000000000000003",
-        "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD97B1"
+        "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA9FFFFFD75"
     },
 };
 
@@ -219,6 +217,11 @@ static void test_inv_vectors() {
     for (int i = 0; i < (int)(sizeof(INV_VECTORS) / sizeof(INV_VECTORS[0])); ++i) {
         auto a = fe_from_hex(INV_VECTORS[i].a);
         auto result = a.inverse();
+
+        // Check against expected golden value
+        char msg_golden[64];
+        (void)snprintf(msg_golden, sizeof(msg_golden), "inv_golden[%d]", i);
+        CHECK(fe_equals_hex(result, INV_VECTORS[i].expected), msg_golden);
 
         // Cross-check: a * a^(-1) == 1
         auto check = a * result;

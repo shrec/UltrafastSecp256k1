@@ -56,6 +56,33 @@ std::string load_file_to_string(const std::string& path) {
     return {std::istreambuf_iterator<char>(f), {}};
 }
 
+struct OpenCLECDSASig {
+    uint64_t r[4];
+    uint64_t s[4];
+};
+
+struct OpenCLBatchScratch {
+    std::vector<secp256k1::opencl::Scalar> scalars;
+    std::vector<secp256k1::opencl::JacobianPoint> jacobian_points;
+    std::vector<secp256k1::opencl::AffinePoint> affine_points;
+    std::vector<OpenCLECDSASig> ecdsa_sigs;
+    std::vector<int> results;
+
+    void ensure_generator_mul(std::size_t count) {
+        if (scalars.size() < count) scalars.resize(count);
+        if (jacobian_points.size() < count) jacobian_points.resize(count);
+        if (affine_points.size() < count) affine_points.resize(count);
+    }
+
+    void ensure_ecdsa_verify(std::size_t count) {
+        if (jacobian_points.size() < count) jacobian_points.resize(count);
+        if (ecdsa_sigs.size() < count) ecdsa_sigs.resize(count);
+        if (results.size() < count) results.resize(count);
+    }
+};
+
+static thread_local OpenCLBatchScratch g_opencl_batch_scratch;
+
 } // anonymous namespace
 
 namespace secp256k1 {
@@ -171,18 +198,20 @@ public:
         if (!scalars32 || !out_pubkeys33) return set_error(GpuError::NullArg, "NULL buffer");
 
         /* Convert big-endian bytes → OpenCL Scalar (4×uint64 LE limbs) */
-        std::vector<secp256k1::opencl::Scalar> h_scalars(count);
+        auto& scratch = g_opencl_batch_scratch;
+        scratch.ensure_generator_mul(count);
+        auto* const h_scalars = scratch.scalars.data();
         for (size_t i = 0; i < count; ++i) {
             bytes_to_scalar(scalars32 + i * 32, &h_scalars[i]);
         }
 
         /* Run batch k*G on GPU → Jacobian results */
-        std::vector<secp256k1::opencl::JacobianPoint> h_jac(count);
-        ctx_->batch_scalar_mul_generator(h_scalars.data(), h_jac.data(), count);
+        auto* const h_jac = scratch.jacobian_points.data();
+        ctx_->batch_scalar_mul_generator(h_scalars, h_jac, count);
 
         /* Convert Jacobian → Affine on GPU */
-        std::vector<secp256k1::opencl::AffinePoint> h_aff(count);
-        ctx_->batch_jacobian_to_affine(h_jac.data(), h_aff.data(), count);
+        auto* const h_aff = scratch.affine_points.data();
+        ctx_->batch_jacobian_to_affine(h_jac, h_aff, count);
 
         /* Compress affine → 33-byte pubkeys on host */
         for (size_t i = 0; i < count; ++i) {
@@ -218,7 +247,9 @@ public:
         if (clerr != CL_SUCCESS) return set_error(GpuError::Memory, "msg buffer alloc");
 
         /* pubkeys: decompress 33-byte → full JacobianPoint host layout */
-        std::vector<secp256k1::opencl::JacobianPoint> h_pubs(count);
+        auto& scratch = g_opencl_batch_scratch;
+        scratch.ensure_ecdsa_verify(count);
+        auto* const h_pubs = scratch.jacobian_points.data();
         for (size_t i = 0; i < count; ++i) {
             secp256k1::opencl::AffinePoint aff;
             if (!pubkey33_to_affine(pubkeys33 + i * 33, &aff)) {
@@ -233,21 +264,20 @@ public:
         }
         cl_mem d_pubs = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
                                        sizeof(secp256k1::opencl::JacobianPoint) * count,
-                                       h_pubs.data(), &clerr);
+                                       h_pubs, &clerr);
         if (clerr != CL_SUCCESS) {
             clReleaseMemObject(d_msgs);
             return set_error(GpuError::Memory, "pub buffer alloc");
         }
 
         /* sigs: 64 bytes (r[32] | s[32]) → ECDSASig (r:Scalar, s:Scalar = 64 bytes LE limbs) */
-        struct ECDSASig { uint64_t r[4]; uint64_t s[4]; };
-        std::vector<ECDSASig> h_sigs(count);
+        auto* const h_sigs = scratch.ecdsa_sigs.data();
         for (size_t i = 0; i < count; ++i) {
             be32_to_le_limbs(sigs64 + i * 64,      h_sigs[i].r);
             be32_to_le_limbs(sigs64 + i * 64 + 32, h_sigs[i].s);
         }
         cl_mem d_sigs = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                       sizeof(ECDSASig) * count, h_sigs.data(), &clerr);
+                                       sizeof(OpenCLECDSASig) * count, h_sigs, &clerr);
         if (clerr != CL_SUCCESS) {
             clReleaseMemObject(d_pubs);
             clReleaseMemObject(d_msgs);
@@ -284,9 +314,9 @@ public:
         clFinish(queue);
 
         /* Read results */
-        std::vector<int> h_res(count);
+        auto* const h_res = scratch.results.data();
         clEnqueueReadBuffer(queue, d_res, CL_TRUE, 0,
-                            sizeof(int) * count, h_res.data(), 0, nullptr, nullptr);
+                            sizeof(int) * count, h_res, 0, nullptr, nullptr);
 
         for (size_t i = 0; i < count; ++i)
             out_results[i] = h_res[i] ? 1 : 0;

@@ -1,12 +1,9 @@
 #ifndef EE840AA6_AA0C_4E9D_B58A_701AC4A267D0
 #define EE840AA6_AA0C_4E9D_B58A_701AC4A267D0
-#ifndef BD3119E8_7C55_43F7_86C0_01D77B1E1134
-#define BD3119E8_7C55_43F7_86C0_01D77B1E1134
 
 #include <cstddef>
 #include <cstdint>
 #include <string>
-#include <cstddef>
 #include <vector>
 
 #include "secp256k1/point.hpp"
@@ -39,8 +36,8 @@ struct FixedBaseConfig {
     
     // Cache configuration
     bool use_cache = true;              // Enable cache system
-    std::string cache_path{};           // Empty = auto (F:\EccTables\cache_w{bits}.bin)
-    std::string cache_dir = "F:\\EccTables";  // Default cache directory with all precomputed tables
+    std::string cache_path{};           // Empty = auto-detect cache path from cache_dir
+    std::string cache_dir = "";         // Default cache directory with all precomputed tables
     unsigned max_windows_to_load = 0U;  // Load all windows for optimal performance
     
     // Progress reporting
@@ -251,8 +248,5 @@ bool save_precompute_cache(const std::string& path);
 bool load_precompute_cache(const std::string& path, unsigned max_windows = 0);
 
 } // namespace secp256k1::fast
-
-#endif /* BD3119E8_7C55_43F7_86C0_01D77B1E1134 */
-
 
 #endif /* EE840AA6_AA0C_4E9D_B58A_701AC4A267D0 */

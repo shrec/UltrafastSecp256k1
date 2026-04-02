@@ -4,11 +4,12 @@
 # =============================================================================
 # Reproduces GitHub Actions workflows locally:
 #   security-audit.yml + ci.yml + audit-report.yml + clang-tidy.yml + cppcheck.yml
+#   cryptofuzz.yml + klee.yml
 #
 # Usage:
 #   bash scripts/local-ci.sh --quick            # Fast gate: werror + ci (Release) ~5 min
 #   bash scripts/local-ci.sh --all              # Standard: 7 jobs ~20-25 min
-#   bash scripts/local-ci.sh --full             # Everything: 10 jobs ~45-60 min
+#   bash scripts/local-ci.sh --full             # Everything: 12 jobs ~50-70 min
 #   bash scripts/local-ci.sh --job werror       # Only -Werror build
 #   bash scripts/local-ci.sh --job asan         # Only ASan+UBSan
 #   bash scripts/local-ci.sh --job tsan         # Only TSan
@@ -23,7 +24,16 @@
 #   bash scripts/local-ci.sh --job bench        # Quick benchmark snapshot (no regression check)
 #   bash scripts/local-ci.sh --job qemu-smoke   # ARM64/RISC-V cross-build + QEMU smoke
 #   bash scripts/local-ci.sh --job trust        # Trust signals summary (coverage + links)
+#   bash scripts/local-ci.sh --job cryptofuzz   # Differential harness compile + 500-iter smoke
+#   bash scripts/local-ci.sh --job klee         # KLEE symbolic execution compile + 30s smoke
 #   bash scripts/local-ci.sh --list             # List all available jobs
+#
+# NEW WORKFLOW DEVELOPMENT: Before pushing any change to a CI workflow that
+# involves a harness (cryptofuzz.yml, klee.yml), run the corresponding local job
+# first to catch ABI mismatches, wrong include paths, and missing symbols:
+#
+#   bash scripts/local-ci.sh --job cryptofuzz   # ~5-8 min (builds lib + runs harness)
+#   bash scripts/local-ci.sh --job klee         # ~3-5 min (requires Docker)
 #
 # Build dirs use /tmp/build-local-ci-* (not /src) to avoid Windows NTFS overhead.
 # Exit codes: 0 = all passed, 1 = at least one job failed
@@ -666,6 +676,216 @@ job_valgrind_ct() {
 }
 
 # -----------------------------------------------------------------------------
+# Job: cryptofuzz — Differential harness compilation + smoke run
+# Mirrors: cryptofuzz.yml
+# Requires: clang (17+), libsecp256k1 v0.6.0, libssl-dev, libboost-dev
+# Exit: non-zero if harness fails to compile or reports divergences
+# -----------------------------------------------------------------------------
+job_cryptofuzz() {
+    banner "cryptofuzz: Differential harness (compile + 500-iter smoke)"
+
+    # Detect clang
+    local CXX_BIN=""
+    for v in 17 18 19 20 21; do
+        if command -v "clang++-$v" &>/dev/null; then CXX_BIN="clang++-$v"; break; fi
+    done
+    if [ -z "$CXX_BIN" ] && command -v clang++ &>/dev/null; then CXX_BIN=clang++; fi
+    if [ -z "$CXX_BIN" ]; then
+        echo -e "${YELLOW}clang++ not found — skipping cryptofuzz job${NC}"
+        pass "cryptofuzz: skipped (no clang++ found)"
+        return
+    fi
+    echo -e "${BOLD}Compiler:${NC} $CXX_BIN"
+
+    local HARNESS="$SRC/tests/harnesses/cryptofuzz/diff_harness.cpp"
+    if [ ! -f "$HARNESS" ]; then
+        fail "cryptofuzz: harness not found at $HARNESS"
+        return
+    fi
+
+    # ---- 1. Build UltrafastSecp256k1 shared library ----
+    local build_dir="${BUILD_BASE}-cryptofuzz"
+    echo "Building UltrafastSecp256k1 (RelWithDebInfo)..."
+    cmake -S "$SRC" -B "$build_dir" -G Ninja \
+        -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+        -DCMAKE_CXX_COMPILER="$CXX_BIN" \
+        -DSECP256K1_BUILD_TESTS=OFF \
+        -DSECP256K1_BUILD_BENCH=OFF \
+        -DSECP256K1_BUILD_EXAMPLES=OFF \
+        -DCMAKE_EXPORT_COMPILE_COMMANDS=OFF \
+        -Wno-dev 2>&1 | tail -5
+    cmake --build "$build_dir" -j"$NPROC" 2>&1 | tail -10
+
+    local UFSECP_LIB_DIR="$build_dir/include/ufsecp"
+    local CPU_LIB="$build_dir/cpu/libfastsecp256k1.a"
+    if [ ! -f "$UFSECP_LIB_DIR/libufsecp.a" ]; then
+        fail "cryptofuzz: libufsecp.a not found in $UFSECP_LIB_DIR"
+        return
+    fi
+    if [ ! -f "$CPU_LIB" ]; then
+        fail "cryptofuzz: libfastsecp256k1.a not found at $CPU_LIB"
+        return
+    fi
+
+    # ---- 2. Build reference libsecp256k1 v0.6.0 ----
+    local REF_DIR="/tmp/local-ci-libsecp256k1"
+    local REF_INSTALL="/tmp/local-ci-libsecp256k1-install"
+    if [ ! -f "$REF_INSTALL/lib/libsecp256k1.a" ] && [ ! -f "$REF_INSTALL/lib/libsecp256k1.so" ]; then
+        echo "Cloning libsecp256k1 v0.6.0..."
+        rm -rf "$REF_DIR"
+        git clone --depth 1 --branch v0.6.0 \
+            https://github.com/bitcoin-core/secp256k1.git "$REF_DIR" 2>&1 | tail -3
+        cmake -S "$REF_DIR" -B "$REF_DIR/build" -G Ninja \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DCMAKE_C_COMPILER="${CLANG_CC:-clang}" \
+            -DSECP256K1_BUILD_TESTS=OFF \
+            -DSECP256K1_ENABLE_MODULE_SCHNORRSIG=ON \
+            -DSECP256K1_ENABLE_MODULE_RECOVERY=ON \
+            -DSECP256K1_ENABLE_MODULE_ECDH=ON \
+            -Wno-dev 2>&1 | tail -5
+        cmake --build "$REF_DIR/build" -j"$NPROC"
+        cmake --install "$REF_DIR/build" --prefix "$REF_INSTALL"
+    else
+        echo "Reusing cached libsecp256k1 at $REF_INSTALL"
+    fi
+
+    # ---- 3. Compile the differential harness ----
+    # Link statically against ufsecp + fastsecp256k1 to avoid shared-library
+    # startup crashes (global constructors in libufsecp.so run before main()).
+    echo "Compiling differential harness..."
+    local compile_log="/tmp/cryptofuzz_compile.log"
+    "$CXX_BIN" -std=c++20 -O2 \
+        -I"$SRC" \
+        -I"$REF_INSTALL/include" \
+        "$HARNESS" \
+        "$UFSECP_LIB_DIR/libufsecp.a" \
+        "$CPU_LIB" \
+        -L"$REF_INSTALL/lib" -lsecp256k1 \
+        -Wl,-rpath,"$REF_INSTALL/lib" \
+        -o /tmp/cryptofuzz_diff_harness 2>&1 | tee "$compile_log"
+
+    if [ ! -f /tmp/cryptofuzz_diff_harness ]; then
+        cat "$compile_log"
+        fail "cryptofuzz: harness compilation failed — ABI or include path mismatch"
+        return
+    fi
+    echo -e "${GREEN}Harness compiled successfully.${NC}"
+
+    # ---- 4. Quick smoke run (500 iterations) ----
+    echo "Running 500-iteration smoke test..."
+    local results_log="/tmp/cryptofuzz_results.log"
+    LD_LIBRARY_PATH="$REF_INSTALL/lib" \
+        /tmp/cryptofuzz_diff_harness 500 2>&1 | tee "$results_log"
+    local EXIT="${PIPESTATUS[0]}"
+
+    local FAIL_CNT
+    FAIL_CNT=$(grep -oP '\d+(?= FAIL)' "$results_log" | tail -1 || echo 0)
+    if [ "$EXIT" -ne 0 ] || [ "${FAIL_CNT:-0}" -gt 0 ]; then
+        fail "cryptofuzz: $FAIL_CNT divergences — check $results_log"
+    else
+        pass "cryptofuzz: 500 iterations, 0 divergences"
+    fi
+}
+
+# -----------------------------------------------------------------------------
+# Job: klee — Symbolic execution (Docker-based, compile + short run)
+# Mirrors: klee.yml
+# Requires: Docker, internet access (pulls klee/klee:3.0 once)
+# -----------------------------------------------------------------------------
+job_klee() {
+    banner "klee: Symbolic execution (Docker klee/klee:3.0)"
+
+    if ! command -v docker &>/dev/null; then
+        echo -e "${YELLOW}docker not found — skipping klee job${NC}"
+        pass "klee: skipped (docker not found)"
+        return
+    fi
+
+    local KLEE_DIR="/tmp/klee-work-local"
+    local KLEE_RESULTS="/tmp/klee-results-local"
+    rm -rf "$KLEE_DIR" "$KLEE_RESULTS"
+    mkdir -p "$KLEE_DIR" "$KLEE_RESULTS"
+    chmod 777 "$KLEE_DIR" "$KLEE_RESULTS"
+
+    local HARNESS_DIR="$SRC/tests/harnesses/klee"
+    if [ ! -d "$HARNESS_DIR" ]; then
+        fail "klee: harness directory not found at $HARNESS_DIR"
+        return
+    fi
+
+    # Copy harnesses to work dir
+    cp "$HARNESS_DIR"/*.cpp "$KLEE_DIR/"
+
+    # Pull image (cached after first run)
+    echo "Pulling klee/klee:3.0 (skips if cached)..."
+    docker pull klee/klee:3.0 2>&1 | tail -3
+
+    # ---- Compile each harness to LLVM bitcode ----
+    echo "Compiling harnesses to LLVM bitcode inside Docker..."
+    local compile_ok=1
+    for src in "$KLEE_DIR"/*.cpp; do
+        local name
+        name=$(basename "$src" .cpp)
+        echo "  Compiling $name..."
+        if ! docker run --rm \
+            -v "$KLEE_DIR:/work" \
+            klee/klee:3.0 \
+            clang++ -std=c++17 -emit-llvm -O0 -g \
+                -I /home/klee/klee_build/include \
+                -include assert.h \
+                "/work/${name}.cpp" -c -o "/work/${name}.bc" 2>&1; then
+            echo -e "${RED}Compilation failed for $name${NC}"
+            compile_ok=0
+        fi
+    done
+
+    if [ "$compile_ok" -eq 0 ]; then
+        fail "klee: harness compilation failed inside Docker"
+        return
+    fi
+
+    if ! ls "$KLEE_DIR"/*.bc &>/dev/null; then
+        fail "klee: no .bc files produced"
+        return
+    fi
+    echo -e "${GREEN}All harnesses compiled to bitcode.${NC}"
+
+    # ---- Run KLEE with short timeout (30s per target — smoke only) ----
+    local TOTAL_ERRORS=0
+    for bc in "$KLEE_DIR"/*.bc; do
+        local name
+        name=$(basename "$bc" .bc)
+        echo ""
+        echo "=== KLEE smoke: $name (max 30s) ==="
+        mkdir -p "$KLEE_RESULTS/$name"
+        chmod 777 "$KLEE_RESULTS/$name"
+
+        docker run --rm \
+            -v "$KLEE_DIR:/work" \
+            -v "$KLEE_RESULTS:/results" \
+            klee/klee:3.0 \
+            klee \
+                --output-dir="/results/${name}" \
+                --max-time=30s \
+                --max-depth=50 \
+                --emit-all-errors \
+                --only-output-states-covering-new \
+                "/work/${name}.bc" 2>&1 || true
+
+        local ASSERTS
+        ASSERTS=$(find "$KLEE_RESULTS/$name" -name "*.assert.err" 2>/dev/null | wc -l)
+        echo "  Assertion violations: $ASSERTS"
+        TOTAL_ERRORS=$((TOTAL_ERRORS + ASSERTS))
+    done
+
+    if [ "$TOTAL_ERRORS" -gt 0 ]; then
+        fail "klee: $TOTAL_ERRORS assertion violation(s) found"
+    else
+        pass "klee: no assertion violations (smoke, 30s/target)"
+    fi
+}
+
+# -----------------------------------------------------------------------------
 # Summary
 # -----------------------------------------------------------------------------
 print_summary() {
@@ -697,7 +917,7 @@ main() {
     # --all    Standard check (~20-25 min): everything except slow analysis jobs
     local PRESET_ALL=(werror ci asan tsan audit clang-tidy cppcheck)
     # --full   Release-quality check (~45-60 min): mirrors entire GitHub CI suite
-    local PRESET_FULL=(werror ci asan tsan audit clang-tidy cppcheck coverage valgrind dudect valgrind-ct)
+    local PRESET_FULL=(werror ci asan tsan audit clang-tidy cppcheck coverage valgrind dudect valgrind-ct cryptofuzz klee)
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -721,6 +941,8 @@ main() {
                 echo "  bench       Benchmark snapshot (output only) (benchmark.yml)"
                 echo "  qemu-smoke  ARM64/RISC-V cross-build + QEMU smoke (ci.yml)"
                 echo "  trust       Trust signals summary (coverage + links)"
+                echo "  cryptofuzz  Differential harness compile+smoke     (cryptofuzz.yml)"
+                echo "  klee        Symbolic execution compile+smoke        (klee.yml)"
                 echo ""
                 echo "Presets:"
                 echo "  --quick  ${PRESET_QUICK[*]}  (~5 min)"
@@ -767,6 +989,8 @@ main() {
             bench)       job_bench ;;
             qemu-smoke)  job_qemu_smoke ;;
             trust)       job_trust ;;
+            cryptofuzz)  job_cryptofuzz ;;
+            klee)        job_klee ;;
             *) echo -e "${RED}Unknown job: $job${NC}"; exit 1 ;;
         esac
     done

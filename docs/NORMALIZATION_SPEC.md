@@ -1,6 +1,6 @@
 # Signature Normalization Specification
 
-**UltrafastSecp256k1 v3.13.0** -- Canonical Form & Strictness Rules
+**UltrafastSecp256k1 v3.50.0** -- Canonical Form & Strictness Rules
 
 ---
 
@@ -216,4 +216,4 @@ Verified by: `test_ct_equivalence.cpp` (CT==FAST on CPU), multi-backend equivale
 
 ---
 
-*UltrafastSecp256k1 v3.13.0 -- Normalization Specification*
+*UltrafastSecp256k1 v3.50.0 -- Normalization Specification*

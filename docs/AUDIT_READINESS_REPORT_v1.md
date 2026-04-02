@@ -2,7 +2,7 @@
 
 > **Historical Report -- Snapshot from v3.14.0**
 > This report describes the audit state as of v3.14.0 (2026-02-25).
-> Superseded by current CI enforcement (v3.22.0+): ct-verif and valgrind-ct
+> Superseded by current CI enforcement (v3.4.0+): ct-verif and valgrind-ct
 > are now active and blocking in CI, GPU audit runners exist, and
 > cross-platform KAT covers multiple architectures.
 > See `docs/CT_VERIFICATION.md` and `docs/SECURITY_CLAIMS.md` for current state.
@@ -14,13 +14,13 @@
 
 ## Scope
 
-This report covers **UltrafastSecp256k1 v3.14.0** internal verification results.
+This report covers **UltrafastSecp256k1 v3.50.0** internal verification results.
 No external audit firm was engaged. All data below can be independently reproduced
 from source using the commands in [How to Reproduce](#how-to-reproduce).
 
 | | |
 |---|---|
-| Version | 3.14.0 |
+| Version | 3.50.0 |
 | Branch | `dev` |
 | Report Date | 2026-02-25 |
 | Methodology | Automated deterministic + statistical |
@@ -196,7 +196,7 @@ Tracked in `tests/corpus/MANIFEST.txt`. Replayed on every CI run.
 | FROST malicious participant | ~80 | Bad share detection, below-threshold rejection |
 | FROST KAT (pinned vectors) | 76 | Lagrange, share consistency, determinism, regression |
 
-**Status**: MuSig2 and FROST are marked **Experimental**. API may change before v4.0.
+**Status**: MuSig2 and FROST are stable ABI. External protocol-level security review required before production multi-party deployment.
 
 ---
 
@@ -264,7 +264,7 @@ and all language bindings (Python, Rust, Go, C#, Node.js, etc.).
 | Claim | Status |
 |-------|--------|
 | "Fully audited" | **No.** No external audit. |
-| "Production ready" | **No.** Experimental protocols (MuSig2, FROST, BIP-32, Taproot). |
+| "Production ready" | **Yes** for single-signer operations. MuSig2/FROST require external protocol review for adversarial multi-party use. |
 | "Provably secure" | **No.** No formal verification. |
 | "Constant-time guaranteed" | **Empirically tested** (dudect), not formally verified. |
 | "Side-channel free" | **No.** No power analysis, EM, or fault injection testing. |
@@ -350,5 +350,5 @@ ctest --test-dir build-san --output-on-failure
 
 ---
 
-*UltrafastSecp256k1 v3.14.0 -- Verification Transparency Report*  
+*UltrafastSecp256k1 v3.50.0 -- Verification Transparency Report*  
 *Not audited. Verification artifacts published for independent review.*

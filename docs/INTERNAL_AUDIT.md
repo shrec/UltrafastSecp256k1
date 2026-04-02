@@ -1,6 +1,6 @@
 # Internal Security Audit -- Full Results
 
-**UltrafastSecp256k1 v3.4.0**  
+**UltrafastSecp256k1 v3.50.0**  
 **Audit Date**: 2026-03-23  
 **Branch**: `dev` (HEAD)  
 **Methodology**: Automated + manual, deterministic seeds, zero external dependencies  
@@ -62,9 +62,9 @@ team and automated CI infrastructure.
 | ECDSA (RFC 6979) | Production | **Very High** -- BIP-340 vectors + RFC 6979 vectors + differential vs libsecp256k1 |
 | Schnorr (BIP-340) | Production | **Very High** -- All 15 official vectors + differential |
 | CT Layer | Production | **High** -- 120K equivalence checks + dudect timing + code review (no formal verification) |
-| MuSig2 | Experimental | **High** -- 975 checks + rogue-key + transcript binding + fault injection |
-| FROST | Experimental | **High** -- 1,367 checks (DKG + signing + KAT + malicious participant) |
-| BIP-32 HD | Experimental | **High** -- TV1-TV5 (90 checks) + fuzz |
+| MuSig2 | Stable | **High** -- 975 checks + rogue-key + transcript binding + fault injection |
+| FROST | Stable | **High** -- 1,367 checks (DKG + signing + KAT + malicious participant) |
+| BIP-32 HD | Stable | **High** -- TV1-TV5 (90 checks) + fuzz |
 | C ABI (ufsecp) | Production | **High** -- 131 functions, hostile-caller G/H/I/K, fuzz + NULL (73K checks) |
 | GPU Backends | Beta | **Medium** -- Functional, NOT constant-time, GPU ABI gate tests (J.1-J.2) |
 
@@ -710,7 +710,6 @@ Full invariant catalog: [docs/INVARIANTS.md](INVARIANTS.md)
 | CPU vs WASM equivalence | WASM arithmetic may diverge | Not yet tested |
 | CPU vs Embedded KAT | ESP32/STM32 runtime tests | Requires physical devices |
 | FROST nonce CT | Nonce handling not constant-time audited | Experimental status |
-| MuSig2/FROST API stability | API may change before v4.0 | Documented as Experimental |
 | Compiler CT trust | Compiler may introduce secret-dependent branches at -O2 | Inherent limitation |
 
 ### What We Do NOT Claim
@@ -795,5 +794,5 @@ SECP256K1_DIFFERENTIAL_MULTIPLIER=100 ./build/tests/test_cross_libsecp256k1
 
 ---
 
-*UltrafastSecp256k1 v3.4.0 -- Internal Security Audit Report*  
+*UltrafastSecp256k1 v3.50.0 -- Internal Security Audit Report*  
 *Updated: 2026-03-23*

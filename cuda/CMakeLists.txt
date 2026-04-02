@@ -265,6 +265,27 @@ endif()
 target_link_libraries(test_ct_smoke PRIVATE secp256k1_cuda_lib)
 add_test(NAME gpu_ct_smoke COMMAND test_ct_smoke)
 
+# ===== GPU CT Leakage Probe =====
+set(_CT_LEAKAGE_SOURCES src/gpu_ct_leakage_probe.cu)
+if(_GPU_LANG STREQUAL "HIP")
+    set_source_files_properties(${_CT_LEAKAGE_SOURCES} PROPERTIES LANGUAGE HIP)
+    add_executable(gpu_ct_leakage_probe ${_CT_LEAKAGE_SOURCES})
+    target_compile_options(gpu_ct_leakage_probe PRIVATE
+        $<$<COMPILE_LANGUAGE:HIP>:-O3>
+        $<$<COMPILE_LANGUAGE:HIP>:-ffast-math>
+    )
+else()
+    add_executable(gpu_ct_leakage_probe ${_CT_LEAKAGE_SOURCES})
+    target_compile_options(gpu_ct_leakage_probe PRIVATE
+        $<$<COMPILE_LANGUAGE:CUDA>:--expt-relaxed-constexpr>
+        $<$<COMPILE_LANGUAGE:CUDA>:-O3>
+        $<$<COMPILE_LANGUAGE:CUDA>:--use_fast_math>
+        $<$<COMPILE_LANGUAGE:CUDA>:-Xptxas=-O3>
+    )
+endif()
+target_link_libraries(gpu_ct_leakage_probe PRIVATE secp256k1_cuda_lib)
+add_test(NAME gpu_ct_leakage_probe COMMAND gpu_ct_leakage_probe --json-only)
+
 # ===== GPU ZK Benchmark =====
 set(_BENCH_ZK_SOURCES src/bench_zk.cu)
 if(_GPU_LANG STREQUAL "HIP")
@@ -284,4 +305,3 @@ else()
     )
 endif()
 target_link_libraries(bench_zk PRIVATE secp256k1_cuda_lib)
-

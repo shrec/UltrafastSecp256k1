@@ -739,6 +739,10 @@ if(SECP256K1_BUILD_BENCH)
     add_executable(bench_ct bench/bench_ct.cpp)
     target_link_libraries(bench_ct PRIVATE ${SECP256K1_LIB_NAME})
 
+    # Focused hot-path microbenchmarks for before/after optimization work
+    add_executable(bench_hotpaths bench/bench_hotpaths.cpp)
+    target_link_libraries(bench_hotpaths PRIVATE ${SECP256K1_LIB_NAME} ufsecp_shared)
+
     # Field 5x52 vs 4x64 comparison (requires __uint128_t; skip on MSVC)
     if(NOT (MSVC AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
         add_executable(bench_field_52 bench/bench_field_52.cpp)

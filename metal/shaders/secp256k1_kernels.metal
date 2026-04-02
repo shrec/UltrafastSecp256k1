@@ -8,26 +8,23 @@
 //   - 4-bit windowed scalar_mul (see secp256k1_point.h)
 //   - Proper O(1) per-thread offset via scalar multiplication
 //   - Chunked batch inverse — one threadgroup per chunk
-//   - Branchless bloom check with coalesced memory access
 //
 // Kernels:
-//   1.  search_kernel          — Batch ECC search (O(1) offset + bloom check)
-//   2.  scalar_mul_batch       — Batch scalar multiplication
-//   3.  generator_mul_batch    — Batch G×k multiplication
-//   4.  field_mul_bench        — Field multiplication benchmark
-//   5.  field_sqr_bench        — Field squaring benchmark
-//   5b. field_add_bench        — Field addition benchmark
-//   5c. field_sub_bench        — Field subtraction benchmark
-//   5d. field_inv_bench        — Field inversion benchmark
-//   6.  batch_inverse          — Chunked Montgomery batch inverse
-//   7.  point_add_kernel       — Point addition (testing)
-//   8.  point_double_kernel    — Point doubling (testing)
+//   1.  scalar_mul_batch       — Batch scalar multiplication
+//   2.  generator_mul_batch    — Batch G×k multiplication
+//   3.  field_mul_bench        — Field multiplication benchmark
+//   4.  field_sqr_bench        — Field squaring benchmark
+//   4b. field_add_bench        — Field addition benchmark
+//   4c. field_sub_bench        — Field subtraction benchmark
+//   4d. field_inv_bench        — Field inversion benchmark
+//   5.  batch_inverse          — Chunked Montgomery batch inverse
+//   6.  point_add_kernel       — Point addition (testing)
+//   7.  point_double_kernel    — Point doubling (testing)
 // =============================================================================
 
 #include <metal_stdlib>
 #include "secp256k1_field.h"
 #include "secp256k1_point.h"
-#include "secp256k1_bloom.h"
 #include "secp256k1_extended.h"
 #include "secp256k1_hash160.h"
 #include "secp256k1_zk.h"
@@ -36,98 +33,7 @@
 using namespace metal;
 
 // =============================================================================
-// Search Result — 40 bytes, matching CUDA layout
-// =============================================================================
-
-struct SearchResult {
-    uint x[8];       // 32 bytes: affine X coordinate
-    uint index_lo;   // iteration index (low 32)
-    uint index_hi;   // iteration index (high 32)
-};
-
-// =============================================================================
-// Kernel Parameters — passed as uniforms (constant buffer)
-// =============================================================================
-
-struct SearchParams {
-    uint batch_size;
-    uint batch_offset_lo;
-    uint batch_offset_hi;
-    uint max_results;
-};
-
-// =============================================================================
-// Kernel 1: ECC Search — O(1) per-thread offset + bloom filter
-// =============================================================================
-// ACCELERATION: Instead of O(tid) incremental additions, each thread
-// computes its scalar offset k = batch_start + tid and does a single
-// scalar_mul_glv(G, k). GLV endomorphism halves doublings (~1.8x speedup).
-//
-// For SUBTRACTION search (Q - kG = target?), host pre-computes:
-//   Q_start = target point
-//   KQ_start_scalar = base scalar offset
-// Thread tid checks: k = KQ_start_scalar + tid
-// =============================================================================
-
-kernel void search_kernel(
-    constant JacobianPoint &Q_start    [[buffer(0)]],
-    constant AffinePoint &G_affine     [[buffer(1)]],
-    constant JacobianPoint &KQ_start   [[buffer(2)]],
-    constant AffinePoint &KG_affine    [[buffer(3)]],
-    device const uint *bloom_bitwords  [[buffer(4)]],
-    constant BloomParams &bloom_params [[buffer(5)]],
-    device SearchResult *results       [[buffer(6)]],
-    device atomic_uint *result_count   [[buffer(7)]],
-    constant SearchParams &params      [[buffer(8)]],
-    uint tid [[thread_position_in_grid]]
-) {
-    if (tid >= params.batch_size) return;
-
-    // Compute scalar offset: k = tid as Scalar256
-    Scalar256 k_offset;
-    k_offset.limbs[0] = tid;
-    for (int i = 1; i < 8; i++) k_offset.limbs[i] = 0;
-
-    // Copy constant-address-space args to thread-local (MSL address space requirement)
-    AffinePoint kg_local = KG_affine;
-    JacobianPoint kq_local = KQ_start;
-
-    // Compute tid*KG via scalar_mul (4-bit windowed, efficient for small scalars)
-    JacobianPoint offset_point = scalar_mul_glv(kg_local, k_offset);
-
-    // KQ = KQ_start + tid*KG
-    JacobianPoint KQ = jacobian_add(kq_local, offset_point);
-
-    // Convert to affine X
-    AffinePoint kq_aff = jacobian_to_affine(KQ);
-
-    // Convert X to little-endian bytes for bloom test
-    uint8_t x_bytes[32];
-    for (int i = 0; i < 8; i++) {
-        uint limb = kq_aff.x.limbs[i];
-        x_bytes[i * 4 + 0] = uint8_t(limb & 0xFFu);
-        x_bytes[i * 4 + 1] = uint8_t((limb >> 8) & 0xFFu);
-        x_bytes[i * 4 + 2] = uint8_t((limb >> 16) & 0xFFu);
-        x_bytes[i * 4 + 3] = uint8_t((limb >> 24) & 0xFFu);
-    }
-
-    // Bloom filter check — branchless
-    if (bloom_test(bloom_bitwords, bloom_params, x_bytes, 32)) {
-        uint idx = atomic_fetch_add_explicit(result_count, 1u, memory_order_relaxed);
-        if (idx < params.max_results) {
-            for (int i = 0; i < 8; i++) results[idx].x[i] = kq_aff.x.limbs[i];
-
-            // 64-bit index = batch_offset + tid
-            ulong full_idx = (ulong(params.batch_offset_hi) << 32) | ulong(params.batch_offset_lo);
-            full_idx += tid;
-            results[idx].index_lo = uint(full_idx);
-            results[idx].index_hi = uint(full_idx >> 32);
-        }
-    }
-}
-
-// =============================================================================
-// Kernel 2: Batch Scalar Multiplication — P × k for N points
+// Kernel 1: Batch Scalar Multiplication — P × k for N points
 // =============================================================================
 
 kernel void scalar_mul_batch(

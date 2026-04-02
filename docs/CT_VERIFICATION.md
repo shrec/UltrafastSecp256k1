@@ -1,6 +1,6 @@
 # Constant-Time Verification
 
-**UltrafastSecp256k1 v3.22.0** -- CT Layer Methodology & Audit Status
+**UltrafastSecp256k1 v3.50.0** -- CT Layer Methodology & Audit Status
 
 ---
 
@@ -374,6 +374,18 @@ valgrind ./build/tests/test_ct_sidechannel_vg
 
 The CT layer is verified using:
 - **ct-verif LLVM pass** -- deterministic compile-time CT check of `ct_field.cpp`, `ct_scalar.cpp`, `ct_sign.cpp` (`.github/workflows/ct-verif.yml`). If the LLVM pass is unavailable, a fallback IR branch analysis runs.
+- **Valgrind CT taint analysis** -- `scripts/valgrind_ct_check.sh` marks private-key bytes as secret via `MAKE_MEM_UNDEFINED` / `--track-origins=yes` and runs signing + ECDH operations, failing on any secret-derived branch or memory access. Integrated in `.github/workflows/valgrind-ct.yml`.
+
+#### ct_point.cpp Coverage Gap
+
+`cpu/src/ct_point.cpp` (CT point operations: `point_add_complete`, `point_double`, `scalar_mul`) is **not currently analyzed by the ct-verif LLVM pass**. The ct-verif workflow covers only `ct_field.cpp`, `ct_scalar.cpp`, and `ct_sign.cpp`.
+
+CT guarantees for `ct_point.cpp` rest on:
+- Manual code review confirming no secret-dependent branches or memory accesses
+- dudect empirical timing tests (see §Timing Verification) which pass |t| < 4.5
+- Valgrind taint analysis via `valgrind_ct_check.sh` (secret bytes flow through point ops without triggering uninitialised-value warnings)
+
+**Planned**: Add `ct_point.cpp` to the ct-verif workflow once upstream ct-verif supports the complete addition formulae used here.
 
 Not yet integrated:
 - **Vale** (F\* verified assembly)
@@ -462,9 +474,10 @@ FROST and MuSig2 have NOT been CT-audited:
 
 - [ ] **Formal verification** with Fiat-Crypto for field arithmetic
 - [x] **ct-verif** LLVM pass integration for CT verification (`.github/workflows/ct-verif.yml`)
+- [ ] **ct-verif: ct_point.cpp** -- add point operations (`point_add_complete`, `scalar_mul`) to ct-verif workflow (currently gap, see §Known Limitations §1)
 - [x] **Multi-uarch dudect** -- x86-64 CI + ARM64 Apple M1 native (`.github/workflows/ct-arm64.yml`)
 - [x] **dudect expansion** to cover FROST/MuSig2 -- `musig2_partial_sign`, `frost_sign`, `frost_lagrange_coefficient`
-- [x] **Valgrind CT taint** in CI -- MAKE_MEM_UNDEFINED + --track-origins (`.github/workflows/valgrind-ct.yml`)
+- [x] **Valgrind CT taint** in CI -- MAKE_MEM_UNDEFINED + --track-origins (`scripts/valgrind_ct_check.sh`, `.github/workflows/valgrind-ct.yml`)
 - [ ] **Hardware timing analysis** with oscilloscope-level measurements
 - [ ] **Compiler output audit** for every release at `-O2` and `-O3`
 
@@ -480,4 +493,4 @@ FROST and MuSig2 have NOT been CT-audited:
 
 ---
 
-*UltrafastSecp256k1 v3.22.0 -- CT Verification*
+*UltrafastSecp256k1 v3.50.0 -- CT Verification*

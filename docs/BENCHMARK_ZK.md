@@ -160,7 +160,7 @@ Proves that a Pedersen commitment hides a value in [0, 2^64) without revealing i
 - **Prove:** CT path, 64-bit decomposition, inner product argument
 - **Verify:** FAST path, polynomial commitment check + full IPA verification
 - **GPU implementation:** try-and-increment generator derivation, batch scalar inversion
-- **Optimization:** MSM + Montgomery batch inversion (CPU: 1.93x speedup in v3.22+)
+- **Optimization:** MSM + Montgomery batch inversion (CPU: 1.93x speedup in v3.4+)
 - **GPU/CPU:** Prove 3.7x, Verify 3.5x (Bulletproof is compute-heavy per-thread, lower parallelism)
 
 ---

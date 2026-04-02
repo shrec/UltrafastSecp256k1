@@ -1,28 +1,30 @@
 // ============================================================================
-// Fiat-Crypto Direct Linkage -- Formally Verified Field Arithmetic Cross-Check
+// Independent Reference Linkage -- Field Arithmetic Cross-Check
 // Track I, Task I5-2
 // ============================================================================
 //
 // PURPOSE:
-//   Compare our field arithmetic (FieldElement: 4x64 Montgomery) against
-//   Fiat-Cryptography's formally verified implementation at the FUNCTION level.
+//   Compare our field arithmetic (FieldElement: 4x64 limbs) against an
+//   independent reference implementation at the FUNCTION level.
 //
 //   Unlike test_fiat_crypto_vectors.cpp (which uses pre-computed golden vectors),
-//   this test embeds Fiat-Crypto's formally verified C code for secp256k1 field
+//   this test embeds an independent reference implementation of secp256k1 field
 //   operations and runs RANDOMIZED comparisons: for N random inputs, verify that
-//   our output == Fiat-Crypto's output for every operation.
+//   our output == reference output for every operation.
 //
 // SOURCE:
-//   The reference functions below are derived from the Fiat-Crypto project:
-//     https://github.com/mit-plv/fiat-crypto (MIT License)
-//   Specifically: fiat-crypto/fiat-c/src/secp256k1_64.c
-//   These are machine-extracted from Coq proofs and are formally verified
-//   to be correct implementations of arithmetic modulo p = 2^256 - 2^32 - 977.
+//   The reference functions below implement standard schoolbook 4x64-bit
+//   multiplication with Barrett-style reduction modulo
+//   p = 2^256 - 2^32 - 977, following the same mathematical specification
+//   as the Fiat-Crypto project (https://github.com/mit-plv/fiat-crypto).
+//   The reference code is intentionally simple and straightforward so that
+//   its correctness can be verified by inspection.
 //
 // WHAT THIS PROVES:
-//   Our FieldElement arithmetic produces IDENTICAL results to formally verified
-//   code for mul, sqr, add, sub over GF(p). This is 100% output parity --
-//   not just spot-check vectors, but exhaustive random comparison.
+//   Our FieldElement arithmetic produces IDENTICAL results to a simple,
+//   independently written reference for mul, sqr, add, sub, neg over GF(p).
+//   This is 100% output parity -- not just spot-check vectors, but
+//   exhaustive random comparison against an independent oracle.
 //
 // RUNNING:
 //   ./test_fiat_crypto_linkage_standalone
@@ -63,19 +65,17 @@ static const char* g_section = "";
 #include "audit_check.hpp"
 
 // ============================================================================
-// Fiat-Crypto formally verified reference implementation
+// Independent reference implementation -- schoolbook field arithmetic
 // ============================================================================
 // secp256k1 prime: p = 2^256 - 2^32 - 977
 //                    = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F
 //
 // Representation: 4 x uint64_t limbs (little-endian), standard (non-Montgomery).
-// The functions below implement arithmetic mod p.
-// Source: fiat-crypto/fiat-c/src/secp256k1_64.c (MIT License, machine-generated)
+// The functions below implement standard schoolbook arithmetic mod p.
+// They are intentionally simple and straightforward for independent verification.
 //
-// We use a simplified version that operates on the same 4x64 limb layout
-// as our FieldElement but in standard (non-Montgomery) representation.
 // For comparison, we convert our FieldElement to bytes and back through
-// the big-endian canonical form.
+// the big-endian canonical form, ensuring representation-independent equality.
 // ============================================================================
 
 namespace fiat_ref {
@@ -634,8 +634,8 @@ static void test_fiat_identities() {
 int test_fiat_crypto_linkage_run() {
     g_pass = g_fail = 0;
 
-    (void)printf("  Fiat-Crypto formal reference: secp256k1_64 (4x64 limb)\n");
-    (void)printf("  Source: https://github.com/mit-plv/fiat-crypto (MIT License)\n");
+    (void)printf("  Independent reference: schoolbook secp256k1 (4x64 limb)\n");
+    (void)printf("  Spec: GF(p) where p = 2^256 - 2^32 - 977\n");
     (void)printf("  Testing: mul, sqr, add, sub, neg -- 100%% output parity\n\n");
 
     test_fiat_mul();
@@ -658,7 +658,7 @@ int test_fiat_crypto_linkage_run() {
 #if defined(STANDALONE_TEST)
 int main() {
     (void)printf("============================================================\n");
-    (void)printf("  Fiat-Crypto Direct Linkage Cross-Check\n");
+    (void)printf("  Independent Reference Linkage Cross-Check\n");
     (void)printf("  Track I, Task I5-2\n");
     (void)printf("============================================================\n\n");
 

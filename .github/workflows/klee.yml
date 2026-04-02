@@ -1,0 +1,147 @@
+# ============================================================================
+# KLEE Symbolic Execution
+# ============================================================================
+# KLEE exhaustively explores execution paths by treating inputs as symbolic
+# variables. Unlike random fuzzing, KLEE can prove the absence of bugs on
+# all paths up to a given depth/budget.
+#
+# We target the parser-boundary and input-validation layer:
+#   - ufsecp_pubkey_parse (all 33-byte compressed inputs)
+#   - ufsecp_seckey_verify (all 32-byte scalars)
+#   - DER signature parser (malformed input rejection)
+#
+# NOTE: We do NOT use 'container:' because GitHub Actions (actions/checkout,
+# actions/upload-artifact) require write access to runner temp paths which
+# the klee user inside klee/klee:3.0 does not have.  Instead we pull the
+# image and run KLEE via explicit 'docker run' commands so that checkout and
+# artifact upload happen on the host runner.
+# ============================================================================
+name: KLEE Symbolic Execution
+
+on:
+  push:
+    branches: [main, dev]
+    paths:
+      - 'cpu/src/**'
+      - 'cpu/include/**'
+      - 'include/ufsecp/ufsecp.h'
+      - 'include/ufsecp/ufsecp_impl.cpp'
+      - '.github/workflows/klee.yml'
+  schedule:
+    # Weekly — Monday 02:00 UTC
+    - cron: '0 2 * * 1'
+  workflow_dispatch:
+    inputs:
+      klee_max_time:
+        description: 'Max time per target in seconds (default: 120)'
+        required: false
+        default: '120'
+      klee_max_depth:
+        description: 'Max symbolic execution depth (default: 100)'
+        required: false
+        default: '100'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  klee:
+    name: KLEE symbolic execution
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+
+    steps:
+      - name: Harden the runner
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Pull KLEE Docker image
+        run: docker pull klee/klee:3.0
+
+      - name: Copy KLEE harnesses from repo
+        run: |
+          mkdir -p /tmp/klee-work
+          # docker run klee user needs write access to this directory
+          chmod 777 /tmp/klee-work
+          # Harness sources live in the repo — copy them to the work dir
+          cp tests/harnesses/klee/klee_pubkey_parse.cpp /tmp/klee-work/
+          cp tests/harnesses/klee/klee_seckey_verify.cpp /tmp/klee-work/
+          cp tests/harnesses/klee/klee_der_parse.cpp /tmp/klee-work/
+      - name: Compile harnesses to LLVM bitcode
+        run: |
+          for src in /tmp/klee-work/*.cpp; do
+            name=$(basename "$src" .cpp)
+            echo "=== Compiling $name ==="
+            docker run --rm \
+              -v /tmp/klee-work:/work \
+              klee/klee:3.0 \
+              clang++ -std=c++17 -emit-llvm -O0 -g \
+                -I /home/klee/klee_build/include \
+                -include assert.h \
+                "/work/${name}.cpp" -c -o "/work/${name}.bc"
+            echo "  -> /tmp/klee-work/${name}.bc"
+          done
+          ls -la /tmp/klee-work/*.bc
+
+      - name: Run KLEE on each harness
+        env:
+          KLEE_MAX_TIME: ${{ github.event.inputs.klee_max_time || '120' }}
+          KLEE_MAX_DEPTH: ${{ github.event.inputs.klee_max_depth || '100' }}
+        run: |
+          mkdir -p /tmp/klee-results
+          chmod 777 /tmp/klee-results
+          TOTAL_ERRORS=0
+
+          for bc in /tmp/klee-work/*.bc; do
+            name=$(basename "$bc" .bc)
+            echo ""
+            echo "=== KLEE: $name ==="
+            mkdir -p "/tmp/klee-results/${name}"
+
+            docker run --rm \
+              -v /tmp/klee-work:/work \
+              -v /tmp/klee-results:/results \
+              klee/klee:3.0 \
+              klee \
+                --output-dir="/results/${name}" \
+                --max-time="${KLEE_MAX_TIME}s" \
+                --max-depth="${KLEE_MAX_DEPTH}" \
+                --emit-all-errors \
+                --only-output-states-covering-new \
+                "/work/${name}.bc" 2>&1 | tee "/tmp/klee-results/${name}.log" || true
+
+            ASSERTS=$(find "/tmp/klee-results/${name}" -name "*.assert.err" 2>/dev/null | wc -l)
+            echo "  Assertion violations: $ASSERTS"
+            if [ "$ASSERTS" -gt 0 ]; then
+              echo "::error::KLEE found $ASSERTS assertion violations in $name"
+              TOTAL_ERRORS=$((TOTAL_ERRORS + ASSERTS))
+            fi
+
+            docker run --rm \
+              -v /tmp/klee-results:/results \
+              klee/klee:3.0 \
+              klee-stats "/results/${name}" 2>/dev/null || true
+          done
+
+          echo ""
+          echo "Total assertion violations: $TOTAL_ERRORS"
+          if [ "$TOTAL_ERRORS" -gt 0 ]; then
+            echo "::error::KLEE detected $TOTAL_ERRORS assertion violation(s)"
+            exit 1
+          fi
+          echo "::notice::KLEE: no assertion violations found"
+
+      - name: Upload KLEE results
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: klee-results
+          path: /tmp/klee-results/
+          retention-days: 30

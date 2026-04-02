@@ -10,6 +10,7 @@
 #include "secp256k1/ecmult_gen_comb.hpp"
 #include "secp256k1/ct/ops.hpp"
 #include "secp256k1/sha256.hpp"
+#include "secp256k1/debug_invariants.hpp"
 #include <cstring>
 #include <fstream>
 #include <mutex>
@@ -222,7 +223,11 @@ bool CombGenContext::load_cache(const std::string& path) {
     f.read(reinterpret_cast<char*>(&spacing), sizeof(spacing));
     f.read(reinterpret_cast<char*>(&count), sizeof(count));
 
-    if (!f || teeth < 2 || teeth > 20 || count != (1u << teeth)) return false;
+    // spacing=0 causes a loop `for (b = spacing_-1; b>=0; --b)` to never execute
+    // (unsigned wrap to UINT_MAX), returning the point at infinity for every scalar.
+    // spacing > 256 would index far outside any table row. Reject both.
+    if (!f || teeth < 2 || teeth > 20 || spacing < 1 || spacing > 256
+           || count != (1u << teeth)) return false;
 
     teeth_ = teeth;
     spacing_ = spacing;
@@ -259,6 +264,23 @@ bool CombGenContext::load_cache(const std::string& path) {
     if (stored_checksum != computed_checksum) {
         table_.clear();
         return false;
+    }
+
+    // Cryptographic on-curve validation: every non-infinity point must satisfy
+    // y^2 = x^3 + 7 (mod p). A cache file with a valid SHA256 checksum but
+    // off-curve points would allow a local attacker to backdoor all scalar
+    // multiplications (signatures, ECDH) without touching private key material.
+    for (uint32_t i = 0; i < count; ++i) {
+        if (table_[i].infinity) continue;
+        const FieldElement& x = table_[i].x;
+        const FieldElement& y = table_[i].y;
+        // y^2 == x^3 + 7  (secp256k1 curve equation)
+        FieldElement lhs = y * y;
+        FieldElement rhs = x * x * x + FieldElement::from_uint64(7);
+        if (lhs != rhs) {
+            table_.clear();
+            return false;
+        }
     }
 
     return true;

@@ -76,6 +76,11 @@ jobs:
             --sarif \
             $SECTION_ARG
 
+      - name: Run auditor-mode automation (advisory)
+        run: |
+          python3 scripts/auditor_mode.py \
+            --output-dir ./audit-output/auditor-mode
+
       - name: Upload audit reports
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         if: always()
@@ -85,6 +90,8 @@ jobs:
             audit-output/audit_report.json
             audit-output/audit_report.txt
             audit-output/audit_report.sarif
+            audit-output/auditor-mode/auditor_mode_report.json
+            audit-output/auditor-mode/auditor_mode_report.txt
           retention-days: 90
 
       - name: Upload SARIF to GitHub Code Scanning
@@ -101,6 +108,11 @@ jobs:
           echo "## Audit Report (Linux GCC-13)" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           cat audit-output/audit_report.txt 2>/dev/null || echo "Report not generated"
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Auditor-Mode Gap Report" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat audit-output/auditor-mode/auditor_mode_report.txt 2>/dev/null || echo "Auditor-mode report not generated"
           echo '```' >> $GITHUB_STEP_SUMMARY
 
   # =========================================================================

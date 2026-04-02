@@ -167,7 +167,6 @@ if(METAL_COMPILER)
             ${METAL_SOURCE}
             ${SHADER_DIR}/secp256k1_field.h
             ${SHADER_DIR}/secp256k1_point.h
-            ${SHADER_DIR}/secp256k1_bloom.h
             ${SHADER_DIR}/secp256k1_extended.h
             ${SHADER_DIR}/secp256k1_hash160.h
             ${SHADER_DIR}/secp256k1_affine.h
@@ -221,7 +220,6 @@ endif()
 set(SHADER_FILES
     ${SHADER_DIR}/secp256k1_field.h
     ${SHADER_DIR}/secp256k1_point.h
-    ${SHADER_DIR}/secp256k1_bloom.h
     ${SHADER_DIR}/secp256k1_extended.h
     ${SHADER_DIR}/secp256k1_hash160.h
     ${SHADER_DIR}/secp256k1_kernels.metal

@@ -92,8 +92,10 @@ Point multi_scalar_mul(const Scalar* scalars,
     };
     std::vector<GLVInfo> glv_info(n);
 
-    // wNAF for k1 streams at [0..n-1], k2 streams at [n..2n-1]
-    std::vector<std::vector<int32_t>> wnaf_bufs(2 * n);
+    // wNAF for k1 streams at [0..n-1], k2 streams at [n..2n-1].
+    // Keep one flat arena to avoid 2n nested allocations per call.
+    constexpr std::size_t wnaf_capacity = 260;
+    std::vector<int32_t> wnaf_storage(2 * n * wnaf_capacity, 0);
     std::vector<std::size_t> wnaf_lens(2 * n, 0);
     std::size_t max_len = 0;
 
@@ -101,19 +103,19 @@ Point multi_scalar_mul(const Scalar* scalars,
         auto decomp = fast::glv_decompose(scalars[i]);
         glv_info[i] = {decomp.k1_neg, decomp.k2_neg};
 
-        // Allocate and compute wNAF for both half-scalars
-        wnaf_bufs[i].resize(260, 0);
-        wnaf_bufs[n + i].resize(260, 0);
+        // Compute wNAF for both half-scalars in-place inside the flat arena.
+        int32_t* const wnaf_k1 = wnaf_storage.data() + (i * wnaf_capacity);
+        int32_t* const wnaf_k2 = wnaf_storage.data() + ((n + i) * wnaf_capacity);
         compute_wnaf_into(decomp.k1, w,
-                          wnaf_bufs[i].data(), 260, wnaf_lens[i]);
+                          wnaf_k1, wnaf_capacity, wnaf_lens[i]);
         compute_wnaf_into(decomp.k2, w,
-                          wnaf_bufs[n + i].data(), 260, wnaf_lens[n + i]);
+                          wnaf_k2, wnaf_capacity, wnaf_lens[n + i]);
 
         // Trim trailing zeros -- half-scalars are ~128 bits
-        while (wnaf_lens[i] > 0 && wnaf_bufs[i][wnaf_lens[i] - 1] == 0) {
+        while (wnaf_lens[i] > 0 && wnaf_k1[wnaf_lens[i] - 1] == 0) {
             --wnaf_lens[i];
         }
-        while (wnaf_lens[n + i] > 0 && wnaf_bufs[n + i][wnaf_lens[n + i] - 1] == 0) {
+        while (wnaf_lens[n + i] > 0 && wnaf_k2[wnaf_lens[n + i] - 1] == 0) {
             --wnaf_lens[n + i];
         }
 
@@ -131,25 +133,23 @@ Point multi_scalar_mul(const Scalar* scalars,
 
     {
         // Build odd-multiple tables: [1Q, 3Q, 5Q, ..., (2T-1)Q]
-        std::vector<std::vector<Point>> tables(n);
+        std::vector<Point> tables(total_entries);
         for (std::size_t i = 0; i < n; ++i) {
             Point const base = glv_info[i].neg1 ? points[i].negate() : points[i];
-            tables[i].resize(table_size);
-            tables[i][0] = base;
+            Point* const table = tables.data() + (i * table_size);
+            table[0] = base;
             if (table_size > 1) {
                 Point const P2 = base.dbl();
                 for (std::size_t j = 1; j < table_size; ++j) {
-                    tables[i][j] = tables[i][j - 1].add(P2);
+                    table[j] = table[j - 1].add(P2);
                 }
             }
         }
 
         // Batch-invert all Z values via Montgomery's trick
         std::vector<FE52> z_vals(total_entries);
-        for (std::size_t i = 0; i < n; ++i) {
-            for (std::size_t j = 0; j < table_size; ++j) {
-                z_vals[i * table_size + j] = tables[i][j].Z52();
-            }
+        for (std::size_t k = 0; k < total_entries; ++k) {
+            z_vals[k] = tables[k].Z52();
         }
 
         std::vector<FE52> prefix(total_entries);
@@ -175,10 +175,8 @@ Point multi_scalar_mul(const Scalar* scalars,
             FE52 const z2 = z_inv.square();
             FE52 const z3 = z2 * z_inv;
 
-            std::size_t const pi = k / table_size;
-            std::size_t const pj = k % table_size;
-            tbl_P_x[k] = tables[pi][pj].X52() * z2;
-            tbl_P_y[k] = tables[pi][pj].Y52() * z3;
+            tbl_P_x[k] = tables[k].X52() * z2;
+            tbl_P_y[k] = tables[k].Y52() * z3;
         }
     }
 
@@ -211,7 +209,7 @@ Point multi_scalar_mul(const Scalar* scalars,
 
             // k1 stream: lookup from tbl_P
             if (bit < wnaf_lens[i]) {
-                int32_t const digit = wnaf_bufs[i][bit];
+                int32_t const digit = wnaf_storage[i * wnaf_capacity + bit];
                 if (digit != 0) {
                     auto const idx = static_cast<std::size_t>(
                         (digit > 0 ? digit - 1 : -digit - 1) / 2
@@ -227,7 +225,7 @@ Point multi_scalar_mul(const Scalar* scalars,
 
             // k2 stream: lookup from tbl_phiP
             if (bit < wnaf_lens[n + i]) {
-                int32_t const digit = wnaf_bufs[n + i][bit];
+                int32_t const digit = wnaf_storage[(n + i) * wnaf_capacity + bit];
                 if (digit != 0) {
                     auto const idx = static_cast<std::size_t>(
                         (digit > 0 ? digit - 1 : -digit - 1) / 2

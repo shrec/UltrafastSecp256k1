@@ -58,6 +58,28 @@ static std::string metal_load_file(const std::string& path) {
     return {std::istreambuf_iterator<char>(f), {}};
 }
 
+struct MetalBatchScratch {
+    std::vector<MetalScalar256> scalars;
+    std::vector<MetalAffinePoint> affine_points;
+    std::vector<uint8_t> pubkeys64;
+
+    void ensure_scalars(std::size_t count) {
+        if (scalars.size() < count) scalars.resize(count);
+    }
+
+    void ensure_affine_points(std::size_t count) {
+        if (affine_points.size() < count) affine_points.resize(count);
+    }
+
+    uint8_t* ensure_pubkeys64(std::size_t count) {
+        std::size_t const bytes = count * 64;
+        if (pubkeys64.size() < bytes) pubkeys64.resize(bytes);
+        return pubkeys64.data();
+    }
+};
+
+static thread_local MetalBatchScratch g_metal_batch_scratch;
+
 /** Convert big-endian 32 bytes → MetalScalar256 (host-side, no reduction). */
 static MetalScalar256 be32_to_metal_scalar(const uint8_t be[32]) {
     MetalScalar256 s;
@@ -296,12 +318,14 @@ public:
         if (err != GpuError::Ok) return err;
 
         /* Input: N × MetalScalar256 */
-        std::vector<MetalScalar256> h_scalars(count);
+        auto& scratch = g_metal_batch_scratch;
+        scratch.ensure_scalars(count);
+        auto* const h_scalars = scratch.scalars.data();
         for (size_t i = 0; i < count; ++i)
             h_scalars[i] = be32_to_metal_scalar(scalars32 + i * 32);
 
         auto buf_scalars = runtime_->alloc_buffer_shared(count * sizeof(MetalScalar256));
-        std::memcpy(buf_scalars.contents(), h_scalars.data(), count * sizeof(MetalScalar256));
+        std::memcpy(buf_scalars.contents(), h_scalars, count * sizeof(MetalScalar256));
 
         /* Output: N × MetalAffinePoint */
         auto buf_results = runtime_->alloc_buffer_shared(count * sizeof(MetalAffinePoint));
@@ -336,9 +360,10 @@ public:
         if (err != GpuError::Ok) return err;
 
         /* Decompress SEC1 pubkeys → 64-byte uncompressed (x||y) */
-        std::vector<uint8_t> h_pubs(count * 64);
+        auto& scratch = g_metal_batch_scratch;
+        uint8_t* const h_pubs = scratch.ensure_pubkeys64(count);
         for (size_t i = 0; i < count; ++i) {
-            if (!sec1_33_to_be64(pubkeys33 + i * 33, h_pubs.data() + i * 64))
+            if (!sec1_33_to_be64(pubkeys33 + i * 33, h_pubs + i * 64))
                 return set_error(GpuError::BadKey, "invalid pubkey");
         }
 
@@ -346,7 +371,7 @@ public:
         std::memcpy(buf_msgs.contents(), msg_hashes32, count * 32);
 
         auto buf_pubs = runtime_->alloc_buffer_shared(count * 64);
-        std::memcpy(buf_pubs.contents(), h_pubs.data(), count * 64);
+        std::memcpy(buf_pubs.contents(), h_pubs, count * 64);
 
         auto buf_sigs = runtime_->alloc_buffer_shared(count * 64);
         std::memcpy(buf_sigs.contents(), sigs64, count * 64);
@@ -424,21 +449,24 @@ public:
 
         /* Use scalar_mul_batch(peers, privkeys) → AffinePoint results,
            then compress and SHA256 on host to match CUDA/OpenCL semantics. */
-        std::vector<MetalAffinePoint> h_bases(count);
+        auto& scratch = g_metal_batch_scratch;
+        scratch.ensure_affine_points(count);
+        scratch.ensure_scalars(count);
+        auto* const h_bases = scratch.affine_points.data();
         for (size_t i = 0; i < count; ++i) {
             if (!sec1_33_to_metal_affine(peer_pubkeys33 + i * 33, h_bases[i]))
                 return set_error(GpuError::BadKey, "invalid peer pubkey");
         }
 
-        std::vector<MetalScalar256> h_scalars(count);
+        auto* const h_scalars = scratch.scalars.data();
         for (size_t i = 0; i < count; ++i)
             h_scalars[i] = be32_to_metal_scalar(privkeys32 + i * 32);
 
         auto buf_bases   = runtime_->alloc_buffer_shared(count * sizeof(MetalAffinePoint));
-        std::memcpy(buf_bases.contents(), h_bases.data(), count * sizeof(MetalAffinePoint));
+        std::memcpy(buf_bases.contents(), h_bases, count * sizeof(MetalAffinePoint));
 
         auto buf_scalars = runtime_->alloc_buffer_shared(count * sizeof(MetalScalar256));
-        std::memcpy(buf_scalars.contents(), h_scalars.data(), count * sizeof(MetalScalar256));
+        std::memcpy(buf_scalars.contents(), h_scalars, count * sizeof(MetalScalar256));
 
         auto buf_results = runtime_->alloc_buffer_shared(count * sizeof(MetalAffinePoint));
 

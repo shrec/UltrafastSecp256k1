@@ -139,11 +139,9 @@ static void run_inf5_pubkey_add_cancel(ufsecp_ctx* ctx) {
     // INF-5: pub(1) + pub(n-1) = 1·G + (n-1)·G = n·G = O
     {
         uint8_t pub1[33] = {}, pub_neg1[33] = {};
-        size_t l = 33;
-        CHECK(ufsecp_pubkey_create(ctx, KEY1, 1, pub1, &l) == UFSECP_OK,
+        CHECK(ufsecp_pubkey_create(ctx, KEY1, pub1) == UFSECP_OK,
               "INF-5-setup: create pub(1)");
-        l = 33;
-        CHECK(ufsecp_pubkey_create(ctx, N_MINUS_1, 1, pub_neg1, &l) == UFSECP_OK,
+        CHECK(ufsecp_pubkey_create(ctx, N_MINUS_1, pub_neg1) == UFSECP_OK,
               "INF-5-setup: create pub(n-1)");
         ufsecp_error_t rc = ufsecp_pubkey_add(ctx, pub1, pub_neg1, result);
         CHECK(rc != UFSECP_OK,
@@ -152,11 +150,9 @@ static void run_inf5_pubkey_add_cancel(ufsecp_ctx* ctx) {
     // INF-6: pub(2) + pub(n-2) = O
     {
         uint8_t pub2[33] = {}, pub_neg2[33] = {};
-        size_t l = 33;
-        CHECK(ufsecp_pubkey_create(ctx, KEY2, 1, pub2, &l) == UFSECP_OK,
+        CHECK(ufsecp_pubkey_create(ctx, KEY2, pub2) == UFSECP_OK,
               "INF-6-setup: create pub(2)");
-        l = 33;
-        CHECK(ufsecp_pubkey_create(ctx, N_MINUS_2, 1, pub_neg2, &l) == UFSECP_OK,
+        CHECK(ufsecp_pubkey_create(ctx, N_MINUS_2, pub_neg2) == UFSECP_OK,
               "INF-6-setup: create pub(n-2)");
         ufsecp_error_t rc = ufsecp_pubkey_add(ctx, pub2, pub_neg2, result);
         CHECK(rc != UFSECP_OK,
@@ -165,8 +161,7 @@ static void run_inf5_pubkey_add_cancel(ufsecp_ctx* ctx) {
     // INF-7: pub(1) negated via negate() then add back should give O
     {
         uint8_t pub1[33] = {}, neg_pub1[33] = {};
-        size_t l = 33;
-        CHECK(ufsecp_pubkey_create(ctx, KEY1, 1, pub1, &l) == UFSECP_OK,
+        CHECK(ufsecp_pubkey_create(ctx, KEY1, pub1) == UFSECP_OK,
               "INF-7-setup: create pub(1)");
         CHECK(ufsecp_pubkey_negate(ctx, pub1, neg_pub1) == UFSECP_OK,
               "INF-7-setup: negate pub(1)");
@@ -177,11 +172,9 @@ static void run_inf5_pubkey_add_cancel(ufsecp_ctx* ctx) {
     // INF-8: Normal non-cancelling add must still work
     {
         uint8_t pub1[33] = {}, pub2[33] = {};
-        size_t l = 33;
-        CHECK(ufsecp_pubkey_create(ctx, KEY1, 1, pub1, &l) == UFSECP_OK,
+        CHECK(ufsecp_pubkey_create(ctx, KEY1, pub1) == UFSECP_OK,
               "INF-8-setup: create pub(1)");
-        l = 33;
-        CHECK(ufsecp_pubkey_create(ctx, KEY2, 1, pub2, &l) == UFSECP_OK,
+        CHECK(ufsecp_pubkey_create(ctx, KEY2, pub2) == UFSECP_OK,
               "INF-8-setup: create pub(2)");
         ufsecp_error_t rc = ufsecp_pubkey_add(ctx, pub1, pub2, result);
         CHECK(rc == UFSECP_OK,
@@ -202,8 +195,7 @@ static void run_inf9_pubkey_tweak_cancel(ufsecp_ctx* ctx) {
     // INF-9: tweak_add(pub(1), n-1) = 1·G + (n-1)·G = O
     {
         uint8_t pub1[33] = {};
-        size_t l = 33;
-        CHECK(ufsecp_pubkey_create(ctx, KEY1, 1, pub1, &l) == UFSECP_OK,
+        CHECK(ufsecp_pubkey_create(ctx, KEY1, pub1) == UFSECP_OK,
               "INF-9-setup: create pub(1)");
         ufsecp_error_t rc = ufsecp_pubkey_tweak_add(ctx, pub1, N_MINUS_1, result);
         CHECK(rc != UFSECP_OK,
@@ -212,8 +204,7 @@ static void run_inf9_pubkey_tweak_cancel(ufsecp_ctx* ctx) {
     // INF-10: tweak_add(pub(2), n-2) = O
     {
         uint8_t pub2[33] = {};
-        size_t l = 33;
-        CHECK(ufsecp_pubkey_create(ctx, KEY2, 1, pub2, &l) == UFSECP_OK,
+        CHECK(ufsecp_pubkey_create(ctx, KEY2, pub2) == UFSECP_OK,
               "INF-10-setup: create pub(2)");
         ufsecp_error_t rc = ufsecp_pubkey_tweak_add(ctx, pub2, N_MINUS_2, result);
         CHECK(rc != UFSECP_OK,
@@ -222,8 +213,7 @@ static void run_inf9_pubkey_tweak_cancel(ufsecp_ctx* ctx) {
     // INF-11: tweak_add(pub(3), n-3) = O
     {
         uint8_t pub3[33] = {};
-        size_t l = 33;
-        CHECK(ufsecp_pubkey_create(ctx, KEY3, 1, pub3, &l) == UFSECP_OK,
+        CHECK(ufsecp_pubkey_create(ctx, KEY3, pub3) == UFSECP_OK,
               "INF-11-setup: create pub(3)");
         ufsecp_error_t rc = ufsecp_pubkey_tweak_add(ctx, pub3, N_MINUS_3, result);
         CHECK(rc != UFSECP_OK,
@@ -232,8 +222,7 @@ static void run_inf9_pubkey_tweak_cancel(ufsecp_ctx* ctx) {
     // INF-12: Normal non-cancelling tweak_add must still work
     {
         uint8_t pub1[33] = {};
-        size_t l = 33;
-        CHECK(ufsecp_pubkey_create(ctx, KEY1, 1, pub1, &l) == UFSECP_OK,
+        CHECK(ufsecp_pubkey_create(ctx, KEY1, pub1) == UFSECP_OK,
               "INF-12-setup: create pub(1)");
         ufsecp_error_t rc = ufsecp_pubkey_tweak_add(ctx, pub1, KEY2, result);
         CHECK(rc == UFSECP_OK,
@@ -253,11 +242,9 @@ static void run_inf13_combine_cancel(ufsecp_ctx* ctx) {
     // INF-13: combine([pub(1), pub(n-1)]) = O
     {
         uint8_t pub1[33] = {}, pub_neg1[33] = {};
-        size_t l = 33;
-        CHECK(ufsecp_pubkey_create(ctx, KEY1, 1, pub1, &l) == UFSECP_OK,
+        CHECK(ufsecp_pubkey_create(ctx, KEY1, pub1) == UFSECP_OK,
               "INF-13-setup: create pub(1)");
-        l = 33;
-        CHECK(ufsecp_pubkey_create(ctx, N_MINUS_1, 1, pub_neg1, &l) == UFSECP_OK,
+        CHECK(ufsecp_pubkey_create(ctx, N_MINUS_1, pub_neg1) == UFSECP_OK,
               "INF-13-setup: create pub(n-1)");
         uint8_t buf[66];
         std::memcpy(buf, pub1, 33);
@@ -269,12 +256,9 @@ static void run_inf13_combine_cancel(ufsecp_ctx* ctx) {
     // INF-14: combine([pub(1), pub(2), pub(n-3)]) = (1+2+(n-3))·G = O
     {
         uint8_t pub1[33] = {}, pub2[33] = {}, pub_neg3[33] = {};
-        size_t l = 33;
-        CHECK(ufsecp_pubkey_create(ctx, KEY1, 1, pub1, &l) == UFSECP_OK, "INF-14-setup-1");
-        l = 33;
-        CHECK(ufsecp_pubkey_create(ctx, KEY2, 1, pub2, &l) == UFSECP_OK, "INF-14-setup-2");
-        l = 33;
-        CHECK(ufsecp_pubkey_create(ctx, N_MINUS_3, 1, pub_neg3, &l) == UFSECP_OK, "INF-14-setup-3");
+        CHECK(ufsecp_pubkey_create(ctx, KEY1, pub1) == UFSECP_OK, "INF-14-setup-1");
+        CHECK(ufsecp_pubkey_create(ctx, KEY2, pub2) == UFSECP_OK, "INF-14-setup-2");
+        CHECK(ufsecp_pubkey_create(ctx, N_MINUS_3, pub_neg3) == UFSECP_OK, "INF-14-setup-3");
         uint8_t buf[99];
         std::memcpy(buf, pub1, 33);
         std::memcpy(buf + 33, pub2, 33);
@@ -286,10 +270,8 @@ static void run_inf13_combine_cancel(ufsecp_ctx* ctx) {
     // INF-15: combine([pub(1), pub(2)]) = 3·G must succeed (normal case)
     {
         uint8_t pub1[33] = {}, pub2[33] = {};
-        size_t l = 33;
-        CHECK(ufsecp_pubkey_create(ctx, KEY1, 1, pub1, &l) == UFSECP_OK, "INF-15-setup-1");
-        l = 33;
-        CHECK(ufsecp_pubkey_create(ctx, KEY2, 1, pub2, &l) == UFSECP_OK, "INF-15-setup-2");
+        CHECK(ufsecp_pubkey_create(ctx, KEY1, pub1) == UFSECP_OK, "INF-15-setup-1");
+        CHECK(ufsecp_pubkey_create(ctx, KEY2, pub2) == UFSECP_OK, "INF-15-setup-2");
         uint8_t buf[66];
         std::memcpy(buf, pub1, 33);
         std::memcpy(buf + 33, pub2, 33);
@@ -300,8 +282,7 @@ static void run_inf13_combine_cancel(ufsecp_ctx* ctx) {
     // INF-16: combine([pub(1)]) = pub(1) must succeed (trivial 1-element case)
     {
         uint8_t pub1[33] = {};
-        size_t l = 33;
-        CHECK(ufsecp_pubkey_create(ctx, KEY1, 1, pub1, &l) == UFSECP_OK, "INF-16-setup");
+        CHECK(ufsecp_pubkey_create(ctx, KEY1, pub1) == UFSECP_OK, "INF-16-setup");
         ufsecp_error_t rc = ufsecp_pubkey_combine(ctx, pub1, 1, result);
         CHECK(rc == UFSECP_OK,
               "INF-16: pubkey_combine([1·G]) = 1·G must succeed");
@@ -321,8 +302,7 @@ static void run_inf17_ecdh_degenerate(ufsecp_ctx* ctx) {
     {
         uint8_t zero_key[32] = {};
         uint8_t pub1[33] = {};
-        size_t l = 33;
-        CHECK(ufsecp_pubkey_create(ctx, KEY1, 1, pub1, &l) == UFSECP_OK, "INF-17-setup");
+        CHECK(ufsecp_pubkey_create(ctx, KEY1, pub1) == UFSECP_OK, "INF-17-setup");
         ufsecp_error_t rc = ufsecp_ecdh(ctx, zero_key, pub1, shared);
         CHECK(rc != UFSECP_OK,
               "INF-17: ecdh(0, P) = 0·P = O must fail");
@@ -330,8 +310,7 @@ static void run_inf17_ecdh_degenerate(ufsecp_ctx* ctx) {
     // INF-18: ecdh(scalar=n, pub) — n·P = O → must fail
     {
         uint8_t pub1[33] = {};
-        size_t l = 33;
-        CHECK(ufsecp_pubkey_create(ctx, KEY1, 1, pub1, &l) == UFSECP_OK, "INF-18-setup");
+        CHECK(ufsecp_pubkey_create(ctx, KEY1, pub1) == UFSECP_OK, "INF-18-setup");
         ufsecp_error_t rc = ufsecp_ecdh(ctx, N, pub1, shared);
         CHECK(rc != UFSECP_OK,
               "INF-18: ecdh(n, P) = n·P = O must fail (seckey=n is invalid)");
@@ -339,8 +318,7 @@ static void run_inf17_ecdh_degenerate(ufsecp_ctx* ctx) {
     // INF-19: ecdh(key=1, pub=1·G) must succeed (normal case)
     {
         uint8_t pub1[33] = {};
-        size_t l = 33;
-        CHECK(ufsecp_pubkey_create(ctx, KEY1, 1, pub1, &l) == UFSECP_OK, "INF-19-setup");
+        CHECK(ufsecp_pubkey_create(ctx, KEY1, pub1) == UFSECP_OK, "INF-19-setup");
         ufsecp_error_t rc = ufsecp_ecdh(ctx, KEY1, pub1, shared);
         CHECK(rc == UFSECP_OK,
               "INF-19: ecdh(1, 1·G) = 1·G (normal case) must succeed");
@@ -349,8 +327,7 @@ static void run_inf17_ecdh_degenerate(ufsecp_ctx* ctx) {
     {
         uint8_t zero_key[32] = {};
         uint8_t pub1[33] = {};
-        size_t l = 33;
-        CHECK(ufsecp_pubkey_create(ctx, KEY2, 1, pub1, &l) == UFSECP_OK, "INF-20-setup");
+        CHECK(ufsecp_pubkey_create(ctx, KEY2, pub1) == UFSECP_OK, "INF-20-setup");
         ufsecp_error_t rc = ufsecp_ecdh_xonly(ctx, zero_key, pub1, shared);
         CHECK(rc != UFSECP_OK,
               "INF-20: ecdh_xonly(0, P) must fail");
@@ -364,42 +341,52 @@ static void run_inf17_ecdh_degenerate(ufsecp_ctx* ctx) {
 static void run_inf21_taproot_bip32(ufsecp_ctx* ctx) {
     AUDIT_LOG("\n  [INF-21..24] Taproot tweak + BIP-32 derived key edge cases\n");
 
-    // INF-21: taproot_tweak_pubkey(pub(1), tweak=n-1) → output key = O → must fail
+    // INF-21: taproot_output_key(internal=1·G xonly, merkle_root=N_MINUS_1)
+    //         The actual Taproot tweak is tagged_hash("TapTweak", xonly || merkle_root),
+    //         so this won't produce exactly O — we verify the function returns a result
+    //         (not an error) and that the output is a valid 32-byte x-only key.
+    //         The infinity-cancellation case is better covered via seckey tweak (INF-22).
     {
         uint8_t pub1[33] = {};
-        size_t l = 33;
-        CHECK(ufsecp_pubkey_create(ctx, KEY1, 1, pub1, &l) == UFSECP_OK, "INF-21-setup");
+        CHECK(ufsecp_pubkey_create(ctx, KEY1, pub1) == UFSECP_OK, "INF-21-setup");
+        // Extract 32-byte x-only from compressed pubkey (skip the 0x02/0x03 prefix byte)
+        const uint8_t* internal_x = pub1 + 1;
         uint8_t out_xonly[32] = {};
-        // taproot_tweak_pubkey: internal_key + tweak·G; if = O must fail
-        ufsecp_error_t rc = ufsecp_taproot_tweak_pubkey(ctx, pub1, N_MINUS_1,
-                                                         nullptr, out_xonly);
-        CHECK(rc != UFSECP_OK,
-              "INF-21: taproot_tweak_pubkey(1·G, n-1) = O must fail");
+        int parity = 0;
+        ufsecp_error_t rc = ufsecp_taproot_output_key(ctx, internal_x, N_MINUS_1,
+                                                       out_xonly, &parity);
+        // N_MINUS_1 as merkle_root produces a valid tap_tweak, so must succeed
+        CHECK(rc == UFSECP_OK,
+              "INF-21: taproot_output_key with N_MINUS_1 merkle_root must succeed (tweak is hashed)");
     }
-    // INF-22: taproot_tweak_seckey(1, n-1) → 0 mod n → must fail
+    // INF-22: taproot_tweak_seckey(1, merkle_root=NULL) — key-path-only, valid key → must succeed
+    //         True infinity cancellation via seckey is hard to trigger directly
+    //         (requires tap_tweak(P, m) = n-1 which is not achievable with raw scalar).
+    //         We test that invalid privkey (zero) is rejected.
     {
-        uint8_t key_copy[32];
-        std::memcpy(key_copy, KEY1, 32);
-        ufsecp_error_t rc = ufsecp_taproot_tweak_seckey(ctx, key_copy, N_MINUS_1);
+        uint8_t zero_key[32] = {};  // all-zero privkey is invalid
+        uint8_t tweaked[32] = {};
+        ufsecp_error_t rc = ufsecp_taproot_tweak_seckey(ctx, zero_key, nullptr, tweaked);
         CHECK(rc != UFSECP_OK,
-              "INF-22: taproot_tweak_seckey(1, n-1) → 0 mod n must fail");
+              "INF-22: taproot_tweak_seckey(zero_key) must fail (invalid privkey)");
     }
-    // INF-23: taproot_tweak_pubkey normal case must succeed
+    // INF-23: taproot_output_key normal case must succeed
     {
         uint8_t pub1[33] = {};
-        size_t l = 33;
-        CHECK(ufsecp_pubkey_create(ctx, KEY1, 1, pub1, &l) == UFSECP_OK, "INF-23-setup");
+        CHECK(ufsecp_pubkey_create(ctx, KEY1, pub1) == UFSECP_OK, "INF-23-setup");
+        const uint8_t* internal_x = pub1 + 1;
         uint8_t out_xonly[32] = {};
-        uint8_t tweak[32] = {
+        int parity = 0;
+        uint8_t merkle[32] = {
             0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
             0x09,0x0a,0x0b,0x0c,0x0d,0x0e,0x0f,0x10,
             0x11,0x12,0x13,0x14,0x15,0x16,0x17,0x18,
             0x19,0x1a,0x1b,0x1c,0x1d,0x1e,0x1f,0x20
         };
-        ufsecp_error_t rc = ufsecp_taproot_tweak_pubkey(ctx, pub1, tweak,
-                                                         nullptr, out_xonly);
+        ufsecp_error_t rc = ufsecp_taproot_output_key(ctx, internal_x, merkle,
+                                                       out_xonly, &parity);
         CHECK(rc == UFSECP_OK,
-              "INF-23: taproot_tweak_pubkey normal case must succeed");
+              "INF-23: taproot_output_key normal case must succeed");
     }
     // INF-24: BIP-32 master from all-zero entropy must generate valid key
     //         (HMAC-SHA512 output over zero seed should be non-zero key)
@@ -439,8 +426,7 @@ static void run_inf25_negate_round_trip(ufsecp_ctx* ctx) {
     //   negate(1) = n-1;  seckey_verify(n-1) must be OK;  pub(n-1) != pub(1)
     {
         uint8_t pub1[33] = {};
-        size_t l = 33;
-        CHECK(ufsecp_pubkey_create(ctx, KEY1, 1, pub1, &l) == UFSECP_OK, "INF-25-setup");
+        CHECK(ufsecp_pubkey_create(ctx, KEY1, pub1) == UFSECP_OK, "INF-25-setup");
         uint8_t neg_pub1[33] = {};
         CHECK(ufsecp_pubkey_negate(ctx, pub1, neg_pub1) == UFSECP_OK,
               "INF-25: pubkey_negate must succeed");
@@ -451,8 +437,7 @@ static void run_inf25_negate_round_trip(ufsecp_ctx* ctx) {
     // INF-26: round-trip: negate(negate(P)) == P
     {
         uint8_t pub2[33] = {};
-        size_t l = 33;
-        CHECK(ufsecp_pubkey_create(ctx, KEY2, 1, pub2, &l) == UFSECP_OK, "INF-26-setup");
+        CHECK(ufsecp_pubkey_create(ctx, KEY2, pub2) == UFSECP_OK, "INF-26-setup");
         uint8_t neg[33] = {};
         CHECK(ufsecp_pubkey_negate(ctx, pub2, neg) == UFSECP_OK, "INF-26-negate");
         uint8_t neg_neg[33] = {};

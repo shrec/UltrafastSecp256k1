@@ -1,6 +1,6 @@
 # Threat Model
 
-UltrafastSecp256k1 v3.22.0 -- Layer-by-Layer Risk Assessment
+UltrafastSecp256k1 v3.50.0 -- Layer-by-Layer Risk Assessment
 
 ---
 
@@ -283,7 +283,7 @@ NOT TRUSTED (caller responsibility):
 | Valgrind CT taint | CI | Secret-dependent branches (CLASSIFY/DECLASSIFY) |
 | dudect timing analysis | CI | Side-channel timing leaks (Welch t-test) |
 | ct-verif LLVM pass | CI | Compile-time CT verification |
-| Fiat-Crypto linkage | CI | Formally verified field arithmetic cross-check |
+| Independent reference linkage | CI | Field arithmetic cross-check against independent schoolbook oracle + golden vectors |
 | Wycheproof vectors | CI | ECDSA/ECDH invalid input rejection (89+36 cases) |
 | ZK Proof audit (`audit_zk`) | CI | Knowledge/DLEQ/Bulletproof correctness + rejection (~1,500 checks) |
 | MSan (Memory Sanitizer) | CI | Uninitialized read detection (instrumented libc++) |
@@ -309,4 +309,4 @@ NOT TRUSTED (caller responsibility):
 
 ---
 
-*UltrafastSecp256k1 v3.17.0 -- Threat Model*
+*UltrafastSecp256k1 v3.50.0 -- Threat Model*

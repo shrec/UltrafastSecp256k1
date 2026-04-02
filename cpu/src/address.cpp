@@ -192,9 +192,11 @@ std::string base58check_encode(const std::uint8_t* data, std::size_t len) {
 
     // Use a copy for division
     std::vector<std::uint8_t> num(payload.begin(), payload.end());
+    std::vector<std::uint8_t> quotient;
+    quotient.reserve(num.size());
     while (!num.empty()) {
         int remainder = 0;
-        std::vector<std::uint8_t> quotient;
+        quotient.clear();
         for (std::size_t i = 0; i < num.size(); ++i) {
             int const acc = remainder * 256 + num[i];
             int digit = acc / 58;
@@ -204,7 +206,7 @@ std::string base58check_encode(const std::uint8_t* data, std::size_t len) {
             }
         }
         result.push_back(BASE58_ALPHABET[remainder]);
-        num = std::move(quotient);
+        num.swap(quotient);
     }
 
     // Add '1' for each leading zero byte
@@ -335,18 +337,21 @@ std::string bech32_encode(const std::string& hrp,
 
     // Convert 8-bit data to 5-bit groups
     std::vector<std::uint8_t> data5;
+    data5.reserve(1 + ((prog_len * 8 + 4) / 5));
     data5.push_back(witness_version);
     convert_bits(data5, witness_program, prog_len, 8, 5, true);
 
     // Compute checksum
     auto hrp_exp = bech32_hrp_expand(hrp);
     std::vector<std::uint8_t> values(hrp_exp);
+    values.reserve(hrp_exp.size() + data5.size() + 6);
     values.insert(values.end(), data5.begin(), data5.end());
     values.resize(values.size() + 6, 0);
     std::uint32_t const polymod = bech32_polymod(values) ^ encoding_const;
 
     // Build result
     std::string result = hrp + "1";
+    result.reserve(hrp.size() + 1 + data5.size() + 6);
     for (auto v : data5) result.push_back(BECH32_CHARSET[v]);
     for (int i = 0; i < 6; ++i) {
         result.push_back(BECH32_CHARSET[(polymod >> (5 * (5 - i))) & 31]);

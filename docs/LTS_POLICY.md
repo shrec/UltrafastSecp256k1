@@ -74,7 +74,7 @@ LTS patches follow `MAJOR.MINOR.PATCH` where only `PATCH` increments:
 
 | Version | Release Date | LTS Status | EOL Date |
 |---------|-------------|------------|----------|
-| v3.22.x | 2025-06 | Active (current) | Until v3.23.0 + 30 days |
+| v3.4.x | 2026-03 | Active (current) | Until v4.0.0 |
 | v4.0.0 | Planned | Candidate for first LTS | TBD |
 
 ---

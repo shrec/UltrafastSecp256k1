@@ -1,0 +1,165 @@
+# ============================================================================
+# Cryptofuzz++ Differential Harness
+# ============================================================================
+# Cryptofuzz performs differential fuzzing by running the same cryptographic
+# operation across multiple libraries (libsecp256k1, OpenSSL, BoringSSL, etc.)
+# and detecting discrepancies in outputs. Any divergence indicates a
+# correctness bug in one of the implementations.
+#
+# We target:
+#   - ECDSA sign / verify
+#   - ECDH (BIP-32 style)
+#   - Schnorr (BIP-340)
+#   - Point arithmetic (add, mul, negate, combine)
+#   - Key parsing / serialization
+#
+# Reference: https://github.com/guidovranken/cryptofuzz
+# ============================================================================
+name: Cryptofuzz++ Differential Fuzzing
+
+on:
+  push:
+    branches: [main, dev]
+    paths:
+      - 'cpu/src/**'
+      - 'cpu/include/**'
+      - 'include/ufsecp/**'
+      - '.github/workflows/cryptofuzz.yml'
+  schedule:
+    # Weekly — Sunday 05:00 UTC
+    - cron: '0 5 * * 0'
+  workflow_dispatch:
+    inputs:
+      fuzz_seconds:
+        description: 'Fuzz duration in seconds (default: 120)'
+        required: false
+        default: '120'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  cryptofuzz:
+    name: Cryptofuzz++ differential
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Harden the runner
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Install toolchain and dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            clang-17 lld-17 ninja-build cmake \
+            libssl-dev libboost-dev \
+            python3 python3-pip \
+            ccache git
+
+      - name: Cache ccache
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        with:
+          path: ~/.cache/ccache
+          # Cache key includes arch level so -march=native from a previous run
+          # (compiled on a different physical runner) never poisons this cache.
+          key: ccache-cryptofuzz-x86-64-v2-${{ hashFiles('cpu/src/**', 'cpu/include/**', 'include/**') }}
+          restore-keys: |
+            ccache-cryptofuzz-x86-64-v2-
+
+      - name: Build UltrafastSecp256k1 (shared library for fuzzing)
+        run: |
+          cmake -S . -B build-fuzz -G Ninja \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DCMAKE_C_COMPILER=clang-17 \
+            -DCMAKE_CXX_COMPILER=clang++-17 \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DSECP256K1_BUILD_TESTS=OFF \
+            -DSECP256K1_BUILD_BENCH=OFF \
+            -DSECP256K1_BUILD_EXAMPLES=OFF \
+            -DSECP256K1_USE_LTO=OFF \
+            -DSECP256K1_MARCH=x86-64-v2
+          cmake --build build-fuzz -j"$(nproc)"
+
+      - name: Clone libsecp256k1 (reference)
+        run: |
+          git clone --depth 1 --branch v0.6.0 \
+            https://github.com/bitcoin-core/secp256k1.git /tmp/libsecp256k1
+          cd /tmp/libsecp256k1
+          cmake -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DCMAKE_C_COMPILER=clang-17 \
+            -DSECP256K1_BUILD_TESTS=OFF \
+            -DSECP256K1_ENABLE_MODULE_SCHNORRSIG=ON \
+            -DSECP256K1_ENABLE_MODULE_RECOVERY=ON \
+            -DSECP256K1_ENABLE_MODULE_ECDH=ON
+          cmake --build build -j"$(nproc)"
+          cmake --install build --prefix /tmp/libsecp256k1-install
+
+      - name: Build Cryptofuzz++ reference harness
+        run: |
+          # Harness source lives in the repo at tests/harnesses/cryptofuzz/diff_harness.cpp.
+          # Link statically against ufsecp + fastsecp256k1 to avoid shared-library
+          # startup crashes (global constructors in libufsecp.so run before main()).
+          # Only libsecp256k1 (reference) remains a dynamic dependency.
+          UFSECP_LIB_DIR=$(pwd)/build-fuzz/include/ufsecp
+          CPU_LIB=$(pwd)/build-fuzz/cpu/libfastsecp256k1.a
+          clang++-17 -std=c++20 -O2 \
+            -I. \
+            -I/tmp/libsecp256k1-install/include \
+            tests/harnesses/cryptofuzz/diff_harness.cpp \
+            "${UFSECP_LIB_DIR}/libufsecp.a" \
+            "${CPU_LIB}" \
+            -L/tmp/libsecp256k1-install/lib -lsecp256k1 \
+            -Wl,-rpath,/tmp/libsecp256k1-install/lib \
+            -o /tmp/diff_harness 2>&1 | tee /tmp/compile.log
+          if [ ! -f /tmp/diff_harness ]; then
+            cat /tmp/compile.log
+            echo "::error::Harness failed to compile — ABI or include path mismatch"
+            exit 1
+          fi
+          echo "Harness binary dependencies:"
+          ldd /tmp/diff_harness || true
+
+
+      - name: Run differential harness
+        env:
+          FUZZ_SECONDS: ${{ github.event.inputs.fuzz_seconds || '120' }}
+        run: |
+          ITERATIONS=5000
+          echo "Running differential harness ($ITERATIONS iterations)..."
+          timeout "${FUZZ_SECONDS}" /tmp/diff_harness "$ITERATIONS" 2>&1 | tee /tmp/cryptofuzz_results.txt
+          EXIT=${PIPESTATUS[0]}
+          echo "Harness exit code: $EXIT"
+          if [ "$EXIT" -eq 124 ]; then
+            echo "::notice::Harness reached time limit (${FUZZ_SECONDS}s) — expected for short CI run"
+          elif [ "$EXIT" -ne 0 ]; then
+            echo "::error::Harness crashed (exit=$EXIT) — SIGILL=132 SIGSEGV=139 SIGABRT=134 — see output above"
+            exit 1
+          fi
+          # Parse results
+          PASS=$(grep -oP '\d+(?= PASS)' /tmp/cryptofuzz_results.txt | tail -1 || echo 0)
+          FAIL=$(grep -oP '\d+(?= FAIL)' /tmp/cryptofuzz_results.txt | tail -1 || echo 0)
+          echo "Summary: $PASS PASS / $FAIL FAIL"
+          if [ "${FAIL:-0}" -gt 0 ]; then
+            echo "::error::$FAIL divergences detected"
+            exit 1
+          fi
+          echo "::notice::All $PASS differential checks passed"
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: cryptofuzz-results
+          path: /tmp/cryptofuzz_results.txt
+          retention-days: 30

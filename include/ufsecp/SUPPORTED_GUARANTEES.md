@@ -1,6 +1,6 @@
 # Supported Guarantees -- `ufsecp` C ABI
 
-> **Version**: 3.4.0 (ABI 1)
+> **Version**: 3.50.0 (ABI 1)
 > **Date**: 2026-03-23
 
 This document defines what the `ufsecp_*` C ABI promises and where the
@@ -45,25 +45,15 @@ behalf of the caller except during `ufsecp_ctx_create` /
 
 ---
 
-## Tier 2 -- Experimental (no ABI promise)
+## Tier 2 -- Protocol Security Advisory
 
-| Feature | Status |
-|---|---|
-| FROST threshold signatures | API may change (not exposed in `ufsecp.h` yet) |
-| MuSig2 multi-signatures | API may change |
-| Adaptor signatures | API may change |
-| Pedersen commitments | API may change |
-| Multi-coin address derivation | API may change |
+The following features are part of the stable ABI but involve multi-party cryptographic protocols with complex security models. The **implementation** is stable; however, **independent external security review is required before production deployment** in adversarial multi-party settings:
 
-These will graduate to Tier 1 once their API surface is frozen and a
-test harness covers all edge cases.
+- **MuSig2** — rogue-key attacks, nonce reuse, coordinator equivocation
+- **FROST** — malicious participant DKG, nonce commitment replay, threshold abort
+- **Adaptor signatures** — DLC contract binding, secret extraction correctness
 
-> **MuSig2 and FROST**: These multi-party protocols have complex security
-> models (rogue-key attacks, nonce reuse, abort handling) that go beyond
-> standard single-signer ECDSA/Schnorr. **Independent external security
-> review is required before production deployment.** The self-audit suite
-> covers functional correctness and known-answer tests, but does not
-> substitute for a protocol-level cryptographic review.
+The self-audit suite covers functional correctness and known-answer tests but does not substitute for a protocol-level cryptographic review.
 
 ---
 

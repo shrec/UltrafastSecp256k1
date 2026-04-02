@@ -1,6 +1,6 @@
 # Security Claims & API Contract
 
-**UltrafastSecp256k1 v3.22.0** -- FAST / CT Dual-Layer Architecture (CPU + GPU)
+**UltrafastSecp256k1 v3.50.0** -- FAST / CT Dual-Layer Architecture (CPU + GPU)
 
 ## Operating Assumption
 
@@ -38,7 +38,7 @@ mathematical semantics. They differ **only** in execution profile:
 | **Nonce Erasure** | Not erased | Intermediate nonces erased (volatile fn-ptr) |
 | **Side-Channel** | Not resistant | Resistant (CPU backend) |
 
-### CT Overhead by Platform (v3.22.0)
+### CT Overhead by Platform (v3.4.0)
 
 Measured with `bench_unified` / `gpu_bench_unified` (signing operations; verify uses public inputs -- CT not needed):
 
@@ -393,4 +393,4 @@ Every release must answer: **"Did the CT scope change?"**
 
 ---
 
-*UltrafastSecp256k1 v3.22.0 -- Security Claims*
+*UltrafastSecp256k1 v3.50.0 -- Security Claims*

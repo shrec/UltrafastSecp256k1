@@ -57,7 +57,6 @@ static std::string load_shader_source(const std::string& exe_dir) {
     std::vector<std::string> files = {
         exe_dir + "/shaders/secp256k1_field.h",
         exe_dir + "/shaders/secp256k1_point.h",
-        exe_dir + "/shaders/secp256k1_bloom.h",
         exe_dir + "/shaders/secp256k1_kernels.metal"
     };
 

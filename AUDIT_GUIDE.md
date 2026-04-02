@@ -1,6 +1,44 @@
 # Audit Guide
 
-**UltrafastSecp256k1 v3.22.0** -- Independent Auditor Navigation
+**UltrafastSecp256k1 v3.50.0** -- Independent Auditor Navigation
+
+> The audit is not a document.
+> It is a reproducible system: clone, build, run, verify.
+>
+> If security cannot be reproduced locally, it is only a claim.
+
+## What this guide enables
+
+- Run the full audit locally in ~5 minutes
+- Reproduce all ~1,000,000+ security checks
+- Validate every public security claim
+- Add new exploit tests to extend coverage
+
+Security here is not described — it is executable.
+
+## Reproducible Audit
+
+This project does not ask you to trust a static report.
+
+You can:
+- clone the repository
+- build locally with standard tools
+- run the full audit (56 modules, ~1M+ checks)
+- reproduce the CI/CD pipeline via GitHub Actions YAML
+
+## Minimal Setup
+
+UltrafastSecp256k1 uses a standard toolchain only:
+
+- **CMake** + **Ninja**
+- **Clang** (or GCC)
+- **CUDA** (optional — for GPU audit targets)
+
+No proprietary environment. No hidden pipeline. No special auditor toolchain.
+
+> If you can compile it, you can verify it.
+
+---
 
 > This document is for auditors. Here you will find everything needed
 > to evaluate the library's security, correctness, and quality.
@@ -371,7 +409,7 @@ clang++ -fsanitize=fuzzer,address -O2 -std=c++20 \
 - [ ] **from_bytes vs from_limbs**: verify endianness handling
 - [ ] **ZK proofs**: `audit_zk` passes -- knowledge, DLEQ, range proof, serialization, rejection
 - [ ] **Wycheproof**: all 89 ECDSA + 36 ECDH adversarial vectors correctly rejected/accepted
-- [ ] **Fiat-Crypto linkage**: field arithmetic matches formally-verified reference
+- [ ] **Independent reference linkage**: field arithmetic matches independent schoolbook oracle + Fiat-Crypto golden vectors
 - [ ] **BIP-324**: handshake/encrypt/decrypt/tamper tests pass in `test_bip324_standalone` and FFI coverage passes in `test_ffi_coverage`
 - [ ] **GPU kernels**: verify arithmetic matches CPU reference (note: no CT guarantee on GPU)
 - [ ] **FROST / MuSig2**: verify protocol/adversarial suites and reference vectors remain green
@@ -387,4 +425,4 @@ clang++ -fsanitize=fuzzer,address -O2 -std=c++20 \
 
 ---
 
-*UltrafastSecp256k1 v3.22.0 -- Audit Guide*
+*UltrafastSecp256k1 v3.50.0 -- Audit Guide*

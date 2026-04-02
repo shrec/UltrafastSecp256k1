@@ -268,7 +268,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   conversion, `secure_erase` in destructor, `[[nodiscard]]` accessors. CT overloads for
   ECDSA/Schnorr operations. (#v3.17.0)
 - **Formal CT verification** -- Valgrind ctgrind (`SECP256K1_CLASSIFY`/`DECLASSIFY` markers),
-  Fiat-Crypto direct linkage (6085 cross-checks), ct-verif LLVM pass. (#v3.17.0, #v3.16.0)
+  independent reference linkage (6085 cross-checks), ct-verif LLVM pass. (#v3.17.0, #v3.16.0)
 - **Schnorr parity fix + branchless scalar_window** -- corrected BIP-340 parity bit,
   branchless CT implementation on RISC-V, platform-specific path on x86/ARM. (#v3.15.0)
 - **Point on-curve validation** -- audited 18 deserialization paths, fixed 4 CRITICAL +
@@ -585,7 +585,7 @@ Validation prefix: `0xb63b4601066a6971` (all platforms, both libraries match).
 
 ### 5. Formal Verification (I5)
 - **[I5-1] Formal CT verification (Valgrind ctgrind)** -- `audit/test_ct_verif_formal.cpp`: marks secrets as undefined via SECP256K1_CLASSIFY(), runs CT operations (ECDSA sign, Schnorr sign, field/scalar/point ops), then declassifies. Any secret-dependent branch triggers Valgrind error. Same technique as libsecp256k1 `valgrind_ctime_test.c` and BoringSSL `constant_time_test`
-- **[I5-2] Fiat-Crypto direct linkage** -- `audit/test_fiat_crypto_linkage.cpp`: Fiat-Crypto secp256k1_64 reference implementation (MIT License, Coq-extracted) embedded directly; 6085 cross-checks at function level (mul, sqr, add, sub, neg) with 100% output parity
+- **[I5-2] Independent reference linkage** -- `audit/test_fiat_crypto_linkage.cpp`: independent schoolbook secp256k1 reference implementation embedded directly; 6085 cross-checks at function level (mul, sqr, add, sub, neg) with 100% output parity against an independent oracle
 
 ### 6. Protocol-Level Hardening (I6)
 - **[I6-1] Hedged ECDSA** -- `ecdsa_sign_hedged()` + `rfc6979_nonce_hedged()` implementing RFC 6979 Section 3.6 with 32-byte aux_rand mixed into HMAC-DRBG. Both fast and CT variants. Sign-then-verify + secure_erase included

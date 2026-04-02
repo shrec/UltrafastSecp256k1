@@ -143,7 +143,7 @@ __device__ __forceinline__ uint64_t warp_reduce_sum64(uint64_t val) {
     return val;
 }
 
-/// Warp-wide OR reduction (useful for bloom filter checks).
+/// Warp-wide OR reduction.
 __device__ __forceinline__ uint32_t warp_reduce_or(uint32_t val) {
     constexpr uint32_t FULL_MASK = 0xFFFFFFFF;
     val |= __shfl_down_sync(FULL_MASK, val, 16);

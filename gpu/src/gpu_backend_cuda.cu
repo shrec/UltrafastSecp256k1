@@ -83,6 +83,23 @@ namespace gpu {
    from the secp256k1::cuda namespace into secp256k1::gpu. */
 using namespace cuda;
 
+namespace {
+
+struct CudaBatchScratch {
+    std::vector<uint8_t> result_bytes;
+
+    uint8_t* ensure_results(std::size_t count) {
+        if (result_bytes.size() < count) {
+            result_bytes.resize(count);
+        }
+        return result_bytes.data();
+    }
+};
+
+static thread_local CudaBatchScratch g_cuda_batch_scratch;
+
+} // namespace
+
 /* ============================================================================
  * Thin wrapper kernels for device functions without __global__ entry points
  * ============================================================================ */
@@ -327,13 +344,10 @@ public:
         CUDA_TRY(cudaDeviceSynchronize());
 
         /* Download results */
-        {
-            bool* h_res_raw = new bool[count];
-            CUDA_TRY(cudaMemcpy(h_res_raw, d_res, count * sizeof(bool), cudaMemcpyDeviceToHost));
-            for (size_t i = 0; i < count; ++i)
-                out_results[i] = h_res_raw[i] ? 1 : 0;
-            delete[] h_res_raw;
-        }
+        uint8_t* const h_res = g_cuda_batch_scratch.ensure_results(count);
+        CUDA_TRY(cudaMemcpy(h_res, d_res, count * sizeof(bool), cudaMemcpyDeviceToHost));
+        for (size_t i = 0; i < count; ++i)
+            out_results[i] = h_res[i] ? 1 : 0;
 
         cudaFree(d_res);
         cudaFree(d_sigs);
@@ -385,13 +399,10 @@ public:
         CUDA_TRY(cudaDeviceSynchronize());
 
         /* Download results */
-        {
-            bool* h_res_raw = new bool[count];
-            CUDA_TRY(cudaMemcpy(h_res_raw, d_res, count * sizeof(bool), cudaMemcpyDeviceToHost));
-            for (size_t i = 0; i < count; ++i)
-                out_results[i] = h_res_raw[i] ? 1 : 0;
-            delete[] h_res_raw;
-        }
+        uint8_t* const h_res = g_cuda_batch_scratch.ensure_results(count);
+        CUDA_TRY(cudaMemcpy(h_res, d_res, count * sizeof(bool), cudaMemcpyDeviceToHost));
+        for (size_t i = 0; i < count; ++i)
+            out_results[i] = h_res[i] ? 1 : 0;
 
         cudaFree(d_res);
         cudaFree(d_sigs);
@@ -742,13 +753,10 @@ public:
         CUDA_TRY(cudaGetLastError());
         CUDA_TRY(cudaDeviceSynchronize());
 
-        {
-            bool* h_res_raw = new bool[count];
-            CUDA_TRY(cudaMemcpy(h_res_raw, d_res, count * sizeof(bool), cudaMemcpyDeviceToHost));
-            for (size_t i = 0; i < count; ++i)
-                out_results[i] = h_res_raw[i] ? 1 : 0;
-            delete[] h_res_raw;
-        }
+        uint8_t* const h_res = g_cuda_batch_scratch.ensure_results(count);
+        CUDA_TRY(cudaMemcpy(h_res, d_res, count * sizeof(bool), cudaMemcpyDeviceToHost));
+        for (size_t i = 0; i < count; ++i)
+            out_results[i] = h_res[i] ? 1 : 0;
 
         cudaFree(d_res); cudaFree(d_msgs); cudaFree(d_pubs); cudaFree(d_proofs);
         clear_error();

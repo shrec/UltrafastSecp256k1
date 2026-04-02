@@ -372,11 +372,7 @@ static void test_null_length_nonce_commits(ufsecp_ctx* ctx) {
 // Main
 // ============================================================================
 
-#ifdef STANDALONE_TEST
-int main(int /*argc*/, char** /*argv*/)
-#else
-int test_fuzz_musig2_frost_main()
-#endif
+int test_fuzz_musig2_frost_run()
 {
     printf("===================================================================\n");
     printf("FUZZ: MuSig2 / FROST / Adaptor Parser Robustness\n");
@@ -407,3 +403,7 @@ int test_fuzz_musig2_frost_main()
     printf("===================================================================\n");
     return (g_fail == 0) ? 0 : 1;
 }
+
+#ifdef STANDALONE_TEST
+int main(int /*argc*/, char** /*argv*/) { return test_fuzz_musig2_frost_run(); }
+#endif

@@ -26,21 +26,9 @@
 #include "secp256k1/ct/point.hpp"
 #include "secp256k1/detail/secure_erase.hpp"
 #include <cstring>
+#include <stdexcept>
 
-// OS CSPRNG headers (same pattern as ecies.cpp)
-#if defined(_WIN32)
-#  include <windows.h>
-#  include <bcrypt.h>
-#  pragma comment(lib, "bcrypt.lib")
-#elif defined(__APPLE__)
-#  include <Security/SecRandom.h>
-#elif defined(__ANDROID__)
-#  include <cstdio>
-#elif defined(__linux__) || defined(__FreeBSD__) || defined(__OpenBSD__)
-#  include <sys/random.h>
-#else
-#  include <cstdio>
-#endif
+#include "secp256k1/detail/csprng.hpp"
 
 namespace secp256k1 {
 
@@ -50,34 +38,7 @@ using fast::FieldElement;
 
 namespace {
 
-// CSPRNG fill (same as ecies.cpp)
-void csprng_fill(std::uint8_t* buf, std::size_t len) {
-#if defined(_WIN32)
-    NTSTATUS const status = BCryptGenRandom(
-        nullptr, buf, static_cast<ULONG>(len), BCRYPT_USE_SYSTEM_PREFERRED_RNG);
-    if (status != 0) std::abort();
-#elif defined(__APPLE__)
-    if (SecRandomCopyBytes(kSecRandomDefault, len, buf) != errSecSuccess)
-        std::abort();
-#elif defined(__ANDROID__)
-    FILE* f = std::fopen("/dev/urandom", "rb");
-    if (!f) std::abort();
-    if (std::fread(buf, 1, len, f) != len) { std::fclose(f); std::abort(); }
-    std::fclose(f);
-#elif defined(__linux__) || defined(__FreeBSD__) || defined(__OpenBSD__)
-    std::size_t filled = 0;
-    while (filled < len) {
-        ssize_t const r = getrandom(buf + filled, len - filled, 0);
-        if (r <= 0) std::abort();
-        filled += static_cast<std::size_t>(r);
-    }
-#else
-    FILE* f = std::fopen("/dev/urandom", "rb");
-    if (!f) std::abort();
-    if (std::fread(buf, 1, len, f) != len) { std::fclose(f); std::abort(); }
-    std::fclose(f);
-#endif
-}
+using secp256k1::detail::csprng_fill;
 
 // secp256k1 curve constant b = 7
 static const FieldElement FE_SEVEN = FieldElement::from_uint64(7);
@@ -363,15 +324,19 @@ FieldElement ellswift_decode(const std::uint8_t encoding[64]) noexcept {
     return xswiftec_fwd(u, t);
 }
 
-std::array<std::uint8_t, 64> ellswift_create(const Scalar& privkey) noexcept {
+std::array<std::uint8_t, 64> ellswift_create(const Scalar& privkey) {
     // Compute the public key's x-coordinate (constant-time: privkey is secret)
     auto pub = ct::generator_mul(privkey);
     auto x = pub.x();
 
     std::array<std::uint8_t, 64> result{};
 
-    // Try random u values until we find one where xswiftec_inv succeeds
-    for (;;) {
+    // Try random u values until we find one where xswiftec_inv succeeds.
+    // Expected iterations: ~1.14 (each u has 7/8 chance of >=1 valid case).
+    // Cap at 100 to prevent an infinite loop if csprng_fill is broken (e.g.
+    // /dev/urandom exhausted on embedded targets or adversarial fuzzer env).
+    static constexpr int kMaxAttempts = 100;
+    for (int attempt = 0; attempt < kMaxAttempts; ++attempt) {
         std::uint8_t rand_bytes[32];
         csprng_fill(rand_bytes, 32);
 
@@ -398,6 +363,10 @@ std::array<std::uint8_t, 64> ellswift_create(const Scalar& privkey) noexcept {
         }
         // If no case worked for this u, try another random u
     }
+    // Should never be reached with a functioning RNG (~10^-10 probability
+    // after 100 attempts). Throw so UFSECP_CATCH_RETURN converts to
+    // UFSECP_ERR_INTERNAL rather than hanging.
+    throw std::runtime_error("ellswift_create: RNG produced 100 consecutive unusable values");
 }
 
 std::array<std::uint8_t, 32> ellswift_xdh(

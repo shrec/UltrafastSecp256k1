@@ -1,5 +1,4 @@
 #include "secp256k1.cuh"
-#include "bloom.cuh"
 #include "ecdsa.cuh"
 #include "schnorr.cuh"
 #include "ecdh.cuh"
@@ -1305,93 +1304,6 @@ static bool test_distributive(bool verbose) {
     return ok;
 }
 
-static bool test_bloom_filter(bool verbose) {
-    if (verbose) std::cout << "\nBloom Filter (GPU):\n";
-    
-    // 1. Setup Bloom Filter
-    uint64_t m_bits = 1024; // Small size for testing
-    uint32_t k = 3;
-    uint64_t salt = 0x1234567890ABCDEF;
-    
-    size_t num_words = (m_bits + 63) / 64;
-    uint64_t* d_bitwords;
-    cudaMalloc(&d_bitwords, num_words * sizeof(uint64_t));
-    cudaMemset(d_bitwords, 0, num_words * sizeof(uint64_t));
-    
-    DeviceBloom filter;
-    filter.bitwords = d_bitwords;
-    filter.m_bits = m_bits;
-    filter.k = k;
-    filter.salt = salt;
-    
-    // 2. Prepare Data
-    const char* items[] = { "hello", "world", "cuda", "bloom" };
-    const char* missing[] = { "foo", "bar", "baz", "missing" };
-    int num_items = 4;
-    int item_len = 8; // Fixed length for simplicity in this test
-    
-    uint8_t* h_data = new uint8_t[num_items * item_len];
-    memset(h_data, 0, num_items * item_len);
-    for(int i=0; i<num_items; i++) {
-        strncpy((char*)h_data + i*item_len, items[i], item_len);
-    }
-    
-    uint8_t* d_data;
-    cudaMalloc(&d_data, num_items * item_len);
-    cudaMemcpy(d_data, h_data, num_items * item_len, cudaMemcpyHostToDevice);
-    
-    // 3. Add items on GPU
-    bloom_add_kernel<<<1, 32>>>(filter, d_data, item_len, num_items);
-    cudaDeviceSynchronize();
-    
-    // 4. Check items on GPU (Positive Test)
-    uint8_t* d_results;
-    cudaMalloc(&d_results, num_items);
-    bloom_check_kernel<<<1, 32>>>(filter, d_data, item_len, num_items, d_results);
-    cudaDeviceSynchronize();
-    
-    uint8_t h_results[4];
-    cudaMemcpy(h_results, d_results, num_items, cudaMemcpyDeviceToHost);
-    
-    bool ok = true;
-    for(int i=0; i<num_items; i++) {
-        if(h_results[i] != 1) {
-            if(verbose) std::cout << "    FAIL: Item '" << items[i] << "' not found.\n";
-            ok = false;
-        }
-    }
-    
-    // 5. Check missing items (Negative Test)
-    memset(h_data, 0, num_items * item_len);
-    for(int i=0; i<num_items; i++) {
-        strncpy((char*)h_data + i*item_len, missing[i], item_len);
-    }
-    cudaMemcpy(d_data, h_data, num_items * item_len, cudaMemcpyHostToDevice);
-    
-    bloom_check_kernel<<<1, 32>>>(filter, d_data, item_len, num_items, d_results);
-    cudaDeviceSynchronize();
-    
-    cudaMemcpy(h_results, d_results, num_items, cudaMemcpyDeviceToHost);
-    
-    // We don't strictly fail on false positives for random strings, but we expect 0 for these specific ones
-    // given the low fill rate.
-    for(int i=0; i<num_items; i++) {
-        if(h_results[i] != 0) {
-             // Just log it, don't fail the test unless we are sure
-             // if(verbose) std::cout << "    Note: False positive for '" << missing[i] << "'\n";
-        }
-    }
-    
-    if (verbose) std::cout << (ok ? "    PASS\n" : "    FAIL\n");
-    
-    delete[] h_data;
-    cudaFree(d_bitwords);
-    cudaFree(d_data);
-    cudaFree(d_results);
-    
-    return ok;
-}
-
 // ============================================================================
 // Extended Scalar Operations Tests (P0)
 // ============================================================================
@@ -2652,9 +2564,6 @@ bool Selftest(bool verbose) {
     
     total++;
     if (test_subtraction(verbose)) passed++;
-
-    total++;
-    if (test_bloom_filter(verbose)) passed++;
 
     // Edge case tests
     total++;

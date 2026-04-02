@@ -191,7 +191,7 @@ The following may bypass the standard deprecation period:
 
 1. **Security vulnerabilities** -- immediate removal if continued availability poses a risk.
 2. **Legal requirements** -- compliance-driven changes.
-3. **Experimental features** -- marked `[EXPERIMENTAL]` have no stability guarantee.
+3. Features explicitly marked `[DEPRECATED]` follow the deprecation cycle above.
 
 Any exception must be documented in the CHANGELOG with justification.
 

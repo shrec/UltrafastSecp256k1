@@ -2,6 +2,31 @@
 
 **Last updated**: 2026-03-15
 
+## Enforcement Model
+
+This project does not rely on post-hoc audits.
+
+All security, correctness, and performance checks are enforced in CI.
+If a change violates any constraint, it is rejected automatically.
+
+```
+Commit → CI → Audit → PASS → Merge
+                ↓
+              FAIL → Block
+```
+
+**Core Rule:** If CI fails — the change does not exist.
+
+This means:
+- A failing exploit test blocks the merge
+- A performance regression blocks the merge
+- A CT verification failure blocks the merge
+- A static analysis violation blocks the merge
+
+Security is not reviewed after the fact — it is enforced at every commit.
+
+---
+
 Maps every CI workflow to its enforcement level: merge-blocking, advisory, or nightly-only.
 
 ---

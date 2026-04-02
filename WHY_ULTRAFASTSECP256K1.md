@@ -2,6 +2,23 @@
 
 > A detailed look at what sets this library apart — not just in speed, but in engineering discipline, audit culture, and verified correctness.
 
+## TL;DR
+
+Traditional audits produce documents. This system produces **continuous evidence**.
+
+| Differentiator | UltrafastSecp256k1 |
+|---------------|---------------------|
+| Audit model | Continuous — every commit, not one-time |
+| Exploit tests | 135 PoC modules, 134 attack vectors, 0 failures |
+| Checks per run | ~1,000,000+ assertions |
+| Nightly checks | ~1,300,000+ random differential tests |
+| CI workflows | 31 workflows, 16 platform combinations |
+| CT verification | 3 formal pipelines (LLVM ct-verif + empirical + Valgrind) |
+| GPU performance | 11.00 M BIP-352 scans/s · 4.88 M ECDSA signs/s |
+| Philosophy | Don't trust — reproduce |
+
+Every exploit attempt becomes a permanent regression test. Security hardens on every commit, not just on release day.
+
 ---
 
 ## 1. Audit-First Engineering Culture
@@ -37,7 +54,7 @@ These top-level differentiators are claim-keyed in the ledger: exploit-audit sur
 | Exploit PoC tests | 86 dedicated adversarial PoC tests across 14 coverage areas (`audit/test_exploit_*.cpp`) | 86 test files, 0 failures |
 | Fuzz / adversarial | libFuzzer harnesses + 530K deterministic corpus adversarial checks | ~530,000+ |
 | Wycheproof vectors | Google's cryptographic test vectors for ECDSA and ECDH | Hundreds of vectors |
-| Fiat-Crypto linkage | Cross-validates field arithmetic against formally-verified Fiat-Crypto reference | Full suite |
+| Independent reference linkage | Cross-validates field arithmetic against independent schoolbook oracle + golden vectors | Full suite |
 | FROST / MuSig2 KAT | Protocol-level Known Answer Tests per BIP-327 and FROST spec | Full suite |
 | Fault injection | Tests behaviour under simulated hardware faults (bit flips, counter skips) | Full suite |
 | ABI gate | FFI round-trip stability, C ABI regression detection | Full suite |
@@ -68,10 +85,10 @@ All 86 exploit PoC tests pass. Zero failures across all 14 coverage areas.
 
 ---
 
-## 2. CI/CD Pipeline — 24 Automated Workflows
+## 2. CI/CD Pipeline — 31 Automated Workflows
 
 The continuous integration pipeline is not a basic build-and-test gate.
-It is a multi-layer quality enforcement system with 24 GitHub Actions workflows
+It is a multi-layer quality enforcement system with 25 GitHub Actions workflows
 covering security, correctness, performance, supply chain, and formal analysis.
 
 It is also only one part of the assurance model. The repository is routinely reviewed
@@ -161,7 +178,7 @@ UltrafastSecp256k1 applies the OpenSSF supply-chain hardening model:
 
 | Layer | Method | Status |
 |-------|--------|--------|
-| Field arithmetic correctness | Fiat-Crypto cross-validation (differential testing against formally-verified reference) | Active |
+| Field arithmetic correctness | Independent reference cross-validation (differential testing against schoolbook oracle + golden vectors) | Active |
 | Constant-time (field/scalar) | `ct-verif` tool + ARM64 hardware CI | Active |
 | Constant-time (point ops) | Dedicated `ct-arm64.yml` pipeline + Valgrind shadow analysis | Active |
 | Wycheproof ECDSA/ECDH | Google's adversarial test vector suite | Active |
@@ -210,7 +227,7 @@ At the same time, it does not wait for a third party to begin strengthening corr
 However, "not externally audited" does **not** mean "unverified." The internal quality infrastructure described in this document represents a systematic, multi-layer correctness assurance program that most open-source cryptographic libraries do not have:
 
 - Over **1,000,000 internal audit assertions** executed on every build
-- **24 CI/CD workflows** enforcing correctness, security, and performance on every push/PR plus scheduled assurance runs
+- **31 CI/CD workflows** enforcing correctness, security, and performance on every push/PR plus scheduled assurance runs
 - **Formal constant-time verification** on two independent platforms
 - **Supply-chain hardening** at the OpenSSF standard
 - **Nightly differential testing** at 1.3M+ additional random checks per night

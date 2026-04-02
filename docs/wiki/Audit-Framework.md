@@ -102,8 +102,8 @@ schedules across multiple platforms and compilers.
 | Module | Source File | Checks | What It Tests |
 |--------|-----------|-------:|---------------|
 | `differential` | `differential_test.cpp` | -- | Self-consistency: 5x52 vs 10x26 vs 4x64 cross-impl comparison |
-| `fiat_crypto` | `test_fiat_crypto_vectors.cpp` | 647 | Fiat-Crypto/Sage reference vectors: mul, sqr, inv, add, sub |
-| `fiat_crypto_link` | `test_fiat_crypto_linkage.cpp` | -- | Fiat-Crypto direct linkage cross-check |
+| `fiat_crypto` | `test_fiat_crypto_vectors.cpp` | 647 | Independent reference / Sage golden vectors: mul, sqr, inv, add, sub |
+| `fiat_crypto_link` | `test_fiat_crypto_linkage.cpp` | -- | Independent reference linkage cross-check (schoolbook oracle) |
 | `cross_platform_kat` | `test_cross_platform_kat.cpp` | 24 | Cross-platform KAT: field, scalar, point, ECDSA, Schnorr |
 
 ### Section 4: Standard Test Vectors
@@ -486,4 +486,4 @@ Human-readable summary with pass/fail status for each module.
 ---
 
 *Last updated: 2026-03-04*
-*UltrafastSecp256k1 v3.18.0*
+*UltrafastSecp256k1 v3.50.0*

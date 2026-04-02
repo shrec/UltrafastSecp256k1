@@ -18,6 +18,10 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag to backfill (e.g. v3.50.0)'
+        required: true
 
 concurrency:
   group: packaging-${{ github.ref }}
@@ -25,6 +29,9 @@ concurrency:
 
 permissions:
   contents: read
+
+env:
+  RELEASE_TAG: ${{ github.event.inputs.tag || github.ref_name }}
 
 jobs:
   # --------------------------------------------------------------------------
@@ -52,6 +59,7 @@ jobs:
 
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
+          ref: ${{ env.RELEASE_TAG }}
           persist-credentials: false
 
       - name: Install build dependencies
@@ -68,6 +76,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release \
             -DSECP256K1_BUILD_TESTS=OFF \
             -DSECP256K1_BUILD_BENCH=OFF \
+            -DSECP256K1_BUILD_JAVA=OFF \
             -DSECP256K1_BUILD_SHARED=ON \
             -DSECP256K1_INSTALL=ON \
             -DSECP256K1_INSTALL_PKGCONFIG=ON \
@@ -103,6 +112,7 @@ jobs:
 
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
+          ref: ${{ env.RELEASE_TAG }}
           persist-credentials: false
 
       - name: Configure
@@ -111,6 +121,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release \
             -DSECP256K1_BUILD_TESTS=OFF \
             -DSECP256K1_BUILD_BENCH=OFF \
+            -DSECP256K1_BUILD_JAVA=OFF \
             -DSECP256K1_BUILD_SHARED=ON \
             -DSECP256K1_INSTALL=ON \
             -DSECP256K1_INSTALL_PKGCONFIG=ON \
@@ -161,11 +172,11 @@ jobs:
         run: find packages -type f | sort
 
       - name: Attach packages to GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(env.RELEASE_TAG, 'v')
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          TAG="${GITHUB_REF_NAME}"
+          TAG="${RELEASE_TAG}"
 
           # Collect package files
           mapfile -t PKG_FILES < <(find packages -type f \( -name '*.deb' -o -name '*.rpm' \))
@@ -217,7 +228,7 @@ jobs:
           fi
 
       - name: Build APT repository
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(env.RELEASE_TAG, 'v')
         run: |
           # Install APT repo tools
           sudo apt-get update -qq
@@ -270,7 +281,7 @@ jobs:
           } >> Release
 
       - name: Deploy APT repo to GitHub Pages
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(env.RELEASE_TAG, 'v')
         uses: peaceiris/actions-gh-pages@4f9cc6602d3f66b9c108549d475ec49e8ef4d45e # v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}

@@ -1,12 +1,14 @@
 # Cross-Platform Test Matrix
 
-> **Generated**: 2025 | **Library**: UltrafastSecp256k1 | **Total CTest Targets**: 41
+> **Generated**: 2026-03-29 | **Library**: UltrafastSecp256k1 | **Current Validation Surface**: 182 active CTest targets
 >
-> ყველა ტესტი უნდა იყოს იდენტური ყველა პლატფორმაზე. ნებისმიერი განსხვავება = **BUG**.
+> ეს დოკი წარმოადგენს cross-platform მაღალი-სიგნალის portability subset-ს და არა სრულ 182-target inventory-ს.
+> სრული აქტიური ზედაპირისთვის authoritative წყაროებია `docs/TEST_MATRIX.md` და `scripts/validate_assurance.py`.
+> მიზანი უცვლელია: ერთი და იგივე ფუნქციური ინვარიანტები ყველა მხარდაჭერილ პლატფორმაზე უნდა გადიოდეს. ნებისმიერი განსხვავება = **BUG**.
 
 ---
 
-## Test Inventory (41 Tests)
+## Representative Portability Subset (41 Tests)
 
 | #  | Test Name               | Category            | Checks | Description                                                      |
 |----|------------------------|---------------------|--------|------------------------------------------------------------------|
@@ -47,10 +49,10 @@
 | 35 | cross_platform_kat     | KAT Equivalence     | 24     | Cross-platform KAT: field, scalar, point, ECDSA, Schnorr        |
 | 36 | abi_gate               | ABI Compatibility   | 12     | ABI version gate: compile-time macro validation                  |
 | 37 | ct_verif_formal        | Formal Verification | ~50    | CT formal verification stubs                                     |
-| 38 | fiat_crypto_linkage    | Formal Verification | ~50    | Fiat-Crypto linkage verification                                 |
+| 38 | fiat_crypto_linkage    | Differential        | ~50    | Independent reference linkage verification                       |
 | 39 | audit_fuzz             | Fuzz Testing        | ~500   | Fuzz-derived audit: random inputs through all paths              |
 | 40 | diag_scalar_mul        | Diagnostics         | ~50    | Scalar multiplication step-by-step diagnostic                    |
-| 41 | unified_audit          | Full Audit          | ~49 modules | Unified audit runner: all 49 audit modules in single binary |
+| 41 | unified_audit          | Full Audit          | ~70 modules | Unified audit runner: all current audit modules in a single binary |
 
 ---
 
@@ -124,7 +126,7 @@
 | x86-64 macOS        | ci.yml            | push/PR        | [OK] Active |
 | ARM64 Linux          | ci.yml (qemu)    | push/PR        | [OK] Active |
 | RISC-V 64            | Manual / Cross   | manual         | [!] Manual |
-| WASM                 | --                 | --              | 🔲 Planned |
+| WASM                 | release.yml      | release/manual | [OK] Active |
 | ESP32                | --                 | --              | 🔲 Planned |
 | STM32                | --                 | --              | 🔲 Planned |
 
@@ -133,7 +135,7 @@
 ## Verification Summary (Current Session -- x86-64 Linux, Clang)
 
 ```
-CTest Results: 41/41 passed, 0 failed
+Representative portability subset: 41/41 passed, 0 failed
 
 Individual check counts:
   selftest .................. ~200 checks
@@ -176,7 +178,7 @@ Individual check counts:
   fiat_crypto_linkage ....... ~50  checks
   audit_fuzz ................ ~500 checks
   diag_scalar_mul ........... ~50  checks
-  unified_audit ............. 49 modules
+  unified_audit ............. 70 modules
   -----------------------------------------
   TOTAL (estimated):         ~6400+ individual assertions
 ```

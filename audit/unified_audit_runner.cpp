@@ -139,6 +139,7 @@ int test_gpu_abi_gate_run();          // Discovery, lifecycle, ops-if-available
 int test_audit_fuzz_run();
 int test_fuzz_parsers_run();
 int test_fuzz_address_bip32_ffi_run();
+int test_fuzz_musig2_frost_run();
 
 // ============================================================================
 // Forward declarations -- Wycheproof & batch-randomness (Track I3, I6-3)
@@ -207,7 +208,7 @@ int test_ethereum_run();
 #endif
 
 // ============================================================================
-// Forward declarations -- Exploit PoC tests (106 standalone security probes)
+// Forward declarations -- Exploit PoC tests
 // ============================================================================
 int test_exploit_adaptor_extended_run();
 int test_exploit_adaptor_parity_run();
@@ -240,6 +241,7 @@ int test_exploit_coin_hd_derivation_run();
 int test_exploit_ct_fast_equivalence_run();
 int test_exploit_ct_recov_run();
 int test_exploit_ct_systematic_run();
+int test_exploit_ctx_clone_run();
 int test_exploit_ctx_lifecycle_hostile_run();
 int test_exploit_der_parsing_differential_run();
 int test_exploit_ecdh_run();
@@ -277,6 +279,7 @@ int test_exploit_gpu_host_api_shape_run();
 int test_exploit_hedged_nonce_bias_run();
 int test_exploit_hkdf_kat_run();
 int test_exploit_hkdf_security_run();
+int test_infinity_edge_cases_run();
 int test_exploit_invalid_curve_twist_run();
 int test_exploit_keccak256_kat_run();
 int test_exploit_multiscalar_run();
@@ -301,6 +304,7 @@ int test_exploit_schnorr_bip340_kat_run();
 int test_exploit_schnorr_edge_cases_run();
 int test_exploit_schnorr_forgery_vectors_run();
 int test_exploit_schnorr_xonly_parity_confusion_run();
+int test_exploit_seckey_arith_run();
 int test_exploit_seckey_tweak_cancel_run();
 int test_exploit_segwit_encoding_run();
 int test_exploit_selftest_api_run();
@@ -317,6 +321,46 @@ int test_exploit_zk_adversarial_run();
 int test_exploit_zk_proofs_run();
 
 // ============================================================================
+// Forward declarations -- Feature Exploit PoC tests (P2SH, BIP-85, BIP-340 var,
+//                          BIP-322, BIP-158 GCS, PSBT, Descriptors)
+// ============================================================================
+int test_exploit_p2sh_address_confusion_run();
+int test_exploit_bip85_path_collision_run();
+int test_exploit_schnorr_msg_length_confusion_run();
+int test_exploit_bip322_type_confusion_run();
+int test_exploit_gcs_false_positive_run();
+int test_exploit_psbt_input_confusion_run();
+int test_exploit_descriptor_injection_run();
+int test_exploit_pubkey_arith_run();
+int test_exploit_batch_sign_run();
+int test_exploit_ecdsa_nonce_reuse_run();
+int test_exploit_cross_scheme_pubkey_run();
+int test_exploit_wif_security_run();
+int test_exploit_buffer_type_confusion_run();
+int test_exploit_differential_libsecp_run();
+int test_exploit_bip352_scan_dos_run();
+int test_exploit_taproot_commitment_adversarial_run();
+int test_exploit_bip352_parity_confusion_run();
+int test_exploit_rfc6979_truncation_bias_run();
+int test_exploit_binding_adversarial_api_run();
+int test_exploit_quantum_exposure_run();
+int test_exploit_ecies_ephemeral_reuse_run();
+int test_exploit_address_prefix_collision_run();
+int test_exploit_binding_invalid_curve_run();
+int test_exploit_frost_ct_nonce_run();
+int test_exploit_frost_participant_set_malleability_run();
+int test_exploit_musig2_parallel_session_cross_run();
+int test_exploit_ecdh_zvp_glv_static_run();
+int test_exploit_frost_adaptive_corruption_run();
+int test_exploit_ecdsa_fault_injection_run();
+int test_exploit_cache_sidechannel_amplification_run();
+int test_exploit_ladderleak_subbit_nonce_run();
+int test_exploit_minerva_noisy_hnp_run();
+int test_exploit_hertzbleed_dvfs_timing_run();
+int test_exploit_biased_nonce_chain_scan_run();
+int test_exploit_kr_ecdsa_buff_binding_run();
+
+// ============================================================================
 // Report section IDs -- 9 audit categories
 // ============================================================================
 //   1. math_invariants   -- Mathematical Invariants (Fp, Zn, Group Laws)
@@ -327,7 +371,7 @@ int test_exploit_zk_proofs_run();
 //   6. protocol_security -- Protocol Security (ECDSA, Schnorr, MuSig2, FROST)
 //   7. memory_safety     -- ABI & Memory Safety (sanitizer, zeroization)
 //   8. performance       -- Performance Validation & Regression
-//   9. exploit_poc       -- Exploit PoC Security Probes (106 attack vectors)
+//   9. exploit_poc       -- Exploit PoC Security Probes
 // ============================================================================
 
 struct AuditModule {
@@ -363,7 +407,7 @@ static const SectionInfo SECTIONS[] = {
     { "performance",       "\xe1\x83\x9e\xe1\x83\x94\xe1\x83\xa0\xe1\x83\xa4\xe1\x83\x9d\xe1\x83\xa0\xe1\x83\x9b\xe1\x83\x90\xe1\x83\x9c\xe1\x83\xa1\xe1\x83\x98\xe1\x83\xa1 \xe1\x83\x95\xe1\x83\x90\xe1\x83\x9a\xe1\x83\x98\xe1\x83\x93\xe1\x83\x90\xe1\x83\xaa\xe1\x83\x98\xe1\x83\x90",
                            "Performance Validation & Regression" },
     { "exploit_poc",       "\xe1\x83\x94\xe1\x83\xa5\xe1\x83\xa1\xe1\x83\x9e\xe1\x83\x9a\xe1\x83\x9d\xe1\x83\x98\xe1\x83\xa2 PoC \xe1\x83\xa2\xe1\x83\x94\xe1\x83\xa1\xe1\x83\xa2\xe1\x83\x94\xe1\x83\x91\xe1\x83\x98",
-                           "Exploit PoC Security Probes (106 attack vectors)" },
+                           "Exploit PoC Security Probes" },
 };
 static constexpr int NUM_SECTIONS = sizeof(SECTIONS) / sizeof(SECTIONS[0]);
 
@@ -425,6 +469,7 @@ static const AuditModule ALL_MODULES[] = {
     { "audit_fuzz",        "Adversarial fuzz (malform/edge)",              "fuzzing",        test_audit_fuzz_run, false },
     { "fuzz_parsers",      "Parser fuzz (DER/Schnorr/Pubkey)",            "fuzzing",        test_fuzz_parsers_run, false },
     { "fuzz_addr_bip32",   "Address/BIP32/FFI boundary fuzz",             "fuzzing",        test_fuzz_address_bip32_ffi_run, false },
+    { "fuzz_musig2_frost", "Parser fuzz: MuSig2/FROST/Adaptor (15 probes)","fuzzing",        test_fuzz_musig2_frost_run, false },
     { "fault_injection",   "Fault injection simulation",                   "fuzzing",        test_fault_injection_run, false },
 
     // ===================================================================
@@ -474,7 +519,7 @@ static const AuditModule ALL_MODULES[] = {
     { "audit_perf",        "Performance smoke (sign/verify roundtrip)",    "performance",    audit_perf_run, false },
 
     // ===================================================================
-    // Section 9: Exploit PoC Security Probes (106 attack vectors)
+    // Section 9: Exploit PoC Security Probes
     // ===================================================================
     { "exploit_adaptor_extended",       "Adaptor Signature Extended Security",          "exploit_poc", test_exploit_adaptor_extended_run, false },
     { "exploit_adaptor_parity",         "Adaptor Signature R.y Parity",                "exploit_poc", test_exploit_adaptor_parity_run, false },
@@ -507,6 +552,7 @@ static const AuditModule ALL_MODULES[] = {
     { "exploit_ct_fast_equiv",          "CT vs Fast Signing Equivalence",              "exploit_poc", test_exploit_ct_fast_equivalence_run, false },
     { "exploit_ct_recov",              "CT ct::ecdsa_sign_recoverable",               "exploit_poc", test_exploit_ct_recov_run, false },
     { "exploit_ct_systematic",          "CT vs FAST Output Divergence",                "exploit_poc", test_exploit_ct_systematic_run, false },
+    { "exploit_ctx_clone",              "Context Clone Isolation Security",            "exploit_poc", test_exploit_ctx_clone_run, false },
     { "exploit_ctx_lifecycle",          "Context / Precompute Lifecycle Abuse",         "exploit_poc", test_exploit_ctx_lifecycle_hostile_run, false },
     { "exploit_der_parse_diff",         "DER Parsing Differential",                    "exploit_poc", test_exploit_der_parsing_differential_run, false },
     { "exploit_ecdh",                   "ECDH Key Exchange Security",                  "exploit_poc", test_exploit_ecdh_run, false },
@@ -544,6 +590,7 @@ static const AuditModule ALL_MODULES[] = {
     { "exploit_hedged_nonce_bias",      "Hedged Signature Nonce Bias",                 "exploit_poc", test_exploit_hedged_nonce_bias_run, false },
     { "exploit_hkdf_kat",               "HKDF-SHA256 KAT (RFC 5869)",                 "exploit_poc", test_exploit_hkdf_kat_run, false },
     { "exploit_hkdf_security",          "HKDF-SHA256 Security (RFC 5869)",             "exploit_poc", test_exploit_hkdf_security_run, false },
+    { "infinity_edge_cases",            "Point-at-Infinity Edge Cases (INF-1..28)",    "exploit_poc", test_infinity_edge_cases_run, false },
     { "exploit_invalid_curve_twist",    "Invalid Curve / Twist Point Injection",       "exploit_poc", test_exploit_invalid_curve_twist_run, false },
     { "exploit_keccak256_kat",          "Keccak-256 KAT Vectors",                      "exploit_poc", test_exploit_keccak256_kat_run, false },
     { "exploit_multiscalar",            "Multi-Scalar Multiplication",                 "exploit_poc", test_exploit_multiscalar_run, false },
@@ -568,6 +615,7 @@ static const AuditModule ALL_MODULES[] = {
     { "exploit_schnorr_edge_cases",     "Schnorr Signature Edge Cases",                "exploit_poc", test_exploit_schnorr_edge_cases_run, false },
     { "exploit_schnorr_forgery",        "Schnorr BIP-340 Forgery Rejection",           "exploit_poc", test_exploit_schnorr_forgery_vectors_run, false },
     { "exploit_schnorr_xonly_parity",   "Schnorr X-Only Parity Confusion",             "exploit_poc", test_exploit_schnorr_xonly_parity_confusion_run, false },
+    { "exploit_seckey_arith",           "Secret Key Arithmetic (tweak/negate/cross)",  "exploit_poc", test_exploit_seckey_arith_run, false },
     { "exploit_seckey_tweak_cancel",    "Secret Key Tweak Cancellation",               "exploit_poc", test_exploit_seckey_tweak_cancel_run, false },
     { "exploit_segwit_encoding",        "SegWit Script Encoding Security",             "exploit_poc", test_exploit_segwit_encoding_run, false },
     { "exploit_selftest_api",           "Selftest API Security",                       "exploit_poc", test_exploit_selftest_api_run, false },
@@ -582,6 +630,42 @@ static const AuditModule ALL_MODULES[] = {
     { "exploit_wallet_cross_domain",    "Wallet Cross-Domain Replay",                  "exploit_poc", test_exploit_wallet_cross_domain_replay_run, false },
     { "exploit_zk_adversarial",         "ZK Proof Adversarial / Malformed",            "exploit_poc", test_exploit_zk_adversarial_run, false },
     { "exploit_zk_proofs",              "ZK Proof Soundness",                          "exploit_poc", test_exploit_zk_proofs_run, false },
+    // Feature exploit PoC tests (P2SH, BIP-85, BIP-340 var, BIP-322, GCS, PSBT, Desc)
+    { "exploit_p2sh_addr_confusion",    "P2SH / P2SH-P2WPKH Address Type Confusion",  "exploit_poc", test_exploit_p2sh_address_confusion_run, false },
+    { "exploit_bip85_path_collision",   "BIP-85 Path Collision and Entropy Security",  "exploit_poc", test_exploit_bip85_path_collision_run, false },
+    { "exploit_schnorr_msg_len",        "Schnorr Variable-Length Message Confusion",   "exploit_poc", test_exploit_schnorr_msg_length_confusion_run, false },
+    { "exploit_bip322_type_confusion",  "BIP-322 Generic Message Signing Type Confusion", "exploit_poc", test_exploit_bip322_type_confusion_run, false },
+    { "exploit_gcs_false_positive",     "BIP-158 GCS Filter False Positive Correctness", "exploit_poc", test_exploit_gcs_false_positive_run, false },
+    { "exploit_psbt_input_confusion",   "PSBT Input Type Confusion (BIP-174/370)",     "exploit_poc", test_exploit_psbt_input_confusion_run, false },
+    { "exploit_descriptor_injection",   "Output Descriptor Injection / Type Confusion","exploit_poc", test_exploit_descriptor_injection_run, false },
+    { "exploit_pubkey_arith",           "Public Key Arithmetic Security (PUB-1..9)",   "exploit_poc", test_exploit_pubkey_arith_run, false },
+    { "exploit_batch_sign",             "Batch Signing Edge-Case Security (BSG-1..9)", "exploit_poc", test_exploit_batch_sign_run, false },
+    { "exploit_ecdsa_nonce_reuse",      "ECDSA Nonce Reuse Key Recovery (NRR-1..8)",   "exploit_poc", test_exploit_ecdsa_nonce_reuse_run, false },
+    { "exploit_cross_scheme_pubkey",    "Cross-Scheme Pubkey Consistency (CSP-1..8)",  "exploit_poc", test_exploit_cross_scheme_pubkey_run, false },
+    { "exploit_wif_security",           "WIF Key Format Security (WIF-1..10)",         "exploit_poc", test_exploit_wif_security_run, false },
+    { "exploit_buffer_type_confusion",  "Buffer/Type-Confusion (BTC-0..12)",           "exploit_poc", test_exploit_buffer_type_confusion_run, false },
+    { "exploit_differential_libsecp",   "Differential Correctness (DIF-1..10)",        "exploit_poc", test_exploit_differential_libsecp_run, false },
+    { "exploit_bip352_scan_dos",        "BIP-352 Scan DoS Prevention (DOS-0..3)",      "exploit_poc", test_exploit_bip352_scan_dos_run, false },
+    { "exploit_taproot_commit_adv",     "Taproot Commitment Adversarial (TCA-1..5)",   "exploit_poc", test_exploit_taproot_commitment_adversarial_run, false },
+    { "exploit_bip352_parity",          "BIP-352 Parity Confusion (PAR-1..6)",         "exploit_poc", test_exploit_bip352_parity_confusion_run, false },
+    { "exploit_rfc6979_trunc_bias",     "RFC6979 Nonce Truncation Bias (NTB-1..5)",    "exploit_poc", test_exploit_rfc6979_truncation_bias_run, false },
+    { "exploit_binding_adv_api",        "Binding Adversarial API (BAT-1..11)",         "exploit_poc", test_exploit_binding_adversarial_api_run, false },
+    { "exploit_quantum_exposure",       "Quantum Exposure Surface (QEX-1..6)",         "exploit_poc", test_exploit_quantum_exposure_run, false },
+    { "exploit_ecies_ephemeral_reuse",  "ECIES Ephemeral Reuse (EKR-1..4)",            "exploit_poc", test_exploit_ecies_ephemeral_reuse_run, false },
+    { "exploit_addr_prefix_collision",  "Address Prefix Collision (APC-1..6)",         "exploit_poc", test_exploit_address_prefix_collision_run, false },
+    { "exploit_binding_invalid_curve",  "Binding Invalid Curve (BIC)",                 "exploit_poc", test_exploit_binding_invalid_curve_run, false },
+    { "exploit_frost_ct_nonce",         "FROST CT Nonce (FCN)",                        "exploit_poc", test_exploit_frost_ct_nonce_run, false },
+    { "exploit_frost_part_set_mall",    "FROST Participant Set Malleability (FPS)",    "exploit_poc", test_exploit_frost_participant_set_malleability_run, false },
+    { "exploit_musig2_par_session",     "MuSig2 Parallel Session Cross (MPS)",         "exploit_poc", test_exploit_musig2_parallel_session_cross_run, false },
+    { "exploit_ecdh_zvp_glv_static",    "ECDH ZVP/GLV Static-Key Abuse",               "exploit_poc", test_exploit_ecdh_zvp_glv_static_run, false },
+    { "exploit_frost_adaptive_corr",    "FROST Adaptive Corruption Misuse",            "exploit_poc", test_exploit_frost_adaptive_corruption_run, false },
+    { "exploit_ecdsa_fault_injection",  "Deterministic ECDSA Fault-Injection Surface", "exploit_poc", test_exploit_ecdsa_fault_injection_run, false },
+    { "exploit_cache_sidechannel_amp",  "Cache Side-Channel Amplification Surface",    "exploit_poc", test_exploit_cache_sidechannel_amplification_run, false },
+    { "exploit_ladderleak_subbit_nonce", "LadderLeak-Style Sub-Bit Nonce Leakage",     "exploit_poc", test_exploit_ladderleak_subbit_nonce_run, false },
+    { "exploit_minerva_noisy_hnp",       "Minerva-Style Noisy HNP Leakage Surface",    "exploit_poc", test_exploit_minerva_noisy_hnp_run, false },
+    { "exploit_hertzbleed_dvfs_timing",  "Hertzbleed-Style DVFS Timing Surface",       "exploit_poc", test_exploit_hertzbleed_dvfs_timing_run, false },
+    { "exploit_biased_nonce_chain_scan", "Biased-Nonce Chain-Scale Scan Surface",      "exploit_poc", test_exploit_biased_nonce_chain_scan_run, false },
+    { "exploit_kr_ecdsa_buff_binding",   "KR-ECDSA/BUFF Binding Regression Surface",   "exploit_poc", test_exploit_kr_ecdsa_buff_binding_run, false },
 };
 
 static constexpr int NUM_MODULES = sizeof(ALL_MODULES) / sizeof(ALL_MODULES[0]);

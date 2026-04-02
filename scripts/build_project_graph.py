@@ -1808,8 +1808,8 @@ def populate_audit_modules(cur: sqlite3.Cursor):
         ('diag_scalar_mul', 'Scalar Mul Diagnostics', 'ct_analysis', 2),
         # Section 3: Differential (4)
         ('differential', 'libsecp256k1 Differential', 'differential', 3),
-        ('fiat_crypto', 'Fiat-Crypto Vectors', 'differential', 3),
-        ('fiat_crypto_link', 'Fiat-Crypto Linkage', 'differential', 3),
+        ('fiat_crypto', 'Independent Reference Vectors', 'differential', 3),
+        ('fiat_crypto_link', 'Independent Reference Linkage', 'differential', 3),
         ('cross_platform_kat', 'Cross-Platform KAT', 'differential', 3),
         # Section 4: Standard Vectors (8)
         ('bip340_vectors', 'BIP-340 Official Vectors', 'vectors', 4),

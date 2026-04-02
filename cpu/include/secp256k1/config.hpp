@@ -31,6 +31,15 @@
     #endif
 #endif
 
+// MSVC (any target) does not support the __int128 extension.
+// Set NO_INT128 here so every subsystem that gates on this macro
+// automatically takes the portable fallback path on Windows builds.
+#if defined(_MSC_VER) && !defined(__clang__)
+    #ifndef SECP256K1_NO_INT128
+        #define SECP256K1_NO_INT128 1
+    #endif
+#endif
+
 // Performance optimization macros for hot path functions
 
 // Force inline for critical performance paths

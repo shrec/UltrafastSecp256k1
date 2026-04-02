@@ -8,11 +8,16 @@
 
 **Audit-first, high-performance secp256k1 engine for C++ and GPU-scale batch workloads** — built independently from scratch for Bitcoin, Ethereum, Silent Payments, threshold signatures (FROST, MuSig2), embedded systems, and reproducible benchmarking. UltrafastSecp256k1 combines optimized CPU arithmetic, a stable multi-backend GPU C ABI, **world-first open-source GPU FROST partial verification**, constant-time CPU signing paths, HD key derivation (BIP-32/44), Taproot (BIP-340/341), ZK range proofs, and 12+ platform targets including CUDA, OpenCL, Metal, WebAssembly, RISC-V, ESP32, and STM32.
 
+> **This project is two things at once:**
+> **1. A high-performance secp256k1 engine** — GPU-accelerated, multi-platform, production-hardened.
+> **2. A continuous, self-evolving audit system** — every exploit attempt becomes a permanent regression test. Security is treated as an ongoing process, not a static document.
+> → [How the audit system works](#engineering-quality--self-audit-culture)
+
 > **Keywords:** secp256k1 GPU · ECDSA batch verify · Schnorr BIP-340 · FROST threshold signatures · MuSig2 · Bitcoin cryptography · CUDA secp256k1 · OpenCL ECC · BIP-352 Silent Payments · constant-time cryptography · embedded ECC · WebAssembly crypto
 
 > **11.00 M BIP352 scans/s** · **4.88 M ECDSA signs/s** · **4.05 M ECDSA verifies/s** · **3.66 M Schnorr signs/s** · **5.38 M Schnorr verifies/s** · **1.34 M FROST partial verifies/s** · **97.2 M point compressions/s** — single GPU (RTX 5060 Ti SM 12.0)
 
-### Recent Performance Milestones (March 2026)
+## Recent Performance Milestones (March 2026)
 
 All measurements: RTX 5060 Ti (SM 12.0, CUDA 12), batch=16 384, kernel-only throughput.
 
@@ -24,19 +29,20 @@ All measurements: RTX 5060 Ti (SM 12.0, CUDA 12), batch=16 384, kernel-only thro
 | Batch Jacobian → Compressed | — | **10.3 ns / 97.2 M/s** | ⭐ New kernel |
 | BIP-352 Silent Payments (GPU LUT) | 179.2 ns / 5.58 M/s | **91.0 ns / 11.00 M/s** | **+97 % throughput** |
 
-> The ECDSA and Schnorr verify speedups come from the Shamir+GLV double-scalar multiplication, INT32 field arithmetic, and warp-level reduction pipeline. FROST partial verify is now callable via the stable C ABI as [`ufsecp_gpu_frost_verify_partial_batch()`](#gpu-c-abi--ufsecp_gpu).
+> The ECDSA and Schnorr verify speedups come from the Shamir+GLV double-scalar multiplication, INT32 field arithmetic, and warp-level reduction pipeline. FROST partial verify is now callable via the stable C ABI as [`ufsecp_gpu_frost_verify_partial_batch()`](#gpu-c-abi-ufsecp_gpu).
 
-### Why UltrafastSecp256k1?
+## Why UltrafastSecp256k1?
 
+- **Continuous adversarial audit system** -- every exploit attempt becomes a permanent regression test; 1,000,000+ assertions per build, 135 exploit PoC modules across 134 attack vectors, 31 CI workflows, 3 formal CT verification pipelines, 1.3M+ nightly differential checks — security hardens on every commit, not just on release day ([→ how it works](#engineering-quality--self-audit-culture))
 - **Differentiated GPU secp256k1 surface** -- CUDA, OpenCL, and Metal all implement the stable 13-op GPU C ABI, while CUDA also carries the highest-throughput signing and verification kernels plus **GPU FROST partial verification** ([reproducible benchmark suite and raw logs](docs/BENCHMARKS.md))
 - **High-performance CPU secp256k1 engine** -- optimized generator multiply, scalar multiply, hashing, and serialization pipelines across x86-64, ARM64, RISC-V, and embedded targets ([see bench_unified ratio table](docs/BENCHMARKS.md))
 - **BIP-352 Silent Payments at 11.00 M/s** -- the full 7-stage GPU pipeline (k×P → hash → k×G → add → match) runs at 91.0 ns/op on CUDA, **267× faster** than single-threaded CPU ([GPU bench](docs/BENCHMARKS.md), [standalone CPU benchmark by @craigraw](https://github.com/craigraw/bench_bip352))
 - **Built for modern secp256k1 workloads** -- signing, verification, wallet derivation, threshold protocols, adaptor signatures, ZK primitives, address generation, and large-scale public-key pipelines in one engine
+- **Known production adoption** -- publicly disclosed production use includes [SparrowWallet Frigate](https://github.com/sparrowwallet/frigate), with permission to publish the adoption note from Craig Raw
 - **Field-tested GPU pipeline** -- the CUDA engine has been stress-tested in live high-throughput workflows over long-running sessions and very large point volumes, not only in short synthetic benchmarks
 - **Zero dependencies** -- pure C++20, no Boost, no OpenSSL, compiles anywhere with a conforming compiler
 - **Dual-layer security** -- variable-time FAST path for throughput, constant-time CT path for secret-key operations
 - **12+ platforms** -- x86-64, ARM64, RISC-V, WASM, iOS, Android, ESP32, STM32, CUDA, Metal, OpenCL, plus an early-development ROCm/HIP compatibility path slated for hardware-backed validation
-- **Audit-first engineering culture** -- 1,000,000+ internal assertions per build, 55 unified audit modules, **86 exploit PoC tests across 14 coverage areas**, 24 GitHub Actions workflows, 3 formal constant-time verification pipelines, 1.3M+ nightly differential checks, and a graph-driven self-audit framework built around reproducibility rather than one-off trust signals
 
 > **Benchmark reproducibility:** All numbers come from pinned compiler/driver/toolkit versions with exact commands and raw logs. See [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md) (methodology) and the [live dashboard](https://shrec.github.io/UltrafastSecp256k1/dev/bench/).
 
@@ -46,7 +52,19 @@ All measurements: RTX 5060 Ti (SM 12.0, CUDA 12), batch=16 384, kernel-only thro
 
 > **Claim map:** Top-level trust claims are keyed in [docs/ASSURANCE_LEDGER.md](docs/ASSURANCE_LEDGER.md): CPU CT routing `A-001`, stable GPU ABI `A-002`, cross-backend GPU parity `A-003`, benchmark reproducibility `A-004`, exploit-audit surface `A-005`, graph-assisted review `A-006`, open self-audit transparency `A-007`, and ROCm/HIP status discipline `A-008`.
 
-**Quick links:** [Discord](https://discord.gg/sUmW7cc5) * [Benchmarks](docs/BENCHMARKS.md) * [Community Benchmarks](docs/COMMUNITY_BENCHMARKS.md) * [Build Guide](docs/BUILDING.md) * [API Reference](docs/API_REFERENCE.md) * [Binding Usage Standard](docs/BINDINGS_USAGE_STANDARD.md) * [Security Policy](SECURITY.md) * [Threat Model](THREAT_MODEL.md) * [Assurance Ledger](docs/ASSURANCE_LEDGER.md) * [AI Audit Protocol](docs/AI_AUDIT_PROTOCOL.md) * [**Why This Library?**](WHY_ULTRAFASTSECP256K1.md) * [Porting Guide](PORTING.md) * [**Sponsor**](https://github.com/sponsors/shrec)
+**Quick links:** [Discord](https://discord.gg/sUmW7cc5) * [Benchmarks](docs/BENCHMARKS.md) * [Community Benchmarks](docs/COMMUNITY_BENCHMARKS.md) * [Adopters](ADOPTERS.md) * [Build Guide](docs/BUILDING.md) * [API Reference](docs/API_REFERENCE.md) * [Binding Usage Standard](docs/BINDINGS_USAGE_STANDARD.md) * [Security Policy](SECURITY.md) * [Threat Model](THREAT_MODEL.md) * [Assurance Ledger](docs/ASSURANCE_LEDGER.md) * [AI Audit Protocol](docs/AI_AUDIT_PROTOCOL.md) * [**Why This Library?**](WHY_ULTRAFASTSECP256K1.md) * [Porting Guide](PORTING.md) * [**Sponsor**](https://github.com/sponsors/shrec)
+
+### Real-world Adoption
+
+UltrafastSecp256k1 is used by [Sparrow Wallet's Frigate](https://github.com/sparrowwallet/frigate).
+
+Frigate 1.4.0 switched its DuckDB extension to `ufsecp.duckdb_extension` using UltrafastSecp256k1, and its README documents a custom DuckDB extension wrapping UltrafastSecp256k1 for `ufsecp_scan(...)`-based Silent Payments scanning with CUDA, OpenCL and Metal backend support.
+
+See: [Frigate 1.4.0 release](https://github.com/sparrowwallet/frigate/releases/tag/1.4.0) · [Frigate README](https://github.com/sparrowwallet/frigate/blob/master/README.md) · [Details →](docs/ADOPTION.md)
+
+Package traction: [`ufsecp`](https://www.npmjs.com/package/ufsecp) 1,192 npm downloads/30d · [`react-native-ufsecp`](https://www.npmjs.com/package/react-native-ufsecp) 1,295/30d · [`Ufsecp`](https://www.nuget.org/packages/Ufsecp) 1,491 NuGet total (as of 2026-03-29).
+
+Full adopter list: [ADOPTERS.md](ADOPTERS.md)
 
 ---
 
@@ -135,7 +153,7 @@ This top-level narrative maps directly to the assurance ledger: CT secret-key ro
 | Internal audit assertions per build | **~1,000,000+** |
 | Audit modules (`unified_audit_runner`) | **55 modules, 8 sections, 0 failures** |
 | Exploit PoC test files | **86 tests, 14 coverage areas, 0 failures** |
-| CI/CD workflows | **24 GitHub Actions workflows** |
+| CI/CD workflows | **25 GitHub Actions workflows** |
 | Build matrix (arch × config × OS) | **7 × 17 × 5 = 595 combinations** |
 | Nightly differential tests | **~1,300,000+ random checks / night** |
 | Constant-time verification pipelines | **3 independent (ct-arm64, ct-verif, Valgrind CT)** |
@@ -165,7 +183,7 @@ This top-level narrative maps directly to the assurance ledger: CT secret-key ro
 
 - Every field arithmetic property is verified algebraically: commutativity, associativity, distributivity, carry propagation, canonical form
 - Every constant-time path is verified under **formal CT analysis + Valgrind + hardware-native ARM64 CT pipeline** — three independent layers
-- Every ECDSA/Schnorr implementation is cross-validated against **Wycheproof vectors, Fiat-Crypto reference, and BIP test vectors**
+- Every ECDSA/Schnorr implementation is cross-validated against **Wycheproof vectors, independent reference golden vectors, and BIP test vectors**
 - Every commit that would regress throughput **fails CI automatically** via `bench-regression.yml`
 - Audit results are logged as **structured artifacts** (JSON reports, per-platform logs), not just pass/fail signals
 - **Nightly differential testing** runs ~1.3M random round-trips against reference implementations every night
@@ -425,6 +443,27 @@ The full 7-stage BIP-352 scanning pipeline runs entirely on-GPU with zero CPU ro
 ### Community & Contributor Benchmarks
 
 See **[docs/COMMUNITY_BENCHMARKS.md](docs/COMMUNITY_BENCHMARKS.md)** for all hardware results submitted by community members — including RTX 5070 Ti (Blackwell) and a standalone BIP-352 CPU comparison vs libsecp256k1.  Want to add yours? Instructions are in that file.
+
+### Real-world scanning performance (Frigate / Sparrow Wallet)
+
+Independent benchmarks from [Sparrow Wallet's Frigate](https://github.com/sparrowwallet/frigate) — a DuckDB-based Silent Payments scanning pipeline using UltrafastSecp256k1 via [`ufsecp_scan(...)`](https://github.com/sparrowwallet/duckdb-ufsecp-extension). Results produced by Frigate's `benchmark.py` scanning mainnet to block 914,000.
+
+**GPU scanning (full BIP-352 pipeline, 2-year scan, 133M tweaks):**
+
+| Hardware | Backend | Time | Throughput |
+|----------|---------|------|------------|
+| 2× NVIDIA RTX 5090 | CUDA | 3.2 s | ~41.5 M/s |
+| NVIDIA RTX 5080 | CUDA | 7.7 s | ~17.3 M/s |
+| Apple M1 Pro | Metal | 3m 47s | ~584 K/s |
+
+**CPU scanning (full BIP-352 pipeline, 2-year scan, 133M tweaks):**
+
+| Hardware | CPUs | Time | Throughput |
+|----------|------|------|------------|
+| Intel Core Ultra 9 285K | 24 | 3m 50s | ~577 K/s |
+| Apple M1 Pro | 10 | 7m 47s | ~284 K/s |
+
+Source: [Frigate README — Performance](https://github.com/sparrowwallet/frigate/blob/master/README.md#performance)
 
 ### CPU vs libsecp256k1 (standalone external benchmark)
 
@@ -1532,7 +1571,7 @@ Extra gratitude to [@0xbitcoiner](https://stacker.news/0xbitcoiner) for the init
 If you find **UltrafastSecp256k1** useful, consider supporting its development!
 
 > **We are actively seeking sponsors for a funded bug bounty program, stronger open audit infrastructure, and ongoing development.**
-> See the [Seeking Sponsors](#seeking-sponsors----audit-bug-bounty--development) section above for details.
+> See the [Seeking Sponsors](#seeking-sponsors----bug-bounty--development) section above for details.
 
 [![Sponsor](https://img.shields.io/badge/Sponsor_This_Project-GitHub_Sponsors-ea4aaa.svg?style=for-the-badge&logo=github)](https://github.com/sponsors/shrec)
 [![Donate with Bitcoin Lightning](https://img.shields.io/badge/Lightning_Sats-shrec@stacker.news-F7931A?style=for-the-badge&logo=bitcoin)](https://stacker.news/shrec)

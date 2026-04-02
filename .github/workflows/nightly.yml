@@ -59,7 +59,7 @@ jobs:
           DIFFERENTIAL_MULTIPLIER: ${{ github.event.inputs.differential_multiplier || '100' }}
         run: |
           echo "Multiplier: ${DIFFERENTIAL_MULTIPLIER}"
-          ./build/cpu/test_differential_standalone "${DIFFERENTIAL_MULTIPLIER}"
+          ./build/audit/test_differential_standalone "${DIFFERENTIAL_MULTIPLIER}"
 
       - name: Run cross-library test (vs libsecp256k1 v0.6.0)
         run: |

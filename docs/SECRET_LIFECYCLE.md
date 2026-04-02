@@ -1,6 +1,6 @@
 # Secret Lifecycle Review
 
-**Last updated**: 2026-03-15 | **Version**: 3.22.0
+**Last updated**: 2026-03-15 | **Version**: 3.50.0
 
 Documents how secret material (private keys, nonces, session state) is handled throughout its lifecycle: creation, use, and destruction.
 

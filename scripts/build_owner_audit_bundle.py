@@ -246,6 +246,8 @@ def _build_summary(report: dict) -> str:
         f"Audit gate status: {report['audit_gate'].get('status', 'unknown')}",
         f"Failure matrix strict residuals: {report['failure_matrix_strict'].get('counts', {}).get('partial', 0)} partial, {report['failure_matrix_strict'].get('counts', {}).get('unknown', 0)} unknown",
         f"CT evidence status: {report['ct_evidence'].get('overall_status', 'unknown')}",
+        f"Auditor-mode status: {report['auditor_mode'].get('status', 'unknown')}",
+        f"Auditor-mode missing critical: {report['auditor_mode'].get('missing_critical_count', 'unknown')}",
         f"Benchmark publishability: {report['benchmark_publishability'].get('status', 'unknown')}",
         f"Latest audit summary: {report['audit_summary'].get('directory', 'missing')}",
         '',
@@ -269,6 +271,7 @@ def main() -> int:
     validate_assurance = _run_json_command(['python3', 'scripts/validate_assurance.py', '--json'])
     failure_matrix = _run_json_command(['python3', 'scripts/audit_gap_report.py', '--json'])
     failure_matrix_strict = _run_json_command(['python3', 'scripts/audit_gap_report.py', '--json', '--strict'])
+    auditor_mode = _run_json_command(['python3', 'scripts/auditor_mode.py', '--json'])
     runner_binary = _discover_runner_binary()
 
     ct_dir = output_dir / 'ct_evidence'
@@ -297,6 +300,7 @@ def main() -> int:
         ('validate_assurance_json', validate_assurance),
         ('failure_matrix_json', failure_matrix),
         ('failure_matrix_strict_json', failure_matrix_strict),
+        ('auditor_mode_json', auditor_mode),
     ):
         if payload.get('payload') is None:
             mandatory_missing.append(label)
@@ -316,6 +320,11 @@ def main() -> int:
     unknown = counts.get('unknown', 0)
     if partial or unknown:
         blocking_findings.append(f'failure matrix strict residuals remain: partial={partial}, unknown={unknown}')
+    auditor_payload = auditor_mode.get('payload') or {}
+    if isinstance(auditor_payload, dict):
+        missing_critical = auditor_payload.get('missing_critical_count', 0)
+        if missing_critical:
+            blocking_findings.append(f'auditor-mode missing critical vectors: {missing_critical}')
     owner_grade_gaps = ct_evidence.get('owner_grade_gaps', []) if isinstance(ct_evidence, dict) else []
     for gap in owner_grade_gaps:
         blocking_findings.append(f'ct evidence owner-grade gap: {gap}')
@@ -334,6 +343,9 @@ def main() -> int:
                         residual_gaps.append(finding['message'])
     residual_gaps.extend(benchmark_publishability.get('issues', []))
     residual_gaps.extend(audit_summary.get('issues', []))
+    if isinstance(auditor_payload, dict):
+        for item in auditor_payload.get('missing', []):
+            residual_gaps.append(f"auditor-mode missing [{item.get('severity', 'unknown')}]: {item.get('key', 'unknown')}")
 
     overall_status = 'ready'
     if mandatory_missing:
@@ -354,6 +366,7 @@ def main() -> int:
         'validate_assurance': validate_assurance.get('payload') or {'error': validate_assurance.get('error'), 'exit_code': validate_assurance.get('exit_code')},
         'failure_matrix': failure_matrix.get('payload') or {'error': failure_matrix.get('error'), 'exit_code': failure_matrix.get('exit_code')},
         'failure_matrix_strict': failure_matrix_strict.get('payload') or {'error': failure_matrix_strict.get('error'), 'exit_code': failure_matrix_strict.get('exit_code')},
+        'auditor_mode': auditor_mode.get('payload') or {'error': auditor_mode.get('error'), 'exit_code': auditor_mode.get('exit_code')},
         'ct_evidence': ct_evidence,
         'benchmark_publishability': benchmark_publishability,
         'audit_summary': audit_summary,

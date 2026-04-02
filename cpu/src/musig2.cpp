@@ -10,6 +10,7 @@
 #include "secp256k1/ct/field.hpp"
 #include "secp256k1/ct/ops.hpp"
 #include "secp256k1/detail/secure_erase.hpp"
+#include "secp256k1/detail/csprng.hpp"
 #include <cstring>
 #include <algorithm>
 
@@ -182,10 +183,17 @@ std::pair<MuSig2SecNonce, MuSig2PubNonce> musig2_nonce_gen(
     MuSig2SecNonce sec{};
     MuSig2PubNonce pub{};
 
-    // t = secret_key XOR tagged_hash("MuSig/aux", extra_input or zeros)
+    // t = secret_key XOR tagged_hash("MuSig/aux", extra_input or fresh_random)
+    // When extra_input==NULL we fill with OS randomness so nonces are never
+    // deterministic. A caller always passing NULL would otherwise produce the
+    // same k1/k2 for identical (secret_key, msg) inputs — enabling nonce reuse.
     auto sk_bytes = secret_key.to_bytes();
     std::array<uint8_t, 32> aux{};
-    if (extra_input) std::memcpy(aux.data(), extra_input, 32);
+    if (extra_input) {
+        std::memcpy(aux.data(), extra_input, 32);
+    } else {
+        secp256k1::detail::csprng_fill(aux.data(), 32);
+    }
     auto aux_hash = tagged_hash("MuSig/aux", aux.data(), 32);
 
     uint8_t t[32];

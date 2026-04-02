@@ -16,23 +16,9 @@
 #include "secp256k1/hkdf.hpp"
 #include "secp256k1/ct/point.hpp"
 #include "secp256k1/detail/secure_erase.hpp"
+#include "secp256k1/detail/csprng.hpp"
 #include "secp256k1/field.hpp"
 #include <cstring>
-
-// OS CSPRNG headers
-#if defined(_WIN32)
-#  include <windows.h>
-#  include <bcrypt.h>
-#  pragma comment(lib, "bcrypt.lib")
-#elif defined(__APPLE__)
-#  include <Security/SecRandom.h>
-#elif defined(__ANDROID__)
-#  include <stdlib.h>  // arc4random_buf (available Android API 12+)
-#elif defined(__linux__) || defined(__FreeBSD__) || defined(__OpenBSD__)
-#  include <sys/random.h>
-#else
-#  include <cstdio>   // fopen/fread for /dev/urandom fallback
-#endif
 
 namespace secp256k1 {
 
@@ -220,36 +206,7 @@ void aes256_ctr(const std::uint8_t key[32],
 }
 
 
-// CSPRNG fill -- OS-level cryptographic randomness, fail-closed
-void csprng_fill(std::uint8_t* buf, std::size_t len) {
-#if defined(_WIN32)
-    NTSTATUS const status = BCryptGenRandom(
-        nullptr, buf, static_cast<ULONG>(len), BCRYPT_USE_SYSTEM_PREFERRED_RNG);
-    if (status != 0) std::abort();  // fail-closed
-#elif defined(__APPLE__)
-    if (SecRandomCopyBytes(kSecRandomDefault, len, buf) != errSecSuccess)
-        std::abort();
-#elif defined(__ANDROID__)
-    // arc4random_buf is available from Android API 12+ and blocks until the
-    // kernel entropy pool is fully seeded.  Unlike /dev/urandom, it will not
-    // return predictable bytes during early boot before entropy is available.
-    arc4random_buf(buf, len);
-#elif defined(__linux__) || defined(__FreeBSD__) || defined(__OpenBSD__)
-    // getrandom(2): blocks until entropy available, no EINTR on < 256 bytes
-    std::size_t filled = 0;
-    while (filled < len) {
-        ssize_t const r = getrandom(buf + filled, len - filled, 0);
-        if (r <= 0) std::abort();  // fail-closed
-        filled += static_cast<std::size_t>(r);
-    }
-#else
-    // Fallback: /dev/urandom (POSIX)
-    FILE* f = std::fopen("/dev/urandom", "rb");
-    if (!f) std::abort();
-    if (std::fread(buf, 1, len, f) != len) { std::fclose(f); std::abort(); }
-    std::fclose(f);
-#endif
-}
+using secp256k1::detail::csprng_fill;
 
 } // anonymous namespace
 

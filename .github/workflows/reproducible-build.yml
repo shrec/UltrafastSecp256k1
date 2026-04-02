@@ -1,0 +1,125 @@
+# ============================================================================
+# Reproducible Build Verification
+# ============================================================================
+# Verifies that two independent builds from the same source produce
+# bit-identical artifacts (SLSA / supply-chain requirement).
+# ============================================================================
+name: Reproducible Build
+
+on:
+  push:
+    branches: [main, dev]
+    paths:
+      - 'libs/UltrafastSecp256k1/cpu/**'
+      - 'libs/UltrafastSecp256k1/include/**'
+      - 'libs/UltrafastSecp256k1/CMakeLists.txt'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  reproducible:
+    name: Reproducible Build Check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install build deps
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+              cmake ninja-build g++-14 diffutils
+
+      - name: Build A
+        run: |
+          cmake -S libs/UltrafastSecp256k1 \
+                -B build-repro-a \
+                -G Ninja \
+                -DCMAKE_BUILD_TYPE=Release \
+                -DCMAKE_C_COMPILER=gcc-14 \
+                -DCMAKE_CXX_COMPILER=g++-14 \
+                -DUFSECP_REPRODUCIBLE=ON
+          cmake --build build-repro-a --parallel
+
+      - name: Build B (second independent build)
+        run: |
+          cmake -S libs/UltrafastSecp256k1 \
+                -B build-repro-b \
+                -G Ninja \
+                -DCMAKE_BUILD_TYPE=Release \
+                -DCMAKE_C_COMPILER=gcc-14 \
+                -DCMAKE_CXX_COMPILER=g++-14 \
+                -DUFSECP_REPRODUCIBLE=ON
+          cmake --build build-repro-b --parallel
+
+      - name: Compare object files
+        run: |
+          set -euo pipefail
+          FAIL=0
+          # Compare all .o files between the two builds
+          for obj in $(find build-repro-a -name "*.o" | sort); do
+            rel="${obj#build-repro-a/}"
+            other="build-repro-b/$rel"
+            if [ ! -f "$other" ]; then
+              echo "MISSING: $rel not in build-repro-b"
+              FAIL=1
+              continue
+            fi
+            if ! cmp -s "$obj" "$other"; then
+              echo "DIFFERS: $rel"
+              FAIL=1
+            fi
+          done
+          if [ "$FAIL" -ne 0 ]; then
+            echo "::error::Build is NOT reproducible - object files differ"
+            exit 1
+          fi
+          echo "All object files are bit-identical between builds"
+
+      - name: Compare shared libraries
+        run: |
+          set -euo pipefail
+          sha_a=$(find build-repro-a -name "libufsecp*.so*" -not -type l -exec sha256sum {} \; | sort)
+          sha_b=$(find build-repro-b -name "libufsecp*.so*" -not -type l -exec sha256sum {} \; | sort)
+
+          echo "Build A hashes:"
+          echo "$sha_a"
+          echo ""
+          echo "Build B hashes:"
+          echo "$sha_b"
+
+          # Extract just the hashes for comparison
+          hashes_a=$(echo "$sha_a" | awk '{print $1}')
+          hashes_b=$(echo "$sha_b" | awk '{print $1}')
+
+          if [ "$hashes_a" != "$hashes_b" ]; then
+            echo "::error::Shared libraries are NOT reproducible"
+            exit 1
+          fi
+          echo "Shared libraries are bit-identical"
+
+      - name: Compare static libraries
+        run: |
+          set -euo pipefail
+          for lib in $(find build-repro-a -name "*.a" | sort); do
+            rel="${lib#build-repro-a/}"
+            other="build-repro-b/$rel"
+            if [ ! -f "$other" ]; then
+              echo "MISSING: $rel not in build-repro-b"
+              continue
+            fi
+            if ! cmp -s "$lib" "$other"; then
+              echo "DIFFERS: $rel"
+              echo "::error::Static library $rel is NOT reproducible"
+              exit 1
+            fi
+          done
+          echo "Static libraries are bit-identical"

@@ -4,7 +4,7 @@
 > The test suite has been significantly restructured since then (31 CTest targets
 > as of v3.21.0 vs 20 at time of this audit). The 8 original audit suites have
 > been consolidated into `unified_audit` + 17 specialized standalone audit tests
-> (including Wycheproof ECDSA/ECDH, Fiat-Crypto linkage, CT formal verification,
+> (including Wycheproof ECDSA/ECDH, independent reference linkage, CT formal verification,
 > fault injection, and cross-platform KAT).
 > FROST/MuSig2 protocol-level tests have been added since this report.
 > This document is preserved as a historical baseline.
@@ -42,6 +42,34 @@
 ---
 
 ## 1. Executive Summary
+
+> This is a historical baseline report (v3.9.0, 2026-02-11). The audit system has grown
+> significantly since then. See [AUDIT_COVERAGE.md](AUDIT_COVERAGE.md) for the current state:
+> 56 modules, ~1,000,000+ checks, 135 exploit PoC tests, 0 failures.
+
+### What this report IS
+
+A point-in-time snapshot of cryptographic audit results at v3.9.0, documenting
+641,194 deterministic checks across 8 test suites with 0 failures. The methodology,
+PRNG seeds, and exact check counts are preserved for independent reproduction.
+
+### What this report is NOT
+
+- **Not a one-time PDF** — the audit system runs on every commit via CI; this document is one frozen snapshot
+- **Not a guarantee** — PASS means all known invariants hold and all exploit tests are blocked; unknown vulnerabilities may still exist
+- **Not a static snapshot of security** — security continues to harden after this report through the continuous adversarial audit pipeline
+
+### Current State (live)
+
+| Metric | v3.9.0 (this report) | Current |
+|--------|---------------------|---------|
+| Total checks | 641,194 | ~1,000,000+ |
+| Audit modules | 8 suites | 56 modules |
+| Exploit PoC tests | — | 135 tests, 134 attack vectors |
+| Failures | 0 | 0 |
+| Verdict | ALL PASSED | AUDIT-READY |
+
+---
 
 This report documents a comprehensive cryptographic audit of the **UltrafastSecp256k1** library,
 covering 6 audit sections implemented across **8 dedicated test suites**.
