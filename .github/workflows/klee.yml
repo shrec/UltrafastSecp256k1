@@ -68,6 +68,8 @@ jobs:
       - name: Write KLEE harnesses
         run: |
           mkdir -p /tmp/klee-work
+          # docker run klee user needs write access to this directory
+          chmod 777 /tmp/klee-work
 
           cat > /tmp/klee-work/klee_pubkey_parse.cpp << 'EOF'
           #include <klee/klee.h>
@@ -202,6 +204,7 @@ jobs:
           KLEE_MAX_DEPTH: ${{ github.event.inputs.klee_max_depth || '100' }}
         run: |
           mkdir -p /tmp/klee-results
+          chmod 777 /tmp/klee-results
           TOTAL_ERRORS=0
 
           for bc in /tmp/klee-work/*.bc; do
