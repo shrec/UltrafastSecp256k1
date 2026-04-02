@@ -717,8 +717,13 @@ job_cryptofuzz() {
     cmake --build "$build_dir" -j"$NPROC" 2>&1 | tail -10
 
     local UFSECP_LIB_DIR="$build_dir/include/ufsecp"
-    if ! ls "$UFSECP_LIB_DIR"/libufsecp.so* &>/dev/null; then
-        fail "cryptofuzz: libufsecp.so not found in $UFSECP_LIB_DIR"
+    local CPU_LIB="$build_dir/cpu/libfastsecp256k1.a"
+    if [ ! -f "$UFSECP_LIB_DIR/libufsecp.a" ]; then
+        fail "cryptofuzz: libufsecp.a not found in $UFSECP_LIB_DIR"
+        return
+    fi
+    if [ ! -f "$CPU_LIB" ]; then
+        fail "cryptofuzz: libfastsecp256k1.a not found at $CPU_LIB"
         return
     fi
 
@@ -745,15 +750,17 @@ job_cryptofuzz() {
     fi
 
     # ---- 3. Compile the differential harness ----
+    # Link statically against ufsecp + fastsecp256k1 to avoid shared-library
+    # startup crashes (global constructors in libufsecp.so run before main()).
     echo "Compiling differential harness..."
     local compile_log="/tmp/cryptofuzz_compile.log"
     "$CXX_BIN" -std=c++20 -O2 \
         -I"$SRC" \
         -I"$REF_INSTALL/include" \
         "$HARNESS" \
-        -L"$UFSECP_LIB_DIR" -lufsecp \
+        "$UFSECP_LIB_DIR/libufsecp.a" \
+        "$CPU_LIB" \
         -L"$REF_INSTALL/lib" -lsecp256k1 \
-        -Wl,-rpath,"$UFSECP_LIB_DIR" \
         -Wl,-rpath,"$REF_INSTALL/lib" \
         -o /tmp/cryptofuzz_diff_harness 2>&1 | tee "$compile_log"
 
@@ -767,7 +774,7 @@ job_cryptofuzz() {
     # ---- 4. Quick smoke run (500 iterations) ----
     echo "Running 500-iteration smoke test..."
     local results_log="/tmp/cryptofuzz_results.log"
-    LD_LIBRARY_PATH="$UFSECP_LIB_DIR:$REF_INSTALL/lib" \
+    LD_LIBRARY_PATH="$REF_INSTALL/lib" \
         /tmp/cryptofuzz_diff_harness 500 2>&1 | tee "$results_log"
     local EXIT="${PIPESTATUS[0]}"
 

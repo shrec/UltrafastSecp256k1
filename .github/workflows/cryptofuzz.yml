@@ -104,18 +104,18 @@ jobs:
       - name: Build Cryptofuzz++ reference harness
         run: |
           # Harness source lives in the repo at tests/harnesses/cryptofuzz/diff_harness.cpp.
-          # Copy it to /tmp so the compiler can find it alongside the built library.
-          cp tests/harnesses/cryptofuzz/diff_harness.cpp /tmp/diff_harness.cpp
-
-          # The shared library is placed in include/ufsecp/ by CMake (OUTPUT_NAME ufsecp)
+          # Link statically against ufsecp + fastsecp256k1 to avoid shared-library
+          # startup crashes (global constructors in libufsecp.so run before main()).
+          # Only libsecp256k1 (reference) remains a dynamic dependency.
           UFSECP_LIB_DIR=$(pwd)/build-fuzz/include/ufsecp
+          CPU_LIB=$(pwd)/build-fuzz/cpu/libfastsecp256k1.a
           clang++-17 -std=c++20 -O2 \
             -I. \
             -I/tmp/libsecp256k1-install/include \
-            /tmp/diff_harness.cpp \
-            -L"${UFSECP_LIB_DIR}" -lufsecp \
+            tests/harnesses/cryptofuzz/diff_harness.cpp \
+            "${UFSECP_LIB_DIR}/libufsecp.a" \
+            "${CPU_LIB}" \
             -L/tmp/libsecp256k1-install/lib -lsecp256k1 \
-            -Wl,-rpath,"${UFSECP_LIB_DIR}" \
             -Wl,-rpath,/tmp/libsecp256k1-install/lib \
             -o /tmp/diff_harness 2>&1 | tee /tmp/compile.log
           if [ ! -f /tmp/diff_harness ]; then
@@ -123,6 +123,8 @@ jobs:
             echo "::error::Harness failed to compile — ABI or include path mismatch"
             exit 1
           fi
+          echo "Harness binary dependencies:"
+          ldd /tmp/diff_harness || true
 
 
       - name: Run differential harness
