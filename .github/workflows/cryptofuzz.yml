@@ -83,7 +83,8 @@ jobs:
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
             -DSECP256K1_BUILD_TESTS=OFF \
             -DSECP256K1_BUILD_BENCH=OFF \
-            -DSECP256K1_BUILD_EXAMPLES=OFF
+            -DSECP256K1_BUILD_EXAMPLES=OFF \
+            -DSECP256K1_USE_LTO=OFF
           cmake --build build-fuzz -j"$(nproc)"
 
       - name: Clone libsecp256k1 (reference)
