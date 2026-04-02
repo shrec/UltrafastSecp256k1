@@ -25,7 +25,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.4.0</span>
+   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.50.0</span>
    </div>
    <div id="projectbrief">Ultra high-performance secp256k1 elliptic curve cryptography library</div>
   </td>
@@ -132,22 +132,23 @@ $(document).ready(function(){initNavTree('ufsecp__error_8h_source.html',''); ini
 <div class="line"><a id="l00032" name="l00032"></a><span class="lineno"><a class="line" href="ufsecp__error_8h.html#a4d1412fd84b54474e2e24a14ad735403">   32</a></span><span class="preprocessor">#define UFSECP_ERR_SELFTEST      8   </span></div>
 <div class="line"><a id="l00033" name="l00033"></a><span class="lineno"><a class="line" href="ufsecp__error_8h.html#a10160096e5ad28390a45f068596729f0">   33</a></span><span class="preprocessor">#define UFSECP_ERR_INTERNAL      9   </span></div>
 <div class="line"><a id="l00034" name="l00034"></a><span class="lineno"><a class="line" href="ufsecp__error_8h.html#aac465156a57ce9deb878d85c6e713274">   34</a></span><span class="preprocessor">#define UFSECP_ERR_BUF_TOO_SMALL 10  </span></div>
-<div class="line"><a id="l00036" name="l00036"></a><span class="lineno">   36</span><span class="comment">/* -- Error inspection ------------------------------------------------------- */</span></div>
-<div class="line"><a id="l00037" name="l00037"></a><span class="lineno">   37</span> </div>
-<div class="line"><a id="l00039" name="l00039"></a><span class="lineno">   39</span><a class="code hl_define" href="ufsecp__version_8h.html#a407719474ce7a71be9faf26f27f38c6c">UFSECP_API</a> <span class="keyword">const</span> <span class="keywordtype">char</span>* <a class="code hl_function" href="ufsecp__error_8h.html#ab056bb1244281889756527da6cb8161c">ufsecp_error_str</a>(<a class="code hl_typedef" href="ufsecp__error_8h.html#ace9807a2d7e727c5d4dc3f8473118c9b">ufsecp_error_t</a> err);</div>
-<div class="line"><a id="l00040" name="l00040"></a><span class="lineno">   40</span> </div>
-<div class="line"><a id="l00041" name="l00041"></a><span class="lineno">   41</span><span class="comment">/*</span></div>
-<div class="line"><a id="l00042" name="l00042"></a><span class="lineno">   42</span><span class="comment"> * Per-context error inspection (see ufsecp.h for ufsecp_ctx):</span></div>
-<div class="line"><a id="l00043" name="l00043"></a><span class="lineno">   43</span><span class="comment"> *   ufsecp_error_t  ufsecp_last_error    (const ufsecp_ctx* ctx);</span></div>
-<div class="line"><a id="l00044" name="l00044"></a><span class="lineno">   44</span><span class="comment"> *   const char*     ufsecp_last_error_msg(const ufsecp_ctx* ctx);</span></div>
-<div class="line"><a id="l00045" name="l00045"></a><span class="lineno">   45</span><span class="comment"> */</span></div>
-<div class="line"><a id="l00046" name="l00046"></a><span class="lineno">   46</span> </div>
-<div class="line"><a id="l00047" name="l00047"></a><span class="lineno">   47</span><span class="preprocessor">#ifdef __cplusplus</span></div>
-<div class="line"><a id="l00048" name="l00048"></a><span class="lineno">   48</span>}</div>
-<div class="line"><a id="l00049" name="l00049"></a><span class="lineno">   49</span><span class="preprocessor">#endif</span></div>
-<div class="line"><a id="l00050" name="l00050"></a><span class="lineno">   50</span> </div>
-<div class="line"><a id="l00051" name="l00051"></a><span class="lineno">   51</span><span class="preprocessor">#endif </span><span class="comment">/* UFSECP_ERROR_H */</span><span class="preprocessor"></span></div>
-<div class="ttc" id="aufsecp__error_8h_html_ab056bb1244281889756527da6cb8161c"><div class="ttname"><a href="ufsecp__error_8h.html#ab056bb1244281889756527da6cb8161c">ufsecp_error_str</a></div><div class="ttdeci">UFSECP_API const char * ufsecp_error_str(ufsecp_error_t err)</div><div class="ttdef"><b>Definition</b> <a href="ufsecp__impl_8cpp_source.html#l00348">ufsecp_impl.cpp:348</a></div></div>
+<div class="line"><a id="l00035" name="l00035"></a><span class="lineno"><a class="line" href="ufsecp__error_8h.html#a38d26c34840e0cc1c25a8c4ff7b48fc6">   35</a></span><span class="preprocessor">#define UFSECP_ERR_NOT_FOUND     11  </span></div>
+<div class="line"><a id="l00037" name="l00037"></a><span class="lineno">   37</span><span class="comment">/* -- Error inspection ------------------------------------------------------- */</span></div>
+<div class="line"><a id="l00038" name="l00038"></a><span class="lineno">   38</span> </div>
+<div class="line"><a id="l00040" name="l00040"></a><span class="lineno">   40</span><a class="code hl_define" href="ufsecp__version_8h.html#a407719474ce7a71be9faf26f27f38c6c">UFSECP_API</a> <span class="keyword">const</span> <span class="keywordtype">char</span>* <a class="code hl_function" href="ufsecp__error_8h.html#ab056bb1244281889756527da6cb8161c">ufsecp_error_str</a>(<a class="code hl_typedef" href="ufsecp__error_8h.html#ace9807a2d7e727c5d4dc3f8473118c9b">ufsecp_error_t</a> err);</div>
+<div class="line"><a id="l00041" name="l00041"></a><span class="lineno">   41</span> </div>
+<div class="line"><a id="l00042" name="l00042"></a><span class="lineno">   42</span><span class="comment">/*</span></div>
+<div class="line"><a id="l00043" name="l00043"></a><span class="lineno">   43</span><span class="comment"> * Per-context error inspection (see ufsecp.h for ufsecp_ctx):</span></div>
+<div class="line"><a id="l00044" name="l00044"></a><span class="lineno">   44</span><span class="comment"> *   ufsecp_error_t  ufsecp_last_error    (const ufsecp_ctx* ctx);</span></div>
+<div class="line"><a id="l00045" name="l00045"></a><span class="lineno">   45</span><span class="comment"> *   const char*     ufsecp_last_error_msg(const ufsecp_ctx* ctx);</span></div>
+<div class="line"><a id="l00046" name="l00046"></a><span class="lineno">   46</span><span class="comment"> */</span></div>
+<div class="line"><a id="l00047" name="l00047"></a><span class="lineno">   47</span> </div>
+<div class="line"><a id="l00048" name="l00048"></a><span class="lineno">   48</span><span class="preprocessor">#ifdef __cplusplus</span></div>
+<div class="line"><a id="l00049" name="l00049"></a><span class="lineno">   49</span>}</div>
+<div class="line"><a id="l00050" name="l00050"></a><span class="lineno">   50</span><span class="preprocessor">#endif</span></div>
+<div class="line"><a id="l00051" name="l00051"></a><span class="lineno">   51</span> </div>
+<div class="line"><a id="l00052" name="l00052"></a><span class="lineno">   52</span><span class="preprocessor">#endif </span><span class="comment">/* UFSECP_ERROR_H */</span><span class="preprocessor"></span></div>
+<div class="ttc" id="aufsecp__error_8h_html_ab056bb1244281889756527da6cb8161c"><div class="ttname"><a href="ufsecp__error_8h.html#ab056bb1244281889756527da6cb8161c">ufsecp_error_str</a></div><div class="ttdeci">UFSECP_API const char * ufsecp_error_str(ufsecp_error_t err)</div><div class="ttdef"><b>Definition</b> <a href="ufsecp__impl_8cpp_source.html#l00351">ufsecp_impl.cpp:351</a></div></div>
 <div class="ttc" id="aufsecp__error_8h_html_ace9807a2d7e727c5d4dc3f8473118c9b"><div class="ttname"><a href="ufsecp__error_8h.html#ace9807a2d7e727c5d4dc3f8473118c9b">ufsecp_error_t</a></div><div class="ttdeci">int ufsecp_error_t</div><div class="ttdef"><b>Definition</b> <a href="ufsecp__error_8h_source.html#l00022">ufsecp_error.h:22</a></div></div>
 <div class="ttc" id="aufsecp__version_8h_html"><div class="ttname"><a href="ufsecp__version_8h.html">ufsecp_version.h</a></div></div>
 <div class="ttc" id="aufsecp__version_8h_html_a407719474ce7a71be9faf26f27f38c6c"><div class="ttname"><a href="ufsecp__version_8h.html#a407719474ce7a71be9faf26f27f38c6c">UFSECP_API</a></div><div class="ttdeci">#define UFSECP_API</div><div class="ttdef"><b>Definition</b> <a href="ufsecp__version_8h_source.html#l00052">ufsecp_version.h:52</a></div></div>

@@ -5,7 +5,9 @@ var namespacesecp256k1 =
     [ "detail", "namespacesecp256k1_1_1detail.html", [
       [ "add64", "namespacesecp256k1_1_1detail.html#a5f2168c0f64443393e1ac8bdbde5b801", null ],
       [ "cached_tagged_hash", "namespacesecp256k1_1_1detail.html#a54d7fd6888249cc08d4440b12f3db547", null ],
+      [ "csprng_fill", "namespacesecp256k1_1_1detail.html#a458527ad36cc620c97fcc0f328ff20dc", null ],
       [ "make_tag_midstate", "namespacesecp256k1_1_1detail.html#aec98baa39922e3a212c7660cf36700e2", null ],
+      [ "mulhi64", "namespacesecp256k1_1_1detail.html#af211a0551decba8fe942187faf87934d", null ],
       [ "secure_erase", "namespacesecp256k1_1_1detail.html#a5dea1f75154fb440422d13d1356fcaa4", null ],
       [ "sha256_compress_dispatch", "namespacesecp256k1_1_1detail.html#aeb7ac005ebf31bbcf37bc8c253bbad40", null ],
       [ "sub64", "namespacesecp256k1_1_1detail.html#a9c0f7cc93786575336de21cb862d615f", null ],
@@ -142,7 +144,7 @@ var namespacesecp256k1 =
     [ "ecies_decrypt", "namespacesecp256k1.html#a169c1c3d7696ea890cebdedfa79619f0", null ],
     [ "ecies_encrypt", "namespacesecp256k1.html#af718e31c07d8f7c9be36ba4324d4817f", null ],
     [ "effective_generator", "namespacesecp256k1.html#a95488158a1e555261e297868c47db41d", null ],
-    [ "ellswift_create", "namespacesecp256k1.html#a9b6d573f3ab98808155613988060619d", null ],
+    [ "ellswift_create", "namespacesecp256k1.html#a7a5e8ef4a69a43ea040294cbfdfa6239", null ],
     [ "ellswift_decode", "namespacesecp256k1.html#a2c445ab965d90d7f6c33d6b25d311c18", null ],
     [ "ellswift_xdh", "namespacesecp256k1.html#a3465843e0c2317a71e7537d2056e7beb", null ],
     [ "fe_to_data", "namespacesecp256k1.html#ab69bb17fffa81e4e0fa7f89eb36ea5aa", null ],

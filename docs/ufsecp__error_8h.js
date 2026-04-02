@@ -7,6 +7,7 @@ var ufsecp__error_8h =
     [ "UFSECP_ERR_BAD_SIG", "ufsecp__error_8h.html#aa1ceea5f36485c09b09b8d0a3fbb09fb", null ],
     [ "UFSECP_ERR_BUF_TOO_SMALL", "ufsecp__error_8h.html#aac465156a57ce9deb878d85c6e713274", null ],
     [ "UFSECP_ERR_INTERNAL", "ufsecp__error_8h.html#a10160096e5ad28390a45f068596729f0", null ],
+    [ "UFSECP_ERR_NOT_FOUND", "ufsecp__error_8h.html#a38d26c34840e0cc1c25a8c4ff7b48fc6", null ],
     [ "UFSECP_ERR_NULL_ARG", "ufsecp__error_8h.html#a203ff77a4225787602826f5b175c00f3", null ],
     [ "UFSECP_ERR_SELFTEST", "ufsecp__error_8h.html#a4d1412fd84b54474e2e24a14ad735403", null ],
     [ "UFSECP_ERR_VERIFY_FAIL", "ufsecp__error_8h.html#a2d559d368d908b3e77dce54a14eb2496", null ],

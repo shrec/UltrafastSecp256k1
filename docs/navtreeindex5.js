@@ -1,5 +1,14 @@
 var NAVTREEINDEX5 =
 {
+"namespacemembers_o.html":[2,1,0,13],
+"namespacemembers_p.html":[2,1,0,14],
+"namespacemembers_q.html":[2,1,0,15],
+"namespacemembers_r.html":[2,1,0,16],
+"namespacemembers_s.html":[2,1,0,17],
+"namespacemembers_t.html":[2,1,0,18],
+"namespacemembers_type.html":[2,1,3],
+"namespacemembers_v.html":[2,1,0,19],
+"namespacemembers_vars.html":[2,1,2],
 "namespacemembers_w.html":[2,1,0,20],
 "namespacemembers_z.html":[2,1,0,21],
 "namespaces.html":[2,0],
@@ -96,6 +105,7 @@ var NAVTREEINDEX5 =
 "namespacesecp256k1.html#a710d5963b9ce553b958f007209438faf":[2,0,1,195],
 "namespacesecp256k1.html#a7816df2793be5148898e0be7756dcbd3":[2,0,1,187],
 "namespacesecp256k1.html#a799903aca6c37f859aa9782a6b4a3267":[2,0,1,120],
+"namespacesecp256k1.html#a7a5e8ef4a69a43ea040294cbfdfa6239":[2,0,1,114],
 "namespacesecp256k1.html#a7c2049a86d738a492e748f7f0e16ce4a":[2,0,1,61],
 "namespacesecp256k1.html#a7e6d38a63098bede5c75ee17ca4ebf9f":[2,0,1,118],
 "namespacesecp256k1.html#a7f27973718cda7118db34c5abbbf6fc8":[2,0,1,213],
@@ -117,7 +127,6 @@ var NAVTREEINDEX5 =
 "namespacesecp256k1.html#a96716096c393724a5a60d2faf1eff530":[2,0,1,73],
 "namespacesecp256k1.html#a99942ef97f7b8f3454e1d2f7a98deb5f":[2,0,1,163],
 "namespacesecp256k1.html#a9a42cd7893499e15ccec58ce97a529ea":[2,0,1,55],
-"namespacesecp256k1.html#a9b6d573f3ab98808155613988060619d":[2,0,1,114],
 "namespacesecp256k1.html#aa090d2231af481eb9fec37bd139ec9c7":[2,0,1,173],
 "namespacesecp256k1.html#aa164bf7961c4c98e33564df8f56363e2":[2,0,1,150],
 "namespacesecp256k1.html#aa23836034b03aa6ed7e0a12b815afa5c":[2,0,1,77],
@@ -240,14 +249,5 @@ var NAVTREEINDEX5 =
 "namespacesecp256k1_1_1coins.html#a9bf98aed762ef07859ff65869bb245fa":[2,0,1,0,38],
 "namespacesecp256k1_1_1coins.html#a9bff9e5f911b19fbf025a91b7a5785fc":[2,0,1,0,11],
 "namespacesecp256k1_1_1coins.html#a9d201e64ae77de5a741877bc933592ac":[2,0,1,0,64],
-"namespacesecp256k1_1_1coins.html#ab03b1ab58695ee79859c2e251c81194a":[2,0,1,0,60],
-"namespacesecp256k1_1_1coins.html#abae4863a237528145f0d291383e06aa1":[2,0,1,0,35],
-"namespacesecp256k1_1_1coins.html#ac0e162c11624302a1b1bfa1c30813dd6":[2,0,1,0,49],
-"namespacesecp256k1_1_1coins.html#ac1ff5191517994931c9408403ed57f41":[2,0,1,0,52],
-"namespacesecp256k1_1_1coins.html#ac3609eeb54f2706d0e8d0743b9fd05a1":[2,0,1,0,47],
-"namespacesecp256k1_1_1coins.html#ac5212b4a5043b6aa01e4fcce496037b0":[2,0,1,0,12],
-"namespacesecp256k1_1_1coins.html#ac54c95af7577aa020c8c03730b0e9ff3":[2,0,1,0,65],
-"namespacesecp256k1_1_1coins.html#ac6b0477033f1a1058c2959fd4316c59a":[2,0,1,0,71],
-"namespacesecp256k1_1_1coins.html#ac77be4524ecea87e4d7edfca8199427a":[2,0,1,0,32],
-"namespacesecp256k1_1_1coins.html#ac85c6599d9dda16b046b00cfa0cf97e2":[2,0,1,0,73]
+"namespacesecp256k1_1_1coins.html#ab03b1ab58695ee79859c2e251c81194a":[2,0,1,0,60]
 };

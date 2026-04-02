@@ -1,4 +1,5 @@
 var searchData=
 [
-  ['witnessprogramtype_0',['WitnessProgramType',['../namespacesecp256k1.html#a22ce5b8d7744230a2c594ff90797f856',1,'secp256k1']]]
+  ['ufsecp_5fbip322_5faddr_5ftype_0',['ufsecp_bip322_addr_type',['../ufsecp_8h.html#a7ff382d4c6ebf1b99f93a0a121688320',1,'ufsecp.h']]],
+  ['ufsecp_5fdesc_5ftype_1',['ufsecp_desc_type',['../ufsecp_8h.html#a7edb05dffee308e753277cdc99d5179c',1,'ufsecp.h']]]
 ];

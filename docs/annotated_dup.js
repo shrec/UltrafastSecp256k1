@@ -104,6 +104,7 @@ var annotated_dup =
     [ "SecureEraseGuard", "classSecureEraseGuard.html", "classSecureEraseGuard" ],
     [ "ufsecp_bip32_key", "structufsecp__bip32__key.html", "structufsecp__bip32__key" ],
     [ "ufsecp_ctx", "structufsecp__ctx.html", "structufsecp__ctx" ],
+    [ "ufsecp_desc_key", "structufsecp__desc__key.html", "structufsecp__desc__key" ],
     [ "ufsecp_gpu_ctx", "structufsecp__gpu__ctx.html", "structufsecp__gpu__ctx" ],
     [ "ufsecp_gpu_device_info_t", "structufsecp__gpu__device__info__t.html", "structufsecp__gpu__device__info__t" ]
 ];

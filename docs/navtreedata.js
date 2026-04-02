@@ -31,8 +31,7 @@ var NAVTREE =
         [ "Thread safety", "md_include_2ufsecp_2SUPPORTED__GUARANTEES.html#autotoc_md3", null ],
         [ "Memory", "md_include_2ufsecp_2SUPPORTED__GUARANTEES.html#autotoc_md4", null ]
       ] ],
-      [ "Tier 2 – Experimental (no ABI promise)", "md_include_2ufsecp_2SUPPORTED__GUARANTEES.html#autotoc_md6", null ],
-      [ "</blockquote>", "md_include_2ufsecp_2SUPPORTED__GUARANTEES.html#autotoc_md7", null ],
+      [ "Tier 2 – Protocol Security Advisory", "md_include_2ufsecp_2SUPPORTED__GUARANTEES.html#autotoc_md6", null ],
       [ "Tier 3 – Internal (never exposed)", "md_include_2ufsecp_2SUPPORTED__GUARANTEES.html#autotoc_md8", null ],
       [ "Constant-Time Architecture (Dual-Layer Model)", "md_include_2ufsecp_2SUPPORTED__GUARANTEES.html#autotoc_md10", [
         [ "Verification tools", "md_include_2ufsecp_2SUPPORTED__GUARANTEES.html#autotoc_md11", null ]
@@ -68,6 +67,8 @@ var NAVTREE =
         [ "Functions", "globals_func.html", "globals_func" ],
         [ "Variables", "globals_vars.html", null ],
         [ "Typedefs", "globals_type.html", null ],
+        [ "Enumerations", "globals_enum.html", null ],
+        [ "Enumerator", "globals_eval.html", null ],
         [ "Macros", "globals_defs.html", null ]
       ] ]
     ] ]
@@ -79,18 +80,18 @@ var NAVTREEINDEX =
 "UltrafastSecp256k1_8hpp.html",
 "classsecp256k1_1_1fast_1_1CombGenContext.html#a49672498ff1c87311e1e157bd327edc7",
 "classsecp256k1_1_1fast_1_1Scalar.html#ae634c2ab98447b45a16a507b6d5b76d3",
-"field_8hpp.html#a549591bddbe22577193cbc4b083e8894",
-"glv_8hpp.html#ae67ff54a26ac7cea257b4739a7129ed4",
-"namespacemembers_w.html",
-"namespacesecp256k1_1_1coins.html#ac9d71f047490c3fae14f7aff305d9084",
-"namespacesecp256k1_1_1fast.html#aaf180accadaa322d54fb218f9b565229",
-"sanitizer__scale_8hpp.html#a54d8d06fa60f605454dbffd5d4561ed4",
-"structsecp256k1_1_1FrostKeyPackage.html#a490ca4fa4e222cf6cc2284c27e932be2",
-"structsecp256k1_1_1WitnessTx.html#a0f245d525c1c8b314223e4529f3132c6",
-"structsecp256k1_1_1fast_1_1FieldElement52.html#a94767fb04e2c72ac26b9a464d4a81c18",
-"structsecp256k1_1_1zk_1_1RangeProof.html#a37e0c725a77dbb4ac31caea081b9756c",
-"ufsecp_8h.html#aee96b54f09b9983e87fb09bec1e22479",
-"ufsecp__version_8h_source.html"
+"field_8hpp.html#a4353b6ec19fbe63cc07d0498493a0741",
+"glv_8hpp.html#a08bcc168109784e84eb68b5e752d3442",
+"namespacemembers_o.html",
+"namespacesecp256k1_1_1coins.html#abae4863a237528145f0d291383e06aa1",
+"namespacesecp256k1_1_1fast.html#aa1ade8639ae8e331731389af48483662",
+"private__key_8hpp.html#abc87f00cdfb554df7b96ba8b1f0d849a",
+"structsecp256k1_1_1FrostCommitment.html",
+"structsecp256k1_1_1WitnessProgram.html",
+"structsecp256k1_1_1fast_1_1FieldElement52.html#a6fcc9b56b0b2804544dd8f608f60258a",
+"structsecp256k1_1_1zk_1_1KnowledgeProof.html#a6f4f5d61c9ecd04c309792bc605e5e5a",
+"ufsecp_8h.html#ab77f4b7921c5a45b7e02274d6e5b342e",
+"ufsecp__impl_8cpp.html#a9119403de997fa9f33670cc64d0adcf3"
 ];
 
 var SYNCONMSG = 'click to disable panel synchronisation';

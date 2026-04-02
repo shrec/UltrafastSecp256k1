@@ -25,7 +25,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.4.0</span>
+   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.50.0</span>
    </div>
    <div id="projectbrief">Ultra high-performance secp256k1 elliptic curve cryptography library</div>
   </td>
@@ -94,7 +94,7 @@ $(document).ready(function(){initNavTree('md_include_2ufsecp_2SUPPORTED__GUARANT
 </div><!--header-->
 <div class="contents">
 <div class="textblock"><p><a class="anchor" id="autotoc_md0"></a> </p><blockquote class="doxtable">
-<p>&zwj;<b>Version</b>: 3.4.0 (ABI 1) <b>Date</b>: 2026-03-23 </p>
+<p>&zwj;<b>Version</b>: 3.50.0 (ABI 1) <b>Date</b>: 2026-03-23 </p>
 </blockquote>
 <p>This document defines what the <code>ufsecp_*</code> C ABI promises and where the boundary lies.</p>
 <hr  />
@@ -143,27 +143,15 @@ Memory</h2>
 <p>All output buffers are caller-owned. The library never allocates on behalf of the caller except during <code>ufsecp_ctx_create</code> / <code>ufsecp_ctx_clone</code>.</p>
 <hr  />
 <h1><a class="anchor" id="autotoc_md6"></a>
-Tier 2 – Experimental (no ABI promise)</h1>
-<table class="markdownTable">
-<tr class="markdownTableHead">
-<th class="markdownTableHeadNone">Feature   </th><th class="markdownTableHeadNone">Status    </th></tr>
-<tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone">FROST threshold signatures   </td><td class="markdownTableBodyNone">API may change (not exposed in <code><a class="el" href="ufsecp_8h.html">ufsecp.h</a></code> yet)    </td></tr>
-<tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone">MuSig2 multi-signatures   </td><td class="markdownTableBodyNone">API may change    </td></tr>
-<tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone">Adaptor signatures   </td><td class="markdownTableBodyNone">API may change    </td></tr>
-<tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone">Pedersen commitments   </td><td class="markdownTableBodyNone">API may change    </td></tr>
-<tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone">Multi-coin address derivation   </td><td class="markdownTableBodyNone">API may change   </td></tr>
-</table>
-<p>These will graduate to Tier 1 once their API surface is frozen and a test harness covers all edge cases.</p>
-<blockquote class="doxtable">
-<p>&zwj;<b>MuSig2 and FROST</b>: These multi-party protocols have complex security models (rogue-key attacks, nonce reuse, abort handling) that go beyond standard single-signer ECDSA/Schnorr. <b>Independent external security review is required before production deployment.</b> The self-audit suite covers functional correctness and known-answer tests, but does not substitute for a protocol-level cryptographic review. </p>
-</blockquote>
-<h1><a class="anchor" id="autotoc_md7"></a>
-&lt;/blockquote&gt;</h1>
+Tier 2 – Protocol Security Advisory</h1>
+<p>The following features are part of the stable ABI but involve multi-party cryptographic protocols with complex security models. The <b>implementation</b> is stable; however, <b>independent external security review is required before production deployment</b> in adversarial multi-party settings:</p>
+<ul>
+<li><b>MuSig2</b> — rogue-key attacks, nonce reuse, coordinator equivocation</li>
+<li><b>FROST</b> — malicious participant DKG, nonce commitment replay, threshold abort</li>
+<li><b>Adaptor signatures</b> — DLC contract binding, secret extraction correctness</li>
+</ul>
+<p>The self-audit suite covers functional correctness and known-answer tests but does not substitute for a protocol-level cryptographic review.</p>
+<hr  />
 <h1><a class="anchor" id="autotoc_md8"></a>
 Tier 3 – Internal (never exposed)</h1>
 <ul>
@@ -217,7 +205,7 @@ Versioning Rules</h1>
 <div class="fragment"><div class="line"><span class="keywordflow">if</span> (<a class="code hl_function" href="ufsecp__impl_8cpp.html#ada009081ae04d5e549373c33a2b3f6f5">ufsecp_abi_version</a>() != <a class="code hl_define" href="ufsecp__version_8h.html#ab2da3f29bf4348b5e781f4e9bbefc26a">UFSECP_ABI_VERSION</a>) {</div>
 <div class="line">    <span class="comment">/* linked library is incompatible */</span></div>
 <div class="line">}</div>
-<div class="ttc" id="aufsecp__impl_8cpp_html_ada009081ae04d5e549373c33a2b3f6f5"><div class="ttname"><a href="ufsecp__impl_8cpp.html#ada009081ae04d5e549373c33a2b3f6f5">ufsecp_abi_version</a></div><div class="ttdeci">unsigned int ufsecp_abi_version(void)</div><div class="ttdef"><b>Definition</b> <a href="ufsecp__impl_8cpp_source.html#l00340">ufsecp_impl.cpp:340</a></div></div>
+<div class="ttc" id="aufsecp__impl_8cpp_html_ada009081ae04d5e549373c33a2b3f6f5"><div class="ttname"><a href="ufsecp__impl_8cpp.html#ada009081ae04d5e549373c33a2b3f6f5">ufsecp_abi_version</a></div><div class="ttdeci">unsigned int ufsecp_abi_version(void)</div><div class="ttdef"><b>Definition</b> <a href="ufsecp__impl_8cpp_source.html#l00343">ufsecp_impl.cpp:343</a></div></div>
 <div class="ttc" id="aufsecp__version_8h_html_ab2da3f29bf4348b5e781f4e9bbefc26a"><div class="ttname"><a href="ufsecp__version_8h.html#ab2da3f29bf4348b5e781f4e9bbefc26a">UFSECP_ABI_VERSION</a></div><div class="ttdeci">#define UFSECP_ABI_VERSION</div><div class="ttdef"><b>Definition</b> <a href="ufsecp__version_8h_source.html#l00038">ufsecp_version.h:38</a></div></div>
 </div><!-- fragment --><hr  />
 <h1><a class="anchor" id="autotoc_md15"></a>

@@ -27,7 +27,7 @@ var searchData=
   ['eip191_5fhash_24',['eip191_hash',['../namespacesecp256k1_1_1coins.html#abae4863a237528145f0d291383e06aa1',1,'secp256k1::coins']]],
   ['eip55_5fchecksum_25',['eip55_checksum',['../namespacesecp256k1_1_1coins.html#a3e64a7241c4087ff107c77bce0209348',1,'secp256k1::coins']]],
   ['eip55_5fverify_26',['eip55_verify',['../namespacesecp256k1_1_1coins.html#a364101d3fc7a302873edb855306d06ce',1,'secp256k1::coins']]],
-  ['ellswift_5fcreate_27',['ellswift_create',['../namespacesecp256k1.html#a9b6d573f3ab98808155613988060619d',1,'secp256k1']]],
+  ['ellswift_5fcreate_27',['ellswift_create',['../namespacesecp256k1.html#a7a5e8ef4a69a43ea040294cbfdfa6239',1,'secp256k1']]],
   ['ellswift_5fdecode_28',['ellswift_decode',['../namespacesecp256k1.html#a2c445ab965d90d7f6c33d6b25d311c18',1,'secp256k1']]],
   ['ellswift_5fxdh_29',['ellswift_xdh',['../namespacesecp256k1.html#a3465843e0c2317a71e7537d2056e7beb',1,'secp256k1']]],
   ['encode_30',['encode',['../structsecp256k1_1_1SilentPaymentAddress.html#a2bf9b841ae397667db212ea12d54baeb',1,'secp256k1::SilentPaymentAddress']]],
