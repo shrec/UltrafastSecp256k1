@@ -4,6 +4,7 @@
 
 #include "secp256k1/segwit.hpp"
 #include "secp256k1/sha256.hpp"
+#include "secp256k1/address.hpp"
 #include <cstring>
 
 namespace secp256k1 {
@@ -19,8 +20,6 @@ static std::array<std::uint8_t, 20> local_hash160(
     // for witness_script_hash and do hash160 externally.
     // For validate_p2wpkh_witness, we need it, so include the RIPEMD160 path.
 
-    // Use the same pattern as address.cpp: extern linkage to hash160()
-    extern std::array<std::uint8_t, 20> hash160(const std::uint8_t*, std::size_t);
     return hash160(data, len);
 }
 

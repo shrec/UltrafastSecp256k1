@@ -43,7 +43,7 @@ public:
     }
 
     // Initialize with a 32-byte key for this direction
-    void init(const std::uint8_t key[32]) noexcept;
+    void init(const std::uint8_t* key) noexcept;
 
     // Encrypt a packet (plaintext -> header_enc[3] + payload_enc[len] + tag[16])
     // aad is optional associated data.
@@ -58,7 +58,7 @@ public:
     // Returns false on auth failure or malformed decrypted packet framing.
     bool decrypt(
         const std::uint8_t* aad, std::size_t aad_len,
-        const std::uint8_t header_enc[3],
+        const std::uint8_t* header_enc,
         const std::uint8_t* contents, std::size_t contents_len,
         std::vector<std::uint8_t>& plaintext_out) noexcept;
 
@@ -70,7 +70,7 @@ private:
     std::uint64_t packet_counter_ = 0;
 
     // Build a 12-byte nonce from the packet counter
-    void build_nonce(std::uint8_t nonce[12]) const noexcept;
+    void build_nonce(std::uint8_t* nonce) const noexcept;
 };
 
 // -- BIP-324 Session ----------------------------------------------------------
@@ -82,7 +82,7 @@ public:
     explicit Bip324Session(bool initiator) noexcept;
 
     // Initialize with a specific private key (for testing / deterministic use)
-    Bip324Session(bool initiator, const std::uint8_t privkey[32]) noexcept;
+    Bip324Session(bool initiator, const std::uint8_t* privkey) noexcept;
 
     ~Bip324Session() noexcept {
         // Erase private key material on destruction
@@ -98,7 +98,7 @@ public:
     // Complete the handshake by providing the peer's 64-byte ElligatorSwift encoding.
     // This derives the shared secret and symmetric keys.
     // Returns true on success.
-    bool complete_handshake(const std::uint8_t peer_encoding[64]) noexcept;
+    bool complete_handshake(const std::uint8_t* peer_encoding) noexcept;
 
     // Encrypt a message for sending to the peer.
     // Returns: [3-byte encrypted length][payload][16-byte tag]
@@ -111,7 +111,7 @@ public:
     // Returns true on success and writes the decrypted payload to plaintext_out.
     // Returns false on auth failure or malformed decrypted packet framing.
     bool decrypt(
-        const std::uint8_t header[3],
+        const std::uint8_t* header,
         const std::uint8_t* payload_and_tag, std::size_t len,
         std::vector<std::uint8_t>& plaintext_out) noexcept;
 

@@ -2911,10 +2911,21 @@ ufsecp_error_t ufsecp_frost_sign_nonce_gen(
     return UFSECP_OK;
 }
 
-// FROST partial signing bridges the stable C ABI to the internal protocol code:
-// it validates signer-count and key-package invariants up front, decodes the
-// serialized nonce-commit list into typed structures, and then returns the
-// participant-id-prefixed partial signature expected by the public ABI.
+/// @brief Sign a FROST round-2 partial signature.
+///
+/// Bridges the stable C ABI to the internal FROST signing protocol:
+///   - Validates signer-count and key-package invariants.
+///   - Decodes the serialised nonce-commit list into typed structures.
+///   - Returns the participant-id-prefixed partial signature.
+///
+/// @param ctx          Library context (must not be null).
+/// @param keypkg       Serialised FROST key package (UFSECP_FROST_KEYPKG_LEN bytes).
+/// @param nonce        Signing nonce generated in round 1 (UFSECP_FROST_NONCE_LEN bytes).
+/// @param msg32        32-byte message hash to sign.
+/// @param nonce_commits Array of n_signers serialised nonce commitments.
+/// @param n_signers    Number of participants in this signing round.
+/// @param partial_sig_out Output buffer for the 36-byte partial signature.
+/// @return UFSECP_OK on success, an error code otherwise.
 ufsecp_error_t ufsecp_frost_sign(
     ufsecp_ctx* ctx,
     const uint8_t keypkg[UFSECP_FROST_KEYPKG_LEN],
@@ -5337,12 +5348,12 @@ ufsecp_error_t ufsecp_descriptor_parse(
             auto ab = ps.find('<');
             if (ab != std::string::npos) {
                 auto ae = ps.find('>', ab);
-                if (ae != std::string::npos) ps = ps.substr(0, ab) + "0" + ps.substr(ae + 1);
+                if (ae != std::string::npos) ps.replace(ab, ae - ab + 1, "0");
             }
             // Replace * with index
             auto star = ps.find('*');
             if (star != std::string::npos) {
-                ps = ps.substr(0, star) + std::to_string(index) + ps.substr(star + 1);
+                ps.replace(star, 1, std::to_string(index));
             }
             derive_path += ps;
         }

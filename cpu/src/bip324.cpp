@@ -39,12 +39,12 @@ using secp256k1::detail::csprng_fill;
 // Bip324Cipher
 // ============================================================================
 
-void Bip324Cipher::init(const std::uint8_t key[32]) noexcept {
+void Bip324Cipher::init(const std::uint8_t* key) noexcept {
     std::memcpy(key_, key, 32);
     packet_counter_ = 0;
 }
 
-void Bip324Cipher::build_nonce(std::uint8_t nonce[12]) const noexcept {
+void Bip324Cipher::build_nonce(std::uint8_t* nonce) const noexcept {
     // Nonce = 4 zero bytes || 8-byte little-endian packet counter
     std::memset(nonce, 0, 4);
     for (int i = 0; i < 8; ++i) {
@@ -91,7 +91,7 @@ std::vector<std::uint8_t> Bip324Cipher::encrypt(
 
 bool Bip324Cipher::decrypt(
     const std::uint8_t* aad, std::size_t aad_len,
-    const std::uint8_t header_enc[3],
+    const std::uint8_t* header_enc,
     const std::uint8_t* contents, std::size_t contents_len,
     std::vector<std::uint8_t>& plaintext_out) noexcept {
 
@@ -147,7 +147,7 @@ Bip324Session::Bip324Session(bool initiator) noexcept
     detail::secure_erase(&sk, sizeof(sk));
 }
 
-Bip324Session::Bip324Session(bool initiator, const std::uint8_t privkey[32]) noexcept
+Bip324Session::Bip324Session(bool initiator, const std::uint8_t* privkey) noexcept
     : initiator_(initiator) {
     std::memcpy(privkey_.data(), privkey, 32);
     auto sk = fast::Scalar::from_bytes(privkey_);
@@ -155,7 +155,7 @@ Bip324Session::Bip324Session(bool initiator, const std::uint8_t privkey[32]) noe
     detail::secure_erase(&sk, sizeof(sk));
 }
 
-bool Bip324Session::complete_handshake(const std::uint8_t peer_encoding[64]) noexcept {
+bool Bip324Session::complete_handshake(const std::uint8_t* peer_encoding) noexcept {
     if (established_) return false;
 
     std::memcpy(peer_encoding_.data(), peer_encoding, 64);
@@ -228,7 +228,7 @@ std::vector<std::uint8_t> Bip324Session::encrypt(
 }
 
 bool Bip324Session::decrypt(
-    const std::uint8_t header[3],
+    const std::uint8_t* header,
     const std::uint8_t* payload_and_tag, std::size_t len,
     std::vector<std::uint8_t>& plaintext_out) noexcept {
     if (!established_) {
