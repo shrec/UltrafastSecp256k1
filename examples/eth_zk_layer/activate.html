@@ -77,9 +77,13 @@
     button:disabled { opacity: 0.4; cursor: not-allowed; }
     button:not(:disabled):hover { opacity: 0.85; }
     button.secondary {
-      background: transparent;
-      border: 1px solid var(--border);
-      color: var(--text);
+      background: #1c2330;
+      border: 1px solid var(--blue);
+      color: var(--blue);
+    }
+    button.secondary:not(:disabled):hover {
+      background: #1f3050;
+      opacity: 1;
     }
     .mono-box {
       background: var(--bg);
