@@ -33,4 +33,17 @@ if(NOT _SECP_TARGET_ARCH MATCHES "xtensa|Xtensa" AND NOT SECP256K1_PLATFORM_STM3
         message(STATUS "Examples: threshold_demo skipped (main.cpp not found)")
     endif()
 
+    # Ethereum ZK-layer demo: BIP-32 HD wallet, EIP-191 personal_sign,
+    # ecrecover, Pedersen commitments, ZK proof bundle, batch ECDSA verify
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/eth_zk_layer/main.cpp")
+        add_executable(example_eth_zk_layer eth_zk_layer/main.cpp)
+        # Link only against the public C ABI wrapper — no internal C++ headers used.
+        # This avoids inheriting the -flto INTERFACE flag from fastsecp256k1, which
+        # would misoptimise calls into the non-LTO ufsecp_static object.
+        target_link_libraries(example_eth_zk_layer PRIVATE ufsecp::ufsecp)
+        message(STATUS "Examples: eth_zk_layer enabled")
+    else()
+        message(STATUS "Examples: eth_zk_layer skipped (main.cpp not found)")
+    endif()
+
 endif()
