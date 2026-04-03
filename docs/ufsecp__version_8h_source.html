@@ -144,30 +144,32 @@ $(document).ready(function(){initNavTree('ufsecp__version_8h_source.html',''); i
 <div class="line"><a id="l00043" name="l00043"></a><span class="lineno">   43</span><span class="preprocessor">  #if defined(_WIN32) || defined(__CYGWIN__)</span></div>
 <div class="line"><a id="l00044" name="l00044"></a><span class="lineno">   44</span><span class="preprocessor">    #ifdef UFSECP_BUILDING</span></div>
 <div class="line"><a id="l00045" name="l00045"></a><span class="lineno">   45</span><span class="preprocessor">      #define UFSECP_API __declspec(dllexport)</span></div>
-<div class="line"><a id="l00046" name="l00046"></a><span class="lineno">   46</span><span class="preprocessor">    #else</span></div>
-<div class="line"><a id="l00047" name="l00047"></a><span class="lineno">   47</span><span class="preprocessor">      #define UFSECP_API __declspec(dllimport)</span></div>
-<div class="line"><a id="l00048" name="l00048"></a><span class="lineno">   48</span><span class="preprocessor">    #endif</span></div>
-<div class="line"><a id="l00049" name="l00049"></a><span class="lineno">   49</span><span class="preprocessor">  #elif __GNUC__ &gt;= 4</span></div>
-<div class="line"><a id="l00050" name="l00050"></a><span class="lineno">   50</span><span class="preprocessor">    #define UFSECP_API __attribute__((visibility(&quot;default&quot;)))</span></div>
-<div class="line"><a id="l00051" name="l00051"></a><span class="lineno">   51</span><span class="preprocessor">  #else</span></div>
-<div class="line"><a id="l00052" name="l00052"></a><span class="lineno"><a class="line" href="ufsecp__version_8h.html#a407719474ce7a71be9faf26f27f38c6c">   52</a></span><span class="preprocessor">    #define UFSECP_API</span></div>
-<div class="line"><a id="l00053" name="l00053"></a><span class="lineno">   53</span><span class="preprocessor">  #endif</span></div>
-<div class="line"><a id="l00054" name="l00054"></a><span class="lineno">   54</span><span class="preprocessor">#endif</span></div>
-<div class="line"><a id="l00055" name="l00055"></a><span class="lineno">   55</span> </div>
-<div class="line"><a id="l00057" name="l00057"></a><span class="lineno">   57</span><a class="code hl_define" href="ufsecp__version_8h.html#a407719474ce7a71be9faf26f27f38c6c">UFSECP_API</a> <span class="keywordtype">unsigned</span> <span class="keywordtype">int</span> <a class="code hl_function" href="ufsecp__version_8h.html#a00aefa3a9a204565f192db4e1eb0a585">ufsecp_version</a>(<span class="keywordtype">void</span>);</div>
-<div class="line"><a id="l00058" name="l00058"></a><span class="lineno">   58</span> </div>
-<div class="line"><a id="l00060" name="l00060"></a><span class="lineno">   60</span><a class="code hl_define" href="ufsecp__version_8h.html#a407719474ce7a71be9faf26f27f38c6c">UFSECP_API</a> <span class="keywordtype">unsigned</span> <span class="keywordtype">int</span> <a class="code hl_function" href="ufsecp__version_8h.html#ad27d2519d10da3a7e8e22d62be35facc">ufsecp_abi_version</a>(<span class="keywordtype">void</span>);</div>
-<div class="line"><a id="l00061" name="l00061"></a><span class="lineno">   61</span> </div>
-<div class="line"><a id="l00063" name="l00063"></a><span class="lineno">   63</span><a class="code hl_define" href="ufsecp__version_8h.html#a407719474ce7a71be9faf26f27f38c6c">UFSECP_API</a> <span class="keyword">const</span> <span class="keywordtype">char</span>* <a class="code hl_function" href="ufsecp__version_8h.html#a2152da1f53e65d8b80e428ca26e1e976">ufsecp_version_string</a>(<span class="keywordtype">void</span>);</div>
-<div class="line"><a id="l00064" name="l00064"></a><span class="lineno">   64</span> </div>
-<div class="line"><a id="l00065" name="l00065"></a><span class="lineno">   65</span><span class="preprocessor">#ifdef __cplusplus</span></div>
-<div class="line"><a id="l00066" name="l00066"></a><span class="lineno">   66</span>}</div>
-<div class="line"><a id="l00067" name="l00067"></a><span class="lineno">   67</span><span class="preprocessor">#endif</span></div>
-<div class="line"><a id="l00068" name="l00068"></a><span class="lineno">   68</span> </div>
-<div class="line"><a id="l00069" name="l00069"></a><span class="lineno">   69</span><span class="preprocessor">#endif </span><span class="comment">/* UFSECP_VERSION_H */</span><span class="preprocessor"></span></div>
+<div class="line"><a id="l00046" name="l00046"></a><span class="lineno">   46</span><span class="preprocessor">    #elif defined(UFSECP_STATIC_LIB)</span></div>
+<div class="line"><a id="l00047" name="l00047"></a><span class="lineno">   47</span><span class="preprocessor">      #define UFSECP_API</span></div>
+<div class="line"><a id="l00048" name="l00048"></a><span class="lineno">   48</span><span class="preprocessor">    #else</span></div>
+<div class="line"><a id="l00049" name="l00049"></a><span class="lineno">   49</span><span class="preprocessor">      #define UFSECP_API __declspec(dllimport)</span></div>
+<div class="line"><a id="l00050" name="l00050"></a><span class="lineno">   50</span><span class="preprocessor">    #endif</span></div>
+<div class="line"><a id="l00051" name="l00051"></a><span class="lineno">   51</span><span class="preprocessor">  #elif __GNUC__ &gt;= 4</span></div>
+<div class="line"><a id="l00052" name="l00052"></a><span class="lineno">   52</span><span class="preprocessor">    #define UFSECP_API __attribute__((visibility(&quot;default&quot;)))</span></div>
+<div class="line"><a id="l00053" name="l00053"></a><span class="lineno">   53</span><span class="preprocessor">  #else</span></div>
+<div class="line"><a id="l00054" name="l00054"></a><span class="lineno"><a class="line" href="ufsecp__version_8h.html#a407719474ce7a71be9faf26f27f38c6c">   54</a></span><span class="preprocessor">    #define UFSECP_API</span></div>
+<div class="line"><a id="l00055" name="l00055"></a><span class="lineno">   55</span><span class="preprocessor">  #endif</span></div>
+<div class="line"><a id="l00056" name="l00056"></a><span class="lineno">   56</span><span class="preprocessor">#endif</span></div>
+<div class="line"><a id="l00057" name="l00057"></a><span class="lineno">   57</span> </div>
+<div class="line"><a id="l00059" name="l00059"></a><span class="lineno">   59</span><a class="code hl_define" href="ufsecp__version_8h.html#a407719474ce7a71be9faf26f27f38c6c">UFSECP_API</a> <span class="keywordtype">unsigned</span> <span class="keywordtype">int</span> <a class="code hl_function" href="ufsecp__version_8h.html#a00aefa3a9a204565f192db4e1eb0a585">ufsecp_version</a>(<span class="keywordtype">void</span>);</div>
+<div class="line"><a id="l00060" name="l00060"></a><span class="lineno">   60</span> </div>
+<div class="line"><a id="l00062" name="l00062"></a><span class="lineno">   62</span><a class="code hl_define" href="ufsecp__version_8h.html#a407719474ce7a71be9faf26f27f38c6c">UFSECP_API</a> <span class="keywordtype">unsigned</span> <span class="keywordtype">int</span> <a class="code hl_function" href="ufsecp__version_8h.html#ad27d2519d10da3a7e8e22d62be35facc">ufsecp_abi_version</a>(<span class="keywordtype">void</span>);</div>
+<div class="line"><a id="l00063" name="l00063"></a><span class="lineno">   63</span> </div>
+<div class="line"><a id="l00065" name="l00065"></a><span class="lineno">   65</span><a class="code hl_define" href="ufsecp__version_8h.html#a407719474ce7a71be9faf26f27f38c6c">UFSECP_API</a> <span class="keyword">const</span> <span class="keywordtype">char</span>* <a class="code hl_function" href="ufsecp__version_8h.html#a2152da1f53e65d8b80e428ca26e1e976">ufsecp_version_string</a>(<span class="keywordtype">void</span>);</div>
+<div class="line"><a id="l00066" name="l00066"></a><span class="lineno">   66</span> </div>
+<div class="line"><a id="l00067" name="l00067"></a><span class="lineno">   67</span><span class="preprocessor">#ifdef __cplusplus</span></div>
+<div class="line"><a id="l00068" name="l00068"></a><span class="lineno">   68</span>}</div>
+<div class="line"><a id="l00069" name="l00069"></a><span class="lineno">   69</span><span class="preprocessor">#endif</span></div>
+<div class="line"><a id="l00070" name="l00070"></a><span class="lineno">   70</span> </div>
+<div class="line"><a id="l00071" name="l00071"></a><span class="lineno">   71</span><span class="preprocessor">#endif </span><span class="comment">/* UFSECP_VERSION_H */</span><span class="preprocessor"></span></div>
 <div class="ttc" id="aufsecp__version_8h_html_a00aefa3a9a204565f192db4e1eb0a585"><div class="ttname"><a href="ufsecp__version_8h.html#a00aefa3a9a204565f192db4e1eb0a585">ufsecp_version</a></div><div class="ttdeci">UFSECP_API unsigned int ufsecp_version(void)</div><div class="ttdef"><b>Definition</b> <a href="ufsecp__impl_8cpp_source.html#l00339">ufsecp_impl.cpp:339</a></div></div>
 <div class="ttc" id="aufsecp__version_8h_html_a2152da1f53e65d8b80e428ca26e1e976"><div class="ttname"><a href="ufsecp__version_8h.html#a2152da1f53e65d8b80e428ca26e1e976">ufsecp_version_string</a></div><div class="ttdeci">UFSECP_API const char * ufsecp_version_string(void)</div><div class="ttdef"><b>Definition</b> <a href="ufsecp__impl_8cpp_source.html#l00347">ufsecp_impl.cpp:347</a></div></div>
-<div class="ttc" id="aufsecp__version_8h_html_a407719474ce7a71be9faf26f27f38c6c"><div class="ttname"><a href="ufsecp__version_8h.html#a407719474ce7a71be9faf26f27f38c6c">UFSECP_API</a></div><div class="ttdeci">#define UFSECP_API</div><div class="ttdef"><b>Definition</b> <a href="ufsecp__version_8h_source.html#l00052">ufsecp_version.h:52</a></div></div>
+<div class="ttc" id="aufsecp__version_8h_html_a407719474ce7a71be9faf26f27f38c6c"><div class="ttname"><a href="ufsecp__version_8h.html#a407719474ce7a71be9faf26f27f38c6c">UFSECP_API</a></div><div class="ttdeci">#define UFSECP_API</div><div class="ttdef"><b>Definition</b> <a href="ufsecp__version_8h_source.html#l00054">ufsecp_version.h:54</a></div></div>
 <div class="ttc" id="aufsecp__version_8h_html_ad27d2519d10da3a7e8e22d62be35facc"><div class="ttname"><a href="ufsecp__version_8h.html#ad27d2519d10da3a7e8e22d62be35facc">ufsecp_abi_version</a></div><div class="ttdeci">UFSECP_API unsigned int ufsecp_abi_version(void)</div><div class="ttdef"><b>Definition</b> <a href="ufsecp__impl_8cpp_source.html#l00343">ufsecp_impl.cpp:343</a></div></div>
 </div><!-- fragment --></div><!-- contents -->
 </div><!-- doc-content -->
