@@ -38,7 +38,10 @@ def find_lib(explicit: str | None) -> str:
     # Common build-tree locations relative to this script
     script_dir = Path(__file__).resolve().parent
     candidates = [
-        # build_opencl (default build)
+        # build-cuda first — has GPU + CPU support
+        script_dir.parents[3] / "build-cuda" / "libs" / "UltrafastSecp256k1" / "include" / "ufsecp" / "libufsecp.so",
+        script_dir.parents[2] / "build-cuda" / "include" / "ufsecp" / "libufsecp.so",
+        # build_opencl fallback
         script_dir.parents[3] / "build_opencl" / "include" / "ufsecp" / "libufsecp.so",
         script_dir.parents[2] / "build_opencl" / "include" / "ufsecp" / "libufsecp.so",
         # same-level build dirs
@@ -65,6 +68,20 @@ def find_lib(explicit: str | None) -> str:
 # ── ctypes bindings ──────────────────────────────────────────────────────────
 
 UFSECP_OK = 0
+UFSECP_GPU_BACKEND_CUDA   = 1
+UFSECP_GPU_BACKEND_OPENCL = 2
+UFSECP_GPU_BACKEND_METAL  = 3
+
+class _GpuDeviceInfo(ctypes.Structure):
+    _fields_ = [
+        ("name",                 ctypes.c_char * 128),
+        ("global_mem_bytes",     ctypes.c_uint64),
+        ("compute_units",        ctypes.c_uint32),
+        ("max_clock_mhz",        ctypes.c_uint32),
+        ("max_threads_per_block",ctypes.c_uint32),
+        ("backend_id",           ctypes.c_uint32),
+        ("device_index",         ctypes.c_uint32),
+    ]
 
 class UfSecp:
     def __init__(self, lib_path: str):
@@ -132,6 +149,45 @@ class UfSecp:
         if rc != UFSECP_OK or not ctx_ptr:
             raise RuntimeError(f"ufsecp_ctx_create failed: {rc}")
         self._ctx = ctx_ptr
+
+        # ── GPU bindings (best-effort: absent on CPU-only builds) ──────────
+        try:
+            L.ufsecp_gpu_backend_count.restype  = ctypes.c_uint32
+            L.ufsecp_gpu_backend_count.argtypes = [ctypes.POINTER(ctypes.c_uint32), ctypes.c_uint32]
+
+            L.ufsecp_gpu_backend_name.restype  = ctypes.c_char_p
+            L.ufsecp_gpu_backend_name.argtypes = [ctypes.c_uint32]
+
+            L.ufsecp_gpu_is_available.restype  = ctypes.c_int
+            L.ufsecp_gpu_is_available.argtypes = [ctypes.c_uint32]
+
+            L.ufsecp_gpu_device_count.restype  = ctypes.c_uint32
+            L.ufsecp_gpu_device_count.argtypes = [ctypes.c_uint32]
+
+            L.ufsecp_gpu_device_info.restype  = ctypes.c_int
+            L.ufsecp_gpu_device_info.argtypes = [ctypes.c_uint32, ctypes.c_uint32,
+                                                   ctypes.POINTER(_GpuDeviceInfo)]
+
+            L.ufsecp_gpu_ctx_create.restype  = ctypes.c_int
+            L.ufsecp_gpu_ctx_create.argtypes = [ctypes.POINTER(ctypes.c_void_p),
+                                                 ctypes.c_uint32, ctypes.c_uint32]
+
+            L.ufsecp_gpu_ctx_destroy.restype  = None
+            L.ufsecp_gpu_ctx_destroy.argtypes = [ctypes.c_void_p]
+
+            L.ufsecp_gpu_ecrecover_batch.restype  = ctypes.c_int
+            L.ufsecp_gpu_ecrecover_batch.argtypes = [
+                ctypes.c_void_p,                 # gpu_ctx
+                ctypes.c_char_p,                 # msg_hashes32
+                ctypes.c_char_p,                 # sigs64 (r||s)
+                ctypes.POINTER(ctypes.c_int),    # recids
+                ctypes.c_size_t,                 # count
+                ctypes.c_char_p,                 # out_pubkeys33
+                ctypes.c_char_p,                 # out_valid
+            ]
+            self._gpu_ok = True
+        except Exception:
+            self._gpu_ok = False
 
     def __del__(self):
         if hasattr(self, '_ctx') and self._ctx:
@@ -224,6 +280,112 @@ def consume_nonce(nonce: str) -> str | None:
 
 
 # ── Pipeline Benchmark ───────────────────────────────────────────────────────
+
+def _run_gpu_bench(ufsecp: "UfSecp", pool: list) -> dict:
+    """
+    Benchmark GPU ecrecover_batch for every available backend.
+    Returns a dict keyed by backend name ("OpenCL", "CUDA", "Metal").
+    Each entry has: available, device, compute_units, global_mem_gb,
+    and batches: {str(N): {batch_ns, per_op_ns, ops_per_sec}}.
+    """
+    if not getattr(ufsecp, '_gpu_ok', False):
+        return {"_available": False, "_reason": "GPU bindings not present in this build"}
+
+    L = ufsecp._lib
+    results: dict = {}
+    POOL = len(pool)
+    BATCH_SIZES = [256, 1024, 4096]
+    GPU_WARMUP = 2
+
+    try:
+        ids_arr = (ctypes.c_uint32 * 4)()
+        n_backends = L.ufsecp_gpu_backend_count(ids_arr, 4)
+        if n_backends == 0:
+            return {"_available": False, "_reason": "No GPU backends compiled in"}
+
+        for bi in range(n_backends):
+            backend_id   = int(ids_arr[bi])
+            bname_raw    = L.ufsecp_gpu_backend_name(backend_id)
+            backend_name = bname_raw.decode() if bname_raw else f"backend_{backend_id}"
+
+            if not L.ufsecp_gpu_is_available(backend_id):
+                results[backend_name] = {"available": False,
+                                         "reason": "driver/device not found"}
+                continue
+
+            # Device info
+            dev = _GpuDeviceInfo()
+            L.ufsecp_gpu_device_info(backend_id, 0, ctypes.byref(dev))
+            dev_name = dev.name.decode(errors="replace").strip()
+
+            # Create GPU context
+            gpu_ctx = ctypes.c_void_p(0)
+            rc = L.ufsecp_gpu_ctx_create(ctypes.byref(gpu_ctx), backend_id, 0)
+            if rc != UFSECP_OK or not gpu_ctx:
+                results[backend_name] = {"available": False,
+                                         "reason": f"ctx_create rc={rc}"}
+                continue
+
+            entry: dict = {
+                "available":       True,
+                "device":          dev_name,
+                "compute_units":   int(dev.compute_units),
+                "global_mem_gb":   round(dev.global_mem_bytes / 1e9, 1),
+                "max_clock_mhz":   int(dev.max_clock_mhz),
+                "batches":         {},
+            }
+
+            try:
+                for bs in BATCH_SIZES:
+                    # Build flat arrays
+                    h_buf   = bytearray(bs * 32)
+                    sig_buf = bytearray(bs * 64)
+                    recids  = (ctypes.c_int * bs)()
+                    for i in range(bs):
+                        h, r, s, v, _ = pool[i % POOL]
+                        h_buf[i*32:(i+1)*32]      = h
+                        sig_buf[i*64:i*64+32]     = r
+                        sig_buf[i*64+32:i*64+64]  = s
+                        if   v in (27, 28):  recids[i] = v - 27
+                        elif v >= 35:        recids[i] = (v - 35) % 2
+                        else:                recids[i] = 0
+
+                    h_bytes   = bytes(h_buf)
+                    sig_bytes = bytes(sig_buf)
+                    out_pk    = ctypes.create_string_buffer(bs * 33)
+                    out_val   = ctypes.create_string_buffer(bs)
+
+                    # Warmup
+                    for _ in range(GPU_WARMUP):
+                        L.ufsecp_gpu_ecrecover_batch(
+                            gpu_ctx, h_bytes, sig_bytes, recids, bs, out_pk, out_val)
+
+                    # Measure
+                    reps = max(3, min(20, 30000 // bs))
+                    t0 = time.perf_counter_ns()
+                    for _ in range(reps):
+                        L.ufsecp_gpu_ecrecover_batch(
+                            gpu_ctx, h_bytes, sig_bytes, recids, bs, out_pk, out_val)
+                    t1 = time.perf_counter_ns()
+
+                    batch_ns  = (t1 - t0) / reps
+                    per_op_ns = batch_ns / bs
+                    ops_psec  = round(1e9 / per_op_ns) if per_op_ns > 0 else 0
+                    entry["batches"][str(bs)] = {
+                        "batch_ns":   round(batch_ns),
+                        "per_op_ns":  round(per_op_ns, 1),
+                        "ops_per_sec": ops_psec,
+                    }
+            finally:
+                L.ufsecp_gpu_ctx_destroy(gpu_ctx)
+
+            results[backend_name] = entry
+
+    except Exception as exc:
+        results["_error"] = str(exc)
+
+    return results
+
 
 def _run_bench(ufsecp: "UfSecp", n: int) -> dict:
     """
@@ -358,13 +520,16 @@ def _run_bench(ufsecp: "UfSecp", n: int) -> dict:
             "wallet_auth_8core": wallet_auth_per_s * 8,
         },
 
-        # Reference numbers (community-reported, i5/i7 class hardware)
+        # Reference numbers (community-reported, various hardware — see note)
+        "reference_note": "External benchmarks on unknown hardware (some from Ryzen/i7 class — may outperform this CPU). Numbers ±30%.",
         "reference_ecrecover_per_sec": {
             "libsecp256k1_bitcoin_core": 39400,
             "go_ethereum_cgo":           55000,
             "ethers_js_wasm":            17500,
             "web3_py_cffi":              10000,
         },
+
+        "gpu": _run_gpu_bench(ufsecp, pool),
     }
 
 

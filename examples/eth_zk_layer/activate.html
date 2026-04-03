@@ -210,6 +210,7 @@
         </thead>
         <tbody id="benchTableBody"></tbody>
       </table>
+      <div id="benchGpu" style="margin-top:0.8rem"></div>
       <div id="benchCmp" style="margin-top:0.8rem"></div>
       <p id="benchMeta" style="font-size:0.7rem;color:var(--muted);margin-top:0.6rem"></p>
     </div>
@@ -282,32 +283,85 @@ async function runBench(n) {
         <td style="padding:0.35rem 0.5rem;border-bottom:1px solid var(--border);text-align:right;color:var(--green);font-weight:600">${ops ? fk(ops) : '—'}</td>
       </tr>`).join('');
 
-    // Comparison
+    // ── GPU section ──────────────────────────────────────────────────────────
+    const gpuData = d.gpu || {};
+    let gpuHtml = '';
+    const gpuBackends = Object.entries(gpuData).filter(([k]) => !k.startsWith('_'));
+    if (!gpuData._available && gpuData._reason) {
+      gpuHtml = `<div style="font-size:0.73rem;color:var(--muted);padding:0.4rem 0">
+        ⚠ GPU: ${gpuData._reason}</div>`;
+    } else if (gpuBackends.length > 0) {
+      gpuHtml += `<div style="font-size:0.7rem;text-transform:uppercase;color:var(--muted);margin-bottom:0.5rem;letter-spacing:.07em">GPU ecrecover_batch — measured on this machine</div>`;
+      for (const [bname, bdata] of gpuBackends) {
+        if (!bdata.available) {
+          gpuHtml += `<div style="font-size:0.75rem;color:var(--muted)">  ${bname}: ${bdata.reason||'unavailable'}</div>`;
+          continue;
+        }
+        const bestBatch = Object.entries(bdata.batches||{}).sort((a,b) => b[1].ops_per_sec - a[1].ops_per_sec)[0];
+        const bestOps   = bestBatch ? bestBatch[1].ops_per_sec : 0;
+        const bestSize  = bestBatch ? bestBatch[0] : '—';
+        gpuHtml += `
+          <div style="background:var(--bg);border:1px solid var(--green);border-radius:8px;padding:0.75rem;margin-bottom:0.4rem">
+            <div style="display:flex;justify-content:space-between;align-items:baseline">
+              <span style="font-weight:600;color:var(--green)">${bname}</span>
+              <span style="font-size:0.72rem;color:var(--muted)">${bdata.device} · ${bdata.compute_units} CUs · ${bdata.global_mem_gb} GB · ${bdata.max_clock_mhz} MHz</span>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.4rem;margin-top:0.5rem">`;
+        for (const [sz, info] of Object.entries(bdata.batches||{})) {
+          const highlight = sz === bestSize;
+          gpuHtml += `
+              <div style="text-align:center;padding:0.3rem;border:1px solid ${highlight?'var(--green)':'var(--border)'};border-radius:6px">
+                <div style="font-size:1rem;font-weight:700;color:var(--green)">${fk(info.ops_per_sec)}</div>
+                <div style="font-size:0.65rem;color:var(--muted)">batch ${sz}</div>
+                <div style="font-size:0.65rem;color:var(--muted)">${info.per_op_ns.toFixed(0)} ns/op</div>
+              </div>`;
+        }
+        gpuHtml += `</div></div>`;
+      }
+    }
+    document.getElementById('benchGpu').innerHTML = gpuHtml;
+
+    // ── Comparison table ────────────────────────────────────────────────────
     const our = tp.ecrecover_per_sec;
     const ref = d.reference_ecrecover_per_sec;
+    const noteText = d.reference_note || '⚠ External reference numbers — measured on different hardware (possibly faster). Not apples-to-apples.';
+    // best GPU ops/sec across all backends
+    let bestGpuOps = 0;
+    let bestGpuLabel = '';
+    for (const [bname, bdata] of gpuBackends) {
+      if (!bdata.available) continue;
+      for (const info of Object.values(bdata.batches||{})) {
+        if (info.ops_per_sec > bestGpuOps) { bestGpuOps = info.ops_per_sec; bestGpuLabel = bname; }
+      }
+    }
     document.getElementById('benchCmp').innerHTML = `
-      <div style="font-size:0.7rem;text-transform:uppercase;color:var(--muted);margin-bottom:0.4rem;letter-spacing:.07em">vs other stacks (community reference ±30%)</div>
+      <div style="font-size:0.68rem;color:#e3b341;background:rgba(227,179,65,.1);border:1px solid rgba(227,179,65,.3);border-radius:5px;padding:0.35rem 0.5rem;margin-bottom:0.5rem">
+        ⚠ ${noteText}
+      </div>
       <table style="width:100%;border-collapse:collapse;font-size:0.76rem">
         <tr style="color:var(--muted);font-size:0.68rem">
           <th style="text-align:left;padding:0.3rem 0.4rem">Stack</th>
           <th style="text-align:right;padding:0.3rem 0.4rem">ecrecover/sec</th>
-          <th style="text-align:right;padding:0.3rem 0.4rem">UltraFast advantage</th>
+          <th style="text-align:right;padding:0.3rem 0.4rem">vs UltraFast CPU</th>
         </tr>
-        <tr><td style="padding:0.3rem 0.4rem;color:var(--green);font-weight:600">UltrafastSecp256k1 (this run)</td>
+        <tr><td style="padding:0.3rem 0.4rem;color:var(--green);font-weight:600">UltrafastSecp256k1 CPU 1-core (this machine)</td>
             <td style="text-align:right;padding:0.3rem 0.4rem;color:var(--green)">${fk(our)}</td>
             <td style="text-align:right;padding:0.3rem 0.4rem;color:var(--green)">baseline</td></tr>
-        <tr><td style="padding:0.3rem 0.4rem;border-top:1px solid var(--border)">libsecp256k1 (bitcoin-core)</td>
+        ${bestGpuOps > 0 ? `<tr><td style="padding:0.3rem 0.4rem;color:var(--green);font-weight:600">UltrafastSecp256k1 GPU (${bestGpuLabel}, this machine)</td>
+            <td style="text-align:right;padding:0.3rem 0.4rem;color:var(--green)">${fk(bestGpuOps)}</td>
+            <td style="text-align:right;padding:0.3rem 0.4rem;color:var(--green)">${(bestGpuOps/our).toFixed(0)}× CPU</td></tr>` : ''}
+        <tr><td style="padding:0.3rem 0.4rem;border-top:1px solid var(--border)">libsecp256k1 (bitcoin-core) ⚠ ext</td>
             <td style="text-align:right;padding:0.3rem 0.4rem;border-top:1px solid var(--border)">~39.4 k/s</td>
-            <td style="text-align:right;padding:0.3rem 0.4rem;border-top:1px solid var(--border);color:var(--green)">${(our/ref.libsecp256k1_bitcoin_core).toFixed(1)}x</td></tr>
-        <tr><td style="padding:0.3rem 0.4rem;border-top:1px solid var(--border)">go-ethereum (cgo)</td>
+            <td style="text-align:right;padding:0.3rem 0.4rem;border-top:1px solid var(--border);color:var(--muted)">${(39400/our).toFixed(1)}× our CPU</td></tr>
+        <tr><td style="padding:0.3rem 0.4rem;border-top:1px solid var(--border)">go-ethereum (cgo) ⚠ ext</td>
             <td style="text-align:right;padding:0.3rem 0.4rem;border-top:1px solid var(--border)">~55 k/s</td>
-            <td style="text-align:right;padding:0.3rem 0.4rem;border-top:1px solid var(--border);color:var(--green)">${(our/ref.go_ethereum_cgo).toFixed(1)}x</td></tr>
-        <tr><td style="padding:0.3rem 0.4rem;border-top:1px solid var(--border)">ethers.js (WASM)</td>
+            <td style="text-align:right;padding:0.3rem 0.4rem;border-top:1px solid var(--border);color:var(--muted)">${(55000/our).toFixed(1)}× our CPU</td></tr>
+        <tr><td style="padding:0.3rem 0.4rem;border-top:1px solid var(--border)">ethers.js (WASM) ⚠ ext</td>
             <td style="text-align:right;padding:0.3rem 0.4rem;border-top:1px solid var(--border)">~17.5 k/s</td>
-            <td style="text-align:right;padding:0.3rem 0.4rem;border-top:1px solid var(--border);color:var(--green)">${(our/ref.ethers_js_wasm).toFixed(1)}x</td></tr>
-        <tr><td style="padding:0.3rem 0.4rem;border-top:1px solid var(--border)">web3.py (CFFI)</td>
+            <td style="text-align:right;padding:0.3rem 0.4rem;border-top:1px solid var(--border);color:var(--green)">${(our/17500).toFixed(1)}× faster</td></tr>
+        <tr><td style="padding:0.3rem 0.4rem;border-top:1px solid var(--border)">web3.py (CFFI) ⚠ ext</td>
             <td style="text-align:right;padding:0.3rem 0.4rem;border-top:1px solid var(--border)">~10 k/s</td>
-            <td style="text-align:right;padding:0.3rem 0.4rem;border-top:1px solid var(--border);color:var(--green)">${(our/ref.web3_py_cffi).toFixed(1)}x</td></tr>
+            <td style="text-align:right;padding:0.3rem 0.4rem;border-top:1px solid var(--border);color:var(--green)">${(our/10000).toFixed(1)}× faster</td></tr>
       </table>`;
 
     document.getElementById('benchMeta').textContent =
