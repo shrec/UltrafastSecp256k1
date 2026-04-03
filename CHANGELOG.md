@@ -8,6 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Security / Audit
+- **ECDSA `ecdsa_verify` large-x fix** (`cpu/src/ecdsa.cpp`) — corrected `r_less_than_pmn`
+  comparison: wrong PMN constants (`0x402da1732fc9bebf` / `0x14551231950b75fc`) assumed p-n < 2^128;
+  actual p-n = `0x14551231950b75fc4402da1722fc9baee` has limb[2]=1. Fixed in both FE52 and 4x64
+  paths. Signatures where k·G.x ∈ [n, p-1] (r ≈ 2^128, probability ~2^−128 per signature) were
+  erroneously rejected. Equivalent to the Stark Bank CVE-2021-43568..43572 false-negative class.
+  Found and confirmed by Wycheproof tcId 346. Committed `ea8cfb3c`.
+- **Wycheproof PR #206 ECDSA r-overflow tests** (`audit/test_exploit_ecdsa_r_overflow.cpp`) —
+  Track I3-3: 19 checks covering k·G.x ≥ n (tcId 346 accept), r=p-3 strict-parse rejection,
+  r=n→zero-reduction reject, r=0 reject, range sanity and sign/verify consistency. Closes
+  Wycheproof PR #206 / Stark Bank CVE assurance gap.
+- **Wycheproof ECDSA Bitcoin variant vectors** (`audit/test_wycheproof_ecdsa_bitcoin.cpp`) —
+  Track I3-4: 53 checks covering BIP-62 low-S enforcement, tcId 346/347/348/351, high-S
+  malleability boundary, sign/normalize/compact roundtrip, r=0/s=0 special-value rejection,
+  and point-at-infinity rejection during verify.
 - **Ethereum differential KAT** (`audit/test_exploit_ethereum_differential.cpp`) — 10 tests, 15 sub-checks against go-ethereum, web3.py, and ethers.js reference vectors: address derivation (go-ethereum testKey KAT), privkey=1 canonical address, ecrecover with go-ethereum test message hash, EIP-191 hash vs web3.py, sign+ecrecover roundtrip, EIP-155 v encoding, eth_personal_sign roundtrip, tamper detection, keccak256("abc") KAT, anti-collision. Closes assurance gap **#4**.
 - **MuSig2/FROST/adaptor parser robustness fuzz** (`audit/test_fuzz_musig2_frost.cpp`) — 15 tests, 16 sub-checks: musig2 key_agg/nonce_agg/partial_verify/partial_sig_agg with random inputs (5000/3000/2000 rounds each), FROST keygen_finalize/sign/verify_partial/aggregate random inputs, schnorr+ecdsa adaptor random inputs, boundary test (n_signers=0 → must error). Closes assurance gap **#7**.
 - **ClusterFuzzLite expanded to 5 targets**: added `cpu/fuzz/fuzz_ecdsa.cpp` (ECDSA sign→verify invariant, wrong-msg false-positive check, parse_compact_strict robustness) and `cpu/fuzz/fuzz_schnorr.cpp` (BIP-340 sign→verify, adversarial from_bytes verify, wrong-msg check).
