@@ -8,6 +8,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Security / Audit
+- **Schnorr BIP-340 nonce reuse key recovery** (`audit/test_exploit_schnorr_nonce_reuse.cpp`) —
+  SNR-1..SNR-16: proves that reusing nonce k in two BIP-340 sigs yields full private key recovery
+  via d' = (s1-s2)·(e1-e2)⁻¹ mod n. Covers known-k construction, nonce recovery, RFC6979 safety
+  (different messages → different R), even-y negation case, and three-message pairwise agreement.
+  Closes Schnorr NRR coverage gap. Committed `c843979c`.
+- **BIP-32 non-hardened child key attack** (`audit/test_exploit_bip32_child_key_attack.cpp`) —
+  CKA-1..CKA-18: proves that xpub + non-hardened child_sk → parent_sk recovery via
+  parent_sk = child_sk - I_L mod n. Covers arbitrary indices, chained upward attacks (grandchild
+  → child → master), hardened derivation blockage, to_public() key stripping. Committed `c843979c`.
+- **FROST identifiable abort** (`audit/test_exploit_frost_identifiable_abort.cpp`) —
+  FIA-1..FIA-14: proves frost_verify_partial() correctly attributes which participant submitted a
+  bad partial sig. Covers single/multi-cheater detection, wrong-message cheating, identity swap,
+  coordinator scan loop, honest subset completion. Committed `c843979c`.
+- **Hash algorithm & format isolation** (`audit/test_exploit_hash_algo_sig_isolation.cpp`) —
+  HAS-1..HAS-11: proves cross-hash-algorithm and cross-format confusion is rejected. Covers
+  SHA-256 vs alt-hash confusion, raw-bytes vs digest confusion, Schnorr↔ECDSA format confusion
+  (compact + DER), double-hash confusion, domain prefix isolation. Committed `c843979c`.
 - **ECDSA `ecdsa_verify` large-x fix** (`cpu/src/ecdsa.cpp`) — corrected `r_less_than_pmn`
   comparison: wrong PMN constants (`0x402da1732fc9bebf` / `0x14551231950b75fc`) assumed p-n < 2^128;
   actual p-n = `0x14551231950b75fc4402da1722fc9baee` has limb[2]=1. Fixed in both FE52 and 4x64

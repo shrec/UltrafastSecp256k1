@@ -7,6 +7,38 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-04-04
+
+- **Added** `audit/test_exploit_schnorr_nonce_reuse.cpp` (SNR-1..SNR-16, 16 checks): BIP-340
+  Schnorr nonce reuse key recovery PoC.  Proves d' = (s1-s2)·(e1-e2)⁻¹ mod n recovers the
+  private key from two signatures sharing nonce k.  Covers known-k construction, nonce
+  recovery k = s1-e1·d', RFC6979 safety (different messages → different R), even-y d negation
+  case, k vs n-k normalization, and three-message pairwise recovery agreement.
+  Committed `c843979c`.
+
+- **Added** `audit/test_exploit_bip32_child_key_attack.cpp` (CKA-1..CKA-18, 18 checks): BIP-32
+  non-hardened parent private key recovery PoC.  Proves parent_sk = (child_sk - I_L) mod n
+  when the attacker has xpub (chain_code + compressed pubkey).  Covers arbitrary normal indices
+  (0, 1, 100, 0x7FFFFFFF), chained upward attack (grandchild → child → master), hardened
+  derivation blockage, and to_public() key stripping correctness.  Committed `c843979c`.
+
+- **Added** `audit/test_exploit_frost_identifiable_abort.cpp` (FIA-1..FIA-14, 14 checks): FROST
+  identifiable abort / per-participant attribution.  Proves frost_verify_partial() correctly names
+  the cheating participant rather than merely detecting protocol failure.  Covers single cheater,
+  multi-cheater, honest-not-blamed, coordinator scan loop, wrong-message detection, identity swap
+  (P1's z_i submitted as P2), honest-subset protocol completion.  Committed `c843979c`.
+
+- **Added** `audit/test_exploit_hash_algo_sig_isolation.cpp` (HAS-1..HAS-11, 11 checks): hash
+  algorithm and format isolation.  Proves: SHA-256 sig rejects under alt-digest; sig rejects
+  under raw message bytes; Schnorr sig bytes rejected by ECDSA verify (compact parse);
+  ECDSA compact bytes rejected by schnorr_verify; DER ECDSA bytes rejected by schnorr_verify;
+  double-hash confusion (H(msg) ≠ H(H(msg))); domain prefix isolation (domain-A sig ≠ domain-B
+  sig).  Committed `c843979c`.
+
+**Running total after this wave: 135 exploit PoC files, 59 new checks.**
+
+---
+
 ## 2026-04-03
 
 - **Security fix**: discovered and corrected `ecdsa_verify` `r_less_than_pmn` comparison bug in
