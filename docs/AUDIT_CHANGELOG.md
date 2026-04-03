@@ -7,6 +7,80 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-04-03 (Python audit script suite + static analysis scanners — commits `e94523bb`, `ad32e1d1`, `bdc00c6b`, `79f83220`)
+
+- **Added** `scripts/dev_bug_scanner.py` (15 categories): classic C++ development bug detector
+  scanning 221 library source files (cpu/src, gpu/src, opencl, metal, bindings, include). Finds
+  bugs that code review and LLM analysis typically miss. Results: **182 findings (82 HIGH,
+  100 MEDIUM)** — NULL 51, CPASTE 45, SIG 31, RETVAL 30, MSET 19, OB1 5, ZEROIZE 1. Precision
+  mitigations: balanced-paren SEMI, brace-depth UNREACH, preprocessor-reset CPASTE,
+  case-grouping MBREAK. Third-party dirs excluded (node_modules, _deps, vendor). Registered as
+  CTest `py_dev_bug_scan`. Committed `79f83220`.
+
+- **Added** `scripts/audit_test_quality_scanner.py` (6 categories): static analyzer for audit
+  C++ test files detecting patterns that cause tests to vacuously pass. Categories:
+  A=`CHECK(true,...)` always-pass, B=security rejection gap, C=condition/message polarity
+  mismatch, D=weak statistical thresholds, E=`ufsecp_*` return value silently discarded,
+  F=missing unconditional reject in adversarial test. Manual audit found 17+ instances across
+  KR-5/6, FAC-5/7, PSM-2/6, HB-5. Committed `79f83220`.
+
+- **Added** `scripts/semantic_props.py` (1450+ checks): algebraic and curve property test harness
+  — kG+lG==(k+l)G, k(lG)==(kl)G (scalar linearity vs coincurve), sign/verify roundtrip,
+  determinism (RFC6979), low-S, wrong-msg/wrong-key/tampered-r/s all reject, ECDH symmetry,
+  BIP-32 path equivalence. Hypothesis integration when installed. CTest `py_semantic_props`.
+  Committed `bdc00c6b`.
+
+- **Added** `scripts/invalid_input_grammar.py` (37 checks): structured invalid-input rejection
+  verifier — wrong pubkey prefix, x≥p, not-on-curve, sk=0/n/overrange, r=0/n/2^256-1, s=0/n,
+  zero ECDH, invalid BIP-32 seed length, invalid path, hardened-from-xpub rejection. CTest
+  `py_invalid_input_grammar`. Committed `bdc00c6b`.
+
+- **Added** `scripts/stateful_sequences.py` (401+ checks): stateful API call sequence verifier —
+  interleaved sign/verify/ecdh on one context, error-injection recovery, 2+3 level BIP-32 path
+  consistency, dual-context independence, context destroy+recreate determinism, 5000-op
+  endurance. CTest `py_stateful_sequences`. Committed `bdc00c6b`.
+
+- **Added** `scripts/differential_cross_impl.py` (1000+ checks): cross-implementation
+  differential test driving library alongside coincurve (libsecp256k1) and python-ecdsa for
+  random (sk, msg) pairs. Catches wrong low-S normalization, pubkey parity bugs, ECDH
+  mismatches, r/s range violations, cross-verify failures. CTest `py_differential_crossimpl`.
+  Committed `e94523bb` / `ad32e1d1`.
+
+- **Added** `scripts/nonce_bias_detector.py` (10,000+ ops): statistical nonce bias detection via
+  chi-squared, Kolmogorov-Smirnov, per-bit frequency sweep (all 256 bits), collision detection,
+  single-key diversity check. Catches Minerva/TPM-FAIL-class biases invisible to code review.
+  KS D=0.017 < 0.036 (5% significance). CTest `py_nonce_bias`. Committed `e94523bb` / `ad32e1d1`.
+
+- **Added** `scripts/rfc6979_spec_verifier.py` (200+ checks): independent pure-Python RFC 6979
+  §3.2 HMAC-SHA256 nonce derivation compared against library r-values for 200+ random (sk, msg)
+  pairs plus RFC 6979 Appendix A.2.5 known vectors. Catches HMAC step ordering bugs,
+  endianness errors, missing k<n check. CTest `py_rfc6979_spec`. Committed `e94523bb` / `ad32e1d1`.
+
+- **Added** `scripts/bip32_cka_demo.py`: live BIP-32 Child Key Attack demo — performs
+  non-hardened parent key recovery (child_sk - HMAC_IL mod n) using library's actual output.
+  Validates algebraic correctness of BIP-32 HMAC-SHA512 computation. Also proves hardened
+  derivation is correctly immune. Chained upward attacks (grandchild→child→master) verified.
+  CTest `py_bip32_cka`. Committed `e94523bb` / `ad32e1d1`.
+
+- **Added** `scripts/glv_exhaustive_check.py` (5000+ scalars): GLV decomposition algebraic
+  verifier — adversarial scalars stressing Babai rounding near n/2, λ, 2^127, 2^128 and lattice
+  boundaries, compared against coincurve reference. Catches off-by-one Babai rounding errors
+  invisible to code review. CTest `py_glv_exhaustive`. Committed `e94523bb` / `ad32e1d1`.
+
+- **Added** `scripts/_ufsecp.py`: canonical ctypes wrapper for the `ufsecp_*` API (context-based,
+  correct symbol names, BIP32Key 82-byte struct). Shared by all Python audit scripts.
+  Committed `ad32e1d1`.
+
+- **Verified** ASan/UBSan build: **210/210 C++ tests pass** under
+  `-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer` after full
+  `build-asan/` rebuild. All previously stale binaries rebuilt and confirmed clean.
+
+**Running total after this wave: 9 Python CTest targets. 221 library source files scanned by
+dev_bug_scanner. 182 bug findings (82 HIGH, 100 MEDIUM) identified and tracked. All Python audit
+tests PASS.**
+
+---
+
 ## 2026-04-04 (Wycheproof extended KAT wave — commits `40a0f218`, `a3a9289a`)
 
 - **Added** `audit/test_wycheproof_ecdsa_secp256k1_sha256.cpp` (27 checks): secp256k1

@@ -8,6 +8,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Security / Audit
+- **Python audit script suite** (`scripts/`) — 8 dynamic + 1 static analysis scripts, 9 Python
+  CTest targets total. All run via `--lib path/to/libufsecp.so`. All PASS.
+  - `differential_cross_impl.py` (1000+ checks): drives library alongside coincurve + python-ecdsa
+    for random (sk, msg) pairs; catches wrong low-S normalization, pubkey parity bugs, ECDH
+    mismatches. CTest `py_differential_crossimpl`. Committed `e94523bb` / `ad32e1d1`.
+  - `nonce_bias_detector.py` (10,000+ sign ops): chi-squared + Kolmogorov-Smirnov + per-bit sweep;
+    catches Minerva/TPM-FAIL-class biases invisible to code review. CTest `py_nonce_bias`.
+    Committed `e94523bb` / `ad32e1d1`.
+  - `rfc6979_spec_verifier.py` (200+ checks): independent pure-Python RFC 6979 §3.2 HMAC-SHA256
+    nonce derivation vs library output + RFC 6979 Appendix A.2.5 KAT. CTest `py_rfc6979_spec`.
+    Committed `e94523bb` / `ad32e1d1`.
+  - `bip32_cka_demo.py`: live BIP-32 non-hardened parent key recovery demo + hardened immunity
+    check. CTest `py_bip32_cka`. Committed `e94523bb` / `ad32e1d1`.
+  - `glv_exhaustive_check.py` (5000+ scalars): GLV decomposition verifier — adversarial
+    Babai-boundary scalars (near n/2, λ, 2^127, 2^128) vs coincurve reference. CTest
+    `py_glv_exhaustive`. Committed `e94523bb` / `ad32e1d1`.
+  - `semantic_props.py` (1450+ checks): algebraic property tests (kG+lG==(k+l)G, k(lG)==(kl)G),
+    sign/verify roundtrip, determinism, Hypothesis integration. CTest `py_semantic_props`.
+    Committed `bdc00c6b`.
+  - `invalid_input_grammar.py` (37 checks): structured invalid-input rejection — bad pubkey prefix,
+    x≥p, not-on-curve, sk=0/n/overrange, r=0/n, s=0/n, invalid BIP-32 seed/paths. CTest
+    `py_invalid_input_grammar`. Committed `bdc00c6b`.
+  - `stateful_sequences.py` (401+ checks): API sequence verifier — error-injection recovery,
+    multi-level BIP-32 path consistency, dual-context independence, 5000-op endurance. CTest
+    `py_stateful_sequences`. Committed `bdc00c6b`.
+- **Dev bug scanner** (`scripts/dev_bug_scanner.py`) — 15-category static analyzer for library C++
+  source (cpu/src, gpu/src, opencl, metal, bindings, include), 221 files scanned.
+  **182 findings (82 HIGH, 100 MEDIUM)**: NULL 51 | CPASTE 45 | SIG 31 | RETVAL 30 | MSET 19 |
+  OB1 5 | ZEROIZE 1. Categories: NULL (dereference before check), CPASTE (same lvalue assigned
+  twice), SIG (signed/unsigned mismatch), RETVAL (ufsecp_* return value discarded), MSET (wrong
+  memset literal size), OB1 (off-by-one ≤ vs <), ZEROIZE (clears fewer bytes than declared),
+  SEMI (dangling semicolon), MBREAK (missing break/fallthrough), TRUNC (i64→i32 truncation),
+  OVER (32-bit multiply before widening), SPTR (sizeof(pointer)), DBLINIT (double init),
+  UNREACH (statement after return), LOGIC (&&/|| confusion). Precision mitigations: balanced-paren
+  SEMI, brace-depth UNREACH, preprocessor-reset CPASTE, case-grouping MBREAK. Registered as
+  CTest `py_dev_bug_scan`. Committed `79f83220`.
+- **Audit test quality scanner** (`scripts/audit_test_quality_scanner.py`) — static analyzer for
+  audit C++ test files detecting patterns that cause tests to vacuously pass: A=`CHECK(true,...)`
+  always-pass, B=security-rejection gap (unconditional `else{CHECK(true)}`), C=condition/message
+  polarity mismatch, D=weak statistical thresholds, E=`ufsecp_*` return value silently discarded,
+  F=missing unconditional reject in adversarial test. Manual audit found 17+ instances across
+  KR-5/6, FAC-5/7, PSM-2/6, HB-5. Committed `79f83220`.
+- **ASan/UBSan clean**: 210/210 C++ tests pass under
+  `-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer` after full
+  `build-asan/` rebuild. All stale binaries rebuilt and confirmed clean.
 - **Schnorr BIP-340 nonce reuse key recovery** (`audit/test_exploit_schnorr_nonce_reuse.cpp`) —
   SNR-1..SNR-16: proves that reusing nonce k in two BIP-340 sigs yields full private key recovery
   via d' = (s1-s2)·(e1-e2)⁻¹ mod n. Covers known-k construction, nonce recovery, RFC6979 safety
