@@ -127,8 +127,49 @@ __global__ void batch_compressed_to_jac_kernel(
     ok[idx] = point_from_compressed(pubs33 + idx * 33, &out[idx]);
 }
 
-/** MSM single-thread reduction: sum N Jacobian partials → 1 compressed point.
- *  Runs on a single GPU thread to avoid host-side field arithmetic. */
+/** MSM block reduction: each block reduces BLOCK_SZ partials → 1 result
+ *  via shared-memory tree.  Shared mem = blockDim.x * sizeof(JacobianPoint).
+ *  Output: one JacobianPoint per block written to block_results[blockIdx.x]. */
+__global__ void msm_block_reduce_kernel(
+    const JacobianPoint* __restrict__ partials,
+    int n,
+    JacobianPoint* block_results)
+{
+    extern __shared__ JacobianPoint sdata[];
+
+    int tid = threadIdx.x;
+    int idx = blockIdx.x * blockDim.x + tid;
+
+    if (idx < n) {
+        sdata[tid] = partials[idx];
+    } else {
+        sdata[tid].infinity = true;
+        field_set_zero(&sdata[tid].x);
+        field_set_zero(&sdata[tid].y);
+        field_set_one(&sdata[tid].z);
+    }
+    __syncthreads();
+
+    for (int stride = blockDim.x >> 1; stride > 0; stride >>= 1) {
+        if (tid < stride) {
+            if (sdata[tid].infinity) {
+                sdata[tid] = sdata[tid + stride];
+            } else if (!sdata[tid + stride].infinity) {
+                JacobianPoint tmp;
+                jacobian_add(&sdata[tid], &sdata[tid + stride], &tmp);
+                sdata[tid] = tmp;
+            }
+        }
+        __syncthreads();
+    }
+
+    if (tid == 0) {
+        block_results[blockIdx.x] = sdata[0];
+    }
+}
+
+/** MSM final reduction: sum a small array of per-block results and compress.
+ *  Runs on a single thread; input count should be small (n/256). */
 __global__ void msm_reduce_and_compress_kernel(
     const JacobianPoint* partials, int n, uint8_t* out33, bool* ok)
 {
@@ -531,36 +572,49 @@ public:
         /* Allocate device memory */
         Scalar*        d_scalars  = nullptr;
         uint8_t*       d_pts33   = nullptr;
-        JacobianPoint* d_points   = nullptr;
-        bool*          d_pt_ok    = nullptr;
-        JacobianPoint* d_partials = nullptr;
-        uint8_t*       d_out33    = nullptr;
-        bool*          d_ok       = nullptr;
+        JacobianPoint* d_points    = nullptr;
+        bool*          d_pt_ok     = nullptr;
+        JacobianPoint* d_partials  = nullptr;
+        JacobianPoint* d_blk_parts = nullptr;
+        uint8_t*       d_out33     = nullptr;
+        bool*          d_ok        = nullptr;
 
-        CUDA_TRY(cudaMalloc(&d_scalars, n * sizeof(Scalar)));
-        CUDA_TRY(cudaMalloc(&d_pts33, n * 33));
-        CUDA_TRY(cudaMalloc(&d_points, n * sizeof(JacobianPoint)));
-        CUDA_TRY(cudaMalloc(&d_pt_ok, n * sizeof(bool)));
+        /* Warp-parallel reduce: block size 256, shared mem per block = 256 * sizeof(JacobianPoint) */
+        constexpr int kReduceBlock = 256;
+        const int n_int   = static_cast<int>(n);
+        const int scatter_blocks = (n_int + kReduceBlock - 1) / kReduceBlock;
+        const size_t smem = kReduceBlock * sizeof(JacobianPoint);
+
+        CUDA_TRY(cudaMalloc(&d_scalars,  n * sizeof(Scalar)));
+        CUDA_TRY(cudaMalloc(&d_pts33,    n * 33));
+        CUDA_TRY(cudaMalloc(&d_points,   n * sizeof(JacobianPoint)));
+        CUDA_TRY(cudaMalloc(&d_pt_ok,    n * sizeof(bool)));
         CUDA_TRY(cudaMalloc(&d_partials, n * sizeof(JacobianPoint)));
-        CUDA_TRY(cudaMalloc(&d_out33, 33));
-        CUDA_TRY(cudaMalloc(&d_ok, sizeof(bool)));
+        CUDA_TRY(cudaMalloc(&d_blk_parts, scatter_blocks * sizeof(JacobianPoint)));
+        CUDA_TRY(cudaMalloc(&d_out33,    33));
+        CUDA_TRY(cudaMalloc(&d_ok,       sizeof(bool)));
 
         CUDA_TRY(cudaMemcpy(d_scalars, h_scalars.data(), n * sizeof(Scalar), cudaMemcpyHostToDevice));
         CUDA_TRY(cudaMemcpy(d_pts33, points33, n * 33, cudaMemcpyHostToDevice));
 
         /* Decompress points on GPU */
         int threads = 128;
-        int blocks  = (static_cast<int>(n) + threads - 1) / threads;
+        int blocks  = (n_int + threads - 1) / threads;
         batch_compressed_to_jac_kernel<<<blocks, threads>>>(
-            d_pts33, d_points, d_pt_ok, static_cast<int>(n));
+            d_pts33, d_points, d_pt_ok, n_int);
         CUDA_TRY(cudaGetLastError());
 
         /* Phase 1: scatter — each thread computes scalars[i] * points[i] */
-        msm_scatter_kernel<<<blocks, threads>>>(d_scalars, d_points, d_partials, static_cast<int>(n));
+        msm_scatter_kernel<<<blocks, threads>>>(d_scalars, d_points, d_partials, n_int);
         CUDA_TRY(cudaGetLastError());
 
-        /* Phase 2: reduce + compress on GPU (single thread) */
-        msm_reduce_and_compress_kernel<<<1, 1>>>(d_partials, static_cast<int>(n), d_out33, d_ok);
+        /* Phase 2a: parallel block reduce (256 partials → 1 per block) */
+        msm_block_reduce_kernel<<<scatter_blocks, kReduceBlock, smem>>>(
+            d_partials, n_int, d_blk_parts);
+        CUDA_TRY(cudaGetLastError());
+
+        /* Phase 2b: final single-thread reduce over the small block results */
+        msm_reduce_and_compress_kernel<<<1, 1>>>(d_blk_parts, scatter_blocks, d_out33, d_ok);
         CUDA_TRY(cudaGetLastError());
         CUDA_TRY(cudaDeviceSynchronize());
 
@@ -571,6 +625,7 @@ public:
 
         cudaFree(d_ok);
         cudaFree(d_out33);
+        cudaFree(d_blk_parts);
         cudaFree(d_partials);
         cudaFree(d_pt_ok);
         cudaFree(d_points);
