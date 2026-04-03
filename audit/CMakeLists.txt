@@ -1556,6 +1556,22 @@ target_compile_definitions(test_exploit_kr_ecdsa_buff_binding_standalone PRIVATE
 add_test(NAME exploit_kr_ecdsa_buff_binding COMMAND test_exploit_kr_ecdsa_buff_binding_standalone)
 set_tests_properties(exploit_kr_ecdsa_buff_binding PROPERTIES TIMEOUT 60 LABELS "audit;exploit;ecdsa;binding")
 
+# -- ECDSA r <=> x-coordinate edge cases (Wycheproof PR #206) ---------------
+add_executable(test_exploit_ecdsa_r_overflow_standalone
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_exploit_ecdsa_r_overflow.cpp)
+audit_target_defaults(test_exploit_ecdsa_r_overflow_standalone)
+target_compile_definitions(test_exploit_ecdsa_r_overflow_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_ecdsa_r_overflow COMMAND test_exploit_ecdsa_r_overflow_standalone)
+set_tests_properties(exploit_ecdsa_r_overflow PROPERTIES TIMEOUT 60 LABELS "audit;exploit;ecdsa;wycheproof")
+
+# -- Wycheproof ECDSA Bitcoin variant vectors (BIP-62 low-S + PR #206) ------
+add_executable(test_wycheproof_ecdsa_bitcoin_standalone
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_wycheproof_ecdsa_bitcoin.cpp)
+audit_target_defaults(test_wycheproof_ecdsa_bitcoin_standalone)
+target_compile_definitions(test_wycheproof_ecdsa_bitcoin_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME wycheproof_ecdsa_bitcoin COMMAND test_wycheproof_ecdsa_bitcoin_standalone)
+set_tests_properties(wycheproof_ecdsa_bitcoin PROPERTIES TIMEOUT 60 LABELS "audit;kat;wycheproof;bitcoin")
+
 # -- Diagnostic: ct::scalar_mul step-by-step comparison --------------------
 add_executable(diag_scalar_mul ${CPU_TESTS_DIR}/diag_scalar_mul.cpp)
 audit_target_defaults(diag_scalar_mul)

@@ -625,24 +625,28 @@ bool ecdsa_verify(const uint8_t* msg_hash32,
 
     // Rare case: x_R mod p in [n, p), so x_R mod n = x_R - n = sig.r
     // -> need to check (sig.r + n) * Z^2 == X.  Probability ~2^-128.
-    // n = order, p - n ~= 2^129.  sig.r < n, so sig.r + n < p iff sig.r < p - n.
+    // n = order, p - n ~= 2^128.3.  sig.r < n, so sig.r + n < p iff sig.r < p - n.
     //
-    // p - n as 4x64 LE limbs:
-    // 0x000000000000000145512319_50b75fc4_402da173_2fc9bebf
-    static constexpr std::uint64_t PMN_0 = 0x402da1732fc9bebfULL;
-    static constexpr std::uint64_t PMN_1 = 0x14551231950b75fcULL;  // top nibble = 1
-    // PMN limbs [2] = 0, [3] = 0  -> sig.r < p-n iff sig.r fits in ~129 bits
-    // Since sig.r < n ~= 2^256, upper limbs are always >= PMN upper limbs (0).
-    // Quick check: r[3]==0 && r[2]==0 -> r < 2^128, definitely < p-n.
-    // Otherwise compare lexicographically.
+    // p - n exact (4x64 LE): limb[0]=0x402da1722fc9baee, limb[1]=0x4551231950b75fc4,
+    //                         limb[2]=0x1, limb[3]=0x0
+    // (Previous constants 0x402da1732fc9bebf / 0x14551231950b75fc were incorrect.)
+    static constexpr std::uint64_t PMN_0 = 0x402da1722fc9baeeULL;  // limb[0] of p-n
+    static constexpr std::uint64_t PMN_1 = 0x4551231950b75fc4ULL;  // limb[1] of p-n
+    // limb[2] of (p-n) = 1.  So:
+    //   r < p-n iff r.limb[3]==0 AND (r.limb[2]<1 OR (r.limb[2]==1 AND r<pmn lexically))
     const auto& rl = sig.r.limbs();
     bool r_less_than_pmn = false;
-    if (rl[3] != 0 || rl[2] != 0) {
-        r_less_than_pmn = false;  // r >= 2^128 > p-n
-    } else if (rl[1] != PMN_1) {
-        r_less_than_pmn = (rl[1] < PMN_1);
+    if (rl[3] != 0 || rl[2] > 1) {
+        r_less_than_pmn = false;   // r >= 2^129 >> p-n
+    } else if (rl[2] == 0) {
+        r_less_than_pmn = true;    // r < 2^128 < p-n
     } else {
-        r_less_than_pmn = (rl[0] < PMN_0);
+        // rl[2] == 1: compare limbs [1] and [0] against p-n
+        if (rl[1] != PMN_1) {
+            r_less_than_pmn = (rl[1] < PMN_1);
+        } else {
+            r_less_than_pmn = (rl[0] < PMN_0);
+        }
     }
 
     if (r_less_than_pmn) {
@@ -659,7 +663,7 @@ bool ecdsa_verify(const uint8_t* msg_hash32,
         rn[1] = static_cast<std::uint64_t>(acc);
         acc = static_cast<unsigned __int128>(rl[2]) + N_LIMBS[2] + static_cast<std::uint64_t>(acc >> 64);
         rn[2] = static_cast<std::uint64_t>(acc);
-        rn[3] = rl[3] + N_LIMBS[3] + static_cast<std::uint64_t>(acc >> 64);
+        rn[3] = rl[3] + N_LIMBS[3] + static_cast<uint64_t>(acc >> 64);
 
         FE52 const r2_z2 = FE52::from_4x64_limbs(rn) * z2;   // (r+n)*Z^2
         FE52 diff2 = R_prime.X52();
@@ -686,18 +690,25 @@ bool ecdsa_verify(const uint8_t* msg_hash32,
     // Rare case (probability ~2^-128): x_R mod p in [n, p),
     // so x_R mod n == sig.r means we need to check (sig.r + n)*Z^2 == X.
     // sig.r + n < p  iff  sig.r < p - n.
-    // p - n ~= 2^129:  0x14551231950b75fc4402da1732fc9bebf
-    static constexpr std::uint64_t PMN_0 = 0x402da1732fc9bebfULL;
-    static constexpr std::uint64_t PMN_1 = 0x14551231950b75fcULL;
+    // p - n exact: 0x14551231950b75fc4402da1722fc9baee
+    // 4x64 LE: limb[0]=0x402da1722fc9baee, limb[1]=0x4551231950b75fc4, limb[2]=1
+    // (Previous constants 0x402da1732fc9bebf/0x14551231950b75fc were incorrect.)
+    static constexpr std::uint64_t PMN_0 = 0x402da1722fc9baeeULL;  // limb[0] of p-n
+    static constexpr std::uint64_t PMN_1 = 0x4551231950b75fc4ULL;  // limb[1] of p-n
     const auto& rl = sig.r.limbs();
 
     bool r_less_than_pmn;
-    if (rl[3] != 0 || rl[2] != 0) {
-        r_less_than_pmn = false;
-    } else if (rl[1] != PMN_1) {
-        r_less_than_pmn = (rl[1] < PMN_1);
+    if (rl[3] != 0 || rl[2] > 1) {
+        r_less_than_pmn = false;   // r >= 2^129 >> p-n
+    } else if (rl[2] == 0) {
+        r_less_than_pmn = true;    // r < 2^128 < p-n
     } else {
-        r_less_than_pmn = (rl[0] < PMN_0);
+        // rl[2] == 1: compare against p-n limbs [1] and [0]
+        if (rl[1] != PMN_1) {
+            r_less_than_pmn = (rl[1] < PMN_1);
+        } else {
+            r_less_than_pmn = (rl[0] < PMN_0);
+        }
     }
 
     if (r_less_than_pmn) {
