@@ -1020,6 +1020,33 @@ std::vector<int32_t> compute_window_digits(const Scalar& scalar, unsigned window
     return digits;
 }
 
+// Maximum window count for any valid window_bits in [2, 30]:
+// window_count = ceil(256 / window_bits) → max at window_bits=2 → 128.
+// Stack-allocated equivalent of compute_window_digits.
+static constexpr std::size_t kMaxWindowCount = 128;
+
+static void fill_window_digits_into(const Scalar& scalar, unsigned window_bits,
+                                    std::size_t window_count, int32_t* out) {
+    const std::uint32_t mask = (1U << window_bits) - 1U;
+    std::array<std::uint64_t, 5> working{};
+    const auto& limbs = scalar.limbs();
+    for (std::size_t i = 0; i < limbs.size(); ++i) {
+        working[i] = limbs[i];
+    }
+    const int32_t threshold = static_cast<int32_t>(1U << (window_bits - 1U));
+    const int32_t range     = static_cast<int32_t>(1U << window_bits);
+    for (std::size_t idx = 0; idx < window_count; ++idx) {
+        auto const chunk = static_cast<std::uint32_t>(working[0] & mask);
+        auto digit = static_cast<int32_t>(chunk);
+        right_shift(working, window_bits);
+        if (digit >= threshold) {
+            digit -= range;
+            increment(working);
+        }
+        out[idx] = digit;
+    }
+}
+
 void fill_tables_for_window(const Point& base_point,
                             std::size_t digit_count,
                             FieldElement beta,
@@ -3225,9 +3252,10 @@ namespace {
 
 // Compute k1*P + k2*Q simultaneously using Shamir's trick
 // Processes both digit streams in one pass, eliminating the final point addition
+// Accepts raw pointers (window_count elements each) to avoid heap allocation in callers.
 JacobianPoint shamir_windowed_glv(
-    const std::vector<int32_t>& digits1,  // k1 window digits  
-    const std::vector<int32_t>& digits2,  // k2 window digits
+    const int32_t* digits1,               // k1 window digits (window_count elements)
+    const int32_t* digits2,               // k2 window digits (window_count elements)
     const std::vector<std::vector<AffinePointPacked>>& P_tables,  // G tables
     const std::vector<std::vector<AffinePointPacked>>& Q_tables,  // psi(G) tables
     std::size_t window_count
@@ -3538,16 +3566,21 @@ Point scalar_mul_generator(const Scalar& scalar) {
         std::cout << std::dec << " neg=" << decomposition.neg2 << '\n';
 #endif
         
-        // Build signed scalars from absolute magnitudes + flags
-        // Use absolute values for digit computation
-        auto digits1 = compute_window_digits(decomposition.k1, ctx.window_bits, window_count);
-        auto digits2 = compute_window_digits(decomposition.k2, ctx.window_bits, window_count);
+        // Build signed scalars from absolute magnitudes + flags.
+        // Use stack arrays (fill_window_digits_into) to avoid two heap
+        // allocations per k*G call in the BIP352 and similar scan loops.
+        std::array<int32_t, kMaxWindowCount> digits1_buf{};
+        std::array<int32_t, kMaxWindowCount> digits2_buf{};
+        fill_window_digits_into(decomposition.k1, ctx.window_bits, window_count, digits1_buf.data());
+        fill_window_digits_into(decomposition.k2, ctx.window_bits, window_count, digits2_buf.data());
+        int32_t* digits1 = digits1_buf.data();
+        int32_t* digits2 = digits2_buf.data();
         
 #if SECP256K1_PROFILE_DECOMP
         // Count non-zero digits
         int nonzero1 = 0, nonzero2 = 0;
-        for (auto d : digits1) if (d != 0) nonzero1++;
-        for (auto d : digits2) if (d != 0) nonzero2++;
+        for (std::size_t _i = 0; _i < window_count; ++_i) { if (digits1[_i] != 0) nonzero1++; }
+        for (std::size_t _i = 0; _i < window_count; ++_i) { if (digits2[_i] != 0) nonzero2++; }
         
         static std::atomic<uint64_t> sum_nonzero1{0};
         static std::atomic<uint64_t> sum_nonzero2{0};
@@ -3568,13 +3601,13 @@ Point scalar_mul_generator(const Scalar& scalar) {
         
         // If neg flag is set, negate ALL digits (so accumulate will negate all points)
         if (decomposition.neg1) {
-            for (auto& d : digits1) {
-                if (d != 0) d = -d;
+            for (std::size_t _i = 0; _i < window_count; ++_i) {
+                if (digits1[_i] != 0) digits1[_i] = -digits1[_i];
             }
         }
         if (decomposition.neg2) {
-            for (auto& d : digits2) {
-                if (d != 0) d = -d;
+            for (std::size_t _i = 0; _i < window_count; ++_i) {
+                if (digits2[_i] != 0) digits2[_i] = -digits2[_i];
             }
         }
         
@@ -3619,14 +3652,19 @@ Point scalar_mul_generator_glv_predecomposed(const Scalar& k1, const Scalar& k2,
     ensure_built_locked();
     PrecomputeContext const& ctx = *g_context;
 
-    // Direct GLV combination using pre-split scalars
+    // Direct GLV combination using pre-split scalars.
+    // Stack-allocated digit buffers: zero heap allocation.
     const std::size_t window_count = ctx.window_count;
 
-    auto digits1 = compute_window_digits(k1, ctx.window_bits, window_count);
-    auto digits2 = compute_window_digits(k2, ctx.window_bits, window_count);
+    std::array<int32_t, kMaxWindowCount> digits1_buf{};
+    std::array<int32_t, kMaxWindowCount> digits2_buf{};
+    fill_window_digits_into(k1, ctx.window_bits, window_count, digits1_buf.data());
+    fill_window_digits_into(k2, ctx.window_bits, window_count, digits2_buf.data());
+    int32_t* digits1 = digits1_buf.data();
+    int32_t* digits2 = digits2_buf.data();
 
-    if (neg1) { for (auto& d : digits1) if (d != 0) d = -d; }
-    if (neg2) { for (auto& d : digits2) if (d != 0) d = -d; }
+    if (neg1) { for (std::size_t _i = 0; _i < window_count; ++_i) { if (digits1[_i] != 0) digits1[_i] = -digits1[_i]; } }
+    if (neg2) { for (std::size_t _i = 0; _i < window_count; ++_i) { if (digits2[_i] != 0) digits2[_i] = -digits2[_i]; } }
 
     JacobianPoint result;
     if (ctx.config.use_jsf) {
