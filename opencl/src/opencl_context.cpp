@@ -150,6 +150,7 @@ struct Context::Impl {
     cl_kernel kernel_affine_add_lambda = nullptr;
     cl_kernel kernel_affine_add_x_only = nullptr;
     cl_kernel kernel_jacobian_to_affine = nullptr;
+    cl_kernel kernel_msm_block_reduce = nullptr;
 
     DeviceInfo device_info;
     std::string last_error;
@@ -216,6 +217,7 @@ struct Context::Impl {
         if (kernel_affine_add_lambda) clReleaseKernel(kernel_affine_add_lambda);
         if (kernel_affine_add_x_only) clReleaseKernel(kernel_affine_add_x_only);
         if (kernel_jacobian_to_affine) clReleaseKernel(kernel_jacobian_to_affine);
+        if (kernel_msm_block_reduce)    clReleaseKernel(kernel_msm_block_reduce);
 
         // Release program
         if (program) clReleaseProgram(program);
@@ -1292,55 +1294,55 @@ static inline void scalar_to_wnaf(const Scalar* k, int wnaf[130]) {
     }
 }
 
+/* GLV scalar mul — Shamir w=1 interleaved binary scan.
+ * Replaces the wNAF-5 path: no 8-point table, no Z-correction,
+ * ~same 130 doublings but only 2 affine operands → far lower register pressure. */
 inline void scalar_mul_glv_cl(JacobianPoint* r, const Scalar* k, const AffinePoint* base) {
     if (scalar_is_zero_cl(k)) { point_set_infinity(r); return; }
 
     Scalar k1, k2; int k1_neg, k2_neg;
     glv_decompose_cl(k, &k1, &k2, &k1_neg, &k2_neg);
 
+    /* P = base, possibly negated for k1 sign */
     AffinePoint P = *base;
     if (k1_neg) field_neg_impl(&P.y, &P.y);
 
-    AffinePoint table[8];
-    FieldElement globalz;
-    build_wnaf_table_zr_cl(&P, table, &globalz);
-
-    AffinePoint endo_table[8];
-    derive_endo_table_cl(table, endo_table, k1_neg != k2_neg);
-
-    int wnaf1[130] = {0};
-    int wnaf2[130] = {0};
-    scalar_to_wnaf(&k1, wnaf1);
-    scalar_to_wnaf(&k2, wnaf2);
+    /* phi(P) = (beta*x, (+/-) y) per k2 sign */
+    AffinePoint phiP;
+    FieldElement beta;
+    beta.limbs[0]=GLV_BETA0; beta.limbs[1]=GLV_BETA1;
+    beta.limbs[2]=GLV_BETA2; beta.limbs[3]=GLV_BETA3;
+    field_mul_impl(&phiP.x, &P.x, &beta);
+    if (k1_neg != k2_neg) field_neg_impl(&phiP.y, &P.y);
+    else phiP.y = P.y;
 
     point_set_infinity(r);
-    for (int i = 129; i >= 0; --i) {
-        // Always double; point_double_impl handles infinity correctly.
-        point_double_impl(r, r);
 
-        int d1 = wnaf1[i];
-        if (d1 != 0) {
-            int idx = (((d1 > 0) ? d1 : -d1) - 1) >> 1;
-            AffinePoint pt = table[idx];
-            if (d1 < 0) field_neg_impl(&pt.y, &pt.y);
-            if (point_is_infinity(r)) point_from_affine(r, &pt);
-            else point_add_mixed_impl(r, r, &pt);
+    /* Scan 130 bits: limb 2 has only bits [1:0], limbs 1 and 0 are full 64-bit */
+    for (int limb = 2; limb >= 0; limb--) {
+        int start_bit = (limb == 2) ? 1 : 63;
+        ulong w1 = k1.limbs[limb];
+        ulong w2 = k2.limbs[limb];
+        for (int bit = start_bit; bit >= 0; bit--) {
+            if (!point_is_infinity(r)) point_double_impl(r, r);
+            int b1 = (int)((w1 >> bit) & 1UL);
+            int b2 = (int)((w2 >> bit) & 1UL);
+            if (b1 | b2) {
+                if (point_is_infinity(r)) {
+                    if (b1 && b2) {
+                        point_from_affine(r, &P);
+                        point_add_mixed_impl(r, r, &phiP);
+                    } else if (b1) {
+                        point_from_affine(r, &P);
+                    } else {
+                        point_from_affine(r, &phiP);
+                    }
+                } else {
+                    if (b1) point_add_mixed_impl(r, r, &P);
+                    if (b2) point_add_mixed_impl(r, r, &phiP);
+                }
+            }
         }
-
-        int d2 = wnaf2[i];
-        if (d2 != 0) {
-            int idx = (((d2 > 0) ? d2 : -d2) - 1) >> 1;
-            AffinePoint pt = endo_table[idx];
-            if (d2 < 0) field_neg_impl(&pt.y, &pt.y);
-            if (point_is_infinity(r)) point_from_affine(r, &pt);
-            else point_add_mixed_impl(r, r, &pt);
-        }
-    }
-
-    if (!point_is_infinity(r)) {
-        FieldElement corrected_z;
-        field_mul_impl(&corrected_z, &r->z, &globalz);
-        r->z = corrected_z;
     }
 }
 
@@ -1478,6 +1480,36 @@ __kernel void batch_jacobian_to_affine_kernel(
     field_mul_impl(&ay, &p.y, &z_inv3);
     affines[gid].x = ax;
     affines[gid].y = ay;
+}
+
+// MSM GPU block reduction — 256-thread work-groups, __local tree reduce.
+// Reduces n Jacobian partial-products → ceil(n/256) block sums.
+// Replaces the CPU affine summation loop (n field inverses) with a single
+// GPU pass, then only ceil(n/256) points are returned to CPU.
+__kernel void msm_block_reduce_kernel(
+    __global const JacobianPoint* partials,
+    int n,
+    __global JacobianPoint* block_results)
+{
+    __local JacobianPoint sdata[256];
+    int tid = (int)get_local_id(0);
+    int idx = (int)get_group_id(0) * 256 + tid;
+    if (idx < n) sdata[tid] = partials[idx];
+    else         point_set_infinity(&sdata[tid]);
+    barrier(CLK_LOCAL_MEM_FENCE);
+    for (int stride = 128; stride > 0; stride >>= 1) {
+        if (tid < stride) {
+            if (point_is_infinity(&sdata[tid])) {
+                sdata[tid] = sdata[tid + stride];
+            } else if (!point_is_infinity(&sdata[tid + stride])) {
+                JacobianPoint tmp;
+                point_add_impl(&tmp, &sdata[tid], &sdata[tid + stride]);
+                sdata[tid] = tmp;
+            }
+        }
+        barrier(CLK_LOCAL_MEM_FENCE);
+    }
+    if (tid == 0) block_results[get_group_id(0)] = sdata[0];
 }
 
 )KERNEL",
@@ -1835,6 +1867,8 @@ bool Context::Impl::create_kernels() {
         if (config.verbose) std::cerr << "[DEBUG] jacobian_to_affine kernel: err=" << err << "\n";
         kernel_jacobian_to_affine = nullptr;
     }
+    kernel_msm_block_reduce = clCreateKernel(program, "msm_block_reduce_kernel", &err);
+    if (err != CL_SUCCESS) kernel_msm_block_reduce = nullptr; // non-fatal
 
     return true;
 }
@@ -2485,6 +2519,7 @@ void* Context::native_kernel(const char* name) const {
     if (n == "scalar_mul_generator") return impl_->kernel_scalar_mul_generator;
     if (n == "batch_jacobian_to_affine") return impl_->kernel_batch_jacobian_to_affine;
     if (n == "batch_jacobian_to_affine_kernel") return impl_->kernel_batch_jacobian_to_affine;
+    if (n == "msm_block_reduce_kernel") return impl_->kernel_msm_block_reduce;
     if (n == "affine_add") return impl_->kernel_affine_add;
     if (n == "affine_add_lambda") return impl_->kernel_affine_add_lambda;
     if (n == "affine_add_x_only") return impl_->kernel_affine_add_x_only;

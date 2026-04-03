@@ -1169,3 +1169,25 @@ kernel void kernel_bip324_aead_decrypt(
     ok[tid] = bip324_aead_decrypt(key, nonce, ct, payload_sz, tag, pt_out) ? 1u : 0u;
 }
 
+// =============================================================================
+// MSM Block Sum Kernel — GPU second pass for msm()
+// Each thread (one per block) sums 256 scalar_mul AffinePoint results into one
+// JacobianPoint without field inversions (uses jacobian_add_mixed internally).
+// dispatch: grid_size=n_blocks, threadgroup_size=1
+// =============================================================================
+kernel void msm_block_sum_kernel(
+    device const AffinePoint*  partials      [[buffer(0)]],
+    constant uint&             n             [[buffer(1)]],
+    device       JacobianPoint* block_results [[buffer(2)]],
+    uint gid [[thread_position_in_grid]]
+) {
+    uint start = gid * 256u;
+    if (start >= n) { block_results[gid] = point_at_infinity(); return; }
+    uint end = (start + 256u <= n) ? start + 256u : n;
+    JacobianPoint acc = point_at_infinity();
+    for (uint i = start; i < end; i++) {
+        acc = jacobian_add_mixed(acc, partials[i]);
+    }
+    block_results[gid] = acc;
+}
+

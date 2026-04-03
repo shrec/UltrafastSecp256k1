@@ -220,6 +220,75 @@ static std::string metal_load_combined_source(const std::vector<std::string>& sh
     return {};
 }
 
+/* Jacobian point on the host side, matching Metal shader's JacobianPoint layout:
+ * x(8×uint32) + y(8×uint32) + z(8×uint32) + infinity(uint32) = 100 bytes. */
+struct MetalJacobianPoint {
+    MetalFieldElem x;
+    MetalFieldElem y;
+    MetalFieldElem z;
+    uint32_t       infinity;
+};
+
+/* MSM persistent buffer pool — grow-only, avoids per-call alloc_buffer_shared overhead.
+ * Stores input bases, scalars, partial scalar-mul results, and Jacobian block sums. */
+struct MetalMsmPool {
+    secp256k1::metal::MetalBuffer buf_bases;    // n × MetalAffinePoint
+    secp256k1::metal::MetalBuffer buf_scalars;  // n × MetalScalar256
+    secp256k1::metal::MetalBuffer buf_partials; // n × MetalAffinePoint  (scalar_mul output)
+    secp256k1::metal::MetalBuffer buf_blocks;   // ceil(n/256) × MetalJacobianPoint
+    size_t capacity = 0;
+
+    void ensure(size_t n, secp256k1::metal::MetalRuntime* rt) {
+        if (n <= capacity) return;
+        free_all();
+        const size_t n_blocks = (n + 255) / 256;
+        buf_bases    = rt->alloc_buffer_shared(n        * sizeof(MetalAffinePoint));
+        buf_scalars  = rt->alloc_buffer_shared(n        * sizeof(MetalScalar256));
+        buf_partials = rt->alloc_buffer_shared(n        * sizeof(MetalAffinePoint));
+        buf_blocks   = rt->alloc_buffer_shared(n_blocks * sizeof(MetalJacobianPoint));
+        if (buf_bases.valid() && buf_scalars.valid() && buf_partials.valid() && buf_blocks.valid())
+            capacity = n;
+    }
+
+    void free_all() {
+        buf_bases    = secp256k1::metal::MetalBuffer{};
+        buf_scalars  = secp256k1::metal::MetalBuffer{};
+        buf_partials = secp256k1::metal::MetalBuffer{};
+        buf_blocks   = secp256k1::metal::MetalBuffer{};
+        capacity = 0;
+    }
+};
+
+/** Convert a MetalJacobianPoint to CPU affine coordinates.
+ *  Returns false if the point is at infinity or z == 0. */
+static bool metal_jacobian_to_cpu_affine(
+    const MetalJacobianPoint& jp,
+    secp256k1::fast::FieldElement& out_x,
+    secp256k1::fast::FieldElement& out_y)
+{
+    if (jp.infinity) return false;
+
+    auto mt_fe_to_cpu = [](const MetalFieldElem& fe) -> secp256k1::fast::FieldElement {
+        std::array<uint64_t, 4> l64;
+        for (int k = 0; k < 4; k++)
+            l64[k] = ((uint64_t)fe.limbs[2*k+1] << 32) | (uint64_t)fe.limbs[2*k];
+        return secp256k1::fast::FieldElement::from_limbs(l64);
+    };
+
+    auto z = mt_fe_to_cpu(jp.z);
+    auto zb = z.to_bytes();
+    bool z_zero = true;
+    for (int k = 0; k < 32 && z_zero; ++k) if (zb[k]) z_zero = false;
+    if (z_zero) return false;
+
+    auto z_inv  = z.inverse();
+    auto z_inv2 = z_inv * z_inv;
+    auto z_inv3 = z_inv2 * z_inv;
+    out_x = mt_fe_to_cpu(jp.x) * z_inv2;
+    out_y = mt_fe_to_cpu(jp.y) * z_inv3;
+    return true;
+}
+
 } // anonymous namespace
 
 // =============================================================================
@@ -669,93 +738,143 @@ public:
         for (size_t i = 0; i < n; ++i)
             h_scalars[i] = be32_to_metal_scalar(scalars32 + i * 32);
 
-        auto buf_bases   = runtime_->alloc_buffer_shared(n * sizeof(MetalAffinePoint));
-        std::memcpy(buf_bases.contents(), h_bases.data(), n * sizeof(MetalAffinePoint));
+        /* Ensure persistent pool buffers (grow-only, avoids repeated alloc overhead) */
+        msm_pool_.ensure(n, runtime_.get());
+        if (msm_pool_.capacity < n)
+            return set_error(GpuError::Device, "MSM pool allocation failed");
 
-        auto buf_scalars = runtime_->alloc_buffer_shared(n * sizeof(MetalScalar256));
-        std::memcpy(buf_scalars.contents(), h_scalars.data(), n * sizeof(MetalScalar256));
+        const size_t n_blocks = (n + 255) / 256;
 
-        auto buf_results = runtime_->alloc_buffer_shared(n * sizeof(MetalAffinePoint));
+        /* Upload input data to pool buffers */
+        std::memcpy(msm_pool_.buf_bases.contents(),   h_bases.data(),   n * sizeof(MetalAffinePoint));
+        std::memcpy(msm_pool_.buf_scalars.contents(), h_scalars.data(), n * sizeof(MetalScalar256));
 
+        /* Small count buffer (4 bytes) — negligible to allocate */
         uint32_t n32 = (uint32_t)n;
         auto buf_count = runtime_->alloc_buffer_shared(sizeof(uint32_t));
         std::memcpy(buf_count.contents(), &n32, sizeof(n32));
 
-        /* GPU: scalar_mul_batch(P[i], k[i]) → AffinePoint[i] */
-        auto pipe = runtime_->make_pipeline("scalar_mul_batch");
-        runtime_->dispatch_sync(pipe, (uint32_t)n, 64u,
-                                {&buf_bases, &buf_scalars, &buf_results, &buf_count});
+        /* Pass 1: GPU scalar_mul_batch → buf_partials (n AffinePoints) */
+        auto pipe_sm = runtime_->make_pipeline("scalar_mul_batch");
+        runtime_->dispatch_sync(pipe_sm, (uint32_t)n, 64u,
+                                {&msm_pool_.buf_bases, &msm_pool_.buf_scalars,
+                                 &msm_pool_.buf_partials, &buf_count});
 
-        /* CPU: accumulate affine points */
-        const auto* aff = static_cast<const MetalAffinePoint*>(buf_results.contents());
+        /* Pass 2 (optional): GPU msm_block_sum_kernel → buf_blocks (n_blocks JacobianPoints) */
+        auto pipe_bs = runtime_->make_pipeline("msm_block_sum_kernel");
+        if (pipe_bs.valid()) {
+            runtime_->dispatch_sync(pipe_bs, (uint32_t)n_blocks, 1u,
+                                    {&msm_pool_.buf_partials, &buf_count, &msm_pool_.buf_blocks});
 
-        bool have_acc = false;
-        secp256k1::fast::FieldElement acc_x, acc_y;
+            /* CPU: Jacobian→Affine + accumulate (only n_blocks iterations) */
+            const auto* jac_blocks =
+                static_cast<const MetalJacobianPoint*>(msm_pool_.buf_blocks.contents());
 
-        for (size_t i = 0; i < n; ++i) {
-            uint8_t xb[32], yb[32];
-            metal_fe_to_be32(aff[i].x, xb);
-            metal_fe_to_be32(aff[i].y, yb);
+            bool have_acc = false;
+            secp256k1::fast::FieldElement acc_x, acc_y;
 
-            /* Build CPU FieldElement from limb rep */
-            const auto& xl_mt = aff[i].x.limbs;
-            const auto& yl_mt = aff[i].y.limbs;
-            /* 8×uint32 → 4×uint64: xl64[k] = xl_mt[2k+1]<<32 | xl_mt[2k] */
-            std::array<uint64_t,4> xl64, yl64;
-            for (int k = 0; k < 4; k++) {
-                xl64[k] = ((uint64_t)xl_mt[2*k+1] << 32) | (uint64_t)xl_mt[2*k];
-                yl64[k] = ((uint64_t)yl_mt[2*k+1] << 32) | (uint64_t)yl_mt[2*k];
+            for (size_t b = 0; b < n_blocks; ++b) {
+                secp256k1::fast::FieldElement px, py;
+                if (!metal_jacobian_to_cpu_affine(jac_blocks[b], px, py)) continue;
+                if (!have_acc) {
+                    acc_x = px; acc_y = py;
+                    have_acc = true;
+                    continue;
+                }
+                auto dx = px - acc_x;
+                auto dy = py - acc_y;
+                auto dxb = dx.to_bytes();
+                bool dx_zero = true;
+                for (int k = 0; k < 32 && dx_zero; ++k) if (dxb[k]) dx_zero = false;
+                if (dx_zero) {
+                    auto dyb = dy.to_bytes();
+                    bool dy_zero = true;
+                    for (int k = 0; k < 32 && dy_zero; ++k) if (dyb[k]) dy_zero = false;
+                    if (!dy_zero) { have_acc = false; continue; }
+                    auto x2  = acc_x * acc_x;
+                    auto num = x2 + x2 + x2;
+                    auto den = acc_y + acc_y;
+                    auto lam = num * den.inverse();
+                    auto rx  = lam * lam - acc_x - acc_x;
+                    auto ry  = lam * (acc_x - rx) - acc_y;
+                    acc_x = rx; acc_y = ry;
+                } else {
+                    auto lam = dy * dx.inverse();
+                    auto rx  = lam * lam - acc_x - px;
+                    auto ry  = lam * (acc_x - rx) - acc_y;
+                    acc_x = rx; acc_y = ry;
+                }
             }
-            auto px = secp256k1::fast::FieldElement::from_limbs(xl64);
-            auto py = secp256k1::fast::FieldElement::from_limbs(yl64);
 
-            /* Skip point at infinity */
-            auto pxb = px.to_bytes(); auto pyb = py.to_bytes();
-            bool is_zero = true;
-            for (int k = 0; k < 32 && is_zero; ++k)
-                if (pxb[k] || pyb[k]) is_zero = false;
-            if (is_zero) continue;
+            if (!have_acc)
+                return set_error(GpuError::Arith, "MSM result is point at infinity");
 
-            if (!have_acc) {
-                acc_x = px; acc_y = py;
-                have_acc = true;
-                continue;
+            auto yb = acc_y.to_bytes();
+            out_result33[0] = (yb[31] & 1) ? 0x03 : 0x02;
+            auto xb = acc_x.to_bytes();
+            std::memcpy(out_result33 + 1, xb.data(), 32);
+        } else {
+            /* Fallback: read all n partials to CPU (no block reduce available) */
+            const auto* aff =
+                static_cast<const MetalAffinePoint*>(msm_pool_.buf_partials.contents());
+            bool have_acc = false;
+            secp256k1::fast::FieldElement acc_x, acc_y;
+
+            for (size_t i = 0; i < n; ++i) {
+                const auto& xl_mt = aff[i].x.limbs;
+                const auto& yl_mt = aff[i].y.limbs;
+                std::array<uint64_t,4> xl64, yl64;
+                for (int k = 0; k < 4; k++) {
+                    xl64[k] = ((uint64_t)xl_mt[2*k+1] << 32) | (uint64_t)xl_mt[2*k];
+                    yl64[k] = ((uint64_t)yl_mt[2*k+1] << 32) | (uint64_t)yl_mt[2*k];
+                }
+                auto px = secp256k1::fast::FieldElement::from_limbs(xl64);
+                auto py = secp256k1::fast::FieldElement::from_limbs(yl64);
+
+                auto pxb = px.to_bytes(); auto pyb = py.to_bytes();
+                bool is_zero = true;
+                for (int k = 0; k < 32 && is_zero; ++k)
+                    if (pxb[k] || pyb[k]) is_zero = false;
+                if (is_zero) continue;
+
+                if (!have_acc) {
+                    acc_x = px; acc_y = py;
+                    have_acc = true;
+                    continue;
+                }
+                auto dx = px - acc_x;
+                auto dy = py - acc_y;
+                auto dxb = dx.to_bytes();
+                bool dx_zero = true;
+                for (int k = 0; k < 32 && dx_zero; ++k) if (dxb[k]) dx_zero = false;
+                if (dx_zero) {
+                    auto dyb = dy.to_bytes();
+                    bool dy_zero = true;
+                    for (int k = 0; k < 32 && dy_zero; ++k) if (dyb[k]) dy_zero = false;
+                    if (!dy_zero) { have_acc = false; continue; }
+                    auto x2  = acc_x * acc_x;
+                    auto num = x2 + x2 + x2;
+                    auto den = acc_y + acc_y;
+                    auto lam = num * den.inverse();
+                    auto rx  = lam * lam - acc_x - acc_x;
+                    auto ry  = lam * (acc_x - rx) - acc_y;
+                    acc_x = rx; acc_y = ry;
+                } else {
+                    auto lam = dy * dx.inverse();
+                    auto rx  = lam * lam - acc_x - px;
+                    auto ry  = lam * (acc_x - rx) - acc_y;
+                    acc_x = rx; acc_y = ry;
+                }
             }
 
-            auto dx = px - acc_x;
-            auto dy = py - acc_y;
-            auto dxb = dx.to_bytes();
-            bool dx_zero = true;
-            for (int k = 0; k < 32 && dx_zero; ++k) if (dxb[k]) dx_zero = false;
+            if (!have_acc)
+                return set_error(GpuError::Arith, "MSM result is point at infinity");
 
-            if (dx_zero) {
-                auto dyb = dy.to_bytes();
-                bool dy_zero = true;
-                for (int k = 0; k < 32 && dy_zero; ++k) if (dyb[k]) dy_zero = false;
-                if (!dy_zero) { have_acc = false; continue; }
-                /* Doubling */
-                auto x2  = acc_x * acc_x;
-                auto num = x2 + x2 + x2;
-                auto den = acc_y + acc_y;
-                auto lam = num * den.inverse();
-                auto rx  = lam * lam - acc_x - acc_x;
-                auto ry  = lam * (acc_x - rx) - acc_y;
-                acc_x = rx; acc_y = ry;
-            } else {
-                auto lam = dy * dx.inverse();
-                auto rx  = lam * lam - acc_x - px;
-                auto ry  = lam * (acc_x - rx) - acc_y;
-                acc_x = rx; acc_y = ry;
-            }
+            auto yb = acc_y.to_bytes();
+            out_result33[0] = (yb[31] & 1) ? 0x03 : 0x02;
+            auto xb = acc_x.to_bytes();
+            std::memcpy(out_result33 + 1, xb.data(), 32);
         }
-
-        if (!have_acc)
-            return set_error(GpuError::Arith, "MSM result is point at infinity");
-
-        auto yb = acc_y.to_bytes();
-        out_result33[0] = (yb[31] & 1) ? 0x03 : 0x02;
-        auto xb = acc_x.to_bytes();
-        std::memcpy(out_result33 + 1, xb.data(), 32);
 
         clear_error();
         return GpuError::Ok;
@@ -1037,6 +1156,7 @@ private:
     std::unique_ptr<secp256k1::metal::MetalRuntime> runtime_;
     bool lib_init_attempted_ = false;
     bool lib_ready_          = false;
+    MetalMsmPool msm_pool_;
     GpuError last_err_ = GpuError::Ok;
     char     last_msg_[256] = {};
 

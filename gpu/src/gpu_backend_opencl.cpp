@@ -83,6 +83,37 @@ struct OpenCLBatchScratch {
 
 static thread_local OpenCLBatchScratch g_opencl_batch_scratch;
 
+/* MSM persistent buffer pool — grow-only, avoids per-call clCreateBuffer overhead.
+ * Stores scalars, points, Jacobian partials, and block-reduce results on GPU. */
+struct OclMsmPool {
+    cl_mem buf_scalars  = nullptr;  // n × sizeof(Scalar)
+    cl_mem buf_points   = nullptr;  // n × sizeof(AffinePoint)
+    cl_mem buf_partials = nullptr;  // n × sizeof(JacobianPoint)  -- scalar_mul output
+    cl_mem buf_blocks   = nullptr;  // ceil(n/256) × sizeof(JacobianPoint) -- reduce output
+    size_t capacity     = 0;
+
+    void ensure(size_t n, cl_context ctx) {
+        if (n <= capacity) return;
+        free_all();
+        cl_int err;
+        const size_t n_blocks = (n + 255) / 256;
+        buf_scalars  = clCreateBuffer(ctx, CL_MEM_READ_ONLY,  n        * sizeof(secp256k1::opencl::Scalar),        nullptr, &err);
+        buf_points   = clCreateBuffer(ctx, CL_MEM_READ_ONLY,  n        * sizeof(secp256k1::opencl::AffinePoint),   nullptr, &err);
+        buf_partials = clCreateBuffer(ctx, CL_MEM_READ_WRITE, n        * sizeof(secp256k1::opencl::JacobianPoint), nullptr, &err);
+        buf_blocks   = clCreateBuffer(ctx, CL_MEM_READ_WRITE, n_blocks * sizeof(secp256k1::opencl::JacobianPoint), nullptr, &err);
+        if (buf_scalars && buf_points && buf_partials && buf_blocks) { capacity = n; return; }
+        free_all();
+    }
+
+    void free_all() {
+        if (buf_scalars)  { clReleaseMemObject(buf_scalars);  buf_scalars  = nullptr; }
+        if (buf_points)   { clReleaseMemObject(buf_points);   buf_points   = nullptr; }
+        if (buf_partials) { clReleaseMemObject(buf_partials); buf_partials = nullptr; }
+        if (buf_blocks)   { clReleaseMemObject(buf_blocks);   buf_blocks   = nullptr; }
+        capacity = 0;
+    }
+};
+
 } // anonymous namespace
 
 namespace secp256k1 {
@@ -178,6 +209,7 @@ public:
         if (bip324_aead_decrypt_) { clReleaseKernel(bip324_aead_decrypt_); bip324_aead_decrypt_ = nullptr; }
         if (bip324_program_)      { clReleaseProgram(bip324_program_);     bip324_program_      = nullptr; }
         bip324_init_attempted_ = false;
+        msm_pool_.free_all();
         ctx_.reset();
     }
 
@@ -772,8 +804,16 @@ public:
         if (!scalars32 || !points33 || !out_result33)
             return set_error(GpuError::NullArg, "NULL buffer");
 
+        auto* cl_ctx       = static_cast<cl_context>(ctx_->native_context());
+        auto* queue        = static_cast<cl_command_queue>(ctx_->native_queue());
+        auto* k_scalar_mul = static_cast<cl_kernel>(ctx_->native_kernel("scalar_mul"));
+        auto* k_blk_reduce = static_cast<cl_kernel>(ctx_->native_kernel("msm_block_reduce_kernel"));
+
+        if (!k_scalar_mul)
+            return set_error(GpuError::Launch, "scalar_mul kernel unavailable");
+
         /* Convert inputs */
-        std::vector<secp256k1::opencl::Scalar> h_scalars(n);
+        std::vector<secp256k1::opencl::Scalar>      h_scalars(n);
         std::vector<secp256k1::opencl::AffinePoint> h_points(n);
         for (size_t i = 0; i < n; ++i) {
             bytes_to_scalar(scalars32 + i * 32, &h_scalars[i]);
@@ -781,20 +821,62 @@ public:
                 return set_error(GpuError::BadKey, "invalid MSM point");
         }
 
-        /* GPU: batch scalar_mul(s[i], P[i]) */
-        std::vector<secp256k1::opencl::JacobianPoint> h_jac(n);
-        ctx_->batch_scalar_mul(h_scalars.data(), h_points.data(),
-                               h_jac.data(), n);
+        /* Ensure persistent pool buffers (grow-only) */
+        msm_pool_.ensure(n, cl_ctx);
+        if (msm_pool_.capacity < n)
+            return set_error(GpuError::Device, "MSM pool allocation failed");
 
-        /* GPU: Jacobian → Affine */
-        std::vector<secp256k1::opencl::AffinePoint> h_aff(n);
-        ctx_->batch_jacobian_to_affine(h_jac.data(), h_aff.data(), n);
+        const size_t n_blocks = (n + 255) / 256;
 
-        /* CPU: sum affine points */
+        /* Upload scalars + points to GPU */
+        clEnqueueWriteBuffer(queue, msm_pool_.buf_scalars, CL_FALSE, 0,
+                             n * sizeof(secp256k1::opencl::Scalar), h_scalars.data(), 0, nullptr, nullptr);
+        clEnqueueWriteBuffer(queue, msm_pool_.buf_points,  CL_FALSE, 0,
+                             n * sizeof(secp256k1::opencl::AffinePoint), h_points.data(), 0, nullptr, nullptr);
+        clFlush(queue);
+
+        /* Dispatch scalar_mul: n threads */
+        cl_uint cnt = static_cast<cl_uint>(n);
+        clSetKernelArg(k_scalar_mul, 0, sizeof(cl_mem), &msm_pool_.buf_scalars);
+        clSetKernelArg(k_scalar_mul, 1, sizeof(cl_mem), &msm_pool_.buf_points);
+        clSetKernelArg(k_scalar_mul, 2, sizeof(cl_mem), &msm_pool_.buf_partials);
+        clSetKernelArg(k_scalar_mul, 3, sizeof(cl_uint), &cnt);
+        size_t local_sm  = 128;
+        size_t global_sm = ((n + local_sm - 1) / local_sm) * local_sm;
+        clEnqueueNDRangeKernel(queue, k_scalar_mul, 1, nullptr, &global_sm, &local_sm, 0, nullptr, nullptr);
+
+        /* GPU block reduce (or fallback: copy all partials to CPU) */
+        std::vector<secp256k1::opencl::JacobianPoint> h_blocks;
+        if (k_blk_reduce) {
+            /* n work-groups of 256, each reduces 256 partials → 1 block result */
+            cl_int n_int = static_cast<cl_int>(n);
+            clSetKernelArg(k_blk_reduce, 0, sizeof(cl_mem), &msm_pool_.buf_partials);
+            clSetKernelArg(k_blk_reduce, 1, sizeof(cl_int), &n_int);
+            clSetKernelArg(k_blk_reduce, 2, sizeof(cl_mem), &msm_pool_.buf_blocks);
+            size_t local_r  = 256;
+            size_t global_r = n_blocks * 256;
+            clEnqueueNDRangeKernel(queue, k_blk_reduce, 1, nullptr, &global_r, &local_r, 0, nullptr, nullptr);
+            h_blocks.resize(n_blocks);
+            clEnqueueReadBuffer(queue, msm_pool_.buf_blocks, CL_TRUE, 0,
+                                n_blocks * sizeof(secp256k1::opencl::JacobianPoint),
+                                h_blocks.data(), 0, nullptr, nullptr);
+        } else {
+            /* Fallback: read all partials (n points) to CPU */
+            h_blocks.resize(n);
+            clEnqueueReadBuffer(queue, msm_pool_.buf_partials, CL_TRUE, 0,
+                                n * sizeof(secp256k1::opencl::JacobianPoint),
+                                h_blocks.data(), 0, nullptr, nullptr);
+        }
+
+        /* Convert small block results Jacobian → Affine (GPU, tiny batch) */
+        std::vector<secp256k1::opencl::AffinePoint> h_aff(h_blocks.size());
+        ctx_->batch_jacobian_to_affine(h_blocks.data(), h_aff.data(), h_blocks.size());
+
+        /* CPU: sum affine block results (tiny count when block reduce ran) */
         bool have_acc = false;
         secp256k1::fast::FieldElement acc_x, acc_y;
 
-        for (size_t i = 0; i < n; ++i) {
+        for (size_t i = 0; i < h_aff.size(); ++i) {
             std::array<uint64_t, 4> xl, yl;
             std::memcpy(xl.data(), h_aff[i].x.limbs, 32);
             std::memcpy(yl.data(), h_aff[i].y.limbs, 32);
@@ -815,7 +897,6 @@ public:
                 continue;
             }
 
-            /* Affine point addition: acc += (px, py) */
             auto dx = px - acc_x;
             auto dy = py - acc_y;
             auto dxb = dx.to_bytes();
@@ -828,23 +909,18 @@ public:
                 bool dy_zero = true;
                 for (int k = 0; k < 32 && dy_zero; ++k)
                     if (dyb[k]) dy_zero = false;
-                if (!dy_zero) {
-                    /* Inverse points → result is infinity */
-                    have_acc = false;
-                    continue;
-                }
-                /* Doubling: lambda = 3*x^2 / (2*y) */
-                auto x2 = acc_x * acc_x;
+                if (!dy_zero) { have_acc = false; continue; }
+                auto x2  = acc_x * acc_x;
                 auto num = x2 + x2 + x2;
                 auto den = acc_y + acc_y;
                 auto lam = num * den.inverse();
-                auto rx = lam * lam - acc_x - acc_x;
-                auto ry = lam * (acc_x - rx) - acc_y;
+                auto rx  = lam * lam - acc_x - acc_x;
+                auto ry  = lam * (acc_x - rx) - acc_y;
                 acc_x = rx; acc_y = ry;
             } else {
                 auto lam = dy * dx.inverse();
-                auto rx = lam * lam - acc_x - px;
-                auto ry = lam * (acc_x - rx) - acc_y;
+                auto rx  = lam * lam - acc_x - px;
+                auto ry  = lam * (acc_x - rx) - acc_y;
                 acc_x = rx; acc_y = ry;
             }
         }
@@ -1411,6 +1487,9 @@ private:
     cl_kernel  bip324_aead_encrypt_   = nullptr;
     cl_kernel  bip324_aead_decrypt_   = nullptr;
     bool       bip324_init_attempted_ = false;
+
+    /* MSM persistent buffer pool (shared across msm() calls) */
+    OclMsmPool msm_pool_;
 
     GpuError set_error(GpuError err, const char* msg) {
         last_err_ = err;
