@@ -24,6 +24,7 @@
       --panel: #1a1d27;
       --border: #2e3245;
       --accent: #6c63ff;
+      --blue: #58a6ff;
       --green: #22c55e;
       --red: #ef4444;
       --text: #e2e8f0;
@@ -181,15 +182,38 @@
   </p>
 
   <hr>
-  <div class="section-title">Library Benchmark</div>
-  <p style="font-size:0.8rem;color:var(--muted);margin-bottom:0.6rem">
-    Runs <strong>N</strong> real ecrecover + sign + wallet-auth cycles on the server
-    using the same <code>libufsecp.so</code> path as wallet authentication above.
-    No wallet needed — shows raw pipeline throughput vs go-ethereum / ethers.js / web3.py.
+  <div class="section-title">Library Benchmark — Live Pipeline Throughput</div>
+  <p style="font-size:0.78rem;color:var(--muted);margin-bottom:0.8rem">
+    Runs real <code>ecrecover</code> + <code>eth_sign</code> cycles on the server
+    via the same <code>libufsecp.so</code> used for wallet auth above.
+    No wallet needed.
   </p>
   <div class="row">
-    <button class="secondary" onclick="openBench(500)">Bench 500 ops</button>
-    <button class="secondary" onclick="openBench(2000)">Bench 2000 ops</button>
+    <button class="secondary" id="btnBench500" onclick="runBench(500)">▶ Bench 500 ops</button>
+    <button class="secondary" id="btnBench2000" onclick="runBench(2000)">▶ Bench 2000 ops</button>
+  </div>
+
+  <!-- Bench results panel (hidden until run) -->
+  <div id="benchPanel" style="display:none;margin-top:0.5rem">
+    <div id="benchSpinner" style="text-align:center;color:var(--muted);padding:1rem;display:none">
+      ⏳ Running benchmark…
+    </div>
+    <div id="benchResults" style="display:none">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;margin-bottom:0.8rem" id="benchCards"></div>
+      <table id="benchTable" style="width:100%;border-collapse:collapse;font-size:0.78rem">
+        <thead>
+          <tr style="color:var(--muted);font-size:0.7rem;text-transform:uppercase">
+            <th style="text-align:left;padding:0.4rem 0.5rem;border-bottom:1px solid var(--border)">Operation</th>
+            <th style="text-align:right;padding:0.4rem 0.5rem;border-bottom:1px solid var(--border)">ns / call</th>
+            <th style="text-align:right;padding:0.4rem 0.5rem;border-bottom:1px solid var(--border)">k / sec</th>
+          </tr>
+        </thead>
+        <tbody id="benchTableBody"></tbody>
+      </table>
+      <div id="benchCmp" style="margin-top:0.8rem"></div>
+      <p id="benchMeta" style="font-size:0.7rem;color:var(--muted);margin-top:0.6rem"></p>
+    </div>
+    <div id="benchError" style="display:none;color:var(--red);font-size:0.82rem;padding:0.6rem"></div>
   </div>
 </div>
 
@@ -198,9 +222,107 @@
 let currentNonce = null;
 let currentAddress = null;
 
-function openBench(n) {
-  const url = document.getElementById('backendUrl').value.trim().replace(/\/$/, '');
-  window.open(url + '/bench?n=' + n, '_blank');
+async function runBench(n) {
+  const url = document.getElementById('serverUrl').value.trim().replace(/\/$/, '');
+  const panel   = document.getElementById('benchPanel');
+  const spinner = document.getElementById('benchSpinner');
+  const results = document.getElementById('benchResults');
+  const errBox  = document.getElementById('benchError');
+
+  panel.style.display   = 'block';
+  spinner.style.display = 'block';
+  results.style.display = 'none';
+  errBox.style.display  = 'none';
+  document.getElementById('btnBench500').disabled  = true;
+  document.getElementById('btnBench2000').disabled = true;
+
+  try {
+    const resp = await fetch(url + '/bench?json=1&n=' + n);
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const d = await resp.json();
+    if (d.error) throw new Error(d.error);
+
+    const p  = d.primitives;
+    const tp = d.throughput_1core;
+    const sc = d.throughput_scaled;
+    const fk = v => (v/1000).toFixed(1) + ' k/s';
+
+    // Cards
+    document.getElementById('benchCards').innerHTML = `
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:1rem">
+        <div style="font-size:1.5rem;font-weight:700;color:var(--green)">${p.eth_ecrecover_ns.toFixed(0)} ns</div>
+        <div style="font-size:0.73rem;color:var(--muted);margin-top:0.2rem">eth_ecrecover / call</div>
+      </div>
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:1rem">
+        <div style="font-size:1.5rem;font-weight:700;color:var(--green)">${fk(tp.ecrecover_per_sec)}</div>
+        <div style="font-size:0.73rem;color:var(--muted);margin-top:0.2rem">ecrecover / sec (1 core)</div>
+      </div>
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:1rem">
+        <div style="font-size:1.5rem;font-weight:700;color:var(--green)">${p.eth_sign_ns.toFixed(0)} ns</div>
+        <div style="font-size:0.73rem;color:var(--muted);margin-top:0.2rem">eth_sign / call</div>
+      </div>
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:1rem">
+        <div style="font-size:1.5rem;font-weight:700;color:var(--green)">${fk(tp.eth_sign_per_sec)}</div>
+        <div style="font-size:0.73rem;color:var(--muted);margin-top:0.2rem">eth_sign / sec (1 core)</div>
+      </div>`;
+
+    // Table rows
+    const rows = [
+      ['eth_personal_hash (EIP-191)', p.eth_personal_hash_ns, 1e9/p.eth_personal_hash_ns],
+      ['eth_ecrecover ← hot path',   p.eth_ecrecover_ns,     tp.ecrecover_per_sec],
+      ['eth_sign (v,r,s EIP-155)',    p.eth_sign_ns,          tp.eth_sign_per_sec],
+      ['wallet_auth pipeline',        p.wallet_auth_pipeline_ns, tp.wallet_auth_per_sec],
+      ['ctypes boundary overhead',    p.ctypes_overhead_ns,   null],
+      ['ecrecover (est. native C)',   p.ecrecover_pure_c_estimated_ns, tp.ecrecover_native_c_estimated],
+    ];
+    document.getElementById('benchTableBody').innerHTML = rows.map(([name, ns, ops]) => `
+      <tr>
+        <td style="padding:0.35rem 0.5rem;border-bottom:1px solid var(--border);color:${name.includes('ctypes')?'var(--muted)':'var(--text)'}">${name}</td>
+        <td style="padding:0.35rem 0.5rem;border-bottom:1px solid var(--border);text-align:right;font-family:var(--mono)">${ns.toFixed(1)}</td>
+        <td style="padding:0.35rem 0.5rem;border-bottom:1px solid var(--border);text-align:right;color:var(--green);font-weight:600">${ops ? fk(ops) : '—'}</td>
+      </tr>`).join('');
+
+    // Comparison
+    const our = tp.ecrecover_per_sec;
+    const ref = d.reference_ecrecover_per_sec;
+    document.getElementById('benchCmp').innerHTML = `
+      <div style="font-size:0.7rem;text-transform:uppercase;color:var(--muted);margin-bottom:0.4rem;letter-spacing:.07em">vs other stacks (community reference ±30%)</div>
+      <table style="width:100%;border-collapse:collapse;font-size:0.76rem">
+        <tr style="color:var(--muted);font-size:0.68rem">
+          <th style="text-align:left;padding:0.3rem 0.4rem">Stack</th>
+          <th style="text-align:right;padding:0.3rem 0.4rem">ecrecover/sec</th>
+          <th style="text-align:right;padding:0.3rem 0.4rem">UltraFast advantage</th>
+        </tr>
+        <tr><td style="padding:0.3rem 0.4rem;color:var(--green);font-weight:600">UltrafastSecp256k1 (this run)</td>
+            <td style="text-align:right;padding:0.3rem 0.4rem;color:var(--green)">${fk(our)}</td>
+            <td style="text-align:right;padding:0.3rem 0.4rem;color:var(--green)">baseline</td></tr>
+        <tr><td style="padding:0.3rem 0.4rem;border-top:1px solid var(--border)">libsecp256k1 (bitcoin-core)</td>
+            <td style="text-align:right;padding:0.3rem 0.4rem;border-top:1px solid var(--border)">~39.4 k/s</td>
+            <td style="text-align:right;padding:0.3rem 0.4rem;border-top:1px solid var(--border);color:var(--green)">${(our/ref.libsecp256k1_bitcoin_core).toFixed(1)}x</td></tr>
+        <tr><td style="padding:0.3rem 0.4rem;border-top:1px solid var(--border)">go-ethereum (cgo)</td>
+            <td style="text-align:right;padding:0.3rem 0.4rem;border-top:1px solid var(--border)">~55 k/s</td>
+            <td style="text-align:right;padding:0.3rem 0.4rem;border-top:1px solid var(--border);color:var(--green)">${(our/ref.go_ethereum_cgo).toFixed(1)}x</td></tr>
+        <tr><td style="padding:0.3rem 0.4rem;border-top:1px solid var(--border)">ethers.js (WASM)</td>
+            <td style="text-align:right;padding:0.3rem 0.4rem;border-top:1px solid var(--border)">~17.5 k/s</td>
+            <td style="text-align:right;padding:0.3rem 0.4rem;border-top:1px solid var(--border);color:var(--green)">${(our/ref.ethers_js_wasm).toFixed(1)}x</td></tr>
+        <tr><td style="padding:0.3rem 0.4rem;border-top:1px solid var(--border)">web3.py (CFFI)</td>
+            <td style="text-align:right;padding:0.3rem 0.4rem;border-top:1px solid var(--border)">~10 k/s</td>
+            <td style="text-align:right;padding:0.3rem 0.4rem;border-top:1px solid var(--border);color:var(--green)">${(our/ref.web3_py_cffi).toFixed(1)}x</td></tr>
+      </table>`;
+
+    document.getElementById('benchMeta').textContent =
+      `CPU: ${d.cpu} · n=${d.n} · pool=${d.pool} · warmup=${d.warmup}×`;
+
+    spinner.style.display = 'none';
+    results.style.display = 'block';
+  } catch(e) {
+    spinner.style.display = 'none';
+    errBox.style.display  = 'block';
+    errBox.textContent    = '✗ Benchmark failed: ' + e.message;
+  } finally {
+    document.getElementById('btnBench500').disabled  = false;
+    document.getElementById('btnBench2000').disabled = false;
+  }
 }
 
 function setStep(n) {
