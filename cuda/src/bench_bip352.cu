@@ -525,6 +525,15 @@ __global__ void bip352_pipeline_kernel_lut_pretbl_sha256opt(
     int64_t* __restrict__ prefixes,
     int n);
 
+// Pretbl + warp-cooperative Montgomery batch Z inversion (2 rounds of 32).
+__global__ void bip352_pipeline_kernel_lut_pretbl_wbinv(
+    const secp256k1::cuda::AffinePoint* __restrict__ tables_P,
+    const secp256k1::cuda::AffinePoint* __restrict__ tables_phiP,
+    const secp256k1::cuda::FieldElement* __restrict__ globalz_buf,
+    const secp256k1::cuda::AffinePoint* __restrict__ gen_lut,
+    int64_t* __restrict__ prefixes,
+    int n);
+
 // Precompute serialized shared-secret bytes (k*P result compressed) per tweak.
 __global__ void precompute_ser_kernel(
     const secp256k1::cuda::AffinePoint* __restrict__ tables_P,
@@ -1036,6 +1045,17 @@ int main() {
             bip352_pipeline_kernel_lut_pretbl_sha256opt<<<blocks, tpb>>>(
                 d_tables_P, d_tables_phiP, d_globalz, d_gen_lut, d_prefixes, BENCH_N);
         });
+    // wbinv: warp-cooperative Montgomery batch Z inversion (~1 field_inv per warp per round).
+    // Shared memory size = tpb * 32 bytes (one FieldElement slot per thread).
+    const int gpu_tpb_wbinv = autotune_gpu_tpb(
+        "GPU pipeline (LUT+pretbl+wbinv)", BENCH_N, prop.maxThreadsPerBlock,
+        {64, 128, 192, 256},
+        [&](int blocks, int tpb) {
+            size_t smem = (size_t)tpb * sizeof(secp256k1::cuda::FieldElement);
+            bip352_pipeline_kernel_lut_pretbl_wbinv<<<blocks, tpb, smem>>>(
+                d_tables_P, d_tables_phiP, d_globalz, d_gen_lut, d_prefixes, BENCH_N);
+        });
+
     // preser: loads precomputed ser, skips k*P + 1st field_inv entirely.
     const int gpu_tpb_preser = autotune_gpu_tpb(
         "GPU pipeline (LUT+preser)", BENCH_N, prop.maxThreadsPerBlock,
@@ -1264,6 +1284,46 @@ int main() {
     printf("  validation prefix: 0x%016lx\n", (unsigned long)gpu_sha256opt_validation);
 
     // ================================================================
+    // Phase 5.85: Full Pipeline Benchmark -- GPU + LUT + Pretbl + WarpBatchInv
+    // ================================================================
+    printf("\n--- GPU + LUT + Pretbl + WarpBatchInv (2 warp-cooperative batch Z inversions) ---\n");
+    int wbinv_blocks = (BENCH_N + gpu_tpb_wbinv - 1) / gpu_tpb_wbinv;
+    size_t wbinv_smem_size = (size_t)gpu_tpb_wbinv * sizeof(secp256k1::cuda::FieldElement);
+
+    for (int w = 0; w < BENCH_CLOCK_WARMUP; ++w) {
+        bip352_pipeline_kernel_lut_pretbl_wbinv<<<wbinv_blocks, gpu_tpb_wbinv, wbinv_smem_size>>>(
+            d_tables_P, d_tables_phiP, d_globalz, d_gen_lut, d_prefixes, BENCH_N);
+        CUDA_CHECK(cudaDeviceSynchronize());
+    }
+    for (int w = 0; w < BENCH_WARMUP; ++w) {
+        bip352_pipeline_kernel_lut_pretbl_wbinv<<<wbinv_blocks, gpu_tpb_wbinv, wbinv_smem_size>>>(
+            d_tables_P, d_tables_phiP, d_globalz, d_gen_lut, d_prefixes, BENCH_N);
+        CUDA_CHECK(cudaDeviceSynchronize());
+    }
+
+    std::vector<double> gpu_wbinv_times(BENCH_PASSES);
+    for (int p = 0; p < BENCH_PASSES; ++p) {
+        timer.start();
+        for (int r = 0; r < BENCH_MULTI; ++r)
+            bip352_pipeline_kernel_lut_pretbl_wbinv<<<wbinv_blocks, gpu_tpb_wbinv, wbinv_smem_size>>>(
+                d_tables_P, d_tables_phiP, d_globalz, d_gen_lut, d_prefixes, BENCH_N);
+        float ms = timer.stop();
+        gpu_wbinv_times[p] = (double)ms / BENCH_MULTI;
+        printf("  pass %2d: %8.3f ms\n", p + 1, (double)ms / BENCH_MULTI);
+    }
+
+    CUDA_CHECK(cudaMemcpy(h_prefixes.data(), d_prefixes, BENCH_N * sizeof(int64_t), cudaMemcpyDeviceToHost));
+    int64_t gpu_wbinv_validation = h_prefixes[BENCH_N - 1];
+
+    std::sort(gpu_wbinv_times.begin(), gpu_wbinv_times.end());
+    double gpu_wbinv_median = gpu_wbinv_times[BENCH_PASSES / 2];
+    double gpu_wbinv_ns_op  = gpu_wbinv_median * 1e6 / BENCH_N;
+
+    printf("\n  GPU+WarpBatchInv: %.3f ms / %d ops = %.1f ns/op (%.1f us/op)\n",
+           gpu_wbinv_median, BENCH_N, gpu_wbinv_ns_op, gpu_wbinv_ns_op / 1000.0);
+    printf("  validation prefix: 0x%016lx\n", (unsigned long)gpu_wbinv_validation);
+
+    // ================================================================
     // Phase 5.8: Full Pipeline Benchmark -- GPU + LUT + PreSer
     // ================================================================
     printf("\n--- GPU + LUT + PreSer (precomputed ser, skips k*P + 1st field_inv) ---\n");
@@ -1313,6 +1373,8 @@ int main() {
     double pretbl_vs_lut       = gpu_lut_ns_op / gpu_pretbl_ns_op;
     double sha256opt_ratio     = cpu_ns_op / gpu_sha256opt_ns_op;
     double sha256opt_vs_pretbl = gpu_pretbl_ns_op / gpu_sha256opt_ns_op;
+    double wbinv_ratio         = cpu_ns_op / gpu_wbinv_ns_op;
+    double wbinv_vs_pretbl     = gpu_pretbl_ns_op / gpu_wbinv_ns_op;
     double preser_ratio        = cpu_ns_op / gpu_preser_ns_op;
     double preser_vs_pretbl    = gpu_pretbl_ns_op / gpu_preser_ns_op;
     printf("  CPU:                          %10.1f ns/op\n", cpu_ns_op);
@@ -1323,6 +1385,8 @@ int main() {
            gpu_pretbl_ns_op, pretbl_ratio, pretbl_vs_lut);
     printf("  GPU+LUT+Pretbl+SHA256opt:     %10.1f ns/op  (%.2fx vs CPU, %.2fx vs Pretbl)\n",
            gpu_sha256opt_ns_op, sha256opt_ratio, sha256opt_vs_pretbl);
+    printf("  GPU+LUT+Pretbl+WarpBatchInv:  %10.1f ns/op  (%.2fx vs CPU, %.2fx vs Pretbl)\n",
+           gpu_wbinv_ns_op, wbinv_ratio, wbinv_vs_pretbl);
     printf("  GPU+LUT+PreSer:               %10.1f ns/op  (%.2fx vs CPU, %.2fx vs Pretbl)\n",
            gpu_preser_ns_op, preser_ratio, preser_vs_pretbl);
 
@@ -1330,15 +1394,16 @@ int main() {
                           (cpu_validation == gpu_lut_validation) &&
                           (cpu_validation == gpu_pretbl_validation) &&
                           (cpu_validation == gpu_sha256opt_validation) &&
+                          (cpu_validation == gpu_wbinv_validation) &&
                           (cpu_validation == gpu_preser_validation);
     printf("  Validation: %s\n",
            prefixes_match ? "[OK] ALL MATCH" : "[FAIL] MISMATCH");
     printf("    CPU=0x%016lx  GPU=0x%016lx  LUT=0x%016lx\n",
            (unsigned long)cpu_validation, (unsigned long)gpu_validation,
            (unsigned long)gpu_lut_validation);
-    printf("    PRETBL=0x%016lx  SHA256OPT=0x%016lx  PRESER=0x%016lx\n",
+    printf("    PRETBL=0x%016lx  SHA256OPT=0x%016lx  WBINV=0x%016lx  PRESER=0x%016lx\n",
            (unsigned long)gpu_pretbl_validation, (unsigned long)gpu_sha256opt_validation,
-           (unsigned long)gpu_preser_validation);
+           (unsigned long)gpu_wbinv_validation, (unsigned long)gpu_preser_validation);
 
     // ================================================================
     // Phase 7: Per-operation breakdown
@@ -1508,6 +1573,12 @@ int main() {
            cpu_ns_op, gpu_sha256opt_ns_op,
            (sha256opt_ratio >= 1.0) ? sha256opt_ratio : 1.0 / sha256opt_ratio,
            (sha256opt_ratio >= 1.0) ? "GPU" : "CPU");
+
+    printf("  %-40s %10.1f %12.1f %6.2fx %s\n",
+           "Full pipeline (WarpBatchInv)",
+           cpu_ns_op, gpu_wbinv_ns_op,
+           (wbinv_ratio >= 1.0) ? wbinv_ratio : 1.0 / wbinv_ratio,
+           (wbinv_ratio >= 1.0) ? "GPU" : "CPU");
 
     printf("  %-40s %10.1f %12.1f %6.2fx %s\n",
            "Full pipeline (preser)",
@@ -2203,4 +2274,158 @@ __global__ void kernel_generator_mul_w8(
     secp256k1::cuda::Scalar hs;
     secp256k1::cuda::scalar_from_bytes(hash_bytes + idx * 32, &hs);
     secp256k1::cuda::scalar_mul_generator_w8(&hs, &out[idx]);
+}
+
+// ============================================================================
+// Warp-batch-inv pipeline (LUT + pretbl + cooperative Z inversion)
+//
+// Instead of each thread calling field_inv() twice (once for k*P normalisation
+// and once for prefix extraction), threads within a warp collaborate via
+// Montgomery's trick in shared memory so each warp pays only ONE field_inv
+// per round instead of 32.
+//
+// Round 1: invert 32 shared_jac.z values  → normalise k*P output
+// Round 2: invert 32 cand.z values        → extract X prefix
+//
+// Shared memory: (tpb/32) * 32 * sizeof(FieldElement) = tpb * 32 bytes.
+// At tpb=128 that is 4 KiB — fits in L1.
+// ============================================================================
+
+// Warp-cooperative Montgomery batch inversion.
+//   smem[0..31] on entry : the 32 Z values to invert (warp-private slice)
+//   smem[0..31] on return: their inverses
+// Only lane 0 runs the sequential pass; all lanes read the result.
+__device__ __forceinline__ void warp_montgomery_inv32(
+    secp256k1::cuda::FieldElement* smem)
+{
+    using namespace secp256k1::cuda;
+    if ((threadIdx.x & 31) == 0) {
+        // Forward: build prefix products p[i] = z[0]*...*z[i]
+        FieldElement p[32];
+        p[0] = smem[0];
+        #pragma unroll 1
+        for (int i = 1; i < 32; ++i)
+            field_mul(&p[i - 1], &smem[i], &p[i]);
+
+        // Single inversion of the full product.
+        FieldElement q;
+        field_inv(&p[31], &q);
+
+        // Backward: recover per-element inverses.
+        // Invariant: q = inv( z[0]*...*z[i] ) at the start of each iteration.
+        // inv_z[i] = q * p[i-1]  (for i >= 1)
+        // q_next   = q * z[i]
+        // We read z[i] from smem before overwriting it.
+        for (int i = 31; i > 0; --i) {
+            FieldElement z_i = smem[i];          // save original z[i]
+            FieldElement inv_zi;
+            field_mul(&q, &p[i - 1], &inv_zi);  // inv_z[i] = q * p[i-1]
+            smem[i] = inv_zi;
+            FieldElement tmp;
+            field_mul(&q, &z_i, &tmp);           // q *= z[i]
+            q = tmp;
+        }
+        smem[0] = q;  // inv_z[0]
+    }
+    __syncwarp(0xFFFFFFFFu);
+}
+
+__global__ void __launch_bounds__(128, 8)
+bip352_pipeline_kernel_lut_pretbl_wbinv(
+    const secp256k1::cuda::AffinePoint* __restrict__ tables_P,
+    const secp256k1::cuda::AffinePoint* __restrict__ tables_phiP,
+    const secp256k1::cuda::FieldElement* __restrict__ globalz_buf,
+    const secp256k1::cuda::AffinePoint* __restrict__ gen_lut,
+    int64_t* __restrict__ prefixes,
+    int n)
+{
+    using namespace secp256k1::cuda;
+
+    // Shared memory: one 32-element slot per warp.
+    // tpb=128 → 4 warps → 128 FieldElements = 4096 bytes.
+    extern __shared__ FieldElement wbinv_smem[];
+    const int warp_id = threadIdx.x >> 5;
+    const int lane    = threadIdx.x & 31;
+    FieldElement* ws  = wbinv_smem + warp_id * 32;
+
+    const int idx    = blockIdx.x * blockDim.x + threadIdx.x;
+    const bool active = (idx < n);
+
+    // ------------------------------------------------------------------
+    // Step 1 — k*P via precomputed tables (Jacobian result, Z unnormalised).
+    // ------------------------------------------------------------------
+    JacobianPoint shared_jac;
+    if (active) {
+        scalar_mul_fixed_scan_pretbl(idx, tables_P, tables_phiP, globalz_buf, n, &shared_jac);
+    } else {
+        FieldElement one;
+        field_set_one(&one);
+        shared_jac.x = shared_jac.y = shared_jac.z = one;
+        shared_jac.infinity = true;
+    }
+
+    // ------------------------------------------------------------------
+    // Round 1 — warp-batch invert shared_jac.z
+    // ------------------------------------------------------------------
+    ws[lane] = shared_jac.z;
+    __syncwarp(0xFFFFFFFFu);
+    warp_montgomery_inv32(ws);
+    FieldElement z_shared_inv = ws[lane];
+
+    if (!active) {
+        prefixes[idx] = 0;
+        return;
+    }
+
+    // ------------------------------------------------------------------
+    // Step 2 — Recover affine coords for k*P; build ser[37].
+    // ------------------------------------------------------------------
+    FieldElement z2, z3, ax, ay;
+    field_sqr(&z_shared_inv, &z2);
+    field_mul(&z2, &z_shared_inv, &z3);
+    field_mul(&shared_jac.x, &z2, &ax);
+    field_mul(&shared_jac.y, &z3, &ay);
+
+    uint8_t ser[37];
+    ser[0] = field_is_odd(&ay) ? 0x03u : 0x02u;
+    field_to_bytes(&ax, ser + 1);
+    ser[33] = ser[34] = ser[35] = ser[36] = 0u;
+
+    // ------------------------------------------------------------------
+    // Step 3 — Tagged SHA-256 (specialised single-block w[16] schedule).
+    // ------------------------------------------------------------------
+    uint8_t hash[32];
+    bip352_tagged_sha256_ser37(ser, hash);
+
+    // ------------------------------------------------------------------
+    // Step 4 — k*G via LUT + point add (Jacobian, Z unnormalised).
+    // ------------------------------------------------------------------
+    Scalar hs;
+    scalar_from_bytes(hash, &hs);
+    JacobianPoint out_pt;
+    scalar_mul_generator_lut(&hs, gen_lut, &out_pt);
+    JacobianPoint cand;
+    jacobian_add_mixed_unchecked(&out_pt, &BIP352_SPEND_AFFINE, &cand);
+
+    // ------------------------------------------------------------------
+    // Round 2 — warp-batch invert cand.z
+    // ------------------------------------------------------------------
+    ws[lane] = cand.z;
+    __syncwarp(0xFFFFFFFFu);
+    warp_montgomery_inv32(ws);
+    FieldElement z_cand_inv = ws[lane];
+
+    // ------------------------------------------------------------------
+    // Step 5 — Extract 8-byte X prefix.
+    // ------------------------------------------------------------------
+    FieldElement z_cand_inv2, ax_cand;
+    field_sqr(&z_cand_inv, &z_cand_inv2);
+    field_mul(&cand.x, &z_cand_inv2, &ax_cand);
+
+    uint8_t x_bytes[32];
+    field_to_bytes(&ax_cand, x_bytes);
+    int64_t prefix = 0;
+    for (int i = 0; i < 8; ++i)
+        prefix = (prefix << 8) | x_bytes[i];
+    prefixes[idx] = prefix;
 }
