@@ -1494,16 +1494,23 @@ __kernel void msm_block_reduce_kernel(
     __local JacobianPoint sdata[256];
     int tid = (int)get_local_id(0);
     int idx = (int)get_group_id(0) * 256 + tid;
-    if (idx < n) sdata[tid] = partials[idx];
-    else         point_set_infinity(&sdata[tid]);
+    if (idx < n) {
+        sdata[tid] = partials[idx];
+    } else {
+        JacobianPoint zero;
+        point_set_infinity(&zero);
+        sdata[tid] = zero;
+    }
     barrier(CLK_LOCAL_MEM_FENCE);
     for (int stride = 128; stride > 0; stride >>= 1) {
         if (tid < stride) {
-            if (point_is_infinity(&sdata[tid])) {
-                sdata[tid] = sdata[tid + stride];
-            } else if (!point_is_infinity(&sdata[tid + stride])) {
+            JacobianPoint a = sdata[tid];
+            JacobianPoint b = sdata[tid + stride];
+            if (point_is_infinity(&a)) {
+                sdata[tid] = b;
+            } else if (!point_is_infinity(&b)) {
                 JacobianPoint tmp;
-                point_add_impl(&tmp, &sdata[tid], &sdata[tid + stride]);
+                point_add_impl(&tmp, &a, &b);
                 sdata[tid] = tmp;
             }
         }
