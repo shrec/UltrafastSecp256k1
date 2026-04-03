@@ -2495,12 +2495,15 @@ __device__ inline void scalar_mul_ct(const JacobianPoint* p, const Scalar* k, Ja
 // Forward declaration: wNAF-optimized GLV scalar mul (defined below)
 __device__ inline void scalar_mul_glv_wnaf(const JacobianPoint* p, const Scalar* k, JacobianPoint* r);
 
+// Forward declaration: simple window-1 GLV Shamir scalar mul (defined below)
+__device__ inline void scalar_mul_glv_shamir(const JacobianPoint* p, const Scalar* k, JacobianPoint* r);
+
 // GLV-accelerated scalar multiplication: r = k * P
 // Splits k into k1 + k2*lambda and computes k1*P + k2*phi(P) with Shamir's trick
 // Only available in 64-bit limb mode (glv_decompose requires 64-bit scalar ops)
 __device__ inline void scalar_mul_glv(const JacobianPoint* p, const Scalar* k, JacobianPoint* r) {
-    // Delegate to wNAF-optimized GLV implementation (w=5, z-ratio precomp table)
-    scalar_mul_glv_wnaf(p, k, r);
+    // Use simple window-1 Shamir's: lower register pressure, better occupancy for MSM scatter
+    scalar_mul_glv_shamir(p, k, r);
 }
 #endif // !SECP256K1_CUDA_LIMBS_32
 
@@ -3248,6 +3251,98 @@ __device__ inline void scalar_mul_glv_wnaf(const JacobianPoint* p, const Scalar*
         FieldElement tmp;
         field_mul(&r->z, &globalz, &tmp);
         r->z = tmp;
+    }
+}
+
+// ============================================================================
+// GLV + Shamir window-1 scalar multiplication: r = k*P
+// Splits k into k1 + k2*lambda (~128-bit each), then does Shamir's interleaved
+// binary double-and-add with only two precomputed affine points: P and phi(P).
+// Cost: ~129 doublings + ~96 mixed adds  (vs 255 + 128 for plain binary)
+// Register pressure: ~100 regs/thread    (vs ~370 for wNAF-5 GLV approach)
+// Better occupancy at large n; no large precomp table or z-ratio overhead.
+// ============================================================================
+__device__ inline void scalar_mul_glv_shamir(const JacobianPoint* p, const Scalar* k, JacobianPoint* r) {
+    if (scalar_is_zero(k)) {
+        r->infinity = true;
+        field_set_zero(&r->x);
+        field_set_one(&r->y);
+        field_set_zero(&r->z);
+        return;
+    }
+
+    GLVDecomposition decomp = glv_decompose(k);
+
+    // Convert base point to affine (fast path if Z=1)
+    AffinePoint base;
+    if (p->z.limbs[0] == 1 && p->z.limbs[1] == 0 && p->z.limbs[2] == 0 && p->z.limbs[3] == 0) {
+        base.x = p->x;
+        base.y = p->y;
+    } else {
+        FieldElement z_inv, z_inv2, z_inv3;
+        field_inv(&p->z, &z_inv);
+        field_sqr(&z_inv, &z_inv2);
+        field_mul(&z_inv2, &z_inv, &z_inv3);
+        field_mul(&p->x, &z_inv2, &base.x);
+        field_mul(&p->y, &z_inv3, &base.y);
+    }
+
+    // Apply k1 sign to base
+    if (decomp.k1_neg) {
+        field_negate(&base.y, &base.y);
+    }
+
+    // Endomorphism: phi(P) = (beta*x, y), apply k2 sign separately
+    AffinePoint phi_base;
+    FieldElement beta_fe;
+    beta_fe.limbs[0] = BETA[0]; beta_fe.limbs[1] = BETA[1];
+    beta_fe.limbs[2] = BETA[2]; beta_fe.limbs[3] = BETA[3];
+    field_mul(&base.x, &beta_fe, &phi_base.x);
+    // k2_neg XOR k1_neg: phi_base.y = base.y flipped if signs differ
+    if (decomp.k1_neg == decomp.k2_neg) {
+        phi_base.y = base.y;
+    } else {
+        field_negate(&base.y, &phi_base.y);
+    }
+
+    // Shamir's interleaved binary scan over 130 bits (k1, k2 up to ~129 bits each)
+    r->infinity = true;
+    field_set_zero(&r->x);
+    field_set_one(&r->y);
+    field_set_zero(&r->z);
+
+    // Scan: limb=2 (top 2 bits only), then limb=1, limb=0
+    // We use #pragma unroll 1 to cap register usage
+    #pragma unroll 1
+    for (int limb = 2; limb >= 0; limb--) {
+        int start_bit = (limb == 2) ? 1 : 63; // only bits [1:0] of limb 2
+        uint64_t w1 = decomp.k1.limbs[limb];
+        uint64_t w2 = decomp.k2.limbs[limb];
+        for (int bit = start_bit; bit >= 0; bit--) {
+            if (!r->infinity) {
+                jacobian_double_unchecked(r, r);
+            }
+            int b1 = (int)((w1 >> bit) & 1ULL);
+            int b2 = (int)((w2 >> bit) & 1ULL);
+            if (b1 | b2) {
+                if (r->infinity) {
+                    if (b1 && b2) {
+                        r->x = base.x; r->y = base.y;
+                        field_set_one(&r->z); r->infinity = false;
+                        jacobian_add_mixed_unchecked(r, &phi_base, r);
+                    } else if (b1) {
+                        r->x = base.x; r->y = base.y;
+                        field_set_one(&r->z); r->infinity = false;
+                    } else {
+                        r->x = phi_base.x; r->y = phi_base.y;
+                        field_set_one(&r->z); r->infinity = false;
+                    }
+                } else {
+                    if (b1) jacobian_add_mixed_unchecked(r, &base, r);
+                    if (b2) jacobian_add_mixed_unchecked(r, &phi_base, r);
+                }
+            }
+        }
     }
 }
 

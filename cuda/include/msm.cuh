@@ -238,7 +238,7 @@ __global__ void msm_scatter_kernel(
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx >= n) return;
 
-    scalar_mul(&points[idx], &scalars[idx], &partial_results[idx]);
+    scalar_mul_glv(&points[idx], &scalars[idx], &partial_results[idx]);
 }
 
 } // namespace cuda
