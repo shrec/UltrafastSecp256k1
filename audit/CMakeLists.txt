@@ -1572,6 +1572,38 @@ target_compile_definitions(test_wycheproof_ecdsa_bitcoin_standalone PRIVATE STAN
 add_test(NAME wycheproof_ecdsa_bitcoin COMMAND test_wycheproof_ecdsa_bitcoin_standalone)
 set_tests_properties(wycheproof_ecdsa_bitcoin PROPERTIES TIMEOUT 60 LABELS "audit;kat;wycheproof;bitcoin")
 
+# -- Schnorr BIP-340 nonce reuse key recovery (SNR-1..SNR-10) ---------------
+add_executable(test_exploit_schnorr_nonce_reuse_standalone
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_exploit_schnorr_nonce_reuse.cpp)
+audit_target_defaults(test_exploit_schnorr_nonce_reuse_standalone)
+target_compile_definitions(test_exploit_schnorr_nonce_reuse_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_schnorr_nonce_reuse COMMAND test_exploit_schnorr_nonce_reuse_standalone)
+set_tests_properties(exploit_schnorr_nonce_reuse PROPERTIES TIMEOUT 60 LABELS "audit;exploit;schnorr;nonce_reuse")
+
+# -- BIP-32 non-hardened child key → parent private key recovery (CKA-1..CKA-8) --
+add_executable(test_exploit_bip32_child_key_attack_standalone
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_exploit_bip32_child_key_attack.cpp)
+audit_target_defaults(test_exploit_bip32_child_key_attack_standalone)
+target_compile_definitions(test_exploit_bip32_child_key_attack_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_bip32_child_key_attack COMMAND test_exploit_bip32_child_key_attack_standalone)
+set_tests_properties(exploit_bip32_child_key_attack PROPERTIES TIMEOUT 60 LABELS "audit;exploit;bip32;key_derivation")
+
+# -- FROST identifiable abort / per-participant attribution (FIA-1..FIA-9) --
+add_executable(test_exploit_frost_identifiable_abort_standalone
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_exploit_frost_identifiable_abort.cpp)
+audit_target_defaults(test_exploit_frost_identifiable_abort_standalone)
+target_compile_definitions(test_exploit_frost_identifiable_abort_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_frost_identifiable_abort COMMAND test_exploit_frost_identifiable_abort_standalone)
+set_tests_properties(exploit_frost_identifiable_abort PROPERTIES TIMEOUT 60 LABELS "audit;exploit;frost;identifiable_abort")
+
+# -- Hash algorithm & format isolation (HAS-1..HAS-8) ----------------------
+add_executable(test_exploit_hash_algo_sig_isolation_standalone
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_exploit_hash_algo_sig_isolation.cpp)
+audit_target_defaults(test_exploit_hash_algo_sig_isolation_standalone)
+target_compile_definitions(test_exploit_hash_algo_sig_isolation_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_hash_algo_sig_isolation COMMAND test_exploit_hash_algo_sig_isolation_standalone)
+set_tests_properties(exploit_hash_algo_sig_isolation PROPERTIES TIMEOUT 60 LABELS "audit;exploit;ecdsa;hash_confusion")
+
 # -- Diagnostic: ct::scalar_mul step-by-step comparison --------------------
 add_executable(diag_scalar_mul ${CPU_TESTS_DIR}/diag_scalar_mul.cpp)
 audit_target_defaults(diag_scalar_mul)
