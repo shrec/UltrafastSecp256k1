@@ -738,6 +738,12 @@ target_compile_definitions(test_exploit_eth_signing_standalone PRIVATE STANDALON
 add_test(NAME exploit_eth_signing COMMAND test_exploit_eth_signing_standalone)
 set_tests_properties(exploit_eth_signing PROPERTIES TIMEOUT 60 LABELS "audit;exploit;ethereum")
 
+add_executable(test_exploit_eip712_kat_standalone test_exploit_eip712_kat.cpp)
+audit_target_defaults(test_exploit_eip712_kat_standalone)
+target_compile_definitions(test_exploit_eip712_kat_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_eip712_kat COMMAND test_exploit_eip712_kat_standalone)
+set_tests_properties(exploit_eip712_kat PROPERTIES TIMEOUT 60 LABELS "audit;exploit;ethereum;eip712")
+
 add_executable(test_exploit_bitcoin_message_signing_standalone test_exploit_bitcoin_message_signing.cpp)
 audit_target_defaults(test_exploit_bitcoin_message_signing_standalone)
 target_compile_definitions(test_exploit_bitcoin_message_signing_standalone PRIVATE STANDALONE_TEST)
@@ -1857,6 +1863,7 @@ add_executable(unified_audit_runner
     test_exploit_ellswift_ecdh.cpp
     test_exploit_ethereum_differential.cpp
     test_exploit_eth_signing.cpp
+    test_exploit_eip712_kat.cpp
     test_exploit_field_arithmetic.cpp
     test_exploit_field_boundary_exhaustive.cpp
     test_exploit_frost_binding_factor_mismatch.cpp
