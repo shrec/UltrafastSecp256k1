@@ -66,7 +66,7 @@ var searchData=
   ['comparison_63',['comparison',['../index.html#autotoc_md50',1,'GPU vs CPU Comparison'],['../index.html#autotoc_md81',1,'secp256k1 Benchmarks &amp;ndash; Cross-Platform Comparison']]],
   ['comparison_20rtx_205060_20ti_64',['CUDA vs OpenCL Comparison (RTX 5060 Ti)',['../index.html#autotoc_md70',1,'']]],
   ['compatibility_65',['Hardware Compatibility',['../index.html#autotoc_md124',1,'']]],
-  ['complete_5fhandshake_66',['complete_handshake',['../classsecp256k1_1_1Bip324Session.html#a65be2159394e66d48effd582d50e54e3',1,'secp256k1::Bip324Session']]],
+  ['complete_5fhandshake_66',['complete_handshake',['../classsecp256k1_1_1Bip324Session.html#a252c3a416d27cd6f4c4b6b96c74ee32e',1,'secp256k1::Bip324Session']]],
   ['compressed_67',['compressed',['../structsecp256k1_1_1WIFDecodeResult.html#acce7e81686cddff3bcd3cd581bf350a7',1,'secp256k1::WIFDecodeResult::compressed'],['../structsecp256k1_1_1coins_1_1BitcoinSigDecodeResult.html#a79115eed6a5ac996e733736c0396ba68',1,'secp256k1::coins::BitcoinSigDecodeResult::compressed']]],
   ['compressed_5fonly_68',['compressed_only',['../structsecp256k1_1_1coins_1_1CoinFeatures.html#ad86e4ceec247c9f4ba907b9fc928c1e3',1,'secp256k1::coins::CoinFeatures']]],
   ['compute_5fstats_69',['compute_stats',['../namespacebench.html#ad73b74a3a46ae99095f1ce23d2737470',1,'bench']]],

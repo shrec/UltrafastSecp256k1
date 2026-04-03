@@ -22,5 +22,6 @@ var searchData=
   ['komodo_19',['Komodo',['../namespacesecp256k1_1_1coins.html#a9d201e64ae77de5a741877bc933592ac',1,'secp256k1::coins']]],
   ['koptimaltier_20',['kOptimalTier',['../namespacesecp256k1_1_1fast.html#ac077839f3cd4edb76742bd262e204772',1,'secp256k1::fast']]],
   ['koptimaltiername_21',['kOptimalTierName',['../namespacesecp256k1_1_1fast.html#a1e421faed0a680753b2c618fef2a1444',1,'secp256k1::fast']]],
-  ['kplan_22',['KPlan',['../structsecp256k1_1_1fast_1_1KPlan.html',1,'secp256k1::fast']]]
+  ['kplan_22',['KPlan',['../structsecp256k1_1_1fast_1_1KPlan.html',1,'secp256k1::fast']]],
+  ['kwnafbuflen_23',['kWnafBufLen',['../namespacesecp256k1_1_1fast.html#aa2df5e51067f2adcde3a9c6fe4bd9a2a',1,'secp256k1::fast']]]
 ];

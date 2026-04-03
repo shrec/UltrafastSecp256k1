@@ -1,5 +1,7 @@
 var NAVTREEINDEX5 =
 {
+"namespacemembers_m.html":[2,1,0,11],
+"namespacemembers_n.html":[2,1,0,12],
 "namespacemembers_o.html":[2,1,0,13],
 "namespacemembers_p.html":[2,1,0,14],
 "namespacemembers_q.html":[2,1,0,15],
@@ -247,7 +249,5 @@ var NAVTREEINDEX5 =
 "namespacesecp256k1_1_1coins.html#a9798cff636f55e2bc051dd386a4dc668":[2,0,1,0,59],
 "namespacesecp256k1_1_1coins.html#a9a573eecbcb84bef02367ba24a94442f":[2,0,1,0,61],
 "namespacesecp256k1_1_1coins.html#a9bf98aed762ef07859ff65869bb245fa":[2,0,1,0,38],
-"namespacesecp256k1_1_1coins.html#a9bff9e5f911b19fbf025a91b7a5785fc":[2,0,1,0,11],
-"namespacesecp256k1_1_1coins.html#a9d201e64ae77de5a741877bc933592ac":[2,0,1,0,64],
-"namespacesecp256k1_1_1coins.html#ab03b1ab58695ee79859c2e251c81194a":[2,0,1,0,60]
+"namespacesecp256k1_1_1coins.html#a9bff9e5f911b19fbf025a91b7a5785fc":[2,0,1,0,11]
 };

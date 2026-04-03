@@ -9,7 +9,7 @@ var searchData=
   ['index_6',['Self-Audit Document Index',['../index.html#autotoc_md30',1,'']]],
   ['infinity_7',['infinity',['../structsecp256k1_1_1fast_1_1CombAffinePoint.html#a9a61f8a086e988f130d8e0afc329ffad',1,'secp256k1::fast::CombAffinePoint::infinity'],['../structsecp256k1_1_1JacobianPointData.html#a23bb2599f632ccf156846f1fdf41faa9',1,'secp256k1::JacobianPointData::infinity'],['../classsecp256k1_1_1fast_1_1Point.html#ae04bdd076cb60aef576a5fe34bb55699',1,'secp256k1::fast::Point::infinity()'],['../structsecp256k1_1_1ct_1_1CTAffinePoint.html#ac0c65063fc672b6566c423cdfc662e8d',1,'secp256k1::ct::CTAffinePoint::infinity'],['../structsecp256k1_1_1ct_1_1CTJacobianPoint.html#afda5a955a13917e1ef2ecb44bbb5d376',1,'secp256k1::ct::CTJacobianPoint::infinity']]],
   ['infrastructure_8',['2. Open Audit Infrastructure',['../index.html#autotoc_md41',1,'']]],
-  ['init_9',['init',['../classsecp256k1_1_1Bip324Cipher.html#ad770841e0204e1b9d091a2cd9a67b39e',1,'secp256k1::Bip324Cipher::init()'],['../classsecp256k1_1_1fast_1_1CombGenContext.html#a19f1cd8d7f84dad39f4b3448071ab1a5',1,'secp256k1::fast::CombGenContext::init()']]],
+  ['init_9',['init',['../classsecp256k1_1_1Bip324Cipher.html#a84a739893af2db4a71bb3d4f68ce3c95',1,'secp256k1::Bip324Cipher::init()'],['../classsecp256k1_1_1fast_1_1CombGenContext.html#a19f1cd8d7f84dad39f4b3448071ab1a5',1,'secp256k1::fast::CombGenContext::init()']]],
   ['init_2ehpp_10',['init.hpp',['../init_8hpp.html',1,'']]],
   ['init_5fcomb_5fgen_11',['init_comb_gen',['../namespacesecp256k1_1_1fast.html#a3ffa8c1ca7d309b4878c17adda3155b6',1,'secp256k1::fast']]],
   ['init_5fgenerator_5ftable_12',['init_generator_table',['../namespacesecp256k1_1_1ct.html#a7326ac4644fbf6fe8f02a84c5249ddff',1,'secp256k1::ct']]],

@@ -134,6 +134,8 @@ Public Member Functions</h2></td></tr>
 <tr class="separator:ad337e6a6aa37d0fcedd45bc4dab6cb59"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:abb72e12835c69b6a846b54e33fbac544" id="r_abb72e12835c69b6a846b54e33fbac544"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classsecp256k1_1_1fast_1_1Point.html">Point</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classsecp256k1_1_1fast_1_1Point.html#abb72e12835c69b6a846b54e33fbac544">scalar_mul_precomputed_wnaf</a> (const std::vector&lt; int32_t &gt; &amp;wnaf1, const std::vector&lt; int32_t &gt; &amp;wnaf2, bool neg1, bool neg2) const</td></tr>
 <tr class="separator:abb72e12835c69b6a846b54e33fbac544"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:abcf14a1f5199998dc13565738ca1e80c" id="r_abcf14a1f5199998dc13565738ca1e80c"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classsecp256k1_1_1fast_1_1Point.html">Point</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classsecp256k1_1_1fast_1_1Point.html#abcf14a1f5199998dc13565738ca1e80c">scalar_mul_precomputed_wnaf</a> (const int32_t *wnaf1, std::size_t len1, const int32_t *wnaf2, std::size_t len2, bool neg1, bool neg2) const</td></tr>
+<tr class="separator:abcf14a1f5199998dc13565738ca1e80c"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a940fdbb18ba7a0b88b781e37496782a0" id="r_a940fdbb18ba7a0b88b781e37496782a0"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classsecp256k1_1_1fast_1_1Point.html">Point</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classsecp256k1_1_1fast_1_1Point.html#a940fdbb18ba7a0b88b781e37496782a0">scalar_mul_with_plan</a> (const <a class="el" href="structsecp256k1_1_1fast_1_1KPlan.html">KPlan</a> &amp;plan) const</td></tr>
 <tr class="separator:a940fdbb18ba7a0b88b781e37496782a0"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a2273e8eafa4c276586a4430ca256d751" id="r_a2273e8eafa4c276586a4430ca256d751"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classsecp256k1_1_1fast_1_1Point.html">Point</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classsecp256k1_1_1fast_1_1Point.html#a2273e8eafa4c276586a4430ca256d751">negate</a> () const</td></tr>
@@ -204,7 +206,7 @@ Static Public Member Functions</h2></td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock">
-<p class="definition">Definition at line <a class="el" href="point_8hpp_source.html#l00073">73</a> of file <a class="el" href="point_8hpp_source.html">point.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="point_8hpp_source.html#l00083">83</a> of file <a class="el" href="point_8hpp_source.html">point.hpp</a>.</p>
 </div><h2 class="groupheader">Constructor &amp; Destructor Documentation</h2>
 <a id="ab19e0f8f8713ccf500103a167315896e" name="ab19e0f8f8713ccf500103a167315896e"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#ab19e0f8f8713ccf500103a167315896e">&#9670;&#160;</a></span>Point()</h2>
@@ -742,7 +744,7 @@ Static Public Member Functions</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="point_8hpp_source.html#l00088">88</a> of file <a class="el" href="point_8hpp_source.html">point.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="point_8hpp_source.html#l00098">98</a> of file <a class="el" href="point_8hpp_source.html">point.hpp</a>.</p>
 
 </div>
 </div>
@@ -769,9 +771,9 @@ Static Public Member Functions</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="point_8hpp_source.html#l00087">87</a> of file <a class="el" href="point_8hpp_source.html">point.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="point_8hpp_source.html#l00097">97</a> of file <a class="el" href="point_8hpp_source.html">point.hpp</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l01054">ecdh_parse_args()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00508">pubkey_create_core()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l04811">ufsecp_bip322_verify()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l03411">ufsecp_ecdsa_adaptor_adapt()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l03442">ufsecp_ecdsa_adaptor_extract()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l03372">ufsecp_ecdsa_adaptor_verify()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l02918">ufsecp_frost_sign()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l02491">ufsecp_musig2_start_sign_session()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l03279">ufsecp_schnorr_adaptor_adapt()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l03308">ufsecp_schnorr_adaptor_extract()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l03240">ufsecp_schnorr_adaptor_verify()</a>, and <a class="el" href="ufsecp__impl_8cpp_source.html#l04062">ufsecp_silent_payment_create_output()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l01054">ecdh_parse_args()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00508">pubkey_create_core()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l04822">ufsecp_bip322_verify()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l03422">ufsecp_ecdsa_adaptor_adapt()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l03453">ufsecp_ecdsa_adaptor_extract()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l03383">ufsecp_ecdsa_adaptor_verify()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l02929">ufsecp_frost_sign()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l02491">ufsecp_musig2_start_sign_session()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l03290">ufsecp_schnorr_adaptor_adapt()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l03319">ufsecp_schnorr_adaptor_extract()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l03251">ufsecp_schnorr_adaptor_verify()</a>, and <a class="el" href="ufsecp__impl_8cpp_source.html#l04073">ufsecp_silent_payment_create_output()</a>.</p>
 
 </div>
 </div>
@@ -798,7 +800,7 @@ Static Public Member Functions</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="point_8hpp_source.html#l00196">196</a> of file <a class="el" href="point_8hpp_source.html">point.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="point_8hpp_source.html#l00210">210</a> of file <a class="el" href="point_8hpp_source.html">point.hpp</a>.</p>
 
 </div>
 </div>
@@ -959,8 +961,60 @@ Static Public Member Functions</h2></td></tr>
 
 </div>
 </div>
+<a id="abcf14a1f5199998dc13565738ca1e80c" name="abcf14a1f5199998dc13565738ca1e80c"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#abcf14a1f5199998dc13565738ca1e80c">&#9670;&#160;</a></span>scalar_mul_precomputed_wnaf() <span class="overload">[1/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="classsecp256k1_1_1fast_1_1Point.html">Point</a> secp256k1::fast::Point::scalar_mul_precomputed_wnaf </td>
+          <td>(</td>
+          <td class="paramtype">const int32_t *&#160;</td>
+          <td class="paramname"><em>wnaf1</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">std::size_t&#160;</td>
+          <td class="paramname"><em>len1</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const int32_t *&#160;</td>
+          <td class="paramname"><em>wnaf2</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">std::size_t&#160;</td>
+          <td class="paramname"><em>len2</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">bool&#160;</td>
+          <td class="paramname"><em>neg1</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">bool&#160;</td>
+          <td class="paramname"><em>neg2</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td> const</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
 <a id="abb72e12835c69b6a846b54e33fbac544" name="abb72e12835c69b6a846b54e33fbac544"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#abb72e12835c69b6a846b54e33fbac544">&#9670;&#160;</a></span>scalar_mul_precomputed_wnaf()</h2>
+<h2 class="memtitle"><span class="permalink"><a href="#abb72e12835c69b6a846b54e33fbac544">&#9670;&#160;</a></span>scalar_mul_precomputed_wnaf() <span class="overload">[2/2]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -1181,7 +1235,7 @@ Static Public Member Functions</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="point_8hpp_source.html#l00106">106</a> of file <a class="el" href="point_8hpp_source.html">point.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="point_8hpp_source.html#l00116">116</a> of file <a class="el" href="point_8hpp_source.html">point.hpp</a>.</p>
 
 </div>
 </div>
@@ -1259,7 +1313,7 @@ Static Public Member Functions</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="point_8hpp_source.html#l00210">210</a> of file <a class="el" href="point_8hpp_source.html">point.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="point_8hpp_source.html#l00224">224</a> of file <a class="el" href="point_8hpp_source.html">point.hpp</a>.</p>
 
 </div>
 </div>
@@ -1320,7 +1374,7 @@ Static Public Member Functions</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="point_8hpp_source.html#l00107">107</a> of file <a class="el" href="point_8hpp_source.html">point.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="point_8hpp_source.html#l00117">117</a> of file <a class="el" href="point_8hpp_source.html">point.hpp</a>.</p>
 
 </div>
 </div>
@@ -1347,7 +1401,7 @@ Static Public Member Functions</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="point_8hpp_source.html#l00211">211</a> of file <a class="el" href="point_8hpp_source.html">point.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="point_8hpp_source.html#l00225">225</a> of file <a class="el" href="point_8hpp_source.html">point.hpp</a>.</p>
 
 </div>
 </div>
@@ -1374,7 +1428,7 @@ Static Public Member Functions</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="point_8hpp_source.html#l00108">108</a> of file <a class="el" href="point_8hpp_source.html">point.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="point_8hpp_source.html#l00118">118</a> of file <a class="el" href="point_8hpp_source.html">point.hpp</a>.</p>
 
 </div>
 </div>
@@ -1401,7 +1455,7 @@ Static Public Member Functions</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="point_8hpp_source.html#l00212">212</a> of file <a class="el" href="point_8hpp_source.html">point.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="point_8hpp_source.html#l00226">226</a> of file <a class="el" href="point_8hpp_source.html">point.hpp</a>.</p>
 
 </div>
 </div>

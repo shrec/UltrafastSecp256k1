@@ -1,6 +1,6 @@
 var searchData=
 [
-  ['a_0',['a',['../structsecp256k1_1_1zk_1_1RangeProof.html#a454adf9c1d0938d67fb15ffe67d1d9fc',1,'secp256k1::zk::RangeProof::a'],['../structsecp256k1_1_1zk_1_1RangeProof.html#a05efcbaa269b9b2f3472f907706e9f34',1,'secp256k1::zk::RangeProof::A']]],
+  ['a_0',['a',['../structsecp256k1_1_1zk_1_1RangeProof.html#a05efcbaa269b9b2f3472f907706e9f34',1,'secp256k1::zk::RangeProof::A'],['../structsecp256k1_1_1zk_1_1RangeProof.html#a454adf9c1d0938d67fb15ffe67d1d9fc',1,'secp256k1::zk::RangeProof::a']]],
   ['a1_1',['A1',['../namespacesecp256k1_1_1fast_1_1glv__constants.html#a2ebc4e4bebb5c09d19c05ae63d907c6f',1,'secp256k1::fast::glv_constants']]],
   ['a2_2',['A2',['../namespacesecp256k1_1_1fast_1_1glv__constants.html#a7283d8a6522a7d200432b88c8f1b2574',1,'secp256k1::fast::glv_constants']]],
   ['abi_3',['Supported Guarantees &amp;ndash; &lt;tt&gt;ufsecp&lt;/tt&gt; C ABI',['../md_include_2ufsecp_2SUPPORTED__GUARANTEES.html',1,'']]],

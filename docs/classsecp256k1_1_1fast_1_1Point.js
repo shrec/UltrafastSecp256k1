@@ -29,6 +29,7 @@ var classsecp256k1_1_1fast_1_1Point =
     [ "prev_inplace", "classsecp256k1_1_1fast_1_1Point.html#a799ad7adc180235caaf11e47c98e2086", null ],
     [ "scalar_mul", "classsecp256k1_1_1fast_1_1Point.html#a6c12bec323e2a81d31ba1e1534bef502", null ],
     [ "scalar_mul_precomputed_k", "classsecp256k1_1_1fast_1_1Point.html#ada9511a5f652807beae96aea898af376", null ],
+    [ "scalar_mul_precomputed_wnaf", "classsecp256k1_1_1fast_1_1Point.html#abcf14a1f5199998dc13565738ca1e80c", null ],
     [ "scalar_mul_precomputed_wnaf", "classsecp256k1_1_1fast_1_1Point.html#abb72e12835c69b6a846b54e33fbac544", null ],
     [ "scalar_mul_predecomposed", "classsecp256k1_1_1fast_1_1Point.html#ad337e6a6aa37d0fcedd45bc4dab6cb59", null ],
     [ "scalar_mul_with_plan", "classsecp256k1_1_1fast_1_1Point.html#a940fdbb18ba7a0b88b781e37496782a0", null ],

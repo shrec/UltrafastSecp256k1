@@ -21,7 +21,7 @@ var searchData=
   ['bip143_5fp2wpkh_5fscript_5fcode_18',['bip143_p2wpkh_script_code',['../namespacesecp256k1.html#a54a3bc8e1cdd8ed9bcba2694eec62c49',1,'secp256k1']]],
   ['bip143_5fsighash_19',['bip143_sighash',['../namespacesecp256k1.html#ad351b91b4c56eb0e4deaa8b536ccf5a7',1,'secp256k1']]],
   ['bip324cipher_20',['Bip324Cipher',['../classsecp256k1_1_1Bip324Cipher.html#a04655b22da1eba88801fe9b9142b81ff',1,'secp256k1::Bip324Cipher']]],
-  ['bip324session_21',['bip324session',['../classsecp256k1_1_1Bip324Session.html#aa0ff548bf0b7fbee3926e974455132a1',1,'secp256k1::Bip324Session::Bip324Session(bool initiator, const std::uint8_t privkey[32]) noexcept'],['../classsecp256k1_1_1Bip324Session.html#ab7bfa289456352d895029e4a408a085a',1,'secp256k1::Bip324Session::Bip324Session(bool initiator) noexcept']]],
+  ['bip324session_21',['bip324session',['../classsecp256k1_1_1Bip324Session.html#a5957041e05d05ba18a30e7663bfcbe86',1,'secp256k1::Bip324Session::Bip324Session(bool initiator, const std::uint8_t *privkey) noexcept'],['../classsecp256k1_1_1Bip324Session.html#ab7bfa289456352d895029e4a408a085a',1,'secp256k1::Bip324Session::Bip324Session(bool initiator) noexcept']]],
   ['bip32_5fderive_5fpath_22',['bip32_derive_path',['../namespacesecp256k1.html#aff490eb527f1e92e5b5bed039244608d',1,'secp256k1']]],
   ['bip32_5fmaster_5fkey_23',['bip32_master_key',['../namespacesecp256k1.html#a205c6f3c059c9be0b5f757886aa30483',1,'secp256k1']]],
   ['bip39_5fgenerate_24',['bip39_generate',['../namespacesecp256k1.html#a589c1c7cfeb58e77acd208dd8c7405b5',1,'secp256k1']]],

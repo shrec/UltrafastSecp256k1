@@ -207,5 +207,6 @@ var namespacesecp256k1_1_1fast =
     [ "write_fixed_base_config", "namespacesecp256k1_1_1fast.html#a1b9571a65741f1fa9c91244b0d36cb21", null ],
     [ "kDefaultGlvWindow", "namespacesecp256k1_1_1fast.html#ae2fc97818aadbb882aa0524b782ee6fa", null ],
     [ "kOptimalTier", "namespacesecp256k1_1_1fast.html#ac077839f3cd4edb76742bd262e204772", null ],
-    [ "kOptimalTierName", "namespacesecp256k1_1_1fast.html#a1e421faed0a680753b2c618fef2a1444", null ]
+    [ "kOptimalTierName", "namespacesecp256k1_1_1fast.html#a1e421faed0a680753b2c618fef2a1444", null ],
+    [ "kWnafBufLen", "namespacesecp256k1_1_1fast.html#aa2df5e51067f2adcde3a9c6fe4bd9a2a", null ]
 ];

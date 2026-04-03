@@ -9,7 +9,7 @@ var searchData=
   ['debian_20ubuntu_6',['Linux (APT &amp;ndash; Debian / Ubuntu)',['../index.html#autotoc_md60',1,'']]],
   ['debug_5finvariants_2ehpp_7',['debug_invariants.hpp',['../debug__invariants_8hpp.html',1,'']]],
   ['debugcounters_8',['DebugCounters',['../structsecp256k1_1_1fast_1_1debug_1_1DebugCounters.html',1,'secp256k1::fast::debug']]],
-  ['decrypt_9',['decrypt',['../classsecp256k1_1_1Bip324Session.html#adddd1b582343f059afd1aa3a2ba27ee8',1,'secp256k1::Bip324Session::decrypt()'],['../classsecp256k1_1_1Bip324Cipher.html#af2d794c0d2b347415fc9d162806f6739',1,'secp256k1::Bip324Cipher::decrypt()']]],
+  ['decrypt_9',['decrypt',['../classsecp256k1_1_1Bip324Session.html#adff2e48cd60c943ce547f8bd4c015c4f',1,'secp256k1::Bip324Session::decrypt()'],['../classsecp256k1_1_1Bip324Cipher.html#a5a2876cebbe97475bb70b342ae0315a4',1,'secp256k1::Bip324Cipher::decrypt()']]],
   ['default_10',['FAST Profile (Default)',['../index.html#autotoc_md117',1,'']]],
   ['default_5fencoding_11',['default_encoding',['../structsecp256k1_1_1coins_1_1CoinParams.html#a560d5397ad69bbda4ee1e9cba05065d3',1,'secp256k1::coins::CoinParams']]],
   ['depth_12',['depth',['../structsecp256k1_1_1ExtendedKey.html#a1e50f558b078621bddf6e06f4de3caa0',1,'secp256k1::ExtendedKey']]],

@@ -3,7 +3,7 @@ var searchData=
   ['data_0',['data',['../classsecp256k1_1_1fast_1_1Scalar.html#ae634c2ab98447b45a16a507b6d5b76d3',1,'secp256k1::fast::Scalar::data()'],['../classsecp256k1_1_1fast_1_1FieldElement.html#a8febb756a3038615f72852774df5629a',1,'secp256k1::fast::FieldElement::data()']]],
   ['dbl_1',['dbl',['../classsecp256k1_1_1fast_1_1Point.html#ad5995d5102af3aa5ee1214cf0d98aca3',1,'secp256k1::fast::Point']]],
   ['dbl_5finplace_2',['dbl_inplace',['../classsecp256k1_1_1fast_1_1Point.html#aea46f4aa10a5f5932e15ecc6fc5b99ae',1,'secp256k1::fast::Point']]],
-  ['decrypt_3',['decrypt',['../classsecp256k1_1_1Bip324Cipher.html#af2d794c0d2b347415fc9d162806f6739',1,'secp256k1::Bip324Cipher::decrypt()'],['../classsecp256k1_1_1Bip324Session.html#adddd1b582343f059afd1aa3a2ba27ee8',1,'secp256k1::Bip324Session::decrypt()']]],
+  ['decrypt_3',['decrypt',['../classsecp256k1_1_1Bip324Cipher.html#a5a2876cebbe97475bb70b342ae0315a4',1,'secp256k1::Bip324Cipher::decrypt()'],['../classsecp256k1_1_1Bip324Session.html#adff2e48cd60c943ce547f8bd4c015c4f',1,'secp256k1::Bip324Session::decrypt()']]],
   ['derive_5fchild_4',['derive_child',['../structsecp256k1_1_1ExtendedKey.html#a99769644a1833f5642dcade2e8ce1f65',1,'secp256k1::ExtendedKey']]],
   ['derive_5fhardened_5',['derive_hardened',['../structsecp256k1_1_1ExtendedKey.html#aac3afcc5096dc10e09e61d1fe9637e9e',1,'secp256k1::ExtendedKey']]],
   ['derive_5fnormal_6',['derive_normal',['../structsecp256k1_1_1ExtendedKey.html#ace6567c69c897ffacdbac9752b364ce9',1,'secp256k1::ExtendedKey']]],

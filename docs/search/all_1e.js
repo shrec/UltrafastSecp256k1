@@ -34,12 +34,14 @@ var searchData=
   ['witnessprogramtype_31',['WitnessProgramType',['../namespacesecp256k1.html#a22ce5b8d7744230a2c594ff90797f856',1,'secp256k1']]],
   ['witnessstack_32',['WitnessStack',['../namespacesecp256k1.html#a9a42cd7893499e15ccec58ce97a529ea',1,'secp256k1']]],
   ['witnesstx_33',['WitnessTx',['../structsecp256k1_1_1WitnessTx.html',1,'secp256k1']]],
-  ['wnaf1_34',['wnaf1',['../structsecp256k1_1_1fast_1_1PrecomputedScalar.html#ae83be6d9b05c9b0feae26a062e4d8474',1,'secp256k1::fast::PrecomputedScalar::wnaf1'],['../structsecp256k1_1_1fast_1_1KPlan.html#ac37127223b3b857907b1ee9685405a91',1,'secp256k1::fast::KPlan::wnaf1']]],
-  ['wnaf2_35',['wnaf2',['../structsecp256k1_1_1fast_1_1PrecomputedScalar.html#ab5f139f5395513323622a8b95a016ed6',1,'secp256k1::fast::PrecomputedScalar::wnaf2'],['../structsecp256k1_1_1fast_1_1KPlan.html#adf69df2fee05021b0997a68d43f38000',1,'secp256k1::fast::KPlan::wnaf2']]],
-  ['world_20adoption_36',['Real-world Adoption',['../index.html#autotoc_md20',1,'']]],
-  ['world_20scanning_20performance_20frigate_20sparrow_20wallet_37',['Real-world scanning performance (Frigate / Sparrow Wallet)',['../index.html#autotoc_md52',1,'']]],
-  ['wrap_38',['wrap',['../classsecp256k1_1_1PrivateKey.html#af3b07cf717bff151fce36c82e5c2424c',1,'secp256k1::PrivateKey']]],
-  ['write_5fbytes_39',['write_bytes',['../classsecp256k1_1_1fast_1_1Scalar.html#afe61b6a7cc507dc69b112074b9264e6c',1,'secp256k1::fast::Scalar']]],
-  ['write_5fdefault_5ffixed_5fbase_5fconfig_40',['write_default_fixed_base_config',['../namespacesecp256k1_1_1fast.html#ad46b0efc0be626bdc377dac50575e78b',1,'secp256k1::fast']]],
-  ['write_5ffixed_5fbase_5fconfig_41',['write_fixed_base_config',['../namespacesecp256k1_1_1fast.html#a1b9571a65741f1fa9c91244b0d36cb21',1,'secp256k1::fast']]]
+  ['wnaf1_34',['wnaf1',['../structsecp256k1_1_1fast_1_1KPlan.html#a60b3d7c12df9b70744c51d1534000386',1,'secp256k1::fast::KPlan::wnaf1'],['../structsecp256k1_1_1fast_1_1PrecomputedScalar.html#ae83be6d9b05c9b0feae26a062e4d8474',1,'secp256k1::fast::PrecomputedScalar::wnaf1']]],
+  ['wnaf1_5flen_35',['wnaf1_len',['../structsecp256k1_1_1fast_1_1KPlan.html#a8647f846ea13c4b244f9306c278927df',1,'secp256k1::fast::KPlan']]],
+  ['wnaf2_36',['wnaf2',['../structsecp256k1_1_1fast_1_1PrecomputedScalar.html#ab5f139f5395513323622a8b95a016ed6',1,'secp256k1::fast::PrecomputedScalar::wnaf2'],['../structsecp256k1_1_1fast_1_1KPlan.html#a20beea800a45b2da7ae14062e0235eb2',1,'secp256k1::fast::KPlan::wnaf2']]],
+  ['wnaf2_5flen_37',['wnaf2_len',['../structsecp256k1_1_1fast_1_1KPlan.html#a95f19e1e2f26acba15e33b2eb4afdc2d',1,'secp256k1::fast::KPlan']]],
+  ['world_20adoption_38',['Real-world Adoption',['../index.html#autotoc_md20',1,'']]],
+  ['world_20scanning_20performance_20frigate_20sparrow_20wallet_39',['Real-world scanning performance (Frigate / Sparrow Wallet)',['../index.html#autotoc_md52',1,'']]],
+  ['wrap_40',['wrap',['../classsecp256k1_1_1PrivateKey.html#af3b07cf717bff151fce36c82e5c2424c',1,'secp256k1::PrivateKey']]],
+  ['write_5fbytes_41',['write_bytes',['../classsecp256k1_1_1fast_1_1Scalar.html#afe61b6a7cc507dc69b112074b9264e6c',1,'secp256k1::fast::Scalar']]],
+  ['write_5fdefault_5ffixed_5fbase_5fconfig_42',['write_default_fixed_base_config',['../namespacesecp256k1_1_1fast.html#ad46b0efc0be626bdc377dac50575e78b',1,'secp256k1::fast']]],
+  ['write_5ffixed_5fbase_5fconfig_43',['write_fixed_base_config',['../namespacesecp256k1_1_1fast.html#a1b9571a65741f1fa9c91244b0d36cb21',1,'secp256k1::fast']]]
 ];

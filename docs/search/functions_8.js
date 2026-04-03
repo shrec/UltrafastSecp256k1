@@ -1,7 +1,7 @@
 var searchData=
 [
   ['infinity_0',['infinity',['../classsecp256k1_1_1fast_1_1Point.html#ae04bdd076cb60aef576a5fe34bb55699',1,'secp256k1::fast::Point']]],
-  ['init_1',['init',['../classsecp256k1_1_1Bip324Cipher.html#ad770841e0204e1b9d091a2cd9a67b39e',1,'secp256k1::Bip324Cipher::init()'],['../classsecp256k1_1_1fast_1_1CombGenContext.html#a19f1cd8d7f84dad39f4b3448071ab1a5',1,'secp256k1::fast::CombGenContext::init()']]],
+  ['init_1',['init',['../classsecp256k1_1_1Bip324Cipher.html#a84a739893af2db4a71bb3d4f68ce3c95',1,'secp256k1::Bip324Cipher::init()'],['../classsecp256k1_1_1fast_1_1CombGenContext.html#a19f1cd8d7f84dad39f4b3448071ab1a5',1,'secp256k1::fast::CombGenContext::init()']]],
   ['init_5fcomb_5fgen_2',['init_comb_gen',['../namespacesecp256k1_1_1fast.html#a3ffa8c1ca7d309b4878c17adda3155b6',1,'secp256k1::fast']]],
   ['init_5fgenerator_5ftable_3',['init_generator_table',['../namespacesecp256k1_1_1ct.html#a7326ac4644fbf6fe8f02a84c5249ddff',1,'secp256k1::ct']]],
   ['inverse_4',['inverse',['../structsecp256k1_1_1fast_1_1FieldElement52.html#a2667243b917ac94a0061c2846fa4c931',1,'secp256k1::fast::FieldElement52::inverse()'],['../classsecp256k1_1_1fast_1_1Scalar.html#a88aa3f6f52d66b5e8a5c312b5fa59ac9',1,'secp256k1::fast::Scalar::inverse()'],['../classsecp256k1_1_1fast_1_1FieldElement.html#ac6d7aceb9b580a7867972a7754091315',1,'secp256k1::fast::FieldElement::inverse() const']]],
