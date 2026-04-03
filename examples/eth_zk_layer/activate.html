@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<!--
+  UltrafastSecp256k1 — Node Activator Dashboard
+  =============================================
+  Open this file in a browser (Chrome/Firefox) on the machine where MetaMask
+  is installed.  Point the "Backend URL" field at your Linux node server:
+
+    http://<linux-ip>:8765
+
+  Flow:
+    1. Click "Get Challenge"   — server returns a one-time nonce message
+    2. Click "Sign with MetaMask" — MetaMask popup; user approves
+    3. Signature is sent to the Linux backend
+    4. Backend calls ufsecp_eth_ecrecover and confirms the wallet address
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UltrafastSecp256k1 — Node Activator</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --panel: #1a1d27;
+      --border: #2e3245;
+      --accent: #6c63ff;
+      --green: #22c55e;
+      --red: #ef4444;
+      --text: #e2e8f0;
+      --muted: #64748b;
+      --mono: 'Courier New', monospace;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 2rem;
+      width: 100%;
+      max-width: 580px;
+    }
+    h1 { font-size: 1.4rem; margin-bottom: 0.25rem; }
+    .subtitle { color: var(--muted); font-size: 0.85rem; margin-bottom: 2rem; }
+    label { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 0.35rem; }
+    input[type=text] {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      padding: 0.6rem 0.8rem;
+      font-size: 0.9rem;
+      margin-bottom: 1.25rem;
+    }
+    .row { display: flex; gap: 0.75rem; margin-bottom: 1.25rem; }
+    button {
+      flex: 1;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 0.7rem 1rem;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: opacity .2s;
+    }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+    button:not(:disabled):hover { opacity: 0.85; }
+    button.secondary {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+    .mono-box {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      word-break: break-all;
+      min-height: 2.5rem;
+      color: var(--muted);
+      margin-bottom: 1rem;
+    }
+    .mono-box.filled { color: var(--text); }
+    .status {
+      text-align: center;
+      padding: 1rem;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 1rem;
+      display: none;
+    }
+    .status.ok  { display: block; background: #14532d55; color: var(--green); border: 1px solid #22c55e44; }
+    .status.err { display: block; background: #7f1d1d55; color: var(--red);   border: 1px solid #ef444444; }
+    .step {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-size: 0.82rem;
+      color: var(--muted);
+      margin-bottom: 0.4rem;
+    }
+    .step .dot {
+      width: 20px; height: 20px;
+      border-radius: 50%;
+      background: var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.7rem;
+      flex-shrink: 0;
+    }
+    .step.done .dot    { background: var(--green); color: #000; }
+    .step.active .dot  { background: var(--accent); color: #fff; }
+    .step.pending .dot { background: var(--border); color: var(--muted); }
+    .section-title {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: var(--muted);
+      margin-bottom: 0.5rem;
+    }
+    hr { border: none; border-top: 1px solid var(--border); margin: 1.25rem 0; }
+  </style>
+</head>
+<body>
+<div class="card">
+  <h1>⚡ Node Activator Dashboard</h1>
+  <p class="subtitle">UltrafastSecp256k1 ZK-Layer — wallet authentication</p>
+
+  <!-- Server URL -->
+  <label>Linux Node Backend URL</label>
+  <input type="text" id="serverUrl" value="http://192.168.1.35:8765"
+         placeholder="http://192.168.1.x:8765">
+
+  <!-- Steps indicator -->
+  <div id="step1" class="step active"><div class="dot">1</div> Request challenge from backend</div>
+  <div id="step2" class="step pending"><div class="dot">2</div> Sign with MetaMask</div>
+  <div id="step3" class="step pending"><div class="dot">3</div> Backend verifies (ecrecover)</div>
+  <hr>
+
+  <!-- Challenge -->
+  <div class="section-title">Challenge message (from backend)</div>
+  <div class="mono-box" id="challengeBox">—</div>
+
+  <div class="row">
+    <button id="btnChallenge" onclick="getChallenge()">1. Get Challenge</button>
+    <button id="btnSign" onclick="signAndActivate()" disabled>2. Sign &amp; Activate</button>
+  </div>
+
+  <!-- Wallet address -->
+  <div class="section-title">Connected Wallet</div>
+  <div class="mono-box" id="walletBox">—</div>
+
+  <!-- Signature -->
+  <div class="section-title">Signature (v, r, s)</div>
+  <div class="mono-box" id="sigBox">—</div>
+
+  <!-- Result -->
+  <div id="statusOk"  class="status ok" >✓ Node Activated — wallet identity confirmed</div>
+  <div id="statusErr" class="status err" id="statusErr">✗ Verification failed</div>
+
+  <hr>
+  <p style="font-size:0.75rem;color:var(--muted)">
+    Backend must be running on Linux: <code>python3 node_server.py</code><br>
+    Opens CORS for this page automatically. Works cross-machine on LAN.
+  </p>
+</div>
+
+<script>
+// ── state ───────────────────────────────────────────────────────────────────
+let currentNonce = null;
+let currentAddress = null;
+
+function setStep(n) {
+  for (let i = 1; i <= 3; i++) {
+    const el = document.getElementById('step' + i);
+    if (i < n)       { el.className = 'step done';    el.querySelector('.dot').textContent = '✓'; }
+    else if (i === n) { el.className = 'step active';  el.querySelector('.dot').textContent = String(i); }
+    else              { el.className = 'step pending'; el.querySelector('.dot').textContent = String(i); }
+  }
+}
+
+function setMono(id, text, filled = true) {
+  const el = document.getElementById(id);
+  el.textContent = text;
+  el.className = 'mono-box' + (filled ? ' filled' : '');
+}
+
+function showStatus(ok, msg) {
+  document.getElementById('statusOk').style.display  = ok  ? 'block' : 'none';
+  document.getElementById('statusErr').style.display = !ok ? 'block' : 'none';
+  if (!ok && msg) document.getElementById('statusErr').textContent = '✗ ' + msg;
+}
+
+function hideStatus() {
+  document.getElementById('statusOk').style.display  = 'none';
+  document.getElementById('statusErr').style.display = 'none';
+}
+
+// ── 1. Get Challenge ─────────────────────────────────────────────────────────
+async function getChallenge() {
+  hideStatus();
+  const url = document.getElementById('serverUrl').value.trim().replace(/\/$/, '');
+  setMono('challengeBox', 'Requesting…', false);
+  setMono('walletBox', '—', false);
+  setMono('sigBox', '—', false);
+  document.getElementById('btnSign').disabled = true;
+
+  try {
+    const resp = await fetch(url + '/challenge', { method: 'GET' });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+    currentNonce = data.nonce;
+    setMono('challengeBox', data.message);
+    document.getElementById('btnSign').disabled = false;
+    setStep(2);
+  } catch (e) {
+    setMono('challengeBox', 'Error: ' + e.message, false);
+    showStatus(false, 'Cannot reach backend: ' + e.message);
+  }
+}
+
+// ── 2. Sign with MetaMask & Send to Backend ───────────────────────────────────
+async function signAndActivate() {
+  hideStatus();
+  const url = document.getElementById('serverUrl').value.trim().replace(/\/$/, '');
+  document.getElementById('btnSign').disabled = true;
+
+  try {
+    // Request MetaMask
+    if (!window.ethereum) throw new Error('MetaMask not found — install it first');
+    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+    currentAddress = accounts[0];
+    setMono('walletBox', currentAddress);
+
+    // personal_sign — MetaMask popup
+    const challengeBox = document.getElementById('challengeBox').textContent;
+    const hexMsg = '0x' + Array.from(new TextEncoder().encode(challengeBox))
+                              .map(b => b.toString(16).padStart(2,'0')).join('');
+    const sig = await window.ethereum.request({
+      method: 'personal_sign',
+      params: [hexMsg, currentAddress]
+    });
+
+    // sig = 0x{r 64hex}{s 64hex}{v 2hex} = 132 hex chars
+    const r = sig.slice(2, 66);
+    const s = sig.slice(66, 130);
+    const v = parseInt(sig.slice(130, 132), 16);
+    setMono('sigBox', `v=${v}  r=0x${r}  s=0x${s}`);
+    setStep(3);
+
+    // Send to backend
+    const resp = await fetch(url + '/activate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ address: currentAddress, nonce: currentNonce, r, s, v })
+    });
+    const result = await resp.json();
+    if (result.ok) {
+      showStatus(true);
+      setStep(4); // all done
+      // mark step3 done manually
+      const el = document.getElementById('step3');
+      el.className = 'step done';
+      el.querySelector('.dot').textContent = '✓';
+    } else {
+      showStatus(false, result.error || 'ecrecover mismatch');
+      document.getElementById('btnSign').disabled = false;
+    }
+  } catch (e) {
+    if (e.code === 4001) {
+      showStatus(false, 'User rejected the signature request');
+    } else {
+      showStatus(false, e.message);
+    }
+    document.getElementById('btnSign').disabled = false;
+  }
+}
+</script>
+</body>
+</html>
