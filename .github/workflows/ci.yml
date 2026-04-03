@@ -416,7 +416,7 @@ jobs:
         run: cmake --build build -j$(sysctl -n hw.logicalcpu)
 
       - name: Install Python audit dependencies
-        run: pip3 install --quiet coincurve ecdsa hypothesis
+        run: pip3 install --break-system-packages --quiet coincurve ecdsa hypothesis
 
       - name: Test (all including Metal GPU)
         run: ctest --test-dir build --output-on-failure -j$(sysctl -n hw.logicalcpu) -E "^(ct_sidechannel|secp256k1_metal_audit|gpu_ops_equivalence)"
