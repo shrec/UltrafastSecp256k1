@@ -79,7 +79,7 @@ jobs:
         run: cmake --build build -j$(nproc)
 
       - name: Install Python audit dependencies
-        run: pip install --quiet coincurve python-ecdsa hypothesis
+        run: pip install --quiet coincurve ecdsa hypothesis
 
       - name: Test
         # Exclude ct_sidechannel: dudect timing test takes >10 min, runs in dedicated ct-verif workflow
@@ -540,6 +540,9 @@ jobs:
 
       - name: Build
         run: cmake --build build/rocm -j$(nproc)
+
+      - name: Install Python audit dependencies
+        run: pip install --quiet coincurve ecdsa hypothesis
 
       - name: Test (CPU-only, compile check)
         run: ctest --test-dir build/rocm --output-on-failure -j$(nproc) -E "^ct_sidechannel"

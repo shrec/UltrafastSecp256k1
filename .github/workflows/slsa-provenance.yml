@@ -58,7 +58,7 @@ jobs:
           find build-slsa -name "libufsecp*.so*" -exec cp {} dist/ \;
           find build-slsa -name "libufsecp*.a" -exec cp {} dist/ \;
           # Copy headers
-          cp -r libs/UltrafastSecp256k1/include dist/
+          cp -r include dist/
 
           cd dist && tar czf ../ufsecp-linux-x64.tar.gz . && cd ..
 

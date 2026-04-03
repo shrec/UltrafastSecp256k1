@@ -42,6 +42,8 @@ extern "C" {
   #if defined(_WIN32) || defined(__CYGWIN__)
     #ifdef UFSECP_BUILDING
       #define UFSECP_API __declspec(dllexport)
+    #elif defined(UFSECP_STATIC_LIB)
+      #define UFSECP_API
     #else
       #define UFSECP_API __declspec(dllimport)
     #endif

@@ -133,6 +133,10 @@ if(UFSECP_BUILD_STATIC)
     endif()
     ufsecp_configure(ufsecp_static)
 
+    # Consumers of the static library must NOT use __declspec(dllimport) on Windows.
+    # Propagate UFSECP_STATIC_LIB so the header switches UFSECP_API to empty.
+    target_compile_definitions(ufsecp_static PUBLIC UFSECP_STATIC_LIB)
+
     if(SECP256K1_BUILD_CUDA)
         set_target_properties(ufsecp_static PROPERTIES INTERPROCEDURAL_OPTIMIZATION FALSE)
     endif()
