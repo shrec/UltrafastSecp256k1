@@ -272,7 +272,10 @@ jobs:
       - name: Test under TSan
         env:
           TSAN_OPTIONS: halt_on_error=1:second_deadlock_stack=1
-        run: ctest --test-dir build --output-on-failure -j"$(nproc)" -E "^(ct_sidechannel|selftest|unified_audit)" --timeout 900
+        # Exclude py_* tests: Python ctypes loads libufsecp.so without the TSan
+        # runtime, causing __tsan_func_entry linker errors. Python tests run in
+        # the normal linux CI jobs without sanitizer instrumentation.
+        run: ctest --test-dir build --output-on-failure -j"$(nproc)" -E "^(ct_sidechannel|selftest|unified_audit|py_)" --timeout 900
 
   # ── Valgrind memcheck ───────────────────────────────────────────────────
   valgrind:
