@@ -7,6 +7,55 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-04-04 (Wycheproof extended KAT wave — commits `40a0f218`, `a3a9289a`)
+
+- **Added** `audit/test_wycheproof_ecdsa_secp256k1_sha256.cpp` (27 checks): secp256k1
+  ECDSA-SHA256 DER (ASN.1 SEQUENCE) vectors — valid: Group 1 tcId 1/3, high-S malleability
+  (tcId 5), large-x (tcId 350), r=n-1/s=n-2 boundary (tcId 352), s==1 (tcId 373); invalid:
+  r/s==0 (tcId 168/169/176/374), r>=n (tcId 192/193), r==p (tcId 216), BER long-form, empty,
+  tag-only, truncated. Committed `40a0f218`.
+
+- **Added** `audit/test_wycheproof_ecdsa_secp256k1_sha256_p1363.cpp` (32 checks): secp256k1
+  ECDSA-SHA256 P1363 (raw r‖s, 64 bytes) vectors — valid: Group 1 tcId 1, large-x (tcId 115),
+  small r/s (tcId 120/122), s==1 (tcId 148); invalid: r==0 variants (tcId 11–14), s==0
+  (tcId 18/32/149), r>=n (tcId 25/26/39/46), r=p-3>n (tcId 116), wrong size (tcId 121),
+  infinity (tcId 165), comparison-with-infinity (tcId 204). Committed `40a0f218`.
+
+- **Added** `audit/test_wycheproof_hmac_sha256.cpp` (174 checks): full Wycheproof HMAC-SHA256
+  test set. Committed `a3a9289a`.
+
+- **Added** `audit/test_wycheproof_hkdf_sha256.cpp` (86 checks): full Wycheproof HKDF-SHA256
+  test set. Committed `a3a9289a`.
+
+- **Added** `audit/test_wycheproof_chacha20_poly1305.cpp` (316 vectors / 1084 encrypt+decrypt
+  ops): full Wycheproof ChaCha20-Poly1305 AEAD test set. Committed `a3a9289a`.
+
+- **Added** `audit/test_wycheproof_ecdsa_secp256k1_sha512.cpp` (544 checks): secp256k1
+  ECDSA-SHA512 DER vectors. Includes **DER parser fix**: 33-byte integer with non-zero leading
+  byte (e.g. tcId 145, 158) now correctly rejected; previously accepted due to missing
+  `leading_zero_required` guard. Committed `a3a9289a`.
+
+- **Added** `audit/test_wycheproof_ecdsa_secp256k1_sha512_p1363.cpp` (312 checks): secp256k1
+  ECDSA-SHA512 P1363 vectors. Committed `a3a9289a`.
+
+- **Extended** `audit/test_exploit_hkdf_kat.cpp`: added RFC 5869 TC2 OKM (L=42, all 42 bytes
+  verified including bytes 32–41 that were previously missing) and TC3 full test (long salt +
+  info, L=82, PRK bytes 0–31 and OKM bytes 0–81 cross-checked). Also corrected wrong expected
+  values in TC2 and TC3 that were hallucinated in a prior session. Committed `a3a9289a`.
+
+- **Extended** `audit/test_exploit_ecdsa_rfc6979_kat.cpp`: added Test 13 — secp256k1
+  cross-validated sign/verify KAT using private key
+  `C9AFA9D845BA75166B5C215767B1D6934E50C3DB36E89B127B8A622B120F6721`.
+  Public key G·sk (X=`2C8C31FC9F990C6729E8B6AD839D593B9CB584DA6A37BA78E3A4ABBA3A099B2A`,
+  Y=`79BE667EF9DCBBAC...`) verified. SHA-256/"sample" and SHA-256/"test" r,s validated by both
+  python-ecdsa and the library. SHA-512/"sample" and SHA-512/"test" vectors confirm determinism
+  and sign/verify roundtrip. Committed `a3a9289a`.
+
+**Running total after this wave: 187 ctest audit targets, 2287 new checks across both commits,
+100% passing. All 191 audit test source files build and pass.**
+
+---
+
 ## 2026-04-04
 
 - **Added** `audit/test_exploit_schnorr_nonce_reuse.cpp` (SNR-1..SNR-16, 16 checks): BIP-340
