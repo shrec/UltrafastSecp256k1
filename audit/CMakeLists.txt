@@ -952,6 +952,32 @@ target_compile_definitions(test_exploit_zk_adversarial_standalone PRIVATE STANDA
 add_test(NAME exploit_zk_adversarial COMMAND test_exploit_zk_adversarial_standalone)
 set_tests_properties(exploit_zk_adversarial PROPERTIES TIMEOUT 120 LABELS "audit;exploit;zk;adversarial")
 
+# -- PoC: fe_set_b32_limit uninitialized overflow flag regression (PR #1839) --
+add_executable(test_exploit_fe_set_b32_limit_uninit_standalone
+    test_exploit_fe_set_b32_limit_uninit.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_fe_set_b32_limit_uninit_standalone)
+target_include_directories(test_exploit_fe_set_b32_limit_uninit_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+)
+target_compile_definitions(test_exploit_fe_set_b32_limit_uninit_standalone PRIVATE
+    UFSECP_BUILDING STANDALONE_TEST)
+add_test(NAME exploit_fe_set_b32_limit_uninit
+    COMMAND test_exploit_fe_set_b32_limit_uninit_standalone)
+set_tests_properties(exploit_fe_set_b32_limit_uninit PROPERTIES
+    TIMEOUT 60 LABELS "audit;exploit;field;overflow")
+
+# -- PoC: ZK new schemes — Bulletproof boundaries/batch/hiding/binding +
+#         DLEQ anonymous credential (eprint 2024/2010) ----------------------
+add_executable(test_exploit_zk_new_schemes_standalone
+    test_exploit_zk_new_schemes.cpp)
+audit_target_defaults(test_exploit_zk_new_schemes_standalone)
+target_compile_definitions(test_exploit_zk_new_schemes_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_zk_new_schemes COMMAND test_exploit_zk_new_schemes_standalone)
+set_tests_properties(exploit_zk_new_schemes PROPERTIES
+    TIMEOUT 120 LABELS "audit;exploit;zk;bulletproof;range")
+
 # -- PoC: Pedersen adversarial / switch-commit — binding, negation, double-spend
 add_executable(test_exploit_pedersen_adversarial_standalone test_exploit_pedersen_adversarial.cpp)
 audit_target_defaults(test_exploit_pedersen_adversarial_standalone)
@@ -2084,6 +2110,8 @@ add_executable(unified_audit_runner
     test_exploit_wallet_cross_domain_replay.cpp
     test_exploit_zk_adversarial.cpp
     test_exploit_zk_proofs.cpp
+    test_exploit_fe_set_b32_limit_uninit.cpp
+    test_exploit_zk_new_schemes.cpp
     test_infinity_edge_cases.cpp
     test_exploit_seckey_arith.cpp
     test_exploit_ctx_clone.cpp
@@ -2256,6 +2284,7 @@ set_tests_properties(
     exploit_ellswift_xdh_overflow exploit_buff_kr_ecdsa
     exploit_minerva_cve_2024_23342 exploit_rfc6979_minerva_amplified
     exploit_ellswift_bad_scalar_ecdh
+    exploit_fe_set_b32_limit_uninit exploit_zk_new_schemes
     PROPERTIES LABELS "audit"
 )
 if(SECP256K1_BUILD_PROTOCOL_TESTS)
