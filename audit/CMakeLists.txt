@@ -1556,6 +1556,64 @@ target_compile_definitions(test_exploit_kr_ecdsa_buff_binding_standalone PRIVATE
 add_test(NAME exploit_kr_ecdsa_buff_binding COMMAND test_exploit_kr_ecdsa_buff_binding_standalone)
 set_tests_properties(exploit_kr_ecdsa_buff_binding PROPERTIES TIMEOUT 60 LABELS "audit;exploit;ecdsa;binding")
 
+# -- PoC: ellswift_xdh overflow scalar rejection — upstream PR #1821 ---------
+add_executable(test_exploit_ellswift_xdh_overflow_standalone
+    test_exploit_ellswift_xdh_overflow.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_ellswift_xdh_overflow_standalone)
+target_include_directories(test_exploit_ellswift_xdh_overflow_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include ${CMAKE_BINARY_DIR}/include)
+target_compile_definitions(test_exploit_ellswift_xdh_overflow_standalone PRIVATE
+    STANDALONE_TEST UFSECP_BUILDING SECP256K1_BIP324)
+add_test(NAME exploit_ellswift_xdh_overflow COMMAND test_exploit_ellswift_xdh_overflow_standalone)
+set_tests_properties(exploit_ellswift_xdh_overflow PROPERTIES TIMEOUT 60 LABELS "audit;exploit;ellswift;ecdh;overflow")
+
+# -- PoC: BUFF / KR-ECDSA weak non-resignability (eprint 2024/2018) ----------
+add_executable(test_exploit_buff_kr_ecdsa_standalone
+    test_exploit_buff_kr_ecdsa.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_buff_kr_ecdsa_standalone)
+target_include_directories(test_exploit_buff_kr_ecdsa_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include ${CMAKE_BINARY_DIR}/include)
+target_compile_definitions(test_exploit_buff_kr_ecdsa_standalone PRIVATE
+    STANDALONE_TEST UFSECP_BUILDING SECP256K1_BUILD_ETHEREUM)
+add_test(NAME exploit_buff_kr_ecdsa COMMAND test_exploit_buff_kr_ecdsa_standalone)
+set_tests_properties(exploit_buff_kr_ecdsa PROPERTIES TIMEOUT 120 LABELS "audit;exploit;ecdsa;buff;ethereum")
+
+# -- PoC: CVE-2024-23342 Minerva bit-length timing regression ----------------
+add_executable(test_exploit_minerva_cve_2024_23342_standalone
+    test_exploit_minerva_cve_2024_23342.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_minerva_cve_2024_23342_standalone)
+target_include_directories(test_exploit_minerva_cve_2024_23342_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include ${CMAKE_BINARY_DIR}/include)
+target_compile_definitions(test_exploit_minerva_cve_2024_23342_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_minerva_cve_2024_23342 COMMAND test_exploit_minerva_cve_2024_23342_standalone)
+set_tests_properties(exploit_minerva_cve_2024_23342 PROPERTIES TIMEOUT 120 LABELS "audit;exploit;ecdsa;nonce;minerva;cve")
+
+# -- PoC: RFC6979 + Minerva amplified timing regression ----------------------
+add_executable(test_exploit_rfc6979_minerva_amplified_standalone
+    test_exploit_rfc6979_minerva_amplified.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_rfc6979_minerva_amplified_standalone)
+target_include_directories(test_exploit_rfc6979_minerva_amplified_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include ${CMAKE_BINARY_DIR}/include)
+target_compile_definitions(test_exploit_rfc6979_minerva_amplified_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_rfc6979_minerva_amplified COMMAND test_exploit_rfc6979_minerva_amplified_standalone)
+set_tests_properties(exploit_rfc6979_minerva_amplified PROPERTIES TIMEOUT 120 LABELS "audit;exploit;rfc6979;nonce;minerva")
+
+# -- PoC: EllSwift bad scalar — ECDH/XDH rejection consistency ---------------
+add_executable(test_exploit_ellswift_bad_scalar_ecdh_standalone
+    test_exploit_ellswift_bad_scalar_ecdh.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_ellswift_bad_scalar_ecdh_standalone)
+target_include_directories(test_exploit_ellswift_bad_scalar_ecdh_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include ${CMAKE_BINARY_DIR}/include)
+target_compile_definitions(test_exploit_ellswift_bad_scalar_ecdh_standalone PRIVATE
+    STANDALONE_TEST UFSECP_BUILDING SECP256K1_BIP324)
+add_test(NAME exploit_ellswift_bad_scalar_ecdh COMMAND test_exploit_ellswift_bad_scalar_ecdh_standalone)
+set_tests_properties(exploit_ellswift_bad_scalar_ecdh PROPERTIES TIMEOUT 60 LABELS "audit;exploit;ellswift;ecdh;scalar")
+
 # -- ECDSA r <=> x-coordinate edge cases (Wycheproof PR #206) ---------------
 add_executable(test_exploit_ecdsa_r_overflow_standalone
     ${CMAKE_CURRENT_SOURCE_DIR}/test_exploit_ecdsa_r_overflow.cpp)
@@ -2064,6 +2122,11 @@ add_executable(unified_audit_runner
     test_exploit_hertzbleed_dvfs_timing.cpp
     test_exploit_biased_nonce_chain_scan.cpp
     test_exploit_kr_ecdsa_buff_binding.cpp
+    test_exploit_ellswift_xdh_overflow.cpp
+    test_exploit_buff_kr_ecdsa.cpp
+    test_exploit_minerva_cve_2024_23342.cpp
+    test_exploit_rfc6979_minerva_amplified.cpp
+    test_exploit_ellswift_bad_scalar_ecdh.cpp
 )
 # Conditionally add 5x52 field test (requires __uint128_t; skip on MSVC)
 if(NOT (MSVC AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
@@ -2190,6 +2253,9 @@ set_tests_properties(
     exploit_ladderleak_subbit_nonce exploit_minerva_noisy_hnp
     exploit_hertzbleed_dvfs_timing exploit_biased_nonce_chain_scan
     exploit_kr_ecdsa_buff_binding
+    exploit_ellswift_xdh_overflow exploit_buff_kr_ecdsa
+    exploit_minerva_cve_2024_23342 exploit_rfc6979_minerva_amplified
+    exploit_ellswift_bad_scalar_ecdh
     PROPERTIES LABELS "audit"
 )
 if(SECP256K1_BUILD_PROTOCOL_TESTS)
