@@ -978,6 +978,15 @@ add_test(NAME exploit_zk_new_schemes COMMAND test_exploit_zk_new_schemes_standal
 set_tests_properties(exploit_zk_new_schemes PROPERTIES
     TIMEOUT 120 LABELS "audit;exploit;zk;bulletproof;range")
 
+# -- PoC: Foreign-field arithmetic — PLONK/SNARK secp256k1 constraints (eprint 2025/695) --
+add_executable(test_exploit_foreign_field_plonk_standalone
+    test_exploit_foreign_field_plonk.cpp)
+audit_target_defaults(test_exploit_foreign_field_plonk_standalone)
+target_compile_definitions(test_exploit_foreign_field_plonk_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_foreign_field_plonk COMMAND test_exploit_foreign_field_plonk_standalone)
+set_tests_properties(exploit_foreign_field_plonk PROPERTIES
+    TIMEOUT 60 LABELS "audit;exploit;field;plonk;snark;foreign-field")
+
 # -- PoC: Pedersen adversarial / switch-commit — binding, negation, double-spend
 add_executable(test_exploit_pedersen_adversarial_standalone test_exploit_pedersen_adversarial.cpp)
 audit_target_defaults(test_exploit_pedersen_adversarial_standalone)
@@ -2112,6 +2121,7 @@ add_executable(unified_audit_runner
     test_exploit_zk_proofs.cpp
     test_exploit_fe_set_b32_limit_uninit.cpp
     test_exploit_zk_new_schemes.cpp
+    test_exploit_foreign_field_plonk.cpp
     test_infinity_edge_cases.cpp
     test_exploit_seckey_arith.cpp
     test_exploit_ctx_clone.cpp
@@ -2284,7 +2294,7 @@ set_tests_properties(
     exploit_ellswift_xdh_overflow exploit_buff_kr_ecdsa
     exploit_minerva_cve_2024_23342 exploit_rfc6979_minerva_amplified
     exploit_ellswift_bad_scalar_ecdh
-    exploit_fe_set_b32_limit_uninit exploit_zk_new_schemes
+    exploit_fe_set_b32_limit_uninit exploit_zk_new_schemes exploit_foreign_field_plonk
     PROPERTIES LABELS "audit"
 )
 if(SECP256K1_BUILD_PROTOCOL_TESTS)

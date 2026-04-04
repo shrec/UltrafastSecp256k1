@@ -319,6 +319,9 @@ int test_exploit_wallet_api_run();
 int test_exploit_wallet_cross_domain_replay_run();
 int test_exploit_zk_adversarial_run();
 int test_exploit_zk_proofs_run();
+int test_exploit_fe_set_b32_limit_uninit_run();
+int test_exploit_zk_new_schemes_run();
+int test_exploit_foreign_field_plonk_run();
 
 // ============================================================================
 // Forward declarations -- Feature Exploit PoC tests (P2SH, BIP-85, BIP-340 var,
@@ -630,6 +633,9 @@ static const AuditModule ALL_MODULES[] = {
     { "exploit_wallet_cross_domain",    "Wallet Cross-Domain Replay",                  "exploit_poc", test_exploit_wallet_cross_domain_replay_run, false },
     { "exploit_zk_adversarial",         "ZK Proof Adversarial / Malformed",            "exploit_poc", test_exploit_zk_adversarial_run, false },
     { "exploit_zk_proofs",              "ZK Proof Soundness",                          "exploit_poc", test_exploit_zk_proofs_run, false },
+    { "exploit_fe_set_b32_limit_uninit","Fe set_b32 Limit / Uninit Boundary (eprint 2025/xxx)", "exploit_poc", test_exploit_fe_set_b32_limit_uninit_run, false },
+    { "exploit_zk_new_schemes",         "ZK New Schemes — Bulletproof + Anon Cred (eprint 2024/2010)", "exploit_poc", test_exploit_zk_new_schemes_run, false },
+    { "exploit_foreign_field_plonk",    "Foreign-Field PLONK secp256k1 (eprint 2025/695)",   "exploit_poc", test_exploit_foreign_field_plonk_run, false },
     // Feature exploit PoC tests (P2SH, BIP-85, BIP-340 var, BIP-322, GCS, PSBT, Desc)
     { "exploit_p2sh_addr_confusion",    "P2SH / P2SH-P2WPKH Address Type Confusion",  "exploit_poc", test_exploit_p2sh_address_confusion_run, false },
     { "exploit_bip85_path_collision",   "BIP-85 Path Collision and Entropy Security",  "exploit_poc", test_exploit_bip85_path_collision_run, false },
