@@ -348,10 +348,10 @@ jobs:
         # Sanitizers add 3-15x overhead; raise per-test timeout from 300s to 900s.
         # Exclude selftest (unified runner) -- standalone tests cover the same
         # modules individually and finish faster under instrumentation.
-        # Exclude py_* under TSan: Python ctypes loads libufsecp.so without the
-        # TSan runtime, causing __tsan_func_entry linker errors. Python tests
-        # already run in the normal linux jobs without instrumentation overhead.
-        run: ctest --test-dir build/${{ matrix.sanitizer }} --output-on-failure -j$(nproc) -E "^(ct_sidechannel|unified_audit|selftest|batch_randomness${{ matrix.sanitizer == 'tsan' && '|py_' || '' }})" --timeout 900
+        # Exclude py_*: Python ctypes loads libufsecp.so without the sanitizer
+        # runtime preloaded, causing undefined symbol errors for __asan_*,
+        # __tsan_func_entry, etc. Python tests run in the normal linux jobs.
+        run: ctest --test-dir build/${{ matrix.sanitizer }} --output-on-failure -j$(nproc) -E "^(ct_sidechannel|unified_audit|selftest|batch_randomness|py_)" --timeout 900
 
   # -- Windows (MSVC + Clang-cl) ----------------------------------------------
   windows:
@@ -386,6 +386,8 @@ jobs:
         run: pip install --quiet coincurve ecdsa hypothesis
 
       - name: Test
+        env:
+          PYTHONUTF8: '1'
         run: ctest --test-dir build -C ${{ matrix.build_type }} --output-on-failure -j -E "^ct_sidechannel"
 
   # -- macOS (AppleClang + Metal GPU) -----------------------------------------
@@ -404,6 +406,14 @@ jobs:
 
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Python audit dependencies
+        run: pip install --quiet coincurve ecdsa hypothesis
+
       - name: Configure
         run: |
           cmake -S . -B build \
@@ -417,14 +427,6 @@ jobs:
 
       - name: Build
         run: cmake --build build -j$(sysctl -n hw.logicalcpu)
-
-      - name: Set up Python 3.12
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Install Python audit dependencies
-        run: pip install --quiet coincurve ecdsa hypothesis
 
       - name: Test (all including Metal GPU)
         run: ctest --test-dir build --output-on-failure -j$(sysctl -n hw.logicalcpu) -E "^(ct_sidechannel|secp256k1_metal_audit|gpu_ops_equivalence)"

@@ -120,7 +120,10 @@ jobs:
           UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
         # Sanitizers add 3-15x overhead; raise per-test timeout and exclude
         # selftest/unified_audit (standalone tests cover the same modules).
-        run: ctest --test-dir build --output-on-failure -j"$(nproc)" -E "^(ct_sidechannel|selftest|unified_audit)" --timeout 900
+        # Exclude py_*: Python ctypes loads ASan-built libufsecp.so without the
+        # ASan runtime preloaded, causing __asan_option_detect_stack_use_after_return
+        # undefined symbol errors. Python tests run in the normal linux jobs.
+        run: ctest --test-dir build --output-on-failure -j"$(nproc)" -E "^(ct_sidechannel|selftest|unified_audit|py_)" --timeout 900
 
   # ── Memory Sanitizer (uninitialized reads) ──────────────────────────────
   msan:
@@ -218,7 +221,7 @@ jobs:
           # practical wall-clock limits under MSan overhead (~10-20x). These
           # surfaces are still covered under ASan+UBSan and Valgrind.
           ctest --test-dir build --output-on-failure -j"$(nproc)" \
-            -E "^(ct_sidechannel|selftest|unified_audit|differential|fault_injection|fiat_crypto_vectors|debug_invariants|carry_propagation|batch_randomness|wycheproof_ecdsa|wycheproof_ecdh|cross_platform_kat|audit_fuzz|ct_verif_formal|ecies_regression|adversarial_protocol|secp256k1_spec|c_abi_negative|audit_secure_erase|kat_all_operations|parse_strictness|nonce_uniqueness|audit_invariants|c_abi_thread_stress|exploit_.*|fuzz_musig2_frost|infinity_edge_cases)" --timeout 7200
+            -E "^(ct_sidechannel|selftest|unified_audit|py_|differential|fault_injection|fiat_crypto_vectors|debug_invariants|carry_propagation|batch_randomness|wycheproof_ecdsa|wycheproof_ecdh|cross_platform_kat|audit_fuzz|ct_verif_formal|ecies_regression|adversarial_protocol|secp256k1_spec|c_abi_negative|audit_secure_erase|kat_all_operations|parse_strictness|nonce_uniqueness|audit_invariants|c_abi_thread_stress|exploit_.*|fuzz_musig2_frost|infinity_edge_cases)" --timeout 7200
 
   # ── Thread Sanitizer (data races) ───────────────────────────────────────
   tsan:
