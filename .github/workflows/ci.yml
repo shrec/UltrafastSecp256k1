@@ -697,6 +697,9 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y clang-17 llvm-17 lld-17 ninja-build
 
+      - name: Install Python audit dependencies
+        run: pip install --quiet coincurve ecdsa hypothesis
+
       - name: Configure (coverage)
         run: |
           export CC=clang-17 CXX=clang++-17
@@ -713,9 +716,6 @@ jobs:
 
       - name: Build
         run: cmake --build build/cov -j"$(nproc)"
-
-      - name: Install Python audit dependencies
-        run: pip install --quiet coincurve ecdsa hypothesis
 
       - name: Test
         run: ctest --test-dir build/cov --output-on-failure -j"$(nproc)" -E "^ct_sidechannel"
