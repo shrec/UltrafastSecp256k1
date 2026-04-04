@@ -5,10 +5,10 @@ Maintainer: shrec <shrec@users.noreply.github.com>
 Installed-Size: 7376
 Depends: libc6 (>= 2.17)
 Filename: pool/main/ultrafastsecp256k1_3.50.0_arm64.deb
-Size: 5353688
-MD5sum: cdb147e9b0bd8b4f5eba1f644cb9d25a
-SHA1: 1ea5429a4a5959de19ef36fadea6e83fa8ec198f
-SHA256: e1027b54d74a6383b118c14b6f3475c6ae4c9290792778cb0190c48fef525e11
+Size: 5353630
+MD5sum: 02d68ba90a0ab010ecee16d8262c7f6a
+SHA1: 690b25a613af53167685723a5b9878f50c0fb9b8
+SHA256: fe563a8964b880ae84c3de48f01b784e052ab661a21c1198aa96a18301733b83
 Section: libs
 Priority: optional
 Homepage: https://github.com/shrec/UltrafastSecp256k1
