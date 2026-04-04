@@ -69,3 +69,18 @@
 - Scalar multiplication at batch=65K achieves 2.39 M/s (CUDA now achieves 4.51 M/s after 32-bit hybrid optimization)
 - Field arithmetic ~50x slower than CUDA due to OpenCL buffer transfer overhead vs in-register CUDA kernel
 - 32/32 correctness tests pass
+
+## BIP-352 Silent Payment Scan (`ufsecp_gpu_bip352_scan_batch`)
+
+**Date:** 2026-04-04  
+**N:** 50,000 tweak points, 11 passes median (autotuned local_size=128)  
+**Source:** `opencl_bip352_benchmark --batch 50000`
+
+| Mode | Time/Op | Throughput | vs CUDA |
+|------|---------|------------|---------|
+| OpenCL fused pipeline | 197.9 ns | 5.05 M/s | 1.10x slower |
+| OpenCL fused + LUT | 96.5 ns | 10.36 M/s | 1.07x slower |
+| CUDA GLV (reference) | 179.1 ns | 5.58 M/s | — |
+| CUDA + LUT (reference) | 90.6 ns | 11.04 M/s | — |
+
+Validation: `[OK] MATCH` (OpenCL prefix = CUDA reference prefix)

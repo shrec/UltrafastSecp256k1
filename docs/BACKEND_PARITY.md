@@ -136,10 +136,21 @@ Y = implemented + tested in audit runner, K = kernel/shader exists (not in audit
 | CPU | `bench_unified` | 8 (field, scalar, point, ECDSA, Schnorr, CT, libsecp256k1 comparison, OpenSSL comparison) | JSON + stdout |
 | CUDA | `gpu_bench_unified` | 7 (mirrors CPU format) | JSON + stdout |
 | CUDA | `bench_compare` | CPU vs GPU side-by-side | stdout |
-| CUDA | `bench_bip352` | Silent Payments pipeline | stdout |
+| CUDA | `bench_bip352` | Silent Payments pipeline (GLV + LUT modes) | stdout |
 | CUDA | `bench_zk` | ZK operations | stdout |
 | OpenCL | `opencl_benchmark` | Core ops | stdout |
+| OpenCL | `opencl_bip352_benchmark` | Silent Payments pipeline (`--batch`, `--lut` flags) | stdout |
 | Metal | `metal_secp256k1_bench_full` | Core ops | stdout |
+
+### BIP-352 Scan Benchmark Numbers (RTX 5060 Ti, 2026-04-04)
+
+| Backend | Mode | Time/Op | Throughput | vs CPU |
+|---------|------|---------|------------|--------|
+| CUDA | GLV (tpb=384, N=500K) | 178.9 ns | 5.59 M/s | **136.6x** |
+| CUDA | + LUT 16×64K (N=500K) | 90.5 ns | 11.05 M/s | **270.0x** |
+| OpenCL | Fused (local=128, N=50K) | 197.9 ns | 5.05 M/s | 1.10x vs CUDA GLV |
+| OpenCL | + LUT (local=128, N=50K) | 96.5 ns | 10.36 M/s | 1.07x vs CUDA+LUT |
+| CPU | UltrafastSecp256k1 KPlan | 24,436.5 ns | 40.9 K/s | 1.00x |
 
 ---
 

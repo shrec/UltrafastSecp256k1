@@ -435,3 +435,20 @@ to `ufsecp_gpu_ecdh_batch`, which is the only other SECRET-BEARING GPU operation
 - CPU plan: null-arg rejection, non-zero output
 - GPU: null ctx/args rejection, zero-count no-crash, single-tweak prefix non-zero,
   batch-16 all non-zero, determinism, distinct-tweaks produce distinct prefixes
+
+### Benchmark results (RTX 5060 Ti, 2026-04-04)
+
+Measured via `bench_bip352` (CUDA, N=500,000, 11 passes median) and
+`opencl_bip352_benchmark --batch 50000` (OpenCL, 11 passes median).
+The C ABI wrapper (`ufsecp_gpu_bip352_scan_batch`) adds <2 ns virtual dispatch
+overhead over the kernel measurements below.
+
+| Backend | Mode | Time/Op | Throughput | vs CPU |
+|---------|------|---------|------------|--------|
+| CUDA | GLV (tpb=384) | 178.9 ns | 5.59 M/s | **136.6x** |
+| CUDA | + LUT 16×64K | 90.5 ns | 11.05 M/s | **270.0x** |
+| OpenCL | Fused pipeline | 197.9 ns | 5.05 M/s | 123.5x |
+| OpenCL | + LUT | 96.5 ns | 10.36 M/s | 253.2x |
+| CPU | KPlan (single-thread) | 24,436.5 ns | 40.9 K/s | 1.00x |
+
+Validation passed on all runs (CPU = CUDA = OpenCL prefix checksums).
