@@ -36,8 +36,8 @@ from source using the commands in [How to Reproduce](#how-to-reproduce).
 | **Extended test checks** | **~820,000+** (protocols, KAT, fuzz, differential) |
 | **CTest targets** | 25+ |
 | **Standard test vector suites** | BIP-340 (15), RFC 6979 (6), BIP-32 (90) |
-| **libFuzzer harnesses** | 3 (field, scalar, point) |
-| **Structured fuzz suites** | 2 (parser + address/BIP32/FFI) |
+| **libFuzzer harnesses** | 11 (5 `cpu/fuzz/`: field, scalar, point, ecdsa, schnorr; 6 `audit/`: der_parse, pubkey_parse, schnorr_verify, ecdsa_verify, bip32_path, bip324_frame) |
+| **Structured fuzz suites** | 2 (parser + address/BIP32/FFI) — plus `unified_audit_runner` `libfuzzer_unified` CI-blocking module (12,097 checks) |
 | **Fuzz regression corpus** | 31 pinned inputs (6 categories) |
 | **CI workflows** | 14 automated pipelines |
 

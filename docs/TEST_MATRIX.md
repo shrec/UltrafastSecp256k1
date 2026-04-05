@@ -15,7 +15,7 @@ lags behind the generated validation surfaces, prefer the generated counts.
 | **CTest targets** | 182 active targets | [OK] Documented in current assurance validation |
 | **Audit suite checks** | 641,194+ | [OK] 0 failures |
 | **Exploit PoC test files** | **78 tests, 14 categories** | [OK] 0 failures |
-| **Fuzz harnesses** | 3 | [OK] Active |
+| **Fuzz harnesses** | 11 | [OK] Active (5 cpu/fuzz + 6 audit/; `libfuzzer_unified` CI-blocking) |
 | **ECIES regression** | 85 | [OK] All passing |
 | **Adversarial protocol** | 114 functions, 360+ checks | [OK] Active |
 | **Side-channel (dudect)** | 1 | [OK] Active |

@@ -44,7 +44,7 @@ team and automated CI infrastructure.
 | **Adversarial FFI sections** | G (97 fns), H (26 fns), I (8 fns), K (6 deep-session) |
 | **Audit test suites** | 8 dedicated audit binaries |
 | **Extended test suites** | 25+ CTest targets |
-| **Fuzz harnesses** | 3 libFuzzer + 2 structured fuzz suites |
+| **Fuzz harnesses** | 11 libFuzzer (5 `cpu/fuzz/` + 6 `audit/`) + 2 structured fuzz suites + `libfuzzer_unified` CI-blocking module |
 | **Side-channel analysis** | dudect (Welch t-test), 1300+ lines |
 | **Differential comparison** | vs bitcoin-core/libsecp256k1 v0.6.0 (7,860 checks) |
 | **Standard test vectors** | BIP-340 (15), RFC 6979 (6), BIP-32 (90) |
@@ -694,7 +694,7 @@ Full invariant catalog: [docs/INVARIANTS.md](INVARIANTS.md)
 | dudect (smoke) | [OK] Active | Every push/PR (t=25.0 threshold) |
 | dudect (full) | [OK] Active | Nightly (30 min, t=4.5 threshold) |
 | Nightly differential | [OK] Active | 1.3M+ cross-library checks |
-| libFuzzer harnesses | [OK] Available | 3 harnesses for core arithmetic |
+| libFuzzer harnesses | [OK] Active | 11 harnesses (5 cpu/fuzz + 6 audit/); `libfuzzer_unified` CI-blocking in unified_audit_runner |
 
 ---
 

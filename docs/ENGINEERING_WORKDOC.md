@@ -111,7 +111,7 @@ Suggested parity categories:
 ### 2. Parsing and Validation Unification
 
 - `[OK]` Strict parsing exists in all public paths.
-- `[OK]` `test_parse_strictness.cpp` (audit module [55/55]) validates every public parse/decode
+- `[OK]` `test_parse_strictness.cpp` (audit module [58/58]) validates every public parse/decode
   entry point against malformed inputs — compressed/uncompressed pubkeys, x-only encoding,
   compact signatures, DER signatures, WIF, BIP-32 seed, scalar range. ~60 regression checks.
 - `[OK]` Regression checklist: `test_parse_strictness_run()` runs as a hard CI gate.
@@ -175,7 +175,7 @@ Suggested parity categories:
 
 If effort is limited, these are the highest-value items:
 
-1. ~~Finish parser strictness unification.~~ **DONE** — `test_parse_strictness.cpp` added as module [55/55].
+1. ~~Finish parser strictness unification.~~ **DONE** — `test_parse_strictness.cpp` added as module [58/58].
 2. Finish ECIES hardening before broad positioning (authenticated envelope + CSPRNG path).
 3. Complete ROCm validation on real AMD hardware (requires device access).
 4. Formalize CPU/GPU cross-backend equivalence matrix (`docs/GPU_BACKEND_PARITY.md`).

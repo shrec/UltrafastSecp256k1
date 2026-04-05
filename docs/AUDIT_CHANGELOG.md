@@ -7,6 +7,54 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-04-05 (LibFuzzer harnesses, mutation tracker, Cryptol specs, SLSA verifier, unified_audit_runner 3 new modules — commits `38108b89`, `00522b57`)
+
+- **Added** `cpu/fuzz/fuzz_ecdsa.cpp` + `cpu/fuzz/fuzz_schnorr.cpp` (ClusterFuzzLite, ECDSA and BIP-340
+  Schnorr sign→verify invariants + forged-sig rejection). ClusterFuzzLite targets: 3 → **5**.
+  Committed `38108b89`.
+
+- **Added** 6 deterministic LibFuzzer harnesses in `audit/`:
+  `fuzz_der_parse.cpp` (DER parse + round-trip),
+  `fuzz_pubkey_parse.cpp` (pubkey parse, tweak_add, encoding),
+  `fuzz_schnorr_verify.cpp` (BIP-340 sign→verify + forged rejection),
+  `fuzz_ecdsa_verify.cpp` (ECDSA sign→verify round-trip),
+  `fuzz_bip32_path.cpp` (BIP-32 path parser, boundary + overflow),
+  `fuzz_bip324_frame.cpp` (BIP-324 AEAD frame decrypt).
+  Total LibFuzzer harnesses: 3 → **11** (5 `cpu/fuzz/` + 6 `audit/`). Committed `38108b89`.
+
+- **Added** `scripts/mutation_kill_rate.py` — stochastic mutation engine; 50 mutations/run,
+  threshold 60%. Committed `38108b89`.
+
+- **Added** `scripts/verify_slsa_provenance.py` — checks `cosign` bundle validity, subject
+  digest, and builder identity for release artefacts. Committed `38108b89`.
+
+- **Added** `specs/` — 4 machine-checkable Cryptol property files:
+  `Secp256k1Field.cry` (10 props: field axioms, Fermat, sqrt),
+  `Secp256k1Point.cry` (7 props: commutativity, associativity, scalar distribution),
+  `Secp256k1ECDSA.cry` (6 props: sign→verify, wrong-msg reject, sk-uniqueness),
+  `Secp256k1Schnorr.cry` (5 props: BIP-340 round-trip, zero-challenge, zero-nonce-reject).
+  28 total formal properties. `cryptol --batch :check` verifiable. Committed `38108b89`.
+
+- **Added** 3 new `unified_audit_runner` modules in the **fuzzing** section (commit `00522b57`):
+  - `libfuzzer_unified` (**CI-blocking**): deterministic regression over all 6 audit LibFuzzer
+    domains (DER, pubkey, Schnorr, ECDSA, BIP-32, BIP-324). 12,097 checks in <250 ms.
+    `#ifdef SECP256K1_BIP324` guard protects AEAD domain in BIP-324-disabled builds.
+  - `mutation_kill_rate` (advisory): popen() bridge to `scripts/mutation_kill_rate.py`;
+    `--ctest-mode --count 50 --threshold 60`; skips gracefully if python3 absent.
+  - `cryptol_specs` (advisory): popen() bridge to `cryptol --batch`; 28 formal properties
+    across 4 spec files; skips gracefully if cryptol not installed.
+  Fuzzing section: 8/10 → **11/11 PASS**. Full audit: **221/221 PASS** (≥55.2 s).
+
+- **Fixed** ellswift test build (`test_exploit_ellswift_bad_scalar_ecdh`,
+  `test_exploit_ellswift_xdh_overflow`): ellswift API calls wrapped in `#ifdef SECP256K1_BIP324`;
+  both tests compile and pass in builds without BIP-324 enabled. Committed `00522b57`.
+
+**Running total after this wave: unified_audit_runner fuzzing section 11/11 PASS.
+Full audit 221/221 PASS. LibFuzzer harness count: 11. Cryptol formal properties: 28.
+SLSA provenance verifier in scripts/.**
+
+---
+
 ## 2026-04-03 (Python audit script suite + static analysis scanners — commits `e94523bb`, `ad32e1d1`, `bdc00c6b`, `79f83220`)
 
 - **Added** `scripts/dev_bug_scanner.py` (15 categories): classic C++ development bug detector

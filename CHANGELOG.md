@@ -87,6 +87,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Ethereum differential KAT** (`audit/test_exploit_ethereum_differential.cpp`) — 10 tests, 15 sub-checks against go-ethereum, web3.py, and ethers.js reference vectors: address derivation (go-ethereum testKey KAT), privkey=1 canonical address, ecrecover with go-ethereum test message hash, EIP-191 hash vs web3.py, sign+ecrecover roundtrip, EIP-155 v encoding, eth_personal_sign roundtrip, tamper detection, keccak256("abc") KAT, anti-collision. Closes assurance gap **#4**.
 - **MuSig2/FROST/adaptor parser robustness fuzz** (`audit/test_fuzz_musig2_frost.cpp`) — 15 tests, 16 sub-checks: musig2 key_agg/nonce_agg/partial_verify/partial_sig_agg with random inputs (5000/3000/2000 rounds each), FROST keygen_finalize/sign/verify_partial/aggregate random inputs, schnorr+ecdsa adaptor random inputs, boundary test (n_signers=0 → must error). Closes assurance gap **#7**.
 - **ClusterFuzzLite expanded to 5 targets**: added `cpu/fuzz/fuzz_ecdsa.cpp` (ECDSA sign→verify invariant, wrong-msg false-positive check, parse_compact_strict robustness) and `cpu/fuzz/fuzz_schnorr.cpp` (BIP-340 sign→verify, adversarial from_bytes verify, wrong-msg check).
+- **LibFuzzer harnesses** (`cpu/fuzz/`) — 6 deterministic fuzz harnesses:
+  `fuzz_der_parse.cpp` (DER signature parse + round-trip),
+  `fuzz_pubkey_parse.cpp` (pubkey parse, tweak_add, encoding),
+  `fuzz_schnorr_verify.cpp` (BIP-340 sign→verify + forged-sig rejection),
+  `fuzz_ecdsa_verify.cpp` (ECDSA sign→verify round-trip),
+  `fuzz_bip32_path.cpp` (BIP-32 path parser — boundary cases + overflow),
+  `fuzz_bip324_frame.cpp` (BIP-324 AEAD frame decrypt).
+  Real LibFuzzer sessions run with `SECP256K1_BUILD_LIBFUZZER=ON`. Committed `38108b89`.
+- **Mutation kill-rate script** (`scripts/mutation_kill_rate.py`) — stochastic mutation
+  engine that patches random source bytes and counts test failures; 50 mutations per run,
+  threshold 60%. Committed `38108b89`.
+- **SLSA provenance verifier** (`scripts/verify_slsa_provenance.py`) — checks `cosign`
+  bundle validity, subject digest, and builder identity for release artefacts. Committed `38108b89`.
+- **Cryptol formal specs** (`specs/`) — 4 machine-checkable Cryptol property files:
+  `Secp256k1Field.cry` (10 props: field axioms, Fermat, sqrt), `Secp256k1Point.cry` (7 props:
+  commutativity, associativity, scalar distribution), `Secp256k1ECDSA.cry` (6 props: sign→verify,
+  wrong-msg reject, sk-uniqueness), `Secp256k1Schnorr.cry` (5 props: BIP-340 round-trip,
+  zero-challenge, zero-nonce-reject). Run via `cryptol --batch :check`. Committed `38108b89`.
+- **`unified_audit_runner` — 3 new modules in fuzzing section** (commit `00522b57`):
+  - `libfuzzer_unified` (**CI-blocking**): deterministic regression across all 6 LibFuzzer
+    parser domains — sign/verify round-trip, boundary seeds, pseudo-random sweeps.
+    12,097 checks pass in <250 ms. `#ifdef SECP256K1_BIP324` guard for AEAD domain.
+  - `mutation_kill_rate` (advisory): popen() bridge to `scripts/mutation_kill_rate.py`;
+    --ctest-mode --count 50 --threshold 60; skips gracefully if python3 absent.
+  - `cryptol_specs` (advisory): popen() bridge to `cryptol --batch`; 28 formal properties
+    across 4 spec files; skips gracefully if cryptol not installed.
+  Fuzzing section: 8/10 → **11/11 PASS**. Full audit: **221/221 PASS**.
+- **`test_exploit_ellswift_bad_scalar_ecdh` + `test_exploit_ellswift_xdh_overflow` build fix**
+  (commit `00522b57`): ellswift API calls wrapped in `#ifdef SECP256K1_BIP324`; both tests
+  now compile and pass in builds without BIP-324 enabled.
 
 ### GPU Backend
 - **Bulletproof parity (OpenCL + Metal)**: resolved the last remaining PARITY-EXCEPTION. OpenCL: removed `#if 0` guard in `secp256k1_zk.cl`; fixed `range_verify_full_impl` address-space qualifiers (`__global const AffinePoint*` for `bp_G`/`bp_H`, with per-iteration private copy before `scalar_mul_impl`); wired `bulletproof_verify_batch` host dispatch via `range_proof_poly_batch` kernel (matches CUDA poly-check behavior). Metal: wired `bulletproof_verify_batch` host dispatch via `range_proof_poly_batch` kernel; host converts 324-byte proof wire format to `RangeProofPolyMetal` GPU structs. Full CUDA ↔ OpenCL ↔ Metal parity — zero `Unsupported` stubs remaining.

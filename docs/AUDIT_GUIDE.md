@@ -16,13 +16,13 @@ The project is open to external audit and keeps these audit surfaces reproducibl
 It does not wait for a formal third-party engagement before strengthening assurance internally.
 Internal audit is part of normal development and is expected to run on every build and every commit through the CI and local audit workflow.
 
-### What It Tests (55 modules + 78 exploit PoC tests + standalone audit surfaces)
+### What It Tests (58 modules + 78 exploit PoC tests + standalone audit surfaces)
 
 | Section | Modules | Focus |
 |---------|---------|-------|
 | 1. Mathematical Invariants | 15 | SEC2 oracle, field/scalar/point laws, exhaustive checks |
 | 2. Constant-Time | 5 | CT correctness, namespace parity, timing sanity |
-| 3. Fuzzing & Adversarial | 7 | malformed inputs, parser boundaries, rejection paths |
+| 3. Fuzzing & Adversarial | 10 | malformed inputs, parser boundaries, rejection paths, libfuzzer_unified (CI), mutation_kill_rate, cryptol_specs |
 | 4. Performance & Security | 7 | perf smoke, nonce, zeroization, hardening |
 | 5. Integration & Protocols | 8 | ECDSA, Schnorr, ECDH, recovery, Taproot, BIP-32/39, BIP-324 |
 | 6. Zero-Knowledge | 6 | knowledge, DLEQ, range proof, serialization, rejection |
@@ -34,8 +34,8 @@ Internal audit is part of normal development and is expected to run on every bui
 
 | Platform | Current Evidence | Expected Result |
 |----------|------------------|----------------|
-| x86-64 (native) | `unified_audit_runner` + full CTest | 55/55 audit, CTest green |
-| RISC-V 64 (real HW) | `unified_audit_runner` on board + QEMU smoke in CI | 55/55 audit on hardware, smoke green in CI |
+| x86-64 (native) | `unified_audit_runner` + full CTest | 58/58 audit, CTest green |
+| RISC-V 64 (real HW) | `unified_audit_runner` on board + QEMU smoke in CI | 58/58 audit on hardware, smoke green in CI |
 | ARM64 (Linux/Android) | QEMU smoke in CI + native Android validation + ARM64 audit report | smoke green, native validation green |
 | ESP32-S3 (ESP-IDF) | dedicated ESP32 audit port | platform-specific audit-ready report |
 
