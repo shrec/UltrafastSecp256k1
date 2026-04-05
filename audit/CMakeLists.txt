@@ -2350,8 +2350,13 @@ if(Python3_FOUND)
         COMMAND ${Python3_EXECUTABLE} "${_py_scripts_dir}/differential_cross_impl.py"
                 --lib "${_uf_lib}" --count 500
                 --json -o "${CMAKE_BINARY_DIR}/py_differential_report.json")
+    if(WIN32)
+        set(_py_diff_timeout 360)
+    else()
+        set(_py_diff_timeout 180)
+    endif()
     set_tests_properties(py_differential_crossimpl PROPERTIES
-        TIMEOUT 180
+        TIMEOUT ${_py_diff_timeout}
         LABELS "audit;python;differential"
         ENVIRONMENT "${_py_env}")
 
