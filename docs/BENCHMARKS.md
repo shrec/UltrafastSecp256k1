@@ -843,6 +843,34 @@ All integrity checks pass. libsecp256k1 v0.7.2 compared on same hardware.
 All integrity checks pass. Note: FAST path is at near-parity with libsecp on P4  
 (P4 RISC-V microarch lacks the wide multiply throughput of Xtensa LX7).
 
+### ESP32-P4 Device Rerun (2026-04-05, post-musig2-bip32 opt)
+
+Firmware rebuilt from `543f32e8` (`esp32p4_bench_hornet`, IDF v5.4, GCC 14.2.0) and flashed
+via `idf.py -p /dev/ttyACM1 flash`. Chip rev 1.3, 360 MHz, single-core harness.
+
+| Operation | Time | ops/sec | vs libsecp |
+|-----------|-----:|--------:|-----------:|
+| field_mul | 2,424 ns | 412.5 k/s | — |
+| field_sqr | 2,220 ns | 450.5 k/s | — |
+| field_add | 320 ns | 3.12 M/s | — |
+| field_inv | 73.1 µs | 13.7 k/s | — |
+| pubkey_create (k×G) | 2,232 µs | 448/s | 0.95× |
+| k×P (arbitrary) | 5,276.8 µs | 190/s | — |
+| a×G + b×P (Shamir) | 6,619.6 µs | 151/s | — |
+| point_add | 129.0 µs | 7.8 k/s | — |
+| point_dbl | 103.4 µs | 9.7 k/s | — |
+| ecdsa_sign | 2,559.6 µs | 391/s | 0.99× |
+| **ecdsa_verify** | **6,603.2 µs** | **151/s** | **1.13×** |
+| schnorr_sign (keypair) | 2,268.0 µs | 441/s | 0.98× |
+| **schnorr_verify (cached)** | **6,551.4 µs** | **153/s** | **1.04×** |
+| schnorr_verify (x-only) | 7,148.8 µs | 140/s | 1.04× |
+| ct::ecdsa_sign | 5,639.8 µs | 177/s | 0.45× |
+| ct::schnorr_sign | 2,468.4 µs | 405/s | 0.90× |
+
+Notable changes vs 2026-03-21 baseline: `ecdsa_verify` improved from 7,528 µs (0.99×) to
+6,603 µs (**1.13×**); `schnorr_verify` from 8,052 µs (0.93×) to 6,551 µs (**1.04×**).
+The dual-mul (Shamir) path also improved from 7,550 µs to 6,620 µs.
+
 ---
 
 ## ESP32-C6 Benchmarks (Embedded)
