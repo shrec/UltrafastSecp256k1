@@ -288,6 +288,14 @@ std::array<uint8_t, 4> ExtendedKey::fingerprint() const {
     return fp;
 }
 
+// file-local helper: compute fingerprint from a pre-computed compressed public key
+static std::array<uint8_t, 4> fingerprint_from_compressed(const std::array<uint8_t, 33>& comp) {
+    auto h = hash160(comp.data(), 33);
+    std::array<uint8_t, 4> fp{};
+    std::memcpy(fp.data(), h.data(), 4);
+    return fp;
+}
+
 std::array<uint8_t, 78> ExtendedKey::serialize() const {
     std::array<uint8_t, 78> out{};
     // Version bytes
@@ -325,14 +333,17 @@ std::pair<ExtendedKey, bool> ExtendedKey::derive_child(uint32_t index) const {
 
     // Data = [compressed_pubkey(33) || index(4)] for normal
     // Data = [0x00 || private_key(32) || index(4)] for hardened
+    //
+    // Compute parent public key once: reused for HMAC data (non-hardened),
+    // fingerprint (all cases), and parent point in public-key child derivation.
+    auto parent_pk   = public_key();
+    auto parent_comp = parent_pk.to_compressed();
     uint8_t data[37];
     if (hardened) {
         data[0] = 0x00;
         std::memcpy(data + 1, key.data(), 32);
     } else {
-        auto pk = public_key();
-        auto compressed = pk.to_compressed();
-        std::memcpy(data, compressed.data(), 33);
+        std::memcpy(data, parent_comp.data(), 33);
     }
     // Append index (big-endian)
     data[33] = static_cast<uint8_t>(index >> 24);
@@ -366,7 +377,7 @@ std::pair<ExtendedKey, bool> ExtendedKey::derive_child(uint32_t index) const {
     }
     child.depth = static_cast<uint8_t>(depth + 1);
     child.child_number = index;
-    child.parent_fingerprint = fingerprint();
+    child.parent_fingerprint = fingerprint_from_compressed(parent_comp);
 
     if (is_private) {
         // child_key = (IL + parent_key) mod n
@@ -382,7 +393,7 @@ std::pair<ExtendedKey, bool> ExtendedKey::derive_child(uint32_t index) const {
     } else {
         // child_key = point(IL) + parent_pubkey
         auto IL_point = Point::generator().scalar_mul(il_scalar);
-        auto parent_point = public_key();
+        const auto& parent_point = parent_pk;
         auto child_point = IL_point.add(parent_point);
         if (child_point.is_infinity()) {
             detail::secure_erase(I.data(), I.size());
