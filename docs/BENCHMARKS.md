@@ -918,6 +918,34 @@ The dual-mul (Shamir) path also improved from 7,550 µs to 6,620 µs.
 
 All integrity checks pass.
 
+### ESP32-C6 Device Rerun (2026-04-05, post-musig2-bip32 opt)
+
+Firmware rebuilt from `27315806` (`esp32c6_bench_hornet`, IDF v5.4, GCC 14.2.0) and flashed
+via `idf.py -p /dev/ttyACM0 flash`. Chip rev 0.2, 160 MHz, single-core harness.
+
+| Operation | Time | ops/sec | vs libsecp |
+|-----------|-----:|--------:|-----------:|
+| field_mul | 5,968 ns | 167.6 k/s | — |
+| field_sqr | 5,336 ns | 187.4 k/s | — |
+| field_add | 784 ns | 1.28 M/s | — |
+| field_inv | 171.3 µs | 5.8 k/s | — |
+| pubkey_create (k×G) | 5,472.6 µs | 183/s | **1.69×** |
+| k×P (arbitrary) | 12,724.4 µs | 79/s | — |
+| a×G + b×P (Shamir) | 16,288.0 µs | 61/s | — |
+| point_add | 296.5 µs | 3.4 k/s | — |
+| point_dbl | 238.1 µs | 4.2 k/s | — |
+| ecdsa_sign | 7,552.6 µs | 132/s | **1.63×** |
+| **ecdsa_verify** | **16,681.4 µs** | **60/s** | **1.11×** |
+| schnorr_sign (keypair) | 5,745.2 µs | 174/s | **2.02×** |
+| **schnorr_verify (cached)** | **16,495.6 µs** | **61/s** | **1.14×** |
+| schnorr_verify (x-only) | 18,373.2 µs | 54/s | 1.14× |
+| ct::ecdsa_sign | 15,463.2 µs | 65/s | 0.80× |
+| ct::schnorr_sign | 6,750.8 µs | 148/s | **1.72×** |
+
+Notable changes vs 2026-03-21 baseline: `ecdsa_verify` improved from 18,957 µs (0.98×) to
+16,681 µs (**1.11×**); `schnorr_verify` from 20,278 µs (1.03×) to 16,496 µs (**1.14×**).
+Dual-mul (Shamir) also improved from ~19,289 µs to 16,288 µs. Integrity check: **OK**.
+
 ---
 
 ## ESP32-PICO-D4 Benchmarks (Embedded)
