@@ -161,6 +161,7 @@ var ufsecp__impl_8cpp =
     [ "ufsecp_wif_encode", "ufsecp__impl_8cpp.html#ae59ddb5a01dff26eac2d8c1603afe2d1", null ],
     [ "ufsecp_zk_dleq_prove", "ufsecp__impl_8cpp.html#a9119403de997fa9f33670cc64d0adcf3", null ],
     [ "ufsecp_zk_dleq_verify", "ufsecp__impl_8cpp.html#a6d6ca790851a76c67a0b5bc322d1aa92", null ],
+    [ "ufsecp_zk_ecdsa_snark_witness", "ufsecp__impl_8cpp.html#a6601f1723ca543185e0e3f5638dac0b7", null ],
     [ "ufsecp_zk_knowledge_prove", "ufsecp__impl_8cpp.html#a7c99eaa9778aa8923d178d7caae465d0", null ],
     [ "ufsecp_zk_knowledge_verify", "ufsecp__impl_8cpp.html#adfb7d15a82d3fc2787a0a9f49f028831", null ],
     [ "ufsecp_zk_range_prove", "ufsecp__impl_8cpp.html#a8cc22f1d1fee8547f38e5f0eb26f5e82", null ],

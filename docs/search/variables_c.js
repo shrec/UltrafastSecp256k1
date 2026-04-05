@@ -14,6 +14,7 @@ var searchData=
   ['min_5fns_11',['min_ns',['../structbench_1_1Stats.html#ac24571992ceb4cfeda039a9a76fa14f6',1,'bench::Stats']]],
   ['minus_5fb1_12',['MINUS_B1',['../namespacesecp256k1_1_1fast_1_1glv__constants.html#a08bcc168109784e84eb68b5e752d3442',1,'secp256k1::fast::glv_constants']]],
   ['mode_13',['mode',['../structsecp256k1_1_1fast_1_1SelftestReport.html#a01e6efb46ffde2d9ab9125b0881cd6b5',1,'secp256k1::fast::SelftestReport']]],
-  ['msg_5fhash_14',['msg_hash',['../structsecp256k1_1_1ECDSABatchEntry.html#a7f93edf3342a38fe845061a078456c69',1,'secp256k1::ECDSABatchEntry']]],
-  ['mu_15',['mu',['../structsecp256k1_1_1zk_1_1RangeProof.html#ad4f9a84d56418d88a5779bbb40b3e06c',1,'secp256k1::zk::RangeProof']]]
+  ['msg_14',['msg',['../structufsecp__ecdsa__snark__witness__t.html#a62496dedb5d92bb15f670abdb2bf279f',1,'ufsecp_ecdsa_snark_witness_t::msg'],['../structsecp256k1_1_1zk_1_1EcdsaSnarkWitness.html#ae548e13275958ccd32660fd6472758ae',1,'secp256k1::zk::EcdsaSnarkWitness::msg']]],
+  ['msg_5fhash_15',['msg_hash',['../structsecp256k1_1_1ECDSABatchEntry.html#a7f93edf3342a38fe845061a078456c69',1,'secp256k1::ECDSABatchEntry']]],
+  ['mu_16',['mu',['../structsecp256k1_1_1zk_1_1RangeProof.html#ad4f9a84d56418d88a5779bbb40b3e06c',1,'secp256k1::zk::RangeProof']]]
 ];

@@ -102,6 +102,10 @@ $(document).ready(function(){initNavTree('namespacesecp256k1_1_1zk.html',''); in
 Classes</h2></td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structsecp256k1_1_1zk_1_1DLEQProof.html">DLEQProof</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structsecp256k1_1_1zk_1_1EcdsaSnarkWitness.html">EcdsaSnarkWitness</a></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structsecp256k1_1_1zk_1_1ForeignFieldLimbs.html">ForeignFieldLimbs</a></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structsecp256k1_1_1zk_1_1GeneratorVectors.html">GeneratorVectors</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structsecp256k1_1_1zk_1_1KnowledgeProof.html">KnowledgeProof</a></td></tr>
@@ -133,6 +137,8 @@ Functions</h2></td></tr>
 <tr class="separator:a9d6eca241910168d723f7a9a5eb97414"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a0226db594f69d83a82b14abf25056717" id="r_a0226db594f69d83a82b14abf25056717"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1zk.html#a0226db594f69d83a82b14abf25056717">batch_commit</a> (const <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">fast::Scalar</a> *values, const <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">fast::Scalar</a> *blindings, <a class="el" href="structsecp256k1_1_1PedersenCommitment.html">PedersenCommitment</a> *commitments_out, std::size_t count)</td></tr>
 <tr class="separator:a0226db594f69d83a82b14abf25056717"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a9b9876fcc9c163dbeeea895624cd22bb" id="r_a9b9876fcc9c163dbeeea895624cd22bb"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structsecp256k1_1_1zk_1_1EcdsaSnarkWitness.html">EcdsaSnarkWitness</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1zk.html#a9b9876fcc9c163dbeeea895624cd22bb">ecdsa_snark_witness</a> (const std::array&lt; std::uint8_t, 32 &gt; &amp;msg_hash, const <a class="el" href="classsecp256k1_1_1fast_1_1Point.html">fast::Point</a> &amp;pubkey, const <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">fast::Scalar</a> &amp;sig_r, const <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">fast::Scalar</a> &amp;sig_s)</td></tr>
+<tr class="separator:a9b9876fcc9c163dbeeea895624cd22bb"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="var-members" name="var-members"></a>
 Variables</h2></td></tr>
@@ -315,6 +321,48 @@ Variables</h2></td></tr>
 </div><div class="memdoc">
 
 <p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l03712">ufsecp_zk_dleq_verify()</a>.</p>
+
+</div>
+</div>
+<a id="a9b9876fcc9c163dbeeea895624cd22bb" name="a9b9876fcc9c163dbeeea895624cd22bb"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a9b9876fcc9c163dbeeea895624cd22bb">&#9670;&#160;</a></span>ecdsa_snark_witness()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="structsecp256k1_1_1zk_1_1EcdsaSnarkWitness.html">EcdsaSnarkWitness</a> secp256k1::zk::ecdsa_snark_witness </td>
+          <td>(</td>
+          <td class="paramtype">const std::array&lt; std::uint8_t, 32 &gt; &amp;&#160;</td>
+          <td class="paramname"><em>msg_hash</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const <a class="el" href="classsecp256k1_1_1fast_1_1Point.html">fast::Point</a> &amp;&#160;</td>
+          <td class="paramname"><em>pubkey</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">fast::Scalar</a> &amp;&#160;</td>
+          <td class="paramname"><em>sig_r</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">fast::Scalar</a> &amp;&#160;</td>
+          <td class="paramname"><em>sig_s</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l03843">ufsecp_zk_ecdsa_snark_witness()</a>.</p>
 
 </div>
 </div>

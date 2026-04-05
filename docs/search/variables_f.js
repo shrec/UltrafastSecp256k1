@@ -33,9 +33,11 @@ var searchData=
   ['progress_5fcallback_30',['progress_callback',['../structsecp256k1_1_1fast_1_1FixedBaseConfig.html#aa1f806b046e9491e03a6063c556891e3',1,'secp256k1::fast::FixedBaseConfig']]],
   ['pub_31',['pub',['../structsecp256k1_1_1coins_1_1wallet_1_1WalletKey.html#a58792041b6140720ef47cd6099781c6c',1,'secp256k1::coins::wallet::WalletKey']]],
   ['pub_5fprefix_32',['pub_prefix',['../structsecp256k1_1_1ExtendedKey.html#aff761f7bc981243505d1a340480d6af6',1,'secp256k1::ExtendedKey']]],
-  ['pubkey_33',['pubkey',['../structsecp256k1_1_1SchnorrBatchCachedEntry.html#a891abd1216268a782613237cdd42d4fd',1,'secp256k1::SchnorrBatchCachedEntry::pubkey'],['../structufsecp__desc__key.html#a7803cb3bef16c83e755054389d20e75f',1,'ufsecp_desc_key::pubkey']]],
-  ['pubkey_5flen_34',['pubkey_len',['../structufsecp__desc__key.html#af8963a6baefe1fa5ef1412a7da8b52a5',1,'ufsecp_desc_key']]],
-  ['pubkey_5fx_35',['pubkey_x',['../structsecp256k1_1_1SchnorrBatchEntry.html#acd36cca81dba3bdbe3005828be899b7e',1,'secp256k1::SchnorrBatchEntry']]],
-  ['public_5fkey_36',['public_key',['../structsecp256k1_1_1ECDSABatchEntry.html#a77503c972c1c25b7396110c47cf810ad',1,'secp256k1::ECDSABatchEntry::public_key'],['../structsecp256k1_1_1coins_1_1CoinKeyPair.html#af85e18af8963ed680ebec91c211731a9',1,'secp256k1::coins::CoinKeyPair::public_key']]],
-  ['px_37',['px',['../structsecp256k1_1_1SchnorrKeypair.html#a7eefdd9e21715b60f6fffa47ea99df81',1,'secp256k1::SchnorrKeypair']]]
+  ['pub_5fx_33',['pub_x',['../structsecp256k1_1_1zk_1_1EcdsaSnarkWitness.html#a27a2398060a42f823d1d1d426a20a64a',1,'secp256k1::zk::EcdsaSnarkWitness::pub_x'],['../structufsecp__ecdsa__snark__witness__t.html#a889465ce2c030fe752c68fcf3f4d6854',1,'ufsecp_ecdsa_snark_witness_t::pub_x']]],
+  ['pub_5fy_34',['pub_y',['../structsecp256k1_1_1zk_1_1EcdsaSnarkWitness.html#aad5bcc20ce51ff2f7759fcf5a2cb71f7',1,'secp256k1::zk::EcdsaSnarkWitness::pub_y'],['../structufsecp__ecdsa__snark__witness__t.html#ae089825e92f5ce0aed31c3170b7e7693',1,'ufsecp_ecdsa_snark_witness_t::pub_y']]],
+  ['pubkey_35',['pubkey',['../structsecp256k1_1_1SchnorrBatchCachedEntry.html#a891abd1216268a782613237cdd42d4fd',1,'secp256k1::SchnorrBatchCachedEntry::pubkey'],['../structufsecp__desc__key.html#a7803cb3bef16c83e755054389d20e75f',1,'ufsecp_desc_key::pubkey']]],
+  ['pubkey_5flen_36',['pubkey_len',['../structufsecp__desc__key.html#af8963a6baefe1fa5ef1412a7da8b52a5',1,'ufsecp_desc_key']]],
+  ['pubkey_5fx_37',['pubkey_x',['../structsecp256k1_1_1SchnorrBatchEntry.html#acd36cca81dba3bdbe3005828be899b7e',1,'secp256k1::SchnorrBatchEntry']]],
+  ['public_5fkey_38',['public_key',['../structsecp256k1_1_1coins_1_1CoinKeyPair.html#af85e18af8963ed680ebec91c211731a9',1,'secp256k1::coins::CoinKeyPair::public_key'],['../structsecp256k1_1_1ECDSABatchEntry.html#a77503c972c1c25b7396110c47cf810ad',1,'secp256k1::ECDSABatchEntry::public_key']]],
+  ['px_39',['px',['../structsecp256k1_1_1SchnorrKeypair.html#a7eefdd9e21715b60f6fffa47ea99df81',1,'secp256k1::SchnorrKeypair']]]
 ];

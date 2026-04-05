@@ -1,6 +1,8 @@
 var ufsecp_8h =
 [
     [ "ufsecp_bip32_key", "structufsecp__bip32__key.html", "structufsecp__bip32__key" ],
+    [ "ufsecp_ff_limbs_t", "structufsecp__ff__limbs__t.html", "structufsecp__ff__limbs__t" ],
+    [ "ufsecp_ecdsa_snark_witness_t", "structufsecp__ecdsa__snark__witness__t.html", "structufsecp__ecdsa__snark__witness__t" ],
     [ "ufsecp_desc_key", "structufsecp__desc__key.html", "structufsecp__desc__key" ],
     [ "UFSECP_BIP32_SERIALIZED_LEN", "ufsecp_8h.html#aaf8e4498de1bc873f9415a1dec9a9aa8", null ],
     [ "UFSECP_COIN_ADDR_MAX_LEN", "ufsecp_8h.html#a1f37adbf2d21a6ef1ea9fdda0a62887e", null ],
@@ -186,6 +188,7 @@ var ufsecp_8h =
     [ "ufsecp_wif_encode", "ufsecp_8h.html#a580f0fb0ef899aedab783f0689c6ff3c", null ],
     [ "ufsecp_zk_dleq_prove", "ufsecp_8h.html#aa9cddcb17866ebe905ad41a360474f03", null ],
     [ "ufsecp_zk_dleq_verify", "ufsecp_8h.html#a76bae69e55388273dd9c16d5e02e9686", null ],
+    [ "ufsecp_zk_ecdsa_snark_witness", "ufsecp_8h.html#ade71c9d21127e7b1922b1cef84836f96", null ],
     [ "ufsecp_zk_knowledge_prove", "ufsecp_8h.html#ae80be05567568fe79188a74d9a1ec7c3", null ],
     [ "ufsecp_zk_knowledge_verify", "ufsecp_8h.html#a5e5f0a9e57c4fec27a5aa3ca04bb0ef0", null ],
     [ "ufsecp_zk_range_prove", "ufsecp_8h.html#a262661c521935c7340bd0f2a451fd08e", null ],

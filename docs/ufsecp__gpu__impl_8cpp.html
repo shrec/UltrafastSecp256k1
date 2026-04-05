@@ -106,6 +106,8 @@ $(document).ready(function(){initNavTree('ufsecp__gpu__impl_8cpp.html',''); init
 <code>#include &lt;mutex&gt;</code><br />
 <code>#include &lt;new&gt;</code><br />
 <code>#include &lt;limits&gt;</code><br />
+<code>#include &quot;<a class="el" href="scalar_8hpp_source.html">secp256k1/scalar.hpp</a>&quot;</code><br />
+<code>#include &quot;<a class="el" href="glv_8hpp_source.html">secp256k1/glv.hpp</a>&quot;</code><br />
 </div>
 <p><a href="ufsecp__gpu__impl_8cpp_source.html">Go to the source code of this file.</a></p>
 <table class="memberdecls">
@@ -179,6 +181,12 @@ Functions</h2></td></tr>
 <tr class="separator:a8f76ce25c04203aababfd45655609d67"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a7b2196a2abe2f9b0810b0f18c48371e8" id="r_a7b2196a2abe2f9b0810b0f18c48371e8"><td class="memItemLeft" align="right" valign="top"><a class="el" href="ufsecp__error_8h.html#ace9807a2d7e727c5d4dc3f8473118c9b">ufsecp_error_t</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ufsecp__gpu__impl_8cpp.html#a7b2196a2abe2f9b0810b0f18c48371e8">ufsecp_gpu_bip324_aead_decrypt_batch</a> (<a class="el" href="structufsecp__gpu__ctx.html">ufsecp_gpu_ctx</a> *ctx, const uint8_t *keys32, const uint8_t *nonces12, const uint8_t *wire_in, const uint32_t *sizes, uint32_t max_payload, size_t count, uint8_t *plaintext_out, uint8_t *out_valid)</td></tr>
 <tr class="separator:a7b2196a2abe2f9b0810b0f18c48371e8"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a014362759d072060d0f58420d577f312" id="r_a014362759d072060d0f58420d577f312"><td class="memItemLeft" align="right" valign="top"><a class="el" href="ufsecp__error_8h.html#ace9807a2d7e727c5d4dc3f8473118c9b">ufsecp_error_t</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ufsecp__gpu__impl_8cpp.html#a014362759d072060d0f58420d577f312">ufsecp_gpu_zk_ecdsa_snark_witness_batch</a> (<a class="el" href="structufsecp__gpu__ctx.html">ufsecp_gpu_ctx</a> *ctx, const uint8_t *msg_hashes32, const uint8_t *pubkeys33, const uint8_t *sigs64, size_t count, uint8_t *out_witnesses)</td></tr>
+<tr class="separator:a014362759d072060d0f58420d577f312"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ad68942965126a876fb2e100ea5b06556" id="r_ad68942965126a876fb2e100ea5b06556"><td class="memItemLeft" align="right" valign="top"><a class="el" href="ufsecp__error_8h.html#ace9807a2d7e727c5d4dc3f8473118c9b">ufsecp_error_t</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ufsecp__gpu__impl_8cpp.html#ad68942965126a876fb2e100ea5b06556">ufsecp_bip352_prepare_scan_plan</a> (const uint8_t scan_privkey32[32], uint8_t plan264_out[264])</td></tr>
+<tr class="separator:ad68942965126a876fb2e100ea5b06556"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ac2319cd2bef527359e9e1eabfef0cba0" id="r_ac2319cd2bef527359e9e1eabfef0cba0"><td class="memItemLeft" align="right" valign="top"><a class="el" href="ufsecp__error_8h.html#ace9807a2d7e727c5d4dc3f8473118c9b">ufsecp_error_t</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ufsecp__gpu__impl_8cpp.html#ac2319cd2bef527359e9e1eabfef0cba0">ufsecp_gpu_bip352_scan_batch</a> (<a class="el" href="structufsecp__gpu__ctx.html">ufsecp_gpu_ctx</a> *ctx, const uint8_t scan_privkey32[32], const uint8_t spend_pubkey33[33], const uint8_t *tweak_pubkeys33, size_t n_tweaks, uint64_t *prefix64_out)</td></tr>
+<tr class="separator:ac2319cd2bef527359e9e1eabfef0cba0"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a31edaf63d9d5c931db54119c73ad440b" id="r_a31edaf63d9d5c931db54119c73ad440b"><td class="memItemLeft" align="right" valign="top">const char *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ufsecp__gpu__impl_8cpp.html#a31edaf63d9d5c931db54119c73ad440b">ufsecp_gpu_error_str</a> (<a class="el" href="ufsecp__error_8h.html#ace9807a2d7e727c5d4dc3f8473118c9b">ufsecp_error_t</a> err)</td></tr>
 <tr class="separator:a31edaf63d9d5c931db54119c73ad440b"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
@@ -220,7 +228,7 @@ Variables</h2></td></tr>
 <div class="ttc" id="aufsecp__error_8h_html_a10160096e5ad28390a45f068596729f0"><div class="ttname"><a href="ufsecp__error_8h.html#a10160096e5ad28390a45f068596729f0">UFSECP_ERR_INTERNAL</a></div><div class="ttdeci">#define UFSECP_ERR_INTERNAL</div><div class="ttdef"><b>Definition</b> <a href="ufsecp__error_8h_source.html#l00033">ufsecp_error.h:33</a></div></div>
 <div class="ttc" id="aufsecp__gpu_8h_html_a71330c50b1805be46917a41d5b72a81f"><div class="ttname"><a href="ufsecp__gpu_8h.html#a71330c50b1805be46917a41d5b72a81f">UFSECP_ERR_GPU_MEMORY</a></div><div class="ttdeci">#define UFSECP_ERR_GPU_MEMORY</div><div class="ttdef"><b>Definition</b> <a href="ufsecp__gpu_8h_source.html#l00075">ufsecp_gpu.h:75</a></div></div>
 </div><!-- fragment -->
-<p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00031">31</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00035">35</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
 
 </div>
 </div>
@@ -265,9 +273,9 @@ Variables</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00081">81</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00085">85</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00494">ufsecp_gpu_bip324_aead_decrypt_batch()</a>, and <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00469">ufsecp_gpu_bip324_aead_encrypt_batch()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00498">ufsecp_gpu_bip324_aead_decrypt_batch()</a>, and <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00473">ufsecp_gpu_bip324_aead_encrypt_batch()</a>.</p>
 
 </div>
 </div>
@@ -305,9 +313,9 @@ Variables</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00090">90</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00094">94</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00440">ufsecp_gpu_bulletproof_verify_batch()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00444">ufsecp_gpu_bulletproof_verify_batch()</a>.</p>
 
 </div>
 </div>
@@ -345,9 +353,9 @@ Variables</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00053">53</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00057">57</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00268">ufsecp_gpu_ecdh_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00327">ufsecp_gpu_frost_verify_partial_batch()</a>, and <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00291">ufsecp_gpu_hash160_pubkey_batch()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00272">ufsecp_gpu_ecdh_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00331">ufsecp_gpu_frost_verify_partial_batch()</a>, and <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00295">ufsecp_gpu_hash160_pubkey_batch()</a>.</p>
 
 </div>
 </div>
@@ -385,9 +393,9 @@ Variables</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00072">72</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00076">76</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00360">ufsecp_gpu_ecrecover_batch()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00364">ufsecp_gpu_ecrecover_batch()</a>.</p>
 
 </div>
 </div>
@@ -425,9 +433,9 @@ Variables</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00063">63</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00067">67</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00440">ufsecp_gpu_bulletproof_verify_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00412">ufsecp_gpu_zk_dleq_verify_batch()</a>, and <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00389">ufsecp_gpu_zk_knowledge_verify_batch()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00444">ufsecp_gpu_bulletproof_verify_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00416">ufsecp_gpu_zk_dleq_verify_batch()</a>, and <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00393">ufsecp_gpu_zk_knowledge_verify_batch()</a>.</p>
 
 </div>
 </div>
@@ -455,9 +463,52 @@ Variables</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00049">49</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00053">53</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00494">ufsecp_gpu_bip324_aead_decrypt_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00469">ufsecp_gpu_bip324_aead_encrypt_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00440">ufsecp_gpu_bulletproof_verify_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00164">ufsecp_gpu_ctx_create()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00136">ufsecp_gpu_device_info()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00268">ufsecp_gpu_ecdh_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00226">ufsecp_gpu_ecdsa_verify_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00360">ufsecp_gpu_ecrecover_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00327">ufsecp_gpu_frost_verify_partial_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00210">ufsecp_gpu_generator_mul_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00291">ufsecp_gpu_hash160_pubkey_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00196">ufsecp_gpu_last_error()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00310">ufsecp_gpu_msm()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00247">ufsecp_gpu_schnorr_verify_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00412">ufsecp_gpu_zk_dleq_verify_batch()</a>, and <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00389">ufsecp_gpu_zk_knowledge_verify_batch()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00498">ufsecp_gpu_bip324_aead_decrypt_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00473">ufsecp_gpu_bip324_aead_encrypt_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00620">ufsecp_gpu_bip352_scan_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00444">ufsecp_gpu_bulletproof_verify_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00168">ufsecp_gpu_ctx_create()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00140">ufsecp_gpu_device_info()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00272">ufsecp_gpu_ecdh_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00230">ufsecp_gpu_ecdsa_verify_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00364">ufsecp_gpu_ecrecover_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00331">ufsecp_gpu_frost_verify_partial_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00214">ufsecp_gpu_generator_mul_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00295">ufsecp_gpu_hash160_pubkey_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00200">ufsecp_gpu_last_error()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00314">ufsecp_gpu_msm()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00251">ufsecp_gpu_schnorr_verify_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00416">ufsecp_gpu_zk_dleq_verify_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00529">ufsecp_gpu_zk_ecdsa_snark_witness_batch()</a>, and <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00393">ufsecp_gpu_zk_knowledge_verify_batch()</a>.</p>
+
+</div>
+</div>
+<a id="ad68942965126a876fb2e100ea5b06556" name="ad68942965126a876fb2e100ea5b06556"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ad68942965126a876fb2e100ea5b06556">&#9670;&#160;</a></span>ufsecp_bip352_prepare_scan_plan()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="ufsecp__error_8h.html#ace9807a2d7e727c5d4dc3f8473118c9b">ufsecp_error_t</a> ufsecp_bip352_prepare_scan_plan </td>
+          <td>(</td>
+          <td class="paramtype">const uint8_t&#160;</td>
+          <td class="paramname"><em>scan_privkey32</em>[32], </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint8_t&#160;</td>
+          <td class="paramname"><em>plan264_out</em>[264]&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Precompute a BIP-352 scan key wNAF plan for repeated GPU batch calls.</p>
+<p>This is a CPU-only convenience function. Call it once per scan key and pass the resulting 264-byte plan to <a class="el" href="ufsecp__gpu_8h.html#a79c91b6f85a782d907a65cf1f90a8acf">ufsecp_gpu_bip352_scan_batch</a> for subsequent scanning. The plan encodes the GLV-decomposed wNAF digits so the GPU does not need to recompute them for each batch.</p>
+<p>No GPU context is required; call this before creating the GPU context if needed.</p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">scan_privkey32</td><td>32-byte scan private key (big-endian). SECRET. </td></tr>
+    <tr><td class="paramname">plan264_out</td><td>Output buffer of exactly 264 bytes. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>UFSECP_OK on success, UFSECP_ERR_BAD_KEY if the key is zero or otherwise invalid. </dd></dl>
+
+<p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00550">550</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
+
+<p class="reference">References <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html#ab42c494ac695a8a1f01ecb662d52883e">secp256k1::fast::Scalar::from_bytes()</a>, <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html#a2b3d5b020282b431e602d2ad60f099ae">secp256k1::fast::Scalar::is_zero()</a>, <a class="el" href="ufsecp__error_8h_source.html#l00026">UFSECP_ERR_BAD_KEY</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, and <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>.</p>
 
 </div>
 </div>
@@ -488,7 +539,7 @@ Variables</h2></td></tr>
 </div><div class="memdoc">
 <p>Return number of compiled-in GPU backends (0 if none). Fills backend_ids[] if non-NULL (caller allocates, size &gt;= count). </p>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00104">104</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00108">108</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
 
 </div>
 </div>
@@ -509,7 +560,7 @@ Variables</h2></td></tr>
 </div><div class="memdoc">
 <p>Return short name for a backend id ("CUDA", "OpenCL", "Metal", "none"). </p>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00114">114</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00118">118</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
 
 </div>
 </div>
@@ -599,9 +650,9 @@ Variables</h2></td></tr>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>UFSECP_OK on success. </dd></dl>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00494">494</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00498">498</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
 
-<p class="reference">References <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00040">ufsecp_gpu_ctx::backend</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00081">has_valid_bip324_sizes()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00028">kMaxGpuBatchN</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00049">to_abi_error()</a>, <a class="el" href="ufsecp__error_8h_source.html#l00029">UFSECP_ERR_BAD_INPUT</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00031">UFSECP_GPU_CATCH</a>, and <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>.</p>
+<p class="reference">References <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00044">ufsecp_gpu_ctx::backend</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00085">has_valid_bip324_sizes()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00032">kMaxGpuBatchN</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00053">to_abi_error()</a>, <a class="el" href="ufsecp__error_8h_source.html#l00029">UFSECP_ERR_BAD_INPUT</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00035">UFSECP_GPU_CATCH</a>, and <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>.</p>
 
 </div>
 </div>
@@ -684,9 +735,89 @@ Variables</h2></td></tr>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>UFSECP_OK on success. </dd></dl>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00469">469</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00473">473</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
 
-<p class="reference">References <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00040">ufsecp_gpu_ctx::backend</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00081">has_valid_bip324_sizes()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00028">kMaxGpuBatchN</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00049">to_abi_error()</a>, <a class="el" href="ufsecp__error_8h_source.html#l00029">UFSECP_ERR_BAD_INPUT</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00031">UFSECP_GPU_CATCH</a>, and <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>.</p>
+<p class="reference">References <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00044">ufsecp_gpu_ctx::backend</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00085">has_valid_bip324_sizes()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00032">kMaxGpuBatchN</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00053">to_abi_error()</a>, <a class="el" href="ufsecp__error_8h_source.html#l00029">UFSECP_ERR_BAD_INPUT</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00035">UFSECP_GPU_CATCH</a>, and <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>.</p>
+
+</div>
+</div>
+<a id="ac2319cd2bef527359e9e1eabfef0cba0" name="ac2319cd2bef527359e9e1eabfef0cba0"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ac2319cd2bef527359e9e1eabfef0cba0">&#9670;&#160;</a></span>ufsecp_gpu_bip352_scan_batch()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="ufsecp__error_8h.html#ace9807a2d7e727c5d4dc3f8473118c9b">ufsecp_error_t</a> ufsecp_gpu_bip352_scan_batch </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structufsecp__gpu__ctx.html">ufsecp_gpu_ctx</a> *&#160;</td>
+          <td class="paramname"><em>ctx</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const uint8_t&#160;</td>
+          <td class="paramname"><em>scan_privkey32</em>[32], </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const uint8_t&#160;</td>
+          <td class="paramname"><em>spend_pubkey33</em>[33], </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const uint8_t *&#160;</td>
+          <td class="paramname"><em>tweak_pubkeys33</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">size_t&#160;</td>
+          <td class="paramname"><em>n_tweaks</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint64_t *&#160;</td>
+          <td class="paramname"><em>prefix64_out</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>GPU batch BIP-352 Silent Payment scanning.</p>
+<p>For each sender tweak public key in the block, computes the full BIP-352 scanning pipeline and outputs the upper 64 bits of the <a class="el" href="namespacesecp256k1.html">secp256k1</a> x-coordinate of the candidate output point.</p>
+<p>Pipeline per tweak key:</p><ol type="1">
+<li>shared = scan_privkey × tweak_pubkey (GLV wNAF scalar mul)</li>
+<li>ser37 = compress(shared) ∥ [0x00,0x00,0x00,0x00]</li>
+<li>hash = SHA256_tagged("BIP0352/SharedSecret", ser37)</li>
+<li>output = hash × G</li>
+<li>cand = output + spend_pubkey</li>
+<li>prefix64 = upper 64 bits of cand.x</li>
+</ol>
+<p>The caller compares prefix64_out[i] against the upper 64 bits of every known output's x-coordinate in the block to detect matching Silent Payment outputs.</p>
+<p>SECRET-BEARING: scan_privkey32 is uploaded to device memory during this call. Callers should zeroize it immediately after the call if required.</p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">ctx</td><td>GPU context (OpenCL or CUDA; Metal returns UFSECP_ERR_GPU_UNSUPPORTED). </td></tr>
+    <tr><td class="paramname">scan_privkey32</td><td>32-byte scan private key (big-endian). SECRET. </td></tr>
+    <tr><td class="paramname">spend_pubkey33</td><td>33-byte compressed <a class="el" href="namespacesecp256k1.html">secp256k1</a> spend public key. </td></tr>
+    <tr><td class="paramname">tweak_pubkeys33</td><td>Input: n_tweaks × 33 bytes, compressed pubkeys. </td></tr>
+    <tr><td class="paramname">n_tweaks</td><td>Number of tweak keys to process. </td></tr>
+    <tr><td class="paramname">prefix64_out</td><td>Output: n_tweaks × uint64_t, one per tweak key. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>UFSECP_OK on success. UFSECP_ERR_BAD_KEY if any pubkey is invalid. UFSECP_ERR_GPU_UNSUPPORTED on Metal backend. </dd></dl>
+
+<p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00620">620</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
+
+<p class="reference">References <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00044">ufsecp_gpu_ctx::backend</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00032">kMaxGpuBatchN</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00053">to_abi_error()</a>, <a class="el" href="ufsecp__error_8h_source.html#l00029">UFSECP_ERR_BAD_INPUT</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, and <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00035">UFSECP_GPU_CATCH</a>.</p>
 
 </div>
 </div>
@@ -755,9 +886,9 @@ Variables</h2></td></tr>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>UFSECP_OK if batch processed; UFSECP_ERR_GPU_UNSUPPORTED if backend does not support this operation. </dd></dl>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00440">440</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00444">444</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
 
-<p class="reference">References <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00040">ufsecp_gpu_ctx::backend</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00090">has_valid_bulletproof_prefixes()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00063">has_valid_uncompressed_pubkeys()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00028">kMaxGpuBatchN</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00049">to_abi_error()</a>, <a class="el" href="ufsecp__error_8h_source.html#l00029">UFSECP_ERR_BAD_INPUT</a>, <a class="el" href="ufsecp__error_8h_source.html#l00027">UFSECP_ERR_BAD_PUBKEY</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00031">UFSECP_GPU_CATCH</a>, and <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>.</p>
+<p class="reference">References <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00044">ufsecp_gpu_ctx::backend</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00094">has_valid_bulletproof_prefixes()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00067">has_valid_uncompressed_pubkeys()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00032">kMaxGpuBatchN</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00053">to_abi_error()</a>, <a class="el" href="ufsecp__error_8h_source.html#l00029">UFSECP_ERR_BAD_INPUT</a>, <a class="el" href="ufsecp__error_8h_source.html#l00027">UFSECP_ERR_BAD_PUBKEY</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00035">UFSECP_GPU_CATCH</a>, and <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>.</p>
 
 </div>
 </div>
@@ -802,9 +933,9 @@ Variables</h2></td></tr>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>UFSECP_OK on success. </dd></dl>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00164">164</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00168">168</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
 
-<p class="reference">References <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00040">ufsecp_gpu_ctx::backend</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00049">to_abi_error()</a>, <a class="el" href="ufsecp__gpu_8h_source.html#l00072">UFSECP_ERR_GPU_UNAVAILABLE</a>, <a class="el" href="ufsecp__error_8h_source.html#l00033">UFSECP_ERR_INTERNAL</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00031">UFSECP_GPU_CATCH</a>, and <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>.</p>
+<p class="reference">References <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00044">ufsecp_gpu_ctx::backend</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00053">to_abi_error()</a>, <a class="el" href="ufsecp__gpu_8h_source.html#l00072">UFSECP_ERR_GPU_UNAVAILABLE</a>, <a class="el" href="ufsecp__error_8h_source.html#l00033">UFSECP_ERR_INTERNAL</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00035">UFSECP_GPU_CATCH</a>, and <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>.</p>
 
 </div>
 </div>
@@ -825,9 +956,9 @@ Variables</h2></td></tr>
 </div><div class="memdoc">
 <p>Destroy a GPU context and release all device resources. </p>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00189">189</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00193">193</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
 
-<p class="reference">References <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00040">ufsecp_gpu_ctx::backend</a>.</p>
+<p class="reference">References <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00044">ufsecp_gpu_ctx::backend</a>.</p>
 
 </div>
 </div>
@@ -848,7 +979,7 @@ Variables</h2></td></tr>
 </div><div class="memdoc">
 <p>Return number of devices for the given backend (0 if unavailable). </p>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00128">128</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00132">132</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
 
 </div>
 </div>
@@ -885,9 +1016,9 @@ Variables</h2></td></tr>
 </div><div class="memdoc">
 <p>Fill device info for (backend_id, device_index). </p>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00136">136</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00140">140</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
 
-<p class="reference">References <a class="el" href="ufsecp__gpu_8h_source.html#l00119">ufsecp_gpu_device_info_t::backend_id</a>, <a class="el" href="ufsecp__gpu_8h_source.html#l00116">ufsecp_gpu_device_info_t::compute_units</a>, <a class="el" href="ufsecp__gpu_8h_source.html#l00120">ufsecp_gpu_device_info_t::device_index</a>, <a class="el" href="ufsecp__gpu_8h_source.html#l00115">ufsecp_gpu_device_info_t::global_mem_bytes</a>, <a class="el" href="ufsecp__gpu_8h_source.html#l00117">ufsecp_gpu_device_info_t::max_clock_mhz</a>, <a class="el" href="ufsecp__gpu_8h_source.html#l00118">ufsecp_gpu_device_info_t::max_threads_per_block</a>, <a class="el" href="ufsecp__gpu_8h_source.html#l00114">ufsecp_gpu_device_info_t::name</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00049">to_abi_error()</a>, <a class="el" href="ufsecp__gpu_8h_source.html#l00072">UFSECP_ERR_GPU_UNAVAILABLE</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00031">UFSECP_GPU_CATCH</a>, and <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>.</p>
+<p class="reference">References <a class="el" href="ufsecp__gpu_8h_source.html#l00119">ufsecp_gpu_device_info_t::backend_id</a>, <a class="el" href="ufsecp__gpu_8h_source.html#l00116">ufsecp_gpu_device_info_t::compute_units</a>, <a class="el" href="ufsecp__gpu_8h_source.html#l00120">ufsecp_gpu_device_info_t::device_index</a>, <a class="el" href="ufsecp__gpu_8h_source.html#l00115">ufsecp_gpu_device_info_t::global_mem_bytes</a>, <a class="el" href="ufsecp__gpu_8h_source.html#l00117">ufsecp_gpu_device_info_t::max_clock_mhz</a>, <a class="el" href="ufsecp__gpu_8h_source.html#l00118">ufsecp_gpu_device_info_t::max_threads_per_block</a>, <a class="el" href="ufsecp__gpu_8h_source.html#l00114">ufsecp_gpu_device_info_t::name</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00053">to_abi_error()</a>, <a class="el" href="ufsecp__gpu_8h_source.html#l00072">UFSECP_ERR_GPU_UNAVAILABLE</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00035">UFSECP_GPU_CATCH</a>, and <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>.</p>
 
 </div>
 </div>
@@ -948,9 +1079,9 @@ Variables</h2></td></tr>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>UFSECP_OK on success. </dd></dl>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00268">268</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00272">272</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
 
-<p class="reference">References <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00040">ufsecp_gpu_ctx::backend</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00053">has_valid_compressed_pubkeys()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00028">kMaxGpuBatchN</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00049">to_abi_error()</a>, <a class="el" href="ufsecp__error_8h_source.html#l00029">UFSECP_ERR_BAD_INPUT</a>, <a class="el" href="ufsecp__error_8h_source.html#l00027">UFSECP_ERR_BAD_PUBKEY</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00031">UFSECP_GPU_CATCH</a>, and <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>.</p>
+<p class="reference">References <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00044">ufsecp_gpu_ctx::backend</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00057">has_valid_compressed_pubkeys()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00032">kMaxGpuBatchN</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00053">to_abi_error()</a>, <a class="el" href="ufsecp__error_8h_source.html#l00029">UFSECP_ERR_BAD_INPUT</a>, <a class="el" href="ufsecp__error_8h_source.html#l00027">UFSECP_ERR_BAD_PUBKEY</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00035">UFSECP_GPU_CATCH</a>, and <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>.</p>
 
 </div>
 </div>
@@ -1018,9 +1149,9 @@ Variables</h2></td></tr>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>UFSECP_OK if batch processed (check out_results for per-item). GPU-specific error codes on device failure. </dd></dl>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00226">226</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00230">230</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
 
-<p class="reference">References <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00040">ufsecp_gpu_ctx::backend</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00028">kMaxGpuBatchN</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00049">to_abi_error()</a>, <a class="el" href="ufsecp__error_8h_source.html#l00029">UFSECP_ERR_BAD_INPUT</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00031">UFSECP_GPU_CATCH</a>, and <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>.</p>
+<p class="reference">References <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00044">ufsecp_gpu_ctx::backend</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00032">kMaxGpuBatchN</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00053">to_abi_error()</a>, <a class="el" href="ufsecp__error_8h_source.html#l00029">UFSECP_ERR_BAD_INPUT</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00035">UFSECP_GPU_CATCH</a>, and <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>.</p>
 
 </div>
 </div>
@@ -1094,9 +1225,9 @@ Variables</h2></td></tr>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>UFSECP_OK if batch processed; UFSECP_ERR_GPU_UNSUPPORTED if backend does not support this operation. </dd></dl>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00360">360</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00364">364</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
 
-<p class="reference">References <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00040">ufsecp_gpu_ctx::backend</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00072">has_valid_recovery_ids()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00028">kMaxGpuBatchN</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00049">to_abi_error()</a>, <a class="el" href="ufsecp__error_8h_source.html#l00029">UFSECP_ERR_BAD_INPUT</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00031">UFSECP_GPU_CATCH</a>, and <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>.</p>
+<p class="reference">References <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00044">ufsecp_gpu_ctx::backend</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00076">has_valid_recovery_ids()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00032">kMaxGpuBatchN</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00053">to_abi_error()</a>, <a class="el" href="ufsecp__error_8h_source.html#l00029">UFSECP_ERR_BAD_INPUT</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00035">UFSECP_GPU_CATCH</a>, and <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>.</p>
 
 </div>
 </div>
@@ -1117,7 +1248,7 @@ Variables</h2></td></tr>
 </div><div class="memdoc">
 <p>Map GPU-specific error code to description (passes through to ufsecp_error_str for CPU error codes). </p>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00525">525</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00641">641</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
 
 <p class="reference">References <a class="el" href="ufsecp__error_8h_source.html#l00031">UFSECP_ERR_ARITH</a>, <a class="el" href="ufsecp__error_8h_source.html#l00029">UFSECP_ERR_BAD_INPUT</a>, <a class="el" href="ufsecp__error_8h_source.html#l00026">UFSECP_ERR_BAD_KEY</a>, <a class="el" href="ufsecp__error_8h_source.html#l00027">UFSECP_ERR_BAD_PUBKEY</a>, <a class="el" href="ufsecp__error_8h_source.html#l00028">UFSECP_ERR_BAD_SIG</a>, <a class="el" href="ufsecp__error_8h_source.html#l00034">UFSECP_ERR_BUF_TOO_SMALL</a>, <a class="el" href="ufsecp__gpu_8h_source.html#l00077">UFSECP_ERR_GPU_BACKEND</a>, <a class="el" href="ufsecp__gpu_8h_source.html#l00073">UFSECP_ERR_GPU_DEVICE</a>, <a class="el" href="ufsecp__gpu_8h_source.html#l00074">UFSECP_ERR_GPU_LAUNCH</a>, <a class="el" href="ufsecp__gpu_8h_source.html#l00075">UFSECP_ERR_GPU_MEMORY</a>, <a class="el" href="ufsecp__gpu_8h_source.html#l00078">UFSECP_ERR_GPU_QUEUE</a>, <a class="el" href="ufsecp__gpu_8h_source.html#l00072">UFSECP_ERR_GPU_UNAVAILABLE</a>, <a class="el" href="ufsecp__gpu_8h_source.html#l00076">UFSECP_ERR_GPU_UNSUPPORTED</a>, <a class="el" href="ufsecp__error_8h_source.html#l00033">UFSECP_ERR_INTERNAL</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, <a class="el" href="ufsecp__error_8h_source.html#l00032">UFSECP_ERR_SELFTEST</a>, <a class="el" href="ufsecp__error_8h_source.html#l00030">UFSECP_ERR_VERIFY_FAIL</a>, and <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>.</p>
 
@@ -1222,9 +1353,9 @@ Variables</h2></td></tr>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>UFSECP_OK if batch processed (check out_results for per-entry result). UFSECP_ERR_UNSUPPORTED if backend does not support FROST. </dd></dl>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00327">327</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00331">331</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
 
-<p class="reference">References <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00040">ufsecp_gpu_ctx::backend</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00053">has_valid_compressed_pubkeys()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00028">kMaxGpuBatchN</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00049">to_abi_error()</a>, <a class="el" href="ufsecp__error_8h_source.html#l00029">UFSECP_ERR_BAD_INPUT</a>, <a class="el" href="ufsecp__error_8h_source.html#l00027">UFSECP_ERR_BAD_PUBKEY</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00031">UFSECP_GPU_CATCH</a>, and <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>.</p>
+<p class="reference">References <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00044">ufsecp_gpu_ctx::backend</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00057">has_valid_compressed_pubkeys()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00032">kMaxGpuBatchN</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00053">to_abi_error()</a>, <a class="el" href="ufsecp__error_8h_source.html#l00029">UFSECP_ERR_BAD_INPUT</a>, <a class="el" href="ufsecp__error_8h_source.html#l00027">UFSECP_ERR_BAD_PUBKEY</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00035">UFSECP_GPU_CATCH</a>, and <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>.</p>
 
 </div>
 </div>
@@ -1278,9 +1409,9 @@ Variables</h2></td></tr>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>UFSECP_OK on success. </dd></dl>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00210">210</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00214">214</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
 
-<p class="reference">References <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00040">ufsecp_gpu_ctx::backend</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00028">kMaxGpuBatchN</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00049">to_abi_error()</a>, <a class="el" href="ufsecp__error_8h_source.html#l00029">UFSECP_ERR_BAD_INPUT</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00031">UFSECP_GPU_CATCH</a>, and <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>.</p>
+<p class="reference">References <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00044">ufsecp_gpu_ctx::backend</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00032">kMaxGpuBatchN</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00053">to_abi_error()</a>, <a class="el" href="ufsecp__error_8h_source.html#l00029">UFSECP_ERR_BAD_INPUT</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00035">UFSECP_GPU_CATCH</a>, and <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>.</p>
 
 </div>
 </div>
@@ -1334,9 +1465,9 @@ Variables</h2></td></tr>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>UFSECP_OK on success. </dd></dl>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00291">291</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00295">295</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
 
-<p class="reference">References <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00040">ufsecp_gpu_ctx::backend</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00053">has_valid_compressed_pubkeys()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00028">kMaxGpuBatchN</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00049">to_abi_error()</a>, <a class="el" href="ufsecp__error_8h_source.html#l00029">UFSECP_ERR_BAD_INPUT</a>, <a class="el" href="ufsecp__error_8h_source.html#l00027">UFSECP_ERR_BAD_PUBKEY</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00031">UFSECP_GPU_CATCH</a>, and <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>.</p>
+<p class="reference">References <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00044">ufsecp_gpu_ctx::backend</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00057">has_valid_compressed_pubkeys()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00032">kMaxGpuBatchN</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00053">to_abi_error()</a>, <a class="el" href="ufsecp__error_8h_source.html#l00029">UFSECP_ERR_BAD_INPUT</a>, <a class="el" href="ufsecp__error_8h_source.html#l00027">UFSECP_ERR_BAD_PUBKEY</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00035">UFSECP_GPU_CATCH</a>, and <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>.</p>
 
 </div>
 </div>
@@ -1357,7 +1488,7 @@ Variables</h2></td></tr>
 </div><div class="memdoc">
 <p>Return 1 if the backend is compiled in AND at least one device exists. </p>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00123">123</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00127">127</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
 
 </div>
 </div>
@@ -1378,9 +1509,9 @@ Variables</h2></td></tr>
 </div><div class="memdoc">
 <p>Return the last error code from this GPU context. </p>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00196">196</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00200">200</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
 
-<p class="reference">References <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00040">ufsecp_gpu_ctx::backend</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00049">to_abi_error()</a>, and <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>.</p>
+<p class="reference">References <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00044">ufsecp_gpu_ctx::backend</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00053">to_abi_error()</a>, and <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>.</p>
 
 </div>
 </div>
@@ -1401,9 +1532,9 @@ Variables</h2></td></tr>
 </div><div class="memdoc">
 <p>Return the last error message from this GPU context (never NULL). The returned pointer is borrowed storage owned by ctx/backend state. It remains valid until the next call that mutates the same ctx, or until ufsecp_gpu_ctx_destroy(ctx). Copy it if it must outlive the context/call. </p>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00201">201</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00205">205</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
 
-<p class="reference">References <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00040">ufsecp_gpu_ctx::backend</a>.</p>
+<p class="reference">References <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00044">ufsecp_gpu_ctx::backend</a>.</p>
 
 </div>
 </div>
@@ -1464,9 +1595,9 @@ Variables</h2></td></tr>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>UFSECP_OK on success. UFSECP_ERR_ARITH if result is point at infinity. </dd></dl>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00310">310</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00314">314</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
 
-<p class="reference">References <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00040">ufsecp_gpu_ctx::backend</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00028">kMaxGpuBatchN</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00049">to_abi_error()</a>, <a class="el" href="ufsecp__error_8h_source.html#l00029">UFSECP_ERR_BAD_INPUT</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00031">UFSECP_GPU_CATCH</a>, and <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>.</p>
+<p class="reference">References <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00044">ufsecp_gpu_ctx::backend</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00032">kMaxGpuBatchN</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00053">to_abi_error()</a>, <a class="el" href="ufsecp__error_8h_source.html#l00029">UFSECP_ERR_BAD_INPUT</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00035">UFSECP_GPU_CATCH</a>, and <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>.</p>
 
 </div>
 </div>
@@ -1534,9 +1665,9 @@ Variables</h2></td></tr>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>UFSECP_OK if batch processed (check out_results for per-item). </dd></dl>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00247">247</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00251">251</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
 
-<p class="reference">References <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00040">ufsecp_gpu_ctx::backend</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00028">kMaxGpuBatchN</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00049">to_abi_error()</a>, <a class="el" href="ufsecp__error_8h_source.html#l00029">UFSECP_ERR_BAD_INPUT</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00031">UFSECP_GPU_CATCH</a>, and <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>.</p>
+<p class="reference">References <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00044">ufsecp_gpu_ctx::backend</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00032">kMaxGpuBatchN</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00053">to_abi_error()</a>, <a class="el" href="ufsecp__error_8h_source.html#l00029">UFSECP_ERR_BAD_INPUT</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00035">UFSECP_GPU_CATCH</a>, and <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>.</p>
 
 </div>
 </div>
@@ -1619,9 +1750,78 @@ Variables</h2></td></tr>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>UFSECP_OK if batch processed; UFSECP_ERR_GPU_UNSUPPORTED if backend does not support this operation. </dd></dl>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00412">412</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00416">416</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
 
-<p class="reference">References <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00040">ufsecp_gpu_ctx::backend</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00063">has_valid_uncompressed_pubkeys()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00028">kMaxGpuBatchN</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00049">to_abi_error()</a>, <a class="el" href="ufsecp__error_8h_source.html#l00029">UFSECP_ERR_BAD_INPUT</a>, <a class="el" href="ufsecp__error_8h_source.html#l00027">UFSECP_ERR_BAD_PUBKEY</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00031">UFSECP_GPU_CATCH</a>, and <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>.</p>
+<p class="reference">References <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00044">ufsecp_gpu_ctx::backend</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00067">has_valid_uncompressed_pubkeys()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00032">kMaxGpuBatchN</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00053">to_abi_error()</a>, <a class="el" href="ufsecp__error_8h_source.html#l00029">UFSECP_ERR_BAD_INPUT</a>, <a class="el" href="ufsecp__error_8h_source.html#l00027">UFSECP_ERR_BAD_PUBKEY</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00035">UFSECP_GPU_CATCH</a>, and <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>.</p>
+
+</div>
+</div>
+<a id="a014362759d072060d0f58420d577f312" name="a014362759d072060d0f58420d577f312"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a014362759d072060d0f58420d577f312">&#9670;&#160;</a></span>ufsecp_gpu_zk_ecdsa_snark_witness_batch()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="ufsecp__error_8h.html#ace9807a2d7e727c5d4dc3f8473118c9b">ufsecp_error_t</a> ufsecp_gpu_zk_ecdsa_snark_witness_batch </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structufsecp__gpu__ctx.html">ufsecp_gpu_ctx</a> *&#160;</td>
+          <td class="paramname"><em>ctx</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const uint8_t *&#160;</td>
+          <td class="paramname"><em>msg_hashes32</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const uint8_t *&#160;</td>
+          <td class="paramname"><em>pubkeys33</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const uint8_t *&#160;</td>
+          <td class="paramname"><em>sigs64</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">size_t&#160;</td>
+          <td class="paramname"><em>count</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint8_t *&#160;</td>
+          <td class="paramname"><em>out_witnesses</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Compute ECDSA SNARK witnesses for a batch of (message, pubkey, sig) tuples.</p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">ctx</td><td>GPU context returned by ufsecp_gpu_context_create(). </td></tr>
+    <tr><td class="paramname">msg_hashes32</td><td>Input: count × 32 bytes (one BE SHA-256 hash per item). </td></tr>
+    <tr><td class="paramname">pubkeys33</td><td>Input: count × 33 bytes (compressed SEC1 public keys). </td></tr>
+    <tr><td class="paramname">sigs64</td><td>Input: count × 64 bytes (BE compact r|s signatures). </td></tr>
+    <tr><td class="paramname">count</td><td>Number of items to process. </td></tr>
+    <tr><td class="paramname">out_witnesses</td><td>Output: count × UFSECP_ECDSA_SNARK_WITNESS_BYTES bytes. Each 760-byte record contains input values, intermediate witness scalars, and 5×52-bit foreign-field limbs. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>UFSECP_OK on success, or an error code on failure. Returns UFSECP_ERR_UNSUPPORTED on Metal (no MSL shader yet). </dd></dl>
+
+<p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00529">529</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
+
+<p class="reference">References <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00044">ufsecp_gpu_ctx::backend</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00032">kMaxGpuBatchN</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00053">to_abi_error()</a>, <a class="el" href="ufsecp__error_8h_source.html#l00029">UFSECP_ERR_BAD_INPUT</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, and <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00035">UFSECP_GPU_CATCH</a>.</p>
 
 </div>
 </div>
@@ -1690,9 +1890,9 @@ Variables</h2></td></tr>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>UFSECP_OK if batch processed; UFSECP_ERR_GPU_UNSUPPORTED if backend does not support this operation. </dd></dl>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00389">389</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00393">393</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
 
-<p class="reference">References <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00040">ufsecp_gpu_ctx::backend</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00063">has_valid_uncompressed_pubkeys()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00028">kMaxGpuBatchN</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00049">to_abi_error()</a>, <a class="el" href="ufsecp__error_8h_source.html#l00029">UFSECP_ERR_BAD_INPUT</a>, <a class="el" href="ufsecp__error_8h_source.html#l00027">UFSECP_ERR_BAD_PUBKEY</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00031">UFSECP_GPU_CATCH</a>, and <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>.</p>
+<p class="reference">References <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00044">ufsecp_gpu_ctx::backend</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00067">has_valid_uncompressed_pubkeys()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00032">kMaxGpuBatchN</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00053">to_abi_error()</a>, <a class="el" href="ufsecp__error_8h_source.html#l00029">UFSECP_ERR_BAD_INPUT</a>, <a class="el" href="ufsecp__error_8h_source.html#l00027">UFSECP_ERR_BAD_PUBKEY</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00035">UFSECP_GPU_CATCH</a>, and <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>.</p>
 
 </div>
 </div>
@@ -1717,9 +1917,9 @@ Variables</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00028">28</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00032">32</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00494">ufsecp_gpu_bip324_aead_decrypt_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00469">ufsecp_gpu_bip324_aead_encrypt_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00440">ufsecp_gpu_bulletproof_verify_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00268">ufsecp_gpu_ecdh_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00226">ufsecp_gpu_ecdsa_verify_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00360">ufsecp_gpu_ecrecover_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00327">ufsecp_gpu_frost_verify_partial_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00210">ufsecp_gpu_generator_mul_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00291">ufsecp_gpu_hash160_pubkey_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00310">ufsecp_gpu_msm()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00247">ufsecp_gpu_schnorr_verify_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00412">ufsecp_gpu_zk_dleq_verify_batch()</a>, and <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00389">ufsecp_gpu_zk_knowledge_verify_batch()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00498">ufsecp_gpu_bip324_aead_decrypt_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00473">ufsecp_gpu_bip324_aead_encrypt_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00620">ufsecp_gpu_bip352_scan_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00444">ufsecp_gpu_bulletproof_verify_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00272">ufsecp_gpu_ecdh_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00230">ufsecp_gpu_ecdsa_verify_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00364">ufsecp_gpu_ecrecover_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00331">ufsecp_gpu_frost_verify_partial_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00214">ufsecp_gpu_generator_mul_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00295">ufsecp_gpu_hash160_pubkey_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00314">ufsecp_gpu_msm()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00251">ufsecp_gpu_schnorr_verify_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00416">ufsecp_gpu_zk_dleq_verify_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00529">ufsecp_gpu_zk_ecdsa_snark_witness_batch()</a>, and <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00393">ufsecp_gpu_zk_knowledge_verify_batch()</a>.</p>
 
 </div>
 </div>

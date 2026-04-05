@@ -1,6 +1,8 @@
 var namespacesecp256k1_1_1zk =
 [
     [ "DLEQProof", "structsecp256k1_1_1zk_1_1DLEQProof.html", "structsecp256k1_1_1zk_1_1DLEQProof" ],
+    [ "EcdsaSnarkWitness", "structsecp256k1_1_1zk_1_1EcdsaSnarkWitness.html", "structsecp256k1_1_1zk_1_1EcdsaSnarkWitness" ],
+    [ "ForeignFieldLimbs", "structsecp256k1_1_1zk_1_1ForeignFieldLimbs.html", "structsecp256k1_1_1zk_1_1ForeignFieldLimbs" ],
     [ "GeneratorVectors", "structsecp256k1_1_1zk_1_1GeneratorVectors.html", "structsecp256k1_1_1zk_1_1GeneratorVectors" ],
     [ "KnowledgeProof", "structsecp256k1_1_1zk_1_1KnowledgeProof.html", "structsecp256k1_1_1zk_1_1KnowledgeProof" ],
     [ "RangeProof", "structsecp256k1_1_1zk_1_1RangeProof.html", "structsecp256k1_1_1zk_1_1RangeProof" ],
@@ -8,6 +10,7 @@ var namespacesecp256k1_1_1zk =
     [ "batch_range_verify", "namespacesecp256k1_1_1zk.html#a9d6eca241910168d723f7a9a5eb97414", null ],
     [ "dleq_prove", "namespacesecp256k1_1_1zk.html#a9705abaabe6408859c60ebdf8f2bfb69", null ],
     [ "dleq_verify", "namespacesecp256k1_1_1zk.html#a9e1bdd97b67d99f19dd0231b704c150e", null ],
+    [ "ecdsa_snark_witness", "namespacesecp256k1_1_1zk.html#a9b9876fcc9c163dbeeea895624cd22bb", null ],
     [ "get_generator_vectors", "namespacesecp256k1_1_1zk.html#a14ba4085afe20bce0dc2ab3cf26d3b90", null ],
     [ "knowledge_prove", "namespacesecp256k1_1_1zk.html#aae63adf5fc56261c1fedc19ee9b4cf0d", null ],
     [ "knowledge_prove_base", "namespacesecp256k1_1_1zk.html#abe5776b34958857df886055f0750b26a", null ],

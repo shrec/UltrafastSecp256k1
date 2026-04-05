@@ -5,7 +5,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=11"/>
 <meta name="generator" content="Doxygen 1.9.8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>UltrafastSecp256k1: UltrafastSecp256k1 — GPU-Accelerated secp256k1 · ECDSA · Schnorr · FROST · BIP-340 · BIP-352 · CUDA · OpenCL · Metal · ARM64 · RISC-V · WASM</title>
+<title>UltrafastSecp256k1: UltrafastSecp256k1</title>
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
 <script type="text/javascript" src="dynsections.js"></script>
@@ -90,21 +90,86 @@ $(document).ready(function(){initNavTree('index.html',''); initResizable(); });
 </div>
 
 <div><div class="header">
-  <div class="headertitle"><div class="title">UltrafastSecp256k1 — GPU-Accelerated <a class="el" href="namespacesecp256k1.html">secp256k1</a> · ECDSA · Schnorr · FROST · BIP-340 · BIP-352 · CUDA · OpenCL · Metal · ARM64 · RISC-V · WASM </div></div>
+  <div class="headertitle"><div class="title">UltrafastSecp256k1 </div></div>
 </div><!--header-->
 <div class="contents">
 <div class="textblock"><p><a class="anchor" id="md_README"></a> <a href="https://github.com/shrec/UltrafastSecp256k1/actions/workflows/ci.yml"><img src="https://github.com/shrec/UltrafastSecp256k1/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI" style="pointer-events: none;" class="inline"/></a> <a href="https://github.com/shrec/UltrafastSecp256k1/actions/workflows/ct-verif.yml"><img src="https://github.com/shrec/UltrafastSecp256k1/actions/workflows/ct-verif.yml/badge.svg?branch=main" alt="ct-verif" style="pointer-events: none;" class="inline"/></a> <a href="https://github.com/shrec/UltrafastSecp256k1/actions/workflows/codeql.yml"><img src="https://github.com/shrec/UltrafastSecp256k1/actions/workflows/codeql.yml/badge.svg?branch=main" alt="CodeQL" style="pointer-events: none;" class="inline"/></a> <a href="https://securityscorecards.dev/viewer/?uri=github.com/shrec/UltrafastSecp256k1"><img src="https://api.securityscorecards.dev/projects/github.com/shrec/UltrafastSecp256k1/badge" alt="OSSF Scorecard" class="inline"/></a> <a href="https://github.com/shrec/UltrafastSecp256k1/actions/workflows/gpu-selfhosted.yml"><img src="https://github.com/shrec/UltrafastSecp256k1/actions/workflows/gpu-selfhosted.yml/badge.svg" alt="GPU Self-Hosted" style="pointer-events: none;" class="inline"/></a></p>
-<p><b>Audit-first, high-performance <a class="el" href="namespacesecp256k1.html">secp256k1</a> engine for C++ and GPU-scale batch workloads</b> — built independently from scratch for Bitcoin, Ethereum, Silent Payments, threshold signatures (FROST, MuSig2), embedded systems, and reproducible benchmarking. UltrafastSecp256k1 combines optimized CPU arithmetic, a stable multi-backend GPU C ABI, <b>world-first open-source GPU FROST partial verification</b>, constant-time CPU signing paths, HD key derivation (BIP-32/44), Taproot (BIP-340/341), ZK range proofs, and 12+ platform targets including CUDA, OpenCL, Metal, WebAssembly, RISC-V, ESP32, and STM32.</p>
+<p>High-performance, multi-backend <a class="el" href="namespacesecp256k1.html">secp256k1</a> engine with continuous audit and adversarial verification.</p>
+<hr  />
+<h1><a class="anchor" id="autotoc_md19"></a>
+What Is This?</h1>
+<p>UltrafastSecp256k1 is:</p>
+<ul>
+<li>⚡ <b>High-throughput ECC engine</b> — CPU + GPU + embedded (CUDA, OpenCL, Metal, ARM64, RISC-V, WASM, ESP32, STM32)</li>
+<li>🔐 <b>Cryptographic stack</b> — ECDSA, Schnorr, FROST, MuSig2, Taproot, BIP-352 Silent Payments, ZK Proofs, ECDH</li>
+<li>🧠 <b>Continuous audit system</b> — 1,000,000+ assertions per build, 58 modules, 0 failures — not a snapshot</li>
+<li>🧪 <b>Adversarially tested</b> — 157 exploit PoC tests, 11 fuzzer harnesses, 39 formal Cryptol properties, 3 independent CT pipelines</li>
+</ul>
 <blockquote class="doxtable">
-<p>&zwj;<b>This project is two things at once:</b> <b>1. A high-performance <a class="el" href="namespacesecp256k1.html">secp256k1</a> engine</b> — GPU-accelerated, multi-platform, production-hardened. <b>2. A continuous, self-evolving audit system</b> — every exploit attempt becomes a permanent regression test. Security is treated as an ongoing process, not a static document. → How the audit system works </p>
+<p>&zwj;Security is not assumed — it is continuously verified on every commit. </p>
 </blockquote>
+<p><b>11.00 M BIP352 scans/s</b> · <b>4.88 M ECDSA signs/s</b> · <b>4.05 M ECDSA verifies/s</b> · <b>3.66 M Schnorr signs/s</b> · <b>5.38 M Schnorr verifies/s</b> · <b>1.34 M FROST partial verifies/s</b> · <b>97.2 M point compressions/s</b> — RTX 5060 Ti (CUDA 12)</p>
+<p>Known production use: <a href="https://github.com/sparrowwallet/frigate">Sparrow Wallet Frigate</a> — Details →</p>
+<hr  />
+<h1><a class="anchor" id="autotoc_md21"></a>
+Quick Start</h1>
+<p><b>Option A — Linux (apt)</b> </p><div class="fragment"><div class="line">sudo apt install libufsecp3</div>
+<div class="line">ufsecp_selftest          # Expected: &quot;OK (version 3.x, backend CPU)&quot;</div>
+</div><!-- fragment --><p><b>Option B — npm (any OS)</b> </p><div class="fragment"><div class="line">npm i ufsecp</div>
+<div class="line">node -e &quot;require(&#39;ufsecp&#39;).selftest()&quot;</div>
+</div><!-- fragment --><p><b>Option C — Python (any OS)</b> </p><div class="fragment"><div class="line">pip install ufsecp</div>
+<div class="line">python -c &quot;import ufsecp; ufsecp.selftest()&quot;</div>
+</div><!-- fragment --><p><b>Option D — Build from source</b> </p><div class="fragment"><div class="line">git clone https://github.com/shrec/UltrafastSecp256k1.git &amp;&amp; cd UltrafastSecp256k1</div>
+<div class="line">cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release &amp;&amp; cmake --build build -j</div>
+<div class="line">./build/selftest          # Expected: &quot;ALL TESTS PASSED&quot;</div>
+</div><!-- fragment --><p>→ Full installation guide · Build from source</p>
+<hr  />
+<h1><a class="anchor" id="autotoc_md23"></a>
+Where to Start</h1>
+<table class="markdownTable">
+<tr class="markdownTableHead">
+<th class="markdownTableHeadNone">If you want to…   </th><th class="markdownTableHeadNone">Go here    </th></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone">🔍 Run the audit   </td><td class="markdownTableBodyNone">docs/AUDIT_GUIDE.md    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone">⚔️ Try to break the system   </td><td class="markdownTableBodyNone">docs/ATTACK_GUIDE.md    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone">📊 Understand the guarantees   </td><td class="markdownTableBodyNone">docs/AUDIT_TRACEABILITY.md    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone">📄 See latest audit results   </td><td class="markdownTableBodyNone">AUDIT_REPORT.md    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone">🏗️ Build guide   </td><td class="markdownTableBodyNone">docs/BUILDING.md    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone">🔗 C ABI / FFI reference   </td><td class="markdownTableBodyNone">docs/API_REFERENCE.md    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone">📦 Install packages   </td><td class="markdownTableBodyNone">Installation    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone">🤔 Why this library?   </td><td class="markdownTableBodyNone">WHY_ULTRAFASTSECP256K1.md    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone">🌐 Sponsor   </td><td class="markdownTableBodyNone"><a href="https://github.com/sponsors/shrec">github.com/sponsors/shrec</a>   </td></tr>
+</table>
 <blockquote class="doxtable">
-<p>&zwj;<b>Keywords:</b> <a class="el" href="namespacesecp256k1.html">secp256k1</a> GPU · ECDSA batch verify · Schnorr BIP-340 · FROST threshold signatures · MuSig2 · Bitcoin cryptography · CUDA <a class="el" href="namespacesecp256k1.html">secp256k1</a> · OpenCL ECC · BIP-352 Silent Payments · constant-time cryptography · embedded ECC · WebAssembly crypto </p>
+<p>&zwj;<b>Claim map:</b> docs/ASSURANCE_LEDGER.md · <b>Security policy:</b> SECURITY.md · <b>Discord:</b> <a href="https://discord.gg/E4BK8SeMYU">discord.gg/E4BK8SeMYU</a> </p>
 </blockquote>
+<h1><a class="anchor" id="autotoc_md24"></a>
+&lt;/blockquote&gt;</h1>
+<h1><a class="anchor" id="autotoc_md25"></a>
+Why This Exists</h1>
+<p>Traditional model: <code>code → audit PDF → trust</code></p>
+<p>This project: <code>code → test → execution → evidence → continuous verification</code></p>
+<p>We do not rely on trust. We provide reproducible evidence.</p>
+<ul>
+<li>Every exploit attempt becomes a permanent regression test</li>
+<li>Every commit runs 1,000,000+ assertions across 58 audit modules</li>
+<li>Every claim maps to a test in docs/AUDIT_TRACEABILITY.md</li>
+<li>Every performance number has pinned compiler/driver/toolkit versions and raw logs</li>
+</ul>
 <blockquote class="doxtable">
-<p>&zwj;<b>11.00 M BIP352 scans/s</b> · <b>4.88 M ECDSA signs/s</b> · <b>4.05 M ECDSA verifies/s</b> · <b>3.66 M Schnorr signs/s</b> · <b>5.38 M Schnorr verifies/s</b> · <b>1.34 M FROST partial verifies/s</b> · <b>97.2 M point compressions/s</b> — single GPU (RTX 5060 Ti SM 12.0) </p>
+<p>&zwj;If a claim cannot be traced to a test, it is not valid. </p>
 </blockquote>
-<h1><a class="anchor" id="autotoc_md18"></a>
+<p>For the full breakdown of the audit culture, CI/CD pipeline, formal verification layers, and supply-chain hardening, see WHY_ULTRAFASTSECP256K1.md.</p>
+<hr  />
+<h1><a class="anchor" id="autotoc_md27"></a>
 Recent Performance Milestones (March 2026)</h1>
 <p>All measurements: RTX 5060 Ti (SM 12.0, CUDA 12), batch=16 384, kernel-only throughput.</p>
 <table class="markdownTable">
@@ -124,10 +189,13 @@ Recent Performance Milestones (March 2026)</h1>
 <blockquote class="doxtable">
 <p>&zwj;The ECDSA and Schnorr verify speedups come from the Shamir+GLV double-scalar multiplication, INT32 field arithmetic, and warp-level reduction pipeline. FROST partial verify is now callable via the stable C ABI as `ufsecp_gpu_frost_verify_partial_batch()`. </p>
 </blockquote>
-<h1><a class="anchor" id="autotoc_md19"></a>
-Why UltrafastSecp256k1?</h1>
+<h1><a class="anchor" id="autotoc_md28"></a>
+Why UltrafastSecp256k1? — Detail</h1>
+<blockquote class="doxtable">
+<p>&zwj;TL;DR is above. This section covers what differentiates this library in depth. </p>
+</blockquote>
 <ul>
-<li><b>Continuous adversarial audit system</b> &ndash; every exploit attempt becomes a permanent regression test; 1,000,000+ assertions per build, 135 exploit PoC modules across 134 attack vectors, 31 CI workflows, 3 formal CT verification pipelines, 1.3M+ nightly differential checks — security hardens on every commit, not just on release day (→ how it works)</li>
+<li><b>Continuous adversarial audit system</b> &ndash; every exploit attempt becomes a permanent regression test; 1,000,000+ assertions per build, 146 exploit-PoC modules across 134 attack vectors, 33 CI workflows, 3 formal CT verification pipelines, 1.3M+ nightly differential checks — security hardens on every commit, not just on release day (→ how it works)</li>
 <li><b>Differentiated GPU <a class="el" href="namespacesecp256k1.html">secp256k1</a> surface</b> &ndash; CUDA, OpenCL, and Metal all implement the stable 13-op GPU C ABI, while CUDA also carries the highest-throughput signing and verification kernels plus <b>GPU FROST partial verification</b> (reproducible benchmark suite and raw logs)</li>
 <li><b>High-performance CPU <a class="el" href="namespacesecp256k1.html">secp256k1</a> engine</b> &ndash; optimized generator multiply, scalar multiply, hashing, and serialization pipelines across x86-64, ARM64, RISC-V, and embedded targets (see bench_unified ratio table)</li>
 <li><b>BIP-352 Silent Payments at 11.00 M/s</b> &ndash; the full 7-stage GPU pipeline (k×P → hash → k×G → add → match) runs at 91.0 ns/op on CUDA, <b>267× faster</b> than single-threaded CPU (GPU bench, <a href="https://github.com/craigraw/bench_bip352">standalone CPU benchmark by @craigraw</a>)</li>
@@ -151,7 +219,7 @@ Why UltrafastSecp256k1?</h1>
 <p>&zwj;<b>Claim map:</b> Top-level trust claims are keyed in docs/ASSURANCE_LEDGER.md: CPU CT routing <code>A-001</code>, stable GPU ABI <code>A-002</code>, cross-backend GPU parity <code>A-003</code>, benchmark reproducibility <code>A-004</code>, exploit-audit surface <code>A-005</code>, graph-assisted review <code>A-006</code>, open self-audit transparency <code>A-007</code>, and ROCm/HIP status discipline <code>A-008</code>. </p>
 </blockquote>
 <p><b>Quick links:</b> <a href="https://discord.gg/sUmW7cc5">Discord</a> * Benchmarks * Community Benchmarks * Adopters * Build Guide * API Reference * Binding Usage Standard * Security Policy * Threat Model * Assurance Ledger * AI Audit Protocol * **Why This Library?** * Porting Guide * <a href="https://github.com/sponsors/shrec"><b>Sponsor</b></a></p>
-<h2><a class="anchor" id="autotoc_md20"></a>
+<h2><a class="anchor" id="autotoc_md29"></a>
 Real-world Adoption</h2>
 <p>UltrafastSecp256k1 is used by <a href="https://github.com/sparrowwallet/frigate">Sparrow Wallet's Frigate</a>.</p>
 <p>Frigate 1.4.0 switched its DuckDB extension to <code>ufsecp.duckdb_extension</code> using UltrafastSecp256k1, and its README documents a custom DuckDB extension wrapping UltrafastSecp256k1 for <code>ufsecp_scan(...)</code>-based Silent Payments scanning with CUDA, OpenCL and Metal backend support.</p>
@@ -165,7 +233,7 @@ Real-world Adoption</h2>
 <p><b>GPU &amp; Platform Support:</b></p>
 <p><a href="https://developer.nvidia.com/cuda-toolkit"><img src="https://img.shields.io/badge/CUDA-12.0+-green.svg" alt="CUDA" style="pointer-events: none;" class="inline"/></a> <a href="https://www.khronos.org/opencl/"><img src="https://img.shields.io/badge/OpenCL-3.0-green.svg" alt="OpenCL" style="pointer-events: none;" class="inline"/></a> <a href="metal/"><img src="https://img.shields.io/badge/Apple%20Silicon-M1%2FM2%2FM3%2FM4-black.svg?logo=apple" alt="Apple Silicon" style="pointer-events: none;" class="inline"/></a> <a href="metal/"><img src="https://img.shields.io/badge/Metal-GPU%20Compute-silver.svg?logo=apple" alt="Metal" style="pointer-events: none;" class="inline"/></a> ![ROCm](https://img.shields.io/badge/ROCm-6.3%20HIP-red.svg) <a href="wasm/"><img src="https://img.shields.io/badge/WebAssembly-Emscripten-purple.svg" alt="WebAssembly" style="pointer-events: none;" class="inline"/></a> <a href="https://developer.android.com/ndk"><img src="https://img.shields.io/badge/ARM64-Cortex--A55%2FA76-orange.svg" alt="ARM64" style="pointer-events: none;" class="inline"/></a> <a href="https://riscv.org/"><img src="https://img.shields.io/badge/RISC--V-RV64GC-orange.svg" alt="RISC-V" style="pointer-events: none;" class="inline"/></a> <a href="android/"><img src="https://img.shields.io/badge/Android-NDK%20r27-brightgreen.svg" alt="Android" style="pointer-events: none;" class="inline"/></a> <a href="cmake/ios.toolchain.cmake"><img src="https://img.shields.io/badge/iOS-17%2B%20XCFramework-lightgrey.svg" alt="iOS" style="pointer-events: none;" class="inline"/></a> <a href="https://www.espressif.com/en/products/socs/esp32-s3"><img src="https://img.shields.io/badge/ESP32--S3-Xtensa%20LX7-orange.svg" alt="ESP32-S3" style="pointer-events: none;" class="inline"/></a> <a href="https://www.espressif.com/en/products/socs/esp32"><img src="https://img.shields.io/badge/ESP32-Xtensa%20LX6-orange.svg" alt="ESP32" style="pointer-events: none;" class="inline"/></a> <a href="https://www.st.com/en/microcontrollers-microprocessors/stm32f103ze.html"><img src="https://img.shields.io/badge/STM32-Cortex--M3-orange.svg" alt="STM32" style="pointer-events: none;" class="inline"/></a></p>
 <hr  />
-<h1><a class="anchor" id="autotoc_md23"></a>
+<h1><a class="anchor" id="autotoc_md32"></a>
 Highlights</h1>
 <ul>
 <li><b>BIP-352 GPU pipeline at 11.00 M/s</b> &ndash; full silent payment scanning pipeline on CUDA (91.0 ns/op), 267× faster than CPU</li>
@@ -181,7 +249,7 @@ Highlights</h1>
 <p><b></p><hr  />
 <p></b></p>
 <p><b></b></p>
-<h1><a class="anchor" id="autotoc_md25"></a>
+<h1><a class="anchor" id="autotoc_md34"></a>
 Engineering Quality &amp; Self-Audit Culture</h1>
 <p><b></b></p>
 <p><b></p><blockquote class="doxtable">
@@ -189,7 +257,7 @@ Engineering Quality &amp; Self-Audit Culture</h1>
 </blockquote>
 <p>The governing idea is Bitcoin-style: **don't trust, verify</b>. The project does not treat assurance as a PDF milestone that must be waited on before the next improvement. Instead, it treats auditability as an always-on property of the repository: reproducible builds, rerunnable tests, structured artifacts, graph-backed code navigation, and continuous adversarial review that anyone can repeat.</p>
 <p>This top-level narrative maps directly to the assurance ledger: CT secret-key routing (<code>A-001</code>), exploit-style audit coverage (<code>A-005</code>), graph-assisted review (<code>A-006</code>), and self-audit transparency (<code>A-007</code>).</p>
-<h2><a class="anchor" id="autotoc_md26"></a>
+<h2><a class="anchor" id="autotoc_md35"></a>
 By the Numbers</h2>
 <table class="markdownTable">
 <tr class="markdownTableHead">
@@ -201,7 +269,7 @@ By the Numbers</h2>
 <tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone">Exploit PoC test files   </td><td class="markdownTableBodyNone"><b>86 tests, 14 coverage areas, 0 failures</b>    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone">CI/CD workflows   </td><td class="markdownTableBodyNone"><b>25 GitHub Actions workflows</b>    </td></tr>
+<td class="markdownTableBodyNone">CI/CD workflows   </td><td class="markdownTableBodyNone"><b>33 GitHub Actions workflows</b>    </td></tr>
 <tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone">Build matrix (arch × config × OS)   </td><td class="markdownTableBodyNone"><b>7 × 17 × 5 = 595 combinations</b>    </td></tr>
 <tr class="markdownTableRowEven">
@@ -217,7 +285,7 @@ By the Numbers</h2>
 <tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone">Self-tests passing (all backends)   </td><td class="markdownTableBodyNone"><b>76/76</b>   </td></tr>
 </table>
-<h2><a class="anchor" id="autotoc_md27"></a>
+<h2><a class="anchor" id="autotoc_md36"></a>
 CI/CD Pipeline Highlights</h2>
 <table class="markdownTable">
 <tr class="markdownTableHead">
@@ -247,7 +315,7 @@ CI/CD Pipeline Highlights</h2>
 <tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone"><code>ci.yml</code>   </td><td class="markdownTableBodyNone">Core build + test across 17 configs × 7 architectures × 5 OSes   </td><td class="markdownTableBodyNone">Every push / PR   </td></tr>
 </table>
-<h2><a class="anchor" id="autotoc_md28"></a>
+<h2><a class="anchor" id="autotoc_md37"></a>
 What "Self-Audit Culture" Means in Practice</h2>
 <ul>
 <li>Every field arithmetic property is verified algebraically: commutativity, associativity, distributivity, carry propagation, canonical form</li>
@@ -258,7 +326,7 @@ What "Self-Audit Culture" Means in Practice</h2>
 <li><b>Nightly differential testing</b> runs ~1.3M random round-trips against reference implementations every night</li>
 <li>All 55 audit modules return <code>AUDIT-READY</code> status. Zero failures across all tested platforms.</li>
 </ul>
-<h2><a class="anchor" id="autotoc_md29"></a>
+<h2><a class="anchor" id="autotoc_md38"></a>
 Exploit PoC Test Suite (86 Tests, 14 Coverage Areas)</h2>
 <p>In addition to the 55-module <code>unified_audit_runner</code>, UltrafastSecp256k1 ships <b>86 dedicated exploit-style PoC tests</b> that actively try to break the library across its highest-risk surfaces. Each <code>audit/test_exploit_*.cpp</code> target builds and runs standalone so failures stay easy to attribute and reproduce.</p>
 <table class="markdownTable">
@@ -296,7 +364,7 @@ Exploit PoC Test Suite (86 Tests, 14 Coverage Areas)</h2>
 <blockquote class="doxtable">
 <p>&zwj;All 86 exploit tests live in <code>audit/test_exploit_*.cpp</code>. Build with <code>cmake -S . -B build-audit -G Ninja -DCMAKE_BUILD_TYPE=Release</code> and run them standalone or via <code>ctest</code>. </p>
 </blockquote>
-<h2><a class="anchor" id="autotoc_md30"></a>
+<h2><a class="anchor" id="autotoc_md39"></a>
 Self-Audit Document Index</h2>
 <table class="markdownTable">
 <tr class="markdownTableHead">
@@ -323,9 +391,9 @@ Self-Audit Document Index</h2>
 <blockquote class="doxtable">
 <p>&zwj;<b>Note:</b> UltrafastSecp256k1 has not yet undergone a paid third-party cryptographic audit. The primary assurance model here is open self-audit: reproducible tests, traceability, CI enforcement, and public review artifacts that anyone can rerun. We are open to external audit and actively preparing the codebase and evidence for outside review, but we do not wait for a formal engagement before strengthening the library ourselves. Our philosophy is to keep hardening the system continuously through internal audit on every build and every commit. </p>
 </blockquote>
-<h1><a class="anchor" id="autotoc_md31"></a>
+<h1><a class="anchor" id="autotoc_md40"></a>
 &lt;/blockquote&gt;</h1>
-<h1><a class="anchor" id="autotoc_md32"></a>
+<h1><a class="anchor" id="autotoc_md41"></a>
 Performance</h1>
 <p><b>RTX 5060 Ti (CUDA 12, kernel throughput)</b></p>
 <table class="markdownTable">
@@ -346,7 +414,7 @@ Performance</h1>
 <tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone">Batch point compress (J→SEC1)   </td><td class="markdownTableBodyNone"><b>97.2 M pts/sec</b>   </td><td class="markdownTableBodyNone">New kernel   </td></tr>
 </table>
-<h1><a class="anchor" id="autotoc_md33"></a>
+<h1><a class="anchor" id="autotoc_md42"></a>
 Architecture</h1>
 <div class="fragment"><div class="line">+-------------------------------------------------------+</div>
 <div class="line">|              Language Bindings (FFI)                   |</div>
@@ -371,7 +439,7 @@ Architecture</h1>
 <div class="line">| ARM64  | sm_50+  | any GPU | Silicon | RISC-V / WASM  |</div>
 <div class="line">| RISC-V |         |         |         | Cortex-M       |</div>
 <div class="line">+--------+---------+---------+---------+----------------+</div>
-</div><!-- fragment --><h1><a class="anchor" id="autotoc_md34"></a>
+</div><!-- fragment --><h1><a class="anchor" id="autotoc_md43"></a>
 Examples</h1>
 <table class="markdownTable">
 <tr class="markdownTableHead">
@@ -389,7 +457,7 @@ Examples</h1>
 <tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone"><b>Embedded</b>   </td><td class="markdownTableBodyNone">ESP32-S3, STM32 platform ports   </td><td class="markdownTableBodyNone"><a href="examples/esp32_test/">examples/esp32_test/</a>   </td></tr>
 </table>
-<h1><a class="anchor" id="autotoc_md35"></a>
+<h1><a class="anchor" id="autotoc_md44"></a>
 Use Cases</h1>
 <ul>
 <li><b>Blockchain infrastructure</b> &ndash; high-throughput transaction signing and validation</li>
@@ -402,21 +470,21 @@ Use Cases</h1>
 <blockquote class="doxtable">
 <p>&zwj;Star the repository if you find it useful! </p>
 </blockquote>
-<h1><a class="anchor" id="autotoc_md36"></a>
+<h1><a class="anchor" id="autotoc_md45"></a>
 &lt;/blockquote&gt;</h1>
-<h1><a class="anchor" id="autotoc_md37"></a>
+<h1><a class="anchor" id="autotoc_md46"></a>
 Security &amp; Vulnerability Reporting</h1>
 <p><b>Report vulnerabilities</b> via <a href="https://github.com/shrec/UltrafastSecp256k1/security/advisories/new">GitHub Security Advisories</a> or email <a href="#" onclick="location.href='mai'+'lto:'+'pay'+'ys'+'oon'+'@g'+'mai'+'l.'+'com'; return false;">payysoon@gmail.com</a>. For production cryptographic systems, perform your own risk review, review the current guarantees in <a class="el" href="md_include_2ufsecp_2SUPPORTED__GUARANTEES.html">SUPPORTED_GUARANTEES.md</a>, and apply the assurance level appropriate to your deployment.</p>
-<p>For the full audit infrastructure breakdown (1M+ assertions, 23 CI/CD workflows, formal CT verification pipelines, self-audit document index), see the Engineering Quality &amp; Self-Audit Culture section above and WHY_ULTRAFASTSECP256K1.md.</p>
+<p>For the full audit infrastructure breakdown (1M+ assertions, 33 CI workflows, formal CT verification pipelines, self-audit document index), see the Engineering Quality &amp; Self-Audit Culture section above and WHY_ULTRAFASTSECP256K1.md.</p>
 <hr  />
-<h1><a class="anchor" id="autotoc_md39"></a>
+<h1><a class="anchor" id="autotoc_md48"></a>
 Seeking Sponsors – Bug Bounty &amp; Development</h1>
 <blockquote class="doxtable">
 <p>&zwj;<b>We are actively seeking sponsors and funding partners</b> to expand continuous verification, bug bounty coverage, and long-term maintenance. </p>
 </blockquote>
 <p><a href="https://github.com/sponsors/shrec"><img src="https://img.shields.io/badge/Sponsor_This_Project-GitHub_Sponsors-ea4aaa.svg?style=for-the-badge&amp;logo=github" alt="Sponsor" style="pointer-events: none;" class="inline"/></a> <a href="https://stacker.news/shrec"><img src="https://img.shields.io/badge/Lightning_Sats-shrec@stacker.news-F7931A?style=for-the-badge&amp;logo=bitcoin" alt="Donate with Bitcoin Lightning" class="inline"/></a></p>
 <p>UltrafastSecp256k1 is a <b>high-performance, zero-dependency <a class="el" href="namespacesecp256k1.html">secp256k1</a> library</b> with GPU acceleration, constant-time side-channel protection, and 12+ platform targets. The funding priorities are:</p>
-<h2><a class="anchor" id="autotoc_md40"></a>
+<h2><a class="anchor" id="autotoc_md49"></a>
 1. Bug Bounty Program</h2>
 <p>We want to establish a <b>funded bug bounty program</b> to incentivize security researchers:</p>
 <ul>
@@ -425,7 +493,7 @@ Seeking Sponsors – Bug Bounty &amp; Development</h1>
 <li>Memory safety / undefined behavior &ndash; standard bounty tier</li>
 <li>All GPU backends (CUDA, OpenCL, Metal, ROCm) covered</li>
 </ul>
-<h2><a class="anchor" id="autotoc_md41"></a>
+<h2><a class="anchor" id="autotoc_md50"></a>
 2. Open Audit Infrastructure</h2>
 <p>We want to make outside review easier without turning assurance into a bureaucratic checkbox:</p>
 <ul>
@@ -435,7 +503,7 @@ Seeking Sponsors – Bug Bounty &amp; Development</h1>
 <li>More adversarial and concurrency stress harnesses that outside reviewers can reuse</li>
 </ul>
 <p>Currently we accept vulnerability reports via <a href="https://github.com/shrec/UltrafastSecp256k1/security/advisories/new">GitHub Security Advisories</a> but <b>cannot offer financial rewards without sponsor funding</b>.</p>
-<h2><a class="anchor" id="autotoc_md42"></a>
+<h2><a class="anchor" id="autotoc_md51"></a>
 3. Ongoing Development</h2>
 <p>Sponsorship helps sustain development of:</p>
 <ul>
@@ -447,7 +515,7 @@ Seeking Sponsors – Bug Bounty &amp; Development</h1>
 <li><b>Formal verification</b> &ndash; Fiat-Crypto integration, Cryptol models (ct-verif and valgrind-ct already active in CI)</li>
 <li><b>CI/CD infrastructure</b> &ndash; cross-platform testing, performance regression gates, fuzzing</li>
 </ul>
-<h2><a class="anchor" id="autotoc_md43"></a>
+<h2><a class="anchor" id="autotoc_md52"></a>
 How to Sponsor</h2>
 <table class="markdownTable">
 <tr class="markdownTableHead">
@@ -465,7 +533,7 @@ How to Sponsor</h2>
 </table>
 <p>All sponsors will be acknowledged in the README, release notes, and project documentation. For corporate partnerships, audit co-funding, or grant applications &ndash; please reach out via email.</p>
 <hr  />
-<h1><a class="anchor" id="autotoc_md45"></a>
+<h1><a class="anchor" id="autotoc_md54"></a>
 secp256k1 Feature Overview</h1>
 <p>Features are organized into <b>maturity tiers</b> (see <a class="el" href="md_include_2ufsecp_2SUPPORTED__GUARANTEES.html">SUPPORTED_GUARANTEES.md</a> for detailed guarantees):</p>
 <table class="markdownTable">
@@ -518,14 +586,14 @@ secp256k1 Feature Overview</h1>
 <tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone">&ndash;   </td><td class="markdownTableBodyNone">GPU   </td><td class="markdownTableBodyNone">CUDA, Metal, OpenCL, ROCm kernels   </td><td class="markdownTableBodyNone">[OK]    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone">&ndash;   </td><td class="markdownTableBodyNone">GPU C ABI   </td><td class="markdownTableBodyNone"><code>ufsecp_gpu</code> &ndash; 7 batch ops across 3 backends (17 FFI functions, incl. FROST)   </td><td class="markdownTableBodyNone">[OK]    </td></tr>
+<td class="markdownTableBodyNone">&ndash;   </td><td class="markdownTableBodyNone">GPU C ABI   </td><td class="markdownTableBodyNone"><code>ufsecp_gpu</code> &ndash; 7 batch ops across 3 backends (26 functions, incl. FROST)   </td><td class="markdownTableBodyNone">[OK]    </td></tr>
 <tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone">&ndash;   </td><td class="markdownTableBodyNone">Platforms   </td><td class="markdownTableBodyNone">x64, ARM64, RISC-V, ESP32, STM32, WASM, iOS, Android   </td><td class="markdownTableBodyNone">[OK]   </td></tr>
 </table>
 <blockquote class="doxtable">
 <p>&zwj;<b>Tier 1</b> = battle-tested core crypto with stable API. <b>Tier 2</b> = protocol-level features, API may evolve. <b>Tier 3</b> = convenience utilities. </p>
 </blockquote>
-<h2><a class="anchor" id="autotoc_md46"></a>
+<h2><a class="anchor" id="autotoc_md55"></a>
 BIP-340 Strict Encoding</h2>
 <p>All public API functions enforce <b>canonical input encoding</b> as required by BIP-340 and Bitcoin consensus:</p><ul>
 <li>Signatures with <code>r &gt;= p</code> or <code>s &gt;= n</code> are <b>rejected, not reduced</b></li>
@@ -534,9 +602,9 @@ BIP-340 Strict Encoding</h2>
 </ul>
 <p>The C ABI (<code>ufsecp_*</code>) returns distinct error codes: <code>UFSECP_ERR_BAD_SIG</code> (non-canonical signature) vs <code>UFSECP_ERR_VERIFY_FAIL</code> (valid encoding, bad math). See docs/COMPATIBILITY.md for details.</p>
 <hr  />
-<h1><a class="anchor" id="autotoc_md48"></a>
+<h1><a class="anchor" id="autotoc_md57"></a>
 BIP-352 Silent Payments Scanning Benchmark</h1>
-<h2><a class="anchor" id="autotoc_md49"></a>
+<h2><a class="anchor" id="autotoc_md58"></a>
 GPU Pipeline (CUDA, RTX 5060 Ti)</h2>
 <p>The full 7-stage BIP-352 scanning pipeline runs entirely on-GPU with zero CPU round-trips:</p>
 <ol type="1">
@@ -559,7 +627,7 @@ GPU Pipeline (CUDA, RTX 5060 Ti)</h2>
 <td class="markdownTableBodyNone">GPU pipeline (LUT + pretbl)   </td><td class="markdownTableBodyNone">102.1 ns   </td><td class="markdownTableBodyNone">~9.79 M/s   </td><td class="markdownTableBodyNone">Precomputed per-tweak tables   </td></tr>
 </table>
 <p><em>500K tweak points per batch, 11 passes, median. Near-optimal occupancy for RTX 5060 Ti (SM 12.0, 36 SMs). ~950 billion candidates/day.</em></p>
-<h2><a class="anchor" id="autotoc_md50"></a>
+<h2><a class="anchor" id="autotoc_md59"></a>
 GPU vs CPU Comparison</h2>
 <table class="markdownTable">
 <tr class="markdownTableHead">
@@ -573,10 +641,10 @@ GPU vs CPU Comparison</h2>
 <tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone">RISC-V 64 (SiFive U74, GCC 13)   </td><td class="markdownTableBodyNone">257,996 ns/op   </td><td class="markdownTableBodyNone">2,765× slower   </td></tr>
 </table>
-<h2><a class="anchor" id="autotoc_md51"></a>
+<h2><a class="anchor" id="autotoc_md60"></a>
 Community &amp; Contributor Benchmarks</h2>
 <p>See <b>docs/COMMUNITY_BENCHMARKS.md</b> for all hardware results submitted by community members — including RTX 5070 Ti (Blackwell) and a standalone BIP-352 CPU comparison vs libsecp256k1. Want to add yours? Instructions are in that file.</p>
-<h2><a class="anchor" id="autotoc_md52"></a>
+<h2><a class="anchor" id="autotoc_md61"></a>
 Real-world scanning performance (Frigate / Sparrow Wallet)</h2>
 <p>Independent benchmarks from <a href="https://github.com/sparrowwallet/frigate">Sparrow Wallet's Frigate</a> — a DuckDB-based Silent Payments scanning pipeline using UltrafastSecp256k1 via <a href="https://github.com/sparrowwallet/duckdb-ufsecp-extension"><code>ufsecp_scan(...)</code></a>. Results produced by Frigate's <code>benchmark.py</code> scanning mainnet to block 914,000.</p>
 <p><b>GPU scanning (full BIP-352 pipeline, 2-year scan, 133M tweaks):</b></p>
@@ -600,7 +668,7 @@ Real-world scanning performance (Frigate / Sparrow Wallet)</h2>
 <td class="markdownTableBodyNone">Apple M1 Pro   </td><td class="markdownTableBodyNone">10   </td><td class="markdownTableBodyNone">7m 47s   </td><td class="markdownTableBodyNone">~284 K/s   </td></tr>
 </table>
 <p>Source: <a href="https://github.com/sparrowwallet/frigate/blob/master/README.md#performance">Frigate README — Performance</a></p>
-<h2><a class="anchor" id="autotoc_md53"></a>
+<h2><a class="anchor" id="autotoc_md62"></a>
 CPU vs libsecp256k1 (standalone external benchmark)</h2>
 <p>Standalone single-threaded benchmark by <a href="https://github.com/craigraw">@craigraw</a> (<a href="https://github.com/craigraw/bench_bip352">bench_bip352</a>) — full results in docs/COMMUNITY_BENCHMARKS.md. Thank you for the contribution!</p>
 <p><b>Full pipeline</b> (10K points, 11 passes, median, GCC 12.4, <code>-O3 -march=native</code>, <code>USE_ASM_X86_64=1</code>):</p>
@@ -632,9 +700,9 @@ CPU vs libsecp256k1 (standalone external benchmark)</h2>
 <blockquote class="doxtable">
 <p>&zwj;<b>Note:</b> Point addition is slightly slower because both inputs have Z=1 (affine), so UltrafastSecp256k1 uses direct affine addition with a field inversion to return an affine result &ndash; this eliminates the separate inversion in serialization. </p>
 </blockquote>
-<h1><a class="anchor" id="autotoc_md54"></a>
+<h1><a class="anchor" id="autotoc_md63"></a>
 &lt;/blockquote&gt;</h1>
-<h1><a class="anchor" id="autotoc_md55"></a>
+<h1><a class="anchor" id="autotoc_md64"></a>
 60-Second Quickstart</h1>
 <p>Get a working selftest in under a minute:</p>
 <p><b>Option A &ndash; Linux (apt)</b> </p><div class="fragment"><div class="line">sudo apt install libufsecp3</div>
@@ -647,7 +715,7 @@ CPU vs libsecp256k1 (standalone external benchmark)</h2>
 <div class="line">cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release &amp;&amp; cmake --build build -j</div>
 <div class="line">./build/selftest          # Expected: &quot;ALL TESTS PASSED&quot;</div>
 </div><!-- fragment --><hr  />
-<h1><a class="anchor" id="autotoc_md57"></a>
+<h1><a class="anchor" id="autotoc_md66"></a>
 Platform Support Matrix</h1>
 <table class="markdownTable">
 <tr class="markdownTableHead">
@@ -664,9 +732,9 @@ Platform Support Matrix</h1>
 <td class="markdownTableBodyNone"><b>RISC-V (RV64GC)</b>   </td><td class="markdownTableBodyNone">CPU   </td><td class="markdownTableBodyNone">Cross-compile   </td><td class="markdownTableBodyNone">[OK] Tested   </td></tr>
 </table>
 <hr  />
-<h1><a class="anchor" id="autotoc_md59"></a>
+<h1><a class="anchor" id="autotoc_md68"></a>
 Installation</h1>
-<h2><a class="anchor" id="autotoc_md60"></a>
+<h2><a class="anchor" id="autotoc_md69"></a>
 Linux (APT – Debian / Ubuntu)</h2>
 <div class="fragment"><div class="line"># Add repository</div>
 <div class="line">curl -fsSL https://shrec.github.io/UltrafastSecp256k1/apt/KEY.gpg | sudo gpg --dearmor -o /etc/apt/keyrings/ultrafastsecp256k1.gpg</div>
@@ -679,12 +747,12 @@ Linux (APT – Debian / Ubuntu)</h2>
 <div class="line"> </div>
 <div class="line"># Install (development -- headers, static lib, cmake/pkgconfig)</div>
 <div class="line">sudo apt install libufsecp-dev</div>
-</div><!-- fragment --><h2><a class="anchor" id="autotoc_md61"></a>
+</div><!-- fragment --><h2><a class="anchor" id="autotoc_md70"></a>
 Linux (RPM – Fedora / RHEL)</h2>
 <div class="fragment"><div class="line"># Download from GitHub Releases</div>
 <div class="line">curl -LO https://github.com/shrec/UltrafastSecp256k1/releases/latest/download/UltrafastSecp256k1-*.rpm</div>
 <div class="line">sudo dnf install ./UltrafastSecp256k1-*.rpm</div>
-</div><!-- fragment --><h2><a class="anchor" id="autotoc_md62"></a>
+</div><!-- fragment --><h2><a class="anchor" id="autotoc_md71"></a>
 Arch Linux (AUR)</h2>
 <div class="fragment"><div class="line"># Using yay</div>
 <div class="line">yay -S libufsecp</div>
@@ -692,7 +760,7 @@ Arch Linux (AUR)</h2>
 <div class="line"># Or manually</div>
 <div class="line">git clone https://aur.archlinux.org/libufsecp.git</div>
 <div class="line">cd libufsecp &amp;&amp; makepkg -si</div>
-</div><!-- fragment --><h2><a class="anchor" id="autotoc_md63"></a>
+</div><!-- fragment --><h2><a class="anchor" id="autotoc_md72"></a>
 From source (any platform)</h2>
 <div class="fragment"><div class="line">cmake -S . -B build -G Ninja \</div>
 <div class="line">    -DCMAKE_BUILD_TYPE=Release \</div>
@@ -703,15 +771,15 @@ From source (any platform)</h2>
 <div class="line">cmake --build build -j$(nproc)</div>
 <div class="line">sudo cmake --install build</div>
 <div class="line">sudo ldconfig</div>
-</div><!-- fragment --><h2><a class="anchor" id="autotoc_md64"></a>
+</div><!-- fragment --><h2><a class="anchor" id="autotoc_md73"></a>
 Use in your CMake project</h2>
 <div class="fragment"><div class="line">find_package(ufsecp 3 REQUIRED)</div>
 <div class="line">target_link_libraries(myapp PRIVATE ufsecp::ufsecp)</div>
-</div><!-- fragment --><h2><a class="anchor" id="autotoc_md65"></a>
+</div><!-- fragment --><h2><a class="anchor" id="autotoc_md74"></a>
 Use with pkg-config</h2>
 <div class="fragment"><div class="line">g++ myapp.cpp $(pkg-config --cflags --libs ufsecp) -o myapp</div>
 </div><!-- fragment --><hr  />
-<h1><a class="anchor" id="autotoc_md67"></a>
+<h1><a class="anchor" id="autotoc_md76"></a>
 secp256k1 GPU Acceleration (CUDA / OpenCL / Metal / ROCm)</h1>
 <p>UltrafastSecp256k1 is the <b>only open-source library</b> that provides full <a class="el" href="namespacesecp256k1.html">secp256k1</a> ECDSA + Schnorr sign/verify on GPU across four backends (as of February 2026; if you know of another, <a href="https://github.com/shrec/UltrafastSecp256k1/issues">please let us know</a>):</p>
 <table class="markdownTable">
@@ -724,7 +792,7 @@ secp256k1 GPU Acceleration (CUDA / OpenCL / Metal / ROCm)</h1>
 </table>
 <p>| <b>Metal</b> | Apple M3 Pro | 0.33 M/s | &ndash; | &ndash; | &ndash; | &ndash; | | <b>ROCm (HIP)</b> | AMD GPUs | Portable | &ndash; | &ndash; | &ndash; | &ndash; |</p>
 <p><em>CUDA 12.0, sm_86;sm_89, batch=16K signatures, measured on RTX 5060 Ti. The CUDA path uses our own hybrid GPU execution model, which improved end-to-end throughput by more than 10% during optimization. Metal 2.4, 8x32-bit Comba limbs, 18 GPU cores. (*) OpenCL ECDSA/Schnorr verify uses extended kernel with lazy-loaded runtime compilation.</em></p>
-<h2><a class="anchor" id="autotoc_md68"></a>
+<h2><a class="anchor" id="autotoc_md77"></a>
 CUDA Core ECC Operations (Kernel-Only Throughput)</h2>
 <table class="markdownTable">
 <tr class="markdownTableHead">
@@ -748,7 +816,7 @@ CUDA Core ECC Operations (Kernel-Only Throughput)</h2>
 <tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone">Jac-&gt;Affine (per-pt)   </td><td class="markdownTableBodyNone">14.9 ns   </td><td class="markdownTableBodyNone">66.9 M/s   </td></tr>
 </table>
-<h2><a class="anchor" id="autotoc_md69"></a>
+<h2><a class="anchor" id="autotoc_md78"></a>
 GPU Signature Operations (ECDSA + Schnorr)</h2>
 <table class="markdownTable">
 <tr class="markdownTableHead">
@@ -766,7 +834,7 @@ GPU Signature Operations (ECDSA + Schnorr)</h2>
 <tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone"><b>FROST Partial Verify</b>   </td><td class="markdownTableBodyNone"><b>748.9 ns</b>   </td><td class="markdownTableBodyNone"><b>1.34 M/s</b>   </td><td class="markdownTableBodyNone">t-of-n threshold   </td><td class="markdownTableBodyNone">⭐ New   </td></tr>
 </table>
-<h2><a class="anchor" id="autotoc_md70"></a>
+<h2><a class="anchor" id="autotoc_md79"></a>
 CUDA vs OpenCL Comparison (RTX 5060 Ti)</h2>
 <table class="markdownTable">
 <tr class="markdownTableHead">
@@ -785,7 +853,7 @@ CUDA vs OpenCL Comparison (RTX 5060 Ti)</h2>
 <td class="markdownTableBodyNone">BIP352 Pipeline   </td><td class="markdownTableBodyNone">91.0 ns   </td><td class="markdownTableBodyNone">93.6 ns   </td><td class="markdownTableBodyNone"><b>CUDA 1.03x</b>   </td></tr>
 </table>
 <p><em>Benchmarks: 2026-02-14, Linux x86_64, NVIDIA Driver 580.126.09. Both kernel-only (no buffer allocation/copy overhead).</em></p>
-<h2><a class="anchor" id="autotoc_md71"></a>
+<h2><a class="anchor" id="autotoc_md80"></a>
 Apple Metal (M3 Pro) – Kernel-Only</h2>
 <table class="markdownTable">
 <tr class="markdownTableHead">
@@ -805,7 +873,7 @@ Apple Metal (M3 Pro) – Kernel-Only</h2>
 </table>
 <p><em>Metal 2.4, 8x32-bit Comba limbs, Apple M3 Pro (18 GPU cores, Unified Memory 18 GB)</em></p>
 <hr  />
-<h1><a class="anchor" id="autotoc_md73"></a>
+<h1><a class="anchor" id="autotoc_md82"></a>
 secp256k1 ECDSA &amp; Schnorr Signatures (BIP-340, RFC 6979)</h1>
 <p>Full signature support across CPU and GPU:</p>
 <ul>
@@ -814,7 +882,7 @@ secp256k1 ECDSA &amp; Schnorr Signatures (BIP-340, RFC 6979)</h1>
 <li><b>Batch verification</b>: ECDSA and Schnorr batch verify</li>
 <li><b>Multi-scalar</b>: Shamir's trick (k_1xG + k_2xQ) for fast verification</li>
 </ul>
-<h2><a class="anchor" id="autotoc_md74"></a>
+<h2><a class="anchor" id="autotoc_md83"></a>
 CPU Signature Benchmarks (x86-64, Clang 19, AVX2, Release)</h2>
 <table class="markdownTable">
 <tr class="markdownTableHead">
@@ -836,7 +904,7 @@ CPU Signature Benchmarks (x86-64, Clang 19, AVX2, Release)</h2>
 </table>
 <p><em>Schnorr sign is ~25% faster than ECDSA sign due to simpler nonce derivation (no modular inverse). Measured single-core, pinned, 2026-02-21.</em></p>
 <hr  />
-<h1><a class="anchor" id="autotoc_md76"></a>
+<h1><a class="anchor" id="autotoc_md85"></a>
 Constant-Time secp256k1 (Side-Channel Resistance)</h1>
 <p>The <code>ct::</code> namespace provides constant-time operations for secret-key material &ndash; no secret-dependent branches or memory access patterns:</p>
 <table class="markdownTable">
@@ -856,7 +924,7 @@ Constant-Time secp256k1 (Side-Channel Resistance)</h1>
 <p><b>CT layer provides:</b> <code>ct::field_mul</code>, <code>ct::field_inv</code>, <code>ct::scalar_mul</code>, <code>ct::point_add_complete</code>, <code>ct::point_dbl</code></p>
 <p><b>Use the CT layer for</b>: private key operations, signing, nonce generation, ECDH. <b>Use the FAST layer for</b>: verification, public key derivation, batch processing, benchmarks.</p>
 <p>See THREAT_MODEL.md for a full layer-by-layer risk assessment.</p>
-<h2><a class="anchor" id="autotoc_md77"></a>
+<h2><a class="anchor" id="autotoc_md86"></a>
 CT Evidence &amp; Methodology</h2>
 <table class="markdownTable">
 <tr class="markdownTableHead">
@@ -874,7 +942,7 @@ CT Evidence &amp; Methodology</h2>
 </table>
 <p><b>Assumptions:</b> CT guarantees depend on compiler not introducing secret-dependent branches during optimization. Builds use <code>-O2</code> with Clang; MSVC may require additional flags. Micro-architectural side channels (Spectre, power analysis) are outside current scope &ndash; see THREAT_MODEL.md.</p>
 <hr  />
-<h1><a class="anchor" id="autotoc_md79"></a>
+<h1><a class="anchor" id="autotoc_md88"></a>
 Zero-Knowledge Proofs (Schnorr Sigma, DLEQ, Bulletproofs)</h1>
 <p>UltrafastSecp256k1 provides ZK proof primitives over the <a class="el" href="namespacesecp256k1.html">secp256k1</a> curve:</p>
 <table class="markdownTable">
@@ -907,9 +975,9 @@ Zero-Knowledge Proofs (Schnorr Sigma, DLEQ, Bulletproofs)</h1>
 <div class="line"><span class="keywordtype">bool</span> ok = zk::range_verify(commitment, rp);</div>
 </div><!-- fragment --><p><em>Benchmarks: i7-14400F, 11 passes, pinned core, median. See docs/BENCHMARKS.md.</em></p>
 <hr  />
-<h1><a class="anchor" id="autotoc_md81"></a>
+<h1><a class="anchor" id="autotoc_md90"></a>
 secp256k1 Benchmarks – Cross-Platform Comparison</h1>
-<h2><a class="anchor" id="autotoc_md82"></a>
+<h2><a class="anchor" id="autotoc_md91"></a>
 CPU: x86-64 vs ARM64 vs RISC-V</h2>
 <table class="markdownTable">
 <tr class="markdownTableHead">
@@ -929,7 +997,7 @@ CPU: x86-64 vs ARM64 vs RISC-V</h2>
 <tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone">Scalar Mul (kxP)   </td><td class="markdownTableBodyRight">25 us   </td><td class="markdownTableBodyRight">131 us   </td><td class="markdownTableBodyRight">154 us   </td></tr>
 </table>
-<h2><a class="anchor" id="autotoc_md83"></a>
+<h2><a class="anchor" id="autotoc_md92"></a>
 GPU: CUDA vs OpenCL vs Metal</h2>
 <table class="markdownTable">
 <tr class="markdownTableHead">
@@ -943,7 +1011,7 @@ GPU: CUDA vs OpenCL vs Metal</h2>
 <tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone">Generator Mul (Gxk)   </td><td class="markdownTableBodyRight">217.7 ns   </td><td class="markdownTableBodyRight">295.1 ns   </td><td class="markdownTableBodyRight">3.00 us   </td></tr>
 </table>
-<h2><a class="anchor" id="autotoc_md84"></a>
+<h2><a class="anchor" id="autotoc_md93"></a>
 Embedded: ESP32-S3 vs ESP32 vs STM32</h2>
 <table class="markdownTable">
 <tr class="markdownTableHead">
@@ -963,7 +1031,7 @@ Embedded: ESP32-S3 vs ESP32 vs STM32</h2>
 <tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone"><b>CT</b> Generator x k   </td><td class="markdownTableBodyRight">4,951 us   </td><td class="markdownTableBodyRight">&ndash;   </td><td class="markdownTableBodyRight">&ndash;   </td></tr>
 </table>
-<h2><a class="anchor" id="autotoc_md85"></a>
+<h2><a class="anchor" id="autotoc_md94"></a>
 Field Representation: 5x52 vs 4x64</h2>
 <table class="markdownTable">
 <tr class="markdownTableHead">
@@ -980,7 +1048,7 @@ Field Representation: 5x52 vs 4x64</h2>
 <p><em>5x52 uses <code>__int128</code> lazy reduction &ndash; ideal for 64-bit platforms.</em></p>
 <p>For full benchmark results, see docs/BENCHMARKS.md.</p>
 <hr  />
-<h1><a class="anchor" id="autotoc_md87"></a>
+<h1><a class="anchor" id="autotoc_md96"></a>
 secp256k1 on Embedded (ESP32 / STM32 / ARM Cortex-M)</h1>
 <p>UltrafastSecp256k1 runs on resource-constrained microcontrollers with <b>portable C++ (no <code>__int128</code>, no assembly required)</b>:</p>
 <ul>
@@ -990,17 +1058,17 @@ secp256k1 on Embedded (ESP32 / STM32 / ARM Cortex-M)</h1>
 <li><b>Android ARM64</b> (RK3588, Cortex-A76 @ 2.256 GHz): Scalar x G in 14 us, Scalar x P in 131 us, ECDSA Sign 30 us</li>
 </ul>
 <p>All 37 library tests pass on every embedded target. See <a href="examples/esp32_test/">examples/esp32_test/</a> and <a href="examples/stm32_test/">examples/stm32_test/</a>.</p>
-<h2><a class="anchor" id="autotoc_md88"></a>
+<h2><a class="anchor" id="autotoc_md97"></a>
 Porting to New Platforms</h2>
 <p>See PORTING.md for a step-by-step checklist to add new CPU architectures, embedded targets, or GPU backends.</p>
 <hr  />
-<h1><a class="anchor" id="autotoc_md90"></a>
+<h1><a class="anchor" id="autotoc_md99"></a>
 WASM secp256k1 (Browser &amp; Node.js)</h1>
 <p>WebAssembly build via Emscripten &ndash; runs <a class="el" href="namespacesecp256k1.html">secp256k1</a> in any modern browser or Node.js:</p>
 <div class="fragment"><div class="line">./scripts/build_wasm.sh        # -&gt; build/wasm/dist/</div>
 </div><!-- fragment --><p>Output: <code>secp256k1_wasm.wasm</code> + <code>secp256k1.mjs</code> (ES6 module with TypeScript declarations). See wasm/README.md for JavaScript/TypeScript integration.</p>
 <hr  />
-<h1><a class="anchor" id="autotoc_md92"></a>
+<h1><a class="anchor" id="autotoc_md101"></a>
 secp256k1 Batch Modular Inverse (Montgomery Trick)</h1>
 <p>All backends include <b>batch modular inversion</b> &ndash; a critical building block for Jacobian-&gt;Affine conversion:</p>
 <table class="markdownTable">
@@ -1017,7 +1085,7 @@ secp256k1 Batch Modular Inverse (Montgomery Trick)</h1>
 </table>
 <p><b>Algorithm</b>: Montgomery batch inverse computes N field inversions using only <b>1 modular inversion + 3(N-1) multiplications</b>, amortizing the expensive inversion across the entire batch.</p>
 <p>For N=1024: ~500x cheaper than individual inversions. A single field inversion costs ~3.5 us (Fermat), while batch amortizes to ~7 ns per element.</p>
-<h2><a class="anchor" id="autotoc_md93"></a>
+<h2><a class="anchor" id="autotoc_md102"></a>
 Mixed Addition (Jacobian + Affine)</h2>
 <p>Branchless mixed addition (<code>add_mixed_inplace</code>) uses the <b>madd-2007-bl</b> formula: <b>7M + 4S</b> (vs 11M + 5S for full Jacobian add).</p>
 <div class="fragment"><div class="line"><span class="preprocessor">#include &lt;<a class="code" href="point_8hpp.html">secp256k1/point.hpp</a>&gt;</span></div>
@@ -1043,16 +1111,16 @@ Mixed Addition (Jacobian + Affine)</h2>
 <div class="ttc" id="aclasssecp256k1_1_1fast_1_1Point_html_ab8925efdda5643d2e239b5000d5a0144"><div class="ttname"><a href="classsecp256k1_1_1fast_1_1Point.html#ab8925efdda5643d2e239b5000d5a0144">secp256k1::fast::Point::generator</a></div><div class="ttdeci">static Point generator()</div></div>
 <div class="ttc" id="anamespacesecp256k1_1_1fast_html"><div class="ttname"><a href="namespacesecp256k1_1_1fast.html">secp256k1::fast</a></div><div class="ttdef"><b>Definition</b> <a href="batch__add__affine_8hpp_source.html#l00008">batch_add_affine.hpp:8</a></div></div>
 <div class="ttc" id="apoint_8hpp_html"><div class="ttname"><a href="point_8hpp.html">point.hpp</a></div></div>
-</div><!-- fragment --><h2><a class="anchor" id="autotoc_md94"></a>
+</div><!-- fragment --><h2><a class="anchor" id="autotoc_md103"></a>
 GPU Pattern: H-Product Serial Inversion</h2>
 <p>Production GPU apps use a memory-efficient variant: instead of storing full Z coordinates, <code>jacobian_add_mixed_h</code> returns <b>H = U2 - X1</b> separately. Since Z_k = Z_0 * H_0 * H_1 * … * H_{k-1}, the entire Z chain is invertible from H values + initial Z_0.</p>
 <p><b>Cost</b>: 1 Fermat inversion + 2N multiplications per thread (vs N Fermat inversions naively).</p>
 <blockquote class="doxtable">
 <p>&zwj;See <code>apps/secp256k1_search_gpu_only/gpu_only.cu</code> (step kernel) + <code>unified_split.cuh</code> (batch inversion kernel) </p>
 </blockquote>
-<h1><a class="anchor" id="autotoc_md95"></a>
+<h1><a class="anchor" id="autotoc_md104"></a>
 &lt;/blockquote&gt;</h1>
-<h1><a class="anchor" id="autotoc_md96"></a>
+<h1><a class="anchor" id="autotoc_md105"></a>
 secp256k1 Stable C ABI (&lt;tt&gt;ufsecp&lt;/tt&gt;) – FFI Bindings</h1>
 <p>Starting with <b>v3.4.0</b>, UltrafastSecp256k1 ships a stable C ABI &ndash; <code>ufsecp</code> &ndash; designed for FFI bindings (C#, Python, Rust, Go, Java, Node.js, Dart, React Native, PHP, Ruby, etc.):</p>
 <div class="fragment"><div class="line">+--------------------------------------------------+</div>
@@ -1072,7 +1140,7 @@ secp256k1 Stable C ABI (&lt;tt&gt;ufsecp&lt;/tt&gt;) – FFI Bindings</h1>
 <li>**C ABI (<code>ufsecp</code>)**: Defaults to safe behavior &ndash; all secret-key operations (sign, derive, ECDH) use CT internally. No configuration needed.</li>
 <li><b>C++ API</b>: Exposes both <code>fast::</code> and <code>ct::</code> namespaces &ndash; the developer chooses explicitly per call site.</li>
 </ul>
-<h2><a class="anchor" id="autotoc_md97"></a>
+<h2><a class="anchor" id="autotoc_md106"></a>
 Quick Start (C)</h2>
 <div class="fragment"><div class="line"><span class="preprocessor">#include &quot;<a class="code" href="ufsecp_8h.html">ufsecp.h</a>&quot;</span></div>
 <div class="line"> </div>
@@ -1099,7 +1167,7 @@ Quick Start (C)</h2>
 <div class="ttc" id="aufsecp_8h_html_a4e1fa2ddc0f82ca0772ce2e4b500c55e"><div class="ttname"><a href="ufsecp_8h.html#a4e1fa2ddc0f82ca0772ce2e4b500c55e">ufsecp_ecdsa_sign</a></div><div class="ttdeci">UFSECP_API ufsecp_error_t ufsecp_ecdsa_sign(ufsecp_ctx *ctx, const uint8_t msg32[32], const uint8_t privkey[32], uint8_t sig64_out[64])</div><div class="ttdef"><b>Definition</b> <a href="ufsecp__impl_8cpp_source.html#l00609">ufsecp_impl.cpp:609</a></div></div>
 <div class="ttc" id="aufsecp_8h_html_a87d42e60b2f61d1931c088231b6e6b59"><div class="ttname"><a href="ufsecp_8h.html#a87d42e60b2f61d1931c088231b6e6b59">ufsecp_ctx_destroy</a></div><div class="ttdeci">UFSECP_API void ufsecp_ctx_destroy(ufsecp_ctx *ctx)</div><div class="ttdef"><b>Definition</b> <a href="ufsecp__impl_8cpp_source.html#l00407">ufsecp_impl.cpp:407</a></div></div>
 <div class="ttc" id="aufsecp_8h_html_ad59bb140d404cf17909ad63955e8e948"><div class="ttname"><a href="ufsecp_8h.html#ad59bb140d404cf17909ad63955e8e948">ufsecp_ctx_create</a></div><div class="ttdeci">UFSECP_API ufsecp_error_t ufsecp_ctx_create(ufsecp_ctx **ctx_out)</div><div class="ttdef"><b>Definition</b> <a href="ufsecp__impl_8cpp_source.html#l00372">ufsecp_impl.cpp:372</a></div></div>
-</div><!-- fragment --><h2><a class="anchor" id="autotoc_md98"></a>
+</div><!-- fragment --><h2><a class="anchor" id="autotoc_md107"></a>
 GPU C ABI (&lt;tt&gt;ufsecp_gpu&lt;/tt&gt;)</h2>
 <p>Starting with <b>v3.3.0</b>, the GPU layer is fully accessible from any FFI language via <code><a class="el" href="ufsecp__gpu_8h.html">ufsecp_gpu.h</a></code>:</p>
 <table class="markdownTable">
@@ -1133,7 +1201,7 @@ GPU C ABI (&lt;tt&gt;ufsecp_gpu&lt;/tt&gt;)</h2>
 <td class="markdownTableBodyNone"><code>ecrecover_batch</code>   </td><td class="markdownTableBodyNone">[OK]   </td><td class="markdownTableBodyNone">[..] temporary stub   </td><td class="markdownTableBodyNone">[..] temporary stub   </td></tr>
 </table>
 <p>See <a href="include/ufsecp/ufsecp_gpu.h">ufsecp_gpu.h</a> and GPU Validation Matrix for details.</p>
-<h2><a class="anchor" id="autotoc_md99"></a>
+<h2><a class="anchor" id="autotoc_md108"></a>
 CPU C ABI Coverage</h2>
 <table class="markdownTable">
 <tr class="markdownTableHead">
@@ -1163,7 +1231,7 @@ CPU C ABI Coverage</h2>
 </table>
 <p>See <a class="el" href="md_include_2ufsecp_2SUPPORTED__GUARANTEES.html">SUPPORTED_GUARANTEES.md</a> for Tier 1/2/3 stability guarantees.</p>
 <hr  />
-<h1><a class="anchor" id="autotoc_md101"></a>
+<h1><a class="anchor" id="autotoc_md110"></a>
 secp256k1 Use Cases</h1>
 <ul>
 <li><b>Transaction Signing &amp; Verification</b> &ndash; Bitcoin, Ethereum, and 25+ blockchain transaction signing at CPU or GPU scale</li>
@@ -1183,11 +1251,11 @@ secp256k1 Use Cases</h1>
 </ul>
 <p><a href="https://github.com/shrec/UltrafastSecp256k1/issues">Open an issue</a> with your results! </p>
 </blockquote>
-<h1><a class="anchor" id="autotoc_md102"></a>
+<h1><a class="anchor" id="autotoc_md111"></a>
 &lt;/blockquote&gt;</h1>
-<h1><a class="anchor" id="autotoc_md103"></a>
+<h1><a class="anchor" id="autotoc_md112"></a>
 Building secp256k1 from Source (CMake)</h1>
-<h2><a class="anchor" id="autotoc_md104"></a>
+<h2><a class="anchor" id="autotoc_md113"></a>
 Prerequisites</h2>
 <ul>
 <li>CMake 3.18+</li>
@@ -1195,24 +1263,24 @@ Prerequisites</h2>
 <li>CUDA Toolkit 12.0+ (optional, for GPU)</li>
 <li>Ninja (recommended)</li>
 </ul>
-<h2><a class="anchor" id="autotoc_md105"></a>
+<h2><a class="anchor" id="autotoc_md114"></a>
 CPU-Only Build</h2>
 <div class="fragment"><div class="line">cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release</div>
 <div class="line">cmake --build build -j</div>
-</div><!-- fragment --><h2><a class="anchor" id="autotoc_md106"></a>
+</div><!-- fragment --><h2><a class="anchor" id="autotoc_md115"></a>
 With CUDA GPU Support</h2>
 <div class="fragment"><div class="line">cmake -S . -B build -G Ninja \</div>
 <div class="line">  -DCMAKE_BUILD_TYPE=Release \</div>
 <div class="line">  -DSECP256K1_BUILD_CUDA=ON</div>
 <div class="line">cmake --build build -j</div>
-</div><!-- fragment --><h2><a class="anchor" id="autotoc_md107"></a>
+</div><!-- fragment --><h2><a class="anchor" id="autotoc_md116"></a>
 WebAssembly (Emscripten)</h2>
 <div class="fragment"><div class="line">./scripts/build_wasm.sh        # -&gt; build/wasm/dist/</div>
-</div><!-- fragment --><h2><a class="anchor" id="autotoc_md108"></a>
+</div><!-- fragment --><h2><a class="anchor" id="autotoc_md117"></a>
 iOS (XCFramework)</h2>
 <div class="fragment"><div class="line">./scripts/build_xcframework.sh  # -&gt; build/xcframework/output/</div>
 </div><!-- fragment --><p>Universal XCFramework (arm64 device + arm64 simulator). Also available via <b>Swift Package Manager</b> and <b>CocoaPods</b>.</p>
-<h2><a class="anchor" id="autotoc_md109"></a>
+<h2><a class="anchor" id="autotoc_md118"></a>
 Local ARM64 / RISC-V QEMU Smoke</h2>
 <div class="fragment"><div class="line"># ARM64 cross-build + QEMU smoke</div>
 <div class="line">bash ./scripts/run-qemu-smoke.sh arm64</div>
@@ -1229,7 +1297,7 @@ Local ARM64 / RISC-V QEMU Smoke</h2>
 <div class="line"># Optional: limit to one architecture</div>
 <div class="line">SECP256K1_QEMU_SMOKE_TARGET=arm64 bash ./scripts/local-ci.sh --job qemu-smoke</div>
 <div class="line">SECP256K1_QEMU_SMOKE_TARGET=riscv64 bash ./scripts/local-ci.sh --job qemu-smoke</div>
-</div><!-- fragment --><h2><a class="anchor" id="autotoc_md110"></a>
+</div><!-- fragment --><h2><a class="anchor" id="autotoc_md119"></a>
 Build Options</h2>
 <table class="markdownTable">
 <tr class="markdownTableHead">
@@ -1253,9 +1321,9 @@ Build Options</h2>
 </table>
 <p>For detailed build instructions, see docs/BUILDING.md.</p>
 <hr  />
-<h1><a class="anchor" id="autotoc_md112"></a>
+<h1><a class="anchor" id="autotoc_md121"></a>
 secp256k1 Quick Start (C++ Examples)</h1>
-<h2><a class="anchor" id="autotoc_md113"></a>
+<h2><a class="anchor" id="autotoc_md122"></a>
 Basic Point Operations</h2>
 <div class="fragment"><div class="line"><span class="preprocessor">#include &lt;<a class="code" href="field_8hpp.html">secp256k1/field.hpp</a>&gt;</span></div>
 <div class="line"><span class="preprocessor">#include &lt;<a class="code" href="point_8hpp.html">secp256k1/point.hpp</a>&gt;</span></div>
@@ -1280,7 +1348,7 @@ Basic Point Operations</h2>
 <div class="ttc" id="afield_8hpp_html"><div class="ttname"><a href="field_8hpp.html">field.hpp</a></div></div>
 <div class="ttc" id="ascalar_8hpp_html"><div class="ttname"><a href="scalar_8hpp.html">scalar.hpp</a></div></div>
 </div><!-- fragment --><div class="fragment"><div class="line">g++ -std=c++20 example.cpp -lufsecp -o example &amp;&amp; ./example</div>
-</div><!-- fragment --><h2><a class="anchor" id="autotoc_md114"></a>
+</div><!-- fragment --><h2><a class="anchor" id="autotoc_md123"></a>
 GPU Batch Multiplication</h2>
 <div class="fragment"><div class="line"><span class="preprocessor">#include &lt;secp256k1_cuda/batch_operations.hpp&gt;</span></div>
 <div class="line"><span class="preprocessor">#include &lt;<a class="code" href="point_8hpp.html">secp256k1/point.hpp</a>&gt;</span></div>
@@ -1301,17 +1369,17 @@ GPU Batch Multiplication</h2>
 <div class="line">}</div>
 <div class="ttc" id="aclasssecp256k1_1_1fast_1_1Scalar_html"><div class="ttname"><a href="classsecp256k1_1_1fast_1_1Scalar.html">secp256k1::fast::Scalar</a></div><div class="ttdef"><b>Definition</b> <a href="scalar_8hpp_source.html#l00014">scalar.hpp:14</a></div></div>
 </div><!-- fragment --><hr  />
-<h1><a class="anchor" id="autotoc_md116"></a>
+<h1><a class="anchor" id="autotoc_md125"></a>
 secp256k1 Security Model (FAST vs CT)</h1>
 <p>Two security profiles are <b>always active</b> &ndash; no flag-based selection:</p>
-<h2><a class="anchor" id="autotoc_md117"></a>
+<h2><a class="anchor" id="autotoc_md126"></a>
 FAST Profile (Default)</h2>
 <ul>
 <li>Maximum throughput, variable-time algorithms</li>
 <li>Use for: verification, batch processing, public key derivation, benchmarking</li>
 <li>[!] <b>Not safe for secret key operations</b> &ndash; timing side-channels possible</li>
 </ul>
-<h2><a class="anchor" id="autotoc_md118"></a>
+<h2><a class="anchor" id="autotoc_md127"></a>
 CT / Hardened Profile (&lt;tt&gt;ct::&lt;/tt&gt; namespace)</h2>
 <ul>
 <li>Constant-time arithmetic &ndash; no secret-dependent branches or memory access</li>
@@ -1320,7 +1388,7 @@ CT / Hardened Profile (&lt;tt&gt;ct::&lt;/tt&gt; namespace)</h2>
 </ul>
 <p><b>Choose the appropriate profile for your use case.</b> Using FAST with secret data is a security vulnerability. See THREAT_MODEL.md for full details.</p>
 <hr  />
-<h1><a class="anchor" id="autotoc_md120"></a>
+<h1><a class="anchor" id="autotoc_md129"></a>
 secp256k1 Supported Coins (27 Blockchains)</h1>
 <table class="markdownTable">
 <tr class="markdownTableHead">
@@ -1382,9 +1450,9 @@ secp256k1 Supported Coins (27 Blockchains)</h1>
 </table>
 <p>All EVM chains (ETH, BNB, MATIC, AVAX, FTM, ARB, OP) share the same address format (EIP-55 checksummed hex).</p>
 <hr  />
-<h1><a class="anchor" id="autotoc_md122"></a>
+<h1><a class="anchor" id="autotoc_md131"></a>
 secp256k1 Architecture</h1>
-<h2><a class="anchor" id="autotoc_md123"></a>
+<h2><a class="anchor" id="autotoc_md132"></a>
 Library Stack</h2>
 <div class="fragment"><div class="line">+----------------------------------------------------------+</div>
 <div class="line">|           Language Bindings (FFI / C ABI)                 |</div>
@@ -1415,7 +1483,7 @@ Library Stack</h2>
 <div class="line">| RISC-V   |          |          |          | STM32        |</div>
 <div class="line">| WASM     |          |          |          | Cortex-M     |</div>
 <div class="line">+----------+----------+----------+----------+--------------+</div>
-</div><!-- fragment --><h2><a class="anchor" id="autotoc_md124"></a>
+</div><!-- fragment --><h2><a class="anchor" id="autotoc_md133"></a>
 Hardware Compatibility</h2>
 <table class="markdownTable">
 <tr class="markdownTableHead">
@@ -1456,7 +1524,7 @@ Hardware Compatibility</h2>
 <blockquote class="doxtable">
 <p>&zwj;<b>GPU C ABI ops</b>: generator_mul_batch, ecdsa_verify_batch, schnorr_verify_batch, ecdh_batch, hash160_pubkey_batch, msm, frost_verify_partial_batch, ecrecover_batch. See GPU Validation Matrix for per-backend details. </p>
 </blockquote>
-<h2><a class="anchor" id="autotoc_md125"></a>
+<h2><a class="anchor" id="autotoc_md134"></a>
 Embedded Targets</h2>
 <table class="markdownTable">
 <tr class="markdownTableHead">
@@ -1472,7 +1540,7 @@ Embedded Targets</h2>
 <tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone">STM32F103   </td><td class="markdownTableBodyNone">Cortex-M3   </td><td class="markdownTableBodyNone">72 MHz   </td><td class="markdownTableBodyNone">38 ms   </td><td class="markdownTableBodyNone">~100 KB   </td><td class="markdownTableBodyNone">~6 KB   </td></tr>
 </table>
-<h2><a class="anchor" id="autotoc_md126"></a>
+<h2><a class="anchor" id="autotoc_md135"></a>
 Source Directory</h2>
 <div class="fragment"><div class="line">UltrafastSecp256k1/</div>
 <div class="line">+-- cpu/                 # CPU-optimized implementation</div>
@@ -1498,9 +1566,9 @@ Source Directory</h2>
 <div class="line">|   +-- stm32_test/      # STM32F103 ARM Cortex-M3 port</div>
 <div class="line">+-- docs/                # Documentation</div>
 </div><!-- fragment --><hr  />
-<h1><a class="anchor" id="autotoc_md128"></a>
+<h1><a class="anchor" id="autotoc_md137"></a>
 secp256k1 Testing &amp; Verification</h1>
-<h2><a class="anchor" id="autotoc_md129"></a>
+<h2><a class="anchor" id="autotoc_md138"></a>
 Built-in Selftest</h2>
 <p>Every executable runs a deterministic <b>Known Answer Test (KAT)</b> on startup, covering all arithmetic operations:</p>
 <table class="markdownTable">
@@ -1520,12 +1588,12 @@ Built-in Selftest</h2>
 <div class="line">Selftest(<span class="keyword">true</span>, SelftestMode::ci);                  <span class="comment">// Full CI suite</span></div>
 <div class="line">Selftest(<span class="keyword">true</span>, SelftestMode::stress, 0xDEADBEEF); <span class="comment">// Nightly with custom seed</span></div>
 <div class="ttc" id="aselftest_8hpp_html"><div class="ttname"><a href="selftest_8hpp.html">selftest.hpp</a></div></div>
-</div><!-- fragment --><h2><a class="anchor" id="autotoc_md130"></a>
+</div><!-- fragment --><h2><a class="anchor" id="autotoc_md139"></a>
 Sanitizer Builds</h2>
 <div class="fragment"><div class="line">cmake --preset cpu-asan &amp;&amp; cmake --build build/cpu-asan -j    # ASan + UBSan</div>
 <div class="line">cmake --preset cpu-tsan &amp;&amp; cmake --build build/cpu-tsan -j    # TSan (data races)</div>
 <div class="line">ctest --test-dir build/cpu-asan --output-on-failure</div>
-</div><!-- fragment --><h2><a class="anchor" id="autotoc_md131"></a>
+</div><!-- fragment --><h2><a class="anchor" id="autotoc_md140"></a>
 Fuzz Testing</h2>
 <p>libFuzzer harnesses cover core arithmetic (<code>cpu/fuzz/</code>):</p>
 <table class="markdownTable">
@@ -1538,7 +1606,7 @@ Fuzz Testing</h2>
 <tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone"><code>fuzz_point</code>   </td><td class="markdownTableBodyNone">on-curve check, negate, compress round-trip, dbl vs add   </td></tr>
 </table>
-<h2><a class="anchor" id="autotoc_md132"></a>
+<h2><a class="anchor" id="autotoc_md141"></a>
 Platform CI Coverage</h2>
 <table class="markdownTable">
 <tr class="markdownTableHead">
@@ -1562,7 +1630,7 @@ Platform CI Coverage</h2>
 <tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone">ROCm/HIP   </td><td class="markdownTableBodyNone">CPU + GPU   </td><td class="markdownTableBodyNone">ROCm 6.3   </td><td class="markdownTableBodyNone">[OK] CI   </td></tr>
 </table>
-<h2><a class="anchor" id="autotoc_md133"></a>
+<h2><a class="anchor" id="autotoc_md142"></a>
 Cross-Platform Audit Results</h2>
 <p>The <code>unified_audit_runner</code> executes <b>54 audit modules</b> across 8 sections (mathematical invariants, constant-time analysis, differential testing, standard vectors, fuzzing, protocol security, ABI safety, performance validation).</p>
 <table class="markdownTable">
@@ -1582,9 +1650,9 @@ Cross-Platform Audit Results</h2>
 <blockquote class="doxtable">
 <p>&zwj;54/55 = 1 advisory warning (dudect timing smoke &ndash; probabilistic, flakes under hypervisor noise). Full reports: audit/platform-reports/ </p>
 </blockquote>
-<h1><a class="anchor" id="autotoc_md134"></a>
+<h1><a class="anchor" id="autotoc_md143"></a>
 &lt;/blockquote&gt;</h1>
-<h1><a class="anchor" id="autotoc_md135"></a>
+<h1><a class="anchor" id="autotoc_md144"></a>
 secp256k1 Benchmark Targets</h1>
 <table class="markdownTable">
 <tr class="markdownTableHead">
@@ -1601,16 +1669,16 @@ secp256k1 Benchmark Targets</h1>
 <td class="markdownTableBodyNone"><code>bench_kP</code>   </td><td class="markdownTableBodyNone">Scalar multiplication (k*P) benchmarks   </td></tr>
 </table>
 <hr  />
-<h1><a class="anchor" id="autotoc_md137"></a>
+<h1><a class="anchor" id="autotoc_md146"></a>
 Research Statement</h1>
 <p>This library explores the <b>performance ceiling of <a class="el" href="namespacesecp256k1.html">secp256k1</a></b> across CPU architectures (x64, ARM64, RISC-V, Cortex-M, Xtensa) and GPUs (CUDA, OpenCL, Metal, ROCm). Zero external dependencies. Pure C++20.</p>
 <hr  />
-<h1><a class="anchor" id="autotoc_md139"></a>
+<h1><a class="anchor" id="autotoc_md148"></a>
 API Stability</h1>
 <p><b>C++ API</b>: Not yet stable. Breaking changes may occur before <b>v4.0</b>. Core layers (field, scalar, point, ECDSA, Schnorr) are mature. Experimental layers (MuSig2, FROST, Adaptor, Pedersen, Taproot, HD, Coins) may change.</p>
 <p>**C ABI (<code>ufsecp</code>)**: Stable from v3.4.0. ABI version tracked separately. See <a class="el" href="md_include_2ufsecp_2SUPPORTED__GUARANTEES.html">SUPPORTED_GUARANTEES.md</a>.</p>
 <hr  />
-<h1><a class="anchor" id="autotoc_md141"></a>
+<h1><a class="anchor" id="autotoc_md150"></a>
 Release Signing &amp; Verification</h1>
 <p>All releases starting from <b>v3.15.0</b> are cryptographically signed using <a href="https://docs.sigstore.dev/">Sigstore cosign</a> (keyless, GitHub OIDC identity). Older historical releases remain unsigned but are preserved unchanged.</p>
 <p>Every release includes:</p>
@@ -1628,7 +1696,7 @@ Release Signing &amp; Verification</h1>
 <tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone">Per-archive <code>.sig</code> + <code>.pem</code>   </td><td class="markdownTableBodyNone">Individual artifact signatures   </td></tr>
 </table>
-<h2><a class="anchor" id="autotoc_md142"></a>
+<h2><a class="anchor" id="autotoc_md151"></a>
 Verify checksums</h2>
 <p><b>Linux:</b></p>
 <div class="fragment"><div class="line">curl -LO https://github.com/shrec/UltrafastSecp256k1/releases/latest/download/SHA256SUMS</div>
@@ -1642,7 +1710,7 @@ Verify checksums</h2>
 <div class="line">  $actual = (Get-FileHash $file -Algorithm SHA256).Hash.ToLower()</div>
 <div class="line">  if ($actual -eq $expected) { &quot;[OK] $file&quot; } else { &quot;[FAIL] $file&quot; }</div>
 <div class="line">}</div>
-</div><!-- fragment --><h2><a class="anchor" id="autotoc_md143"></a>
+</div><!-- fragment --><h2><a class="anchor" id="autotoc_md152"></a>
 Verify signature (cosign)</h2>
 <div class="fragment"><div class="line">cosign verify-blob SHA256SUMS \</div>
 <div class="line">  --signature SHA256SUMS.sig \</div>
@@ -1666,7 +1734,7 @@ Verify signature (cosign)</h2>
 <td class="markdownTableBodyNone">Reproducible builds documentation   </td><td class="markdownTableBodyNone">[OK] Dockerfile.reproducible   </td></tr>
 </table>
 <hr  />
-<h1><a class="anchor" id="autotoc_md145"></a>
+<h1><a class="anchor" id="autotoc_md154"></a>
 FAQ</h1>
 <p><b>Is UltrafastSecp256k1 a drop-in replacement for libsecp256k1?</b> </p><blockquote class="doxtable">
 <p>&zwj;No. It is an independent implementation with a different API. The C ABI (<code>ufsecp</code>) provides a stable FFI surface, but function signatures differ from libsecp256k1. Migration requires code changes. </p>
@@ -1683,9 +1751,9 @@ FAQ</h1>
 <p><b>How do I reproduce the benchmarks?</b> </p><blockquote class="doxtable">
 <p>&zwj;See `docs/BENCHMARKS.md` for exact commands, pinned compiler/driver versions, and raw logs. The <a href="https://shrec.github.io/UltrafastSecp256k1/dev/bench/">live dashboard</a> tracks performance across commits. </p>
 </blockquote>
-<h1><a class="anchor" id="autotoc_md146"></a>
+<h1><a class="anchor" id="autotoc_md155"></a>
 &lt;/blockquote&gt;</h1>
-<h1><a class="anchor" id="autotoc_md147"></a>
+<h1><a class="anchor" id="autotoc_md156"></a>
 Documentation</h1>
 <table class="markdownTable">
 <tr class="markdownTableHead">
@@ -1697,7 +1765,7 @@ Documentation</h1>
 <tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone">Benchmarks   </td><td class="markdownTableBodyNone">Complete benchmark results and methodology    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone"><a href="include/ufsecp/ufsecp_gpu.h">GPU API</a>   </td><td class="markdownTableBodyNone">GPU C ABI header (18 functions, 8 ops, 3 backends)    </td></tr>
+<td class="markdownTableBodyNone"><a href="include/ufsecp/ufsecp_gpu.h">GPU API</a>   </td><td class="markdownTableBodyNone">GPU C ABI header (26 functions, 8 ops, 3 backends)    </td></tr>
 <tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone">GPU Validation Matrix   </td><td class="markdownTableBodyNone">Per-backend op coverage and validation status    </td></tr>
 <tr class="markdownTableRowEven">
@@ -1730,7 +1798,7 @@ Documentation</h1>
 <td class="markdownTableBodyNone">Changelog   </td><td class="markdownTableBodyNone">Version history   </td></tr>
 </table>
 <hr  />
-<h1><a class="anchor" id="autotoc_md149"></a>
+<h1><a class="anchor" id="autotoc_md158"></a>
 Contributing</h1>
 <p>Contributions are welcome! Please read CONTRIBUTING.md.</p>
 <div class="fragment"><div class="line">git clone https://github.com/shrec/UltrafastSecp256k1.git</div>
@@ -1739,13 +1807,13 @@ Contributing</h1>
 <div class="line">cmake --build build/dev -j</div>
 <div class="line">ctest --test-dir build/dev --output-on-failure</div>
 </div><!-- fragment --><hr  />
-<h1><a class="anchor" id="autotoc_md151"></a>
+<h1><a class="anchor" id="autotoc_md160"></a>
 License</h1>
 <p><b>MIT License</b></p>
 <p>This project is licensed under the MIT License. Previously released versions (up to v3.14.x) were under AGPL-3.0. As of v3.15.0 the license is MIT &ndash; to align with the broader Bitcoin ecosystem and remove adoption friction.</p>
 <p>See [LICENSE](LICENSE) for full details.</p>
 <hr  />
-<h1><a class="anchor" id="autotoc_md153"></a>
+<h1><a class="anchor" id="autotoc_md162"></a>
 Contact &amp; Community</h1>
 <table class="markdownTable">
 <tr class="markdownTableHead">
@@ -1764,7 +1832,7 @@ Contact &amp; Community</h1>
 <td class="markdownTableBodyNone">Commercial   </td><td class="markdownTableBodyNone"><a href="#" onclick="location.href='mai'+'lto:'+'pay'+'ys'+'oon'+'@g'+'mai'+'l.'+'com'; return false;">payysoon@gmail.com</a>   </td></tr>
 </table>
 <hr  />
-<h1><a class="anchor" id="autotoc_md155"></a>
+<h1><a class="anchor" id="autotoc_md164"></a>
 Acknowledgements</h1>
 <p>UltrafastSecp256k1 is an independent implementation &ndash; written from scratch with our own architecture, hybrid GPU execution model, embedded ports, and optimization techniques. The library's core structure and most performance gains came from direct experimentation, profiling, and iteration. At the same time, no project exists in a vacuum. Studying public research and implementation notes from the wider cryptographic community later helped us validate decisions, avoid weaker paths, and uncover additional optimization opportunities.</p>
 <p>We want to acknowledge the teams whose public work informed parts of our journey:</p>
@@ -1779,7 +1847,7 @@ Acknowledgements</h1>
 <p>Special thanks to the <a href="https://stacker.news">Stacker News</a> and <a href="https://delvingbitcoin.org">Delving Bitcoin</a> communities for their early support and technical feedback.</p>
 <p>Extra gratitude to <a href="https://stacker.news/0xbitcoiner">@0xbitcoiner</a> for the initial outreach and for helping bridge the project with the wider Bitcoin developer ecosystem.</p>
 <hr  />
-<h1><a class="anchor" id="autotoc_md157"></a>
+<h1><a class="anchor" id="autotoc_md166"></a>
 Support the Project</h1>
 <p>If you find <b>UltrafastSecp256k1</b> useful, consider supporting its development!</p>
 <blockquote class="doxtable">
@@ -1798,7 +1866,7 @@ Support the Project</h1>
 <tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone"><b>Corporate / Foundation grants</b>   </td><td class="markdownTableBodyNone"><a href="#" onclick="location.href='mai'+'lto:'+'pay'+'ys'+'oon'+'@g'+'mai'+'l.'+'com'; return false;">payysoon@gmail.com</a>   </td></tr>
 </table>
-<h2><a class="anchor" id="autotoc_md158"></a>
+<h2><a class="anchor" id="autotoc_md167"></a>
 What Your Sponsorship Funds</h2>
 <ul>
 <li><b>Open Audit Infrastructure</b> &ndash; reproducible audit packs, more validation automation, and reviewer-ready evidence bundles</li>

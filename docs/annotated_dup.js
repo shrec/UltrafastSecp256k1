@@ -50,6 +50,8 @@ var annotated_dup =
       ] ],
       [ "zk", "namespacesecp256k1_1_1zk.html", [
         [ "DLEQProof", "structsecp256k1_1_1zk_1_1DLEQProof.html", "structsecp256k1_1_1zk_1_1DLEQProof" ],
+        [ "EcdsaSnarkWitness", "structsecp256k1_1_1zk_1_1EcdsaSnarkWitness.html", "structsecp256k1_1_1zk_1_1EcdsaSnarkWitness" ],
+        [ "ForeignFieldLimbs", "structsecp256k1_1_1zk_1_1ForeignFieldLimbs.html", "structsecp256k1_1_1zk_1_1ForeignFieldLimbs" ],
         [ "GeneratorVectors", "structsecp256k1_1_1zk_1_1GeneratorVectors.html", "structsecp256k1_1_1zk_1_1GeneratorVectors" ],
         [ "KnowledgeProof", "structsecp256k1_1_1zk_1_1KnowledgeProof.html", "structsecp256k1_1_1zk_1_1KnowledgeProof" ],
         [ "RangeProof", "structsecp256k1_1_1zk_1_1RangeProof.html", "structsecp256k1_1_1zk_1_1RangeProof" ]
@@ -105,6 +107,8 @@ var annotated_dup =
     [ "ufsecp_bip32_key", "structufsecp__bip32__key.html", "structufsecp__bip32__key" ],
     [ "ufsecp_ctx", "structufsecp__ctx.html", "structufsecp__ctx" ],
     [ "ufsecp_desc_key", "structufsecp__desc__key.html", "structufsecp__desc__key" ],
+    [ "ufsecp_ecdsa_snark_witness_t", "structufsecp__ecdsa__snark__witness__t.html", "structufsecp__ecdsa__snark__witness__t" ],
+    [ "ufsecp_ff_limbs_t", "structufsecp__ff__limbs__t.html", "structufsecp__ff__limbs__t" ],
     [ "ufsecp_gpu_ctx", "structufsecp__gpu__ctx.html", "structufsecp__gpu__ctx" ],
     [ "ufsecp_gpu_device_info_t", "structufsecp__gpu__device__info__t.html", "structufsecp__gpu__device__info__t" ]
 ];
