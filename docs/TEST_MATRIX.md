@@ -14,7 +14,7 @@ lags behind the generated validation surfaces, prefer the generated counts.
 |----------|-------|--------|
 | **CTest targets** | 182 active targets | [OK] Documented in current assurance validation |
 | **Audit suite checks** | 641,194+ | [OK] 0 failures |
-| **Exploit PoC test files** | **78 tests, 14 categories** | [OK] 0 failures |
+| **Exploit PoC test files** | **157 tests, 14+ categories** | [OK] 0 failures |
 | **Fuzz harnesses** | 11 | [OK] Active (5 cpu/fuzz + 6 audit/; `libfuzzer_unified` CI-blocking) |
 | **ECIES regression** | 85 | [OK] All passing |
 | **Adversarial protocol** | 114 functions, 360+ checks | [OK] Active |
@@ -428,7 +428,7 @@ qemu-riscv64 -L /usr/riscv64-linux-gnu ./build-riscv64/cpu/bench_bip324
 
 ## Exploit PoC Test Suite (`audit/test_exploit_*.cpp`)
 
-78 standalone exploit-style tests that actively try to break the library.
+157 standalone exploit-style tests that actively try to break the library.
 Each test compiles as a separate binary and verifies that attacks fail, edge cases are handled, and security invariants hold under adversarial inputs.
 
 | Category | File(s) | Attack / Property Verified |
