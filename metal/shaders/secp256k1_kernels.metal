@@ -1226,8 +1226,11 @@ kernel void bip352_scan_pipeline(
     if (tid >= count) return;
 
     // Phase 1: shared_secret = scan_scalar × tweak_points[tid]
+    // Copy constant-address-space scalar to thread-local so scalar_mul_glv
+    // (which takes `thread const Scalar256&`) can accept it.
     AffinePoint tweak = tweak_points[tid];
-    JacobianPoint shared = scalar_mul_glv(tweak, scan_scalar);
+    thread Scalar256 local_scan_scalar = scan_scalar;
+    JacobianPoint shared = scalar_mul_glv(tweak, local_scan_scalar);
     if (shared.infinity != 0) { prefixes[tid] = 0; return; }
 
     // Phase 2: serialize to SEC1 compressed + 4 zero bytes (output index k=0)
@@ -1384,7 +1387,7 @@ kernel void ecdsa_snark_witness_batch(
                               (uint(pub_y_be[base+2]) << 8)  |
                               (uint(pub_y_be[base+3]));
     }
-    pub_aff.infinity = 0; // valid non-infinity point from host decompression
+    // pub_aff is a valid non-infinity point (AffinePoint has no infinity field).
 
     // -- witness scalars: z, s_inv, u1, u2 --
     Scalar256 z     = scalar_from_bytes(msg);

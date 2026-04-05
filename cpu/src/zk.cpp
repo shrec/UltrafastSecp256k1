@@ -6,7 +6,6 @@
 #include "secp256k1/sha256.hpp"
 #include "secp256k1/tagged_hash.hpp"
 #include "secp256k1/field.hpp"
-#include "secp256k1/field_52.hpp"
 #include "secp256k1/ct/point.hpp"
 #include "secp256k1/pippenger.hpp"
 #include "secp256k1/detail/secure_erase.hpp"
@@ -858,14 +857,20 @@ ForeignFieldLimbs scalar_to_ff_limbs(const Scalar& s) noexcept {
     return fl;
 }
 
-// Convert a FieldElement (mod p, 4×64-bit Montgomery-reduced internally) to
-// 5×52-bit ForeignFieldLimbs via the FieldElement52 path (which already carries
-// out the 5×52 decomposition with lazy reduction).
+// Convert a FieldElement (mod p, 4×64-bit canonical limbs) to 5×52-bit
+// ForeignFieldLimbs.  Implemented directly on the 4×64 limbs to avoid a
+// dependency on FieldElement52 (which requires __int128 and is therefore
+// unavailable on MSVC / 32-bit targets).  The bit-extraction is identical
+// to FieldElement52::from_fe() followed by normalize() for a canonical FE.
 ForeignFieldLimbs fe_to_ff_limbs(const FieldElement& fe) noexcept {
-    secp256k1::fast::FieldElement52 fe52 = secp256k1::fast::FieldElement52::from_fe(fe);
-    fe52.normalize();  // ensure each limb is strictly < 2^52
+    static constexpr std::uint64_t MASK52 = (1ULL << 52) - 1;
+    const auto& L = fe.limbs();  // canonical 4×64-bit, little-endian
     ForeignFieldLimbs fl{};
-    for (int i = 0; i < 5; ++i) fl.limbs[i] = fe52.n[i];
+    fl.limbs[0] =  L[0]                          & MASK52;
+    fl.limbs[1] = ((L[0] >> 52) | (L[1] << 12)) & MASK52;
+    fl.limbs[2] = ((L[1] >> 40) | (L[2] << 24)) & MASK52;
+    fl.limbs[3] = ((L[2] >> 28) | (L[3] << 36)) & MASK52;
+    fl.limbs[4] =  L[3] >> 16;  // top limb: at most 48 bits for any value < p
     return fl;
 }
 
