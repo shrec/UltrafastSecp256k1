@@ -548,7 +548,7 @@ def run_all(args):
 
     # Security
     if mode in ('--all', '--security'):
-        print(f"{BOLD}[1/11] Security Invariants{RESET}")
+        print(f"{BOLD}[1/12] Security Invariants{RESET}")
         issues = check_security_invariants()
         if issues:
             for i in issues:
@@ -563,7 +563,7 @@ def run_all(args):
 
     # CUDA / MSVC portability
     if mode in ('--all', '--cuda-msvc'):
-        print(f"{BOLD}[2/11] CUDA / MSVC Portability{RESET}")
+        print(f"{BOLD}[2/12] CUDA / MSVC Portability{RESET}")
         cuda_msvc_issues = check_cuda_msvc_portability()
         if cuda_msvc_issues:
             for issue in cuda_msvc_issues:
@@ -576,7 +576,7 @@ def run_all(args):
 
     # Narrative drift
     if mode in ('--all', '--drift'):
-        print(f"{BOLD}[3/11] Narrative Drift Detection{RESET}")
+        print(f"{BOLD}[3/12] Narrative Drift Detection{RESET}")
         drift_issues = check_narrative_drift()
         if drift_issues:
             for i in drift_issues:
@@ -588,7 +588,7 @@ def run_all(args):
 
     # Coverage
     if mode in ('--all', '--coverage'):
-        print(f"{BOLD}[4/11] Test Coverage Gaps{RESET}")
+        print(f"{BOLD}[4/12] Test Coverage Gaps{RESET}")
         gaps = check_coverage_gaps()
         if gaps:
             for path, lines in sorted(gaps, key=lambda x: -x[1])[:20]:
@@ -600,7 +600,7 @@ def run_all(args):
 
     # Freshness
     if mode in ('--all', '--freshness'):
-        print(f"{BOLD}[5/11] Graph Freshness{RESET}")
+        print(f"{BOLD}[5/12] Graph Freshness{RESET}")
         stale, built = check_freshness()
         if stale:
             for kind, path, lines in stale[:15]:
@@ -614,7 +614,7 @@ def run_all(args):
 
     # Changed files
     if mode in ('--all', '--claims'):
-        print(f"{BOLD}[6/11] Assurance Claim Surfaces{RESET}")
+        print(f"{BOLD}[6/12] Assurance Claim Surfaces{RESET}")
         claim_issues = check_claim_surfaces()
         if claim_issues:
             for issue in claim_issues:
@@ -626,7 +626,7 @@ def run_all(args):
             print(f"  {GREEN}[OK] Claim surfaces resolve and are graph-indexed{RESET}\n")
 
     if mode in ('--all', '--ai-review'):
-        print(f"{BOLD}[7/11] AI Review Event Log{RESET}")
+        print(f"{BOLD}[7/12] AI Review Event Log{RESET}")
         ai_review_issues = check_ai_review_log()
         if ai_review_issues:
             for issue in ai_review_issues:
@@ -638,7 +638,7 @@ def run_all(args):
             print(f"  {GREEN}[OK] AI review-event log is schema-valid{RESET}\n")
 
     if mode in ('--all', '--gpu-evidence'):
-        print(f"{BOLD}[8/11] GPU Backend Evidence{RESET}")
+        print(f"{BOLD}[8/12] GPU Backend Evidence{RESET}")
         gpu_issues = check_gpu_backend_evidence()
         if gpu_issues:
             for issue in gpu_issues:
@@ -651,7 +651,7 @@ def run_all(args):
 
     # Changed files
     if mode in ('--all', '--changed'):
-        print(f"{BOLD}[9/11] Changed Files Impact{RESET}")
+        print(f"{BOLD}[9/12] Changed Files Impact{RESET}")
         changed = get_changed_files()
         if changed:
             print(f"  {len(changed)} files changed vs HEAD:")
@@ -681,7 +681,7 @@ def run_all(args):
             print(f"  {GREEN}[OK] No uncommitted changes{RESET}\n")
 
     if mode in ('--all', '--secret-paths'):
-        print(f"{BOLD}[10/11] Secret-Path Change Gate{RESET}")
+        print(f"{BOLD}[10/12] Secret-Path Change Gate{RESET}")
         secret_report, secret_fail = check_secret_path_changes(changed)
         if secret_report['triggered_rules']:
             for rule in secret_report['triggered_rules']:
@@ -704,7 +704,7 @@ def run_all(args):
 
     # ABI
     if mode in ('--all', '--abi'):
-        print(f"{BOLD}[11/11] ABI Surface{RESET}")
+        print(f"{BOLD}[11/12] ABI Surface{RESET}")
         added, removed = check_abi_surface()
         if added:
             print(f"  {CYAN}NEW functions (not in graph):{RESET}")
@@ -719,6 +719,47 @@ def run_all(args):
         if not added and not removed:
             print(f"  {GREEN}[OK] ABI surface matches graph{RESET}")
         print()
+
+    # Doc Consistency
+    if mode in ('--all', '--doc-sync'):
+        print(f"{BOLD}[12/12] Documentation Consistency{RESET}")
+        try:
+            import importlib.util
+            spec = importlib.util.spec_from_file_location(
+                "sync_docs",
+                Path(__file__).parent / "sync_docs.py"
+            )
+            sync_mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(sync_mod)
+            version  = sync_mod.read_version()
+            counts   = sync_mod.read_module_counts()
+            wf_count = sync_mod.read_workflow_count()
+            abi      = sync_mod.read_abi_counts()
+            stale = 0
+            for rel, groups in sync_mod.DOC_FILES:
+                path_abs = LIB_ROOT / rel
+                if not path_abs.exists():
+                    continue
+                original = path_abs.read_text(encoding="utf-8")
+                text = original
+                if "version" in groups and path_abs.name not in sync_mod.VERSION_SKIP_FILES:
+                    text, _ = sync_mod.apply_version_rules(text, version)
+                if "modules" in groups:
+                    text, _ = sync_mod.apply_module_rules(text, counts)
+                if "workflows" in groups:
+                    text, _ = sync_mod.apply_workflow_rules(text, wf_count)
+                if "abi" in groups:
+                    text, _ = sync_mod.apply_abi_rules(text, abi)
+                if text != original:
+                    print(f"  {YELLOW}STALE: {rel}{RESET}")
+                    stale += 1
+            if stale:
+                print(f"  {YELLOW}{stale} doc file(s) have stale numbers.{RESET}")
+                print(f"  Run:  python3 scripts/sync_docs.py  to fix.\n")
+            else:
+                print(f"  {GREEN}[OK] All docs are in sync with sources of truth{RESET}\n")
+        except Exception as exc:
+            print(f"  {YELLOW}WARNING: doc-sync check failed: {exc}{RESET}\n")
 
     # Summary
     print(f"{BOLD}{'='*60}{RESET}")

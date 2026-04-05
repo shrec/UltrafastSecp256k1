@@ -235,7 +235,7 @@ This top-level narrative maps directly to the assurance ledger: CT secret-key ro
 | Internal audit assertions per build | **~1,000,000+** |
 | Audit modules (`unified_audit_runner`) | **55 modules, 8 sections, 0 failures** |
 | Exploit PoC test files | **86 tests, 14 coverage areas, 0 failures** |
-| CI/CD workflows | **25 GitHub Actions workflows** |
+| CI/CD workflows | **33 GitHub Actions workflows** |
 | Build matrix (arch × config × OS) | **7 × 17 × 5 = 595 combinations** |
 | Nightly differential tests | **~1,300,000+ random checks / night** |
 | Constant-time verification pipelines | **3 independent (ct-arm64, ct-verif, Valgrind CT)** |
@@ -386,7 +386,7 @@ In addition to the 55-module `unified_audit_runner`, UltrafastSecp256k1 ships **
 **Report vulnerabilities** via [GitHub Security Advisories](https://github.com/shrec/UltrafastSecp256k1/security/advisories/new) or email [payysoon@gmail.com](mailto:payysoon@gmail.com).
 For production cryptographic systems, perform your own risk review, review the current guarantees in [SUPPORTED_GUARANTEES.md](include/ufsecp/SUPPORTED_GUARANTEES.md), and apply the assurance level appropriate to your deployment.
 
-For the full audit infrastructure breakdown (1M+ assertions, 23 CI/CD workflows, formal CT verification pipelines, self-audit document index), see the [Engineering Quality & Self-Audit Culture](#engineering-quality--self-audit-culture) section above and [WHY_ULTRAFASTSECP256K1.md](WHY_ULTRAFASTSECP256K1.md).
+For the full audit infrastructure breakdown (1M+ assertions, 33 CI workflows, formal CT verification pipelines, self-audit document index), see the [Engineering Quality & Self-Audit Culture](#engineering-quality--self-audit-culture) section above and [WHY_ULTRAFASTSECP256K1.md](WHY_ULTRAFASTSECP256K1.md).
 
 ---
 
@@ -475,7 +475,7 @@ Features are organized into **maturity tiers** (see [SUPPORTED_GUARANTEES.md](in
 | **2 -- Protocol** | BIP-352 | Silent Payments scanning pipeline (CPU + GPU) | [OK] |
 | **2 -- Protocol** | ECIES | Elliptic curve integrated encryption | [OK] |
 | -- | GPU | CUDA, Metal, OpenCL, ROCm kernels | [OK] |
-| -- | GPU C ABI | `ufsecp_gpu` -- 7 batch ops across 3 backends (17 FFI functions, incl. FROST) | [OK] |
+| -- | GPU C ABI | `ufsecp_gpu` -- 7 batch ops across 3 backends (26 functions, incl. FROST) | [OK] |
 | -- | Platforms | x64, ARM64, RISC-V, ESP32, STM32, WASM, iOS, Android | [OK] |
 
 > **Tier 1** = battle-tested core crypto with stable API. **Tier 2** = protocol-level features, API may evolve. **Tier 3** = convenience utilities.
@@ -1569,7 +1569,7 @@ cosign verify-blob SHA256SUMS \
 | [API Reference](docs/API_REFERENCE.md) | Full C++ and C ABI reference |
 | [Build Guide](docs/BUILDING.md) | Detailed build instructions for all platforms |
 | [Benchmarks](docs/BENCHMARKS.md) | Complete benchmark results and methodology |
-| [GPU API](include/ufsecp/ufsecp_gpu.h) | GPU C ABI header (18 functions, 8 ops, 3 backends) |
+| [GPU API](include/ufsecp/ufsecp_gpu.h) | GPU C ABI header (26 functions, 8 ops, 3 backends) |
 | [GPU Validation Matrix](docs/GPU_VALIDATION_MATRIX.md) | Per-backend op coverage and validation status |
 | [Feature Maturity](docs/FEATURE_MATURITY.md) | Per-feature GPU/CT/fuzz/tier status table |
 | [Supported Guarantees](include/ufsecp/SUPPORTED_GUARANTEES.md) | ABI stability tiers and commitment levels |

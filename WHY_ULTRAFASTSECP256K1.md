@@ -64,7 +64,7 @@ These top-level differentiators are claim-keyed in the ledger: exploit-audit sur
 | **Total (exploit PoC tests)** | **146 exploit-style PoC modules** across 14 coverage categories, all in `audit/test_exploit_*.cpp` | **146 modules, 0 failures** |
 
 All 74 non-exploit audit modules across all tested platforms return **AUDIT-READY**. Zero failures.
-All 146 exploit PoC modules pass. Zero failures across all 14 coverage categories.
+All 146 exploit-PoC modules pass. Zero failures across all 14 coverage categories.
 
 ### Self-Audit Documents
 
@@ -228,7 +228,7 @@ At the same time, it does not wait for a third party to begin strengthening corr
 However, "not externally audited" does **not** mean "unverified." The internal quality infrastructure described in this document represents a systematic, multi-layer correctness assurance program that most open-source cryptographic libraries do not have:
 
 - Over **1,000,000 internal audit assertions** executed on every build
-- **31 CI/CD workflows** enforcing correctness, security, and performance on every push/PR plus scheduled assurance runs
+- **33 CI workflows** enforcing correctness, security, and performance on every push/PR plus scheduled assurance runs
 - **Formal constant-time verification** on two independent platforms
 - **Supply-chain hardening** at the OpenSSF standard
 - **Nightly differential testing** at 1.3M+ additional random checks per night
