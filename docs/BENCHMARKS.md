@@ -330,8 +330,22 @@ On this board, that moved `bench_unified --quick` `scalar_mul_with_plan` from th
 | Pedersen Commit | 66.0 ns | 15,160 k/s | v*H + r*G, batch 4K |
 | Range Prove (64-bit) | 3,711,570 ns | 0.27 k/s | Bulletproof, CT path, batch 256 |
 | Range Verify (64-bit) | 764,649 ns | 1.3 k/s | Full IPA verification, batch 256 |
+| **ECDSA SNARK Witness** | **224.8 ns** | **4,449 k/s** | **s_inv witness (eprint 2025/695), batch 65536, 107x vs CPU** |
 
-### GPU BIP-352 Silent Payment Scan (`ufsecp_gpu_bip352_scan_batch`)
+### GPU ECDSA SNARK Witness (`ufsecp_gpu_zk_ecdsa_snark_witness_batch`)
+
+> **2026-04-05 — CUDA, N=65536, 11 passes median, tpb=128, RTX 5060 Ti**
+
+| Metric | Value |
+|--------|-------|
+| GPU time/op | 224.8 ns |
+| GPU throughput | 4.45 M/s |
+| CPU time/op (single-thread) | 24,118.5 ns |
+| GPU/CPU speedup | **107x** |
+| Witness size | 760 bytes/witness |
+| Validation | MATCH (s_inv + valid flag vs CPU reference) |
+
+Implements the s_inv modular inverse witness computation from [eprint 2025/695](https://eprint.iacr.org/2025/695), enabling efficient SNARK circuit verification of ECDSA signatures.
 
 > **2026-04-04 — CUDA, N=500,000 tweak points, 11 passes median, 3 warmup**
 
@@ -422,6 +436,7 @@ Current entries:
 | Pedersen Commit | 66.0 ns | 15,160 k/s | v*H + r*G, batch 4K |
 | Range Prove (64-bit) | 3,711,570 ns | 0.27 k/s | Bulletproof, CT path, batch 256 |
 | Range Verify (64-bit) | 764,649 ns | 1.3 k/s | Full IPA verification, batch 256 |
+| **ECDSA SNARK Witness** | **224.8 ns** | **4,449 k/s** | **s_inv witness (eprint 2025/695), batch 65536** |
 
 ### CUDA Launch-Width Triage (2026-03-18)
 
@@ -895,6 +910,7 @@ CT layer provides side-channel resistance at the cost of performance.
 | DLEQ Verify | 60.6 us | 16,502 op/s | Two-base verification, FAST path |
 | Range Prove (64-bit) | 13,619 us | 73 op/s | Bulletproof prover, CT path |
 | Range Verify (64-bit) | 2,670 us | 375 op/s | MSM-optimized verifier, FAST path |
+| ECDSA SNARK Witness | 24.1 us | 41,500 op/s | s_inv computation (eprint 2025/695), single-thread |
 
 ### Range Verify Optimization (v3.22+)
 
@@ -965,6 +981,7 @@ All targets registered in CMake. Build with `cmake --build build -j` then run fr
 | `bench_field_26` | 10x26 field arithmetic micro-benchmarks |
 | `bench_kP` | Scalar multiplication (k*P) benchmarks |
 | `bench_zk` (CUDA) | GPU ZK proof benchmarks: Knowledge, DLEQ, Pedersen, Bulletproof |
+| `bench_snark_witness` (CUDA) | CPU vs GPU ECDSA SNARK witness (eprint 2025/695) |
 
 
 ---

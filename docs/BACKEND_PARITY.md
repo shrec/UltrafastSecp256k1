@@ -152,6 +152,17 @@ Y = implemented + tested in audit runner, K = kernel/shader exists (not in audit
 | OpenCL | + LUT (local=128, N=50K) | 96.5 ns | 10.36 M/s | 1.07x vs CUDA+LUT |
 | CPU | UltrafastSecp256k1 KPlan | 24,436.5 ns | 40.9 K/s | 1.00x |
 
+### ECDSA SNARK Witness Benchmark Numbers (RTX 5060 Ti, eprint 2025/695, 2026-04-05)
+
+**bench_snark_witness** — N=65536, 11 passes, median, tpb=128
+
+| Backend | Time/Op | Throughput | vs CPU |
+|---------|---------|------------|--------|
+| CUDA | 224.8 ns | 4.45 M/s | **107x** |
+| CPU (single-thread) | 24,118.5 ns | 41.5 K/s | 1.00x |
+
+Witness size: 760 bytes. Correctness validated (GPU s_inv matches CPU, valid flag matches).
+
 ---
 
 ## Parity Gaps (remaining)

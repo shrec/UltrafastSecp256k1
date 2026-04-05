@@ -15,6 +15,7 @@ Performance benchmarks for UltrafastSecp256k1 ZK proof operations across CPU and
 | Pedersen Commit | 29.7 us | 66.0 ns | **450x** |
 | Bulletproof Range Prove | 13,619 us | 3,712 us | **3.7x** |
 | Bulletproof Range Verify | 2,670 us | 765 us | **3.5x** |
+| **ECDSA SNARK Witness** | **24.1 us** | **224.8 ns** | **107x** |
 
 ---
 
@@ -71,6 +72,7 @@ Verify operations use the fast (variable-time) path since inputs are public.
 | Pedersen Commit | 66.0 ns | 15,160 k/s | FAST | v*H + r*G, batch 4K |
 | Range Prove (64-bit) | 3,711,570 ns | 0.27 k/s | CT | Bulletproof prover, batch 256 |
 | Range Verify (64-bit) | 764,649 ns | 1.3 k/s | FAST | Full IPA verification, batch 256 |
+| **ECDSA SNARK Witness** | **224.8 ns** | **4,449.1 k/s** | **FAST** | **eprint 2025/695 s_inv witness, batch 65536** |
 
 ### Kernel Resource Usage
 
@@ -108,6 +110,7 @@ The benchmark exits with error if any verification fails.
 | Pedersen Commit | 29,718 ns | 66.0 ns | **450x** |
 | Range Prove (64-bit) | 13,618,693 ns | 3,711,570 ns | **3.7x** |
 | Range Verify (64-bit) | 2,669,843 ns | 764,649 ns | **3.5x** |
+| **ECDSA SNARK Witness** | **24,118 ns** | **224.8 ns** | **107x** |
 
 ### Batch Throughput
 
