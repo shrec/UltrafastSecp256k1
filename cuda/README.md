@@ -61,10 +61,6 @@ All code resides in the `secp256k1::cuda` namespace. The core is **header-only**
 ### Hash160 (SHA-256 + RIPEMD-160)
 - `hash160_pubkey_kernel` -- pubkey -> Hash160 device-side
 
-### Bloom Filter
-- `DeviceBloom` -- FNV-1a + SplitMix hashing
-- `test` / `add` device functions + batch kernels
-
 ---
 
 ## File Structure
@@ -79,7 +75,6 @@ cuda/
 |   +-- secp256k1_32.cuh                        # Alternative: 8x32-bit limbs + Montgomery backend
 |   +-- secp256k1_32_hybrid_final.cuh           # 32-bit Comba mul -> 64-bit reduction (default mul path)
 |   +-- batch_inversion.cuh                     # Montgomery trick / Fermat / naive batch inverse
-|   +-- bloom.cuh                               # Device-side Bloom filter (FNV-1a + SplitMix)
 |   +-- hash160.cuh                             # SHA-256 + RIPEMD-160 -> Hash160
 |   +-- host_helpers.cuh                        # Host-side wrappers (1-thread kernels, test-only)
 |   +-- gpu_compat.h                            # CUDA <-> HIP (ROCm) compatibility layer
@@ -203,34 +198,6 @@ static_assert(offsetof(FieldElement, limbs) == 0);
 ```
 
 CPU-computed data transfers directly to GPU via `cudaMemcpy` (little-endian, same POD layout).
-
----
-
-## Cross-Platform Benchmarks
-
-### Android ARM64 -- RK3588 (Cortex-A55/A76), ARM64 inline ASM (MUL/UMULH)
-
-| Operation | Time |
-|-----------|------|
-| field_mul (a*b mod p) | 68.3 ns |
-| field_sqr (a^2 mod p) | 50 ns |
-| field_add (a+b mod p) | 8 ns |
-| field_inverse | 2 us |
-| **fast scalar_mul (k*G)** | **15.27 us** |
-| fast scalar_mul (k*P) | 130.33 us |
-| ECDSA sign | 22.22 us |
-| Schnorr sign (precomputed) | 16.67 us |
-| ECDSA verify | 150.13 us |
-
-> Backend: ARM64 inline assembly (MUL/UMULH). Latest rerun kept the ARMv8 SHA2 dispatch win for signing-heavy paths on RK3588.
-
-### Latest RTX 5060 Ti Refresh
-
-- CUDA local rerun via `gpu_bench_unified`: `k*G = 129.5 ns` at TPB 256 on batch 65536.
-- OpenCL retained revalidation: `kG (batch=65536) = 115.1 ns`, `kP (batch=65536) = 263.1 ns`, `kG (kernel) = 98.7 ns`.
-- CUDA TPB 512 was not retained as a default because the same harness produced invalid CT timings while only marginally improving `k*G`.
-
-See `../docs/BENCHMARKS.md` for the current cross-platform benchmark matrix and retained-vs-rejected rerun notes.
 
 ---
 
