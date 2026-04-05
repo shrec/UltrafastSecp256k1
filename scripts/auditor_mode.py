@@ -155,6 +155,100 @@ def _write_text(path: Path, content: str) -> None:
     path.write_text(content, encoding='utf-8')
 
 
+# ---------------------------------------------------------------------------
+# SARIF 2.1.0 export — lets external reviewers import findings into GitHub
+# Code Scanning / any SARIF-aware tool.
+# Spec: https://docs.oasis-open.org/sarif/sarif/v2.1.0/
+# ---------------------------------------------------------------------------
+
+_SARIF_LEVEL = {
+    'critical': 'error',
+    'high':     'error',
+    'medium':   'warning',
+    'low':      'note',
+}
+
+
+def build_sarif(report: dict, lib_root: Path) -> dict:
+    """Convert an auditor_mode report dict into a SARIF 2.1.0 document."""
+    rules: list[dict] = []
+    results: list[dict] = []
+
+    # Collect rules from all probes (required + recommended)
+    all_items = report.get('coverage', []) + report.get('recommended_coverage', [])
+
+    rule_ids_seen: set[str] = set()
+    for item in all_items:
+        rule_id = f"UFSECP-{item['key'].upper().replace('-', '_')}"
+        if rule_id not in rule_ids_seen:
+            rule_ids_seen.add(rule_id)
+            rules.append({
+                'id': rule_id,
+                'name': item['key'].replace('-', ' ').title().replace(' ', ''),
+                'shortDescription': {'text': item['rationale']},
+                'fullDescription': {'text': f"Expected symbol: {item['expected_symbol']}  Expected file: {item['expected_file']}"},
+                'help': {'text': item['rationale']},
+                'defaultConfiguration': {
+                    'level': _SARIF_LEVEL.get(item.get('severity', 'medium'), 'warning'),
+                },
+                'properties': {
+                    'severity': item.get('severity', 'medium'),
+                    'tags': ['cryptography', 'exploit-probe', 'audit'],
+                },
+            })
+
+        if not item['present']:
+            # Only emit SARIF result for probes that are MISSING
+            rel_path = item['expected_file']
+            artifact_uri = rel_path.replace('\\', '/')
+            results.append({
+                'ruleId': rule_id,
+                'level': _SARIF_LEVEL.get(item.get('severity', 'medium'), 'warning'),
+                'message': {
+                    'text': (
+                        f"Missing exploit-probe coverage for '{item['key']}'. "
+                        f"Expected: {item['expected_symbol']} in {item['expected_file']}. "
+                        f"Rationale: {item['rationale']}"
+                    )
+                },
+                'locations': [{
+                    'physicalLocation': {
+                        'artifactLocation': {
+                            'uri': artifact_uri,
+                            'uriBaseId': '%SRCROOT%',
+                        },
+                        'region': {'startLine': 1},
+                    },
+                }],
+                'properties': {
+                    'present': False,
+                    'expected_symbol': item['expected_symbol'],
+                },
+            })
+
+    sarif_doc = {
+        '$schema': 'https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json',
+        'version': '2.1.0',
+        'runs': [{
+            'tool': {
+                'driver': {
+                    'name': 'UltrafastSecp256k1 Auditor Mode',
+                    'version': '1.0.0',
+                    'informationUri': 'https://github.com/shrec/UltrafastSecp256k1',
+                    'rules': rules,
+                },
+            },
+            'results': results,
+            'properties': {
+                'auditor_mode_status': report.get('status', 'unknown'),
+                'generated_at': report.get('generated_at', ''),
+                'registered_symbol_count': report.get('registered_symbol_count', 0),
+            },
+        }],
+    }
+    return sarif_doc
+
+
 def _build_text_summary(report: dict) -> str:
     lines = [
         '============================================================',
@@ -274,6 +368,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description='Generate auditor-mode automation report.')
     parser.add_argument('--output-dir', type=Path, default=DEFAULT_OUTPUT_DIR, help='Directory for generated reports')
     parser.add_argument('--json', action='store_true', help='Print JSON report to stdout')
+    parser.add_argument('--sarif', action='store_true', help='Also write SARIF 2.1.0 report for GitHub Code Scanning / external tooling')
     parser.add_argument('--strict', action='store_true', help='Fail when required probes are missing')
     return parser.parse_args()
 
@@ -288,6 +383,17 @@ def main() -> int:
     txt_path = output_dir / 'auditor_mode_report.txt'
     _write_json(json_path, report)
     _write_text(txt_path, _build_text_summary(report))
+
+    if args.sarif:
+        sarif_doc = build_sarif(report, LIB_ROOT)
+        sarif_path = output_dir / 'auditor_mode_report.sarif'
+        _write_json(sarif_path, sarif_doc)
+        missing_count = report.get('missing_count', 0) + report.get('recommended_missing_count', 0)
+        try:
+            display = sarif_path.relative_to(LIB_ROOT)
+        except ValueError:
+            display = sarif_path
+        print(f'SARIF written: {display}  ({missing_count} findings)')
 
     if args.json:
         print(json.dumps(report, indent=2))
