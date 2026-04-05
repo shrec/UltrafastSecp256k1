@@ -320,7 +320,7 @@ UltrafastSecp256k1/
 | CI | `ci.yml` | push/PR | Linux/Win/macOS/iOS/WASM/Android build + test (17 configs × 7 archs) |
 | Preflight | `preflight.yml` | PR | Fast pre-merge smoke gate |
 | Security Audit | `security-audit.yml` | push/PR/cron | -Werror + ASan/UBSan + **MSan** + TSan + Valgrind + dudect |
-| Unified Audit | `audit-report.yml` | push/manual | Runs `unified_audit_runner` (55 modules, ~1M checks) |
+| Unified Audit | `audit-report.yml` | push/manual | Runs `unified_audit_runner` (220 modules: 73 core + 147 exploit-PoC, ~1M checks) |
 | CT Verification | `ct-verif.yml` | push/PR | Formal CT verification via ct-verif LLVM pass |
 | CT ARM64 | `ct-arm64.yml` | push/PR | Native ARM64 dudect on Apple M1 hardware |
 | Valgrind CT | `valgrind-ct.yml` | push/PR | Valgrind CT taint analysis (CLASSIFY/DECLASSIFY) |

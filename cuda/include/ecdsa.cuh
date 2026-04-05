@@ -237,9 +237,8 @@ __device__ inline void rfc6979_nonce(
     for (int attempt = 0; attempt < 100; attempt++) {
         hmac_sha256(K, 32, V, 32, V);
 
-        scalar_from_bytes(V, k_out);  // reduces mod n
-
-        if (!scalar_is_zero(k_out)) return;  // valid nonce found
+        // RFC 6979 §3.2(h): reject if k == 0 or k >= n (strict, no reduction)
+        if (scalar_from_bytes_strict_nonzero(V, k_out)) return;
 
         // Retry: K = HMAC(K, V || 0x00), V = HMAC(K, V)
         uint8_t buf[33];

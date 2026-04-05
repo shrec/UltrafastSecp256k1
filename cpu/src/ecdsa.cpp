@@ -332,12 +332,11 @@ Scalar rfc6979_nonce(const Scalar& private_key,
 
         std::array<uint8_t, 32> t;
         std::memcpy(t.data(), V, 32);
-        // Scalar::from_bytes() implicitly reduces mod n (if the 256-bit
-        // HMAC output >= n, it is reduced).  This is correct for RFC 6979:
-        // the spec defines k = bits2int(T) mod n, which is exactly what
-        // from_bytes() does.  The retry is only for the degenerate k==0.
-        auto candidate = Scalar::from_bytes(t);
-        if (!candidate.is_zero()) {
+        // RFC 6979 §3.2(h): k = bits2int(T); retry if k == 0 or k >= n.
+        // parse_bytes_strict_nonzero() rejects both (no implicit mod-n
+        // reduction), making this loop strictly spec-compliant.
+        Scalar candidate;
+        if (Scalar::parse_bytes_strict_nonzero(t.data(), candidate)) {
             // Zeroize HMAC state and private key copy before returning
             secure_erase(V, sizeof(V));
             secure_erase(K, sizeof(K));

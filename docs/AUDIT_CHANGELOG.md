@@ -28,7 +28,7 @@ evidence upgrades, and changes to what the repository can honestly claim.
 - **Added** `scripts/verify_slsa_provenance.py` — checks `cosign` bundle validity, subject
   digest, and builder identity for release artefacts. Committed `38108b89`.
 
-- **Added** `specs/` — 4 machine-checkable Cryptol property files:
+- **Added** `formal/cryptol/` — 4 machine-checkable Cryptol property files:
   `Secp256k1Field.cry` (10 props: field axioms, Fermat, sqrt),
   `Secp256k1Point.cry` (7 props: commutativity, associativity, scalar distribution),
   `Secp256k1ECDSA.cry` (6 props: sign→verify, wrong-msg reject, sk-uniqueness),
@@ -206,7 +206,7 @@ tests PASS.**
   double-hash confusion (H(msg) ≠ H(H(msg))); domain prefix isolation (domain-A sig ≠ domain-B
   sig).  Committed `c843979c`.
 
-**Running total after this wave: 135 exploit PoC files, 59 new checks.**
+**Running total after this wave: 157 exploit PoC files, 59 new checks.**
 
 ---
 
