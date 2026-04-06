@@ -197,7 +197,7 @@ After cross-referencing all categories above, the following subtleties warrant a
 
 ---
 
-## Category XI — Wycheproof Extended (Gaps Closed 2026-04-XX)
+## Category XI — Wycheproof Extended (Gaps Closed 2026-04-06)
 
 Internet-wide gap analysis against the full Wycheproof v1 JSON
 (`ecdsa_secp256k1_sha256_test.json`, 474 tests) revealed six flag categories
@@ -207,7 +207,7 @@ All six are now covered by `audit/test_wycheproof_ecdsa_extended.cpp` (65 vector
 | # | Wycheproof Flag Category | tcIds | Vectors | Expected | File / Tests |
 |---|--------------------------|-------|---------|----------|--------------|
 | XI-1 | RangeCheck | 152-162 | 6 | invalid | `test_wycheproof_ecdsa_extended` §A |
-| XI-2 | InvalidTypesInSignature | 232-258 (subset) | 29 | invalid | `test_wycheproof_ecdsa_extended` §B |
+| XI-2 | InvalidTypesInSignature | 232-258 (subset) | 27 | invalid | `test_wycheproof_ecdsa_extended` §B |
 | XI-3 | EdgeCaseShamirMultiplication | 295 | 1 | valid | `test_wycheproof_ecdsa_extended` §C |
 | XI-4 | SmallRandS (CVE-2020-13895) | 355-360 | 6 | valid | `test_wycheproof_ecdsa_extended` §D |
 | XI-5 | PointDuplication | 390, 427-428, 442-445 | 7 | mixed | `test_wycheproof_ecdsa_extended` §E |
@@ -242,12 +242,12 @@ All six are now covered by `audit/test_wycheproof_ecdsa_extended.cpp` (65 vector
 | VIII — KAT | 8 | 8 | 0 |
 | IX — Malleability | 5 | 5 | 0 |
 | X — Identified gaps | 6 | 6 | 0 |
-| XI — Wycheproof extended (new) | 6 subcategories / 67 vectors | 6 / 67 | 0 |
+| XI — Wycheproof extended (new) | 6 subcategories / 65 vectors | 6 / 65 | 0 |
 | **TOTAL** | **88 documented categories** | **88** | **0** |
 
 **Overall coverage: 88/88 (100%).**
 - Categories I–X (82 cases) have been covered since 2026-04-07.
-- Category XI (6 new Wycheproof flag categories, 67 test vectors) closed 2026-04-XX
+- Category XI (6 new Wycheproof flag categories, 65 test vectors) closed 2026-04-06
   by `audit/test_wycheproof_ecdsa_extended.cpp`.
 
 ---
@@ -262,7 +262,7 @@ All six are now covered by `audit/test_wycheproof_ecdsa_extended.cpp` (65 vector
 | X-3 | 2026-04-07 | `test_exploit_ecdsa_recovery.cpp` test-8 (overflow branch consistency + rejection) |
 | X-4 | 2026-04-07 | `test_exploit_ecdsa_sign_sentinels.cpp` SS-9 (GPU guard source-level audit) |
 | X-5 | 2026-04-07 | `test_exploit_ecdsa_fault_injection.cpp` EFI-7/EFI-8 |
-| XI-1..XI-6 | 2026-04-XX | `test_wycheproof_ecdsa_extended.cpp` §A–§F (65 vectors, 65/65 pass) |
+| XI-1..XI-6 | 2026-04-06 | `test_wycheproof_ecdsa_extended.cpp` §A–§F (65 vectors, 65/65 pass) |
 
 ---
 

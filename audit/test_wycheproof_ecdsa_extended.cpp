@@ -9,11 +9,19 @@
 //
 // Categories:
 //   A  RangeCheck (tcIds 152-162, 6 vectors)
-//      Signatures where r = r_valid ± n; must be rejected (r ≥ n).
+//      Signatures where r is out of range (r ≥ n or negative DER encoding);
+//      all must be rejected.  Modifications tested:
+//        tcId 152: r = r_valid + n   (33-byte DER INTEGER, leading 0x01)
+//        tcId 153: r modified (32-byte but >= n after scalar parse)
+//        tcId 154: r = r_valid + 2n  (34-byte DER INTEGER, leading 0x0100)
+//        tcId 160: r = s_valid + n   (33-byte DER INTEGER, leading 0x01)
+//        tcId 161: r = s_valid + 2n  (high byte 0xFF = negative DER)
+//        tcId 162: r = s_valid + 2n  (34-byte DER INTEGER, leading 0x0100)
 //
-//   B  InvalidTypesInSignature (representative subset, tcIds 232-258)
+//   B  InvalidTypesInSignature (representative subset, tcIds 232-258, 27 vectors)
 //      r or s use the wrong ASN.1 type tag: REAL(0x09), BOOLEAN(0x01),
 //      NULL(0x05), UTF8String(0x0c), SEQUENCE(0x30). Must be rejected.
+//      Tests: 9 vectors with r=0, 9 with r=1, 9 with r=-1 (negative → also rejected).
 //
 //   C  EdgeCaseShamirMultiplication (tcId 295, 1 vector)
 //      Valid signature exercising a Shamir-trick arithmetic edge path.
@@ -33,6 +41,8 @@
 //        - wx small (leading zero bytes)
 //        - wx/wy with many trailing 1-bits
 //        - wx with many trailing 0-bits
+//
+// Total: 65 test vectors (6+27+1+6+7+18). All must pass.
 //
 // All tcId numbers reference ecdsa_secp256k1_sha256_test.json.
 // ============================================================================
@@ -235,23 +245,23 @@ static void test_range_check() {
         "02206ff18a52dcc0336f7af62400a6dd9b810732baf1ff758000d6f613a556eb31ba",
         h, pk), "tcId 154: r+2n rejected");
 
-    // tcId 160: s replaced by s + n
+    // tcId 160: r = (s_value + n) — 33-byte INTEGER with leading 0x01
     CHECK(!der_verify(
         "30450221016ff18a52dcc0336f7af62400a6dd9b7fc1e197d8aebe203c96c87232272172fb"
         "02206ff18a52dcc0336f7af62400a6dd9b810732baf1ff758000d6f613a556eb31ba",
-        h, pk), "tcId 160: s+n rejected");
+        h, pk), "tcId 160: r out of range (33B) rejected");
 
-    // tcId 161: s = s + 2n (negative-encoding variant)
+    // tcId 161: r = (s_value + 2n) wraps to 0xFF high byte — DER parser rejects negative INTEGER
     CHECK(!der_verify(
         "30450221ff6ff18a52dcc0336f7af62400a6dd9b824c83de0b502cdfc51723b51886b4f079"
         "02206ff18a52dcc0336f7af62400a6dd9b810732baf1ff758000d6f613a556eb31ba",
-        h, pk), "tcId 161: s+2n rejected");
+        h, pk), "tcId 161: r negative-encoded rejected");
 
-    // tcId 162: s = s + 2n (leading 0x0100 prefix, 34-byte INTEGER)
+    // tcId 162: r = (s_value + 2n) — 34-byte INTEGER with leading 0x0100 prefix
     CHECK(!der_verify(
         "3046022201006ff18a52dcc0336f7af62400a6dd9a3bb60fa1a14815bbc0a954a0758d2c72ba"
         "02206ff18a52dcc0336f7af62400a6dd9b810732baf1ff758000d6f613a556eb31ba",
-        h, pk), "tcId 162: s+2n rejected");
+        h, pk), "tcId 162: r out of range (34B) rejected");
 }
 
 // ============================================================================
