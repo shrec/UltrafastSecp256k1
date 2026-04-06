@@ -1075,6 +1075,14 @@ static void write_sarif_report(const char* path,
     (void)std::fprintf(f, "          \"informationUri\": \"https://github.com/shrec/UltrafastSecp256k1\",\n");
     (void)std::fprintf(f, "          \"rules\": [\n");
 
+    (void)std::fprintf(f, "            {\n");
+    (void)std::fprintf(f, "              \"id\": \"AUDIT/selftest\",\n");
+    (void)std::fprintf(f, "              \"name\": \"Library selftest (core KAT)\",\n");
+    (void)std::fprintf(f, "              \"shortDescription\": { \"text\": \"Library selftest (core KAT)\" },\n");
+    (void)std::fprintf(f, "              \"defaultConfiguration\": { \"level\": \"error\" },\n");
+    (void)std::fprintf(f, "              \"properties\": { \"section\": \"selftest\" }\n");
+    (void)std::fprintf(f, "            },\n");
+
     // Emit rule definitions for all modules
     for (int i = 0; i < NUM_MODULES; ++i) {
         auto& m = ALL_MODULES[i];
@@ -1152,7 +1160,7 @@ static void write_sarif_report(const char* path,
     // Invocation properties
     (void)std::fprintf(f, "      \"invocations\": [\n");
     (void)std::fprintf(f, "        {\n");
-    (void)std::fprintf(f, "          \"executionSuccessful\": %s,\n", (result_count == 0) ? "true" : "false");
+    (void)std::fprintf(f, "          \"executionSuccessful\": true,\n");
     (void)std::fprintf(f, "          \"toolExecutionNotifications\": []\n");
     (void)std::fprintf(f, "        }\n");
     (void)std::fprintf(f, "      ],\n");

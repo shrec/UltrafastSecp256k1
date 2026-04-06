@@ -48,6 +48,22 @@ static std::string load_file(const std::string& path) {
     return ss.str();
 }
 
+static std::string json_escape(const std::string& s) {
+    std::string out;
+    out.reserve(s.size() + 8);
+    for (char c : s) {
+        switch (c) {
+            case '"':  out += "\\\""; break;
+            case '\\': out += "\\\\"; break;
+            case '\n': out += "\\n";  break;
+            case '\r': out += "\\r";  break;
+            case '\t': out += "\\t";  break;
+            default:   out += c;      break;
+        }
+    }
+    return out;
+}
+
 static FieldElement fe_from_u64(uint64_t v) {
     return {{v, 0, 0, 0}};
 }
@@ -1601,6 +1617,58 @@ struct ModuleResult {
     int error_code;
 };
 
+struct SectionSummary {
+    const char* section_id;
+    const char* title_en;
+    int total;
+    int passed;
+    int failed;
+    int skipped;
+    int advisory;
+    double time_ms;
+};
+
+static std::vector<SectionSummary> compute_section_summaries(
+    const std::vector<ModuleResult>& results) {
+    std::vector<SectionSummary> out;
+    for (int s = 0; s < NUM_OCL_SECTIONS; ++s) {
+        SectionSummary summary{};
+        summary.section_id = OCL_SECTIONS[s].id;
+        summary.title_en = OCL_SECTIONS[s].title_en;
+        summary.total = summary.passed = summary.failed = summary.skipped = summary.advisory = 0;
+        summary.time_ms = 0.0;
+        for (const auto& r : results) {
+            if (r.section != summary.section_id) continue;
+            ++summary.total;
+            if (r.skipped) {
+                ++summary.skipped;
+            } else if (r.passed) {
+                ++summary.passed;
+            } else if (r.advisory) {
+                ++summary.advisory;
+            } else {
+                ++summary.failed;
+            }
+            summary.time_ms += r.time_ms;
+        }
+        out.push_back(summary);
+    }
+    return out;
+}
+
+static const char* section_status(const SectionSummary& summary) {
+    if (summary.failed > 0) return "FAIL";
+    if (summary.skipped > 0) return "SKIP";
+    if (summary.advisory > 0) return "WARN";
+    return "PASS";
+}
+
+static const char* overall_verdict(int failed, int skipped) {
+    if (failed > 0) return "ISSUES-FOUND";
+    if (skipped > 0) return "AUDIT-INCOMPLETE";
+    return "AUDIT-READY";
+}
+
 static void write_json_report(const std::string& path,
                                const std::vector<ModuleResult>& results,
                                const OclDeviceInfo& dev,
@@ -1609,10 +1677,11 @@ static void write_json_report(const std::string& path,
     std::ofstream f(path);
     if (!f.is_open()) return;
 
-    int passed = 0, failed = 0, skipped = 0;
-    for (auto& r : results) {
+    int passed = 0, failed = 0, skipped = 0, advisory = 0;
+    for (const auto& r : results) {
         if (r.skipped) skipped++;
         else if (r.passed) passed++;
+        else if (r.advisory) advisory++;
         else failed++;
     }
 
@@ -1620,33 +1689,34 @@ static void write_json_report(const std::string& path,
     f << "  \"framework_version\": \"" << OCL_AUDIT_FRAMEWORK_VERSION << "\",\n";
     f << "  \"backend\": \"OpenCL\",\n";
     f << "  \"device\": {\n";
-    f << "    \"name\": \"" << dev.name << "\",\n";
-    f << "    \"vendor\": \"" << dev.vendor << "\",\n";
-    f << "    \"version\": \"" << dev.version << "\",\n";
-    f << "    \"driver_version\": \"" << dev.driver_version << "\",\n";
+    f << "    \"name\": \"" << json_escape(dev.name) << "\",\n";
+    f << "    \"vendor\": \"" << json_escape(dev.vendor) << "\",\n";
+    f << "    \"version\": \"" << json_escape(dev.version) << "\",\n";
+    f << "    \"driver_version\": \"" << json_escape(dev.driver_version) << "\",\n";
     f << "    \"memory_mb\": " << dev.memory_mb << ",\n";
     f << "    \"compute_units\": " << dev.compute_units << "\n";
     f << "  },\n";
     f << "  \"platform\": {\n";
-    f << "    \"os\": \"" << plat.os << "\",\n";
-    f << "    \"arch\": \"" << plat.arch << "\",\n";
-    f << "    \"compiler\": \"" << plat.compiler << "\",\n";
-    f << "    \"build_type\": \"" << plat.build_type << "\"\n";
+    f << "    \"os\": \"" << json_escape(plat.os) << "\",\n";
+    f << "    \"arch\": \"" << json_escape(plat.arch) << "\",\n";
+    f << "    \"compiler\": \"" << json_escape(plat.compiler) << "\",\n";
+    f << "    \"build_type\": \"" << json_escape(plat.build_type) << "\"\n";
     f << "  },\n";
     f << "  \"summary\": {\n";
     f << "    \"total\": " << results.size() << ",\n";
     f << "    \"passed\": " << passed << ",\n";
     f << "    \"failed\": " << failed << ",\n";
     f << "    \"skipped\": " << skipped << ",\n";
+    f << "    \"advisory_warnings\": " << advisory << ",\n";
     f << "    \"total_seconds\": " << std::fixed << total_sec << ",\n";
-    f << "    \"verdict\": \"" << (failed == 0 ? "AUDIT-READY" : "ISSUES-FOUND") << "\"\n";
+    f << "    \"verdict\": \"" << overall_verdict(failed, skipped) << "\"\n";
     f << "  },\n";
     f << "  \"modules\": [\n";
     for (size_t i = 0; i < results.size(); i++) {
         auto& r = results[i];
-        f << "    { \"id\": \"" << r.id << "\", \"name\": \"" << r.name
-          << "\", \"section\": \"" << r.section
-          << "\", \"result\": \"" << (r.skipped ? "SKIP" : (r.passed ? "PASS" : "FAIL"))
+        f << "    { \"id\": \"" << json_escape(r.id) << "\", \"name\": \"" << json_escape(r.name)
+          << "\", \"section\": \"" << json_escape(r.section)
+          << "\", \"result\": \"" << (r.skipped ? "SKIP" : (r.passed ? "PASS" : (r.advisory ? "WARN" : "FAIL")))
           << "\", \"time_ms\": " << std::fixed << r.time_ms
           << ", \"error_code\": " << r.error_code << " }";
         if (i + 1 < results.size()) f << ",";
@@ -1664,10 +1734,11 @@ static void write_text_report(const std::string& path,
     std::ofstream f(path);
     if (!f.is_open()) return;
 
-    int passed = 0, failed = 0, skipped = 0;
-    for (auto& r : results) {
+    int passed = 0, failed = 0, skipped = 0, advisory = 0;
+    for (const auto& r : results) {
         if (r.skipped) skipped++;
         else if (r.passed) passed++;
+        else if (r.advisory) advisory++;
         else failed++;
     }
 
@@ -1685,14 +1756,15 @@ static void write_text_report(const std::string& path,
             f << "\n  Section: " << cur_section << "\n";
             f << "  " << std::string(50, '-') << "\n";
         }
-        f << "  [" << (r.skipped ? "SKIP" : (r.passed ? "PASS" : "FAIL")) << "]  "
+        f << "  [" << (r.skipped ? "SKIP" : (r.passed ? "PASS" : (r.advisory ? "WARN" : "FAIL"))) << "]  "
           << r.name << "  (" << r.time_ms << " ms)\n";
     }
 
     f << "\n================================================================\n";
-    f << "  VERDICT: " << (failed == 0 ? "AUDIT-READY" : "ISSUES-FOUND") << "\n";
+    f << "  VERDICT: " << overall_verdict(failed, skipped) << "\n";
     f << "  TOTAL: " << passed << "/" << results.size() << " passed";
     if (skipped > 0) f << ", " << skipped << " skipped";
+    if (advisory > 0) f << ", " << advisory << " advisory";
     if (failed > 0) f << ", " << failed << " FAILED";
     f << "  (" << std::fixed << std::setprecision(1) << total_sec << " s)\n";
     f << "================================================================\n";
@@ -1780,7 +1852,7 @@ int main(int argc, char* argv[]) {
                 NUM_OCL_MODULES, NUM_OCL_SECTIONS);
 
     std::vector<ModuleResult> results;
-    int passed = 0, failed = 0, skipped = 0;
+    int passed = 0, failed = 0, skipped = 0, advisory = 0;
     auto total_start = std::chrono::steady_clock::now();
 
     std::string cur_section;
@@ -1831,6 +1903,11 @@ int main(int argc, char* argv[]) {
             r.skipped = false;
             passed++;
             std::printf("PASS  (%.0f ms)\n", ms);
+        } else if (mod.advisory) {
+            r.passed = false;
+            r.skipped = false;
+            advisory++;
+            std::printf("ADVS  (%.0f ms) [error=%d] (advisory)\n", ms, rc);
         } else {
             r.passed = false;
             r.skipped = false;
@@ -1857,25 +1934,27 @@ int main(int argc, char* argv[]) {
     std::printf("  #    OpenCL Audit Section                            Result\n");
     std::printf("  ---- -------------------------------------------------- ------\n");
 
+    auto sections = compute_section_summaries(results);
     for (int s = 0; s < NUM_OCL_SECTIONS; s++) {
-        int sp = 0, st = 0;
-        for (auto& r : results) {
-            if (r.section == OCL_SECTIONS[s].id && !r.skipped) {
-                st++;
-                if (r.passed) sp++;
-            }
-        }
-        std::printf("  %-4d %-50s %d/%d PASS\n", s + 1, OCL_SECTIONS[s].title_en, sp, st);
+        auto& section = sections[s];
+        std::printf("  %-4d %-50s %d/%d %s\n",
+                    s + 1, section.title_en, section.passed, section.total,
+                    section_status(section));
     }
 
     std::printf("\n================================================================\n");
-    std::printf("  OpenCL AUDIT VERDICT: %s\n", failed == 0 ? "AUDIT-READY" : "ISSUES-FOUND");
+    std::printf("  OpenCL AUDIT VERDICT: %s\n", overall_verdict(failed, skipped));
     std::printf("  TOTAL: %d/%d modules passed", passed, (int)results.size());
-    if (skipped > 0) std::printf(", %d skipped (extended.cl not loaded)", skipped);
-    std::printf("  --  %s  (%.1f s)\n", failed == 0 ? "ALL PASSED" : "FAILURES DETECTED", total_sec);
+    if (skipped > 0) std::printf(", %d skipped (kernel support unavailable)", skipped);
+    if (advisory > 0) std::printf(", %d advisory", advisory);
+    std::printf("  --  %s  (%.1f s)\n",
+                failed > 0 ? "FAILURES DETECTED" :
+                (skipped > 0 ? "INCOMPLETE COVERAGE" :
+                 (advisory > 0 ? "ADVISORY WARNINGS" : "ALL PASSED")),
+                total_sec);
     std::printf("  Device: %s (%s) | %s %s\n", dev.name.c_str(), dev.vendor.c_str(),
                 plat.os.c_str(), plat.arch.c_str());
     std::printf("================================================================\n");
 
-    return failed > 0 ? 1 : 0;
+    return (failed > 0 || skipped > 0) ? 1 : 0;
 }
