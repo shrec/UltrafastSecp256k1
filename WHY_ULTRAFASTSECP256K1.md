@@ -9,7 +9,7 @@ Traditional audits produce documents. This system produces **continuous evidence
 | Differentiator | UltrafastSecp256k1 |
 |---------------|---------------------|
 | Audit model | Continuous — every commit, not one-time |
-| Exploit tests | 157 PoC files, 146 registered modules, 0 failures |
+| Exploit tests | 159 PoC files, 146 registered modules, 0 failures |
 | Checks per run | ~1,000,000+ assertions |
 | Nightly checks | ~1,300,000+ random differential tests |
 | CI workflows | 33 workflows, 16 platform combinations |
