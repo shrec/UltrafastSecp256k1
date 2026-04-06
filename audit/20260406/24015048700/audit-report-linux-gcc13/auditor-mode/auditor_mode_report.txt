@@ -1,0 +1,32 @@
+============================================================
+ Auditor-Mode Gap Report
+============================================================
+
+Status: ready
+Registered exploit symbols: 146
+Required vectors: 8
+Covered: 8
+Missing: 0
+Recommended vectors: 5
+Recommended covered: 5
+Recommended missing: 0
+
+Missing high-priority vectors:
+  - none
+
+Coverage details:
+  - [OK] invalid_curve_twist -> test_exploit_invalid_curve_twist_run
+  - [OK] ecdsa_nonce_reuse -> test_exploit_ecdsa_nonce_reuse_run
+  - [OK] frost_ct_nonce -> test_exploit_frost_ct_nonce_run
+  - [OK] musig2_parallel_sessions -> test_exploit_musig2_parallel_session_cross_run
+  - [OK] ecdh_zvp_glv_static -> test_exploit_ecdh_zvp_glv_static_run
+  - [OK] frost_adaptive_corruption -> test_exploit_frost_adaptive_corruption_run
+  - [OK] ecdsa_fault_injection_deterministic -> test_exploit_ecdsa_fault_injection_run
+  - [OK] cache_sidechannel_amplification -> test_exploit_cache_sidechannel_amplification_run
+
+Recommended hardening vectors:
+  - [OK] ladderleak_subbit_nonce -> test_exploit_ladderleak_subbit_nonce_run
+  - [OK] minerva_noisy_hnp -> test_exploit_minerva_noisy_hnp_run
+  - [OK] hertzbleed_dvfs_timing -> test_exploit_hertzbleed_dvfs_timing_run
+  - [OK] biased_nonce_chain_scan -> test_exploit_biased_nonce_chain_scan_run
+  - [OK] kr_ecdsa_buff_binding -> test_exploit_kr_ecdsa_buff_binding_run

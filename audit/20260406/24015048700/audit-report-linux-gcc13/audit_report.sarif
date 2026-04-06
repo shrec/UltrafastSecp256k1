@@ -1,0 +1,1578 @@
+{
+  "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/main/sarif-2.1/schema/sarif-schema-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "UltrafastSecp256k1 Audit Runner",
+          "version": "3.50.0",
+          "semanticVersion": "2.0.0",
+          "informationUri": "https://github.com/shrec/UltrafastSecp256k1",
+          "rules": [
+            {
+              "id": "AUDIT/secp256k1_spec",
+              "name": "SEC2 v2.0 curve constant oracle",
+              "shortDescription": { "text": "SEC2 v2.0 curve constant oracle" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "math_invariants" }
+            },
+            {
+              "id": "AUDIT/audit_invariants",
+              "name": "Post-op invariant monitor (on-curve/normalized)",
+              "shortDescription": { "text": "Post-op invariant monitor (on-curve/normalized)" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "math_invariants" }
+            },
+            {
+              "id": "AUDIT/audit_field",
+              "name": "Field Fp deep audit (add/mul/inv/sqrt/batch)",
+              "shortDescription": { "text": "Field Fp deep audit (add/mul/inv/sqrt/batch)" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "math_invariants" }
+            },
+            {
+              "id": "AUDIT/audit_scalar",
+              "name": "Scalar Zn deep audit (mod/GLV/edge/inv)",
+              "shortDescription": { "text": "Scalar Zn deep audit (mod/GLV/edge/inv)" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "math_invariants" }
+            },
+            {
+              "id": "AUDIT/audit_point",
+              "name": "Point ops deep audit (Jac/affine/sigs)",
+              "shortDescription": { "text": "Point ops deep audit (Jac/affine/sigs)" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "math_invariants" }
+            },
+            {
+              "id": "AUDIT/mul",
+              "name": "Field & scalar arithmetic",
+              "shortDescription": { "text": "Field & scalar arithmetic" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "math_invariants" }
+            },
+            {
+              "id": "AUDIT/arith_correct",
+              "name": "Arithmetic correctness",
+              "shortDescription": { "text": "Arithmetic correctness" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "math_invariants" }
+            },
+            {
+              "id": "AUDIT/scalar_mul",
+              "name": "Scalar multiplication",
+              "shortDescription": { "text": "Scalar multiplication" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "math_invariants" }
+            },
+            {
+              "id": "AUDIT/exhaustive",
+              "name": "Exhaustive algebraic verification",
+              "shortDescription": { "text": "Exhaustive algebraic verification" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "math_invariants" }
+            },
+            {
+              "id": "AUDIT/comprehensive",
+              "name": "Comprehensive 500+ suite",
+              "shortDescription": { "text": "Comprehensive 500+ suite" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "math_invariants" }
+            },
+            {
+              "id": "AUDIT/ecc_properties",
+              "name": "ECC property-based invariants",
+              "shortDescription": { "text": "ECC property-based invariants" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "math_invariants" }
+            },
+            {
+              "id": "AUDIT/batch_add",
+              "name": "Affine batch addition",
+              "shortDescription": { "text": "Affine batch addition" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "math_invariants" }
+            },
+            {
+              "id": "AUDIT/carry_propagation",
+              "name": "Carry chain stress (limb boundary)",
+              "shortDescription": { "text": "Carry chain stress (limb boundary)" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "math_invariants" }
+            },
+            {
+              "id": "AUDIT/field_52",
+              "name": "FieldElement52 (5x52) vs 4x64",
+              "shortDescription": { "text": "FieldElement52 (5x52) vs 4x64" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "math_invariants" }
+            },
+            {
+              "id": "AUDIT/field_26",
+              "name": "FieldElement26 (10x26) vs 4x64",
+              "shortDescription": { "text": "FieldElement26 (10x26) vs 4x64" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "math_invariants" }
+            },
+            {
+              "id": "AUDIT/audit_ct",
+              "name": "CT deep audit (masks/cmov/cswap/timing)",
+              "shortDescription": { "text": "CT deep audit (masks/cmov/cswap/timing)" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "ct_analysis" }
+            },
+            {
+              "id": "AUDIT/ct",
+              "name": "Constant-time layer",
+              "shortDescription": { "text": "Constant-time layer" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "ct_analysis" }
+            },
+            {
+              "id": "AUDIT/ct_equivalence",
+              "name": "FAST == CT equivalence",
+              "shortDescription": { "text": "FAST == CT equivalence" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "ct_analysis" }
+            },
+            {
+              "id": "AUDIT/ct_sidechannel",
+              "name": "Side-channel dudect (smoke)",
+              "shortDescription": { "text": "Side-channel dudect (smoke)" },
+              "defaultConfiguration": { "level": "warning" },
+              "properties": { "section": "ct_analysis" }
+            },
+            {
+              "id": "AUDIT/ct_verif_formal",
+              "name": "Formal CT verification (ctgrind/MSAN)",
+              "shortDescription": { "text": "Formal CT verification (ctgrind/MSAN)" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "ct_analysis" }
+            },
+            {
+              "id": "AUDIT/diag_scalar_mul",
+              "name": "CT scalar_mul vs fast (diagnostic)",
+              "shortDescription": { "text": "CT scalar_mul vs fast (diagnostic)" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "ct_analysis" }
+            },
+            {
+              "id": "AUDIT/differential",
+              "name": "Differential correctness",
+              "shortDescription": { "text": "Differential correctness" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "differential" }
+            },
+            {
+              "id": "AUDIT/fiat_crypto",
+              "name": "Independent reference golden vectors",
+              "shortDescription": { "text": "Independent reference golden vectors" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "differential" }
+            },
+            {
+              "id": "AUDIT/fiat_crypto_link",
+              "name": "Independent reference linkage (100%% parity)",
+              "shortDescription": { "text": "Independent reference linkage (100%% parity)" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "differential" }
+            },
+            {
+              "id": "AUDIT/cross_platform_kat",
+              "name": "Cross-platform KAT",
+              "shortDescription": { "text": "Cross-platform KAT" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "differential" }
+            },
+            {
+              "id": "AUDIT/bip340_vectors",
+              "name": "BIP-340 official vectors",
+              "shortDescription": { "text": "BIP-340 official vectors" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "standard_vectors" }
+            },
+            {
+              "id": "AUDIT/bip340_strict",
+              "name": "BIP-340 strict encoding (non-canonical)",
+              "shortDescription": { "text": "BIP-340 strict encoding (non-canonical)" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "standard_vectors" }
+            },
+            {
+              "id": "AUDIT/bip32_vectors",
+              "name": "BIP-32 official vectors TV1-5",
+              "shortDescription": { "text": "BIP-32 official vectors TV1-5" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "standard_vectors" }
+            },
+            {
+              "id": "AUDIT/rfc6979_vectors",
+              "name": "RFC 6979 ECDSA vectors",
+              "shortDescription": { "text": "RFC 6979 ECDSA vectors" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "standard_vectors" }
+            },
+            {
+              "id": "AUDIT/frost_kat",
+              "name": "FROST reference KAT vectors",
+              "shortDescription": { "text": "FROST reference KAT vectors" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "standard_vectors" }
+            },
+            {
+              "id": "AUDIT/musig2_bip327",
+              "name": "MuSig2 BIP-327 reference vectors",
+              "shortDescription": { "text": "MuSig2 BIP-327 reference vectors" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "standard_vectors" }
+            },
+            {
+              "id": "AUDIT/wycheproof_ecdsa",
+              "name": "Wycheproof ECDSA secp256k1 vectors",
+              "shortDescription": { "text": "Wycheproof ECDSA secp256k1 vectors" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "standard_vectors" }
+            },
+            {
+              "id": "AUDIT/wycheproof_ecdh",
+              "name": "Wycheproof ECDH secp256k1 vectors",
+              "shortDescription": { "text": "Wycheproof ECDH secp256k1 vectors" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "standard_vectors" }
+            },
+            {
+              "id": "AUDIT/audit_fuzz",
+              "name": "Adversarial fuzz (malform/edge)",
+              "shortDescription": { "text": "Adversarial fuzz (malform/edge)" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "fuzzing" }
+            },
+            {
+              "id": "AUDIT/fuzz_parsers",
+              "name": "Parser fuzz (DER/Schnorr/Pubkey)",
+              "shortDescription": { "text": "Parser fuzz (DER/Schnorr/Pubkey)" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "fuzzing" }
+            },
+            {
+              "id": "AUDIT/fuzz_addr_bip32",
+              "name": "Address/BIP32/FFI boundary fuzz",
+              "shortDescription": { "text": "Address/BIP32/FFI boundary fuzz" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "fuzzing" }
+            },
+            {
+              "id": "AUDIT/fuzz_musig2_frost",
+              "name": "Parser fuzz: MuSig2/FROST/Adaptor (15 probes)",
+              "shortDescription": { "text": "Parser fuzz: MuSig2/FROST/Adaptor (15 probes)" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "fuzzing" }
+            },
+            {
+              "id": "AUDIT/libfuzzer_unified",
+              "name": "LibFuzzer deterministic regression (6 parsers)",
+              "shortDescription": { "text": "LibFuzzer deterministic regression (6 parsers)" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "fuzzing" }
+            },
+            {
+              "id": "AUDIT/mutation_kill_rate",
+              "name": "Mutation kill-rate audit (advisory)",
+              "shortDescription": { "text": "Mutation kill-rate audit (advisory)" },
+              "defaultConfiguration": { "level": "warning" },
+              "properties": { "section": "fuzzing" }
+            },
+            {
+              "id": "AUDIT/cryptol_specs",
+              "name": "Cryptol formal spec properties (advisory)",
+              "shortDescription": { "text": "Cryptol formal spec properties (advisory)" },
+              "defaultConfiguration": { "level": "warning" },
+              "properties": { "section": "fuzzing" }
+            },
+            {
+              "id": "AUDIT/fault_injection",
+              "name": "Fault injection simulation",
+              "shortDescription": { "text": "Fault injection simulation" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "fuzzing" }
+            },
+            {
+              "id": "AUDIT/ecdsa_schnorr",
+              "name": "ECDSA + Schnorr",
+              "shortDescription": { "text": "ECDSA + Schnorr" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "protocol_security" }
+            },
+            {
+              "id": "AUDIT/bip32",
+              "name": "BIP-32 HD derivation",
+              "shortDescription": { "text": "BIP-32 HD derivation" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "protocol_security" }
+            },
+            {
+              "id": "AUDIT/bip39",
+              "name": "BIP-39 mnemonic seed phrases",
+              "shortDescription": { "text": "BIP-39 mnemonic seed phrases" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "protocol_security" }
+            },
+            {
+              "id": "AUDIT/musig2",
+              "name": "MuSig2",
+              "shortDescription": { "text": "MuSig2" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "protocol_security" }
+            },
+            {
+              "id": "AUDIT/ecdh_recovery",
+              "name": "ECDH + recovery + taproot",
+              "shortDescription": { "text": "ECDH + recovery + taproot" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "protocol_security" }
+            },
+            {
+              "id": "AUDIT/v4_features",
+              "name": "v4 (Pedersen/FROST/etc)",
+              "shortDescription": { "text": "v4 (Pedersen/FROST/etc)" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "protocol_security" }
+            },
+            {
+              "id": "AUDIT/coins",
+              "name": "Coins layer",
+              "shortDescription": { "text": "Coins layer" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "protocol_security" }
+            },
+            {
+              "id": "AUDIT/musig2_frost",
+              "name": "MuSig2 + FROST protocol suite",
+              "shortDescription": { "text": "MuSig2 + FROST protocol suite" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "protocol_security" }
+            },
+            {
+              "id": "AUDIT/musig2_frost_adv",
+              "name": "MuSig2 + FROST advanced/adversar",
+              "shortDescription": { "text": "MuSig2 + FROST advanced/adversar" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "protocol_security" }
+            },
+            {
+              "id": "AUDIT/audit_integration",
+              "name": "Integration (ECDH/batch/cross-proto)",
+              "shortDescription": { "text": "Integration (ECDH/batch/cross-proto)" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "protocol_security" }
+            },
+            {
+              "id": "AUDIT/batch_randomness",
+              "name": "Batch verify weight randomness audit",
+              "shortDescription": { "text": "Batch verify weight randomness audit" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "protocol_security" }
+            },
+            {
+              "id": "AUDIT/audit_zk",
+              "name": "ZK proofs (knowledge/DLEQ/Bulletproof range)",
+              "shortDescription": { "text": "ZK proofs (knowledge/DLEQ/Bulletproof range)" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "protocol_security" }
+            },
+            {
+              "id": "AUDIT/ethereum",
+              "name": "Ethereum signing layer (EIP-191/155/ecrecover)",
+              "shortDescription": { "text": "Ethereum signing layer (EIP-191/155/ecrecover)" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "protocol_security" }
+            },
+            {
+              "id": "AUDIT/audit_security",
+              "name": "Security hardening (zero/bitflip/nonce)",
+              "shortDescription": { "text": "Security hardening (zero/bitflip/nonce)" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "memory_safety" }
+            },
+            {
+              "id": "AUDIT/debug_invariants",
+              "name": "Debug invariant assertions",
+              "shortDescription": { "text": "Debug invariant assertions" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "memory_safety" }
+            },
+            {
+              "id": "AUDIT/abi_gate",
+              "name": "ABI version gate (compile-time)",
+              "shortDescription": { "text": "ABI version gate (compile-time)" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "memory_safety" }
+            },
+            {
+              "id": "AUDIT/ffi_round_trip",
+              "name": "Cross-ABI/FFI round-trip (ufsecp C API)",
+              "shortDescription": { "text": "Cross-ABI/FFI round-trip (ufsecp C API)" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "memory_safety" }
+            },
+            {
+              "id": "AUDIT/c_abi_negative",
+              "name": "C ABI null/bad-key/bad-sig contract tests",
+              "shortDescription": { "text": "C ABI null/bad-key/bad-sig contract tests" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "memory_safety" }
+            },
+            {
+              "id": "AUDIT/c_abi_thread_stress",
+              "name": "C ABI thread stress (one ctx per thread)",
+              "shortDescription": { "text": "C ABI thread stress (one ctx per thread)" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "memory_safety" }
+            },
+            {
+              "id": "AUDIT/secure_erase",
+              "name": "Secure memory erasure (volatile readback)",
+              "shortDescription": { "text": "Secure memory erasure (volatile readback)" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "memory_safety" }
+            },
+            {
+              "id": "AUDIT/ct_namespace",
+              "name": "CT namespace discipline (source-level scan)",
+              "shortDescription": { "text": "CT namespace discipline (source-level scan)" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "memory_safety" }
+            },
+            {
+              "id": "AUDIT/kat_all_ops",
+              "name": "KAT: ECDH/WIF/P2PKH/P2WPKH/P2TR/hash/arith",
+              "shortDescription": { "text": "KAT: ECDH/WIF/P2PKH/P2WPKH/P2TR/hash/arith" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "standard_vectors" }
+            },
+            {
+              "id": "AUDIT/nonce_uniqueness",
+              "name": "RFC 6979 nonce determinism + uniqueness",
+              "shortDescription": { "text": "RFC 6979 nonce determinism + uniqueness" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "memory_safety" }
+            },
+            {
+              "id": "AUDIT/parse_strictness",
+              "name": "Public parse path strictness (malformed inputs)",
+              "shortDescription": { "text": "Public parse path strictness (malformed inputs)" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "memory_safety" }
+            },
+            {
+              "id": "AUDIT/adversarial_proto",
+              "name": "Adversarial protocol & FFI hostile-caller",
+              "shortDescription": { "text": "Adversarial protocol & FFI hostile-caller" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "fuzzing" }
+            },
+            {
+              "id": "AUDIT/ecies_regression",
+              "name": "ECIES regression + C ABI prefix enforce",
+              "shortDescription": { "text": "ECIES regression + C ABI prefix enforce" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "fuzzing" }
+            },
+            {
+              "id": "AUDIT/gpu_api_negative",
+              "name": "GPU C ABI null/invalid-backend/error paths",
+              "shortDescription": { "text": "GPU C ABI null/invalid-backend/error paths" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "memory_safety" }
+            },
+            {
+              "id": "AUDIT/gpu_abi_gate",
+              "name": "GPU ABI discovery, lifecycle, ops-if-avail",
+              "shortDescription": { "text": "GPU ABI discovery, lifecycle, ops-if-avail" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "memory_safety" }
+            },
+            {
+              "id": "AUDIT/hash_accel",
+              "name": "Accelerated hashing",
+              "shortDescription": { "text": "Accelerated hashing" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "performance" }
+            },
+            {
+              "id": "AUDIT/edge_cases",
+              "name": "Edge cases & coverage gaps",
+              "shortDescription": { "text": "Edge cases & coverage gaps" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "correctness" }
+            },
+            {
+              "id": "AUDIT/multiscalar",
+              "name": "Multi-scalar & batch verify",
+              "shortDescription": { "text": "Multi-scalar & batch verify" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "performance" }
+            },
+            {
+              "id": "AUDIT/audit_perf",
+              "name": "Performance smoke (sign/verify roundtrip)",
+              "shortDescription": { "text": "Performance smoke (sign/verify roundtrip)" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "performance" }
+            },
+            {
+              "id": "AUDIT/exploit_adaptor_extended",
+              "name": "Adaptor Signature Extended Security",
+              "shortDescription": { "text": "Adaptor Signature Extended Security" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_adaptor_parity",
+              "name": "Adaptor Signature R.y Parity",
+              "shortDescription": { "text": "Adaptor Signature R.y Parity" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_address_encoding",
+              "name": "Bitcoin Address Encoding Security",
+              "shortDescription": { "text": "Bitcoin Address Encoding Security" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_address_generation",
+              "name": "Bitcoin Address Generation Security",
+              "shortDescription": { "text": "Bitcoin Address Generation Security" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_aead_integrity",
+              "name": "AEAD ChaCha20-Poly1305 Integrity",
+              "shortDescription": { "text": "AEAD ChaCha20-Poly1305 Integrity" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_backend_divergence",
+              "name": "Backend Divergence Detection",
+              "shortDescription": { "text": "Backend Divergence Detection" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_batch_schnorr",
+              "name": "Schnorr Batch Verification Soundness",
+              "shortDescription": { "text": "Schnorr Batch Verification Soundness" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_batch_schnorr_forge",
+              "name": "Schnorr Batch Forge Detection",
+              "shortDescription": { "text": "Schnorr Batch Forge Detection" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_batch_soundness",
+              "name": "Batch Signature Verification Soundness",
+              "shortDescription": { "text": "Batch Signature Verification Soundness" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_batch_verify_correct",
+              "name": "Schnorr Batch Verify Correctness",
+              "shortDescription": { "text": "Schnorr Batch Verify Correctness" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_batch_verify_poison",
+              "name": "Batch Verification Poisoning",
+              "shortDescription": { "text": "Batch Verification Poisoning" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_bip143_sighash",
+              "name": "BIP-143 SegWit v0 Signature Hash",
+              "shortDescription": { "text": "BIP-143 SegWit v0 Signature Hash" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_bip144_serialization",
+              "name": "BIP-144 Witness Tx Serialization",
+              "shortDescription": { "text": "BIP-144 Witness Tx Serialization" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_bip324_counter_desync",
+              "name": "BIP-324 Counter Desync via Forged Packet",
+              "shortDescription": { "text": "BIP-324 Counter Desync via Forged Packet" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_bip324_session",
+              "name": "BIP-324 Encrypted Transport Session",
+              "shortDescription": { "text": "BIP-324 Encrypted Transport Session" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_bip324_transcript_splice",
+              "name": "BIP-324 Transcript Splice / Packet Mix",
+              "shortDescription": { "text": "BIP-324 Transcript Splice / Packet Mix" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_bip32_ckd_hardened",
+              "name": "BIP-32 Hardened Derivation Edge Cases",
+              "shortDescription": { "text": "BIP-32 Hardened Derivation Edge Cases" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_bip32_depth",
+              "name": "BIP-32 Depth uint8_t Silent Overflow",
+              "shortDescription": { "text": "BIP-32 Depth uint8_t Silent Overflow" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_bip32_derivation",
+              "name": "BIP-32 HD Key Derivation",
+              "shortDescription": { "text": "BIP-32 HD Key Derivation" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_bip32_fingerprint",
+              "name": "BIP-32 Parent Fingerprint Confusion",
+              "shortDescription": { "text": "BIP-32 Parent Fingerprint Confusion" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_bip32_path_overflow",
+              "name": "BIP-32 Path Parser Integer Overflow",
+              "shortDescription": { "text": "BIP-32 Path Parser Integer Overflow" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_bip39_entropy",
+              "name": "BIP-39 Mnemonic Security Properties",
+              "shortDescription": { "text": "BIP-39 Mnemonic Security Properties" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_bip39_mnemonic",
+              "name": "BIP-39 Mnemonic Security Properties",
+              "shortDescription": { "text": "BIP-39 Mnemonic Security Properties" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_btc_msg_signing",
+              "name": "Bitcoin Message Signing Security",
+              "shortDescription": { "text": "Bitcoin Message Signing Security" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_chacha20_kat",
+              "name": "ChaCha20-Poly1305 RFC 8439 KAT",
+              "shortDescription": { "text": "ChaCha20-Poly1305 RFC 8439 KAT" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_chacha20_nonce_reuse",
+              "name": "ChaCha20-Poly1305 Nonce Reuse",
+              "shortDescription": { "text": "ChaCha20-Poly1305 Nonce Reuse" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_chacha20_poly1305",
+              "name": "ChaCha20-Poly1305 AEAD (RFC 8439)",
+              "shortDescription": { "text": "ChaCha20-Poly1305 AEAD (RFC 8439)" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_coin_hd_derivation",
+              "name": "Multi-Coin BIP-44 HD Derivation",
+              "shortDescription": { "text": "Multi-Coin BIP-44 HD Derivation" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_ct_fast_equiv",
+              "name": "CT vs Fast Signing Equivalence",
+              "shortDescription": { "text": "CT vs Fast Signing Equivalence" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_ct_recov",
+              "name": "CT ct::ecdsa_sign_recoverable",
+              "shortDescription": { "text": "CT ct::ecdsa_sign_recoverable" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_ct_systematic",
+              "name": "CT vs FAST Output Divergence",
+              "shortDescription": { "text": "CT vs FAST Output Divergence" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_ctx_clone",
+              "name": "Context Clone Isolation Security",
+              "shortDescription": { "text": "Context Clone Isolation Security" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_ctx_lifecycle",
+              "name": "Context / Precompute Lifecycle Abuse",
+              "shortDescription": { "text": "Context / Precompute Lifecycle Abuse" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_der_parse_diff",
+              "name": "DER Parsing Differential",
+              "shortDescription": { "text": "DER Parsing Differential" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_ecdh",
+              "name": "ECDH Key Exchange Security",
+              "shortDescription": { "text": "ECDH Key Exchange Security" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_ecdh_degenerate",
+              "name": "ECDH Degenerate Input Handling",
+              "shortDescription": { "text": "ECDH Degenerate Input Handling" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_ecdh_variants",
+              "name": "ECDH Variants Security",
+              "shortDescription": { "text": "ECDH Variants Security" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_ecdsa_der_confusion",
+              "name": "ECDSA DER Encoding Confusion",
+              "shortDescription": { "text": "ECDSA DER Encoding Confusion" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_ecdsa_edge_cases",
+              "name": "ECDSA Edge Cases and Normalization",
+              "shortDescription": { "text": "ECDSA Edge Cases and Normalization" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_ecdsa_malleability",
+              "name": "ECDSA Signature Malleability",
+              "shortDescription": { "text": "ECDSA Signature Malleability" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_ecdsa_recovery",
+              "name": "ECDSA Key Recovery Edge Cases",
+              "shortDescription": { "text": "ECDSA Key Recovery Edge Cases" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_ecdsa_rfc6979_kat",
+              "name": "ECDSA RFC 6979 Nonce KAT",
+              "shortDescription": { "text": "ECDSA RFC 6979 Nonce KAT" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_ecies_auth",
+              "name": "ECIES Authentication Bypass",
+              "shortDescription": { "text": "ECIES Authentication Bypass" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_ecies_encryption",
+              "name": "ECIES Encryption Security",
+              "shortDescription": { "text": "ECIES Encryption Security" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_ecies_envelope",
+              "name": "ECIES Envelope Confusion",
+              "shortDescription": { "text": "ECIES Envelope Confusion" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_ecies_roundtrip",
+              "name": "ECIES End-to-End Security",
+              "shortDescription": { "text": "ECIES End-to-End Security" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_ecrecover_confusion",
+              "name": "ECDSA ecrecover Key Confusion",
+              "shortDescription": { "text": "ECDSA ecrecover Key Confusion" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_ellswift",
+              "name": "ElligatorSwift (BIP-324) Security",
+              "shortDescription": { "text": "ElligatorSwift (BIP-324) Security" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_ellswift_ecdh",
+              "name": "ElligatorSwift BIP-324 ECDH",
+              "shortDescription": { "text": "ElligatorSwift BIP-324 ECDH" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_eth_differential",
+              "name": "Ethereum Differential Test",
+              "shortDescription": { "text": "Ethereum Differential Test" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_eth_signing",
+              "name": "Ethereum Signing / ecrecover",
+              "shortDescription": { "text": "Ethereum Signing / ecrecover" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_field_arithmetic",
+              "name": "Field Arithmetic Invariants",
+              "shortDescription": { "text": "Field Arithmetic Invariants" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_field_boundary",
+              "name": "Field Boundary / Carry Exhaustive",
+              "shortDescription": { "text": "Field Boundary / Carry Exhaustive" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_frost_binding",
+              "name": "FROST Binding Factor Mismatch",
+              "shortDescription": { "text": "FROST Binding Factor Mismatch" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_frost_byzantine",
+              "name": "FROST Byzantine Signer Detection",
+              "shortDescription": { "text": "FROST Byzantine Signer Detection" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_frost_commit_reuse",
+              "name": "FROST Commitment Reuse",
+              "shortDescription": { "text": "FROST Commitment Reuse" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_frost_dkg",
+              "name": "FROST DKG and Threshold Signing",
+              "shortDescription": { "text": "FROST DKG and Threshold Signing" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_frost_index",
+              "name": "FROST Participant Index Edge Cases",
+              "shortDescription": { "text": "FROST Participant Index Edge Cases" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_frost_lagrange_dup",
+              "name": "FROST Lagrange Duplicate",
+              "shortDescription": { "text": "FROST Lagrange Duplicate" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_frost_part_zero",
+              "name": "FROST Participant Zero",
+              "shortDescription": { "text": "FROST Participant Zero" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_frost_signing",
+              "name": "FROST Threshold Signing E2E",
+              "shortDescription": { "text": "FROST Threshold Signing E2E" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_frost_threshold_degen",
+              "name": "FROST Degenerate Threshold",
+              "shortDescription": { "text": "FROST Degenerate Threshold" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_glv_endomorphism",
+              "name": "GLV Endomorphism Correctness",
+              "shortDescription": { "text": "GLV Endomorphism Correctness" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_glv_kat",
+              "name": "GLV Decomposition KAT",
+              "shortDescription": { "text": "GLV Decomposition KAT" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_gpu_cpu_divergence",
+              "name": "GPU/CPU Algebraic Consistency",
+              "shortDescription": { "text": "GPU/CPU Algebraic Consistency" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_gpu_host_api_shape",
+              "name": "GPU Host API Hostile Caller",
+              "shortDescription": { "text": "GPU Host API Hostile Caller" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_hedged_nonce_bias",
+              "name": "Hedged Signature Nonce Bias",
+              "shortDescription": { "text": "Hedged Signature Nonce Bias" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_hkdf_kat",
+              "name": "HKDF-SHA256 KAT (RFC 5869)",
+              "shortDescription": { "text": "HKDF-SHA256 KAT (RFC 5869)" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_hkdf_security",
+              "name": "HKDF-SHA256 Security (RFC 5869)",
+              "shortDescription": { "text": "HKDF-SHA256 Security (RFC 5869)" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/infinity_edge_cases",
+              "name": "Point-at-Infinity Edge Cases (INF-1..28)",
+              "shortDescription": { "text": "Point-at-Infinity Edge Cases (INF-1..28)" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_invalid_curve_twist",
+              "name": "Invalid Curve / Twist Point Injection",
+              "shortDescription": { "text": "Invalid Curve / Twist Point Injection" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_keccak256_kat",
+              "name": "Keccak-256 KAT Vectors",
+              "shortDescription": { "text": "Keccak-256 KAT Vectors" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_multiscalar",
+              "name": "Multi-Scalar Multiplication",
+              "shortDescription": { "text": "Multi-Scalar Multiplication" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_musig2",
+              "name": "MuSig2 Multi-Signature Security",
+              "shortDescription": { "text": "MuSig2 Multi-Signature Security" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_musig2_key_agg",
+              "name": "MuSig2 Key Aggregation (BIP-327)",
+              "shortDescription": { "text": "MuSig2 Key Aggregation (BIP-327)" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_musig2_nonce_reuse",
+              "name": "MuSig2 Nonce Reuse Attack",
+              "shortDescription": { "text": "MuSig2 Nonce Reuse Attack" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_musig2_ordering",
+              "name": "MuSig2 Key Aggregation Order",
+              "shortDescription": { "text": "MuSig2 Key Aggregation Order" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_musig2_transcript_fork",
+              "name": "MuSig2 Transcript Fork",
+              "shortDescription": { "text": "MuSig2 Transcript Fork" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_pedersen_adversarial",
+              "name": "Pedersen Adversarial / Switch-Commit",
+              "shortDescription": { "text": "Pedersen Adversarial / Switch-Commit" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_pedersen_homomorphism",
+              "name": "Pedersen Commitment Homomorphic",
+              "shortDescription": { "text": "Pedersen Commitment Homomorphic" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_pedersen_switch_misuse",
+              "name": "Pedersen Switch Commitment Misuse",
+              "shortDescription": { "text": "Pedersen Switch Commitment Misuse" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_pippenger_msm",
+              "name": "Pippenger MSM Security",
+              "shortDescription": { "text": "Pippenger MSM Security" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_point_group_law",
+              "name": "Point Group Law Correctness",
+              "shortDescription": { "text": "Point Group Law Correctness" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_point_serialization",
+              "name": "Point Serialization Edge Cases",
+              "shortDescription": { "text": "Point Serialization Edge Cases" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_private_key",
+              "name": "PrivateKey Strong Type Security",
+              "shortDescription": { "text": "PrivateKey Strong Type Security" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_recovery_extended",
+              "name": "ECDSA Recovery Extended Security",
+              "shortDescription": { "text": "ECDSA Recovery Extended Security" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_ripemd160_kat",
+              "name": "RIPEMD-160 KAT + hash160",
+              "shortDescription": { "text": "RIPEMD-160 KAT + hash160" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_scalar_group_order",
+              "name": "Scalar Group Order Invariants",
+              "shortDescription": { "text": "Scalar Group Order Invariants" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_scalar_invariants",
+              "name": "Scalar Arithmetic Edge Cases",
+              "shortDescription": { "text": "Scalar Arithmetic Edge Cases" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_scalar_systematic",
+              "name": "Scalar Arithmetic Systematic",
+              "shortDescription": { "text": "Scalar Arithmetic Systematic" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_schnorr_bip340_kat",
+              "name": "Schnorr BIP-340 Official Vectors",
+              "shortDescription": { "text": "Schnorr BIP-340 Official Vectors" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_schnorr_edge_cases",
+              "name": "Schnorr Signature Edge Cases",
+              "shortDescription": { "text": "Schnorr Signature Edge Cases" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_schnorr_forgery",
+              "name": "Schnorr BIP-340 Forgery Rejection",
+              "shortDescription": { "text": "Schnorr BIP-340 Forgery Rejection" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_schnorr_xonly_parity",
+              "name": "Schnorr X-Only Parity Confusion",
+              "shortDescription": { "text": "Schnorr X-Only Parity Confusion" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_seckey_arith",
+              "name": "Secret Key Arithmetic (tweak/negate/cross)",
+              "shortDescription": { "text": "Secret Key Arithmetic (tweak/negate/cross)" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_seckey_tweak_cancel",
+              "name": "Secret Key Tweak Cancellation",
+              "shortDescription": { "text": "Secret Key Tweak Cancellation" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_segwit_encoding",
+              "name": "SegWit Script Encoding Security",
+              "shortDescription": { "text": "SegWit Script Encoding Security" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_selftest_api",
+              "name": "Selftest API Security",
+              "shortDescription": { "text": "Selftest API Security" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_sha256_kat",
+              "name": "SHA-256 KAT + BIP-340 Tagged Hash",
+              "shortDescription": { "text": "SHA-256 KAT + BIP-340 Tagged Hash" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_sha512_kat",
+              "name": "SHA-512 KAT Vectors",
+              "shortDescription": { "text": "SHA-512 KAT Vectors" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_sha_kat",
+              "name": "SHA-256/512 NIST FIPS 180-4 KAT",
+              "shortDescription": { "text": "SHA-256/512 NIST FIPS 180-4 KAT" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_silent_payment",
+              "name": "Silent Payment BIP-352 Confusion",
+              "shortDescription": { "text": "Silent Payment BIP-352 Confusion" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_taproot_merkle",
+              "name": "Taproot Merkle Path Alias",
+              "shortDescription": { "text": "Taproot Merkle Path Alias" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_taproot_scripts",
+              "name": "Taproot Script Tree Security",
+              "shortDescription": { "text": "Taproot Script Tree Security" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_taproot_tweak",
+              "name": "Taproot Key Tweak / Commitment",
+              "shortDescription": { "text": "Taproot Key Tweak / Commitment" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_wallet_api",
+              "name": "Unified Wallet API Security",
+              "shortDescription": { "text": "Unified Wallet API Security" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_wallet_cross_domain",
+              "name": "Wallet Cross-Domain Replay",
+              "shortDescription": { "text": "Wallet Cross-Domain Replay" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_zk_adversarial",
+              "name": "ZK Proof Adversarial / Malformed",
+              "shortDescription": { "text": "ZK Proof Adversarial / Malformed" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_zk_proofs",
+              "name": "ZK Proof Soundness",
+              "shortDescription": { "text": "ZK Proof Soundness" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_fe_set_b32_limit_uninit",
+              "name": "Fe set_b32 Limit / Uninit Boundary (eprint 2025/xxx)",
+              "shortDescription": { "text": "Fe set_b32 Limit / Uninit Boundary (eprint 2025/xxx)" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_zk_new_schemes",
+              "name": "ZK New Schemes — Bulletproof + Anon Cred (eprint 2024/2010)",
+              "shortDescription": { "text": "ZK New Schemes — Bulletproof + Anon Cred (eprint 2024/2010)" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_foreign_field_plonk",
+              "name": "Foreign-Field PLONK secp256k1 (eprint 2025/695)",
+              "shortDescription": { "text": "Foreign-Field PLONK secp256k1 (eprint 2025/695)" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_p2sh_addr_confusion",
+              "name": "P2SH / P2SH-P2WPKH Address Type Confusion",
+              "shortDescription": { "text": "P2SH / P2SH-P2WPKH Address Type Confusion" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_bip85_path_collision",
+              "name": "BIP-85 Path Collision and Entropy Security",
+              "shortDescription": { "text": "BIP-85 Path Collision and Entropy Security" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_schnorr_msg_len",
+              "name": "Schnorr Variable-Length Message Confusion",
+              "shortDescription": { "text": "Schnorr Variable-Length Message Confusion" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_bip322_type_confusion",
+              "name": "BIP-322 Generic Message Signing Type Confusion",
+              "shortDescription": { "text": "BIP-322 Generic Message Signing Type Confusion" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_gcs_false_positive",
+              "name": "BIP-158 GCS Filter False Positive Correctness",
+              "shortDescription": { "text": "BIP-158 GCS Filter False Positive Correctness" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_psbt_input_confusion",
+              "name": "PSBT Input Type Confusion (BIP-174/370)",
+              "shortDescription": { "text": "PSBT Input Type Confusion (BIP-174/370)" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_descriptor_injection",
+              "name": "Output Descriptor Injection / Type Confusion",
+              "shortDescription": { "text": "Output Descriptor Injection / Type Confusion" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_pubkey_arith",
+              "name": "Public Key Arithmetic Security (PUB-1..9)",
+              "shortDescription": { "text": "Public Key Arithmetic Security (PUB-1..9)" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_batch_sign",
+              "name": "Batch Signing Edge-Case Security (BSG-1..9)",
+              "shortDescription": { "text": "Batch Signing Edge-Case Security (BSG-1..9)" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_ecdsa_nonce_reuse",
+              "name": "ECDSA Nonce Reuse Key Recovery (NRR-1..8)",
+              "shortDescription": { "text": "ECDSA Nonce Reuse Key Recovery (NRR-1..8)" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_cross_scheme_pubkey",
+              "name": "Cross-Scheme Pubkey Consistency (CSP-1..8)",
+              "shortDescription": { "text": "Cross-Scheme Pubkey Consistency (CSP-1..8)" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_wif_security",
+              "name": "WIF Key Format Security (WIF-1..10)",
+              "shortDescription": { "text": "WIF Key Format Security (WIF-1..10)" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_buffer_type_confusion",
+              "name": "Buffer/Type-Confusion (BTC-0..12)",
+              "shortDescription": { "text": "Buffer/Type-Confusion (BTC-0..12)" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_differential_libsecp",
+              "name": "Differential Correctness (DIF-1..10)",
+              "shortDescription": { "text": "Differential Correctness (DIF-1..10)" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_bip352_scan_dos",
+              "name": "BIP-352 Scan DoS Prevention (DOS-0..3)",
+              "shortDescription": { "text": "BIP-352 Scan DoS Prevention (DOS-0..3)" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_taproot_commit_adv",
+              "name": "Taproot Commitment Adversarial (TCA-1..5)",
+              "shortDescription": { "text": "Taproot Commitment Adversarial (TCA-1..5)" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_bip352_parity",
+              "name": "BIP-352 Parity Confusion (PAR-1..6)",
+              "shortDescription": { "text": "BIP-352 Parity Confusion (PAR-1..6)" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_rfc6979_trunc_bias",
+              "name": "RFC6979 Nonce Truncation Bias (NTB-1..5)",
+              "shortDescription": { "text": "RFC6979 Nonce Truncation Bias (NTB-1..5)" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_binding_adv_api",
+              "name": "Binding Adversarial API (BAT-1..11)",
+              "shortDescription": { "text": "Binding Adversarial API (BAT-1..11)" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_quantum_exposure",
+              "name": "Quantum Exposure Surface (QEX-1..6)",
+              "shortDescription": { "text": "Quantum Exposure Surface (QEX-1..6)" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_ecies_ephemeral_reuse",
+              "name": "ECIES Ephemeral Reuse (EKR-1..4)",
+              "shortDescription": { "text": "ECIES Ephemeral Reuse (EKR-1..4)" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_addr_prefix_collision",
+              "name": "Address Prefix Collision (APC-1..6)",
+              "shortDescription": { "text": "Address Prefix Collision (APC-1..6)" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_binding_invalid_curve",
+              "name": "Binding Invalid Curve (BIC)",
+              "shortDescription": { "text": "Binding Invalid Curve (BIC)" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_frost_ct_nonce",
+              "name": "FROST CT Nonce (FCN)",
+              "shortDescription": { "text": "FROST CT Nonce (FCN)" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_frost_part_set_mall",
+              "name": "FROST Participant Set Malleability (FPS)",
+              "shortDescription": { "text": "FROST Participant Set Malleability (FPS)" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_musig2_par_session",
+              "name": "MuSig2 Parallel Session Cross (MPS)",
+              "shortDescription": { "text": "MuSig2 Parallel Session Cross (MPS)" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_ecdh_zvp_glv_static",
+              "name": "ECDH ZVP/GLV Static-Key Abuse",
+              "shortDescription": { "text": "ECDH ZVP/GLV Static-Key Abuse" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_frost_adaptive_corr",
+              "name": "FROST Adaptive Corruption Misuse",
+              "shortDescription": { "text": "FROST Adaptive Corruption Misuse" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_ecdsa_fault_injection",
+              "name": "Deterministic ECDSA Fault-Injection Surface",
+              "shortDescription": { "text": "Deterministic ECDSA Fault-Injection Surface" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_cache_sidechannel_amp",
+              "name": "Cache Side-Channel Amplification Surface",
+              "shortDescription": { "text": "Cache Side-Channel Amplification Surface" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_ladderleak_subbit_nonce",
+              "name": "LadderLeak-Style Sub-Bit Nonce Leakage",
+              "shortDescription": { "text": "LadderLeak-Style Sub-Bit Nonce Leakage" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_minerva_noisy_hnp",
+              "name": "Minerva-Style Noisy HNP Leakage Surface",
+              "shortDescription": { "text": "Minerva-Style Noisy HNP Leakage Surface" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_hertzbleed_dvfs_timing",
+              "name": "Hertzbleed-Style DVFS Timing Surface",
+              "shortDescription": { "text": "Hertzbleed-Style DVFS Timing Surface" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_biased_nonce_chain_scan",
+              "name": "Biased-Nonce Chain-Scale Scan Surface",
+              "shortDescription": { "text": "Biased-Nonce Chain-Scale Scan Surface" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            },
+            {
+              "id": "AUDIT/exploit_kr_ecdsa_buff_binding",
+              "name": "KR-ECDSA/BUFF Binding Regression Surface",
+              "shortDescription": { "text": "KR-ECDSA/BUFF Binding Regression Surface" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "section": "exploit_poc" }
+            }
+          ]
+        }
+      },
+      "results": [
+
+        {
+          "ruleId": "AUDIT/mutation_kill_rate",
+          "level": "warning",
+          "message": { "text": "Audit module 'Mutation kill-rate audit (advisory)' FAILED (section: fuzzing, 57 ms)" },
+          "locations": [{ "physicalLocation": { "artifactLocation": { "uri": "audit/audit_fuzz.cpp" } } }]
+        }
+      ],
+      "invocations": [
+        {
+          "executionSuccessful": false,
+          "toolExecutionNotifications": []
+        }
+      ],
+      "properties": {
+        "platform": "Linux x86-64",
+        "compiler": "GCC 13.3.0",
+        "gitHash": "d19efba2"
+      }
+    }
+  ]
+}
