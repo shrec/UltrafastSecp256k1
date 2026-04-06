@@ -1700,6 +1700,17 @@ target_compile_definitions(test_exploit_ecdsa_r_overflow_standalone PRIVATE STAN
 add_test(NAME exploit_ecdsa_r_overflow COMMAND test_exploit_ecdsa_r_overflow_standalone)
 set_tests_properties(exploit_ecdsa_r_overflow PROPERTIES TIMEOUT 60 LABELS "audit;exploit;ecdsa;wycheproof")
 
+# -- ECDSA sign sentinel paths: r=0 / s=0 / sk=0 guards (X-1, X-2, X-4) ---
+add_executable(test_exploit_ecdsa_sign_sentinels_standalone
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_exploit_ecdsa_sign_sentinels.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_ecdsa_sign_sentinels_standalone)
+target_include_directories(test_exploit_ecdsa_sign_sentinels_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include ${CMAKE_BINARY_DIR}/include)
+target_compile_definitions(test_exploit_ecdsa_sign_sentinels_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_ecdsa_sign_sentinels COMMAND test_exploit_ecdsa_sign_sentinels_standalone)
+set_tests_properties(exploit_ecdsa_sign_sentinels PROPERTIES TIMEOUT 60 LABELS "audit;exploit;ecdsa;sentinel")
+
 # -- Wycheproof ECDSA Bitcoin variant vectors (BIP-62 low-S + PR #206) ------
 add_executable(test_wycheproof_ecdsa_bitcoin_standalone
     ${CMAKE_CURRENT_SOURCE_DIR}/test_wycheproof_ecdsa_bitcoin.cpp)
