@@ -928,6 +928,13 @@ target_compile_definitions(test_exploit_frost_byzantine_standalone PRIVATE STAND
 add_test(NAME exploit_frost_byzantine COMMAND test_exploit_frost_byzantine_standalone)
 set_tests_properties(exploit_frost_byzantine PROPERTIES TIMEOUT 60 LABELS "audit;exploit;frost;byzantine")
 
+# -- MuSig2/FROST Byzantine 3-of-5 multi-party adversarial tests -------------
+add_executable(test_exploit_musig2_byzantine_multiparty_standalone test_exploit_musig2_byzantine_multiparty.cpp)
+audit_target_defaults(test_exploit_musig2_byzantine_multiparty_standalone)
+target_compile_definitions(test_exploit_musig2_byzantine_multiparty_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_musig2_byzantine_multiparty COMMAND test_exploit_musig2_byzantine_multiparty_standalone)
+set_tests_properties(exploit_musig2_byzantine_multiparty PROPERTIES TIMEOUT 120 LABELS "audit;exploit;musig2;frost;byzantine;multiparty")
+
 # -- Scalar group law systematic (inverses, identities, overflow, roundtrip) --
 add_executable(test_exploit_scalar_systematic_standalone test_exploit_scalar_systematic.cpp)
 audit_target_defaults(test_exploit_scalar_systematic_standalone)
@@ -1461,6 +1468,17 @@ target_include_directories(test_exploit_bip352_parity_confusion_standalone PRIVA
 target_compile_definitions(test_exploit_bip352_parity_confusion_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
 add_test(NAME exploit_bip352_parity_confusion COMMAND test_exploit_bip352_parity_confusion_standalone)
 set_tests_properties(exploit_bip352_parity_confusion PROPERTIES TIMEOUT 60 LABELS "audit;exploit;bip352;parity")
+
+# -- BIP-352 Known-Answer Tests (create_output byte-exact + full round-trip)
+add_executable(test_bip352_kat_standalone
+    test_bip352_kat.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_bip352_kat_standalone)
+target_include_directories(test_bip352_kat_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include ${CMAKE_BINARY_DIR}/include)
+target_compile_definitions(test_bip352_kat_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME bip352_kat COMMAND test_bip352_kat_standalone)
+set_tests_properties(bip352_kat PROPERTIES TIMEOUT 60 LABELS "audit;kat;bip352;silent-payment;regression")
 
 # -- PoC: RFC 6979 nonce truncation bias (C5 gap)
 add_executable(test_exploit_rfc6979_truncation_bias_standalone
@@ -2169,12 +2187,14 @@ add_executable(unified_audit_runner
     test_exploit_wif_security.cpp
     test_exploit_binding_invalid_curve.cpp
     test_exploit_musig2_parallel_session_cross.cpp
+    test_exploit_musig2_byzantine_multiparty.cpp
     # -- Security gap closure tests (A2, B2, A6, A7, C2, C5, D6, LOW) --
     test_exploit_buffer_type_confusion.cpp
     test_exploit_differential_libsecp.cpp
     test_exploit_bip352_scan_dos.cpp
     test_exploit_taproot_commitment_adversarial.cpp
     test_exploit_bip352_parity_confusion.cpp
+    test_bip352_kat.cpp
     test_exploit_rfc6979_truncation_bias.cpp
     test_exploit_binding_adversarial_api.cpp
     test_exploit_quantum_exposure.cpp
@@ -2310,9 +2330,10 @@ set_tests_properties(
     exploit_ct_fast_equivalence exploit_pedersen_switch_misuse
     exploit_frost_participant_set_malleability exploit_frost_ct_nonce
     exploit_binding_invalid_curve exploit_musig2_parallel_session_cross
+    exploit_musig2_byzantine_multiparty
     exploit_buffer_type_confusion exploit_differential_libsecp
     exploit_bip352_scan_dos exploit_taproot_commitment_adversarial
-    exploit_bip352_parity_confusion exploit_rfc6979_truncation_bias
+    exploit_bip352_parity_confusion bip352_kat exploit_rfc6979_truncation_bias
     exploit_binding_adversarial_api exploit_quantum_exposure
     exploit_ecies_ephemeral_reuse exploit_address_prefix_collision
     exploit_ecdh_zvp_glv_static exploit_frost_adaptive_corruption
@@ -2454,6 +2475,29 @@ if(Python3_FOUND)
 else()
     message(STATUS "  Python3 not found — skipping Python audit scripts")
 endif()
+
+# ===========================================================================
+# AI Findings Label Convention
+# ===========================================================================
+# Tests that were suggested by AI tools and have NOT yet been manually
+# validated by a human auditor must carry the "ai_finding" label.  They
+# remain in the audit suite and are executed by CI, but
+# scripts/audit_ai_findings.py filters them out of the official confirmed
+# audit score so that unverified AI suggestions do not inflate coverage
+# claims.
+#
+# How to mark an AI-suggested test:
+#
+#   set_tests_properties(<test_name> PROPERTIES
+#       LABELS "audit;ai_finding;unconfirmed;<other-labels>")
+#
+# Once a human auditor has reviewed and validated the test, remove the
+# "ai_finding" and "unconfirmed" labels, leaving only the substantive
+# category labels (e.g. "audit;exploit;schnorr").
+#
+# Query unconfirmed tests at any time:
+#   ctest -N -L ai_finding
+# ===========================================================================
 
 # ===========================================================================
 # LibFuzzer harnesses (parser boundary + AEAD + BIP-32 path fuzzing)
