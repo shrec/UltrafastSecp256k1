@@ -1727,6 +1727,18 @@ target_compile_definitions(test_wycheproof_ecdsa_sha256_standalone PRIVATE STAND
 add_test(NAME wycheproof_ecdsa_sha256 COMMAND test_wycheproof_ecdsa_sha256_standalone)
 set_tests_properties(wycheproof_ecdsa_sha256 PROPERTIES TIMEOUT 60 LABELS "audit;kat;wycheproof;ecdsa;der")
 
+# -- Wycheproof ECDSA secp256k1 SHA-256 extended coverage -------------------
+# Covers flag categories absent from the base sha256 test:
+#   RangeCheck, InvalidTypesInSignature, EdgeCaseShamirMultiplication,
+#   SmallRandS (CVE-2020-13895), PointDuplication, EdgeCasePublicKey
+add_executable(test_wycheproof_ecdsa_extended_standalone
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_wycheproof_ecdsa_extended.cpp)
+audit_target_defaults(test_wycheproof_ecdsa_extended_standalone)
+target_compile_definitions(test_wycheproof_ecdsa_extended_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME wycheproof_ecdsa_extended COMMAND test_wycheproof_ecdsa_extended_standalone)
+set_tests_properties(wycheproof_ecdsa_extended PROPERTIES TIMEOUT 60
+    LABELS "audit;kat;wycheproof;ecdsa;der;edge-case")
+
 # -- Wycheproof ECDSA secp256k1 SHA-256 P1363 vectors -----------------------
 add_executable(test_wycheproof_ecdsa_sha256_p1363_standalone
     ${CMAKE_CURRENT_SOURCE_DIR}/test_wycheproof_ecdsa_secp256k1_sha256_p1363.cpp)
