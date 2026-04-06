@@ -139,24 +139,30 @@ inline void field_to_bytes_impl(const FieldElement* f, uchar out[32]) {
         0xFFFFFFFEFFFFFC2FUL, 0xFFFFFFFFFFFFFFFFUL,
         0xFFFFFFFFFFFFFFFFUL, 0xFFFFFFFFFFFFFFFFUL
     };
-    // Branchless: subtract p, keep result only if no borrow (fe >= p)
-    ulong tmp[4];
-    ulong borrow = 0;
-    for (int i = 0; i < 4; i++) {
-        ulong a = f->limbs[i];
-        ulong b = P[i] + borrow;
-        ulong underflow = (borrow && b == 0) ? 1UL : 0UL;
-        tmp[i] = a - b;
-        borrow = (a < b || underflow) ? 1UL : 0UL;
+    // Three branchless conditional subtractions to handle magnitude <= 4.
+    // A single subtraction is insufficient when the input has accumulated
+    // magnitude > 1 (value >= 2p) through field_add / jacobian_to_affine
+    // intermediate computations (issue #225).
+    ulong cur[4];
+    for (int i = 0; i < 4; i++) cur[i] = f->limbs[i];
+
+    for (int pass = 0; pass < 3; pass++) {
+        ulong tmp[4];
+        ulong borrow = 0;
+        for (int i = 0; i < 4; i++) {
+            ulong a = cur[i];
+            ulong b = P[i] + borrow;
+            ulong underflow = (borrow && b == 0) ? 1UL : 0UL;
+            tmp[i] = a - b;
+            borrow = (a < b || underflow) ? 1UL : 0UL;
+        }
+        ulong mask = (borrow == 0) ? ~0UL : 0UL;
+        for (int i = 0; i < 4; i++)
+            cur[i] = (tmp[i] & mask) | (cur[i] & ~mask);
     }
-    // borrow==0 → fe >= p → use tmp; borrow==1 → fe < p → use original
-    ulong mask = (borrow == 0) ? ~0UL : 0UL;
-    ulong norm[4];
-    for (int i = 0; i < 4; i++)
-        norm[i] = (tmp[i] & mask) | (f->limbs[i] & ~mask);
 
     for (int i = 0; i < 4; i++) {
-        ulong limb = norm[3 - i];
+        ulong limb = cur[3 - i];
         for (int j = 0; j < 8; j++)
             out[i * 8 + j] = (uchar)(limb >> (56 - j * 8));
     }

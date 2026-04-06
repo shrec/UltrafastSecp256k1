@@ -4141,24 +4141,37 @@ __device__ inline void scalar_to_bytes(const Scalar* s, uint8_t bytes[32]) {
     }
 }
 
-// Convert FieldElement to 32 big-endian bytes (normalizes mod p first).
-__device__ inline void field_to_bytes(const FieldElement* fe, uint8_t bytes[32]) {
+// Reduce a FieldElement to canonical form [0, p) using three branchless
+// conditional subtractions.  Handles magnitude <= 4.  A single subtraction
+// is insufficient when intermediate field computations produce values >= 2p
+// (issue #225).
+__device__ inline void field_normalize(const FieldElement* fe, uint64_t cur[4]) {
     constexpr uint64_t P[4] = {
         0xFFFFFFFEFFFFFC2FULL, 0xFFFFFFFFFFFFFFFFULL,
         0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL
     };
-    uint64_t tmp[4];
-    uint64_t borrow = 0;
-    for (int i = 0; i < 4; i++) {
-        tmp[i] = sub_cc(fe->limbs[i], P[i], borrow);
+    for (int i = 0; i < 4; i++) cur[i] = fe->limbs[i];
+    for (int pass = 0; pass < 3; pass++) {
+        uint64_t tmp[4];
+        uint64_t borrow = 0;
+        for (int i = 0; i < 4; i++) {
+            uint64_t a = cur[i], b = P[i] + borrow;
+            uint64_t underflow = (borrow && b == 0) ? 1ULL : 0ULL;
+            tmp[i] = a - b;
+            borrow = (a < b || underflow) ? 1ULL : 0ULL;
+        }
+        uint64_t mask = (borrow == 0) ? ~0ULL : 0ULL;
+        for (int i = 0; i < 4; i++)
+            cur[i] = (tmp[i] & mask) | (cur[i] & ~mask);
     }
-    uint64_t mask = -(uint64_t)(borrow == 0);
-    uint64_t norm[4];
-    for (int i = 0; i < 4; i++)
-        norm[i] = (tmp[i] & mask) | (fe->limbs[i] & ~mask);
+}
 
+// Convert FieldElement to 32 big-endian bytes (normalizes mod p first).
+__device__ inline void field_to_bytes(const FieldElement* fe, uint8_t bytes[32]) {
+    uint64_t cur[4];
+    field_normalize(fe, cur);
     for (int i = 0; i < 4; i++) {
-        uint64_t limb = norm[3 - i];
+        uint64_t limb = cur[3 - i];
         for (int j = 0; j < 8; j++) {
             bytes[i * 8 + j] = (uint8_t)(limb >> (56 - j * 8));
         }
@@ -4167,18 +4180,9 @@ __device__ inline void field_to_bytes(const FieldElement* fe, uint8_t bytes[32])
 
 // Return whether a field element is odd after normalization mod p.
 __device__ __forceinline__ bool field_is_odd(const FieldElement* fe) {
-    constexpr uint64_t P[4] = {
-        0xFFFFFFFEFFFFFC2FULL, 0xFFFFFFFFFFFFFFFFULL,
-        0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL
-    };
-    uint64_t tmp[4];
-    uint64_t borrow = 0;
-    for (int i = 0; i < 4; i++) {
-        tmp[i] = sub_cc(fe->limbs[i], P[i], borrow);
-    }
-    uint64_t mask = -(uint64_t)(borrow == 0);
-    uint64_t norm0 = (tmp[0] & mask) | (fe->limbs[0] & ~mask);
-    return (norm0 & 1ULL) != 0;
+    uint64_t cur[4];
+    field_normalize(fe, cur);
+    return (cur[0] & 1ULL) != 0;
 }
 
 #endif

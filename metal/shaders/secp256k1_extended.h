@@ -117,23 +117,33 @@ inline void field_to_bytes(thread const FieldElement &f, thread uchar out[32]) {
         0xFFFFFC2Fu, 0xFFFFFFFEu, 0xFFFFFFFFu, 0xFFFFFFFFu,
         0xFFFFFFFFu, 0xFFFFFFFFu, 0xFFFFFFFFu, 0xFFFFFFFFu
     };
-    // Branchless: subtract p, keep result only if no borrow (fe >= p)
-    uint tmp[8];
-    uint borrow = 0;
-    for (int i = 0; i < 8; i++) {
-        uint a = f.limbs[i];
-        uint b = P[i] + borrow;
-        uint underflow = (borrow && b == 0) ? 1u : 0u;
-        tmp[i] = a - b;
-        borrow = (a < b || underflow) ? 1u : 0u;
+
+    // Three branchless conditional subtractions to handle magnitude <= 4.
+    // A single subtraction is insufficient when the input has accumulated
+    // magnitude > 1 (value >= 2p) through sequences of field_add or
+    // jacobian_to_affine intermediate computations (issue #225).
+    // Three passes cover all values < 4p, which exceeds any realistic
+    // accumulation from the arithmetic in this shader.
+    uint cur[8];
+    for (int i = 0; i < 8; i++) cur[i] = f.limbs[i];
+
+    for (int pass = 0; pass < 3; pass++) {
+        uint tmp[8];
+        uint borrow = 0;
+        for (int i = 0; i < 8; i++) {
+            uint a = cur[i];
+            uint b = P[i] + borrow;
+            uint underflow = (borrow && b == 0) ? 1u : 0u;
+            tmp[i] = a - b;
+            borrow = (a < b || underflow) ? 1u : 0u;
+        }
+        uint mask = (borrow == 0) ? 0xFFFFFFFFu : 0u;
+        for (int i = 0; i < 8; i++)
+            cur[i] = (tmp[i] & mask) | (cur[i] & ~mask);
     }
-    uint mask = (borrow == 0) ? 0xFFFFFFFFu : 0u;
-    uint norm[8];
-    for (int i = 0; i < 8; i++)
-        norm[i] = (tmp[i] & mask) | (f.limbs[i] & ~mask);
 
     for (int i = 0; i < 8; i++) {
-        uint limb = norm[7 - i];
+        uint limb = cur[7 - i];
         out[i*4+0] = uchar(limb >> 24);
         out[i*4+1] = uchar(limb >> 16);
         out[i*4+2] = uchar(limb >> 8);
