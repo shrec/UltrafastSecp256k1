@@ -97,6 +97,7 @@ jobs:
           CT_SOURCES=(
             "cpu/src/ct_field.cpp"
             "cpu/src/ct_scalar.cpp"
+            "cpu/src/ct_point.cpp"
             "cpu/src/ct_sign.cpp"
           )
 

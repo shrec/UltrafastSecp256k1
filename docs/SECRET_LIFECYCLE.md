@@ -10,6 +10,15 @@ and `docs/SECURITY_CLAIMS.md` whenever those surfaces change.
 
 ---
 
+## 2026-04-06 Change-Control Notes
+
+Recent secret-path evidence hardening relevant to this document:
+
+1. `cpu/src/schnorr.cpp` now keeps verify-side x-only cache entries normalized before storage. Those cached points are derived only from public verification inputs and do not persist secret scalars, nonce material, or secret-derived intermediates.
+2. `audit/test_ct_sidechannel.cpp` and `audit/test_ct_verif_formal.cpp` remain paired CT-evidence surfaces for secret-bearing regressions. Current interpretation explicitly treats allocator/address-layout bias as a harness artifact, not as proof of secret dependence, unless the signal survives layout de-correlation.
+
+---
+
 ## Zeroization Infrastructure
 
 ### `detail::secure_erase(void*, size_t)`

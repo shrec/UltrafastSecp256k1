@@ -144,43 +144,73 @@ struct XOnlyLiftCacheEntry {
     bool valid = false;
 };
 
+static inline Scalar schnorr_challenge_scalar(const uint8_t* r32,
+                                              const uint8_t* pubkey_x32,
+                                              const uint8_t* msg32) {
+    alignas(16) uint8_t challenge_input[96];
+    std::memcpy(challenge_input + 0, r32, 32);
+    std::memcpy(challenge_input + 32, pubkey_x32, 32);
+    std::memcpy(challenge_input + 64, msg32, 32);
+    return Scalar::from_bytes(cached_tagged_hash(g_challenge_midstate,
+                                                 challenge_input,
+                                                 sizeof(challenge_input)));
+}
+
+#if !defined(SECP256K1_PLATFORM_ESP32) && !defined(SECP256K1_PLATFORM_STM32)
+static inline std::size_t lift_x_cache_index(const uint8_t* pubkey_x32) {
+    static constexpr std::size_t kCacheSlots = 1024;
+    std::size_t const h0 = pubkey_x32[0] ^ pubkey_x32[7] ^ pubkey_x32[15] ^ pubkey_x32[23] ^ pubkey_x32[31];
+    std::size_t const h1 = pubkey_x32[1] ^ pubkey_x32[9] ^ pubkey_x32[17] ^ pubkey_x32[25];
+    return (h0 | (h1 << 8)) & (kCacheSlots - 1);
+}
+
+static inline bool lift_x_cache_lookup(const uint8_t* pubkey_x32, Point& out) {
+    static constexpr std::size_t kCacheSlots = 1024;
+    thread_local std::array<XOnlyLiftCacheEntry, kCacheSlots> cache{};
+
+    auto& slot = cache[lift_x_cache_index(pubkey_x32)];
+    if (!slot.valid || std::memcmp(slot.x.data(), pubkey_x32, 32) != 0) {
+        return false;
+    }
+
+    out = slot.p;
+    return !out.is_infinity();
+}
+
+static inline void lift_x_cache_store(const uint8_t* pubkey_x32, const Point& lifted) {
+    static constexpr std::size_t kCacheSlots = 1024;
+    thread_local std::array<XOnlyLiftCacheEntry, kCacheSlots> cache{};
+
+    auto& slot = cache[lift_x_cache_index(pubkey_x32)];
+    std::memcpy(slot.x.data(), pubkey_x32, 32);
+    slot.p = lifted;
+    slot.valid = true;
+}
+#endif
+
 static inline bool lift_x_cached(const uint8_t* pubkey_x32,
-                                 const std::uint64_t* pkL,
                                  Point& out) {
 #if defined(SECP256K1_PLATFORM_ESP32) || defined(SECP256K1_PLATFORM_STM32)
-    // Embedded: skip thread-local cache, compute directly.
+    std::uint64_t pkL[4];
+    if (!parse_and_check_lt_p(pubkey_x32, pkL)) return false;
     Point const lifted = lift_x_from_limbs(pkL);
     if (lifted.is_infinity()) return false;
     out = lifted;
     return true;
 #else
-    // Direct-mapped table with 1024 slots (10-bit index).
-    // Increased from 256 to reduce birthday collisions when both sig.r and
-    // pubkey_x bytes flow through the same cache (batch verify path).
-    // For N=192 unique entries the expected collisions drop from ~71 to ~18.
-    // Hash uses 10 bytes spread across the 32-byte key for better distribution.
-    static constexpr std::size_t kCacheSlots = 1024;
-    thread_local std::array<XOnlyLiftCacheEntry, kCacheSlots> cache{};
-
-    std::size_t const h0 = pubkey_x32[0] ^ pubkey_x32[7] ^ pubkey_x32[15] ^ pubkey_x32[23] ^ pubkey_x32[31];
-    std::size_t const h1 = pubkey_x32[1] ^ pubkey_x32[9] ^ pubkey_x32[17] ^ pubkey_x32[25];
-    auto const idx = (h0 | (h1 << 8)) & (kCacheSlots - 1);
-
-    auto& slot = cache[idx];
-    if (slot.valid && std::memcmp(slot.x.data(), pubkey_x32, 32) == 0) {
-        out = slot.p;
-        return !out.is_infinity();
+    if (lift_x_cache_lookup(pubkey_x32, out)) {
+        return true;
     }
+
+    std::uint64_t pkL[4];
+    if (!parse_and_check_lt_p(pubkey_x32, pkL)) return false;
 
     Point const lifted = lift_x_from_limbs(pkL);
     if (lifted.is_infinity()) {
         return false;
     }
 
-    std::memcpy(slot.x.data(), pubkey_x32, 32);
-    slot.p = lifted;
-    slot.valid = true;
-
+    lift_x_cache_store(pubkey_x32, lifted);
     out = lifted;
     return true;
 #endif
@@ -378,21 +408,14 @@ bool schnorr_verify(const uint8_t* pubkey_x32,
 
     // Check r < p: parse r bytes to 4x64 LE limbs + strict check, no FieldElement.
     std::uint64_t rL[4];
-    std::uint64_t pkL[4];
-    if (!parse2_and_check_lt_p(sig.r.data(), pubkey_x32, rL, pkL)) return false;
+    if (!parse_and_check_lt_p(sig.r.data(), rL)) return false;
 
     // Step 2: Lift x-only pubkey to point (cached for repeated pubkeys)
     Point P;
-    if (!lift_x_cached(pubkey_x32, pkL, P)) return false;
+    if (!lift_x_cached(pubkey_x32, P)) return false;
 
     // Step 3: e = tagged_hash("BIP0340/challenge", r || pubkey_x || msg) mod n
-    // Streaming SHA256: feed data directly, no intermediate buffer
-    SHA256 ctx = g_challenge_midstate;
-    ctx.update(sig.r.data(), 32);
-    ctx.update(pubkey_x32, 32);
-    ctx.update(msg32, 32);
-    const auto e_hash = ctx.finalize();
-    const auto e = Scalar::from_bytes(e_hash);
+    const auto e = schnorr_challenge_scalar(sig.r.data(), pubkey_x32, msg32);
 
     // Step 4: R = s*G - e*P  (4-stream GLV Strauss: s*G + (-e)*P in one pass)
     const auto neg_e = e.negate();
@@ -435,13 +458,8 @@ bool schnorr_verify(const uint8_t* pubkey_x32,
 
 bool schnorr_xonly_pubkey_parse(SchnorrXonlyPubkey& out,
                                 const uint8_t* pubkey_x32) {
-    // BIP-340 strict: reject x >= p (no reduction)
-    std::uint64_t xL[4];
-    parse_be32_to_le64(pubkey_x32, xL);
-    if (!limbs_lt_p(xL)) return false;
-
     Point P = Point::infinity();
-    if (!lift_x_cached(pubkey_x32, xL, P)) return false;
+    if (!lift_x_cached(pubkey_x32, P)) return false;
     out.point = P;
     std::memcpy(out.x_bytes.data(), pubkey_x32, 32);
     return true;
@@ -466,6 +484,7 @@ SchnorrXonlyPubkey schnorr_xonly_from_keypair(const SchnorrKeypair& kp) {
         P = Point::from_jacobian_coords(P.x(), y_neg, P.z(), false);
 #endif
     }
+    P.normalize();
     pub.point = P;
     pub.x_bytes = px;
     return pub;
@@ -486,13 +505,7 @@ bool schnorr_verify(const SchnorrXonlyPubkey& pubkey,
     std::uint64_t rL[4];
     if (!parse_and_check_lt_p(sig.r.data(), rL)) return false;
 
-    // Challenge hash: streaming SHA256 (no intermediate buffer)
-    SHA256 ctx = g_challenge_midstate;
-    ctx.update(sig.r.data(), 32);
-    ctx.update(pubkey.x_bytes.data(), 32);
-    ctx.update(msg32, 32);
-    const auto e_hash = ctx.finalize();
-    const auto e = Scalar::from_bytes(e_hash);
+    const auto e = schnorr_challenge_scalar(sig.r.data(), pubkey.x_bytes.data(), msg32);
 
     // R = s*G - e*P  (direct Point -- no sqrt needed)
     const auto neg_e = e.negate();

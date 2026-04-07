@@ -231,7 +231,7 @@ The Metal CT layer uses Metal Shading Language (MSL) with:
 | `fast::field_inverse` | Variable-time SafeGCD (divsteps exit early) | Leak on field element value |
 | `fast::point_add` | Short-circuits on infinity | Leak on point identity |
 | GPU kernels (all) | SIMT execution model, shared memory | Observable via GPU profiling |
-| FROST / MuSig2 | Experimental, not CT-audited | Unknown |
+| Some FROST / MuSig2 helpers | Session setup, public-index math, and broader protocol orchestration are not all elevated to full secret-path CT claims | Experimental surface; secret-bearing `musig2_partial_sign` and `frost_sign` do have protocol-level dudect coverage |
 
 ---
 
@@ -315,7 +315,7 @@ Cost: 64 unified_add + 64 signed_lookups(8)
 
 ### Implementation
 
-File: `tests/test_ct_sidechannel.cpp` (1300+ lines)
+File: `audit/test_ct_sidechannel.cpp` (1300+ lines)
 
 Uses the dudect approach (Reparaz, Balasch, Verbauwhede, 2017):
 
@@ -351,6 +351,9 @@ Uses the dudect approach (Reparaz, Balasch, Verbauwhede, 2017):
 | `field_select` | flag=0, flag=1 | Random flags |
 | ECDSA sign | Known keys | Random keys |
 | Schnorr sign | Known keys | Random keys |
+| `musig2_partial_sign` | Fixed secret key | Random secret keys |
+| `frost_sign` | Low-Hamming-weight signing share | High-Hamming-weight signing share |
+| `frost_lagrange_coefficient` | Signer set `{1,2}` | Signer set `{1,3}` (advisory, public indices) |
 
 ### Running the Test
 
@@ -370,22 +373,13 @@ valgrind ./build/tests/test_ct_sidechannel_vg
 
 ## Known Limitations
 
-### 1. Formal Verification (Partial)
+### 1. Formal Verification (Expanded, Still Not End-to-End)
 
 The CT layer is verified using:
-- **ct-verif LLVM pass** -- deterministic compile-time CT check of `ct_field.cpp`, `ct_scalar.cpp`, `ct_sign.cpp` (`.github/workflows/ct-verif.yml`). If the LLVM pass is unavailable, a fallback IR branch analysis runs.
+- **ct-verif LLVM pass** -- deterministic compile-time CT check of `ct_field.cpp`, `ct_scalar.cpp`, `ct_point.cpp`, and `ct_sign.cpp` (`.github/workflows/ct-verif.yml`). If the LLVM pass is unavailable, a fallback IR branch analysis runs.
 - **Valgrind CT taint analysis** -- `scripts/valgrind_ct_check.sh` marks private-key bytes as secret via `MAKE_MEM_UNDEFINED` / `--track-origins=yes` and runs signing + ECDH operations, failing on any secret-derived branch or memory access. Integrated in `.github/workflows/valgrind-ct.yml`.
 
-#### ct_point.cpp Coverage Gap
-
-`cpu/src/ct_point.cpp` (CT point operations: `point_add_complete`, `point_double`, `scalar_mul`) is **not currently analyzed by the ct-verif LLVM pass**. The ct-verif workflow covers only `ct_field.cpp`, `ct_scalar.cpp`, and `ct_sign.cpp`.
-
-CT guarantees for `ct_point.cpp` rest on:
-- Manual code review confirming no secret-dependent branches or memory accesses
-- dudect empirical timing tests (see §Timing Verification) which pass |t| < 4.5
-- Valgrind taint analysis via `valgrind_ct_check.sh` (secret bytes flow through point ops without triggering uninitialised-value warnings)
-
-**Planned**: Add `ct_point.cpp` to the ct-verif workflow once upstream ct-verif supports the complete addition formulae used here.
+The normalized evidence collector (`scripts/collect_ct_evidence.py --strict`) now treats the expected ct-verif module set as owner-grade blocking: `ct_field`, `ct_scalar`, `ct_point`, and `ct_sign`. A deterministic artifact that omits one of those modules is downgraded from usable proof material to a configured-only gap.
 
 Not yet integrated:
 - **Vale** (F\* verified assembly)
@@ -397,6 +391,11 @@ Additional CT guarantees come from:
 - Compiler discipline (`-O2` specifically)
 - dudect empirical testing (x86-64 + ARM64 native)
 - ASan/UBSan runtime checks
+
+Protocol-level nuance:
+- `musig2_partial_sign` and `frost_sign` are exercised by the dudect suite in `audit/test_ct_sidechannel.cpp`
+- `frost_lagrange_coefficient` is tracked as advisory timing only because it operates on public participant indices
+- This timing evidence improves confidence for secret-bearing signing steps, but does not by itself promote the whole MuSig2/FROST protocol stack out of experimental status
 
 ### 2. Compiler Risk
 
@@ -445,10 +444,10 @@ The GPU CT layers are tested via:
 
 ### 5. Experimental Protocols
 
-FROST and MuSig2 have NOT been CT-audited:
-- Multi-party protocol simulation needed
-- Nonce handling under review
-- API instability prevents thorough CT analysis
+FROST and MuSig2 remain broader experimental protocol surfaces, but the repo no longer treats them as completely unaudited:
+- Secret-bearing `musig2_partial_sign` and `frost_sign` have protocol-level dudect coverage in `audit/test_ct_sidechannel.cpp`
+- `frost_lagrange_coefficient` is tracked as advisory timing-only because it operates on public participant indices
+- Multi-party orchestration, session setup, and misuse-boundary analysis still need deeper protocol-grade review before the full stacks can be promoted to strong CT claims
 
 ---
 
@@ -474,7 +473,7 @@ FROST and MuSig2 have NOT been CT-audited:
 
 - [ ] **Formal verification** with Fiat-Crypto for field arithmetic
 - [x] **ct-verif** LLVM pass integration for CT verification (`.github/workflows/ct-verif.yml`)
-- [ ] **ct-verif: ct_point.cpp** -- add point operations (`point_add_complete`, `scalar_mul`) to ct-verif workflow (currently gap, see §Known Limitations §1)
+- [x] **ct-verif: ct_point.cpp** -- point operations are included in `.github/workflows/ct-verif.yml`, and `scripts/collect_ct_evidence.py --strict` treats missing point-module evidence as owner-grade blocking
 - [x] **Multi-uarch dudect** -- x86-64 CI + ARM64 Apple M1 native (`.github/workflows/ct-arm64.yml`)
 - [x] **dudect expansion** to cover FROST/MuSig2 -- `musig2_partial_sign`, `frost_sign`, `frost_lagrange_coefficient`
 - [x] **Valgrind CT taint** in CI -- MAKE_MEM_UNDEFINED + --track-origins (`scripts/valgrind_ct_check.sh`, `.github/workflows/valgrind-ct.yml`)

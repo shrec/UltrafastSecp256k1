@@ -1264,6 +1264,7 @@ def populate_test_targets(cur: sqlite3.Cursor):
         ('musig2_frost_advanced', 'test_musig2_frost_advanced_standalone', 'audit_conditional', 300, '["audit","musig2","frost"]'),
         ('frost_kat', 'test_frost_kat_standalone', 'audit_conditional', 300, '["audit","frost"]'),
         ('musig2_bip327_vectors', 'test_musig2_bip327_vectors_standalone', 'audit_conditional', 300, '["audit","musig2"]'),
+        ('gpu_bip352_scan', 'test_gpu_bip352_scan', 'audit_conditional', 300, '["audit","gpu","bip352"]'),
         # GPU (10)
         ('cuda_selftest', 'secp256k1_cuda_test', 'gpu', 300, '["gpu","cuda"]'),
         ('gpu_audit', 'gpu_audit_runner', 'gpu', 1200, '["gpu","cuda","audit"]'),
@@ -1688,6 +1689,7 @@ def populate_edges(cur: sqlite3.Cursor):
         'ecies_regression': ['cpu/src/ecies.cpp'],
         'musig2_frost': ['cpu/src/musig2.cpp', 'cpu/src/frost.cpp'],
         'abi_gate': ['include/ufsecp/ufsecp_impl.cpp'],
+        'gpu_bip352_scan': ['include/ufsecp/ufsecp_gpu_impl.cpp'],
         'wycheproof_ecdsa': ['cpu/src/ecdsa.cpp'],
         'wycheproof_ecdh': ['cpu/src/ecdh.cpp'],
         'fault_injection': ['cpu/src/ecdsa.cpp', 'cpu/src/schnorr.cpp'],
@@ -1722,11 +1724,17 @@ def populate_edges(cur: sqlite3.Cursor):
     }
     cur.execute("SELECT name, category FROM c_abi_functions")
     for fname, cat in cur.fetchall():
-        if cat in abi_impl:
+        target_file = None
+        if fname.startswith('ufsecp_gpu_') or fname == 'ufsecp_bip352_prepare_scan_plan':
+            target_file = 'include/ufsecp/ufsecp_gpu_impl.cpp'
+        elif cat in abi_impl:
+            target_file = abi_impl[cat]
+
+        if target_file:
             cur.execute("""INSERT OR IGNORE INTO edges
                 (src_type, src_id, dst_type, dst_id, relation)
                 VALUES (?,?,?,?,?)""",
-                ('c_abi_function', fname, 'source_file', abi_impl[cat], 'implements'))
+                ('c_abi_function', fname, 'source_file', target_file, 'implements'))
             count += 1
     
     # Include dependency edges
@@ -1956,6 +1964,7 @@ def populate_cpp_methods(cur: sqlite3.Cursor):
 
 def populate_security_patterns(cur: sqlite3.Cursor):
     """Scan source for secure_erase, value_barrier, CLASSIFY/DECLASSIFY."""
+    cur.execute("DELETE FROM security_patterns")
     patterns_to_scan = [
         ('secure_erase', re.compile(r'secure_erase\s*\(')),
         ('value_barrier', re.compile(r'value_barrier\s*\(')),
@@ -2425,10 +2434,13 @@ def populate_call_edges(cur: sqlite3.Cursor):
     for fpath, name in cur.fetchall():
         if name not in known:
             known[name] = fpath
-    cur.execute("SELECT name FROM c_abi_functions")
-    for (name,) in cur.fetchall():
+    cur.execute("SELECT name, category FROM c_abi_functions")
+    for name, category in cur.fetchall():
         if name not in known:
-            known[name] = 'include/ufsecp/ufsecp_impl.cpp'
+            if category == 'gpu' or name.startswith('ufsecp_gpu_') or name == 'ufsecp_bip352_prepare_scan_plan':
+                known[name] = 'include/ufsecp/ufsecp_gpu_impl.cpp'
+            else:
+                known[name] = 'include/ufsecp/ufsecp_impl.cpp'
 
     # Build file -> sorted list of (start_line, end_line, func_name)
     ranges: dict = {}
@@ -2794,6 +2806,19 @@ def populate_function_test_map(cur: sqlite3.Cursor):
             except Exception:
                 pass
 
+        cur.execute("""SELECT src_id FROM edges
+                       WHERE src_type='c_abi_function' AND dst_type='source_file'
+                         AND relation='implements' AND dst_id=?""", (source_file,))
+        for (abi_name,) in cur.fetchall():
+            try:
+                cur.execute("""INSERT OR IGNORE INTO function_test_map
+                    (function_name, function_file, test_target, coverage_type)
+                    VALUES (?,?,?,?)""",
+                    (abi_name, source_file, test_name, 'abi_indirect'))
+                count += 1
+            except Exception:
+                pass
+
     # Additional KAT linkage: test -> abi_routing -> impl file -> functions
     cur.execute("""SELECT name, category FROM test_targets
                    WHERE category IN ('cpu_core', 'audit_always')""")
@@ -2818,6 +2843,30 @@ def populate_function_test_map(cur: sqlite3.Cursor):
                     count += 1
                 except Exception:
                     pass
+
+    # Direct audit/test caller linkage: map explicit ufsecp_* calls in tests back
+    # to the ABI function itself so file-level coverage gaps do not hide real callers.
+    cur.execute("""SELECT DISTINCT caller_file, callee_func, COALESCE(callee_file, '')
+                   FROM call_edges
+                   WHERE callee_func LIKE 'ufsecp_%'
+                     AND (
+                         caller_file LIKE 'audit/%' OR
+                         caller_file LIKE 'cpu/tests/%' OR
+                         caller_file LIKE 'tests/%'
+                     )""")
+    for caller_file, callee_func, callee_file in cur.fetchall():
+        test_name = Path(caller_file).stem
+        if test_name.startswith('test_'):
+            test_name = test_name[len('test_'):]
+        function_file = callee_file or 'include/ufsecp/ufsecp_impl.cpp'
+        try:
+            cur.execute("""INSERT OR IGNORE INTO function_test_map
+                (function_name, function_file, test_target, coverage_type)
+                VALUES (?,?,?,?)""",
+                (callee_func, function_file, test_name, 'direct_call'))
+            count += 1
+        except Exception:
+            pass
 
     return count
 
@@ -2982,9 +3031,18 @@ def populate_symbol_reasoning(cur: sqlite3.Cursor):
 # ---------------------------------------------------------------------------
 # MAIN
 # ---------------------------------------------------------------------------
+def reset_database_files():
+    for path in (DB_PATH, Path(f"{DB_PATH}-wal"), Path(f"{DB_PATH}-shm")):
+        try:
+            path.unlink()
+        except FileNotFoundError:
+            pass
+
+
 def build_graph(rebuild=False):
-    if rebuild and DB_PATH.exists():
-        DB_PATH.unlink()
+    # This builder repopulates the entire graph, so always recreate the DB.
+    # Reusing an existing file risks stale rows and FTS shadow-table corruption.
+    reset_database_files()
     
     conn = sqlite3.connect(str(DB_PATH))
     conn.execute("PRAGMA journal_mode=WAL")

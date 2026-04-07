@@ -1,0 +1,98 @@
+name: Research Monitor
+
+on:
+  schedule:
+    - cron: '10 7 * * *'
+  workflow_dispatch:
+    inputs:
+      lookback_days:
+        description: 'Look back this many days for external secp256k1 signals'
+        required: false
+        default: '14'
+        type: string
+      max_results:
+        description: 'Maximum raw items per external source'
+        required: false
+        default: '12'
+        type: string
+      fail_on_actionable:
+        description: 'Fail the workflow when actionable items are found'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: research-monitor-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  scan:
+    name: External Research Intake
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Harden the runner
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: '3.12'
+
+      - name: Run external research monitor
+        id: monitor
+        run: |
+          LOOKBACK='2'
+          MAX_RESULTS='12'
+          FAIL_FLAG=''
+          if [ "${{ github.event_name }}" = 'workflow_dispatch' ]; then
+            LOOKBACK='${{ github.event.inputs.lookback_days || '14' }}'
+            MAX_RESULTS='${{ github.event.inputs.max_results || '12' }}'
+            if [ "${{ github.event.inputs.fail_on_actionable || 'false' }}" = 'true' ]; then
+              FAIL_FLAG='--fail-on-actionable'
+            fi
+          fi
+          python3 scripts/research_monitor.py \
+            --lookback-days "$LOOKBACK" \
+            --max-results "$MAX_RESULTS" \
+            --output-dir build/research_monitor \
+            --github-output "$GITHUB_OUTPUT" \
+            $FAIL_FLAG
+
+      - name: Upload research report artifact
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: research-monitor-report
+          path: build/research_monitor/
+          if-no-files-found: warn
+          retention-days: 90
+
+      - name: Append report summary
+        if: always()
+        run: |
+          echo '## External Research Monitor' >> "$GITHUB_STEP_SUMMARY"
+          cat build/research_monitor/research_report.md >> "$GITHUB_STEP_SUMMARY" || echo 'Report not generated.' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Send actionable report by email
+        if: always() && steps.monitor.outputs.actionable_count != '0' && secrets.RESEARCH_SMTP_HOST != '' && secrets.RESEARCH_SMTP_USERNAME != '' && secrets.RESEARCH_SMTP_PASSWORD != '' && secrets.RESEARCH_REPORT_FROM != '' && secrets.RESEARCH_REPORT_TO != ''
+        env:
+          RESEARCH_SMTP_HOST: ${{ secrets.RESEARCH_SMTP_HOST }}
+          RESEARCH_SMTP_PORT: ${{ secrets.RESEARCH_SMTP_PORT }}
+          RESEARCH_SMTP_USERNAME: ${{ secrets.RESEARCH_SMTP_USERNAME }}
+          RESEARCH_SMTP_PASSWORD: ${{ secrets.RESEARCH_SMTP_PASSWORD }}
+          RESEARCH_SMTP_USE_SSL: ${{ vars.RESEARCH_SMTP_USE_SSL || 'false' }}
+          RESEARCH_REPORT_FROM: ${{ secrets.RESEARCH_REPORT_FROM }}
+          RESEARCH_REPORT_TO: ${{ secrets.RESEARCH_REPORT_TO }}
+          RESEARCH_REPORT_REPLY_TO: ${{ secrets.RESEARCH_REPORT_REPLY_TO }}
+        run: |
+          python3 scripts/send_smtp_report.py \
+            --subject-file build/research_monitor/mail_subject.txt \
+            --body-file build/research_monitor/mail_body.txt

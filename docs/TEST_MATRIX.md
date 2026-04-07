@@ -202,6 +202,97 @@ CTest inventory exactly:
 - `secp256k1_musig_example`
 - `secp256k1_schnorr_example`
 
+### Generated Inventory Sync (2026-04-06)
+
+The following active CTest targets were added to the explicit inventory during
+the 2026-04-06 fortress sync so `TEST_MATRIX.md` matches the live generated
+CTest surface exactly:
+
+- `${_harness}`
+- `bip352_kat`
+- `exploit_address_prefix_collision`
+- `exploit_batch_sign`
+- `exploit_biased_nonce_chain_scan`
+- `exploit_binding_adversarial_api`
+- `exploit_binding_invalid_curve`
+- `exploit_bip322_type_confusion`
+- `exploit_bip32_child_key_attack`
+- `exploit_bip32_parent_fingerprint_confusion`
+- `exploit_bip352_parity_confusion`
+- `exploit_bip352_scan_dos`
+- `exploit_bip85_path_collision`
+- `exploit_buff_kr_ecdsa`
+- `exploit_buffer_type_confusion`
+- `exploit_cache_sidechannel_amplification`
+- `exploit_cross_scheme_pubkey`
+- `exploit_ct_fast_equivalence`
+- `exploit_ctx_clone`
+- `exploit_ctx_lifecycle_hostile`
+- `exploit_descriptor_injection`
+- `exploit_differential_libsecp`
+- `exploit_ecdh_zvp_glv_static`
+- `exploit_ecdsa_fault_injection`
+- `exploit_ecdsa_nonce_reuse`
+- `exploit_ecdsa_r_overflow`
+- `exploit_ecdsa_sign_sentinels`
+- `exploit_ecies_ephemeral_reuse`
+- `exploit_eip712_kat`
+- `exploit_ellswift_bad_scalar_ecdh`
+- `exploit_ellswift_xdh_overflow`
+- `exploit_fe_set_b32_limit_uninit`
+- `exploit_field_boundary_exhaustive`
+- `exploit_foreign_field_plonk`
+- `exploit_frost_adaptive_corruption`
+- `exploit_frost_binding_factor_mismatch`
+- `exploit_frost_ct_nonce`
+- `exploit_frost_identifiable_abort`
+- `exploit_frost_participant_set_malleability`
+- `exploit_gcs_false_positive`
+- `exploit_hash_algo_sig_isolation`
+- `exploit_hertzbleed_dvfs_timing`
+- `exploit_kr_ecdsa_buff_binding`
+- `exploit_ladderleak_subbit_nonce`
+- `exploit_minerva_cve_2024_23342`
+- `exploit_minerva_noisy_hnp`
+- `exploit_musig2_byzantine_multiparty`
+- `exploit_musig2_parallel_session_cross`
+- `exploit_p2sh_address_confusion`
+- `exploit_psbt_input_confusion`
+- `exploit_pubkey_arith`
+- `exploit_quantum_exposure`
+- `exploit_rfc6979_minerva_amplified`
+- `exploit_rfc6979_truncation_bias`
+- `exploit_schnorr_forgery_vectors`
+- `exploit_schnorr_msg_length_confusion`
+- `exploit_schnorr_nonce_reuse`
+- `exploit_seckey_arith`
+- `exploit_taproot_commitment_adversarial`
+- `exploit_wallet_cross_domain_replay`
+- `exploit_wif_security`
+- `exploit_zk_new_schemes`
+- `gpu_bip352_scan`
+- `gpu_ecdsa_snark_witness`
+- `infinity_edge_cases`
+- `py_bip32_cka`
+- `py_dev_bug_scan`
+- `py_differential_crossimpl`
+- `py_glv_exhaustive`
+- `py_hot_path_alloc_scan`
+- `py_invalid_input_grammar`
+- `py_nonce_bias`
+- `py_rfc6979_spec`
+- `py_semantic_props`
+- `py_stateful_sequences`
+- `wycheproof_chacha20_poly1305`
+- `wycheproof_ecdsa_bitcoin`
+- `wycheproof_ecdsa_extended`
+- `wycheproof_ecdsa_sha256`
+- `wycheproof_ecdsa_sha256_p1363`
+- `wycheproof_ecdsa_sha512`
+- `wycheproof_ecdsa_sha512_p1363`
+- `wycheproof_hkdf_sha256`
+- `wycheproof_hmac_sha256`
+
 ---
 
 ## API Function -> Test Coverage Map

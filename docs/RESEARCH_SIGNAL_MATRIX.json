@@ -1,0 +1,228 @@
+{
+  "version": 1,
+  "description": "External secp256k1 research signal classes mapped to current repository evidence and expected handling.",
+  "classes": [
+    {
+      "id": "glv_zvp_leakage",
+      "status": "covered",
+      "priority": "high",
+      "action": "monitor",
+      "keywords": [
+        "zvp",
+        "glv",
+        "endomorphism",
+        "multiscalar",
+        "decompose and conquer",
+        "interleaving algorithm"
+      ],
+      "repo_evidence": [
+        "audit/test_exploit_ecdh_zvp_glv_static.cpp",
+        "docs/SELF_AUDIT_FAILURE_MATRIX.md"
+      ],
+      "reason": "Recent GLV/ZVP papers land in an already tracked exploit class with deterministic repo coverage. New papers still matter, but they usually expand an existing threat line instead of introducing an unmapped class."
+    },
+    {
+      "id": "minerva_nonce_timing",
+      "status": "covered",
+      "priority": "high",
+      "action": "monitor",
+      "keywords": [
+        "minerva",
+        "hnp",
+        "nonce bit-length",
+        "timing leakage",
+        "deterministic nonce"
+      ],
+      "repo_evidence": [
+        "audit/test_exploit_minerva_cve_2024_23342.cpp",
+        "audit/test_exploit_minerva_noisy_hnp.cpp",
+        "audit/test_exploit_rfc6979_minerva_amplified.cpp"
+      ],
+      "reason": "Nonce timing leakage and noisy-HNP follow-up work already map to direct regression probes in the audit tree."
+    },
+    {
+      "id": "hertzbleed_dvfs",
+      "status": "covered",
+      "priority": "medium",
+      "action": "monitor",
+      "keywords": [
+        "hertzbleed",
+        "dvfs",
+        "frequency scaling",
+        "power side-channel"
+      ],
+      "repo_evidence": [
+        "audit/test_exploit_hertzbleed_dvfs_timing.cpp"
+      ],
+      "reason": "DVFS-style timing leakage already has an explicit exploit-style regression surface."
+    },
+    {
+      "id": "ladderleak_subbit_nonce",
+      "status": "covered",
+      "priority": "medium",
+      "action": "monitor",
+      "keywords": [
+        "ladderleak",
+        "sub-bit nonce",
+        "nonce leakage",
+        "partial nonce"
+      ],
+      "repo_evidence": [
+        "audit/test_exploit_ladderleak_subbit_nonce.cpp"
+      ],
+      "reason": "Sub-bit nonce leakage already has a deterministic audit probe in the repository."
+    },
+    {
+      "id": "frost_rfc9591",
+      "status": "covered",
+      "priority": "medium",
+      "action": "monitor",
+      "keywords": [
+        "frost",
+        "rfc 9591",
+        "threshold schnorr",
+        "participant corruption",
+        "nonce commitment"
+      ],
+      "repo_evidence": [
+        "audit/test_frost_kat.cpp",
+        "audit/test_exploit_frost_adaptive_corruption.cpp"
+      ],
+      "reason": "RFC 9591 invariants and adversarial threshold-signing cases already exist as deterministic repo checks."
+    },
+    {
+      "id": "batch_verification_integrity",
+      "status": "covered",
+      "priority": "medium",
+      "action": "monitor",
+      "keywords": [
+        "batch verification",
+        "batch verify",
+        "poisoning",
+        "invalid signature identification"
+      ],
+      "repo_evidence": [
+        "cpu/src/batch_verify.cpp",
+        "audit/test_exploit_batch_verify_correctness.cpp",
+        "audit/test_exploit_batch_verify_poison.cpp"
+      ],
+      "reason": "Standard Schnorr and ECDSA batch verification already have correctness and poisoning regression coverage."
+    },
+    {
+      "id": "buffer_type_confusion_signing",
+      "status": "covered",
+      "priority": "high",
+      "action": "monitor",
+      "keywords": [
+        "cve-2024-49364",
+        "tiny-secp256k1",
+        "buffer.isbuffer",
+        "type confusion",
+        "json-stringifiable object",
+        "malicious object",
+        "private key can be extracted on signing"
+      ],
+      "repo_evidence": [
+        "audit/test_exploit_buffer_type_confusion.cpp",
+        "docs/SELF_AUDIT_FAILURE_MATRIX.md"
+      ],
+      "reason": "The malicious-object and type-confusion signing class is already tracked by a dedicated exploit-style regression probe."
+    },
+    {
+      "id": "ecdsa_signature_scalar_validation",
+      "status": "covered",
+      "priority": "high",
+      "action": "monitor",
+      "keywords": [
+        "cve-2022-41340",
+        "secp256k1-js",
+        "missing r and s validation",
+        "missing r validation",
+        "missing s validation",
+        "signature forgery",
+        "strict parse rejects s",
+        "strict parse rejects r"
+      ],
+      "repo_evidence": [
+        "audit/test_exploit_der_parsing_differential.cpp",
+        "audit/test_exploit_ecdsa_malleability.cpp",
+        "audit/test_exploit_ecdsa_r_overflow.cpp"
+      ],
+      "reason": "Non-canonical or out-of-range ECDSA `(r,s)` acceptance is already covered by explicit strict-parse and verification regression probes."
+    },
+    {
+      "id": "modified_ecdsa_batch_verification",
+      "status": "out_of_scope",
+      "priority": "low",
+      "action": "watch-only",
+      "keywords": [
+        "modified ecdsa",
+        "ecdsa_ast",
+        "ecdsa_rec",
+        "recoverable batch verification"
+      ],
+      "repo_evidence": [
+        "cpu/src/batch_verify.cpp",
+        "docs/SELF_AUDIT_FAILURE_MATRIX.md"
+      ],
+      "reason": "Research on modified ECDSA batch verification is interesting, but it targets non-standard signature variants rather than the standard compatibility surface this repository currently ships."
+    },
+    {
+      "id": "safegcd_formal_verification",
+      "status": "gap",
+      "priority": "high",
+      "action": "formalize",
+      "keywords": [
+        "safegcd",
+        "bernstein-yang",
+        "divsteps",
+        "formal verification",
+        "verifiable c",
+        "coq"
+      ],
+      "repo_evidence": [
+        "cpu/src/field.cpp",
+        "docs/OWNER_GRADE_AUDIT_TODO.md",
+        "docs/SELF_AUDIT_FAILURE_MATRIX.md"
+      ],
+      "reason": "The repository has safegcd inversion code and direct wrapper-oracle audit coverage, but no checked-in formal-proof artifact is tracked as owner-grade assurance evidence. New formal-verification papers in this area should still be treated as high-signal inputs."
+    },
+    {
+      "id": "m_ary_precompute_optimization",
+      "status": "candidate",
+      "priority": "medium",
+      "action": "benchmark",
+      "keywords": [
+        "m-ary",
+        "precomputation",
+        "precompute",
+        "scalar multiplication acceleration",
+        "memory saving"
+      ],
+      "repo_evidence": [
+        "cpu/src/precompute.cpp",
+        "cpu/src/pippenger.cpp",
+        "docs/BENCHMARKS.md"
+      ],
+      "reason": "This class is not a security gap by itself, but fresh M-ary/precompute results may be worth benchmarking against the current precompute and multiscalar pipeline."
+    },
+    {
+      "id": "hardware_wallet_side_channel_architecture",
+      "status": "out_of_scope",
+      "priority": "low",
+      "action": "watch-only",
+      "keywords": [
+        "hardware wallet",
+        "fpga",
+        "luts",
+        "parallel architecture",
+        "complete formulas"
+      ],
+      "repo_evidence": [
+        "THREAT_MODEL.md",
+        "docs/SELF_AUDIT_FAILURE_MATRIX.md"
+      ],
+      "reason": "Hardware-wallet architecture work is worth watching, but it does not directly map to a missing software-library assurance surface unless the hardware roadmap changes."
+    }
+  ]
+}

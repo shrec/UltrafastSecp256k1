@@ -1182,8 +1182,8 @@ public:
 
         auto pipe = runtime_->make_pipeline("ecdsa_snark_witness_batch");
         if (!pipe.valid())
-            return set_error(GpuError::Unsupported,
-                             "Metal: ecdsa_snark_witness_batch kernel not in library");
+            return set_error(GpuError::Launch,
+                             "Metal: ecdsa_snark_witness_batch kernel missing from loaded library");
         runtime_->dispatch_sync(pipe, n32, 64u,
                                 {&buf_msgs, &buf_pubs, &buf_sigs, &buf_out, &buf_count});
 
@@ -1234,8 +1234,8 @@ public:
 
         auto pipe = runtime_->make_pipeline("bip352_scan_pipeline");
         if (!pipe.valid())
-            return set_error(GpuError::Unsupported,
-                             "Metal: bip352_scan_pipeline kernel not in library");
+            return set_error(GpuError::Launch,
+                             "Metal: bip352_scan_pipeline kernel missing from loaded library");
         runtime_->dispatch_sync(pipe, n32, 64u,
                                 {&buf_tweaks, &buf_scan, &buf_spend, &buf_prefix, &buf_count});
 

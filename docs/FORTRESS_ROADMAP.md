@@ -92,6 +92,7 @@ Current progress:
 1. Claim-surface graph coverage is validated through `scripts/validate_assurance.py`.
 2. `scripts/preflight.py --claims` exposes graph-driven stale-claim checks locally.
 3. Public-surface drift now fails closed when claim evidence resolves on disk but not in the indexed graph.
+4. Workspace graph coverage now explicitly includes the library audit scripts surface so orphan runtime harnesses cannot disappear from discovery at the workspace level.
 
 Self-audit completeness criteria for this workstream:
 
@@ -169,6 +170,9 @@ Current progress:
 
 1. `docs/SELF_AUDIT_FAILURE_MATRIX.md` now maps major failure classes to deterministic audit surfaces and named residual-risk notes.
 2. `docs/OWNER_GRADE_AUDIT_TODO.md` now translates the remaining assurance gap into concrete code-and-tooling work for an owner-grade audit class.
+3. `scripts/audit_gate.py` now absorbs `invalid_input_grammar.py`, `stateful_sequences.py`, and `audit_test_quality_scanner.py` into the default fail-closed perimeter.
+4. `scripts/mutation_kill_rate.py` is now exposed through the audit gate as an explicit heavy lane instead of remaining orphan tooling.
+5. The library graph builder now maps the BIP352 scan-plan audit surface so `ufsecp_bip352_prepare_scan_plan` is no longer allowed to hide behind a missing test-map edge.
 
 Coverage target:
 
@@ -181,14 +185,13 @@ proxy for completeness.
 
 ## Immediate Tasks
 
-1. Expand claim ID references from top-level docs into more subsystem-specific docs.
-2. Keep adding review-event logging for newly accepted AI-assisted passes.
-3. Expand graph-driven stale-claim checks from core public claims into more subsystem-specific docs.
-4. Expand GPU-facing performance governance beyond backend publishability into reproducibility and artifact-retention checks.
-5. Push the optional ROCm/HIP promotion checklist into more GPU-facing docs and release procedures without treating it as an audit blocker.
-6. Expand the failure-class matrix as new subsystems and ABI surfaces land.
+1. Drive the ABI hostile-caller quartet blocker count to zero so the matrix can upgrade that row back to fully covered.
+2. Burn down the low-severity audit-test-quality backlog so audit code itself stops carrying vacuous or weak assertions.
+3. Strengthen mutation-evidence freshness so heavy-lane results cannot go stale invisibly after core arithmetic changes.
+4. Expand graph-driven stale-claim checks from core public claims into more subsystem-specific docs.
+5. Expand GPU-facing performance governance beyond backend publishability into reproducibility and artifact-retention checks.
+6. Push the optional ROCm/HIP promotion checklist into more GPU-facing docs and release procedures without treating it as an audit blocker.
 7. Keep shrinking the named residual-risk set with deterministic gates where possible.
-8. Implement the owner-grade audit tooling backlog, starting with executable failure-class gates and CT evidence aggregation.
 
 ---
 
@@ -202,6 +205,8 @@ The project should only claim fortress-grade self-audit when all of the followin
 4. GPU public claims have enforcement close to CPU public claims.
 5. Public docs have a low stale-drift rate over time.
 6. Known failure classes have named coverage paths or explicit residual-risk entries.
+7. The default audit gate includes runtime hostile-input and stateful misuse checks, not only static inventories.
+8. Heavy mutation evidence exists and is kept current for high-risk arithmetic and audit-harness changes.
 
 ---
 

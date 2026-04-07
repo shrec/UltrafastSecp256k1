@@ -20,6 +20,22 @@ That means:
 4. Experimental features should be treated as opt-in risk, not silently upgraded to production trust.
 5. Secret-bearing code changes must be paired with updates to the matching evidence docs, enforced by `scripts/check_secret_path_changes.py`.
 
+## Fail-Closed Assurance Perimeter
+
+The default `scripts/audit_gate.py` path now treats the following as first-class
+enforcement surfaces rather than optional tooling:
+
+1. Failure-class matrix execution
+2. ABI hostile-caller quartet coverage
+3. Structured invalid-input grammar rejection
+4. Stateful multi-call sequence integrity
+5. Audit test-quality scanning
+
+Two explicit non-claims remain important:
+
+1. The library does **not** claim total hostile-caller quartet closure while the live ABI blocker set is non-zero.
+2. Mutation kill-rate evidence is part of the assurance perimeter, but remains the heavier batch / owner-grade lane rather than the default per-commit runtime path.
+
 ---
 
 ## 1. Semantic Equivalence Contract

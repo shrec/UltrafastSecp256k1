@@ -3,7 +3,7 @@
 > **This document defines the mandatory audit principles, invariants, and
 > automated gates that every change to UltrafastSecp256k1 must satisfy.**
 >
-> Version: 1.0 — 2026-03-23
+> Version: 1.1 — 2026-04-06
 
 ---
 
@@ -19,6 +19,63 @@ documented with a manual verification procedure.
 ---
 
 ## 2. Core Audit Principles
+
+### P0 — Failure-Class Matrix
+
+> Known failure classes must stay machine-reportable. Covered, partial, and
+> deferred states may not live only in narrative prose.
+
+**Automated gate:** `audit_gate.py --failure-matrix`
+
+Checks:
+- The self-audit failure-class matrix parses cleanly into executable rows
+- Partial and deferred rows retain explicit residual-risk notes
+- Owner-grade residual failure classes are surfaced as blocking findings
+
+### P0a — ABI Hostile-Caller Manifest
+
+> Every exported ABI surface must keep the hostile-caller quartet visible:
+> success smoke, NULL rejection, zero-edge handling, and invalid-content rejection.
+
+**Automated gate:** `audit_gate.py --abi-negative-tests`
+
+Checks:
+- The hostile-caller manifest covers the full exported ABI surface
+- Any missing quartet dimension on an exported ABI symbol is a blocking finding
+
+### P0b — Secret-Path Change Gate
+
+> Secret-bearing or CT-evidence surfaces may not change silently. Their paired
+> evidence docs must change in the same work unit.
+
+**Automated gate:** `audit_gate.py --secret-paths`
+
+Checks:
+- Secret-lifecycle and CT-evidence path changes are detected from the working tree
+- Missing paired updates to `SECRET_LIFECYCLE.md` or `SECURITY_CLAIMS.md` block the gate
+
+### P0c — Invalid-Input Grammar
+
+> Structured hostile inputs must be rejected without crashes, silent accepts,
+> or parser confusion.
+
+**Automated gate:** `audit_gate.py --invalid-inputs`
+
+Checks:
+- Invalid public keys, secret keys, signatures, ECDH peers, and BIP-32 inputs reject deterministically
+- The harness writes a machine-readable report and fails closed on unexpected accepts
+
+### P0d — Stateful Sequence Integrity
+
+> The library must remain correct across mixed call sequences, injected errors,
+> context recreation, and repeated reuse.
+
+**Automated gate:** `audit_gate.py --stateful-sequences`
+
+Checks:
+- Valid operations keep working after adjacent failure paths
+- Multi-step BIP-32 derivation remains equivalent to path derivation
+- Context reuse and recreate sequences do not corrupt behavior
 
 ### P1 — ABI Completeness
 
@@ -43,7 +100,36 @@ Checks:
 Checks:
 - `v_coverage_gaps` returns empty result set
 - Every `c_abi_functions` entry has ≥1 row in `function_test_map`
+- Direct audit/test caller evidence from the graph is accepted as supplemental mapping
 - Export assurance `test_coverage` field is non-empty for all CPU ABI functions
+
+### P2a — Audit Test Quality
+
+> Audit code must not simulate assurance with vacuous checks, polarity bugs,
+> ignored return values, or thresholds too weak to catch regressions.
+
+**Automated gate:** `audit_gate.py --audit-test-quality`
+
+Checks:
+- Critical and high-severity audit-test-quality findings block
+- Medium findings warn
+- Low findings remain visible so audit hygiene backlog cannot disappear into prose
+
+### P2b — Mutation Kill Rate
+
+> High-value arithmetic and audit surfaces need a heavier lane that measures
+> whether the test suite actually kills wrong behavior rather than only executing code.
+
+**Automated gate:** `audit_gate.py --mutation-kill`
+
+Checks:
+- Mutation testing runs in explicit heavy mode against the configured build dir
+- Kill rate must meet the configured threshold or the selected run fails
+
+Scope note:
+
+This is intentionally a heavier owner-grade / batch-review lane, not the default
+per-commit path inside the full gate.
 
 ### P3 — Security Pattern Preservation
 
@@ -146,7 +232,7 @@ Checks:
 > Covered, partial, and deferred classes must be machine-reportable rather than
 > buried in prose.
 
-**Automated gate:** `audit_gap_report.py`
+**Automated gate:** `audit_gate.py --failure-matrix` and `audit_gap_report.py --strict`
 
 Checks:
 - Every failure-class row has deterministic audit surfaces
@@ -166,16 +252,19 @@ Checks:
 
 ### What blocks a merge:
 
-- Any FAIL from P1–P9 and P11
+- Any FAIL from P0, P0a–P0d, P1–P9, and P11
 - Security pattern loss (P3)
 - ABI surface mismatch (P1)
 - CT routing violation (P4)
+- Critical/high audit-test-quality findings (P2a)
 
 ### What doesn't block but must be tracked:
 
 - Documentation gaps (P5, P8, P10) — tracked in audit report
+- Medium/low audit-test-quality findings (P2a) — tracked until hardened
 - Graph freshness warnings (P6) — rebuild resolves
 - GPU parity stubs with proper TODO comments (P7)
+- Mutation kill-rate failures block only when the heavy lane is explicitly selected (P2b)
 
 ---
 
@@ -186,8 +275,14 @@ Checks:
 python3 scripts/audit_gate.py
 
 # Individual checks
+python3 scripts/audit_gate.py --failure-matrix
+python3 scripts/audit_gate.py --abi-negative-tests
+python3 scripts/audit_gate.py --invalid-inputs
+python3 scripts/audit_gate.py --stateful-sequences
+python3 scripts/audit_gate.py --secret-paths
 python3 scripts/audit_gate.py --abi-completeness
 python3 scripts/audit_gate.py --test-coverage
+python3 scripts/audit_gate.py --audit-test-quality
 python3 scripts/audit_gate.py --security-patterns
 python3 scripts/audit_gate.py --ct-integrity
 python3 scripts/audit_gate.py --narrative
@@ -196,6 +291,7 @@ python3 scripts/audit_gate.py --gpu-parity
 python3 scripts/audit_gate.py --test-docs
 python3 scripts/audit_gate.py --routing
 python3 scripts/audit_gate.py --doc-pairing
+python3 scripts/audit_gate.py --mutation-kill
 python3 scripts/audit_gap_report.py
 python3 scripts/audit_gap_report.py --strict
 
@@ -214,10 +310,13 @@ python3 scripts/audit_gate.py --json -o audit_gate_report.json
 |---------|----------------|
 | Before every commit | `audit_gate.py` (full) |
 | During owner-grade assurance review | `audit_gap_report.py` + `audit_gap_report.py --strict` |
+| After parser / ABI hostile-input changes | `--abi-negative-tests --invalid-inputs --audit-test-quality` |
+| After protocol / lifecycle changes | `--stateful-sequences --audit-test-quality` |
 | After adding/removing ABI functions | `--abi-completeness` + rebuild graph |
 | After touching CT layer | `--ct-integrity --security-patterns` |
 | After GPU backend changes | `--gpu-parity` |
 | After adding tests | `--test-coverage --test-docs` |
+| After high-risk arithmetic or audit-harness changes | `--mutation-kill` |
 | Before release | Full gate + `export_assurance.py` + `validate_assurance.py` |
 
 ---
@@ -258,6 +357,7 @@ To add a new audit principle:
 |------|--------|--------|
 | 2026-03-23 | Initial manifest + `audit_gate.py` | All 10 principles automated |
 | 2026-03-25 | Added `audit_gap_report.py` | Failure-class matrix became executable in normal/strict modes |
+| 2026-04-06 | Added invalid-input grammar, stateful sequence, and audit-test-quality checks; exposed mutation kill as an explicit heavy lane | Runtime hostile-input and audit-hygiene tooling became part of the documented assurance perimeter |
 | 2026-03-23 | Fixed `export_assurance.py` test_coverage query | Was using wrong DB table |
 | 2026-03-23 | Fixed graph builder missing `ufsecp_gpu.h` | 18 GPU ABI functions were invisible |
 | 2026-03-23 | Fixed preflight missing `ufsecp_gpu.h` scan | ABI drift detection was incomplete |

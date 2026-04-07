@@ -29,6 +29,7 @@ from pathlib import Path
 SCRIPT_DIR = Path(__file__).resolve().parent
 LIB_ROOT = SCRIPT_DIR.parent
 DEFAULT_OUTPUT_DIR = LIB_ROOT / 'artifacts' / 'ct'
+CT_VERIF_EXPECTED_MODULES = ['ct_field', 'ct_scalar', 'ct_point', 'ct_sign']
 
 
 @dataclass
@@ -218,6 +219,32 @@ def _parse_ct_verif_verdict(text: str) -> str:
     return 'UNKNOWN'
 
 
+def _extract_ct_verif_modules(log_path: Path, report_files: list[Path]) -> list[str]:
+    modules: list[str] = []
+    for report in report_files:
+        name = report.stem
+        modules.append(name[:-7] if name.endswith('_report') else name)
+
+    if modules:
+        return sorted(dict.fromkeys(modules))
+
+    if not log_path.exists():
+        return []
+
+    for raw_line in _read_text(log_path).splitlines():
+        line = raw_line.strip()
+        if line.startswith('=====') and '_report.txt' in line:
+            report_name = Path(line.strip('=').strip()).stem
+            modules.append(report_name[:-7] if report_name.endswith('_report') else report_name)
+            continue
+        if line.startswith('--- Analyzing:'):
+            module = line.split(':', 1)[1].strip().strip('- ').split()[0]
+            if module:
+                modules.append(module)
+
+    return sorted(dict.fromkeys(modules))
+
+
 def _parse_valgrind_log(path: Path) -> dict:
     text = _read_text(path)
     ct_branch_errors = text.count('Conditional jump or move depends on uninitialised')
@@ -246,6 +273,8 @@ def _synthesize_ct_verif_summary(log_path: Path, report_files: list[Path], desti
     report_payloads = []
     overall_verdict = 'UNKNOWN'
     backend_mode = 'unknown'
+    analyzed_modules = _extract_ct_verif_modules(log_path, report_files)
+    missing_modules = [module for module in CT_VERIF_EXPECTED_MODULES if module not in analyzed_modules]
     if report_files:
         verdicts = []
         for report in report_files:
@@ -271,6 +300,10 @@ def _synthesize_ct_verif_summary(log_path: Path, report_files: list[Path], desti
         'source_log': _safe_rel(log_path) if log_path.exists() else None,
         'report_count': len(report_files),
         'reports': report_payloads,
+        'expected_modules': CT_VERIF_EXPECTED_MODULES,
+        'analyzed_modules': analyzed_modules,
+        'missing_modules': missing_modules,
+        'module_coverage_complete': not missing_modules,
         'verdict': overall_verdict,
         'backend_mode': backend_mode,
         'deterministic_evidence': backend_mode == 'active' and overall_verdict in ('PASS', 'FAIL'),
@@ -351,7 +384,7 @@ def _build_layer_result(
             discovered['ct_verif.log'] = [synthesized_log]
             notes.append('synthesized ct_verif.log from ct-ir/*_report.txt files')
 
-        if discovered['ct_verif.log'] and not discovered['ct_verif_summary.json']:
+        if discovered['ct_verif.log']:
             synthesized_summary = output_dir / 'ct_verif_summary.json'
             summary_payload = _synthesize_ct_verif_summary(discovered['ct_verif.log'][0], report_files, synthesized_summary)
             discovered['ct_verif_summary.json'] = [synthesized_summary]
@@ -390,6 +423,10 @@ def _build_layer_result(
         if summary and not summary.get('deterministic_evidence', False):
             status = 'configured-only'
             notes.append('ct-verif artifacts are passive-only in this environment; not counted as deterministic evidence')
+        if summary and not summary.get('module_coverage_complete', False):
+            status = 'configured-only'
+            missing_modules = ', '.join(summary.get('missing_modules', [])) or 'unknown'
+            notes.append(f'ct-verif missing expected modules: {missing_modules}')
 
     owner_grade_gap = spec.required_for_owner_grade and status != 'artifact-present'
 
@@ -430,6 +467,9 @@ def _render_text_summary(report: dict) -> str:
             lines.append(f"      artifacts: {', '.join(layer['canonical_artifacts'])}")
         if layer['source_paths']:
             lines.append(f"      sources:   {', '.join(layer['source_paths'])}")
+        summary = layer.get('metadata', {}).get('summary', {})
+        if summary.get('analyzed_modules'):
+            lines.append(f"      modules:   {', '.join(summary['analyzed_modules'])}")
         if layer['notes']:
             lines.append(f"      notes:     {'; '.join(layer['notes'])}")
     lines.extend(['', 'Owner-grade gaps:'])

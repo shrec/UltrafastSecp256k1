@@ -49,20 +49,30 @@ void libsecp_benchmark(void) {
         return;
     }
 
-    secp256k1_pubkey pubkey;
+    secp256k1_pubkey pubkey = {0};
     volatile uint64_t sink = 0;
 
     // Warmup (also triggers lazy table init)
-    secp256k1_ec_pubkey_create(ctx, &pubkey, test_seckey);
+    if (!secp256k1_ec_pubkey_create(ctx, &pubkey, test_seckey)) {
+        printf("  ERROR: warmup pubkey creation failed\n");
+        secp256k1_context_destroy(ctx);
+        return;
+    }
     sink = pubkey.data[0];
 
     // ── Generator Multiplication (ec_pubkey_create) ──
     {
         int64_t start = esp_timer_get_time();
+        int ok = 1;
         for (int i = 0; i < 3; i++) {
-            secp256k1_ec_pubkey_create(ctx, &pubkey, test_seckey);
+            ok &= secp256k1_ec_pubkey_create(ctx, &pubkey, test_seckey);
         }
         int64_t elapsed = esp_timer_get_time() - start;
+        if (!ok) {
+            printf("  ERROR: benchmark pubkey creation failed\n");
+            secp256k1_context_destroy(ctx);
+            return;
+        }
         sink ^= pubkey.data[0];
         printf("  Generator*k:   %5lld us/op  (ec_pubkey_create)\n", elapsed / 3);
     }
@@ -71,17 +81,27 @@ void libsecp_benchmark(void) {
     {
         unsigned char msg[32];
         memset(msg, 0x42, 32);
-        secp256k1_ecdsa_signature sig;
+        secp256k1_ecdsa_signature sig = {0};
 
         // Warmup
-        secp256k1_ecdsa_sign(ctx, &sig, msg, test_seckey, NULL, NULL);
+        if (!secp256k1_ecdsa_sign(ctx, &sig, msg, test_seckey, NULL, NULL)) {
+            printf("  ERROR: warmup ECDSA sign failed\n");
+            secp256k1_context_destroy(ctx);
+            return;
+        }
 
         int64_t start = esp_timer_get_time();
+        int ok = 1;
         for (int i = 0; i < 3; i++) {
             msg[0] = (unsigned char)i;
-            secp256k1_ecdsa_sign(ctx, &sig, msg, test_seckey, NULL, NULL);
+            ok &= secp256k1_ecdsa_sign(ctx, &sig, msg, test_seckey, NULL, NULL);
         }
         int64_t elapsed = esp_timer_get_time() - start;
+        if (!ok) {
+            printf("  ERROR: benchmark ECDSA sign failed\n");
+            secp256k1_context_destroy(ctx);
+            return;
+        }
         sink ^= sig.data[0];
         printf("  ECDSA Sign:    %5lld us/op\n", elapsed / 3);
     }
@@ -90,12 +110,24 @@ void libsecp_benchmark(void) {
     {
         unsigned char msg[32];
         memset(msg, 0x42, 32);
-        secp256k1_ecdsa_signature sig;
-        secp256k1_ec_pubkey_create(ctx, &pubkey, test_seckey);
-        secp256k1_ecdsa_sign(ctx, &sig, msg, test_seckey, NULL, NULL);
+        secp256k1_ecdsa_signature sig = {0};
+        if (!secp256k1_ec_pubkey_create(ctx, &pubkey, test_seckey)) {
+            printf("  ERROR: verify pubkey creation failed\n");
+            secp256k1_context_destroy(ctx);
+            return;
+        }
+        if (!secp256k1_ecdsa_sign(ctx, &sig, msg, test_seckey, NULL, NULL)) {
+            printf("  ERROR: verify signature creation failed\n");
+            secp256k1_context_destroy(ctx);
+            return;
+        }
 
         // Warmup
-        secp256k1_ecdsa_verify(ctx, &sig, msg, &pubkey);
+        if (!secp256k1_ecdsa_verify(ctx, &sig, msg, &pubkey)) {
+            printf("  ERROR: warmup ECDSA verify failed\n");
+            secp256k1_context_destroy(ctx);
+            return;
+        }
 
         int64_t start = esp_timer_get_time();
         int ok = 1;

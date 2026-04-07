@@ -1,8 +1,8 @@
 # Feature Assurance Ledger -- UltrafastSecp256k1
 
-**Generated:** 2026-03-25
+**Generated:** 2026-04-06
 **Scope:** All `UFSECP_API` exported functions + internal library capabilities
-**Total API functions:** 158
+**Total API functions:** 179
 
 ## Legend
 
@@ -526,7 +526,54 @@
 
 ---
 
-## 30. GPU C ABI (`ufsecp_gpu_*`) -- 23 functions
+## 29A. Coverage Addendum (19 functions)
+
+Rows added to close the ledger/header drift that remained after the audit-fortress
+closure pass on 2026-04-06.
+
+### Addressing and Message Helpers
+
+| Function | Unit Test | Fuzz | Adversarial | Differential | CT Path | GPU | Ext. Vectors | Zeroization |
+|----------|-----------|------|-------------|--------------|---------|-----|-------------|-------------|
+| `ufsecp_addr_p2sh` | Y | - | Y | - | N/A | - | N/A | N/A |
+| `ufsecp_addr_p2sh_p2wpkh` | Y | - | Y | - | N/A | - | N/A | N/A |
+| `ufsecp_bip322_sign` | Y | - | Y | - | Y | - | N/A | Y |
+| `ufsecp_bip322_verify` | Y | - | Y | - | N/A | - | N/A | N/A |
+| `ufsecp_schnorr_sign_msg` | Y | - | Y | - | Y | - | N/A | Y |
+| `ufsecp_schnorr_verify_msg` | Y | - | Y | - | N/A | - | N/A | N/A |
+
+**Test files:** `audit/test_exploit_p2sh_address_confusion.cpp`, `audit/test_exploit_bip322_type_confusion.cpp`, `audit/test_exploit_schnorr_msg_length_confusion.cpp`
+
+### Wallet / Descriptor / PSBT Helpers
+
+| Function | Unit Test | Fuzz | Adversarial | Differential | CT Path | GPU | Ext. Vectors | Zeroization |
+|----------|-----------|------|-------------|--------------|---------|-----|-------------|-------------|
+| `ufsecp_bip85_entropy` | Y | - | Y | - | Y | - | N/A | Y |
+| `ufsecp_bip85_bip39` | Y | - | Y | - | Y | - | N/A | Y |
+| `ufsecp_descriptor_parse` | Y | - | Y | - | N/A | - | N/A | N/A |
+| `ufsecp_descriptor_address` | Y | - | Y | - | N/A | - | N/A | N/A |
+| `ufsecp_psbt_derive_key` | Y | - | Y | - | Y | - | N/A | Y |
+| `ufsecp_psbt_sign_legacy` | Y | - | Y | - | Y | - | N/A | Y |
+| `ufsecp_psbt_sign_segwit` | Y | - | Y | - | Y | - | N/A | Y |
+| `ufsecp_psbt_sign_taproot` | Y | - | Y | - | Y | - | N/A | Y |
+
+**Test files:** `audit/test_exploit_bip85_path_collision.cpp`, `audit/test_exploit_descriptor_injection.cpp`, `audit/test_exploit_psbt_input_confusion.cpp`
+
+### Filter and GPU Audit Helpers
+
+| Function | Unit Test | Fuzz | Adversarial | Differential | CT Path | GPU | Ext. Vectors | Zeroization |
+|----------|-----------|------|-------------|--------------|---------|-----|-------------|-------------|
+| `ufsecp_gcs_build` | Y | - | Y | - | N/A | - | N/A | N/A |
+| `ufsecp_gcs_match` | Y | - | Y | - | N/A | - | N/A | N/A |
+| `ufsecp_gcs_match_any` | Y | - | Y | - | N/A | - | N/A | N/A |
+| `ufsecp_bip352_prepare_scan_plan` | Y | - | Y | - | - | - | N/A | N/A |
+| `ufsecp_zk_ecdsa_snark_witness` | Y | - | Y | Y | N/A | Y (CUDA/OCL/Metal batch parity) | N/A | N/A |
+
+**Test files:** `audit/test_exploit_gcs_false_positive.cpp`, `audit/test_gpu_bip352_scan.cpp`, `audit/test_gpu_ecdsa_snark_witness.cpp`
+
+---
+
+## 30. GPU C ABI (`ufsecp_gpu_*`) -- 25 functions
 
 Backend-neutral GPU acceleration surface (`ufsecp_gpu.h`). Separate opaque context (`ufsecp_gpu_ctx*`).
 
@@ -618,9 +665,9 @@ Files with `secure_erase` for secret data cleanup:
 
 | Metric | Count |
 |--------|-------|
-| Total `UFSECP_API` functions | 112 (96 CPU + 16 GPU) |
-| Functions with unit test coverage | 112 (100%) |
-| Functions tested in adversarial protocol | 89 (93%), 186 individual checks |
+| Total `UFSECP_API` functions | 179 (154 CPU + 25 GPU) |
+| Functions with ledger-row coverage | 179 (100%) |
+| Functions tested in adversarial protocol | 89+, 186 individual checks |
 | Functions with fuzzing | ~40 (42%) |
 | Functions with external test vectors | ~35 (36%) |
 | Functions using CT signing path | ~25 (all secret-dependent ops) |
@@ -628,7 +675,7 @@ Files with `secure_erase` for secret data cleanup:
 | Audit source files | 32 (.cpp files in `audit/`) |
 | GPU backends | 3 (CUDA, OpenCL, Metal) |
 | `secure_erase` call sites | 141 across 6 files |
-| CTest targets | 42 |
+| CTest targets | 56 |
 
 ### Coverage Gaps (items for future work)
 

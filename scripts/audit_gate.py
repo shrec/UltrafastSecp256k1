@@ -22,6 +22,7 @@ import re
 import sqlite3
 import subprocess
 import sys
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -49,6 +50,58 @@ def get_conn():
     conn = sqlite3.connect(str(DB_PATH))
     conn.row_factory = sqlite3.Row
     return conn
+
+
+def _env_int(name, default):
+    value = os.environ.get(name)
+    if not value:
+        return default
+    try:
+        return max(1, int(value))
+    except ValueError:
+        return default
+
+
+def _env_float(name, default):
+    value = os.environ.get(name)
+    if not value:
+        return default
+    try:
+        return float(value)
+    except ValueError:
+        return default
+
+
+def run_script_json(script_name, extra_args=None, timeout=300):
+    extra_args = extra_args or []
+    script_path = SCRIPT_DIR / script_name
+    if not script_path.exists():
+        return 127, None, '', f'missing script: {script_path.name}'
+
+    try:
+        with tempfile.TemporaryDirectory(prefix='ufsecp_audit_gate_') as tmpdir:
+            report_path = Path(tmpdir) / f'{script_path.stem}_report.json'
+            cmd = [sys.executable, str(script_path), *extra_args, '-o', str(report_path)]
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                cwd=str(LIB_ROOT),
+                timeout=timeout,
+            )
+            stdout = (result.stdout or '')[-2000:]
+            stderr = (result.stderr or '')[-2000:]
+            if not report_path.exists():
+                details = stderr or stdout or 'script did not emit a JSON report'
+                return result.returncode, None, stdout, details
+            try:
+                report = json.loads(report_path.read_text(errors='replace'))
+            except Exception as exc:
+                return result.returncode, None, stdout, f'failed to parse {report_path.name}: {exc}'
+    except subprocess.TimeoutExpired:
+        return 124, None, '', f'timed out after {timeout}s'
+
+    return result.returncode, report, stdout, stderr
 
 
 def scan_header_functions():
@@ -184,6 +237,75 @@ def check_abi_negative_tests(conn):
 
 
 # ---------------------------------------------------------------------------
+# P0 — Invalid-Input Grammar
+# ---------------------------------------------------------------------------
+def check_invalid_input_grammar(conn):
+    findings = []
+    timeout = _env_int('UFSECP_AUDIT_INVALID_INPUT_TIMEOUT', 300)
+    rc, report, _stdout, details = run_script_json(
+        'invalid_input_grammar.py',
+        timeout=timeout,
+    )
+
+    if report is None:
+        findings.append(('FAIL', f'Invalid-input grammar harness did not produce JSON: {details}'))
+        return 'P0: Invalid-Input Grammar', findings
+
+    findings.append((
+        'INFO',
+        'Invalid-input grammar counts: '
+        f"cases={report.get('total_cases', 0)}, "
+        f"passed={report.get('passed', 0)}, "
+        f"failed={report.get('failed', 0)}"
+    ))
+
+    if rc != 0 or report.get('overall') != 'PASS':
+        preview = '; '.join(item.get('name', 'unknown') for item in report.get('findings', [])[:3])
+        findings.append(('FAIL', f'Invalid-input grammar harness failed: {preview or details or "see JSON report"}'))
+    else:
+        findings.append(('PASS', f"Structured invalid inputs correctly rejected ({report.get('total_cases', 0)} cases)"))
+
+    return 'P0: Invalid-Input Grammar', findings
+
+
+# ---------------------------------------------------------------------------
+# P0 — Stateful Sequence Integrity
+# ---------------------------------------------------------------------------
+def check_stateful_sequences(conn):
+    findings = []
+    count = _env_int('UFSECP_AUDIT_STATEFUL_COUNT', 24)
+    timeout = _env_int('UFSECP_AUDIT_STATEFUL_TIMEOUT', 600)
+    rc, report, _stdout, details = run_script_json(
+        'stateful_sequences.py',
+        ['--count', str(count)],
+        timeout=timeout,
+    )
+
+    if report is None:
+        findings.append(('FAIL', f'Stateful sequence harness did not produce JSON: {details}'))
+        return 'P0: Stateful Sequence Integrity', findings
+
+    findings.append((
+        'INFO',
+        'Stateful sequence counts: '
+        f"passed={report.get('passed', 0)}, "
+        f"failed={report.get('failed', 0)}, "
+        f"count={count}"
+    ))
+
+    if rc != 0 or report.get('overall') != 'PASS':
+        preview = '; '.join(
+            f"{item.get('sequence', '?')} step={item.get('step', '?')}: {item.get('detail', '')}"
+            for item in report.get('findings', [])[:3]
+        )
+        findings.append(('FAIL', f'Stateful sequence harness failed: {preview or details or "see JSON report"}'))
+    else:
+        findings.append(('PASS', f"Stateful sequence harness passed ({report.get('passed', 0)} checks)"))
+
+    return 'P0: Stateful Sequence Integrity', findings
+
+
+# ---------------------------------------------------------------------------
 # P0 — Secret-Path Change Gate
 # ---------------------------------------------------------------------------
 def check_secret_path_gate(conn):
@@ -226,6 +348,17 @@ def check_test_coverage(conn):
     mapped = {r[0] for r in conn.execute(
         "SELECT DISTINCT function_name FROM function_test_map WHERE function_name LIKE 'ufsecp_%'"
     ).fetchall()}
+    direct_call_mapped = {r[0] for r in conn.execute(
+        """SELECT DISTINCT callee_func FROM call_edges
+           WHERE callee_func LIKE 'ufsecp_%'
+             AND (
+                 caller_file LIKE 'audit/%' OR
+                 caller_file LIKE 'cpu/tests/%' OR
+                 caller_file LIKE 'tests/%'
+             )"""
+    ).fetchall()}
+
+    mapped |= direct_call_mapped
 
     unmapped = sorted(all_abi - mapped)
     if unmapped:
@@ -241,6 +374,59 @@ def check_test_coverage(conn):
         findings.append(('PASS', f'All {len(all_abi)} ABI functions have test coverage'))
 
     return 'P2: Test Coverage', findings
+
+
+# ---------------------------------------------------------------------------
+# P2 — Audit Test Quality
+# ---------------------------------------------------------------------------
+def check_audit_test_quality(conn):
+    findings = []
+    timeout = _env_int('UFSECP_AUDIT_TEST_QUALITY_TIMEOUT', 300)
+    rc, report, _stdout, details = run_script_json(
+        'audit_test_quality_scanner.py',
+        ['--audit-dir', str(LIB_ROOT / 'audit'), '--min-severity', 'low'],
+        timeout=timeout,
+    )
+
+    if report is None:
+        findings.append(('FAIL', f'Audit test quality scanner did not produce JSON: {details}'))
+        return 'P2: Audit Test Quality', findings
+
+    severity_counts = {sev: 0 for sev in ('critical', 'high', 'medium', 'low', 'info')}
+    for item in report.get('findings', []):
+        severity = item.get('severity', 'info')
+        severity_counts[severity] = severity_counts.get(severity, 0) + 1
+
+    findings.append((
+        'INFO',
+        'Audit test-quality findings: '
+        f"files={report.get('total_files', 0)}, "
+        f"critical={severity_counts.get('critical', 0)}, "
+        f"high={severity_counts.get('high', 0)}, "
+        f"medium={severity_counts.get('medium', 0)}, "
+        f"low={severity_counts.get('low', 0)}"
+    ))
+
+    preview_items = report.get('findings', [])[:3]
+    for item in preview_items:
+        findings.append((
+            'INFO',
+            f"{item.get('severity', 'info')} {item.get('file', '?')}:{item.get('line', '?')} {item.get('label', 'finding')}"
+        ))
+
+    if rc != 0 or severity_counts.get('critical', 0) or severity_counts.get('high', 0):
+        findings.append((
+            'FAIL',
+            f"Audit test-quality scanner found blocking findings: critical={severity_counts.get('critical', 0)}, high={severity_counts.get('high', 0)}"
+        ))
+    elif severity_counts.get('medium', 0):
+        findings.append(('WARN', f"{severity_counts.get('medium', 0)} medium-severity audit-test-quality findings remain"))
+    elif severity_counts.get('low', 0):
+        findings.append(('WARN', f"{severity_counts.get('low', 0)} low-severity audit-test-quality findings remain"))
+    else:
+        findings.append(('PASS', 'Audit test quality is clear of critical/high findings'))
+
+    return 'P2: Audit Test Quality', findings
 
 
 # ---------------------------------------------------------------------------
@@ -575,14 +761,52 @@ def check_doc_pairing(conn):
 
 
 # ---------------------------------------------------------------------------
+# P2 — Mutation Kill Rate (explicit heavy lane)
+# ---------------------------------------------------------------------------
+def check_mutation_kill_rate(conn):
+    findings = []
+    timeout = _env_int('UFSECP_AUDIT_MUTATION_TIMEOUT', 3600)
+    threshold = _env_float('UFSECP_AUDIT_MUTATION_THRESHOLD', 75.0)
+    build_dir = os.environ.get('UFSECP_AUDIT_MUTATION_BUILD_DIR', 'build_opencl')
+    rc, report, _stdout, details = run_script_json(
+        'mutation_kill_rate.py',
+        ['--build-dir', build_dir, '--ctest-mode', '--threshold', str(threshold)],
+        timeout=timeout,
+    )
+
+    if report is None:
+        findings.append(('FAIL', f'Mutation kill-rate runner did not produce JSON: {details}'))
+        return 'P2: Mutation Kill Rate', findings
+
+    findings.append((
+        'INFO',
+        'Mutation kill-rate summary: '
+        f"total={report.get('total', 0)}, "
+        f"killed={report.get('killed', 0)}, "
+        f"survived={report.get('survived', 0)}, "
+        f"kill_rate={report.get('kill_rate_pct', 0.0)}%"
+    ))
+
+    if rc != 0 or not report.get('passed', False):
+        findings.append(('FAIL', f"Mutation kill rate below threshold ({report.get('kill_rate_pct', 0.0)}% < {threshold:.1f}%)"))
+    else:
+        findings.append(('PASS', f"Mutation kill rate meets threshold ({report.get('kill_rate_pct', 0.0)}%)"))
+
+    return 'P2: Mutation Kill Rate', findings
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 CHECK_MAP = {
     '--failure-matrix': check_failure_class_matrix,
     '--abi-negative-tests': check_abi_negative_tests,
+    '--invalid-inputs': check_invalid_input_grammar,
+    '--stateful-sequences': check_stateful_sequences,
     '--secret-paths': check_secret_path_gate,
     '--abi-completeness': check_abi_completeness,
     '--test-coverage': check_test_coverage,
+    '--audit-test-quality': check_audit_test_quality,
     '--security-patterns': check_security_patterns,
     '--ct-integrity': check_ct_integrity,
     '--narrative': check_narrative,
@@ -591,14 +815,18 @@ CHECK_MAP = {
     '--test-docs': check_test_docs,
     '--routing': check_routing,
     '--doc-pairing': check_doc_pairing,
+    '--mutation-kill': check_mutation_kill_rate,
 }
 
 ALL_CHECKS = [
     check_failure_class_matrix,
     check_abi_negative_tests,
+    check_invalid_input_grammar,
+    check_stateful_sequences,
     check_secret_path_gate,
     check_abi_completeness,
     check_test_coverage,
+    check_audit_test_quality,
     check_security_patterns,
     check_ct_integrity,
     check_narrative,
