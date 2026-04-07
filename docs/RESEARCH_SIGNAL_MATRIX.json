@@ -223,6 +223,80 @@
         "docs/SELF_AUDIT_FAILURE_MATRIX.md"
       ],
       "reason": "Hardware-wallet architecture work is worth watching, but it does not directly map to a missing software-library assurance surface unless the hardware roadmap changes."
+    },
+    {
+      "id": "affine_nonce_relation_key_recovery",
+      "status": "covered",
+      "priority": "high",
+      "action": "monitor",
+      "keywords": [
+        "affine nonce relation",
+        "ePrint 2025/705",
+        "related nonces",
+        "ECDSA key recovery",
+        "k2 = a*k1 + b"
+      ],
+      "repo_evidence": [
+        "audit/test_exploit_ecdsa_affine_nonce_relation.cpp",
+        "cpu/src/rfc6979.cpp"
+      ],
+      "reason": "ePrint 2025/705 shows algebraic key recovery when two nonces have an affine relation. RFC 6979 deterministic nonces are immune. PoC validates both the attack and the library's immunity."
+    },
+    {
+      "id": "half_half_nonce_construction",
+      "status": "covered",
+      "priority": "high",
+      "action": "monitor",
+      "keywords": [
+        "half-half nonce",
+        "ePrint 2023/841",
+        "Bitcoin ECDSA",
+        "nonce construction",
+        "key material leakage"
+      ],
+      "repo_evidence": [
+        "audit/test_exploit_ecdsa_half_half_nonce.cpp",
+        "cpu/src/rfc6979.cpp"
+      ],
+      "reason": "ePrint 2023/841 documents real-world Bitcoin key recovery when nonces are composed from hash and key halves. RFC 6979 is immune by design. PoC validates the attack vector and immunity."
+    },
+    {
+      "id": "modular_reduction_nonce_bias",
+      "status": "covered",
+      "priority": "high",
+      "action": "monitor",
+      "keywords": [
+        "modular reduction bias",
+        "CVE-2024-31497",
+        "CVE-2024-1544",
+        "PuTTY",
+        "wolfSSL",
+        "nonce bias",
+        "rejection sampling"
+      ],
+      "repo_evidence": [
+        "audit/test_exploit_ecdsa_nonce_modular_bias.cpp",
+        "cpu/src/rfc6979.cpp"
+      ],
+      "reason": "CVE-2024-31497 (PuTTY) and CVE-2024-1544 (wolfSSL) show key recovery from nonce bias caused by oversized random mod n. RFC 6979 HMAC-DRBG is immune. PoC validates the bias mechanism and immunity."
+    },
+    {
+      "id": "differential_fault_rfc6979",
+      "status": "covered",
+      "priority": "high",
+      "action": "monitor",
+      "keywords": [
+        "differential fault",
+        "ePrint 2017/975",
+        "fault injection",
+        "deterministic signature",
+        "RFC 6979 fault"
+      ],
+      "repo_evidence": [
+        "audit/test_exploit_ecdsa_differential_fault.cpp",
+        "cpu/src/rfc6979.cpp"
+      ],
+      "reason": "ePrint 2017/975 shows key recovery when faults are injected during deterministic nonce generation. PoC validates the attack mechanism and confirms the library's deterministic nonce path consistency."
     }
   ]
 }

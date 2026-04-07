@@ -101,6 +101,41 @@ vectors in `cpu/tests/test_rfc6979.cpp`.
 
 Known-good: Wycheproof RFC 6979 vectors at `audit/test_exploit_wycheproof_*.cpp`.
 
+#### Sub-class 2a — Affine Nonce Relation (ePrint 2025/705)
+
+If two nonces satisfy k₂ = a·k₁ + b for known constants a, b, the private key
+is algebraically recoverable from the two signatures without brute force.
+RFC 6979 prevents this because nonces are deterministic and unrelated.
+
+**Exploit PoC**: `audit/test_exploit_ecdsa_affine_nonce_relation.cpp` (12 sub-tests ANR-1..ANR-12)
+
+#### Sub-class 2b — Half-Half Nonce Construction (ePrint 2023/841)
+
+Real-world attack observed in Bitcoin: nonce constructed as `k = upper_128(hash) ‖ lower_128(private_key)`.
+This leaks 128 bits of the private key per signature; two signatures allow full recovery.
+RFC 6979 is immune because nonce computation never concatenates key material directly.
+
+**Exploit PoC**: `audit/test_exploit_ecdsa_half_half_nonce.cpp` (10 sub-tests HH-1..HH-10, 13 checks)
+
+#### Sub-class 2c — Modular Reduction Nonce Bias (CVE-2024-31497 / CVE-2024-1544)
+
+Generating nonce as `random_512_bits mod n` instead of rejection sampling creates
+a measurable statistical bias (≈2⁻²⁵⁶ per nonce). PuTTY (CVE-2024-31497) and
+wolfSSL (CVE-2024-1544) were vulnerable. RFC 6979 is naturally immune because
+it uses HMAC_DRBG with proper modular arithmetic.
+
+**Exploit PoC**: `audit/test_exploit_ecdsa_nonce_modular_bias.cpp` (6 sub-tests NMB-1..NMB-6, 19 checks)
+
+#### Sub-class 2d — Differential Fault on Deterministic Nonce (ePrint 2017/975)
+
+If an attacker can inject a bit-flip or additive fault during RFC 6979 nonce
+computation for the same message, the difference between the correct and faulted
+signatures reveals the private key. Defense: constant-time nonce generation and
+physical fault countermeasures. The library's deterministic nonce path is verified
+to produce identical results across repeated calls.
+
+**Exploit PoC**: `audit/test_exploit_ecdsa_differential_fault.cpp` (8 sub-tests DF-1..DF-8, 10 checks)
+
 ---
 
 ### Attack 3 — Scalar Range Boundary Cases: k = 0, k = n, k near n (MEDIUM-HIGH)
@@ -347,7 +382,7 @@ ctest -R "exploit" --output-on-failure
 
 ## 8. Red-Team Mode: How to Run Just the Adversarial Layer
 
-### Exploit PoC tests (157 tests)
+### Exploit PoC tests (168 tests)
 
 ```bash
 cd build

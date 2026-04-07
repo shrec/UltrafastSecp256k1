@@ -7,6 +7,34 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-04-08 (Research-driven exploit test expansion: 4 new ePrint/CVE attack classes)
+
+- **Added** `audit/test_exploit_ecdsa_affine_nonce_relation.cpp` — ePrint 2025/705
+  "Breaking ECDSA with Two Affinely Related Nonces": 12 sub-tests (ANR-1..ANR-12)
+  demonstrating algebraic private key recovery when k₂ = a·k₁ + b, plus RFC 6979
+  immunity verification, key-bit sensitivity, and multi-pair confirmation.
+
+- **Added** `audit/test_exploit_ecdsa_half_half_nonce.cpp` — ePrint 2023/841
+  "Half-half Bitcoin ECDSA nonces": 10 sub-tests (HH-1..HH-10, 13 checks)
+  demonstrating key recovery when nonce is composed from hash upper bits and key
+  lower bits, plus RFC 6979 immunity and random-nonce resistance.
+
+- **Added** `audit/test_exploit_ecdsa_nonce_modular_bias.cpp` — CVE-2024-31497 (PuTTY)
+  / CVE-2024-1544 (wolfSSL) modular reduction nonce bias: 6 sub-tests (NMB-1..NMB-6,
+  19 checks) demonstrating statistical bias from oversized random mod n reduction
+  instead of rejection sampling, plus RFC 6979 immunity.
+
+- **Added** `audit/test_exploit_ecdsa_differential_fault.cpp` — ePrint 2017/975
+  "Differential Attacks on Deterministic Signatures": 8 sub-tests (DF-1..DF-8,
+  10 checks) demonstrating key recovery via bit-flip/additive/multiplicative fault
+  injection during RFC 6979 nonce computation, plus determinism verification.
+
+- **Added** strict Documentation Discipline rule to `.github/copilot-instructions.md`,
+  `AGENTS.md`, `CLAUDE.md` — documentation must be maintained in parallel with code
+  changes; deferred documentation is treated as a hard error.
+
+---
+
 ## 2026-04-07 (CT scalar_inverse(0) fix + boundary sentinel test suite)
 
 - **Fixed** `cpu/src/ct_scalar.cpp`: both SafeGCD and Fermat fallback `ct::scalar_inverse`
