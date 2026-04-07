@@ -697,6 +697,17 @@ class PythonAdapter(LanguageAdapter):
     def null_risk_calls(self):
         return ['get', 'find', 'search', 'match', 'fetchone']
 
+    def null_check_pattern(self, var_name):
+        """Python null-safety patterns: if x, if x is not None, x or default, etc."""
+        return re.compile(
+            rf'if\s+{re.escape(var_name)}\b|'
+            rf'if\s+{re.escape(var_name)}\s+is\s+not\s+None|'
+            rf'{re.escape(var_name)}\s+is\s+not\s+None|'
+            rf'{re.escape(var_name)}\s+is\s+None|'
+            rf'{re.escape(var_name)}\s+or\s+|'
+            rf'if\s+not\s+{re.escape(var_name)}\b'
+        )
+
     def leak_patterns(self):
         return {
             'alloc': re.compile(r'\bopen\s*\('),
@@ -3858,6 +3869,11 @@ def scan_null_risks(conn):
                     for i, line in enumerate(lines):
                         for m in call_pattern.finditer(line):
                             func_call = m.group(1)
+                            # Python dict.get(key, default) with a default arg is always safe
+                            if func_call == 'get' and adapter.name == 'python':
+                                call_args = m.group(0)
+                                if ',' in call_args:
+                                    continue
                             assign_match = re.search(r'(\w+)\s*=\s*' + re.escape(m.group(0)), line)
                             ptr_var = assign_match.group(1) if assign_match else None
                             if ptr_var:
@@ -4049,6 +4065,27 @@ def scan_crash_risks(conn):
                                                    'MINUTE', 'HOUR', 'IN_MILLISECONDS', 'MAX_SERVER_PER_GROUP'):
                                         continue
                                     if divisor.isdigit():
+                                        continue
+                                    # ALL_CAPS_SNAKE identifiers are compile-time constants/macros — cannot be zero at runtime
+                                    if re.fullmatch(r'[A-Z][A-Z0-9_]+', divisor):
+                                        continue
+                                    # C++ keywords / casts used as divisor tokens — not variables
+                                    if divisor in ('static_cast', 'reinterpret_cast', 'dynamic_cast', 'const_cast'):
+                                        continue
+                                    # Float scientific-notation literals (1e3, 1e6, 1e9, etc.) — never zero
+                                    dividend = dm.group(1)
+                                    if re.fullmatch(r'\d+e\d+', divisor) or re.fullmatch(r'\d+e\d+', dividend):
+                                        continue
+                                    # Benchmark timing/counter variable suffixes — these are measured values from
+                                    # actual runs and are never zero in practice; flagging them is noise
+                                    _bench_suffixes = ('_ns', '_ms', '_us', '_mops', '_ops', '_count',
+                                                       '_iters', '_iterations', '_calls', '_packets',
+                                                       '_per_sig')
+                                    rel_name = _rel_name(f, base_dir)
+                                    _is_bench = any(p in rel_name for p in ('bench', 'Bench', 'benchmark', 'perf'))
+                                    if _is_bench and (divisor.endswith(_bench_suffixes) or divisor in (
+                                            'ns', 'ms', 'us', 'ops', 'iters', 'count', 'N', 'n',
+                                            'total_ops', 'selftest', 'elapsed', 'duration')):
                                         continue
                                     full_match_end = dm.end()
                                     if full_match_end < len(no_strings) and no_strings[full_match_end] == '=':
@@ -4265,6 +4302,12 @@ def scan_duplicate_blocks(conn):
                     # Skip blocks that are mostly empty/trivial
                     non_empty = [l for l in block if l and l != '{' and l != '}' and l != 'break;' and not l.startswith('//')]
                     if len(non_empty) < 3:
+                        continue
+                    # Skip blocks that are entirely #include / #pragma directives
+                    if all(l.startswith('#include') or l.startswith('#pragma') or not l for l in block):
+                        continue
+                    # Skip blocks that are only closing braces, namespace endings, or boilerplate
+                    if all(l in ('', '{', '}', '};', 'return;', 'break;', 'default:') or l.startswith('//') for l in block):
                         continue
                     text = "\n".join(block)
                     h = hashlib.md5(text.encode()).hexdigest()

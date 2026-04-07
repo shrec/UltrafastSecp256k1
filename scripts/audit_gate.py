@@ -796,6 +796,59 @@ def check_mutation_kill_rate(conn):
 
 
 # ---------------------------------------------------------------------------
+# P2 — Mutation Evidence Freshness
+# ---------------------------------------------------------------------------
+_DEFAULT_MUTATION_REPORT = "mutation_kill_report.json"
+_DEFAULT_MUTATION_STALENESS_DAYS = 14
+
+
+def check_mutation_freshness(_conn):
+    """Verify that a mutation-kill report exists and is not stale."""
+    findings = []
+    report_name = os.environ.get('UFSECP_MUTATION_REPORT', _DEFAULT_MUTATION_REPORT)
+    staleness_days = _env_int('UFSECP_MUTATION_STALENESS_DAYS', _DEFAULT_MUTATION_STALENESS_DAYS)
+    report_path = LIB_ROOT / report_name
+
+    if not report_path.exists():
+        findings.append(('WARN', f'Mutation kill report not found: {report_name} — run: '
+                         'python3 scripts/mutation_kill_rate.py --ctest-mode --json -o mutation_kill_report.json'))
+        return 'P2: Mutation Evidence Freshness', findings
+
+    try:
+        with open(report_path, 'r') as f:
+            report = json.load(f)
+    except Exception as e:
+        findings.append(('WARN', f'Could not parse mutation report: {e}'))
+        return 'P2: Mutation Evidence Freshness', findings
+
+    ts_str = report.get('timestamp') or report.get('generated_at', '')
+    if ts_str:
+        try:
+            ts = datetime.fromisoformat(ts_str.replace('Z', '+00:00'))
+            age = datetime.now(timezone.utc) - ts
+            age_days = age.total_seconds() / 86400
+            findings.append(('INFO', f'Mutation report age: {age_days:.1f} days (threshold: {staleness_days})'))
+            if age_days > staleness_days:
+                findings.append(('WARN', f'Mutation report is stale ({age_days:.1f} > {staleness_days} days) — rerun recommended'))
+            else:
+                kill_rate = report.get('kill_rate_pct', report.get('kill_rate', 'N/A'))
+                findings.append(('PASS', f'Mutation evidence is current (age {age_days:.1f}d, rate {kill_rate}%)'))
+        except (ValueError, TypeError):
+            findings.append(('WARN', f'Could not parse mutation report timestamp: {ts_str!r}'))
+    else:
+        # Fall back to file mtime
+        mtime = os.path.getmtime(report_path)
+        age_days = (datetime.now(timezone.utc).timestamp() - mtime) / 86400
+        findings.append(('INFO', f'Mutation report mtime age: {age_days:.1f} days (no timestamp field)'))
+        if age_days > staleness_days:
+            findings.append(('WARN', f'Mutation report is stale by mtime ({age_days:.1f} > {staleness_days} days)'))
+        else:
+            findings.append(('PASS', f'Mutation evidence is current by mtime ({age_days:.1f}d)'))
+
+    return 'P2: Mutation Evidence Freshness', findings
+
+
+# ---------------------------------------------------------------------------
 # P3 — Crash Risk Analysis (source graph)
 # ---------------------------------------------------------------------------
 SOURCE_GRAPH_DB = LIB_ROOT / "tools" / "source_graph_kit" / "source_graph.db"
@@ -808,6 +861,9 @@ def check_crash_risks(_conn):
         findings.append(('WARN', 'Source graph DB not found — skipping crash risk analysis'))
         return 'P3: Crash Risks', findings
 
+    # Patterns that identify test/bench/audit harness files (not production code)
+    _TEST_FILE_PATTERNS = ('test_', 'bench_', 'bench/', 'audit_', 'fuzz_', 'harness')
+
     sg_conn = sqlite3.connect(str(SOURCE_GRAPH_DB))
     sg_conn.row_factory = sqlite3.Row
     try:
@@ -816,21 +872,29 @@ def check_crash_risks(_conn):
         """).fetchall()
         total = sum(r['cnt'] for r in rows)
 
-        # Check crash risks in CT-sensitive files
-        ct_crash = sg_conn.execute("""
-            SELECT COUNT(*) as cnt FROM crash_risks cr
+        # Check crash risks in CT-sensitive files, excluding test/bench/audit harnesses
+        # Use DISTINCT to avoid JOIN fan-out when a file has multiple CT symbols
+        ct_rows = sg_conn.execute("""
+            SELECT DISTINCT cr.file, cr.line, cr.risk_type FROM crash_risks cr
             JOIN symbol_metadata sm ON cr.file = sm.file_path
             WHERE sm.ct_sensitive = 1
-        """).fetchone()
-        ct_crash_count = ct_crash['cnt'] if ct_crash else 0
+        """).fetchall()
+        ct_production = [r for r in ct_rows
+                         if not any(pat in os.path.basename(r['file']) for pat in _TEST_FILE_PATTERNS)
+                         and '/bench/' not in r['file']]
+        ct_prod_count = len(ct_production)
+        ct_total_count = len(ct_rows)
     finally:
         sg_conn.close()
 
     breakdown = ", ".join(f'{r["risk_type"]}={r["cnt"]}' for r in rows)
     findings.append(('INFO', f'Total crash risks: {total} ({breakdown})'))
 
-    if ct_crash_count > 0:
-        findings.append(('WARN', f'{ct_crash_count} crash risks in CT-sensitive functions'))
+    if ct_prod_count > 0:
+        findings.append(('WARN', f'{ct_prod_count} crash risks in CT-sensitive production code'))
+    elif ct_total_count > 0:
+        findings.append(('INFO', f'{ct_total_count} crash risks in CT-sensitive test/bench files (not production)'))
+        findings.append(('PASS', f'No crash risks in CT-sensitive production code ({total} total)'))
     else:
         findings.append(('PASS', f'No crash risks in CT-sensitive code ({total} total, none in CT paths)'))
 
@@ -858,6 +922,7 @@ CHECK_MAP = {
     '--routing': check_routing,
     '--doc-pairing': check_doc_pairing,
     '--mutation-kill': check_mutation_kill_rate,
+    '--mutation-freshness': check_mutation_freshness,
     '--crash-risks': check_crash_risks,
 }
 
@@ -878,6 +943,7 @@ ALL_CHECKS = [
     check_test_docs,
     check_routing,
     check_doc_pairing,
+    check_mutation_freshness,
     check_crash_risks,
 ]
 
