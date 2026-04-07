@@ -523,7 +523,7 @@ static const AuditModule ALL_MODULES[] = {
     // Section 8: Performance Validation & Regression
     // ===================================================================
     { "hash_accel",        "Accelerated hashing",                          "performance",    test_hash_accel_run, false },
-    { "edge_cases",         "Edge cases & coverage gaps",                  "correctness",   test_edge_cases_run, false },
+    { "edge_cases",         "Edge cases & coverage gaps",                  "math_invariants",test_edge_cases_run, false },
     { "multiscalar",       "Multi-scalar & batch verify",                  "performance",    test_multiscalar_batch_run, false },
     { "audit_perf",        "Performance smoke (sign/verify roundtrip)",    "performance",    audit_perf_run, false },
 
@@ -787,7 +787,16 @@ static std::string json_escape(const std::string& s) {
             case '\n': out += "\\n";  break;
             case '\r': out += "\\r";  break;
             case '\t': out += "\\t";  break;
-            default:   out += c;      break;
+            case '\b': out += "\\b";  break;
+            case '\f': out += "\\f";  break;
+            default:
+                if (static_cast<unsigned char>(c) < 0x20) {
+                    char buf[8]; std::snprintf(buf, sizeof(buf), "\\u%04x", static_cast<unsigned char>(c));
+                    out += buf;
+                } else {
+                    out += c;
+                }
+                break;
         }
     }
     return out;
@@ -1000,7 +1009,7 @@ static void write_text_report(const char* path,
     for (int s = 0; s < (int)sections.size(); ++s) {
         auto& sec = sections[s];
         (void)std::fprintf(f, "================================================================\n");
-        (void)std::fprintf(f, "  Section %d/8: %s\n", s + 1, sec.title_en);
+        (void)std::fprintf(f, "  Section %d/%d: %s\n", s + 1, NUM_SECTIONS, sec.title_en);
         (void)std::fprintf(f, "================================================================\n");
 
         for (auto& r : results) {
@@ -1143,6 +1152,10 @@ static void write_sarif_report(const char* path,
             uri = "audit/test_abi_gate.cpp";
         } else if (std::strcmp(r.section, "performance") == 0) {
             uri = "cpu/bench/bench_unified.cpp";
+        } else if (std::strcmp(r.section, "differential") == 0) {
+            uri = "audit/test_fiat_crypto_vectors.cpp";
+        } else if (std::strcmp(r.section, "exploit_poc") == 0) {
+            uri = "audit/test_exploit_ecdsa_malleability.cpp";
         }
 
         (void)std::fprintf(f, "        {\n");
@@ -1353,7 +1366,7 @@ int main(int argc, char* argv[]) {
             for (int s = 0; s < NUM_SECTIONS; ++s) {
                 if (std::strcmp(SECTIONS[s].id, current_section) == 0) {
                     std::printf("  ----------------------------------------------------------\n");
-                    std::printf("  Section %d/8: %s\n", section_num, SECTIONS[s].title_en);
+                    std::printf("  Section %d/%d: %s\n", section_num, NUM_SECTIONS, SECTIONS[s].title_en);
                     std::printf("  ----------------------------------------------------------\n");
                     break;
                 }

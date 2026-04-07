@@ -532,6 +532,7 @@ int main() {
     printf("===============================================================\n\n");
 
     test_zero_key_handling();
+    test_wallet_private_key_strictness();
     test_zeroization();
     test_bitflip_resilience();
     test_message_bitflip();

@@ -1813,7 +1813,14 @@ int main(int argc, char* argv[]) {
     // Timestamp
     auto now = std::chrono::system_clock::now();
     auto tt = std::chrono::system_clock::to_time_t(now);
-    char timebuf[64]; std::strftime(timebuf, sizeof(timebuf), "%Y-%m-%dT%H:%M:%S", std::localtime(&tt));
+    char timebuf[64];
+    struct tm tm_buf{};
+#ifdef _WIN32
+    (void)localtime_s(&tm_buf, &tt);
+#else
+    (void)localtime_r(&tt, &tm_buf);
+#endif
+    std::strftime(timebuf, sizeof(timebuf), "%Y-%m-%dT%H:%M:%S", &tm_buf);
 
     // Initialize OpenCL context
     DeviceConfig config;
