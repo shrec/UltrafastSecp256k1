@@ -193,6 +193,7 @@ CTest inventory exactly:
 - `musig2_bip327_vectors`
 - `musig2_frost`
 - `musig2_frost_advanced`
+- `mutation_artifact_scan`
 - `opencl_selftest`
 - `parse_strictness`
 - `rfc6979_vectors`
@@ -253,10 +254,13 @@ CTest surface exactly:
 - `exploit_hertzbleed_dvfs_timing`
 - `exploit_kr_ecdsa_buff_binding`
 - `exploit_ladderleak_subbit_nonce`
+- `exploit_metal_field_reduce`
 - `exploit_minerva_cve_2024_23342`
 - `exploit_minerva_noisy_hnp`
+- `exploit_mutation_residue`
 - `exploit_musig2_byzantine_multiparty`
 - `exploit_musig2_parallel_session_cross`
+- `exploit_network_validation_bypass`
 - `exploit_p2sh_address_confusion`
 - `exploit_psbt_input_confusion`
 - `exploit_pubkey_arith`
@@ -642,6 +646,10 @@ Each test compiles as a separate binary and verifies that attacks fail, edge cas
 | Boundary sentinels | `test_exploit_boundary_sentinels` | Zero, max, order-boundary sentinel values across all API entry points |
 | Hash | `test_exploit_hash_algo_sig_isolation` | Hash-algorithm signature isolation: SHA-256 vs alt-hash no cross-verify |
 | Misc | `test_exploit_gcs_false_positive` | GCS filter: false-positive rate, determinism, null handling |
+| Metal | `test_exploit_metal_field_reduce` | Metal field_reduce_512 truncation regression: acc[8] > 32-bit carry chains |
+| Mutation | `test_exploit_mutation_residue` | Mutation residue exploit: inverse sweep, ECDSA roundtrip, CT scalar_inverse(0) |
+| Mutation | `test_mutation_artifact_scan` | Source artifact scanner: stale mutation markers, vestigial test debris |
+| ABI / Network | `test_exploit_network_validation_bypass` | Network selector validation bypass: OOB enum, INT_MAX, negative values |
 
 Build and run all exploit tests:
 ```bash
