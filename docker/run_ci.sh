@@ -222,10 +222,12 @@ job_sanitizers_msan() {
         -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=memory" || return 1
     cmake --build "$bd" -j"$NPROC" || return 1
 
-    # Mirrors GitHub security-audit.yml: MSan is advisory and can timeout.
+    # Mirrors GitHub ci.yml: MSan with system (non-instrumented) libc++ can only
+    # run pure-arithmetic and standalone tests without false positives.  Full
+    # MSan coverage with instrumented libc++ is in security-audit.yml.
     MSAN_OPTIONS=halt_on_error=1:print_stacktrace=1 \
     ctest --test-dir "$bd" --output-on-failure -j"$NPROC" \
-        -E "^(ct_sidechannel|selftest|unified_audit)" --timeout 3600 || true
+        -R "^(field_26|sha|hash_accel|abi_gate|bip141_143_144|bip342|wycheproof_|exploit_field_|exploit_sha|exploit_keccak|exploit_ripemd|exploit_hkdf|exploit_chacha|exploit_aead|exploit_bip143|exploit_bip144|exploit_bip324|exploit_pedersen|exploit_frost_participant_zero|exploit_frost_threshold_degenerate|exploit_frost_lagrange_duplicate|exploit_frost_index|exploit_musig2_ordering|exploit_invalid_curve|exploit_metal_field_reduce)$" --timeout 900 || true
     echo "MSan advisory run completed (non-blocking, GH parity behavior)."
 }
 
