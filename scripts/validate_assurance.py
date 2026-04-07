@@ -91,7 +91,11 @@ def scan_ctest_targets():
                 for line in f:
                     m = test_re.search(line)
                     if m:
-                        targets.add(m.group(1))
+                        name = m.group(1)
+                        # Skip unresolved CMake variables like ${_harness}
+                        if '${' in name:
+                            continue
+                        targets.add(name)
         except Exception:
             continue
     return targets

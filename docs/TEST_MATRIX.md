@@ -12,9 +12,9 @@ lags behind the generated validation surfaces, prefer the generated counts.
 
 | Category | Tests | Status |
 |----------|-------|--------|
-| **CTest targets** | 182 active targets | [OK] Documented in current assurance validation |
+| **CTest targets** | 261 active targets | [OK] Documented in current assurance validation |
 | **Audit suite checks** | 641,194+ | [OK] 0 failures |
-| **Exploit PoC test files** | **157 tests, 14+ categories** | [OK] 0 failures |
+| **Exploit PoC test files** | **197 tests, 20+ categories** | [OK] 0 failures |
 | **Fuzz harnesses** | 11 | [OK] Active (5 cpu/fuzz + 6 audit/; `libfuzzer_unified` CI-blocking) |
 | **ECIES regression** | 85 | [OK] All passing |
 | **Adversarial protocol** | 114 functions, 360+ checks | [OK] Active |
@@ -520,7 +520,7 @@ qemu-riscv64 -L /usr/riscv64-linux-gnu ./build-riscv64/cpu/bench_bip324
 
 ## Exploit PoC Test Suite (`audit/test_exploit_*.cpp`)
 
-157 standalone exploit-style tests that actively try to break the library.
+197 standalone exploit-style tests that actively try to break the library.
 Each test compiles as a separate binary and verifies that attacks fail, edge cases are handled, and security invariants hold under adversarial inputs.
 
 | Category | File(s) | Attack / Property Verified |
@@ -603,6 +603,45 @@ Each test compiles as a separate binary and verifies that attacks fail, edge cas
 | ElligatorSwift | `test_exploit_ellswift_ecdh` | ElligatorSwift ECDH |
 | Self-Test / API | `test_exploit_selftest_api` | Self-test API |
 | Recovery | `test_exploit_recovery_extended` | Extended recovery edge cases |
+| ECDSA / Signature | `test_exploit_ecdsa_nonce_reuse` | ECDSA nonce-reuse key extraction: verifies RFC 6979 prevents k reuse |
+| ECDSA / Signature | `test_exploit_ecdsa_r_overflow` | ECDSA r-overflow: r ≥ n, r = 0, DER parse edge cases, PMN constants |
+| ECDSA / Signature | `test_exploit_ecdsa_sign_sentinels` | ECDSA sign sentinels: zero-sk/r/s rejection; mass sign no zero-components |
+| ECDSA / Signature | `test_exploit_rfc6979_truncation_bias` | RFC 6979 truncation bias: nonce truncation correctness for message sizes |
+| ECDSA / Signature | `test_exploit_binding_invalid_curve` | Invalid curve point injection into ECDH/Schnorr verify rejected |
+| Schnorr / BIP-340 | `test_exploit_batch_sign` | Verifies Schnorr batch-sign cannot produce invalid/forgeable signatures |
+| Schnorr / BIP-340 | `test_exploit_schnorr_msg_length_confusion` | Schnorr message-length confusion: empty/short/prefix/large isolation |
+| Schnorr / BIP-340 | `test_exploit_schnorr_nonce_reuse` | Schnorr nonce-reuse key extraction: tagged-hash nonce prevents reuse |
+| GLV / Math | `test_exploit_ecdh_zvp_glv_static` | ECDH zero-value-point w/ GLV static key: all-zero output rejection |
+| GLV / Math | `test_exploit_fe_set_b32_limit_uninit` | Field element set_b32 limit: uninit/poisoned-memory parsing safety |
+| GLV / Math | `test_exploit_pubkey_arith` | Public-key arithmetic: add/tweak/negate/combine edge cases |
+| GLV / Math | `test_exploit_seckey_arith` | Secret-key arithmetic: add/tweak/negate/verify edge cases on scalars |
+| BIP-32 / HD | `test_exploit_bip85_path_collision` | BIP-85 path collision: different paths must yield different entropy |
+| BIP-352 / Silent Payments | `test_exploit_bip352_parity_confusion` | BIP-352 parity confusion: pubkey negation vs ECDH output consistency |
+| BIP-352 / Silent Payments | `test_exploit_bip352_scan_dos` | BIP-352 scan DoS resistance: timing-bounded large input sets |
+| FROST | `test_exploit_frost_adaptive_corruption` | FROST adaptive corruption: corrupted partial sigs detected after DKG |
+| FROST | `test_exploit_frost_identifiable_abort` | FROST identifiable abort: bad partials correctly identified in 2-of-3 |
+| FROST | `test_exploit_frost_participant_set_malleability` | FROST participant-set malleability: reordered/swapped nonces detected |
+| Constant-Time | `test_exploit_biased_nonce_chain_scan` | Nonce bias detection via chain-scanning statistical analysis |
+| Constant-Time | `test_exploit_cache_sidechannel_amplification` | Cache side-channel amplification: timing noise vs ECDSA sign leakage |
+| Constant-Time | `test_exploit_hertzbleed_dvfs_timing` | Hertzbleed/DVFS timing: ECDSA sign timing variance under freq scaling |
+| Constant-Time | `test_exploit_minerva_cve_2024_23342` | Minerva CVE-2024-23342 timing attack: nanosecond median/MAD analysis |
+| Constant-Time | `test_exploit_minerva_noisy_hnp` | Minerva noisy HNP: nonce-bias detection under realistic noise |
+| Constant-Time | `test_exploit_rfc6979_minerva_amplified` | RFC 6979 Minerva amplified: repeated ECDSA sign nanosecond timing |
+| ECIES | `test_exploit_ecies_ephemeral_reuse` | ECIES ephemeral key reuse to different recipients must be rejected |
+| ElligatorSwift | `test_exploit_ellswift_xdh_overflow` | ElligatorSwift XDH overflow: boundary/malformed 64-byte inputs |
+| Protocol BIPs | `test_exploit_eip712_kat` | EIP-712 structured data signing known-answer tests |
+| Protocol BIPs | `test_exploit_taproot_commitment_adversarial` | Taproot commitment adversarial: output-key manipulation attempts |
+| Address / Wallet | `test_exploit_psbt_input_confusion` | PSBT input confusion: segwit encoding, key isolation, taproot sighash |
+| Recovery | `test_exploit_buff_kr_ecdsa` | Key-recovery ECDSA to Ethereum address binding roundtrip |
+| Recovery | `test_exploit_kr_ecdsa_buff_binding` | Key-recovery ECDSA buffer binding: verify-after-recover consistency |
+| Self-Test / API | `test_exploit_binding_adversarial_api` | Adversarial API misuse: ctx lifecycle, double destroy, bad ctx |
+| Self-Test / API | `test_exploit_buffer_type_confusion` | Type confusion: passing wrong-type buffers to API functions |
+| Self-Test / API | `test_exploit_cross_scheme_pubkey` | Cross-scheme pubkey reuse: same key in ECDH/Schnorr/ECIES isolation |
+| Self-Test / API | `test_exploit_differential_libsecp` | Differential testing vs libsecp256k1: sign/verify/ECDH mismatch |
+| Adaptor / ZK | `test_exploit_quantum_exposure` | Quantum exposure: pubkey creation under adversarial key guessing |
+| Boundary sentinels | `test_exploit_boundary_sentinels` | Zero, max, order-boundary sentinel values across all API entry points |
+| Hash | `test_exploit_hash_algo_sig_isolation` | Hash-algorithm signature isolation: SHA-256 vs alt-hash no cross-verify |
+| Misc | `test_exploit_gcs_false_positive` | GCS filter: false-positive rate, determinism, null handling |
 
 Build and run all exploit tests:
 ```bash
@@ -610,6 +649,48 @@ cmake -S . -B build-audit -G Ninja -DCMAKE_BUILD_TYPE=Release -DSECP256K1_BUILD_
 cmake --build build-audit -j
 ctest --test-dir build-audit -R "exploit" --output-on-failure
 ```
+
+---
+
+## BIP-352 Known-Answer Tests
+
+| Target | Source | Description |
+|--------|--------|-------------|
+| `bip352_kat` | `tests/test_bip352_kat.cpp` | BIP-352 known-answer tests: output creation, roundtrip, rejection, index isolation |
+
+---
+
+## GPU Integration Tests
+
+| Target | Source | Description |
+|--------|--------|-------------|
+| `gpu_bip352_scan` | `tests/test_gpu_bip352_scan.cpp` | GPU BIP-352 silent-payment scan: CPU plan + GPU batch scan round-trip |
+| `gpu_ecdsa_snark_witness` | `tests/test_gpu_ecdsa_snark_witness.cpp` | GPU ECDSA SNARK witness generation: limb roundtrip, bounds, batch macro |
+
+---
+
+## Python Audit Harnesses (`scripts/`)
+
+| Target | Source | Description |
+|--------|--------|-------------|
+| `py_dev_bug_scan` | `scripts/dev_bug_scanner.py` | Static analysis for common API misuse patterns |
+| `py_differential_crossimpl` | `scripts/differential_cross_impl.py` | Differential cross-implementation testing via Python FFI |
+| `py_hot_path_alloc_scan` | `scripts/hot_path_alloc_scanner.py` | Hot-path allocation scanner: heap allocations in critical paths |
+| `py_invalid_input_grammar` | `scripts/invalid_input_grammar.py` | Grammar-guided malformed input generation |
+| `py_nonce_bias` | `scripts/nonce_bias_detector.py` | Statistical analysis of ECDSA nonce distribution |
+| `py_rfc6979_spec` | `scripts/rfc6979_spec_verifier.py` | RFC 6979 deterministic nonce KAT compliance |
+| `py_semantic_props` | `scripts/semantic_props.py` | Algebraic invariant property-based checking |
+| `py_stateful_sequences` | `scripts/stateful_sequences.py` | Multi-call API state machine exploration |
+
+---
+
+## Wycheproof Test Vectors
+
+| Target | Source | Description |
+|--------|--------|-------------|
+| `wycheproof_chacha20_poly1305` | `tests/test_wycheproof_chacha20_poly1305.cpp` | Wycheproof ChaCha20-Poly1305 AEAD test vectors |
+| `wycheproof_hkdf_sha256` | `tests/test_wycheproof_hkdf_sha256.cpp` | Wycheproof HKDF-SHA256 KDF test vectors |
+| `wycheproof_hmac_sha256` | `tests/test_wycheproof_hmac_sha256.cpp` | Wycheproof HMAC-SHA256 MAC test vectors |
 
 ---
 
