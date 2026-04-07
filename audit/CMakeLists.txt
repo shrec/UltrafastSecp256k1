@@ -1388,6 +1388,15 @@ target_compile_definitions(test_exploit_ecdsa_nonce_reuse_standalone PRIVATE STA
 add_test(NAME exploit_ecdsa_nonce_reuse COMMAND test_exploit_ecdsa_nonce_reuse_standalone)
 set_tests_properties(exploit_ecdsa_nonce_reuse PROPERTIES TIMEOUT 60 LABELS "audit;exploit;ecdsa;nonce")
 
+# -- PoC: Affine nonce relation key recovery (ANR-1..ANR-12) [ePrint 2025/705] --
+add_executable(test_exploit_ecdsa_affine_nonce_relation_standalone
+    test_exploit_ecdsa_affine_nonce_relation.cpp)
+audit_target_defaults(test_exploit_ecdsa_affine_nonce_relation_standalone)
+target_link_libraries(test_exploit_ecdsa_affine_nonce_relation_standalone PRIVATE fastsecp256k1)
+target_compile_definitions(test_exploit_ecdsa_affine_nonce_relation_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_ecdsa_affine_nonce_relation COMMAND test_exploit_ecdsa_affine_nonce_relation_standalone)
+set_tests_properties(exploit_ecdsa_affine_nonce_relation PROPERTIES TIMEOUT 120 LABELS "audit;exploit;ecdsa;nonce")
+
 # -- PoC: Cross-scheme pubkey consistency (CSP-1..CSP-8) -------------------
 add_executable(test_exploit_cross_scheme_pubkey_standalone
     test_exploit_cross_scheme_pubkey.cpp
@@ -2308,6 +2317,8 @@ add_executable(unified_audit_runner
     test_exploit_frost_identifiable_abort.cpp
     test_exploit_hash_algo_sig_isolation.cpp
     test_exploit_schnorr_nonce_reuse.cpp
+    # -- Affine nonce relation key recovery (ePrint 2025/705) --
+    test_exploit_ecdsa_affine_nonce_relation.cpp
 )
 # Conditionally add 5x52 field test (requires __uint128_t; skip on MSVC)
 if(NOT (MSVC AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
