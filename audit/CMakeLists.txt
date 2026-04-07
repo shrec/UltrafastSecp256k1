@@ -1834,6 +1834,13 @@ target_compile_definitions(test_exploit_mutation_residue_standalone PRIVATE STAN
 add_test(NAME exploit_mutation_residue COMMAND test_exploit_mutation_residue_standalone)
 set_tests_properties(exploit_mutation_residue PROPERTIES TIMEOUT 60 LABELS "audit;exploit;mutation;scalar;point")
 
+# -- PoC: Metal field_reduce_512 acc[8] truncation (issue #226) -----------
+add_executable(test_exploit_metal_field_reduce_standalone test_exploit_metal_field_reduce.cpp)
+audit_target_defaults(test_exploit_metal_field_reduce_standalone)
+target_compile_definitions(test_exploit_metal_field_reduce_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_metal_field_reduce COMMAND test_exploit_metal_field_reduce_standalone)
+set_tests_properties(exploit_metal_field_reduce PROPERTIES TIMEOUT 60 LABELS "audit;exploit;metal;field")
+
 # -- Source integrity scanner: known mutation artifact patterns -------------
 add_executable(test_mutation_artifact_scan_standalone test_mutation_artifact_scan.cpp)
 audit_target_defaults(test_mutation_artifact_scan_standalone)
@@ -2264,6 +2271,8 @@ add_executable(unified_audit_runner
     # -- Mutation residue detection + source artifact scanner --
     test_exploit_mutation_residue.cpp
     test_mutation_artifact_scan.cpp
+    # -- Metal field_reduce_512 regression (issue #226) --
+    test_exploit_metal_field_reduce.cpp
 )
 # Conditionally add 5x52 field test (requires __uint128_t; skip on MSVC)
 if(NOT (MSVC AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang"))

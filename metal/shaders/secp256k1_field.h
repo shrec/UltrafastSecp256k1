@@ -198,14 +198,20 @@ inline FieldElement field_reduce_512(thread const uint prod[16]) {
         acc[i] = uint(acc[i]);
     }
 
-    // Second reduction if acc[8] != 0
-    uint extra = uint(acc[8]);
-    if (extra != 0) {
-        ulong p = ulong(extra) * ulong(K_LO);
-        acc[0] += uint(p);
-        acc[1] += uint(p >> 32) + extra; // K_HI * extra = extra (shift by 32)
+    // Second reduction: fold acc[8]·K back into limbs [0..7].
+    // acc[8] can exceed 32 bits after first fold (issue #226), so use
+    // full ulong and loop until fully absorbed (at most 2 iterations).
+    while (acc[8] != 0) {
+        ulong extra = acc[8];
+        acc[8] = 0;
+        ulong p = extra * ulong(K_LO);
+        acc[0] += p & 0xFFFFFFFF;
+        acc[1] += (p >> 32);
+        // K_HI = 1: add extra at one-limb offset
+        acc[1] += extra & 0xFFFFFFFF;
+        acc[2] += extra >> 32;
 
-        // Re-propagate
+        // Re-propagate carries
         for (int i = 0; i < 8; i++) {
             acc[i + 1] += acc[i] >> 32;
             acc[i] = uint(acc[i]);

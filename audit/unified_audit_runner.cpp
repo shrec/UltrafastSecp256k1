@@ -144,6 +144,7 @@ int test_libfuzzer_unified_run();  // deterministic LibFuzzer harness regression
 int test_mutation_kill_rate_run(); // mutation kill-rate tracker (advisory: needs Python)
 int test_exploit_mutation_residue_run(); // mutation residue exploit vectors (wNAF OOB + divsteps mask)
 int test_mutation_artifact_scan_run();   // source-file integrity scanner for mutation artifacts
+int test_exploit_metal_field_reduce_run(); // Metal field_reduce_512 acc[8] truncation (issue #226)
 int test_cryptol_specs_run();      // Cryptol formal spec property check (advisory: needs cryptol)
 
 // ============================================================================
@@ -682,6 +683,7 @@ static const AuditModule ALL_MODULES[] = {
     { "exploit_kr_ecdsa_buff_binding",   "KR-ECDSA/BUFF Binding Regression Surface",   "exploit_poc", test_exploit_kr_ecdsa_buff_binding_run, false },
     { "exploit_mutation_residue",        "Mutation Residue Detection (MR-1..MR-7)",    "exploit_poc", test_exploit_mutation_residue_run, false },
     { "mutation_artifact_scan",          "Source Integrity Scanner (MA-1..MA-4)",       "exploit_poc", test_mutation_artifact_scan_run, false },
+    { "exploit_metal_field_reduce",       "Metal field_reduce_512 Regression (#226)",    "exploit_poc", test_exploit_metal_field_reduce_run, false },
 };
 
 static constexpr int NUM_MODULES = sizeof(ALL_MODULES) / sizeof(ALL_MODULES[0]);
