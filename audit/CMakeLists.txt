@@ -1827,6 +1827,22 @@ target_compile_definitions(test_exploit_hash_algo_sig_isolation_standalone PRIVA
 add_test(NAME exploit_hash_algo_sig_isolation COMMAND test_exploit_hash_algo_sig_isolation_standalone)
 set_tests_properties(exploit_hash_algo_sig_isolation PROPERTIES TIMEOUT 60 LABELS "audit;exploit;ecdsa;hash_confusion")
 
+# -- PoC: Mutation residue detection (wNAF OOB + divsteps mask) ------------
+add_executable(test_exploit_mutation_residue_standalone test_exploit_mutation_residue.cpp)
+audit_target_defaults(test_exploit_mutation_residue_standalone)
+target_compile_definitions(test_exploit_mutation_residue_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_mutation_residue COMMAND test_exploit_mutation_residue_standalone)
+set_tests_properties(exploit_mutation_residue PROPERTIES TIMEOUT 60 LABELS "audit;exploit;mutation;scalar;point")
+
+# -- Source integrity scanner: known mutation artifact patterns -------------
+add_executable(test_mutation_artifact_scan_standalone test_mutation_artifact_scan.cpp)
+audit_target_defaults(test_mutation_artifact_scan_standalone)
+target_compile_definitions(test_mutation_artifact_scan_standalone PRIVATE
+    STANDALONE_TEST
+    UFSECP_SOURCE_ROOT="${CMAKE_CURRENT_SOURCE_DIR}/..")
+add_test(NAME mutation_artifact_scan COMMAND test_mutation_artifact_scan_standalone)
+set_tests_properties(mutation_artifact_scan PROPERTIES TIMEOUT 30 LABELS "audit;mutation;integrity")
+
 # -- Diagnostic: ct::scalar_mul step-by-step comparison --------------------
 add_executable(diag_scalar_mul ${CPU_TESTS_DIR}/diag_scalar_mul.cpp)
 audit_target_defaults(diag_scalar_mul)
@@ -2245,6 +2261,9 @@ add_executable(unified_audit_runner
     test_exploit_minerva_cve_2024_23342.cpp
     test_exploit_rfc6979_minerva_amplified.cpp
     test_exploit_ellswift_bad_scalar_ecdh.cpp
+    # -- Mutation residue detection + source artifact scanner --
+    test_exploit_mutation_residue.cpp
+    test_mutation_artifact_scan.cpp
 )
 # Conditionally add 5x52 field test (requires __uint128_t; skip on MSVC)
 if(NOT (MSVC AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
@@ -2277,6 +2296,7 @@ target_compile_definitions(unified_audit_runner PRIVATE
     DUDECT_SMOKE
     UFSECP_BUILDING
     GIT_HASH="${_git_hash}"
+    UFSECP_SOURCE_ROOT="${CMAKE_CURRENT_SOURCE_DIR}/.."
 )
 if(MSVC OR (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND WIN32))
     target_link_options(unified_audit_runner PRIVATE "LINKER:/STACK:8388608")

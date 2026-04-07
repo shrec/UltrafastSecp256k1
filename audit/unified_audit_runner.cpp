@@ -142,6 +142,8 @@ int test_fuzz_address_bip32_ffi_run();
 int test_fuzz_musig2_frost_run();
 int test_libfuzzer_unified_run();  // deterministic LibFuzzer harness regression suite
 int test_mutation_kill_rate_run(); // mutation kill-rate tracker (advisory: needs Python)
+int test_exploit_mutation_residue_run(); // mutation residue exploit vectors (wNAF OOB + divsteps mask)
+int test_mutation_artifact_scan_run();   // source-file integrity scanner for mutation artifacts
 int test_cryptol_specs_run();      // Cryptol formal spec property check (advisory: needs cryptol)
 
 // ============================================================================
@@ -678,6 +680,8 @@ static const AuditModule ALL_MODULES[] = {
     { "exploit_hertzbleed_dvfs_timing",  "Hertzbleed-Style DVFS Timing Surface",       "exploit_poc", test_exploit_hertzbleed_dvfs_timing_run, false },
     { "exploit_biased_nonce_chain_scan", "Biased-Nonce Chain-Scale Scan Surface",      "exploit_poc", test_exploit_biased_nonce_chain_scan_run, false },
     { "exploit_kr_ecdsa_buff_binding",   "KR-ECDSA/BUFF Binding Regression Surface",   "exploit_poc", test_exploit_kr_ecdsa_buff_binding_run, false },
+    { "exploit_mutation_residue",        "Mutation Residue Detection (MR-1..MR-7)",    "exploit_poc", test_exploit_mutation_residue_run, false },
+    { "mutation_artifact_scan",          "Source Integrity Scanner (MA-1..MA-4)",       "exploit_poc", test_mutation_artifact_scan_run, false },
 };
 
 static constexpr int NUM_MODULES = sizeof(ALL_MODULES) / sizeof(ALL_MODULES[0]);
