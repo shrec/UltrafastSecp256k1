@@ -1424,6 +1424,33 @@ target_compile_definitions(test_exploit_ecdsa_differential_fault_standalone PRIV
 add_test(NAME exploit_ecdsa_differential_fault COMMAND test_exploit_ecdsa_differential_fault_standalone)
 set_tests_properties(exploit_ecdsa_differential_fault PROPERTIES TIMEOUT 120 LABELS "audit;exploit;ecdsa;nonce")
 
+# -- PoC: EUCLEAK non-CT modular inversion timing (EUC-1..EUC-12) [ePrint 2024/1380] --
+add_executable(test_exploit_eucleak_inversion_timing_standalone
+    test_exploit_eucleak_inversion_timing.cpp)
+audit_target_defaults(test_exploit_eucleak_inversion_timing_standalone)
+target_link_libraries(test_exploit_eucleak_inversion_timing_standalone PRIVATE fastsecp256k1)
+target_compile_definitions(test_exploit_eucleak_inversion_timing_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_eucleak_inversion_timing COMMAND test_exploit_eucleak_inversion_timing_standalone)
+set_tests_properties(exploit_eucleak_inversion_timing PROPERTIES TIMEOUT 120 LABELS "audit;exploit;sidechannel;inversion")
+
+# -- PoC: Cross-key nonce reuse cascading compromise (CKN-1..CKN-10) [ePrint 2025/654] --
+add_executable(test_exploit_ecdsa_cross_key_nonce_reuse_standalone
+    test_exploit_ecdsa_cross_key_nonce_reuse.cpp)
+audit_target_defaults(test_exploit_ecdsa_cross_key_nonce_reuse_standalone)
+target_link_libraries(test_exploit_ecdsa_cross_key_nonce_reuse_standalone PRIVATE fastsecp256k1)
+target_compile_definitions(test_exploit_ecdsa_cross_key_nonce_reuse_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_ecdsa_cross_key_nonce_reuse COMMAND test_exploit_ecdsa_cross_key_nonce_reuse_standalone)
+set_tests_properties(exploit_ecdsa_cross_key_nonce_reuse PROPERTIES TIMEOUT 120 LABELS "audit;exploit;ecdsa;nonce")
+
+# -- PoC: Fiat-Shamir hash order in BIP-340 (SHO-1..SHO-10) [ePrint 2025/1846] --
+add_executable(test_exploit_schnorr_hash_order_standalone
+    test_exploit_schnorr_hash_order.cpp)
+audit_target_defaults(test_exploit_schnorr_hash_order_standalone)
+target_link_libraries(test_exploit_schnorr_hash_order_standalone PRIVATE fastsecp256k1)
+target_compile_definitions(test_exploit_schnorr_hash_order_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_schnorr_hash_order COMMAND test_exploit_schnorr_hash_order_standalone)
+set_tests_properties(exploit_schnorr_hash_order PROPERTIES TIMEOUT 120 LABELS "audit;exploit;schnorr;hash")
+
 # -- PoC: Cross-scheme pubkey consistency (CSP-1..CSP-8) -------------------
 add_executable(test_exploit_cross_scheme_pubkey_standalone
     test_exploit_cross_scheme_pubkey.cpp
@@ -2352,6 +2379,12 @@ add_executable(unified_audit_runner
     test_exploit_ecdsa_nonce_modular_bias.cpp
     # -- Differential fault on RFC 6979 (ePrint 2017/975) --
     test_exploit_ecdsa_differential_fault.cpp
+    # -- EUCLEAK non-CT modular inversion (ePrint 2024/1380) --
+    test_exploit_eucleak_inversion_timing.cpp
+    # -- Cross-key nonce reuse cascade (ePrint 2025/654) --
+    test_exploit_ecdsa_cross_key_nonce_reuse.cpp
+    # -- Fiat-Shamir hash order in BIP-340 (ePrint 2025/1846) --
+    test_exploit_schnorr_hash_order.cpp
 )
 # Conditionally add 5x52 field test (requires __uint128_t; skip on MSVC)
 if(NOT (MSVC AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang"))

@@ -7,6 +7,30 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-04-09 (3 new ePrint exploit PoCs: EUCLEAK, cross-key nonce reuse, Fiat-Shamir hash order)
+
+- **Added** `audit/test_exploit_eucleak_inversion_timing.cpp` — ePrint 2024/1380
+  "EUCLEAK" (NinjaLab): 12 sub-tests (EUC-1..EUC-12, 28 checks) verifying
+  constant-time modular inversion across pathological inputs (zero, near-order,
+  high/low Hamming weight, alternating bits, batch context, CT vs fast path).
+  Infineon's 14-year non-CT Extended Euclidean Algorithm vulnerability.
+
+- **Added** `audit/test_exploit_ecdsa_cross_key_nonce_reuse.cpp` — ePrint 2025/654
+  "ECDSA Cracking Methods" (Edinburgh Napier): 10 sub-tests (CKN-1..CKN-10, 16 checks)
+  demonstrating cascading key compromise when multiple keys share a weak-PRNG nonce.
+  One compromised key immediately reveals all others sharing the same nonce stream.
+  RFC 6979 immunity verified.
+
+- **Added** `audit/test_exploit_schnorr_hash_order.cpp` — ePrint 2025/1846
+  "The Order of Hashing in Fiat-Shamir Schemes" (ASIACRYPT 2025): 10 sub-tests
+  (SHO-1..SHO-10, 15 checks) verifying BIP-340 challenge hash input ordering
+  R||P||msg is correct. Wrong orderings (msg-first, R-last, pubkey-first, reversed)
+  produce different challenges and signatures that fail verification.
+
+**Running total after this wave: 166 audit files, 59 new checks (28+16+15).**
+
+---
+
 ## 2026-04-08 (Research-driven exploit test expansion: 4 new ePrint/CVE attack classes)
 
 - **Added** `audit/test_exploit_ecdsa_affine_nonce_relation.cpp` — ePrint 2025/705

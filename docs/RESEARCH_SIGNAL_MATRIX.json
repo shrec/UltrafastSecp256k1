@@ -297,6 +297,65 @@
         "cpu/src/rfc6979.cpp"
       ],
       "reason": "ePrint 2017/975 shows key recovery when faults are injected during deterministic nonce generation. PoC validates the attack mechanism and confirms the library's deterministic nonce path consistency."
+    },
+    {
+      "id": "eucleak_non_ct_inversion",
+      "status": "covered",
+      "priority": "high",
+      "action": "monitor",
+      "keywords": [
+        "EUCLEAK",
+        "ePrint 2024/1380",
+        "modular inversion",
+        "EEA timing",
+        "Infineon",
+        "YubiKey",
+        "constant-time"
+      ],
+      "repo_evidence": [
+        "audit/test_exploit_eucleak_inversion_timing.cpp",
+        "cpu/src/ct_scalar.cpp",
+        "cpu/src/scalar.cpp"
+      ],
+      "reason": "ePrint 2024/1380 documents a 14-year Infineon vulnerability where non-CT Extended Euclidean Algorithm for modular inversion leaked key material via EM side-channel. PoC verifies SafeGCD and Fermat paths produce correct and consistent results across pathological inputs."
+    },
+    {
+      "id": "cross_key_nonce_reuse",
+      "status": "covered",
+      "priority": "high",
+      "action": "monitor",
+      "keywords": [
+        "cross-key nonce reuse",
+        "ePrint 2025/654",
+        "cascading compromise",
+        "shared PRNG",
+        "nonce reuse"
+      ],
+      "repo_evidence": [
+        "audit/test_exploit_ecdsa_cross_key_nonce_reuse.cpp",
+        "cpu/src/rfc6979.cpp"
+      ],
+      "reason": "ePrint 2025/654 shows cascading key compromise when multiple keys share the same nonce via weak PRNG. One compromised key reveals all others. RFC 6979 derives nonces from (key, msg) making cross-key sharing impossible. PoC validates the attack and RFC 6979 immunity."
+    },
+    {
+      "id": "fiat_shamir_hash_order",
+      "status": "covered",
+      "priority": "high",
+      "action": "monitor",
+      "keywords": [
+        "Fiat-Shamir",
+        "hash order",
+        "ePrint 2025/1846",
+        "ASIACRYPT 2025",
+        "BIP-340",
+        "challenge hash"
+      ],
+      "repo_evidence": [
+        "audit/test_exploit_schnorr_hash_order.cpp",
+        "cpu/include/secp256k1/tagged_hash.hpp",
+        "cpu/src/schnorr.cpp"
+      ],
+      "reason": "ePrint 2025/1846 proves that hash input ordering in Fiat-Shamir schemes affects multi-user security. BIP-340 uses R||P||msg (correct: commitment before message). PoC verifies all 4 wrong orderings produce different challenges and fail verification."
     }
   ]
 }

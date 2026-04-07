@@ -4,7 +4,7 @@
 > or prove we missed something — start here. We want you to find real bugs more
 > than we want to look clean.
 
-**Current assurance state**: 157 exploit PoC tests, 11 fuzzer harnesses, 58 audit
+**Current assurance state**: 166 exploit PoC tests, 11 fuzzer harnesses, 58 audit
 modules, 39 formal Cryptol properties, dudect + Valgrind CT evidence, full
 Wycheproof vector coverage. None of this means the library is bug-free. It means
 we tried hard. Now you try.
