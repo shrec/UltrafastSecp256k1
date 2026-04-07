@@ -1841,6 +1841,19 @@ target_compile_definitions(test_exploit_metal_field_reduce_standalone PRIVATE ST
 add_test(NAME exploit_metal_field_reduce COMMAND test_exploit_metal_field_reduce_standalone)
 set_tests_properties(exploit_metal_field_reduce PROPERTIES TIMEOUT 60 LABELS "audit;exploit;metal;field")
 
+# -- PoC: Network selector validation bypass (all address/WIF ABI) ----------
+add_executable(test_exploit_network_validation_bypass_standalone
+    test_exploit_network_validation_bypass.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_network_validation_bypass_standalone)
+target_include_directories(test_exploit_network_validation_bypass_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+)
+target_compile_definitions(test_exploit_network_validation_bypass_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_network_validation_bypass COMMAND test_exploit_network_validation_bypass_standalone)
+set_tests_properties(exploit_network_validation_bypass PROPERTIES TIMEOUT 60 LABELS "audit;exploit;address;abi;network")
+
 # -- Source integrity scanner: known mutation artifact patterns -------------
 add_executable(test_mutation_artifact_scan_standalone test_mutation_artifact_scan.cpp)
 audit_target_defaults(test_mutation_artifact_scan_standalone)
@@ -2273,6 +2286,8 @@ add_executable(unified_audit_runner
     test_mutation_artifact_scan.cpp
     # -- Metal field_reduce_512 regression (issue #226) --
     test_exploit_metal_field_reduce.cpp
+    # -- Network selector validation bypass --
+    test_exploit_network_validation_bypass.cpp
 )
 # Conditionally add 5x52 field test (requires __uint128_t; skip on MSVC)
 if(NOT (MSVC AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang"))

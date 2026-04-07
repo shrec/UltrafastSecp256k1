@@ -8,6 +8,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Security / Audit
+- **Metal `field_reduce_512` truncation fix (issue #226)** — `uint extra = uint(acc[8])` in
+  `metal/shaders/secp256k1_field.h` truncated a 33-bit accumulator to 32 bits, silently
+  producing incorrect field_sqr/field_mul results for ~0.05% of inputs. Root cause: secp256k1
+  reduction constant K = 2^32+977 generates carries that exceed 32 bits. Fixed with
+  `ulong extra` + `while(acc[8] != 0)` carry-drain loop. Regression PoC:
+  `test_exploit_metal_field_reduce.cpp` (14 checks, MFR-1..MFR-7). Cross-backend audit confirmed
+  CUDA and OpenCL are unaffected. Commits `3c3aac1f`, `943fb674`.
+- **Network selector validation bypass** — all 6 address/WIF C ABI functions
+  (`ufsecp_addr_p2pkh`, `p2wpkh`, `p2tr`, `p2sh`, `p2sh_p2wpkh`, `wif_encode`) silently
+  accepted arbitrary `int` values as the network parameter, treating unknowns as Mainnet or
+  Testnet. An attacker-controlled caller passing `network=99` would receive a valid-looking
+  but semantically ambiguous address. Fixed with `valid_network()` guard returning
+  `UFSECP_ERR_BAD_INPUT`. Exploit PoC: `test_exploit_network_validation_bypass.cpp`
+  (54 checks, NVB-1..NVB-8). Commit `943fb674`.
+- **Mutation residue exploit vectors** — `test_exploit_mutation_residue.cpp` (23 checks,
+  MR-1..MR-7) targeting wNAF OOB, divsteps mask, scalar inverse, window sign-magnitude,
+  field reduction constant, dubious identity shortcut, nonce bit-length. Source integrity
+  scanner: `test_mutation_artifact_scan.cpp` (6 checks, MA-1..MA-4). Commit `736e753f`.
 - **Python audit script suite** (`scripts/`) — 8 dynamic + 1 static analysis scripts, 9 Python
   CTest targets total. All run via `--lib path/to/libufsecp.so`. All PASS.
   - `differential_cross_impl.py` (1000+ checks): drives library alongside coincurve + python-ecdsa
