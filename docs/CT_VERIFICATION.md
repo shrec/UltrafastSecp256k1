@@ -463,6 +463,7 @@ FROST and MuSig2 remain broader experimental protocol surfaces, but the repo no 
 - [ ] **ECDSA nonce**: RFC 6979 HMAC-DRBG is CT (no secret-dependent branches)
 - [ ] **Schnorr nonce**: BIP-340 tagged hash is CT
 - [ ] **No early return**: grep for `if (is_zero())` or `if (is_infinity())` in CT path
+- [ ] **ct::scalar_inverse(0) guard**: both SafeGCD and Fermat CT inverse paths return `Scalar::zero()` for zero input (defense-in-depth, not a timing exit — the zero check is on the input, not on secret-derived data; verified by `test_exploit_boundary_sentinels` BS-1, BS-10)
 - [ ] **No array indexing by secret**: all lookups use linear scan + cmov
 - [ ] **asm volatile barriers**: present around timing-sensitive sections
 - [ ] **dudect passes**: |t| < 4.5 for all tested functions

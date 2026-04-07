@@ -7,6 +7,35 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-04-07 (CT scalar_inverse(0) fix + boundary sentinel test suite)
+
+- **Fixed** `cpu/src/ct_scalar.cpp`: both SafeGCD and Fermat fallback `ct::scalar_inverse`
+  paths now return `Scalar::zero()` for zero input. Previously only the FAST-path
+  `Scalar::inverse()` had this guard; the CT paths had undefined behavior on zero.
+  Defense-in-depth fix — the zero check is on the input scalar (not secret-derived data),
+  so it does not break constant-time guarantees.
+
+- **Added** `audit/test_exploit_boundary_sentinels.cpp` — 10 test groups, 18 individual
+  checks covering literature-derived boundary edge cases:
+  - BS-1: `ct::scalar_inverse(0)` → zero (verifies the fix)
+  - BS-2: `fast::Scalar::inverse(0)` → zero
+  - BS-3: `FieldElement::inverse(0)` → throws `runtime_error`
+  - BS-4: `schnorr_batch_verify({})` → true (empty batch vacuously true)
+  - BS-5: ECDSA low-S half-order boundary (4 sub-checks: max low-S, min high-S, normalize, idempotence)
+  - BS-6: MuSig2 `key_agg` with duplicate pubkeys (3 sub-checks)
+  - BS-7: Schnorr sign with `aux_rand=0xFF…FF` (2 sub-checks: verifies, differs from zero aux)
+  - BS-8: `Point::has_even_y()` on infinity is deterministic
+  - BS-9: `ecdsa_batch_verify({})` → true (empty batch)
+  - BS-10: CT `scalar_inverse` round-trips: inverse(1)==1, val×inverse(val)==1, (n-1)×inverse(n-1)==1
+
+- **Updated** docs: `SECURITY_CLAIMS.md` (perimeter items 9-10), `SECRET_LIFECYCLE.md`
+  (change-control note 5), `CT_VERIFICATION.md` (audit checklist), `ECDSA_EDGE_CASE_COVERAGE.md`
+  (Category XII — 13 boundary sentinels, total 101/101).
+
+**Running total: edge case coverage 101/101 (100%). 18/18 boundary sentinel tests PASS.**
+
+---
+
 ## 2026-04-05 (LibFuzzer harnesses, mutation tracker, Cryptol specs, SLSA verifier, unified_audit_runner 3 new modules — commits `38108b89`, `00522b57`)
 
 - **Added** `cpu/fuzz/fuzz_ecdsa.cpp` + `cpu/fuzz/fuzz_schnorr.cpp` (ClusterFuzzLite, ECDSA and BIP-340

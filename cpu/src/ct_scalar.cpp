@@ -422,6 +422,7 @@ static limbs4 inverse_impl(const limbs4& x) {
 } // namespace ct_safegcd
 
 Scalar scalar_inverse(const Scalar& a) noexcept {
+    if (a.is_zero()) return Scalar::zero();
     return Scalar::from_limbs(ct_safegcd::inverse_impl(a.limbs()));
 }
 
@@ -433,6 +434,7 @@ Scalar scalar_inverse(const Scalar& a) noexcept {
 // ~10x slower than SafeGCD but works on all platforms.
 // ============================================================================
 Scalar scalar_inverse(const Scalar& a) noexcept {
+    if (a.is_zero()) return Scalar::zero();
     auto sqr = [](const Scalar& s) -> Scalar { return s * s; };
     auto sqr_n = [&sqr](Scalar s, int count) -> Scalar {
         for (int i = 0; i < count; ++i) s = sqr(s);

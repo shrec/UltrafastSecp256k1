@@ -1711,6 +1711,14 @@ target_compile_definitions(test_exploit_ecdsa_sign_sentinels_standalone PRIVATE 
 add_test(NAME exploit_ecdsa_sign_sentinels COMMAND test_exploit_ecdsa_sign_sentinels_standalone)
 set_tests_properties(exploit_ecdsa_sign_sentinels PROPERTIES TIMEOUT 60 LABELS "audit;exploit;ecdsa;sentinel")
 
+# -- Boundary sentinel edge cases (inverse(0), empty batch, half-order, MuSig2 dup) ---
+add_executable(test_exploit_boundary_sentinels_standalone
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_exploit_boundary_sentinels.cpp)
+audit_target_defaults(test_exploit_boundary_sentinels_standalone)
+target_compile_definitions(test_exploit_boundary_sentinels_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_boundary_sentinels COMMAND test_exploit_boundary_sentinels_standalone)
+set_tests_properties(exploit_boundary_sentinels PROPERTIES TIMEOUT 60 LABELS "audit;exploit;boundary;sentinel")
+
 # -- Wycheproof ECDSA Bitcoin variant vectors (BIP-62 low-S + PR #206) ------
 add_executable(test_wycheproof_ecdsa_bitcoin_standalone
     ${CMAKE_CURRENT_SOURCE_DIR}/test_wycheproof_ecdsa_bitcoin.cpp)

@@ -16,6 +16,7 @@ and `docs/SECURITY_CLAIMS.md` whenever those surfaces change.
 2. **Crash-risk analysis** is now a first-class audit-gate check (`check_crash_risks`). Division-by-zero and other crash risks in CT-sensitive functions are flagged automatically.
 3. **dudect PR gate** runs a 60 s smoke test on every pull request; the full 30 min statistical analysis runs on push to `dev`/`main`.
 4. **Coverage upload** now fails CI on error (`fail_ci_if_error: true`).
+5. **CT scalar_inverse(0) zero guard.** Both the SafeGCD and Fermat fallback constant-time scalar inverse paths in `cpu/src/ct_scalar.cpp` now return `Scalar::zero()` for zero input. Previously, only the FAST-path `Scalar::inverse()` had this guard. This is a defense-in-depth fix: `ct::scalar_inverse(0)` was undefined behavior, theoretically reachable if a caller passed a zero scalar to a CT signing path. Verified by `test_exploit_boundary_sentinels` BS-1 and BS-10.
 
 ---
 

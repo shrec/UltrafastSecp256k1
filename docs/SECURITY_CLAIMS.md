@@ -41,6 +41,11 @@ Additional enforcement surfaces added in the 2026-04-07 CI hardening:
 6. Crash-risk analysis: division-by-zero and other crash vectors in CT-sensitive paths
 7. MemorySanitizer (MSan): detects use-of-uninitialized-memory, complements zeroization
 8. Coverage upload failure gating: `fail_ci_if_error: true`
+9. CT scalar_inverse(0) zero guard: both SafeGCD and Fermat fallback CT paths now return
+   `Scalar::zero()` for zero input, matching the FAST path behavior (defense-in-depth)
+10. Boundary sentinel test suite: 18 exploit-class checks covering inverse(0), empty batch
+    verify, half-order low-S boundary, MuSig2 duplicate keys, aux_rand edge values,
+    has_even_y(infinity), and CT inverse round-trips (`test_exploit_boundary_sentinels`)
 
 ---
 

@@ -228,6 +228,32 @@ All six are now covered by `audit/test_wycheproof_ecdsa_extended.cpp` (65 vector
 
 ---
 
+## Category XII — Cross-Cutting Boundary Sentinels (2026-04-07)
+
+Literature-driven edge case sweep covering inverse(0), empty batch, half-order boundaries,
+MuSig2 duplicate keys, aux_rand extremes, and CT inverse correctness.
+All covered by `audit/test_exploit_boundary_sentinels.cpp` (18 checks, 18/18 pass).
+
+| # | Edge Case | Expected Behaviour | Covered By |
+|---|-----------|-------------------|------------|
+| XII-1 | `ct::scalar_inverse(0)` → zero (was UB before fix) | Returns `Scalar::zero()` | BS-1 |
+| XII-2 | `fast::Scalar::inverse(0)` → zero | Returns `Scalar::zero()` | BS-2 |
+| XII-3 | `FieldElement::inverse(0)` → throws | `std::runtime_error` | BS-3 |
+| XII-4 | `schnorr_batch_verify({})` → true (vacuous) | Empty batch returns true | BS-4 |
+| XII-5 | `is_low_s(s=(n-1)/2)` → true (max low-S) | Accepted | BS-5a |
+| XII-6 | `is_low_s(s=(n+1)/2)` → false (min high-S) | Rejected | BS-5b |
+| XII-7 | `normalize_s()` on high-S → low-S | s → n−s | BS-5c |
+| XII-8 | `normalize_s()` on low-S → no-op | s unchanged | BS-5d |
+| XII-9 | MuSig2 key_agg with duplicate pubkeys | Valid aggregated key | BS-6a,b,c |
+| XII-10 | Schnorr sign with aux_rand=0xFF…FF | Verifies; differs from aux=0 | BS-7a,b |
+| XII-11 | `Point::has_even_y()` on infinity | Deterministic result | BS-8 |
+| XII-12 | `ecdsa_batch_verify({})` → true (vacuous) | Empty batch returns true | BS-9 |
+| XII-13 | CT scalar_inverse round-trips (1, random, n-1) | val × inverse(val) ≡ 1 | BS-10a,b,c |
+
+**Gap check:** XII-1..XII-13 all covered. ✅
+
+---
+
 ## Summary
 
 | Category | Edge Cases | Covered | Gap |
@@ -243,12 +269,15 @@ All six are now covered by `audit/test_wycheproof_ecdsa_extended.cpp` (65 vector
 | IX — Malleability | 5 | 5 | 0 |
 | X — Identified gaps | 6 | 6 | 0 |
 | XI — Wycheproof extended (new) | 6 subcategories / 65 vectors | 6 / 65 | 0 |
-| **TOTAL** | **88 documented categories** | **88** | **0** |
+| XII — Boundary sentinels | 13 | 13 | 0 |
+| **TOTAL** | **101 documented categories** | **101** | **0** |
 
-**Overall coverage: 88/88 (100%).**
+**Overall coverage: 101/101 (100%).**
 - Categories I–X (82 cases) have been covered since 2026-04-07.
 - Category XI (6 new Wycheproof flag categories, 65 test vectors) closed 2026-04-06
   by `audit/test_wycheproof_ecdsa_extended.cpp`.
+- Category XII (13 boundary sentinels, 18 checks) closed 2026-04-07
+  by `audit/test_exploit_boundary_sentinels.cpp`.
 
 ---
 
@@ -263,6 +292,7 @@ All six are now covered by `audit/test_wycheproof_ecdsa_extended.cpp` (65 vector
 | X-4 | 2026-04-07 | `test_exploit_ecdsa_sign_sentinels.cpp` SS-9 (GPU guard source-level audit) |
 | X-5 | 2026-04-07 | `test_exploit_ecdsa_fault_injection.cpp` EFI-7/EFI-8 |
 | XI-1..XI-6 | 2026-04-06 | `test_wycheproof_ecdsa_extended.cpp` §A–§F (65 vectors, 65/65 pass) |
+| XII-1..XII-13 | 2026-04-07 | `test_exploit_boundary_sentinels.cpp` BS-1..BS-10 (18 checks, 18/18 pass) |
 
 ---
 
