@@ -2,7 +2,7 @@ name: ClusterFuzzLite
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
     paths:
       - 'cpu/**'
       - 'include/**'
@@ -15,9 +15,6 @@ on:
       - 'include/**'
       - '.clusterfuzzlite/**'
       - '.github/workflows/cflite.yml'
-  schedule:
-    # Nightly batch fuzzing -- 04:00 UTC (after nightly.yml at 03:00)
-    - cron: '0 4 * * *'
   workflow_dispatch:
     inputs:
       fuzz_seconds:
@@ -70,7 +67,7 @@ jobs:
 
   # ── Batch fuzzing (nightly, extended corpus exploration) ──────────────────
   batch-fuzzing:
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'push'
     runs-on: ubuntu-24.04
     permissions:
       security-events: write  # for SARIF upload if crashes found
@@ -105,7 +102,7 @@ jobs:
 
   # ── Corpus pruning (weekly, keep corpus lean) ────────────────────────────
   prune-corpus:
-    if: github.event_name == 'schedule'
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     permissions:
       security-events: write  # for SARIF upload if crashes found

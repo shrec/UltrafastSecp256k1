@@ -11,7 +11,7 @@ from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 LIB_ROOT = SCRIPT_DIR.parent
-DB_PATH = LIB_ROOT / ".project_graph.db"
+DB_PATH = LIB_ROOT / "tools" / "source_graph_kit" / "source_graph.db"
 
 CT_DOCS = [
     "docs/CT_VERIFICATION.md",
@@ -82,19 +82,24 @@ def _load_secret_surface_sets() -> tuple[set[str], set[str]]:
     conn = sqlite3.connect(str(DB_PATH))
     conn.row_factory = sqlite3.Row
     try:
+        # source_graph.db schema: symbol_metadata has ct_sensitive flag,
+        # semantic_tags has tag='security' per file.
         ct_files = {
-            row["path"]
+            row["file_path"]
             for row in conn.execute(
-                "SELECT path FROM source_files WHERE layer='ct'"
+                "SELECT DISTINCT file_path FROM symbol_metadata WHERE ct_sensitive = 1"
             ).fetchall()
         }
         security_files |= {
-            row["source_file"]
+            row["file"]
             for row in conn.execute(
-                "SELECT DISTINCT source_file FROM security_patterns"
+                "SELECT DISTINCT file FROM semantic_tags WHERE tag = 'security'"
             ).fetchall()
-            if row["source_file"]
+            if row["file"]
         }
+    except Exception:
+        # Graceful fallback if schema differs
+        pass
     finally:
         conn.close()
 

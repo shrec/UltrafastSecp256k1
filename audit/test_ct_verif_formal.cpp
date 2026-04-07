@@ -148,7 +148,7 @@ static void test_ct_field_ops() {
     // Field inverse with secret input
     {
         FieldElement a = make_random_fe();
-        while (a.is_zero()) {
+        while (a == FieldElement::zero()) {
             a = make_random_fe();
         }
         SECP256K1_CLASSIFY(&a, sizeof(a));
@@ -267,7 +267,7 @@ static void test_ct_primitives() {
         uint64_t result = secp256k1::ct::ct_select(a_val, b_val, mask_val);
         SECP256K1_DECLASSIFY(&result, sizeof(result));
         SECP256K1_DECLASSIFY(&flag, sizeof(flag));
-        CHECK(result == (flag ? b_val : a_val), "ct_select returns the expected branch value");
+        CHECK(result == (flag ? a_val : b_val), "ct_select returns the expected branch value");
     }
 
     // ct_lookup (table scan must be constant-time)

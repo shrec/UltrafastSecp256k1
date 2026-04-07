@@ -1,9 +1,22 @@
 name: Mutation Testing
 
 on:
-  schedule:
-    # Weekly: Sunday 05:00 UTC (after nightly + fuzzing)
-    - cron: '0 5 * * 0'
+  push:
+    branches: [main, dev]
+    paths:
+      - 'cpu/src/**'
+      - 'cpu/include/**'
+      - 'include/**'
+      - 'CMakeLists.txt'
+      - '.github/workflows/mutation.yml'
+  pull_request:
+    branches: [main, dev]
+    paths:
+      - 'cpu/src/**'
+      - 'cpu/include/**'
+      - 'include/**'
+      - 'CMakeLists.txt'
+      - '.github/workflows/mutation.yml'
   workflow_dispatch:
     inputs:
       targets:

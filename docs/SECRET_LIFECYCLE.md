@@ -1,12 +1,21 @@
 # Secret Lifecycle Review
 
-**Last updated**: 2026-03-15 | **Version**: 3.50.0
+**Last updated**: 2026-04-07 | **Version**: 3.50.0
 
 Documents how secret material (private keys, nonces, session state) is handled throughout its lifecycle: creation, use, and destruction.
 
 Secret-lifecycle and zeroization changes are under stricter change control:
 `scripts/check_secret_path_changes.py` requires paired updates to this document
 and `docs/SECURITY_CLAIMS.md` whenever those surfaces change.
+
+---
+
+## 2026-04-07 CI Hardening Notes
+
+1. **MSan added to CI sanitizer matrix.** MemorySanitizer (`-fsanitize=memory -fsanitize-memory-track-origins=2`) now runs alongside ASan and TSan. This catches use-of-uninitialized-memory on secret-bearing paths — a direct complement to zeroization enforcement.
+2. **Crash-risk analysis** is now a first-class audit-gate check (`check_crash_risks`). Division-by-zero and other crash risks in CT-sensitive functions are flagged automatically.
+3. **dudect PR gate** runs a 60 s smoke test on every pull request; the full 30 min statistical analysis runs on push to `dev`/`main`.
+4. **Coverage upload** now fails CI on error (`fail_ci_if_error: true`).
 
 ---
 

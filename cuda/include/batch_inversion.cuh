@@ -272,7 +272,9 @@ __global__ void batch_inverse_naive(const FieldElement* input, FieldElement* out
 // ===================================================================
 // DEFAULT KERNEL - Montgomery (proven working)
 // ===================================================================
-__global__ __launch_bounds__(256, 4) void batch_inverse_kernel(const FieldElement* input, FieldElement* output, int count) {
+// Do not force 4-block residency here; the Fermat inversion path can need
+// close to the full per-thread register budget on current CUDA toolchains.
+__global__ __launch_bounds__(256) void batch_inverse_kernel(const FieldElement* input, FieldElement* output, int count) {
     extern __shared__ FieldElement shared_mem[];
     FieldElement* L = shared_mem;
     FieldElement* R = shared_mem + blockDim.x;

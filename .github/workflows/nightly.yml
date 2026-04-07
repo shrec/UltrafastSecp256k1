@@ -1,9 +1,26 @@
-name: Nightly Extended Tests
+name: Extended Tests (Differential + dudect)
 
 on:
-  schedule:
-    # Daily 03:00 UTC — extended test suite
-    - cron: '0 3 * * *'
+  push:
+    branches: [main, dev]
+    paths:
+      - 'cpu/**'
+      - 'include/**'
+      - 'gpu/**'
+      - 'opencl/**'
+      - 'metal/**'
+      - 'CMakeLists.txt'
+      - '.github/workflows/nightly.yml'
+  pull_request:
+    branches: [main, dev]
+    paths:
+      - 'cpu/**'
+      - 'include/**'
+      - 'gpu/**'
+      - 'opencl/**'
+      - 'metal/**'
+      - 'CMakeLists.txt'
+      - '.github/workflows/nightly.yml'
   workflow_dispatch:
     inputs:
       differential_multiplier:
@@ -66,9 +83,49 @@ jobs:
           echo "Running cross-library differential test..."
           ./build/audit/test_cross_libsecp256k1
 
+  # ── dudect smoke (fast PR gate ≈ 60 s) ───────────────────────────────────
+  dudect-smoke:
+    name: dudect Smoke (PR gate)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Harden the runner
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Install toolchain
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends g++-13 ninja-build
+
+      - name: Configure (smoke mode)
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_COMPILER=g++-13 \
+            -DSECP256K1_BUILD_TESTS=ON \
+            -DDUDECT_SMOKE=ON
+
+      - name: Build dudect (smoke)
+        run: cmake --build build --target test_ct_sidechannel_standalone -j"$(nproc)"
+
+      - name: Run dudect smoke
+        run: |
+          timeout 60 ./build/cpu/test_ct_sidechannel_standalone 2>&1 | tee dudect_smoke.log || EXIT=$?
+          if [ "${EXIT:-0}" -ne 0 ] && [ "${EXIT:-0}" -ne 124 ]; then
+            echo "::error::dudect smoke detected timing leakage"
+            exit 1
+          fi
+          echo "::notice::dudect smoke passed"
+
   # ── dudect full statistical run (30 min) ─────────────────────────────────
   dudect-full:
     name: dudect Full Statistical Analysis
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:

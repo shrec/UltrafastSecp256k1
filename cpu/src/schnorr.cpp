@@ -151,9 +151,9 @@ static inline Scalar schnorr_challenge_scalar(const uint8_t* r32,
     std::memcpy(challenge_input + 0, r32, 32);
     std::memcpy(challenge_input + 32, pubkey_x32, 32);
     std::memcpy(challenge_input + 64, msg32, 32);
-    return Scalar::from_bytes(cached_tagged_hash(g_challenge_midstate,
-                                                 challenge_input,
-                                                 sizeof(challenge_input)));
+    return Scalar::from_bytes(detail::cached_tagged_hash(detail::g_challenge_midstate,
+                                                         challenge_input,
+                                                         sizeof(challenge_input)));
 }
 
 #if !defined(SECP256K1_PLATFORM_ESP32) && !defined(SECP256K1_PLATFORM_STM32)

@@ -36,6 +36,12 @@ Two explicit non-claims remain important:
 1. The library does **not** claim total hostile-caller quartet closure while the live ABI blocker set is non-zero.
 2. Mutation kill-rate evidence is part of the assurance perimeter, but remains the heavier batch / owner-grade lane rather than the default per-commit runtime path.
 
+Additional enforcement surfaces added in the 2026-04-07 CI hardening:
+
+6. Crash-risk analysis: division-by-zero and other crash vectors in CT-sensitive paths
+7. MemorySanitizer (MSan): detects use-of-uninitialized-memory, complements zeroization
+8. Coverage upload failure gating: `fail_ci_if_error: true`
+
 ---
 
 ## 1. Semantic Equivalence Contract
@@ -293,9 +299,9 @@ All three backends implement identical CT algorithms.
 CT claims are verified empirically using the **dudect** methodology
 (Reparaz, Balasch, Verbauwhede, 2017):
 
-- **Per-PR**: smoke test (`|t| < 25.0`, ~30s) in `security-audit.yml`
-- **Nightly**: full statistical analysis (`|t| < 4.5`, ~30 min) in `nightly.yml`
-- **Native ARM64**: Apple Silicon M1 (macos-14): smoke per-PR + full nightly in `ct-arm64.yml`
+- **Per-PR**: dudect smoke test (`|t| < 25.0`, ~60s) in the Extended Tests workflow
+- **Per-push** (dev/main): full statistical analysis (`|t| < 4.5`, ~30 min) in the Extended Tests workflow
+- **Native ARM64**: Apple Silicon M1 (macos-14): smoke per-PR + full per-push in `ct-arm64.yml`
 - **Valgrind taint**: `MAKE_MEM_UNDEFINED` on all secret inputs, every CI run
 - **ct-verif LLVM pass**: compile-time CT verification (no secret-dependent branches at IR level)
 - **MuSig2/FROST**: protocol-level timing tests added in v3.16.0

@@ -796,6 +796,48 @@ def check_mutation_kill_rate(conn):
 
 
 # ---------------------------------------------------------------------------
+# P3 — Crash Risk Analysis (source graph)
+# ---------------------------------------------------------------------------
+SOURCE_GRAPH_DB = LIB_ROOT / "tools" / "source_graph_kit" / "source_graph.db"
+
+
+def check_crash_risks(_conn):
+    findings = []
+
+    if not SOURCE_GRAPH_DB.exists():
+        findings.append(('WARN', 'Source graph DB not found — skipping crash risk analysis'))
+        return 'P3: Crash Risks', findings
+
+    sg_conn = sqlite3.connect(str(SOURCE_GRAPH_DB))
+    sg_conn.row_factory = sqlite3.Row
+    try:
+        rows = sg_conn.execute("""
+            SELECT risk_type, COUNT(*) as cnt FROM crash_risks GROUP BY risk_type
+        """).fetchall()
+        total = sum(r['cnt'] for r in rows)
+
+        # Check crash risks in CT-sensitive files
+        ct_crash = sg_conn.execute("""
+            SELECT COUNT(*) as cnt FROM crash_risks cr
+            JOIN symbol_metadata sm ON cr.file = sm.file_path
+            WHERE sm.ct_sensitive = 1
+        """).fetchone()
+        ct_crash_count = ct_crash['cnt'] if ct_crash else 0
+    finally:
+        sg_conn.close()
+
+    breakdown = ", ".join(f'{r["risk_type"]}={r["cnt"]}' for r in rows)
+    findings.append(('INFO', f'Total crash risks: {total} ({breakdown})'))
+
+    if ct_crash_count > 0:
+        findings.append(('WARN', f'{ct_crash_count} crash risks in CT-sensitive functions'))
+    else:
+        findings.append(('PASS', f'No crash risks in CT-sensitive code ({total} total, none in CT paths)'))
+
+    return 'P3: Crash Risks', findings
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 CHECK_MAP = {
@@ -816,6 +858,7 @@ CHECK_MAP = {
     '--routing': check_routing,
     '--doc-pairing': check_doc_pairing,
     '--mutation-kill': check_mutation_kill_rate,
+    '--crash-risks': check_crash_risks,
 }
 
 ALL_CHECKS = [
@@ -835,6 +878,7 @@ ALL_CHECKS = [
     check_test_docs,
     check_routing,
     check_doc_pairing,
+    check_crash_risks,
 ]
 
 

@@ -285,7 +285,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        sanitizer: [asan, tsan]
+        sanitizer: [asan, tsan, msan]
         include:
           - sanitizer: asan
             cmake_flags: "-DCMAKE_C_FLAGS='-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer' -DCMAKE_CXX_FLAGS='-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer' -DCMAKE_EXE_LINKER_FLAGS='-fsanitize=address,undefined'"
@@ -293,6 +293,9 @@ jobs:
           - sanitizer: tsan
             cmake_flags: "-DCMAKE_C_FLAGS='-fsanitize=thread -fno-omit-frame-pointer' -DCMAKE_CXX_FLAGS='-fsanitize=thread -fno-omit-frame-pointer' -DCMAKE_EXE_LINKER_FLAGS='-fsanitize=thread'"
             label: "TSan"
+          - sanitizer: msan
+            cmake_flags: "-DCMAKE_C_FLAGS='-fsanitize=memory -fno-omit-frame-pointer -fsanitize-memory-track-origins=2' -DCMAKE_CXX_FLAGS='-fsanitize=memory -fno-omit-frame-pointer -fsanitize-memory-track-origins=2 -stdlib=libc++' -DCMAKE_EXE_LINKER_FLAGS='-fsanitize=memory -stdlib=libc++ -lc++abi'"
+            label: "MSan"
 
     name: "Sanitizers (${{ matrix.label }})"
     steps:
@@ -306,7 +309,7 @@ jobs:
       - name: Install Clang 17
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y clang-17 lld-17 ccache ninja-build
+          sudo apt-get install -y clang-17 lld-17 ccache ninja-build libc++-17-dev libc++abi-17-dev
 
       - name: Cache ccache
         uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
@@ -756,7 +759,7 @@ jobs:
         with:
           files: coverage.lcov
           flags: cpu
-          fail_ci_if_error: false
+          fail_ci_if_error: true
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 

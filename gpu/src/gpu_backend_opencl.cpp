@@ -2273,6 +2273,7 @@ private:
 
         return GpuError::Ok;
     }
+};
 
 /* -- Factory --------------------------------------------------------------- */
 std::unique_ptr<GpuBackend> create_opencl_backend() {
