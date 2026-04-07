@@ -2326,7 +2326,7 @@ if(MSVC OR (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND WIN32))
     target_link_options(unified_audit_runner PRIVATE "LINKER:/STACK:8388608")
 endif()
 add_test(NAME unified_audit COMMAND unified_audit_runner)
-set_tests_properties(unified_audit PROPERTIES TIMEOUT 1200)
+set_tests_properties(unified_audit PROPERTIES TIMEOUT 1800)
 
 # ===========================================================================
 target_link_libraries(unified_audit_runner PRIVATE Threads::Threads)

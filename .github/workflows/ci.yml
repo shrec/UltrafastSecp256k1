@@ -354,7 +354,19 @@ jobs:
         # Exclude py_*: Python ctypes loads libufsecp.so without the sanitizer
         # runtime preloaded, causing undefined symbol errors for __asan_*,
         # __tsan_func_entry, etc. Python tests run in the normal linux jobs.
-        run: ctest --test-dir build/${{ matrix.sanitizer }} --output-on-failure -j$(nproc) -E "^(ct_sidechannel|unified_audit|selftest|batch_randomness|py_)" --timeout 900
+        # MSan exclusions: batch_add_affine, field_52, exhaustive, comprehensive,
+        # bip340_vectors use precompute global with std::string members that
+        # trigger false positives under MSan with non-instrumented system libc++.
+        # The Security Audit MSan job (security-audit.yml) builds its own
+        # MSan-instrumented libc++ and covers these tests properly.
+        run: |
+          if [ "${{ matrix.sanitizer }}" = "msan" ]; then
+            ctest --test-dir build/${{ matrix.sanitizer }} --output-on-failure -j$(nproc) \
+              -E "^(ct_sidechannel|unified_audit|selftest|batch_randomness|py_|batch_add_affine|field_52|exhaustive|comprehensive|bip340_vectors|bip340_strict)" --timeout 900
+          else
+            ctest --test-dir build/${{ matrix.sanitizer }} --output-on-failure -j$(nproc) \
+              -E "^(ct_sidechannel|unified_audit|selftest|batch_randomness|py_)" --timeout 900
+          fi
 
   # -- Windows (MSVC + Clang-cl) ----------------------------------------------
   windows:
