@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Security / Audit
+- **Point::scalar_mul exploit PoC** — `test_exploit_scalar_mul.cpp` (59 checks, SM-1..SM-12)
+  targeting edge cases across the CPU scalar multiplication path: zero/identity/order-n scalars,
+  n-1 negation, GLV consistency (pubkey_create vs tweak_mul), additive homomorphism, Shamir
+  trick, multi-scalar-mul, large scalar near-n wrap-around, scalar overflow >n, repeated
+  doubling chain. All 12 sub-tests pass; no bugs found — confirms correctness of GLV
+  decomposition, wNAF encoding, and endomorphism application paths.
 - **Metal `field_reduce_512` truncation fix (issue #226)** — `uint extra = uint(acc[8])` in
   `metal/shaders/secp256k1_field.h` truncated a 33-bit accumulator to 32 bits, silently
   producing incorrect field_sqr/field_mul results for ~0.05% of inputs. Root cause: secp256k1

@@ -267,6 +267,7 @@ CTest surface exactly:
 - `exploit_quantum_exposure`
 - `exploit_rfc6979_minerva_amplified`
 - `exploit_rfc6979_truncation_bias`
+- `exploit_scalar_mul`
 - `exploit_schnorr_forgery_vectors`
 - `exploit_schnorr_msg_length_confusion`
 - `exploit_schnorr_nonce_reuse`
@@ -650,6 +651,7 @@ Each test compiles as a separate binary and verifies that attacks fail, edge cas
 | Mutation | `test_exploit_mutation_residue` | Mutation residue exploit: inverse sweep, ECDSA roundtrip, CT scalar_inverse(0) |
 | Mutation | `test_mutation_artifact_scan` | Source artifact scanner: stale mutation markers, vestigial test debris |
 | ABI / Network | `test_exploit_network_validation_bypass` | Network selector validation bypass: OOB enum, INT_MAX, negative values |
+| Scalar Mul | `test_exploit_scalar_mul` | Point::scalar_mul edge-case PoC: zero/identity/order-n/GLV/Shamir/MSM/overflow/doubling-chain |
 
 Build and run all exploit tests:
 ```bash

@@ -1557,6 +1557,17 @@ target_compile_definitions(test_exploit_frost_adaptive_corruption_standalone PRI
 add_test(NAME exploit_frost_adaptive_corruption COMMAND test_exploit_frost_adaptive_corruption_standalone)
 set_tests_properties(exploit_frost_adaptive_corruption PROPERTIES TIMEOUT 60 LABELS "audit;exploit;frost;adaptive")
 
+# -- PoC: Point::scalar_mul edge-case and correctness attack surface --------
+add_executable(test_exploit_scalar_mul_standalone
+    test_exploit_scalar_mul.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_scalar_mul_standalone)
+target_include_directories(test_exploit_scalar_mul_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include ${CMAKE_BINARY_DIR}/include)
+target_compile_definitions(test_exploit_scalar_mul_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_scalar_mul COMMAND test_exploit_scalar_mul_standalone)
+set_tests_properties(exploit_scalar_mul PROPERTIES TIMEOUT 60 LABELS "audit;exploit;scalar_mul;glv")
+
 # -- PoC: Deterministic ECDSA fault-injection regression --------------------
 add_executable(test_exploit_ecdsa_fault_injection_standalone
     test_exploit_ecdsa_fault_injection.cpp
@@ -2269,6 +2280,7 @@ add_executable(unified_audit_runner
     test_exploit_address_prefix_collision.cpp
     test_exploit_ecdh_zvp_glv_static.cpp
     test_exploit_frost_adaptive_corruption.cpp
+    test_exploit_scalar_mul.cpp
     test_exploit_ecdsa_fault_injection.cpp
     test_exploit_cache_sidechannel_amplification.cpp
     test_exploit_ladderleak_subbit_nonce.cpp
@@ -2412,6 +2424,7 @@ set_tests_properties(
     exploit_binding_adversarial_api exploit_quantum_exposure
     exploit_ecies_ephemeral_reuse exploit_address_prefix_collision
     exploit_ecdh_zvp_glv_static exploit_frost_adaptive_corruption
+    exploit_scalar_mul
     exploit_ecdsa_fault_injection exploit_cache_sidechannel_amplification
     exploit_ladderleak_subbit_nonce exploit_minerva_noisy_hnp
     exploit_hertzbleed_dvfs_timing exploit_biased_nonce_chain_scan

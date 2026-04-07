@@ -1,0 +1,11 @@
+[package]
+name = "k256_helper"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+k256 = { version = "0.13", features = ["ecdsa", "ecdh"] }
+sha2 = "0.10"
+hex = "0.4"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
