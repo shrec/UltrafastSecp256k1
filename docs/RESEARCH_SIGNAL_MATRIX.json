@@ -427,6 +427,50 @@
         "audit/test_exploit_frost_adaptive_corruption.cpp"
       ],
       "reason": "ePrint 2026/075 shows FROST2 has TS-SUF-2 not TS-SUF-4 security (weak binding). ePrint 2025/1001 attacks adaptive security of threshold Schnorr. PoC validates session nonce uniqueness, key tweak resilience, taproot binding, and batch verify with mixed keys."
+    },
+    {
+      "id": "blind_spa_cmov_leak",
+      "status": "covered",
+      "priority": "high",
+      "action": "monitor",
+      "keywords": ["SPA", "cmov", "cswap", "power analysis", "ePrint 2024/589", "ePrint 2025/935", "CHES", "constant-time"],
+      "repo_evidence": [
+        "audit/test_exploit_blind_spa_cmov_leak.cpp"
+      ],
+      "reason": "ePrint 2024/589 + 2025/935: Blind-Folded SPA exploits cmov/cswap power leakage even without template profiling. PoC validates ECDSA/ECDH/Schnorr determinism, HW-extreme keys timing within 3x ratio, and multi-sign consistency."
+    },
+    {
+      "id": "ectester_point_validation",
+      "status": "covered",
+      "priority": "high",
+      "action": "monitor",
+      "keywords": ["ECTester", "point validation", "infinity", "off-curve", "twist", "ePrint 2025/1293", "ECC", "invalid pubkey"],
+      "repo_evidence": [
+        "audit/test_exploit_ectester_point_validation.cpp"
+      ],
+      "reason": "ePrint 2025/1293: ECTester systematic point validation testing found widespread ECC library failures — infinity acceptance, off-curve acceptance, twist-point acceptance. PoC validates all rejection paths + negate/tweak/combine edge cases."
+    },
+    {
+      "id": "ros_dimensional_erosion",
+      "status": "covered",
+      "priority": "medium",
+      "action": "monitor",
+      "keywords": ["eROS", "dimensional", "blind signature", "BZ", "ePrint 2025/306", "ePrint 2025/1353", "concurrent sessions"],
+      "repo_evidence": [
+        "audit/test_exploit_ros_dimensional_erosion.cpp"
+      ],
+      "reason": "ePrint 2025/306 + 2025/1353: Dimensional eROS attack + Benhamouda-Zottarel blind sig forgery exploit concurrent session nonce correlation. PoC validates 256-session r-value uniqueness, batch verify, and Hamming distance entropy for nonce bias detection."
+    },
+    {
+      "id": "ecdsa_batch_verify_randomization",
+      "status": "covered",
+      "priority": "medium",
+      "action": "monitor",
+      "keywords": ["batch verification", "modified ECDSA", "randomization", "ePrint 2026/663", "identify_invalid", "batch_verify"],
+      "repo_evidence": [
+        "audit/test_exploit_ecdsa_batch_verify_rand.cpp"
+      ],
+      "reason": "ePrint 2026/663: Modified ECDSA batch verification with weak randomization allows forgery injection. PoC validates corruption detection, invalid-position pinpointing, wrong pk/msg rejection, and batch scaling from empty to 1024 entries."
     }
   ]
 }

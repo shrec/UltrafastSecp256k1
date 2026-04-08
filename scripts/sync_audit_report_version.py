@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+"""
+sync_audit_report_version.py  --  Sync AUDIT_REPORT.md version with VERSION.txt
+"""
 
 from pathlib import Path
 import re

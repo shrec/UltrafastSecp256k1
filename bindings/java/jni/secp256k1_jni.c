@@ -119,7 +119,10 @@ JNIEXPORT jbyteArray JNICALL Java_com_ultrafast_secp256k1_Secp256k1_ecPrivkeyNeg
     CHECK_LEN(privkey, 32, "privkey");
     uint8_t pk[32];
     get_bytes(env, privkey, pk, 32);
-    secp256k1_ec_privkey_negate(pk);
+    if (secp256k1_ec_privkey_negate(pk) != 1) {
+        throw_exc(env, "Privkey negate failed");
+        return NULL;
+    }
     return make_byte_array(env, pk, 32);
 }
 

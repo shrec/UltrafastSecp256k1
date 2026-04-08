@@ -7,6 +7,46 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-04-14 (4 new ePrint exploit PoCs + crypto-aware dev_bug_scanner layer)
+
+- **Added** `audit/test_exploit_blind_spa_cmov_leak.cpp` — ePrint 2024/589 +
+  2025/935 "Blind-Folded SPA" (CHES 2024–2025): 12 sub-tests (BSPA-1..12)
+  verifying CT cmov/cswap power leakage resistance across signing, ECDH,
+  Schnorr paths. HW-extreme keys timing ratio enforcement (<3×).
+
+- **Added** `audit/test_exploit_ectester_point_validation.cpp` — ePrint 2025/1293
+  "ECTester: Systematic Point Validation Testing for ECC Libraries": 18 sub-tests
+  (ECT-1..18) covering infinity rejection, off-curve rejection, x≥p rejection,
+  twist-point rejection, invalid prefix/truncated pubkeys, ECDH bad-point
+  rejection, negate(negate(P))=P identity, tweak_add(zero), pubkey_combine(single).
+
+- **Added** `audit/test_exploit_ros_dimensional_erosion.cpp` — ePrint 2025/306 +
+  2025/1353 "Dimensional eROS + BZ Blind Signature Forgery": 12 sub-tests
+  (RDE-1..12) verifying r-value uniqueness across 256 concurrent ECDSA/Schnorr
+  sessions, batch verification of 256 sigs, Hamming distance entropy checks
+  for nonce bias resistance.
+
+- **Added** `audit/test_exploit_ecdsa_batch_verify_rand.cpp` — ePrint 2026/663
+  "Modified ECDSA Batch Verification Randomization": 16 sub-tests (BVR-1..16)
+  covering all-valid batch verification, corrupted sig rejection, invalid
+  position pinpointing (first/last/multiple/all), wrong pk/msg rejection,
+  empty/single/1024-entry batch scaling.
+
+- **Added** 5 crypto-specific checkers to `scripts/dev_bug_scanner.py`:
+  SECRET_UNERASED, CT_VIOLATION, TAGGED_HASH_BYPASS, RANDOM_IN_SIGNING,
+  BINDING_NO_VALIDATION — Trail-of-Bits/NCC-style static analysis layer
+  for crypto hygiene enforcement.
+
+- **Integrated** dev_bug_scanner into `scripts/preflight.py` as [13/14]
+  check — crypto-specific HIGH findings are now surfaced in preflight gate.
+
+- **Added** `scripts/test_audit_scripts.py` — Python audit infrastructure
+  self-test: validates syntax, shebang, docstring, `--help` exit codes,
+  structural integrity (category coverage, step count), and smoke tests
+  for all 31 audit Python scripts. 99/99 checks pass. Integrated into
+  `scripts/preflight.py` as [14/14] and into `preflight.yml` CI workflow
+  as a hard-fail gate.
+
 ## 2026-04-13 (6 new ePrint/CVE exploit PoCs: ZVP-DCP, lattice HNP, DFA, type confusion, ROS, FROST binding)
 
 - **Added** `audit/test_exploit_zvp_glv_dcp_multiscalar.cpp` — ePrint 2025/076

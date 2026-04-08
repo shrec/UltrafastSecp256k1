@@ -18,6 +18,19 @@ Detects the kind of bugs a human reviewer catches during development:
   ZEROIZE memset clears fewer bytes than the declared buffer size
   DBLINIT variable assigned twice consecutively with no intervening read
   UNREACH statement after unconditional return/throw/continue/break
+  SECRET_UNERASED  Scalar in signing/key path without secure_erase on exit
+  CT_VIOLATION     fast:: namespace call in CT-required secret path
+  TAGGED_HASH_BYPASS  plain sha256() where BIP-340 tagged_hash is required
+  RANDOM_IN_SIGNING   non-deterministic random in RFC 6979 signing path
+  BINDING_NO_VALIDATION  public ufsecp_ function missing NULL-check on args
+  DANGLING_ELSE  braceless else with multiple statements (goto-fail pattern)
+  ASSERT_SIDE    assert() with side-effectful code (stripped in Release builds)
+  SHIFT_UB       shift by >= type width (undefined behavior)
+  DOUBLE_LOCK    mutex locked twice without unlock (deadlock risk)
+  UNSAFE_FMT     sprintf/strcpy/gets without bounds check (buffer overflow)
+  HARDCODED_SECRET  hardcoded private key or seed in non-test code
+  CATCH_EMPTY    empty catch block silently swallows errors
+  SIZEOF_MISMATCH  memcpy/memset sizeof refers to wrong variable
 
 Usage examples
 --------------
@@ -494,15 +507,29 @@ _UFSECP_CALL = re.compile(
 _ASSIGNED    = re.compile(r'^\s*\w[\w\s*<>:,]+\s*=\s*(?:ufsecp_|secp256k1_|mbedtls_|RAND_bytes|EVP_|SHA256_|HMAC)')
 _VOID_FUNC   = re.compile(r'^\s*void\b')
 _IF_CHECK    = re.compile(r'if\s*\(')
+_VOID_COMPAT_FN = {'secp256k1_sha256', 'secp256k1_sha512', 'secp256k1_hash160',
+                   'secp256k1_tagged_hash', 'secp256k1_ripemd160'}
 
 def check_retval(path: str, lines: List[str]) -> List[Finding]:
     """Return value of ufsecp_* / security critical function silently discarded."""
     findings: List[Finding] = []
+    # Collect macros defined in this file to skip their invocations
+    defined_macros: set[str] = set()
+    for ln in lines:
+        dm = re.match(r'\s*#\s*define\s+(\w+)\s*\(', ln)
+        if dm:
+            defined_macros.add(dm.group(1))
     for i, raw in enumerate(lines):
         line = _strip_comments(raw)
         # Skip if inside an if-condition, an assignment, or a return statement
         stripped = line.strip()
         if not _UFSECP_CALL.match(stripped):
+            continue
+        # Skip continuation lines of multi-line expressions
+        if not stripped.endswith(';'):
+            continue
+        # Skip wrapped args (more closing parens than opening — part of outer call)
+        if stripped.count(')') > stripped.count('('):
             continue
         # It's a bare call — not used in an expression
         if any(line.lstrip().startswith(prefix) for prefix in ('if (', 'if(', 'return ', 'bool ', 'int ', 'auto ', 'const ')):
@@ -513,6 +540,15 @@ def check_retval(path: str, lines: List[str]) -> List[Finding]:
         # Extract function name
         fn_m = re.match(r'\s*(\w+)\s*\(', stripped)
         fn_name = fn_m.group(1) if fn_m else stripped[:30]
+
+        # Skip macros defined in the same file (e.g. do{...}while(0) wrappers)
+        if fn_name in defined_macros:
+            continue
+        # Skip known void-returning cleanup and compat hash functions
+        if re.search(r'_(destroy|free|cleanup|release|close)\b', fn_name):
+            continue
+        if fn_name in _VOID_COMPAT_FN:
+            continue
 
         findings.append(Finding(
             file=path, line=i + 1, severity="HIGH",
@@ -581,6 +617,18 @@ def check_zeroize(path: str, lines: List[str]) -> List[Finding]:
             name = m.group(1)
             size = int(m.group(2))
             if name in buf_sizes and size < buf_sizes[name]:
+                # Check if remaining bytes are written by subsequent code
+                remaining_written = False
+                for j in range(i + 1, min(i + 10, len(lines))):
+                    nl = _strip_comments(lines[j])
+                    if re.search(r'\b' + re.escape(name) + r'\s*\[', nl):
+                        remaining_written = True
+                        break
+                    if re.search(r'mem(?:set|cpy|move)\s*\(\s*' + re.escape(name) + r'\s*\+', nl):
+                        remaining_written = True
+                        break
+                if remaining_written:
+                    continue
                 findings.append(Finding(
                     file=path, line=i + 1, severity="HIGH",
                     category="ZEROIZE",
@@ -734,6 +782,211 @@ def check_unreachable(path: str, lines: List[str]) -> List[Finding]:
 
 
 # ──────────────────────────────────────────────────────────────────────────────
+# Crypto-specific checkers
+# ──────────────────────────────────────────────────────────────────────────────
+
+# ── SECRET_UNERASED: Scalar on stack in signing/key path without secure_erase ─
+_SCALAR_DECL   = re.compile(r'\bScalar\s+(\w+)\s*[=;({]')
+_SECURE_ERASE  = re.compile(r'secure_erase\s*\(\s*(?:const_cast<[^>]+>\s*\(\s*)?(?:&\s*)?(\w+)')
+_SECRET_PATH_KW = {'sign', 'nonce', 'key', 'adapt', 'bip32', 'derive', 'secret', 'blind'}
+_TRIVIAL_SCALAR = {'zero', 'one', 'result', 'order', 'half_order', 'n', 'GROUP_ORDER'}
+
+def check_secret_unerased(path: str, lines: List[str]) -> List[Finding]:
+    """Scalar local variable in signing/key path not followed by secure_erase."""
+    path_lower = path.lower()
+    if not any(kw in path_lower for kw in _SECRET_PATH_KW):
+        return []
+    # GPU private memory is ephemeral — skip OpenCL kernel files
+    if path_lower.endswith('.cl'):
+        return []
+    findings: List[Finding] = []
+    full_text = '\n'.join(lines)
+    has_dtor_erase = bool(re.search(
+        r'~\w+\s*\([^)]*\)\s*\{[^}]*secure_erase', full_text, re.DOTALL))
+    scalars: dict[str, int] = {}   # name -> line number
+    erased: set[str] = set()
+    returned: set[str] = set()
+    for i, raw in enumerate(lines):
+        line = _strip_comments(raw)
+        for m in _SCALAR_DECL.finditer(line):
+            name = m.group(1)
+            if name in _TRIVIAL_SCALAR:
+                continue
+            # Skip function definitions/declarations: Scalar func_name(params)
+            end_pos = m.end()
+            if end_pos > 0 and end_pos <= len(line) and line[end_pos - 1] == '(':
+                rest = line[end_pos:]
+                if rest.lstrip().startswith(')') or re.search(
+                        r'\b(const|Scalar|Point|uint\w+_t|int|size_t|Span|auto|void|std::)\b', rest):
+                    continue
+            # In header files, skip struct/class member and function declarations
+            if path_lower.endswith(('.hpp', '.h')):
+                stripped = line.strip()
+                if re.match(r'^(?:\w+::)*Scalar\s+\w+\s*[;{]', stripped):
+                    continue
+                if re.match(r'^(?:\w+::)*Scalar\s+\w+\s*\(', stripped):
+                    continue
+            # Skip variables inside public-data functions (ecrecover, verify, ...)
+            is_public_func = False
+            context_above = '\n'.join(lines[max(0, i - 30):i + 1])
+            if re.search(
+                    r'\b(ecrecover|recover|verify|parse|deserialize|decode)\s*\(',
+                    context_above):
+                is_public_func = True
+            if is_public_func:
+                continue
+            scalars[name] = i + 1
+        for m2 in _SECURE_ERASE.finditer(line):
+            erased.add(m2.group(1))
+        ret_m = re.search(r'\breturn\s+(\w+)\s*;', line)
+        if ret_m:
+            returned.add(ret_m.group(1))
+    for name, lineno in scalars.items():
+        if name in erased:
+            continue
+        if name in returned:
+            continue
+        if has_dtor_erase and name.endswith('_'):
+            continue
+        findings.append(Finding(
+            file=path, line=lineno, severity="HIGH",
+            category="SECRET_UNERASED",
+            message=f"Scalar `{name}` in secret path — no secure_erase found before function exit",
+            snippet=lines[lineno - 1].strip(),
+            fix_hint=f"Add secure_erase(&{name}, sizeof({name})) on all exit paths",
+        ))
+    return findings
+
+
+# ── CT_VIOLATION: fast:: call in signing/CT context ───────────────────────────
+_FAST_NS_CALL = re.compile(r'\bfast::(scalar_mul|field_mul|field_inv|scalar_inverse|field_sqr)\s*\(')
+_CT_FILE_KW   = {'sign', 'nonce', 'ct_', 'secret', 'adaptor', 'blind', 'ecdh', 'derive'}
+
+def check_ct_violation(path: str, lines: List[str]) -> List[Finding]:
+    """fast:: namespace function called in file that should use constant-time (ct::) paths."""
+    path_lower = path.lower()
+    if not any(kw in path_lower for kw in _CT_FILE_KW):
+        return []
+    findings: List[Finding] = []
+    for i, raw in enumerate(lines):
+        line = _strip_comments(raw)
+        m = _FAST_NS_CALL.search(line)
+        if m:
+            fn = m.group(1)
+            findings.append(Finding(
+                file=path, line=i + 1, severity="HIGH",
+                category="CT_VIOLATION",
+                message=f"`fast::{fn}()` in secret-bearing path — must use `ct::{fn}()` for constant-time safety",
+                snippet=raw.strip(),
+                fix_hint=f"Replace `fast::{fn}(...)` with `ct::{fn}(...)` to ensure CT execution",
+            ))
+    return findings
+
+
+# ── TAGGED_HASH_BYPASS: plain sha256() in signing code where tagged hash needed
+_PLAIN_SHA256  = re.compile(r'\bsha256\s*\(', re.I)
+_TAGGED_HASH   = re.compile(r'tagged_hash|TaggedHash|BIP0340', re.I)
+_SIGN_FILE_KW  = {'sign', 'schnorr', 'bip340', 'taproot', 'musig', 'adaptor'}
+
+def check_tagged_hash_bypass(path: str, lines: List[str]) -> List[Finding]:
+    """Plain sha256() in BIP-340/signing code where tagged_hash is required for domain separation."""
+    path_lower = path.lower()
+    if not any(kw in path_lower for kw in _SIGN_FILE_KW):
+        return []
+    findings: List[Finding] = []
+    for i, raw in enumerate(lines):
+        line = _strip_comments(raw)
+        if _PLAIN_SHA256.search(line) and not _TAGGED_HASH.search(line):
+            # Check context: if nearby lines use tagged_hash, this one should too
+            ctx = ' '.join(lines[max(0, i-5):min(len(lines), i+5)])
+            if _TAGGED_HASH.search(ctx) or any(kw in line.lower() for kw in ('nonce', 'challenge', 'aux')):
+                findings.append(Finding(
+                    file=path, line=i + 1, severity="HIGH",
+                    category="TAGGED_HASH_BYPASS",
+                    message="Plain `sha256()` in signing code where `tagged_hash(\"BIP0340/...\")` is required "
+                            "for domain separation — silent protocol break risk",
+                    snippet=raw.strip(),
+                    fix_hint="Use tagged_hash(\"BIP0340/...\", data) for BIP-340 domain separation",
+                ))
+    return findings
+
+
+# ── RANDOM_IN_SIGNING: non-deterministic random in signing path ───────────────
+_RANDOM_CALL   = re.compile(r'\b(getrandom|rand\s*\(|srand|random_bytes|RAND_bytes|arc4random|randombytes)\s*\(')
+_AUX_RAND_CTX  = re.compile(r'aux_rand|aux_entropy|extra_entropy|additional_entropy', re.I)
+
+def check_random_in_signing(path: str, lines: List[str]) -> List[Finding]:
+    """Random source called in signing path — RFC 6979 is deterministic, random here is suspicious."""
+    path_lower = path.lower()
+    if not any(kw in path_lower for kw in {'sign', 'nonce', 'rfc6979', 'k_gen'}):
+        return []
+    findings: List[Finding] = []
+    for i, raw in enumerate(lines):
+        line = _strip_comments(raw)
+        m = _RANDOM_CALL.search(line)
+        if m:
+            fn = m.group(1)
+            # Skip if it's the designated aux_rand injection path
+            ctx = ' '.join(lines[max(0, i-3):min(len(lines), i+3)])
+            if _AUX_RAND_CTX.search(ctx):
+                continue
+            findings.append(Finding(
+                file=path, line=i + 1, severity="HIGH",
+                category="RANDOM_IN_SIGNING",
+                message=f"`{fn}()` in signing/nonce path — RFC 6979 signing must be deterministic; "
+                         "random source here may introduce nonce bias or predictability",
+                snippet=raw.strip(),
+                fix_hint="Remove the random call or move it to the designated aux_rand/extra_entropy path",
+            ))
+    return findings
+
+
+# ── BINDING_NO_VALIDATION: public ufsecp_ function missing NULL-check on args ─
+_UFSECP_FUNC_DEF = re.compile(
+    r'^(?:ufsecp_error_t|int)\s+(ufsecp_\w+)\s*\('
+)
+_NULL_CHECK = re.compile(r'if\s*\(\s*!(?:ctx|out|sig|pk|pubkey|msg|priv|secret|result|entries)')
+
+def check_binding_no_validation(path: str, lines: List[str]) -> List[Finding]:
+    """Public ufsecp_ function body does not start with NULL-pointer validation on arguments."""
+    if 'impl' not in path.lower() and 'binding' not in path.lower() and 'ufsecp' not in path.lower():
+        return []
+    findings: List[Finding] = []
+    i = 0
+    while i < len(lines):
+        line = _strip_comments(lines[i])
+        m = _UFSECP_FUNC_DEF.match(line.strip())
+        if m:
+            fn_name = m.group(1)
+            # Scan forward into function body (next 15 lines after opening brace)
+            has_null_check = False
+            brace_found = False
+            for j in range(i, min(len(lines), i + 20)):
+                body_line = _strip_comments(lines[j])
+                if '{' in body_line:
+                    brace_found = True
+                if brace_found and _NULL_CHECK.search(body_line):
+                    has_null_check = True
+                    break
+                if brace_found and '}' in body_line and body_line.strip() == '}':
+                    break  # function ended
+            if brace_found and not has_null_check:
+                # Skip trivially-small functions (e.g. version_string)
+                if fn_name not in ('ufsecp_version_string', 'ufsecp_version_major',
+                                   'ufsecp_version_minor', 'ufsecp_version_patch'):
+                    findings.append(Finding(
+                        file=path, line=i + 1, severity="MEDIUM",
+                        category="BINDING_NO_VALIDATION",
+                        message=f"`{fn_name}()` — public ABI function body has no NULL-pointer "
+                                "validation on arguments in the first 15 lines",
+                        snippet=lines[i].strip(),
+                        fix_hint=f"Add `if (!ctx || !out) return UFSECP_ERROR_ARG;` at start of {fn_name}()",
+                    ))
+        i += 1
+    return findings
+
+
+# ──────────────────────────────────────────────────────────────────────────────
 # File collection
 # ──────────────────────────────────────────────────────────────────────────────
 
@@ -749,6 +1002,302 @@ _SKIP_DIR_PARTS = {
 
 def _is_skippable(path: Path) -> bool:
     return any(part in _SKIP_DIR_PARTS for part in path.parts)
+
+
+# ── DANGLING_ELSE: braceless else/if-else after multi-line block (goto-fail) ──
+def check_dangling_else(path: str, lines: List[str]) -> List[Finding]:
+    """Braceless else after multi-line if — the Apple 'goto fail' bug pattern."""
+    findings: List[Finding] = []
+    for i, raw in enumerate(lines):
+        line = _strip_comments(raw)
+        stripped = line.strip()
+        # Look for `} else` or standalone `else` without opening brace on same line
+        if re.match(r'^\}\s*else\s*$', stripped) or re.match(r'^else\s*$', stripped):
+            # Next non-blank line should either be { or a SINGLE statement
+            # If there are multiple statements before the next control block,
+            # only the first is actually in the else branch — bug!
+            body_lines = 0
+            for j in range(i + 1, min(len(lines), i + 6)):
+                nxt = _strip_comments(lines[j]).strip()
+                if not nxt:
+                    continue
+                if nxt.startswith('{'):
+                    break  # braced — fine
+                body_lines += 1
+                if body_lines >= 2:
+                    findings.append(Finding(
+                        file=path, line=i + 1, severity="HIGH",
+                        category="DANGLING_ELSE",
+                        message="Braceless `else` with multiple statements — only the first "
+                                "statement is inside the else branch (Apple 'goto fail' pattern)",
+                        snippet=raw.strip(),
+                        fix_hint="Add braces `{ }` around the else body",
+                    ))
+                    break
+                if nxt.endswith(';') or nxt.endswith('}'):
+                    break  # single statement — OK
+    return findings
+
+
+# ── ASSERT_SIDE_EFFECT: side-effectful code inside assert() ───────────────────
+_ASSERT_CALL = re.compile(r'\bassert\s*\((.+)\)\s*;')
+_SIDE_EFFECT = re.compile(
+    r'(\+\+|--|\w+\s*=[^=]|\w+\s*\(|new\s+|delete\s+|free\s*\(|push_back|emplace|insert|erase|pop)')
+
+def check_assert_side_effect(path: str, lines: List[str]) -> List[Finding]:
+    """assert() argument has side effects — stripped in Release builds, changing behavior."""
+    findings: List[Finding] = []
+    for i, raw in enumerate(lines):
+        line = _strip_comments(raw)
+        m = _ASSERT_CALL.search(line)
+        if m:
+            inner = m.group(1)
+            # Skip simple comparisons and boolean checks
+            if _SIDE_EFFECT.search(inner):
+                # Filter out false positives from comparison operators
+                if '==' in inner or '!=' in inner or '>=' in inner or '<=' in inner:
+                    # Check if assignment is actually inside comparison
+                    cleaned = re.sub(r'[!=<>]=', '', inner)
+                    if not _SIDE_EFFECT.search(cleaned):
+                        continue
+                findings.append(Finding(
+                    file=path, line=i + 1, severity="HIGH",
+                    category="ASSERT_SIDE",
+                    message="assert() contains side-effectful code — will be stripped in "
+                            "Release/NDEBUG builds, silently changing program behavior",
+                    snippet=raw.strip(),
+                    fix_hint="Move the side-effectful code before the assert and test the result",
+                ))
+    return findings
+
+
+# ── SHIFT_UB: shift by >= type width or by negative amount ────────────────────
+_SHIFT_EXPR = re.compile(
+    r'(?:<<|>>)\s*(\d+)')
+_TYPE_WIDTH = {
+    'uint8_t': 8, 'int8_t': 8, 'uint16_t': 16, 'int16_t': 16,
+    'uint32_t': 32, 'int32_t': 32, 'uint64_t': 64, 'int64_t': 64,
+    'unsigned': 32, 'int': 32, 'unsigned int': 32, 'size_t': 64,
+    'uint': 32,  # OpenCL/Metal
+}
+
+def check_shift_ub(path: str, lines: List[str]) -> List[Finding]:
+    """Shift by >= type width is undefined behavior in C/C++."""
+    findings: List[Finding] = []
+    # Detect 128-bit typedefs anywhere in file (e.g. using u128 = __uint128_t;)
+    full_text = '\n'.join(lines)
+    _128_aliases: set[str] = set()
+    for alias_m in re.finditer(
+            r'(?:typedef\s+(?:unsigned\s+)?__int128\s+|using\s+)(\w+)\s*=\s*(?:__uint128_t|__int128|unsigned\s+__int128)',
+            full_text):
+        name = alias_m.group(1)
+        if name not in ('typedef', 'using', 'unsigned'):
+            _128_aliases.add(name)
+    _128_pat = r'__(?:u?int)?128|unsigned\s+__int128'
+    if _128_aliases:
+        _128_pat += '|\\b(?:' + '|'.join(re.escape(a) for a in _128_aliases) + r')\b'
+
+    for i, raw in enumerate(lines):
+        line = _strip_comments(raw)
+        for sm in _SHIFT_EXPR.finditer(line):
+            shift_amount = int(sm.group(1))
+            # Skip 128-bit type operations
+            if re.search(_128_pat, line):
+                continue
+            left_of_shift = line[:sm.start()]
+            if re.search(_128_pat, left_of_shift):
+                continue
+            if shift_amount >= 128:
+                findings.append(Finding(
+                    file=path, line=i + 1, severity="HIGH",
+                    category="SHIFT_UB",
+                    message=f"Shift by {shift_amount} — undefined behavior for any integer type",
+                    snippet=raw.strip(),
+                    fix_hint="Use multiplication or a multi-word shift instead",
+                ))
+            elif shift_amount >= 64:
+                # Check context for 128-bit usage
+                ctx = '\n'.join(lines[max(0, i - 5):i + 1])
+                if re.search(_128_pat, ctx):
+                    continue
+                # Skip casts from a wider result (common in multi-precision arithmetic)
+                if re.search(r'\(\s*(?:std::)?(?:uint64_t|unsigned)\s*\)\s*\(', line):
+                    continue
+                if re.search(r'static_cast\s*<\s*(?:std::)?uint64_t\s*>', line):
+                    continue
+                findings.append(Finding(
+                    file=path, line=i + 1, severity="HIGH",
+                    category="SHIFT_UB",
+                    message=f"Shift by {shift_amount} — undefined behavior for 64-bit types "
+                            "(OK only for __uint128_t)",
+                    snippet=raw.strip(),
+                    fix_hint="Verify operand is __uint128_t, or use a multi-word shift",
+                ))
+            elif shift_amount >= 32:
+                # Skip casts extracting high bits from wider types
+                if re.search(r'\(\s*(?:std::)?uint32_t\s*\)\s*\(', line):
+                    continue
+                if re.search(r'static_cast\s*<\s*(?:std::)?uint32_t\s*>\s*\(', line):
+                    continue
+                # Only flag explicit 32-bit variable declarations with shift on same line
+                decl_m = re.match(
+                    r'^\s*(?:const\s+)?(?:uint32_t|int32_t|unsigned\s+int)\s+\w+\s*=.*'
+                    r'(?:<<|>>)\s*(?:3[2-9]|[4-5]\d|6[0-3])', line)
+                if decl_m:
+                    findings.append(Finding(
+                        file=path, line=i + 1, severity="HIGH",
+                        category="SHIFT_UB",
+                        message=f"Shift by {shift_amount} on a 32-bit type — undefined behavior",
+                        snippet=raw.strip(),
+                        fix_hint="Cast to uint64_t before shifting, or use (uint64_t)val << N",
+                    ))
+    return findings
+
+
+# ── DOUBLE_LOCK: mutex locked twice without unlock (deadlock) ─────────────────
+_LOCK = re.compile(r'\b(\w+)\s*\.\s*lock\s*\(\s*\)')
+_UNLOCK = re.compile(r'\b(\w+)\s*\.\s*unlock\s*\(\s*\)')
+_LOCK_GUARD = re.compile(r'\b(?:std::)?(?:unique_lock|lock_guard|scoped_lock)\s*.*\b(\w+)\s*[);]')
+
+def check_double_lock(path: str, lines: List[str]) -> List[Finding]:
+    """Mutex locked twice without intervening unlock — deadlock."""
+    findings: List[Finding] = []
+    locked: dict[str, int] = {}  # mutex_name -> line
+    for i, raw in enumerate(lines):
+        line = _strip_comments(raw)
+        stripped = line.strip()
+        # Reset tracking at function/block boundaries
+        if stripped in ('{', '}') or re.match(r'^(void|int|bool|auto|static|inline)\s', stripped):
+            locked.clear()
+            continue
+        # RAII lock_guard — mutex is locked for scope lifetime
+        m_guard = _LOCK_GUARD.search(line)
+        if m_guard:
+            locked.clear()
+            continue
+        # Explicit lock
+        m_lock = _LOCK.search(line)
+        if m_lock:
+            name = m_lock.group(1)
+            if name in locked:
+                findings.append(Finding(
+                    file=path, line=i + 1, severity="HIGH",
+                    category="DOUBLE_LOCK",
+                    message=f"Mutex `{name}` locked again without unlock (first lock at line {locked[name]})"
+                            " — non-recursive mutex will deadlock",
+                    snippet=raw.strip(),
+                    fix_hint=f"Add `{name}.unlock()` before re-locking, or use std::recursive_mutex",
+                ))
+            locked[name] = i + 1
+        # Unlock
+        m_unlock = _UNLOCK.search(line)
+        if m_unlock:
+            locked.pop(m_unlock.group(1), None)
+    return findings
+
+
+# ── UNSAFE_SPRINTF: sprintf/vsprintf without bounds check ────────────────────
+_UNSAFE_FMT = re.compile(r'\b(sprintf|vsprintf|strcpy|strcat|gets)\s*\(')
+
+def check_unsafe_sprintf(path: str, lines: List[str]) -> List[Finding]:
+    """Unbounded string format/copy — use snprintf/strncpy/strlcpy instead."""
+    findings: List[Finding] = []
+    for i, raw in enumerate(lines):
+        line = _strip_comments(raw)
+        m = _UNSAFE_FMT.search(line)
+        if m:
+            fn = m.group(1)
+            safe = {'sprintf': 'snprintf', 'vsprintf': 'vsnprintf',
+                    'strcpy': 'strncpy', 'strcat': 'strncat', 'gets': 'fgets'}
+            findings.append(Finding(
+                file=path, line=i + 1, severity="HIGH",
+                category="UNSAFE_FMT",
+                message=f"`{fn}()` has no bounds checking — buffer overflow risk",
+                snippet=raw.strip(),
+                fix_hint=f"Replace with `{safe.get(fn, fn)}(buf, sizeof(buf), ...)` to enforce bounds",
+            ))
+    return findings
+
+
+# ── HARDCODED_SECRET: private key / seed bytes outside test/example/bench ─────
+_HEX_PRIVKEY = re.compile(
+    r'(?:priv(?:ate)?_?key|secret|seed)\s*(?:\[\s*\d+\s*\])?\s*=\s*\{[^}]{60,}'
+)
+
+def check_hardcoded_secret(path: str, lines: List[str]) -> List[Finding]:
+    """Hardcoded private key / seed in production code — keys should come from entropy source."""
+    path_lower = path.lower()
+    # Skip test, example, benchmark, audit, doc files
+    if any(kw in path_lower for kw in ('test', 'bench', 'example', 'audit', 'main.c',
+                                        'demo', 'sample', 'doc', '.md')):
+        return []
+    findings: List[Finding] = []
+    full = '\n'.join(lines)
+    for m in _HEX_PRIVKEY.finditer(full):
+        # Find the line number
+        pos = m.start()
+        lineno = full[:pos].count('\n') + 1
+        findings.append(Finding(
+            file=path, line=lineno, severity="HIGH",
+            category="HARDCODED_SECRET",
+            message="Hardcoded private key / seed in production code — use CSPRNG or key derivation",
+            snippet=lines[lineno - 1].strip()[:100],
+            fix_hint="Remove hardcoded key material; derive from entropy source (RAND_bytes, getrandom, etc.)",
+        ))
+    return findings
+
+
+# ── EXCEPTION_SWALLOW: empty catch block that silently ignores errors ─────────
+_CATCH_BLOCK = re.compile(r'\bcatch\s*\([^)]*\)\s*\{')
+
+def check_exception_swallow(path: str, lines: List[str]) -> List[Finding]:
+    """Empty catch block silently swallows exceptions — errors become invisible."""
+    findings: List[Finding] = []
+    for i, raw in enumerate(lines):
+        line = _strip_comments(raw)
+        if _CATCH_BLOCK.search(line):
+            # Check if the catch body is empty (next non-blank line is just })
+            for j in range(i + 1, min(len(lines), i + 4)):
+                body = _strip_comments(lines[j]).strip()
+                if not body:
+                    continue
+                if body == '}':
+                    findings.append(Finding(
+                        file=path, line=i + 1, severity="MEDIUM",
+                        category="CATCH_EMPTY",
+                        message="Empty catch block silently swallows exception — error condition is invisible",
+                        snippet=raw.strip(),
+                        fix_hint="Log the error, rethrow, or add a comment explaining why ignoring is safe",
+                    ))
+                break  # non-empty body — fine
+    return findings
+
+
+# ── SIZEOF_MISMATCH: memcpy/memset size argument doesn't match destination ────
+_MEMOP_SIZEOF = re.compile(
+    r'\bmem(?:cpy|set|move)\s*\(\s*(\w+)\s*,.*?,\s*sizeof\s*\(\s*(\w+)\s*\)\s*\)')
+
+def check_sizeof_mismatch(path: str, lines: List[str]) -> List[Finding]:
+    """memcpy/memset sizeof argument refers to wrong variable (src instead of dst)."""
+    findings: List[Finding] = []
+    for i, raw in enumerate(lines):
+        line = _strip_comments(raw)
+        m = _MEMOP_SIZEOF.search(line)
+        if m:
+            dst = m.group(1)
+            sizeof_arg = m.group(2)
+            if dst != sizeof_arg:
+                # Only flag if sizeof arg looks like a different variable (not a type)
+                if sizeof_arg[0].islower() and sizeof_arg != dst:
+                    findings.append(Finding(
+                        file=path, line=i + 1, severity="MEDIUM",
+                        category="SIZEOF_MISMATCH",
+                        message=f"memop destination is `{dst}` but sizeof references `{sizeof_arg}` "
+                                "— possible size mismatch if types differ",
+                        snippet=raw.strip(),
+                        fix_hint=f"Use sizeof({dst}) to ensure the size matches the destination buffer",
+                    ))
+    return findings
 
 
 def collect_files(src_dirs: List[Path]) -> Iterable[Path]:
@@ -784,6 +1333,21 @@ CHECKERS = [
     check_zeroize,
     check_dblinit,
     check_unreachable,
+    # Defensive-coding checkers
+    check_dangling_else,
+    check_assert_side_effect,
+    check_shift_ub,
+    check_double_lock,
+    check_unsafe_sprintf,
+    check_hardcoded_secret,
+    check_exception_swallow,
+    check_sizeof_mismatch,
+    # Crypto-specific checkers
+    check_secret_unerased,
+    check_ct_violation,
+    check_tagged_hash_bypass,
+    check_random_in_signing,
+    check_binding_no_validation,
 ]
 
 

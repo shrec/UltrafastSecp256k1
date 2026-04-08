@@ -61,6 +61,12 @@ jobs:
       - name: Preflight -- Changed files impact (advisory)
         run: python3 scripts/preflight.py --changed || true
 
+      - name: Preflight -- Dev bug scanner (crypto) (advisory)
+        run: python3 scripts/preflight.py --bug-scan || true
+
+      - name: Python audit infrastructure self-test (hard-fail)
+        run: python3 scripts/test_audit_scripts.py --quick
+
       - name: Assurance docs validation (hard-fail)
         run: python3 scripts/validate_assurance.py
 

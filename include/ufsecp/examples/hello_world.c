@@ -49,7 +49,12 @@ int main(void) {
     /* ── 4. SHA-256 hash a message ────────────────────────────────────── */
     const char* msg = "hello ufsecp";
     uint8_t hash[32];
-    ufsecp_sha256((const uint8_t*)msg, strlen(msg), hash);
+    err = ufsecp_sha256((const uint8_t*)msg, strlen(msg), hash);
+    if (err != UFSECP_OK) {
+        fprintf(stderr, "sha256: %s\n", ufsecp_error_str(err));
+        ufsecp_ctx_destroy(ctx);
+        return 1;
+    }
 
     /* ── 5. ECDSA sign ────────────────────────────────────────────────── */
     uint8_t sig[64];
@@ -72,7 +77,12 @@ int main(void) {
 
     /* ── 7. Schnorr (BIP-340) sign + verify ───────────────────────────── */
     uint8_t xpub[32];
-    ufsecp_pubkey_xonly(ctx, privkey, xpub);
+    err = ufsecp_pubkey_xonly(ctx, privkey, xpub);
+    if (err != UFSECP_OK) {
+        fprintf(stderr, "pubkey_xonly: %s\n", ufsecp_error_str(err));
+        ufsecp_ctx_destroy(ctx);
+        return 1;
+    }
 
     uint8_t aux[32] = {0};  /* deterministic: all zeros */
     uint8_t schnorr_sig[64];
