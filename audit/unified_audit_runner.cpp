@@ -162,6 +162,12 @@ int test_exploit_blind_spa_cmov_leak_run();           // ePrint 2024/589, 2025/9
 int test_exploit_ectester_point_validation_run();     // ePrint 2025/1293 ECTester point validation
 int test_exploit_ros_dimensional_erosion_run();       // ePrint 2025/306, 2025/1353 eROS + BZ blind sig
 int test_exploit_ecdsa_batch_verify_rand_run();       // ePrint 2026/663 modified ECDSA batch verify
+int test_exploit_bip324_aead_forgery_run();           // BIP-324 AEAD forgery boundary attacks
+int test_exploit_frost_rogue_key_run();               // ePrint 2020/852 FROST rogue-key
+int test_exploit_musig2_partial_forgery_run();        // ePrint 2020/1261 MuSig2 partial sig forgery
+int test_exploit_adaptor_extraction_soundness_run();  // ePrint 2020/476 adaptor extraction soundness
+int test_exploit_ecdh_twist_injection_run();          // ePrint 2015/1233 ECDH twist injection
+int test_exploit_schnorr_batch_inflation_run();       // BIP-340 Schnorr batch inflation
 int test_cryptol_specs_run();      // Cryptol formal spec property check (advisory: needs cryptol)
 
 // ============================================================================
@@ -718,6 +724,12 @@ static const AuditModule ALL_MODULES[] = {
     { "exploit_ectester_point_validation", "ECTester Point Validation (ECT-1..18)",     "exploit_poc", test_exploit_ectester_point_validation_run, false },
     { "exploit_ros_dimensional_erosion",   "ROS Dimensional eROS (RDE-1..12)",          "exploit_poc", test_exploit_ros_dimensional_erosion_run, false },
     { "exploit_ecdsa_batch_verify_rand",   "ECDSA Batch Verify Rand (BVR-1..16)",      "exploit_poc", test_exploit_ecdsa_batch_verify_rand_run, false },
+    { "exploit_bip324_aead_forgery",       "BIP-324 AEAD Forgery (BAF-1..15)",          "exploit_poc", test_exploit_bip324_aead_forgery_run, false },
+    { "exploit_frost_rogue_key",           "FROST Rogue-Key Attack (FRK-1..12)",        "exploit_poc", test_exploit_frost_rogue_key_run, false },
+    { "exploit_musig2_partial_forgery",    "MuSig2 Partial Forgery (MPF-1..10)",        "exploit_poc", test_exploit_musig2_partial_forgery_run, false },
+    { "exploit_adaptor_extraction",        "Adaptor Extraction Soundness (ASE-1..12)",  "exploit_poc", test_exploit_adaptor_extraction_soundness_run, false },
+    { "exploit_ecdh_twist_injection",      "ECDH Twist Injection (ETP-1..12)",          "exploit_poc", test_exploit_ecdh_twist_injection_run, false },
+    { "exploit_schnorr_batch_inflation",   "Schnorr Batch Inflation (SBI-1..12)",       "exploit_poc", test_exploit_schnorr_batch_inflation_run, false },
 };
 
 static constexpr int NUM_MODULES = sizeof(ALL_MODULES) / sizeof(ALL_MODULES[0]);

@@ -2058,6 +2058,84 @@ target_compile_definitions(test_exploit_ecdsa_batch_verify_rand_standalone PRIVA
 add_test(NAME exploit_ecdsa_batch_verify_rand COMMAND test_exploit_ecdsa_batch_verify_rand_standalone)
 set_tests_properties(exploit_ecdsa_batch_verify_rand PROPERTIES TIMEOUT 120 LABELS "audit;exploit;ecdsa;batch;verify;rand")
 
+# -- BIP-324 AEAD forgery & ChaCha20-Poly1305 boundary (BIP-324, RFC 8439) --
+add_executable(test_exploit_bip324_aead_forgery_standalone
+    test_exploit_bip324_aead_forgery.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_bip324_aead_forgery_standalone)
+target_include_directories(test_exploit_bip324_aead_forgery_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+)
+target_compile_definitions(test_exploit_bip324_aead_forgery_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING SECP256K1_BIP324)
+add_test(NAME exploit_bip324_aead_forgery COMMAND test_exploit_bip324_aead_forgery_standalone)
+set_tests_properties(exploit_bip324_aead_forgery PROPERTIES TIMEOUT 120 LABELS "audit;exploit;bip324;aead")
+
+# -- FROST rogue-key / key-cancellation (ePrint 2020/852, 2023/899) --
+add_executable(test_exploit_frost_rogue_key_standalone
+    test_exploit_frost_rogue_key.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_frost_rogue_key_standalone)
+target_include_directories(test_exploit_frost_rogue_key_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+)
+target_compile_definitions(test_exploit_frost_rogue_key_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_frost_rogue_key COMMAND test_exploit_frost_rogue_key_standalone)
+set_tests_properties(exploit_frost_rogue_key PROPERTIES TIMEOUT 120 LABELS "audit;exploit;frost;rogue-key")
+
+# -- MuSig2 partial signature forgery & session binding (ePrint 2020/1261) --
+add_executable(test_exploit_musig2_partial_forgery_standalone
+    test_exploit_musig2_partial_forgery.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_musig2_partial_forgery_standalone)
+target_include_directories(test_exploit_musig2_partial_forgery_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+)
+target_compile_definitions(test_exploit_musig2_partial_forgery_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_musig2_partial_forgery COMMAND test_exploit_musig2_partial_forgery_standalone)
+set_tests_properties(exploit_musig2_partial_forgery PROPERTIES TIMEOUT 120 LABELS "audit;exploit;musig2;forgery")
+
+# -- Schnorr adaptor extraction soundness (ePrint 2020/476, 2021/150) --
+add_executable(test_exploit_adaptor_extraction_soundness_standalone
+    test_exploit_adaptor_extraction_soundness.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_adaptor_extraction_soundness_standalone)
+target_include_directories(test_exploit_adaptor_extraction_soundness_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+)
+target_compile_definitions(test_exploit_adaptor_extraction_soundness_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_adaptor_extraction_soundness COMMAND test_exploit_adaptor_extraction_soundness_standalone)
+set_tests_properties(exploit_adaptor_extraction_soundness PROPERTIES TIMEOUT 120 LABELS "audit;exploit;adaptor;soundness")
+
+# -- ECDH twist point injection / Pohlig-Hellman (ePrint 2015/1233) --
+add_executable(test_exploit_ecdh_twist_injection_standalone
+    test_exploit_ecdh_twist_injection.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_ecdh_twist_injection_standalone)
+target_include_directories(test_exploit_ecdh_twist_injection_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+)
+target_compile_definitions(test_exploit_ecdh_twist_injection_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_ecdh_twist_injection COMMAND test_exploit_ecdh_twist_injection_standalone)
+set_tests_properties(exploit_ecdh_twist_injection PROPERTIES TIMEOUT 120 LABELS "audit;exploit;ecdh;twist")
+
+# -- Schnorr batch verify inflation / mix attack (BIP-340, ePrint 2012/549) --
+add_executable(test_exploit_schnorr_batch_inflation_standalone
+    test_exploit_schnorr_batch_inflation.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_schnorr_batch_inflation_standalone)
+target_include_directories(test_exploit_schnorr_batch_inflation_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+)
+target_compile_definitions(test_exploit_schnorr_batch_inflation_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_schnorr_batch_inflation COMMAND test_exploit_schnorr_batch_inflation_standalone)
+set_tests_properties(exploit_schnorr_batch_inflation PROPERTIES TIMEOUT 120 LABELS "audit;exploit;schnorr;batch")
+
 # -- Source integrity scanner: known mutation artifact patterns -------------
 add_executable(test_mutation_artifact_scan_standalone test_mutation_artifact_scan.cpp)
 audit_target_defaults(test_mutation_artifact_scan_standalone)
@@ -2535,6 +2613,18 @@ add_executable(unified_audit_runner
     test_exploit_ros_dimensional_erosion.cpp
     # -- Modified ECDSA batch verify randomization (ePrint 2026/663) --
     test_exploit_ecdsa_batch_verify_rand.cpp
+    # -- BIP-324 AEAD forgery & ChaCha20-Poly1305 boundary (BIP-324, RFC 8439) --
+    test_exploit_bip324_aead_forgery.cpp
+    # -- FROST rogue-key attack (ePrint 2020/852, 2023/899) --
+    test_exploit_frost_rogue_key.cpp
+    # -- MuSig2 partial signature forgery (ePrint 2020/1261) --
+    test_exploit_musig2_partial_forgery.cpp
+    # -- Adaptor extraction soundness (ePrint 2020/476, 2021/150) --
+    test_exploit_adaptor_extraction_soundness.cpp
+    # -- ECDH twist point injection (ePrint 2015/1233) --
+    test_exploit_ecdh_twist_injection.cpp
+    # -- Schnorr batch verify inflation (BIP-340, ePrint 2012/549) --
+    test_exploit_schnorr_batch_inflation.cpp
 )
 # Conditionally add 5x52 field test (requires __uint128_t; skip on MSVC)
 if(NOT (MSVC AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
@@ -2566,6 +2656,7 @@ target_compile_definitions(unified_audit_runner PRIVATE
     UNIFIED_AUDIT_RUNNER
     DUDECT_SMOKE
     UFSECP_BUILDING
+    SECP256K1_BIP324
     GIT_HASH="${_git_hash}"
     UFSECP_SOURCE_ROOT="${CMAKE_CURRENT_SOURCE_DIR}/.."
 )
