@@ -294,9 +294,12 @@ timeout 1800 ./build/cpu/test_ct_sidechannel_standalone
 
 ## Known Limitations
 
-1. **No formal verification**: CT guarantees are empirical (dudect) + code
-   review, not mechanically proven (ct-verif proves IR-level absence of
-   secret-dependent branches but does not model microarchitecture effects).
+1. **Three-tier CT verification**: ct-verif (LLVM IR analysis) proves absence
+   of secret-dependent branches at the IR level and runs in CI on every push.
+   Valgrind CT tracks memory-undefined origins for secret-dependent access.
+   dudect provides statistical timing analysis. All three tiers are CI-enforced.
+   Limitation: none of these model microarchitectural effects (cache, speculative
+   execution). Machine-checked proofs (Vale/Jasmin/Coq) are not yet applied.
 
 2. **Compiler dependency**: A compiler update could introduce CT violations.
    Mitigation: dudect runs on every CI push (x86-64 + ARM64 M1).

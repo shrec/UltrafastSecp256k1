@@ -267,10 +267,10 @@ Each row in this matrix links:
 | **CT2** | `ct::ecdsa_sign` timing-independent of privkey | `cpu/ct/point.hpp` | dudect Welch t-test | `test_ct_sidechannel.cpp` -- section 4c | [OK] |
 | **CT3** | `ct::schnorr_sign` timing-independent of privkey | `cpu/ct/point.hpp` | dudect Welch t-test | `test_ct_sidechannel.cpp` -- section 4d | [OK] |
 | **CT4** | `ct::field_inv` timing-independent of input | `cpu/ct/field.hpp` | dudect Welch t-test | `test_ct_sidechannel.cpp` -- section 2e | [OK] |
-| **CT5** | No secret-dependent branches in CT paths | `cpu/ct/*.hpp` | Code review + compiler disassembly | Manual + `objdump` verification | [!] |
-| **CT6** | No secret-dependent memory access in CT paths | `cpu/ct/*.hpp` | Code review + Valgrind (planned) | Manual review | [!] |
+| **CT5** | No secret-dependent branches in CT paths | `cpu/ct/*.hpp` | ct-verif (LLVM IR analysis) + dudect + code review | `ct-verif.yml` CI workflow + `test_ct_sidechannel.cpp` | [OK] |
+| **CT6** | No secret-dependent memory access in CT paths | `cpu/ct/*.hpp` | Valgrind CT (memory-origin tracking) + dudect + code review | `valgrind-ct.yml` CI workflow + `test_ct_sidechannel.cpp` | [OK] |
 
-**CT Subtotal: 4/6 (2 partial -- CT5/CT6 require formal verification tooling)**
+**CT Subtotal: 6/6**
 
 ---
 

@@ -23,7 +23,7 @@ This project does not ask you to trust a static report.
 You can:
 - clone the repository
 - build locally with standard tools
-- run the full audit (56 modules, ~1M+ checks)
+- run the full audit (247 modules, 9 failure classes, ~1M+ checks)
 - reproduce the CI/CD pipeline via GitHub Actions YAML
 
 ## Minimal Setup
@@ -85,6 +85,9 @@ cmake --build build -j
 
 # Run all tests (31+ CTest targets plus unified audit and standalone vectors)
 ctest --test-dir build --output-on-failure
+
+# === ONE-COMMAND FULL AUDIT (247 modules, 9 failure classes, ~10 min) ===
+./build/audit/unified_audit_runner
 
 # Run with sanitizers
 cmake -S . -B build-san -G Ninja \

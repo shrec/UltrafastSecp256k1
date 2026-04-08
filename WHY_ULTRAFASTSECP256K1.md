@@ -60,11 +60,11 @@ These top-level differentiators are claim-keyed in the ledger: exploit-audit sur
 | ABI gate | FFI round-trip stability, C ABI regression detection | Full suite |
 | Performance regression | Automated micro-benchmark gate — fails CI if throughput regresses | Every push |
 | **Nightly differential** | Random round-trip differential tests against reference implementations | **~1,300,000+/night** |
-| **Total (audit runner)** | **unified_audit_runner** across 74 non-exploit modules + 146 exploit-PoC modules (220 total) | **~1,000,000+** |
-| **Total (exploit PoC tests)** | **146 exploit-style PoC modules** across 14 coverage categories, all in `audit/test_exploit_*.cpp` | **146 modules, 0 failures** |
+| **Total (audit runner)** | **unified_audit_runner** across 74 non-exploit modules + 173 exploit-PoC modules (247 total) | **~1,000,000+** |
+| **Total (exploit PoC tests)** | **173 exploit-style PoC modules** across 14+ coverage categories, all in `audit/test_exploit_*.cpp` | **173 modules, 0 failures** |
 
 All 74 non-exploit audit modules across all tested platforms return **AUDIT-READY**. Zero failures.
-All 146 exploit-PoC modules pass. Zero failures across all 14 coverage categories.
+All 173 exploit-PoC modules pass. Zero failures across all 14+ coverage categories.
 
 ### Self-Audit Documents
 
@@ -105,7 +105,7 @@ reproducible audit framework.
 | `ci.yml` | Core build + full test suite across 17 configurations × 7 architectures × 5 OSes | Every push / PR |
 | `preflight.yml` | Fast pre-merge smoke check — blocks merge on basic failures | Every PR |
 | `nightly.yml` | Nightly stress: 1.3M+ differential checks, extended fuzz, full sanitizer run | Nightly |
-| `security-audit.yml` | Runs the full `unified_audit_runner` (74 non-exploit + 146 exploit-PoC modules, ~1M assertions) plus sanitizer and warning gates | Every push |
+| `security-audit.yml` | Runs the full `unified_audit_runner` (74 non-exploit + 173 exploit-PoC modules, ~1M assertions) plus sanitizer and warning gates | Every push |
 | `audit-report.yml` | Generates and archives structured audit report artifacts | On release / manual |
 | `ct-arm64.yml` | Constant-time verification on native ARM64 hardware | Every push |
 | `ct-verif.yml` | Formal constant-time verification pass | Every push |

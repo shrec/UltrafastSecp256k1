@@ -115,7 +115,7 @@ An independent security audit is requested to verify correctness, identify vulne
 
 ## 5. Known Assumptions & Limitations
 
-1. **No formal verification**: CT layer relies on code review and dudect testing, not ct-verif/Vale
+1. **Limited formal verification**: CT layer uses a three-tier verification stack: ct-verif (LLVM IR analysis, CI-enforced), Valgrind CT (memory-undefined tracking, CI-enforced), and dudect (statistical timing, CI-enforced). Cryptol specifications cover field/point/ECDSA/Schnorr algebraic properties. Machine-checked proof frameworks (Vale/Jasmin/Coq/Fiat-Crypto) are not yet applied
 2. **Compiler trust**: CT guarantees assume compiler does not introduce secret-dependent branches at `-O2`
 3. **MuSig2/FROST C++ API evolving**: C++ API may change before v4.0; C ABI is stable. Protocol correctness validated against IETF RFC 9591 (FROST) and BIP-327 (MuSig2) with exploit PoC coverage
 4. **GPU variable-time**: All GPU backends are variable-time; secret-bearing ops (ECDH, BIP-352, BIP-324 AEAD) require trusted single-tenant environment. Documented in THREAT_MODEL.md
@@ -161,6 +161,11 @@ both integrated into the unified audit runner (v3.24+).
 
 ### Reproduction Commands
 
+> **One-command full audit**: After building, run `./build_audit/audit/unified_audit_runner`
+> to execute all 247 modules across 9 failure classes. Every claim in this document
+> maps to a module in that runner. A traditional PDF audit is a snapshot; this runner
+> is a living, continuously enforced assurance perimeter.
+
 ```bash
 # Configure (Linux)
 cmake -S . -B build_audit -G Ninja -DCMAKE_BUILD_TYPE=Release \
@@ -171,7 +176,10 @@ cmake -S . -B build_audit -G Ninja -DCMAKE_BUILD_TYPE=Release \
 # Build
 cmake --build build_audit -j
 
-# Run all tests
+# === FULL AUDIT (247 modules, 9 failure classes, ~10 min) ===
+./build_audit/audit/unified_audit_runner
+
+# Run all CTest targets
 ctest --test-dir build_audit --output-on-failure
 
 # Run specific suite
@@ -179,6 +187,12 @@ ctest --test-dir build_audit -R test_field_audit -V
 
 # dudect constant-time smoke test
 ctest --test-dir build_audit -R ct_sidechannel_smoke -V
+
+# Exploit PoC security probes (173 probes)
+ctest --test-dir build_audit -R exploit -V
+
+# Machine-readable assurance artifact
+python3 scripts/export_assurance.py -o assurance_report.json
 ```
 
 ---

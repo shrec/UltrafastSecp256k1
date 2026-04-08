@@ -6,6 +6,22 @@
 **Methodology**: Automated + manual, deterministic seeds, zero external dependencies  
 **Verdict**: **ALL PASSED -- 0 critical / 0 high / 0 medium findings**
 
+> ### Why This Is a Live Audit, Not a Static PDF
+>
+> Every claim in this document is **machine-verifiable and reproducible** from source:
+>
+> - **247 audit modules** execute in a single `unified_audit_runner` invocation (~10 min)
+> - **14 CI workflows** enforce every check on every push to `dev` — no claim can silently rot
+> - **Three-tier CT verification** (ct-verif LLVM IR + Valgrind CT + dudect) runs in CI, not just once during an engagement
+> - **Bit-exact differential** against bitcoin-core/libsecp256k1 v0.6.0 catches any arithmetic divergence
+> - **173 exploit PoC probes** (CVE-2023-33242, rogue-key, nonce-reuse, twist-attack, etc.) run on every commit
+> - **Structured assurance JSON** (`scripts/export_assurance.py`) produces machine-readable audit artifacts
+>
+> A traditional PDF audit is a point-in-time snapshot. This system is a **continuously enforced
+> assurance perimeter** — every number below updates with the code and breaks the build if it regresses.
+>
+> **To verify**: `cmake --build build && ./build/audit/unified_audit_runner`
+
 ---
 
 ## Table of Contents
@@ -61,7 +77,7 @@ team and automated CI infrastructure.
 | Point Operations | Production | **Very High** -- 116K audit checks + fuzz + differential |
 | ECDSA (RFC 6979) | Production | **Very High** -- BIP-340 vectors + RFC 6979 vectors + differential vs libsecp256k1 |
 | Schnorr (BIP-340) | Production | **Very High** -- All 15 official vectors + differential |
-| CT Layer | Production | **High** -- 120K equivalence checks + dudect timing + code review (no formal verification) |
+| CT Layer | Production | **High** -- 120K equivalence checks + ct-verif (LLVM IR, CI) + Valgrind CT (CI) + dudect timing (CI). Machine-checked proofs not yet applied |
 | MuSig2 | Stable | **High** -- 975 checks + rogue-key + transcript binding + fault injection |
 | FROST | Stable | **High** -- 1,367 checks (DKG + signing + KAT + malicious participant) |
 | BIP-32 HD | Stable | **High** -- TV1-TV5 (90 checks) + fuzz |
@@ -660,14 +676,13 @@ Full invariant catalog: [docs/INVARIANTS.md](INVARIANTS.md)
 | BIP-32 (H1-H7) | 7 | [OK] |
 | Address (A1-A6) | 6 | [OK] |
 | C ABI (C1-C7) | 7 | [OK] (C7 [!] TSan) |
-| Constant-Time (CT1-CT6) | 6 | [OK] (CT5-6 [!] no formal) |
+| Constant-Time (CT1-CT6) | 6 | [OK] (CT5-6 via ct-verif + Valgrind CT in CI) |
 | Batch / Perf (BP1-BP3) | 3 | [OK] |
 | Serialization (SP1-SP5) | 5 | [OK] |
-| **Total** | **108** | **106 verified, 2 partial** |
+| **Total** | **108** | **107 verified, 1 partial** |
 
-**Partial invariants**:
-- CT5 (no secret-dependent branches): Verified by code review + dudect, NOT by formal tools
-- CT6 (no secret-dependent memory access): Verified by code review + dudect, NOT by formal tools
+**Partial invariant**:
+- C7 (thread safety under TSan): TSan coverage partial
 
 ---
 
@@ -714,7 +729,7 @@ Full invariant catalog: [docs/INVARIANTS.md](INVARIANTS.md)
 
 ### What We Do NOT Claim
 
-1. **Limited formal verification** -- ct-verif covers core paths; many CT guarantees remain empirical (dudect) and review-based
+1. **Limited formal verification** -- ct-verif (LLVM IR) + Valgrind CT cover core paths; machine-checked proofs (Vale/Jasmin/Coq) not yet applied
 2. **No hardware side-channel** -- No power analysis, EM emanation, or fault injection testing
 3. **No GPU CT** -- All GPU backends are variable-time; secret-bearing GPU ops require trusted single-tenant environment
 4. **No external audit** -- This is an internal audit only
@@ -733,7 +748,10 @@ cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
   -DSECP256K1_BUILD_PROTOCOL_TESTS=ON
 cmake --build build -j
 
-# Run all tests
+# Unified audit runner (247 modules, all 9 failure classes, ~10 min)
+./build/audit/unified_audit_runner
+
+# Run all CTest targets
 ctest --test-dir build --output-on-failure
 
 # Run audit-only
@@ -743,6 +761,12 @@ ctest --test-dir build -L audit --output-on-failure
 ctest --test-dir build -R audit_field -V
 ctest --test-dir build -R test_cross_libsecp256k1 -V
 ctest --test-dir build -R test_frost_kat -V
+
+# Generate machine-readable assurance artifact
+python3 scripts/export_assurance.py -o assurance_report.json
+
+# Preflight (checks docs + code coherence)
+python3 scripts/preflight.py
 ```
 
 ### Sanitizer Build

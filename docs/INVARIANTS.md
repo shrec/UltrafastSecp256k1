@@ -192,8 +192,8 @@ This document lists every mathematical, structural, and behavioral invariant tha
 | CT2 | `ct::ecdsa_sign` execution time does not depend on private key | [OK] dudect |
 | CT3 | `ct::schnorr_sign` execution time does not depend on private key | [OK] dudect |
 | CT4 | `ct::field_inv` execution time does not depend on input value | [OK] dudect |
-| CT5 | No secret-dependent branches in CT code paths | [!] Code review (no formal verification) |
-| CT6 | No secret-dependent memory access patterns in CT code paths | [!] Code review |
+| CT5 | No secret-dependent branches in CT code paths | [OK] ct-verif (LLVM IR, CI) + dudect + code review |
+| CT6 | No secret-dependent memory access patterns in CT code paths | [OK] Valgrind CT (CI) + dudect + code review |
 
 ---
 

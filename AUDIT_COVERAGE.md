@@ -9,8 +9,8 @@
 |------|---------|
 | Audit checks per run | ~1,000,000+ |
 | Nightly random checks | ~1,300,000+ |
-| Audit modules | 56 across 8 domains |
-| Exploit PoC tests | 135 modules, 134 attack vectors |
+| Audit modules | 247 across 9 failure classes |
+| Exploit PoC tests | 173 modules, 170+ attack vectors |
 | Platforms | X64, ARM64, RISC-V, macOS, Windows, iOS, Android, WASM, ROCm (16 configurations) |
 | Fuzz inputs | 530,000+ parser/adversarial |
 | CI workflows | 31 GitHub Actions workflows |
@@ -32,11 +32,11 @@ This system continuously verifies correctness across math, protocol, constant-ti
 
 ---
 
-**Version**: v3.22.0
+**Version**: v3.63.0
 **Audit Runner**: `unified_audit_runner`
-**Verdict**: **AUDIT-READY** -- 56/56 modules passed
+**Verdict**: **AUDIT-READY** -- 247 modules, 9 failure classes
 **Total Checks**: ~1,000,000+ (audit) + 1.3M+ (nightly differential)
-**Runtime**: ~36.5 seconds (X64, Clang 21.1.0, Release)
+**CT Verification**: Three-tier -- ct-verif (LLVM IR) + Valgrind CT + dudect (all CI-enforced)
 
 ---
 
