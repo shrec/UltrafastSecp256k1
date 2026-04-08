@@ -1,5 +1,7 @@
 var NAVTREEINDEX6 =
 {
+"namespacesecp256k1_1_1coins.html#a94a9fd080c98fa0c1110edf774fbd8ce":[55,0,1,0,10],
+"namespacesecp256k1_1_1coins.html#a976531460ff2c48ee8b6040a512821ff":[55,0,1,0,30],
 "namespacesecp256k1_1_1coins.html#a9798cff636f55e2bc051dd386a4dc668":[55,0,1,0,59],
 "namespacesecp256k1_1_1coins.html#a9a573eecbcb84bef02367ba24a94442f":[55,0,1,0,61],
 "namespacesecp256k1_1_1coins.html#a9bf98aed762ef07859ff65869bb245fa":[55,0,1,0,38],
@@ -247,7 +249,5 @@ var NAVTREEINDEX6 =
 "namespacesecp256k1_1_1fast.html#a9028e0408ad56011572059859ae0fae0":[55,0,1,3,123],
 "namespacesecp256k1_1_1fast.html#a908168f6c86f82e21e80f1b16fbcefcf":[55,0,1,3,74],
 "namespacesecp256k1_1_1fast.html#a92cf5239336cda0767159bb9c8ea057e":[55,0,1,3,91],
-"namespacesecp256k1_1_1fast.html#a933b11753ce9436db3549d709ff35485":[55,0,1,3,68],
-"namespacesecp256k1_1_1fast.html#a94282283a47b6cbc497d0bad997193dc":[55,0,1,3,120],
-"namespacesecp256k1_1_1fast.html#a9aaeef7578ae7f41fe7d307c9a2048a1":[55,0,1,3,149]
+"namespacesecp256k1_1_1fast.html#a933b11753ce9436db3549d709ff35485":[55,0,1,3,68]
 };

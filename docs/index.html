@@ -25,7 +25,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.50.0</span>
+   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.60.0</span>
    </div>
    <div id="projectbrief">Ultra high-performance secp256k1 elliptic curve cryptography library</div>
   </td>
@@ -195,7 +195,7 @@ Why UltrafastSecp256k1? — Detail</h1>
 <p>&zwj;TL;DR is above. This section covers what differentiates this library in depth. </p>
 </blockquote>
 <ul>
-<li><b>Continuous adversarial audit system</b> &ndash; every exploit attempt becomes a permanent regression test; 1,000,000+ assertions per build, 146 exploit-PoC modules across 134 attack vectors, 33 CI workflows, 3 formal CT verification pipelines, 1.3M+ nightly differential checks — security hardens on every commit, not just on release day (→ how it works)</li>
+<li><b>Continuous adversarial audit system</b> &ndash; every exploit attempt becomes a permanent regression test; 1,000,000+ assertions per build, 146 exploit-PoC modules across 134 attack vectors, 34 CI workflows, 3 formal CT verification pipelines, 1.3M+ nightly differential checks — security hardens on every commit, not just on release day (→ how it works)</li>
 <li><b>Differentiated GPU <a class="el" href="namespacesecp256k1.html">secp256k1</a> surface</b> &ndash; CUDA, OpenCL, and Metal all implement the stable 13-op GPU C ABI, while CUDA also carries the highest-throughput signing and verification kernels plus <b>GPU FROST partial verification</b> (reproducible benchmark suite and raw logs)</li>
 <li><b>High-performance CPU <a class="el" href="namespacesecp256k1.html">secp256k1</a> engine</b> &ndash; optimized generator multiply, scalar multiply, hashing, and serialization pipelines across x86-64, ARM64, RISC-V, and embedded targets (see bench_unified ratio table)</li>
 <li><b>BIP-352 Silent Payments at 11.00 M/s</b> &ndash; the full 7-stage GPU pipeline (k×P → hash → k×G → add → match) runs at 91.0 ns/op on CUDA, <b>267× faster</b> than single-threaded CPU (GPU bench, <a href="https://github.com/craigraw/bench_bip352">standalone CPU benchmark by @craigraw</a>)</li>
@@ -269,7 +269,7 @@ By the Numbers</h2>
 <tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone">Exploit PoC test files   </td><td class="markdownTableBodyNone"><b>86 tests, 14 coverage areas, 0 failures</b>    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone">CI/CD workflows   </td><td class="markdownTableBodyNone"><b>33 GitHub Actions workflows</b>    </td></tr>
+<td class="markdownTableBodyNone">CI/CD workflows   </td><td class="markdownTableBodyNone"><b>34 GitHub Actions workflows</b>    </td></tr>
 <tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone">Build matrix (arch × config × OS)   </td><td class="markdownTableBodyNone"><b>7 × 17 × 5 = 595 combinations</b>    </td></tr>
 <tr class="markdownTableRowEven">
@@ -475,7 +475,7 @@ Use Cases</h1>
 <h1><a class="anchor" id="autotoc_md46"></a>
 Security &amp; Vulnerability Reporting</h1>
 <p><b>Report vulnerabilities</b> via <a href="https://github.com/shrec/UltrafastSecp256k1/security/advisories/new">GitHub Security Advisories</a> or email <a href="#" onclick="location.href='mai'+'lto:'+'pay'+'ys'+'oon'+'@g'+'mai'+'l.'+'com'; return false;">payysoon@gmail.com</a>. For production cryptographic systems, perform your own risk review, review the current guarantees in <a class="el" href="md_include_2ufsecp_2SUPPORTED__GUARANTEES.html">SUPPORTED_GUARANTEES.md</a>, and apply the assurance level appropriate to your deployment.</p>
-<p>For the full audit infrastructure breakdown (1M+ assertions, 33 CI workflows, formal CT verification pipelines, self-audit document index), see the Engineering Quality &amp; Self-Audit Culture section above and WHY_ULTRAFASTSECP256K1.md.</p>
+<p>For the full audit infrastructure breakdown (1M+ assertions, 34 CI workflows, formal CT verification pipelines, self-audit document index), see the Engineering Quality &amp; Self-Audit Culture section above and WHY_ULTRAFASTSECP256K1.md.</p>
 <hr  />
 <h1><a class="anchor" id="autotoc_md48"></a>
 Seeking Sponsors – Bug Bounty &amp; Development</h1>
@@ -1163,10 +1163,10 @@ Quick Start (C)</h2>
 <div class="line"><a class="code hl_function" href="ufsecp_8h.html#a87d42e60b2f61d1931c088231b6e6b59">ufsecp_ctx_destroy</a>(ctx);</div>
 <div class="ttc" id="astructufsecp__ctx_html"><div class="ttname"><a href="structufsecp__ctx.html">ufsecp_ctx</a></div><div class="ttdef"><b>Definition</b> <a href="ufsecp__impl_8cpp_source.html#l00083">ufsecp_impl.cpp:83</a></div></div>
 <div class="ttc" id="aufsecp_8h_html"><div class="ttname"><a href="ufsecp_8h.html">ufsecp.h</a></div></div>
-<div class="ttc" id="aufsecp_8h_html_a3bcb3e21569903007e46c2a377637a84"><div class="ttname"><a href="ufsecp_8h.html#a3bcb3e21569903007e46c2a377637a84">ufsecp_ecdsa_verify</a></div><div class="ttdeci">UFSECP_API ufsecp_error_t ufsecp_ecdsa_verify(ufsecp_ctx *ctx, const uint8_t msg32[32], const uint8_t sig64[64], const uint8_t pubkey33[33])</div><div class="ttdef"><b>Definition</b> <a href="ufsecp__impl_8cpp_source.html#l00652">ufsecp_impl.cpp:652</a></div></div>
-<div class="ttc" id="aufsecp_8h_html_a4e1fa2ddc0f82ca0772ce2e4b500c55e"><div class="ttname"><a href="ufsecp_8h.html#a4e1fa2ddc0f82ca0772ce2e4b500c55e">ufsecp_ecdsa_sign</a></div><div class="ttdeci">UFSECP_API ufsecp_error_t ufsecp_ecdsa_sign(ufsecp_ctx *ctx, const uint8_t msg32[32], const uint8_t privkey[32], uint8_t sig64_out[64])</div><div class="ttdef"><b>Definition</b> <a href="ufsecp__impl_8cpp_source.html#l00609">ufsecp_impl.cpp:609</a></div></div>
-<div class="ttc" id="aufsecp_8h_html_a87d42e60b2f61d1931c088231b6e6b59"><div class="ttname"><a href="ufsecp_8h.html#a87d42e60b2f61d1931c088231b6e6b59">ufsecp_ctx_destroy</a></div><div class="ttdeci">UFSECP_API void ufsecp_ctx_destroy(ufsecp_ctx *ctx)</div><div class="ttdef"><b>Definition</b> <a href="ufsecp__impl_8cpp_source.html#l00407">ufsecp_impl.cpp:407</a></div></div>
-<div class="ttc" id="aufsecp_8h_html_ad59bb140d404cf17909ad63955e8e948"><div class="ttname"><a href="ufsecp_8h.html#ad59bb140d404cf17909ad63955e8e948">ufsecp_ctx_create</a></div><div class="ttdeci">UFSECP_API ufsecp_error_t ufsecp_ctx_create(ufsecp_ctx **ctx_out)</div><div class="ttdef"><b>Definition</b> <a href="ufsecp__impl_8cpp_source.html#l00372">ufsecp_impl.cpp:372</a></div></div>
+<div class="ttc" id="aufsecp_8h_html_a3bcb3e21569903007e46c2a377637a84"><div class="ttname"><a href="ufsecp_8h.html#a3bcb3e21569903007e46c2a377637a84">ufsecp_ecdsa_verify</a></div><div class="ttdeci">UFSECP_API ufsecp_error_t ufsecp_ecdsa_verify(ufsecp_ctx *ctx, const uint8_t msg32[32], const uint8_t sig64[64], const uint8_t pubkey33[33])</div><div class="ttdef"><b>Definition</b> <a href="ufsecp__impl_8cpp_source.html#l00656">ufsecp_impl.cpp:656</a></div></div>
+<div class="ttc" id="aufsecp_8h_html_a4e1fa2ddc0f82ca0772ce2e4b500c55e"><div class="ttname"><a href="ufsecp_8h.html#a4e1fa2ddc0f82ca0772ce2e4b500c55e">ufsecp_ecdsa_sign</a></div><div class="ttdeci">UFSECP_API ufsecp_error_t ufsecp_ecdsa_sign(ufsecp_ctx *ctx, const uint8_t msg32[32], const uint8_t privkey[32], uint8_t sig64_out[64])</div><div class="ttdef"><b>Definition</b> <a href="ufsecp__impl_8cpp_source.html#l00613">ufsecp_impl.cpp:613</a></div></div>
+<div class="ttc" id="aufsecp_8h_html_a87d42e60b2f61d1931c088231b6e6b59"><div class="ttname"><a href="ufsecp_8h.html#a87d42e60b2f61d1931c088231b6e6b59">ufsecp_ctx_destroy</a></div><div class="ttdeci">UFSECP_API void ufsecp_ctx_destroy(ufsecp_ctx *ctx)</div><div class="ttdef"><b>Definition</b> <a href="ufsecp__impl_8cpp_source.html#l00411">ufsecp_impl.cpp:411</a></div></div>
+<div class="ttc" id="aufsecp_8h_html_ad59bb140d404cf17909ad63955e8e948"><div class="ttname"><a href="ufsecp_8h.html#ad59bb140d404cf17909ad63955e8e948">ufsecp_ctx_create</a></div><div class="ttdeci">UFSECP_API ufsecp_error_t ufsecp_ctx_create(ufsecp_ctx **ctx_out)</div><div class="ttdef"><b>Definition</b> <a href="ufsecp__impl_8cpp_source.html#l00376">ufsecp_impl.cpp:376</a></div></div>
 </div><!-- fragment --><h2><a class="anchor" id="autotoc_md107"></a>
 GPU C ABI (&lt;tt&gt;ufsecp_gpu&lt;/tt&gt;)</h2>
 <p>Starting with <b>v3.3.0</b>, the GPU layer is fully accessible from any FFI language via <code><a class="el" href="ufsecp__gpu_8h.html">ufsecp_gpu.h</a></code>:</p>

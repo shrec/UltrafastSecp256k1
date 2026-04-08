@@ -1,5 +1,7 @@
 var NAVTREEINDEX4 =
 {
+"globals_u.html":[57,1,0,11],
+"globals_v.html":[57,1,0,12],
 "globals_vars.html":[57,1,2],
 "glv_8hpp.html":[57,0,0,0,0,34],
 "glv_8hpp.html#a08bcc168109784e84eb68b5e752d3442":[57,0,0,0,0,34,9],
@@ -247,7 +249,5 @@ var NAVTREEINDEX4 =
 "namespacemembers_func_r.html":[55,1,1,15],
 "namespacemembers_func_s.html":[55,1,1,16],
 "namespacemembers_func_t.html":[55,1,1,17],
-"namespacemembers_func_v.html":[55,1,1,18],
-"namespacemembers_func_w.html":[55,1,1,19],
-"namespacemembers_g.html":[55,1,0,6]
+"namespacemembers_func_v.html":[55,1,1,18]
 };

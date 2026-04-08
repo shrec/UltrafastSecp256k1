@@ -166,6 +166,7 @@ var ufsecp__impl_8cpp =
     [ "ufsecp_zk_knowledge_verify", "ufsecp__impl_8cpp.html#adfb7d15a82d3fc2787a0a9f49f028831", null ],
     [ "ufsecp_zk_range_prove", "ufsecp__impl_8cpp.html#a8cc22f1d1fee8547f38e5f0eb26f5e82", null ],
     [ "ufsecp_zk_range_verify", "ufsecp__impl_8cpp.html#ac15e04059124b41c5a5acc273c55a4e3", null ],
+    [ "valid_network", "ufsecp__impl_8cpp.html#aac1f82697c0f1e90f96b96991319a114", null ],
     [ "GCS_M", "ufsecp__impl_8cpp.html#aa7ca0c0d47ac5328451845087ead0f3a", null ],
     [ "GCS_P", "ufsecp__impl_8cpp.html#a8ee3e838c23ae3e23a6cbaed516a19e8", null ]
 ];
