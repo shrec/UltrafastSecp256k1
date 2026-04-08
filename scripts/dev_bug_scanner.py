@@ -23,6 +23,14 @@ Detects the kind of bugs a human reviewer catches during development:
   TAGGED_HASH_BYPASS  plain sha256() where BIP-340 tagged_hash is required
   RANDOM_IN_SIGNING   non-deterministic random in RFC 6979 signing path
   BINDING_NO_VALIDATION  public ufsecp_ function missing NULL-check on args
+  DANGLING_ELSE  braceless else with multiple statements (goto-fail pattern)
+  ASSERT_SIDE    assert() with side-effectful code (stripped in Release builds)
+  SHIFT_UB       shift by >= type width (undefined behavior)
+  DOUBLE_LOCK    mutex locked twice without unlock (deadlock risk)
+  UNSAFE_FMT     sprintf/strcpy/gets without bounds check (buffer overflow)
+  HARDCODED_SECRET  hardcoded private key or seed in non-test code
+  CATCH_EMPTY    empty catch block silently swallows errors
+  SIZEOF_MISMATCH  memcpy/memset sizeof refers to wrong variable
 
 Usage examples
 --------------
@@ -996,6 +1004,302 @@ def _is_skippable(path: Path) -> bool:
     return any(part in _SKIP_DIR_PARTS for part in path.parts)
 
 
+# ── DANGLING_ELSE: braceless else/if-else after multi-line block (goto-fail) ──
+def check_dangling_else(path: str, lines: List[str]) -> List[Finding]:
+    """Braceless else after multi-line if — the Apple 'goto fail' bug pattern."""
+    findings: List[Finding] = []
+    for i, raw in enumerate(lines):
+        line = _strip_comments(raw)
+        stripped = line.strip()
+        # Look for `} else` or standalone `else` without opening brace on same line
+        if re.match(r'^\}\s*else\s*$', stripped) or re.match(r'^else\s*$', stripped):
+            # Next non-blank line should either be { or a SINGLE statement
+            # If there are multiple statements before the next control block,
+            # only the first is actually in the else branch — bug!
+            body_lines = 0
+            for j in range(i + 1, min(len(lines), i + 6)):
+                nxt = _strip_comments(lines[j]).strip()
+                if not nxt:
+                    continue
+                if nxt.startswith('{'):
+                    break  # braced — fine
+                body_lines += 1
+                if body_lines >= 2:
+                    findings.append(Finding(
+                        file=path, line=i + 1, severity="HIGH",
+                        category="DANGLING_ELSE",
+                        message="Braceless `else` with multiple statements — only the first "
+                                "statement is inside the else branch (Apple 'goto fail' pattern)",
+                        snippet=raw.strip(),
+                        fix_hint="Add braces `{ }` around the else body",
+                    ))
+                    break
+                if nxt.endswith(';') or nxt.endswith('}'):
+                    break  # single statement — OK
+    return findings
+
+
+# ── ASSERT_SIDE_EFFECT: side-effectful code inside assert() ───────────────────
+_ASSERT_CALL = re.compile(r'\bassert\s*\((.+)\)\s*;')
+_SIDE_EFFECT = re.compile(
+    r'(\+\+|--|\w+\s*=[^=]|\w+\s*\(|new\s+|delete\s+|free\s*\(|push_back|emplace|insert|erase|pop)')
+
+def check_assert_side_effect(path: str, lines: List[str]) -> List[Finding]:
+    """assert() argument has side effects — stripped in Release builds, changing behavior."""
+    findings: List[Finding] = []
+    for i, raw in enumerate(lines):
+        line = _strip_comments(raw)
+        m = _ASSERT_CALL.search(line)
+        if m:
+            inner = m.group(1)
+            # Skip simple comparisons and boolean checks
+            if _SIDE_EFFECT.search(inner):
+                # Filter out false positives from comparison operators
+                if '==' in inner or '!=' in inner or '>=' in inner or '<=' in inner:
+                    # Check if assignment is actually inside comparison
+                    cleaned = re.sub(r'[!=<>]=', '', inner)
+                    if not _SIDE_EFFECT.search(cleaned):
+                        continue
+                findings.append(Finding(
+                    file=path, line=i + 1, severity="HIGH",
+                    category="ASSERT_SIDE",
+                    message="assert() contains side-effectful code — will be stripped in "
+                            "Release/NDEBUG builds, silently changing program behavior",
+                    snippet=raw.strip(),
+                    fix_hint="Move the side-effectful code before the assert and test the result",
+                ))
+    return findings
+
+
+# ── SHIFT_UB: shift by >= type width or by negative amount ────────────────────
+_SHIFT_EXPR = re.compile(
+    r'(?:<<|>>)\s*(\d+)')
+_TYPE_WIDTH = {
+    'uint8_t': 8, 'int8_t': 8, 'uint16_t': 16, 'int16_t': 16,
+    'uint32_t': 32, 'int32_t': 32, 'uint64_t': 64, 'int64_t': 64,
+    'unsigned': 32, 'int': 32, 'unsigned int': 32, 'size_t': 64,
+    'uint': 32,  # OpenCL/Metal
+}
+
+def check_shift_ub(path: str, lines: List[str]) -> List[Finding]:
+    """Shift by >= type width is undefined behavior in C/C++."""
+    findings: List[Finding] = []
+    # Detect 128-bit typedefs anywhere in file (e.g. using u128 = __uint128_t;)
+    full_text = '\n'.join(lines)
+    _128_aliases: set[str] = set()
+    for alias_m in re.finditer(
+            r'(?:typedef\s+(?:unsigned\s+)?__int128\s+|using\s+)(\w+)\s*=\s*(?:__uint128_t|__int128|unsigned\s+__int128)',
+            full_text):
+        name = alias_m.group(1)
+        if name not in ('typedef', 'using', 'unsigned'):
+            _128_aliases.add(name)
+    _128_pat = r'__(?:u?int)?128|unsigned\s+__int128'
+    if _128_aliases:
+        _128_pat += '|\\b(?:' + '|'.join(re.escape(a) for a in _128_aliases) + r')\b'
+
+    for i, raw in enumerate(lines):
+        line = _strip_comments(raw)
+        for sm in _SHIFT_EXPR.finditer(line):
+            shift_amount = int(sm.group(1))
+            # Skip 128-bit type operations
+            if re.search(_128_pat, line):
+                continue
+            left_of_shift = line[:sm.start()]
+            if re.search(_128_pat, left_of_shift):
+                continue
+            if shift_amount >= 128:
+                findings.append(Finding(
+                    file=path, line=i + 1, severity="HIGH",
+                    category="SHIFT_UB",
+                    message=f"Shift by {shift_amount} — undefined behavior for any integer type",
+                    snippet=raw.strip(),
+                    fix_hint="Use multiplication or a multi-word shift instead",
+                ))
+            elif shift_amount >= 64:
+                # Check context for 128-bit usage
+                ctx = '\n'.join(lines[max(0, i - 5):i + 1])
+                if re.search(_128_pat, ctx):
+                    continue
+                # Skip casts from a wider result (common in multi-precision arithmetic)
+                if re.search(r'\(\s*(?:std::)?(?:uint64_t|unsigned)\s*\)\s*\(', line):
+                    continue
+                if re.search(r'static_cast\s*<\s*(?:std::)?uint64_t\s*>', line):
+                    continue
+                findings.append(Finding(
+                    file=path, line=i + 1, severity="HIGH",
+                    category="SHIFT_UB",
+                    message=f"Shift by {shift_amount} — undefined behavior for 64-bit types "
+                            "(OK only for __uint128_t)",
+                    snippet=raw.strip(),
+                    fix_hint="Verify operand is __uint128_t, or use a multi-word shift",
+                ))
+            elif shift_amount >= 32:
+                # Skip casts extracting high bits from wider types
+                if re.search(r'\(\s*(?:std::)?uint32_t\s*\)\s*\(', line):
+                    continue
+                if re.search(r'static_cast\s*<\s*(?:std::)?uint32_t\s*>\s*\(', line):
+                    continue
+                # Only flag explicit 32-bit variable declarations with shift on same line
+                decl_m = re.match(
+                    r'^\s*(?:const\s+)?(?:uint32_t|int32_t|unsigned\s+int)\s+\w+\s*=.*'
+                    r'(?:<<|>>)\s*(?:3[2-9]|[4-5]\d|6[0-3])', line)
+                if decl_m:
+                    findings.append(Finding(
+                        file=path, line=i + 1, severity="HIGH",
+                        category="SHIFT_UB",
+                        message=f"Shift by {shift_amount} on a 32-bit type — undefined behavior",
+                        snippet=raw.strip(),
+                        fix_hint="Cast to uint64_t before shifting, or use (uint64_t)val << N",
+                    ))
+    return findings
+
+
+# ── DOUBLE_LOCK: mutex locked twice without unlock (deadlock) ─────────────────
+_LOCK = re.compile(r'\b(\w+)\s*\.\s*lock\s*\(\s*\)')
+_UNLOCK = re.compile(r'\b(\w+)\s*\.\s*unlock\s*\(\s*\)')
+_LOCK_GUARD = re.compile(r'\b(?:std::)?(?:unique_lock|lock_guard|scoped_lock)\s*.*\b(\w+)\s*[);]')
+
+def check_double_lock(path: str, lines: List[str]) -> List[Finding]:
+    """Mutex locked twice without intervening unlock — deadlock."""
+    findings: List[Finding] = []
+    locked: dict[str, int] = {}  # mutex_name -> line
+    for i, raw in enumerate(lines):
+        line = _strip_comments(raw)
+        stripped = line.strip()
+        # Reset tracking at function/block boundaries
+        if stripped in ('{', '}') or re.match(r'^(void|int|bool|auto|static|inline)\s', stripped):
+            locked.clear()
+            continue
+        # RAII lock_guard — mutex is locked for scope lifetime
+        m_guard = _LOCK_GUARD.search(line)
+        if m_guard:
+            locked.clear()
+            continue
+        # Explicit lock
+        m_lock = _LOCK.search(line)
+        if m_lock:
+            name = m_lock.group(1)
+            if name in locked:
+                findings.append(Finding(
+                    file=path, line=i + 1, severity="HIGH",
+                    category="DOUBLE_LOCK",
+                    message=f"Mutex `{name}` locked again without unlock (first lock at line {locked[name]})"
+                            " — non-recursive mutex will deadlock",
+                    snippet=raw.strip(),
+                    fix_hint=f"Add `{name}.unlock()` before re-locking, or use std::recursive_mutex",
+                ))
+            locked[name] = i + 1
+        # Unlock
+        m_unlock = _UNLOCK.search(line)
+        if m_unlock:
+            locked.pop(m_unlock.group(1), None)
+    return findings
+
+
+# ── UNSAFE_SPRINTF: sprintf/vsprintf without bounds check ────────────────────
+_UNSAFE_FMT = re.compile(r'\b(sprintf|vsprintf|strcpy|strcat|gets)\s*\(')
+
+def check_unsafe_sprintf(path: str, lines: List[str]) -> List[Finding]:
+    """Unbounded string format/copy — use snprintf/strncpy/strlcpy instead."""
+    findings: List[Finding] = []
+    for i, raw in enumerate(lines):
+        line = _strip_comments(raw)
+        m = _UNSAFE_FMT.search(line)
+        if m:
+            fn = m.group(1)
+            safe = {'sprintf': 'snprintf', 'vsprintf': 'vsnprintf',
+                    'strcpy': 'strncpy', 'strcat': 'strncat', 'gets': 'fgets'}
+            findings.append(Finding(
+                file=path, line=i + 1, severity="HIGH",
+                category="UNSAFE_FMT",
+                message=f"`{fn}()` has no bounds checking — buffer overflow risk",
+                snippet=raw.strip(),
+                fix_hint=f"Replace with `{safe.get(fn, fn)}(buf, sizeof(buf), ...)` to enforce bounds",
+            ))
+    return findings
+
+
+# ── HARDCODED_SECRET: private key / seed bytes outside test/example/bench ─────
+_HEX_PRIVKEY = re.compile(
+    r'(?:priv(?:ate)?_?key|secret|seed)\s*(?:\[\s*\d+\s*\])?\s*=\s*\{[^}]{60,}'
+)
+
+def check_hardcoded_secret(path: str, lines: List[str]) -> List[Finding]:
+    """Hardcoded private key / seed in production code — keys should come from entropy source."""
+    path_lower = path.lower()
+    # Skip test, example, benchmark, audit, doc files
+    if any(kw in path_lower for kw in ('test', 'bench', 'example', 'audit', 'main.c',
+                                        'demo', 'sample', 'doc', '.md')):
+        return []
+    findings: List[Finding] = []
+    full = '\n'.join(lines)
+    for m in _HEX_PRIVKEY.finditer(full):
+        # Find the line number
+        pos = m.start()
+        lineno = full[:pos].count('\n') + 1
+        findings.append(Finding(
+            file=path, line=lineno, severity="HIGH",
+            category="HARDCODED_SECRET",
+            message="Hardcoded private key / seed in production code — use CSPRNG or key derivation",
+            snippet=lines[lineno - 1].strip()[:100],
+            fix_hint="Remove hardcoded key material; derive from entropy source (RAND_bytes, getrandom, etc.)",
+        ))
+    return findings
+
+
+# ── EXCEPTION_SWALLOW: empty catch block that silently ignores errors ─────────
+_CATCH_BLOCK = re.compile(r'\bcatch\s*\([^)]*\)\s*\{')
+
+def check_exception_swallow(path: str, lines: List[str]) -> List[Finding]:
+    """Empty catch block silently swallows exceptions — errors become invisible."""
+    findings: List[Finding] = []
+    for i, raw in enumerate(lines):
+        line = _strip_comments(raw)
+        if _CATCH_BLOCK.search(line):
+            # Check if the catch body is empty (next non-blank line is just })
+            for j in range(i + 1, min(len(lines), i + 4)):
+                body = _strip_comments(lines[j]).strip()
+                if not body:
+                    continue
+                if body == '}':
+                    findings.append(Finding(
+                        file=path, line=i + 1, severity="MEDIUM",
+                        category="CATCH_EMPTY",
+                        message="Empty catch block silently swallows exception — error condition is invisible",
+                        snippet=raw.strip(),
+                        fix_hint="Log the error, rethrow, or add a comment explaining why ignoring is safe",
+                    ))
+                break  # non-empty body — fine
+    return findings
+
+
+# ── SIZEOF_MISMATCH: memcpy/memset size argument doesn't match destination ────
+_MEMOP_SIZEOF = re.compile(
+    r'\bmem(?:cpy|set|move)\s*\(\s*(\w+)\s*,.*?,\s*sizeof\s*\(\s*(\w+)\s*\)\s*\)')
+
+def check_sizeof_mismatch(path: str, lines: List[str]) -> List[Finding]:
+    """memcpy/memset sizeof argument refers to wrong variable (src instead of dst)."""
+    findings: List[Finding] = []
+    for i, raw in enumerate(lines):
+        line = _strip_comments(raw)
+        m = _MEMOP_SIZEOF.search(line)
+        if m:
+            dst = m.group(1)
+            sizeof_arg = m.group(2)
+            if dst != sizeof_arg:
+                # Only flag if sizeof arg looks like a different variable (not a type)
+                if sizeof_arg[0].islower() and sizeof_arg != dst:
+                    findings.append(Finding(
+                        file=path, line=i + 1, severity="MEDIUM",
+                        category="SIZEOF_MISMATCH",
+                        message=f"memop destination is `{dst}` but sizeof references `{sizeof_arg}` "
+                                "— possible size mismatch if types differ",
+                        snippet=raw.strip(),
+                        fix_hint=f"Use sizeof({dst}) to ensure the size matches the destination buffer",
+                    ))
+    return findings
+
+
 def collect_files(src_dirs: List[Path]) -> Iterable[Path]:
     seen: set[Path] = set()
     for d in src_dirs:
@@ -1029,6 +1333,15 @@ CHECKERS = [
     check_zeroize,
     check_dblinit,
     check_unreachable,
+    # Defensive-coding checkers
+    check_dangling_else,
+    check_assert_side_effect,
+    check_shift_ub,
+    check_double_lock,
+    check_unsafe_sprintf,
+    check_hardcoded_secret,
+    check_exception_swallow,
+    check_sizeof_mismatch,
     # Crypto-specific checkers
     check_secret_unerased,
     check_ct_violation,
