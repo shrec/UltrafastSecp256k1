@@ -195,7 +195,7 @@ Why UltrafastSecp256k1? — Detail</h1>
 <p>&zwj;TL;DR is above. This section covers what differentiates this library in depth. </p>
 </blockquote>
 <ul>
-<li><b>Continuous adversarial audit system</b> &ndash; every exploit attempt becomes a permanent regression test; 1,000,000+ assertions per build, 146 exploit-PoC modules across 134 attack vectors, 34 CI workflows, 3 formal CT verification pipelines, 1.3M+ nightly differential checks — security hardens on every commit, not just on release day (→ how it works)</li>
+<li><b>Continuous adversarial audit system</b> &ndash; every exploit attempt becomes a permanent regression test; 1,000,000+ assertions per build, 173 exploit-PoC modules across 170+ attack vectors, 34 CI workflows, 3 formal CT verification pipelines (ct-verif + Valgrind CT + dudect), 1.3M+ nightly differential checks — security hardens on every commit, not just on release day (→ how it works)</li>
 <li><b>Differentiated GPU <a class="el" href="namespacesecp256k1.html">secp256k1</a> surface</b> &ndash; CUDA, OpenCL, and Metal all implement the stable 13-op GPU C ABI, while CUDA also carries the highest-throughput signing and verification kernels plus <b>GPU FROST partial verification</b> (reproducible benchmark suite and raw logs)</li>
 <li><b>High-performance CPU <a class="el" href="namespacesecp256k1.html">secp256k1</a> engine</b> &ndash; optimized generator multiply, scalar multiply, hashing, and serialization pipelines across x86-64, ARM64, RISC-V, and embedded targets (see bench_unified ratio table)</li>
 <li><b>BIP-352 Silent Payments at 11.00 M/s</b> &ndash; the full 7-stage GPU pipeline (k×P → hash → k×G → add → match) runs at 91.0 ns/op on CUDA, <b>267× faster</b> than single-threaded CPU (GPU bench, <a href="https://github.com/craigraw/bench_bip352">standalone CPU benchmark by @craigraw</a>)</li>
@@ -372,7 +372,7 @@ Self-Audit Document Index</h2>
 <tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone">WHY_ULTRAFASTSECP256K1.md   </td><td class="markdownTableBodyNone">Full audit infrastructure, CI pipeline index, formal verification evidence    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone">AUDIT_REPORT.md   </td><td class="markdownTableBodyNone">Historical formal audit report: 641,194 checks, 0 failures    </td></tr>
+<td class="markdownTableBodyNone">AUDIT_REPORT.md   </td><td class="markdownTableBodyNone">Historical baseline audit (641,194 core checks). Current: 247 modules, 0 failures    </td></tr>
 <tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone">AUDIT_COVERAGE.md   </td><td class="markdownTableBodyNone">Per-module coverage matrix    </td></tr>
 <tr class="markdownTableRowEven">

@@ -1,6 +1,6 @@
 var searchData=
 [
-  ['e_0',['e',['../structsecp256k1_1_1zk_1_1DLEQProof.html#a422b9f4f637804561bd6a20d3064ec9a',1,'secp256k1::zk::DLEQProof::e'],['../structsecp256k1_1_1MuSig2Session.html#a2960852f05e120f8145e78a2b7276e0d',1,'secp256k1::MuSig2Session::e']]],
+  ['e_0',['e',['../structufsecp__schnorr__snark__witness__t.html#afe4dc4d47d60c52c5925c58ca51701f6',1,'ufsecp_schnorr_snark_witness_t::e'],['../structsecp256k1_1_1zk_1_1SchnorrSnarkWitness.html#a780ee9518386350d5227723d20de23c8',1,'secp256k1::zk::SchnorrSnarkWitness::e'],['../structsecp256k1_1_1MuSig2Session.html#a2960852f05e120f8145e78a2b7276e0d',1,'secp256k1::MuSig2Session::e'],['../structsecp256k1_1_1zk_1_1DLEQProof.html#a422b9f4f637804561bd6a20d3064ec9a',1,'secp256k1::zk::DLEQProof::e']]],
   ['ecc_20operations_20kernel_20only_20throughput_1',['CUDA Core ECC Operations (Kernel-Only Throughput)',['../index.html#autotoc_md77',1,'']]],
   ['ecdh_2',['ECDH',['../namespacesecp256k1_1_1test.html#a67d5ad2842e24c72d6e79f845fb96335a09346e6151a09444a4703931fb6e2c7b',1,'secp256k1::test']]],
   ['ecdh_2ehpp_3',['ecdh.hpp',['../ecdh_8hpp.html',1,'']]],

@@ -35,5 +35,6 @@ var ufsecp__gpu__impl_8cpp =
     [ "ufsecp_gpu_zk_dleq_verify_batch", "ufsecp__gpu__impl_8cpp.html#a122f5fab4426961660211e0b63eee5b4", null ],
     [ "ufsecp_gpu_zk_ecdsa_snark_witness_batch", "ufsecp__gpu__impl_8cpp.html#a014362759d072060d0f58420d577f312", null ],
     [ "ufsecp_gpu_zk_knowledge_verify_batch", "ufsecp__gpu__impl_8cpp.html#aaba1cd13bed078711f62d61095f08251", null ],
+    [ "ufsecp_gpu_zk_schnorr_snark_witness_batch", "ufsecp__gpu__impl_8cpp.html#a4fef79413b7fcf0df41a2207605d34a1", null ],
     [ "kMaxGpuBatchN", "ufsecp__gpu__impl_8cpp.html#a2bd0e0421252f49615cf058e11101f6b", null ]
 ];

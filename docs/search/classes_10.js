@@ -6,5 +6,6 @@ var searchData=
   ['ufsecp_5fecdsa_5fsnark_5fwitness_5ft_3',['ufsecp_ecdsa_snark_witness_t',['../structufsecp__ecdsa__snark__witness__t.html',1,'']]],
   ['ufsecp_5fff_5flimbs_5ft_4',['ufsecp_ff_limbs_t',['../structufsecp__ff__limbs__t.html',1,'']]],
   ['ufsecp_5fgpu_5fctx_5',['ufsecp_gpu_ctx',['../structufsecp__gpu__ctx.html',1,'']]],
-  ['ufsecp_5fgpu_5fdevice_5finfo_5ft_6',['ufsecp_gpu_device_info_t',['../structufsecp__gpu__device__info__t.html',1,'']]]
+  ['ufsecp_5fgpu_5fdevice_5finfo_5ft_6',['ufsecp_gpu_device_info_t',['../structufsecp__gpu__device__info__t.html',1,'']]],
+  ['ufsecp_5fschnorr_5fsnark_5fwitness_5ft_7',['ufsecp_schnorr_snark_witness_t',['../structufsecp__schnorr__snark__witness__t.html',1,'']]]
 ];

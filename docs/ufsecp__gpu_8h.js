@@ -14,6 +14,7 @@ var ufsecp__gpu_8h =
     [ "UFSECP_GPU_BACKEND_METAL", "ufsecp__gpu_8h.html#a14fa59507924a00f36a51d289bbd8f52", null ],
     [ "UFSECP_GPU_BACKEND_NONE", "ufsecp__gpu_8h.html#ac1ebeaf361d8c715150a31aaeadd8214", null ],
     [ "UFSECP_GPU_BACKEND_OPENCL", "ufsecp__gpu_8h.html#aba2fa63a2899305bbb8b1a16b09313d6", null ],
+    [ "UFSECP_SCHNORR_SNARK_WITNESS_BYTES", "ufsecp__gpu_8h.html#aa4febe79640e7bd784e718ae380d0e98", null ],
     [ "ufsecp_gpu_ctx", "ufsecp__gpu_8h.html#aff4a1309c80dd5ee8afaf1b86957c0af", null ],
     [ "ufsecp_bip352_prepare_scan_plan", "ufsecp__gpu_8h.html#a7c0c1a033ed6430cd4544bc070407d91", null ],
     [ "ufsecp_gpu_backend_count", "ufsecp__gpu_8h.html#a92093e7063b18ca6d2444710749ebfca", null ],
@@ -40,5 +41,6 @@ var ufsecp__gpu_8h =
     [ "ufsecp_gpu_schnorr_verify_batch", "ufsecp__gpu_8h.html#aabe6ae7c057e0fef10c83042ae2d0270", null ],
     [ "ufsecp_gpu_zk_dleq_verify_batch", "ufsecp__gpu_8h.html#aa92f60bf02bf4aefe4e7d6a53cf4525e", null ],
     [ "ufsecp_gpu_zk_ecdsa_snark_witness_batch", "ufsecp__gpu_8h.html#af5affafb74f0af4783a2d9e807fe73ad", null ],
-    [ "ufsecp_gpu_zk_knowledge_verify_batch", "ufsecp__gpu_8h.html#a2d89559f9a891af062b1603d5015886c", null ]
+    [ "ufsecp_gpu_zk_knowledge_verify_batch", "ufsecp__gpu_8h.html#a2d89559f9a891af062b1603d5015886c", null ],
+    [ "ufsecp_gpu_zk_schnorr_snark_witness_batch", "ufsecp__gpu_8h.html#a3c1addac47d8caf4a9038b7c04074dd6", null ]
 ];

@@ -6,6 +6,7 @@ var namespacesecp256k1_1_1zk =
     [ "GeneratorVectors", "structsecp256k1_1_1zk_1_1GeneratorVectors.html", "structsecp256k1_1_1zk_1_1GeneratorVectors" ],
     [ "KnowledgeProof", "structsecp256k1_1_1zk_1_1KnowledgeProof.html", "structsecp256k1_1_1zk_1_1KnowledgeProof" ],
     [ "RangeProof", "structsecp256k1_1_1zk_1_1RangeProof.html", "structsecp256k1_1_1zk_1_1RangeProof" ],
+    [ "SchnorrSnarkWitness", "structsecp256k1_1_1zk_1_1SchnorrSnarkWitness.html", "structsecp256k1_1_1zk_1_1SchnorrSnarkWitness" ],
     [ "batch_commit", "namespacesecp256k1_1_1zk.html#a0226db594f69d83a82b14abf25056717", null ],
     [ "batch_range_verify", "namespacesecp256k1_1_1zk.html#a9d6eca241910168d723f7a9a5eb97414", null ],
     [ "dleq_prove", "namespacesecp256k1_1_1zk.html#a9705abaabe6408859c60ebdf8f2bfb69", null ],
@@ -18,6 +19,7 @@ var namespacesecp256k1_1_1zk =
     [ "knowledge_verify_base", "namespacesecp256k1_1_1zk.html#ab5c2726c7dfb9cbfaf3ae38195e7dbb5", null ],
     [ "range_prove", "namespacesecp256k1_1_1zk.html#a45ddc0b34c1453e6676304295f9c470e", null ],
     [ "range_verify", "namespacesecp256k1_1_1zk.html#a4f1639e44cdf20af3335e5ad784d6adf", null ],
+    [ "schnorr_snark_witness", "namespacesecp256k1_1_1zk.html#a9a1946dea00d17f77e38b8fc458880e9", null ],
     [ "RANGE_PROOF_BITS", "namespacesecp256k1_1_1zk.html#ab1311094574e01905a7e0d5211b10e8a", null ],
     [ "RANGE_PROOF_LOG2", "namespacesecp256k1_1_1zk.html#a3fb6691621f080d829fabee13f88bfb0", null ]
 ];

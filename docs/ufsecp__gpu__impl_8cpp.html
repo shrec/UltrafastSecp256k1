@@ -183,6 +183,8 @@ Functions</h2></td></tr>
 <tr class="separator:a7b2196a2abe2f9b0810b0f18c48371e8"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a014362759d072060d0f58420d577f312" id="r_a014362759d072060d0f58420d577f312"><td class="memItemLeft" align="right" valign="top"><a class="el" href="ufsecp__error_8h.html#ace9807a2d7e727c5d4dc3f8473118c9b">ufsecp_error_t</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ufsecp__gpu__impl_8cpp.html#a014362759d072060d0f58420d577f312">ufsecp_gpu_zk_ecdsa_snark_witness_batch</a> (<a class="el" href="structufsecp__gpu__ctx.html">ufsecp_gpu_ctx</a> *ctx, const uint8_t *msg_hashes32, const uint8_t *pubkeys33, const uint8_t *sigs64, size_t count, uint8_t *out_witnesses)</td></tr>
 <tr class="separator:a014362759d072060d0f58420d577f312"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a4fef79413b7fcf0df41a2207605d34a1" id="r_a4fef79413b7fcf0df41a2207605d34a1"><td class="memItemLeft" align="right" valign="top"><a class="el" href="ufsecp__error_8h.html#ace9807a2d7e727c5d4dc3f8473118c9b">ufsecp_error_t</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ufsecp__gpu__impl_8cpp.html#a4fef79413b7fcf0df41a2207605d34a1">ufsecp_gpu_zk_schnorr_snark_witness_batch</a> (<a class="el" href="structufsecp__gpu__ctx.html">ufsecp_gpu_ctx</a> *ctx, const uint8_t *msgs32, const uint8_t *pubkeys_x32, const uint8_t *sigs64, size_t count, uint8_t *out_witnesses)</td></tr>
+<tr class="separator:a4fef79413b7fcf0df41a2207605d34a1"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ad68942965126a876fb2e100ea5b06556" id="r_ad68942965126a876fb2e100ea5b06556"><td class="memItemLeft" align="right" valign="top"><a class="el" href="ufsecp__error_8h.html#ace9807a2d7e727c5d4dc3f8473118c9b">ufsecp_error_t</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ufsecp__gpu__impl_8cpp.html#ad68942965126a876fb2e100ea5b06556">ufsecp_bip352_prepare_scan_plan</a> (const uint8_t scan_privkey32[32], uint8_t plan264_out[264])</td></tr>
 <tr class="separator:ad68942965126a876fb2e100ea5b06556"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ac2319cd2bef527359e9e1eabfef0cba0" id="r_ac2319cd2bef527359e9e1eabfef0cba0"><td class="memItemLeft" align="right" valign="top"><a class="el" href="ufsecp__error_8h.html#ace9807a2d7e727c5d4dc3f8473118c9b">ufsecp_error_t</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ufsecp__gpu__impl_8cpp.html#ac2319cd2bef527359e9e1eabfef0cba0">ufsecp_gpu_bip352_scan_batch</a> (<a class="el" href="structufsecp__gpu__ctx.html">ufsecp_gpu_ctx</a> *ctx, const uint8_t scan_privkey32[32], const uint8_t spend_pubkey33[33], const uint8_t *tweak_pubkeys33, size_t n_tweaks, uint64_t *prefix64_out)</td></tr>
@@ -465,7 +467,7 @@ Variables</h2></td></tr>
 
 <p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00053">53</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00498">ufsecp_gpu_bip324_aead_decrypt_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00473">ufsecp_gpu_bip324_aead_encrypt_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00620">ufsecp_gpu_bip352_scan_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00444">ufsecp_gpu_bulletproof_verify_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00168">ufsecp_gpu_ctx_create()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00140">ufsecp_gpu_device_info()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00272">ufsecp_gpu_ecdh_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00230">ufsecp_gpu_ecdsa_verify_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00364">ufsecp_gpu_ecrecover_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00331">ufsecp_gpu_frost_verify_partial_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00214">ufsecp_gpu_generator_mul_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00295">ufsecp_gpu_hash160_pubkey_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00200">ufsecp_gpu_last_error()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00314">ufsecp_gpu_msm()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00251">ufsecp_gpu_schnorr_verify_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00416">ufsecp_gpu_zk_dleq_verify_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00529">ufsecp_gpu_zk_ecdsa_snark_witness_batch()</a>, and <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00393">ufsecp_gpu_zk_knowledge_verify_batch()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00498">ufsecp_gpu_bip324_aead_decrypt_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00473">ufsecp_gpu_bip324_aead_encrypt_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00637">ufsecp_gpu_bip352_scan_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00444">ufsecp_gpu_bulletproof_verify_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00168">ufsecp_gpu_ctx_create()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00140">ufsecp_gpu_device_info()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00272">ufsecp_gpu_ecdh_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00230">ufsecp_gpu_ecdsa_verify_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00364">ufsecp_gpu_ecrecover_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00331">ufsecp_gpu_frost_verify_partial_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00214">ufsecp_gpu_generator_mul_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00295">ufsecp_gpu_hash160_pubkey_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00200">ufsecp_gpu_last_error()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00314">ufsecp_gpu_msm()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00251">ufsecp_gpu_schnorr_verify_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00416">ufsecp_gpu_zk_dleq_verify_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00529">ufsecp_gpu_zk_ecdsa_snark_witness_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00393">ufsecp_gpu_zk_knowledge_verify_batch()</a>, and <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00546">ufsecp_gpu_zk_schnorr_snark_witness_batch()</a>.</p>
 
 </div>
 </div>
@@ -506,7 +508,7 @@ Variables</h2></td></tr>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>UFSECP_OK on success, UFSECP_ERR_BAD_KEY if the key is zero or otherwise invalid. </dd></dl>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00550">550</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00567">567</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
 
 <p class="reference">References <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html#ab42c494ac695a8a1f01ecb662d52883e">secp256k1::fast::Scalar::from_bytes()</a>, <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html#a2b3d5b020282b431e602d2ad60f099ae">secp256k1::fast::Scalar::is_zero()</a>, <a class="el" href="ufsecp__error_8h_source.html#l00026">UFSECP_ERR_BAD_KEY</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, and <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>.</p>
 
@@ -815,7 +817,7 @@ Variables</h2></td></tr>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>UFSECP_OK on success. UFSECP_ERR_BAD_KEY if any pubkey is invalid. UFSECP_ERR_GPU_UNSUPPORTED on Metal backend. </dd></dl>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00620">620</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00637">637</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
 
 <p class="reference">References <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00044">ufsecp_gpu_ctx::backend</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00032">kMaxGpuBatchN</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00053">to_abi_error()</a>, <a class="el" href="ufsecp__error_8h_source.html#l00029">UFSECP_ERR_BAD_INPUT</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, and <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00035">UFSECP_GPU_CATCH</a>.</p>
 
@@ -1248,7 +1250,7 @@ Variables</h2></td></tr>
 </div><div class="memdoc">
 <p>Map GPU-specific error code to description (passes through to ufsecp_error_str for CPU error codes). </p>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00641">641</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00658">658</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
 
 <p class="reference">References <a class="el" href="ufsecp__error_8h_source.html#l00031">UFSECP_ERR_ARITH</a>, <a class="el" href="ufsecp__error_8h_source.html#l00029">UFSECP_ERR_BAD_INPUT</a>, <a class="el" href="ufsecp__error_8h_source.html#l00026">UFSECP_ERR_BAD_KEY</a>, <a class="el" href="ufsecp__error_8h_source.html#l00027">UFSECP_ERR_BAD_PUBKEY</a>, <a class="el" href="ufsecp__error_8h_source.html#l00028">UFSECP_ERR_BAD_SIG</a>, <a class="el" href="ufsecp__error_8h_source.html#l00034">UFSECP_ERR_BUF_TOO_SMALL</a>, <a class="el" href="ufsecp__gpu_8h_source.html#l00077">UFSECP_ERR_GPU_BACKEND</a>, <a class="el" href="ufsecp__gpu_8h_source.html#l00073">UFSECP_ERR_GPU_DEVICE</a>, <a class="el" href="ufsecp__gpu_8h_source.html#l00074">UFSECP_ERR_GPU_LAUNCH</a>, <a class="el" href="ufsecp__gpu_8h_source.html#l00075">UFSECP_ERR_GPU_MEMORY</a>, <a class="el" href="ufsecp__gpu_8h_source.html#l00078">UFSECP_ERR_GPU_QUEUE</a>, <a class="el" href="ufsecp__gpu_8h_source.html#l00072">UFSECP_ERR_GPU_UNAVAILABLE</a>, <a class="el" href="ufsecp__gpu_8h_source.html#l00076">UFSECP_ERR_GPU_UNSUPPORTED</a>, <a class="el" href="ufsecp__error_8h_source.html#l00033">UFSECP_ERR_INTERNAL</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, <a class="el" href="ufsecp__error_8h_source.html#l00032">UFSECP_ERR_SELFTEST</a>, <a class="el" href="ufsecp__error_8h_source.html#l00030">UFSECP_ERR_VERIFY_FAIL</a>, and <a class="el" href="ufsecp__error_8h_source.html#l00024">UFSECP_OK</a>.</p>
 
@@ -1896,6 +1898,75 @@ Variables</h2></td></tr>
 
 </div>
 </div>
+<a id="a4fef79413b7fcf0df41a2207605d34a1" name="a4fef79413b7fcf0df41a2207605d34a1"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a4fef79413b7fcf0df41a2207605d34a1">&#9670;&#160;</a></span>ufsecp_gpu_zk_schnorr_snark_witness_batch()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="ufsecp__error_8h.html#ace9807a2d7e727c5d4dc3f8473118c9b">ufsecp_error_t</a> ufsecp_gpu_zk_schnorr_snark_witness_batch </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structufsecp__gpu__ctx.html">ufsecp_gpu_ctx</a> *&#160;</td>
+          <td class="paramname"><em>ctx</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const uint8_t *&#160;</td>
+          <td class="paramname"><em>msgs32</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const uint8_t *&#160;</td>
+          <td class="paramname"><em>pubkeys_x32</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const uint8_t *&#160;</td>
+          <td class="paramname"><em>sigs64</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">size_t&#160;</td>
+          <td class="paramname"><em>count</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint8_t *&#160;</td>
+          <td class="paramname"><em>out_witnesses</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Compute BIP-340 Schnorr SNARK witnesses for a batch of (message, xonly-pubkey, sig) tuples.</p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">ctx</td><td>GPU context returned by ufsecp_gpu_context_create(). </td></tr>
+    <tr><td class="paramname">msgs32</td><td>Input: count × 32 bytes (messages, per BIP-340). </td></tr>
+    <tr><td class="paramname">pubkeys_x32</td><td>Input: count × 32 bytes (x-only public keys). </td></tr>
+    <tr><td class="paramname">sigs64</td><td>Input: count × 64 bytes (BIP-340 sigs: R.x[32] || s[32]). </td></tr>
+    <tr><td class="paramname">count</td><td>Number of items to process. </td></tr>
+    <tr><td class="paramname">out_witnesses</td><td>Output: count × UFSECP_SCHNORR_SNARK_WITNESS_BYTES bytes. Each record contains public inputs, lifted point witnesses, challenge scalar, and 5×52-bit foreign-field limbs. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>UFSECP_OK on success, or an error code on failure. </dd></dl>
+
+<p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00546">546</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
+
+<p class="reference">References <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00044">ufsecp_gpu_ctx::backend</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00032">kMaxGpuBatchN</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00053">to_abi_error()</a>, <a class="el" href="ufsecp__error_8h_source.html#l00029">UFSECP_ERR_BAD_INPUT</a>, <a class="el" href="ufsecp__error_8h_source.html#l00025">UFSECP_ERR_NULL_ARG</a>, and <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00035">UFSECP_GPU_CATCH</a>.</p>
+
+</div>
+</div>
 <h2 class="groupheader">Variable Documentation</h2>
 <a id="a2bd0e0421252f49615cf058e11101f6b" name="a2bd0e0421252f49615cf058e11101f6b"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a2bd0e0421252f49615cf058e11101f6b">&#9670;&#160;</a></span>kMaxGpuBatchN</h2>
@@ -1919,7 +1990,7 @@ Variables</h2></td></tr>
 
 <p class="definition">Definition at line <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00032">32</a> of file <a class="el" href="ufsecp__gpu__impl_8cpp_source.html">ufsecp_gpu_impl.cpp</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00498">ufsecp_gpu_bip324_aead_decrypt_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00473">ufsecp_gpu_bip324_aead_encrypt_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00620">ufsecp_gpu_bip352_scan_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00444">ufsecp_gpu_bulletproof_verify_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00272">ufsecp_gpu_ecdh_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00230">ufsecp_gpu_ecdsa_verify_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00364">ufsecp_gpu_ecrecover_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00331">ufsecp_gpu_frost_verify_partial_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00214">ufsecp_gpu_generator_mul_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00295">ufsecp_gpu_hash160_pubkey_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00314">ufsecp_gpu_msm()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00251">ufsecp_gpu_schnorr_verify_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00416">ufsecp_gpu_zk_dleq_verify_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00529">ufsecp_gpu_zk_ecdsa_snark_witness_batch()</a>, and <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00393">ufsecp_gpu_zk_knowledge_verify_batch()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00498">ufsecp_gpu_bip324_aead_decrypt_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00473">ufsecp_gpu_bip324_aead_encrypt_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00637">ufsecp_gpu_bip352_scan_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00444">ufsecp_gpu_bulletproof_verify_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00272">ufsecp_gpu_ecdh_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00230">ufsecp_gpu_ecdsa_verify_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00364">ufsecp_gpu_ecrecover_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00331">ufsecp_gpu_frost_verify_partial_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00214">ufsecp_gpu_generator_mul_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00295">ufsecp_gpu_hash160_pubkey_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00314">ufsecp_gpu_msm()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00251">ufsecp_gpu_schnorr_verify_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00416">ufsecp_gpu_zk_dleq_verify_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00529">ufsecp_gpu_zk_ecdsa_snark_witness_batch()</a>, <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00393">ufsecp_gpu_zk_knowledge_verify_batch()</a>, and <a class="el" href="ufsecp__gpu__impl_8cpp_source.html#l00546">ufsecp_gpu_zk_schnorr_snark_witness_batch()</a>.</p>
 
 </div>
 </div>

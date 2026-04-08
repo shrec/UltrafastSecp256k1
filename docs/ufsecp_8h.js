@@ -3,6 +3,7 @@ var ufsecp_8h =
     [ "ufsecp_bip32_key", "structufsecp__bip32__key.html", "structufsecp__bip32__key" ],
     [ "ufsecp_ff_limbs_t", "structufsecp__ff__limbs__t.html", "structufsecp__ff__limbs__t" ],
     [ "ufsecp_ecdsa_snark_witness_t", "structufsecp__ecdsa__snark__witness__t.html", "structufsecp__ecdsa__snark__witness__t" ],
+    [ "ufsecp_schnorr_snark_witness_t", "structufsecp__schnorr__snark__witness__t.html", "structufsecp__schnorr__snark__witness__t" ],
     [ "ufsecp_desc_key", "structufsecp__desc__key.html", "structufsecp__desc__key" ],
     [ "UFSECP_BIP32_SERIALIZED_LEN", "ufsecp_8h.html#aaf8e4498de1bc873f9415a1dec9a9aa8", null ],
     [ "UFSECP_COIN_ADDR_MAX_LEN", "ufsecp_8h.html#a1f37adbf2d21a6ef1ea9fdda0a62887e", null ],
@@ -192,5 +193,6 @@ var ufsecp_8h =
     [ "ufsecp_zk_knowledge_prove", "ufsecp_8h.html#ae80be05567568fe79188a74d9a1ec7c3", null ],
     [ "ufsecp_zk_knowledge_verify", "ufsecp_8h.html#a5e5f0a9e57c4fec27a5aa3ca04bb0ef0", null ],
     [ "ufsecp_zk_range_prove", "ufsecp_8h.html#a262661c521935c7340bd0f2a451fd08e", null ],
-    [ "ufsecp_zk_range_verify", "ufsecp_8h.html#ab77f4b7921c5a45b7e02274d6e5b342e", null ]
+    [ "ufsecp_zk_range_verify", "ufsecp_8h.html#ab77f4b7921c5a45b7e02274d6e5b342e", null ],
+    [ "ufsecp_zk_schnorr_snark_witness", "ufsecp_8h.html#a702c2b6396314994c68d62ab4137590e", null ]
 ];

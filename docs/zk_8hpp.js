@@ -6,6 +6,7 @@ var zk_8hpp =
     [ "secp256k1::zk::GeneratorVectors", "structsecp256k1_1_1zk_1_1GeneratorVectors.html", "structsecp256k1_1_1zk_1_1GeneratorVectors" ],
     [ "secp256k1::zk::ForeignFieldLimbs", "structsecp256k1_1_1zk_1_1ForeignFieldLimbs.html", "structsecp256k1_1_1zk_1_1ForeignFieldLimbs" ],
     [ "secp256k1::zk::EcdsaSnarkWitness", "structsecp256k1_1_1zk_1_1EcdsaSnarkWitness.html", "structsecp256k1_1_1zk_1_1EcdsaSnarkWitness" ],
+    [ "secp256k1::zk::SchnorrSnarkWitness", "structsecp256k1_1_1zk_1_1SchnorrSnarkWitness.html", "structsecp256k1_1_1zk_1_1SchnorrSnarkWitness" ],
     [ "batch_commit", "zk_8hpp.html#a0226db594f69d83a82b14abf25056717", null ],
     [ "batch_range_verify", "zk_8hpp.html#a9d6eca241910168d723f7a9a5eb97414", null ],
     [ "dleq_prove", "zk_8hpp.html#a9705abaabe6408859c60ebdf8f2bfb69", null ],
@@ -18,6 +19,7 @@ var zk_8hpp =
     [ "knowledge_verify_base", "zk_8hpp.html#ab5c2726c7dfb9cbfaf3ae38195e7dbb5", null ],
     [ "range_prove", "zk_8hpp.html#a45ddc0b34c1453e6676304295f9c470e", null ],
     [ "range_verify", "zk_8hpp.html#a4f1639e44cdf20af3335e5ad784d6adf", null ],
+    [ "schnorr_snark_witness", "zk_8hpp.html#a9a1946dea00d17f77e38b8fc458880e9", null ],
     [ "RANGE_PROOF_BITS", "zk_8hpp.html#ab1311094574e01905a7e0d5211b10e8a", null ],
     [ "RANGE_PROOF_LOG2", "zk_8hpp.html#a3fb6691621f080d829fabee13f88bfb0", null ]
 ];

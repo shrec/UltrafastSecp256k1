@@ -18,10 +18,13 @@ var searchData=
   ['bnbsmartchain_15',['BNBSmartChain',['../namespacesecp256k1_1_1coins.html#a76432ddb4aad2093674906d6ab3de77c',1,'secp256k1::coins']]],
   ['buf_16',['buf',['../structsecp256k1_1_1coins_1_1Keccak256State.html#ab4b13479b11af716069bb9e4a8ab3418',1,'secp256k1::coins::Keccak256State']]],
   ['buf_5fpos_17',['buf_pos',['../structsecp256k1_1_1coins_1_1Keccak256State.html#a1ca782b1c54b34fa5f2766de1e310e23',1,'secp256k1::coins::Keccak256State']]],
-  ['bytes_5fresult_5fx_18',['bytes_result_x',['../structsecp256k1_1_1zk_1_1EcdsaSnarkWitness.html#a167c50c5b41238717c7f46053c46b575',1,'secp256k1::zk::EcdsaSnarkWitness']]],
-  ['bytes_5fresult_5fx_5fmod_5fn_19',['bytes_result_x_mod_n',['../structsecp256k1_1_1zk_1_1EcdsaSnarkWitness.html#a3b90c6551b126f7af2884190aa7bd9a9',1,'secp256k1::zk::EcdsaSnarkWitness']]],
-  ['bytes_5fresult_5fy_20',['bytes_result_y',['../structsecp256k1_1_1zk_1_1EcdsaSnarkWitness.html#a7a2dfb4b5f4a29ce9e767bbe20df339d',1,'secp256k1::zk::EcdsaSnarkWitness']]],
-  ['bytes_5fs_5finv_21',['bytes_s_inv',['../structsecp256k1_1_1zk_1_1EcdsaSnarkWitness.html#af51117d8ac503d6a28e69bf52a97b1bd',1,'secp256k1::zk::EcdsaSnarkWitness']]],
-  ['bytes_5fu1_22',['bytes_u1',['../structsecp256k1_1_1zk_1_1EcdsaSnarkWitness.html#a62082f82f38c4d1a000e0b068f1bcda3',1,'secp256k1::zk::EcdsaSnarkWitness']]],
-  ['bytes_5fu2_23',['bytes_u2',['../structsecp256k1_1_1zk_1_1EcdsaSnarkWitness.html#a608fc81171450c6f377e1170a7562517',1,'secp256k1::zk::EcdsaSnarkWitness']]]
+  ['bytes_5fe_18',['bytes_e',['../structsecp256k1_1_1zk_1_1SchnorrSnarkWitness.html#a518f5a3de46996bdd942cda3a5454655',1,'secp256k1::zk::SchnorrSnarkWitness']]],
+  ['bytes_5fpub_5fy_19',['bytes_pub_y',['../structsecp256k1_1_1zk_1_1SchnorrSnarkWitness.html#a4c0a6dae9e06dbabd5d75d0983f2b054',1,'secp256k1::zk::SchnorrSnarkWitness']]],
+  ['bytes_5fr_5fy_20',['bytes_r_y',['../structsecp256k1_1_1zk_1_1SchnorrSnarkWitness.html#ae511b85a1d0921c9c81f1fd3d4bbc221',1,'secp256k1::zk::SchnorrSnarkWitness']]],
+  ['bytes_5fresult_5fx_21',['bytes_result_x',['../structsecp256k1_1_1zk_1_1EcdsaSnarkWitness.html#a167c50c5b41238717c7f46053c46b575',1,'secp256k1::zk::EcdsaSnarkWitness']]],
+  ['bytes_5fresult_5fx_5fmod_5fn_22',['bytes_result_x_mod_n',['../structsecp256k1_1_1zk_1_1EcdsaSnarkWitness.html#a3b90c6551b126f7af2884190aa7bd9a9',1,'secp256k1::zk::EcdsaSnarkWitness']]],
+  ['bytes_5fresult_5fy_23',['bytes_result_y',['../structsecp256k1_1_1zk_1_1EcdsaSnarkWitness.html#a7a2dfb4b5f4a29ce9e767bbe20df339d',1,'secp256k1::zk::EcdsaSnarkWitness']]],
+  ['bytes_5fs_5finv_24',['bytes_s_inv',['../structsecp256k1_1_1zk_1_1EcdsaSnarkWitness.html#af51117d8ac503d6a28e69bf52a97b1bd',1,'secp256k1::zk::EcdsaSnarkWitness']]],
+  ['bytes_5fu1_25',['bytes_u1',['../structsecp256k1_1_1zk_1_1EcdsaSnarkWitness.html#a62082f82f38c4d1a000e0b068f1bcda3',1,'secp256k1::zk::EcdsaSnarkWitness']]],
+  ['bytes_5fu2_26',['bytes_u2',['../structsecp256k1_1_1zk_1_1EcdsaSnarkWitness.html#a608fc81171450c6f377e1170a7562517',1,'secp256k1::zk::EcdsaSnarkWitness']]]
 ];

@@ -54,7 +54,8 @@ var annotated_dup =
         [ "ForeignFieldLimbs", "structsecp256k1_1_1zk_1_1ForeignFieldLimbs.html", "structsecp256k1_1_1zk_1_1ForeignFieldLimbs" ],
         [ "GeneratorVectors", "structsecp256k1_1_1zk_1_1GeneratorVectors.html", "structsecp256k1_1_1zk_1_1GeneratorVectors" ],
         [ "KnowledgeProof", "structsecp256k1_1_1zk_1_1KnowledgeProof.html", "structsecp256k1_1_1zk_1_1KnowledgeProof" ],
-        [ "RangeProof", "structsecp256k1_1_1zk_1_1RangeProof.html", "structsecp256k1_1_1zk_1_1RangeProof" ]
+        [ "RangeProof", "structsecp256k1_1_1zk_1_1RangeProof.html", "structsecp256k1_1_1zk_1_1RangeProof" ],
+        [ "SchnorrSnarkWitness", "structsecp256k1_1_1zk_1_1SchnorrSnarkWitness.html", "structsecp256k1_1_1zk_1_1SchnorrSnarkWitness" ]
       ] ],
       [ "AffinePointData", "structsecp256k1_1_1AffinePointData.html", "structsecp256k1_1_1AffinePointData" ],
       [ "Bech32DecodeResult", "structsecp256k1_1_1Bech32DecodeResult.html", "structsecp256k1_1_1Bech32DecodeResult" ],
@@ -110,5 +111,6 @@ var annotated_dup =
     [ "ufsecp_ecdsa_snark_witness_t", "structufsecp__ecdsa__snark__witness__t.html", "structufsecp__ecdsa__snark__witness__t" ],
     [ "ufsecp_ff_limbs_t", "structufsecp__ff__limbs__t.html", "structufsecp__ff__limbs__t" ],
     [ "ufsecp_gpu_ctx", "structufsecp__gpu__ctx.html", "structufsecp__gpu__ctx" ],
-    [ "ufsecp_gpu_device_info_t", "structufsecp__gpu__device__info__t.html", "structufsecp__gpu__device__info__t" ]
+    [ "ufsecp_gpu_device_info_t", "structufsecp__gpu__device__info__t.html", "structufsecp__gpu__device__info__t" ],
+    [ "ufsecp_schnorr_snark_witness_t", "structufsecp__schnorr__snark__witness__t.html", "structufsecp__schnorr__snark__witness__t" ]
 ];
