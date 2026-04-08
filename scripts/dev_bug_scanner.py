@@ -18,6 +18,11 @@ Detects the kind of bugs a human reviewer catches during development:
   ZEROIZE memset clears fewer bytes than the declared buffer size
   DBLINIT variable assigned twice consecutively with no intervening read
   UNREACH statement after unconditional return/throw/continue/break
+  SECRET_UNERASED  Scalar in signing/key path without secure_erase on exit
+  CT_VIOLATION     fast:: namespace call in CT-required secret path
+  TAGGED_HASH_BYPASS  plain sha256() where BIP-340 tagged_hash is required
+  RANDOM_IN_SIGNING   non-deterministic random in RFC 6979 signing path
+  BINDING_NO_VALIDATION  public ufsecp_ function missing NULL-check on args
 
 Usage examples
 --------------
@@ -734,6 +739,172 @@ def check_unreachable(path: str, lines: List[str]) -> List[Finding]:
 
 
 # ──────────────────────────────────────────────────────────────────────────────
+# Crypto-specific checkers
+# ──────────────────────────────────────────────────────────────────────────────
+
+# ── SECRET_UNERASED: Scalar on stack in signing/key path without secure_erase ─
+_SCALAR_DECL   = re.compile(r'\bScalar\s+(\w+)\s*[=;({]')
+_SECURE_ERASE  = re.compile(r'secure_erase\s*\(\s*(?:&|const_cast<[^>]+>\s*\(\s*)?(\w+)')
+_SECRET_PATH_KW = {'sign', 'nonce', 'key', 'adapt', 'bip32', 'derive', 'secret', 'blind'}
+_TRIVIAL_SCALAR = {'zero', 'one', 'result', 'order', 'half_order', 'n', 'GROUP_ORDER'}
+
+def check_secret_unerased(path: str, lines: List[str]) -> List[Finding]:
+    """Scalar local variable in signing/key path not followed by secure_erase."""
+    path_lower = path.lower()
+    if not any(kw in path_lower for kw in _SECRET_PATH_KW):
+        return []
+    findings: List[Finding] = []
+    scalars: dict[str, int] = {}   # name -> line number
+    erased: set[str] = set()
+    for i, raw in enumerate(lines):
+        line = _strip_comments(raw)
+        for m in _SCALAR_DECL.finditer(line):
+            name = m.group(1)
+            if name not in _TRIVIAL_SCALAR:
+                scalars[name] = i + 1
+        for m2 in _SECURE_ERASE.finditer(line):
+            erased.add(m2.group(1))
+    for name, lineno in scalars.items():
+        if name not in erased:
+            findings.append(Finding(
+                file=path, line=lineno, severity="HIGH",
+                category="SECRET_UNERASED",
+                message=f"Scalar `{name}` in secret path — no secure_erase found before function exit",
+                snippet=lines[lineno - 1].strip(),
+                fix_hint=f"Add secure_erase(&{name}, sizeof({name})) on all exit paths",
+            ))
+    return findings
+
+
+# ── CT_VIOLATION: fast:: call in signing/CT context ───────────────────────────
+_FAST_NS_CALL = re.compile(r'\bfast::(scalar_mul|field_mul|field_inv|scalar_inverse|field_sqr)\s*\(')
+_CT_FILE_KW   = {'sign', 'nonce', 'ct_', 'secret', 'adaptor', 'blind', 'ecdh', 'derive'}
+
+def check_ct_violation(path: str, lines: List[str]) -> List[Finding]:
+    """fast:: namespace function called in file that should use constant-time (ct::) paths."""
+    path_lower = path.lower()
+    if not any(kw in path_lower for kw in _CT_FILE_KW):
+        return []
+    findings: List[Finding] = []
+    for i, raw in enumerate(lines):
+        line = _strip_comments(raw)
+        m = _FAST_NS_CALL.search(line)
+        if m:
+            fn = m.group(1)
+            findings.append(Finding(
+                file=path, line=i + 1, severity="HIGH",
+                category="CT_VIOLATION",
+                message=f"`fast::{fn}()` in secret-bearing path — must use `ct::{fn}()` for constant-time safety",
+                snippet=raw.strip(),
+                fix_hint=f"Replace `fast::{fn}(...)` with `ct::{fn}(...)` to ensure CT execution",
+            ))
+    return findings
+
+
+# ── TAGGED_HASH_BYPASS: plain sha256() in signing code where tagged hash needed
+_PLAIN_SHA256  = re.compile(r'\bsha256\s*\(', re.I)
+_TAGGED_HASH   = re.compile(r'tagged_hash|TaggedHash|BIP0340', re.I)
+_SIGN_FILE_KW  = {'sign', 'schnorr', 'bip340', 'taproot', 'musig', 'adaptor'}
+
+def check_tagged_hash_bypass(path: str, lines: List[str]) -> List[Finding]:
+    """Plain sha256() in BIP-340/signing code where tagged_hash is required for domain separation."""
+    path_lower = path.lower()
+    if not any(kw in path_lower for kw in _SIGN_FILE_KW):
+        return []
+    findings: List[Finding] = []
+    for i, raw in enumerate(lines):
+        line = _strip_comments(raw)
+        if _PLAIN_SHA256.search(line) and not _TAGGED_HASH.search(line):
+            # Check context: if nearby lines use tagged_hash, this one should too
+            ctx = ' '.join(lines[max(0, i-5):min(len(lines), i+5)])
+            if _TAGGED_HASH.search(ctx) or any(kw in line.lower() for kw in ('nonce', 'challenge', 'aux')):
+                findings.append(Finding(
+                    file=path, line=i + 1, severity="HIGH",
+                    category="TAGGED_HASH_BYPASS",
+                    message="Plain `sha256()` in signing code where `tagged_hash(\"BIP0340/...\")` is required "
+                            "for domain separation — silent protocol break risk",
+                    snippet=raw.strip(),
+                    fix_hint="Use tagged_hash(\"BIP0340/...\", data) for BIP-340 domain separation",
+                ))
+    return findings
+
+
+# ── RANDOM_IN_SIGNING: non-deterministic random in signing path ───────────────
+_RANDOM_CALL   = re.compile(r'\b(getrandom|rand\s*\(|srand|random_bytes|RAND_bytes|arc4random|randombytes)\s*\(')
+_AUX_RAND_CTX  = re.compile(r'aux_rand|aux_entropy|extra_entropy|additional_entropy', re.I)
+
+def check_random_in_signing(path: str, lines: List[str]) -> List[Finding]:
+    """Random source called in signing path — RFC 6979 is deterministic, random here is suspicious."""
+    path_lower = path.lower()
+    if not any(kw in path_lower for kw in {'sign', 'nonce', 'rfc6979', 'k_gen'}):
+        return []
+    findings: List[Finding] = []
+    for i, raw in enumerate(lines):
+        line = _strip_comments(raw)
+        m = _RANDOM_CALL.search(line)
+        if m:
+            fn = m.group(1)
+            # Skip if it's the designated aux_rand injection path
+            ctx = ' '.join(lines[max(0, i-3):min(len(lines), i+3)])
+            if _AUX_RAND_CTX.search(ctx):
+                continue
+            findings.append(Finding(
+                file=path, line=i + 1, severity="HIGH",
+                category="RANDOM_IN_SIGNING",
+                message=f"`{fn}()` in signing/nonce path — RFC 6979 signing must be deterministic; "
+                         "random source here may introduce nonce bias or predictability",
+                snippet=raw.strip(),
+                fix_hint="Remove the random call or move it to the designated aux_rand/extra_entropy path",
+            ))
+    return findings
+
+
+# ── BINDING_NO_VALIDATION: public ufsecp_ function missing NULL-check on args ─
+_UFSECP_FUNC_DEF = re.compile(
+    r'^(?:ufsecp_error_t|int)\s+(ufsecp_\w+)\s*\('
+)
+_NULL_CHECK = re.compile(r'if\s*\(\s*!(?:ctx|out|sig|pk|pubkey|msg|priv|secret|result|entries)')
+
+def check_binding_no_validation(path: str, lines: List[str]) -> List[Finding]:
+    """Public ufsecp_ function body does not start with NULL-pointer validation on arguments."""
+    if 'impl' not in path.lower() and 'binding' not in path.lower() and 'ufsecp' not in path.lower():
+        return []
+    findings: List[Finding] = []
+    i = 0
+    while i < len(lines):
+        line = _strip_comments(lines[i])
+        m = _UFSECP_FUNC_DEF.match(line.strip())
+        if m:
+            fn_name = m.group(1)
+            # Scan forward into function body (next 15 lines after opening brace)
+            has_null_check = False
+            brace_found = False
+            for j in range(i, min(len(lines), i + 20)):
+                body_line = _strip_comments(lines[j])
+                if '{' in body_line:
+                    brace_found = True
+                if brace_found and _NULL_CHECK.search(body_line):
+                    has_null_check = True
+                    break
+                if brace_found and '}' in body_line and body_line.strip() == '}':
+                    break  # function ended
+            if brace_found and not has_null_check:
+                # Skip trivially-small functions (e.g. version_string)
+                if fn_name not in ('ufsecp_version_string', 'ufsecp_version_major',
+                                   'ufsecp_version_minor', 'ufsecp_version_patch'):
+                    findings.append(Finding(
+                        file=path, line=i + 1, severity="MEDIUM",
+                        category="BINDING_NO_VALIDATION",
+                        message=f"`{fn_name}()` — public ABI function body has no NULL-pointer "
+                                "validation on arguments in the first 15 lines",
+                        snippet=lines[i].strip(),
+                        fix_hint=f"Add `if (!ctx || !out) return UFSECP_ERROR_ARG;` at start of {fn_name}()",
+                    ))
+        i += 1
+    return findings
+
+
+# ──────────────────────────────────────────────────────────────────────────────
 # File collection
 # ──────────────────────────────────────────────────────────────────────────────
 
@@ -784,6 +955,12 @@ CHECKERS = [
     check_zeroize,
     check_dblinit,
     check_unreachable,
+    # Crypto-specific checkers
+    check_secret_unerased,
+    check_ct_violation,
+    check_tagged_hash_bypass,
+    check_random_in_signing,
+    check_binding_no_validation,
 ]
 
 

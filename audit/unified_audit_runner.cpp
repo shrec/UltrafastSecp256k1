@@ -158,6 +158,10 @@ int test_exploit_deterministic_sig_dfa_run();        // ePrint 2017/975 DFA on R
 int test_exploit_sign_type_confusion_kreuse_run();   // CVE-2024-49364/49365/2022-41340 type confusion k-reuse
 int test_exploit_ros_concurrent_schnorr_run();       // ePrint 2020/945 ROS concurrent Schnorr
 int test_exploit_frost_weak_binding_run();            // ePrint 2026/075, 2025/1001 FROST weak binding
+int test_exploit_blind_spa_cmov_leak_run();           // ePrint 2024/589, 2025/935 Blind SPA + cmov leak
+int test_exploit_ectester_point_validation_run();     // ePrint 2025/1293 ECTester point validation
+int test_exploit_ros_dimensional_erosion_run();       // ePrint 2025/306, 2025/1353 eROS + BZ blind sig
+int test_exploit_ecdsa_batch_verify_rand_run();       // ePrint 2026/663 modified ECDSA batch verify
 int test_cryptol_specs_run();      // Cryptol formal spec property check (advisory: needs cryptol)
 
 // ============================================================================
@@ -710,6 +714,10 @@ static const AuditModule ALL_MODULES[] = {
     { "exploit_sign_type_confusion",       "Type Confusion k-Reuse (STCK-1..10)",        "exploit_poc", test_exploit_sign_type_confusion_kreuse_run, false },
     { "exploit_ros_concurrent_schnorr",    "ROS Concurrent Schnorr (ROS-1..10)",         "exploit_poc", test_exploit_ros_concurrent_schnorr_run, false },
     { "exploit_frost_weak_binding",        "FROST Weak Binding (FWB-1..8)",              "exploit_poc", test_exploit_frost_weak_binding_run, false },
+    { "exploit_blind_spa_cmov_leak",       "Blind SPA & cmov Leak (BSPA-1..12)",        "exploit_poc", test_exploit_blind_spa_cmov_leak_run, false },
+    { "exploit_ectester_point_validation", "ECTester Point Validation (ECT-1..18)",     "exploit_poc", test_exploit_ectester_point_validation_run, false },
+    { "exploit_ros_dimensional_erosion",   "ROS Dimensional eROS (RDE-1..12)",          "exploit_poc", test_exploit_ros_dimensional_erosion_run, false },
+    { "exploit_ecdsa_batch_verify_rand",   "ECDSA Batch Verify Rand (BVR-1..16)",      "exploit_poc", test_exploit_ecdsa_batch_verify_rand_run, false },
 };
 
 static constexpr int NUM_MODULES = sizeof(ALL_MODULES) / sizeof(ALL_MODULES[0]);

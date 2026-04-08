@@ -2006,6 +2006,58 @@ target_compile_definitions(test_exploit_frost_weak_binding_standalone PRIVATE ST
 add_test(NAME exploit_frost_weak_binding COMMAND test_exploit_frost_weak_binding_standalone)
 set_tests_properties(exploit_frost_weak_binding PROPERTIES TIMEOUT 60 LABELS "audit;exploit;frost;binding;adaptive")
 
+# -- ePrint 2024/589, 2025/935: Blind-Folded SPA & CT cmov/cswap leak ------
+add_executable(test_exploit_blind_spa_cmov_leak_standalone
+    test_exploit_blind_spa_cmov_leak.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_blind_spa_cmov_leak_standalone)
+target_include_directories(test_exploit_blind_spa_cmov_leak_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+)
+target_compile_definitions(test_exploit_blind_spa_cmov_leak_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_blind_spa_cmov_leak COMMAND test_exploit_blind_spa_cmov_leak_standalone)
+set_tests_properties(exploit_blind_spa_cmov_leak PROPERTIES TIMEOUT 60 LABELS "audit;exploit;spa;cmov;ct")
+
+# -- ePrint 2025/1293: ECTester point order/infinity validation -------------
+add_executable(test_exploit_ectester_point_validation_standalone
+    test_exploit_ectester_point_validation.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_ectester_point_validation_standalone)
+target_include_directories(test_exploit_ectester_point_validation_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+)
+target_compile_definitions(test_exploit_ectester_point_validation_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_ectester_point_validation COMMAND test_exploit_ectester_point_validation_standalone)
+set_tests_properties(exploit_ectester_point_validation PROPERTIES TIMEOUT 60 LABELS "audit;exploit;ectester;point;validation")
+
+# -- ePrint 2025/306, 2025/1353: Dimensional eROS & BZ blind sig forgery ----
+add_executable(test_exploit_ros_dimensional_erosion_standalone
+    test_exploit_ros_dimensional_erosion.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_ros_dimensional_erosion_standalone)
+target_include_directories(test_exploit_ros_dimensional_erosion_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+)
+target_compile_definitions(test_exploit_ros_dimensional_erosion_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_ros_dimensional_erosion COMMAND test_exploit_ros_dimensional_erosion_standalone)
+set_tests_properties(exploit_ros_dimensional_erosion PROPERTIES TIMEOUT 120 LABELS "audit;exploit;ros;eros;blindsig")
+
+# -- ePrint 2026/663: Modified ECDSA batch verification randomization -------
+add_executable(test_exploit_ecdsa_batch_verify_rand_standalone
+    test_exploit_ecdsa_batch_verify_rand.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_ecdsa_batch_verify_rand_standalone)
+target_include_directories(test_exploit_ecdsa_batch_verify_rand_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+)
+target_compile_definitions(test_exploit_ecdsa_batch_verify_rand_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_ecdsa_batch_verify_rand COMMAND test_exploit_ecdsa_batch_verify_rand_standalone)
+set_tests_properties(exploit_ecdsa_batch_verify_rand PROPERTIES TIMEOUT 120 LABELS "audit;exploit;ecdsa;batch;verify;rand")
+
 # -- Source integrity scanner: known mutation artifact patterns -------------
 add_executable(test_mutation_artifact_scan_standalone test_mutation_artifact_scan.cpp)
 audit_target_defaults(test_mutation_artifact_scan_standalone)
@@ -2475,6 +2527,14 @@ add_executable(unified_audit_runner
     test_exploit_ros_concurrent_schnorr.cpp
     # -- FROST weak binding adaptive corruption (ePrint 2026/075, 2025/1001) --
     test_exploit_frost_weak_binding.cpp
+    # -- Blind-Folded SPA & cmov/cswap leak (ePrint 2024/589, 2025/935) --
+    test_exploit_blind_spa_cmov_leak.cpp
+    # -- ECTester point order/infinity (ePrint 2025/1293) --
+    test_exploit_ectester_point_validation.cpp
+    # -- Dimensional eROS & BZ blind sig forgery (ePrint 2025/306, 2025/1353) --
+    test_exploit_ros_dimensional_erosion.cpp
+    # -- Modified ECDSA batch verify randomization (ePrint 2026/663) --
+    test_exploit_ecdsa_batch_verify_rand.cpp
 )
 # Conditionally add 5x52 field test (requires __uint128_t; skip on MSVC)
 if(NOT (MSVC AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
