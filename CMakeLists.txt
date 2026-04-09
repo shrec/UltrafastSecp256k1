@@ -367,6 +367,30 @@ if(SECP256K1_INSTALL)
     endif()
 endif()
 
+# -- Code quality targets (local dev + CI) -----------------------------------
+set(UFSECP_CODE_QUALITY_RUNNER "${CMAKE_CURRENT_SOURCE_DIR}/scripts/run_code_quality.py")
+if(Python3_Interpreter_FOUND AND EXISTS "${UFSECP_CODE_QUALITY_RUNNER}")
+    # Human-readable report (cmake --build build --target code-quality)
+    add_custom_target(code-quality
+        COMMAND "${Python3_EXECUTABLE}" "${UFSECP_CODE_QUALITY_RUNNER}"
+                --fail-on-regression
+        WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+        COMMENT "Running code-quality scanners (regression gate)"
+        USES_TERMINAL
+        VERBATIM
+    )
+    # JSON report variant (cmake --build build --target code-quality-report)
+    add_custom_target(code-quality-report
+        COMMAND "${Python3_EXECUTABLE}" "${UFSECP_CODE_QUALITY_RUNNER}"
+                --json --fail-on-regression
+                -o "${CMAKE_BINARY_DIR}/code_quality_report.json"
+        WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+        COMMENT "Generating code-quality JSON report"
+        USES_TERMINAL
+        VERBATIM
+    )
+endif()
+
 # -- CPack packaging ---------------------------------------------------------
 set(UFSECP_SOURCE_GRAPH_TOOL "${CMAKE_CURRENT_SOURCE_DIR}/tools/source_graph_kit/source_graph.py")
 if(UFSECP_REFRESH_SOURCE_GRAPH)

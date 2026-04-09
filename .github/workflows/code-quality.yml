@@ -1,0 +1,61 @@
+# code-quality.yml — Static-analysis regression gate
+#
+# Runs all three code-quality scanners on every push/PR to dev/main.
+# Fails the workflow if any severity count exceeds the committed baseline
+# in scripts/code_quality_baseline.json.
+
+name: Code Quality
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: code-quality-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  code-quality:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Harden the runner
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: '3.12'
+
+      - name: Run code-quality scanners (regression gate)
+        run: |
+          python3 scripts/run_code_quality.py \
+            --fail-on-regression \
+            --github-summary \
+            --json -o code_quality_report.json
+        env:
+          NO_COLOR: "1"
+
+      - name: Human-readable summary
+        if: always()
+        run: python3 scripts/run_code_quality.py 2>/dev/null || true
+        env:
+          NO_COLOR: "1"
+
+      - name: Upload code-quality report
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: code-quality-report
+          path: code_quality_report.json
+          retention-days: 30

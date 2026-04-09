@@ -50,6 +50,7 @@ AUDIT_SCRIPTS = [
     "query_graph.py",
     "release_diff.py",
     "research_monitor.py",
+    "run_code_quality.py",
     "rfc6979_spec_verifier.py",
     "semantic_props.py",
     "stateful_sequences.py",
@@ -67,6 +68,7 @@ HELPABLE_SCRIPTS = [
     "dev_bug_scanner.py",
     "export_assurance.py",
     "preflight.py",
+    "run_code_quality.py",
 ]
 
 # ANSI
@@ -200,8 +202,8 @@ def check_preflight_smoke() -> None:
         output = result.stdout + result.stderr
         if "Traceback" in output:
             fail(tag, f"traceback in output: {output[-300:]}")
-        elif "[13/13]" in result.stdout or "Dev Bug Scanner" in result.stdout:
-            ok(tag, "--bug-scan ran, [13/13] check visible")
+        elif "Code Quality Gate" in result.stdout or "[13/14]" in result.stdout:
+            ok(tag, "--bug-scan ran, code quality gate visible")
         else:
             fail(tag, f"--bug-scan output missing expected header")
     except subprocess.TimeoutExpired:
@@ -294,6 +296,39 @@ def check_preflight_step_count() -> None:
     ok(tag, "preflight.py has all 14/14 steps")
 
 
+def check_code_quality_runner_smoke() -> None:
+    """Smoke-test: run_code_quality.py produces valid JSON."""
+    tag = "SMOKE:run_code_quality"
+    path = SCRIPT_DIR / "run_code_quality.py"
+    if not path.exists():
+        skip(tag, "run_code_quality.py not found")
+        return
+    try:
+        result = subprocess.run(
+            [sys.executable, str(path), "--json"],
+            capture_output=True,
+            text=True,
+            timeout=300,
+            cwd=str(LIB_ROOT),
+        )
+        output = result.stdout + result.stderr
+        if "Traceback" in output:
+            fail(tag, f"traceback: {output[-300:]}")
+            return
+        data = json.loads(result.stdout)
+        if "scanners" not in data or "total_findings" not in data:
+            fail(tag, "JSON output missing expected keys")
+        else:
+            ok(tag, f"exit {result.returncode}, {data['total_findings']} findings, "
+                     f"{len(data.get('regressions', []))} regressions")
+    except json.JSONDecodeError as exc:
+        fail(tag, f"invalid JSON: {exc}")
+    except subprocess.TimeoutExpired:
+        fail(tag, "timed out (300s)")
+    except Exception as exc:
+        fail(tag, str(exc))
+
+
 def main() -> int:
     quick = "--quick" in sys.argv
 
@@ -334,6 +369,7 @@ def main() -> int:
         print(f"  {YELLOW}SKIPPED (--quick){RESET}")
     else:
         check_dev_bug_scanner_smoke()
+        check_code_quality_runner_smoke()
         check_preflight_smoke()
         check_validate_assurance_smoke()
         check_export_assurance_smoke()
