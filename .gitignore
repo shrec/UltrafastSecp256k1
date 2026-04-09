@@ -118,6 +118,9 @@ examples/nodejs_example/package-lock.json
 examples/rust_example/target/
 examples/java_example/*.class
 
+# Rust build artifacts (tools)
+tools/k256_helper/target/
+
 # Removed submodule (bitcoin-core/secp256k1 reference copy)
 cpu/secp256k1/
 

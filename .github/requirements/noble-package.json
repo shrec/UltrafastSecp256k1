@@ -1,0 +1,9 @@
+{
+  "name": "ufsecp-noble-pin",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Pinned @noble/secp256k1 for auditor Docker image differential testing",
+  "dependencies": {
+    "@noble/secp256k1": "2.2.3"
+  }
+}
