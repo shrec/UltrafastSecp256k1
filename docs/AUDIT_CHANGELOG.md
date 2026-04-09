@@ -7,6 +7,80 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-04-16 (Documentation gap closure: 14 exploit PoCs added to audit trail)
+
+- **Added** `audit/test_exploit_bip324_aead_forgery.cpp` — BIP-324 / RFC 8439 /
+  ePrint 2005/001: 15 sub-tests (BAF-1..BAF-15, 30 checks) covering AEAD forgery,
+  ciphertext/tag bit-flip rejection, truncated/extended frame rejection, counter
+  boundary, cross-session key confusion, decrypt oracle resistance.
+
+- **Added** `audit/test_exploit_frost_rogue_key.cpp` — ePrint 2020/852 + 2023/899:
+  12 sub-tests (FRK-1..FRK-12, 22 checks) covering DKG rogue-key/key-cancellation
+  attack: VSS commitment validation, corrupted share rejection, duplicate/out-of-range
+  participant ID rejection, contradictory commitment sets, signer-set binding.
+
+- **Added** `audit/test_exploit_musig2_partial_forgery.cpp` — ePrint 2020/1261 +
+  2022/1375: 10 sub-tests (MPF-1..MPF-10, 26 checks) covering partial signature
+  forgery rejection, wrong signer index, nonce reuse detection, zero-key pubkey
+  rejection, swapped keyagg context, aggregate with forged partial fails.
+
+- **Added** `audit/test_exploit_adaptor_extraction_soundness.cpp` — ePrint 2020/476 +
+  2021/150: 12 sub-tests (ASE-1..ASE-12, 22 checks) covering adaptor extraction
+  soundness: full roundtrip sign→verify→adapt→extract, bit-flip rejection, wrong
+  adaptor point, identity point rejection, message replay, tampered signature.
+
+- **Added** `audit/test_exploit_ecdh_twist_injection.cpp` — ePrint 2015/1233 +
+  CVE-2020-0601: 12 sub-tests (ETP-1..ETP-12, 19 checks) covering Pohlig–Hellman
+  twist point injection: on-curve validation for ECDH inputs, twist/infinity/x≥p
+  rejection, invalid prefix rejection, zero private key rejection.
+
+- **Added** `audit/test_exploit_schnorr_batch_inflation.cpp` — BIP-340 + ePrint 2012/549:
+  12 sub-tests (SBI-1..SBI-12, 17 checks) covering batch verify inflation/mix attack:
+  single-invalid detection, all-zero sig/msg rejection, adversarial ordering,
+  duplicate entry amplification, batch_identify_invalid filtering.
+
+- **Added** `audit/test_exploit_musig2_byzantine_multiparty.cpp` — Byzantine multi-party
+  simulation: 10 sub-tests (BYZ-M1..M4, BYZ-F1..F6, 12 checks) covering 3-party/4-party
+  MuSig2 honest roundtrip, wrong-message partial sig detection, zeroed partial sig
+  detection, 3-of-5 FROST Byzantine partial sig corruption.
+
+- **Added** `audit/test_exploit_ecdsa_sign_sentinels.cpp` — RFC 6979 sign sentinel paths:
+  9 sub-tests (SS-1..SS-9, 15 checks) covering r=0/s=0/sk=0 guard behavior, zero-component
+  sentinel detection at C ABI level, hedged signing boundary checks.
+
+- **Added** `audit/test_exploit_rfc6979_minerva_amplified.cpp` — ePrint 2024/2018 +
+  CVE-2024-23342: 5 sub-tests (RA-1..RA-5, 19 checks) covering RFC 6979 deterministic
+  nonce amplification path, i.i.d. timing sample uniformity, identical re-signing,
+  nonce bit-length distribution.
+
+- **Added** `audit/test_exploit_buff_kr_ecdsa.cpp` — ePrint 2024/2018 BUFF security:
+  8 sub-tests (BK-1..BK-8, 26 checks) covering KR-ECDSA Exclusive Ownership,
+  Non-Malleability, Unforgeability, Non-Resignability properties for ecrecover.
+
+- **Added** `audit/test_exploit_minerva_cve_2024_23342.cpp` — CVE-2024-23342 +
+  CVE-2024-28834 Minerva timing regression: 5 sub-tests (MC-1..MC-5, 13 checks)
+  covering constant-time scalar multiplication nonce bit-length side-channel,
+  signing-path timing uniformity, lattice HNP precondition defense.
+
+- **Added** `audit/test_exploit_fe_set_b32_limit_uninit.cpp` — libsecp256k1 PR #1839:
+  14 sub-tests (FB-1..FB-14, 15 checks) covering fe_set_b32_limit uninitialized
+  overflow flag: stack-garbage detection, value≥p acceptance/rejection consistency,
+  ECDSA verify r-component path coverage, boundary values at p-1/p/p+1.
+
+- **Added** `audit/test_exploit_foreign_field_plonk.cpp` — ePrint 2025/695:
+  13 sub-tests (FF-1..FF-13, 22 checks) covering PLONK/SNARK foreign-field
+  arithmetic: secp256k1 field/order limb decomposition, carry propagation,
+  non-canonical encoding, cross-prime p/n confusion, SNARK field wraparound.
+
+- **Added** `audit/test_exploit_zk_new_schemes.cpp` — ePrint 2024/2010 + Bulletproofs:
+  11 sub-tests (ZN-1..ZN-11, 24 checks) covering range proof boundaries (0, 2^64-1),
+  batch range-proof verification with one-bad-apple rejection, ZK hiding/binding,
+  batch_commit correctness, bit-flip mutation scan.
+
+**Running total after this wave: 183 audit files (+17 from catalog, +14 newly logged in changelog). 282 new check assertions documented.**
+
+---
+
 ## 2026-04-15 (SchnorrSnarkWitness ZK primitive + GPU ABI surface expansion)
 
 - **Added** `SchnorrSnarkWitness` — BIP-340 Schnorr foreign-field witness
