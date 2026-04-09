@@ -120,7 +120,7 @@ Each row in this matrix links:
 | **G1** | $\phi(P) = \lambda \cdot P$, $\lambda^3 \equiv 1 \bmod n$ | `cpu/glv.hpp` | Algebraic point verification | `audit_scalar.cpp` -> `test_glv_split()` | [OK] |
 | **G2** | $\phi(\phi(P)) + \phi(P) + P = \mathcal{O}$ | `cpu/glv.hpp` | Endomorphism relation | Comprehensive test #22 | [OK] |
 | **G3** | $k \equiv k_1 + k_2 \lambda \bmod n$ | `cpu/glv.hpp` | Decomposition algebraic check | `audit_scalar.cpp` -> `test_glv_split()` | [OK] |
-| **G4** | $|k_1|, |k_2| < \sqrt{n}$ | `cpu/glv.hpp` | Balanced split | Comprehensive test #22 | [OK] |
+| **G4** | $\lvert k_1\rvert, \lvert k_2\rvert < \sqrt{n}$ | `cpu/glv.hpp` | Balanced split | Comprehensive test #22 | [OK] |
 
 **GLV Subtotal: 4/4 [OK]**
 
@@ -263,7 +263,7 @@ Each row in this matrix links:
 
 | ID | Invariant | Implementation | Validation | Test Location | Status |
 |----|-----------|---------------|------------|---------------|--------|
-| **CT1** | `ct::scalar_mul` timing-independent of scalar | `cpu/ct/point.hpp` | dudect Welch t-test ($|t| < 4.5$) | `test_ct_sidechannel.cpp` -- sections 4a-4b | [OK] |
+| **CT1** | `ct::scalar_mul` timing-independent of scalar | `cpu/ct/point.hpp` | dudect Welch t-test ($\lvert t\rvert < 4.5$) | `test_ct_sidechannel.cpp` -- sections 4a-4b | [OK] |
 | **CT2** | `ct::ecdsa_sign` timing-independent of privkey | `cpu/ct/point.hpp` | dudect Welch t-test | `test_ct_sidechannel.cpp` -- section 4c | [OK] |
 | **CT3** | `ct::schnorr_sign` timing-independent of privkey | `cpu/ct/point.hpp` | dudect Welch t-test | `test_ct_sidechannel.cpp` -- section 4d | [OK] |
 | **CT4** | `ct::field_inv` timing-independent of input | `cpu/ct/field.hpp` | dudect Welch t-test | `test_ct_sidechannel.cpp` -- section 2e | [OK] |
