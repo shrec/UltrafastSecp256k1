@@ -16,6 +16,10 @@
 // C ABI header
 #include "ufsecp/ufsecp.h"
 
+// C++ headers for direct-call branch coverage tests
+#include "secp256k1/zk.hpp"
+#include "secp256k1/scalar.hpp"
+
 static int tests_run = 0;
 static int tests_passed = 0;
 
@@ -421,6 +425,82 @@ static void test_zk_schnorr_snark_witness(ufsecp_ctx* ctx) {
     auto err_bad = ufsecp_zk_schnorr_snark_witness(ctx, msg, pubkey_x32, bad_sig, &w3);
     CHECK(err_bad == UFSECP_OK, "schnorr_snark: tampered sig still returns OK");
     CHECK(w3.valid == 0,        "schnorr_snark: tampered sig → valid == 0");
+
+    /* ── Additional coverage: error-branch tests ─────────────────────── */
+
+    /* Error: zero s → ERR_BAD_INPUT (covers ufsecp_impl.cpp scalar_parse path) */
+    {
+        std::uint8_t zero_s_sig[64];
+        std::memcpy(zero_s_sig, sig64, 64);
+        std::memset(zero_s_sig + 32, 0, 32);  /* s = 0 */
+        ufsecp_schnorr_snark_witness_t wz{};
+        CHECK(ufsecp_zk_schnorr_snark_witness(ctx, msg, pubkey_x32, zero_s_sig, &wz)
+                  != UFSECP_OK,
+              "schnorr_snark: zero s returns error");
+    }
+
+    /* Error: invalid R.x that has no curve point (x=5 ⇒ y²=132, non-QR mod p)
+     * → covers zk.cpp lift_x_even(rx) → R.is_infinity() branch */
+    {
+        std::uint8_t bad_r_sig[64];
+        std::memcpy(bad_r_sig, sig64, 64);
+        std::memset(bad_r_sig, 0, 32);
+        bad_r_sig[31] = 5;  /* R.x = 5 */
+        ufsecp_schnorr_snark_witness_t wr{};
+        auto er = ufsecp_zk_schnorr_snark_witness(ctx, msg, pubkey_x32, bad_r_sig, &wr);
+        CHECK(er == UFSECP_OK,  "schnorr_snark: bad R.x returns OK");
+        CHECK(wr.valid == 0,    "schnorr_snark: bad R.x → valid == 0");
+    }
+
+    /* Error: invalid P.x with no curve point (x=5)
+     * → covers zk.cpp lift_x_even(px) → P.is_infinity() branch */
+    {
+        std::uint8_t bad_pk[32] = {};
+        bad_pk[31] = 5;  /* P.x = 5 */
+        ufsecp_schnorr_snark_witness_t wp{};
+        auto ep = ufsecp_zk_schnorr_snark_witness(ctx, msg, bad_pk, sig64, &wp);
+        CHECK(ep == UFSECP_OK,  "schnorr_snark: bad P.x returns OK");
+        CHECK(wp.valid == 0,    "schnorr_snark: bad P.x → valid == 0");
+    }
+
+    /* Error: null out / msg / pubkey_x / sig */
+    CHECK(ufsecp_zk_schnorr_snark_witness(ctx, msg, pubkey_x32, sig64, nullptr)
+              != UFSECP_OK,
+          "schnorr_snark: null out returns error");
+    {
+        ufsecp_schnorr_snark_witness_t wn{};
+        CHECK(ufsecp_zk_schnorr_snark_witness(ctx, nullptr, pubkey_x32, sig64, &wn)
+                  != UFSECP_OK,
+              "schnorr_snark: null msg returns error");
+    }
+    {
+        ufsecp_schnorr_snark_witness_t wn{};
+        CHECK(ufsecp_zk_schnorr_snark_witness(ctx, msg, nullptr, sig64, &wn)
+                  != UFSECP_OK,
+              "schnorr_snark: null pubkey_x returns error");
+    }
+    {
+        ufsecp_schnorr_snark_witness_t wn{};
+        CHECK(ufsecp_zk_schnorr_snark_witness(ctx, msg, pubkey_x32, nullptr, &wn)
+                  != UFSECP_OK,
+              "schnorr_snark: null sig returns error");
+    }
+
+    /* C++ direct call: zero scalar → covers zk.cpp sig_s.is_zero() branch
+     * (unreachable through C ABI because the ABI rejects zero s first) */
+    {
+        std::array<std::uint8_t, 32> zm{};
+        std::memcpy(zm.data(), msg, 32);
+        std::array<std::uint8_t, 32> zpk{};
+        std::memcpy(zpk.data(), pubkey_x32, 32);
+        std::array<std::uint8_t, 32> zrx{};
+        std::memcpy(zrx.data(), sig64, 32);
+        std::array<std::uint8_t, 32> zero_bytes{};
+        auto zero_scalar = secp256k1::fast::Scalar::from_bytes(zero_bytes);
+        auto wcpp = secp256k1::zk::schnorr_snark_witness(zm, zpk, zrx, zero_scalar);
+        CHECK(wcpp.valid == false,
+              "schnorr_snark C++: zero s → valid == false");
+    }
 }
 
 // ============================================================================
