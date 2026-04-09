@@ -37,6 +37,8 @@ jobs:
     name: Audit (Linux GCC-13)
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    outputs:
+      audit_artifact_id: ${{ steps.upload_reports.outputs.artifact-id }}
     permissions:
       security-events: write
     steps:
@@ -82,6 +84,7 @@ jobs:
             --output-dir ./audit-output/auditor-mode
 
       - name: Upload audit reports
+        id: upload_reports
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         if: always()
         with:
@@ -122,6 +125,8 @@ jobs:
     name: Audit (Linux Clang-17)
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    outputs:
+      audit_artifact_id: ${{ steps.upload_reports.outputs.artifact-id }}
     steps:
       - uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
         with:
@@ -159,6 +164,7 @@ jobs:
             $SECTION_ARG
 
       - name: Upload audit reports
+        id: upload_reports
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         if: always()
         with:
@@ -183,6 +189,8 @@ jobs:
     name: Audit (Windows MSVC)
     runs-on: windows-latest
     timeout-minutes: 30
+    outputs:
+      audit_artifact_id: ${{ steps.upload_reports.outputs.artifact-id }}
     steps:
       - uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
         with:
@@ -215,6 +223,7 @@ jobs:
           }
 
       - name: Upload audit reports
+        id: upload_reports
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         if: always()
         with:
@@ -253,11 +262,29 @@ jobs:
         with:
           egress-policy: audit
 
-      - name: Download audit artifacts
+      - name: Prepare artifact workspace
+        run: mkdir -p audit-artifacts
+
+      - name: Download Linux GCC artifact
+        if: needs.verdict.outputs.linux_gcc_artifact_id != ''
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          pattern: audit-report-*
-          merge-multiple: false
+          artifact-ids: ${{ needs.verdict.outputs.linux_gcc_artifact_id }}
+          path: audit-artifacts/audit-report-linux-gcc13
+
+      - name: Download Linux Clang artifact
+        if: needs.verdict.outputs.linux_clang_artifact_id != ''
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          artifact-ids: ${{ needs.verdict.outputs.linux_clang_artifact_id }}
+          path: audit-artifacts/audit-report-linux-clang17
+
+      - name: Download Windows MSVC artifact
+        if: needs.verdict.outputs.windows_msvc_artifact_id != ''
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          artifact-ids: ${{ needs.verdict.outputs.windows_msvc_artifact_id }}
+          path: audit-artifacts/audit-report-windows-msvc
 
       - name: Checkout gh-pages
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -267,11 +294,18 @@ jobs:
 
       - name: Stage artifacts
         run: |
+          set -u
+          mapfile -t ARTIFACT_DIRS < <(find audit-artifacts -mindepth 1 -maxdepth 1 -type d -name 'audit-report-*' | sort)
+          if [ ${#ARTIFACT_DIRS[@]} -eq 0 ]; then
+            echo "::notice::No audit artifacts were downloaded; skipping gh-pages publish"
+            exit 0
+          fi
+
           DATE=$(date -u +%Y%m%d)
           RUN_ID=${GITHUB_RUN_ID}
           DEST="gh-pages/audit/${DATE}/${RUN_ID}"
           mkdir -p "$DEST"
-          cp -r audit-report-* "$DEST"/
+          cp -r "${ARTIFACT_DIRS[@]}" "$DEST"/
           echo "${DATE}/${RUN_ID}" > "gh-pages/audit/latest.txt"
 
       - name: Commit and push
@@ -294,18 +328,45 @@ jobs:
     needs: [linux-gcc, linux-clang, windows-msvc]
     runs-on: ubuntu-latest
     if: always()
+    outputs:
+      linux_gcc_artifact_id: ${{ needs.linux-gcc.outputs.audit_artifact_id }}
+      linux_clang_artifact_id: ${{ needs.linux-clang.outputs.audit_artifact_id }}
+      windows_msvc_artifact_id: ${{ needs.windows-msvc.outputs.audit_artifact_id }}
     steps:
       - uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
         with:
           egress-policy: audit
-      - name: Download all reports
+      - name: Prepare artifact workspace
+        run: mkdir -p audit-artifacts
+
+      - name: Download Linux GCC report
+        if: needs.linux-gcc.outputs.audit_artifact_id != ''
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          pattern: audit-report-*
-          merge-multiple: false
+          artifact-ids: ${{ needs.linux-gcc.outputs.audit_artifact_id }}
+          path: audit-artifacts/audit-report-linux-gcc13
+
+      - name: Download Linux Clang report
+        if: needs.linux-clang.outputs.audit_artifact_id != ''
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          artifact-ids: ${{ needs.linux-clang.outputs.audit_artifact_id }}
+          path: audit-artifacts/audit-report-linux-clang17
+
+      - name: Download Windows MSVC report
+        if: needs.windows-msvc.outputs.audit_artifact_id != ''
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          artifact-ids: ${{ needs.windows-msvc.outputs.audit_artifact_id }}
+          path: audit-artifacts/audit-report-windows-msvc
 
       - name: Aggregate verdict
+        env:
+          LINUX_GCC_RESULT: ${{ needs.linux-gcc.result }}
+          LINUX_CLANG_RESULT: ${{ needs.linux-clang.result }}
+          WINDOWS_MSVC_RESULT: ${{ needs.windows-msvc.result }}
         run: |
+          set -u
           echo "## Cross-Platform Audit Verdict" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Platform | Verdict |" >> $GITHUB_STEP_SUMMARY
@@ -313,8 +374,27 @@ jobs:
 
           ALL_PASS=true
           MISSING=0
-          for dir in audit-report-*/; do
-            platform=$(basename "$dir" | sed 's/audit-report-//')
+          EXPECTED_ARTIFACTS=(
+            "audit-report-linux-gcc13"
+            "audit-report-linux-clang17"
+            "audit-report-windows-msvc"
+          )
+          EXPECTED_RESULTS=(
+            "$LINUX_GCC_RESULT"
+            "$LINUX_CLANG_RESULT"
+            "$WINDOWS_MSVC_RESULT"
+          )
+
+          mapfile -t DOWNLOADED_DIRS < <(find audit-artifacts -mindepth 1 -maxdepth 1 -type d -name 'audit-report-*' -printf '%f\n' | sort)
+          if [ ${#DOWNLOADED_DIRS[@]} -eq 0 ]; then
+            echo "::error::No audit report artifacts were downloaded"
+          fi
+
+          for idx in "${!EXPECTED_ARTIFACTS[@]}"; do
+            artifact="${EXPECTED_ARTIFACTS[$idx]}"
+            job_result="${EXPECTED_RESULTS[$idx]}"
+            platform=$(printf '%s' "$artifact" | sed 's/audit-report-//')
+            dir="audit-artifacts/$artifact"
             json="$dir/audit_report.json"
             if [ -f "$json" ]; then
               verdict=$(grep -o '"audit_verdict": *"[^"]*"' "$json" | head -1 | cut -d'"' -f4)
@@ -324,12 +404,17 @@ jobs:
                 echo "::error::Audit verdict FAILED on platform: $platform (verdict: $verdict)"
               fi
             else
-              echo "| $platform | NO REPORT |" >> $GITHUB_STEP_SUMMARY
+              echo "| $platform | NO REPORT (${job_result}) |" >> $GITHUB_STEP_SUMMARY
               ALL_PASS=false
               MISSING=$((MISSING + 1))
-              echo "::error::No audit report generated for platform: $platform"
+              echo "::error::No audit report generated for platform: $platform (job result: ${job_result})"
             fi
           done
+
+          if [ ${#DOWNLOADED_DIRS[@]} -gt 0 ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Downloaded artifacts: ${DOWNLOADED_DIRS[*]}" >> $GITHUB_STEP_SUMMARY
+          fi
 
           echo "" >> $GITHUB_STEP_SUMMARY
           if [ "$ALL_PASS" = "true" ]; then
