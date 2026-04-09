@@ -180,7 +180,7 @@ This document lists every mathematical, structural, and behavioral invariant tha
 | C4 | `ufsecp_last_error()` reflects last error code | [OK] test_fuzz_address_bip32_ffi |
 | C5 | `ufsecp_error_string(code)` returns non-NULL for all defined codes | [OK] test_fuzz_address_bip32_ffi |
 | C6 | `ufsecp_abi_version()` returns non-zero | [OK] test_fuzz_address_bip32_ffi |
-| C7 | Thread: context is not thread-safe (documented); functions with separate contexts are safe | [!] TSan CI |
+| C7 | Thread: context is not thread-safe (documented); functions with separate contexts are safe | [OK] TSan CI (`tsan.yml`) + `test_c_abi_thread_stress.cpp` |
 
 ---
 
@@ -233,10 +233,10 @@ This document lists every mathematical, structural, and behavioral invariant tha
 | FROST (FR) | 9 | 9 | 0 | 0 |
 | BIP-32 (H) | 7 | 7 | 0 | 0 |
 | Address (A) | 6 | 6 | 0 | 0 |
-| C ABI (C) | 7 | 6 | 1 | 0 |
+| C ABI (C) | 7 | 7 | 0 | 0 |
 | CT (CT) | 6 | 4 | 2 | 0 |
 | Batch (BP) | 3 | 3 | 0 | 0 |
 | Parsing (SP) | 5 | 5 | 0 | 0 |
-| **Total** | **108** | **105** | **3** | **0** |
+| **Total** | **108** | **106** | **2** | **0** |
 
-The 3 partial items (CT5, CT6, C7) require formal verification or dedicated thread-safety testing infrastructure that is documented but not fully automated.
+The 2 partial items (CT5, CT6) require formal verification infrastructure that is documented but not fully automated.

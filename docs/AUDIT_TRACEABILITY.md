@@ -253,9 +253,9 @@ Each row in this matrix links:
 | **C4** | `last_error()` reflects last code | `compat/ufsecp.h` | Sequence check | `test_fuzz_address_bip32_ffi.cpp` | [OK] |
 | **C5** | `error_string()` -> non-NULL for all codes | `compat/ufsecp.h` | Exhaustive | `test_fuzz_address_bip32_ffi.cpp` | [OK] |
 | **C6** | `abi_version()` -> non-zero | `compat/ufsecp.h` | Version check | `test_fuzz_address_bip32_ffi.cpp` | [OK] |
-| **C7** | Thread-safety: separate contexts safe | `compat/ufsecp.h` | TSan CI | CI `tsan.yml` | [!] |
+| **C7** | Thread-safety: separate contexts safe | `compat/ufsecp.h` | TSan CI | CI `tsan.yml` + `test_c_abi_thread_stress.cpp` | [OK] |
 
-**C ABI Subtotal: 6/7 (1 partial -- C7 requires full TSan harness)**
+**C ABI Subtotal: 7/7**
 
 ---
 
@@ -411,15 +411,14 @@ All core arithmetic operations are tested on boundary values:
 | BIP-324 (T324) | 6 | 6 | 0 | 0 |
 | BIP-32 (H) | 7 | 7 | 0 | 0 |
 | Address (A) | 6 | 6 | 0 | 0 |
-| C ABI (C) | 7 | 6 | 1 | 0 |
+| C ABI (C) | 7 | 7 | 0 | 0 |
 | CT (CT) | 6 | 4 | 2 | 0 |
 | Batch (BP) | 3 | 3 | 0 | 0 |
 | Parsing (SP) | 5 | 5 | 0 | 0 |
 | ECIES (EC) | 8 | 8 | 0 | 0 |
-| **Total** | **128** | **125** | **3** | **0** |
+| **Total** | **128** | **126** | **2** | **0** |
 
-**Partial items** (3):
-- **C7**: Thread-safety (TSan in CI, but no dedicated multi-threaded stress test)
+**Partial items** (2):
 - **CT5**: No secret-dependent branches (code review only, no CTGRIND/formal tool)
 - **CT6**: No secret-dependent memory access (code review only)
 
