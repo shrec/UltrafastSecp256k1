@@ -211,6 +211,7 @@ CTest surface exactly:
 
 - `${_harness}`
 - `bip352_kat`
+- `exploit_adaptor_extraction_soundness`
 - `exploit_address_prefix_collision`
 - `exploit_batch_sign`
 - `exploit_biased_nonce_chain_scan`
@@ -298,6 +299,34 @@ CTest surface exactly:
 - `wycheproof_ecdsa_sha512_p1363`
 - `wycheproof_hkdf_sha256`
 - `wycheproof_hmac_sha256`
+
+### Generated Inventory Sync (2026-04-09)
+
+The following active CTest targets were added during the 2026-04-09 audit
+gate reconciliation:
+
+- `exploit_bip324_aead_forgery`
+- `exploit_blind_spa_cmov_leak`
+- `exploit_deterministic_sig_dfa`
+- `exploit_ecdh_twist_injection`
+- `exploit_ecdsa_affine_nonce_relation`
+- `exploit_ecdsa_batch_verify_rand`
+- `exploit_ecdsa_cross_key_nonce_reuse`
+- `exploit_ecdsa_differential_fault`
+- `exploit_ecdsa_half_half_nonce`
+- `exploit_ecdsa_nonce_modular_bias`
+- `exploit_ectester_point_validation`
+- `exploit_eucleak_inversion_timing`
+- `exploit_frost_rogue_key`
+- `exploit_frost_weak_binding`
+- `exploit_lattice_sieve_hnp`
+- `exploit_musig2_partial_forgery`
+- `exploit_ros_concurrent_schnorr`
+- `exploit_ros_dimensional_erosion`
+- `exploit_schnorr_batch_inflation`
+- `exploit_schnorr_hash_order`
+- `exploit_sign_type_confusion_kreuse`
+- `exploit_zvp_glv_dcp_multiscalar`
 
 ---
 

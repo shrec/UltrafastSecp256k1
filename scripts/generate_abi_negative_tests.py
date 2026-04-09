@@ -50,6 +50,8 @@ TEST_EVIDENCE_GLOBS = [
     'audit/*.cpp',
     'tests/test_*.cpp',
     'tests/*.cpp',
+    'cpu/tests/test_*.cpp',
+    'cpu/tests/*.cpp',
 ]
 
 
