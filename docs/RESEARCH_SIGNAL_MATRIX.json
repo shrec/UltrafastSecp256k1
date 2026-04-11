@@ -557,9 +557,9 @@
     },
     {
       "id": "schnorr_3d_glv_verify_optimization",
-      "status": "candidate",
-      "priority": "medium",
-      "action": "benchmark",
+      "status": "out_of_scope",
+      "priority": "low",
+      "action": "watch-only",
       "keywords": [
         "3D decomposition",
         "GLV",
@@ -573,7 +573,7 @@
       ],
       "references": [],
       "repo_evidence": [],
-      "reason": "ePrint 2025/1151 (Suchánek, Sýs, Chmielewski): 3-dimensional GLV decomposition for Schnorr verification reduces scalar sizes to 1/3 instead of 1/2. Potential optimization for single and batch Schnorr verify. Benchmark to evaluate applicability to UltrafastSecp256k1 verification paths."
+      "reason": "ePrint 2025/1151 (Suchánek, Sýs, Chmielewski): 3D GLV decomposition for Schnorr verification. EVALUATED — NOT APPLICABLE to UltrafastSecp256k1 for the following reasons: (1) secp256k1 λ² ≡ -λ-1 (mod n) causes the 3D lattice to degenerate to 2D (the (1,1,1) vector collapses one dimension). LLL reduction confirms: reduced basis has 128-bit vectors, not 85-bit. (2) Joint 3D lattice over two independent scalars (s, -e) gives ~170-bit scalars (WORSE than 4D 128-bit by Minkowski bound). (3) Our implementation already uses w=15 precomputed generator tables (8192 entries), making the generator scalar nearly free — the bottleneck is the P-side 2D GLV at 128 doublings, which 3D cannot reduce. (4) No public reference implementation exists. Full paper PDF inaccessible for algorithm reconstruction. Current schnorr_verify: 22-26 us/op baseline (10K ops). Re-evaluate if full paper becomes available or if the authors publish a secp256k1 implementation."
     }
   ]
 }
