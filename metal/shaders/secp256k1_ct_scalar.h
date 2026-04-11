@@ -112,7 +112,7 @@ inline Scalar256 ct_scalar_sqr(thread const Scalar256 &a) {
 // ---------------------------------------------------------------------------
 inline Scalar256 ct_scalar_inverse(thread const Scalar256 &a) {
     // n-2 in 8x32 LE
-    constant uint nm2[8] = {
+    const uint nm2[8] = {
         CT_ORDER_N[0] - 2u, CT_ORDER_N[1], CT_ORDER_N[2], CT_ORDER_N[3],
         CT_ORDER_N[4], CT_ORDER_N[5], CT_ORDER_N[6], CT_ORDER_N[7]
     };

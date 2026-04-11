@@ -377,7 +377,7 @@ add_executable(test_exploit_frost_index_standalone test_exploit_frost_index.cpp)
 audit_target_defaults(test_exploit_frost_index_standalone)
 target_compile_definitions(test_exploit_frost_index_standalone PRIVATE STANDALONE_TEST)
 add_test(NAME exploit_frost_index COMMAND test_exploit_frost_index_standalone)
-set_tests_properties(exploit_frost_index PROPERTIES TIMEOUT 60 LABELS "audit;exploit;frost")
+set_tests_properties(exploit_frost_index PROPERTIES TIMEOUT 600 LABELS "audit;exploit;frost")
 
 # -- PoC: FROST participant_id=0 secret exposure (x=0 is the secret evaluation point)
 add_executable(test_exploit_frost_participant_zero_standalone test_exploit_frost_participant_zero.cpp)

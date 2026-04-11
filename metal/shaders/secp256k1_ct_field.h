@@ -16,7 +16,7 @@ constant uint CT_FIELD_P_LIMBS[8] = {
 };
 
 // ---------------------------------------------------------------------------
-// 256-bit add with carry (8x32)
+// 256-bit add with carry (8x32) — thread/thread
 // ---------------------------------------------------------------------------
 inline uint ct_add_8limb(thread const uint a[8], thread const uint b[8], thread uint r[8]) {
     uint carry = 0;
@@ -28,8 +28,41 @@ inline uint ct_add_8limb(thread const uint a[8], thread const uint b[8], thread 
     return carry;
 }
 
-// 256-bit sub with borrow (8x32)
+// 256-bit add — thread/constant overload (for constant P)
+inline uint ct_add_8limb(thread const uint a[8], constant const uint b[8], thread uint r[8]) {
+    uint carry = 0;
+    for (int i = 0; i < 8; ++i) {
+        uint sum = a[i] + b[i] + carry;
+        carry = (sum < a[i]) || (carry && sum == a[i]) ? 1u : 0u;
+        r[i] = sum;
+    }
+    return carry;
+}
+
+// 256-bit sub with borrow (8x32) — thread/thread
 inline uint ct_sub_8limb(thread const uint a[8], thread const uint b[8], thread uint r[8]) {
+    uint borrow = 0;
+    for (int i = 0; i < 8; ++i) {
+        uint diff = a[i] - b[i] - borrow;
+        borrow = (a[i] < b[i] + borrow) || (borrow && b[i] == 0xFFFFFFFFu) ? 1u : 0u;
+        r[i] = diff;
+    }
+    return borrow;
+}
+
+// 256-bit sub — thread/constant overload (for constant P)
+inline uint ct_sub_8limb(thread const uint a[8], constant const uint b[8], thread uint r[8]) {
+    uint borrow = 0;
+    for (int i = 0; i < 8; ++i) {
+        uint diff = a[i] - b[i] - borrow;
+        borrow = (a[i] < b[i] + borrow) || (borrow && b[i] == 0xFFFFFFFFu) ? 1u : 0u;
+        r[i] = diff;
+    }
+    return borrow;
+}
+
+// 256-bit sub — constant/thread overload (for p - a)
+inline uint ct_sub_8limb(constant const uint a[8], thread const uint b[8], thread uint r[8]) {
     uint borrow = 0;
     for (int i = 0; i < 8; ++i) {
         uint diff = a[i] - b[i] - borrow;

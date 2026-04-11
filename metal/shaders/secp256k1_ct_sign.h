@@ -9,6 +9,13 @@
 #ifndef SECP256K1_CT_SIGN_H
 #define SECP256K1_CT_SIGN_H
 
+// BIP-340 tagged hash indices (must match secp256k1_extended.h)
+#ifndef BIP340_TAG_AUX
+#define BIP340_TAG_AUX       0
+#define BIP340_TAG_NONCE     1
+#define BIP340_TAG_CHALLENGE 2
+#endif
+
 // ---------------------------------------------------------------------------
 // CT Jacobian to affine
 // ---------------------------------------------------------------------------
