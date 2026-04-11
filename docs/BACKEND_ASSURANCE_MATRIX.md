@@ -88,10 +88,10 @@ through `ufsecp_gpu.h`.
 | Primitive | CUDA | OpenCL | Metal | Used by |
 |---|---|---|---|---|
 | Field ops (mul, sqr, inv) | Y | Y | Y | all point operations |
-| CT field ops | Y | Y | Y | CT smoke tests |
-| CT scalar ops | Y | Y | Y | CT smoke tests |
+| CT field ops | Y | Y | Y | CT smoke tests (CUDA: `test_ct_smoke.cu`; OpenCL: `gpu_ct_smoke` audit section; Metal: `ct_smoke_kernel`) |
+| CT scalar ops | Y | Y | Y | CT smoke tests — same coverage as CT field ops |
 | CT point ops (complete add, `jacobian_cmov`) | Y | Y | Y | CT smoke tests, ECDH |
-| CT sign (generator mul, ECDSA, Schnorr) | Y | Y | Y | CT smoke tests only |
+| CT sign (generator mul, ECDSA, Schnorr) | Y | Y | Y | CT smoke tests on all 3 backends (code-discipline CT; vendor JIT caveat — see AUDIT_PHILOSOPHY.md) |
 | CT ZK (range prove, inner product) | Y | Y | Y | range prove device path |
 | Pedersen commitment | Y | Y | Y | `bulletproof_verify_batch` internals |
 | Keccak-256 / `eth_address` | Y | Y | Y | internal Ethereum address derivation |
