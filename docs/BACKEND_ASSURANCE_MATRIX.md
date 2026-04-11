@@ -110,6 +110,12 @@ through `ufsecp_gpu.h`.
 
 ## Parity Status
 
+> **Parity tracking is machine-generated.** The source graph (`tools/source_graph_kit/source_graph.py`)
+> cross-references the `GpuBackend` virtual interface against CUDA, OpenCL, and Metal
+> implementations on every CI build. Any gap introduced by a commit is flagged
+> immediately by the parity audit workflow. The numbers below reflect the current
+> HEAD — they are not a manually maintained snapshot.
+
 All 15 of the original public GPU ABI operations are implemented on CUDA, OpenCL, and Metal.
 No partial stubs remain for those. Last resolved: 2026-03-25.
 

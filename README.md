@@ -65,6 +65,7 @@ cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build build -
 | 🔍 Run the audit | [docs/AUDIT_GUIDE.md](docs/AUDIT_GUIDE.md) |
 | ⚔️ Try to break the system | [docs/ATTACK_GUIDE.md](docs/ATTACK_GUIDE.md) |
 | 📊 Understand the guarantees | [docs/AUDIT_TRACEABILITY.md](docs/AUDIT_TRACEABILITY.md) |
+| 🧠 Audit philosophy & design rationale | [docs/AUDIT_PHILOSOPHY.md](docs/AUDIT_PHILOSOPHY.md) |
 | 📄 See latest audit results | [AUDIT_REPORT.md](AUDIT_REPORT.md) |
 | 🏗️ Build guide | [docs/BUILDING.md](docs/BUILDING.md) |
 | 🔗 C ABI / FFI reference | [docs/API_REFERENCE.md](docs/API_REFERENCE.md) |
@@ -216,7 +217,7 @@ Full adopter list: [ADOPTERS.md](ADOPTERS.md)
 - **Multi-language bindings** -- Python (`pip install ufsecp`), Node.js (`npm i ufsecp`), Rust, Go, C#/.NET, Java, Swift, PHP, Ruby, Dart, React Native — all via the stable C ABI
 - **Embedded device support** -- ESP32-S3, ESP32-P4, ESP32-C6, STM32 Cortex-M
 - **Zero-dependency C++20 core** -- no Boost, no OpenSSL, compiles anywhere
-- **Massively parallel workloads** -- batch signatures, key scanning, address generation at GPU scale
+- **Massively parallel workloads** -- batch verification, key scanning, address generation at GPU scale
 
 ---
 
@@ -364,7 +365,7 @@ In addition to the 55-module `unified_audit_runner`, UltrafastSecp256k1 ships **
 | Category | Description | Link |
 |----------|-------------|------|
 | **CPU** | Core ECC, ECDSA, Schnorr, BIP-32, Taproot, Pedersen | [examples/](examples/) |
-| **CUDA** | GPU signatures, batch operations, device management | [examples/](examples/) |
+| **CUDA** | GPU benchmark signing kernels, batch verify, FROST, device management (production secret-key signing uses CPU CT layer) | [examples/](examples/) |
 | **OpenCL** | Cross-vendor GPU compute | [examples/](examples/) |
 | **Metal** | Apple Silicon GPU acceleration | [examples/](examples/) |
 | **Multi-language** | C, Python, Rust, Node.js, Go, Java binding examples | [examples/README.md](examples/README.md) |
@@ -372,7 +373,7 @@ In addition to the 55-module `unified_audit_runner`, UltrafastSecp256k1 ships **
 
 ## Use Cases
 
-- **Blockchain infrastructure** -- high-throughput transaction signing and validation
+- **Blockchain infrastructure** -- high-throughput transaction validation and signing pipelines (secret-key signing runs on the CPU CT layer; batch verification scales on GPU)
 - **Signature verification at scale** -- batch verify millions of signatures per second on GPU
 - **Cryptographic research** -- independent secp256k1 implementation with full source access
 - **Zero-knowledge pipelines** -- Pedersen commitments, Bulletproofs, DLEQ proofs
@@ -426,7 +427,7 @@ Currently we accept vulnerability reports via [GitHub Security Advisories](https
 Sponsorship helps sustain development of:
 
 - **Zero-knowledge proofs** -- Pedersen commitments, Bulletproofs, Schnorr sigma protocols, DLEQ proofs
-- **GPU compute** -- CUDA, OpenCL, Metal, ROCm batch signature generation/verification
+- **GPU compute** -- CUDA, OpenCL, Metal, ROCm batch signature verification, key scanning, and address generation
 - **Platform ports** -- embedded (ESP32, STM32), mobile (iOS, Android), WASM
 - **Protocol features** -- MuSig2, FROST threshold signatures, Taproot, BIP-352 Silent Payments
 - **Multi-coin support** -- 27+ blockchain address formats and signing
@@ -1072,7 +1073,7 @@ See [SUPPORTED_GUARANTEES.md](include/ufsecp/SUPPORTED_GUARANTEES.md) for Tier 1
 
 ## secp256k1 Use Cases
 
-- **Transaction Signing & Verification** -- Bitcoin, Ethereum, and 25+ blockchain transaction signing at CPU or GPU scale
+- **Transaction Signing & Verification** -- CPU constant-time signing + GPU-accelerated batch verification across Bitcoin, Ethereum, and 25+ blockchains
 - **Batch Signature Verification** -- verify thousands of ECDSA/Schnorr signatures per second for block validation
 - **HD Wallet Key Derivation** -- BIP-32/44 hierarchical deterministic derivation with 27-coin address generation
 - **Embedded IoT Signing** -- ESP32 and STM32 on-device key generation and transaction signing
