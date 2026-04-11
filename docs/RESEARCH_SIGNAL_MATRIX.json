@@ -169,7 +169,7 @@
     },
     {
       "id": "safegcd_formal_verification",
-      "status": "gap",
+      "status": "partial",
       "priority": "high",
       "action": "formalize",
       "keywords": [
@@ -182,10 +182,11 @@
       ],
       "repo_evidence": [
         "cpu/src/field.cpp",
+        "audit/test_exploit_safegcd_divsteps.cpp",
         "docs/OWNER_GRADE_AUDIT_TODO.md",
         "docs/SELF_AUDIT_FAILURE_MATRIX.md"
       ],
-      "reason": "The repository has safegcd inversion code and direct wrapper-oracle audit coverage, but no checked-in formal-proof artifact is tracked as owner-grade assurance evidence. New formal-verification papers in this area should still be treated as high-signal inputs."
+      "reason": "PoC regression test (SGD-1..11) added: divstep count verification, a*inv(a)==1 for 500 inputs, double-inverse identity, inv(0) safety, cross-check vs Fermat chain on 100 inputs. No Coq/Lean/Verifiable-C formal proof artifact yet — full formal verification remains open."
     },
     {
       "id": "m_ary_precompute_optimization",

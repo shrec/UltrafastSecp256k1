@@ -2136,6 +2136,31 @@ target_compile_definitions(test_exploit_schnorr_batch_inflation_standalone PRIVA
 add_test(NAME exploit_schnorr_batch_inflation COMMAND test_exploit_schnorr_batch_inflation_standalone)
 set_tests_properties(exploit_schnorr_batch_inflation PROPERTIES TIMEOUT 120 LABELS "audit;exploit;schnorr;batch")
 
+# -- SafeGCD / Bernstein-Yang divstep correctness (SGD-1..11) ---------------
+add_executable(test_exploit_safegcd_divsteps_standalone
+    test_exploit_safegcd_divsteps.cpp)
+audit_target_defaults(test_exploit_safegcd_divsteps_standalone)
+target_include_directories(test_exploit_safegcd_divsteps_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+)
+target_compile_definitions(test_exploit_safegcd_divsteps_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_safegcd_divsteps COMMAND test_exploit_safegcd_divsteps_standalone)
+set_tests_properties(exploit_safegcd_divsteps PROPERTIES TIMEOUT 60 LABELS "audit;exploit;math;safegcd")
+
+# -- Nonce edge cases: null / zero-key / n / n-1 / determinism (NIN-1..15) --
+add_executable(test_exploit_custom_nonce_injection_standalone
+    test_exploit_custom_nonce_injection.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_custom_nonce_injection_standalone)
+target_include_directories(test_exploit_custom_nonce_injection_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+)
+target_compile_definitions(test_exploit_custom_nonce_injection_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_custom_nonce_injection COMMAND test_exploit_custom_nonce_injection_standalone)
+set_tests_properties(exploit_custom_nonce_injection PROPERTIES TIMEOUT 60 LABELS "audit;exploit;nonce;ecdsa")
+
 # -- Source integrity scanner: known mutation artifact patterns -------------
 add_executable(test_mutation_artifact_scan_standalone test_mutation_artifact_scan.cpp)
 audit_target_defaults(test_mutation_artifact_scan_standalone)
@@ -2625,6 +2650,10 @@ add_executable(unified_audit_runner
     test_exploit_ecdh_twist_injection.cpp
     # -- Schnorr batch verify inflation (BIP-340, ePrint 2012/549) --
     test_exploit_schnorr_batch_inflation.cpp
+    # -- SafeGCD / Bernstein-Yang divstep correctness --
+    test_exploit_safegcd_divsteps.cpp
+    # -- Nonce edge cases: null/zero/n/n-1/determinism --
+    test_exploit_custom_nonce_injection.cpp
 )
 # Conditionally add 5x52 field test (requires __uint128_t; skip on MSVC)
 if(NOT (MSVC AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
