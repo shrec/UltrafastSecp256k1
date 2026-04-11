@@ -101,6 +101,19 @@ For the full breakdown of the audit culture, CI/CD pipeline, formal verification
 secp256k1 · secp256k1 python · secp256k1 nodejs · secp256k1 rust · secp256k1 go · secp256k1 c# · secp256k1 java · secp256k1 swift · ecdsa python · schnorr python · bitcoin python library · ethereum python library · ECDSA batch verify · Schnorr BIP-340 · FROST threshold signatures · MuSig2 · Bitcoin cryptography · CUDA secp256k1 · OpenCL ECC · Metal GPU crypto · BIP-352 Silent Payments · constant-time cryptography · embedded ECC · WebAssembly crypto · elliptic curve cryptography · bitcoin wallet library · taproot signatures · BIP-32 HD keys · BIP-39 mnemonic · adaptor signatures · Pedersen commitment · Bulletproof range proof · react native crypto · python ecdsa signing · node.js secp256k1 · GPU elliptic curve · wasm crypto · mobile crypto library · threshold signature scheme · multi-party computation · pip install secp256k1 · npm secp256k1 · cargo secp256k1 · nuget secp256k1 · ufsecp
 -->
 
+## The Audit Model
+
+Most libraries ship fast code and trust it's correct.
+This library ships fast code — then systematically tries to break it, on every commit, permanently.
+
+- New CVE published → PoC written → CI gate added → runs forever
+- New ePrint attack → evaluated within 1 day → permanent regression test
+- Contributor finds exploit → pull request → built into the system
+
+[How it works](#engineering-quality--self-audit-culture) · [The standard](docs/AUDIT_STANDARD.md)
+
+---
+
 ## Recent Performance Milestones (March 2026)
 
 All measurements: RTX 5060 Ti (SM 12.0, CUDA 12), batch=16 384, kernel-only throughput.

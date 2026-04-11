@@ -20,6 +20,11 @@ on:
         required: false
         default: false
         type: boolean
+      open_issue:
+        description: 'Open a GitHub issue even if triggered manually (default: true)'
+        required: false
+        default: true
+        type: boolean
 
 permissions:
   contents: read
@@ -83,7 +88,10 @@ jobs:
           cat build/research_monitor/research_report.md >> "$GITHUB_STEP_SUMMARY" || echo 'Report not generated.' >> "$GITHUB_STEP_SUMMARY"
 
       - name: Open GitHub issue for actionable findings
-        if: always() && steps.monitor.outputs.actionable_count != '0'
+        if: |
+          always() &&
+          steps.monitor.outputs.actionable_count != '0' &&
+          (github.event_name == 'schedule' || github.event.inputs.open_issue != 'false')
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
