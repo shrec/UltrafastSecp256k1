@@ -500,6 +500,328 @@ this verification infrastructure.
 
 ---
 
+## The Instrument Layer — Tools, Roles, and Continuous Growth
+
+Every claim in the previous sections is backed not by intent but by specific
+instrumentation. This section catalogs each tool: what class of bug it finds,
+how the tool itself is sharpened when new attack patterns emerge, and how the
+feedback loop ensures quality grows rather than stagnates.
+
+### Instrument Taxonomy
+
+The verification stack is stratified by what it can and cannot observe:
+
+| Layer | Instrument | Bug Class Targeted | How It Improves When New Pattern Emerges |
+|-------|-----------|-------------------|------------------------------------------|
+| Compile-time | `ct-verif` (LLVM IR symbolic analysis) | CT violations where a secret-dependent branch or memory address is visible in IR | New LLVM taint query or IR annotation added targeting the new pattern; zero false negative rate for tested functions |
+| Runtime secret taint | Valgrind Memcheck (custom `VALGRIND_MAKE_MEM_UNDEFINED` markers) | Any memory read or branch whose address or condition is reachable from secret bytes at runtime | New `classify/declassify` marker pair added for every new secret-bearing function entry and exit |
+| Statistical timing | `dudect` (Welch t-test on timing distributions) | Empirical timing variations that are statistically significant across repeated executions | A new dudect harness is added whenever a new operation joins the signing or key-agreement code path; threshold tightened if a near-miss is observed |
+| Memory safety | libFuzzer + ASan + UBSan + MSan (11 harnesses) | OOB reads/writes, use-after-free, undefined behaviour, uninitialized reads | A new harness is created for every new parser, encoding path, or API entry point; corpus is seeded with any input that previously triggered a regression |
+| Adversarial regression | 171 exploit-PoC modules (`audit/` directory) | Known CVE-class, ePrint-class, and published attack patterns | Within days of a new ePrint or CVE being published, a PoC is added; the module runs on every commit permanently |
+| Logic correctness | 51 non-exploit audit modules | Edge-case correctness, ABI contract violations, cross-platform numeric consistency | Every bug discovered in any review session becomes a new audit module, not just a fixed line |
+| Formal algebraic | 45 Cryptol properties | Group law violations, modular arithmetic invariants, identity/cofactor edge cases | When a new algebraic identity is identified during research, a Cryptol property is written before the implementation is merged |
+| Semantic equivalence | 1.3M nightly differential checks vs reference implementation | Any deviation from the canonical reference implementation on any input class | When a new operation is added, a differential test is required before the operation is exposed in the ABI |
+| Data-flow | CodeQL + clang-tidy | Complex inter-procedural data flows, AST-level coding pattern violations, potential injection sites | CodeQL queries and clang-tidy checks are extended when a new pattern class is identified in a security review |
+| Build integrity | SLSA Level 3 provenance | Build environment tampering, artifact substitution, dependency injection | Provenance attestations are generated for every release artifact; the supply chain model is re-evaluated on every toolchain update |
+| Coverage gap detection | `source_graph.py` (Code Grapher) | Audit blind spots, untested hotspots, functions missing CT tags, GPU parity gaps | The graph schema and coverage queries evolve when new audit dimensions are added; rebuilding the graph after any coverage expansion immediately reveals newly visible gaps |
+
+None of these instruments is optional. Each covers a failure mode the others
+cannot reach. A CT violation in LLVM IR may not exhibit a measurable timing
+difference on a specific microarchitecture. A statistical timing anomaly may not
+correspond to any identifiable IR branch. A fuzzer crash is invisible to both.
+The redundancy is engineered.
+
+### How a New Attack Pattern Enters the Stack
+
+The lifecycle is deterministic:
+
+1. **Signal acquisition.** A new ePrint paper, CVE disclosure, bug bounty report,
+   or LLM-assisted adversarial review identifies a potential attack class.
+
+2. **Applicability triage.** The source graph is queried: which functions, call
+   paths, or data flows are in scope? The AI Memory is queried: has this class been
+   evaluated before? Was a previous PoC attempted and ruled out?
+
+3. **PoC construction.** A PoC module is written against the current code. If the
+   library is vulnerable: the PoC fails the test suite, the root cause is isolated,
+   a fix is made, and the PoC is kept permanently as a regression test. If the
+   library is not vulnerable: the PoC is kept as evidence of non-vulnerability —
+   equally valuable for a due diligence reviewer.
+
+4. **Instrument update.** If the attack class reveals a gap in an existing
+   instrument (e.g., a timing channel dudect does not distinguish, or a fuzzer
+   corpus with no coverage of the affected input), the instrument itself is updated.
+   The gap is never papered over with documentation.
+
+5. **Source graph rebuild.** After any instrumentation update, `source_graph.py
+   build -i` is run. The new coverage is immediately queryable. The audit traceability
+   matrix is updated. The CHANGELOG records the addition.
+
+This loop runs daily. It is not triggered by incidents — it runs because new
+cryptographic research is published every week and the integration lag must be
+measured in days, not release cycles.
+
+### The Daily Research Loop
+
+Every day the following happens, in order:
+
+- **Signal scan.** New ePrint preprints, CVEs in the NVD feed, and bug bounty
+  disclosures relevant to elliptic curve cryptography are reviewed. The primary
+  filters are: secp256k1 operations, ECDSA/Schnorr signing, nonce handling,
+  batch verification, and side-channel attacks on field arithmetic.
+
+- **Applicability review.** Each signal is matched against the source graph:
+  `python3 source_graph.py focus <term> 24 --core`. If the graph has no coverage
+  of the relevant symbol family, that itself is flagged as a gap.
+
+- **Resolution.** One of three outcomes: (a) PoC added + non-vulnerable documented;
+  (b) bug found + patched + PoC added; (c) attack class inapplicable — documented
+  with reasoning in `docs/AUDIT_CHANGELOG.md`.
+
+- **Memory commit.** The finding is stored in AI Memory with tags
+  (`ePrint`, `CVE`, `bug`, `fix`, `dead-end`) so future sessions start with this
+  context already loaded, not from a blank slate.
+
+The daily cadence means the gap between a published attack and its evaluation
+against this codebase is bounded by one working day, not by a release schedule.
+
+---
+
+## LLM Multi-Role Audit Scanning
+
+LLMs are deployed as a structured, adversarial review layer — not as a chatbot.
+The same model is invoked across multiple roles in a single session, each with a
+different adversarial posture. Each role asks fundamentally different questions.
+
+### Role 1 — The Systematic Auditor
+
+Posture: methodical, exhaustive, documentation-first.
+
+Questions asked:
+- Does every public API function have a corresponding audit module?
+- Does every security claim in `WHY_ULTRAFASTSECP256K1.md` link to a specific test artifact?
+- Are there CT annotations on every function in the secret-bearing call path?
+- Are there any functions in the source graph with an audit score below the risk tier threshold?
+
+The auditor role is constraint-driven: it operates against the source graph,
+the audit traceability matrix, and the existing coverage maps. It surfaces
+gaps systematically rather than discovering novel attacks.
+
+### Role 2 — The Bug Bounty Hunter
+
+Posture: high-impact focused, reward-maximizing.
+
+Questions asked:
+- Which functions handle nonce generation or nonce reuse? What happens if an
+  attacker can influence the RNG state?
+- Which API entry points accept untrusted byte buffers? Is every length boundary
+  validated before the first memory read?
+- Which edge cases in the batch verifier could produce a false-positive result
+  (batch verification accepts an invalid signature)?
+- Is there any path where a public key or message hash is used as a secret
+  in a timing-sensitive branch?
+
+The bug bounty hunter skips low-severity findings and focuses on critical-path
+vulnerabilities in signing, key derivation, and batch verification — the surfaces
+with the highest real-world exploit value.
+
+### Role 3 — The Attacker / Red Teamer
+
+Posture: adversarial, assumption-breaking, worst-case.
+
+Questions asked:
+- If I control the first 16 bytes of the nonce input, can I bias the nonce
+  distribution to recover the private key in fewer than 2^32 signing operations?
+- If I can cause a fault during scalar multiplication, does the library detect it?
+- If I can observe which branch of a conditional is taken via a timing oracle,
+  what is the maximum information I gain per signature?
+- If I build the library with a malicious compiler that optimizes away memset
+  calls, does any secret survive in stack memory?
+
+The attacker role explicitly assumes the cryptographic assumptions hold but the
+implementation has a flaw. It asks "how would I exploit this?" before asking
+"is this exploitable?" — because the answer to the second question is always
+"maybe," and only evidence from the first question settles it.
+
+### Role 4 — The Documentation Reviewer
+
+Posture: accuracy-first, adversarial about claims.
+
+Questions asked:
+- Does `WHY_ULTRAFASTSECP256K1.md` claim anything the tests cannot demonstrate?
+- Does `AUDIT_PHILOSOPHY.md` describe infrastructure that does not exist in CI?
+- Are the benchmark numbers reproducible from the current build configuration,
+  or are they from a configuration that no longer compiles?
+- Does `BACKEND_ASSURANCE_MATRIX.md` reflect the current stub status of every
+  GPU operation, or are resolved stubs still listed as pending?
+
+The documentation reviewer treats documentation inaccuracies as security
+vulnerabilities: a reviewer who reads an inaccurate assurance document and
+makes a deployment decision based on it is as harmed as if the code itself
+were wrong.
+
+### Role 5 — The Parity Auditor
+
+Posture: cross-backend completeness enforcer.
+
+Questions asked:
+- Every CUDA kernel: does an equivalent OpenCL kernel exist? Does a Metal shader exist?
+- Every CPU C ABI function: is it accessible via the GPU path? Is the GPU result
+  cross-checked against the CPU result in the differential suite?
+- Every GPU backend: does it have CT smoke tests? Does it have a coverage entry
+  in the assurance matrix?
+
+GPU backend parity is a surface-area problem: an attacker who can push a
+deployment toward an untested backend has effectively bypassed the verification
+infrastructure for that backend. The parity auditor role closes this surface.
+
+### Role 6 — The Regression Hunter
+
+Posture: pattern-aware, history-sensitive.
+
+Questions asked:
+- This call looks similar to `ecdsa_sign_nonce_rfc6979` — was there a nonce
+  reuse bug in that function class before? Is the fix present here?
+- This field element conversion path was audited in commit `763bc2e5` — has
+  anything in the call chain changed since then?
+- The AI Memory records a previous "near-miss" on Valgrind taint analysis for
+  this function family. Is the new change in scope for that concern?
+
+The regression hunter operates specifically against AI Memory and the source
+graph's change history. It is the role most dependent on persistent cross-session
+context, because regressions are only visible when you know what was previously
+fixed.
+
+---
+
+## AI Memory and Code Grapher — The Compound Intelligence Layer
+
+Individual tools produce individual results. AI Memory and the Code Grapher
+combine all results into a persistent, queryable, compound intelligence layer
+that grows in value over time.
+
+### What AI Memory Does
+
+AI Memory (`tools/ai_memory/ai_memory.py`) is a persistent SQLite-backed note
+store that survives across all sessions indefinitely. Every session reads from
+and writes to the same database.
+
+What is stored:
+- **Architectural decisions** with rationale: why RFC 6979 nonce derivation was
+  chosen over a simpler CSPRNG approach; why the CPU signing path is separated
+  from the GPU path even when the GPU is present
+- **Security reasoning**: why a specific Valgrind finding was classified as a
+  false positive, with the reasoning that would allow a future reviewer to
+  challenge or confirm that classification
+- **Discovered bugs and their root causes**: not just "fixed" but "was caused by
+  X, fixed by Y, PoC at Z"
+- **Dead ends**: approaches tried and abandoned, with the reason, so future
+  sessions do not repeat the same wrong path
+- **Research signals**: ePrint papers evaluated, their applicability status, and
+  the date of evaluation
+
+What this prevents:
+- Re-evaluating the same ePrint paper in a new session as if it were unknown
+- Misclassifying a known false-positive Valgrind finding as a new bug
+- Forgetting that a specific optimization was tried and reverted because it
+  broken constant-time behavior
+- Starting from first principles on a problem that was already fully understood
+  in a previous session
+
+Without AI Memory, each session is effectively a new hire who starts from
+scratch. With AI Memory, each session is a continuation of an ongoing, accumulating
+expertise that cannot be lost between restarts.
+
+### What the Code Grapher Does
+
+`source_graph.py` maintains a live machine-readable engineering index of the
+entire repository. It is rebuilt incrementally on every meaningful change.
+
+What it knows:
+- **9,071 indexed functions** and their exact file and line ranges
+- **4,766 test→function mappings** discovered by call-mention analysis
+- **1,033 per-file audit coverage scores** across 17 audit dimensions
+- **8,638 symbol-level audit scores** for precise gap identification
+- **Backend parity status** for every GPU operation (CUDA, OpenCL, Metal)
+- **Call-graph edges**: which functions call which, making impact analysis instant
+- **Hotspot and bottleneck data**: which functions are at highest risk and highest
+  coverage cost
+- **Active review queue**: 7 real audit gaps, 6 untested hotspots, 9 high-gain targets
+
+What this enables:
+- Asking "which functions are CT-annotated but have no dudect harness?" and
+  getting an immediate, exhaustive answer — not a guess
+- Asking "what is the blast radius of changing this field-arithmetic function?"
+  and getting a call-graph answer, not an approximation
+- Asking "does this new function family have an audit score above the risk tier
+  threshold?" as part of every code review
+
+### The Compound Effect
+
+Individually, AI Memory provides historical context and the Code Grapher provides
+current structure. Together, they enable a qualitatively different kind of review:
+
+**Scenario:** A new paper on lattice attacks against biased ECDSA nonces is published.
+
+Without AI Memory + Code Grapher:
+- LLM searches the codebase manually, probably misses some nonce-adjacent call paths
+- Cannot know whether this exact attack class was evaluated before
+- Cannot know whether a previous fix for a related class introduced a regression in the nonce path
+- Conclusion: partial coverage, uncertain confidence
+
+With AI Memory + Code Grapher:
+- AI Memory is queried: "context nonce bias lattice attack" — reveals that a previous
+  evaluation in March found path X safe, path Y marginally in-scope
+- Code Grapher is queried: `focus nonce_derive 24 --core` — identifies the 7 functions
+  in the nonce derivation chain and their current audit scores
+- Cross-reference: the 7 functions are checked against the prior evaluation; 6 match
+  the previous "safe" classification; 1 is new since the previous evaluation
+- Action: PoC written targeting only the 1 new function; existing coverage confirmed
+  sufficient for the other 6; AI Memory updated with the new evaluation date and result
+- Conclusion: precise, evidence-backed, cost-efficient
+
+The compound intelligence layer converts what would be a week-long manual audit
+into a session-length targeted review, without sacrificing coverage.
+
+### Memory Hygiene
+
+AI Memory is periodically garbage-collected (`gc --days 7`) to remove stale
+session-scoped entries while preserving persistent architectural knowledge.
+The store is gitignored: it is local working state, not source, and not shared
+across installations. A new installation starts with an empty AI Memory but
+can be seeded from the source graph, the traceability matrix, and
+`docs/AUDIT_CHANGELOG.md`, all of which capture the auditable record.
+
+---
+
+## Summary of Core Strengths
+
+For reviewers who want a consolidated view of what makes this audit system
+structurally different from a typical solo project:
+
+| Strength | Mechanism | Evidence |
+|----------|-----------|---------|
+| Attack-first culture | 171 exploit PoC modules, CVE/ePrint cascade | `audit/exploits/` directory, `EXPLOIT_TEST_CATALOG.md` |
+| Formal CT verification | ct-verif LLVM + Valgrind taint + dudect (3 pipelines) | `ct/`, `scripts/`, CI workflow |
+| Continuous semantic equivalence | 1.3M nightly differential checks vs reference | Nightly CI, `AUDIT_TRACEABILITY.md` |
+| Formal algebraic verification | 45 Cryptol properties covering group law + edge cases | `formal/`, Cryptol CI job |
+| Fuzz coverage | 11 libFuzzer harnesses with sanitizers, continuous | `fuzz/`, CI fuzzer job |
+| GPU backend completeness | Mandatory parity across CUDA, OpenCL, Metal | `BACKEND_ASSURANCE_MATRIX.md` |
+| Machine-readable audit index | Source graph: 8,638 symbol scores, 4,766 test mappings | `tools/source_graph_kit/` |
+| Persistent institutional memory | AI Memory: cross-session context, decision rationale | `tools/ai_memory/` |
+| Daily attack-signal integration | ePrint/CVE scan → PoC → instrument update cycle | `docs/AUDIT_CHANGELOG.md` |
+| LLM multi-role adversarial review | 6 distinct adversarial roles per major change | This document, per-session workflow |
+| Bus-factor mitigation | Full audit state reproducible from repo alone | `scripts/external_audit_prep.sh` |
+| Supply chain integrity | SLSA Level 3 provenance on every release | CI provenance attestations |
+| Documentation truth enforcement | Docs treated as security artifacts; inaccuracy = vulnerability | Documentation Reviewer LLM role |
+
+No single strength above is unique in isolation. The structural advantage is
+that all of them are present simultaneously, integrated into a single pipeline,
+and enforced on every commit — not episodically, not at release time, and not
+as aspirational goals.
+
+---
+
 ## Related Documents
 
 | Document | Contents |
