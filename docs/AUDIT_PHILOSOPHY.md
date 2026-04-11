@@ -266,7 +266,7 @@ Full transparency means known gaps are visible too:
 | ROCm/AMD hardware validation | Experimental |
 | GPU CT formal guarantees | Code-discipline branchless CT + smoke tests on all 3 backends; 3-pipeline formal verification (ct-verif LLVM/Valgrind/dudect) is CPU-only — vendor JIT caveat applies to GPU |
 | Differential fuzzing vs libsecp256k1 | Partial, not exhaustive |
-| Formal verification (Fiat-Crypto level) | Cryptol covers field arithmetic; broader coverage is future work |
+| Formal verification (Fiat-Crypto level) | SafeGCD/Bernstein-Yang divstep verified with dual provers (Z3 SMT: 17 proofs + Lean 4: 19 theorems); Cryptol covers field arithmetic; broader coverage is future work |
 
 Publishing these gaps openly means any external party can focus their effort
 precisely where it adds the most value, without redundant discovery work.

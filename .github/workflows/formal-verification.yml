@@ -1,4 +1,4 @@
-name: Formal Verification (Z3 SMT)
+name: Formal Verification (Z3 + Lean 4)
 
 on:
   push:
@@ -49,4 +49,34 @@ jobs:
           echo '## Formal Verification — SafeGCD Z3 SMT' >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
           python3 audit/formal/safegcd_z3_proof.py 2>&1 | tail -5 >> "$GITHUB_STEP_SUMMARY" || true
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+  lean-safegcd:
+    name: SafeGCD Lean 4 Proofs
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Harden the runner
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Install elan (Lean toolchain manager)
+        run: |
+          curl -sSf https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh | sh -s -- -y --default-toolchain none
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+
+      - name: Build Lean 4 proofs
+        working-directory: audit/formal/lean
+        run: lake build
+
+      - name: Append Lean proof summary
+        if: always()
+        working-directory: audit/formal/lean
+        run: |
+          echo '## Formal Verification — SafeGCD Lean 4' >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          lake build 2>&1 | tail -10 >> "$GITHUB_STEP_SUMMARY" || true
           echo '```' >> "$GITHUB_STEP_SUMMARY"

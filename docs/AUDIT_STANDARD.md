@@ -338,6 +338,18 @@ These are not aspirational — they are operational, run on CI or on demand.
 
 ---
 
+### Layer 4b — Formal Verification (Machine-Checked Proofs)
+
+| Script / Tool | What It Does |
+|--------------|-------------|
+| `audit/formal/safegcd_z3_proof.py` | Z3 SMT formal verification of SafeGCD/Bernstein-Yang divstep: 7 theorems, 17 proofs covering GCD preservation, determinant invariant, zeta boundedness, g-convergence, CT mask correctness, 590-step sufficiency (secp256k1), CT≡branching equivalence. Exit code 1 = proof failure = CI blocks. |
+| `audit/formal/lean/SafeGCD/Divstep.lean` | Lean 4 core divstep theorems: g_sum evenness, absorbing state, zeta bounds, 9 computational 590-step witnesses for secp256k1 prime boundary values via `native_decide`. |
+| `audit/formal/lean/SafeGCD/CTMasks.lean` | Lean 4 CT mask proofs: arithmetic-shift mask binary, negated-parity mask binary, combined mask binary, XOR-negate/identity — 8-bit exhaustive via `native_decide`. |
+| `audit/formal/lean/SafeGCD/Equivalence.lean` | Lean 4 CT≡branching equivalence: branchless mask-based divstep = branching reference for all 2²⁴ 8-bit inputs via `native_decide`. |
+| `.github/workflows/formal-verification.yml` | CI gate: runs Z3 SMT and Lean 4 prover jobs in parallel on every push/PR touching `cpu/src/ct_field.cpp` or `audit/formal/**`. |
+
+---
+
 ### Layer 5 — Assurance Export and Traceability
 
 | Script / Tool | What It Does |

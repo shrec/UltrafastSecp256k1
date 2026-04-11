@@ -179,3 +179,6 @@ audit-output-*/
 
 # Source graph database (rebuilt on demand, not portable)
 tools/source_graph_kit/source_graph.db
+
+# Lean 4 build artifacts
+audit/formal/lean/.lake/

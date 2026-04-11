@@ -7,6 +7,24 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-04-11 (Dual-prover formal verification: Z3 SMT + Lean 4)
+
+- **Added** Lean 4 formal proof suite (`audit/formal/lean/`): 19 machine-checked
+  theorems covering SafeGCD/Bernstein-Yang divstep correctness.
+  - `Divstep.lean`: g_sum evenness (8-bit exhaustive), absorbing state (g=0),
+    zeta transition bounds, 9 computational 590-step witnesses (g=1, 2, 42,
+    P−1, P−2, (P+1)/2, G.x, G.y) — all via `native_decide`.
+  - `CTMasks.lean`: c1, c2, c1∧c2 binary mask proofs, XOR-negate/identity —
+    all 8-bit exhaustive via `native_decide`.
+  - `Equivalence.lean`: full CT≡branching equivalence for all 2²⁴ 8-bit
+    input combinations via `native_decide`.
+- **Updated** CI workflow `formal-verification.yml`: now runs both Z3 SMT and
+  Lean 4 prover jobs in parallel on every push/PR to `audit/formal/**`.
+- **Updated** `RESEARCH_SIGNAL_MATRIX.json`: `safegcd_formal_verification`
+  evidence now includes both Z3 (17 proofs) and Lean 4 (19 theorems).
+- RESEARCH_SIGNAL_MATRIX status remains `covered` — dual-prover evidence
+  strengthens the claim with independent verification.
+
 ## 2026-04-11 (Audit infrastructure overhaul + workflow fix)
 
 - **Added** Unified report schema v1.0.0 (`scripts/report_schema.py`):

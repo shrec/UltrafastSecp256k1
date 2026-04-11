@@ -177,16 +177,21 @@
         "bernstein-yang",
         "divsteps",
         "formal verification",
-        "verifiable c",
-        "coq"
+        "z3",
+        "lean4",
+        "smt",
+        "native_decide"
       ],
       "repo_evidence": [
         "cpu/src/ct_field.cpp",
         "audit/test_exploit_safegcd_divsteps.cpp",
         "audit/formal/safegcd_z3_proof.py",
+        "audit/formal/lean/SafeGCD/Divstep.lean",
+        "audit/formal/lean/SafeGCD/CTMasks.lean",
+        "audit/formal/lean/SafeGCD/Equivalence.lean",
         ".github/workflows/formal-verification.yml"
       ],
-      "reason": "Z3 SMT formal verification: 7 theorems, 17 proofs — GCD preservation, det invariant, zeta bound, g-convergence, CT mask correctness, 590-step sufficiency (Bernstein-Yang ePrint 2019/266 Thm 11.2), CT ≡ branching equivalence. Runtime PoC SGD-1..11 also present. CI gate via formal-verification.yml runs on every push."
+      "reason": "Dual-prover formal verification: (1) Z3 SMT — 7 theorems, 17 proofs (GCD preservation, det invariant, zeta bound, g-convergence, CT mask correctness, 590-step sufficiency, CT≡branching equivalence); (2) Lean 4 — 19 theorems via native_decide (g_sum_even, absorbing state, zeta bounds, 9 computational 590-step witnesses incl. G.x/G.y, 5 CT mask proofs, full CT≡branching equivalence at 8-bit exhaustive). Runtime PoC SGD-1..11 also present. CI gate runs both provers on every push."
     },
     {
       "id": "m_ary_precompute_optimization",
