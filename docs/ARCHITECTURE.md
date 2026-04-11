@@ -347,7 +347,7 @@ sign(hash, privkey):
 - **FROST**: Threshold signature (t-of-n)
 - **Adaptor**: Signature adaptors for atomic swaps
 
-All marked **Experimental** -- APIs may change, limited test coverage.
+All marked **Experimental** -- covered by PoC exploit tests and CT verification, but not yet externally audited. APIs may change.
 
 ---
 
