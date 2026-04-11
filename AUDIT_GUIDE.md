@@ -1,6 +1,6 @@
 # Audit Guide
 
-**UltrafastSecp256k1 v3.60.0** -- Independent Auditor Navigation
+**UltrafastSecp256k1 v3.64.0** -- Independent Auditor Navigation
 
 > The audit is not a document.
 > It is a reproducible system: clone, build, run, verify.
@@ -316,7 +316,7 @@ UltrafastSecp256k1/
 
 ## 5. Automated CI Workflows
 
-34 GitHub Actions workflows provide continuous assurance across every push and PR:
+36 GitHub Actions workflows provide continuous assurance across every push and PR:
 
 | Workflow | File | Trigger | What It Does |
 |----------|------|---------|--------------|
@@ -428,4 +428,4 @@ clang++ -fsanitize=fuzzer,address -O2 -std=c++20 \
 
 ---
 
-*UltrafastSecp256k1 v3.60.0 -- Audit Guide*
+*UltrafastSecp256k1 v3.64.0 -- Audit Guide*
