@@ -93,7 +93,7 @@ jobs:
       # auto-push: true is required so future runs have a baseline to compare.
       # workflow_dispatch also stores so you can bootstrap/reset the baseline manually.
       if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
-      uses: benchmark-action/github-action-benchmark@a7bc2366eda11037936ea57d811a43b3418d3073 # v1
+      uses: benchmark-action/github-action-benchmark@a60cea5bc7b49e15c1f58f411161f99e0df48372 # v1
       with:
         name: 'Perf Regression Gate'
         tool: 'customSmallerIsBetter'
@@ -111,7 +111,7 @@ jobs:
       # BLOCKS PR if regression exceeds threshold.
       # Threshold: 200% -- flags any operation >100% slower than baseline.
       if: github.event_name == 'pull_request'
-      uses: benchmark-action/github-action-benchmark@a7bc2366eda11037936ea57d811a43b3418d3073 # v1
+      uses: benchmark-action/github-action-benchmark@a60cea5bc7b49e15c1f58f411161f99e0df48372 # v1
       with:
         name: 'Perf Regression Gate'
         tool: 'customSmallerIsBetter'
