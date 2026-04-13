@@ -162,7 +162,7 @@ both integrated into the unified audit runner (v3.24+).
 ### Reproduction Commands
 
 > **One-command full audit**: After building, run `./build_audit/audit/unified_audit_runner`
-> to execute all 247 modules across 9 failure classes. Every claim in this document
+> to execute all 263 modules across 9 failure classes. Every claim in this document
 > maps to a module in that runner. A traditional PDF audit is a snapshot; this runner
 > is a living, continuously enforced assurance perimeter.
 
@@ -176,7 +176,7 @@ cmake -S . -B build_audit -G Ninja -DCMAKE_BUILD_TYPE=Release \
 # Build
 cmake --build build_audit -j
 
-# === FULL AUDIT (247 modules, 9 failure classes, ~10 min) ===
+# === FULL AUDIT (263 modules, 9 failure classes, ~10 min) ===
 ./build_audit/audit/unified_audit_runner
 
 # Run all CTest targets
@@ -188,7 +188,7 @@ ctest --test-dir build_audit -R test_field_audit -V
 # dudect constant-time smoke test
 ctest --test-dir build_audit -R ct_sidechannel_smoke -V
 
-# Exploit PoC security probes (173 probes)
+# Exploit PoC security probes (187 probes)
 ctest --test-dir build_audit -R exploit -V
 
 # Machine-readable assurance artifact

@@ -1773,8 +1773,11 @@ jobs:
             echo '{"error":"library not found","all_passed":null}' > selftest_report.json
           fi
 
-          # Copy verification transparency report
-          cp docs/AUDIT_READINESS_REPORT_v1.md verification_report.md 2>/dev/null || true
+          # Generate verification transparency report (auto-stamps version, date, counts)
+          python3 scripts/generate_verification_report.py \
+            -o verification_report.md \
+            --version "${RELEASE_VERSION#v}" || \
+            cp docs/AUDIT_READINESS_REPORT_v1.md verification_report.md
 
           # Generate traceability matrix (Phase IV, Task 4.1.4)
           if [ -x scripts/generate_traceability.sh ]; then

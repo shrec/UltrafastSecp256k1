@@ -169,23 +169,29 @@
     },
     {
       "id": "safegcd_formal_verification",
-      "status": "gap",
+      "status": "covered",
       "priority": "high",
-      "action": "formalize",
+      "action": "monitor",
       "keywords": [
         "safegcd",
         "bernstein-yang",
         "divsteps",
         "formal verification",
-        "verifiable c",
-        "coq"
+        "z3",
+        "lean4",
+        "smt",
+        "native_decide"
       ],
       "repo_evidence": [
-        "cpu/src/field.cpp",
-        "docs/OWNER_GRADE_AUDIT_TODO.md",
-        "docs/SELF_AUDIT_FAILURE_MATRIX.md"
+        "cpu/src/ct_field.cpp",
+        "audit/test_exploit_safegcd_divsteps.cpp",
+        "audit/formal/safegcd_z3_proof.py",
+        "audit/formal/lean/SafeGCD/Divstep.lean",
+        "audit/formal/lean/SafeGCD/CTMasks.lean",
+        "audit/formal/lean/SafeGCD/Equivalence.lean",
+        ".github/workflows/formal-verification.yml"
       ],
-      "reason": "The repository has safegcd inversion code and direct wrapper-oracle audit coverage, but no checked-in formal-proof artifact is tracked as owner-grade assurance evidence. New formal-verification papers in this area should still be treated as high-signal inputs."
+      "reason": "Dual-prover formal verification: (1) Z3 SMT — 7 theorems, 17 proofs (GCD preservation, det invariant, zeta bound, g-convergence, CT mask correctness, 590-step sufficiency, CT≡branching equivalence); (2) Lean 4 — 19 theorems via native_decide (g_sum_even, absorbing state, zeta bounds, 9 computational 590-step witnesses incl. G.x/G.y, 5 CT mask proofs, full CT≡branching equivalence at 8-bit exhaustive). Runtime PoC SGD-1..11 also present. CI gate runs both provers on every push."
     },
     {
       "id": "m_ary_precompute_optimization",
@@ -238,7 +244,7 @@
       ],
       "repo_evidence": [
         "audit/test_exploit_ecdsa_affine_nonce_relation.cpp",
-        "cpu/src/rfc6979.cpp"
+        "cpu/src/ecdsa.cpp"
       ],
       "reason": "ePrint 2025/705 shows algebraic key recovery when two nonces have an affine relation. RFC 6979 deterministic nonces are immune. PoC validates both the attack and the library's immunity."
     },
@@ -256,7 +262,7 @@
       ],
       "repo_evidence": [
         "audit/test_exploit_ecdsa_half_half_nonce.cpp",
-        "cpu/src/rfc6979.cpp"
+        "cpu/src/ecdsa.cpp"
       ],
       "reason": "ePrint 2023/841 documents real-world Bitcoin key recovery when nonces are composed from hash and key halves. RFC 6979 is immune by design. PoC validates the attack vector and immunity."
     },
@@ -276,7 +282,7 @@
       ],
       "repo_evidence": [
         "audit/test_exploit_ecdsa_nonce_modular_bias.cpp",
-        "cpu/src/rfc6979.cpp"
+        "cpu/src/ecdsa.cpp"
       ],
       "reason": "CVE-2024-31497 (PuTTY) and CVE-2024-1544 (wolfSSL) show key recovery from nonce bias caused by oversized random mod n. RFC 6979 HMAC-DRBG is immune. PoC validates the bias mechanism and immunity."
     },
@@ -294,7 +300,7 @@
       ],
       "repo_evidence": [
         "audit/test_exploit_ecdsa_differential_fault.cpp",
-        "cpu/src/rfc6979.cpp"
+        "cpu/src/ecdsa.cpp"
       ],
       "reason": "ePrint 2017/975 shows key recovery when faults are injected during deterministic nonce generation. PoC validates the attack mechanism and confirms the library's deterministic nonce path consistency."
     },
@@ -333,7 +339,7 @@
       ],
       "repo_evidence": [
         "audit/test_exploit_ecdsa_cross_key_nonce_reuse.cpp",
-        "cpu/src/rfc6979.cpp"
+        "cpu/src/ecdsa.cpp"
       ],
       "reason": "ePrint 2025/654 shows cascading key compromise when multiple keys share the same nonce via weak PRNG. One compromised key reveals all others. RFC 6979 derives nonces from (key, msg) making cross-key sharing impossible. PoC validates the attack and RFC 6979 immunity."
     },
@@ -362,7 +368,15 @@
       "status": "covered",
       "priority": "high",
       "action": "monitor",
-      "keywords": ["ZVP", "DCP", "GLV", "multiscalar", "ePrint 2025/076", "ACNS 2025", "endomorphism"],
+      "keywords": [
+        "ZVP",
+        "DCP",
+        "GLV",
+        "multiscalar",
+        "ePrint 2025/076",
+        "ACNS 2025",
+        "endomorphism"
+      ],
       "repo_evidence": [
         "audit/test_exploit_zvp_glv_dcp_multiscalar.cpp",
         "audit/test_exploit_ecdh_zvp_glv_static.cpp"
@@ -374,7 +388,15 @@
       "status": "covered",
       "priority": "high",
       "action": "monitor",
-      "keywords": ["lattice", "sieve", "HNP", "sub-bit", "ePrint 2024/296", "ASIACRYPT 2024", "nonce leakage"],
+      "keywords": [
+        "lattice",
+        "sieve",
+        "HNP",
+        "sub-bit",
+        "ePrint 2024/296",
+        "ASIACRYPT 2024",
+        "nonce leakage"
+      ],
       "repo_evidence": [
         "audit/test_exploit_lattice_sieve_hnp.cpp",
         "audit/test_exploit_ladderleak_subbit_nonce.cpp"
@@ -386,7 +408,13 @@
       "status": "covered",
       "priority": "high",
       "action": "monitor",
-      "keywords": ["DFA", "deterministic", "RFC 6979", "ePrint 2017/975", "fault injection"],
+      "keywords": [
+        "DFA",
+        "deterministic",
+        "RFC 6979",
+        "ePrint 2017/975",
+        "fault injection"
+      ],
       "repo_evidence": [
         "audit/test_exploit_deterministic_sig_dfa.cpp",
         "audit/test_exploit_ecdsa_differential_fault.cpp"
@@ -398,7 +426,14 @@
       "status": "covered",
       "priority": "high",
       "action": "monitor",
-      "keywords": ["CVE-2024-49364", "CVE-2024-49365", "CVE-2022-41340", "k-reuse", "type confusion", "tiny-secp256k1"],
+      "keywords": [
+        "CVE-2024-49364",
+        "CVE-2024-49365",
+        "CVE-2022-41340",
+        "k-reuse",
+        "type confusion",
+        "tiny-secp256k1"
+      ],
       "repo_evidence": [
         "audit/test_exploit_sign_type_confusion_kreuse.cpp",
         "audit/test_exploit_ecdsa_nonce_reuse.cpp"
@@ -410,7 +445,14 @@
       "status": "covered",
       "priority": "high",
       "action": "monitor",
-      "keywords": ["ROS", "concurrent", "blind Schnorr", "ePrint 2020/945", "Eurocrypt 2021", "Wagner"],
+      "keywords": [
+        "ROS",
+        "concurrent",
+        "blind Schnorr",
+        "ePrint 2020/945",
+        "Eurocrypt 2021",
+        "Wagner"
+      ],
       "repo_evidence": [
         "audit/test_exploit_ros_concurrent_schnorr.cpp"
       ],
@@ -421,7 +463,15 @@
       "status": "covered",
       "priority": "medium",
       "action": "monitor",
-      "keywords": ["FROST", "FROST2", "binding factor", "ePrint 2026/075", "ePrint 2025/1001", "adaptive corruption", "threshold Schnorr"],
+      "keywords": [
+        "FROST",
+        "FROST2",
+        "binding factor",
+        "ePrint 2026/075",
+        "ePrint 2025/1001",
+        "adaptive corruption",
+        "threshold Schnorr"
+      ],
       "repo_evidence": [
         "audit/test_exploit_frost_weak_binding.cpp",
         "audit/test_exploit_frost_adaptive_corruption.cpp"
@@ -433,7 +483,16 @@
       "status": "covered",
       "priority": "high",
       "action": "monitor",
-      "keywords": ["SPA", "cmov", "cswap", "power analysis", "ePrint 2024/589", "ePrint 2025/935", "CHES", "constant-time"],
+      "keywords": [
+        "SPA",
+        "cmov",
+        "cswap",
+        "power analysis",
+        "ePrint 2024/589",
+        "ePrint 2025/935",
+        "CHES",
+        "constant-time"
+      ],
       "repo_evidence": [
         "audit/test_exploit_blind_spa_cmov_leak.cpp"
       ],
@@ -444,7 +503,16 @@
       "status": "covered",
       "priority": "high",
       "action": "monitor",
-      "keywords": ["ECTester", "point validation", "infinity", "off-curve", "twist", "ePrint 2025/1293", "ECC", "invalid pubkey"],
+      "keywords": [
+        "ECTester",
+        "point validation",
+        "infinity",
+        "off-curve",
+        "twist",
+        "ePrint 2025/1293",
+        "ECC",
+        "invalid pubkey"
+      ],
       "repo_evidence": [
         "audit/test_exploit_ectester_point_validation.cpp"
       ],
@@ -455,7 +523,15 @@
       "status": "covered",
       "priority": "medium",
       "action": "monitor",
-      "keywords": ["eROS", "dimensional", "blind signature", "BZ", "ePrint 2025/306", "ePrint 2025/1353", "concurrent sessions"],
+      "keywords": [
+        "eROS",
+        "dimensional",
+        "blind signature",
+        "BZ",
+        "ePrint 2025/306",
+        "ePrint 2025/1353",
+        "concurrent sessions"
+      ],
       "repo_evidence": [
         "audit/test_exploit_ros_dimensional_erosion.cpp"
       ],
@@ -466,11 +542,38 @@
       "status": "covered",
       "priority": "medium",
       "action": "monitor",
-      "keywords": ["batch verification", "modified ECDSA", "randomization", "ePrint 2026/663", "identify_invalid", "batch_verify"],
+      "keywords": [
+        "batch verification",
+        "modified ECDSA",
+        "randomization",
+        "ePrint 2026/663",
+        "identify_invalid",
+        "batch_verify"
+      ],
       "repo_evidence": [
         "audit/test_exploit_ecdsa_batch_verify_rand.cpp"
       ],
       "reason": "ePrint 2026/663: Modified ECDSA batch verification with weak randomization allows forgery injection. PoC validates corruption detection, invalid-position pinpointing, wrong pk/msg rejection, and batch scaling from empty to 1024 entries."
+    },
+    {
+      "id": "schnorr_3d_glv_verify_optimization",
+      "status": "out_of_scope",
+      "priority": "low",
+      "action": "watch-only",
+      "keywords": [
+        "3D decomposition",
+        "GLV",
+        "endomorphism",
+        "Schnorr verification",
+        "multi-scalar multiplication",
+        "ePrint 2025/1151",
+        "secp256k1",
+        "batch verification",
+        "BLS"
+      ],
+      "references": [],
+      "repo_evidence": [],
+      "reason": "ePrint 2025/1151 (Suchánek, Sýs, Chmielewski): 3D GLV decomposition for Schnorr verification. EVALUATED — NOT APPLICABLE to UltrafastSecp256k1 for the following reasons: (1) secp256k1 λ² ≡ -λ-1 (mod n) causes the 3D lattice to degenerate to 2D (the (1,1,1) vector collapses one dimension). LLL reduction confirms: reduced basis has 128-bit vectors, not 85-bit. (2) Joint 3D lattice over two independent scalars (s, -e) gives ~170-bit scalars (WORSE than 4D 128-bit by Minkowski bound). (3) Our implementation already uses w=15 precomputed generator tables (8192 entries), making the generator scalar nearly free — the bottleneck is the P-side 2D GLV at 128 doublings, which 3D cannot reduce. (4) No public reference implementation exists. Full paper PDF inaccessible for algorithm reconstruction. Current schnorr_verify: 22-26 us/op baseline (10K ops). Re-evaluate if full paper becomes available or if the authors publish a secp256k1 implementation."
     }
   ]
 }

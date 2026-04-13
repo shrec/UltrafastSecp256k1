@@ -16,6 +16,8 @@
 #  include <Security/SecRandom.h>
 #elif defined(__ANDROID__)
 #  include <stdlib.h>  // arc4random_buf (Android API 12+)
+#elif defined(ESP_PLATFORM)
+#  include <esp_random.h>
 #elif defined(__linux__) || defined(__FreeBSD__) || defined(__OpenBSD__)
 #  include <sys/random.h>
 #else
@@ -35,6 +37,8 @@ inline void csprng_fill(unsigned char* buf, std::size_t len) noexcept {
         std::abort();
 #elif defined(__ANDROID__)
     arc4random_buf(buf, len);
+#elif defined(ESP_PLATFORM)
+    esp_fill_random(buf, len);
 #elif defined(__linux__) || defined(__FreeBSD__) || defined(__OpenBSD__)
     std::size_t filled = 0;
     while (filled < len) {

@@ -1000,7 +1000,11 @@ def derive_symbol_semantics(symbol_name: str, file_path: str):
     category, math_core = classify_symbol_category(symbol_name, file_path)
     s = f"{symbol_name} {file_path}".lower()
     secret_class = 'public_only'
-    if any(x in s for x in ('sign', 'nonce', 'seckey', 'ecdh', 'decrypt', 'derive', 'blind', 'adaptor', 'silent_payment', 'frost', 'musig2')):
+    # Verify/validate functions use only public data — never ct_sensitive.
+    # Must check before the broad ct_sensitive keywords (e.g. 'adaptor', 'frost', 'musig2')
+    # which would otherwise match 'ecdsa_adaptor_verify', 'frost_verify_partial', etc.
+    is_verify = any(x in s for x in ('verify', 'validate', 'check_sig', 'batch_verify'))
+    if not is_verify and any(x in s for x in ('sign', 'nonce', 'seckey', 'ecdh', 'decrypt', 'derive', 'blind', 'adaptor', 'silent_payment', 'frost', 'musig2')):
         secret_class = 'ct_sensitive'
     elif any(x in s for x in ('aggregate', 'combine', 'session', 'tweak', 'commit')):
         secret_class = 'mixed'
@@ -2937,7 +2941,12 @@ def populate_symbol_reasoning(cur: sqlite3.Cursor):
             risk += 2.0
             risk_reasons.append('recently_modified')
         if coverage['times_failed_historically']:
-            risk += min(12.0, coverage['times_failed_historically'] * 1.5)
+            # Cap per-symbol contribution from file-level bug_fix_count.
+            # The history is file-scoped (e.g. ufsecp_impl.cpp 182 funcs): raw count
+            # is shared by every function, inflating risk.  Dampen with log + cap.
+            import math
+            hist_contribution = min(6.0, math.log2(1 + coverage['times_failed_historically']) * 1.5)
+            risk += hist_contribution
             risk_reasons.append('historical_failures')
 
         gain += performance['hotness_score'] * 0.4
@@ -3020,7 +3029,7 @@ def populate_symbol_reasoning(cur: sqlite3.Cursor):
             (symbol_name, file_path, risk_score, gain_score, optimization_priority, risk_reasons, gain_reasons)
             VALUES (?,?,?,?,?,?,?)
         """, (
-            symbol_name, file_path, round(min(100.0, risk * 5.0), 2), round(min(100.0, gain), 2),
+            symbol_name, file_path, round(min(100.0, risk * 3.5), 2), round(min(100.0, gain), 2),
             round(optimization_priority, 2), json.dumps(risk_reasons), json.dumps(gain_reasons),
         ))
         count += 1

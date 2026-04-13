@@ -252,7 +252,7 @@ cuda/
 - No dynamic allocation in device hot loops
 - No per-iteration host/device sync
 - Launch parameters derived from config.json
-- NOT constant-time -- for public-data workloads only
+- NOT constant-time -- primarily for public-data workloads; secret-bearing GPU ops (ECDH, BIP-352, BIP-324) require trusted single-tenant environment
 
 ### OpenCL
 
@@ -347,7 +347,7 @@ sign(hash, privkey):
 - **FROST**: Threshold signature (t-of-n)
 - **Adaptor**: Signature adaptors for atomic swaps
 
-All marked **Experimental** -- APIs may change, limited test coverage.
+All marked **Experimental** -- covered by PoC exploit tests and CT verification, but not yet externally audited. APIs may change.
 
 ---
 

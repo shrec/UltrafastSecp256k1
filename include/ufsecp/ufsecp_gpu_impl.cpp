@@ -534,6 +534,7 @@ ufsecp_error_t ufsecp_gpu_zk_ecdsa_snark_witness_batch(
     size_t          count,
     uint8_t*        out_witnesses)
 {
+    if (count == 0) return UFSECP_OK;
     if (!ctx || !msg_hashes32 || !pubkeys33 || !sigs64 || !out_witnesses)
         return UFSECP_ERR_NULL_ARG;
     if (count > kMaxGpuBatchN) return UFSECP_ERR_BAD_INPUT;
@@ -551,6 +552,7 @@ ufsecp_error_t ufsecp_gpu_zk_schnorr_snark_witness_batch(
     size_t          count,
     uint8_t*        out_witnesses)
 {
+    if (count == 0) return UFSECP_OK;
     if (!ctx || !msgs32 || !pubkeys_x32 || !sigs64 || !out_witnesses)
         return UFSECP_ERR_NULL_ARG;
     if (count > kMaxGpuBatchN) return UFSECP_ERR_BAD_INPUT;

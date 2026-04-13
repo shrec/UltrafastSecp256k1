@@ -9,10 +9,10 @@ Traditional audits produce documents. This system produces **continuous evidence
 | Differentiator | UltrafastSecp256k1 |
 |---------------|---------------------|
 | Audit model | Continuous — every commit, not one-time |
-| Exploit tests | 160 PoC files, 146 registered modules, 0 failures |
+| Exploit tests | 187 PoC files, 171 registered modules, 0 failures |
 | Checks per run | ~1,000,000+ assertions |
 | Nightly checks | ~1,300,000+ random differential tests |
-| CI workflows | 34 workflows, 16 platform combinations |
+| CI workflows | 36 workflows, 16 platform combinations |
 | CT verification | 3 formal pipelines (LLVM ct-verif + empirical + Valgrind) |
 | GPU performance | 11.00 M BIP-352 scans/s · 4.88 M ECDSA signs/s |
 | Philosophy | Don't trust — reproduce |
@@ -51,7 +51,7 @@ These top-level differentiators are claim-keyed in the ledger: exploit-audit sur
 | Scalar arithmetic (ℤ_n) | Reduction mod n, overflow, GLV decomposition, negation, edge cases (0, 1, n−1) | 93,215 |
 | Point operations | Infinity handling, Jacobian↔Affine round-trip, scalar multiplication, 100K stress | 116,124 |
 | Constant-time layer | No secret-dependent branches, no secret-dependent memory access, formal CT verification | 120,652 |
-| Exploit PoC tests | 146 dedicated adversarial PoC modules across 14 coverage categories (`audit/test_exploit_*.cpp`) | 157 test files, 0 failures |
+| Exploit PoC tests | 171 dedicated adversarial PoC modules across 20+ coverage categories (`audit/test_exploit_*.cpp`) | 187 test files, 0 failures |
 | Fuzz / adversarial | libFuzzer harnesses + 530K deterministic corpus adversarial checks | ~530,000+ |
 | Wycheproof vectors | Google's cryptographic test vectors for ECDSA and ECDH | Hundreds of vectors |
 | Independent reference linkage | Cross-validates field arithmetic against independent schoolbook oracle + golden vectors | Full suite |
@@ -60,11 +60,11 @@ These top-level differentiators are claim-keyed in the ledger: exploit-audit sur
 | ABI gate | FFI round-trip stability, C ABI regression detection | Full suite |
 | Performance regression | Automated micro-benchmark gate — fails CI if throughput regresses | Every push |
 | **Nightly differential** | Random round-trip differential tests against reference implementations | **~1,300,000+/night** |
-| **Total (audit runner)** | **unified_audit_runner** across 74 non-exploit modules + 173 exploit-PoC modules (247 total) | **~1,000,000+** |
-| **Total (exploit PoC tests)** | **173 exploit-style PoC modules** across 14+ coverage categories, all in `audit/test_exploit_*.cpp` | **173 modules, 0 failures** |
+| **Total (audit runner)** | **unified_audit_runner** across 51 non-exploit modules + 171 exploit-PoC modules (222 total) | **~1,000,000+** |
+| **Total (exploit PoC tests)** | **171 exploit-style PoC modules** across 20+ coverage categories, all in `audit/test_exploit_*.cpp` | **187 modules, 0 failures** |
 
-All 74 non-exploit audit modules across all tested platforms return **AUDIT-READY**. Zero failures.
-All 173 exploit-PoC modules pass. Zero failures across all 14+ coverage categories.
+All 51 non-exploit audit modules across all tested platforms return **AUDIT-READY**. Zero failures.
+All 171 exploit-PoC modules pass. Zero failures across all 20+ coverage categories.
 
 ### Self-Audit Documents
 
@@ -85,10 +85,10 @@ All 173 exploit-PoC modules pass. Zero failures across all 14+ coverage categori
 
 ---
 
-## 2. CI/CD Pipeline — 34 Automated Workflows
+## 2. CI/CD Pipeline — 36 Automated Workflows
 
 The continuous integration pipeline is not a basic build-and-test gate.
-It is a multi-layer quality enforcement system with 34 GitHub Actions workflows
+It is a multi-layer quality enforcement system with 36 GitHub Actions workflows
 covering security, correctness, performance, supply chain, and formal analysis.
 
 It is also only one part of the assurance model. The repository is routinely reviewed
@@ -105,7 +105,7 @@ reproducible audit framework.
 | `ci.yml` | Core build + full test suite across 17 configurations × 7 architectures × 5 OSes | Every push / PR |
 | `preflight.yml` | Fast pre-merge smoke check — blocks merge on basic failures | Every PR |
 | `nightly.yml` | Nightly stress: 1.3M+ differential checks, extended fuzz, full sanitizer run | Nightly |
-| `security-audit.yml` | Runs the full `unified_audit_runner` (74 non-exploit + 173 exploit-PoC modules, ~1M assertions) plus sanitizer and warning gates | Every push |
+| `security-audit.yml` | Runs the full `unified_audit_runner` (51 non-exploit + 171 exploit-PoC modules, ~1M assertions) plus sanitizer and warning gates | Every push |
 | `audit-report.yml` | Generates and archives structured audit report artifacts | On release / manual |
 | `ct-arm64.yml` | Constant-time verification on native ARM64 hardware | Every push |
 | `ct-verif.yml` | Formal constant-time verification pass | Every push |
@@ -228,7 +228,7 @@ At the same time, it does not wait for a third party to begin strengthening corr
 However, "not externally audited" does **not** mean "unverified." The internal quality infrastructure described in this document represents a systematic, multi-layer correctness assurance program that most open-source cryptographic libraries do not have:
 
 - Over **1,000,000 internal audit assertions** executed on every build
-- **34 CI workflows** enforcing correctness, security, and performance on every push/PR plus scheduled assurance runs
+- **36 CI workflows** enforcing correctness, security, and performance on every push/PR plus scheduled assurance runs
 - **Formal constant-time verification** on two independent platforms
 - **Supply-chain hardening** at the OpenSSF standard
 - **Nightly differential testing** at 1.3M+ additional random checks per night

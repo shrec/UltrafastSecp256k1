@@ -54,8 +54,12 @@ RUN pip3 install --no-cache-dir --require-hashes --break-system-packages \
 # ---------------------------------------------------------------------------
 # Node.js: @noble/secp256k1 for differential comparison (integrity-pinned)
 # ---------------------------------------------------------------------------
-RUN npm install -g @noble/secp256k1@2.2.3 \
-        --ignore-scripts 2>/dev/null || true
+WORKDIR /tmp/noble-pin
+COPY .github/requirements/noble-package.json package.json
+COPY .github/requirements/noble-package-lock.json package-lock.json
+RUN npm ci --ignore-scripts && \
+    cp -r node_modules/\@noble /usr/local/lib/node_modules/ && \
+    rm -rf /tmp/noble-pin
 
 # ---------------------------------------------------------------------------
 # Build the library inside the container

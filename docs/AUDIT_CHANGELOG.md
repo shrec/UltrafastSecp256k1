@@ -7,6 +7,165 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-04-11 (Dual-prover formal verification: Z3 SMT + Lean 4)
+
+- **Added** Lean 4 formal proof suite (`audit/formal/lean/`): 19 machine-checked
+  theorems covering SafeGCD/Bernstein-Yang divstep correctness.
+  - `Divstep.lean`: g_sum evenness (8-bit exhaustive), absorbing state (g=0),
+    zeta transition bounds, 9 computational 590-step witnesses (g=1, 2, 42,
+    P−1, P−2, (P+1)/2, G.x, G.y) — all via `native_decide`.
+  - `CTMasks.lean`: c1, c2, c1∧c2 binary mask proofs, XOR-negate/identity —
+    all 8-bit exhaustive via `native_decide`.
+  - `Equivalence.lean`: full CT≡branching equivalence for all 2²⁴ 8-bit
+    input combinations via `native_decide`.
+- **Updated** CI workflow `formal-verification.yml`: now runs both Z3 SMT and
+  Lean 4 prover jobs in parallel on every push/PR to `audit/formal/**`.
+- **Updated** `RESEARCH_SIGNAL_MATRIX.json`: `safegcd_formal_verification`
+  evidence now includes both Z3 (17 proofs) and Lean 4 (19 theorems).
+- RESEARCH_SIGNAL_MATRIX status remains `covered` — dual-prover evidence
+  strengthens the claim with independent verification.
+
+## 2026-04-11 (Audit infrastructure overhaul + workflow fix)
+
+- **Added** Unified report schema v1.0.0 (`scripts/report_schema.py`):
+  `NullableField` replaces `"unknown"` strings with `{value, status, reason}`.
+  `SkipReason` provides structured skip records. `Severity` enum classifies
+  findings as blocking (critical/high) or advisory (medium/low/info).
+  `ReportBuilder` enforces schema compliance for all audit reports.
+
+- **Added** Build provenance (`scripts/report_provenance.py`) integrated into
+  `audit_gate.py` and `export_assurance.py`. Every report now carries git SHA,
+  dirty flag, toolchain versions, build flags hash, and platform info.
+
+- **Added** Artifact analyzer MVP (`scripts/artifact_analyzer.py`):
+  multi-report ingestion, regression diff (before/after), platform divergence
+  detection, flake detection, with SARIF 2.1.0 / Markdown / timeline exports.
+
+- **Added** Bug capsule format (`schemas/bug_capsule.schema.json`) + generator
+  (`scripts/bug_capsule_gen.py`) — JSON-defined bugs automatically produce
+  regression tests, exploit PoC C++, and CMake fragments.
+
+- **Added** CI gating policy (`docs/CI_GATING_POLICY.md`) + impact-based gate
+  detector (`scripts/ci_gate_detect.py`) — Tier0/Tier1/Tier2 architecture.
+  Crypto/CT/ABI changes trigger hard gate; docs/bindings trigger light gate.
+
+- **Added** Auditor quickstart guide (`docs/AUDITOR_QUICKSTART.md`) —
+  "3 commands, 3 artifacts" onboarding for external auditors.
+
+- **Added** Layer routing matrix (`docs/LAYER_ROUTING_MATRIX.md`) — complete
+  CT/FAST routing table for all ~103 ABI functions with rationale.
+
+- **Fixed** `research-monitor.yml` — `secrets.*` in `if:` expression caused
+  GitHub Actions parse error ("`Unrecognized named-value: 'secrets'`").
+  All scheduled runs were silently blocked. Replaced with `env.*` references.
+
+- **Fixed** Dead code in `cpu/src/scalar.cpp` — unused `carry_hi` declaration
+  in 32-bit fallback schoolbook multiply.
+
+---
+
+## 2026-04-09 (Critical CT fix + OpenCL field reduction correctness)
+
+- **Fixed** `cpu/src/ct_sign.cpp` `ct::ecdsa_sign_recoverable()` — **CT violation**:
+  Recovery-ID low-S flip used branchy `is_low_s()` + `if (was_high) recid ^= 1`
+  on secret-derived data. Replaced with branchless `ct::scalar_is_high()` (value-
+  barrier protected) + mask-based XOR. This eliminates a timing side-channel that
+  leaked whether the nonce-derived `s` exceeded `n/2`. Severity: **Critical**.
+  Verified by `test_exploit_ct_recov` phases A/B/C (5/5 pass, |t|=0.21 < 10.0).
+
+- **Fixed** `opencl/kernels/secp256k1_field.cl` `field_reduce()` — missing rare
+  carry handler in second reduction fold. CUDA had step 4 (`if (c) add K_MOD`),
+  Metal used a `while` loop, but OpenCL silently dropped the overflow bit.
+  Probability ≈ 2^{-190} per reduction but correctness must hold for all inputs.
+  Severity: **Low** (not practically exploitable, but a correctness bug).
+
+- **Audited** (no issues found):
+  - `Scalar::from_bytes()` / `parse_bytes_strict_nonzero()` — no nonce bias
+  - BIP-32 `derive_child` — proper validation + zeroization
+  - ECDSA verify R.x normalization — correct in both FE52 and 4x64 paths
+  - Schnorr `lift_x` — strict x < p validation
+  - ABI signing dispatch — always uses CT path (ct::scalar_inverse, ct::generator_mul)
+  - GPU scalar overflow in `z + r·d mod n` — correct on CUDA and OpenCL
+  - MuSig2 nonce binding — BIP-327 compliant, Wagner/ROS defense via binding factor
+  - FROST Feldman VSS — verified, signing nonce properly bound
+  - BIP-324 AEAD — correct key schedule, nonce reuse prevented
+
+---
+
+## 2026-04-16 (Documentation gap closure: 14 exploit PoCs added to audit trail)
+
+- **Added** `audit/test_exploit_bip324_aead_forgery.cpp` — BIP-324 / RFC 8439 /
+  ePrint 2005/001: 15 sub-tests (BAF-1..BAF-15, 30 checks) covering AEAD forgery,
+  ciphertext/tag bit-flip rejection, truncated/extended frame rejection, counter
+  boundary, cross-session key confusion, decrypt oracle resistance.
+
+- **Added** `audit/test_exploit_frost_rogue_key.cpp` — ePrint 2020/852 + 2023/899:
+  12 sub-tests (FRK-1..FRK-12, 22 checks) covering DKG rogue-key/key-cancellation
+  attack: VSS commitment validation, corrupted share rejection, duplicate/out-of-range
+  participant ID rejection, contradictory commitment sets, signer-set binding.
+
+- **Added** `audit/test_exploit_musig2_partial_forgery.cpp` — ePrint 2020/1261 +
+  2022/1375: 10 sub-tests (MPF-1..MPF-10, 26 checks) covering partial signature
+  forgery rejection, wrong signer index, nonce reuse detection, zero-key pubkey
+  rejection, swapped keyagg context, aggregate with forged partial fails.
+
+- **Added** `audit/test_exploit_adaptor_extraction_soundness.cpp` — ePrint 2020/476 +
+  2021/150: 12 sub-tests (ASE-1..ASE-12, 22 checks) covering adaptor extraction
+  soundness: full roundtrip sign→verify→adapt→extract, bit-flip rejection, wrong
+  adaptor point, identity point rejection, message replay, tampered signature.
+
+- **Added** `audit/test_exploit_ecdh_twist_injection.cpp` — ePrint 2015/1233 +
+  CVE-2020-0601: 12 sub-tests (ETP-1..ETP-12, 19 checks) covering Pohlig–Hellman
+  twist point injection: on-curve validation for ECDH inputs, twist/infinity/x≥p
+  rejection, invalid prefix rejection, zero private key rejection.
+
+- **Added** `audit/test_exploit_schnorr_batch_inflation.cpp` — BIP-340 + ePrint 2012/549:
+  12 sub-tests (SBI-1..SBI-12, 17 checks) covering batch verify inflation/mix attack:
+  single-invalid detection, all-zero sig/msg rejection, adversarial ordering,
+  duplicate entry amplification, batch_identify_invalid filtering.
+
+- **Added** `audit/test_exploit_musig2_byzantine_multiparty.cpp` — Byzantine multi-party
+  simulation: 10 sub-tests (BYZ-M1..M4, BYZ-F1..F6, 12 checks) covering 3-party/4-party
+  MuSig2 honest roundtrip, wrong-message partial sig detection, zeroed partial sig
+  detection, 3-of-5 FROST Byzantine partial sig corruption.
+
+- **Added** `audit/test_exploit_ecdsa_sign_sentinels.cpp` — RFC 6979 sign sentinel paths:
+  9 sub-tests (SS-1..SS-9, 15 checks) covering r=0/s=0/sk=0 guard behavior, zero-component
+  sentinel detection at C ABI level, hedged signing boundary checks.
+
+- **Added** `audit/test_exploit_rfc6979_minerva_amplified.cpp` — ePrint 2024/2018 +
+  CVE-2024-23342: 5 sub-tests (RA-1..RA-5, 19 checks) covering RFC 6979 deterministic
+  nonce amplification path, i.i.d. timing sample uniformity, identical re-signing,
+  nonce bit-length distribution.
+
+- **Added** `audit/test_exploit_buff_kr_ecdsa.cpp` — ePrint 2024/2018 BUFF security:
+  8 sub-tests (BK-1..BK-8, 26 checks) covering KR-ECDSA Exclusive Ownership,
+  Non-Malleability, Unforgeability, Non-Resignability properties for ecrecover.
+
+- **Added** `audit/test_exploit_minerva_cve_2024_23342.cpp` — CVE-2024-23342 +
+  CVE-2024-28834 Minerva timing regression: 5 sub-tests (MC-1..MC-5, 13 checks)
+  covering constant-time scalar multiplication nonce bit-length side-channel,
+  signing-path timing uniformity, lattice HNP precondition defense.
+
+- **Added** `audit/test_exploit_fe_set_b32_limit_uninit.cpp` — libsecp256k1 PR #1839:
+  14 sub-tests (FB-1..FB-14, 15 checks) covering fe_set_b32_limit uninitialized
+  overflow flag: stack-garbage detection, value≥p acceptance/rejection consistency,
+  ECDSA verify r-component path coverage, boundary values at p-1/p/p+1.
+
+- **Added** `audit/test_exploit_foreign_field_plonk.cpp` — ePrint 2025/695:
+  13 sub-tests (FF-1..FF-13, 22 checks) covering PLONK/SNARK foreign-field
+  arithmetic: secp256k1 field/order limb decomposition, carry propagation,
+  non-canonical encoding, cross-prime p/n confusion, SNARK field wraparound.
+
+- **Added** `audit/test_exploit_zk_new_schemes.cpp` — ePrint 2024/2010 + Bulletproofs:
+  11 sub-tests (ZN-1..ZN-11, 24 checks) covering range proof boundaries (0, 2^64-1),
+  batch range-proof verification with one-bad-apple rejection, ZK hiding/binding,
+  batch_commit correctness, bit-flip mutation scan.
+
+**Running total after this wave: 183 audit files (+17 from catalog, +14 newly logged in changelog). 282 new check assertions documented.**
+
+---
+
 ## 2026-04-15 (SchnorrSnarkWitness ZK primitive + GPU ABI surface expansion)
 
 - **Added** `SchnorrSnarkWitness` — BIP-340 Schnorr foreign-field witness

@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import subprocess
 import sys
 import textwrap
 import urllib.parse
@@ -100,6 +101,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('--matrix', type=Path, default=DEFAULT_MATRIX)
     parser.add_argument('--github-output', type=Path, help='Optional GitHub output file for workflow outputs.')
     parser.add_argument('--fail-on-actionable', action='store_true', help='Return exit code 3 when actionable items are found.')
+    parser.add_argument('--open-issue', action='store_true',
+                        help='Open a GitHub issue via `gh` when actionable items are found. '
+                             'Requires `gh` CLI authenticated to the repo.')
     return parser.parse_args()
 
 
@@ -534,6 +538,46 @@ def render_mail_body(report: dict) -> str:
     return '\n'.join(lines).rstrip() + '\n'
 
 
+def open_github_issue(report: dict) -> None:
+    """Open a GitHub issue with the research monitor findings using the `gh` CLI."""
+    counts = report['counts']
+    actionable = counts['actionable_items']
+    date_str = report['generated_at'][:10]  # YYYY-MM-DD
+    title = f"[Research Monitor] {actionable} actionable signal(s) — {date_str}"
+
+    body_lines = [
+        '> Auto-opened by `scripts/research_monitor.py --open-issue`.',
+        '> Review each finding below, add a PoC / CI gate, then close this issue.',
+        '',
+        render_markdown(report),
+    ]
+    body = '\n'.join(body_lines)
+
+    cmd = [
+        'gh', 'issue', 'create',
+        '--title', title,
+        '--body', body,
+        '--label', 'research-signal,security',
+    ]
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        url = result.stdout.strip()
+        print(f'GitHub issue opened: {url}')
+    except FileNotFoundError:
+        print('warning: `gh` CLI not found — skipping issue creation', file=sys.stderr)
+    except subprocess.CalledProcessError as exc:
+        # Label may not exist yet; retry without labels
+        if 'Label' in (exc.stderr or ''):
+            cmd_no_label = [a for a in cmd if a not in ('--label', 'research-signal,security')]
+            try:
+                result = subprocess.run(cmd_no_label, capture_output=True, text=True, check=True)
+                print(f'GitHub issue opened (no labels): {result.stdout.strip()}')
+            except subprocess.CalledProcessError as exc2:
+                print(f'warning: gh issue create failed: {exc2.stderr}', file=sys.stderr)
+        else:
+            print(f'warning: gh issue create failed: {exc.stderr}', file=sys.stderr)
+
+
 def write_outputs(report: dict, output_dir: Path) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     (output_dir / 'research_report.json').write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
@@ -594,6 +638,8 @@ def main() -> int:
         write_github_outputs(args.github_output, report)
     print_console_summary(report)
 
+    if args.open_issue and report['counts']['actionable_items'] > 0:
+        open_github_issue(report)
     if args.fail_on_actionable and report['counts']['actionable_items'] > 0:
         return 3
     return 0

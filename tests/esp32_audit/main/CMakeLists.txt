@@ -46,6 +46,7 @@ idf_component_register(
          "${CPU_SRC}/ethereum.cpp"
          "${CPU_SRC}/coin_address.cpp"
          "${CPU_SRC}/coin_hd.cpp"
+         "${CPU_SRC}/wallet.cpp"
          # ===============================================================
          # CPU test sources (provide _run() functions)
          # ===============================================================
@@ -92,6 +93,9 @@ idf_component_register(
          "${AUDIT_DIR}/test_musig2_frost_advanced.cpp"
          "${AUDIT_DIR}/test_frost_kat.cpp"
          "${AUDIT_DIR}/test_musig2_bip327_vectors.cpp"
+         # Field / scalar / point arithmetic edge-case audit (2025-04-11)
+         "${AUDIT_DIR}/test_field_scalar_edge.cpp"
+         "${AUDIT_DIR}/test_point_group_law.cpp"
     INCLUDE_DIRS "."
 )
 

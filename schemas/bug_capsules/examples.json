@@ -1,0 +1,51 @@
+[
+  {
+    "id": "BUG-2026-0001",
+    "category": "CT",
+    "severity": "critical",
+    "title": "CT branch leak in ecdsa_sign_recoverable low-s normalization",
+    "description": "ct::ecdsa_sign_recoverable used branchy is_low_s() + if(was_high) on secret-derived scalar s. is_low_s() has early-return branches leaking whether s > n/2 via timing. Fixed by replacing with branchless ct::scalar_is_high() + mask-based XOR.",
+    "discovered_at": "2026-04-09",
+    "fixed_at": "2026-04-09",
+    "fix_commit": "0a93ff4b",
+    "affected_files": ["cpu/src/ct_sign.cpp"],
+    "affected_functions": ["ct::ecdsa_sign_recoverable"],
+    "inputs": {
+      "hex_values": {
+        "private_key": "0000000000000000000000000000000000000000000000000000000000000001",
+        "message_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    },
+    "expected": {
+      "result": "no_timing_leak",
+      "timing_threshold": 10.0
+    },
+    "exploit_poc": true,
+    "labels": ["audit", "ct", "exploit"],
+    "references": []
+  },
+  {
+    "id": "BUG-2026-0002",
+    "category": "correctness",
+    "severity": "low",
+    "title": "OpenCL field_reduce missing rare carry propagation",
+    "description": "OpenCL field_reduce() dropped carry after second fold of 512→256 reduction. CUDA had explicit if(c){add K_MOD} step, Metal had while loop, OpenCL had nothing. Probability ~2^{-190} but theoretically produces wrong field elements.",
+    "discovered_at": "2026-04-09",
+    "fixed_at": "2026-04-09",
+    "fix_commit": "0a93ff4b",
+    "affected_files": ["opencl/kernels/secp256k1_field.cl"],
+    "affected_functions": ["field_reduce"],
+    "inputs": {
+      "hex_values": {
+        "field_element": "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2EFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2E"
+      }
+    },
+    "expected": {
+      "result": "specific_value",
+      "output_hex": "reduced field element matches CUDA/Metal output"
+    },
+    "exploit_poc": false,
+    "labels": ["audit", "correctness", "opencl"],
+    "references": []
+  }
+]

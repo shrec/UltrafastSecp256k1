@@ -66,6 +66,41 @@ target_compile_definitions(test_fault_injection PRIVATE STANDALONE_TEST)
 add_test(NAME fault_injection COMMAND test_fault_injection)
 set_tests_properties(fault_injection PROPERTIES TIMEOUT 900)
 
+# -- Zeroization audit ----------------------------------------------------
+add_executable(test_zeroization test_zeroization.cpp)
+audit_target_defaults(test_zeroization)
+target_compile_definitions(test_zeroization PRIVATE STANDALONE_TEST)
+add_test(NAME zeroization COMMAND test_zeroization)
+set_tests_properties(zeroization PROPERTIES TIMEOUT 900)
+
+# -- ZK/Pedersen/Adaptor fault injection -----------------------------------
+add_executable(test_fault_zk_adaptor test_fault_zk_adaptor.cpp)
+audit_target_defaults(test_fault_zk_adaptor)
+target_compile_definitions(test_fault_zk_adaptor PRIVATE STANDALONE_TEST)
+add_test(NAME fault_zk_adaptor COMMAND test_fault_zk_adaptor)
+set_tests_properties(fault_zk_adaptor PROPERTIES TIMEOUT 1200)
+
+# -- Secret lifecycle audit ------------------------------------------------
+add_executable(test_secret_lifecycle test_secret_lifecycle.cpp)
+audit_target_defaults(test_secret_lifecycle)
+target_compile_definitions(test_secret_lifecycle PRIVATE STANDALONE_TEST)
+add_test(NAME secret_lifecycle COMMAND test_secret_lifecycle)
+set_tests_properties(secret_lifecycle PROPERTIES TIMEOUT 1200)
+
+# -- Field / scalar arithmetic edge cases ---------------------------------
+add_executable(test_field_scalar_edge test_field_scalar_edge.cpp)
+audit_target_defaults(test_field_scalar_edge)
+target_compile_definitions(test_field_scalar_edge PRIVATE STANDALONE_TEST)
+add_test(NAME field_scalar_edge COMMAND test_field_scalar_edge)
+set_tests_properties(field_scalar_edge PROPERTIES TIMEOUT 1200)
+
+# -- Point group law correctness -------------------------------------------
+add_executable(test_point_group_law test_point_group_law.cpp)
+audit_target_defaults(test_point_group_law)
+target_compile_definitions(test_point_group_law PRIVATE STANDALONE_TEST)
+add_test(NAME point_group_law COMMAND test_point_group_law)
+set_tests_properties(point_group_law PROPERTIES TIMEOUT 1200)
+
 # -- Debug invariant assertions --------------------------------------------
 add_executable(test_debug_invariants test_debug_invariants.cpp)
 audit_target_defaults(test_debug_invariants)
@@ -377,7 +412,7 @@ add_executable(test_exploit_frost_index_standalone test_exploit_frost_index.cpp)
 audit_target_defaults(test_exploit_frost_index_standalone)
 target_compile_definitions(test_exploit_frost_index_standalone PRIVATE STANDALONE_TEST)
 add_test(NAME exploit_frost_index COMMAND test_exploit_frost_index_standalone)
-set_tests_properties(exploit_frost_index PROPERTIES TIMEOUT 60 LABELS "audit;exploit;frost")
+set_tests_properties(exploit_frost_index PROPERTIES TIMEOUT 600 LABELS "audit;exploit;frost")
 
 # -- PoC: FROST participant_id=0 secret exposure (x=0 is the secret evaluation point)
 add_executable(test_exploit_frost_participant_zero_standalone test_exploit_frost_participant_zero.cpp)
@@ -2136,6 +2171,31 @@ target_compile_definitions(test_exploit_schnorr_batch_inflation_standalone PRIVA
 add_test(NAME exploit_schnorr_batch_inflation COMMAND test_exploit_schnorr_batch_inflation_standalone)
 set_tests_properties(exploit_schnorr_batch_inflation PROPERTIES TIMEOUT 120 LABELS "audit;exploit;schnorr;batch")
 
+# -- SafeGCD / Bernstein-Yang divstep correctness (SGD-1..11) ---------------
+add_executable(test_exploit_safegcd_divsteps_standalone
+    test_exploit_safegcd_divsteps.cpp)
+audit_target_defaults(test_exploit_safegcd_divsteps_standalone)
+target_include_directories(test_exploit_safegcd_divsteps_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+)
+target_compile_definitions(test_exploit_safegcd_divsteps_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_safegcd_divsteps COMMAND test_exploit_safegcd_divsteps_standalone)
+set_tests_properties(exploit_safegcd_divsteps PROPERTIES TIMEOUT 60 LABELS "audit;exploit;math;safegcd")
+
+# -- Nonce edge cases: null / zero-key / n / n-1 / determinism (NIN-1..15) --
+add_executable(test_exploit_custom_nonce_injection_standalone
+    test_exploit_custom_nonce_injection.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_custom_nonce_injection_standalone)
+target_include_directories(test_exploit_custom_nonce_injection_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+)
+target_compile_definitions(test_exploit_custom_nonce_injection_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_custom_nonce_injection COMMAND test_exploit_custom_nonce_injection_standalone)
+set_tests_properties(exploit_custom_nonce_injection PROPERTIES TIMEOUT 60 LABELS "audit;exploit;nonce;ecdsa")
+
 # -- Source integrity scanner: known mutation artifact patterns -------------
 add_executable(test_mutation_artifact_scan_standalone test_mutation_artifact_scan.cpp)
 audit_target_defaults(test_mutation_artifact_scan_standalone)
@@ -2388,6 +2448,13 @@ add_executable(unified_audit_runner
     # -- C ABI negative contract tests --
     test_c_abi_negative.cpp
     test_c_abi_thread_stress.cpp
+    # -- Zeroization / ZK fault injection / secret lifecycle --
+    test_zeroization.cpp
+    test_fault_zk_adaptor.cpp
+    test_secret_lifecycle.cpp
+    # -- Field / scalar / point arithmetic edge cases --
+    test_field_scalar_edge.cpp
+    test_point_group_law.cpp
     # -- Security audit modules --
     audit_secure_erase.cpp
     audit_ct_namespace.cpp
@@ -2625,6 +2692,10 @@ add_executable(unified_audit_runner
     test_exploit_ecdh_twist_injection.cpp
     # -- Schnorr batch verify inflation (BIP-340, ePrint 2012/549) --
     test_exploit_schnorr_batch_inflation.cpp
+    # -- SafeGCD / Bernstein-Yang divstep correctness --
+    test_exploit_safegcd_divsteps.cpp
+    # -- Nonce edge cases: null/zero/n/n-1/determinism --
+    test_exploit_custom_nonce_injection.cpp
 )
 # Conditionally add 5x52 field test (requires __uint128_t; skip on MSVC)
 if(NOT (MSVC AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang"))

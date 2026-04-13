@@ -53,13 +53,13 @@ Each feature is rated by: implementation status, threat model coverage, test vec
 
 | Feature | Status | Threat Model | Test Vectors | Fuzzed | GPU | Secret-Safe | Tier |
 |---------|--------|-------------|-------------|--------|-----|-------------|------|
-| MuSig2 (BIP-327) key agg | Y | Rogue-key attack | BIP-327 official | Y | - | FAST | Hardened |
-| MuSig2 nonce gen/agg | Y | Nonce reuse, replay | Adversarial protocol | Y | - | CT | Hardened |
-| MuSig2 partial sign/verify/agg | Y | Transcript mutation, signer ordering, malicious aggregator, abort/restart | Adversarial protocol (A.1-A.8) | Y | - | CT | Hardened |
-| FROST keygen | Y | Below-threshold attack | Adversarial protocol | Y | - | CT | Hardened |
-| FROST sign/verify/aggregate | Y | Malformed commitment, malicious coordinator, duplicate nonce, identity mismatch | Adversarial protocol (B.1-B.6) | Y | - | CT | Hardened |
-| ECDSA adaptor signatures | Y | Invalid adaptor point, transcript mismatch, extraction misuse | Adversarial protocol (D.1-D.4) | Y | - | CT | Hardened |
-| Schnorr adaptor signatures | Y | Round-trip, invalid point | Adversarial protocol (E.1-E.2) | Y | - | CT | Hardened |
+| MuSig2 (BIP-327) key agg | Y | Rogue-key attack | BIP-327 official | Y | - | FAST | Experimental |
+| MuSig2 nonce gen/agg | Y | Nonce reuse, replay | Adversarial protocol | Y | - | CT | Experimental |
+| MuSig2 partial sign/verify/agg | Y | Transcript mutation, signer ordering, malicious aggregator, abort/restart | Adversarial protocol (A.1-A.8) | Y | - | CT | Experimental |
+| FROST keygen | Y | Below-threshold attack | Adversarial protocol | Y | - | CT | Experimental |
+| FROST sign/verify/aggregate | Y | Malformed commitment, malicious coordinator, duplicate nonce, identity mismatch | Adversarial protocol (B.1-B.6) | Y | - | CT | Experimental |
+| ECDSA adaptor signatures | Y | Invalid adaptor point, transcript mismatch, extraction misuse | Adversarial protocol (D.1-D.4) | Y | - | CT | Experimental |
+| Schnorr adaptor signatures | Y | Round-trip, invalid point | Adversarial protocol (E.1-E.2) | Y | - | CT | Experimental |
 
 ## Key Derivation & Wallet
 
@@ -77,10 +77,10 @@ Each feature is rated by: implementation status, threat model coverage, test vec
 
 | Feature | Status | Threat Model | Test Vectors | Fuzzed | GPU | Secret-Safe | Tier |
 |---------|--------|-------------|-------------|--------|-----|-------------|------|
-| Pedersen commitments | Y | Blinding factor overflow | Randomized | Y | Y (all 3) | CT | Production |
-| ZK knowledge proofs | Y | Malformed proof | Randomized | Y | Y (all 3) | CT | Production |
-| ZK DLEQ proofs | Y | Wrong generators, malformed | Adversarial protocol (F.1-F.2) | Y | Y (all 3) | CT | Hardened |
-| ZK range proofs (Bulletproofs) | Y | Out-of-range, verify sum | Randomized | Y | Y (all 3) | CT | Production |
+| Pedersen commitments | Y | Blinding factor overflow | Randomized | Y | Y (all 3) | CT | Experimental |
+| ZK knowledge proofs | Y | Malformed proof | Randomized | Y | Y (all 3) | CT | Experimental |
+| ZK DLEQ proofs | Y | Wrong generators, malformed | Adversarial protocol (F.1-F.2) | Y | Y (all 3) | CT | Experimental |
+| ZK range proofs (Bulletproofs) | Y | Out-of-range, verify sum | Randomized | Y | Y (all 3) | CT | Experimental |
 | Taproot (BIP-341) | Y | Tweak overflow | Randomized | Y | - | CT | Production |
 | ECIES encrypt/decrypt | Y | Truncated CT, wrong key, empty msg, 1MB payload, overlapping buffers | 85 regression vectors | Y | - | CT | Hardened |
 
@@ -132,7 +132,7 @@ Each feature is rated by: implementation status, threat model coverage, test vec
 | generator_mul_batch | Y | NULL buffers, count=0 | 1*G == G equivalence | - | OpenCL+CUDA | N/A (public) | Hardened |
 | Batch verify (ECDSA/Schnorr) | Y | - | - | - | CUDA only | N/A (public) | Stable |
 | ECDH/Hash160/MSM batch | Y | - | - | - | Partial | ECDH secret-bearing | Stable |
-| FROST partial verify GPU ABI | Y | Malformed commitments, unsupported backend | Protocol vectors + backend probing | - | Y (all 3) | N/A (public) | Production |
+| FROST partial verify GPU ABI | Y | Malformed commitments, unsupported backend | Protocol vectors + backend probing | - | Y (all 3) | N/A (public) | Experimental |
 | ecrecover_batch GPU ABI | Y | Invalid recid, malformed compact sig | Backend probing + GPU/CPU equivalence | - | CUDA/OpenCL/Metal | N/A (public) | Stable |
 | ECDSA SNARK witness GPU ABI | Y | NULL ctx/args, bad inputs | Layout check + CPU reference + GPU-CPU equivalence | - | CUDA/OpenCL | N/A (public) | Stable |
 | BIP-352 Silent Payment GPU scan | Y | NULL ctx/args, zero count, SECRET-BEARING key | Macro + null-arg + determinism + distinct-tweaks tests | - | CUDA/OpenCL | scan_privkey SECRET-BEARING | Stable |

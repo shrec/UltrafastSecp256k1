@@ -8,6 +8,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Audit report infrastructure overhaul** — unified report schema v1.0.0, build provenance,
+  artifact analysis, bug capsule format, and CI gating policy. Committed `d906a77d`.
+  - `scripts/report_provenance.py` — collects git SHA, dirty flag, submodules, toolchain
+    (compiler versions), build flags from CMakeCache.txt, platform info.
+  - `scripts/report_schema.py` — unified report schema v1.0.0 with `NullableField` (replaces
+    `"unknown"` strings), `SkipReason`, `Severity` enum (blocking/advisory), `ReportBuilder`.
+  - `scripts/artifact_analyzer.py` — multi-report analysis: ingest, regression diff,
+    platform divergence detection, flake detection, SARIF 2.1.0 + Markdown + timeline exports.
+  - `scripts/bug_capsule_gen.py` — generates regression tests + exploit PoC C++ + CMake
+    fragments from JSON bug capsule definitions.
+  - `scripts/ci_gate_detect.py` — impact-based hard/light CI gate detection from changed files.
+  - `schemas/bug_capsule.schema.json` — JSON Schema for structured bug records.
+  - `docs/AUDITOR_QUICKSTART.md` — "3 commands, 3 artifacts" guide for external auditors.
+  - `docs/LAYER_ROUTING_MATRIX.md` — CT/FAST routing for all ~103 ABI functions.
+  - `docs/CI_GATING_POLICY.md` — Tier0/Tier1/Tier2 CI architecture with impact-based gating.
+
+### Fixed
+- **`research-monitor.yml` workflow parse error** — `secrets.*` is not accessible in GitHub
+  Actions `if:` expression context. All schedule runs were silently blocked. Replaced with
+  `env.*` references (secrets are still injected via the `env:` block). Cron `10 7 * * *`
+  schedule will now fire correctly from `main`.
+- **Dead code cleanup in `scalar.cpp`** — removed unused `carry_hi` variable in the 32-bit
+  fallback schoolbook multiply path. No functional change.
+- **CT branch leak in `ct::ecdsa_sign_recoverable`** — branchy `is_low_s()` call replaced
+  with branchless `ct::scalar_is_high()` + conditional negate. Committed `0a93ff4b`.
+- **OpenCL `field_reduce()` missing rare carry** — added carry propagation for values where
+  the reduction constant `k = 2^32 + 977` generates an overflow beyond the first limb.
+  Committed `0a93ff4b`.
+
 - **BIP-340 SchnorrSnarkWitness** — foreign-field witness generator for PLONK/Halo2/Circom
   circuits. Decomposes a BIP-340 Schnorr signature into 5×52-bit `ForeignFieldLimbs`:
   public inputs (msg, R.x, s, P.x) and private witness (R.y, P.y, e = BIP0340/challenge).

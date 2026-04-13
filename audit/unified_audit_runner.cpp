@@ -169,6 +169,8 @@ int test_exploit_adaptor_extraction_soundness_run();  // ePrint 2020/476 adaptor
 int test_exploit_ecdh_twist_injection_run();          // ePrint 2015/1233 ECDH twist injection
 int test_exploit_schnorr_batch_inflation_run();       // BIP-340 Schnorr batch inflation
 int test_cryptol_specs_run();      // Cryptol formal spec property check (advisory: needs cryptol)
+int test_exploit_safegcd_divsteps_run();              // Bernstein-Yang SafeGCD divstep count + correctness
+int test_exploit_custom_nonce_injection_run();        // RFC 6979 nonce edge cases (null/zero/n/n-1)
 
 // ============================================================================
 // Forward declarations -- Wycheproof & batch-randomness (Track I3, I6-3)
@@ -730,6 +732,12 @@ static const AuditModule ALL_MODULES[] = {
     { "exploit_adaptor_extraction",        "Adaptor Extraction Soundness (ASE-1..12)",  "exploit_poc", test_exploit_adaptor_extraction_soundness_run, false },
     { "exploit_ecdh_twist_injection",      "ECDH Twist Injection (ETP-1..12)",          "exploit_poc", test_exploit_ecdh_twist_injection_run, false },
     { "exploit_schnorr_batch_inflation",   "Schnorr Batch Inflation (SBI-1..12)",       "exploit_poc", test_exploit_schnorr_batch_inflation_run, false },
+
+    // ===================================================================
+    // Section 10: Math Invariants — SafeGCD & Nonce Edge Cases
+    // ===================================================================
+    { "exploit_safegcd_divsteps",  "SafeGCD/Bernstein-Yang divstep count + correctness (SGD-1..11)", "math_invariants", test_exploit_safegcd_divsteps_run, false },
+    { "exploit_nonce_injection",   "RFC 6979 nonce edge cases: null/zero/n/n-1/det (NIN-1..15)",    "protocol_security", test_exploit_custom_nonce_injection_run, false },
 };
 
 static constexpr int NUM_MODULES = sizeof(ALL_MODULES) / sizeof(ALL_MODULES[0]);

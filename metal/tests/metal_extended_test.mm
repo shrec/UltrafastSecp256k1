@@ -529,6 +529,52 @@ static BenchResult bench_field_inv(MetalCtx& ctx, uint32_t count) {
 }
 
 // =============================================================================
+// CT Smoke Tests -- Branchless GPU Constant-Time Layer (Section 11)
+// =============================================================================
+// Dispatches the ct_smoke_kernel (single workitem) and reads out[0..3].
+// Each subtest returns 0 on pass.  Non-zero → error bitmap printed.
+// =============================================================================
+
+static int test_ct_smoke(MetalCtx& ctx, bool verbose) {
+    int passed = 0, total = 0;
+
+    auto pipe = ctx.get_pipeline("ct_smoke_kernel");
+    if (!pipe) {
+        printf("  SKIP: ct_smoke_kernel not found in metallib\n");
+        return 0;  // advisory; Metal GPU may be unavailable in CI
+    }
+
+    // Output buffer: 4 ints (one per subtest)
+    auto out_buf = ctx.alloc(4 * sizeof(int));
+    memset([out_buf contents], 0, 4 * sizeof(int));
+
+    ctx.dispatch_sync(pipe, 1, {out_buf});
+
+    int* results = static_cast<int*>([out_buf contents]);
+
+    static const char* subtests[] = {
+        "CT mask primitives (is_zero, is_nonzero, eq, bool)",
+        "CT cmov/cswap on 8-limb arrays",
+        "CT ECDSA sign (privkey=1) + fast-path verify",
+        "CT Schnorr sign (privkey=1, BIP-340) + verify",
+    };
+
+    for (int i = 0; i < 4; ++i) {
+        total++;
+        if (verbose) printf("  [CT %d] %s: ", i, subtests[i]);
+        if (results[i] == 0) {
+            if (verbose) printf("PASS\n");
+            passed++;
+        } else {
+            printf("FAIL (result=0x%x)\n", results[i]);
+        }
+    }
+
+    printf("  CT smoke: %d/%d passed\n", passed, total);
+    return (passed == total) ? 0 : 1;
+}
+
+// =============================================================================
 // Main
 // =============================================================================
 
@@ -584,6 +630,9 @@ int main(int argc, char** argv) {
 
         printf("\n--- Field/Point Tests ---\n");
         ret |= test_field_ops(ctx, verbose);
+
+        printf("\n--- GPU CT Layer Smoke Tests ---\n");
+        ret |= test_ct_smoke(ctx, verbose);
 
         // Benchmarks
         if (do_bench) {

@@ -80,6 +80,10 @@ int audit_security_run();
 int test_debug_invariants_run();
 int test_abi_gate_run();
 
+// Section 9: Field / Scalar / Point arithmetic edge cases (added 2025-04-11)
+int test_field_scalar_edge_run();
+int test_point_group_law_run();
+
 // Section 8: Performance Validation
 int test_multiscalar_batch_run();
 int audit_perf_run();
@@ -151,6 +155,10 @@ static const AuditModule ALL_MODULES[] = {
     // Section 8: Performance
     { "multiscalar",       "Multi-scalar & batch verify",     "perf",     test_multiscalar_batch_run, false },
     { "audit_perf",        "Performance smoke",               "perf",     audit_perf_run, false },
+
+    // Section 9: Field / Scalar / Point arithmetic edge cases
+    { "field_scalar_edge", "Field/Scalar boundary & carry",   "math",     test_field_scalar_edge_run, false },
+    { "point_group_law",   "Point group axioms (Jacobian)",   "math",     test_point_group_law_run, false },
 };
 
 static constexpr int NUM_MODULES = sizeof(ALL_MODULES) / sizeof(ALL_MODULES[0]);

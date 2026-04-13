@@ -10,11 +10,11 @@
 >
 > Every claim in this document is **machine-verifiable and reproducible** from source:
 >
-> - **247 audit modules** execute in a single `unified_audit_runner` invocation (~10 min)
+> - **263 audit modules** execute in a single `unified_audit_runner` invocation (~10 min)
 > - **14 CI workflows** enforce every check on every push to `dev` — no claim can silently rot
 > - **Three-tier CT verification** (ct-verif LLVM IR + Valgrind CT + dudect) runs in CI, not just once during an engagement
 > - **Bit-exact differential** against bitcoin-core/libsecp256k1 v0.6.0 catches any arithmetic divergence
-> - **173 exploit PoC probes** (CVE-2023-33242, rogue-key, nonce-reuse, twist-attack, etc.) run on every commit
+> - **187 exploit PoC probes** (CVE-2023-33242, rogue-key, nonce-reuse, twist-attack, etc.) run on every commit
 > - **Structured assurance JSON** (`scripts/export_assurance.py`) produces machine-readable audit artifacts
 >
 > A traditional PDF audit is a point-in-time snapshot. This system is a **continuously enforced
@@ -748,7 +748,7 @@ cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
   -DSECP256K1_BUILD_PROTOCOL_TESTS=ON
 cmake --build build -j
 
-# Unified audit runner (247 modules, all 9 failure classes, ~10 min)
+# Unified audit runner (263 modules, all 9 failure classes, ~10 min)
 ./build/audit/unified_audit_runner
 
 # Run all CTest targets

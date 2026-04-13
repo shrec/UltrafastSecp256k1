@@ -2,7 +2,7 @@
 
 **Generated:** 2026-04-06
 **Scope:** All `UFSECP_API` exported functions + internal library capabilities
-**Total API functions:** 179
+**Total API functions:** 181
 
 ## Legend
 
@@ -568,8 +568,9 @@ closure pass on 2026-04-06.
 | `ufsecp_gcs_match_any` | Y | - | Y | - | N/A | - | N/A | N/A |
 | `ufsecp_bip352_prepare_scan_plan` | Y | - | Y | - | - | - | N/A | N/A |
 | `ufsecp_zk_ecdsa_snark_witness` | Y | - | Y | Y | N/A | Y (CUDA/OCL/Metal batch parity) | N/A | N/A |
+| `ufsecp_zk_schnorr_snark_witness` | Y | - | Y | - | N/A | Y (GPU batch via `ufsecp_gpu_zk_schnorr_snark_witness_batch`) | N/A | N/A |
 
-**Test files:** `audit/test_exploit_gcs_false_positive.cpp`, `audit/test_gpu_bip352_scan.cpp`, `audit/test_gpu_ecdsa_snark_witness.cpp`
+**Test files:** `audit/test_exploit_gcs_false_positive.cpp`, `audit/test_gpu_bip352_scan.cpp`, `audit/test_gpu_ecdsa_snark_witness.cpp`, `cpu/tests/test_ffi_coverage.cpp`
 
 ---
 
@@ -610,6 +611,7 @@ Backend-neutral GPU acceleration surface (`ufsecp_gpu.h`). Separate opaque conte
 | `ufsecp_gpu_bip324_aead_encrypt_batch` | - | - | - | CUDA only | Batch BIP-324 AEAD encrypt |
 | `ufsecp_gpu_bip324_aead_decrypt_batch` | - | - | - | CUDA only | Batch BIP-324 AEAD decrypt |
 | `ufsecp_gpu_zk_ecdsa_snark_witness_batch` | Y | Y | Y | CUDA+OpenCL | ECDSA SNARK witness batch (eprint 2025/695) |
+| `ufsecp_gpu_zk_schnorr_snark_witness_batch` | Y | Y | Y | - | Schnorr SNARK witness batch (GPU kernel pending — stubs return Unsupported) |
 | `ufsecp_gpu_bip352_scan_batch` | Y | Y | Y | CUDA+OpenCL | BIP-352 Silent Payment GPU batch scan; scan_privkey SECRET-BEARING |
 
 **Test file:** `audit/test_gpu_abi_gate.cpp` (39 assertions)

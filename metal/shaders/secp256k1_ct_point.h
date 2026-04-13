@@ -201,7 +201,7 @@ inline void ct_batch_field_inv_metal(thread FieldElement* vals,
 // ---------------------------------------------------------------------------
 constant uint CT_G_TABLE_A_METAL[15][16] = {
     // 1G
-    { 0x16F81798u, 0x59F2815Bu, 0x2DCE28D9u, 0x029BFCDB u,
+    { 0x16F81798u, 0x59F2815Bu, 0x2DCE28D9u, 0x029BFCDBu,
       0xCE870B07u, 0x55A06295u, 0xF9DCBBACu, 0x79BE667Eu,
       0xFB10D4B8u, 0x9C47D08Fu, 0xA6855419u, 0xFD17B448u,
       0x0E1108A8u, 0x5DA4FBFCu, 0x26A3C465u, 0x483ADA77u },
@@ -399,7 +399,7 @@ inline CTJacobianPoint ct_scalar_mul_point(thread const CTJacobianPoint &p,
     }
 
     // Endomorphism table: phi(P) = (beta*x, y)
-    constant uint BETA_METAL[8] = {
+    const uint BETA_METAL[8] = {
         0x57C0710u, 0x7AE96A2Bu, 0xEB4C3F40u, 0x6584D3F6u,
         0x0E46AB35u, 0x7F09A368u, 0x9A83F8EFu, 0x851695D4u
     };

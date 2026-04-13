@@ -35,7 +35,7 @@
     {
       "claim_id": "A-002",
       "area": "GPU ABI",
-      "claim": "Stable public GPU C ABI exposes 13 backend-neutral batch operations",
+      "claim": "Stable public GPU C ABI exposes 19 backend-neutral batch operations",
       "scope": "Public host ABI only; excludes benchmark-only kernels and internal experiments",
       "primary_evidence": [
         "include/ufsecp/ufsecp_gpu.h",
@@ -63,7 +63,7 @@
       "claim_id": "A-003",
       "area": "GPU parity",
       "claim": "CUDA, OpenCL, and Metal implement the stable public GPU surface",
-      "scope": "Public 13-op GPU ABI; not a statement about every experimental kernel",
+      "scope": "Public 19-op GPU ABI; not a statement about every experimental kernel",
       "primary_evidence": [
         "include/ufsecp/ufsecp_gpu.h",
         "docs/BACKEND_ASSURANCE_MATRIX.md",

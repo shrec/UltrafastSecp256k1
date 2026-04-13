@@ -30,6 +30,12 @@ from audit_gap_report import build_report as build_audit_gap_report
 from check_secret_path_changes import build_report as build_secret_path_report
 from generate_abi_negative_tests import build_manifest as build_abi_negative_manifest
 
+try:
+    from report_provenance import collect_provenance
+except ImportError:
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from report_provenance import collect_provenance
+
 SCRIPT_DIR = Path(__file__).resolve().parent
 LIB_ROOT = SCRIPT_DIR.parent
 DB_PATH = LIB_ROOT / ".project_graph.db"
@@ -978,9 +984,36 @@ def main():
     conn.close()
 
     if json_mode:
+        provenance = collect_provenance()
+        warn_count = sum(1 for r in results for f in r['findings'] if f[0] == 'WARN')
+        advisory_count = sum(1 for r in results for f in r['findings'] if f[0] in ('WARN', 'INFO'))
+        if has_fail:
+            verdict = 'FAIL'
+        elif warn_count:
+            verdict = 'PASS with advisory'
+        else:
+            verdict = 'PASS'
+
         report = {
+            'schema_version': '1.0.0',
+            'run_id': f"audit_gate-{provenance.get('git', {}).get('short', 'noprov')}-{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S')}",
+            'runner': 'audit_gate',
             'generated_at': datetime.now(timezone.utc).isoformat(),
-            'status': 'FAIL' if has_fail else 'PASS',
+            'commit': {
+                'value': provenance.get('git', {}) if provenance.get('git', {}).get('sha') else None,
+                'status': 'available' if provenance.get('git', {}).get('sha') else 'unavailable',
+                'reason': None if provenance.get('git', {}).get('sha') else 'git not available',
+            },
+            'platform': provenance.get('platform', {}).get('system'),
+            'provenance': provenance,
+            'verdict': verdict,
+            'summary': {
+                'total_findings': sum(len(r['findings']) for r in results),
+                'blocking': sum(1 for r in results for f in r['findings'] if f[0] == 'FAIL'),
+                'advisory': advisory_count,
+                'skipped_sections': 0,
+                'sections': len(results),
+            },
             'checks': [
                 {
                     'name': r['check'],

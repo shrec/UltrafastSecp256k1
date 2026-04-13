@@ -99,14 +99,10 @@ HOT_PATH_FILES: frozenset[str] = frozenset({
     "cpu/src/adaptor.cpp",
     "cpu/src/ecmult.cpp",
     "cpu/src/group.cpp",
-    "gpu/src/ecdsa_cuda.cpp",
-    "gpu/src/schnorr_cuda.cpp",
-    "gpu/src/ecdh_cuda.cpp",
-    "gpu/src/point_cuda.cpp",
-    "opencl/ecdsa_ocl.cpp",
-    "opencl/schnorr_ocl.cpp",
-    "metal/ecdsa_metal.mm",
-    "metal/schnorr_metal.mm",
+    # GPU backends are NOT hot-path for allocation purposes: vectors there are
+    # marshalling buffers created *before* kernel launch.  The kernel launch
+    # cost (hundreds of µs) dwarfs any host-side vector allocation.
+    # Keeping them here only inflates false positives.
 })
 
 # Function name must contain one of these (case-insensitive) to be a hot path by name
@@ -126,6 +122,14 @@ EXEMPT_KEYWORDS: Tuple[str, ...] = (
     "generate_sbom", "generate_report",
     "init_", "_init", "setup_", "_setup",  # one-time initialization
     "init_gen", "init_table", "init_ctx",  # explicit init patterns
+    "ufsecp_",  # C ABI wrappers — allocation is marshalling, not inner loop
+    "segwit_",  # Address encoding helpers — not hot-path crypto
+    "base58",   # Base58 encode/decode — 1x per address, not inner loop
+    "bech32",   # Bech32 encode/decode — 1x per address, not inner loop
+    "cashaddr",  # CashAddr helpers — not inner-loop crypto
+    "wif_",     # WIF encode/decode — not inner-loop crypto
+    "address_",  # Address generation — format/serialize, not tight crypto
+    "convert_bits",  # Bech32 bit conversion helper
 )
 
 
@@ -277,6 +281,36 @@ def _is_static_local(line: str) -> bool:
     return bool(re.search(r'\bstatic\b', line))
 
 
+def _is_one_time_init_context(lines: List[str], line_idx: int) -> bool:
+    """True if the allocation is inside a static lambda/one-time initializer.
+
+    Detects patterns like:
+      static const GenTables* const t = []() { ... }();
+      static const auto& x = *[]() { return new X; }();
+    by scanning backwards for a 'static' declaration on a recent line.
+    """
+    start = max(0, line_idx - 8)
+    for j in range(line_idx, start - 1, -1):
+        ln = lines[j].strip()
+        if re.search(r'\bstatic\b.*\[]', ln) or re.search(r'\bstatic\s+(const\s+)?[\w:<>*&]+.*=', ln):
+            return True
+        # Stop scanning at function boundary markers
+        if ln == '{' and j < line_idx - 1:
+            break
+    return False
+
+
+def _is_gpu_marshalling_file(rel_path: str) -> bool:
+    """True if the file is a GPU backend host file where vectors are marshalling buffers."""
+    p = rel_path.replace("\\", "/").lower()
+    return any(x in p for x in (
+        'gpu_backend_cuda', 'gpu_backend_opencl', 'gpu_backend_metal',
+        'gpu_backend_cuda_host',
+        'ecdsa_cuda', 'schnorr_cuda', 'ecdh_cuda', 'point_cuda',
+        'ecdsa_ocl', 'schnorr_ocl', 'ecdsa_metal', 'schnorr_metal',
+    ))
+
+
 def _is_parameter_line(line: str) -> bool:
     """
     True if this looks like a function parameter list line (contains `&` patterns
@@ -307,6 +341,9 @@ def check_line(
         return findings
     if _is_exempt_function(func_name):
         return findings
+    # GPU marshalling files: host-side vector allocations are expected before kernel launch
+    if _is_gpu_marshalling_file(rel_path):
+        return findings
     # Batch output: push_back warnings suppressed, but new/malloc still flagged
     batch = _is_batch_output(func_name)
 
@@ -325,9 +362,8 @@ def check_line(
 
         # HEAP_NEW: raw new expression
         if _NEW_ALLOC.search(line):
-            # Exception: `new` inside a comment we already stripped → must be real
-            # Exception: placement new in constant-time paths — rare but check
-            if not re.search(r'\bnew\s*\(', line):  # skip placement new
+            # Exception: placement new, static one-time init
+            if not re.search(r'\bnew\s*\(', line) and not _is_one_time_init_context(lines, i):
                 findings.append(Finding(
                     file=rel_path, line=rel_lineno, function=func_name,
                     severity="HIGH", category="HEAP_NEW",
@@ -350,7 +386,7 @@ def check_line(
         # HEAP_VEC: local vector construction
         if _VEC_LOCAL.search(line) and not _is_static_local(line) and not _is_parameter_line(line):
             # Distinguish: `std::vector<T> name(count)` construction vs `std::vector<T>& ref`
-            if '&' not in line.split('=')[0]:
+            if '&' not in line.split('=')[0] and not _is_one_time_init_context(lines, i):
                 findings.append(Finding(
                     file=rel_path, line=rel_lineno, function=func_name,
                     severity="HIGH", category="HEAP_VEC",

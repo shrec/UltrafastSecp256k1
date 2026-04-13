@@ -20,9 +20,15 @@ on:
         required: false
         default: false
         type: boolean
+      open_issue:
+        description: 'Open a GitHub issue even if triggered manually (default: true)'
+        required: false
+        default: true
+        type: boolean
 
 permissions:
   contents: read
+  issues: write
 
 concurrency:
   group: research-monitor-${{ github.ref }}
@@ -81,8 +87,29 @@ jobs:
           echo '## External Research Monitor' >> "$GITHUB_STEP_SUMMARY"
           cat build/research_monitor/research_report.md >> "$GITHUB_STEP_SUMMARY" || echo 'Report not generated.' >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Open GitHub issue for actionable findings
+        if: |
+          always() &&
+          steps.monitor.outputs.actionable_count != '0' &&
+          (github.event_name == 'schedule' || github.event.inputs.open_issue != 'false')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TITLE="[Research Monitor] ${{ steps.monitor.outputs.actionable_count }} actionable secp256k1 signal(s) — $(date -u +%Y-%m-%d)"
+          BODY=$(cat build/research_monitor/research_report.md)
+          # Check if an identical issue already exists (avoid duplicates)
+          EXISTING=$(gh issue list --label "research-monitor" --state open --search "${{ steps.monitor.outputs.actionable_count }} actionable secp256k1" --json number --jq '.[0].number // empty')
+          if [ -z "$EXISTING" ]; then
+            gh issue create \
+              --title "$TITLE" \
+              --body "$BODY" \
+              --label "research-monitor,security,triage"
+          else
+            echo "Issue #$EXISTING already open — skipping duplicate."
+          fi
+
       - name: Send actionable report by email
-        if: always() && steps.monitor.outputs.actionable_count != '0' && secrets.RESEARCH_SMTP_HOST != '' && secrets.RESEARCH_SMTP_USERNAME != '' && secrets.RESEARCH_SMTP_PASSWORD != '' && secrets.RESEARCH_REPORT_FROM != '' && secrets.RESEARCH_REPORT_TO != ''
+        if: always() && steps.monitor.outputs.actionable_count != '0' && env.RESEARCH_SMTP_HOST != '' && env.RESEARCH_SMTP_USERNAME != '' && env.RESEARCH_SMTP_PASSWORD != '' && env.RESEARCH_REPORT_FROM != '' && env.RESEARCH_REPORT_TO != ''
         env:
           RESEARCH_SMTP_HOST: ${{ secrets.RESEARCH_SMTP_HOST }}
           RESEARCH_SMTP_PORT: ${{ secrets.RESEARCH_SMTP_PORT }}

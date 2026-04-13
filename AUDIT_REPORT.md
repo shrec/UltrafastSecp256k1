@@ -45,7 +45,7 @@
 
 > This is a historical baseline report (v3.9.0, 2026-02-11). The audit system has grown
 > significantly since then. See [AUDIT_COVERAGE.md](AUDIT_COVERAGE.md) for the current state:
-> 247 modules, ~1,000,000+ checks, 173 exploit PoC tests, 0 failures.
+> 263 modules, ~1,000,000+ checks, 187 exploit PoC tests, 0 failures.
 > **To verify current state**: `cmake --build build && ./build/audit/unified_audit_runner`
 
 ### What this report IS
@@ -66,7 +66,7 @@ PRNG seeds, and exact check counts are preserved for independent reproduction.
 |--------|---------------------|---------|
 | Total checks | 641,194 | ~1,000,000+ |
 | Audit modules | 8 suites | 58 modules |
-| Exploit PoC tests | — | 157 tests, 157 attack vectors |
+| Exploit PoC tests | — | 187 tests, 187 attack vectors |
 | Formal Cryptol properties | — | 39 properties (39/39 pass) |
 | Failures | 0 | 0 |
 | Verdict | ALL PASSED | AUDIT-READY |

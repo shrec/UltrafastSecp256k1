@@ -17,7 +17,7 @@ UltrafastSecp256k1 is:
 - ⚡ **High-throughput ECC engine** — CPU + GPU + embedded (CUDA, OpenCL, Metal, ARM64, RISC-V, WASM, ESP32, STM32)
 - 🔐 **Cryptographic stack** — ECDSA, Schnorr, FROST, MuSig2, Taproot, BIP-352 Silent Payments, ZK Proofs, ECDH
 - 🧠 **Continuous audit system** — 1,000,000+ assertions per build, 58 modules, 0 failures — not a snapshot
-- 🧪 **Adversarially tested** — 157 exploit PoC tests, 11 fuzzer harnesses, 39 formal Cryptol properties, 3 independent CT pipelines
+- 🧪 **Adversarially tested** — 187 exploit PoC tests, 11 fuzzer harnesses, 39 formal Cryptol properties, 3 independent CT pipelines
 
 > Security is not assumed — it is continuously verified on every commit.
 
@@ -65,9 +65,17 @@ cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build build -
 | 🔍 Run the audit | [docs/AUDIT_GUIDE.md](docs/AUDIT_GUIDE.md) |
 | ⚔️ Try to break the system | [docs/ATTACK_GUIDE.md](docs/ATTACK_GUIDE.md) |
 | 📊 Understand the guarantees | [docs/AUDIT_TRACEABILITY.md](docs/AUDIT_TRACEABILITY.md) |
+| 🧠 Audit philosophy & design rationale | [docs/AUDIT_PHILOSOPHY.md](docs/AUDIT_PHILOSOPHY.md) |
+| 📐 Audit methodology specification (CAAS) | [docs/AUDIT_STANDARD.md](docs/AUDIT_STANDARD.md) |
+| 🚀 External auditor quick start | [docs/AUDITOR_QUICKSTART.md](docs/AUDITOR_QUICKSTART.md) |
 | 📄 See latest audit results | [AUDIT_REPORT.md](AUDIT_REPORT.md) |
+| 🛡️ Exploit PoC test catalog | [docs/EXPLOIT_TEST_CATALOG.md](docs/EXPLOIT_TEST_CATALOG.md) |
+| 🔀 Backend assurance matrix | [docs/BACKEND_ASSURANCE_MATRIX.md](docs/BACKEND_ASSURANCE_MATRIX.md) |
+| 🚦 CI gating policy | [docs/CI_GATING_POLICY.md](docs/CI_GATING_POLICY.md) |
+| 🗺️ ABI layer routing matrix | [docs/LAYER_ROUTING_MATRIX.md](docs/LAYER_ROUTING_MATRIX.md) |
 | 🏗️ Build guide | [docs/BUILDING.md](docs/BUILDING.md) |
 | 🔗 C ABI / FFI reference | [docs/API_REFERENCE.md](docs/API_REFERENCE.md) |
+| 📈 Community benchmarks | [docs/COMMUNITY_BENCHMARKS.md](docs/COMMUNITY_BENCHMARKS.md) |
 | 📦 Install packages | [Installation](#installation) |
 | 🤔 Why this library? | [WHY_ULTRAFASTSECP256K1.md](WHY_ULTRAFASTSECP256K1.md) |
 | 🌐 Sponsor | [github.com/sponsors/shrec](https://github.com/sponsors/shrec) |
@@ -99,6 +107,19 @@ For the full breakdown of the audit culture, CI/CD pipeline, formal verification
 secp256k1 · secp256k1 python · secp256k1 nodejs · secp256k1 rust · secp256k1 go · secp256k1 c# · secp256k1 java · secp256k1 swift · ecdsa python · schnorr python · bitcoin python library · ethereum python library · ECDSA batch verify · Schnorr BIP-340 · FROST threshold signatures · MuSig2 · Bitcoin cryptography · CUDA secp256k1 · OpenCL ECC · Metal GPU crypto · BIP-352 Silent Payments · constant-time cryptography · embedded ECC · WebAssembly crypto · elliptic curve cryptography · bitcoin wallet library · taproot signatures · BIP-32 HD keys · BIP-39 mnemonic · adaptor signatures · Pedersen commitment · Bulletproof range proof · react native crypto · python ecdsa signing · node.js secp256k1 · GPU elliptic curve · wasm crypto · mobile crypto library · threshold signature scheme · multi-party computation · pip install secp256k1 · npm secp256k1 · cargo secp256k1 · nuget secp256k1 · ufsecp
 -->
 
+## The Audit Model
+
+Most libraries ship fast code and trust it's correct.
+This library ships fast code — then systematically tries to break it, on every commit, permanently.
+
+- New CVE published → PoC written → CI gate added → runs forever
+- New ePrint attack → evaluated within 1 day → permanent regression test
+- Contributor finds exploit → pull request → built into the system
+
+[How it works](#engineering-quality--self-audit-culture) · [The standard](docs/AUDIT_STANDARD.md)
+
+---
+
 ## Recent Performance Milestones (March 2026)
 
 All measurements: RTX 5060 Ti (SM 12.0, CUDA 12), batch=16 384, kernel-only throughput.
@@ -117,8 +138,8 @@ All measurements: RTX 5060 Ti (SM 12.0, CUDA 12), batch=16 384, kernel-only thro
 
 > TL;DR is above. This section covers what differentiates this library in depth.
 
-- **Continuous adversarial audit system** -- every exploit attempt becomes a permanent regression test; 1,000,000+ assertions per build, 173 exploit-PoC modules across 170+ attack vectors, 34 CI workflows, 3 formal CT verification pipelines (ct-verif + Valgrind CT + dudect), 1.3M+ nightly differential checks — security hardens on every commit, not just on release day ([→ how it works](#engineering-quality--self-audit-culture))
-- **Differentiated GPU secp256k1 surface** -- CUDA, OpenCL, and Metal all implement the stable 13-op GPU C ABI, while CUDA also carries the highest-throughput signing and verification kernels plus **GPU FROST partial verification** ([reproducible benchmark suite and raw logs](docs/BENCHMARKS.md))
+- **Continuous adversarial audit system** -- every exploit attempt becomes a permanent regression test; 1,000,000+ assertions per build, 187 exploit-PoC test files (171 registered runner modules) across 200+ attack vectors, 36 CI workflows, 3 formal CT verification pipelines (ct-verif + Valgrind CT + dudect), 1.3M+ nightly differential checks — security hardens on every commit, not just on release day ([→ how it works](#engineering-quality--self-audit-culture))
+- **Differentiated GPU secp256k1 surface** -- CUDA, OpenCL, and Metal all implement the stable 19-op GPU C ABI, while CUDA also carries the highest-throughput signing and verification kernels plus **GPU FROST partial verification** ([reproducible benchmark suite and raw logs](docs/BENCHMARKS.md))
 - **High-performance CPU secp256k1 engine** -- optimized generator multiply, scalar multiply, hashing, and serialization pipelines across x86-64, ARM64, RISC-V, and embedded targets ([see bench_unified ratio table](docs/BENCHMARKS.md))
 - **BIP-352 Silent Payments at 11.00 M/s** -- the full 7-stage GPU pipeline (k×P → hash → k×G → add → match) runs at 91.0 ns/op on CUDA, **267× faster** than single-threaded CPU ([GPU bench](docs/BENCHMARKS.md), [standalone CPU benchmark by @craigraw](https://github.com/craigraw/bench_bip352))
 - **Built for modern secp256k1 workloads** -- signing, verification, wallet derivation, threshold protocols, adaptor signatures, ZK primitives, address generation, and large-scale public-key pipelines in one engine
@@ -136,7 +157,7 @@ All measurements: RTX 5060 Ti (SM 12.0, CUDA 12), batch=16 384, kernel-only thro
 
 > **Claim map:** Top-level trust claims are keyed in [docs/ASSURANCE_LEDGER.md](docs/ASSURANCE_LEDGER.md): CPU CT routing `A-001`, stable GPU ABI `A-002`, cross-backend GPU parity `A-003`, benchmark reproducibility `A-004`, exploit-audit surface `A-005`, graph-assisted review `A-006`, open self-audit transparency `A-007`, and ROCm/HIP status discipline `A-008`.
 
-**Quick links:** [Discord](https://discord.gg/sUmW7cc5) * [Benchmarks](docs/BENCHMARKS.md) * [Community Benchmarks](docs/COMMUNITY_BENCHMARKS.md) * [Adopters](ADOPTERS.md) * [Build Guide](docs/BUILDING.md) * [API Reference](docs/API_REFERENCE.md) * [Binding Usage Standard](docs/BINDINGS_USAGE_STANDARD.md) * [Security Policy](SECURITY.md) * [Threat Model](THREAT_MODEL.md) * [Assurance Ledger](docs/ASSURANCE_LEDGER.md) * [AI Audit Protocol](docs/AI_AUDIT_PROTOCOL.md) * [**Why This Library?**](WHY_ULTRAFASTSECP256K1.md) * [Porting Guide](PORTING.md) * [**Sponsor**](https://github.com/sponsors/shrec)
+**Quick links:** [Discord](https://discord.gg/sUmW7cc5) * [Benchmarks](docs/BENCHMARKS.md) * [Community Benchmarks](docs/COMMUNITY_BENCHMARKS.md) * [Adopters](ADOPTERS.md) * [Build Guide](docs/BUILDING.md) * [API Reference](docs/API_REFERENCE.md) * [Binding Usage Standard](docs/BINDINGS_USAGE_STANDARD.md) * [Security Policy](SECURITY.md) * [Threat Model](THREAT_MODEL.md) * [Assurance Ledger](docs/ASSURANCE_LEDGER.md) * [AI Audit Protocol](docs/AI_AUDIT_PROTOCOL.md) * [Audit Standard (CAAS)](docs/AUDIT_STANDARD.md) * [**Why This Library?**](WHY_ULTRAFASTSECP256K1.md) * [Porting Guide](PORTING.md) * [**Sponsor**](https://github.com/sponsors/shrec)
 
 ### Real-world Adoption
 
@@ -209,14 +230,14 @@ Full adopter list: [ADOPTERS.md](ADOPTERS.md)
 ## Highlights
 
 - **BIP-352 GPU pipeline at 11.00 M/s** -- full silent payment scanning pipeline on CUDA (91.0 ns/op), 267× faster than CPU
-- **GPU-accelerated secp256k1** -- high-throughput CUDA signing/verification kernels plus cross-backend GPU batch operations on CUDA, OpenCL, and Metal; production secret-bearing signing still routes through the CPU CT layer
-- **GPU C ABI (`ufsecp_gpu`)** -- stable 13-op FFI for GPU batch ops across CUDA, OpenCL, and Metal, with full backend parity on the public surface
+- **GPU-accelerated secp256k1** -- high-throughput CUDA verification kernels, batch ECDH, BIP-352 scanning, and BIP-324 encryption on CUDA/OpenCL/Metal; CT-sensitive signing always routes through the CPU CT layer; GPU operations that handle secret material (ECDH, BIP-352, BIP-324) require a trusted single-tenant environment (see [GPU Security Model](docs/BACKEND_ASSURANCE_MATRIX.md))
+- **GPU C ABI (`ufsecp_gpu`)** -- stable 19-op FFI for GPU batch ops across CUDA, OpenCL, and Metal, with full backend parity on the public surface
 - **Zero-Knowledge cryptographic layer** -- Pedersen commitments, DLEQ proofs, Bulletproof range proofs, Ethereum-compatible Keccak-256
 - **17–67× faster batch operations** -- all-affine Pippenger with touched-bucket optimization
 - **Multi-language bindings** -- Python (`pip install ufsecp`), Node.js (`npm i ufsecp`), Rust, Go, C#/.NET, Java, Swift, PHP, Ruby, Dart, React Native — all via the stable C ABI
 - **Embedded device support** -- ESP32-S3, ESP32-P4, ESP32-C6, STM32 Cortex-M
 - **Zero-dependency C++20 core** -- no Boost, no OpenSSL, compiles anywhere
-- **Massively parallel workloads** -- batch signatures, key scanning, address generation at GPU scale
+- **Massively parallel workloads** -- batch verification, key scanning, address generation at GPU scale
 
 ---
 
@@ -237,7 +258,7 @@ This top-level narrative maps directly to the assurance ledger: CT secret-key ro
 | Internal audit assertions per build | **~1,000,000+** |
 | Audit modules (`unified_audit_runner`) | **55 modules, 8 sections, 0 failures** |
 | Exploit PoC test files | **86 tests, 14 coverage areas, 0 failures** |
-| CI/CD workflows | **34 GitHub Actions workflows** |
+| CI/CD workflows | **36 GitHub Actions workflows** |
 | Build matrix (arch × config × OS) | **7 × 17 × 5 = 595 combinations** |
 | Nightly differential tests | **~1,300,000+ random checks / night** |
 | Constant-time verification pipelines | **3 independent (ct-arm64, ct-verif, Valgrind CT)** |
@@ -273,9 +294,9 @@ This top-level narrative maps directly to the assurance ledger: CT secret-key ro
 - **Nightly differential testing** runs ~1.3M random round-trips against reference implementations every night
 - All 55 audit modules return `AUDIT-READY` status. Zero failures across all tested platforms.
 
-### Exploit PoC Test Suite (86 Tests, 14 Coverage Areas)
+### Exploit PoC Test Suite (187 Tests, 20+ Coverage Areas)
 
-In addition to the 55-module `unified_audit_runner`, UltrafastSecp256k1 ships **86 dedicated exploit-style PoC tests** that actively try to break the library across its highest-risk surfaces. Each `audit/test_exploit_*.cpp` target builds and runs standalone so failures stay easy to attribute and reproduce.
+In addition to the 55-module `unified_audit_runner`, UltrafastSecp256k1 ships **187 dedicated exploit-style PoC tests** that actively try to break the library across its highest-risk surfaces. Each `audit/test_exploit_*.cpp` target builds and runs standalone so failures stay easy to attribute and reproduce.
 
 | Coverage Area | Representative attack focus |
 |---------------|-----------------------------|
@@ -294,13 +315,14 @@ In addition to the 55-module `unified_audit_runner`, UltrafastSecp256k1 ships **
 | Self-Test / Recovery | self-test API behavior and recovery boundary cases |
 | Batch Verify | aggregate verification math correctness |
 
-> All 86 exploit tests live in `audit/test_exploit_*.cpp`. Build with `cmake -S . -B build-audit -G Ninja -DCMAKE_BUILD_TYPE=Release` and run them standalone or via `ctest`.
+> All 187 exploit tests live in `audit/test_exploit_*.cpp`. Build with `cmake -S . -B build-audit -G Ninja -DCMAKE_BUILD_TYPE=Release` and run them standalone or via `ctest`.
 
 ### Self-Audit Document Index
 
 | Document | Contents |
 |----------|---------|
 | [WHY_ULTRAFASTSECP256K1.md](WHY_ULTRAFASTSECP256K1.md) | Full audit infrastructure, CI pipeline index, formal verification evidence |
+| [docs/AUDIT_PHILOSOPHY.md](docs/AUDIT_PHILOSOPHY.md) | Audit philosophy, continuous evidence model, design rationale, common objections answered |
 | [AUDIT_REPORT.md](AUDIT_REPORT.md) | Historical baseline audit (641,194 core checks). Current: 247 modules, 0 failures |
 | [AUDIT_COVERAGE.md](AUDIT_COVERAGE.md) | Per-module coverage matrix |
 | [THREAT_MODEL.md](THREAT_MODEL.md) | Layer-by-layer risk analysis |
@@ -310,10 +332,9 @@ In addition to the 55-module `unified_audit_runner`, UltrafastSecp256k1 ships **
 | [docs/BACKEND_ASSURANCE_MATRIX.md](docs/BACKEND_ASSURANCE_MATRIX.md) | Per-backend assurance matrix |
 | [docs/AUDIT_TRACEABILITY.md](docs/AUDIT_TRACEABILITY.md) | Requirement-to-test traceability map |
 
-> **Note:** UltrafastSecp256k1 has not yet undergone a paid third-party cryptographic audit.
-> The primary assurance model here is open self-audit: reproducible tests, traceability, CI enforcement, and public review artifacts that anyone can rerun.
-> We are open to external audit and actively preparing the codebase and evidence for outside review, but we do not wait for a formal engagement before strengthening the library ourselves.
-> Our philosophy is to keep hardening the system continuously through internal audit on every build and every commit.
+> **Note:** UltrafastSecp256k1 has not undergone a third-party cryptographic audit.
+> The assurance model is open self-audit: reproducible tests, traceability, CI enforcement, and public review artifacts that anyone can rerun.
+> The project hardens continuously through internal audit on every build and every commit.
 
 ---
 
@@ -364,7 +385,7 @@ In addition to the 55-module `unified_audit_runner`, UltrafastSecp256k1 ships **
 | Category | Description | Link |
 |----------|-------------|------|
 | **CPU** | Core ECC, ECDSA, Schnorr, BIP-32, Taproot, Pedersen | [examples/](examples/) |
-| **CUDA** | GPU signatures, batch operations, device management | [examples/](examples/) |
+| **CUDA** | GPU benchmark signing kernels, batch verify, FROST, device management (production secret-key signing uses CPU CT layer) | [examples/](examples/) |
 | **OpenCL** | Cross-vendor GPU compute | [examples/](examples/) |
 | **Metal** | Apple Silicon GPU acceleration | [examples/](examples/) |
 | **Multi-language** | C, Python, Rust, Node.js, Go, Java binding examples | [examples/README.md](examples/README.md) |
@@ -372,7 +393,7 @@ In addition to the 55-module `unified_audit_runner`, UltrafastSecp256k1 ships **
 
 ## Use Cases
 
-- **Blockchain infrastructure** -- high-throughput transaction signing and validation
+- **Blockchain infrastructure** -- high-throughput transaction validation and signing pipelines (secret-key signing runs on the CPU CT layer; batch verification scales on GPU)
 - **Signature verification at scale** -- batch verify millions of signatures per second on GPU
 - **Cryptographic research** -- independent secp256k1 implementation with full source access
 - **Zero-knowledge pipelines** -- Pedersen commitments, Bulletproofs, DLEQ proofs
@@ -388,7 +409,7 @@ In addition to the 55-module `unified_audit_runner`, UltrafastSecp256k1 ships **
 **Report vulnerabilities** via [GitHub Security Advisories](https://github.com/shrec/UltrafastSecp256k1/security/advisories/new) or email [payysoon@gmail.com](mailto:payysoon@gmail.com).
 For production cryptographic systems, perform your own risk review, review the current guarantees in [SUPPORTED_GUARANTEES.md](include/ufsecp/SUPPORTED_GUARANTEES.md), and apply the assurance level appropriate to your deployment.
 
-For the full audit infrastructure breakdown (1M+ assertions, 34 CI workflows, formal CT verification pipelines, self-audit document index), see the [Engineering Quality & Self-Audit Culture](#engineering-quality--self-audit-culture) section above and [WHY_ULTRAFASTSECP256K1.md](WHY_ULTRAFASTSECP256K1.md).
+For the full audit infrastructure breakdown (1M+ assertions, 36 CI workflows, formal CT verification pipelines, self-audit document index), see the [Engineering Quality & Self-Audit Culture](#engineering-quality--self-audit-culture) section above and [WHY_ULTRAFASTSECP256K1.md](WHY_ULTRAFASTSECP256K1.md).
 
 ---
 
@@ -426,7 +447,7 @@ Currently we accept vulnerability reports via [GitHub Security Advisories](https
 Sponsorship helps sustain development of:
 
 - **Zero-knowledge proofs** -- Pedersen commitments, Bulletproofs, Schnorr sigma protocols, DLEQ proofs
-- **GPU compute** -- CUDA, OpenCL, Metal, ROCm batch signature generation/verification
+- **GPU compute** -- CUDA, OpenCL, Metal, ROCm batch signature verification, key scanning, and address generation
 - **Platform ports** -- embedded (ESP32, STM32), mobile (iOS, Android), WASM
 - **Protocol features** -- MuSig2, FROST threshold signatures, Taproot, BIP-352 Silent Payments
 - **Multi-coin support** -- 27+ blockchain address formats and signing
@@ -828,7 +849,7 @@ UltrafastSecp256k1 provides ZK proof primitives over the secp256k1 curve:
 
 **Security model:**
 - All proving operations use the **CT layer** (constant-time, side-channel resistant)
-- All verification uses the **FAST layer** (variable-time, public data only)
+- All verification uses the **FAST layer** (variable-time; public inputs only — no secret material)
 - Non-interactive via **Fiat-Shamir** (tagged SHA-256)
 - Nothing-up-my-sleeve generators for Bulletproofs (no trusted setup)
 
@@ -1072,7 +1093,7 @@ See [SUPPORTED_GUARANTEES.md](include/ufsecp/SUPPORTED_GUARANTEES.md) for Tier 1
 
 ## secp256k1 Use Cases
 
-- **Transaction Signing & Verification** -- Bitcoin, Ethereum, and 25+ blockchain transaction signing at CPU or GPU scale
+- **Transaction Signing & Verification** -- CPU constant-time signing + GPU-accelerated batch verification across Bitcoin, Ethereum, and 25+ blockchains
 - **Batch Signature Verification** -- verify thousands of ECDSA/Schnorr signatures per second for block validation
 - **HD Wallet Key Derivation** -- BIP-32/44 hierarchical deterministic derivation with 27-coin address generation
 - **Embedded IoT Signing** -- ESP32 and STM32 on-device key generation and transaction signing
@@ -1476,7 +1497,7 @@ This library explores the **performance ceiling of secp256k1** across CPU archit
 
 ## API Stability
 
-**C++ API**: Not yet stable. Breaking changes may occur before **v4.0**. All layers — core (field, scalar, point, ECDSA, Schnorr) and extended (MuSig2, FROST, Adaptor, Pedersen, Taproot, HD, Coins) — are production-ready with full audit coverage. C++ API signatures may still evolve before v4.0.
+**C++ API**: Not yet stable. Breaking changes may occur before **v4.0**. Core layers (field, scalar, point, ECDSA, Schnorr) are production-ready with full audit coverage. Extended layers (MuSig2, FROST, Adaptor, Pedersen, ZK, Taproot, HD, Coins) are **Experimental** — implemented and covered by PoC exploit tests and CT verification; APIs may change. C++ API signatures may still evolve before v4.0.
 
 **C ABI (`ufsecp`)**: Stable from v3.4.0. ABI version tracked separately. See [SUPPORTED_GUARANTEES.md](include/ufsecp/SUPPORTED_GUARANTEES.md).
 
@@ -1557,7 +1578,7 @@ cosign verify-blob SHA256SUMS \
 > All functions in `ct::` namespace are constant-time: field arithmetic, scalar arithmetic, point multiplication, complete addition, signing, and ECDH. The C ABI uses CT internally for all secret-key operations. See [CT Evidence](#ct-evidence--methodology) above.
 
 **Which parts are production-safe today?**
-> This library has **not undergone a paid external audit**. Tier 1 features (core ECC, ECDSA, Schnorr, ECDH, stable C ABI) are extensively tested, fuzzed, regression-gated, and run through sanitizer-backed CI. Teams can evaluate it today with a strong self-audit trail and reproducible audit evidence, then make their own deployment decision based on their risk model and review standards.
+> This library has not undergone a third-party audit. Tier 1 features (core ECC, ECDSA, Schnorr, ECDH, stable C ABI) are extensively tested, fuzzed, regression-gated, and run through sanitizer-backed CI with a strong self-audit trail and reproducible evidence.
 
 **How do I reproduce the benchmarks?**
 > See [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md) for exact commands, pinned compiler/driver versions, and raw logs. The [live dashboard](https://shrec.github.io/UltrafastSecp256k1/dev/bench/) tracks performance across commits.
@@ -1571,7 +1592,7 @@ cosign verify-blob SHA256SUMS \
 | [API Reference](docs/API_REFERENCE.md) | Full C++ and C ABI reference |
 | [Build Guide](docs/BUILDING.md) | Detailed build instructions for all platforms |
 | [Benchmarks](docs/BENCHMARKS.md) | Complete benchmark results and methodology |
-| [GPU API](include/ufsecp/ufsecp_gpu.h) | GPU C ABI header (26 functions, 8 ops, 3 backends) |
+| [GPU API](include/ufsecp/ufsecp_gpu.h) | GPU C ABI header (27 functions, 8 ops, 3 backends) |
 | [GPU Validation Matrix](docs/GPU_VALIDATION_MATRIX.md) | Per-backend op coverage and validation status |
 | [Feature Maturity](docs/FEATURE_MATURITY.md) | Per-feature GPU/CT/fuzz/tier status table |
 | [Supported Guarantees](include/ufsecp/SUPPORTED_GUARANTEES.md) | ABI stability tiers and commitment levels |

@@ -25,6 +25,12 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 LIB_ROOT = SCRIPT_DIR.parent
 DB_PATH = LIB_ROOT / ".project_graph.db"
 
+try:
+    from report_provenance import collect_provenance
+except ImportError:
+    sys.path.insert(0, str(SCRIPT_DIR))
+    from report_provenance import collect_provenance
+
 
 def get_conn():
     if not DB_PATH.exists():
@@ -240,8 +246,13 @@ def main():
 
     conn = get_conn()
 
+    provenance = collect_provenance()
+
     report = {
+        'schema_version': '1.0.0',
+        'runner': 'export_assurance',
         'generated_at': datetime.now(timezone.utc).isoformat(),
+        'provenance': provenance,
         'graph_meta': export_graph_meta(conn),
         'subsystem_summary': export_subsystem_summary(conn),
         'api_coverage': export_api_coverage(conn),

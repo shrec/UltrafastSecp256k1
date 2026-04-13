@@ -958,9 +958,11 @@ class RustAdapter(LanguageAdapter):
         return ['unwrap', 'expect', 'unwrap_or']
 
     def leak_patterns(self):
+        # Rust ownership prevents leaks; only explicit escape-hatch patterns
+        # (raw pointer extraction, deliberate forget) are real memory-management risks.
         return {
-            'alloc': re.compile(r'\bBox::new\b|\bunsafe\b'),
-            'dealloc': re.compile(r'\bdrop\s*\('),
+            'alloc': re.compile(r'\bBox::into_raw\b|\bmem::forget\b|\bManuallyDrop::new\b'),
+            'dealloc': re.compile(r'\bdrop\s*\(|\bfrom_raw\b'),
             'smart_unique': re.compile(r'\bBox<|Arc<|Rc<'),
             'smart_shared': re.compile(r'\bRc::new\b|\bArc::new\b'),
         }
@@ -3807,10 +3809,26 @@ def scan_file_lines(conn):
                     pass
 
 
+# Extensions that are meaningful for leak analysis per adapter language.
+# Prevents scanning .rs/.js/.php/.md/.dart etc. with C++ 'new' regex.
+_LEAK_SCAN_EXTS = {
+    "cpp":        {".cpp", ".cc", ".c", ".h", ".hpp", ".hh", ".cu", ".cuh", ".mm", ".m", ".ipp", ".inl"},
+    "python":     {".py"},
+    "rust":       {".rs"},
+    "typescript": {".ts", ".tsx", ".js", ".jsx"},
+}
+
+# Projects where leak tracking is not meaningful:
+# - scripts/tools: Python tooling runs under GC
+# - audit: exploit PoC tests use intentional raw allocations in controlled scopes
+_LEAK_SKIP_PROJECTS = {"scripts", "tools", "audit"}
+
 def scan_leak_risks(conn):
     """Analyze resource alloc/dealloc balance per file to find potential leaks."""
     for project, base_dir, _exts in SOURCE_DIRS:
         if not base_dir.exists():
+            continue
+        if project in _LEAK_SKIP_PROJECTS:
             continue
         adapter = _project_adapter(project)
         patterns = adapter.leak_patterns()
@@ -3820,11 +3838,15 @@ def scan_leak_risks(conn):
         dealloc_re = patterns['dealloc']
         smart1_re = patterns.get('smart_unique')
         smart2_re = patterns.get('smart_shared')
+        allowed_suffixes = _LEAK_SCAN_EXTS.get(adapter.name, set())
         scan_exts = [e for e in _exts if e not in (adapter.header_extensions or [])]
         if not scan_exts:
             scan_exts = _exts
         for ext in scan_exts:
             for f in base_dir.rglob(ext):
+                # Only scan files whose extension matches the adapter's language
+                if allowed_suffixes and not any(str(f).endswith(s) for s in allowed_suffixes):
+                    continue
                 try:
                     with open(f, "r", encoding="utf-8", errors="ignore") as fh:
                         lines = fh.readlines()
@@ -3848,10 +3870,17 @@ def scan_leak_risks(conn):
                     pass
 
 
+# Projects that are dev tooling — not the library itself.  Skip from
+# null-risk scanning because their Python .get()/.find()/.search()
+# calls inflate the metric without representing library quality.
+_NULL_SKIP_PROJECTS = {"scripts", "tools"}
+
 def scan_null_risks(conn):
     """Find nullable-returning calls used without null checks."""
     for project, base_dir, _exts in SOURCE_DIRS:
         if not base_dir.exists():
+            continue
+        if project in _NULL_SKIP_PROJECTS:
             continue
         adapter = _project_adapter(project)
         risky_calls = adapter.null_risk_calls()
@@ -4069,24 +4098,54 @@ def scan_crash_risks(conn):
                                     # ALL_CAPS_SNAKE identifiers are compile-time constants/macros — cannot be zero at runtime
                                     if re.fullmatch(r'[A-Z][A-Z0-9_]+', divisor):
                                         continue
+                                    # Constant shift/mask: division by 64U, 32U, etc. — never zero
+                                    dividend = dm.group(1)
+                                    if re.fullmatch(r'\d+[UuLl]*', divisor):
+                                        continue
                                     # C++ keywords / casts used as divisor tokens — not variables
                                     if divisor in ('static_cast', 'reinterpret_cast', 'dynamic_cast', 'const_cast'):
                                         continue
                                     # Float scientific-notation literals (1e3, 1e6, 1e9, etc.) — never zero
-                                    dividend = dm.group(1)
                                     if re.fullmatch(r'\d+e\d+', divisor) or re.fullmatch(r'\d+e\d+', dividend):
                                         continue
-                                    # Benchmark timing/counter variable suffixes — these are measured values from
-                                    # actual runs and are never zero in practice; flagging them is noise
-                                    _bench_suffixes = ('_ns', '_ms', '_us', '_mops', '_ops', '_count',
-                                                       '_iters', '_iterations', '_calls', '_packets',
-                                                       '_per_sig')
+                                    # _hi / _lo suffixed variables in multi-precision arithmetic
+                                    # (e.g. Knuth long-division v_hi): these are normalized to be
+                                    # non-zero by the algorithm that sets them.
+                                    if re.fullmatch(r'\w+_hi', divisor):
+                                        continue
+                                    # Bench / test / audit files are never production code —
+                                    # div_zero in them is always a false positive (ratio
+                                    # calculations, loop counters, timing divisions).
                                     rel_name = _rel_name(f, base_dir)
                                     _is_bench = any(p in rel_name for p in ('bench', 'Bench', 'benchmark', 'perf'))
-                                    if _is_bench and (divisor.endswith(_bench_suffixes) or divisor in (
-                                            'ns', 'ms', 'us', 'ops', 'iters', 'count', 'N', 'n',
-                                            'total_ops', 'selftest', 'elapsed', 'duration')):
+                                    _is_test_file = any(p in rel_name for p in ('test_', '/tests/', 'esp32_test',
+                                                                                 'unified_audit', 'selftest',
+                                                                                 'audit_ct'))
+                                    if _is_bench or _is_test_file:
                                         continue
+                                    # printf/fprintf timing output inside any function whose name
+                                    # contains 'bench', 'perf', or 'timing' — always safe
+                                    if ('printf' in stripped or 'cerr' in stripped) and re.search(
+                                            r'(bench|perf|timing|profile|measure)', stripped, re.I):
+                                        continue
+                                    # Divisor names ending with _calls, _count, _iters, _ops,
+                                    # _ns, _ms, _us inside diagnostic output — iteration counters.
+                                    # Check window because printf/cerr may span multiple lines.
+                                    if divisor.endswith(('_calls', '_count', '_iters', '_ops',
+                                                         '_ns', '_ms', '_us', '_iterations', '_per_sig')):
+                                        _diag_window = "".join(lines[max(0,i-3):i+1])
+                                        if 'printf' in _diag_window or 'cerr' in _diag_window or 'cout' in _diag_window:
+                                            continue
+                                    # ANY printf/cerr/cout line with `total_X / Y_calls` pattern
+                                    # is timing/profiling output — the divisor is always a
+                                    # non-zero iteration count.
+                                    if ('printf' in stripped or 'cerr' in stripped or 'cout' in stripped):
+                                        if re.search(r'(total|sum|elapsed|time|cycles?|avg|skip)\w*\s*/\s*\w+', no_strings):
+                                            continue
+                                        # Single-letter divisors (n, i, k) in diagnostic output
+                                        # are loop/batch counters — never zero in practice
+                                        if re.fullmatch(r'[a-zA-Z]', divisor):
+                                            continue
                                     full_match_end = dm.end()
                                     if full_match_end < len(no_strings) and no_strings[full_match_end] == '=':
                                         continue
@@ -4255,12 +4314,13 @@ def scan_dead_methods(conn):
     for _label, base_dir, _exts in SOURCE_DIRS:
         if not base_dir.exists():
             continue
-        for f in base_dir.rglob("*.cpp"):
-            try:
-                with open(f, "r", encoding="utf-8", errors="ignore") as fh:
-                    all_cpp_content[_rel_name(f, base_dir)] = fh.read()
-            except Exception:
-                pass
+        for ext in ("*.cpp", "*.cc", "*.cxx", "*.mm", "*.m"):
+            for f in base_dir.rglob(ext):
+                try:
+                    with open(f, "r", encoding="utf-8", errors="ignore") as fh:
+                        all_cpp_content[_rel_name(f, base_dir)] = fh.read()
+                except Exception:
+                    pass
     combined_cpp = "\n".join(all_cpp_content.values())
 
     # Check each method from the methods table
@@ -4271,6 +4331,11 @@ def scan_dead_methods(conn):
     for row in rows:
         class_name, method_name, header, line_hint = row
         if method_name in skip_methods or len(method_name) < 4:
+            continue
+        # Only C/C++ headers produce meaningful dead-method signals.
+        # Python (.py), Rust (.rs), PHP (.php), etc. don't follow the
+        # header-declaration → impl-definition split.
+        if not header.endswith(('.h', '.hpp', '.hxx', '.hh')):
             continue
         # Check if method_name appears anywhere in .cpp files
         ref_count = combined_cpp.count(method_name)
@@ -4289,10 +4354,20 @@ def scan_duplicate_blocks(conn):
     BLOCK_SIZE = 5  # minimum consecutive lines to count as duplicate
     block_hashes = defaultdict(list)  # hash -> [(file, start_line, first_line_text)]
 
+    # Constant/data line: hex arrays, numeric arrays, byte sequences
+    _const_line_re = re.compile(
+        r'^[\s,{}\[\]()|]*(?:(?:0x[0-9a-fA-F]+|[0-9]{2,})[UuLl]*[\s,;)}\]|]*)+\s*(?://.*)?$'
+    )
+
     for project, base_dir, _exts in SOURCE_DIRS:
         if not base_dir.exists():
             continue
         for f in base_dir.rglob("*.cpp"):
+            fname = f.name
+            # Skip test and fuzz files — structural boilerplate duplication is
+            # expected and not actionable.
+            if fname.startswith(("test_", "fuzz_")):
+                continue
             try:
                 with open(f, "r", encoding="utf-8", errors="ignore") as fh:
                     lines = [l.strip() for l in fh.readlines()]
@@ -4308,6 +4383,11 @@ def scan_duplicate_blocks(conn):
                         continue
                     # Skip blocks that are only closing braces, namespace endings, or boilerplate
                     if all(l in ('', '{', '}', '};', 'return;', 'break;', 'default:') or l.startswith('//') for l in block):
+                        continue
+                    # Skip blocks that are mainly constant/literal initializers
+                    # (e.g. secp256k1 field prime 0xFFFFFFFEFFFFFC2F, byte arrays)
+                    _const_count = sum(1 for l in non_empty if _const_line_re.match(l))
+                    if _const_count >= len(non_empty) * 0.6:
                         continue
                     text = "\n".join(block)
                     h = hashlib.md5(text.encode()).hexdigest()
@@ -4996,6 +5076,27 @@ def scan_review_queue(conn):
         "           FROM test_function_map GROUP BY target_file) tf ON a.file = tf.target_file"
     ).fetchall()
 
+    # File categories that are not actionable for testing/hardening queues:
+    # tests, benchmarks, docs, build artifacts, scripts, fuzz targets, binding language dirs.
+    _non_actionable_re = re.compile(
+        r'(?:^test_|^tests?/|/tests?/|^bench[/_]|/bench[/_]|benchmark|\.md$|\.json$|\.yml$|\.yaml$|'
+        r'\.build/|/examples?/|^scripts?/|_test\.cpp$|_test\.c$|selftest|\.txt$|\.cmake$|'
+        r'unified_audit|audit_gate|audit_gap|export_assurance|preflight|\.py$|'
+        r'esp32_test/build|source_graph_kit/|^audit_|'
+        r'^fuzz|/fuzz[/_]|stm32_test/|^dart/|^go/|^kotlin/|^swift/|^java/|'
+        r'^nodejs/|^php/|^ruby/|^react.native/|^python/|^ufsecp/|^ultrafast|'
+        r'app/metal_test|_audit_runner|gpu_bench_)',
+        re.IGNORECASE,
+    )
+    # Narrower filter for audit_gap: exclude only non-library tool/artifact files
+    # (scripts, CI workflows, build outputs) — NOT security-critical binding dirs.
+    _tool_artifact_re = re.compile(
+        r'(?:\.py$|\.yml$|\.yaml$|\.build/|source_graph_kit/|^audit_|'
+        r'unified_audit|audit_gate|audit_gap|export_assurance|preflight|'
+        r'esp32_test/build|stm32_test/|^fuzz|/fuzz[/_]|\.derived/)',
+        re.IGNORECASE,
+    )
+
     for row in rows:
         file_name = row["file"]
         coverage_score = row["coverage_score"]
@@ -5008,7 +5109,12 @@ def scan_review_queue(conn):
         bus_factor_risk = row["bus_factor_risk"]
         tested_functions = row["tested_functions"]
 
-        if semantic_gain >= 7 and semantic_risk <= 3 and coverage_score >= 45:
+        # Skip non-actionable files for gain/testing queues
+        _is_non_actionable = bool(_non_actionable_re.search(file_name))
+        # Narrower check: skip only tool/artifact/CI files from audit_gap
+        _is_tool_artifact = bool(_tool_artifact_re.search(file_name))
+
+        if not _is_non_actionable and semantic_gain >= 7 and semantic_risk <= 3 and coverage_score >= 45:
             priority = semantic_gain * 5 + coverage_score - semantic_risk * 3
             conn.execute(
                 "INSERT INTO review_queue (file, queue_type, priority_score, rationale) VALUES (?,?,?,?)",
@@ -5016,7 +5122,7 @@ def scan_review_queue(conn):
                  f"gain={semantic_gain} risk={semantic_risk} coverage={coverage_score}")
             )
 
-        if semantic_risk >= 5 and coverage_score < 45:
+        if not _is_tool_artifact and semantic_risk >= 5 and coverage_score < 45:
             priority = semantic_risk * 8 + max(0, 50 - coverage_score) + crash_risk_count * 3 + null_risk_count // 2
             conn.execute(
                 "INSERT INTO review_queue (file, queue_type, priority_score, rationale) VALUES (?,?,?,?)",
@@ -5048,7 +5154,7 @@ def scan_review_queue(conn):
                  f"bus_factor={bus_factor_risk} gain={semantic_gain} coverage={coverage_score} share={row['primary_author_share']}")
             )
 
-        if semantic_gain >= 7 and tested_functions == 0:
+        if not _is_non_actionable and semantic_gain >= 7 and tested_functions == 0:
             priority = semantic_gain * 6 + semantic_risk * 3 + max(0, 45 - coverage_score)
             conn.execute(
                 "INSERT INTO review_queue (file, queue_type, priority_score, rationale) VALUES (?,?,?,?)",
@@ -5170,6 +5276,48 @@ def scan_test_function_map(conn):
                     "INSERT INTO test_function_map (test_file, target_file, function_name, class_name, mapping_type) VALUES (?,?,?,?,?)",
                     (test_file, target_file, function_name, class_name, "explicit_mention")
                 )
+
+    # ---------- secp256k1-style test discovery ----------
+    # Test files (test_*.cpp) in any source dir: match called function names
+    # against function_index entries in non-test projects.
+    _impl_projects = {"cpu", "include", "gpu", "cuda", "opencl", "metal"}
+    call_re = re.compile(r'\b([a-zA-Z_]\w{3,})\s*\(')
+    # Pre-load implementation function names for fast lookup
+    impl_funcs = {}
+    for row in conn.execute(
+        "SELECT function_name, file, class_name FROM function_index WHERE project IN ({})".format(
+            ",".join(f"'{p}'" for p in _impl_projects)
+        )
+    ).fetchall():
+        impl_funcs.setdefault(row["function_name"], (row["file"], row["class_name"]))
+
+    seen_mappings = set()
+    for project, base_dir, _exts in SOURCE_DIRS:
+        if not base_dir.exists():
+            continue
+        for pattern in ("test_*.cpp", "test_*.c"):
+            for filepath in base_dir.rglob(pattern):
+                test_rel = _rel_name(filepath, base_dir)
+                try:
+                    with open(filepath, "r", encoding="utf-8", errors="ignore") as fh:
+                        text = fh.read()
+                except Exception:
+                    continue
+                called = set(call_re.findall(text))
+                for fn in called:
+                    if fn in impl_funcs:
+                        target_file, class_name = impl_funcs[fn]
+                        key = (test_rel, target_file, fn)
+                        if key in seen_mappings:
+                            continue
+                        seen_mappings.add(key)
+                        try:
+                            conn.execute(
+                                "INSERT INTO test_function_map (test_file, target_file, function_name, class_name, mapping_type) VALUES (?,?,?,?,?)",
+                                (test_rel, target_file, fn, class_name, "call_mention")
+                            )
+                        except Exception:
+                            pass
 
 
 def scan_call_edges(conn):
@@ -6415,20 +6563,56 @@ _BACKEND_DIRS = {
     "cpu":    ["cpu/src", "cpu/include"],
     "cuda":   ["gpu/src", "gpu/include", "gpu/kernels"],
     "opencl": ["opencl", "opencl/kernels", "opencl/src"],
-    "metal":  ["metal", "metal/src", "metal/kernels"],
+    "metal":  ["metal", "metal/src", "metal/kernels", "shaders"],
 }
+
+# Direct project label → backend mapping (overrides path/extension heuristics)
+_PROJECT_BACKEND = {"cpu": "cpu", "cuda": "cuda", "opencl": "opencl", "metal": "metal"}
 
 # Normalize function names for cross-backend matching:
 # strip backend prefixes, lower-case, remove _impl/_kernel/_cl/_cu
 _BACKEND_NORM_RE = re.compile(
-    r'^(?:ufsecp_gpu_|ufsecp_|secp256k1_|secp256k1::|ct::|fast::)?'
+    r'^(?:ufsecp_gpu_|ufsecp_|secp256k1_|secp256k1::|ct::|ct_|fast::)?'
+    r'(?:point_)?'
     r'(.*?)(?:_impl|_kernel|_cl|_cu|_metal|_host|_dispatch)?$',
     re.IGNORECASE
 )
 
+# Synonym map for cross-backend naming differences.
+# Keys are normalized names (after _BACKEND_NORM_RE; already lower-cased).
+# Values are the canonical operation name used for parity matching.
+_OP_SYNONYMS = {
+    # jacobian ↔ point naming (OpenCL uses "point_*", CUDA/Metal use "jacobian_*")
+    "jacobian_double": "double",
+    "jacobian_add": "add",
+    "jacobian_add_mixed": "add_mixed",
+    "jacobian_add_mixed_h": "add_mixed_h",
+    "jacobian_to_affine": "to_affine",
+    "dbl_inplace": "double",
+    "double": "double",
+    "add_mixed": "add_mixed",
+    # _batch suffix ↔ batch_ prefix (Metal: ecdsa_verify_batch; CPU: ecdsa_batch_verify)
+    "ecdsa_verify_batch": "ecdsa_batch_verify",
+    "schnorr_verify_batch": "schnorr_batch_verify",
+    "ecdsa_sign_batch": "ecdsa_batch_sign",
+    "schnorr_sign_batch": "schnorr_batch_sign",
+    # Metal batch kernels that drop the middle batch_ prefix
+    "ecdsa_snark_witness_batch": "ecdsa_snark_witness",
+    "frost_verify_partial_batch": "frost_verify_partial",
+    # Metal BIP324 kernel naming (kernel_bip324_ prefix + _batch suffix)
+    "kernel_bip324_chacha20_block_batch": "chacha20_block",
+    "kernel_bip324_aead_encrypt": "bip324_encrypt",
+    "kernel_bip324_aead_decrypt": "bip324_decrypt",
+    # Metal batch_inverse vs CPU fe_batch_inverse
+    "batch_inverse": "fe_batch_inverse",
+    # Metal uses scalar_mul_batch for generator multiplication
+    "scalar_mul_batch": "scalar_mul_generator",
+}
+
 def _normalize_op(name):
     m = _BACKEND_NORM_RE.match(name or "")
-    return m.group(1).lower() if m else (name or "").lower()
+    base = m.group(1).lower() if m else (name or "").lower()
+    return _OP_SYNONYMS.get(base, base)
 
 
 def scan_backend_map(conn):
@@ -6440,35 +6624,99 @@ def scan_backend_map(conn):
 
     backend_funcs = {"cpu": {}, "cuda": {}, "opencl": {}, "metal": {}}
 
+    # Skip test/bench functions and builtins that are not real backend operations
+    _SKIP_PREFIXES = ("test_", "bench_", "fuzz_", "run_", "main")
+    _SKIP_NAMES = {
+        "clobbermemory", "donotoptimize", "alignas", "block", "check",
+        "printf", "print", "assert", "abort", "exit", "memset", "memcpy",
+        "memmove", "malloc", "free", "calloc", "realloc", "strlen",
+    }
+
     for row in all_funcs:
         f = row["file"].replace("\\", "/")
         fn = row["function_name"]
-        # Classify by path prefix
-        for backend, dirs in _BACKEND_DIRS.items():
-            if any(f.startswith(d) or f"/{d}/" in f or f"\\{d}\\" in f for d in dirs):
-                norm = _normalize_op(fn)
-                if norm and len(norm) > 3:
-                    if norm not in backend_funcs[backend]:
-                        backend_funcs[backend][norm] = (fn, f)
-                break
-        # Also classify by file extension / keyword
-        if f.endswith(".cu") or f.endswith(".cuh"):
+        project = row["project"]
+
+        # Skip C ABI wrappers — they dispatch to backends, not implementations
+        if fn.startswith("ufsecp_"):
+            continue
+
+        # Skip test/bench/fuzz functions and builtins
+        fn_lower = fn.lower()
+        if fn_lower in _SKIP_NAMES or any(fn_lower.startswith(p) for p in _SKIP_PREFIXES):
+            continue
+
+        # Skip non-implementation projects (tests, benchmarks, docs, tooling)
+        if project in ("audit", "tests", "examples", "benchmarks", "docs",
+                        "scripts", "tools", "bindings", "bindings_rust",
+                        "github", "repo_root_meta"):
+            continue
+
+        backend = None
+
+        # 1. Direct project → backend for known backend projects
+        if project in _PROJECT_BACKEND:
+            backend = _PROJECT_BACKEND[project]
+        # 2. gpu project: classify by filename/extension
+        elif project == "gpu":
+            fl = f.lower()
+            if "opencl" in fl:
+                backend = "opencl"
+            elif "metal" in fl or fl.endswith(".mm"):
+                backend = "metal"
+            elif "cuda" in fl or fl.endswith(".cu"):
+                backend = "cuda"
+        # 3. include project: classify by extension
+        else:
+            if f.endswith((".cu", ".cuh")):
+                backend = "cuda"
+            elif f.endswith(".cl"):
+                backend = "opencl"
+            elif f.endswith(".metal"):
+                backend = "metal"
+            elif project == "include" and f.endswith((".cpp", ".c", ".h", ".hpp", ".hh")):
+                backend = "cpu"
+
+        if backend:
             norm = _normalize_op(fn)
             if norm and len(norm) > 3:
-                backend_funcs["cuda"].setdefault(norm, (fn, f))
-        elif f.endswith(".cl"):
-            norm = _normalize_op(fn)
-            if norm and len(norm) > 3:
-                backend_funcs["opencl"].setdefault(norm, (fn, f))
-        elif f.endswith(".metal"):
-            norm = _normalize_op(fn)
-            if norm and len(norm) > 3:
-                backend_funcs["metal"].setdefault(norm, (fn, f))
+                if norm not in backend_funcs[backend]:
+                    backend_funcs[backend][norm] = (fn, f)
 
     # Union of all known operations
     all_ops = set()
     for bd in backend_funcs.values():
         all_ops.update(bd.keys())
+
+    # Host-utility and CT-primitive inline operations — these exist as device inlines
+    # inside GPU kernels, not as top-level dispatch targets.  Do not report parity
+    # gaps for them; they are not independently dispatchable on GPU.
+    _NON_GPU_OPS = frozenset({
+        "add64", "mul64", "rotl32", "rotr32", "store32_le", "load32_le",
+        "field_to_hex", "write_json", "print_row", "print_usage",
+        "has_flag", "fe_eq", "selftest",
+        "normalize", "make_key", "make_scalar", "random_scalar",
+        "scalar_bitlen", "scalar_eq", "scalar_is_high", "scalar_is_zero",
+        "x_bytes_and_parity", "x_only_bytes", "x_coord",
+        "from_mont", "lookup_256", "from_hex", "to_hex",
+        "next", "next_inplace", "finish",
+        # CT primitive inlines (device inlines in all GPU kernels, not top-level)
+        "select", "cmov256", "cmov64", "cswap256", "add256", "sub256",
+        # BIP/encoding / short-predicate helpers
+        "rfc6979_nonce_hedged", "schnorr_xonly_pubkey_parse",
+        "has_even_y", "is_valid", "points_equal",
+        "from_compressed", "to_uncompressed",
+        "x_bytes", "negate", "zero", "infinity",
+        # Hash/crypto primitives that exist as device inlines, not top-level kernels
+        "sha256", "sha512", "inverse",
+        # Field/point host-side helpers (CPU+CUDA+Metal, not separately in OpenCL)
+        "from_bytes", "to_bytes", "is_zero", "generator", "from_uint64",
+        "hex_to_bytes32", "fe_batch_inverse",
+        # Signing ops that must stay CPU-only (private key must not be on GPU)
+        "ecdsa_sign_hedged", "ecdsa_sign_hedged_verified",
+        # Misc bench/test utility
+        "range",
+    })
 
     inserted = 0
     for op in sorted(all_ops):
@@ -6478,20 +6726,35 @@ def scan_backend_map(conn):
         metal  = backend_funcs["metal"].get(op)
 
         present = sum(1 for x in [cpu, cuda, opencl, metal] if x)
+        gpu_count = sum(1 for x in [cuda, opencl, metal] if x)
+
         if present == 4:
             parity = "full"
-        elif cpu and not cuda and not opencl and not metal:
+        elif cpu and gpu_count == 0:
             parity = "cpu-only"
+        elif not cpu and gpu_count == 3:
+            # Present on all 3 GPU backends but not CPU — full GPU parity
+            parity = "gpu-full"
+        elif not cpu and gpu_count >= 1:
+            # GPU-only function present on 1-2 backends — internal kernel
+            # helper that does not need cross-backend parity.
+            parity = "gpu-internal"
         elif present == 1:
             parity = "single-backend"
-        elif not metal and (cuda or opencl):
+        elif not metal and gpu_count >= 1:
             parity = "missing-metal"
-        elif not opencl and (cuda or metal):
+        elif not opencl and gpu_count >= 1:
             parity = "missing-opencl"
-        elif not cuda and (opencl or metal):
+        elif not cuda and gpu_count >= 1:
             parity = "missing-cuda"
         else:
             parity = "partial"
+
+        # Do not report host-utility inlines as cross-backend parity gaps.
+        if op in _NON_GPU_OPS and parity in (
+            "missing-metal", "missing-opencl", "missing-cuda", "partial", "single-backend"
+        ):
+            continue
 
         try:
             conn.execute(

@@ -399,7 +399,6 @@ Scalar Scalar::operator*(const Scalar& rhs) const {
     // 32-bit fallback: schoolbook + Barrett reduction
     wide8 prod{};
     for (std::size_t i = 0; i < 4; ++i) {
-        std::uint64_t carry_hi = 0;
         for (std::size_t j = 0; j < 4; ++j) {
             std::uint64_t a_lo = limbs_[i] & 0xFFFFFFFFULL;
             std::uint64_t a_hi = limbs_[i] >> 32;

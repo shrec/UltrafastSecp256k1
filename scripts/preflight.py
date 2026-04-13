@@ -763,52 +763,53 @@ def run_all(args):
         except Exception as exc:
             print(f"  {YELLOW}WARNING: doc-sync check failed: {exc}{RESET}\n")
 
-    # Dev Bug Scanner (crypto-aware static checks)
+    # Unified Code Quality Gate (dev_bug_scanner + hot_path_alloc + audit_test_quality)
     if mode in ('--all', '--bug-scan'):
-        print(f"{BOLD}[13/14] Dev Bug Scanner (crypto){RESET}")
+        print(f"{BOLD}[13/14] Code Quality Gate (all scanners){RESET}")
         try:
-            scanner_path = SCRIPT_DIR / "dev_bug_scanner.py"
+            runner_path = SCRIPT_DIR / "run_code_quality.py"
             result = subprocess.run(
-                [sys.executable, str(scanner_path),
-                 "--min-severity", "HIGH", "--json"],
-                capture_output=True, text=True, timeout=120,
+                [sys.executable, str(runner_path),
+                 "--fail-on-regression", "--json"],
+                capture_output=True, text=True, timeout=300,
                 cwd=str(LIB_ROOT),
             )
-            if result.returncode == 0 and result.stdout.strip():
-                scan_data = json.loads(result.stdout)
-                findings = scan_data if isinstance(scan_data, list) else scan_data.get("findings", [])
-                high_findings = [f for f in findings if f.get("severity") == "HIGH"]
-                crypto_cats = {"SECRET_UNERASED", "CT_VIOLATION", "TAGGED_HASH_BYPASS",
-                               "RANDOM_IN_SIGNING", "BINDING_NO_VALIDATION"}
-                crypto_high = [f for f in high_findings if f.get("category") in crypto_cats]
-                if crypto_high:
-                    for f in crypto_high[:15]:
-                        print(f"  {RED}{f.get('category','?')}{RESET} "
-                              f"{f.get('file','')}:{f.get('line','')} — {f.get('message','')}")
-                    if len(crypto_high) > 15:
-                        print(f"  ... and {len(crypto_high) - 15} more")
-                    print(f"  {YELLOW}{len(crypto_high)} crypto-specific HIGH finding(s){RESET}")
-                    print(f"  (total HIGH across all categories: {len(high_findings)})\n")
-                else:
-                    print(f"  {GREEN}[OK] No crypto-specific HIGH findings{RESET}")
-                    if high_findings:
-                        print(f"  ({len(high_findings)} non-crypto HIGH findings — review recommended)\n")
+            if result.stdout.strip():
+                report = json.loads(result.stdout)
+                regressions = report.get("regressions", [])
+                total = report.get("total_findings", 0)
+                scanners = report.get("scanners", {})
+
+                for name, info in scanners.items():
+                    counts = info.get("counts", {})
+                    err = info.get("error")
+                    if err:
+                        print(f"  {YELLOW}{name}: ERROR — {err}{RESET}")
                     else:
-                        print(f"  {GREEN}[OK] No HIGH findings at all{RESET}\n")
-            elif result.returncode == 0:
-                print(f"  {GREEN}[OK] No HIGH findings{RESET}\n")
+                        h = counts.get("HIGH", 0)
+                        m = counts.get("MEDIUM", 0)
+                        t = counts.get("total", 0)
+                        status = f"{GREEN}OK{RESET}" if h == 0 else f"{RED}{h} HIGH{RESET}"
+                        print(f"  {name}: [{status}] {t} findings (H:{h} M:{m})")
+
+                if regressions:
+                    for r in regressions:
+                        print(f"  {RED}REGRESSION{RESET}: {r}")
+                    total_issues += len(regressions)
+                    exit_code = 1
+                    print(f"  {RED}{len(regressions)} regression(s) vs baseline{RESET}\n")
+                else:
+                    print(f"  {GREEN}[OK] No regressions — {total} findings within baseline{RESET}\n")
+            elif result.returncode != 0:
+                print(f"  {YELLOW}WARNING: run_code_quality exited with code {result.returncode}{RESET}\n")
             else:
-                stderr_tail = (result.stderr or "").strip().split('\n')[-3:]
-                print(f"  {YELLOW}WARNING: dev_bug_scanner exited with code {result.returncode}{RESET}")
-                for line in stderr_tail:
-                    print(f"    {line}")
-                print()
+                print(f"  {GREEN}[OK] No findings{RESET}\n")
         except FileNotFoundError:
-            print(f"  {YELLOW}WARNING: dev_bug_scanner.py not found{RESET}\n")
+            print(f"  {YELLOW}WARNING: run_code_quality.py not found{RESET}\n")
         except subprocess.TimeoutExpired:
-            print(f"  {YELLOW}WARNING: dev_bug_scanner timed out (120s){RESET}\n")
+            print(f"  {YELLOW}WARNING: code quality gate timed out (300s){RESET}\n")
         except Exception as exc:
-            print(f"  {YELLOW}WARNING: dev_bug_scanner check failed: {exc}{RESET}\n")
+            print(f"  {YELLOW}WARNING: code quality gate failed: {exc}{RESET}\n")
 
     # Python audit infrastructure self-test
     if mode in ('--all', '--py-audit'):

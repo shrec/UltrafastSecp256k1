@@ -23,7 +23,7 @@ Benchmark results for UltrafastSecp256k1 across all supported platforms.
 | Metal (Apple M3 Pro) | 1.9 ns | 3.00 us | 2.94 us | -- | -- | -- |
 
 GPU rows use the latest retained local rerun per backend. The stable public GPU
-C ABI now exposes 13 backend-neutral operations, and CUDA, OpenCL, and Metal all
+C ABI now exposes 19 backend-neutral operations, and CUDA, OpenCL, and Metal all
 implement that stable surface. Internal signing kernels and benchmark-only paths
 are tracked separately from the public GPU ABI.
 
@@ -171,7 +171,7 @@ This page keeps the last trustworthy result per platform. When a rerun only prov
 experiment is unstable or not worth shipping, it is recorded here but not promoted as a retained
 default.
 
-The stable GPU host ABI in `ufsecp_gpu.h` now covers 13 backend-neutral batch
+The stable GPU host ABI in `ufsecp_gpu.h` now covers 19 backend-neutral batch
 operations, and the compiled CUDA, OpenCL, and Metal backends implement that
 stable surface. Internal kernel experiments, signing benchmarks, and backend-only
 test hooks may cover additional primitives beyond the public ABI, but they are
@@ -557,19 +557,24 @@ is retained from this sweep.
 **OpenCL:** 3.0 CUDA, Driver 580.126.09  
 **Build:** Clang 19, Release, -O3, PTX inline assembly  
 
-### OpenCL GPU C ABI Coverage (2026-03-18)
+### OpenCL GPU C ABI Coverage (2026-04-11)
 
 | C ABI operation | OpenCL status | Notes |
 |-----------------|---------------|-------|
 | `ufsecp_gpu_generator_mul_batch` | Implemented | Uses `batch_scalar_mul_generator` + `batch_jacobian_to_affine` |
-| `ufsecp_gpu_ecdsa_verify_batch` | Missing | Returns `UFSECP_ERR_GPU_UNSUPPORTED` |
-| `ufsecp_gpu_schnorr_verify_batch` | Missing | Returns `UFSECP_ERR_GPU_UNSUPPORTED` |
+| `ufsecp_gpu_ecdsa_verify_batch` | Implemented | extended kernel via `secp256k1_extended.cl` |
+| `ufsecp_gpu_schnorr_verify_batch` | Implemented | extended kernel via `secp256k1_extended.cl` |
 | `ufsecp_gpu_ecdh_batch` | Implemented | GPU scalar mul, CPU SHA-256 finalization |
 | `ufsecp_gpu_hash160_pubkey_batch` | Implemented | Public-data batch hashing |
 | `ufsecp_gpu_msm` | Implemented | GPU scalar mul + CPU-side affine reduction |
 
-The missing OpenCL pieces are therefore the two batch verify paths. Core ECC,
-ECDH, Hash160, and MSM are already wired through the backend-neutral C ABI.
+All 6 core C ABI compute operations are implemented in the OpenCL backend as of 2026-04-11.
+Full 19-op parity (including ZK, BIP324, FROST, BIP352) matches CUDA and Metal.
+
+> **Historical note:** As of 2026-03-18, `ufsecp_gpu_ecdsa_verify_batch` and
+> `ufsecp_gpu_schnorr_verify_batch` were still missing from OpenCL.
+> Both were implemented via the `secp256k1_extended.cl` extended kernel and
+> became part of the ABI-complete OpenCL surface by 2026-04-11.
 
 ### Kernel-Only Timing (no buffer alloc/copy overhead)
 

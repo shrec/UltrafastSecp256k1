@@ -29,6 +29,11 @@
 #include "secp256k1_hash160.h"
 #include "secp256k1_zk.h"
 #include "secp256k1_bip324.h"
+#include "secp256k1_ct_ops.h"
+#include "secp256k1_ct_field.h"
+#include "secp256k1_ct_scalar.h"
+#include "secp256k1_ct_point.h"
+#include "secp256k1_ct_sign.h"
 
 using namespace metal;
 
@@ -1460,5 +1465,154 @@ kernel void ecdsa_snark_witness_batch(
     write_u32_le(out_flat, rec_off + 752, valid ? 1 : 0);
     // bytes 756-759: _pad (already zero)
     // Total record size: 352 + 400 + 8 = 760 bytes ✓
+}
+
+// =============================================================================
+// CT Smoke Kernel -- Branchless Constant-Time Layer (Section 11)
+// =============================================================================
+// Exercises CT primitives, CT field/scalar/point ops, CT ECDSA sign, CT Schnorr
+// sign.  All subtests run on thread 0; other threads return immediately.
+//
+// Output layout (out[0..3]):
+//   out[0]: CT mask primitives (0 = pass)
+//   out[1]: CT cmov / cswap    (0 = pass)
+//   out[2]: CT ECDSA sign+verify with privkey=1 (0 = pass)
+//   out[3]: CT Schnorr sign+verify with privkey=1 (0 = pass)
+// =============================================================================
+
+// SHA-256("test")
+constant uchar CT_SMOKE_MSG[32] = {
+    0x9f, 0x86, 0xd0, 0x81, 0x88, 0x4c, 0x7d, 0x65,
+    0x9a, 0x2f, 0xea, 0xa0, 0xc5, 0x5a, 0xd0, 0x15,
+    0xa3, 0xbf, 0x4f, 0x1b, 0x2b, 0x0b, 0x82, 0x2c,
+    0xd1, 0x5d, 0x6c, 0x15, 0xb0, 0xf0, 0x0a, 0x08
+};
+
+constant uchar CT_SMOKE_AUX[32] = {
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+};
+
+kernel void ct_smoke_kernel(device int* out [[buffer(0)]],
+                             uint gid [[thread_position_in_grid]]) {
+    if (gid != 0) return;
+
+    // ---- Subtest 0: CT mask primitives ----
+    {
+        int fail = 0;
+        uint zm0 = ct_is_zero_mask(0u);
+        uint zm1 = ct_is_zero_mask(1u);
+        if (zm0 != 0xFFFFFFFFu) fail |= 1;
+        if (zm1 != 0u)          fail |= 1;
+
+        uint nz0 = ct_is_nonzero_mask(0u);
+        uint nz1 = ct_is_nonzero_mask(42u);
+        if (nz0 != 0u)          fail |= 2;
+        if (nz1 != 0xFFFFFFFFu) fail |= 2;
+
+        uint eq0 = ct_eq_mask(7u, 7u);
+        uint eq1 = ct_eq_mask(7u, 8u);
+        if (eq0 != 0xFFFFFFFFu) fail |= 4;
+        if (eq1 != 0u)          fail |= 4;
+
+        if (ct_bool_to_mask(true)  != 0xFFFFFFFFu) fail |= 8;
+        if (ct_bool_to_mask(false) != 0u)          fail |= 16;
+
+        out[0] = fail;
+    }
+
+    // ---- Subtest 1: CT cmov / cswap on 8-limb arrays ----
+    {
+        int fail = 0;
+        uint all1 = 0xFFFFFFFFu, all0 = 0u;
+
+        uint a[8] = {1,2,3,4,5,6,7,8};
+        uint b[8] = {9,10,11,12,13,14,15,16};
+
+        // cmov: mask=all-ones -> copy b into r
+        uint r[8] = {1,2,3,4,5,6,7,8};
+        ct_cmov_8limb(r, b, all1);
+        for (int i = 0; i < 8; ++i) if (r[i] != b[i]) { fail |= 1; break; }
+
+        // cmov: mask=0 -> keep a
+        uint r2[8] = {1,2,3,4,5,6,7,8};
+        ct_cmov_8limb(r2, b, all0);
+        for (int i = 0; i < 8; ++i) if (r2[i] != a[i]) { fail |= 2; break; }
+
+        // cswap: mask=all-ones -> swap
+        uint sa[8] = {1,2,3,4,5,6,7,8};
+        uint sb[8] = {9,10,11,12,13,14,15,16};
+        ct_cswap_8limb(sa, sb, all1);
+        for (int i = 0; i < 8; ++i) {
+            if (sa[i] != b[i] || sb[i] != a[i]) { fail |= 4; break; }
+        }
+
+        // cswap: mask=0 -> no swap
+        uint ca[8] = {1,2,3,4,5,6,7,8};
+        uint cb[8] = {9,10,11,12,13,14,15,16};
+        ct_cswap_8limb(ca, cb, all0);
+        for (int i = 0; i < 8; ++i) {
+            if (ca[i] != a[i] || cb[i] != b[i]) { fail |= 8; break; }
+        }
+
+        out[1] = fail;
+    }
+
+    // ---- Subtest 2: CT ECDSA sign (privkey=1) + fast-path verify ----
+    {
+        // privkey = scalar 1 (little-endian 8x32: limbs[0]=1, rest 0)
+        Scalar256 priv;
+        for (int i = 0; i < 8; ++i) priv.limbs[i] = 0;
+        priv.limbs[0] = 1u;
+
+        uchar msg_hash[32];
+        for (int i = 0; i < 32; ++i) msg_hash[i] = CT_SMOKE_MSG[i];
+
+        Scalar256 r_out, s_out;
+        bool sign_ok = ct_ecdsa_sign_metal(msg_hash, priv, r_out, s_out);
+        if (!sign_ok) { out[2] = 1; }
+        else {
+            // Derive pubkey = 1*G via CT
+            CTJacobianPoint pub_ct = ct_generator_mul_metal(priv);
+            JacobianPoint pub_jac = ct_to_jacobian(pub_ct);
+            AffinePoint pub = jacobian_to_affine(pub_jac);
+
+            // Verify via fast path
+            Scalar256 msg_scalar = scalar_from_bytes(msg_hash);
+            bool ok = ecdsa_verify(msg_scalar, pub, r_out, s_out);
+            out[2] = ok ? 0 : 2;
+        }
+    }
+
+    // ---- Subtest 3: CT Schnorr sign (privkey=1) + fast-path verify ----
+    {
+        Scalar256 priv;
+        for (int i = 0; i < 8; ++i) priv.limbs[i] = 0;
+        priv.limbs[0] = 1u;
+
+        uchar msg_bytes[32], aux_bytes[32];
+        for (int i = 0; i < 32; ++i) msg_bytes[i] = CT_SMOKE_MSG[i];
+        for (int i = 0; i < 32; ++i) aux_bytes[i] = CT_SMOKE_AUX[i];
+
+        uchar sig64[64];
+        bool sign_ok = ct_schnorr_sign_metal(priv, msg_bytes, aux_bytes, sig64);
+        if (!sign_ok) { out[3] = 1; }
+        else {
+            // xonly pubkey via CT
+            FieldElement pub_x = ct_schnorr_pubkey_metal(priv);
+            uchar pub_x_bytes[32];
+            field_to_bytes(pub_x, pub_x_bytes);
+
+            // Reconstruct SchnorrSignature from raw bytes
+            SchnorrSignature ssig;
+            for (int i = 0; i < 32; ++i) ssig.r[i] = sig64[i];
+            uchar s_bytes[32];
+            for (int i = 0; i < 32; ++i) s_bytes[i] = sig64[32 + i];
+            ssig.s = scalar_from_bytes(s_bytes);
+
+            bool ok = schnorr_verify(pub_x_bytes, msg_bytes, ssig);
+            out[3] = ok ? 0 : 2;
+        }
+    }
 }
 

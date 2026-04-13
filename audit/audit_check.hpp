@@ -19,6 +19,15 @@
 #define AUDIT_CHECK_HPP_
 
 #include <cstdio>
+#include <string>
+
+// -- Message helper: converts const char* and std::string to const char* ----
+//    Needed to support CHECK(cond, "literal") and CHECK(cond, "x"+to_string(i))
+//    without -Wnon-pod-varargs errors on Clang (Android NDK, ESP-IDF).
+namespace audit_detail {
+inline const char* to_cstr(const char* s) noexcept { return s; }
+inline const char* to_cstr(const std::string& s) noexcept { return s.c_str(); }
+} // namespace audit_detail
 
 // -- How often to print progress (power of 2, fast bitmask) -----------------
 #ifndef AUDIT_PROGRESS_INTERVAL
@@ -53,7 +62,7 @@ inline void audit_print_progress_(int total) {
         } \
     } else { \
         ++g_fail; \
-        (void)std::printf("  [FAIL] %s (line %d)\n", (msg), __LINE__); \
+        (void)std::printf("  [FAIL] %s (line %d)\n", ::audit_detail::to_cstr(msg), __LINE__); \
         (void)std::fflush(stdout); \
     } \
 } while(0)

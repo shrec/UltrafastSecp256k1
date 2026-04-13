@@ -262,6 +262,100 @@ struct ZkCL {
 static ZkCL g_zk;
 
 // =============================================================================
+// CT Smoke CL context: raw OpenCL for branchless CT smoke kernels
+// =============================================================================
+struct CtSmokeCL {
+    cl_context       context = nullptr;
+    cl_command_queue queue   = nullptr;
+    cl_device_id     device  = nullptr;
+    cl_program       program = nullptr;
+
+    cl_kernel k_masks   = nullptr;
+    cl_kernel k_cmov    = nullptr;
+    cl_kernel k_ecdsa   = nullptr;
+    cl_kernel k_schnorr = nullptr;
+
+    bool valid = false;
+    std::string error;
+
+    bool init(const Context& ctx, const std::string& kernel_dir) {
+        context = (cl_context)ctx.native_context();
+        queue   = (cl_command_queue)ctx.native_queue();
+        cl_int err;
+        err = clGetCommandQueueInfo(queue, CL_QUEUE_DEVICE, sizeof(cl_device_id), &device, nullptr);
+        if (err != CL_SUCCESS) { error = "Cannot get device from queue"; return false; }
+
+        // Load secp256k1_ct_smoke.cl (entry-point kernel wrapping all CT headers)
+        std::string src;
+        std::vector<std::string> paths = {
+            kernel_dir + "/secp256k1_ct_smoke.cl",
+            "kernels/secp256k1_ct_smoke.cl",
+            "../kernels/secp256k1_ct_smoke.cl",
+        };
+        for (auto& p : paths) { src = load_file(p); if (!src.empty()) break; }
+        if (src.empty()) { error = "Cannot find secp256k1_ct_smoke.cl"; return false; }
+
+        const char* sp = src.c_str(); size_t sl = src.size();
+        program = clCreateProgramWithSource(context, 1, &sp, &sl, &err);
+        if (err != CL_SUCCESS) { error = "clCreateProgramWithSource failed"; return false; }
+
+        std::string opts = "-cl-std=CL1.2 -cl-fast-relaxed-math -cl-mad-enable -I " + kernel_dir;
+        err = clBuildProgram(program, 1, &device, opts.c_str(), nullptr, nullptr);
+        if (err != CL_SUCCESS) {
+            size_t log_size = 0;
+            clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, 0, nullptr, &log_size);
+            std::string log(log_size + 1, '\0');
+            clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, log_size, log.data(), nullptr);
+            error = std::string("CT smoke build failed: ") + log;
+            return false;
+        }
+
+        k_masks   = clCreateKernel(program, "ct_smoke_masks",   &err);
+        if (err != CL_SUCCESS) { error = "ct_smoke_masks kernel not found"; return false; }
+        k_cmov    = clCreateKernel(program, "ct_smoke_cmov",    &err);
+        if (err != CL_SUCCESS) { error = "ct_smoke_cmov kernel not found"; return false; }
+        k_ecdsa   = clCreateKernel(program, "ct_smoke_ecdsa",   &err);
+        if (err != CL_SUCCESS) { error = "ct_smoke_ecdsa kernel not found"; return false; }
+        k_schnorr = clCreateKernel(program, "ct_smoke_schnorr", &err);
+        if (err != CL_SUCCESS) { error = "ct_smoke_schnorr kernel not found"; return false; }
+
+        valid = true;
+        return true;
+    }
+
+    // Run a single-workitem kernel, return result int (0 = pass)
+    int run_kernel(cl_kernel k, const char* name) {
+        cl_int err;
+        cl_mem d_result = clCreateBuffer(context, CL_MEM_WRITE_ONLY, sizeof(int), nullptr, &err);
+        if (err != CL_SUCCESS) return -1;
+
+        int zero = 0;
+        clEnqueueWriteBuffer(queue, d_result, CL_TRUE, 0, sizeof(int), &zero, 0, nullptr, nullptr);
+
+        clSetKernelArg(k, 0, sizeof(cl_mem), &d_result);
+        size_t gws = 1, lws = 1;
+        err = clEnqueueNDRangeKernel(queue, k, 1, nullptr, &gws, &lws, 0, nullptr, nullptr);
+        if (err != CL_SUCCESS) { clReleaseMemObject(d_result); return -2; }
+
+        clFinish(queue);
+
+        int val = 0;
+        clEnqueueReadBuffer(queue, d_result, CL_TRUE, 0, sizeof(int), &val, 0, nullptr, nullptr);
+        clReleaseMemObject(d_result);
+        return val;
+    }
+
+    ~CtSmokeCL() {
+        if (k_masks)   clReleaseKernel(k_masks);
+        if (k_cmov)    clReleaseKernel(k_cmov);
+        if (k_ecdsa)   clReleaseKernel(k_ecdsa);
+        if (k_schnorr) clReleaseKernel(k_schnorr);
+        if (program)   clReleaseProgram(program);
+    }
+};
+static CtSmokeCL g_ct_smoke;
+
+// =============================================================================
 // Audit module types (same pattern as GPU runner)
 // =============================================================================
 struct OclAuditModule {
@@ -1448,6 +1542,65 @@ dleq_cleanup:
 }
 
 // =============================================================================
+// GPU CT Smoke: branchless constant-time layer (secp256k1_ct_smoke.cl)
+// =============================================================================
+
+// Initialize the CT smoke context on first use (lazy, cached).
+static bool ensure_ct_smoke(std::string& err_out) {
+    if (g_ct_smoke.valid) return true;
+    if (!g_ctx) { err_out = "No OpenCL context"; return false; }
+    if (!g_ct_smoke.init(*g_ctx, g_kernel_dir)) {
+        err_out = g_ct_smoke.error;
+        return false;
+    }
+    return true;
+}
+
+static int audit_ct_smoke_masks() {
+    std::string err;
+    if (!ensure_ct_smoke(err)) {
+        fprintf(stderr, "    SKIP ct_smoke_masks: %s\n", err.c_str());
+        return -1;
+    }
+    int r = g_ct_smoke.run_kernel(g_ct_smoke.k_masks, "ct_smoke_masks");
+    if (r != 0) fprintf(stderr, "    ct_smoke_masks: error bitmap=0x%x\n", r);
+    return r;
+}
+
+static int audit_ct_smoke_cmov() {
+    std::string err;
+    if (!ensure_ct_smoke(err)) {
+        fprintf(stderr, "    SKIP ct_smoke_cmov: %s\n", err.c_str());
+        return -1;
+    }
+    int r = g_ct_smoke.run_kernel(g_ct_smoke.k_cmov, "ct_smoke_cmov");
+    if (r != 0) fprintf(stderr, "    ct_smoke_cmov: error bitmap=0x%x\n", r);
+    return r;
+}
+
+static int audit_ct_smoke_ecdsa() {
+    std::string err;
+    if (!ensure_ct_smoke(err)) {
+        fprintf(stderr, "    SKIP ct_smoke_ecdsa: %s\n", err.c_str());
+        return -1;
+    }
+    int r = g_ct_smoke.run_kernel(g_ct_smoke.k_ecdsa, "ct_smoke_ecdsa");
+    if (r != 0) fprintf(stderr, "    ct_smoke_ecdsa: result=%d (1=sign fail, 2=verify fail)\n", r);
+    return r;
+}
+
+static int audit_ct_smoke_schnorr() {
+    std::string err;
+    if (!ensure_ct_smoke(err)) {
+        fprintf(stderr, "    SKIP ct_smoke_schnorr: %s\n", err.c_str());
+        return -1;
+    }
+    int r = g_ct_smoke.run_kernel(g_ct_smoke.k_schnorr, "ct_smoke_schnorr");
+    if (r != 0) fprintf(stderr, "    ct_smoke_schnorr: result=%d (1=sign fail, 2=verify fail)\n", r);
+    return r;
+}
+
+// =============================================================================
 // Module & Section Registry
 // =============================================================================
 
@@ -1462,6 +1615,7 @@ static const OclSectionInfo OCL_SECTIONS[] = {
     { "performance",       "Performance Smoke Tests" },
     { "bip352_glv",        "BIP-352 Silent Payments & GLV Correctness" },
     { "zk_proofs",          "ZK Proofs (Knowledge & DLEQ)" },
+    { "gpu_ct_smoke",      "GPU CT Layer (Branchless Constant-Time Smoke)" },
 };
 static constexpr int NUM_OCL_SECTIONS = sizeof(OCL_SECTIONS) / sizeof(OCL_SECTIONS[0]);
 
@@ -1519,6 +1673,12 @@ static const OclAuditModule OCL_MODULES[] = {
     // Section 10: ZK Proofs
     { "zk_knowledge_rt",   "ZK knowledge proof roundtrip (prove+verify+reject)", "zk_proofs", audit_zk_knowledge_roundtrip, false },
     { "zk_dleq_rt",        "ZK DLEQ proof roundtrip (prove+verify+reject)",    "zk_proofs", audit_zk_dleq_roundtrip,     false },
+
+    // Section 11: GPU CT Layer Smoke
+    { "ct_masks",          "CT mask generation (is_zero, is_nonzero, eq, bool)",   "gpu_ct_smoke", audit_ct_smoke_masks,   false },
+    { "ct_cmov",           "CT cmov256 / cswap256 correctness",                    "gpu_ct_smoke", audit_ct_smoke_cmov,    false },
+    { "ct_ecdsa",          "CT ECDSA sign (privkey=1) + fast-path verify",         "gpu_ct_smoke", audit_ct_smoke_ecdsa,   false },
+    { "ct_schnorr",        "CT Schnorr sign (privkey=1, BIP-340) + verify",        "gpu_ct_smoke", audit_ct_smoke_schnorr, false },
 };
 static constexpr int NUM_OCL_MODULES = sizeof(OCL_MODULES) / sizeof(OCL_MODULES[0]);
 
@@ -1839,6 +1999,7 @@ int main(int argc, char* argv[]) {
     if (!kernel_dir.empty()) {
         g_ext.init(*g_ctx, kernel_dir);
         g_zk.init(*g_ctx, kernel_dir);
+        g_ct_smoke.init(*g_ctx, kernel_dir);  // CT smoke: lazy fallback via ensure_ct_smoke()
     }
 
     // Banner

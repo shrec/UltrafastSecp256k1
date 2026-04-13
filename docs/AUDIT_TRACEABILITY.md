@@ -1,6 +1,6 @@
 # Audit Traceability Matrix
 
-**UltrafastSecp256k1 v3.60.0** -- Evidence-Based Correctness & Security Mapping
+**UltrafastSecp256k1 v3.64.0** -- Evidence-Based Correctness & Security Mapping
 
 > Every security claim in this system is traceable to executable evidence.
 >
@@ -120,7 +120,7 @@ Each row in this matrix links:
 | **G1** | $\phi(P) = \lambda \cdot P$, $\lambda^3 \equiv 1 \bmod n$ | `cpu/glv.hpp` | Algebraic point verification | `audit_scalar.cpp` -> `test_glv_split()` | [OK] |
 | **G2** | $\phi(\phi(P)) + \phi(P) + P = \mathcal{O}$ | `cpu/glv.hpp` | Endomorphism relation | Comprehensive test #22 | [OK] |
 | **G3** | $k \equiv k_1 + k_2 \lambda \bmod n$ | `cpu/glv.hpp` | Decomposition algebraic check | `audit_scalar.cpp` -> `test_glv_split()` | [OK] |
-| **G4** | $|k_1|, |k_2| < \sqrt{n}$ | `cpu/glv.hpp` | Balanced split | Comprehensive test #22 | [OK] |
+| **G4** | $\lvert k_1\rvert, \lvert k_2\rvert < \sqrt{n}$ | `cpu/glv.hpp` | Balanced split | Comprehensive test #22 | [OK] |
 
 **GLV Subtotal: 4/4 [OK]**
 
@@ -253,9 +253,9 @@ Each row in this matrix links:
 | **C4** | `last_error()` reflects last code | `compat/ufsecp.h` | Sequence check | `test_fuzz_address_bip32_ffi.cpp` | [OK] |
 | **C5** | `error_string()` -> non-NULL for all codes | `compat/ufsecp.h` | Exhaustive | `test_fuzz_address_bip32_ffi.cpp` | [OK] |
 | **C6** | `abi_version()` -> non-zero | `compat/ufsecp.h` | Version check | `test_fuzz_address_bip32_ffi.cpp` | [OK] |
-| **C7** | Thread-safety: separate contexts safe | `compat/ufsecp.h` | TSan CI | CI `tsan.yml` | [!] |
+| **C7** | Thread-safety: separate contexts safe | `compat/ufsecp.h` | TSan CI | CI `tsan.yml` + `test_c_abi_thread_stress.cpp` | [OK] |
 
-**C ABI Subtotal: 6/7 (1 partial -- C7 requires full TSan harness)**
+**C ABI Subtotal: 7/7**
 
 ---
 
@@ -263,7 +263,7 @@ Each row in this matrix links:
 
 | ID | Invariant | Implementation | Validation | Test Location | Status |
 |----|-----------|---------------|------------|---------------|--------|
-| **CT1** | `ct::scalar_mul` timing-independent of scalar | `cpu/ct/point.hpp` | dudect Welch t-test ($|t| < 4.5$) | `test_ct_sidechannel.cpp` -- sections 4a-4b | [OK] |
+| **CT1** | `ct::scalar_mul` timing-independent of scalar | `cpu/ct/point.hpp` | dudect Welch t-test ($\lvert t\rvert < 4.5$) | `test_ct_sidechannel.cpp` -- sections 4a-4b | [OK] |
 | **CT2** | `ct::ecdsa_sign` timing-independent of privkey | `cpu/ct/point.hpp` | dudect Welch t-test | `test_ct_sidechannel.cpp` -- section 4c | [OK] |
 | **CT3** | `ct::schnorr_sign` timing-independent of privkey | `cpu/ct/point.hpp` | dudect Welch t-test | `test_ct_sidechannel.cpp` -- section 4d | [OK] |
 | **CT4** | `ct::field_inv` timing-independent of input | `cpu/ct/field.hpp` | dudect Welch t-test | `test_ct_sidechannel.cpp` -- section 2e | [OK] |
@@ -411,15 +411,14 @@ All core arithmetic operations are tested on boundary values:
 | BIP-324 (T324) | 6 | 6 | 0 | 0 |
 | BIP-32 (H) | 7 | 7 | 0 | 0 |
 | Address (A) | 6 | 6 | 0 | 0 |
-| C ABI (C) | 7 | 6 | 1 | 0 |
+| C ABI (C) | 7 | 7 | 0 | 0 |
 | CT (CT) | 6 | 4 | 2 | 0 |
 | Batch (BP) | 3 | 3 | 0 | 0 |
 | Parsing (SP) | 5 | 5 | 0 | 0 |
 | ECIES (EC) | 8 | 8 | 0 | 0 |
-| **Total** | **128** | **125** | **3** | **0** |
+| **Total** | **128** | **126** | **2** | **0** |
 
-**Partial items** (3):
-- **C7**: Thread-safety (TSan in CI, but no dedicated multi-threaded stress test)
+**Partial items** (2):
 - **CT5**: No secret-dependent branches (code review only, no CTGRIND/formal tool)
 - **CT6**: No secret-dependent memory access (code review only)
 

@@ -28,6 +28,7 @@
 #include <cstring>
 #include <vector>
 #include "secp256k1/scalar.hpp"
+#include "secp256k1/detail/secure_erase.hpp"
 
 namespace secp256k1 {
 
@@ -37,9 +38,8 @@ class Bip324Cipher {
 public:
     Bip324Cipher() noexcept = default;
     ~Bip324Cipher() noexcept {
-        // Volatile write to prevent dead-store elimination
-        volatile std::uint8_t* p = key_;
-        for (std::size_t i = 0; i < 32; ++i) p[i] = 0;
+        // Use canonical platform-specific secure erase (includes atomic_signal_fence barrier).
+        secp256k1::detail::secure_erase(key_, sizeof(key_));
     }
 
     // Initialize with a 32-byte key for this direction

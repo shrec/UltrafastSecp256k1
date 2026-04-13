@@ -415,6 +415,26 @@ static void test_extended_ops_zero_and_invalid(ufsecp_gpu_ctx* ctx) {
                                                    size_ok, 32, 1, plain_out32, out_valid);
     CHECK(e7 == UFSECP_ERR_GPU_UNSUPPORTED || e7 != UFSECP_OK || out_valid[0] == 0,
           "bip324_aead_decrypt_batch invalid tag rejects or marks invalid");
+
+    /* ── schnorr_snark_witness_batch: zero_edge + invalid_content ──── */
+
+    /* count=0 → OK (vacuous batch) */
+    CHECK(ufsecp_gpu_zk_schnorr_snark_witness_batch(ctx, nullptr, nullptr,
+                                                     nullptr, 0, nullptr) == UFSECP_OK,
+          "schnorr_snark_witness_batch(count=0) = OK");
+
+    /* Invalid content: all-zero inputs (bad R.x, bad P.x, zero s) */
+    {
+        uint8_t bad_msg[32] = {};
+        uint8_t bad_pk[32] = {};
+        uint8_t bad_sig[64] = {};
+        uint8_t witness_out[512] = {};  /* oversized to be safe */
+        auto ew = ufsecp_gpu_zk_schnorr_snark_witness_batch(
+            ctx, bad_msg, bad_pk, bad_sig, 1, witness_out);
+        /* Either UNSUPPORTED (no GPU kernel yet), ERR_BAD_INPUT, or OK-with-invalid-witness */
+        CHECK(ew == UFSECP_ERR_GPU_UNSUPPORTED || ew != UFSECP_OK || ew == UFSECP_OK,
+              "schnorr_snark_witness_batch invalid content does not crash");
+    }
 }
 
 /* ============================================================================

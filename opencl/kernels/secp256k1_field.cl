@@ -460,7 +460,19 @@ FORCE_INLINE void field_reduce(FieldElement* r, const ulong* a8) {
         carry = (temp[2] < carry) ? 1UL : 0UL;
 
         temp[3] += carry;
-        // At this point result fits in 256 bits (plus possible 1-bit overflow)
+        carry = (temp[3] < carry) ? 1UL : 0UL;
+
+        // Rare carry overflow (probability ~2^{-190}): fold residual carry.
+        // Matches CUDA reduce_512_to_256 step 4 and Metal while-loop.
+        if (carry) {
+            temp[0] += SECP256K1_K;
+            ulong c2 = (temp[0] < SECP256K1_K) ? 1UL : 0UL;
+            temp[1] += c2;
+            c2 = (temp[1] < c2) ? 1UL : 0UL;
+            temp[2] += c2;
+            c2 = (temp[2] < c2) ? 1UL : 0UL;
+            temp[3] += c2;
+        }
     }
 
     // Final reduction: if result >= p, subtract p

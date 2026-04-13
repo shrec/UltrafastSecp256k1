@@ -25,6 +25,7 @@
 #include <cstdint>
 #include <cstring>
 #include "secp256k1/scalar.hpp"
+#include "secp256k1/detail/secure_erase.hpp"
 
 namespace secp256k1 {
 
@@ -102,12 +103,7 @@ public:
 
 private:
     void secure_erase() noexcept {
-        // volatile prevents compiler from optimizing away the memset
-        auto* p =
-            reinterpret_cast<volatile std::uint8_t*>(&scalar_);
-        for (std::size_t i = 0; i < sizeof(scalar_); ++i) {
-            p[i] = 0;
-        }
+        secp256k1::detail::secure_erase(&scalar_, sizeof(scalar_));
     }
 
     fast::Scalar scalar_{};

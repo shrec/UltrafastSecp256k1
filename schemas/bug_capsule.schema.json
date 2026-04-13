@@ -1,0 +1,116 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "UltrafastSecp256k1 Bug Capsule",
+  "description": "Minimal reproducible bug record for automatic test generation",
+  "type": "object",
+  "required": ["id", "category", "title", "inputs", "expected"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique capsule identifier, e.g. BUG-2026-0042",
+      "pattern": "^BUG-[0-9]{4}-[0-9]{4}$"
+    },
+    "category": {
+      "type": "string",
+      "enum": ["correctness", "CT", "memory-safety", "ABI", "perf", "protocol"],
+      "description": "Bug classification"
+    },
+    "severity": {
+      "type": "string",
+      "enum": ["critical", "high", "medium", "low"],
+      "default": "medium"
+    },
+    "title": {
+      "type": "string",
+      "description": "Brief human-readable title"
+    },
+    "description": {
+      "type": "string",
+      "description": "Detailed explanation of the bug"
+    },
+    "discovered_at": {
+      "type": "string",
+      "format": "date",
+      "description": "Date the bug was discovered"
+    },
+    "fixed_at": {
+      "type": "string",
+      "format": "date",
+      "description": "Date the bug was fixed"
+    },
+    "fix_commit": {
+      "type": "string",
+      "description": "Commit SHA that fixed the bug"
+    },
+    "affected_files": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Source files affected by the bug"
+    },
+    "affected_functions": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Function names affected"
+    },
+    "inputs": {
+      "type": "object",
+      "description": "Minimal reproduction inputs",
+      "properties": {
+        "hex_values": {
+          "type": "object",
+          "additionalProperties": {"type": "string"},
+          "description": "Named hex-encoded byte arrays"
+        },
+        "integers": {
+          "type": "object",
+          "additionalProperties": {"type": "integer"},
+          "description": "Named integer parameters"
+        },
+        "flags": {
+          "type": "object",
+          "additionalProperties": {"type": "boolean"},
+          "description": "Named boolean flags"
+        }
+      }
+    },
+    "expected": {
+      "type": "object",
+      "description": "Expected outcome for the regression test",
+      "properties": {
+        "result": {
+          "type": "string",
+          "enum": ["reject", "accept", "specific_value", "no_timing_leak", "no_crash"],
+          "description": "What the correct behavior should be"
+        },
+        "error_code": {
+          "type": "string",
+          "description": "Expected error code if applicable"
+        },
+        "output_hex": {
+          "type": "string",
+          "description": "Expected output in hex if result is specific_value"
+        },
+        "timing_threshold": {
+          "type": "number",
+          "description": "Max |t| for dudect-style CT check"
+        }
+      },
+      "required": ["result"]
+    },
+    "exploit_poc": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether this bug warrants a full exploit PoC test"
+    },
+    "labels": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "CTest labels for the generated test"
+    },
+    "references": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "CVE, ePrint, or issue references"
+    }
+  }
+}
