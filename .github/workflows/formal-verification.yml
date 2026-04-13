@@ -38,7 +38,7 @@ jobs:
           python-version: '3.12'
 
       - name: Install Z3 solver
-        run: pip install z3-solver
+        run: pip install z3-solver==4.16.0.0
 
       - name: Run SafeGCD formal proofs
         run: python3 audit/formal/safegcd_z3_proof.py
@@ -65,7 +65,9 @@ jobs:
 
       - name: Install elan (Lean toolchain manager)
         run: |
-          curl -sSf https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh | sh -s -- -y --default-toolchain none
+          curl -sSfL https://raw.githubusercontent.com/leanprover/elan/v4.0.0/elan-init.sh -o /tmp/elan-init.sh
+          echo "4bacca9502cb89736fe63d2685abc2947cfbf34dc87673504f1bb4c43eda9264  /tmp/elan-init.sh" | sha256sum -c -
+          sh /tmp/elan-init.sh -y --default-toolchain none
           echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
 
       - name: Build Lean 4 proofs

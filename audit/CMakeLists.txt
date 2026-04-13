@@ -2868,7 +2868,7 @@ if(Python3_FOUND)
 
     add_test(NAME py_nonce_bias
         COMMAND ${Python3_EXECUTABLE} "${_py_scripts_dir}/nonce_bias_detector.py"
-                --lib "${_uf_lib}" --count 5000
+                --lib "${_uf_lib}" --count 10000
                 --json -o "${CMAKE_BINARY_DIR}/py_nonce_bias_report.json")
     set_tests_properties(py_nonce_bias PROPERTIES
         TIMEOUT 300
