@@ -2,3 +2,5 @@
 # Use the large single-app partition table (1500K app) to accommodate
 # the full audit binary (~1.07 MB).
 CONFIG_PARTITION_TABLE_SINGLE_APP_LARGE=y
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=65536
+CONFIG_ESP_TASK_WDT_TIMEOUT_S=120
