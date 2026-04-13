@@ -25,7 +25,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.60.0</span>
+   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.64.0</span>
    </div>
    <div id="projectbrief">Ultra high-performance secp256k1 elliptic curve cryptography library</div>
   </td>
@@ -125,140 +125,138 @@ $(document).ready(function(){initNavTree('private__key_8hpp_source.html',''); in
 <div class="line"><a id="l00025" name="l00025"></a><span class="lineno">   25</span><span class="preprocessor">#include &lt;cstdint&gt;</span></div>
 <div class="line"><a id="l00026" name="l00026"></a><span class="lineno">   26</span><span class="preprocessor">#include &lt;cstring&gt;</span></div>
 <div class="line"><a id="l00027" name="l00027"></a><span class="lineno">   27</span><span class="preprocessor">#include &quot;<a class="code" href="scalar_8hpp.html">secp256k1/scalar.hpp</a>&quot;</span></div>
-<div class="line"><a id="l00028" name="l00028"></a><span class="lineno">   28</span> </div>
-<div class="line"><a id="l00029" name="l00029"></a><span class="lineno">   29</span><span class="keyword">namespace </span><a class="code hl_namespace" href="namespacesecp256k1.html">secp256k1</a> {</div>
-<div class="line"><a id="l00030" name="l00030"></a><span class="lineno">   30</span> </div>
-<div class="foldopen" id="foldopen00031" data-start="{" data-end="};">
-<div class="line"><a id="l00031" name="l00031"></a><span class="lineno"><a class="line" href="classsecp256k1_1_1PrivateKey.html">   31</a></span><span class="keyword">class </span><a class="code hl_class" href="classsecp256k1_1_1PrivateKey.html">PrivateKey</a> {</div>
-<div class="line"><a id="l00032" name="l00032"></a><span class="lineno">   32</span><span class="keyword">public</span>:</div>
-<div class="line"><a id="l00033" name="l00033"></a><span class="lineno">   33</span>    <span class="comment">// -- Construction (explicit only) -----------------------------------------</span></div>
-<div class="line"><a id="l00034" name="l00034"></a><span class="lineno">   34</span> </div>
-<div class="line"><a id="l00035" name="l00035"></a><span class="lineno">   35</span>    <span class="comment">// Default: zero (invalid key, must be initialized via from_bytes).</span></div>
-<div class="line"><a id="l00036" name="l00036"></a><span class="lineno"><a class="line" href="classsecp256k1_1_1PrivateKey.html#a433dc9f85b5d7a3fb1289034d31febd7">   36</a></span>    <a class="code hl_function" href="classsecp256k1_1_1PrivateKey.html#a433dc9f85b5d7a3fb1289034d31febd7">PrivateKey</a>() noexcept = default;</div>
-<div class="line"><a id="l00037" name="l00037"></a><span class="lineno">   37</span> </div>
-<div class="line"><a id="l00038" name="l00038"></a><span class="lineno">   38</span>    <span class="comment">// Parse from 32-byte big-endian. Rejects values &gt;= n or == 0.</span></div>
-<div class="line"><a id="l00039" name="l00039"></a><span class="lineno">   39</span>    <span class="comment">// Returns false on invalid input (out is left zeroed).</span></div>
-<div class="foldopen" id="foldopen00040" data-start="{" data-end="}">
-<div class="line"><a id="l00040" name="l00040"></a><span class="lineno"><a class="line" href="classsecp256k1_1_1PrivateKey.html#a615a5c32e2cc94278f614d3911ca7fbe">   40</a></span>    [[nodiscard]] static <span class="keywordtype">bool</span> <a class="code hl_function" href="classsecp256k1_1_1PrivateKey.html#a615a5c32e2cc94278f614d3911ca7fbe">from_bytes</a>(const std::uint8_t* bytes32,</div>
-<div class="line"><a id="l00041" name="l00041"></a><span class="lineno">   41</span>                                         <a class="code hl_class" href="classsecp256k1_1_1PrivateKey.html">PrivateKey</a>&amp; out) noexcept {</div>
-<div class="line"><a id="l00042" name="l00042"></a><span class="lineno">   42</span>        <span class="keywordflow">return</span> <a class="code hl_function" href="classsecp256k1_1_1fast_1_1Scalar.html#a0895deacc801a097504db1da8b0d4872">fast::Scalar::parse_bytes_strict_nonzero</a>(bytes32, out.scalar_);</div>
-<div class="line"><a id="l00043" name="l00043"></a><span class="lineno">   43</span>    }</div>
+<div class="line"><a id="l00028" name="l00028"></a><span class="lineno">   28</span><span class="preprocessor">#include &quot;<a class="code" href="secure__erase_8hpp.html">secp256k1/detail/secure_erase.hpp</a>&quot;</span></div>
+<div class="line"><a id="l00029" name="l00029"></a><span class="lineno">   29</span> </div>
+<div class="line"><a id="l00030" name="l00030"></a><span class="lineno">   30</span><span class="keyword">namespace </span><a class="code hl_namespace" href="namespacesecp256k1.html">secp256k1</a> {</div>
+<div class="line"><a id="l00031" name="l00031"></a><span class="lineno">   31</span> </div>
+<div class="foldopen" id="foldopen00032" data-start="{" data-end="};">
+<div class="line"><a id="l00032" name="l00032"></a><span class="lineno"><a class="line" href="classsecp256k1_1_1PrivateKey.html">   32</a></span><span class="keyword">class </span><a class="code hl_class" href="classsecp256k1_1_1PrivateKey.html">PrivateKey</a> {</div>
+<div class="line"><a id="l00033" name="l00033"></a><span class="lineno">   33</span><span class="keyword">public</span>:</div>
+<div class="line"><a id="l00034" name="l00034"></a><span class="lineno">   34</span>    <span class="comment">// -- Construction (explicit only) -----------------------------------------</span></div>
+<div class="line"><a id="l00035" name="l00035"></a><span class="lineno">   35</span> </div>
+<div class="line"><a id="l00036" name="l00036"></a><span class="lineno">   36</span>    <span class="comment">// Default: zero (invalid key, must be initialized via from_bytes).</span></div>
+<div class="line"><a id="l00037" name="l00037"></a><span class="lineno"><a class="line" href="classsecp256k1_1_1PrivateKey.html#a433dc9f85b5d7a3fb1289034d31febd7">   37</a></span>    <a class="code hl_function" href="classsecp256k1_1_1PrivateKey.html#a433dc9f85b5d7a3fb1289034d31febd7">PrivateKey</a>() noexcept = default;</div>
+<div class="line"><a id="l00038" name="l00038"></a><span class="lineno">   38</span> </div>
+<div class="line"><a id="l00039" name="l00039"></a><span class="lineno">   39</span>    <span class="comment">// Parse from 32-byte big-endian. Rejects values &gt;= n or == 0.</span></div>
+<div class="line"><a id="l00040" name="l00040"></a><span class="lineno">   40</span>    <span class="comment">// Returns false on invalid input (out is left zeroed).</span></div>
+<div class="foldopen" id="foldopen00041" data-start="{" data-end="}">
+<div class="line"><a id="l00041" name="l00041"></a><span class="lineno"><a class="line" href="classsecp256k1_1_1PrivateKey.html#a615a5c32e2cc94278f614d3911ca7fbe">   41</a></span>    [[nodiscard]] static <span class="keywordtype">bool</span> <a class="code hl_function" href="classsecp256k1_1_1PrivateKey.html#a615a5c32e2cc94278f614d3911ca7fbe">from_bytes</a>(const std::uint8_t* bytes32,</div>
+<div class="line"><a id="l00042" name="l00042"></a><span class="lineno">   42</span>                                         <a class="code hl_class" href="classsecp256k1_1_1PrivateKey.html">PrivateKey</a>&amp; out) noexcept {</div>
+<div class="line"><a id="l00043" name="l00043"></a><span class="lineno">   43</span>        <span class="keywordflow">return</span> <a class="code hl_function" href="classsecp256k1_1_1fast_1_1Scalar.html#a0895deacc801a097504db1da8b0d4872">fast::Scalar::parse_bytes_strict_nonzero</a>(bytes32, out.scalar_);</div>
+<div class="line"><a id="l00044" name="l00044"></a><span class="lineno">   44</span>    }</div>
 </div>
-<div class="foldopen" id="foldopen00044" data-start="{" data-end="}">
-<div class="line"><a id="l00044" name="l00044"></a><span class="lineno"><a class="line" href="classsecp256k1_1_1PrivateKey.html#aa9a18feb154fbe27db30db5ecdbff102">   44</a></span>    [[nodiscard]] <span class="keyword">static</span> <span class="keywordtype">bool</span> <a class="code hl_function" href="classsecp256k1_1_1PrivateKey.html#aa9a18feb154fbe27db30db5ecdbff102">from_bytes</a>(<span class="keyword">const</span> std::array&lt;std::uint8_t, 32&gt;&amp; bytes,</div>
-<div class="line"><a id="l00045" name="l00045"></a><span class="lineno">   45</span>                                         <a class="code hl_class" href="classsecp256k1_1_1PrivateKey.html">PrivateKey</a>&amp; out) <span class="keyword">noexcept</span> {</div>
-<div class="line"><a id="l00046" name="l00046"></a><span class="lineno">   46</span>        <span class="keywordflow">return</span> <a class="code hl_function" href="classsecp256k1_1_1fast_1_1Scalar.html#a0895deacc801a097504db1da8b0d4872">fast::Scalar::parse_bytes_strict_nonzero</a>(bytes, out.scalar_);</div>
-<div class="line"><a id="l00047" name="l00047"></a><span class="lineno">   47</span>    }</div>
+<div class="foldopen" id="foldopen00045" data-start="{" data-end="}">
+<div class="line"><a id="l00045" name="l00045"></a><span class="lineno"><a class="line" href="classsecp256k1_1_1PrivateKey.html#aa9a18feb154fbe27db30db5ecdbff102">   45</a></span>    [[nodiscard]] <span class="keyword">static</span> <span class="keywordtype">bool</span> <a class="code hl_function" href="classsecp256k1_1_1PrivateKey.html#aa9a18feb154fbe27db30db5ecdbff102">from_bytes</a>(<span class="keyword">const</span> std::array&lt;std::uint8_t, 32&gt;&amp; bytes,</div>
+<div class="line"><a id="l00046" name="l00046"></a><span class="lineno">   46</span>                                         <a class="code hl_class" href="classsecp256k1_1_1PrivateKey.html">PrivateKey</a>&amp; out) <span class="keyword">noexcept</span> {</div>
+<div class="line"><a id="l00047" name="l00047"></a><span class="lineno">   47</span>        <span class="keywordflow">return</span> <a class="code hl_function" href="classsecp256k1_1_1fast_1_1Scalar.html#a0895deacc801a097504db1da8b0d4872">fast::Scalar::parse_bytes_strict_nonzero</a>(bytes, out.scalar_);</div>
+<div class="line"><a id="l00048" name="l00048"></a><span class="lineno">   48</span>    }</div>
 </div>
-<div class="line"><a id="l00048" name="l00048"></a><span class="lineno">   48</span> </div>
-<div class="line"><a id="l00049" name="l00049"></a><span class="lineno">   49</span>    <span class="comment">// Wrap an already-validated scalar. Caller must ensure 0 &lt; scalar &lt; n.</span></div>
-<div class="line"><a id="l00050" name="l00050"></a><span class="lineno">   50</span>    <span class="comment">// Named &quot;wrap&quot; to emphasize this bypasses validation.</span></div>
-<div class="foldopen" id="foldopen00051" data-start="{" data-end="}">
-<div class="line"><a id="l00051" name="l00051"></a><span class="lineno"><a class="line" href="classsecp256k1_1_1PrivateKey.html#af3b07cf717bff151fce36c82e5c2424c">   51</a></span>    [[nodiscard]] <span class="keyword">static</span> <a class="code hl_class" href="classsecp256k1_1_1PrivateKey.html">PrivateKey</a> <a class="code hl_function" href="classsecp256k1_1_1PrivateKey.html#af3b07cf717bff151fce36c82e5c2424c">wrap</a>(<span class="keyword">const</span> <a class="code hl_class" href="classsecp256k1_1_1fast_1_1Scalar.html">fast::Scalar</a>&amp; s) <span class="keyword">noexcept</span> {</div>
-<div class="line"><a id="l00052" name="l00052"></a><span class="lineno">   52</span>        <a class="code hl_class" href="classsecp256k1_1_1PrivateKey.html">PrivateKey</a> pk;</div>
-<div class="line"><a id="l00053" name="l00053"></a><span class="lineno">   53</span>        pk.scalar_ = s;</div>
-<div class="line"><a id="l00054" name="l00054"></a><span class="lineno">   54</span>        <span class="keywordflow">return</span> pk;</div>
-<div class="line"><a id="l00055" name="l00055"></a><span class="lineno">   55</span>    }</div>
+<div class="line"><a id="l00049" name="l00049"></a><span class="lineno">   49</span> </div>
+<div class="line"><a id="l00050" name="l00050"></a><span class="lineno">   50</span>    <span class="comment">// Wrap an already-validated scalar. Caller must ensure 0 &lt; scalar &lt; n.</span></div>
+<div class="line"><a id="l00051" name="l00051"></a><span class="lineno">   51</span>    <span class="comment">// Named &quot;wrap&quot; to emphasize this bypasses validation.</span></div>
+<div class="foldopen" id="foldopen00052" data-start="{" data-end="}">
+<div class="line"><a id="l00052" name="l00052"></a><span class="lineno"><a class="line" href="classsecp256k1_1_1PrivateKey.html#af3b07cf717bff151fce36c82e5c2424c">   52</a></span>    [[nodiscard]] <span class="keyword">static</span> <a class="code hl_class" href="classsecp256k1_1_1PrivateKey.html">PrivateKey</a> <a class="code hl_function" href="classsecp256k1_1_1PrivateKey.html#af3b07cf717bff151fce36c82e5c2424c">wrap</a>(<span class="keyword">const</span> <a class="code hl_class" href="classsecp256k1_1_1fast_1_1Scalar.html">fast::Scalar</a>&amp; s) <span class="keyword">noexcept</span> {</div>
+<div class="line"><a id="l00053" name="l00053"></a><span class="lineno">   53</span>        <a class="code hl_class" href="classsecp256k1_1_1PrivateKey.html">PrivateKey</a> pk;</div>
+<div class="line"><a id="l00054" name="l00054"></a><span class="lineno">   54</span>        pk.scalar_ = s;</div>
+<div class="line"><a id="l00055" name="l00055"></a><span class="lineno">   55</span>        <span class="keywordflow">return</span> pk;</div>
+<div class="line"><a id="l00056" name="l00056"></a><span class="lineno">   56</span>    }</div>
 </div>
-<div class="line"><a id="l00056" name="l00056"></a><span class="lineno">   56</span> </div>
-<div class="line"><a id="l00057" name="l00057"></a><span class="lineno">   57</span>    <span class="comment">// -- Access (explicit only) -----------------------------------------------</span></div>
-<div class="line"><a id="l00058" name="l00058"></a><span class="lineno">   58</span> </div>
-<div class="line"><a id="l00059" name="l00059"></a><span class="lineno">   59</span>    <span class="comment">// Returns the underlying scalar for use in signing operations.</span></div>
-<div class="line"><a id="l00060" name="l00060"></a><span class="lineno">   60</span>    <span class="comment">// WARNING: any call site using this MUST use ct:: operations for</span></div>
-<div class="line"><a id="l00061" name="l00061"></a><span class="lineno">   61</span>    <span class="comment">// secret-dependent computation. Variable-time fast:: paths leak timing.</span></div>
-<div class="line"><a id="l00062" name="l00062"></a><span class="lineno"><a class="line" href="classsecp256k1_1_1PrivateKey.html#aabb24d9968201607d997ac08746605b1">   62</a></span>    [[nodiscard]] <span class="keyword">const</span> <a class="code hl_class" href="classsecp256k1_1_1fast_1_1Scalar.html">fast::Scalar</a>&amp; <a class="code hl_function" href="classsecp256k1_1_1PrivateKey.html#aabb24d9968201607d997ac08746605b1">scalar</a>() const noexcept { <span class="keywordflow">return</span> scalar_; }</div>
-<div class="line"><a id="l00063" name="l00063"></a><span class="lineno">   63</span> </div>
-<div class="line"><a id="l00064" name="l00064"></a><span class="lineno">   64</span>    <span class="comment">// Serialize to 32-byte big-endian.</span></div>
-<div class="foldopen" id="foldopen00065" data-start="{" data-end="}">
-<div class="line"><a id="l00065" name="l00065"></a><span class="lineno"><a class="line" href="classsecp256k1_1_1PrivateKey.html#a3bdb22bb9876b5a058b64b53a82ec49b">   65</a></span>    [[nodiscard]] std::array&lt;std::uint8_t, 32&gt; <a class="code hl_function" href="classsecp256k1_1_1PrivateKey.html#a3bdb22bb9876b5a058b64b53a82ec49b">to_bytes</a>()<span class="keyword"> const </span>{</div>
-<div class="line"><a id="l00066" name="l00066"></a><span class="lineno">   66</span>        <span class="keywordflow">return</span> scalar_.<a class="code hl_function" href="classsecp256k1_1_1fast_1_1Scalar.html#a14b30457db78ed6df793a75f240fbc61">to_bytes</a>();</div>
-<div class="line"><a id="l00067" name="l00067"></a><span class="lineno">   67</span>    }</div>
+<div class="line"><a id="l00057" name="l00057"></a><span class="lineno">   57</span> </div>
+<div class="line"><a id="l00058" name="l00058"></a><span class="lineno">   58</span>    <span class="comment">// -- Access (explicit only) -----------------------------------------------</span></div>
+<div class="line"><a id="l00059" name="l00059"></a><span class="lineno">   59</span> </div>
+<div class="line"><a id="l00060" name="l00060"></a><span class="lineno">   60</span>    <span class="comment">// Returns the underlying scalar for use in signing operations.</span></div>
+<div class="line"><a id="l00061" name="l00061"></a><span class="lineno">   61</span>    <span class="comment">// WARNING: any call site using this MUST use ct:: operations for</span></div>
+<div class="line"><a id="l00062" name="l00062"></a><span class="lineno">   62</span>    <span class="comment">// secret-dependent computation. Variable-time fast:: paths leak timing.</span></div>
+<div class="line"><a id="l00063" name="l00063"></a><span class="lineno"><a class="line" href="classsecp256k1_1_1PrivateKey.html#aabb24d9968201607d997ac08746605b1">   63</a></span>    [[nodiscard]] <span class="keyword">const</span> <a class="code hl_class" href="classsecp256k1_1_1fast_1_1Scalar.html">fast::Scalar</a>&amp; <a class="code hl_function" href="classsecp256k1_1_1PrivateKey.html#aabb24d9968201607d997ac08746605b1">scalar</a>() const noexcept { <span class="keywordflow">return</span> scalar_; }</div>
+<div class="line"><a id="l00064" name="l00064"></a><span class="lineno">   64</span> </div>
+<div class="line"><a id="l00065" name="l00065"></a><span class="lineno">   65</span>    <span class="comment">// Serialize to 32-byte big-endian.</span></div>
+<div class="foldopen" id="foldopen00066" data-start="{" data-end="}">
+<div class="line"><a id="l00066" name="l00066"></a><span class="lineno"><a class="line" href="classsecp256k1_1_1PrivateKey.html#a3bdb22bb9876b5a058b64b53a82ec49b">   66</a></span>    [[nodiscard]] std::array&lt;std::uint8_t, 32&gt; <a class="code hl_function" href="classsecp256k1_1_1PrivateKey.html#a3bdb22bb9876b5a058b64b53a82ec49b">to_bytes</a>()<span class="keyword"> const </span>{</div>
+<div class="line"><a id="l00067" name="l00067"></a><span class="lineno">   67</span>        <span class="keywordflow">return</span> scalar_.<a class="code hl_function" href="classsecp256k1_1_1fast_1_1Scalar.html#a14b30457db78ed6df793a75f240fbc61">to_bytes</a>();</div>
+<div class="line"><a id="l00068" name="l00068"></a><span class="lineno">   68</span>    }</div>
 </div>
-<div class="line"><a id="l00068" name="l00068"></a><span class="lineno">   68</span> </div>
-<div class="line"><a id="l00069" name="l00069"></a><span class="lineno">   69</span>    <span class="comment">// Check if the key is valid (nonzero).</span></div>
-<div class="line"><a id="l00070" name="l00070"></a><span class="lineno"><a class="line" href="classsecp256k1_1_1PrivateKey.html#a7f49ec697a90240fb2c76f6fba545a6d">   70</a></span>    [[nodiscard]] <span class="keywordtype">bool</span> <a class="code hl_function" href="classsecp256k1_1_1PrivateKey.html#a7f49ec697a90240fb2c76f6fba545a6d">is_valid</a>() const noexcept { <span class="keywordflow">return</span> !scalar_.<a class="code hl_function" href="classsecp256k1_1_1fast_1_1Scalar.html#a2b3d5b020282b431e602d2ad60f099ae">is_zero</a>(); }</div>
-<div class="line"><a id="l00071" name="l00071"></a><span class="lineno">   71</span> </div>
-<div class="line"><a id="l00072" name="l00072"></a><span class="lineno">   72</span>    <span class="comment">// -- No implicit conversion -----------------------------------------------</span></div>
-<div class="line"><a id="l00073" name="l00073"></a><span class="lineno">   73</span>    <span class="comment">// Intentionally no operator Scalar() or operator const Scalar&amp;().</span></div>
-<div class="line"><a id="l00074" name="l00074"></a><span class="lineno">   74</span>    <span class="comment">// This forces callers to write .scalar() explicitly -- a code-review signal.</span></div>
-<div class="line"><a id="l00075" name="l00075"></a><span class="lineno">   75</span> </div>
-<div class="line"><a id="l00076" name="l00076"></a><span class="lineno">   76</span>    <span class="comment">// -- Lifecycle ------------------------------------------------------------</span></div>
-<div class="line"><a id="l00077" name="l00077"></a><span class="lineno">   77</span> </div>
-<div class="line"><a id="l00078" name="l00078"></a><span class="lineno"><a class="line" href="classsecp256k1_1_1PrivateKey.html#ab0a2e215d394a394fce0e4f072d862de">   78</a></span>    <a class="code hl_function" href="classsecp256k1_1_1PrivateKey.html#ab0a2e215d394a394fce0e4f072d862de">~PrivateKey</a>() { secure_erase(); }</div>
-<div class="line"><a id="l00079" name="l00079"></a><span class="lineno">   79</span> </div>
-<div class="line"><a id="l00080" name="l00080"></a><span class="lineno">   80</span>    <span class="comment">// Copy: allowed but zeroes are copied (no hidden state).</span></div>
-<div class="line"><a id="l00081" name="l00081"></a><span class="lineno"><a class="line" href="classsecp256k1_1_1PrivateKey.html#a0f9f41316c34353f959715371b50586b">   81</a></span>    <a class="code hl_function" href="classsecp256k1_1_1PrivateKey.html#a0f9f41316c34353f959715371b50586b">PrivateKey</a>(<span class="keyword">const</span> <a class="code hl_class" href="classsecp256k1_1_1PrivateKey.html">PrivateKey</a>&amp; other) noexcept : scalar_(other.scalar_) {}</div>
-<div class="foldopen" id="foldopen00082" data-start="{" data-end="}">
-<div class="line"><a id="l00082" name="l00082"></a><span class="lineno"><a class="line" href="classsecp256k1_1_1PrivateKey.html#ac70ad75e6de375ea97fa10d39449a9b8">   82</a></span>    <a class="code hl_class" href="classsecp256k1_1_1PrivateKey.html">PrivateKey</a>&amp; <a class="code hl_function" href="classsecp256k1_1_1PrivateKey.html#ac70ad75e6de375ea97fa10d39449a9b8">operator=</a>(<span class="keyword">const</span> <a class="code hl_class" href="classsecp256k1_1_1PrivateKey.html">PrivateKey</a>&amp; other) <span class="keyword">noexcept</span> {</div>
-<div class="line"><a id="l00083" name="l00083"></a><span class="lineno">   83</span>        <span class="keywordflow">if</span> (<span class="keyword">this</span> != &amp;other) {</div>
-<div class="line"><a id="l00084" name="l00084"></a><span class="lineno">   84</span>            secure_erase();</div>
-<div class="line"><a id="l00085" name="l00085"></a><span class="lineno">   85</span>            scalar_ = other.scalar_;</div>
-<div class="line"><a id="l00086" name="l00086"></a><span class="lineno">   86</span>        }</div>
-<div class="line"><a id="l00087" name="l00087"></a><span class="lineno">   87</span>        <span class="keywordflow">return</span> *<span class="keyword">this</span>;</div>
-<div class="line"><a id="l00088" name="l00088"></a><span class="lineno">   88</span>    }</div>
+<div class="line"><a id="l00069" name="l00069"></a><span class="lineno">   69</span> </div>
+<div class="line"><a id="l00070" name="l00070"></a><span class="lineno">   70</span>    <span class="comment">// Check if the key is valid (nonzero).</span></div>
+<div class="line"><a id="l00071" name="l00071"></a><span class="lineno"><a class="line" href="classsecp256k1_1_1PrivateKey.html#a7f49ec697a90240fb2c76f6fba545a6d">   71</a></span>    [[nodiscard]] <span class="keywordtype">bool</span> <a class="code hl_function" href="classsecp256k1_1_1PrivateKey.html#a7f49ec697a90240fb2c76f6fba545a6d">is_valid</a>() const noexcept { <span class="keywordflow">return</span> !scalar_.<a class="code hl_function" href="classsecp256k1_1_1fast_1_1Scalar.html#a2b3d5b020282b431e602d2ad60f099ae">is_zero</a>(); }</div>
+<div class="line"><a id="l00072" name="l00072"></a><span class="lineno">   72</span> </div>
+<div class="line"><a id="l00073" name="l00073"></a><span class="lineno">   73</span>    <span class="comment">// -- No implicit conversion -----------------------------------------------</span></div>
+<div class="line"><a id="l00074" name="l00074"></a><span class="lineno">   74</span>    <span class="comment">// Intentionally no operator Scalar() or operator const Scalar&amp;().</span></div>
+<div class="line"><a id="l00075" name="l00075"></a><span class="lineno">   75</span>    <span class="comment">// This forces callers to write .scalar() explicitly -- a code-review signal.</span></div>
+<div class="line"><a id="l00076" name="l00076"></a><span class="lineno">   76</span> </div>
+<div class="line"><a id="l00077" name="l00077"></a><span class="lineno">   77</span>    <span class="comment">// -- Lifecycle ------------------------------------------------------------</span></div>
+<div class="line"><a id="l00078" name="l00078"></a><span class="lineno">   78</span> </div>
+<div class="line"><a id="l00079" name="l00079"></a><span class="lineno"><a class="line" href="classsecp256k1_1_1PrivateKey.html#ab0a2e215d394a394fce0e4f072d862de">   79</a></span>    <a class="code hl_function" href="classsecp256k1_1_1PrivateKey.html#ab0a2e215d394a394fce0e4f072d862de">~PrivateKey</a>() { secure_erase(); }</div>
+<div class="line"><a id="l00080" name="l00080"></a><span class="lineno">   80</span> </div>
+<div class="line"><a id="l00081" name="l00081"></a><span class="lineno">   81</span>    <span class="comment">// Copy: allowed but zeroes are copied (no hidden state).</span></div>
+<div class="line"><a id="l00082" name="l00082"></a><span class="lineno"><a class="line" href="classsecp256k1_1_1PrivateKey.html#a0f9f41316c34353f959715371b50586b">   82</a></span>    <a class="code hl_function" href="classsecp256k1_1_1PrivateKey.html#a0f9f41316c34353f959715371b50586b">PrivateKey</a>(<span class="keyword">const</span> <a class="code hl_class" href="classsecp256k1_1_1PrivateKey.html">PrivateKey</a>&amp; other) noexcept : scalar_(other.scalar_) {}</div>
+<div class="foldopen" id="foldopen00083" data-start="{" data-end="}">
+<div class="line"><a id="l00083" name="l00083"></a><span class="lineno"><a class="line" href="classsecp256k1_1_1PrivateKey.html#ac70ad75e6de375ea97fa10d39449a9b8">   83</a></span>    <a class="code hl_class" href="classsecp256k1_1_1PrivateKey.html">PrivateKey</a>&amp; <a class="code hl_function" href="classsecp256k1_1_1PrivateKey.html#ac70ad75e6de375ea97fa10d39449a9b8">operator=</a>(<span class="keyword">const</span> <a class="code hl_class" href="classsecp256k1_1_1PrivateKey.html">PrivateKey</a>&amp; other) <span class="keyword">noexcept</span> {</div>
+<div class="line"><a id="l00084" name="l00084"></a><span class="lineno">   84</span>        <span class="keywordflow">if</span> (<span class="keyword">this</span> != &amp;other) {</div>
+<div class="line"><a id="l00085" name="l00085"></a><span class="lineno">   85</span>            secure_erase();</div>
+<div class="line"><a id="l00086" name="l00086"></a><span class="lineno">   86</span>            scalar_ = other.scalar_;</div>
+<div class="line"><a id="l00087" name="l00087"></a><span class="lineno">   87</span>        }</div>
+<div class="line"><a id="l00088" name="l00088"></a><span class="lineno">   88</span>        <span class="keywordflow">return</span> *<span class="keyword">this</span>;</div>
+<div class="line"><a id="l00089" name="l00089"></a><span class="lineno">   89</span>    }</div>
 </div>
-<div class="line"><a id="l00089" name="l00089"></a><span class="lineno">   89</span> </div>
-<div class="line"><a id="l00090" name="l00090"></a><span class="lineno">   90</span>    <span class="comment">// Move: source is zeroed after transfer.</span></div>
-<div class="foldopen" id="foldopen00091" data-start="{" data-end="}">
-<div class="line"><a id="l00091" name="l00091"></a><span class="lineno"><a class="line" href="classsecp256k1_1_1PrivateKey.html#affc8904d4e4a0e63b0d645026ab14221">   91</a></span>    <a class="code hl_function" href="classsecp256k1_1_1PrivateKey.html#affc8904d4e4a0e63b0d645026ab14221">PrivateKey</a>(<a class="code hl_class" href="classsecp256k1_1_1PrivateKey.html">PrivateKey</a>&amp;&amp; other) noexcept : scalar_(other.scalar_) {</div>
-<div class="line"><a id="l00092" name="l00092"></a><span class="lineno">   92</span>        other.secure_erase();</div>
-<div class="line"><a id="l00093" name="l00093"></a><span class="lineno">   93</span>    }</div>
+<div class="line"><a id="l00090" name="l00090"></a><span class="lineno">   90</span> </div>
+<div class="line"><a id="l00091" name="l00091"></a><span class="lineno">   91</span>    <span class="comment">// Move: source is zeroed after transfer.</span></div>
+<div class="foldopen" id="foldopen00092" data-start="{" data-end="}">
+<div class="line"><a id="l00092" name="l00092"></a><span class="lineno"><a class="line" href="classsecp256k1_1_1PrivateKey.html#affc8904d4e4a0e63b0d645026ab14221">   92</a></span>    <a class="code hl_function" href="classsecp256k1_1_1PrivateKey.html#affc8904d4e4a0e63b0d645026ab14221">PrivateKey</a>(<a class="code hl_class" href="classsecp256k1_1_1PrivateKey.html">PrivateKey</a>&amp;&amp; other) noexcept : scalar_(other.scalar_) {</div>
+<div class="line"><a id="l00093" name="l00093"></a><span class="lineno">   93</span>        other.secure_erase();</div>
+<div class="line"><a id="l00094" name="l00094"></a><span class="lineno">   94</span>    }</div>
 </div>
-<div class="foldopen" id="foldopen00094" data-start="{" data-end="}">
-<div class="line"><a id="l00094" name="l00094"></a><span class="lineno"><a class="line" href="classsecp256k1_1_1PrivateKey.html#a4b9a0d57dc0574604d8476016517ceba">   94</a></span>    <a class="code hl_class" href="classsecp256k1_1_1PrivateKey.html">PrivateKey</a>&amp; <a class="code hl_function" href="classsecp256k1_1_1PrivateKey.html#a4b9a0d57dc0574604d8476016517ceba">operator=</a>(<a class="code hl_class" href="classsecp256k1_1_1PrivateKey.html">PrivateKey</a>&amp;&amp; other) <span class="keyword">noexcept</span> {</div>
-<div class="line"><a id="l00095" name="l00095"></a><span class="lineno">   95</span>        <span class="keywordflow">if</span> (<span class="keyword">this</span> != &amp;other) {</div>
-<div class="line"><a id="l00096" name="l00096"></a><span class="lineno">   96</span>            secure_erase();</div>
-<div class="line"><a id="l00097" name="l00097"></a><span class="lineno">   97</span>            scalar_ = other.scalar_;</div>
-<div class="line"><a id="l00098" name="l00098"></a><span class="lineno">   98</span>            other.secure_erase();</div>
-<div class="line"><a id="l00099" name="l00099"></a><span class="lineno">   99</span>        }</div>
-<div class="line"><a id="l00100" name="l00100"></a><span class="lineno">  100</span>        <span class="keywordflow">return</span> *<span class="keyword">this</span>;</div>
-<div class="line"><a id="l00101" name="l00101"></a><span class="lineno">  101</span>    }</div>
+<div class="foldopen" id="foldopen00095" data-start="{" data-end="}">
+<div class="line"><a id="l00095" name="l00095"></a><span class="lineno"><a class="line" href="classsecp256k1_1_1PrivateKey.html#a4b9a0d57dc0574604d8476016517ceba">   95</a></span>    <a class="code hl_class" href="classsecp256k1_1_1PrivateKey.html">PrivateKey</a>&amp; <a class="code hl_function" href="classsecp256k1_1_1PrivateKey.html#a4b9a0d57dc0574604d8476016517ceba">operator=</a>(<a class="code hl_class" href="classsecp256k1_1_1PrivateKey.html">PrivateKey</a>&amp;&amp; other) <span class="keyword">noexcept</span> {</div>
+<div class="line"><a id="l00096" name="l00096"></a><span class="lineno">   96</span>        <span class="keywordflow">if</span> (<span class="keyword">this</span> != &amp;other) {</div>
+<div class="line"><a id="l00097" name="l00097"></a><span class="lineno">   97</span>            secure_erase();</div>
+<div class="line"><a id="l00098" name="l00098"></a><span class="lineno">   98</span>            scalar_ = other.scalar_;</div>
+<div class="line"><a id="l00099" name="l00099"></a><span class="lineno">   99</span>            other.secure_erase();</div>
+<div class="line"><a id="l00100" name="l00100"></a><span class="lineno">  100</span>        }</div>
+<div class="line"><a id="l00101" name="l00101"></a><span class="lineno">  101</span>        <span class="keywordflow">return</span> *<span class="keyword">this</span>;</div>
+<div class="line"><a id="l00102" name="l00102"></a><span class="lineno">  102</span>    }</div>
 </div>
-<div class="line"><a id="l00102" name="l00102"></a><span class="lineno">  102</span> </div>
-<div class="line"><a id="l00103" name="l00103"></a><span class="lineno">  103</span><span class="keyword">private</span>:</div>
-<div class="line"><a id="l00104" name="l00104"></a><span class="lineno">  104</span>    <span class="keywordtype">void</span> secure_erase() noexcept {</div>
-<div class="line"><a id="l00105" name="l00105"></a><span class="lineno">  105</span>        <span class="comment">// volatile prevents compiler from optimizing away the memset</span></div>
-<div class="line"><a id="l00106" name="l00106"></a><span class="lineno">  106</span>        <span class="keyword">auto</span>* p =</div>
-<div class="line"><a id="l00107" name="l00107"></a><span class="lineno">  107</span>            <span class="keyword">reinterpret_cast&lt;</span><span class="keyword">volatile </span>std::uint8_t*<span class="keyword">&gt;</span>(&amp;scalar_);</div>
-<div class="line"><a id="l00108" name="l00108"></a><span class="lineno">  108</span>        <span class="keywordflow">for</span> (std::size_t i = 0; i &lt; <span class="keyword">sizeof</span>(scalar_); ++i) {</div>
-<div class="line"><a id="l00109" name="l00109"></a><span class="lineno">  109</span>            p[i] = 0;</div>
-<div class="line"><a id="l00110" name="l00110"></a><span class="lineno">  110</span>        }</div>
-<div class="line"><a id="l00111" name="l00111"></a><span class="lineno">  111</span>    }</div>
-<div class="line"><a id="l00112" name="l00112"></a><span class="lineno">  112</span> </div>
-<div class="line"><a id="l00113" name="l00113"></a><span class="lineno">  113</span>    fast::Scalar scalar_{};</div>
-<div class="line"><a id="l00114" name="l00114"></a><span class="lineno">  114</span>};</div>
+<div class="line"><a id="l00103" name="l00103"></a><span class="lineno">  103</span> </div>
+<div class="line"><a id="l00104" name="l00104"></a><span class="lineno">  104</span><span class="keyword">private</span>:</div>
+<div class="line"><a id="l00105" name="l00105"></a><span class="lineno">  105</span>    <span class="keywordtype">void</span> secure_erase() noexcept {</div>
+<div class="line"><a id="l00106" name="l00106"></a><span class="lineno">  106</span>        <a class="code hl_function" href="namespacesecp256k1_1_1detail.html#a5dea1f75154fb440422d13d1356fcaa4">secp256k1::detail::secure_erase</a>(&amp;scalar_, <span class="keyword">sizeof</span>(scalar_));</div>
+<div class="line"><a id="l00107" name="l00107"></a><span class="lineno">  107</span>    }</div>
+<div class="line"><a id="l00108" name="l00108"></a><span class="lineno">  108</span> </div>
+<div class="line"><a id="l00109" name="l00109"></a><span class="lineno">  109</span>    fast::Scalar scalar_{};</div>
+<div class="line"><a id="l00110" name="l00110"></a><span class="lineno">  110</span>};</div>
 </div>
-<div class="line"><a id="l00115" name="l00115"></a><span class="lineno">  115</span> </div>
-<div class="line"><a id="l00116" name="l00116"></a><span class="lineno">  116</span><span class="comment">// Comparison (for testing; compares underlying scalars)</span></div>
-<div class="foldopen" id="foldopen00117" data-start="{" data-end="}">
-<div class="line"><a id="l00117" name="l00117"></a><span class="lineno"><a class="line" href="namespacesecp256k1.html#abc87f00cdfb554df7b96ba8b1f0d849a">  117</a></span><span class="keyword">inline</span> <span class="keywordtype">bool</span> <a class="code hl_function" href="namespacesecp256k1.html#abc87f00cdfb554df7b96ba8b1f0d849a">operator==</a>(<span class="keyword">const</span> <a class="code hl_class" href="classsecp256k1_1_1PrivateKey.html">PrivateKey</a>&amp; a, <span class="keyword">const</span> <a class="code hl_class" href="classsecp256k1_1_1PrivateKey.html">PrivateKey</a>&amp; b) <span class="keyword">noexcept</span> {</div>
-<div class="line"><a id="l00118" name="l00118"></a><span class="lineno">  118</span>    <span class="keywordflow">return</span> a.scalar() == b.scalar();</div>
-<div class="line"><a id="l00119" name="l00119"></a><span class="lineno">  119</span>}</div>
+<div class="line"><a id="l00111" name="l00111"></a><span class="lineno">  111</span> </div>
+<div class="line"><a id="l00112" name="l00112"></a><span class="lineno">  112</span><span class="comment">// Comparison (for testing; compares underlying scalars)</span></div>
+<div class="foldopen" id="foldopen00113" data-start="{" data-end="}">
+<div class="line"><a id="l00113" name="l00113"></a><span class="lineno"><a class="line" href="namespacesecp256k1.html#abc87f00cdfb554df7b96ba8b1f0d849a">  113</a></span><span class="keyword">inline</span> <span class="keywordtype">bool</span> <a class="code hl_function" href="namespacesecp256k1.html#abc87f00cdfb554df7b96ba8b1f0d849a">operator==</a>(<span class="keyword">const</span> <a class="code hl_class" href="classsecp256k1_1_1PrivateKey.html">PrivateKey</a>&amp; a, <span class="keyword">const</span> <a class="code hl_class" href="classsecp256k1_1_1PrivateKey.html">PrivateKey</a>&amp; b) <span class="keyword">noexcept</span> {</div>
+<div class="line"><a id="l00114" name="l00114"></a><span class="lineno">  114</span>    <span class="keywordflow">return</span> a.scalar() == b.scalar();</div>
+<div class="line"><a id="l00115" name="l00115"></a><span class="lineno">  115</span>}</div>
 </div>
-<div class="line"><a id="l00120" name="l00120"></a><span class="lineno">  120</span> </div>
-<div class="line"><a id="l00121" name="l00121"></a><span class="lineno">  121</span>} <span class="comment">// namespace secp256k1</span></div>
-<div class="line"><a id="l00122" name="l00122"></a><span class="lineno">  122</span> </div>
-<div class="line"><a id="l00123" name="l00123"></a><span class="lineno">  123</span><span class="preprocessor">#endif </span><span class="comment">// SECP256K1_PRIVATE_KEY_HPP</span></div>
-<div class="ttc" id="aclasssecp256k1_1_1PrivateKey_html"><div class="ttname"><a href="classsecp256k1_1_1PrivateKey.html">secp256k1::PrivateKey</a></div><div class="ttdef"><b>Definition</b> <a href="private__key_8hpp_source.html#l00031">private_key.hpp:31</a></div></div>
-<div class="ttc" id="aclasssecp256k1_1_1PrivateKey_html_a0f9f41316c34353f959715371b50586b"><div class="ttname"><a href="classsecp256k1_1_1PrivateKey.html#a0f9f41316c34353f959715371b50586b">secp256k1::PrivateKey::PrivateKey</a></div><div class="ttdeci">PrivateKey(const PrivateKey &amp;other) noexcept</div><div class="ttdef"><b>Definition</b> <a href="private__key_8hpp_source.html#l00081">private_key.hpp:81</a></div></div>
-<div class="ttc" id="aclasssecp256k1_1_1PrivateKey_html_a3bdb22bb9876b5a058b64b53a82ec49b"><div class="ttname"><a href="classsecp256k1_1_1PrivateKey.html#a3bdb22bb9876b5a058b64b53a82ec49b">secp256k1::PrivateKey::to_bytes</a></div><div class="ttdeci">std::array&lt; std::uint8_t, 32 &gt; to_bytes() const</div><div class="ttdef"><b>Definition</b> <a href="private__key_8hpp_source.html#l00065">private_key.hpp:65</a></div></div>
+<div class="line"><a id="l00116" name="l00116"></a><span class="lineno">  116</span> </div>
+<div class="line"><a id="l00117" name="l00117"></a><span class="lineno">  117</span>} <span class="comment">// namespace secp256k1</span></div>
+<div class="line"><a id="l00118" name="l00118"></a><span class="lineno">  118</span> </div>
+<div class="line"><a id="l00119" name="l00119"></a><span class="lineno">  119</span><span class="preprocessor">#endif </span><span class="comment">// SECP256K1_PRIVATE_KEY_HPP</span></div>
+<div class="ttc" id="aclasssecp256k1_1_1PrivateKey_html"><div class="ttname"><a href="classsecp256k1_1_1PrivateKey.html">secp256k1::PrivateKey</a></div><div class="ttdef"><b>Definition</b> <a href="private__key_8hpp_source.html#l00032">private_key.hpp:32</a></div></div>
+<div class="ttc" id="aclasssecp256k1_1_1PrivateKey_html_a0f9f41316c34353f959715371b50586b"><div class="ttname"><a href="classsecp256k1_1_1PrivateKey.html#a0f9f41316c34353f959715371b50586b">secp256k1::PrivateKey::PrivateKey</a></div><div class="ttdeci">PrivateKey(const PrivateKey &amp;other) noexcept</div><div class="ttdef"><b>Definition</b> <a href="private__key_8hpp_source.html#l00082">private_key.hpp:82</a></div></div>
+<div class="ttc" id="aclasssecp256k1_1_1PrivateKey_html_a3bdb22bb9876b5a058b64b53a82ec49b"><div class="ttname"><a href="classsecp256k1_1_1PrivateKey.html#a3bdb22bb9876b5a058b64b53a82ec49b">secp256k1::PrivateKey::to_bytes</a></div><div class="ttdeci">std::array&lt; std::uint8_t, 32 &gt; to_bytes() const</div><div class="ttdef"><b>Definition</b> <a href="private__key_8hpp_source.html#l00066">private_key.hpp:66</a></div></div>
 <div class="ttc" id="aclasssecp256k1_1_1PrivateKey_html_a433dc9f85b5d7a3fb1289034d31febd7"><div class="ttname"><a href="classsecp256k1_1_1PrivateKey.html#a433dc9f85b5d7a3fb1289034d31febd7">secp256k1::PrivateKey::PrivateKey</a></div><div class="ttdeci">PrivateKey() noexcept=default</div></div>
-<div class="ttc" id="aclasssecp256k1_1_1PrivateKey_html_a4b9a0d57dc0574604d8476016517ceba"><div class="ttname"><a href="classsecp256k1_1_1PrivateKey.html#a4b9a0d57dc0574604d8476016517ceba">secp256k1::PrivateKey::operator=</a></div><div class="ttdeci">PrivateKey &amp; operator=(PrivateKey &amp;&amp;other) noexcept</div><div class="ttdef"><b>Definition</b> <a href="private__key_8hpp_source.html#l00094">private_key.hpp:94</a></div></div>
-<div class="ttc" id="aclasssecp256k1_1_1PrivateKey_html_a615a5c32e2cc94278f614d3911ca7fbe"><div class="ttname"><a href="classsecp256k1_1_1PrivateKey.html#a615a5c32e2cc94278f614d3911ca7fbe">secp256k1::PrivateKey::from_bytes</a></div><div class="ttdeci">static bool from_bytes(const std::uint8_t *bytes32, PrivateKey &amp;out) noexcept</div><div class="ttdef"><b>Definition</b> <a href="private__key_8hpp_source.html#l00040">private_key.hpp:40</a></div></div>
-<div class="ttc" id="aclasssecp256k1_1_1PrivateKey_html_a7f49ec697a90240fb2c76f6fba545a6d"><div class="ttname"><a href="classsecp256k1_1_1PrivateKey.html#a7f49ec697a90240fb2c76f6fba545a6d">secp256k1::PrivateKey::is_valid</a></div><div class="ttdeci">bool is_valid() const noexcept</div><div class="ttdef"><b>Definition</b> <a href="private__key_8hpp_source.html#l00070">private_key.hpp:70</a></div></div>
-<div class="ttc" id="aclasssecp256k1_1_1PrivateKey_html_aa9a18feb154fbe27db30db5ecdbff102"><div class="ttname"><a href="classsecp256k1_1_1PrivateKey.html#aa9a18feb154fbe27db30db5ecdbff102">secp256k1::PrivateKey::from_bytes</a></div><div class="ttdeci">static bool from_bytes(const std::array&lt; std::uint8_t, 32 &gt; &amp;bytes, PrivateKey &amp;out) noexcept</div><div class="ttdef"><b>Definition</b> <a href="private__key_8hpp_source.html#l00044">private_key.hpp:44</a></div></div>
-<div class="ttc" id="aclasssecp256k1_1_1PrivateKey_html_aabb24d9968201607d997ac08746605b1"><div class="ttname"><a href="classsecp256k1_1_1PrivateKey.html#aabb24d9968201607d997ac08746605b1">secp256k1::PrivateKey::scalar</a></div><div class="ttdeci">const fast::Scalar &amp; scalar() const noexcept</div><div class="ttdef"><b>Definition</b> <a href="private__key_8hpp_source.html#l00062">private_key.hpp:62</a></div></div>
-<div class="ttc" id="aclasssecp256k1_1_1PrivateKey_html_ab0a2e215d394a394fce0e4f072d862de"><div class="ttname"><a href="classsecp256k1_1_1PrivateKey.html#ab0a2e215d394a394fce0e4f072d862de">secp256k1::PrivateKey::~PrivateKey</a></div><div class="ttdeci">~PrivateKey()</div><div class="ttdef"><b>Definition</b> <a href="private__key_8hpp_source.html#l00078">private_key.hpp:78</a></div></div>
-<div class="ttc" id="aclasssecp256k1_1_1PrivateKey_html_ac70ad75e6de375ea97fa10d39449a9b8"><div class="ttname"><a href="classsecp256k1_1_1PrivateKey.html#ac70ad75e6de375ea97fa10d39449a9b8">secp256k1::PrivateKey::operator=</a></div><div class="ttdeci">PrivateKey &amp; operator=(const PrivateKey &amp;other) noexcept</div><div class="ttdef"><b>Definition</b> <a href="private__key_8hpp_source.html#l00082">private_key.hpp:82</a></div></div>
-<div class="ttc" id="aclasssecp256k1_1_1PrivateKey_html_af3b07cf717bff151fce36c82e5c2424c"><div class="ttname"><a href="classsecp256k1_1_1PrivateKey.html#af3b07cf717bff151fce36c82e5c2424c">secp256k1::PrivateKey::wrap</a></div><div class="ttdeci">static PrivateKey wrap(const fast::Scalar &amp;s) noexcept</div><div class="ttdef"><b>Definition</b> <a href="private__key_8hpp_source.html#l00051">private_key.hpp:51</a></div></div>
-<div class="ttc" id="aclasssecp256k1_1_1PrivateKey_html_affc8904d4e4a0e63b0d645026ab14221"><div class="ttname"><a href="classsecp256k1_1_1PrivateKey.html#affc8904d4e4a0e63b0d645026ab14221">secp256k1::PrivateKey::PrivateKey</a></div><div class="ttdeci">PrivateKey(PrivateKey &amp;&amp;other) noexcept</div><div class="ttdef"><b>Definition</b> <a href="private__key_8hpp_source.html#l00091">private_key.hpp:91</a></div></div>
+<div class="ttc" id="aclasssecp256k1_1_1PrivateKey_html_a4b9a0d57dc0574604d8476016517ceba"><div class="ttname"><a href="classsecp256k1_1_1PrivateKey.html#a4b9a0d57dc0574604d8476016517ceba">secp256k1::PrivateKey::operator=</a></div><div class="ttdeci">PrivateKey &amp; operator=(PrivateKey &amp;&amp;other) noexcept</div><div class="ttdef"><b>Definition</b> <a href="private__key_8hpp_source.html#l00095">private_key.hpp:95</a></div></div>
+<div class="ttc" id="aclasssecp256k1_1_1PrivateKey_html_a615a5c32e2cc94278f614d3911ca7fbe"><div class="ttname"><a href="classsecp256k1_1_1PrivateKey.html#a615a5c32e2cc94278f614d3911ca7fbe">secp256k1::PrivateKey::from_bytes</a></div><div class="ttdeci">static bool from_bytes(const std::uint8_t *bytes32, PrivateKey &amp;out) noexcept</div><div class="ttdef"><b>Definition</b> <a href="private__key_8hpp_source.html#l00041">private_key.hpp:41</a></div></div>
+<div class="ttc" id="aclasssecp256k1_1_1PrivateKey_html_a7f49ec697a90240fb2c76f6fba545a6d"><div class="ttname"><a href="classsecp256k1_1_1PrivateKey.html#a7f49ec697a90240fb2c76f6fba545a6d">secp256k1::PrivateKey::is_valid</a></div><div class="ttdeci">bool is_valid() const noexcept</div><div class="ttdef"><b>Definition</b> <a href="private__key_8hpp_source.html#l00071">private_key.hpp:71</a></div></div>
+<div class="ttc" id="aclasssecp256k1_1_1PrivateKey_html_aa9a18feb154fbe27db30db5ecdbff102"><div class="ttname"><a href="classsecp256k1_1_1PrivateKey.html#aa9a18feb154fbe27db30db5ecdbff102">secp256k1::PrivateKey::from_bytes</a></div><div class="ttdeci">static bool from_bytes(const std::array&lt; std::uint8_t, 32 &gt; &amp;bytes, PrivateKey &amp;out) noexcept</div><div class="ttdef"><b>Definition</b> <a href="private__key_8hpp_source.html#l00045">private_key.hpp:45</a></div></div>
+<div class="ttc" id="aclasssecp256k1_1_1PrivateKey_html_aabb24d9968201607d997ac08746605b1"><div class="ttname"><a href="classsecp256k1_1_1PrivateKey.html#aabb24d9968201607d997ac08746605b1">secp256k1::PrivateKey::scalar</a></div><div class="ttdeci">const fast::Scalar &amp; scalar() const noexcept</div><div class="ttdef"><b>Definition</b> <a href="private__key_8hpp_source.html#l00063">private_key.hpp:63</a></div></div>
+<div class="ttc" id="aclasssecp256k1_1_1PrivateKey_html_ab0a2e215d394a394fce0e4f072d862de"><div class="ttname"><a href="classsecp256k1_1_1PrivateKey.html#ab0a2e215d394a394fce0e4f072d862de">secp256k1::PrivateKey::~PrivateKey</a></div><div class="ttdeci">~PrivateKey()</div><div class="ttdef"><b>Definition</b> <a href="private__key_8hpp_source.html#l00079">private_key.hpp:79</a></div></div>
+<div class="ttc" id="aclasssecp256k1_1_1PrivateKey_html_ac70ad75e6de375ea97fa10d39449a9b8"><div class="ttname"><a href="classsecp256k1_1_1PrivateKey.html#ac70ad75e6de375ea97fa10d39449a9b8">secp256k1::PrivateKey::operator=</a></div><div class="ttdeci">PrivateKey &amp; operator=(const PrivateKey &amp;other) noexcept</div><div class="ttdef"><b>Definition</b> <a href="private__key_8hpp_source.html#l00083">private_key.hpp:83</a></div></div>
+<div class="ttc" id="aclasssecp256k1_1_1PrivateKey_html_af3b07cf717bff151fce36c82e5c2424c"><div class="ttname"><a href="classsecp256k1_1_1PrivateKey.html#af3b07cf717bff151fce36c82e5c2424c">secp256k1::PrivateKey::wrap</a></div><div class="ttdeci">static PrivateKey wrap(const fast::Scalar &amp;s) noexcept</div><div class="ttdef"><b>Definition</b> <a href="private__key_8hpp_source.html#l00052">private_key.hpp:52</a></div></div>
+<div class="ttc" id="aclasssecp256k1_1_1PrivateKey_html_affc8904d4e4a0e63b0d645026ab14221"><div class="ttname"><a href="classsecp256k1_1_1PrivateKey.html#affc8904d4e4a0e63b0d645026ab14221">secp256k1::PrivateKey::PrivateKey</a></div><div class="ttdeci">PrivateKey(PrivateKey &amp;&amp;other) noexcept</div><div class="ttdef"><b>Definition</b> <a href="private__key_8hpp_source.html#l00092">private_key.hpp:92</a></div></div>
 <div class="ttc" id="aclasssecp256k1_1_1fast_1_1Scalar_html"><div class="ttname"><a href="classsecp256k1_1_1fast_1_1Scalar.html">secp256k1::fast::Scalar</a></div><div class="ttdef"><b>Definition</b> <a href="scalar_8hpp_source.html#l00014">scalar.hpp:14</a></div></div>
 <div class="ttc" id="aclasssecp256k1_1_1fast_1_1Scalar_html_a0895deacc801a097504db1da8b0d4872"><div class="ttname"><a href="classsecp256k1_1_1fast_1_1Scalar.html#a0895deacc801a097504db1da8b0d4872">secp256k1::fast::Scalar::parse_bytes_strict_nonzero</a></div><div class="ttdeci">static bool parse_bytes_strict_nonzero(const std::uint8_t *bytes32, Scalar &amp;out) noexcept</div></div>
 <div class="ttc" id="aclasssecp256k1_1_1fast_1_1Scalar_html_a14b30457db78ed6df793a75f240fbc61"><div class="ttname"><a href="classsecp256k1_1_1fast_1_1Scalar.html#a14b30457db78ed6df793a75f240fbc61">secp256k1::fast::Scalar::to_bytes</a></div><div class="ttdeci">std::array&lt; std::uint8_t, 32 &gt; to_bytes() const</div></div>
 <div class="ttc" id="aclasssecp256k1_1_1fast_1_1Scalar_html_a2b3d5b020282b431e602d2ad60f099ae"><div class="ttname"><a href="classsecp256k1_1_1fast_1_1Scalar.html#a2b3d5b020282b431e602d2ad60f099ae">secp256k1::fast::Scalar::is_zero</a></div><div class="ttdeci">bool is_zero() const noexcept</div></div>
+<div class="ttc" id="anamespacesecp256k1_1_1detail_html_a5dea1f75154fb440422d13d1356fcaa4"><div class="ttname"><a href="namespacesecp256k1_1_1detail.html#a5dea1f75154fb440422d13d1356fcaa4">secp256k1::detail::secure_erase</a></div><div class="ttdeci">void secure_erase(void *ptr, std::size_t len) noexcept</div><div class="ttdef"><b>Definition</b> <a href="secure__erase_8hpp_source.html#l00030">secure_erase.hpp:30</a></div></div>
 <div class="ttc" id="anamespacesecp256k1_html"><div class="ttname"><a href="namespacesecp256k1.html">secp256k1</a></div><div class="ttdef"><b>Definition</b> <a href="adaptor_8hpp_source.html#l00030">adaptor.hpp:30</a></div></div>
-<div class="ttc" id="anamespacesecp256k1_html_abc87f00cdfb554df7b96ba8b1f0d849a"><div class="ttname"><a href="namespacesecp256k1.html#abc87f00cdfb554df7b96ba8b1f0d849a">secp256k1::operator==</a></div><div class="ttdeci">bool operator==(const PrivateKey &amp;a, const PrivateKey &amp;b) noexcept</div><div class="ttdef"><b>Definition</b> <a href="private__key_8hpp_source.html#l00117">private_key.hpp:117</a></div></div>
+<div class="ttc" id="anamespacesecp256k1_html_abc87f00cdfb554df7b96ba8b1f0d849a"><div class="ttname"><a href="namespacesecp256k1.html#abc87f00cdfb554df7b96ba8b1f0d849a">secp256k1::operator==</a></div><div class="ttdeci">bool operator==(const PrivateKey &amp;a, const PrivateKey &amp;b) noexcept</div><div class="ttdef"><b>Definition</b> <a href="private__key_8hpp_source.html#l00113">private_key.hpp:113</a></div></div>
 <div class="ttc" id="ascalar_8hpp_html"><div class="ttname"><a href="scalar_8hpp.html">scalar.hpp</a></div></div>
+<div class="ttc" id="asecure__erase_8hpp_html"><div class="ttname"><a href="secure__erase_8hpp.html">secure_erase.hpp</a></div></div>
 </div><!-- fragment --></div><!-- contents -->
 </div><!-- doc-content -->
 <!-- start footer part -->

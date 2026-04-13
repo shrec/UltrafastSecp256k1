@@ -1,7 +1,10 @@
 var searchData=
 [
-  ['y_0',['y',['../structsecp256k1_1_1fast_1_1AffinePointCompact.html#a6c5032dff9d90831f93dec5d4cbf0dca',1,'secp256k1::fast::AffinePointCompact::y'],['../structsecp256k1_1_1ct_1_1CTJacobianPoint.html#a4cdbe9fcd0b50aae0c1e03b05d0972c5',1,'secp256k1::ct::CTJacobianPoint::y'],['../structsecp256k1_1_1ct_1_1CTAffinePoint.html#a4f83360cd603b11e36ce2301013b335d',1,'secp256k1::ct::CTAffinePoint::y'],['../structsecp256k1_1_1fast_1_1CombAffinePoint.html#a7b7de3f6e29624bf9902ce11ea876f94',1,'secp256k1::fast::CombAffinePoint::y'],['../structsecp256k1_1_1AffinePointData.html#adb8fb420d9f2ef38222af3b0717165dd',1,'secp256k1::AffinePointData::y'],['../structsecp256k1_1_1JacobianPointData.html#aff2e8c837578b634de6176b1cb8f380a',1,'secp256k1::JacobianPointData::y'],['../classsecp256k1_1_1fast_1_1Point.html#aa1c473d6c48e571884b379ca1859c23c',1,'secp256k1::fast::Point::y() const'],['../classsecp256k1_1_1fast_1_1Point.html#a23d72f82e6f8c91521775536619a58c8',1,'secp256k1::fast::Point::Y() const noexcept']]],
-  ['y_5fraw_1',['y_raw',['../classsecp256k1_1_1fast_1_1Point.html#aad02148b52c03ce59824e7da2048a5e7',1,'secp256k1::fast::Point']]],
-  ['your_20cmake_20project_2',['Use in your CMake project',['../index.html#autotoc_md73',1,'']]],
-  ['your_20sponsorship_20funds_3',['What Your Sponsorship Funds',['../index.html#autotoc_md167',1,'']]]
+  ['z_0',['z',['../structsecp256k1_1_1ct_1_1CTJacobianPoint.html#ab5bd1b695108bb16b3911d909eec6895',1,'secp256k1::ct::CTJacobianPoint::z'],['../structsecp256k1_1_1JacobianPointData.html#a248e89816f0f8d44a8675166423f4d4d',1,'secp256k1::JacobianPointData::z'],['../classsecp256k1_1_1fast_1_1Point.html#aa775c3b7871aa652fb9574c29db6c17d',1,'secp256k1::fast::Point::z()']]],
+  ['z_5fi_1',['z_i',['../structsecp256k1_1_1FrostPartialSig.html#a8ab0e6305322cb97de2a6b80c7121867',1,'secp256k1::FrostPartialSig']]],
+  ['z_5fraw_2',['z_raw',['../classsecp256k1_1_1fast_1_1Point.html#a09476eab751c75b1b7df8624748cb0f1',1,'secp256k1::fast::Point']]],
+  ['zcash_3',['Zcash',['../namespacesecp256k1_1_1coins.html#ae9978405d4dfef91cc06d90518d512d5',1,'secp256k1::coins']]],
+  ['zero_4',['zero',['../classsecp256k1_1_1fast_1_1FieldElement.html#a7def1a58663c0f5caa6339ea1db9c1e3',1,'secp256k1::fast::FieldElement::zero()'],['../structsecp256k1_1_1fast_1_1FieldElement26.html#a8c19a224f4c8d53f97d2845904c60918',1,'secp256k1::fast::FieldElement26::zero()'],['../structsecp256k1_1_1fast_1_1FieldElement52.html#a94767fb04e2c72ac26b9a464d4a81c18',1,'secp256k1::fast::FieldElement52::zero()'],['../classsecp256k1_1_1fast_1_1Scalar.html#a4b9434e5b857b07eb94318d131396dce',1,'secp256k1::fast::Scalar::zero()']]],
+  ['zero_20knowledge_20proofs_20schnorr_20sigma_20dleq_20bulletproofs_5',['Zero-Knowledge Proofs (Schnorr Sigma, DLEQ, Bulletproofs)',['../index.html#autotoc_md90',1,'']]],
+  ['zk_2ehpp_6',['zk.hpp',['../zk_8hpp.html',1,'']]]
 ];
