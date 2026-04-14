@@ -70,6 +70,46 @@ jobs:
       - name: Assurance docs validation (hard-fail)
         run: python3 scripts/validate_assurance.py
 
+      # -----------------------------------------------------------------------
+      # CAAS gates — all four stages run here as a fast preflight guard.
+      # The dedicated caas.yml workflow runs them as separate blocking jobs;
+      # we include them here so a single preflight job also catches regressions.
+      # -----------------------------------------------------------------------
+
+      - name: CAAS Stage 1 — Static Analysis (hard-fail, 0 findings required)
+        run: |
+          python3 scripts/audit_test_quality_scanner.py --json -o caas_scanner.json
+          python3 - <<'EOF'
+          import json, sys
+          with open("caas_scanner.json") as f:
+              report = json.load(f)
+          total = report.get("total_findings", 0)
+          if total > 0:
+              for fnd in report.get("findings", []):
+                  print(f"  [{fnd['severity'].upper()}] {fnd['file']}:{fnd['line']} {fnd['label']}: {fnd['description']}")
+              print(f"FAIL: {total} finding(s) — audit scanner must report 0", file=sys.stderr)
+              sys.exit(1)
+          print(f"PASS: 0 findings")
+          EOF
+
+      - name: CAAS Stage 2 — Audit Gate P0–P18 (hard-fail)
+        run: python3 scripts/audit_gate.py --json -o caas_audit_gate.json
+
+      - name: CAAS Stage 3 — Security Autonomy 100/100 (hard-fail)
+        run: |
+          python3 scripts/security_autonomy_check.py --json -o caas_autonomy.json
+          python3 - <<'EOF'
+          import json, sys
+          with open("caas_autonomy.json") as f:
+              report = json.load(f)
+          score = report.get("autonomy_score", 0)
+          ready = report.get("autonomy_ready", False)
+          if not ready or score < 100:
+              print(f"FAIL: autonomy score {score}/100 (ready={ready})", file=sys.stderr)
+              sys.exit(1)
+          print(f"PASS: {score}/100")
+          EOF
+
       - name: Export assurance report (JSON)
         run: python3 scripts/export_assurance.py -o assurance_report.json
 

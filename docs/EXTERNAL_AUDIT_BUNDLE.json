@@ -3,8 +3,8 @@
     {
       "exists": true,
       "path": "docs/AUDIT_MANIFEST.md",
-      "sha256": "cf2ccd4575eae5901d0e4a380027a8c49b25078517df47df21864acee8da7550",
-      "size": 19053
+      "sha256": "572091d2eabc356c698e20624c86de25338324fe00bc5c552240b62ebd9f261b",
+      "size": 20514
     },
     {
       "exists": true,
@@ -57,7 +57,7 @@
     {
       "exists": true,
       "path": "docs/SECURITY_AUTONOMY_KPI.json",
-      "sha256": "87c8eb18cac9e6b032b7adcb789cc5c37ea370c75a34b03c00f358770ce7e724",
+      "sha256": "4c2e02c8452d7d69242d4f7b9d0a934057c17893d7af9b9748454b2dcaaddc24",
       "size": 1421
     },
     {
@@ -373,7 +373,7 @@
           {
             "findings": [
               {
-                "message": "4 changed files have matching docs",
+                "message": "5 changed files have matching docs",
                 "severity": "PASS"
               }
             ],
@@ -383,11 +383,11 @@
           {
             "findings": [
               {
-                "message": "Mutation report age: 0.1 days (threshold: 14)",
+                "message": "Mutation report age: 0.3 days (threshold: 14)",
                 "severity": "INFO"
               },
               {
-                "message": "Mutation evidence is current (age 0.1d, rate 100.0%)",
+                "message": "Mutation evidence is current (age 0.3d, rate 100.0%)",
                 "severity": "PASS"
               }
             ],
@@ -415,11 +415,11 @@
           "value": {
             "dirty": true,
             "ref": "dev",
-            "sha": "42942943f158b8eca559c6b6f4a78ebde51e2f7c",
-            "short": "42942943f1"
+            "sha": "c23fa1b9763b16ca2e855625d2b2c98388846f8d",
+            "short": "c23fa1b976"
           }
         },
-        "generated_at": "2026-04-14T10:08:48.597965+00:00",
+        "generated_at": "2026-04-14T13:54:04.422953+00:00",
         "platform": "Linux",
         "provenance": {
           "build_flags": {
@@ -436,12 +436,12 @@
             },
             "flags_hash": "b08a96ecab2b5a95"
           },
-          "collected_at": "2026-04-14T10:08:48.597930+00:00",
+          "collected_at": "2026-04-14T13:54:04.422920+00:00",
           "git": {
             "dirty": true,
             "ref": "dev",
-            "sha": "42942943f158b8eca559c6b6f4a78ebde51e2f7c",
-            "short": "42942943f1"
+            "sha": "c23fa1b9763b16ca2e855625d2b2c98388846f8d",
+            "short": "c23fa1b976"
           },
           "platform": {
             "machine": "x86_64",
@@ -462,7 +462,7 @@
           },
           "version": "3.64.0"
         },
-        "run_id": "audit_gate-42942943f1-20260414T100848",
+        "run_id": "audit_gate-c23fa1b976-20260414T135404",
         "runner": "audit_gate",
         "schema_version": "1.0.0",
         "summary": {
@@ -478,7 +478,7 @@
       "required": true,
       "returncode": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_sha256": "cef5eddcc30e0d6e58f7215c0e1c08779f9da77c4c03aa86b2d96e19a854fe25"
+      "stdout_sha256": "83972ee3c4d14ea16d2ab9d2db01ac56caf69713401a146fd6f60b5eeadd9f3f"
     },
     {
       "name": "audit_gap_report_strict",
@@ -778,13 +778,13 @@
         "gates_passing": 8,
         "gates_total": 8,
         "overall_pass": true,
-        "timestamp": "2026-04-14T10:08:49.232405+00:00"
+        "timestamp": "2026-04-14T13:54:05.083670+00:00"
       },
       "passing": true,
       "required": true,
       "returncode": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_sha256": "adf0d14bee5d23791b5fbda7dfe9e82624e43d0542e91733618382d4b145117f"
+      "stdout_sha256": "f313221e1129f0cda28d44ad332b290c8e7d0e749f90f9145fad5cd597f78d1e"
     },
     {
       "name": "supply_chain_gate",
@@ -827,19 +827,19 @@
         "checks_total": 5,
         "failing_checks": [],
         "overall_pass": true,
-        "timestamp": "2026-04-14T10:08:49.327607+00:00"
+        "timestamp": "2026-04-14T13:54:05.176685+00:00"
       },
       "passing": true,
       "required": true,
       "returncode": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_sha256": "86d352ff3399e80baed8891b8f3b87a158633248ab2017c05af0531d00cd15c0"
+      "stdout_sha256": "b744b5edf80c3521161945352a7ad530c8bcd2ff1255c1b776ed63bda91901f2"
     }
   ],
-  "generated_at": "2026-04-14T10:08:49.341087+00:00",
+  "generated_at": "2026-04-14T13:54:05.188712+00:00",
   "git": {
     "branch": "dev",
-    "commit": "42942943f158b8eca559c6b6f4a78ebde51e2f7c",
+    "commit": "c23fa1b9763b16ca2e855625d2b2c98388846f8d",
     "dirty": true
   },
   "repo_root": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1",

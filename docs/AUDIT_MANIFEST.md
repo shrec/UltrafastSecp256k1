@@ -3,7 +3,7 @@
 > **This document defines the mandatory audit principles, invariants, and
 > automated gates that every change to UltrafastSecp256k1 must satisfy.**
 >
-> Version: 2.1 — 2026-04-14
+> Version: 2.2 — 2026-04-14
 
 ---
 
@@ -334,6 +334,25 @@ Checks:
 - Detached bundle digest matches bundle JSON
 - Independent verifier can validate the bundle (and optionally replay commands)
 
+### P20 — Continuous Audit as a Service (CAAS)
+
+> Audit gates must run automatically on every push and pull request.
+> Any regression must be caught before it reaches the repository, not after.
+> Manual audit runs are a supplement — not a substitute — for continuous automation.
+
+**Automated gate:** `caas_runner.py` (local) + `.github/workflows/caas.yml` (CI)
+
+Checks:
+- Stage 1: `audit_test_quality_scanner` — 0 findings required (any finding is an immediate CI failure)
+- Stage 2: `audit_gate.py` — all P0–P18 principles must pass
+- Stage 3: `security_autonomy_check.py` — 100/100 autonomy score required
+- Stage 4: `external_audit_bundle.py` — evidence bundle regenerated and pinned
+- Stage 5: `verify_external_audit_bundle.py` — integrity check on freshly produced bundle
+
+All five stages are **blocking** — a PR cannot be merged if any stage fails.
+
+Local enforcement: install with `python3 scripts/install_caas_hooks.py` (pre-push hook)
+
 ---
 
 ## 3. Severity Levels
@@ -427,7 +446,8 @@ python3 scripts/audit_gate.py --json -o audit_gate_report.json
 
 | Trigger | Required checks |
 |---------|----------------|
-| Before every commit | `audit_gate.py` (full) |
+| Before every commit | `caas_runner.py --skip-bundle` (or pre-push hook) |
+| Every push / PR (automated) | Full CAAS pipeline via `.github/workflows/caas.yml` |
 | During owner-grade assurance review | `audit_gap_report.py` + `audit_gap_report.py --strict` |
 | After parser / ABI hostile-input changes | `--abi-negative-tests --invalid-inputs --audit-test-quality` |
 | After protocol / lifecycle changes | `--stateful-sequences --audit-test-quality` |
@@ -479,6 +499,7 @@ To add a new audit principle:
 | `AUDIT_SLA.json` | Measurable audit SLA/SLO definitions |
 | `SECURITY_AUTONOMY_KPI.json` | Auto-generated autonomy score and gate results |
 | `EXTERNAL_AUDIT_BUNDLE_SPEC.md` | Hash-pinned external auditor evidence format and verification rules |
+| `.github/workflows/caas.yml` | Continuous Audit as a Service — five-stage blocking CI pipeline |
 
 ---
 
@@ -495,3 +516,4 @@ To add a new audit principle:
 | 2026-03-25 | Added `test_gpu_bip352_scan.cpp` (SW-BIP352-1..13) | BIP-352 Silent Payment GPU scan audit coverage |
 | 2026-04-14 | Security Autonomy Program: 10 scripts, 3 spec docs, preflight steps 18-20 | P12-P18 principles added; formal invariants, SLA, supply chain, misuse resistance, evidence governance, incident drills, fuzz campaigns, perf-security co-gating; master orchestrator `security_autonomy_check.py` |
 | 2026-04-14 | Added external-audit bundle producer/validator (`external_audit_bundle.py`, `verify_external_audit_bundle.py`) and spec doc | P19 external-auditor reproducibility principle added; external sign-off can be independently hash-verified and replay-validated |
+| 2026-04-14 | Added CAAS infrastructure: `caas_runner.py`, `install_caas_hooks.py`, `.github/workflows/caas.yml`; added CAAS stages to `preflight.yml` | P20 added — all five audit stages now run automatically on every push and PR; pre-push hook available for local enforcement |

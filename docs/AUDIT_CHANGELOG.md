@@ -7,6 +7,34 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-04-14 (CAAS — Continuous Audit as a Service)
+
+- **Added** `scripts/caas_runner.py` — local unified CAAS runner that executes
+  all five audit stages in sequence (scanner → gate → autonomy → bundle produce
+  → bundle verify). Fail-fast by default; `--no-fail-fast` for full reporting.
+  Supports `--skip-bundle` for fast iteration, `--stage <id>` for single-stage
+  runs, and `--json` output for machine consumption.
+- **Added** `scripts/install_caas_hooks.py` — installs/removes a git pre-push
+  hook that runs `caas_runner.py --skip-bundle` before every push. Hook backs
+  up any existing pre-push hook and can be restored on removal.
+- **Added** `.github/workflows/caas.yml` — five-job blocking CI workflow. Each
+  stage is a separate GitHub Actions job with its own status check. All five
+  must pass for a PR to merge. Bundle artifact uploaded for every successful run
+  (90-day retention). Runs on every push and PR to `dev`/`main`.
+- **Updated** `.github/workflows/preflight.yml` — added three CAAS stages
+  (scanner, audit gate, security autonomy) as hard-fail steps alongside the
+  existing preflight checks. Preflight now also enforces CAAS gates in a single
+  flat job for fast feedback.
+- **Updated** `docs/AUDIT_MANIFEST.md` to v2.2 with P20
+  (Continuous Audit as a Service) principle. P20 establishes that all audit
+  gates run automatically on every push/PR, any regression is caught before
+  reaching the repository, and manual audit runs supplement (not substitute)
+  continuous automation.
+- **Updated** `scripts/test_audit_scripts.py` — registered `caas_runner.py`
+  and `install_caas_hooks.py` in `AUDIT_SCRIPTS` and `HELPABLE_SCRIPTS`.
+
+---
+
 ## 2026-04-14 (Security Autonomy Program — infrastructure foundations)
 
 - **Added** `scripts/external_audit_bundle.py` — fail-closed producer for

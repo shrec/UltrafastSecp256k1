@@ -1,0 +1,398 @@
+# ===========================================================================
+# Continuous Audit as a Service (CAAS) — GitHub Actions Workflow
+# ===========================================================================
+#
+# Runs the full audit pipeline on every push and pull request to dev/main.
+# All five stages must pass. Any failure blocks merge.
+#
+# Stages:
+#   1. Static Analysis   — audit_test_quality_scanner (0 findings required)
+#   2. Audit Gate        — audit_gate.py  (P0–P18, exit 0 required)
+#   3. Security Autonomy — security_autonomy_check.py (100/100 required)
+#   4. Bundle Produce    — external_audit_bundle.py (reproducible evidence)
+#   5. Bundle Verify     — verify_external_audit_bundle.py (integrity check)
+#
+# Artifacts:
+#   - caas-report         : JSON summary of all five stages
+#   - audit-bundle        : EXTERNAL_AUDIT_BUNDLE.json + sha256 manifest
+#
+# On PR:  each stage becomes a required status check named "CAAS / <stage>"
+# On push to dev: uploads bundle artifact; bundle drift = workflow failure
+# ===========================================================================
+
+name: CAAS
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+  # Allow manual trigger to regenerate the evidence bundle on demand
+  workflow_dispatch:
+    inputs:
+      skip_bundle:
+        description: 'Skip bundle produce/verify (faster, advisory only)'
+        required: false
+        default: 'false'
+        type: choice
+        options: ['false', 'true']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: caas-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # =========================================================================
+  # Stage 1 — Static Analysis
+  # Zero findings required: any finding is a blocking failure.
+  # =========================================================================
+  scanner:
+    name: CAAS / Static Analysis
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: '3.12'
+
+      - name: Run audit test quality scanner
+        id: scanner
+        run: |
+          python3 scripts/audit_test_quality_scanner.py --json -o caas_scanner.json
+          echo "Exit code: $?"
+          python3 - <<'EOF'
+          import json, sys
+          with open("caas_scanner.json") as f:
+              report = json.load(f)
+          total = report.get("total_findings", 0)
+          print(f"Total findings: {total}")
+          if total > 0:
+              for finding in report.get("findings", []):
+                  print(f"  [{finding['severity'].upper()}] {finding['file']}:{finding['line']} — {finding['label']}: {finding['description']}")
+              print("::error::Audit scanner found findings — must be zero to pass CAAS")
+              sys.exit(1)
+          print("::notice::Audit scanner: 0 findings — PASS")
+          EOF
+
+      - name: Upload scanner report
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: caas-scanner-report-${{ github.run_id }}
+          path: caas_scanner.json
+          retention-days: 30
+
+      - name: Step summary
+        if: always()
+        run: |
+          echo "## CAAS Stage 1 — Static Analysis" >> $GITHUB_STEP_SUMMARY
+          echo '```json' >> $GITHUB_STEP_SUMMARY
+          cat caas_scanner.json 2>/dev/null || echo '{}'
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+  # =========================================================================
+  # Stage 2 — Audit Gate (P0–P18)
+  # =========================================================================
+  audit_gate:
+    name: CAAS / Audit Gate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    needs: [scanner]
+
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: '3.12'
+
+      - name: Build project graph (required by audit_gate.py)
+        run: python3 scripts/build_project_graph.py --rebuild
+
+      - name: Build source graph
+        run: python3 tools/source_graph_kit/source_graph.py build -i
+
+      - name: Run audit gate
+        run: |
+          python3 scripts/audit_gate.py --json -o caas_audit_gate.json
+          EXIT=$?
+          python3 - <<'EOF'
+          import json, sys
+          try:
+              with open("caas_audit_gate.json") as f:
+                  report = json.load(f)
+          except Exception:
+              print("::error::audit_gate.py produced no JSON — treating as FAIL")
+              sys.exit(1)
+          fails = [c for c in report.get("checks", []) if c.get("result") == "FAIL"]
+          if fails:
+              for c in fails:
+                  print(f"::error::FAIL [{c.get('principle','?')}] {c.get('check','?')}: {c.get('message','')}")
+          warns = [c for c in report.get("checks", []) if c.get("result") == "WARN"]
+          for w in warns:
+              print(f"::warning::WARN [{w.get('principle','?')}] {w.get('check','?')}: {w.get('message','')}")
+          passed = report.get("overall_pass", False) or len(fails) == 0
+          if not passed:
+              print(f"::error::Audit gate FAIL — {len(fails)} principle violation(s)")
+              sys.exit(1)
+          print(f"::notice::Audit gate PASS — {len(warns)} warning(s)")
+          EOF
+
+      - name: Upload audit gate report
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: caas-audit-gate-report-${{ github.run_id }}
+          path: caas_audit_gate.json
+          retention-days: 30
+
+      - name: Step summary
+        if: always()
+        run: |
+          echo "## CAAS Stage 2 — Audit Gate (P0–P18)" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          python3 scripts/audit_gate.py 2>&1 | tail -40 || true
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+  # =========================================================================
+  # Stage 3 — Security Autonomy (100/100 required)
+  # =========================================================================
+  security_autonomy:
+    name: CAAS / Security Autonomy
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    needs: [audit_gate]
+
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: '3.12'
+
+      - name: Build project graph
+        run: python3 scripts/build_project_graph.py --rebuild
+
+      - name: Build source graph
+        run: python3 tools/source_graph_kit/source_graph.py build -i
+
+      - name: Run security autonomy check
+        run: |
+          python3 scripts/security_autonomy_check.py --json -o caas_autonomy.json
+          python3 - <<'EOF'
+          import json, sys
+          try:
+              with open("caas_autonomy.json") as f:
+                  report = json.load(f)
+          except Exception:
+              print("::error::security_autonomy_check.py produced no JSON")
+              sys.exit(1)
+          score = report.get("autonomy_score", 0)
+          ready = report.get("autonomy_ready", False)
+          print(f"Autonomy score: {score}/100  ready={ready}")
+          failing_gates = [g for g in report.get("gates", []) if not g.get("passing")]
+          for g in failing_gates:
+              print(f"::error::Gate FAIL [{g.get('gate','?')}]: {g.get('detail','')}")
+          if not ready or score < 100:
+              print(f"::error::Security autonomy score {score}/100 — must be 100/100")
+              sys.exit(1)
+          print(f"::notice::Security autonomy PASS — {score}/100")
+          EOF
+
+      - name: Upload autonomy report
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: caas-autonomy-report-${{ github.run_id }}
+          path: caas_autonomy.json
+          retention-days: 30
+
+      - name: Step summary
+        if: always()
+        run: |
+          echo "## CAAS Stage 3 — Security Autonomy" >> $GITHUB_STEP_SUMMARY
+          echo '```json' >> $GITHUB_STEP_SUMMARY
+          cat caas_autonomy.json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(f\"score={d.get('autonomy_score',0)}/100  ready={d.get('autonomy_ready',False)}\")" || true
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+  # =========================================================================
+  # Stage 4+5 — Bundle Produce + Verify
+  # Produces the cryptographically pinned evidence artifact and verifies it.
+  # =========================================================================
+  bundle:
+    name: CAAS / Audit Bundle
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    needs: [security_autonomy]
+    if: >-
+      always() &&
+      needs.security_autonomy.result == 'success' &&
+      github.event.inputs.skip_bundle != 'true'
+
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: '3.12'
+
+      - name: Build project graph
+        run: python3 scripts/build_project_graph.py --rebuild
+
+      - name: Build source graph
+        run: python3 tools/source_graph_kit/source_graph.py build -i
+
+      - name: Produce audit bundle (Stage 4)
+        run: |
+          python3 scripts/external_audit_bundle.py
+          echo "Bundle produced at docs/EXTERNAL_AUDIT_BUNDLE.json"
+          python3 -c "
+          import json
+          with open('docs/EXTERNAL_AUDIT_BUNDLE.json') as f:
+              b = json.load(f)
+          print(f\"  commit:  {b.get('metadata',{}).get('git_commit','?')}\")
+          print(f\"  dirty:   {b.get('metadata',{}).get('git_dirty','?')}\")
+          print(f\"  files:   {len(b.get('evidence_hashes',{}))}\")
+          print(f\"  gates:   {list(b.get('gate_results',{}).keys())}\")
+          "
+
+      - name: Verify audit bundle (Stage 5)
+        run: |
+          python3 scripts/verify_external_audit_bundle.py --json -o caas_bundle_verify.json
+          python3 - <<'EOF'
+          import json, sys
+          try:
+              with open("caas_bundle_verify.json") as f:
+                  report = json.load(f)
+          except Exception:
+              print("::error::verify_external_audit_bundle.py produced no JSON")
+              sys.exit(1)
+          passed = report.get("overall_pass", False)
+          checks = report.get("checks", [])
+          for c in checks:
+              if not c.get("passed"):
+                  print(f"::error::Bundle check FAIL [{c.get('check','?')}]: {c.get('detail','')}")
+          if not passed:
+              print("::error::Audit bundle integrity check FAILED")
+              sys.exit(1)
+          print("::notice::Audit bundle PASS — all integrity checks verified")
+          EOF
+
+      - name: Upload audit bundle artifacts
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: caas-audit-bundle-${{ github.run_id }}
+          path: |
+            docs/EXTERNAL_AUDIT_BUNDLE.json
+            docs/EXTERNAL_AUDIT_BUNDLE.sha256
+            caas_bundle_verify.json
+          retention-days: 90
+
+      - name: Step summary
+        if: always()
+        run: |
+          echo "## CAAS Stage 4+5 — Audit Bundle" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          python3 scripts/verify_external_audit_bundle.py 2>&1 | tail -20 || true
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+  # =========================================================================
+  # Full CAAS report — summary job (runs after all stages)
+  # =========================================================================
+  caas_report:
+    name: CAAS / Report
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    needs: [scanner, audit_gate, security_autonomy, bundle]
+    if: always()
+
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
+        with:
+          egress-policy: audit
+
+      - name: Evaluate overall CAAS result
+        run: |
+          python3 - <<'EOF'
+          import sys, os
+
+          results = {
+              "scanner":           "${{ needs.scanner.result }}",
+              "audit_gate":        "${{ needs.audit_gate.result }}",
+              "security_autonomy": "${{ needs.security_autonomy.result }}",
+              "bundle":            "${{ needs.bundle.result }}",
+          }
+
+          print("## CAAS Pipeline Results")
+          all_pass = True
+          for stage, result in results.items():
+              icon = "✓" if result == "success" else ("○" if result == "skipped" else "✗")
+              print(f"  {icon} {stage}: {result}")
+              if result not in ("success", "skipped"):
+                  all_pass = False
+
+          if all_pass:
+              print()
+              print("ALL CAAS STAGES PASSED")
+              print("This commit meets the full audit gate requirements.")
+          else:
+              failed = [s for s, r in results.items() if r not in ("success", "skipped")]
+              print()
+              print(f"CAAS FAILED — stages failed: {', '.join(failed)}")
+              print("Fix all failing stages before merging.")
+              sys.exit(1)
+          EOF
+
+      - name: Final step summary
+        if: always()
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY <<'EOF'
+          ## CAAS — Continuous Audit as a Service
+
+          | Stage | Result |
+          |-------|--------|
+          | Static Analysis | ${{ needs.scanner.result }} |
+          | Audit Gate (P0–P18) | ${{ needs.audit_gate.result }} |
+          | Security Autonomy (100/100) | ${{ needs.security_autonomy.result }} |
+          | Audit Bundle | ${{ needs.bundle.result }} |
+
+          > "ლოუ პრიორიტი ჩვენთან არ არსებობს" — Every finding is a violation.
+          EOF
