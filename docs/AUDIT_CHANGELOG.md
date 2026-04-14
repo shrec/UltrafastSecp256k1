@@ -7,6 +7,169 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-04-14 (Security Autonomy Program — infrastructure foundations)
+
+- **Added** `docs/SECURITY_AUTONOMY_PLAN.md` — 30-day execution plan for full
+  security autonomy with concrete KPIs and weekly milestones.
+- **Added** `docs/FORMAL_INVARIANTS_SPEC.json` — formal invariant specifications
+  for 7 critical operations (ecdsa_sign/verify, schnorr_sign/verify, ecdh,
+  bip32_derive, scalar_inverse) with preconditions, postconditions, algebraic
+  identities, boundary conditions, and CT requirement flags.
+- **Added** `docs/AUDIT_SLA.json` — measurable SLA/SLO definitions: max stale
+  evidence age (30d), max unresolved HIGH window (7d), CI flake budget (≤2%),
+  critical evidence freshness (14d), exploit-to-regression max (48h).
+- **Added** `scripts/risk_surface_coverage.py` — risk-class coverage matrix
+  measuring 7 classes (ct_paths, parser_boundary, abi_boundary, gpu_parity,
+  secret_lifecycle, determinism, fuzz_corpus) with fail-closed thresholds.
+- **Added** `scripts/audit_sla_check.py` — SLA/SLO compliance gate checking
+  evidence staleness, freshness, and determinism golden reference.
+- **Added** `scripts/check_formal_invariants.py` — formal invariant spec
+  completeness checker (prove-or-block gate).
+- **Added** `scripts/supply_chain_gate.py` — supply-chain fail-closed gate
+  (build pinning, reproducible build, SLSA provenance, artifact hash, hardening).
+- **Added** `scripts/perf_security_cogate.py` — performance-security co-gating
+  that blocks optimizations if CT/determinism/secret-lifecycle regresses.
+- **Added** `scripts/check_misuse_resistance.py` — hostile-caller coverage gate
+  requiring ≥3 negative tests per ufsecp_* ABI function.
+- **Added** `scripts/evidence_governance.py` — tamper-resistant evidence chain
+  with HMAC-verified records (who/what/when/commit/binary_hash/verdict).
+- **Added** `scripts/incident_drills.py` — automated incident drill simulations
+  (key compromise, CI poisoning, dependency compromise).
+- **Added** `scripts/fuzz_campaign_manager.py` — fuzz infrastructure upgrade
+  (seed replay, crash triage, corpus minimization, crash-to-regression pipeline).
+- **Added** `scripts/security_autonomy_check.py` — master orchestrator running
+  all 8 security gates with weighted scoring (autonomy_score 0-100).
+- **Integrated** new autonomy gates into `scripts/preflight.py` as informational
+  steps [18/20], [19/20], [20/20].
+- **Initial autonomy score**: 65/100 (5/8 gates passing). Three gaps to close:
+  audit_sla (missing DETERMINISM_GOLDEN.json), supply_chain (release hash policy),
+  misuse_resistance (ABI negative test density).
+
+## 2026-04-13 (Adaptor signature parity validation)
+
+- **Fixed** `cpu/src/adaptor.cpp` `schnorr_adaptor_verify()` — reconstructed
+  `R = R^ + T_adj` now rejects odd-Y points before deriving the BIP-340
+  challenge. Previously the verifier accepted malformed pre-signatures where
+  the algebraic equation held but the final adapted signature was invalid due
+  to wrong `R.y` parity. Severity: **High** (DoS on adaptor-based atomic swaps,
+  payment channels, and scriptless-script flows).
+
+- **Regression coverage**: `audit/test_exploit_adaptor_parity.cpp` now serves
+  as the targeted guard against parity-flip pre-signatures that lie about
+  `needs_negation`.
+
+## 2026-04-14 (Hot-path allocation debt reduction: FROST + multiscalar)
+
+- **Optimized** `cpu/src/frost.cpp` signing/verification/aggregation paths:
+  removed temporary `binding_factors` heap vectors in `frost_sign`,
+  `frost_verify_partial`, and `frost_aggregate` by computing binding factors
+  inline while building group commitment. Behavior is unchanged; allocation
+  pressure on these hot paths is reduced.
+
+- **Optimized** `cpu/src/multiscalar.cpp` FE52 affine-table conversion:
+  removed temporary `z_vals` heap vector in Montgomery batch inversion and
+  reused table Z reads during prefix/backward passes. Behavior is unchanged;
+  one per-call heap vector allocation was eliminated from `multi_scalar_mul`.
+
+- **Regression coverage**: `audit/test_exploit_frost_signing.cpp` expanded to
+  validate both signers' honest partial signatures and reject mismatched
+  signer-commitment pairing in `frost_verify_partial`.
+
+- **Follow-up optimization**: removed additional FROST hot-path heap pressure
+  by eliminating temporary signer-ID vectors from `frost_sign`,
+  `frost_verify_partial`, and `frost_aggregate`. Participant-ID uniqueness and
+  Lagrange coefficient derivation now use allocation-free commitment traversal.
+  Plus `frost_keygen_finalize` now validates commitment/share sender uniqueness
+  in-place (no temporary `seen_*` vectors). Hot-path allocation scanner delta
+  for `cpu/src/frost.cpp`: **13 -> 2** findings.
+
+- **Preflight hardening**: `scripts/preflight.py` now includes
+  `--ctest-registry` (also in `--all`) to detect stale CTest entries that
+  reference missing executables without matching build targets. This prevents
+  recurring "Not Run / executable not found" surprises from stale build trees.
+
+- **Audit-of-audit bug fix**: `scripts/test_audit_scripts.py`
+  `check_preflight_step_count()` no longer hardcodes `[1/14]..[14/14]`.
+  It now validates contiguous dynamic `[i/N]` markers, preventing false
+  failures whenever preflight adds/removes checks.
+
+- **Audit-of-audit coverage expansion**: `scripts/test_audit_scripts.py`
+  now smoke-tests `preflight.py --ctest-registry`, so the new registry-health
+  mode is continuously exercised by the Python audit self-test suite.
+
+- **Audit-of-audit classification guard**: `scripts/test_audit_scripts.py`
+  now uses a synthetic fixture build-tree to verify
+  `check_ctest_registry_health()` keeps distinguishing `UNBUILT-TEST`
+  (target exists, executable missing) from `STALE-CTEST`
+  (no executable and no matching build target). Launcher-style commands are
+  explicitly ignored in the regression test.
+
+- **Audit verdict fail-closed hardening**: `scripts/audit_verdict.py` now
+  fails when no platform produces any usable `audit_report.json` artifact at
+  all, even if every missing platform is marked `cancelled`/`skipped`. This
+  prevents CI from reporting a false PASS when aggregate audit evidence is
+  completely absent. `scripts/test_audit_scripts.py` now covers both the
+  non-fatal cancelled-platform case and the all-missing no-evidence failure.
+
+- **Residual hot-path debt closure**: `cpu/src/batch_verify.cpp` now reuses
+  thread-local scratch for Schnorr pubkey caches and ECDSA batch-inversion
+  products, and `cpu/src/field.cpp` now reuses thread-local scratch for large
+  field batch inversions. This removes repeated heap construction on these
+  steady-state public-data hot paths after initial capacity growth.
+
+- **Scanner truthfulness update**: `scripts/hot_path_alloc_scanner.py` now
+  treats `identify_invalid` diagnostic helpers and FROST
+  `keygen_begin`/`keygen_finalize` DKG setup paths as non-hot for allocation
+  reporting. This keeps the HIGH hot-path backlog focused on steady-state
+  throughput-sensitive code instead of setup/error-path wrappers.
+
+- **Second-pass allocation cleanup**: `cpu/src/multiscalar.cpp` and
+  `cpu/src/musig2.cpp` now reuse thread-local scratch for per-call working
+  arenas instead of reconstructing vectors on each hot invocation, while
+  `cpu/src/scalar.cpp` now builds NAF/wNAF digits in fixed-size stack arrays
+  before emitting the final return vector. This removes repeated growth-driven
+  heap work from the main loops while preserving existing public APIs.
+
+- **Scanner one-time/benchmark awareness**: `scripts/hot_path_alloc_scanner.py`
+  now scans farther backward for static one-time initializer context and skips
+  vector-return findings in benchmark/example helper files and GPU marshalling
+  surfaces, preventing false HIGH findings from static table builders and
+  non-library measurement helpers.
+
+- **Scanner quality self-test added**: `scripts/test_audit_scripts.py` now
+  includes `QUALITY:hot_path_alloc_scanner`, a synthetic fixture test that
+  verifies three invariants together: one-time static initializer allocations
+  are not flagged as hot-path debt, benchmark/GPU helper vector-return patterns
+  stay exempt, and a real CPU hot-path `HEAP_VEC` case is still detected.
+
+- **API contract gate introduced**: added machine-readable
+  `docs/API_SECURITY_CONTRACTS.json` plus
+  `scripts/check_api_contracts.py` fail-closed validation. The gate enforces
+  schema correctness for critical `ufsecp_*` contracts, validates linked
+  docs/tests, and blocks when sensitive API/security files change without
+  updating the contract manifest.
+
+- **Preflight integration**: `scripts/preflight.py` now includes
+  `[11/16] API Security Contracts` (CLI: `--api-contracts`) so contract drift
+  is enforced in `--all` runs.
+
+- **Audit-of-audit coverage**: `scripts/test_audit_scripts.py` now includes
+  `SMOKE:api_contracts` to verify checker stability (`--json` output schema,
+  non-empty contract entries, and zero unexpected contract issues).
+
+- **Determinism gate introduced**: added fail-closed
+  `scripts/check_determinism_gate.py` to lock deterministic behavior of core
+  API surfaces using fixed vectors (ECDSA repeat-sign, ECDH symmetry/repeat,
+  BIP-32 repeat path derivation). Any drift now yields a blocking failure.
+
+- **Preflight integration**: `scripts/preflight.py` now includes
+  `[12/17] Determinism Gate` (CLI: `--determinism`) so deterministic behavior
+  checks run automatically in `--all`.
+
+- **Audit-of-audit coverage expansion**:
+  `scripts/test_audit_scripts.py` now includes `SMOKE:determinism_gate` to
+  validate checker JSON schema and pass/fail semantics against locked vectors.
+
 ## 2026-04-11 (Dual-prover formal verification: Z3 SMT + Lean 4)
 
 - **Added** Lean 4 formal proof suite (`audit/formal/lean/`): 19 machine-checked

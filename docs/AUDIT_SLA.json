@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "description": "Audit infrastructure SLA/SLO definitions for UltrafastSecp256k1",
+  "created": "2026-04-14",
+  "slos": {
+    "max_stale_evidence_days": {
+      "description": "Maximum age in days for any critical evidence artifact before it is considered stale",
+      "threshold": 30,
+      "severity": "blocking",
+      "measurement": "max(now - evidence_timestamp) across all critical evidence files"
+    },
+    "max_unresolved_high_finding_days": {
+      "description": "Maximum number of days a HIGH-severity finding may remain unresolved",
+      "threshold": 7,
+      "severity": "blocking",
+      "measurement": "max(now - finding_created) for findings with severity >= HIGH and status != resolved"
+    },
+    "ci_flake_budget_percent": {
+      "description": "Maximum percentage of CI runs that may flake (non-deterministic failure) over a 30-day window",
+      "threshold": 2.0,
+      "severity": "warning",
+      "measurement": "count(flaky_runs) / count(total_runs) * 100 over 30 days"
+    },
+    "critical_evidence_freshness_days": {
+      "description": "Maximum age in days for critical-path evidence (CT, determinism, fuzz, ABI negative)",
+      "threshold": 14,
+      "severity": "blocking",
+      "measurement": "max(now - timestamp) for evidence tagged critical"
+    },
+    "gate_pass_rate_percent": {
+      "description": "Minimum percentage of preflight gate runs that pass over a 30-day window",
+      "threshold": 95.0,
+      "severity": "warning",
+      "measurement": "count(passing_runs) / count(total_runs) * 100 over 30 days"
+    },
+    "exploit_to_regression_max_hours": {
+      "description": "Maximum hours between crash/exploit discovery and permanent regression test creation",
+      "threshold": 48,
+      "severity": "blocking",
+      "measurement": "max(regression_created - crash_discovered) in hours"
+    },
+    "determinism_golden_staleness_days": {
+      "description": "Maximum age of determinism golden reference before re-verification required",
+      "threshold": 30,
+      "severity": "blocking",
+      "measurement": "now - last_verified_timestamp for DETERMINISM_GOLDEN.json"
+    }
+  },
+  "release_policy": {
+    "description": "Release readiness requires zero active blocking SLO violations",
+    "rule": "any blocking SLO violation -> release_ready = false"
+  }
+}

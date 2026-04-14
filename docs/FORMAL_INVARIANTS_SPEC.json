@@ -1,0 +1,237 @@
+{
+  "version": 1,
+  "description": "Formal invariant specifications for critical cryptographic operations — prove-or-block",
+  "created": "2026-04-14",
+  "policy": "Every critical operation must have: ≥1 algebraic identity verified, ≥1 boundary test, CT flag if applicable, linked test IDs. No untested critical operation permitted.",
+  "operations": {
+    "ecdsa_sign": {
+      "critical": true,
+      "ct_required": true,
+      "preconditions": [
+        "0 < secret_key < n (secp256k1 group order)",
+        "message_hash is exactly 32 bytes",
+        "nonce k is derived deterministically via RFC 6979"
+      ],
+      "postconditions": [
+        "signature (r, s) where 0 < r < n and 0 < s < n",
+        "s is in low-S form: s <= n/2",
+        "ecdsa_verify(message, signature, pubkey(secret_key)) == true"
+      ],
+      "algebraic_identities": [
+        "sign(msg, sk) produces identical output for identical inputs (determinism)",
+        "verify(msg, sign(msg, sk), pubkey(sk)) == true (round-trip)",
+        "sign(msg, sk).s <= n/2 (low-S normalization)"
+      ],
+      "boundary_conditions": [
+        "sk = 1 (minimum valid secret key)",
+        "sk = n-1 (maximum valid secret key)",
+        "msg = 0x00..00 (all-zero hash)",
+        "msg = 0xff..ff (all-ones hash)",
+        "sk = 0 → must reject",
+        "sk = n → must reject",
+        "sk > n → must reject"
+      ],
+      "linked_tests": [
+        "test_ecdsa_determinism",
+        "test_ecdsa_sign_verify",
+        "test_rfc6979_vectors",
+        "test_nonce_determinism",
+        "test_exploit_ecdsa_malleability",
+        "test_low_s_normalization"
+      ],
+      "formal_status": "tested_dynamic"
+    },
+    "ecdsa_verify": {
+      "critical": true,
+      "ct_required": false,
+      "preconditions": [
+        "message_hash is exactly 32 bytes",
+        "signature (r, s) where 0 < r < n and 0 < s < n",
+        "public_key is a valid point on secp256k1"
+      ],
+      "postconditions": [
+        "returns true iff signature is valid for message under pubkey",
+        "rejects high-S signatures when strict mode enabled",
+        "rejects signature with r=0 or s=0"
+      ],
+      "algebraic_identities": [
+        "verify(msg, sign(msg, sk), pubkey(sk)) == true for all valid sk",
+        "verify(msg, (r, n-s), pk) may differ from verify(msg, (r, s), pk) under strict low-S",
+        "verify(msg_a, sig_b, pk) == false when msg_a != msg_b (with overwhelming probability)"
+      ],
+      "boundary_conditions": [
+        "r = 0 → must reject",
+        "s = 0 → must reject",
+        "r = n → must reject",
+        "s = n → must reject",
+        "pubkey = point-at-infinity → must reject",
+        "Wycheproof edge vectors (tcId 346 class)"
+      ],
+      "linked_tests": [
+        "test_ecdsa_verify_edge",
+        "test_wycheproof_ecdsa",
+        "test_cross_libsecp256k1",
+        "test_exploit_ecdsa_malleability"
+      ],
+      "formal_status": "tested_dynamic"
+    },
+    "schnorr_sign": {
+      "critical": true,
+      "ct_required": true,
+      "preconditions": [
+        "0 < secret_key < n",
+        "message is exactly 32 bytes",
+        "aux_rand is exactly 32 bytes (BIP-340 tagged hash nonce)"
+      ],
+      "postconditions": [
+        "signature is 64 bytes (r_x || s)",
+        "schnorr_verify(message, signature, pubkey_xonly(sk)) == true"
+      ],
+      "algebraic_identities": [
+        "verify(msg, sign(msg, sk, aux), xonly_pubkey(sk)) == true",
+        "sign(msg, sk, aux) deterministic for same inputs"
+      ],
+      "boundary_conditions": [
+        "sk = 1 (minimum valid)",
+        "sk = n-1 (maximum valid)",
+        "sk with odd Y coordinate → key negation must occur",
+        "aux = 0x00..00",
+        "aux = 0xff..ff"
+      ],
+      "linked_tests": [
+        "test_schnorr_bip340",
+        "test_schnorr_sign_verify",
+        "fuzz_schnorr",
+        "test_ct_verif_formal",
+        "test_ct_sidechannel"
+      ],
+      "formal_status": "tested_dynamic"
+    },
+    "schnorr_verify": {
+      "critical": true,
+      "ct_required": false,
+      "preconditions": [
+        "message is exactly 32 bytes",
+        "signature is exactly 64 bytes",
+        "pubkey is a valid x-only 32-byte encoding"
+      ],
+      "postconditions": [
+        "returns true iff BIP-340 verification equation holds"
+      ],
+      "algebraic_identities": [
+        "verify(msg, sign(msg, sk, aux), xonly(sk)) == true for valid sk",
+        "verify(msg_a, sig_b, pk) == false when msg_a != msg_b"
+      ],
+      "boundary_conditions": [
+        "invalid x-coordinate (no valid Y) → must reject",
+        "all BIP-340 test vectors from BIP document"
+      ],
+      "linked_tests": [
+        "test_schnorr_bip340",
+        "test_bip340_vectors",
+        "fuzz_schnorr"
+      ],
+      "formal_status": "tested_dynamic"
+    },
+    "ecdh": {
+      "critical": true,
+      "ct_required": true,
+      "preconditions": [
+        "0 < secret_key < n",
+        "public_key is valid point on secp256k1, not infinity"
+      ],
+      "postconditions": [
+        "returns 32-byte shared secret",
+        "ecdh(sk_a, pk_b) == ecdh(sk_b, pk_a) (commutativity/symmetry)"
+      ],
+      "algebraic_identities": [
+        "ecdh(a, pubkey(b)) == ecdh(b, pubkey(a)) (Diffie-Hellman symmetry)",
+        "ecdh(sk, pk) deterministic for same inputs"
+      ],
+      "boundary_conditions": [
+        "sk = 1, pk = G",
+        "sk = n-1, pk = G",
+        "pk = identity → must reject"
+      ],
+      "linked_tests": [
+        "test_ecdh_determinism",
+        "test_exploit_ecdh",
+        "test_exploit_ecdh_variants",
+        "test_ct_verif_formal",
+        "test_ct_sidechannel"
+      ],
+      "formal_status": "tested_dynamic"
+    },
+    "bip32_derive": {
+      "critical": true,
+      "ct_required": true,
+      "preconditions": [
+        "master seed is 16-64 bytes",
+        "derivation path follows BIP-32 syntax (m/i/j'/...)",
+        "child index: 0 ≤ i < 2^31 for normal, 2^31 ≤ i < 2^32 for hardened"
+      ],
+      "postconditions": [
+        "derived key is valid secp256k1 secret key (0 < k < n)",
+        "chain code is exactly 32 bytes",
+        "matches BIP-32 reference vectors"
+      ],
+      "algebraic_identities": [
+        "derive(seed, path) deterministic for same inputs",
+        "derive(seed, 'm/0') != derive(seed, 'm/1') (with overwhelming probability)",
+        "derive(seed, 'm/0h') != derive(seed, 'm/0') (hardened vs normal)"
+      ],
+      "boundary_conditions": [
+        "seed = 16 bytes (minimum BIP-32 length)",
+        "seed = 64 bytes (maximum BIP-32 length)",
+        "path = 'm' (master only, no derivation)",
+        "hardened child resulting in invalid key (must retry with next index)"
+      ],
+      "linked_tests": [
+        "test_bip32_vectors",
+        "test_bip32_determinism",
+        "fuzz_bip32_path"
+      ],
+      "formal_status": "tested_dynamic"
+    },
+    "scalar_inverse": {
+      "critical": true,
+      "ct_required": true,
+      "preconditions": [
+        "input scalar s where 0 ≤ s < n"
+      ],
+      "postconditions": [
+        "if s = 0: return 0 (defense-in-depth)",
+        "if s ≠ 0: return s^(-1) mod n such that s * s^(-1) ≡ 1 (mod n)"
+      ],
+      "algebraic_identities": [
+        "inverse(s) * s ≡ 1 (mod n) for s ≠ 0",
+        "inverse(inverse(s)) == s for s ≠ 0",
+        "inverse(1) == 1"
+      ],
+      "boundary_conditions": [
+        "s = 0 → returns 0",
+        "s = 1 → returns 1",
+        "s = n-1 → returns n-1",
+        "s = n → equivalent to 0 after reduction"
+      ],
+      "linked_tests": [
+        "test_scalar_inverse",
+        "test_field_audit",
+        "test_exploit_boundary_sentinels",
+        "test_ct_verif_formal",
+        "audit_ct"
+      ],
+      "formal_status": "tested_dynamic"
+    }
+  },
+  "coverage_summary": {
+    "total_operations": 7,
+    "all_have_algebraic_identity": true,
+    "all_have_boundary_tests": true,
+    "all_have_linked_tests": true,
+    "ct_required_operations": 5,
+    "ct_tested_operations": 5,
+    "formal_proof_operations": 0,
+    "note": "All operations have dynamic testing with algebraic identity verification. SMT/Lean formal proofs are a future enhancement target."
+  }
+}
