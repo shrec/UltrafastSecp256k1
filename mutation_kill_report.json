@@ -1,0 +1,97 @@
+{
+  "timestamp": "2026-04-14T07:20:52Z",
+  "total": 5,
+  "killed": 1,
+  "survived": 0,
+  "build_errors": 4,
+  "timeouts": 0,
+  "kill_rate_pct": 100.0,
+  "threshold_pct": 75.0,
+  "passed": true,
+  "baseline_build_ok": true,
+  "baseline_test_ok": true,
+  "baseline_note": "baseline build + quick suite passed",
+  "targets": [
+    "cpu/src/field.cpp",
+    "cpu/src/scalar.cpp",
+    "cpu/src/point.cpp",
+    "cpu/src/ecdsa.cpp",
+    "cpu/src/schnorr.cpp",
+    "cpu/src/ct_sign.cpp",
+    "cpu/src/recovery.cpp"
+  ],
+  "test_commands": [
+    "./cpu/test_comprehensive_standalone",
+    "./audit/test_fiat_crypto_vectors",
+    "./audit/test_cross_platform_kat",
+    "./audit/test_differential_standalone",
+    "./audit/test_ct_equivalence_standalone",
+    "./audit/test_ct_verif_formal_standalone",
+    "./audit/test_parse_strictness_standalone",
+    "./audit/test_nonce_uniqueness_standalone",
+    "./audit/test_exploit_ecdsa_edge_cases_standalone",
+    "./audit/test_exploit_schnorr_edge_cases_standalone"
+  ],
+  "mutations": [
+    {
+      "mutation_id": 1,
+      "file": "cpu/src/field.cpp",
+      "line": 2399,
+      "col": 44,
+      "op_name": "AOR_sub_to_add",
+      "category": "AOR",
+      "original_token": "-",
+      "mutated_token": "+",
+      "outcome": "killed",
+      "elapsed_s": 20.31
+    },
+    {
+      "mutation_id": 2,
+      "file": "cpu/src/scalar.cpp",
+      "line": 636,
+      "col": 76,
+      "op_name": "BIT_and_to_or",
+      "category": "BIT",
+      "original_token": "&",
+      "mutated_token": "|",
+      "outcome": "build_error",
+      "elapsed_s": 1.82
+    },
+    {
+      "mutation_id": 3,
+      "file": "cpu/src/point.cpp",
+      "line": 936,
+      "col": 32,
+      "op_name": "AOR_add_to_sub",
+      "category": "AOR",
+      "original_token": "+",
+      "mutated_token": "-",
+      "outcome": "build_error",
+      "elapsed_s": 0.54
+    },
+    {
+      "mutation_id": 4,
+      "file": "cpu/src/point.cpp",
+      "line": 2544,
+      "col": 34,
+      "op_name": "AOR_div_to_mul",
+      "category": "AOR",
+      "original_token": "/",
+      "mutated_token": "*",
+      "outcome": "build_error",
+      "elapsed_s": 0.33
+    },
+    {
+      "mutation_id": 5,
+      "file": "cpu/src/scalar.cpp",
+      "line": 636,
+      "col": 35,
+      "op_name": "BIT_and_to_or",
+      "category": "BIT",
+      "original_token": "&",
+      "mutated_token": "|",
+      "outcome": "build_error",
+      "elapsed_s": 3.16
+    }
+  ]
+}
