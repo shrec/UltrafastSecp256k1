@@ -103,14 +103,20 @@ python3 scripts/bug_capsule_gen.py --list schemas/bug_capsules/
 
 # Security autonomy gate orchestrator
 python3 scripts/security_autonomy_check.py --json
+
+# Build and verify an external-audit reproducibility bundle
+python3 scripts/external_audit_bundle.py
+python3 scripts/verify_external_audit_bundle.py --json
+python3 scripts/verify_external_audit_bundle.py --replay-commands --json
 ```
 
 ## Further reading
 
 - [AUDIT_GUIDE.md](AUDIT_GUIDE.md) — Full audit methodology and scope
 - [AUDIT_SCOPE.md](AUDIT_SCOPE.md) — Attack surface enumeration
-- [AUDIT_MANIFEST.md](AUDIT_MANIFEST.md) — 10 audit principles
+- [AUDIT_MANIFEST.md](AUDIT_MANIFEST.md) — 19 audit principles
 - [TEST_MATRIX.md](TEST_MATRIX.md) — Complete test inventory
 - [FEATURE_ASSURANCE_LEDGER.md](FEATURE_ASSURANCE_LEDGER.md) — ABI function coverage
 - [LAYER_ROUTING_MATRIX.md](LAYER_ROUTING_MATRIX.md) — CT/FAST layer routing rationale
 - [SECURITY_AUTONOMY_PLAN.md](SECURITY_AUTONOMY_PLAN.md) — Security autonomy framework & gates
+- [EXTERNAL_AUDIT_BUNDLE_SPEC.md](EXTERNAL_AUDIT_BUNDLE_SPEC.md) — Hash-pinned external-audit bundle format and verification

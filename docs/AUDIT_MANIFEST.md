@@ -3,7 +3,7 @@
 > **This document defines the mandatory audit principles, invariants, and
 > automated gates that every change to UltrafastSecp256k1 must satisfy.**
 >
-> Version: 2.0 — 2026-04-14
+> Version: 2.1 — 2026-04-14
 
 ---
 
@@ -321,6 +321,19 @@ Checks:
 - Secret lifecycle doc is present
 - No undocumented GPU parity stubs
 
+### P19 — External Auditor Reproducibility Bundle
+
+> External auditors must be able to verify repository claims from immutable,
+> hash-pinned evidence rather than maintainer narrative.
+
+**Automated gate:** `external_audit_bundle.py` + `verify_external_audit_bundle.py`
+
+Checks:
+- Critical gate outputs are captured with command-output hashes
+- Required evidence files are present and SHA-256 pinned in bundle
+- Detached bundle digest matches bundle JSON
+- Independent verifier can validate the bundle (and optionally replay commands)
+
 ---
 
 ## 3. Severity Levels
@@ -353,6 +366,7 @@ Checks:
 - Audit SLA warnings (P14) — tracked until evidence refreshed
 - Evidence governance warnings (P16) — tracked until chain repaired
 - Perf-security co-gating warnings (P18) — informational unless regression detected
+- External-audit bundle verification failures (P19) — blocking for external audit sign-off
 
 ---
 
@@ -393,6 +407,9 @@ python3 scripts/supply_chain_gate.py --json
 python3 scripts/evidence_governance.py validate --json
 python3 scripts/check_misuse_resistance.py --json
 python3 scripts/perf_security_cogate.py --json
+python3 scripts/external_audit_bundle.py
+python3 scripts/verify_external_audit_bundle.py --json
+python3 scripts/verify_external_audit_bundle.py --replay-commands --json
 
 # Master orchestrator (runs all P12–P18 gates)
 python3 scripts/security_autonomy_check.py
@@ -424,6 +441,7 @@ python3 scripts/audit_gate.py --json -o audit_gate_report.json
 | After supply-chain or dependency changes | `supply_chain_gate.py --json` |
 | After evidence chain changes | `evidence_governance.py validate --json` |
 | After adding/removing ABI functions (misuse) | `check_misuse_resistance.py --json` |
+| Before handing repository to external auditors | `external_audit_bundle.py` + `verify_external_audit_bundle.py --replay-commands --json` |
 | Periodic security autonomy check | `security_autonomy_check.py` |
 | Before release | Full gate + `export_assurance.py` + `validate_assurance.py` + `security_autonomy_check.py` |
 
@@ -460,6 +478,7 @@ To add a new audit principle:
 | `FORMAL_INVARIANTS_SPEC.json` | Machine-readable formal invariant specifications |
 | `AUDIT_SLA.json` | Measurable audit SLA/SLO definitions |
 | `SECURITY_AUTONOMY_KPI.json` | Auto-generated autonomy score and gate results |
+| `EXTERNAL_AUDIT_BUNDLE_SPEC.md` | Hash-pinned external auditor evidence format and verification rules |
 
 ---
 
@@ -475,3 +494,4 @@ To add a new audit principle:
 | 2026-03-23 | Fixed preflight missing `ufsecp_gpu.h` scan | ABI drift detection was incomplete |
 | 2026-03-25 | Added `test_gpu_bip352_scan.cpp` (SW-BIP352-1..13) | BIP-352 Silent Payment GPU scan audit coverage |
 | 2026-04-14 | Security Autonomy Program: 10 scripts, 3 spec docs, preflight steps 18-20 | P12-P18 principles added; formal invariants, SLA, supply chain, misuse resistance, evidence governance, incident drills, fuzz campaigns, perf-security co-gating; master orchestrator `security_autonomy_check.py` |
+| 2026-04-14 | Added external-audit bundle producer/validator (`external_audit_bundle.py`, `verify_external_audit_bundle.py`) and spec doc | P19 external-auditor reproducibility principle added; external sign-off can be independently hash-verified and replay-validated |

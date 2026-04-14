@@ -31,6 +31,8 @@ LIB_ROOT = SCRIPT_DIR.parent
 
 # All audit-relevant Python scripts (relative to scripts/)
 AUDIT_SCRIPTS = [
+    "external_audit_bundle.py",
+    "verify_external_audit_bundle.py",
     "audit_ai_findings.py",
     "audit_gap_report.py",
     "audit_gate.py",
@@ -70,6 +72,8 @@ AUDIT_SCRIPTS = [
 
 # Scripts that have --help / -h support
 HELPABLE_SCRIPTS = [
+    "external_audit_bundle.py",
+    "verify_external_audit_bundle.py",
     "audit_verdict.py",
     "dev_bug_scanner.py",
     "export_assurance.py",

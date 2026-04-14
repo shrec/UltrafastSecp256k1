@@ -9,6 +9,17 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ## 2026-04-14 (Security Autonomy Program — infrastructure foundations)
 
+- **Added** `scripts/external_audit_bundle.py` — fail-closed producer for
+  external-audit evidence bundle with pinned SHA-256 hashes, commit metadata,
+  critical gate outputs, and detached bundle digest.
+- **Added** `scripts/verify_external_audit_bundle.py` — independent verifier
+  for bundle digest, evidence hashes, commit consistency, and optional command
+  replay hash-matching.
+- **Added** `docs/EXTERNAL_AUDIT_BUNDLE_SPEC.md` — formal format and
+  verification contract for external auditors.
+- **Updated** `docs/AUDIT_MANIFEST.md` to v2.1 with P19
+  (External Auditor Reproducibility Bundle) and explicit external sign-off flow.
+
 - **Added** `docs/SECURITY_AUTONOMY_PLAN.md` — 30-day execution plan for full
   security autonomy with concrete KPIs and weekly milestones.
 - **Added** `docs/FORMAL_INVARIANTS_SPEC.json` — formal invariant specifications

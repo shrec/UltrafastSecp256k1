@@ -1,0 +1,857 @@
+{
+  "evidence": [
+    {
+      "exists": true,
+      "path": "docs/AUDIT_MANIFEST.md",
+      "sha256": "cf2ccd4575eae5901d0e4a380027a8c49b25078517df47df21864acee8da7550",
+      "size": 19053
+    },
+    {
+      "exists": true,
+      "path": "docs/SELF_AUDIT_FAILURE_MATRIX.md",
+      "sha256": "a417f105d7b23401cb790310fdcdfffcf281f908c8ed028ffe74cff9bfe9a38f",
+      "size": 8379
+    },
+    {
+      "exists": true,
+      "path": "docs/AUDIT_SLA.json",
+      "sha256": "c0c69dbda96ed80e554ad1ce6a8d25480eb0e26e52ff382234fd50bc77adbe04",
+      "size": 2332
+    },
+    {
+      "exists": true,
+      "path": "docs/FORMAL_INVARIANTS_SPEC.json",
+      "sha256": "e22edabb50423302337476af149ccaf38652ef647eba2a8e0623a5eaf95f4592",
+      "size": 8213
+    },
+    {
+      "exists": true,
+      "path": "docs/FEATURE_ASSURANCE_LEDGER.md",
+      "sha256": "84fd0aba371730f5aa07ea01f43daa04dcc642d743a82d5fe5a89aa507b01154",
+      "size": 41226
+    },
+    {
+      "exists": true,
+      "path": "docs/TEST_MATRIX.md",
+      "sha256": "1ae6b02ffc7472f6e3ae0d69e4c5ab0f7328f4f986d037487b95e01617e95f4c",
+      "size": 44634
+    },
+    {
+      "exists": true,
+      "path": "docs/CT_VERIFICATION.md",
+      "sha256": "490e767177ad3836ced95e60125218ceaa661eeb3b137d0ff2592fd81a25988c",
+      "size": 22672
+    },
+    {
+      "exists": true,
+      "path": "docs/FFI_HOSTILE_CALLER.md",
+      "sha256": "4334cae6873d9c8c29450417dfa184506c62233fd0b45578b45a4bab98104a1c",
+      "size": 10195
+    },
+    {
+      "exists": true,
+      "path": "docs/BACKEND_ASSURANCE_MATRIX.md",
+      "sha256": "ddd553f0031f0d4670a3c17ae0db3977a7bdf4a49c1029eddb2578032a6d4acf",
+      "size": 10420
+    },
+    {
+      "exists": true,
+      "path": "docs/SECURITY_AUTONOMY_KPI.json",
+      "sha256": "87c8eb18cac9e6b032b7adcb789cc5c37ea370c75a34b03c00f358770ce7e724",
+      "size": 1421
+    },
+    {
+      "exists": true,
+      "path": "mutation_kill_report.json",
+      "sha256": "92512763a0acfcfeccc31e99c0331430ec0d1de8d214e4d6d327a3877a39ece0",
+      "size": 2429
+    }
+  ],
+  "gate_results": [
+    {
+      "name": "audit_gate",
+      "parsed_json": {
+        "checks": [
+          {
+            "findings": [
+              {
+                "message": "Failure-class matrix counts: covered=14, partial=0, deferred=1, unknown=0",
+                "severity": "INFO"
+              },
+              {
+                "message": "Failure-class matrix is structurally valid and clear of owner-grade residual blockers",
+                "severity": "PASS"
+              }
+            ],
+            "name": "P0: Failure-Class Matrix",
+            "status": "PASS"
+          },
+          {
+            "findings": [
+              {
+                "message": "ABI negative-test manifest counts: exports=178, blocking=0, null=178, zero=163, invalid=173, smoke=178",
+                "severity": "INFO"
+              },
+              {
+                "message": "All exported ABI functions satisfy the hostile-caller coverage quartet",
+                "severity": "PASS"
+              }
+            ],
+            "name": "P0: ABI Hostile-Caller Manifest",
+            "status": "PASS"
+          },
+          {
+            "findings": [
+              {
+                "message": "Invalid-input grammar counts: cases=37, passed=37, failed=0",
+                "severity": "INFO"
+              },
+              {
+                "message": "Structured invalid inputs correctly rejected (37 cases)",
+                "severity": "PASS"
+              }
+            ],
+            "name": "P0: Invalid-Input Grammar",
+            "status": "PASS"
+          },
+          {
+            "findings": [
+              {
+                "message": "Stateful sequence counts: passed=121, failed=0, count=24",
+                "severity": "INFO"
+              },
+              {
+                "message": "Stateful sequence harness passed (121 checks)",
+                "severity": "PASS"
+              }
+            ],
+            "name": "P0: Stateful Sequence Integrity",
+            "status": "PASS"
+          },
+          {
+            "findings": [
+              {
+                "message": "No changed secret-bearing paths detected",
+                "severity": "PASS"
+              }
+            ],
+            "name": "P0: Secret-Path Change Gate",
+            "status": "PASS"
+          },
+          {
+            "findings": [
+              {
+                "message": "All 181 header functions in graph and ledger",
+                "severity": "PASS"
+              }
+            ],
+            "name": "P1: ABI Completeness",
+            "status": "PASS"
+          },
+          {
+            "findings": [
+              {
+                "message": "All 181 ABI functions have test coverage",
+                "severity": "PASS"
+              }
+            ],
+            "name": "P2: Test Coverage",
+            "status": "PASS"
+          },
+          {
+            "findings": [
+              {
+                "message": "Audit test-quality findings: files=264, critical=0, high=0, medium=0, low=0",
+                "severity": "INFO"
+              },
+              {
+                "message": "Audit test quality is clear of critical/high findings",
+                "severity": "PASS"
+              }
+            ],
+            "name": "P2: Audit Test Quality",
+            "status": "PASS"
+          },
+          {
+            "findings": [
+              {
+                "message": "All 508 security patterns preserved",
+                "severity": "PASS"
+              }
+            ],
+            "name": "P3: Security Patterns",
+            "status": "PASS"
+          },
+          {
+            "findings": [
+              {
+                "message": "All 44 CT-routed functions documented",
+                "severity": "PASS"
+              }
+            ],
+            "name": "P4: CT Integrity",
+            "status": "PASS"
+          },
+          {
+            "findings": [
+              {
+                "message": "No stale narrative detected",
+                "severity": "PASS"
+              }
+            ],
+            "name": "P5: Narrative Consistency",
+            "status": "PASS"
+          },
+          {
+            "findings": [
+              {
+                "message": "4 files modified/deleted since graph build (2026-04-14T03:25:26)",
+                "severity": "WARN"
+              },
+              {
+                "message": "MODIFIED: cpu/src/batch_verify.cpp",
+                "severity": "INFO"
+              },
+              {
+                "message": "MODIFIED: cpu/src/field.cpp",
+                "severity": "INFO"
+              },
+              {
+                "message": "MODIFIED: cpu/src/point.cpp",
+                "severity": "INFO"
+              },
+              {
+                "message": "MODIFIED: cpu/src/scalar.cpp",
+                "severity": "INFO"
+              }
+            ],
+            "name": "P6: Graph Freshness",
+            "status": "PASS"
+          },
+          {
+            "findings": [
+              {
+                "message": "GPU parity OK (26 GPU ABI functions)",
+                "severity": "PASS"
+              }
+            ],
+            "name": "P7: GPU Parity",
+            "status": "PASS"
+          },
+          {
+            "findings": [
+              {
+                "message": "All 296 CTest targets documented",
+                "severity": "PASS"
+              }
+            ],
+            "name": "P8: Test Documentation",
+            "status": "PASS"
+          },
+          {
+            "findings": [
+              {
+                "message": "ABI routing consistent (44 CT functions)",
+                "severity": "PASS"
+              },
+              {
+                "message": "ufsecp_seckey_negate routed CT but calls Scalar::negate",
+                "severity": "INFO"
+              },
+              {
+                "message": "ufsecp_seckey_tweak_add routed CT but calls ct scalar add + validate",
+                "severity": "INFO"
+              },
+              {
+                "message": "ufsecp_seckey_tweak_mul routed CT but calls ct scalar mul + validate",
+                "severity": "INFO"
+              },
+              {
+                "message": "ufsecp_pubkey_xonly routed CT but calls schnorr_pubkey(sk)",
+                "severity": "INFO"
+              },
+              {
+                "message": "ufsecp_schnorr_keypair routed CT but calls generate_schnorr_keypair(sk)",
+                "severity": "INFO"
+              },
+              {
+                "message": "ufsecp_bip32_master routed CT but calls HMAC-SHA512(seed)",
+                "severity": "INFO"
+              },
+              {
+                "message": "ufsecp_bip32_derive routed CT but calls CKD_priv or CKD_pub",
+                "severity": "INFO"
+              },
+              {
+                "message": "ufsecp_bip32_derive_path routed CT but calls multi-level CKD",
+                "severity": "INFO"
+              },
+              {
+                "message": "ufsecp_bip32_privkey routed CT but calls ExtendedKey::privkey()",
+                "severity": "INFO"
+              },
+              {
+                "message": "ufsecp_taproot_tweak_seckey routed CT but calls taproot_tweak_seckey(sk, merkle)",
+                "severity": "INFO"
+              },
+              {
+                "message": "ufsecp_bip39_generate routed CT but calls bip39_generate(strength)",
+                "severity": "INFO"
+              },
+              {
+                "message": "ufsecp_bip39_to_seed routed CT but calls PBKDF2-SHA512(mnemonic, passphrase)",
+                "severity": "INFO"
+              },
+              {
+                "message": "ufsecp_musig2_nonce_gen routed CT but calls musig2_nonce_gen(sk)",
+                "severity": "INFO"
+              },
+              {
+                "message": "ufsecp_musig2_start_sign_session routed CT but calls musig2_session_init",
+                "severity": "INFO"
+              },
+              {
+                "message": "ufsecp_frost_keygen_begin routed CT but calls frost_keygen_begin",
+                "severity": "INFO"
+              },
+              {
+                "message": "ufsecp_frost_sign_nonce_gen routed CT but calls frost_sign_nonce_gen",
+                "severity": "INFO"
+              },
+              {
+                "message": "ufsecp_schnorr_adaptor_adapt routed CT but calls adaptor_adapt(pre_sig, secret)",
+                "severity": "INFO"
+              },
+              {
+                "message": "ufsecp_ecdsa_adaptor_adapt routed CT but calls ecdsa_adaptor_adapt",
+                "severity": "INFO"
+              },
+              {
+                "message": "ufsecp_pedersen_blind_sum routed CT but calls blind factor sum",
+                "severity": "INFO"
+              },
+              {
+                "message": "ufsecp_zk_range_proof_create routed CT but calls create_range_proof",
+                "severity": "INFO"
+              },
+              {
+                "message": "ufsecp_zk_knowledge_prove routed CT but calls prove_knowledge(sk)",
+                "severity": "INFO"
+              },
+              {
+                "message": "ufsecp_zk_dleq_prove routed CT but calls dleq_prove(sk)",
+                "severity": "INFO"
+              },
+              {
+                "message": "ufsecp_coin_hd_derive routed CT but calls coin_hd_derive(coin, xprv, path)",
+                "severity": "INFO"
+              },
+              {
+                "message": "ufsecp_btc_message_sign routed CT but calls btc_message_sign(msg, sk)",
+                "severity": "INFO"
+              },
+              {
+                "message": "ufsecp_silent_payment_create_output routed CT but calls silent_payment_create_output",
+                "severity": "INFO"
+              },
+              {
+                "message": "ufsecp_silent_payment_scan routed CT but calls silent_payment_scan",
+                "severity": "INFO"
+              },
+              {
+                "message": "ufsecp_ecies_encrypt routed CT but calls ecies_encrypt(pubkey, msg)",
+                "severity": "INFO"
+              },
+              {
+                "message": "ufsecp_ecies_decrypt routed CT but calls ecies_decrypt(sk, ciphertext)",
+                "severity": "INFO"
+              }
+            ],
+            "name": "P9: Routing Consistency",
+            "status": "PASS"
+          },
+          {
+            "findings": [
+              {
+                "message": "4 changed files have matching docs",
+                "severity": "PASS"
+              }
+            ],
+            "name": "P10: Doc-Code Pairing",
+            "status": "PASS"
+          },
+          {
+            "findings": [
+              {
+                "message": "Mutation report age: 0.1 days (threshold: 14)",
+                "severity": "INFO"
+              },
+              {
+                "message": "Mutation evidence is current (age 0.1d, rate 100.0%)",
+                "severity": "PASS"
+              }
+            ],
+            "name": "P2: Mutation Evidence Freshness",
+            "status": "PASS"
+          },
+          {
+            "findings": [
+              {
+                "message": "Total crash risks: 0 ()",
+                "severity": "INFO"
+              },
+              {
+                "message": "No crash risks in CT-sensitive code (0 total, none in CT paths)",
+                "severity": "PASS"
+              }
+            ],
+            "name": "P3: Crash Risks",
+            "status": "PASS"
+          }
+        ],
+        "commit": {
+          "reason": null,
+          "status": "available",
+          "value": {
+            "dirty": true,
+            "ref": "dev",
+            "sha": "42942943f158b8eca559c6b6f4a78ebde51e2f7c",
+            "short": "42942943f1"
+          }
+        },
+        "generated_at": "2026-04-14T10:08:48.597965+00:00",
+        "platform": "Linux",
+        "provenance": {
+          "build_flags": {
+            "available": true,
+            "build_dir": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/build",
+            "flags": {
+              "CMAKE_BUILD_TYPE": "Release",
+              "CMAKE_CXX_COMPILER": "/usr/bin/c++",
+              "CMAKE_CXX_FLAGS": "",
+              "CMAKE_CXX_FLAGS_RELEASE": "-O3 -DNDEBUG",
+              "CMAKE_C_COMPILER": "/usr/bin/cc",
+              "CMAKE_C_FLAGS": "",
+              "CMAKE_C_FLAGS_RELEASE": "-O3 -DNDEBUG"
+            },
+            "flags_hash": "b08a96ecab2b5a95"
+          },
+          "collected_at": "2026-04-14T10:08:48.597930+00:00",
+          "git": {
+            "dirty": true,
+            "ref": "dev",
+            "sha": "42942943f158b8eca559c6b6f4a78ebde51e2f7c",
+            "short": "42942943f1"
+          },
+          "platform": {
+            "machine": "x86_64",
+            "python": "3.12.3",
+            "release": "6.8.0-107-generic",
+            "system": "Linux"
+          },
+          "submodules": null,
+          "toolchain": {
+            "c++": "c++ (Ubuntu 14.2.0-4ubuntu2~24.04.1) 14.2.0",
+            "cc": "cc (Ubuntu 14.2.0-4ubuntu2~24.04.1) 14.2.0",
+            "clang": "clang version 17.0.0 (https://github.com/swiftlang/llvm-project.git 8f0d2ca924db37c8f8161d55c21b9097b05b72f3)",
+            "clang++": "clang version 17.0.0 (https://github.com/swiftlang/llvm-project.git 8f0d2ca924db37c8f8161d55c21b9097b05b72f3)",
+            "cmake": "cmake version 3.28.3",
+            "g++": "g++ (Ubuntu 14.2.0-4ubuntu2~24.04.1) 14.2.0",
+            "gcc": "gcc (Ubuntu 14.2.0-4ubuntu2~24.04.1) 14.2.0",
+            "ninja": "1.11.1"
+          },
+          "version": "3.64.0"
+        },
+        "run_id": "audit_gate-42942943f1-20260414T100848",
+        "runner": "audit_gate",
+        "schema_version": "1.0.0",
+        "summary": {
+          "advisory": 40,
+          "blocking": 0,
+          "sections": 18,
+          "skipped_sections": 0,
+          "total_findings": 57
+        },
+        "verdict": "PASS with advisory"
+      },
+      "passing": true,
+      "required": true,
+      "returncode": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_sha256": "cef5eddcc30e0d6e58f7215c0e1c08779f9da77c4c03aa86b2d96e19a854fe25"
+    },
+    {
+      "name": "audit_gap_report_strict",
+      "parsed_json": {
+        "counts": {
+          "covered": 14,
+          "deferred": 1,
+          "partial": 0,
+          "unknown": 0
+        },
+        "issues": [],
+        "matrix_path": "docs/SELF_AUDIT_FAILURE_MATRIX.md",
+        "rows": [
+          {
+            "failure_class": "Arithmetic correctness",
+            "issues": [],
+            "missing_surfaces": [],
+            "residual_risk": "Keep traceability current when new arithmetic backends or representations land",
+            "resolved_surfaces": [
+              "AUDIT_COVERAGE.md",
+              "audit/audit_field.cpp",
+              "audit/audit_point.cpp",
+              "audit/audit_scalar.cpp",
+              "docs/AUDIT_TRACEABILITY.md"
+            ],
+            "status": "covered"
+          },
+          {
+            "failure_class": "Serialization and parser boundaries",
+            "issues": [],
+            "missing_surfaces": [],
+            "residual_risk": "Expand edge-case catalogs whenever new public parsers or envelope formats are added",
+            "resolved_surfaces": [
+              "audit/test_adversarial_protocol.cpp",
+              "audit/test_fuzz_address_bip32_ffi.cpp",
+              "audit/test_fuzz_parsers.cpp",
+              "docs/AUDIT_SCOPE.md",
+              "scripts/audit_gate.py",
+              "scripts/invalid_input_grammar.py"
+            ],
+            "status": "covered"
+          },
+          {
+            "failure_class": "Constant-time regressions",
+            "issues": [],
+            "missing_surfaces": [],
+            "residual_risk": "Formal/no-secret-branch and no-secret-memory guarantees still retain manual/formal-tool residual risk; keep the CT route table and deterministic CT evidence current when secret-bearing ABI surfaces change",
+            "resolved_surfaces": [
+              "audit/test_ct_sidechannel.cpp",
+              "docs/AUDIT_MANIFEST.md",
+              "docs/AUDIT_TRACEABILITY.md",
+              "docs/CT_VERIFICATION.md"
+            ],
+            "status": "covered"
+          },
+          {
+            "failure_class": "Protocol misuse and transcript binding",
+            "issues": [],
+            "missing_surfaces": [],
+            "residual_risk": "New protocol features must add misuse tests before claims are upgraded",
+            "resolved_surfaces": [
+              "audit/test_adversarial_protocol.cpp",
+              "audit/test_musig2_frost_advanced.cpp",
+              "docs/AI_REVIEW_EVENTS.json",
+              "docs/AUDIT_TRACEABILITY.md",
+              "scripts/audit_gate.py",
+              "scripts/stateful_sequences.py"
+            ],
+            "status": "covered"
+          },
+          {
+            "failure_class": "ABI misuse and hostile-caller behavior",
+            "issues": [],
+            "missing_surfaces": [],
+            "residual_risk": "Hostile-caller quartet is currently closed for the exported ABI; keep the manifest, invalid-input grammar, and stateful misuse evidence current when new exports land",
+            "resolved_surfaces": [
+              "audit/test_adversarial_protocol.cpp",
+              "audit/test_gpu_abi_gate.cpp",
+              "audit/test_gpu_host_api_negative.cpp",
+              "docs/FFI_HOSTILE_CALLER.md",
+              "scripts/audit_gate.py"
+            ],
+            "status": "covered"
+          },
+          {
+            "failure_class": "GPU host/runtime misuse",
+            "issues": [],
+            "missing_surfaces": [],
+            "residual_risk": "Real-device backend diversity still depends on available hardware, especially future ROCm/HIP evidence",
+            "resolved_surfaces": [
+              "audit/test_gpu_backend_matrix.cpp",
+              "audit/test_gpu_host_api_negative.cpp",
+              "audit/test_gpu_ops_equivalence.cpp",
+              "docs/BACKEND_ASSURANCE_MATRIX.md",
+              "docs/GPU_VALIDATION_MATRIX.md"
+            ],
+            "status": "covered"
+          },
+          {
+            "failure_class": "Documentation drift and public overclaim risk",
+            "issues": [],
+            "missing_surfaces": [],
+            "residual_risk": "More subsystem docs still need the same claim-ID and stale-drift discipline as top-level docs",
+            "resolved_surfaces": [
+              "docs/AI_REVIEW_EVENTS.json",
+              "docs/ASSURANCE_CLAIMS.json",
+              "docs/ASSURANCE_LEDGER.md",
+              "scripts/preflight.py",
+              "scripts/validate_assurance.py"
+            ],
+            "status": "covered"
+          },
+          {
+            "failure_class": "Audit harness quality and evidence drift",
+            "issues": [],
+            "missing_surfaces": [],
+            "residual_risk": "Mutation kill remains the heavier batch lane; keep its report cadence current when touching core arithmetic or audit harnesses",
+            "resolved_surfaces": [
+              "audit/test_mutation_kill_rate.cpp",
+              "scripts/audit_gate.py",
+              "scripts/audit_test_quality_scanner.py",
+              "scripts/mutation_kill_rate.py"
+            ],
+            "status": "covered"
+          },
+          {
+            "failure_class": "Benchmark methodology and publishability drift",
+            "issues": [],
+            "missing_surfaces": [],
+            "residual_risk": "GPU reproducibility and artifact retention should keep expanding alongside backend docs",
+            "resolved_surfaces": [
+              "docs/BENCHMARK_POLICY.md",
+              "docs/GPU_BACKEND_EVIDENCE.json",
+              "docs/PERFORMANCE_REGRESSION.md",
+              "scripts/preflight.py"
+            ],
+            "status": "covered"
+          },
+          {
+            "failure_class": "Graph/index blind spots",
+            "issues": [],
+            "missing_surfaces": [],
+            "residual_risk": "Any new path class missing from the graph remains an assurance gap until indexed; library audit scripts and harnesses must stay visible in both the library-local graph and the workspace root graph",
+            "resolved_surfaces": [
+              "docs/AUDIT_MANIFEST.md",
+              "docs/PROJECT_GRAPH_REASONING.md",
+              "scripts/validate_assurance.py",
+              "tools/source_graph_kit/source_graph.py"
+            ],
+            "status": "covered"
+          },
+          {
+            "failure_class": "Supply-chain / workflow drift",
+            "issues": [],
+            "missing_surfaces": [],
+            "residual_risk": "GitHub-native services and some platform-specific integrations still sit outside pure local reproduction, but the repository-maintained local parity and workflow inventory provide deterministic owner-grade coverage for drift in tracked surfaces",
+            "resolved_surfaces": [
+              "AUDIT_COVERAGE.md",
+              "docs/CI_ENFORCEMENT.md",
+              "docs/LOCAL_CI.md",
+              "scripts/evidence_governance.py",
+              "scripts/supply_chain_gate.py"
+            ],
+            "status": "covered"
+          },
+          {
+            "failure_class": "Optional backend expansion (ROCm/HIP real hardware)",
+            "issues": [],
+            "missing_surfaces": [],
+            "residual_risk": "Non-blocking for current audit validity; promote only when AMD hardware-backed evidence exists",
+            "resolved_surfaces": [
+              "docs/BACKEND_ASSURANCE_MATRIX.md",
+              "docs/BENCHMARK_POLICY.md",
+              "docs/GPU_BACKEND_EVIDENCE.json",
+              "docs/GPU_VALIDATION_MATRIX.md"
+            ],
+            "status": "deferred"
+          },
+          {
+            "failure_class": "Formal invariant compliance",
+            "issues": [],
+            "missing_surfaces": [],
+            "residual_risk": "Automated via `check_formal_invariants.py`; 7 critical operations with preconditions, postconditions, and CT linkage validated",
+            "resolved_surfaces": [
+              "docs/CRYPTO_INVARIANTS.md",
+              "docs/FORMAL_INVARIANTS_SPEC.json",
+              "docs/INVARIANTS.md",
+              "scripts/check_formal_invariants.py"
+            ],
+            "status": "covered"
+          },
+          {
+            "failure_class": "Audit SLA / evidence staleness",
+            "issues": [],
+            "missing_surfaces": [],
+            "residual_risk": "SLA enforcement infra complete; `DETERMINISM_GOLDEN.json` generated and validated; `audit_sla_check.py` returns `release_ready: True`; `check_determinism_gate.py` returns `overall_pass: True",
+            "resolved_surfaces": [
+              "docs/AUDIT_SLA.json",
+              "docs/DETERMINISM_GOLDEN.json",
+              "docs/SECURITY_AUTONOMY_KPI.json",
+              "scripts/audit_sla_check.py"
+            ],
+            "status": "covered"
+          },
+          {
+            "failure_class": "Incident response readiness",
+            "issues": [],
+            "missing_surfaces": [],
+            "residual_risk": "Three automated drills (key compromise, CI poisoning, dependency compromise) run as preflight step 20/20",
+            "resolved_surfaces": [
+              "docs/INCIDENT_RESPONSE.md",
+              "scripts/incident_drills.py"
+            ],
+            "status": "covered"
+          }
+        ],
+        "strict_mode": true,
+        "total_rows": 15
+      },
+      "passing": true,
+      "required": true,
+      "returncode": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_sha256": "66e1a6ccec3bcf5c1af0c63311a44358588490a85e186421e6fe6c959373ed41"
+    },
+    {
+      "name": "security_autonomy_check",
+      "parsed_json": {
+        "autonomy_ready": true,
+        "autonomy_score": 100,
+        "gates": [
+          {
+            "gate": "formal_invariants",
+            "passing": true,
+            "returncode": 0,
+            "score": 15,
+            "status": "ran",
+            "weight": 15
+          },
+          {
+            "gate": "risk_surface_coverage",
+            "passing": true,
+            "returncode": 0,
+            "score": 15,
+            "status": "ran",
+            "weight": 15
+          },
+          {
+            "gate": "audit_sla",
+            "passing": true,
+            "returncode": 0,
+            "score": 10,
+            "status": "ran",
+            "weight": 10
+          },
+          {
+            "gate": "supply_chain",
+            "passing": true,
+            "returncode": 0,
+            "score": 15,
+            "status": "ran",
+            "weight": 15
+          },
+          {
+            "gate": "perf_security_cogate",
+            "passing": true,
+            "returncode": 0,
+            "score": 10,
+            "status": "ran",
+            "weight": 10
+          },
+          {
+            "gate": "misuse_resistance",
+            "passing": true,
+            "returncode": 0,
+            "score": 10,
+            "status": "ran",
+            "weight": 10
+          },
+          {
+            "gate": "evidence_governance",
+            "passing": true,
+            "returncode": 0,
+            "score": 15,
+            "status": "ran",
+            "weight": 15
+          },
+          {
+            "gate": "incident_drills",
+            "passing": true,
+            "returncode": 0,
+            "score": 10,
+            "status": "ran",
+            "weight": 10
+          }
+        ],
+        "gates_passing": 8,
+        "gates_total": 8,
+        "overall_pass": true,
+        "timestamp": "2026-04-14T10:08:49.232405+00:00"
+      },
+      "passing": true,
+      "required": true,
+      "returncode": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_sha256": "adf0d14bee5d23791b5fbda7dfe9e82624e43d0542e91733618382d4b145117f"
+    },
+    {
+      "name": "supply_chain_gate",
+      "parsed_json": {
+        "checks": [
+          {
+            "cmake_version": "cmake version 3.28.3",
+            "issues": [],
+            "name": "build_input_pinning",
+            "passing": true
+          },
+          {
+            "issues": [],
+            "name": "reproducible_build",
+            "note": "Full reproducible build comparison requires two independent builds",
+            "passing": true,
+            "script_exists": true
+          },
+          {
+            "issues": [],
+            "name": "slsa_provenance",
+            "passing": true,
+            "script_exists": true,
+            "smoke_ok": true
+          },
+          {
+            "issues": [],
+            "name": "artifact_hash_policy",
+            "passing": true
+          },
+          {
+            "issues": [],
+            "name": "build_hardening",
+            "passing": true,
+            "script_exists": true,
+            "smoke_ok": true
+          }
+        ],
+        "checks_passing": 5,
+        "checks_total": 5,
+        "failing_checks": [],
+        "overall_pass": true,
+        "timestamp": "2026-04-14T10:08:49.327607+00:00"
+      },
+      "passing": true,
+      "required": true,
+      "returncode": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_sha256": "86d352ff3399e80baed8891b8f3b87a158633248ab2017c05af0531d00cd15c0"
+    }
+  ],
+  "generated_at": "2026-04-14T10:08:49.341087+00:00",
+  "git": {
+    "branch": "dev",
+    "commit": "42942943f158b8eca559c6b6f4a78ebde51e2f7c",
+    "dirty": true
+  },
+  "repo_root": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1",
+  "runtime": {
+    "machine": "x86_64",
+    "platform": "Linux-6.8.0-107-generic-x86_64-with-glibc2.39",
+    "python": "3.12.3"
+  },
+  "schema_version": "1.0.0",
+  "summary": {
+    "missing_evidence": [],
+    "overall_pass": true,
+    "required_gate_failures": []
+  }
+}
