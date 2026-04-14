@@ -335,7 +335,7 @@ jobs:
 
       - name: Verify audit bundle (Stage 5)
         run: |
-          python3 scripts/verify_external_audit_bundle.py --json -o caas_bundle_verify.json
+          python3 scripts/verify_external_audit_bundle.py --json > caas_bundle_verify.json
           python3 - <<'EOF'
           import json, sys
           try:
@@ -347,8 +347,8 @@ jobs:
           passed = report.get("overall_pass", False)
           checks = report.get("checks", [])
           for c in checks:
-              if not c.get("passed"):
-                  print(f"::error::Bundle check FAIL [{c.get('check','?')}]: {c.get('detail','')}")
+            if not c.get("passing", False):
+              print(f"::error::Bundle check FAIL [{c.get('name','?')}]: {c.get('detail','')}")
           if not passed:
               print("::error::Audit bundle integrity check FAILED")
               sys.exit(1)
