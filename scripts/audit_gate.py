@@ -2,8 +2,9 @@
 """
 audit_gate.py  --  Automated audit gate for UltrafastSecp256k1
 
-Implements the 10 audit principles defined in docs/AUDIT_MANIFEST.md.
+Implements the audit principles (P0–P11) defined in docs/AUDIT_MANIFEST.md.
 Every principle maps to a check that produces FAIL/WARN/INFO findings.
+P12–P18 (Security Autonomy) are run via standalone scripts; see the manifest.
 
 Exit code:
     0  —  all checks passed (may have WARN/INFO)

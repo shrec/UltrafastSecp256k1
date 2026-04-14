@@ -681,6 +681,11 @@ Each test compiles as a separate binary and verifies that attacks fail, edge cas
 | Mutation | `test_mutation_artifact_scan` | Source artifact scanner: stale mutation markers, vestigial test debris |
 | ABI / Network | `test_exploit_network_validation_bypass` | Network selector validation bypass: OOB enum, INT_MAX, negative values |
 | Scalar Mul | `test_exploit_scalar_mul` | Point::scalar_mul edge-case PoC: zero/identity/order-n/GLV/Shamir/MSM/overflow/doubling-chain |
+| SafeGCD | `test_exploit_safegcd_divsteps` | SafeGCD / Bernstein-Yang divsteps correctness: modular inverse boundaries, reduction verification |
+| Nonce | `test_exploit_custom_nonce_injection` | Nonce function edge cases: custom nonce injection, zero nonce, boundary nonce handling |
+| ZK / Adaptor | `test_fault_zk_adaptor` | ZK/Pedersen/Adaptor fault-injection: bit-flip proofs, corrupted commitments, adaptor tampering |
+| Field / Scalar | `test_field_scalar_edge` | Field & Scalar boundary conditions: carry propagation, reduction edge cases, overflow handling |
+| Secret Lifecycle | `test_secret_lifecycle` | Secret lifecycle audit: sk creation → sign → verify → zeroize, cross-function secret flow |
 
 Build and run all exploit tests:
 ```bash

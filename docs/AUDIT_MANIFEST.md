@@ -3,7 +3,7 @@
 > **This document defines the mandatory audit principles, invariants, and
 > automated gates that every change to UltrafastSecp256k1 must satisfy.**
 >
-> Version: 1.1 — 2026-04-06
+> Version: 2.0 — 2026-04-14
 
 ---
 
@@ -333,11 +333,15 @@ Checks:
 
 ### What blocks a merge:
 
-- Any FAIL from P0, P0a–P0d, P1–P9, and P11
+- Any FAIL from P0, P0a–P0d, P1–P9, P11, P12–P18
 - Security pattern loss (P3)
 - ABI surface mismatch (P1)
 - CT routing violation (P4)
 - Critical/high audit-test-quality findings (P2a)
+- Formal invariant gaps (P12)
+- Risk-surface coverage below threshold (P13)
+- Supply-chain integrity failure (P15)
+- Misuse-resistance below threshold (P17)
 
 ### What doesn't block but must be tracked:
 
@@ -346,6 +350,9 @@ Checks:
 - Graph freshness warnings (P6) — rebuild resolves
 - GPU parity stubs with proper TODO comments (P7)
 - Mutation kill-rate failures block only when the heavy lane is explicitly selected (P2b)
+- Audit SLA warnings (P14) — tracked until evidence refreshed
+- Evidence governance warnings (P16) — tracked until chain repaired
+- Perf-security co-gating warnings (P18) — informational unless regression detected
 
 ---
 
@@ -373,8 +380,22 @@ python3 scripts/audit_gate.py --test-docs
 python3 scripts/audit_gate.py --routing
 python3 scripts/audit_gate.py --doc-pairing
 python3 scripts/audit_gate.py --mutation-kill
+python3 scripts/audit_gate.py --mutation-freshness
+python3 scripts/audit_gate.py --crash-risks
 python3 scripts/audit_gap_report.py
 python3 scripts/audit_gap_report.py --strict
+
+# Security Autonomy gates (P12–P18, standalone scripts)
+python3 scripts/check_formal_invariants.py --json
+python3 scripts/risk_surface_coverage.py --json
+python3 scripts/audit_sla_check.py --json
+python3 scripts/supply_chain_gate.py --json
+python3 scripts/evidence_governance.py validate --json
+python3 scripts/check_misuse_resistance.py --json
+python3 scripts/perf_security_cogate.py --json
+
+# Master orchestrator (runs all P12–P18 gates)
+python3 scripts/security_autonomy_check.py
 
 # JSON output for CI
 python3 scripts/audit_gate.py --json
@@ -398,7 +419,13 @@ python3 scripts/audit_gate.py --json -o audit_gate_report.json
 | After GPU backend changes | `--gpu-parity` |
 | After adding tests | `--test-coverage --test-docs` |
 | After high-risk arithmetic or audit-harness changes | `--mutation-kill` |
-| Before release | Full gate + `export_assurance.py` + `validate_assurance.py` |
+| After changing formal invariants or CT specs | `check_formal_invariants.py --json` |
+| After changing risk surfaces or fuzz corpus | `risk_surface_coverage.py --json` |
+| After supply-chain or dependency changes | `supply_chain_gate.py --json` |
+| After evidence chain changes | `evidence_governance.py validate --json` |
+| After adding/removing ABI functions (misuse) | `check_misuse_resistance.py --json` |
+| Periodic security autonomy check | `security_autonomy_check.py` |
+| Before release | Full gate + `export_assurance.py` + `validate_assurance.py` + `security_autonomy_check.py` |
 
 ---
 
