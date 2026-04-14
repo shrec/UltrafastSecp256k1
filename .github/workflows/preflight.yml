@@ -76,6 +76,19 @@ jobs:
       # we include them here so a single preflight job also catches regressions.
       # -----------------------------------------------------------------------
 
+      - name: Install build dependencies (needed by CAAS P0 harnesses)
+        run: sudo apt-get install -y --no-install-recommends ninja-build g++-13
+
+      - name: Build shared library (needed by CAAS P0 harnesses)
+        run: |
+          cmake -S . -B build-audit -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_COMPILER=g++-13 \
+            -DBUILD_TESTING=OFF \
+            -DSECP256K1_BUILD_PROTOCOL_TESTS=OFF \
+            -DSECP256K1_BUILD_FUZZ_TESTS=OFF
+          cmake --build build-audit --target ufsecp_shared -j $(nproc)
+
       - name: CAAS Stage 1 — Static Analysis (hard-fail, 0 findings required)
         run: |
           python3 scripts/audit_test_quality_scanner.py --json -o caas_scanner.json

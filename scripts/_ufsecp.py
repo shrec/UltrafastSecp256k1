@@ -86,6 +86,10 @@ def find_lib(hint: Optional[str] = None) -> str:
     candidates += [
         root / "build_opencl" / "include" / "ufsecp" / "libufsecp.so.3",
         root / "build_opencl" / "include" / "ufsecp" / "libufsecp.so",
+        root / "build-audit" / "include" / "ufsecp" / "libufsecp.so.3",
+        root / "build-audit" / "include" / "ufsecp" / "libufsecp.so",
+        root / "build" / "include" / "ufsecp" / "libufsecp.so.3",
+        root / "build" / "include" / "ufsecp" / "libufsecp.so",
         root / "build-packaging-repro" / "include" / "ufsecp" / "libufsecp.so.3",
         root / "bindings" / "c_api" / "build" / "libultrafast_secp256k1.so",
     ]

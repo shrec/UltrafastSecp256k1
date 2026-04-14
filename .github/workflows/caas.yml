@@ -126,6 +126,19 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Install build dependencies
+        run: sudo apt-get install -y --no-install-recommends ninja-build g++-13
+
+      - name: Build shared library (required by P0 harnesses)
+        run: |
+          cmake -S . -B build-audit -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_COMPILER=g++-13 \
+            -DBUILD_TESTING=OFF \
+            -DSECP256K1_BUILD_PROTOCOL_TESTS=OFF \
+            -DSECP256K1_BUILD_FUZZ_TESTS=OFF
+          cmake --build build-audit --target ufsecp_shared -j $(nproc)
+
       - name: Build project graph (required by audit_gate.py)
         run: python3 scripts/build_project_graph.py --rebuild
 
@@ -144,16 +157,18 @@ jobs:
           except Exception:
               print("::error::audit_gate.py produced no JSON — treating as FAIL")
               sys.exit(1)
-          fails = [c for c in report.get("checks", []) if c.get("result") == "FAIL"]
+          fails = [c for c in report.get("checks", []) if c.get("status") == "FAIL"]
           if fails:
               for c in fails:
-                  print(f"::error::FAIL [{c.get('principle','?')}] {c.get('check','?')}: {c.get('message','')}")
-          warns = [c for c in report.get("checks", []) if c.get("result") == "WARN"]
+                  findings = c.get("findings", [])
+                  msg = "; ".join(f.get("message","") for f in findings if f.get("severity")=="FAIL")[:200]
+                  print(f"::error::FAIL [{c.get('name','?')}]: {msg}")
+          warns = [c for c in report.get("checks", []) if c.get("status") == "WARN"]
           for w in warns:
-              print(f"::warning::WARN [{w.get('principle','?')}] {w.get('check','?')}: {w.get('message','')}")
-          passed = report.get("overall_pass", False) or len(fails) == 0
+              print(f"::warning::WARN [{w.get('name','?')}]")
+          passed = report.get("verdict") == "PASS"
           if not passed:
-              print(f"::error::Audit gate FAIL — {len(fails)} principle violation(s)")
+              print(f"::error::Audit gate FAIL — {len(fails)} blocking finding(s), verdict={report.get('verdict')}")
               sys.exit(1)
           print(f"::notice::Audit gate PASS — {len(warns)} warning(s)")
           EOF
