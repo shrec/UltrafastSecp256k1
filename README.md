@@ -76,6 +76,15 @@ cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build build -
 | 🏗️ Build guide | [docs/BUILDING.md](docs/BUILDING.md) |
 | 🔗 C ABI / FFI reference | [docs/API_REFERENCE.md](docs/API_REFERENCE.md) |
 | 📈 Community benchmarks | [docs/COMMUNITY_BENCHMARKS.md](docs/COMMUNITY_BENCHMARKS.md) |
+| 🏛️ Architecture overview | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) |
+| 🔐 Security claims & contracts | [docs/SECURITY_CLAIMS.md](docs/SECURITY_CLAIMS.md) |
+| 🔑 Secret lifecycle (zeroization, CT) | [docs/SECRET_LIFECYCLE.md](docs/SECRET_LIFECYCLE.md) |
+| 🧮 Cryptographic invariants | [docs/CRYPTO_INVARIANTS.md](docs/CRYPTO_INVARIANTS.md) |
+| 🧵 Thread-safety guarantees | [docs/THREAD_SAFETY.md](docs/THREAD_SAFETY.md) |
+| 🛡️ Safe defaults | [docs/SAFE_DEFAULTS.md](docs/SAFE_DEFAULTS.md) |
+| 🔬 Differential testing | [docs/DIFFERENTIAL_TESTING.md](docs/DIFFERENTIAL_TESTING.md) |
+| 📋 Reproducible builds | [docs/REPRODUCIBLE_BUILDS.md](docs/REPRODUCIBLE_BUILDS.md) |
+| 🚨 Incident response | [docs/INCIDENT_RESPONSE.md](docs/INCIDENT_RESPONSE.md) |
 | 📦 Install packages | [Installation](#installation) |
 | 🤔 Why this library? | [WHY_ULTRAFASTSECP256K1.md](WHY_ULTRAFASTSECP256K1.md) |
 | 🌐 Sponsor | [github.com/sponsors/shrec](https://github.com/sponsors/shrec) |
