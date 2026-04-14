@@ -37,6 +37,12 @@ CRITICAL_EVIDENCE: list[dict] = [
 
 SUITE_ROOT = LIB_ROOT.parent.parent  # workspace root
 
+# Standalone mode: true when running inside the library repo directly (e.g. CI
+# checkout of UltrafastSecp256k1 alone, without the surrounding suite tree).
+# In standalone mode, suite-scoped evidence files are simply not present, and
+# missing them should be a warning rather than a blocking violation.
+_STANDALONE = not (SUITE_ROOT / "libs").is_dir()
+
 
 def _load_sla_defs() -> dict:
     """Load SLA definitions."""
@@ -91,11 +97,18 @@ def check_evidence_staleness(sla_defs: dict) -> list[dict]:
             age = _file_age_days(full_path)
 
         if age is None:
+            # In standalone mode (library-only CI checkout), suite-scoped
+            # artifacts are structurally absent — downgrade to warning.
+            effective_severity = (
+                "warning"
+                if _STANDALONE and ev["scope"] == "suite"
+                else severity
+            )
             findings.append({
                 "slo": "max_stale_evidence_days",
                 "evidence": ev["name"],
                 "status": "missing",
-                "severity": severity,
+                "severity": effective_severity,
                 "detail": f"Evidence artifact not found: {full_path}",
             })
         elif age > threshold:
