@@ -213,6 +213,19 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Install build dependencies
+        run: sudo apt-get install -y --no-install-recommends ninja-build g++-13
+
+      - name: Build shared library (required by audit_gate in bundle)
+        run: |
+          cmake -S . -B build-audit -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_COMPILER=g++-13 \
+            -DBUILD_TESTING=OFF \
+            -DSECP256K1_BUILD_PROTOCOL_TESTS=OFF \
+            -DSECP256K1_BUILD_FUZZ_TESTS=OFF
+          cmake --build build-audit --target ufsecp_shared -j $(nproc)
+
       - name: Build project graph
         run: python3 scripts/build_project_graph.py --rebuild
 
