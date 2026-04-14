@@ -32,8 +32,9 @@ LIB_ROOT = SCRIPT_DIR.parent
 HOOK_TEMPLATE = """\
 #!/usr/bin/env bash
 # CAAS pre-push hook — installed by install_caas_hooks.py
-# Runs audit_test_quality_scanner, audit_gate, and security_autonomy_check
-# before every push.  Any failure blocks the push.
+# Rebuilds both project graphs, then runs audit_test_quality_scanner,
+# audit_gate, and security_autonomy_check before every push.
+# Any failure blocks the push.
 #
 # To bypass (emergency only):
 #   git push --no-verify
@@ -54,8 +55,9 @@ echo "║  CAAS pre-push gate — running audit pipeline    ║"
 echo "╚══════════════════════════════════════════════════╝"
 echo ""
 
-# Skip bundle stages — full bundle runs in CI
-python3 "$RUNNER" --skip-bundle
+# Rebuild both graphs first (fixes P6 Graph Freshness after mutation runs),
+# then skip bundle stages for speed.
+python3 "$RUNNER" --rebuild-graph --skip-bundle
 EXIT=$?
 
 if [ $EXIT -ne 0 ]; then

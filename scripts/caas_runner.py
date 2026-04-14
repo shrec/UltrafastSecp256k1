@@ -297,6 +297,36 @@ def build_json_report(results: list[dict], total_s: float) -> dict:
     }
 
 
+def _rebuild_graphs(timeout: int, quiet: bool = False) -> None:
+    """Rebuild both the legacy project graph and the source graph.
+
+    This advances the built_at timestamp past any source file mtimes from
+    mutation testing, eliminating the P6 Graph Freshness WARN.
+    """
+    cmds = [
+        ([sys.executable, str(SCRIPT_DIR / "build_project_graph.py"), "--rebuild"],
+         "Legacy project graph"),
+        ([sys.executable, str(LIB_ROOT / "tools" / "source_graph_kit" / "source_graph.py"),
+          "build", "-i"],
+         "Source graph"),
+    ]
+    for cmd, label in cmds:
+        t0 = time.monotonic()
+        try:
+            result = subprocess.run(
+                cmd, capture_output=True, text=True, timeout=timeout, cwd=str(LIB_ROOT)
+            )
+            elapsed = round(time.monotonic() - t0, 1)
+            if not quiet:
+                if result.returncode == 0:
+                    print(f"  {GREEN}✓{RESET} {label} rebuilt ({elapsed}s)")
+                else:
+                    print(f"  {YELLOW}⚠{RESET} {label} rebuild exited {result.returncode} ({elapsed}s)")
+        except subprocess.TimeoutExpired:
+            if not quiet:
+                print(f"  {YELLOW}⚠{RESET} {label} rebuild timed out")
+
+
 def main(argv: list[str] | None = None) -> int:
     import os
 
@@ -329,6 +359,11 @@ def main(argv: list[str] | None = None) -> int:
         metavar="SECONDS",
         help="Per-stage timeout in seconds (default: 300)",
     )
+    parser.add_argument(
+        "--rebuild-graph",
+        action="store_true",
+        help="Rebuild both project graphs before running stages (fixes P6 Graph Freshness WARN)",
+    )
     args = parser.parse_args(argv)
 
     fail_fast = not args.no_fail_fast
@@ -350,6 +385,13 @@ def main(argv: list[str] | None = None) -> int:
 
     if not args.json:
         print_banner(f"CAAS  v{CAAS_VERSION}  —  Continuous Audit as a Service")
+
+    # Optionally rebuild both graphs before running stages.
+    # Prevents P6 Graph Freshness WARN after mutation testing or heavy source edits.
+    if args.rebuild_graph:
+        if not args.json:
+            print(f"\n{CYAN}[pre] Rebuilding project graphs...{RESET}")
+        _rebuild_graphs(args.timeout, quiet=args.json)
 
     results: list[dict] = []
     t_global = time.monotonic()
