@@ -168,6 +168,13 @@ cp "${ROOT_DIR}/include/ufsecp/ufsecp_error.h"    "${NUGET_ROOT}/include/ufsecp/
 
 echo "  NuGet runtimes: ${NUGET_ROOT}/runtimes/${PLATFORM}-${ARCH_TAG}/native/"
 
+# -- SHA-256 artifact hashes --
+echo ""
+echo "  Computing SHA-256 checksums..."
+SHA256_FILE="${RELEASE_DIR}/${PKG_NAME}/SHA256SUMS.txt"
+(cd "${RELEASE_DIR}/${PKG_NAME}" && find . -type f ! -name SHA256SUMS.txt | sort | xargs sha256sum > SHA256SUMS.txt)
+echo "  Checksums: ${SHA256_FILE}"
+
 # -- Summary --
 echo ""
 echo "============================================================"

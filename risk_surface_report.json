@@ -1,0 +1,94 @@
+{
+  "overall_pass": true,
+  "classes_total": 7,
+  "classes_passing": 7,
+  "critical_classes_total": 6,
+  "critical_classes_passing": 6,
+  "critical_failures": [],
+  "classes": [
+    {
+      "class": "ct_paths",
+      "description": "Constant-time sensitive functions",
+      "critical": true,
+      "min_coverage": 80,
+      "coverage_percent": 92.6,
+      "symbols_tested": 584,
+      "symbols_total": 643,
+      "files_tested": 40,
+      "files_total": 42,
+      "passing": true
+    },
+    {
+      "class": "parser_boundary",
+      "description": "DER/BIP/serialization parse entry points",
+      "critical": true,
+      "min_coverage": 80,
+      "coverage_percent": 88.1,
+      "symbols_tested": 247,
+      "symbols_total": 262,
+      "files_tested": 45,
+      "files_total": 57,
+      "passing": true
+    },
+    {
+      "class": "abi_boundary",
+      "description": "ufsecp_* C ABI surface",
+      "critical": true,
+      "min_coverage": 85,
+      "coverage_percent": 92.7,
+      "symbols_tested": 182,
+      "symbols_total": 184,
+      "files_tested": 10,
+      "files_total": 12,
+      "passing": true
+    },
+    {
+      "class": "gpu_parity",
+      "description": "GPU backend method parity",
+      "critical": true,
+      "min_coverage": 70,
+      "coverage_percent": 95.0,
+      "symbols_tested": 84,
+      "symbols_total": 83,
+      "files_tested": 6,
+      "files_total": 7,
+      "passing": true
+    },
+    {
+      "class": "secret_lifecycle",
+      "description": "Paths touching secret material",
+      "critical": true,
+      "min_coverage": 85,
+      "coverage_percent": 91.6,
+      "symbols_tested": 115,
+      "symbols_total": 124,
+      "files_tested": 9,
+      "files_total": 10,
+      "passing": true
+    },
+    {
+      "class": "determinism",
+      "description": "Operations requiring bitwise determinism",
+      "critical": true,
+      "min_coverage": 90,
+      "coverage_percent": 99.3,
+      "symbols_tested": 84,
+      "symbols_total": 85,
+      "files_tested": 5,
+      "files_total": 5,
+      "passing": true
+    },
+    {
+      "class": "fuzz_corpus",
+      "description": "Fuzz target coverage of risky inputs",
+      "critical": false,
+      "min_coverage": 60,
+      "coverage_percent": 96.8,
+      "symbols_tested": 18,
+      "symbols_total": 19,
+      "files_tested": 17,
+      "files_total": 17,
+      "passing": true
+    }
+  ]
+}

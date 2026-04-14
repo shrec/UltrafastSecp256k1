@@ -1,0 +1,51 @@
+{
+  "library": "/home/shrek/Secp256k1/Secp256K1fast/build_opencl/include/ufsecp/libufsecp.so.3",
+  "repeat": 5,
+  "overall_pass": true,
+  "issues": [],
+  "checks": {
+    "ecdsa_vectors": [
+      {
+        "name": "ecdsa_det_v1",
+        "deterministic": true,
+        "verify_ok": true
+      },
+      {
+        "name": "ecdsa_det_v2",
+        "deterministic": true,
+        "verify_ok": true
+      },
+      {
+        "name": "ecdsa_det_v3",
+        "deterministic": true,
+        "verify_ok": true
+      }
+    ],
+    "ecdh_pairs": [
+      {
+        "name": "ecdh_pair_1",
+        "symmetric": true,
+        "repeat_stable": true
+      },
+      {
+        "name": "ecdh_pair_2",
+        "symmetric": true,
+        "repeat_stable": true
+      }
+    ],
+    "bip32_paths": [
+      {
+        "path": "m/0/1",
+        "deterministic": true
+      },
+      {
+        "path": "m/44'/0'/0'/0/0",
+        "deterministic": true
+      },
+      {
+        "path": "m/84'/0'/0'/1/7",
+        "deterministic": true
+      }
+    ]
+  }
+}

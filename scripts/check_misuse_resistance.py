@@ -71,11 +71,21 @@ def _count_negative_tests_from_manifest(manifest: Path) -> dict[str, int]:
         data = json.loads(manifest.read_text(encoding="utf-8"))
         counts: dict[str, int] = {}
         if isinstance(data, dict):
-            for fn_name, tests in data.get("functions", {}).items():
-                if isinstance(tests, list):
-                    counts[fn_name] = len(tests)
-                elif isinstance(tests, int):
-                    counts[fn_name] = tests
+            fns = data.get("functions", [])
+            if isinstance(fns, list):
+                for entry in fns:
+                    if isinstance(entry, dict):
+                        fn_name = entry.get("function", "")
+                        covered = entry.get("covered_checks", {})
+                        # Count total covered check instances
+                        total = sum(len(v) for v in covered.values() if isinstance(v, list))
+                        counts[fn_name] = total
+            elif isinstance(fns, dict):
+                for fn_name, tests in fns.items():
+                    if isinstance(tests, list):
+                        counts[fn_name] = len(tests)
+                    elif isinstance(tests, int):
+                        counts[fn_name] = tests
         return counts
     except (json.JSONDecodeError, KeyError):
         return {}
@@ -85,12 +95,12 @@ def _count_negative_tests_from_graph(conn: sqlite3.Connection, fn_name: str) -> 
     """Count negative tests for a function from the graph test mappings."""
     try:
         row = conn.execute(
-            """SELECT COUNT(*) FROM test_mappings
-               WHERE symbol_name LIKE ? AND
-               (test_name LIKE '%negative%' OR test_name LIKE '%null%'
-                OR test_name LIKE '%invalid%' OR test_name LIKE '%hostile%'
-                OR test_name LIKE '%misuse%' OR test_name LIKE '%abuse%'
-                OR test_name LIKE '%abi_negative%')""",
+            """SELECT COUNT(*) FROM test_function_map
+               WHERE function_name LIKE ? AND
+               (test_file LIKE '%negative%' OR test_file LIKE '%null%'
+                OR test_file LIKE '%invalid%' OR test_file LIKE '%hostile%'
+                OR test_file LIKE '%misuse%' OR test_file LIKE '%abuse%'
+                OR test_file LIKE '%abi_negative%')""",
             (f"%{fn_name}%",),
         ).fetchone()
         return row[0] if row else 0
