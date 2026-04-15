@@ -1,5 +1,8 @@
 var NAVTREEINDEX4 =
 {
+"globals_s.html":[58,1,0,9],
+"globals_t.html":[58,1,0,10],
+"globals_type.html":[58,1,3],
 "globals_u.html":[58,1,0,11],
 "globals_v.html":[58,1,0,12],
 "globals_vars.html":[58,1,2],
@@ -231,8 +234,8 @@ var NAVTREEINDEX4 =
 "namespacemembers_e.html":[56,1,0,4],
 "namespacemembers_enum.html":[56,1,4],
 "namespacemembers_f.html":[56,1,0,5],
-"namespacemembers_func.html":[56,1,1],
 "namespacemembers_func.html":[56,1,1,0],
+"namespacemembers_func.html":[56,1,1],
 "namespacemembers_func_b.html":[56,1,1,1],
 "namespacemembers_func_c.html":[56,1,1,2],
 "namespacemembers_func_d.html":[56,1,1,3],
@@ -246,8 +249,5 @@ var NAVTREEINDEX4 =
 "namespacemembers_func_m.html":[56,1,1,11],
 "namespacemembers_func_n.html":[56,1,1,12],
 "namespacemembers_func_o.html":[56,1,1,13],
-"namespacemembers_func_p.html":[56,1,1,14],
-"namespacemembers_func_r.html":[56,1,1,15],
-"namespacemembers_func_s.html":[56,1,1,16],
-"namespacemembers_func_t.html":[56,1,1,17]
+"namespacemembers_func_p.html":[56,1,1,14]
 };

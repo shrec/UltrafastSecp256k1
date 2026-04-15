@@ -213,20 +213,20 @@ var NAVTREE =
 var NAVTREEINDEX =
 [
 "UltrafastSecp256k1_8hpp.html",
-"classsecp256k1_1_1fast_1_1CombGenContext.html#a49672498ff1c87311e1e157bd327edc7",
-"classsecp256k1_1_1fast_1_1Scalar.html#add830998d775d0078e16ddbe22926ee1",
-"field_8hpp.html#a3ae45c25c5eea3750b3752f2c2940444",
-"globals_u.html",
-"namespacemembers_func_v.html",
-"namespacesecp256k1_1_1coins.html#a938922c0a6dfc2461fc0dbabb8d720fda9349208927787ab8a2b7f36398437107",
-"namespacesecp256k1_1_1fast.html#a933b11753ce9436db3549d709ff35485",
-"precompute_8hpp.html#a8bf4841897ffc813adc3a3f20352d655",
-"structsecp256k1_1_1ExtendedKey.html#abc023f96773788fad06de5108bb49e6a",
-"structsecp256k1_1_1TxOutput.html#a6fb52b86177882638e46ebf62bea3387",
-"structsecp256k1_1_1fast_1_1FieldElement52.html#a373d49872942dd13cd78c1fe7b333dfd",
-"structsecp256k1_1_1zk_1_1DLEQProof.html#a422b9f4f637804561bd6a20d3064ec9a",
-"ufsecp_8h.html#a0a02a69712ab8d105949356b30286491",
-"ufsecp__gpu__impl_8cpp.html#a2bd0e0421252f49615cf058e11101f6b"
+"classsecp256k1_1_1fast_1_1CombGenContext.html#a39f7b0f5e9c3e2e2ee4fa78fde132e83",
+"classsecp256k1_1_1fast_1_1Scalar.html#acc52e92477f518388b7e0827e3a3ce86",
+"field_8hpp.html#a2f78be3f271012542db24ae54e1b5a8e",
+"globals_s.html",
+"namespacemembers_func_r.html",
+"namespacesecp256k1_1_1coins.html#a8afd0775b34eec6206fbe1d3b782c7df",
+"namespacesecp256k1_1_1fast.html#a8a85eef57b722a52c17ac36a28c6fc10",
+"precompute_8hpp.html#a4e14e3dabefd70e6b0c5ec91f5926756",
+"structsecp256k1_1_1ExtendedKey.html#a99769644a1833f5642dcade2e8ce1f65",
+"structsecp256k1_1_1TxOut.html#acdae5bc2ac3db1274a6f071439aa6cb3",
+"structsecp256k1_1_1fast_1_1FieldElement52.html#a2b67481d515dfabef3bc79b32e048af1",
+"structsecp256k1_1_1test_1_1TestCounters.html#af61094071ee42c1027a95c403445d6ad",
+"ufsecp_8h.html#a020107f8cf408e67204d4459a45228bb",
+"ufsecp__gpu__impl_8cpp.html#a03ab5f225d6d26dfd3324a67b705c803"
 ];
 
 var SYNCONMSG = 'click to disable panel synchronisation';

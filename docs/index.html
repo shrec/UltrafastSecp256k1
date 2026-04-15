@@ -158,10 +158,28 @@ Where to Start</h1>
 <tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone">📈 Community benchmarks   </td><td class="markdownTableBodyNone">docs/COMMUNITY_BENCHMARKS.md    </td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone">📦 Install packages   </td><td class="markdownTableBodyNone">Installation    </td></tr>
+<td class="markdownTableBodyNone">🏛️ Architecture overview   </td><td class="markdownTableBodyNone">docs/ARCHITECTURE.md    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone">🤔 Why this library?   </td><td class="markdownTableBodyNone">WHY_ULTRAFASTSECP256K1.md    </td></tr>
+<td class="markdownTableBodyNone">🔐 Security claims &amp; contracts   </td><td class="markdownTableBodyNone">docs/SECURITY_CLAIMS.md    </td></tr>
 <tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone">🔑 Secret lifecycle (zeroization, CT)   </td><td class="markdownTableBodyNone">docs/SECRET_LIFECYCLE.md    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone">🧮 Cryptographic invariants   </td><td class="markdownTableBodyNone">docs/CRYPTO_INVARIANTS.md    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone">🧵 Thread-safety guarantees   </td><td class="markdownTableBodyNone">docs/THREAD_SAFETY.md    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone">🛡️ Safe defaults   </td><td class="markdownTableBodyNone">docs/SAFE_DEFAULTS.md    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone">🔬 Differential testing   </td><td class="markdownTableBodyNone">docs/DIFFERENTIAL_TESTING.md    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone">📋 Reproducible builds   </td><td class="markdownTableBodyNone">docs/REPRODUCIBLE_BUILDS.md    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone">🚨 Incident response   </td><td class="markdownTableBodyNone">docs/INCIDENT_RESPONSE.md    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone">📦 Install packages   </td><td class="markdownTableBodyNone">Installation    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone">🤔 Why this library?   </td><td class="markdownTableBodyNone">WHY_ULTRAFASTSECP256K1.md    </td></tr>
+<tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone">🌐 Sponsor   </td><td class="markdownTableBodyNone"><a href="https://github.com/sponsors/shrec">github.com/sponsors/shrec</a>   </td></tr>
 </table>
 <blockquote class="doxtable">
@@ -221,7 +239,7 @@ Why UltrafastSecp256k1? — Detail</h1>
 <p>&zwj;TL;DR is above. This section covers what differentiates this library in depth. </p>
 </blockquote>
 <ul>
-<li><b>Continuous adversarial audit system</b> &ndash; every exploit attempt becomes a permanent regression test; 1,000,000+ assertions per build, 187 exploit-PoC test files (171 registered runner modules) across 200+ attack vectors, 36 CI workflows, 3 formal CT verification pipelines (ct-verif + Valgrind CT + dudect), 1.3M+ nightly differential checks — security hardens on every commit, not just on release day (→ how it works)</li>
+<li><b>Continuous adversarial audit system</b> &ndash; every exploit attempt becomes a permanent regression test; 1,000,000+ assertions per build, 187 exploit-PoC test files (171 registered runner modules) across 200+ attack vectors, 37 CI workflows, 3 formal CT verification pipelines (ct-verif + Valgrind CT + dudect), 1.3M+ nightly differential checks — security hardens on every commit, not just on release day (→ how it works)</li>
 <li><b>Differentiated GPU <a class="el" href="namespacesecp256k1.html">secp256k1</a> surface</b> &ndash; CUDA, OpenCL, and Metal all implement the stable 19-op GPU C ABI, while CUDA also carries the highest-throughput signing and verification kernels plus <b>GPU FROST partial verification</b> (reproducible benchmark suite and raw logs)</li>
 <li><b>High-performance CPU <a class="el" href="namespacesecp256k1.html">secp256k1</a> engine</b> &ndash; optimized generator multiply, scalar multiply, hashing, and serialization pipelines across x86-64, ARM64, RISC-V, and embedded targets (see bench_unified ratio table)</li>
 <li><b>BIP-352 Silent Payments at 11.00 M/s</b> &ndash; the full 7-stage GPU pipeline (k×P → hash → k×G → add → match) runs at 91.0 ns/op on CUDA, <b>267× faster</b> than single-threaded CPU (GPU bench, <a href="https://github.com/craigraw/bench_bip352">standalone CPU benchmark by @craigraw</a>)</li>
@@ -295,7 +313,7 @@ By the Numbers</h2>
 <tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone">Exploit PoC test files   </td><td class="markdownTableBodyNone"><b>86 tests, 14 coverage areas, 0 failures</b>    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone">CI/CD workflows   </td><td class="markdownTableBodyNone"><b>36 GitHub Actions workflows</b>    </td></tr>
+<td class="markdownTableBodyNone">CI/CD workflows   </td><td class="markdownTableBodyNone"><b>37 GitHub Actions workflows</b>    </td></tr>
 <tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone">Build matrix (arch × config × OS)   </td><td class="markdownTableBodyNone"><b>7 × 17 × 5 = 595 combinations</b>    </td></tr>
 <tr class="markdownTableRowEven">
@@ -503,7 +521,7 @@ Use Cases</h1>
 <h1><a class="anchor" id="autotoc_md48"></a>
 Security &amp; Vulnerability Reporting</h1>
 <p><b>Report vulnerabilities</b> via <a href="https://github.com/shrec/UltrafastSecp256k1/security/advisories/new">GitHub Security Advisories</a> or email <a href="#" onclick="location.href='mai'+'lto:'+'pay'+'ys'+'oon'+'@g'+'mai'+'l.'+'com'; return false;">payysoon@gmail.com</a>. For production cryptographic systems, perform your own risk review, review the current guarantees in <a class="el" href="md_include_2ufsecp_2SUPPORTED__GUARANTEES.html">SUPPORTED_GUARANTEES.md</a>, and apply the assurance level appropriate to your deployment.</p>
-<p>For the full audit infrastructure breakdown (1M+ assertions, 36 CI workflows, formal CT verification pipelines, self-audit document index), see the Engineering Quality &amp; Self-Audit Culture section above and WHY_ULTRAFASTSECP256K1.md.</p>
+<p>For the full audit infrastructure breakdown (1M+ assertions, 37 CI workflows, formal CT verification pipelines, self-audit document index), see the Engineering Quality &amp; Self-Audit Culture section above and WHY_ULTRAFASTSECP256K1.md.</p>
 <hr  />
 <h1><a class="anchor" id="autotoc_md50"></a>
 Seeking Sponsors – Bug Bounty &amp; Development</h1>
