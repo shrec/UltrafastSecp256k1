@@ -9,6 +9,12 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ## 2026-04-14 (CAAS — Continuous Audit as a Service)
 
+- **Fixed** `audit/test_c_abi_negative.cpp` `run_neg15_schnorr_msg()` test
+  harness: zero-initialized the temporary Schnorr signature buffer before
+  exercising negative verify paths. This removes Valgrind-only
+  uninitialized-value reports in `c_abi_negative` without weakening any ABI
+  contract checks.
+
 - **Updated** `.github/workflows/security-audit.yml` Valgrind Memcheck gate:
   excluded timeout-prone suites (`differential`, `unified_audit`, selected
   exploit lifecycle/selftest flows) and Python `py_*` tests from memcheck

@@ -1090,7 +1090,7 @@ static void run_neg14_bip85(ufsecp_ctx* ctx, const ufsecp_bip32_key* mk) {
 // ---------------------------------------------------------------------------
 
 static void run_neg15_schnorr_msg(ufsecp_ctx* ctx, const uint8_t* xonly32) {
-    uint8_t sig[64]; uint8_t aux[32] = {};
+    uint8_t sig[64] = {}; uint8_t aux[32] = {};
     const uint8_t msg[] = "test message";
 
     // ufsecp_schnorr_sign_msg
