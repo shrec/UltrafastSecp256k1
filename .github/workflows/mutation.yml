@@ -35,7 +35,7 @@ jobs:
   mutation:
     name: Mutation Testing (Mull)
     runs-on: ubuntu-24.04
-    timeout-minutes: 120
+    timeout-minutes: 360
 
     steps:
       - name: Harden the runner

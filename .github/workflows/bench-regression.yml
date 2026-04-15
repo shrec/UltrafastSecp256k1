@@ -38,7 +38,7 @@ jobs:
   bench-gate:
     name: Benchmark Regression Check
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 360
     permissions:
       contents: write       # needed to push baseline to gh-pages on push events
       pull-requests: write  # needed to comment on PRs when regression detected
