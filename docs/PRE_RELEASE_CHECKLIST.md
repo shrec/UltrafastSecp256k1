@@ -33,6 +33,8 @@ Copy this checklist into the release PR description. All items must be checked b
 ### 3. Test Suite
 
 - [ ] `ctest --output-on-failure` -- ALL tests pass
+- [ ] **Local heavy mutation gate passes** (required before release, not GitHub push/PR CI):
+	`python3 scripts/mutation_kill_rate.py --build-dir build_rel --ctest-mode --count 20 --threshold 75 --json -o mutation_kill_report.json`
 - [ ] `test_field_audit` -- 641K+ checks, 0 failures
 - [ ] `test_bip340_vectors` -- all 15 vectors pass
 - [ ] `test_rfc6979_vectors` -- all 6 nonce/sign vectors pass

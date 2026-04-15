@@ -131,6 +131,21 @@ Scope note:
 This is intentionally a heavier owner-grade / batch-review lane, not the default
 per-commit path inside the full gate.
 
+**Strict execution policy (cost control):**
+
+- Heavy mutation kill-rate runs are **local pre-release requirements**.
+- Heavy mutation runs are **not mandatory push/PR GitHub-hosted CI checks**.
+- Canonical local command before release:
+
+```bash
+python3 scripts/mutation_kill_rate.py \
+  --build-dir build_rel \
+  --ctest-mode \
+  --count 20 \
+  --threshold 75 \
+  --json -o mutation_kill_report.json
+```
+
 ### P3 — Security Pattern Preservation
 
 > Security-critical patterns (`secure_erase`, `value_barrier`, `CLASSIFY`,

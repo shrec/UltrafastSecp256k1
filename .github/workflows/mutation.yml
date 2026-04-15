@@ -1,26 +1,12 @@
 name: Mutation Testing
 
 on:
-  push:
-    branches: [main, dev]
-    paths:
-      - 'cpu/src/**'
-      - 'cpu/include/**'
-      - 'include/**'
-      - 'CMakeLists.txt'
-      - '.github/workflows/mutation.yml'
-  pull_request:
-    branches: [main, dev]
-    paths:
-      - 'cpu/src/**'
-      - 'cpu/include/**'
-      - 'include/**'
-      - 'CMakeLists.txt'
-      - '.github/workflows/mutation.yml'
+  # Local-first policy: heavy mutation testing is not part of push/PR CI.
+  # Use local pre-release execution as the strict default.
   workflow_dispatch:
     inputs:
       targets:
-        description: 'Comma-separated source files to mutate (default: core crypto)'
+        description: 'Manual fallback only. Prefer local mutation runs before release.'
         required: false
         default: ''
 
@@ -75,11 +61,18 @@ jobs:
             -DSECP256K1_BUILD_TESTS=ON \
             -DSECP256K1_BUILD_BENCH=OFF \
             -DSECP256K1_BUILD_EXAMPLES=OFF \
+            -DSECP256K1_BUILD_CABI=OFF \
+            -DSECP256K1_BUILD_JAVA=OFF \
+            -DSECP256K1_BUILD_ETHEREUM=OFF \
             -DSECP256K1_BUILD_METAL=OFF \
-            -DSECP256K1_USE_ASM=OFF
+            -DSECP256K1_USE_ASM=OFF \
+            -DSECP256K1_USE_LTO=OFF \
+            -DUFSECP_REFRESH_SOURCE_GRAPH=OFF
 
-      - name: Build test suite
-        run: cmake --build build-mut -j"$(nproc)"
+      - name: Build core mutation targets
+        run: |
+          cmake --build build-mut -j"$(nproc)" \
+            --target run_selftest test_bip340_vectors_standalone
 
       - name: Run mutation testing
         id: mutate
@@ -137,16 +130,22 @@ jobs:
               -DCMAKE_CXX_FLAGS="-fpass-plugin=/usr/lib/mull-ir-frontend-17 -g -O0" \
               -DSECP256K1_BUILD_TESTS=ON \
               -DSECP256K1_BUILD_BENCH=OFF \
+              -DSECP256K1_BUILD_EXAMPLES=OFF \
+              -DSECP256K1_BUILD_CABI=OFF \
+              -DSECP256K1_BUILD_JAVA=OFF \
+              -DSECP256K1_BUILD_ETHEREUM=OFF \
               -DSECP256K1_BUILD_METAL=OFF \
-              -DSECP256K1_USE_ASM=OFF
+              -DSECP256K1_USE_ASM=OFF \
+              -DSECP256K1_USE_LTO=OFF \
+              -DUFSECP_REFRESH_SOURCE_GRAPH=OFF
 
-            cmake --build build-mull -j"$(nproc)" --target selftest 2>&1 || true
+            cmake --build build-mull -j"$(nproc)" --target run_selftest 2>&1 || true
 
             # Run Mull against selftest
             mull-runner-17 \
               --reporters=Elements \
               --report-dir=mutation-report \
-              build-mull/cpu/selftest 2>&1 | tee mutation-log.txt || true
+              build-mull/cpu/run_selftest 2>&1 | tee mutation-log.txt || true
 
           else
             echo "::warning::Mull not available, running manual mutation testing"
@@ -158,13 +157,29 @@ jobs:
             KILLED=0
             SURVIVED=0
             ERRORS=0
+            MUTATION_MAX_FILES="${MUTATION_MAX_FILES:-4}"
+            MUTATED_FILES=0
+
+            run_core_mutation_checks() {
+              cmake --build build-mut -j"$(nproc)" \
+                --target run_selftest test_bip340_vectors_standalone >/dev/null 2>&1 || return 1
+              ./build-mut/cpu/run_selftest smoke >/dev/null 2>&1 || return 1
+              ./build-mut/cpu/test_bip340_vectors_standalone >/dev/null 2>&1 || return 1
+              return 0
+            }
 
             for src in "${CORE_SOURCES[@]}"; do
+              if [ "$MUTATED_FILES" -ge "$MUTATION_MAX_FILES" ]; then
+                echo "[INFO] Reached MUTATION_MAX_FILES=$MUTATION_MAX_FILES, stopping fallback sweep"
+                break
+              fi
+
               if [ ! -f "$src" ]; then
                 echo "[SKIP] $src (not found)"
                 continue
               fi
 
+              MUTATED_FILES=$((MUTATED_FILES + 1))
               echo "--- Mutating: $src ---"
 
               # Backup
@@ -176,19 +191,12 @@ jobs:
                 sed -i '0,/ + /{s/ + / - /}' "$src"
                 TOTAL=$((TOTAL + 1))
 
-                if cmake --build build-mut -j"$(nproc)" 2>/dev/null; then
-                  # Build succeeded, run tests
-                  if ctest --test-dir build-mut --output-on-failure -j"$(nproc)" \
-                       -E "^(ct_sidechannel|benchmark)" --timeout 30 2>/dev/null; then
-                    SURVIVED=$((SURVIVED + 1))
-                    echo "  [!] SURVIVED: +->- mutation in $src"
-                  else
-                    KILLED=$((KILLED + 1))
-                    echo "  [OK] KILLED: +->- mutation in $src"
-                  fi
+                if run_core_mutation_checks; then
+                  SURVIVED=$((SURVIVED + 1))
+                  echo "  [!] SURVIVED: +->- mutation in $src"
                 else
                   KILLED=$((KILLED + 1))
-                  echo "  [OK] KILLED (compile error): +->- mutation in $src"
+                  echo "  [OK] KILLED: +->- mutation in $src"
                 fi
 
                 # Restore
@@ -200,18 +208,12 @@ jobs:
                 sed -i '0,/ == /{s/ == / != /}' "$src"
                 TOTAL=$((TOTAL + 1))
 
-                if cmake --build build-mut -j"$(nproc)" 2>/dev/null; then
-                  if ctest --test-dir build-mut --output-on-failure -j"$(nproc)" \
-                       -E "^(ct_sidechannel|benchmark)" --timeout 30 2>/dev/null; then
-                    SURVIVED=$((SURVIVED + 1))
-                    echo "  [!] SURVIVED: ==->!= mutation in $src"
-                  else
-                    KILLED=$((KILLED + 1))
-                    echo "  [OK] KILLED: ==->!= mutation in $src"
-                  fi
+                if run_core_mutation_checks; then
+                  SURVIVED=$((SURVIVED + 1))
+                  echo "  [!] SURVIVED: ==->!= mutation in $src"
                 else
                   KILLED=$((KILLED + 1))
-                  echo "  [OK] KILLED (compile error): ==->!= mutation in $src"
+                  echo "  [OK] KILLED: ==->!= mutation in $src"
                 fi
 
                 cp "$src.bak" "$src"
@@ -222,18 +224,12 @@ jobs:
                 sed -i '0,/return [^;]\+;/{s/return [^;]\+;/return {};/}' "$src"
                 TOTAL=$((TOTAL + 1))
 
-                if cmake --build build-mut -j"$(nproc)" 2>/dev/null; then
-                  if ctest --test-dir build-mut --output-on-failure -j"$(nproc)" \
-                       -E "^(ct_sidechannel|benchmark)" --timeout 30 2>/dev/null; then
-                    SURVIVED=$((SURVIVED + 1))
-                    echo "  [!] SURVIVED: return->return{} mutation in $src"
-                  else
-                    KILLED=$((KILLED + 1))
-                    echo "  [OK] KILLED: return->return{} mutation in $src"
-                  fi
+                if run_core_mutation_checks; then
+                  SURVIVED=$((SURVIVED + 1))
+                  echo "  [!] SURVIVED: return->return{} mutation in $src"
                 else
                   KILLED=$((KILLED + 1))
-                  echo "  [OK] KILLED (compile error): return->return{} mutation in $src"
+                  echo "  [OK] KILLED: return->return{} mutation in $src"
                 fi
 
                 cp "$src.bak" "$src"
@@ -254,6 +250,7 @@ jobs:
             echo "  MUTATION TESTING SUMMARY"
             echo "=============================================="
             echo "  Total mutations:  $TOTAL"
+            echo "  Files processed:  $MUTATED_FILES (max $MUTATION_MAX_FILES)"
             echo "  Killed:           $KILLED"
             echo "  Survived:         $SURVIVED"
             echo "  Mutation score:   ${SCORE}%"
