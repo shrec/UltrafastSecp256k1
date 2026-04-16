@@ -1,0 +1,12 @@
+prefix=/usr/local
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+
+Name: secp256k1-fast
+Description: High-performance secp256k1 elliptic curve cryptography library
+URL: https://github.com/shrec/UltrafastSecp256k1
+Version: 3.66.0
+Cflags: -I${includedir}
+Libs: -L${libdir} -lfastsecp256k1
+Libs.private: -lpthread

@@ -51,8 +51,10 @@ case "$ARCH" in
     *) ARCH_TAG="$ARCH" ;;
 esac
 
-# -- Read version from CMakeLists.txt --
-VERSION=$(grep -oP 'VERSION\s+\K[0-9]+\.[0-9]+\.[0-9]+' "${ROOT_DIR}/CMakeLists.txt" | head -1)
+# -- Read version from VERSION.txt (source of truth) --
+VERSION=$(cat "${ROOT_DIR}/VERSION.txt" | tr -d '[:space:]')
+# Append .0 if only X.Y format
+if [[ "$VERSION" =~ ^[0-9]+\.[0-9]+$ ]]; then VERSION="${VERSION}.0"; fi
 PKG_NAME="UltrafastSecp256k1-v${VERSION}-${PLATFORM}-${ARCH_TAG}"
 
 echo "============================================================"
@@ -110,7 +112,7 @@ if [ -d "${STAGING}/include/secp256k1" ]; then
 fi
 
 # Libraries
-find "${STAGING}/lib" "${STAGING}/bin" -maxdepth 1 \( \
+find "${STAGING}/lib" $([ -d "${STAGING}/bin" ] && echo "${STAGING}/bin") -maxdepth 1 \( \
     -name "*.dll" -o -name "*.lib" -o -name "*.so" -o -name "*.so.*" \
     -o -name "*.dylib" -o -name "*.a" \) 2>/dev/null | while read -r f; do
     cp "$f" "${RELEASE_DIR}/${PKG_NAME}/lib/"
