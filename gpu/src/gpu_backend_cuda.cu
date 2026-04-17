@@ -603,13 +603,13 @@ public:
         /* Download results */
         CUDA_TRY(cudaMemcpy(out_secrets32, d_out, count * 32, cudaMemcpyDeviceToHost));
 
-        /* Check for failures */
-        bool* h_ok = new bool[count];
-        CUDA_TRY(cudaMemcpy(h_ok, d_ok, count * sizeof(bool), cudaMemcpyDeviceToHost));
+        /* Check for failures (RAII: vector cleans up even if CUDA_TRY
+         * triggers an early return on the download failure path). */
+        std::vector<uint8_t> h_ok_buf(count);
+        CUDA_TRY(cudaMemcpy(h_ok_buf.data(), d_ok, count * sizeof(bool), cudaMemcpyDeviceToHost));
         for (size_t i = 0; i < count; ++i) {
-            if (!h_ok[i]) std::memset(out_secrets32 + i * 32, 0, 32);
+            if (!h_ok_buf[i]) std::memset(out_secrets32 + i * 32, 0, 32);
         }
-        delete[] h_ok;
 
         /* Zeroize private keys on device and host before freeing */
         cudaMemset(d_keys, 0, count * sizeof(Scalar));
@@ -963,11 +963,12 @@ public:
         CUDA_TRY(cudaDeviceSynchronize());
 
         {
-            bool* h_res_raw = new bool[count];
-            CUDA_TRY(cudaMemcpy(h_res_raw, d_res, count * sizeof(bool), cudaMemcpyDeviceToHost));
+            /* RAII buffer: leaks avoided if cudaMemcpy fails and CUDA_TRY
+             * returns early on the failure path. */
+            std::vector<uint8_t> h_res_raw(count);
+            CUDA_TRY(cudaMemcpy(h_res_raw.data(), d_res, count * sizeof(bool), cudaMemcpyDeviceToHost));
             for (size_t i = 0; i < count; ++i)
                 out_results[i] = h_res_raw[i] ? 1 : 0;
-            delete[] h_res_raw;
         }
 
         cudaFree(d_res);
@@ -1038,11 +1039,12 @@ public:
         CUDA_TRY(cudaDeviceSynchronize());
 
         {
-            bool* h_res_raw = new bool[count];
-            CUDA_TRY(cudaMemcpy(h_res_raw, d_res, count * sizeof(bool), cudaMemcpyDeviceToHost));
+            /* RAII buffer: leaks avoided if cudaMemcpy fails and CUDA_TRY
+             * returns early on the failure path. */
+            std::vector<uint8_t> h_res_raw(count);
+            CUDA_TRY(cudaMemcpy(h_res_raw.data(), d_res, count * sizeof(bool), cudaMemcpyDeviceToHost));
             for (size_t i = 0; i < count; ++i)
                 out_results[i] = h_res_raw[i] ? 1 : 0;
-            delete[] h_res_raw;
         }
 
         cudaFree(d_res); cudaFree(d_hgen); cudaFree(d_commits); cudaFree(d_proofs);

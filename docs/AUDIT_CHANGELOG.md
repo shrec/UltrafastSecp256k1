@@ -7,6 +7,37 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-04-18 (Memory-leak risk cleanup — graph-guided)
+
+Closed all `new`-without-matching-`delete` heuristic hits flagged by the
+source-graph `leak_risks` table (risk_score > 0) where the pairing was
+either genuinely missing on failure paths or merely not exception-safe.
+
+- **`gpu/src/gpu_backend_cuda.cu`** — three real leak paths fixed.
+  `ecdh_xdh_batch`, `dleq_verify_batch`, and `bulletproof_verify_batch`
+  allocated `new bool[count]` for the device→host result copy. The
+  subsequent `CUDA_TRY(cudaMemcpy(...))` early-returns a `GpuError::Launch`
+  on failure, which skipped the paired `delete[]` **and** every `cudaFree`
+  below it. Replaced the raw heap buffer with `std::vector<uint8_t>` so
+  the host buffer is now reclaimed by RAII on any failure path.
+- **`cpu/src/message_signing.cpp`** — `bitcoin_msg_hash` allocated
+  `new std::uint8_t[total]` for messages larger than 512 bytes. The paired
+  `delete[]` was reached in the happy path but any exception propagating
+  from `sha256()` would have leaked the buffer **and** skipped
+  `secure_erase`. Replaced with `std::vector<std::uint8_t>`; `secure_erase`
+  is still called explicitly before the vector deallocator reclaims
+  memory, so the confidentiality guarantee is unchanged.
+
+Four remaining `leak_risks` hits (`cpu/src/field.cpp`, `cpu/src/ct_point.cpp`,
+`cpu/bench/bench_unified.cpp`, `cuda/src/test_suite.cu`) were triaged as
+false positives: the heuristic matched the word `new` in comments
+(`new overflow`, `new lo`, `new Point`, `new scalar operations`), not in
+allocation expressions. Two additional hits with negative risk_score
+(`cpu/src/point.cpp`, `cpu/src/precompute.cpp`, `opencl/src/opencl_context.cpp`)
+already use `std::make_unique` / matching `delete` and are safe.
+
+---
+
 ## 2026-04-17 (Conversion Standard enforcement — 5 audit-model bugs closed)
 
 - **Fixed BUG-A1 (wiring parity).** 16 `audit/test_exploit_*.cpp` files
