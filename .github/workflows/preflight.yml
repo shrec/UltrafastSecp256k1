@@ -89,6 +89,13 @@ jobs:
             -DSECP256K1_BUILD_FUZZ_TESTS=OFF
           cmake --build build-audit --target ufsecp_shared -j $(nproc)
 
+      - name: CAAS Stage 0 — Exploit Wiring Parity (hard-fail)
+        # Enforces the Conversion Standard: every audit/test_exploit_*.cpp file
+        # that exposes a *_run() entry point must be registered in
+        # unified_audit_runner.cpp. Added 2026-04-17 after BUG-A1 where 16
+        # on-disk PoCs bypassed the aggregated audit verdict.
+        run: python3 scripts/check_exploit_wiring.py
+
       - name: CAAS Stage 1 — Static Analysis (hard-fail, 0 findings required)
         run: |
           python3 scripts/audit_test_quality_scanner.py --json -o caas_scanner.json

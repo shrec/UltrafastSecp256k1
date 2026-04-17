@@ -395,6 +395,28 @@ int test_exploit_biased_nonce_chain_scan_run();
 int test_exploit_kr_ecdsa_buff_binding_run();
 
 // ============================================================================
+// Forward declarations -- orphan PoCs previously built as CTest targets but
+// not registered in unified_audit_runner. Wired in 2026-04-17 to close the
+// Conversion Standard gap (docs/EXPLOIT_BACKLOG.md).
+// ============================================================================
+int test_exploit_bip32_child_key_attack_run();
+int test_exploit_boundary_sentinels_run();
+int test_exploit_buff_kr_ecdsa_run();
+int test_exploit_ecdsa_affine_nonce_relation_run();
+int test_exploit_ecdsa_r_overflow_run();
+int test_exploit_ecdsa_sign_sentinels_run();
+int test_exploit_ellswift_bad_scalar_ecdh_run();
+int test_exploit_ellswift_xdh_overflow_run();
+int test_exploit_frost_identifiable_abort_run();
+int test_exploit_hash_algo_sig_isolation_run();
+int test_exploit_minerva_cve_2024_23342_run();
+int test_exploit_musig2_byzantine_multiparty_run();
+int test_exploit_rfc6979_minerva_amplified_run();
+int test_exploit_scalar_mul_run();
+int test_exploit_schnorr_nonce_reuse_run();
+int test_exploit_eip712_kat_run();
+
+// ============================================================================
 // Report section IDs -- 9 audit categories
 // ============================================================================
 //   1. math_invariants   -- Mathematical Invariants (Fp, Zn, Group Laws)
@@ -734,6 +756,28 @@ static const AuditModule ALL_MODULES[] = {
     { "exploit_schnorr_batch_inflation",   "Schnorr Batch Inflation (SBI-1..12)",       "exploit_poc", test_exploit_schnorr_batch_inflation_run, false },
 
     // ===================================================================
+    // Section 9 (continued): Orphan PoCs wired 2026-04-17 — close the gap
+    // between on-disk audit/test_exploit_*.cpp files and registered modules
+    // per the Conversion Standard in docs/EXPLOIT_BACKLOG.md.
+    // ===================================================================
+    { "exploit_bip32_child_key_attack",    "BIP-32 Child Key Attack",                   "exploit_poc", test_exploit_bip32_child_key_attack_run, false },
+    { "exploit_boundary_sentinels",        "ABI Boundary Sentinel / OOB Detection",     "exploit_poc", test_exploit_boundary_sentinels_run, false },
+    { "exploit_buff_kr_ecdsa",             "BUFF KR-ECDSA Binding (ePrint 2021/1514)",  "exploit_poc", test_exploit_buff_kr_ecdsa_run, false },
+    { "exploit_ecdsa_affine_nonce_rel",    "ECDSA Affine Nonce Relation Attack",        "exploit_poc", test_exploit_ecdsa_affine_nonce_relation_run, false },
+    { "exploit_ecdsa_r_overflow",          "ECDSA Large-r Verify Bug (Stark Bank class)", "exploit_poc", test_exploit_ecdsa_r_overflow_run, false },
+    { "exploit_ecdsa_sign_sentinels",      "ECDSA Sign Sentinel / Boundary Inputs",     "exploit_poc", test_exploit_ecdsa_sign_sentinels_run, false },
+    { "exploit_eip712_kat",                "EIP-712 Typed Structured Data KAT",         "exploit_poc", test_exploit_eip712_kat_run, false },
+    { "exploit_ellswift_bad_scalar_ecdh",  "ElligatorSwift Bad-Scalar ECDH",            "exploit_poc", test_exploit_ellswift_bad_scalar_ecdh_run, false },
+    { "exploit_ellswift_xdh_overflow",     "ElligatorSwift xDH Overflow",               "exploit_poc", test_exploit_ellswift_xdh_overflow_run, false },
+    { "exploit_frost_identifiable_abort",  "FROST Identifiable Abort (ePrint 2022/550)", "exploit_poc", test_exploit_frost_identifiable_abort_run, false },
+    { "exploit_hash_algo_sig_isolation",   "Hash-Algorithm vs Signature Scheme Isolation", "exploit_poc", test_exploit_hash_algo_sig_isolation_run, false },
+    { "exploit_minerva_cve_2024_23342",    "Minerva CVE-2024-23342 Regression",         "exploit_poc", test_exploit_minerva_cve_2024_23342_run, false },
+    { "exploit_musig2_byzantine_multi",    "MuSig2 Byzantine Multi-Party",              "exploit_poc", test_exploit_musig2_byzantine_multiparty_run, false },
+    { "exploit_rfc6979_minerva_amplified", "RFC 6979 Minerva-Amplified Bias",           "exploit_poc", test_exploit_rfc6979_minerva_amplified_run, false },
+    { "exploit_scalar_mul",                "Point::scalar_mul Edge Cases (SM-1..SM-12)", "exploit_poc", test_exploit_scalar_mul_run, false },
+    { "exploit_schnorr_nonce_reuse",       "Schnorr Nonce Reuse Key Recovery",          "exploit_poc", test_exploit_schnorr_nonce_reuse_run, false },
+
+    // ===================================================================
     // Section 10: Math Invariants — SafeGCD & Nonce Edge Cases
     // ===================================================================
     { "exploit_safegcd_divsteps",  "SafeGCD/Bernstein-Yang divstep count + correctness (SGD-1..11)", "math_invariants", test_exploit_safegcd_divsteps_run, false },
@@ -934,11 +978,17 @@ static void write_json_report(const char* path,
     }
 
     int total_pass = 0, total_fail = 0, total_advisory = 0;
+    int total_advisory_skipped = 0, total_advisory_failed = 0;
     for (auto& r : results) {
         if (r.passed) {
             ++total_pass;
         } else if (r.advisory) {
             ++total_advisory;
+            if (r.elapsed_ms < 1.0) {
+                ++total_advisory_skipped;
+            } else {
+                ++total_advisory_failed;
+            }
         } else {
             ++total_fail;
         }
@@ -965,10 +1015,25 @@ static void write_json_report(const char* path,
     (void)std::fprintf(f, "    \"passed\": %d,\n", total_pass);
     (void)std::fprintf(f, "    \"failed\": %d,\n", total_fail);
     (void)std::fprintf(f, "    \"advisory_warnings\": %d,\n", total_advisory);
+    (void)std::fprintf(f, "    \"advisory_skipped\": %d,\n", total_advisory_skipped);
+    (void)std::fprintf(f, "    \"advisory_failed\": %d,\n", total_advisory_failed);
     (void)std::fprintf(f, "    \"all_passed\": %s,\n", (total_fail == 0) ? "true" : "false");
     (void)std::fprintf(f, "    \"total_time_ms\": %.1f,\n", total_ms);
-    (void)std::fprintf(f, "    \"audit_verdict\": \"%s\"\n",
-                 (total_fail == 0) ? "AUDIT-READY" : "AUDIT-BLOCKED");
+    // Verdict rules (2026-04-17):
+    //   AUDIT-BLOCKED       -- any non-advisory module failed
+    //   AUDIT-READY         -- everything mandatory passed, no advisory failures
+    //   AUDIT-READY-DEGRADED -- mandatory modules passed, but one or more
+    //                          advisory modules ran and failed; the report is
+    //                          usable but no longer a clean pass.
+    const char* verdict;
+    if (total_fail != 0) {
+        verdict = "AUDIT-BLOCKED";
+    } else if (total_advisory_failed != 0) {
+        verdict = "AUDIT-READY-DEGRADED";
+    } else {
+        verdict = "AUDIT-READY";
+    }
+    (void)std::fprintf(f, "    \"audit_verdict\": \"%s\"\n", verdict);
     (void)std::fprintf(f, "  },\n");
 
     // Selftest

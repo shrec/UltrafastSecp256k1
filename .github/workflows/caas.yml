@@ -67,6 +67,12 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Exploit wiring parity check
+        # Enforces the Conversion Standard: every audit/test_exploit_*.cpp
+        # with a *_run() entry point must be registered in
+        # unified_audit_runner.cpp. Must pass before the quality scanner runs.
+        run: python3 scripts/check_exploit_wiring.py
+
       - name: Run audit test quality scanner
         id: scanner
         run: |

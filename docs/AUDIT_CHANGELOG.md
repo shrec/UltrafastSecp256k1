@@ -7,6 +7,68 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-04-17 (Conversion Standard enforcement — 5 audit-model bugs closed)
+
+- **Fixed BUG-A1 (wiring parity).** 16 `audit/test_exploit_*.cpp` files
+  existed on disk and built as standalone CTest binaries but were **not**
+  registered in `audit/unified_audit_runner.cpp`, so failures never fed
+  into the aggregated audit verdict. All 16 are now wired as
+  `section = "exploit_poc"` entries in `ALL_MODULES`:
+  `exploit_bip32_child_key_attack`, `exploit_boundary_sentinels`,
+  `exploit_buff_kr_ecdsa`, `exploit_ecdsa_affine_nonce_rel`,
+  `exploit_ecdsa_r_overflow`, `exploit_ecdsa_sign_sentinels`,
+  `exploit_eip712_kat`, `exploit_ellswift_bad_scalar_ecdh`,
+  `exploit_ellswift_xdh_overflow`, `exploit_frost_identifiable_abort`,
+  `exploit_hash_algo_sig_isolation`, `exploit_minerva_cve_2024_23342`,
+  `exploit_musig2_byzantine_multi`, `exploit_rfc6979_minerva_amplified`,
+  `exploit_scalar_mul`, `exploit_schnorr_nonce_reuse`. Runner build is
+  green (288/288 objects).
+
+- **Added** `scripts/check_exploit_wiring.py` (CAAS Stage 0) as a CI gate
+  that refuses merges when an on-disk `test_exploit_*.cpp` defines a
+  `_run()` entry point but is not referenced by `unified_audit_runner.cpp`.
+  Wired into `.github/workflows/preflight.yml` and
+  `.github/workflows/caas.yml` before the static analysis stage.
+
+- **Added** `int test_exploit_eip712_kat_run()` wrapper in
+  `audit/test_exploit_eip712_kat.cpp` over the existing
+  `run_eip712_kat_tests()` function, so the EIP-712 structured-data KAT
+  participates in the aggregated verdict when built without
+  `STANDALONE_TEST`.
+
+- **Fixed BUG-A2 (mutation false-green).** `scripts/mutation_kill_rate.py`
+  now enforces:
+  - minimum testable sample (`UFSECP_MUTATION_MIN_SAMPLE`, default 20);
+    kill-rate over < 20 testable mutations can no longer report `passed =
+    true`.
+  - maximum build-error ratio (`UFSECP_MUTATION_MAX_BUILD_ERROR_RATIO`,
+    default 0.5); a run where >50% of mutants failed to build is treated
+    as a broken mutator, not as a passing test suite.
+  - Report now carries `testable` and `pass_reason` fields, and the
+    printed RESULT line cites the concrete reason.
+
+- **Fixed BUG-A3 (advisory silent-pass).** `write_json_report` in
+  `audit/unified_audit_runner.cpp` now splits `advisory_warnings` into
+  `advisory_skipped` (infrastructure missing, ~0 ms runtime) and
+  `advisory_failed` (ran and failed). The top-level `audit_verdict` gains
+  a new value `AUDIT-READY-DEGRADED` used when mandatory modules pass but
+  one or more advisory modules actually failed.
+
+- **Fixed BUG-A5 (static-only scanner).** `scripts/audit_test_quality_scanner.py`
+  gained **Category G** — "unwired exploit PoC". The scanner now
+  cross-checks every `audit/test_exploit_*.cpp` against
+  `unified_audit_runner.cpp` and reports high-severity findings when a
+  `_run()` symbol is declared but not registered, or when a PoC has
+  `int main()` but no `_run()` wrapper at all. Current run: 0 findings on
+  264 audit files.
+
+- **Added** Conversion Standard rule block to `AGENTS.md`, `CLAUDE.md`,
+  and `.github/copilot-instructions.md`. Every new exploit or audit test
+  must be **code + wired + documented in the same commit**, enforced by
+  CAAS Stage 0.
+
+---
+
 ## 2026-04-15 (Mutation policy: local pre-release, not push/PR CI)
 
 - **Updated** `.github/workflows/mutation.yml` trigger policy to remove automatic
