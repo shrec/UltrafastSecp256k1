@@ -533,7 +533,7 @@ jobs:
           ./scripts/build_xcframework.sh
 
       - name: Upload XCFramework
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: UltrafastSecp256k1.xcframework
           path: build/xcframework/output/UltrafastSecp256k1.xcframework
@@ -638,7 +638,7 @@ jobs:
         run: node build/wasm/kat/wasm_kat_test.js
 
       - name: Upload WASM artifact
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         continue-on-error: true
         with:
           name: secp256k1-wasm
