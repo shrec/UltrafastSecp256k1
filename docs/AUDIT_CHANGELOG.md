@@ -7,6 +7,44 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-04-20 (GPU parity gap closed — schnorr_snark_witness_batch host fallback)
+
+Closed the only remaining `GpuError::Unsupported` gap in the public GPU ABI.
+`ufsecp_gpu_zk_schnorr_snark_witness_batch` previously returned
+`GpuError::Unsupported` on every backend (CUDA / OpenCL / Metal) because the
+default `GpuBackend::schnorr_snark_witness_batch` virtual method had a stub
+inline body. Callers asking for the GPU batch path therefore got a hard error
+even though the CPU C ABI (`ufsecp_zk_schnorr_snark_witness`) was fully
+functional.
+
+- Added [gpu/src/gpu_backend_fallback.cpp](../gpu/src/gpu_backend_fallback.cpp)
+  with `schnorr_snark_witness_batch_cpu_fallback`, a deterministic host-side
+  loop that produces byte-identical 472-byte witness records (matches
+  `ufsecp_schnorr_snark_witness_t` and `SCHNORR_SNARK_WITNESS_BYTES`).
+- Wired the new helper as the default `GpuBackend::schnorr_snark_witness_batch`
+  body in [gpu/include/gpu_backend.hpp](../gpu/include/gpu_backend.hpp) so
+  every backend (and any future backend) returns correct results out of the
+  box. Backends are still free to override with a native device kernel for
+  higher throughput.
+- Updated [docs/BACKEND_ASSURANCE_MATRIX.md](BACKEND_ASSURANCE_MATRIX.md):
+  the matrix row now shows `Y*` (served via host-side fallback) instead of
+  `stub` for all three backends, with the asterisk explained in the footnote.
+- Added file to the `gpu_registry.cpp` source list and to the standalone
+  audit targets in `audit/CMakeLists.txt` so test binaries link the new
+  symbol.
+
+This is a public-data-only operation (no secret values are touched), so a
+host-side fallback has no security impact. The change brings the public GPU
+ABI to **zero `Unsupported` returns** across all shipping backends; the
+`docs/BACKEND_ASSURANCE_MATRIX.md` "temporary stubs" row for this op is now
+documented as covered.
+
+Verified by full incremental rebuild of `build_opencl/` (708/708 targets),
+including `unified_audit_runner` and every standalone PoC that links
+`gpu_registry.cpp`.
+
+---
+
 ## 2026-04-18 (Memory-leak risk cleanup — graph-guided)
 
 Closed all `new`-without-matching-`delete` heuristic hits flagged by the

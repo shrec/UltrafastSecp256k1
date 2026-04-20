@@ -266,7 +266,8 @@ add_executable(test_c_abi_negative_standalone
     test_c_abi_negative.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_gpu_impl.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/src/gpu_registry.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/src/gpu_registry.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/src/gpu_backend_fallback.cpp)
 audit_target_defaults(test_c_abi_negative_standalone)
 target_include_directories(test_c_abi_negative_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
@@ -2469,6 +2470,7 @@ add_executable(unified_audit_runner
     # -- ufsecp GPU ABI implementation + tests (null-guard paths work without hardware) --
     ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_gpu_impl.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/src/gpu_registry.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/src/gpu_backend_fallback.cpp
     test_gpu_host_api_negative.cpp
     test_gpu_abi_gate.cpp
     # -- field representation tests --

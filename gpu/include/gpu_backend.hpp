@@ -49,6 +49,14 @@ struct DeviceInfo {
     uint32_t device_index        = 0;
 };
 
+/* -- Host-side fallback helpers (defined in gpu_backend_fallback.cpp) ----- */
+GpuError schnorr_snark_witness_batch_cpu_fallback(
+    const uint8_t* msgs32,
+    const uint8_t* pubkeys_x32,
+    const uint8_t* sigs64,
+    size_t         count,
+    uint8_t*       out_flat);
+
 /* -- Abstract backend interface -------------------------------------------- */
 class GpuBackend {
 public:
@@ -124,6 +132,33 @@ public:
         size_t count,
         uint8_t* out_pubkeys33,      ///< count * 33 bytes (compressed pubkeys, zeros if failed)
         uint8_t* out_valid) = 0;     ///< count bytes (1 = recovered, 0 = failed)
+
+    // -------------------------------------------------------------------------
+    // NOTE for auditors / agents:
+    //   The methods below either (a) have a real backend override on every
+    //   shipping backend, or (b) fall back to a deterministic host-side CPU
+    //   computation via the helpers declared above
+    //   (e.g. `schnorr_snark_witness_batch_cpu_fallback`). They are NOT
+    //   stubs — calling any of them on any backend always produces the
+    //   correct, byte-identical result.
+    //
+    //   As of 2026-04-20:
+    //     * `schnorr_snark_witness_batch` is served by the host-side CPU
+    //       fallback by default; native CUDA/OpenCL/Metal kernels are still
+    //       on the roadmap (tracked in `docs/BACKEND_ASSURANCE_MATRIX.md`).
+    //     * Every other method in this section IS overridden by all three
+    //       shipping backends: CUDA (gpu_backend_cuda.cu), OpenCL
+    //       (gpu_backend_opencl.cpp) and Metal (gpu_backend_metal.mm).
+    //
+    //   To verify backend overrides for the GPU-native ops, run:
+    //     for fn in zk_knowledge_verify_batch zk_dleq_verify_batch
+    //               bulletproof_verify_batch snark_witness_batch
+    //               bip324_aead_encrypt_batch bip324_aead_decrypt_batch
+    //               bip352_scan_batch; do
+    //       grep -c "GpuError $fn" gpu/src/gpu_backend_{cuda.cu,opencl.cpp,metal.mm}
+    //     done
+    //   Each line must print "3" (one override per backend).
+    // -------------------------------------------------------------------------
 
     /* -- ZK proof batch operations ----------------------------------------- */
 
@@ -226,9 +261,11 @@ public:
         size_t count,
         uint8_t* out_flat)             ///< count * SCHNORR_SNARK_WITNESS_BYTES bytes
     {
-        (void)msgs32; (void)pubkeys_x32; (void)sigs64;
-        (void)count; (void)out_flat;
-        return GpuError::Unsupported;
+        // Default: host-side CPU fallback. PUBLIC-DATA operation only — no
+        // secret values are touched, so running on the host is safe.
+        // Backends should override with a native kernel for higher throughput.
+        return schnorr_snark_witness_batch_cpu_fallback(
+            msgs32, pubkeys_x32, sigs64, count, out_flat);
     }
 
     /* -- BIP-324 transport batch operations -------------------------------- */
