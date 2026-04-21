@@ -56,7 +56,7 @@ lags behind the generated validation surfaces, prefer the generated counts.
 | `test_frost_kat.cpp` | -- | FROST t-of-n threshold signing known-answer tests |
 | `test_wycheproof_ecdsa.cpp` | -- | Wycheproof ECDSA: Google Project Wycheproof test vectors |
 | `test_wycheproof_ecdh.cpp` | -- | Wycheproof ECDH: Google Project Wycheproof test vectors |
-| `unified_audit_runner.cpp` | 70 modules | Unified audit: all 70 audit modules in single binary (includes GPU null-guard paths) |
+| `unified_audit_runner.cpp` | 249 modules (60 non-exploit + 189 exploit PoCs) | Unified audit: all current modules in single binary (includes GPU null-guard paths) |
 
 ### CPU Unit Tests (`cpu/tests/`)
 

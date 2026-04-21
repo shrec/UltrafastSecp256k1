@@ -5,7 +5,7 @@
 > than we want to look clean.
 
 **Current assurance state**: 189 exploit PoC tests (all wired in `unified_audit_runner`),
-11 fuzzer harnesses, 58 audit modules, 39 formal Cryptol properties, dudect + Valgrind
+11 fuzzer harnesses, 60 non-exploit audit modules, 39 formal Cryptol properties, dudect + Valgrind
 CT evidence, full Wycheproof vector coverage. None of this means the library is bug-free.
 It means we tried hard. Now you try.
 

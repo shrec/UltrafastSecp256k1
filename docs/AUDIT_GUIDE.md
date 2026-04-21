@@ -16,7 +16,7 @@ The project is open to external audit and keeps these audit surfaces reproducibl
 It does not wait for a formal third-party engagement before strengthening assurance internally.
 Internal audit is part of normal development and is expected to run on every build and every commit through the CI and local audit workflow.
 
-### What It Tests (58 modules + 189 exploit PoC tests + standalone audit surfaces)
+### What It Tests (60 non-exploit modules + 189 exploit PoC tests + standalone audit surfaces)
 
 | Section | Modules | Focus |
 |---------|---------|-------|

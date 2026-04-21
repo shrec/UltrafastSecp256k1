@@ -7,6 +7,45 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-04-21 (audit-doc reality reconciliation, pass 2: modules + workflows)
+
+Second reconciliation pass — beyond exploit-PoC counts (pass 1 above),
+also reconciled non-exploit module counts and CI workflow counts against
+on-disk reality:
+
+Reality:
+- Non-exploit audit modules in `unified_audit_runner.cpp` ALL_MODULES: **60**
+  (sections: protocol_security 12, math_invariants 10, fuzzing 10,
+  standard_vectors 9, memory_safety 9, ct_analysis 4, differential 4,
+  performance 2)
+- Total runner modules including 189 exploit_poc: **249**
+- Non-exploit sections: **8**, total sections: **9**
+- CI workflows in `.github/workflows/`: **41**
+- Backend runners (rough register counts):
+  `gpu_audit_runner` = 47, `opencl_audit_runner` = 40, `metal_audit_runner` = 30
+
+Updates landed:
+
+- `README.md`: 8 occurrences (54/55/58 module → 60 non-exploit + 189 exploit;
+  37 CI workflows → 41; section 8 → 9)
+- `docs/TEST_MATRIX.md`: 70 modules → 249 modules (60 non-exploit + 189 exploit)
+- `docs/AUDIT_GUIDE.md`: 58 modules → 60 non-exploit modules
+- `docs/ATTACK_GUIDE.md`: 58 audit modules → 60 non-exploit audit modules
+- `docs/CROSS_PLATFORM_TEST_MATRIX.md`: 70 modules → 249 modules (×2)
+- `docs/BACKEND_PARITY.md`: header date 2026-03-15 → 2026-04-21;
+  audit-runner row updated to 60 non-exploit + 189 exploit + accurate
+  per-backend register counts (47/40/30)
+
+Historical benchmark snapshots in `docs/BENCHMARKS.md` ("70/70 audit
+modules", "53/54 modules") are intentionally preserved because they
+correctly represent the runner state at the time of that benchmark run.
+
+Existing-as-correct (no change required):
+- 11 fuzzer harnesses (`audit/fuzz_*.cpp` 6 + `cpu/fuzz/fuzz_*.cpp` 5)
+- 39 Cryptol properties (`grep -rE 'property\s+\w+' --include='*.cry'`)
+
+---
+
 ## 2026-04-21 (audit-doc reality reconciliation)
 
 Reconciled exploit-PoC counts across every live audit document against
