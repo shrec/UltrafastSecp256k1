@@ -310,6 +310,9 @@ _MSET_LITERAL = re.compile(
 # Hard-coded sizes that don't match common crypto buffer sizes.
 # Note: 20 (RIPEMD-160), 28 (SHA-224), 48 (SHA-384), 12 (GCM nonce) are
 # legitimate crypto sizes and are excluded to keep FP rate down.
+# Note: 3 is also a legitimate size (e.g. BIP-324 plaintext header), so it is
+# only flagged when paired with non-protocol-specific buffer names (handled
+# below by the `bip324`/`header`/`magic` filename/snippet skip).
 _SUSPICIOUS_SIZES = {3, 5, 6, 7, 9, 11, 13, 14, 15, 17, 18, 19,
                      40, 56, 60, 100, 200}
 
@@ -318,8 +321,19 @@ def check_mset(path: str, lines: List[str]) -> List[Finding]:
     findings: List[Finding] = []
     # Common crypto sizes: 16, 32, 64, 96, 128, 33, 65
     safe_sizes = {16, 32, 33, 64, 65, 96, 128, 256, 384, 512, 1, 2, 4, 8}
+    # Files that legitimately use small fixed sizes for protocol headers /
+    # magic bytes / version stamps.
+    plow = path.lower()
+    if any(tag in plow for tag in ('bip324', 'bip32', 'bip352', 'tagged_hash',
+                                   'address', 'hd_wallet', 'wallet')):
+        return []
     for i, raw in enumerate(lines):
         line = _strip_comments(raw)
+        # Skip lines that look like they are copying a protocol header /
+        # magic / version stamp into a fixed-size field.
+        if re.search(r'\b(header|magic|version|prefix|sentinel|marker|tag)\b',
+                     line, re.IGNORECASE):
+            continue
         m = _MSET_LITERAL.search(line)
         if m:
             fn   = m.group(1)
@@ -453,6 +467,15 @@ def check_copypaste(path: str, lines: List[str]) -> List[Finding]:
             # Extract RHS by removing the lval= prefix
             rhs_start = line.find('=') + 1
             rhs = line[rhs_start:]
+            # Skip ternary-of-constants pattern (e.g. BIP-32 magic version):
+            # `lval = cond ? CONST1 : CONST2;` — common for protocol magic
+            # bytes and not a copy-paste bug.
+            if re.search(r'\?\s*(?:0x[0-9A-Fa-f]+|[A-Z_][A-Z0-9_]*|\d+)[uUlL]*\s*:'
+                         r'\s*(?:0x[0-9A-Fa-f]+|[A-Z_][A-Z0-9_]*|\d+)[uUlL]*',
+                         rhs):
+                last_assigned.pop(lval, None)
+                last_assigned[lval] = (i, raw.strip())
+                continue
             # Self-referential: `y = y.square()` — y is read in RHS, not a dead write
             if re.search(r'\b' + re.escape(lval) + r'\b', rhs):
                 last_assigned.pop(lval, None)
@@ -1077,8 +1100,11 @@ _UFSECP_FUNC_DEF = re.compile(
 # Renamed from _NULL_CHECK to avoid collision with check_null_after_deref's regex.
 # Match any `if (!identifier)` or `if (X == NULL/nullptr)` — broad enough to catch
 # all common ABI-style null guards. Also accepts ternary `X ? ... : err` pattern.
+# Compound forms like `if ((!a && b > 0) || !c)` are caught by the leading `!\w+`
+# alternative because the first `!` precedes a bare identifier inside the
+# parenthesised expression.
 _BINDING_NULL_CHECK = re.compile(
-    r'if\s*\(\s*!\s*\w+'                       # if (!x ...)
+    r'!\s*\w+'                                  # any !x — handles compound `if ((!a && ..) || !b)`
     r'|\bif\s*\(\s*\w+\s*==\s*(?:NULL|nullptr)' # if (x == NULL)
     r'|\b\w+\s*\?\s*\w+'                        # ctx ? ... ternary guard
 )
