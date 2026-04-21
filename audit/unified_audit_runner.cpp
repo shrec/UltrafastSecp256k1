@@ -372,6 +372,7 @@ int test_exploit_cross_scheme_pubkey_run();
 int test_exploit_wif_security_run();
 int test_exploit_buffer_type_confusion_run();
 int test_exploit_differential_libsecp_run();
+int test_exploit_differential_openssl_run();
 int test_exploit_bip352_scan_dos_run();
 int test_exploit_taproot_commitment_adversarial_run();
 int test_exploit_bip352_parity_confusion_run();
@@ -707,6 +708,7 @@ static const AuditModule ALL_MODULES[] = {
     { "exploit_wif_security",           "WIF Key Format Security (WIF-1..10)",         "exploit_poc", test_exploit_wif_security_run, false },
     { "exploit_buffer_type_confusion",  "Buffer/Type-Confusion (BTC-0..12)",           "exploit_poc", test_exploit_buffer_type_confusion_run, false },
     { "exploit_differential_libsecp",   "Differential Correctness (DIF-1..10)",        "exploit_poc", test_exploit_differential_libsecp_run, false },
+    { "exploit_differential_openssl",   "INTEROP: Differential vs OpenSSL libcrypto",  "differential", test_exploit_differential_openssl_run, true },
     { "exploit_bip352_scan_dos",        "BIP-352 Scan DoS Prevention (DOS-0..3)",      "exploit_poc", test_exploit_bip352_scan_dos_run, false },
     { "exploit_taproot_commit_adv",     "Taproot Commitment Adversarial (TCA-1..5)",   "exploit_poc", test_exploit_taproot_commitment_adversarial_run, false },
     { "exploit_bip352_parity",          "BIP-352 Parity Confusion (PAR-1..6)",         "exploit_poc", test_exploit_bip352_parity_confusion_run, false },

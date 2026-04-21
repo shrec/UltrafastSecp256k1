@@ -25,13 +25,14 @@ is treated as a starting baseline, not an end state.
 |----------|----------|---------|--------|
 | GitHub Actions | `.github/workflows/reproducible-build.yml` | Primary reproducibility check on `push`-to-`dev` and `push`-to-`main` | **Active** |
 | GitHub Actions | `.github/workflows/slsa-provenance.yml` | SLSA Level 3 provenance attestation | **Active** |
-| GitLab CI | `.gitlab-ci.yml` (planned) | Independent provider; runs identical build matrix | **Planned** |
-| Codeberg / Woodpecker CI | `.woodpecker.yml` (planned) | Third independent provider | **Planned** |
+| GitLab CI | `.gitlab-ci.yml` | Independent provider; runs identical build matrix and emits `reproducible-attestation.json` | **Config landed** (awaits GitLab mirror enablement) |
+| Codeberg / Woodpecker CI | `.woodpecker.yml` | Third independent provider; identical attestation schema | **Config landed** (awaits Codeberg mirror enablement) |
 | Local (developer) | `scripts/verify_reproducible_build.sh` | On-demand local reproduction | **Active** |
 
-The active providers cover the GitHub-Actions side; G-7 closure
-*scope* is to add at least one of GitLab or Codeberg/Woodpecker as a
-parallel verifier, with output cross-checked against GitHub's hash.
+The two non-GitHub configs are committed in-tree and will run
+automatically once the corresponding read-only mirror is enabled
+on the upstream repository. Neither requires owner intervention
+beyond pushing the mirror.
 
 ## 3. Build determinism inputs
 
@@ -110,8 +111,8 @@ recorded as advisory and tracked here.
 | Provider | Last successful run | Last failure | Notes |
 |----------|---------------------|--------------|-------|
 | GitHub Actions | (most recent push) | none on dev tip | Active |
-| GitLab CI | n/a — not yet wired | n/a | Pending G-7 extension |
-| Codeberg / Woodpecker | n/a — not yet wired | n/a | Pending G-7 extension |
+| GitLab CI | n/a — mirror not yet enabled | n/a | Config landed in `.gitlab-ci.yml` |
+| Codeberg / Woodpecker | n/a — mirror not yet enabled | n/a | Config landed in `.woodpecker.yml` |
 
 ## 7. What this proves and does not prove
 

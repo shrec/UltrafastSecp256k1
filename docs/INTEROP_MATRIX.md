@@ -70,6 +70,7 @@ The differential suite executes ~1.3M assertions per nightly run
 | Self-against-self | MuSig2 (BIP-327) full round protocol | `audit/test_musig2_round.cpp` | OK |
 | Self-against-self | FROST (RFC 9591) DKG + sign | `audit/test_frost_dkg.cpp`, `audit/test_frost_round.cpp` | OK |
 | Bitcoin Core test vectors | BIP-324 handshake transcripts | `audit/test_bip324_kdf_vectors.cpp` | OK |
+| OpenSSL libcrypto (3.x) | ECDSA secp256k1 sign+verify cross-check | `audit/test_exploit_differential_openssl.cpp` (advisory) | Active when OpenSSL present, advisory skip otherwise |
 
 ## 3. References that we do NOT (yet) interop against
 
@@ -78,8 +79,7 @@ and a wired test in `unified_audit_runner.cpp`.
 
 | Reference | Algorithm | Why not yet | Tracking |
 |-----------|-----------|-------------|----------|
-| OpenSSL `EVP` ECDSA secp256k1 | Random differential | Not yet wired in default CI | Future G-4 extension |
-| BoringSSL `EC_KEY` | Random differential | Same | Future G-4 extension |
+| BoringSSL `EC_KEY` | Random differential | Build wiring (no system package on most CI) | Future G-4 extension |
 | WolfSSL `wc_ecc_*` | Random differential | Same | Future G-4 extension |
 | NSS `SECKEY_*` | Random differential | Same | Future G-4 extension |
 | Rust `k256` / `secp256k1` | Random differential | Cross-ecosystem; needs FFI bridge | Future G-4 extension |

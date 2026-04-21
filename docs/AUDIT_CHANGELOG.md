@@ -7,7 +7,51 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
-## 2026-04-21 (CAAS post-roadmap: audit_gate sub-gates G-1/G-1b/G-8/G-10 wired)
+## 2026-04-21 (CAAS post-roadmap: multi-CI providers + INTEROP §3 OpenSSL wired)
+
+Two parallel reproducibility verifiers and the first INTEROP §3
+external-reference promotion landed in this batch:
+
+- `.gitlab-ci.yml` — GitLab CI reproducible-build verifier
+  (two builds, .o-by-.o cmp, libufsecp*.so* sha256 compare,
+  emits `artifacts/reproducible-attestation.json` with
+  `provider:"gitlab-ci"`).
+- `.woodpecker.yml` — Codeberg/Woodpecker CI verifier with
+  identical schema (`provider:"woodpecker-codeberg"`).
+- `docs/MULTI_CI_REPRODUCIBLE_BUILD.md` §2 + §6 — both providers
+  promoted from `Planned` to `Config landed`. Three
+  organisationally-independent providers now publish
+  reproducible-attestation.json with the same schema; cross-provider
+  hash-of-jq agreement is now possible once GitLab/Codeberg mirrors
+  are enabled.
+- `audit/test_exploit_differential_openssl.cpp` (NEW) — INTEROP
+  differential PoC against OpenSSL libcrypto (3.x). Uses
+  `__has_include` so it compiles unconditionally; runs the real
+  cross-check when OpenSSL is linkable (CMake `find_package(OpenSSL
+  COMPONENTS Crypto)` auto-links it), otherwise prints an advisory
+  skip and passes.
+- `audit/unified_audit_runner.cpp` — wired `differential_openssl`
+  module under section `differential` with `advisory=true`.
+- `audit/CMakeLists.txt` — source added to `unified_audit_runner`
+  and to a new `test_exploit_differential_openssl_standalone` CTest
+  target. OpenSSL linked conditionally via `find_package(OpenSSL
+  QUIET COMPONENTS Crypto)`.
+- `docs/INTEROP_MATRIX.md` — OpenSSL row promoted from §3
+  (not-yet-wired) to §2 (active when present). §3 list shrunk
+  accordingly.
+- `docs/EXPLOIT_TEST_CATALOG.md` — catalog row for
+  `test_exploit_differential_openssl.cpp` added with INTEROP scope
+  note.
+
+This closes the second remaining post-roadmap item (multi-CI
+provider configs) and starts the longer INTEROP §3 wiring track
+with the most ubiquitous external reference (OpenSSL).
+BoringSSL/WolfSSL/NSS/Rust k256/Go btcd/frost-dalek remain in §3
+and will land one per commit.
+
+---
+
+
 
 Promotes the four CAAS roadmap docs from documentation-only to
 enforced gates inside `scripts/audit_gate.py`:

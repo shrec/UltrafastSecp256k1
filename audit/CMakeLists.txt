@@ -1538,6 +1538,21 @@ target_compile_definitions(test_exploit_differential_libsecp_standalone PRIVATE 
 add_test(NAME exploit_differential_libsecp COMMAND test_exploit_differential_libsecp_standalone)
 set_tests_properties(exploit_differential_libsecp PROPERTIES TIMEOUT 120 LABELS "audit;exploit;differential")
 
+# -- PoC: INTEROP differential vs OpenSSL libcrypto (advisory; G-9 / INTEROP §3)
+add_executable(test_exploit_differential_openssl_standalone
+    test_exploit_differential_openssl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_differential_openssl_standalone)
+target_include_directories(test_exploit_differential_openssl_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include ${CMAKE_BINARY_DIR}/include)
+target_compile_definitions(test_exploit_differential_openssl_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+find_package(OpenSSL QUIET COMPONENTS Crypto)
+if(OpenSSL_FOUND)
+    target_link_libraries(test_exploit_differential_openssl_standalone PRIVATE OpenSSL::Crypto)
+endif()
+add_test(NAME exploit_differential_openssl COMMAND test_exploit_differential_openssl_standalone)
+set_tests_properties(exploit_differential_openssl PROPERTIES TIMEOUT 120 LABELS "audit;exploit;differential;interop;advisory")
+
 # -- PoC: BIP-352 scanning DoS prevention (A6 gap)
 add_executable(test_exploit_bip352_scan_dos_standalone
     test_exploit_bip352_scan_dos.cpp
@@ -2612,6 +2627,7 @@ add_executable(unified_audit_runner
     # -- Security gap closure tests (A2, B2, A6, A7, C2, C5, D6, LOW) --
     test_exploit_buffer_type_confusion.cpp
     test_exploit_differential_libsecp.cpp
+    test_exploit_differential_openssl.cpp
     test_exploit_bip352_scan_dos.cpp
     test_exploit_taproot_commitment_adversarial.cpp
     test_exploit_bip352_parity_confusion.cpp
@@ -2744,6 +2760,22 @@ set_tests_properties(unified_audit PROPERTIES TIMEOUT 1800)
 
 # ===========================================================================
 target_link_libraries(unified_audit_runner PRIVATE Threads::Threads)
+
+# ---------------------------------------------------------------------------
+# Optional INTEROP differential reference: OpenSSL libcrypto
+# ---------------------------------------------------------------------------
+# When OpenSSL is available on the build host, link it into the unified
+# audit runner so test_exploit_differential_openssl can perform a real
+# cross-implementation check. When OpenSSL is absent, the test compiles
+# with __has_include guards and prints an advisory skip.
+find_package(OpenSSL QUIET COMPONENTS Crypto)
+if(OpenSSL_FOUND)
+    target_link_libraries(unified_audit_runner PRIVATE OpenSSL::Crypto)
+    message(STATUS "INTEROP: OpenSSL libcrypto wired into unified_audit_runner (advisory differential)")
+else()
+    message(STATUS "INTEROP: OpenSSL libcrypto not found; differential_openssl will skip with advisory")
+endif()
+
 # Full Audit Orchestrator (custom target)
 # ===========================================================================
 # "cmake --build <dir> --target run_full_audit" runs the orchestrator script.

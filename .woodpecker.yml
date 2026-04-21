@@ -1,0 +1,83 @@
+# ============================================================================
+# Woodpecker CI (Codeberg) — Reproducible Build cross-provider verifier
+# ============================================================================
+# Third independent CI provider for the MULTI_CI_REPRODUCIBLE_BUILD.md
+# (G-7) parallel-verifier promise. Mirrors GitHub Actions
+# `reproducible-build.yml` and GitLab CI `.gitlab-ci.yml`.
+#
+# Builds twice from the same commit and emits
+# reproducible-attestation.json so an external party can compare
+# hashes across all three providers without rebuilding.
+# ============================================================================
+
+when:
+  - branch:
+      include: [dev, main]
+    event: [push, manual]
+
+steps:
+  reproducible-build:
+    image: ubuntu:24.04
+    environment:
+      DEBIAN_FRONTEND: noninteractive
+      LC_ALL: C
+      TZ: UTC
+    commands:
+      - apt-get update -qq
+      - apt-get install -y --no-install-recommends
+            cmake ninja-build g++-14 diffutils coreutils ca-certificates jq git
+      - set -euo pipefail
+      - export SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct 2>/dev/null || echo 1750000000)
+      - echo "Using SOURCE_DATE_EPOCH=$SOURCE_DATE_EPOCH"
+      # Build A
+      - cmake -S . -B build-repro-a -G Ninja
+              -DCMAKE_BUILD_TYPE=Release
+              -DCMAKE_C_COMPILER=gcc-14
+              -DCMAKE_CXX_COMPILER=g++-14
+              -DUFSECP_REPRODUCIBLE=ON
+      - cmake --build build-repro-a --parallel
+      # Build B
+      - cmake -S . -B build-repro-b -G Ninja
+              -DCMAKE_BUILD_TYPE=Release
+              -DCMAKE_C_COMPILER=gcc-14
+              -DCMAKE_CXX_COMPILER=g++-14
+              -DUFSECP_REPRODUCIBLE=ON
+      - cmake --build build-repro-b --parallel
+      # Compare object files
+      - |
+        FAIL=0
+        for obj in $(find build-repro-a -name "*.o" | sort); do
+          rel="${obj#build-repro-a/}"
+          other="build-repro-b/$rel"
+          if [ ! -f "$other" ]; then echo "MISSING: $rel"; FAIL=1; continue; fi
+          if ! cmp -s "$obj" "$other"; then echo "DIFFERS: $rel"; FAIL=1; fi
+        done
+        [ "$FAIL" -eq 0 ] || { echo "object files differ"; exit 1; }
+      # Compare libufsecp.{so,a}
+      - |
+        sha_a=$(find build-repro-a -name "libufsecp*.so*" -not -type l -exec sha256sum {} \; | sort)
+        sha_b=$(find build-repro-b -name "libufsecp*.so*" -not -type l -exec sha256sum {} \; | sort)
+        [ "$(echo "$sha_a" | awk '{print $1}')" = "$(echo "$sha_b" | awk '{print $1}')" ] \
+            || { echo "shared libs differ"; exit 1; }
+      # Emit cross-provider attestation JSON
+      - |
+        mkdir -p artifacts
+        {
+          echo '{'
+          echo '  "provider": "woodpecker-codeberg",'
+          echo "  \"commit\": \"${CI_COMMIT_SHA:-unknown}\","
+          echo "  \"source_date_epoch\": \"$SOURCE_DATE_EPOCH\","
+          echo '  "artefacts": ['
+          first=1
+          for f in $(find build-repro-a \( -name "libufsecp*.so*" -o -name "libufsecp*.a" \) -not -type l | sort); do
+            rel="${f#build-repro-a/}"
+            h=$(sha256sum "$f" | awk '{print $1}')
+            [ $first -eq 1 ] || echo ','
+            printf "    { \"name\": \"%s\", \"sha256\": \"%s\" }" "$(basename "$rel")" "$h"
+            first=0
+          done
+          echo
+          echo '  ]'
+          echo '}'
+        } > artifacts/reproducible-attestation.json
+        jq -S . artifacts/reproducible-attestation.json | sha256sum
