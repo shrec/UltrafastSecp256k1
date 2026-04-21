@@ -7,6 +7,42 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-04-21 (CAAS post-roadmap: audit_gate sub-gates G-1/G-1b/G-8/G-10 wired)
+
+Promotes the four CAAS roadmap docs from documentation-only to
+enforced gates inside `scripts/audit_gate.py`:
+
+- `--threat-model` (G-1): verifies THREAT_MODEL.md covers all 6
+  STRIDE categories (with the "Info-disclosure" / "DoS" variants
+  used by the doc), every AM-N citation resolves to a row in §3,
+  and every RR-NNN citation resolves to an entry in the register.
+
+- `--residual-risk-register` (G-1b): parses
+  RESIDUAL_RISK_REGISTER.md as table rows and refuses any entry
+  with a blank Risk / Disposition / Scope / Details cell (<20
+  chars).
+
+- `--disclosure-sla` (G-10): refuses if SECURITY.md drops any of
+  Critical/High/Medium/Low tiers or if `.well-known/security.txt`
+  lacks the RFC 9116 required `Contact:` / `Expires:` fields or
+  has an `Expires:` date in the past.
+
+- `--ct-tool-agreement` (G-8): parses CT_TOOL_INDEPENDENCE.md §6
+  coverage table and refuses if any CT-claimed function has a
+  blank / "n/a" / "?" entry for dudect, Valgrind CT, or ct-verif,
+  or a Verdict that does not include the word "Verified".
+
+All four sub-gates are now members of `ALL_CHECKS` and run as part
+of the default `audit_gate.py` invocation that CAAS Stage 2 calls.
+
+Verified: `python3 scripts/audit_gate.py` PASS,
+`python3 scripts/caas_runner.py` 6/6 PASS in 6.1s.
+
+This closes the "Implement the planned `audit_gate.py` sub-gates"
+remaining item from the 2026-04-21 post-roadmap entry.
+
+---
+
 ## 2026-04-21 (CAAS post-roadmap: SPEC matrix path reconciliation + strict-mode traceability gate)
 
 Post-batch-3 cleanup lands the final piece promised in the

@@ -57,7 +57,7 @@
     {
       "exists": true,
       "path": "docs/SECURITY_AUTONOMY_KPI.json",
-      "sha256": "5060a51d65aec908b63ba34a8a51a9d7bad81ca74d11e2a49d2f2f3b43bfe403",
+      "sha256": "675fcdb1042b33992bcb4c39fd5c702291d169edb7bce0bc4f201e6f50659c30",
       "size": 1421
     },
     {
@@ -357,7 +357,7 @@
           {
             "findings": [
               {
-                "message": "4 changed files have matching docs",
+                "message": "2 changed files have matching docs",
                 "severity": "PASS"
               }
             ],
@@ -391,6 +391,58 @@
             ],
             "name": "P3: Crash Risks",
             "status": "PASS"
+          },
+          {
+            "findings": [
+              {
+                "message": "THREAT_MODEL.md covers all 6 STRIDE categories",
+                "severity": "PASS"
+              },
+              {
+                "message": "10 AM-N references, all defined",
+                "severity": "PASS"
+              },
+              {
+                "message": "7 RR-NNN references, all defined in register",
+                "severity": "PASS"
+              }
+            ],
+            "name": "G-1: Threat Model",
+            "status": "PASS"
+          },
+          {
+            "findings": [
+              {
+                "message": "9 RR-NNN table rows, all with Risk/Disposition/Scope/Details",
+                "severity": "PASS"
+              }
+            ],
+            "name": "G-1b: Residual Risk Register",
+            "status": "PASS"
+          },
+          {
+            "findings": [
+              {
+                "message": "SECURITY.md has tiered SLA (Critical/High/Medium/Low)",
+                "severity": "PASS"
+              },
+              {
+                "message": ".well-known/security.txt Expires=2027-04-21T00:00:00.000Z future",
+                "severity": "PASS"
+              }
+            ],
+            "name": "G-10: Disclosure SLA + RFC 9116",
+            "status": "PASS"
+          },
+          {
+            "findings": [
+              {
+                "message": "9 CT-claimed functions, all 3 tools agree",
+                "severity": "PASS"
+              }
+            ],
+            "name": "G-8: CT Tool Independence",
+            "status": "PASS"
           }
         ],
         "commit": {
@@ -399,11 +451,11 @@
           "value": {
             "dirty": true,
             "ref": "dev",
-            "sha": "86d0477dcb079f07060349ec58922e0c62d14cd7",
-            "short": "86d0477dcb"
+            "sha": "94b8d7437fa9c7fefca3fc5831ee75436b2ba8d3",
+            "short": "94b8d7437f"
           }
         },
-        "generated_at": "2026-04-21T09:43:00.478779+00:00",
+        "generated_at": "2026-04-21T09:46:27.289151+00:00",
         "platform": "Linux",
         "provenance": {
           "build_flags": {
@@ -420,12 +472,12 @@
             },
             "flags_hash": "b08a96ecab2b5a95"
           },
-          "collected_at": "2026-04-21T09:43:00.478748+00:00",
+          "collected_at": "2026-04-21T09:46:27.289103+00:00",
           "git": {
             "dirty": true,
             "ref": "dev",
-            "sha": "86d0477dcb079f07060349ec58922e0c62d14cd7",
-            "short": "86d0477dcb"
+            "sha": "94b8d7437fa9c7fefca3fc5831ee75436b2ba8d3",
+            "short": "94b8d7437f"
           },
           "platform": {
             "machine": "x86_64",
@@ -446,15 +498,15 @@
           },
           "version": "3.66.0"
         },
-        "run_id": "audit_gate-86d0477dcb-20260421T094300",
+        "run_id": "audit_gate-94b8d7437f-20260421T094627",
         "runner": "audit_gate",
         "schema_version": "1.0.0",
         "summary": {
           "advisory": 35,
           "blocking": 0,
-          "sections": 18,
+          "sections": 22,
           "skipped_sections": 0,
-          "total_findings": 53
+          "total_findings": 60
         },
         "verdict": "PASS"
       },
@@ -462,7 +514,7 @@
       "required": true,
       "returncode": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_sha256": "3e524fa8272f55adcb72fff2227cf31c10d6efe0aef35957ed41840b5b95ff0b"
+      "stdout_sha256": "8bb1904f6ae57e3a11de02b14976e47f063bd5d477e3e485764fd4a969bf322f"
     },
     {
       "name": "audit_gap_report_strict",
@@ -762,13 +814,13 @@
         "gates_passing": 8,
         "gates_total": 8,
         "overall_pass": true,
-        "timestamp": "2026-04-21T09:43:01.293766+00:00"
+        "timestamp": "2026-04-21T09:46:28.096840+00:00"
       },
       "passing": true,
       "required": true,
       "returncode": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_sha256": "76545aae77ec1cddecce512aca0dfd187bc865173e922e196a34104f8b12ecc5"
+      "stdout_sha256": "dc3680a19ccfae566443f40533f6266a81f506644b8ac8360073b09f26d8b99c"
     },
     {
       "name": "supply_chain_gate",
@@ -811,19 +863,19 @@
         "checks_total": 5,
         "failing_checks": [],
         "overall_pass": true,
-        "timestamp": "2026-04-21T09:43:01.391698+00:00"
+        "timestamp": "2026-04-21T09:46:28.190931+00:00"
       },
       "passing": true,
       "required": true,
       "returncode": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_sha256": "ddd445e8bdf9c5bce9eeb8a44fb8c6f8e7d8a10c4a56173aee2fa3f34f17ca71"
+      "stdout_sha256": "0076aeae46ad17b5b966f1f7798fb2806c435374743afd78b9eeb637de889ccb"
     }
   ],
-  "generated_at": "2026-04-21T09:43:01.405102+00:00",
+  "generated_at": "2026-04-21T09:46:28.204721+00:00",
   "git": {
     "branch": "dev",
-    "commit": "86d0477dcb079f07060349ec58922e0c62d14cd7",
+    "commit": "94b8d7437fa9c7fefca3fc5831ee75436b2ba8d3",
     "dirty": true
   },
   "repo_root": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1",

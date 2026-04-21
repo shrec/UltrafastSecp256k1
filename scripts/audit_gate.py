@@ -911,6 +911,208 @@ def check_crash_risks(_conn):
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# G-1..G-10 CAAS roadmap sub-gates (lightweight doc cross-reference checks)
+# ---------------------------------------------------------------------------
+
+DOCS_DIR = LIB_ROOT / "docs"
+
+
+def check_threat_model(_conn):
+    """G-1 gate: verify THREAT_MODEL.md is well-formed and cross-references
+    every RR-* citation back to RESIDUAL_RISK_REGISTER.md and every AM-N back
+    to its own §3 attacker-model section."""
+    findings = []
+    tm_path = DOCS_DIR / "THREAT_MODEL.md"
+    rr_path = DOCS_DIR / "RESIDUAL_RISK_REGISTER.md"
+    if not tm_path.is_file():
+        findings.append(('FAIL', 'docs/THREAT_MODEL.md missing (G-1 not closed)'))
+        return 'G-1: Threat Model', findings
+    if not rr_path.is_file():
+        findings.append(('FAIL', 'docs/RESIDUAL_RISK_REGISTER.md missing'))
+        return 'G-1: Threat Model', findings
+
+    tm_text = tm_path.read_text(encoding='utf-8', errors='replace')
+    rr_text = rr_path.read_text(encoding='utf-8', errors='replace')
+
+    # 1. STRIDE-per-ABI coverage: require all 6 STRIDE categories named
+    #    (accept "Info-disclosure" / "Info Disclosure" / "Information disclosure"
+    #    and "DoS" / "Denial-of-service" / "Denial of service" as variants)
+    stride_patterns = [
+        ('Spoofing',     r'\bSpoofing\b'),
+        ('Tampering',    r'\bTampering\b'),
+        ('Repudiation',  r'\bRepudiation\b'),
+        ('Info-disclosure', r'\bInfo[- ]?disclosure\b|\bInformation[- ]disclosure\b'),
+        ('DoS',          r'\bDoS\b|\bDenial[- ]of[- ]service\b|\bDenial\b'),
+        ('Elevation',    r'\bElevation\b'),
+    ]
+    missing_stride = [name for name, pat in stride_patterns
+                      if not re.search(pat, tm_text, flags=re.IGNORECASE)]
+    if missing_stride:
+        findings.append(('FAIL', f'THREAT_MODEL.md missing STRIDE term(s): {missing_stride}'))
+    else:
+        findings.append(('PASS', 'THREAT_MODEL.md covers all 6 STRIDE categories'))
+
+    # 2. AM-N cross-refs: every AM-<n> cited must be defined somewhere in the
+    #    file (section header OR a table row beginning with "| AM-N |").
+    am_cited = set(re.findall(r'\bAM-(\d+)\b', tm_text))
+    am_defined = set(re.findall(r'^\|\s*AM-(\d+)\s*\|', tm_text, flags=re.MULTILINE))
+    am_defined |= set(re.findall(r'^\s*#+\s*AM-(\d+)\b', tm_text, flags=re.MULTILINE))
+    am_dangling = sorted(am_cited - am_defined, key=int)
+    if am_dangling:
+        findings.append(('FAIL', f'THREAT_MODEL.md cites undefined AM-N: {am_dangling}'))
+    else:
+        findings.append(('PASS', f'{len(am_cited)} AM-N references, all defined'))
+
+    # 3. RR-NNN cross-refs: every RR-NNN cited must be defined in RR register
+    rr_cited = set(re.findall(r'\bRR-(\d{3,})\b', tm_text))
+    rr_defined = set(re.findall(r'\bRR-(\d{3,})\b', rr_text))
+    rr_dangling = sorted(rr_cited - rr_defined)
+    if rr_dangling:
+        findings.append(('FAIL', f'THREAT_MODEL.md cites undefined RR-NNN: {rr_dangling[:10]}'))
+    else:
+        findings.append(('PASS', f'{len(rr_cited)} RR-NNN references, all defined in register'))
+
+    return 'G-1: Threat Model', findings
+
+
+def check_residual_risk_register(_conn):
+    """Verify every RR-NNN entry in RESIDUAL_RISK_REGISTER.md is a table row
+    with at least Disposition and Scope populated. The register stores entries
+    as pipe-delimited rows: `| RR-NNN | Risk | Disposition | Scope | Details |`."""
+    findings = []
+    rr_path = DOCS_DIR / "RESIDUAL_RISK_REGISTER.md"
+    if not rr_path.is_file():
+        findings.append(('FAIL', 'docs/RESIDUAL_RISK_REGISTER.md missing'))
+        return 'G-1b: Residual Risk Register', findings
+
+    text = rr_path.read_text(encoding='utf-8', errors='replace')
+    # Parse table rows: | RR-NNN | col2 | col3 | col4 | col5 |
+    row_re = re.compile(
+        r'^\|\s*(RR-\d{3,})\s*\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|',
+        flags=re.MULTILINE,
+    )
+    rows = row_re.findall(text)
+    if not rows:
+        findings.append(('FAIL', 'RESIDUAL_RISK_REGISTER.md has no RR-NNN table rows'))
+        return 'G-1b: Residual Risk Register', findings
+
+    bad = []
+    for rr_id, risk, disposition, scope, details in rows:
+        if not disposition.strip() or disposition.strip() == '-':
+            bad.append(f'{rr_id} has blank Disposition')
+        if not scope.strip() or scope.strip() == '-':
+            bad.append(f'{rr_id} has blank Scope')
+        if not details.strip() or len(details.strip()) < 20:
+            bad.append(f'{rr_id} has thin Details (<20 chars)')
+    if bad:
+        findings.append(('FAIL', f'RR entries with missing fields: {bad[:5]} (total {len(bad)})'))
+    else:
+        findings.append(('PASS',
+                         f'{len(rows)} RR-NNN table rows, all with Risk/Disposition/Scope/Details'))
+
+    return 'G-1b: Residual Risk Register', findings
+
+
+def check_disclosure_sla(_conn):
+    """G-10 gate: verify SECURITY.md has tiered SLA and .well-known/security.txt
+    has RFC 9116 required fields (Contact, Expires)."""
+    findings = []
+    sec_md = LIB_ROOT / "SECURITY.md"
+    wk = LIB_ROOT / ".well-known" / "security.txt"
+
+    if not sec_md.is_file():
+        findings.append(('FAIL', 'SECURITY.md missing (G-10 not closed)'))
+    else:
+        sec_text = sec_md.read_text(encoding='utf-8', errors='replace')
+        required_phrases = ['Critical', 'High', 'Medium', 'Low']
+        missing = [p for p in required_phrases if p not in sec_text]
+        if missing:
+            findings.append(('FAIL', f'SECURITY.md SLA missing tier(s): {missing}'))
+        else:
+            findings.append(('PASS', 'SECURITY.md has tiered SLA (Critical/High/Medium/Low)'))
+
+    if not wk.is_file():
+        findings.append(('FAIL', '.well-known/security.txt missing (RFC 9116)'))
+    else:
+        wk_text = wk.read_text(encoding='utf-8', errors='replace')
+        # RFC 9116 required: Contact, Expires
+        for field in ('Contact:', 'Expires:'):
+            if field not in wk_text:
+                findings.append(('FAIL', f'.well-known/security.txt missing "{field}"'))
+        # Expires must be in the future (best-effort ISO 8601 parse)
+        m = re.search(r'Expires:\s*(\S+)', wk_text)
+        if m:
+            try:
+                from datetime import datetime as _dt
+                exp = _dt.fromisoformat(m.group(1).replace('Z', '+00:00'))
+                now = _dt.now(exp.tzinfo) if exp.tzinfo else _dt.utcnow()
+                if exp < now:
+                    findings.append(('FAIL',
+                                     f'.well-known/security.txt Expires={m.group(1)} is in the past'))
+                else:
+                    findings.append(('PASS',
+                                     f'.well-known/security.txt Expires={m.group(1)} future'))
+            except ValueError:
+                findings.append(('WARN',
+                                 f'.well-known/security.txt Expires={m.group(1)} unparseable'))
+
+    return 'G-10: Disclosure SLA + RFC 9116', findings
+
+
+def check_ct_tool_agreement(_conn):
+    """G-8 gate: verify CT_TOOL_INDEPENDENCE.md §6 coverage table has all three
+    primary tools reporting a non-blank verdict for every listed function."""
+    findings = []
+    ct_path = DOCS_DIR / "CT_TOOL_INDEPENDENCE.md"
+    if not ct_path.is_file():
+        findings.append(('FAIL', 'docs/CT_TOOL_INDEPENDENCE.md missing (G-8 not closed)'))
+        return 'G-8: CT Tool Independence', findings
+
+    text = ct_path.read_text(encoding='utf-8', errors='replace')
+
+    # Find the §6 coverage table header row and data rows
+    m = re.search(r'\|\s*Function\s*\|\s*dudect\s*\|\s*Valgrind CT\s*\|\s*ct-verif\s*\|\s*Verdict\s*\|',
+                  text, flags=re.IGNORECASE)
+    if not m:
+        findings.append(('FAIL', 'CT_TOOL_INDEPENDENCE.md §6 coverage table not found '
+                                  '(columns Function | dudect | Valgrind CT | ct-verif | Verdict)'))
+        return 'G-8: CT Tool Independence', findings
+
+    # Read subsequent lines that look like data rows (start with "| `")
+    start = m.end()
+    tail = text[start:]
+    rows = re.findall(r'^\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|\s*$',
+                      tail, flags=re.MULTILINE)
+    # Skip the separator row (---)
+    data_rows = [r for r in rows if '---' not in r[0] and r[0].strip()]
+    if not data_rows:
+        findings.append(('FAIL', 'CT_TOOL_INDEPENDENCE.md §6 coverage table has no data rows'))
+        return 'G-8: CT Tool Independence', findings
+
+    bad = []
+    for func, dudect, valgrind, ctverif, verdict in data_rows:
+        # Stop if we walked past the table
+        if func.startswith('#') or func.lower().startswith('what'):
+            break
+        for tool_name, tool_val in (('dudect', dudect), ('Valgrind', valgrind), ('ct-verif', ctverif)):
+            if not tool_val.strip() or tool_val.strip().lower() in ('-', 'n/a', 'missing', 'tbd', '?'):
+                bad.append(f'{func.strip()}: {tool_name}={tool_val.strip() or "<blank>"}')
+        if not verdict.strip() or 'verified' not in verdict.lower():
+            bad.append(f'{func.strip()}: verdict={verdict.strip() or "<blank>"}')
+
+    if bad:
+        findings.append(('FAIL', f'CT coverage gaps ({len(bad)}): {bad[:3]}'))
+    else:
+        findings.append(('PASS', f'{len(data_rows)} CT-claimed functions, all 3 tools agree'))
+
+    return 'G-8: CT Tool Independence', findings
+
+
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
 CHECK_MAP = {
     '--failure-matrix': check_failure_class_matrix,
     '--abi-negative-tests': check_abi_negative_tests,
@@ -931,6 +1133,10 @@ CHECK_MAP = {
     '--mutation-kill': check_mutation_kill_rate,
     '--mutation-freshness': check_mutation_freshness,
     '--crash-risks': check_crash_risks,
+    '--threat-model': check_threat_model,
+    '--residual-risk-register': check_residual_risk_register,
+    '--disclosure-sla': check_disclosure_sla,
+    '--ct-tool-agreement': check_ct_tool_agreement,
 }
 
 ALL_CHECKS = [
@@ -952,6 +1158,10 @@ ALL_CHECKS = [
     check_doc_pairing,
     check_mutation_freshness,
     check_crash_risks,
+    check_threat_model,
+    check_residual_risk_register,
+    check_disclosure_sla,
+    check_ct_tool_agreement,
 ]
 
 
