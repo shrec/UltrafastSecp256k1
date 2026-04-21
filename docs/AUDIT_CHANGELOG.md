@@ -7,6 +7,64 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-04-21 (dev_bug_scanner — false-positive reduction pass)
+
+Hardened 8 checkers in [scripts/dev_bug_scanner.py](../scripts/dev_bug_scanner.py)
+to suppress noise without losing real-bug detection. Total findings on the
+repository dropped **375 → 88 (-77 %)** with all HIGH-severity false positives
+eliminated, while the three known real signals (`MISSING_LOW_S_CHECK ×2`,
+`SCALAR_NOT_REDUCED ×1`) are preserved.
+
+Fixes by checker:
+
+- **NULL (check_null_after_deref)**: renamed colliding module-level regex
+  (`_NULL_CHECK` → `_BINDING_NULL_CHECK`) which had silently shadowed the
+  null-check pattern and produced 22 `INTERNAL` errors. Added `_NEG_NULL_CHECK`
+  matching only the negative form `if (!p)` / `if (p == NULL)` — the positive
+  form `if (p)` is the correct guard, not a bug. Walk back past whitespace and
+  `*&` to distinguish C pointer declarations (`char *p = ...`) from
+  dereferences. Reset tracked state on bare `}` and function-start braces so
+  cross-function false matches are impossible. Window narrowed 8→5 lines.
+  Net effect: **0 NULL findings** (was 52 HIGH FPs).
+- **SIG (signed/unsigned)**: added `_UNSIGNED_DECL_RE`; subtract
+  unsigned-declared names from `int_vars` and skip lines that themselves
+  declare unsigned vars.
+- **MSET (suspicious memset/memcpy size)**: pruned `_SUSPICIOUS_SIZES` to
+  `{3, 5, 6, 7, 9, 11, 13, 14, 15, 17, 18, 19, 40, 56, 60, 100, 200}` —
+  removed common natural sizes (10, 12, 20, 24, 28, 48, 128, 512).
+- **EXCEPTION_SWALLOW**: parses same-line catch bodies (`{...}` on one line)
+  and only flags genuinely empty handlers.
+- **CPASTE (copy-paste reassign)**: skip indexed lvalues; allow-list 30+
+  scratch / accumulator names (`carry`, `borrow`, `tmp`, `t0..t4`, `r0/r1`,
+  `d`, `lo`, `hi`, `acc_lo/hi`, `diff`, `sum`, `x/y/z`, `md`, `me`, `sd`,
+  `se`, `fi`, `gi`, `cd`, `ce`, `cond_add/sub`, `mask`, `pad`, `X/Y`); fixed
+  ordering so reads are cleared from tracked state BEFORE the scratch-skip
+  `continue` (otherwise stale tracked names triggered FPs across statements).
+- **DBLINIT (init then immediate overwrite)**: same scratch allow-list and
+  same read-clearing-first ordering. Added defensive-zero-init exemption:
+  `T x = 0; ... x = expr;` is idiomatic C and not flagged. Improved
+  parameter-list detection: skip lines ending in `,` or `)` without `;`,
+  AND lines matching `... = literal)` (default arg trailers like
+  `bool flag = false);`).
+- **BINDING_NO_VALIDATION**: renamed regex to break collision with
+  `check_null_after_deref`; broadened to match any `if (!\w+)`,
+  `if (X == NULL/nullptr)`, and ternary `X ? ... : err` guards. Skip
+  declaration-only lines and functions with no pointer args.
+- **OB1 (off-by-one)**: skip selftest / test / fuzz / bench files; skip
+  1-based loops and loops starting at K ≥ 2.
+- **SIZEOF_MISMATCH**: per-file `array_size_expr` map; skip same-dim arrays
+  and skip sizeof args ending in `_ctx`, `_t`, `_state`, `_struct`, `_type`,
+  `_info`, `_cfg`, `_opts`, `_hdr`.
+
+Net result on the repository (0 HIGH retained; only signal-bearing categories
+remain MEDIUM): MISSING_LOW_S_CHECK ×2, CPASTE ×2, SCALAR_NOT_REDUCED ×1,
+MSET ×1, BINDING_NO_VALIDATION ×1, plus 81 LOW DBLINIT advisories that are
+mostly minor stylistic patterns. The known real concerns (batch_verify lacks
+low-S enforcement; one scalar-inverse path on unreduced input) remain visible
+in the report.
+
+---
+
 ## 2026-04-21 (dev_bug_scanner — 13 CVE-grounded crypto checkers added)
 
 Extended [scripts/dev_bug_scanner.py](../scripts/dev_bug_scanner.py) with 13

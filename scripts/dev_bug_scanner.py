@@ -162,6 +162,10 @@ _SIZE_SUFFIX = re.compile(r'(?:size|len|count|num|n|N|max|MAX|limit|cap|total)$'
 def check_ob1(path: str, lines: List[str]) -> List[Finding]:
     """Loop bound `i <= N` where N is a size/length constant — usually should be `i < N`."""
     findings: List[Finding] = []
+    # Skip selftest / KAT / fuzz files where 1-based inclusive loops are common
+    # for iteration counts (test vector index, retry attempts, etc.).
+    if re.search(r'(selftest|kat|test_|/test|/tests|fuzz|bench)', path, re.IGNORECASE):
+        return findings
     for i, raw in enumerate(lines):
         line = _strip_comments(raw)
         for m in _OB1_LOOP.finditer(line):
@@ -170,6 +174,14 @@ def check_ob1(path: str, lines: List[str]) -> List[Finding]:
             # AES/cipher round loops: `round <= 14` or similar — intentional (rounds are 1-based, inclusive)
             # These are numeric bounds 10-20 where the loop var is named round/Round/nr/Nr
             if re.search(r'\b(round|Round|nr|Nr|nrounds)\b', idx_var):
+                continue
+            # Skip 1-based inclusive count loops: `for (... = 1; i <= N; ...)` — common for test vectors.
+            if re.search(rf'\b{re.escape(idx_var)}\s*=\s*1\s*;', line):
+                continue
+            # Skip explicit non-zero start indices: `for (... = K; i <= N; ...)`
+            # where K > 1 — typically a deliberate sliding-window or sub-range loop.
+            start_m = re.search(rf'\b{re.escape(idx_var)}\s*=\s*(\d+)\s*;', line)
+            if start_m and int(start_m.group(1)) >= 2:
                 continue
             # Only flag when bound looks like a size/count or is at least 4 as a literal
             if _SIZE_SUFFIX.search(bound) or (bound.isdigit() and int(bound) >= 4):
@@ -190,16 +202,30 @@ _SIG_DECL = re.compile(r'\bint\s+(\w+)\b')
 _SIG_CMP  = re.compile(r'\b(\w+)\s*[<>]=?\s*(size_t|uint\d+_t|unsigned)\b')
 _SIG_CMP2 = re.compile(r'\b(size_t|uint\d+_t|unsigned)\s+(\w+)\s*[><=]=?[^=>]')
 
+_UNSIGNED_DECL_RE = re.compile(
+    r'\b(?:size_t|std::size_t|unsigned|uint\d+_t|auto)\s+(\w+)\b'
+)
+
 def check_sig(path: str, lines: List[str]) -> List[Finding]:
     """Signed int compared with size_t / uint* — may fail when value > INT_MAX."""
     findings: List[Finding] = []
     int_vars: set[str] = set()
+    unsigned_vars: set[str] = set()
     for ln in lines:
-        for m in _SIG_DECL.finditer(_strip_comments(ln)):
+        s = _strip_comments(ln)
+        for m in _SIG_DECL.finditer(s):
             int_vars.add(m.group(1))
+        for m in _UNSIGNED_DECL_RE.finditer(s):
+            unsigned_vars.add(m.group(1))
+    # If a name is declared as both, prefer the unsigned (later) declaration —
+    # the loop variable in `for (size_t i = ...)` shadows any outer `int i`.
+    int_vars -= unsigned_vars
 
     for i, raw in enumerate(lines):
         line = _strip_comments(raw)
+        # If the same line declares the variable as size_t/unsigned, skip.
+        if _UNSIGNED_DECL_RE.search(line):
+            continue
         # Pattern: signed_var < vec.size() or signed_var < uint_expr
         m = re.search(r'\b(\w+)\s*[<>]=?\s*\w+\.size\(\)', line)
         if m and m.group(1) in int_vars:
@@ -281,8 +307,11 @@ def check_overflow(path: str, lines: List[str]) -> List[Finding]:
 _MSET_LITERAL = re.compile(
     r'\b(memset|memcpy|memzero_explicit)\s*\([^,]+,\s*[^,]+,\s*(\d+)\s*\)'
 )
-_SUSPICIOUS_SIZES = {3, 5, 6, 7, 9, 10, 11, 12, 13, 14, 15, 17, 18, 19, 20,
-                     24, 28, 40, 48, 56, 60, 48, 100, 128, 200, 512}
+# Hard-coded sizes that don't match common crypto buffer sizes.
+# Note: 20 (RIPEMD-160), 28 (SHA-224), 48 (SHA-384), 12 (GCM nonce) are
+# legitimate crypto sizes and are excluded to keep FP rate down.
+_SUSPICIOUS_SIZES = {3, 5, 6, 7, 9, 11, 13, 14, 15, 17, 18, 19,
+                     40, 56, 60, 100, 200}
 
 def check_mset(path: str, lines: List[str]) -> List[Finding]:
     """memset/memcpy with hard-coded size that doesn't match common crypto buffer sizes."""
@@ -314,15 +343,42 @@ _NULL_CHECK  = re.compile(r'if\s*\(\s*(!?\s*([a-zA-Z_]\w*)\s*(?:==\s*nullptr|==\
 def check_null_after_deref(path: str, lines: List[str]) -> List[Finding]:
     """A pointer is dereferenced before being null-checked — if it is null the deref crashes first."""
     findings: List[Finding] = []
+    # Only the negative-form check (`if (!p)`, `if (p == NULL)`, `if (p == nullptr)`)
+    # is a real bug indicator. The positive form `if (p) use(p)` is the correct guard
+    # pattern and must NOT trigger.
+    _NEG_NULL_CHECK = re.compile(
+        r'if\s*\(\s*(?:!\s*([a-zA-Z_]\w*)|([a-zA-Z_]\w*)\s*==\s*(?:nullptr|NULL))\s*[\)&|]'
+    )
     # Track derefs then check for null within small window
     dereffed: dict[str, int] = {}   # name -> line index
     for i, raw in enumerate(lines):
         line = _strip_comments(raw)
+        # Function / block end: clear all tracked derefs to prevent crossing scope.
+        if raw.strip() == '}':
+            dereffed.clear()
+            continue
+        # Function definition line (top-level `T fn(...) {` or just `{`):
+        # any `{` at end of line is also a scope boundary worth resetting at.
+        if line.rstrip().endswith('{') and re.match(r'^\s*\S', raw):
+            dereffed.clear()
         # Clear old derefs outside window
-        dereffed = {k: v for k, v in dereffed.items() if i - v <= 8}
+        dereffed = {k: v for k, v in dereffed.items() if i - v <= 5}
 
-        # Collect dereferences on this line
+        # Collect dereferences on this line. Filter out:
+        #   - multiplications: `a * b`, `(x) * y`
+        #   - pointer declarations: `char *p = ...`, `T* p`, `T **p`
         for m in _DEREF_EXPR.finditer(line):
+            start = m.start()
+            # Walk back past spaces and other `*` (for `**p`) to find the
+            # previous meaningful char.
+            j = start - 1
+            while j >= 0 and line[j] in ' \t*&':
+                j -= 1
+            prev_ch = line[j] if j >= 0 else ' '
+            # If prev is an identifier-ending char or `>` (template),
+            # it is a declaration `T *p` or expression `a * b` — not a deref.
+            if prev_ch.isalnum() or prev_ch in ('_', ')', ']', '>'):
+                continue
             name = m.group(1)
             if name not in ('this', 'result', 'nullptr', 'NULL'):
                 dereffed[name] = i
@@ -332,11 +388,11 @@ def check_null_after_deref(path: str, lines: List[str]) -> List[Finding]:
             if name not in ('this',):
                 dereffed[name] = i
 
-        # Check for null check that references a previously dereffed variable
-        nc = _NULL_CHECK.search(line)
+        # Check for negative null check that references a previously dereffed variable
+        nc = _NEG_NULL_CHECK.search(line)
         if nc:
-            inner = nc.group(2)
-            if inner in dereffed and dereffed[inner] < i:
+            inner = nc.group(1) or nc.group(2)
+            if inner and inner in dereffed and dereffed[inner] < i:
                 findings.append(Finding(
                     file=path, line=i + 1, severity="HIGH",
                     category="NULL",
@@ -358,6 +414,9 @@ def check_copypaste(path: str, lines: List[str]) -> List[Finding]:
     last_assigned: dict[str, Tuple[int, str]] = {}   # name -> (lineno, snippet)
     for i, raw in enumerate(lines):
         line = _strip_comments(raw).strip()
+        # Indexed-assignment lines like `buf[32] = 0x01;` are byte writes,
+        # not copy-paste candidates — different indices write different cells.
+        # Only treat plain identifiers (no `[`) as candidates.
         # Reset on block boundaries and preprocessor conditionals
         if '{' in line or '}' in line or _PREPROC.match(line):
             last_assigned.clear()
@@ -366,6 +425,28 @@ def check_copypaste(path: str, lines: List[str]) -> List[Finding]:
         m = _ASSIGN_STMT.match(line)
         if m:
             lval = m.group(1)
+            # Always clear reads on this line FIRST so subsequent skips do
+            # not leave stale tracked names.
+            for name in list(last_assigned.keys()):
+                if name == lval:
+                    continue
+                if re.search(r'\b' + re.escape(name) + r'\b', line):
+                    del last_assigned[name]
+            # Skip indexed lvalues (buf[N] = ...) — different indices are
+            # different cells and false-positive here.
+            if '[' in lval:
+                last_assigned.pop(lval, None)
+                continue
+            # Skip well-known scratch/accumulator variables that are
+            # legitimately reassigned without intervening reads in the same
+            # statement (e.g. limb arithmetic carry chains).
+            if lval in {'carry', 'borrow', 'tmp', 'temp', 'acc', 'accum',
+                        't', 't0', 't1', 't2', 't3', 't4', 'r', 'r0', 'r1',
+                        'd', 'lo', 'hi', 'acc_lo', 'acc_hi', 'diff', 'sum',
+                        'x', 'y', 'z', 'md', 'me', 'sd', 'se', 'fi', 'gi',
+                        'cd', 'ce', 'cond_add', 'cond_sub', 'mask', 'X', 'Y'}:
+                last_assigned.pop(lval, None)
+                continue
             # Skip compound assignments and ==
             if re.match(r'[+\-*/%&|^]=|==', line[m.end()-1:m.end()+1]):
                 continue
@@ -669,6 +750,18 @@ def check_dblinit(path: str, lines: List[str]) -> List[Finding]:
         line = _strip_comments(raw).strip()
         if not line or line.startswith('//') or line.startswith('/*'):
             continue
+        # Skip function declaration / parameter list lines: trailing `,` or `)`
+        # WITHOUT `;` (statements always end with `;`). This catches
+        # `bool flag = false)` default args and `int x = 0,` parameter splits
+        # but does NOT catch normal function calls like `update(&pad, 1);`.
+        stripped = line.rstrip()
+        if stripped.endswith(',') or (stripped.endswith(')') and not stripped.endswith(';')):
+            continue
+        # Also skip lines that look like parameter-list trailing entries:
+        # `... bool x = false);` or `... int x = 0);` — assignment immediately
+        # followed by `)` is a default argument, not a statement.
+        if re.search(r'=\s*[^;,()]+\)\s*;?\s*$', stripped):
+            continue
         # Block boundaries reset tracking
         if '{' in line or '}' in line:
             initialized.clear()
@@ -678,12 +771,33 @@ def check_dblinit(path: str, lines: List[str]) -> List[Finding]:
         if m:
             name = m.group(1)
             rhs  = m.group(2)
+            # Always clear reads from RHS first to avoid stale tracked names.
+            for tracked in list(initialized.keys()):
+                if tracked == name:
+                    continue
+                if re.search(r'\b' + re.escape(tracked) + r'\b', rhs):
+                    del initialized[tracked]
+            # Skip well-known scratch / accumulator names that are repeatedly
+            # reassigned in arithmetic blocks (limb chains, carry/borrow propagation).
+            if name in {'carry', 'borrow', 'tmp', 'temp', 'acc', 'accum',
+                        'd', 'lo', 'hi', 'acc_lo', 'acc_hi', 'diff', 'sum',
+                        't', 't0', 't1', 't2', 't3', 't4', 'r', 'r0', 'r1',
+                        'x', 'y', 'z', 'md', 'me', 'sd', 'se', 'fi', 'gi',
+                        'cd', 'ce', 'cond_add', 'cond_sub', 'mask', 'pad'}:
+                initialized.pop(name, None)
+                continue
             # Skip self-referential (x = x + 1 etc.)
             if re.search(r'\b' + re.escape(name) + r'\b', rhs):
                 initialized.pop(name, None)
                 continue
             if name in initialized:
                 prev_line, prev_snip = initialized[name]
+                # Skip the defensive-zero-init pattern: `T x = 0; ... x = expr;`
+                # is idiomatic in C-style code and not a bug.
+                if re.match(r'^\s*(?:[\w:]+\s+)?\w+\s*=\s*(?:0|0u|0U|0L|0UL|0x0+|false|nullptr|NULL|\{\}|"")\s*[,;]',
+                            prev_snip):
+                    initialized[name] = (i, raw.strip())
+                    continue
                 if i - prev_line <= 5:   # consecutive or near-consecutive
                     findings.append(Finding(
                         file=path, line=i + 1, severity="LOW",
@@ -960,7 +1074,14 @@ def check_random_in_signing(path: str, lines: List[str]) -> List[Finding]:
 _UFSECP_FUNC_DEF = re.compile(
     r'^(?:ufsecp_error_t|int)\s+(ufsecp_\w+)\s*\('
 )
-_NULL_CHECK = re.compile(r'if\s*\(\s*!(?:ctx|out|sig|pk|pubkey|msg|priv|secret|result|entries)')
+# Renamed from _NULL_CHECK to avoid collision with check_null_after_deref's regex.
+# Match any `if (!identifier)` or `if (X == NULL/nullptr)` — broad enough to catch
+# all common ABI-style null guards. Also accepts ternary `X ? ... : err` pattern.
+_BINDING_NULL_CHECK = re.compile(
+    r'if\s*\(\s*!\s*\w+'                       # if (!x ...)
+    r'|\bif\s*\(\s*\w+\s*==\s*(?:NULL|nullptr)' # if (x == NULL)
+    r'|\b\w+\s*\?\s*\w+'                        # ctx ? ... ternary guard
+)
 
 def check_binding_no_validation(path: str, lines: List[str]) -> List[Finding]:
     """Public ufsecp_ function body does not start with NULL-pointer validation on arguments."""
@@ -973,6 +1094,21 @@ def check_binding_no_validation(path: str, lines: List[str]) -> List[Finding]:
         m = _UFSECP_FUNC_DEF.match(line.strip())
         if m:
             fn_name = m.group(1)
+            # Collect the function signature (across lines until the matching
+            # closing paren) to determine whether it accepts pointer arguments
+            # at all. If it does not, there is nothing to NULL-check.
+            sig_text = line
+            for k in range(i + 1, min(len(lines), i + 12)):
+                sig_text += ' ' + _strip_comments(lines[k])
+                if ')' in sig_text and sig_text.count('(') <= sig_text.count(')'):
+                    break
+            paren_open = sig_text.find('(')
+            paren_close = sig_text.find(')', paren_open + 1) if paren_open != -1 else -1
+            sig_args = sig_text[paren_open + 1:paren_close] if paren_close != -1 else ''
+            has_pointer_arg = '*' in sig_args or '&' in sig_args
+            if not has_pointer_arg:
+                i += 1
+                continue
             # Scan forward into function body (next 15 lines after opening brace)
             has_null_check = False
             brace_found = False
@@ -980,11 +1116,15 @@ def check_binding_no_validation(path: str, lines: List[str]) -> List[Finding]:
                 body_line = _strip_comments(lines[j])
                 if '{' in body_line:
                     brace_found = True
-                if brace_found and _NULL_CHECK.search(body_line):
+                if brace_found and _BINDING_NULL_CHECK.search(body_line):
                     has_null_check = True
                     break
                 if brace_found and '}' in body_line and body_line.strip() == '}':
                     break  # function ended
+            # Skip declaration-only lines (no opening brace within scan window)
+            if not brace_found:
+                i += 1
+                continue
             if brace_found and not has_null_check:
                 # Skip trivially-small functions (e.g. version_string)
                 if fn_name not in ('ufsecp_version_string', 'ufsecp_version_major',
@@ -1270,21 +1410,42 @@ def check_exception_swallow(path: str, lines: List[str]) -> List[Finding]:
     findings: List[Finding] = []
     for i, raw in enumerate(lines):
         line = _strip_comments(raw)
-        if _CATCH_BLOCK.search(line):
-            # Check if the catch body is empty (next non-blank line is just })
-            for j in range(i + 1, min(len(lines), i + 4)):
-                body = _strip_comments(lines[j]).strip()
-                if not body:
-                    continue
-                if body == '}':
-                    findings.append(Finding(
-                        file=path, line=i + 1, severity="MEDIUM",
-                        category="CATCH_EMPTY",
-                        message="Empty catch block silently swallows exception — error condition is invisible",
-                        snippet=raw.strip(),
-                        fix_hint="Log the error, rethrow, or add a comment explaining why ignoring is safe",
-                    ))
-                break  # non-empty body — fine
+        m = _CATCH_BLOCK.search(line)
+        if not m:
+            continue
+        # Same-line catch: `catch (...) { return X; }` — extract content between { }
+        # and check if it's non-empty (anything other than a `}` is a handler body).
+        brace_idx = m.end() - 1  # index of `{`
+        rest = line[brace_idx + 1:]
+        # Strip trailing `}` if present on same line
+        same_line_close = rest.rfind('}')
+        if same_line_close != -1:
+            body_inline = rest[:same_line_close].strip()
+            if body_inline:
+                continue  # has a return/log/etc. inline — not empty
+            # Truly empty single-line catch: `catch (...) {}`
+            findings.append(Finding(
+                file=path, line=i + 1, severity="MEDIUM",
+                category="CATCH_EMPTY",
+                message="Empty catch block silently swallows exception — error condition is invisible",
+                snippet=raw.strip(),
+                fix_hint="Log the error, rethrow, or add a comment explaining why ignoring is safe",
+            ))
+            continue
+        # Multi-line catch: scan next lines for first non-blank — must not be `}`.
+        for j in range(i + 1, min(len(lines), i + 4)):
+            body = _strip_comments(lines[j]).strip()
+            if not body:
+                continue
+            if body == '}':
+                findings.append(Finding(
+                    file=path, line=i + 1, severity="MEDIUM",
+                    category="CATCH_EMPTY",
+                    message="Empty catch block silently swallows exception — error condition is invisible",
+                    snippet=raw.strip(),
+                    fix_hint="Log the error, rethrow, or add a comment explaining why ignoring is safe",
+                ))
+            break  # non-empty body — fine
     return findings
 
 
@@ -1295,6 +1456,17 @@ _MEMOP_SIZEOF = re.compile(
 def check_sizeof_mismatch(path: str, lines: List[str]) -> List[Finding]:
     """memcpy/memset sizeof argument refers to wrong variable (src instead of dst)."""
     findings: List[Finding] = []
+    # Build a map of array declarations: `T name[SIZE]` per file (best-effort).
+    # Two arrays declared with the same SIZE expression are treated as
+    # size-compatible to avoid false positives like `memcpy(a_vec, l_x, sizeof(l_x))`
+    # where both are `Scalar[RANGE_PROOF_BITS]`.
+    array_size_expr: dict[str, str] = {}
+    _ARR_DECL = re.compile(r'\b\w[\w:]*\s+(\w+)\s*\[\s*([^\]]+?)\s*\]\s*[;=]')
+    for ln in lines:
+        s = _strip_comments(ln)
+        for m in _ARR_DECL.finditer(s):
+            array_size_expr[m.group(1)] = m.group(2).strip()
+
     for i, raw in enumerate(lines):
         line = _strip_comments(raw)
         m = _MEMOP_SIZEOF.search(line)
@@ -1304,6 +1476,15 @@ def check_sizeof_mismatch(path: str, lines: List[str]) -> List[Finding]:
             if dst != sizeof_arg:
                 # Only flag if sizeof arg looks like a different variable (not a type)
                 if sizeof_arg[0].islower() and sizeof_arg != dst:
+                    # Skip if the arg name has a strong type-name suffix
+                    # (`_ctx`, `_t`, `_state`, `_struct`, `_type`).
+                    if re.search(r'_(?:ctx|t|state|struct|type|info|cfg|opts|hdr)$', sizeof_arg):
+                        continue
+                    # Skip if both are arrays declared with the same dimension expression.
+                    dst_dim = array_size_expr.get(dst)
+                    src_dim = array_size_expr.get(sizeof_arg)
+                    if dst_dim and src_dim and dst_dim == src_dim:
+                        continue
                     findings.append(Finding(
                         file=path, line=i + 1, severity="MEDIUM",
                         category="SIZEOF_MISMATCH",
