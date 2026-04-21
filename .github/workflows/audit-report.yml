@@ -36,7 +36,7 @@ jobs:
   linux-gcc:
     name: Audit (Linux GCC-13)
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 60
     outputs:
       audit_artifact_id: ${{ steps.upload_reports.outputs.artifact-id }}
     permissions:
@@ -124,7 +124,7 @@ jobs:
   linux-clang:
     name: Audit (Linux Clang-17)
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 60
     outputs:
       audit_artifact_id: ${{ steps.upload_reports.outputs.artifact-id }}
     steps:
@@ -188,7 +188,7 @@ jobs:
   windows-msvc:
     name: Audit (Windows MSVC)
     runs-on: windows-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     outputs:
       audit_artifact_id: ${{ steps.upload_reports.outputs.artifact-id }}
     steps:
