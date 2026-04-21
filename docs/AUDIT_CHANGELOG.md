@@ -7,6 +7,66 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-04-21 (CAAS gap closure batch 3: G-4, G-7, G-8 — roadmap COMPLETE)
+
+Third and final CAAS gap-closure batch lands. With this commit, **all
+11 gaps** in `docs/CAAS_GAP_CLOSURE_ROADMAP.md` are closed.
+
+- `docs/INTEROP_MATRIX.md` (G-4) — three-flavour interop inventory:
+  vector interop (Wycheproof + BIP/RFC reference vectors), live
+  differential (libsecp256k1 + libtomcrypt + go-ethereum offline
+  vectors), wire interop (BIP-324 / MuSig2 / FROST self-against-
+  self). Explicit §3 lists references not yet wired (OpenSSL,
+  BoringSSL, WolfSSL, NSS, Rust k256, Go btcd) so the matrix cannot
+  be accused of selective omission.
+
+- `docs/MULTI_CI_REPRODUCIBLE_BUILD.md` (G-7) — provider-matrix-
+  based reproducibility: GitHub Actions active today; GitLab CI and
+  Codeberg/Woodpecker planned as parallel verifiers so a single-
+  provider hash is treated as a baseline, not an end state.
+  Cross-provider attestation JSON schema documented.
+
+- `docs/CT_TOOL_INDEPENDENCE.md` (G-8) — three-tool rule:
+  dudect + Valgrind CT + ct-verif must all agree before a CT claim
+  is recorded as verified. Independence properties tabulated. Six
+  per-combination verdict rules tabulated. Coverage table for every
+  CT-claimed function in PROTOCOL_SPEC.md §4.
+
+CAAS roadmap status:
+
+  G-1  done   THREAT_MODEL.md
+  G-2  done   RNG_ENTROPY_ATTESTATION.md
+  G-3  done   HARDWARE_SIDE_CHANNEL_METHODOLOGY.md
+  G-4  done   INTEROP_MATRIX.md                  <-- this batch
+  G-5  done   SPEC_TRACEABILITY_MATRIX.md
+  G-6  done   COMPLIANCE_STANCE.md
+  G-7  done   MULTI_CI_REPRODUCIBLE_BUILD.md     <-- this batch
+  G-8  done   CT_TOOL_INDEPENDENCE.md            <-- this batch
+  G-9  done   PROTOCOL_SPEC.md
+  G-9b done   exploit_traceability_join.py
+  G-10 done   SECURITY.md SLA + .well-known/security.txt
+
+What remains is *implementation* work that can land incrementally
+without further roadmap entries:
+
+  1. Wire the planned G-4 differential references (OpenSSL /
+     BoringSSL / WolfSSL / NSS / Rust k256) as additional rows in
+     INTEROP_MATRIX.md §2.
+  2. Land the GitLab CI + Codeberg/Woodpecker provider configs
+     promised in G-7 §6.
+  3. Reconcile the SPEC_TRACEABILITY_MATRIX placeholder paths and
+     switch `exploit_traceability_join.py` to `--strict` in CAAS
+     Stage 2.
+  4. Implement the `audit_gate.py --threat-model`,
+     `--residual-risk-register`, `--disclosure-sla`, and
+     `--ct-tool-agreement` sub-gates referenced by these docs.
+
+The audit-replacement infrastructure is now in place; subsequent
+commits convert each "(planned)" / "(advisory)" marker into an
+active gate.
+
+---
+
 ## 2026-04-21 (CAAS gap closure batch 2: G-5, G-9, G-9b, G-10)
 
 Second CAAS gap-closure batch lands. Combined with batch 1 (G-1/G-2/
