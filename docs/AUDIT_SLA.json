@@ -44,6 +44,18 @@
       "threshold": 30,
       "severity": "blocking",
       "measurement": "now - last_verified_timestamp for DETERMINISM_GOLDEN.json"
+    },
+    "review_queue_max_open_days": {
+      "description": "Maximum age in days that an item may sit in the source-graph review queue without being addressed or explicitly deferred",
+      "threshold": 90,
+      "severity": "warning",
+      "measurement": "now - first_seen for each row in source_graph review_queue table without an explicit deferral marker"
+    },
+    "todo_max_open_days": {
+      "description": "Maximum age in days for a TODO/FIXME comment in source code without an explicit deferral marker",
+      "threshold": 180,
+      "severity": "warning",
+      "measurement": "git blame age of the line introducing the TODO/FIXME marker"
     }
   },
   "release_policy": {

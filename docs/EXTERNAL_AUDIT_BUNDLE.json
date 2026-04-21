@@ -3,8 +3,8 @@
     {
       "exists": true,
       "path": "docs/AUDIT_MANIFEST.md",
-      "sha256": "572091d2eabc356c698e20624c86de25338324fe00bc5c552240b62ebd9f261b",
-      "size": 20514
+      "sha256": "cb9811aad1ebd8974162988c579432a3df33bd91d0d390358b524483dfe5c32c",
+      "size": 20919
     },
     {
       "exists": true,
@@ -15,8 +15,8 @@
     {
       "exists": true,
       "path": "docs/AUDIT_SLA.json",
-      "sha256": "c0c69dbda96ed80e554ad1ce6a8d25480eb0e26e52ff382234fd50bc77adbe04",
-      "size": 2332
+      "sha256": "e6b91311c50ca0cfdf2b862199f3f2f79243be9e4bc47de3ab7f02a675c828a7",
+      "size": 2987
     },
     {
       "exists": true,
@@ -33,8 +33,8 @@
     {
       "exists": true,
       "path": "docs/TEST_MATRIX.md",
-      "sha256": "1ae6b02ffc7472f6e3ae0d69e4c5ab0f7328f4f986d037487b95e01617e95f4c",
-      "size": 44634
+      "sha256": "54752635815348dc4b490a0f60d85562abc8087ebaddcc19617f850e69ca7466",
+      "size": 44670
     },
     {
       "exists": true,
@@ -51,13 +51,13 @@
     {
       "exists": true,
       "path": "docs/BACKEND_ASSURANCE_MATRIX.md",
-      "sha256": "ddd553f0031f0d4670a3c17ae0db3977a7bdf4a49c1029eddb2578032a6d4acf",
-      "size": 10420
+      "sha256": "3a58664069ba1800c3e551294ae0ed77b53673ad05c4c7e7e6ff96749ac34999",
+      "size": 10966
     },
     {
       "exists": true,
       "path": "docs/SECURITY_AUTONOMY_KPI.json",
-      "sha256": "4c2e02c8452d7d69242d4f7b9d0a934057c17893d7af9b9748454b2dcaaddc24",
+      "sha256": "6a2929b0159df7c4a9cee690b1e4ac0e9ca15774c37a3fe6d6d693a345121b0e",
       "size": 1421
     },
     {
@@ -161,7 +161,7 @@
           {
             "findings": [
               {
-                "message": "Audit test-quality findings: files=264, critical=0, high=0, medium=0, low=0",
+                "message": "Audit test-quality findings: files=265, critical=0, high=0, medium=0, low=0",
                 "severity": "INFO"
               },
               {
@@ -205,24 +205,8 @@
           {
             "findings": [
               {
-                "message": "4 files modified/deleted since graph build (2026-04-14T03:25:26)",
-                "severity": "WARN"
-              },
-              {
-                "message": "MODIFIED: cpu/src/batch_verify.cpp",
-                "severity": "INFO"
-              },
-              {
-                "message": "MODIFIED: cpu/src/field.cpp",
-                "severity": "INFO"
-              },
-              {
-                "message": "MODIFIED: cpu/src/point.cpp",
-                "severity": "INFO"
-              },
-              {
-                "message": "MODIFIED: cpu/src/scalar.cpp",
-                "severity": "INFO"
+                "message": "Graph is fresh (built: 2026-04-21T05:11:51)",
+                "severity": "PASS"
               }
             ],
             "name": "P6: Graph Freshness",
@@ -241,8 +225,8 @@
           {
             "findings": [
               {
-                "message": "All 296 CTest targets documented",
-                "severity": "PASS"
+                "message": "1 CTest targets not in TEST_MATRIX.md: exploit_differential_openssl",
+                "severity": "WARN"
               }
             ],
             "name": "P8: Test Documentation",
@@ -373,8 +357,8 @@
           {
             "findings": [
               {
-                "message": "5 changed files have matching docs",
-                "severity": "PASS"
+                "message": "CMakeLists.txt changed but docs/BUILDING.md not updated",
+                "severity": "WARN"
               }
             ],
             "name": "P10: Doc-Code Pairing",
@@ -383,11 +367,11 @@
           {
             "findings": [
               {
-                "message": "Mutation report age: 0.3 days (threshold: 14)",
+                "message": "Mutation report age: 7.2 days (threshold: 14)",
                 "severity": "INFO"
               },
               {
-                "message": "Mutation evidence is current (age 0.3d, rate 100.0%)",
+                "message": "Mutation evidence is current (age 7.2d, rate 100.0%)",
                 "severity": "PASS"
               }
             ],
@@ -407,6 +391,58 @@
             ],
             "name": "P3: Crash Risks",
             "status": "PASS"
+          },
+          {
+            "findings": [
+              {
+                "message": "THREAT_MODEL.md covers all 6 STRIDE categories",
+                "severity": "PASS"
+              },
+              {
+                "message": "10 AM-N references, all defined",
+                "severity": "PASS"
+              },
+              {
+                "message": "7 RR-NNN references, all defined in register",
+                "severity": "PASS"
+              }
+            ],
+            "name": "G-1: Threat Model",
+            "status": "PASS"
+          },
+          {
+            "findings": [
+              {
+                "message": "9 RR-NNN table rows, all with Risk/Disposition/Scope/Details",
+                "severity": "PASS"
+              }
+            ],
+            "name": "G-1b: Residual Risk Register",
+            "status": "PASS"
+          },
+          {
+            "findings": [
+              {
+                "message": "SECURITY.md has tiered SLA (Critical/High/Medium/Low)",
+                "severity": "PASS"
+              },
+              {
+                "message": ".well-known/security.txt Expires=2027-04-21T00:00:00.000Z future",
+                "severity": "PASS"
+              }
+            ],
+            "name": "G-10: Disclosure SLA + RFC 9116",
+            "status": "PASS"
+          },
+          {
+            "findings": [
+              {
+                "message": "9 CT-claimed functions, all 3 tools agree",
+                "severity": "PASS"
+              }
+            ],
+            "name": "G-8: CT Tool Independence",
+            "status": "PASS"
           }
         ],
         "commit": {
@@ -415,11 +451,11 @@
           "value": {
             "dirty": true,
             "ref": "dev",
-            "sha": "c23fa1b9763b16ca2e855625d2b2c98388846f8d",
-            "short": "c23fa1b976"
+            "sha": "683b4192e21357d8b4185b952f5725b9ecb9e41f",
+            "short": "683b4192e2"
           }
         },
-        "generated_at": "2026-04-14T13:54:04.422953+00:00",
+        "generated_at": "2026-04-21T12:07:31.171716+00:00",
         "platform": "Linux",
         "provenance": {
           "build_flags": {
@@ -436,41 +472,41 @@
             },
             "flags_hash": "b08a96ecab2b5a95"
           },
-          "collected_at": "2026-04-14T13:54:04.422920+00:00",
+          "collected_at": "2026-04-21T12:07:31.171680+00:00",
           "git": {
             "dirty": true,
             "ref": "dev",
-            "sha": "c23fa1b9763b16ca2e855625d2b2c98388846f8d",
-            "short": "c23fa1b976"
+            "sha": "683b4192e21357d8b4185b952f5725b9ecb9e41f",
+            "short": "683b4192e2"
           },
           "platform": {
             "machine": "x86_64",
             "python": "3.12.3",
-            "release": "6.8.0-107-generic",
+            "release": "6.8.0-110-generic",
             "system": "Linux"
           },
           "submodules": null,
           "toolchain": {
             "c++": "c++ (Ubuntu 14.2.0-4ubuntu2~24.04.1) 14.2.0",
             "cc": "cc (Ubuntu 14.2.0-4ubuntu2~24.04.1) 14.2.0",
-            "clang": "clang version 17.0.0 (https://github.com/swiftlang/llvm-project.git 8f0d2ca924db37c8f8161d55c21b9097b05b72f3)",
-            "clang++": "clang version 17.0.0 (https://github.com/swiftlang/llvm-project.git 8f0d2ca924db37c8f8161d55c21b9097b05b72f3)",
+            "clang": "Ubuntu clang version 18.1.3 (1ubuntu1)",
+            "clang++": "Ubuntu clang version 18.1.3 (1ubuntu1)",
             "cmake": "cmake version 3.28.3",
             "g++": "g++ (Ubuntu 14.2.0-4ubuntu2~24.04.1) 14.2.0",
             "gcc": "gcc (Ubuntu 14.2.0-4ubuntu2~24.04.1) 14.2.0",
             "ninja": "1.11.1"
           },
-          "version": "3.64.0"
+          "version": "3.66.0"
         },
-        "run_id": "audit_gate-c23fa1b976-20260414T135404",
+        "run_id": "audit_gate-683b4192e2-20260421T120731",
         "runner": "audit_gate",
         "schema_version": "1.0.0",
         "summary": {
-          "advisory": 40,
+          "advisory": 37,
           "blocking": 0,
-          "sections": 18,
+          "sections": 22,
           "skipped_sections": 0,
-          "total_findings": 57
+          "total_findings": 60
         },
         "verdict": "PASS with advisory"
       },
@@ -478,7 +514,7 @@
       "required": true,
       "returncode": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_sha256": "83972ee3c4d14ea16d2ab9d2db01ac56caf69713401a146fd6f60b5eeadd9f3f"
+      "stdout_sha256": "15b3730b742812e2375619c314157e28748ec5d35d3b344f8aff18156c38a947"
     },
     {
       "name": "audit_gap_report_strict",
@@ -778,13 +814,13 @@
         "gates_passing": 8,
         "gates_total": 8,
         "overall_pass": true,
-        "timestamp": "2026-04-14T13:54:05.083670+00:00"
+        "timestamp": "2026-04-21T12:07:31.995392+00:00"
       },
       "passing": true,
       "required": true,
       "returncode": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_sha256": "f313221e1129f0cda28d44ad332b290c8e7d0e749f90f9145fad5cd597f78d1e"
+      "stdout_sha256": "c1ca646f60acf228d9f558e2b4f5c12f8b5f5ce092ac91f162144eaa4f1c2ef7"
     },
     {
       "name": "supply_chain_gate",
@@ -827,25 +863,25 @@
         "checks_total": 5,
         "failing_checks": [],
         "overall_pass": true,
-        "timestamp": "2026-04-14T13:54:05.176685+00:00"
+        "timestamp": "2026-04-21T12:07:32.095184+00:00"
       },
       "passing": true,
       "required": true,
       "returncode": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_sha256": "b744b5edf80c3521161945352a7ad530c8bcd2ff1255c1b776ed63bda91901f2"
+      "stdout_sha256": "c3a9b05f24fe4b55840d72c4fb9c793536827d6c1fac48e32c9c022e70546e04"
     }
   ],
-  "generated_at": "2026-04-14T13:54:05.188712+00:00",
+  "generated_at": "2026-04-21T12:07:32.108736+00:00",
   "git": {
     "branch": "dev",
-    "commit": "c23fa1b9763b16ca2e855625d2b2c98388846f8d",
+    "commit": "683b4192e21357d8b4185b952f5725b9ecb9e41f",
     "dirty": true
   },
   "repo_root": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1",
   "runtime": {
     "machine": "x86_64",
-    "platform": "Linux-6.8.0-107-generic-x86_64-with-glibc2.39",
+    "platform": "Linux-6.8.0-110-generic-x86_64-with-glibc2.39",
     "python": "3.12.3"
   },
   "schema_version": "1.0.0",

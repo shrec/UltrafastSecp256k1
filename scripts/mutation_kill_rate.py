@@ -222,6 +222,14 @@ class KillReport:
     kill_rate_pct: float = 0.0
     threshold_pct: float = 75.0
     passed: bool = False
+    # Guard against false-green verdicts: a mutation kill rate computed over
+    # a tiny sample (e.g. 1 testable mutation) is statistically meaningless.
+    # Similarly, if most mutations fail to build, the mutator is broken, not
+    # the code-under-test. Both conditions now fail the gate explicitly.
+    min_testable: int = 20
+    max_build_error_ratio: float = 0.5
+    testable: int = 0
+    pass_reason: str = ""
     baseline_build_ok: bool = True
     baseline_test_ok: bool = True
     baseline_note: str = ""
@@ -494,8 +502,44 @@ def run_mutation_testing(
 
     # Compute kill rate (build errors excluded from denominator — not meaningful)
     testable = report.killed + report.survived
+    report.testable = testable
     report.kill_rate_pct = round(100.0 * report.killed / testable, 1) if testable else 0.0
-    report.passed = report.kill_rate_pct >= threshold
+
+    # Sample-size / build-health guards (prevent false-green verdicts).
+    #
+    # 2026-04-17: mutation_kill_report.json with total=5, build_errors=4,
+    # testable=1, killed=1 reported passed=true at 100% kill rate. Such a
+    # report conveys no real assurance. Two guards now enforce minimum
+    # sanity before a PASS can be declared:
+    #   1) testable >= min_testable (default 20, override via
+    #      UFSECP_MUTATION_MIN_SAMPLE)
+    #   2) build_errors / total <= max_build_error_ratio (default 0.5,
+    #      override via UFSECP_MUTATION_MAX_BUILD_ERROR_RATIO)
+    min_testable = int(os.environ.get("UFSECP_MUTATION_MIN_SAMPLE",
+                                      str(report.min_testable)))
+    max_be_ratio = float(os.environ.get("UFSECP_MUTATION_MAX_BUILD_ERROR_RATIO",
+                                        str(report.max_build_error_ratio)))
+    report.min_testable = min_testable
+    report.max_build_error_ratio = max_be_ratio
+
+    be_ratio = (report.build_errors / report.total) if report.total else 0.0
+    if testable < min_testable:
+        report.passed = False
+        report.pass_reason = (f"insufficient testable mutations "
+                              f"({testable} < {min_testable})")
+    elif be_ratio > max_be_ratio:
+        report.passed = False
+        report.pass_reason = (f"build_error ratio too high "
+                              f"({be_ratio:.2f} > {max_be_ratio:.2f}) — "
+                              "mutator operators likely broken")
+    elif report.kill_rate_pct < threshold:
+        report.passed = False
+        report.pass_reason = (f"kill rate {report.kill_rate_pct:.1f}% < "
+                              f"{threshold:.1f}%")
+    else:
+        report.passed = True
+        report.pass_reason = (f"kill rate {report.kill_rate_pct:.1f}% >= "
+                              f"{threshold:.1f}% (sample={testable})")
 
     return report
 
@@ -619,9 +663,9 @@ def main() -> int:
         print()
 
     if report.passed:
-        print(f"RESULT: PASS  (kill rate {report.kill_rate_pct:.1f}% >= {report.threshold_pct:.1f}%)")
+        print(f"RESULT: PASS  ({report.pass_reason})")
     else:
-        print(f"RESULT: FAIL  (kill rate {report.kill_rate_pct:.1f}% < {report.threshold_pct:.1f}%)")
+        print(f"RESULT: FAIL  ({report.pass_reason or 'kill rate below threshold'})")
         print("  Consider adding audit tests or exploit probes to cover surviving mutations.")
 
     # --- JSON output -------------------------------------------------------

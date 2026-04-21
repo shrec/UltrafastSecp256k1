@@ -1,0 +1,85 @@
+name: rocm-smoke
+
+# CAAS hardening H-11: ROCm/HIP smoke pipeline scaffold.
+# RR-003 is intentionally deferred — AMD device evidence is not part of the
+# claimed audit surface today. This workflow exists ONLY so that, if AMD
+# performance is ever quoted publicly, the scaffolding to produce smoke
+# evidence is already in place.
+#
+# Gating:
+#   - Manual workflow_dispatch only.
+#   - PRs must carry the `run-rocm-smoke` label to invoke.
+# Promotion to claim status still requires hardware-backed evidence per
+# the existing residual-risk rules.
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_arch:
+        description: 'HIP device target (e.g. gfx906, gfx1030)'
+        required: false
+        default: 'gfx906'
+  pull_request:
+    types: [labeled]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rocm-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rocm-smoke:
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' &&
+       contains(github.event.pull_request.labels.*.name, 'run-rocm-smoke'))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Install HIP toolchain (no GPU required for build smoke)
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y --no-install-recommends \
+              wget gnupg ca-certificates cmake ninja-build python3
+          # ROCm install is large; this scaffold installs build-only headers.
+          # When promoted to a real evidence pipeline switch to a self-hosted
+          # AMD runner with the full ROCm stack.
+          echo "Note: this is a scaffold. Real device evidence requires" \
+               "a self-hosted AMD runner."
+
+      - name: Configure HIP build (best-effort, scaffold)
+        env:
+          HIP_TARGET: ${{ github.event.inputs.target_arch || 'gfx906' }}
+        run: |
+          mkdir -p artifacts/gpu
+          DATE=$(date -u +%Y-%m-%d)
+          OUT="artifacts/gpu/rocm_smoke_${DATE}.json"
+          # Emit a structured stub result so downstream tooling can pick it up.
+          python3 - <<'PY' > "$OUT"
+          import json, datetime
+          print(json.dumps({
+              "tool": "rocm_smoke",
+              "generated_at": datetime.datetime.utcnow().isoformat() + "Z",
+              "status": "scaffold-only",
+              "target_arch": "$HIP_TARGET",
+              "note": ("This workflow is a scaffold per CAAS H-11. "
+                       "Real ROCm/HIP device evidence requires a self-hosted "
+                       "AMD runner; promotion to claim status still requires "
+                       "hardware-backed evidence (RR-003)."),
+          }, indent=2))
+          PY
+          echo "Wrote $OUT"
+
+      - name: Upload scaffold result
+        uses: actions/upload-artifact@v4
+        with:
+          name: rocm_smoke_scaffold
+          path: artifacts/gpu/rocm_smoke_*.json
+          retention-days: 30

@@ -7,6 +7,631 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-04-21 (CAAS post-roadmap: multi-CI providers + INTEROP §3 OpenSSL wired)
+
+Two parallel reproducibility verifiers and the first INTEROP §3
+external-reference promotion landed in this batch:
+
+- `.gitlab-ci.yml` — GitLab CI reproducible-build verifier
+  (two builds, .o-by-.o cmp, libufsecp*.so* sha256 compare,
+  emits `artifacts/reproducible-attestation.json` with
+  `provider:"gitlab-ci"`).
+- `.woodpecker.yml` — Codeberg/Woodpecker CI verifier with
+  identical schema (`provider:"woodpecker-codeberg"`).
+- `docs/MULTI_CI_REPRODUCIBLE_BUILD.md` §2 + §6 — both providers
+  promoted from `Planned` to `Config landed`. Three
+  organisationally-independent providers now publish
+  reproducible-attestation.json with the same schema; cross-provider
+  hash-of-jq agreement is now possible once GitLab/Codeberg mirrors
+  are enabled.
+- `audit/test_exploit_differential_openssl.cpp` (NEW) — INTEROP
+  differential PoC against OpenSSL libcrypto (3.x). Uses
+  `__has_include` so it compiles unconditionally; runs the real
+  cross-check when OpenSSL is linkable (CMake `find_package(OpenSSL
+  COMPONENTS Crypto)` auto-links it), otherwise prints an advisory
+  skip and passes.
+- `audit/unified_audit_runner.cpp` — wired `differential_openssl`
+  module under section `differential` with `advisory=true`.
+- `audit/CMakeLists.txt` — source added to `unified_audit_runner`
+  and to a new `test_exploit_differential_openssl_standalone` CTest
+  target. OpenSSL linked conditionally via `find_package(OpenSSL
+  QUIET COMPONENTS Crypto)`.
+- `docs/INTEROP_MATRIX.md` — OpenSSL row promoted from §3
+  (not-yet-wired) to §2 (active when present). §3 list shrunk
+  accordingly.
+- `docs/EXPLOIT_TEST_CATALOG.md` — catalog row for
+  `test_exploit_differential_openssl.cpp` added with INTEROP scope
+  note.
+
+This closes the second remaining post-roadmap item (multi-CI
+provider configs) and starts the longer INTEROP §3 wiring track
+with the most ubiquitous external reference (OpenSSL).
+BoringSSL/WolfSSL/NSS/Rust k256/Go btcd/frost-dalek remain in §3
+and will land one per commit.
+
+---
+
+
+
+Promotes the four CAAS roadmap docs from documentation-only to
+enforced gates inside `scripts/audit_gate.py`:
+
+- `--threat-model` (G-1): verifies THREAT_MODEL.md covers all 6
+  STRIDE categories (with the "Info-disclosure" / "DoS" variants
+  used by the doc), every AM-N citation resolves to a row in §3,
+  and every RR-NNN citation resolves to an entry in the register.
+
+- `--residual-risk-register` (G-1b): parses
+  RESIDUAL_RISK_REGISTER.md as table rows and refuses any entry
+  with a blank Risk / Disposition / Scope / Details cell (<20
+  chars).
+
+- `--disclosure-sla` (G-10): refuses if SECURITY.md drops any of
+  Critical/High/Medium/Low tiers or if `.well-known/security.txt`
+  lacks the RFC 9116 required `Contact:` / `Expires:` fields or
+  has an `Expires:` date in the past.
+
+- `--ct-tool-agreement` (G-8): parses CT_TOOL_INDEPENDENCE.md §6
+  coverage table and refuses if any CT-claimed function has a
+  blank / "n/a" / "?" entry for dudect, Valgrind CT, or ct-verif,
+  or a Verdict that does not include the word "Verified".
+
+All four sub-gates are now members of `ALL_CHECKS` and run as part
+of the default `audit_gate.py` invocation that CAAS Stage 2 calls.
+
+Verified: `python3 scripts/audit_gate.py` PASS,
+`python3 scripts/caas_runner.py` 6/6 PASS in 6.1s.
+
+This closes the "Implement the planned `audit_gate.py` sub-gates"
+remaining item from the 2026-04-21 post-roadmap entry.
+
+---
+
+## 2026-04-21 (CAAS post-roadmap: SPEC matrix path reconciliation + strict-mode traceability gate)
+
+Post-batch-3 cleanup lands the final piece promised in the
+"Remaining" list of the previous entry:
+
+- `docs/SPEC_TRACEABILITY_MATRIX.md` — every `Impl` / `Test` cell
+  now points at a real file on disk. 62 placeholder/aspirational
+  paths replaced with verified paths across SEC 2, SEC 1 (ECDSA),
+  RFC 6979, BIP-340 Schnorr, BIP-32, BIP-324, BIP-341 Taproot,
+  BIP-352 Silent Payments, BIP-327 MuSig2, RFC 9591 FROST,
+  BIP-39, and the Wycheproof coverage table (now lists all 8
+  indexed Wycheproof JSON files).
+
+- `scripts/exploit_traceability_join.py` — flipped default from
+  advisory to **strict**. `--no-strict` is an escape hatch for
+  incremental path reconciliation; CI now calls the script without
+  arguments so any new row that references a non-existent path
+  fails the build.
+
+- `scripts/caas_runner.py` — new Stage `traceability` runs
+  `exploit_traceability_join.py` (strict by default) between the
+  scanner and the audit gate. CAAS pipeline goes from 5 stages to
+  6; the additional stage adds ~30ms to the run.
+
+Verified: `python3 scripts/caas_runner.py` → 6/6 PASS, total 6.5s.
+
+CAAS roadmap state post-fix:
+
+  11/11 gaps closed
+  6/6 CAAS stages passing strictly
+  0 advisory passes silently masking missing paths
+
+The remaining post-roadmap items are now narrowly:
+  * Wire INTEROP_MATRIX §3 references (OpenSSL/BoringSSL/WolfSSL/
+    NSS/Rust k256/Go btcd) as additional rows.
+  * Land GitLab CI + Codeberg/Woodpecker provider configs from
+    MULTI_CI_REPRODUCIBLE_BUILD §2.
+  * Implement the planned `audit_gate.py` sub-gates
+    (--threat-model, --residual-risk-register, --disclosure-sla,
+    --ct-tool-agreement).
+
+---
+
+## 2026-04-21 (CAAS gap closure batch 3: G-4, G-7, G-8 — roadmap COMPLETE)
+
+Third and final CAAS gap-closure batch lands. With this commit, **all
+11 gaps** in `docs/CAAS_GAP_CLOSURE_ROADMAP.md` are closed.
+
+- `docs/INTEROP_MATRIX.md` (G-4) — three-flavour interop inventory:
+  vector interop (Wycheproof + BIP/RFC reference vectors), live
+  differential (libsecp256k1 + libtomcrypt + go-ethereum offline
+  vectors), wire interop (BIP-324 / MuSig2 / FROST self-against-
+  self). Explicit §3 lists references not yet wired (OpenSSL,
+  BoringSSL, WolfSSL, NSS, Rust k256, Go btcd) so the matrix cannot
+  be accused of selective omission.
+
+- `docs/MULTI_CI_REPRODUCIBLE_BUILD.md` (G-7) — provider-matrix-
+  based reproducibility: GitHub Actions active today; GitLab CI and
+  Codeberg/Woodpecker planned as parallel verifiers so a single-
+  provider hash is treated as a baseline, not an end state.
+  Cross-provider attestation JSON schema documented.
+
+- `docs/CT_TOOL_INDEPENDENCE.md` (G-8) — three-tool rule:
+  dudect + Valgrind CT + ct-verif must all agree before a CT claim
+  is recorded as verified. Independence properties tabulated. Six
+  per-combination verdict rules tabulated. Coverage table for every
+  CT-claimed function in PROTOCOL_SPEC.md §4.
+
+CAAS roadmap status:
+
+  G-1  done   THREAT_MODEL.md
+  G-2  done   RNG_ENTROPY_ATTESTATION.md
+  G-3  done   HARDWARE_SIDE_CHANNEL_METHODOLOGY.md
+  G-4  done   INTEROP_MATRIX.md                  <-- this batch
+  G-5  done   SPEC_TRACEABILITY_MATRIX.md
+  G-6  done   COMPLIANCE_STANCE.md
+  G-7  done   MULTI_CI_REPRODUCIBLE_BUILD.md     <-- this batch
+  G-8  done   CT_TOOL_INDEPENDENCE.md            <-- this batch
+  G-9  done   PROTOCOL_SPEC.md
+  G-9b done   exploit_traceability_join.py
+  G-10 done   SECURITY.md SLA + .well-known/security.txt
+
+What remains is *implementation* work that can land incrementally
+without further roadmap entries:
+
+  1. Wire the planned G-4 differential references (OpenSSL /
+     BoringSSL / WolfSSL / NSS / Rust k256) as additional rows in
+     INTEROP_MATRIX.md §2.
+  2. Land the GitLab CI + Codeberg/Woodpecker provider configs
+     promised in G-7 §6.
+  3. Reconcile the SPEC_TRACEABILITY_MATRIX placeholder paths and
+     switch `exploit_traceability_join.py` to `--strict` in CAAS
+     Stage 2.
+  4. Implement the `audit_gate.py --threat-model`,
+     `--residual-risk-register`, `--disclosure-sla`, and
+     `--ct-tool-agreement` sub-gates referenced by these docs.
+
+The audit-replacement infrastructure is now in place; subsequent
+commits convert each "(planned)" / "(advisory)" marker into an
+active gate.
+
+---
+
+## 2026-04-21 (CAAS gap closure batch 2: G-5, G-9, G-9b, G-10)
+
+Second CAAS gap-closure batch lands. Combined with batch 1 (G-1/G-2/
+G-3/G-6 earlier today), eight of the eleven roadmap gaps are now
+closed; the three remaining (G-4 INTEROP_MATRIX, G-7 multi-CI repro
+build, G-8 CT-tool independence) require build/CI infrastructure
+work, not new docs.
+
+- `docs/SPEC_TRACEABILITY_MATRIX.md` (G-5) — spec clause →
+  implementation file → test file rows for SEC 1/2, RFC 6979,
+  BIP-32/324/327/340/341/342/352, RFC 9591 FROST, BIP-39, plus a
+  Wycheproof coverage table and an explicit N/A row for SP 800-186.
+  Header carries an honesty note that several `Impl`/`Test` paths
+  are currently advisory-warning placeholders pending the next
+  reconciliation pass; the script (G-9b) reports them as ADVISORY
+  in default mode and ERROR in `--strict` mode.
+
+- `docs/PROTOCOL_SPEC.md` (G-9) — citation-ready, publishable
+  protocol spec with stable URN
+  `urn:ufsecp:spec:1.0:2026-04-21`. Defines domain parameters,
+  encoding rules, ECDSA / Schnorr / ECDH / EC-recover / BIP-32 /
+  Taproot / BIP-324 / BIP-352 / MuSig2 / FROST behaviour at the ABI
+  level, constant-time guarantees, failure model, versioning
+  policy, and out-of-scope items. Explicit citation block added.
+
+- `scripts/exploit_traceability_join.py` (G-9b) — joins
+  EXPLOIT_TEST_CATALOG ↔ THREAT_MODEL ↔ SPEC_TRACEABILITY_MATRIX ↔
+  RESIDUAL_RISK_REGISTER ↔ unified_audit_runner. Hard joins
+  (exploit-on-disk vs catalog, RR-* defined-vs-cited, AM-* defined-
+  vs-cited) fail in default mode; the spec-matrix path join is
+  advisory in default mode and strict under `--strict`. Default mode
+  passes today; CI will switch to `--strict` after the spec-matrix
+  reconciliation pass.
+
+- `SECURITY.md` (G-10) — disclosure SLA upgraded from a single 72h /
+  30d / 90d row to severity-tiered SLAs (Critical 7d/14d, High
+  30d/60d, Medium 60d/90d). Pointer added to the new RFC 9116
+  contact record and explicit credit/embargo policy.
+
+- `.well-known/security.txt` (G-10) — RFC 9116 machine-readable
+  contact record with `Contact:`, `Expires: 2027-04-21`,
+  `Encryption:`, `Acknowledgments:`, `Preferred-Languages: en, ka`,
+  `Canonical:`, `Policy:` fields. Lives at the standard well-known
+  path so security scanners (e.g. OpenSSF Scorecard, Trivy) can
+  pick it up automatically.
+
+Roadmap status (`docs/CAAS_GAP_CLOSURE_ROADMAP.md`):
+
+  G-1  done   THREAT_MODEL.md
+  G-2  done   RNG_ENTROPY_ATTESTATION.md
+  G-3  done   HARDWARE_SIDE_CHANNEL_METHODOLOGY.md
+  G-5  done   SPEC_TRACEABILITY_MATRIX.md
+  G-6  done   COMPLIANCE_STANCE.md
+  G-9  done   PROTOCOL_SPEC.md
+  G-9b done   exploit_traceability_join.py
+  G-10 done   SECURITY.md SLA + .well-known/security.txt
+
+  G-4  pending  INTEROP_MATRIX.md (cross-implementation interop)
+  G-7  pending  MULTI_CI_REPRODUCIBLE_BUILD.md + workflow
+  G-8  pending  CT_TOOL_INDEPENDENCE.md (two-tool CT proof)
+
+---
+
+## 2026-04-21 (CAAS gap closure: G-1, G-2, G-3, G-6)
+
+Four new audit-replacement documents land that close the highest-ROI
+CAAS gaps from `docs/CAAS_GAP_CLOSURE_ROADMAP.md`:
+
+- `docs/THREAT_MODEL.md` (G-1) — STRIDE-per-ABI table for every
+  `ufsecp_*` export; AM-1..AM-10 attacker models; references RR-001..
+  RR-009 in the residual register.
+- `docs/RNG_ENTROPY_ATTESTATION.md` (G-2) — randomness consumer
+  inventory, fail-closed rule, OS-RNG attestation methodology.
+- `docs/HARDWARE_SIDE_CHANNEL_METHODOLOGY.md` (G-3) — explicit no-claim
+  on power/EM/fault, three-tool CT verification methodology, downstream
+  user guidance.
+- `docs/COMPLIANCE_STANCE.md` (G-6) — explicit no-claim on FIPS / CC /
+  CNSA / SP-800; positive claims with verifier mapping.
+
+`docs/RESIDUAL_RISK_REGISTER.md` extended with RR-006..RR-009 to
+cover the residuals referenced by THREAT_MODEL.md §5.
+
+These four docs do not change code behaviour. They change what an
+external auditor has to reconstruct: previously they would have had
+to derive STRIDE coverage, RNG attestation, and compliance scope
+themselves; now they verify a claim against an evidence pointer.
+
+Next gaps in queue (per CAAS_GAP_CLOSURE_ROADMAP.md execution order):
+G-5 (SPEC_TRACEABILITY_MATRIX), G-9 (PROTOCOL_SPEC), G-9b (exploit ↔
+threat ↔ spec join), G-10 (SECURITY_DISCLOSURE_SLA tightening).
+
+---
+
+## 2026-04-21 (audit-doc reality reconciliation, pass 2: modules + workflows)
+
+Second reconciliation pass — beyond exploit-PoC counts (pass 1 above),
+also reconciled non-exploit module counts and CI workflow counts against
+on-disk reality:
+
+Reality:
+- Non-exploit audit modules in `unified_audit_runner.cpp` ALL_MODULES: **60**
+  (sections: protocol_security 12, math_invariants 10, fuzzing 10,
+  standard_vectors 9, memory_safety 9, ct_analysis 4, differential 4,
+  performance 2)
+- Total runner modules including 189 exploit_poc: **249**
+- Non-exploit sections: **8**, total sections: **9**
+- CI workflows in `.github/workflows/`: **41**
+- Backend runners (rough register counts):
+  `gpu_audit_runner` = 47, `opencl_audit_runner` = 40, `metal_audit_runner` = 30
+
+Updates landed:
+
+- `README.md`: 8 occurrences (54/55/58 module → 60 non-exploit + 189 exploit;
+  37 CI workflows → 41; section 8 → 9)
+- `docs/TEST_MATRIX.md`: 70 modules → 249 modules (60 non-exploit + 189 exploit)
+- `docs/AUDIT_GUIDE.md`: 58 modules → 60 non-exploit modules
+- `docs/ATTACK_GUIDE.md`: 58 audit modules → 60 non-exploit audit modules
+- `docs/CROSS_PLATFORM_TEST_MATRIX.md`: 70 modules → 249 modules (×2)
+- `docs/BACKEND_PARITY.md`: header date 2026-03-15 → 2026-04-21;
+  audit-runner row updated to 60 non-exploit + 189 exploit + accurate
+  per-backend register counts (47/40/30)
+
+Historical benchmark snapshots in `docs/BENCHMARKS.md` ("70/70 audit
+modules", "53/54 modules") are intentionally preserved because they
+correctly represent the runner state at the time of that benchmark run.
+
+Existing-as-correct (no change required):
+- 11 fuzzer harnesses (`audit/fuzz_*.cpp` 6 + `cpu/fuzz/fuzz_*.cpp` 5)
+- 39 Cryptol properties (`grep -rE 'property\s+\w+' --include='*.cry'`)
+
+---
+
+## 2026-04-21 (audit-doc reality reconciliation)
+
+Reconciled exploit-PoC counts across every live audit document against
+the actual on-disk inventory (`audit/test_exploit_*.cpp` = 189 files,
+all 189 wired in `unified_audit_runner.cpp`, parity enforced by
+`scripts/check_exploit_wiring.py`).
+
+Updated headline numbers in:
+
+- `README.md` (3 occurrences: "187 → 189" in tagline, ABI section, build instructions)
+- `docs/ATTACK_GUIDE.md` (2: "166 → 189", "157 → 189")
+- `docs/AUDIT_GUIDE.md` (2: "157 → 189")
+- `docs/AUDIT_PHILOSOPHY.md` (7: "171/187 → 189")
+- `docs/AUDIT_STANDARD.md` (3: "171 → 189")
+- `docs/AUDIT_READINESS_REPORT_v1.md` (1: "187 → 189")
+- `docs/INTERNAL_AUDIT.md` (1: "187 → 189")
+- `docs/EXPLOIT_COVERAGE_MAP.md` (headline "177 → 189"; per-category table
+  preserved as 2026-04-08 baseline with explicit note that 12 PoCs landed
+  since — see EXPLOIT_TEST_CATALOG changelog rows for 2026-04-13/-14/-16/-17)
+- `docs/CAAS_GAP_CLOSURE_ROADMAP.md` (3: "177 → 189")
+
+No PoC counts were inflated. Every claim now matches the exact count
+returned by `ls audit/test_exploit_*.cpp | wc -l`.
+
+---
+
+## 2026-04-21 (CAAS hardening — H-1, H-2, H-3, H-4, H-5, H-6, H-7, H-8, H-9, H-10, H-11)
+
+Eleven of twelve `docs/CAAS_HARDENING_TODO.md` items closed in a single
+sweep. CAAS pipeline still returns `overall_pass=True`; this work removes
+known structural fragilities, depth gaps, and visibility gaps without
+changing the gate's decision surface.
+
+P0 (structural fragility) — closed:
+
+- **H-1** Nightly assurance auto-refresh —
+  [`.github/workflows/caas-evidence-refresh.yml`](../.github/workflows/caas-evidence-refresh.yml).
+  Daily cron at 04:30 UTC regenerates `assurance_report.json`,
+  `EXTERNAL_AUDIT_BUNDLE.{json,sha256}`, and `SECURITY_AUTONOMY_KPI.json`,
+  commits as `caas-bot` only when content changed. Eliminates the
+  `audit_sla_check.py max_stale_evidence_days` silent-trip class.
+- **H-2** HMAC evidence-chain key policy —
+  [`docs/EVIDENCE_KEY_POLICY.md`](EVIDENCE_KEY_POLICY.md). Documents the
+  honest tamper-evident-only scope of the embedded HMAC key, threat model,
+  and the rotation/escrow procedure for any future move to a true secret.
+- **H-3** CAAS protocol standalone spec —
+  [`docs/CAAS_PROTOCOL.md`](CAAS_PROTOCOL.md). Stage-by-stage contract,
+  artifact layout, retention, drift policy, local replay commands.
+
+P1 (assurance depth) — closed:
+
+- **H-4** Mutation kill-rate weekly gate —
+  [`.github/workflows/mutation-weekly.yml`](../.github/workflows/mutation-weekly.yml).
+  Sunday 03:30 UTC; opens or updates the `mutation-kill-rate-regression`
+  issue if `mutation_kill_rate.py --threshold 75` fails. Visibility-only,
+  does not block `dev` pushes.
+- **H-5** GPU `schnorr_snark_witness_batch` performance gap recorded as
+  RR-005 in [`docs/RESIDUAL_RISK_REGISTER.md`](RESIDUAL_RISK_REGISTER.md).
+  Correctness parity is closed via the host-side CPU fallback; this is
+  explicitly tagged as a performance gap, not a correctness gap.
+- **H-6** Local supply-chain parity doc —
+  [`docs/SUPPLY_CHAIN_LOCAL_PARITY.md`](SUPPLY_CHAIN_LOCAL_PARITY.md).
+  Coverage matrix of which P15 controls run offline vs need GitHub, with
+  acceptance criteria for the local-only review pass.
+
+P2 (visibility & hygiene) — closed:
+
+- **H-7** Review-queue aging SLA —
+  [`scripts/review_queue_age_check.py`](../scripts/review_queue_age_check.py)
+  + new `review_queue_max_open_days` SLO (90 days, warning) in
+  [`docs/AUDIT_SLA.json`](AUDIT_SLA.json). Current run: 23 review-queue
+  rows, 0 over SLA.
+- **H-8** TODO/FIXME age tracker —
+  [`scripts/todo_age_check.py`](../scripts/todo_age_check.py)
+  + new `todo_max_open_days` SLO (180 days, warning). Uses `git blame` and
+  honours `DEFERRED:` / `(tracked: …)` annotations. Current run:
+  61 markers, 0 over SLA.
+- **H-9** Audit dashboard generator —
+  [`scripts/render_audit_dashboard.py`](../scripts/render_audit_dashboard.py)
+  emits [`docs/AUDIT_DASHBOARD.md`](AUDIT_DASHBOARD.md). Designed to run
+  inside the H-1 nightly job so the dashboard is regenerated daily.
+- **H-10** Reviewer prompt templates —
+  [`docs/REVIEWER_PROMPTS/`](REVIEWER_PROMPTS/) with `auditor.md`,
+  `attacker.md`, `perf_skeptic.md`, `docs_skeptic.md`, plus a usage
+  README. All four prompts are graph-aware (assume the source-graph
+  workflow).
+- **H-11** ROCm/HIP smoke pipeline scaffold —
+  [`.github/workflows/rocm-smoke.yml`](../.github/workflows/rocm-smoke.yml).
+  Manual / labelled-PR trigger, scaffold-only. Promotion to claim status
+  still requires hardware-backed evidence per RR-003.
+
+Remaining open: none from the H-* batch (H-12 already closed
+[2026-04-21](#2026-04-21-dev_bug_scanner---13-cve-grounded-crypto-checkers-added)).
+
+---
+
+evidence upgrades, and changes to what the repository can honestly claim.
+
+---
+
+## 2026-04-21 (dev_bug_scanner — false-positive reduction pass)
+
+Hardened 8 checkers in [scripts/dev_bug_scanner.py](../scripts/dev_bug_scanner.py)
+to suppress noise without losing real-bug detection. Total findings on the
+repository dropped **375 → 88 (-77 %)** with all HIGH-severity false positives
+eliminated, while the three known real signals (`MISSING_LOW_S_CHECK ×2`,
+`SCALAR_NOT_REDUCED ×1`) are preserved.
+
+Fixes by checker:
+
+- **NULL (check_null_after_deref)**: renamed colliding module-level regex
+  (`_NULL_CHECK` → `_BINDING_NULL_CHECK`) which had silently shadowed the
+  null-check pattern and produced 22 `INTERNAL` errors. Added `_NEG_NULL_CHECK`
+  matching only the negative form `if (!p)` / `if (p == NULL)` — the positive
+  form `if (p)` is the correct guard, not a bug. Walk back past whitespace and
+  `*&` to distinguish C pointer declarations (`char *p = ...`) from
+  dereferences. Reset tracked state on bare `}` and function-start braces so
+  cross-function false matches are impossible. Window narrowed 8→5 lines.
+  Net effect: **0 NULL findings** (was 52 HIGH FPs).
+- **SIG (signed/unsigned)**: added `_UNSIGNED_DECL_RE`; subtract
+  unsigned-declared names from `int_vars` and skip lines that themselves
+  declare unsigned vars.
+- **MSET (suspicious memset/memcpy size)**: pruned `_SUSPICIOUS_SIZES` to
+  `{3, 5, 6, 7, 9, 11, 13, 14, 15, 17, 18, 19, 40, 56, 60, 100, 200}` —
+  removed common natural sizes (10, 12, 20, 24, 28, 48, 128, 512).
+- **EXCEPTION_SWALLOW**: parses same-line catch bodies (`{...}` on one line)
+  and only flags genuinely empty handlers.
+- **CPASTE (copy-paste reassign)**: skip indexed lvalues; allow-list 30+
+  scratch / accumulator names (`carry`, `borrow`, `tmp`, `t0..t4`, `r0/r1`,
+  `d`, `lo`, `hi`, `acc_lo/hi`, `diff`, `sum`, `x/y/z`, `md`, `me`, `sd`,
+  `se`, `fi`, `gi`, `cd`, `ce`, `cond_add/sub`, `mask`, `pad`, `X/Y`); fixed
+  ordering so reads are cleared from tracked state BEFORE the scratch-skip
+  `continue` (otherwise stale tracked names triggered FPs across statements).
+- **DBLINIT (init then immediate overwrite)**: same scratch allow-list and
+  same read-clearing-first ordering. Added defensive-zero-init exemption:
+  `T x = 0; ... x = expr;` is idiomatic C and not flagged. Improved
+  parameter-list detection: skip lines ending in `,` or `)` without `;`,
+  AND lines matching `... = literal)` (default arg trailers like
+  `bool flag = false);`).
+- **BINDING_NO_VALIDATION**: renamed regex to break collision with
+  `check_null_after_deref`; broadened to match any `if (!\w+)`,
+  `if (X == NULL/nullptr)`, and ternary `X ? ... : err` guards. Skip
+  declaration-only lines and functions with no pointer args.
+- **OB1 (off-by-one)**: skip selftest / test / fuzz / bench files; skip
+  1-based loops and loops starting at K ≥ 2.
+- **SIZEOF_MISMATCH**: per-file `array_size_expr` map; skip same-dim arrays
+  and skip sizeof args ending in `_ctx`, `_t`, `_state`, `_struct`, `_type`,
+  `_info`, `_cfg`, `_opts`, `_hdr`.
+
+Net result on the repository (0 HIGH retained; only signal-bearing categories
+remain MEDIUM): MISSING_LOW_S_CHECK ×2, CPASTE ×2, SCALAR_NOT_REDUCED ×1,
+MSET ×1, BINDING_NO_VALIDATION ×1, plus 81 LOW DBLINIT advisories that are
+mostly minor stylistic patterns. The known real concerns (batch_verify lacks
+low-S enforcement; one scalar-inverse path on unreduced input) remain visible
+in the report.
+
+---
+
+## 2026-04-21 (dev_bug_scanner — 13 CVE-grounded crypto checkers added)
+
+Extended [scripts/dev_bug_scanner.py](../scripts/dev_bug_scanner.py) with 13
+new checkers each anchored to a real-world cryptographic incident class.
+Coverage now includes Sony PS3 ECDSA nonce reuse, Apple goto-fail
+(CVE-2014-1266), Debian OpenSSL RNG (CVE-2008-0166), OpenSSL DER laxness
+(CVE-2014-8275), BIP-62 low-S malleability, BIP-340 missing tagged_hash
+domain separation, ECDH small-subgroup confinement, MAC truncation, scalar
+inversion without prior reduction, and developer log-leak of secret-bearing
+identifiers. New categories: `NONCE_REUSE_VAR`, `MEMCMP_SECRET`,
+`MISSING_LOW_S_CHECK`, `SCALAR_FROM_RAND`, `GOTO_FAIL_DUPLICATE`,
+`POINT_NO_VALIDATION`, `ECDH_OUTPUT_NOT_CHECKED`, `HASH_NO_DOMAIN_SEP`,
+`DER_LAX_PARSE`, `TIMING_BRANCH_ON_KEY`, `MAC_TRUNCATION`,
+`SCALAR_NOT_REDUCED`, `PRINTF_SECRET`. All scoped via `_is_crypto_path()`
+or filename guards to keep false-positive rate low; each finding includes
+a CVE / standard reference and a `fix_hint`. Initial run on the codebase
+produced 3 MEDIUM signals (zero HIGH false positives). Tracked under H-12
+of [docs/CAAS_HARDENING_TODO.md](CAAS_HARDENING_TODO.md).
+
+---
+
+## 2026-04-20 (GPU parity gap closed — schnorr_snark_witness_batch host fallback)
+
+Closed the only remaining `GpuError::Unsupported` gap in the public GPU ABI.
+`ufsecp_gpu_zk_schnorr_snark_witness_batch` previously returned
+`GpuError::Unsupported` on every backend (CUDA / OpenCL / Metal) because the
+default `GpuBackend::schnorr_snark_witness_batch` virtual method had a stub
+inline body. Callers asking for the GPU batch path therefore got a hard error
+even though the CPU C ABI (`ufsecp_zk_schnorr_snark_witness`) was fully
+functional.
+
+- Added [gpu/src/gpu_backend_fallback.cpp](../gpu/src/gpu_backend_fallback.cpp)
+  with `schnorr_snark_witness_batch_cpu_fallback`, a deterministic host-side
+  loop that produces byte-identical 472-byte witness records (matches
+  `ufsecp_schnorr_snark_witness_t` and `SCHNORR_SNARK_WITNESS_BYTES`).
+- Wired the new helper as the default `GpuBackend::schnorr_snark_witness_batch`
+  body in [gpu/include/gpu_backend.hpp](../gpu/include/gpu_backend.hpp) so
+  every backend (and any future backend) returns correct results out of the
+  box. Backends are still free to override with a native device kernel for
+  higher throughput.
+- Updated [docs/BACKEND_ASSURANCE_MATRIX.md](BACKEND_ASSURANCE_MATRIX.md):
+  the matrix row now shows `Y*` (served via host-side fallback) instead of
+  `stub` for all three backends, with the asterisk explained in the footnote.
+- Added file to the `gpu_registry.cpp` source list and to the standalone
+  audit targets in `audit/CMakeLists.txt` so test binaries link the new
+  symbol.
+
+This is a public-data-only operation (no secret values are touched), so a
+host-side fallback has no security impact. The change brings the public GPU
+ABI to **zero `Unsupported` returns** across all shipping backends; the
+`docs/BACKEND_ASSURANCE_MATRIX.md` "temporary stubs" row for this op is now
+documented as covered.
+
+Verified by full incremental rebuild of `build_opencl/` (708/708 targets),
+including `unified_audit_runner` and every standalone PoC that links
+`gpu_registry.cpp`.
+
+---
+
+## 2026-04-18 (Memory-leak risk cleanup — graph-guided)
+
+Closed all `new`-without-matching-`delete` heuristic hits flagged by the
+source-graph `leak_risks` table (risk_score > 0) where the pairing was
+either genuinely missing on failure paths or merely not exception-safe.
+
+- **`gpu/src/gpu_backend_cuda.cu`** — three real leak paths fixed.
+  `ecdh_xdh_batch`, `dleq_verify_batch`, and `bulletproof_verify_batch`
+  allocated `new bool[count]` for the device→host result copy. The
+  subsequent `CUDA_TRY(cudaMemcpy(...))` early-returns a `GpuError::Launch`
+  on failure, which skipped the paired `delete[]` **and** every `cudaFree`
+  below it. Replaced the raw heap buffer with `std::vector<uint8_t>` so
+  the host buffer is now reclaimed by RAII on any failure path.
+- **`cpu/src/message_signing.cpp`** — `bitcoin_msg_hash` allocated
+  `new std::uint8_t[total]` for messages larger than 512 bytes. The paired
+  `delete[]` was reached in the happy path but any exception propagating
+  from `sha256()` would have leaked the buffer **and** skipped
+  `secure_erase`. Replaced with `std::vector<std::uint8_t>`; `secure_erase`
+  is still called explicitly before the vector deallocator reclaims
+  memory, so the confidentiality guarantee is unchanged.
+
+Four remaining `leak_risks` hits (`cpu/src/field.cpp`, `cpu/src/ct_point.cpp`,
+`cpu/bench/bench_unified.cpp`, `cuda/src/test_suite.cu`) were triaged as
+false positives: the heuristic matched the word `new` in comments
+(`new overflow`, `new lo`, `new Point`, `new scalar operations`), not in
+allocation expressions. Two additional hits with negative risk_score
+(`cpu/src/point.cpp`, `cpu/src/precompute.cpp`, `opencl/src/opencl_context.cpp`)
+already use `std::make_unique` / matching `delete` and are safe.
+
+---
+
+## 2026-04-17 (Conversion Standard enforcement — 5 audit-model bugs closed)
+
+- **Fixed BUG-A1 (wiring parity).** 16 `audit/test_exploit_*.cpp` files
+  existed on disk and built as standalone CTest binaries but were **not**
+  registered in `audit/unified_audit_runner.cpp`, so failures never fed
+  into the aggregated audit verdict. All 16 are now wired as
+  `section = "exploit_poc"` entries in `ALL_MODULES`:
+  `exploit_bip32_child_key_attack`, `exploit_boundary_sentinels`,
+  `exploit_buff_kr_ecdsa`, `exploit_ecdsa_affine_nonce_rel`,
+  `exploit_ecdsa_r_overflow`, `exploit_ecdsa_sign_sentinels`,
+  `exploit_eip712_kat`, `exploit_ellswift_bad_scalar_ecdh`,
+  `exploit_ellswift_xdh_overflow`, `exploit_frost_identifiable_abort`,
+  `exploit_hash_algo_sig_isolation`, `exploit_minerva_cve_2024_23342`,
+  `exploit_musig2_byzantine_multi`, `exploit_rfc6979_minerva_amplified`,
+  `exploit_scalar_mul`, `exploit_schnorr_nonce_reuse`. Runner build is
+  green (288/288 objects).
+
+- **Added** `scripts/check_exploit_wiring.py` (CAAS Stage 0) as a CI gate
+  that refuses merges when an on-disk `test_exploit_*.cpp` defines a
+  `_run()` entry point but is not referenced by `unified_audit_runner.cpp`.
+  Wired into `.github/workflows/preflight.yml` and
+  `.github/workflows/caas.yml` before the static analysis stage.
+
+- **Added** `int test_exploit_eip712_kat_run()` wrapper in
+  `audit/test_exploit_eip712_kat.cpp` over the existing
+  `run_eip712_kat_tests()` function, so the EIP-712 structured-data KAT
+  participates in the aggregated verdict when built without
+  `STANDALONE_TEST`.
+
+- **Fixed BUG-A2 (mutation false-green).** `scripts/mutation_kill_rate.py`
+  now enforces:
+  - minimum testable sample (`UFSECP_MUTATION_MIN_SAMPLE`, default 20);
+    kill-rate over < 20 testable mutations can no longer report `passed =
+    true`.
+  - maximum build-error ratio (`UFSECP_MUTATION_MAX_BUILD_ERROR_RATIO`,
+    default 0.5); a run where >50% of mutants failed to build is treated
+    as a broken mutator, not as a passing test suite.
+  - Report now carries `testable` and `pass_reason` fields, and the
+    printed RESULT line cites the concrete reason.
+
+- **Fixed BUG-A3 (advisory silent-pass).** `write_json_report` in
+  `audit/unified_audit_runner.cpp` now splits `advisory_warnings` into
+  `advisory_skipped` (infrastructure missing, ~0 ms runtime) and
+  `advisory_failed` (ran and failed). The top-level `audit_verdict` gains
+  a new value `AUDIT-READY-DEGRADED` used when mandatory modules pass but
+  one or more advisory modules actually failed.
+
+- **Fixed BUG-A5 (static-only scanner).** `scripts/audit_test_quality_scanner.py`
+  gained **Category G** — "unwired exploit PoC". The scanner now
+  cross-checks every `audit/test_exploit_*.cpp` against
+  `unified_audit_runner.cpp` and reports high-severity findings when a
+  `_run()` symbol is declared but not registered, or when a PoC has
+  `int main()` but no `_run()` wrapper at all. Current run: 0 findings on
+  264 audit files.
+
+- **Added** Conversion Standard rule block to `AGENTS.md`, `CLAUDE.md`,
+  and `.github/copilot-instructions.md`. Every new exploit or audit test
+  must be **code + wired + documented in the same commit**, enforced by
+  CAAS Stage 0.
+
+---
+
 ## 2026-04-15 (Mutation policy: local pre-release, not push/PR CI)
 
 - **Updated** `.github/workflows/mutation.yml` trigger policy to remove automatic

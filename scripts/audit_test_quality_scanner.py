@@ -4,7 +4,7 @@ audit_test_quality_scanner.py
 
 External-auditor-grade static analyzer for audit C++ test files.
 
-Detects six bug classes that human auditors catch but automated test runs miss:
+Detects seven bug classes that human auditors catch but automated test runs miss:
 
   A: Vacuous checks — CHECK(true, ...) always passes, regardless of actual behavior
   B: Mandatory security gap — security-critical else-branch has CHECK(true) weasel-out
@@ -12,6 +12,9 @@ Detects six bug classes that human auditors catch but automated test runs miss:
   D: Weak statistical thresholds — bias/uniformity bounds so loose they catch nothing
   E: Unchecked API return values — ufsecp_*() called without asserting success
   F: Missing mandatory rejection — security ops that MUST fail never assert it unconditionally
+  G: Unwired exploit PoC — on-disk test_exploit_*.cpp is not registered in
+     unified_audit_runner.cpp (runs only as standalone CTest, bypassing the
+     aggregated audit verdict).
 
 Usage:
     python3 scripts/audit_test_quality_scanner.py [--audit-dir audit/] [--json] [-o report.json]
@@ -123,6 +126,11 @@ class AuditTestScanner:
                 self.scan_file(f)
             except Exception as e:
                 print(f"  [WARN] could not scan {f.name}: {e}", file=sys.stderr)
+        # Repository-wide checks that look across all files, not per-file
+        try:
+            self._check_G_unwired_exploits()
+        except Exception as e:
+            print(f"  [WARN] Category G scan failed: {e}", file=sys.stderr)
         self.findings.sort()
         return self.findings
 
@@ -407,6 +415,62 @@ class AuditTestScanner:
             snippet=snippet[:120],
             fix_hint=fix_hint,
         ))
+
+    # ------------------------------------------------------------------
+    # G: Unwired exploit PoC -- on-disk test_exploit_*.cpp files not registered
+    #    in unified_audit_runner.cpp. Added 2026-04-17 after BUG-A1: 16 exploit
+    #    PoCs existed on disk and ran as standalone CTest binaries but never
+    #    fed into the aggregated audit verdict. The Conversion Standard in
+    #    docs/EXPLOIT_BACKLOG.md requires every new exploit test to be
+    #    declared + wired + documented in a single commit.
+    # ------------------------------------------------------------------
+    def _check_G_unwired_exploits(self):
+        runner = self.audit_dir / "unified_audit_runner.cpp"
+        if not runner.exists():
+            return  # nothing to correlate against
+        runner_text = runner.read_text(errors="replace")
+
+        # Collect every test_exploit_*.cpp that defines a `*_run()` entry point
+        exploit_files = sorted(self.audit_dir.glob("test_exploit_*.cpp"))
+        run_decl_re = re.compile(
+            r"^\s*(?:int|static\s+int)\s+(test_exploit_[A-Za-z0-9_]+_run)\s*\("
+            , re.MULTILINE)
+
+        for cpp in exploit_files:
+            try:
+                src = cpp.read_text(errors="replace")
+            except OSError:
+                continue
+            m = run_decl_re.search(src)
+            if not m:
+                # File has no `_run()` entry point -- cannot be wired yet.
+                # This is itself a Conversion Standard finding.
+                if "int main(" in src:
+                    self._add(
+                        cpp.name, 1, "high", "G", "exploit_missing_run_wrapper",
+                        f"{cpp.name} defines int main() but no test_<name>_run() "
+                        f"wrapper, so it can only run standalone and cannot be "
+                        f"aggregated into unified_audit_runner.",
+                        src.splitlines()[0][:120],
+                        "Extract the main() body into "
+                        "int test_<name>_run() and reduce main() to a "
+                        "STANDALONE_TEST-guarded thin wrapper.")
+                continue
+
+            run_sym = m.group(1)
+            # Registration check: symbol must appear both as a forward decl
+            # AND inside the ALL_MODULES table of unified_audit_runner.
+            if run_sym not in runner_text:
+                self._add(
+                    cpp.name, m.start(), "high", "G", "exploit_unwired",
+                    f"{cpp.name} exposes {run_sym}() but unified_audit_runner.cpp "
+                    f"does not reference it; this PoC runs only as a standalone "
+                    f"CTest binary and does not contribute to the aggregated "
+                    f"audit verdict (BUG-A1 class).",
+                    m.group(0).strip()[:120],
+                    f"Add `int {run_sym}();` to the forward declarations block "
+                    f"and register an ALL_MODULES entry with section "
+                    f"\"exploit_poc\" in audit/unified_audit_runner.cpp.")
 
 
 # ---------------------------------------------------------------------------

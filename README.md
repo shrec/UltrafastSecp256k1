@@ -16,14 +16,18 @@ UltrafastSecp256k1 is:
 
 - ⚡ **High-throughput ECC engine** — CPU + GPU + embedded (CUDA, OpenCL, Metal, ARM64, RISC-V, WASM, ESP32, STM32)
 - 🔐 **Cryptographic stack** — ECDSA, Schnorr, FROST, MuSig2, Taproot, BIP-352 Silent Payments, ZK Proofs, ECDH
-- 🧠 **Continuous audit system** — 1,000,000+ assertions per build, 58 modules, 0 failures — not a snapshot
-- 🧪 **Adversarially tested** — 187 exploit PoC tests, 11 fuzzer harnesses, 39 formal Cryptol properties, 3 independent CT pipelines
+- 🧠 **Continuous audit system** — 1,000,000+ assertions per build, 60 non-exploit modules + 189 exploit PoCs, 0 failures — not a snapshot
+- 🧪 **Adversarially tested** — 189 exploit PoC tests, 11 fuzzer harnesses, 39 formal Cryptol properties, 3 independent CT pipelines
 
 > Security is not assumed — it is continuously verified on every commit.
 
 **11.00 M BIP352 scans/s** · **4.88 M ECDSA signs/s** · **4.05 M ECDSA verifies/s** · **3.66 M Schnorr signs/s** · **5.38 M Schnorr verifies/s** · **1.34 M FROST partial verifies/s** · **97.2 M point compressions/s** — RTX 5060 Ti (CUDA 12)
 
 Known production use: [Sparrow Wallet Frigate](https://github.com/sparrowwallet/frigate) — [Details →](docs/ADOPTION.md)
+
+> **Using UltrafastSecp256k1 in production?** Open a PR adding your project to [docs/ADOPTION.md](docs/ADOPTION.md) — independent integrations are the strongest validation signal we can show.
+>
+> **Foundation, exchange, or wallet sponsor?** See [docs/FUNDING_TARGETS.md](docs/FUNDING_TARGETS.md) for the project's funding playbook (HRF, OpenSats, Brink, Spiral, Ethereum Foundation ESP, NLnet, Sovereign Tech Fund, …) and 30-second / 5-minute pitches.
 
 ---
 
@@ -69,7 +73,20 @@ cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build build -
 | 📐 Audit methodology specification (CAAS) | [docs/AUDIT_STANDARD.md](docs/AUDIT_STANDARD.md) |
 | 🚀 External auditor quick start | [docs/AUDITOR_QUICKSTART.md](docs/AUDITOR_QUICKSTART.md) |
 | 📄 See latest audit results | [AUDIT_REPORT.md](AUDIT_REPORT.md) |
+| � Live audit dashboard | [docs/AUDIT_DASHBOARD.md](docs/AUDIT_DASHBOARD.md) |
 | 🛡️ Exploit PoC test catalog | [docs/EXPLOIT_TEST_CATALOG.md](docs/EXPLOIT_TEST_CATALOG.md) |
+| 🗺️ Exploit coverage map | [docs/EXPLOIT_COVERAGE_MAP.md](docs/EXPLOIT_COVERAGE_MAP.md) |
+| 🎯 ECDSA edge-case coverage | [docs/ECDSA_EDGE_CASE_COVERAGE.md](docs/ECDSA_EDGE_CASE_COVERAGE.md) |
+| 🔬 Interop matrix (cross-implementation) | [docs/INTEROP_MATRIX.md](docs/INTEROP_MATRIX.md) |
+| 🧨 Threat model | [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md) |
+| 📐 CAAS protocol (continuous audit) | [docs/CAAS_PROTOCOL.md](docs/CAAS_PROTOCOL.md) |
+| 🏗️ Multi-CI reproducible builds | [docs/MULTI_CI_REPRODUCIBLE_BUILD.md](docs/MULTI_CI_REPRODUCIBLE_BUILD.md) |
+| 🔌 Supply-chain local parity | [docs/SUPPLY_CHAIN_LOCAL_PARITY.md](docs/SUPPLY_CHAIN_LOCAL_PARITY.md) |
+| 📡 Hardware side-channel methodology | [docs/HARDWARE_SIDE_CHANNEL_METHODOLOGY.md](docs/HARDWARE_SIDE_CHANNEL_METHODOLOGY.md) |
+| 🛂 Compliance stance | [docs/COMPLIANCE_STANCE.md](docs/COMPLIANCE_STANCE.md) |
+| 🤖 Security autonomy program | [docs/SECURITY_AUTONOMY_PLAN.md](docs/SECURITY_AUTONOMY_PLAN.md) |
+| 🔭 Research monitor | [docs/RESEARCH_MONITOR.md](docs/RESEARCH_MONITOR.md) |
+| 🧑‍⚖️ Reviewer role prompts | [docs/REVIEWER_PROMPTS/README.md](docs/REVIEWER_PROMPTS/README.md) |
 | 🔀 Backend assurance matrix | [docs/BACKEND_ASSURANCE_MATRIX.md](docs/BACKEND_ASSURANCE_MATRIX.md) |
 | 🚦 CI gating policy | [docs/CI_GATING_POLICY.md](docs/CI_GATING_POLICY.md) |
 | 🗺️ ABI layer routing matrix | [docs/LAYER_ROUTING_MATRIX.md](docs/LAYER_ROUTING_MATRIX.md) |
@@ -87,9 +104,24 @@ cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build build -
 | 🚨 Incident response | [docs/INCIDENT_RESPONSE.md](docs/INCIDENT_RESPONSE.md) |
 | 📦 Install packages | [Installation](#installation) |
 | 🤔 Why this library? | [WHY_ULTRAFASTSECP256K1.md](WHY_ULTRAFASTSECP256K1.md) |
-| 🌐 Sponsor | [github.com/sponsors/shrec](https://github.com/sponsors/shrec) |
+| 📚 Cite this work | [CITATION.cff](CITATION.cff) |
+| � Production adopters | [docs/ADOPTION.md](docs/ADOPTION.md) |
+| 💰 Funding & grant programmes | [docs/FUNDING_TARGETS.md](docs/FUNDING_TARGETS.md) |
+| �🌐 Sponsor | [github.com/sponsors/shrec](https://github.com/sponsors/shrec) |
 
 > **Claim map:** [docs/ASSURANCE_LEDGER.md](docs/ASSURANCE_LEDGER.md) · **Security policy:** [SECURITY.md](SECURITY.md) · **Discord:** [discord.gg/E4BK8SeMYU](https://discord.gg/E4BK8SeMYU)
+
+---
+
+## Cite this work
+
+If you use UltrafastSecp256k1 in academic work, please cite:
+
+- **Citation metadata** — [CITATION.cff](CITATION.cff) (also exposed via GitHub's "Cite this repository" button)
+- **Zenodo metadata** — [.zenodo.json](.zenodo.json)
+- **DOI (Zenodo concept)** — minted automatically per release once the GitHub↔Zenodo integration is enabled. The DOI badge will be embedded here once the first post-integration release is cut.
+
+`<!-- DOI badge placeholder: replace with the concept-DOI badge URL after the first Zenodo-archived release. -->`
 
 ---
 
@@ -102,7 +134,7 @@ This project: `code → test → execution → evidence → continuous verificat
 We do not rely on trust. We provide reproducible evidence.
 
 - Every exploit attempt becomes a permanent regression test
-- Every commit runs 1,000,000+ assertions across 58 audit modules
+- Every commit runs 1,000,000+ assertions across 60 non-exploit audit modules and 189 exploit PoCs
 - Every claim maps to a test in [docs/AUDIT_TRACEABILITY.md](docs/AUDIT_TRACEABILITY.md)
 - Every performance number has pinned compiler/driver/toolkit versions and raw logs
 
@@ -147,7 +179,7 @@ All measurements: RTX 5060 Ti (SM 12.0, CUDA 12), batch=16 384, kernel-only thro
 
 > TL;DR is above. This section covers what differentiates this library in depth.
 
-- **Continuous adversarial audit system** -- every exploit attempt becomes a permanent regression test; 1,000,000+ assertions per build, 187 exploit-PoC test files (171 registered runner modules) across 200+ attack vectors, 37 CI workflows, 3 formal CT verification pipelines (ct-verif + Valgrind CT + dudect), 1.3M+ nightly differential checks — security hardens on every commit, not just on release day ([→ how it works](#engineering-quality--self-audit-culture))
+- **Continuous adversarial audit system** -- every exploit attempt becomes a permanent regression test; 1,000,000+ assertions per build, 189 exploit-PoC test files (all 189 registered as runner modules, parity enforced by `scripts/check_exploit_wiring.py`) across 200+ attack vectors, 41 CI workflows, 3 formal CT verification pipelines (ct-verif + Valgrind CT + dudect), 1.3M+ nightly differential checks — security hardens on every commit, not just on release day ([→ how it works](#engineering-quality--self-audit-culture))
 - **Differentiated GPU secp256k1 surface** -- CUDA, OpenCL, and Metal all implement the stable 19-op GPU C ABI, while CUDA also carries the highest-throughput signing and verification kernels plus **GPU FROST partial verification** ([reproducible benchmark suite and raw logs](docs/BENCHMARKS.md))
 - **High-performance CPU secp256k1 engine** -- optimized generator multiply, scalar multiply, hashing, and serialization pipelines across x86-64, ARM64, RISC-V, and embedded targets ([see bench_unified ratio table](docs/BENCHMARKS.md))
 - **BIP-352 Silent Payments at 11.00 M/s** -- the full 7-stage GPU pipeline (k×P → hash → k×G → add → match) runs at 91.0 ns/op on CUDA, **267× faster** than single-threaded CPU ([GPU bench](docs/BENCHMARKS.md), [standalone CPU benchmark by @craigraw](https://github.com/craigraw/bench_bip352))
@@ -265,7 +297,7 @@ This top-level narrative maps directly to the assurance ledger: CT secret-key ro
 | Metric | Value |
 |--------|-------|
 | Internal audit assertions per build | **~1,000,000+** |
-| Audit modules (`unified_audit_runner`) | **55 modules, 8 sections, 0 failures** |
+| Audit modules (`unified_audit_runner`) | **60 non-exploit modules + 189 exploit PoCs across 9 sections, 0 failures** |
 | Exploit PoC test files | **86 tests, 14 coverage areas, 0 failures** |
 | CI/CD workflows | **37 GitHub Actions workflows** |
 | Build matrix (arch × config × OS) | **7 × 17 × 5 = 595 combinations** |
@@ -280,7 +312,7 @@ This top-level narrative maps directly to the assurance ledger: CT secret-key ro
 
 | Workflow | Purpose | Trigger |
 |----------|---------|---------|
-| `security-audit.yml` | Runs full `unified_audit_runner` — 55 modules, ~1M+ assertions | Every push |
+| `security-audit.yml` | Runs full `unified_audit_runner` — 60 non-exploit modules + 189 exploit PoCs, ~1M+ assertions | Every push |
 | `ct-arm64.yml` | Constant-time verification on native ARM64 hardware | Every push |
 | `ct-verif.yml` | Formal constant-time verification pass | Every push |
 | `valgrind-ct.yml` | Valgrind memcheck + CT analysis | Every push |
@@ -301,11 +333,11 @@ This top-level narrative maps directly to the assurance ledger: CT secret-key ro
 - Every commit that would regress throughput **fails CI automatically** via `bench-regression.yml`
 - Audit results are logged as **structured artifacts** (JSON reports, per-platform logs), not just pass/fail signals
 - **Nightly differential testing** runs ~1.3M random round-trips against reference implementations every night
-- All 55 audit modules return `AUDIT-READY` status. Zero failures across all tested platforms.
+- All 60 non-exploit audit modules and all 189 exploit PoCs return `AUDIT-READY` status. Zero failures across all tested platforms.
 
 ### Exploit PoC Test Suite (187 Tests, 20+ Coverage Areas)
 
-In addition to the 55-module `unified_audit_runner`, UltrafastSecp256k1 ships **187 dedicated exploit-style PoC tests** that actively try to break the library across its highest-risk surfaces. Each `audit/test_exploit_*.cpp` target builds and runs standalone so failures stay easy to attribute and reproduce.
+In addition to the 55-module `unified_audit_runner`, UltrafastSecp256k1 ships **189 dedicated exploit-style PoC tests** that actively try to break the library across its highest-risk surfaces. Each `audit/test_exploit_*.cpp` target builds and runs standalone so failures stay easy to attribute and reproduce.
 
 | Coverage Area | Representative attack focus |
 |---------------|-----------------------------|
@@ -324,7 +356,7 @@ In addition to the 55-module `unified_audit_runner`, UltrafastSecp256k1 ships **
 | Self-Test / Recovery | self-test API behavior and recovery boundary cases |
 | Batch Verify | aggregate verification math correctness |
 
-> All 187 exploit tests live in `audit/test_exploit_*.cpp`. Build with `cmake -S . -B build-audit -G Ninja -DCMAKE_BUILD_TYPE=Release` and run them standalone or via `ctest`.
+> All 189 exploit tests live in `audit/test_exploit_*.cpp`. Build with `cmake -S . -B build-audit -G Ninja -DCMAKE_BUILD_TYPE=Release` and run them standalone or via `ctest`.
 
 ### Self-Audit Document Index
 
@@ -418,7 +450,7 @@ In addition to the 55-module `unified_audit_runner`, UltrafastSecp256k1 ships **
 **Report vulnerabilities** via [GitHub Security Advisories](https://github.com/shrec/UltrafastSecp256k1/security/advisories/new) or email [payysoon@gmail.com](mailto:payysoon@gmail.com).
 For production cryptographic systems, perform your own risk review, review the current guarantees in [SUPPORTED_GUARANTEES.md](include/ufsecp/SUPPORTED_GUARANTEES.md), and apply the assurance level appropriate to your deployment.
 
-For the full audit infrastructure breakdown (1M+ assertions, 37 CI workflows, formal CT verification pipelines, self-audit document index), see the [Engineering Quality & Self-Audit Culture](#engineering-quality--self-audit-culture) section above and [WHY_ULTRAFASTSECP256K1.md](WHY_ULTRAFASTSECP256K1.md).
+For the full audit infrastructure breakdown (1M+ assertions, 41 CI workflows, formal CT verification pipelines, self-audit document index), see the [Engineering Quality & Self-Audit Culture](#engineering-quality--self-audit-culture) section above and [WHY_ULTRAFASTSECP256K1.md](WHY_ULTRAFASTSECP256K1.md).
 
 ---
 
@@ -1469,7 +1501,7 @@ libFuzzer harnesses cover core arithmetic (`cpu/fuzz/`):
 
 ### Cross-Platform Audit Results
 
-The `unified_audit_runner` executes **54 audit modules** across 8 sections
+The `unified_audit_runner` executes **60 non-exploit audit modules + 189 exploit PoCs** across 9 sections
 (mathematical invariants, constant-time analysis, differential testing, standard
 vectors, fuzzing, protocol security, ABI safety, performance validation).
 
@@ -1605,7 +1637,7 @@ cosign verify-blob SHA256SUMS \
 | [GPU Validation Matrix](docs/GPU_VALIDATION_MATRIX.md) | Per-backend op coverage and validation status |
 | [Feature Maturity](docs/FEATURE_MATURITY.md) | Per-feature GPU/CT/fuzz/tier status table |
 | [Supported Guarantees](include/ufsecp/SUPPORTED_GUARANTEES.md) | ABI stability tiers and commitment levels |
-| [Audit Coverage](AUDIT_COVERAGE.md) | Full audit report with 55 modules and platform verdicts |
+| [Audit Coverage](AUDIT_COVERAGE.md) | Full audit report with 60 non-exploit modules + 189 exploit PoCs and platform verdicts |
 | [Audit Guide](docs/AUDIT_GUIDE.md) | How to run and interpret audit suite |
 | [Test Matrix](docs/TEST_MATRIX.md) | Comprehensive test coverage map for auditors |
 | [ARM64 Audit & Benchmark](docs/ARM64_AUDIT_BENCHMARK.md) | ARM64 platform certification and performance analysis |

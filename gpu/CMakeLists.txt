@@ -18,6 +18,7 @@ cmake_minimum_required(VERSION 3.18)
 
 set(GPU_REGISTRY_SRC
     src/gpu_registry.cpp
+    src/gpu_backend_fallback.cpp
 )
 
 set(GPU_BACKEND_SOURCES "")

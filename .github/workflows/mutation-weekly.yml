@@ -1,0 +1,101 @@
+name: mutation-weekly
+
+# CAAS hardening H-4: weekly mutation kill-rate gate.
+# Runs the mutation harness against the release build and either updates
+# or opens an issue if kill-rate drops below the SLA. Does NOT block dev
+# pushes — visibility, not gating, is the goal here. The blocking gate
+# remains the owner-grade pre-release run.
+
+on:
+  schedule:
+    # Sunday 03:30 UTC — outside CI peak hours.
+    - cron: '30 3 * * 0'
+  workflow_dispatch:
+    inputs:
+      threshold:
+        description: 'Minimum kill-rate percent to pass'
+        required: false
+        default: '75'
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: mutation-weekly
+  cancel-in-progress: false
+
+jobs:
+  mutation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: Checkout dev
+        uses: actions/checkout@v4
+        with:
+          ref: dev
+          fetch-depth: 1
+
+      - name: Install build deps
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y --no-install-recommends \
+              cmake ninja-build g++ python3 python3-pip
+          python3 -m pip install --user --quiet pyyaml
+
+      - name: Configure build_rel
+        run: |
+          cmake -S . -B build_rel -G Ninja \
+              -DCMAKE_BUILD_TYPE=Release \
+              -DUFSECP_BUILD_AUDIT=ON \
+              -DUFSECP_BUILD_TESTS=ON
+          cmake --build build_rel -j$(nproc)
+
+      - name: Run mutation harness (advisory)
+        id: mutation
+        env:
+          THRESHOLD: ${{ github.event.inputs.threshold || '75' }}
+        run: |
+          set +e
+          python3 scripts/mutation_kill_rate.py \
+              --build-dir build_rel \
+              --threshold "$THRESHOLD" \
+              --json -o mutation_report.json
+          rc=$?
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          echo "report:"
+          python3 -c "import json; r=json.load(open('mutation_report.json')); print(json.dumps({k:r.get(k) for k in ('kill_rate_percent','threshold','total_mutants','killed','survived')}, indent=2))" || true
+          exit 0
+
+      - name: Upload mutation report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mutation_report
+          path: mutation_report.json
+          retention-days: 90
+
+      - name: Open / update issue on regression
+        if: steps.mutation.outputs.rc != '0'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          TITLE='mutation-kill-rate-regression'
+          BODY=$(python3 -c "
+          import json
+          r=json.load(open('mutation_report.json'))
+          print(f\"Weekly mutation gate failed.\\n\\n\"
+                f\"- kill_rate_percent: {r.get('kill_rate_percent')}\\n\"
+                f\"- threshold: {r.get('threshold')}\\n\"
+                f\"- total_mutants: {r.get('total_mutants')}\\n\"
+                f\"- survived: {r.get('survived')}\\n\\n\"
+                f\"See workflow run for full report. CAAS H-4.\")
+          ")
+          # Reuse one open issue rather than spamming a new one each week.
+          existing=$(gh issue list --search "$TITLE in:title" --state open --json number --jq '.[0].number' || echo '')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "$BODY"
+          else
+            gh issue create --title "$TITLE" --body "$BODY" --label "regression,mutation"
+          fi

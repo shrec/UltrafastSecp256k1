@@ -9,6 +9,7 @@
 #include "secp256k1/hash_accel.hpp"
 #include "secp256k1/detail/secure_erase.hpp"
 #include <cstring>
+#include <vector>
 
 namespace secp256k1::coins {
 
@@ -68,10 +69,20 @@ std::array<std::uint8_t, 32> bitcoin_message_hash(const std::uint8_t* msg,
     // Total payload size
     const std::size_t total = BITCOIN_MSG_PREFIX_LEN + varint_len + msg_len;
 
-    // Stack buffer for small messages, heap for large
+    // Stack buffer for small messages, heap (RAII) for large. Using
+    // std::vector avoids a raw new/delete pair -- previously the heap path
+    // leaked (and skipped secure_erase) if any intermediate call threw or
+    // an exception propagated out of this function.
     constexpr std::size_t STACK_MAX = 512;
     std::uint8_t stack_buf[STACK_MAX];
-    std::uint8_t* buf = (total <= STACK_MAX) ? stack_buf : new std::uint8_t[total];
+    std::vector<std::uint8_t> heap_buf;
+    std::uint8_t* buf;
+    if (total <= STACK_MAX) {
+        buf = stack_buf;
+    } else {
+        heap_buf.resize(total);
+        buf = heap_buf.data();
+    }
 
     std::memcpy(buf, BITCOIN_MSG_PREFIX, BITCOIN_MSG_PREFIX_LEN);
     std::memcpy(buf + BITCOIN_MSG_PREFIX_LEN, varint_buf, varint_len);
@@ -86,11 +97,11 @@ std::array<std::uint8_t, 32> bitcoin_message_hash(const std::uint8_t* msg,
     // Erase intermediate hash and message buffer so sensitive content does not
     // linger in heap or stack memory after this function returns.
     secp256k1::detail::secure_erase(hash1.data(), hash1.size());
-    if (buf != stack_buf) {
-        secp256k1::detail::secure_erase(buf, total);
-        delete[] buf;
-    } else {
+    if (buf == stack_buf) {
         secp256k1::detail::secure_erase(stack_buf, STACK_MAX);
+    } else {
+        // heap path: erase before the vector deallocator reclaims memory.
+        secp256k1::detail::secure_erase(heap_buf.data(), heap_buf.size());
     }
 
     return hash2;

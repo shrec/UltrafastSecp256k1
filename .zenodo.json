@@ -1,0 +1,64 @@
+{
+  "title": "UltrafastSecp256k1: GPU-accelerated, audit-grade secp256k1 ECC library",
+  "description": "<p>Ultra high-performance secp256k1 ECC library featuring GPU-accelerated ECDSA and Schnorr signatures (CUDA, Metal, OpenCL, ROCm), constant-time side-channel protection, 12+ platform targets, and zero external dependencies. Achieves 4.88M ECDSA signs/s on a single GPU.</p><p>Engineered for an audit-grade trust model: every release ships with a Continuous-Audit-as-Code (CAAS) evidence bundle, 189 exploit proof-of-concept regression tests, formal invariant specifications, multi-CI reproducible-build attestations across GitHub Actions, GitLab CI, and Woodpecker (Codeberg), and a documented INTEROP matrix cross-checked against published reference implementations (Wycheproof, libsecp256k1, OpenSSL libcrypto).</p><p>License: MIT. Repository: https://github.com/shrec/UltrafastSecp256k1.</p>",
+  "upload_type": "software",
+  "access_right": "open",
+  "license": "MIT",
+  "creators": [
+    {
+      "name": "Chkheidze, Irakli",
+      "affiliation": "Independent"
+    }
+  ],
+  "keywords": [
+    "secp256k1",
+    "elliptic-curve cryptography",
+    "ECDSA",
+    "Schnorr signatures",
+    "BIP-340",
+    "BIP-32",
+    "BIP-39",
+    "Taproot",
+    "MuSig2",
+    "FROST",
+    "Bitcoin",
+    "Ethereum",
+    "GPU cryptography",
+    "CUDA",
+    "OpenCL",
+    "Metal",
+    "ROCm",
+    "constant-time",
+    "side-channel resistance",
+    "high-performance",
+    "zero-dependency",
+    "C++20",
+    "audit",
+    "continuous audit",
+    "reproducible builds",
+    "supply-chain security"
+  ],
+  "communities": [
+    {"identifier": "cryptography"}
+  ],
+  "related_identifiers": [
+    {
+      "relation": "isSupplementTo",
+      "identifier": "https://github.com/shrec/UltrafastSecp256k1",
+      "scheme": "url",
+      "resource_type": "software"
+    },
+    {
+      "relation": "documents",
+      "identifier": "https://shrec.github.io/UltrafastSecp256k1/docs/",
+      "scheme": "url",
+      "resource_type": "publication-softwaredocumentation"
+    }
+  ],
+  "references": [
+    "Wuille, P. et al. BIP-340: Schnorr Signatures for secp256k1 (2020).",
+    "Bernstein, D. J. et al. RFC 6979: Deterministic Usage of DSA and ECDSA (2013).",
+    "Brown, D. R. L. SEC 2: Recommended Elliptic Curve Domain Parameters v2.0 (2010)."
+  ],
+  "notes": "Release archives published on Zenodo are byte-identical to the corresponding GitHub release tags and to the multi-CI reproducible-build attestations under artifacts/reproducible-attestation.json on each provider (GitHub Actions, GitLab CI, Woodpecker / Codeberg)."
+}

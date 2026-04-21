@@ -1,0 +1,99 @@
+# ============================================================================
+# GitLab CI — Reproducible Build cross-provider verifier
+# ============================================================================
+# Mirror of .github/workflows/reproducible-build.yml on a second,
+# organisationally-independent CI provider. Closes the
+# MULTI_CI_REPRODUCIBLE_BUILD.md (G-7) parallel-verifier promise.
+#
+# Builds twice from the same commit, hashes the resulting libufsecp
+# artefacts, and writes them to reproducible-attestation.json so a
+# third party can compare against the GitHub Actions output without
+# rebuilding.
+# ============================================================================
+
+stages:
+  - reproducible
+
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+  DEBIAN_FRONTEND: noninteractive
+  SOURCE_DATE_EPOCH: "1750000000"
+  LC_ALL: C
+  TZ: UTC
+
+reproducible-build:
+  stage: reproducible
+  image: ubuntu:24.04
+  timeout: 30 minutes
+  before_script:
+    - apt-get update -qq
+    - apt-get install -y --no-install-recommends
+        cmake ninja-build g++-14 diffutils coreutils ca-certificates jq
+  script:
+    - set -euo pipefail
+    - export SOURCE_DATE_EPOCH=$(git -C . log -1 --pretty=%ct || echo "$SOURCE_DATE_EPOCH")
+    - echo "Using SOURCE_DATE_EPOCH=$SOURCE_DATE_EPOCH"
+    # Build A
+    - cmake -S .
+            -B build-repro-a
+            -G Ninja
+            -DCMAKE_BUILD_TYPE=Release
+            -DCMAKE_C_COMPILER=gcc-14
+            -DCMAKE_CXX_COMPILER=g++-14
+            -DUFSECP_REPRODUCIBLE=ON
+    - cmake --build build-repro-a --parallel
+    # Build B (independent directory, same source SHA)
+    - cmake -S .
+            -B build-repro-b
+            -G Ninja
+            -DCMAKE_BUILD_TYPE=Release
+            -DCMAKE_C_COMPILER=gcc-14
+            -DCMAKE_CXX_COMPILER=g++-14
+            -DUFSECP_REPRODUCIBLE=ON
+    - cmake --build build-repro-b --parallel
+    # Compare every .o file
+    - |
+      FAIL=0
+      for obj in $(find build-repro-a -name "*.o" | sort); do
+        rel="${obj#build-repro-a/}"
+        other="build-repro-b/$rel"
+        if [ ! -f "$other" ]; then echo "MISSING: $rel"; FAIL=1; continue; fi
+        if ! cmp -s "$obj" "$other"; then echo "DIFFERS: $rel"; FAIL=1; fi
+      done
+      [ "$FAIL" -eq 0 ] || { echo "::error:: object files differ"; exit 1; }
+    # Compare shared/static libs
+    - |
+      sha_a=$(find build-repro-a -name "libufsecp*.so*" -not -type l -exec sha256sum {} \; | sort)
+      sha_b=$(find build-repro-b -name "libufsecp*.so*" -not -type l -exec sha256sum {} \; | sort)
+      [ "$(echo "$sha_a" | awk '{print $1}')" = "$(echo "$sha_b" | awk '{print $1}')" ] \
+          || { echo "::error:: shared libs differ"; exit 1; }
+    # Emit cross-provider attestation
+    - |
+      mkdir -p artifacts
+      {
+        echo '{'
+        echo '  "provider": "gitlab-ci",'
+        echo "  \"commit\": \"${CI_COMMIT_SHA:-unknown}\","
+        echo "  \"source_date_epoch\": \"$SOURCE_DATE_EPOCH\","
+        echo '  "artefacts": ['
+        first=1
+        for f in $(find build-repro-a \( -name "libufsecp*.so*" -o -name "libufsecp*.a" \) -not -type l | sort); do
+          rel="${f#build-repro-a/}"
+          h=$(sha256sum "$f" | awk '{print $1}')
+          [ $first -eq 1 ] || echo ','
+          echo -n "    { \"name\": \"$(basename "$rel")\", \"sha256\": \"$h\" }"
+          first=0
+        done
+        echo
+        echo '  ]'
+        echo '}'
+      } > artifacts/reproducible-attestation.json
+      jq -S . artifacts/reproducible-attestation.json | sha256sum
+  artifacts:
+    name: "reproducible-attestation-gitlab"
+    paths:
+      - artifacts/reproducible-attestation.json
+    expire_in: 1 year
+  rules:
+    - if: $CI_COMMIT_BRANCH == "dev" || $CI_COMMIT_BRANCH == "main"
+    - if: $CI_PIPELINE_SOURCE == "web"

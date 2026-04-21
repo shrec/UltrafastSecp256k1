@@ -1,0 +1,71 @@
+{
+  "include/ct/ct_scalar.cuh::untested_hotspot": {
+    "first_seen": "2026-04-21T05:58:49.819050+00:00"
+  },
+  "include/gpu_compat.h::audit_gap": {
+    "first_seen": "2026-04-21T05:58:49.819050+00:00"
+  },
+  "include/gpu_compat.h::untested_hotspot": {
+    "first_seen": "2026-04-21T05:58:49.819050+00:00"
+  },
+  "include/metal_runtime.h::high_gain_low_risk": {
+    "first_seen": "2026-04-21T05:58:49.819050+00:00"
+  },
+  "include/secp256k1/benchmark_harness.hpp::audit_gap": {
+    "first_seen": "2026-04-21T05:58:49.819050+00:00"
+  },
+  "include/secp256k1/bip324.hpp::audit_gap": {
+    "first_seen": "2026-04-21T05:58:49.819050+00:00"
+  },
+  "include/secp256k1/detail/secure_erase.hpp::audit_gap": {
+    "first_seen": "2026-04-21T05:58:49.819050+00:00"
+  },
+  "include/secp256k1/private_key.hpp::audit_gap": {
+    "first_seen": "2026-04-21T05:58:49.819050+00:00"
+  },
+  "java/jni/ufsecp_jni.c::audit_gap": {
+    "first_seen": "2026-04-21T05:58:49.819050+00:00"
+  },
+  "kernels/secp256k1_ct_scalar.cl::untested_hotspot": {
+    "first_seen": "2026-04-21T05:58:49.819050+00:00"
+  },
+  "shaders/secp256k1_ct_scalar.h::high_gain_low_risk": {
+    "first_seen": "2026-04-21T05:58:49.819050+00:00"
+  },
+  "shaders/secp256k1_ct_scalar.h::untested_hotspot": {
+    "first_seen": "2026-04-21T05:58:49.819050+00:00"
+  },
+  "shaders/secp256k1_kernels.metal::untested_hotspot": {
+    "first_seen": "2026-04-21T05:58:49.819050+00:00"
+  },
+  "src/batch_add_affine.cpp::high_gain_low_risk": {
+    "first_seen": "2026-04-21T05:58:49.819050+00:00"
+  },
+  "src/bip32.cpp::high_gain_low_risk": {
+    "first_seen": "2026-04-21T05:58:49.819050+00:00"
+  },
+  "src/ecmult_gen_comb.cpp::high_gain_low_risk": {
+    "first_seen": "2026-04-21T05:58:49.819050+00:00"
+  },
+  "src/glv.cpp::high_gain_low_risk": {
+    "first_seen": "2026-04-21T05:58:49.819050+00:00"
+  },
+  "src/gpu_backend_metal.mm::untested_hotspot": {
+    "first_seen": "2026-04-21T05:58:49.819050+00:00"
+  },
+  "src/gpu_backend_opencl.cpp::high_gain_low_risk": {
+    "first_seen": "2026-04-21T05:58:49.819050+00:00"
+  },
+  "src/platform_compat.h::untested_hotspot": {
+    "first_seen": "2026-04-21T05:58:49.819050+00:00"
+  },
+  "src/precompute.cpp::high_gain_low_risk": {
+    "first_seen": "2026-04-21T05:58:49.819050+00:00"
+  },
+  "src/taproot.cpp::high_gain_low_risk": {
+    "first_seen": "2026-04-21T05:58:49.819050+00:00"
+  },
+  "swift/Sources/Ufsecp/Ufsecp.swift::audit_gap": {
+    "first_seen": "2026-04-21T05:58:49.819050+00:00"
+  }
+}

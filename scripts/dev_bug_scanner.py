@@ -32,6 +32,21 @@ Detects the kind of bugs a human reviewer catches during development:
   CATCH_EMPTY    empty catch block silently swallows errors
   SIZEOF_MISMATCH  memcpy/memset sizeof refers to wrong variable
 
+  Crypto bug-pattern checkers (CVE-grounded, added 2026-04-21):
+  NONCE_REUSE_VAR        same nonce variable used in 2+ sign() calls (Sony PS3, Bitcoin Android 2013)
+  MEMCMP_SECRET          memcmp/strcmp on auth tag/MAC/signature (timing leak — Xbox 360, Java JCE)
+  MISSING_LOW_S_CHECK    ECDSA verify path missing low-S guard (BIP-62 malleability)
+  SCALAR_FROM_RAND       signing nonce derived from rand()/time() (CVE-2008-0166 Debian OpenSSL)
+  GOTO_FAIL_DUPLICATE    duplicate `goto label;` skipping a check (Apple CVE-2014-1266)
+  POINT_NO_VALIDATION    pubkey parser without on-curve / subgroup check (invalid-curve attack)
+  ECDH_OUTPUT_NOT_CHECKED  ECDH output used without zero/identity check (small-subgroup)
+  HASH_NO_DOMAIN_SEP     plain SHA-256 in BIP-340/Schnorr context without tagged_hash
+  DER_LAX_PARSE          DER length read without canonicalisation (CVE-2014-8275)
+  TIMING_BRANCH_ON_KEY   if (key[i] ...) direct branching on secret byte
+  MAC_TRUNCATION         memcmp on MAC/tag with truncated length (forgery class)
+  SCALAR_NOT_REDUCED     scalar_inverse without adjacent reduce/zero check
+  PRINTF_SECRET          printf/log statement of secret-bearing identifier
+
 Usage examples
 --------------
   # Scan everything under the default paths, human-readable output:
@@ -147,6 +162,10 @@ _SIZE_SUFFIX = re.compile(r'(?:size|len|count|num|n|N|max|MAX|limit|cap|total)$'
 def check_ob1(path: str, lines: List[str]) -> List[Finding]:
     """Loop bound `i <= N` where N is a size/length constant — usually should be `i < N`."""
     findings: List[Finding] = []
+    # Skip selftest / KAT / fuzz files where 1-based inclusive loops are common
+    # for iteration counts (test vector index, retry attempts, etc.).
+    if re.search(r'(selftest|kat|test_|/test|/tests|fuzz|bench)', path, re.IGNORECASE):
+        return findings
     for i, raw in enumerate(lines):
         line = _strip_comments(raw)
         for m in _OB1_LOOP.finditer(line):
@@ -155,6 +174,14 @@ def check_ob1(path: str, lines: List[str]) -> List[Finding]:
             # AES/cipher round loops: `round <= 14` or similar — intentional (rounds are 1-based, inclusive)
             # These are numeric bounds 10-20 where the loop var is named round/Round/nr/Nr
             if re.search(r'\b(round|Round|nr|Nr|nrounds)\b', idx_var):
+                continue
+            # Skip 1-based inclusive count loops: `for (... = 1; i <= N; ...)` — common for test vectors.
+            if re.search(rf'\b{re.escape(idx_var)}\s*=\s*1\s*;', line):
+                continue
+            # Skip explicit non-zero start indices: `for (... = K; i <= N; ...)`
+            # where K > 1 — typically a deliberate sliding-window or sub-range loop.
+            start_m = re.search(rf'\b{re.escape(idx_var)}\s*=\s*(\d+)\s*;', line)
+            if start_m and int(start_m.group(1)) >= 2:
                 continue
             # Only flag when bound looks like a size/count or is at least 4 as a literal
             if _SIZE_SUFFIX.search(bound) or (bound.isdigit() and int(bound) >= 4):
@@ -175,16 +202,30 @@ _SIG_DECL = re.compile(r'\bint\s+(\w+)\b')
 _SIG_CMP  = re.compile(r'\b(\w+)\s*[<>]=?\s*(size_t|uint\d+_t|unsigned)\b')
 _SIG_CMP2 = re.compile(r'\b(size_t|uint\d+_t|unsigned)\s+(\w+)\s*[><=]=?[^=>]')
 
+_UNSIGNED_DECL_RE = re.compile(
+    r'\b(?:size_t|std::size_t|unsigned|uint\d+_t|auto)\s+(\w+)\b'
+)
+
 def check_sig(path: str, lines: List[str]) -> List[Finding]:
     """Signed int compared with size_t / uint* — may fail when value > INT_MAX."""
     findings: List[Finding] = []
     int_vars: set[str] = set()
+    unsigned_vars: set[str] = set()
     for ln in lines:
-        for m in _SIG_DECL.finditer(_strip_comments(ln)):
+        s = _strip_comments(ln)
+        for m in _SIG_DECL.finditer(s):
             int_vars.add(m.group(1))
+        for m in _UNSIGNED_DECL_RE.finditer(s):
+            unsigned_vars.add(m.group(1))
+    # If a name is declared as both, prefer the unsigned (later) declaration —
+    # the loop variable in `for (size_t i = ...)` shadows any outer `int i`.
+    int_vars -= unsigned_vars
 
     for i, raw in enumerate(lines):
         line = _strip_comments(raw)
+        # If the same line declares the variable as size_t/unsigned, skip.
+        if _UNSIGNED_DECL_RE.search(line):
+            continue
         # Pattern: signed_var < vec.size() or signed_var < uint_expr
         m = re.search(r'\b(\w+)\s*[<>]=?\s*\w+\.size\(\)', line)
         if m and m.group(1) in int_vars:
@@ -266,16 +307,33 @@ def check_overflow(path: str, lines: List[str]) -> List[Finding]:
 _MSET_LITERAL = re.compile(
     r'\b(memset|memcpy|memzero_explicit)\s*\([^,]+,\s*[^,]+,\s*(\d+)\s*\)'
 )
-_SUSPICIOUS_SIZES = {3, 5, 6, 7, 9, 10, 11, 12, 13, 14, 15, 17, 18, 19, 20,
-                     24, 28, 40, 48, 56, 60, 48, 100, 128, 200, 512}
+# Hard-coded sizes that don't match common crypto buffer sizes.
+# Note: 20 (RIPEMD-160), 28 (SHA-224), 48 (SHA-384), 12 (GCM nonce) are
+# legitimate crypto sizes and are excluded to keep FP rate down.
+# Note: 3 is also a legitimate size (e.g. BIP-324 plaintext header), so it is
+# only flagged when paired with non-protocol-specific buffer names (handled
+# below by the `bip324`/`header`/`magic` filename/snippet skip).
+_SUSPICIOUS_SIZES = {3, 5, 6, 7, 9, 11, 13, 14, 15, 17, 18, 19,
+                     40, 56, 60, 100, 200}
 
 def check_mset(path: str, lines: List[str]) -> List[Finding]:
     """memset/memcpy with hard-coded size that doesn't match common crypto buffer sizes."""
     findings: List[Finding] = []
     # Common crypto sizes: 16, 32, 64, 96, 128, 33, 65
     safe_sizes = {16, 32, 33, 64, 65, 96, 128, 256, 384, 512, 1, 2, 4, 8}
+    # Files that legitimately use small fixed sizes for protocol headers /
+    # magic bytes / version stamps.
+    plow = path.lower()
+    if any(tag in plow for tag in ('bip324', 'bip32', 'bip352', 'tagged_hash',
+                                   'address', 'hd_wallet', 'wallet')):
+        return []
     for i, raw in enumerate(lines):
         line = _strip_comments(raw)
+        # Skip lines that look like they are copying a protocol header /
+        # magic / version stamp into a fixed-size field.
+        if re.search(r'\b(header|magic|version|prefix|sentinel|marker|tag)\b',
+                     line, re.IGNORECASE):
+            continue
         m = _MSET_LITERAL.search(line)
         if m:
             fn   = m.group(1)
@@ -299,15 +357,42 @@ _NULL_CHECK  = re.compile(r'if\s*\(\s*(!?\s*([a-zA-Z_]\w*)\s*(?:==\s*nullptr|==\
 def check_null_after_deref(path: str, lines: List[str]) -> List[Finding]:
     """A pointer is dereferenced before being null-checked — if it is null the deref crashes first."""
     findings: List[Finding] = []
+    # Only the negative-form check (`if (!p)`, `if (p == NULL)`, `if (p == nullptr)`)
+    # is a real bug indicator. The positive form `if (p) use(p)` is the correct guard
+    # pattern and must NOT trigger.
+    _NEG_NULL_CHECK = re.compile(
+        r'if\s*\(\s*(?:!\s*([a-zA-Z_]\w*)|([a-zA-Z_]\w*)\s*==\s*(?:nullptr|NULL))\s*[\)&|]'
+    )
     # Track derefs then check for null within small window
     dereffed: dict[str, int] = {}   # name -> line index
     for i, raw in enumerate(lines):
         line = _strip_comments(raw)
+        # Function / block end: clear all tracked derefs to prevent crossing scope.
+        if raw.strip() == '}':
+            dereffed.clear()
+            continue
+        # Function definition line (top-level `T fn(...) {` or just `{`):
+        # any `{` at end of line is also a scope boundary worth resetting at.
+        if line.rstrip().endswith('{') and re.match(r'^\s*\S', raw):
+            dereffed.clear()
         # Clear old derefs outside window
-        dereffed = {k: v for k, v in dereffed.items() if i - v <= 8}
+        dereffed = {k: v for k, v in dereffed.items() if i - v <= 5}
 
-        # Collect dereferences on this line
+        # Collect dereferences on this line. Filter out:
+        #   - multiplications: `a * b`, `(x) * y`
+        #   - pointer declarations: `char *p = ...`, `T* p`, `T **p`
         for m in _DEREF_EXPR.finditer(line):
+            start = m.start()
+            # Walk back past spaces and other `*` (for `**p`) to find the
+            # previous meaningful char.
+            j = start - 1
+            while j >= 0 and line[j] in ' \t*&':
+                j -= 1
+            prev_ch = line[j] if j >= 0 else ' '
+            # If prev is an identifier-ending char or `>` (template),
+            # it is a declaration `T *p` or expression `a * b` — not a deref.
+            if prev_ch.isalnum() or prev_ch in ('_', ')', ']', '>'):
+                continue
             name = m.group(1)
             if name not in ('this', 'result', 'nullptr', 'NULL'):
                 dereffed[name] = i
@@ -317,11 +402,11 @@ def check_null_after_deref(path: str, lines: List[str]) -> List[Finding]:
             if name not in ('this',):
                 dereffed[name] = i
 
-        # Check for null check that references a previously dereffed variable
-        nc = _NULL_CHECK.search(line)
+        # Check for negative null check that references a previously dereffed variable
+        nc = _NEG_NULL_CHECK.search(line)
         if nc:
-            inner = nc.group(2)
-            if inner in dereffed and dereffed[inner] < i:
+            inner = nc.group(1) or nc.group(2)
+            if inner and inner in dereffed and dereffed[inner] < i:
                 findings.append(Finding(
                     file=path, line=i + 1, severity="HIGH",
                     category="NULL",
@@ -343,6 +428,9 @@ def check_copypaste(path: str, lines: List[str]) -> List[Finding]:
     last_assigned: dict[str, Tuple[int, str]] = {}   # name -> (lineno, snippet)
     for i, raw in enumerate(lines):
         line = _strip_comments(raw).strip()
+        # Indexed-assignment lines like `buf[32] = 0x01;` are byte writes,
+        # not copy-paste candidates — different indices write different cells.
+        # Only treat plain identifiers (no `[`) as candidates.
         # Reset on block boundaries and preprocessor conditionals
         if '{' in line or '}' in line or _PREPROC.match(line):
             last_assigned.clear()
@@ -351,12 +439,43 @@ def check_copypaste(path: str, lines: List[str]) -> List[Finding]:
         m = _ASSIGN_STMT.match(line)
         if m:
             lval = m.group(1)
+            # Always clear reads on this line FIRST so subsequent skips do
+            # not leave stale tracked names.
+            for name in list(last_assigned.keys()):
+                if name == lval:
+                    continue
+                if re.search(r'\b' + re.escape(name) + r'\b', line):
+                    del last_assigned[name]
+            # Skip indexed lvalues (buf[N] = ...) — different indices are
+            # different cells and false-positive here.
+            if '[' in lval:
+                last_assigned.pop(lval, None)
+                continue
+            # Skip well-known scratch/accumulator variables that are
+            # legitimately reassigned without intervening reads in the same
+            # statement (e.g. limb arithmetic carry chains).
+            if lval in {'carry', 'borrow', 'tmp', 'temp', 'acc', 'accum',
+                        't', 't0', 't1', 't2', 't3', 't4', 'r', 'r0', 'r1',
+                        'd', 'lo', 'hi', 'acc_lo', 'acc_hi', 'diff', 'sum',
+                        'x', 'y', 'z', 'md', 'me', 'sd', 'se', 'fi', 'gi',
+                        'cd', 'ce', 'cond_add', 'cond_sub', 'mask', 'X', 'Y'}:
+                last_assigned.pop(lval, None)
+                continue
             # Skip compound assignments and ==
             if re.match(r'[+\-*/%&|^]=|==', line[m.end()-1:m.end()+1]):
                 continue
             # Extract RHS by removing the lval= prefix
             rhs_start = line.find('=') + 1
             rhs = line[rhs_start:]
+            # Skip ternary-of-constants pattern (e.g. BIP-32 magic version):
+            # `lval = cond ? CONST1 : CONST2;` — common for protocol magic
+            # bytes and not a copy-paste bug.
+            if re.search(r'\?\s*(?:0x[0-9A-Fa-f]+|[A-Z_][A-Z0-9_]*|\d+)[uUlL]*\s*:'
+                         r'\s*(?:0x[0-9A-Fa-f]+|[A-Z_][A-Z0-9_]*|\d+)[uUlL]*',
+                         rhs):
+                last_assigned.pop(lval, None)
+                last_assigned[lval] = (i, raw.strip())
+                continue
             # Self-referential: `y = y.square()` — y is read in RHS, not a dead write
             if re.search(r'\b' + re.escape(lval) + r'\b', rhs):
                 last_assigned.pop(lval, None)
@@ -654,6 +773,18 @@ def check_dblinit(path: str, lines: List[str]) -> List[Finding]:
         line = _strip_comments(raw).strip()
         if not line or line.startswith('//') or line.startswith('/*'):
             continue
+        # Skip function declaration / parameter list lines: trailing `,` or `)`
+        # WITHOUT `;` (statements always end with `;`). This catches
+        # `bool flag = false)` default args and `int x = 0,` parameter splits
+        # but does NOT catch normal function calls like `update(&pad, 1);`.
+        stripped = line.rstrip()
+        if stripped.endswith(',') or (stripped.endswith(')') and not stripped.endswith(';')):
+            continue
+        # Also skip lines that look like parameter-list trailing entries:
+        # `... bool x = false);` or `... int x = 0);` — assignment immediately
+        # followed by `)` is a default argument, not a statement.
+        if re.search(r'=\s*[^;,()]+\)\s*;?\s*$', stripped):
+            continue
         # Block boundaries reset tracking
         if '{' in line or '}' in line:
             initialized.clear()
@@ -663,12 +794,33 @@ def check_dblinit(path: str, lines: List[str]) -> List[Finding]:
         if m:
             name = m.group(1)
             rhs  = m.group(2)
+            # Always clear reads from RHS first to avoid stale tracked names.
+            for tracked in list(initialized.keys()):
+                if tracked == name:
+                    continue
+                if re.search(r'\b' + re.escape(tracked) + r'\b', rhs):
+                    del initialized[tracked]
+            # Skip well-known scratch / accumulator names that are repeatedly
+            # reassigned in arithmetic blocks (limb chains, carry/borrow propagation).
+            if name in {'carry', 'borrow', 'tmp', 'temp', 'acc', 'accum',
+                        'd', 'lo', 'hi', 'acc_lo', 'acc_hi', 'diff', 'sum',
+                        't', 't0', 't1', 't2', 't3', 't4', 'r', 'r0', 'r1',
+                        'x', 'y', 'z', 'md', 'me', 'sd', 'se', 'fi', 'gi',
+                        'cd', 'ce', 'cond_add', 'cond_sub', 'mask', 'pad'}:
+                initialized.pop(name, None)
+                continue
             # Skip self-referential (x = x + 1 etc.)
             if re.search(r'\b' + re.escape(name) + r'\b', rhs):
                 initialized.pop(name, None)
                 continue
             if name in initialized:
                 prev_line, prev_snip = initialized[name]
+                # Skip the defensive-zero-init pattern: `T x = 0; ... x = expr;`
+                # is idiomatic in C-style code and not a bug.
+                if re.match(r'^\s*(?:[\w:]+\s+)?\w+\s*=\s*(?:0|0u|0U|0L|0UL|0x0+|false|nullptr|NULL|\{\}|"")\s*[,;]',
+                            prev_snip):
+                    initialized[name] = (i, raw.strip())
+                    continue
                 if i - prev_line <= 5:   # consecutive or near-consecutive
                     findings.append(Finding(
                         file=path, line=i + 1, severity="LOW",
@@ -945,7 +1097,17 @@ def check_random_in_signing(path: str, lines: List[str]) -> List[Finding]:
 _UFSECP_FUNC_DEF = re.compile(
     r'^(?:ufsecp_error_t|int)\s+(ufsecp_\w+)\s*\('
 )
-_NULL_CHECK = re.compile(r'if\s*\(\s*!(?:ctx|out|sig|pk|pubkey|msg|priv|secret|result|entries)')
+# Renamed from _NULL_CHECK to avoid collision with check_null_after_deref's regex.
+# Match any `if (!identifier)` or `if (X == NULL/nullptr)` — broad enough to catch
+# all common ABI-style null guards. Also accepts ternary `X ? ... : err` pattern.
+# Compound forms like `if ((!a && b > 0) || !c)` are caught by the leading `!\w+`
+# alternative because the first `!` precedes a bare identifier inside the
+# parenthesised expression.
+_BINDING_NULL_CHECK = re.compile(
+    r'!\s*\w+'                                  # any !x — handles compound `if ((!a && ..) || !b)`
+    r'|\bif\s*\(\s*\w+\s*==\s*(?:NULL|nullptr)' # if (x == NULL)
+    r'|\b\w+\s*\?\s*\w+'                        # ctx ? ... ternary guard
+)
 
 def check_binding_no_validation(path: str, lines: List[str]) -> List[Finding]:
     """Public ufsecp_ function body does not start with NULL-pointer validation on arguments."""
@@ -958,6 +1120,21 @@ def check_binding_no_validation(path: str, lines: List[str]) -> List[Finding]:
         m = _UFSECP_FUNC_DEF.match(line.strip())
         if m:
             fn_name = m.group(1)
+            # Collect the function signature (across lines until the matching
+            # closing paren) to determine whether it accepts pointer arguments
+            # at all. If it does not, there is nothing to NULL-check.
+            sig_text = line
+            for k in range(i + 1, min(len(lines), i + 12)):
+                sig_text += ' ' + _strip_comments(lines[k])
+                if ')' in sig_text and sig_text.count('(') <= sig_text.count(')'):
+                    break
+            paren_open = sig_text.find('(')
+            paren_close = sig_text.find(')', paren_open + 1) if paren_open != -1 else -1
+            sig_args = sig_text[paren_open + 1:paren_close] if paren_close != -1 else ''
+            has_pointer_arg = '*' in sig_args or '&' in sig_args
+            if not has_pointer_arg:
+                i += 1
+                continue
             # Scan forward into function body (next 15 lines after opening brace)
             has_null_check = False
             brace_found = False
@@ -965,11 +1142,15 @@ def check_binding_no_validation(path: str, lines: List[str]) -> List[Finding]:
                 body_line = _strip_comments(lines[j])
                 if '{' in body_line:
                     brace_found = True
-                if brace_found and _NULL_CHECK.search(body_line):
+                if brace_found and _BINDING_NULL_CHECK.search(body_line):
                     has_null_check = True
                     break
                 if brace_found and '}' in body_line and body_line.strip() == '}':
                     break  # function ended
+            # Skip declaration-only lines (no opening brace within scan window)
+            if not brace_found:
+                i += 1
+                continue
             if brace_found and not has_null_check:
                 # Skip trivially-small functions (e.g. version_string)
                 if fn_name not in ('ufsecp_version_string', 'ufsecp_version_major',
@@ -1255,21 +1436,42 @@ def check_exception_swallow(path: str, lines: List[str]) -> List[Finding]:
     findings: List[Finding] = []
     for i, raw in enumerate(lines):
         line = _strip_comments(raw)
-        if _CATCH_BLOCK.search(line):
-            # Check if the catch body is empty (next non-blank line is just })
-            for j in range(i + 1, min(len(lines), i + 4)):
-                body = _strip_comments(lines[j]).strip()
-                if not body:
-                    continue
-                if body == '}':
-                    findings.append(Finding(
-                        file=path, line=i + 1, severity="MEDIUM",
-                        category="CATCH_EMPTY",
-                        message="Empty catch block silently swallows exception — error condition is invisible",
-                        snippet=raw.strip(),
-                        fix_hint="Log the error, rethrow, or add a comment explaining why ignoring is safe",
-                    ))
-                break  # non-empty body — fine
+        m = _CATCH_BLOCK.search(line)
+        if not m:
+            continue
+        # Same-line catch: `catch (...) { return X; }` — extract content between { }
+        # and check if it's non-empty (anything other than a `}` is a handler body).
+        brace_idx = m.end() - 1  # index of `{`
+        rest = line[brace_idx + 1:]
+        # Strip trailing `}` if present on same line
+        same_line_close = rest.rfind('}')
+        if same_line_close != -1:
+            body_inline = rest[:same_line_close].strip()
+            if body_inline:
+                continue  # has a return/log/etc. inline — not empty
+            # Truly empty single-line catch: `catch (...) {}`
+            findings.append(Finding(
+                file=path, line=i + 1, severity="MEDIUM",
+                category="CATCH_EMPTY",
+                message="Empty catch block silently swallows exception — error condition is invisible",
+                snippet=raw.strip(),
+                fix_hint="Log the error, rethrow, or add a comment explaining why ignoring is safe",
+            ))
+            continue
+        # Multi-line catch: scan next lines for first non-blank — must not be `}`.
+        for j in range(i + 1, min(len(lines), i + 4)):
+            body = _strip_comments(lines[j]).strip()
+            if not body:
+                continue
+            if body == '}':
+                findings.append(Finding(
+                    file=path, line=i + 1, severity="MEDIUM",
+                    category="CATCH_EMPTY",
+                    message="Empty catch block silently swallows exception — error condition is invisible",
+                    snippet=raw.strip(),
+                    fix_hint="Log the error, rethrow, or add a comment explaining why ignoring is safe",
+                ))
+            break  # non-empty body — fine
     return findings
 
 
@@ -1280,6 +1482,17 @@ _MEMOP_SIZEOF = re.compile(
 def check_sizeof_mismatch(path: str, lines: List[str]) -> List[Finding]:
     """memcpy/memset sizeof argument refers to wrong variable (src instead of dst)."""
     findings: List[Finding] = []
+    # Build a map of array declarations: `T name[SIZE]` per file (best-effort).
+    # Two arrays declared with the same SIZE expression are treated as
+    # size-compatible to avoid false positives like `memcpy(a_vec, l_x, sizeof(l_x))`
+    # where both are `Scalar[RANGE_PROOF_BITS]`.
+    array_size_expr: dict[str, str] = {}
+    _ARR_DECL = re.compile(r'\b\w[\w:]*\s+(\w+)\s*\[\s*([^\]]+?)\s*\]\s*[;=]')
+    for ln in lines:
+        s = _strip_comments(ln)
+        for m in _ARR_DECL.finditer(s):
+            array_size_expr[m.group(1)] = m.group(2).strip()
+
     for i, raw in enumerate(lines):
         line = _strip_comments(raw)
         m = _MEMOP_SIZEOF.search(line)
@@ -1289,6 +1502,15 @@ def check_sizeof_mismatch(path: str, lines: List[str]) -> List[Finding]:
             if dst != sizeof_arg:
                 # Only flag if sizeof arg looks like a different variable (not a type)
                 if sizeof_arg[0].islower() and sizeof_arg != dst:
+                    # Skip if the arg name has a strong type-name suffix
+                    # (`_ctx`, `_t`, `_state`, `_struct`, `_type`).
+                    if re.search(r'_(?:ctx|t|state|struct|type|info|cfg|opts|hdr)$', sizeof_arg):
+                        continue
+                    # Skip if both are arrays declared with the same dimension expression.
+                    dst_dim = array_size_expr.get(dst)
+                    src_dim = array_size_expr.get(sizeof_arg)
+                    if dst_dim and src_dim and dst_dim == src_dim:
+                        continue
                     findings.append(Finding(
                         file=path, line=i + 1, severity="MEDIUM",
                         category="SIZEOF_MISMATCH",
@@ -1297,6 +1519,405 @@ def check_sizeof_mismatch(path: str, lines: List[str]) -> List[Finding]:
                         snippet=raw.strip(),
                         fix_hint=f"Use sizeof({dst}) to ensure the size matches the destination buffer",
                     ))
+    return findings
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Cryptography-specific bug pattern checkers (CVE-grounded)
+# ──────────────────────────────────────────────────────────────────────────────
+#
+# Each checker below is rooted in a real-world incident class. Comments cite
+# the historical anchor so future maintainers know why the pattern matters.
+# ──────────────────────────────────────────────────────────────────────────────
+
+# Files we treat as secret-bearing context for the crypto-specific checkers.
+# Path substrings (case-insensitive). We use this to keep false-positive rate
+# low: signing/key-derivation paths get the strict treatment, generic helpers
+# do not.
+_CRYPTO_PATH_HINTS = (
+    "sign", "ecdsa", "schnorr", "musig", "frost",
+    "adaptor", "ecdh", "bip32", "bip39", "bip340",
+    "key", "scalar", "nonce", "rfc6979",
+)
+
+def _is_crypto_path(path: str) -> bool:
+    p = path.lower()
+    return any(h in p for h in _CRYPTO_PATH_HINTS)
+
+
+# ── NONCE_REUSE_VAR: same nonce variable used in two sign() calls ────────────
+# CVE anchor: Sony PS3 ECDSA (2010), bitcoin android wallets (2013).
+# Pattern: a single `k` / `nonce` variable assigned once, then passed to two
+# distinct sign() calls in the same function scope.
+_SIGN_CALL_RE = re.compile(r'\b(\w*sign\w*)\s*\([^;]*?\b(k|nonce|kp|k_val)\b', re.IGNORECASE)
+
+def check_nonce_reuse(path: str, lines: List[str]) -> List[Finding]:
+    findings: List[Finding] = []
+    if not _is_crypto_path(path):
+        return findings
+    # Track current function brace depth roughly.
+    in_fn = False
+    fn_start = 0
+    fn_depth = 0
+    sign_lines: List[Tuple[int, str, str]] = []  # (lineno, sign_fn_name, nonce_var)
+    for i, raw in enumerate(lines):
+        line = _strip_comments(raw)
+        if not in_fn and re.search(r'\b\w+\s*\([^;]*\)\s*\{', line):
+            in_fn = True
+            fn_start = i
+            fn_depth = line.count('{') - line.count('}')
+            sign_lines = []
+            continue
+        if in_fn:
+            fn_depth += line.count('{') - line.count('}')
+            for m in _SIGN_CALL_RE.finditer(line):
+                # filter out function declarations and verify_sign helpers
+                if 'verify' in m.group(1).lower():
+                    continue
+                sign_lines.append((i + 1, m.group(1), m.group(2)))
+            if fn_depth <= 0:
+                in_fn = False
+                # Group by nonce var name; flag if same name appears in 2+ sign calls.
+                from collections import defaultdict
+                by_nonce: dict[str, List[Tuple[int, str]]] = defaultdict(list)
+                for ln, fn_name, nonce in sign_lines:
+                    by_nonce[nonce].append((ln, fn_name))
+                for nonce, calls in by_nonce.items():
+                    if len(calls) >= 2:
+                        first_line = calls[0][0]
+                        findings.append(Finding(
+                            file=path, line=first_line, severity="HIGH",
+                            category="NONCE_REUSE_VAR",
+                            message=f"nonce/scalar `{nonce}` passed to {len(calls)} sign() calls "
+                                    "in the same function — catastrophic key recovery if reused "
+                                    "(CVE-2010-... PS3, Bitcoin Android 2013)",
+                            snippet=lines[first_line - 1].strip(),
+                            fix_hint="Derive a fresh deterministic nonce per signature via RFC 6979 "
+                                     "or BIP-340 aux_rand; never reuse a nonce variable across signs.",
+                        ))
+    return findings
+
+
+# ── MEMCMP_SECRET: memcmp/strcmp on auth tag, MAC, signature, or HMAC ────────
+# CVE anchor: numerous (Xbox 360 Hypervisor, Java SSL, OAuth signature compare).
+# Pattern: memcmp() or strcmp() on identifiers whose name suggests auth material.
+_AUTH_NAME_RE = re.compile(
+    r'\b(?:mac|tag|hmac|auth|digest|signature|sig|expected_(?:mac|tag|hmac)|out_tag|computed_(?:mac|tag))\b',
+    re.IGNORECASE,
+)
+_INSECURE_CMP_RE = re.compile(r'\b(memcmp|strcmp|strncmp|bcmp)\s*\(([^;]+)\)')
+
+def check_memcmp_secret(path: str, lines: List[str]) -> List[Finding]:
+    findings: List[Finding] = []
+    for i, raw in enumerate(lines):
+        line = _strip_comments(raw)
+        m = _INSECURE_CMP_RE.search(line)
+        if not m:
+            continue
+        args = m.group(2)
+        if not _AUTH_NAME_RE.search(args):
+            continue
+        # Skip if line clearly already in a CT-safe wrapper or a test assertion.
+        if re.search(r'\b(ct_(?:memeq|equal)|secp256k1_memcmp_var|EXPECT_|ASSERT_|REQUIRE)', line):
+            continue
+        findings.append(Finding(
+            file=path, line=i + 1, severity="HIGH",
+            category="MEMCMP_SECRET",
+            message=f"`{m.group(1)}` on apparent auth material — early-exit timing leak "
+                    "(forgeable MAC/tag class, Xbox 360 Hypervisor 2007, Java JCE 2014)",
+            snippet=raw.strip(),
+            fix_hint="Use a constant-time compare (e.g. ct_memeq, secp256k1_memcmp_var-style) "
+                     "that always touches the full length.",
+        ))
+    return findings
+
+
+# ── MISSING_LOW_S_CHECK: ECDSA verify path without low-S enforcement ─────────
+# CVE anchor: BIP-62 / segwit malleability, Bitcoin Cash address scams.
+# Pattern: a function name containing "verify" with "ecdsa" context that
+# never references low_s, high_s, or s_high.
+def check_missing_low_s(path: str, lines: List[str]) -> List[Finding]:
+    findings: List[Finding] = []
+    if 'ecdsa' not in path.lower() and 'verify' not in path.lower():
+        return findings
+    text = '\n'.join(lines)
+    # Only flag once per file.
+    if 'verify' not in text:
+        return findings
+    if re.search(r'(low_s|high_s|s_high|half_n|half_order|is_low|is_high)', text):
+        return findings
+    # Look for a verify-style function definition.
+    for i, raw in enumerate(lines):
+        if re.search(r'\b\w*ecdsa\w*verify\w*\s*\(', raw, re.IGNORECASE):
+            findings.append(Finding(
+                file=path, line=i + 1, severity="MEDIUM",
+                category="MISSING_LOW_S_CHECK",
+                message="ECDSA verify path has no low-S / high-S reference — signature "
+                        "malleability risk (BIP-62, segwit policy)",
+                snippet=raw.strip(),
+                fix_hint="Reject signatures with s > n/2 in policy-strict verify paths; "
+                         "or document a deliberate non-strict mode.",
+            ))
+            break
+    return findings
+
+
+# ── SCALAR_FROM_RAND: signing nonce derived from rand()/random()/gettimeofday ─
+# CVE anchor: Debian OpenSSL CVE-2008-0166, Android Bitcoin SecureRandom 2013.
+_BAD_RNG_RE = re.compile(
+    r'\b(rand|random|rand_r|drand48|gettimeofday|time)\s*\(\s*\)'
+)
+_NONCE_LHS_RE = re.compile(r'\b(k|nonce|k_value|secret_nonce)\s*=', re.IGNORECASE)
+
+def check_scalar_from_rand(path: str, lines: List[str]) -> List[Finding]:
+    findings: List[Finding] = []
+    if not _is_crypto_path(path):
+        return findings
+    for i, raw in enumerate(lines):
+        line = _strip_comments(raw)
+        if not _NONCE_LHS_RE.search(line):
+            continue
+        if _BAD_RNG_RE.search(line):
+            findings.append(Finding(
+                file=path, line=i + 1, severity="HIGH",
+                category="SCALAR_FROM_RAND",
+                message="Signing nonce assigned from non-cryptographic RNG / timestamp "
+                        "(CVE-2008-0166 Debian OpenSSL, Android Bitcoin 2013)",
+                snippet=raw.strip(),
+                fix_hint="Use RFC 6979 deterministic nonce or a properly-seeded CSPRNG; "
+                         "never derive scalar from time() or rand().",
+            ))
+    return findings
+
+
+# ── GOTO_FAIL_DUPLICATE: two adjacent identical `goto label;` statements ─────
+# CVE anchor: Apple SSL/TLS goto fail (CVE-2014-1266).
+def check_goto_fail(path: str, lines: List[str]) -> List[Finding]:
+    findings: List[Finding] = []
+    prev = ""
+    for i, raw in enumerate(lines):
+        line = _strip_comments(raw).strip()
+        m = re.match(r'goto\s+(\w+)\s*;', line)
+        if m and prev == line:
+            findings.append(Finding(
+                file=path, line=i + 1, severity="HIGH",
+                category="GOTO_FAIL_DUPLICATE",
+                message=f"Duplicate `{line}` on consecutive lines — Apple goto-fail "
+                        "anti-pattern (CVE-2014-1266); the second goto skips intended checks",
+                snippet=raw.strip(),
+                fix_hint="Remove the duplicate goto; verify the intended control flow "
+                         "executes the validation step that was skipped.",
+            ))
+        prev = line
+    return findings
+
+
+# ── POINT_NO_VALIDATION: pubkey accept without point_on_curve / is_valid ─────
+# CVE anchor: invalid-curve attacks (Brainpool 2015, OpenSSL CVE-2015-1788).
+def check_point_no_validation(path: str, lines: List[str]) -> List[Finding]:
+    findings: List[Finding] = []
+    text = '\n'.join(lines)
+    has_pub_parse = re.search(r'\b(pubkey_parse|pubkey_load|pubkey_from_bytes|deserialize_pubkey)\b', text)
+    if not has_pub_parse:
+        return findings
+    has_validation = re.search(
+        r'\b(on_curve|is_on_curve|point_on_curve|is_valid_point|validate_pubkey|'
+        r'check_subgroup|in_subgroup|point_validate)\b', text)
+    if has_validation:
+        return findings
+    # Locate the parse function for line reporting.
+    for i, raw in enumerate(lines):
+        if re.search(r'\b(pubkey_parse|pubkey_load)\s*\(', raw):
+            findings.append(Finding(
+                file=path, line=i + 1, severity="MEDIUM",
+                category="POINT_NO_VALIDATION",
+                message="pubkey parser present but no on-curve / subgroup validation found "
+                        "in the same file — invalid-curve attack risk",
+                snippet=raw.strip(),
+                fix_hint="Verify the parsed point lies on secp256k1 and (where applicable) "
+                         "in the prime-order subgroup before exposing it to scalar mul.",
+            ))
+            break
+    return findings
+
+
+# ── ECDH_OUTPUT_NOT_CHECKED: ECDH result used without zero / identity check ──
+# CVE anchor: small-subgroup confinement, twist attacks.
+def check_ecdh_output(path: str, lines: List[str]) -> List[Finding]:
+    findings: List[Finding] = []
+    if 'ecdh' not in path.lower():
+        return findings
+    text = '\n'.join(lines)
+    has_ecdh = re.search(r'\bufsecp_ecdh\b|\b(ecdh|x25519)\s*\(', text)
+    if not has_ecdh:
+        return findings
+    if re.search(r'\b(is_zero|is_identity|all_zero|secp256k1_memcmp_var.*zero|fe_is_zero)\b', text):
+        return findings
+    # Locate the ecdh callsite.
+    for i, raw in enumerate(lines):
+        if re.search(r'\becdh\s*\(', raw, re.IGNORECASE):
+            findings.append(Finding(
+                file=path, line=i + 1, severity="MEDIUM",
+                category="ECDH_OUTPUT_NOT_CHECKED",
+                message="ECDH output used without zero/identity check — small-subgroup or "
+                        "twist attack can produce predictable shared secrets",
+                snippet=raw.strip(),
+                fix_hint="Reject ECDH outputs that are the point at infinity or have a zero "
+                         "x-coordinate; document the policy in the function header.",
+            ))
+            break
+    return findings
+
+
+# ── HASH_NO_DOMAIN_SEP: SHA256 in BIP-340/Schnorr/Taproot context without tag ─
+# CVE anchor: cross-protocol signature reuse (BIP-340 §3.2).
+_PLAIN_SHA256_RE = re.compile(r'\b(sha256_init|sha256_update|sha256\b)\s*\(')
+
+def check_no_domain_sep(path: str, lines: List[str]) -> List[Finding]:
+    findings: List[Finding] = []
+    if not re.search(r'(schnorr|bip340|taproot|musig|frost)', path, re.IGNORECASE):
+        return findings
+    for i, raw in enumerate(lines):
+        line = _strip_comments(raw)
+        if not _PLAIN_SHA256_RE.search(line):
+            continue
+        # Skip if same line or surrounding 5 lines reference tagged_hash.
+        ctx = '\n'.join(lines[max(0, i - 5): min(len(lines), i + 6)])
+        if 'tagged_hash' in ctx.lower() or 'tag_hash' in ctx.lower() or 'taghash' in ctx.lower():
+            continue
+        if 'sha256_initialize_tagged' in ctx.lower():
+            continue
+        findings.append(Finding(
+            file=path, line=i + 1, severity="MEDIUM",
+            category="HASH_NO_DOMAIN_SEP",
+            message="Plain SHA-256 in BIP-340/Schnorr/Taproot file without tagged_hash "
+                    "context — cross-protocol signature reuse risk (BIP-340 §3.2)",
+            snippet=raw.strip(),
+            fix_hint="Use sha256_initialize_tagged(\"BIP0340/...\") or the equivalent "
+                     "tagged-hash helper instead of plain SHA-256 in BIP-340 context.",
+        ))
+    return findings
+
+
+# ── DER_LAX_PARSE: short-circuit / shortcut DER parsing ──────────────────────
+# CVE anchor: BER-vs-DER ambiguity, OpenSSL CVE-2014-8275.
+def check_der_lax(path: str, lines: List[str]) -> List[Finding]:
+    findings: List[Finding] = []
+    if 'der' not in path.lower() and 'parse' not in path.lower() and 'sig' not in path.lower():
+        return findings
+    for i, raw in enumerate(lines):
+        line = _strip_comments(raw)
+        # length-byte taken without strict canonicalisation check
+        if re.search(r'\blen\s*=\s*\*?\(?(?:input|buf|p|sig)\)?\s*\+\+', line):
+            ctx = '\n'.join(lines[max(0, i - 3): min(len(lines), i + 8)])
+            if not re.search(r'(strict|canonical|fail.*long|>\s*0x7f)', ctx, re.IGNORECASE):
+                findings.append(Finding(
+                    file=path, line=i + 1, severity="MEDIUM",
+                    category="DER_LAX_PARSE",
+                    message="DER length byte read without canonicalisation guard — BER/DER "
+                            "ambiguity (CVE-2014-8275 OpenSSL)",
+                    snippet=raw.strip(),
+                    fix_hint="Reject long-form length encodings where short-form would suffice; "
+                             "reject leading zeros and trailing data.",
+                ))
+    return findings
+
+
+# ── TIMING_BRANCH_ON_KEY: `if (key[i] ...)` direct branching on secret byte ──
+# CVE anchor: cache-timing attacks (Bernstein 2005 AES, etc.).
+_KEY_INDEX_BRANCH_RE = re.compile(
+    r'\bif\s*\(\s*(?:secret|priv(?:key)?|key|seckey|sk|d|x_only_seckey)\s*\[\s*\w+\s*\]')
+
+def check_timing_branch_on_key(path: str, lines: List[str]) -> List[Finding]:
+    findings: List[Finding] = []
+    if not _is_crypto_path(path):
+        return findings
+    for i, raw in enumerate(lines):
+        line = _strip_comments(raw)
+        if _KEY_INDEX_BRANCH_RE.search(line):
+            findings.append(Finding(
+                file=path, line=i + 1, severity="HIGH",
+                category="TIMING_BRANCH_ON_KEY",
+                message="Direct branch on a secret-key byte — cache/branch timing leak "
+                        "(Bernstein AES 2005 class)",
+                snippet=raw.strip(),
+                fix_hint="Replace the branch with a constant-time mask/select; route the "
+                         "operation through the CT layer.",
+            ))
+    return findings
+
+
+# ── MAC_TRUNCATION: MAC compared with shortened length ───────────────────────
+# CVE anchor: GCM-trunc misuse, JOSE alg=none class.
+def check_mac_truncation(path: str, lines: List[str]) -> List[Finding]:
+    findings: List[Finding] = []
+    for i, raw in enumerate(lines):
+        line = _strip_comments(raw)
+        m = re.search(r'\b(memcmp|strncmp|bcmp)\s*\([^,]+,[^,]+,\s*(\d+)\s*\)', line)
+        if not m:
+            continue
+        n = int(m.group(2))
+        if n in (1, 2, 4, 8) and _AUTH_NAME_RE.search(line):
+            findings.append(Finding(
+                file=path, line=i + 1, severity="HIGH",
+                category="MAC_TRUNCATION",
+                message=f"Auth-material compare with only {n} bytes — truncated MAC accepts "
+                        "forged tags with 2^{8*n} collisions",
+                snippet=raw.strip(),
+                fix_hint="Compare the full MAC/tag length using a constant-time helper.",
+            ))
+    return findings
+
+
+# ── SCALAR_NOT_REDUCED: scalar without explicit `mod n` reduction step ───────
+# CVE anchor: Stark Bank ECDSA r∈[n,p−1] (CVE-2024-... class), bias attacks.
+def check_scalar_not_reduced(path: str, lines: List[str]) -> List[Finding]:
+    findings: List[Finding] = []
+    if not _is_crypto_path(path):
+        return findings
+    for i, raw in enumerate(lines):
+        line = _strip_comments(raw)
+        # Look for divisions/inverses without an adjacent reduction comment or call
+        if re.search(r'\bscalar_inverse\s*\(', line):
+            ctx = '\n'.join(lines[max(0, i - 4): min(len(lines), i + 4)])
+            if not re.search(r'\b(scalar_reduce|scalar_set_b32|set_int|is_zero|zero_check)\b', ctx):
+                findings.append(Finding(
+                    file=path, line=i + 1, severity="MEDIUM",
+                    category="SCALAR_NOT_REDUCED",
+                    message="scalar_inverse without adjacent reduction or zero check — risk of "
+                            "inverting an unreduced or zero scalar",
+                    snippet=raw.strip(),
+                    fix_hint="Reduce the scalar mod n and reject is_zero before inversion.",
+                ))
+    return findings
+
+
+# ── PRINTF_SECRET: format-string output of secret-bearing identifier ─────────
+# CVE anchor: developer log leakage class (countless in mobile wallets).
+_PRINTF_RE = re.compile(r'\b(printf|fprintf|cout|std::cerr|std::cout|debug_print|LOG)\s*[<\(]')
+_SECRET_NAME_RE = re.compile(
+    r'\b(seckey|secret_key|priv(?:_?key)?|seed|mnemonic|nonce_secret|d_scalar|secret_scalar|aux_rand)\b',
+    re.IGNORECASE,
+)
+
+def check_printf_secret(path: str, lines: List[str]) -> List[Finding]:
+    findings: List[Finding] = []
+    # Skip test files where printing is expected.
+    if re.search(r'(test|fuzz|bench)', path, re.IGNORECASE):
+        return findings
+    for i, raw in enumerate(lines):
+        line = _strip_comments(raw)
+        if _PRINTF_RE.search(line) and _SECRET_NAME_RE.search(line):
+            findings.append(Finding(
+                file=path, line=i + 1, severity="HIGH",
+                category="PRINTF_SECRET",
+                message="Output statement appears to print a secret-bearing identifier "
+                        "(log/console leak class)",
+                snippet=raw.strip(),
+                fix_hint="Never log raw secret material; if debugging, log only a "
+                         "domain-separated, length-bounded hash, and gate behind "
+                         "a build-time DEBUG_SECRETS=0 guard.",
+            ))
     return findings
 
 
@@ -1348,6 +1969,20 @@ CHECKERS = [
     check_tagged_hash_bypass,
     check_random_in_signing,
     check_binding_no_validation,
+    # Crypto bug-pattern checkers (CVE-grounded, added 2026-04-21)
+    check_nonce_reuse,
+    check_memcmp_secret,
+    check_missing_low_s,
+    check_scalar_from_rand,
+    check_goto_fail,
+    check_point_no_validation,
+    check_ecdh_output,
+    check_no_domain_sep,
+    check_der_lax,
+    check_timing_branch_on_key,
+    check_mac_truncation,
+    check_scalar_not_reduced,
+    check_printf_secret,
 ]
 
 
