@@ -7,6 +7,36 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-04-21 (CAAS gap closure: G-1, G-2, G-3, G-6)
+
+Four new audit-replacement documents land that close the highest-ROI
+CAAS gaps from `docs/CAAS_GAP_CLOSURE_ROADMAP.md`:
+
+- `docs/THREAT_MODEL.md` (G-1) — STRIDE-per-ABI table for every
+  `ufsecp_*` export; AM-1..AM-10 attacker models; references RR-001..
+  RR-009 in the residual register.
+- `docs/RNG_ENTROPY_ATTESTATION.md` (G-2) — randomness consumer
+  inventory, fail-closed rule, OS-RNG attestation methodology.
+- `docs/HARDWARE_SIDE_CHANNEL_METHODOLOGY.md` (G-3) — explicit no-claim
+  on power/EM/fault, three-tool CT verification methodology, downstream
+  user guidance.
+- `docs/COMPLIANCE_STANCE.md` (G-6) — explicit no-claim on FIPS / CC /
+  CNSA / SP-800; positive claims with verifier mapping.
+
+`docs/RESIDUAL_RISK_REGISTER.md` extended with RR-006..RR-009 to
+cover the residuals referenced by THREAT_MODEL.md §5.
+
+These four docs do not change code behaviour. They change what an
+external auditor has to reconstruct: previously they would have had
+to derive STRIDE coverage, RNG attestation, and compliance scope
+themselves; now they verify a claim against an evidence pointer.
+
+Next gaps in queue (per CAAS_GAP_CLOSURE_ROADMAP.md execution order):
+G-5 (SPEC_TRACEABILITY_MATRIX), G-9 (PROTOCOL_SPEC), G-9b (exploit ↔
+threat ↔ spec join), G-10 (SECURITY_DISCLOSURE_SLA tightening).
+
+---
+
 ## 2026-04-21 (audit-doc reality reconciliation, pass 2: modules + workflows)
 
 Second reconciliation pass — beyond exploit-PoC counts (pass 1 above),
