@@ -25,6 +25,10 @@ UltrafastSecp256k1 is:
 
 Known production use: [Sparrow Wallet Frigate](https://github.com/sparrowwallet/frigate) — [Details →](docs/ADOPTION.md)
 
+> **Using UltrafastSecp256k1 in production?** Open a PR adding your project to [docs/ADOPTION.md](docs/ADOPTION.md) — independent integrations are the strongest validation signal we can show.
+>
+> **Foundation, exchange, or wallet sponsor?** See [docs/FUNDING_TARGETS.md](docs/FUNDING_TARGETS.md) for the project's funding playbook (HRF, OpenSats, Brink, Spiral, Ethereum Foundation ESP, NLnet, Sovereign Tech Fund, …) and 30-second / 5-minute pitches.
+
 ---
 
 ## Quick Start
@@ -101,7 +105,9 @@ cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build build -
 | 📦 Install packages | [Installation](#installation) |
 | 🤔 Why this library? | [WHY_ULTRAFASTSECP256K1.md](WHY_ULTRAFASTSECP256K1.md) |
 | 📚 Cite this work | [CITATION.cff](CITATION.cff) |
-| 🌐 Sponsor | [github.com/sponsors/shrec](https://github.com/sponsors/shrec) |
+| � Production adopters | [docs/ADOPTION.md](docs/ADOPTION.md) |
+| 💰 Funding & grant programmes | [docs/FUNDING_TARGETS.md](docs/FUNDING_TARGETS.md) |
+| �🌐 Sponsor | [github.com/sponsors/shrec](https://github.com/sponsors/shrec) |
 
 > **Claim map:** [docs/ASSURANCE_LEDGER.md](docs/ASSURANCE_LEDGER.md) · **Security policy:** [SECURITY.md](SECURITY.md) · **Discord:** [discord.gg/E4BK8SeMYU](https://discord.gg/E4BK8SeMYU)
 
