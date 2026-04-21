@@ -31,7 +31,7 @@ jobs:
     timeout-minutes: 120
     steps:
       - name: Checkout dev
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           ref: dev
           fetch-depth: 1
@@ -41,7 +41,8 @@ jobs:
           sudo apt-get update -y
           sudo apt-get install -y --no-install-recommends \
               cmake ninja-build g++ python3 python3-pip
-          python3 -m pip install --user --quiet pyyaml
+          python3 -m pip install --user --quiet \
+              --require-hashes -r .github/requirements/mutation-weekly.txt
 
       - name: Configure build_rel
         run: |
@@ -68,7 +69,7 @@ jobs:
           exit 0
 
       - name: Upload mutation report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         if: always()
         with:
           name: mutation_report

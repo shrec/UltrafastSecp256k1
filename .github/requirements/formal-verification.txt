@@ -1,0 +1,10 @@
+# Pinned dependency for formal-verification workflow (hash-verified).
+#
+# Regenerate the hash after bumping the version:
+#   pip download --no-deps z3-solver==4.16.0.0
+#   sha256sum z3_solver-4.16.0.0-py3-none-manylinux_2_27_x86_64.whl
+#
+# Only the manylinux_2_27 x86_64 wheel is required because the
+# formal-verification runner pins `runs-on: ubuntu-24.04`.
+z3-solver==4.16.0.0 \
+    --hash=sha256:afae2551f795670f0522cfce82132d129c408a2694adff71eb01ba0f2ece44f9

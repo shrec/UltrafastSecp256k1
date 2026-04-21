@@ -38,7 +38,7 @@ jobs:
           python-version: '3.12'
 
       - name: Install Z3 solver
-        run: pip install z3-solver==4.16.0.0
+        run: pip install --require-hashes -r .github/requirements/formal-verification.txt
 
       - name: Run SafeGCD formal proofs
         run: python3 audit/formal/safegcd_z3_proof.py
