@@ -172,11 +172,14 @@ jobs:
           warns = [c for c in report.get("checks", []) if c.get("status") == "WARN"]
           for w in warns:
               print(f"::warning::WARN [{w.get('name','?')}]")
-          passed = report.get("verdict") == "PASS"
+          # Accept either strict PASS or PASS-with-advisory (advisory means
+          # WARN findings exist but no FAIL findings). Block only on real FAIL.
+          verdict = report.get("verdict", "")
+          passed = (verdict in ("PASS", "PASS with advisory")) and not fails
           if not passed:
-              print(f"::error::Audit gate FAIL — {len(fails)} blocking finding(s), verdict={report.get('verdict')}")
+              print(f"::error::Audit gate FAIL — {len(fails)} blocking finding(s), verdict={verdict}")
               sys.exit(1)
-          print(f"::notice::Audit gate PASS — {len(warns)} warning(s)")
+          print(f"::notice::Audit gate PASS — verdict={verdict}, {len(warns)} warning(s)")
           EOF
 
       - name: Upload audit gate report

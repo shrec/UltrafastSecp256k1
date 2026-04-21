@@ -1546,9 +1546,11 @@ audit_target_defaults(test_exploit_differential_openssl_standalone)
 target_include_directories(test_exploit_differential_openssl_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include ${CMAKE_BINARY_DIR}/include)
 target_compile_definitions(test_exploit_differential_openssl_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
-find_package(OpenSSL QUIET COMPONENTS Crypto)
-if(OpenSSL_FOUND)
-    target_link_libraries(test_exploit_differential_openssl_standalone PRIVATE OpenSSL::Crypto)
+if(NOT CMAKE_CROSSCOMPILING)
+    find_package(OpenSSL QUIET COMPONENTS Crypto)
+    if(OpenSSL_FOUND)
+        target_link_libraries(test_exploit_differential_openssl_standalone PRIVATE OpenSSL::Crypto)
+    endif()
 endif()
 add_test(NAME exploit_differential_openssl COMMAND test_exploit_differential_openssl_standalone)
 set_tests_properties(exploit_differential_openssl PROPERTIES TIMEOUT 120 LABELS "audit;exploit;differential;interop;advisory")
@@ -2768,12 +2770,20 @@ target_link_libraries(unified_audit_runner PRIVATE Threads::Threads)
 # audit runner so test_exploit_differential_openssl can perform a real
 # cross-implementation check. When OpenSSL is absent, the test compiles
 # with __has_include guards and prints an advisory skip.
-find_package(OpenSSL QUIET COMPONENTS Crypto)
-if(OpenSSL_FOUND)
-    target_link_libraries(unified_audit_runner PRIVATE OpenSSL::Crypto)
-    message(STATUS "INTEROP: OpenSSL libcrypto wired into unified_audit_runner (advisory differential)")
+#
+# Skip detection entirely when cross-compiling: find_package(OpenSSL) would
+# pick up the *host* OpenSSL headers/libs which are wrong for the target
+# (arm64, riscv64, etc.). The test then falls back to its advisory skip.
+if(NOT CMAKE_CROSSCOMPILING)
+    find_package(OpenSSL QUIET COMPONENTS Crypto)
+    if(OpenSSL_FOUND)
+        target_link_libraries(unified_audit_runner PRIVATE OpenSSL::Crypto)
+        message(STATUS "INTEROP: OpenSSL libcrypto wired into unified_audit_runner (advisory differential)")
+    else()
+        message(STATUS "INTEROP: OpenSSL libcrypto not found; differential_openssl will skip with advisory")
+    endif()
 else()
-    message(STATUS "INTEROP: OpenSSL libcrypto not found; differential_openssl will skip with advisory")
+    message(STATUS "INTEROP: cross-compiling (target=${CMAKE_SYSTEM_PROCESSOR}); skipping OpenSSL detection, differential_openssl will skip with advisory")
 endif()
 
 # Full Audit Orchestrator (custom target)
