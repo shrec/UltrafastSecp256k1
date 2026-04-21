@@ -69,7 +69,20 @@ cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build build -
 | 📐 Audit methodology specification (CAAS) | [docs/AUDIT_STANDARD.md](docs/AUDIT_STANDARD.md) |
 | 🚀 External auditor quick start | [docs/AUDITOR_QUICKSTART.md](docs/AUDITOR_QUICKSTART.md) |
 | 📄 See latest audit results | [AUDIT_REPORT.md](AUDIT_REPORT.md) |
+| � Live audit dashboard | [docs/AUDIT_DASHBOARD.md](docs/AUDIT_DASHBOARD.md) |
 | 🛡️ Exploit PoC test catalog | [docs/EXPLOIT_TEST_CATALOG.md](docs/EXPLOIT_TEST_CATALOG.md) |
+| 🗺️ Exploit coverage map | [docs/EXPLOIT_COVERAGE_MAP.md](docs/EXPLOIT_COVERAGE_MAP.md) |
+| 🎯 ECDSA edge-case coverage | [docs/ECDSA_EDGE_CASE_COVERAGE.md](docs/ECDSA_EDGE_CASE_COVERAGE.md) |
+| 🔬 Interop matrix (cross-implementation) | [docs/INTEROP_MATRIX.md](docs/INTEROP_MATRIX.md) |
+| 🧨 Threat model | [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md) |
+| 📐 CAAS protocol (continuous audit) | [docs/CAAS_PROTOCOL.md](docs/CAAS_PROTOCOL.md) |
+| 🏗️ Multi-CI reproducible builds | [docs/MULTI_CI_REPRODUCIBLE_BUILD.md](docs/MULTI_CI_REPRODUCIBLE_BUILD.md) |
+| 🔌 Supply-chain local parity | [docs/SUPPLY_CHAIN_LOCAL_PARITY.md](docs/SUPPLY_CHAIN_LOCAL_PARITY.md) |
+| 📡 Hardware side-channel methodology | [docs/HARDWARE_SIDE_CHANNEL_METHODOLOGY.md](docs/HARDWARE_SIDE_CHANNEL_METHODOLOGY.md) |
+| 🛂 Compliance stance | [docs/COMPLIANCE_STANCE.md](docs/COMPLIANCE_STANCE.md) |
+| 🤖 Security autonomy program | [docs/SECURITY_AUTONOMY_PLAN.md](docs/SECURITY_AUTONOMY_PLAN.md) |
+| 🔭 Research monitor | [docs/RESEARCH_MONITOR.md](docs/RESEARCH_MONITOR.md) |
+| 🧑‍⚖️ Reviewer role prompts | [docs/REVIEWER_PROMPTS/README.md](docs/REVIEWER_PROMPTS/README.md) |
 | 🔀 Backend assurance matrix | [docs/BACKEND_ASSURANCE_MATRIX.md](docs/BACKEND_ASSURANCE_MATRIX.md) |
 | 🚦 CI gating policy | [docs/CI_GATING_POLICY.md](docs/CI_GATING_POLICY.md) |
 | 🗺️ ABI layer routing matrix | [docs/LAYER_ROUTING_MATRIX.md](docs/LAYER_ROUTING_MATRIX.md) |
