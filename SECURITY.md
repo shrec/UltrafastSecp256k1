@@ -251,15 +251,30 @@ For detailed stability classifications, see:
 
 ## Vulnerability Disclosure Policy
 
-We follow a **coordinated disclosure** process:
+We follow a **coordinated disclosure** process with severity-tiered SLAs.
+A machine-readable contact record per **RFC 9116** is published at
+[`.well-known/security.txt`](.well-known/security.txt).
+
+### Acknowledgement & triage SLA (all reports)
 
 | Phase | Timeline | Action |
 |-------|----------|--------|
 | Acknowledgment | <= 72 hours | Confirm receipt, assign tracking ID |
 | Assessment | <= 7 days | Severity classification (CVSS 3.1) |
-| Fix development | <= 30 days | Patch + test for confirmed issues |
-| Advisory | <= 90 days | GitHub Security Advisory published |
-| Credit | At advisory | Reporter credited (unless anonymous) |
+
+### Fix & advisory SLA (severity-tiered)
+
+| Severity | Fix-by | Advisory-by | Notes |
+|----------|--------|-------------|-------|
+| Critical (CVSS >= 9.0) | <= 7 days | <= 14 days | Private key recovery, signature forgery, parser RCE |
+| High (CVSS 7.0-8.9) | <= 30 days | <= 60 days | CT violation in `ct::` namespace, nonce bias, ABI memory safety |
+| Medium (CVSS 4.0-6.9) | <= 60 days | <= 90 days | DoS, unexpected abort, secret-bit leakage that does not yield key |
+| Low (CVSS 0.1-3.9) | Best effort | Bundled | Non-security correctness, edge-case handling |
+
+These SLAs are **commitments**, not best-effort goals. If we miss an
+SLA we file a public note in `docs/AUDIT_CHANGELOG.md` explaining
+why; this is verified by the CAAS sub-gate
+`scripts/audit_gate.py --disclosure-sla` (planned).
 
 ### Severity Guidelines
 
@@ -269,6 +284,13 @@ We follow a **coordinated disclosure** process:
 | High (7.0-8.9) | CT violation in `ct::` namespace, nonce bias |
 | Medium (4.0-6.9) | Denial of service, unexpected panic/abort |
 | Low (0.1-3.9) | Non-security correctness issues, edge-case handling |
+
+### Credit policy
+
+Reporters are credited in the changelog and the GitHub Security
+Advisory (unless they request anonymity). We do not require
+embargoes that are longer than 90 days; if 90 days pass without a
+fix, the reporter is free to disclose.
 
 ### Bug Bounty
 

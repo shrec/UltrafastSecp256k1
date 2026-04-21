@@ -7,6 +7,69 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-04-21 (CAAS gap closure batch 2: G-5, G-9, G-9b, G-10)
+
+Second CAAS gap-closure batch lands. Combined with batch 1 (G-1/G-2/
+G-3/G-6 earlier today), eight of the eleven roadmap gaps are now
+closed; the three remaining (G-4 INTEROP_MATRIX, G-7 multi-CI repro
+build, G-8 CT-tool independence) require build/CI infrastructure
+work, not new docs.
+
+- `docs/SPEC_TRACEABILITY_MATRIX.md` (G-5) — spec clause →
+  implementation file → test file rows for SEC 1/2, RFC 6979,
+  BIP-32/324/327/340/341/342/352, RFC 9591 FROST, BIP-39, plus a
+  Wycheproof coverage table and an explicit N/A row for SP 800-186.
+  Header carries an honesty note that several `Impl`/`Test` paths
+  are currently advisory-warning placeholders pending the next
+  reconciliation pass; the script (G-9b) reports them as ADVISORY
+  in default mode and ERROR in `--strict` mode.
+
+- `docs/PROTOCOL_SPEC.md` (G-9) — citation-ready, publishable
+  protocol spec with stable URN
+  `urn:ufsecp:spec:1.0:2026-04-21`. Defines domain parameters,
+  encoding rules, ECDSA / Schnorr / ECDH / EC-recover / BIP-32 /
+  Taproot / BIP-324 / BIP-352 / MuSig2 / FROST behaviour at the ABI
+  level, constant-time guarantees, failure model, versioning
+  policy, and out-of-scope items. Explicit citation block added.
+
+- `scripts/exploit_traceability_join.py` (G-9b) — joins
+  EXPLOIT_TEST_CATALOG ↔ THREAT_MODEL ↔ SPEC_TRACEABILITY_MATRIX ↔
+  RESIDUAL_RISK_REGISTER ↔ unified_audit_runner. Hard joins
+  (exploit-on-disk vs catalog, RR-* defined-vs-cited, AM-* defined-
+  vs-cited) fail in default mode; the spec-matrix path join is
+  advisory in default mode and strict under `--strict`. Default mode
+  passes today; CI will switch to `--strict` after the spec-matrix
+  reconciliation pass.
+
+- `SECURITY.md` (G-10) — disclosure SLA upgraded from a single 72h /
+  30d / 90d row to severity-tiered SLAs (Critical 7d/14d, High
+  30d/60d, Medium 60d/90d). Pointer added to the new RFC 9116
+  contact record and explicit credit/embargo policy.
+
+- `.well-known/security.txt` (G-10) — RFC 9116 machine-readable
+  contact record with `Contact:`, `Expires: 2027-04-21`,
+  `Encryption:`, `Acknowledgments:`, `Preferred-Languages: en, ka`,
+  `Canonical:`, `Policy:` fields. Lives at the standard well-known
+  path so security scanners (e.g. OpenSSF Scorecard, Trivy) can
+  pick it up automatically.
+
+Roadmap status (`docs/CAAS_GAP_CLOSURE_ROADMAP.md`):
+
+  G-1  done   THREAT_MODEL.md
+  G-2  done   RNG_ENTROPY_ATTESTATION.md
+  G-3  done   HARDWARE_SIDE_CHANNEL_METHODOLOGY.md
+  G-5  done   SPEC_TRACEABILITY_MATRIX.md
+  G-6  done   COMPLIANCE_STANCE.md
+  G-9  done   PROTOCOL_SPEC.md
+  G-9b done   exploit_traceability_join.py
+  G-10 done   SECURITY.md SLA + .well-known/security.txt
+
+  G-4  pending  INTEROP_MATRIX.md (cross-implementation interop)
+  G-7  pending  MULTI_CI_REPRODUCIBLE_BUILD.md + workflow
+  G-8  pending  CT_TOOL_INDEPENDENCE.md (two-tool CT proof)
+
+---
+
 ## 2026-04-21 (CAAS gap closure: G-1, G-2, G-3, G-6)
 
 Four new audit-replacement documents land that close the highest-ROI
