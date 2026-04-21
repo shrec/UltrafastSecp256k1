@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776433509422,
+  "lastUpdate": 1776787869680,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "Perf Regression Gate": [
@@ -75924,6 +75924,725 @@ window.BENCHMARK_DATA = {
           {
             "name": "Session roundtrip (256B)",
             "value": 1824.5,
+            "unit": "ns"
+          },
+          {
+            "name": "Harness",
+            "value": 3000000000,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "payysoon@gmail.com",
+            "name": "Vano Chkheidze",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "47c5b16f3f86fbaedc4e5c8020c06acc8086f4c7",
+          "message": "Dev (#248)\n\n* audit: close 5 audit-model bugs (Conversion Standard enforcement)\n\nBUG-A1: Wire 16 orphan test_exploit_*.cpp PoCs into unified_audit_runner\n  - Added forward decls + ALL_MODULES entries for all 16 (section=exploit_poc)\n  - Added int test_exploit_eip712_kat_run() wrapper in audit/test_exploit_eip712_kat.cpp\n  - Runner builds green (288/288 objects)\n\nBUG-A1 CI gate: scripts/check_exploit_wiring.py (new)\n  - Rejects any on-disk test_exploit_*.cpp whose _run() symbol is not\n    referenced by unified_audit_runner.cpp\n  - Wired as CAAS Stage 0 in .github/workflows/preflight.yml and caas.yml\n  - Current run: 189/189 wired, 0 unwired\n\nBUG-A2: mutation_kill_rate.py min-sample and build-error guards\n  - UFSECP_MUTATION_MIN_SAMPLE (default 20): kill-rate over tiny samples\n    can no longer report passed=true\n  - UFSECP_MUTATION_MAX_BUILD_ERROR_RATIO (default 0.5): run with >50%\n    build errors is treated as a broken mutator, not a passing suite\n  - Report now carries testable + pass_reason fields\n\nBUG-A3: Advisory silent-pass split in write_json_report\n  - advisory_warnings is now split into advisory_skipped (~0 ms) vs\n    advisory_failed (ran and failed)\n  - New verdict AUDIT-READY-DEGRADED when mandatory modules pass but\n    advisory modules actually failed\n\nBUG-A5: audit_test_quality_scanner.py Category G (unwired exploit PoC)\n  - Cross-checks every test_exploit_*.cpp against unified_audit_runner.cpp\n  - Flags missing _run() wrappers and unregistered _run() symbols\n  - Scanner now covers 7 categories (A-G); current run: 0 findings on 264 files\n\nDocs:\n  - docs/AUDIT_CHANGELOG.md: dated entry for all five fixes\n  - docs/EXPLOIT_TEST_CATALOG.md: count updated to 189, parity gate cited\n\n* audit: close memory-leak risks flagged by source-graph\n\nFixes four real exception/failure-path leaks and documents four\nheuristic false positives from the source-graph leak_risks table.\n\ngpu/src/gpu_backend_cuda.cu\n  ecdh_xdh_batch, dleq_verify_batch, bulletproof_verify_batch all\n  allocated new bool[count] for their device-to-host result copies.\n  The CUDA_TRY(cudaMemcpy(...)) that followed early-returns on failure\n  via GpuError::Launch, which skipped both the paired delete[] and the\n  cudaFree calls below it. Replaced with std::vector<uint8_t> so the\n  host buffer is reclaimed automatically on any failure path.\n\ncpu/src/message_signing.cpp\n  bitcoin_msg_hash used new uint8_t[total] for the heap-path buffer.\n  The paired delete[] was reached in the happy path but an exception\n  from sha256() would have leaked the buffer and skipped secure_erase.\n  Replaced with std::vector; secure_erase is still called before the\n  vector deallocator reclaims memory.\n\nBuild verified for both CPU (static lib) and CUDA (gpu_backend_cuda.cu)\nbackends. No ABI change.\n\n* gpu: close schnorr_snark_witness_batch parity gap via host-side fallback\n\nDefault GpuBackend::schnorr_snark_witness_batch returned GpuError::Unsupported\non every backend (CUDA/OpenCL/Metal). Add a deterministic host-side CPU\nfallback (gpu/src/gpu_backend_fallback.cpp) that produces byte-identical\n472-byte SCHNORR_SNARK_WITNESS_BYTES records and wire it as the default\nvirtual body. Backends remain free to override with native device kernels\nfor higher throughput.\n\nPublic-data-only operation; no security impact from host execution.\n\n- gpu/include/gpu_backend.hpp: declare fallback, delegate from default impl,\n  refresh auditor NOTE block.\n- gpu/CMakeLists.txt: add fallback to GPU_REGISTRY_SRC.\n- audit/CMakeLists.txt: add fallback to standalone targets that also link\n  gpu_registry.cpp (test_c_abi_negative_standalone, fuzz/coverage targets).\n- docs/BACKEND_ASSURANCE_MATRIX.md: row updated stub -> Y* with footnote.\n- docs/AUDIT_CHANGELOG.md: 2026-04-20 entry.\n\nVerified: full incremental rebuild of build_opencl/ (708/708 targets).\n\n* audit: refresh CAAS evidence (assurance/bundle/KPI snapshots)\n\nCAAS pipeline previously failed because the suite-root assurance_report.json\n(consumed by audit_sla_check.py via the SUITE_ROOT scope) had aged past the\n30-day max_stale_evidence_days SLO (was 30.6 days old, threshold 30).\n\nRefreshed:\n  - <suite>/assurance_report.json  (regenerated via export_assurance.py)\n  - docs/EXTERNAL_AUDIT_BUNDLE.json + .sha256 (Stage 4 bundle)\n  - docs/SECURITY_AUTONOMY_KPI.json (Stage 3 timestamp)\n\nAfter refresh: caas_runner.py reports overall_pass=True with all 5 stages\ngreen and security_autonomy score=100/100.\n\n* scanner(crypto): 13 CVE-grounded bug-pattern checkers in dev_bug_scanner.py\n\nAdds nonce-reuse, memcmp-on-secret, missing low-S, RNG-derived-scalar,\nApple goto-fail, point-validation-missing, ECDH-output-unchecked,\nBIP-340 missing tagged_hash, lax DER parse, branch-on-key-byte,\nMAC truncation, scalar-not-reduced, and printf-of-secret detectors.\n\nEach checker is anchored to a real-world incident (Sony PS3, Apple\nCVE-2014-1266, Debian OpenSSL CVE-2008-0166, OpenSSL CVE-2014-8275,\nBIP-62, BIP-340 §3.2, Bernstein cache-timing class). All scoped via\n_is_crypto_path() or filename guards; each finding carries CVE/standard\nreference + fix_hint. Initial run: 3 MEDIUM signals, zero HIGH FPs.\n\nTracks under docs/CAAS_HARDENING_TODO.md H-12; logs in AUDIT_CHANGELOG.\n\n* scanner(fp): reduce dev_bug_scanner false positives across 8 checkers\n\nTotal findings on the repository drop from 375 to 88 (-77%) with all HIGH\nfalse positives eliminated. Real signals preserved: MISSING_LOW_S_CHECK x2,\nSCALAR_NOT_REDUCED x1.\n\nFixes:\n- NULL: rename colliding _NULL_CHECK regex; only flag negative form\n  if(pkill -9 -f pretokenize_corpus 2>/dev/null)/if(p==NULL); walk back past whitespace+*& to skip C declarations;\n  reset tracked state on bare } and function-start braces; window 8->5.\n  Eliminates 22 INTERNAL errors and 52 HIGH FPs.\n- SIG: add unsigned-decl filter; subtract from int_vars and skip same-line\n  declarators.\n- MSET: prune _SUSPICIOUS_SIZES to remove common natural sizes.\n- EXCEPTION_SWALLOW: parse same-line catch bodies.\n- CPASTE: skip indexed lvalues; allow-list 30+ scratch/accumulator names;\n  clear reads from tracked state BEFORE scratch-skip continue.\n- DBLINIT: same scratch allow-list and read-clearing-first ordering;\n  exempt defensive zero-init pattern T x = 0; ... x = expr;\n  improved parameter-list detection (handles bool x = false); trailers).\n- BINDING_NO_VALIDATION: rename regex to break shadow; broaden to any\n- OB1: skip selftest/test/fuzz/bench files; skip 1-based and K>=2 starts.\n- SIZEOF_MISMATCH: per-file array-size map; skip same-dim arrays and\n  *_ctx/_t/_state/_struct/_type/_info/_cfg/_opts/_hdr typedefs.\n\nDocs updated in AUDIT_CHANGELOG.md (same commit per Documentation Discipline).\n\n* caas: close 11 hardening items (H-1..H-11) in one sweep\n\nP0 (structural fragility):\n- H-1: nightly assurance auto-refresh workflow (caas-evidence-refresh.yml)\n- H-2: docs/EVIDENCE_KEY_POLICY.md (honest scope + rotation procedure)\n- H-3: docs/CAAS_PROTOCOL.md (stage contract + retention + replay)\n\nP1 (assurance depth):\n- H-4: weekly mutation gate workflow (mutation-weekly.yml, advisory)\n- H-5: RR-005 entry in RESIDUAL_RISK_REGISTER.md (perf gap, not correctness)\n- H-6: docs/SUPPLY_CHAIN_LOCAL_PARITY.md (offline coverage matrix)\n\nP2 (visibility & hygiene):\n- H-7: scripts/review_queue_age_check.py + AUDIT_SLA.json review_queue_max_open_days (90d)\n- H-8: scripts/todo_age_check.py + AUDIT_SLA.json todo_max_open_days (180d)\n- H-9: scripts/render_audit_dashboard.py emits docs/AUDIT_DASHBOARD.md\n- H-10: docs/REVIEWER_PROMPTS/{auditor,attacker,perf_skeptic,docs_skeptic,README}.md\n- H-11: rocm-smoke.yml scaffold (manual / labelled-PR only)\n\nVerification:\n- caas_runner.py overall_pass=True; all 5 stages green.\n- review_queue_age_check.py: 23 rows, 0 over SLA.\n- todo_age_check.py: 61 markers, 0 over SLA.\n- render_audit_dashboard.py emits valid AUDIT_DASHBOARD.md.\n\nDocs updated in same commit per Documentation Discipline (AUDIT_CHANGELOG.md\n2026-04-21 entry; CAAS_HARDENING_TODO.md items H-1..H-11 marked Done).\n\n* scanner: hardening pass 10 + investigation report\n\n- _BINDING_NULL_CHECK regex now matches compound forms like\n  if ((apt --fix-broken install && b > 0) || cd ~/GeoAI) — eliminates false positive on\n  ufsecp_segwit_witness_script_hash.\n- check_mset now skips files matching bip32/bip324/bip352/tagged_hash/\n  address/wallet and lines containing header|magic|version|prefix|\n  sentinel|marker|tag — eliminates BIP-324 plaintext-header false\n  positive on bip324.cpp:106.\n- check_copypaste now skips ternary-of-constants on the RHS\n  (e.g. version = mainnet ? 0x0488B21E : 0x043587CF) — eliminates\n  BIP-32 magic version-byte false positive on bip32.h/bip32.cl.\n- docs/SCANNER_INVESTIGATION_REPORT.md: triage of every remaining\n  MEDIUM signal on dev HEAD; verdict 0 exploitable bugs, 3 design-\n  level signals matching documented permissive-verify contract and\n  Scalar class invariant.\n\nRun 10 result: 84 findings (0 HIGH, 3 MEDIUM, 81 LOW), down from\n375 baseline.\n\nRefs: docs/NORMALIZATION_SPEC.md §2.1 (permissive ecdsa_verify),\nRR-004 (Stark Bank class, closed ea8cfb3c).\n\n* docs: CAAS gap-closure roadmap to make external audit a formality\n\nIdentifies 11 structural gaps (G-1..G-10 + G-9b) that an external audit\nfirm would still find/produce after CAAS H-1..H-12 closed. Each gap has:\n- why it matters (auditor expectation)\n- what to add (doc + optional gate)\n- proposed audit_gate.py sub-check\n- acceptance criterion\n\nAcknowledges already-strong dimensions (177 PoCs, ATTACK_GUIDE,\nEXPLOIT_TEST_CATALOG, EXPLOIT_COVERAGE_MAP, RESEARCH_SIGNAL_MATRIX with\n578 entries) so the roadmap focuses on doc surfaces + automation joins,\nnot on adding more PoCs.\n\nAfter all 11 close, register P21 (External-Audit Replacement\nCompleteness) in AUDIT_MANIFEST.md and a corresponding sub-gate in\naudit_gate.py. That is the formal statement that external audit becomes\na methodology-review formality, not a bug-hunt.\n\n* docs: reconcile exploit-PoC counts across all audit docs to actual 189\n\nReality: ls audit/test_exploit_*.cpp = 189 files, all 189 wired in\nunified_audit_runner.cpp (parity enforced by check_exploit_wiring.py).\n\nStale headline numbers (157/166/171/177/187) updated to 189 in:\n- README.md (3x)\n- docs/ATTACK_GUIDE.md (2x)\n- docs/AUDIT_GUIDE.md (2x)\n- docs/AUDIT_PHILOSOPHY.md (7x)\n- docs/AUDIT_STANDARD.md (3x)\n- docs/AUDIT_READINESS_REPORT_v1.md (1x)\n- docs/INTERNAL_AUDIT.md (1x)\n- docs/EXPLOIT_COVERAGE_MAP.md (headline; per-category baseline\n  preserved with note about +12 since 2026-04-08)\n- docs/CAAS_GAP_CLOSURE_ROADMAP.md (3x)\n\nHistorical AUDIT_CHANGELOG entries (running totals at the time of the\nevent, e.g. '157 after this wave') are intentionally preserved as\nhistorical record.\n\nReconciliation note added at top of docs/AUDIT_CHANGELOG.md.\n\nNo counts were inflated; every claim now matches on-disk reality.\n\n* docs: reconcile non-exploit module + CI workflow counts to reality\n\nPass 2 of audit-doc reality reconciliation.\n\nReality on disk:\n- ALL_MODULES in unified_audit_runner.cpp: 249 entries\n  (189 exploit_poc + 60 non-exploit across 8 non-exploit sections)\n- CI workflows in .github/workflows/: 41\n- Backend runners: gpu=47, opencl=40, metal=30 registers\n- 11 fuzz harnesses (correct, no change)\n- 39 Cryptol properties (correct, no change)\n\nStale numbers updated to reality in:\n- README.md (8x: 54/55/58 modules + 37 workflows)\n- docs/TEST_MATRIX.md (70 modules → 249)\n- docs/AUDIT_GUIDE.md (58 → 60 non-exploit)\n- docs/ATTACK_GUIDE.md (58 → 60 non-exploit)\n- docs/CROSS_PLATFORM_TEST_MATRIX.md (70 → 249, x2)\n- docs/BACKEND_PARITY.md (date + 4 backend row counts)\n\nHistorical benchmark snapshots in BENCHMARKS.md (70/70, 53/54)\npreserved as-is because they correctly represent the runner state at\nthe time of each pinned benchmark run.\n\nAUDIT_CHANGELOG.md updated with detailed reconciliation note.\n\n* docs(caas): close gaps G-1, G-2, G-3, G-6 — threat model + RNG + HW SC + compliance\n\nFour new audit-replacement documents land that close the highest-ROI\nCAAS gaps from docs/CAAS_GAP_CLOSURE_ROADMAP.md:\n\n- docs/THREAT_MODEL.md (G-1)\n  STRIDE-per-ABI table for every ufsecp_* export.\n  AM-1..AM-10 attacker models with explicit in-scope/out-of-scope.\n  References RR-001..RR-009 in the residual register.\n\n- docs/RNG_ENTROPY_ATTESTATION.md (G-2)\n  Randomness-consumer inventory across the public ABI.\n  Per-platform OS-RNG source + fallback table.\n  Fail-closed rule (never zero-fill, never fall back to userland PRNG).\n  Verification map with test pointers.\n\n- docs/HARDWARE_SIDE_CHANNEL_METHODOLOGY.md (G-3)\n  Explicit no-claim on power/EM/fault/acoustic side channels.\n  3-tool CT methodology (dudect + Valgrind CT + ct-verif must agree).\n  Downstream user guidance for HSM/smartcard deployment.\n\n- docs/COMPLIANCE_STANCE.md (G-6)\n  Explicit no-claim on FIPS 140-3 / FIPS 186-5 / SP 800-90 /\n  Common Criteria / CNSA / AIS-31 / CSPN.\n  Positive claims (BIP-340, RFC 6979, BIP-32/324/352, MuSig2, FROST)\n  with evidence pointer for each.\n  SBOM/SLSA/cosign supply-chain stance.\n\ndocs/RESIDUAL_RISK_REGISTER.md extended with RR-006..RR-009 to cover\nhardware side channels, quantum, application-layer replay, Sybil.\n\nThese docs do not change code. They change what an external auditor\nhas to reconstruct: previously they would derive STRIDE coverage,\nRNG attestation, and compliance scope themselves; now they verify a\nclaim against an evidence pointer.\n\n* docs(caas): close gaps G-5, G-9, G-9b, G-10 — spec matrix + protocol spec + traceability join + RFC 9116\n\nSecond CAAS gap-closure batch (combined with G-1/G-2/G-3/G-6 earlier\ntoday, 8 of 11 roadmap gaps closed).\n\n- docs/SPEC_TRACEABILITY_MATRIX.md (G-5)\n  Spec clause to impl/test rows for SEC 1/2, RFC 6979,\n  BIP-32/324/327/340/341/342/352, RFC 9591 FROST, BIP-39, plus\n  Wycheproof coverage table. Honesty note: several Impl/Test paths\n  are advisory placeholders pending strict reconciliation.\n\n- docs/PROTOCOL_SPEC.md (G-9)\n  Citation-ready, publishable protocol spec.\n  Stable URN urn:ufsecp:spec:1.0:2026-04-21.\n  Defines domain parameters, encodings, all algorithms at ABI level,\n  CT guarantees, failure model, versioning, out-of-scope items.\n\n- scripts/exploit_traceability_join.py (G-9b)\n  Joins EXPLOIT_TEST_CATALOG, THREAT_MODEL, SPEC matrix,\n  RESIDUAL_RISK_REGISTER, unified_audit_runner. Default mode passes\n  today; --strict mode will pass after spec-matrix path reconciliation.\n  Hard joins: exploit-on-disk vs catalog, RR-* def/cited, AM-* def/cited.\n\n- SECURITY.md (G-10)\n  Disclosure SLA upgraded from single-row 72h/30d/90d to severity-\n  tiered: Critical 7d/14d, High 30d/60d, Medium 60d/90d. Pointer to\n  RFC 9116 record + explicit credit/embargo policy.\n\n- .well-known/security.txt (G-10)\n  RFC 9116 machine-readable contact record. Picked up automatically\n  by OpenSSF Scorecard, Trivy, and other security scanners.\n\nRemaining gaps (G-4 INTEROP_MATRIX, G-7 multi-CI repro, G-8 CT-tool\nindependence) require build/CI infrastructure work, not new docs.\n\n* docs(caas): close gaps G-4, G-7, G-8 — interop matrix + multi-CI repro + CT tool independence (ROADMAP COMPLETE)\n\nThird and final CAAS gap-closure batch. With this commit, all 11\ngaps in docs/CAAS_GAP_CLOSURE_ROADMAP.md are closed.\n\n- docs/INTEROP_MATRIX.md (G-4)\n  Three-flavour interop inventory:\n  * Vector interop: Wycheproof + BIP/RFC reference vectors\n  * Live differential: libsecp256k1, libtomcrypt, go-ethereum\n  * Wire interop: BIP-324, MuSig2, FROST self-against-self\n  Section 3 lists references not yet wired (OpenSSL, BoringSSL,\n  WolfSSL, NSS, Rust k256, Go btcd) with explicit promotion path.\n\n- docs/MULTI_CI_REPRODUCIBLE_BUILD.md (G-7)\n  Provider-matrix-based reproducibility. GitHub Actions active;\n  GitLab CI and Codeberg/Woodpecker planned as parallel verifiers.\n  Cross-provider attestation JSON schema documented so a third\n  party can diff hashes across CI providers without rebuilding.\n\n- docs/CT_TOOL_INDEPENDENCE.md (G-8)\n  Three-tool rule: dudect + Valgrind CT + ct-verif must all agree\n  before a CT claim is recorded as verified. Independence\n  properties tabulated (source/methodology/vendor). Six per-\n  combination verdict rules. Coverage table for every CT-claimed\n  function in PROTOCOL_SPEC.md section 4.\n\nCAAS roadmap status: 11/11 closed.\n\nRemaining work (no new roadmap entries needed):\n  - Wire planned G-4 differential references as INTEROP_MATRIX.md\n    section 2 rows\n  - Land GitLab CI + Codeberg provider configs from G-7\n  - Reconcile SPEC_TRACEABILITY_MATRIX placeholder paths and switch\n    exploit_traceability_join.py to --strict in CAAS Stage 2\n  - Implement audit_gate.py --threat-model, --residual-risk-register,\n    --disclosure-sla, --ct-tool-agreement sub-gates\n\n* docs(caas): reconcile SPEC_TRACEABILITY_MATRIX paths + flip join gate to strict default\n\nPost-batch-3 cleanup. The 62 placeholder Impl/Test paths in\nSPEC_TRACEABILITY_MATRIX.md are replaced with verified on-disk\npaths across every referenced spec (SEC 2, SEC 1, RFC 6979,\nBIP-340, BIP-32, BIP-324, BIP-341, BIP-352, BIP-327, RFC 9591,\nBIP-39, Wycheproof 8-file coverage table).\n\nexploit_traceability_join.py now defaults to --strict. The\n--no-strict flag is retained as an escape hatch for incremental\nreconciliation but CI calls the script without arguments.\n\ncaas_runner.py gains Stage 'traceability' between 'scanner' and\n'audit_gate'. The pipeline goes from 5 stages to 6; the additional\nstage runs in ~30ms.\n\nVerified: python3 scripts/caas_runner.py -> 6/6 PASS total 6.5s.\n\nCAAS state:\n  11/11 roadmap gaps closed\n  6/6 pipeline stages passing strictly\n  0 advisory passes silently masking missing paths\n\n* feat(caas): wire G-1 / G-1b / G-8 / G-10 roadmap docs as audit_gate sub-gates\n\nPromotes the four CAAS roadmap docs from documentation-only to\nenforced gates inside scripts/audit_gate.py.\n\nNew checks (all included in ALL_CHECKS, run as part of the default\ninvocation that CAAS Stage 2 calls):\n\n- --threat-model (G-1):\n  * all 6 STRIDE categories present (accepts Info-disclosure / DoS\n    variants used by the doc)\n  * every AM-N citation resolves to a row in THREAT_MODEL.md §3\n    (table row or header form)\n  * every RR-NNN citation resolves to an entry in\n    RESIDUAL_RISK_REGISTER.md\n\n- --residual-risk-register (G-1b):\n  * parses RESIDUAL_RISK_REGISTER.md as pipe-delimited table rows\n  * refuses any entry with a blank or thin Risk / Disposition /\n    Scope / Details cell\n\n- --disclosure-sla (G-10):\n  * SECURITY.md must declare all four Critical/High/Medium/Low tiers\n  * .well-known/security.txt must include RFC 9116 Contact: and\n    Expires: fields\n  * Expires: must parse as ISO 8601 and be in the future\n\n- --ct-tool-agreement (G-8):\n  * parses CT_TOOL_INDEPENDENCE.md section 6 coverage table\n  * refuses if any CT-claimed function has a blank/n-a/? cell for\n    dudect, Valgrind CT, or ct-verif\n  * refuses if Verdict column does not contain the word Verified\n\nVerified:\n  python3 scripts/audit_gate.py                -> PASS\n  python3 scripts/caas_runner.py               -> 6/6 PASS in 6.1s\n\nCloses the 'Implement audit_gate.py sub-gates' remaining item.\n\n* feat(caas): land multi-CI providers (G-7) + INTEROP OpenSSL differential (G-4 §3)\n\nMulti-CI parallel reproducibility verifiers (G-7 promise closure):\n- .gitlab-ci.yml: GitLab CI two-build .o/.so compare + reproducible-attestation.json\n- .woodpecker.yml: Codeberg/Woodpecker mirror with identical schema\n- docs/MULTI_CI_REPRODUCIBLE_BUILD.md §2 + §6 GitLab + Woodpecker rows\n  promoted from Planned to Config landed; three organisationally-independent\n  providers now publish identical-schema attestations.\n\nINTEROP §3 first reference wired (G-4 follow-up):\n- audit/test_exploit_differential_openssl.cpp (NEW, advisory): real ECDSA\n  cross-check vs OpenSSL libcrypto via __has_include guard. With OpenSSL\n  available the test runs 8/8 ufsecp->OpenSSL + 8/8 OpenSSL->ufsecp verifies;\n  without it, prints advisory skip and passes.\n- audit/unified_audit_runner.cpp: forward decl + ALL_MODULES entry under\n  section 'differential', advisory=true.\n- audit/CMakeLists.txt: source added to unified_audit_runner; standalone\n  CTest target test_exploit_differential_openssl_standalone with conditional\n  find_package(OpenSSL COMPONENTS Crypto) link.\n- docs/INTEROP_MATRIX.md: OpenSSL row promoted from §3 future to §2 active;\n  §3 list now lists only BoringSSL/WolfSSL/NSS/Rust k256/Go btcd/MuSig2/frost-dalek.\n- docs/EXPLOIT_TEST_CATALOG.md: catalog row added.\n- docs/AUDIT_CHANGELOG.md: dated entry.\n\nVerification:\n- check_exploit_wiring.py PASS (190 wired, 0 unwired)\n- caas_runner.py 6/6 PASS (6.2s)\n- standalone test 16/16 cross-implementation verifies pass\n\n* fix(ci): three CI failures from previous push\n\n1. Werror build (Security Audit / Build with -Werror):\n   OpenSSL 3.0 deprecates the EC_KEY ECDSA API in favour of EVP_PKEY.\n   The deprecation warnings are promoted to errors by -Werror.\n   Wrap the OpenSSL include block in this single PoC with\n   #pragma GCC/clang diagnostic ignored \"-Wdeprecated-declarations\"\n   so the EC_KEY path keeps working without spreading the deprecation\n   across the rest of the codebase.\n\n2. linux-arm64 / linux-riscv64 cross-compile (CI):\n   find_package(OpenSSL) was picking up the *host* OpenSSL headers,\n   but those headers reference target-architecture-specific files\n   (openssl/opensslconf.h) that the cross sysroot does not have.\n   Skip OpenSSL detection entirely when CMAKE_CROSSCOMPILING is true\n   so the cross builds revert to the advisory-skip path.\n\n3. CAAS / Audit Gate (caas.yml):\n   audit_gate.py emits verdict=\"PASS with advisory\" when WARN findings\n   exist with no FAIL findings. The workflow used strict equality\n   verdict==\"PASS\" and treated this as failure. Accept either\n   \"PASS\" or \"PASS with advisory\" provided no FAIL checks exist;\n   block only on real FAIL.\n\nVerification:\n- standalone test: still 16/16 cross-implementation verifies\n- -Werror compile: clean, exit 0\n- caas_runner.py: 6/6 PASS (6.3s)\n\n* fix(ci): cross-compile arm64/riscv64 still picked host OpenSSL headers\n\nCMAKE_CROSSCOMPILING gate worked at the CMake level (skipped find_package\nand skipped the OpenSSL::Crypto link), but the .cpp guard was still\n__has_include(<openssl/ec.h>) which the cross-toolchain happily resolves\nagainst the *host* /usr/include. Compilation then failed at\nopenssl/macros.h -> openssl/opensslconf.h (target sysroot only).\n\nReplace the pure __has_include gate with an explicit CMake-driven\ndefine UFSECP_HAVE_OPENSSL=1. CMake sets it ONLY when it has actually\nlinked OpenSSL::Crypto (i.e. host build with OpenSSL present). The\n.cpp now requires both the define AND the includes, so cross-builds\ndeterministically take the advisory-skip path.\n\nVerification:\n- host build: still 16/16 cross-implementation verifies (define set)\n- no-openssl simulated compile: exit 0, no OpenSSL symbols in .o\n\n* docs(readme): expand Where to Start with newly added audit/CAAS/interop docs\n\nAdds quick-jump rows for documents that landed during the CAAS gap-closure\nroadmap and post-roadmap multi-CI / INTEROP work:\n\n- AUDIT_DASHBOARD       — live audit dashboard\n- EXPLOIT_COVERAGE_MAP  — exploit class -> PoC mapping\n- ECDSA_EDGE_CASE_COVERAGE\n- INTEROP_MATRIX        — cross-implementation interop spec (incl. OpenSSL §2)\n- THREAT_MODEL\n- CAAS_PROTOCOL         — continuous audit standard\n- MULTI_CI_REPRODUCIBLE_BUILD  — GitHub + GitLab + Woodpecker provider matrix\n- SUPPLY_CHAIN_LOCAL_PARITY\n- HARDWARE_SIDE_CHANNEL_METHODOLOGY\n- COMPLIANCE_STANCE\n- SECURITY_AUTONOMY_PLAN\n- RESEARCH_MONITOR\n- REVIEWER_PROMPTS/README\n\nThese existed in docs/ but were not discoverable from the README landing\ntable. Pure README link addition; no behavior changes.\n\n* docs(dashboard): refresh AUDIT_DASHBOARD.md (hardening 12/12 = 100%)\n\nDashboard had stale 1/12 (8%) count from when H-1 was first landed.\nAll 12 CAAS hardening items are now marked '✓ Done' in\nCAAS_HARDENING_TODO.md (H-1..H-12, landed 2026-04-21), so rerunning\nthe generator bumps the rendered progress to 12/12 (100%).\n\nNo code changes; only re-rendered dashboard via\nscripts/render_audit_dashboard.py. The caas-evidence-refresh nightly\nworkflow will keep this refreshed automatically going forward.\n\n* docs(readme): add CITATION.cff link to Where to Start\n\nCITATION.cff already exists at the repo root and powers GitHub's native\n'Cite this repository' button + Zenodo DOI minting for releases. Add a\ndiscoverable link from the README landing table so academic / research\nusers can find the citation metadata without leaving the README.\n\n* feat(zenodo): add .zenodo.json metadata + README citation section\n\nOwner enabled Zenodo<->GitHub integration. The next release cut by the\nowner will be auto-archived by Zenodo and assigned a permanent DOI.\n\nThis commit pre-stages the metadata Zenodo will consume:\n\n- .zenodo.json\n  - upload_type=software, license=MIT, access_right=open\n  - rich description covering CAAS evidence, 189 exploit PoCs, multi-CI\n    reproducible-build attestations, INTEROP cross-check matrix\n  - 26 keywords aligned with academic discoverability (BIP-340/32/39,\n    Taproot, MuSig2, FROST, GPU cryptography, side-channel, etc.)\n  - related_identifiers linking to GitHub repo + GitHub Pages docs\n  - references to BIP-340, RFC 6979, SEC 2 v2.0\n  - cryptography community submission requested\n  - notes clarifying that Zenodo archives are byte-identical to the\n    multi-CI reproducible-build attestations\n- README 'Cite this work' section\n  - links CITATION.cff and .zenodo.json explicitly\n  - DOI badge placeholder for post-first-archive replacement\n\nCITATION.cff (already present) remains the canonical citation source;\n.zenodo.json supplements it with Zenodo-specific fields (community,\nrelated_identifiers, references) that CFF does not model.\n\nNo code changes. Pure metadata + README docs.\n\n* feat(visibility): add FUNDING_TARGETS playbook + adoption/funding CTAs in README\n\nBuilds the outreach surface for sustained funding from Bitcoin /\nEthereum / EU public-goods programmes.\n\nNew: docs/FUNDING_TARGETS.md\n  - Active funding channels recap (GH Sponsors, PayPal, Stacker News).\n  - Bitcoin grant programmes table: HRF, OpenSats, Brink, Spiral,\n    Strike Catalyst, MIT DCI — with 'what we already meet' column\n    pointing at concrete repo evidence (Frigate adoption,\n    BIP-352 throughput, MIT license, CAAS bundle).\n  - Ethereum grant programmes: EF ESP, Protocol Guild, EF Academic,\n    Optimism RetroPGF, Arbitrum Foundation, Coinbase / Base.\n  - EU / cross-cutting: NLnet NGI Zero, Sovereign Tech Fund,\n    Open Source Collective, OSTIF, GitHub Accelerator, a16z crypto\n    Open Source Grants.\n  - Bug-bounty surfaces (Immunefi, HackerOne) as indirect signal.\n  - 30-second pitch + 5-minute talking-points ready for grant\n    submissions.\n  - Outreach materials checklist (what's done / pending).\n  - Explicit non-goals: not an announcement; not a public commitment;\n    owner-driven outreach only.\n\nREADME:\n  - Where to Start: add Production adopters + Funding & grant\n    programmes rows next to existing Cite/Sponsor entries.\n  - Hero block: add two prominent CTAs immediately after the\n    Frigate adopter line — one inviting production users to PR\n    themselves into ADOPTION.md, one pointing prospective\n    sponsors/foundations at FUNDING_TARGETS.md.\n\nStrategy: independent adopter additions and concrete grant-target\ndocumentation are the two strongest signals we can ship without\npublic outreach. Both compound over time as more adopters land\nand more grant programmes recognise the project surface.\n\n---------\n\nCo-authored-by: shrec <shrec@users.noreply.github.com>",
+          "timestamp": "2026-04-21T19:48:32+04:00",
+          "tree_id": "e469891a5fef7ea8a19ab8316c189b00ec64bff3",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/47c5b16f3f86fbaedc4e5c8020c06acc8086f4c7"
+        },
+        "date": 1776787849705,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "field_inv",
+            "value": 1076.6,
+            "unit": "ns"
+          },
+          {
+            "name": "scalar_inv",
+            "value": 1317.6,
+            "unit": "ns"
+          },
+          {
+            "name": "pubkey_create (k*G)",
+            "value": 7432.1,
+            "unit": "ns"
+          },
+          {
+            "name": "scalar_mul (k*P)",
+            "value": 31982.2,
+            "unit": "ns"
+          },
+          {
+            "name": "scalar_mul_with_plan",
+            "value": 29357.4,
+            "unit": "ns"
+          },
+          {
+            "name": "dual_mul (a*G + b*P)",
+            "value": 35143.7,
+            "unit": "ns"
+          },
+          {
+            "name": "point_add (affine+affine)",
+            "value": 1308.9,
+            "unit": "ns"
+          },
+          {
+            "name": "point_add (J+A mixed)",
+            "value": 229.1,
+            "unit": "ns"
+          },
+          {
+            "name": "point_dbl",
+            "value": 137.4,
+            "unit": "ns"
+          },
+          {
+            "name": "next_inplace (+=G)",
+            "value": 241,
+            "unit": "ns"
+          },
+          {
+            "name": "KPlan::from_scalar(w=4)",
+            "value": 1515.6,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_sign",
+            "value": 14017.9,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_sign_verified",
+            "value": 72632.2,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_verify",
+            "value": 36966.6,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_keypair_create",
+            "value": 13054.3,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_sign",
+            "value": 9521.2,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_sign_verified",
+            "value": 53753.3,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_verify (cached xonly)",
+            "value": 38025.9,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_verify (raw bytes)",
+            "value": 43114.6,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_batch_verify(N=4)",
+            "value": 166565.4,
+            "unit": "ns"
+          },
+          {
+            "name": "-> per-sig amortized (N=4)",
+            "value": 41641.3,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_batch_verify(cached,N=4)",
+            "value": 145150.8,
+            "unit": "ns"
+          },
+          {
+            "name": "-> per-sig cached (N=4)",
+            "value": 36287.7,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_batch_verify(N=16)",
+            "value": 665128.5,
+            "unit": "ns"
+          },
+          {
+            "name": "-> per-sig amortized (N=16)",
+            "value": 41570.5,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_batch_verify(cached,N=16)",
+            "value": 580080,
+            "unit": "ns"
+          },
+          {
+            "name": "-> per-sig cached (N=16)",
+            "value": 36255,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_batch_verify(N=64)",
+            "value": 2755322.1,
+            "unit": "ns"
+          },
+          {
+            "name": "-> per-sig amortized (N=64)",
+            "value": 43051.9,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_batch_verify(cached,N=64)",
+            "value": 2413143.7,
+            "unit": "ns"
+          },
+          {
+            "name": "-> per-sig cached (N=64)",
+            "value": 37705.4,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_batch_verify(N=128)",
+            "value": 4983462.1,
+            "unit": "ns"
+          },
+          {
+            "name": "-> per-sig amortized (N=128)",
+            "value": 38933.3,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_batch_verify(cached,N=128)",
+            "value": 4672895,
+            "unit": "ns"
+          },
+          {
+            "name": "-> per-sig cached (N=128)",
+            "value": 36507,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_batch_verify(N=192)",
+            "value": 6653459.6,
+            "unit": "ns"
+          },
+          {
+            "name": "-> per-sig amortized (N=192)",
+            "value": 34653.4,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_batch_verify(cached,N=192)",
+            "value": 6335096.7,
+            "unit": "ns"
+          },
+          {
+            "name": "-> per-sig cached (N=192)",
+            "value": 32995.3,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_batch_verify(N=4)",
+            "value": 139420.5,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_batch_verify(N=16)",
+            "value": 558483.8,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_batch_verify(N=64)",
+            "value": 2274475.3,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_batch_verify(N=128)",
+            "value": 4532097.9,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_batch_verify(N=192)",
+            "value": 6794036.6,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::scalar_inverse (SafeGCD)",
+            "value": 2607.4,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::generator_mul (k*G)",
+            "value": 20637.9,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::scalar_mul (k*P)",
+            "value": 39900.9,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::point_dbl",
+            "value": 130.8,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::point_add_complete (11M+6S)",
+            "value": 392.5,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::point_add_mixed_complete (7M+5S)",
+            "value": 271.4,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::point_add_mixed_unified (7M+5S)",
+            "value": 259.5,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::ecdsa_sign",
+            "value": 30072.5,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::ecdsa_sign_verified",
+            "value": 88332.2,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::schnorr_sign",
+            "value": 23980.6,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::schnorr_sign_verified",
+            "value": 67628.5,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::schnorr_keypair_create",
+            "value": 22665.3,
+            "unit": "ns"
+          },
+          {
+            "name": "keccak256 (32B)",
+            "value": 448.1,
+            "unit": "ns"
+          },
+          {
+            "name": "ethereum_address",
+            "value": 458,
+            "unit": "ns"
+          },
+          {
+            "name": "eip191_hash",
+            "value": 450.3,
+            "unit": "ns"
+          },
+          {
+            "name": "eth_sign_hash",
+            "value": 14270.6,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_sign_recoverable",
+            "value": 13895.4,
+            "unit": "ns"
+          },
+          {
+            "name": "ecrecover",
+            "value": 46700.7,
+            "unit": "ns"
+          },
+          {
+            "name": "eth_personal_sign",
+            "value": 14773,
+            "unit": "ns"
+          },
+          {
+            "name": "ethereum_address_eip55",
+            "value": 993.1,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdh_compute (SHA256 shared secret)",
+            "value": 41996.4,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdh_compute_raw (x-only shared)",
+            "value": 41947.1,
+            "unit": "ns"
+          },
+          {
+            "name": "taproot_output_key (BIP-341 key path)",
+            "value": 16439.4,
+            "unit": "ns"
+          },
+          {
+            "name": "taproot_tweak_privkey (BIP-341)",
+            "value": 23906,
+            "unit": "ns"
+          },
+          {
+            "name": "bip32_master_key (64B seed)",
+            "value": 1389.1,
+            "unit": "ns"
+          },
+          {
+            "name": "bip32_coin_derive_key (BTC m/84'/0'/0'/0/0)",
+            "value": 120519,
+            "unit": "ns"
+          },
+          {
+            "name": "coin_address_from_seed (BTC end-to-end)",
+            "value": 145083.8,
+            "unit": "ns"
+          },
+          {
+            "name": "coin_address_from_seed (ETH end-to-end)",
+            "value": 145160.9,
+            "unit": "ns"
+          },
+          {
+            "name": "silent_payment_create_output",
+            "value": 49039.5,
+            "unit": "ns"
+          },
+          {
+            "name": "silent_payment_scan (single output set)",
+            "value": 71427.8,
+            "unit": "ns"
+          },
+          {
+            "name": "field_inv_var",
+            "value": 1191,
+            "unit": "ns"
+          },
+          {
+            "name": "scalar_inverse (CT)",
+            "value": 2795.3,
+            "unit": "ns"
+          },
+          {
+            "name": "scalar_inverse_var",
+            "value": 1231.8,
+            "unit": "ns"
+          },
+          {
+            "name": "point_dbl (gej_double_var)",
+            "value": 130.2,
+            "unit": "ns"
+          },
+          {
+            "name": "point_add (gej_add_ge_var)",
+            "value": 227.6,
+            "unit": "ns"
+          },
+          {
+            "name": "ecmult (a*P + b*G, Strauss)",
+            "value": 34352.5,
+            "unit": "ns"
+          },
+          {
+            "name": "ecmult_gen (k*G, comb)",
+            "value": 16163.3,
+            "unit": "ns"
+          },
+          {
+            "name": "generator_mul (ec_pubkey_create)",
+            "value": 19056.8,
+            "unit": "ns"
+          },
+          {
+            "name": "scalar_mul_P (k*P, tweak_mul)",
+            "value": 33329.2,
+            "unit": "ns"
+          },
+          {
+            "name": "point_add (pubkey_combine)",
+            "value": 3404.8,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_sign (BIP-340)",
+            "value": 20825.5,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_verify (BIP-340)",
+            "value": 37014.1,
+            "unit": "ns"
+          },
+          {
+            "name": "generator_mul (EC_POINT_mul k*G)",
+            "value": 392561.7,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_sign (ECDSA_do_sign)",
+            "value": 415068.5,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_verify (ECDSA_do_verify)",
+            "value": 372955.2,
+            "unit": "ns"
+          },
+          {
+            "name": "Pedersen commit",
+            "value": 60917.6,
+            "unit": "ns"
+          },
+          {
+            "name": "Knowledge prove (sigma)",
+            "value": 44014.1,
+            "unit": "ns"
+          },
+          {
+            "name": "Knowledge verify",
+            "value": 39603.1,
+            "unit": "ns"
+          },
+          {
+            "name": "DLEQ prove",
+            "value": 84403.6,
+            "unit": "ns"
+          },
+          {
+            "name": "DLEQ verify",
+            "value": 104356.7,
+            "unit": "ns"
+          },
+          {
+            "name": "Bulletproof range_prove (64b)",
+            "value": 23925005.8,
+            "unit": "ns"
+          },
+          {
+            "name": "Bulletproof range_verify (64b)",
+            "value": 2855802.9,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr adaptor sign",
+            "value": 36223.3,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr adaptor verify",
+            "value": 48655.7,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr adaptor adapt",
+            "value": 22082.8,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA adaptor sign",
+            "value": 63901.3,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA adaptor verify",
+            "value": 62113.1,
+            "unit": "ns"
+          },
+          {
+            "name": "keygen_begin (DKG round 1)",
+            "value": 43425.5,
+            "unit": "ns"
+          },
+          {
+            "name": "nonce_gen",
+            "value": 43060.8,
+            "unit": "ns"
+          },
+          {
+            "name": "partial_sign",
+            "value": 84612.6,
+            "unit": "ns"
+          },
+          {
+            "name": "partial_verify",
+            "value": 153719.9,
+            "unit": "ns"
+          },
+          {
+            "name": "aggregate → Schnorr sig",
+            "value": 79373.5,
+            "unit": "ns"
+          },
+          {
+            "name": "key_agg (BIP-327)",
+            "value": 53836.2,
+            "unit": "ns"
+          },
+          {
+            "name": "sig_agg → Schnorr sig",
+            "value": 1213.1,
+            "unit": "ns"
+          },
+          {
+            "name": "ECIES encrypt (256B payload)",
+            "value": 102321.8,
+            "unit": "ns"
+          },
+          {
+            "name": "ECIES decrypt (256B payload)",
+            "value": 84847.5,
+            "unit": "ns"
+          },
+          {
+            "name": "Bitcoin message sign",
+            "value": 31813.7,
+            "unit": "ns"
+          },
+          {
+            "name": "Bitcoin message verify",
+            "value": 34910.4,
+            "unit": "ns"
+          },
+          {
+            "name": "SHA-256 (32B input)",
+            "value": 255.6,
+            "unit": "ns"
+          },
+          {
+            "name": "SHA-512 (32B input)",
+            "value": 351.3,
+            "unit": "ns"
+          },
+          {
+            "name": "Multi-scalar mul (4 points)",
+            "value": 87663.2,
+            "unit": "ns"
+          },
+          {
+            "name": "Multi-scalar mul (64 points)",
+            "value": 1102640.4,
+            "unit": "ns"
+          },
+          {
+            "name": "bip39_generate (12 words)",
+            "value": 13169.2,
+            "unit": "ns"
+          },
+          {
+            "name": "bip39_generate (24 words)",
+            "value": 13411,
+            "unit": "ns"
+          },
+          {
+            "name": "bip39_validate (12 words)",
+            "value": 1377.5,
+            "unit": "ns"
+          },
+          {
+            "name": "bip39_to_seed (PBKDF2, 12 words)",
+            "value": 2828415.4,
+            "unit": "ns"
+          },
+          {
+            "name": "BIP-143 sighash (1-in/1-out)",
+            "value": 2035.3,
+            "unit": "ns"
+          },
+          {
+            "name": "BIP-144 compute_wtxid",
+            "value": 2805.6,
+            "unit": "ns"
+          },
+          {
+            "name": "BIP-144 witness_commitment",
+            "value": 1576.5,
+            "unit": "ns"
+          },
+          {
+            "name": "BIP-144 tx_weight",
+            "value": 310,
+            "unit": "ns"
+          },
+          {
+            "name": "BIP-141 parse_witness_program",
+            "value": 73,
+            "unit": "ns"
+          },
+          {
+            "name": "BIP-341 keypath_sighash",
+            "value": 3239.5,
+            "unit": "ns"
+          },
+          {
+            "name": "BIP-342 tapscript_sighash",
+            "value": 2847.4,
+            "unit": "ns"
+          },
+          {
+            "name": "ElligatorSwift create",
+            "value": 67640.2,
+            "unit": "ns"
+          },
+          {
+            "name": "ElligatorSwift XDH (ECDH)",
+            "value": 60289,
+            "unit": "ns"
+          },
+          {
+            "name": "HKDF-SHA256 extract",
+            "value": 1069.2,
+            "unit": "ns"
+          },
+          {
+            "name": "HKDF-SHA256 expand",
+            "value": 1045.6,
+            "unit": "ns"
+          },
+          {
+            "name": "AEAD encrypt (256B)",
+            "value": 731.5,
+            "unit": "ns"
+          },
+          {
+            "name": "AEAD decrypt (256B)",
+            "value": 738.9,
+            "unit": "ns"
+          },
+          {
+            "name": "Session handshake (full)",
+            "value": 299999.1,
+            "unit": "ns"
+          },
+          {
+            "name": "Session encrypt (256B)",
+            "value": 876.4,
+            "unit": "ns"
+          },
+          {
+            "name": "Session decrypt (256B)",
+            "value": 1770.7,
+            "unit": "ns"
+          },
+          {
+            "name": "Session encrypt (1KB)",
+            "value": 2685.6,
+            "unit": "ns"
+          },
+          {
+            "name": "Session roundtrip (256B)",
+            "value": 1775.3,
             "unit": "ns"
           },
           {
