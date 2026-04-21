@@ -22,7 +22,7 @@
 
 ## P0 — Structural Fragility
 
-### H-1. Nightly auto-refresh of `assurance_report.json`
+### H-1. Nightly auto-refresh of `assurance_report.json` ✓ Done 2026-04-21
 
 **Problem.** `audit_sla_check.py` enforces `max_stale_evidence_days = 30` against
 the suite-root `assurance_report.json` (computed from filesystem mtime). The
@@ -45,7 +45,7 @@ SLA gate dropped autonomy from 100 → 90).
 **Acceptance.** A file aged 25–35 days is automatically refreshed by the bot
 before tripping the gate. No manual run required.
 
-### H-2. HMAC evidence-chain key rotation policy
+### H-2. HMAC evidence-chain key rotation policy ✓ Done 2026-04-21
 
 **Problem.** `evidence_governance.py` HMAC-verifies the evidence chain, but
 the signing key has no rotation procedure, no escrow doc, no compromise
@@ -65,7 +65,7 @@ playbook. A leaked key forges the entire chain silently.
 **Acceptance.** A rotation can be performed end-to-end by following the
 playbook; the drill exits 0 with a recorded rotation event.
 
-### H-3. CAAS protocol standalone specification
+### H-3. CAAS protocol standalone specification ✓ Done 2026-04-21
 
 **Problem.** CAAS is described in the workflow YAML and briefly in
 `AUDIT_MANIFEST.md` P20, but no single doc states the protocol contract,
@@ -88,7 +88,7 @@ spec without reading the YAML.
 
 ## P1 — Assurance Depth
 
-### H-4. Mutation kill-rate weekly CI gate
+### H-4. Mutation kill-rate weekly CI gate ✓ Done 2026-04-21
 
 **Problem.** `P2b` is currently advisory ("heavy lane only, not mandatory
 push/PR check"). 75% kill-rate threshold lives only in owner-grade pre-release
@@ -106,7 +106,7 @@ runs. Arithmetic regressions can ship for weeks before the next manual run.
 **Acceptance.** If kill-rate drops below 75% an automated issue is filed
 within 24h.
 
-### H-5. GPU `schnorr_snark_witness_batch` native kernel tracking
+### H-5. GPU `schnorr_snark_witness_batch` native kernel tracking ✓ Done 2026-04-21
 
 **Problem.** Host-side fallback closes the parity gate, but no native CUDA /
 OpenCL / Metal kernel exists. Performance claims for batched Schnorr SNARK
@@ -123,7 +123,7 @@ witness generation are CPU-bound on every backend.
 **Acceptance.** The fallback is correctly characterised in the residual-risk
 register as a performance gap, not a correctness gap.
 
-### H-6. Local supply-chain verification parity
+### H-6. Local supply-chain verification parity ✓ Done 2026-04-21
 
 **Problem.** `OWNER_GRADE_AUDIT_TODO` P1#9 is open. Several P15 checks
 (SLSA verification, dependency-review, artifact provenance) only run in
@@ -144,7 +144,7 @@ meaningful local supply-chain pass.
 
 ## P2 — Visibility & Hygiene
 
-### H-7. Review-queue aging SLA
+### H-7. Review-queue aging SLA ✓ Done 2026-04-21
 
 **Problem.** Source graph reports 23 review-queue items (audit_gap,
 high-gain-low-risk, untested_hotspot). No SLA on how long an item may sit
@@ -158,7 +158,7 @@ before being addressed or explicitly deferred.
   deferral note.
 - Add an `AUDIT_SLA.json` SLO `review_queue_max_open_days`.
 
-### H-8. TODO/FIXME age tracker
+### H-8. TODO/FIXME age tracker ✓ Done 2026-04-21
 
 **Problem.** 92 TODO/FIXME comments are tracked by the graph. No SLA on
 their age. Many are old PoC bug annotations that look new.
@@ -170,7 +170,7 @@ their age. Many are old PoC bug annotations that look new.
   deferral marker.
 - Add `AUDIT_SLA.json` SLO `todo_max_open_days`.
 
-### H-9. Audit dashboard generator
+### H-9. Audit dashboard generator ✓ Done 2026-04-21
 
 **Problem.** `OWNER_GRADE_AUDIT_TODO` P2#10 is open. Trends live only inside
 JSON outputs.
@@ -184,7 +184,7 @@ JSON outputs.
 - Refresh dashboard from the same nightly bot job that refreshes
   assurance_report.json (H-1).
 
-### H-10. Reviewer prompt templates
+### H-10. Reviewer prompt templates ✓ Done 2026-04-21
 
 **Problem.** `OWNER_GRADE_AUDIT_TODO` P2#11 is open. AI-assisted review
 quality varies wildly without standardised prompts.
@@ -198,7 +198,7 @@ quality varies wildly without standardised prompts.
 
 Each prompt is graph-aware (assumes the source-graph workflow).
 
-### H-11. ROCm/HIP smoke pipeline (deferred-but-scaffolded)
+### H-11. ROCm/HIP smoke pipeline (deferred-but-scaffolded) ✓ Done 2026-04-21 (scaffold only; promotion still requires hardware-backed evidence per RR-003)
 
 **Problem.** RR-003 is intentionally deferred, but if AMD performance is
 ever quoted publicly we have no smoke evidence.

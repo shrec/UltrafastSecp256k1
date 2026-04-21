@@ -7,6 +7,80 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-04-21 (CAAS hardening — H-1, H-2, H-3, H-4, H-5, H-6, H-7, H-8, H-9, H-10, H-11)
+
+Eleven of twelve `docs/CAAS_HARDENING_TODO.md` items closed in a single
+sweep. CAAS pipeline still returns `overall_pass=True`; this work removes
+known structural fragilities, depth gaps, and visibility gaps without
+changing the gate's decision surface.
+
+P0 (structural fragility) — closed:
+
+- **H-1** Nightly assurance auto-refresh —
+  [`.github/workflows/caas-evidence-refresh.yml`](../.github/workflows/caas-evidence-refresh.yml).
+  Daily cron at 04:30 UTC regenerates `assurance_report.json`,
+  `EXTERNAL_AUDIT_BUNDLE.{json,sha256}`, and `SECURITY_AUTONOMY_KPI.json`,
+  commits as `caas-bot` only when content changed. Eliminates the
+  `audit_sla_check.py max_stale_evidence_days` silent-trip class.
+- **H-2** HMAC evidence-chain key policy —
+  [`docs/EVIDENCE_KEY_POLICY.md`](EVIDENCE_KEY_POLICY.md). Documents the
+  honest tamper-evident-only scope of the embedded HMAC key, threat model,
+  and the rotation/escrow procedure for any future move to a true secret.
+- **H-3** CAAS protocol standalone spec —
+  [`docs/CAAS_PROTOCOL.md`](CAAS_PROTOCOL.md). Stage-by-stage contract,
+  artifact layout, retention, drift policy, local replay commands.
+
+P1 (assurance depth) — closed:
+
+- **H-4** Mutation kill-rate weekly gate —
+  [`.github/workflows/mutation-weekly.yml`](../.github/workflows/mutation-weekly.yml).
+  Sunday 03:30 UTC; opens or updates the `mutation-kill-rate-regression`
+  issue if `mutation_kill_rate.py --threshold 75` fails. Visibility-only,
+  does not block `dev` pushes.
+- **H-5** GPU `schnorr_snark_witness_batch` performance gap recorded as
+  RR-005 in [`docs/RESIDUAL_RISK_REGISTER.md`](RESIDUAL_RISK_REGISTER.md).
+  Correctness parity is closed via the host-side CPU fallback; this is
+  explicitly tagged as a performance gap, not a correctness gap.
+- **H-6** Local supply-chain parity doc —
+  [`docs/SUPPLY_CHAIN_LOCAL_PARITY.md`](SUPPLY_CHAIN_LOCAL_PARITY.md).
+  Coverage matrix of which P15 controls run offline vs need GitHub, with
+  acceptance criteria for the local-only review pass.
+
+P2 (visibility & hygiene) — closed:
+
+- **H-7** Review-queue aging SLA —
+  [`scripts/review_queue_age_check.py`](../scripts/review_queue_age_check.py)
+  + new `review_queue_max_open_days` SLO (90 days, warning) in
+  [`docs/AUDIT_SLA.json`](AUDIT_SLA.json). Current run: 23 review-queue
+  rows, 0 over SLA.
+- **H-8** TODO/FIXME age tracker —
+  [`scripts/todo_age_check.py`](../scripts/todo_age_check.py)
+  + new `todo_max_open_days` SLO (180 days, warning). Uses `git blame` and
+  honours `DEFERRED:` / `(tracked: …)` annotations. Current run:
+  61 markers, 0 over SLA.
+- **H-9** Audit dashboard generator —
+  [`scripts/render_audit_dashboard.py`](../scripts/render_audit_dashboard.py)
+  emits [`docs/AUDIT_DASHBOARD.md`](AUDIT_DASHBOARD.md). Designed to run
+  inside the H-1 nightly job so the dashboard is regenerated daily.
+- **H-10** Reviewer prompt templates —
+  [`docs/REVIEWER_PROMPTS/`](REVIEWER_PROMPTS/) with `auditor.md`,
+  `attacker.md`, `perf_skeptic.md`, `docs_skeptic.md`, plus a usage
+  README. All four prompts are graph-aware (assume the source-graph
+  workflow).
+- **H-11** ROCm/HIP smoke pipeline scaffold —
+  [`.github/workflows/rocm-smoke.yml`](../.github/workflows/rocm-smoke.yml).
+  Manual / labelled-PR trigger, scaffold-only. Promotion to claim status
+  still requires hardware-backed evidence per RR-003.
+
+Remaining open: none from the H-* batch (H-12 already closed
+[2026-04-21](#2026-04-21-dev_bug_scanner---13-cve-grounded-crypto-checkers-added)).
+
+---
+
+evidence upgrades, and changes to what the repository can honestly claim.
+
+---
+
 ## 2026-04-21 (dev_bug_scanner — false-positive reduction pass)
 
 Hardened 8 checkers in [scripts/dev_bug_scanner.py](../scripts/dev_bug_scanner.py)
