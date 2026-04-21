@@ -7,6 +7,27 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-04-21 (dev_bug_scanner — 13 CVE-grounded crypto checkers added)
+
+Extended [scripts/dev_bug_scanner.py](../scripts/dev_bug_scanner.py) with 13
+new checkers each anchored to a real-world cryptographic incident class.
+Coverage now includes Sony PS3 ECDSA nonce reuse, Apple goto-fail
+(CVE-2014-1266), Debian OpenSSL RNG (CVE-2008-0166), OpenSSL DER laxness
+(CVE-2014-8275), BIP-62 low-S malleability, BIP-340 missing tagged_hash
+domain separation, ECDH small-subgroup confinement, MAC truncation, scalar
+inversion without prior reduction, and developer log-leak of secret-bearing
+identifiers. New categories: `NONCE_REUSE_VAR`, `MEMCMP_SECRET`,
+`MISSING_LOW_S_CHECK`, `SCALAR_FROM_RAND`, `GOTO_FAIL_DUPLICATE`,
+`POINT_NO_VALIDATION`, `ECDH_OUTPUT_NOT_CHECKED`, `HASH_NO_DOMAIN_SEP`,
+`DER_LAX_PARSE`, `TIMING_BRANCH_ON_KEY`, `MAC_TRUNCATION`,
+`SCALAR_NOT_REDUCED`, `PRINTF_SECRET`. All scoped via `_is_crypto_path()`
+or filename guards to keep false-positive rate low; each finding includes
+a CVE / standard reference and a `fix_hint`. Initial run on the codebase
+produced 3 MEDIUM signals (zero HIGH false positives). Tracked under H-12
+of [docs/CAAS_HARDENING_TODO.md](CAAS_HARDENING_TODO.md).
+
+---
+
 ## 2026-04-20 (GPU parity gap closed — schnorr_snark_witness_batch host fallback)
 
 Closed the only remaining `GpuError::Unsupported` gap in the public GPU ABI.

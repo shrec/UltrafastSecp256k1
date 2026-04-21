@@ -32,6 +32,21 @@ Detects the kind of bugs a human reviewer catches during development:
   CATCH_EMPTY    empty catch block silently swallows errors
   SIZEOF_MISMATCH  memcpy/memset sizeof refers to wrong variable
 
+  Crypto bug-pattern checkers (CVE-grounded, added 2026-04-21):
+  NONCE_REUSE_VAR        same nonce variable used in 2+ sign() calls (Sony PS3, Bitcoin Android 2013)
+  MEMCMP_SECRET          memcmp/strcmp on auth tag/MAC/signature (timing leak — Xbox 360, Java JCE)
+  MISSING_LOW_S_CHECK    ECDSA verify path missing low-S guard (BIP-62 malleability)
+  SCALAR_FROM_RAND       signing nonce derived from rand()/time() (CVE-2008-0166 Debian OpenSSL)
+  GOTO_FAIL_DUPLICATE    duplicate `goto label;` skipping a check (Apple CVE-2014-1266)
+  POINT_NO_VALIDATION    pubkey parser without on-curve / subgroup check (invalid-curve attack)
+  ECDH_OUTPUT_NOT_CHECKED  ECDH output used without zero/identity check (small-subgroup)
+  HASH_NO_DOMAIN_SEP     plain SHA-256 in BIP-340/Schnorr context without tagged_hash
+  DER_LAX_PARSE          DER length read without canonicalisation (CVE-2014-8275)
+  TIMING_BRANCH_ON_KEY   if (key[i] ...) direct branching on secret byte
+  MAC_TRUNCATION         memcmp on MAC/tag with truncated length (forgery class)
+  SCALAR_NOT_REDUCED     scalar_inverse without adjacent reduce/zero check
+  PRINTF_SECRET          printf/log statement of secret-bearing identifier
+
 Usage examples
 --------------
   # Scan everything under the default paths, human-readable output:
@@ -1300,6 +1315,405 @@ def check_sizeof_mismatch(path: str, lines: List[str]) -> List[Finding]:
     return findings
 
 
+# ──────────────────────────────────────────────────────────────────────────────
+# Cryptography-specific bug pattern checkers (CVE-grounded)
+# ──────────────────────────────────────────────────────────────────────────────
+#
+# Each checker below is rooted in a real-world incident class. Comments cite
+# the historical anchor so future maintainers know why the pattern matters.
+# ──────────────────────────────────────────────────────────────────────────────
+
+# Files we treat as secret-bearing context for the crypto-specific checkers.
+# Path substrings (case-insensitive). We use this to keep false-positive rate
+# low: signing/key-derivation paths get the strict treatment, generic helpers
+# do not.
+_CRYPTO_PATH_HINTS = (
+    "sign", "ecdsa", "schnorr", "musig", "frost",
+    "adaptor", "ecdh", "bip32", "bip39", "bip340",
+    "key", "scalar", "nonce", "rfc6979",
+)
+
+def _is_crypto_path(path: str) -> bool:
+    p = path.lower()
+    return any(h in p for h in _CRYPTO_PATH_HINTS)
+
+
+# ── NONCE_REUSE_VAR: same nonce variable used in two sign() calls ────────────
+# CVE anchor: Sony PS3 ECDSA (2010), bitcoin android wallets (2013).
+# Pattern: a single `k` / `nonce` variable assigned once, then passed to two
+# distinct sign() calls in the same function scope.
+_SIGN_CALL_RE = re.compile(r'\b(\w*sign\w*)\s*\([^;]*?\b(k|nonce|kp|k_val)\b', re.IGNORECASE)
+
+def check_nonce_reuse(path: str, lines: List[str]) -> List[Finding]:
+    findings: List[Finding] = []
+    if not _is_crypto_path(path):
+        return findings
+    # Track current function brace depth roughly.
+    in_fn = False
+    fn_start = 0
+    fn_depth = 0
+    sign_lines: List[Tuple[int, str, str]] = []  # (lineno, sign_fn_name, nonce_var)
+    for i, raw in enumerate(lines):
+        line = _strip_comments(raw)
+        if not in_fn and re.search(r'\b\w+\s*\([^;]*\)\s*\{', line):
+            in_fn = True
+            fn_start = i
+            fn_depth = line.count('{') - line.count('}')
+            sign_lines = []
+            continue
+        if in_fn:
+            fn_depth += line.count('{') - line.count('}')
+            for m in _SIGN_CALL_RE.finditer(line):
+                # filter out function declarations and verify_sign helpers
+                if 'verify' in m.group(1).lower():
+                    continue
+                sign_lines.append((i + 1, m.group(1), m.group(2)))
+            if fn_depth <= 0:
+                in_fn = False
+                # Group by nonce var name; flag if same name appears in 2+ sign calls.
+                from collections import defaultdict
+                by_nonce: dict[str, List[Tuple[int, str]]] = defaultdict(list)
+                for ln, fn_name, nonce in sign_lines:
+                    by_nonce[nonce].append((ln, fn_name))
+                for nonce, calls in by_nonce.items():
+                    if len(calls) >= 2:
+                        first_line = calls[0][0]
+                        findings.append(Finding(
+                            file=path, line=first_line, severity="HIGH",
+                            category="NONCE_REUSE_VAR",
+                            message=f"nonce/scalar `{nonce}` passed to {len(calls)} sign() calls "
+                                    "in the same function — catastrophic key recovery if reused "
+                                    "(CVE-2010-... PS3, Bitcoin Android 2013)",
+                            snippet=lines[first_line - 1].strip(),
+                            fix_hint="Derive a fresh deterministic nonce per signature via RFC 6979 "
+                                     "or BIP-340 aux_rand; never reuse a nonce variable across signs.",
+                        ))
+    return findings
+
+
+# ── MEMCMP_SECRET: memcmp/strcmp on auth tag, MAC, signature, or HMAC ────────
+# CVE anchor: numerous (Xbox 360 Hypervisor, Java SSL, OAuth signature compare).
+# Pattern: memcmp() or strcmp() on identifiers whose name suggests auth material.
+_AUTH_NAME_RE = re.compile(
+    r'\b(?:mac|tag|hmac|auth|digest|signature|sig|expected_(?:mac|tag|hmac)|out_tag|computed_(?:mac|tag))\b',
+    re.IGNORECASE,
+)
+_INSECURE_CMP_RE = re.compile(r'\b(memcmp|strcmp|strncmp|bcmp)\s*\(([^;]+)\)')
+
+def check_memcmp_secret(path: str, lines: List[str]) -> List[Finding]:
+    findings: List[Finding] = []
+    for i, raw in enumerate(lines):
+        line = _strip_comments(raw)
+        m = _INSECURE_CMP_RE.search(line)
+        if not m:
+            continue
+        args = m.group(2)
+        if not _AUTH_NAME_RE.search(args):
+            continue
+        # Skip if line clearly already in a CT-safe wrapper or a test assertion.
+        if re.search(r'\b(ct_(?:memeq|equal)|secp256k1_memcmp_var|EXPECT_|ASSERT_|REQUIRE)', line):
+            continue
+        findings.append(Finding(
+            file=path, line=i + 1, severity="HIGH",
+            category="MEMCMP_SECRET",
+            message=f"`{m.group(1)}` on apparent auth material — early-exit timing leak "
+                    "(forgeable MAC/tag class, Xbox 360 Hypervisor 2007, Java JCE 2014)",
+            snippet=raw.strip(),
+            fix_hint="Use a constant-time compare (e.g. ct_memeq, secp256k1_memcmp_var-style) "
+                     "that always touches the full length.",
+        ))
+    return findings
+
+
+# ── MISSING_LOW_S_CHECK: ECDSA verify path without low-S enforcement ─────────
+# CVE anchor: BIP-62 / segwit malleability, Bitcoin Cash address scams.
+# Pattern: a function name containing "verify" with "ecdsa" context that
+# never references low_s, high_s, or s_high.
+def check_missing_low_s(path: str, lines: List[str]) -> List[Finding]:
+    findings: List[Finding] = []
+    if 'ecdsa' not in path.lower() and 'verify' not in path.lower():
+        return findings
+    text = '\n'.join(lines)
+    # Only flag once per file.
+    if 'verify' not in text:
+        return findings
+    if re.search(r'(low_s|high_s|s_high|half_n|half_order|is_low|is_high)', text):
+        return findings
+    # Look for a verify-style function definition.
+    for i, raw in enumerate(lines):
+        if re.search(r'\b\w*ecdsa\w*verify\w*\s*\(', raw, re.IGNORECASE):
+            findings.append(Finding(
+                file=path, line=i + 1, severity="MEDIUM",
+                category="MISSING_LOW_S_CHECK",
+                message="ECDSA verify path has no low-S / high-S reference — signature "
+                        "malleability risk (BIP-62, segwit policy)",
+                snippet=raw.strip(),
+                fix_hint="Reject signatures with s > n/2 in policy-strict verify paths; "
+                         "or document a deliberate non-strict mode.",
+            ))
+            break
+    return findings
+
+
+# ── SCALAR_FROM_RAND: signing nonce derived from rand()/random()/gettimeofday ─
+# CVE anchor: Debian OpenSSL CVE-2008-0166, Android Bitcoin SecureRandom 2013.
+_BAD_RNG_RE = re.compile(
+    r'\b(rand|random|rand_r|drand48|gettimeofday|time)\s*\(\s*\)'
+)
+_NONCE_LHS_RE = re.compile(r'\b(k|nonce|k_value|secret_nonce)\s*=', re.IGNORECASE)
+
+def check_scalar_from_rand(path: str, lines: List[str]) -> List[Finding]:
+    findings: List[Finding] = []
+    if not _is_crypto_path(path):
+        return findings
+    for i, raw in enumerate(lines):
+        line = _strip_comments(raw)
+        if not _NONCE_LHS_RE.search(line):
+            continue
+        if _BAD_RNG_RE.search(line):
+            findings.append(Finding(
+                file=path, line=i + 1, severity="HIGH",
+                category="SCALAR_FROM_RAND",
+                message="Signing nonce assigned from non-cryptographic RNG / timestamp "
+                        "(CVE-2008-0166 Debian OpenSSL, Android Bitcoin 2013)",
+                snippet=raw.strip(),
+                fix_hint="Use RFC 6979 deterministic nonce or a properly-seeded CSPRNG; "
+                         "never derive scalar from time() or rand().",
+            ))
+    return findings
+
+
+# ── GOTO_FAIL_DUPLICATE: two adjacent identical `goto label;` statements ─────
+# CVE anchor: Apple SSL/TLS goto fail (CVE-2014-1266).
+def check_goto_fail(path: str, lines: List[str]) -> List[Finding]:
+    findings: List[Finding] = []
+    prev = ""
+    for i, raw in enumerate(lines):
+        line = _strip_comments(raw).strip()
+        m = re.match(r'goto\s+(\w+)\s*;', line)
+        if m and prev == line:
+            findings.append(Finding(
+                file=path, line=i + 1, severity="HIGH",
+                category="GOTO_FAIL_DUPLICATE",
+                message=f"Duplicate `{line}` on consecutive lines — Apple goto-fail "
+                        "anti-pattern (CVE-2014-1266); the second goto skips intended checks",
+                snippet=raw.strip(),
+                fix_hint="Remove the duplicate goto; verify the intended control flow "
+                         "executes the validation step that was skipped.",
+            ))
+        prev = line
+    return findings
+
+
+# ── POINT_NO_VALIDATION: pubkey accept without point_on_curve / is_valid ─────
+# CVE anchor: invalid-curve attacks (Brainpool 2015, OpenSSL CVE-2015-1788).
+def check_point_no_validation(path: str, lines: List[str]) -> List[Finding]:
+    findings: List[Finding] = []
+    text = '\n'.join(lines)
+    has_pub_parse = re.search(r'\b(pubkey_parse|pubkey_load|pubkey_from_bytes|deserialize_pubkey)\b', text)
+    if not has_pub_parse:
+        return findings
+    has_validation = re.search(
+        r'\b(on_curve|is_on_curve|point_on_curve|is_valid_point|validate_pubkey|'
+        r'check_subgroup|in_subgroup|point_validate)\b', text)
+    if has_validation:
+        return findings
+    # Locate the parse function for line reporting.
+    for i, raw in enumerate(lines):
+        if re.search(r'\b(pubkey_parse|pubkey_load)\s*\(', raw):
+            findings.append(Finding(
+                file=path, line=i + 1, severity="MEDIUM",
+                category="POINT_NO_VALIDATION",
+                message="pubkey parser present but no on-curve / subgroup validation found "
+                        "in the same file — invalid-curve attack risk",
+                snippet=raw.strip(),
+                fix_hint="Verify the parsed point lies on secp256k1 and (where applicable) "
+                         "in the prime-order subgroup before exposing it to scalar mul.",
+            ))
+            break
+    return findings
+
+
+# ── ECDH_OUTPUT_NOT_CHECKED: ECDH result used without zero / identity check ──
+# CVE anchor: small-subgroup confinement, twist attacks.
+def check_ecdh_output(path: str, lines: List[str]) -> List[Finding]:
+    findings: List[Finding] = []
+    if 'ecdh' not in path.lower():
+        return findings
+    text = '\n'.join(lines)
+    has_ecdh = re.search(r'\bufsecp_ecdh\b|\b(ecdh|x25519)\s*\(', text)
+    if not has_ecdh:
+        return findings
+    if re.search(r'\b(is_zero|is_identity|all_zero|secp256k1_memcmp_var.*zero|fe_is_zero)\b', text):
+        return findings
+    # Locate the ecdh callsite.
+    for i, raw in enumerate(lines):
+        if re.search(r'\becdh\s*\(', raw, re.IGNORECASE):
+            findings.append(Finding(
+                file=path, line=i + 1, severity="MEDIUM",
+                category="ECDH_OUTPUT_NOT_CHECKED",
+                message="ECDH output used without zero/identity check — small-subgroup or "
+                        "twist attack can produce predictable shared secrets",
+                snippet=raw.strip(),
+                fix_hint="Reject ECDH outputs that are the point at infinity or have a zero "
+                         "x-coordinate; document the policy in the function header.",
+            ))
+            break
+    return findings
+
+
+# ── HASH_NO_DOMAIN_SEP: SHA256 in BIP-340/Schnorr/Taproot context without tag ─
+# CVE anchor: cross-protocol signature reuse (BIP-340 §3.2).
+_PLAIN_SHA256_RE = re.compile(r'\b(sha256_init|sha256_update|sha256\b)\s*\(')
+
+def check_no_domain_sep(path: str, lines: List[str]) -> List[Finding]:
+    findings: List[Finding] = []
+    if not re.search(r'(schnorr|bip340|taproot|musig|frost)', path, re.IGNORECASE):
+        return findings
+    for i, raw in enumerate(lines):
+        line = _strip_comments(raw)
+        if not _PLAIN_SHA256_RE.search(line):
+            continue
+        # Skip if same line or surrounding 5 lines reference tagged_hash.
+        ctx = '\n'.join(lines[max(0, i - 5): min(len(lines), i + 6)])
+        if 'tagged_hash' in ctx.lower() or 'tag_hash' in ctx.lower() or 'taghash' in ctx.lower():
+            continue
+        if 'sha256_initialize_tagged' in ctx.lower():
+            continue
+        findings.append(Finding(
+            file=path, line=i + 1, severity="MEDIUM",
+            category="HASH_NO_DOMAIN_SEP",
+            message="Plain SHA-256 in BIP-340/Schnorr/Taproot file without tagged_hash "
+                    "context — cross-protocol signature reuse risk (BIP-340 §3.2)",
+            snippet=raw.strip(),
+            fix_hint="Use sha256_initialize_tagged(\"BIP0340/...\") or the equivalent "
+                     "tagged-hash helper instead of plain SHA-256 in BIP-340 context.",
+        ))
+    return findings
+
+
+# ── DER_LAX_PARSE: short-circuit / shortcut DER parsing ──────────────────────
+# CVE anchor: BER-vs-DER ambiguity, OpenSSL CVE-2014-8275.
+def check_der_lax(path: str, lines: List[str]) -> List[Finding]:
+    findings: List[Finding] = []
+    if 'der' not in path.lower() and 'parse' not in path.lower() and 'sig' not in path.lower():
+        return findings
+    for i, raw in enumerate(lines):
+        line = _strip_comments(raw)
+        # length-byte taken without strict canonicalisation check
+        if re.search(r'\blen\s*=\s*\*?\(?(?:input|buf|p|sig)\)?\s*\+\+', line):
+            ctx = '\n'.join(lines[max(0, i - 3): min(len(lines), i + 8)])
+            if not re.search(r'(strict|canonical|fail.*long|>\s*0x7f)', ctx, re.IGNORECASE):
+                findings.append(Finding(
+                    file=path, line=i + 1, severity="MEDIUM",
+                    category="DER_LAX_PARSE",
+                    message="DER length byte read without canonicalisation guard — BER/DER "
+                            "ambiguity (CVE-2014-8275 OpenSSL)",
+                    snippet=raw.strip(),
+                    fix_hint="Reject long-form length encodings where short-form would suffice; "
+                             "reject leading zeros and trailing data.",
+                ))
+    return findings
+
+
+# ── TIMING_BRANCH_ON_KEY: `if (key[i] ...)` direct branching on secret byte ──
+# CVE anchor: cache-timing attacks (Bernstein 2005 AES, etc.).
+_KEY_INDEX_BRANCH_RE = re.compile(
+    r'\bif\s*\(\s*(?:secret|priv(?:key)?|key|seckey|sk|d|x_only_seckey)\s*\[\s*\w+\s*\]')
+
+def check_timing_branch_on_key(path: str, lines: List[str]) -> List[Finding]:
+    findings: List[Finding] = []
+    if not _is_crypto_path(path):
+        return findings
+    for i, raw in enumerate(lines):
+        line = _strip_comments(raw)
+        if _KEY_INDEX_BRANCH_RE.search(line):
+            findings.append(Finding(
+                file=path, line=i + 1, severity="HIGH",
+                category="TIMING_BRANCH_ON_KEY",
+                message="Direct branch on a secret-key byte — cache/branch timing leak "
+                        "(Bernstein AES 2005 class)",
+                snippet=raw.strip(),
+                fix_hint="Replace the branch with a constant-time mask/select; route the "
+                         "operation through the CT layer.",
+            ))
+    return findings
+
+
+# ── MAC_TRUNCATION: MAC compared with shortened length ───────────────────────
+# CVE anchor: GCM-trunc misuse, JOSE alg=none class.
+def check_mac_truncation(path: str, lines: List[str]) -> List[Finding]:
+    findings: List[Finding] = []
+    for i, raw in enumerate(lines):
+        line = _strip_comments(raw)
+        m = re.search(r'\b(memcmp|strncmp|bcmp)\s*\([^,]+,[^,]+,\s*(\d+)\s*\)', line)
+        if not m:
+            continue
+        n = int(m.group(2))
+        if n in (1, 2, 4, 8) and _AUTH_NAME_RE.search(line):
+            findings.append(Finding(
+                file=path, line=i + 1, severity="HIGH",
+                category="MAC_TRUNCATION",
+                message=f"Auth-material compare with only {n} bytes — truncated MAC accepts "
+                        "forged tags with 2^{8*n} collisions",
+                snippet=raw.strip(),
+                fix_hint="Compare the full MAC/tag length using a constant-time helper.",
+            ))
+    return findings
+
+
+# ── SCALAR_NOT_REDUCED: scalar without explicit `mod n` reduction step ───────
+# CVE anchor: Stark Bank ECDSA r∈[n,p−1] (CVE-2024-... class), bias attacks.
+def check_scalar_not_reduced(path: str, lines: List[str]) -> List[Finding]:
+    findings: List[Finding] = []
+    if not _is_crypto_path(path):
+        return findings
+    for i, raw in enumerate(lines):
+        line = _strip_comments(raw)
+        # Look for divisions/inverses without an adjacent reduction comment or call
+        if re.search(r'\bscalar_inverse\s*\(', line):
+            ctx = '\n'.join(lines[max(0, i - 4): min(len(lines), i + 4)])
+            if not re.search(r'\b(scalar_reduce|scalar_set_b32|set_int|is_zero|zero_check)\b', ctx):
+                findings.append(Finding(
+                    file=path, line=i + 1, severity="MEDIUM",
+                    category="SCALAR_NOT_REDUCED",
+                    message="scalar_inverse without adjacent reduction or zero check — risk of "
+                            "inverting an unreduced or zero scalar",
+                    snippet=raw.strip(),
+                    fix_hint="Reduce the scalar mod n and reject is_zero before inversion.",
+                ))
+    return findings
+
+
+# ── PRINTF_SECRET: format-string output of secret-bearing identifier ─────────
+# CVE anchor: developer log leakage class (countless in mobile wallets).
+_PRINTF_RE = re.compile(r'\b(printf|fprintf|cout|std::cerr|std::cout|debug_print|LOG)\s*[<\(]')
+_SECRET_NAME_RE = re.compile(
+    r'\b(seckey|secret_key|priv(?:_?key)?|seed|mnemonic|nonce_secret|d_scalar|secret_scalar|aux_rand)\b',
+    re.IGNORECASE,
+)
+
+def check_printf_secret(path: str, lines: List[str]) -> List[Finding]:
+    findings: List[Finding] = []
+    # Skip test files where printing is expected.
+    if re.search(r'(test|fuzz|bench)', path, re.IGNORECASE):
+        return findings
+    for i, raw in enumerate(lines):
+        line = _strip_comments(raw)
+        if _PRINTF_RE.search(line) and _SECRET_NAME_RE.search(line):
+            findings.append(Finding(
+                file=path, line=i + 1, severity="HIGH",
+                category="PRINTF_SECRET",
+                message="Output statement appears to print a secret-bearing identifier "
+                        "(log/console leak class)",
+                snippet=raw.strip(),
+                fix_hint="Never log raw secret material; if debugging, log only a "
+                         "domain-separated, length-bounded hash, and gate behind "
+                         "a build-time DEBUG_SECRETS=0 guard.",
+            ))
+    return findings
+
+
 def collect_files(src_dirs: List[Path]) -> Iterable[Path]:
     seen: set[Path] = set()
     for d in src_dirs:
@@ -1348,6 +1762,20 @@ CHECKERS = [
     check_tagged_hash_bypass,
     check_random_in_signing,
     check_binding_no_validation,
+    # Crypto bug-pattern checkers (CVE-grounded, added 2026-04-21)
+    check_nonce_reuse,
+    check_memcmp_secret,
+    check_missing_low_s,
+    check_scalar_from_rand,
+    check_goto_fail,
+    check_point_no_validation,
+    check_ecdh_output,
+    check_no_domain_sep,
+    check_der_lax,
+    check_timing_branch_on_key,
+    check_mac_truncation,
+    check_scalar_not_reduced,
+    check_printf_secret,
 ]
 
 
