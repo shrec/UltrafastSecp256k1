@@ -3,8 +3,8 @@
     {
       "exists": true,
       "path": "docs/AUDIT_MANIFEST.md",
-      "sha256": "572091d2eabc356c698e20624c86de25338324fe00bc5c552240b62ebd9f261b",
-      "size": 20514
+      "sha256": "cb9811aad1ebd8974162988c579432a3df33bd91d0d390358b524483dfe5c32c",
+      "size": 20919
     },
     {
       "exists": true,
@@ -51,13 +51,13 @@
     {
       "exists": true,
       "path": "docs/BACKEND_ASSURANCE_MATRIX.md",
-      "sha256": "ddd553f0031f0d4670a3c17ae0db3977a7bdf4a49c1029eddb2578032a6d4acf",
-      "size": 10420
+      "sha256": "3a58664069ba1800c3e551294ae0ed77b53673ad05c4c7e7e6ff96749ac34999",
+      "size": 10966
     },
     {
       "exists": true,
       "path": "docs/SECURITY_AUTONOMY_KPI.json",
-      "sha256": "4c2e02c8452d7d69242d4f7b9d0a934057c17893d7af9b9748454b2dcaaddc24",
+      "sha256": "2bb0e1434e7b1e07e086e917fa60c79d114eaf64d33ff06a96c1c47c2291d7a1",
       "size": 1421
     },
     {
@@ -205,24 +205,8 @@
           {
             "findings": [
               {
-                "message": "4 files modified/deleted since graph build (2026-04-14T03:25:26)",
-                "severity": "WARN"
-              },
-              {
-                "message": "MODIFIED: cpu/src/batch_verify.cpp",
-                "severity": "INFO"
-              },
-              {
-                "message": "MODIFIED: cpu/src/field.cpp",
-                "severity": "INFO"
-              },
-              {
-                "message": "MODIFIED: cpu/src/point.cpp",
-                "severity": "INFO"
-              },
-              {
-                "message": "MODIFIED: cpu/src/scalar.cpp",
-                "severity": "INFO"
+                "message": "Graph is fresh (built: 2026-04-21T05:11:51)",
+                "severity": "PASS"
               }
             ],
             "name": "P6: Graph Freshness",
@@ -373,7 +357,7 @@
           {
             "findings": [
               {
-                "message": "5 changed files have matching docs",
+                "message": "3 changed files have matching docs",
                 "severity": "PASS"
               }
             ],
@@ -383,11 +367,11 @@
           {
             "findings": [
               {
-                "message": "Mutation report age: 0.3 days (threshold: 14)",
+                "message": "Mutation report age: 6.9 days (threshold: 14)",
                 "severity": "INFO"
               },
               {
-                "message": "Mutation evidence is current (age 0.3d, rate 100.0%)",
+                "message": "Mutation evidence is current (age 6.9d, rate 100.0%)",
                 "severity": "PASS"
               }
             ],
@@ -415,11 +399,11 @@
           "value": {
             "dirty": true,
             "ref": "dev",
-            "sha": "c23fa1b9763b16ca2e855625d2b2c98388846f8d",
-            "short": "c23fa1b976"
+            "sha": "617c796a32d87052655c4165f531eff781e9eeb3",
+            "short": "617c796a32"
           }
         },
-        "generated_at": "2026-04-14T13:54:04.422953+00:00",
+        "generated_at": "2026-04-21T05:12:07.129679+00:00",
         "platform": "Linux",
         "provenance": {
           "build_flags": {
@@ -436,49 +420,49 @@
             },
             "flags_hash": "b08a96ecab2b5a95"
           },
-          "collected_at": "2026-04-14T13:54:04.422920+00:00",
+          "collected_at": "2026-04-21T05:12:07.129644+00:00",
           "git": {
             "dirty": true,
             "ref": "dev",
-            "sha": "c23fa1b9763b16ca2e855625d2b2c98388846f8d",
-            "short": "c23fa1b976"
+            "sha": "617c796a32d87052655c4165f531eff781e9eeb3",
+            "short": "617c796a32"
           },
           "platform": {
             "machine": "x86_64",
             "python": "3.12.3",
-            "release": "6.8.0-107-generic",
+            "release": "6.8.0-110-generic",
             "system": "Linux"
           },
           "submodules": null,
           "toolchain": {
             "c++": "c++ (Ubuntu 14.2.0-4ubuntu2~24.04.1) 14.2.0",
             "cc": "cc (Ubuntu 14.2.0-4ubuntu2~24.04.1) 14.2.0",
-            "clang": "clang version 17.0.0 (https://github.com/swiftlang/llvm-project.git 8f0d2ca924db37c8f8161d55c21b9097b05b72f3)",
-            "clang++": "clang version 17.0.0 (https://github.com/swiftlang/llvm-project.git 8f0d2ca924db37c8f8161d55c21b9097b05b72f3)",
+            "clang": "Ubuntu clang version 18.1.3 (1ubuntu1)",
+            "clang++": "Ubuntu clang version 18.1.3 (1ubuntu1)",
             "cmake": "cmake version 3.28.3",
             "g++": "g++ (Ubuntu 14.2.0-4ubuntu2~24.04.1) 14.2.0",
             "gcc": "gcc (Ubuntu 14.2.0-4ubuntu2~24.04.1) 14.2.0",
             "ninja": "1.11.1"
           },
-          "version": "3.64.0"
+          "version": "3.66.0"
         },
-        "run_id": "audit_gate-c23fa1b976-20260414T135404",
+        "run_id": "audit_gate-617c796a32-20260421T051207",
         "runner": "audit_gate",
         "schema_version": "1.0.0",
         "summary": {
-          "advisory": 40,
+          "advisory": 35,
           "blocking": 0,
           "sections": 18,
           "skipped_sections": 0,
-          "total_findings": 57
+          "total_findings": 53
         },
-        "verdict": "PASS with advisory"
+        "verdict": "PASS"
       },
       "passing": true,
       "required": true,
       "returncode": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_sha256": "83972ee3c4d14ea16d2ab9d2db01ac56caf69713401a146fd6f60b5eeadd9f3f"
+      "stdout_sha256": "0fe91bf970e48bcffa04ca5e78764d6127bb9f75258e255b67508125be1fd238"
     },
     {
       "name": "audit_gap_report_strict",
@@ -778,13 +762,13 @@
         "gates_passing": 8,
         "gates_total": 8,
         "overall_pass": true,
-        "timestamp": "2026-04-14T13:54:05.083670+00:00"
+        "timestamp": "2026-04-21T05:12:07.960709+00:00"
       },
       "passing": true,
       "required": true,
       "returncode": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_sha256": "f313221e1129f0cda28d44ad332b290c8e7d0e749f90f9145fad5cd597f78d1e"
+      "stdout_sha256": "6430e8f12f6681dd81a8fd72d68912f99c10631a4b0bd2d5341f67c72134ce33"
     },
     {
       "name": "supply_chain_gate",
@@ -827,25 +811,25 @@
         "checks_total": 5,
         "failing_checks": [],
         "overall_pass": true,
-        "timestamp": "2026-04-14T13:54:05.176685+00:00"
+        "timestamp": "2026-04-21T05:12:08.057811+00:00"
       },
       "passing": true,
       "required": true,
       "returncode": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_sha256": "b744b5edf80c3521161945352a7ad530c8bcd2ff1255c1b776ed63bda91901f2"
+      "stdout_sha256": "49e85a71e93bf5dd1b38a87bfed2bdcad983652e02dba235490e9c29e5a7fedc"
     }
   ],
-  "generated_at": "2026-04-14T13:54:05.188712+00:00",
+  "generated_at": "2026-04-21T05:12:08.072485+00:00",
   "git": {
     "branch": "dev",
-    "commit": "c23fa1b9763b16ca2e855625d2b2c98388846f8d",
+    "commit": "617c796a32d87052655c4165f531eff781e9eeb3",
     "dirty": true
   },
   "repo_root": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1",
   "runtime": {
     "machine": "x86_64",
-    "platform": "Linux-6.8.0-107-generic-x86_64-with-glibc2.39",
+    "platform": "Linux-6.8.0-110-generic-x86_64-with-glibc2.39",
     "python": "3.12.3"
   },
   "schema_version": "1.0.0",
