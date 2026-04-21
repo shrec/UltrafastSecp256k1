@@ -119,9 +119,9 @@ If you use UltrafastSecp256k1 in academic work, please cite:
 
 - **Citation metadata** — [CITATION.cff](CITATION.cff) (also exposed via GitHub's "Cite this repository" button)
 - **Zenodo metadata** — [.zenodo.json](.zenodo.json)
-- **DOI (Zenodo concept)** — minted automatically per release once the GitHub↔Zenodo integration is enabled. The DOI badge will be embedded here once the first post-integration release is cut.
+- **DOI (Zenodo release)** — [10.5281/zenodo.19685542](https://doi.org/10.5281/zenodo.19685542)
 
-`<!-- DOI badge placeholder: replace with the concept-DOI badge URL after the first Zenodo-archived release. -->`
+[![DOI](https://zenodo.org/badge/1148013745.svg)](https://doi.org/10.5281/zenodo.19685027)
 
 ---
 
