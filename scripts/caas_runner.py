@@ -66,6 +66,15 @@ STAGES = [
         "blocking": True,
     },
     {
+        "id": "traceability",
+        "name": "Traceability Join (exploit_traceability_join.py)",
+        "script": "exploit_traceability_join.py",
+        "args": [],
+        "pass_fn": "_generic_pass",
+        "description": "G-9b gate: exploit catalog ↔ spec matrix ↔ RR ↔ AM cross-refs (strict)",
+        "blocking": True,
+    },
+    {
         "id": "audit_gate",
         "name": "Audit Gate (audit_gate.py)",
         "script": "audit_gate.py",

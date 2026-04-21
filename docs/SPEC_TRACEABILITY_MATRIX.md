@@ -9,13 +9,11 @@
 > external auditor uses this to verify the implementation against the
 > spec without rediscovering the mapping.
 >
-> **Current state (2026-04-21):** the matrix structure is complete and
-> the verification script `scripts/exploit_traceability_join.py` is
-> wired (G-9b). Several `Impl` / `Test` paths are placeholder names
-> derived from spec semantics rather than verified against the on-disk
-> tree. The script reports these as ADVISORY warnings in default mode.
-> Switch to `--strict` after the next path-reconciliation pass closes
-> them out. See `scripts/exploit_traceability_join.py` for the gate.
+> **Current state (2026-04-21):** matrix paths reconciled against the
+> on-disk tree; every `Impl` / `Test` cell points at a real file. The
+> verification script `scripts/exploit_traceability_join.py --strict`
+> is wired in CAAS Stage 2 and rejects any row whose path no longer
+> exists. See G-9b in `docs/AUDIT_CHANGELOG.md` for the gate.
 
 ## How to read this matrix
 
@@ -37,106 +35,106 @@ a non-existent path.
 
 | Spec § | Requirement | Impl | Test | Status |
 |--------|-------------|------|------|--------|
-| 2.4.1 | Field $\mathbb{F}_p$ with $p = 2^{256} - 2^{32} - 977$ | `cpu/include/secp256k1_field_constants.h` | `audit/test_field_constants.cpp` | OK |
-| 2.4.1 | Curve $y^2 = x^3 + 7$ | `cpu/src/group.cpp` | `audit/test_curve_invariants.cpp` | OK |
-| 2.4.1 | Generator $G$ coordinates | `cpu/include/secp256k1_generator.h` | `audit/test_generator_match.cpp` | OK |
-| 2.4.1 | Order $n$ (256-bit prime) | `cpu/include/secp256k1_scalar_constants.h` | `audit/test_scalar_order.cpp` | OK |
-| 2.4.1 | Cofactor $h = 1$ | implicit (no clearing) | `audit/test_curve_invariants.cpp` | OK |
-| 2.3.3 | Compressed point encoding (`02`/`03` ‖ X) | `cpu/src/pubkey.cpp` (`pubkey_serialize_compressed`) | `audit/test_pubkey_encoding.cpp`, Wycheproof | OK |
-| 2.3.4 | Uncompressed point encoding (`04` ‖ X ‖ Y) | `cpu/src/pubkey.cpp` (`pubkey_serialize_uncompressed`) | same | OK |
-| 2.3.5 | Reject point at infinity in encode | `cpu/src/pubkey.cpp` | `audit/test_exploit_pubkey_identity.cpp` | OK |
+| 2.4.1 | Field $\mathbb{F}_p$ with $p = 2^{256} - 2^{32} - 977$ | `cpu/include/secp256k1/field.hpp`, `cpu/src/field.cpp` | `audit/audit_field.cpp`, `audit/test_exploit_field_arithmetic.cpp` | OK |
+| 2.4.1 | Curve $y^2 = x^3 + 7$ | `cpu/src/point.cpp` | `audit/audit_invariants.cpp` | OK |
+| 2.4.1 | Generator $G$ coordinates | `cpu/src/precompute.cpp` | `audit/audit_invariants.cpp` | OK |
+| 2.4.1 | Order $n$ (256-bit prime) | `cpu/include/secp256k1/scalar.hpp`, `cpu/src/scalar.cpp` | `audit/audit_scalar.cpp`, `audit/test_exploit_scalar_group_order.cpp` | OK |
+| 2.4.1 | Cofactor $h = 1$ | implicit (no clearing) | `audit/audit_invariants.cpp` | OK |
+| 2.3.3 | Compressed point encoding (`02`/`03` ‖ X) | `cpu/src/point.cpp` | `audit/test_wycheproof_ecdsa.cpp`, `audit/fuzz_pubkey_parse.cpp` | OK |
+| 2.3.4 | Uncompressed point encoding (`04` ‖ X ‖ Y) | `cpu/src/point.cpp` | `audit/test_wycheproof_ecdsa.cpp`, `audit/fuzz_pubkey_parse.cpp` | OK |
+| 2.3.5 | Reject point at infinity in encode | `cpu/src/point.cpp` | `audit/test_exploit_pubkey_arith.cpp`, `audit/test_infinity_edge_cases.cpp` | OK |
 
 ## SEC 1 v2.0 — Elliptic Curve Cryptography (ECDSA)
 
 | Spec § | Requirement | Impl | Test | Status |
 |--------|-------------|------|------|--------|
-| 4.1.3 | ECDSA signing: pick `k`, compute `r = (kG).x mod n`, `s = k⁻¹(z + r·d) mod n` | `cpu/src/ecdsa.cpp` (`ecdsa_sign_inner`) | `audit/test_rfc6979_vectors.cpp`, Wycheproof | OK |
-| 4.1.3 | Reject `r = 0` or `s = 0` during sign | `cpu/src/ecdsa.cpp` | `audit/test_exploit_ecdsa_zero_rs.cpp` | OK |
-| 4.1.4 | ECDSA verify: reject `r,s ∉ [1, n−1]` | `cpu/src/ecdsa.cpp` (`ecdsa_verify_inner`) | `audit/test_exploit_ecdsa_rs_bounds.cpp`, Wycheproof | OK |
-| 4.1.4 | Compute `u1 = z·s⁻¹`, `u2 = r·s⁻¹`, check `(u1·G + u2·Q).x ≡ r (mod n)` | same | same | OK |
-| 4.1.4 | Reject if `r` matches `(kG).x` only after reducing from $[n, p-1]$ | `cpu/src/ecdsa.cpp` (`r_less_than_pmn`) | `audit/test_exploit_starkbank_large_r.cpp` (Wycheproof tcId 346) | OK (RR-004 closed) |
+| 4.1.3 | ECDSA signing: pick `k`, compute `r = (kG).x mod n`, `s = k⁻¹(z + r·d) mod n` | `cpu/src/ecdsa.cpp`, `cpu/src/ct_sign.cpp` | `audit/test_exploit_ecdsa_rfc6979_kat.cpp`, `audit/test_wycheproof_ecdsa.cpp` | OK |
+| 4.1.3 | Reject `r = 0` or `s = 0` during sign | `cpu/src/ecdsa.cpp` | `audit/test_exploit_ecdsa_der_confusion.cpp`, `audit/test_wycheproof_ecdsa.cpp` | OK |
+| 4.1.4 | ECDSA verify: reject `r,s ∉ [1, n−1]` | `cpu/src/ecdsa.cpp` | `audit/test_wycheproof_ecdsa.cpp`, `audit/test_wycheproof_ecdsa_extended.cpp` | OK |
+| 4.1.4 | Compute `u1 = z·s⁻¹`, `u2 = r·s⁻¹`, check `(u1·G + u2·Q).x ≡ r (mod n)` | `cpu/src/ecdsa.cpp` | `audit/test_wycheproof_ecdsa.cpp`, `audit/test_kat_all_operations.cpp` | OK |
+| 4.1.4 | Reject if `r` matches `(kG).x` only after reducing from $[n, p-1]$ | `cpu/src/ecdsa.cpp` | `audit/test_wycheproof_ecdsa_bitcoin.cpp` (Wycheproof tcId 346) | OK (RR-004 closed) |
 
 ## RFC 6979 — Deterministic ECDSA Nonce
 
 | Spec § | Requirement | Impl | Test | Status |
 |--------|-------------|------|------|--------|
-| §3.2 | HMAC-DRBG instantiated with `int2octets(x)` ‖ `bits2octets(h)` | `cpu/src/rfc6979.cpp` | `audit/test_rfc6979_vectors.cpp` | OK |
-| §3.2 step h | Reject `k = 0` and `k ≥ n`; resample | `cpu/src/rfc6979.cpp` | `audit/test_rfc6979_resample.cpp` | OK |
-| §3.6 | Optional `extra_data` mixed into K update | `cpu/src/rfc6979.cpp` | `audit/test_rfc6979_extra_data.cpp` | OK |
-| Cryptol | Bit-precise property of `bits2int`, `int2octets`, `bits2octets` | `tools/cryptol/RFC6979.cry` | Cryptol property check (P12) | OK |
+| §3.2 | HMAC-DRBG instantiated with `int2octets(x)` ‖ `bits2octets(h)` | `cpu/src/ecdsa.cpp` (RFC6979 nonce) | `audit/test_exploit_ecdsa_rfc6979_kat.cpp` | OK |
+| §3.2 step h | Reject `k = 0` and `k ≥ n`; resample | `cpu/src/ecdsa.cpp` | `audit/test_exploit_rfc6979_truncation_bias.cpp`, `audit/test_exploit_rfc6979_minerva_amplified.cpp` | OK |
+| §3.6 | Optional `extra_data` mixed into K update | `cpu/src/ecdsa.cpp` | `audit/test_exploit_ecdsa_rfc6979_kat.cpp` | OK |
+| Cryptol | Bit-precise property of ECDSA over RFC6979 nonce | `formal/cryptol/Secp256k1ECDSA.cry` | `audit/test_cryptol_specs.cpp` (P12) | OK |
 
 ## BIP-340 — Schnorr Signatures
 
 | Spec § | Requirement | Impl | Test | Status |
 |--------|-------------|------|------|--------|
-| §Default Signing | `aux_rand` optional, deterministic if absent | `cpu/src/schnorr.cpp` | `audit/test_bip340_vectors.cpp` | OK |
-| §Verification | Reject `R.y` non-even | `cpu/src/schnorr.cpp` | `audit/test_bip340_vectors.cpp`, `test_exploit_schnorr_y_parity.cpp` | OK |
-| §Verification | Reject `r ≥ p`, `s ≥ n` | same | `audit/test_exploit_schnorr_oversized.cpp` | OK |
-| §Tagged Hash | `H_tag(x) = SHA256(SHA256(tag) ‖ SHA256(tag) ‖ x)` | `cpu/src/tagged_hash.cpp` | `audit/test_tagged_hash_vectors.cpp` | OK |
-| §Batch Verify | $\sum a_i s_i G = \sum a_i R_i + \sum a_i e_i P_i$ with random `a_i` | `cpu/src/schnorr_batch.cpp` | `audit/test_schnorr_batch_*.cpp`, `test_exploit_schnorr_batch_*` | OK |
+| §Default Signing | `aux_rand` optional, deterministic if absent | `cpu/src/schnorr.cpp` | `audit/test_exploit_schnorr_bip340_kat.cpp` | OK |
+| §Verification | Reject `R.y` non-even | `cpu/src/schnorr.cpp` | `audit/test_exploit_schnorr_bip340_kat.cpp`, `audit/test_exploit_schnorr_hash_order.cpp` | OK |
+| §Verification | Reject `r ≥ p`, `s ≥ n` | `cpu/src/schnorr.cpp` | `audit/test_exploit_schnorr_bip340_kat.cpp`, `audit/test_exploit_schnorr_hash_order.cpp` | OK |
+| §Tagged Hash | `H_tag(x) = SHA256(SHA256(tag) ‖ SHA256(tag) ‖ x)` | `cpu/src/schnorr.cpp` | `audit/test_exploit_schnorr_bip340_kat.cpp` | OK |
+| §Batch Verify | $\sum a_i s_i G = \sum a_i R_i + \sum a_i e_i P_i$ with random `a_i` | `cpu/src/batch_verify.cpp` | `audit/test_exploit_schnorr_batch_inflation.cpp`, `audit/test_batch_randomness.cpp` | OK |
 
 ## BIP-32 — HD Wallets
 
 | Spec § | Requirement | Impl | Test | Status |
 |--------|-------------|------|------|--------|
-| §Master | `(I_L, I_R) = HMAC-SHA512("Bitcoin seed", S)`; reject `I_L = 0` or `I_L ≥ n` | `cpu/src/bip32.cpp` (`bip32_master_from_seed`) | `audit/test_bip32_vectors.cpp`, `test_exploit_bip32_invalid_master.cpp` | OK |
-| §CKDpriv | Hardened: `HMAC(c_par, 0x00 ‖ k_par ‖ ser32(i))` for `i ≥ 2³¹` | `cpu/src/bip32.cpp` (`bip32_ckd_priv`) | `audit/test_bip32_vectors.cpp` | OK |
-| §CKDpriv | Non-hardened: `HMAC(c_par, ser_P(K_par) ‖ ser32(i))` | same | same | OK |
-| §CKDpub | Reject identity at any derivation step | `cpu/src/bip32.cpp` | `audit/test_exploit_bip32_invalid_child.cpp` | OK |
-| §Serialization | 4-byte version magic enforced (mainnet xprv/xpub vs testnet) | `cpu/src/bip32_serialize.cpp` | `audit/test_bip32_serialize.cpp` | OK |
-| §Depth Limit | Reject `depth > 255` | same | `audit/test_exploit_bip32_depth.cpp` | OK |
+| §Master | `(I_L, I_R) = HMAC-SHA512("Bitcoin seed", S)`; reject `I_L = 0` or `I_L ≥ n` | `cpu/src/bip32.cpp` | `audit/test_exploit_bip32_derivation.cpp`, `audit/test_exploit_bip32_child_key_attack.cpp` | OK |
+| §CKDpriv | Hardened: `HMAC(c_par, 0x00 ‖ k_par ‖ ser32(i))` for `i ≥ 2³¹` | `cpu/src/bip32.cpp` | `audit/test_exploit_bip32_ckd_hardened.cpp` | OK |
+| §CKDpriv | Non-hardened: `HMAC(c_par, ser_P(K_par) ‖ ser32(i))` | `cpu/src/bip32.cpp` | `audit/test_exploit_bip32_derivation.cpp` | OK |
+| §CKDpub | Reject identity at any derivation step | `cpu/src/bip32.cpp` | `audit/test_exploit_bip32_parent_fingerprint_confusion.cpp` | OK |
+| §Serialization | 4-byte version magic enforced (mainnet xprv/xpub vs testnet) | `cpu/src/bip32.cpp` | `audit/fuzz_bip32_path.cpp`, `audit/test_exploit_bip32_path_overflow.cpp` | OK |
+| §Depth Limit | Reject `depth > 255` | `cpu/src/bip32.cpp` | `audit/test_exploit_bip32_depth.cpp` | OK |
 
 ## BIP-324 — v2 Transport Protocol
 
 | Spec § | Requirement | Impl | Test | Status |
 |--------|-------------|------|------|--------|
-| §ECDH | X-only ECDH on secp256k1 | `cpu/src/bip324.cpp` (`bip324_ecdh`) | `audit/test_bip324_handshake.cpp` | OK |
-| §HKDF | BIP-324 HKDF labels exactly as spec | `cpu/src/bip324.cpp` | `audit/test_bip324_kdf_vectors.cpp` | OK |
-| §AEAD | ChaCha20-Poly1305 over framed messages | `cpu/src/chacha20_poly1305.cpp` | `audit/test_bip324_aead_vectors.cpp` | OK |
-| §Rekey | Counter rollover triggers rekey | `cpu/src/bip324.cpp` | `audit/test_bip324_rekey.cpp` | OK |
-| §Decoy | Decoy packets accepted but discarded | same | `audit/test_bip324_decoy.cpp` | OK |
+| §ECDH | X-only ECDH on secp256k1 | `cpu/src/bip324.cpp`, `cpu/src/ecdh.cpp` | `audit/test_exploit_bip324_session.cpp`, `audit/test_wycheproof_ecdh.cpp` | OK |
+| §HKDF | BIP-324 HKDF labels exactly as spec | `cpu/src/bip324.cpp`, `cpu/src/hkdf.cpp` | `audit/test_exploit_hkdf_kat.cpp`, `audit/test_wycheproof_hkdf_sha256.cpp` | OK |
+| §AEAD | ChaCha20-Poly1305 over framed messages | `cpu/src/chacha20_poly1305.cpp` | `audit/test_exploit_bip324_aead_forgery.cpp`, `audit/fuzz_bip324_frame.cpp` | OK |
+| §Rekey | Counter rollover triggers rekey | `cpu/src/bip324.cpp` | `audit/test_exploit_bip324_counter_desync.cpp` | OK |
+| §Decoy | Decoy packets accepted but discarded | `cpu/src/bip324.cpp` | `audit/test_exploit_bip324_transcript_splice.cpp` | OK |
 
 ## BIP-340 / BIP-341 / BIP-342 — Taproot
 
 | Spec § | Requirement | Impl | Test | Status |
 |--------|-------------|------|------|--------|
-| BIP-341 §Taptweak | `Q = P + int(H_TapTweak(P ‖ m)) · G` | `cpu/src/taproot.cpp` (`taproot_tweak`) | `audit/test_taproot_vectors.cpp` | OK |
-| BIP-341 §Tree | Tapleaf hashing + Merkle path | `cpu/src/taproot_tree.cpp` | `audit/test_taproot_tree.cpp` | OK |
-| BIP-341 §ControlBlock | Strict length: 33 + 32·m, m ∈ [0,128] | `cpu/src/taproot.cpp` | `audit/test_exploit_taproot_control.cpp` | OK |
+| BIP-341 §Taptweak | `Q = P + int(H_TapTweak(P ‖ m)) · G` | `cpu/src/taproot.cpp` | `audit/test_exploit_taproot_tweak.cpp` | OK |
+| BIP-341 §Tree | Tapleaf hashing + Merkle path | `cpu/src/taproot.cpp` | `audit/test_exploit_taproot_merkle_path_alias.cpp` | OK |
+| BIP-341 §ControlBlock | Strict length: 33 + 32·m, m ∈ [0,128] | `cpu/src/taproot.cpp` | `audit/test_exploit_taproot_scripts.cpp`, `audit/test_exploit_taproot_commitment_adversarial.cpp` | OK |
 
 ## BIP-352 — Silent Payments
 
 | Spec § | Requirement | Impl | Test | Status |
 |--------|-------------|------|------|--------|
-| §Scan | Per-output `t_k = hash_BIP0352("SharedSecret", ecdh ‖ ser32(k))` | `cpu/src/bip352.cpp` | `audit/test_bip352_vectors.cpp` | OK |
-| §Spend | `D + t_k · G` reproduces output pubkey | same | same | OK |
-| §Labels | Optional label tweak | `cpu/src/bip352_labels.cpp` | `audit/test_bip352_labels.cpp` | OK |
+| §Scan | Per-output `t_k = hash_BIP0352("SharedSecret", ecdh ‖ ser32(k))` | `opencl/kernels/secp256k1_bip352.cl`, `cuda/src/bench_bip352.cu` | `audit/test_bip352_kat.cpp`, `audit/test_gpu_bip352_scan.cpp` | OK |
+| §Spend | `D + t_k · G` reproduces output pubkey | `opencl/kernels/secp256k1_bip352.cl` | `audit/test_bip352_kat.cpp`, `audit/test_exploit_bip352_parity_confusion.cpp` | OK |
+| §Labels | Optional label tweak | `opencl/kernels/secp256k1_bip352.cl` | `audit/test_bip352_kat.cpp` | OK |
 
 ## BIP-327 — MuSig2
 
 | Spec § | Requirement | Impl | Test | Status |
 |--------|-------------|------|------|--------|
-| §KeyAgg | Key-aggregation coefficient prevents rogue-key | `cpu/src/musig2.cpp` (`musig2_key_agg`) | `audit/test_musig2_vectors.cpp`, `test_exploit_musig2_rogue_key.cpp` | OK |
+| §KeyAgg | Key-aggregation coefficient prevents rogue-key | `cpu/src/musig2.cpp` | `audit/test_musig2_bip327_vectors.cpp`, `audit/test_exploit_musig2_key_agg.cpp` | OK |
 | §NonceGen | 64-byte nonce with `aux_rand` mandatory | `cpu/src/musig2.cpp` | `audit/test_exploit_musig2_nonce_reuse.cpp` | OK |
-| §NonceAgg | Reject identity in aggregated nonce | same | `audit/test_exploit_musig2_identity_nonce.cpp` | OK |
-| §PartialSign | Strict round-state machine | same | `audit/test_exploit_musig2_round_skip.cpp` | OK |
-| §PartialSigVerify | Detect cheating partial sigs | same | `audit/test_musig2_partial_verify.cpp` | OK |
+| §NonceAgg | Reject identity in aggregated nonce | `cpu/src/musig2.cpp` | `audit/test_exploit_musig2.cpp` | OK |
+| §PartialSign | Strict round-state machine | `cpu/src/musig2.cpp` | `audit/test_exploit_musig2_ordering.cpp`, `audit/test_exploit_musig2_partial_forgery.cpp` | OK |
+| §PartialSigVerify | Detect cheating partial sigs | `cpu/src/musig2.cpp` | `audit/test_exploit_musig2_partial_forgery.cpp`, `audit/test_exploit_musig2_byzantine_multiparty.cpp` | OK |
 
 ## RFC 9591 — FROST
 
 | Spec § | Requirement | Impl | Test | Status |
 |--------|-------------|------|------|--------|
-| §3 | Pedersen DKG with identifiable abort | `cpu/src/frost_dkg.cpp` | `audit/test_frost_dkg.cpp`, `test_exploit_frost_dkg_byzantine.cpp` | OK |
-| §4 | 2-round signing protocol | `cpu/src/frost_sign.cpp` | `audit/test_frost_vectors.cpp` | OK |
-| §4.7 | Signature share verification | same | `audit/test_exploit_frost_invalid_share.cpp` | OK |
-| Spec test vectors | Match RFC 9591 Appendix B vectors | `cpu/tests/frost_rfc9591_vectors.h` | `audit/test_frost_vectors.cpp` | OK |
+| §3 | Pedersen DKG with identifiable abort | `cpu/src/frost.cpp` | `audit/test_exploit_frost_dkg.cpp`, `audit/test_exploit_frost_byzantine.cpp` | OK |
+| §4 | 2-round signing protocol | `cpu/src/frost.cpp` | `audit/test_frost_kat.cpp`, `audit/test_exploit_frost_signing.cpp` | OK |
+| §4.7 | Signature share verification | `cpu/src/frost.cpp` | `audit/test_exploit_frost_identifiable_abort.cpp`, `audit/test_exploit_frost_lagrange_duplicate.cpp` | OK |
+| Spec test vectors | Match RFC 9591 Appendix B vectors | `cpu/src/frost.cpp` | `audit/test_frost_kat.cpp` | OK |
 
 ## BIP-39 — Mnemonic (used by apps, not core ABI)
 
 | Spec § | Requirement | Impl | Test | Status |
 |--------|-------------|------|------|--------|
-| §Wordlist | Exact wordlist bytes | `cpu/src/bip39_wordlist.cpp` | `audit/test_bip39_wordlist_hash.cpp` | OK |
-| §Seed | PBKDF2-HMAC-SHA512(mnemonic, "mnemonic"+passphrase, 2048) | `cpu/src/bip39.cpp` | `audit/test_bip39_vectors.cpp` | OK |
+| §Wordlist | Exact wordlist bytes | `cpu/include/secp256k1/bip39_wordlist.hpp` | `audit/test_kat_all_operations.cpp` | OK |
+| §Seed | PBKDF2-HMAC-SHA512(mnemonic, "mnemonic"+passphrase, 2048) | `cpu/src/bip39.cpp` | `audit/test_kat_all_operations.cpp` | OK |
 
 ## NIST SP 800-186 (informative reference for secp256k1 absent)
 
@@ -158,12 +156,17 @@ count, because a missing tcId is more important than a passing one.
 
 | Wycheproof file | tcIds | Impl path | Test |
 |-----------------|-------|-----------|------|
-| `ecdsa_secp256k1_sha256_test.json` | all | `cpu/src/ecdsa.cpp` | `audit/test_wycheproof_ecdsa.cpp` |
-| `schnorr_secp256k1_sha256_test.json` | all | `cpu/src/schnorr.cpp` | `audit/test_wycheproof_schnorr.cpp` |
+| `ecdsa_secp256k1_sha256_test.json` | all | `cpu/src/ecdsa.cpp` | `audit/test_wycheproof_ecdsa_secp256k1_sha256.cpp` |
+| `ecdsa_secp256k1_sha256_p1363_test.json` | all | `cpu/src/ecdsa.cpp` | `audit/test_wycheproof_ecdsa_secp256k1_sha256_p1363.cpp` |
+| `ecdsa_secp256k1_sha512_test.json` | all | `cpu/src/ecdsa.cpp` | `audit/test_wycheproof_ecdsa_secp256k1_sha512.cpp` |
+| `ecdsa_secp256k1_sha512_p1363_test.json` | all | `cpu/src/ecdsa.cpp` | `audit/test_wycheproof_ecdsa_secp256k1_sha512_p1363.cpp` |
+| `ecdsa_bitcoin_test.json` | all | `cpu/src/ecdsa.cpp` | `audit/test_wycheproof_ecdsa_bitcoin.cpp` |
 | `ecdh_secp256k1_test.json` | all | `cpu/src/ecdh.cpp` | `audit/test_wycheproof_ecdh.cpp` |
+| `hkdf_sha256_test.json` | all | `cpu/src/hkdf.cpp` | `audit/test_wycheproof_hkdf_sha256.cpp` |
+| `hmac_sha256_test.json` | all | `cpu/src/hash_accel.cpp` | `audit/test_wycheproof_hmac_sha256.cpp` |
 
 The previously-broken Stark Bank class (tcId 346) is permanently
-regressed by `audit/test_exploit_starkbank_large_r.cpp`.
+regressed by `audit/test_wycheproof_ecdsa_bitcoin.cpp` (RR-004 closed).
 
 ---
 

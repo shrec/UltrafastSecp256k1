@@ -7,6 +7,49 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-04-21 (CAAS post-roadmap: SPEC matrix path reconciliation + strict-mode traceability gate)
+
+Post-batch-3 cleanup lands the final piece promised in the
+"Remaining" list of the previous entry:
+
+- `docs/SPEC_TRACEABILITY_MATRIX.md` — every `Impl` / `Test` cell
+  now points at a real file on disk. 62 placeholder/aspirational
+  paths replaced with verified paths across SEC 2, SEC 1 (ECDSA),
+  RFC 6979, BIP-340 Schnorr, BIP-32, BIP-324, BIP-341 Taproot,
+  BIP-352 Silent Payments, BIP-327 MuSig2, RFC 9591 FROST,
+  BIP-39, and the Wycheproof coverage table (now lists all 8
+  indexed Wycheproof JSON files).
+
+- `scripts/exploit_traceability_join.py` — flipped default from
+  advisory to **strict**. `--no-strict` is an escape hatch for
+  incremental path reconciliation; CI now calls the script without
+  arguments so any new row that references a non-existent path
+  fails the build.
+
+- `scripts/caas_runner.py` — new Stage `traceability` runs
+  `exploit_traceability_join.py` (strict by default) between the
+  scanner and the audit gate. CAAS pipeline goes from 5 stages to
+  6; the additional stage adds ~30ms to the run.
+
+Verified: `python3 scripts/caas_runner.py` → 6/6 PASS, total 6.5s.
+
+CAAS roadmap state post-fix:
+
+  11/11 gaps closed
+  6/6 CAAS stages passing strictly
+  0 advisory passes silently masking missing paths
+
+The remaining post-roadmap items are now narrowly:
+  * Wire INTEROP_MATRIX §3 references (OpenSSL/BoringSSL/WolfSSL/
+    NSS/Rust k256/Go btcd) as additional rows.
+  * Land GitLab CI + Codeberg/Woodpecker provider configs from
+    MULTI_CI_REPRODUCIBLE_BUILD §2.
+  * Implement the planned `audit_gate.py` sub-gates
+    (--threat-model, --residual-risk-register, --disclosure-sla,
+    --ct-tool-agreement).
+
+---
+
 ## 2026-04-21 (CAAS gap closure batch 3: G-4, G-7, G-8 — roadmap COMPLETE)
 
 Third and final CAAS gap-closure batch lands. With this commit, **all
